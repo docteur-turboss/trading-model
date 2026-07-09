@@ -4,7 +4,10 @@ import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import { logger } from "@trading-model/common/config/logger";
 import { normalizeError } from "@trading-model/common/utils/errors";
 
-import { generateKeyPairWithId, KeyAlgorithm } from "../keygen/generate-key-pair";
+import {
+	generateKeyPairWithId,
+	KeyAlgorithm,
+} from "../keygen/generate-key-pair";
 import type { KeyPair, KeyPairWithId } from "../types";
 
 export interface KeyVault {
@@ -20,7 +23,7 @@ export interface KeyVault {
 
 export class FileKeyVault implements KeyVault {
 	async generate(
-		algorithm: KeyAlgorithm = KeyAlgorithm.ecP384
+		algorithm: KeyAlgorithm = KeyAlgorithm.EcP384
 	): Promise<KeyPairWithId> {
 		return await generateKeyPairWithId(algorithm);
 	}

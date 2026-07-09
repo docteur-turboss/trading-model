@@ -17,13 +17,20 @@ export class RedisSubscriberManager {
 
 	private _setupReconnectHandler(subscriber: Redis, channel: string): void {
 		subscriber.on("reconnecting", () => {
-			logger.info("Redis subscriber reconnecting, will re-subscribe to channel", {
-				context: { channel },
-			});
+			logger.info(
+				"Redis subscriber reconnecting, will re-subscribe to channel",
+				{
+					context: { channel },
+				}
+			);
 		});
 	}
 
-	private _setupConnectHandler(subscriber: Redis, channel: string, unsubscribed: { value: boolean }): void {
+	private _setupConnectHandler(
+		subscriber: Redis,
+		channel: string,
+		unsubscribed: { value: boolean }
+	): void {
 		subscriber.on("connect", () => {
 			if (!unsubscribed.value) {
 				_doSubscribe(subscriber, channel).catch(() => {});
@@ -38,7 +45,9 @@ export class RedisSubscriberManager {
 		const subscriber = this._duplicateSubscriber();
 		const unsubscribed = { value: false };
 		const onMessage = (_ch: string, msg: string) => {
-			if (!unsubscribed.value) handler(msg);
+			if (!unsubscribed.value) {
+				handler(msg);
+			}
 		};
 		try {
 			await _doSubscribe(subscriber, channel);
@@ -49,7 +58,9 @@ export class RedisSubscriberManager {
 				subscriber,
 				channel,
 				onMessage,
-				onClose: () => { unsubscribed.value = true; },
+				onClose: () => {
+					unsubscribed.value = true;
+				},
 			});
 		} catch {
 			subscriber.quit().catch(() => {});

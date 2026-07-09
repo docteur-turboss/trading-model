@@ -13,8 +13,10 @@ export class NormalizationManager {
 	private readonly _handlerMap: Record<DataType, DataHandler>;
 
 	constructor(handlers?: DataHandler[]) {
-		const h = handlers ?? createDefaultHandlers();
-		this._handlerMap = Object.fromEntries(h.map((x) => [x.dataType, x])) as Record<DataType, DataHandler>;
+		const defaultHandlers = handlers ?? createDefaultHandlers();
+		this._handlerMap = Object.fromEntries(
+			defaultHandlers.map((handler) => [handler.dataType, handler])
+		) as Record<DataType, DataHandler>;
 	}
 
 	createNormStats(): SymbolNormalizers {

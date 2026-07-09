@@ -1,4 +1,4 @@
-import type { IncomingMessage } from "node:http";
+﻿import type { IncomingMessage } from "node:http";
 import type { Server as HttpsServer } from "node:https";
 import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
 import type WebSocket from "ws";
@@ -42,14 +42,10 @@ export class WssTransport {
 			return;
 		}
 		if (!this._tryRegisterConnection(ws, req)) {
-			return;
 		}
 	}
 
-	private _tryRegisterConnection(
-		ws: WebSocket,
-		req: IncomingMessage
-	): boolean {
+	private _tryRegisterConnection(ws: WebSocket, req: IncomingMessage): boolean {
 		const ctx = this._buildConnectionContext(ws, req);
 		if (!ctx) {
 			return false;

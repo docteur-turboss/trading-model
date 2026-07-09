@@ -33,7 +33,11 @@ import WebSocket from "ws";
 
 const MOCK_WEB_SOCKET = WebSocket as unknown as jest.Mock<any>;
 
-import type { IPAddress, Port } from "../../../src/domain/primitives";
+import type {
+	Capability,
+	IPAddress,
+	Port,
+} from "../../../src/domain/primitives";
 import { WorkerClient } from "../../../src/worker/worker-client";
 
 function getWs(): any {
@@ -79,7 +83,10 @@ describe("WorkerClient", () => {
 		client = new WorkerClient({
 			workerId: "test-worker",
 			serverUrl: "wss://scheduler:3000",
-			capabilities: ["type-a", "type-b"],
+			capabilities: [
+				"type-a" as unknown as Capability,
+				"type-b" as unknown as Capability,
+			],
 			maxConcurrency: 5,
 			heartbeatIntervalMs: 5000,
 		});
@@ -118,9 +125,12 @@ describe("WorkerClient", () => {
 				JSON.stringify({
 					type: "register",
 					workerId: "test-worker",
-					address: "" as IPAddress,
+					host: "" as IPAddress,
 					port: 0 as Port,
-					capabilities: ["type-a", "type-b"],
+					capabilities: [
+						"type-a" as unknown as Capability,
+						"type-b" as unknown as Capability,
+					],
 					maxConcurrency: 5,
 				})
 			);
@@ -342,7 +352,7 @@ describe("WorkerClient defaults and reconnection", () => {
 		client = new WorkerClient({
 			workerId: "default-hb",
 			serverUrl: "wss://scheduler:3000",
-			capabilities: ["type-a"],
+			capabilities: ["type-a" as unknown as Capability],
 			maxConcurrency: 3,
 		});
 
@@ -366,7 +376,7 @@ describe("WorkerClient defaults and reconnection", () => {
 		client = new WorkerClient({
 			workerId: "reconnect-test",
 			serverUrl: "wss://scheduler:3000",
-			capabilities: ["type-a"],
+			capabilities: ["type-a" as unknown as Capability],
 			maxConcurrency: 3,
 			heartbeatIntervalMs: 5000,
 			reconnectBaseDelayMs: 1000,
@@ -393,7 +403,7 @@ describe("WorkerClient defaults and reconnection", () => {
 		client = new WorkerClient({
 			workerId: "reconnect-fail",
 			serverUrl: "wss://scheduler:3000",
-			capabilities: ["type-a"],
+			capabilities: ["type-a" as unknown as Capability],
 			maxConcurrency: 3,
 			heartbeatIntervalMs: 5000,
 			reconnectBaseDelayMs: 100,
@@ -423,7 +433,7 @@ describe("WorkerClient defaults and reconnection", () => {
 		client = new WorkerClient({
 			workerId: "intentional-close",
 			serverUrl: "wss://scheduler:3000",
-			capabilities: ["type-a"],
+			capabilities: ["type-a" as unknown as Capability],
 			maxConcurrency: 3,
 			heartbeatIntervalMs: 5000,
 		});
@@ -450,7 +460,7 @@ describe("WorkerClient defaults and reconnection", () => {
 		client = new WorkerClient({
 			workerId: "reconnect-reject",
 			serverUrl: "wss://scheduler:3000",
-			capabilities: ["type-a"],
+			capabilities: ["type-a" as unknown as Capability],
 			maxConcurrency: 3,
 			reconnectBaseDelayMs: 100,
 		});

@@ -1,6 +1,6 @@
-import {
-	JOB_STATUS,
+﻿import {
 	type Job,
+	JobStatus,
 } from "@trading-model/common/contracts/recovery.types";
 import type {
 	InstanceId,
@@ -46,11 +46,13 @@ export class JobRepository {
 
 	async updateStatus(
 		jobId: JobId,
-		status: JOB_STATUS,
+		status: JobStatus,
 		extras?: import("@trading-model/common/contracts/recovery.types").JobUpdateExtras
 	): Promise<void> {
 		const current = await this._collection.findOne({ jobId });
-		if (!current) return;
+		if (!current) {
+			return;
+		}
 
 		const updateSet = this._statusUpdater.buildUpdateSet(status, extras);
 		const historyEntry = this._statusUpdater.buildHistoryEntry(
@@ -73,25 +75,25 @@ export class JobRepository {
 		const docs = await this._collection
 			.find({
 				status: {
-					$nin: [JOB_STATUS.COMPLETED, JOB_STATUS.FAILED, JOB_STATUS.CANCELLED],
+					$nin: [JobStatus.COMPLETED, JobStatus.FAILED, JobStatus.CANCELLED],
 				},
 			})
 			.toArray();
-		return docs.map((d) => this._mapper.fromDocument(d));
+		return docs.map((doc) => this._mapper.fromDocument(doc));
 	}
 
 	async findByWorker(
 		workerId: InstanceId,
-		statuses: JOB_STATUS[]
+		statuses: JobStatus[]
 	): Promise<Job[]> {
 		const docs = await this._collection
 			.find({ assignedWorkerId: workerId, status: { $in: statuses } })
 			.toArray();
-		return docs.map((d) => this._mapper.fromDocument(d));
+		return docs.map((doc) => this._mapper.fromDocument(doc));
 	}
 
-	async findByStatus(status: JOB_STATUS): Promise<Job[]> {
+	async findByStatus(status: JobStatus): Promise<Job[]> {
 		const docs = await this._collection.find({ status }).toArray();
-		return docs.map((d) => this._mapper.fromDocument(d));
+		return docs.map((doc) => this._mapper.fromDocument(doc));
 	}
 }

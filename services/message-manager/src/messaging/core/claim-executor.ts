@@ -1,10 +1,10 @@
-import type Redis from "ioredis";
+﻿import type Redis from "ioredis";
 
 import { logger } from "../../config/logger";
 import { getStreamClient } from "../../config/redis";
 import { ClaimLockManager } from "./claim-lock-manager";
-import { TopicClaimScanner } from "./topic-claim-scanner";
 import type { ClaimParams } from "./messaging-types";
+import { TopicClaimScanner } from "./topic-claim-scanner";
 
 export class ClaimExecutor {
 	private readonly _lockManager: ClaimLockManager;
@@ -15,9 +15,7 @@ export class ClaimExecutor {
 		this._topicScanner = new TopicClaimScanner(this._prefix);
 	}
 
-	async claimPendingMessages(
-		params: ClaimParams
-	): Promise<number> {
+	claimPendingMessages(params: ClaimParams): Promise<number> {
 		return this._doClaimPendingMessages({
 			groupName: params.groupName,
 			consumerId: params.consumerId,
@@ -26,9 +24,7 @@ export class ClaimExecutor {
 		});
 	}
 
-	async claimEntriesForRetry(
-		params: ClaimParams
-	): Promise<number> {
+	claimEntriesForRetry(params: ClaimParams): Promise<number> {
 		return this._doClaimPendingMessages({
 			groupName: params.groupName,
 			consumerId: params.consumerId,

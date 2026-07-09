@@ -1,4 +1,4 @@
-import type { Message } from "@trading-model/common/contracts/message.types";
+﻿import type { Message } from "@trading-model/common/contracts/message.types";
 import { ENV } from "../../config/env";
 import { MongoBatchWriter } from "./mongo-batch-writer";
 import { MongoIndexCreator } from "./mongo-index-creator";

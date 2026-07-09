@@ -1,6 +1,6 @@
-export enum DLQ_STATUS {
-	COMPLETED = "completed",
-	ABANDONED = "abandoned",
-	PENDING = "pending",
-	PROCESSING = "processing",
+﻿export enum DlqStatus {
+	Completed = "completed",
+	Abandoned = "abandoned",
+	Pending = "pending",
+	Processing = "processing",
 }

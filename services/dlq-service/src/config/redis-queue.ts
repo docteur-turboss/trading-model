@@ -19,7 +19,7 @@ export class DlqRedisQueue {
 		this._connection = new RedisConnection();
 	}
 
-	async connect(onReconnect?: () => void): Promise<boolean> {
+	connect(onReconnect?: () => void): Promise<boolean> {
 		return this._connection.connect(onReconnect);
 	}
 
@@ -75,7 +75,7 @@ export class DlqRedisQueue {
 		return true;
 	}
 
-	private async _getPopScriptHash(client: Redis): Promise<string> {
+	private _getPopScriptHash(client: Redis): Promise<string> {
 		return client.script("LOAD", DlqRedisQueue._POP_SCRIPT) as Promise<string>;
 	}
 

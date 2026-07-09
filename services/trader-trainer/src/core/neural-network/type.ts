@@ -59,6 +59,7 @@ export enum InitialisationType {
  * Optimizer enum re-exported from common (identical values).
  */
 import { Optimizer as OptimizerType } from "@trading-model/common/contracts/admin/training.dto";
+
 export { OptimizerType };
 
 /** Network topology and layer configuration. */
@@ -232,7 +233,6 @@ export interface LayerWeights {
 }
 
 export interface LayerMemory extends LayerWeights {
-
 	output: Float32Array;
 	preActivation: Float32Array;
 	delta: Float32Array;

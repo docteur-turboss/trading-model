@@ -1,5 +1,5 @@
 import { logger } from "@trading-model/common/config/logger";
-import { MessageManagerCircuitBreaker } from "../config/mm-circuit-breaker";
+import { CircuitStateMachine } from "@trading-model/common/reliability/circuit-state-machine";
 
 export interface ReplayOrchestratorConfig {
 	maxConcurrentBatches?: number;
@@ -10,14 +10,24 @@ export interface ReplayOrchestratorConfig {
 
 export class ReplayOrchestrator {
 	private readonly _maxConcurrentBatches: number;
-	private readonly _circuitBreaker: MessageManagerCircuitBreaker;
+	private readonly _circuitBreaker: CircuitStateMachine;
 	private _activeBatches = 0;
 
 	constructor(config: ReplayOrchestratorConfig = {}) {
 		this._maxConcurrentBatches = config.maxConcurrentBatches ?? 2;
-		this._circuitBreaker = new MessageManagerCircuitBreaker({
-			...config,
-			name: "replay",
+		this._circuitBreaker = new CircuitStateMachine({
+			failureThreshold: config.failureThreshold ?? 5,
+			cooldownMs: config.resetMs ?? 30_000,
+			halfOpenMaxAttempts: config.halfOpenMaxAttempts,
+			onOpen: (state) => {
+				logger.warn(
+					`replay circuit breaker ${state.previousState === "half-open" ? "re-opened during half-open" : "opened"}`,
+					{
+						failures: state.failures,
+						halfOpenAttempts: state.halfOpenAttempts,
+					}
+				);
+			},
 		});
 	}
 

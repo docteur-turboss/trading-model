@@ -4,7 +4,7 @@ import {
 	type MutateWeightsContext,
 	mutateWeights,
 } from "./evolution-engine";
-import type { GAControlGenome, Genome, LamarckGenome, PopMember } from "./genome-types";
+import type { GAControlGenome, LamarckGenome, PopMember } from "./genome-types";
 import { mutateGenome } from "./mutation";
 import { makePRNG } from "./prng";
 import { selectParent } from "./selection";
@@ -19,11 +19,11 @@ export function selectElites(
 		1,
 		Math.round(newCtrl.elitismFraction * newCtrl.populationSize)
 	);
-	return ranked
-		.slice(0, nElite)
-		.map((m) =>
-			withGenome(m.genome, { gaControl: newCtrl } as Partial<LamarckGenome>)
-		);
+	return ranked.slice(0, nElite).map((member) =>
+		withGenome(member.genome, {
+			gaControl: newCtrl,
+		} as Partial<LamarckGenome>)
+	);
 }
 
 interface ProduceOneOffspringParams {

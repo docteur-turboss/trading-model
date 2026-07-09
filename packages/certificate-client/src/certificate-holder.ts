@@ -12,7 +12,7 @@ export class CertificateHolder {
 	}
 
 	startAutoRenew(): void {
-		this._scheduler.scheduleRenew(this._cert);
+		void this._scheduler.scheduleRenew(this._cert);
 		this._scheduler.start();
 	}
 

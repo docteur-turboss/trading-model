@@ -16,6 +16,7 @@ export enum JobPriority {
 
 export enum JOB_STATUS {
 	PENDING = "pending",
+	IN_PROGRESS = "in_progress",
 	QUEUED = "queued",
 	ASSIGNED = "assigned",
 	RUNNING = "running",
@@ -47,6 +48,7 @@ export function isTerminalStatus(status: JOB_STATUS): boolean {
 
 const TRANSITIONS: Record<JOB_STATUS, ReadonlySet<JOB_STATUS>> = {
 	[JOB_STATUS.PENDING]: new Set([JOB_STATUS.QUEUED]),
+	[JOB_STATUS.IN_PROGRESS]: new Set([JOB_STATUS.COMPLETED, JOB_STATUS.FAILED]),
 	[JOB_STATUS.QUEUED]: new Set([JOB_STATUS.ASSIGNED]),
 	[JOB_STATUS.ASSIGNED]: new Set([JOB_STATUS.RUNNING, JOB_STATUS.ORPHANED]),
 	[JOB_STATUS.RUNNING]: new Set([
@@ -73,20 +75,16 @@ export interface StatusTransition {
 	to: JOB_STATUS;
 }
 
-export class JobStatusMachine {
-	static canTransition(from: JOB_STATUS, to: JOB_STATUS): boolean {
+export const JobStatusMachine = {
+	canTransition(from: JOB_STATUS, to: JOB_STATUS): boolean {
 		return TRANSITIONS[from]?.has(to) ?? false;
-	}
+	},
 
-	static canCancel(status: JOB_STATUS): boolean {
+	canCancel(status: JOB_STATUS): boolean {
 		return CANCELLABLE_FROM.has(status);
-	}
+	},
 
-	static transition(
-		from: JOB_STATUS,
-		to: JOB_STATUS,
-		reason?: string
-	): JobEvent {
+	transition(from: JOB_STATUS, to: JOB_STATUS, reason?: string): JobEvent {
 		if (to === JOB_STATUS.CANCELLED && !JobStatusMachine.canCancel(from)) {
 			throw new AppError(reason ?? `Cannot cancel job from ${from}`, {
 				code: "JobStatusError",
@@ -107,12 +105,12 @@ export class JobStatusMachine {
 			timestamp: new Date(),
 			reason: reason ?? "",
 		};
-	}
+	},
 
-	static isTerminal(status: JOB_STATUS): boolean {
+	isTerminal(status: JOB_STATUS): boolean {
 		return isTerminalStatus(status);
-	}
-}
+	},
+};
 
 export interface JobEvent {
 	transition: StatusTransition;

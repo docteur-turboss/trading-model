@@ -1,5 +1,5 @@
+﻿import { DeliveryMode } from "@trading-model/common/config/delivery-mode.types";
 import { isNonRetryableClientError } from "@trading-model/common/config/http-retry";
-import { DeliveryMode } from "@trading-model/common/config/delivery-mode.types";
 import { isDeadLetterError } from "@trading-model/common/utils/errors";
 
 interface DeliveryDecision {
@@ -55,8 +55,8 @@ function checkFatalClientError(
 
 function checkAtMostOnce(deliveryMode: DeliveryMode): DeliveryDecision | null {
 	if (
-		deliveryMode === DeliveryMode.AT_MOST_ONCE ||
-		deliveryMode === DeliveryMode.EXACTLY_ONCE
+		deliveryMode === DeliveryMode.AtMostOnce ||
+		deliveryMode === DeliveryMode.ExactlyOnce
 	) {
 		return { retry: false, deadLetterReason: "AT_MOST_ONCE" };
 	}

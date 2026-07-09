@@ -71,7 +71,7 @@ export class HttpClient {
 		});
 	}
 
-	private async _request<TResponse>(
+	private _request<TResponse>(
 		context: RequestContext<TResponse>
 	): Promise<TResponse | undefined> {
 		const route = this._executor.checkPreconditions(

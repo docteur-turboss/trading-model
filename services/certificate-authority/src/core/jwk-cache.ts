@@ -1,13 +1,5 @@
 import type { KeyObject } from "node:crypto";
 
-interface Jwk extends Record<string, string | undefined> {
-	kid?: string;
-	kty: string;
-	alg?: string;
-	use?: string;
-	crv?: string;
-}
-
 interface ParsedJwk {
 	kid: string;
 	key: KeyObject;

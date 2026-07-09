@@ -1,6 +1,13 @@
-import { Price, UnixTimestamp, Volume } from "@trading-model/common/domain/primitives";
+﻿import {
+	Price,
+	UnixTimestamp,
+	Volume,
+} from "@trading-model/common/domain/primitives";
 import type { CandleData } from "../../../infra/market-data/market-data.types";
-import { MarketType, SourceType } from "../../../infra/market-data/market-data.types";
+import {
+	MarketType,
+	SourceType,
+} from "../../../infra/market-data/market-data.types";
 import type { BinanceCandlestickDataResponse } from "../../../types/binance.api";
 import type { CandleQuery } from "./query-types";
 
@@ -19,7 +26,7 @@ export function normalizeCandles(
 		closeTimestamp: UnixTimestamp.of(candle.closeTime),
 		trades: candle.numberOfTrades,
 		timestamp: UnixTimestamp.of(candle.openTime),
-		source: SourceType.BINANCE,
-		market: MarketType.CRYPTO,
+		source: SourceType.Binance,
+		market: MarketType.Crypto,
 	}));
 }

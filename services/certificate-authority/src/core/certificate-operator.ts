@@ -34,7 +34,7 @@ export class CertificateOperator {
 
 		const signed = signCertificate(options);
 
-		await this._certificateStore.save(signed);
+		await this._certificateStore.insert(signed);
 
 		return signed;
 	}
@@ -57,7 +57,7 @@ export class CertificateOperator {
 			throw new Error(`Certificate ${request.serialNumber} not found`);
 		}
 		const revoked = this._buildRevokedCertificate(request, cert.serviceId);
-		await this._crlStore.save(revoked);
+		await this._crlStore.insert(revoked);
 	}
 
 	async getCrl(): Promise<RevokedCertificate[]> {

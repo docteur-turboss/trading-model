@@ -1,7 +1,7 @@
 import { logger } from "../config/logger";
 import { normalizeError } from "../utils/errors";
-import { HTTP_CODE, ResponseException } from "./response-exception";
 import { normalizeDbError } from "./normalize-db-error";
+import { HTTP_CODE, ResponseException } from "./response-exception";
 
 type FileHandle =
 	| "auth"

@@ -1,9 +1,9 @@
 import { randomUUID } from "node:crypto";
 import { Severity } from "@trading-model/common/contracts/admin/audit.dto";
 import {
-	toTopic,
-	toServiceId,
 	toCorrelationId,
+	toServiceId,
+	toTopic,
 	type UnixTimestamp,
 } from "@trading-model/common/domain/primitives";
 import { notifyAudit } from "../config/audit";

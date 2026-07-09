@@ -2,9 +2,7 @@ import type {
 	ServiceId,
 	UnixTimestamp,
 } from "@trading-model/common/domain/primitives";
-import {
-	CallRecordAggregator,
-} from "./call-record-aggregator";
+import { CallRecordAggregator } from "./call-record-aggregator";
 
 export interface CallRecord {
 	targetService: ServiceId;
@@ -56,7 +54,9 @@ export class ServiceCallTracker {
 
 	snapshot(): CallTrackerSnapshot {
 		const total = this._records.length;
-		if (total === 0) return EMPTY_SNAPSHOT;
+		if (total === 0) {
+			return EMPTY_SNAPSHOT;
+		}
 		return this._buildSnapshot(total);
 	}
 

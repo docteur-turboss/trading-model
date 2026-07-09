@@ -1,17 +1,19 @@
-import type { AddressManagerConfig } from "./config/address-manager-config";
-import { HeartbeatManager } from "./heartbeat-manager";
-import { type LifecycleManagerOptions, LifecycleManager } from "./lifecycle-manager";
-import { HEARTBEAT_TOTAL, REGISTRATION_TOTAL } from "./metrics";
-import { RegistrationAttemptHandler } from "./registration-attempt-handler";
-import { ShutdownHandler } from "./shutdown-handler";
 import type { AddressManagerClient } from "./client/address-manager-client";
 import type { TokenManager } from "./client/token-manager";
-import type { AddressManagerDeps } from "./types";
-import type { ShutdownHandlerDeps } from "./types";
+import type { WebSocketClient } from "./client/websocket-client";
+import type { AddressManagerConfig } from "./config/address-manager-config";
 import type { DiscoveryCircuitBreaker } from "./discovery/circuit-breaker";
 import type { IServiceCache } from "./discovery/service-cache.interface";
 import type { ServiceHealthChecker } from "./discovery/service-health-checker";
-import type { WebSocketClient } from "./client/websocket-client";
+import { HeartbeatManager } from "./heartbeat-manager";
+import {
+	LifecycleManager,
+	type LifecycleManagerOptions,
+} from "./lifecycle-manager";
+import { HEARTBEAT_TOTAL, REGISTRATION_TOTAL } from "./metrics";
+import { RegistrationAttemptHandler } from "./registration-attempt-handler";
+import { ShutdownHandler } from "./shutdown-handler";
+import type { AddressManagerDeps, ShutdownHandlerDeps } from "./types";
 
 export interface LifecycleDeps {
 	circuitBreaker: DiscoveryCircuitBreaker;
@@ -89,14 +91,15 @@ export function createLifecycleManager(
 		circuitBreaker: deps.circuitBreaker,
 	});
 
-	return new LifecycleManager(_buildLifecycleOptions(config, {
-		...deps, shutdownHandler,
-	}));
+	return new LifecycleManager(
+		_buildLifecycleOptions(config, {
+			...deps,
+			shutdownHandler,
+		})
+	);
 }
 
-export function buildRegistrationAndHeartbeat(
-	deps: AddressManagerDeps
-): {
+export function buildRegistrationAndHeartbeat(deps: AddressManagerDeps): {
 	registrationManager: RegistrationAttemptHandler;
 	heartbeatManager: HeartbeatManager;
 } {

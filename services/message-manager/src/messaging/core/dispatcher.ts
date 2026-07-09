@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Message dispatch coordinator.
  *
  * Maintains an in-memory registry of subscriptions per topic
@@ -41,7 +41,10 @@ export class Dispatcher {
 
 	async publish(
 		payload: unknown,
-		metadata: Omit<import("@trading-model/common/contracts/message.types").MessageMetadata, "emittedAt" | "messageId">
+		metadata: Omit<
+			import("@trading-model/common/contracts/message.types").MessageMetadata,
+			"emittedAt" | "messageId"
+		>
 	): Promise<string> {
 		const msg = this._messageFactory.create(payload, metadata);
 		await this.dispatch(msg);
@@ -70,7 +73,7 @@ export class Dispatcher {
 		const { topic } = message.metadata;
 		const subscriptions = this._registry.getSubscriptions(topic);
 		if (!subscriptions?.length) {
-			return undefined;
+			return;
 		}
 		return subscriptions;
 	}
@@ -113,12 +116,12 @@ export class Dispatcher {
 		return this._backpressureMonitor.getBackpressureRatio();
 	}
 
-	async handleAck(messageId: string, instanceId: string): Promise<void> {
-		return this._ackHandler.handleAck(messageId, instanceId);
+	handleAck(messageId: string, instanceId: string): void {
+		this._ackHandler.handleAck(messageId, instanceId);
 	}
 
-	async handleNack(messageId: string, instanceId: string): Promise<void> {
-		return this._ackHandler.handleNack(messageId, instanceId);
+	handleNack(messageId: string, instanceId: string): void {
+		this._ackHandler.handleNack(messageId, instanceId);
 	}
 
 	unsubscribe(params: TopicSubscription): void {

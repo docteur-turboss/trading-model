@@ -1,4 +1,4 @@
-import type { ServiceIdentity } from "@trading-model/common/contracts/message.types";
+﻿import type { ServiceIdentity } from "@trading-model/common/contracts/message.types";
 
 import type { HttpMessageDelivery } from "./http-message-delivery";
 import type { TopicSubscription } from "./messaging-types";

@@ -6,8 +6,15 @@ function _selectAlgorithm(nodeKey: KeyObject): string {
 	return nodeKey.asymmetricKeyType === "rsa" ? "RSA-SHA256" : "sha256";
 }
 
-function _signTbs(tbsBuffer: Buffer, nodeKey: KeyObject, algorithm: string): string {
-	return createSign(algorithm).update(tbsBuffer).sign(nodeKey).toString("binary");
+function _signTbs(
+	tbsBuffer: Buffer,
+	nodeKey: KeyObject,
+	algorithm: string
+): string {
+	return createSign(algorithm)
+		.update(tbsBuffer)
+		.sign(nodeKey)
+		.toString("binary");
 }
 
 /**

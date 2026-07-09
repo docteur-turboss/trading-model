@@ -37,7 +37,9 @@ function _resolveBiasInit(
 	);
 }
 
-export function mergeConfig(cfg: NeuralNetworkConfig): Required<NeuralNetworkConfig> {
+export function mergeConfig(
+	cfg: NeuralNetworkConfig
+): Required<NeuralNetworkConfig> {
 	return {
 		useBias: cfg.useBias ?? true,
 		deltaHuber: cfg.deltaHuber ?? 1,
@@ -116,8 +118,8 @@ function _buildLayerMemory(
 	};
 }
 
-function _validateLayerSize(sizes: number[], i: number): void {
-	if (sizes[i] <= 0 || sizes[i + 1] <= 0) {
+function _validateLayerSize(sizes: number[], layerIdx: number): void {
+	if (sizes[layerIdx] <= 0 || sizes[layerIdx + 1] <= 0) {
 		throw agentError("Layer sizes must be positive integers");
 	}
 }

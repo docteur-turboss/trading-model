@@ -1,10 +1,7 @@
 import { type Db, MongoClient } from "mongodb";
 import { logger } from "../config/logger";
-import {
-	createPoolOptions,
-	resolvePoolSize,
-} from "./mongo-utils";
 import { ConnectionManager } from "./connection-manager";
+import { createPoolOptions, resolvePoolSize } from "./mongo-utils";
 
 export interface MongoConnectionConfig {
 	uri: string;
@@ -20,7 +17,6 @@ export class MongoConnectionManager extends ConnectionManager<MongoClient> {
 	private _dbName: string;
 	private readonly _uri: string;
 	private readonly _poolSize: number;
-	private readonly _minPoolSize: number | undefined;
 
 	constructor(config: MongoConnectionConfig) {
 		const poolSize = resolvePoolSize(config.poolSize);

@@ -1,19 +1,19 @@
-import type { InstanceId } from "../domain/primitives";
 import type { ServiceInstanceName } from "../config/services.types";
+import type { InstanceId } from "../domain/primitives";
 
 /** Named references for audit event message keys. */
 export enum AuditEvent {
-	auditHeartbeat = "audit.heartbeat",
-	auditGapDetected = "audit.gap.detected",
+	AuditHeartbeat = "audit.heartbeat",
+	AuditGapDetected = "audit.gap.detected",
 }
 
 /** Maps audit event names to their associated payload types. */
 export interface AuditEventMap {
-	[AuditEvent.auditHeartbeat]: {
+	[AuditEvent.AuditHeartbeat]: {
 		serviceName: ServiceInstanceName;
 		instanceId: InstanceId;
 	};
-	[AuditEvent.auditGapDetected]: {
+	[AuditEvent.AuditGapDetected]: {
 		from: Date;
 		to: Date;
 		lostCount?: number;

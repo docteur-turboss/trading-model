@@ -1,9 +1,9 @@
+import { dlqRedisQueue } from "../config/redis-queue";
 import { stopAutoRetry } from "./auto-retry-scheduler";
 import { ClaimReleaseService } from "./claim-release-service";
-import { closeHttpClient } from "./shared/http-client-manager";
-import { dlqRedisQueue } from "../config/redis-queue";
 import { DlqPruner } from "./dlq-pruner";
 import { ReplayDrainService } from "./replay-drain-service";
+import { closeHttpClient } from "./shared/http-client-manager";
 import { setShuttingDown } from "./shared/shutdown-flag";
 
 const pruner = new DlqPruner();
@@ -18,11 +18,11 @@ function stopPeriodicPrune(): void {
 	pruner.stop();
 }
 
-async function pruneOldEntries(): Promise<number> {
+function pruneOldEntries(): Promise<number> {
 	return pruner.prune();
 }
 
-async function releaseStaleClaims(staleThresholdMs?: number): Promise<void> {
+function releaseStaleClaims(staleThresholdMs?: number): Promise<void> {
 	return claimRelease.releaseStale(staleThresholdMs);
 }
 
@@ -49,6 +49,6 @@ export {
 };
 
 /** Alias for shutdownSchedulers — consistent with ShutdownHandler.shutdown() naming. */
-export async function shutdown(): Promise<void> {
+export function shutdown(): Promise<void> {
 	return shutdownSchedulers();
 }

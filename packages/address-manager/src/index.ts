@@ -1,4 +1,5 @@
 import { HttpClient } from "@trading-model/common/config/http-client";
+import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import type { Application } from "express";
 
 import { AddressManagerClient } from "./client/address-manager-client";
@@ -72,7 +73,9 @@ export default class AddressManager {
 		return this._tokenManager.getToken();
 	}
 
-	async findService(serviceName: string): Promise<ServiceInstance> {
+	async findService(
+		serviceName: ServiceInstanceName
+	): Promise<ServiceInstance> {
 		return await this._serviceDiscovery.findService(serviceName);
 	}
 

@@ -1,8 +1,6 @@
 import { logger } from "@trading-model/common/config/logger";
-import {
-	MongoConnectionManager,
-} from "@trading-model/common/persistence/mongo-connection-manager";
-import { type Db, MongoClient } from "mongodb";
+import { MongoConnectionManager } from "@trading-model/common/persistence/mongo-connection-manager";
+import type { Db } from "mongodb";
 
 function _extractDbName(uri: string): string {
 	try {
@@ -42,36 +40,24 @@ class MongoManager {
 		return this._manager;
 	}
 
-	/** @deprecated Use getConnection() instead. */
-	getClient(): MongoClient {
-		const m = this._requireManager();
-		const client = m.getClient();
-		if (!client) {
-			throw new Error("MONGO_MANAGER not initialized");
-		}
-		return client;
+	getClient() {
+		return this._requireManager().getClient();
 	}
 
-	getDb(): Db {
-		const m = this._requireManager();
-		return m.getDb() as unknown as Db;
-	}
-
-	/** @deprecated Use isConnected() instead. */
-	isInitialized(): boolean {
-		return this._manager?.isConnected() ?? false;
+	getDb(): Promise<Db> {
+		return this._requireManager().getDb();
 	}
 
 	isConnected(): boolean {
 		return this._manager?.isConnected() ?? false;
 	}
 
-	getPoolSize(): number {
-		return this._manager?.poolSize ?? 0;
+	getConnection() {
+		return this._requireManager().getConnection();
 	}
 
-	getConnection(): Promise<MongoClient> {
-		return this._requireManager().getConnection();
+	get poolSize(): number {
+		return this._manager?.poolSize ?? 0;
 	}
 
 	async tryReconnect(): Promise<boolean> {

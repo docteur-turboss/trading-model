@@ -1,6 +1,10 @@
 import type { Collection } from "mongodb";
 import { MongoLockExecutor } from "../mongo-lock-executor";
-import type { LockBackend, LockContext, LockDocument } from "./lock-backend-interface";
+import type {
+	LockBackend,
+	LockContext,
+	LockDocument,
+} from "./lock-backend-interface";
 
 export class MongoLockBackend implements LockBackend {
 	private _connected = false;

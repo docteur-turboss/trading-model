@@ -1,4 +1,4 @@
-import type { MongoClient } from "mongodb";
+﻿import type { MongoClient } from "mongodb";
 
 export interface MongoCollectionConfig {
 	client: MongoClient;

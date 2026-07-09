@@ -32,7 +32,7 @@ export class GeneticAlgorithmRunner {
 		this._processor.initialise(baseControl);
 	}
 
-	public async runGeneration(startTime?: number): Promise<GenerationContext> {
+	public runGeneration(startTime?: number): Promise<GenerationContext> {
 		return this._processor.runGeneration(startTime);
 	}
 

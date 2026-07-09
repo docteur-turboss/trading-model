@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file broker.type.ts
  *
  * @description

@@ -5,17 +5,20 @@ const MOCK_ADDRESS_MANAGER = {
 	listenExpress: jest.fn(),
 };
 
-jest.mock("@trading-model/address-manager/create-service-address-manager", () => {
-	const am = MOCK_ADDRESS_MANAGER;
-	return {
-		createServiceAddressManager: jest.fn(() => ({
-			AddressManager: am,
-			BOOTSTRAP_ADDRESS_MANAGER: am.start,
-			ADDRESS_MANAGER_ROUTES: am.listenExpress,
-			FIND_A_SERVICE: am.findService,
-		})),
-	};
-});
+jest.mock(
+	"@trading-model/address-manager/create-service-address-manager",
+	() => {
+		const am = MOCK_ADDRESS_MANAGER;
+		return {
+			createServiceAddressManager: jest.fn(() => ({
+				AddressManager: am,
+				BOOTSTRAP_ADDRESS_MANAGER: am.start,
+				ADDRESS_MANAGER_ROUTES: am.listenExpress,
+				FIND_A_SERVICE: am.findService,
+			})),
+		};
+	}
+);
 
 jest.mock("../../../src/config/env", () => ({
 	ENV: {

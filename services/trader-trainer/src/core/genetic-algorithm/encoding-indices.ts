@@ -1,3 +1,5 @@
+import { ActivationType, ConnectionType } from "../neural-network/type";
+
 export const ENCODING_OFFSETS = {
 	Gamma: 0,
 	LearningRate: 1,
@@ -23,15 +25,35 @@ export const ENCODING_OFFSETS = {
 	NetworkOutputDim: 21,
 	NetworkDepth: 22,
 } as const;
+type ScalarField = keyof typeof ENCODING_OFFSETS;
 
 export const SCALAR_DIM = 23;
 export const MAX_DEPTH = 12;
 const LAYER_STRIDE = 3;
 
-import {
-	ActivationType,
-	ConnectionType,
-} from "../neural-network/type";
+function assertOffset(offset: number): void {
+	if (offset < 0 || offset >= SCALAR_DIM) {
+		throw new RangeError(
+			`Scalar offset ${offset} out of range [0, ${SCALAR_DIM})`
+		);
+	}
+}
+
+export function readScalar(arr: Float32Array, field: ScalarField): number {
+	const offset = ENCODING_OFFSETS[field];
+	assertOffset(offset);
+	return arr[offset];
+}
+
+export function writeScalar(
+	arr: Float32Array,
+	field: ScalarField,
+	value: number
+): void {
+	const offset = ENCODING_OFFSETS[field];
+	assertOffset(offset);
+	arr[offset] = value;
+}
 
 export const ACTIVATIONS: ActivationType[] = [
 	ActivationType.Relu,
@@ -50,6 +72,14 @@ export const CONNECTION_TYPES: ConnectionType[] = [
 	ConnectionType.ResidualConnection,
 ];
 
+export function activationFromIndex(idx: number): ActivationType {
+	return ACTIVATIONS[idx] ?? ACTIVATIONS[0];
+}
+
+export function connectionTypeFromIndex(idx: number): ConnectionType {
+	return CONNECTION_TYPES[idx] ?? CONNECTION_TYPES[0];
+}
+
 export function encodedDim(hiddenLayerCount: number): number {
 	return SCALAR_DIM + hiddenLayerCount * LAYER_STRIDE;
 }
@@ -64,7 +94,10 @@ export interface EncodedLayer {
 	connectionTypeIdx: number;
 }
 
-export function readEncodedLayer(arr: Float32Array, offset: number): EncodedLayer {
+export function readEncodedLayer(
+	arr: Float32Array,
+	offset: number
+): EncodedLayer {
 	return {
 		neurons: arr[offset],
 		activationIdx: Math.round(arr[offset + 1]),
@@ -72,7 +105,11 @@ export function readEncodedLayer(arr: Float32Array, offset: number): EncodedLaye
 	};
 }
 
-export function writeEncodedLayer(arr: Float32Array, offset: number, layer: EncodedLayer): void {
+export function writeEncodedLayer(
+	arr: Float32Array,
+	offset: number,
+	layer: EncodedLayer
+): void {
 	arr[offset] = layer.neurons;
 	arr[offset + 1] = layer.activationIdx;
 	arr[offset + 2] = layer.connectionTypeIdx;

@@ -9,11 +9,21 @@ export class HeartbeatFailureHandler {
 
 	constructor(private readonly _deps: AddressManagerDeps) {}
 
-	async handleError(err: unknown, onSuccess?: () => void, onFailure?: () => void): Promise<void> {
+	async handleError(
+		err: unknown,
+		onSuccess?: () => void,
+		onFailure?: () => void
+	): Promise<void> {
 		onFailure?.();
 		this._consecutiveHeartbeatFailures++;
-		logger.error("Heartbeat failed", { consecutiveFailures: this._consecutiveHeartbeatFailures, error: normalizeError(err) });
-		if (this._consecutiveHeartbeatFailures >= MAX_HEARTBEAT_FAILURES_BEFORE_RE_REGISTER) {
+		logger.error("Heartbeat failed", {
+			consecutiveFailures: this._consecutiveHeartbeatFailures,
+			error: normalizeError(err),
+		});
+		if (
+			this._consecutiveHeartbeatFailures >=
+			MAX_HEARTBEAT_FAILURES_BEFORE_RE_REGISTER
+		) {
 			this._consecutiveHeartbeatFailures = 0;
 			await this._forceReRegistration(onSuccess);
 		}
@@ -30,7 +40,9 @@ export class HeartbeatFailureHandler {
 	}
 
 	private async _handleHeartbeatFailure(): Promise<void> {
-		if (!this._deps.addressManagerClient.hasIpChanged()) return;
+		if (!this._deps.addressManagerClient.hasIpChanged()) {
+			return;
+		}
 		logger.warn("Local IP changed, re-registering service");
 		await this._tryReRegistration();
 	}

@@ -1,4 +1,4 @@
-import { CandleInterval } from "@trading-model/common/config/event.types";
+﻿import { CandleInterval } from "@trading-model/common/config/event.types";
 
 import {
 	get24hrTickerStats,
@@ -8,7 +8,10 @@ import {
 	getRecentTrades,
 	getSymbolPriceTicker,
 } from "../../clients/binance/binance.client";
-import { type CandleQuery, BinanceNormalizer } from "../../clients/binance/normalizer";
+import {
+	BinanceNormalizer,
+	type CandleQuery,
+} from "../../clients/binance/normalizer";
 import type {
 	BinanceWorkerOptions,
 	BinanceWorkerResult,
@@ -23,7 +26,7 @@ export interface RawBinanceData {
 	bookTickerRaw: Awaited<ReturnType<typeof getOrderBookTicker>>;
 }
 
-export async function fetchAllRawData(
+export function fetchAllRawData(
 	opts: BinanceWorkerOptions
 ): Promise<RawBinanceData> {
 	const {
@@ -32,15 +35,10 @@ export async function fetchAllRawData(
 		tradeLimit = 100,
 		orderBookLimit = 100,
 	} = opts;
-	const interval = opts.interval ?? CandleInterval.MIN1;
+	const interval = opts.interval ?? CandleInterval.Min1;
 	const query: CandleQuery = { symbol, interval };
 
-	return _fetchBinanceData(
-		query,
-		candleLimit,
-		tradeLimit,
-		orderBookLimit
-	);
+	return _fetchBinanceData(query, candleLimit, tradeLimit, orderBookLimit);
 }
 
 async function _fetchBinanceData(

@@ -1,4 +1,4 @@
-import { toInstanceId, toTopic } from "@trading-model/common/domain/primitives";
+﻿import { toInstanceId, toTopic } from "@trading-model/common/domain/primitives";
 import type Redis from "ioredis";
 
 import { LEASE_HEARTBEAT_FIELD } from "./messaging-constants";

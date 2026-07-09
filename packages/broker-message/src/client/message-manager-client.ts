@@ -11,10 +11,11 @@ import {
 	serviceUnreachableError,
 } from "@trading-model/common/utils/errors";
 import type { MessageManagerConfig } from "../shared/types/config";
+import type { IPublishClient } from "./i-publish-client";
 import { TopicSubscriptionService } from "./topic-subscription-service";
 
 /** Client for interacting with the Message Delivery Service via HTTP. */
-export class MessageManagerClient {
+export class MessageManagerClient implements IPublishClient {
 	private _subscriptionService: TopicSubscriptionService;
 
 	constructor(
@@ -29,20 +30,20 @@ export class MessageManagerClient {
 		);
 	}
 
-	async subscribeToTopics(topics: EventEnumMap[]): Promise<void> {
+	subscribeToTopics(topics: EventEnumMap[]): Promise<void> {
 		return this._subscriptionService.subscribeToTopics(topics);
 	}
 
-	async unSubscribeToTopic(topics: EventEnumMap[]): Promise<void> {
+	unSubscribeToTopic(topics: EventEnumMap[]): Promise<void> {
 		return this._subscriptionService.unSubscribeToTopic(topics);
 	}
 
-	private async _findService(
-		service: ServiceInstanceName
-	): Promise<HostPort> {
+	private async _findService(service: ServiceInstanceName): Promise<HostPort> {
 		const target = await this._addressManagerClient.findService(service);
 		if (!target) {
-			throw serviceUnreachableError(`Unable to contact the service: ${service}`);
+			throw serviceUnreachableError(
+				`Unable to contact the service: ${service}`
+			);
 		}
 		return target;
 	}
@@ -65,6 +66,13 @@ export class MessageManagerClient {
 		throw messageManagerError(`Failed to publish message to ${service}`, {
 			cause: normalizeError(error),
 		});
+	}
+
+	publish<TPayload = unknown>(
+		payload: TPayload,
+		metadata: MessageMetadata
+	): Promise<void> {
+		return this.publishAsyncMessage(payload, metadata);
 	}
 
 	async publishAsyncMessage<TPayload = unknown>(

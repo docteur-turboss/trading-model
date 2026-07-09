@@ -1,4 +1,4 @@
-import type { ServiceIdentity } from "@trading-model/common/contracts/message.types";
+﻿import type { ServiceIdentity } from "@trading-model/common/contracts/message.types";
 import { ENV } from "../../config/env";
 import { getSubscriptionClient } from "../../config/redis";
 import { InstanceLifecycleManager } from "./instance-lifecycle-manager";

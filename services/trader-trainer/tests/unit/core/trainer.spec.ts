@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
+import { createBounded } from "../../../src/core/genetic-algorithm/bounded";
 import {
 	ActivationType,
 	ConnectionType,
@@ -13,7 +14,6 @@ import {
 	NormalisationType,
 	SelectionType,
 } from "../../../src/core/genetic-algorithm/genome";
-import { createBounded } from "../../../src/core/genetic-algorithm/bounded";
 import type { LamarckGenome } from "../../../src/core/genetic-algorithm/genome-types";
 import type { DeepReadonly } from "../../../src/core/genetic-algorithm/shared-types";
 import { MarketDataBuffer } from "../../../src/core/market-data-buffer";

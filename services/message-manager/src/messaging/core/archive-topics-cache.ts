@@ -1,4 +1,4 @@
-import { TimerHandle } from "@trading-model/common/utils/timer-handle";
+﻿import { TimerHandle } from "@trading-model/common/utils/timer-handle";
 import { ENV } from "../../config/env";
 
 export class ArchiveTopicsCache {

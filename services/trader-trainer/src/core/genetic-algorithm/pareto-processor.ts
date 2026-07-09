@@ -1,7 +1,11 @@
-import type { GenomeFitnessMeta, LamarckGenome, PopMember } from "./genome-types";
+import type {
+	GenomeFitnessMeta,
+	LamarckGenome,
+	PopMember,
+} from "./genome-types";
 import type { ObjectiveVector, PopulationMeta } from "./nsga2";
 import { buildPopulationMeta } from "./nsga2";
-import { type DeepReadonly } from "./shared-types";
+import type { DeepReadonly } from "./shared-types";
 
 export function buildParetoFronts(
 	updatedPop: DeepReadonly<LamarckGenome>[],
@@ -23,7 +27,7 @@ export function buildParetoFronts(
 	}));
 
 	const avgFit =
-		popWithMeta.reduce((sum, m) => sum + m.fitness, 0) /
+		popWithMeta.reduce((sum, member) => sum + member.fitness, 0) /
 		popWithMeta.length;
 	const avgEff =
 		metas.reduce((sum, meta) => sum + meta.efficiencyScore, 0) / metas.length;

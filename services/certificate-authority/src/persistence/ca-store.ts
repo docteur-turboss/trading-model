@@ -9,16 +9,16 @@ export class CaStore {
 		this._collection = collection;
 	}
 
-	static async connect(_uri?: string): Promise<CaStore> {
+	static connect(_uri?: string): Promise<CaStore> {
 		const db = MONGO_MANAGER.getDb();
 		const collection = db.collection("ca_store");
-		return new CaStore(collection);
+		return Promise.resolve(new CaStore(collection));
 	}
 
 	/** Connection lifecycle is managed externally by MONGO_MANAGER. */
 	async disconnect(): Promise<void> {}
 
-	async save(metadata: CaMetadata): Promise<void> {
+	async insert(metadata: CaMetadata): Promise<void> {
 		await this._collection.insertOne(metadata);
 	}
 

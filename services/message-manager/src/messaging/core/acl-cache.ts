@@ -1,4 +1,4 @@
-const ACL_CACHE_TTL_MS = 300_000;
+﻿const ACL_CACHE_TTL_MS = 300_000;
 const ACL_CACHE_MAX_SIZE = 1000;
 const ACL_CACHE = new Map<string, { services: string[]; expiresAt: number }>();
 const ACL_LOADING = new Map<string, Promise<string[] | "deny">>();
@@ -63,7 +63,7 @@ async function _waitForInFlight(
 ): Promise<string[] | "deny" | undefined> {
 	const inFlight = peekInFlight(topic);
 	if (!inFlight) {
-		return undefined;
+		return;
 	}
 	await inFlight;
 	const fromCache = getFromCache(topic);

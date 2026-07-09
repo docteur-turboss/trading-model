@@ -1,12 +1,12 @@
-import type { MutationGenome, RLGenome } from "../genome-types";
 import { createBounded } from "../bounded";
+import type { MutationGenome, RLGenome } from "../genome-types";
 import { sampleGaussian, sampleNoise } from "../noise";
 import { clamp } from "../utils";
 
 export interface MutateRLContext {
 	rl: RLGenome;
 	mutation: MutationGenome;
-	_sigma: number;
+	sigma: number;
 	rng: () => number;
 }
 
@@ -59,7 +59,7 @@ function _mutateRewardShaping(
 			...rl.rewardShaping,
 			clipBounds: createBounded(
 				perturb(rl.rewardShaping.clipBounds.min, 0.1),
-				perturb(rl.rewardShaping.clipBounds.max, 0.1),
+				perturb(rl.rewardShaping.clipBounds.max, 0.1)
 			),
 			scaleFactor: Math.max(0.01, perturb(rl.rewardShaping.scaleFactor, 0.1)),
 		},

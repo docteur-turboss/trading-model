@@ -1,14 +1,15 @@
 import { logger } from "../config/logger";
-import { deliverEntry } from "./delivery-executor";
-import { getHttpClient } from "./shared/http-client-manager";
 import {
 	checkBatchRejection,
 	decrementActiveBatches,
 	incrementActiveBatches,
 	recordBatchResult,
 } from "./batch-concurrency-guard";
+import { deliverEntry } from "./delivery-executor";
+import { getHttpClient } from "./shared/http-client-manager";
 import type {
 	BatchReplayContext,
+	BatchResult,
 	DlqEntryRef,
 	DlqError,
 	ReplayBatchOptions,
@@ -37,16 +38,16 @@ async function replaySingleEntry(
 		if (ctx.isTimedOut()) {
 			throw err;
 		}
-		await _handleEntryFailure(entry, ctx, err);
+		_handleEntryFailure(entry, ctx, err);
 		throw err;
 	}
 }
 
-async function _handleEntryFailure(
+function _handleEntryFailure(
 	entry: DlqEntryRef,
 	ctx: ReplayContext,
 	err: unknown
-): Promise<void> {
+): void {
 	const httpError = (err as Error).message;
 	ctx.errors.push({
 		id: entry.id,
@@ -124,7 +125,7 @@ function waitForBatchTimeout(
 async function _runBatchWithTimeout(
 	entries: DlqEntryRef[],
 	ctxBase: BatchReplayContext
-): Promise<{ success: number; errors: DlqError[] }> {
+): Promise<BatchResult> {
 	const ReplayConcurrency = 10;
 	const ReplayBatchTimeoutMs = 120_000;
 
@@ -174,11 +175,16 @@ async function _drainBatchLoop(batchLoop: Promise<void>): Promise<void> {
 	}
 }
 
-export type { DlqEntryRef, DlqError, ReplayBatchOptions } from "./types";
+export type {
+	BatchResult,
+	DlqEntryRef,
+	DlqError,
+	ReplayBatchOptions,
+} from "./types";
 
 export async function doReplayBatch(
 	options: ReplayBatchOptions
-): Promise<{ success: number; errors: DlqError[] }> {
+): Promise<BatchResult> {
 	const rejection = checkBatchRejection(options.entries, options.batchId);
 	if (rejection) {
 		return rejection;
@@ -194,7 +200,7 @@ export async function doReplayBatch(
 
 async function _executeBatch(
 	options: ReplayBatchOptions
-): Promise<{ success: number; errors: DlqError[] }> {
+): Promise<BatchResult> {
 	const client = await getHttpClient();
 	const { success, errors } = await _runBatchWithTimeout(options.entries, {
 		client,

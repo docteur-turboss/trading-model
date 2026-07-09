@@ -5,6 +5,11 @@ import {
 import { KeyAlgorithm } from "@trading-model/certificate-utils/generate-key-pair";
 import type { KeyPair } from "@trading-model/certificate-utils/types";
 
+export interface SigningRequest {
+	keyPair: KeyPair;
+	csr: string;
+}
+
 export interface KeyGeneratorConfig {
 	keyAlgorithm?: KeyAlgorithm;
 	commonName: string;
@@ -14,12 +19,9 @@ export interface KeyGeneratorConfig {
 export class KeyGenerator {
 	constructor(private readonly _config: KeyGeneratorConfig) {}
 
-	async generateKeyAndCsr(): Promise<{
-		keyPair: KeyPair;
-		csr: string;
-	}> {
+	async generateKeyAndCsr(): Promise<SigningRequest> {
 		const keyPair = await generateKeyPairAsync(
-			this._config.keyAlgorithm ?? KeyAlgorithm.ecP384
+			this._config.keyAlgorithm ?? KeyAlgorithm.EcP384
 		);
 		const csr = await createCsrAsync({
 			commonName: this._config.commonName,

@@ -1,4 +1,4 @@
-import type { HttpClient } from "@trading-model/common/config/http-client";
+﻿import type { HttpClient } from "@trading-model/common/config/http-client";
 import { HttpMethod } from "@trading-model/common/contracts/signed-request";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import { logger } from "../../config/logger";
@@ -24,7 +24,7 @@ export class DlqDeleteHandler {
 			`${this._serviceUrl}/dlq/delete`,
 			body,
 			signedOptions({
-				method: HttpMethod.POST,
+				method: HttpMethod.Post,
 				path: "/dlq/delete",
 				body,
 				extra: { timeoutMs: 5000 },

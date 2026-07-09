@@ -24,10 +24,10 @@ export class BackendPingManager {
 	}
 
 	async pingBackend(): Promise<boolean> {
-		const b = this._backend as { ping?: () => Promise<boolean> };
-		if (typeof b.ping === "function") {
+		const backend = this._backend as { ping?: () => Promise<boolean> };
+		if (typeof backend.ping === "function") {
 			try {
-				return await b.ping();
+				return await backend.ping();
 			} catch {
 				return false;
 			}

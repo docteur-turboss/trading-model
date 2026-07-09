@@ -1,5 +1,6 @@
 import type { JobId } from "@trading-model/common/domain/primitives";
 import type { Job, QueuedJob } from "../types/job.types";
+import { JobState } from "../types/job.types";
 
 export class InternalQueue {
 	private readonly _queues: Map<number, QueuedJob[]> = new Map();
@@ -17,7 +18,7 @@ export class InternalQueue {
 		}
 		this._queues.get(priority)!.push({
 			job,
-			state: "queued",
+			state: JobState.Queued,
 			deliveryAttempts: 0,
 			expiresAt: 0,
 		});

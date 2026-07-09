@@ -22,7 +22,7 @@ export class CertRenewScheduler {
 		this._renewTimer.stop();
 	}
 
-	private async _schedule(): Promise<void> {
+	private _schedule(): void {
 		this._setupTimer(this._renewMarginMs);
 	}
 
@@ -37,10 +37,10 @@ export class CertRenewScheduler {
 		}, delay);
 	}
 
-	scheduleRenew(cert: ObtainedCertificate): void {
+	async scheduleRenew(cert: ObtainedCertificate): Promise<void> {
 		const remaining = cert.expiresAt.getTime() - Date.now();
 		if (remaining <= this._renewMarginMs) {
-			this._handleExpired();
+			await this._handleExpired();
 			return;
 		}
 		const delay = remaining - this._renewMarginMs;
@@ -54,7 +54,7 @@ export class CertRenewScheduler {
 		} catch (err) {
 			logger.error("Certificate renewal failed", { err });
 		}
-		await this._schedule();
+		this._schedule();
 	}
 
 	private _logScheduled(delay: number, cert: ObtainedCertificate): void {

@@ -4,6 +4,7 @@
  */
 
 import type { DeliveryMode } from "../config/delivery-mode.types";
+import type { EventEnumMap } from "../config/event.types";
 import type {
 	CorrelationId,
 	DurationMs,
@@ -17,7 +18,6 @@ import type {
 } from "../domain/primitives";
 import type { ServiceIdentity as DomainServiceIdentity } from "../domain/service-identity";
 import type { Signature } from "./signed-request";
-import type { EventEnumMap } from "../config/event.types";
 
 /**
  * Identity of a service instance within the broker system.

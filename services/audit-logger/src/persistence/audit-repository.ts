@@ -4,7 +4,13 @@ import type {
 	PaginationQuery,
 	PaginationResult,
 } from "@trading-model/common/domain/pagination";
-import type { ServiceId, Topic } from "@trading-model/common/domain/primitives";
+import type {
+	CorrelationId,
+	InstanceId,
+	MessageId,
+	ServiceId,
+	Topic,
+} from "@trading-model/common/domain/primitives";
 import { agentError } from "@trading-model/common/utils/errors";
 import type { Collection, Db } from "mongodb";
 import { AuditQuerier } from "./audit-querier";
@@ -15,9 +21,9 @@ export interface AuditEventDocument {
 		topic: Topic;
 		eventType: string;
 		publisher: ServiceId;
-		instanceId: string;
-		messageId: string;
-		correlationId?: string;
+		instanceId: InstanceId;
+		messageId: MessageId;
+		correlationId?: CorrelationId;
 	};
 	payload: unknown;
 }
@@ -80,17 +86,15 @@ export class AuditRepository {
 		}
 	}
 
-	async findById(messageId: string): Promise<AuditEventDocument | null> {
+	findById(messageId: string): Promise<AuditEventDocument | null> {
 		return this._querier.findById(messageId);
 	}
 
-	async query(
-		query: AuditEventQuery
-	): Promise<PaginationResult<AuditEventDocument>> {
+	query(query: AuditEventQuery): Promise<PaginationResult<AuditEventDocument>> {
 		return this._querier.query(query);
 	}
 
-	async getStats(): Promise<AuditStats> {
+	getStats(): Promise<AuditStats> {
 		return this._querier.getStats();
 	}
 }

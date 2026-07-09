@@ -11,8 +11,8 @@ type DeepReadonly<TValue> = TValue extends (infer UItem)[]
 		? { readonly [KKey in keyof TValue]: DeepReadonly<TValue[KKey]> }
 		: TValue;
 
-const FLOP_SOFT_CAP_MACS_MACS = 5_000_000;
-const MEM_SOFT_CAP_MB_MB = 200_000_000;
+const FlopSoftCapMacs = 5_000_000;
+const MemSoftCapMb = 200_000_000;
 
 type ActivationName = ActivationType | "linear" | "swish";
 
@@ -65,8 +65,8 @@ function _computePenalty(
 	paramBytes: number,
 	replayBytes: number
 ): number {
-	const flopPenalty = Math.min(1, effectiveFlops / FLOP_SOFT_CAP_MACS);
-	const memPenalty = Math.min(1, (paramBytes + replayBytes) / MEM_SOFT_CAP_MB);
+	const flopPenalty = Math.min(1, effectiveFlops / FlopSoftCapMacs);
+	const memPenalty = Math.min(1, (paramBytes + replayBytes) / MemSoftCapMb);
 	return 0.6 * flopPenalty + 0.4 * memPenalty;
 }
 

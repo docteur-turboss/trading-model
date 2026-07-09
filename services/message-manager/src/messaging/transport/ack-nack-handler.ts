@@ -1,13 +1,13 @@
-import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
+﻿import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
 import type WebSocket from "ws";
 import type { Dispatcher } from "../core/dispatcher";
-import type { IncomingWssMessage } from "./wss-message.types";
+import type { WsTransportMessage } from "./wss-message.types";
 
 export class AckNackHandler {
 	constructor(private readonly _dispatcher: Dispatcher) {}
 
 	handleAck(
-		msg: IncomingWssMessage,
+		msg: WsTransportMessage,
 		ws: WebSocket,
 		ctx: { identity: ServiceIdentity }
 	): void {
@@ -23,7 +23,7 @@ export class AckNackHandler {
 	}
 
 	handleNack(
-		msg: IncomingWssMessage,
+		msg: WsTransportMessage,
 		ws: WebSocket,
 		ctx: { identity: ServiceIdentity }
 	): void {

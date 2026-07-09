@@ -1,7 +1,7 @@
-import type { ICache } from "./cache";
+import type { ISyncCache } from "./cache";
 import type { CacheConfig } from "./cache-config";
 
-export class LruCache<TValue> implements ICache<TValue> {
+export class LruCache<TValue> implements ISyncCache<TValue> {
 	private readonly _maxSize: number;
 	private readonly _ttlMs: number;
 	private readonly _store = new Map<
@@ -38,10 +38,7 @@ export class LruCache<TValue> implements ICache<TValue> {
 		return this._touchAndReturn(key, entry);
 	}
 
-	private _isExpired(entry: {
-		value: TValue;
-		expiresAt: number;
-	}): boolean {
+	private _isExpired(entry: { value: TValue; expiresAt: number }): boolean {
 		return this._ttlMs > 0 && Date.now() > entry.expiresAt;
 	}
 

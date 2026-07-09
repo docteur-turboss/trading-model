@@ -4,4 +4,3 @@ export type {
 	NonceDocument,
 	NoncePersistence,
 } from "./nonce-persistence.interface";
-

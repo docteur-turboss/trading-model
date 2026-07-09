@@ -1,5 +1,5 @@
 import { Volume } from "@trading-model/common/domain/primitives";
-import { TradeAction, ActionSpace } from "./action-types";
+import { ActionSpace, TradeAction } from "./action-types";
 
 export interface ActionMap {
 	action: TradeAction;
@@ -14,7 +14,10 @@ export interface ActionMapperConfig {
 type ActionSpaceStrategy = (output: Float32Array, amount: Volume) => ActionMap;
 
 const ACTION_SPACE_STRATEGIES: Record<ActionSpace, ActionSpaceStrategy> = {
-	[ActionSpace.Continuous]: (output: Float32Array, amount: Volume): ActionMap => {
+	[ActionSpace.Continuous]: (
+		output: Float32Array,
+		amount: Volume
+	): ActionMap => {
 		const val = output[0] ?? 0;
 		if (val > 0.25) {
 			return {
@@ -62,7 +65,8 @@ export class ActionMapper {
 		const space = this._config.actionSpace ?? ActionSpace.Discrete;
 		const amount = this._config.tradeAmount ?? Volume.of(1);
 		const strategy =
-			ACTION_SPACE_STRATEGIES[space] ?? ACTION_SPACE_STRATEGIES[ActionSpace.Discrete];
+			ACTION_SPACE_STRATEGIES[space] ??
+			ACTION_SPACE_STRATEGIES[ActionSpace.Discrete];
 		return strategy(output, amount);
 	}
 }

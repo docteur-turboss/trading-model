@@ -1,19 +1,19 @@
 import { MarketEvent } from "@trading-model/common/contracts/market-events";
 import { DataType } from "../core/data-handlers/data-types";
-import { MarketDataBuffer } from "../core/market-data-buffer";
-import { processCandle } from "./event-processors/candle-processor";
-import { processTrade } from "./event-processors/trade-processor";
-import { processOrderBook } from "./event-processors/order-book-processor";
+import type { MarketDataBuffer } from "../core/market-data-buffer";
 import { processBookTicker } from "./event-processors/book-ticker-processor";
-import { processTicker } from "./event-processors/ticker-processor";
+import { processCandle } from "./event-processors/candle-processor";
+import { processOrderBook } from "./event-processors/order-book-processor";
 import { processPrice } from "./event-processors/price-processor";
+import { processTicker } from "./event-processors/ticker-processor";
+import { processTrade } from "./event-processors/trade-processor";
 
 export const EVENT_TO_HANDLER: Partial<Record<MarketEvent, DataType>> = {
-	[MarketEvent.fetchCandlestickSeries]: DataType.Candle,
-	[MarketEvent.fetchRecentTrades]: DataType.Trade,
-	[MarketEvent.fetchOrderBookSnapshot]: DataType.OrderBook,
-	[MarketEvent.fetchOrderBookTickerSnapshot]: DataType.BookTicker,
-	[MarketEvent.fetch24hrTickerStats]: DataType.Ticker,
+	[MarketEvent.FetchCandlestickSeries]: DataType.Candle,
+	[MarketEvent.FetchRecentTrades]: DataType.Trade,
+	[MarketEvent.FetchOrderBookSnapshot]: DataType.OrderBook,
+	[MarketEvent.FetchOrderBookTickerSnapshot]: DataType.BookTicker,
+	[MarketEvent.Fetch24hrTickerStats]: DataType.Ticker,
 };
 
 type EventProcessor = (buffer: MarketDataBuffer, data: unknown) => void;

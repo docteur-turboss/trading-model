@@ -37,15 +37,21 @@ export class ShutdownHandler {
 	}
 
 	setupSignalHandlers(scheduler: { stop: () => void }): void {
-		if (this._signalHandlersRegistered) return;
+		if (this._signalHandlersRegistered) {
+			return;
+		}
 		this._signalHandlersRegistered = true;
 		setupProcessHandlers(
 			() => this._onGracefulShutdown(scheduler),
-			() => { process.exitCode = 1; }
+			() => {
+				process.exitCode = 1;
+			}
 		);
 	}
 
-	private async _onGracefulShutdown(scheduler: { stop: () => void }): Promise<void> {
+	private async _onGracefulShutdown(scheduler: {
+		stop: () => void;
+	}): Promise<void> {
 		scheduler.stop();
 		await this.fullStop();
 	}

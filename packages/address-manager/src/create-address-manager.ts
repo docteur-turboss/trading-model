@@ -111,7 +111,10 @@ function _buildCoreConfig(env: AddressManagerEnv, discoveryUrls: string[]) {
 	};
 }
 
-function _buildOptionalConfig(env: AddressManagerEnv, wsSubscribedServices: string[] | undefined) {
+function _buildOptionalConfig(
+	env: AddressManagerEnv,
+	wsSubscribedServices: string[] | undefined
+) {
 	return {
 		dnsNameMap: env.DNS_NAME_MAP,
 		metricsIntervalMs: env.METRICS_INTERVAL_MS,

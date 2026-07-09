@@ -1,5 +1,5 @@
-import promClient from "prom-client";
 import { metricsHandler } from "@trading-model/common/server/metrics-handler";
+import promClient from "prom-client";
 
 promClient.collectDefaultMetrics({ prefix: "gw_" });
 

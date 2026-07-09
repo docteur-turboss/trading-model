@@ -1,8 +1,13 @@
-﻿import type { SchedulerOutgoingMessage, SchedulerWsJobAssignedMessage, WorkerIncomingMessage, WorkerWsHeartbeatMessage } from "../contracts/worker-protocol.types";
+﻿import type {
+	SchedulerOutgoingMessage,
+	SchedulerWsJobAssignedMessage,
+	WorkerIncomingMessage,
+	WorkerWsHeartbeatMessage,
+} from "../contracts/worker-protocol.types";
 import type { Capability } from "../domain/primitives";
 import { DefaultWsReconnector } from "../ws/default-ws-reconnector";
-import { TypedEventEmitter } from "./typed-event-emitter";
 import { wireConnectionEvents } from "./connection-wire";
+import { TypedEventEmitter } from "./typed-event-emitter";
 import { WorkerHeartbeat } from "./worker-heartbeat";
 import { WorkerMessageRouter } from "./worker-message-router";
 import { WorkerWsConnection } from "./worker-ws-connection";
@@ -27,11 +32,23 @@ export interface WorkerClientEvents {
 	unknown: [message: Record<string, unknown>];
 }
 
-function normalizeConfig(config: WorkerClientConfig): Required<WorkerClientConfig> {
-	return { workerId: config.workerId, serverUrl: config.serverUrl, capabilities: config.capabilities, maxConcurrency: config.maxConcurrency, heartbeatIntervalMs: config.heartbeatIntervalMs ?? 15000, reconnectBaseDelayMs: config.reconnectBaseDelayMs ?? 1000, reconnectMaxDelayMs: config.reconnectMaxDelayMs ?? 30000 };
+function normalizeConfig(
+	config: WorkerClientConfig
+): Required<WorkerClientConfig> {
+	return {
+		workerId: config.workerId,
+		serverUrl: config.serverUrl,
+		capabilities: config.capabilities,
+		maxConcurrency: config.maxConcurrency,
+		heartbeatIntervalMs: config.heartbeatIntervalMs ?? 15000,
+		reconnectBaseDelayMs: config.reconnectBaseDelayMs ?? 1000,
+		reconnectMaxDelayMs: config.reconnectMaxDelayMs ?? 30000,
+	};
 }
 
-function _buildConnection(cfg: Required<WorkerClientConfig>): WorkerWsConnection {
+function _buildConnection(
+	cfg: Required<WorkerClientConfig>
+): WorkerWsConnection {
 	return new WorkerWsConnection({
 		workerId: cfg.workerId,
 		serverUrl: cfg.serverUrl,
@@ -77,25 +94,46 @@ export class WorkerClient extends TypedEventEmitter<WorkerClientEvents> {
 		super();
 		this._cfg = normalizeConfig(config);
 		this._connection = _buildConnection(this._cfg);
-		this._reconnector = _buildReconnector(this._cfg, () => this._doConnect(), (info) => this.emit("reconnecting", info));
+		this._reconnector = _buildReconnector(
+			this._cfg,
+			() => this._doConnect(),
+			(info) => this.emit("reconnecting", info)
+		);
 		this._heartbeat = _buildHeartbeat(this._cfg, (msg) => this.send(msg));
 		this._messageRouter = new WorkerMessageRouter(this.raw);
-		wireConnectionEvents(this._connection, this._heartbeat, this._reconnector, this._messageRouter, this);
+		wireConnectionEvents(
+			this._connection,
+			this._heartbeat,
+			this._reconnector,
+			this._messageRouter,
+			this
+		);
 	}
 
-	async connect(): Promise<void> { this._reconnector.reset(); return this._doConnect(); }
+	connect(): Promise<void> {
+		this._reconnector.reset();
+		return this._doConnect();
+	}
 	private async _doConnect(): Promise<void> {
 		this._connection.rejectOnError = this._reconnector.reconnectAttempt === 0;
 		await this._connection.connect();
 	}
-	sendHeartbeat(currentLoad: number): void { this._heartbeat.sendHeartbeat(currentLoad); }
-	send(data: SchedulerOutgoingMessage | WorkerIncomingMessage): void { this._connection.send(data); }
+	sendHeartbeat(currentLoad: number): void {
+		this._heartbeat.sendHeartbeat(currentLoad);
+	}
+	send(data: SchedulerOutgoingMessage | WorkerIncomingMessage): void {
+		this._connection.send(data);
+	}
 	disconnect(): void {
 		this._reconnector.markIntentionalClose();
 		this._reconnector.cancel();
 		this._heartbeat.stop();
 		this._connection.disconnect();
 	}
-	get isConnected(): boolean { return this._connection.isConnected; }
-	get workerId(): string { return this._cfg.workerId; }
+	get isConnected(): boolean {
+		return this._connection.isConnected;
+	}
+	get workerId(): string {
+		return this._cfg.workerId;
+	}
 }

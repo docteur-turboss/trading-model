@@ -1,4 +1,4 @@
-import { appendFile } from "node:fs/promises";
+﻿import { appendFile } from "node:fs/promises";
 
 import type { DlqEntry } from "@trading-model/common/contracts/dlq.types";
 

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file message-manager.ts
  *
  * @description

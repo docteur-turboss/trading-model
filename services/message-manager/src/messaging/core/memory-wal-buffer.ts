@@ -1,5 +1,4 @@
-import type { Message } from "@trading-model/common/contracts/message.types";
-import { ENV } from "../../config/env";
+﻿import { ENV } from "../../config/env";
 import { logger } from "../../config/logger";
 import { BUFFER_DROPPED_TOTAL } from "../../config/metrics";
 import type { MemoryWalEntry } from "./memory-wal-entry";
@@ -28,10 +27,10 @@ export class MemoryWalBuffer {
 		return this._buffer.length;
 	}
 
-	push(entry: MemoryWalEntry): void {
+	async push(entry: MemoryWalEntry): Promise<void> {
 		this._warnIfNearCapacity();
 		if (this._buffer.length >= ENV.MEMORY_WAL_BUFFER_SIZE) {
-			this._evictExcess();
+			await this._evictExcess();
 		}
 		this._buffer.push(entry);
 	}

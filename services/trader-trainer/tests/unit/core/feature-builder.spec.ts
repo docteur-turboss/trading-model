@@ -130,7 +130,7 @@ function defaultNorm() {
 function makeState(overrides: {
 	candles: CandleData[];
 	trades?: TradeData[];
-		orderBook?: OrderBookData;
+	orderBook?: OrderBookData;
 	bookTicker?: BookTickerData;
 	ticker24h?: TickerData;
 	candleClose?: NormalizationStats;
@@ -509,7 +509,10 @@ describe("buildFeatures", () => {
 				priceSnapshot: { [toSymbol("BTCUSDT")]: Price.of(109) },
 			});
 			for (let j = 1; j <= 8; j++) {
-				expect(f.toFloat32Array()[22 + j]).toBeCloseTo(cn.normalize(100 + j), 5);
+				expect(f.toFloat32Array()[22 + j]).toBeCloseTo(
+					cn.normalize(100 + j),
+					5
+				);
 			}
 		});
 	});

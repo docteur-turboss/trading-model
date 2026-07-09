@@ -49,7 +49,7 @@ export class AuditQuerier {
 		return await this._collection.findOne({ "metadata.messageId": messageId });
 	}
 
-	async getStats(): Promise<AuditStats> {
+	getStats(): Promise<AuditStats> {
 		return this._statsAggregator.getStats();
 	}
 }

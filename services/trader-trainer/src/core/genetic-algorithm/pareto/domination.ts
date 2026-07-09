@@ -19,16 +19,16 @@ export function dominates(
 }
 
 function _comparePair(
-	i: number,
-	j: number,
+	idx: number,
+	jdx: number,
 	objectives: ObjectiveVector[],
 	dominatedCount: Int32Array,
 	dominateMap: number[][]
 ): void {
-	if (dominates(objectives[i], objectives[j])) {
-		dominateMap[i].push(j);
-	} else if (dominates(objectives[j], objectives[i])) {
-		dominatedCount[i]++;
+	if (dominates(objectives[idx], objectives[jdx])) {
+		dominateMap[idx].push(jdx);
+	} else if (dominates(objectives[jdx], objectives[idx])) {
+		dominatedCount[idx]++;
 	}
 }
 

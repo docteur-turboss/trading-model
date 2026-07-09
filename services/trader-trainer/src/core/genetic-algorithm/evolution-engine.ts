@@ -13,7 +13,9 @@ export function crossoverWeights(
 	rng: () => number
 ): Float32Array {
 	if (wa.length !== wb.length) {
-		logger.warn("Crossover weight length mismatch — falling back to parent weights");
+		logger.warn(
+			"Crossover weight length mismatch — falling back to parent weights"
+		);
 		return wa.slice();
 	}
 	const out = new Float32Array(wa.length);

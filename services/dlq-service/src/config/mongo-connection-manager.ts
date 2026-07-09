@@ -1,7 +1,5 @@
-import {
-	MongoConnectionManager as CommonMongoConnectionManager,
-} from "@trading-model/common/persistence/mongo-connection-manager";
-import { type Collection, type Db } from "mongodb";
+import { MongoConnectionManager as CommonMongoConnectionManager } from "@trading-model/common/persistence/mongo-connection-manager";
+import type { Collection } from "mongodb";
 import { ENV } from "./env";
 import { IndexManager } from "./index-manager";
 import { logger } from "./logger";

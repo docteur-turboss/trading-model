@@ -1,9 +1,9 @@
-import type { Price } from "@trading-model/common/domain/primitives";
 import type { EventEnumMap } from "@trading-model/common/config/event.types";
+import type { Price } from "@trading-model/common/domain/primitives";
 import { EvictionPolicy } from "../core/eviction-policy";
-import {
+import type {
 	MarketDataBuffer,
-	type MarketDataBufferConfig,
+	MarketDataBufferConfig,
 } from "../core/market-data-buffer";
 import type { TradingSymbol } from "../core/market-data-types";
 import { Trainer } from "../core/trainer";
@@ -30,11 +30,14 @@ export class ApplicationContainer {
 		const bufferConfig: MarketDataBufferConfig = {
 			maxSize: config.bufferSize,
 			maxMemoryMb: config.bufferMemoryLimitMb ?? 512,
-			evictionPolicy: EvictionPolicy.LRU,
+			evictionPolicy: EvictionPolicy.Lru,
 		};
 		this.eventRouter = new MarketDataEventRouter(bufferConfig);
 		this.trainer = new Trainer(this.eventRouter.dataBuffer);
-		this._trainingLoop = new TrainingLoop(this.trainer, this.eventRouter.dataBuffer);
+		this._trainingLoop = new TrainingLoop(
+			this.trainer,
+			this.eventRouter.dataBuffer
+		);
 	}
 
 	get dataBuffer(): MarketDataBuffer {

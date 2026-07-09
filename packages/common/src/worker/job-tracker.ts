@@ -8,9 +8,7 @@ interface ActiveJob {
 	ackDeadline: number;
 }
 
-function _toActiveJob(
-	job: SchedulerWsJobAssignedMessage["job"]
-): ActiveJob {
+function _toActiveJob(job: SchedulerWsJobAssignedMessage["job"]): ActiveJob {
 	return {
 		id: job.id,
 		type: job.type,

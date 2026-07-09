@@ -1,4 +1,4 @@
-import { retryWithBackoff } from "@trading-model/common/utils/retry";
+﻿import { retryWithBackoff } from "@trading-model/common/utils/retry";
 import type Redis from "ioredis";
 
 import { ENV } from "../../config/env";
@@ -35,13 +35,10 @@ export class RedisStreamStore {
 		if (!lastError) {
 			return;
 		}
-		logger.warn(
-			"Stream store failed after retries — falling through to WAL",
-			{
-				topic,
-				error: lastError.message,
-			}
-		);
+		logger.warn("Stream store failed after retries — falling through to WAL", {
+			topic,
+			error: lastError.message,
+		});
 	}
 
 	private async _tryStoreOnce(

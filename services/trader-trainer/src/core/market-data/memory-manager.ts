@@ -30,7 +30,7 @@ export class MemoryManager {
 	}
 
 	recordAccess(symbol: TradingSymbol): void {
-		if (this._evictionPolicy !== EvictionPolicy.LRU) {
+		if (this._evictionPolicy !== EvictionPolicy.Lru) {
 			return;
 		}
 		const idx = this._accessOrder.indexOf(symbol);
@@ -41,7 +41,7 @@ export class MemoryManager {
 	}
 
 	enforceMemoryLimit(): void {
-		if (this._evictionPolicy !== EvictionPolicy.LRU) {
+		if (this._evictionPolicy !== EvictionPolicy.Lru) {
 			return;
 		}
 

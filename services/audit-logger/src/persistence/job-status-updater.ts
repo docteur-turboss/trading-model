@@ -1,32 +1,38 @@
-import {
+﻿import {
 	isTerminalStatus,
-	JOB_STATUS,
 	type JobEvent,
+	JobStatus,
 	type JobUpdateExtras,
 } from "@trading-model/common/contracts/recovery.types";
 
 export class JobStatusUpdater {
 	buildUpdateSet(
-		status: JOB_STATUS,
+		status: JobStatus,
 		extras?: JobUpdateExtras
 	): Record<string, unknown> {
 		const updateSet: Record<string, unknown> = {
 			status,
-			...(status === JOB_STATUS.RUNNING ? { startedAt: new Date() } : {}),
+			...(status === JobStatus.RUNNING ? { startedAt: new Date() } : {}),
 			...(isTerminalStatus(status) ? { completedAt: new Date() } : {}),
 		};
-		if (extras?.result !== undefined) updateSet.result = extras.result;
-		if (extras?.error !== undefined) updateSet.error = extras.error;
-		if (extras?.assignedWorkerId !== undefined)
+		if (extras?.result !== undefined) {
+			updateSet.result = extras.result;
+		}
+		if (extras?.error !== undefined) {
+			updateSet.error = extras.error;
+		}
+		if (extras?.assignedWorkerId !== undefined) {
 			updateSet.assignedWorkerId = extras.assignedWorkerId;
-		if (extras?.ackDeadline !== undefined)
+		}
+		if (extras?.ackDeadline !== undefined) {
 			updateSet.ackDeadline = extras.ackDeadline;
+		}
 		return updateSet;
 	}
 
 	buildHistoryEntry(
-		fromStatus: JOB_STATUS,
-		toStatus: JOB_STATUS,
+		fromStatus: JobStatus,
+		toStatus: JobStatus,
 		extras?: JobUpdateExtras
 	): JobEvent {
 		return {

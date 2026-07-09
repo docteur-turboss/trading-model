@@ -2,10 +2,10 @@ import crypto from "node:crypto";
 import type http from "node:http";
 import https from "node:https";
 import { logger } from "@trading-model/common/config/logger";
+import type { ServiceEndpoint } from "@trading-model/common/contracts/service-resolver.types";
 import { HTTP_HEADERS } from "@trading-model/common/http-headers";
 import type { Request } from "express";
 import { ENV } from "../config/env";
-import type { ServiceEndpoint } from "@trading-model/common/contracts/service-resolver.types";
 
 export interface ProxyResult {
 	status: number;
@@ -104,15 +104,18 @@ function _onProxyTimeout(
 	reject(new Error(`Proxy timeout after ${timeoutMs}ms`));
 }
 
-function _executeProxyRequest(
-	options: https.RequestOptions,
-	req: Request,
-	resolve: (result: ProxyResult) => void,
-	reject: (err: Error) => void,
-	target: ServiceEndpoint,
-	path: string,
-	timeoutMs: number
-): void {
+interface ProxyExecutionContext {
+	options: https.RequestOptions;
+	req: Request;
+	resolve: (result: ProxyResult) => void;
+	reject: (err: Error) => void;
+	target: ServiceEndpoint;
+	path: string;
+	timeoutMs: number;
+}
+
+function _executeProxyRequest(ctx: ProxyExecutionContext): void {
+	const { options, req, resolve, reject, target, path, timeoutMs } = ctx;
 	const proxyReq = https.request(options, (proxyRes) => {
 		void handleProxyResponse(proxyRes).then(resolve);
 	});
@@ -128,15 +131,15 @@ export function forwardRequest(
 	const { req, target, path, timeoutMs = ENV.PROXY_TIMEOUT_MS } = opts;
 	return new Promise((resolve, reject) => {
 		const options = _buildProxyOptions({ target, req, path, timeoutMs });
-		_executeProxyRequest(
+		_executeProxyRequest({
 			options,
 			req,
 			resolve,
 			reject,
 			target,
 			path,
-			timeoutMs
-		);
+			timeoutMs,
+		});
 	});
 }
 

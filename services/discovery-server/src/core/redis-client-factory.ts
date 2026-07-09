@@ -1,7 +1,5 @@
+import type { RedisConnectionConfig } from "@trading-model/common/config/redis-config";
 import { createRedisClient } from "@trading-model/common/persistence/redis-connection-manager";
-import type {
-	RedisConnectionConfig,
-} from "@trading-model/common/config/redis-config";
 
 export function computePrefix(
 	prefix: string,

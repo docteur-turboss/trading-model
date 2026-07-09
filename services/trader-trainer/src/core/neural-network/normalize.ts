@@ -1,13 +1,16 @@
-import { NormalisationType } from "./type";
+import { BorderNormalizer } from "./normalizers/border";
 import { DecimalScalingNormalizer } from "./normalizers/decimal-scaling";
 import { LogarithmicNormalizer } from "./normalizers/logarithmic";
 import { MinMaxNormalizer } from "./normalizers/min-max";
+import { NoneNormalizer } from "./normalizers/none";
 import { RobustScalingNormalizer } from "./normalizers/robust-scaling";
 import { ZScoreNormalizer } from "./normalizers/z-score";
-import { NoneNormalizer } from "./normalizers/none";
-import { BorderNormalizer } from "./normalizers/border";
+import { NormalisationType } from "./type";
 
-export type { NormalizeParams, Normalizer } from "./normalizers/normalizer-interface";
+export type {
+	NormalizeParams,
+	Normalizer,
+} from "./normalizers/normalizer-interface";
 
 export const DECIMAL_SCALING = new DecimalScalingNormalizer();
 export const LOGARITHMIC = new LogarithmicNormalizer();
@@ -17,7 +20,10 @@ export const Z_SCORE = new ZScoreNormalizer();
 export const NONE_NORMALIZER = new NoneNormalizer();
 export const BORDER = new BorderNormalizer();
 
-export const NORMALIZERS: Record<NormalisationType, import("./normalizers/normalizer-interface").Normalizer> = {
+export const NORMALIZERS: Record<
+	NormalisationType,
+	import("./normalizers/normalizer-interface").Normalizer
+> = {
 	[NormalisationType.DecimalScaling]: DECIMAL_SCALING,
 	[NormalisationType.LogarithmicNormalization]: LOGARITHMIC,
 	[NormalisationType.MinMax]: MIN_MAX,

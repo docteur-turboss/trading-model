@@ -8,9 +8,9 @@ import { dlqRedisQueue } from "../config/redis-queue";
 import { resolveMessageManagerUrl } from "./address-resolver";
 import { handleAbandonedEntries } from "./auto-retry";
 import { dlqClaimManager } from "./claim-manager";
+import { RedisWorkerTimer } from "./redis-worker-timer";
 import { doReplayBatch } from "./replay-pipeline";
 import { isShuttingDown } from "./shared/shutdown-flag";
-import { RedisWorkerTimer } from "./redis-worker-timer";
 
 async function _popRedisQueueEntries(): Promise<string[]> {
 	const entryIds: string[] = [];
@@ -29,10 +29,14 @@ async function claimBatchEntries(
 	batchId: string
 ): Promise<Array<{ id: string; message: unknown }> | null> {
 	const validIds = _filterValidObjectIds(entryIds);
-	if (validIds.length === 0) return null;
+	if (validIds.length === 0) {
+		return null;
+	}
 
 	const claimed = await _claimByIds(validIds, batchId);
-	if (claimed.length === 0) return null;
+	if (claimed.length === 0) {
+		return null;
+	}
 
 	if (isShuttingDown()) {
 		_requeueRemaining(entryIds);
@@ -46,7 +50,7 @@ function _filterValidObjectIds(ids: string[]): string[] {
 	return ids.filter((id) => ObjectId.isValid(id));
 }
 
-async function _claimByIds(
+function _claimByIds(
 	validIds: string[],
 	batchId: string
 ): Promise<Array<{ id: string; message: unknown }>> {
@@ -102,15 +106,21 @@ async function _claimAndReplayEntries(
 }
 
 export async function processRedisQueue(): Promise<void> {
-	if (_shouldSkipRedisProcessing()) return;
+	if (_shouldSkipRedisProcessing()) {
+		return;
+	}
 
 	const messageManagerUrl = await resolveMessageManagerUrl();
-	if (!messageManagerUrl) return;
+	if (!messageManagerUrl) {
+		return;
+	}
 
 	await dlqClaimManager.releaseStaleClaims();
 
 	const entryIds = await _popRedisQueueEntries();
-	if (entryIds.length === 0) return;
+	if (entryIds.length === 0) {
+		return;
+	}
 
 	await _claimAndReplayEntries(entryIds, messageManagerUrl);
 }

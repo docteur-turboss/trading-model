@@ -33,7 +33,10 @@ function _onCaKeyRotated(
 	callbacks?.onCaKeyRotated?.(payload as { keyId: string });
 }
 
-function _buildCleanup(callbacks?: CrlSubscriberCallbacks): { cleanupRevoked: () => void; cleanupRotated: () => void } {
+function _buildCleanup(callbacks?: CrlSubscriberCallbacks): {
+	cleanupRevoked: () => void;
+	cleanupRotated: () => void;
+} {
 	return {
 		cleanupRevoked: EVENT_MANAGER.on(
 			CertificateEvent.certificateRevoked,

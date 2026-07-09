@@ -57,7 +57,7 @@ describe("CaStore", () => {
 
 	describe("save", () => {
 		it("should insert metadata document", async () => {
-			await store.save(SAMPLE_CA_META);
+			await store.insert(SAMPLE_CA_META);
 
 			expect(MOCK_INSERT_ONE).toHaveBeenCalledWith(SAMPLE_CA_META);
 		});

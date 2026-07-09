@@ -1,9 +1,15 @@
-import { toTopic, UnixTimestamp } from "@trading-model/common/domain/primitives";
+﻿import {
+	toTopic,
+	UnixTimestamp,
+} from "@trading-model/common/domain/primitives";
 import { ENV } from "../../config/env";
 import { ArchiveTimerScheduler } from "./archive-timer-scheduler";
 import { ArchiveTopicsCache } from "./archive-topics-cache";
+import {
+	type IStreamGroupOps,
+	MessageRoutingFacade,
+} from "./message-routing-facade";
 import { MongoClientManager } from "./mongo-client-manager";
-import { type IStreamGroupOps, MessageRoutingFacade } from "./message-routing-facade";
 
 export class MongoArchiveStore {
 	private readonly _routing: IStreamGroupOps;
@@ -65,7 +71,7 @@ export class MongoArchiveStore {
 		} catch {}
 	}
 
-	private async _fetchTopicMessages(topic: string) {
+	private _fetchTopicMessages(topic: string) {
 		return this._routing.getMessagesAfter({
 			topic: toTopic(topic),
 			afterTimestamp: UnixTimestamp.of(Date.now() - 3600_000),

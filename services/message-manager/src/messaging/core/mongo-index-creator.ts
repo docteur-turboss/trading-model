@@ -1,4 +1,4 @@
-import type { MongoCollectionConfig } from "./mongo-types";
+﻿import type { MongoCollectionConfig } from "./mongo-types";
 
 export class MongoIndexCreator {
 	constructor(private readonly _config: MongoCollectionConfig) {}

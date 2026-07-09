@@ -1,4 +1,4 @@
-import type { Message } from "@trading-model/common/contracts/message.types";
+﻿import type { Message } from "@trading-model/common/contracts/message.types";
 import type {
 	InstanceId,
 	MessageId,
@@ -36,7 +36,7 @@ export interface ClaimParams {
 
 /** Data stored for a pending ACK entry. */
 export interface PendingAckData {
-	topic: string;
+	topic: Topic;
 	subscriberUrl: string;
 	message: Message;
 }

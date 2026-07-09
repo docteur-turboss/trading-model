@@ -1,7 +1,6 @@
-import { randomUUID } from "node:crypto";
-
-import { toTopic } from "@trading-model/common/domain/primitives";
+﻿import { randomUUID } from "node:crypto";
 import type { ServiceIdentity } from "@trading-model/common/contracts/message.types";
+import { toTopic } from "@trading-model/common/domain/primitives";
 
 import { getSubscriptionClient } from "../../config/redis";
 import type { TopicSubscription } from "./messaging-types";
@@ -70,7 +69,7 @@ export class SubscriptionRedisWriter {
 		if (!results) {
 			return;
 		}
-		await this._cleanup.cleanupInstanceIfEmpty(redis, results, sub.instanceId);
+		this._cleanup.cleanupInstanceIfEmpty(redis, results, sub.instanceId);
 		await this._cleanup.cleanupTopicIfEmpty(redis, results, sub.topic);
 	}
 }

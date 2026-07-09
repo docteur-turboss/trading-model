@@ -1,6 +1,17 @@
 import { beforeEach, describe, expect, jest, test } from "@jest/globals";
 import type { HttpClient } from "@trading-model/common/config/http-client";
-import type { IPAddress, Port } from "@trading-model/common/domain/primitives";
+import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
+import { Protocol } from "@trading-model/common/contracts/service-registry.types";
+import type { IPAddress } from "@trading-model/common/domain/primitives";
+import {
+	toDurationMs,
+	toInstanceId,
+	toRegion,
+	toServiceId,
+	toVersion,
+	UnixTimestamp,
+} from "@trading-model/common/domain/primitives";
+import { Port } from "@trading-model/common/domain/primitives/port";
 import type { ServiceInstance } from "../../src/client/type";
 import type { AddressManagerConfig } from "../../src/config/address-manager-config";
 import type { ServiceCache } from "../../src/discovery/service-cache";
@@ -12,14 +23,14 @@ const FIXED_TIMESTAMP = 1_700_000_000_000;
 function makeInstance(overrides?: Partial<ServiceInstance>): ServiceInstance {
 	return {
 		host: "127.0.0.1" as unknown as IPAddress,
-		port: 8080 as unknown as Port,
-		instanceId: "instance-1",
-		lastHeartbeat: FIXED_TIMESTAMP,
-		protocol: "http",
-		registeredAt: FIXED_TIMESTAMP,
-		serviceName: "user-service",
-		version: "1.0.0",
-		ttl: 30000,
+		port: Port.of(8080),
+		instanceId: toInstanceId("instance-1"),
+		lastHeartbeat: UnixTimestamp.of(FIXED_TIMESTAMP),
+		protocol: Protocol.Http,
+		registeredAt: UnixTimestamp.of(FIXED_TIMESTAMP),
+		serviceName: toServiceId("user-service"),
+		version: toVersion("1.0.0"),
+		ttl: toDurationMs(30000),
 		...overrides,
 	};
 }
@@ -42,6 +53,15 @@ function createMockCache(): jest.Mocked<ServiceCache> {
 			.fn<(name: string) => Promise<void>>()
 			.mockResolvedValue(undefined),
 		clear: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
+		setCircuitState: jest
+			.fn<(instanceId: string, state: unknown) => Promise<void>>()
+			.mockResolvedValue(undefined),
+		getCircuitState: jest
+			.fn<(instanceId: string) => Promise<unknown>>()
+			.mockResolvedValue(null),
+		deleteCircuitState: jest
+			.fn<(instanceId: string) => Promise<void>>()
+			.mockResolvedValue(undefined),
 	} as unknown as jest.Mocked<ServiceCache>;
 }
 
@@ -72,19 +92,19 @@ describe("Multi-Region ServiceDiscovery", () => {
 	let healthChecker: jest.Mocked<ServiceHealthChecker>;
 
 	const usInstance = makeInstance({
-		instanceId: "node-us",
+		instanceId: toInstanceId("node-us"),
 		host: "10.0.0.1" as unknown as IPAddress,
-		region: "us-east-1",
+		region: toRegion("us-east-1"),
 	});
 
 	const euInstance = makeInstance({
-		instanceId: "node-eu",
+		instanceId: toInstanceId("node-eu"),
 		host: "10.0.1.1" as unknown as IPAddress,
-		region: "eu-west-1",
+		region: toRegion("eu-west-1"),
 	});
 
 	const noRegionInstance = makeInstance({
-		instanceId: "node-legacy",
+		instanceId: toInstanceId("node-legacy"),
 		host: "10.0.2.1" as unknown as IPAddress,
 	});
 
@@ -105,14 +125,14 @@ describe("Multi-Region ServiceDiscovery", () => {
 				config: {
 					addressManagerUrl: "https://ds:3000",
 					discoveryTimeoutMs: 5000,
-					servicePort: 0,
+					servicePort: Port.of(0),
 					tokenRefreshIntervalMs: 0,
 					ttlRefreshIntervalMs: 0,
 					servicePingTimeoutMs: 0,
 					cacheTtlMs: 0,
 					identity: {
-						serviceName: "test-service",
-						instanceId: "test-instance",
+						serviceName: toServiceId("test-service"),
+						instanceId: toInstanceId("test-instance"),
 					},
 					tls: {
 						caPath: "/path/to/ca.pem",
@@ -125,8 +145,8 @@ describe("Multi-Region ServiceDiscovery", () => {
 			});
 
 			const result = await discovery.findServiceInRegion(
-				"user-service",
-				"us-east-1"
+				"user-service" as unknown as ServiceInstanceName,
+				toRegion("us-east-1")
 			);
 
 			expect(httpClient.get).toHaveBeenCalledWith(
@@ -148,14 +168,14 @@ describe("Multi-Region ServiceDiscovery", () => {
 				config: {
 					addressManagerUrl: "https://ds:3000",
 					discoveryTimeoutMs: 5000,
-					servicePort: 0,
+					servicePort: Port.of(0),
 					tokenRefreshIntervalMs: 0,
 					ttlRefreshIntervalMs: 0,
 					servicePingTimeoutMs: 0,
 					cacheTtlMs: 0,
 					identity: {
-						serviceName: "test-service",
-						instanceId: "test-instance",
+						serviceName: toServiceId("test-service"),
+						instanceId: toInstanceId("test-instance"),
 					},
 					tls: {
 						caPath: "/path/to/ca.pem",
@@ -168,8 +188,8 @@ describe("Multi-Region ServiceDiscovery", () => {
 			});
 
 			const result = await discovery.findServiceInRegion(
-				"user-service",
-				"us-east-1"
+				"user-service" as unknown as ServiceInstanceName,
+				toRegion("us-east-1")
 			);
 			expect(result).toBeDefined();
 		});
@@ -186,15 +206,15 @@ describe("Multi-Region ServiceDiscovery", () => {
 				config: {
 					addressManagerUrl: "https://ds:3000",
 					discoveryTimeoutMs: 5000,
-					servicePort: 0,
+					servicePort: Port.of(0),
 					tokenRefreshIntervalMs: 0,
 					ttlRefreshIntervalMs: 0,
 					servicePingTimeoutMs: 0,
 					cacheTtlMs: 0,
-					region: "us-east-1",
+					region: toRegion("us-east-1"),
 					identity: {
-						serviceName: "test-service",
-						instanceId: "test-instance",
+						serviceName: toServiceId("test-service"),
+						instanceId: toInstanceId("test-instance"),
 					},
 					tls: {
 						caPath: "/path/to/ca.pem",
@@ -206,7 +226,9 @@ describe("Multi-Region ServiceDiscovery", () => {
 				healthChecker,
 			});
 
-			const result = await discovery.findService("user-service");
+			const result = await discovery.findService(
+				"user-service" as unknown as ServiceInstanceName
+			);
 			expect(result).toBeDefined();
 		});
 	});
@@ -215,7 +237,7 @@ describe("Multi-Region ServiceDiscovery", () => {
 		test("should pick the healthy instance from preferred region", async () => {
 			httpClient.get.mockResolvedValueOnce([usInstance, euInstance]);
 			healthChecker.isHealthy.mockImplementation(
-				async (inst) => inst.region === "us-east-1"
+				async (inst) => inst.region === toRegion("us-east-1")
 			);
 
 			discovery = new ServiceDiscovery({
@@ -224,14 +246,14 @@ describe("Multi-Region ServiceDiscovery", () => {
 				config: {
 					addressManagerUrl: "https://ds:3000",
 					discoveryTimeoutMs: 5000,
-					servicePort: 0,
+					servicePort: Port.of(0),
 					tokenRefreshIntervalMs: 0,
 					ttlRefreshIntervalMs: 0,
 					servicePingTimeoutMs: 0,
 					cacheTtlMs: 0,
 					identity: {
-						serviceName: "test-service",
-						instanceId: "test-instance",
+						serviceName: toServiceId("test-service"),
+						instanceId: toInstanceId("test-instance"),
 					},
 					tls: {
 						caPath: "/path/to/ca.pem",
@@ -244,8 +266,8 @@ describe("Multi-Region ServiceDiscovery", () => {
 			});
 
 			const result = await discovery.findServiceInRegion(
-				"user-service",
-				"us-east-1"
+				"user-service" as unknown as ServiceInstanceName,
+				toRegion("us-east-1")
 			);
 			expect(result.region).toBe("us-east-1");
 		});
@@ -262,14 +284,14 @@ describe("Multi-Region ServiceDiscovery", () => {
 				config: {
 					addressManagerUrl: "https://ds:3000",
 					discoveryTimeoutMs: 5000,
-					servicePort: 0,
+					servicePort: Port.of(0),
 					tokenRefreshIntervalMs: 0,
 					ttlRefreshIntervalMs: 0,
 					servicePingTimeoutMs: 0,
 					cacheTtlMs: 0,
 					identity: {
-						serviceName: "test-service",
-						instanceId: "test-instance",
+						serviceName: toServiceId("test-service"),
+						instanceId: toInstanceId("test-instance"),
 					},
 					tls: {
 						caPath: "/path/to/ca.pem",
@@ -281,7 +303,9 @@ describe("Multi-Region ServiceDiscovery", () => {
 				healthChecker,
 			});
 
-			const result = await discovery.findService("user-service");
+			const result = await discovery.findService(
+				"user-service" as unknown as ServiceInstanceName
+			);
 			expect(result.host).toBe("10.0.2.1");
 		});
 	});

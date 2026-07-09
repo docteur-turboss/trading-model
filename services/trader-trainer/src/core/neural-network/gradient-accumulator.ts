@@ -1,6 +1,6 @@
 import type { WeightGradientContext } from "./backprop-engine";
 import type { NnTrainingDeps } from "./nn-training-deps";
-import { type OptimizerState, OPTIMIZERS, type Optimizer } from "./optimizer";
+import { OPTIMIZERS, type Optimizer, type OptimizerState } from "./optimizer";
 import type { LayerMemory } from "./type";
 
 function computeWeightGradient(ctx: WeightGradientContext): void {
@@ -17,13 +17,19 @@ export class GradientAccumulator {
 
 	private _accumulateGradientForNeuron(
 		layer: LayerMemory,
-		j: number,
+		neuronIdx: number,
 		deltaJ: number,
 		layerInput: Float32Array
 	): void {
 		const { fanIn, accumGradW, accumGradB } = layer;
-		accumGradB[j] += deltaJ;
-		computeWeightGradient({ weightBuf: accumGradW, rowOffset: j * fanIn, deltaJ, input: layerInput, fanIn });
+		accumGradB[neuronIdx] += deltaJ;
+		computeWeightGradient({
+			weightBuf: accumGradW,
+			rowOffset: neuronIdx * fanIn,
+			deltaJ,
+			input: layerInput,
+			fanIn,
+		});
 	}
 
 	accumulate(
@@ -31,8 +37,13 @@ export class GradientAccumulator {
 		delta: Float32Array,
 		layerInput: Float32Array
 	): void {
-		for (let j = 0; j < layer.fanOut; j++) {
-			this._accumulateGradientForNeuron(layer, j, delta[j], layerInput);
+		for (let neuronIdx = 0; neuronIdx < layer.fanOut; neuronIdx++) {
+			this._accumulateGradientForNeuron(
+				layer,
+				neuronIdx,
+				delta[neuronIdx],
+				layerInput
+			);
 		}
 	}
 
@@ -42,13 +53,21 @@ export class GradientAccumulator {
 	}
 
 	private _applyBiasOptimizerStep(layer: LayerMemory): void {
-		if (!this._deps.config.useBias) return;
+		if (!this._deps.config.useBias) {
+			return;
+		}
 		const opt = OPTIMIZERS[this._deps.config.optimizerType];
 		this._applyOptimizerStep(opt, layer.bias, layer.gradB, layer.bState);
 	}
 
 	averageAndApply(layer: LayerMemory, numSamples: number): void {
-		this._scaleGradients(layer.accumGradW, layer.accumGradB, layer.gradW, layer.gradB, numSamples);
+		this._scaleGradients(
+			layer.accumGradW,
+			layer.accumGradB,
+			layer.gradW,
+			layer.gradB,
+			numSamples
+		);
 		this._applyWeightOptimizerStep(layer);
 		this._applyBiasOptimizerStep(layer);
 		layer.accumGradW.fill(0);

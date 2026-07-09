@@ -50,7 +50,7 @@ export class RealRedisCache implements RedisCache {
 		}
 	}
 
-	async set(key: string, value: unknown, ttlMs: number = 300_000): Promise<void> {
+	async set(key: string, value: unknown, ttlMs = 300_000): Promise<void> {
 		try {
 			await this._client.setex(
 				key,

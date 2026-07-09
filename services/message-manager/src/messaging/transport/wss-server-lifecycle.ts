@@ -1,4 +1,4 @@
-import type { IncomingMessage } from "node:http";
+﻿import type { IncomingMessage } from "node:http";
 import type { Server as HttpsServer } from "node:https";
 import type WebSocket from "ws";
 import { WebSocketServer } from "ws";
@@ -33,14 +33,18 @@ export class WssServerLifecycle {
 	}
 
 	private _closeAllConnections(): void {
-		if (!this._wss) return;
+		if (!this._wss) {
+			return;
+		}
 		for (const client of this._wss.clients) {
 			client.close(1001, "Server shutdown");
 		}
 	}
 
 	private async _closeServer(): Promise<void> {
-		if (!this._wss) return;
+		if (!this._wss) {
+			return;
+		}
 		await new Promise<void>((resolve) => {
 			const timer = setTimeout(() => {
 				resolve();

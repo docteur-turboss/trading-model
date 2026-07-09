@@ -1,6 +1,6 @@
 import type https from "node:https";
-import type { ServiceId } from "../domain/primitives";
 import { HttpMethod } from "../contracts/signed-request";
+import type { ServiceId } from "../domain/primitives";
 
 type HttpHeaders = Record<string, string>;
 

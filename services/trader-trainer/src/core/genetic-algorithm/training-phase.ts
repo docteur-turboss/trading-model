@@ -44,12 +44,23 @@ function _trainStep(
 	genome: DeepReadonly<LamarckGenome>,
 	maxT: number
 ): void {
-	if (_shouldSkipFrame(index, genome.rl.horizon.frameSkip)) return;
+	if (_shouldSkipFrame(index, genome.rl.horizon.frameSkip)) {
+		return;
+	}
 	backend.step(trainData[index].features, trainData[index].price);
 	const pool = backend.getExperiencePool();
-	if (!_canTrain(pool)) return;
+	if (!_canTrain(pool)) {
+		return;
+	}
 	backend.train(
-		_buildTrainExperience(pool[pool.length - 2], index, rewardBuf, genome, trainData, maxT),
+		_buildTrainExperience(
+			pool[pool.length - 2],
+			index,
+			rewardBuf,
+			genome,
+			trainData,
+			maxT
+		),
 		genome.rl.gamma
 	);
 }

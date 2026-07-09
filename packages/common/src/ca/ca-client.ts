@@ -1,6 +1,6 @@
 import { HttpClient } from "../config/http-client";
-import type { CertificateBase } from "../domain/certificate-base";
 import type { CertSignRequest } from "../domain/cert-signing";
+import type { CertificateBase } from "../domain/certificate-base";
 import type {
 	Fingerprint,
 	SerialNumber,
@@ -16,7 +16,8 @@ export interface CaClientConfig {
 
 export type SignCertificateRequest = CertSignRequest;
 
-export interface WireCertificateResponse extends Omit<CertificateBase, "expiresAt"> {
+export interface WireCertificateResponse
+	extends Omit<CertificateBase, "expiresAt"> {
 	expiresAt: string;
 	fingerprint: Fingerprint;
 }

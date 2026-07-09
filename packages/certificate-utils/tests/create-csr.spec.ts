@@ -4,7 +4,7 @@ import { generateKeyPair, KeyAlgorithm } from "../src/generate-key-pair";
 
 describe("createCsr", () => {
 	it("should create a CSR in PEM format", () => {
-		const keyPair = generateKeyPair(KeyAlgorithm.ecP384);
+		const keyPair = generateKeyPair(KeyAlgorithm.EcP384);
 		const csr = createCsr({
 			commonName: "test-service",
 			san: ["test-service.internal"],
@@ -16,7 +16,7 @@ describe("createCsr", () => {
 	});
 
 	it("should include the common name in the CSR body", () => {
-		const keyPair = generateKeyPair(KeyAlgorithm.ecP384);
+		const keyPair = generateKeyPair(KeyAlgorithm.EcP384);
 		const csr = createCsr({
 			commonName: "my-service",
 			san: ["my-service.internal"],
@@ -28,7 +28,7 @@ describe("createCsr", () => {
 	});
 
 	it("should include SAN entries in the CSR body", () => {
-		const keyPair = generateKeyPair(KeyAlgorithm.ecP384);
+		const keyPair = generateKeyPair(KeyAlgorithm.EcP384);
 		const csr = createCsr({
 			commonName: "multi-san",
 			san: ["san1.example.com", "san2.example.com", "10.0.0.1"],
@@ -44,7 +44,7 @@ describe("createCsr", () => {
 	});
 
 	it("should include the public key in PEM format", () => {
-		const keyPair = generateKeyPair(KeyAlgorithm.ecP384);
+		const keyPair = generateKeyPair(KeyAlgorithm.EcP384);
 		const csr = createCsr({
 			commonName: "key-test",
 			san: ["key-test.internal"],
@@ -56,7 +56,7 @@ describe("createCsr", () => {
 	});
 
 	it("should include a base64 signature", () => {
-		const keyPair = generateKeyPair(KeyAlgorithm.ecP384);
+		const keyPair = generateKeyPair(KeyAlgorithm.EcP384);
 		const csr = createCsr({
 			commonName: "sig-test",
 			san: ["sig-test.internal"],
@@ -70,7 +70,7 @@ describe("createCsr", () => {
 	});
 
 	it("should create a CSR with RSA key pair", () => {
-		const keyPair = generateKeyPair(KeyAlgorithm.rsa4096);
+		const keyPair = generateKeyPair(KeyAlgorithm.Rsa4096);
 		const csr = createCsr({
 			commonName: "rsa-service",
 			san: ["rsa-service.internal"],
@@ -83,7 +83,7 @@ describe("createCsr", () => {
 	});
 
 	it("should handle a single SAN entry", () => {
-		const keyPair = generateKeyPair(KeyAlgorithm.ecP384);
+		const keyPair = generateKeyPair(KeyAlgorithm.EcP384);
 		const csr = createCsr({
 			commonName: "single-san",
 			san: ["single.example.com"],
@@ -95,7 +95,7 @@ describe("createCsr", () => {
 	});
 
 	it("should handle empty SAN array", () => {
-		const keyPair = generateKeyPair(KeyAlgorithm.ecP384);
+		const keyPair = generateKeyPair(KeyAlgorithm.EcP384);
 		const csr = createCsr({
 			commonName: "no-san",
 			san: [],

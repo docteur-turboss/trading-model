@@ -19,7 +19,9 @@ const HANDLERS: [string, (job: { payload: unknown }) => Promise<unknown>][] = [
 		"generateKeyPair",
 		(job: { payload: unknown }) =>
 			Promise.resolve(
-				generateKeyPair((job.payload as { algorithm: KeyAlgorithm }).algorithm) as KeyPair
+				generateKeyPair(
+					(job.payload as { algorithm: KeyAlgorithm }).algorithm
+				) as KeyPair
 			),
 	],
 	[
@@ -54,7 +56,9 @@ const HANDLERS: [string, (job: { payload: unknown }) => Promise<unknown>][] = [
 	[
 		"parseKey",
 		(job: { payload: unknown }) =>
-			Promise.resolve(parseKey((job.payload as { privateKey: string }).privateKey)),
+			Promise.resolve(
+				parseKey((job.payload as { privateKey: string }).privateKey)
+			),
 	],
 	[
 		"sign",

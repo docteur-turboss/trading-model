@@ -1,7 +1,6 @@
-import type { NormalizationStats } from "../normalization-stats";
+import { clampToBounded } from "./bounded";
 import type { LamarckGenome, MarketStep } from "./genome-types";
 import type { RLBackend } from "./rl-backend";
-import { clampToBounded } from "./bounded";
 import type { DeepReadonly } from "./shared-types";
 import type { RunningStats } from "./utils";
 

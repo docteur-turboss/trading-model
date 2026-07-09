@@ -121,7 +121,9 @@ describe("TradingAgent", () => {
 		});
 
 		it("should use tradeAmount from config for discrete actions", () => {
-			const agentWithAmount = new TradingAgent(makeConfig({ tradeAmount: Volume.of(5) }));
+			const agentWithAmount = new TradingAgent(
+				makeConfig({ tradeAmount: Volume.of(5) })
+			);
 			const output = new Float32Array([0.0, 0.0, 1.0]);
 
 			const result = agentWithAmount.mapOutputToAction(output, {

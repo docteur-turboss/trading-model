@@ -80,10 +80,10 @@ describe("createCryptoWorker", () => {
 		createCryptoWorker({} as any);
 		const handler = getHandler("generateKeyPair");
 		const result = await handler({
-			payload: { algorithm: KeyAlgorithm.ecP384 },
+			payload: { algorithm: KeyAlgorithm.EcP384 },
 		});
 
-		expect(generateKeyPair).toHaveBeenCalledWith(KeyAlgorithm.ecP384);
+		expect(generateKeyPair).toHaveBeenCalledWith(KeyAlgorithm.EcP384);
 		expect(result).toEqual({ publicKey: "pk", privateKey: "sk" });
 	});
 
@@ -91,11 +91,11 @@ describe("createCryptoWorker", () => {
 		createCryptoWorker({} as any);
 		const handler = getHandler("generateKeyPairWithId");
 		const result = await handler({
-			payload: { algorithm: KeyAlgorithm.rsa4096 },
+			payload: { algorithm: KeyAlgorithm.Rsa4096 },
 		});
 
 		expect(generateKeyPairWithIdSync).toHaveBeenCalledWith(
-			KeyAlgorithm.rsa4096
+			KeyAlgorithm.Rsa4096
 		);
 		expect(result).toEqual({ publicKey: "pk", privateKey: "sk", id: "id1" });
 	});

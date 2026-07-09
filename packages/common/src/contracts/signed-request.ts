@@ -1,13 +1,13 @@
-import type { ServiceId } from "../domain/primitives";
+﻿import type { ServiceId } from "../domain/primitives";
 
 export enum HttpMethod {
-	GET = "GET",
-	POST = "POST",
-	PUT = "PUT",
-	PATCH = "PATCH",
-	DELETE = "DELETE",
-	HEAD = "HEAD",
-	OPTIONS = "OPTIONS",
+	Get = "GET",
+	Post = "POST",
+	Put = "PUT",
+	Patch = "PATCH",
+	Delete = "DELETE",
+	Head = "HEAD",
+	Options = "OPTIONS",
 }
 
 export interface HttpRoute {
@@ -21,9 +21,9 @@ export interface SignedRequest extends HttpRoute {
 }
 
 /** A cryptographic signature string (HMAC-SHA256 hex or base64). */
-export type Signature = string & { readonly __brand: "Signature" };
+export type Signature = string & { readonly brand: "Signature" };
 /** A UNIX-millisecond timestamp string used in request signing. */
-export type Timestamp = string & { readonly __brand: "Timestamp" };
+export type Timestamp = string & { readonly brand: "Timestamp" };
 
 export interface SignedRequestAuth {
 	timestamp: Timestamp;

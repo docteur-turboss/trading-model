@@ -1,4 +1,6 @@
 import { describe, expect, it } from "@jest/globals";
+import { AuditEvent } from "@trading-model/common/contracts/audit-events";
+import { MarketEvent } from "@trading-model/common/contracts/market-events";
 import { z } from "zod";
 
 /**

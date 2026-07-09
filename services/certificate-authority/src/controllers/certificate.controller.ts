@@ -1,10 +1,10 @@
-import { HTTP_STATUS } from "@trading-model/common/http-status";
-import { logger } from "@trading-model/common/config/logger";
+﻿import { logger } from "@trading-model/common/config/logger";
 import type { CertificateResponse } from "@trading-model/common/domain/certificate-base";
 import type { RevocationRequest } from "@trading-model/common/domain/revocation-request";
+import { HTTP_STATUS } from "@trading-model/common/http-status";
 import type { Request, Response } from "express";
 
-import { CONTAINER } from "../app";
+import { container } from "../app";
 
 function _validateSignRequest(
 	serviceId: unknown,
@@ -14,7 +14,9 @@ function _validateSignRequest(
 	if (serviceId && csr) {
 		return true;
 	}
-	res.status(HTTP_STATUS.BAD_REQUEST).json({ error: "serviceId and csr are required" });
+	res
+		.status(HTTP_STATUS.BAD_REQUEST)
+		.json({ error: "serviceId and csr are required" });
 	return false;
 }
 
@@ -44,7 +46,7 @@ export async function signCertificate(
 		if (!_validateSignRequest(serviceId, csr, res)) {
 			return;
 		}
-		const signed = await CONTAINER.ca.signServiceCertificate({
+		const signed = await container.ca.signServiceCertificate({
 			serviceId,
 			csr,
 			ttlMs,
@@ -52,7 +54,9 @@ export async function signCertificate(
 		_sendSignResponse(res, signed, serviceId);
 	} catch (err) {
 		logger.error("Failed to sign certificate", { context: { err } });
-		res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ error: "Failed to sign certificate" });
+		res
+			.status(HTTP_STATUS.INTERNAL_SERVER_ERROR)
+			.json({ error: "Failed to sign certificate" });
 	}
 }
 
@@ -61,7 +65,9 @@ function _validateGetRequest(
 	res: Response
 ): string | null {
 	if (!serviceId) {
-		res.status(HTTP_STATUS.BAD_REQUEST).json({ error: "serviceId is required" });
+		res
+			.status(HTTP_STATUS.BAD_REQUEST)
+			.json({ error: "serviceId is required" });
 		return null;
 	}
 	return String(serviceId);
@@ -87,15 +93,19 @@ export async function getCertificate(
 		if (!serviceId) {
 			return;
 		}
-		const cert = await CONTAINER.certificateStore.getByServiceId(serviceId);
+		const cert = await container.certificateStore.getByServiceId(serviceId);
 		if (!cert) {
-			res.status(HTTP_STATUS.NOT_FOUND).json({ error: "Certificate not found" });
+			res
+				.status(HTTP_STATUS.NOT_FOUND)
+				.json({ error: "Certificate not found" });
 			return;
 		}
 		_sendCertResponse(res, cert);
 	} catch (err) {
 		logger.error("Failed to get certificate", { context: { err } });
-		res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ error: "Failed to get certificate" });
+		res
+			.status(HTTP_STATUS.INTERNAL_SERVER_ERROR)
+			.json({ error: "Failed to get certificate" });
 	}
 }
 
@@ -106,27 +116,42 @@ function _validateRevocationRequest(
 	if (req.serialNumber && req.reason) {
 		return true;
 	}
-	res.status(HTTP_STATUS.BAD_REQUEST).json({ error: "serialNumber and reason are required" });
+	res
+		.status(HTTP_STATUS.BAD_REQUEST)
+		.json({ error: "serialNumber and reason are required" });
 	return false;
 }
 
-function _sendRevokeSuccess(res: Response, revocationRequest: RevocationRequest): void {
+function _sendRevokeSuccess(
+	res: Response,
+	revocationRequest: RevocationRequest
+): void {
 	logger.info("Certificate revoked", {
-		context: { serialNumber: revocationRequest.serialNumber, reason: revocationRequest.reason },
+		context: {
+			serialNumber: revocationRequest.serialNumber,
+			reason: revocationRequest.reason,
+		},
 	});
 	res.status(HTTP_STATUS.OK).json({ message: "Certificate revoked" });
 }
 
 function _sendRevokeError(res: Response, err: unknown): void {
 	logger.error("Failed to revoke certificate", { context: { err } });
-	res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ error: "Failed to revoke certificate" });
+	res
+		.status(HTTP_STATUS.INTERNAL_SERVER_ERROR)
+		.json({ error: "Failed to revoke certificate" });
 }
 
-export async function revokeCertificate(req: Request, res: Response): Promise<void> {
+export async function revokeCertificate(
+	req: Request,
+	res: Response
+): Promise<void> {
 	try {
 		const revocationRequest = req.body as RevocationRequest;
-		if (!_validateRevocationRequest(revocationRequest, res)) return;
-		await CONTAINER.ca.revokeCertificate(revocationRequest);
+		if (!_validateRevocationRequest(revocationRequest, res)) {
+			return;
+		}
+		await container.ca.revokeCertificate(revocationRequest);
 		_sendRevokeSuccess(res, revocationRequest);
 	} catch (err) {
 		_sendRevokeError(res, err);

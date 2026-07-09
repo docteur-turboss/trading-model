@@ -1,7 +1,7 @@
 import { logger } from "@trading-model/common/config/logger";
 import { normalizeError } from "@trading-model/common/utils/errors";
-import { StaleInstanceCleaner } from "./stale-instance-cleaner";
 import type { ServiceRegistry } from "./service-registry";
+import { StaleInstanceCleaner } from "./stale-instance-cleaner";
 
 export class ExpiredInstanceCleaner {
 	constructor(private readonly _registry: ServiceRegistry) {}

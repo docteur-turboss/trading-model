@@ -3,7 +3,6 @@ import type {
 	IInstanceRegistration,
 	ILifecycle,
 	ITokenManager,
-	RegistryBackend,
 	ServiceInstance,
 } from "@trading-model/common/contracts/service-registry.types";
 import {

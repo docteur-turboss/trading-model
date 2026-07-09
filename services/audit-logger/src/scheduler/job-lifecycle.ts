@@ -1,7 +1,7 @@
-import { randomUUID } from "node:crypto";
+﻿import { randomUUID } from "node:crypto";
 
 import { logger } from "@trading-model/common/config/logger";
-import { JOB_STATUS } from "@trading-model/common/contracts/recovery.types";
+import { JobStatus } from "@trading-model/common/contracts/recovery.types";
 import { type JobId, toJobType } from "@trading-model/common/domain/primitives";
 import { ENV } from "../config/env";
 import type { JobRepository } from "../persistence/job-repository";
@@ -30,12 +30,19 @@ export class JobLifecycle {
 		);
 	}
 
-	async submit(type: string, payload: unknown, priority: JobPriority = JobPriority.MEDIUM, maxRetries: number = ENV.MAX_RETRIES_PER_JOB): Promise<string> {
+	async submit(
+		type: string,
+		payload: unknown,
+		priority: JobPriority = JobPriority.MEDIUM,
+		maxRetries: number = ENV.MAX_RETRIES_PER_JOB
+	): Promise<string> {
 		this._checkBackPressure();
 		const job = this._createJob(type, payload, priority, maxRetries);
 		await this._repository.insert(job);
 		this._enqueueJob(job);
-		logger.info("Job submitted", { context: { jobId: job.id, type, priority } });
+		logger.info("Job submitted", {
+			context: { jobId: job.id, type, priority },
+		});
 		return job.id;
 	}
 
@@ -49,13 +56,18 @@ export class JobLifecycle {
 		}
 	}
 
-	private _createJob(type: string, payload: unknown, priority: JobPriority, maxRetries: number): Job {
+	private _createJob(
+		type: string,
+		payload: unknown,
+		priority: JobPriority,
+		maxRetries: number
+	): Job {
 		return {
 			id: randomUUID() as JobId,
 			type: toJobType(type),
 			payload,
 			priority,
-			status: JOB_STATUS.PENDING,
+			status: JobStatus.PENDING,
 			ackDeadline: 0,
 			maxRetries,
 			retryCount: 0,
@@ -65,10 +77,10 @@ export class JobLifecycle {
 	}
 
 	private _enqueueJob(job: Job): void {
-		const updated: Job = { ...job, status: JOB_STATUS.QUEUED };
+		const updated: Job = { ...job, status: JobStatus.QUEUED };
 		this._queue.enqueue(updated);
 		this._backPressure.updateQueueDepth(this._queue.depth());
-		this._repository.updateStatus(job.id, JOB_STATUS.QUEUED).catch((err) => {
+		this._repository.updateStatus(job.id, JobStatus.QUEUED).catch((err) => {
 			logger.error("Failed to persist queued status", {
 				context: {
 					jobId: job.id,

@@ -1,12 +1,17 @@
-import type {
+﻿import type {
 	TradingSymbol,
 	UnixTimestamp,
 } from "@trading-model/common/domain/primitives";
 
+/** Binance sends numeric values as strings; these branded types distinguish them at the type level. */
+type PriceString = string & { readonly brand: "PriceString" };
+type VolumeString = string & { readonly brand: "VolumeString" };
+type CashString = string & { readonly brand: "CashString" };
+
 /** A single depth entry with branded types. */
 export interface BinanceDepthEntry {
-	price: string; // note: Binance sends strings; parsed to Price by normalizer
-	qty: string;
+	price: PriceString;
+	qty: VolumeString;
 }
 
 export interface BinanceDepthResponse {
@@ -17,9 +22,9 @@ export interface BinanceDepthResponse {
 
 export interface BinanceTrade {
 	id: number;
-	price: string;
-	qty: string;
-	quoteQty: string;
+	price: PriceString;
+	qty: VolumeString;
+	quoteQty: CashString;
 	time: UnixTimestamp;
 	isBuyerMaker: boolean;
 	isBestMatch: boolean;
@@ -32,8 +37,8 @@ export type BinanceHistoricalTradeResponse = BinanceHistoricalTrade[];
 
 export interface BinanceAggregateTrade {
 	aggregateTradeId: number;
-	price: string;
-	quantity: string;
+	price: PriceString;
+	quantity: VolumeString;
 	firstTradeId: number;
 	lastTradeId: number;
 	time: UnixTimestamp;
@@ -46,14 +51,14 @@ export type BinanceAggregateTradeResponse = BinanceAggregateTrade[];
 /** OHLCV + last price fields shared by Binance ticker responses (all strings as received from API). */
 export interface BinanceTickerBaseStats {
 	symbol: TradingSymbol;
-	priceChange: string;
+	priceChange: PriceString;
 	priceChangePercent: string;
-	weightedAvgPrice: string;
-	lastPrice: string;
-	openPrice: string;
-	highPrice: string;
-	lowPrice: string;
-	volume: string;
+	weightedAvgPrice: PriceString;
+	lastPrice: PriceString;
+	openPrice: PriceString;
+	highPrice: PriceString;
+	lowPrice: PriceString;
+	volume: VolumeString;
 	openTime: UnixTimestamp;
 	closeTime: UnixTimestamp;
 	firstId: number;
@@ -64,16 +69,16 @@ export interface BinanceTickerBaseStats {
 /** Parsed candlestick with named fields and branded types. */
 export interface BinanceCandlestickData {
 	openTime: UnixTimestamp;
-	open: string;
-	high: string;
-	low: string;
-	close: string;
-	volume: string;
+	open: PriceString;
+	high: PriceString;
+	low: PriceString;
+	close: PriceString;
+	volume: VolumeString;
 	closeTime: UnixTimestamp;
-	quoteAssetVolume: string;
+	quoteAssetVolume: CashString;
 	numberOfTrades: number;
-	takerBuyBaseAssetVolume: string;
-	takerBuyQuoteAssetVolume: string;
+	takerBuyBaseAssetVolume: VolumeString;
+	takerBuyQuoteAssetVolume: CashString;
 }
 
 export type BinanceCandlestickDataResponse = BinanceCandlestickData[];
@@ -81,64 +86,77 @@ export type BinanceCandlestickDataResponse = BinanceCandlestickData[];
 /** Convert a raw API tuple to a named-field object. */
 export function parseCandlestick(
 	raw: [
-		number,
-		string,
-		string,
-		string,
-		string,
-		string,
-		number,
-		string,
-		number,
-		string,
-		string,
-		string,
+		openTime: number,
+		open: string,
+		high: string,
+		low: string,
+		close: string,
+		volume: string,
+		closeTime: number,
+		quoteAssetVolume: string,
+		numberOfTrades: number,
+		takerBuyBaseAssetVolume: string,
+		takerBuyQuoteAssetVolume: string,
+		_takerBuyQuoteAssetVolume: string,
 	]
 ): BinanceCandlestickData {
+	const [
+		openTime,
+		open,
+		high,
+		low,
+		close,
+		volume,
+		closeTime,
+		quoteAssetVolume,
+		numberOfTrades,
+		takerBuyBaseAssetVolume,
+		takerBuyQuoteAssetVolume,
+	] = raw;
 	return {
-		openTime: raw[0] as UnixTimestamp,
-		open: raw[1],
-		high: raw[2],
-		low: raw[3],
-		close: raw[4],
-		volume: raw[5],
-		closeTime: raw[6] as UnixTimestamp,
-		quoteAssetVolume: raw[7],
-		numberOfTrades: raw[8],
-		takerBuyBaseAssetVolume: raw[9],
-		takerBuyQuoteAssetVolume: raw[10],
+		openTime: openTime as UnixTimestamp,
+		open: open as PriceString,
+		high: high as PriceString,
+		low: low as PriceString,
+		close: close as PriceString,
+		volume: volume as VolumeString,
+		closeTime: closeTime as UnixTimestamp,
+		quoteAssetVolume: quoteAssetVolume as CashString,
+		numberOfTrades,
+		takerBuyBaseAssetVolume: takerBuyBaseAssetVolume as VolumeString,
+		takerBuyQuoteAssetVolume: takerBuyQuoteAssetVolume as CashString,
 	};
 }
 
 export interface Binance24hrTickerStats extends BinanceTickerBaseStats {
-	prevClosePrice: string;
-	bidPrice: string;
-	bidQty: string;
-	askPrice: string;
-	askQty: string;
+	prevClosePrice: PriceString;
+	bidPrice: PriceString;
+	bidQty: VolumeString;
+	askPrice: PriceString;
+	askQty: VolumeString;
 }
 
 export type Binance24hrTickerStatsResponse = Binance24hrTickerStats[];
 
 export interface BinanceTradingDayTicker extends BinanceTickerBaseStats {
-	quoteVolume: string;
+	quoteVolume: CashString;
 }
 
 export type BinanceTradingDayTickerResponse = BinanceTradingDayTicker[];
 
 export interface BinanceSymbolPriceTicker {
 	symbol: TradingSymbol;
-	price: string;
+	price: PriceString;
 }
 
 export type BinanceSymbolPriceTickerResponse = BinanceSymbolPriceTicker[];
 
 export interface BinanceSymbolOrderBookTicker {
 	symbol: TradingSymbol;
-	bidPrice: string;
-	askPrice: string;
-	bidQty: string;
-	askQty: string;
+	bidPrice: PriceString;
+	askPrice: PriceString;
+	bidQty: VolumeString;
+	askQty: VolumeString;
 }
 
 export type BinanceSymbolOrderBookTickerResponse =

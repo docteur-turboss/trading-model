@@ -15,7 +15,7 @@ export {
 	NormalisationType,
 } from "../neural-network/type";
 
-import { Bounded } from "./bounded";
+import type { Bounded } from "./bounded";
 
 /** Clipping bounds for reward shaping and continuous policy. */
 export type ClipBounds = Bounded<number>;

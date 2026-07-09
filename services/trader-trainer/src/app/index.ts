@@ -12,15 +12,15 @@ let addressManager: ReturnType<typeof BOOTSTRAP_ADDRESS_MANAGER> =
 	NULL_ADDRESS_MANAGER as ReturnType<typeof BOOTSTRAP_ADDRESS_MANAGER>;
 
 const CONTAINER = new ApplicationContainer({
-	bufferSize: env.TRAINER_DATA_WINDOW,
-	symbols: env.TRAINER_SYMBOLS.split(",").map((symbol) =>
+	bufferSize: ENV.TRAINER_DATA_WINDOW,
+	symbols: ENV.TRAINER_SYMBOLS.split(",").map((symbol) =>
 		toSymbol(symbol.trim())
 	),
-	validationSplit: env.TRAINER_VALIDATION_SPLIT,
-	generations: env.TRAINER_GENERATIONS,
-	populationSize: env.TRAINER_POPULATION_SIZE,
-	timeBudgetMs: env.TRAINER_TIME_BUDGET_MS,
-	episodesPerIndividual: env.TRAINER_EPISODES_PER_INDIVIDUAL,
+	validationSplit: ENV.TRAINER_VALIDATION_SPLIT,
+	generations: ENV.TRAINER_GENERATIONS,
+	populationSize: ENV.TRAINER_POPULATION_SIZE,
+	timeBudgetMs: ENV.TRAINER_TIME_BUDGET_MS,
+	episodesPerIndividual: ENV.TRAINER_EPISODES_PER_INDIVIDUAL,
 });
 
 const { trainer } = CONTAINER;
@@ -53,7 +53,7 @@ createBootstrap({
 		await MessageManager.intents(CONTAINER.getSubscribedIntents());
 
 		CONTAINER.startTrainingLoop(
-			env.TRAINER_SYMBOLS.split(",").map((symbol) => toSymbol(symbol.trim())),
+			ENV.TRAINER_SYMBOLS.split(",").map((symbol) => toSymbol(symbol.trim())),
 			60_000
 		);
 	},

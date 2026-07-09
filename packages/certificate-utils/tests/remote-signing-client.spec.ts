@@ -51,7 +51,7 @@ describe("RemoteSigningClient", () => {
 		it("should post to generate-key-pair endpoint", async () => {
 			MOCK_POST.mockResolvedValue({ publicKey: "pk", privateKey: "sk" });
 			const client = getClient();
-			const result = await client.generateKeyPair(KeyAlgorithm.ecP384);
+			const result = await client.generateKeyPair(KeyAlgorithm.EcP384);
 
 			expect(MOCK_POST).toHaveBeenCalledWith(
 				"https://signer.example.com/api/v1/crypto/generate-key-pair",
@@ -78,7 +78,7 @@ describe("RemoteSigningClient", () => {
 				id: "id1",
 			});
 			const client = getClient();
-			const result = await client.generateKeyPairWithId(KeyAlgorithm.ecP384);
+			const result = await client.generateKeyPairWithId(KeyAlgorithm.EcP384);
 
 			expect(MOCK_POST).toHaveBeenCalledWith(
 				"https://signer.example.com/api/v1/crypto/generate-key-pair-with-id",

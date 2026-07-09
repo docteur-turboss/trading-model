@@ -1,6 +1,6 @@
+import { clampToBounded } from "./bounded";
 import type { RewardShapingGenome } from "./genome-types";
 import { FitnessType } from "./genome-types";
-import { clampToBounded } from "./bounded";
 
 export interface FitnessStrategy {
 	readonly type: FitnessType;

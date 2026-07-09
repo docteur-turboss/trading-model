@@ -1,8 +1,19 @@
 import { beforeEach, describe, expect, jest, test } from "@jest/globals";
 import type { HttpClient } from "@trading-model/common/config/http-client";
+import {
+	registerServiceName,
+	type ServiceInstanceName,
+} from "@trading-model/common/config/services.types";
+import {
+	Port,
+	toInstanceId,
+	toServiceId,
+} from "@trading-model/common/domain/primitives";
 import { AddressManagerClient } from "../../src/client/address-manager-client";
 import type { TokenManager } from "../../src/client/token-manager";
 import type { AddressManagerConfig } from "../../src/config/address-manager-config";
+
+registerServiceName("test-service" as ServiceInstanceName);
 
 describe("AddressManagerClient Multi-URL", () => {
 	let client: AddressManagerClient;
@@ -13,7 +24,7 @@ describe("AddressManagerClient Multi-URL", () => {
 		overrides?: Partial<AddressManagerConfig>
 	): AddressManagerConfig {
 		return {
-			servicePort: 8080,
+			servicePort: Port.of(8080),
 			addressManagerUrl: "https://ds-primary:3000",
 			discoveryUrls: ["https://ds-primary:3000", "https://ds-secondary:3000"],
 			cacheTtlMs: 30000,
@@ -21,7 +32,10 @@ describe("AddressManagerClient Multi-URL", () => {
 			servicePingTimeoutMs: 2000,
 			tokenRefreshIntervalMs: 60000,
 			ttlRefreshIntervalMs: 15000,
-			identity: { serviceName: "test-service", instanceId: "test-instance" },
+			identity: {
+				serviceName: toServiceId("test-service"),
+				instanceId: toInstanceId("test-instance"),
+			},
 			tls: {
 				caPath: "/certs/ca.crt",
 				certPath: "/certs/server.crt",

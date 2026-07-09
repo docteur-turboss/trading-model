@@ -1,6 +1,9 @@
+﻿import type { Collection } from "mongodb";
 import { logger } from "../../config/logger";
 import type { ArchiveEntry } from "./mongo-archive-batch";
 import type { MongoCollectionConfig } from "./mongo-types";
+
+type MongoCollection = Collection<Record<string, unknown>>;
 
 const MaxBatchSize = 1000;
 const MaxRetries = 3;
@@ -9,14 +12,10 @@ const RetryDelayMs = 1000;
 export class MongoBatchWriter {
 	constructor(private readonly _config: MongoCollectionConfig) {}
 
-	private _getCollection(): ReturnType<
-		ReturnType<MongoCollectionConfig["client"]["db"]>["collection"]
-	> {
+	private _getCollection(): MongoCollection {
 		return this._config.client
 			.db(this._config.dbName)
-			.collection(this._config.collectionName) as ReturnType<
-			ReturnType<MongoCollectionConfig["client"]["db"]>["collection"]
-		>;
+			.collection(this._config.collectionName) as MongoCollection;
 	}
 
 	async insertBatch(docs: unknown[]): Promise<void> {
@@ -25,14 +24,12 @@ export class MongoBatchWriter {
 	}
 
 	private async _insertWithRetry(
-		col: ReturnType<
-			ReturnType<MongoCollectionConfig["client"]["db"]>["collection"]
-		>,
+		col: MongoCollection,
 		docs: unknown[],
 		attempt: number
 	): Promise<void> {
 		try {
-			await (col as any).insertMany(docs);
+			await col.insertMany(docs as never[]);
 		} catch (err) {
 			this._handleInsertError(err, attempt);
 		}
@@ -62,7 +59,7 @@ export class MongoBatchWriter {
 	}
 
 	private async _tryBulkWrite(
-		col: any,
+		col: MongoCollection,
 		bulkOps: unknown[],
 		attempt: number
 	): Promise<Error | null> {
@@ -102,7 +99,7 @@ export class MongoBatchWriter {
 function buildBulkUpserts(entries: ArchiveEntry[]): Array<{
 	updateOne: {
 		filter: { messageId: string };
-		update: { $setOnInsert: ArchiveEntry };
+		update: Record<string, ArchiveEntry>;
 		upsert: true;
 	};
 }> {
@@ -114,7 +111,7 @@ function buildBulkUpserts(entries: ArchiveEntry[]): Array<{
 function upsertOperation(entry: ArchiveEntry): {
 	updateOne: {
 		filter: { messageId: string };
-		update: { $setOnInsert: ArchiveEntry };
+		update: Record<string, ArchiveEntry>;
 		upsert: true;
 	};
 } {

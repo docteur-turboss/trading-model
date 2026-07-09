@@ -45,10 +45,7 @@ export function configureApp(
 	return app;
 }
 
-function _configureTrustProxy(
-	app: Application,
-	trustProxy?: boolean
-): void {
+function _configureTrustProxy(app: Application, trustProxy?: boolean): void {
 	if (trustProxy ?? false) {
 		app.set("trust proxy", "loopback");
 	}

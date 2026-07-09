@@ -21,7 +21,10 @@ function getServiceCircuit(serviceName: string): CircuitBreaker {
 export function checkHostnameCircuit(hostname: string): void {
 	const state = HOSTNAME_CIRCUIT.check(hostname);
 	if (state === "open") {
-		throw new HttpClientError(`Circuit breaker open for ${hostname}`, HTTP_STATUS.SERVICE_UNAVAILABLE);
+		throw new HttpClientError(
+			`Circuit breaker open for ${hostname}`,
+			HTTP_STATUS.SERVICE_UNAVAILABLE
+		);
 	}
 }
 

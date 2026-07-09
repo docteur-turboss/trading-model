@@ -1,9 +1,9 @@
-import { AppError } from "@trading-model/common/utils/errors";
+﻿import { AppError } from "@trading-model/common/utils/errors";
 import { getCollection } from "../config/db";
 import { ENV } from "../config/env";
 import { DedupInserter } from "./dedup-inserter";
 import { DLQ_MAX_PASS_COUNT } from "./dlq-constants";
-import { DLQ_STATUS } from "./dlq-status";
+import { DlqStatus } from "./dlq-status";
 import { EntrySerializer } from "./entry-serializer";
 import type { DlqEntry } from "./repository";
 
@@ -18,7 +18,7 @@ async function _computeDlqPassCount(
 	const prevCompleted = await col.findOne(
 		{
 			contentHash,
-			status: { $in: [DLQ_STATUS.COMPLETED, DLQ_STATUS.ABANDONED] },
+			status: { $in: [DlqStatus.Completed, DlqStatus.Abandoned] },
 		},
 		{ sort: { createdAt: -1 }, projection: { dlqPassCount: 1, _id: 1 } }
 	);
@@ -48,7 +48,7 @@ function _applyPingPongAbandon(
 	dlqPassCount: number
 ): void {
 	if (dlqPassCount >= DLQ_MAX_PASS_COUNT) {
-		doc.status = DLQ_STATUS.ABANDONED;
+		doc.status = DlqStatus.Abandoned;
 		doc.abandonedAt = new Date();
 		doc.lastError = `Ping-pong detected: message entered DLQ ${dlqPassCount} times`;
 	}

@@ -1,1 +1,7 @@
-export { ACTIVATIONS, CONNECTION_TYPES, MAX_DEPTH, SCALAR_DIM, encodedDim } from "./encoding-indices";
+export {
+	ACTIVATIONS,
+	CONNECTION_TYPES,
+	encodedDim,
+	MAX_DEPTH,
+	SCALAR_DIM,
+} from "./encoding-indices";

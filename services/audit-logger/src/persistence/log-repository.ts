@@ -1,8 +1,6 @@
 import type { HttpMethod } from "@trading-model/common/contracts/signed-request";
-import type { DateRange } from "@trading-model/common/domain/date-range";
 import {
 	computePagination,
-	type PaginationQuery,
 	type PaginationResult,
 } from "@trading-model/common/domain/pagination";
 import type {
@@ -85,7 +83,9 @@ export class LogRepository {
 	}
 
 	async insertBatch(docs: ServiceLogDocument[]): Promise<void> {
-		if (docs.length === 0) return;
+		if (docs.length === 0) {
+			return;
+		}
 		await this._collection.insertMany(docs as never[], { ordered: false });
 	}
 
@@ -111,7 +111,9 @@ export class LogRepository {
 
 	async findById(id: string): Promise<ServiceLogDocument | null> {
 		const { ObjectId } = await import("mongodb");
-		if (!ObjectId.isValid(id)) return null;
+		if (!ObjectId.isValid(id)) {
+			return null;
+		}
 		return this._collection.findOne({ _id: new ObjectId(id) } as never);
 	}
 }

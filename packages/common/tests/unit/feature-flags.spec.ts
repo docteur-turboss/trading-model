@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "@jest/globals";
+import type { PlatformFlagName } from "../../src/config/feature-flag-definitions";
 import {
 	type FeatureFlagDefinition,
 	FeatureFlags,
@@ -6,25 +7,25 @@ import {
 
 const TEST_FLAGS: FeatureFlagDefinition[] = [
 	{
-		name: "ENABLE_NEW_PIPELINE",
+		name: "ENABLE_NEW_PIPELINE" as unknown as PlatformFlagName,
 		defaultEnabled: false,
 		description: "Use the new data pipeline",
 		owner: "@trading-model/data",
 	},
 	{
-		name: "DISABLE_CACHE",
+		name: "DISABLE_CACHE" as unknown as PlatformFlagName,
 		defaultEnabled: false,
 		description: "Bypass all Redis caching",
 		owner: "@trading-model/platform",
 	},
 	{
-		name: "STRICT_VALIDATION",
+		name: "STRICT_VALIDATION" as unknown as PlatformFlagName,
 		defaultEnabled: true,
 		description: "Enforce strict schema validation",
 		owner: "@trading-model/core",
 	},
 	{
-		name: "CANARY_ROUTING",
+		name: "CANARY_ROUTING" as unknown as PlatformFlagName,
 		defaultEnabled: false,
 		description: "Route traffic to canary instances",
 		owner: "@trading-model/platform",
@@ -95,7 +96,11 @@ describe("FeatureFlags", () => {
 		const ff = new FeatureFlags(TEST_FLAGS);
 		const all = ff.getAll();
 		expect(all).toHaveLength(4);
-		expect(all.find((f) => f.name === "CANARY_ROUTING")).toBeDefined();
+		expect(
+			all.find(
+				(f) => f.name === ("CANARY_ROUTING" as unknown as PlatformFlagName)
+			)
+		).toBeDefined();
 	});
 
 	it("should get a single flag definition", () => {

@@ -2,10 +2,10 @@ import { logger } from "@trading-model/common/config/logger";
 import { normalizeError } from "@trading-model/common/utils/errors";
 
 import {
-	type VaultTransitConfig,
-	VaultTransitHttp,
 	HashAlgorithmMapper,
 	VaultResponseParser,
+	type VaultTransitConfig,
+	VaultTransitHttp,
 } from "./vault-transit-http";
 
 export type { VaultTransitConfig } from "./vault-transit-http";
@@ -46,7 +46,7 @@ export class VaultTransitClient {
 		return Buffer.from(signatureBase64, "base64").toString("binary");
 	}
 
-	async readPublicKey(name: string): Promise<string> {
+	readPublicKey(name: string): Promise<string> {
 		return this._http.readPublicKey(name);
 	}
 

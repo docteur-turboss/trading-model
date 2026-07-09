@@ -36,9 +36,9 @@ export class DateRange {
 	}
 
 	get durationMs(): number | undefined {
-		if (this.start && this.end) {
-			return this.end.getTime() - this.start.getTime();
-		}
+		return this.start && this.end
+			? this.end.getTime() - this.start.getTime()
+			: undefined;
 	}
 
 	overlaps(other: DateRange): boolean {

@@ -8,15 +8,15 @@ import type { RedisInstanceRepository } from "./redis-instance-repository";
 export class InstanceRegistrationService implements IInstanceRegistration {
 	constructor(private readonly _instances: RedisInstanceRepository) {}
 
-	async registerInstance(instance: ServiceInstance): Promise<string> {
+	registerInstance(instance: ServiceInstance): Promise<string> {
 		return this._instances.registerInstance(instance);
 	}
 
-	async updateHeartbeat(id: ServiceIdentity): Promise<number | false> {
+	updateHeartbeat(id: ServiceIdentity): Promise<number | false> {
 		return this._instances.updateHeartbeat(id);
 	}
 
-	async removeInstance(id: ServiceIdentity): Promise<boolean> {
+	removeInstance(id: ServiceIdentity): Promise<boolean> {
 		return this._instances.removeInstance(id);
 	}
 }

@@ -1,32 +1,32 @@
-import {
-	type TradingSymbol,
-	type UnixTimestamp,
+import type {
 	Price,
+	TradingSymbol,
+	UnixTimestamp,
 	Volume,
 } from "../domain/primitives";
 
 export {
+	getAskTotalQty,
 	getAvgAsk,
 	getAvgBid,
-	getAskTotalQty,
 	getBidTotalQty,
 } from "../config/order-book-utils";
 
 /** Supported financial market categories. */
 export enum MarketType {
-	CRYPTO = "crypto",
-	EQUITY = "equity",
-	BOND = "bond",
-	ETF = "etf",
-	FX = "fx",
-	FUTURE = "future",
+	Crypto = "crypto",
+	Equity = "equity",
+	Bond = "bond",
+	Etf = "etf",
+	Fx = "fx",
+	Future = "future",
 }
 
 /** Supported market data sources / exchanges. */
 export enum SourceType {
-	BLOOMBERG = "bloomberg",
-	BINANCE = "binance",
-	NYSE = "nyse",
+	Bloomberg = "bloomberg",
+	Binance = "binance",
+	Nyse = "nyse",
 }
 
 /** Common fields shared by all market data entities. */
@@ -40,11 +40,11 @@ export interface BaseMarketData {
 /** Supported candlestick intervals. */
 export enum CandleInterval {
 	S1 = "1s",
-	MIN1 = "1m",
-	MIN3 = "3m",
-	MIN5 = "5m",
-	MIN15 = "15m",
-	MIN30 = "30m",
+	Min1 = "1m",
+	Min3 = "3m",
+	Min5 = "5m",
+	Min15 = "15m",
+	Min30 = "30m",
 	H1 = "1h",
 	H2 = "2h",
 	H4 = "4h",
@@ -54,7 +54,7 @@ export enum CandleInterval {
 	D1 = "1d",
 	D3 = "3d",
 	W1 = "1w",
-	MONTH1 = "1M",
+	Month1 = "1M",
 }
 
 /** OHLCV price/volume fields shared by candle and ticker data. */
@@ -75,8 +75,8 @@ export interface CandleData extends BaseMarketData, OhlcvData {
 
 /** Trade direction. */
 export enum TradeSide {
-	BUY = "buy",
-	SELL = "sell",
+	Buy = "buy",
+	Sell = "sell",
 }
 
 /** Represents an executed trade on a market. */
@@ -111,12 +111,18 @@ export interface BookTickerData extends BaseMarketData, BidAsk {
 	askQty: Volume;
 }
 
-/** 24-hour price ticker statistics. */
-export interface TickerData extends BaseMarketData {
+/**
+ * OHLCV fields as used by 24-hour tickers (uses `last` instead of `close`).
+ */
+export interface OhlcvTickerData {
 	low: Price;
 	open: Price;
 	high: Price;
 	last: Price;
 	volume: Volume;
+}
+
+/** 24-hour price ticker statistics. */
+export interface TickerData extends BaseMarketData, OhlcvTickerData {
 	closeTimestamp: UnixTimestamp;
 }

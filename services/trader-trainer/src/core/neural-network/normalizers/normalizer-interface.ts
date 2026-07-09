@@ -1,4 +1,4 @@
-import { NumericRange } from "@trading-model/common/domain/numeric-range";
+import type { NumericRange } from "@trading-model/common/domain/numeric-range";
 
 export type NormalizeParams = NumericRange;
 

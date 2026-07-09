@@ -1,10 +1,8 @@
-import { ENV } from "../../config/env";
+﻿import { ENV } from "../../config/env";
 import { logger } from "../../config/logger";
 import { getRedisClient } from "../../config/redis";
 
-export async function loadFromRedis(
-	topic: string
-): Promise<string[] | "deny"> {
+export async function loadFromRedis(topic: string): Promise<string[] | "deny"> {
 	try {
 		const redis = await getRedisClient();
 		const aclKey = `${ENV.REDIS_PREFIX}acl:${topic}`;

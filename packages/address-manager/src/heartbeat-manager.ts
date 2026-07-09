@@ -1,6 +1,5 @@
 import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
 import type { AddressManagerClient } from "./client/address-manager-client";
-import type { WebSocketClient } from "./client/websocket-client";
 import { HeartbeatFailureHandler } from "./heartbeat-failure-handler";
 import type { AddressManagerDeps } from "./types";
 
@@ -49,7 +48,7 @@ export class HeartbeatManager {
 			this._onSuccess();
 			this._failureHandler.resetFailures();
 		} catch (err) {
-			this._failureHandler.handleError(err, this._onSuccess);
+			await this._failureHandler.handleError(err, this._onSuccess);
 		}
 	}
 }

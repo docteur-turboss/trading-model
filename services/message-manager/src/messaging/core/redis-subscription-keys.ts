@@ -1,4 +1,4 @@
-export class RedisSubscriptionKeys {
+﻿export class RedisSubscriptionKeys {
 	constructor(private readonly _prefix: string) {}
 
 	topicKey(topic: string): string {

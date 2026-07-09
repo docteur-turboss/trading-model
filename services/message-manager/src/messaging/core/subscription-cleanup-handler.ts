@@ -1,4 +1,4 @@
-import type Redis from "ioredis";
+﻿import type Redis from "ioredis";
 
 import type { TopicSubscription } from "./messaging-types";
 import { RedisSubscriptionKeys } from "./redis-subscription-keys";
@@ -25,20 +25,18 @@ export class SubscriptionCleanupHandler {
 		return multi;
 	}
 
-	async cleanupInstanceIfEmpty(
+	cleanupInstanceIfEmpty(
 		redis: Redis,
 		results: [Error | null, unknown][],
 		instanceId: string
-	): Promise<void> {
+	): void {
 		const instanceScard = results[results.length - 2];
 		if (this._isZeroScard(instanceScard)) {
-			try {
-				return redis
-					.srem(this._keys.activeInstancesKey(), instanceId)
-					.then(() => {});
-			} catch {}
+			redis
+				.srem(this._keys.activeInstancesKey(), instanceId)
+				.then(() => {})
+				.catch(() => {});
 		}
-		return Promise.resolve();
 	}
 
 	async cleanupTopicIfEmpty(

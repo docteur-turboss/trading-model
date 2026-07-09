@@ -1,11 +1,11 @@
-import { context, propagation } from "@opentelemetry/api";
+﻿import { context, propagation } from "@opentelemetry/api";
 import type { MessageMetadata } from "@trading-model/common/contracts/message.types";
 import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
 import type WebSocket from "ws";
 import { logger } from "../../config/logger";
 import type { Dispatcher } from "../core/dispatcher";
 import { PublishGuard } from "./publish-guard";
-import type { IncomingWssMessage } from "./wss-message.types";
+import type { WsTransportMessage } from "./wss-message.types";
 import type { WssRateLimiter } from "./wss-rate-limiter";
 
 export class WssPublisher {
@@ -20,7 +20,7 @@ export class WssPublisher {
 	}
 
 	async handlePublish(
-		msg: IncomingWssMessage,
+		msg: WsTransportMessage,
 		ws: WebSocket,
 		ctx: { identity: ServiceIdentity }
 	): Promise<void> {
@@ -31,7 +31,7 @@ export class WssPublisher {
 	}
 
 	private async _checkPublishGuards(
-		msg: IncomingWssMessage,
+		msg: WsTransportMessage,
 		ws: WebSocket,
 		ctx: { identity: ServiceIdentity }
 	): Promise<boolean> {
@@ -54,7 +54,7 @@ export class WssPublisher {
 	}
 
 	private async _executePublish(
-		msg: IncomingWssMessage,
+		msg: WsTransportMessage,
 		ws: WebSocket
 	): Promise<void> {
 		try {
@@ -69,7 +69,7 @@ export class WssPublisher {
 		}
 	}
 
-	private _buildPublishPromise(msg: IncomingWssMessage): Promise<string> {
+	private _buildPublishPromise(msg: WsTransportMessage): Promise<string> {
 		const traceparent = msg.traceparent as string | undefined;
 		const metadata = msg.metadata as Omit<
 			MessageMetadata,

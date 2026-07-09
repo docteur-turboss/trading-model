@@ -15,14 +15,18 @@ function _randomIndex(population: PopMember[], rng: () => number): number {
 }
 
 function _getFitnessWeights(population: PopMember[]): number[] {
-	return population.map((m) => Math.max(0, m.fitness));
+	return population.map((member) => Math.max(0, member.fitness));
 }
 
 function _totalWeight(weights: number[]): number {
 	return weights.reduce((sum, value) => sum + value, 0) || 1;
 }
 
-function _rouletteSelect(population: PopMember[], weights: number[], rng: () => number): LamarckGenome {
+function _rouletteSelect(
+	population: PopMember[],
+	weights: number[],
+	rng: () => number
+): LamarckGenome {
 	const total = _totalWeight(weights);
 	let pick = rng() * total;
 	for (let i = 0; i < population.length; i++) {
@@ -69,7 +73,7 @@ class RankSelection implements SelectionStrategy {
 		const sorted = [...population].sort(
 			(left, right) => left.fitness - right.fitness
 		);
-		const weights = sorted.map((_unused, i) => i + 1);
+		const weights = sorted.map((_unused, idx) => idx + 1);
 		return _rouletteSelect(sorted, weights, rng);
 	}
 }

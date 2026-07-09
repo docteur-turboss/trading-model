@@ -35,7 +35,7 @@ async function _storeLogs(
 }
 
 export function createLogHandler(logRepo: LogRepository) {
-	return catchSync(async (req) => {
+	return catchSync((req) => {
 		const parsed = LOGS_BATCH_SCHEMA.safeParse(req.body);
 		if (!parsed.success) {
 			return sendResponse({ error: parsed.error.message }, 400);

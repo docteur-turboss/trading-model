@@ -22,6 +22,13 @@ jest.mock("mongodb", () => ({
 
 import { DateRange } from "@trading-model/common/domain/date-range";
 import {
+	toCorrelationId,
+	toInstanceId,
+	toMessageId,
+	toServiceId,
+	toTopic,
+} from "@trading-model/common/domain/primitives";
+import {
 	type AuditEventDocument,
 	AuditRepository,
 } from "../../../src/persistence/audit-repository";
@@ -32,12 +39,12 @@ function makeEvent(
 	return {
 		receivedAt: new Date(),
 		metadata: {
-			topic: "test-topic",
+			topic: toTopic("test-topic"),
 			eventType: "test.event",
-			publisher: "test-service",
-			instanceId: "instance-1",
-			messageId: "msg-1",
-			correlationId: "corr-1",
+			publisher: toServiceId("test-service"),
+			instanceId: toInstanceId("instance-1"),
+			messageId: toMessageId("msg-1"),
+			correlationId: toCorrelationId("corr-1"),
 		},
 		payload: { key: "value" },
 		...overrides,
@@ -114,10 +121,16 @@ describe("AuditRepository", () => {
 			MOCK_COLLECTION.insertMany.mockResolvedValue({ insertedCount: 2 });
 			const events = [
 				makeEvent({
-					metadata: { ...makeEvent().metadata, messageId: "msg-1" },
+					metadata: {
+						...makeEvent().metadata,
+						messageId: toMessageId("msg-1"),
+					},
 				}),
 				makeEvent({
-					metadata: { ...makeEvent().metadata, messageId: "msg-2" },
+					metadata: {
+						...makeEvent().metadata,
+						messageId: toMessageId("msg-2"),
+					},
 				}),
 			];
 

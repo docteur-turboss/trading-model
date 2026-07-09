@@ -1,4 +1,4 @@
-export class Deque<TData> {
+﻿export class Deque<TData> {
 	private _items: Record<number, TData> = {};
 	private _front = 0;
 	private _back = 0;

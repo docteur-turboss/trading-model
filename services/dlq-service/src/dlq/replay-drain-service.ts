@@ -11,14 +11,18 @@ function _sleep(ms: number): Promise<void> {
 
 export class ReplayDrainService {
 	async drain(): Promise<void> {
-		if (activeReplays.count === 0) return;
+		if (activeReplays.count === 0) {
+			return;
+		}
 
 		logger.info(
 			`Waiting for ${activeReplays.count} in-flight replays to complete`
 		);
 		await this._waitForReplays();
 
-		if (activeReplays.count === 0) return;
+		if (activeReplays.count === 0) {
+			return;
+		}
 
 		await this._forceReleaseClaims();
 	}

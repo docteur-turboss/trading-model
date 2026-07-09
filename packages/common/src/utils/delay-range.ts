@@ -1,10 +1,14 @@
 export class DelayRange {
 	constructor(
 		readonly baseMs: number,
-		readonly maxMs: number,
+		readonly maxMs: number
 	) {
-		if (baseMs <= 0) throw new RangeError(`baseMs (${baseMs}) must be > 0`);
-		if (maxMs < baseMs) throw new RangeError(`maxMs (${maxMs}) must be >= baseMs (${baseMs})`);
+		if (baseMs <= 0) {
+			throw new RangeError(`baseMs (${baseMs}) must be > 0`);
+		}
+		if (maxMs < baseMs) {
+			throw new RangeError(`maxMs (${maxMs}) must be >= baseMs (${baseMs})`);
+		}
 	}
 
 	backoff(attempt: number): number {
@@ -12,6 +16,8 @@ export class DelayRange {
 	}
 
 	withJitter(attempt: number, jitterMs: number): number {
-		return this.backoff(attempt) + (jitterMs > 0 ? Math.random() * jitterMs : 0);
+		return (
+			this.backoff(attempt) + (jitterMs > 0 ? Math.random() * jitterMs : 0)
+		);
 	}
 }

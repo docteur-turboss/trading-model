@@ -13,20 +13,12 @@ const MARKET_DATA_ENTRY_MAP: [
 	MarketEvent,
 	string,
 ][] = [
-	["candles", MarketEvent.fetchCandlestickSeries, "FetchCandlestick"],
-	["orderBook", MarketEvent.fetchOrderBookSnapshot, "FetchOrderbook"],
-	["ticker24h", MarketEvent.fetch24hrTickerStats, "FetchTicker24hr"],
-	[
-		"bookTicker",
-		MarketEvent.fetchOrderBookTickerSnapshot,
-		"FetchBookTicker",
-	],
-	[
-		"priceTicker",
-		MarketEvent.fetchPriceTickerSnapshot,
-		"FetchPriceTicker",
-	],
-	["recentTrades", MarketEvent.fetchRecentTrades, "FetchRecentTrades"],
+	["candles", MarketEvent.FetchCandlestickSeries, "FetchCandlestick"],
+	["orderBook", MarketEvent.FetchOrderBookSnapshot, "FetchOrderbook"],
+	["ticker24h", MarketEvent.Fetch24hrTickerStats, "FetchTicker24hr"],
+	["bookTicker", MarketEvent.FetchOrderBookTickerSnapshot, "FetchBookTicker"],
+	["priceTicker", MarketEvent.FetchPriceTickerSnapshot, "FetchPriceTicker"],
+	["recentTrades", MarketEvent.FetchRecentTrades, "FetchRecentTrades"],
 ];
 
 export function buildMarketDataEntries(

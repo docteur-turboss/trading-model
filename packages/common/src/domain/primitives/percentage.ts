@@ -1,4 +1,4 @@
-export type Percentage = number & { readonly __brand: "Percentage" };
+﻿export type Percentage = number & { readonly brand: "Percentage" };
 
 export const Percentage = {
 	of(value: number): Percentage {

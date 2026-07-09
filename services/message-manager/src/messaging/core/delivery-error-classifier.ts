@@ -1,4 +1,4 @@
-import { DeliveryMode } from "@trading-model/common/config/delivery-mode.types";
+﻿import { DeliveryMode } from "@trading-model/common/config/delivery-mode.types";
 import { isDeadLetterError } from "@trading-model/common/utils/errors";
 
 export type ErrorAction =
@@ -23,7 +23,7 @@ export class DeliveryErrorClassifier {
 			return { action: "dlq", reason: "TTL_EXPIRED" };
 		}
 
-		if (deliveryMode === DeliveryMode.AT_MOST_ONCE) {
+		if (deliveryMode === DeliveryMode.AtMostOnce) {
 			return { action: "swallow" };
 		}
 

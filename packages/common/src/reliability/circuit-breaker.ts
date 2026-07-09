@@ -1,10 +1,13 @@
 import { logger } from "../config/logger";
 import type { CircuitState } from "../domain/circuit-state";
 import type { ICircuitBreaker } from "./circuit-breaker.interface";
-import { CircuitStateMachine, DEFAULT_CIRCUIT_CONFIG } from "./circuit-state-machine";
 import type { CircuitBreakerConfig } from "./circuit-state-machine";
+import {
+	CircuitStateMachine,
+	DEFAULT_CIRCUIT_CONFIG,
+} from "./circuit-state-machine";
 
-export type { CircuitState, CircuitBreakerConfig };
+export type { CircuitBreakerConfig, CircuitState };
 
 export class CircuitBreaker implements ICircuitBreaker {
 	private readonly _machines = new Map<string, CircuitStateMachine>();
@@ -44,11 +47,17 @@ export class CircuitBreaker implements ICircuitBreaker {
 	getFailureCount(key: string): number {
 		return this._getMachine(key).getFailureCount();
 	}
-	async call<TResult>(key: string, fn: () => Promise<TResult>, fallback?: () => TResult): Promise<TResult> {
+	async call<TResult>(
+		key: string,
+		fn: () => Promise<TResult>,
+		fallback?: () => TResult
+	): Promise<TResult> {
 		const machine = this._getMachine(key);
 		const state = machine.check();
 		if (state === "open") {
-			if (fallback) return fallback();
+			if (fallback) {
+				return fallback();
+			}
 			throw new Error(`Circuit breaker OPEN: ${key}`);
 		}
 		try {
@@ -58,7 +67,9 @@ export class CircuitBreaker implements ICircuitBreaker {
 		} catch (error) {
 			machine.recordFailure();
 			logger.warn(`Circuit breaker recorded failure for: ${key}`);
-			if (fallback) return fallback();
+			if (fallback) {
+				return fallback();
+			}
 			throw error;
 		}
 	}

@@ -1,27 +1,30 @@
 import { beforeEach, describe, expect, jest, test } from "@jest/globals";
 import type { HttpClient } from "@trading-model/common/config/http-client";
-import type { IPAddress, Port } from "@trading-model/common/domain/primitives";
+import { Protocol } from "@trading-model/common/contracts/service-registry.types";
+import {
+	IPAddress,
+	Port,
+	toInstanceId,
+	toServiceId,
+	toVersion,
+} from "@trading-model/common/domain/primitives";
 import type { ServiceInstance } from "../../src/client/type";
 import { ServiceHealthChecker } from "../../src/discovery/service-health-checker";
-import {
-	IpAddressLocator,
-	MapResolver,
-	ServiceNameLocator,
-} from "../../src/discovery/service-locator";
+import { IpAddressLocator } from "../../src/discovery/service-locator";
 
 describe("ServiceHealthChecker", () => {
 	let httpClient: jest.Mocked<HttpClient>;
 	let checker: ServiceHealthChecker;
 
 	const instance: ServiceInstance = {
-		host: "127.0.0.1" as unknown as IPAddress,
-		port: 8080 as unknown as Port,
-		instanceId: "instance-1",
+		host: IPAddress.of("127.0.0.1"),
+		port: Port.of(8080),
+		instanceId: toInstanceId("instance-1"),
 		lastHeartbeat: Date.now(),
-		protocol: "http",
+		protocol: Protocol.Http,
 		registeredAt: Date.now(),
-		serviceName: "user-service",
-		version: "1.0.0",
+		serviceName: toServiceId("user-service"),
+		version: toVersion("1.0.0"),
 		ttl: 30000,
 	};
 
@@ -85,65 +88,5 @@ describe("ServiceHealthChecker", () => {
 		);
 		const url = (checker as any)._buildPingUrl(instance);
 		expect(url).toBe("https://127.0.0.1:8080/ping");
-	});
-
-	describe("DNS name mapping via MapResolver", () => {
-		test("uses custom DNS mapping when provided", () => {
-			const dnsMap = {
-				"user-service": "custom-host",
-				"other-service": "other-host",
-			};
-			checker = new ServiceHealthChecker(
-				httpClient,
-				2000,
-				new MapResolver(dnsMap)
-			);
-
-			const customInstance = { ...instance, serviceName: "user-service" };
-			const url = (checker as any)._buildPingUrl(customInstance);
-			expect(url).toBe("https://custom-host:8080/ping");
-		});
-
-		test("falls back to service name for unmapped services", () => {
-			const dnsMap = { "other-service": "other-host" };
-			checker = new ServiceHealthChecker(
-				httpClient,
-				2000,
-				new MapResolver(dnsMap)
-			);
-
-			const url = (checker as any)._buildPingUrl(instance);
-			expect(url).toBe("https://user-service:8080/ping");
-		});
-
-		test("uses ServiceNameLocator fallback when no mapping resolver provided", () => {
-			checker = new ServiceHealthChecker(
-				httpClient,
-				2000,
-				new ServiceNameLocator()
-			);
-
-			const url = (checker as any)._buildPingUrl(instance);
-			expect(url).toBe("https://user-service:8080/ping");
-		});
-
-		test("uses mapped DNS name in actual health check request", async () => {
-			const dnsMap = { "user-service": "discovery-server" };
-			checker = new ServiceHealthChecker(
-				httpClient,
-				2000,
-				new MapResolver(dnsMap)
-			);
-			httpClient.get.mockResolvedValueOnce({});
-
-			await checker.isHealthy(instance);
-
-			expect(httpClient.get).toHaveBeenCalledWith(
-				"https://discovery-server:8080/ping",
-				{
-					timeoutMs: 2000,
-				}
-			);
-		});
 	});
 });

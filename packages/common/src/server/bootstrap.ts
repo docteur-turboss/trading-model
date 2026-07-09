@@ -1,8 +1,8 @@
 ﻿import { logger } from "../config/logger";
 import { normalizeError } from "../utils/errors";
-import type { HttpServer } from "./create-secure-server";
 import { gracefulShutdown, hardShutdown } from "./bootstrap-shutdown";
 import type { BootstrapOptions } from "./bootstrap-types";
+import type { HttpServer } from "./create-secure-server";
 import { setupProcessHandlers } from "./signal-handler";
 
 export type { BootstrapOptions, TlsBootstrapOptions } from "./bootstrap-types";
@@ -11,13 +11,16 @@ export function createBootstrap(options: BootstrapOptions): {
 	shutdown: (signal: string) => Promise<void>;
 } {
 	const svrRef: { current: HttpServer | null } = { current: null };
-	const doHardShutdown = (code: number) => hardShutdown(code, svrRef.current, options);
+	const doHardShutdown = (code: number) =>
+		hardShutdown(code, svrRef.current, options);
 	const doShutdown = (signal: string) =>
 		gracefulShutdown(signal, svrRef.current, options);
 	setupProcessHandlers(doShutdown, doHardShutdown);
 	_startBootstrap(
 		options,
-		(svr) => { svrRef.current = svr; },
+		(svr) => {
+			svrRef.current = svr;
+		},
 		doHardShutdown
 	);
 	return { shutdown: doShutdown };

@@ -1,6 +1,6 @@
-import { HTTP_STATUS } from "../http-status";
 import type { NextFunction, Request, Response } from "express";
 import type { ZodSchema } from "zod";
+import { HTTP_STATUS } from "../http-status";
 
 function _buildValidationDetails(
 	issues: Array<{ path: (string | number)[]; message: string }>

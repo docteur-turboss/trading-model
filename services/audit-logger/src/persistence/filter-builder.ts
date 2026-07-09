@@ -15,7 +15,7 @@ export class FilterBuilder {
 			filter["metadata.correlationId"] = query.correlationId;
 		}
 		if (query.dateRange) {
-			const rangeFilter: { $gte?: Date; $lte?: Date } = {};
+			const rangeFilter: Record<string, Date | undefined> = {};
 			if (query.dateRange.start) {
 				rangeFilter.$gte = query.dateRange.start;
 			}

@@ -1,4 +1,8 @@
-export type { LockContext, LockDocument, LockBackend } from "./backends/lock-backend-interface";
+export { FileSystemLockBackend } from "./backends/file-lock";
+export type {
+	LockBackend,
+	LockContext,
+	LockDocument,
+} from "./backends/lock-backend-interface";
 export { MongoLockBackend } from "./backends/mongo-lock";
 export { RedisLockBackend } from "./backends/redis-lock";
-export { FileSystemLockBackend } from "./backends/file-lock";

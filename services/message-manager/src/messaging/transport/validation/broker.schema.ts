@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file broker.schema.ts
  *
  * @description
@@ -21,8 +21,8 @@
  */
 
 import { DeliveryMode } from "@trading-model/common/config/delivery-mode.types";
-import { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import type { EventEnumMap } from "@trading-model/common/config/event.types";
+import { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import type { Signature } from "@trading-model/common/contracts/signed-request";
 import {
 	toCorrelationId,
@@ -84,12 +84,15 @@ export const PUBLISH_METADATA_SCHEMA = z.object({
 	correlationId: z
 		.string()
 		.optional()
-		.transform((v) => (v ? toCorrelationId(v) : undefined)),
-	schemaVersion: z.string().min(1).transform(() => "1.0.0" as const),
+		.transform((val) => (val ? toCorrelationId(val) : undefined)),
+	schemaVersion: z
+		.string()
+		.min(1)
+		.transform(() => "1.0.0" as const),
 	causationId: z
 		.string()
 		.optional()
-		.transform((v) => (v ? toCorrelationId(v) : undefined)),
+		.transform((val) => (val ? toCorrelationId(val) : undefined)),
 	eventType: z.string().min(1) as unknown as z.ZodType<EventEnumMap>,
 	topic: TOPIC_SCHEMA.transform(toTopic),
 
@@ -100,7 +103,7 @@ export const PUBLISH_METADATA_SCHEMA = z.object({
 			partitionKey: z
 				.string()
 				.optional()
-				.transform((v) => (v ? toCorrelationId(v) : undefined)),
+				.transform((val) => (val ? toCorrelationId(val) : undefined)),
 			priority: z.number().int().optional(),
 		})
 		.optional(),
@@ -114,7 +117,7 @@ export const PUBLISH_METADATA_SCHEMA = z.object({
 			deduplicationId: z
 				.string()
 				.optional()
-				.transform((v) => (v ? toMessageId(v) : undefined)),
+				.transform((val) => (val ? toMessageId(val) : undefined)),
 		})
 		.optional(),
 
@@ -127,7 +130,9 @@ export const PUBLISH_METADATA_SCHEMA = z.object({
 					tenantId: z.string(),
 				})
 				.optional(),
-			signature: z.string().optional() as unknown as z.ZodType<Signature | undefined>,
+			signature: z.string().optional() as unknown as z.ZodType<
+				Signature | undefined
+			>,
 		})
 		.optional(),
 });

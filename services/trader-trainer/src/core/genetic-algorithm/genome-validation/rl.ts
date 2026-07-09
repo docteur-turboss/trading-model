@@ -1,3 +1,4 @@
+import { createBounded } from "../bounded";
 import type {
 	ContinuousPolicyGenome,
 	DiscretePolicyGenome,
@@ -8,7 +9,6 @@ import type {
 	ValidationContext,
 } from "../genome";
 import { ContinuousPolicyType, DiscretePolicyType } from "../genome";
-import { createBounded } from "../bounded";
 import { clamp } from "../utils";
 import { checkPositiveInt, checkRange, err } from "./utils";
 
@@ -135,7 +135,7 @@ function repairRewardShaping(rs: RewardShapingGenome): RewardShapingGenome {
 		...rs,
 		clipBounds: createBounded(
 			Math.min(rawMin, rawMax - 1e-6),
-			Math.max(rawMax, rawMin + 1e-6),
+			Math.max(rawMax, rawMin + 1e-6)
 		),
 		scaleFactor: Math.max(0.001, rs.scaleFactor ?? 1),
 	};
@@ -168,7 +168,7 @@ function repairContinuousPolicy(
 		type: cp.type ?? ContinuousPolicyType.TanhSquashing,
 		clipBounds: createBounded(
 			Math.min(rawMin, rawMax - 1e-6),
-			Math.max(rawMax, rawMin + 1e-6),
+			Math.max(rawMax, rawMin + 1e-6)
 		),
 		noiseStd: Math.max(0.001, cp.noiseStd ?? 0.1),
 		noiseDecay: clamp(cp.noiseDecay ?? 0.999, 0.9, 0.9999),

@@ -1,4 +1,4 @@
-import type { HttpRequestOptions } from "@trading-model/common/config/http-types";
+﻿import type { HttpRequestOptions } from "@trading-model/common/config/http-types";
 import type { HttpRoute } from "@trading-model/common/contracts/signed-request";
 import { signRequest } from "@trading-model/common/crypto/request-signer";
 import { toServiceId } from "@trading-model/common/domain/primitives";

@@ -31,7 +31,7 @@ export class TrainingPrerequisiteValidator {
 
 		const windowSet = this._dataBuffer.getAllWindows(
 			symbol,
-			env.TRAINER_VALIDATION_SPLIT
+			ENV.TRAINER_VALIDATION_SPLIT
 		);
 		if (!windowSet || windowSet.train.length < MIN_TRAINING_STEPS) {
 			return {

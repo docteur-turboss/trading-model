@@ -1,7 +1,7 @@
 import type { WorkerRegistration } from "../contracts/worker-protocol.types";
-import { WorkerStore } from "./worker-store";
-import { WorkerLoadBalancer } from "./worker-load-balancer";
 import { WorkerHealthMonitor } from "./worker-health-monitor";
+import { WorkerLoadBalancer } from "./worker-load-balancer";
+import { WorkerStore } from "./worker-store";
 
 export class WorkerRegistry {
 	private readonly _store: WorkerStore;

@@ -1,4 +1,4 @@
-import type { MemoryWalEntry } from "./memory-wal-entry";
+﻿import type { MemoryWalEntry } from "./memory-wal-entry";
 import type { RedisBackoff } from "./redis-backoff";
 
 export class FlushGuard {

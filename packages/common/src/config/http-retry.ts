@@ -38,7 +38,7 @@ export {
 	computeAdaptiveTimeout,
 	computeRetryDelay,
 	DEFAULT_RETRY_COUNT,
+	isNonRetryableClientError,
 	isRetryableStatus,
 	isRetryableStatusPermissive,
-	isNonRetryableClientError,
 };

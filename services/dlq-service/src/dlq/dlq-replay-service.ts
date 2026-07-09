@@ -55,7 +55,11 @@ async function _claimAndReplayBatch(options: ClaimAndReplayOptions): Promise<{
 	span.setAttribute("replayed", result.success);
 	span.setAttribute("failed", result.errors.length);
 
-	return { response: null, successCount: result.success, errors: result.errors };
+	return {
+		response: null,
+		successCount: result.success,
+		errors: result.errors,
+	};
 }
 
 async function _releaseAndClaimEntries(
@@ -67,7 +71,7 @@ async function _releaseAndClaimEntries(
 	return _claimRetryEntries(limit, batchId, topic);
 }
 
-async function _executeBatchReplay(
+function _executeBatchReplay(
 	entries: Array<{ id: string; message: unknown }>,
 	messageManagerUrl: string,
 	batchId: string
@@ -80,7 +84,7 @@ async function _executeBatchReplay(
 	});
 }
 
-async function _claimRetryEntries(
+function _claimRetryEntries(
 	limit: number,
 	batchId: string,
 	topic: string | undefined
@@ -107,10 +111,14 @@ export async function executeReplayPipeline(
 	span: import("@opentelemetry/api").Span
 ): Promise<ResponseObject> {
 	const validation = validateReplayQuery(query, span);
-	if (!validation.valid) return validation.response;
+	if (!validation.valid) {
+		return validation.response;
+	}
 
 	const messageManagerUrl = await resolveMMUrlOrFail(span);
-	if (!messageManagerUrl) return mmResolveError();
+	if (!messageManagerUrl) {
+		return mmResolveError();
+	}
 
 	const batchId = validation.data.batchId || randomUUID();
 	span.setAttribute("batchId", batchId);
@@ -122,7 +130,9 @@ export async function executeReplayPipeline(
 		topic: validation.data.topic,
 		span,
 	});
-	if (result.response) return result.response;
+	if (result.response) {
+		return result.response;
+	}
 
 	return _buildSuccessResponse(
 		batchId,

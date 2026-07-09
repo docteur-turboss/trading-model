@@ -27,9 +27,9 @@ function signNewCert(ttlMs = 3600000) {
 }
 
 beforeAll(() => {
-	caKeyPair = generateKeyPair(KeyAlgorithm.ecP384);
+	caKeyPair = generateKeyPair(KeyAlgorithm.EcP384);
 	caCertPem = caKeyPair.publicKey;
-	serviceKeyPair = generateKeyPair(KeyAlgorithm.ecP384);
+	serviceKeyPair = generateKeyPair(KeyAlgorithm.EcP384);
 	signed = signNewCert();
 });
 
@@ -63,7 +63,7 @@ describe("validateCertificate", () => {
 			.filter((l) => !(l.startsWith("-----BEGIN") || l.startsWith("-----END")));
 		const decoded = Buffer.from(lines.join(""), "base64").toString("utf8");
 		const parsed = JSON.parse(decoded);
-		const wrongCaKey = generateKeyPair(KeyAlgorithm.rsa4096);
+		const wrongCaKey = generateKeyPair(KeyAlgorithm.Rsa4096);
 		parsed.issuerCert = wrongCaKey.publicKey;
 		const reEncoded = Buffer.from(JSON.stringify(parsed)).toString("base64");
 		const tamperedCertPem = `-----BEGIN CERTIFICATE-----\n${reEncoded}\n-----END CERTIFICATE-----`;
@@ -215,7 +215,7 @@ describe("validateCertificate", () => {
 	});
 
 	it("should return invalid when cert is signed by different CA key", () => {
-		const differentCa = generateKeyPair(KeyAlgorithm.ecP384);
+		const differentCa = generateKeyPair(KeyAlgorithm.EcP384);
 		const certBody = [
 			"Serial: SN-DIFF",
 			"Issuer: CN=TradingModelCA",

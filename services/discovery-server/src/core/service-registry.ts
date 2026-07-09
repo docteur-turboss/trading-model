@@ -3,11 +3,11 @@ import {
 	generateInstanceId,
 	type TokenValidationInput,
 } from "@trading-model/common/crypto/token-service";
+import type { InstanceId } from "@trading-model/common/domain/primitives";
 import type {
 	ServiceEndpoint,
 	ServiceIdentity,
 } from "@trading-model/common/domain/service-identity";
-import type { InstanceId } from "@trading-model/common/domain/primitives";
 import type { TokenValidation } from "@trading-model/common/domain/token-validation";
 import { InstanceStore } from "./instance-store";
 import { TokenService } from "./token-service";

@@ -1,4 +1,4 @@
-import type { Message } from "@trading-model/common/contracts/message.types";
+﻿import type { Message } from "@trading-model/common/contracts/message.types";
 
 import { getStreamClient } from "../../config/redis";
 import type { MessageQuery } from "./messaging-types";
@@ -85,9 +85,7 @@ export class StreamMessageReader {
 		return this._parseMessageResults(results);
 	}
 
-	private _parseMessageResults(
-		results: [string, string[]][]
-	): Message[] {
+	private _parseMessageResults(results: [string, string[]][]): Message[] {
 		return results
 			.map(([, fields]) => {
 				const dataIdx = fields.indexOf("data");

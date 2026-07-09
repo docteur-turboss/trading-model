@@ -1,9 +1,9 @@
+import type { MarketEvent } from "@trading-model/common/contracts/market-events";
+import { DataType } from "../core/data-handlers/data-types";
 import {
 	MarketDataBuffer,
 	type MarketDataBufferConfig,
 } from "../core/market-data-buffer";
-import { DataType } from "../core/data-handlers/data-types";
-import { MarketEvent } from "@trading-model/common/contracts/market-events";
 import { DataEventHandler } from "./event-handlers";
 
 export class MarketDataEventRouter {

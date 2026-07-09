@@ -1,4 +1,4 @@
-import type { HttpClient } from "@trading-model/common/config/http-client";
+﻿import type { HttpClient } from "@trading-model/common/config/http-client";
 import { HttpMethod } from "@trading-model/common/config/http-types";
 import {
 	messageManagerError,
@@ -6,8 +6,8 @@ import {
 } from "@trading-model/common/utils/errors";
 import { logger } from "../../config/logger";
 import type { DlqEntry } from "./dlq-repository";
-import { signedOptions } from "./request-signer";
 import { DlqRetryWithBackoff } from "./dlq-retry-with-backoff";
+import { signedOptions } from "./request-signer";
 
 export class DlqSendHandler {
 	private readonly _retry: DlqRetryWithBackoff;
@@ -65,7 +65,12 @@ export class DlqSendHandler {
 				context: { reason: entry.reason },
 			});
 		} catch (retryErr) {
-			return this.handleSendError(entry, retryErr as Error, attempt + 1, maxRetries);
+			return this.handleSendError(
+				entry,
+				retryErr as Error,
+				attempt + 1,
+				maxRetries
+			);
 		}
 	}
 
@@ -74,7 +79,7 @@ export class DlqSendHandler {
 			`${this._serviceUrl}/dlq`,
 			entry,
 			signedOptions({
-				method: HttpMethod.POST,
+				method: HttpMethod.Post,
 				path: "/dlq",
 				body: entry,
 				extra: { timeoutMs: 5000 },

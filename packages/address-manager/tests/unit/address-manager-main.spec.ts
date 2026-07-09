@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 
+import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
+
 jest.mock("@trading-model/common/config/http-client", () => ({
 	HttpClient: {
 		createWithTls: jest.fn<any>().mockReturnValue({
@@ -139,6 +141,11 @@ jest.mock("../../src/client/websocket-client", () => ({
 	}),
 }));
 
+import {
+	Port,
+	toInstanceId,
+	toServiceId,
+} from "@trading-model/common/domain/primitives";
 import AddressManager from "../../src/address-manager";
 import type { AddressManagerConfig } from "../../src/config/address-manager-config";
 
@@ -146,7 +153,7 @@ function makeConfig(
 	overrides?: Partial<AddressManagerConfig>
 ): AddressManagerConfig {
 	return {
-		servicePort: 8080,
+		servicePort: Port.of(8080),
 		addressManagerUrl: "https://discovery:3000",
 		discoveryUrls: ["https://discovery:3000"],
 		cacheTtlMs: 30000,
@@ -154,7 +161,10 @@ function makeConfig(
 		discoveryTimeoutMs: 5000,
 		tokenRefreshIntervalMs: 60000,
 		ttlRefreshIntervalMs: 15000,
-		identity: { serviceName: "test-service", instanceId: "instance-1" },
+		identity: {
+			serviceName: toServiceId("test-service"),
+			instanceId: toInstanceId("instance-1"),
+		},
 		tls: {
 			caPath: "/path/to/ca.pem",
 			certPath: "/path/to/cert.pem",
@@ -204,7 +214,9 @@ describe("AddressManager (main)", () => {
 
 	it("should find a service", async () => {
 		const am = new AddressManager(makeConfig());
-		const instance = await am.findService("test-service");
+		const instance = await am.findService(
+			toServiceId("test-service") as unknown as ServiceInstanceName
+		);
 		expect(instance).toBeDefined();
 	});
 
@@ -216,7 +228,9 @@ describe("AddressManager (main)", () => {
 
 	it("should find all services", async () => {
 		const am = new AddressManager(makeConfig());
-		const instances = await am.findAllServices("test-service");
+		const instances = await am.findAllServices(
+			toServiceId("test-service") as unknown as ServiceInstanceName
+		);
 		expect(instances).toHaveLength(1);
 		expect(instances[0].serviceName).toBe("test-service");
 	});
@@ -298,6 +312,10 @@ describe("AddressManager (main)", () => {
 		am.recordCallFailure("i-1");
 
 		// Circuit breaker is open for i-1, findService will retry and eventually fail
-		await expect(am.findService("test-service")).rejects.toThrow();
+		await expect(
+			am.findService(
+				toServiceId("test-service") as unknown as ServiceInstanceName
+			)
+		).rejects.toThrow();
 	});
 });

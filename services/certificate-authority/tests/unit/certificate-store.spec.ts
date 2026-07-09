@@ -68,7 +68,7 @@ describe("CertificateStore", () => {
 
 	describe("save", () => {
 		it("should insert certificate document", async () => {
-			await store.save(SAMPLE_CERT);
+			await store.insert(SAMPLE_CERT);
 
 			expect(MOCK_INSERT_ONE).toHaveBeenCalledWith(SAMPLE_CERT);
 		});

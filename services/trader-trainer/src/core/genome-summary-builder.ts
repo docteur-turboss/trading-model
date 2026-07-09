@@ -1,4 +1,7 @@
-import type { ActivationType, GenomeFitnessMeta } from "./genetic-algorithm/genome";
+import type {
+	ActivationType,
+	GenomeFitnessMeta,
+} from "./genetic-algorithm/genome";
 import type { LamarckGenome } from "./genetic-algorithm/genome-types";
 import type { DeepReadonly } from "./genetic-algorithm/shared-types";
 import type { BestAgentSummary } from "./trainer";

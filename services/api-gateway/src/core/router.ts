@@ -16,7 +16,11 @@ const RESOLVER = new ServiceResolver(
 );
 const CACHE = new ResponseCache(ENV.CACHE_TTL_MS);
 
-function _validatePath(req: import("express").Request): ReturnType<typeof sendResponse> | { majorVersion: number; serviceName: string; path: string } {
+function _validatePath(
+	req: import("express").Request
+):
+	| ReturnType<typeof sendResponse>
+	| { majorVersion: number; serviceName: string; path: string } {
 	const parsed = parseRequestPath(req);
 	if (!parsed) {
 		return sendResponse(

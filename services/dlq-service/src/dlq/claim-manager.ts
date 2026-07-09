@@ -2,8 +2,8 @@ import { getCollection } from "../config/db";
 import { ClaimFilterBuilder } from "./claim-filter-builder";
 import { ClaimQueryExecutor } from "./claim-query-executor";
 import { ClaimReleaseManager } from "./claim-release-manager";
-import type { StoredDlqEntry } from "./repository";
 import { CLAIM_PROJECTION } from "./dlq-constants";
+import type { StoredDlqEntry } from "./repository";
 import { toStoredDlqEntry } from "./repository";
 
 export interface ClaimEntriesOptions {
@@ -18,27 +18,27 @@ export class DlqClaimManager {
 	private readonly _queryExecutor = new ClaimQueryExecutor();
 	private readonly _releaseManager = new ClaimReleaseManager();
 
-	async releaseStaleClaims(staleThresholdMs?: number): Promise<number> {
+	releaseStaleClaims(staleThresholdMs?: number): Promise<number> {
 		return this._releaseManager.releaseStaleClaims(staleThresholdMs);
 	}
 
-	async releaseAllActiveClaims(): Promise<number> {
+	releaseAllActiveClaims(): Promise<number> {
 		return this._releaseManager.releaseAllActiveClaims();
 	}
 
-	async releaseClaimsByInstance(instanceId: string): Promise<number> {
+	releaseClaimsByInstance(instanceId: string): Promise<number> {
 		return this._releaseManager.releaseClaimsByInstance(instanceId);
 	}
 
-	async releaseClaimWithoutCount(id: string): Promise<void> {
+	releaseClaimWithoutCount(id: string): Promise<void> {
 		return this._releaseManager.releaseClaimWithoutCount(id);
 	}
 
-	async incrementRetryCount(id: string): Promise<boolean> {
+	incrementRetryCount(id: string): Promise<boolean> {
 		return this._releaseManager.incrementRetryCount(id);
 	}
 
-	async claimEntry(
+	claimEntry(
 		id: string,
 		ctx: import("./types").BatchContext
 	): Promise<StoredDlqEntry | null> {
@@ -51,7 +51,9 @@ export class DlqClaimManager {
 		const col = await getCollection();
 		const filter = this._filterBuilder.buildClaimFilter(options.topic);
 		const candidates = await this._findCandidates(col, filter, options.limit);
-		if (candidates.length === 0) return [];
+		if (candidates.length === 0) {
+			return [];
+		}
 
 		return this._claimAndMapResults(col, candidates, options);
 	}
@@ -60,10 +62,14 @@ export class DlqClaimManager {
 		ids: string[],
 		ctx: import("./types").BatchContext
 	): Promise<StoredDlqEntry[]> {
-		if (ids.length === 0) return [];
+		if (ids.length === 0) {
+			return [];
+		}
 		const col = await getCollection();
 		const objectIds = this._filterBuilder.toValidObjectIds(ids);
-		if (objectIds.length === 0) return [];
+		if (objectIds.length === 0) {
+			return [];
+		}
 
 		await this._queryExecutor.claimByIds(col, objectIds, ctx, () =>
 			this._filterBuilder.buildAtomicCondition()
@@ -72,12 +78,17 @@ export class DlqClaimManager {
 		return this._fetchAndMapResults(col, objectIds, ctx.batchId);
 	}
 
-	private async _findCandidates(
+	private _findCandidates(
 		col: import("mongodb").Collection,
 		filter: Record<string, unknown>,
 		limit: number
 	): Promise<import("mongodb").WithId<import("mongodb").Document>[]> {
-		return this._queryExecutor.findClaimCandidates(col, filter, limit, CLAIM_PROJECTION);
+		return this._queryExecutor.findClaimCandidates(
+			col,
+			filter,
+			limit,
+			CLAIM_PROJECTION
+		);
 	}
 
 	private async _claimAndMapResults(
@@ -109,7 +120,6 @@ export class DlqClaimManager {
 		);
 		return claimed.map((doc) => toStoredDlqEntry(doc));
 	}
-
 }
 
 export const dlqClaimManager = new DlqClaimManager();

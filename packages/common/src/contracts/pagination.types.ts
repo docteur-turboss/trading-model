@@ -1,4 +1,4 @@
-import type { PaginationResult } from "../domain/pagination";
+﻿import type { PaginationResult } from "../domain/pagination";
 
 export type { DateRange } from "../domain/date-range";
 export type { PaginationQuery, PaginationResult } from "../domain/pagination";
@@ -7,7 +7,7 @@ export type { PaginationQuery, PaginationResult } from "../domain/pagination";
  * Standard paginated response wrapper.
  * Shares `page`, `limit`, `total` semantics with PaginationResult.
  */
-export interface PaginatedResponse<T> {
+export interface PaginatedResponse<_TValue> {
 	data: T[];
 	pagination: {
 		page: number;
@@ -18,9 +18,9 @@ export interface PaginatedResponse<T> {
 }
 
 /** Converts a PaginationResult (internal) to a PaginatedResponse (API response). */
-export function toPaginatedResponse<T>(
-	result: PaginationResult<T>
-): PaginatedResponse<T> {
+export function toPaginatedResponse<TValue>(
+	result: PaginationResult<TValue>
+): PaginatedResponse<TValue> {
 	return {
 		data: result.docs,
 		pagination: {

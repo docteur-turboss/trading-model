@@ -1,14 +1,14 @@
-import type { FeatureBuilderContext } from "./feature-context";
-import { FeatureVector } from "./feature-vector";
+import type { CandleData } from "@trading-model/common/config/event.types";
+import { buildBookTickerFeatures } from "./feature-builders/book-ticker-features";
 import { buildCandleFeatures } from "./feature-builders/candle-features";
 import { buildOrderBookFeatures } from "./feature-builders/order-book-features";
-import { buildBookTickerFeatures } from "./feature-builders/book-ticker-features";
-import { buildTradeFeatures } from "./feature-builders/trade-features";
-import { buildTickerFeatures } from "./feature-builders/ticker-features";
 import { buildPriceSnapshotFeature } from "./feature-builders/price-snapshot-feature";
 import { buildSlidingWindowFeatures } from "./feature-builders/sliding-window-features";
+import { buildTickerFeatures } from "./feature-builders/ticker-features";
+import { buildTradeFeatures } from "./feature-builders/trade-features";
+import type { FeatureBuilderContext } from "./feature-context";
+import { FeatureVector } from "./feature-vector";
 import type { SymbolState } from "./market-data-types";
-import type { CandleData } from "@trading-model/common/config/event.types";
 
 function initFeatures(
 	state: SymbolState,

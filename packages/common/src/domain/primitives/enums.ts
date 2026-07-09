@@ -16,11 +16,14 @@ export function formatWorkerDisplayName(status: WorkerStatusCode): string {
 	return WORKER_STATUS_DISPLAY[status];
 }
 
-export function parseWorkerDisplayName(display: string): WorkerStatusCode | undefined {
+export function parseWorkerDisplayName(
+	display: string
+): WorkerStatusCode | undefined {
 	for (const [code, name] of Object.entries(WORKER_STATUS_DISPLAY)) {
-		if (name === display) return code as WorkerStatusCode;
+		if (name === display) {
+			return code as WorkerStatusCode;
+		}
 	}
-	return undefined;
 }
 
 export enum DataSource {

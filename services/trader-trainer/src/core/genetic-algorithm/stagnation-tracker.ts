@@ -22,8 +22,8 @@ export class StagnationTracker {
 	}
 
 	private _findBestMember(popWithMeta: PopMember[]): PopMember {
-		return popWithMeta.reduce((best, m) =>
-			m.fitness > best.fitness ? m : best
+		return popWithMeta.reduce((best, member) =>
+			member.fitness > best.fitness ? member : best
 		);
 	}
 
@@ -49,7 +49,7 @@ export class StagnationTracker {
 		_metas: GenomeFitnessMeta[],
 		avgEff: number
 	): TrackResult | undefined {
-		const bestScalar = Math.max(...popWithMeta.map((m) => m.fitness));
+		const bestScalar = Math.max(...popWithMeta.map((member) => member.fitness));
 		if (bestScalar > this._bestFitness + 1e-6) {
 			return this._handleImprovement(bestScalar, popWithMeta, avgEff);
 		}

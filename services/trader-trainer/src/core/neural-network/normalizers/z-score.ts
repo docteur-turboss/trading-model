@@ -1,5 +1,5 @@
 import type { Normalizer } from "./normalizer-interface";
-import { _computeMean, _computeInvStd } from "./shared";
+import { _computeInvStd, _computeMean } from "./shared";
 
 export class ZScoreNormalizer implements Normalizer {
 	normalize(data: Float32Array, len: number): Float32Array {

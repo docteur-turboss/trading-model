@@ -7,7 +7,9 @@ export class DedupInserter {
 		messageId: string
 	): Promise<string> {
 		const existing = await _findExisting(col, messageId);
-		if (existing) return existing;
+		if (existing) {
+			return existing;
+		}
 
 		try {
 			const result = await col.insertOne(doc);
@@ -25,10 +27,7 @@ async function _findExisting(
 	col: Collection,
 	messageId: string
 ): Promise<string | null> {
-	const existing = await col.findOne(
-		{ messageId },
-		{ projection: { _id: 1 } }
-	);
+	const existing = await col.findOne({ messageId }, { projection: { _id: 1 } });
 	return existing ? existing._id.toHexString() : null;
 }
 

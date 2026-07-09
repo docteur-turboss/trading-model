@@ -1,6 +1,10 @@
 import { evaluateFitness } from "./evaluation-pipeline";
 import type { WindowSet } from "./generation-types";
-import type { GenomeFitnessMeta, LamarckGenome, PopMember } from "./genome-types";
+import type {
+	GenomeFitnessMeta,
+	LamarckGenome,
+	PopMember,
+} from "./genome-types";
 import type { ObjectiveVector } from "./nsga2";
 import { ParetoArchive } from "./pareto";
 import type { BackendFactory } from "./rl-backend";
@@ -34,7 +38,7 @@ export class FitnessEvaluator {
 		return this._stagnationTracker;
 	}
 
-	async evaluate(population: DeepReadonly<LamarckGenome>[]): Promise<{
+	evaluate(population: DeepReadonly<LamarckGenome>[]): Promise<{
 		updatedPop: DeepReadonly<LamarckGenome>[];
 		objectives: ObjectiveVector[];
 		metas: GenomeFitnessMeta[];

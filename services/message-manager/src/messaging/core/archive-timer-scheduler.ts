@@ -1,4 +1,4 @@
-import { TimerHandle } from "@trading-model/common/utils/timer-handle";
+﻿import { TimerHandle } from "@trading-model/common/utils/timer-handle";
 
 export class ArchiveTimerScheduler {
 	private readonly _archiveTimer = new TimerHandle();

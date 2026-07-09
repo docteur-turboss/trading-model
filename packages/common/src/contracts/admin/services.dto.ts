@@ -2,6 +2,7 @@ import type { ServiceInstanceName } from "../../config/services.types";
 import type {
 	InstanceId,
 	IPAddress,
+	ISODateTime,
 	Port,
 	ServiceId,
 	Version,
@@ -24,7 +25,7 @@ export interface AdminServiceInstance {
 	host: IPAddress;
 	port: Port;
 	version: Version;
-	heartbeat: string;
+	heartbeat: ISODateTime;
 	status: ServiceStatus;
 }
 

@@ -26,22 +26,22 @@ import { CertificateParser } from "./certificate-parser";
 import { CsrParser } from "./csr-parser";
 import { KeyConverter } from "./key-converter";
 
-const _certParser = new CertificateParser();
-const _csrParser = new CsrParser();
-const _keyConverter = new KeyConverter();
+const certParser = new CertificateParser();
+const csrParser = new CsrParser();
+const keyConverter = new KeyConverter();
 
 export function parseCertInfo(pem: string) {
-	return _certParser.parse(pem);
+	return certParser.parse(pem);
 }
 
 export function parseCsrInfo(csrPem: string) {
-	return _csrParser.parse(csrPem);
+	return csrParser.parse(csrPem);
 }
 
 export function privateKeyFromPem(pem: string) {
-	return _keyConverter.privateKeyFromPem(pem);
+	return keyConverter.privateKeyFromPem(pem);
 }
 
 export function resolvePublicKey(issuerCert: string) {
-	return _keyConverter.resolvePublicKey(issuerCert);
+	return keyConverter.resolvePublicKey(issuerCert);
 }

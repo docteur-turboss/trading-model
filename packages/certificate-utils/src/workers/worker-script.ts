@@ -1,12 +1,11 @@
 import { createPublicKey, createSign } from "node:crypto";
 import { parentPort } from "node:worker_threads";
-
-import { type CsrOptions, createCsr } from "../signing/create-csr";
 import {
 	generateKeyPair,
 	generateKeyPairWithIdSync,
 } from "../keygen/generate-key-pair";
 import { type SignOptions, signCertificate } from "../sign-certificate";
+import { type CsrOptions, createCsr } from "../signing/create-csr";
 import type { SignInput } from "../types";
 import { validateCertificate } from "../validation/validate-certificate";
 

@@ -1,4 +1,5 @@
 import type { Job, JobEvent, QueuedJob } from "../../src/types/job.types";
+import { JobState } from "../../src/types/job.types";
 
 export const createJobEvent = (overrides?: Partial<JobEvent>): JobEvent => ({
 	transition: { from: "pending", to: "queued" },
@@ -23,7 +24,7 @@ export const createJob = (overrides?: Partial<Job>): Job => ({
 
 export const createQueuedJob = (overrides?: Partial<QueuedJob>): QueuedJob => ({
 	job: createJob(),
-	state: "queued",
+	state: JobState.Queued,
 	deliveryAttempts: 0,
 	expiresAt: 0,
 	...overrides,

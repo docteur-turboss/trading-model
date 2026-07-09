@@ -1,10 +1,8 @@
 import BrokerMessage from "@trading-model/broker-message";
 import { logger } from "@trading-model/common/config/logger";
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
+import { MongoConnectionManager } from "@trading-model/common/persistence/mongo-connection-manager";
 import { createBootstrap } from "@trading-model/common/server/bootstrap";
-import {
-	MongoConnectionManager,
-} from "@trading-model/common/persistence/mongo-connection-manager";
 import { BOOTSTRAP_ADDRESS_MANAGER } from "../config/address-manager";
 import { ENV } from "../config/env";
 import { AuditRepository } from "../persistence/audit-repository";
@@ -54,19 +52,20 @@ function _createWorkerProtocol(
 	server: Awaited<ReturnType<typeof createServer>>,
 	scheduler: JobScheduler
 ): WorkerProtocol {
-	return new WorkerProtocol(
-		server.raw,
-		scheduler.workers,
-		(workerId: string) => scheduler.onWorkerDisconnect(workerId)
+	return new WorkerProtocol(server.raw, scheduler.workers, (workerId: string) =>
+		scheduler.onWorkerDisconnect(workerId)
 	);
 }
 
-async function _subscribeToAllTopics(brokerMessage: BrokerMessage): Promise<void> {
-	const [{ MarketEvent }, { AuditEvent }, { CertificateEvent }] = await Promise.all([
-		import("@trading-model/common/contracts/market-events"),
-		import("@trading-model/common/contracts/audit-events"),
-		import("@trading-model/common/contracts/certificate-events"),
-	]);
+async function _subscribeToAllTopics(
+	brokerMessage: BrokerMessage
+): Promise<void> {
+	const [{ MarketEvent }, { AuditEvent }, { CertificateEvent }] =
+		await Promise.all([
+			import("@trading-model/common/contracts/market-events"),
+			import("@trading-model/common/contracts/audit-events"),
+			import("@trading-model/common/contracts/certificate-events"),
+		]);
 	const AllTopics = [
 		...Object.values(MarketEvent),
 		...Object.values(AuditEvent),
@@ -125,7 +124,9 @@ createBootstrap({
 		return server;
 	},
 	onStart: () => {
-		if (!_appContext) return;
+		if (!_appContext) {
+			return;
+		}
 		_appContext.addressManager = BOOTSTRAP_ADDRESS_MANAGER();
 		logger.info("Audit Logger fully operational", {
 			context: {
@@ -135,7 +136,9 @@ createBootstrap({
 		});
 	},
 	onStop: async () => {
-		if (!_appContext) return;
+		if (!_appContext) {
+			return;
+		}
 		const {
 			brokerMessage,
 			scheduler,

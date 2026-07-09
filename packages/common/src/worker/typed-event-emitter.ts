@@ -1,7 +1,7 @@
 import { EventEmitter } from "node:events";
 
 export class TypedEventEmitter<
-	Events extends { [K in keyof Events]: unknown[] },
+	Events extends { [KEvent in keyof Events]: unknown[] },
 > {
 	readonly raw = new EventEmitter();
 

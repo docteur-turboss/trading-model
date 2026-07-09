@@ -1,7 +1,7 @@
 import { safeStringify as baseSafeStringify } from "../utils/safe-stringify";
 
 export class SensitiveDataSanitizer {
-	private static readonly SENSITIVE_KEY_PATTERNS = [
+	private static readonly _SENSITIVE_KEY_PATTERNS = [
 		/^password$/i,
 		/^token$/i,
 		/^secret$/i,
@@ -22,7 +22,7 @@ export class SensitiveDataSanitizer {
 	];
 
 	static _isSensitiveKey(key: string): boolean {
-		return SensitiveDataSanitizer.SENSITIVE_KEY_PATTERNS.some((pattern) =>
+		return SensitiveDataSanitizer._SENSITIVE_KEY_PATTERNS.some((pattern) =>
 			pattern.test(key)
 		);
 	}

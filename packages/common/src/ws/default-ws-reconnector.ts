@@ -99,9 +99,15 @@ export class DefaultWsReconnector implements IWsReconnector {
 	}
 
 	private _hasReachedMaxAttempts(): boolean {
-		if (this._maxAttempts !== undefined && this._stateManager.attempt >= this._maxAttempts) {
+		if (
+			this._maxAttempts !== undefined &&
+			this._stateManager.attempt >= this._maxAttempts
+		) {
 			this._permanentlyFellBack = true;
 			this._onPermanentFallback?.();
+			logger.warn("WebSocket max reconnect attempts reached", {
+				context: { attempts: this._stateManager.attempt },
+			});
 			return true;
 		}
 		return false;

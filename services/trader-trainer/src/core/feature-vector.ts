@@ -67,7 +67,17 @@ export interface TickerFeatures {
 }
 
 function emptyCandle(): CandleFeatures {
-	return { close: 0, volume: 0, returnRatio: 0, positionRatio: 0, rangeRatio: 0, open: 0, high: 0, low: 0, volumeRatio: 0 };
+	return {
+		close: 0,
+		volume: 0,
+		returnRatio: 0,
+		positionRatio: 0,
+		rangeRatio: 0,
+		open: 0,
+		high: 0,
+		low: 0,
+		volumeRatio: 0,
+	};
 }
 
 function emptyOrderBook(): OrderBookFeatures {
@@ -127,12 +137,16 @@ export class FeatureVector {
 			this.ticker.volume = data[FEATURE_INDEX.TickerVolume] ?? 0;
 			this.ticker.dailyRange = data[FEATURE_INDEX.DailyRange] ?? 0;
 			this.priceSnapshot = data[FEATURE_INDEX.PriceSnapshot] ?? 0;
-			for (let i = 0; i < SLIDING_WINDOW_SIZE; i++) { this._slidingWindow[i] = data[FEATURE_COUNT + i] ?? 0; }
+			for (let i = 0; i < SLIDING_WINDOW_SIZE; i++) {
+				this._slidingWindow[i] = data[FEATURE_COUNT + i] ?? 0;
+			}
 			this.bias = data[FEATURE_DIM - 1] ?? 0;
 		}
 	}
 
-	static fromFloat32Array(data: Float32Array): FeatureVector { return new FeatureVector(data); }
+	static fromFloat32Array(data: Float32Array): FeatureVector {
+		return new FeatureVector(data);
+	}
 
 	toFloat32Array(): Float32Array {
 		const arr = new Float32Array(FEATURE_DIM);
@@ -159,10 +173,14 @@ export class FeatureVector {
 		arr[FEATURE_INDEX.TickerVolume] = this.ticker.volume;
 		arr[FEATURE_INDEX.DailyRange] = this.ticker.dailyRange;
 		arr[FEATURE_INDEX.PriceSnapshot] = this.priceSnapshot;
-		for (let i = 0; i < SLIDING_WINDOW_SIZE; i++) { arr[FEATURE_COUNT + i] = this._slidingWindow[i]; }
+		for (let i = 0; i < SLIDING_WINDOW_SIZE; i++) {
+			arr[FEATURE_COUNT + i] = this._slidingWindow[i];
+		}
 		arr[FEATURE_DIM - 1] = this.bias;
 		return arr;
 	}
 
-	slidingWindow(): Float32Array { return this._slidingWindow; }
+	slidingWindow(): Float32Array {
+		return this._slidingWindow;
+	}
 }

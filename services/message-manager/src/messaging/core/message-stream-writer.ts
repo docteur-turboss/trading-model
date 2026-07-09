@@ -1,4 +1,4 @@
-import type { Message } from "@trading-model/common/contracts/message.types";
+﻿import type { Message } from "@trading-model/common/contracts/message.types";
 import { safeStringify } from "@trading-model/common/utils/safe-stringify";
 
 import { RedisStreamStore } from "./redis-stream-store";

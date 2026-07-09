@@ -1,4 +1,4 @@
-import { logger } from "../../config/logger";
+﻿import { logger } from "../../config/logger";
 import type { MemoryWalBuffer } from "./memory-wal-buffer";
 import type { WalDrainCoordinator } from "./wal-drain-coordinator";
 

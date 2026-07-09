@@ -1,5 +1,5 @@
-import https from "node:https";
 import type { ServerOptions } from "node:https";
+import https from "node:https";
 
 import type { Application } from "express";
 import { logger } from "../config/logger";
@@ -52,8 +52,11 @@ function _createCloseHandle(server: https.Server): () => Promise<void> {
 	return () =>
 		new Promise<void>((resolve, reject) => {
 			server.close((err) => {
-				if (err) reject(err);
-				else resolve();
+				if (err) {
+					reject(err);
+				} else {
+					resolve();
+				}
 			});
 		});
 }

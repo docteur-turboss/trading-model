@@ -1,4 +1,4 @@
-import { getStreamClient } from "../../config/redis";
+﻿import { getStreamClient } from "../../config/redis";
 import type { MemoryWalEntry } from "./memory-wal-entry";
 
 export class RedisWalFallback {

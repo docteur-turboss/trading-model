@@ -1,11 +1,11 @@
-import { normalizeError } from "@trading-model/common/utils/errors";
 import { logger } from "@trading-model/common/config/logger";
 import { toServiceId } from "@trading-model/common/domain/primitives";
+import { normalizeError } from "@trading-model/common/utils/errors";
+import type { AddressManagerClient } from "./client/address-manager-client";
+import type { TokenManager } from "./client/token-manager";
 import { WebSocketClient, type WsMessage } from "./client/websocket-client";
 import type { AddressManagerConfig } from "./config/address-manager-config";
 import type { IServiceCache } from "./discovery/service-cache.interface";
-import type { AddressManagerClient } from "./client/address-manager-client";
-import type { TokenManager } from "./client/token-manager";
 import { REGISTRATION_TOTAL } from "./metrics";
 
 export interface WsClientContext {

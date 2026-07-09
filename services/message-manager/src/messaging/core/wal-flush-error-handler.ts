@@ -1,4 +1,4 @@
-import { logger } from "../../config/logger";
+﻿import { logger } from "../../config/logger";
 import { getStreamClient } from "../../config/redis";
 import type { WalEntryParser } from "./wal-entry-parser";
 import { WalErrorAction } from "./wal-error-handler";

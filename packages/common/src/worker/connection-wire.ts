@@ -29,10 +29,7 @@ export function wireConnectionEvents(
 				emitter.emit("unknown", msg)
 			);
 		} catch (err) {
-			emitter.emit(
-				"error",
-				new Error(`Invalid message from server: ${err}`)
-			);
+			emitter.emit("error", new Error(`Invalid message from server: ${err}`));
 		}
 	};
 	connection.onError = (err) => {

@@ -24,10 +24,14 @@ export function validateAddEntryBody(
 	span.setAttribute("reason", parsed.data.reason ?? "");
 
 	const sizeFail = _checkMessageSize(parsed.data.message, span);
-	if (sizeFail) return sizeFail;
+	if (sizeFail) {
+		return sizeFail;
+	}
 
 	const dbFail = _checkDbAvailable(span);
-	if (dbFail) return dbFail;
+	if (dbFail) {
+		return dbFail;
+	}
 
 	return { valid: true, data: parsed.data };
 }

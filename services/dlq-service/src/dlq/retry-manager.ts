@@ -1,8 +1,8 @@
-import { ObjectId } from "mongodb";
+﻿import { ObjectId } from "mongodb";
 
 import { getCollection } from "../config/db";
 import { ENV } from "../config/env";
-import { DLQ_STATUS } from "./dlq-status";
+import { DlqStatus } from "./dlq-status";
 import { RetryPipelineBuilder } from "./retry-pipeline-builder";
 
 function _isEntryAbandoned(
@@ -10,11 +10,8 @@ function _isEntryAbandoned(
 	id: string
 ): Promise<boolean> {
 	return col
-		.findOne(
-			{ _id: new ObjectId(id) },
-			{ projection: { status: 1 } }
-		)
-		.then((entry) => entry?.status === DLQ_STATUS.ABANDONED);
+		.findOne({ _id: new ObjectId(id) }, { projection: { status: 1 } })
+		.then((entry) => entry?.status === DlqStatus.Abandoned);
 }
 
 async function _updateEntryCompleted(
@@ -27,7 +24,7 @@ async function _updateEntryCompleted(
 		{ _id: new ObjectId(id), processingInstance: instanceId },
 		{
 			$set: {
-				status: DLQ_STATUS.COMPLETED,
+				status: DlqStatus.Completed,
 				completedAt: new Date(),
 				lastBatchId: batchId,
 			},
@@ -58,9 +55,12 @@ export class DlqRetryManager {
 
 	async abandonExhaustedEntries(): Promise<number> {
 		const col = await getCollection();
-		const result = await col.updateMany(this._pipelineBuilder.buildAbandonFilter(), {
-			$set: { status: DLQ_STATUS.ABANDONED, abandonedAt: new Date() },
-		});
+		const result = await col.updateMany(
+			this._pipelineBuilder.buildAbandonFilter(),
+			{
+				$set: { status: DlqStatus.Abandoned, abandonedAt: new Date() },
+			}
+		);
 		return result.modifiedCount;
 	}
 
@@ -70,7 +70,9 @@ export class DlqRetryManager {
 		batchId?: string
 	): Promise<void> {
 		const col = await getCollection();
-		if (await _isEntryAbandoned(col, id)) return;
+		if (await _isEntryAbandoned(col, id)) {
+			return;
+		}
 		await _updateEntryCompleted(col, id, instanceId, batchId);
 	}
 

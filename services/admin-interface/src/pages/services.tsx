@@ -21,8 +21,8 @@ import { DataTable } from "../components/data-table";
 import { StatsCard } from "../components/stats-card";
 import { StatusBadge } from "../components/status-badge";
 import { useServices } from "../hooks/use-services";
-import { flattenServices, filterServices } from "./helpers/services-utils";
 import type { ServiceRow } from "./helpers/services-utils";
+import { filterServices, flattenServices } from "./helpers/services-utils";
 
 function PageLoading() {
 	return (

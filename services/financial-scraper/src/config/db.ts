@@ -11,7 +11,7 @@ const POOL: Pool = createPool({
 
 const POOL_RUNNER = new MySql2PoolQueryRunner(POOL);
 
-const _DBConnection = class extends MySqlConnection<"DBConnection"> {
+const DbConnection = class extends MySqlConnection<"DBConnection"> {
 	constructor() {
 		super(POOL_RUNNER);
 	}
@@ -20,7 +20,7 @@ const _DBConnection = class extends MySqlConnection<"DBConnection"> {
 export type DBConnection = MySqlConnection<"DBConnection">;
 
 export function createDBConnection(): DBConnection {
-	return new _DBConnection();
+	return new DbConnection();
 }
 
 /** Shared MySQL connection pool for direct driver access (migrations, raw queries). */

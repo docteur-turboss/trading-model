@@ -1,4 +1,4 @@
-import type { HttpClient } from "@trading-model/common/config/http-client";
+﻿import type { HttpClient } from "@trading-model/common/config/http-client";
 import type { UnixTimestamp } from "@trading-model/common/domain/primitives";
 
 import type { FileDlqRepository } from "./dlq-repository";

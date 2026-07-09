@@ -1,4 +1,5 @@
 ﻿import type { HttpClient } from "@trading-model/common/config/http-client";
+import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import type { ServiceInstance } from "../client/type";
 import type { AddressManagerConfig } from "../config/address-manager-config";
 import type { IServiceCache } from "./service-cache.interface";
@@ -41,12 +42,12 @@ export class ServiceDiscovery {
 
 	private readonly _connections = new Map<string, number>();
 
-	async findService(serviceName: string): Promise<ServiceInstance> {
+	findService(serviceName: ServiceInstanceName): Promise<ServiceInstance> {
 		return this._finder.findService(serviceName);
 	}
 
-	async findServiceInRegion(
-		serviceName: string,
+	findServiceInRegion(
+		serviceName: ServiceInstanceName,
 		region: string
 	): Promise<ServiceInstance> {
 		return this._finder.findServiceInRegion(serviceName, region);
@@ -70,7 +71,9 @@ export class ServiceDiscovery {
 		}
 	}
 
-	async findAllServices(serviceName: string): Promise<ServiceInstance[]> {
+	findAllServices(
+		serviceName: ServiceInstanceName
+	): Promise<ServiceInstance[]> {
 		return this._finder.findAllServices(serviceName);
 	}
 }

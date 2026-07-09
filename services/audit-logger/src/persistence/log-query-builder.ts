@@ -44,7 +44,7 @@ export class LogQueryBuilder {
 		if (!dr) {
 			return;
 		}
-		const rangeFilter: { $gte?: Date; $lte?: Date } = {};
+		const rangeFilter: Record<string, Date | undefined> = {};
 		if (dr.start) {
 			rangeFilter.$gte = dr.start;
 		}

@@ -1,3 +1,4 @@
+import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import { recordDiscoveryMetrics } from "../metrics";
 import type { DiscoveryCircuitBreaker } from "./circuit-breaker";
 import { DiscoveryRetryHandler } from "./discovery-retry-handler";
@@ -30,7 +31,7 @@ export class DiscoveryOrchestrator {
 	}
 
 	async findService(
-		serviceName: string
+		serviceName: ServiceInstanceName
 	): Promise<import("../client/type").ServiceInstance> {
 		const startTime = Date.now();
 		try {
@@ -40,8 +41,15 @@ export class DiscoveryOrchestrator {
 		}
 	}
 
-	private async _handleDiscoveryFailure(serviceName: string, startTime: number, lastError: unknown): Promise<import("../client/type").ServiceInstance> {
-		const staleInstance = await this._retryHandler.fallbackToStaleCache(serviceName, startTime);
+	private async _handleDiscoveryFailure(
+		serviceName: ServiceInstanceName,
+		startTime: number,
+		lastError: unknown
+	): Promise<import("../client/type").ServiceInstance> {
+		const staleInstance = await this._retryHandler.fallbackToStaleCache(
+			serviceName,
+			startTime
+		);
 		if (staleInstance) {
 			return staleInstance;
 		}
@@ -49,8 +57,8 @@ export class DiscoveryOrchestrator {
 		throw lastError;
 	}
 
-	async findAllServices(
-		serviceName: string
+	findAllServices(
+		serviceName: ServiceInstanceName
 	): Promise<import("../client/type").ServiceInstance[]> {
 		return this._serviceDiscovery.findAllServices(serviceName);
 	}

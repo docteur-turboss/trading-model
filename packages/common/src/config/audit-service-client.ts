@@ -1,5 +1,5 @@
-import { normalizeError } from "../utils/errors";
 import type { TlsPaths } from "../domain/tls-paths";
+import { normalizeError } from "../utils/errors";
 import { HttpClient } from "./http-client";
 import type { SensitiveDataSanitizer } from "./sensitive-data-sanitizer";
 

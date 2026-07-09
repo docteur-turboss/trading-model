@@ -1,11 +1,10 @@
 import { HttpClient } from "@trading-model/common/config/http-client";
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import type { AuditEvent } from "@trading-model/common/contracts/admin/audit.dto";
-
+import { CircuitStateMachine } from "@trading-model/common/reliability/circuit-state-machine";
 import { FIND_A_SERVICE } from "./address-manager";
 import { ENV } from "./env";
 import { logger } from "./logger";
-import { MessageManagerCircuitBreaker } from "./mm-circuit-breaker";
 
 class LazyHttpClient {
 	private _client: HttpClient | null = null;
@@ -50,11 +49,19 @@ class AuditUrlResolver {
 const httpClient = new LazyHttpClient();
 const urlResolver = new AuditUrlResolver();
 
-const auditCircuitBreaker = new MessageManagerCircuitBreaker({
+const auditCircuitBreaker = new CircuitStateMachine({
 	failureThreshold: 10,
-	resetMs: 60_000,
+	cooldownMs: 60_000,
 	halfOpenMaxAttempts: 1,
-	name: "audit-logger",
+	onOpen: (state) => {
+		logger.warn(
+			`audit-logger circuit breaker ${state.previousState === "half-open" ? "re-opened during half-open" : "opened"}`,
+			{
+				failures: state.failures,
+				halfOpenAttempts: state.halfOpenAttempts,
+			}
+		);
+	},
 });
 
 export async function notifyAudit(event: AuditEvent): Promise<void> {

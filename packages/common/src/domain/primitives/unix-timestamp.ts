@@ -1,4 +1,4 @@
-export type UnixTimestamp = number & { readonly __brand: "UnixTimestamp" };
+﻿export type UnixTimestamp = number & { readonly brand: "UnixTimestamp" };
 
 export const UnixTimestamp = {
 	of(value: number): UnixTimestamp {

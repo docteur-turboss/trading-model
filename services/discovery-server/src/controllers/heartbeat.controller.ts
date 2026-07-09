@@ -5,9 +5,9 @@ import {
 import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
 import { HTTP_HEADERS } from "@trading-model/common/http-headers";
 import { catchSync } from "@trading-model/common/middleware/catch-error";
+import type { ResponseObject } from "@trading-model/common/middleware/response-exception";
 import { sendResponse } from "@trading-model/common/middleware/response-exception";
 import type { Request, RequestHandler, Response } from "express";
-import type { ResponseObject } from "@trading-model/common/middleware/response-exception";
 import type { ServiceRegistry } from "../core/service-registry";
 import { HEARTBEAT_SCHEMA, ROTATE_TOKEN_SCHEMA } from "./heartbeat-validator";
 import { validateInstanceToken } from "./helpers";
@@ -42,7 +42,7 @@ function _parseHeartbeatBody(
 
 function _handleHeartbeat(
 	req: Request,
-	res: Response,
+	_res: Response,
 	registry: ServiceRegistry
 ): ResponseObject | undefined {
 	const data = _parseHeartbeatBody(req);
@@ -85,7 +85,7 @@ function _parseRotateBody(req: import("express").Request): string | null {
 
 function _handleRotateToken(
 	req: Request,
-	res: Response,
+	_res: Response,
 	registry: ServiceRegistry
 ): ResponseObject | undefined {
 	const instanceId = _parseRotateBody(req);

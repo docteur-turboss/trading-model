@@ -45,17 +45,28 @@ export class JwkFetcher {
 		modulus: string,
 		exponent: string
 	): ParsedJwk {
-		const key = createPublicKey({ key: { kty: entry.kty, n: modulus, e: exponent }, format: "jwk" });
+		const key = createPublicKey({
+			key: { kty: entry.kty, n: modulus, e: exponent },
+			format: "jwk",
+		});
 		return { kid: entry.kid ?? modulus.slice(0, 16), key };
 	}
 
 	private _parseEcKey(entry: Jwk, xCoord: string, yCoord: string): ParsedJwk {
-		const key = createPublicKey({ key: { kty: entry.kty, crv: entry.crv!, x: xCoord, y: yCoord }, format: "jwk" });
+		const key = createPublicKey({
+			key: { kty: entry.kty, crv: entry.crv!, x: xCoord, y: yCoord },
+			format: "jwk",
+		});
 		return { kid: entry.kid ?? xCoord.slice(0, 16), key };
 	}
 
 	private _parseJwkKey(entry: Jwk): ParsedJwk | null {
-		const { n: modulus, e: exponent, x: xCoord, y: yCoord } = entry as Record<string, string | undefined>;
+		const {
+			n: modulus,
+			e: exponent,
+			x: xCoord,
+			y: yCoord,
+		} = entry as Record<string, string | undefined>;
 		if (entry.kty === "RSA" && modulus && exponent) {
 			return this._parseRsaKey(entry, modulus, exponent);
 		}

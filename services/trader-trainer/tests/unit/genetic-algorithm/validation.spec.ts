@@ -1,11 +1,11 @@
 import { describe, expect, test } from "@jest/globals";
+import { createBounded } from "../../../src/core/genetic-algorithm/bounded";
 import { createDefaultGenome } from "../../../src/core/genetic-algorithm/factory";
 import {
 	ContinuousPolicyType,
 	DiscretePolicyType,
 	NormalisationType,
 } from "../../../src/core/genetic-algorithm/genome";
-import { createBounded } from "../../../src/core/genetic-algorithm/bounded";
 import {
 	repairGenome,
 	validateGenome,

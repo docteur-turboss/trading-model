@@ -22,8 +22,8 @@ export class VaultSigningProvider implements SigningProvider {
 		this._publicKeyPem = publicKeyPem;
 	}
 
-	async getPublicKey(): Promise<string> {
-		return this._publicKeyPem;
+	getPublicKey(): Promise<string> {
+		return Promise.resolve(this._publicKeyPem);
 	}
 
 	static async create(

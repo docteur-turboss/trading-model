@@ -1,12 +1,6 @@
-export {
-	AUDIT_EVENT_VALIDATORS,
-} from "./audit-event.schema";
-export {
-	CERTIFICATE_EVENT_VALIDATORS,
-} from "./certificate-event.schema";
-export {
-	MARKET_EVENT_VALIDATORS,
-} from "./market-event.schema";
+export { AUDIT_EVENT_VALIDATORS } from "./audit-event.schema";
+export { CERTIFICATE_EVENT_VALIDATORS } from "./certificate-event.schema";
+export { MARKET_EVENT_VALIDATORS } from "./market-event.schema";
 export {
 	EVENT_VALIDATORS,
 	MESSAGE_PAYLOAD_SCHEMA,

@@ -9,7 +9,10 @@ import type { ServiceHealthChecker } from "./service-health-checker";
 function selectBatchSlice(
 	entries: { serviceName: string; instance: ServiceInstance }[],
 	offset: number
-): { batch: { serviceName: string; instance: ServiceInstance }[]; nextOffset: number } {
+): {
+	batch: { serviceName: string; instance: ServiceInstance }[];
+	nextOffset: number;
+} {
 	if (entries.length === 0) {
 		return { batch: [], nextOffset: 0 };
 	}
@@ -61,23 +64,34 @@ export class CacheHealthRefresher implements ScheduledJob {
 		}
 	}
 
-	private async _executeBatch(batch: { serviceName: string; instance: ServiceInstance }[], concurrencyLimit: number): Promise<PromiseRejectedResult[]> {
+	private async _executeBatch(
+		batch: { serviceName: string; instance: ServiceInstance }[],
+		concurrencyLimit: number
+	): Promise<PromiseRejectedResult[]> {
 		const errors: PromiseRejectedResult[] = [];
 		for (let i = 0; i < batch.length; i += concurrencyLimit) {
 			const chunk = batch.slice(i, i + concurrencyLimit);
-			const results = await Promise.allSettled(chunk.map((entry) => this._checkEntry(entry)));
+			const results = await Promise.allSettled(
+				chunk.map((entry) => this._checkEntry(entry))
+			);
 			errors.push(...this._collectRejections(results));
 		}
 		return errors;
 	}
 
-	private _collectRejections(results: PromiseSettledResult<void>[]): PromiseRejectedResult[] {
-		return results.filter((r): r is PromiseRejectedResult => r.status === "rejected");
+	private _collectRejections(
+		results: PromiseSettledResult<void>[]
+	): PromiseRejectedResult[] {
+		return results.filter(
+			(result): result is PromiseRejectedResult => result.status === "rejected"
+		);
 	}
 
 	private async _doExecute(): Promise<void> {
 		const entries = await this._serviceCache.entries();
-		if (entries.length === 0) return;
+		if (entries.length === 0) {
+			return;
+		}
 
 		const { batch, nextOffset } = selectBatchSlice(entries, this._batchOffset);
 		this._batchOffset = nextOffset;
@@ -87,7 +101,9 @@ export class CacheHealthRefresher implements ScheduledJob {
 
 	private _logBatchErrors(errors: PromiseRejectedResult[]): void {
 		for (const error of errors) {
-			logger.error("Cache health refresher check failed", { error: normalizeError(error.reason) });
+			logger.error("Cache health refresher check failed", {
+				error: normalizeError(error.reason),
+			});
 		}
 	}
 }

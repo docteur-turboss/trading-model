@@ -99,8 +99,16 @@ export class DistributedLock implements IDistributedLock {
 
 	static fromOptions(options: DistributedLockOptions): DistributedLock {
 		const context = DistributedLock._buildContext(options);
-		const connectionManager = new LockConnectionManager(options.uri, options.fallbackDir);
+		const connectionManager = new LockConnectionManager(
+			options.uri,
+			options.fallbackDir
+		);
 		const backends = DistributedLock._buildBackends(options, connectionManager);
-		return new DistributedLock(context, options.ttlMs, backends, connectionManager);
+		return new DistributedLock(
+			context,
+			options.ttlMs,
+			backends,
+			connectionManager
+		);
 	}
 }

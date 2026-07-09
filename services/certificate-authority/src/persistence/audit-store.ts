@@ -54,14 +54,6 @@ export class AuditStore {
 		}
 	}
 
-	async save(entry: AuditEntry): Promise<void> {
-		await this.log(entry);
-	}
-
-	async add(entry: AuditEntry): Promise<void> {
-		await this.log(entry);
-	}
-
 	private async _flush(): Promise<void> {
 		if (this._buffer.pendingCount === 0) {
 			return;

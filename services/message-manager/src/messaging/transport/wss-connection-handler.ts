@@ -1,4 +1,4 @@
-import type { IncomingMessage } from "node:http";
+﻿import type { IncomingMessage } from "node:http";
 import type { Server as HttpsServer } from "node:https";
 import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
 import type WebSocket from "ws";
@@ -15,10 +15,12 @@ export class WssConnectionHandler {
 
 	constructor(
 		subscriptionManager: WssSubscriptionManager,
-		rateLimiter: WssRateLimiter
+		_rateLimiter: WssRateLimiter
 	) {
 		this._serverLifecycle = new WssServerLifecycle(this._clientVerifier);
-		this._connectionEventHandler = new ConnectionEventHandler(subscriptionManager);
+		this._connectionEventHandler = new ConnectionEventHandler(
+			subscriptionManager
+		);
 	}
 
 	attach(

@@ -1,19 +1,18 @@
 import type { ServiceId } from "@trading-model/common/domain/primitives";
-import type { ICache } from "@trading-model/common/utils/cache";
+import type { ISyncCache } from "@trading-model/common/utils/cache";
 import type { ServiceInstance } from "../client/type";
-import type { CacheSetEntry } from "./service-cache.interface";
 import type { ServiceCacheEntry } from "./type";
 
 /**
  * In-memory cache store for service instances.
  *
- * Implements the common {@link ICache} interface while also providing
+ * Implements the common {@link ISyncCache} interface while also providing
  * domain-specific accessors (`entries()`, `stop()`).
  *
  * @see IServiceCache — async interface with circuit-breaker support
  * @see InstanceStore — server-side instance registry (discovery-server)
  */
-export class CacheStore implements ICache<ServiceInstance> {
+export class CacheStore implements ISyncCache<ServiceInstance> {
 	private readonly _cache: Map<ServiceId, ServiceCacheEntry>;
 	private readonly _ttlMs: number;
 
@@ -47,21 +46,6 @@ export class CacheStore implements ICache<ServiceInstance> {
 
 	clear(): void {
 		this._cache.clear();
-	}
-
-	/** Convenience accessor that takes a domain-typed key. */
-	getByServiceName(serviceName: ServiceId): ServiceInstance | undefined {
-		return this.get(serviceName);
-	}
-
-	/** Convenience accessor that takes a domain-typed key and value. */
-	setEntry(entry: CacheSetEntry): void {
-		this.set(entry.serviceName, entry.instance, this._ttlMs);
-	}
-
-	/** @deprecated Use {@link delete} instead, matching ICache convention. */
-	invalidate(serviceName: ServiceId): void {
-		this.delete(serviceName);
 	}
 
 	entries(): Array<{ serviceName: ServiceId; instance: ServiceInstance }> {

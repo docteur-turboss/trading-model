@@ -1,5 +1,8 @@
-import { randomUUID } from "node:crypto";
-import type { Message, MessageMetadata } from "@trading-model/common/contracts/message.types";
+﻿import { randomUUID } from "node:crypto";
+import type {
+	Message,
+	MessageMetadata,
+} from "@trading-model/common/contracts/message.types";
 import { toMessageId } from "@trading-model/common/domain/primitives";
 import { sanitizePayload } from "./payload-sanitizer";
 

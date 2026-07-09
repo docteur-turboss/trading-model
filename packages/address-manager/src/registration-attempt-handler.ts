@@ -39,23 +39,31 @@ export class RegistrationAttemptHandler {
 			return true;
 		} catch (error) {
 			this._deps.onFailure?.();
-			logger.error("Background registration retry failed", { error: normalizeError(error), attempt });
+			logger.error("Background registration retry failed", {
+				error: normalizeError(error),
+				attempt,
+			});
 			return false;
 		}
 	}
 
-	private async _doRegister(attempt: number): Promise<void> {
+	private async _doRegister(_attempt: number): Promise<void> {
 		const res = await this._deps.addressManagerClient.registerService();
 		if (!res?.token) {
 			throw new Error("Registration response missing token");
 		}
-		await this._handleSuccess(res);
+		this._handleSuccess(res);
 	}
 
-	private async _handleRegisterError(error: unknown, attempt: number): Promise<boolean> {
+	private async _handleRegisterError(
+		error: unknown,
+		attempt: number
+	): Promise<boolean> {
 		this._deps.onFailure?.();
 		logger.error("Service registration failed", {
-			attempt, maxRetries: RETRY_CONFIG.maxRetries, error: normalizeError(error),
+			attempt,
+			maxRetries: RETRY_CONFIG.maxRetries,
+			error: normalizeError(error),
 		});
 		if (attempt < RETRY_CONFIG.maxRetries) {
 			await this._waitWithJitteredDelay(attempt);
@@ -72,7 +80,7 @@ export class RegistrationAttemptHandler {
 		]);
 	}
 
-	private async _handleSuccess(res: { token: string }): Promise<void> {
+	private _handleSuccess(res: { token: string }): void {
 		this._deps.onSuccess?.();
 		this._deps.tokenManager.setToken(res.token);
 		this._deps.wsClient?.updateToken(res.token);

@@ -47,7 +47,7 @@ export function setupProcessHandlers(
 	_registerCleanup(handlers);
 }
 
-interface _Handlers {
+interface Handlers {
 	onSigTerm: () => Promise<void>;
 	onSigInt: () => Promise<void>;
 	onUncaughtException: (error: Error) => void;
@@ -57,7 +57,7 @@ interface _Handlers {
 function _createHandlers(
 	shutdown: ShutdownHandler,
 	hardShutdown: HardShutdownHandler
-): _Handlers {
+): Handlers {
 	return {
 		onSigTerm: _createSigTermHandler(shutdown),
 		onSigInt: _createSigIntHandler(shutdown),
@@ -66,14 +66,14 @@ function _createHandlers(
 	};
 }
 
-function _registerHandlers(handlers: _Handlers): void {
+function _registerHandlers(handlers: Handlers): void {
 	process.on("SIGTERM", handlers.onSigTerm);
 	process.on("SIGINT", handlers.onSigInt);
 	process.on("uncaughtException", handlers.onUncaughtException);
 	process.on("unhandledRejection", handlers.onUnhandledRejection);
 }
 
-function _registerCleanup(handlers: _Handlers): void {
+function _registerCleanup(handlers: Handlers): void {
 	CLEANUP_FNS.push(
 		_buildCleanupFn(
 			handlers.onSigTerm,

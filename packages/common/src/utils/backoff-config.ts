@@ -14,12 +14,17 @@ export function computeExponentialBackoff(
 	attempt: number,
 	options: { baseDelayMs: number; maxDelayMs: number }
 ): number {
-	return new DelayRange(options.baseDelayMs, options.maxDelayMs).backoff(attempt);
+	return new DelayRange(options.baseDelayMs, options.maxDelayMs).backoff(
+		attempt
+	);
 }
 
 export function computeExponentialBackoffWithJitter(
 	attempt: number,
 	options: { baseDelayMs: number; maxDelayMs: number; jitterMs: number }
 ): number {
-	return new DelayRange(options.baseDelayMs, options.maxDelayMs).withJitter(attempt, options.jitterMs);
+	return new DelayRange(options.baseDelayMs, options.maxDelayMs).withJitter(
+		attempt,
+		options.jitterMs
+	);
 }

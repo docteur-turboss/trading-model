@@ -1,5 +1,5 @@
-import { logger } from "@trading-model/common/config/logger";
-import { JOB_STATUS } from "@trading-model/common/contracts/recovery.types";
+﻿import { logger } from "@trading-model/common/config/logger";
+import { JobStatus } from "@trading-model/common/contracts/recovery.types";
 import type { WorkerRegistration } from "@trading-model/common/contracts/worker-protocol.types";
 import {
 	type JobId,
@@ -25,18 +25,39 @@ export class JobAssigner {
 		this._workerProtocol = protocol;
 	}
 
-	assign(queued: { job: Job }, worker: Pick<WorkerRegistration, "workerId" | "currentLoad" | "maxConcurrency">): void {
+	assign(
+		queued: { job: Job },
+		worker: Pick<
+			WorkerRegistration,
+			"workerId" | "currentLoad" | "maxConcurrency"
+		>
+	): void {
 		const deadline = Date.now() + ENV.ACK_TIMEOUT_MS;
-		const assignedJob = this._buildAssignedJob(queued.job, worker.workerId, deadline);
+		const assignedJob = this._buildAssignedJob(
+			queued.job,
+			worker.workerId,
+			deadline
+		);
 		this._queue.markDelivered(assignedJob.id);
 		this._sendAssignment(worker.workerId, assignedJob, deadline);
 		this._incrementWorkerLoad(worker);
 		this._persistAssignment(assignedJob.id, worker.workerId, deadline);
-		logger.info("Job assigned to worker", { context: { jobId: assignedJob.id, workerId: worker.workerId } });
+		logger.info("Job assigned to worker", {
+			context: { jobId: assignedJob.id, workerId: worker.workerId },
+		});
 	}
 
-	private _buildAssignedJob(job: Job, workerId: import("@trading-model/common/domain/primitives").InstanceId, deadline: number): Job {
-		return { ...job, status: JOB_STATUS.ASSIGNED, assignedWorkerId: workerId, ackDeadline: deadline };
+	private _buildAssignedJob(
+		job: Job,
+		workerId: import("@trading-model/common/domain/primitives").InstanceId,
+		deadline: number
+	): Job {
+		return {
+			...job,
+			status: JobStatus.ASSIGNED,
+			assignedWorkerId: workerId,
+			ackDeadline: deadline,
+		};
 	}
 
 	private _sendAssignment(workerId: string, job: Job, deadline: number): void {
@@ -69,7 +90,7 @@ export class JobAssigner {
 		deadline: number
 	): void {
 		this._repository
-			.updateStatus(jobId, JOB_STATUS.ASSIGNED, {
+			.updateStatus(jobId, JobStatus.ASSIGNED, {
 				assignedWorkerId: toInstanceId(assignedWorkerId),
 				ackDeadline: deadline,
 			})

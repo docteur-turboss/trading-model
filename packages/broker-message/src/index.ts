@@ -9,7 +9,7 @@ import type { InstanceId } from "@trading-model/common/domain/primitives";
 import type { TlsPaths } from "@trading-model/common/domain/tls-paths";
 import type { Application } from "express";
 
-import { type Listener } from "./client/event-manager-client";
+import type { Listener } from "./client/event-manager-client";
 import { EventSubscriber } from "./client/event-subscriber";
 import { MessageManagerClient } from "./client/message-manager-client";
 import { TopicSubscriber } from "./client/topic-subscriber";
@@ -59,7 +59,7 @@ export default class BrokerMessage {
 	}
 
 	/** Subscribes to the specified event topics. */
-	async intents(
+	intents(
 		topics: Parameters<MessageManagerClient["subscribeToTopics"]>[0]
 	): Promise<void> {
 		return this.topics.subscribe(topics);

@@ -1,4 +1,4 @@
-import type { WalEntryParser } from "./wal-entry-parser";
+﻿import type { WalEntryParser } from "./wal-entry-parser";
 import { WalFlushErrorHandler } from "./wal-flush-error-handler";
 
 export enum WalErrorAction {
@@ -17,7 +17,7 @@ export class WalErrorHandler {
 		this._delegate = new WalFlushErrorHandler(_entryParser);
 	}
 
-	async handleFlushError(
+	handleFlushError(
 		raw: string[],
 		consecutiveErrors: number
 	): Promise<WalErrorAction> {

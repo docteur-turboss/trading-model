@@ -3,12 +3,6 @@ import type { LogStats } from "./log-repository";
 
 type MongoDoc = Record<string, unknown>;
 
-interface ServiceLogCounts {
-	total: number;
-	byService: Map<ServiceId, number>;
-	dateRange: { earliest?: string; latest?: string };
-}
-
 export class LogStatsBuilder {
 	build(): MongoDoc[] {
 		return [{ $facet: this._buildFacets() }];
@@ -32,13 +26,15 @@ export class LogStatsBuilder {
 	}
 
 	private _buildDateRangeFacet(): MongoDoc[] {
-		return [{
-			$group: {
-				_id: null,
-				earliest: { $min: "$receivedAt" },
-				latest: { $max: "$receivedAt" },
+		return [
+			{
+				$group: {
+					_id: null,
+					earliest: { $min: "$receivedAt" },
+					latest: { $max: "$receivedAt" },
+				},
 			},
-		}];
+		];
 	}
 
 	private _buildTotalFacet(): MongoDoc[] {
@@ -63,11 +59,8 @@ export class LogStatsBuilder {
 		key: string
 	): Record<ServiceId, number> {
 		const result: Record<ServiceId, number> = {};
-		for (const item of (aggResult?.[key] as Array<{
-			_id: ServiceId;
-			count: number;
-		}>) ?? []) {
-			result[item._id] = item.count;
+		for (const item of (aggResult?.[key] as Record<string, unknown>[]) ?? []) {
+			result[String(item._id) as ServiceId] = Number(item.count);
 		}
 		return result;
 	}
@@ -77,11 +70,8 @@ export class LogStatsBuilder {
 		key: string
 	): Record<string, number> {
 		const result: Record<string, number> = {};
-		for (const item of (aggResult?.[key] as Array<{
-			_id: string;
-			count: number;
-		}>) ?? []) {
-			result[item._id] = item.count;
+		for (const item of (aggResult?.[key] as Record<string, unknown>[]) ?? []) {
+			result[String(item._id)] = Number(item.count);
 		}
 		return result;
 	}

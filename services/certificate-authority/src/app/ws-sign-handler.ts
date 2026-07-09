@@ -1,8 +1,8 @@
-import { logger } from "@trading-model/common/config/logger";
+﻿import { logger } from "@trading-model/common/config/logger";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import type { WebSocket } from "ws";
 import { z } from "zod";
-import { CONTAINER } from "./index";
+import { container } from "./index";
 import type { ConnectionState } from "./rate-limiter";
 import {
 	buildSignErrorPayload,
@@ -31,7 +31,7 @@ export async function handleSignRequest(
 	session: WssSession
 ): Promise<void> {
 	try {
-		const cert = await CONTAINER.distributor.requestCertificate(
+		const cert = await container.distributor.requestCertificate(
 			signMsg.data.serviceId,
 			signMsg.data.csr,
 			session.state.tokenProvided ? session.state.bootstrapToken : undefined

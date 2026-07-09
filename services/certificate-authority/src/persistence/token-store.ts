@@ -30,7 +30,11 @@ export class TokenStore {
 		this._collection = collection;
 	}
 
-	private _buildUsedToken(hash: string, serviceId: string, ttl: number): UsedToken {
+	private _buildUsedToken(
+		hash: string,
+		serviceId: string,
+		ttl: number
+	): UsedToken {
 		return {
 			tokenHash: hash,
 			serviceId,
@@ -47,12 +51,16 @@ export class TokenStore {
 	}
 
 	async tryUseToken(request: TokenUseRequest): Promise<boolean> {
-		if (!this._collection) return true;
+		if (!this._collection) {
+			return true;
+		}
 		const { token, serviceId, ttlMs } = request;
 		const ttl = ttlMs ?? this._defaultTtlMs;
 		const hash = await this._hashToken(token);
 		try {
-			await this._collection.insertOne(this._buildUsedToken(hash, serviceId, ttl));
+			await this._collection.insertOne(
+				this._buildUsedToken(hash, serviceId, ttl)
+			);
 			return true;
 		} catch (err: unknown) {
 			return this._handleInsertError(err);
@@ -67,7 +75,9 @@ export class TokenStore {
 	}
 
 	async isUsed(token: string): Promise<boolean> {
-		if (!this._collection) return false;
+		if (!this._collection) {
+			return false;
+		}
 		const hash = await this._hashToken(token);
 		const found = await this._collection.findOne({ tokenHash: hash });
 		return found !== null;

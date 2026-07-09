@@ -63,7 +63,12 @@ export class WorkerTaskQueue {
 		});
 	}
 
-	private _handleTaskOutcome(task: TaskEntry, success: boolean, data?: unknown, error?: string): void {
+	private _handleTaskOutcome(
+		task: TaskEntry,
+		success: boolean,
+		data?: unknown,
+		error?: string
+	): void {
 		if (success) {
 			task.resolve(data);
 		} else {

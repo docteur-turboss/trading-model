@@ -1,4 +1,4 @@
-import { ENV } from "../../config/env";
+﻿import { ENV } from "../../config/env";
 import { getStreamClient } from "../../config/redis";
 import type { MemoryWalBuffer } from "./memory-wal-buffer";
 import type { MemoryWalEntry } from "./memory-wal-entry";
@@ -109,7 +109,7 @@ export class WalFlusherService {
 		this.stop();
 	}
 
-	async drain(timeoutMs = 10_000): Promise<void> {
+	drain(timeoutMs = 10_000): Promise<void> {
 		return this._drainCoordinator.drain(timeoutMs);
 	}
 
@@ -118,6 +118,6 @@ export class WalFlusherService {
 	}
 
 	bufferInMemory(entry: MemoryWalEntry): void {
-		this._memoryWalBuffer.push(entry);
+		void this._memoryWalBuffer.push(entry);
 	}
 }

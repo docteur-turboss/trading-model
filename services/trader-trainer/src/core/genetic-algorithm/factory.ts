@@ -4,6 +4,7 @@ import {
 	InitialisationType,
 	NormalisationType,
 } from "../neural-network/type";
+import { createBounded } from "./bounded";
 import type {
 	ContinuousPolicyGenome,
 	CrossoverGenome,
@@ -27,7 +28,6 @@ import {
 	MutationScope,
 	SelectionType,
 } from "./genome-types";
-import { createBounded } from "./bounded";
 
 function _createDefaultHiddenLayers(): NetworkGenome["hiddenLayers"] {
 	return [
@@ -196,10 +196,7 @@ function _createDefaultRLGenome(): RLGenome {
 	};
 }
 
-import {
-	type GenomeId,
-	toGenomeId,
-} from "@trading-model/common/domain/primitives";
+import { toGenomeId } from "@trading-model/common/domain/primitives";
 
 /** Create a genome with sensible default values for network, RL hyperparameters, mutation, crossover, and GA control. */
 export function createDefaultGenome(id: string, generation = 0): Genome {

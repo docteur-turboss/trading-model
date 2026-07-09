@@ -1,4 +1,5 @@
 import { logger } from "@trading-model/common/config/logger";
+import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import { toServiceId } from "@trading-model/common/domain/primitives";
 import { sleep } from "@trading-model/common/utils/sleep";
 
@@ -23,16 +24,27 @@ export class DiscoveryRetryHandler {
 	) {}
 
 	async attemptDiscovery(
-		serviceName: string,
+		serviceName: ServiceInstanceName,
 		startTime: number
 	): Promise<ServiceInstance> {
 		let lastError: Error | null = null;
 
-		for (let attempt = 0; attempt <= DiscoveryRetryHandler._CIRCUIT_BREAKER_MAX_RETRIES; attempt++) {
+		for (
+			let attempt = 0;
+			attempt <= DiscoveryRetryHandler._CIRCUIT_BREAKER_MAX_RETRIES;
+			attempt++
+		) {
 			try {
 				const instance = await this._serviceDiscovery.findService(serviceName);
-				const result = await this._checkServiceCircuitBreaker({ instance, serviceName, startTime, attempt });
-				if (result) return result;
+				const result = await this._checkServiceCircuitBreaker({
+					instance,
+					serviceName,
+					startTime,
+					attempt,
+				});
+				if (result) {
+					return result;
+				}
 			} catch (err) {
 				lastError = this._captureError(err);
 				if (attempt < DiscoveryRetryHandler._CIRCUIT_BREAKER_MAX_RETRIES) {
@@ -48,12 +60,14 @@ export class DiscoveryRetryHandler {
 	}
 
 	private _backoffDelay(attempt: number): number {
-		return DiscoveryRetryHandler._CIRCUIT_BREAKER_RETRY_BASE_DELAY_MS * 2 ** attempt;
+		return (
+			DiscoveryRetryHandler._CIRCUIT_BREAKER_RETRY_BASE_DELAY_MS * 2 ** attempt
+		);
 	}
 
 	private async _checkServiceCircuitBreaker(params: {
 		instance: ServiceInstance;
-		serviceName: string;
+		serviceName: ServiceInstanceName;
 		startTime: number;
 		attempt: number;
 	}): Promise<ServiceInstance | null> {
@@ -73,9 +87,14 @@ export class DiscoveryRetryHandler {
 		return null;
 	}
 
-	async fallbackToStaleCache(serviceName: string, startTime: number): Promise<ServiceInstance | null> {
+	async fallbackToStaleCache(
+		serviceName: ServiceInstanceName,
+		startTime: number
+	): Promise<ServiceInstance | null> {
 		try {
-			const staleInstance = await this._serviceCache.get(toServiceId(serviceName));
+			const staleInstance = await this._serviceCache.get(
+				toServiceId(serviceName)
+			);
 			if (staleInstance) {
 				return this._returnStaleInstance(staleInstance, serviceName, startTime);
 			}
@@ -85,10 +104,18 @@ export class DiscoveryRetryHandler {
 		return null;
 	}
 
-	private _returnStaleInstance(staleInstance: ServiceInstance, serviceName: string, startTime: number): ServiceInstance {
-		logger.warn("Circuit breaker exhausted — returning stale cached instance as fallback", {
-			serviceName, instanceId: staleInstance.instanceId,
-		});
+	private _returnStaleInstance(
+		staleInstance: ServiceInstance,
+		serviceName: ServiceInstanceName,
+		startTime: number
+	): ServiceInstance {
+		logger.warn(
+			"Circuit breaker exhausted — returning stale cached instance as fallback",
+			{
+				serviceName,
+				instanceId: staleInstance.instanceId,
+			}
+		);
 		recordDiscoveryMetrics({ serviceName, startTime }, "degraded");
 		return staleInstance;
 	}

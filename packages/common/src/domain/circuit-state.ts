@@ -5,10 +5,8 @@
  * - `open` -- failures threshold exceeded, rejecting requests
  * - `half-open` -- probing whether the resource has recovered
  */
-export type CircuitState = "closed" | "open" | "half-open";
-
-export const CircuitState = {
-	CLOSED: "closed",
-	OPEN: "open",
-	HALF_OPEN: "half-open",
-} as const;
+export enum CircuitState {
+	CLOSED = "closed",
+	OPEN = "open",
+	HALF_OPEN = "half-open",
+}

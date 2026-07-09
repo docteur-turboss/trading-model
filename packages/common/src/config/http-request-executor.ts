@@ -4,11 +4,11 @@ import { URL } from "node:url";
 import type { z } from "zod";
 
 import type { TlsPemBundle } from "../domain/tls-paths";
+import { CircuitRecorder, type ServiceRoute } from "./circuit-recorder";
 import { HttpClientTimeoutError } from "./http-client-errors";
 import { collectResponseBody } from "./http-response";
 import type { HttpMethod, HttpRequestOptions } from "./http-types";
 import { buildRequestOptions } from "./http-utils";
-import { CircuitRecorder, type ServiceRoute } from "./circuit-recorder";
 import { RetryExecutor, shouldRetry } from "./retry-executor";
 
 const DEFAULT_TIMEOUT_MS = 10_000;
@@ -21,7 +21,7 @@ export interface RequestContext<TResponse> {
 	schema?: z.ZodType<TResponse>;
 }
 
-export { type ServiceRoute };
+export type { ServiceRoute };
 
 export class HttpRequestExecutor {
 	private readonly _executor: RetryExecutor;
@@ -31,7 +31,7 @@ export class HttpRequestExecutor {
 		this._executor = new RetryExecutor(this._circuitRecorder);
 	}
 
-	async execute<TResponse>(
+	execute<TResponse>(
 		context: RequestContext<TResponse>,
 		tls?: Partial<TlsPemBundle>
 	): Promise<TResponse | undefined> {
@@ -79,14 +79,14 @@ export class HttpRequestExecutor {
 		});
 	}
 
-	async executeWithRetry<TResponse>(
+	executeWithRetry<TResponse>(
 		context: RequestContext<TResponse>,
 		route: ServiceRoute,
 		tls?: Partial<TlsPemBundle>
 	): Promise<TResponse | undefined> {
 		return this._executor.executeWithRetry(
 			context,
-			(ctx, t) => this.execute(ctx, t),
+			(ctx, tls) => this.execute(ctx, tls),
 			route,
 			tls
 		);

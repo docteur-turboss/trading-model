@@ -1,4 +1,4 @@
-import { retryFileAppend } from "@trading-model/common/utils/retry-file-append";
+﻿import { retryFileAppend } from "@trading-model/common/utils/retry-file-append";
 
 import { ENV } from "../../config/env";
 import { logger } from "../../config/logger";
@@ -22,7 +22,7 @@ export class FileWalFallback {
 		}
 	}
 
-	async recover(): Promise<MemoryWalEntry[]> {
+	recover(): Promise<MemoryWalEntry[]> {
 		return this._fileRecovery.recover();
 	}
 }

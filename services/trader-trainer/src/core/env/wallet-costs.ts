@@ -34,7 +34,9 @@ export function computeBuyCosts(params: TradeCostParams): {
 } {
 	const baseCost = _computeBaseCost(params);
 	const fee = _computeFee(baseCost, params);
-	const totalCost = Cash.of(roundValue(baseCost + Number(fee), params.decimals));
+	const totalCost = Cash.of(
+		roundValue(baseCost + Number(fee), params.decimals)
+	);
 	return { totalCost, fee };
 }
 

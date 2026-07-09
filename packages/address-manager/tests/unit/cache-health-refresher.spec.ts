@@ -1,5 +1,14 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
-import type { IPAddress, Port } from "@trading-model/common/domain/primitives";
+import { Protocol } from "@trading-model/common/contracts/service-registry.types";
+import {
+	IPAddress,
+	Port,
+	toDurationMs,
+	toInstanceId,
+	toServiceId,
+	toVersion,
+	UnixTimestamp,
+} from "@trading-model/common/domain/primitives";
 import type { ServiceInstance } from "../../src/client/type";
 import { CacheHealthRefresher } from "../../src/discovery/cache-health-refresher";
 import type { IServiceCache } from "../../src/discovery/service-cache.interface";
@@ -7,15 +16,15 @@ import type { ServiceHealthChecker } from "../../src/discovery/service-health-ch
 
 function makeInstance(overrides?: Partial<ServiceInstance>): ServiceInstance {
 	return {
-		serviceName: "svc",
-		instanceId: "i-1",
-		host: "127.0.0.1" as unknown as IPAddress,
-		port: 8080 as unknown as Port,
-		version: "1.0.0",
-		ttl: 30000,
-		protocol: "http",
-		registeredAt: Date.now(),
-		lastHeartbeat: Date.now(),
+		serviceName: toServiceId("svc"),
+		instanceId: toInstanceId("i-1"),
+		host: IPAddress.of("127.0.0.1"),
+		port: Port.of(8080),
+		version: toVersion("1.0.0"),
+		ttl: toDurationMs(30000),
+		protocol: Protocol.Http,
+		registeredAt: UnixTimestamp.now(),
+		lastHeartbeat: UnixTimestamp.now(),
 		...overrides,
 	};
 }
@@ -37,7 +46,7 @@ describe("CacheHealthRefresher", () => {
 			getCircuitState: jest.fn(),
 			deleteCircuitState: jest.fn(),
 			stop: jest.fn(),
-		};
+		} as jest.Mocked<IServiceCache>;
 		healthChecker = {
 			isHealthy: jest.fn(),
 		} as unknown as jest.Mocked<ServiceHealthChecker>;
@@ -65,32 +74,32 @@ describe("CacheHealthRefresher", () => {
 
 	it("should check health and invalidate unhealthy entries", async () => {
 		const unhealthy = makeInstance({
-			serviceName: "unhealthy-svc",
-			instanceId: "i-2",
+			serviceName: toServiceId("unhealthy-svc"),
+			instanceId: toInstanceId("i-2"),
 		});
 		serviceCache.entries.mockResolvedValue([
 			{
-				serviceName: "healthy-svc",
+				serviceName: toServiceId("healthy-svc"),
 				instance: makeInstance({
-					serviceName: "healthy-svc",
-					instanceId: "i-1",
+					serviceName: toServiceId("healthy-svc"),
+					instanceId: toInstanceId("i-1"),
 				}),
 			},
 			{
-				serviceName: "healthy-svc2",
+				serviceName: toServiceId("healthy-svc2"),
 				instance: makeInstance({
-					serviceName: "healthy-svc2",
-					instanceId: "i-3",
+					serviceName: toServiceId("healthy-svc2"),
+					instanceId: toInstanceId("i-3"),
 				}),
 			},
 			{
-				serviceName: "healthy-svc3",
+				serviceName: toServiceId("healthy-svc3"),
 				instance: makeInstance({
-					serviceName: "healthy-svc3",
-					instanceId: "i-4",
+					serviceName: toServiceId("healthy-svc3"),
+					instanceId: toInstanceId("i-4"),
 				}),
 			},
-			{ serviceName: "unhealthy-svc", instance: unhealthy },
+			{ serviceName: toServiceId("unhealthy-svc"), instance: unhealthy },
 		]);
 		healthChecker.isHealthy.mockResolvedValue(true);
 		await refresher.execute();
@@ -98,13 +107,15 @@ describe("CacheHealthRefresher", () => {
 		await refresher.execute();
 		healthChecker.isHealthy.mockResolvedValue(false);
 		await refresher.execute();
-		expect(serviceCache.invalidate).toHaveBeenCalledWith("unhealthy-svc");
+		expect(serviceCache.invalidate).toHaveBeenCalledWith(
+			toServiceId("unhealthy-svc")
+		);
 	});
 
 	it("should log errors from health checks", async () => {
 		const inst = makeInstance();
 		serviceCache.entries.mockResolvedValue([
-			{ serviceName: "svc", instance: inst },
+			{ serviceName: toServiceId("svc"), instance: inst },
 		]);
 		healthChecker.isHealthy.mockRejectedValue(new Error("check error"));
 		await refresher.execute();
@@ -114,7 +125,7 @@ describe("CacheHealthRefresher", () => {
 	it("should reset offset when entries length changes", async () => {
 		const inst = makeInstance();
 		serviceCache.entries.mockResolvedValue([
-			{ serviceName: "svc", instance: inst },
+			{ serviceName: toServiceId("svc"), instance: inst },
 		]);
 		healthChecker.isHealthy.mockResolvedValue(true);
 		await refresher.execute();

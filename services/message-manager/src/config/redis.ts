@@ -1,4 +1,4 @@
-import type Redis from "ioredis";
+﻿import type Redis from "ioredis";
 import { createRedisClient } from "./redis-client-factory";
 import { RedisClientPool } from "./redis-client-pool";
 
@@ -29,15 +29,15 @@ function buildClient(): Redis {
 	return createRedisClient();
 }
 
-export async function getRedisClient(): Promise<Redis> {
+export function getRedisClient(): Promise<Redis> {
 	return operationsPool.getOrCreate(buildClient);
 }
 
-export async function getStreamClient(): Promise<Redis> {
+export function getStreamClient(): Promise<Redis> {
 	return streamsPool.getOrCreate(buildClient);
 }
 
-export async function getSubscriptionClient(): Promise<Redis> {
+export function getSubscriptionClient(): Promise<Redis> {
 	return subscriptionsPool.getOrCreate(buildClient);
 }
 

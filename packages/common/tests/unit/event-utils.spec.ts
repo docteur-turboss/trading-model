@@ -21,15 +21,20 @@ import {
 	isBuyTrade,
 	isSellTrade,
 } from "../../src/config/event-utils";
-import { Price, UnixTimestamp, Volume } from "../../src/domain/primitives";
+import {
+	Price,
+	type TradingSymbol,
+	UnixTimestamp,
+	Volume,
+} from "../../src/domain/primitives";
 
 function makeOb(bids: OrderBookLevel[], asks: OrderBookLevel[]): OrderBookData {
 	return {
 		bids: new Set(bids),
 		asks: new Set(asks),
-		symbol: "BTCUSDT",
-		source: SourceType.BINANCE,
-		market: MarketType.CRYPTO,
+		symbol: "BTCUSDT" as unknown as TradingSymbol,
+		source: SourceType.Binance,
+		market: MarketType.Crypto,
 		timestamp: UnixTimestamp.now(),
 	};
 }
@@ -41,10 +46,10 @@ function makeCandle(open: number, close: number): CandleData {
 		high: Price.of(Math.max(open, close)),
 		low: Price.of(Math.min(open, close)),
 		volume: Volume.of(1000),
-		symbol: "BTCUSDT",
-		source: SourceType.BINANCE,
-		market: MarketType.CRYPTO,
-		interval: CandleInterval.MIN1,
+		symbol: "BTCUSDT" as unknown as TradingSymbol,
+		source: SourceType.Binance,
+		market: MarketType.Crypto,
+		interval: CandleInterval.Min1,
 		timestamp: UnixTimestamp.now(),
 		closeTimestamp: UnixTimestamp.of(Date.now() + 60000),
 	};
@@ -56,9 +61,9 @@ function makeTrade(side: TradeSide): TradeData {
 		price: Price.of(50000),
 		quantity: Volume.of(0.1),
 		timestamp: UnixTimestamp.now(),
-		symbol: "BTCUSDT",
-		source: SourceType.BINANCE,
-		market: MarketType.CRYPTO,
+		symbol: "BTCUSDT" as unknown as TradingSymbol,
+		source: SourceType.Binance,
+		market: MarketType.Crypto,
 		tradeId: 1n,
 	};
 }
@@ -169,21 +174,21 @@ describe("event-utils", () => {
 
 	describe("isBuyTrade", () => {
 		it("should return true for buy trades", () => {
-			expect(isBuyTrade(makeTrade(TradeSide.BUY))).toBe(true);
+			expect(isBuyTrade(makeTrade(TradeSide.Buy))).toBe(true);
 		});
 
 		it("should return false for sell trades", () => {
-			expect(isBuyTrade(makeTrade(TradeSide.SELL))).toBe(false);
+			expect(isBuyTrade(makeTrade(TradeSide.Sell))).toBe(false);
 		});
 	});
 
 	describe("isSellTrade", () => {
 		it("should return true for sell trades", () => {
-			expect(isSellTrade(makeTrade(TradeSide.SELL))).toBe(true);
+			expect(isSellTrade(makeTrade(TradeSide.Sell))).toBe(true);
 		});
 
 		it("should return false for buy trades", () => {
-			expect(isSellTrade(makeTrade(TradeSide.BUY))).toBe(false);
+			expect(isSellTrade(makeTrade(TradeSide.Buy))).toBe(false);
 		});
 	});
 });

@@ -22,7 +22,7 @@ jest.mock("ts-sql-query/queryRunners/MySql2PoolQueryRunner", () => ({
 	MySql2PoolQueryRunner: jest.fn(),
 }));
 
-import { DATABASE, createDBConnection, type DBConnection } from "../../../src/config/db";
+import { createDBConnection, DATABASE } from "../../../src/config/db";
 
 describe("config/db", () => {
 	it("should export DATABASE pool", () => {

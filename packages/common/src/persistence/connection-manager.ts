@@ -1,7 +1,7 @@
-import { retryWithBackoff, type RetryResult } from "../utils/retry";
+﻿import { type RetryResult, retryWithBackoff } from "../utils/retry";
 
-export interface ConnectionFactory<T> {
-	connect(): Promise<T>;
+export interface ConnectionFactory<_TConnection> {
+	connect(): Promise<_TConnection>;
 }
 
 export interface ConnectionManagerOptions {
@@ -16,10 +16,10 @@ export const DEFAULT_CONNECTION_OPTIONS: ConnectionManagerOptions = {
 	maxDelayMs: 30000,
 };
 
-function _executeRetry<T>(
-	connectFn: () => Promise<T>,
+function _executeRetry<_TResult>(
+	connectFn: () => Promise<_TResult>,
 	options: ConnectionManagerOptions
-): Promise<RetryResult<T>> {
+): Promise<RetryResult<_TResult>> {
 	return retryWithBackoff(connectFn, {
 		maxRetries: options.maxRetries,
 		baseDelayMs: options.baseDelayMs,
@@ -27,21 +27,21 @@ function _executeRetry<T>(
 	});
 }
 
-function _throwConnectFailed<T>(lastError: Error | null): T {
+function _throwConnectFailed<_TResult>(lastError: Error | null): _TResult {
 	throw lastError ?? new Error("Failed to connect after retries");
 }
 
-export class ConnectionManager<T> {
-	protected _connection: T | null = null;
-	protected _connectionPromise: Promise<T> | null = null;
+export class ConnectionManager<_TConnection> {
+	protected _connection: _TConnection | null = null;
+	protected _connectionPromise: Promise<_TConnection> | null = null;
 	protected _connected = false;
-	private readonly _connectFn: () => Promise<T>;
-	private readonly _disconnectFn: (conn: T) => Promise<void>;
+	private readonly _connectFn: () => Promise<_TConnection>;
+	private readonly _disconnectFn: (conn: _TConnection) => Promise<void>;
 	protected readonly _options: ConnectionManagerOptions;
 
 	constructor(
-		connectFn: () => Promise<T>,
-		disconnectFn: (conn: T) => Promise<void>,
+		connectFn: () => Promise<_TConnection>,
+		disconnectFn: (conn: _TConnection) => Promise<void>,
 		options?: Partial<ConnectionManagerOptions>
 	) {
 		this._connectFn = connectFn;
@@ -49,7 +49,7 @@ export class ConnectionManager<T> {
 		this._options = { ...DEFAULT_CONNECTION_OPTIONS, ...options };
 	}
 
-	async getConnection(): Promise<T> {
+	async getConnection(): Promise<_TConnection> {
 		if (this._connection) {
 			return this._connection;
 		}
@@ -62,7 +62,7 @@ export class ConnectionManager<T> {
 		return this._connectionPromise;
 	}
 
-	protected async _connectWithRetry(): Promise<T> {
+	protected async _connectWithRetry(): Promise<_TConnection> {
 		const { result: conn, lastError } = await _executeRetry(
 			() => this._connectFn(),
 			this._options
@@ -75,7 +75,7 @@ export class ConnectionManager<T> {
 		return conn;
 	}
 
-	getClient(): T | null {
+	getClient(): _TConnection | null {
 		return this._connection;
 	}
 

@@ -1,4 +1,6 @@
 import { beforeEach, describe, expect, test } from "@jest/globals";
+import { toServiceId } from "@trading-model/common/domain/primitives";
+import { UnixTimestamp } from "@trading-model/common/domain/primitives/unix-timestamp";
 import { ServiceCallTracker } from "../../src/monitoring/service-call-tracker";
 
 describe("ServiceCallTracker", () => {
@@ -22,30 +24,30 @@ describe("ServiceCallTracker", () => {
 
 		test("should aggregate records correctly", () => {
 			tracker.record({
-				targetService: "svc-a",
+				targetService: toServiceId("svc-a"),
 				endpoint: "/register",
 				method: "POST",
-				timestamp: Date.now(),
+				timestamp: UnixTimestamp.now(),
 				durationMs: 100,
 				status: "success",
 				bytesSent: 50,
 				bytesReceived: 200,
 			});
 			tracker.record({
-				targetService: "svc-a",
+				targetService: toServiceId("svc-a"),
 				endpoint: "/register",
 				method: "POST",
-				timestamp: Date.now(),
+				timestamp: UnixTimestamp.now(),
 				durationMs: 200,
 				status: "success",
 				bytesSent: 50,
 				bytesReceived: 200,
 			});
 			tracker.record({
-				targetService: "svc-b",
+				targetService: toServiceId("svc-b"),
 				endpoint: "/heartbeat",
 				method: "WS",
-				timestamp: Date.now(),
+				timestamp: UnixTimestamp.now(),
 				durationMs: 5,
 				status: "error",
 				errorMessage: "timeout",
@@ -68,10 +70,10 @@ describe("ServiceCallTracker", () => {
 	describe("clear", () => {
 		test("should remove all records", () => {
 			tracker.record({
-				targetService: "svc-a",
+				targetService: toServiceId("svc-a"),
 				endpoint: "/ping",
 				method: "GET",
-				timestamp: Date.now(),
+				timestamp: UnixTimestamp.now(),
 				durationMs: 10,
 				status: "success",
 			});
@@ -86,10 +88,10 @@ describe("ServiceCallTracker", () => {
 			const smallTracker = new ServiceCallTracker(3);
 			for (let i = 0; i < 5; i++) {
 				smallTracker.record({
-					targetService: "svc",
+					targetService: toServiceId("svc"),
 					endpoint: "/test",
 					method: "GET",
-					timestamp: Date.now(),
+					timestamp: UnixTimestamp.now(),
 					durationMs: i,
 					status: "success",
 				});
@@ -101,10 +103,10 @@ describe("ServiceCallTracker", () => {
 	describe("getRecords", () => {
 		test("should return all stored records as readonly array", () => {
 			tracker.record({
-				targetService: "svc",
+				targetService: toServiceId("svc"),
 				endpoint: "/test",
 				method: "GET",
-				timestamp: 1000,
+				timestamp: UnixTimestamp.of(1000),
 				durationMs: 50,
 				status: "success",
 			});

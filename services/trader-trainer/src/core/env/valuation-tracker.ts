@@ -42,7 +42,7 @@ export class ValuationTracker {
 
 	getPeakValuation(): Cash {
 		return this._history.length > 0
-			? Cash.of(Math.max(...this._history.map((v) => Number(v))))
+			? Cash.of(Math.max(...this._history.map((val) => Number(val))))
 			: this._initialCash;
 	}
 

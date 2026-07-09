@@ -6,12 +6,14 @@ import {
 	encodeGenome,
 	encodePopulation,
 } from "../../../src/core/genetic-algorithm/encoding";
-import { ENCODING_OFFSETS, SCALAR_DIM, layerOffset, readEncodedLayer } from "../../../src/core/genetic-algorithm/encoding-indices";
+import {
+	ENCODING_OFFSETS,
+	layerOffset,
+	readEncodedLayer,
+	SCALAR_DIM,
+} from "../../../src/core/genetic-algorithm/encoding-indices";
 import { createDefaultGenome } from "../../../src/core/genetic-algorithm/factory";
-import type {
-	Genome,
-	LayerGenome,
-} from "../../../src/core/genetic-algorithm/genome";
+import type { LayerGenome } from "../../../src/core/genetic-algorithm/genome";
 import {
 	ActivationType,
 	ConnectionType,
@@ -55,13 +57,18 @@ describe("encoding", () => {
 		test("should encode depth normalised by MAX_DEPTH", () => {
 			const g = createDefaultGenome("depth-test");
 			const enc = encodeGenome(g);
-			expect(enc[ENCODING_OFFSETS.NetworkDepth]).toBeCloseTo(g.network.hiddenLayers.length / 12, 4);
+			expect(enc[ENCODING_OFFSETS.NetworkDepth]).toBeCloseTo(
+				g.network.hiddenLayers.length / 12,
+				4
+			);
 		});
 
 		test("should encode neuron count in layer encoding", () => {
 			const g = createDefaultGenome("neuron-test");
 			const enc = encodeGenome(g);
-			expect(layerNeurons(enc, 0)).toBe(g.network.hiddenLayers[0].neurons / 512);
+			expect(layerNeurons(enc, 0)).toBe(
+				g.network.hiddenLayers[0].neurons / 512
+			);
 		});
 
 		test("should set one-hot for activation type in layer encoding", () => {
@@ -77,7 +84,9 @@ describe("encoding", () => {
 				ActivationType.Gelu,
 				ActivationType.Softmax,
 			];
-			const expectedIdx = activations.indexOf(g.network.hiddenLayers[0].activation);
+			const expectedIdx = activations.indexOf(
+				g.network.hiddenLayers[0].activation
+			);
 			expect(layerActivationIdx(enc, 0)).toBe(expectedIdx);
 		});
 
@@ -89,7 +98,9 @@ describe("encoding", () => {
 				ConnectionType.FullyConnected,
 				ConnectionType.ResidualConnection,
 			];
-			const expectedIdx = connTypes.indexOf(g.network.hiddenLayers[0].connectionType);
+			const expectedIdx = connTypes.indexOf(
+				g.network.hiddenLayers[0].connectionType
+			);
 			expect(layerConnectionTypeIdx(enc, 0)).toBe(expectedIdx);
 		});
 
@@ -109,7 +120,8 @@ describe("encoding", () => {
 
 		test("should skip unknown connection type", () => {
 			const g = createDefaultGenome("unknown-ct");
-			g.network.hiddenLayers[0].connectionType = "UnknownConn" as ConnectionType;
+			g.network.hiddenLayers[0].connectionType =
+				"UnknownConn" as ConnectionType;
 			const enc = encodeGenome(g);
 			expect(layerConnectionTypeIdx(enc, 0)).toBe(0);
 		});
@@ -152,7 +164,9 @@ describe("encoding", () => {
 			expect(decoded.gaControl).toEqual(template.gaControl);
 			expect(decoded.crossover).toEqual(template.crossover);
 			expect(decoded.mutation.noiseStd).toBe(template.mutation.noiseStd);
-			expect(decoded.mutation.distribution).toBe(template.mutation.distribution);
+			expect(decoded.mutation.distribution).toBe(
+				template.mutation.distribution
+			);
 		});
 
 		test("should recover layer structure (count, neurons, activations)", () => {

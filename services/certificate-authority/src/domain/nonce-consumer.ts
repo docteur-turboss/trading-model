@@ -12,7 +12,10 @@ export class NonceConsumer {
 
 	async consume(nonce: string, serviceId: string): Promise<void> {
 		if (!(await this._nonceStore.consume({ nonce, serviceId }))) {
-			throw new CertRenewalError("Invalid or expired nonce", HTTP_STATUS.UNAUTHORIZED);
+			throw new CertRenewalError(
+				"Invalid or expired nonce",
+				HTTP_STATUS.UNAUTHORIZED
+			);
 		}
 	}
 }

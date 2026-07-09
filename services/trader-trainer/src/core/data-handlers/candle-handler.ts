@@ -1,7 +1,6 @@
 import type { CandleData } from "@trading-model/common/config/event.types";
-import type { SymbolState } from "../market-data-types";
-import { DataType } from "./data-types";
 import type { DataHandler } from "./data-handler";
+import { DataType } from "./data-types";
 
 export const candleHandler: DataHandler<CandleData> = {
 	dataType: DataType.Candle,

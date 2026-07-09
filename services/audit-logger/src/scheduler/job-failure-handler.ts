@@ -1,7 +1,7 @@
-import { logger } from "@trading-model/common/config/logger";
+﻿import { logger } from "@trading-model/common/config/logger";
 import {
 	isTerminalStatus,
-	JOB_STATUS,
+	JobStatus,
 } from "@trading-model/common/contracts/recovery.types";
 import type { JobId } from "@trading-model/common/domain/primitives";
 
@@ -44,24 +44,32 @@ export class JobFailureHandler {
 	}
 
 	async handlePermanentFailure(jobId: JobId, error: string): Promise<void> {
-		await this._repository.updateStatus(jobId, JOB_STATUS.FAILED, { error });
+		await this._repository.updateStatus(jobId, JobStatus.FAILED, { error });
 		logger.warn("Job failed permanently", { context: { jobId, error } });
 	}
 
-	async handleRetryableFailure(jobId: JobId, job: Job, _error: string): Promise<void> {
+	async handleRetryableFailure(
+		jobId: JobId,
+		job: Job,
+		_error: string
+	): Promise<void> {
 		const newDeadline = Date.now() + ENV.ACK_TIMEOUT_MS;
 		const updatedJob = this._buildRetryJob(job, newDeadline);
 		this._queue.enqueue(updatedJob);
 		await this._repository.incrementRetry(jobId);
-		await this._repository.updateStatus(jobId, JOB_STATUS.QUEUED, { ackDeadline: newDeadline });
-		logger.info("Job re-queued after failure", { context: { jobId, retryCount: updatedJob.retryCount } });
+		await this._repository.updateStatus(jobId, JobStatus.QUEUED, {
+			ackDeadline: newDeadline,
+		});
+		logger.info("Job re-queued after failure", {
+			context: { jobId, retryCount: updatedJob.retryCount },
+		});
 		this._assignmentManager.distributeNext();
 	}
 
 	private _buildRetryJob(job: Job, newDeadline: number): Job {
 		return {
 			...job,
-			status: JOB_STATUS.QUEUED,
+			status: JobStatus.QUEUED,
 			ackDeadline: newDeadline,
 			retryCount: job.retryCount + 1,
 			assignedWorkerId: undefined,
@@ -85,7 +93,7 @@ export class JobFailureHandler {
 		this._assignmentManager.decrementWorkerLoad(job.assignedWorkerId);
 
 		this._repository
-			.updateStatus(jobId, JOB_STATUS.ORPHANED)
+			.updateStatus(jobId, JobStatus.ORPHANED)
 			.then(() => this._reAllocator.reallocate(job))
 			.catch((err) =>
 				logger.error("Failed to persist orphaned status on ACK timeout", {

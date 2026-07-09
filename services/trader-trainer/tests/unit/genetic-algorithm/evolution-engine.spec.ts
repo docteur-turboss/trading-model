@@ -150,15 +150,49 @@ describe("EvolutionEngine", () => {
 
 		it("should work with random selection type", () => {
 			const population = makePop([10, 20]);
-			const parent = selectParent(population, "unknown-type" as SelectionType, rng);
+			const parent = selectParent(
+				population,
+				"unknown-type" as SelectionType,
+				rng
+			);
 			expect(population.map((m) => m.genome)).toContain(parent);
 		});
 
 		it("should pick a candidate with higher fitness over a lower one", () => {
 			const population = [
-				{ genome: createDefaultGenome("low"), fitness: -100, fitnessMeta: { episodesRun: 3, computeMs: 100, efficiencyScore: -100, variance: 0, rawScores: [-100] } },
-				{ genome: createDefaultGenome("high"), fitness: 100, fitnessMeta: { episodesRun: 3, computeMs: 100, efficiencyScore: 100, variance: 0, rawScores: [100] } },
-				{ genome: createDefaultGenome("mid"), fitness: 0, fitnessMeta: { episodesRun: 3, computeMs: 100, efficiencyScore: 0, variance: 0, rawScores: [0] } },
+				{
+					genome: createDefaultGenome("low"),
+					fitness: -100,
+					fitnessMeta: {
+						episodesRun: 3,
+						computeMs: 100,
+						efficiencyScore: -100,
+						variance: 0,
+						rawScores: [-100],
+					},
+				},
+				{
+					genome: createDefaultGenome("high"),
+					fitness: 100,
+					fitnessMeta: {
+						episodesRun: 3,
+						computeMs: 100,
+						efficiencyScore: 100,
+						variance: 0,
+						rawScores: [100],
+					},
+				},
+				{
+					genome: createDefaultGenome("mid"),
+					fitness: 0,
+					fitnessMeta: {
+						episodesRun: 3,
+						computeMs: 100,
+						efficiencyScore: 0,
+						variance: 0,
+						rawScores: [0],
+					},
+				},
 			];
 			let callCount = 0;
 			const controlledRng = () => {

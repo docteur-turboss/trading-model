@@ -79,7 +79,10 @@ export class SystemMetrics {
 		};
 	}
 
-	private _sumCpuTimes(cpus: os.CpuInfo[]): { totalIdle: number; totalTick: number } {
+	private _sumCpuTimes(cpus: os.CpuInfo[]): {
+		totalIdle: number;
+		totalTick: number;
+	} {
 		let totalIdle = 0;
 		let totalTick = 0;
 		for (const cpu of cpus) {
@@ -90,7 +93,13 @@ export class SystemMetrics {
 	}
 
 	private _sumCpuTick(cpu: os.CpuInfo): number {
-		return cpu.times.user + cpu.times.nice + cpu.times.sys + cpu.times.idle + cpu.times.irq;
+		return (
+			cpu.times.user +
+			cpu.times.nice +
+			cpu.times.sys +
+			cpu.times.idle +
+			cpu.times.irq
+		);
 	}
 
 	private _calculateCpuPercent(

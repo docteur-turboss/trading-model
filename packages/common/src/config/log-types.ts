@@ -1,11 +1,9 @@
-export type LogLevel = "debug" | "info" | "warn" | "error";
-
-export const LogLevel = {
-	Debug: "debug" as LogLevel,
-	Info: "info" as LogLevel,
-	Warn: "warn" as LogLevel,
-	Error: "error" as LogLevel,
-};
+export enum LogLevel {
+	Debug = "debug",
+	Info = "info",
+	Warn = "warn",
+	Error = "error",
+}
 
 class LogPriority {
 	readonly value: number;
@@ -20,16 +18,16 @@ class LogPriority {
 
 	static fromLogLevel(level: LogLevel): LogPriority {
 		switch (level) {
-			case "debug":
+			case LogLevel.Debug:
 				return LogPriority.DEBUG;
-			case "info":
+			case LogLevel.Info:
 				return LogPriority.INFO;
-			case "warn":
+			case LogLevel.Warn:
 				return LogPriority.WARN;
-			case "error":
+			case LogLevel.Error:
 				return LogPriority.ERROR;
 			default:
-				throw new Error(`Unknown log level: ${level}`);
+				return LogPriority.DEBUG;
 		}
 	}
 

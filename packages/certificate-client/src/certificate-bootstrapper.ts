@@ -17,6 +17,7 @@ import {
 	type BootstrapConfig,
 	bootstrapConfigFromEnv,
 } from "./certificate-bootstrap-config";
+import type { SigningRequest } from "./key-generator";
 
 export async function bootstrapFromEnv(
 	env: Record<string, string | undefined>
@@ -61,15 +62,14 @@ async function _tryLoadExistingCert(
 	}
 }
 
-async function _generateKeyAndCsr(config: BootstrapConfig): Promise<{
-	keyPair: import("@trading-model/certificate-utils/generate-key-pair").KeyPair;
-	csr: string;
-}> {
+async function _generateKeyAndCsr(
+	config: BootstrapConfig
+): Promise<SigningRequest> {
 	logger.info("Obtaining TLS certificate from CA", {
 		serviceId: config.serviceId,
 		caUrl: config.caUrl,
 	});
-	const keyPair = await generateKeyPairAsync(KeyAlgorithm.ecP384);
+	const keyPair = await generateKeyPairAsync(KeyAlgorithm.EcP384);
 	const csr = await createCsrAsync({
 		commonName: config.commonName,
 		san: config.san,
@@ -89,7 +89,9 @@ async function _signWithCa(
 		serviceId:
 			config.serviceId as unknown as import("@trading-model/common/domain/primitives").ServiceId,
 		csr,
-		bootstrapToken: config.bootstrapToken ? toAuthToken(config.bootstrapToken) : undefined,
+		bootstrapToken: config.bootstrapToken
+			? toAuthToken(config.bootstrapToken)
+			: undefined,
 	};
 	return await caClient.signCertificate(request);
 }

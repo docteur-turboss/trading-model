@@ -4,7 +4,10 @@
  */
 
 import { NormalizationStats } from "../normalization-stats";
-import type { EvaluationResult, GenomeEvaluationContext } from "./evaluation-phase";
+import type {
+	EvaluationResult,
+	GenomeEvaluationContext,
+} from "./evaluation-phase";
 import { evalPhase } from "./evaluation-phase";
 import type { GenomeFitnessMeta } from "./evaluation-utils";
 import {
@@ -75,7 +78,7 @@ export function evaluateSingleGenomeOnWindow(
  * - Lamarckian weight persistence across windows
  * - Returns updated genome + fitness meta + objectives
  */
-export async function evaluateGenomeAllWindows(
+export function evaluateGenomeAllWindows(
 	genome: DeepReadonly<LamarckGenome>,
 	windowSets: Array<{
 		id: string;

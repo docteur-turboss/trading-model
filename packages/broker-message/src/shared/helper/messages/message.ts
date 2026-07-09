@@ -117,7 +117,9 @@ export class MessageMetadata {
 			this._chaining = NULL_MESSAGE_CHAINING_METADATA;
 			return this;
 		}
-		if (!(context.causationId || context.correlationId)) return this;
+		if (!(context.causationId || context.correlationId)) {
+			return this;
+		}
 		this._chaining = new MessageChainingMetadata(context);
 		return this;
 	}

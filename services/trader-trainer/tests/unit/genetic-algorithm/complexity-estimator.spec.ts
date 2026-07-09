@@ -1,4 +1,5 @@
 import { describe, expect, it } from "@jest/globals";
+import { createBounded } from "../../../src/core/genetic-algorithm/bounded";
 import {
 	computeAdjustedFitness,
 	estimateComplexity,
@@ -15,7 +16,6 @@ import {
 	NormalisationType,
 	SelectionType,
 } from "../../../src/core/genetic-algorithm/genome";
-import { createBounded } from "../../../src/core/genetic-algorithm/bounded";
 
 describe("estimateComplexity", () => {
 	const baseGenome = {

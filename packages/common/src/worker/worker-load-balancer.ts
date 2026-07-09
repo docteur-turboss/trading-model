@@ -1,5 +1,6 @@
-import type { Capability } from "../domain/primitives";
 import type { WorkerRegistration } from "../contracts/worker-protocol.types";
+import type { Capability } from "../domain/primitives";
+import { WorkerStatusCode } from "../domain/primitives";
 import type { WorkerStore } from "./worker-store";
 
 function _pickLowerLoad(
@@ -36,7 +37,7 @@ export class WorkerLoadBalancer {
 		jobType: string
 	): boolean {
 		return (
-			worker.status === "active" &&
+			worker.status === WorkerStatusCode.Active &&
 			worker.capabilities.includes(jobType as Capability) &&
 			worker.currentLoad < worker.maxConcurrency
 		);

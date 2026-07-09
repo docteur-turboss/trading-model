@@ -3,7 +3,9 @@ import { getCollection } from "../config/db";
 export async function pruneEntries(maxEntries: number): Promise<number> {
 	const col = await getCollection();
 	const cutoff = await _findEldestCutoff(col, maxEntries);
-	if (!cutoff) return 0;
+	if (!cutoff) {
+		return 0;
+	}
 	return _deleteExcessEntries(col, cutoff);
 }
 
@@ -22,7 +24,9 @@ async function _findEldestCutoff(
 			}
 		)
 		.toArray();
-	if (eldest.length === 0) return null;
+	if (eldest.length === 0) {
+		return null;
+	}
 	return eldest[0].createdAt as Date;
 }
 

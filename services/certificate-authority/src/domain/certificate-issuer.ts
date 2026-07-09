@@ -1,7 +1,7 @@
 import type { SignedCertificate } from "@trading-model/certificate-utils/types";
-import { HTTP_STATUS } from "@trading-model/common/http-status";
 import type { IDistributedLock } from "@trading-model/common/contracts/distributed-lock.types";
 import { toServiceId } from "@trading-model/common/domain/primitives";
+import { HTTP_STATUS } from "@trading-model/common/http-status";
 
 import { CertRenewalError } from "./cert-renewal-service";
 
@@ -20,7 +20,7 @@ export class CertificateIssuer {
 	) {}
 
 	async issue(serviceId: string, csr: string): Promise<SignedCertificate> {
-		const acquired = await this._lock?.acquire() ?? true;
+		const acquired = (await this._lock?.acquire()) ?? true;
 		if (!acquired) {
 			throw new CertRenewalError(
 				"Could not acquire distributed lock for certificate renewal",

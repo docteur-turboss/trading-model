@@ -1,14 +1,14 @@
-import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
+﻿import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
 import { HTTP_HEADERS } from "@trading-model/common/http-headers";
 import type WebSocket from "ws";
 import { ENV } from "../../config/env";
 import { authorizeTopic } from "../core/acl";
 import { DeduplicationService } from "../core/deduplication-service";
 import type { Dispatcher } from "../core/dispatcher";
-import type { IncomingWssMessage } from "./wss-message.types";
+import type { WsTransportMessage } from "./wss-message.types";
 import type { WssRateLimiter } from "./wss-rate-limiter";
 
-function extractDedupId(msg: IncomingWssMessage): string | undefined {
+function extractDedupId(msg: WsTransportMessage): string | undefined {
 	const wssMetadata = msg.metadata as Record<string, unknown> | undefined;
 	return (wssMetadata?.delivery as Record<string, unknown> | undefined)
 		?.deduplicationId as string | undefined;
@@ -45,12 +45,12 @@ export class PublishGuard {
 		return false;
 	}
 
-	async checkDedup(msg: IncomingWssMessage): Promise<boolean> {
+	checkDedup(msg: WsTransportMessage): Promise<boolean> {
 		const dedupId = extractDedupId(msg);
 		if (!dedupId) {
-			return true;
+			return Promise.resolve(true);
 		}
-		return this._dedup.tryDeduplicate(dedupId, 300);
+		return this._dedup.tryDeduplicate({ deduplicationId: dedupId, ttlS: 300 });
 	}
 
 	checkBackpressure(ws: WebSocket): boolean {

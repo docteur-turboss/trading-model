@@ -1,10 +1,10 @@
-import {
+﻿import {
 	type ServiceIdentity,
 	toServiceIdentityKey,
 } from "@trading-model/common/domain/service-identity";
 import WebSocket from "ws";
 import { TopicSubscriptionHandler } from "./topic-subscription-handler";
-import type { IncomingWssMessage } from "./wss-message.types";
+import type { WsTransportMessage } from "./wss-message.types";
 
 export interface WsSubscription {
 	identity: ServiceIdentity;
@@ -55,11 +55,11 @@ export class WssSubscriptionManager {
 		this._subscriptions.delete(subKey);
 	}
 
-	handleSubscribe(msg: IncomingWssMessage, ctx: SubscriptionContext): void {
+	handleSubscribe(msg: WsTransportMessage, ctx: SubscriptionContext): void {
 		this._topicHandler.handleSubscribe(msg, ctx);
 	}
 
-	handleUnsubscribe(msg: IncomingWssMessage, ctx: SubscriptionContext): void {
+	handleUnsubscribe(msg: WsTransportMessage, ctx: SubscriptionContext): void {
 		this._topicHandler.handleUnsubscribe(msg, ctx);
 	}
 
@@ -81,10 +81,7 @@ export class WssSubscriptionManager {
 		}
 	}
 
-	private _isSubscribedToTopic(
-		sub: WsSubscription,
-		topic: string
-	): boolean {
+	private _isSubscribedToTopic(sub: WsSubscription, topic: string): boolean {
 		return sub.topics.has(topic) && sub.ws.readyState === WebSocket.OPEN;
 	}
 
@@ -102,11 +99,7 @@ export class WssSubscriptionManager {
 		}
 	}
 
-	private _trySend(
-		key: string,
-		sub: WsSubscription,
-		payload: string
-	): void {
+	private _trySend(key: string, sub: WsSubscription, payload: string): void {
 		if (sub.ws.readyState !== WebSocket.OPEN) {
 			return;
 		}

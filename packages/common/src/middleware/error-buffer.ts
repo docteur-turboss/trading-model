@@ -1,5 +1,5 @@
-import { normalizeError } from "../utils/errors";
 import { CircularBuffer } from "../utils/circular-buffer";
+import { normalizeError } from "../utils/errors";
 
 interface ErrorReport {
 	message: string;
@@ -53,7 +53,7 @@ export class ErrorBuffer {
 		}
 	}
 
-	private async _sendBatch(batch: ErrorReport[]): Promise<Response> {
+	private _sendBatch(batch: ErrorReport[]): Promise<Response> {
 		return fetch(this._endpoint, {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },

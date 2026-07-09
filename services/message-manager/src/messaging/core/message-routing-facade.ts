@@ -1,6 +1,12 @@
-import { ClaimExecutor } from "./claim-executor";
+﻿import { ClaimExecutor } from "./claim-executor";
 import { DeduplicationService } from "./deduplication-service";
-import type { AckRef, ClaimParams, MessageQuery, PendingAckData, StreamGroupRef } from "./messaging-types";
+import type {
+	AckRef,
+	ClaimParams,
+	MessageQuery,
+	PendingAckData,
+	StreamGroupRef,
+} from "./messaging-types";
 import { PendingAckOperations } from "./pending-ack-operations";
 import { StreamGroupOperations } from "./stream-group-operations";
 
@@ -13,37 +19,26 @@ export interface IStreamGroupOps {
 	getPendingCount(ref: StreamGroupRef): Promise<number>;
 	getMessagesAfter(
 		query: MessageQuery
-	): Promise<
-		import("@trading-model/common/contracts/message.types").Message[]
-	>;
+	): Promise<import("@trading-model/common/contracts/message.types").Message[]>;
 	getMessagesBetween(
 		params: import("./stream-group-manager").GetMessagesBetweenParams
-	): Promise<
-		import("@trading-model/common/contracts/message.types").Message[]
-	>;
+	): Promise<import("@trading-model/common/contracts/message.types").Message[]>;
 	getStreamLag(ref: StreamGroupRef): Promise<number>;
 }
 
 export interface IPendingAckOps {
-	recoverPendingAcks(
-		ownInstanceId: string,
-		maxAgeMs?: number
-	): Promise<number>;
+	recoverPendingAcks(ownInstanceId: string, maxAgeMs?: number): Promise<number>;
 	addPendingAck(
 		instanceId: string,
 		messageId: string,
 		data: PendingAckData
 	): Promise<void>;
 	removePendingAck(instanceId: string, messageId: string): Promise<void>;
-	getPendingAcks(
-		instanceId: string
-	): Promise<Record<string, PendingAckData>>;
+	getPendingAcks(instanceId: string): Promise<Record<string, PendingAckData>>;
 }
 
 export interface IClaimOps {
-	claimPendingMessages(
-		params: ClaimParams
-	): Promise<number>;
+	claimPendingMessages(params: ClaimParams): Promise<number>;
 }
 
 export interface IDedupOps {
@@ -79,16 +74,14 @@ export class MessageRoutingFacade {
 		return this._dedupService;
 	}
 
-	async recoverPendingAcks(
+	recoverPendingAcks(
 		ownInstanceId: string,
 		maxAgeMs = 120_000
 	): Promise<number> {
 		return this._pendingAckOps.recoverPendingAcks(ownInstanceId, maxAgeMs);
 	}
 
-	async claimPendingMessages(
-		params: ClaimParams
-	): Promise<number> {
+	claimPendingMessages(params: ClaimParams): Promise<number> {
 		return this._claimManager.claimPendingMessages(params);
 	}
 
@@ -96,7 +89,7 @@ export class MessageRoutingFacade {
 		await this._streamOps.ensureConsumerGroup(ref);
 	}
 
-	async readFromGroup(
+	readFromGroup(
 		params: import("./stream-group-manager").ReadFromGroupParams
 	): Promise<Array<{ id: string; data: string }>> {
 		return this._streamOps.readFromGroup(params);
@@ -106,11 +99,11 @@ export class MessageRoutingFacade {
 		await this._streamOps.ackMessage(ref);
 	}
 
-	async getPendingCount(ref: StreamGroupRef): Promise<number> {
+	getPendingCount(ref: StreamGroupRef): Promise<number> {
 		return this._streamOps.getPendingCount(ref);
 	}
 
-	async getMessagesAfter(
+	getMessagesAfter(
 		query: MessageQuery
 	): Promise<
 		import("@trading-model/common/contracts/message.types").Message[]
@@ -118,7 +111,7 @@ export class MessageRoutingFacade {
 		return this._streamOps.getMessagesAfter(query);
 	}
 
-	async getMessagesBetween(
+	getMessagesBetween(
 		params: import("./stream-group-manager").GetMessagesBetweenParams
 	): Promise<
 		import("@trading-model/common/contracts/message.types").Message[]
@@ -138,20 +131,15 @@ export class MessageRoutingFacade {
 		await this._pendingAckOps.removePendingAck(instanceId, messageId);
 	}
 
-	async getPendingAcks(instanceId: string): Promise<
-		Record<string, PendingAckData>
-	> {
+	getPendingAcks(instanceId: string): Promise<Record<string, PendingAckData>> {
 		return this._pendingAckOps.getPendingAcks(instanceId);
 	}
 
-	async getStreamLag(ref: StreamGroupRef): Promise<number> {
+	getStreamLag(ref: StreamGroupRef): Promise<number> {
 		return this._streamOps.getStreamLag(ref);
 	}
 
-	async tryDeduplicate(
-		deduplicationId: string,
-		ttlS: number
-	): Promise<boolean> {
-		return this._dedupService.tryDeduplicate(deduplicationId, ttlS);
+	tryDeduplicate(params: DedupConfig): Promise<boolean> {
+		return this._dedupService.tryDeduplicate(params);
 	}
 }

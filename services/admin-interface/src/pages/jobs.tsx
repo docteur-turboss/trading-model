@@ -3,6 +3,7 @@ import RefreshIcon from "@mui/icons-material/Refresh";
 import ScheduleIcon from "@mui/icons-material/Schedule";
 import SyncIcon from "@mui/icons-material/Sync";
 import { Box, Button, Chip, CircularProgress, Typography } from "@mui/material";
+import { AdminJobPriority } from "@trading-model/common/contracts/admin";
 import { useState } from "react";
 import type { Column } from "../components/data-table";
 import { DataTable } from "../components/data-table";
@@ -10,7 +11,6 @@ import { DrawerPanel } from "../components/drawer-panel";
 import { StatsCard } from "../components/stats-card";
 import { StatusBadge } from "../components/status-badge";
 import { useJobDetail, useJobs } from "../hooks/use-jobs";
-import { AdminJobPriority } from "@trading-model/common/contracts/admin";
 import type { JobEntry, JobList, JobTimelineEntry } from "../types/dtos";
 
 function PageLoading() {

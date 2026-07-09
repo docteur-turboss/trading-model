@@ -1,6 +1,4 @@
-import {
-	MongoConnectionManager,
-} from "@trading-model/common/persistence/mongo-connection-manager";
+﻿import { MongoConnectionManager } from "@trading-model/common/persistence/mongo-connection-manager";
 import type { MongoClient } from "mongodb";
 import { ENV } from "../../config/env";
 import { logger } from "../../config/logger";

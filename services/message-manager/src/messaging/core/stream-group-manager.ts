@@ -1,4 +1,4 @@
-import type { Message } from "@trading-model/common/contracts/message.types";
+﻿import type { Message } from "@trading-model/common/contracts/message.types";
 import type { DateRange } from "@trading-model/common/domain/date-range";
 
 import { logger } from "../../config/logger";
@@ -63,7 +63,7 @@ export class StreamGroupManager {
 		}
 	}
 
-	async readFromGroup(
+	readFromGroup(
 		params: ReadFromGroupParams
 	): Promise<Array<{ id: string; data: string }>> {
 		return this._reader.readFromGroup(params);
@@ -84,13 +84,11 @@ export class StreamGroupManager {
 		return (result?.pending as number) || 0;
 	}
 
-	async getMessagesAfter(query: MessageQuery): Promise<Message[]> {
+	getMessagesAfter(query: MessageQuery): Promise<Message[]> {
 		return this._reader.getMessagesAfter(query);
 	}
 
-	async getMessagesBetween(
-		params: GetMessagesBetweenParams
-	): Promise<Message[]> {
+	getMessagesBetween(params: GetMessagesBetweenParams): Promise<Message[]> {
 		return this._reader.getMessagesBetween(params);
 	}
 

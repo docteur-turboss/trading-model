@@ -40,9 +40,27 @@ export function validateLayer(
 	layer: LayerGenome
 ): void {
 	checkPositiveInt({ ...ctx, path: `${ctx.path}.neurons` }, layer.neurons);
-	_validateEnumField(ctx, `${ctx.path}.activation`, layer.activation, VALID_ACTIVATIONS, "activation type");
-	_validateEnumField(ctx, `${ctx.path}.connectionType`, layer.connectionType, VALID_CONNECTION_TYPES, "connection type");
-	_validateEnumField(ctx, `${ctx.path}.biasType`, layer.biasType, VALID_BIAS_TYPES, "bias type");
+	_validateEnumField(
+		ctx,
+		`${ctx.path}.activation`,
+		layer.activation,
+		VALID_ACTIVATIONS,
+		"activation type"
+	);
+	_validateEnumField(
+		ctx,
+		`${ctx.path}.connectionType`,
+		layer.connectionType,
+		VALID_CONNECTION_TYPES,
+		"connection type"
+	);
+	_validateEnumField(
+		ctx,
+		`${ctx.path}.biasType`,
+		layer.biasType,
+		VALID_BIAS_TYPES,
+		"bias type"
+	);
 }
 
 export function validateNetwork(
@@ -90,7 +108,9 @@ function repairLayer(layer: LayerGenome): LayerGenome {
 }
 
 function _repairHiddenLayers(network: NetworkGenome): LayerGenome[] {
-	const layers = (Array.isArray(network.hiddenLayers) ? network.hiddenLayers : []).map(repairLayer);
+	const layers = (
+		Array.isArray(network.hiddenLayers) ? network.hiddenLayers : []
+	).map(repairLayer);
 	return layers.length > 0 ? layers : [_createDefaultHiddenLayer()];
 }
 

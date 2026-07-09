@@ -33,20 +33,20 @@ export const MarketDataController = new (class {
 		await Promise.all(tasks);
 	}
 
-	private _pushIfHasData<T>(
+	private _pushIfHasData<TData>(
 		tasks: Promise<void>[],
-		data: T[] | undefined,
-		insert: (data: T[]) => Promise<void>
+		data: TData[] | undefined,
+		insert: (data: TData[]) => Promise<void>
 	): void {
 		if (data?.length) {
 			tasks.push(insert(data));
 		}
 	}
 
-	private _pushIfDefined<T>(
+	private _pushIfDefined<TData>(
 		tasks: Promise<void>[],
-		data: T | undefined,
-		insert: (data: T) => Promise<void>
+		data: TData | undefined,
+		insert: (data: TData) => Promise<void>
 	): void {
 		if (data) {
 			tasks.push(insert(data));

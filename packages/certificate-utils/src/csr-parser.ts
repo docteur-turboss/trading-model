@@ -15,7 +15,9 @@ export class CsrParser {
 		return {
 			commonName: csr.subject.getField("CN")?.value ?? "",
 			san: this._extractSanFromCsr(csr),
-			publicKeyPem: csr.publicKey ? forge.pki.publicKeyToPem(csr.publicKey) : "",
+			publicKeyPem: csr.publicKey
+				? forge.pki.publicKeyToPem(csr.publicKey)
+				: "",
 		};
 	}
 

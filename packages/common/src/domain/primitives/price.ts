@@ -1,4 +1,4 @@
-export type Price = number & { readonly __brand: "Price" };
+﻿export type Price = number & { readonly brand: "Price" };
 
 export const Price = {
 	of(value: number): Price {

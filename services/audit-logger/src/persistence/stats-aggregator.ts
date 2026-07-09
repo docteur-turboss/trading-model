@@ -1,16 +1,13 @@
+﻿import type { ServiceId, Topic } from "@trading-model/common/domain/primitives";
 import type { Collection } from "mongodb";
-import type {
-	AuditEventDocument,
-	AuditStats,
-} from "./audit-repository";
-import type { ServiceId, Topic } from "@trading-model/common/domain/primitives";
+import type { AuditEventDocument, AuditStats } from "./audit-repository";
 
 function aggregateByField(
 	col: Collection<AuditEventDocument>,
 	field: string
-): Promise<Array<{ _id: string } & { count: number }>> {
+): Promise<Array<{ id: string; count: number }>> {
 	return col
-		.aggregate<{ _id: string; count: number }>([
+		.aggregate<{ id: string; count: number }>([
 			{
 				$group: {
 					_id: `$metadata.${field}`,
@@ -38,15 +35,20 @@ function aggregateDateRange(
 }
 
 function toMap(
-	items: Array<{ _id: string } & { count: number }>
+	items: Array<{ id: string; count: number }>
 ): Record<string, number> {
-	return Object.fromEntries(items.map((item) => [item._id, item.count]));
+	return Object.fromEntries(
+		items.map((item) => [
+			(item as unknown as Record<string, string>)._id,
+			item.count,
+		])
+	);
 }
 
 function buildStatsResult(
 	totalEvents: number,
-	topicAgg: Array<{ _id: string; count: number }>,
-	publisherAgg: Array<{ _id: string; count: number }>,
+	topicAgg: Array<{ id: string; count: number }>,
+	publisherAgg: Array<{ id: string; count: number }>,
 	dateRange: Array<{ earliest: Date | null; latest: Date | null }>
 ): AuditStats {
 	return {
@@ -69,11 +71,11 @@ export class StatsAggregator {
 		return buildStatsResult(totalEvents, topicAgg, publisherAgg, dateRange);
 	}
 
-	private async _fetchStatsData(): Promise<
+	private _fetchStatsData(): Promise<
 		[
 			number,
-			Array<{ _id: string; count: number }>,
-			Array<{ _id: string; count: number }>,
+			Array<{ id: string; count: number }>,
+			Array<{ id: string; count: number }>,
 			Array<{ earliest: Date | null; latest: Date | null }>,
 		]
 	> {

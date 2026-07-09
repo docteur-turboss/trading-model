@@ -1,4 +1,4 @@
-import { logger } from "@trading-model/common/config/logger";
+﻿import { logger } from "@trading-model/common/config/logger";
 import { TimerHandle } from "@trading-model/common/utils/timer-handle";
 
 interface PersistenceOp {

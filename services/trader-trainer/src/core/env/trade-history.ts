@@ -1,9 +1,9 @@
+import type { TradeSide } from "@trading-model/common/contracts/market-data.types";
 import {
 	Cash,
 	type Price,
 	type Volume,
 } from "@trading-model/common/domain/primitives";
-import { TradeSide } from "@trading-model/common/contracts/market-data.types";
 
 export interface TradeRecord {
 	step: number;

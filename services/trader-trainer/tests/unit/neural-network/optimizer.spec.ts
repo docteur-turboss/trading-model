@@ -1,9 +1,9 @@
 import { describe, expect, test } from "@jest/globals";
 import {
 	type AdamState,
-	type RmspropState,
 	DEFAULT_HYPERPARAMS,
 	OPTIMIZERS,
+	type RmspropState,
 } from "../../../src/core/neural-network/optimizer";
 
 describe("Optimizers", () => {

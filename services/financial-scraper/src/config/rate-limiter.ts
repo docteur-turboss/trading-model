@@ -35,7 +35,10 @@ function _sleep(ms: number): Promise<void> {
 	return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-export async function acquireToken(baseURL: string, weight: number): Promise<void> {
+export async function acquireToken(
+	baseURL: string,
+	weight: number
+): Promise<void> {
 	const bucket = _getBucket(baseURL);
 	while (true) {
 		_refillBucket(bucket);

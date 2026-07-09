@@ -6,8 +6,15 @@ import {
 	it,
 	jest,
 } from "@jest/globals";
-import type { Job } from "../../../src/contracts/recovery.types";
-import type { IPAddress, Port } from "../../../src/domain/primitives";
+import type { JOB_STATUS, Job } from "../../../src/contracts/recovery.types";
+import type {
+	Capability,
+	InstanceId,
+	IPAddress,
+	JobId,
+	JobType,
+	Port,
+} from "../../../src/domain/primitives";
 import type { IJobQueue } from "../../../src/recovery/job-queue.interface";
 import type { IJobRepository } from "../../../src/recovery/job-repository.interface";
 import { OrphanDetector } from "../../../src/recovery/orphan-detector";
@@ -16,11 +23,11 @@ import { WorkerRegistry } from "../../../src/worker/worker-registry";
 
 function createJob(overrides?: Partial<Job>): Job {
 	return {
-		id: "test-job-1",
-		type: "test-type",
+		id: "test-job-1" as unknown as JobId,
+		type: "test-type" as unknown as JobType,
 		payload: { key: "value" },
 		priority: 3,
-		status: "assigned",
+		status: "assigned" as unknown as JOB_STATUS,
 		ackDeadline: 0,
 		maxRetries: 3,
 		retryCount: 0,
@@ -104,10 +111,10 @@ describe("OrphanDetector (shared)", () => {
 	describe("detection cycle", () => {
 		it("should detect orphaned jobs from stale workers", () => {
 			registry.register("stale-worker", {
-				workerId: "stale-worker",
-				address: "10.0.0.1" as IPAddress,
+				workerId: "stale-worker" as unknown as InstanceId,
+				host: "10.0.0.1" as IPAddress,
 				port: 9000 as Port,
-				capabilities: ["type-a"],
+				capabilities: ["type-a" as unknown as Capability],
 				maxConcurrency: 5,
 				currentLoad: 0,
 			});
@@ -115,7 +122,7 @@ describe("OrphanDetector (shared)", () => {
 			jest.advanceTimersByTime(10000);
 
 			mockRepository.findByWorker.mockResolvedValue([
-				createJob({ id: "orphan-1" }),
+				createJob({ id: "orphan-1" as unknown as JobId }),
 			]);
 
 			orphanDetector = new OrphanDetector({
@@ -129,17 +136,17 @@ describe("OrphanDetector (shared)", () => {
 			jest.advanceTimersByTime(5000);
 
 			expect(mockRepository.findByWorker).toHaveBeenCalledWith("stale-worker", [
-				"assigned",
-				"running",
+				"assigned" as unknown as JOB_STATUS,
+				"running" as unknown as JOB_STATUS,
 			]);
 		});
 
 		it("should update status to orphaned and reallocate stale jobs", async () => {
 			registry.register("stale-w", {
-				workerId: "stale-w",
-				address: "10.0.0.2" as IPAddress,
+				workerId: "stale-w" as unknown as InstanceId,
+				host: "10.0.0.2" as IPAddress,
 				port: 9001 as Port,
-				capabilities: ["type-a"],
+				capabilities: ["type-a" as unknown as Capability],
 				maxConcurrency: 5,
 				currentLoad: 0,
 			});
@@ -147,7 +154,7 @@ describe("OrphanDetector (shared)", () => {
 			jest.advanceTimersByTime(10000);
 
 			mockRepository.findByWorker.mockResolvedValue([
-				createJob({ id: "orphan-1" }),
+				createJob({ id: "orphan-1" as unknown as JobId }),
 			]);
 
 			orphanDetector = new OrphanDetector({
@@ -164,7 +171,7 @@ describe("OrphanDetector (shared)", () => {
 
 			expect(mockRepository.updateStatus).toHaveBeenCalledWith(
 				"orphan-1",
-				"orphaned"
+				"orphaned" as unknown as JOB_STATUS
 			);
 		});
 
@@ -172,10 +179,10 @@ describe("OrphanDetector (shared)", () => {
 			mockRepository.findByWorker.mockRejectedValue(new Error("DB error"));
 
 			registry.register("bad-worker", {
-				workerId: "bad-worker",
-				address: "10.0.0.1" as IPAddress,
+				workerId: "bad-worker" as unknown as InstanceId,
+				host: "10.0.0.1" as IPAddress,
 				port: 9000 as Port,
-				capabilities: ["type-a"],
+				capabilities: ["type-a" as unknown as Capability],
 				maxConcurrency: 5,
 				currentLoad: 0,
 			});
@@ -215,10 +222,10 @@ describe("OrphanDetector (shared)", () => {
 			mockRepository.findByWorker.mockRejectedValue("string error");
 
 			registry.register("w1", {
-				workerId: "w1",
-				address: "10.0.0.1" as IPAddress,
+				workerId: "w1" as unknown as InstanceId,
+				host: "10.0.0.1" as IPAddress,
 				port: 9000 as Port,
-				capabilities: ["type-a"],
+				capabilities: ["type-a" as unknown as Capability],
 				maxConcurrency: 5,
 				currentLoad: 0,
 			});

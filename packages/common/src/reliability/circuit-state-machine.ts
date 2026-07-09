@@ -1,10 +1,15 @@
-import type { CircuitState } from "../domain/circuit-state";
+import { CircuitState } from "../domain/circuit-state";
 import type { IUnkeyedCircuitBreaker } from "./circuit-breaker.interface";
 
 export interface CircuitBreakerConfig {
 	failureThreshold: number;
 	cooldownMs: number;
 	halfOpenMaxAttempts?: number;
+	onOpen?: (state: {
+		failures: number;
+		halfOpenAttempts: number;
+		previousState: CircuitState;
+	}) => void;
 }
 
 export const DEFAULT_CIRCUIT_CONFIG: CircuitBreakerConfig = {
@@ -41,9 +46,14 @@ export class CircuitStateMachine implements IUnkeyedCircuitBreaker {
 		return this._failures;
 	}
 
-	async call<TResult>(fn: () => Promise<TResult>, fallback?: () => TResult): Promise<TResult> {
+	async call<TResult>(
+		fn: () => Promise<TResult>,
+		fallback?: () => TResult
+	): Promise<TResult> {
 		if (!this.isAllowed()) {
-			if (fallback) return fallback();
+			if (fallback) {
+				return fallback();
+			}
 			throw new Error("Circuit breaker OPEN");
 		}
 		try {
@@ -52,7 +62,9 @@ export class CircuitStateMachine implements IUnkeyedCircuitBreaker {
 			return result;
 		} catch (error) {
 			this.recordFailure();
-			if (fallback) return fallback();
+			if (fallback) {
+				return fallback();
+			}
 			throw error;
 		}
 	}
@@ -60,12 +72,12 @@ export class CircuitStateMachine implements IUnkeyedCircuitBreaker {
 	getState(now?: number): CircuitState {
 		const effectiveNow = now ?? Date.now();
 		if (this._openUntil > effectiveNow) {
-			return "open";
+			return CircuitState.OPEN;
 		}
 		if (this._openUntil > 0) {
-			return "half-open";
+			return CircuitState.HALF_OPEN;
 		}
-		return "closed";
+		return CircuitState.CLOSED;
 	}
 
 	isOpen(now?: number): boolean {
@@ -81,6 +93,7 @@ export class CircuitStateMachine implements IUnkeyedCircuitBreaker {
 
 	recordFailure(count = 1, threshold?: number): boolean {
 		const effectiveNow = Date.now();
+		const prevState = this.getState(effectiveNow);
 		this._failures += count;
 		if (this._openUntil > 0) {
 			this._halfOpenAttempts++;
@@ -89,12 +102,22 @@ export class CircuitStateMachine implements IUnkeyedCircuitBreaker {
 				this._halfOpenAttempts >= this._config.halfOpenMaxAttempts
 			) {
 				this._openUntil = effectiveNow + this._config.cooldownMs;
+				this._config.onOpen?.({
+					failures: this._failures,
+					halfOpenAttempts: this._halfOpenAttempts,
+					previousState: prevState,
+				});
 				return true;
 			}
 			return false;
 		}
 		if (this._failures >= (threshold ?? this._config.failureThreshold)) {
 			this._openUntil = effectiveNow + this._config.cooldownMs;
+			this._config.onOpen?.({
+				failures: this._failures,
+				halfOpenAttempts: this._halfOpenAttempts,
+				previousState: prevState,
+			});
 			return true;
 		}
 		return false;

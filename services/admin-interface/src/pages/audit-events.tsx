@@ -22,10 +22,10 @@ import {
 	XAxis,
 	YAxis,
 } from "recharts";
+import type { Column } from "../components/data-table";
 import { DataTable } from "../components/data-table";
 import { SeverityBadge } from "../components/severity-badge";
 import { StatsCard } from "../components/stats-card";
-import type { Column } from "../components/data-table";
 import { useAuditEvents } from "../hooks/use-audit-events";
 import type { AuditEvent, AuditFilter } from "../types/dtos";
 
@@ -213,7 +213,12 @@ import { createAuditColumns } from "./helpers/audit-utils";
 function useAuditColumns(): Column<AuditEvent>[] {
 	return createAuditColumns().map((col) =>
 		col.id === "severity"
-			? { ...col, render: (row: AuditEvent) => <SeverityBadge severity={row.severity} /> }
+			? {
+					...col,
+					render: (row: AuditEvent) => (
+						<SeverityBadge severity={row.severity} />
+					),
+				}
 			: col
 	) as Column<AuditEvent>[];
 }

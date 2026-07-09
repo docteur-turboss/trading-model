@@ -8,19 +8,19 @@ import type { RedisInstanceRepository } from "./redis-instance-repository";
 export class InstanceQueryService implements IInstanceQuery {
 	constructor(private readonly _instances: RedisInstanceRepository) {}
 
-	async getInstances(serviceName: string): Promise<ServiceInstance[]> {
+	getInstances(serviceName: string): Promise<ServiceInstance[]> {
 		return this._instances.getInstances(serviceName);
 	}
 
-	async getInstance(id: ServiceIdentity): Promise<ServiceInstance | undefined> {
+	getInstance(id: ServiceIdentity): Promise<ServiceInstance | undefined> {
 		return this._instances.getInstance(id);
 	}
 
-	async listServiceNames(): Promise<string[]> {
+	listServiceNames(): Promise<string[]> {
 		return this._instances.listServiceNames();
 	}
 
-	async dump(): Promise<Record<string, ServiceInstance[]>> {
+	dump(): Promise<Record<string, ServiceInstance[]>> {
 		return this._instances.dump();
 	}
 }

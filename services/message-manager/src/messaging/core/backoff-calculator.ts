@@ -1,4 +1,4 @@
-import { computeExponentialBackoff } from "@trading-model/common/utils/backoff-config";
+﻿import { computeExponentialBackoff } from "@trading-model/common/utils/backoff-config";
 
 const BaseDelayMs = 1000;
 const MaxDelayMs = 60_000;

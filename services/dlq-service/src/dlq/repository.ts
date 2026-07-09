@@ -1,24 +1,23 @@
-import type { DlqEntry } from "@trading-model/common/contracts/dlq.types";
+﻿import type { DlqEntry } from "@trading-model/common/contracts/dlq.types";
 import type { UnixTimestamp } from "@trading-model/common/domain/primitives";
 import { AppError } from "@trading-model/common/utils/errors";
-import type { Document } from "mongodb";
-import { type WithId } from "mongodb";
+import type { Document, WithId } from "mongodb";
 import { getCollection } from "../config/db";
 import { DlqEntryWriter, dlqCapacityError } from "./dlq-entry-writer";
 import { pruneEntries } from "./dlq-eviction-policy";
-import { DlqQueryBuilder, type DlqListOptions } from "./dlq-query-builder";
+import { type DlqListOptions, DlqQueryBuilder } from "./dlq-query-builder";
 import { DlqQueueRepository } from "./dlq-queue-repository";
 
-export { dlqCapacityError };
-export type { DlqListOptions };
 export { DlqQueryBuilder } from "./dlq-query-builder";
 export { DlqQueueRepository } from "./dlq-queue-repository";
+export type { DlqListOptions };
+export { dlqCapacityError };
 
 export function isDlqCapacityError(err: unknown): err is AppError {
 	return err instanceof AppError && err.code === "DlqCapacityError";
 }
 
-export { DLQ_STATUS } from "./dlq-status";
+export { DlqStatus } from "./dlq-status";
 export type { DlqEntry };
 
 export interface StoredDlqEntry {
@@ -56,7 +55,7 @@ export class DlqRepository {
 		return this._queueRepository;
 	}
 
-	async insert(entry: DlqEntry): Promise<string> {
+	insert(entry: DlqEntry): Promise<string> {
 		return this._entryWriter.insert(entry);
 	}
 
@@ -88,15 +87,15 @@ export class DlqRepository {
 		return col.estimatedDocumentCount();
 	}
 
-	async prune(maxEntries: number): Promise<number> {
+	prune(maxEntries: number): Promise<number> {
 		return pruneEntries(maxEntries);
 	}
 
-	async listQueuable(): Promise<string[]> {
+	listQueuable(): Promise<string[]> {
 		return this._queueRepository.listQueuable();
 	}
 
-	async listActiveClaimIds(): Promise<string[]> {
+	listActiveClaimIds(): Promise<string[]> {
 		return this._queueRepository.listActiveClaimIds();
 	}
 }

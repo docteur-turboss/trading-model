@@ -1,4 +1,7 @@
-import type { Job, JobEvent } from "@trading-model/common/contracts/recovery.types";
+import type {
+	Job,
+	JobEvent,
+} from "@trading-model/common/contracts/recovery.types";
 import type { JobDocument } from "./job-document";
 
 export class JobDocumentMapper {
@@ -44,5 +47,5 @@ export class JobDocumentMapper {
 }
 
 function _cloneHistory(history: JobEvent[]): JobEvent[] {
-	return history.map((e: JobEvent) => ({ ...e }));
+	return history.map((entry: JobEvent) => ({ ...entry }));
 }

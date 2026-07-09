@@ -39,7 +39,7 @@ export interface ResponseObject {
 }
 
 type ResponseMethods = {
-	[K in ResponseMethodKey]: () => ResponseObject;
+	[KMethod in ResponseMethodKey]: () => ResponseObject;
 };
 
 export class ClassResponseExceptions {
@@ -55,7 +55,9 @@ const ResponseMethodProxyHandler: ProxyHandler<ClassResponseExceptions> = {
 		if (typeof prop === "symbol" || prop in target) {
 			return Reflect.get(target, prop);
 		}
-		const def = HTTP_RESPONSE_DEFINITIONS.find((d) => d.key === prop);
+		const def = HTTP_RESPONSE_DEFINITIONS.find(
+			(definition) => definition.key === prop
+		);
 		if (!def) {
 			return;
 		}

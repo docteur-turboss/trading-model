@@ -1,5 +1,6 @@
 import type { ServiceId } from "@trading-model/common/domain/primitives";
 import type { ServiceInstance } from "../client/type";
+import type { ICircuitStateStore } from "./circuit-state-store";
 
 export interface CircuitState {
 	failures: number;
@@ -14,7 +15,7 @@ export interface CacheSetEntry {
 	version?: number;
 }
 
-export interface IServiceCache {
+export interface IServiceCache extends ICircuitStateStore {
 	get(serviceName: ServiceId, region?: string): Promise<ServiceInstance | null>;
 	set(entry: CacheSetEntry): Promise<void>;
 	invalidate(serviceName: ServiceId, region?: string): Promise<void>;
@@ -38,5 +39,8 @@ export const NULL_SERVICE_CACHE: IServiceCache = {
 	clear: async () => {},
 	entries: async () => [],
 	getVersion: async () => 0,
+	setCircuitState: async () => {},
+	getCircuitState: async () => null,
+	deleteCircuitState: async () => {},
 	stop: () => {},
 };

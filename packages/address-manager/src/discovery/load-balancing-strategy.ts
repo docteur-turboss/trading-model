@@ -1,7 +1,9 @@
 import type { ServiceInstance } from "../client/type";
+import { LeastConnectionsStrategy } from "./strategies/least-connections-strategy";
 import { RandomStrategy } from "./strategies/random-strategy";
 import { RoundRobinStrategy } from "./strategies/round-robin-strategy";
-import { LeastConnectionsStrategy } from "./strategies/least-connections-strategy";
+
+export { LeastConnectionsStrategy, RandomStrategy, RoundRobinStrategy };
 
 export interface LoadBalancingStrategy {
 	select(instances: ServiceInstance[]): ServiceInstance;

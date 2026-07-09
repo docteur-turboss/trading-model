@@ -55,12 +55,8 @@ export class MessageChainingMetadata implements ChainingMetadata {
 export type NullMessageChainingMetadata = typeof NULL_MESSAGE_CHAINING_METADATA;
 
 export const NULL_MESSAGE_CHAINING_METADATA: ChainingMetadata = {
-	get causationId(): CorrelationId | undefined {
-		return undefined;
-	},
-	get correlationId(): CorrelationId | undefined {
-		return undefined;
-	},
+	causationId: undefined,
+	correlationId: undefined,
 	setIds(): void {},
 	toJSON() {
 		return {};

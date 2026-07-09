@@ -1,4 +1,4 @@
-export type IPAddress = string & { readonly __brand: "IPAddress" };
+﻿export type IPAddress = string & { readonly brand: "IPAddress" };
 
 const IPV4_RE = /^(\d{1,3}\.){3}\d{1,3}$/;
 const IPV6_RE = /^[0-9a-fA-F:]+$/;

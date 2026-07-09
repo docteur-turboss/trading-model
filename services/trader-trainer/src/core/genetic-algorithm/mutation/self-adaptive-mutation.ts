@@ -1,5 +1,5 @@
-import { MutationDistribution } from "../genome-types";
 import type { MutationGenome } from "../genome-types";
+import { MutationDistribution } from "../genome-types";
 import { sampleGaussian, sampleNoise } from "../noise";
 import { clamp } from "../utils";
 

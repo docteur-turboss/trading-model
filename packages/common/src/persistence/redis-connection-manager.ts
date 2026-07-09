@@ -1,8 +1,6 @@
 import Redis, { Cluster, type RedisOptions } from "ioredis";
 import { logger } from "../config/logger";
-import type {
-	RedisConnectionConfig,
-} from "../config/redis-config";
+import type { RedisConnectionConfig } from "../config/redis-config";
 import type { HostPort } from "../domain/service-identity";
 import { normalizeError } from "../utils/errors";
 import { ConnectionManager } from "./connection-manager";
@@ -29,7 +27,10 @@ function attachErrorHandler(client: Redis | Cluster): void {
 	});
 }
 
-function createFromUrl(url: string, extraOptions?: Partial<RedisOptions>): Redis {
+function createFromUrl(
+	url: string,
+	extraOptions?: Partial<RedisOptions>
+): Redis {
 	const client = new Redis(url, {
 		...BASE_REDIS_OPTIONS,
 		maxRetriesPerRequest: 5,
@@ -60,14 +61,17 @@ function createSentinel(
 }
 
 function createClusterClient(nodes: HostPort[], password?: string): Cluster {
-	const client = new Cluster(nodes as { host: string; port: number }[], {
-		redisOptions: {
-			lazyConnect: true,
-			password,
-			maxRetriesPerRequest: null,
-		},
-		clusterRetryStrategy: (times: number) => Math.min(times * 200, 5000),
-	} as never);
+	const client = new Cluster(
+		nodes as { host: string; port: number }[],
+		{
+			redisOptions: {
+				lazyConnect: true,
+				password,
+				maxRetriesPerRequest: null,
+			},
+			clusterRetryStrategy: (times: number) => Math.min(times * 200, 5000),
+		} as never
+	);
 	attachErrorHandler(client);
 	return client;
 }
@@ -83,6 +87,10 @@ function buildFromConfig(
 			return createSentinel(config.config, extraOptions);
 		case "cluster":
 			return createClusterClient(config.config.nodes, config.config.password);
+		default:
+			throw new Error(
+				`Unknown Redis mode: ${(config as RedisConnectionConfig).mode}`
+			);
 	}
 }
 

@@ -31,21 +31,27 @@ export function getLogsController(logRepo: LogRepository) {
 	};
 }
 
-function _createListLogsHandler(logRepo: LogRepository): import("express").RequestHandler {
+function _createListLogsHandler(
+	logRepo: LogRepository
+): import("express").RequestHandler {
 	return catchSync(async (req) => {
 		const result = await logRepo.query(_buildLogQueryParams(req));
 		return sendResponse(result, 200);
 	});
 }
 
-function _createGetLogStatsHandler(logRepo: LogRepository): import("express").RequestHandler {
+function _createGetLogStatsHandler(
+	logRepo: LogRepository
+): import("express").RequestHandler {
 	return catchSync(async () => {
 		const stats = await logRepo.getStats();
 		return sendResponse(stats, 200);
 	});
 }
 
-function _createGetLogByIdHandler(logRepo: LogRepository): import("express").RequestHandler {
+function _createGetLogByIdHandler(
+	logRepo: LogRepository
+): import("express").RequestHandler {
 	return catchSync(async (req) => {
 		const doc = await logRepo.findById(String(req.params.id));
 		if (!doc) {

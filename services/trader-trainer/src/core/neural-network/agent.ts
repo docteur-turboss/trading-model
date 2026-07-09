@@ -2,11 +2,7 @@ import { agentError } from "@trading-model/common/utils/errors";
 import { AgentExperienceHandler } from "./agent-experience-handler";
 import { NeuralNetwork } from "./neural-network";
 import { ScoreTracker } from "./score-tracker";
-import type {
-	Experience,
-	NetworkArchitecture,
-	NeuralNetworkConfig,
-} from "./type";
+import type { NetworkArchitecture, NeuralNetworkConfig } from "./type";
 
 /**
  * High-level agent that wraps a {@link NeuralNetwork} and adds:

@@ -2,8 +2,15 @@ import fs from "node:fs/promises";
 import path from "node:path";
 
 import { logger } from "@trading-model/common/config/logger";
-import { FallbackFileReader, type FileEncryption } from "./fallback-file-reader";
-import { AesEncryption, buildEncryption, NOOP_ENCRYPTION } from "./encryption-strategies";
+import {
+	AesEncryption,
+	buildEncryption,
+	NOOP_ENCRYPTION,
+} from "./encryption-strategies";
+import {
+	FallbackFileReader,
+	type FileEncryption,
+} from "./fallback-file-reader";
 
 export { AesEncryption, NOOP_ENCRYPTION };
 
@@ -18,12 +25,12 @@ export interface FsStore {
 
 export const NULL_FS_STORE: FsStore = {
 	disabled: true,
-	init: async () => {
+	init: () => {
 		logger.warn("FsStore is DISABLED — no fallback storage available");
 	},
-	save: async () => {},
-	get: async () => null,
-	getAll: async () => [],
+	save: () => {},
+	get: () => null,
+	getAll: () => [],
 	delete: async () => {},
 };
 
@@ -75,7 +82,7 @@ class RealFsStore implements FsStore {
 		}
 	}
 
-	async getAll<TData>(): Promise<TData[]> {
+	getAll<TData>(): Promise<TData[]> {
 		return this._fileReader.readAll<TData>();
 	}
 

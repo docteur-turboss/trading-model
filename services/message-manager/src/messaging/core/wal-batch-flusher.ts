@@ -1,4 +1,4 @@
-import { getStreamClient } from "../../config/redis";
+﻿import { getStreamClient } from "../../config/redis";
 import { WalEntryParser } from "./wal-entry-parser";
 
 export class WalBatchFlusher {

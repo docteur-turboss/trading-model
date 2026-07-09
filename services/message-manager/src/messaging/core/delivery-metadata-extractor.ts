@@ -1,4 +1,4 @@
-import { DeliveryMode } from "@trading-model/common/config/delivery-mode.types";
+﻿import { DeliveryMode } from "@trading-model/common/config/delivery-mode.types";
 import type { Message } from "@trading-model/common/contracts/message.types";
 
 interface SubscribersContext {
@@ -17,7 +17,7 @@ export class DeliveryMetadataExtractor {
 	} {
 		const ttl = message.metadata.delivery?.ttl ?? 0;
 		const deliveryMode =
-			message.metadata.delivery?.mode ?? DeliveryMode.AT_LEAST_ONCE;
+			message.metadata.delivery?.mode ?? DeliveryMode.AtLeastOnce;
 		const emittedAt = new Date(message.metadata.emittedAt ?? 0).getTime();
 		return { ttl, deliveryMode, emittedAt };
 	}

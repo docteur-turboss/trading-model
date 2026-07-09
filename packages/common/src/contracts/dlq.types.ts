@@ -1,11 +1,11 @@
-import type { UnixTimestamp } from "../domain/primitives";
+import type { MessageId, Topic, UnixTimestamp } from "../domain/primitives";
 
 export interface DlqEntry {
-	id?: string;
-	topic?: string;
+	id?: MessageId;
+	topic?: Topic;
 	message: unknown;
 	reason?: string;
 	deliveryAttempt: number;
 	timestamp: UnixTimestamp;
-	messageId?: string;
+	messageId?: MessageId;
 }

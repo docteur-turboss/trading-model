@@ -22,7 +22,7 @@ export class CertificateStore {
 	/** Connection lifecycle is managed externally by MONGO_MANAGER. */
 	async disconnect(): Promise<void> {}
 
-	async save(cert: SignedCertificate): Promise<void> {
+	async insert(cert: SignedCertificate): Promise<void> {
 		await this._collection.insertOne(cert);
 	}
 

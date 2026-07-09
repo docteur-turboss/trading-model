@@ -1,16 +1,16 @@
-import type { TlsPaths } from "../domain/tls-paths";
 import type { SessionId, UserId } from "../domain/primitives";
+import type { TlsPaths } from "../domain/tls-paths";
 import { AuditServiceClient } from "./audit-service-client";
 import { ErrorServiceSender } from "./error-service-sender";
 import { LogFileWriter } from "./log-file-writer";
 import {
 	isLogLevelAtLeast,
 	type LogEntry,
-	type LogLevel,
+	LogLevel,
 	type LogOptions,
 } from "./log-types";
-import type { SensitiveDataSanitizer } from "./sensitive-data-sanitizer";
 import { getNodeEnv } from "./logger";
+import type { SensitiveDataSanitizer } from "./sensitive-data-sanitizer";
 
 export class LogDispatcher {
 	private readonly _sanitizer: SensitiveDataSanitizer;
@@ -31,7 +31,7 @@ export class LogDispatcher {
 	}
 
 	private _maybeSendToAudit(data: LogEntry, level: LogLevel): void {
-		if (isLogLevelAtLeast(level, "info")) {
+		if (isLogLevelAtLeast(level, LogLevel.Info)) {
 			void this._auditClient.send(data as unknown as Record<string, unknown>);
 		}
 	}

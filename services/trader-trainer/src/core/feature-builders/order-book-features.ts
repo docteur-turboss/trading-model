@@ -6,8 +6,8 @@ import {
 	type OrderBookData,
 } from "@trading-model/common/config/event.types";
 import type { FeatureContext } from "../feature-context";
-import type { OrderBookAverages } from "../order-book-averages";
 import type { SymbolState } from "../market-data-types";
+import type { OrderBookAverages } from "../order-book-averages";
 
 function computeOrderBookAverages(ob: OrderBookData): OrderBookAverages {
 	return {

@@ -7,9 +7,9 @@ import { signCertificate } from "../src/sign-certificate";
 let signed: ReturnType<typeof signCertificate>;
 
 beforeAll(() => {
-	const caKeyPair = generateKeyPair(KeyAlgorithm.ecP384);
+	const caKeyPair = generateKeyPair(KeyAlgorithm.EcP384);
 	const caCertPem = caKeyPair.publicKey;
-	const serviceKeyPair = generateKeyPair(KeyAlgorithm.ecP384);
+	const serviceKeyPair = generateKeyPair(KeyAlgorithm.EcP384);
 	const csr = createCsr({
 		commonName: "info-test",
 		san: ["info1.internal", "info2.internal"],

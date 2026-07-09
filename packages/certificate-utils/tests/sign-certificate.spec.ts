@@ -5,9 +5,9 @@ import { signCertificate } from "../src/sign-certificate";
 
 describe("signCertificate", () => {
 	it("should sign a CSR and return a SignedCertificate", () => {
-		const caKeyPair = generateKeyPair(KeyAlgorithm.rsa4096);
+		const caKeyPair = generateKeyPair(KeyAlgorithm.Rsa4096);
 		const caCertPem = caKeyPair.publicKey;
-		const serviceKeyPair = generateKeyPair(KeyAlgorithm.ecP384);
+		const serviceKeyPair = generateKeyPair(KeyAlgorithm.EcP384);
 		const csr = createCsr({
 			commonName: "test-service",
 			san: ["test-service.internal"],
@@ -33,9 +33,9 @@ describe("signCertificate", () => {
 	});
 
 	it("should set correct validity period", () => {
-		const caKeyPair = generateKeyPair(KeyAlgorithm.rsa4096);
+		const caKeyPair = generateKeyPair(KeyAlgorithm.Rsa4096);
 		const caCertPem = caKeyPair.publicKey;
-		const serviceKeyPair = generateKeyPair(KeyAlgorithm.ecP384);
+		const serviceKeyPair = generateKeyPair(KeyAlgorithm.EcP384);
 		const csr = createCsr({
 			commonName: "validity-test",
 			san: ["validity.internal"],
@@ -59,9 +59,9 @@ describe("signCertificate", () => {
 	});
 
 	it("should produce unique serial numbers for different certs", () => {
-		const caKeyPair = generateKeyPair(KeyAlgorithm.rsa4096);
+		const caKeyPair = generateKeyPair(KeyAlgorithm.Rsa4096);
 		const caCertPem = caKeyPair.publicKey;
-		const serviceKeyPair = generateKeyPair(KeyAlgorithm.ecP384);
+		const serviceKeyPair = generateKeyPair(KeyAlgorithm.EcP384);
 		const csr = createCsr({
 			commonName: "unique-serial",
 			san: ["unique.internal"],
@@ -88,9 +88,9 @@ describe("signCertificate", () => {
 	});
 
 	it("should sign with RSA CA key and EC service key", () => {
-		const caKeyPair = generateKeyPair(KeyAlgorithm.ecP384);
+		const caKeyPair = generateKeyPair(KeyAlgorithm.EcP384);
 		const caCertPem = caKeyPair.publicKey;
-		const serviceKeyPair = generateKeyPair(KeyAlgorithm.rsa4096);
+		const serviceKeyPair = generateKeyPair(KeyAlgorithm.Rsa4096);
 		const csr = createCsr({
 			commonName: "mixed-algo",
 			san: ["mixed.internal"],

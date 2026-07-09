@@ -1,19 +1,28 @@
-export interface Bounded<T extends number = number> {
-	readonly min: T;
-	readonly max: T;
+export interface Bounded<TValue extends number = number> {
+	readonly min: TValue;
+	readonly max: TValue;
 }
 
-export function createBounded<T extends number>(min: T, max: T): Bounded<T> {
+export function createBounded<TValue extends number>(
+	min: TValue,
+	max: TValue
+): Bounded<TValue> {
 	if (min >= max) {
 		throw new RangeError(`Bounded(min=${min}, max=${max}): min must be < max`);
 	}
 	return { min, max };
 }
 
-export function clampToBounded<T extends number>(value: number, bounds: Bounded<T>): T {
-	return Math.max(bounds.min, Math.min(bounds.max, value)) as T;
+export function clampToBounded<TValue extends number>(
+	value: number,
+	bounds: Bounded<TValue>
+): TValue {
+	return Math.max(bounds.min, Math.min(bounds.max, value)) as TValue;
 }
 
-export function isWithinBounds<T extends number>(value: number, bounds: Bounded<T>): boolean {
+export function isWithinBounds<TValue extends number>(
+	value: number,
+	bounds: Bounded<TValue>
+): boolean {
 	return value >= bounds.min && value <= bounds.max;
 }

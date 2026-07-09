@@ -1,4 +1,7 @@
-import { createAddressManager, type AddressManagerEnv } from "./create-address-manager";
+import {
+	type AddressManagerEnv,
+	createAddressManager,
+} from "./create-address-manager";
 
 export function createServiceAddressManager(env: AddressManagerEnv) {
 	const am = createAddressManager(env);

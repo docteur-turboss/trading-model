@@ -31,7 +31,9 @@ function _resolveSan(env: Record<string, string | undefined>): string[] {
 	return [env.CERT_CLIENT_SERVICE_ID ?? env.APP_NAME ?? "unknown"];
 }
 
-function _resolveTlsPaths(env: Record<string, string | undefined>): BootstrapConfig["tlsPaths"] {
+function _resolveTlsPaths(
+	env: Record<string, string | undefined>
+): BootstrapConfig["tlsPaths"] {
 	return {
 		certPath: env.TLS_CERT_PATH ?? "/etc/tls/cert.pem",
 		keyPath: env.TLS_KEY_PATH ?? "/etc/tls/key.pem",

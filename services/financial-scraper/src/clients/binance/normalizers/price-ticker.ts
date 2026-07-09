@@ -1,5 +1,5 @@
-import { Price } from "@trading-model/common/domain/primitives";
 import type { TradingSymbol } from "@trading-model/common/domain/primitives";
+import { Price } from "@trading-model/common/domain/primitives";
 import type { BinanceSymbolPriceTickerResponse } from "../../../types/binance.api";
 
 export function normalizePriceTicker(

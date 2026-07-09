@@ -63,9 +63,9 @@ function nondominatedSortExact(objectives: ObjectiveVector[]): number[] {
 	return assignRanks(fronts, objectives.length);
 }
 
-function _buildPool(count: number, i: number): number[] {
+function _buildPool(count: number, idx: number): number[] {
 	return Array.from({ length: count - 1 }, (_unused, jdx) =>
-		jdx >= i ? jdx + 1 : jdx
+		jdx >= idx ? jdx + 1 : jdx
 	);
 }
 
@@ -74,27 +74,29 @@ function _isDominated(
 	candidateIdx: number,
 	targetIdx: number
 ): boolean {
-	return objectives[candidateIdx].avgPnl >= objectives[targetIdx].avgPnl &&
+	return (
+		objectives[candidateIdx].avgPnl >= objectives[targetIdx].avgPnl &&
 		objectives[candidateIdx].sharpe >= objectives[targetIdx].sharpe &&
 		objectives[candidateIdx].negFlops >= objectives[targetIdx].negFlops &&
 		(objectives[candidateIdx].avgPnl > objectives[targetIdx].avgPnl ||
 			objectives[candidateIdx].sharpe > objectives[targetIdx].sharpe ||
-			objectives[candidateIdx].negFlops > objectives[targetIdx].negFlops);
+			objectives[candidateIdx].negFlops > objectives[targetIdx].negFlops)
+	);
 }
 
 function _sampleDomination(
 	objectives: ObjectiveVector[],
 	dominated: Int32Array,
-	i: number,
+	idx: number,
 	sampleSize: number,
 	rng: () => number
 ): void {
-	const pool = _buildPool(objectives.length, i);
+	const pool = _buildPool(objectives.length, idx);
 	for (let sample = 0; sample < sampleSize; sample++) {
-		const idx = sample + Math.floor(rng() * (pool.length - sample));
-		[pool[sample], pool[idx]] = [pool[idx], pool[sample]];
-		if (_isDominated(objectives, pool[sample], i)) {
-			dominated[i]++;
+		const pick = sample + Math.floor(rng() * (pool.length - sample));
+		[pool[sample], pool[pick]] = [pool[pick], pool[sample]];
+		if (_isDominated(objectives, pool[sample], idx)) {
+			dominated[idx]++;
 		}
 	}
 }
@@ -144,7 +146,9 @@ function _computeCrowdingRange(
 	key: keyof ObjectiveVector,
 	objectives: ObjectiveVector[]
 ): number {
-	return objectives[sorted[sorted.length - 1]][key] - objectives[sorted[0]][key];
+	return (
+		objectives[sorted[sorted.length - 1]][key] - objectives[sorted[0]][key]
+	);
 }
 
 function _accumulateCrowdingDistances(

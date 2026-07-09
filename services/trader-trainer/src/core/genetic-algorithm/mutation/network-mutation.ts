@@ -12,7 +12,6 @@ import type {
 import { MutationScope } from "../genome-types";
 import { sampleNoise } from "../noise";
 import { adaptSigma } from "./sigma-adapters";
-import { clamp } from "../utils";
 
 const NORM_TYPES: NormalisationType[] = [
 	NormalisationType.None,
@@ -196,11 +195,13 @@ function _maybeMutateNormalization(
 export interface MutateNetworkContext {
 	genome: LamarckGenome;
 	mutationConfig: MutationGenome;
-	_sigma: number;
+	sigma: number;
 	rng: () => number;
 }
 
-export function mutateNetworkStructure(ctx: MutateNetworkContext): import("../genome-types").NetworkGenome {
+export function mutateNetworkStructure(
+	ctx: MutateNetworkContext
+): import("../genome-types").NetworkGenome {
 	const { genome, mutationConfig, rng } = ctx;
 	const layers = _mutateLayers(
 		genome.network.hiddenLayers,

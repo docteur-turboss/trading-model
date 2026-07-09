@@ -1,4 +1,4 @@
-import { DeliveryMode } from "@trading-model/common/config/delivery-mode.types";
+﻿import { DeliveryMode } from "@trading-model/common/config/delivery-mode.types";
 import type { Message } from "@trading-model/common/contracts/message.types";
 import { sleep } from "@trading-model/common/utils/sleep";
 import { resolveTarget } from "./address-resolver";
@@ -7,7 +7,6 @@ import type { DeliveryErrorHandler } from "./delivery-error-handler";
 import type { SubscribersContext } from "./delivery-metadata-extractor";
 import type {
 	DeliverySendInput,
-	MessageDeliveryContext,
 	MessageDeliveryPort,
 } from "./message-delivery-port";
 
@@ -30,7 +29,12 @@ export class DeliveryAttemptHandler {
 			return await this._tryDeliver(message, context);
 		} catch (err) {
 			return this._handleDeliveryError(
-				err, message, context, ttl, emittedAt, deliveryMode
+				err,
+				message,
+				context,
+				ttl,
+				emittedAt,
+				deliveryMode
 			);
 		}
 	}
@@ -83,8 +87,8 @@ export class DeliveryAttemptHandler {
 
 	private _shouldRetry(deliveryMode: DeliveryMode): boolean {
 		if (
-			deliveryMode === DeliveryMode.EXACTLY_ONCE ||
-			deliveryMode === DeliveryMode.AT_MOST_ONCE
+			deliveryMode === DeliveryMode.ExactlyOnce ||
+			deliveryMode === DeliveryMode.AtMostOnce
 		) {
 			return false;
 		}

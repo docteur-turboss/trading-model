@@ -135,11 +135,18 @@ interface SendAlertWebhookOptions {
 	labels?: Record<string, string>;
 }
 
-export async function sendAlertWebhook(options: SendAlertWebhookOptions): Promise<void> {
+export async function sendAlertWebhook(
+	options: SendAlertWebhookOptions
+): Promise<void> {
 	const { webhookUrl, title, message, severity = "error", labels } = options;
-	if (!webhookUrl) return;
+	if (!webhookUrl) {
+		return;
+	}
 	try {
-		await _doPostWebhook(webhookUrl, buildWebhookPayload(title, message, severity, labels));
+		await _doPostWebhook(
+			webhookUrl,
+			buildWebhookPayload(title, message, severity, labels)
+		);
 	} catch (err) {
 		logWebhookError(err, webhookUrl);
 	}

@@ -33,7 +33,8 @@ export class TokenHandler {
 		);
 		return this._tokenService.validInstanceToken({
 			token,
-			instanceId: instanceId as import("@trading-model/common/domain/primitives").InstanceId,
+			instanceId:
+				instanceId as import("@trading-model/common/domain/primitives").InstanceId,
 			signingSecret: "",
 			storedToken,
 		});

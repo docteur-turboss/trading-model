@@ -7,7 +7,7 @@ import type { TokenHandler } from "./token-handler";
 export class TokenManagerService implements ITokenManager {
 	constructor(private readonly _tokenHandler: TokenHandler) {}
 
-	async updateToken(instanceId: string): Promise<string> {
+	updateToken(instanceId: string): Promise<string> {
 		return this._tokenHandler.updateToken(instanceId);
 	}
 
@@ -15,7 +15,7 @@ export class TokenManagerService implements ITokenManager {
 		return this._tokenHandler.generateInstanceToken(instanceId);
 	}
 
-	async validInstanceToken(validation: TokenValidation): Promise<boolean> {
+	validInstanceToken(validation: TokenValidation): Promise<boolean> {
 		return this._tokenHandler.validInstanceToken(validation);
 	}
 

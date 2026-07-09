@@ -1,4 +1,4 @@
-export interface TokenBucketConfig {
+﻿export interface TokenBucketConfig {
 	capacity: number;
 	refillRate: number;
 	refillIntervalMs: number;

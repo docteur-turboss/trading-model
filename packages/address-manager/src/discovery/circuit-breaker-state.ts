@@ -22,13 +22,21 @@ export class CircuitBreakerState {
 		onSweepInstance?: (instanceId: string) => void
 	) {
 		this._failureThreshold = failureThreshold;
-		this._sweeper = new StaleEntrySweeper(this._instances, SWEEP_INTERVAL_MS, onSweepInstance);
+		this._sweeper = new StaleEntrySweeper(
+			this._instances,
+			SWEEP_INTERVAL_MS,
+			onSweepInstance
+		);
 	}
 
 	getOrCreateMachine(instanceId: string): CircuitStateMachine {
 		let machine = this._instances.get(instanceId);
 		if (!machine) {
-			machine = new CircuitStateMachine({ failureThreshold: this._failureThreshold, cooldownMs: this._halfOpenTimeoutMs });
+			machine = new CircuitStateMachine({
+				failureThreshold: this._failureThreshold,
+				cooldownMs: this._halfOpenTimeoutMs,
+				halfOpenMaxAttempts: 1,
+			});
 			this._instances.set(instanceId, machine);
 		}
 		return machine;
@@ -37,20 +45,34 @@ export class CircuitBreakerState {
 		this._instances.get(instanceId)?.recordSuccess();
 	}
 	recordFailure(instanceId: string): boolean {
-		return this.getOrCreateMachine(instanceId).recordFailure(Date.now());
+		return this.getOrCreateMachine(instanceId).recordFailure();
 	}
 	getOrCreateState(instanceId: string, now: number): INstanceState {
 		const machine = this.getOrCreateMachine(instanceId);
-		return { failures: machine.failures, lastFailureTime: now, state: machine.getState(now) };
+		return {
+			failures: machine.failures,
+			lastFailureTime: now,
+			state: machine.getState(now),
+		};
 	}
 	checkOpenThreshold(instanceId: string, _state: INstanceState): void {
 		const machine = this._instances.get(instanceId);
-		if (!machine) return;
-		if (machine.failures >= this._failureThreshold) logger.warn("Circuit breaker opened for instance", { instanceId, failures: machine.failures });
+		if (!machine) {
+			return;
+		}
+		if (machine.failures >= this._failureThreshold) {
+			logger.warn("Circuit breaker opened for instance", {
+				instanceId,
+				failures: machine.failures,
+			});
+		}
 	}
 	tryHalfOpen(instanceId: string, state: INstanceState): boolean {
 		const now = Date.now();
-		if (state.state === "open" && now - state.lastFailureTime >= this._halfOpenTimeoutMs) {
+		if (
+			state.state === "open" &&
+			now - state.lastFailureTime >= this._halfOpenTimeoutMs
+		) {
 			logger.info("Circuit breaker half-open for instance", { instanceId });
 			return true;
 		}
@@ -67,7 +89,12 @@ export class CircuitBreakerState {
 			return;
 		}
 		const snap = machine.snapshot();
-		return { failures: snap.failures, lastFailureTime: 0, state: machine.getState(Date.now()) };
+		return {
+			failures: snap.failures,
+			lastFailureTime:
+				snap.openUntil > 0 ? snap.openUntil - this._halfOpenTimeoutMs : 0,
+			state: machine.getState(Date.now()),
+		};
 	}
 	get instances(): Map<string, CircuitStateMachine> {
 		return this._instances;

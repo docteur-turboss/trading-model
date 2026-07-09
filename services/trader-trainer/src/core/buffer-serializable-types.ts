@@ -1,10 +1,3 @@
-import type {
-	BookTickerData,
-	CandleData,
-	OrderBookData,
-	TickerData,
-	TradeData,
-} from "@trading-model/common/config/event.types";
 import type { BaseSymbolState } from "./market-data-types";
 import type { NormalizationStats } from "./normalization-stats";
 

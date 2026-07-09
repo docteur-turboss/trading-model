@@ -5,8 +5,11 @@ import {
 	toFingerprint,
 	toSerialNumber,
 } from "@trading-model/common/domain/primitives";
-import { CertBodyBuilder, type CertBodyBuilderOptions } from "./validation/cert-body-builder";
 import type { KeyPair, SignedCertificate } from "./types";
+import {
+	CertBodyBuilder,
+	type CertBodyBuilderOptions,
+} from "./validation/cert-body-builder";
 
 export interface SignOptions extends CertSignRequest {
 	caKeyPair: KeyPair;
@@ -70,7 +73,11 @@ interface CertBuildParams {
 	caCertPem: string;
 }
 
-function _buildCert(params: CertBuildParams): { certBody: string; signature: string; certPem: string } {
+function _buildCert(params: CertBuildParams): {
+	certBody: string;
+	signature: string;
+	certPem: string;
+} {
 	const certBody = params.builder.build(
 		_buildCertificateOptions({
 			serialNumber: params.serialNumber,
@@ -81,8 +88,15 @@ function _buildCert(params: CertBuildParams): { certBody: string; signature: str
 			san: params.csrData.san,
 		})
 	);
-	const signature = params.builder.signCertBody(certBody, params.caKeyPair.privateKey);
-	const certPem = params.builder.buildCertPem(certBody, signature, params.caCertPem);
+	const signature = params.builder.signCertBody(
+		certBody,
+		params.caKeyPair.privateKey
+	);
+	const certPem = params.builder.buildCertPem(
+		certBody,
+		signature,
+		params.caCertPem
+	);
 	return { certBody, signature, certPem };
 }
 
@@ -95,7 +109,9 @@ interface SignedCertResultParams {
 	expiresAt: Date;
 }
 
-function _buildSignedCertificateResult(params: SignedCertResultParams): SignedCertificate {
+function _buildSignedCertificateResult(
+	params: SignedCertResultParams
+): SignedCertificate {
 	const fingerprint = createHash("sha256").update(params.certPem).digest("hex");
 	return {
 		serialNumber: toSerialNumber(params.serialNumber),
@@ -126,5 +142,12 @@ export function signCertificate(options: SignOptions): SignedCertificate {
 		caKeyPair,
 		caCertPem,
 	});
-	return _buildSignedCertificateResult({ serialNumber, certPem, caCertPem, serviceId, now, expiresAt });
+	return _buildSignedCertificateResult({
+		serialNumber,
+		certPem,
+		caCertPem,
+		serviceId,
+		now,
+		expiresAt,
+	});
 }

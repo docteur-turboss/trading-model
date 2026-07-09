@@ -1,4 +1,4 @@
-import { SpanStatusCode, type Span, trace } from "@opentelemetry/api";
+import { type Span, SpanStatusCode, trace } from "@opentelemetry/api";
 import type { ResponseObject } from "@trading-model/common/middleware/response-exception";
 import { sendResponse } from "@trading-model/common/middleware/response-exception";
 import type { z } from "zod";
@@ -16,13 +16,14 @@ type PostInsertStep = (id: string, data: ValidatedData) => Promise<void>;
 const tracer = trace.getTracer("dlq-service");
 
 const postInsertSteps: PostInsertStep[] = [
-	async (id) => {
+	(_id) => {
 		metrics.entriesAdded.inc(1);
+		return Promise.resolve();
 	},
 	async (id) => {
 		await pushToRedisQueue(id);
 	},
-	async (id, data) => {
+	(id, data) => {
 		notifyAddAudit(id, data.topic, data.reason);
 	},
 ];
@@ -38,9 +39,7 @@ async function runPostInsertSteps(
 	}
 }
 
-export async function addEntry(req: {
-	body: unknown;
-}): Promise<ResponseObject> {
+export function addEntry(req: { body: unknown }): Promise<ResponseObject> {
 	return tracer.startActiveSpan("dlq-add-entry", async (span) => {
 		try {
 			const validation = validateAddEntryBody(req.body, span);

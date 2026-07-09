@@ -1,3 +1,4 @@
+import type { HttpMethod } from "@trading-model/common/contracts/signed-request";
 import {
 	toCorrelationId,
 	toEnvironment,
@@ -6,13 +7,12 @@ import {
 	toSessionId,
 	toUserId,
 } from "@trading-model/common/domain/primitives";
-import { HttpMethod } from "@trading-model/common/contracts/signed-request";
 import type { z } from "zod";
 
 import { LOGS_INGESTED_TOTAL } from "../config/metrics";
 import type { ServiceLogDocument } from "../persistence/log-repository";
-import type { LOG_ENTRY_SCHEMA } from "./log-schemas";
 import { extractError } from "./error-extractor";
+import type { LOG_ENTRY_SCHEMA } from "./log-schemas";
 
 function _buildDocService(
 	entry: z.infer<typeof LOG_ENTRY_SCHEMA>
@@ -71,7 +71,10 @@ function buildLogDocument(
 	return _addOptionalFields(doc, entry);
 }
 
-function _addOptionalFields(doc: ServiceLogDocument, entry: z.infer<typeof LOG_ENTRY_SCHEMA>): ServiceLogDocument {
+function _addOptionalFields(
+	doc: ServiceLogDocument,
+	entry: z.infer<typeof LOG_ENTRY_SCHEMA>
+): ServiceLogDocument {
 	if (entry.request) {
 		doc.request = _buildDocRequest(entry);
 	}
@@ -82,7 +85,9 @@ function _addOptionalFields(doc: ServiceLogDocument, entry: z.infer<typeof LOG_E
 	return doc;
 }
 
-function _buildDocRequest(entry: z.infer<typeof LOG_ENTRY_SCHEMA>): ServiceLogDocument["request"] {
+function _buildDocRequest(
+	entry: z.infer<typeof LOG_ENTRY_SCHEMA>
+): ServiceLogDocument["request"] {
 	return {
 		method: entry.request!.method as HttpMethod,
 		url: entry.request!.url as never,

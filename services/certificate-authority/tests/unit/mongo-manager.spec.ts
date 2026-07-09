@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 
-const mockConnect = jest.fn().mockResolvedValue(undefined);
+const _mockConnect = jest.fn().mockResolvedValue(undefined);
 const mockGetConnection = jest.fn().mockResolvedValue({
 	db: jest.fn(() => ({ databaseName: "test-db" })),
 	close: jest.fn().mockResolvedValue(undefined),
@@ -17,14 +17,11 @@ const mockMongoConnectionManager = {
 	poolSize: 50,
 };
 
-jest.mock(
-	"@trading-model/common/persistence/mongo-connection-manager",
-	() => ({
-		MongoConnectionManager: jest
-			.fn()
-			.mockImplementation(() => mockMongoConnectionManager),
-	})
-);
+jest.mock("@trading-model/common/persistence/mongo-connection-manager", () => ({
+	MongoConnectionManager: jest
+		.fn()
+		.mockImplementation(() => mockMongoConnectionManager),
+}));
 
 jest.mock("@trading-model/common/config/logger", () => ({
 	logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
@@ -54,12 +51,6 @@ describe("MONGO_MANAGER", () => {
 		expect(mockGetConnection).toHaveBeenCalledTimes(1);
 	});
 
-	it("should return isInitialized true after init", async () => {
-		expect(MONGO_MANAGER.isInitialized()).toBe(false);
-		await MONGO_MANAGER.initialize(TEST_URI);
-		expect(MONGO_MANAGER.isInitialized()).toBe(true);
-	});
-
 	it("should return isConnected true after init", async () => {
 		expect(MONGO_MANAGER.isConnected()).toBe(false);
 		await MONGO_MANAGER.initialize(TEST_URI);
@@ -78,17 +69,17 @@ describe("MONGO_MANAGER", () => {
 
 	it("should return db after init", async () => {
 		await MONGO_MANAGER.initialize(TEST_URI);
-		const db = MONGO_MANAGER.getDb();
+		const db = await MONGO_MANAGER.getDb();
 		expect(db).toBeDefined();
 	});
 
-	it("should throw getDb before init", () => {
-		expect(() => MONGO_MANAGER.getDb()).toThrow("not initialized");
+	it("should throw getDb before init", async () => {
+		await expect(MONGO_MANAGER.getDb()).rejects.toThrow("not initialized");
 	});
 
 	it("should return pool size", async () => {
 		await MONGO_MANAGER.initialize(TEST_URI);
-		expect(MONGO_MANAGER.getPoolSize()).toBeGreaterThan(0);
+		expect(MONGO_MANAGER.poolSize).toBeGreaterThan(0);
 	});
 
 	it("should try reconnect on failure", async () => {
@@ -101,7 +92,7 @@ describe("MONGO_MANAGER", () => {
 		await MONGO_MANAGER.initialize(TEST_URI);
 		await MONGO_MANAGER.close();
 		expect(mockClose).toHaveBeenCalled();
-		expect(MONGO_MANAGER.isInitialized()).toBe(false);
+		expect(MONGO_MANAGER.isConnected()).toBe(false);
 	});
 
 	it("should handle close when not initialized", async () => {

@@ -1,10 +1,10 @@
-import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
 import {
 	toInstanceId,
 	toServiceId,
 } from "@trading-model/common/domain/primitives";
-import type { TokenManager } from "../client/token-manager";
+import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
 import type { AddressManagerClient } from "../client/address-manager-client";
+import type { TokenManager } from "../client/token-manager";
 import { CacheHealthRefresher } from "../discovery/cache-health-refresher";
 import { RedisServiceCache } from "../discovery/redis-service-cache";
 import type { IServiceCache } from "../discovery/service-cache.interface";

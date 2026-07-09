@@ -1,5 +1,5 @@
-import { logger } from "@trading-model/common/config/logger";
-import { JOB_STATUS } from "@trading-model/common/contracts/recovery.types";
+﻿import { logger } from "@trading-model/common/config/logger";
+import { JobStatus } from "@trading-model/common/contracts/recovery.types";
 import { ENV } from "../config/env";
 import type { JobRepository } from "../persistence/job-repository";
 import { OrphanDetector } from "../recovery/orphan-detector";
@@ -87,23 +87,23 @@ function _buildRecoveryHandlers(
 	queue: InternalQueue,
 	repository: JobRepository,
 	reAllocator: ReAllocator
-): Partial<Record<JOB_STATUS, (job: Job) => Promise<void>>> {
+): Partial<Record<JobStatus, (job: Job) => Promise<void>>> {
 	return {
-		[JOB_STATUS.PENDING]: async (job) => {
-			queue.enqueue({ ...job, status: JOB_STATUS.QUEUED });
+		[JobStatus.PENDING]: (job) => {
+			queue.enqueue({ ...job, status: JobStatus.QUEUED });
 		},
-		[JOB_STATUS.QUEUED]: async (job) => {
-			queue.enqueue({ ...job, status: JOB_STATUS.QUEUED });
+		[JobStatus.QUEUED]: (job) => {
+			queue.enqueue({ ...job, status: JobStatus.QUEUED });
 		},
-		[JOB_STATUS.ASSIGNED]: async (job) => {
-			await repository.updateStatus(job.id, JOB_STATUS.ORPHANED);
+		[JobStatus.ASSIGNED]: async (job) => {
+			await repository.updateStatus(job.id, JobStatus.ORPHANED);
 			await reAllocator.reallocate(job);
 		},
-		[JOB_STATUS.RUNNING]: async (job) => {
-			await repository.updateStatus(job.id, JOB_STATUS.ORPHANED);
+		[JobStatus.RUNNING]: async (job) => {
+			await repository.updateStatus(job.id, JobStatus.ORPHANED);
 			await reAllocator.reallocate(job);
 		},
-		[JOB_STATUS.ORPHANED]: async (job) => {
+		[JobStatus.ORPHANED]: async (job) => {
 			await reAllocator.reallocate(job);
 		},
 	};

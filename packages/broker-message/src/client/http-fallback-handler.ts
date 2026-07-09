@@ -18,7 +18,7 @@ export type FallbackPublishFn = (
 const HTTP_RETRY_BASE_MS = 500;
 const HTTP_RETRY_MAX_MS = 15000;
 const HTTP_RETRY_MAX_ATTEMPTS = 5;
-const NULL_HTTP_FALLBACK: FallbackPublishFn = async (_payload, _metadata) => {
+const NULL_HTTP_FALLBACK: FallbackPublishFn = (_payload, _metadata) => {
 	throw new Error("WSS disconnected and no HTTP fallback configured");
 };
 function _computeRetryDelay(attempt: number): number {
@@ -57,12 +57,14 @@ export class HttpFallbackHandler {
 	}
 
 	private _rejectNoFallback(entry: PendingPublish): void {
-		entry.reject(
-			new Error("WSS disconnected and no HTTP fallback configured")
-		);
+		entry.reject(new Error("WSS disconnected and no HTTP fallback configured"));
 	}
 
-	private async _retryWithBackoff(entry: PendingPublish, attempt: number, err: unknown): Promise<void> {
+	private async _retryWithBackoff(
+		entry: PendingPublish,
+		attempt: number,
+		err: unknown
+	): Promise<void> {
 		if (attempt < HTTP_RETRY_MAX_ATTEMPTS) {
 			const delay = _computeRetryDelay(attempt);
 			logger.warn(

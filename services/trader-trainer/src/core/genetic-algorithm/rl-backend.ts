@@ -79,7 +79,9 @@ function _tryLamarckianInjection(
 		try {
 			agent.setWeights(new Float32Array(genome.trainedWeights));
 		} catch {
-			logger.warn("Failed to inject Lamarckian weights — architecture mismatch");
+			logger.warn(
+				"Failed to inject Lamarckian weights — architecture mismatch"
+			);
 		}
 	}
 }
@@ -102,7 +104,8 @@ export function makeTradingAgentBackend(
 	_tryLamarckianInjection(agent, genome);
 
 	return {
-		forwardPass: (features) => agent.forwardPass(features.toFloat32Array()).output,
+		forwardPass: (features) =>
+			agent.forwardPass(features.toFloat32Array()).output,
 		step: (features, price) => agent.step(features.toFloat32Array(), price),
 		train: _makeTrainFn(agent),
 		getWeights: () => agent.getWeights(),

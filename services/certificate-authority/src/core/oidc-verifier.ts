@@ -66,7 +66,8 @@ export class OidcVerifier {
 	}
 
 	async verifyAndExtract(token: string): Promise<OidcClaims> {
-		const { header, payload, message, signature } = this._jwtParser.parse<OidcClaims>(token);
+		const { header, payload, message, signature } =
+			this._jwtParser.parse<OidcClaims>(token);
 		this._assertAllowedAlgorithm(header.alg);
 		this._claimValidator.validate(payload);
 		await this._verifySignature(message, signature, header);

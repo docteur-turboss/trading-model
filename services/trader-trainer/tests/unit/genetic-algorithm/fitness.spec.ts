@@ -1,10 +1,10 @@
 import { describe, expect, test } from "@jest/globals";
+import { createBounded } from "../../../src/core/genetic-algorithm/bounded";
 import {
 	computeFitness,
 	shapeReward,
 } from "../../../src/core/genetic-algorithm/fitness";
 import { FitnessType } from "../../../src/core/genetic-algorithm/genome";
-import { createBounded } from "../../../src/core/genetic-algorithm/bounded";
 import type { RewardShapingGenome } from "../../../src/core/genetic-algorithm/genome-types";
 
 describe("Fitness - computeFitness", () => {

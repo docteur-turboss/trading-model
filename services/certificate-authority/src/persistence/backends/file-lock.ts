@@ -23,10 +23,7 @@ export class FileSystemLockBackend implements LockBackend {
 	}
 
 	private _isFsBackendAllowed(): boolean {
-		if (
-			getNodeEnv() !== "development" &&
-			getNodeEnv() !== "test"
-		) {
+		if (getNodeEnv() !== "development" && getNodeEnv() !== "test") {
 			logger.error(
 				"No lock backend available (MongoDB, Redis) and filesystem fallback is disabled in production"
 			);

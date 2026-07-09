@@ -1,4 +1,4 @@
-import type { PendingAckData } from "./messaging-types";
+﻿import type { PendingAckData } from "./messaging-types";
 
 interface StaleEntryData extends PendingAckData {
 	pendingAt?: number;

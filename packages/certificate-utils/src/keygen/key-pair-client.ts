@@ -1,6 +1,6 @@
 import type { HttpClient } from "@trading-model/common/config/http-client";
-import { KeyAlgorithm } from "./generate-key-pair";
 import type { KeyPair, KeyPairWithId } from "../types";
+import { KeyAlgorithm } from "./generate-key-pair";
 
 function _checkResult<TValue>(result: TValue | undefined | null): TValue {
 	if (!result) {
@@ -17,7 +17,7 @@ export class KeyPairClient {
 	) {}
 
 	async generateKeyPair(
-		algorithm: KeyAlgorithm = KeyAlgorithm.ecP384
+		algorithm: KeyAlgorithm = KeyAlgorithm.EcP384
 	): Promise<KeyPair> {
 		const result = await this._httpClient.post<KeyPair>(
 			`${this._baseUrl}/api/v1/crypto/generate-key-pair`,
@@ -28,7 +28,7 @@ export class KeyPairClient {
 	}
 
 	async generateKeyPairWithId(
-		algorithm: KeyAlgorithm = KeyAlgorithm.ecP384
+		algorithm: KeyAlgorithm = KeyAlgorithm.EcP384
 	): Promise<KeyPairWithId> {
 		const result = await this._httpClient.post<KeyPairWithId>(
 			`${this._baseUrl}/api/v1/crypto/generate-key-pair-with-id`,

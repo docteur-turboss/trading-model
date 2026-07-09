@@ -8,7 +8,20 @@ import {
 	test,
 } from "@jest/globals";
 import type { HttpClient } from "@trading-model/common/config/http-client";
-import type { IPAddress, Port } from "@trading-model/common/domain/primitives";
+import {
+	registerServiceName,
+	type ServiceInstanceName,
+} from "@trading-model/common/config/services.types";
+import { Protocol } from "@trading-model/common/contracts/service-registry.types";
+import {
+	IPAddress,
+	Port,
+	toDurationMs,
+	toInstanceId,
+	toServiceId,
+	toVersion,
+	UnixTimestamp,
+} from "@trading-model/common/domain/primitives";
 import { AppError } from "@trading-model/common/utils/errors";
 import { AddressManagerClient } from "../../src/client/address-manager-client";
 import { LocalIPDetector } from "../../src/client/local-ip-detector";
@@ -17,6 +30,8 @@ import type { ServiceRegistrationResponse } from "../../src/client/type";
 import type { AddressManagerConfig } from "../../src/config/address-manager-config";
 
 jest.mock("os");
+
+registerServiceName("test-service" as ServiceInstanceName);
 
 describe("AddressManagerClient", () => {
 	let httpClient: jest.Mocked<HttpClient>;
@@ -46,12 +61,15 @@ describe("AddressManagerClient", () => {
 
 		config = {
 			addressManagerUrl: "http://localhost:8443",
-			servicePort: 8080,
+			servicePort: Port.of(8080),
 			tokenRefreshIntervalMs: 300_000,
 			ttlRefreshIntervalMs: 300_000,
 			servicePingTimeoutMs: 2000,
 			cacheTtlMs: 60_000,
-			identity: { serviceName: "test-service", instanceId: "test-instance" },
+			identity: {
+				serviceName: toServiceId("test-service"),
+				instanceId: toInstanceId("test-instance"),
+			},
 			tls: {
 				caPath: "/path/to/ca.pem",
 				certPath: "/path/to/cert.pem",
@@ -152,16 +170,16 @@ describe("AddressManagerClient", () => {
 			});
 
 			const response: ServiceRegistrationResponse = {
-				host: "127.0.0.1" as unknown as IPAddress,
-				port: 8080 as unknown as Port,
-				instanceId: "instance-1",
-				lastHeartbeat: Date.now(),
-				protocol: "http",
-				registeredAt: Date.now(),
-				serviceName: "abc-service",
+				host: IPAddress.of("127.0.0.1"),
+				port: Port.of(8080),
+				instanceId: toInstanceId("instance-1"),
+				lastHeartbeat: UnixTimestamp.now(),
+				protocol: Protocol.Http,
+				registeredAt: UnixTimestamp.now(),
+				serviceName: toServiceId("abc-service"),
 				token: "service-token",
-				ttl: 30000,
-				version: "1.0.0",
+				ttl: toDurationMs(30000),
+				version: toVersion("1.0.0"),
 			};
 			httpClient.post.mockResolvedValueOnce(response);
 
@@ -177,16 +195,16 @@ describe("AddressManagerClient", () => {
 
 		test("should call HttpClient.post with correct URL, payload, and headers", async () => {
 			const response: ServiceRegistrationResponse = {
-				host: "192.168.1.100" as unknown as IPAddress,
-				port: 8080 as unknown as Port,
-				instanceId: "instance-1",
-				lastHeartbeat: Date.now(),
-				protocol: "http",
-				registeredAt: Date.now(),
-				serviceName: "abc-service",
+				host: IPAddress.of("192.168.1.100"),
+				port: Port.of(8080),
+				instanceId: toInstanceId("instance-1"),
+				lastHeartbeat: UnixTimestamp.now(),
+				protocol: Protocol.Http,
+				registeredAt: UnixTimestamp.now(),
+				serviceName: toServiceId("abc-service"),
 				token: "service-token",
-				ttl: 30000,
-				version: "1.0.0",
+				ttl: toDurationMs(30000),
+				version: toVersion("1.0.0"),
 			};
 			httpClient.post.mockResolvedValueOnce(response);
 

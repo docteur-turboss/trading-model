@@ -1,5 +1,5 @@
-import type { TlsPaths } from "../domain/tls-paths";
 import type { SessionId, UserId } from "../domain/primitives";
+import type { TlsPaths } from "../domain/tls-paths";
 import {
 	isLogLevelAtLeast,
 	type LogEntry,
@@ -10,11 +10,11 @@ import {
 export type { LogEntry, LogOptions };
 export { LogLevel };
 
+import { formatLogEntry } from "./console-formatter";
 import { LogBuffer } from "./log-buffer";
 import { LogDispatcher } from "./log-dispatcher";
 import { SensitiveDataSanitizer } from "./sensitive-data-sanitizer";
 import { generateSessionId } from "./session-id-generator";
-import { formatLogEntry } from "./console-formatter";
 
 export class Logger {
 	private _logLevel: LogLevel;
@@ -23,7 +23,7 @@ export class Logger {
 	private readonly _buffer: LogBuffer;
 	private readonly _dispatcher: LogDispatcher;
 
-	constructor(logLevel: LogLevel = "info") {
+	constructor(logLevel: LogLevel = LogLevel.Info) {
 		this._logLevel = logLevel;
 		this._sessionId = generateSessionId(logLevel);
 		this._buffer = new LogBuffer();
@@ -38,7 +38,7 @@ export class Logger {
 		label: string,
 		consoleFn: (message?: unknown, ...optionalParams: unknown[]) => void,
 		message: string,
-		context?: Record<string, unknown>,
+		context?: Record<string, unknown>
 	): void {
 		if (!isLogLevelAtLeast(level, this._logLevel)) {
 			return;
@@ -69,7 +69,7 @@ export class Logger {
 		this._buffer.add(logEntry);
 		consoleFn(
 			formatLogEntry(label, logEntry.timestamp, logEntry.message),
-			context || "",
+			context || ""
 		);
 	}
 
@@ -111,10 +111,10 @@ export class Logger {
 const NODE_ENV = getNodeEnv();
 export const logger = new Logger(
 	NODE_ENV === "development"
-		? "debug"
+		? LogLevel.Debug
 		: NODE_ENV === "staging"
-			? "info"
-			: "warn"
+			? LogLevel.Info
+			: LogLevel.Warn
 );
 
 export function getNodeEnv(): string {

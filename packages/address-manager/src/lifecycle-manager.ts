@@ -49,7 +49,18 @@ export class LifecycleManager {
 	}
 
 	private _createSteadyState(): SteadyStateScheduler {
-		const { tokenManager, addressManagerClient, heartbeatManager, serviceCache, healthChecker, serviceName, instanceId, tokenRefreshIntervalMs, ttlRefreshIntervalMs, cacheTtlMs } = this._options;
+		const {
+			tokenManager,
+			addressManagerClient,
+			heartbeatManager,
+			serviceCache,
+			healthChecker,
+			serviceName,
+			instanceId,
+			tokenRefreshIntervalMs,
+			ttlRefreshIntervalMs,
+			cacheTtlMs,
+		} = this._options;
 		return new SteadyStateScheduler({
 			tokenManager,
 			addressManagerClient,
@@ -84,7 +95,9 @@ export class LifecycleManager {
 		});
 	}
 
-	private _createStopHandler(steadyState: SteadyStateScheduler): () => Promise<void> {
+	private _createStopHandler(
+		steadyState: SteadyStateScheduler
+	): () => Promise<void> {
 		return async () => {
 			this._started = false;
 			this._options.shutdownHandler.removeSignalHandlers();

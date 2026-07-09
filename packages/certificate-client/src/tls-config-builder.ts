@@ -1,5 +1,5 @@
-import type { TlsPaths } from "@trading-model/common/domain/tls-paths";
 import { loadTlsPemBundle } from "@trading-model/common/config/http-tls-loader";
+import type { TlsPaths } from "@trading-model/common/domain/tls-paths";
 import type WebSocket from "ws";
 
 export class TlsConfigBuilder {
@@ -13,9 +13,15 @@ export class TlsConfigBuilder {
 				certPem: this._tlsConfig.certPath,
 				keyPem: this._tlsConfig.keyPath,
 			});
-			if (bundle.caPem) opts.ca = bundle.caPem;
-			if (bundle.certPem) opts.cert = bundle.certPem;
-			if (bundle.keyPem) opts.key = bundle.keyPem;
+			if (bundle.caPem) {
+				opts.ca = bundle.caPem;
+			}
+			if (bundle.certPem) {
+				opts.cert = bundle.certPem;
+			}
+			if (bundle.keyPem) {
+				opts.key = bundle.keyPem;
+			}
 			opts.rejectUnauthorized = true;
 		}
 		opts.minVersion = "TLSv1.3";

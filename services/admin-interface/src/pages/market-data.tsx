@@ -34,8 +34,11 @@ import { API_CLIENT } from "../api/api-client";
 import { DataTable } from "../components/data-table";
 import { StatsCard } from "../components/stats-card";
 import { useApi } from "../hooks/use-api";
-import { computePriceChange, createCandleColumns } from "./helpers/market-data-utils";
 import type { Candle } from "../types/dtos";
+import {
+	computePriceChange,
+	createCandleColumns,
+} from "./helpers/market-data-utils";
 
 function PageLoading() {
 	return (
@@ -339,7 +342,9 @@ function CandleDataTable({
 }
 
 export function MarketData() {
-	const [symbol, setSymbol] = useState<TradingSymbol>("BTCUSDT" as TradingSymbol);
+	const [symbol, setSymbol] = useState<TradingSymbol>(
+		"BTCUSDT" as TradingSymbol
+	);
 	const [candleInterval, setCandleInterval] = useState<CandleInterval>(
 		CandleInterval.H1
 	);

@@ -80,7 +80,7 @@ describe("BrokerMessage", () => {
 	});
 
 	describe("intents", () => {
-	it("should call subscribeToTopics with topics", async () => {
+		it("should call subscribeToTopics with topics", async () => {
 			const topics = ["example.debug.create"];
 			await broker.intents(topics);
 			expect(

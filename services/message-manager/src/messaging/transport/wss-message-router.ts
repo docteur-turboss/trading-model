@@ -1,14 +1,15 @@
-import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
+﻿import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
 import type WebSocket from "ws";
 import type { Dispatcher } from "../core/dispatcher";
 import { AckNackHandler } from "./ack-nack-handler";
-import type { IncomingWssMessage, WssMessageType } from "./wss-message.types";
+import type { WsTransportMessage } from "./wss-message.types";
+import { TransportMessageType } from "./wss-message.types";
 import { WssMessageParser } from "./wss-message-parser";
 import type { WssPublisher } from "./wss-publisher";
 import type { WssSubscriptionManager } from "./wss-subscription-manager";
 
 type MessageHandler = (
-	msg: IncomingWssMessage,
+	msg: WsTransportMessage,
 	ws: WebSocket,
 	ctx: {
 		identity: ServiceIdentity;
@@ -65,21 +66,21 @@ export class WssMessageRouter {
 		});
 	}
 
-	buildHandlerMap(): Map<WssMessageType, MessageHandler> {
-		const map = new Map<WssMessageType, MessageHandler>();
-		map.set("subscribe", (msg, ws, ctx) =>
+	buildHandlerMap(): Map<TransportMessageType, MessageHandler> {
+		const map = new Map<TransportMessageType, MessageHandler>();
+		map.set(TransportMessageType.Subscribe, (msg, ws, ctx) =>
 			this._subscriptionManager.handleSubscribe(msg, { ws, ...ctx })
 		);
-		map.set("unsubscribe", (msg, ws, ctx) =>
+		map.set(TransportMessageType.Unsubscribe, (msg, ws, ctx) =>
 			this._subscriptionManager.handleUnsubscribe(msg, { ws, ...ctx })
 		);
-		map.set("publish", (msg, ws, ctx) =>
+		map.set(TransportMessageType.Publish, (msg, ws, ctx) =>
 			this._publisher.handlePublish(msg, ws, ctx)
 		);
-		map.set("ack", (msg, ws, ctx) =>
+		map.set(TransportMessageType.Ack, (msg, ws, ctx) =>
 			this._ackNackHandler.handleAck(msg, ws, ctx)
 		);
-		map.set("nack", (msg, ws, ctx) =>
+		map.set(TransportMessageType.Nack, (msg, ws, ctx) =>
 			this._ackNackHandler.handleNack(msg, ws, ctx)
 		);
 		return map;

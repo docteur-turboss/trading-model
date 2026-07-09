@@ -17,10 +17,7 @@ export class StaleEntrySweeper {
 	}
 
 	private _start(): void {
-		this._sweepHandle.startInterval(
-			() => this._sweep(),
-			this._sweepIntervalMs
-		);
+		this._sweepHandle.startInterval(() => this._sweep(), this._sweepIntervalMs);
 		this._sweepHandle.unref();
 	}
 

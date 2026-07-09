@@ -2,9 +2,9 @@ import type { MessageMetadata } from "@trading-model/common/contracts/message.ty
 
 import {
 	type FallbackPublishFn,
+	HttpFallbackHandler,
 	type PendingPublish,
 	type SendJsonFn,
-	HttpFallbackHandler,
 } from "./http-fallback-handler";
 
 const WSS_PENDING_QUEUE_MAX = 1000;
@@ -76,6 +76,5 @@ export class PendingPublishQueue {
 		this._httpFallbackHandler.drainToHttp(pending);
 	}
 
-	stop(): void {
-	}
+	stop(): void {}
 }

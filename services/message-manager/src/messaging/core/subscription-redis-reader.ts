@@ -1,4 +1,4 @@
-import { toInstanceId, toTopic } from "@trading-model/common/domain/primitives";
+﻿import { toInstanceId, toTopic } from "@trading-model/common/domain/primitives";
 import { normalizeError } from "@trading-model/common/utils/errors";
 
 import { logger } from "../../config/logger";

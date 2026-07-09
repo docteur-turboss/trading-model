@@ -16,13 +16,21 @@ export class RedisCacheOperations {
 		this._scanner = new RedisCacheScanner(this._redis, this._prefix);
 	}
 
-	async get(serviceName: string, region?: string): Promise<ServiceInstance | null> {
+	async get(
+		serviceName: string,
+		region?: string
+	): Promise<ServiceInstance | null> {
 		try {
 			const raw = await this._redis.get(this._cacheKey(serviceName, region));
-			if (!raw) return null;
+			if (!raw) {
+				return null;
+			}
 			return this._parseCacheEntry(raw);
 		} catch (err) {
-			logger.warn("Redis cache get failed", { serviceName, error: normalizeError(err) });
+			logger.warn("Redis cache get failed", {
+				serviceName,
+				error: normalizeError(err),
+			});
 			return null;
 		}
 	}
@@ -38,7 +46,9 @@ export class RedisCacheOperations {
 	async getVersion(serviceName: string, region?: string): Promise<number> {
 		try {
 			const raw = await this._redis.get(this._cacheKey(serviceName, region));
-			if (!raw) return 0;
+			if (!raw) {
+				return 0;
+			}
 			const parsed = JSON.parse(raw);
 			if (parsed && typeof parsed.version === "number") {
 				return parsed.version;
@@ -52,9 +62,16 @@ export class RedisCacheOperations {
 	async set(entry: CacheSetEntry): Promise<void> {
 		const { serviceName, instance, region, version } = entry;
 		try {
-			await this._redis.setex(this._cacheKey(serviceName, region), this._ttlSec, JSON.stringify({ instance, version: version ?? 0 }));
+			await this._redis.setex(
+				this._cacheKey(serviceName, region),
+				this._ttlSec,
+				JSON.stringify({ instance, version: version ?? 0 })
+			);
 		} catch (err) {
-			logger.warn("Redis cache set failed", { serviceName, error: normalizeError(err) });
+			logger.warn("Redis cache set failed", {
+				serviceName,
+				error: normalizeError(err),
+			});
 		}
 	}
 
@@ -69,11 +86,11 @@ export class RedisCacheOperations {
 		}
 	}
 
-	async clear(): Promise<void> {
+	clear(): Promise<void> {
 		return this._scanner.clear();
 	}
 
-	async entries(): Promise<
+	entries(): Promise<
 		Array<{ serviceName: string; instance: ServiceInstance; region?: string }>
 	> {
 		return this._scanner.entries();

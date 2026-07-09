@@ -1,4 +1,4 @@
-import { createBootstrap } from "@trading-model/common/server/bootstrap";
+﻿import { createBootstrap } from "@trading-model/common/server/bootstrap";
 import { ENV } from "../config/env";
 import { CertificateAuthority } from "../core/ca";
 import { Distributor } from "../core/distributor";
@@ -10,7 +10,7 @@ import { MONGO_MANAGER } from "../persistence/mongo-manager";
 import { Container } from "./container";
 import { createServer } from "./server";
 
-let CONTAINER: Container;
+let container: Container;
 
 async function _initStores() {
 	const certificateStore = await CertificateStore.connect();
@@ -19,7 +19,9 @@ async function _initStores() {
 	return { certificateStore, crlStore, caStore };
 }
 
-async function _initCertificateAuthority(stores: Awaited<ReturnType<typeof _initStores>>) {
+function _initCertificateAuthority(
+	stores: Awaited<ReturnType<typeof _initStores>>
+): Promise<CertificateAuthority> {
 	return CertificateAuthority.create({
 		caKeyPath: ENV.CA_KEY_PATH,
 		caCertTtlMs: ENV.CA_CERT_TTL_MS,
@@ -29,7 +31,10 @@ async function _initCertificateAuthority(stores: Awaited<ReturnType<typeof _init
 	});
 }
 
-function _initRotator(ca: CertificateAuthority, certificateStore: CertificateStore): Rotator {
+function _initRotator(
+	ca: CertificateAuthority,
+	certificateStore: CertificateStore
+): Rotator {
 	const rotator = new Rotator({
 		ca,
 		certificateStore,
@@ -53,14 +58,20 @@ createBootstrap({
 			certificateStore: stores.certificateStore,
 			crlStore: stores.crlStore,
 		});
-		CONTAINER = new Container(ca, stores.certificateStore, stores.crlStore, stores.caStore, distributor);
+		container = new Container(
+			ca,
+			stores.certificateStore,
+			stores.crlStore,
+			stores.caStore,
+			distributor
+		);
 		_initRotator(ca, stores.certificateStore);
 	},
 	onStop: async () => {
-		if (CONTAINER) {
-			await CONTAINER.disconnectAll();
+		if (container) {
+			await container.disconnectAll();
 		}
 	},
 });
 
-export { CONTAINER };
+export { container };

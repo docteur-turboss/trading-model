@@ -1,4 +1,4 @@
-import { TimerHandle } from "@trading-model/common/utils/timer-handle";
+﻿import { TimerHandle } from "@trading-model/common/utils/timer-handle";
 import { logger } from "../../config/logger";
 import type { WalDrainCoordinator } from "./wal-drain-coordinator";
 import type { WalFlushLoop } from "./wal-flush-loop";
@@ -42,7 +42,7 @@ export class WalFlushManager {
 		this._walFlusherTimer.stop();
 	}
 
-	async flush(): Promise<void> {
+	flush(): Promise<void> {
 		return this._flushImpl();
 	}
 }

@@ -1,4 +1,10 @@
-import { toServiceId, toTopic } from "@trading-model/common/domain/primitives";
+import {
+	toCorrelationId,
+	toInstanceId,
+	toMessageId,
+	toServiceId,
+	toTopic,
+} from "@trading-model/common/domain/primitives";
 import type { AuditEventDocument } from "../persistence/audit-repository";
 import type { ParsedEnvelope } from "./message-parser";
 
@@ -29,8 +35,10 @@ function buildAuditMetadata(
 		topic: toTopic(topic),
 		eventType: metadata?.eventType ?? topic,
 		publisher: toServiceId(publisher?.serviceName ?? "unknown"),
-		instanceId: publisher?.instanceId ?? "unknown",
-		messageId: metadata?.messageId ?? "unknown",
-		correlationId: metadata?.correlationId,
+		instanceId: toInstanceId(publisher?.instanceId ?? "unknown"),
+		messageId: toMessageId(metadata?.messageId ?? "unknown"),
+		correlationId: metadata?.correlationId
+			? toCorrelationId(metadata.correlationId)
+			: undefined,
 	};
 }

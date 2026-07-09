@@ -84,8 +84,8 @@ describe("metrics", () => {
 			(globalThis as any).fetch = mockFetch;
 		});
 
-		it("should do nothing when webhookUrl is undefined", () => {
-			sendAlertWebhook({
+		it("should do nothing when webhookUrl is undefined", async () => {
+			await sendAlertWebhook({
 				webhookUrl: undefined,
 				title: "title",
 				message: "msg",
@@ -93,15 +93,19 @@ describe("metrics", () => {
 			expect(mockFetch).not.toHaveBeenCalled();
 		});
 
-		it("should do nothing when webhookUrl is empty", () => {
-			sendAlertWebhook({ webhookUrl: "", title: "title", message: "msg" });
+		it("should do nothing when webhookUrl is empty", async () => {
+			await sendAlertWebhook({
+				webhookUrl: "",
+				title: "title",
+				message: "msg",
+			});
 			expect(mockFetch).not.toHaveBeenCalled();
 		});
 
-		it("should POST alert to webhook URL", () => {
+		it("should POST alert to webhook URL", async () => {
 			mockFetch.mockResolvedValue({ ok: true });
 
-			sendAlertWebhook({
+			await sendAlertWebhook({
 				webhookUrl: "https://hooks.example.com/alert",
 				title: "Alert",
 				message: "Something happened",

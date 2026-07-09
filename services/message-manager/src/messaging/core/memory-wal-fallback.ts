@@ -1,4 +1,4 @@
-import { FileWalFallback } from "./file-wal-fallback";
+﻿import { FileWalFallback } from "./file-wal-fallback";
 import type { MemoryWalEntry } from "./memory-wal-entry";
 import { RedisWalFallback } from "./redis-wal-fallback";
 
@@ -11,15 +11,15 @@ export class MemoryWalFallback {
 		this._file = new FileWalFallback();
 	}
 
-	async trySaveToRedis(removed: MemoryWalEntry[]): Promise<boolean> {
+	trySaveToRedis(removed: MemoryWalEntry[]): Promise<boolean> {
 		return this._redis.trySave(removed);
 	}
 
-	async trySaveToFallback(removed: MemoryWalEntry[]): Promise<void> {
+	trySaveToFallback(removed: MemoryWalEntry[]): Promise<void> {
 		return this._file.trySave(removed);
 	}
 
-	async recoverFromFallbackFile(): Promise<MemoryWalEntry[]> {
+	recoverFromFallbackFile(): Promise<MemoryWalEntry[]> {
 		return this._file.recover();
 	}
 }

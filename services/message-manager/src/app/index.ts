@@ -1,4 +1,4 @@
-import { createBootstrap } from "@trading-model/common/server/bootstrap";
+﻿import { createBootstrap } from "@trading-model/common/server/bootstrap";
 import { BOOTSTRAP_ADDRESS_MANAGER } from "../config/address-manager";
 import { createServer } from "./server";
 import "../config/env";

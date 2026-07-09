@@ -8,7 +8,6 @@ import {
 	MutationDistribution,
 	MutationScope,
 } from "../../../src/core/genetic-algorithm/genome";
-import { createBounded } from "../../../src/core/genetic-algorithm/bounded";
 import type {
 	LayerGenome,
 	MutationGenome,

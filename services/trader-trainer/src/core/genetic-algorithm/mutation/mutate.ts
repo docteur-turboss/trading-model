@@ -1,13 +1,13 @@
 import type { LamarckGenome } from "../genome-types";
-import { adaptSigma } from "./sigma-adapters";
-import { mutateNetworkStructure, mutateLayer } from "./network-mutation";
 import type { MutateNetworkContext } from "./network-mutation";
-import { mutateRL } from "./rl-mutation";
+import { mutateLayer, mutateNetworkStructure } from "./network-mutation";
 import type { MutateRLContext } from "./rl-mutation";
+import { mutateRL } from "./rl-mutation";
 import { mutateSelfAdaptiveParams } from "./self-adaptive-mutation";
+import { adaptSigma } from "./sigma-adapters";
 
-export { mutateLayer };
 export type { MutateNetworkContext, MutateRLContext };
+export { mutateLayer };
 
 export function mutateGenome(
 	genome: LamarckGenome,

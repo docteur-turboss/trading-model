@@ -5,7 +5,7 @@ import { logger } from "../../config/logger";
 class SharedHttpClientManager {
 	private _httpClient: HttpClient | null = null;
 
-	async get(): Promise<HttpClient> {
+	get(): Promise<HttpClient> {
 		if (!this._httpClient) {
 			this._httpClient = new HttpClient({
 				ca: ENV.TLS_CA_PATH,
@@ -41,14 +41,14 @@ class SharedHttpClientManager {
 
 const sharedHttpClient = new SharedHttpClientManager();
 
-export async function getHttpClient(): Promise<HttpClient> {
+export function getHttpClient(): Promise<HttpClient> {
 	return sharedHttpClient.get();
 }
 
-export async function reloadHttpClientTls(): Promise<void> {
+export function reloadHttpClientTls(): Promise<void> {
 	return sharedHttpClient.reloadTls();
 }
 
-export async function closeHttpClient(): Promise<void> {
+export function closeHttpClient(): Promise<void> {
 	sharedHttpClient.close();
 }

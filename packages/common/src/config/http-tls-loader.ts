@@ -1,5 +1,5 @@
 import fs from "node:fs";
-import https from "node:https";
+import type https from "node:https";
 
 import type { TlsPaths, TlsPemBundle } from "../domain/tls-paths";
 import { normalizeError } from "../utils/errors";
@@ -14,7 +14,9 @@ function readTlsFileSync(filePath: string, label: string): string {
 	}
 }
 
-export function loadTlsPemBundle(tlsConfig?: Partial<TlsPemBundle>): Partial<TlsPemBundle> {
+export function loadTlsPemBundle(
+	tlsConfig?: Partial<TlsPemBundle>
+): Partial<TlsPemBundle> {
 	if (!tlsConfig) {
 		return {};
 	}
@@ -31,9 +33,11 @@ export function loadTlsPemBundle(tlsConfig?: Partial<TlsPemBundle>): Partial<Tls
 	return result;
 }
 
-export function buildHttpsAgentOptions(tlsConfig?: TlsPaths): https.AgentOptions | undefined {
+export function buildHttpsAgentOptions(
+	tlsConfig?: TlsPaths
+): https.AgentOptions | undefined {
 	if (!tlsConfig) {
-		return undefined;
+		return;
 	}
 	const bundle = loadTlsPemBundle({
 		caPem: tlsConfig.caPath,
@@ -41,8 +45,14 @@ export function buildHttpsAgentOptions(tlsConfig?: TlsPaths): https.AgentOptions
 		keyPem: tlsConfig.keyPath,
 	});
 	const opts: https.AgentOptions = {};
-	if (bundle.caPem) opts.ca = bundle.caPem;
-	if (bundle.certPem) opts.cert = bundle.certPem;
-	if (bundle.keyPem) opts.key = bundle.keyPem;
+	if (bundle.caPem) {
+		opts.ca = bundle.caPem;
+	}
+	if (bundle.certPem) {
+		opts.cert = bundle.certPem;
+	}
+	if (bundle.keyPem) {
+		opts.key = bundle.keyPem;
+	}
 	return opts;
 }

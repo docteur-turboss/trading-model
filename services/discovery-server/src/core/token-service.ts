@@ -15,10 +15,7 @@ export class TokenService {
 	}
 
 	generateInstanceToken(instanceId: string): string {
-		return commonGenerateToken(
-			instanceId as InstanceId,
-			this._signingSecret
-		);
+		return commonGenerateToken(instanceId as InstanceId, this._signingSecret);
 	}
 
 	validInstanceToken(input: TokenValidationInput): boolean {

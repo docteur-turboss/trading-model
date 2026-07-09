@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { HttpClient } from "../config/http-client";
-import type { Capability, JobType } from "../domain/primitives";
+import type { Capability } from "../domain/primitives";
 import type { TlsPemBundle } from "../domain/tls-paths";
 import { JobAssignmentHandler } from "./job-assignment-handler";
 import { WorkerClient, type WorkerClientConfig } from "./worker-client";
@@ -35,7 +35,7 @@ export class BaseWorker {
 			this.httpClient,
 			this.config.schedulerHttpUrl
 		);
-		this.client.on("job.assigned", (job) => this._onJobAssigned(job));
+		this.client.on("job.assigned", (job) => void this._onJobAssigned(job));
 		this.client.on("drain", () => this._jobHandler.onDrain());
 	}
 

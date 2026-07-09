@@ -53,7 +53,6 @@ export function checkRange(
 	lo: number,
 	hi: number
 ): void {
-	const { errors, path } = ctx;
 	if (
 		typeof value !== "number" ||
 		!Number.isFinite(value) ||
@@ -69,7 +68,6 @@ export function checkPositiveInt(
 	value: unknown,
 	min = 1
 ): void {
-	const { errors, path } = ctx;
 	if (!Number.isInteger(value) || (value as number) < min) {
 		err(ctx, `must be an integer ≥ ${min}`, value);
 	}

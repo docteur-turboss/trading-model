@@ -28,24 +28,45 @@ export class MessageContext {
 
 	withSecurity(context: SecurityType | null): MessageContext {
 		if (context === null) {
-			return new MessageContext({ delivery: this.delivery, routing: this.routing });
+			return new MessageContext({
+				delivery: this.delivery,
+				routing: this.routing,
+			});
 		}
 		SECURITY_METADATA_CONTEXT_PREDICATE.parse(context);
-		return new MessageContext({ delivery: this.delivery, routing: this.routing, security: context });
+		return new MessageContext({
+			delivery: this.delivery,
+			routing: this.routing,
+			security: context,
+		});
 	}
 	withDelivery(context: DeliveryType | null): MessageContext {
 		if (context === null) {
-			return new MessageContext({ routing: this.routing, security: this.security });
+			return new MessageContext({
+				routing: this.routing,
+				security: this.security,
+			});
 		}
 		DELIVERY_METADATA_MODE_PREDICATE.parse(context);
-		return new MessageContext({ routing: this.routing, security: this.security, delivery: context });
+		return new MessageContext({
+			routing: this.routing,
+			security: this.security,
+			delivery: context,
+		});
 	}
 	withRouting(context: RoutingType | null): MessageContext {
 		if (context === null) {
-			return new MessageContext({ delivery: this.delivery, security: this.security });
+			return new MessageContext({
+				delivery: this.delivery,
+				security: this.security,
+			});
 		}
 		ROUTING_METADATA_CONTEXT_PREDICATE.parse(context);
-		return new MessageContext({ delivery: this.delivery, security: this.security, routing: context });
+		return new MessageContext({
+			delivery: this.delivery,
+			security: this.security,
+			routing: context,
+		});
 	}
 
 	toJSON(): {

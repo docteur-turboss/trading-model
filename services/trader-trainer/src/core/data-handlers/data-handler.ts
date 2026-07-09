@@ -1,11 +1,11 @@
-import type { NormalizationStats } from "../normalization-stats";
 import type { SymbolState } from "../market-data-types";
-import { candleHandler } from "./candle-handler";
-import { tradeHandler } from "./trade-handler";
-import { orderBookHandler } from "./order-book-handler";
+import type { NormalizationStats } from "../normalization-stats";
 import { bookTickerHandler } from "./book-ticker-handler";
-import { tickerHandler } from "./ticker-handler";
+import { candleHandler } from "./candle-handler";
 import { DataType } from "./data-types";
+import { orderBookHandler } from "./order-book-handler";
+import { tickerHandler } from "./ticker-handler";
+import { tradeHandler } from "./trade-handler";
 
 export { DataType };
 
@@ -28,7 +28,7 @@ export function serializeAllNorms(
 	handlers?: DataHandler[]
 ): Record<string, ReturnType<NormalizationStats["toJSON"]>> {
 	const all = (handlers ?? createDefaultHandlers()).reduce(
-		(acc, h) => Object.assign(acc, h.serializeNorms(state)),
+		(acc, handler) => Object.assign(acc, handler.serializeNorms(state)),
 		{} as Record<string, ReturnType<NormalizationStats["toJSON"]>>
 	);
 	return all;

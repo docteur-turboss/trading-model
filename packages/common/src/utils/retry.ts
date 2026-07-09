@@ -1,4 +1,4 @@
-import {
+﻿import {
 	type BackoffConfig,
 	computeExponentialBackoff,
 } from "./backoff-config";
@@ -13,8 +13,8 @@ export interface RetryOptions extends BackoffConfig {
 	shouldRetry?: () => boolean;
 }
 
-export interface RetryResult<T> {
-	result: T | null;
+export interface RetryResult<_TResult> {
+	result: _TResult | null;
 	lastError: Error | null;
 	attempts: number;
 	timedOut: boolean;
@@ -24,10 +24,10 @@ function _addJitter(delayMs: number, jitterMs: number): number {
 	return jitterMs > 0 ? delayMs + Math.random() * jitterMs : delayMs;
 }
 
-export async function retryWithBackoff<T>(
-	fn: () => Promise<T>,
+export async function retryWithBackoff<_TResult>(
+	fn: () => Promise<_TResult>,
 	options: RetryOptions
-): Promise<RetryResult<T>> {
+): Promise<RetryResult<_TResult>> {
 	const {
 		maxRetries,
 		baseDelayMs = 100,
@@ -70,14 +70,14 @@ export async function retryWithBackoff<T>(
 	return { result: null, lastError, attempts: attempt, timedOut: false };
 }
 
-export function withTimeout<T>(
-	promise: Promise<T>,
+export function withTimeout<TResult>(
+	promise: Promise<TResult>,
 	timeoutMs: number,
 	timeoutMessage = "Operation timed out"
-): Promise<T> {
+): Promise<TResult> {
 	return Promise.race([
 		promise,
-		new Promise<T>((_, reject) => {
+		new Promise<never>((_, reject) => {
 			const timer = setTimeout(
 				() => reject(new Error(timeoutMessage)),
 				timeoutMs

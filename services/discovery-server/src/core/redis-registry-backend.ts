@@ -68,35 +68,35 @@ export class RedisRegistryBackend
 		this._lifecycleService = new LifecycleService(lifecycle);
 	}
 
-	async registerInstance(instance: ServiceInstance): Promise<string> {
+	registerInstance(instance: ServiceInstance): Promise<string> {
 		return this._registration.registerInstance(instance);
 	}
 
-	async updateHeartbeat(id: ServiceIdentity): Promise<number | false> {
+	updateHeartbeat(id: ServiceIdentity): Promise<number | false> {
 		return this._registration.updateHeartbeat(id);
 	}
 
-	async getInstances(serviceName: string): Promise<ServiceInstance[]> {
+	getInstances(serviceName: string): Promise<ServiceInstance[]> {
 		return this._query.getInstances(serviceName);
 	}
 
-	async getInstance(id: ServiceIdentity): Promise<ServiceInstance | undefined> {
+	getInstance(id: ServiceIdentity): Promise<ServiceInstance | undefined> {
 		return this._query.getInstance(id);
 	}
 
-	async removeInstance(id: ServiceIdentity): Promise<boolean> {
+	removeInstance(id: ServiceIdentity): Promise<boolean> {
 		return this._registration.removeInstance(id);
 	}
 
-	async listServiceNames(): Promise<string[]> {
+	listServiceNames(): Promise<string[]> {
 		return this._query.listServiceNames();
 	}
 
-	async dump(): Promise<Record<string, ServiceInstance[]>> {
+	dump(): Promise<Record<string, ServiceInstance[]>> {
 		return this._query.dump();
 	}
 
-	async updateToken(instanceId: string): Promise<string> {
+	updateToken(instanceId: string): Promise<string> {
 		return this._tokenManager.updateToken(instanceId);
 	}
 
@@ -104,7 +104,7 @@ export class RedisRegistryBackend
 		return this._tokenManager.generateInstanceToken(instanceId);
 	}
 
-	async validInstanceToken(validation: TokenValidation): Promise<boolean> {
+	validInstanceToken(validation: TokenValidation): Promise<boolean> {
 		return this._tokenManager.validInstanceToken(validation);
 	}
 

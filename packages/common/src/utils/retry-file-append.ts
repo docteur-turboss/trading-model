@@ -1,4 +1,7 @@
-import { computeExponentialBackoff } from "./backoff-config";
+import {
+	type BackoffConfig,
+	computeExponentialBackoff,
+} from "./backoff-config";
 import type { RetryOptions } from "./retry";
 
 /**
@@ -28,10 +31,7 @@ export async function retryFileAppend(
 	return false;
 }
 
-function _retryConfig(options?: Partial<RetryOptions>): {
-	baseDelayMs: number;
-	maxDelayMs: number;
-} {
+function _retryConfig(options?: Partial<RetryOptions>): BackoffConfig {
 	return {
 		baseDelayMs: options?.baseDelayMs ?? 100,
 		maxDelayMs: options?.maxDelayMs ?? 800,
@@ -50,7 +50,7 @@ async function _tryAppend(filePath: string, content: string): Promise<boolean> {
 
 async function _backoffDelay(
 	attempt: number,
-	cfg: { baseDelayMs: number; maxDelayMs: number }
+	cfg: BackoffConfig
 ): Promise<void> {
 	await new Promise((resolve) =>
 		setTimeout(

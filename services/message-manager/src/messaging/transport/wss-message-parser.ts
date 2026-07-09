@@ -1,27 +1,27 @@
-import {
+﻿import {
 	type Topic,
 	toInstanceId,
 	toMessageId,
 } from "@trading-model/common/domain/primitives";
 import type WebSocket from "ws";
-import type { IncomingWssMessage, WssMessageType } from "./wss-message.types";
+import type {
+	TransportMessageType,
+	WsTransportMessage,
+} from "./wss-message.types";
 
-export class WssMessageParser {
-	static parse(
-		raw: WebSocket.RawData,
-		ws: WebSocket
-	): IncomingWssMessage | null {
-		const msg = WssMessageParser._tryParseJson(raw, ws);
+export const WssMessageParser = {
+	parse(raw: WebSocket.RawData, ws: WebSocket): WsTransportMessage | null {
+		const msg = this._tryParseJson(raw, ws);
 		if (!msg) {
 			return null;
 		}
-		if (!WssMessageParser._validateType(msg, ws)) {
+		if (!this._validateType(msg, ws)) {
 			return null;
 		}
-		return WssMessageParser._mapToIncoming(msg);
-	}
+		return this._mapToIncoming(msg);
+	},
 
-	private static _tryParseJson(
+	_tryParseJson(
 		raw: WebSocket.RawData,
 		ws: WebSocket
 	): Record<string, unknown> | null {
@@ -31,26 +31,19 @@ export class WssMessageParser {
 			ws.send(JSON.stringify({ type: "error", message: "Invalid JSON" }));
 			return null;
 		}
-	}
+	},
 
-	private static _validateType(
-		msg: Record<string, unknown>,
-		ws: WebSocket
-	): boolean {
+	_validateType(msg: Record<string, unknown>, ws: WebSocket): boolean {
 		if (typeof msg.type === "string") {
 			return true;
 		}
-		ws.send(
-			JSON.stringify({ type: "error", message: "Missing message type" })
-		);
+		ws.send(JSON.stringify({ type: "error", message: "Missing message type" }));
 		return false;
-	}
+	},
 
-	private static _mapToIncoming(
-		msg: Record<string, unknown>
-	): IncomingWssMessage {
+	_mapToIncoming(msg: Record<string, unknown>): WsTransportMessage {
 		return {
-			type: msg.type as WssMessageType,
+			type: msg.type as TransportMessageType,
 			instanceId: msg.instanceId
 				? toInstanceId(msg.instanceId as string)
 				: undefined,
@@ -62,5 +55,5 @@ export class WssMessageParser {
 				? toMessageId(msg.messageId as string)
 				: undefined,
 		};
-	}
-}
+	},
+};

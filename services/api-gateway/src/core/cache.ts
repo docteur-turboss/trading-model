@@ -1,4 +1,4 @@
-import type { ICache } from "@trading-model/common/utils/cache";
+import type { ISyncCache } from "@trading-model/common/utils/cache";
 
 export interface ResponseCacheEntry<TData = unknown> {
 	data: TData;
@@ -6,7 +6,7 @@ export interface ResponseCacheEntry<TData = unknown> {
 	expiresAt: number;
 }
 
-export class ResponseCache implements ICache<ResponseCacheEntry> {
+export class ResponseCache implements ISyncCache<ResponseCacheEntry> {
 	private readonly _store = new Map<string, ResponseCacheEntry>();
 
 	private readonly _defaultTtlMs: number;

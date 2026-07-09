@@ -1,4 +1,4 @@
-export type Port = number & { readonly __brand: "Port" };
+﻿export type Port = number & { readonly brand: "Port" };
 
 export const Port = {
 	of(value: number): Port {

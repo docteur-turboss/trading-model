@@ -1,12 +1,10 @@
-import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
+﻿import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
 import type WebSocket from "ws";
 import { logger } from "../../config/logger";
 import type { WssSubscriptionManager } from "./wss-subscription-manager";
 
 export class ConnectionEventHandler {
-	constructor(
-		private readonly _subscriptionManager: WssSubscriptionManager
-	) {}
+	constructor(private readonly _subscriptionManager: WssSubscriptionManager) {}
 
 	registerCloseHandler(
 		ws: WebSocket,

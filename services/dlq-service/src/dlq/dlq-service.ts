@@ -32,10 +32,7 @@ function _buildPaginationQuery(query: Record<string, unknown>): {
 	);
 	const offset = cursor
 		? 0
-		: Math.max(
-				Number.parseInt((query.offset as string) ?? "0", 10) || 0,
-				0
-			);
+		: Math.max(Number.parseInt((query.offset as string) ?? "0", 10) || 0, 0);
 	return { topic, limit, offset, cursor };
 }
 
@@ -50,7 +47,10 @@ export async function listEntries(req: {
 		offset,
 		before: cursor,
 	});
-	return sendResponse(_buildListResponse({ entries, limit, offset, cursor }), 200);
+	return sendResponse(
+		_buildListResponse({ entries, limit, offset, cursor }),
+		200
+	);
 }
 
 interface ListResponseParams {
@@ -60,7 +60,9 @@ interface ListResponseParams {
 	cursor: string | undefined;
 }
 
-function _buildListResponse(params: ListResponseParams): Record<string, unknown> {
+function _buildListResponse(
+	params: ListResponseParams
+): Record<string, unknown> {
 	const hasMore = params.entries.length === params.limit;
 	const response: Record<string, unknown> = {
 		entries: params.entries,
@@ -95,12 +97,16 @@ export async function healthCheck(): Promise<ResponseObject> {
 	return sendResponse({ status: "ok", entries: count }, 200);
 }
 
-export async function readyCheck(): Promise<ResponseObject> {
+export function readyCheck(): Promise<ResponseObject> {
 	const dbResponse = _checkDbReady();
-	if (dbResponse) return dbResponse;
+	if (dbResponse) {
+		return Promise.resolve(dbResponse);
+	}
 
 	const indexResponse = _checkIndexesReady();
-	if (indexResponse) return indexResponse;
+	if (indexResponse) {
+		return Promise.resolve(indexResponse);
+	}
 
 	return _buildReadyResponse();
 }
@@ -139,7 +145,7 @@ async function _buildReadyResponse(): Promise<ResponseObject> {
 	);
 }
 
-export async function replayEntries(req: {
+export function replayEntries(req: {
 	query: unknown;
 }): Promise<ResponseObject> {
 	return tracer.startActiveSpan("dlq-replay-entries", async (span) => {

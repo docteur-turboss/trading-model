@@ -33,12 +33,24 @@ export class WssTransportConnection implements IWsConnection {
 	}
 
 	connect(): void {
-		if (this._reconnectHandler.isDestroyed || this._state === "connected" || this._state === "connecting") return;
+		if (
+			this._reconnectHandler.isDestroyed ||
+			this._state === "connected" ||
+			this._state === "connecting"
+		) {
+			return;
+		}
 		this._connectWs();
 	}
-	get state(): ConnectionState { return this._state; }
-	get isConnected(): boolean { return this._state === "connected"; }
-	get ws() { return this._connectionManager.ws; }
+	get state(): ConnectionState {
+		return this._state;
+	}
+	get isConnected(): boolean {
+		return this._state === "connected";
+	}
+	get ws() {
+		return this._connectionManager.ws;
+	}
 
 	on(event: string, listener: (...args: unknown[]) => void): this {
 		this._emitter.on(event, listener);
@@ -46,7 +58,9 @@ export class WssTransportConnection implements IWsConnection {
 	}
 
 	private _connectWs(): void {
-		if (this._reconnectHandler.isDestroyed) return;
+		if (this._reconnectHandler.isDestroyed) {
+			return;
+		}
 		this._state = "connecting";
 		this._connectionManager.onOpen = () => this._onWsOpen();
 		this._connectionManager.onMessage = (data) => {
@@ -65,11 +79,18 @@ export class WssTransportConnection implements IWsConnection {
 	}
 	private _onWsClose(): void {
 		this._state = "disconnected";
-		if (!this._reconnectHandler.isDestroyed) this._scheduleReconnect();
+		if (!this._reconnectHandler.isDestroyed) {
+			this._scheduleReconnect();
+		}
 		this._emitter.emit("close");
 	}
 	private _onWsError(err: Error): void {
-		if (!this._connectionManager.ws || this._connectionManager.ws.readyState !== this._connectionManager.ws.OPEN) this._scheduleReconnect();
+		if (
+			!this._connectionManager.ws ||
+			this._connectionManager.ws.readyState !== this._connectionManager.ws.OPEN
+		) {
+			this._scheduleReconnect();
+		}
 		this._emitter.emit("error", err);
 	}
 	private _scheduleReconnect(): void {
@@ -82,11 +103,15 @@ export class WssTransportConnection implements IWsConnection {
 
 	send(data: unknown): boolean {
 		const ws = this._connectionManager.ws;
-		if (!ws || ws.readyState !== ws.OPEN) return false;
+		if (!ws || ws.readyState !== ws.OPEN) {
+			return false;
+		}
 		try {
 			ws.send(typeof data === "string" ? data : JSON.stringify(data));
 			return true;
-		} catch { return false; }
+		} catch {
+			return false;
+		}
 	}
 
 	disconnect(closeCode?: number, reason?: string): void {

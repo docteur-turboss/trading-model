@@ -1,4 +1,4 @@
-import { isIP } from "node:net";
+﻿import { isIP } from "node:net";
 
 const BLOCKED_IPV4_PREFIXES = ["127.", "10.", "0.", "169.254.", "192.168."];
 const BLOCKED_IPV6 = ["::1", "::ffff:127.", "fe80:", "fc00:", "fd00:"];
@@ -15,7 +15,7 @@ const ALLOWED_HOSTNAMES = new Set<string>(["localhost"]);
 function _matchesAnyPrefix(
 	value: string,
 	prefixes: string[],
-	normalize?: (s: string) => string
+	normalize?: (str: string) => string
 ): boolean {
 	const normalized = normalize ? normalize(value) : value;
 	for (const prefix of prefixes) {
@@ -37,7 +37,9 @@ export function isInternalAddress(hostname: string): boolean {
 		return _matchesAnyPrefix(hostname, BLOCKED_IPV4_PREFIXES);
 	}
 	if (isIP(hostname) === 6) {
-		return _matchesAnyPrefix(hostname, BLOCKED_IPV6, (s) => s.toLowerCase());
+		return _matchesAnyPrefix(hostname, BLOCKED_IPV6, (str) =>
+			str.toLowerCase()
+		);
 	}
 	return false;
 }

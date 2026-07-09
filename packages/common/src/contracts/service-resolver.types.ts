@@ -11,6 +11,9 @@ export interface ResolveOptions {
 }
 
 export interface IServiceResolver {
-	resolve(serviceName: string, options?: ResolveOptions): Promise<ServiceEndpoint | null>;
+	resolve(
+		serviceName: string,
+		options?: ResolveOptions
+	): Promise<ServiceEndpoint | null>;
 	invalidateCache?(serviceName?: string): void;
 }

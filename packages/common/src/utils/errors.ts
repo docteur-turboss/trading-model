@@ -71,8 +71,12 @@ function makeGuard(code: string) {
 export const serviceNotFoundError = makeErrorCode(ErrorCode.ServiceNotFound);
 export const isServiceNotFoundError = makeGuard(ErrorCode.ServiceNotFound);
 
-export const serviceUnreachableError = makeErrorCode(ErrorCode.ServiceUnreachable);
-export const isServiceUnreachableError = makeGuard(ErrorCode.ServiceUnreachable);
+export const serviceUnreachableError = makeErrorCode(
+	ErrorCode.ServiceUnreachable
+);
+export const isServiceUnreachableError = makeGuard(
+	ErrorCode.ServiceUnreachable
+);
 
 export const authenticationError = makeErrorCode(ErrorCode.Authentication);
 export const isAuthenticationError = makeGuard(ErrorCode.Authentication);

@@ -22,6 +22,7 @@ jest.mock("ioredis", () => {
 	return jest.fn(() => MOCK_REDIS_INSTANCE);
 });
 
+import { toServiceId } from "@trading-model/common/domain/primitives";
 import { RedisServiceCache } from "../../src/discovery/redis-service-cache";
 
 describe("RedisServiceCache", () => {
@@ -49,7 +50,7 @@ describe("RedisServiceCache", () => {
 			);
 
 			await cache.set({
-				serviceName: "svc",
+				serviceName: toServiceId("svc"),
 				instance: {
 					serviceName: "svc",
 					instanceId: "i-1",
@@ -57,7 +58,7 @@ describe("RedisServiceCache", () => {
 					port: 8080,
 				} as any,
 			});
-			const result = await cache.get("svc");
+			const result = await cache.get(toServiceId("svc"));
 
 			expect(MOCK_REDIS_INSTANCE.setex).toHaveBeenCalledWith(
 				"discovery:cache:svc",
@@ -69,14 +70,14 @@ describe("RedisServiceCache", () => {
 
 		it("should return null when key not found", async () => {
 			MOCK_REDIS_INSTANCE.get.mockResolvedValue(null);
-			const result = await cache.get("nonexistent");
+			const result = await cache.get(toServiceId("nonexistent"));
 			expect(result).toBeNull();
 		});
 
 		it("should use region-prefixed keys when region provided", async () => {
 			MOCK_REDIS_INSTANCE.setex.mockResolvedValue("OK");
 			await cache.set({
-				serviceName: "svc",
+				serviceName: toServiceId("svc"),
 				instance: { serviceName: "svc" } as any,
 				region: "us-east",
 			});
@@ -89,7 +90,7 @@ describe("RedisServiceCache", () => {
 
 		it("should return null on Redis error", async () => {
 			MOCK_REDIS_INSTANCE.get.mockRejectedValue(new Error("Connection lost"));
-			const result = await cache.get("svc");
+			const result = await cache.get(toServiceId("svc"));
 			expect(result).toBeNull();
 		});
 	});
@@ -97,7 +98,7 @@ describe("RedisServiceCache", () => {
 	describe("delete", () => {
 		it("should delete key from Redis", async () => {
 			MOCK_REDIS_INSTANCE.del.mockResolvedValue(1);
-			await cache.delete("svc");
+			await cache.invalidate(toServiceId("svc"));
 			expect(MOCK_REDIS_INSTANCE.del).toHaveBeenCalledWith(
 				"discovery:cache:svc"
 			);
@@ -105,7 +106,9 @@ describe("RedisServiceCache", () => {
 
 		it("should handle errors gracefully", async () => {
 			MOCK_REDIS_INSTANCE.del.mockRejectedValue(new Error("error"));
-			await expect(cache.delete("svc")).resolves.toBeUndefined();
+			await expect(
+				cache.invalidate(toServiceId("svc"))
+			).resolves.toBeUndefined();
 		});
 	});
 
@@ -218,13 +221,13 @@ describe("RedisServiceCache", () => {
 			MOCK_REDIS_INSTANCE.get.mockResolvedValue(
 				JSON.stringify({ version: 42, instance: { serviceName: "svc" } })
 			);
-			const v = await cache.getVersion("svc");
+			const v = await cache.getVersion(toServiceId("svc"));
 			expect(v).toBe(42);
 		});
 
 		it("should return 0 when key not found", async () => {
 			MOCK_REDIS_INSTANCE.get.mockResolvedValue(null);
-			const v = await cache.getVersion("svc");
+			const v = await cache.getVersion(toServiceId("svc"));
 			expect(v).toBe(0);
 		});
 
@@ -232,13 +235,13 @@ describe("RedisServiceCache", () => {
 			MOCK_REDIS_INSTANCE.get.mockResolvedValue(
 				JSON.stringify({ instance: { serviceName: "svc" } })
 			);
-			const v = await cache.getVersion("svc");
+			const v = await cache.getVersion(toServiceId("svc"));
 			expect(v).toBe(0);
 		});
 
 		it("should return 0 on Redis error", async () => {
 			MOCK_REDIS_INSTANCE.get.mockRejectedValue(new Error("err"));
-			const v = await cache.getVersion("svc");
+			const v = await cache.getVersion(toServiceId("svc"));
 			expect(v).toBe(0);
 		});
 	});
@@ -251,7 +254,7 @@ describe("RedisServiceCache", () => {
 					instance: { serviceName: "svc", instanceId: "i-1" },
 				})
 			);
-			const result = await cache.get("svc");
+			const result = await cache.get(toServiceId("svc"));
 			expect(result).toEqual({ serviceName: "svc", instanceId: "i-1" });
 		});
 	});
@@ -261,7 +264,7 @@ describe("RedisServiceCache", () => {
 			MOCK_REDIS_INSTANCE.setex.mockRejectedValue(new Error("write error"));
 			await expect(
 				cache.set({
-					serviceName: "svc",
+					serviceName: toServiceId("svc"),
 					instance: { serviceName: "svc" } as any,
 				})
 			).resolves.toBeUndefined();

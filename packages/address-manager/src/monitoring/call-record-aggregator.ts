@@ -1,6 +1,4 @@
-import type {
-	ServiceId,
-} from "@trading-model/common/domain/primitives";
+import type { ServiceId } from "@trading-model/common/domain/primitives";
 import type { CallRecord } from "./service-call-tracker";
 
 export interface AggregationTotals {
@@ -16,7 +14,11 @@ export class CallRecordAggregator {
 	aggregate(records: CallRecord[]): AggregationTotals {
 		const callsByService: Record<ServiceId, number> = {};
 		const callsByEndpoint: Record<string, number> = {};
-		const totals = this._reduceRecords(records, callsByService, callsByEndpoint);
+		const totals = this._reduceRecords(
+			records,
+			callsByService,
+			callsByEndpoint
+		);
 		return { callsByService, callsByEndpoint, ...totals };
 	}
 
@@ -24,8 +26,18 @@ export class CallRecordAggregator {
 		records: CallRecord[],
 		callsByService: Record<ServiceId, number>,
 		callsByEndpoint: Record<string, number>
-	): { errorsTotal: number; totalLatency: number; bytesSent: number; bytesReceived: number } {
-		let totals = { errorsTotal: 0, totalLatency: 0, bytesSent: 0, bytesReceived: 0 };
+	): {
+		errorsTotal: number;
+		totalLatency: number;
+		bytesSent: number;
+		bytesReceived: number;
+	} {
+		let totals = {
+			errorsTotal: 0,
+			totalLatency: 0,
+			bytesSent: 0,
+			bytesReceived: 0,
+		};
 		for (const record of records) {
 			this._aggregateRecord(record, callsByService, callsByEndpoint);
 			totals = this._aggregateTotals(record, totals);
@@ -59,13 +71,10 @@ export class CallRecordAggregator {
 		bytesReceived: number;
 	} {
 		return {
-			errorsTotal:
-				totals.errorsTotal +
-				(record.status === "error" ? 1 : 0),
+			errorsTotal: totals.errorsTotal + (record.status === "error" ? 1 : 0),
 			totalLatency: totals.totalLatency + record.durationMs,
 			bytesSent: totals.bytesSent + (record.bytesSent ?? 0),
-			bytesReceived:
-				totals.bytesReceived + (record.bytesReceived ?? 0),
+			bytesReceived: totals.bytesReceived + (record.bytesReceived ?? 0),
 		};
 	}
 }

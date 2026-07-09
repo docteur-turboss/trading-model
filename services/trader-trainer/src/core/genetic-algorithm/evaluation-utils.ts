@@ -5,7 +5,6 @@ import {
 import type { LamarckGenome, MarketStep } from "./genome-types";
 import type { RLBackend } from "./rl-backend";
 import type { DeepReadonly } from "./shared-types";
-import type { Bounded } from "./bounded";
 import { computeSharpe, computeVariance } from "./utils";
 
 export interface GenomeFitnessMeta {
@@ -62,9 +61,9 @@ export function _validateGenomeInputs(
 	invariant(genome.network.inputDim > 0, "inputDim must be positive");
 	invariant(genome.network.outputDim > 0, "outputDim must be positive");
 	invariant(
-		genome.rl.rewardShaping?.clipBounds != null &&
-		typeof genome.rl.rewardShaping.clipBounds.min === "number" &&
-		typeof genome.rl.rewardShaping.clipBounds.max === "number",
+		genome.rl.rewardShaping?.clipBounds !== null &&
+			typeof genome.rl.rewardShaping.clipBounds.min === "number" &&
+			typeof genome.rl.rewardShaping.clipBounds.max === "number",
 		"rewardShaping.clipBounds must have numeric min/max"
 	);
 	invariant(windowSet.train.length > 0, "windowSet.train must not be empty");

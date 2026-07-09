@@ -1,8 +1,7 @@
 import type { CsrOptions } from "./create-csr";
 import { KeyAlgorithm } from "./generate-key-pair";
-import { getPool } from "./workers/lazy-pool";
-import type { RemoteSigningClient } from "./signing/remote-signing-client";
 import type { SignOptions } from "./sign-certificate";
+import type { RemoteSigningClient } from "./signing/remote-signing-client";
 import type {
 	KeyPair,
 	KeyPairWithId,
@@ -13,6 +12,7 @@ import type {
 	CertificateValidationInput,
 	ValidationResult,
 } from "./validate-certificate";
+import { getPool } from "./workers/lazy-pool";
 
 let remoteClient: RemoteSigningClient | null = null;
 
@@ -23,7 +23,7 @@ export function setRemoteSigningClient(
 }
 
 export async function generateKeyPairAsync(
-	algorithm: KeyAlgorithm = KeyAlgorithm.ecP384
+	algorithm: KeyAlgorithm = KeyAlgorithm.EcP384
 ): Promise<KeyPair> {
 	if (remoteClient) {
 		return await remoteClient.generateKeyPair(algorithm);
@@ -32,7 +32,7 @@ export async function generateKeyPairAsync(
 }
 
 export async function generateKeyPairWithIdAsync(
-	algorithm: KeyAlgorithm = KeyAlgorithm.ecP384
+	algorithm: KeyAlgorithm = KeyAlgorithm.EcP384
 ): Promise<KeyPairWithId> {
 	if (remoteClient) {
 		return await remoteClient.generateKeyPairWithId(algorithm);
@@ -70,10 +70,10 @@ export async function validateCertificateAsync(
 	if (remoteClient) {
 		return await remoteClient.validateCertificate(input);
 	}
-		return await getPool().execute<ValidationResult>(
-			"validateCertificate",
-			input as unknown as Record<string, unknown>
-		);
+	return await getPool().execute<ValidationResult>(
+		"validateCertificate",
+		input as unknown as Record<string, unknown>
+	);
 }
 
 export async function parseKeyAsync(privateKey: string): Promise<KeyPair> {

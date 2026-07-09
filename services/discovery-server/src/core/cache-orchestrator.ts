@@ -27,14 +27,14 @@ export class CacheOrchestrator {
 		);
 	}
 
-	async getInstances(
+	getInstances(
 		serviceName: string,
 		pagination?: PaginationQuery
 	): Promise<ServiceInstance[]> {
 		return this._fetcher.getInstances(serviceName, pagination);
 	}
 
-	async getInstance(id: ServiceIdentity): Promise<ServiceInstance | undefined> {
+	getInstance(id: ServiceIdentity): Promise<ServiceInstance | undefined> {
 		return this._fetcher.getInstance(id);
 	}
 
@@ -62,7 +62,7 @@ export class CacheOrchestrator {
 		await this._refreshFromBackend(serviceName);
 	}
 
-	async onHeartbeatUpdate(
+	onHeartbeatUpdate(
 		serviceName: string,
 		publish: (name: string) => Promise<void>
 	): Promise<void> {

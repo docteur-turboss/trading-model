@@ -31,7 +31,7 @@ export class OrphanDetector {
 			return;
 		}
 		this._intervalHandle.startInterval(
-			() => this._runDetection(),
+			() => void this._runDetection(),
 			this._intervalMs
 		);
 		logger.info("Orphan detector started", {

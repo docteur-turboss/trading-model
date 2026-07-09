@@ -7,6 +7,7 @@ import {
 	jest,
 } from "@jest/globals";
 import { Logger, LogLevel } from "../../src/config/logger";
+import type { UserId } from "../../src/domain/primitives";
 
 jest.mock("fs", () => ({
 	appendFile: jest.fn(
@@ -139,7 +140,7 @@ describe("Logger", () => {
 
 	describe("setUserId", () => {
 		it("should set userId for subsequent logs", () => {
-			logger.setUserId("user-123");
+			logger.setUserId("user-123" as unknown as UserId);
 			logger.info("test");
 			const logs = logger.getLogs();
 			expect(logs[0].userId).toBe("user-123");
@@ -309,7 +310,7 @@ describe("Logger", () => {
 	describe("createLogEntry with metadata", () => {
 		it("should include context in log entry", () => {
 			(logger as any)._sessionId = "sess-001";
-			logger.setUserId("user-001");
+			logger.setUserId("user-001" as unknown as UserId);
 			logger.info("test with meta", { key: "val" });
 			const logs = logger.getLogs();
 			expect(logs[0].context).toEqual({ key: "val" });

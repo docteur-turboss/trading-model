@@ -1,9 +1,8 @@
-import type { Response } from "express";
-
-import { type ResponseCodeKey, ResponseException } from "./response-exception";
+﻿import type { Response } from "express";
 import { getNodeEnv } from "../config/logger";
+import { type ResponseCodeKey, ResponseException } from "./response-exception";
 
-export interface CoreResult<T = unknown> {
+export interface CoreResult<_TData = unknown> {
 	data: T;
 	code: string;
 }

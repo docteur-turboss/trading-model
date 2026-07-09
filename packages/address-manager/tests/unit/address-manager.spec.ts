@@ -1,4 +1,10 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
+import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
+import {
+	Port,
+	toInstanceId,
+	toServiceId,
+} from "@trading-model/common/domain/primitives";
 
 jest.mock("@trading-model/common/utils/sleep", () => ({
 	sleep: jest.fn(() => Promise.resolve()),
@@ -87,14 +93,17 @@ describe("AddressManager", () => {
 
 	const defaultConfig = {
 		addressManagerUrl: "http://localhost:8443",
-		servicePort: 8080,
+		servicePort: Port.of(8080),
 		tokenRefreshIntervalMs: 300000,
 		ttlRefreshIntervalMs: 300000,
 		servicePingTimeoutMs: 2000,
 		discoveryTimeoutMs: 5000,
 		cacheTtlMs: 60000,
 		discoveryUrls: ["http://localhost:8443"],
-		identity: { serviceName: "test-service", instanceId: "instance-1" },
+		identity: {
+			serviceName: toServiceId("test-service"),
+			instanceId: toInstanceId("instance-1"),
+		},
 		tls: {
 			caPath: "/path/to/ca.pem",
 			certPath: "/path/to/cert.pem",
@@ -134,7 +143,9 @@ describe("AddressManager", () => {
 		it("should delegate to serviceDiscovery.findService", async () => {
 			const expected = { host: "192.168.1.1", port: 8080 };
 			(MOCK_FIND_SERVICE as any).mockResolvedValue(expected);
-			const result = await am.findService("some-service");
+			const result = await am.findService(
+				"some-service" as unknown as ServiceInstanceName
+			);
 			expect(result).toBe(expected);
 			expect(MOCK_FIND_SERVICE).toHaveBeenCalledWith("some-service");
 		});

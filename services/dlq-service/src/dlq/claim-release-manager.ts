@@ -1,15 +1,12 @@
-import { ObjectId } from "mongodb";
+﻿import { ObjectId } from "mongodb";
 
 import { getCollection } from "../config/db";
 import { ENV } from "../config/env";
-import { ClaimFilterBuilder } from "./claim-filter-builder";
-import { DLQ_STATUS } from "./dlq-status";
-import { DLQ_MAX_CONSECUTIVE_ERRORS, CLAIM_PROJECTION } from "./dlq-constants";
+import { CLAIM_PROJECTION, DLQ_MAX_CONSECUTIVE_ERRORS } from "./dlq-constants";
+import { DlqStatus } from "./dlq-status";
 import { toStoredDlqEntry } from "./repository";
 
 export class ClaimReleaseManager {
-	private readonly _filterBuilder = new ClaimFilterBuilder();
-
 	async claimEntry(
 		id: string,
 		ctx: import("./types").BatchContext
@@ -20,7 +17,7 @@ export class ClaimReleaseManager {
 				_id: new ObjectId(id),
 				retryCount: { $lt: ENV.DLQ_RETRY_MAX_ATTEMPTS },
 				processingAt: { $exists: false },
-				status: { $nin: [DLQ_STATUS.COMPLETED, DLQ_STATUS.ABANDONED] },
+				status: { $nin: [DlqStatus.Completed, DlqStatus.Abandoned] },
 				consecutiveErrors: { $lt: DLQ_MAX_CONSECUTIVE_ERRORS },
 			},
 			{
@@ -85,5 +82,4 @@ export class ClaimReleaseManager {
 		);
 		return result.modifiedCount > 0;
 	}
-
 }

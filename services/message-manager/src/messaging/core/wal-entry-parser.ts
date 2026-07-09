@@ -1,4 +1,4 @@
-import type { Message } from "@trading-model/common/contracts/message.types";
+﻿import type { Message } from "@trading-model/common/contracts/message.types";
 import { safeStringify } from "@trading-model/common/utils/safe-stringify";
 
 import { logger } from "../../config/logger";
@@ -60,7 +60,7 @@ export class WalEntryParser {
 	private _tryParseAndBuffer(entry: string): void {
 		try {
 			const walEntry = this._buildWalEntry(entry);
-			this._memoryWalBuffer.push(walEntry);
+			void this._memoryWalBuffer.push(walEntry);
 		} catch {
 			logger.debug("WAL entry parse failed (best-effort)");
 		}

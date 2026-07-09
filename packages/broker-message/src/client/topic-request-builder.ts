@@ -1,10 +1,8 @@
 import type { EventEnumMap } from "@trading-model/common/config/event.types";
 import type { HttpClient } from "@trading-model/common/config/http-client";
-import type { HostPort } from "@trading-model/common/domain/service-identity";
-import type {
-	ServiceId,
-} from "@trading-model/common/domain/primitives";
+import type { ServiceId } from "@trading-model/common/domain/primitives";
 import { toInstanceId, toTopic } from "@trading-model/common/domain/primitives";
+import type { HostPort } from "@trading-model/common/domain/service-identity";
 import {
 	messageManagerError,
 	normalizeError,
@@ -63,10 +61,7 @@ export class TopicRequestBuilder {
 		}
 	}
 
-	async subscribeAll(
-		topics: EventEnumMap[],
-		target: HostPort
-	): Promise<void> {
+	async subscribeAll(topics: EventEnumMap[], target: HostPort): Promise<void> {
 		for (const topic of topics) {
 			await this.subscribeToSingleTopic(
 				topic,

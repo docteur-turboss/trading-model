@@ -25,7 +25,7 @@ export class ClaimQueryExecutor {
 		instanceId: string,
 		claimProjection: Record<string, unknown>,
 		buildBulkUpdateOps: (
-			candidates: Pick<{ _id: ObjectId }, "_id">[],
+			candidates: Record<string, unknown>[],
 			now: Date,
 			instanceId: string,
 			batchId: string

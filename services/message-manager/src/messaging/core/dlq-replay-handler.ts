@@ -1,4 +1,4 @@
-import type { HttpClient } from "@trading-model/common/config/http-client";
+﻿import type { HttpClient } from "@trading-model/common/config/http-client";
 import { HttpMethod } from "@trading-model/common/contracts/signed-request";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import { logger } from "../../config/logger";
@@ -24,7 +24,7 @@ export class DlqReplayHandler {
 		const result = await this._httpClient.get<{ entries: DlqEntry[] }>(
 			url,
 			signedOptions({
-				method: HttpMethod.GET,
+				method: HttpMethod.Get,
 				path: "/dlq",
 				body: undefined,
 				extra: { timeoutMs: 5000 },

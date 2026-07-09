@@ -12,7 +12,7 @@ export interface IUnkeyedCircuitBreaker {
 	clear(): void;
 	call<TResult>(
 		fn: () => Promise<TResult>,
-		fallback?: () => TResult,
+		fallback?: () => TResult
 	): Promise<TResult>;
 }
 
@@ -29,6 +29,6 @@ export interface ICircuitBreaker {
 	call<TResult>(
 		key: string,
 		fn: () => Promise<TResult>,
-		fallback?: () => TResult,
+		fallback?: () => TResult
 	): Promise<TResult>;
 }

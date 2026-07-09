@@ -13,8 +13,8 @@ import { InfoBox } from "../components/info-box";
 import { StatsCard } from "../components/stats-card";
 import { StatusBadge } from "../components/status-badge";
 import { useApi } from "../hooks/use-api";
-import { useDlqSelection } from "./helpers/dlq-utils";
 import type { DlqMessage, DlqMessageList } from "../types/dtos";
+import { useDlqSelection } from "./helpers/dlq-utils";
 
 function PageLoading() {
 	return (

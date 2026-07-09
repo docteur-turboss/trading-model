@@ -1,4 +1,4 @@
-const MONGODB_OPERATORS = new Set([
+﻿const MONGODB_OPERATORS = new Set([
 	"$where",
 	"$regex",
 	"$options",

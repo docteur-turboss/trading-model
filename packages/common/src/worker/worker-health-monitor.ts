@@ -1,4 +1,5 @@
 import type { WorkerRegistration } from "../contracts/worker-protocol.types";
+import { WorkerStatusCode } from "../domain/primitives";
 import type { WorkerStore } from "./worker-store";
 
 export class WorkerHealthMonitor {
@@ -23,7 +24,7 @@ export class WorkerHealthMonitor {
 
 	getAllActive(): WorkerRegistration[] {
 		return Array.from(this._store.all().values()).filter(
-			(registration) => registration.status === "active"
+			(registration) => registration.status === WorkerStatusCode.Active
 		);
 	}
 }

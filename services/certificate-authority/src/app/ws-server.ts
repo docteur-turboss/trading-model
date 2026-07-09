@@ -3,15 +3,19 @@ import type { RawData, WebSocket } from "ws";
 import { checkSignRequestRateLimit } from "./rate-limiter";
 import { handleAuthMessage } from "./ws-auth";
 import { WsMessageRouter } from "./ws-message-router";
-import { sendJsonError, sendRateLimitError, sendSignError } from "./ws-response-formatter";
-import { handleSignRequest, WS_SIGN_SCHEMA } from "./ws-sign-handler";
+import { sendRateLimitError, sendSignError } from "./ws-response-formatter";
 import type { WssSession } from "./ws-sign-handler";
+import { handleSignRequest, WS_SIGN_SCHEMA } from "./ws-sign-handler";
 
 const messageRouter = new WsMessageRouter();
 
 messageRouter.register({
 	type: "auth",
-	handle(ws: WebSocket, msg: Record<string, unknown>, session: WssSession): void {
+	handle(
+		ws: WebSocket,
+		msg: Record<string, unknown>,
+		session: WssSession
+	): void {
 		handleAuthMessage({
 			ws,
 			authMsg: msg as { type: "auth"; token: string },
@@ -34,7 +38,13 @@ messageRouter.register({
 			return;
 		}
 
-		if (!checkSignRequestRateLimit(session.state, session.clientIdentity, session.limiterKey)) {
+		if (
+			!checkSignRequestRateLimit(
+				session.state,
+				session.clientIdentity,
+				session.limiterKey
+			)
+		) {
 			sendRateLimitError(ws);
 			return;
 		}

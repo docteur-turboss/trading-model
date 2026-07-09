@@ -1,10 +1,19 @@
 import type { ServiceId } from "../domain/primitives";
 
+type KnownService =
+	| "certificate-authority"
+	| "discovery-server"
+	| "audit-logger"
+	| "message-manager"
+	| "financial-scraper"
+	| "trader-trainer"
+	| "api-gateway";
+
 function toServiceId(serviceName: string): ServiceId {
 	return serviceName as ServiceId;
 }
 
-export const DEFAULT_ACL: Record<string, readonly ServiceId[]> = {
+export const DEFAULT_ACL: Record<KnownService, readonly ServiceId[]> = {
 	"certificate-authority": [toServiceId("*")],
 	"discovery-server": [toServiceId("*")],
 	"audit-logger": [toServiceId("*")],

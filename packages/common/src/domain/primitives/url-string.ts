@@ -1,4 +1,4 @@
-export type URLString = string & { readonly __brand: "URLString" };
+﻿export type URLString = string & { readonly brand: "URLString" };
 
 export const URLString = {
 	of(value: string): URLString {

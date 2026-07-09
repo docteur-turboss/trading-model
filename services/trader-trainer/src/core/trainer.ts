@@ -11,8 +11,8 @@ import {
 	type TrainingSessionResult,
 } from "./training-session";
 import {
-	buildBestAgentSummary,
 	type BestAgentSummary,
+	buildBestAgentSummary,
 	type LastTrainingInfo,
 } from "./training-state";
 
@@ -35,24 +35,27 @@ export interface TrainingFailure {
 /** Discriminated result of a training cycle. */
 export type TrainingResult = TrainingSuccess | TrainingFailure;
 
-type TrainerStatus = "idle" | "training";
+enum TrainerStatus {
+	Idle = "idle",
+	Training = "training",
+}
 
 /** Orchestrates GA training cycles: feeds market data, runs generations, tracks best genome. */
 export class Trainer {
-	private _status: TrainerStatus = "idle";
+	private _status: TrainerStatus = TrainerStatus.Idle;
 	private _lastInfo: LastTrainingInfo | null = null;
 	private readonly _summaryBuilder = new GenomeSummaryBuilder();
 	private readonly _validator: TrainingPrerequisiteValidator;
 
-	constructor(private readonly _dataBuffer: MarketDataBuffer	) {
+	constructor(private readonly _dataBuffer: MarketDataBuffer) {
 		this._validator = new TrainingPrerequisiteValidator(
 			this._dataBuffer,
-			() => this._status === "training" as const
+			() => this._status === TrainerStatus.Training
 		);
 	}
 
 	isTraining(): boolean {
-		return this._status === "training";
+		return this._status === TrainerStatus.Training;
 	}
 
 	getCurrentSymbol(): TradingSymbol | undefined {
@@ -69,18 +72,21 @@ export class Trainer {
 			return validation.error;
 		}
 
-		this._status = "training";
+		this._status = TrainerStatus.Training;
 
 		try {
 			return await this._runSession(symbol, validation.windowSet);
 		} catch (err) {
 			return this._handleTrainingError(symbol, err);
 		} finally {
-			this._status = "idle";
+			this._status = TrainerStatus.Idle;
 		}
 	}
 
-	private async _runSession(symbol: TradingSymbol, windowSet: import("./genetic-algorithm/ga-runner").WindowSet): Promise<TrainingSuccess> {
+	private async _runSession(
+		symbol: TradingSymbol,
+		windowSet: import("./genetic-algorithm/ga-runner").WindowSet
+	): Promise<TrainingSuccess> {
 		const session = new TrainingSession(windowSet);
 		const result: TrainingSessionResult = await session.run();
 		this._lastInfo = {
@@ -97,7 +103,10 @@ export class Trainer {
 		return { success: true, symbol, bestGenome: result.bestGenome };
 	}
 
-	private _handleTrainingError(symbol: TradingSymbol, err: unknown): TrainingFailure {
+	private _handleTrainingError(
+		symbol: TradingSymbol,
+		err: unknown
+	): TrainingFailure {
 		const error = err instanceof Error ? err : new Error(String(err));
 		logger.error("Training failed", {
 			context: { symbol, err: error.message },
@@ -114,10 +123,5 @@ export class Trainer {
 
 	getGenerationContext(): GenerationContext | null | undefined {
 		return this._lastInfo?.generationContext;
-	}
-
-	// biome-ignore lint/correctness/noUnusedPrivateClassMembers
-	private _computeSharpe(scores: readonly number[]): number {
-		return GenomeSummaryBuilder.computeSharpe(scores);
 	}
 }

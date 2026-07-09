@@ -4,13 +4,13 @@ import { logger } from "../config/logger";
 import type { URLString } from "../domain/primitives";
 import { TimerHandle } from "../utils/timer-handle";
 import { ErrorBuffer } from "./error-buffer";
+import { buildErrorReport } from "./error-report-builder";
 import {
 	buildConfig,
 	DEFAULT_CONFIG,
 	type ErrorTrackingConfig,
 	type ResolvedErrorTrackingConfig,
 } from "./error-tracking-config";
-import { buildErrorReport } from "./error-report-builder";
 
 let config: ResolvedErrorTrackingConfig = DEFAULT_CONFIG;
 let errorBuffer: ErrorBuffer | null = null;
@@ -36,7 +36,10 @@ function startFlushTimer(): void {
 	if (flushTimer.isRunning) {
 		return;
 	}
-	flushTimer.startInterval(() => errorBuffer?.flush(), config.flushIntervalMs);
+	flushTimer.startInterval(
+		() => void errorBuffer?.flush(),
+		config.flushIntervalMs
+	);
 	flushTimer.unref();
 }
 

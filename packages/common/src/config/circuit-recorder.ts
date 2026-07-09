@@ -1,4 +1,3 @@
-import type { HttpRequestOptions } from "./http-types";
 import {
 	checkHostnameCircuit,
 	checkServiceCircuit,
@@ -7,6 +6,7 @@ import {
 	recordServiceFailure,
 	recordServiceSuccess,
 } from "./http-circuit-breaker";
+import type { HttpRequestOptions } from "./http-types";
 
 export interface ServiceRoute {
 	hostname: string;

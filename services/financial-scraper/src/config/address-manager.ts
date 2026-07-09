@@ -5,4 +5,4 @@ import { ENV } from "./env";
 const { AddressManager, BOOTSTRAP_ADDRESS_MANAGER, ADDRESS_MANAGER_ROUTES } =
 	createServiceAddressManager(ENV);
 
-export { AddressManager, ADDRESS_MANAGER_ROUTES, BOOTSTRAP_ADDRESS_MANAGER };
+export { ADDRESS_MANAGER_ROUTES, AddressManager, BOOTSTRAP_ADDRESS_MANAGER };

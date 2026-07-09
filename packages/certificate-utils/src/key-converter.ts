@@ -2,9 +2,7 @@ import { createPrivateKey, createPublicKey } from "node:crypto";
 import forge from "node-forge";
 
 export class KeyConverter {
-	resolvePublicKey(
-		issuerCert: string
-	): ReturnType<typeof createPublicKey> {
+	resolvePublicKey(issuerCert: string): ReturnType<typeof createPublicKey> {
 		return createPublicKey(issuerCert);
 	}
 

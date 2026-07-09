@@ -1,7 +1,4 @@
-import {
-	Cash,
-	Percentage,
-} from "@trading-model/common/domain/primitives";
+import { Cash, Percentage } from "@trading-model/common/domain/primitives";
 import type { PortfolioState } from "./portfolio-state";
 
 export interface WalletMetrics {

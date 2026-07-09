@@ -1,6 +1,6 @@
-import type { TlsBootstrapOptions } from "@trading-model/common/server/bootstrap";
 import { createTlsBootstrap } from "@trading-model/certificate-client";
 import { logger } from "@trading-model/common/config/logger";
+import type { TlsBootstrapOptions } from "@trading-model/common/server/bootstrap";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import { reloadHttpClientTls } from "../dlq/controller-reexports";
 

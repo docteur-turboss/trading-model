@@ -8,7 +8,7 @@ import {
 import { Agent } from "../neural-network/agent";
 import type { Experience, NeuralNetworkConfig } from "../neural-network/type";
 import { ActionMapper } from "./action-mapper";
-import { TradeAction, ActionSpace } from "./action-types";
+import { type ActionSpace, TradeAction } from "./action-types";
 import StateManager, { type StateManagerConfig } from "./state-manager";
 
 export interface TradingAgentConfig {
@@ -22,8 +22,10 @@ export interface TradingAgentConfig {
 type ActionExecutor = (wallet: WalletAPI, amount: Volume) => boolean;
 
 const ACTION_EXECUTORS: Record<TradeAction, ActionExecutor> = {
-	[TradeAction.Buy]: (wallet: WalletAPI, amount: Volume) => wallet.buy(Volume.of(amount)),
-	[TradeAction.Sell]: (wallet: WalletAPI, amount: Volume) => wallet.sell(Volume.of(amount)),
+	[TradeAction.Buy]: (wallet: WalletAPI, amount: Volume) =>
+		wallet.buy(Volume.of(amount)),
+	[TradeAction.Sell]: (wallet: WalletAPI, amount: Volume) =>
+		wallet.sell(Volume.of(amount)),
 	[TradeAction.Hold]: () => false,
 };
 

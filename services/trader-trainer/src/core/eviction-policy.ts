@@ -1,4 +1,4 @@
 export enum EvictionPolicy {
-	LRU = "LRU",
+	Lru = "LRU",
 	None = "none",
 }

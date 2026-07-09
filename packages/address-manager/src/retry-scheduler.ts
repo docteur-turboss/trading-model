@@ -88,10 +88,10 @@ export class RetryScheduler {
 		return onStopped();
 	}
 
-	async retryWithBackoff<T>(
-		fn: () => Promise<T>,
+	retryWithBackoff<TResult>(
+		fn: () => Promise<TResult>,
 		options?: Partial<RetryOptions>
-	): Promise<RetryResult<T>> {
+	): Promise<RetryResult<TResult>> {
 		return commonRetryWithBackoff(fn, {
 			maxRetries: options?.maxRetries ?? this._config.maxRetries,
 			baseDelayMs: options?.baseDelayMs ?? this._config.baseDelayMs,

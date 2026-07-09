@@ -1,5 +1,5 @@
-import type { LogEntry } from "./log-types";
 import { CircularBuffer } from "../utils/circular-buffer";
+import type { LogEntry } from "./log-types";
 
 export class LogBuffer {
 	private readonly _buffer: CircularBuffer<LogEntry>;

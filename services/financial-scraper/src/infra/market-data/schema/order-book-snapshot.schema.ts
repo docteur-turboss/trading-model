@@ -1,5 +1,4 @@
 import type {
-	MarketType,
 	OrderBookLevel,
 	SourceType,
 } from "@trading-model/common/config/event.types";
@@ -11,15 +10,6 @@ import { Table } from "ts-sql-query/Table";
 
 import { createDBConnection, type DBConnection } from "../../../config/db";
 import type { OrderBookData } from "../market-data.types";
-
-interface OrderBookSnapshotRow {
-	symbol: TradingSymbol;
-	market: MarketType;
-	source: SourceType;
-	bids: string;
-	asks: string;
-	timestamp: UnixTimestamp;
-}
 
 const T_ORDER_BOOK = new (class TOrderBook extends Table<
 	DBConnection,
@@ -49,7 +39,10 @@ const SELECT = {
 
 function serializeSet(entries: Set<OrderBookLevel>): string {
 	return JSON.stringify(
-		Array.from(entries).map((entry) => [entry.price, entry.quantity])
+		Array.from(entries).map((entry) => ({
+			price: entry.price,
+			quantity: entry.quantity,
+		}))
 	);
 }
 

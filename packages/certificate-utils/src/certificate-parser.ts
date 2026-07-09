@@ -1,7 +1,13 @@
 import { X509Certificate } from "node:crypto";
+import type {
+	Fingerprint,
+	SerialNumber,
+} from "@trading-model/common/domain/primitives";
+import {
+	toFingerprint,
+	toSerialNumber,
+} from "@trading-model/common/domain/primitives";
 import forge from "node-forge";
-import type { Fingerprint, SerialNumber } from "@trading-model/common/domain/primitives";
-import { toFingerprint, toSerialNumber } from "@trading-model/common/domain/primitives";
 
 export class CertificateParser {
 	parse(pem: string): {
@@ -32,9 +38,10 @@ export class CertificateParser {
 		return cert.subject;
 	}
 
-	private _parseValidity(
-		cert: X509Certificate
-	): { validFrom: Date; validTo: Date } {
+	private _parseValidity(cert: X509Certificate): {
+		validFrom: Date;
+		validTo: Date;
+	} {
 		return {
 			validFrom: new Date(cert.validFrom),
 			validTo: new Date(cert.validTo),

@@ -145,7 +145,7 @@ export function feedCandles(
 				volume: Volume.of(1000 + i * 10),
 				timestamp: UnixTimestamp.of(Date.now() + i * 60000),
 				closeTimestamp: UnixTimestamp.of(Date.now() + (i + 1) * 60000),
-			}),
+			})
 		);
 	}
 }

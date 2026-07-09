@@ -1,6 +1,6 @@
-import { ENV } from "../config/env";
+﻿import { ENV } from "../config/env";
 import { DLQ_MAX_CONSECUTIVE_ERRORS } from "./dlq-constants";
-import { DLQ_STATUS } from "./dlq-status";
+import { DlqStatus } from "./dlq-status";
 
 export class RetryPipelineBuilder {
 	buildFailPipeline(errorMsg?: string): Record<string, unknown>[] {
@@ -14,7 +14,7 @@ export class RetryPipelineBuilder {
 
 	buildAbandonFilter(): Record<string, unknown> {
 		return {
-			status: { $ne: DLQ_STATUS.ABANDONED },
+			status: { $ne: DlqStatus.Abandoned },
 			processingAt: { $exists: false },
 			$or: [
 				{ retryCount: { $gte: ENV.DLQ_RETRY_MAX_ATTEMPTS } },
@@ -26,7 +26,7 @@ export class RetryPipelineBuilder {
 	buildCompletedUpdate(batchId?: string): Record<string, unknown> {
 		return {
 			$set: {
-				status: DLQ_STATUS.COMPLETED,
+				status: DlqStatus.Completed,
 				completedAt: new Date(),
 				lastBatchId: batchId,
 			},
@@ -62,7 +62,7 @@ export class RetryPipelineBuilder {
 		return {
 			$set: {
 				status: {
-					$cond: [this._abandonCondition(), DLQ_STATUS.ABANDONED, "$$REMOVE"],
+					$cond: [this._abandonCondition(), DlqStatus.Abandoned, "$$REMOVE"],
 				},
 				abandonedAt: {
 					$cond: [this._abandonCondition(), new Date(), "$$REMOVE"],

@@ -1,7 +1,7 @@
-import type { HttpServer } from "./create-secure-server";
 import { logger } from "../config/logger";
 import { normalizeError } from "../utils/errors";
 import type { BootstrapOptions } from "./bootstrap-types";
+import type { HttpServer } from "./create-secure-server";
 
 function _closeServerOnShutdown(server: HttpServer | null): void {
 	if (!server) {

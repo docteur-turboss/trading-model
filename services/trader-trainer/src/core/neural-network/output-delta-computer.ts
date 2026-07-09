@@ -18,7 +18,10 @@ export class OutputDeltaComputer {
 		if (activation === ActivationType.Softmax) {
 			return output[idx] - target[idx];
 		}
-		return lossGrad[idx] * this._activationDerivative(output[idx], outputZ[idx], activation);
+		return (
+			lossGrad[idx] *
+			this._activationDerivative(output[idx], outputZ[idx], activation)
+		);
 	}
 
 	private _computeOutputDeltas(
@@ -30,7 +33,14 @@ export class OutputDeltaComputer {
 	): Float32Array {
 		const delta = new Float32Array(output.length);
 		for (let j = 0; j < output.length; j++) {
-			delta[j] = this._computeOutputDeltaForNeuron(j, output, target, outputZ, lossGrad, activation);
+			delta[j] = this._computeOutputDeltaForNeuron(
+				j,
+				output,
+				target,
+				outputZ,
+				lossGrad,
+				activation
+			);
 		}
 		return delta;
 	}
@@ -38,7 +48,13 @@ export class OutputDeltaComputer {
 	compute(ctx: OutputDeltasContext): Float32Array {
 		const { outputZ, output, target, activation } = ctx;
 		const lossGrad = this._computeLossGradient(output, target);
-		const delta = this._computeOutputDeltas(output, target, outputZ, lossGrad, activation);
+		const delta = this._computeOutputDeltas(
+			output,
+			target,
+			outputZ,
+			lossGrad,
+			activation
+		);
 		return this._clipGradients(delta);
 	}
 

@@ -1,8 +1,8 @@
 import { logger } from "@trading-model/common/config/logger";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import type Redis from "ioredis";
-import type { CircuitState } from "./service-cache.interface";
 import type { ICircuitStateStore } from "./circuit-state-store";
+import type { CircuitState } from "./service-cache.interface";
 
 export class RedisCircuitStateStore implements ICircuitStateStore {
 	constructor(

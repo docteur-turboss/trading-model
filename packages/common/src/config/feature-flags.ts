@@ -1,5 +1,8 @@
+import type {
+	FeatureFlag,
+	FeatureFlagDefinition,
+} from "./feature-flag-definitions";
 import { logger } from "./logger";
-import type { FeatureFlag, FeatureFlagDefinition } from "./feature-flag-definitions";
 
 interface FeatureFlagOptions {
 	envPrefix?: string;

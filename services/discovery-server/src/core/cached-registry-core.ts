@@ -1,4 +1,7 @@
-import type { RegistryBackend, ServiceInstance } from "@trading-model/common/contracts/service-registry.types";
+import type {
+	RegistryBackend,
+	ServiceInstance,
+} from "@trading-model/common/contracts/service-registry.types";
 import type { PaginationQuery } from "@trading-model/common/domain/pagination";
 import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
 import { BackendPingManager } from "./backend-ping-manager";
@@ -18,27 +21,47 @@ export class CachedRegistryCore {
 
 	constructor(options: CachedRegistryBackendOptions) {
 		this._backend = options.backend;
-		this.cache = new CacheManager({ maxSize: options.maxEntries ?? 5000, ttlMs: options.cacheTtlMs });
+		this.cache = new CacheManager({
+			maxSize: options.maxEntries ?? 5000,
+			ttlMs: options.cacheTtlMs,
+		});
 		this.pubSub = new PubSubInvalidator(options.redisUrlForPubSub);
-		this.pingManager = new BackendPingManager(options.backend, this.pubSub, Boolean(options.redisUrlForPubSub));
+		this.pingManager = new BackendPingManager(
+			options.backend,
+			this.pubSub,
+			Boolean(options.redisUrlForPubSub)
+		);
 		this.healthMonitor = new RedisHealthMonitor({
 			failureThreshold: options.redisFailureThreshold ?? 3,
 			healthCheckIntervalMs: options.redisHealthCheckIntervalMs ?? 15_000,
-			shouldRun: () => Boolean(options.redisUrlForPubSub || this.pingManager.isRedisBackend()),
+			shouldRun: () =>
+				Boolean(options.redisUrlForPubSub || this.pingManager.isRedisBackend()),
 			callbacks: {
 				ping: () => this._directPing(),
 				onHealthLost: () => {},
-				onHealthRestored: () => { this.cache.clear(); },
-				onFallbackActivated: () => { this.cache.clear(); },
-				onFallbackRestored: () => { this.cache.clear(); },
+				onHealthRestored: () => {
+					this.cache.clear();
+				},
+				onFallbackActivated: () => {
+					this.cache.clear();
+				},
+				onFallbackRestored: () => {
+					this.cache.clear();
+				},
 			},
 			backend: this._backend,
 		});
-		this.orchestrator = new CacheOrchestrator(this._backend, this.cache, this.healthMonitor);
+		this.orchestrator = new CacheOrchestrator(
+			this._backend,
+			this.cache,
+			this.healthMonitor
+		);
 	}
 
 	private async _directPing(): Promise<boolean> {
-		if (this.healthMonitor.fallbackActive) return false;
+		if (this.healthMonitor.fallbackActive) {
+			return false;
+		}
 		await this.pingManager.pingPubSub();
 		return this.pingManager.pingBackend();
 	}
@@ -54,14 +77,19 @@ export class CachedRegistryCore {
 		const result = await this._backend.updateHeartbeat(id);
 		if (result !== false) {
 			await this.orchestrator.refreshCache(serviceName);
-			await this.orchestrator.onHeartbeatUpdate(serviceName, (name) => this.pubSub.publish(name));
+			await this.orchestrator.onHeartbeatUpdate(serviceName, (name) =>
+				this.pubSub.publish(name)
+			);
 		}
 		return result;
 	}
-	async getInstances(serviceName: string, pagination?: PaginationQuery): Promise<ServiceInstance[]> {
+	getInstances(
+		serviceName: string,
+		pagination?: PaginationQuery
+	): Promise<ServiceInstance[]> {
 		return this.orchestrator.getInstances(serviceName, pagination);
 	}
-	async getInstance(id: ServiceIdentity): Promise<ServiceInstance | undefined> {
+	getInstance(id: ServiceIdentity): Promise<ServiceInstance | undefined> {
 		return this.orchestrator.getInstance(id);
 	}
 	async removeInstance(id: ServiceIdentity): Promise<boolean> {

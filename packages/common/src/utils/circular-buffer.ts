@@ -1,23 +1,23 @@
-export class CircularBuffer<T> {
-	private readonly _items: T[] = [];
+﻿export class CircularBuffer<TItem> {
+	private readonly _items: TItem[] = [];
 	private readonly _maxSize: number;
 
 	constructor(maxSize: number) {
 		this._maxSize = maxSize;
 	}
 
-	add(item: T): void {
+	add(item: TItem): void {
 		this._items.push(item);
 		if (this._items.length > this._maxSize) {
 			this._items.shift();
 		}
 	}
 
-	getAll(): T[] {
+	getAll(): TItem[] {
 		return this._items;
 	}
 
-	drain(): T[] {
+	drain(): TItem[] {
 		const items = this._items.splice(0, this._maxSize);
 		return items;
 	}

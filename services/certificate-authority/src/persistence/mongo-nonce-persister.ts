@@ -1,5 +1,5 @@
 import { logger } from "@trading-model/common/config/logger";
-import { MongoClient, type Db } from "mongodb";
+import { type Db, MongoClient } from "mongodb";
 
 import { MONGO_MANAGER } from "./mongo-manager";
 import type {

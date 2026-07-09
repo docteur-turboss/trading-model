@@ -48,9 +48,7 @@ export class CertificateAuthority {
 		return new CertificateAuthority(state, options);
 	}
 
-	async signServiceCertificate(
-		request: CertSignRequest
-	): Promise<SignedCertificate> {
+	signServiceCertificate(request: CertSignRequest): Promise<SignedCertificate> {
 		return this._operator.signServiceCertificate(
 			request,
 			this._state.caKeyPair,
@@ -62,7 +60,7 @@ export class CertificateAuthority {
 		await this._operator.revokeCertificate(request);
 	}
 
-	async getCrl(): Promise<RevokedCertificate[]> {
+	getCrl(): Promise<RevokedCertificate[]> {
 		return this._operator.getCrl();
 	}
 

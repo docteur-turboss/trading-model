@@ -17,12 +17,13 @@ interface RegisterController {
 	getInstance: RequestHandler;
 }
 
-function _buildValidationError(req: import("express").Request): ReturnType<typeof sendResponse> {
+function _buildValidationError(
+	req: import("express").Request
+): ReturnType<typeof sendResponse> {
 	return sendResponse(
 		{
 			error: "Invalid request body",
-			details: REGISTER_SCHEMA.safeParse(req.body).error!.flatten()
-				.fieldErrors,
+			details: REGISTER_SCHEMA.safeParse(req.body).error!.flatten().fieldErrors,
 		},
 		400
 	);
@@ -73,7 +74,9 @@ function createGetServiceInstancesHandler(
 	});
 }
 
-function _validateRouteParams(req: import("express").Request): { serviceName: string; instanceId: string } | null {
+function _validateRouteParams(
+	req: import("express").Request
+): { serviceName: string; instanceId: string } | null {
 	const { serviceName, instanceId } = req.params;
 	if (!(isNonEmptyString(serviceName) && isNonEmptyString(instanceId))) {
 		return null;

@@ -16,9 +16,9 @@ import {
 	startPeriodicPrune,
 } from "../dlq/controller-reexports";
 import { closeRedisClient } from "../dlq/routes";
-import { createResilientTlsBootstrap } from "./tls-bootstrap";
 import { ensureRedisQueue } from "./redis-init";
 import { createServer } from "./server";
+import { createResilientTlsBootstrap } from "./tls-bootstrap";
 
 createBootstrap({
 	name: "DLQ Service",

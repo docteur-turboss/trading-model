@@ -1,8 +1,8 @@
-import { toInstanceId, toTopic } from "@trading-model/common/domain/primitives";
+﻿import { toInstanceId, toTopic } from "@trading-model/common/domain/primitives";
 import { getSubscriptionClient } from "../../config/redis";
-import { StaleInstanceScanner } from "./stale-instance-scanner";
 import { LEASE_HEARTBEAT_FIELD } from "./messaging-constants";
 import { RedisSubscriptionKeys } from "./redis-subscription-keys";
+import { StaleInstanceScanner } from "./stale-instance-scanner";
 
 const SUBSCRIPTION_TTL_MS = 30_000;
 
@@ -22,7 +22,7 @@ export class InstanceLifecycleManager {
 		await redis.expire(leaseKey, Math.ceil(SUBSCRIPTION_TTL_MS / 1000));
 	}
 
-	async isStaleByHeartbeat(instanceId: string): Promise<boolean> {
+	isStaleByHeartbeat(instanceId: string): Promise<boolean> {
 		return this._scanner.isStaleByHeartbeat(instanceId);
 	}
 
@@ -52,12 +52,15 @@ export class InstanceLifecycleManager {
 			Math.ceil(SUBSCRIPTION_TTL_MS / 1000)
 		);
 		multi.expire(
-			this._keys.subKey({ topic: toTopic(topic), instanceId: toInstanceId(instanceId) }),
+			this._keys.subKey({
+				topic: toTopic(topic),
+				instanceId: toInstanceId(instanceId),
+			}),
 			Math.ceil(SUBSCRIPTION_TTL_MS / 1000)
 		);
 	}
 
-	async removeStaleInstances(): Promise<number> {
+	removeStaleInstances(): Promise<number> {
 		return this._scanner.removeStaleInstances();
 	}
 }

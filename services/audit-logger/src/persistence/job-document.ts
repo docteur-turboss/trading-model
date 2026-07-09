@@ -1,7 +1,7 @@
-import type {
-	JOB_STATUS,
+﻿import type {
 	JobEvent,
 	JobPriority,
+	JobStatus,
 } from "@trading-model/common/contracts/recovery.types";
 import type {
 	InstanceId,
@@ -15,7 +15,7 @@ export interface JobDocument extends RetryPolicy {
 	type: JobType;
 	payload: unknown;
 	priority: JobPriority;
-	status: JOB_STATUS;
+	status: JobStatus;
 	assignedWorkerId?: InstanceId;
 	ackDeadline: number;
 	createdAt: Date;

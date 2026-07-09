@@ -1,5 +1,5 @@
-import { FeatureFlags } from "./feature-flags";
 import { PLATFORM_FLAG_DEFINITIONS } from "./feature-flag-definitions";
+import { FeatureFlags } from "./feature-flags";
 
 let globalFeatureFlags: FeatureFlags | null = null;
 

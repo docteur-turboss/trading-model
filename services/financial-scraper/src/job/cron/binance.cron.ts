@@ -75,26 +75,7 @@ export class BinanceCronOrchestrator {
 
 		logger.info("Scheduler started", { maxConcurrency: this._maxConcurrency });
 	}
-}
 
-function _logBatchError(err: unknown): void {
-	if (err instanceof Error) {
-		logger.error("Batch execution error", { err: err.message });
-	} else {
-		logger.error("Unknown batch execution error", { err: String(err) });
-	}
-}
-
-export class BinanceCronOrchestrator {}
-
-async function _createLimiter(maxConcurrency: number): Promise<LimitFunction> {
-	const { default: pLimit } = (await import("p-limit")) as unknown as {
-		default: (concurrency: number) => LimitFunction;
-	};
-	return pLimit(maxConcurrency);
-}
-
-export class BinanceCronOrchestrator {
 	/**
 	 * Extension point for persistence.
 	 * Can be overridden or injected.
@@ -104,4 +85,15 @@ export class BinanceCronOrchestrator {
 
 		logger.debug("Data persisted");
 	}
+}
+
+function _logBatchError(error: unknown): void {
+	logger.error("Batch execution failed", { error });
+}
+
+async function _createLimiter(maxConcurrency: number): Promise<LimitFunction> {
+	const { default: pLimit } = (await import("p-limit")) as unknown as {
+		default: (concurrency: number) => LimitFunction;
+	};
+	return pLimit(maxConcurrency);
 }

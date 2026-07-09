@@ -1,4 +1,7 @@
-import type { Price, Percentage } from "@trading-model/common/domain/primitives";
+import type {
+	Percentage,
+	Price,
+} from "@trading-model/common/domain/primitives";
 import type { Column } from "../../components/data-table";
 import type { Candle } from "../../types/dtos";
 

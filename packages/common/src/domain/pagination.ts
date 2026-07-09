@@ -1,4 +1,4 @@
-export interface PaginationQuery {
+﻿export interface PaginationQuery {
 	page?: number;
 	limit?: number;
 }
@@ -8,7 +8,7 @@ export interface OffsetPagination {
 	offset?: number;
 }
 
-export interface PaginationResult<T> {
+export interface PaginationResult<_TValue> {
 	docs: T[];
 	total: number;
 	page: number;

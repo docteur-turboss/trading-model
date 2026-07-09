@@ -1,8 +1,8 @@
 import type { Price } from "@trading-model/common/domain/primitives";
 import { buildFeatures as buildFeaturesFn } from "../feature-builder";
 import type { MarketStep } from "../genetic-algorithm/genome-types";
-import type { MarketDataContext } from "./market-data-context";
 import type { SymbolState, TradingSymbol } from "../market-data-types";
+import type { MarketDataContext } from "./market-data-context";
 
 /** Minimum number of market steps required before training can start. */
 export const MIN_TRAINING_STEPS = 10;
@@ -12,9 +12,7 @@ export const DEFAULT_VALIDATION_SPLIT = 0.2;
 
 /** Handles building market steps and train/validation window splitting. */
 export class WindowSplitter {
-	constructor(
-		private readonly _states: Map<TradingSymbol, SymbolState>
-	) {}
+	constructor(private readonly _states: Map<TradingSymbol, SymbolState>) {}
 
 	buildMarketSteps(ctx: MarketDataContext): MarketStep[] {
 		const state = this._states.get(ctx.symbol);
@@ -37,17 +35,17 @@ export class WindowSplitter {
 
 	private _buildSingleStep(
 		state: SymbolState,
-		i: number,
+		idx: number,
 		priceSnapshot: Record<TradingSymbol, Price>
 	): MarketStep {
 		return {
-			price: state.candles[i].close,
+			price: state.candles[idx].close,
 			features: buildFeaturesFn({
 				state,
-				idx: i,
+				idx,
 				priceSnapshot,
 			}),
-			timestamp: state.candles[i].timestamp,
+			timestamp: state.candles[idx].timestamp,
 		};
 	}
 

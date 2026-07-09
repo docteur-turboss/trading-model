@@ -33,7 +33,11 @@ export class HiddenDeltaComputer {
 		activation: ActivationType
 	): number {
 		const sum = this._backpropagateDelta(neuronIdx, next, nextDeltas);
-		const grad = this._activationDerivative(currentOutput[neuronIdx], currentZ[neuronIdx], activation);
+		const grad = this._activationDerivative(
+			currentOutput[neuronIdx],
+			currentZ[neuronIdx],
+			activation
+		);
 		return sum * grad;
 	}
 
@@ -49,7 +53,14 @@ export class HiddenDeltaComputer {
 		const currentZ = context.layerZValues[layerIdx];
 		const delta = new Float32Array(current.fanOut);
 		for (let i = 0; i < current.fanOut; i++) {
-			delta[i] = this._computeNeuronDelta(i, next, nextDeltas, currentOutput, currentZ, activation);
+			delta[i] = this._computeNeuronDelta(
+				i,
+				next,
+				nextDeltas,
+				currentOutput,
+				currentZ,
+				activation
+			);
 		}
 		return this._clipGradients(delta);
 	}

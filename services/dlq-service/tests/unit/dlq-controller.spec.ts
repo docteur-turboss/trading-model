@@ -149,7 +149,7 @@ describe("DLQ Controller", () => {
 
 	describe("AddEntry", () => {
 		it("should return 201 with id on valid entry", () => {
-			mockAdd.mockResolvedValueOnce("entry-1");
+			mockInsert.mockResolvedValueOnce("entry-1");
 
 			const req = {
 				body: {

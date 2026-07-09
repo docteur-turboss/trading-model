@@ -23,7 +23,7 @@ export class LockConnectionManager {
 		return this._collection !== null;
 	}
 
-	private async _connectViaManager(): Promise<void> {
+	private _connectViaManager(): void {
 		this._client = MONGO_MANAGER.getClient();
 		const db = MONGO_MANAGER.getDb();
 		this._collection = db.collection<LockDocument>("locks");
@@ -49,7 +49,7 @@ export class LockConnectionManager {
 	async connect(): Promise<void> {
 		try {
 			if (MONGO_MANAGER.isConnected()) {
-				await this._connectViaManager();
+				this._connectViaManager();
 			} else {
 				await this._connectDirectly();
 			}

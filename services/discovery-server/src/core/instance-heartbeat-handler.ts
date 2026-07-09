@@ -17,7 +17,9 @@ export class InstanceHeartbeatHandler {
 		this._reader = reader ?? new InstanceMetadataReader(_deps);
 	}
 
-	private async _checkInstanceExists(identity: ServiceIdentity): Promise<boolean> {
+	private async _checkInstanceExists(
+		identity: ServiceIdentity
+	): Promise<boolean> {
 		const result = await this._deps.redis.sismember(
 			this._deps.keyBuilder.serviceInstancesSet(identity.serviceName),
 			identity.instanceId
@@ -41,9 +43,7 @@ export class InstanceHeartbeatHandler {
 		await multi.exec();
 	}
 
-	async updateHeartbeat(
-		identity: ServiceIdentity
-	): Promise<number | false> {
+	async updateHeartbeat(identity: ServiceIdentity): Promise<number | false> {
 		const exists = await this._checkInstanceExists(identity);
 		if (!exists) {
 			return false;

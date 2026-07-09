@@ -1,14 +1,21 @@
 import { join } from "node:path";
 import { logger } from "@trading-model/common/config/logger";
 import type { TradingSymbol } from "@trading-model/common/domain/primitives";
+import { type CheckpointIO, NodeCheckpointIO } from "./checkpoint-io";
+import {
+	type CheckpointMetadata,
+	CheckpointSerializer,
+	type CheckpointTarget,
+} from "./checkpoint-serializer";
 import type { LamarckGenome } from "./genetic-algorithm/genome-types";
 import type { DeepReadonly } from "./genetic-algorithm/shared-types";
-import { CheckpointSerializer, type CheckpointMetadata, type CheckpointTarget } from "./checkpoint-serializer";
-import { NodeCheckpointIO, type CheckpointIO } from "./checkpoint-io";
 
-export type { CheckpointMetadata, CheckpointTarget } from "./checkpoint-serializer";
+export { type CheckpointIO, NodeCheckpointIO } from "./checkpoint-io";
+export type {
+	CheckpointMetadata,
+	CheckpointTarget,
+} from "./checkpoint-serializer";
 export { CheckpointSerializer } from "./checkpoint-serializer";
-export { NodeCheckpointIO, type CheckpointIO } from "./checkpoint-io";
 
 export class CheckpointFileHelper {
 	private readonly _io: CheckpointIO;
@@ -36,7 +43,11 @@ export class CheckpointFileHelper {
 		this._io.writeFile(path, this._serializer.toJson(target.genome));
 		this._writeMetadata(target);
 		logger.info("Checkpoint saved", {
-			context: { symbol: target.symbol, generation: target.genome.generation, path },
+			context: {
+				symbol: target.symbol,
+				generation: target.genome.generation,
+				path,
+			},
 		});
 	}
 
@@ -52,8 +63,7 @@ export class CheckpointFileHelper {
 			return null;
 		}
 		const raw = this._io.readFile(path);
-		const genome =
-			this._serializer.fromJson<DeepReadonly<LamarckGenome>>(raw);
+		const genome = this._serializer.fromJson<DeepReadonly<LamarckGenome>>(raw);
 		logger.info("Checkpoint loaded", {
 			context: {
 				symbol,

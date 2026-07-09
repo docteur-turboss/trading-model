@@ -1,17 +1,24 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
-import type { IPAddress, Port } from "@trading-model/common/domain/primitives";
+import { Protocol } from "@trading-model/common/contracts/service-registry.types";
+import {
+	IPAddress,
+	Port,
+	toInstanceId,
+	toServiceId,
+	toVersion,
+} from "@trading-model/common/domain/primitives";
 import type { ServiceInstance } from "../../src/client/type";
 import { ServiceCache } from "../../src/discovery/service-cache";
 
 function makeInstance(overrides?: Partial<ServiceInstance>): ServiceInstance {
 	return {
-		serviceName: "svc",
-		instanceId: "i-1",
-		host: "127.0.0.1" as unknown as IPAddress,
-		port: 8080 as unknown as Port,
-		version: "1.0.0",
+		serviceName: toServiceId("svc"),
+		instanceId: toInstanceId("i-1"),
+		host: IPAddress.of("127.0.0.1"),
+		port: Port.of(8080),
+		version: toVersion("1.0.0"),
 		ttl: 30000,
-		protocol: "http",
+		protocol: Protocol.Http,
 		registeredAt: Date.now(),
 		lastHeartbeat: Date.now(),
 		...overrides,
@@ -27,47 +34,56 @@ describe("ServiceCache", () => {
 
 	it("should store and return instance", async () => {
 		const inst = makeInstance();
-		await cache.set({ serviceName: "svc", instance: inst });
-		const result = await cache.get("svc");
+		await cache.set({ serviceName: toServiceId("svc"), instance: inst });
+		const result = await cache.get(toServiceId("svc"));
 		expect(result).toEqual(inst);
 	});
 
 	it("should return null for unknown service", async () => {
-		const result = await cache.get("unknown");
+		const result = await cache.get(toServiceId("unknown"));
 		expect(result).toBeNull();
 	});
 
 	it("should return null for expired entry", async () => {
 		jest.useFakeTimers();
 		const inst = makeInstance();
-		await cache.set({ serviceName: "svc", instance: inst });
+		await cache.set({ serviceName: toServiceId("svc"), instance: inst });
 		jest.advanceTimersByTime(6000);
-		const result = await cache.get("svc");
+		const result = await cache.get(toServiceId("svc"));
 		expect(result).toBeNull();
 		jest.useRealTimers();
 	});
 
 	it("should delete entry", async () => {
 		const inst = makeInstance();
-		await cache.set({ serviceName: "svc", instance: inst });
-		await cache.delete("svc");
-		const result = await cache.get("svc");
+		await cache.set({ serviceName: toServiceId("svc"), instance: inst });
+		await cache.invalidate(toServiceId("svc"));
+		const result = await cache.get(toServiceId("svc"));
 		expect(result).toBeNull();
 	});
 
 	it("should clear all entries", async () => {
-		await cache.set({ serviceName: "svc", instance: makeInstance() });
 		await cache.set({
-			serviceName: "svc2",
-			instance: makeInstance({ serviceName: "svc2", instanceId: "i-2" }),
+			serviceName: toServiceId("svc"),
+			instance: makeInstance(),
+		});
+		await cache.set({
+			serviceName: toServiceId("svc2"),
+			instance: makeInstance({
+				serviceName: toServiceId("svc2"),
+				instanceId: toInstanceId("i-2"),
+			}),
 		});
 		await cache.clear();
-		expect(await cache.get("svc")).toBeNull();
-		expect(await cache.get("svc2")).toBeNull();
+		expect(await cache.get(toServiceId("svc"))).toBeNull();
+		expect(await cache.get(toServiceId("svc2"))).toBeNull();
 	});
 
 	it("should return entries", async () => {
-		await cache.set({ serviceName: "svc", instance: makeInstance() });
+		await cache.set({
+			serviceName: toServiceId("svc"),
+			instance: makeInstance(),
+		});
 		const entries = await cache.entries();
 		expect(entries).toHaveLength(1);
 		expect(entries[0].serviceName).toBe("svc");
@@ -75,7 +91,10 @@ describe("ServiceCache", () => {
 
 	it("entries should skip expired entries", async () => {
 		jest.useFakeTimers();
-		await cache.set({ serviceName: "svc", instance: makeInstance() });
+		await cache.set({
+			serviceName: toServiceId("svc"),
+			instance: makeInstance(),
+		});
 		jest.advanceTimersByTime(6000);
 		const entries = await cache.entries();
 		expect(entries).toHaveLength(0);
@@ -83,14 +102,17 @@ describe("ServiceCache", () => {
 	});
 
 	it("getVersion should return 0", async () => {
-		const v = await cache.getVersion("svc");
+		const v = await cache.getVersion(toServiceId("svc"));
 		expect(v).toBe(0);
 	});
 
 	it("stop should clear cache", async () => {
-		await cache.set({ serviceName: "svc", instance: makeInstance() });
+		await cache.set({
+			serviceName: toServiceId("svc"),
+			instance: makeInstance(),
+		});
 		cache.stop();
-		const result = await cache.get("svc");
+		const result = await cache.get(toServiceId("svc"));
 		expect(result).toBeNull();
 	});
 

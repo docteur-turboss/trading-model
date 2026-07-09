@@ -1,4 +1,4 @@
-import type { ServiceIdentity } from "@trading-model/common/contracts/message.types";
+﻿import type { ServiceIdentity } from "@trading-model/common/contracts/message.types";
 import type { Topic } from "@trading-model/common/domain/primitives";
 
 import type { TopicSubscription } from "./messaging-types";
@@ -22,7 +22,7 @@ export class SubscriptionRedisStore {
 		this._writer = new SubscriptionRedisWriter(prefix);
 	}
 
-	async add(
+	add(
 		topic: string,
 		callbackPath: string,
 		serviceIdentity: ServiceIdentity
@@ -30,19 +30,19 @@ export class SubscriptionRedisStore {
 		return this._writer.add(topic, callbackPath, serviceIdentity);
 	}
 
-	async remove(sub: TopicSubscription): Promise<void> {
+	remove(sub: TopicSubscription): Promise<void> {
 		return this._writer.remove(sub);
 	}
 
-	async getByTopic(topic: string): Promise<SubscriptionEntry[]> {
+	getByTopic(topic: string): Promise<SubscriptionEntry[]> {
 		return this._reader.getByTopic(topic);
 	}
 
-	async getTopicsByInstance(instanceId: string): Promise<string[]> {
+	getTopicsByInstance(instanceId: string): Promise<string[]> {
 		return this._reader.getTopicsByInstance(instanceId);
 	}
 
-	async getAllTopics(): Promise<string[]> {
+	getAllTopics(): Promise<string[]> {
 		return this._reader.getAllTopics();
 	}
 }

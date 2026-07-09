@@ -1,8 +1,8 @@
-import { ENV } from "../../config/env";
+﻿import { ENV } from "../../config/env";
 import { logger } from "../../config/logger";
 import { getStreamClient } from "../../config/redis";
-import { StaleEntryScanner } from "./stale-entry-scanner";
 import type { PendingAckData } from "./messaging-types";
+import { StaleEntryScanner } from "./stale-entry-scanner";
 
 export class PendingAckStore {
 	private readonly _prefix: string;
@@ -35,11 +35,7 @@ export class PendingAckStore {
 		await redis.hdel(this._pendingKey(instanceId), messageId);
 	}
 
-	async getAll(
-		instanceId: string
-	): Promise<
-		Record<string, PendingAckData>
-	> {
+	async getAll(instanceId: string): Promise<Record<string, PendingAckData>> {
 		const redis = await getStreamClient();
 		const result: Record<string, PendingAckData> = {};
 		let cursor = "0";

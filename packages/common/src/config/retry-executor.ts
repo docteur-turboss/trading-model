@@ -1,16 +1,13 @@
 import type { TlsPemBundle } from "../domain/tls-paths";
 import { sleep } from "../utils/sleep";
-import {
-	HttpClientError,
-	HttpClientTimeoutError,
-} from "./http-client-errors";
+import type { CircuitRecorder, ServiceRoute } from "./circuit-recorder";
+import { HttpClientError, HttpClientTimeoutError } from "./http-client-errors";
 import type { RequestContext } from "./http-request-executor";
 import {
 	computeRetryDelay,
 	DEFAULT_RETRY_COUNT,
 	isRetryableStatus,
 } from "./http-retry";
-import { CircuitRecorder, type ServiceRoute } from "./circuit-recorder";
 
 export class RetryExecutor {
 	private readonly _circuitRecorder: CircuitRecorder;

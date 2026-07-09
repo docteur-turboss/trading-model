@@ -23,7 +23,7 @@ export class InstanceMetadataReader {
 		}
 	}
 
-	async getServiceInstanceIds(serviceName: string): Promise<string[]> {
+	getServiceInstanceIds(serviceName: string): Promise<string[]> {
 		return this._deps.redis.smembers(
 			this._deps.keyBuilder.serviceInstancesSet(serviceName)
 		);

@@ -1,4 +1,4 @@
-import { createHash, randomUUID } from "node:crypto";
+﻿import { createHash, randomUUID } from "node:crypto";
 
 import { DeliveryMode } from "@trading-model/common/config/delivery-mode.types";
 import type { AuthContext } from "@trading-model/common/contracts/message.types";
@@ -52,7 +52,7 @@ export function buildDeliveryConfig(deliveryMode?: DeliveryMode): {
 	deduplicationId: MessageId;
 } {
 	return {
-		mode: deliveryMode ?? DeliveryMode.AT_LEAST_ONCE,
+		mode: deliveryMode ?? DeliveryMode.AtLeastOnce,
 		deduplicationId: toMessageId(randomUUID()),
 	};
 }

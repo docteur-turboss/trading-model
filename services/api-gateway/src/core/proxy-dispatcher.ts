@@ -1,4 +1,5 @@
 import { logger } from "@trading-model/common/config/logger";
+import type { ServiceEndpoint } from "@trading-model/common/contracts/service-resolver.types";
 import {
 	type ResponseObject,
 	sendResponse,
@@ -6,7 +7,6 @@ import {
 import type { Request } from "express";
 import type { ResponseCache } from "./cache";
 import { forwardRequest } from "./proxy-handler";
-import type { ServiceEndpoint } from "@trading-model/common/contracts/service-resolver.types";
 
 interface ProxyContext {
 	serviceName: string;

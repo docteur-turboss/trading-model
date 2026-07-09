@@ -11,7 +11,9 @@ import {
 const MOCK_WEB_SOCKET_INSTANCE: Record<string, unknown> = {
 	on: jest.fn(),
 	send: jest.fn(),
-	close: jest.fn(),
+	close: jest.fn(() => {
+		MOCK_WEB_SOCKET_INSTANCE.readyState = 3; // CLOSED
+	}),
 	readyState: 1, // OPEN
 };
 const MOCK_WEB_SOCKET = jest.fn(() => MOCK_WEB_SOCKET_INSTANCE) as jest.Mock & {
@@ -35,6 +37,11 @@ jest.mock("@trading-model/common/config/logger", () => ({
 	},
 }));
 
+import { DiscoveryWsMessageType } from "@trading-model/common/contracts/discovery-ws-message.types";
+import {
+	toInstanceId,
+	toServiceId,
+} from "@trading-model/common/domain/primitives";
 import { WebSocketClient } from "../../src/client/websocket-client";
 
 describe("WebSocketClient", () => {
@@ -133,7 +140,9 @@ describe("WebSocketClient", () => {
 		test("should send JSON message when connected", () => {
 			client.connect();
 			const sendMock = MOCK_WEB_SOCKET_INSTANCE.send as jest.Mock;
-			const result = client.send("heartbeat", { serviceName: "test" });
+			const result = client.send(DiscoveryWsMessageType.Heartbeat, {
+				serviceName: "test",
+			});
 			expect(result).toBe(true);
 			expect(sendMock).toHaveBeenCalledWith(
 				JSON.stringify({ type: "heartbeat", payload: { serviceName: "test" } })
@@ -142,7 +151,9 @@ describe("WebSocketClient", () => {
 
 		test("should return false when not connected", () => {
 			const sendMock = MOCK_WEB_SOCKET_INSTANCE.send as jest.Mock;
-			const result = client.send("heartbeat", { serviceName: "test" });
+			const result = client.send(DiscoveryWsMessageType.Heartbeat, {
+				serviceName: "test",
+			});
 			expect(result).toBe(false);
 			expect(sendMock).not.toHaveBeenCalled();
 		});
@@ -246,8 +257,7 @@ describe("WebSocketClient", () => {
 			expect(MOCK_WARN).toHaveBeenCalledWith(
 				"WebSocket max reconnect attempts reached",
 				expect.objectContaining({
-					url: "ws://localhost:3000",
-					attempts: 3,
+					context: expect.objectContaining({ attempts: 3 }),
 				})
 			);
 		});
@@ -268,6 +278,7 @@ describe("WebSocketClient", () => {
 				(c: unknown[]) => c[0] === "close"
 			)![1] as () => void;
 			closeHandler();
+			MOCK_WEB_SOCKET_INSTANCE.readyState = MOCK_WEB_SOCKET.CONNECTING;
 
 			expect(client.getReconnectAttempts()).toBe(1);
 
@@ -344,8 +355,8 @@ describe("WebSocketClient", () => {
 		test("should send heartbeat message when connected", () => {
 			client.connect();
 			const result = client.sendHeartbeat({
-				serviceName: "test-service",
-				instanceId: "instance-1",
+				serviceName: toServiceId("test-service"),
+				instanceId: toInstanceId("instance-1"),
 			});
 			expect(result).toBe(true);
 			const sendMock = MOCK_WEB_SOCKET_INSTANCE.send as jest.Mock;
@@ -359,8 +370,8 @@ describe("WebSocketClient", () => {
 
 		test("should return false when not connected", () => {
 			const result = client.sendHeartbeat({
-				serviceName: "test-service",
-				instanceId: "instance-1",
+				serviceName: toServiceId("test-service"),
+				instanceId: toInstanceId("instance-1"),
 			});
 			expect(result).toBe(false);
 		});

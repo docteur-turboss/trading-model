@@ -6,17 +6,20 @@ import {
 	generateKeyPairAsync,
 } from "@trading-model/certificate-utils/async";
 import { KeyAlgorithm } from "@trading-model/certificate-utils/generate-key-pair";
-import type { KeyPair } from "@trading-model/certificate-utils/types";
 import type {
 	CaClient,
 	SignCertificateRequest,
 } from "@trading-model/common/ca/ca-client";
 import type { CertificateBase } from "@trading-model/common/domain/certificate-base";
-import { toAuthToken, toSerialNumber } from "@trading-model/common/domain/primitives";
+import {
+	toAuthToken,
+	toSerialNumber,
+} from "@trading-model/common/domain/primitives";
 import type {
 	CertificateClientConfig,
 	ObtainedCertificate,
 } from "./certificate-client";
+import type { SigningRequest } from "./key-generator";
 
 export class CertificateLifecycle {
 	constructor(
@@ -24,12 +27,9 @@ export class CertificateLifecycle {
 		private readonly _caClient: CaClient
 	) {}
 
-	async generateKeyAndCsr(): Promise<{
-		keyPair: KeyPair;
-		csr: string;
-	}> {
+	async generateKeyAndCsr(): Promise<SigningRequest> {
 		const keyPair = await generateKeyPairAsync(
-			this._config.keyAlgorithm ?? KeyAlgorithm.ecP384
+			this._config.keyAlgorithm ?? KeyAlgorithm.EcP384
 		);
 		const csr = await createCsrAsync({
 			commonName: this._config.commonName,
@@ -43,7 +43,9 @@ export class CertificateLifecycle {
 		const request: SignCertificateRequest = {
 			serviceId: this._config.serviceId,
 			csr,
-			bootstrapToken: this._config.bootstrapToken ? toAuthToken(this._config.bootstrapToken) : undefined,
+			bootstrapToken: this._config.bootstrapToken
+				? toAuthToken(this._config.bootstrapToken)
+				: undefined,
 		};
 		return await this._caClient.signCertificate(request);
 	}

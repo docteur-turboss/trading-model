@@ -17,7 +17,7 @@ export type NullCaWssTransport = typeof NULL_CA_WSS_TRANSPORT;
 export const NULL_CA_WSS_TRANSPORT = {
 	isConnected: false,
 	isAuthSent: false,
-	signCertificate: async (): Promise<SignCertificateResponse> => {
+	signCertificate: (): Promise<SignCertificateResponse> => {
 		throw new Error("WSS transport not available");
 	},
 	destroy: () => {},
@@ -90,10 +90,7 @@ export class CaWssTransport {
 		this.disconnect();
 	}
 
-	private _sendSignRequest(
-		id: string,
-		request: SignCertificateRequest
-	): void {
+	private _sendSignRequest(id: string, request: SignCertificateRequest): void {
 		const ws = this._connection.ws;
 		if (!isWsConnected(ws)) {
 			this._pendingManager.cancel(id);
@@ -117,7 +114,7 @@ export class CaWssTransport {
 		);
 	}
 
-	async signCertificate(
+	signCertificate(
 		request: SignCertificateRequest
 	): Promise<SignCertificateResponse> {
 		const id = randomUUID();

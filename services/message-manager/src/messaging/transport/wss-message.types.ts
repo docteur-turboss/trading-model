@@ -1,18 +1,19 @@
-import type {
+﻿import type {
 	InstanceId,
 	MessageId,
 	Topic,
 } from "@trading-model/common/domain/primitives";
 
-export type WssMessageType =
-	| "subscribe"
-	| "unsubscribe"
-	| "publish"
-	| "ack"
-	| "nack";
+export enum TransportMessageType {
+	Subscribe = "subscribe",
+	Unsubscribe = "unsubscribe",
+	Publish = "publish",
+	Ack = "ack",
+	Nack = "nack",
+}
 
-export interface IncomingWssMessage {
-	type: WssMessageType;
+export interface WsTransportMessage {
+	type: TransportMessageType;
 	instanceId?: InstanceId;
 	topics?: Topic[];
 	payload?: unknown;

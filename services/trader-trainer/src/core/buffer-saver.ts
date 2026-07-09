@@ -62,7 +62,14 @@ export class BufferSaver {
 		return symbolsData;
 	}
 
-	private _writeBufferState(symbols: TradingSymbol[], symbolsData: Record<TradingSymbol, SymbolStateSerializable>, priceSnapshot: Record<TradingSymbol, import("@trading-model/common/domain/primitives").Price>): void {
+	private _writeBufferState(
+		_symbols: TradingSymbol[],
+		symbolsData: Record<TradingSymbol, SymbolStateSerializable>,
+		priceSnapshot: Record<
+			TradingSymbol,
+			import("@trading-model/common/domain/primitives").Price
+		>
+	): void {
 		writeFileSync(
 			this._bufferStatePath(),
 			JSON.stringify(

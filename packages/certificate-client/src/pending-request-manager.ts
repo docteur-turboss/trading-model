@@ -20,7 +20,10 @@ export class PendingRequestManager {
 		});
 	}
 
-	private _resolvePending(pending: PendingRequest, msg: Record<string, unknown>): void {
+	private _resolvePending(
+		pending: PendingRequest,
+		msg: Record<string, unknown>
+	): void {
 		if (msg.success) {
 			pending.resolve(msg.data as SignCertificateResponse);
 		} else {

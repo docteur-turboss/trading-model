@@ -1,4 +1,4 @@
-export type Volume = number & { readonly __brand: "Volume" };
+﻿export type Volume = number & { readonly brand: "Volume" };
 
 export const Volume = {
 	of(value: number): Volume {

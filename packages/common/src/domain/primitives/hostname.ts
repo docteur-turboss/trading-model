@@ -1,6 +1,7 @@
-export type Hostname = string & { readonly __brand: "Hostname" };
+﻿export type Hostname = string & { readonly brand: "Hostname" };
 
-const HOSTNAME_RE = /^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
+const HOSTNAME_RE =
+	/^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
 
 export const Hostname = {
 	of(value: string): Hostname {

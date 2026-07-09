@@ -1,6 +1,7 @@
 import { describe, expect, it, jest } from "@jest/globals";
 import { Price } from "@trading-model/common/domain/primitives";
 import { FeatureVector } from "../../../src/core/feature-vector";
+import { createBounded } from "../../../src/core/genetic-algorithm/bounded";
 import {
 	evaluateGenomeAllWindows,
 	pooledEval,
@@ -17,7 +18,6 @@ import {
 	NormalisationType,
 	SelectionType,
 } from "../../../src/core/genetic-algorithm/genome";
-import { createBounded } from "../../../src/core/genetic-algorithm/bounded";
 import type { RLBackend } from "../../../src/core/genetic-algorithm/rl-backend";
 import type { Experience } from "../../../src/core/genetic-algorithm/shared-types";
 

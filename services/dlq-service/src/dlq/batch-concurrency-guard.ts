@@ -1,8 +1,9 @@
-import { MessageManagerCircuitBreaker } from "../config/mm-circuit-breaker";
+import { CircuitStateMachine } from "@trading-model/common/reliability/circuit-state-machine";
 import type { DlqEntryRef, DlqError } from "./types";
 
-const MmCircuitBreaker = new MessageManagerCircuitBreaker({
-	name: "replay-batch",
+const MmCircuitBreaker = new CircuitStateMachine({
+	failureThreshold: 5,
+	cooldownMs: 30_000,
 });
 
 let activeBatches = 0;
@@ -20,7 +21,7 @@ function _rejectAll(
 
 export function checkBatchRejection(
 	entries: DlqEntryRef[],
-	batchId: string
+	_batchId: string
 ): { success: number; errors: DlqError[] } | null {
 	if (activeBatches >= MAX_CONCURRENT_BATCHES) {
 		return _rejectAll(entries, "Too many concurrent replay batches");

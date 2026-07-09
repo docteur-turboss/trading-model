@@ -63,7 +63,7 @@ describe("CrlStore", () => {
 
 	describe("save", () => {
 		it("should insert revoked certificate entry", async () => {
-			await store.save(SAMPLE_REVOKED);
+			await store.insert(SAMPLE_REVOKED);
 
 			expect(MOCK_INSERT_ONE).toHaveBeenCalledWith(SAMPLE_REVOKED);
 		});

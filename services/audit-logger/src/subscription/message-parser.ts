@@ -1,12 +1,20 @@
+import type {
+	CorrelationId,
+	InstanceId,
+	ISODateTime,
+	MessageId,
+	Topic,
+} from "@trading-model/common/domain/primitives";
+
 interface MessageMetadata {
-	topic: string;
+	topic: Topic;
 	eventType?: string;
-	messageId?: string;
-	correlationId?: string;
-	causationId?: string;
-	emittedAt?: string;
+	messageId?: MessageId;
+	correlationId?: CorrelationId;
+	causationId?: CorrelationId;
+	emittedAt?: ISODateTime;
 	schemaVersion?: string;
-	publisher?: { serviceName?: string; instanceId?: string };
+	publisher?: { serviceName?: string; instanceId?: InstanceId };
 	routing?: { partitionKey?: string; priority?: number };
 	delivery?: { mode?: string; ttl?: number; deduplicationId?: string };
 }
@@ -19,7 +27,7 @@ interface INcomingEnvelope {
 }
 
 export interface ParsedEnvelope {
-	topic: string;
+	topic: Topic;
 	payload: unknown;
 	metadata: MessageMetadata;
 }

@@ -1,3 +1,4 @@
+import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import type { Application } from "express";
 import { buildAddressManagerDependencies } from "./address-manager-factory";
 import type { TokenManager } from "./client/token-manager";
@@ -29,11 +30,13 @@ export default class AddressManager {
 		return this._tokenManager.getToken();
 	}
 
-	async findService(serviceName: string): Promise<ServiceInstance> {
+	findService(serviceName: ServiceInstanceName): Promise<ServiceInstance> {
 		return this._discoveryOrchestrator.findService(serviceName);
 	}
 
-	async findAllServices(serviceName: string): Promise<ServiceInstance[]> {
+	findAllServices(
+		serviceName: ServiceInstanceName
+	): Promise<ServiceInstance[]> {
 		return this._discoveryOrchestrator.findAllServices(serviceName);
 	}
 

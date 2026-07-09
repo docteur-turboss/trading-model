@@ -1,4 +1,7 @@
-import type { TradingSymbol, UnixTimestamp } from "@trading-model/common/domain/primitives";
+import type {
+	TradingSymbol,
+	UnixTimestamp,
+} from "@trading-model/common/domain/primitives";
 import type { LamarckGenome } from "./genetic-algorithm/genome-types";
 import type { DeepReadonly } from "./genetic-algorithm/shared-types";
 
@@ -19,14 +22,11 @@ export class CheckpointSerializer {
 		return JSON.stringify(genome, null, 2);
 	}
 
-	fromJson<T>(raw: string): T {
-		return JSON.parse(raw) as T;
+	fromJson<TValue>(raw: string): TValue {
+		return JSON.parse(raw) as TValue;
 	}
 
-	buildMetadata(
-		target: CheckpointTarget,
-		fitness = 0
-	): CheckpointMetadata {
+	buildMetadata(target: CheckpointTarget, fitness = 0): CheckpointMetadata {
 		return {
 			savedAt: Date.now() as UnixTimestamp,
 			symbol: target.symbol,

@@ -1,7 +1,7 @@
 import { logger } from "@trading-model/common/config/logger";
 import {
-	DEFAULT_LATENCY_WINDOW_SIZE,
 	DEFAULT_LATENCY_P99_THRESHOLD_MS,
+	DEFAULT_LATENCY_WINDOW_SIZE,
 } from "./circuit-breaker-constants";
 
 export interface LatencyWindow {

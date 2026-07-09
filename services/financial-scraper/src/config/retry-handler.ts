@@ -1,10 +1,6 @@
-import {
-	type AxiosError,
-	type AxiosInstance,
-	type AxiosRequestConfig,
-} from "axios";
 import { isRetryableStatusPermissive } from "@trading-model/common/config/http-retry";
 import { computeExponentialBackoff } from "@trading-model/common/utils/backoff-config";
+import type { AxiosError, AxiosInstance, AxiosRequestConfig } from "axios";
 
 const RETRY_CONFIG = {
 	retries: 5,
@@ -46,7 +42,7 @@ function executeRetry(
 export function createRetryInterceptor(
 	instance: AxiosInstance
 ): Parameters<AxiosInstance["interceptors"]["response"]["use"]>[1] {
-	return async (error: AxiosError) => {
+	return (error: AxiosError) => {
 		const config = error.config as AxiosRequestConfig & { retryCount?: number };
 		if (!config) {
 			throw error;

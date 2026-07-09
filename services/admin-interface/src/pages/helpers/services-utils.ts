@@ -24,7 +24,7 @@ export function flattenServices(
 						version?: string;
 						heartbeat?: string;
 						status?: string;
-					}
+				  }
 				| undefined;
 			return {
 				serviceName: svc.serviceName,
@@ -38,7 +38,10 @@ export function flattenServices(
 	);
 }
 
-export function filterServices(services: ServiceRow[], filter: string): ServiceRow[] {
+export function filterServices(
+	services: ServiceRow[],
+	filter: string
+): ServiceRow[] {
 	return filter
 		? services.filter((svc) =>
 				svc.serviceName.toLowerCase().includes(filter.toLowerCase())

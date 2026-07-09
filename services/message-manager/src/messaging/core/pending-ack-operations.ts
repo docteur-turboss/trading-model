@@ -1,5 +1,5 @@
+﻿import type { PendingAckData } from "./messaging-types";
 import { PendingAckFacade } from "./pending-ack-facade";
-import type { PendingAckData } from "./messaging-types";
 
 export class PendingAckOperations {
 	private readonly _pendingAck: PendingAckFacade;
@@ -8,7 +8,7 @@ export class PendingAckOperations {
 		this._pendingAck = new PendingAckFacade(prefix);
 	}
 
-	async recoverPendingAcks(
+	recoverPendingAcks(
 		ownInstanceId: string,
 		maxAgeMs = 120_000
 	): Promise<number> {
@@ -27,11 +27,7 @@ export class PendingAckOperations {
 		await this._pendingAck.remove(instanceId, messageId);
 	}
 
-	async getPendingAcks(
-		instanceId: string
-	): Promise<
-		Record<string, PendingAckData>
-	> {
+	getPendingAcks(instanceId: string): Promise<Record<string, PendingAckData>> {
 		return this._pendingAck.getAll(instanceId);
 	}
 }

@@ -1,4 +1,4 @@
-import { logger } from "../../config/logger";
+﻿import { logger } from "../../config/logger";
 import type { MemoryWalEntry } from "./memory-wal-entry";
 import type { RedisBackoff } from "./redis-backoff";
 

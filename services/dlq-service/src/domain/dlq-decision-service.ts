@@ -1,10 +1,13 @@
-/**
+﻿/**
  * Pure domain logic for DLQ business rules.
  * No MongoDB, no HTTP, no Redis — just decisions based on state.
  */
 
-import { DLQ_STATUS } from "../dlq/dlq-status";
-import { DLQ_MAX_CONSECUTIVE_ERRORS, DLQ_MAX_PASS_COUNT } from "../dlq/dlq-constants";
+import {
+	DLQ_MAX_CONSECUTIVE_ERRORS,
+	DLQ_MAX_PASS_COUNT,
+} from "../dlq/dlq-constants";
+import { DlqStatus } from "../dlq/dlq-status";
 
 export interface DlqDecisionInput {
 	messageId: string;
@@ -84,11 +87,11 @@ export class DlqDecisionService {
 		return {
 			retryCountMax: this._maxRetryAttempts(),
 			consecutiveErrorsMax: DLQ_MAX_CONSECUTIVE_ERRORS,
-			excludedStatuses: [DLQ_STATUS.COMPLETED, DLQ_STATUS.ABANDONED],
+			excludedStatuses: [DlqStatus.Completed, DlqStatus.Abandoned],
 		};
 	}
 
 	private _maxRetryAttempts(): number {
-			return Number.MAX_SAFE_INTEGER;
+		return Number.MAX_SAFE_INTEGER;
 	}
 }

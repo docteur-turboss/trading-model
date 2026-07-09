@@ -14,8 +14,8 @@ import type { Trainer } from "../core/trainer";
 /** Create and return a secure Express server with trader-trainer routes. */
 export function createServer(trainer: Trainer) {
 	return createSecureServer({
-		port: env.PORT as Port,
-		tls: buildTlsFromEnv(env),
+		port: ENV.PORT as Port,
+		tls: buildTlsFromEnv(ENV),
 		routes: (app) => {
 			app.get("/best-agent", createBestAgentHandler(trainer));
 			app.get("/training-status", createTrainingStatusHandler(trainer));

@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
-import type { ServiceId } from "../../src/domain/primitives";
+import type {
+	AuthToken,
+	SerialNumber,
+	ServiceId,
+} from "../../src/domain/primitives";
 import { RevocationReason } from "../../src/domain/revocation-request";
 
 const MOCK_GET = jest.fn<any>();
@@ -91,7 +95,7 @@ describe("CaClient", () => {
 				serviceId: "my-service" as unknown as ServiceId,
 				csr: "csr",
 				ttlMs: 86400000,
-				bootstrapToken: "token-123",
+				bootstrapToken: "token-123" as unknown as AuthToken,
 			});
 
 			expect(MOCK_POST).toHaveBeenCalledWith(
@@ -100,7 +104,7 @@ describe("CaClient", () => {
 					serviceId: "my-service",
 					csr: "csr",
 					ttlMs: 86400000,
-					bootstrapToken: "token-123",
+					bootstrapToken: "token-123" as unknown as AuthToken,
 				}
 			);
 		});
@@ -132,7 +136,9 @@ describe("CaClient", () => {
 		it("should GET the certificate for a service", async () => {
 			MOCK_GET.mockResolvedValueOnce(getResponse);
 
-			const result = await client.getCertificate("my-service");
+			const result = await client.getCertificate(
+				"my-service" as unknown as ServiceId
+			);
 
 			expect(MOCK_GET).toHaveBeenCalledWith(
 				"https://ca.example.com:8443/api/v1/certificate/my-service"
@@ -143,7 +149,9 @@ describe("CaClient", () => {
 		it("should return null on 204 No Content", async () => {
 			MOCK_GET.mockResolvedValueOnce(undefined);
 
-			const result = await client.getCertificate("my-service");
+			const result = await client.getCertificate(
+				"my-service" as unknown as ServiceId
+			);
 
 			expect(result).toBeNull();
 		});
@@ -151,7 +159,7 @@ describe("CaClient", () => {
 		it("should URL-encode the serviceId", async () => {
 			MOCK_GET.mockResolvedValueOnce(getResponse);
 
-			await client.getCertificate("my service/foo");
+			await client.getCertificate("my service/foo" as unknown as ServiceId);
 
 			expect(MOCK_GET).toHaveBeenCalledWith(
 				"https://ca.example.com:8443/api/v1/certificate/my%20service%2Ffoo"
@@ -164,13 +172,13 @@ describe("CaClient", () => {
 			MOCK_POST.mockResolvedValueOnce(undefined);
 
 			await client.revokeCertificate({
-				serialNumber: "serial-123",
-				reason: RevocationReason.KEY_COMPROMISE,
+				serialNumber: "serial-123" as unknown as SerialNumber,
+				reason: RevocationReason.KeyCompromise,
 			});
 
 			expect(MOCK_POST).toHaveBeenCalledWith(
 				"https://ca.example.com:8443/api/v1/certificate/revoke",
-				{ serialNumber: "serial-123", reason: RevocationReason.KEY_COMPROMISE }
+				{ serialNumber: "serial-123", reason: RevocationReason.KeyCompromise }
 			);
 		});
 
@@ -179,8 +187,8 @@ describe("CaClient", () => {
 
 			await expect(
 				client.revokeCertificate({
-					serialNumber: "serial-123",
-					reason: RevocationReason.KEY_COMPROMISE,
+					serialNumber: "serial-123" as unknown as SerialNumber,
+					reason: RevocationReason.KeyCompromise,
 				})
 			).rejects.toThrow("Timeout");
 		});

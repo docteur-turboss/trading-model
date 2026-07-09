@@ -1,4 +1,4 @@
-export interface IWalLifecycle {
+﻿export interface IWalLifecycle {
 	drainAndStop(timeoutMs?: number): Promise<void>;
 	stop(): void;
 	drainWalOnStartup(): Promise<void>;

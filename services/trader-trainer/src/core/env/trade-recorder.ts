@@ -1,8 +1,4 @@
-import type {
-	Cash,
-	Price,
-	Volume,
-} from "@trading-model/common/domain/primitives";
+import type { Cash } from "@trading-model/common/domain/primitives";
 import type { PortfolioState } from "./portfolio-state";
 import { TradeHistory, type TradeRecord } from "./trade-history";
 import { ValuationTracker } from "./valuation-tracker";
@@ -25,11 +21,13 @@ export class TradeRecorder {
 		this.valuationTracker.record(state);
 	}
 
-	recordTrade(
-		trade: Omit<TradeRecord, "step">
-	): void {
+	recordTrade(trade: Omit<TradeRecord, "step">): void {
 		this.tradeHistory.record(trade);
-		this.recordValuation({ cash: trade.cashAfter, position: trade.positionAfter, price: trade.price });
+		this.recordValuation({
+			cash: trade.cashAfter,
+			position: trade.positionAfter,
+			price: trade.price,
+		});
 	}
 
 	computeValuation(state: PortfolioState): Cash {

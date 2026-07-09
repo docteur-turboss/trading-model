@@ -1,4 +1,8 @@
-import type { ModelId, Percentage, TradingSymbol } from "../../domain/primitives";
+import type {
+	ModelId,
+	Percentage,
+	TradingSymbol,
+} from "../../domain/primitives";
 
 export enum LayerType {
 	Dense = "dense",
@@ -57,7 +61,12 @@ export interface TrainingGenome {
 }
 
 export interface DenseLayer {
-	type: LayerType.Dense | LayerType.Lstm | LayerType.Gru | LayerType.Attention | LayerType.Conv1d;
+	type:
+		| LayerType.Dense
+		| LayerType.Lstm
+		| LayerType.Gru
+		| LayerType.Attention
+		| LayerType.Conv1d;
 	units: number;
 	activation: ActivationFn;
 }

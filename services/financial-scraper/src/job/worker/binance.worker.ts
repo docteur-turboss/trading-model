@@ -1,4 +1,5 @@
-import { HELPER } from "@trading-model/broker-message";
+﻿import { HELPER } from "@trading-model/broker-message";
+import { CandleInterval } from "@trading-model/common/config/event.types";
 import { buildResponse, fetchAllRawData } from "./binance-worker-helpers";
 import type {
 	BinanceWorkerOptions,
@@ -21,7 +22,7 @@ export class BinanceWorker {
 
 		const rawData = await fetchAllRawData(opts);
 		const response = buildResponse(
-			{ symbol: opts.symbol, interval: opts.interval ?? CandleInterval.MIN1 },
+			{ symbol: opts.symbol, interval: opts.interval ?? CandleInterval.Min1 },
 			rawData
 		);
 

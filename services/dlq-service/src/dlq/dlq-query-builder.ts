@@ -1,9 +1,9 @@
-import type { Document, Filter } from "mongodb";
+﻿import type { Document, Filter } from "mongodb";
 import { ObjectId } from "mongodb";
 
 import { ENV } from "../config/env";
 import { DLQ_MAX_CONSECUTIVE_ERRORS } from "./dlq-constants";
-import { DLQ_STATUS } from "./dlq-status";
+import { DlqStatus } from "./dlq-status";
 
 export interface DlqListOptions {
 	topic?: string;
@@ -28,7 +28,7 @@ export class DlqQueryBuilder {
 		return {
 			retryCount: { $lt: ENV.DLQ_RETRY_MAX_ATTEMPTS },
 			processingAt: { $exists: false },
-			status: { $nin: [DLQ_STATUS.COMPLETED, DLQ_STATUS.ABANDONED] },
+			status: { $nin: [DlqStatus.Completed, DlqStatus.Abandoned] },
 			consecutiveErrors: { $lt: DLQ_MAX_CONSECUTIVE_ERRORS },
 		};
 	}
@@ -36,7 +36,7 @@ export class DlqQueryBuilder {
 	buildActiveClaimQuery(): Filter<Document> {
 		return {
 			processingAt: { $exists: true },
-			status: { $nin: [DLQ_STATUS.COMPLETED, DLQ_STATUS.ABANDONED] },
+			status: { $nin: [DlqStatus.Completed, DlqStatus.Abandoned] },
 		};
 	}
 

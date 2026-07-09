@@ -95,11 +95,19 @@ interface ServerDeps {
 	) => Promise<HttpServer>;
 }
 
-function _extractServerDeps(modules: [typeof import("@trading-model/common/server/configure-app"), typeof import("@trading-model/common/middleware/mtls-auth"), typeof import("@trading-model/common/middleware/response-protocol"), typeof import("@trading-model/common/server/server-factory")]): ServerDeps {
+function _extractServerDeps(
+	modules: [
+		typeof import("@trading-model/common/server/configure-app"),
+		typeof import("@trading-model/common/middleware/mtls-auth"),
+		typeof import("@trading-model/common/middleware/response-protocol"),
+		typeof import("@trading-model/common/server/server-factory"),
+	]
+): ServerDeps {
 	return {
 		configureApp: modules[0].configureApp,
 		mtlsAuthMiddleware: modules[1].MTLSAuthMiddleware,
-		responseProtocol: modules[2].ResponseProtocol as unknown as import("express").RequestHandler,
+		responseProtocol: modules[2]
+			.ResponseProtocol as unknown as import("express").RequestHandler,
 		createAndStartHttpsServer: modules[3].createAndStartHttpsServer,
 	};
 }

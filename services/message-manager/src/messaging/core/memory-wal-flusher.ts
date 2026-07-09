@@ -1,4 +1,4 @@
-import { TimerHandle } from "@trading-model/common/utils/timer-handle";
+﻿import { TimerHandle } from "@trading-model/common/utils/timer-handle";
 import { ENV } from "../../config/env";
 import { FlushFailureHandler } from "./flush-failure-handler";
 import { FlushGuard } from "./flush-guard";
@@ -48,13 +48,15 @@ export class MemoryWalFlusher {
 		return this._flushGuard.isFlushing;
 	}
 
-	private async _flushBatch(batch: MemoryWalEntry[]): Promise<boolean> {
-		if (batch.length === 0) return false;
-		const serialized = batch.map((e) =>
+	private _flushBatch(batch: MemoryWalEntry[]): Promise<boolean> {
+		if (batch.length === 0) {
+			return false;
+		}
+		const serialized = batch.map((entry) =>
 			JSON.stringify({
-				topic: e.topic,
-				serialized: e.serialized,
-				message: e.message,
+				topic: entry.topic,
+				serialized: entry.serialized,
+				message: entry.message,
 			})
 		);
 		return this._walBatchFlusher.flushBatch(serialized);

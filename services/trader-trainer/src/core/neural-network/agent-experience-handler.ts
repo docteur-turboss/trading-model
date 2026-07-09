@@ -6,17 +6,21 @@ import type {
 	Experience,
 	NetworkArchitecture,
 	QLearningExperience,
-	SupervisedExperience,
 } from "./type";
 
-type LearnStrategy = (nn: NeuralNetwork, exp: Experience) => void;
+type LearnStrategyMap = {
+	[Kind in Experience["kind"]]?: (
+		nn: NeuralNetwork,
+		exp: Extract<Experience, { kind: Kind }>
+	) => void;
+};
 
-const LEARN_STRATEGIES: Record<string, LearnStrategy> = {
-	supervised: (nn: NeuralNetwork, exp: Experience) => {
-		nn.train(exp.input, (exp as SupervisedExperience).target);
+const LEARN_STRATEGIES: LearnStrategyMap = {
+	supervised: (nn, exp) => {
+		nn.train(exp.input, exp.target);
 	},
-	qlearning: (nn: NeuralNetwork, exp: Experience) => {
-		const target = computeQLearningTarget(nn, exp as QLearningExperience, 0.99);
+	qlearning: (nn, exp) => {
+		const target = computeQLearningTarget(nn, exp, 0.99);
 		nn.train(exp.input, target);
 	},
 };
@@ -83,7 +87,9 @@ export class AgentExperienceHandler {
 
 	learnFromPool(nn: NeuralNetwork): void {
 		for (const exp of this._pool.values()) {
-			const strategy = LEARN_STRATEGIES[exp.kind];
+			const strategy = LEARN_STRATEGIES[exp.kind] as
+				| ((nn: NeuralNetwork, exp: Experience) => void)
+				| undefined;
 			if (strategy) {
 				strategy(nn, exp);
 			}
@@ -97,13 +103,9 @@ export class AgentExperienceHandler {
 				"Q-learning requires `reward` and `nextState` in the experience."
 			);
 		}
-		const strategy = LEARN_STRATEGIES[exp.kind];
-		if (!strategy) {
-			throw agentError(`No learn strategy for experience kind: ${exp.kind}`);
-		}
 		const qlExp = exp as QLearningExperience;
 		const adjustedExp = { ...qlExp, gamma };
-		strategy(nn, adjustedExp as unknown as Experience);
+		LEARN_STRATEGIES.qlearning!(nn, adjustedExp);
 		this._pool.remove(exp.input);
 	}
 }

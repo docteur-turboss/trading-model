@@ -1,4 +1,7 @@
-import type { InstanceId, Topic } from "@trading-model/common/domain/primitives";
+import type {
+	InstanceId,
+	Topic,
+} from "@trading-model/common/domain/primitives";
 import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
 
 /** Payload sent when subscribing to a topic. */

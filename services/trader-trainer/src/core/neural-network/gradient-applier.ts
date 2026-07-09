@@ -52,7 +52,13 @@ export class GradientApplier {
 			const rowOffset = j * fanIn;
 			const deltaJ = delta[j];
 			gradB[j] = deltaJ;
-			computeWeightGradient({ weightBuf: gradW, rowOffset, deltaJ, input: layerInput, fanIn });
+			computeWeightGradient({
+				weightBuf: gradW,
+				rowOffset,
+				deltaJ,
+				input: layerInput,
+				fanIn,
+			});
 		}
 	}
 

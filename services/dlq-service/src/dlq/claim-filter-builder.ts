@@ -1,17 +1,13 @@
-import {
-	type AnyBulkWriteOperation,
-	type Document,
-	ObjectId,
-} from "mongodb";
+﻿import { type AnyBulkWriteOperation, ObjectId } from "mongodb";
 
 import { ENV } from "../config/env";
-import { DLQ_STATUS } from "./dlq-status";
 import { DLQ_MAX_CONSECUTIVE_ERRORS } from "./dlq-constants";
+import { DlqStatus } from "./dlq-status";
 
 export class ClaimFilterBuilder {
 	buildClaimFilter(topic?: string): Record<string, unknown> {
 		const statusFilter: Record<string, unknown> = {
-			$nin: [DLQ_STATUS.COMPLETED, DLQ_STATUS.ABANDONED],
+			$nin: [DlqStatus.Completed, DlqStatus.Abandoned],
 		};
 		const filter: Record<string, unknown> = {
 			retryCount: { $lt: ENV.DLQ_RETRY_MAX_ATTEMPTS },
@@ -29,7 +25,7 @@ export class ClaimFilterBuilder {
 		return {
 			retryCount: { $lt: ENV.DLQ_RETRY_MAX_ATTEMPTS },
 			processingAt: { $exists: false },
-			status: { $nin: [DLQ_STATUS.COMPLETED, DLQ_STATUS.ABANDONED] },
+			status: { $nin: [DlqStatus.Completed, DlqStatus.Abandoned] },
 			consecutiveErrors: { $lt: DLQ_MAX_CONSECUTIVE_ERRORS },
 		};
 	}
@@ -43,7 +39,7 @@ export class ClaimFilterBuilder {
 		const atomicCond = this.buildAtomicCondition();
 		return candidates.map((doc) => ({
 			updateOne: {
-				filter: { _id: doc._id, ...atomicCond },
+				filter: { _id: doc.objectId, ...atomicCond },
 				update: {
 					$set: {
 						processingAt: now,

@@ -1,4 +1,4 @@
-import type { Normalizer, NormalizeParams } from "./normalizer-interface";
+import type { NormalizeParams, Normalizer } from "./normalizer-interface";
 
 export class NoneNormalizer implements Normalizer {
 	normalize(

@@ -15,25 +15,25 @@ export class ActivationComputer {
 	computeExpSum(
 		preActivations: Float32Array,
 		max: number
-	): { Out: Float32Array; expSum: number } {
-		const Out = new Float32Array(preActivations.length);
+	): { output: Float32Array; expSum: number } {
+		const output = new Float32Array(preActivations.length);
 		let expSum = 0;
 		for (let i = 0; i < preActivations.length; i++) {
 			const expVal = Math.exp(preActivations[i] - max);
-			Out[i] = expVal;
+			output[i] = expVal;
 			expSum += expVal;
 		}
-		return { Out, expSum };
+		return { output, expSum };
 	}
 
 	applySoftmax(preActivations: Float32Array): Float32Array {
 		const max = this.findMax(preActivations);
-		const { Out, expSum } = this.computeExpSum(preActivations, max);
+		const { output, expSum } = this.computeExpSum(preActivations, max);
 		const inv = 1 / expSum;
-		for (let i = 0; i < Out.length; i++) {
-			Out[i] *= inv;
+		for (let i = 0; i < output.length; i++) {
+			output[i] *= inv;
 		}
-		return Out;
+		return output;
 	}
 
 	applyElementWiseActivation(
@@ -41,11 +41,11 @@ export class ActivationComputer {
 		activation: ActivationType
 	): Float32Array {
 		const fanOut = preActivations.length;
-		const Out = new Float32Array(fanOut);
+		const output = new Float32Array(fanOut);
 		for (let i = 0; i < fanOut; i++) {
-			Out[i] = this.activate(preActivations[i], activation);
+			output[i] = this.activate(preActivations[i], activation);
 		}
-		return Out;
+		return output;
 	}
 
 	activate(input: number, activation: ActivationType): number {

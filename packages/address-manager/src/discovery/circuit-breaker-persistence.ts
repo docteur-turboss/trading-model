@@ -1,9 +1,8 @@
 import { logger } from "@trading-model/common/config/logger";
 import { CircuitStateMachine } from "@trading-model/common/reliability/circuit-state-machine";
 import { normalizeError } from "@trading-model/common/utils/errors";
-
-import type { ICircuitStateStore } from "./circuit-state-store";
 import { DEFAULT_LOAD_CACHE_TTL_MS } from "./circuit-breaker-constants";
+import type { ICircuitStateStore } from "./circuit-state-store";
 
 export class CircuitBreakerPersistence {
 	private readonly _lastLoadTimes = new Map<string, number>();
@@ -30,12 +29,21 @@ export class CircuitBreakerPersistence {
 	persistMachineState(instanceId: string, machine: CircuitStateMachine): void {
 		const stateData = this._buildStateData(machine);
 		this._stateStore.setCircuitState(instanceId, stateData).catch((err) => {
-			logger.warn("Failed to persist circuit breaker state", { instanceId, error: normalizeError(err) });
+			logger.warn("Failed to persist circuit breaker state", {
+				instanceId,
+				error: normalizeError(err),
+			});
 		});
 	}
 
-	private _buildStateData(machine: CircuitStateMachine): import("./circuit-breaker-state").INstanceState {
-		return { failures: machine.failures, lastFailureTime: Date.now(), state: machine.getState(Date.now()) };
+	private _buildStateData(
+		machine: CircuitStateMachine
+	): import("./circuit-breaker-state").INstanceState {
+		return {
+			failures: machine.failures,
+			lastFailureTime: Date.now(),
+			state: machine.getState(Date.now()),
+		};
 	}
 
 	private _isCacheValid(instanceId: string): boolean {
@@ -51,17 +59,25 @@ export class CircuitBreakerPersistence {
 		persisted: import("./circuit-breaker-state").INstanceState,
 		instances: Map<string, CircuitStateMachine>
 	): void {
-		if (this._shouldRestoreFromPersisted(instances.get(instanceId), persisted)) {
+		if (
+			this._shouldRestoreFromPersisted(instances.get(instanceId), persisted)
+		) {
 			instances.set(instanceId, this._replayMachine(persisted));
 		}
 	}
 
-	private _shouldRestoreFromPersisted(existing: CircuitStateMachine | undefined, persisted: { lastFailureTime: number }): boolean {
+	private _shouldRestoreFromPersisted(
+		existing: CircuitStateMachine | undefined,
+		persisted: { lastFailureTime: number }
+	): boolean {
 		return !existing || persisted.lastFailureTime > Date.now();
 	}
 
 	private _replayMachine(persisted: { failures: number }): CircuitStateMachine {
-		const machine = new CircuitStateMachine({ failureThreshold: 3, cooldownMs: 10_000 });
+		const machine = new CircuitStateMachine({
+			failureThreshold: 3,
+			cooldownMs: 10_000,
+		});
 		for (let i = 0; i < persisted.failures; i++) {
 			machine.recordFailure(Date.now());
 		}

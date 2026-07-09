@@ -1,8 +1,8 @@
-import { DeliveryMode } from "@trading-model/common/config/delivery-mode.types";
+﻿import type { DeliveryMode } from "@trading-model/common/config/delivery-mode.types";
 import type { Message } from "@trading-model/common/contracts/message.types";
 import { logger } from "../../config/logger";
-import type { MessageDeliveryPort } from "./message-delivery-port";
 import { DeliveryErrorClassifier } from "./delivery-error-classifier";
+import type { MessageDeliveryPort } from "./message-delivery-port";
 
 export interface DeliveryErrorHandlerDeps {
 	deliveryPort: MessageDeliveryPort;
@@ -69,6 +69,8 @@ export class DeliveryErrorHandler {
 			case "swallow":
 				return true;
 			case "retry":
+				return false;
+			default:
 				return false;
 		}
 	}

@@ -335,26 +335,41 @@ describe("MessageStore", () => {
 	it("should deduplicate with Redis", async () => {
 		mockSet.mockResolvedValue("OK");
 
-		const result = await messageStore.tryDeduplicate("dedup-1", 300);
+		const result = await messageStore.tryDeduplicate({
+			deduplicationId: "dedup-1",
+			ttlS: 300,
+		});
 
 		expect(result).toBe(true);
 	});
 
 	it("should reject duplicate", async () => {
-		const first = await messageStore.tryDeduplicate("dedup-test-2", 300);
+		const first = await messageStore.tryDeduplicate({
+			deduplicationId: "dedup-test-2",
+			ttlS: 300,
+		});
 		expect(first).toBe(true);
 
-		const second = await messageStore.tryDeduplicate("dedup-test-2", 300);
+		const second = await messageStore.tryDeduplicate({
+			deduplicationId: "dedup-test-2",
+			ttlS: 300,
+		});
 		expect(second).toBe(false);
 	});
 
 	it("should handle dedup with Redis down", async () => {
 		mockSet.mockRejectedValue(new Error("redis down"));
 
-		const result = await messageStore.tryDeduplicate("dedup-2", 300);
+		const result = await messageStore.tryDeduplicate({
+			deduplicationId: "dedup-2",
+			ttlS: 300,
+		});
 		expect(result).toBe(true);
 
-		const duplicate = await messageStore.tryDeduplicate("dedup-2", 300);
+		const duplicate = await messageStore.tryDeduplicate({
+			deduplicationId: "dedup-2",
+			ttlS: 300,
+		});
 		expect(duplicate).toBe(false);
 	});
 

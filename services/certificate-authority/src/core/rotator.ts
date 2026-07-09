@@ -83,11 +83,15 @@ export class Rotator {
 	}
 
 	private async _rotate(): Promise<void> {
-		const expiringCerts = await this._options.certificateStore.getExpiring(this._options.marginMs);
+		const expiringCerts = await this._options.certificateStore.getExpiring(
+			this._options.marginMs
+		);
 		if (expiringCerts.length === 0) {
 			return;
 		}
-		logger.info("Rotating expiring certificates", { context: { count: expiringCerts.length } });
+		logger.info("Rotating expiring certificates", {
+			context: { count: expiringCerts.length },
+		});
 		for (const cert of expiringCerts) {
 			this._rotateCertWithLogging(cert);
 		}

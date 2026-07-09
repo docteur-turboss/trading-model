@@ -20,7 +20,7 @@ export class CrlStore {
 	/** Connection lifecycle is managed externally by MONGO_MANAGER. */
 	async disconnect(): Promise<void> {}
 
-	async save(entry: RevokedCertificate): Promise<void> {
+	async insert(entry: RevokedCertificate): Promise<void> {
 		await this._collection.insertOne(entry);
 	}
 

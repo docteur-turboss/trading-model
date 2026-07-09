@@ -8,7 +8,7 @@ import {
 
 describe("generateKeyPair", () => {
 	it("should generate an RSA 4096 key pair", () => {
-		const keyPair = generateKeyPair(KeyAlgorithm.rsa4096);
+		const keyPair = generateKeyPair(KeyAlgorithm.Rsa4096);
 
 		expect(keyPair.publicKey).toBeDefined();
 		expect(keyPair.privateKey).toBeDefined();
@@ -18,7 +18,7 @@ describe("generateKeyPair", () => {
 	});
 
 	it("should generate an EC P-384 key pair", () => {
-		const keyPair = generateKeyPair(KeyAlgorithm.ecP384);
+		const keyPair = generateKeyPair(KeyAlgorithm.EcP384);
 
 		expect(keyPair.publicKey).toBeDefined();
 		expect(keyPair.privateKey).toBeDefined();
@@ -34,7 +34,7 @@ describe("generateKeyPair", () => {
 	});
 
 	it("should return keys in PEM format", () => {
-		const keyPair = generateKeyPair(KeyAlgorithm.ecP384);
+		const keyPair = generateKeyPair(KeyAlgorithm.EcP384);
 
 		expect(keyPair.publicKey).toMatch(/^-----BEGIN PUBLIC KEY-----/);
 		expect(keyPair.privateKey).toMatch(/^-----BEGIN PRIVATE KEY-----/);
@@ -43,15 +43,15 @@ describe("generateKeyPair", () => {
 	});
 
 	it("should generate a unique key pair each time", () => {
-		const kp1 = generateKeyPair(KeyAlgorithm.ecP384);
-		const kp2 = generateKeyPair(KeyAlgorithm.ecP384);
+		const kp1 = generateKeyPair(KeyAlgorithm.EcP384);
+		const kp2 = generateKeyPair(KeyAlgorithm.EcP384);
 
 		expect(kp1.privateKey).not.toBe(kp2.privateKey);
 		expect(kp1.publicKey).not.toBe(kp2.publicKey);
 	});
 
 	it("generateKeyPairWithId should generate a key pair with an id", () => {
-		const result = generateKeyPairWithId(KeyAlgorithm.ecP384);
+		const result = generateKeyPairWithId(KeyAlgorithm.EcP384);
 
 		expect(result.publicKey).toBeDefined();
 		expect(result.privateKey).toBeDefined();
@@ -68,7 +68,7 @@ describe("generateKeyPair", () => {
 	});
 
 	it("generateKeyPairWithIdSync should generate a key pair with an id", () => {
-		const result = generateKeyPairWithIdSync(KeyAlgorithm.rsa4096);
+		const result = generateKeyPairWithIdSync(KeyAlgorithm.Rsa4096);
 
 		expect(result.publicKey).toBeDefined();
 		expect(result.privateKey).toBeDefined();

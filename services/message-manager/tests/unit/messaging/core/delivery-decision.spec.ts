@@ -1,9 +1,6 @@
 import { describe, expect, it } from "@jest/globals";
 
-import {
-	DeliveryMode,
-	type DeliveryMode,
-} from "@trading-model/common/config/delivery-mode.types";
+import { DeliveryMode } from "@trading-model/common/config/delivery-mode.types";
 
 import { deadLetterError } from "@trading-model/common/utils/errors";
 import { classifyDeliveryFailure } from "../../../../src/messaging/core/delivery-decision";

@@ -1,5 +1,5 @@
-import type { TlsPaths } from "@trading-model/common/domain/tls-paths";
 import type { InstanceId } from "@trading-model/common/domain/primitives";
+import type { TlsPaths } from "@trading-model/common/domain/tls-paths";
 import type { IWsConnection } from "@trading-model/common/ws/i-ws-connection";
 import { WssConnection, type WssConnectionEvents } from "./wss-connection";
 
@@ -68,7 +68,8 @@ export class WssConnectionLifecycle implements IWsConnection {
 		this._setupOpenHandler();
 		this._setupMessageHandler();
 		this._setupErrorHandler();
-		this._connection.connect(this._buildUrl());
+		this._connection.setUrl(this._buildUrl());
+		this._connection.connect();
 	}
 
 	disconnect(closeCode?: number, reason?: string): void {

@@ -32,7 +32,9 @@ export interface RmspropState {
 
 export type OptimizerState = SgdState | AdamState | RmspropState;
 
-export interface OptimizerStepOptions<TState extends OptimizerState = OptimizerState> {
+export interface OptimizerStepOptions<
+	TState extends OptimizerState = OptimizerState,
+> {
 	params: Float32Array;
 	grads: Float32Array;
 	state: TState;
