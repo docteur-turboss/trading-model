@@ -1,4 +1,5 @@
-﻿import type Redis from "ioredis";
+﻿import type { Topic, InstanceId } from "@trading-model/common/domain/primitives";
+import type Redis from "ioredis";
 
 import type { TopicSubscription } from "./messaging-types";
 import { RedisSubscriptionKeys } from "./redis-subscription-keys";
@@ -28,7 +29,7 @@ export class SubscriptionCleanupHandler {
 	cleanupInstanceIfEmpty(
 		redis: Redis,
 		results: [Error | null, unknown][],
-		instanceId: string
+		instanceId: InstanceId
 	): void {
 		const instanceScard = results[results.length - 2];
 		if (this._isZeroScard(instanceScard)) {
@@ -42,7 +43,7 @@ export class SubscriptionCleanupHandler {
 	async cleanupTopicIfEmpty(
 		redis: Redis,
 		results: [Error | null, unknown][],
-		topic: string
+		topic: Topic
 	): Promise<void> {
 		const scardResult = results[results.length - 1];
 		if (this._isZeroScard(scardResult)) {

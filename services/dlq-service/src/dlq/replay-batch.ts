@@ -1,3 +1,4 @@
+import { toMessageId } from "@trading-model/common/domain/primitives";
 import { logger } from "../config/logger";
 import {
 	checkBatchRejection,
@@ -95,7 +96,7 @@ function _recordFailedEntry(
 			? ((result.reason as Error)?.message ?? "unknown error")
 			: "unknown error";
 	ctx.errors.push({
-		id: entry?.id ?? "unknown",
+		id: toMessageId(entry?.id ?? "unknown"),
 		error: errorMsg,
 	});
 	logger.error("DLQ replay entry failed", {

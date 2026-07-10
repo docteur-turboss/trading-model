@@ -1,3 +1,5 @@
+import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
+import type { InstanceId } from "@trading-model/common/domain/primitives";
 import type { IncomingMessage } from "node:http";
 import type https from "node:https";
 import type WebSocket from "ws";
@@ -34,15 +36,15 @@ export class WsDiscoveryServer {
 		this._protocolHandler.setupConnectionHandler(this._wss);
 	}
 
-	notifyServiceChanged(serviceName: string): void {
+	notifyServiceChanged(serviceName: ServiceInstanceName): void {
 		this._broadcastInvalidation(serviceName);
 	}
 
-	notifyInstanceRemoved(serviceName: string, _instanceId: string): void {
+	notifyInstanceRemoved(serviceName: ServiceInstanceName, _instanceId: InstanceId): void {
 		this._broadcastInvalidation(serviceName);
 	}
 
-	private _broadcastInvalidation(serviceName: string): void {
+	private _broadcastInvalidation(serviceName: ServiceInstanceName): void {
 		const message = JSON.stringify({
 			type: "cache.invalidate",
 			payload: { serviceName },

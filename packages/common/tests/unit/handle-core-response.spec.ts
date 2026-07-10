@@ -163,7 +163,7 @@ describe("handleCoreResponse", () => {
 	});
 
 	describe("handleCoreError", () => {
-		it("should return mapped error tuple for known error message", () => {
+		it("should return mapped error result for known error message", () => {
 			const mapping = {
 				USER_NOT_FOUND: { code: "404", message: "User not found" },
 			};
@@ -172,7 +172,10 @@ describe("handleCoreResponse", () => {
 				new Error("USER_NOT_FOUND"),
 				mapping
 			);
-			expect(result).toEqual(["404", "User not found"]);
+			expect(result).toEqual({
+				errorCode: "404",
+				errorMessage: "User not found",
+			});
 		});
 
 		it("should re-throw unmapped error", () => {
@@ -201,13 +204,13 @@ describe("handleCoreResponse", () => {
 	});
 
 	describe("handleOnlyDataCore", () => {
-		it("should return tuple with data and Success code", async () => {
+		it("should return success result with data and status code", async () => {
 			const fn = jest.fn<any>().mockResolvedValue({ id: 1 });
 			const result = await handleOnlyDataCore(fn, {} as any, {
 				file: "user" as any,
 				context: "test",
 			});
-			expect(result).toEqual([{ id: 1 }, "success"]);
+			expect(result).toEqual({ data: { id: 1 }, statusCode: "success" });
 		});
 
 		it("should map errors using provided mapping", async () => {
@@ -217,7 +220,10 @@ describe("handleCoreResponse", () => {
 				{ NOT_FOUND: { code: "404", message: "Not found" } },
 				{ file: "user" as any, context: "test" }
 			);
-			expect(result).toEqual(["404", "Not found"]);
+			expect(result).toEqual({
+				errorCode: "404",
+				errorMessage: "Not found",
+			});
 		});
 
 		it("should use default empty errorMap", async () => {
@@ -226,7 +232,7 @@ describe("handleCoreResponse", () => {
 				file: "user" as any,
 				context: "test",
 			});
-			expect(result).toEqual(["data", "success"]);
+			expect(result).toEqual({ data: "data", statusCode: "success" });
 		});
 	});
 });

@@ -1,4 +1,5 @@
 import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
+import type { InstanceId } from "@trading-model/common/domain/primitives";
 import type { Application } from "express";
 import { buildAddressManagerDependencies } from "./address-manager-factory";
 import type { TokenManager } from "./client/token-manager";
@@ -40,11 +41,11 @@ export default class AddressManager {
 		return this._discoveryOrchestrator.findAllServices(serviceName);
 	}
 
-	recordCallSuccess(instanceId: string, durationMs?: number): void {
+	recordCallSuccess(instanceId: InstanceId, durationMs?: number): void {
 		this._discoveryOrchestrator.recordCallSuccess(instanceId, durationMs);
 	}
 
-	recordCallFailure(instanceId: string, durationMs?: number): void {
+	recordCallFailure(instanceId: InstanceId, durationMs?: number): void {
 		this._discoveryOrchestrator.recordCallFailure(instanceId, durationMs);
 	}
 

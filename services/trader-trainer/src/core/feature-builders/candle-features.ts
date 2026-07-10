@@ -17,20 +17,20 @@ export function candleRangeRatio(cur: CandleData): number {
 }
 
 export function candleVolumeRatio(cur: CandleData, state: SymbolState): number {
-	const volStd = state.norm.candleVolume.getStd();
+	const volStd = state.norm.candle.volume.getStd();
 	return volStd > 1e-10 ? cur.volume / volStd : 0;
 }
 
 export function buildCandleFeatures(ctx: CandleFeatureContext): void {
 	const { features, state, idx } = ctx;
 	const cur = state.candles[idx];
-	features.candle.close = state.norm.candleClose.normalize(cur.close);
-	features.candle.volume = state.norm.candleVolume.normalize(cur.volume);
+	features.candle.close = state.norm.candle.close.normalize(cur.close);
+	features.candle.volume = state.norm.candle.volume.normalize(cur.volume);
 	features.candle.returnRatio = candleReturnRatio(cur, ctx.prev);
 	features.candle.positionRatio = candlePositionRatio(cur);
 	features.candle.rangeRatio = candleRangeRatio(cur);
-	features.candle.open = state.norm.candleOpen.normalize(cur.open);
-	features.candle.high = state.norm.candleHigh.normalize(cur.high);
-	features.candle.low = state.norm.candleLow.normalize(cur.low);
+	features.candle.open = state.norm.candle.open.normalize(cur.open);
+	features.candle.high = state.norm.candle.high.normalize(cur.high);
+	features.candle.low = state.norm.candle.low.normalize(cur.low);
 	features.candle.volumeRatio = candleVolumeRatio(cur, state);
 }

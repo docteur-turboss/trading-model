@@ -1,3 +1,4 @@
+import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import { logger } from "@trading-model/common/config/logger";
 import type { ServiceInstance } from "@trading-model/common/contracts/service-registry.types";
 import {
@@ -11,14 +12,14 @@ import { TimerHandle } from "@trading-model/common/utils/timer-handle";
 import { isAliveInstance, isExpiredInstance } from "./expiration";
 
 export interface CleanupDeps {
-	listServiceNames(): Promise<string[]>;
-	getInstances(serviceName: string): Promise<ServiceInstance[]>;
+	listServiceNames(): Promise<ServiceInstanceName[]>;
+	getInstances(serviceName: ServiceInstanceName): Promise<ServiceInstance[]>;
 	removeInstance(id: ServiceIdentity): Promise<boolean>;
 }
 
 export interface SyncCleanupDeps {
-	listServiceNames(): string[];
-	getInstances(serviceName: string): ServiceInstance[];
+	listServiceNames(): ServiceInstanceName[];
+	getInstances(serviceName: ServiceInstanceName): ServiceInstance[];
 	removeInstance(id: ServiceIdentity): void;
 }
 
@@ -87,7 +88,7 @@ export class StaleInstanceCleaner {
 	}
 
 	private async _removeExpiredInstance(
-		serviceName: string,
+		serviceName: ServiceInstanceName,
 		instance: ServiceInstance,
 		now: number
 	): Promise<void> {

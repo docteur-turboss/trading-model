@@ -1,12 +1,14 @@
+import { LogLevel } from "@trading-model/common/config/log-types";
 import { z } from "zod";
 
+import { NODE_ENVS } from "@trading-model/common/config/node-env";
 import { logger } from "../config/logger";
 import { configurationError, normalizeError } from "../utils/errors";
 
 /** Zod schema for base environment variables shared across all services. */
 export const BaseEnvSchema = z.object({
 	NODE_ENV: z
-		.enum(["development", "test", "staging", "production"])
+		.enum(NODE_ENVS)
 		.default("development"),
 
 	PORT: z.coerce.number().int().positive().default(3000),
@@ -15,7 +17,7 @@ export const BaseEnvSchema = z.object({
 	TLS_CERT_PATH: z.string().min(1),
 	TLS_CA_PATH: z.string().min(1),
 
-	LOG_LEVEL: z.enum(["error", "warn", "info", "debug"]).default("info"),
+	LOG_LEVEL: z.nativeEnum(LogLevel).default(LogLevel.Info),
 
 	/** URL of the CA service for automatic certificate provisioning at startup. */
 	CERT_CLIENT_CA_URL: z.string().url().optional(),

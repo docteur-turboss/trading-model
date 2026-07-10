@@ -1,4 +1,4 @@
-import type { ServiceId } from "@trading-model/common/domain/primitives";
+import type { InstanceId, ServiceId } from "@trading-model/common/domain/primitives";
 import type { ServiceInstance } from "../client/type";
 import { CacheStore } from "./cache-store";
 import { CircuitStateStore } from "./circuit-state-store";
@@ -80,13 +80,13 @@ export class ServiceCache implements IServiceCache {
 	stop(): void {
 		this._cacheStore.stop();
 	}
-	setCircuitState(instanceId: string, state: CircuitState): Promise<void> {
+	setCircuitState(instanceId: InstanceId, state: CircuitState): Promise<void> {
 		return this._circuitStore.setCircuitState(instanceId, state);
 	}
-	getCircuitState(instanceId: string): Promise<CircuitState | null> {
+	getCircuitState(instanceId: InstanceId): Promise<CircuitState | null> {
 		return this._circuitStore.getCircuitState(instanceId);
 	}
-	deleteCircuitState(instanceId: string): Promise<void> {
+	deleteCircuitState(instanceId: InstanceId): Promise<void> {
 		return this._circuitStore.deleteCircuitState(instanceId);
 	}
 }

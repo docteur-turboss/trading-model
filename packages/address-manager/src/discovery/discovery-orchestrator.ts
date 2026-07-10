@@ -1,4 +1,6 @@
 import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
+import type { InstanceId } from "@trading-model/common/domain/primitives";
+import { toServiceId } from "@trading-model/common/domain/primitives";
 import { recordDiscoveryMetrics } from "../metrics";
 import type { DiscoveryCircuitBreaker } from "./circuit-breaker";
 import { DiscoveryRetryHandler } from "./discovery-retry-handler";
@@ -53,7 +55,7 @@ export class DiscoveryOrchestrator {
 		if (staleInstance) {
 			return staleInstance;
 		}
-		recordDiscoveryMetrics({ serviceName, startTime }, "failure");
+		recordDiscoveryMetrics({ serviceName: toServiceId(serviceName), startTime }, "failure");
 		throw lastError;
 	}
 
@@ -63,7 +65,7 @@ export class DiscoveryOrchestrator {
 		return this._serviceDiscovery.findAllServices(serviceName);
 	}
 
-	recordCallSuccess(instanceId: string, durationMs?: number): void {
+	recordCallSuccess(instanceId: InstanceId, durationMs?: number): void {
 		this._serviceDiscovery.releaseConnection(instanceId);
 		this.circuitBreaker.recordSuccess(instanceId);
 		if (durationMs !== undefined) {
@@ -72,7 +74,7 @@ export class DiscoveryOrchestrator {
 		}
 	}
 
-	recordCallFailure(instanceId: string, durationMs?: number): void {
+	recordCallFailure(instanceId: InstanceId, durationMs?: number): void {
 		this._serviceDiscovery.releaseConnection(instanceId);
 		this.circuitBreaker.recordFailure(instanceId);
 		if (durationMs !== undefined) {

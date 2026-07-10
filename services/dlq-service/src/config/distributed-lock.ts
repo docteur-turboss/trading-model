@@ -1,3 +1,4 @@
+import { REDIS_RESP, REDIS_SET } from "@trading-model/common/persistence/redis-constants";
 import type { IDistributedLock } from "@trading-model/common/contracts/distributed-lock.types";
 import { TimerHandle } from "@trading-model/common/utils/timer-handle";
 import type { Redis } from "ioredis";
@@ -20,8 +21,8 @@ export class DistributedLock implements IDistributedLock {
 
 	async acquire(lockId?: string): Promise<boolean> {
 		const id = lockId ?? "";
-		const acquired = await this._redis.set(this._key, id, "EX", LOCK_TTL, "NX");
-		if (acquired === "OK") {
+		const acquired = await this._redis.set(this._key, id, REDIS_SET.EX, LOCK_TTL, REDIS_SET.NX);
+		if (acquired === REDIS_RESP.OK) {
 			this._currentLockId = id;
 			this._startRenewal(id);
 			return true;
@@ -38,7 +39,7 @@ export class DistributedLock implements IDistributedLock {
 
 	private async _renewLock(lockId: string): Promise<void> {
 		try {
-			await this._redis.set(this._key, lockId, "EX", LOCK_TTL, "XX");
+			await this._redis.set(this._key, lockId, REDIS_SET.EX, LOCK_TTL, REDIS_SET.XX);
 		} catch {}
 	}
 

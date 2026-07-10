@@ -10,7 +10,7 @@ function _mutateSigma(
 ): number {
 	return Math.max(
 		1e-5,
-		mutationConfig.sigma +
+		mutationConfig.rates.sigma +
 			sampleNoise(mutationConfig.distribution, sigma * 0.1, rng)
 	);
 }
@@ -22,7 +22,7 @@ function _mutateSelfSigma(
 ): number {
 	return Math.max(
 		1e-5,
-		mutationConfig.selfSigma +
+		mutationConfig.rates.selfSigma +
 			sampleNoise(MutationDistribution.Gaussian, sigma * 0.05, rng)
 	);
 }
@@ -34,8 +34,11 @@ export function mutateSelfAdaptiveParams(
 ): MutationGenome {
 	return {
 		...mutationConfig,
-		sigma: _mutateSigma(mutationConfig, sigma, rng),
-		selfSigma: _mutateSelfSigma(mutationConfig, sigma, rng),
-		rate: clamp(mutationConfig.rate + sampleGaussian(rng, 0.01), 0.001, 0.5),
+		rates: {
+			...mutationConfig.rates,
+			sigma: _mutateSigma(mutationConfig, sigma, rng),
+			selfSigma: _mutateSelfSigma(mutationConfig, sigma, rng),
+			rate: clamp(mutationConfig.rates.rate + sampleGaussian(rng, 0.01), 0.001, 0.5),
+		},
 	};
 }

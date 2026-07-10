@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
+import { REDIS_RESP } from "@trading-model/common/persistence/redis-constants";
 
 const mockFindOne = jest.fn();
 const mockFindOneAndUpdate = jest.fn();
@@ -187,7 +188,7 @@ describe("DistributedLock", () => {
 
 	it("should try Redis with redisUrl on acquire", async () => {
 		mockFindOneAndUpdate.mockRejectedValue(new Error("DB error"));
-		mockRedisSet.mockResolvedValue("OK");
+		mockRedisSet.mockResolvedValue(REDIS_RESP.OK);
 		const lock = DistributedLock.fromOptions({
 			...LOCK_OPTS,
 			redisUrl: "redis://localhost:6379",

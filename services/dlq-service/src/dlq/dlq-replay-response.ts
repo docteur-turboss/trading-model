@@ -3,6 +3,7 @@ import {
 	toCorrelationId,
 	toServiceId,
 	toTopic,
+	type Topic,
 	type UnixTimestamp,
 } from "@trading-model/common/domain/primitives";
 import {
@@ -65,7 +66,7 @@ export function noEntriesResponse(): {
 
 export function notifyReplayAudit(
 	batchId: string,
-	topic: string | undefined,
+	topic: Topic | undefined,
 	successCount: number,
 	errorsCount: number
 ): void {

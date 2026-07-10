@@ -1,4 +1,5 @@
-﻿import type Redis from "ioredis";
+﻿import type { InstanceId } from "@trading-model/common/domain/primitives";
+import type Redis from "ioredis";
 
 import { ENV } from "../../config/env";
 import { logger } from "../../config/logger";
@@ -28,7 +29,7 @@ export class StaleInstanceScanner {
 		this._remover = new StaleInstanceRemover(this._prefix);
 	}
 
-	async isStaleByHeartbeat(instanceId: string): Promise<boolean> {
+	async isStaleByHeartbeat(instanceId: InstanceId): Promise<boolean> {
 		const redis = await getSubscriptionClient();
 		const heartbeat = await redis.hget(
 			`${this._prefix}lease:${instanceId}`,
@@ -42,7 +43,7 @@ export class StaleInstanceScanner {
 
 	private async _isInstanceStale(
 		redis: Redis,
-		instanceId: string
+		instanceId: InstanceId
 	): Promise<boolean> {
 		const leaseKey = `${this._prefix}lease:${instanceId}`;
 		const ttl = await redis.ttl(leaseKey);
@@ -96,7 +97,7 @@ export class StaleInstanceScanner {
 
 	private async _removeStaleInstance(
 		redis: import("ioredis").Redis,
-		instanceId: string
+		instanceId: InstanceId
 	): Promise<number> {
 		const topics = await this._remover.removeSubscriptions(redis, instanceId);
 		await this._remover.cleanupOrphanedTopics(redis, topics);

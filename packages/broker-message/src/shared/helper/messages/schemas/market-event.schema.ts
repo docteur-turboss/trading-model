@@ -1,4 +1,7 @@
-import { CandleInterval } from "@trading-model/common/contracts/market-data.types";
+import {
+	CandleInterval,
+	TradeSide,
+} from "@trading-model/common/contracts/market-data.types";
 import { MarketEvent } from "@trading-model/common/contracts/market-events";
 import {
 	BaseMarketDataShape,
@@ -28,10 +31,10 @@ export const MARKET_EVENT_VALIDATORS = {
 				price: PriceSchema,
 				tradeId: z.bigint("TradeId is required and must be a bigint"),
 				quantity: VolumeSchema,
-				side: z.enum(
-					["buy", "sell"],
-					"Side is required and must be `buy` or `sell`"
-				),
+				side: z.nativeEnum(TradeSide, {
+					message:
+						"Side is required and must be `buy` or `sell`",
+				}),
 				...BaseMarketDataShape,
 			}),
 			"Trades is required and must be a array of object"

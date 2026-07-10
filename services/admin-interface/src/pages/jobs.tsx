@@ -3,7 +3,7 @@ import RefreshIcon from "@mui/icons-material/Refresh";
 import ScheduleIcon from "@mui/icons-material/Schedule";
 import SyncIcon from "@mui/icons-material/Sync";
 import { Box, Button, Chip, CircularProgress, Typography } from "@mui/material";
-import { AdminJobPriority } from "@trading-model/common/contracts/admin";
+import { JobPriority } from "@trading-model/common/contracts/admin";
 import { useState } from "react";
 import type { Column } from "../components/data-table";
 import { DataTable } from "../components/data-table";
@@ -149,20 +149,25 @@ function JobTimeline({ entries }: { entries: JobTimelineEntry[] }) {
 	);
 }
 
-function PriorityChip({ priority }: { priority: AdminJobPriority }) {
+function PriorityChip({ priority }: { priority: JobPriority }) {
+	const label =
+		priority === JobPriority.HIGHEST
+			? "Critical"
+			: priority === JobPriority.HIGH
+				? "High"
+				: priority === JobPriority.MEDIUM
+					? "Medium"
+					: priority === JobPriority.LOW
+						? "Low"
+						: "Lowest";
+	const color =
+		priority === JobPriority.HIGHEST
+			? "error"
+			: priority === JobPriority.HIGH
+				? "warning"
+				: "default";
 	return (
-		<Chip
-			size="small"
-			label={priority}
-			color={
-				priority === AdminJobPriority.Critical
-					? "error"
-					: priority === AdminJobPriority.High
-						? "warning"
-						: "default"
-			}
-			variant="outlined"
-		/>
+		<Chip size="small" label={label} color={color} variant="outlined" />
 	);
 }
 

@@ -1,4 +1,4 @@
-import { HTTP_STATUS } from "../http-status";
+import { HTTP_STATUS, type HttpStatusCode } from "../http-status";
 
 const HTTP_RESPONSE_DEFINITIONS = [
 	{ key: "serviceUnavailable", code: HTTP_STATUS.SERVICE_UNAVAILABLE },
@@ -27,14 +27,14 @@ export const HTTP_CODE = Object.fromEntries(
 
 export const ResponseCodes = Object.fromEntries(
 	HTTP_RESPONSE_DEFINITIONS.map(({ key, code }) => [key, code])
-) as { [TKey in ResponseMethodKey]: number };
+) as { [TKey in ResponseMethodKey]: HttpStatusCode };
 
 export type ResponseCodeKey = keyof typeof ResponseCodes;
 export type ResponseCodeValue =
 	(typeof HTTP_RESPONSE_DEFINITIONS)[number]["code"];
 
 export interface ResponseObject {
-	status: number;
+	status: HttpStatusCode;
 	data: unknown;
 }
 
@@ -78,7 +78,7 @@ export const ResponseException = (
 
 export const sendResponse = (
 	data: unknown,
-	status: number
+	status: HttpStatusCode
 ): ResponseObject => ({
 	status,
 	data,

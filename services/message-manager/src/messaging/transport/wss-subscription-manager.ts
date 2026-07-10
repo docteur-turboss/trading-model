@@ -2,6 +2,7 @@
 	type ServiceIdentity,
 	toServiceIdentityKey,
 } from "@trading-model/common/domain/service-identity";
+import type { Topic } from "@trading-model/common/domain/primitives";
 import WebSocket from "ws";
 import { TopicSubscriptionHandler } from "./topic-subscription-handler";
 import type { WsTransportMessage } from "./wss-message.types";
@@ -63,7 +64,7 @@ export class WssSubscriptionManager {
 		this._topicHandler.handleUnsubscribe(msg, ctx);
 	}
 
-	broadcastToTopic(topic: string, message: unknown): number {
+	broadcastToTopic(topic: Topic, message: unknown): number {
 		const payload = JSON.stringify({ type: "message", topic, message });
 		let count = 0;
 		for (const [key, sub] of [...this._subscriptions]) {
@@ -81,7 +82,7 @@ export class WssSubscriptionManager {
 		}
 	}
 
-	private _isSubscribedToTopic(sub: WsSubscription, topic: string): boolean {
+	private _isSubscribedToTopic(sub: WsSubscription, topic: Topic): boolean {
 		return sub.topics.has(topic) && sub.ws.readyState === WebSocket.OPEN;
 	}
 

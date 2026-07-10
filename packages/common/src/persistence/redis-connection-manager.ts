@@ -4,6 +4,7 @@ import type { RedisConnectionConfig } from "../config/redis-config";
 import type { HostPort } from "../domain/service-identity";
 import { normalizeError } from "../utils/errors";
 import { ConnectionManager } from "./connection-manager";
+import { REDIS_MODE, REDIS_STATUS } from "./redis-constants";
 
 export type { RedisConnectionConfig } from "../config/redis-config";
 
@@ -81,11 +82,11 @@ function buildFromConfig(
 	extraOptions?: Partial<RedisOptions>
 ): Redis | Cluster {
 	switch (config.mode) {
-		case "single":
+		case REDIS_MODE.SINGLE:
 			return createFromUrl(config.url, extraOptions);
-		case "sentinel":
+		case REDIS_MODE.SENTINEL:
 			return createSentinel(config.config, extraOptions);
-		case "cluster":
+		case REDIS_MODE.CLUSTER:
 			return createClusterClient(config.config.nodes, config.config.password);
 		default:
 			throw new Error(
@@ -119,7 +120,7 @@ export function createRedisConnectionManager(
 		},
 		async (client: Redis | Cluster) => {
 			try {
-				if ((client as Redis).status === "ready") {
+				if ((client as Redis).status === REDIS_STATUS.READY) {
 					await (client as Redis).quit();
 				} else {
 					client.disconnect();

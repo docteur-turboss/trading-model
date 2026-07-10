@@ -1,5 +1,4 @@
 import type { SymbolState } from "../market-data-types";
-import type { NormalizationStats } from "../normalization-stats";
 import { bookTickerHandler } from "./book-ticker-handler";
 import { candleHandler } from "./candle-handler";
 import { DataType } from "./data-types";
@@ -20,16 +19,16 @@ export interface DataHandler<TData = unknown> {
 	): void;
 	serializeNorms(
 		state: SymbolState
-	): Record<string, ReturnType<NormalizationStats["toJSON"]>>;
+	): Record<string, unknown>;
 }
 
 export function serializeAllNorms(
 	state: SymbolState,
 	handlers?: DataHandler[]
-): Record<string, ReturnType<NormalizationStats["toJSON"]>> {
+): Record<string, unknown> {
 	const all = (handlers ?? createDefaultHandlers()).reduce(
 		(acc, handler) => Object.assign(acc, handler.serializeNorms(state)),
-		{} as Record<string, ReturnType<NormalizationStats["toJSON"]>>
+		{} as Record<string, unknown>
 	);
 	return all;
 }

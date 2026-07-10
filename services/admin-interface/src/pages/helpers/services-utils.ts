@@ -1,3 +1,4 @@
+import type { ServiceStatus } from "@trading-model/common/contracts/admin/services.dto";
 import type { Column } from "../../components/data-table";
 
 export interface ServiceRow {
@@ -6,7 +7,7 @@ export interface ServiceRow {
 	ipPort: string;
 	version: string;
 	heartbeat: string;
-	status: string;
+	status: ServiceStatus;
 }
 
 export function flattenServices(
@@ -23,7 +24,7 @@ export function flattenServices(
 						port: number;
 						version?: string;
 						heartbeat?: string;
-						status?: string;
+						status?: ServiceStatus;
 				  }
 				| undefined;
 			return {
@@ -32,7 +33,7 @@ export function flattenServices(
 				ipPort: primary ? `${primary.host}:${primary.port}` : "-",
 				version: primary?.version ?? "-",
 				heartbeat: primary?.heartbeat ?? "-",
-				status: primary?.status ?? "down",
+				status: primary?.status ?? ServiceStatus.Down,
 			};
 		}) ?? []
 	);

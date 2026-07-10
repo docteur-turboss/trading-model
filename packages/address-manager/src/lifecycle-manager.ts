@@ -1,4 +1,5 @@
 import { logger } from "@trading-model/common/config/logger";
+import type { InstanceId, ServiceId } from "@trading-model/common/domain/primitives";
 import type { AddressManagerClient } from "./client/address-manager-client";
 import type { TokenManager } from "./client/token-manager";
 import type { WebSocketClient } from "./client/websocket-client";
@@ -15,8 +16,8 @@ export interface LifecycleManagerOptions {
 	shutdownHandler: ShutdownHandler;
 	wsClient?: WebSocketClient;
 	serviceCache: IServiceCache;
-	serviceName: string;
-	instanceId: string;
+	serviceName: ServiceId;
+	instanceId: InstanceId;
 	tokenRefreshIntervalMs: number;
 	ttlRefreshIntervalMs: number;
 	cacheTtlMs: number;

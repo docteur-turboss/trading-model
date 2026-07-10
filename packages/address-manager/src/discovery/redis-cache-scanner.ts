@@ -1,4 +1,5 @@
 import { logger } from "@trading-model/common/config/logger";
+import { type ServiceId, toServiceId } from "@trading-model/common/domain/primitives";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import type Redis from "ioredis";
 import type { ServiceInstance } from "../client/type";
@@ -17,11 +18,11 @@ export class RedisCacheScanner {
 		}
 	}
 	async entries(): Promise<
-		Array<{ serviceName: string; instance: ServiceInstance; region?: string }>
+		Array<{ serviceName: ServiceId; instance: ServiceInstance; region?: string }>
 	> {
 		try {
 			const results: Array<{
-				serviceName: string;
+				serviceName: ServiceId;
 				instance: ServiceInstance;
 				region?: string;
 			}> = [];
@@ -47,7 +48,7 @@ export class RedisCacheScanner {
 		key: string,
 		raw: string
 	): {
-		serviceName: string;
+		serviceName: ServiceId;
 		instance: ServiceInstance;
 		region?: string;
 	} | null {
@@ -61,7 +62,7 @@ export class RedisCacheScanner {
 			const [serviceName, region] = suffix.includes("::")
 				? [suffix.split("::")[0], suffix.split("::")[1]]
 				: [suffix, undefined];
-			return { serviceName, instance: instance as ServiceInstance, region };
+			return { serviceName: toServiceId(serviceName), instance: instance as ServiceInstance, region };
 		} catch {
 			logger.debug("Skipped corrupt cache entry");
 			return null;

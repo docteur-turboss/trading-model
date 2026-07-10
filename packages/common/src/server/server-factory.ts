@@ -4,7 +4,7 @@ import https from "node:https";
 import type { Application } from "express";
 import { logger } from "../config/logger";
 import type { Port } from "../domain/primitives";
-import type { TlsPaths } from "../domain/tls-paths";
+import type { TlsPaths, TlsPemBundle } from "../domain/tls-paths";
 import { loadTlsFiles } from "./tls-loader";
 import { setupTlsWatcher } from "./tls-watcher";
 
@@ -19,15 +19,11 @@ export interface HttpServer {
 	raw: https.Server;
 }
 
-function _buildServerOptions(tlsContext: {
-	key: string;
-	cert: string;
-	ca?: string;
-}): ServerOptions {
+function _buildServerOptions(tls: TlsPemBundle): ServerOptions {
 	return {
-		key: tlsContext.key,
-		cert: tlsContext.cert,
-		ca: tlsContext.ca,
+		key: tls.keyPem,
+		cert: tls.certPem,
+		ca: tls.caPem,
 		requestCert: true,
 		rejectUnauthorized: true,
 		minVersion: "TLSv1.3",
@@ -67,11 +63,7 @@ export async function createAndStartHttpsServer(
 ): Promise<HttpServer> {
 	const tlsContext = await loadTlsFiles(options.tls);
 	const httpsServer = https.createServer(
-		_buildServerOptions({
-			key: tlsContext.keyPem,
-			cert: tlsContext.certPem,
-			ca: tlsContext.caPem,
-		}),
+		_buildServerOptions(tlsContext),
 		app
 	);
 

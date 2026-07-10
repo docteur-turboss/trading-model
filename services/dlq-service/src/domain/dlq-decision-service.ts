@@ -9,14 +9,45 @@ import {
 } from "../dlq/dlq-constants";
 import { DlqStatus } from "../dlq/dlq-status";
 
-export interface DlqDecisionInput {
-	messageId: string;
-	dlqPassCount: number;
-	retryCount: number;
-	consecutiveErrors: number;
-	totalEntries: number;
-	maxEntries: number;
-	maxRetryAttempts: number;
+export class DlqDecisionInput {
+	constructor(
+		readonly messageId: string,
+		readonly dlqPassCount: number,
+		readonly retryCount: number,
+		readonly consecutiveErrors: number,
+		readonly totalEntries: number,
+		readonly maxEntries: number,
+		readonly maxRetryAttempts: number
+	) {}
+
+	isPingPongAbandon(): boolean {
+		return this.dlqPassCount >= DLQ_MAX_PASS_COUNT;
+	}
+
+	isRetryable(): boolean {
+		return (
+			this.retryCount < this.maxRetryAttempts &&
+			this.consecutiveErrors < DLQ_MAX_CONSECUTIVE_ERRORS
+		);
+	}
+
+	shouldAbandon(): boolean {
+		return (
+			this.retryCount >= this.maxRetryAttempts ||
+			this.consecutiveErrors >= DLQ_MAX_CONSECUTIVE_ERRORS
+		);
+	}
+
+	isAtCapacity(): boolean {
+		return this.totalEntries >= this.maxEntries;
+	}
+
+	pingPongReason(): string | undefined {
+		if (!this.isPingPongAbandon()) {
+			return;
+		}
+		return `Ping-pong detected: message entered DLQ ${this.dlqPassCount} times`;
+	}
 }
 
 export interface DlqEntryDecision {
@@ -32,47 +63,19 @@ export interface DlqEntryDecision {
 	isAtCapacity: boolean;
 }
 
-function _isPingPongAbandon(dlqPassCount: number): boolean {
-	return dlqPassCount >= DLQ_MAX_PASS_COUNT;
-}
-
-function _isRetryable(input: DlqDecisionInput): boolean {
-	return (
-		input.retryCount < input.maxRetryAttempts &&
-		input.consecutiveErrors < DLQ_MAX_CONSECUTIVE_ERRORS
-	);
-}
-
-function _shouldAbandon(input: DlqDecisionInput): boolean {
-	return (
-		input.retryCount >= input.maxRetryAttempts ||
-		input.consecutiveErrors >= DLQ_MAX_CONSECUTIVE_ERRORS
-	);
-}
-
-function _pingPongReason(
-	pingPongAbandon: boolean,
-	dlqPassCount: number
-): string | undefined {
-	if (!pingPongAbandon) {
-		return;
-	}
-	return `Ping-pong detected: message entered DLQ ${dlqPassCount} times`;
-}
-
 /**
  * Encapsulates all DLQ business rules independently of storage.
  */
 export class DlqDecisionService {
 	evaluate(input: DlqDecisionInput): DlqEntryDecision {
-		const pingPongAbandon = _isPingPongAbandon(input.dlqPassCount);
-		const isRetryable = _isRetryable(input);
-		const shouldAbandon = _shouldAbandon(input);
-		const isAtCapacity = input.totalEntries >= input.maxEntries;
+		const pingPongAbandon = input.isPingPongAbandon();
+		const isRetryable = input.isRetryable();
+		const shouldAbandon = input.shouldAbandon();
+		const isAtCapacity = input.isAtCapacity();
 
 		return {
 			pingPongAbandon,
-			pingPongReason: _pingPongReason(pingPongAbandon, input.dlqPassCount),
+			pingPongReason: input.pingPongReason(),
 			isRetryable,
 			shouldAbandon,
 			isAtCapacity,

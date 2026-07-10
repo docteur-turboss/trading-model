@@ -21,17 +21,25 @@ export class NormalizationManager {
 
 	createNormStats(): SymbolNormalizers {
 		return {
-			candleClose: new NormalizationStats(),
-			candleVolume: new NormalizationStats(),
-			candleOpen: new NormalizationStats(),
-			candleHigh: new NormalizationStats(),
-			candleLow: new NormalizationStats(),
-			tradePrice: new NormalizationStats(),
-			tradeQty: new NormalizationStats(),
-			bid: new NormalizationStats(),
-			ask: new NormalizationStats(),
-			spread: new NormalizationStats(),
-			tickerVolume: new NormalizationStats(),
+			candle: {
+				close: new NormalizationStats(),
+				volume: new NormalizationStats(),
+				open: new NormalizationStats(),
+				high: new NormalizationStats(),
+				low: new NormalizationStats(),
+			},
+			trade: {
+				price: new NormalizationStats(),
+				qty: new NormalizationStats(),
+			},
+			book: {
+				bid: new NormalizationStats(),
+				ask: new NormalizationStats(),
+				spread: new NormalizationStats(),
+			},
+			ticker: {
+				volume: new NormalizationStats(),
+			},
 		};
 	}
 

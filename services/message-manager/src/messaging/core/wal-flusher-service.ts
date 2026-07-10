@@ -1,4 +1,5 @@
-﻿import { ENV } from "../../config/env";
+﻿import type { Topic } from "@trading-model/common/domain/primitives";
+import { ENV } from "../../config/env";
 import { getStreamClient } from "../../config/redis";
 import type { MemoryWalBuffer } from "./memory-wal-buffer";
 import type { MemoryWalEntry } from "./memory-wal-entry";
@@ -23,7 +24,7 @@ export class WalStorage {
 		return `${this._prefix}wal_buffer`;
 	}
 
-	async storeInWal(topic: string, serialized: string): Promise<void> {
+	async storeInWal(topic: Topic, serialized: string): Promise<void> {
 		const redis = await getStreamClient();
 		const walEntry = JSON.stringify({ topic, serialized });
 		const key = this.walKey();
@@ -94,7 +95,7 @@ export class WalFlusherService {
 		this._flushManager.stop();
 	}
 
-	async storeInWal(topic: string, serialized: string): Promise<void> {
+	async storeInWal(topic: Topic, serialized: string): Promise<void> {
 		await this._walStorage.storeInWal(topic, serialized);
 	}
 

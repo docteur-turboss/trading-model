@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { HttpClient } from "../config/http-client";
-import type { Capability } from "../domain/primitives";
+import type { Capability, JobId, JobType } from "../domain/primitives";
 import type { TlsPemBundle } from "../domain/tls-paths";
 import { JobAssignmentHandler } from "./job-assignment-handler";
 import { WorkerClient, type WorkerClientConfig } from "./worker-client";
@@ -16,8 +16,8 @@ export interface BaseWorkerConfig {
 }
 
 export type JobHandler<TData = unknown> = (job: {
-	id: string;
-	type: string;
+	id: JobId;
+	type: JobType;
 	payload: TData;
 }) => Promise<unknown>;
 
@@ -50,14 +50,14 @@ export class BaseWorker {
 	}
 
 	registerHandler<TPayload = unknown>(
-		jobType: string,
+		jobType: JobType,
 		handler: JobHandler<TPayload>
 	): void {
 		this._jobHandler.registerHandler(
 			jobType,
 			handler as (job: {
-				id: string;
-				type: string;
+				id: JobId;
+				type: JobType;
 				payload: unknown;
 			}) => Promise<unknown>
 		);

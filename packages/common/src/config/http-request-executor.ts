@@ -4,11 +4,13 @@ import { URL } from "node:url";
 import type { z } from "zod";
 
 import type { TlsPemBundle } from "../domain/tls-paths";
+import type { Hostname } from "../domain/primitives/hostname";
 import { CircuitRecorder, type ServiceRoute } from "./circuit-recorder";
 import { HttpClientTimeoutError } from "./http-client-errors";
 import { collectResponseBody } from "./http-response";
 import type { HttpMethod, HttpRequestOptions } from "./http-types";
 import { buildRequestOptions } from "./http-utils";
+import type { ServiceInstanceName } from "./services.types";
 import { RetryExecutor, shouldRetry } from "./retry-executor";
 
 const DEFAULT_TIMEOUT_MS = 10_000;
@@ -103,13 +105,13 @@ export class HttpRequestExecutor {
 		return shouldRetry(error);
 	}
 
-	recordSuccess(hostname: string, serviceName: string | undefined): void {
+	recordSuccess(hostname: Hostname, serviceName: ServiceInstanceName | undefined): void {
 		this._circuitRecorder.recordSuccess(hostname, serviceName);
 	}
 
 	recordFailure(
-		hostname: string,
-		serviceName: string | undefined,
+		hostname: Hostname,
+		serviceName: ServiceInstanceName | undefined,
 		serviceInstanceCount?: number
 	): void {
 		this._circuitRecorder.recordFailure(

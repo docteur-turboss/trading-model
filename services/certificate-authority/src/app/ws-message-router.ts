@@ -2,8 +2,13 @@ import type { RawData, WebSocket } from "ws";
 import { sendJsonError } from "./ws-response-formatter";
 import type { WssSession } from "./ws-sign-handler";
 
+export enum WsMessageType {
+	Auth = "auth",
+	Sign = "sign",
+}
+
 export interface WsMessageHandler {
-	readonly type: string;
+	readonly type: WsMessageType;
 	handle(
 		ws: WebSocket,
 		msg: Record<string, unknown>,
@@ -12,7 +17,7 @@ export interface WsMessageHandler {
 }
 
 export class WsMessageRouter {
-	private readonly _handlers = new Map<string, WsMessageHandler>();
+	private readonly _handlers = new Map<WsMessageType, WsMessageHandler>();
 
 	register(handler: WsMessageHandler): void {
 		this._handlers.set(handler.type, handler);
@@ -29,7 +34,7 @@ export class WsMessageRouter {
 			return;
 		}
 
-		const handler = this._handlers.get(msg.type as string);
+		const handler = this._handlers.get(msg.type as WsMessageType);
 		if (!handler) {
 			sendJsonError(ws, `Unknown message type: ${String(msg.type)}`);
 			return;

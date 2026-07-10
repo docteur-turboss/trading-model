@@ -1,7 +1,8 @@
+import { LogLevel } from "@trading-model/common/config/log-types";
 import { z } from "zod";
 
 const LOG_ENTRY_SCHEMA = z.object({
-	level: z.enum(["debug", "info", "warn", "error"]),
+	level: z.nativeEnum(LogLevel),
 	message: z.string(),
 	context: z.record(z.string(), z.unknown()).optional(),
 	serviceName: z.string().optional(),

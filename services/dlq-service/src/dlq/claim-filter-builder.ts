@@ -1,11 +1,12 @@
 ﻿import { type AnyBulkWriteOperation, ObjectId } from "mongodb";
 
+import type { InstanceId, Topic } from "@trading-model/common/domain/primitives";
 import { ENV } from "../config/env";
 import { DLQ_MAX_CONSECUTIVE_ERRORS } from "./dlq-constants";
 import { DlqStatus } from "./dlq-status";
 
 export class ClaimFilterBuilder {
-	buildClaimFilter(topic?: string): Record<string, unknown> {
+	buildClaimFilter(topic?: Topic): Record<string, unknown> {
 		const statusFilter: Record<string, unknown> = {
 			$nin: [DlqStatus.Completed, DlqStatus.Abandoned],
 		};
@@ -33,7 +34,7 @@ export class ClaimFilterBuilder {
 	buildBulkUpdateOps(
 		candidates: Pick<{ _id: ObjectId }, "_id">[],
 		now: Date,
-		instanceId: string,
+		instanceId: InstanceId,
 		batchId: string
 	): AnyBulkWriteOperation[] {
 		const atomicCond = this.buildAtomicCondition();

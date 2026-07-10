@@ -6,13 +6,14 @@ import {
 	toCorrelationId,
 	toServiceId,
 	toTopic,
+	type Topic,
 	type UnixTimestamp,
 } from "@trading-model/common/domain/primitives";
 import { notifyAudit } from "../config/audit";
 
 export function notifyAddAudit(
 	id: string,
-	topic: string | undefined,
+	topic: Topic | undefined,
 	reason: string | undefined
 ): void {
 	void notifyAudit({
@@ -42,7 +43,7 @@ export function notifyReplayAudit(result: ReplayAuditResult): void {
 
 function _buildReplayAuditEvent(
 	batchId: string,
-	topic: string | undefined,
+	topic: Topic | undefined,
 	success: number,
 	failed: number
 ): AuditEvent {

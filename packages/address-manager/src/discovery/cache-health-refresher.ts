@@ -1,5 +1,5 @@
 import { logger } from "@trading-model/common/config/logger";
-import { toServiceId } from "@trading-model/common/domain/primitives";
+import { type ServiceId, toServiceId } from "@trading-model/common/domain/primitives";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import type { ServiceInstance } from "../client/type";
 import type { ScheduledJob } from "../scheduler/scheduler";
@@ -7,10 +7,10 @@ import type { IServiceCache } from "./service-cache.interface";
 import type { ServiceHealthChecker } from "./service-health-checker";
 
 function selectBatchSlice(
-	entries: { serviceName: string; instance: ServiceInstance }[],
+	entries: { serviceName: ServiceId; instance: ServiceInstance }[],
 	offset: number
 ): {
-	batch: { serviceName: string; instance: ServiceInstance }[];
+	batch: { serviceName: ServiceId; instance: ServiceInstance }[];
 	nextOffset: number;
 } {
 	if (entries.length === 0) {
@@ -52,7 +52,7 @@ export class CacheHealthRefresher implements ScheduledJob {
 	}
 
 	private async _checkEntry(entry: {
-		serviceName: string;
+		serviceName: ServiceId;
 		instance: ServiceInstance;
 	}): Promise<void> {
 		const healthy = await this._healthChecker.isHealthy(entry.instance);
@@ -65,7 +65,7 @@ export class CacheHealthRefresher implements ScheduledJob {
 	}
 
 	private async _executeBatch(
-		batch: { serviceName: string; instance: ServiceInstance }[],
+		batch: { serviceName: ServiceId; instance: ServiceInstance }[],
 		concurrencyLimit: number
 	): Promise<PromiseRejectedResult[]> {
 		const errors: PromiseRejectedResult[] = [];

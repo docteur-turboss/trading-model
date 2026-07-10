@@ -10,11 +10,11 @@ export class FeedForwardEngine {
 		private readonly _config: Required<NeuralNetworkConfig>,
 		private readonly _layers: LayerMemory[]
 	) {
-		this._layerComputer = new LayerComputer(
-			this._config.activationType,
-			this._config.connectionType,
-			this._config.useBias
-		);
+		this._layerComputer = new LayerComputer({
+			activationType: this._config.activationType,
+			connectionType: this._config.connectionType,
+			useBias: this._config.useBias,
+		});
 	}
 
 	forward(input: Float32Array): ForwardContext {

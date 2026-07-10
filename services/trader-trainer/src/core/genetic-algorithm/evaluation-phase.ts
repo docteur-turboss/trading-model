@@ -58,7 +58,7 @@ export function evalPhase(ctx: GenomeEvaluationContext): {
 	rawScores: number[];
 	finalPnL: number;
 } {
-	const numEpisodes = ctx.genome.gaControl.episodesPerIndividual;
+	const numEpisodes = ctx.genome.gaControl.evaluation.episodesPerIndividual;
 	const rawScores: number[] = [];
 
 	for (let ep = 0; ep < numEpisodes; ep++) {

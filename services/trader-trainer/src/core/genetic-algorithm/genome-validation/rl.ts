@@ -13,8 +13,8 @@ import { clamp } from "../utils";
 import { checkPositiveInt, checkRange, err } from "./utils";
 
 export function validateRL(ctx: ValidationContext, rl: RLGenome): void {
-	checkRange({ ...ctx, path: "rl.gamma" }, rl.gamma, 0.8, 0.9999);
-	checkRange({ ...ctx, path: "rl.learningRate" }, rl.learningRate, 1e-6, 1e-1);
+	checkRange({ ...ctx, path: "rl.gamma" }, rl.gamma, { min: 0.8, max: 0.9999 });
+	checkRange({ ...ctx, path: "rl.learningRate" }, rl.learningRate, { min: 1e-6, max: 1e-1 });
 	validateRewardShaping(ctx, rl.rewardShaping);
 	validateHorizon(ctx, rl.horizon);
 	validateDiscretePolicy(ctx, rl.discretePolicy);
@@ -39,8 +39,7 @@ function validateRewardShaping(
 	checkRange(
 		{ ...ctx, path: "rl.rewardShapingenome.scaleFactor" },
 		rs.scaleFactor,
-		0.001,
-		1000
+		{ min: 0.001, max: 1000 }
 	);
 }
 
@@ -48,7 +47,7 @@ function validateHorizon(ctx: ValidationContext, horizon: HorizonGenome): void {
 	checkPositiveInt(
 		{ ...ctx, path: "rl.horizon.maxEpisodeLength" },
 		horizon.maxEpisodeLength,
-		10
+		{ min: 10 }
 	);
 	checkPositiveInt(
 		{ ...ctx, path: "rl.horizon.nStepReturn" },
@@ -64,26 +63,22 @@ function validateDiscretePolicy(
 	checkRange(
 		{ ...ctx, path: "rl.discretePolicy.epsilonStart" },
 		dp.epsilonStart,
-		0.1,
-		1.0
+		{ min: 0.1, max: 1.0 }
 	);
 	checkRange(
 		{ ...ctx, path: "rl.discretePolicy.epsilonMin" },
 		dp.epsilonMin,
-		0.001,
-		0.2
+		{ min: 0.001, max: 0.2 }
 	);
 	checkRange(
 		{ ...ctx, path: "rl.discretePolicy.epsilonDecay" },
 		dp.epsilonDecay,
-		0.9,
-		0.9999
+		{ min: 0.9, max: 0.9999 }
 	);
 	checkRange(
 		{ ...ctx, path: "rl.discretePolicy.temperature" },
 		dp.temperature,
-		0.01,
-		100
+		{ min: 0.01, max: 100 }
 	);
 }
 
@@ -104,14 +99,12 @@ function validateContinuousPolicy(
 	checkRange(
 		{ ...ctx, path: "rl.continuousPolicy.noiseStd" },
 		cp.noiseStd,
-		0.001,
-		5
+		{ min: 0.001, max: 5 }
 	);
 	checkRange(
 		{ ...ctx, path: "rl.continuousPolicy.noiseDecay" },
 		cp.noiseDecay,
-		0.9,
-		0.9999
+		{ min: 0.9, max: 0.9999 }
 	);
 }
 
@@ -122,10 +115,10 @@ function validateReplayBuffer(
 	checkPositiveInt(
 		{ ...ctx, path: "rl.replayBuffer.bufferSize" },
 		rb.bufferSize,
-		100
+		{ min: 100 }
 	);
-	checkRange({ ...ctx, path: "rl.replayBuffer.alphaPER" }, rb.alphaPER, 0, 1);
-	checkRange({ ...ctx, path: "rl.replayBuffer.betaPER" }, rb.betaPER, 0, 1);
+	checkRange({ ...ctx, path: "rl.replayBuffer.alphaPER" }, rb.alphaPER, { min: 0, max: 1 });
+	checkRange({ ...ctx, path: "rl.replayBuffer.betaPER" }, rb.betaPER, { min: 0, max: 1 });
 }
 
 function repairRewardShaping(rs: RewardShapingGenome): RewardShapingGenome {

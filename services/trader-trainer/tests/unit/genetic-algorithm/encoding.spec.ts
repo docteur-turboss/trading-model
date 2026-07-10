@@ -24,12 +24,12 @@ function layerNeurons(arr: Float32Array, layerIdx: number): number {
 	return readEncodedLayer(arr, layerOffset(layerIdx)).neurons;
 }
 
-function layerActivationIdx(arr: Float32Array, layerIdx: number): number {
-	return readEncodedLayer(arr, layerOffset(layerIdx)).activationIdx;
+function layerActivation(arr: Float32Array, layerIdx: number): ActivationType {
+	return readEncodedLayer(arr, layerOffset(layerIdx)).activation;
 }
 
-function layerConnectionTypeIdx(arr: Float32Array, layerIdx: number): number {
-	return readEncodedLayer(arr, layerOffset(layerIdx)).connectionTypeIdx;
+function layerConnectionType(arr: Float32Array, layerIdx: number): ConnectionType {
+	return readEncodedLayer(arr, layerOffset(layerIdx)).connectionType;
 }
 
 describe("encoding", () => {
@@ -50,7 +50,7 @@ describe("encoding", () => {
 		test("should encode learningRate as log-scaled in [0,1]", () => {
 			const g = createDefaultGenome("lr-test");
 			const enc = encodeGenome(g);
-			const expected = Math.log10(Math.max(1e-6, g.rl.learningRate)) / 6 + 1;
+			const expected = (Math.log10(Math.max(1e-6, g.rl.learningRate)) / 6 + 1) / 2;
 			expect(enc[ENCODING_OFFSETS.LearningRate]).toBeCloseTo(expected, 6);
 		});
 
@@ -74,34 +74,17 @@ describe("encoding", () => {
 		test("should set one-hot for activation type in layer encoding", () => {
 			const g = createDefaultGenome("oh-test");
 			const enc = encodeGenome(g);
-			const activations: ActivationType[] = [
-				ActivationType.Relu,
-				ActivationType.Sigmoid,
-				ActivationType.Tanh,
-				ActivationType.LeakyReLu,
-				ActivationType.Elu,
-				ActivationType.Mish,
-				ActivationType.Gelu,
-				ActivationType.Softmax,
-			];
-			const expectedIdx = activations.indexOf(
+			expect(layerActivation(enc, 0)).toBe(
 				g.network.hiddenLayers[0].activation
 			);
-			expect(layerActivationIdx(enc, 0)).toBe(expectedIdx);
 		});
 
 		test("should set one-hot for connection type in layer encoding", () => {
 			const g = createDefaultGenome("oh-ct-test");
 			const enc = encodeGenome(g);
-			const connTypes: ConnectionType[] = [
-				ConnectionType.DenseSkip,
-				ConnectionType.FullyConnected,
-				ConnectionType.ResidualConnection,
-			];
-			const expectedIdx = connTypes.indexOf(
+			expect(layerConnectionType(enc, 0)).toBe(
 				g.network.hiddenLayers[0].connectionType
 			);
-			expect(layerConnectionTypeIdx(enc, 0)).toBe(expectedIdx);
 		});
 
 		test("should not encode layers beyond genome depth", () => {
@@ -115,7 +98,7 @@ describe("encoding", () => {
 			const g = createDefaultGenome("unknown-act");
 			g.network.hiddenLayers[0].activation = "UnknownAct" as ActivationType;
 			const enc = encodeGenome(g);
-			expect(layerActivationIdx(enc, 0)).toBe(0);
+			expect(layerActivation(enc, 0)).toBe(ActivationType.Relu);
 		});
 
 		test("should skip unknown connection type", () => {
@@ -123,7 +106,7 @@ describe("encoding", () => {
 			g.network.hiddenLayers[0].connectionType =
 				"UnknownConn" as ConnectionType;
 			const enc = encodeGenome(g);
-			expect(layerConnectionTypeIdx(enc, 0)).toBe(0);
+			expect(layerConnectionType(enc, 0)).toBe(ConnectionType.DenseSkip);
 		});
 
 		test("should roundtrip through Float32Array", () => {
@@ -163,7 +146,7 @@ describe("encoding", () => {
 			expect(decoded.generation).toBe(5);
 			expect(decoded.gaControl).toEqual(template.gaControl);
 			expect(decoded.crossover).toEqual(template.crossover);
-			expect(decoded.mutation.noiseStd).toBe(template.mutation.noiseStd);
+			expect(decoded.mutation.rates.noiseStd).toBe(template.mutation.rates.noiseStd);
 			expect(decoded.mutation.distribution).toBe(
 				template.mutation.distribution
 			);

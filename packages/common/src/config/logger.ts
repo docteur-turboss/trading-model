@@ -1,4 +1,4 @@
-import type { SessionId, UserId } from "../domain/primitives";
+import type { JsonObject, SessionId, UserId } from "../domain/primitives";
 import type { TlsPaths } from "../domain/tls-paths";
 import {
 	isLogLevelAtLeast,
@@ -10,6 +10,7 @@ import {
 export type { LogEntry, LogOptions };
 export { LogLevel };
 
+import { NODE_ENV as NODE_ENV_CONST } from "@trading-model/common/config/node-env";
 import { formatLogEntry } from "./console-formatter";
 import { LogBuffer } from "./log-buffer";
 import { LogDispatcher } from "./log-dispatcher";
@@ -38,7 +39,7 @@ export class Logger {
 		label: string,
 		consoleFn: (message?: unknown, ...optionalParams: unknown[]) => void,
 		message: string,
-		context?: Record<string, unknown>
+		context?: JsonObject
 	): void {
 		if (!isLogLevelAtLeast(level, this._logLevel)) {
 			return;
@@ -53,7 +54,7 @@ export class Logger {
 	private _buildLogEntry(
 		level: LogLevel,
 		message: string,
-		context?: Record<string, unknown>
+		context?: JsonObject
 	): import("./log-types").LogEntry {
 		return this._dispatcher.createLogEntry(level, message, this._userId, {
 			context,
@@ -64,7 +65,7 @@ export class Logger {
 		logEntry: import("./log-types").LogEntry,
 		label: string,
 		consoleFn: (message?: unknown, ...optionalParams: unknown[]) => void,
-		context?: Record<string, unknown>
+		context?: JsonObject
 	): void {
 		this._buffer.add(logEntry);
 		consoleFn(
@@ -73,19 +74,19 @@ export class Logger {
 		);
 	}
 
-	debug(message: string, context?: Record<string, unknown>) {
+	debug(message: string, context?: JsonObject) {
 		this._log(LogLevel.Debug, "DEBUG", console.debug, message, context);
 	}
 
-	info(message: string, context?: Record<string, unknown>) {
+	info(message: string, context?: JsonObject) {
 		this._log(LogLevel.Info, "INFO", console.info, message, context);
 	}
 
-	warn(message: string, context?: Record<string, unknown>) {
+	warn(message: string, context?: JsonObject) {
 		this._log(LogLevel.Warn, "WARN", console.warn, message, context);
 	}
 
-	error(message: string, context?: Record<string, unknown>) {
+	error(message: string, context?: JsonObject) {
 		this._log(LogLevel.Error, "ERROR", console.error, message, context);
 	}
 
@@ -110,9 +111,9 @@ export class Logger {
 /** Global logger instance pre-configured based on the current environment. */
 const NODE_ENV = getNodeEnv();
 export const logger = new Logger(
-	NODE_ENV === "development"
+	NODE_ENV === NODE_ENV_CONST.DEVELOPMENT
 		? LogLevel.Debug
-		: NODE_ENV === "staging"
+		: NODE_ENV === NODE_ENV_CONST.STAGING
 			? LogLevel.Info
 			: LogLevel.Warn
 );

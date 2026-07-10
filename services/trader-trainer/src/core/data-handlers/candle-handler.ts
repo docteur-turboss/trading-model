@@ -5,11 +5,11 @@ import { DataType } from "./data-types";
 export const candleHandler: DataHandler<CandleData> = {
 	dataType: DataType.Candle,
 	updateNorms(state, candle) {
-		state.norm.candleClose.update(candle.close);
-		state.norm.candleVolume.update(candle.volume);
-		state.norm.candleOpen.update(candle.open);
-		state.norm.candleHigh.update(candle.high);
-		state.norm.candleLow.update(candle.low);
+		state.norm.candle.close.update(candle.close);
+		state.norm.candle.volume.update(candle.volume);
+		state.norm.candle.open.update(candle.open);
+		state.norm.candle.high.update(candle.high);
+		state.norm.candle.low.update(candle.low);
 	},
 	mutateState(_symbol, data, state, maxSize) {
 		state.candles.push(data);
@@ -19,11 +19,13 @@ export const candleHandler: DataHandler<CandleData> = {
 	},
 	serializeNorms(state) {
 		return {
-			closeNorm: state.norm.candleClose.toJSON(),
-			volumeNorm: state.norm.candleVolume.toJSON(),
-			openNorm: state.norm.candleOpen.toJSON(),
-			highNorm: state.norm.candleHigh.toJSON(),
-			lowNorm: state.norm.candleLow.toJSON(),
+			candle: {
+				close: state.norm.candle.close.toJSON(),
+				volume: state.norm.candle.volume.toJSON(),
+				open: state.norm.candle.open.toJSON(),
+				high: state.norm.candle.high.toJSON(),
+				low: state.norm.candle.low.toJSON(),
+			},
 		};
 	},
 };

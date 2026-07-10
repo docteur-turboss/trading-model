@@ -1,4 +1,5 @@
 ﻿import { logger } from "@trading-model/common/config/logger";
+import type { Job } from "@trading-model/common/contracts/recovery.types";
 import type { JobId } from "@trading-model/common/domain/primitives";
 import { hasExceededMaxRetries } from "@trading-model/common/domain/retry-policy";
 import type { JobRepository } from "../persistence/job-repository";
@@ -62,7 +63,7 @@ export class JobStatusManager {
 		this._assignmentManager.decrementWorkerLoad(job?.assignedWorkerId);
 	}
 
-	private _assertCancellable(job: { status: string }): void {
+	private _assertCancellable(job: Pick<Job, "status">): void {
 		if (
 			job.status === JobStatus.RUNNING ||
 			job.status === JobStatus.COMPLETED

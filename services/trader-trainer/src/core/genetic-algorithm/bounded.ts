@@ -1,3 +1,5 @@
+import { NumericRange } from "@trading-model/common/domain/numeric-range";
+
 export interface Bounded<TValue extends number = number> {
 	readonly min: TValue;
 	readonly max: TValue;
@@ -7,9 +9,7 @@ export function createBounded<TValue extends number>(
 	min: TValue,
 	max: TValue
 ): Bounded<TValue> {
-	if (min >= max) {
-		throw new RangeError(`Bounded(min=${min}, max=${max}): min must be < max`);
-	}
+	new NumericRange(min, max);
 	return { min, max };
 }
 
@@ -25,4 +25,8 @@ export function isWithinBounds<TValue extends number>(
 	bounds: Bounded<TValue>
 ): boolean {
 	return value >= bounds.min && value <= bounds.max;
+}
+
+export function boundedToRange<TValue extends number>(bounds: Bounded<TValue>): NumericRange {
+	return new NumericRange(bounds.min, bounds.max);
 }

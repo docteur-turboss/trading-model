@@ -1,9 +1,11 @@
+import type { EventEnumMap } from "@trading-model/common/config/event.types";
 import {
 	toCorrelationId,
 	toInstanceId,
 	toMessageId,
 	toServiceId,
 	toTopic,
+	type Topic,
 } from "@trading-model/common/domain/primitives";
 import type { AuditEventDocument } from "../persistence/audit-repository";
 import type { ParsedEnvelope } from "./message-parser";
@@ -22,9 +24,9 @@ function resolveReceivedAt(metadata: { emittedAt?: string }): Date {
 }
 
 function buildAuditMetadata(
-	topic: string,
+	topic: Topic,
 	metadata: {
-		eventType?: string;
+		eventType?: EventEnumMap;
 		publisher?: { serviceName?: string; instanceId?: string };
 		messageId?: string;
 		correlationId?: string;
@@ -33,7 +35,7 @@ function buildAuditMetadata(
 	const publisher = metadata?.publisher;
 	return {
 		topic: toTopic(topic),
-		eventType: metadata?.eventType ?? topic,
+		eventType: metadata?.eventType ?? (topic as unknown as EventEnumMap),
 		publisher: toServiceId(publisher?.serviceName ?? "unknown"),
 		instanceId: toInstanceId(publisher?.instanceId ?? "unknown"),
 		messageId: toMessageId(metadata?.messageId ?? "unknown"),

@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import path from "node:path";
+import type { InstanceId } from "@trading-model/common/domain/primitives";
 import type { IDistributedLock } from "@trading-model/common/contracts/distributed-lock.types";
 import { LockAcquisitionChain } from "./lock-acquisition-chain";
 import type { LockBackend, LockContext } from "./lock-backends";
@@ -76,7 +77,7 @@ export class DistributedLock implements IDistributedLock {
 	private static _buildContext(options: DistributedLockOptions): LockContext {
 		return {
 			lockName: options.lockName,
-			instanceId: randomUUID().substring(0, 8),
+			instanceId: randomUUID().substring(0, 8) as InstanceId,
 		};
 	}
 

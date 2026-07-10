@@ -1,5 +1,6 @@
 import { logger } from "@trading-model/common/config/logger";
 import { parseServiceName } from "@trading-model/common/config/services.types";
+import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import type {
 	RegistryBackend,
 	ServiceInstance,
@@ -20,7 +21,7 @@ export class InstanceCacheFetcher {
 	) {}
 
 	getInstances(
-		serviceName: string,
+		serviceName: ServiceInstanceName,
 		pagination?: PaginationQuery
 	): Promise<ServiceInstance[]> {
 		if (pagination?.page !== undefined || pagination?.limit !== undefined) {
@@ -31,17 +32,17 @@ export class InstanceCacheFetcher {
 		}
 		const cached = this._cache.get(serviceName);
 		if (cached) {
-			return cached;
+			return Promise.resolve(cached);
 		}
 		const stale = this._serveStaleIfUnhealthy(serviceName);
 		if (stale !== undefined) {
-			return stale;
+			return Promise.resolve(stale);
 		}
 		return this._fetchAndCache(serviceName);
 	}
 
 	private async _getWithPagination(
-		serviceName: string,
+		serviceName: ServiceInstanceName,
 		pagination: PaginationQuery
 	): Promise<ServiceInstance[]> {
 		const all = await this._backend.getInstances(parseServiceName(serviceName));
@@ -52,11 +53,11 @@ export class InstanceCacheFetcher {
 		);
 		return all.slice(skip, skip + limit);
 	}
-	private _fetchFromBackend(serviceName: string): Promise<ServiceInstance[]> {
+	private _fetchFromBackend(serviceName: ServiceInstanceName): Promise<ServiceInstance[]> {
 		return this._backend.getInstances(parseServiceName(serviceName));
 	}
 	private _serveStaleIfUnhealthy(
-		serviceName: string
+		serviceName: ServiceInstanceName
 	): ServiceInstance[] | undefined {
 		if (!this._healthMonitor.isHealthy) {
 			const stale = this._cache.getStale(serviceName);
@@ -75,7 +76,7 @@ export class InstanceCacheFetcher {
 		}
 	}
 	private async _fetchAndCache(
-		serviceName: string
+		serviceName: ServiceInstanceName
 	): Promise<ServiceInstance[]> {
 		const instances = await this._backend.getInstances(
 			parseServiceName(serviceName)
@@ -89,18 +90,18 @@ export class InstanceCacheFetcher {
 		if (this._healthMonitor.fallbackActive) {
 			return this._backend.getInstance(id);
 		}
-		const cached = this._cache.get(serviceName);
+		const cached = this._cache.get(serviceName as unknown as ServiceInstanceName);
 		if (cached) {
-			return cached.find(
+			return Promise.resolve(cached.find(
 				(inst: ServiceInstance) => inst.instanceId === instanceId
-			);
+			));
 		}
 		if (!this._healthMonitor.isHealthy) {
-			const stale = this._cache.getStale(serviceName);
+			const stale = this._cache.getStale(serviceName as unknown as ServiceInstanceName);
 			if (stale) {
-				return stale.find(
+				return Promise.resolve(stale.find(
 					(inst: ServiceInstance) => inst.instanceId === instanceId
-				);
+				));
 			}
 		}
 		return this._backend.getInstance({ serviceName, instanceId });

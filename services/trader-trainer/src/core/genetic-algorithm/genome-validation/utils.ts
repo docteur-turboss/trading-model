@@ -28,6 +28,8 @@ export const VALID_BIAS_TYPES = new Set([
 	InitialisationType.He,
 	InitialisationType.LeCun,
 ]);
+import type { Bounded } from "../bounded";
+
 export const VALID_NORM_TYPES = new Set([
 	NormalisationType.None,
 	NormalisationType.LogarithmicNormalization,
@@ -50,24 +52,25 @@ export function err(
 export function checkRange(
 	ctx: ValidationContext,
 	value: unknown,
-	lo: number,
-	hi: number
+	bounds: Bounded
 ): void {
+	const { min, max } = bounds;
 	if (
 		typeof value !== "number" ||
 		!Number.isFinite(value) ||
-		value < lo ||
-		value > hi
+		value < min ||
+		value > max
 	) {
-		err(ctx, `must be a finite number in [${lo}, ${hi}]`, value);
+		err(ctx, `must be a finite number in [${min}, ${max}]`, value);
 	}
 }
 
 export function checkPositiveInt(
 	ctx: ValidationContext,
 	value: unknown,
-	min = 1
+	options: { min?: number } = {}
 ): void {
+	const min = options.min ?? 1;
 	if (!Number.isInteger(value) || (value as number) < min) {
 		err(ctx, `must be an integer ≥ ${min}`, value);
 	}

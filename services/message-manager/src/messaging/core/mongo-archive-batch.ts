@@ -1,4 +1,6 @@
-﻿import type { Message } from "@trading-model/common/contracts/message.types";
+﻿import type { EventEnumMap } from "@trading-model/common/config/event.types";
+import type { Message } from "@trading-model/common/contracts/message.types";
+import type { Topic } from "@trading-model/common/domain/primitives";
 import { ENV } from "../../config/env";
 import { MongoBatchWriter } from "./mongo-batch-writer";
 import { MongoIndexCreator } from "./mongo-index-creator";
@@ -6,8 +8,8 @@ import type { MongoCollectionConfig } from "./mongo-types";
 
 export interface ArchiveEntry {
 	messageId: string;
-	topic: string;
-	eventType: string;
+	topic: Topic;
+	eventType: EventEnumMap;
 	producer: string;
 	payload: unknown;
 	metadata: Record<string, unknown>;

@@ -1,5 +1,6 @@
+import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import { generateInstanceId } from "@trading-model/common/crypto/token-service";
-import type { ServiceId } from "@trading-model/common/domain/primitives";
+import type { InstanceId, ServiceId } from "@trading-model/common/domain/primitives";
 import { toServiceId } from "@trading-model/common/domain/primitives";
 import type { ServiceEndpoint } from "@trading-model/common/domain/service-identity";
 import type { TokenValidation } from "@trading-model/common/domain/token-validation";
@@ -14,13 +15,13 @@ export class TokenHandler {
 		private readonly _tokenService: TokenService
 	) {}
 
-	async updateToken(instanceId: string): Promise<string> {
+	async updateToken(instanceId: InstanceId): Promise<string> {
 		const newToken = this._tokenService.generateInstanceToken(instanceId);
 		await this._redis.set(this._keyBuilder.instanceToken(instanceId), newToken);
 		return newToken;
 	}
 
-	generateInstanceToken(instanceId: string): string {
+	generateInstanceToken(instanceId: InstanceId): string {
 		return this._tokenService.generateInstanceToken(instanceId);
 	}
 
@@ -44,7 +45,7 @@ export class TokenHandler {
 		return toServiceId(generateInstanceId(endpoint));
 	}
 
-	verifyInstanceName(serviceName: string): boolean {
+	verifyInstanceName(serviceName: ServiceInstanceName): boolean {
 		return this._tokenService.verifyInstanceName(serviceName);
 	}
 }

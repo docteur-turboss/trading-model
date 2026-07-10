@@ -1,4 +1,5 @@
 ﻿import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
+import type { Topic } from "@trading-model/common/domain/primitives";
 import { HTTP_HEADERS } from "@trading-model/common/http-headers";
 import type WebSocket from "ws";
 import { ENV } from "../../config/env";
@@ -25,7 +26,7 @@ export class PublishGuard {
 	}
 
 	async checkTopicAuth(
-		topic: string | undefined,
+		topic: Topic | undefined,
 		ctx: { identity: ServiceIdentity },
 		ws: WebSocket
 	): Promise<boolean> {

@@ -1,5 +1,6 @@
 import type { TLSSocket } from "node:tls";
 
+import type { ClientIdentity } from "../domain/primitives/string-ids";
 import { catchSync } from "./catch-error";
 import { ResponseException } from "./response-exception";
 
@@ -7,7 +8,7 @@ declare global {
 	namespace Express {
 		interface Request {
 			/** Logical client identity extracted from the mTLS client certificate. */
-			clientIdentity: string;
+			clientIdentity: ClientIdentity;
 		}
 	}
 }
@@ -81,7 +82,7 @@ function _assertClientCert(
 	return cert;
 }
 
-function _resolveIdentity(cert: import("node:tls").PeerCertificate): string {
+function _resolveIdentity(cert: import("node:tls").PeerCertificate): ClientIdentity {
 	const raw = cert.subjectaltname ?? cert.subject?.CN;
 
 	if (!raw) {
@@ -93,5 +94,5 @@ function _resolveIdentity(cert: import("node:tls").PeerCertificate): string {
 		).unauthorized();
 	}
 
-	return Array.isArray(raw) ? raw.join(", ") : raw;
+	return (Array.isArray(raw) ? raw.join(", ") : raw) as ClientIdentity;
 }

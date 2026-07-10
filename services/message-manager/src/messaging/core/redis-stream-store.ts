@@ -1,4 +1,5 @@
-﻿import { retryWithBackoff } from "@trading-model/common/utils/retry";
+﻿import type { Topic } from "@trading-model/common/domain/primitives";
+import { retryWithBackoff } from "@trading-model/common/utils/retry";
 import type Redis from "ioredis";
 
 import { ENV } from "../../config/env";
@@ -11,7 +12,7 @@ const STORE_OPERATION_TIMEOUT_MS = 15_000;
 export class RedisStreamStore {
 	constructor(private readonly _prefix: string) {}
 
-	async store(topic: string, serialized: string): Promise<string | null> {
+	async store(topic: Topic, serialized: string): Promise<string | null> {
 		const redis = await getStreamClient();
 		const { result: entryId, lastError } = await retryWithBackoff(
 			() => this._tryStoreOnce(topic, serialized, redis),
@@ -31,7 +32,7 @@ export class RedisStreamStore {
 		return null;
 	}
 
-	private _logStoreFailure(topic: string, lastError: Error | null): void {
+	private _logStoreFailure(topic: Topic, lastError: Error | null): void {
 		if (!lastError) {
 			return;
 		}
@@ -42,7 +43,7 @@ export class RedisStreamStore {
 	}
 
 	private async _tryStoreOnce(
-		topic: string,
+		topic: Topic,
 		serialized: string,
 		redis: Redis
 	): Promise<string> {

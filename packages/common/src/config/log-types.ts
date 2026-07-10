@@ -16,19 +16,15 @@ class LogPriority {
 	static readonly WARN = new LogPriority(2);
 	static readonly ERROR = new LogPriority(3);
 
+	private static readonly LEVEL_MAP: Record<LogLevel, LogPriority> = {
+		[LogLevel.Debug]: LogPriority.DEBUG,
+		[LogLevel.Info]: LogPriority.INFO,
+		[LogLevel.Warn]: LogPriority.WARN,
+		[LogLevel.Error]: LogPriority.ERROR,
+	};
+
 	static fromLogLevel(level: LogLevel): LogPriority {
-		switch (level) {
-			case LogLevel.Debug:
-				return LogPriority.DEBUG;
-			case LogLevel.Info:
-				return LogPriority.INFO;
-			case LogLevel.Warn:
-				return LogPriority.WARN;
-			case LogLevel.Error:
-				return LogPriority.ERROR;
-			default:
-				return LogPriority.DEBUG;
-		}
+		return LogPriority.LEVEL_MAP[level] ?? LogPriority.DEBUG;
 	}
 
 	canLog(threshold: LogPriority): boolean {
@@ -45,19 +41,21 @@ export function isLogLevelAtLeast(
 	);
 }
 
+import type { JsonObject, ServiceId, SessionId, URLString, UserId } from "../domain/primitives";
+
 export interface LogOptions {
-	context?: Record<string, unknown>;
-	url?: string;
-	serviceInCharge?: string;
+	context?: JsonObject;
+	url?: URLString;
+	serviceInCharge?: ServiceId;
 }
 
 export interface LogEntry {
 	timestamp: Date;
 	level: LogLevel;
 	message: string;
-	context?: Record<string, unknown>;
-	userId?: string;
-	sessionId?: string;
-	url?: string;
-	serviceInCharge?: string;
+	context?: JsonObject;
+	userId?: UserId;
+	sessionId?: SessionId;
+	url?: URLString;
+	serviceInCharge?: ServiceId;
 }

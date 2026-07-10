@@ -25,8 +25,7 @@ export class AddressManagerClient {
 		this._heartbeatRefresher = new HeartbeatRefresher(
 			this._httpClient,
 			this._tokenManager,
-			this._config.identity.serviceName,
-			this._config.identity.instanceId
+			this._config.identity
 		);
 	}
 

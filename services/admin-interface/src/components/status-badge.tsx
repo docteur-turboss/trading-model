@@ -1,13 +1,13 @@
 import { Chip } from "@mui/material";
 import type {
-	AdminJobStatus,
+	JOB_STATUS,
 	ServiceStatus,
 } from "@trading-model/common/contracts/admin";
 import type { WorkerStatusCode } from "@trading-model/common/domain/primitives";
 
 type MuiColor = "success" | "warning" | "error" | "default" | "info";
 
-type StatusValue = AdminJobStatus | ServiceStatus | WorkerStatusCode;
+type StatusValue = JOB_STATUS | ServiceStatus | WorkerStatusCode;
 
 const STATUS_COLORS: Record<string, MuiColor> = {
 	healthy: "success",

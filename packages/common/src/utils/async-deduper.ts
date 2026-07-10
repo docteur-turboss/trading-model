@@ -1,8 +1,8 @@
 ﻿export class AsyncDeduper<_TResult> {
-	private _promise: Promise<T> | null = null;
+	private _promise: Promise<_TResult> | null = null;
 
-	async run(factory: () => Promise<T>): Promise<T> {
-		if (await this._promise) {
+	async run(factory: () => Promise<_TResult>): Promise<_TResult> {
+		if (this._promise) {
 			return this._promise;
 		}
 		this._promise = factory().finally(() => {
@@ -11,7 +11,7 @@
 		return this._promise;
 	}
 
-	get pending(): Promise<T> | null {
+	get pending(): Promise<_TResult> | null {
 		return this._promise;
 	}
 

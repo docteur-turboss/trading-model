@@ -1,5 +1,5 @@
 ﻿import type { DlqEntry } from "@trading-model/common/contracts/dlq.types";
-import type { UnixTimestamp } from "@trading-model/common/domain/primitives";
+import type { Topic, UnixTimestamp } from "@trading-model/common/domain/primitives";
 import { AppError } from "@trading-model/common/utils/errors";
 import type { Document, WithId } from "mongodb";
 import { getCollection } from "../config/db";
@@ -22,7 +22,7 @@ export type { DlqEntry };
 
 export interface StoredDlqEntry {
 	id: string;
-	topic: string | null;
+	topic: Topic | null;
 	message: unknown;
 	reason: string | null;
 	deliveryAttempt: number;
@@ -32,7 +32,7 @@ export interface StoredDlqEntry {
 export function toStoredDlqEntry(doc: WithId<Document>): StoredDlqEntry {
 	return {
 		id: doc._id.toHexString(),
-		topic: (doc.topic as string | null) ?? null,
+		topic: (doc.topic as Topic | null) ?? null,
 		message: doc.message,
 		reason: (doc.reason as string | null) ?? null,
 		deliveryAttempt: doc.deliveryAttempt as number,

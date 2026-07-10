@@ -1,3 +1,4 @@
+import type { URLString } from "@trading-model/common/domain/primitives";
 import type { IWsConnection } from "@trading-model/common/ws/i-ws-connection";
 import WebSocket from "ws";
 
@@ -11,20 +12,20 @@ export class WsConnection implements IWsConnection {
 	lastCloseCode?: number;
 
 	constructor(
-		private readonly _baseUrl: string,
+		private readonly _baseUrl: URLString,
 		private _token?: string
 	) {}
 
-	private get _url(): string {
+	private get _url(): URLString {
 		if (!this._token) {
 			return this._baseUrl;
 		}
 		const url = new URL(this._baseUrl);
 		url.searchParams.set("token", this._token);
-		return url.toString();
+		return url.toString() as URLString;
 	}
 
-	get url(): string {
+	get url(): URLString {
 		return this._url;
 	}
 

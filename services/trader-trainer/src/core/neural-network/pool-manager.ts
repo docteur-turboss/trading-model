@@ -1,3 +1,4 @@
+import { ExperienceKind } from "./type";
 import type { ForwardContext, PooledExperience } from "./type";
 
 export class LearningPool {
@@ -30,7 +31,7 @@ export class LearningPool {
 	}): PooledExperience {
 		const { input, context, target, loss } = params;
 		return {
-			kind: "supervised",
+			kind: ExperienceKind.Supervised,
 			input: new Float32Array(input),
 			output: new Float32Array(context.output),
 			target: new Float32Array(target),

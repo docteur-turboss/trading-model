@@ -1,8 +1,4 @@
 import type { HttpClient } from "@trading-model/common/config/http-client";
-import {
-	toInstanceId,
-	toServiceId,
-} from "@trading-model/common/domain/primitives";
 import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
 import { HTTP_HEADERS } from "@trading-model/common/http-headers";
 import {
@@ -15,8 +11,7 @@ export class HeartbeatRefresher {
 	constructor(
 		private readonly _httpClient: HttpClient,
 		private readonly _tokenManager: TokenManager,
-		private readonly _serviceName: string,
-		private readonly _instanceId: string
+		private readonly _identity: ServiceIdentity
 	) {}
 
 	async refresh(urls: string[]): Promise<void> {
@@ -28,10 +23,7 @@ export class HeartbeatRefresher {
 	}
 
 	private _buildHeartbeatPayload(): ServiceIdentity {
-		return {
-			serviceName: toServiceId(this._serviceName),
-			instanceId: toInstanceId(this._instanceId),
-		};
+		return this._identity;
 	}
 
 	private async _sendHeartbeat(url: string): Promise<void> {

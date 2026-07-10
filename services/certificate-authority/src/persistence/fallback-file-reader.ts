@@ -1,6 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 
+import { CRYPTO } from "@trading-model/common/crypto/crypto-constants";
 import { logger } from "@trading-model/common/config/logger";
 import { normalizeError } from "@trading-model/common/utils/errors";
 
@@ -42,7 +43,7 @@ export class FallbackFileReader {
 
 	private async _tryReadFile<TData>(file: string): Promise<TData | undefined> {
 		try {
-			const raw = await fs.readFile(path.join(this._baseDir, file), "utf8");
+			const raw = await fs.readFile(path.join(this._baseDir, file), CRYPTO.UTF8);
 			const decrypted = this._encryption.deserialize(raw);
 			return JSON.parse(decrypted) as TData;
 		} catch (err) {

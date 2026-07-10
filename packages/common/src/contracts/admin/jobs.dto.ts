@@ -3,7 +3,9 @@ import type {
 	JobId,
 	JobType,
 	UnixTimestamp,
+	JsonObject,
 } from "../../domain/primitives";
+import type { JobPriority, JOB_STATUS } from "../recovery.types";
 
 export enum JobTimelineEvent {
 	Created = "created",
@@ -17,37 +19,22 @@ export enum JobTimelineEvent {
 	Retrying = "retrying",
 }
 
-export enum AdminJobPriority {
-	High = "HIGH",
-	Medium = "MEDIUM",
-	Low = "LOW",
-	Critical = "CRITICAL",
-}
-
-export enum AdminJobStatus {
-	Pending = "pending",
-	InProgress = "in_progress",
-	Completed = "completed",
-	Failed = "failed",
-	Cancelled = "cancelled",
-}
-
 export interface JobEntry {
 	id: JobId;
 	type: JobType;
-	priority: AdminJobPriority;
-	status: AdminJobStatus;
+	priority: JobPriority;
+	status: JOB_STATUS;
 	worker: InstanceId | null;
 }
 
 export interface JobDetail {
 	id: JobId;
 	type: JobType;
-	priority: AdminJobPriority;
-	status: AdminJobStatus;
+	priority: JobPriority;
+	status: JOB_STATUS;
 	worker: InstanceId | null;
 	timeline: JobTimelineEntry[];
-	payload: Record<string, unknown>;
+	payload: JsonObject;
 	logs: string[];
 }
 

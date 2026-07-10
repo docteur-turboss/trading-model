@@ -1,12 +1,13 @@
 import fs from "node:fs";
 import type https from "node:https";
 
+import { CRYPTO } from "../crypto/crypto-constants";
 import type { TlsPaths, TlsPemBundle } from "../domain/tls-paths";
 import { normalizeError } from "../utils/errors";
 
 function readTlsFileSync(filePath: string, label: string): string {
 	try {
-		return fs.readFileSync(filePath, "utf8");
+		return fs.readFileSync(filePath, CRYPTO.UTF8);
 	} catch (err) {
 		const original = normalizeError(err);
 		original.message = `Failed to read TLS ${label} from "${filePath}": ${original.message}`;

@@ -14,6 +14,18 @@ export enum JobPriority {
 	HIGHEST = 5,
 }
 
+export function isHigherPriority(a: JobPriority, b: JobPriority): boolean {
+	return a > b;
+}
+
+export function isLowerPriority(a: JobPriority, b: JobPriority): boolean {
+	return a < b;
+}
+
+export function isAtLeast(a: JobPriority, threshold: JobPriority): boolean {
+	return a >= threshold;
+}
+
 export enum JOB_STATUS {
 	PENDING = "pending",
 	IN_PROGRESS = "in_progress",

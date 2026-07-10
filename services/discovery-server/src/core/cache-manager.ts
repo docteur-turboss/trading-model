@@ -1,3 +1,4 @@
+import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import type { ServiceInstance } from "@trading-model/common/contracts/service-registry.types";
 import type { ISyncCache } from "@trading-model/common/utils/cache";
 import type { CacheConfig } from "@trading-model/common/utils/cache-config";
@@ -14,25 +15,25 @@ export class CacheManager implements ISyncCache<ServiceInstance[]> {
 		});
 	}
 
-	get(serviceName: string): ServiceInstance[] | undefined {
+	get(serviceName: ServiceInstanceName): ServiceInstance[] | undefined {
 		return this._cache.get(serviceName);
 	}
 
-	set(serviceName: string, instances: ServiceInstance[], ttlMs?: number): void {
+	set(serviceName: ServiceInstanceName, instances: ServiceInstance[], ttlMs?: number): void {
 		this._cache.set(serviceName, instances, ttlMs);
 		this._staleData.set(serviceName, instances);
 	}
 
-	getStale(serviceName: string): ServiceInstance[] | undefined {
+	getStale(serviceName: ServiceInstanceName): ServiceInstance[] | undefined {
 		return this._staleData.get(serviceName);
 	}
 
-	delete(serviceName: string): void {
+	delete(serviceName: ServiceInstanceName): void {
 		this._cache.delete(serviceName);
 		this._staleData.delete(serviceName);
 	}
 
-	invalidate(serviceName: string): void {
+	invalidate(serviceName: ServiceInstanceName): void {
 		this.delete(serviceName);
 	}
 

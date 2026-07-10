@@ -1,4 +1,4 @@
-import { toServiceId } from "@trading-model/common/domain/primitives";
+import { type ServiceId, toServiceId } from "@trading-model/common/domain/primitives";
 import type { ServiceInstance } from "../client/type";
 import type { DnsResolver } from "./dns-resolver";
 
@@ -9,7 +9,7 @@ export class MapResolver implements ServiceLocator {
 		return this._dnsMap[instance.serviceName] ?? instance.serviceName;
 	}
 
-	resolve(serviceName: string): string {
+	resolve(serviceName: ServiceId): string {
 		return this._dnsMap[serviceName] ?? serviceName;
 	}
 }
@@ -31,7 +31,7 @@ export interface ServiceLocator {
 	locate(instance: ServiceInstance): string;
 
 	/** Resolve a service name to a DNS hostname. */
-	resolve(serviceName: string): string;
+	resolve(serviceName: ServiceId): string;
 }
 
 /**
@@ -45,7 +45,7 @@ export class ServiceNameLocator implements ServiceLocator {
 		return instance.serviceName;
 	}
 
-	resolve(serviceName: string): string {
+	resolve(serviceName: ServiceId): string {
 		return serviceName;
 	}
 }
@@ -61,7 +61,7 @@ export class IpAddressLocator implements ServiceLocator {
 		return instance.host;
 	}
 
-	resolve(serviceName: string): string {
+	resolve(serviceName: ServiceId): string {
 		return serviceName;
 	}
 }
@@ -77,7 +77,7 @@ export class MappingServiceLocator implements ServiceLocator {
 		return this._dnsResolver.resolve(toServiceId(instance.serviceName));
 	}
 
-	resolve(serviceName: string): string {
-		return this._dnsResolver.resolve(toServiceId(serviceName));
+	resolve(serviceName: ServiceId): string {
+		return this._dnsResolver.resolve(serviceName);
 	}
 }

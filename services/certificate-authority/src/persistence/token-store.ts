@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 
+import { CRYPTO } from "@trading-model/common/crypto/crypto-constants";
 import type { Collection } from "mongodb";
 
 export interface TokenUseRequest {
@@ -85,7 +86,7 @@ export class TokenStore {
 
 	private _hashToken(token: string): Promise<string> {
 		return Promise.resolve(
-			createHash("sha256").update(token, "utf8").digest("hex")
+			createHash(CRYPTO.SHA256).update(token, CRYPTO.UTF8).digest(CRYPTO.HEX)
 		);
 	}
 }

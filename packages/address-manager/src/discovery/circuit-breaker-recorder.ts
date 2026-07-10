@@ -1,4 +1,5 @@
 import type { CircuitState } from "@trading-model/common/domain/circuit-state";
+import type { InstanceId } from "@trading-model/common/domain/primitives";
 import type { CircuitBreakerLatency } from "./circuit-breaker-latency";
 import type { CircuitBreakerPersistence } from "./circuit-breaker-persistence";
 import type { CircuitBreakerState } from "./circuit-breaker-state";
@@ -10,11 +11,11 @@ export class CircuitBreakerRecorder {
 		private readonly _persistence: CircuitBreakerPersistence
 	) {}
 
-	async loadFromStore(instanceId: string): Promise<void> {
+	async loadFromStore(instanceId: InstanceId): Promise<void> {
 		await this._persistence.loadFromStore(instanceId, this._state.instances);
 	}
 
-	recordFailure(instanceId: string): void {
+	recordFailure(instanceId: InstanceId): void {
 		this._state.recordFailure(instanceId);
 		this._persistence.persistMachineState(
 			instanceId,
@@ -22,7 +23,7 @@ export class CircuitBreakerRecorder {
 		);
 	}
 
-	recordSuccess(instanceId: string): void {
+	recordSuccess(instanceId: InstanceId): void {
 		const state = this._state.getInstanceState(instanceId);
 		if (!state) {
 			return;
@@ -34,8 +35,8 @@ export class CircuitBreakerRecorder {
 		this._persistence.deletePersistedState(instanceId);
 	}
 
-	recordLatency(instanceId: string, durationMs: number): void {
-		this._latency.recordLatency(instanceId, durationMs, (id) => {
+	recordLatency(instanceId: InstanceId, durationMs: number): void {
+		this._latency.recordLatency(instanceId, durationMs, (id: InstanceId) => {
 			this.recordFailure(id);
 		});
 	}

@@ -1,4 +1,5 @@
 import { describe, expect, it, jest } from "@jest/globals";
+import { REDIS_RESP, REDIS_SET } from "@trading-model/common/persistence/redis-constants";
 
 const MOCK_SET = jest.fn();
 const MOCK_EVAL = jest.fn();
@@ -29,7 +30,7 @@ describe("DistributedLock", () => {
 
 	describe("acquire", () => {
 		it("should return true when lock is acquired", async () => {
-			MOCK_SET.mockResolvedValue("OK");
+			MOCK_SET.mockResolvedValue(REDIS_RESP.OK);
 			const lock = new DistributedLockClass(mockRedis, "test-lock");
 			const result = await lock.acquire("instance-1");
 			await lock.release("instance-1");
@@ -37,9 +38,9 @@ describe("DistributedLock", () => {
 			expect(MOCK_SET).toHaveBeenCalledWith(
 				"dlq:lock:test-lock",
 				"instance-1",
-				"EX",
+				REDIS_SET.EX,
 				30,
-				"NX"
+				REDIS_SET.NX
 			);
 		});
 

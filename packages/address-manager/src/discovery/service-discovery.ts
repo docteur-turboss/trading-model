@@ -1,5 +1,6 @@
 ﻿import type { HttpClient } from "@trading-model/common/config/http-client";
 import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
+import type { InstanceId } from "@trading-model/common/domain/primitives";
 import type { ServiceInstance } from "../client/type";
 import type { AddressManagerConfig } from "../config/address-manager-config";
 import type { IServiceCache } from "./service-cache.interface";
@@ -40,7 +41,7 @@ export class ServiceDiscovery {
 		);
 	}
 
-	private readonly _connections = new Map<string, number>();
+	private readonly _connections = new Map<InstanceId, number>();
 
 	findService(serviceName: ServiceInstanceName): Promise<ServiceInstance> {
 		return this._finder.findService(serviceName);
@@ -53,14 +54,14 @@ export class ServiceDiscovery {
 		return this._finder.findServiceInRegion(serviceName, region);
 	}
 
-	acquireConnection(instanceId: string): void {
+	acquireConnection(instanceId: InstanceId): void {
 		this._connections.set(
 			instanceId,
 			(this._connections.get(instanceId) ?? 0) + 1
 		);
 	}
 
-	releaseConnection(instanceId: string): void {
+	releaseConnection(instanceId: InstanceId): void {
 		const count = this._connections.get(instanceId);
 		if (count !== undefined) {
 			if (count <= 1) {

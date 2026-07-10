@@ -1,9 +1,11 @@
+import type { URLString } from "@trading-model/common/domain/primitives";
+import { REDIS_STATUS } from "@trading-model/common/persistence/redis-constants";
 import Redis from "ioredis";
 
 export class RedisClientManager {
 	private _client: Redis | null = null;
 
-	async createClient(url: string): Promise<Redis> {
+	async createClient(url: URLString): Promise<Redis> {
 		const client = new Redis(url, {
 			lazyConnect: true,
 			retryStrategy: (times) => Math.min(times * 200, 5_000),
@@ -23,7 +25,7 @@ export class RedisClientManager {
 			return;
 		}
 		try {
-			if (client.status === "ready") {
+			if (client.status === REDIS_STATUS.READY) {
 				await client.quit();
 			} else {
 				client.disconnect();

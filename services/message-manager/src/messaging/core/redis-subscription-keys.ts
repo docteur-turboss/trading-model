@@ -1,11 +1,13 @@
-﻿export class RedisSubscriptionKeys {
+﻿import type { Topic, InstanceId } from "@trading-model/common/domain/primitives";
+
+export class RedisSubscriptionKeys {
 	constructor(private readonly _prefix: string) {}
 
-	topicKey(topic: string): string {
+	topicKey(topic: Topic): string {
 		return `${this._prefix}sub:${topic}`;
 	}
 
-	instanceKey(instanceId: string): string {
+	instanceKey(instanceId: InstanceId): string {
 		return `${this._prefix}instance:${instanceId}`;
 	}
 
@@ -21,7 +23,7 @@
 		return `${this._prefix}active-instances`;
 	}
 
-	leaseKey(instanceId: string): string {
+	leaseKey(instanceId: InstanceId): string {
 		return `${this._prefix}lease:${instanceId}`;
 	}
 }

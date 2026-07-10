@@ -6,10 +6,11 @@ import {
 } from "@trading-model/common/middleware/response-exception";
 import type { Request } from "express";
 import type { ResponseCache } from "./cache";
+import type { ServiceId } from "@trading-model/common/domain/primitives";
 import { forwardRequest } from "./proxy-handler";
 
 interface ProxyContext {
-	serviceName: string;
+	serviceName: ServiceId;
 	majorVersion: number;
 	cacheKey: string;
 	path: string;

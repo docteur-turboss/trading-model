@@ -1,11 +1,14 @@
 import type { ServiceInstanceName } from "../config/services.types";
 import type {
 	AuthToken,
+	DurationMs,
+	Environment,
 	InstanceId,
 	IPAddress,
 	Port,
 	Region,
 	ServiceId,
+	UnixTimestamp,
 	Version,
 } from "../domain/primitives";
 import type {
@@ -27,7 +30,7 @@ export interface ServiceRegisterPayload {
 	address: IPAddress;
 	port: Port;
 	protocol: Protocol;
-	env?: string;
+	env?: Environment;
 	version?: Version;
 }
 
@@ -45,11 +48,11 @@ export interface ServicesQueryPayload {
 
 /** A registered service instance with its connection metadata and health state. */
 export interface ServiceInstance extends ServiceIdentity, HostPort {
-	lastHeartbeat: number;
-	registeredAt: number;
+	lastHeartbeat: UnixTimestamp;
+	registeredAt: UnixTimestamp;
 	protocol: Protocol;
-	env?: string;
-	ttl: number;
+	env?: Environment;
+	ttl: DurationMs;
 	version: Version;
 	/** Deployment region / datacenter for multi-region failover. */
 	region?: Region;

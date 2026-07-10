@@ -12,10 +12,13 @@ export type {
 	JobTimelineEntry,
 } from "./jobs.dto";
 export {
-	AdminJobPriority,
-	AdminJobStatus,
-	JobTimelineEvent,
-} from "./jobs.dto";
+	JobPriority,
+	isHigherPriority,
+	isLowerPriority,
+	isAtLeast,
+	JOB_STATUS,
+} from "../recovery.types";
+export { JobTimelineEvent } from "./jobs.dto";
 export type { Candle, Ticker } from "./market-data.dto";
 export type {
 	AdminServiceInstance,

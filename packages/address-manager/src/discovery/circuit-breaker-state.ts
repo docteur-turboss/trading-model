@@ -1,5 +1,6 @@
 import { logger } from "@trading-model/common/config/logger";
-import type { CircuitState } from "@trading-model/common/domain/circuit-state";
+import { CircuitState } from "@trading-model/common/domain/circuit-state";
+import type { InstanceId } from "@trading-model/common/domain/primitives";
 import { CircuitStateMachine } from "@trading-model/common/reliability/circuit-state-machine";
 import { StaleEntrySweeper } from "./stale-entry-sweeper";
 
@@ -12,14 +13,14 @@ export interface INstanceState {
 const SWEEP_INTERVAL_MS = 60_000;
 
 export class CircuitBreakerState {
-	private readonly _instances = new Map<string, CircuitStateMachine>();
+	private readonly _instances = new Map<InstanceId, CircuitStateMachine>();
 	private readonly _failureThreshold: number;
 	private readonly _sweeper: StaleEntrySweeper;
 
 	constructor(
 		failureThreshold: number,
 		private readonly _halfOpenTimeoutMs: number,
-		onSweepInstance?: (instanceId: string) => void
+		onSweepInstance?: (instanceId: InstanceId) => void
 	) {
 		this._failureThreshold = failureThreshold;
 		this._sweeper = new StaleEntrySweeper(
@@ -29,7 +30,7 @@ export class CircuitBreakerState {
 		);
 	}
 
-	getOrCreateMachine(instanceId: string): CircuitStateMachine {
+	getOrCreateMachine(instanceId: InstanceId): CircuitStateMachine {
 		let machine = this._instances.get(instanceId);
 		if (!machine) {
 			machine = new CircuitStateMachine({
@@ -41,13 +42,13 @@ export class CircuitBreakerState {
 		}
 		return machine;
 	}
-	recordSuccess(instanceId: string): void {
+	recordSuccess(instanceId: InstanceId): void {
 		this._instances.get(instanceId)?.recordSuccess();
 	}
-	recordFailure(instanceId: string): boolean {
+	recordFailure(instanceId: InstanceId): boolean {
 		return this.getOrCreateMachine(instanceId).recordFailure();
 	}
-	getOrCreateState(instanceId: string, now: number): INstanceState {
+	getOrCreateState(instanceId: InstanceId, now: number): INstanceState {
 		const machine = this.getOrCreateMachine(instanceId);
 		return {
 			failures: machine.failures,
@@ -55,7 +56,7 @@ export class CircuitBreakerState {
 			state: machine.getState(now),
 		};
 	}
-	checkOpenThreshold(instanceId: string, _state: INstanceState): void {
+	checkOpenThreshold(instanceId: InstanceId, _state: INstanceState): void {
 		const machine = this._instances.get(instanceId);
 		if (!machine) {
 			return;
@@ -67,10 +68,10 @@ export class CircuitBreakerState {
 			});
 		}
 	}
-	tryHalfOpen(instanceId: string, state: INstanceState): boolean {
+	tryHalfOpen(instanceId: InstanceId, state: INstanceState): boolean {
 		const now = Date.now();
 		if (
-			state.state === "open" &&
+			state.state === CircuitState.OPEN &&
 			now - state.lastFailureTime >= this._halfOpenTimeoutMs
 		) {
 			logger.info("Circuit breaker half-open for instance", { instanceId });
@@ -78,12 +79,12 @@ export class CircuitBreakerState {
 		}
 		return false;
 	}
-	logHalfOpenClose(instanceId: string, state: INstanceState): void {
-		if (state.state === "half-open") {
+	logHalfOpenClose(instanceId: InstanceId, state: INstanceState): void {
+		if (state.state === CircuitState.HALF_OPEN) {
 			logger.info("Circuit breaker closed for instance", { instanceId });
 		}
 	}
-	getInstanceState(instanceId: string): INstanceState | undefined {
+	getInstanceState(instanceId: InstanceId): INstanceState | undefined {
 		const machine = this._instances.get(instanceId);
 		if (!machine) {
 			return;
@@ -96,7 +97,7 @@ export class CircuitBreakerState {
 			state: machine.getState(Date.now()),
 		};
 	}
-	get instances(): Map<string, CircuitStateMachine> {
+	get instances(): Map<InstanceId, CircuitStateMachine> {
 		return this._instances;
 	}
 	clear(): void {

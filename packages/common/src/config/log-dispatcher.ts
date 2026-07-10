@@ -1,4 +1,4 @@
-import type { SessionId, UserId } from "../domain/primitives";
+import type { SessionId, URLString, UserId } from "../domain/primitives";
 import type { TlsPaths } from "../domain/tls-paths";
 import { AuditServiceClient } from "./audit-service-client";
 import { ErrorServiceSender } from "./error-service-sender";
@@ -42,7 +42,7 @@ export class LogDispatcher {
 		userId: UserId,
 		opts?: LogOptions
 	): LogEntry {
-		const { context, url = "", serviceInCharge = "" } = opts ?? {};
+		const { context, url = "" as URLString, serviceInCharge } = opts ?? {};
 		const now = new Date();
 		const data: LogEntry = {
 			timestamp: now,

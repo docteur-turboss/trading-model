@@ -5,6 +5,7 @@ import {
 	readFileSync,
 	writeFileSync,
 } from "node:fs";
+import { CRYPTO } from "@trading-model/common/crypto/crypto-constants";
 import type { KeyPair } from "@trading-model/certificate-utils/types";
 
 export class CaKeyStore {
@@ -14,7 +15,7 @@ export class CaKeyStore {
 		if (!existsSync(this._caKeyPath)) {
 			return null;
 		}
-		const privateKey = readFileSync(this._caKeyPath, "utf8");
+		const privateKey = readFileSync(this._caKeyPath, CRYPTO.UTF8);
 		const publicKey = createPublicKey(privateKey).export({
 			type: "spki",
 			format: "pem",

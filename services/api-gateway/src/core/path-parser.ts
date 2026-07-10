@@ -1,13 +1,15 @@
+import type { ServiceId } from "@trading-model/common/domain/primitives";
+
 const VERSION_PATH_REGEX =
 	/^\/v(?<major>\d+)\/(?<service>[^/]+)(?<path>\/.*)?$/;
 
 type ParsedRequestPath =
 	| { valid: false }
-	| { valid: true; majorVersion: number; serviceName: string; path: string };
+	| { valid: true; majorVersion: number; serviceName: ServiceId; path: string };
 
 function extractPathComponents(match: RegExpMatchArray): {
 	majorVersion: number;
-	serviceName: string;
+	serviceName: ServiceId;
 	path: string;
 } {
 	const groups = match.groups as {
@@ -17,7 +19,7 @@ function extractPathComponents(match: RegExpMatchArray): {
 	};
 	return {
 		majorVersion: Number.parseInt(groups.major, 10),
-		serviceName: groups.service,
+		serviceName: groups.service as ServiceId,
 		path: groups.path ?? "/",
 	};
 }

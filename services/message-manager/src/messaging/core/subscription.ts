@@ -1,8 +1,8 @@
-﻿import type { DeliveryMode } from "@trading-model/common/config/delivery-mode.types";
-import type {
+﻿import type {
 	Message,
 	ServiceIdentity,
 } from "@trading-model/common/contracts/message.types";
+import type { Topic } from "@trading-model/common/domain/primitives";
 import { CircuitState } from "@trading-model/common/domain/circuit-state";
 import { CircuitStateMachine } from "@trading-model/common/reliability/circuit-state-machine";
 import { logger } from "../../config/logger";
@@ -11,10 +11,11 @@ import { DeliveryAttemptHandler } from "./delivery-attempt-handler";
 import { DeliveryErrorHandler } from "./delivery-error-handler";
 import type { SubscribersContext } from "./delivery-metadata-extractor";
 import { DeliveryMetadataExtractor } from "./delivery-metadata-extractor";
+import type { DeliveryParams } from "./delivery-params";
 import type { MessageDeliveryPort } from "./message-delivery-port";
 
 export interface SubscriptionConfig {
-	topic: string;
+	topic: Topic;
 	callbackURL: string;
 	serviceIdentity: ServiceIdentity;
 	deliveryPort: MessageDeliveryPort;
@@ -30,7 +31,7 @@ export interface SubscriptionConfig {
  * @class Subscription
  */
 export class Subscription {
-	readonly topic: string;
+	readonly topic: Topic;
 	readonly callbackURL: string;
 	readonly serviceIdentity: ServiceIdentity;
 	private _deliveryPort: MessageDeliveryPort;
@@ -86,8 +87,7 @@ export class Subscription {
 	}
 
 	async dispatch<TData>(message: Message<TData>): Promise<void> {
-		const { ttl, deliveryMode, emittedAt } =
-			this._metadataExtractor.extract(message);
+		const deliveryParams = this._metadataExtractor.extract(message);
 
 		if (this._circuitBreaker.isOpen()) {
 			logger.warn("Circuit breaker open — rejecting dispatch", {
@@ -107,9 +107,7 @@ export class Subscription {
 		await this._deliverUntilAcknowledged(
 			message,
 			context,
-			ttl,
-			emittedAt,
-			deliveryMode,
+			deliveryParams,
 			isAcknowledged
 		);
 		this._circuitBreaker.clear();
@@ -132,18 +130,14 @@ export class Subscription {
 	private async _deliverUntilAcknowledged<TData>(
 		message: Message<TData>,
 		context: SubscribersContext,
-		ttl: number,
-		emittedAt: number,
-		deliveryMode: DeliveryMode,
+		deliveryParams: DeliveryParams,
 		isAcknowledged: () => boolean
 	): Promise<void> {
 		while (!isAcknowledged()) {
 			const shouldRetry = await this._attemptHandler.attempt(
 				message,
 				context,
-				ttl,
-				emittedAt,
-				deliveryMode
+				deliveryParams
 			);
 			if (!shouldRetry) {
 				return;

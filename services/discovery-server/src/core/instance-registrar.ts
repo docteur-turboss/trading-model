@@ -1,22 +1,25 @@
+import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import { logger } from "@trading-model/common/config/logger";
+import { REDIS_RESP, REDIS_SET } from "@trading-model/common/persistence/redis-constants";
 import type { ServiceInstance } from "@trading-model/common/contracts/service-registry.types";
+import type { InstanceId } from "@trading-model/common/domain/primitives";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import type { RedisDeps } from "./redis-deps";
 
 export class InstanceRegistrar {
 	constructor(private readonly _deps: RedisDeps) {}
 
-	async resolveToken(instanceId: string): Promise<string> {
+	async resolveToken(instanceId: InstanceId): Promise<string> {
 		const tokenKey = this._deps.keyBuilder.instanceToken(instanceId);
 		const token = this._deps.tokenService.generateInstanceToken(instanceId);
-		const tokenSet = await this._deps.redis.set(tokenKey, token, "NX");
-		return tokenSet === "OK"
+		const tokenSet = await this._deps.redis.set(tokenKey, token, REDIS_SET.NX);
+		return tokenSet === REDIS_RESP.OK
 			? token
 			: ((await this._deps.redis.get(tokenKey)) ?? token);
 	}
 
 	private async _mergeExistingMetadata(
-		instanceId: string,
+		instanceId: InstanceId,
 		storedInstance: ServiceInstance
 	): Promise<void> {
 		const existingJson = await this._deps.redis.get(
@@ -59,7 +62,7 @@ export class InstanceRegistrar {
 		const finalToken = await this.resolveToken(instanceId);
 		const multi = this._deps.redis.multi();
 		multi.sadd(
-			this._deps.keyBuilder.serviceInstancesSet(serviceName),
+			this._deps.keyBuilder.serviceInstancesSet(serviceName as unknown as ServiceInstanceName),
 			instanceId
 		);
 		const storedInstance = await this.buildStoredInstance(instance, now);

@@ -1,3 +1,4 @@
+import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import type {
 	IInstanceQuery,
 	IInstanceRegistration,
@@ -6,6 +7,7 @@ import type {
 	ServiceInstance,
 } from "@trading-model/common/contracts/service-registry.types";
 import {
+	type InstanceId,
 	type ServiceId,
 	toServiceId,
 } from "@trading-model/common/domain/primitives";
@@ -47,11 +49,11 @@ export class InMemoryRegistryBackend
 		return Promise.resolve(this._registry.updateHeartbeat(id));
 	}
 
-	updateToken(instanceId: string): Promise<string> {
+	updateToken(instanceId: InstanceId): Promise<string> {
 		return Promise.resolve(this._registry.updateToken(instanceId));
 	}
 
-	getInstances(serviceName: string): Promise<ServiceInstance[]> {
+	getInstances(serviceName: ServiceInstanceName): Promise<ServiceInstance[]> {
 		return Promise.resolve(this._registry.getInstances(serviceName));
 	}
 
@@ -63,7 +65,7 @@ export class InMemoryRegistryBackend
 		return Promise.resolve(this._registry.removeInstance(id));
 	}
 
-	listServiceNames(): Promise<string[]> {
+	listServiceNames(): Promise<ServiceInstanceName[]> {
 		return Promise.resolve(this._registry.listServiceNames());
 	}
 
@@ -71,7 +73,7 @@ export class InMemoryRegistryBackend
 		return Promise.resolve(this._registry.dump());
 	}
 
-	generateInstanceToken(instanceId: string): string {
+	generateInstanceToken(instanceId: InstanceId): string {
 		return this._registry.generateInstanceToken(instanceId);
 	}
 
@@ -83,7 +85,7 @@ export class InMemoryRegistryBackend
 		return Promise.resolve(this._registry.validInstanceToken(validation));
 	}
 
-	verifyInstanceName(serviceName: string): boolean {
+	verifyInstanceName(serviceName: ServiceInstanceName): boolean {
 		return this._registry.verifyInstanceName(serviceName);
 	}
 

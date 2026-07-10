@@ -1,4 +1,5 @@
 import type { Experience } from "../../core/neural-network/type";
+import { ExperienceKind } from "../../core/neural-network/type";
 import type { LamarckGenome, MarketStep } from "./genome-types";
 import { nStepReturn } from "./reward-shaping";
 import type { RLBackend } from "./rl-backend";
@@ -29,7 +30,7 @@ function _buildTrainExperience(
 ): Experience {
 	return {
 		...prev,
-		kind: "qlearning" as const,
+		kind: ExperienceKind.QLearning,
 		reward: nStepReturn(rewardBuf, index, genome),
 		nextState: trainData[index].features.toFloat32Array(),
 		done: index === maxT - 1,

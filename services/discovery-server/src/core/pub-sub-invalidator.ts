@@ -1,11 +1,13 @@
+import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import { logger } from "@trading-model/common/config/logger";
+import { REDIS_STATUS } from "@trading-model/common/persistence/redis-constants";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import Redis from "ioredis";
 import type { CacheManager } from "./cache-manager";
 
 function createNullRedis(): Redis {
 	return {
-		status: "close",
+		status: REDIS_STATUS.CLOSE,
 		connect: () => Promise.resolve(),
 		on: () => {},
 		subscribe: () => Promise.resolve(0),
@@ -37,7 +39,7 @@ export class PubSubInvalidator {
 		message: string
 	): void {
 		if (channel === "cache:invalidate") {
-			cacheManager.invalidate(message);
+			cacheManager.invalidate(message as ServiceInstanceName);
 			logger.debug("Cache invalidated via Pub/Sub", { serviceName: message });
 		}
 	}
@@ -61,8 +63,8 @@ export class PubSubInvalidator {
 		}
 	}
 
-	async publish(serviceName: string): Promise<void> {
-		if (this._pubSub.status !== "ready") {
+	async publish(serviceName: ServiceInstanceName): Promise<void> {
+		if (this._pubSub.status !== REDIS_STATUS.READY) {
 			return;
 		}
 		try {

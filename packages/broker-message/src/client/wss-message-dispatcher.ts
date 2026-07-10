@@ -1,9 +1,10 @@
 import { logger } from "@trading-model/common/config/logger";
 import type { MessageMetadata } from "@trading-model/common/contracts/message.types";
+import { toTopic, type Topic } from "@trading-model/common/domain/primitives";
 import { normalizeError } from "@trading-model/common/utils/errors";
 
 export type WssMessageHandler = (
-	topic: string,
+	topic: Topic,
 	payload: unknown,
 	metadata: MessageMetadata
 ) => void;
@@ -36,7 +37,7 @@ export class WssMessageDispatcher {
 			| { payload?: unknown; metadata?: MessageMetadata }
 			| undefined;
 		this._messageHandler(
-			msg.topic as string,
+			toTopic(msg.topic as string),
 			message?.payload,
 			message?.metadata as MessageMetadata
 		);

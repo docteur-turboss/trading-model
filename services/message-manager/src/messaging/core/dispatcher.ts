@@ -12,6 +12,7 @@ import type {
 	Message,
 	ServiceIdentity,
 } from "@trading-model/common/contracts/message.types";
+import type { Topic, InstanceId } from "@trading-model/common/domain/primitives";
 
 import { AckHandler } from "./ack-handler";
 import { BackpressureMonitor } from "./backpressure-monitor";
@@ -52,7 +53,7 @@ export class Dispatcher {
 	}
 
 	subscribe(params: {
-		topic: string;
+		topic: Topic;
 		callbackPath: string;
 		consumerIdentity: ServiceIdentity;
 	}): void {
@@ -98,7 +99,7 @@ export class Dispatcher {
 	 * @deprecated Use `subscribe` instead.
 	 */
 	registerSubscription(params: {
-		topic: string;
+		topic: Topic;
 		callbackPath: string;
 		consumerIdentity: ServiceIdentity;
 	}): void {
@@ -116,11 +117,11 @@ export class Dispatcher {
 		return this._backpressureMonitor.getBackpressureRatio();
 	}
 
-	handleAck(messageId: string, instanceId: string): void {
+	handleAck(messageId: string, instanceId: InstanceId): void {
 		this._ackHandler.handleAck(messageId, instanceId);
 	}
 
-	handleNack(messageId: string, instanceId: string): void {
+	handleNack(messageId: string, instanceId: InstanceId): void {
 		this._ackHandler.handleNack(messageId, instanceId);
 	}
 

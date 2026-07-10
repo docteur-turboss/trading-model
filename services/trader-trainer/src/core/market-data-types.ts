@@ -21,17 +21,25 @@ export { FEATURE_DIM };
 
 /** Running normalisation statistics grouped by market-data context. */
 export interface SymbolNormalizers {
-	candleClose: NormalizationStats;
-	candleVolume: NormalizationStats;
-	candleOpen: NormalizationStats;
-	candleHigh: NormalizationStats;
-	candleLow: NormalizationStats;
-	tradePrice: NormalizationStats;
-	tradeQty: NormalizationStats;
-	bid: NormalizationStats;
-	ask: NormalizationStats;
-	spread: NormalizationStats;
-	tickerVolume: NormalizationStats;
+	candle: {
+		close: NormalizationStats;
+		volume: NormalizationStats;
+		open: NormalizationStats;
+		high: NormalizationStats;
+		low: NormalizationStats;
+	};
+	trade: {
+		price: NormalizationStats;
+		qty: NormalizationStats;
+	};
+	book: {
+		bid: NormalizationStats;
+		ask: NormalizationStats;
+		spread: NormalizationStats;
+	};
+	ticker: {
+		volume: NormalizationStats;
+	};
 }
 
 /** Fields shared by SymbolState and SymbolStateSerializable. */

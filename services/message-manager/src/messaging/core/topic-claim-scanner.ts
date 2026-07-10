@@ -1,4 +1,5 @@
-﻿import type Redis from "ioredis";
+﻿import type { Topic } from "@trading-model/common/domain/primitives";
+import type Redis from "ioredis";
 
 import type { ClaimParams } from "./messaging-types";
 
@@ -6,7 +7,7 @@ export class TopicClaimScanner {
 	constructor(private readonly _prefix: string) {}
 
 	async scan(redis: Redis): Promise<string[]> {
-		const topics: string[] = [];
+		const topics: Topic[] = [];
 		let cursor = "0";
 		do {
 			cursor = await this._scanPage(redis, cursor, topics);
@@ -16,7 +17,7 @@ export class TopicClaimScanner {
 
 	async claimForTopic(
 		redis: Redis,
-		topic: string,
+		topic: Topic,
 		claimOpts: Required<ClaimParams>
 	): Promise<number> {
 		const { groupName, consumerId, minIdleMs, count } = claimOpts;
@@ -54,7 +55,7 @@ export class TopicClaimScanner {
 	private async _scanPage(
 		redis: Redis,
 		cursor: string,
-		topics: string[]
+		topics: Topic[]
 	): Promise<string> {
 		const [nextCursor, batch] = await redis.sscan(
 			`${this._prefix}topics`,

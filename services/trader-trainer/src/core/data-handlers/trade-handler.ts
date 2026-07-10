@@ -5,8 +5,8 @@ import { DataType } from "./data-types";
 export const tradeHandler: DataHandler<TradeData> = {
 	dataType: DataType.Trade,
 	updateNorms(state, trade) {
-		state.norm.tradePrice.update(trade.price);
-		state.norm.tradeQty.update(trade.quantity);
+		state.norm.trade.price.update(trade.price);
+		state.norm.trade.qty.update(trade.quantity);
 	},
 	mutateState(_symbol, data, state, maxSize) {
 		state.trades.push(data);
@@ -16,8 +16,10 @@ export const tradeHandler: DataHandler<TradeData> = {
 	},
 	serializeNorms(state) {
 		return {
-			tradePriceNorm: state.norm.tradePrice.toJSON(),
-			tradeQtyNorm: state.norm.tradeQty.toJSON(),
+			trade: {
+				price: state.norm.trade.price.toJSON(),
+				qty: state.norm.trade.qty.toJSON(),
+			},
 		};
 	},
 };

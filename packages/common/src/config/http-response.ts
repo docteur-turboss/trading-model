@@ -1,6 +1,7 @@
 import type { IncomingMessage } from "node:http";
 import { createGunzip, createInflate } from "node:zlib";
 import type { z } from "zod";
+import type { HttpStatusCode } from "../http-status";
 
 interface ResponseCollectionContext<TResponse> {
 	res: IncomingMessage;
@@ -49,7 +50,7 @@ function collectResponseBody<TResponse>(
 				return reject(
 					new (require("./http-client-errors").HttpClientError)(
 						`HTTP ${res.statusCode} on ${method} ${urlStr}`,
-						res.statusCode
+						res.statusCode as HttpStatusCode
 					)
 				);
 			}

@@ -1,8 +1,10 @@
 import { logger } from "@trading-model/common/config/logger";
+import type { AuthToken, UnixTimestamp } from "@trading-model/common/domain/primitives";
+import type { ClientIdentity } from "@trading-model/common/domain/primitives/string-ids";
 
 const UNAUTH_SIGN_ATTEMPTS = new Map<
 	string,
-	{ count: number; resetAt: number }
+	{ count: number; resetAt: UnixTimestamp }
 >();
 const UNAUTH_RATE_LIMIT = 3;
 const UNAUTH_WINDOW_MS = 60_000;
@@ -18,10 +20,10 @@ setInterval(() => {
 	}
 }, UNAUTH_CLEANUP_MS).unref();
 
-function _resetEntry(clientIdentity: string): void {
+function _resetEntry(clientIdentity: ClientIdentity): void {
 	UNAUTH_SIGN_ATTEMPTS.set(clientIdentity, {
 		count: 1,
-		resetAt: Date.now() + UNAUTH_WINDOW_MS,
+		resetAt: (Date.now() + UNAUTH_WINDOW_MS) as UnixTimestamp,
 	});
 }
 
@@ -29,7 +31,7 @@ function _isBanned(entry: { count: number; resetAt: number }): boolean {
 	return Date.now() > entry.resetAt + UNAUTH_BAN_MS;
 }
 
-export function checkUnauthRateLimit(clientIdentity: string): boolean {
+export function checkUnauthRateLimit(clientIdentity: ClientIdentity): boolean {
 	const now = Date.now();
 	const entry = UNAUTH_SIGN_ATTEMPTS.get(clientIdentity);
 	if (!entry || now > entry.resetAt) {
@@ -52,19 +54,19 @@ const AUTH_RATE_LIMIT_MS = 60_000;
 
 export interface ConnectionState {
 	tokenProvided: boolean;
-	bootstrapToken: string | undefined;
+	bootstrapToken: AuthToken | undefined;
 	authAttempts: number;
 	requestCount: number;
-	requestWindowStart: number;
+	requestWindowStart: UnixTimestamp;
 }
 
 function _resetRequestWindow(connectionState: ConnectionState): void {
 	connectionState.requestCount = 1;
-	connectionState.requestWindowStart = Date.now();
+	connectionState.requestWindowStart = Date.now() as UnixTimestamp;
 }
 
 function _logRateLimitExceeded(
-	clientIdentity: string | undefined,
+	clientIdentity: ClientIdentity | undefined,
 	requestCount: number
 ): void {
 	logger.warn("WSS per-connection rate limit exceeded", {
@@ -74,7 +76,7 @@ function _logRateLimitExceeded(
 
 function _checkConnectionRateLimit(
 	connectionState: ConnectionState,
-	clientIdentity: string | undefined
+	clientIdentity: ClientIdentity | undefined
 ): boolean {
 	const elapsed = Date.now() - connectionState.requestWindowStart;
 	if (elapsed > AUTH_RATE_LIMIT_MS) {
@@ -91,10 +93,10 @@ function _checkConnectionRateLimit(
 
 export function checkSignRequestRateLimit(
 	connectionState: ConnectionState,
-	clientIdentity: string | undefined,
+	clientIdentity: ClientIdentity | undefined,
 	limiterKey: string
 ): boolean {
-	if (!(connectionState.tokenProvided || checkUnauthRateLimit(limiterKey))) {
+	if (!(connectionState.tokenProvided || checkUnauthRateLimit(limiterKey as ClientIdentity))) {
 		return false;
 	}
 	return _checkConnectionRateLimit(connectionState, clientIdentity);

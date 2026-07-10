@@ -6,6 +6,7 @@ import {
 	it,
 	jest,
 } from "@jest/globals";
+import { REDIS_MODE, REDIS_RESP, REDIS_SET } from "@trading-model/common/persistence/redis-constants";
 import type { ServiceInstance } from "@trading-model/common/contracts/service-registry.types";
 
 jest.mock("@trading-model/common/config/logger", () => ({
@@ -48,7 +49,7 @@ const MOCK_MULTI: MockMulti = {
 
 const MOCK_REDIS = Object.assign(jest.fn().mockReturnThis(), {
 	on: jest.fn().mockReturnThis(),
-	set: jest.fn().mockResolvedValue("OK"),
+	set: jest.fn().mockResolvedValue(REDIS_RESP.OK),
 	get: jest.fn().mockResolvedValue(null),
 	sismember: jest.fn().mockResolvedValue(1),
 	smembers: jest.fn().mockResolvedValue([]),
@@ -112,7 +113,7 @@ describe("RedisRegistryBackend", () => {
 
 		it("should connect with single mode config", () => {
 			const config: RedisConnectionConfig = {
-				mode: "single",
+				mode: REDIS_MODE.SINGLE,
 				url: "redis://localhost:6380",
 			};
 			const backend = new RedisRegistryBackend(config);
@@ -125,7 +126,7 @@ describe("RedisRegistryBackend", () => {
 
 		it("should connect with sentinel mode config", () => {
 			const config: RedisConnectionConfig = {
-				mode: "sentinel",
+				mode: REDIS_MODE.SENTINEL,
 				config: {
 					sentinels: [{ host: "127.0.0.1", port: 26379 }],
 					name: "mymaster",
@@ -142,7 +143,7 @@ describe("RedisRegistryBackend", () => {
 
 		it("should connect with cluster mode config", () => {
 			const config: RedisConnectionConfig = {
-				mode: "cluster",
+				mode: REDIS_MODE.CLUSTER,
 				config: { nodes: [{ host: "127.0.0.1", port: 7000 }] },
 			};
 			new RedisRegistryBackend(config);
@@ -158,7 +159,7 @@ describe("RedisRegistryBackend", () => {
 
 		it("should use hash-tag prefix wrapping in cluster mode", () => {
 			const config: RedisConnectionConfig = {
-				mode: "cluster",
+				mode: REDIS_MODE.CLUSTER,
 				config: { nodes: [{ host: "127.0.0.1", port: 7000 }] },
 			};
 			const backend = new RedisRegistryBackend(config, "discovery:");
@@ -166,7 +167,7 @@ describe("RedisRegistryBackend", () => {
 			expect(MOCK_REDIS.set).toHaveBeenCalledWith(
 				expect.stringMatching(/^{discovery}:instance:i1:token/),
 				expect.any(String),
-				"NX"
+				REDIS_SET.NX
 			);
 		});
 
@@ -196,7 +197,7 @@ describe("RedisRegistryBackend", () => {
 
 		it("should use clusterRetryStrategy with exponential backoff", () => {
 			const config: RedisConnectionConfig = {
-				mode: "cluster",
+				mode: REDIS_MODE.CLUSTER,
 				config: { nodes: [{ host: "127.0.0.1", port: 7000 }] },
 			};
 			new RedisRegistryBackend(config);
@@ -218,7 +219,7 @@ describe("RedisRegistryBackend", () => {
 			expect(MOCK_REDIS.set).toHaveBeenCalledWith(
 				expect.stringContaining(":token"),
 				expect.any(String),
-				"NX"
+				REDIS_SET.NX
 			);
 			expect(MOCK_MULTI.sadd).toHaveBeenCalled();
 			expect(MOCK_MULTI.set).toHaveBeenCalled();
@@ -247,7 +248,7 @@ describe("RedisRegistryBackend", () => {
 				if (key.includes(":metadata")) {
 					return Promise.resolve(existingMetadata);
 				}
-				return Promise.resolve("OK");
+				return Promise.resolve(REDIS_RESP.OK);
 			});
 			const backend = new RedisRegistryBackend("redis://localhost:6379");
 			await backend.registerInstance(
@@ -273,7 +274,7 @@ describe("RedisRegistryBackend", () => {
 
 		it("should preserve the provided registeredAt value", async () => {
 			const registeredAt = 5000000;
-			MOCK_REDIS.set.mockResolvedValue("OK");
+			MOCK_REDIS.set.mockResolvedValue(REDIS_RESP.OK);
 			const backend = new RedisRegistryBackend("redis://localhost:6379");
 			await backend.registerInstance(makeInstance({ registeredAt }));
 			const setCall = MOCK_MULTI.set.mock.calls.find((c: string[]) =>
@@ -284,7 +285,7 @@ describe("RedisRegistryBackend", () => {
 		});
 
 		it("should use current time when registeredAt is null", async () => {
-			MOCK_REDIS.set.mockResolvedValue("OK");
+			MOCK_REDIS.set.mockResolvedValue(REDIS_RESP.OK);
 			const backend = new RedisRegistryBackend("redis://localhost:6379");
 			await backend.registerInstance(
 				makeInstance({ registeredAt: null as any })

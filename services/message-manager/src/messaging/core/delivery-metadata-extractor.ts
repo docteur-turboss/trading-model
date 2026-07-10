@@ -1,5 +1,7 @@
 ﻿import { DeliveryMode } from "@trading-model/common/config/delivery-mode.types";
+import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import type { Message } from "@trading-model/common/contracts/message.types";
+import type { DeliveryParams } from "./delivery-params";
 
 interface SubscribersContext {
 	consumerGroup: string;
@@ -10,11 +12,7 @@ interface SubscribersContext {
 export type { SubscribersContext };
 
 export class DeliveryMetadataExtractor {
-	extract<TData>(message: Message<TData>): {
-		ttl: number;
-		deliveryMode: DeliveryMode;
-		emittedAt: number;
-	} {
+	extract<TData>(message: Message<TData>): DeliveryParams {
 		const ttl = message.metadata.delivery?.ttl ?? 0;
 		const deliveryMode =
 			message.metadata.delivery?.mode ?? DeliveryMode.AtLeastOnce;
@@ -23,7 +21,7 @@ export class DeliveryMetadataExtractor {
 	}
 
 	buildSubscriberContext(
-		serviceName: string,
+		serviceName: ServiceInstanceName,
 		onAck: () => void
 	): SubscribersContext {
 		return {

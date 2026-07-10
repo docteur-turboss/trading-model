@@ -1,4 +1,5 @@
 import { randomBytes } from "node:crypto";
+import { CRYPTO } from "@trading-model/common/crypto/crypto-constants";
 import type { RedisConnectionConfig } from "@trading-model/common/config/redis-config";
 import type {
 	IInstanceQuery,
@@ -7,7 +8,8 @@ import type {
 	ITokenManager,
 	ServiceInstance,
 } from "@trading-model/common/contracts/service-registry.types";
-import type { ServiceId } from "@trading-model/common/domain/primitives";
+import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
+import { type InstanceId, type ServiceId, toInstanceId } from "@trading-model/common/domain/primitives";
 import type {
 	ServiceEndpoint,
 	ServiceIdentity,
@@ -51,7 +53,7 @@ export class RedisRegistryBackend
 		const keyBuilder = new RedisKeyBuilder(resolvedPrefix);
 		const redis = createRedisClient(configOrUrl) as Redis;
 		const tokenService = new TokenService(
-			signingSecret ?? randomBytes(32).toString("hex")
+			signingSecret ?? randomBytes(32).toString(CRYPTO.HEX)
 		);
 		const instances = new RedisInstanceRepository({
 			redis,
@@ -76,7 +78,7 @@ export class RedisRegistryBackend
 		return this._registration.updateHeartbeat(id);
 	}
 
-	getInstances(serviceName: string): Promise<ServiceInstance[]> {
+	getInstances(serviceName: ServiceInstanceName): Promise<ServiceInstance[]> {
 		return this._query.getInstances(serviceName);
 	}
 
@@ -88,7 +90,7 @@ export class RedisRegistryBackend
 		return this._registration.removeInstance(id);
 	}
 
-	listServiceNames(): Promise<string[]> {
+	listServiceNames(): Promise<ServiceInstanceName[]> {
 		return this._query.listServiceNames();
 	}
 
@@ -96,11 +98,11 @@ export class RedisRegistryBackend
 		return this._query.dump();
 	}
 
-	updateToken(instanceId: string): Promise<string> {
+	updateToken(instanceId: InstanceId): Promise<string> {
 		return this._tokenManager.updateToken(instanceId);
 	}
 
-	generateInstanceToken(instanceId: string): string {
+	generateInstanceToken(instanceId: InstanceId): string {
 		return this._tokenManager.generateInstanceToken(instanceId);
 	}
 
@@ -112,7 +114,7 @@ export class RedisRegistryBackend
 		return this._tokenManager.generateInstanceId(endpoint);
 	}
 
-	verifyInstanceName(serviceName: string): boolean {
+	verifyInstanceName(serviceName: ServiceInstanceName): boolean {
 		return this._tokenManager.verifyInstanceName(serviceName);
 	}
 

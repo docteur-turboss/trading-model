@@ -1,15 +1,18 @@
 import { logger } from "@trading-model/common/config/logger";
+import type { AuthToken } from "@trading-model/common/domain/primitives";
+import type { ClientIdentity } from "@trading-model/common/domain/primitives/string-ids";
 import type { WebSocket } from "ws";
+import { WsMessageType } from "./ws-message-router";
 import type { ConnectionState } from "./rate-limiter";
 
 const AUTH_ATTEMPT_MAX = 5;
 
 interface WsAuthMessage {
-	type: "auth";
-	token: string;
+	type: WsMessageType.Auth;
+	token: AuthToken;
 }
 
-function isValidTokenFormat(token: string): boolean {
+function isValidTokenFormat(token: AuthToken): boolean {
 	return (
 		typeof token === "string" &&
 		token.length >= 16 &&
@@ -34,7 +37,7 @@ function sendAuthResponse(
 
 function isAuthExceeded(
 	state: ConnectionState,
-	clientIdentity: string | undefined
+	clientIdentity: ClientIdentity | undefined
 ): boolean {
 	if (state.authAttempts <= AUTH_ATTEMPT_MAX) {
 		return false;
@@ -47,8 +50,8 @@ function isAuthExceeded(
 
 function handleValidToken(
 	state: ConnectionState,
-	token: string,
-	clientIdentity: string | undefined,
+	token: AuthToken,
+	clientIdentity: ClientIdentity | undefined,
 	ws: WebSocket
 ): void {
 	state.bootstrapToken = token;
@@ -62,7 +65,7 @@ function handleValidToken(
 
 function handleInvalidToken(
 	authMsg: WsAuthMessage,
-	clientIdentity: string | undefined,
+	clientIdentity: ClientIdentity | undefined,
 	ws: WebSocket
 ): void {
 	logger.warn("WSS client sent invalid auth token format", {
@@ -77,7 +80,7 @@ function handleInvalidToken(
 function _closeOnAuthExceeded(
 	ws: WebSocket,
 	state: ConnectionState,
-	clientIdentity: string | undefined
+	clientIdentity: ClientIdentity | undefined
 ): boolean {
 	state.authAttempts++;
 	if (isAuthExceeded(state, clientIdentity)) {
@@ -91,7 +94,7 @@ export interface AuthMessageContext {
 	ws: WebSocket;
 	authMsg: WsAuthMessage;
 	state: ConnectionState;
-	clientIdentity?: string;
+	clientIdentity?: ClientIdentity;
 }
 
 export function handleAuthMessage({

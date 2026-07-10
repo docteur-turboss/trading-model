@@ -1,4 +1,5 @@
 import { logger } from "@trading-model/common/config/logger";
+import { REDIS_STATUS } from "@trading-model/common/persistence/redis-constants";
 import type { RegistryBackend } from "@trading-model/common/contracts/service-registry.types";
 import type { PubSubInvalidator } from "./pub-sub-invalidator";
 
@@ -14,7 +15,7 @@ export class BackendPingManager {
 	}
 
 	async pingPubSub(): Promise<void> {
-		if (this._pubSub.client.status === "ready") {
+		if (this._pubSub.client.status === REDIS_STATUS.READY) {
 			try {
 				await this._pubSub.client.ping();
 			} catch {

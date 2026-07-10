@@ -1,3 +1,4 @@
+import type { InstanceId } from "@trading-model/common/domain/primitives";
 import { getCollection } from "../config/db";
 import { ClaimFilterBuilder } from "./claim-filter-builder";
 import { ClaimQueryExecutor } from "./claim-query-executor";
@@ -9,7 +10,7 @@ import { toStoredDlqEntry } from "./repository";
 export interface ClaimEntriesOptions {
 	limit: number;
 	batchId: string;
-	instanceId: string;
+	instanceId: InstanceId;
 	topic?: string;
 }
 
@@ -26,7 +27,7 @@ export class DlqClaimManager {
 		return this._releaseManager.releaseAllActiveClaims();
 	}
 
-	releaseClaimsByInstance(instanceId: string): Promise<number> {
+	releaseClaimsByInstance(instanceId: InstanceId): Promise<number> {
 		return this._releaseManager.releaseClaimsByInstance(instanceId);
 	}
 

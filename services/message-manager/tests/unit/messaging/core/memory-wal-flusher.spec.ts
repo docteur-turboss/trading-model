@@ -1,4 +1,5 @@
 import { describe, expect, it, jest } from "@jest/globals";
+import { REDIS_RESP, REDIS_STATUS } from "@trading-model/common/persistence/redis-constants";
 
 jest.mock("../../../../src/config/logger", () => ({
 	logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
@@ -30,8 +31,8 @@ function createMockRedis() {
 	};
 	return {
 		multi: jest.fn(() => mockMulti),
-		status: "ready",
-		ping: jest.fn().mockResolvedValue("PONG"),
+		status: REDIS_STATUS.READY,
+		ping: jest.fn().mockResolvedValue(REDIS_RESP.PONG),
 		mockMulti,
 	};
 }

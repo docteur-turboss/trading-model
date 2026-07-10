@@ -1,4 +1,5 @@
 import { createPublicKey, type KeyObject } from "node:crypto";
+import { JWK_KEY_TYPE } from "@trading-model/common/crypto/crypto-constants";
 
 interface Jwk extends Record<string, string | undefined> {
 	kid?: string;
@@ -67,10 +68,10 @@ export class JwkFetcher {
 			x: xCoord,
 			y: yCoord,
 		} = entry as Record<string, string | undefined>;
-		if (entry.kty === "RSA" && modulus && exponent) {
+		if (entry.kty === JWK_KEY_TYPE.RSA && modulus && exponent) {
 			return this._parseRsaKey(entry, modulus, exponent);
 		}
-		if (entry.kty === "EC" && xCoord && yCoord && entry.crv) {
+		if (entry.kty === JWK_KEY_TYPE.EC && xCoord && yCoord && entry.crv) {
 			return this._parseEcKey(entry, xCoord, yCoord);
 		}
 		return null;

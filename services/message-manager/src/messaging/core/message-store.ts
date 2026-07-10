@@ -1,4 +1,5 @@
 ﻿import type { Message } from "@trading-model/common/contracts/message.types";
+import type { Topic, InstanceId } from "@trading-model/common/domain/primitives";
 import { ENV } from "../../config/env";
 import { MemoryWalBuffer } from "./memory-wal-buffer";
 import { MessageRoutingFacade } from "./message-routing-facade";
@@ -83,16 +84,16 @@ export class MessageStore
 		return this._routingFacade.getMessagesBetween(params);
 	}
 	addPendingAck(
-		instanceId: string,
+		instanceId: InstanceId,
 		messageId: string,
 		data: PendingAckData
 	): Promise<void> {
 		return this._routingFacade.addPendingAck(instanceId, messageId, data);
 	}
-	removePendingAck(instanceId: string, messageId: string): Promise<void> {
+	removePendingAck(instanceId: InstanceId, messageId: string): Promise<void> {
 		return this._routingFacade.removePendingAck(instanceId, messageId);
 	}
-	getPendingAcks(instanceId: string): Promise<Record<string, PendingAckData>> {
+	getPendingAcks(instanceId: InstanceId): Promise<Record<string, PendingAckData>> {
 		return this._routingFacade.getPendingAcks(instanceId);
 	}
 	getStreamLag(ref: StreamGroupRef): Promise<number> {
@@ -101,7 +102,7 @@ export class MessageStore
 	tryDeduplicate(params: DedupConfig): Promise<boolean> {
 		return this._routingFacade.tryDeduplicate(params);
 	}
-	store(topic: string, message: Message): Promise<string> {
+	store(topic: Topic, message: Message): Promise<string> {
 		return this._streamWriter.store(topic, message);
 	}
 	async drainAndStop(timeoutMs = 10_000): Promise<void> {

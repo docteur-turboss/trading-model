@@ -1,4 +1,5 @@
 ﻿import type { ServiceIdentity } from "@trading-model/common/contracts/message.types";
+import type { Topic, InstanceId } from "@trading-model/common/domain/primitives";
 import { ENV } from "../../config/env";
 import { getSubscriptionClient } from "../../config/redis";
 import { InstanceLifecycleManager } from "./instance-lifecycle-manager";
@@ -23,7 +24,7 @@ export class SubscriptionStore {
 	}
 
 	add(
-		topic: string,
+		topic: Topic,
 		callbackPath: string,
 		serviceIdentity: ServiceIdentity
 	): Promise<void> {
@@ -34,11 +35,11 @@ export class SubscriptionStore {
 		return this._redisStore.remove(sub);
 	}
 
-	getByTopic(topic: string): Promise<SubscriptionEntry[]> {
+	getByTopic(topic: Topic): Promise<SubscriptionEntry[]> {
 		return this._redisStore.getByTopic(topic);
 	}
 
-	getTopicsByInstance(instanceId: string): Promise<string[]> {
+	getTopicsByInstance(instanceId: InstanceId): Promise<string[]> {
 		return this._redisStore.getTopicsByInstance(instanceId);
 	}
 
@@ -46,15 +47,15 @@ export class SubscriptionStore {
 		return this._redisStore.getAllTopics();
 	}
 
-	renewLease(instanceId: string, topics: string[]): Promise<void> {
+	renewLease(instanceId: InstanceId, topics: Topic[]): Promise<void> {
 		return this._lifecycleManager.renewLease(instanceId, topics);
 	}
 
-	heartbeat(instanceId: string): Promise<void> {
+	heartbeat(instanceId: InstanceId): Promise<void> {
 		return this._lifecycleManager.heartbeat(instanceId);
 	}
 
-	isStaleByHeartbeat(instanceId: string): Promise<boolean> {
+	isStaleByHeartbeat(instanceId: InstanceId): Promise<boolean> {
 		return this._lifecycleManager.isStaleByHeartbeat(instanceId);
 	}
 

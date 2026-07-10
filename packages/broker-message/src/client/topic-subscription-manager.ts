@@ -1,19 +1,21 @@
-export class TopicSet {
-	private _topics: string[] = [];
+import type { Topic } from "@trading-model/common/domain/primitives";
 
-	get topics(): string[] {
+export class TopicSet {
+	private _topics: Topic[] = [];
+
+	get topics(): Topic[] {
 		return this._topics;
 	}
 
-	setTopics(topics: string[]): void {
+	setTopics(topics: Topic[]): void {
 		this._topics = topics;
 	}
 
-	addTopics(topics: string[]): void {
+	addTopics(topics: Topic[]): void {
 		this._topics = [...new Set([...this._topics, ...topics])];
 	}
 
-	removeTopics(topics: string[]): void {
+	removeTopics(topics: Topic[]): void {
 		this._topics = this._topics.filter((topic) => !topics.includes(topic));
 	}
 }

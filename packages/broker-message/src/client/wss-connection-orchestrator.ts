@@ -1,4 +1,5 @@
 import { logger } from "@trading-model/common/config/logger";
+import type { Topic } from "@trading-model/common/domain/primitives";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import { DefaultWsReconnector } from "@trading-model/common/ws/default-ws-reconnector";
 import type { PendingPublishQueue } from "./pending-publish-queue";
@@ -48,7 +49,7 @@ export class WssConnectionOrchestrator {
 		return this._lifecycle.builtUrl;
 	}
 
-	connect(topics: string[]): void {
+	connect(topics: Topic[]): void {
 		this._topicManager.setTopics(topics);
 		this._reconnector.shouldReconnect = true;
 		this._connectWs();
@@ -81,11 +82,11 @@ export class WssConnectionOrchestrator {
 		this._lifecycle.disconnect(closeCode, reason);
 	}
 
-	addTopics(topics: string[]): void {
+	addTopics(topics: Topic[]): void {
 		this._topicManager.addTopics(topics);
 	}
 
-	removeTopics(topics: string[]): void {
+	removeTopics(topics: Topic[]): void {
 		this._topicManager.removeTopics(topics);
 	}
 

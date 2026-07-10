@@ -1,5 +1,6 @@
 import { createHash, createPublicKey, randomUUID } from "node:crypto";
 
+import { CRYPTO } from "@trading-model/common/crypto/crypto-constants";
 import type { CertSignRequest } from "@trading-model/common/domain/cert-signing";
 import {
 	toFingerprint,
@@ -33,7 +34,7 @@ function _parseCsrBody(csr: string): string {
 		.filter(
 			(line) => !(line.startsWith("-----BEGIN") || line.startsWith("-----END"))
 		);
-	return Buffer.from(lines.join(""), "base64").toString("utf8");
+	return Buffer.from(lines.join(""), "base64").toString(CRYPTO.UTF8);
 }
 
 function parseCsr(csr: string): {
@@ -112,7 +113,7 @@ interface SignedCertResultParams {
 function _buildSignedCertificateResult(
 	params: SignedCertResultParams
 ): SignedCertificate {
-	const fingerprint = createHash("sha256").update(params.certPem).digest("hex");
+	const fingerprint = createHash(CRYPTO.SHA256).update(params.certPem).digest(CRYPTO.HEX);
 	return {
 		serialNumber: toSerialNumber(params.serialNumber),
 		certPem: params.certPem,

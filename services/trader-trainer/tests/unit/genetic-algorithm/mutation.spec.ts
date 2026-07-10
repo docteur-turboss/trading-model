@@ -24,16 +24,19 @@ describe("Mutation - adaptSigma", () => {
 	function makeMutationGenome(
 		overrides?: Partial<MutationGenome>
 	): MutationGenome {
+		const base = createDefaultGenome("test").mutation;
 		return {
-			...createDefaultGenome("test").mutation,
+			...base,
 			...overrides,
+			rates: { ...base.rates, ...overrides?.rates } as MutationGenome["rates"],
+			structural: { ...base.structural, ...overrides?.structural } as MutationGenome["structural"],
 		} as MutationGenome;
 	}
 
 	test("fixed adaptation returns sigma directly", () => {
 		const m = makeMutationGenome({
 			adaptation: MutationAdaptation.Fixed,
-			sigma: 0.5,
+			rates: { sigma: 0.5 },
 		});
 		expect(adaptSigma(m, rng)).toBe(0.5);
 	});
@@ -41,7 +44,7 @@ describe("Mutation - adaptSigma", () => {
 	test("sigma_adaptive returns perturbed sigma", () => {
 		const m = makeMutationGenome({
 			adaptation: MutationAdaptation.SigmaAdaptive,
-			sigma: 0.5,
+			rates: { sigma: 0.5 },
 		});
 		const result = adaptSigma(m, rng);
 		expect(result).toBeGreaterThanOrEqual(0.45);
@@ -156,10 +159,10 @@ describe("Mutation - mutateGenome", () => {
 	test("self-adaptive sigma should be updated", () => {
 		const genome = createDefaultGenome("test");
 		const mutated = mutateGenome(genome, rng);
-		expect(mutated.mutation.sigma).toBeGreaterThanOrEqual(1e-5);
-		expect(mutated.mutation.selfSigma).toBeGreaterThanOrEqual(1e-5);
-		expect(mutated.mutation.rate).toBeGreaterThanOrEqual(0.001);
-		expect(mutated.mutation.rate).toBeLessThanOrEqual(0.5);
+		expect(mutated.mutation.rates.sigma).toBeGreaterThanOrEqual(1e-5);
+		expect(mutated.mutation.rates.selfSigma).toBeGreaterThanOrEqual(1e-5);
+		expect(mutated.mutation.rates.rate).toBeGreaterThanOrEqual(0.001);
+		expect(mutated.mutation.rates.rate).toBeLessThanOrEqual(0.5);
 	});
 
 	test("per_layer scope should apply layer-level mutation", () => {
@@ -171,7 +174,7 @@ describe("Mutation - mutateGenome", () => {
 
 	test("should trigger addNeuronRate structural mutation", () => {
 		const genome = createDefaultGenome("test");
-		genome.mutation.addNeuronRate = 0.9;
+		genome.mutation.structural.addNeuronRate = 0.9;
 		const origNeurons = genome.network.hiddenLayers.map((l) => l.neurons);
 		const mutated = mutateGenome(genome, () => 0.1);
 		let changed = false;
@@ -185,7 +188,7 @@ describe("Mutation - mutateGenome", () => {
 
 	test("should trigger removeNeuronRate structural mutation", () => {
 		const genome = createDefaultGenome("test");
-		genome.mutation.removeNeuronRate = 0.9;
+		genome.mutation.structural.removeNeuronRate = 0.9;
 		const origNeurons = genome.network.hiddenLayers.map((l) => l.neurons);
 		const mutated = mutateGenome(genome, () => 0.1);
 		let changed = false;
@@ -199,7 +202,7 @@ describe("Mutation - mutateGenome", () => {
 
 	test("should trigger addLayerRate structural mutation", () => {
 		const genome = createDefaultGenome("test");
-		genome.mutation.addLayerRate = 0.9;
+		genome.mutation.structural.addLayerRate = 0.9;
 		const origLen = genome.network.hiddenLayers.length;
 		const mutated = mutateGenome(genome, () => 0.1);
 		expect(mutated.network.hiddenLayers.length).toBeGreaterThanOrEqual(origLen);
@@ -207,7 +210,7 @@ describe("Mutation - mutateGenome", () => {
 
 	test("should trigger removeLayerRate structural mutation", () => {
 		const genome = createDefaultGenome("test");
-		genome.mutation.removeLayerRate = 0.9;
+		genome.mutation.structural.removeLayerRate = 0.9;
 		const mutated = mutateGenome(genome, () => 0.1);
 		expect(mutated.network.hiddenLayers.length).toBeGreaterThanOrEqual(1);
 	});
@@ -215,8 +218,8 @@ describe("Mutation - mutateGenome", () => {
 	test("should trigger mutateActivations when enabled", () => {
 		const genome = createDefaultGenome("test");
 		genome.mutation.mutateActivations = true;
-		genome.mutation.activationMutationRate = 0.9;
-		genome.mutation.rate = 0.9;
+		genome.mutation.rates.activationMutationRate = 0.9;
+		genome.mutation.rates.rate = 0.9;
 		const mutated = mutateGenome(genome, () => 0.05);
 		expect(mutated.network.hiddenLayers).toBeDefined();
 	});
@@ -233,11 +236,11 @@ describe("Mutation - mutateGenome", () => {
 		const genome = createDefaultGenome("test");
 		genome.mutation.mutateHyperparams = true;
 		genome.mutation.distribution = MutationDistribution.Uniform;
-		genome.mutation.rate = 0;
-		genome.mutation.addNeuronRate = 0;
-		genome.mutation.removeNeuronRate = 0;
-		genome.mutation.addLayerRate = 0;
-		genome.mutation.removeLayerRate = 0;
+		genome.mutation.rates.rate = 0;
+		genome.mutation.structural.addNeuronRate = 0;
+		genome.mutation.structural.removeNeuronRate = 0;
+		genome.mutation.structural.addLayerRate = 0;
+		genome.mutation.structural.removeLayerRate = 0;
 		// Calls before mutateRL: 2 layers + 5 rate checks = 7 calls
 		// Then within mutateRL before horizon: gamma(1) + lr(2) + clipMin(1) + clipMax(1) + scaleFactor(1) + maxEpiLen(1) = 7 calls
 		// So nStepReturn outer = call 15, inner = call 16
@@ -267,11 +270,11 @@ describe("Mutation - mutateGenome", () => {
 	test("should exercise perturb function on all RL fields in mutateRL", () => {
 		const genome = createDefaultGenome("test");
 		genome.mutation.mutateHyperparams = true;
-		genome.mutation.rate = 0;
-		genome.mutation.addNeuronRate = 0;
-		genome.mutation.removeNeuronRate = 0;
-		genome.mutation.addLayerRate = 0;
-		genome.mutation.removeLayerRate = 0;
+		genome.mutation.rates.rate = 0;
+		genome.mutation.structural.addNeuronRate = 0;
+		genome.mutation.structural.removeNeuronRate = 0;
+		genome.mutation.structural.addLayerRate = 0;
+		genome.mutation.structural.removeLayerRate = 0;
 		const mutated = mutateGenome(genome, () => 0.5);
 		expect(mutated.rl.gamma).toBeGreaterThanOrEqual(0.8);
 		expect(mutated.rl.gamma).toBeLessThanOrEqual(0.9999);

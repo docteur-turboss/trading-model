@@ -1,4 +1,5 @@
-﻿import { logger } from "../../config/logger";
+﻿import type { Topic } from "@trading-model/common/domain/primitives";
+import { logger } from "../../config/logger";
 import { getStreamClient } from "../../config/redis";
 import { WAL_BATCH_SIZE } from "../../config/wal-config";
 import type { MemoryWalBuffer } from "./memory-wal-buffer";
@@ -34,7 +35,7 @@ export class WalRedisFlusher {
 		return `${this._prefix}wal_buffer`;
 	}
 
-	async storeInWal(topic: string, serialized: string): Promise<void> {
+	async storeInWal(topic: Topic, serialized: string): Promise<void> {
 		const redis = await getStreamClient();
 		const walEntry = JSON.stringify({ topic, serialized });
 		await redis.rpush(this._walKey(), walEntry);

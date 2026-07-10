@@ -1,4 +1,5 @@
 import { logger } from "@trading-model/common/config/logger";
+import type { ServiceId } from "@trading-model/common/domain/primitives";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import type Redis from "ioredis";
 import type { ServiceInstance } from "../client/type";
@@ -17,7 +18,7 @@ export class RedisCacheOperations {
 	}
 
 	async get(
-		serviceName: string,
+		serviceName: ServiceId,
 		region?: string
 	): Promise<ServiceInstance | null> {
 		try {
@@ -35,15 +36,7 @@ export class RedisCacheOperations {
 		}
 	}
 
-	private _parseCacheEntry(raw: string): ServiceInstance {
-		const parsed = JSON.parse(raw);
-		if (parsed?.instance && typeof parsed.version === "number") {
-			return parsed.instance as ServiceInstance;
-		}
-		return parsed as ServiceInstance;
-	}
-
-	async getVersion(serviceName: string, region?: string): Promise<number> {
+	async getVersion(serviceName: ServiceId, region?: string): Promise<number> {
 		try {
 			const raw = await this._redis.get(this._cacheKey(serviceName, region));
 			if (!raw) {
@@ -59,23 +52,7 @@ export class RedisCacheOperations {
 		}
 	}
 
-	async set(entry: CacheSetEntry): Promise<void> {
-		const { serviceName, instance, region, version } = entry;
-		try {
-			await this._redis.setex(
-				this._cacheKey(serviceName, region),
-				this._ttlSec,
-				JSON.stringify({ instance, version: version ?? 0 })
-			);
-		} catch (err) {
-			logger.warn("Redis cache set failed", {
-				serviceName,
-				error: normalizeError(err),
-			});
-		}
-	}
-
-	async invalidate(serviceName: string, region?: string): Promise<void> {
+	async invalidate(serviceName: ServiceId, region?: string): Promise<void> {
 		try {
 			await this._redis.del(this._cacheKey(serviceName, region));
 		} catch (err) {
@@ -86,17 +63,13 @@ export class RedisCacheOperations {
 		}
 	}
 
-	clear(): Promise<void> {
-		return this._scanner.clear();
-	}
-
 	entries(): Promise<
-		Array<{ serviceName: string; instance: ServiceInstance; region?: string }>
+		Array<{ serviceName: ServiceId; instance: ServiceInstance; region?: string }>
 	> {
 		return this._scanner.entries();
 	}
 
-	private _cacheKey(serviceName: string, region?: string): string {
+	private _cacheKey(serviceName: ServiceId, region?: string): string {
 		return `${this._prefix}${region ? `${serviceName}::${region}` : serviceName}`;
 	}
 }

@@ -1,3 +1,4 @@
+import { isProduction } from "@trading-model/common/config/node-env";
 import { decrypt, deriveKey, encrypt } from "./fallback-crypto";
 import type { FileEncryption } from "./fallback-file-reader";
 
@@ -25,7 +26,7 @@ export function buildEncryption(encryptionKey?: string): FileEncryption {
 	if (encryptionKey) {
 		return new AesEncryption(deriveKey(encryptionKey));
 	}
-	if (process.env.NODE_ENV === "production") {
+	if (isProduction()) {
 		throw new Error(
 			"FsStore: FS_ENCRYPTION_KEY is required in production for encrypted fallback storage. " +
 				"Generate with: node -e \"console.log(crypto.randomBytes(32).toString('base64'))\". " +

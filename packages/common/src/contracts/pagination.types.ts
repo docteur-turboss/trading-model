@@ -8,7 +8,7 @@ export type { PaginationQuery, PaginationResult } from "../domain/pagination";
  * Shares `page`, `limit`, `total` semantics with PaginationResult.
  */
 export interface PaginatedResponse<_TValue> {
-	data: T[];
+	data: _TValue[];
 	pagination: {
 		page: number;
 		limit: number;

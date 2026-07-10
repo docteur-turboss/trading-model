@@ -1,5 +1,6 @@
 import type { AuditFilter } from "@trading-model/common/contracts/admin/audit.dto";
 import type { DateRange } from "@trading-model/common/domain/date-range";
+import type { EventEnumMap } from "@trading-model/common/config/event.types";
 import type {
 	PaginationQuery,
 	PaginationResult,
@@ -19,7 +20,7 @@ export interface AuditEventDocument {
 	receivedAt: Date;
 	metadata: {
 		topic: Topic;
-		eventType: string;
+		eventType: EventEnumMap;
 		publisher: ServiceId;
 		instanceId: InstanceId;
 		messageId: MessageId;

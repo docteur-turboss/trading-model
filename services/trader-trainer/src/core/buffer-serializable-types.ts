@@ -1,16 +1,11 @@
-import type { BaseSymbolState } from "./market-data-types";
-import type { NormalizationStats } from "./normalization-stats";
+import type { BaseSymbolState, SymbolNormalizers } from "./market-data-types";
+
+type NormJSON<T> = T extends NormalizationStats
+	? ReturnType<NormalizationStats["toJSON"]>
+	: { [K in keyof T]: NormJSON<T[K]> };
+
+type NormalizationStats = import("./normalization-stats").NormalizationStats;
 
 export interface SymbolStateSerializable extends BaseSymbolState {
-	closeNorm: ReturnType<NormalizationStats["toJSON"]>;
-	volumeNorm: ReturnType<NormalizationStats["toJSON"]>;
-	openNorm: ReturnType<NormalizationStats["toJSON"]>;
-	highNorm: ReturnType<NormalizationStats["toJSON"]>;
-	lowNorm: ReturnType<NormalizationStats["toJSON"]>;
-	tradePriceNorm: ReturnType<NormalizationStats["toJSON"]>;
-	tradeQtyNorm: ReturnType<NormalizationStats["toJSON"]>;
-	bidNorm: ReturnType<NormalizationStats["toJSON"]>;
-	askNorm: ReturnType<NormalizationStats["toJSON"]>;
-	spreadNorm: ReturnType<NormalizationStats["toJSON"]>;
-	tickerVolumeNorm: ReturnType<NormalizationStats["toJSON"]>;
+	norm: NormJSON<SymbolNormalizers>;
 }

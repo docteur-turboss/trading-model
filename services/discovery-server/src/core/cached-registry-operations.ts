@@ -1,3 +1,5 @@
+import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
+import { parseServiceName } from "@trading-model/common/config/services.types";
 import type {
 	IInstanceQuery,
 	IInstanceRegistration,
@@ -7,7 +9,11 @@ import type {
 	ServiceInstance,
 } from "@trading-model/common/contracts/service-registry.types";
 import type { PaginationQuery } from "@trading-model/common/domain/pagination";
-import type { ServiceId } from "@trading-model/common/domain/primitives";
+import {
+	type InstanceId,
+	type ServiceId,
+	toInstanceId,
+} from "@trading-model/common/domain/primitives";
 import type {
 	ServiceEndpoint,
 	ServiceIdentity,
@@ -62,7 +68,7 @@ export class CachedRegistryOperations
 	// ── IInstanceQuery ─────────────────────────────────────────────────
 
 	getInstances(
-		serviceName: string,
+		serviceName: ServiceInstanceName,
 		pagination?: PaginationQuery
 	): Promise<ServiceInstance[]> {
 		return this._core.getInstances(serviceName, pagination);
@@ -72,17 +78,17 @@ export class CachedRegistryOperations
 		return this._core.getInstance(id);
 	}
 
-	listServiceNames(): Promise<string[]> {
+	listServiceNames(): Promise<ServiceInstanceName[]> {
 		return this._proxy.listServiceNames();
 	}
 
-	dump(): Promise<Record<string, ServiceInstance[]>> {
+	dump(): Promise<Record<ServiceInstanceName, ServiceInstance[]>> {
 		return this._proxy.dump();
 	}
 
 	// ── ITokenManager ──────────────────────────────────────────────────
 
-	updateToken(instanceId: string): Promise<string> {
+	updateToken(instanceId: InstanceId): Promise<string> {
 		return this._proxy.updateToken(instanceId);
 	}
 
@@ -90,11 +96,11 @@ export class CachedRegistryOperations
 		return this._proxy.validInstanceToken(validation);
 	}
 
-	generateInstanceToken(instanceId: string): string {
+	generateInstanceToken(instanceId: InstanceId): string {
 		return this._proxy.generateInstanceToken(instanceId);
 	}
 
-	verifyInstanceName(serviceName: string): boolean {
+	verifyInstanceName(serviceName: ServiceInstanceName): boolean {
 		return this._proxy.verifyInstanceName(serviceName);
 	}
 

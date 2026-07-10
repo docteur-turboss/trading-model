@@ -1,11 +1,15 @@
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 
+import { CRYPTO } from "./crypto-constants";
+
 import type {
 	Signature,
 	SignedRequest,
 	SignedRequestAuth,
 	Timestamp,
 } from "../contracts/signed-request";
+import type { ServiceId } from "../domain/primitives";
+import { toServiceId } from "../domain/primitives";
 import { HTTP_HEADERS } from "../http-headers";
 import { deterministicStringify } from "../utils/deterministic-stringify";
 
@@ -27,15 +31,15 @@ export function signRequest(
 		return { timestamp, signature: "" as Signature };
 	}
 	const parts = _buildSignParts(input, timestamp, secret);
-	const signature = createHmac("sha256", secret)
+	const signature = createHmac(CRYPTO.SHA256, secret)
 		.update(parts.join(":"))
-		.digest("hex") as Signature;
+		.digest(CRYPTO.HEX) as Signature;
 	return { timestamp, signature };
 }
 
 export interface SignatureVerificationOptions {
-	signature: string;
-	timestamp: string;
+	signature: Signature;
+	timestamp: Timestamp;
 	secret: string;
 	toleranceMs?: number;
 }
@@ -71,9 +75,9 @@ function _verifyHmacMatch(
 	signature: string
 ): boolean {
 	const parts = _buildSignParts(input, timestamp, secret);
-	const expected = createHmac("sha256", secret)
+	const expected = createHmac(CRYPTO.SHA256, secret)
 		.update(parts.join(":"))
-		.digest("hex");
+		.digest(CRYPTO.HEX);
 	return (
 		signature.length === expected.length &&
 		timingSafeEqual(Buffer.from(signature), Buffer.from(expected))
@@ -86,14 +90,14 @@ function _buildSignParts(
 	_secret: string
 ): string[] {
 	const bodyString = deterministicStringify(normalizeBody(input.body));
-	const bodyHash = createHash("sha256").update(bodyString).digest("hex");
+	const bodyHash = createHash(CRYPTO.SHA256).update(bodyString).digest(CRYPTO.HEX);
 	return [input.serviceName, timestamp, bodyHash, input.method, input.path];
 }
 
 export function buildSignedHeaders(
 	input: SignedRequest,
 	secret: string
-): Record<string, string> {
+): Record<string, Signature | Timestamp | ServiceId> {
 	const { timestamp, signature } = signRequest(input, secret);
 	return {
 		[HTTP_HEADERS.X_TIMESTAMP]: timestamp,
@@ -107,7 +111,11 @@ export function extractRequestParts(
 	_method: string,
 	_path: string,
 	_body: unknown
-): { serviceName: string; signature: string; timestamp: string } | null {
+): {
+	serviceName: ServiceId;
+	signature: Signature;
+	timestamp: Timestamp;
+} | null {
 	const serviceName = headers[HTTP_HEADERS.X_SERVICE_NAME] as
 		| string
 		| undefined;
@@ -116,5 +124,9 @@ export function extractRequestParts(
 	if (!(serviceName && signature && timestamp)) {
 		return null;
 	}
-	return { serviceName, signature, timestamp };
+	return {
+		serviceName: toServiceId(serviceName),
+		signature: signature as Signature,
+		timestamp: timestamp as Timestamp,
+	};
 }

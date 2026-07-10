@@ -1,5 +1,6 @@
 ﻿import { ObjectId } from "mongodb";
 
+import type { InstanceId } from "@trading-model/common/domain/primitives";
 import { getCollection } from "../config/db";
 import { ENV } from "../config/env";
 import { DlqStatus } from "./dlq-status";
@@ -17,7 +18,7 @@ function _isEntryAbandoned(
 async function _updateEntryCompleted(
 	col: import("mongodb").Collection,
 	id: string,
-	instanceId: string,
+	instanceId: InstanceId,
 	batchId?: string
 ): Promise<void> {
 	await col.updateOne(
@@ -35,7 +36,7 @@ async function _updateEntryCompleted(
 
 export interface MarkRetriedParams {
 	id: string;
-	instanceId: string;
+	instanceId: InstanceId;
 	batchId?: string;
 	success?: boolean;
 	errorMsg?: string;
@@ -66,7 +67,7 @@ export class DlqRetryManager {
 
 	private async _markAsCompleted(
 		id: string,
-		instanceId: string,
+		instanceId: InstanceId,
 		batchId?: string
 	): Promise<void> {
 		const col = await getCollection();

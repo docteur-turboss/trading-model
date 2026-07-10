@@ -1,3 +1,5 @@
+import type { InstanceId, JsonObject, ServiceId } from "../domain/primitives";
+
 export enum DiscoveryWsMessageType {
 	Heartbeat = "heartbeat",
 	Register = "register",
@@ -7,17 +9,17 @@ export enum DiscoveryWsMessageType {
 
 export interface DiscoveryWsMessage {
 	type: DiscoveryWsMessageType;
-	payload: Record<string, unknown>;
+	payload: JsonObject;
 }
 
 export interface DiscoveryWsSubscribeMessage {
 	type: DiscoveryWsMessageType.Subscribe;
-	payload?: { services?: string[] };
+	payload?: { services?: ServiceId[] };
 }
 
 export interface DiscoveryWsHeartbeatMessage {
 	type: DiscoveryWsMessageType.Heartbeat;
-	payload?: { serviceName?: string; instanceId?: string };
+	payload?: { serviceName?: ServiceId; instanceId?: InstanceId };
 }
 
 export type DiscoveryWsClientMessage =

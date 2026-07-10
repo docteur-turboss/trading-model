@@ -79,11 +79,12 @@ const LEASE_CLEANUP_CYCLES_TOTAL = new client.Counter({
 });
 
 import type { HttpMethod } from "@trading-model/common/contracts/signed-request";
+import type { HttpStatusCode } from "@trading-model/common/http-status";
 
 export interface RequestTrack {
 	method: HttpMethod;
 	path: string;
-	status: number;
+	status: HttpStatusCode;
 	durationMs: number;
 }
 

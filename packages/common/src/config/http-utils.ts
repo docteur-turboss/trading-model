@@ -1,5 +1,6 @@
 import https from "node:https";
 import type { URL } from "node:url";
+import type { Hostname } from "../domain/primitives/hostname";
 import type { TlsPemBundle } from "../domain/tls-paths";
 import type { HttpHeaders, HttpMethod, HttpRequestOptions } from "./http-types";
 
@@ -29,14 +30,14 @@ function _buildDefaultHeaders(
 }
 
 interface UrlParts {
-	hostname: string;
+	hostname: Hostname;
 	port: number;
 	path: string;
 }
 
 function _buildUrlParts(url: URL): UrlParts {
 	return {
-		hostname: url.hostname,
+		hostname: url.hostname as Hostname,
 		port: Number(url.port) || 443,
 		path: url.pathname + url.search,
 	};

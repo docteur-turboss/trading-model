@@ -3,6 +3,37 @@ import { agentError } from "@trading-model/common/utils/errors";
 import type { LayerMemory } from "./type";
 import { GAUSSIAN_NOISE as gaussianNoise } from "./utils";
 
+class CursorBuffer {
+	private readonly _buffer: Float32Array;
+	private _cursor: number;
+
+	constructor(buffer: Float32Array, initialCursor = 0) {
+		this._buffer = buffer;
+		this._cursor = initialCursor;
+	}
+
+	get cursor(): number {
+		return this._cursor;
+	}
+
+	read(): number {
+		const value = this._buffer[this._cursor];
+		this._cursor++;
+		return value;
+	}
+
+	write(value: number): void {
+		this._buffer[this._cursor] = value;
+		this._cursor++;
+	}
+
+	writeAll(values: Float32Array): void {
+		for (let i = 0; i < values.length; i++) {
+			this._buffer[this._cursor++] = values[i];
+		}
+	}
+}
+
 /**
  * Count total trainable parameters (weights + biases) across all layers.
  */
@@ -24,14 +55,10 @@ export function parameterCount(layers: LayerMemory[]): number {
 export function getWeights(layers: LayerMemory[]): Float32Array {
 	const total = parameterCount(layers);
 	const buffer = new Float32Array(total);
-	let cursor = 0;
+	const buf = new CursorBuffer(buffer);
 	for (const layer of layers) {
-		for (let i = 0; i < layer.weights.length; i++) {
-			buffer[cursor++] = layer.weights[i];
-		}
-		for (let i = 0; i < layer.bias.length; i++) {
-			buffer[cursor++] = layer.bias[i];
-		}
+		buf.writeAll(layer.weights);
+		buf.writeAll(layer.bias);
 	}
 	return buffer;
 }
@@ -55,13 +82,13 @@ function _validateBufferLength(
 
 export function setWeights(layers: LayerMemory[], buffer: Float32Array): void {
 	_validateBufferLength(layers, buffer);
-	let cursor = 0;
+	const buf = new CursorBuffer(buffer);
 	for (const layer of layers) {
 		for (let i = 0; i < layer.weights.length; i++) {
-			layer.weights[i] = buffer[cursor++];
+			layer.weights[i] = buf.read();
 		}
 		for (let i = 0; i < layer.bias.length; i++) {
-			layer.bias[i] = buffer[cursor++];
+			layer.bias[i] = buf.read();
 		}
 	}
 }

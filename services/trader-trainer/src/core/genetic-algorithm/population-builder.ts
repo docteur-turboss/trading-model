@@ -6,7 +6,7 @@ import { type DeepReadonly, deepFreeze } from "./shared-types";
 export function createInitialPopulation(
 	ctrl: DeepReadonly<GAControlGenome>
 ): DeepReadonly<LamarckGenome>[] {
-	return Array.from({ length: ctrl.populationSize }, (_unused, index) => {
+	return Array.from({ length: ctrl.population.size }, (_unused, index) => {
 		const baseGenome = createDefaultGenome(`g0_${index}`, 0) as LamarckGenome;
 		return deepFreeze({
 			...baseGenome,
@@ -21,5 +21,5 @@ export function buildNextPopulation(
 	ctx: OffspringContext
 ): DeepReadonly<LamarckGenome>[] {
 	const offspring = createOffspring(ctx);
-	return [...elites, ...offspring].slice(0, ctx.newCtrl.populationSize);
+	return [...elites, ...offspring].slice(0, ctx.newCtrl.population.size);
 }

@@ -1,4 +1,5 @@
 export type { WorkerStatus } from "./primitives/enums";
+export type { JsonObject } from "./json-object";
 export {
 	Cash,
 	DataSource,

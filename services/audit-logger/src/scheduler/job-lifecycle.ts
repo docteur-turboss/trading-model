@@ -2,7 +2,7 @@
 
 import { logger } from "@trading-model/common/config/logger";
 import { JobStatus } from "@trading-model/common/contracts/recovery.types";
-import { type JobId, toJobType } from "@trading-model/common/domain/primitives";
+import { type JobId, type JobType, toJobType } from "@trading-model/common/domain/primitives";
 import { ENV } from "../config/env";
 import type { JobRepository } from "../persistence/job-repository";
 import { type Job, JobPriority } from "../types/job.types";
@@ -31,7 +31,7 @@ export class JobLifecycle {
 	}
 
 	async submit(
-		type: string,
+		type: JobType,
 		payload: unknown,
 		priority: JobPriority = JobPriority.MEDIUM,
 		maxRetries: number = ENV.MAX_RETRIES_PER_JOB
@@ -57,7 +57,7 @@ export class JobLifecycle {
 	}
 
 	private _createJob(
-		type: string,
+		type: JobType,
 		payload: unknown,
 		priority: JobPriority,
 		maxRetries: number

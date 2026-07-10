@@ -3,6 +3,7 @@ import type { CertSignRequest } from "../domain/cert-signing";
 import type { CertificateBase } from "../domain/certificate-base";
 import type {
 	Fingerprint,
+	JsonObject,
 	SerialNumber,
 	ServiceId,
 } from "../domain/primitives";
@@ -61,7 +62,7 @@ export class CaClient {
 		request: SignCertificateRequest
 	): Promise<SignCertificateResponse> {
 		const { serviceId, csr, ttlMs, bootstrapToken } = request;
-		const body: Record<string, unknown> = { serviceId, csr };
+		const body: JsonObject = { serviceId, csr };
 		if (ttlMs) {
 			body.ttlMs = ttlMs;
 		}

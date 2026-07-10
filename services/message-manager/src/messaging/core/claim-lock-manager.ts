@@ -1,5 +1,6 @@
 ﻿import type Redis from "ioredis";
 
+import { REDIS_SET } from "@trading-model/common/persistence/redis-constants";
 import { logger } from "../../config/logger";
 
 export class ClaimLockManager {
@@ -13,9 +14,9 @@ export class ClaimLockManager {
 		const acquired = await redis.set(
 			this._lockKey(),
 			consumerId,
-			"EX",
+			REDIS_SET.EX,
 			30,
-			"NX"
+			REDIS_SET.NX
 		);
 		if (!acquired) {
 			logger.info(

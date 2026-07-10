@@ -1,25 +1,28 @@
 import { logger } from "@trading-model/common/config/logger";
-import type {
-	DiscoveryWsClientMessage,
-	DiscoveryWsHeartbeatMessage,
-	DiscoveryWsSubscribeMessage,
+import {
+	DiscoveryWsMessageType,
+	type DiscoveryWsClientMessage,
+	type DiscoveryWsHeartbeatMessage,
+	type DiscoveryWsSubscribeMessage,
 } from "@trading-model/common/contracts/discovery-ws-message.types";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import type WebSocket from "ws";
 import type { ConnectedClient } from "./client-connection-manager";
 
 export class WsMessageDispatcher {
-	private readonly _messageHandlers: Record<
-		string,
-		(
-			clientId: string,
-			client: ConnectedClient,
-			message: DiscoveryWsClientMessage
-		) => void
+	private readonly _messageHandlers: Partial<
+		Record<
+			DiscoveryWsMessageType,
+			(
+				clientId: string,
+				client: ConnectedClient,
+				message: DiscoveryWsClientMessage
+			) => void
+		>
 	> = {
-		subscribe: (clientId, client, message) =>
+		[DiscoveryWsMessageType.Subscribe]: (clientId, client, message) =>
 			this._handleSubscribe(clientId, client, message as never),
-		heartbeat: (_clientId, client, message) =>
+		[DiscoveryWsMessageType.Heartbeat]: (_clientId, client, message) =>
 			this._handleHeartbeat(client, message as never),
 	};
 
@@ -30,7 +33,7 @@ export class WsMessageDispatcher {
 	): void {
 		try {
 			const parsed = JSON.parse(data.toString()) as {
-				type: string;
+				type: DiscoveryWsMessageType;
 				payload?: Record<string, unknown>;
 			};
 			this._dispatch(clientId, client, parsed as DiscoveryWsClientMessage);
@@ -53,7 +56,7 @@ export class WsMessageDispatcher {
 		} else {
 			logger.debug("Unknown WS message type", {
 				clientId,
-				type: (message as { type: string }).type,
+				type: message.type,
 			});
 		}
 	}

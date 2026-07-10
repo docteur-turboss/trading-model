@@ -5,6 +5,8 @@ interface CsrExtension {
 	altNames?: Array<{ type: number; value: string }>;
 }
 
+const DNS_SAN_ENTRY_TYPE = 2;
+
 export class CsrParser {
 	parse(csrPem: string): {
 		commonName: string;
@@ -38,7 +40,7 @@ export class CsrParser {
 			return [];
 		}
 		return sanExt.altNames
-			.filter((alt) => alt.type === 2)
+			.filter((alt) => alt.type === DNS_SAN_ENTRY_TYPE)
 			.map((alt) => alt.value);
 	}
 }

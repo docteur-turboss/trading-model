@@ -1,4 +1,5 @@
-﻿import { LruCache } from "@trading-model/common/utils/lru-cache";
+﻿import { REDIS_SET } from "@trading-model/common/persistence/redis-constants";
+import { LruCache } from "@trading-model/common/utils/lru-cache";
 
 import { logger } from "../../config/logger";
 import { getStreamClient } from "../../config/redis";
@@ -39,9 +40,9 @@ export class DeduplicationService {
 		const result = await redis.set(
 			key,
 			Date.now().toString(),
-			"EX",
+			REDIS_SET.EX,
 			ttlS,
-			"NX"
+			REDIS_SET.NX
 		);
 		if (result !== null) {
 			this._localDedupCache.set(deduplicationId, true);

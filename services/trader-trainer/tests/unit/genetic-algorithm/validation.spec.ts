@@ -142,9 +142,9 @@ describe("Validation - repairGenome", () => {
 
 	test("should repair population size", () => {
 		const genome = createDefaultGenome("repair");
-		genome.gaControl.populationSize = 1;
+		genome.gaControl.population.size = 1;
 		const repaired = repairGenome(genome);
-		expect(repaired.gaControl.populationSize).toBe(2);
+		expect(repaired.gaControl.population.size).toBe(2);
 	});
 
 	test("should repair non-array hiddenLayers", () => {
@@ -207,7 +207,7 @@ describe("Validation - repairGenome", () => {
 
 	test("should detect invalid population size", () => {
 		const genome = createDefaultGenome("test");
-		genome.gaControl.populationSize = 1;
+		genome.gaControl.population.size = 1;
 		const result = validateGenome(genome);
 		expect(result.valid).toBe(false);
 	});
@@ -236,17 +236,17 @@ describe("Validation - repairGenome", () => {
 		(genome.rl.replayBuffer as any).bufferSize = undefined;
 		(genome.rl.replayBuffer as any).alphaPER = undefined;
 		(genome.rl.replayBuffer as any).betaPER = undefined;
-		(genome.mutation as any).rate = undefined;
-		(genome.mutation as any).sigma = undefined;
-		(genome.mutation as any).selfSigma = undefined;
+		(genome.mutation.rates as any).rate = undefined;
+		(genome.mutation.rates as any).sigma = undefined;
+		(genome.mutation.rates as any).selfSigma = undefined;
 		(genome.crossover as any).probability = undefined;
 		(genome.crossover as any).blendAlpha = undefined;
 		(genome.crossover as any).sbxEta = undefined;
-		(genome.gaControl as any).populationSize = undefined;
-		(genome.gaControl as any).elitismFraction = undefined;
-		(genome.gaControl as any).survivorFraction = undefined;
-		(genome.gaControl as any).episodesPerIndividual = undefined;
-		(genome.gaControl as any).maxGenerations = undefined;
+		(genome.gaControl.population as any).size = undefined;
+		(genome.gaControl.population as any).elitismFraction = undefined;
+		(genome.gaControl.population as any).survivorFraction = undefined;
+		(genome.gaControl.evaluation as any).episodesPerIndividual = undefined;
+		(genome.gaControl.termination as any).maxGenerations = undefined;
 		(genome as any).generation = undefined;
 		const repaired = repairGenome(genome);
 		expect(repaired.network.inputDim).toBe(1);
@@ -264,7 +264,7 @@ describe("Validation - repairGenome", () => {
 		expect(repaired.rl.continuousPolicy.type).toBe(
 			ContinuousPolicyType.TanhSquashing
 		);
-		expect(repaired.gaControl.populationSize).toBe(20);
+		expect(repaired.gaControl.population.size).toBe(20);
 	});
 
 	test("should repair undefined layer neurons", () => {

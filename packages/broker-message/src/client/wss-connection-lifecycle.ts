@@ -1,4 +1,5 @@
 import type { InstanceId } from "@trading-model/common/domain/primitives";
+import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import type { TlsPaths } from "@trading-model/common/domain/tls-paths";
 import type { IWsConnection } from "@trading-model/common/ws/i-ws-connection";
 import { WssConnection, type WssConnectionEvents } from "./wss-connection";
@@ -6,7 +7,7 @@ import { WssConnection, type WssConnectionEvents } from "./wss-connection";
 export interface WssClientConfig {
 	wssUrl: string;
 	tlsConfig?: Partial<TlsPaths>;
-	serviceName: string;
+	serviceName: ServiceInstanceName;
 	instanceId: InstanceId;
 }
 
@@ -15,7 +16,7 @@ export type WsConnectionLifecycleCallbacks = WssConnectionEvents;
 export class WssConnectionLifecycle implements IWsConnection {
 	private readonly _connection: WssConnection;
 	private readonly _wsUrl: string;
-	private readonly _serviceName: string;
+	private readonly _serviceName: ServiceInstanceName;
 	private readonly _instanceId: InstanceId;
 	private readonly _callbacks: WsConnectionLifecycleCallbacks;
 

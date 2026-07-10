@@ -1,10 +1,11 @@
 import type { HttpClient } from "../config/http-client";
 import type { SchedulerWsJobAssignedMessage } from "../contracts/worker-protocol.types";
+import type { JobId, JobType, URLString } from "../domain/primitives";
 import { AckTimerManager } from "./ack-timer-manager";
 
 interface ActiveJob {
-	id: string;
-	type: string;
+	id: JobId;
+	type: JobType;
 	ackDeadline: number;
 }
 
@@ -27,7 +28,7 @@ export class JobTracker {
 		this._activeJobs.set(job.id, _toActiveJob(job));
 	}
 
-	endJob(jobId: string): void {
+	endJob(jobId: JobId): void {
 		const active = this._activeJobs.get(jobId);
 		if (active) {
 			this._ackTimers.clear(jobId);
@@ -47,25 +48,25 @@ export class JobTracker {
 
 export class JobHttpClient {
 	private readonly _httpClient: HttpClient;
-	private readonly _schedulerHttpUrl: string;
+	private readonly _schedulerHttpUrl: URLString;
 
 	constructor(httpClient: HttpClient, schedulerHttpUrl: string) {
 		this._httpClient = httpClient;
-		this._schedulerHttpUrl = schedulerHttpUrl;
+		this._schedulerHttpUrl = schedulerHttpUrl as URLString;
 	}
 
-	async ackJob(jobId: string): Promise<void> {
+	async ackJob(jobId: JobId): Promise<void> {
 		await this._httpClient.post(`${this._schedulerHttpUrl}/jobs/${jobId}/ack`);
 	}
 
-	async completeJob(jobId: string, result: unknown): Promise<void> {
+	async completeJob(jobId: JobId, result: unknown): Promise<void> {
 		await this._httpClient.post(
 			`${this._schedulerHttpUrl}/jobs/${jobId}/complete`,
 			{ result }
 		);
 	}
 
-	async failJob(jobId: string, error: string): Promise<void> {
+	async failJob(jobId: JobId, error: string): Promise<void> {
 		await this._httpClient.post(
 			`${this._schedulerHttpUrl}/jobs/${jobId}/fail`,
 			{ error }

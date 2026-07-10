@@ -1,4 +1,5 @@
 import { logger } from "@trading-model/common/config/logger";
+import type { Topic } from "@trading-model/common/domain/primitives";
 import type { IWsReconnector } from "@trading-model/common/ws/i-ws-reconnector";
 import type { PendingPublishQueue } from "./pending-publish-queue";
 import type { WssConnectionLifecycle } from "./wss-connection-lifecycle";
@@ -13,7 +14,7 @@ export class WsConnectionEventHandler {
 		private readonly _queue: PendingPublishQueue
 	) {}
 
-	onWsOpen(sendFn: SendFn, topics: string[]): void {
+	onWsOpen(sendFn: SendFn, topics: Topic[]): void {
 		this._reconnector.reset();
 		logger.info("WSS connected");
 

@@ -1,3 +1,4 @@
+import type { InstanceId } from "@trading-model/common/domain/primitives";
 import type { ServiceInstance } from "../client/type";
 import { LeastConnectionsStrategy } from "./strategies/least-connections-strategy";
 import { RandomStrategy } from "./strategies/random-strategy";
@@ -10,8 +11,8 @@ export interface LoadBalancingStrategy {
 }
 
 export interface ConnectionCountingStrategy extends LoadBalancingStrategy {
-	acquire(instanceId: string): void;
-	release(instanceId: string): void;
+	acquire(instanceId: InstanceId): void;
+	release(instanceId: InstanceId): void;
 	dispose(): void;
 }
 

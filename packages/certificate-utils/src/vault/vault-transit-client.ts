@@ -1,3 +1,4 @@
+import { CRYPTO } from "@trading-model/common/crypto/crypto-constants";
 import { logger } from "@trading-model/common/config/logger";
 import { normalizeError } from "@trading-model/common/utils/errors";
 
@@ -31,7 +32,7 @@ export class VaultTransitClient {
 
 	async sign(name: string, algorithm: string, input: string): Promise<string> {
 		const result = await this._http.postSign(name, {
-			input: Buffer.from(input, "utf8").toString("base64"),
+			input: Buffer.from(input, CRYPTO.UTF8).toString("base64"),
 			hash_algorithm: this._algorithmMapper.getHashAlgorithm(algorithm),
 		});
 		return this._responseParser.getSignatureString(result);

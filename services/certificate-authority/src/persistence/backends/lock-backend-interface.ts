@@ -1,13 +1,15 @@
+import type { InstanceId } from "@trading-model/common/domain/primitives";
+
 export interface LockContext {
 	lockName: string;
-	instanceId: string;
+	instanceId: InstanceId;
 }
 
 export interface LockDocument {
 	name: string;
 	acquiredAt: Date;
 	expiresAt: Date;
-	instanceId: string;
+	instanceId: InstanceId;
 	fencingToken: number;
 }
 

@@ -93,22 +93,28 @@ function _buildAdjustedControl(
 ): GAControlGenome {
 	return {
 		...ctrl,
-		populationSize: adjustPopulationSize(
-			ctrl.populationSize,
-			stagnation,
-			isImproving
-		),
-		elitismFraction: adjustElitism(
-			ctrl.elitismFraction,
-			stagnation,
-			isImproving
-		),
-		survivorFraction: adjustSurvivors(ctrl.survivorFraction, stagnation),
-		episodesPerIndividual: adjustEpisodes(
-			ctrl.episodesPerIndividual,
-			stagnation,
-			isImproving
-		),
+		population: {
+			...ctrl.population,
+			size: adjustPopulationSize(
+				ctrl.population.size,
+				stagnation,
+				isImproving
+			),
+			elitismFraction: adjustElitism(
+				ctrl.population.elitismFraction,
+				stagnation,
+				isImproving
+			),
+			survivorFraction: adjustSurvivors(ctrl.population.survivorFraction, stagnation),
+		},
+		evaluation: {
+			...ctrl.evaluation,
+			episodesPerIndividual: adjustEpisodes(
+				ctrl.evaluation.episodesPerIndividual,
+				stagnation,
+				isImproving
+			),
+		},
 	} as GAControlGenome;
 }
 
@@ -144,16 +150,16 @@ export function checkTerminationConditions(
 	ctx: TerminationCheckContext
 ): StopCondition {
 	const { generation, bestFitness, stagnation, elapsedMs, ctrl } = ctx;
-	if (bestFitness >= ctrl.rewardThreshold) {
+	if (bestFitness >= ctrl.termination.rewardThreshold) {
 		return { shouldStop: true, reason: "Reward threshold reached" };
 	}
-	if (stagnation >= ctrl.stagnationPatience) {
+	if (stagnation >= ctrl.termination.stagnationPatience) {
 		return { shouldStop: true, reason: "Stagnation patience exceeded" };
 	}
-	if (generation >= ctrl.maxGenerations) {
+	if (generation >= ctrl.termination.maxGenerations) {
 		return { shouldStop: true, reason: "Max generations reached" };
 	}
-	if (elapsedMs >= ctrl.timeBudgetMs) {
+	if (elapsedMs >= ctrl.termination.timeBudgetMs) {
 		return { shouldStop: true, reason: "Time budget exceeded" };
 	}
 	return { shouldStop: false };

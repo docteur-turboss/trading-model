@@ -1,4 +1,5 @@
 import type { MessageMetadata } from "@trading-model/common/contracts/message.types";
+import type { Topic } from "@trading-model/common/domain/primitives";
 import { PendingPublishQueue } from "./pending-publish-queue";
 import type { WssClientConfig } from "./wss-connection-lifecycle";
 import { WssConnectionOrchestrator } from "./wss-connection-orchestrator";
@@ -39,7 +40,7 @@ export class WssClient {
 		this._publisher = new WssPublishClient(this._orchestrator, this._queue);
 	}
 
-	connect(topics: string[] = []): void {
+	connect(topics: Topic[] = []): void {
 		this._orchestrator.connect(topics);
 	}
 
@@ -61,7 +62,7 @@ export class WssClient {
 		return this._publisher.publish(payload, metadata);
 	}
 
-	subscribe(topics: string[]): Promise<void> {
+	subscribe(topics: Topic[]): Promise<void> {
 		this._orchestrator.addTopics(topics);
 		if (this._orchestrator.isConnected()) {
 			this._orchestrator.send({ type: "subscribe", topics });
@@ -69,7 +70,7 @@ export class WssClient {
 		return Promise.resolve();
 	}
 
-	unsubscribe(topics: string[]): Promise<void> {
+	unsubscribe(topics: Topic[]): Promise<void> {
 		this._orchestrator.removeTopics(topics);
 		if (this._orchestrator.isConnected()) {
 			this._orchestrator.send({ type: "unsubscribe", topics });

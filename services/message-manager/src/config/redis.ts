@@ -1,4 +1,5 @@
-﻿import type Redis from "ioredis";
+﻿import { REDIS_RESP } from "@trading-model/common/persistence/redis-constants";
+import type Redis from "ioredis";
 import { createRedisClient } from "./redis-client-factory";
 import { RedisClientPool } from "./redis-client-pool";
 
@@ -52,7 +53,7 @@ export async function isRedisAvailable(): Promise<boolean> {
 	try {
 		const client = await getRedisClient();
 		const pong = await client.ping();
-		return pong === "PONG";
+		return pong === REDIS_RESP.PONG;
 	} catch {
 		return false;
 	}

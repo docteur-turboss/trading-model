@@ -1,4 +1,5 @@
 ﻿import type { ServiceIdentity } from "@trading-model/common/contracts/message.types";
+import type { Topic } from "@trading-model/common/domain/primitives";
 
 import type { HttpMessageDelivery } from "./http-message-delivery";
 import type { TopicSubscription } from "./messaging-types";
@@ -8,12 +9,12 @@ export class SubscriptionRegistry {
 	/**
 	 * In-memory mapping of topics to subscriptions.
 	 */
-	private _subscriptionsByTopic = new Map<string, readonly Subscription[]>();
+	private _subscriptionsByTopic = new Map<Topic, readonly Subscription[]>();
 
 	constructor(private readonly _deliveryPort: HttpMessageDelivery) {}
 
 	subscribe(params: {
-		topic: string;
+		topic: Topic;
 		callbackPath: string;
 		consumerIdentity: ServiceIdentity;
 	}): void {
@@ -57,7 +58,7 @@ export class SubscriptionRegistry {
 		this._subscriptionsByTopic.set(topic, remaining);
 	}
 
-	getSubscriptions(topic: string): readonly Subscription[] {
+	getSubscriptions(topic: Topic): readonly Subscription[] {
 		return this._subscriptionsByTopic.get(topic) ?? [];
 	}
 }

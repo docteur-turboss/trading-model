@@ -1,3 +1,4 @@
+import type { ServiceId } from "@trading-model/common/domain/primitives";
 import promClient from "prom-client";
 
 export const DISCOVERY_CALLS_TOTAL = new promClient.Counter({
@@ -44,7 +45,7 @@ export const CACHE_ENTRY_COUNT = new promClient.Gauge({
 });
 
 export interface DiscoveryContext {
-	serviceName: string;
+	serviceName: ServiceId;
 	startTime: number;
 }
 

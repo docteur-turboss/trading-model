@@ -1,4 +1,6 @@
+import { CRYPTO } from "@trading-model/common/crypto/crypto-constants";
 import type { SignedRequest } from "@trading-model/common/contracts/signed-request";
+import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import {
 	normalizeBody,
 	verifySignature as sharedVerifySignature,
@@ -13,7 +15,7 @@ const ALLOWED_SERVICES = ENV.DLQ_ALLOWED_SERVICES.split(",")
 	.map((service) => service.trim())
 	.filter(Boolean);
 
-function verifySignature(req: Request, serviceName: string): boolean {
+function verifySignature(req: Request, serviceName: ServiceInstanceName): boolean {
 	const secret = resolveAuthHmacSecret();
 	const provided = _extractSignatureHeader(req);
 	const timestampStr = _extractTimestampHeader(req);
@@ -52,7 +54,7 @@ function _extractTimestampHeader(req: Request): string {
 	return (req.headers[HTTP_HEADERS.X_TIMESTAMP] as string) || "";
 }
 
-function _buildSignedRequest(req: Request, serviceName: string): SignedRequest {
+function _buildSignedRequest(req: Request, serviceName: ServiceInstanceName): SignedRequest {
 	return {
 		serviceName: toServiceId(serviceName),
 		method: req.method as SignedRequest["method"],
@@ -63,7 +65,7 @@ function _buildSignedRequest(req: Request, serviceName: string): SignedRequest {
 
 function _matchFallbackSignature(
 	req: Request,
-	serviceName: string,
+	serviceName: ServiceInstanceName,
 	provided: string,
 	secret: string,
 	timestampStr: string,
@@ -107,9 +109,9 @@ function _matchSignature(
 	parts: string[]
 ): boolean {
 	const { createHmac, timingSafeEqual } = require("node:crypto");
-	const expected = createHmac("sha256", secret)
+	const expected = createHmac(CRYPTO.SHA256, secret)
 		.update(parts.join(":"))
-		.digest("hex");
+		.digest(CRYPTO.HEX);
 	return (
 		provided.length === expected.length &&
 		timingSafeEqual(Buffer.from(provided), Buffer.from(expected))

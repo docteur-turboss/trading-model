@@ -1,5 +1,6 @@
+import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import type { ITokenManager } from "@trading-model/common/contracts/service-registry.types";
-import type { ServiceId } from "@trading-model/common/domain/primitives";
+import type { InstanceId, ServiceId } from "@trading-model/common/domain/primitives";
 import type { ServiceEndpoint } from "@trading-model/common/domain/service-identity";
 import type { TokenValidation } from "@trading-model/common/domain/token-validation";
 import type { TokenHandler } from "./token-handler";
@@ -7,11 +8,11 @@ import type { TokenHandler } from "./token-handler";
 export class TokenManagerService implements ITokenManager {
 	constructor(private readonly _tokenHandler: TokenHandler) {}
 
-	updateToken(instanceId: string): Promise<string> {
+	updateToken(instanceId: InstanceId): Promise<string> {
 		return this._tokenHandler.updateToken(instanceId);
 	}
 
-	generateInstanceToken(instanceId: string): string {
+	generateInstanceToken(instanceId: InstanceId): string {
 		return this._tokenHandler.generateInstanceToken(instanceId);
 	}
 
@@ -23,7 +24,7 @@ export class TokenManagerService implements ITokenManager {
 		return this._tokenHandler.generateInstanceId(endpoint);
 	}
 
-	verifyInstanceName(serviceName: string): boolean {
+	verifyInstanceName(serviceName: ServiceInstanceName): boolean {
 		return this._tokenHandler.verifyInstanceName(serviceName);
 	}
 }

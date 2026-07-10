@@ -1,4 +1,5 @@
 ﻿import { isIP } from "node:net";
+import type { Hostname } from "../domain/primitives/hostname";
 
 const BLOCKED_IPV4_PREFIXES = ["127.", "10.", "0.", "169.254.", "192.168."];
 const BLOCKED_IPV6 = ["::1", "::ffff:127.", "fe80:", "fc00:", "fd00:"];
@@ -26,7 +27,7 @@ function _matchesAnyPrefix(
 	return false;
 }
 
-export function isInternalAddress(hostname: string): boolean {
+export function isInternalAddress(hostname: Hostname): boolean {
 	if (!hostname) {
 		return true;
 	}
@@ -48,7 +49,7 @@ export function isInternalAddress(hostname: string): boolean {
  * Blocks SSRF by throwing if the hostname resolves to an internal address.
  * Use BEFORE making an HTTP request to an untrusted target.
  */
-export function assertNotInternalAddress(hostname: string): void {
+export function assertNotInternalAddress(hostname: Hostname): void {
 	if (isInternalAddress(hostname)) {
 		throw new Error(
 			`SSRF blocked: internal address ${hostname} is not allowed`

@@ -1,4 +1,9 @@
-﻿import { toInstanceId, toTopic } from "@trading-model/common/domain/primitives";
+﻿import {
+	InstanceId,
+	toInstanceId,
+	Topic,
+	toTopic,
+} from "@trading-model/common/domain/primitives";
 import { normalizeError } from "@trading-model/common/utils/errors";
 
 import { logger } from "../../config/logger";
@@ -13,7 +18,7 @@ export class SubscriptionRedisReader {
 		this._keys = new RedisSubscriptionKeys(prefix);
 	}
 
-	async getByTopic(topic: string): Promise<SubscriptionEntry[]> {
+	async getByTopic(topic: Topic): Promise<SubscriptionEntry[]> {
 		const redis = await getSubscriptionClient();
 		const instanceIds = await redis.smembers(this._keys.topicKey(topic));
 		if (instanceIds.length === 0) {
@@ -28,14 +33,14 @@ export class SubscriptionRedisReader {
 		return this._parseSubsResults(results);
 	}
 
-	async getTopicsByInstance(instanceId: string): Promise<string[]> {
+	async getTopicsByInstance(instanceId: InstanceId): Promise<string[]> {
 		const redis = await getSubscriptionClient();
 		return redis.smembers(this._keys.instanceKey(instanceId));
 	}
 
 	async getAllTopics(): Promise<string[]> {
 		const redis = await getSubscriptionClient();
-		const topics: string[] = [];
+		const topics: Topic[] = [];
 		let cursor = "0";
 		do {
 			cursor = await this._scanTopicPage(redis, cursor, topics);
@@ -45,7 +50,7 @@ export class SubscriptionRedisReader {
 
 	private async _fetchSubsBatch(
 		redis: import("ioredis").Redis,
-		topic: string,
+		topic: Topic,
 		instanceIds: string[]
 	): Promise<[Error | null, unknown][] | null> {
 		const pipeline = redis.pipeline();
@@ -86,7 +91,7 @@ export class SubscriptionRedisReader {
 	private async _scanTopicPage(
 		redis: import("ioredis").Redis,
 		cursor: string,
-		topics: string[]
+		topics: Topic[]
 	): Promise<string> {
 		const [nextCursor, batch] = await redis.sscan(
 			this._keys.topicsSetKey(),

@@ -76,7 +76,7 @@ export class DiscoveryRetryHandler {
 
 		if (!this.circuitBreaker.isOpen(instance.instanceId)) {
 			this._serviceDiscovery.acquireConnection(instance.instanceId);
-			recordDiscoveryMetrics({ serviceName, startTime }, "success");
+			recordDiscoveryMetrics({ serviceName: toServiceId(serviceName), startTime }, "success");
 			return instance;
 		}
 
@@ -116,7 +116,7 @@ export class DiscoveryRetryHandler {
 				instanceId: staleInstance.instanceId,
 			}
 		);
-		recordDiscoveryMetrics({ serviceName, startTime }, "degraded");
+		recordDiscoveryMetrics({ serviceName: toServiceId(serviceName), startTime }, "degraded");
 		return staleInstance;
 	}
 }

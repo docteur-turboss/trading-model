@@ -1,5 +1,10 @@
 import { randomUUID } from "node:crypto";
 
+import {
+	toInstanceId,
+	toMessageId,
+	type URLString,
+} from "@trading-model/common/domain/primitives";
 import { ObjectId } from "mongodb";
 import { ENV } from "../config/env";
 import { logger } from "../config/logger";
@@ -56,7 +61,7 @@ function _claimByIds(
 ): Promise<Array<{ id: string; message: unknown }>> {
 	return dlqClaimManager.claimEntriesByIds(validIds, {
 		batchId,
-		instanceId: ENV.INSTANCE_ID,
+		instanceId: toInstanceId(ENV.INSTANCE_ID),
 	});
 }
 
@@ -68,15 +73,15 @@ function _requeueRemaining(entryIds: string[]): void {
 
 async function executeClaimReplay(
 	entries: Array<{ id: string; message: unknown }>,
-	messageManagerUrl: string,
+	messageManagerUrl: URLString,
 	batchId: string
 ): Promise<void> {
 	logger.info(`DLQ Redis queue: replaying ${entries.length} entries`);
 	const { success, errors } = await doReplayBatch({
-		entries,
+		entries: entries.map((e) => ({ id: toMessageId(e.id), message: e.message })),
 		messageManagerUrl,
 		batchId,
-		instanceId: ENV.INSTANCE_ID,
+		instanceId: toInstanceId(ENV.INSTANCE_ID),
 	});
 
 	if (success > 0) {
@@ -95,7 +100,7 @@ async function executeClaimReplay(
 
 async function _claimAndReplayEntries(
 	entryIds: string[],
-	messageManagerUrl: string
+	messageManagerUrl: URLString
 ): Promise<void> {
 	const batchId = `redis-${Date.now()}-${randomUUID().slice(0, 8)}`;
 	const entries = await claimBatchEntries(entryIds, batchId);

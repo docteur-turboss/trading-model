@@ -121,7 +121,7 @@ describe("Logger", () => {
 		});
 
 		it("should not log error when logLevel is above ERROR", () => {
-			(logger as any)._logLevel = 4;
+			(logger as any)._logLevel = "none";
 			logger.error("should not appear");
 			expect(consoleErrorSpy).not.toHaveBeenCalled();
 		});

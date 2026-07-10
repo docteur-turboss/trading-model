@@ -1,14 +1,17 @@
 import crypto from "node:crypto";
 import type http from "node:http";
 import https from "node:https";
+import { CRYPTO } from "@trading-model/common/crypto/crypto-constants";
 import { logger } from "@trading-model/common/config/logger";
 import type { ServiceEndpoint } from "@trading-model/common/contracts/service-resolver.types";
+import type { HttpStatusCode } from "@trading-model/common/http-status";
+import { HTTP_STATUS } from "@trading-model/common/http-status";
 import { HTTP_HEADERS } from "@trading-model/common/http-headers";
 import type { Request } from "express";
 import { ENV } from "../config/env";
 
 export interface ProxyResult {
-	status: number;
+	status: HttpStatusCode;
 	body: string;
 	headers: Record<string, string | string[]>;
 }
@@ -65,8 +68,8 @@ async function handleProxyResponse(
 ): Promise<ProxyResult> {
 	const chunks = await _collectResponseChunks(proxyRes);
 	return {
-		status: proxyRes.statusCode ?? 503,
-		body: Buffer.concat(chunks).toString("utf8"),
+		status: (proxyRes.statusCode ?? HTTP_STATUS.SERVICE_UNAVAILABLE) as HttpStatusCode,
+		body: Buffer.concat(chunks).toString(CRYPTO.UTF8),
 		headers: proxyRes.headers as Record<string, string | string[]>,
 	};
 }

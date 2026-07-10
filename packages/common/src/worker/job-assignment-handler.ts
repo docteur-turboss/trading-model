@@ -1,5 +1,6 @@
 import type { HttpClient } from "../config/http-client";
 import type { SchedulerWsJobAssignedMessage } from "../contracts/worker-protocol.types";
+import type { JobId, JobType } from "../domain/primitives";
 import { JobHandlerRegistry } from "./job-handler-registry";
 import { JobHttpClient, JobTracker } from "./job-tracker";
 
@@ -15,10 +16,10 @@ export class JobAssignmentHandler {
 	}
 
 	registerHandler<TPayload = unknown>(
-		jobType: string,
+		jobType: JobType,
 		handler: (job: {
-			id: string;
-			type: string;
+			id: JobId;
+			type: JobType;
 			payload: TPayload;
 		}) => Promise<unknown>
 	): void {

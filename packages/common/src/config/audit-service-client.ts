@@ -1,3 +1,4 @@
+import type { JsonObject } from "../domain/primitives";
 import type { TlsPaths } from "../domain/tls-paths";
 import { normalizeError } from "../utils/errors";
 import { HttpClient } from "./http-client";
@@ -21,7 +22,7 @@ export class AuditServiceClient {
 		this._auditResolver = auditResolver ?? (() => Promise.resolve(null));
 	}
 
-	async send(entry: Record<string, unknown>): Promise<void> {
+	async send(entry: JsonObject): Promise<void> {
 		try {
 			const auditTarget = await this._auditResolver();
 			if (!auditTarget) {
@@ -38,7 +39,7 @@ export class AuditServiceClient {
 
 	private async _postToAuditEndpoint(
 		auditTarget: AuditTarget,
-		entry: Record<string, unknown>
+		entry: JsonObject
 	): Promise<void> {
 		const body = this._sanitizer.safeStringify(entry);
 		const client = HttpClient.createWithTls(auditTarget.tls);

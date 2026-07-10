@@ -1,3 +1,5 @@
+import type { Topic } from "@trading-model/common/domain/primitives";
+
 export function createAuditColumns() {
 	return [
 		{
@@ -8,7 +10,7 @@ export function createAuditColumns() {
 		{
 			id: "topic",
 			label: "Topic",
-			render: (row: { topic: string }) => row.topic,
+			render: (row: { topic: Topic }) => row.topic,
 		},
 		{
 			id: "publisher",

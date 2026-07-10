@@ -1,3 +1,4 @@
+import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import { logger } from "@trading-model/common/config/logger";
 import {
 	type ServiceIdentity,
@@ -21,7 +22,7 @@ export class InstanceHeartbeatHandler {
 		identity: ServiceIdentity
 	): Promise<boolean> {
 		const result = await this._deps.redis.sismember(
-			this._deps.keyBuilder.serviceInstancesSet(identity.serviceName),
+			this._deps.keyBuilder.serviceInstancesSet(identity.serviceName as unknown as ServiceInstanceName),
 			identity.instanceId
 		);
 		return result === 1;

@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
+import { REDIS_RESP } from "@trading-model/common/persistence/redis-constants";
 
 const mockRedisInstance = {
 	on: jest.fn(),
@@ -9,7 +10,7 @@ const mockRedisInstance = {
 	duplicate: jest.fn().mockReturnThis(),
 	removeListener: jest.fn(),
 	get: jest.fn(),
-	setex: jest.fn().mockResolvedValue("OK"),
+	setex: jest.fn().mockResolvedValue(REDIS_RESP.OK),
 	del: jest.fn().mockResolvedValue(1),
 	scan: jest.fn().mockResolvedValue(["0", []]),
 };

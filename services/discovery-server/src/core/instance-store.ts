@@ -1,3 +1,4 @@
+import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
 import type { ServiceInstance } from "./types";
 
@@ -16,7 +17,7 @@ import type { ServiceInstance } from "./types";
 export class InstanceStore {
 	private _services: Map<string, Map<string, ServiceInstance>> = new Map();
 
-	private _ensureBucket(serviceName: string): Map<string, ServiceInstance> {
+	private _ensureBucket(serviceName: ServiceInstanceName): Map<string, ServiceInstance> {
 		let instances = this._services.get(serviceName);
 		if (!instances) {
 			instances = new Map();
@@ -49,7 +50,7 @@ export class InstanceStore {
 
 	registerInstance(instance: ServiceInstance): ServiceInstance {
 		const { serviceName } = instance;
-		const instances = this._ensureBucket(serviceName);
+		const instances = this._ensureBucket(serviceName as unknown as ServiceInstanceName);
 		return this._mergeOrCreateInstance(instances, instance);
 	}
 
@@ -67,7 +68,7 @@ export class InstanceStore {
 		return instance.ttl;
 	}
 
-	getInstances(serviceName: string): ServiceInstance[] {
+	getInstances(serviceName: ServiceInstanceName): ServiceInstance[] {
 		const service = this._services.get(serviceName);
 		if (!service) {
 			return [];
@@ -91,8 +92,8 @@ export class InstanceStore {
 		return deleted;
 	}
 
-	listServiceNames(): string[] {
-		return [...this._services.keys()];
+	listServiceNames(): ServiceInstanceName[] {
+		return [...this._services.keys()] as ServiceInstanceName[];
 	}
 
 	dump(): Record<string, ServiceInstance[]> {

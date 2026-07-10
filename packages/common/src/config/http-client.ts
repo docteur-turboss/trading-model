@@ -1,6 +1,7 @@
 import type { z } from "zod";
 
 import type { TlsPaths, TlsPemBundle } from "../domain/tls-paths";
+import type { URLString } from "../domain/primitives";
 import { isServiceCircuitOpen } from "./http-circuit-breaker";
 import { HttpClientError, HttpClientTimeoutError } from "./http-client-errors";
 import {
@@ -26,7 +27,7 @@ export class HttpClient {
 	): Promise<TResponse | undefined> {
 		return await this._request<TResponse>({
 			method: "GET" as HttpMethod,
-			urlStr: url,
+			urlStr: url as URLString,
 			body: undefined,
 			options,
 			schema,
@@ -41,7 +42,7 @@ export class HttpClient {
 	): Promise<TResponse | undefined> {
 		return await this._request<TResponse>({
 			method: "POST" as HttpMethod,
-			urlStr: url,
+			urlStr: url as URLString,
 			body,
 			options,
 			schema,
@@ -56,7 +57,7 @@ export class HttpClient {
 	): Promise<TResponse | undefined> {
 		return await this._request<TResponse>({
 			method: "DELETE" as HttpMethod,
-			urlStr: url,
+			urlStr: url as URLString,
 			body,
 			options,
 			schema,

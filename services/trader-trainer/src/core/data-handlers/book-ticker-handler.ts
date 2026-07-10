@@ -6,13 +6,13 @@ export const bookTickerHandler: DataHandler<BookTickerData> = {
 	dataType: DataType.BookTicker,
 	updateNorms(state, bt) {
 		if (bt.bid > 0) {
-			state.norm.bid.update(bt.bid);
+			state.norm.book.bid.update(bt.bid);
 		}
 		if (bt.ask > 0) {
-			state.norm.ask.update(bt.ask);
+			state.norm.book.ask.update(bt.ask);
 		}
 		if (bt.ask > 0 && bt.bid > 0) {
-			state.norm.spread.update(bt.ask - bt.bid);
+			state.norm.book.spread.update(bt.ask - bt.bid);
 		}
 	},
 	mutateState(_symbol, data, state, _maxSize) {

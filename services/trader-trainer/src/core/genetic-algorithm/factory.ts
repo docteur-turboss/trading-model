@@ -103,31 +103,23 @@ export function createReplayBufferGenome(): ReplayBufferGenome {
 	};
 }
 
-function _createMutationRateParams(): Partial<MutationGenome> {
-	return {
-		rate: 0.1,
-		sigma: 0.05,
-		noiseStd: 0.02,
-		selfSigma: 0.05,
-		activationMutationRate: 0.05,
-	};
-}
-
-function _createMutationStructureParams(): Partial<MutationGenome> {
-	return {
-		addNeuronRate: 0.01,
-		removeNeuronRate: 0.01,
-		addLayerRate: 0.005,
-		removeLayerRate: 0.005,
-		addConnectionRate: 0.01,
-		removeConnectionRate: 0.01,
-	};
-}
-
 export function createMutationGenome(): MutationGenome {
 	return {
-		..._createMutationRateParams(),
-		..._createMutationStructureParams(),
+		rates: {
+			rate: 0.1,
+			sigma: 0.05,
+			noiseStd: 0.02,
+			selfSigma: 0.05,
+			activationMutationRate: 0.05,
+		},
+		structural: {
+			addNeuronRate: 0.01,
+			removeNeuronRate: 0.01,
+			addLayerRate: 0.005,
+			removeLayerRate: 0.005,
+			addConnectionRate: 0.01,
+			removeConnectionRate: 0.01,
+		},
 		distribution: MutationDistribution.Gaussian,
 		adaptation: MutationAdaptation.Fixed,
 		scope: MutationScope.Global,
@@ -145,42 +137,32 @@ export function createCrossoverGenome(): CrossoverGenome {
 	};
 }
 
-function _createGACoreParams(): Partial<GAControlGenome> {
-	return {
-		populationSize: 20,
-		elitismFraction: 0.1,
-		survivorFraction: 0.5,
-		episodesPerIndividual: 3,
-		seedsPerEval: 2,
-	};
-}
-
-function _createGATerminationParams(): Partial<GAControlGenome> {
-	return {
-		rewardThreshold: Number.POSITIVE_INFINITY,
-		stagnationPatience: 15,
-		maxGenerations: 100,
-		timeBudgetMs: 5 * 60 * 1_000,
-	};
-}
-
-function _createGASeedParams(): Partial<GAControlGenome> {
-	return {
-		envSeed: 42,
-		mutationSeed: 1337,
-		networkSeed: 7,
-		mutationRate: 0.1,
-		mutationStd: 0.05,
-	};
-}
-
 export function createGAControlGenome(): GAControlGenome {
 	return {
-		..._createGACoreParams(),
-		..._createGATerminationParams(),
-		..._createGASeedParams(),
+		population: {
+			size: 20,
+			elitismFraction: 0.1,
+			survivorFraction: 0.5,
+		},
+		termination: {
+			rewardThreshold: Number.POSITIVE_INFINITY,
+			stagnationPatience: 15,
+			maxGenerations: 100,
+			timeBudgetMs: 5 * 60 * 1_000,
+		},
+		seeding: {
+			envSeed: 42,
+			mutationSeed: 1337,
+			networkSeed: 7,
+		},
+		evaluation: {
+			episodesPerIndividual: 3,
+			seedsPerEval: 2,
+		},
 		selectionType: SelectionType.Tournament,
 		fitnessType: FitnessType.TotalPnl,
+		mutationRate: 0.1,
+		mutationStd: 0.05,
 	} as GAControlGenome;
 }
 

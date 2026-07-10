@@ -58,7 +58,7 @@ function _mutateNeuronCount(
 	mutation: MutationGenome,
 	rng: () => number
 ): number {
-	if (rng() < mutation.rate) {
+	if (rng() < mutation.rates.rate) {
 		const delta = Math.round(
 			sampleNoise(mutation.distribution, sigma * 10, rng)
 		);
@@ -72,7 +72,7 @@ function _mutateActivation(
 	mutation: MutationGenome,
 	rng: () => number
 ): ActivationType {
-	if (mutation.mutateActivations && rng() < mutation.activationMutationRate) {
+	if (mutation.mutateActivations && rng() < mutation.rates.activationMutationRate) {
 		return pick(ACTIVATIONS, rng);
 	}
 	return layer.activation;
@@ -83,7 +83,7 @@ function _mutateConnectionType(
 	mutation: MutationGenome,
 	rng: () => number
 ): ConnectionType {
-	return rng() < mutation.rate * 0.3
+	return rng() < mutation.rates.rate * 0.3
 		? pick(CONNECTION_TYPES, rng)
 		: layer.connectionType;
 }
@@ -93,7 +93,7 @@ function _mutateBiasType(
 	mutation: MutationGenome,
 	rng: () => number
 ): InitialisationType {
-	return rng() < mutation.rate * 0.2 ? pick(BIAS_TYPES, rng) : layer.biasType;
+	return rng() < mutation.rates.rate * 0.2 ? pick(BIAS_TYPES, rng) : layer.biasType;
 }
 
 export function mutateLayer(
@@ -118,7 +118,7 @@ function _mutateLayers(
 ): LayerGenome[] {
 	const perLayerMode = mutationConfig.scope === MutationScope.PerLayer;
 	return layers.map((layer) =>
-		perLayerMode || rng() < mutationConfig.rate
+		perLayerMode || rng() < mutationConfig.rates.rate
 			? mutateLayer(layer, mutationConfig, rng)
 			: { ...layer }
 	);
@@ -129,7 +129,7 @@ function _maybeAddNeuron(
 	mutationConfig: MutationGenome,
 	rng: () => number
 ): void {
-	if (layers.length > 0 && rng() < mutationConfig.addNeuronRate) {
+	if (layers.length > 0 && rng() < mutationConfig.structural.addNeuronRate) {
 		const li = Math.floor(rng() * layers.length);
 		layers[li] = { ...layers[li], neurons: layers[li].neurons + 1 };
 	}
@@ -140,7 +140,7 @@ function _maybeRemoveNeuron(
 	mutationConfig: MutationGenome,
 	rng: () => number
 ): void {
-	if (layers.length > 0 && rng() < mutationConfig.removeNeuronRate) {
+	if (layers.length > 0 && rng() < mutationConfig.structural.removeNeuronRate) {
 		const li = Math.floor(rng() * layers.length);
 		layers[li] = {
 			...layers[li],
@@ -163,7 +163,7 @@ function _maybeAddLayer(
 	mutationConfig: MutationGenome,
 	rng: () => number
 ): void {
-	if (rng() < mutationConfig.addLayerRate) {
+	if (rng() < mutationConfig.structural.addLayerRate) {
 		layers.splice(
 			Math.floor(rng() * (layers.length + 1)),
 			0,
@@ -177,7 +177,7 @@ function _maybeRemoveLayer(
 	mutationConfig: MutationGenome,
 	rng: () => number
 ): void {
-	if (layers.length > 1 && rng() < mutationConfig.removeLayerRate) {
+	if (layers.length > 1 && rng() < mutationConfig.structural.removeLayerRate) {
 		layers.splice(Math.floor(rng() * layers.length), 1);
 	}
 }
@@ -187,7 +187,7 @@ function _maybeMutateNormalization(
 	mutationConfig: MutationGenome,
 	rng: () => number
 ): NormalisationType {
-	return rng() < mutationConfig.rate * 0.2
+	return rng() < mutationConfig.rates.rate * 0.2
 		? pick(NORM_TYPES, rng)
 		: genome.network.normalization;
 }

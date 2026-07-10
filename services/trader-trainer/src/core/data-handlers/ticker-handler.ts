@@ -5,14 +5,16 @@ import { DataType } from "./data-types";
 export const tickerHandler: DataHandler<TickerData> = {
 	dataType: DataType.Ticker,
 	updateNorms(state, ticker) {
-		state.norm.tickerVolume.update(ticker.volume);
+		state.norm.ticker.volume.update(ticker.volume);
 	},
 	mutateState(_symbol, data, state, _maxSize) {
 		state.ticker24h = data;
 	},
 	serializeNorms(state) {
 		return {
-			tickerVolumeNorm: state.norm.tickerVolume.toJSON(),
+			ticker: {
+				volume: state.norm.ticker.volume.toJSON(),
+			},
 		};
 	},
 };

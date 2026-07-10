@@ -20,6 +20,8 @@ jest.mock("fs", () => ({
 
 import fs from "node:fs";
 import https from "node:https";
+import type { ServiceId } from "../../src/domain/primitives";
+import type { ServiceInstanceName } from "../../src/config/services.types";
 import {
 	computeAdaptiveTimeout,
 	HttpClient,
@@ -64,9 +66,9 @@ describe("HttpClient", () => {
 	describe("constructor", () => {
 		it("should not read TLS files eagerly when tlsConfig is provided", () => {
 			const tlsClient = new HttpClient({
-				ca: "/path/to/ca.pem",
-				cert: "/path/to/cert.pem",
-				key: "/path/to/key.pem",
+				caPem: "/path/to/ca.pem",
+				certPem: "/path/to/cert.pem",
+				keyPem: "/path/to/key.pem",
 			});
 
 			expect((fs as any).promises.readFile).not.toHaveBeenCalled();
@@ -330,7 +332,7 @@ describe("HttpClient", () => {
 				new Error("ENOENT: no such file")
 			);
 
-			const client = new HttpClient({ ca: "/bad/path.pem" });
+			const client = new HttpClient({ caPem: "/bad/path.pem" });
 			const promise = client.get("https://example.com/api");
 
 			await expect(promise).rejects.toThrow(
@@ -341,7 +343,7 @@ describe("HttpClient", () => {
 		it("should handle non-Error rejection from TLS file read", async () => {
 			(fs as any).promises.access.mockRejectedValueOnce("string error");
 
-			const client = new HttpClient({ ca: "/bad/path.pem" });
+			const client = new HttpClient({ caPem: "/bad/path.pem" });
 			const promise = client.get("https://example.com/api");
 
 			await expect(promise).rejects.toThrow(
@@ -476,36 +478,36 @@ describe("HttpClient", () => {
 			for (let i = 0; i < 5; i++) {
 				const promise = client.get("https://cb-svc-1.example.com/api", {
 					retryCount: 0,
-					serviceName: "my-service",
+					serviceName: "my-service" as unknown as ServiceId,
 				});
 				errorHandler!(new Error("ECONNRESET"));
 				await expect(promise).rejects.toThrow();
 			}
 
-			expect(isServiceCircuitOpen("my-service")).toBe(true);
+			expect(isServiceCircuitOpen("my-service" as ServiceInstanceName)).toBe(true);
 		});
 
 		it("should respect dynamic threshold based on instance count", async () => {
-			isServiceCircuitOpen("dynamic-service"); // warm up entry
+			isServiceCircuitOpen("dynamic-service" as ServiceInstanceName); // warm up entry
 
 			for (let i = 0; i < 6; i++) {
 				const promise = client.get(`https://cb-svc-dyn-${i}.example.com/api`, {
 					retryCount: 0,
-					serviceName: "dynamic-service",
+					serviceName: "dynamic-service" as unknown as ServiceId,
 					serviceInstanceCount: 3,
 				});
 				errorHandler!(new Error("ECONNRESET"));
 				await expect(promise).rejects.toThrow();
 			}
 
-			expect(isServiceCircuitOpen("dynamic-service")).toBe(true);
+			expect(isServiceCircuitOpen("dynamic-service" as ServiceInstanceName)).toBe(true);
 		});
 
 		it("should reset service circuit on success after cooldown", async () => {
 			for (let i = 0; i < 5; i++) {
 				const promise = client.get("https://cb-svc-3.example.com/api", {
 					retryCount: 0,
-					serviceName: "reset-service",
+					serviceName: "reset-service" as unknown as ServiceId,
 				});
 				errorHandler!(new Error("ECONNRESET"));
 				await expect(promise).rejects.toThrow();
@@ -515,12 +517,12 @@ describe("HttpClient", () => {
 
 			const promise = client.get("https://cb-svc-3.example.com/api", {
 				retryCount: 0,
-				serviceName: "reset-service",
+				serviceName: "reset-service" as unknown as ServiceId,
 			});
 			simulateResponse(200, JSON.stringify({ ok: true }), "application/json");
 			await expect(promise).resolves.toEqual({ ok: true });
 
-			expect(isServiceCircuitOpen("reset-service")).toBe(false);
+			expect(isServiceCircuitOpen("reset-service" as ServiceInstanceName)).toBe(false);
 		});
 	});
 
@@ -610,16 +612,16 @@ describe("HttpClient", () => {
 		});
 
 		it("should not read TLS files before a request is made (lazy)", () => {
-			new HttpClient({ ca: "/etc/ca.pem" });
+			new HttpClient({ caPem: "/etc/ca.pem" });
 			expect((fs as any).promises.readFile).not.toHaveBeenCalled();
 		});
 
 		it("should read all three cert files when provided", async () => {
 			(fs as any).promises.readFile.mockClear();
 			const tlsClient = new HttpClient({
-				ca: "/etc/ca.pem",
-				cert: "/etc/cert.pem",
-				key: "/etc/key.pem",
+				caPem: "/etc/ca.pem",
+				certPem: "/etc/cert.pem",
+				keyPem: "/etc/key.pem",
 			}) as any;
 
 			await (tlsClient as any)._tlsLoader.ensureLoaded();
@@ -640,7 +642,7 @@ describe("HttpClient", () => {
 
 		it("should read only CA when cert and key are not provided", async () => {
 			(fs as any).promises.readFile.mockClear();
-			const tlsClient = new HttpClient({ ca: "/etc/ca.pem" }) as any;
+			const tlsClient = new HttpClient({ caPem: "/etc/ca.pem" }) as any;
 
 			await (tlsClient as any)._tlsLoader.ensureLoaded();
 
@@ -652,7 +654,7 @@ describe("HttpClient", () => {
 		});
 
 		it("should set tlsLoaded flag after loading completes", async () => {
-			const tlsClient = new HttpClient({ ca: "/etc/ca.pem" }) as any;
+			const tlsClient = new HttpClient({ caPem: "/etc/ca.pem" }) as any;
 
 			expect((tlsClient as any)._tlsLoader._tlsLoaded).toBe(false);
 			await (tlsClient as any)._tlsLoader.ensureLoaded();
@@ -674,7 +676,7 @@ describe("HttpClient", () => {
 			for (let i = 0; i < 5; i++) {
 				const promise = client.get("https://cb-svc-open-host.example.com/api", {
 					retryCount: 0,
-					serviceName: "open-test-service",
+					serviceName: "open-test-service" as unknown as ServiceId,
 				});
 				errorHandler!(new Error("ECONNRESET"));
 				await expect(promise).rejects.toThrow();
@@ -684,7 +686,7 @@ describe("HttpClient", () => {
 				"https://different-host-for-svc.example.com/api",
 				{
 					retryCount: 0,
-					serviceName: "open-test-service",
+					serviceName: "open-test-service" as unknown as ServiceId,
 				}
 			);
 			await expect(promise).rejects.toThrow(
@@ -707,7 +709,7 @@ describe("HttpClient", () => {
 			for (let i = 0; i < 5; i++) {
 				const promise = client.get("https://cb-halfopen.example.com/api", {
 					retryCount: 0,
-					serviceName: "halfopen-service",
+					serviceName: "halfopen-service" as unknown as ServiceId,
 				});
 				errorHandler!(new Error("ECONNRESET"));
 				await expect(promise).rejects.toThrow();
@@ -715,14 +717,14 @@ describe("HttpClient", () => {
 
 			jest.advanceTimersByTime(30_001);
 
-			expect(isServiceCircuitOpen("halfopen-service")).toBe(true);
+			expect(isServiceCircuitOpen("halfopen-service" as ServiceInstanceName)).toBe(true);
 		});
 
 		it("should return true for half-open state when no request resets it", async () => {
 			for (let i = 0; i < 5; i++) {
 				const promise = client.get("https://cb-halfopen2.example.com/api", {
 					retryCount: 0,
-					serviceName: "halfopen-service-2",
+					serviceName: "halfopen-service-2" as unknown as ServiceId,
 				});
 				errorHandler!(new Error("ECONNRESET"));
 				await expect(promise).rejects.toThrow();
@@ -730,8 +732,8 @@ describe("HttpClient", () => {
 
 			jest.advanceTimersByTime(30_001);
 
-			isServiceCircuitOpen("halfopen-service-2");
-			expect(isServiceCircuitOpen("halfopen-service-2")).toBe(true);
+			isServiceCircuitOpen("halfopen-service-2" as ServiceInstanceName);
+			expect(isServiceCircuitOpen("halfopen-service-2" as ServiceInstanceName)).toBe(true);
 		});
 	});
 
@@ -743,15 +745,15 @@ describe("HttpClient", () => {
 		});
 
 		it("should return early when TLS already loaded", async () => {
-			const tlsClient = new HttpClient({ ca: "/etc/ca.pem" }) as any;
+			const tlsClient = new HttpClient({ caPem: "/etc/ca.pem" }) as any;
 			(tlsClient as any)._tlsLoader._tlsLoaded = true;
-			(tlsClient as any)._tlsLoader._tlsPaths = { ca: "/etc/ca.pem" };
+			(tlsClient as any)._tlsLoader._tlsPaths = { caPem: "/etc/ca.pem" };
 			await (tlsClient as any)._tlsLoader.ensureLoaded();
 			expect((fs as any).promises.readFile).not.toHaveBeenCalled();
 		});
 
 		it("should return existing tlsLoadPromise when one is in flight", async () => {
-			const tlsClient = new HttpClient({ ca: "/etc/ca.pem" }) as any;
+			const tlsClient = new HttpClient({ caPem: "/etc/ca.pem" }) as any;
 			const fakePromise = Promise.resolve();
 			(tlsClient as any)._tlsLoader._tlsLoadPromise = fakePromise;
 			const result = await (tlsClient as any)._tlsLoader.ensureLoaded();
@@ -759,7 +761,7 @@ describe("HttpClient", () => {
 		});
 
 		it("should handle tlsPaths becoming falsy inside TLS load promise", async () => {
-			const tlsClient = new HttpClient({ ca: "/etc/ca.pem" }) as any;
+			const tlsClient = new HttpClient({ caPem: "/etc/ca.pem" }) as any;
 			let callCount = 0;
 			const origPaths = (tlsClient as any)._tlsLoader._tlsPaths;
 			Object.defineProperty((tlsClient as any)._tlsLoader, "_tlsPaths", {
@@ -775,8 +777,8 @@ describe("HttpClient", () => {
 
 		it("should skip reading CA when ca path is not provided", async () => {
 			const tlsClient = new HttpClient({
-				cert: "/etc/cert.pem",
-				key: "/etc/key.pem",
+				certPem: "/etc/cert.pem",
+				keyPem: "/etc/key.pem",
 			}) as any;
 			await (tlsClient as any)._tlsLoader.ensureLoaded();
 			expect((fs as any).promises.readFile).toHaveBeenCalledTimes(2);
@@ -922,12 +924,12 @@ describe("computeAdaptiveTimeout", () => {
 
 describe("isServiceCircuitOpen", () => {
 	it("should return false for unknown service", () => {
-		expect(isServiceCircuitOpen("nonexistent")).toBe(false);
+		expect(isServiceCircuitOpen("nonexistent" as ServiceInstanceName)).toBe(false);
 	});
 
 	it("should return false for a service with no recorded failures", () => {
 		// Accesses the internal map implicitly: after a success the circuit remains closed
-		expect(isServiceCircuitOpen("fresh-service")).toBe(false);
+		expect(isServiceCircuitOpen("fresh-service" as ServiceInstanceName)).toBe(false);
 	});
 });
 

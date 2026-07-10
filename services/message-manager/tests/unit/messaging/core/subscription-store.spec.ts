@@ -1,4 +1,5 @@
 import { describe, expect, it, jest } from "@jest/globals";
+import { REDIS_RESP, REDIS_STATUS } from "@trading-model/common/persistence/redis-constants";
 
 const mockExec = jest
 	.fn<() => Promise<[Error | null, unknown][]>>()
@@ -33,7 +34,7 @@ function createMockPipeline() {
 
 function createMockRedis() {
 	return {
-		status: "ready",
+		status: REDIS_STATUS.READY,
 		connect: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
 		exists: jest.fn<() => Promise<number>>().mockResolvedValue(0),
 		smembers: jest.fn<() => Promise<string[]>>().mockResolvedValue(["inst-1"]),
@@ -43,7 +44,7 @@ function createMockRedis() {
 		hget: jest.fn<() => Promise<string | null>>().mockResolvedValue(null),
 		hkeys: jest.fn<() => Promise<string[]>>().mockResolvedValue(["topic-a"]),
 		hset: jest.fn<() => Promise<number>>().mockResolvedValue(1),
-		ping: jest.fn<() => Promise<string>>().mockResolvedValue("PONG"),
+		ping: jest.fn<() => Promise<string>>().mockResolvedValue(REDIS_RESP.PONG),
 		ttl: jest.fn<() => Promise<number>>().mockResolvedValue(-1),
 		scard: jest.fn<() => Promise<number>>().mockResolvedValue(0),
 		expire: jest.fn<() => Promise<number>>().mockResolvedValue(1),

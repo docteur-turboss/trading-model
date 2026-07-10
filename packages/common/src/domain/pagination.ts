@@ -9,7 +9,7 @@ export interface OffsetPagination {
 }
 
 export interface PaginationResult<_TValue> {
-	docs: T[];
+	docs: _TValue[];
 	total: number;
 	page: number;
 	limit: number;

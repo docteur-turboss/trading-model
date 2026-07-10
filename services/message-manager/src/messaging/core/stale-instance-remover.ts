@@ -1,4 +1,9 @@
-﻿import { toInstanceId, toTopic } from "@trading-model/common/domain/primitives";
+﻿import {
+	InstanceId,
+	toInstanceId,
+	Topic,
+	toTopic,
+} from "@trading-model/common/domain/primitives";
 import type Redis from "ioredis";
 
 import { LEASE_HEARTBEAT_FIELD } from "./messaging-constants";
@@ -13,7 +18,7 @@ export class StaleInstanceRemover {
 
 	async removeSubscriptions(
 		redis: Redis,
-		instanceId: string
+		instanceId: InstanceId
 	): Promise<string[]> {
 		const leaseKey = this._keys.leaseKey(instanceId);
 		const topics = await redis.hkeys(leaseKey);
@@ -25,9 +30,9 @@ export class StaleInstanceRemover {
 
 	private _addRemovalCommands(
 		multi: ReturnType<Redis["multi"]>,
-		instanceId: string,
+		instanceId: InstanceId,
 		leaseKey: string,
-		topics: string[]
+		topics: Topic[]
 	): void {
 		for (const topic of topics) {
 			if (topic === LEASE_HEARTBEAT_FIELD) {
@@ -46,7 +51,7 @@ export class StaleInstanceRemover {
 		multi.srem(this._keys.activeInstancesKey(), instanceId);
 	}
 
-	async cleanupOrphanedTopics(redis: Redis, topics: string[]): Promise<void> {
+	async cleanupOrphanedTopics(redis: Redis, topics: Topic[]): Promise<void> {
 		for (const topic of topics) {
 			if (topic === LEASE_HEARTBEAT_FIELD) {
 				continue;

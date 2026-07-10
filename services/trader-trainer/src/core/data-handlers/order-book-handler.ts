@@ -12,13 +12,13 @@ export const orderBookHandler: DataHandler<OrderBookData> = {
 		const avgBid = getAvgBid(orderBook);
 		const avgAsk = getAvgAsk(orderBook);
 		if (avgBid > 0) {
-			state.norm.bid.update(avgBid);
+			state.norm.book.bid.update(avgBid);
 		}
 		if (avgAsk > 0) {
-			state.norm.ask.update(avgAsk);
+			state.norm.book.ask.update(avgAsk);
 		}
 		if (avgAsk > 0 && avgBid > 0) {
-			state.norm.spread.update(avgAsk - avgBid);
+			state.norm.book.spread.update(avgAsk - avgBid);
 		}
 	},
 	mutateState(_symbol, data, state, _maxSize) {
@@ -26,9 +26,11 @@ export const orderBookHandler: DataHandler<OrderBookData> = {
 	},
 	serializeNorms(state) {
 		return {
-			bidNorm: state.norm.bid.toJSON(),
-			askNorm: state.norm.ask.toJSON(),
-			spreadNorm: state.norm.spread.toJSON(),
+			book: {
+				bid: state.norm.book.bid.toJSON(),
+				ask: state.norm.book.ask.toJSON(),
+				spread: state.norm.book.spread.toJSON(),
+			},
 		};
 	},
 };

@@ -1,4 +1,5 @@
 ﻿import type { Message } from "@trading-model/common/contracts/message.types";
+import type { Topic } from "@trading-model/common/domain/primitives";
 import { safeStringify } from "@trading-model/common/utils/safe-stringify";
 
 import { logger } from "../../config/logger";
@@ -6,12 +7,12 @@ import type { MemoryWalBuffer } from "./memory-wal-buffer";
 import type { MemoryWalEntry } from "./memory-wal-entry";
 
 export interface ParsedWalEntry {
-	topic: string;
+	topic: Topic;
 	data: string;
 }
 
 export interface ParsedEntry {
-	topic: string;
+	topic: Topic;
 	data: string;
 }
 
@@ -32,7 +33,7 @@ export class WalEntryParser {
 
 	private _tryParseDrainEntry(entry: string): ParsedEntry {
 		const parsed = JSON.parse(entry) as {
-			topic: string;
+			topic: Topic;
 			serialized?: string;
 			message?: Message;
 		};
@@ -67,11 +68,11 @@ export class WalEntryParser {
 	}
 
 	private _buildWalEntry(entry: string): MemoryWalEntry {
-		const parsed = JSON.parse(entry) as {
-			topic: string;
-			serialized?: string;
-			message?: unknown;
-		};
+	const parsed = JSON.parse(entry) as {
+		topic: Topic;
+		serialized?: string;
+		message?: unknown;
+	};
 		const topic = parsed.topic;
 		const serialized = parsed.serialized ?? safeStringify(parsed.message!);
 		const message = parsed.message ?? JSON.parse(parsed.serialized!);
@@ -98,7 +99,7 @@ export class WalEntryParser {
 	static parseWithMessage(entry: string): MemoryWalEntry | null {
 		try {
 			const parsed = JSON.parse(entry) as {
-				topic: string;
+				topic: Topic;
 				serialized?: string;
 				message?: unknown;
 			};
@@ -114,7 +115,7 @@ export class WalEntryParser {
 
 function _parseEntry(entry: string): ParsedWalEntry {
 	const parsed = JSON.parse(entry) as {
-		topic: string;
+		topic: Topic;
 		serialized?: string;
 		message?: Record<string, unknown>;
 	};

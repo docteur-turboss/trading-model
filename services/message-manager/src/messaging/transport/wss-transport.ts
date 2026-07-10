@@ -1,6 +1,7 @@
 ﻿import type { IncomingMessage } from "node:http";
 import type { Server as HttpsServer } from "node:https";
 import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
+import type { Topic } from "@trading-model/common/domain/primitives";
 import type WebSocket from "ws";
 import { ENV } from "../../config/env";
 import { logger } from "../../config/logger";
@@ -108,7 +109,7 @@ export class WssTransport {
 		return this._subscriptionManager.size;
 	}
 
-	broadcastToTopic(topic: string, message: unknown): number {
+	broadcastToTopic(topic: Topic, message: unknown): number {
 		return this._subscriptionManager.broadcastToTopic(topic, message);
 	}
 

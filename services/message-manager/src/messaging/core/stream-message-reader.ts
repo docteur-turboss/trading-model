@@ -1,4 +1,5 @@
 ﻿import type { Message } from "@trading-model/common/contracts/message.types";
+import type { Topic } from "@trading-model/common/domain/primitives";
 
 import { getStreamClient } from "../../config/redis";
 import type { MessageQuery } from "./messaging-types";
@@ -10,7 +11,7 @@ import type {
 export class StreamMessageReader {
 	constructor(private readonly _prefix: string) {}
 
-	private _streamKey(topic: string): string {
+	private _streamKey(topic: Topic): string {
 		return `${this._prefix}stream:${topic}`;
 	}
 

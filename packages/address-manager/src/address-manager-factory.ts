@@ -1,3 +1,4 @@
+import type { URLString } from "@trading-model/common/domain/primitives";
 import { HttpClient } from "@trading-model/common/config/http-client";
 import { CacheInvalidationHandler } from "./cache-invalidation-handler";
 import { AddressManagerClient } from "./client/address-manager-client";
@@ -138,7 +139,7 @@ function createWsClient(ctx: WsClientContext): WebSocketClient {
 	let wsClient: WebSocketClient;
 
 	wsClient = new WebSocketClient({
-		url: config.wsUrl!,
+		url: config.wsUrl! as URLString,
 		subscribedServices: config.wsSubscribedServices ?? ["*"],
 		token: tokenManager.getTokenOrUndefined(),
 		onMessage: (message) => {

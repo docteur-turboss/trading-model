@@ -1,4 +1,6 @@
 import {
+	type InstanceId,
+	type ServiceId,
 	toInstanceId,
 	toServiceId,
 } from "@trading-model/common/domain/primitives";
@@ -19,8 +21,8 @@ export interface SteadyStateSchedulerOptions {
 	heartbeatManager: HeartbeatManager;
 	serviceCache: IServiceCache;
 	healthChecker: ServiceHealthChecker;
-	serviceName: string;
-	instanceId: string;
+	serviceName: ServiceId;
+	instanceId: InstanceId;
 	tokenRefreshIntervalMs: number;
 	ttlRefreshIntervalMs: number;
 	cacheTtlMs: number;

@@ -1,4 +1,5 @@
 ﻿import type { Message } from "@trading-model/common/contracts/message.types";
+import type { Topic } from "@trading-model/common/domain/primitives";
 import { safeStringify } from "@trading-model/common/utils/safe-stringify";
 
 import { RedisStreamStore } from "./redis-stream-store";
@@ -37,7 +38,7 @@ export class MessageStreamWriter {
 		return this._serializer;
 	}
 
-	async store(topic: string, message: Message): Promise<string> {
+	async store(topic: Topic, message: Message): Promise<string> {
 		const serialized = this._serializer.serialize(message);
 
 		if (this._walFallback.isPayloadTooLarge(topic, serialized)) {

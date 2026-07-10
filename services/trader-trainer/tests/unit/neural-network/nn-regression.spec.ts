@@ -91,14 +91,14 @@ describe("NN Regression — Loss Functions", () => {
 	it("MSE of identical vectors is zero", () => {
 		const output = new Float32Array([0.5, 0.3]);
 		const target = new Float32Array([0.5, 0.3]);
-		const loss = LOSSES["mean-squared-error"].loss(output, target, config);
+		const loss = LOSSES[LossFunctionType.MeanSquaredError].loss(output, target, config);
 		expect(loss).toBe(0);
 	});
 
 	it("MSE of known vectors computes correct value", () => {
 		const output = new Float32Array([0.5, 0.3]);
 		const target = new Float32Array([0.7, 0.1]);
-		const loss = LOSSES["mean-squared-error"].loss(output, target, config);
+		const loss = LOSSES[LossFunctionType.MeanSquaredError].loss(output, target, config);
 		const expected = ((0.5 - 0.7) ** 2 + (0.3 - 0.1) ** 2) / 2;
 		expect(loss).toBeCloseTo(expected, 5);
 		expect(loss).toBeCloseTo(0.04, 5);
@@ -107,7 +107,7 @@ describe("NN Regression — Loss Functions", () => {
 	it("MAE of known vectors computes correct value", () => {
 		const output = new Float32Array([10, 20]);
 		const target = new Float32Array([12, 18]);
-		const loss = LOSSES["mean-absolute-error"].loss(output, target, config);
+		const loss = LOSSES[LossFunctionType.MeanAbsoluteError].loss(output, target, config);
 		const expected = (Math.abs(10 - 12) + Math.abs(20 - 18)) / 2;
 		expect(loss).toBeCloseTo(expected, 5);
 		expect(loss).toBe(2);
@@ -116,7 +116,7 @@ describe("NN Regression — Loss Functions", () => {
 	it("cross-entropy loss is finite for valid probabilities", () => {
 		const output = new Float32Array([0.7, 0.3]);
 		const target = new Float32Array([1, 0]);
-		const loss = LOSSES["cross-entropy"].loss(output, target, config);
+		const loss = LOSSES[LossFunctionType.CrossEntropy].loss(output, target, config);
 		expect(loss).toBeGreaterThan(0);
 		expect(Number.isFinite(loss)).toBe(true);
 	});
@@ -124,7 +124,7 @@ describe("NN Regression — Loss Functions", () => {
 	it("binary-cross-entropy loss is zero for perfect prediction", () => {
 		const output = new Float32Array([1]);
 		const target = new Float32Array([1]);
-		const loss = LOSSES["binary-cross-entropy"].loss(output, target, config);
+		const loss = LOSSES[LossFunctionType.BinaryCrossEntropy].loss(output, target, config);
 		expect(loss).toBeCloseTo(0, 5);
 	});
 });

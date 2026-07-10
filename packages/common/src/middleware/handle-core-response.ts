@@ -1,9 +1,9 @@
 ﻿import type { Response } from "express";
-import { getNodeEnv } from "../config/logger";
+import { isProduction } from "@trading-model/common/config/node-env";
 import { type ResponseCodeKey, ResponseException } from "./response-exception";
 
 export interface CoreResult<_TData = unknown> {
-	data: T;
+	data: _TData;
 	code: string;
 }
 
@@ -75,7 +75,7 @@ export interface CookieOptions {
 function _getCookieOptions(): CookieOptions {
 	return {
 		httpOnly: true,
-		secure: getNodeEnv() === "production",
+		secure: isProduction(),
 		sameSite: "strict" as const,
 		maxAge: 7 * 24 * 60 * 60 * 1000,
 		path: "/",

@@ -52,10 +52,10 @@ export class GeneticAlgorithmRunner {
 
 	private _shouldTerminate(ctx: GenerationContext): boolean {
 		return (
-			ctx.bestFitness >= ctx.gaControl.rewardThreshold ||
-			ctx.stagnation >= ctx.gaControl.stagnationPatience ||
-			ctx.generation >= ctx.gaControl.maxGenerations ||
-			ctx.elapsedMs >= ctx.gaControl.timeBudgetMs
+			ctx.bestFitness >= ctx.gaControl.termination.rewardThreshold ||
+			ctx.stagnation >= ctx.gaControl.termination.stagnationPatience ||
+			ctx.generation >= ctx.gaControl.termination.maxGenerations ||
+			ctx.elapsedMs >= ctx.gaControl.termination.timeBudgetMs
 		);
 	}
 

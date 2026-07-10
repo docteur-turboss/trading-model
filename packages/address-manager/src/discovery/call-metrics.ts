@@ -1,5 +1,7 @@
+import type { InstanceId } from "@trading-model/common/domain/primitives";
+
 export interface CallMetrics {
-	instanceId: string;
+	instanceId: InstanceId;
 	durationMs?: number;
 }
 

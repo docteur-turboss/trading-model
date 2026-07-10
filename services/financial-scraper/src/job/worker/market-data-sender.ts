@@ -1,5 +1,7 @@
+import type { EventEnumMap } from "@trading-model/common/config/event.types";
 import type { HELPER } from "@trading-model/broker-message";
 import { MarketEvent } from "@trading-model/common/contracts/market-events";
+import { toTopic } from "@trading-model/common/domain/primitives";
 import { MessageManager } from "../../config/message-manager";
 import { type MarketDataEntry, makeEntry } from "./binance-worker-helpers";
 import type { BinanceWorkerResult } from "./binance-worker-types";
@@ -8,24 +10,24 @@ export interface MarketDataContext extends MarketDataEntry {
 	builder: typeof HELPER.metadataBuilder.prototype;
 }
 
-const MARKET_DATA_ENTRY_MAP: [
-	keyof BinanceWorkerResult,
-	MarketEvent,
-	string,
-][] = [
-	["candles", MarketEvent.FetchCandlestickSeries, "FetchCandlestick"],
-	["orderBook", MarketEvent.FetchOrderBookSnapshot, "FetchOrderbook"],
-	["ticker24h", MarketEvent.Fetch24hrTickerStats, "FetchTicker24hr"],
-	["bookTicker", MarketEvent.FetchOrderBookTickerSnapshot, "FetchBookTicker"],
-	["priceTicker", MarketEvent.FetchPriceTickerSnapshot, "FetchPriceTicker"],
-	["recentTrades", MarketEvent.FetchRecentTrades, "FetchRecentTrades"],
+const MARKET_DATA_ENTRY_MAP: {
+	key: keyof BinanceWorkerResult;
+	event: MarketEvent;
+	name: EventEnumMap;
+}[] = [
+	{ key: "candles", event: MarketEvent.FetchCandlestickSeries, name: MarketEvent.FetchCandlestickSeries },
+	{ key: "orderBook", event: MarketEvent.FetchOrderBookSnapshot, name: MarketEvent.FetchOrderBookSnapshot },
+	{ key: "ticker24h", event: MarketEvent.Fetch24hrTickerStats, name: MarketEvent.Fetch24hrTickerStats },
+	{ key: "bookTicker", event: MarketEvent.FetchOrderBookTickerSnapshot, name: MarketEvent.FetchOrderBookTickerSnapshot },
+	{ key: "priceTicker", event: MarketEvent.FetchPriceTickerSnapshot, name: MarketEvent.FetchPriceTickerSnapshot },
+	{ key: "recentTrades", event: MarketEvent.FetchRecentTrades, name: MarketEvent.FetchRecentTrades },
 ];
 
 export function buildMarketDataEntries(
 	response: BinanceWorkerResult
 ): MarketDataEntry[] {
-	return MARKET_DATA_ENTRY_MAP.map(([key, event, name]) =>
-		makeEntry(response[key], event, name)
+	return MARKET_DATA_ENTRY_MAP.map(({ key, event, name }) =>
+		makeEntry(response[key], toTopic(event), name)
 	);
 }
 

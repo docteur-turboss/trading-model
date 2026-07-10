@@ -63,11 +63,7 @@ export class Wallet implements WalletAPI {
 	}
 
 	getValuation(): Cash {
-		return this._recorder.computeValuation({
-			cash: this._executor.cash,
-			position: this._executor.position,
-			price: this._executor.price,
-		});
+		return this._recorder.computeValuation(this._executor);
 	}
 
 	getPrice(): Price {
@@ -75,18 +71,12 @@ export class Wallet implements WalletAPI {
 	}
 
 	getPnL(): Cash {
-		return this._recorder.computePnL({
-			cash: this._executor.cash,
-			position: this._executor.position,
-			price: this._executor.price,
-		});
+		return this._recorder.computePnL(this._executor);
 	}
 
 	getMetrics(): WalletMetrics {
 		return computeWalletMetrics({
-			cash: this._executor.cash,
-			position: this._executor.position,
-			price: this._executor.price,
+			...this._executor,
 			peakValuation: this._recorder.getPeakValuation(),
 			initialCash: this._executor.config.initialCash,
 			totalFeesPaid: this._recorder.getTotalFeesPaid(),

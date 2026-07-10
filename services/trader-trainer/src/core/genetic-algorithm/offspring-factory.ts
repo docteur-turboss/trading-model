@@ -17,7 +17,7 @@ export function selectElites(
 ): DeepReadonly<LamarckGenome>[] {
 	const nElite = Math.max(
 		1,
-		Math.round(newCtrl.elitismFraction * newCtrl.populationSize)
+		Math.round(newCtrl.population.elitismFraction * newCtrl.population.size)
 	);
 	return ranked.slice(0, nElite).map((member) =>
 		withGenome(member.genome, {
@@ -103,9 +103,9 @@ export interface OffspringContext {
 function _computeOffspringCount(newCtrl: Readonly<GAControlGenome>): number {
 	const nElite = Math.max(
 		1,
-		Math.round(newCtrl.elitismFraction * newCtrl.populationSize)
+		Math.round(newCtrl.population.elitismFraction * newCtrl.population.size)
 	);
-	return newCtrl.populationSize - nElite;
+	return newCtrl.population.size - nElite;
 }
 
 function _makeOffspringRngs(
@@ -113,8 +113,8 @@ function _makeOffspringRngs(
 	generation: number
 ): { mutRng: () => number; coRng: () => number } {
 	return {
-		mutRng: makePRNG(ctrl.mutationSeed + generation + 1000),
-		coRng: makePRNG(ctrl.mutationSeed + generation + 2000),
+		mutRng: makePRNG(ctrl.seeding.mutationSeed + generation + 1000),
+		coRng: makePRNG(ctrl.seeding.mutationSeed + generation + 2000),
 	};
 }
 

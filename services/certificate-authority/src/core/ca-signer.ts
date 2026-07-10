@@ -1,9 +1,10 @@
 import { createPrivateKey, createSign, type KeyObject } from "node:crypto";
 
 import forge from "node-forge";
+import { CRYPTO } from "@trading-model/common/crypto/crypto-constants";
 
 function _selectAlgorithm(nodeKey: KeyObject): string {
-	return nodeKey.asymmetricKeyType === "rsa" ? "RSA-SHA256" : "sha256";
+	return nodeKey.asymmetricKeyType === "rsa" ? CRYPTO.RSA_SHA256 : CRYPTO.SHA256;
 }
 
 function _signTbs(
@@ -27,7 +28,7 @@ export function signCertWithCaKey(
 	cert: forge.pki.Certificate,
 	getCaPrivateKey: () => string
 ): void {
-	const pem = Buffer.from(getCaPrivateKey(), "utf8");
+	const pem = Buffer.from(getCaPrivateKey(), CRYPTO.UTF8);
 	try {
 		const nodeKey = createPrivateKey(pem);
 		const algorithm = _selectAlgorithm(nodeKey);

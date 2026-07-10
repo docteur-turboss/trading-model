@@ -12,13 +12,12 @@ export function validateMutation(
 	ctx: ValidationContext,
 	mutation: MutationGenome
 ): void {
-	checkRange({ ...ctx, path: "mutation.rate" }, mutation.rate, 0.001, 0.5);
-	checkRange({ ...ctx, path: "mutation.sigma" }, mutation.sigma, 1e-5, 10);
+	checkRange({ ...ctx, path: "mutation.rates.rate" }, mutation.rates.rate, { min: 0.001, max: 0.5 });
+	checkRange({ ...ctx, path: "mutation.rates.sigma" }, mutation.rates.sigma, { min: 1e-5, max: 10 });
 	checkRange(
-		{ ...ctx, path: "mutation.selfSigma" },
-		mutation.selfSigma,
-		1e-5,
-		10
+		{ ...ctx, path: "mutation.rates.selfSigma" },
+		mutation.rates.selfSigma,
+		{ min: 1e-5, max: 10 }
 	);
 }
 
@@ -29,16 +28,14 @@ export function validateCrossover(
 	checkRange(
 		{ ...ctx, path: "crossover.probability" },
 		crossover.probability,
-		0,
-		1
+		{ min: 0, max: 1 }
 	);
 	checkRange(
 		{ ...ctx, path: "crossover.blendAlpha" },
 		crossover.blendAlpha,
-		0,
-		1
+		{ min: 0, max: 1 }
 	);
-	checkRange({ ...ctx, path: "crossover.sbxEta" }, crossover.sbxEta, 1, 100);
+	checkRange({ ...ctx, path: "crossover.sbxEta" }, crossover.sbxEta, { min: 1, max: 100 });
 }
 
 export function validateGAControl(
@@ -46,38 +43,39 @@ export function validateGAControl(
 	ga: GAControlGenome
 ): void {
 	checkPositiveInt(
-		{ ...ctx, path: "gaControl.populationSize" },
-		ga.populationSize,
-		2
+		{ ...ctx, path: "gaControl.population.size" },
+		ga.population.size,
+		{ min: 2 }
 	);
 	checkRange(
-		{ ...ctx, path: "gaControl.elitismFraction" },
-		ga.elitismFraction,
-		0,
-		1
+		{ ...ctx, path: "gaControl.population.elitismFraction" },
+		ga.population.elitismFraction,
+		{ min: 0, max: 1 }
 	);
 	checkRange(
-		{ ...ctx, path: "gaControl.survivorFraction" },
-		ga.survivorFraction,
-		0,
-		1
+		{ ...ctx, path: "gaControl.population.survivorFraction" },
+		ga.population.survivorFraction,
+		{ min: 0, max: 1 }
 	);
 	checkPositiveInt(
-		{ ...ctx, path: "gaControl.maxGenerations" },
-		ga.maxGenerations
+		{ ...ctx, path: "gaControl.termination.maxGenerations" },
+		ga.termination.maxGenerations
 	);
 	checkPositiveInt(
-		{ ...ctx, path: "gaControl.episodesPerIndividual" },
-		ga.episodesPerIndividual
+		{ ...ctx, path: "gaControl.evaluation.episodesPerIndividual" },
+		ga.evaluation.episodesPerIndividual
 	);
 }
 
 function repairMutation(mutation: MutationGenome): MutationGenome {
 	return {
 		...mutation,
-		rate: clamp(mutation.rate ?? 0.1, 0.001, 0.5),
-		sigma: Math.max(1e-5, mutation.sigma ?? 0.05),
-		selfSigma: Math.max(1e-5, mutation.selfSigma ?? 0.05),
+		rates: {
+			...mutation.rates,
+			rate: clamp(mutation.rates.rate ?? 0.1, 0.001, 0.5),
+			sigma: Math.max(1e-5, mutation.rates.sigma ?? 0.05),
+			selfSigma: Math.max(1e-5, mutation.rates.selfSigma ?? 0.05),
+		},
 	};
 }
 
@@ -93,14 +91,23 @@ function repairCrossover(crossover: CrossoverGenome): CrossoverGenome {
 function repairGAControl(gaControl: GAControlGenome): GAControlGenome {
 	return {
 		...gaControl,
-		populationSize: Math.max(2, Math.round(gaControl.populationSize ?? 20)),
-		elitismFraction: clamp(gaControl.elitismFraction ?? 0.1, 0, 1),
-		survivorFraction: clamp(gaControl.survivorFraction ?? 0.5, 0, 1),
-		episodesPerIndividual: Math.max(
-			1,
-			Math.round(gaControl.episodesPerIndividual ?? 3)
-		),
-		maxGenerations: Math.max(1, Math.round(gaControl.maxGenerations ?? 100)),
+		population: {
+			...gaControl.population,
+			size: Math.max(2, Math.round(gaControl.population.size ?? 20)),
+			elitismFraction: clamp(gaControl.population.elitismFraction ?? 0.1, 0, 1),
+			survivorFraction: clamp(gaControl.population.survivorFraction ?? 0.5, 0, 1),
+		},
+		termination: {
+			...gaControl.termination,
+			maxGenerations: Math.max(1, Math.round(gaControl.termination.maxGenerations ?? 100)),
+		},
+		evaluation: {
+			...gaControl.evaluation,
+			episodesPerIndividual: Math.max(
+				1,
+				Math.round(gaControl.evaluation.episodesPerIndividual ?? 3)
+			),
+		},
 	};
 }
 

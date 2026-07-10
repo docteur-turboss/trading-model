@@ -97,7 +97,7 @@ export class GenerationProcessor {
 		rng: () => number;
 	} {
 		const ctrl = this._population[0].gaControl;
-		const rng = makePRNG(ctrl.mutationSeed + this._generation);
+		const rng = makePRNG(ctrl.seeding.mutationSeed + this._generation);
 		return { ctrl, rng };
 	}
 

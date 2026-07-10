@@ -166,6 +166,14 @@ export function fromAuthToken(value: AuthToken): string {
 	return value;
 }
 
+export type ClientIdentity = string & { readonly brand: "ClientIdentity" };
+export function toClientIdentity(value: string): ClientIdentity {
+	return value as ClientIdentity;
+}
+export function fromClientIdentity(value: ClientIdentity): string {
+	return value;
+}
+
 export type Subject = string & { readonly brand: "Subject" };
 export function toSubject(value: string): Subject {
 	return value as Subject;

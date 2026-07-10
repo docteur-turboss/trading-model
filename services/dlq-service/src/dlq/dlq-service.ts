@@ -18,8 +18,10 @@ export { addEntry } from "./add-entry-pipeline";
 
 const tracer = trace.getTracer("dlq-service");
 
+import type { Topic } from "@trading-model/common/domain/primitives";
+
 function _buildPaginationQuery(query: Record<string, unknown>): {
-	topic: string | undefined;
+	topic: Topic | undefined;
 	limit: PaginationQuery["limit"];
 	offset: number;
 	cursor: string | undefined;

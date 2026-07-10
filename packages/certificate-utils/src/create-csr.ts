@@ -1,4 +1,5 @@
 import { createPublicKey, createSign } from "node:crypto";
+import { CRYPTO } from "@trading-model/common/crypto/crypto-constants";
 
 export interface CsrOptions {
 	commonName: string;
@@ -34,7 +35,7 @@ function _buildCsrBody(
 }
 
 function _signData(data: string, keyPem: string): string {
-	const sign = createSign("sha256");
+	const sign = createSign(CRYPTO.SHA256);
 	sign.update(data);
 	return sign.sign(keyPem, "base64");
 }

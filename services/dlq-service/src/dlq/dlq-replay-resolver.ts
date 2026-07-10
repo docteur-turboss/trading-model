@@ -1,4 +1,5 @@
 import { SpanStatusCode } from "@opentelemetry/api";
+import type { URLString } from "@trading-model/common/domain/primitives";
 import {
 	type ResponseObject,
 	sendResponse,
@@ -7,7 +8,7 @@ import { resolveMessageManagerUrl } from "./shared/message-manager-resolver";
 
 export async function resolveMMUrlOrFail(
 	span: import("@opentelemetry/api").Span
-): Promise<string | null> {
+): Promise<URLString | null> {
 	const messageManagerUrl = await resolveMessageManagerUrl();
 	if (!messageManagerUrl) {
 		span.setStatus({

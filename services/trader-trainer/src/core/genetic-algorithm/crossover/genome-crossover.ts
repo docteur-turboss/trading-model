@@ -253,28 +253,32 @@ function crossoverMutation(
 	const coin = <TValue>(valueA: TValue, valueB: TValue): TValue =>
 		rng() < 0.5 ? valueA : valueB;
 	return {
-		rate: coin(left.rate, right.rate),
-		sigma: coin(left.sigma, right.sigma),
-		noiseStd: coin(left.noiseStd, right.noiseStd),
+		rates: {
+			rate: coin(left.rates.rate, right.rates.rate),
+			sigma: coin(left.rates.sigma, right.rates.sigma),
+			noiseStd: coin(left.rates.noiseStd, right.rates.noiseStd),
+			selfSigma: coin(left.rates.selfSigma, right.rates.selfSigma),
+			activationMutationRate: coin(
+				left.rates.activationMutationRate,
+				right.rates.activationMutationRate
+			),
+		},
+		structural: {
+			addNeuronRate: coin(left.structural.addNeuronRate, right.structural.addNeuronRate),
+			removeNeuronRate: coin(left.structural.removeNeuronRate, right.structural.removeNeuronRate),
+			addLayerRate: coin(left.structural.addLayerRate, right.structural.addLayerRate),
+			removeLayerRate: coin(left.structural.removeLayerRate, right.structural.removeLayerRate),
+			addConnectionRate: coin(left.structural.addConnectionRate, right.structural.addConnectionRate),
+			removeConnectionRate: coin(
+				left.structural.removeConnectionRate,
+				right.structural.removeConnectionRate
+			),
+		},
 		distribution: coin(left.distribution, right.distribution),
 		adaptation: coin(left.adaptation, right.adaptation),
 		scope: coin(left.scope, right.scope),
-		selfSigma: coin(left.selfSigma, right.selfSigma),
 		mutateActivations: coin(left.mutateActivations, right.mutateActivations),
-		activationMutationRate: coin(
-			left.activationMutationRate,
-			right.activationMutationRate
-		),
 		mutateHyperparams: coin(left.mutateHyperparams, right.mutateHyperparams),
-		addNeuronRate: coin(left.addNeuronRate, right.addNeuronRate),
-		removeNeuronRate: coin(left.removeNeuronRate, right.removeNeuronRate),
-		addLayerRate: coin(left.addLayerRate, right.addLayerRate),
-		removeLayerRate: coin(left.removeLayerRate, right.removeLayerRate),
-		addConnectionRate: coin(left.addConnectionRate, right.addConnectionRate),
-		removeConnectionRate: coin(
-			left.removeConnectionRate,
-			right.removeConnectionRate
-		),
 	};
 }
 

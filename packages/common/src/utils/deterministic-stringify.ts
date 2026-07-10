@@ -1,3 +1,5 @@
+import type { JsonObject } from "../domain/primitives";
+
 /**
  * Deterministic JSON serialization for cryptographic signing.
  *
@@ -26,9 +28,9 @@ function deterministicReplacer(_key: string, value: unknown): unknown {
 		}
 		if (!Array.isArray(value)) {
 			const keys = Object.keys(value).sort();
-			const sorted: Record<string, unknown> = {};
+			const sorted: JsonObject = {};
 			for (const key of keys) {
-				sorted[key] = (value as Record<string, unknown>)[key];
+				sorted[key] = (value as JsonObject)[key];
 			}
 			return sorted;
 		}

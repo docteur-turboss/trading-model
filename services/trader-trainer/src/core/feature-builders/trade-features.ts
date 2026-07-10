@@ -23,8 +23,8 @@ function setTradeFeatures(
 	const buyQty = recentTrades
 		.filter((trade) => trade.side === TradeSide.Buy)
 		.reduce((acc, trade) => acc + trade.quantity, 0);
-	features.trade.avgPrice = state.norm.tradePrice.normalize(avgPrice);
-	features.trade.totalQty = state.norm.tradeQty.normalize(totalQty);
+	features.trade.avgPrice = state.norm.trade.price.normalize(avgPrice);
+	features.trade.totalQty = state.norm.trade.qty.normalize(totalQty);
 	features.trade.buyRatio = totalQty > 0 ? buyQty / totalQty : 0.5;
 }
 

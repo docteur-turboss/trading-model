@@ -2,6 +2,7 @@ import BrokerMessage from "@trading-model/broker-message";
 import { logger } from "@trading-model/common/config/logger";
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import { MongoConnectionManager } from "@trading-model/common/persistence/mongo-connection-manager";
+import { toInstanceId } from "@trading-model/common/domain/primitives";
 import { createBootstrap } from "@trading-model/common/server/bootstrap";
 import { BOOTSTRAP_ADDRESS_MANAGER } from "../config/address-manager";
 import { ENV } from "../config/env";
@@ -86,7 +87,7 @@ async function _initBrokerMessageConfig(): Promise<BrokerMessage> {
 			caPath: ENV.TLS_CA_PATH,
 			certPath: ENV.TLS_CERT_PATH,
 		},
-		instanceId: ENV.INSTANCE_ID,
+		instanceId: toInstanceId(ENV.INSTANCE_ID),
 		serviceName: ServiceInstanceName.AuditLoggerService,
 	});
 }

@@ -1,4 +1,5 @@
 import { createPublicKey, createVerify } from "node:crypto";
+import { CRYPTO } from "@trading-model/common/crypto/crypto-constants";
 
 export interface CertificateValidationInput {
 	certPem: string;
@@ -25,7 +26,7 @@ interface ParsedCertData {
 
 function _verifySignature(cert: ParsedCertData): boolean {
 	const caKey = createPublicKey(cert.issuerCert);
-	const verify = createVerify("sha256");
+	const verify = createVerify(CRYPTO.SHA256);
 	verify.update(cert.body);
 	return verify.verify(caKey, cert.signature, "base64");
 }
@@ -76,7 +77,7 @@ function _decodePemBody(pem: string): string {
 		.filter(
 			(line) => !(line.startsWith("-----BEGIN") || line.startsWith("-----END"))
 		);
-	return Buffer.from(lines.join(""), "base64").toString("utf8");
+	return Buffer.from(lines.join(""), "base64").toString(CRYPTO.UTF8);
 }
 
 function parseCert(certPem: string): ParsedCertData {

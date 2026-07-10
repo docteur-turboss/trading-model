@@ -11,10 +11,10 @@ export class GenomeSummaryBuilder {
 		genome: DeepReadonly<LamarckGenome>
 	): BestAgentSummary["gaControl"] {
 		return {
-			populationSize: genome.gaControl.populationSize,
-			elitismFraction: genome.gaControl.elitismFraction,
-			survivorFraction: genome.gaControl.survivorFraction,
-			episodesPerIndividual: genome.gaControl.episodesPerIndividual,
+			populationSize: genome.gaControl.population.size,
+			elitismFraction: genome.gaControl.population.elitismFraction,
+			survivorFraction: genome.gaControl.population.survivorFraction,
+			episodesPerIndividual: genome.gaControl.evaluation.episodesPerIndividual,
 			selectionType: genome.gaControl.selectionType,
 			fitnessType: genome.gaControl.fitnessType,
 		};
@@ -55,10 +55,10 @@ export class GenomeSummaryBuilder {
 			generation: genome.generation,
 			fitness,
 			sharpe: fitnessMeta?.rawScores
-				? GenomeSummaryBuilder.computeSharpe(fitnessMeta.rawScores)
+				? GenomeSummaryBuilder.computeSharpe(fitnessMeta.rawScores.values)
 				: 0,
 			avgPnl: fitnessMeta?.rawScores
-				? GenomeSummaryBuilder.computeAvgPnl(fitnessMeta.rawScores)
+				? GenomeSummaryBuilder.computeAvgPnl(fitnessMeta.rawScores.values)
 				: 0,
 			negFlops: 0,
 			complexityPenalty: 0,

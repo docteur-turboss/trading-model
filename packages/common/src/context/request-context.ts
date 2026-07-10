@@ -2,6 +2,7 @@ import { AsyncLocalStorage } from "node:async_hooks";
 
 import type { Request } from "express";
 import type { CorrelationId } from "../domain/primitives";
+import type { ClientIdentity } from "../domain/primitives/string-ids";
 import { HTTP_HEADERS } from "../http-headers";
 
 /**
@@ -9,7 +10,7 @@ import { HTTP_HEADERS } from "../http-headers";
  * across async boundaries (e.g., when making outbound HTTP calls).
  */
 export interface RequestStore {
-	clientIdentity: string;
+	clientIdentity: ClientIdentity;
 	requestId: CorrelationId;
 	correlationId: CorrelationId;
 }
@@ -27,7 +28,7 @@ export function requestContextMiddleware(
 ): void {
 	const store: RequestStore = {
 		clientIdentity:
-			(req as unknown as Record<string, string>).clientIdentity ?? "unknown",
+			((req as unknown as Record<string, string>).clientIdentity ?? "unknown") as ClientIdentity,
 		requestId: ((req.headers[HTTP_HEADERS.X_REQUEST_ID] as string) ??
 			(req as unknown as Record<string, string>).correlationId ??
 			"") as CorrelationId,

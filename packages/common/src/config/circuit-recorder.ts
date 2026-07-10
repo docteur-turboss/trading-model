@@ -1,3 +1,4 @@
+import type { Hostname } from "../domain/primitives/hostname";
 import {
 	checkHostnameCircuit,
 	checkServiceCircuit,
@@ -6,11 +7,12 @@ import {
 	recordServiceFailure,
 	recordServiceSuccess,
 } from "./http-circuit-breaker";
+import { parseServiceName, type ServiceInstanceName } from "./services.types";
 import type { HttpRequestOptions } from "./http-types";
 
 export interface ServiceRoute {
-	hostname: string;
-	serviceName?: string;
+	hostname: Hostname;
+	serviceName?: ServiceInstanceName;
 }
 
 export class CircuitRecorder {
@@ -18,8 +20,11 @@ export class CircuitRecorder {
 		urlStr: string,
 		options?: HttpRequestOptions
 	): ServiceRoute {
-		const hostname = new URL(urlStr).hostname;
-		const serviceName = options?.serviceName;
+		const hostname = new URL(urlStr).hostname as Hostname;
+		const rawServiceName = options?.serviceName;
+		const serviceName = rawServiceName
+			? parseServiceName(rawServiceName)
+			: undefined;
 		checkHostnameCircuit(hostname);
 		if (serviceName) {
 			checkServiceCircuit(serviceName);
@@ -27,7 +32,7 @@ export class CircuitRecorder {
 		return { hostname, serviceName };
 	}
 
-	recordSuccess(hostname: string, serviceName: string | undefined): void {
+	recordSuccess(hostname: Hostname, serviceName: ServiceInstanceName | undefined): void {
 		recordHostnameSuccess(hostname);
 		if (serviceName) {
 			recordServiceSuccess(serviceName);
@@ -35,8 +40,8 @@ export class CircuitRecorder {
 	}
 
 	recordFailure(
-		hostname: string,
-		serviceName: string | undefined,
+		hostname: Hostname,
+		serviceName: ServiceInstanceName | undefined,
 		serviceInstanceCount?: number
 	): void {
 		recordHostnameFailure(hostname);

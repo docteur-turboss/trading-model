@@ -1,7 +1,9 @@
+import type { HttpStatusCode } from "../http-status";
+
 export class HttpClientError extends Error {
-	public readonly statusCode?: number;
+	public readonly statusCode?: HttpStatusCode;
 	public readonly code = "HttpClientError";
-	constructor(message: string, statusCode?: number) {
+	constructor(message: string, statusCode?: HttpStatusCode) {
 		super(message);
 		this.name = "HttpClientError";
 		this.statusCode = statusCode;

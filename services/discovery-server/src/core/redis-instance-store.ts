@@ -1,4 +1,6 @@
+import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import type { ServiceInstance } from "@trading-model/common/contracts/service-registry.types";
+import type { InstanceId } from "@trading-model/common/domain/primitives";
 import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
 import { InstanceCleanupHandler } from "./instance-cleanup-handler";
 import { InstanceHeartbeatHandler } from "./instance-heartbeat-handler";
@@ -35,7 +37,7 @@ export class RedisInstanceStore {
 		this._cleanupHandler = new InstanceCleanupHandler({ redis, keyBuilder });
 	}
 
-	resolveToken(instanceId: string): Promise<string> {
+	resolveToken(instanceId: InstanceId): Promise<string> {
 		return this._registrar.resolveToken(instanceId);
 	}
 
@@ -46,11 +48,11 @@ export class RedisInstanceStore {
 		return this._registrar.buildStoredInstance(instance, now);
 	}
 
-	getMetadata(instanceId: string): Promise<ServiceInstance | undefined> {
+	getMetadata(instanceId: InstanceId): Promise<ServiceInstance | undefined> {
 		return this._reader.getMetadata(instanceId);
 	}
 
-	getServiceInstanceIds(serviceName: string): Promise<string[]> {
+	getServiceInstanceIds(serviceName: ServiceInstanceName): Promise<string[]> {
 		return this._reader.getServiceInstanceIds(serviceName);
 	}
 
@@ -64,13 +66,13 @@ export class RedisInstanceStore {
 		return this.getMetadata(instanceId);
 	}
 
-	async getInstances(serviceName: string): Promise<ServiceInstance[]> {
+	async getInstances(serviceName: ServiceInstanceName): Promise<ServiceInstance[]> {
 		const instanceIds = await this.getServiceInstanceIds(serviceName);
 		if (instanceIds.length === 0) {
 			return [];
 		}
 		const keys = instanceIds.map((id) =>
-			this._deps.keyBuilder.instanceMetadata(id)
+			this._deps.keyBuilder.instanceMetadata(id as InstanceId)
 		);
 		return this.getMetadatas(keys);
 	}
@@ -84,8 +86,8 @@ export class RedisInstanceStore {
 	}
 
 	removeInstanceSetAndMetadata(
-		serviceName: string,
-		instanceId: string
+		serviceName: ServiceInstanceName,
+		instanceId: InstanceId
 	): Promise<boolean> {
 		return this._cleanupHandler.removeInstanceSetAndMetadata(
 			serviceName,
@@ -97,11 +99,11 @@ export class RedisInstanceStore {
 		serviceName,
 		instanceId,
 	}: ServiceIdentity): Promise<boolean> {
-		return this.removeInstanceSetAndMetadata(serviceName, instanceId);
+		return this.removeInstanceSetAndMetadata(serviceName as unknown as ServiceInstanceName, instanceId);
 	}
 
-	listServiceNames(): Promise<string[]> {
-		return this._reader.listServiceNames();
+	listServiceNames(): Promise<ServiceInstanceName[]> {
+		return this._reader.listServiceNames() as Promise<ServiceInstanceName[]>;
 	}
 
 	async dump(): Promise<Record<string, ServiceInstance[]>> {

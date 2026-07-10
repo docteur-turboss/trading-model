@@ -116,8 +116,7 @@ describe("setupTlsWatcher", () => {
 				ca: "mock-cert-content",
 			});
 			expect(logger.info).toHaveBeenCalledWith("TLS context reloaded", {
-				event: "change",
-				file: "cert.pem",
+				context: { event: "change", file: "cert.pem" },
 			});
 		});
 

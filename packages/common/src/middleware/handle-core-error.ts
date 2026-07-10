@@ -24,7 +24,15 @@ export interface ErrorResponse {
 
 export type ErrorMapping = Record<string, ErrorResponse>;
 
-export type CoreResponse<TData = string> = Promise<[TData, string]>;
+export interface CoreSuccessResult<TData = string> {
+	data: TData;
+	statusCode: string;
+}
+
+export interface CoreErrorResult {
+	errorCode: string;
+	errorMessage: string;
+}
 
 export function ensureAtLeastOneField(fields: Record<string, unknown>) {
 	if (!Object.values(fields).some(Boolean)) {
@@ -38,10 +46,10 @@ export const handleCoreError = (
 	ctx: CoreErrorContext,
 	err: unknown,
 	mapping: ErrorMapping
-): [string, string] | never => {
+): CoreErrorResult | never => {
 	if (err instanceof Error && mapping[err.message]) {
 		const { code, message } = mapping[err.message];
-		return [code, message];
+		return { errorCode: code, errorMessage: message };
 	}
 
 	logger.error("Core operation failed", {
@@ -58,10 +66,10 @@ export const handleOnlyDataCore = async <TData>(
 	fn: () => Promise<TData>,
 	errorMap: ErrorMapping,
 	ctx: CoreErrorContext
-): Promise<CoreResponse<TData | string>> => {
+): Promise<CoreSuccessResult<TData | string> | CoreErrorResult> => {
 	try {
 		const result = await fn();
-		return [result, HTTP_CODE.success];
+		return { data: result, statusCode: HTTP_CODE.success };
 	} catch (err) {
 		return handleCoreError(ctx, err, errorMap);
 	}

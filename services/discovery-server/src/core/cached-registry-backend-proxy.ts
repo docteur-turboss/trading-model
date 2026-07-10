@@ -4,7 +4,7 @@ import type {
 	RegistryBackend,
 	ServiceInstance,
 } from "@trading-model/common/contracts/service-registry.types";
-import type { ServiceId } from "@trading-model/common/domain/primitives";
+import type { InstanceId, ServiceId } from "@trading-model/common/domain/primitives";
 import { toInstanceId } from "@trading-model/common/domain/primitives";
 import type { ServiceEndpoint } from "@trading-model/common/domain/service-identity";
 import type { TokenValidation } from "@trading-model/common/domain/token-validation";
@@ -12,18 +12,18 @@ import type { TokenValidation } from "@trading-model/common/domain/token-validat
 export class CachedRegistryBackendProxy {
 	constructor(private readonly _backend: RegistryBackend) {}
 
-	async updateToken(instanceId: string): Promise<string> {
+	async updateToken(instanceId: InstanceId): Promise<string> {
 		return await this._backend.updateToken(toInstanceId(instanceId));
 	}
 
-	async getInstanceCount(serviceName: string): Promise<number> {
+	async getInstanceCount(serviceName: ServiceInstanceName): Promise<number> {
 		const instances = await this._backend.getInstances(
 			parseServiceName(serviceName)
 		);
 		return instances.length;
 	}
 
-	async getServiceVersion(serviceName: string): Promise<number> {
+	async getServiceVersion(serviceName: ServiceInstanceName): Promise<number> {
 		const instances = await this._backend.getInstances(
 			parseServiceName(serviceName)
 		);
@@ -33,11 +33,11 @@ export class CachedRegistryBackendProxy {
 		}, 0);
 	}
 
-	async listServiceNames(): Promise<string[]> {
-		return await this._backend.listServiceNames();
+	async listServiceNames(): Promise<ServiceInstanceName[]> {
+		return await this._backend.listServiceNames() as ServiceInstanceName[];
 	}
 
-	async dump(): Promise<Record<string, ServiceInstance[]>> {
+	async dump(): Promise<Record<ServiceInstanceName, ServiceInstance[]>> {
 		return await this._backend.dump();
 	}
 
@@ -45,12 +45,12 @@ export class CachedRegistryBackendProxy {
 		return await this._backend.validInstanceToken(validation);
 	}
 
-	generateInstanceToken(instanceId: string): string {
+	generateInstanceToken(instanceId: InstanceId): string {
 		return this._backend.generateInstanceToken(toInstanceId(instanceId));
 	}
 
-	verifyInstanceName(serviceName: string): boolean {
-		return this._backend.verifyInstanceName(serviceName as ServiceInstanceName);
+	verifyInstanceName(serviceName: ServiceInstanceName): boolean {
+		return this._backend.verifyInstanceName(serviceName);
 	}
 
 	generateInstanceId(endpoint: ServiceEndpoint): ServiceId {

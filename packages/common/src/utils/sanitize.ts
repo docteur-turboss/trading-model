@@ -1,6 +1,8 @@
+import type { JsonObject } from "../domain/primitives";
+
 const PEM_LINE_PATTERN = /-----BEGIN[^-]+-----[\s\S]*?-----END[^-]+-----/g;
 
-function _sanitizeError(err: Error): Record<string, unknown> {
+function _sanitizeError(err: Error): JsonObject {
 	return {
 		name: err.name,
 		message: err.message,
@@ -9,9 +11,9 @@ function _sanitizeError(err: Error): Record<string, unknown> {
 }
 
 function _sanitizeObject(
-	value: Record<string, unknown>
-): Record<string, unknown> {
-	const obj: Record<string, unknown> = {};
+	value: JsonObject
+): JsonObject {
+	const obj: JsonObject = {};
 	for (const [key, val] of Object.entries(value)) {
 		obj[key] = sanitizeForLog(val);
 	}
@@ -29,7 +31,7 @@ export function sanitizeForLog(value: unknown): unknown {
 		if (Array.isArray(value)) {
 			return value.map((item) => sanitizeForLog(item));
 		}
-		return _sanitizeObject(value as Record<string, unknown>);
+		return _sanitizeObject(value as JsonObject);
 	}
 	return value;
 }

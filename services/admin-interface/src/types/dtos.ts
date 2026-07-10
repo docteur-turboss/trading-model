@@ -16,6 +16,7 @@ import type {
 } from "@trading-model/common/domain/pagination";
 import type {
 	Percentage,
+	Topic,
 	TradingSymbol,
 } from "@trading-model/common/domain/primitives";
 
@@ -71,7 +72,7 @@ export interface AdminAuditFilter extends PaginationQuery, AuditFilter {
 }
 
 export interface PaginatedEvents extends PaginationResult<AuditEvent> {
-	volumeByTopic: { topic: string; count: number }[];
+	volumeByTopic: { topic: Topic; count: number }[];
 }
 
 export interface JobList {

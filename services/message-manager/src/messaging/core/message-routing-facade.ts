@@ -1,4 +1,5 @@
-﻿import { ClaimExecutor } from "./claim-executor";
+﻿import type { InstanceId } from "@trading-model/common/domain/primitives";
+import { ClaimExecutor } from "./claim-executor";
 import { DeduplicationService } from "./deduplication-service";
 import type {
 	AckRef,
@@ -27,14 +28,14 @@ export interface IStreamGroupOps {
 }
 
 export interface IPendingAckOps {
-	recoverPendingAcks(ownInstanceId: string, maxAgeMs?: number): Promise<number>;
+	recoverPendingAcks(ownInstanceId: InstanceId, maxAgeMs?: number): Promise<number>;
 	addPendingAck(
-		instanceId: string,
+		instanceId: InstanceId,
 		messageId: string,
 		data: PendingAckData
 	): Promise<void>;
-	removePendingAck(instanceId: string, messageId: string): Promise<void>;
-	getPendingAcks(instanceId: string): Promise<Record<string, PendingAckData>>;
+	removePendingAck(instanceId: InstanceId, messageId: string): Promise<void>;
+	getPendingAcks(instanceId: InstanceId): Promise<Record<string, PendingAckData>>;
 }
 
 export interface IClaimOps {
@@ -75,7 +76,7 @@ export class MessageRoutingFacade {
 	}
 
 	recoverPendingAcks(
-		ownInstanceId: string,
+		ownInstanceId: InstanceId,
 		maxAgeMs = 120_000
 	): Promise<number> {
 		return this._pendingAckOps.recoverPendingAcks(ownInstanceId, maxAgeMs);
@@ -120,18 +121,18 @@ export class MessageRoutingFacade {
 	}
 
 	async addPendingAck(
-		instanceId: string,
+		instanceId: InstanceId,
 		messageId: string,
 		data: PendingAckData
 	): Promise<void> {
 		await this._pendingAckOps.addPendingAck(instanceId, messageId, data);
 	}
 
-	async removePendingAck(instanceId: string, messageId: string): Promise<void> {
+	async removePendingAck(instanceId: InstanceId, messageId: string): Promise<void> {
 		await this._pendingAckOps.removePendingAck(instanceId, messageId);
 	}
 
-	getPendingAcks(instanceId: string): Promise<Record<string, PendingAckData>> {
+	getPendingAcks(instanceId: InstanceId): Promise<Record<string, PendingAckData>> {
 		return this._pendingAckOps.getPendingAcks(instanceId);
 	}
 

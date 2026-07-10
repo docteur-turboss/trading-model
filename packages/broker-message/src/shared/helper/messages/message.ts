@@ -30,7 +30,7 @@ export class MessageMetadata {
 	private _chaining: ChainingMetadata;
 
 	public constructor(
-		topic: string,
+		topic: Topic,
 		eventType: EventEnumMap,
 		publisher: ServiceIdentity,
 		data: Partial<Omit<MetadataType, "topic" | "eventType" | "publisher">> = {}
@@ -100,12 +100,12 @@ export class MessageMetadata {
 		this.schemaVersion = version as "1.0.0";
 		return this;
 	}
-	public setEventType(event: string): this {
+	public setEventType(event: EventEnumMap): this {
 		EVENT_TYPE_METADATA_PREDICATE.parse(event);
-		this.eventType = event as EventEnumMap;
+		this.eventType = event;
 		return this;
 	}
-	public setTopic(topic: string): this {
+	public setTopic(topic: Topic): this {
 		TOPIC_METADATA_PREDICATE.parse(topic);
 		this.topic = toTopic(topic);
 		return this;

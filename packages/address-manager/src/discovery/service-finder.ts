@@ -57,13 +57,13 @@ export class ServiceFinder {
 			return cached;
 		}
 		return region
-			? this._resolver.resolveAndValidateServiceInRegion(serviceName, region)
-			: this._resolver.resolveAndValidateService(serviceName);
+			? this._resolver.resolveAndValidateServiceInRegion(toServiceId(serviceName), region)
+			: this._resolver.resolveAndValidateService(toServiceId(serviceName));
 	}
 
 	findAllServices(
 		serviceName: ServiceInstanceName
 	): Promise<ServiceInstance[]> {
-		return this._resolver.findAllServices(serviceName);
+		return this._resolver.findAllServices(toServiceId(serviceName));
 	}
 }

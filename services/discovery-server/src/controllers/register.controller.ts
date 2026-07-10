@@ -1,7 +1,9 @@
 import {
 	toInstanceId,
 	toServiceId,
+	type InstanceId,
 } from "@trading-model/common/domain/primitives";
+import { parseServiceName } from "@trading-model/common/config/services.types";
 import { catchSync } from "@trading-model/common/middleware/catch-error";
 import { sendResponse } from "@trading-model/common/middleware/response-exception";
 import { isNonEmptyString } from "@trading-model/common/validation/primitives";
@@ -35,7 +37,7 @@ function createRegisterHandler(registry: ServiceRegistry): RequestHandler {
 		if (!data) {
 			return _buildValidationError(req);
 		}
-		if (!registry.verifyInstanceName(data.serviceName)) {
+		if (!registry.verifyInstanceName(parseServiceName(data.serviceName))) {
 			return sendResponse({ error: "Invalid service name" }, 400);
 		}
 		const instance = buildServiceInstance(data, registry);
@@ -67,21 +69,21 @@ function createGetServiceInstancesHandler(
 		if (!serviceName) {
 			return sendResponse({ error: "serviceName is required" }, 400);
 		}
-		if (!registry.verifyInstanceName(serviceName)) {
+		if (!registry.verifyInstanceName(parseServiceName(serviceName))) {
 			return sendResponse({ error: "Unknown service" }, 404);
 		}
-		return sendResponse(registry.getInstances(serviceName), 200);
+		return sendResponse(registry.getInstances(parseServiceName(serviceName)), 200);
 	});
 }
 
 function _validateRouteParams(
 	req: import("express").Request
-): { serviceName: string; instanceId: string } | null {
+): { serviceName: string; instanceId: InstanceId } | null {
 	const { serviceName, instanceId } = req.params;
 	if (!(isNonEmptyString(serviceName) && isNonEmptyString(instanceId))) {
 		return null;
 	}
-	return { serviceName, instanceId };
+	return { serviceName, instanceId: toInstanceId(instanceId) };
 }
 
 function createGetInstanceHandler(registry: ServiceRegistry): RequestHandler {

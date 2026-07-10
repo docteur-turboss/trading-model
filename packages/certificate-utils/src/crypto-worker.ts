@@ -1,3 +1,4 @@
+import { type JobType } from "@trading-model/common/domain/primitives";
 import {
 	BaseWorker,
 	type BaseWorkerConfig,
@@ -14,9 +15,9 @@ import { type SignOptions, signCertificate } from "./sign-certificate";
 import type { KeyPair, KeyPairWithId, SignInput } from "./types";
 import { validateCertificate } from "./validate-certificate";
 
-const HANDLERS: [string, (job: { payload: unknown }) => Promise<unknown>][] = [
+const HANDLERS: [JobType, (job: { payload: unknown }) => Promise<unknown>][] = [
 	[
-		"generateKeyPair",
+		"generateKeyPair" as JobType,
 		(job: { payload: unknown }) =>
 			Promise.resolve(
 				generateKeyPair(
@@ -25,7 +26,7 @@ const HANDLERS: [string, (job: { payload: unknown }) => Promise<unknown>][] = [
 			),
 	],
 	[
-		"generateKeyPairWithId",
+		"generateKeyPairWithId" as JobType,
 		(job: { payload: unknown }) =>
 			Promise.resolve(
 				generateKeyPairWithIdSync(
@@ -34,17 +35,17 @@ const HANDLERS: [string, (job: { payload: unknown }) => Promise<unknown>][] = [
 			),
 	],
 	[
-		"signCertificate",
+		"signCertificate" as JobType,
 		(job: { payload: unknown }) =>
 			Promise.resolve(signCertificate(job.payload as SignOptions)),
 	],
 	[
-		"createCsr",
+		"createCsr" as JobType,
 		(job: { payload: unknown }) =>
 			Promise.resolve(createCsr(job.payload as CsrOptions)),
 	],
 	[
-		"validateCertificate",
+		"validateCertificate" as JobType,
 		(job: { payload: unknown }) =>
 			Promise.resolve(
 				validateCertificate({
@@ -54,14 +55,14 @@ const HANDLERS: [string, (job: { payload: unknown }) => Promise<unknown>][] = [
 			),
 	],
 	[
-		"parseKey",
+		"parseKey" as JobType,
 		(job: { payload: unknown }) =>
 			Promise.resolve(
 				parseKey((job.payload as { privateKey: string }).privateKey)
 			),
 	],
 	[
-		"sign",
+		"sign" as JobType,
 		(job: { payload: unknown }) =>
 			Promise.resolve(sign(job.payload as SignInput)),
 	],

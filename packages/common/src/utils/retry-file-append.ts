@@ -56,8 +56,8 @@ async function _backoffDelay(
 		setTimeout(
 			resolve,
 			computeExponentialBackoff(attempt, {
-				baseDelayMs: cfg.baseDelayMs,
-				maxDelayMs: cfg.maxDelayMs,
+				baseDelayMs: cfg.baseDelayMs ?? 100,
+				maxDelayMs: cfg.maxDelayMs ?? 800,
 			})
 		)
 	);

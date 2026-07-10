@@ -1,5 +1,7 @@
 import { describe, expect, it, jest } from "@jest/globals";
 
+import { REDIS_STATUS } from "@trading-model/common/persistence/redis-constants";
+
 jest.mock("../../../../src/config/logger", () => ({
 	logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
@@ -25,7 +27,7 @@ function createMockRedis() {
 		smembers: jest
 			.fn<() => Promise<string[]>>()
 			.mockResolvedValue(["service-a"]),
-		status: "ready",
+		status: REDIS_STATUS.READY,
 	};
 }
 

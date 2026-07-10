@@ -1,3 +1,4 @@
+import type { URLString } from "@trading-model/common/domain/primitives";
 import { logger } from "@trading-model/common/config/logger";
 import {
 	type DiscoveryWsMessage,
@@ -14,7 +15,7 @@ export type WsMessage = DiscoveryWsMessage;
 export type WsEventHandler = (message: WsMessage) => void;
 
 export interface WebSocketClientOptions {
-	url: string;
+	url: URLString;
 	reconnectIntervalMs?: number;
 	subscribedServices?: string[];
 	token?: string;

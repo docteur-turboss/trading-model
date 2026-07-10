@@ -1,5 +1,5 @@
 ﻿import type { ServiceIdentity } from "@trading-model/common/contracts/message.types";
-import type { Topic } from "@trading-model/common/domain/primitives";
+import type { InstanceId, Topic } from "@trading-model/common/domain/primitives";
 
 import type { TopicSubscription } from "./messaging-types";
 import { SubscriptionRedisReader } from "./subscription-redis-reader";
@@ -23,7 +23,7 @@ export class SubscriptionRedisStore {
 	}
 
 	add(
-		topic: string,
+		topic: Topic,
 		callbackPath: string,
 		serviceIdentity: ServiceIdentity
 	): Promise<void> {
@@ -34,11 +34,11 @@ export class SubscriptionRedisStore {
 		return this._writer.remove(sub);
 	}
 
-	getByTopic(topic: string): Promise<SubscriptionEntry[]> {
+	getByTopic(topic: Topic): Promise<SubscriptionEntry[]> {
 		return this._reader.getByTopic(topic);
 	}
 
-	getTopicsByInstance(instanceId: string): Promise<string[]> {
+	getTopicsByInstance(instanceId: InstanceId): Promise<string[]> {
 		return this._reader.getTopicsByInstance(instanceId);
 	}
 

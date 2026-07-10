@@ -1,4 +1,5 @@
 import { logger } from "@trading-model/common/config/logger";
+import type { InstanceId } from "@trading-model/common/domain/primitives";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import type Redis from "ioredis";
 import type { ICircuitStateStore } from "./circuit-state-store";
@@ -12,7 +13,7 @@ export class RedisCircuitStateStore implements ICircuitStateStore {
 	) {}
 
 	async setCircuitState(
-		instanceId: string,
+		instanceId: InstanceId,
 		state: CircuitState
 	): Promise<void> {
 		try {
@@ -29,7 +30,7 @@ export class RedisCircuitStateStore implements ICircuitStateStore {
 		}
 	}
 
-	async getCircuitState(instanceId: string): Promise<CircuitState | null> {
+	async getCircuitState(instanceId: InstanceId): Promise<CircuitState | null> {
 		try {
 			const raw = await this._redis.get(this._circuitKey(instanceId));
 			if (!raw) {
@@ -45,7 +46,7 @@ export class RedisCircuitStateStore implements ICircuitStateStore {
 		}
 	}
 
-	async deleteCircuitState(instanceId: string): Promise<void> {
+	async deleteCircuitState(instanceId: InstanceId): Promise<void> {
 		try {
 			await this._redis.del(this._circuitKey(instanceId));
 		} catch (err) {
@@ -56,7 +57,7 @@ export class RedisCircuitStateStore implements ICircuitStateStore {
 		}
 	}
 
-	private _circuitKey(instanceId: string): string {
+	private _circuitKey(instanceId: InstanceId): string {
 		return `${this._prefix}circuit:${instanceId}`;
 	}
 }

@@ -1,6 +1,13 @@
 import { randomUUID } from "node:crypto";
 
 import {
+	toInstanceId,
+	toMessageId,
+	toTopic,
+	type Topic,
+	type URLString,
+} from "@trading-model/common/domain/primitives";
+import {
 	type ResponseObject,
 	sendResponse,
 } from "@trading-model/common/middleware/response-exception";
@@ -65,7 +72,7 @@ async function _claimAndReplayBatch(options: ClaimAndReplayOptions): Promise<{
 async function _releaseAndClaimEntries(
 	limit: number,
 	batchId: string,
-	topic: string | undefined
+	topic: Topic | undefined
 ): Promise<Array<{ id: string; message: unknown }>> {
 	await dlqClaimManager.releaseStaleClaims();
 	return _claimRetryEntries(limit, batchId, topic);
@@ -73,26 +80,26 @@ async function _releaseAndClaimEntries(
 
 function _executeBatchReplay(
 	entries: Array<{ id: string; message: unknown }>,
-	messageManagerUrl: string,
+	messageManagerUrl: URLString,
 	batchId: string
 ): Promise<{ success: number; errors: DlqError[] }> {
 	return doReplayBatch({
 		entries: _toEntryRefs(entries),
 		messageManagerUrl,
 		batchId,
-		instanceId: ENV.INSTANCE_ID,
+		instanceId: toInstanceId(ENV.INSTANCE_ID),
 	});
 }
 
 function _claimRetryEntries(
 	limit: number,
 	batchId: string,
-	topic: string | undefined
+	topic: Topic | undefined
 ): Promise<Array<{ id: string; message: unknown }>> {
 	return dlqClaimManager.claimEntriesForRetry({
 		limit,
 		batchId,
-		instanceId: ENV.INSTANCE_ID,
+		instanceId: toInstanceId(ENV.INSTANCE_ID),
 		topic,
 	});
 }
@@ -101,7 +108,7 @@ function _toEntryRefs(
 	entries: Array<{ id: string; message: unknown }>
 ): DlqEntryRef[] {
 	return entries.map((entry) => ({
-		id: entry.id,
+		id: toMessageId(entry.id),
 		message: entry.message,
 	}));
 }
@@ -127,7 +134,7 @@ export async function executeReplayPipeline(
 		messageManagerUrl,
 		limit: validation.data.limit,
 		batchId,
-		topic: validation.data.topic,
+		topic: validation.data.topic ? toTopic(validation.data.topic) : undefined,
 		span,
 	});
 	if (result.response) {
@@ -136,7 +143,7 @@ export async function executeReplayPipeline(
 
 	return _buildSuccessResponse(
 		batchId,
-		validation.data.topic,
+		validation.data.topic ? toTopic(validation.data.topic) : undefined,
 		result.successCount,
 		result.errors
 	);
@@ -144,7 +151,7 @@ export async function executeReplayPipeline(
 
 function _buildSuccessResponse(
 	batchId: string,
-	topic: string | undefined,
+	topic: Topic | undefined,
 	successCount: number,
 	errors: DlqError[]
 ): ResponseObject {

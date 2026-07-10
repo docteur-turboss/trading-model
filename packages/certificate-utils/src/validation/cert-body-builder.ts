@@ -1,5 +1,6 @@
 import { createSign } from "node:crypto";
 
+import { CRYPTO } from "@trading-model/common/crypto/crypto-constants";
 import type { SerialNumber } from "@trading-model/common/domain/primitives";
 
 export interface CertBodyBuilderOptions {
@@ -38,7 +39,7 @@ export class CertBodyBuilder {
 	}
 
 	signCertBody(certBody: string, privateKey: string): string {
-		const sign = createSign("sha256");
+		const sign = createSign(CRYPTO.SHA256);
 		sign.update(certBody);
 		return sign.sign(privateKey, "base64");
 	}

@@ -85,17 +85,25 @@ function _deserializeNormState(
 	sd: SymbolStateSerializable
 ): SymbolState["norm"] {
 	return {
-		candleClose: NormalizationStats.fromJSON(sd.closeNorm),
-		candleVolume: NormalizationStats.fromJSON(sd.volumeNorm),
-		candleOpen: NormalizationStats.fromJSON(sd.openNorm),
-		candleHigh: NormalizationStats.fromJSON(sd.highNorm),
-		candleLow: NormalizationStats.fromJSON(sd.lowNorm),
-		tradePrice: NormalizationStats.fromJSON(sd.tradePriceNorm),
-		tradeQty: NormalizationStats.fromJSON(sd.tradeQtyNorm),
-		bid: NormalizationStats.fromJSON(sd.bidNorm),
-		ask: NormalizationStats.fromJSON(sd.askNorm),
-		spread: NormalizationStats.fromJSON(sd.spreadNorm),
-		tickerVolume: NormalizationStats.fromJSON(sd.tickerVolumeNorm),
+		candle: {
+			close: NormalizationStats.fromJSON(sd.norm.candle.close),
+			volume: NormalizationStats.fromJSON(sd.norm.candle.volume),
+			open: NormalizationStats.fromJSON(sd.norm.candle.open),
+			high: NormalizationStats.fromJSON(sd.norm.candle.high),
+			low: NormalizationStats.fromJSON(sd.norm.candle.low),
+		},
+		trade: {
+			price: NormalizationStats.fromJSON(sd.norm.trade.price),
+			qty: NormalizationStats.fromJSON(sd.norm.trade.qty),
+		},
+		book: {
+			bid: NormalizationStats.fromJSON(sd.norm.book.bid),
+			ask: NormalizationStats.fromJSON(sd.norm.book.ask),
+			spread: NormalizationStats.fromJSON(sd.norm.book.spread),
+		},
+		ticker: {
+			volume: NormalizationStats.fromJSON(sd.norm.ticker.volume),
+		},
 	};
 }
 

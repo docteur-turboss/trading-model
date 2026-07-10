@@ -36,6 +36,7 @@ jest.mock("../../../src/worker/worker-client", () => {
 	return { WorkerClient: MockWorkerClient };
 });
 
+import type { Capability, JobType } from "../../../src/domain/primitives";
 import { BaseWorker } from "../../../src/worker/base-worker";
 import { WorkerClient } from "../../../src/worker/worker-client";
 
@@ -62,7 +63,7 @@ describe("BaseWorker", () => {
 		worker = new BaseWorker({
 			serverUrl: "wss://scheduler:3000",
 			schedulerHttpUrl: "https://scheduler:3000",
-			capabilities: ["test-type"],
+			capabilities: ["test-type" as unknown as Capability],
 			maxConcurrency: 3,
 			heartbeatIntervalMs: 5000,
 		});
@@ -97,7 +98,7 @@ describe("BaseWorker", () => {
 	describe("registerHandler", () => {
 		it("should process jobs through registered handler", async () => {
 			const handler = jest.fn<any>().mockResolvedValue("done");
-			worker.registerHandler("test-type", handler);
+			worker.registerHandler("test-type" as JobType, handler);
 
 			MOCK_POST.mockResolvedValue(undefined);
 
@@ -152,7 +153,7 @@ describe("BaseWorker", () => {
 			const handler = jest
 				.fn<any>()
 				.mockRejectedValue(new Error("Handler error"));
-			worker.registerHandler("test-type", handler);
+			worker.registerHandler("test-type" as JobType, handler);
 
 			MOCK_POST.mockResolvedValue(undefined);
 
@@ -210,7 +211,7 @@ describe("BaseWorker", () => {
 				await new Promise((resolve) => setTimeout(resolve, 1000));
 				return "result";
 			});
-			worker.registerHandler("test-type", handler);
+			worker.registerHandler("test-type" as JobType, handler);
 			MOCK_POST.mockResolvedValue(undefined);
 
 			await worker.start();
@@ -244,7 +245,7 @@ describe("BaseWorker", () => {
 				await new Promise((resolve) => setTimeout(resolve, 60000));
 				return "late-result";
 			});
-			worker.registerHandler("test-type", handler);
+			worker.registerHandler("test-type" as JobType, handler);
 			MOCK_POST.mockResolvedValue(undefined);
 
 			await worker.start();
@@ -265,7 +266,7 @@ describe("BaseWorker", () => {
 
 		it("should handle non-Error throw from handler", async () => {
 			const handler = jest.fn<any>().mockRejectedValue("string-error");
-			worker.registerHandler("test-type", handler);
+			worker.registerHandler("test-type" as JobType, handler);
 			MOCK_POST.mockResolvedValue(undefined);
 
 			await worker.start();

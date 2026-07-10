@@ -1,3 +1,4 @@
+import { toInstanceId } from "@trading-model/common/domain/primitives";
 import { ENV } from "../config/env";
 import { logger } from "../config/logger";
 import { dlqRedisQueue } from "../config/redis-queue";
@@ -7,7 +8,7 @@ import { dlqRepository } from "./repository";
 export class ClaimReleaseService {
 	async releaseAndRequeue(): Promise<void> {
 		const releasedCount = await dlqClaimManager.releaseClaimsByInstance(
-			ENV.INSTANCE_ID
+			toInstanceId(ENV.INSTANCE_ID)
 		);
 		if (releasedCount > 0 && dlqRedisQueue.isAvailable()) {
 			await this._requeueReleased(releasedCount);

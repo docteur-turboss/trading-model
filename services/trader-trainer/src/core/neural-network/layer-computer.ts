@@ -9,20 +9,22 @@ export interface LayerComputationContext {
 	originalInput: Float32Array;
 }
 
+export interface LayerComputerConfig {
+	activationType: ActivationType[];
+	connectionType: ConnectionType;
+	useBias: boolean;
+}
+
 export class LayerComputer {
 	private readonly _activationType: ActivationType[];
 	private readonly _connectionType: ConnectionType;
 	private readonly _useBias: boolean;
 	private readonly _activationComputer = new ActivationComputer();
 
-	constructor(
-		activationType: ActivationType[],
-		connectionType: ConnectionType,
-		useBias: boolean
-	) {
-		this._activationType = activationType;
-		this._connectionType = connectionType;
-		this._useBias = useBias;
+	constructor(config: LayerComputerConfig) {
+		this._activationType = config.activationType;
+		this._connectionType = config.connectionType;
+		this._useBias = config.useBias;
 	}
 
 	computePreActivations(layer: LayerMemory, input: Float32Array): Float32Array {

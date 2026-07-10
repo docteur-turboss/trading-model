@@ -1,4 +1,5 @@
 ﻿import { createHash, randomUUID } from "node:crypto";
+import { CRYPTO } from "@trading-model/common/crypto/crypto-constants";
 import {
 	generateKeyPair,
 	KeyAlgorithm,
@@ -77,7 +78,7 @@ export class CaBootstrapper {
 			createdAt: now,
 			expiresAt,
 			fingerprint: toFingerprint(
-				createHash("sha256").update(caCertPem).digest("hex")
+				createHash(CRYPTO.SHA256).update(caCertPem).digest(CRYPTO.HEX)
 			),
 		});
 		return { caKeyPair, caCertPem };

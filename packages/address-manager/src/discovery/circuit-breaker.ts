@@ -1,4 +1,5 @@
-import type { CircuitState } from "@trading-model/common/domain/circuit-state";
+import { CircuitState } from "@trading-model/common/domain/circuit-state";
+import type { InstanceId } from "@trading-model/common/domain/primitives";
 import type { ICircuitBreaker } from "@trading-model/common/reliability/circuit-breaker.interface";
 import {
 	DEFAULT_LATENCY_P99_THRESHOLD_MS,
@@ -41,7 +42,7 @@ export class DiscoveryCircuitBreaker implements ICircuitBreaker {
 		this._state = new CircuitBreakerState(
 			failureThreshold,
 			halfOpenTimeoutMs,
-			(instanceId) => {
+			(instanceId: InstanceId) => {
 				this._persistence.deleteLastLoadTime(instanceId);
 				this._persistence.deletePersistedState(instanceId);
 				this._latency.deleteWindow(instanceId);
@@ -62,19 +63,19 @@ export class DiscoveryCircuitBreaker implements ICircuitBreaker {
 		);
 	}
 
-	async loadFromStore(instanceId: string): Promise<void> {
+	async loadFromStore(instanceId: InstanceId): Promise<void> {
 		await this._recorder.loadFromStore(instanceId);
 	}
-	check(instanceId: string): CircuitState {
+	check(instanceId: InstanceId): CircuitState {
 		return this.getState(instanceId);
 	}
-	isAllowed(instanceId: string): boolean {
+	isAllowed(instanceId: InstanceId): boolean {
 		const machine = this._state.getOrCreateMachine(instanceId);
 		const currentState = machine.getState(Date.now());
-		if (currentState === "closed") {
+		if (currentState === CircuitState.CLOSED) {
 			return true;
 		}
-		if (currentState === "open") {
+		if (currentState === CircuitState.OPEN) {
 			const state = this._state.getInstanceState(instanceId);
 			const allowed = state
 				? this._state.tryHalfOpen(instanceId, state)
@@ -86,29 +87,29 @@ export class DiscoveryCircuitBreaker implements ICircuitBreaker {
 		}
 		return true;
 	}
-	recordFailure(instanceId: string): void {
+	recordFailure(instanceId: InstanceId): void {
 		this._recorder.recordFailure(instanceId);
 	}
-	recordSuccess(instanceId: string): void {
+	recordSuccess(instanceId: InstanceId): void {
 		this._recorder.recordSuccess(instanceId);
 	}
-	recordLatency(instanceId: string, durationMs: number): void {
+	recordLatency(instanceId: InstanceId, durationMs: number): void {
 		this._recorder.recordLatency(instanceId, durationMs);
 	}
-	isOpen(instanceId: string): boolean {
-		return this._state.getInstanceState(instanceId)?.state === "open";
+	isOpen(instanceId: InstanceId): boolean {
+		return this._state.getInstanceState(instanceId)?.state === CircuitState.OPEN;
 	}
-	getState(instanceId: string): CircuitState {
-		return this._state.getInstanceState(instanceId)?.state ?? "closed";
+	getState(instanceId: InstanceId): CircuitState {
+		return this._state.getInstanceState(instanceId)?.state ?? CircuitState.CLOSED;
 	}
-	getFailureCount(instanceId: string): number {
+	getFailureCount(instanceId: InstanceId): number {
 		return this._state.getInstanceState(instanceId)?.failures ?? 0;
 	}
 	getStateSummary(): Record<CircuitState, number> {
 		return this._recorder.getStateSummary();
 	}
 	async call<TResult>(
-		instanceId: string,
+		instanceId: InstanceId,
 		fn: () => Promise<TResult>,
 		fallback?: () => TResult
 	): Promise<TResult> {

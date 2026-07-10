@@ -1,3 +1,4 @@
+import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import { logger } from "@trading-model/common/config/logger";
 import { parseServiceName } from "@trading-model/common/config/services.types";
 import type {
@@ -28,7 +29,7 @@ export class CacheOrchestrator {
 	}
 
 	getInstances(
-		serviceName: string,
+		serviceName: ServiceInstanceName,
 		pagination?: PaginationQuery
 	): Promise<ServiceInstance[]> {
 		return this._fetcher.getInstances(serviceName, pagination);
@@ -38,7 +39,7 @@ export class CacheOrchestrator {
 		return this._fetcher.getInstance(id);
 	}
 
-	private async _refreshFromBackend(serviceName: string): Promise<void> {
+	private async _refreshFromBackend(serviceName: ServiceInstanceName): Promise<void> {
 		try {
 			const instances = await this._backend.getInstances(
 				parseServiceName(serviceName)
@@ -49,7 +50,7 @@ export class CacheOrchestrator {
 		}
 	}
 
-	async refreshCache(serviceName: string): Promise<void> {
+	async refreshCache(serviceName: ServiceInstanceName): Promise<void> {
 		if (
 			!(this._healthMonitor.isHealthy || this._healthMonitor.fallbackActive)
 		) {
@@ -63,8 +64,8 @@ export class CacheOrchestrator {
 	}
 
 	onHeartbeatUpdate(
-		serviceName: string,
-		publish: (name: string) => Promise<void>
+		serviceName: ServiceInstanceName,
+		publish: (name: ServiceInstanceName) => Promise<void>
 	): Promise<void> {
 		return this._throttleManager.onHeartbeatUpdate(serviceName, publish);
 	}

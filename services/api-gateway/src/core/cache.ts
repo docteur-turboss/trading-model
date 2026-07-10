@@ -1,8 +1,9 @@
+import type { HttpStatusCode } from "@trading-model/common/http-status";
 import type { ISyncCache } from "@trading-model/common/utils/cache";
 
 export interface ResponseCacheEntry<TData = unknown> {
 	data: TData;
-	status: number;
+	status: HttpStatusCode;
 	expiresAt: number;
 }
 

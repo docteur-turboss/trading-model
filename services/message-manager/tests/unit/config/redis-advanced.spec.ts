@@ -1,14 +1,15 @@
 import { describe, expect, it, jest } from "@jest/globals";
+import { REDIS_RESP, REDIS_STATUS } from "@trading-model/common/persistence/redis-constants";
 
 const mockConnect = jest.fn<() => Promise<void>>().mockResolvedValue(undefined);
 const MockRedisInstance = {
-	status: "ready",
+	status: REDIS_STATUS.READY,
 	connect: mockConnect,
 	disconnect: jest.fn(),
 	removeAllListeners: jest.fn(),
 	on: jest.fn(),
 	off: jest.fn(),
-	ping: jest.fn<() => Promise<string>>().mockResolvedValue("PONG"),
+	ping: jest.fn<() => Promise<string>>().mockResolvedValue(REDIS_RESP.PONG),
 	multi: jest.fn(() => ({
 		exec: jest
 			.fn<() => Promise<[Error | null, unknown][]>>()

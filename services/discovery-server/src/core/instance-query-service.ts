@@ -1,3 +1,4 @@
+import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import type {
 	IInstanceQuery,
 	ServiceInstance,
@@ -8,7 +9,7 @@ import type { RedisInstanceRepository } from "./redis-instance-repository";
 export class InstanceQueryService implements IInstanceQuery {
 	constructor(private readonly _instances: RedisInstanceRepository) {}
 
-	getInstances(serviceName: string): Promise<ServiceInstance[]> {
+	getInstances(serviceName: ServiceInstanceName): Promise<ServiceInstance[]> {
 		return this._instances.getInstances(serviceName);
 	}
 
@@ -16,7 +17,7 @@ export class InstanceQueryService implements IInstanceQuery {
 		return this._instances.getInstance(id);
 	}
 
-	listServiceNames(): Promise<string[]> {
+	listServiceNames(): Promise<ServiceInstanceName[]> {
 		return this._instances.listServiceNames();
 	}
 

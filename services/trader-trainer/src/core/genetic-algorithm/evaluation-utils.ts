@@ -5,6 +5,7 @@ import {
 import type { LamarckGenome, MarketStep } from "./genome-types";
 import type { RLBackend } from "./rl-backend";
 import type { DeepReadonly } from "./shared-types";
+import { EpisodeScores } from "./episode-scores";
 import { computeSharpe, computeVariance } from "./utils";
 
 export interface GenomeFitnessMeta {
@@ -12,7 +13,7 @@ export interface GenomeFitnessMeta {
 	computeMs: number;
 	efficiencyScore: number;
 	variance: number;
-	rawScores: number[];
+	rawScores: EpisodeScores;
 }
 
 export function lamarckianUpdate(
@@ -109,12 +110,13 @@ function _buildFitnessMeta(
 	adjFitness: number,
 	t0: number
 ): GenomeFitnessMeta {
+	const scores = new EpisodeScores(allRaw);
 	return {
-		episodesRun: allRaw.length,
+		episodesRun: scores.length,
 		computeMs: Date.now() - t0,
 		efficiencyScore: adjFitness,
-		variance: computeVariance(allRaw),
-		rawScores: allRaw,
+		variance: scores.variance(),
+		rawScores: scores,
 	};
 }
 

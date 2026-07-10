@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
+import { REDIS_RESP } from "@trading-model/common/persistence/redis-constants";
 
 const MOCK_REDIS_INSTANCE: Record<
 	string,
@@ -9,13 +10,13 @@ const MOCK_REDIS_INSTANCE: Record<
 	get: jest
 		.fn<(...args: any[]) => Promise<string | null>>()
 		.mockResolvedValue(null),
-	setex: jest.fn<(...args: any[]) => Promise<string>>().mockResolvedValue("OK"),
+	setex: jest.fn<(...args: any[]) => Promise<string>>().mockResolvedValue(REDIS_RESP.OK),
 	del: jest.fn<(...args: any[]) => Promise<number>>().mockResolvedValue(1),
 	scan: jest
 		.fn<(...args: any[]) => Promise<[string, string[]]>>()
 		.mockResolvedValue(["0", []]),
 	pipeline: jest.fn<(...args: any[]) => any>(),
-	set: jest.fn<(...args: any[]) => Promise<string>>().mockResolvedValue("OK"),
+	set: jest.fn<(...args: any[]) => Promise<string>>().mockResolvedValue(REDIS_RESP.OK),
 };
 
 jest.mock("ioredis", () => {
@@ -39,7 +40,7 @@ describe("RedisServiceCache", () => {
 
 	describe("set / get", () => {
 		it("should store instance with TTL in seconds", async () => {
-			MOCK_REDIS_INSTANCE.setex.mockResolvedValue("OK");
+			MOCK_REDIS_INSTANCE.setex.mockResolvedValue(REDIS_RESP.OK);
 			MOCK_REDIS_INSTANCE.get.mockResolvedValue(
 				JSON.stringify({
 					serviceName: "svc",
@@ -75,7 +76,7 @@ describe("RedisServiceCache", () => {
 		});
 
 		it("should use region-prefixed keys when region provided", async () => {
-			MOCK_REDIS_INSTANCE.setex.mockResolvedValue("OK");
+			MOCK_REDIS_INSTANCE.setex.mockResolvedValue(REDIS_RESP.OK);
 			await cache.set({
 				serviceName: toServiceId("svc"),
 				instance: { serviceName: "svc" } as any,
@@ -144,7 +145,7 @@ describe("RedisServiceCache", () => {
 
 	describe("circuit state", () => {
 		it("should store circuit state with 2x TTL", async () => {
-			MOCK_REDIS_INSTANCE.setex.mockResolvedValue("OK");
+			MOCK_REDIS_INSTANCE.setex.mockResolvedValue(REDIS_RESP.OK);
 			await cache.setCircuitState("i-1", {
 				failures: 3,
 				lastFailureTime: 1000,

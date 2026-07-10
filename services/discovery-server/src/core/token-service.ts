@@ -5,6 +5,7 @@ import {
 	verifyInstanceName as commonVerifyName,
 	type TokenValidationInput,
 } from "@trading-model/common/crypto/token-service";
+import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import type { InstanceId } from "@trading-model/common/domain/primitives";
 
 export class TokenService {
@@ -14,8 +15,8 @@ export class TokenService {
 		this._signingSecret = signingSecret;
 	}
 
-	generateInstanceToken(instanceId: string): string {
-		return commonGenerateToken(instanceId as InstanceId, this._signingSecret);
+	generateInstanceToken(instanceId: InstanceId): string {
+		return commonGenerateToken(instanceId, this._signingSecret);
 	}
 
 	validInstanceToken(input: TokenValidationInput): boolean {
@@ -32,7 +33,7 @@ export class TokenService {
 		return result;
 	}
 
-	verifyInstanceName(serviceName: string): boolean {
+	verifyInstanceName(serviceName: ServiceInstanceName): boolean {
 		return commonVerifyName(serviceName as never);
 	}
 
@@ -59,7 +60,7 @@ export class TokenService {
 	 * Verify an instance name against known service names.
 	 * Matches the signature of `@trading-model/common/crypto/token-service#verifyInstanceName`.
 	 */
-	static verifyInstanceName(serviceName: string): boolean {
+	static verifyInstanceName(serviceName: ServiceInstanceName): boolean {
 		return commonVerifyName(serviceName as never);
 	}
 }

@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 
+import { CRYPTO } from "@trading-model/common/crypto/crypto-constants";
 import {
 	toFingerprint,
 	toSerialNumber,
@@ -12,7 +13,7 @@ function _decodeCertBody(certPem: string): string {
 		.filter(
 			(line) => !(line.startsWith("-----BEGIN") || line.startsWith("-----END"))
 		);
-	const decoded = Buffer.from(lines.join(""), "base64").toString("utf8");
+	const decoded = Buffer.from(lines.join(""), "base64").toString(CRYPTO.UTF8);
 	return (JSON.parse(decoded) as { body: string }).body;
 }
 
@@ -34,7 +35,7 @@ function _parseCertFields(body: string, certPem: string): CertificateInfo {
 		notBefore: new Date(_extractField(body, /Not Before: (.+)/)),
 		notAfter: new Date(_extractField(body, /Not After: (.+)/)),
 		fingerprint: toFingerprint(
-			createHash("sha256").update(certPem).digest("hex")
+			createHash(CRYPTO.SHA256).update(certPem).digest(CRYPTO.HEX)
 		),
 		san: _extractSan(body),
 	};

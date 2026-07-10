@@ -8,5 +8,5 @@ export function buildPriceSnapshotFeature(
 	const cur = state.candles[idx];
 	const snapPrice =
 		priceSnapshot[toSymbol(state.candles[idx].symbol)] ?? cur.close;
-	features.priceSnapshot = state.norm.candleClose.normalize(snapPrice);
+	features.priceSnapshot = state.norm.candle.close.normalize(snapPrice);
 }

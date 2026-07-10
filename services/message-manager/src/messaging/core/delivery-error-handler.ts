@@ -1,14 +1,16 @@
-﻿import type { DeliveryMode } from "@trading-model/common/config/delivery-mode.types";
+﻿import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import type { Message } from "@trading-model/common/contracts/message.types";
+import type { Topic } from "@trading-model/common/domain/primitives";
 import { logger } from "../../config/logger";
-import { DeliveryErrorClassifier } from "./delivery-error-classifier";
+import { DeliveryErrorClassifier, DlqReason, ErrorActionType } from "./delivery-error-classifier";
+import type { DeliveryParams } from "./delivery-params";
 import type { MessageDeliveryPort } from "./message-delivery-port";
 
 export interface DeliveryErrorHandlerDeps {
 	deliveryPort: MessageDeliveryPort;
 	recordFailure: () => void;
-	topic: string;
-	serviceName: string;
+	topic: Topic;
+	serviceName: ServiceInstanceName;
 }
 
 /**
@@ -17,8 +19,8 @@ export interface DeliveryErrorHandlerDeps {
 export class DeliveryErrorHandler {
 	private readonly _deliveryPort: MessageDeliveryPort;
 	private readonly _recordFailure: () => void;
-	private readonly _topic: string;
-	private readonly _serviceName: string;
+	private readonly _topic: Topic;
+	private readonly _serviceName: ServiceInstanceName;
 	private readonly _classifier: DeliveryErrorClassifier;
 
 	constructor(deps: DeliveryErrorHandlerDeps) {
@@ -38,21 +40,17 @@ export class DeliveryErrorHandler {
 		err: unknown,
 		message: Message<TData>,
 		context: { deliveryAttempt: number },
-		ttl: number,
-		emittedAt: number,
-		deliveryMode: DeliveryMode
+		deliveryParams: DeliveryParams
 	): Promise<boolean> {
 		const classification = this._classifier.classify(
 			err,
 			context.deliveryAttempt,
-			ttl,
-			emittedAt,
-			deliveryMode
+			deliveryParams
 		);
 
 		switch (classification.action) {
-			case "dlq":
-				if (classification.reason === "MAX_RETRIES_EXCEEDED") {
+			case ErrorActionType.DLQ:
+				if (classification.reason === DlqReason.MaxRetriesExceeded) {
 					this._recordFailure();
 					logger.error("Max retries exceeded — routing to DLQ", {
 						topic: this._topic,
@@ -66,9 +64,9 @@ export class DeliveryErrorHandler {
 					deliveryAttempt: context.deliveryAttempt,
 				});
 				return true;
-			case "swallow":
+			case ErrorActionType.SWALLOW:
 				return true;
-			case "retry":
+			case ErrorActionType.RETRY:
 				return false;
 			default:
 				return false;

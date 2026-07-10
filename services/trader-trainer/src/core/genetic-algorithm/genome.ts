@@ -1,5 +1,6 @@
 import type { GenomeId, Price } from "@trading-model/common/domain/primitives";
 import type { FeatureVector } from "../feature-vector.js";
+import type { EpisodeScores } from "./episode-scores";
 
 import type {
 	ActivationType,
@@ -125,24 +126,34 @@ export enum MutationScope {
 	Correlated = "correlated",
 }
 
-/** Mutation operator configuration. */
-export interface MutationGenome {
+/** Mutation rate hyperparameters. */
+export interface MutationRates {
 	rate: number;
 	sigma: number;
 	noiseStd: number;
-	distribution: MutationDistribution;
-	adaptation: MutationAdaptation;
-	scope: MutationScope;
 	selfSigma: number;
-	mutateActivations: boolean;
 	activationMutationRate: number;
-	mutateHyperparams: boolean;
+}
+
+/** Mutation structural modification rates. */
+export interface MutationStructural {
 	addNeuronRate: number;
 	removeNeuronRate: number;
 	addLayerRate: number;
 	removeLayerRate: number;
 	addConnectionRate: number;
 	removeConnectionRate: number;
+}
+
+/** Mutation operator configuration. */
+export interface MutationGenome {
+	rates: MutationRates;
+	structural: MutationStructural;
+	distribution: MutationDistribution;
+	adaptation: MutationAdaptation;
+	scope: MutationScope;
+	mutateActivations: boolean;
+	mutateHyperparams: boolean;
 }
 
 export enum CrossoverType {
@@ -178,22 +189,66 @@ export enum FitnessType {
 	Composite = "composite",
 }
 
-/** Self-adaptive GA control parameters. */
-export interface GAControlGenome {
-	populationSize: number;
+/** GA population control parameters. */
+export interface GAPopulationConfig {
+	size: number;
 	elitismFraction: number;
 	survivorFraction: number;
-	selectionType: SelectionType;
-	fitnessType: FitnessType;
-	episodesPerIndividual: number;
-	seedsPerEval: number;
+}
+
+export function eliteCount(config: GAPopulationConfig): number {
+	return Math.max(1, Math.round(config.size * config.elitismFraction));
+}
+
+export function survivorCount(config: GAPopulationConfig): number {
+	return Math.max(1, Math.round(config.size * config.survivorFraction));
+}
+
+/** GA termination criteria. */
+export interface GATerminationConfig {
 	rewardThreshold: number;
 	stagnationPatience: number;
 	maxGenerations: number;
 	timeBudgetMs: number;
+}
+
+export function shouldTerminateByReward(config: GATerminationConfig, bestFitness: number): boolean {
+	return bestFitness >= config.rewardThreshold;
+}
+
+export function shouldTerminateByStagnation(config: GATerminationConfig, stagnationGenerations: number): boolean {
+	return stagnationGenerations >= config.stagnationPatience;
+}
+
+export function shouldTerminateByBudget(config: GATerminationConfig, startTimeMs: number): boolean {
+	return Date.now() - startTimeMs >= config.timeBudgetMs;
+}
+
+/** GA seeding configuration. */
+export interface GASeedingConfig {
 	envSeed: number;
 	mutationSeed: number;
 	networkSeed: number;
+}
+
+export function toCombinedSeed(config: GASeedingConfig): number {
+	return ((config.envSeed * 31 + config.mutationSeed) * 31 + config.networkSeed) | 0;
+}
+
+/** GA evaluation configuration. */
+export interface GAEvaluationConfig {
+	episodesPerIndividual: number;
+	seedsPerEval: number;
+}
+
+/** Self-adaptive GA control parameters. */
+export interface GAControlGenome {
+	population: GAPopulationConfig;
+	termination: GATerminationConfig;
+	seeding: GASeedingConfig;
+	evaluation: GAEvaluationConfig;
+	selectionType: SelectionType;
+	fitnessType: FitnessType;
 	mutationRate: number;
 	mutationStd: number;
 }
@@ -204,7 +259,7 @@ export interface GenomeFitnessMeta {
 	computeMs: number;
 	efficiencyScore: number;
 	variance: number;
-	rawScores: number[];
+	rawScores: EpisodeScores;
 }
 
 /** Top-level genome: network architecture, RL hyperparameters, mutation, crossover, and GA control. */

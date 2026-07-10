@@ -1,5 +1,5 @@
-import { logger } from "../config/logger";
-import type { CircuitState } from "../domain/circuit-state";
+import type { Logger } from "../config/logger";
+import { CircuitState } from "../domain/circuit-state";
 import type { ICircuitBreaker } from "./circuit-breaker.interface";
 import type { CircuitBreakerConfig } from "./circuit-state-machine";
 import {
@@ -54,7 +54,7 @@ export class CircuitBreaker implements ICircuitBreaker {
 	): Promise<TResult> {
 		const machine = this._getMachine(key);
 		const state = machine.check();
-		if (state === "open") {
+		if (state === CircuitState.OPEN) {
 			if (fallback) {
 				return fallback();
 			}
@@ -66,6 +66,7 @@ export class CircuitBreaker implements ICircuitBreaker {
 			return result;
 		} catch (error) {
 			machine.recordFailure();
+			const { logger } = await import("../config/logger");
 			logger.warn(`Circuit breaker recorded failure for: ${key}`);
 			if (fallback) {
 				return fallback();

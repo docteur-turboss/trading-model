@@ -1,4 +1,6 @@
-﻿import { HTTP_HEADERS } from "@trading-model/common/http-headers";
+﻿import type { Topic } from "@trading-model/common/domain/primitives";
+import { HTTP_HEADERS } from "@trading-model/common/http-headers";
+import { ACL_DENY } from "./acl-constants";
 import { getCachedOrLoad } from "./acl-cache";
 import { loadFromRedis } from "./acl-redis-store";
 
@@ -14,7 +16,7 @@ function extractServiceName(req: {
 
 export async function authorizeTopic(
 	req: { headers: Record<string, string | string[] | undefined> },
-	topic: string
+	topic: Topic
 ): Promise<{ allowed: boolean; reason?: string }> {
 	const serviceName = extractServiceName(req);
 	if (!serviceName) {
@@ -23,7 +25,7 @@ export async function authorizeTopic(
 
 	const allowedServices = await getCachedOrLoad(topic, loadFromRedis);
 
-	if (allowedServices === "deny") {
+	if (allowedServices === ACL_DENY) {
 		return {
 			allowed: false,
 			reason: "ACL service unavailable — access denied",

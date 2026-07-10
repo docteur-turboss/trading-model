@@ -62,10 +62,19 @@ export class TrainingSession {
 		const defaultControl = createDefaultGenome("ctrl").gaControl;
 		return {
 			...defaultControl,
-			populationSize: ENV.TRAINER_POPULATION_SIZE,
-			maxGenerations: ENV.TRAINER_GENERATIONS,
-			timeBudgetMs: ENV.TRAINER_TIME_BUDGET_MS,
-			episodesPerIndividual: ENV.TRAINER_EPISODES_PER_INDIVIDUAL,
+			population: {
+				...defaultControl.population,
+				size: ENV.TRAINER_POPULATION_SIZE,
+			},
+			termination: {
+				...defaultControl.termination,
+				maxGenerations: ENV.TRAINER_GENERATIONS,
+				timeBudgetMs: ENV.TRAINER_TIME_BUDGET_MS,
+			},
+			evaluation: {
+				...defaultControl.evaluation,
+				episodesPerIndividual: ENV.TRAINER_EPISODES_PER_INDIVIDUAL,
+			},
 		};
 	}
 

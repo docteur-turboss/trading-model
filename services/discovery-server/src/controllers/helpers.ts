@@ -1,6 +1,7 @@
 import {
 	toAuthToken,
 	toInstanceId,
+	type InstanceId,
 } from "@trading-model/common/domain/primitives";
 import type { TokenValidation } from "@trading-model/common/domain/token-validation";
 import { ResponseException } from "@trading-model/common/middleware/response-exception";
@@ -12,7 +13,7 @@ import type { ServiceRegistry } from "../core/service-registry";
 export function validateInstanceToken(
 	registry: ServiceRegistry,
 	tokenHeader: string | string[] | undefined,
-	instanceId: string
+	instanceId: InstanceId
 ): void {
 	if (!isNonEmptyString(tokenHeader)) {
 		throw ResponseException("Missing or invalid instance token").unauthorized();

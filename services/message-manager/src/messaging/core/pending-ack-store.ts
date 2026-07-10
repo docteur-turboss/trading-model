@@ -1,4 +1,5 @@
-﻿import { ENV } from "../../config/env";
+﻿import type { InstanceId } from "@trading-model/common/domain/primitives";
+import { ENV } from "../../config/env";
 import { logger } from "../../config/logger";
 import { getStreamClient } from "../../config/redis";
 import type { PendingAckData } from "./messaging-types";
@@ -12,12 +13,12 @@ export class PendingAckStore {
 		this._prefix = prefix;
 	}
 
-	private _pendingKey(instanceId: string): string {
+	private _pendingKey(instanceId: InstanceId): string {
 		return `${this._prefix}pending:${instanceId}`;
 	}
 
 	async add(
-		instanceId: string,
+		instanceId: InstanceId,
 		messageId: string,
 		data: PendingAckData
 	): Promise<void> {
@@ -30,12 +31,12 @@ export class PendingAckStore {
 		await redis.expire(this._pendingKey(instanceId), ENV.REDIS_MESSAGE_TTL_S);
 	}
 
-	async remove(instanceId: string, messageId: string): Promise<void> {
+	async remove(instanceId: InstanceId, messageId: string): Promise<void> {
 		const redis = await getStreamClient();
 		await redis.hdel(this._pendingKey(instanceId), messageId);
 	}
 
-	async getAll(instanceId: string): Promise<Record<string, PendingAckData>> {
+	async getAll(instanceId: InstanceId): Promise<Record<string, PendingAckData>> {
 		const redis = await getStreamClient();
 		const result: Record<string, PendingAckData> = {};
 		let cursor = "0";
@@ -47,7 +48,7 @@ export class PendingAckStore {
 
 	private async _scanPendingBatch(
 		redis: import("ioredis").Redis,
-		instanceId: string,
+		instanceId: InstanceId,
 		cursor: string,
 		result: Record<string, PendingAckData>
 	): Promise<string> {

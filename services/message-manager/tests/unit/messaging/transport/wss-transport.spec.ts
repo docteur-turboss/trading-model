@@ -24,8 +24,10 @@ jest.mock("../../../../src/config/env", () => ({
 	},
 }));
 
+import { REDIS_RESP } from "@trading-model/common/persistence/redis-constants";
+
 jest.mock("../../../../src/config/redis", () => {
-	const set = jest.fn<() => Promise<string | null>>().mockResolvedValue("OK");
+	const set = jest.fn<() => Promise<string | null>>().mockResolvedValue(REDIS_RESP.OK);
 	return {
 		getStreamClient: jest.fn().mockResolvedValue({ set }),
 	};

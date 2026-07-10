@@ -1,4 +1,4 @@
-import type { Fingerprint } from "../../domain/primitives";
+import type { Fingerprint, ISODateTime, ServiceId } from "../../domain/primitives";
 
 export enum CertificateStatus {
 	Valid = "valid",
@@ -10,7 +10,7 @@ export interface CertificateEntry {
 	id: string;
 	commonName: string;
 	fingerprint: Fingerprint;
-	expiresAt: string;
+	expiresAt: ISODateTime;
 	status: CertificateStatus;
-	issuer: string;
+	issuer: ServiceId;
 }

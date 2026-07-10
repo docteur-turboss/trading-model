@@ -1,5 +1,6 @@
 ﻿import { ObjectId } from "mongodb";
 
+import type { InstanceId } from "@trading-model/common/domain/primitives";
 import { getCollection } from "../config/db";
 import { ENV } from "../config/env";
 import { CLAIM_PROJECTION, DLQ_MAX_CONSECUTIVE_ERRORS } from "./dlq-constants";
@@ -57,7 +58,7 @@ export class ClaimReleaseManager {
 		return result.modifiedCount;
 	}
 
-	async releaseClaimsByInstance(instanceId: string): Promise<number> {
+	async releaseClaimsByInstance(instanceId: InstanceId): Promise<number> {
 		const col = await getCollection();
 		const result = await col.updateMany(
 			{ processingInstance: instanceId },

@@ -1,11 +1,12 @@
 import { catchSync } from "@trading-model/common/middleware/catch-error";
 import { sendResponse } from "@trading-model/common/middleware/response-exception";
+import type { ClientIdentity } from "@trading-model/common/domain/primitives/string-ids";
 import type { RequestHandler } from "express";
 
 import { ENV } from "../config/env";
 
 export interface AuthRequest {
-	clientIdentity: string;
+	clientIdentity: ClientIdentity;
 }
 
 function getValidTokens(): Set<string> {
@@ -30,5 +31,5 @@ export const AUTH_MIDDLEWARE: RequestHandler = catchSync((req) => {
 	}
 
 	(req as unknown as AuthRequest).clientIdentity =
-		`client:${token.slice(0, 8)}`;
+		`client:${token.slice(0, 8)}` as ClientIdentity;
 });

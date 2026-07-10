@@ -1,4 +1,5 @@
 import { createVerify } from "node:crypto";
+import { CRYPTO } from "@trading-model/common/crypto/crypto-constants";
 import { ClaimValidator } from "./claim-validator";
 import { JwksKeyProvider } from "./jwks-key-provider";
 import { type JwtHeader, JwtParser } from "./jwt-parser";
@@ -33,7 +34,7 @@ export interface OidcClaims {
  * public key as an HMAC secret.
  */
 const ALGORITHM_MAP = new Map<string, string>([
-	["RS256", "RSA-SHA256"],
+	["RS256", CRYPTO.RSA_SHA256],
 	["RS384", "RSA-SHA384"],
 	["RS512", "RSA-SHA512"],
 	["ES256", "SHA256"],

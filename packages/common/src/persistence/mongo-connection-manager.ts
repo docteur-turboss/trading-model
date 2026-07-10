@@ -17,6 +17,7 @@ export class MongoConnectionManager extends ConnectionManager<MongoClient> {
 	private _dbName: string;
 	private readonly _uri: string;
 	private readonly _poolSize: number;
+	private readonly _minPoolSize?: number;
 
 	constructor(config: MongoConnectionConfig) {
 		const poolSize = resolvePoolSize(config.poolSize);
@@ -39,13 +40,7 @@ export class MongoConnectionManager extends ConnectionManager<MongoClient> {
 				});
 				return client;
 			},
-			async (client: MongoClient) => {
-				try {
-					await client.close();
-				} catch (err) {
-					logger.warn("MongoDB close error", { context: { err } });
-				}
-			},
+			async (client) => { await client.close(); },
 			{
 				maxRetries: 10,
 				baseDelayMs: 1000,

@@ -1,4 +1,5 @@
 import {
+	type InstanceId,
 	type ServiceId,
 	toServiceId,
 } from "@trading-model/common/domain/primitives";
@@ -108,19 +109,19 @@ export class RedisServiceCache implements IServiceCache {
 	}
 
 	async setCircuitState(
-		instanceId: string,
+		instanceId: InstanceId,
 		state: CircuitState
 	): Promise<void> {
 		await this._ensureReady();
 		return this._circuitState!.setCircuitState(instanceId, state);
 	}
 
-	async getCircuitState(instanceId: string): Promise<CircuitState | null> {
+	async getCircuitState(instanceId: InstanceId): Promise<CircuitState | null> {
 		await this._ensureReady();
 		return this._circuitState!.getCircuitState(instanceId);
 	}
 
-	async deleteCircuitState(instanceId: string): Promise<void> {
+	async deleteCircuitState(instanceId: InstanceId): Promise<void> {
 		await this._ensureReady();
 		return this._circuitState!.deleteCircuitState(instanceId);
 	}

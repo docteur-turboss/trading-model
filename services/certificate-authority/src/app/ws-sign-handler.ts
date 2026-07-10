@@ -1,8 +1,10 @@
 ﻿import { logger } from "@trading-model/common/config/logger";
+import type { ClientIdentity } from "@trading-model/common/domain/primitives/string-ids";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import type { WebSocket } from "ws";
 import { z } from "zod";
 import { container } from "./index";
+import { WsMessageType } from "./ws-message-router";
 import type { ConnectionState } from "./rate-limiter";
 import {
 	buildSignErrorPayload,
@@ -10,7 +12,7 @@ import {
 } from "./ws-response-formatter";
 
 export const WS_SIGN_SCHEMA = z.object({
-	type: z.literal("sign"),
+	type: z.literal(WsMessageType.Sign),
 	id: z.string().min(1),
 	data: z.object({
 		serviceId: z.string().min(1),
@@ -21,7 +23,7 @@ export const WS_SIGN_SCHEMA = z.object({
 
 export interface WssSession {
 	state: ConnectionState;
-	clientIdentity: string | undefined;
+	clientIdentity: ClientIdentity | undefined;
 	limiterKey: string;
 }
 

@@ -1,4 +1,5 @@
 ﻿import {
+	Topic,
 	toTopic,
 	UnixTimestamp,
 } from "@trading-model/common/domain/primitives";
@@ -59,7 +60,7 @@ export class MongoArchiveStore {
 	}
 
 	private async _archiveTopic(
-		topic: string,
+		topic: Topic,
 		client: NonNullable<typeof this._clientManager.client>
 	): Promise<void> {
 		try {
@@ -71,7 +72,7 @@ export class MongoArchiveStore {
 		} catch {}
 	}
 
-	private _fetchTopicMessages(topic: string) {
+	private _fetchTopicMessages(topic: Topic) {
 		return this._routing.getMessagesAfter({
 			topic: toTopic(topic),
 			afterTimestamp: UnixTimestamp.of(Date.now() - 3600_000),

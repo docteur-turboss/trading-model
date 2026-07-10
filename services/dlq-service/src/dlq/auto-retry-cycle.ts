@@ -2,9 +2,12 @@ import { randomUUID } from "node:crypto";
 import { Severity } from "@trading-model/common/contracts/admin/audit.dto";
 import {
 	toCorrelationId,
+	toInstanceId,
+	toMessageId,
 	toServiceId,
 	toTopic,
 	type UnixTimestamp,
+	type URLString,
 } from "@trading-model/common/domain/primitives";
 import { notifyAudit } from "../config/audit";
 import { ENV } from "../config/env";
@@ -14,6 +17,7 @@ import { resolveMessageManagerUrl } from "./address-resolver";
 import { dlqClaimManager } from "./claim-manager";
 import { doReplayBatch } from "./replay-pipeline";
 import { dlqRetryManager } from "./retry-manager";
+import type { DlqEntryRef } from "./replay-pipeline";
 import { isShuttingDown } from "./shared/shutdown-flag";
 
 export async function handleAbandonedEntries(source: string): Promise<void> {
@@ -23,7 +27,7 @@ export async function handleAbandonedEntries(source: string): Promise<void> {
 	}
 }
 
-async function resolveMMUrlOrSkip(): Promise<string | null> {
+async function resolveMMUrlOrSkip(): Promise<URLString | null> {
 	const messageManagerUrl = await resolveMessageManagerUrl();
 	if (!messageManagerUrl) {
 		logger.warn(
@@ -35,8 +39,8 @@ async function resolveMMUrlOrSkip(): Promise<string | null> {
 }
 
 async function executeAutoRetryReplay(
-	entries: Array<{ id: string; message: unknown }>,
-	messageManagerUrl: string,
+	entries: DlqEntryRef[],
+	messageManagerUrl: URLString,
 	batchId: string
 ): Promise<{ success: number; errors: Array<{ id: string; error: string }> }> {
 	logger.info(`DLQ auto-retry: replaying ${entries.length} entries`);
@@ -44,7 +48,7 @@ async function executeAutoRetryReplay(
 		entries,
 		messageManagerUrl,
 		batchId,
-		instanceId: ENV.INSTANCE_ID,
+		instanceId: toInstanceId(ENV.INSTANCE_ID),
 	});
 	_emitRetryMetrics(result);
 	return result;
@@ -63,7 +67,7 @@ function _emitRetryMetrics(result: {
 }
 
 async function _executeAutoRetryCycle(
-	messageManagerUrl: string
+	messageManagerUrl: URLString
 ): Promise<void> {
 	await dlqClaimManager.releaseStaleClaims();
 
@@ -75,7 +79,7 @@ async function _executeAutoRetryCycle(
 	}
 
 	const { success, errors } = await executeAutoRetryReplay(
-		entries.map((entry) => ({ id: entry.id, message: entry.message })),
+		entries.map((entry) => ({ id: toMessageId(entry.id), message: entry.message })),
 		messageManagerUrl,
 		batchId
 	);
@@ -99,7 +103,7 @@ function _claimEntriesForRetry(
 	return dlqClaimManager.claimEntriesForRetry({
 		limit: ENV.DLQ_AUTO_RETRY_LIMIT,
 		batchId,
-		instanceId: ENV.INSTANCE_ID,
+		instanceId: toInstanceId(ENV.INSTANCE_ID),
 	});
 }
 

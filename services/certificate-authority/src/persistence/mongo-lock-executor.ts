@@ -1,6 +1,7 @@
 import { logger } from "@trading-model/common/config/logger";
 import type { Collection } from "mongodb";
 
+import type { InstanceId } from "@trading-model/common/domain/primitives";
 import type { LockContext, LockDocument } from "./lock-backends";
 
 export class MongoLockExecutor {
@@ -97,7 +98,7 @@ function _buildLockFilter(name: string, now: Date): Record<string, unknown> {
 
 function _buildLockUpdate(
 	name: string,
-	instanceId: string,
+	instanceId: InstanceId,
 	now: Date,
 	expiresAt: Date,
 	fencingToken: number

@@ -1,19 +1,22 @@
+import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
+import type { InstanceId } from "@trading-model/common/domain/primitives";
+
 export class RedisKeyBuilder {
 	constructor(private readonly _prefix: string) {}
 
-	serviceInstancesSet(serviceName: string): string {
+	serviceInstancesSet(serviceName: ServiceInstanceName): string {
 		return `${this._prefix}service:${serviceName}:instances`;
 	}
 
-	instanceMetadata(instanceId: string): string {
+	instanceMetadata(instanceId: InstanceId): string {
 		return `${this._prefix}instance:${instanceId}:metadata`;
 	}
 
-	instanceToken(instanceId: string): string {
+	instanceToken(instanceId: InstanceId): string {
 		return `${this._prefix}instance:${instanceId}:token`;
 	}
 
-	instanceUpdatedBy(instanceId: string): string {
+	instanceUpdatedBy(instanceId: InstanceId): string {
 		return `${this._prefix}instance:${instanceId}:updatedBy`;
 	}
 

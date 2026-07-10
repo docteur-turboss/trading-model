@@ -1,6 +1,8 @@
 ﻿import { randomInt } from "node:crypto";
 import { logger } from "@trading-model/common/config/logger";
+import { REDIS_RESP, REDIS_SET } from "@trading-model/common/persistence/redis-constants";
 import { RedisLockConnector } from "../redis-lock-connector";
+import type { InstanceId } from "@trading-model/common/domain/primitives";
 import type { LockBackend, LockContext } from "./lock-backend-interface";
 
 export class RedisLockBackend implements LockBackend {
@@ -14,7 +16,7 @@ export class RedisLockBackend implements LockBackend {
 		return `lock:${lockName}`;
 	}
 
-	private _buildLockValue(instanceId: string, token: number): string {
+	private _buildLockValue(instanceId: InstanceId, token: number): string {
 		return `${instanceId}:${token}`;
 	}
 
@@ -37,11 +39,11 @@ export class RedisLockBackend implements LockBackend {
 		const acquired = await this._connector.client.set(
 			lockKey,
 			value,
-			"PX",
+			REDIS_SET.PX,
 			ttlMs,
-			"NX"
+			REDIS_SET.NX
 		);
-		if (acquired === "OK") {
+		if (acquired === REDIS_RESP.OK) {
 			this._connector.available = true;
 			return nextFencingToken;
 		}

@@ -1,3 +1,4 @@
+import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import type {
 	RegistryBackend,
 	ServiceInstance,
@@ -68,23 +69,23 @@ export class CachedRegistryCore {
 
 	async registerInstance(instance: ServiceInstance): Promise<string> {
 		const token = await this._backend.registerInstance(instance);
-		await this.orchestrator.refreshCache(instance.serviceName);
-		await this.pubSub.publish(instance.serviceName);
+		await this.orchestrator.refreshCache(instance.serviceName as unknown as ServiceInstanceName);
+		await this.pubSub.publish(instance.serviceName as unknown as ServiceInstanceName);
 		return token;
 	}
 	async updateHeartbeat(id: ServiceIdentity): Promise<number | false> {
 		const { serviceName } = id;
 		const result = await this._backend.updateHeartbeat(id);
 		if (result !== false) {
-			await this.orchestrator.refreshCache(serviceName);
-			await this.orchestrator.onHeartbeatUpdate(serviceName, (name) =>
+			await this.orchestrator.refreshCache(serviceName as unknown as ServiceInstanceName);
+			await this.orchestrator.onHeartbeatUpdate(serviceName as unknown as ServiceInstanceName, (name) =>
 				this.pubSub.publish(name)
 			);
 		}
 		return result;
 	}
 	getInstances(
-		serviceName: string,
+		serviceName: ServiceInstanceName,
 		pagination?: PaginationQuery
 	): Promise<ServiceInstance[]> {
 		return this.orchestrator.getInstances(serviceName, pagination);
@@ -95,8 +96,8 @@ export class CachedRegistryCore {
 	async removeInstance(id: ServiceIdentity): Promise<boolean> {
 		const { serviceName } = id;
 		const result = await this._backend.removeInstance(id);
-		await this.orchestrator.refreshCache(serviceName);
-		await this.pubSub.publish(serviceName);
+		await this.orchestrator.refreshCache(serviceName as unknown as ServiceInstanceName);
+		await this.pubSub.publish(serviceName as unknown as ServiceInstanceName);
 		return result;
 	}
 }

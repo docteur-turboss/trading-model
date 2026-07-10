@@ -1,8 +1,17 @@
 import { randomUUID } from "node:crypto";
 
+export type TaskType =
+	| "generateKeyPair"
+	| "generateKeyPairWithId"
+	| "signCertificate"
+	| "createCsr"
+	| "validateCertificate"
+	| "parseKey"
+	| "sign";
+
 export interface TaskEntry {
 	id: string;
-	type: string;
+	type: TaskType;
 	data: Record<string, unknown>;
 	resolve: (value: unknown) => void;
 	reject: (reason: unknown) => void;
@@ -25,7 +34,7 @@ export class WorkerTaskQueue {
 	}
 
 	private _createEntry(
-		type: string,
+		type: TaskType,
 		data: Record<string, unknown>,
 		resolve: (value: unknown) => void,
 		reject: (reason: unknown) => void
@@ -52,7 +61,7 @@ export class WorkerTaskQueue {
 	}
 
 	enqueue(
-		type: string,
+		type: TaskType,
 		data: Record<string, unknown>,
 		onDispatch: (task: TaskEntry) => boolean
 	): Promise<unknown> {

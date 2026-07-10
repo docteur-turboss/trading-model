@@ -1,4 +1,5 @@
-﻿import { TimerHandle } from "@trading-model/common/utils/timer-handle";
+﻿import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
+import { TimerHandle } from "@trading-model/common/utils/timer-handle";
 import type WebSocket from "ws";
 import { Deque } from "./deque";
 
@@ -16,7 +17,7 @@ export class WssRateLimiter {
 	private _windows = new Map<string, RateLimitEntry>();
 	private readonly _cleanupTimer = new TimerHandle();
 
-	check(serviceName: string): boolean {
+	check(serviceName: ServiceInstanceName): boolean {
 		const entry = this._getOrCreateEntry(serviceName);
 		this._pruneOldTimestamps(entry);
 
@@ -28,7 +29,7 @@ export class WssRateLimiter {
 		return true;
 	}
 
-	private _getOrCreateEntry(serviceName: string): RateLimitEntry {
+	private _getOrCreateEntry(serviceName: ServiceInstanceName): RateLimitEntry {
 		const now = Date.now();
 		let entry = this._windows.get(serviceName);
 		if (!entry) {
@@ -49,7 +50,7 @@ export class WssRateLimiter {
 		}
 	}
 
-	checkAndReject(serviceName: string, ws: WebSocket): boolean {
+	checkAndReject(serviceName: ServiceInstanceName, ws: WebSocket): boolean {
 		if (this.check(serviceName)) {
 			return true;
 		}

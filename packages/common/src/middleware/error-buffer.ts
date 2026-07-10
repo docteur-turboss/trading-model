@@ -1,17 +1,32 @@
+import type {
+	CorrelationId,
+	InstanceId,
+	ISODateTime,
+	ServiceId,
+	URLString,
+	Version,
+} from "../domain/primitives";
+import {
+	toInstanceId,
+	toISODateTime,
+	toServiceId,
+	toVersion,
+	toCorrelationId,
+} from "../domain/primitives";
 import { CircularBuffer } from "../utils/circular-buffer";
 import { normalizeError } from "../utils/errors";
 
 interface ErrorReport {
 	message: string;
 	stack?: string;
-	url: string;
+	url: URLString;
 	method: string;
 	statusCode: number;
-	correlationId: string;
-	timestamp: string;
-	serviceName: string;
-	serviceVersion: string;
-	instanceId: string;
+	correlationId: CorrelationId;
+	timestamp: ISODateTime;
+	serviceName: ServiceId;
+	serviceVersion: Version;
+	instanceId: InstanceId;
 }
 
 export class ErrorBuffer {
@@ -20,8 +35,8 @@ export class ErrorBuffer {
 	constructor(
 		private readonly _endpoint: string,
 		private readonly _batchSize: number,
-		private readonly _serviceName: string,
-		private readonly _instanceId: string
+		private readonly _serviceName: ServiceId,
+		private readonly _instanceId: InstanceId
 	) {
 		this._buffer = new CircularBuffer<ErrorReport>(_batchSize * 2);
 	}
@@ -71,4 +86,5 @@ export class ErrorBuffer {
 			normalizeError(err).message
 		);
 	}
+
 }

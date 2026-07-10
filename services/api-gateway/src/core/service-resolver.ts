@@ -1,10 +1,12 @@
 import { HttpClient } from "@trading-model/common/config/http-client";
 import type { ServiceInstance } from "@trading-model/common/contracts/service-registry.types";
+import type { ServiceId } from "@trading-model/common/domain/primitives";
+import type { IPAddress, UnixTimestamp, Version } from "@trading-model/common/domain/primitives";
 import type { ServiceEndpoint } from "@trading-model/common/contracts/service-resolver.types";
 
 interface CachedService {
 	instances: ServiceEndpoint[];
-	expiresAt: number;
+	expiresAt: UnixTimestamp;
 	nextIndex: number;
 }
 
@@ -25,7 +27,7 @@ export class ServiceResolver {
 	}
 
 	async resolve(
-		serviceName: string,
+		serviceName: ServiceId,
 		majorVersion: number
 	): Promise<ServiceEndpoint | null> {
 		const cacheKey = `${serviceName}:v${majorVersion}`;
@@ -43,7 +45,7 @@ export class ServiceResolver {
 	}
 
 	private async _fetchAndCache(
-		serviceName: string,
+		serviceName: ServiceId,
 		majorVersion: number,
 		cacheKey: string
 	): Promise<ServiceEndpoint | null> {
@@ -62,13 +64,13 @@ export class ServiceResolver {
 					Number.parseInt(inst.version.split(".")[0], 10) === majorVersion
 			)
 			.map((inst) => ({
-				host: inst.ip,
+				host: inst.ip as IPAddress,
 				port: inst.port,
-				version: inst.version,
+				version: inst.version as Version,
 			}));
 		const cachedService: CachedService = {
 			instances: matching,
-			expiresAt: Date.now() + this._cacheTtlMs,
+			expiresAt: (Date.now() + this._cacheTtlMs) as UnixTimestamp,
 			nextIndex: 0,
 		};
 		this._cache.set(cacheKey, cachedService);

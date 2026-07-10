@@ -1,3 +1,4 @@
+import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import { generateRandomStr } from "@trading-model/common/crypto/random";
 import {
 	generateInstanceId,
@@ -38,13 +39,13 @@ export class ServiceRegistry {
 		return this._instanceStore.updateHeartbeat(identity);
 	}
 
-	updateToken(instanceId: string): string {
+	updateToken(instanceId: InstanceId): string {
 		const newToken = this._tokenService.generateInstanceToken(instanceId);
 		this._token.set(instanceId, newToken);
 		return newToken;
 	}
 
-	getInstances(serviceName: string): ServiceInstance[] {
+	getInstances(serviceName: ServiceInstanceName): ServiceInstance[] {
 		return this._instanceStore.getInstances(serviceName);
 	}
 
@@ -58,7 +59,7 @@ export class ServiceRegistry {
 		return result;
 	}
 
-	listServiceNames(): string[] {
+	listServiceNames(): ServiceInstanceName[] {
 		return this._instanceStore.listServiceNames();
 	}
 
@@ -66,7 +67,7 @@ export class ServiceRegistry {
 		return this._instanceStore.dump();
 	}
 
-	generateInstanceToken(instanceId: string): string {
+	generateInstanceToken(instanceId: InstanceId): string {
 		return this._tokenService.generateInstanceToken(instanceId);
 	}
 
@@ -85,7 +86,7 @@ export class ServiceRegistry {
 		return this._tokenService.validInstanceToken(input);
 	}
 
-	verifyInstanceName(serviceName: string): boolean {
+	verifyInstanceName(serviceName: ServiceInstanceName): boolean {
 		return this._tokenService.verifyInstanceName(serviceName);
 	}
 }

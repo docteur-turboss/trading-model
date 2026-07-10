@@ -99,8 +99,10 @@ describe("ReAllocator (shared)", () => {
 				expect.objectContaining({
 					history: [
 						expect.objectContaining({
-							fromStatus: "orphaned" as unknown as JOB_STATUS,
-							toStatus: "queued" as unknown as JOB_STATUS,
+							transition: {
+								from: "orphaned" as unknown as JOB_STATUS,
+								to: "queued" as unknown as JOB_STATUS,
+							},
 							reason: "re-allocated",
 						}),
 					],

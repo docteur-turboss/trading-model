@@ -1,4 +1,9 @@
-﻿import { toInstanceId, toTopic } from "@trading-model/common/domain/primitives";
+﻿import {
+	InstanceId,
+	toInstanceId,
+	Topic,
+	toTopic,
+} from "@trading-model/common/domain/primitives";
 import { getSubscriptionClient } from "../../config/redis";
 import { LEASE_HEARTBEAT_FIELD } from "./messaging-constants";
 import { RedisSubscriptionKeys } from "./redis-subscription-keys";
@@ -15,18 +20,18 @@ export class InstanceLifecycleManager {
 		this._scanner = new StaleInstanceScanner(prefix);
 	}
 
-	async heartbeat(instanceId: string): Promise<void> {
+	async heartbeat(instanceId: InstanceId): Promise<void> {
 		const redis = await getSubscriptionClient();
 		const leaseKey = this._keys.leaseKey(instanceId);
 		await redis.hset(leaseKey, LEASE_HEARTBEAT_FIELD, Date.now().toString());
 		await redis.expire(leaseKey, Math.ceil(SUBSCRIPTION_TTL_MS / 1000));
 	}
 
-	isStaleByHeartbeat(instanceId: string): Promise<boolean> {
+	isStaleByHeartbeat(instanceId: InstanceId): Promise<boolean> {
 		return this._scanner.isStaleByHeartbeat(instanceId);
 	}
 
-	async renewLease(instanceId: string, topics: string[]): Promise<void> {
+	async renewLease(instanceId: InstanceId, topics: Topic[]): Promise<void> {
 		if (topics.length === 0) {
 			return;
 		}
@@ -41,8 +46,8 @@ export class InstanceLifecycleManager {
 
 	private _addRenewCommands(
 		multi: ReturnType<import("ioredis").Redis["multi"]>,
-		instanceId: string,
-		topic: string,
+		instanceId: InstanceId,
+		topic: Topic,
 		now: string
 	): void {
 		multi.hset(this._keys.leaseKey(instanceId), topic, now);

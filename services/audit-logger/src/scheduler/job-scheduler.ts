@@ -1,5 +1,5 @@
 import { logger } from "@trading-model/common/config/logger";
-import type { JobId } from "@trading-model/common/domain/primitives";
+import type { JobId, JobType } from "@trading-model/common/domain/primitives";
 import { ENV } from "../config/env";
 import type { JobRepository } from "../persistence/job-repository";
 import { JobPriority } from "../types/job.types";
@@ -63,7 +63,7 @@ export class JobScheduler {
 		this._assignmentManager.setWorkerProtocol(protocol);
 	}
 	submit(
-		type: string,
+		type: JobType,
 		payload: unknown,
 		priority: JobPriority = JobPriority.MEDIUM,
 		maxRetries: number = ENV.MAX_RETRIES_PER_JOB

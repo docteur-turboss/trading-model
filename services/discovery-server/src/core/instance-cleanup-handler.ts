@@ -1,11 +1,13 @@
+import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
+import type { InstanceId } from "@trading-model/common/domain/primitives";
 import type { RedisDepsWithoutToken } from "./redis-deps";
 
 export class InstanceCleanupHandler {
 	constructor(private readonly _deps: RedisDepsWithoutToken) {}
 
 	async removeInstanceSetAndMetadata(
-		serviceName: string,
-		instanceId: string
+		serviceName: ServiceInstanceName,
+		instanceId: InstanceId
 	): Promise<boolean> {
 		const multi = this._deps.redis.multi();
 		multi.srem(

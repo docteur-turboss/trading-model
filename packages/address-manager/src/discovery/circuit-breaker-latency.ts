@@ -1,4 +1,5 @@
 import { logger } from "@trading-model/common/config/logger";
+import type { InstanceId } from "@trading-model/common/domain/primitives";
 import {
 	DEFAULT_LATENCY_P99_THRESHOLD_MS,
 	DEFAULT_LATENCY_WINDOW_SIZE,
@@ -11,7 +12,7 @@ export interface LatencyWindow {
 }
 
 export class CircuitBreakerLatency {
-	private readonly _latencyWindows = new Map<string, LatencyWindow>();
+	private readonly _latencyWindows = new Map<InstanceId, LatencyWindow>();
 
 	constructor(
 		private readonly _latencyWindowSize: number = DEFAULT_LATENCY_WINDOW_SIZE,
@@ -19,9 +20,9 @@ export class CircuitBreakerLatency {
 	) {}
 
 	recordLatency(
-		instanceId: string,
+		instanceId: InstanceId,
 		durationMs: number,
-		onThresholdExceeded: (instanceId: string) => void
+		onThresholdExceeded: (instanceId: InstanceId) => void
 	): void {
 		const window = this._getOrCreateLatencyWindow(instanceId);
 		this._recordSample(window, durationMs);
@@ -30,7 +31,7 @@ export class CircuitBreakerLatency {
 		}
 	}
 
-	private _getOrCreateLatencyWindow(instanceId: string): LatencyWindow {
+	private _getOrCreateLatencyWindow(instanceId: InstanceId): LatencyWindow {
 		let window = this._latencyWindows.get(instanceId);
 		if (!window) {
 			window = {
@@ -52,9 +53,9 @@ export class CircuitBreakerLatency {
 	}
 
 	private _checkLatencyThreshold(
-		instanceId: string,
+		instanceId: InstanceId,
 		window: LatencyWindow,
-		onThresholdExceeded: (instanceId: string) => void
+		onThresholdExceeded: (instanceId: InstanceId) => void
 	): void {
 		const p99 = this._computeP99(window);
 		if (p99 > this._latencyP99ThresholdMs) {
@@ -74,7 +75,7 @@ export class CircuitBreakerLatency {
 		return sorted[Math.max(0, idx)];
 	}
 
-	deleteWindow(instanceId: string): void {
+	deleteWindow(instanceId: InstanceId): void {
 		this._latencyWindows.delete(instanceId);
 	}
 

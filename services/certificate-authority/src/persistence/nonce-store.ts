@@ -1,4 +1,5 @@
 import { randomBytes } from "node:crypto";
+import { CRYPTO } from "@trading-model/common/crypto/crypto-constants";
 import { logger } from "@trading-model/common/config/logger";
 import { TimerHandle } from "@trading-model/common/utils/timer-handle";
 import type { NonceContext, NoncePersistence } from "./nonce-persister";
@@ -42,7 +43,7 @@ export class NonceStore {
 	}
 
 	async generate(serviceId: string): Promise<string> {
-		const nonce = randomBytes(32).toString("hex");
+		const nonce = randomBytes(32).toString(CRYPTO.HEX);
 		const entry: NonceEntry = { nonce, serviceId, createdAt: Date.now() };
 		try {
 			await this._persister?.persist(

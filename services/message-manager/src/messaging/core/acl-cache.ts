@@ -1,7 +1,10 @@
-﻿const ACL_CACHE_TTL_MS = 300_000;
+﻿import type { Topic } from "@trading-model/common/domain/primitives";
+import { ACL_DENY } from "./acl-constants";
+
+const ACL_CACHE_TTL_MS = 300_000;
 const ACL_CACHE_MAX_SIZE = 1000;
 const ACL_CACHE = new Map<string, { services: string[]; expiresAt: number }>();
-const ACL_LOADING = new Map<string, Promise<string[] | "deny">>();
+const ACL_LOADING = new Map<string, Promise<string[] | typeof ACL_DENY>>();
 
 function aclTtlWithJitter(): number {
 	const jitter = ACL_CACHE_TTL_MS * 0.1 * (Math.random() * 2 - 1);
@@ -19,7 +22,7 @@ function evictIfNeeded(): void {
 	}
 }
 
-function getFromCache(topic: string): string[] | null {
+function getFromCache(topic: Topic): string[] | null {
 	const now = Date.now();
 	const cached = ACL_CACHE.get(topic);
 	if (cached && now < cached.expiresAt) {
@@ -28,7 +31,7 @@ function getFromCache(topic: string): string[] | null {
 	return null;
 }
 
-function cacheAndReturn(topic: string, services: string[]): string[] {
+function cacheAndReturn(topic: Topic, services: string[]): string[] {
 	evictIfNeeded();
 	ACL_CACHE.set(topic, {
 		services,
@@ -37,14 +40,14 @@ function cacheAndReturn(topic: string, services: string[]): string[] {
 	return services;
 }
 
-function peekInFlight(topic: string): Promise<string[] | "deny"> | undefined {
+function peekInFlight(topic: Topic): Promise<string[] | typeof ACL_DENY> | undefined {
 	return ACL_LOADING.get(topic);
 }
 
 export async function getCachedOrLoad(
-	topic: string,
-	loader: (topic: string) => Promise<string[] | "deny">
-): Promise<string[] | "deny"> {
+	topic: Topic,
+	loader: (topic: Topic) => Promise<string[] | typeof ACL_DENY>
+): Promise<string[] | typeof ACL_DENY> {
 	const cached = getFromCache(topic);
 	if (cached) {
 		return cached;
@@ -59,8 +62,8 @@ export async function getCachedOrLoad(
 }
 
 async function _waitForInFlight(
-	topic: string
-): Promise<string[] | "deny" | undefined> {
+	topic: Topic
+): Promise<string[] | typeof ACL_DENY | undefined> {
 	const inFlight = peekInFlight(topic);
 	if (!inFlight) {
 		return;
@@ -70,18 +73,18 @@ async function _waitForInFlight(
 	if (fromCache) {
 		return fromCache;
 	}
-	return "deny";
+	return ACL_DENY;
 }
 
 async function _loadAndCache(
-	topic: string,
-	loader: (topic: string) => Promise<string[] | "deny">
-): Promise<string[] | "deny"> {
+	topic: Topic,
+	loader: (topic: Topic) => Promise<string[] | typeof ACL_DENY>
+): Promise<string[] | typeof ACL_DENY> {
 	const loadPromise = loader(topic);
 	ACL_LOADING.set(topic, loadPromise);
 	try {
 		const result = await loadPromise;
-		if (result !== "deny") {
+		if (result !== ACL_DENY) {
 			cacheAndReturn(topic, result);
 		}
 		return result;

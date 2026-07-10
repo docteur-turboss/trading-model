@@ -4,6 +4,7 @@ import type {
 	MessageId,
 	Topic,
 	UnixTimestamp,
+	URLString,
 } from "@trading-model/common/domain/primitives";
 
 export interface TopicSubscription {
@@ -37,6 +38,6 @@ export interface ClaimParams {
 /** Data stored for a pending ACK entry. */
 export interface PendingAckData {
 	topic: Topic;
-	subscriberUrl: string;
+	subscriberUrl: URLString;
 	message: Message;
 }

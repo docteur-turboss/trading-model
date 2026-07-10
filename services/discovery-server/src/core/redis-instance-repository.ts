@@ -1,3 +1,4 @@
+import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import type { ServiceInstance } from "@trading-model/common/contracts/service-registry.types";
 import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
 import type { RedisDeps } from "./redis-deps";
@@ -18,7 +19,7 @@ export class RedisInstanceRepository {
 		return this._store.updateHeartbeat(identity);
 	}
 
-	getInstances(serviceName: string): Promise<ServiceInstance[]> {
+	getInstances(serviceName: ServiceInstanceName): Promise<ServiceInstance[]> {
 		return this._store.getInstances(serviceName);
 	}
 
@@ -30,7 +31,7 @@ export class RedisInstanceRepository {
 		return this._store.removeInstance(identity);
 	}
 
-	listServiceNames(): Promise<string[]> {
+	listServiceNames(): Promise<ServiceInstanceName[]> {
 		return this._store.listServiceNames();
 	}
 

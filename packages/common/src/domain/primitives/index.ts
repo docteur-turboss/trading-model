@@ -1,4 +1,6 @@
 export { Cash } from "./cash";
+export { PositiveInt } from "./positive-int";
+export { Probability } from "./probability";
 export type { WorkerStatus } from "./enums";
 export {
 	DataSource,
@@ -6,6 +8,7 @@ export {
 	parseWorkerDisplayName,
 	WorkerStatusCode,
 } from "./enums";
+export type { Hostname } from "./hostname";
 export { IPAddress } from "./ip-address";
 export { Percentage } from "./percentage";
 export { Port } from "./port";
@@ -13,6 +16,7 @@ export { Price } from "./price";
 export type {
 	AuthToken,
 	Capability,
+	ClientIdentity,
 	CorrelationId,
 	DurationMs,
 	Environment,
@@ -42,6 +46,7 @@ export type {
 export {
 	fromAuthToken,
 	fromCapability,
+	fromClientIdentity,
 	fromCorrelationId,
 	fromDurationMs,
 	fromEnvironment,
@@ -69,6 +74,7 @@ export {
 	fromVersion,
 	toAuthToken,
 	toCapability,
+	toClientIdentity,
 	toCorrelationId,
 	toDurationMs,
 	toEnvironment,

@@ -1,3 +1,5 @@
+import type { DeliveryMode } from "@trading-model/common/config/delivery-mode.types";
+import type { EventEnumMap } from "@trading-model/common/config/event.types";
 import type {
 	CorrelationId,
 	InstanceId,
@@ -8,7 +10,7 @@ import type {
 
 interface MessageMetadata {
 	topic: Topic;
-	eventType?: string;
+	eventType?: EventEnumMap;
 	messageId?: MessageId;
 	correlationId?: CorrelationId;
 	causationId?: CorrelationId;
@@ -16,7 +18,7 @@ interface MessageMetadata {
 	schemaVersion?: string;
 	publisher?: { serviceName?: string; instanceId?: InstanceId };
 	routing?: { partitionKey?: string; priority?: number };
-	delivery?: { mode?: string; ttl?: number; deduplicationId?: string };
+	delivery?: { mode?: DeliveryMode; ttl?: number; deduplicationId?: string };
 }
 
 interface INcomingEnvelope {

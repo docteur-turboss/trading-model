@@ -8,6 +8,7 @@ import { ResponseCache } from "./cache";
 import { parseRequestPath } from "./path-parser";
 import { proxyAndCache, tryServeFromCache } from "./proxy-dispatcher";
 import { DEFAULT_LIMITER } from "./rate-limiter";
+import type { ServiceId } from "@trading-model/common/domain/primitives";
 import { ServiceResolver } from "./service-resolver";
 
 const RESOLVER = new ServiceResolver(
@@ -20,7 +21,7 @@ function _validatePath(
 	req: import("express").Request
 ):
 	| ReturnType<typeof sendResponse>
-	| { majorVersion: number; serviceName: string; path: string } {
+	| { majorVersion: number; serviceName: ServiceId; path: string } {
 	const parsed = parseRequestPath(req);
 	if (!parsed) {
 		return sendResponse(

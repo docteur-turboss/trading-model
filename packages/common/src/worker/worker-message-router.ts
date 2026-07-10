@@ -1,5 +1,6 @@
 import type { EventEmitter } from "node:events";
 
+import type { JsonObject } from "../domain/primitives";
 import type {
 	SchedulerOutgoingMessage,
 	SchedulerWsJobAssignedMessage,
@@ -9,7 +10,7 @@ export class WorkerMessageRouter {
 	private readonly _handlers: Partial<
 		Record<
 			SchedulerOutgoingMessage["type"],
-			(message: Record<string, unknown>) => void
+			(message: JsonObject) => void
 		>
 	>;
 
@@ -26,8 +27,8 @@ export class WorkerMessageRouter {
 	}
 
 	handle(
-		message: Record<string, unknown>,
-		onUnknown: (msg: Record<string, unknown>) => void
+		message: JsonObject,
+		onUnknown: (msg: JsonObject) => void
 	): void {
 		const handler =
 			this._handlers[message.type as SchedulerOutgoingMessage["type"]];

@@ -1,4 +1,5 @@
 import { describe, expect, it, jest } from "@jest/globals";
+import { REDIS_RESP, REDIS_STATUS } from "@trading-model/common/persistence/redis-constants";
 
 const mockXadd = jest
 	.fn<(...args: unknown[]) => Promise<string>>()
@@ -10,18 +11,18 @@ const mockMulti = jest.fn(() => ({
 	rpush: jest.fn().mockReturnThis(),
 	exec: jest
 		.fn<() => Promise<[Error | null, unknown][]>>()
-		.mockResolvedValue([[null, "OK"]]),
+		.mockResolvedValue([[null, REDIS_RESP.OK]]),
 }));
 const mockEval = jest
 	.fn<(...args: unknown[]) => Promise<unknown>>()
 	.mockResolvedValue([]);
 const mockLlen = jest.fn<() => Promise<number>>().mockResolvedValue(0);
 const mockLrang = jest.fn<() => Promise<string[]>>().mockResolvedValue([]);
-const mockLtrim = jest.fn<() => Promise<string>>().mockResolvedValue("OK");
+const mockLtrim = jest.fn<() => Promise<string>>().mockResolvedValue(REDIS_RESP.OK);
 const mockRpush = jest.fn<() => Promise<number>>().mockResolvedValue(1);
 const mockSet = jest
 	.fn<(...args: unknown[]) => Promise<string | null>>()
-	.mockResolvedValue("OK");
+	.mockResolvedValue(REDIS_RESP.OK);
 const mockXreadgroup = jest
 	.fn<() => Promise<unknown>>()
 	.mockResolvedValue(null);
@@ -57,7 +58,7 @@ const mockXclaim = jest
 
 function createMockRedis() {
 	return {
-		status: "ready",
+		status: REDIS_STATUS.READY,
 		connect: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
 		multi: mockMulti,
 		xadd: mockXadd,
@@ -82,7 +83,7 @@ function createMockRedis() {
 		off: jest.fn(),
 		removeAllListeners: jest.fn(),
 		disconnect: jest.fn(),
-		ping: jest.fn<() => Promise<string>>().mockResolvedValue("PONG"),
+		ping: jest.fn<() => Promise<string>>().mockResolvedValue(REDIS_RESP.PONG),
 	};
 }
 
@@ -130,7 +131,7 @@ describe("MessageStore", () => {
 		(getStreamClient as jest.Mock<() => Promise<unknown>>).mockResolvedValue(
 			mockRedis
 		);
-		mockSet.mockResolvedValue("OK");
+		mockSet.mockResolvedValue(REDIS_RESP.OK);
 		messageStore = new MessageStore();
 	});
 
@@ -158,7 +159,7 @@ describe("MessageStore", () => {
 	});
 
 	it("should ensure consumer group", async () => {
-		mockRedis.xgroup = jest.fn().mockResolvedValue("OK");
+		mockRedis.xgroup = jest.fn().mockResolvedValue(REDIS_RESP.OK);
 
 		await messageStore.ensureConsumerGroup({
 			topic: "test.topic",
@@ -333,7 +334,7 @@ describe("MessageStore", () => {
 	});
 
 	it("should deduplicate with Redis", async () => {
-		mockSet.mockResolvedValue("OK");
+		mockSet.mockResolvedValue(REDIS_RESP.OK);
 
 		const result = await messageStore.tryDeduplicate({
 			deduplicationId: "dedup-1",

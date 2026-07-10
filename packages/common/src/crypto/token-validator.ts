@@ -1,5 +1,6 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import type { InstanceId } from "../domain/primitives";
+import { CRYPTO } from "./crypto-constants";
 
 export interface TokenValidationOptions {
 	maxAgeMs?: number;
@@ -32,9 +33,9 @@ interface HmacVerificationInput {
 function verifyHmac(input: HmacVerificationInput): boolean {
 	const { encodedId, payloadParts, signature, signingSecret } = input;
 	const payload = payloadParts.join(".");
-	const expectedHmac = createHmac("sha256", signingSecret)
+	const expectedHmac = createHmac(CRYPTO.SHA256, signingSecret)
 		.update(`${encodedId}.${payload}`)
-		.digest("base64url");
+		.digest(CRYPTO.BASE64URL);
 	try {
 		return timingSafeEqual(Buffer.from(expectedHmac), Buffer.from(signature));
 	} catch {
@@ -54,7 +55,7 @@ function checkTokenFormat(token: string): TokenFormat | null {
 
 function _decodeTimestamp(timestampB64: string): number {
 	return Number.parseInt(
-		Buffer.from(timestampB64, "base64url").toString("utf8"),
+		Buffer.from(timestampB64, CRYPTO.BASE64URL).toString(CRYPTO.UTF8),
 		10
 	);
 }
@@ -80,7 +81,7 @@ function validateTimestamp(
 }
 
 function _decodeInstanceId(format: TokenFormat): string {
-	return Buffer.from(format.encodedId, "base64url").toString("utf8");
+	return Buffer.from(format.encodedId, CRYPTO.BASE64URL).toString(CRYPTO.UTF8);
 }
 
 function _checkLegacyTimestamp(

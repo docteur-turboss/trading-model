@@ -1,5 +1,6 @@
 ﻿import type { Message } from "@trading-model/common/contracts/message.types";
 import type { DateRange } from "@trading-model/common/domain/date-range";
+import type { Topic } from "@trading-model/common/domain/primitives";
 
 import { logger } from "../../config/logger";
 import { getStreamClient } from "../../config/redis";
@@ -8,7 +9,7 @@ import { computeLag } from "./stream-lag-calculator";
 import { StreamMessageReader } from "./stream-message-reader";
 
 export interface ReadFromGroupParams {
-	topic: string;
+	topic: Topic;
 	groupName: string;
 	consumerId: string;
 	count?: number;
@@ -16,7 +17,7 @@ export interface ReadFromGroupParams {
 }
 
 export interface GetMessagesBetweenParams {
-	topic: string;
+	topic: Topic;
 	timeRange: DateRange;
 	limit?: number;
 }
@@ -28,7 +29,7 @@ export class StreamGroupManager {
 		this._reader = new StreamMessageReader(this._prefix);
 	}
 
-	private _streamKey(topic: string): string {
+	private _streamKey(topic: Topic): string {
 		return `${this._prefix}stream:${topic}`;
 	}
 

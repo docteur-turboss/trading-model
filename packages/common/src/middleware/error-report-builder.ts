@@ -1,23 +1,37 @@
 import type { Request } from "express";
-import type { CorrelationId } from "../domain/primitives";
+import type {
+	CorrelationId,
+	InstanceId,
+	ISODateTime,
+	ServiceId,
+	URLString,
+	Version,
+} from "../domain/primitives";
+import {
+	toCorrelationId,
+	toInstanceId,
+	toISODateTime,
+	toServiceId,
+	toVersion,
+} from "../domain/primitives";
 import { normalizeError } from "../utils/errors";
 import type { ResolvedErrorTrackingConfig } from "./error-tracking-config";
 
 export interface ErrorReportBody {
 	message: string;
 	stack?: string;
-	url: string;
+	url: URLString;
 	method: string;
 	statusCode: number;
-	correlationId: string;
-	timestamp: string;
-	serviceName: string;
-	serviceVersion: string;
-	instanceId: string;
+	correlationId: CorrelationId;
+	timestamp: ISODateTime;
+	serviceName: ServiceId;
+	serviceVersion: Version;
+	instanceId: InstanceId;
 }
 
-function _extractCorrelationId(req: Request): string {
-	return (
+function _extractCorrelationId(req: Request): CorrelationId {
+	return toCorrelationId(
 		(req as unknown as { correlationId?: CorrelationId }).correlationId ?? ""
 	);
 }
@@ -32,13 +46,13 @@ export function buildErrorReport(
 	return {
 		message: normalized.message,
 		stack: normalized.stack,
-		url: req.originalUrl ?? req.url,
+		url: (req.originalUrl ?? req.url) as URLString,
 		method: req.method,
 		statusCode,
 		correlationId: _extractCorrelationId(req),
-		timestamp: new Date().toISOString(),
-		serviceName: config.serviceName,
-		serviceVersion: config.serviceVersion,
-		instanceId: config.instanceId,
+		timestamp: toISODateTime(new Date().toISOString()),
+		serviceName: toServiceId(config.serviceName),
+		serviceVersion: toVersion(config.serviceVersion),
+		instanceId: toInstanceId(config.instanceId),
 	};
 }

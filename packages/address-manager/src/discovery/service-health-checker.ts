@@ -1,5 +1,6 @@
 import type { HttpClient } from "@trading-model/common/config/http-client";
 import { PING_PATH } from "@trading-model/common/server/constants";
+import type { InstanceId } from "@trading-model/common/domain/primitives";
 import type { ServiceInstance } from "../client/type";
 import { type ServiceLocator, ServiceNameLocator } from "./service-locator";
 
@@ -80,7 +81,7 @@ export class ServiceHealthChecker {
 	 * Override in subclasses that need per-instance latency histograms.
 	 */
 	recordLatency(
-		_instanceId: string,
+		_instanceId: InstanceId,
 		_durationMs: number,
 		_success: boolean
 	): void {}

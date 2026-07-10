@@ -1,4 +1,5 @@
-﻿import { AsyncDeduper } from "@trading-model/common/utils/async-deduper";
+﻿import { REDIS_STATUS } from "@trading-model/common/persistence/redis-constants";
+import { AsyncDeduper } from "@trading-model/common/utils/async-deduper";
 import type Redis from "ioredis";
 import { logger } from "./logger";
 import {
@@ -18,13 +19,13 @@ export class RedisClientPool {
 	) {}
 
 	private _isReady(): boolean {
-		return Boolean(this._client && this._client.status === "ready");
+		return Boolean(this._client && this._client.status === REDIS_STATUS.READY);
 	}
 	private _isReconnecting(): boolean {
 		return Boolean(
 			this._client &&
-				(this._client.status === "connecting" ||
-					this._client.status === "reconnecting")
+				(this._client.status === REDIS_STATUS.CONNECTING ||
+					this._client.status === REDIS_STATUS.RECONNECTING)
 		);
 	}
 	private async _waitForClientReady(): Promise<Redis> {
@@ -124,7 +125,7 @@ export class RedisClientPool {
 		this._connectionDeduper.clear();
 	}
 	getClientOrThrow(): Redis {
-		if (this._client?.status !== "ready") {
+		if (this._client?.status !== REDIS_STATUS.READY) {
 			throw new Error("Redis is not available");
 		}
 		return this._client;

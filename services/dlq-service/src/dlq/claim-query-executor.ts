@@ -1,5 +1,6 @@
 import type { ObjectId } from "mongodb";
 
+import type { InstanceId } from "@trading-model/common/domain/primitives";
 import type { BatchContext } from "./types";
 
 export class ClaimQueryExecutor {
@@ -22,12 +23,12 @@ export class ClaimQueryExecutor {
 		col: import("mongodb").Collection,
 		candidates: import("mongodb").WithId<import("mongodb").Document>[],
 		batchId: string,
-		instanceId: string,
+		instanceId: InstanceId,
 		claimProjection: Record<string, unknown>,
 		buildBulkUpdateOps: (
 			candidates: Record<string, unknown>[],
 			now: Date,
-			instanceId: string,
+			instanceId: InstanceId,
 			batchId: string
 		) => import("mongodb").AnyBulkWriteOperation[]
 	): Promise<import("mongodb").WithId<import("mongodb").Document>[]> {

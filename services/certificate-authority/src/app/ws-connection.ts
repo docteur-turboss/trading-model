@@ -1,6 +1,8 @@
 import type https from "node:https";
 import type { TLSSocket } from "node:tls";
 import { logger } from "@trading-model/common/config/logger";
+import type { ClientIdentity } from "@trading-model/common/domain/primitives/string-ids";
+import type { UnixTimestamp } from "@trading-model/common/domain/primitives";
 import { type WebSocket, WebSocketServer } from "ws";
 import type { ConnectionState } from "./rate-limiter";
 import { clearRateLimiterKey } from "./rate-limiter";
@@ -8,10 +10,10 @@ import type { WssSession } from "./ws-sign-handler";
 
 function _extractClientIdentity(
 	req: import("node:http").IncomingMessage
-): string | undefined {
+): ClientIdentity | undefined {
 	const tlsSocket = req.socket as TLSSocket;
 	const clientCert = tlsSocket.getPeerCertificate?.();
-	return clientCert?.subject?.CN as string | undefined;
+	return clientCert?.subject?.CN as ClientIdentity | undefined;
 }
 
 function _createConnectionState(): ConnectionState {
@@ -20,7 +22,7 @@ function _createConnectionState(): ConnectionState {
 		bootstrapToken: undefined,
 		authAttempts: 0,
 		requestCount: 0,
-		requestWindowStart: Date.now(),
+		requestWindowStart: Date.now() as UnixTimestamp,
 	};
 }
 
@@ -37,7 +39,7 @@ export function initConnectionState(
 
 export function handleWsClose(
 	limiterKey: string,
-	clientIdentity: string | undefined
+	clientIdentity: ClientIdentity | undefined
 ): void {
 	logger.debug("WSS client disconnected from CA", {
 		context: { clientIdentity },
@@ -47,7 +49,7 @@ export function handleWsClose(
 
 export function handleWsError(
 	err: Error,
-	clientIdentity: string | undefined
+	clientIdentity: ClientIdentity | undefined
 ): void {
 	logger.error("WSS connection error", {
 		context: {

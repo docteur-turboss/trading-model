@@ -3,6 +3,20 @@ import type { Collection } from "mongodb";
 
 import { logger } from "./logger";
 
+function keyEquals(a: Record<string, 1 | -1>, b: Record<string, 1 | -1>): boolean {
+	const aKeys = Object.keys(a);
+	const bKeys = Object.keys(b);
+	if (aKeys.length !== bKeys.length) {
+		return false;
+	}
+	for (const key of aKeys) {
+		if (a[key] !== b[key]) {
+			return false;
+		}
+	}
+	return true;
+}
+
 const CRITICAL_INDEX_KEYS = [
 	{ retryCount: 1, createdAt: -1 },
 	{ createdAt: -1 },
@@ -13,13 +27,14 @@ const CRITICAL_INDEX_KEYS = [
 export class IndexManager {
 	async createCollectionIndexes(col: Collection): Promise<string[]> {
 		const indexSpecs = this._buildIndexSpecs();
-		const criticalKeys = new Set(
-			CRITICAL_INDEX_KEYS.map((key) => JSON.stringify({ key }))
-		);
 		const missing = await Promise.all(
-			indexSpecs.map((spec) => this._createIndex(col, spec, criticalKeys))
+			indexSpecs.map((spec) => this._createIndex(col, spec))
 		);
 		return missing.filter(Boolean) as string[];
+	}
+
+	private _isCritical(key: Record<string, 1 | -1>): boolean {
+		return CRITICAL_INDEX_KEYS.some((critical) => keyEquals(key, critical));
 	}
 
 	private async _createIndex(
@@ -28,14 +43,13 @@ export class IndexManager {
 			key: Record<string, 1 | -1>;
 			options?: Record<string, unknown>;
 		},
-		criticalKeys: Set<string>
 	): Promise<string | null> {
 		const keyStr = JSON.stringify(spec.key);
 		try {
 			await col.createIndex(spec.key, spec.options);
 			return null;
 		} catch (err) {
-			if (criticalKeys.has(keyStr)) {
+			if (this._isCritical(spec.key)) {
 				logger.error(
 					"Critical index creation failed — queries may perform collection scans",
 					{

@@ -1,3 +1,4 @@
+import { NODE_ENV } from "@trading-model/common/config/node-env";
 import { normalizeError } from "../utils/errors";
 import type { HttpMethod } from "./http-types";
 import type { LogEntry } from "./log-types";
@@ -14,7 +15,7 @@ export class ErrorServiceSender {
 	}
 
 	private _shouldSend(): boolean {
-		return this._env === "production" || this._env === "staging";
+		return this._env === NODE_ENV.PRODUCTION || this._env === NODE_ENV.STAGING;
 	}
 
 	async send(entry: LogEntry): Promise<void> {

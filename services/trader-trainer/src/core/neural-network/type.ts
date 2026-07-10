@@ -29,6 +29,8 @@ export enum NormalisationType {
  * Intentionally differs from ActivationFn (canonical API enum):
  *   - LeakyReLu uses "leakyReLu" (not "leaky_relu") for backward compat with persisted data
  *   - Linear is not exposed at runtime (ActivationFn has it)
+ *
+ * Use activationFnToType() to map the canonical API value to the runtime type.
  */
 export enum ActivationType {
 	Sigmoid = "sigmoid",
@@ -59,8 +61,32 @@ export enum InitialisationType {
  * Optimizer enum re-exported from common (identical values).
  */
 import { Optimizer as OptimizerType } from "@trading-model/common/contracts/admin/training.dto";
+import { ActivationFn } from "@trading-model/common/contracts/admin/training.dto";
 
 export { OptimizerType };
+
+const ACTIVATION_FN_TO_TYPE: Record<ActivationFn, ActivationType | undefined> = {
+	[ActivationFn.Relu]: ActivationType.Relu,
+	[ActivationFn.Sigmoid]: ActivationType.Sigmoid,
+	[ActivationFn.Tanh]: ActivationType.Tanh,
+	[ActivationFn.Softmax]: ActivationType.Softmax,
+	[ActivationFn.Gelu]: ActivationType.Gelu,
+	[ActivationFn.Elu]: ActivationType.Elu,
+	[ActivationFn.Mish]: ActivationType.Mish,
+	[ActivationFn.LeakyRelu]: ActivationType.LeakyReLu,
+	[ActivationFn.Linear]: undefined,
+};
+
+/**
+ * Map the canonical API ActivationFn to the runtime ActivationType.
+ * Handles the intentional naming divergence (LeakyRelu → LeakyReLu).
+ * Returns undefined for values that have no runtime equivalent (Linear).
+ */
+export function activationFnToType(
+	fn: ActivationFn,
+): ActivationType | undefined {
+	return ACTIVATION_FN_TO_TYPE[fn];
+}
 
 /** Network topology and layer configuration. */
 export interface NetworkArchitecture {
@@ -160,10 +186,19 @@ export interface NeuralNetworkConfig
 		MutationConfig {}
 
 /**
+ * Discriminated union kind for experience tuples.
+ */
+export enum ExperienceKind {
+	Bare = "bare",
+	QLearning = "qlearning",
+	Supervised = "supervised",
+}
+
+/**
  * A bare experience tuple stored during fastForward when no RL signal is available.
  */
 export interface BareExperience {
-	kind: "bare";
+	kind: ExperienceKind.Bare;
 	input: Float32Array;
 	output: Float32Array;
 }
@@ -172,7 +207,7 @@ export interface BareExperience {
  * A Q-learning experience tuple stored in the replay pool.
  */
 export interface QLearningExperience {
-	kind: "qlearning";
+	kind: ExperienceKind.QLearning;
 	input: Float32Array;
 	output: Float32Array;
 	reward: number;
@@ -184,7 +219,7 @@ export interface QLearningExperience {
  * A supervised-learning experience tuple (ground-truth target available).
  */
 export interface SupervisedExperience {
-	kind: "supervised";
+	kind: ExperienceKind.Supervised;
 	input: Float32Array;
 	output: Float32Array;
 	target: Float32Array;

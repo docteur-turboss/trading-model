@@ -1,5 +1,5 @@
 import type { HttpClient } from "@trading-model/common/config/http-client";
-import { toServiceId } from "@trading-model/common/domain/primitives";
+import { type ServiceId, toServiceId } from "@trading-model/common/domain/primitives";
 import {
 	normalizeError,
 	serviceNotFoundError,
@@ -20,7 +20,7 @@ export class ServiceResolver {
 	) {}
 
 	async resolveAndValidateService(
-		serviceName: string
+		serviceName: ServiceId
 	): Promise<ServiceInstance> {
 		const instances = await this._fetchService(serviceName);
 		const instance = this._extractFirstInstance(instances, serviceName);
@@ -29,7 +29,7 @@ export class ServiceResolver {
 	}
 
 	async resolveAndValidateServiceInRegion(
-		serviceName: string,
+		serviceName: ServiceId,
 		region: string
 	): Promise<ServiceInstance> {
 		let instances: unknown;
@@ -48,7 +48,7 @@ export class ServiceResolver {
 		return this.resolveAndValidateService(serviceName);
 	}
 
-	private async _fetchService(serviceName: string): Promise<unknown> {
+	private async _fetchService(serviceName: ServiceId): Promise<unknown> {
 		try {
 			return await this._httpClient.get<unknown>(
 				`${this._config.addressManagerUrl}/services/${serviceName}`,
@@ -63,7 +63,7 @@ export class ServiceResolver {
 
 	private _extractFirstInstance(
 		instances: unknown,
-		serviceName: string
+		serviceName: ServiceId
 	): ServiceInstance {
 		const instance = Array.isArray(instances)
 			? (instances as ServiceInstance[])[0]
@@ -78,7 +78,7 @@ export class ServiceResolver {
 
 	private async _validateAndCache(
 		instance: ServiceInstance,
-		serviceName: string
+		serviceName: ServiceId
 	): Promise<void> {
 		const isHealthy = await this._healthChecker.isHealthy(instance);
 		if (!isHealthy) {
@@ -93,7 +93,7 @@ export class ServiceResolver {
 
 	private async _findHealthyInstance(
 		instances: unknown,
-		serviceName: string
+		serviceName: ServiceId
 	): Promise<ServiceInstance | null> {
 		const list = Array.isArray(instances)
 			? (instances as ServiceInstance[])
@@ -113,7 +113,7 @@ export class ServiceResolver {
 		return null;
 	}
 
-	async findAllServices(serviceName: string): Promise<ServiceInstance[]> {
+	async findAllServices(serviceName: ServiceId): Promise<ServiceInstance[]> {
 		try {
 			const instances = await this._httpClient.get<ServiceInstance[]>(
 				`${this._config.addressManagerUrl}/services/${serviceName}`,

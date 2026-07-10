@@ -7,7 +7,12 @@ import {
 	jest,
 } from "@jest/globals";
 
-import type { IPAddress, Port } from "../../../src/domain/primitives";
+import type {
+	Capability,
+	InstanceId,
+	IPAddress,
+	Port,
+} from "../../../src/domain/primitives";
 import { WorkerRegistry } from "../../../src/worker/worker-registry";
 
 describe("WorkerRegistry", () => {
@@ -25,10 +30,10 @@ describe("WorkerRegistry", () => {
 	describe("register", () => {
 		it("should add a worker to the registry", () => {
 			registry.register("worker-1", {
-				workerId: "worker-1",
-				address: "10.0.0.1" as IPAddress,
+				workerId: "worker-1" as unknown as InstanceId,
+				host: "10.0.0.1" as IPAddress,
 				port: 9000 as Port,
-				capabilities: ["type-a"],
+				capabilities: ["type-a" as unknown as Capability],
 				maxConcurrency: 5,
 				currentLoad: 0,
 			});
@@ -40,10 +45,10 @@ describe("WorkerRegistry", () => {
 	describe("unregister", () => {
 		it("should remove a worker from the registry", () => {
 			registry.register("worker-1", {
-				workerId: "worker-1",
-				address: "10.0.0.1" as IPAddress,
+				workerId: "worker-1" as unknown as InstanceId,
+				host: "10.0.0.1" as IPAddress,
 				port: 9000 as Port,
-				capabilities: ["type-a"],
+				capabilities: ["type-a" as unknown as Capability],
 				maxConcurrency: 5,
 				currentLoad: 0,
 			});
@@ -60,10 +65,10 @@ describe("WorkerRegistry", () => {
 
 		it("should return the worker registration", () => {
 			registry.register("worker-1", {
-				workerId: "worker-1",
-				address: "10.0.0.1" as IPAddress,
+				workerId: "worker-1" as unknown as InstanceId,
+				host: "10.0.0.1" as IPAddress,
 				port: 9000 as Port,
-				capabilities: ["type-a"],
+				capabilities: ["type-a" as unknown as Capability],
 				maxConcurrency: 5,
 				currentLoad: 0,
 			});
@@ -77,10 +82,10 @@ describe("WorkerRegistry", () => {
 	describe("heartbeat", () => {
 		it("should update lastHeartbeat for a registered worker", () => {
 			registry.register("worker-1", {
-				workerId: "worker-1",
-				address: "10.0.0.1" as IPAddress,
+				workerId: "worker-1" as unknown as InstanceId,
+				host: "10.0.0.1" as IPAddress,
 				port: 9000 as Port,
-				capabilities: ["type-a"],
+				capabilities: ["type-a" as unknown as Capability],
 				maxConcurrency: 5,
 				currentLoad: 0,
 			});
@@ -101,10 +106,10 @@ describe("WorkerRegistry", () => {
 	describe("updateLoad", () => {
 		it("should update the current load of a worker", () => {
 			registry.register("worker-1", {
-				workerId: "worker-1",
-				address: "10.0.0.1" as IPAddress,
+				workerId: "worker-1" as unknown as InstanceId,
+				host: "10.0.0.1" as IPAddress,
 				port: 9000 as Port,
-				capabilities: ["type-a"],
+				capabilities: ["type-a" as unknown as Capability],
 				maxConcurrency: 5,
 				currentLoad: 0,
 			});
@@ -121,10 +126,10 @@ describe("WorkerRegistry", () => {
 	describe("setStatus", () => {
 		it("should update the status of a worker", () => {
 			registry.register("worker-1", {
-				workerId: "worker-1",
-				address: "10.0.0.1" as IPAddress,
+				workerId: "worker-1" as unknown as InstanceId,
+				host: "10.0.0.1" as IPAddress,
 				port: 9000 as Port,
-				capabilities: ["type-a"],
+				capabilities: ["type-a" as unknown as Capability],
 				maxConcurrency: 5,
 				currentLoad: 0,
 			});
@@ -145,10 +150,10 @@ describe("WorkerRegistry", () => {
 
 		it("should return null when no worker supports the job type", () => {
 			registry.register("worker-1", {
-				workerId: "worker-1",
-				address: "10.0.0.1" as IPAddress,
+				workerId: "worker-1" as unknown as InstanceId,
+				host: "10.0.0.1" as IPAddress,
 				port: 9000 as Port,
-				capabilities: ["type-b"],
+				capabilities: ["type-b" as unknown as Capability],
 				maxConcurrency: 5,
 				currentLoad: 0,
 			});
@@ -158,10 +163,10 @@ describe("WorkerRegistry", () => {
 
 		it("should skip draining workers", () => {
 			registry.register("draining-worker", {
-				workerId: "draining-worker",
-				address: "10.0.0.1" as IPAddress,
+				workerId: "draining-worker" as unknown as InstanceId,
+				host: "10.0.0.1" as IPAddress,
 				port: 9000 as Port,
-				capabilities: ["type-a"],
+				capabilities: ["type-a" as unknown as Capability],
 				maxConcurrency: 5,
 				currentLoad: 0,
 			});
@@ -172,10 +177,10 @@ describe("WorkerRegistry", () => {
 
 		it("should skip workers at max concurrency", () => {
 			registry.register("busy-worker", {
-				workerId: "busy-worker",
-				address: "10.0.0.1" as IPAddress,
+				workerId: "busy-worker" as unknown as InstanceId,
+				host: "10.0.0.1" as IPAddress,
 				port: 9000 as Port,
-				capabilities: ["type-a"],
+				capabilities: ["type-a" as unknown as Capability],
 				maxConcurrency: 2,
 				currentLoad: 2,
 			});
@@ -185,18 +190,18 @@ describe("WorkerRegistry", () => {
 
 		it("should return the least loaded compatible worker", () => {
 			registry.register("busy", {
-				workerId: "busy",
-				address: "10.0.0.1" as IPAddress,
+				workerId: "busy" as unknown as InstanceId,
+				host: "10.0.0.1" as IPAddress,
 				port: 9000 as Port,
-				capabilities: ["type-a"],
+				capabilities: ["type-a" as unknown as Capability],
 				maxConcurrency: 10,
 				currentLoad: 8,
 			});
 			registry.register("free", {
-				workerId: "free",
-				address: "10.0.0.2" as IPAddress,
+				workerId: "free" as unknown as InstanceId,
+				host: "10.0.0.2" as IPAddress,
 				port: 9000 as Port,
-				capabilities: ["type-a"],
+				capabilities: ["type-a" as unknown as Capability],
 				maxConcurrency: 10,
 				currentLoad: 2,
 			});
@@ -208,18 +213,18 @@ describe("WorkerRegistry", () => {
 
 		it("should skip workers with higher load than current best", () => {
 			registry.register("good", {
-				workerId: "good",
-				address: "10.0.0.1" as IPAddress,
+				workerId: "good" as unknown as InstanceId,
+				host: "10.0.0.1" as IPAddress,
 				port: 9000 as Port,
-				capabilities: ["type-a"],
+				capabilities: ["type-a" as unknown as Capability],
 				maxConcurrency: 10,
 				currentLoad: 2,
 			});
 			registry.register("worse", {
-				workerId: "worse",
-				address: "10.0.0.2" as IPAddress,
+				workerId: "worse" as unknown as InstanceId,
+				host: "10.0.0.2" as IPAddress,
 				port: 9000 as Port,
-				capabilities: ["type-a"],
+				capabilities: ["type-a" as unknown as Capability],
 				maxConcurrency: 10,
 				currentLoad: 5,
 			});
@@ -232,10 +237,10 @@ describe("WorkerRegistry", () => {
 	describe("purgeStaleWorkers", () => {
 		it("should return empty array when all workers are active", () => {
 			registry.register("worker-1", {
-				workerId: "worker-1",
-				address: "10.0.0.1" as IPAddress,
+				workerId: "worker-1" as unknown as InstanceId,
+				host: "10.0.0.1" as IPAddress,
 				port: 9000 as Port,
-				capabilities: ["type-a"],
+				capabilities: ["type-a" as unknown as Capability],
 				maxConcurrency: 5,
 				currentLoad: 0,
 			});
@@ -247,10 +252,10 @@ describe("WorkerRegistry", () => {
 
 		it("should purge workers with expired heartbeats", () => {
 			registry.register("worker-1", {
-				workerId: "worker-1",
-				address: "10.0.0.1" as IPAddress,
+				workerId: "worker-1" as unknown as InstanceId,
+				host: "10.0.0.1" as IPAddress,
 				port: 9000 as Port,
-				capabilities: ["type-a"],
+				capabilities: ["type-a" as unknown as Capability],
 				maxConcurrency: 5,
 				currentLoad: 0,
 			});
@@ -270,16 +275,16 @@ describe("WorkerRegistry", () => {
 
 		it("should return the number of registered workers", () => {
 			registry.register("w1", {
-				workerId: "w1",
-				address: "10.0.0.1" as IPAddress,
+				workerId: "w1" as unknown as InstanceId,
+				host: "10.0.0.1" as IPAddress,
 				port: 9000 as Port,
 				capabilities: [],
 				maxConcurrency: 1,
 				currentLoad: 0,
 			});
 			registry.register("w2", {
-				workerId: "w2",
-				address: "10.0.0.2" as IPAddress,
+				workerId: "w2" as unknown as InstanceId,
+				host: "10.0.0.2" as IPAddress,
 				port: 9000 as Port,
 				capabilities: [],
 				maxConcurrency: 1,
@@ -297,16 +302,16 @@ describe("WorkerRegistry", () => {
 
 		it("should calculate the average load ratio", () => {
 			registry.register("w1", {
-				workerId: "w1",
-				address: "10.0.0.1" as IPAddress,
+				workerId: "w1" as unknown as InstanceId,
+				host: "10.0.0.1" as IPAddress,
 				port: 9000 as Port,
 				capabilities: [],
 				maxConcurrency: 10,
 				currentLoad: 5,
 			});
 			registry.register("w2", {
-				workerId: "w2",
-				address: "10.0.0.2" as IPAddress,
+				workerId: "w2" as unknown as InstanceId,
+				host: "10.0.0.2" as IPAddress,
 				port: 9000 as Port,
 				capabilities: [],
 				maxConcurrency: 10,
@@ -318,8 +323,8 @@ describe("WorkerRegistry", () => {
 
 		it("should handle worker with maxConcurrency of 0", () => {
 			registry.register("w1", {
-				workerId: "w1",
-				address: "10.0.0.1" as IPAddress,
+				workerId: "w1" as unknown as InstanceId,
+				host: "10.0.0.1" as IPAddress,
 				port: 9000 as Port,
 				capabilities: [],
 				maxConcurrency: 0,
@@ -333,16 +338,16 @@ describe("WorkerRegistry", () => {
 	describe("getAllActive", () => {
 		it("should return only active workers", () => {
 			registry.register("active-w", {
-				workerId: "active-w",
-				address: "10.0.0.1" as IPAddress,
+				workerId: "active-w" as unknown as InstanceId,
+				host: "10.0.0.1" as IPAddress,
 				port: 9000 as Port,
 				capabilities: [],
 				maxConcurrency: 5,
 				currentLoad: 0,
 			});
 			registry.register("draining-w", {
-				workerId: "draining-w",
-				address: "10.0.0.2" as IPAddress,
+				workerId: "draining-w" as unknown as InstanceId,
+				host: "10.0.0.2" as IPAddress,
 				port: 9000 as Port,
 				capabilities: [],
 				maxConcurrency: 5,

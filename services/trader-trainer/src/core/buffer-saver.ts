@@ -44,8 +44,8 @@ export class BufferSaver {
 			orderBook: state.orderBook,
 			bookTicker: state.bookTicker,
 			ticker24h: state.ticker24h,
-			...norms,
-		} as SymbolStateSerializable;
+			norm: norms,
+		} as unknown as SymbolStateSerializable;
 	}
 
 	private _serializeSymbols(
