@@ -1,7 +1,11 @@
 import { availableParallelism } from "node:os";
 import { join } from "node:path";
-import { type TaskEntry, type TaskType, WorkerTaskQueue } from "./worker-task-queue";
 import { type WorkerEntry, WorkerLifecycle } from "./worker-lifecycle";
+import {
+	type TaskEntry,
+	type TaskType,
+	WorkerTaskQueue,
+} from "./worker-task-queue";
 
 export interface WorkerPoolOptions {
 	size?: number;
@@ -37,10 +41,7 @@ export class WorkerPool {
 		}
 	}
 
-	execute<TValue>(
-		type: TaskType,
-		data: Record<string, unknown>
-	): Promise<TValue> {
+	execute<TValue>(type: TaskType, data: unknown): Promise<TValue> {
 		this._rejectIfTerminated();
 		this._workerLifecycle.ensureStarted();
 		return this._taskQueue.enqueue(type, data, (task) =>

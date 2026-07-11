@@ -17,7 +17,6 @@ export class MongoConnectionManager extends ConnectionManager<MongoClient> {
 	private _dbName: string;
 	private readonly _uri: string;
 	private readonly _poolSize: number;
-	private readonly _minPoolSize?: number;
 
 	constructor(config: MongoConnectionConfig) {
 		const poolSize = resolvePoolSize(config.poolSize);
@@ -40,7 +39,9 @@ export class MongoConnectionManager extends ConnectionManager<MongoClient> {
 				});
 				return client;
 			},
-			async (client) => { await client.close(); },
+			async (client) => {
+				await client.close();
+			},
 			{
 				maxRetries: 10,
 				baseDelayMs: 1000,
@@ -50,7 +51,6 @@ export class MongoConnectionManager extends ConnectionManager<MongoClient> {
 		this._dbName = config.dbName;
 		this._uri = config.uri;
 		this._poolSize = poolSize;
-		this._minPoolSize = config.minPoolSize;
 	}
 
 	get uri(): string {

@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
+import { toFilePath, URLString } from "@trading-model/common/domain/primitives";
 
 const MOCK_POST: any = jest.fn();
 
@@ -34,7 +35,7 @@ import { VaultTransitClient } from "../src/vault/vault-transit-client";
 
 function createClient(overrides: Record<string, any> = {}): VaultTransitClient {
 	return new VaultTransitClient({
-		vaultUrl: "https://vault.example.com",
+		vaultUrl: URLString.of("https://vault.example.com"),
 		token: "s.test-token",
 		...overrides,
 	});
@@ -46,24 +47,26 @@ describe("VaultTransitClient", () => {
 	});
 
 	it("should strip trailing slashes from vaultUrl", () => {
-		const client = createClient({ vaultUrl: "https://vault.example.com///" });
+		const client = createClient({
+			vaultUrl: URLString.of("https://vault.example.com///"),
+		});
 		expect(client).toBeDefined();
 	});
 
 	it("should create with TLS config", () => {
 		const client = new VaultTransitClient({
-			vaultUrl: "https://vault.example.com",
+			vaultUrl: URLString.of("https://vault.example.com"),
 			token: "s.test",
 			tls: {
-				caPath: "/ca.pem",
-				certPath: "/cert.pem",
-				keyPath: "/key.pem",
+				caPath: toFilePath("/ca.pem"),
+				certPath: toFilePath("/cert.pem"),
+				keyPath: toFilePath("/key.pem"),
 			},
 		});
 		expect(MOCK_HTTP_CLIENT.createWithTls).toHaveBeenCalledWith({
-			caPath: "/ca.pem",
-			certPath: "/cert.pem",
-			keyPath: "/key.pem",
+			caPath: toFilePath("/ca.pem"),
+			certPath: toFilePath("/cert.pem"),
+			keyPath: toFilePath("/key.pem"),
 		});
 		expect(client).toBeDefined();
 	});

@@ -12,19 +12,20 @@ export function createDelayRange(baseMs: number, maxMs: number): DelayRange {
 
 export function computeExponentialBackoff(
 	attempt: number,
-	options: { baseDelayMs: number; maxDelayMs: number }
+	options: BackoffConfig
 ): number {
-	return new DelayRange(options.baseDelayMs, options.maxDelayMs).backoff(
-		attempt
-	);
+	return new DelayRange(
+		options.baseDelayMs ?? 200,
+		options.maxDelayMs ?? 5000
+	).backoff(attempt);
 }
 
 export function computeExponentialBackoffWithJitter(
 	attempt: number,
-	options: { baseDelayMs: number; maxDelayMs: number; jitterMs: number }
+	options: BackoffConfig
 ): number {
-	return new DelayRange(options.baseDelayMs, options.maxDelayMs).withJitter(
-		attempt,
-		options.jitterMs
-	);
+	return new DelayRange(
+		options.baseDelayMs ?? 200,
+		options.maxDelayMs ?? 5000
+	).withJitter(attempt, options.jitterMs ?? 0);
 }

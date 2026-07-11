@@ -1,4 +1,5 @@
 import { logger } from "../config/logger";
+import type { ErrorResponse } from "../contracts/error-response";
 import { normalizeError } from "../utils/errors";
 import { normalizeDbError } from "./normalize-db-error";
 import { HTTP_CODE, ResponseException } from "./response-exception";
@@ -17,10 +18,7 @@ export interface CoreErrorContext {
 	context: string;
 }
 
-export interface ErrorResponse {
-	code: string;
-	message: string;
-}
+export type { ErrorResponse };
 
 export type ErrorMapping = Record<string, ErrorResponse>;
 

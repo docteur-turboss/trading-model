@@ -1,15 +1,15 @@
 import { describe, expect, it, jest } from "@jest/globals";
-import { LruCache } from "@trading-model/common/utils/lru-cache";
+import { LruCache } from "../../common/src/utils/lru-cache";
 
 describe("LruCache", () => {
 	it("should return undefined for missing key", () => {
-		const cache = new LruCache<string>({ maxSize: 10, ttlMs: 60000 });
+		const cache = new LruCache<string>({ maxSize: 10, ttlMs: 60000 as never });
 		expect(cache.get("missing")).toBeUndefined();
 	});
 
 	it("should return undefined for expired entry", () => {
 		jest.useFakeTimers();
-		const cache = new LruCache<string>({ maxSize: 10, ttlMs: 100 });
+		const cache = new LruCache<string>({ maxSize: 10, ttlMs: 100 as never });
 		cache.set("key", "value");
 		jest.advanceTimersByTime(200);
 		expect(cache.get("key")).toBeUndefined();
@@ -17,13 +17,13 @@ describe("LruCache", () => {
 	});
 
 	it("should return value for existing entry", () => {
-		const cache = new LruCache<string>({ maxSize: 10, ttlMs: 60000 });
+		const cache = new LruCache<string>({ maxSize: 10, ttlMs: 60000 as never });
 		cache.set("key", "value");
 		expect(cache.get("key")).toBe("value");
 	});
 
 	it("should promote accessed entry to MRU position", () => {
-		const cache = new LruCache<string>({ maxSize: 2, ttlMs: 60000 });
+		const cache = new LruCache<string>({ maxSize: 2, ttlMs: 60000 as never });
 		cache.set("a", "1");
 		cache.set("b", "2");
 		cache.get("a");
@@ -34,7 +34,7 @@ describe("LruCache", () => {
 	});
 
 	it("should evict LRU entry when at capacity", () => {
-		const cache = new LruCache<string>({ maxSize: 2, ttlMs: 60000 });
+		const cache = new LruCache<string>({ maxSize: 2, ttlMs: 60000 as never });
 		cache.set("a", "1");
 		cache.set("b", "2");
 		cache.set("c", "3");
@@ -44,7 +44,7 @@ describe("LruCache", () => {
 	});
 
 	it("should update existing entry without changing size", () => {
-		const cache = new LruCache<string>({ maxSize: 2, ttlMs: 60000 });
+		const cache = new LruCache<string>({ maxSize: 2, ttlMs: 60000 as never });
 		cache.set("a", "1");
 		cache.set("a", "2");
 		expect(cache.size).toBe(1);
@@ -52,7 +52,7 @@ describe("LruCache", () => {
 	});
 
 	it("should clear all entries", () => {
-		const cache = new LruCache<string>({ maxSize: 10, ttlMs: 60000 });
+		const cache = new LruCache<string>({ maxSize: 10, ttlMs: 60000 as never });
 		cache.set("a", "1");
 		cache.set("b", "2");
 		cache.clear();
@@ -62,7 +62,7 @@ describe("LruCache", () => {
 	});
 
 	it("should report correct size", () => {
-		const cache = new LruCache<string>({ maxSize: 10, ttlMs: 60000 });
+		const cache = new LruCache<string>({ maxSize: 10, ttlMs: 60000 as never });
 		expect(cache.size).toBe(0);
 		cache.set("a", "1");
 		expect(cache.size).toBe(1);
@@ -73,7 +73,7 @@ describe("LruCache", () => {
 	});
 
 	it("should use provided maxSize", () => {
-		const cache = new LruCache<string>({ maxSize: 1, ttlMs: 60000 });
+		const cache = new LruCache<string>({ maxSize: 1, ttlMs: 60000 as never });
 		cache.set("a", "1");
 		cache.set("b", "2");
 		expect(cache.size).toBe(1);
@@ -90,7 +90,7 @@ describe("LruCache", () => {
 	});
 
 	it("should handle maxSize of 0 gracefully", () => {
-		const cache = new LruCache<string>({ maxSize: 0, ttlMs: 60000 });
+		const cache = new LruCache<string>({ maxSize: 0, ttlMs: 60000 as never });
 		cache.set("a", "1");
 		expect(cache.size).toBe(1);
 		cache.set("b", "2");

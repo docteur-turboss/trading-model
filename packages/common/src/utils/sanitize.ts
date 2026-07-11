@@ -10,9 +10,7 @@ function _sanitizeError(err: Error): JsonObject {
 	};
 }
 
-function _sanitizeObject(
-	value: JsonObject
-): JsonObject {
+function _sanitizeObject(value: JsonObject): JsonObject {
 	const obj: JsonObject = {};
 	for (const [key, val] of Object.entries(value)) {
 		obj[key] = sanitizeForLog(val);

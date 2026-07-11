@@ -2,15 +2,16 @@ import type {
 	WorkerRegistration,
 	WorkerStatus,
 } from "../contracts/worker-protocol.types";
+import { UnixTimestamp } from "../domain/primitives";
 
 function _findStaleWorkers(
 	workers: Map<string, WorkerRegistration>,
 	heartbeatTtlMs: number
 ): string[] {
-	const now = Date.now();
+	const now = UnixTimestamp.now();
 	const stale: string[] = [];
 	for (const [id, worker] of workers) {
-		if (now - worker.lastHeartbeat.getTime() > heartbeatTtlMs) {
+		if (now - worker.lastHeartbeat > heartbeatTtlMs) {
 			worker.status = "offline";
 			stale.push(id);
 		}
@@ -41,7 +42,7 @@ export class WorkerStore {
 	): void {
 		this._workers.set(workerId, {
 			...registration,
-			lastHeartbeat: new Date(),
+			lastHeartbeat: UnixTimestamp.now(),
 			status: "active",
 		});
 	}
@@ -57,7 +58,7 @@ export class WorkerStore {
 	heartbeat(workerId: string): void {
 		const worker = this._workers.get(workerId);
 		if (worker) {
-			worker.lastHeartbeat = new Date();
+			worker.lastHeartbeat = UnixTimestamp.now();
 		}
 	}
 

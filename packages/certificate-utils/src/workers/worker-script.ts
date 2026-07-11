@@ -3,24 +3,61 @@ import { parentPort } from "node:worker_threads";
 import {
 	generateKeyPair,
 	generateKeyPairWithIdSync,
+	type KeyAlgorithm,
 } from "../keygen/generate-key-pair";
 import { type SignOptions, signCertificate } from "../sign-certificate";
 import { type CsrOptions, createCsr } from "../signing/create-csr";
 import type { SignInput } from "../types";
 import { validateCertificate } from "../validation/validate-certificate";
+import { WorkerTaskType } from "../worker-task-type";
 
-interface WorkerTask {
+interface BaseTask {
 	id: string;
-	type:
-		| "generateKeyPair"
-		| "generateKeyPairWithId"
-		| "signCertificate"
-		| "createCsr"
-		| "validateCertificate"
-		| "parseKey"
-		| "sign";
-	data: Record<string, unknown>;
 }
+
+interface GenerateKeyPairTask extends BaseTask {
+	type: WorkerTaskType.GenerateKeyPair;
+	data: { algorithm: KeyAlgorithm };
+}
+
+interface GenerateKeyPairWithIdTask extends BaseTask {
+	type: WorkerTaskType.GenerateKeyPairWithId;
+	data: { algorithm: KeyAlgorithm };
+}
+
+interface SignCertificateTask extends BaseTask {
+	type: WorkerTaskType.SignCertificate;
+	data: SignOptions;
+}
+
+interface CreateCsrTask extends BaseTask {
+	type: WorkerTaskType.CreateCsr;
+	data: CsrOptions;
+}
+
+interface ValidateCertificateTask extends BaseTask {
+	type: WorkerTaskType.ValidateCertificate;
+	data: { certPem: string; caCertPem?: string };
+}
+
+interface ParseKeyTask extends BaseTask {
+	type: WorkerTaskType.ParseKey;
+	data: { privateKey: string };
+}
+
+interface SignTask extends BaseTask {
+	type: WorkerTaskType.Sign;
+	data: SignInput;
+}
+
+type WorkerTask =
+	| GenerateKeyPairTask
+	| GenerateKeyPairWithIdTask
+	| SignCertificateTask
+	| CreateCsrTask
+	| ValidateCertificateTask
+	| ParseKeyTask
+	| SignTask;
 
 if (!parentPort) {
 	throw new Error("worker-script must be run as a worker thread");
@@ -28,74 +65,70 @@ if (!parentPort) {
 
 const PP = parentPort;
 
-function _handleGenerateKeyPair(data: Record<string, unknown>): unknown {
-	return generateKeyPair(
-		data.algorithm as unknown as import("../keygen/generate-key-pair").KeyAlgorithm
-	);
-}
+type TaskHandler = (task: WorkerTask & { id: string }) => void;
 
-function _handleGenerateKeyPairWithId(data: Record<string, unknown>): unknown {
-	return generateKeyPairWithIdSync(
-		data.algorithm as unknown as import("../keygen/generate-key-pair").KeyAlgorithm
-	);
-}
-
-function _handleSignCertificate(data: Record<string, unknown>): unknown {
-	return signCertificate(data as unknown as SignOptions);
-}
-
-function _handleCreateCsr(data: Record<string, unknown>): unknown {
-	return createCsr(data as unknown as CsrOptions);
-}
-
-function _handleValidateCertificate(data: Record<string, unknown>): unknown {
-	const { certPem, caCertPem } = data as {
-		certPem: string;
-		caCertPem?: string;
-	};
-	return validateCertificate({ certPem, caCertPem: caCertPem ?? "" });
-}
-
-function _handleParseKey(data: Record<string, unknown>): unknown {
-	const { privateKey } = data as { privateKey: string };
-	const publicKey = createPublicKey(privateKey).export({
-		type: "spki",
-		format: "pem",
-	});
-	return { publicKey, privateKey };
-}
-
-function _handleSign(data: Record<string, unknown>): unknown {
-	const input = data as unknown as SignInput;
-	const sign = createSign(input.algorithm);
-	sign.update(input.body);
-	return sign.sign(input.privateKey, "base64");
-}
-
-const HANDLERS: Partial<
-	Record<WorkerTask["type"], (data: Record<string, unknown>) => unknown>
-> = {
-	generateKeyPair: _handleGenerateKeyPair,
-	generateKeyPairWithId: _handleGenerateKeyPairWithId,
-	signCertificate: _handleSignCertificate,
-	createCsr: _handleCreateCsr,
-	validateCertificate: _handleValidateCertificate,
-	parseKey: _handleParseKey,
-	sign: _handleSign,
+const HANDLERS: Partial<Record<WorkerTaskType, TaskHandler>> = {
+	[WorkerTaskType.GenerateKeyPair]: (task) => {
+		const typedTask = task as GenerateKeyPairTask;
+		const result = generateKeyPair(typedTask.data.algorithm);
+		PP.postMessage({ id: typedTask.id, success: true, data: result });
+	},
+	[WorkerTaskType.GenerateKeyPairWithId]: (task) => {
+		const typedTask = task as GenerateKeyPairWithIdTask;
+		const result = generateKeyPairWithIdSync(typedTask.data.algorithm);
+		PP.postMessage({ id: typedTask.id, success: true, data: result });
+	},
+	[WorkerTaskType.SignCertificate]: (task) => {
+		const typedTask = task as SignCertificateTask;
+		const result = signCertificate(typedTask.data);
+		PP.postMessage({ id: typedTask.id, success: true, data: result });
+	},
+	[WorkerTaskType.CreateCsr]: (task) => {
+		const typedTask = task as CreateCsrTask;
+		const result = createCsr(typedTask.data);
+		PP.postMessage({ id: typedTask.id, success: true, data: result });
+	},
+	[WorkerTaskType.ValidateCertificate]: (task) => {
+		const typedTask = task as ValidateCertificateTask;
+		const result = validateCertificate({
+			certPem: typedTask.data.certPem,
+			caCertPem: typedTask.data.caCertPem ?? "",
+		});
+		PP.postMessage({ id: typedTask.id, success: true, data: result });
+	},
+	[WorkerTaskType.ParseKey]: (task) => {
+		const typedTask = task as ParseKeyTask;
+		const publicKey = createPublicKey(typedTask.data.privateKey).export({
+			type: "spki",
+			format: "pem",
+		});
+		PP.postMessage({
+			id: typedTask.id,
+			success: true,
+			data: { publicKey, privateKey: typedTask.data.privateKey },
+		});
+	},
+	[WorkerTaskType.Sign]: (task) => {
+		const typedTask = task as SignTask;
+		const sign = createSign(typedTask.data.algorithm);
+		sign.update(typedTask.data.body);
+		const result = sign.sign(typedTask.data.privateKey, "base64");
+		PP.postMessage({ id: typedTask.id, success: true, data: result });
+	},
 };
-
-function _handleTask(task: WorkerTask): void {
-	const handler = HANDLERS[task.type];
-	if (!handler) {
-		throw new Error(`Unknown task type: ${task.type}`);
-	}
-	const result = handler(task.data);
-	PP.postMessage({ id: task.id, success: true, data: result });
-}
 
 PP.on("message", (task: WorkerTask) => {
 	try {
-		_handleTask(task);
+		const handler = HANDLERS[task.type];
+		if (handler) {
+			handler(task);
+		} else {
+			PP.postMessage({
+				id: task.id,
+				success: false,
+				error: `Unknown task type: ${task.type}`,
+			});
+		}
 	} catch (err) {
 		PP.postMessage({
 			id: task.id,

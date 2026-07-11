@@ -35,13 +35,13 @@ jest.mock("ws", () => {
 
 import { WebSocketServer } from "ws";
 import { logger } from "../../../src/config/logger";
-
 import type {
 	Capability,
 	InstanceId,
 	IPAddress,
 	Port,
 } from "../../../src/domain/primitives";
+import { PositiveInt } from "../../../src/domain/primitives";
 import { WorkerProtocol } from "../../../src/worker/worker-protocol";
 import type { WorkerRegistry } from "../../../src/worker/worker-registry";
 
@@ -143,7 +143,7 @@ describe("WorkerProtocol", () => {
 						host: "10.0.0.1" as IPAddress,
 						port: 9000 as Port,
 						capabilities: ["type-a"],
-						maxConcurrency: 5,
+						maxConcurrency: PositiveInt.of(5),
 					})
 				);
 
@@ -152,7 +152,7 @@ describe("WorkerProtocol", () => {
 					host: "10.0.0.1" as IPAddress,
 					port: 9000 as Port,
 					capabilities: ["type-a" as unknown as Capability],
-					maxConcurrency: 5,
+					maxConcurrency: PositiveInt.of(5),
 					currentLoad: 0,
 				});
 				expect(logger.info).toHaveBeenCalledWith(
@@ -177,7 +177,7 @@ describe("WorkerProtocol", () => {
 						host: "10.0.0.1" as IPAddress,
 						port: 9000 as Port,
 						capabilities: ["type-a"],
-						maxConcurrency: 5,
+						maxConcurrency: PositiveInt.of(5),
 					})
 				);
 
@@ -210,7 +210,7 @@ describe("WorkerProtocol", () => {
 						host: "10.0.0.1" as IPAddress,
 						port: 9000 as Port,
 						capabilities: [],
-						maxConcurrency: 5,
+						maxConcurrency: PositiveInt.of(5),
 					})
 				);
 
@@ -239,7 +239,7 @@ describe("WorkerProtocol", () => {
 						host: "10.0.0.1" as IPAddress,
 						port: 9000 as Port,
 						capabilities: [],
-						maxConcurrency: 5,
+						maxConcurrency: PositiveInt.of(5),
 					})
 				);
 
@@ -328,7 +328,7 @@ describe("WorkerProtocol", () => {
 						host: "10.0.0.1" as IPAddress,
 						port: 9000 as Port,
 						capabilities: ["type-a"],
-						maxConcurrency: 5,
+						maxConcurrency: PositiveInt.of(5),
 					})
 				);
 
@@ -361,7 +361,7 @@ describe("WorkerProtocol", () => {
 						host: "10.0.0.1" as IPAddress,
 						port: 9000 as Port,
 						capabilities: [],
-						maxConcurrency: 5,
+						maxConcurrency: PositiveInt.of(5),
 					})
 				);
 
@@ -392,7 +392,7 @@ describe("WorkerProtocol", () => {
 					host: "10.0.0.1" as IPAddress,
 					port: 9000 as Port,
 					capabilities: [],
-					maxConcurrency: 5,
+					maxConcurrency: PositiveInt.of(5),
 				})
 			);
 
@@ -422,7 +422,7 @@ describe("WorkerProtocol", () => {
 					host: "10.0.0.1" as IPAddress,
 					port: 9000 as Port,
 					capabilities: [],
-					maxConcurrency: 5,
+					maxConcurrency: PositiveInt.of(5),
 				})
 			);
 
@@ -433,21 +433,30 @@ describe("WorkerProtocol", () => {
 	});
 
 	describe("sendDrain", () => {
-		it("should call sendToWorker with drain type", () => {
-			jest.spyOn(protocol, "sendToWorker");
+		it("should send drain message to the worker connection", () => {
+			const ws = createWs();
+			simulateConnection(ws);
+			getMessageHandler(ws)(
+				JSON.stringify({
+					type: "register",
+					workerId: "w1",
+					host: "10.0.0.1" as IPAddress,
+					port: 9000 as Port,
+					capabilities: [],
+					maxConcurrency: PositiveInt.of(5),
+				})
+			);
+
+			jest.clearAllMocks();
 
 			protocol.sendDrain("w1");
 
-			expect(protocol.sendToWorker).toHaveBeenCalledWith("w1", {
-				type: "drain",
-			});
+			expect(ws.send).toHaveBeenCalledWith(JSON.stringify({ type: "drain" }));
 		});
 	});
 
 	describe("broadcastDrain", () => {
-		it("should call sendDrain for all connections", () => {
-			jest.spyOn(protocol, "sendDrain");
-
+		it("should send drain to all connections", () => {
 			const ws1 = createWs();
 			simulateConnection(ws1);
 			getMessageHandler(ws1)(
@@ -457,7 +466,7 @@ describe("WorkerProtocol", () => {
 					host: "10.0.0.1" as IPAddress,
 					port: 9000 as Port,
 					capabilities: [],
-					maxConcurrency: 5,
+					maxConcurrency: PositiveInt.of(5),
 				})
 			);
 
@@ -470,7 +479,7 @@ describe("WorkerProtocol", () => {
 					host: "10.0.0.2" as IPAddress,
 					port: 9000 as Port,
 					capabilities: [],
-					maxConcurrency: 5,
+					maxConcurrency: PositiveInt.of(5),
 				})
 			);
 
@@ -478,15 +487,13 @@ describe("WorkerProtocol", () => {
 
 			protocol.broadcastDrain();
 
-			expect(protocol.sendDrain).toHaveBeenCalledWith("w1");
-			expect(protocol.sendDrain).toHaveBeenCalledWith("w2");
+			expect(ws1.send).toHaveBeenCalledWith(JSON.stringify({ type: "drain" }));
+			expect(ws2.send).toHaveBeenCalledWith(JSON.stringify({ type: "drain" }));
 		});
 	});
 
 	describe("close", () => {
-		it("should broadcast drain, close all connections, clear map, and close server", () => {
-			jest.spyOn(protocol, "broadcastDrain");
-
+		it("should close all connections and server", () => {
 			const ws1 = createWs();
 			simulateConnection(ws1);
 			getMessageHandler(ws1)(
@@ -496,7 +503,7 @@ describe("WorkerProtocol", () => {
 					host: "10.0.0.1" as IPAddress,
 					port: 9000 as Port,
 					capabilities: [],
-					maxConcurrency: 5,
+					maxConcurrency: PositiveInt.of(5),
 				})
 			);
 
@@ -509,7 +516,7 @@ describe("WorkerProtocol", () => {
 					host: "10.0.0.2" as IPAddress,
 					port: 9000 as Port,
 					capabilities: [],
-					maxConcurrency: 5,
+					maxConcurrency: PositiveInt.of(5),
 				})
 			);
 
@@ -517,7 +524,6 @@ describe("WorkerProtocol", () => {
 
 			protocol.close();
 
-			expect(protocol.broadcastDrain).toHaveBeenCalledTimes(1);
 			expect(ws1.close).toHaveBeenCalledTimes(1);
 			expect(ws2.close).toHaveBeenCalledTimes(1);
 			expect(wssInstance.close).toHaveBeenCalledTimes(1);

@@ -1,4 +1,11 @@
-import { beforeEach, describe, expect, it, jest } from "@jest/globals";
+import {
+	afterEach,
+	beforeEach,
+	describe,
+	expect,
+	it,
+	jest,
+} from "@jest/globals";
 
 let mockWatcher: any;
 let mockWatchCallback:
@@ -24,7 +31,9 @@ jest.mock("node:fs", () => {
 
 jest.mock("node:fs/promises", () => ({
 	access: jest.fn(() => Promise.resolve()),
-	readFile: jest.fn(() => Promise.resolve("mock-cert-content")),
+	readFile: jest.fn(() =>
+		Promise.resolve("-----BEGIN CERTIFICATE-----\nmock-cert-content")
+	),
 }));
 
 jest.mock("../../src/config/logger", () => ({
@@ -40,12 +49,13 @@ jest.mock("../../src/config/logger", () => ({
 import fs from "node:fs";
 import fsPromises from "node:fs/promises";
 import { logger } from "../../src/config/logger";
+import type { FilePath } from "../../src/domain/primitives";
 import { setupTlsWatcher } from "../../src/server/server-factory";
 
 const TLS_CONFIG = {
-	keyPath: "/path/to/key.pem",
-	certPath: "/path/to/cert.pem",
-	caPath: "/path/to/ca.pem",
+	keyPath: "/path/to/key.pem" as FilePath,
+	certPath: "/path/to/cert.pem" as FilePath,
+	caPath: "/path/to/ca.pem" as FilePath,
 };
 
 const MOCK_SERVER = {
@@ -55,13 +65,17 @@ const MOCK_SERVER = {
 describe("setupTlsWatcher", () => {
 	beforeEach(() => {
 		jest.clearAllMocks();
-		jest.useRealTimers();
+		jest.useFakeTimers();
 		(fsPromises.readFile as jest.Mock).mockImplementation(() =>
-			Promise.resolve("mock-cert-content")
+			Promise.resolve("-----BEGIN CERTIFICATE-----\nmock-cert-content")
 		);
 		(fsPromises.access as jest.Mock).mockImplementation(() =>
 			Promise.resolve()
 		);
+	});
+
+	afterEach(() => {
+		jest.useRealTimers();
 	});
 
 	it("should set up watchers for each unique directory", async () => {
@@ -77,9 +91,9 @@ describe("setupTlsWatcher", () => {
 
 	it("should set up watchers for multiple unique directories", async () => {
 		const multiDirConfig = {
-			keyPath: "/dir1/key.pem",
-			certPath: "/dir2/cert.pem",
-			caPath: "/dir3/ca.pem",
+			keyPath: "/dir1/key.pem" as FilePath,
+			certPath: "/dir2/cert.pem" as FilePath,
+			caPath: "/dir3/ca.pem" as FilePath,
 		};
 
 		await setupTlsWatcher(MOCK_SERVER, multiDirConfig);
@@ -107,13 +121,13 @@ describe("setupTlsWatcher", () => {
 			await setupTlsWatcher(MOCK_SERVER, TLS_CONFIG);
 
 			mockWatchCallback!("change", "cert.pem");
-			await new Promise((resolve) => setTimeout(resolve, 350));
+			await jest.advanceTimersByTimeAsync(350);
 
 			expect(fsPromises.readFile).toHaveBeenCalledTimes(3);
 			expect(MOCK_SERVER.setSecureContext).toHaveBeenCalledWith({
-				key: "mock-cert-content",
-				cert: "mock-cert-content",
-				ca: "mock-cert-content",
+				key: "-----BEGIN CERTIFICATE-----\nmock-cert-content",
+				cert: "-----BEGIN CERTIFICATE-----\nmock-cert-content",
+				ca: "-----BEGIN CERTIFICATE-----\nmock-cert-content",
 			});
 			expect(logger.info).toHaveBeenCalledWith("TLS context reloaded", {
 				context: { event: "change", file: "cert.pem" },
@@ -124,7 +138,7 @@ describe("setupTlsWatcher", () => {
 			await setupTlsWatcher(MOCK_SERVER, TLS_CONFIG);
 
 			mockWatchCallback!("rename", "cert.pem");
-			await new Promise((resolve) => setTimeout(resolve, 350));
+			await jest.advanceTimersByTimeAsync(350);
 
 			expect(fsPromises.readFile).not.toHaveBeenCalled();
 			expect(MOCK_SERVER.setSecureContext).not.toHaveBeenCalled();
@@ -138,7 +152,7 @@ describe("setupTlsWatcher", () => {
 			await setupTlsWatcher(MOCK_SERVER, TLS_CONFIG);
 
 			mockWatchCallback!("change", "cert.pem");
-			await new Promise((resolve) => setTimeout(resolve, 350));
+			await jest.advanceTimersByTimeAsync(350);
 
 			expect(logger.error).toHaveBeenCalledWith(
 				"Failed to reload TLS context",
@@ -152,7 +166,7 @@ describe("setupTlsWatcher", () => {
 			mockWatchCallback!("change", "key.pem");
 			mockWatchCallback!("change", "cert.pem");
 			mockWatchCallback!("change", "ca.pem");
-			await new Promise((resolve) => setTimeout(resolve, 350));
+			await jest.advanceTimersByTimeAsync(350);
 
 			expect(fsPromises.readFile).toHaveBeenCalledTimes(3);
 			expect(MOCK_SERVER.setSecureContext).toHaveBeenCalledTimes(1);

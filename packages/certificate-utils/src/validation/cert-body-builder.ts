@@ -1,13 +1,16 @@
 import { createSign } from "node:crypto";
 
-import { CRYPTO } from "@trading-model/common/crypto/crypto-constants";
-import type { SerialNumber } from "@trading-model/common/domain/primitives";
+import { CryptoAlg } from "@trading-model/common/crypto/crypto-constants";
+import type {
+	KeyPem,
+	SerialNumber,
+} from "@trading-model/common/domain/primitives";
 
 export interface CertBodyBuilderOptions {
 	serialNumber: SerialNumber;
 	now: Date;
 	expiresAt: Date;
-	publicKey: string;
+	publicKey: KeyPem;
 	subject?: string;
 	san?: string[];
 	isCa?: boolean;
@@ -39,7 +42,7 @@ export class CertBodyBuilder {
 	}
 
 	signCertBody(certBody: string, privateKey: string): string {
-		const sign = createSign(CRYPTO.SHA256);
+		const sign = createSign(CryptoAlg.SHA256);
 		sign.update(certBody);
 		return sign.sign(privateKey, "base64");
 	}

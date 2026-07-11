@@ -1,7 +1,8 @@
 import type { NextFunction, Request, Response } from "express";
 
 import { logger } from "../config/logger";
-import type { URLString } from "../domain/primitives";
+import { URLString } from "../domain/primitives";
+import { HTTP_STATUS, type HttpStatusCode } from "../http-status";
 import { TimerHandle } from "../utils/timer-handle";
 import { ErrorBuffer } from "./error-buffer";
 import { buildErrorReport } from "./error-report-builder";
@@ -50,7 +51,7 @@ function stopFlushTimer(): void {
 export function reportError(
 	err: unknown,
 	req: Request,
-	statusCode: number
+	statusCode: HttpStatusCode
 ): void {
 	if (!errorBuffer) {
 		return;
@@ -61,7 +62,7 @@ export function reportError(
 
 function _configureIfEndpoint(endpoint: string): void {
 	configureErrorTracking({
-		endpoint: (endpoint || process.env.ERROR_URL_WEBHOOK) as URLString,
+		endpoint: URLString.of(endpoint || process.env.ERROR_URL_WEBHOOK || ""),
 	});
 }
 
@@ -80,8 +81,10 @@ function _createTrackingHandler(): (
 	};
 }
 
-function _determineStatusCode(res: Response): number {
-	return res.statusCode >= 400 ? res.statusCode : 500;
+function _determineStatusCode(res: Response): HttpStatusCode {
+	return (
+		res.statusCode >= 400 ? res.statusCode : HTTP_STATUS.INTERNAL_SERVER_ERROR
+	) as HttpStatusCode;
 }
 
 export function errorTrackingMiddleware(
@@ -98,4 +101,5 @@ export function shutdownErrorTracking(): void {
 	if (errorBuffer && errorBuffer.pendingCount > 0) {
 		void errorBuffer.flush();
 	}
+	errorBuffer = null;
 }

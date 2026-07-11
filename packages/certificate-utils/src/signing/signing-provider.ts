@@ -12,7 +12,7 @@
  */
 import { createPrivateKey, sign as nodeSign } from "node:crypto";
 
-import { CRYPTO } from "@trading-model/common/crypto/crypto-constants";
+import { CryptoAlg } from "@trading-model/common/crypto/crypto-constants";
 import type { KeyPair } from "../types";
 
 export interface SigningProvider {
@@ -52,7 +52,9 @@ export class LocalSigningProvider implements SigningProvider {
 	sign(tbsDerBytes: Buffer): Promise<Buffer> {
 		const nodeKey = createPrivateKey(this._keyPair.privateKey);
 		const algorithm =
-			nodeKey.asymmetricKeyType === "rsa" ? CRYPTO.RSA_SHA256 : CRYPTO.SHA256;
+			nodeKey.asymmetricKeyType === "rsa"
+				? CryptoAlg.RSA_SHA256
+				: CryptoAlg.SHA256;
 		return Promise.resolve(nodeSign(algorithm, tbsDerBytes, nodeKey));
 	}
 

@@ -4,7 +4,13 @@
 	WorkerIncomingMessage,
 	WorkerWsHeartbeatMessage,
 } from "../contracts/worker-protocol.types";
-import type { Capability } from "../domain/primitives";
+import {
+	type Capability,
+	DurationMs,
+	type PositiveInt,
+	toInstanceId,
+	URLString,
+} from "../domain/primitives";
 import { DefaultWsReconnector } from "../ws/default-ws-reconnector";
 import { wireConnectionEvents } from "./connection-wire";
 import { TypedEventEmitter } from "./typed-event-emitter";
@@ -16,10 +22,10 @@ export interface WorkerClientConfig {
 	workerId: string;
 	serverUrl: string;
 	capabilities: Capability[];
-	maxConcurrency: number;
-	heartbeatIntervalMs?: number;
-	reconnectBaseDelayMs?: number;
-	reconnectMaxDelayMs?: number;
+	maxConcurrency: PositiveInt;
+	heartbeatIntervalMs?: DurationMs;
+	reconnectBaseDelayMs?: DurationMs;
+	reconnectMaxDelayMs?: DurationMs;
 }
 export interface WorkerClientEvents {
 	connected: [];
@@ -29,7 +35,7 @@ export interface WorkerClientEvents {
 	"job.assigned": [job: SchedulerWsJobAssignedMessage["job"]];
 	reconnecting: [info: { attempt: number; delay: number }];
 	error: [error: Error];
-	unknown: [message: Record<string, unknown>];
+	unknown: [message: unknown];
 }
 
 function normalizeConfig(
@@ -40,9 +46,9 @@ function normalizeConfig(
 		serverUrl: config.serverUrl,
 		capabilities: config.capabilities,
 		maxConcurrency: config.maxConcurrency,
-		heartbeatIntervalMs: config.heartbeatIntervalMs ?? 15000,
-		reconnectBaseDelayMs: config.reconnectBaseDelayMs ?? 1000,
-		reconnectMaxDelayMs: config.reconnectMaxDelayMs ?? 30000,
+		heartbeatIntervalMs: config.heartbeatIntervalMs ?? DurationMs.of(15000),
+		reconnectBaseDelayMs: config.reconnectBaseDelayMs ?? DurationMs.of(1000),
+		reconnectMaxDelayMs: config.reconnectMaxDelayMs ?? DurationMs.of(30000),
 	};
 }
 
@@ -50,8 +56,8 @@ function _buildConnection(
 	cfg: Required<WorkerClientConfig>
 ): WorkerWsConnection {
 	return new WorkerWsConnection({
-		workerId: cfg.workerId,
-		serverUrl: cfg.serverUrl,
+		workerId: toInstanceId(cfg.workerId),
+		serverUrl: URLString.of(cfg.serverUrl),
 		capabilities: cfg.capabilities,
 		maxConcurrency: cfg.maxConcurrency,
 	});
@@ -101,13 +107,12 @@ export class WorkerClient extends TypedEventEmitter<WorkerClientEvents> {
 		);
 		this._heartbeat = _buildHeartbeat(this._cfg, (msg) => this.send(msg));
 		this._messageRouter = new WorkerMessageRouter(this.raw);
-		wireConnectionEvents(
-			this._connection,
-			this._heartbeat,
-			this._reconnector,
-			this._messageRouter,
-			this
-		);
+		wireConnectionEvents(this._connection, {
+			heartbeat: this._heartbeat,
+			reconnector: this._reconnector,
+			messageRouter: this._messageRouter,
+			emitter: this,
+		});
 	}
 
 	connect(): Promise<void> {

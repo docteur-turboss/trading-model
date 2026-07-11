@@ -1,12 +1,17 @@
 import type { HttpClient } from "../config/http-client";
 import type { SchedulerWsJobAssignedMessage } from "../contracts/worker-protocol.types";
-import type { JobId, JobType, URLString } from "../domain/primitives";
+import {
+	type JobId,
+	type JobType,
+	type PositiveInt,
+	URLString,
+} from "../domain/primitives";
 import { AckTimerManager } from "./ack-timer-manager";
 
 interface ActiveJob {
 	id: JobId;
 	type: JobType;
-	ackDeadline: number;
+	ackDeadline: PositiveInt;
 }
 
 function _toActiveJob(job: SchedulerWsJobAssignedMessage["job"]): ActiveJob {
@@ -52,23 +57,25 @@ export class JobHttpClient {
 
 	constructor(httpClient: HttpClient, schedulerHttpUrl: string) {
 		this._httpClient = httpClient;
-		this._schedulerHttpUrl = schedulerHttpUrl as URLString;
+		this._schedulerHttpUrl = URLString.of(schedulerHttpUrl);
 	}
 
 	async ackJob(jobId: JobId): Promise<void> {
-		await this._httpClient.post(`${this._schedulerHttpUrl}/jobs/${jobId}/ack`);
+		await this._httpClient.post(
+			URLString.of(`${this._schedulerHttpUrl}/jobs/${jobId}/ack`)
+		);
 	}
 
 	async completeJob(jobId: JobId, result: unknown): Promise<void> {
 		await this._httpClient.post(
-			`${this._schedulerHttpUrl}/jobs/${jobId}/complete`,
+			URLString.of(`${this._schedulerHttpUrl}/jobs/${jobId}/complete`),
 			{ result }
 		);
 	}
 
 	async failJob(jobId: JobId, error: string): Promise<void> {
 		await this._httpClient.post(
-			`${this._schedulerHttpUrl}/jobs/${jobId}/fail`,
+			URLString.of(`${this._schedulerHttpUrl}/jobs/${jobId}/fail`),
 			{ error }
 		);
 	}

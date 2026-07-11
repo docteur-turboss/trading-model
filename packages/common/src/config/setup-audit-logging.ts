@@ -1,4 +1,6 @@
+import { URLString } from "../domain/primitives";
 import type { HostPort } from "../domain/service-identity";
+import { toHostPortAddress } from "../domain/service-identity";
 import type { TlsPaths } from "../domain/tls-paths";
 import type { logger } from "./logger";
 import { ServiceInstanceName } from "./services.types";
@@ -21,7 +23,7 @@ function _buildAuditResolver(
 	loggerInstance: typeof logger,
 	addressManager: ServiceResolver,
 	tlsPaths: TlsPaths
-): () => Promise<{ url: string; tls: TlsPaths } | null> {
+): () => Promise<{ url: URLString; tls: TlsPaths } | null> {
 	let connected = false;
 	return async () => {
 		try {
@@ -33,7 +35,10 @@ function _buildAuditResolver(
 			}
 			_logFirstConnection(loggerInstance, target, connected);
 			connected = true;
-			return { url: `https://${target.host}:${target.port}`, tls: tlsPaths };
+			return {
+				url: URLString.of(`https://${toHostPortAddress(target)}`),
+				tls: tlsPaths,
+			};
 		} catch {
 			return null;
 		}
@@ -57,7 +62,7 @@ function _logFirstConnection(
 ): void {
 	if (!alreadyConnected) {
 		loggerInstance.info("audit-logger: connected", {
-			url: `${target.host}:${target.port}`,
+			url: toHostPortAddress(target),
 		});
 	}
 }

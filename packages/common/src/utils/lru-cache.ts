@@ -9,7 +9,7 @@ export class LruCache<TValue> implements ISyncCache<TValue> {
 		{ value: TValue; expiresAt: number }
 	>();
 
-	constructor(config: CacheConfig = { maxSize: 1000, ttlMs: 60000 }) {
+	constructor(config: CacheConfig = { maxSize: 1000, ttlMs: 60000 as never }) {
 		this._maxSize = config.maxSize;
 		this._ttlMs = config.ttlMs ?? 60000;
 	}

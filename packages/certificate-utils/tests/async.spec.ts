@@ -9,7 +9,7 @@ const MOCK_VALIDATE_CERTIFICATE = jest.fn<any>();
 const MOCK_PARSE_KEY = jest.fn<any>();
 const MOCK_SIGN = jest.fn<any>();
 
-jest.mock("../src/lazy-pool", () => ({
+jest.mock("../src/workers/lazy-pool", () => ({
 	getPool: jest.fn(() => ({
 		execute: MOCK_EXECUTE,
 	})),
@@ -39,6 +39,7 @@ import {
 	signCertificateAsync,
 	validateCertificateAsync,
 } from "../src/async";
+import { KeyAlgorithm } from "../src/generate-key-pair";
 
 describe("async module - pool path", () => {
 	beforeEach(() => {
@@ -115,9 +116,9 @@ describe("async module - pool path", () => {
 
 	it("parseKeyAsync should delegate to pool", async () => {
 		MOCK_EXECUTE.mockResolvedValue({ publicKey: "pk", privateKey: "sk" });
-		const result = await parseKeyAsync("private-key");
+		const result = await parseKeyAsync("private-key" as never);
 		expect(MOCK_EXECUTE).toHaveBeenCalledWith("parseKey", {
-			privateKey: "private-key",
+			privateKey: "private-key" as never,
 		});
 		expect(result).toEqual({ publicKey: "pk", privateKey: "sk" });
 	});
@@ -127,12 +128,12 @@ describe("async module - pool path", () => {
 		const result = await signAsync({
 			algorithm: "sha256",
 			body: "body",
-			privateKey: "private-key",
+			privateKey: "private-key" as never,
 		});
 		expect(MOCK_EXECUTE).toHaveBeenCalledWith("sign", {
 			algorithm: "sha256",
 			body: "body",
-			privateKey: "private-key",
+			privateKey: "private-key" as never,
 		});
 		expect(result).toBe("signature");
 	});
@@ -159,7 +160,7 @@ describe("async module - remote client path", () => {
 			publicKey: "pk",
 			privateKey: "sk",
 		});
-		const result = await generateKeyPairAsync("rsa");
+		const result = await generateKeyPairAsync(KeyAlgorithm.Rsa4096);
 		expect(MOCK_GENERATE_KEY_PAIR).toHaveBeenCalledWith("rsa");
 		expect(result).toEqual({ publicKey: "pk", privateKey: "sk" });
 	});
@@ -200,14 +201,14 @@ describe("async module - remote client path", () => {
 	it("validateCertificateAsync should delegate to remote client", async () => {
 		MOCK_VALIDATE_CERTIFICATE.mockResolvedValue({ valid: true });
 		const result = await validateCertificateAsync({ certPem: "cert" });
-		expect(MOCK_VALIDATE_CERTIFICATE).toHaveBeenCalledWith("cert");
+		expect(MOCK_VALIDATE_CERTIFICATE).toHaveBeenCalledWith({ certPem: "cert" });
 		expect(result.valid).toBe(true);
 	});
 
 	it("parseKeyAsync should delegate to remote client", async () => {
 		MOCK_PARSE_KEY.mockResolvedValue({ publicKey: "pk", privateKey: "sk" });
-		await parseKeyAsync("private-key");
-		expect(MOCK_PARSE_KEY).toHaveBeenCalledWith("private-key");
+		await parseKeyAsync("private-key" as never);
+		expect(MOCK_PARSE_KEY).toHaveBeenCalledWith("private-key" as never);
 	});
 
 	it("signAsync should delegate to remote client", async () => {
@@ -215,12 +216,12 @@ describe("async module - remote client path", () => {
 		const result = await signAsync({
 			algorithm: "sha256",
 			body: "body",
-			privateKey: "private-key",
+			privateKey: "private-key" as never,
 		});
 		expect(MOCK_SIGN).toHaveBeenCalledWith({
 			algorithm: "sha256",
 			body: "body",
-			privateKey: "private-key",
+			privateKey: "private-key" as never,
 		});
 		expect(result).toBe("signature");
 	});

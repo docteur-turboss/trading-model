@@ -1,8 +1,10 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import type {
 	AuthToken,
+	CsrPem,
 	SerialNumber,
 	ServiceId,
+	URLString,
 } from "../../src/domain/primitives";
 import { RevocationReason } from "../../src/domain/revocation-request";
 
@@ -24,6 +26,7 @@ jest.mock("../../src/config/http-client", () => {
 });
 
 import { CaClient } from "../../src/ca/ca-client";
+import type { FilePath } from "../../src/domain/primitives";
 
 describe("CaClient", () => {
 	let client: CaClient;
@@ -47,22 +50,26 @@ describe("CaClient", () => {
 
 	beforeEach(() => {
 		jest.clearAllMocks();
-		client = new CaClient({ baseUrl: "https://ca.example.com:8443" });
+		client = new CaClient({
+			baseUrl: "https://ca.example.com:8443" as URLString,
+		});
 	});
 
 	describe("constructor", () => {
 		it("should strip trailing slash from baseUrl", () => {
-			const c = new CaClient({ baseUrl: "https://ca.example.com/" });
+			const c = new CaClient({
+				baseUrl: "https://ca.example.com/" as URLString,
+			});
 			expect(c).toBeInstanceOf(CaClient);
 		});
 
 		it("should create with TLS config", () => {
 			const c = new CaClient({
-				baseUrl: "https://ca.example.com",
+				baseUrl: "https://ca.example.com" as URLString,
 				tls: {
-					caPath: "/etc/ca.pem",
-					certPath: "/etc/cert.pem",
-					keyPath: "/etc/key.pem",
+					caPath: "/etc/ca.pem" as FilePath,
+					certPath: "/etc/cert.pem" as FilePath,
+					keyPath: "/etc/key.pem" as FilePath,
 				},
 			});
 			expect(c).toBeInstanceOf(CaClient);
@@ -75,7 +82,7 @@ describe("CaClient", () => {
 
 			const result = await client.signCertificate({
 				serviceId: "my-service" as unknown as ServiceId,
-				csr: "-----BEGIN CSR-----",
+				csr: "-----BEGIN CSR-----" as CsrPem,
 			});
 
 			expect(MOCK_POST).toHaveBeenCalledWith(
@@ -93,8 +100,8 @@ describe("CaClient", () => {
 
 			await client.signCertificate({
 				serviceId: "my-service" as unknown as ServiceId,
-				csr: "csr",
-				ttlMs: 86400000,
+				csr: "csr" as CsrPem,
+				ttlMs: 86400000 as never,
 				bootstrapToken: "token-123" as unknown as AuthToken,
 			});
 
@@ -103,7 +110,7 @@ describe("CaClient", () => {
 				{
 					serviceId: "my-service",
 					csr: "csr",
-					ttlMs: 86400000,
+					ttlMs: 86400000 as never,
 					bootstrapToken: "token-123" as unknown as AuthToken,
 				}
 			);
@@ -115,7 +122,7 @@ describe("CaClient", () => {
 			await expect(
 				client.signCertificate({
 					serviceId: "my-service" as unknown as ServiceId,
-					csr: "csr",
+					csr: "csr" as CsrPem,
 				})
 			).rejects.toThrow("Empty response from CA sign endpoint");
 		});
@@ -126,7 +133,7 @@ describe("CaClient", () => {
 			await expect(
 				client.signCertificate({
 					serviceId: "my-service" as unknown as ServiceId,
-					csr: "csr",
+					csr: "csr" as CsrPem,
 				})
 			).rejects.toThrow("Connection refused");
 		});

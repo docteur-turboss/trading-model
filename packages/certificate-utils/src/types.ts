@@ -1,6 +1,10 @@
 import type { CertificateBase } from "@trading-model/common/domain/certificate-base";
 import type {
+	CaPem,
+	CommonName,
 	Fingerprint,
+	KeyId,
+	KeyPem,
 	SerialNumber,
 	ServiceId,
 } from "@trading-model/common/domain/primitives";
@@ -15,8 +19,8 @@ export interface SignedCertificate extends CertificateBase {
 export type { RevokedCertificate };
 
 export interface CaMetadata {
-	id: string;
-	caCertPem: string;
+	id: SerialNumber;
+	caCertPem: CaPem;
 	createdAt: Date;
 	expiresAt: Date;
 	fingerprint: Fingerprint;
@@ -25,22 +29,22 @@ export interface CaMetadata {
 export interface SignInput {
 	algorithm: string;
 	body: string;
-	privateKey: string;
+	privateKey: KeyPem;
 }
 
 export interface KeyPair {
-	publicKey: string;
-	privateKey: string;
+	publicKey: KeyPem;
+	privateKey: KeyPem;
 }
 
-export type KeyPairWithId = KeyPair & { id: string };
+export type KeyPairWithId = KeyPair & { id: KeyId };
 
 export interface CertificateInfo {
 	serialNumber: SerialNumber;
-	subject: string;
-	issuer: string;
+	subject: CommonName;
+	issuer: CommonName;
 	notBefore: Date;
 	notAfter: Date;
 	fingerprint: Fingerprint;
-	san: string[];
+	san: CommonName[];
 }

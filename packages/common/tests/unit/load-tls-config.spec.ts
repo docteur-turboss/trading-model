@@ -1,12 +1,13 @@
 import { describe, expect, it } from "@jest/globals";
+import type { FilePath } from "../../src/domain/primitives";
 import { loadTlsConfig } from "../../src/server/load-tls-config";
 
 describe("loadTlsConfig", () => {
 	it("should return TLS config from paths", () => {
 		const paths = {
-			keyPath: "/etc/tls/key.pem",
-			certPath: "/etc/tls/cert.pem",
-			caPath: "/etc/tls/ca.pem",
+			keyPath: "/etc/tls/key.pem" as FilePath,
+			certPath: "/etc/tls/cert.pem" as FilePath,
+			caPath: "/etc/tls/ca.pem" as FilePath,
 		};
 		const result = loadTlsConfig(paths);
 
@@ -15,9 +16,9 @@ describe("loadTlsConfig", () => {
 
 	it("should return TLS config with special characters in paths", () => {
 		const paths = {
-			keyPath: "C:\\Program Files\\app\\tls\\key.pem",
-			certPath: "/path/with spaces/cert.pem",
-			caPath: "/path/with/dashes/ca.pem",
+			keyPath: "C:\\Program Files\\app\\tls\\key.pem" as FilePath,
+			certPath: "/path/with spaces/cert.pem" as FilePath,
+			caPath: "/path/with/dashes/ca.pem" as FilePath,
 		};
 		const result = loadTlsConfig(paths);
 

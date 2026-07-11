@@ -1,3 +1,4 @@
+import type { URLString } from "../domain/primitives";
 import type { HostPort } from "../domain/service-identity";
 
 export interface RedisSentinelConfig {
@@ -14,6 +15,6 @@ export interface RedisClusterNodesConfig {
 export type RedisMode = RedisConnectionConfig["mode"];
 
 export type RedisConnectionConfig =
-	| { mode: "single"; url: string }
+	| { mode: "single"; url: URLString }
 	| { mode: "sentinel"; config: RedisSentinelConfig }
 	| { mode: "cluster"; config: RedisClusterNodesConfig };

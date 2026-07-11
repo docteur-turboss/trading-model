@@ -6,13 +6,13 @@ import {
 	it,
 	jest,
 } from "@jest/globals";
-
 import type {
 	Capability,
 	InstanceId,
 	IPAddress,
 	Port,
 } from "../../../src/domain/primitives";
+import { PositiveInt } from "../../../src/domain/primitives";
 import { WorkerRegistry } from "../../../src/worker/worker-registry";
 
 describe("WorkerRegistry", () => {
@@ -34,7 +34,7 @@ describe("WorkerRegistry", () => {
 				host: "10.0.0.1" as IPAddress,
 				port: 9000 as Port,
 				capabilities: ["type-a" as unknown as Capability],
-				maxConcurrency: 5,
+				maxConcurrency: PositiveInt.of(5),
 				currentLoad: 0,
 			});
 
@@ -49,7 +49,7 @@ describe("WorkerRegistry", () => {
 				host: "10.0.0.1" as IPAddress,
 				port: 9000 as Port,
 				capabilities: ["type-a" as unknown as Capability],
-				maxConcurrency: 5,
+				maxConcurrency: PositiveInt.of(5),
 				currentLoad: 0,
 			});
 			registry.unregister("worker-1");
@@ -69,7 +69,7 @@ describe("WorkerRegistry", () => {
 				host: "10.0.0.1" as IPAddress,
 				port: 9000 as Port,
 				capabilities: ["type-a" as unknown as Capability],
-				maxConcurrency: 5,
+				maxConcurrency: PositiveInt.of(5),
 				currentLoad: 0,
 			});
 
@@ -86,14 +86,14 @@ describe("WorkerRegistry", () => {
 				host: "10.0.0.1" as IPAddress,
 				port: 9000 as Port,
 				capabilities: ["type-a" as unknown as Capability],
-				maxConcurrency: 5,
+				maxConcurrency: PositiveInt.of(5),
 				currentLoad: 0,
 			});
 
-			const before = registry.get("worker-1")!.lastHeartbeat.getTime();
+			const before = registry.get("worker-1")!.lastHeartbeat;
 			jest.advanceTimersByTime(1000);
 			registry.heartbeat("worker-1");
-			const after = registry.get("worker-1")!.lastHeartbeat.getTime();
+			const after = registry.get("worker-1")!.lastHeartbeat;
 
 			expect(after).toBeGreaterThan(before);
 		});
@@ -110,7 +110,7 @@ describe("WorkerRegistry", () => {
 				host: "10.0.0.1" as IPAddress,
 				port: 9000 as Port,
 				capabilities: ["type-a" as unknown as Capability],
-				maxConcurrency: 5,
+				maxConcurrency: PositiveInt.of(5),
 				currentLoad: 0,
 			});
 
@@ -130,7 +130,7 @@ describe("WorkerRegistry", () => {
 				host: "10.0.0.1" as IPAddress,
 				port: 9000 as Port,
 				capabilities: ["type-a" as unknown as Capability],
-				maxConcurrency: 5,
+				maxConcurrency: PositiveInt.of(5),
 				currentLoad: 0,
 			});
 
@@ -154,7 +154,7 @@ describe("WorkerRegistry", () => {
 				host: "10.0.0.1" as IPAddress,
 				port: 9000 as Port,
 				capabilities: ["type-b" as unknown as Capability],
-				maxConcurrency: 5,
+				maxConcurrency: PositiveInt.of(5),
 				currentLoad: 0,
 			});
 
@@ -167,7 +167,7 @@ describe("WorkerRegistry", () => {
 				host: "10.0.0.1" as IPAddress,
 				port: 9000 as Port,
 				capabilities: ["type-a" as unknown as Capability],
-				maxConcurrency: 5,
+				maxConcurrency: PositiveInt.of(5),
 				currentLoad: 0,
 			});
 			registry.setStatus("draining-worker", "draining");
@@ -181,7 +181,7 @@ describe("WorkerRegistry", () => {
 				host: "10.0.0.1" as IPAddress,
 				port: 9000 as Port,
 				capabilities: ["type-a" as unknown as Capability],
-				maxConcurrency: 2,
+				maxConcurrency: PositiveInt.of(2),
 				currentLoad: 2,
 			});
 
@@ -194,7 +194,7 @@ describe("WorkerRegistry", () => {
 				host: "10.0.0.1" as IPAddress,
 				port: 9000 as Port,
 				capabilities: ["type-a" as unknown as Capability],
-				maxConcurrency: 10,
+				maxConcurrency: PositiveInt.of(10),
 				currentLoad: 8,
 			});
 			registry.register("free", {
@@ -202,7 +202,7 @@ describe("WorkerRegistry", () => {
 				host: "10.0.0.2" as IPAddress,
 				port: 9000 as Port,
 				capabilities: ["type-a" as unknown as Capability],
-				maxConcurrency: 10,
+				maxConcurrency: PositiveInt.of(10),
 				currentLoad: 2,
 			});
 
@@ -217,7 +217,7 @@ describe("WorkerRegistry", () => {
 				host: "10.0.0.1" as IPAddress,
 				port: 9000 as Port,
 				capabilities: ["type-a" as unknown as Capability],
-				maxConcurrency: 10,
+				maxConcurrency: PositiveInt.of(10),
 				currentLoad: 2,
 			});
 			registry.register("worse", {
@@ -225,7 +225,7 @@ describe("WorkerRegistry", () => {
 				host: "10.0.0.2" as IPAddress,
 				port: 9000 as Port,
 				capabilities: ["type-a" as unknown as Capability],
-				maxConcurrency: 10,
+				maxConcurrency: PositiveInt.of(10),
 				currentLoad: 5,
 			});
 
@@ -241,7 +241,7 @@ describe("WorkerRegistry", () => {
 				host: "10.0.0.1" as IPAddress,
 				port: 9000 as Port,
 				capabilities: ["type-a" as unknown as Capability],
-				maxConcurrency: 5,
+				maxConcurrency: PositiveInt.of(5),
 				currentLoad: 0,
 			});
 			registry.heartbeat("worker-1");
@@ -256,7 +256,7 @@ describe("WorkerRegistry", () => {
 				host: "10.0.0.1" as IPAddress,
 				port: 9000 as Port,
 				capabilities: ["type-a" as unknown as Capability],
-				maxConcurrency: 5,
+				maxConcurrency: PositiveInt.of(5),
 				currentLoad: 0,
 			});
 
@@ -279,7 +279,7 @@ describe("WorkerRegistry", () => {
 				host: "10.0.0.1" as IPAddress,
 				port: 9000 as Port,
 				capabilities: [],
-				maxConcurrency: 1,
+				maxConcurrency: PositiveInt.of(1),
 				currentLoad: 0,
 			});
 			registry.register("w2", {
@@ -287,7 +287,7 @@ describe("WorkerRegistry", () => {
 				host: "10.0.0.2" as IPAddress,
 				port: 9000 as Port,
 				capabilities: [],
-				maxConcurrency: 1,
+				maxConcurrency: PositiveInt.of(1),
 				currentLoad: 0,
 			});
 
@@ -306,7 +306,7 @@ describe("WorkerRegistry", () => {
 				host: "10.0.0.1" as IPAddress,
 				port: 9000 as Port,
 				capabilities: [],
-				maxConcurrency: 10,
+				maxConcurrency: PositiveInt.of(10),
 				currentLoad: 5,
 			});
 			registry.register("w2", {
@@ -314,7 +314,7 @@ describe("WorkerRegistry", () => {
 				host: "10.0.0.2" as IPAddress,
 				port: 9000 as Port,
 				capabilities: [],
-				maxConcurrency: 10,
+				maxConcurrency: PositiveInt.of(10),
 				currentLoad: 3,
 			});
 
@@ -327,7 +327,7 @@ describe("WorkerRegistry", () => {
 				host: "10.0.0.1" as IPAddress,
 				port: 9000 as Port,
 				capabilities: [],
-				maxConcurrency: 0,
+				maxConcurrency: PositiveInt.of(1),
 				currentLoad: 0,
 			});
 
@@ -342,7 +342,7 @@ describe("WorkerRegistry", () => {
 				host: "10.0.0.1" as IPAddress,
 				port: 9000 as Port,
 				capabilities: [],
-				maxConcurrency: 5,
+				maxConcurrency: PositiveInt.of(5),
 				currentLoad: 0,
 			});
 			registry.register("draining-w", {
@@ -350,7 +350,7 @@ describe("WorkerRegistry", () => {
 				host: "10.0.0.2" as IPAddress,
 				port: 9000 as Port,
 				capabilities: [],
-				maxConcurrency: 5,
+				maxConcurrency: PositiveInt.of(5),
 				currentLoad: 0,
 			});
 			registry.setStatus("draining-w", "draining");

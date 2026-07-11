@@ -1,28 +1,30 @@
+export type RedisStatus = string & { readonly brand: "RedisStatus" };
+
 export const REDIS_STATUS = {
-	READY: "ready",
-	CONNECTING: "connecting",
-	RECONNECTING: "reconnecting",
-	CLOSE: "close",
+	READY: "ready" as RedisStatus,
+	CONNECTING: "connecting" as RedisStatus,
+	RECONNECTING: "reconnecting" as RedisStatus,
+	CLOSE: "close" as RedisStatus,
 } as const;
 
-export type RedisStatus = (typeof REDIS_STATUS)[keyof typeof REDIS_STATUS];
+export type RedisResp = string & { readonly brand: "RedisResp" };
 
 export const REDIS_RESP = {
-	OK: "OK",
-	PONG: "PONG",
+	OK: "OK" as RedisResp,
+	PONG: "PONG" as RedisResp,
 } as const;
+
+export type RedisSet = string & { readonly brand: "RedisSet" };
 
 export const REDIS_SET = {
-	NX: "NX",
-	XX: "XX",
-	EX: "EX",
-	PX: "PX",
+	NX: "NX" as RedisSet,
+	XX: "XX" as RedisSet,
+	EX: "EX" as RedisSet,
+	PX: "PX" as RedisSet,
 } as const;
 
-export const REDIS_MODE = {
-	SINGLE: "single",
-	SENTINEL: "sentinel",
-	CLUSTER: "cluster",
-} as const;
-
-export type RedisMode = (typeof REDIS_MODE)[keyof typeof REDIS_MODE];
+export enum RedisMode {
+	SINGLE = "single",
+	SENTINEL = "sentinel",
+	CLUSTER = "cluster",
+}

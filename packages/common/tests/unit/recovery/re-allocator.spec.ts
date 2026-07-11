@@ -1,6 +1,11 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import type { JOB_STATUS, Job } from "../../../src/contracts/recovery.types";
+import { JobPriority } from "../../../src/contracts/recovery.types";
 import type { JobId, JobType } from "../../../src/domain/primitives";
+import {
+	type PositiveInt,
+	UnixTimestamp,
+} from "../../../src/domain/primitives";
 import type { IJobQueue } from "../../../src/recovery/job-queue.interface";
 import type { IJobRepository } from "../../../src/recovery/job-repository.interface";
 import { ReAllocator } from "../../../src/recovery/re-allocator";
@@ -10,12 +15,12 @@ function createJob(overrides?: Partial<Job>): Job {
 		id: "test-job-1" as unknown as JobId,
 		type: "test-type" as unknown as JobType,
 		payload: { key: "value" },
-		priority: 3,
+		priority: JobPriority.MEDIUM,
 		status: "assigned" as unknown as JOB_STATUS,
-		ackDeadline: 0,
-		maxRetries: 3,
-		retryCount: 0,
-		createdAt: new Date(),
+		ackDeadline: 0 as PositiveInt,
+		maxRetries: 3 as PositiveInt,
+		retryCount: 0 as PositiveInt,
+		createdAt: UnixTimestamp.now(),
 		history: [],
 		...overrides,
 	};
@@ -41,7 +46,10 @@ describe("ReAllocator (shared)", () => {
 
 	describe("reallocate", () => {
 		it("should mark job as failed when maxRetries exceeded", async () => {
-			const job = createJob({ retryCount: 3, maxRetries: 3 });
+			const job = createJob({
+				retryCount: 3 as PositiveInt,
+				maxRetries: 3 as PositiveInt,
+			});
 
 			await reAllocator.reallocate(job);
 
@@ -57,8 +65,8 @@ describe("ReAllocator (shared)", () => {
 		it("should re-enqueue job when retries remain", async () => {
 			const job = createJob({
 				id: "rejob-1" as unknown as JobId,
-				retryCount: 1,
-				maxRetries: 3,
+				retryCount: 1 as PositiveInt,
+				maxRetries: 3 as PositiveInt,
 			});
 
 			await reAllocator.reallocate(job);
@@ -78,7 +86,10 @@ describe("ReAllocator (shared)", () => {
 		});
 
 		it("should not enqueue when job is failed", async () => {
-			const job = createJob({ retryCount: 5, maxRetries: 3 });
+			const job = createJob({
+				retryCount: 5 as PositiveInt,
+				maxRetries: 3 as PositiveInt,
+			});
 
 			await reAllocator.reallocate(job);
 
@@ -91,7 +102,11 @@ describe("ReAllocator (shared)", () => {
 		});
 
 		it("should append re-allocated history entry on re-enqueue", async () => {
-			const job = createJob({ retryCount: 0, maxRetries: 3, history: [] });
+			const job = createJob({
+				retryCount: 0 as PositiveInt,
+				maxRetries: 3 as PositiveInt,
+				history: [],
+			});
 
 			await reAllocator.reallocate(job);
 

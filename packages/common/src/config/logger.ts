@@ -1,25 +1,30 @@
-import type { JsonObject, SessionId, UserId } from "../domain/primitives";
+import {
+	type JsonObject,
+	type SessionId,
+	type URLString,
+	UserId,
+} from "../domain/primitives";
 import type { TlsPaths } from "../domain/tls-paths";
 import {
-	isLogLevelAtLeast,
 	type LogEntry,
 	LogLevel,
+	LogLevelThreshold,
 	type LogOptions,
 } from "./log-types";
 
 export type { LogEntry, LogOptions };
 export { LogLevel };
 
-import { NODE_ENV as NODE_ENV_CONST } from "@trading-model/common/config/node-env";
 import { formatLogEntry } from "./console-formatter";
 import { LogBuffer } from "./log-buffer";
 import { LogDispatcher } from "./log-dispatcher";
+import { getNodeEnv, NODE_ENV as NODE_ENV_CONST } from "./node-env";
 import { SensitiveDataSanitizer } from "./sensitive-data-sanitizer";
 import { generateSessionId } from "./session-id-generator";
 
 export class Logger {
 	private _logLevel: LogLevel;
-	private _userId: UserId = "" as UserId;
+	private _userId: UserId = UserId.of("unknown");
 	private readonly _sessionId: SessionId;
 	private readonly _buffer: LogBuffer;
 	private readonly _dispatcher: LogDispatcher;
@@ -41,7 +46,7 @@ export class Logger {
 		message: string,
 		context?: JsonObject
 	): void {
-		if (!isLogLevelAtLeast(level, this._logLevel)) {
+		if (!LogLevelThreshold.isAtLeast(level, this._logLevel)) {
 			return;
 		}
 		const logEntry = this._buildLogEntry(level, message, context);
@@ -69,7 +74,11 @@ export class Logger {
 	): void {
 		this._buffer.add(logEntry);
 		consoleFn(
-			formatLogEntry(label, logEntry.timestamp, logEntry.message),
+			formatLogEntry({
+				label,
+				timestamp: logEntry.timestamp,
+				message: logEntry.message,
+			}),
 			context || ""
 		);
 	}
@@ -100,7 +109,7 @@ export class Logger {
 
 	setAuditResolver(
 		resolver: () => Promise<{
-			url: string;
+			url: URLString;
 			tls: TlsPaths;
 		} | null>
 	): void {
@@ -117,9 +126,5 @@ export const logger = new Logger(
 			? LogLevel.Info
 			: LogLevel.Warn
 );
-
-export function getNodeEnv(): string {
-	return process.env.NODE_ENV ?? "development";
-}
 
 export const LOGGER = Logger;

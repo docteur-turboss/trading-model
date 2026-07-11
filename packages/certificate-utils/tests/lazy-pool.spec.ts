@@ -17,7 +17,7 @@ jest.mock("node:os", () => ({
 describe("lazy-pool", () => {
 	it("should create and return a WorkerPool singleton", () => {
 		jest.isolateModules(() => {
-			const { getPool } = require("../src/lazy-pool");
+			const { getPool } = require("../src/workers/lazy-pool");
 			const pool1 = getPool();
 			const pool2 = getPool();
 			expect(pool1).toBe(pool2);
@@ -26,7 +26,7 @@ describe("lazy-pool", () => {
 
 	it("should create pool with custom size", () => {
 		jest.isolateModules(() => {
-			const { getPool } = require("../src/lazy-pool");
+			const { getPool } = require("../src/workers/lazy-pool");
 			const pool = getPool(4);
 			expect(pool).toBeDefined();
 		});
@@ -34,7 +34,7 @@ describe("lazy-pool", () => {
 
 	it("warmupPool should start the pool", () => {
 		jest.isolateModules(() => {
-			const { getPool, warmupPool } = require("../src/lazy-pool");
+			const { getPool, warmupPool } = require("../src/workers/lazy-pool");
 			warmupPool(2);
 			const p = getPool();
 			expect(p.size).toBe(2);

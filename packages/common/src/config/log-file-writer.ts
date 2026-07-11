@@ -9,10 +9,7 @@ export class LogFileWriter {
 	constructor(private readonly _sanitizer: SensitiveDataSanitizer) {}
 
 	private _buildLogFileName(data: LogEntry, level: LogLevel): string {
-		const ts =
-			data.timestamp instanceof Date
-				? data.timestamp
-				: new Date(data.timestamp);
+		const ts = new Date(data.timestamp);
 		return `${ts.getFullYear()}.${ts.getMonth() + 1}.${ts.getDate()}-${level}.log`;
 	}
 

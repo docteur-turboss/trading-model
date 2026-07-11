@@ -5,34 +5,41 @@ import type { WorkerHeartbeat } from "./worker-heartbeat";
 import type { WorkerMessageRouter } from "./worker-message-router";
 import type { WorkerWsConnection } from "./worker-ws-connection";
 
+export interface WireConnectionHandlers {
+	heartbeat: WorkerHeartbeat;
+	reconnector: DefaultWsReconnector;
+	messageRouter: WorkerMessageRouter;
+	emitter: TypedEventEmitter<WorkerClientEvents>;
+}
+
 export function wireConnectionEvents(
 	connection: WorkerWsConnection,
-	heartbeat: WorkerHeartbeat,
-	reconnector: DefaultWsReconnector,
-	messageRouter: WorkerMessageRouter,
-	emitter: TypedEventEmitter<WorkerClientEvents>
+	handlers: WireConnectionHandlers
 ): void {
 	connection.onOpen = () => {
-		heartbeat.start();
-		emitter.emit("connected");
+		handlers.heartbeat.start();
+		handlers.emitter.emit("connected");
 	};
 	connection.onClose = () => {
-		heartbeat.stop();
-		emitter.emit("disconnected");
-		if (!reconnector.intentionalClose) {
-			reconnector.scheduleReconnect();
+		handlers.heartbeat.stop();
+		handlers.emitter.emit("disconnected");
+		if (!handlers.reconnector.intentionalClose) {
+			handlers.reconnector.scheduleReconnect();
 		}
 	};
 	connection.onMessage = (data) => {
 		try {
-			messageRouter.handle(JSON.parse(String(data)), (msg) =>
-				emitter.emit("unknown", msg)
+			handlers.messageRouter.handle(JSON.parse(String(data)), (msg) =>
+				handlers.emitter.emit("unknown", msg)
 			);
 		} catch (err) {
-			emitter.emit("error", new Error(`Invalid message from server: ${err}`));
+			handlers.emitter.emit(
+				"error",
+				new Error(`Invalid message from server: ${err}`)
+			);
 		}
 	};
 	connection.onError = (err) => {
-		emitter.emit("error", err);
+		handlers.emitter.emit("error", err);
 	};
 }

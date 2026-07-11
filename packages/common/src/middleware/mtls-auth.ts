@@ -1,6 +1,6 @@
 import type { TLSSocket } from "node:tls";
 
-import type { ClientIdentity } from "../domain/primitives/string-ids";
+import { ClientIdentity } from "../domain/primitives/string-ids";
 import { catchSync } from "./catch-error";
 import { ResponseException } from "./response-exception";
 
@@ -82,7 +82,9 @@ function _assertClientCert(
 	return cert;
 }
 
-function _resolveIdentity(cert: import("node:tls").PeerCertificate): ClientIdentity {
+function _resolveIdentity(
+	cert: import("node:tls").PeerCertificate
+): ClientIdentity {
 	const raw = cert.subjectaltname ?? cert.subject?.CN;
 
 	if (!raw) {
@@ -94,5 +96,5 @@ function _resolveIdentity(cert: import("node:tls").PeerCertificate): ClientIdent
 		).unauthorized();
 	}
 
-	return (Array.isArray(raw) ? raw.join(", ") : raw) as ClientIdentity;
+	return ClientIdentity.of(Array.isArray(raw) ? raw.join(", ") : raw);
 }

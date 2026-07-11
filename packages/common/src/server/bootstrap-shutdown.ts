@@ -1,4 +1,5 @@
 import { logger } from "../config/logger";
+import { DurationMs } from "../domain/primitives";
 import { normalizeError } from "../utils/errors";
 import type { BootstrapOptions } from "./bootstrap-types";
 import type { HttpServer } from "./create-secure-server";
@@ -27,14 +28,18 @@ function _runOnStop(options: BootstrapOptions): void {
 	}
 }
 
-function _createCloseTimeoutPromise(timeoutMs: number): Promise<never> {
+function _createCloseTimeoutPromise(timeoutMs: DurationMs): Promise<never> {
 	return new Promise<never>((_, reject) => {
-		setTimeout(() => reject(new Error("Server close timed out")), timeoutMs);
+		const timer = setTimeout(
+			() => reject(new Error("Server close timed out")),
+			timeoutMs
+		);
+		timer.unref();
 	});
 }
 
 async function _closeServerWithTimeout(server: HttpServer): Promise<void> {
-	const closeTimeout = 10000;
+	const closeTimeout = DurationMs.of(10000);
 	await Promise.race([
 		server.close(),
 		_createCloseTimeoutPromise(closeTimeout),

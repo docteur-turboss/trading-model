@@ -1,4 +1,4 @@
-import type { ServiceId } from "../domain/primitives";
+import { ServiceId } from "../domain/primitives";
 
 type KnownService =
 	| "certificate-authority"
@@ -10,7 +10,7 @@ type KnownService =
 	| "api-gateway";
 
 function toServiceId(serviceName: string): ServiceId {
-	return serviceName as ServiceId;
+	return ServiceId.of(serviceName);
 }
 
 export const DEFAULT_ACL: Record<KnownService, readonly ServiceId[]> = {

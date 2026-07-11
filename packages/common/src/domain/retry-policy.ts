@@ -1,6 +1,8 @@
+import type { PositiveInt } from "../domain/primitives";
+
 export interface RetryPolicy {
-	retryCount: number;
-	maxRetries: number;
+	retryCount: PositiveInt;
+	maxRetries: PositiveInt;
 }
 
 export function hasExceededMaxRetries(policy: RetryPolicy): boolean {

@@ -5,6 +5,7 @@ import type { Application } from "express";
 import { logger } from "../config/logger";
 import type { Port } from "../domain/primitives";
 import type { TlsPaths, TlsPemBundle } from "../domain/tls-paths";
+import { toSecureContextOptions } from "../domain/tls-paths";
 import { loadTlsFiles } from "./tls-loader";
 import { setupTlsWatcher } from "./tls-watcher";
 
@@ -21,16 +22,14 @@ export interface HttpServer {
 
 function _buildServerOptions(tls: TlsPemBundle): ServerOptions {
 	return {
-		key: tls.keyPem,
-		cert: tls.certPem,
-		ca: tls.caPem,
+		...toSecureContextOptions(tls),
 		requestCert: true,
 		rejectUnauthorized: true,
 		minVersion: "TLSv1.3",
 	};
 }
 
-function _startListening(server: https.Server, port: number): void {
+function _startListening(server: https.Server, port: Port): void {
 	server.listen(port, () => {
 		logger.info("HTTPS server listening", {
 			context: { port, mtls: true },
@@ -62,10 +61,7 @@ export async function createAndStartHttpsServer(
 	options: HttpsServerOptions
 ): Promise<HttpServer> {
 	const tlsContext = await loadTlsFiles(options.tls);
-	const httpsServer = https.createServer(
-		_buildServerOptions(tlsContext),
-		app
-	);
+	const httpsServer = https.createServer(_buildServerOptions(tlsContext), app);
 
 	_startListening(httpsServer, options.port);
 

@@ -4,6 +4,7 @@ import {
 	type Job,
 	type JobEvent,
 } from "../contracts/recovery.types";
+import { PositiveInt, UnixTimestamp } from "../domain/primitives";
 import { hasExceededMaxRetries } from "../domain/retry-policy";
 import type { IJobQueue } from "./job-queue.interface";
 import type { IJobRepository } from "./job-repository.interface";
@@ -27,17 +28,17 @@ export class ReAllocator {
 	private _buildHistoryEntry(): JobEvent {
 		return {
 			transition: { from: JOB_STATUS.ORPHANED, to: JOB_STATUS.QUEUED },
-			timestamp: new Date(),
+			timestamp: UnixTimestamp.now(),
 			reason: "re-allocated",
 		};
 	}
 
-	private _buildReallocatedJob(job: Job, newDeadline: number): Job {
+	private _buildReallocatedJob(job: Job, newDeadline: PositiveInt): Job {
 		return {
 			...job,
 			status: JOB_STATUS.QUEUED,
 			ackDeadline: newDeadline,
-			retryCount: job.retryCount + 1,
+			retryCount: PositiveInt.of(job.retryCount + 1),
 			assignedWorkerId: undefined,
 			history: [...job.history, this._buildHistoryEntry()],
 		};
@@ -47,7 +48,7 @@ export class ReAllocator {
 		if (hasExceededMaxRetries(job)) {
 			return this._failMaxRetries(job);
 		}
-		const newDeadline = Date.now() + this._ackTimeoutMs;
+		const newDeadline = PositiveInt.of(Date.now() + this._ackTimeoutMs);
 		const updatedJob = this._buildReallocatedJob(job, newDeadline);
 		this._queue.enqueue(updatedJob);
 		await this._repository.updateStatus(job.id, JOB_STATUS.QUEUED, {

@@ -1,11 +1,31 @@
 import forge from "node-forge";
 
-interface CsrExtension {
-	name: string;
-	altNames?: Array<{ type: number; value: string }>;
+export class SanEntryType {
+	private constructor(readonly value: number) {}
+
+	static readonly DNS = new SanEntryType(2);
+
+	static fromNumber(value: number): SanEntryType {
+		return new SanEntryType(value);
+	}
+
+	static matches(value: number, type: SanEntryType): boolean {
+		return value === type.value;
+	}
+
+	equals(other: SanEntryType): boolean {
+		return this.value === other.value;
+	}
+
+	toNumber(): number {
+		return this.value;
+	}
 }
 
-const DNS_SAN_ENTRY_TYPE = 2;
+interface CsrExtension {
+	name: string;
+	altNames?: Array<{ type: SanEntryType; value: string }>;
+}
 
 export class CsrParser {
 	parse(csrPem: string): {
@@ -40,7 +60,7 @@ export class CsrParser {
 			return [];
 		}
 		return sanExt.altNames
-			.filter((alt) => alt.type === DNS_SAN_ENTRY_TYPE)
+			.filter((alt) => SanEntryType.matches(Number(alt.type), SanEntryType.DNS))
 			.map((alt) => alt.value);
 	}
 }

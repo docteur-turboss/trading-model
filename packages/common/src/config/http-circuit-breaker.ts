@@ -1,13 +1,14 @@
-import type { Hostname } from "../domain/primitives/hostname";
 import { CircuitState } from "../domain/circuit-state";
+import { DurationMs } from "../domain/primitives";
+import type { Hostname } from "../domain/primitives/hostname";
 import { HTTP_STATUS } from "../http-status";
 import { CircuitBreaker } from "../reliability/circuit-breaker";
-import type { ServiceInstanceName } from "./services.types";
 import { HttpClientError } from "./http-client-errors";
+import type { ServiceInstanceName } from "./services.types";
 
 const HOSTNAME_CIRCUIT = new CircuitBreaker({
 	failureThreshold: 5,
-	cooldownMs: 30_000,
+	cooldownMs: DurationMs.of(30_000),
 });
 
 const SERVICE_CIRCUITS = new Map<string, CircuitBreaker>();
@@ -15,7 +16,10 @@ const SERVICE_CIRCUITS = new Map<string, CircuitBreaker>();
 function getServiceCircuit(serviceName: ServiceInstanceName): CircuitBreaker {
 	let cb = SERVICE_CIRCUITS.get(serviceName);
 	if (!cb) {
-		cb = new CircuitBreaker({ failureThreshold: 5, cooldownMs: 30_000 });
+		cb = new CircuitBreaker({
+			failureThreshold: 5,
+			cooldownMs: DurationMs.of(30_000),
+		});
 		SERVICE_CIRCUITS.set(serviceName, cb);
 	}
 	return cb;
@@ -64,7 +68,9 @@ export function recordServiceFailure(
 	cb.recordFailure(serviceName, 1, threshold);
 }
 
-export function isServiceCircuitOpen(serviceName: ServiceInstanceName): boolean {
+export function isServiceCircuitOpen(
+	serviceName: ServiceInstanceName
+): boolean {
 	const cb = SERVICE_CIRCUITS.get(serviceName);
 	if (!cb) {
 		return false;

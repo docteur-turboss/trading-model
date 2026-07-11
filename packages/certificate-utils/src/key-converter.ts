@@ -1,5 +1,6 @@
 import { createPrivateKey, createPublicKey } from "node:crypto";
 import forge from "node-forge";
+import { KeyAlgorithm } from "./key-algorithm";
 
 export class KeyConverter {
 	resolvePublicKey(issuerCert: string): ReturnType<typeof createPublicKey> {
@@ -9,7 +10,7 @@ export class KeyConverter {
 	privateKeyFromPem(pem: string): forge.pki.PrivateKey {
 		const keyObject = createPrivateKey(pem);
 		const keyType = keyObject.asymmetricKeyType;
-		if (keyType === "ec") {
+		if (keyType === KeyAlgorithm.EcP384) {
 			const sec1 = keyObject.export({ type: "sec1", format: "pem" });
 			return forge.pki.privateKeyFromPem(sec1);
 		}

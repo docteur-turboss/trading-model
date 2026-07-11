@@ -1,5 +1,6 @@
 import { createSign } from "node:crypto";
 import { beforeAll, describe, expect, it } from "@jest/globals";
+import { toCsrPem, toServiceId } from "@trading-model/common/domain/primitives";
 import { createCsr } from "../src/create-csr";
 import { generateKeyPair, KeyAlgorithm } from "../src/generate-key-pair";
 import { signCertificate } from "../src/sign-certificate";
@@ -8,7 +9,7 @@ import { validateCertificate } from "../src/validate-certificate";
 let caKeyPair: ReturnType<typeof generateKeyPair>;
 let serviceKeyPair: ReturnType<typeof generateKeyPair>;
 let signed: ReturnType<typeof signCertificate>;
-let caCertPem: string;
+let caCertPem: never;
 
 function signNewCert(ttlMs = 3600000) {
 	const csr = createCsr({
@@ -18,17 +19,17 @@ function signNewCert(ttlMs = 3600000) {
 	});
 
 	return signCertificate({
-		csr,
-		serviceId: "svc-validate",
+		csr: toCsrPem(csr),
+		serviceId: toServiceId("svc-validate"),
 		caKeyPair,
 		caCertPem,
-		ttlMs,
+		ttlMs: ttlMs as never,
 	});
 }
 
 beforeAll(() => {
 	caKeyPair = generateKeyPair(KeyAlgorithm.EcP384);
-	caCertPem = caKeyPair.publicKey;
+	caCertPem = caKeyPair.publicKey as never;
 	serviceKeyPair = generateKeyPair(KeyAlgorithm.EcP384);
 	signed = signNewCert();
 });
@@ -82,7 +83,7 @@ describe("validateCertificate", () => {
 		).toString("base64");
 		const certPem = `-----BEGIN CERTIFICATE-----\n${pemContent}\n-----END CERTIFICATE-----`;
 
-		const result = validateCertificate({ certPem, caCertPem: "" });
+		const result = validateCertificate({ certPem, caCertPem: "" as never });
 
 		expect(result.valid).toBe(false);
 		expect(result.reason).toContain("Validation error");
@@ -99,7 +100,7 @@ describe("validateCertificate", () => {
 		).toString("base64");
 		const certPem = `-----BEGIN CERTIFICATE-----\n${pemContent}\n-----END CERTIFICATE-----`;
 
-		const result = validateCertificate({ certPem, caCertPem: "" });
+		const result = validateCertificate({ certPem, caCertPem: "" as never });
 
 		expect(result.valid).toBe(false);
 		expect(result.reason).toContain("Validation error");
@@ -108,7 +109,7 @@ describe("validateCertificate", () => {
 	it("should return invalid for malformed PEM input", () => {
 		const result = validateCertificate({
 			certPem: "not-a-pem",
-			caCertPem: "not-a-ca-pem",
+			caCertPem: "not-a-ca-pem" as never,
 		});
 
 		expect(result.valid).toBe(false);

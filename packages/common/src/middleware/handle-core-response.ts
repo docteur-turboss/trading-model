@@ -1,5 +1,5 @@
 ﻿import type { Response } from "express";
-import { isProduction } from "@trading-model/common/config/node-env";
+import { isProduction } from "../config/node-env";
 import { type ResponseCodeKey, ResponseException } from "./response-exception";
 
 export interface CoreResult<_TData = unknown> {

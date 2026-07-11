@@ -47,14 +47,14 @@ describe("logger singleton", () => {
 		});
 	});
 
-	it("should create WARN level logger when NODE_ENV is not set", () => {
+	it("should create DEBUG level logger when NODE_ENV is not set", () => {
 		delete process.env.NODE_ENV;
 		jest.isolateModules(() => {
 			const {
 				logger: defaultLogger,
 				LogLevel,
 			} = require("../../src/config/logger");
-			expect((defaultLogger as any)._logLevel).toBe(LogLevel.Warn);
+			expect((defaultLogger as any)._logLevel).toBe(LogLevel.Debug);
 		});
 	});
 });

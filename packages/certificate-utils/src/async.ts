@@ -12,7 +12,7 @@ import type {
 	CertificateValidationInput,
 	ValidationResult,
 } from "./validate-certificate";
-import type { TaskType } from "./workers/worker-task-queue";
+import { WorkerTaskType } from "./worker-task-type";
 import { getPool } from "./workers/lazy-pool";
 
 let remoteClient: RemoteSigningClient | null = null;
@@ -29,7 +29,9 @@ export async function generateKeyPairAsync(
 	if (remoteClient) {
 		return await remoteClient.generateKeyPair(algorithm);
 	}
-	return await getPool().execute<KeyPair>("generateKeyPair" as TaskType, { algorithm });
+	return await getPool().execute<KeyPair>(WorkerTaskType.GenerateKeyPair, {
+		algorithm,
+	});
 }
 
 export async function generateKeyPairWithIdAsync(
@@ -38,9 +40,12 @@ export async function generateKeyPairWithIdAsync(
 	if (remoteClient) {
 		return await remoteClient.generateKeyPairWithId(algorithm);
 	}
-	return await getPool().execute<KeyPairWithId>("generateKeyPairWithId" as TaskType, {
-		algorithm,
-	});
+	return await getPool().execute<KeyPairWithId>(
+		WorkerTaskType.GenerateKeyPairWithId,
+		{
+			algorithm,
+		}
+	);
 }
 
 export async function signCertificateAsync(
@@ -50,8 +55,8 @@ export async function signCertificateAsync(
 		return await remoteClient.signCertificate(options);
 	}
 	return await getPool().execute<SignedCertificate>(
-		"signCertificate" as TaskType,
-		options as unknown as Record<string, unknown>
+		WorkerTaskType.SignCertificate,
+		options
 	);
 }
 
@@ -59,10 +64,7 @@ export async function createCsrAsync(options: CsrOptions): Promise<string> {
 	if (remoteClient) {
 		return await remoteClient.createCsr(options);
 	}
-	return await getPool().execute<string>(
-		"createCsr" as TaskType,
-		options as unknown as Record<string, unknown>
-	);
+	return await getPool().execute<string>(WorkerTaskType.CreateCsr, options);
 }
 
 export async function validateCertificateAsync(
@@ -72,8 +74,8 @@ export async function validateCertificateAsync(
 		return await remoteClient.validateCertificate(input);
 	}
 	return await getPool().execute<ValidationResult>(
-		"validateCertificate" as TaskType,
-		input as unknown as Record<string, unknown>
+		WorkerTaskType.ValidateCertificate,
+		input
 	);
 }
 
@@ -81,15 +83,14 @@ export async function parseKeyAsync(privateKey: string): Promise<KeyPair> {
 	if (remoteClient) {
 		return await remoteClient.parseKey(privateKey);
 	}
-	return await getPool().execute<KeyPair>("parseKey" as TaskType, { privateKey });
+	return await getPool().execute<KeyPair>(WorkerTaskType.ParseKey, {
+		privateKey,
+	});
 }
 
 export async function signAsync(input: SignInput): Promise<string> {
 	if (remoteClient) {
 		return await remoteClient.sign(input);
 	}
-	return await getPool().execute<string>(
-		"sign" as TaskType,
-		input as unknown as Record<string, unknown>
-	);
+	return await getPool().execute<string>(WorkerTaskType.Sign, input);
 }

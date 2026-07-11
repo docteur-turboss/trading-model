@@ -1,7 +1,6 @@
 import type { z } from "zod";
-
-import type { TlsPaths, TlsPemBundle } from "../domain/tls-paths";
 import type { URLString } from "../domain/primitives";
+import type { TlsPaths, TlsPemBundle } from "../domain/tls-paths";
 import { isServiceCircuitOpen } from "./http-circuit-breaker";
 import { HttpClientError, HttpClientTimeoutError } from "./http-client-errors";
 import {
@@ -15,19 +14,19 @@ export class HttpClient {
 	private readonly _tlsBundle: Partial<TlsPemBundle>;
 	private readonly _executor: HttpRequestExecutor;
 
-	constructor(tlsConfig?: Partial<TlsPemBundle>) {
+	constructor(tlsConfig?: Partial<TlsPaths>) {
 		this._tlsBundle = loadTlsPemBundle(tlsConfig);
 		this._executor = new HttpRequestExecutor();
 	}
 
 	async get<TResponse = void>(
-		url: string,
+		url: URLString,
 		options?: HttpRequestOptions,
 		schema?: z.ZodType<TResponse>
 	): Promise<TResponse | undefined> {
 		return await this._request<TResponse>({
 			method: "GET" as HttpMethod,
-			urlStr: url as URLString,
+			urlStr: url,
 			body: undefined,
 			options,
 			schema,
@@ -35,14 +34,14 @@ export class HttpClient {
 	}
 
 	async post<TResponse = void>(
-		url: string,
+		url: URLString,
 		body?: unknown,
 		options?: HttpRequestOptions,
 		schema?: z.ZodType<TResponse>
 	): Promise<TResponse | undefined> {
 		return await this._request<TResponse>({
 			method: "POST" as HttpMethod,
-			urlStr: url as URLString,
+			urlStr: url,
 			body,
 			options,
 			schema,
@@ -50,14 +49,14 @@ export class HttpClient {
 	}
 
 	async delete<TResponse = void>(
-		url: string,
+		url: URLString,
 		body?: unknown,
 		options?: HttpRequestOptions,
 		schema?: z.ZodType<TResponse>
 	): Promise<TResponse | undefined> {
 		return await this._request<TResponse>({
 			method: "DELETE" as HttpMethod,
-			urlStr: url as URLString,
+			urlStr: url,
 			body,
 			options,
 			schema,
@@ -65,11 +64,7 @@ export class HttpClient {
 	}
 
 	static createWithTls(certPaths: TlsPaths): HttpClient {
-		return new HttpClient({
-			caPem: certPaths.caPath,
-			certPem: certPaths.certPath,
-			keyPem: certPaths.keyPath,
-		});
+		return new HttpClient(certPaths);
 	}
 
 	private _request<TResponse>(

@@ -1,15 +1,12 @@
 import { LogLevel } from "@trading-model/common/config/log-types";
 import { z } from "zod";
-
-import { NODE_ENVS } from "@trading-model/common/config/node-env";
 import { logger } from "../config/logger";
+import { NODE_ENVS } from "../config/node-env";
 import { configurationError, normalizeError } from "../utils/errors";
 
 /** Zod schema for base environment variables shared across all services. */
 export const BaseEnvSchema = z.object({
-	NODE_ENV: z
-		.enum(NODE_ENVS)
-		.default("development"),
+	NODE_ENV: z.enum(NODE_ENVS).default("development"),
 
 	PORT: z.coerce.number().int().positive().default(3000),
 

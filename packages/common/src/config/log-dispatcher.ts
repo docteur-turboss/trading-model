@@ -1,15 +1,20 @@
-import type { SessionId, URLString, UserId } from "../domain/primitives";
+import {
+	type SessionId,
+	UnixTimestamp,
+	type URLString,
+	type UserId,
+} from "../domain/primitives";
 import type { TlsPaths } from "../domain/tls-paths";
 import { AuditServiceClient } from "./audit-service-client";
 import { ErrorServiceSender } from "./error-service-sender";
 import { LogFileWriter } from "./log-file-writer";
 import {
-	isLogLevelAtLeast,
 	type LogEntry,
 	LogLevel,
+	LogLevelThreshold,
 	type LogOptions,
 } from "./log-types";
-import { getNodeEnv } from "./logger";
+import { getNodeEnv } from "./node-env";
 import type { SensitiveDataSanitizer } from "./sensitive-data-sanitizer";
 
 export class LogDispatcher {
@@ -31,7 +36,7 @@ export class LogDispatcher {
 	}
 
 	private _maybeSendToAudit(data: LogEntry, level: LogLevel): void {
-		if (isLogLevelAtLeast(level, LogLevel.Info)) {
+		if (LogLevelThreshold.isAtLeast(level, LogLevel.Info)) {
 			void this._auditClient.send(data as unknown as Record<string, unknown>);
 		}
 	}
@@ -42,10 +47,9 @@ export class LogDispatcher {
 		userId: UserId,
 		opts?: LogOptions
 	): LogEntry {
-		const { context, url = "" as URLString, serviceInCharge } = opts ?? {};
-		const now = new Date();
+		const { context, url, serviceInCharge } = opts ?? {};
 		const data: LogEntry = {
-			timestamp: now,
+			timestamp: UnixTimestamp.now(),
 			level,
 			message,
 			context,
@@ -63,7 +67,7 @@ export class LogDispatcher {
 
 	setAuditResolver(
 		resolver: () => Promise<{
-			url: string;
+			url: URLString;
 			tls: TlsPaths;
 		} | null>
 	): void {

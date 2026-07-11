@@ -2,12 +2,13 @@ import express, { type Application } from "express";
 import { rateLimit } from "express-rate-limit";
 import helmet from "helmet";
 
+import type { DurationMs, PositiveInt } from "../domain/primitives";
 import { PING_PATH } from "./constants";
 
 /** Configuration for the rate-limiting middleware. */
 export interface RateLimitConfig {
-	windowMs: number;
-	limit: number;
+	windowMs: DurationMs;
+	limit: PositiveInt;
 	message?: string;
 }
 

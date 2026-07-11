@@ -36,7 +36,12 @@ jest.mock("../../../src/worker/worker-client", () => {
 	return { WorkerClient: MockWorkerClient };
 });
 
-import type { Capability, JobType } from "../../../src/domain/primitives";
+import type {
+	Capability,
+	DurationMs,
+	JobType,
+	PositiveInt,
+} from "../../../src/domain/primitives";
 import { BaseWorker } from "../../../src/worker/base-worker";
 import { WorkerClient } from "../../../src/worker/worker-client";
 
@@ -64,8 +69,8 @@ describe("BaseWorker", () => {
 			serverUrl: "wss://scheduler:3000",
 			schedulerHttpUrl: "https://scheduler:3000",
 			capabilities: ["test-type" as unknown as Capability],
-			maxConcurrency: 3,
-			heartbeatIntervalMs: 5000,
+			maxConcurrency: 3 as PositiveInt,
+			heartbeatIntervalMs: 5000 as DurationMs,
 		});
 	});
 

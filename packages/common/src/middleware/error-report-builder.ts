@@ -1,19 +1,18 @@
 import type { Request } from "express";
-import type {
-	CorrelationId,
-	InstanceId,
-	ISODateTime,
-	ServiceId,
-	URLString,
-	Version,
-} from "../domain/primitives";
 import {
+	type CorrelationId,
+	type InstanceId,
+	type ISODateTime,
+	type ServiceId,
 	toCorrelationId,
 	toInstanceId,
 	toISODateTime,
 	toServiceId,
 	toVersion,
+	URLString,
+	type Version,
 } from "../domain/primitives";
+import type { HttpStatusCode } from "../http-status";
 import { normalizeError } from "../utils/errors";
 import type { ResolvedErrorTrackingConfig } from "./error-tracking-config";
 
@@ -22,7 +21,7 @@ export interface ErrorReportBody {
 	stack?: string;
 	url: URLString;
 	method: string;
-	statusCode: number;
+	statusCode: HttpStatusCode;
 	correlationId: CorrelationId;
 	timestamp: ISODateTime;
 	serviceName: ServiceId;
@@ -39,14 +38,14 @@ function _extractCorrelationId(req: Request): CorrelationId {
 export function buildErrorReport(
 	err: unknown,
 	req: Request,
-	statusCode: number,
+	statusCode: HttpStatusCode,
 	config: ResolvedErrorTrackingConfig
 ): ErrorReportBody {
 	const normalized = normalizeError(err);
 	return {
 		message: normalized.message,
 		stack: normalized.stack,
-		url: (req.originalUrl ?? req.url) as URLString,
+		url: URLString.of(req.originalUrl ?? req.url),
 		method: req.method,
 		statusCode,
 		correlationId: _extractCorrelationId(req),

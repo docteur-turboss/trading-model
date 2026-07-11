@@ -25,6 +25,11 @@ export interface HostPort {
 	port: Port;
 }
 
+/** Formats a HostPort as "host:port". */
+export function toHostPortAddress(hp: HostPort): string {
+	return `${hp.host}:${hp.port}`;
+}
+
 /** Identifies a service by name, network address, and port. */
 export interface ServiceEndpoint extends HostPort {
 	serviceName: ServiceId;

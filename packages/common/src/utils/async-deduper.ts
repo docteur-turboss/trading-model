@@ -1,8 +1,8 @@
 ﻿export class AsyncDeduper<_TResult> {
 	private _promise: Promise<_TResult> | null = null;
 
-	async run(factory: () => Promise<_TResult>): Promise<_TResult> {
-		if (this._promise) {
+	run(factory: () => Promise<_TResult>): Promise<_TResult> {
+		if (this._promise !== null) {
 			return this._promise;
 		}
 		this._promise = factory().finally(() => {

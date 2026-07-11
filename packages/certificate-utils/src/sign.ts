@@ -1,4 +1,5 @@
 import { createPublicKey, createSign } from "node:crypto";
+import { KeyPem } from "@trading-model/common/domain/primitives";
 
 import type { KeyPair, SignInput } from "./types";
 
@@ -7,7 +8,10 @@ export function parseKey(privateKey: string): KeyPair {
 		type: "spki",
 		format: "pem",
 	});
-	return { publicKey, privateKey };
+	return {
+		publicKey: KeyPem.of(publicKey),
+		privateKey: KeyPem.of(privateKey),
+	};
 }
 
 export function sign(input: SignInput): string {

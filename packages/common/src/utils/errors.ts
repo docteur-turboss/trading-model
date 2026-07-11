@@ -22,31 +22,48 @@ export function normalizeError(err: unknown): Error {
 	return new Error(`Unknown error: ${String(err)}`);
 }
 
-export enum ErrorCode {
-	ServiceNotFound = "ServiceNotFoundError",
-	ServiceUnreachable = "ServiceUnreachableError",
-	Authentication = "AuthenticationError",
-	AddressManager = "AddressManagerError",
-	MessageManager = "MessageManagerError",
-	MetadataBuilder = "MetadataBuilderError",
-	Timeout = "TimeoutError",
-	Nack = "NackError",
-	DeadLetter = "DeadLetterError",
-	Agent = "AgentError",
-	Backpressure = "BackpressureError",
-	Configuration = "ConfigurationError",
-	AppError = "AppError",
-}
+export type ErrorCode =
+	| "ServiceNotFoundError"
+	| "ServiceUnreachableError"
+	| "AuthenticationError"
+	| "AddressManagerError"
+	| "MessageManagerError"
+	| "MetadataBuilderError"
+	| "TimeoutError"
+	| "NackError"
+	| "DeadLetterError"
+	| "AgentError"
+	| "BackpressureError"
+	| "ConfigurationError"
+	| "AppError"
+	| "DlqCapacityError"
+	| "JobStatusError";
+
+export const ErrorCode = {
+	ServiceNotFound: "ServiceNotFoundError" as ErrorCode,
+	ServiceUnreachable: "ServiceUnreachableError" as ErrorCode,
+	Authentication: "AuthenticationError" as ErrorCode,
+	AddressManager: "AddressManagerError" as ErrorCode,
+	MessageManager: "MessageManagerError" as ErrorCode,
+	MetadataBuilder: "MetadataBuilderError" as ErrorCode,
+	Timeout: "TimeoutError" as ErrorCode,
+	Nack: "NackError" as ErrorCode,
+	DeadLetter: "DeadLetterError" as ErrorCode,
+	Agent: "AgentError" as ErrorCode,
+	Backpressure: "BackpressureError" as ErrorCode,
+	Configuration: "ConfigurationError" as ErrorCode,
+	AppError: "AppError" as ErrorCode,
+} as const;
 
 /** Base application error with optional cause/reason metadata and error code. */
 export class AppError extends Error {
 	public readonly cause?: unknown;
 	public readonly reason?: string;
-	public readonly code: string;
+	public readonly code: ErrorCode;
 
 	constructor(
 		message: string,
-		options?: { cause?: unknown; reason?: string; code?: string }
+		options?: { cause?: unknown; reason?: string; code?: ErrorCode }
 	) {
 		super(message);
 		this.name = "AppError";
@@ -56,14 +73,14 @@ export class AppError extends Error {
 	}
 }
 
-function makeErrorCode(code: string) {
+function makeErrorCode(code: ErrorCode) {
 	return (
 		message: string,
 		options?: { cause?: unknown; reason?: string }
 	): AppError => new AppError(message, { ...options, code });
 }
 
-function makeGuard(code: string) {
+function makeGuard(code: ErrorCode) {
 	return (err: unknown): err is AppError =>
 		err instanceof AppError && err.code === code;
 }

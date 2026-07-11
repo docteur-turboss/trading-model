@@ -1,9 +1,14 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 
 import type { Request } from "express";
-import type { CorrelationId } from "../domain/primitives";
-import type { ClientIdentity } from "../domain/primitives/string-ids";
+import { CorrelationId } from "../domain/primitives";
+import { ClientIdentity } from "../domain/primitives/string-ids";
 import { HTTP_HEADERS } from "../http-headers";
+
+interface RequestExtra {
+	clientIdentity?: string;
+	correlationId?: string;
+}
 
 /**
  * Per-request storage for propagating identity and metadata
@@ -26,14 +31,15 @@ export function requestContextMiddleware(
 	_res: unknown,
 	next: () => void
 ): void {
+	const extra = req as RequestExtra;
 	const store: RequestStore = {
-		clientIdentity:
-			((req as unknown as Record<string, string>).clientIdentity ?? "unknown") as ClientIdentity,
-		requestId: ((req.headers[HTTP_HEADERS.X_REQUEST_ID] as string) ??
-			(req as unknown as Record<string, string>).correlationId ??
-			"") as CorrelationId,
-		correlationId: ((req as unknown as Record<string, string>).correlationId ??
-			"") as CorrelationId,
+		clientIdentity: ClientIdentity.of(extra.clientIdentity ?? "unknown"),
+		requestId: CorrelationId.of(
+			(req.headers[HTTP_HEADERS.X_REQUEST_ID] as string) ??
+				extra.correlationId ??
+				"unknown"
+		),
+		correlationId: CorrelationId.of(extra.correlationId ?? "unknown"),
 	};
 	REQUEST_CONTEXT.run(store, next);
 }

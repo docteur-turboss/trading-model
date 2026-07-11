@@ -1,4 +1,3 @@
-import type { Logger } from "../config/logger";
 import { CircuitState } from "../domain/circuit-state";
 import type { ICircuitBreaker } from "./circuit-breaker.interface";
 import type { CircuitBreakerConfig } from "./circuit-state-machine";

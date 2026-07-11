@@ -1,4 +1,8 @@
 import { afterAll, describe, expect, it, jest } from "@jest/globals";
+import {
+	PositiveInt,
+	toCapability,
+} from "@trading-model/common/domain/primitives";
 
 const MOCK_REGISTER_HANDLER = jest.fn<any>();
 
@@ -10,10 +14,13 @@ jest.mock("@trading-model/common/worker/base-worker", () => ({
 }));
 
 jest.mock("../src/generate-key-pair", () => ({
-	generateKeyPair: jest.fn(() => ({ publicKey: "pk", privateKey: "sk" })),
+	generateKeyPair: jest.fn(() => ({
+		publicKey: "pk" as never,
+		privateKey: "sk" as never,
+	})),
 	generateKeyPairWithIdSync: jest.fn(() => ({
-		publicKey: "pk",
-		privateKey: "sk",
+		publicKey: "pk" as never,
+		privateKey: "sk" as never,
 		id: "id1",
 	})),
 	KeyAlgorithm: { rsa4096: "rsa", ecP384: "ec" },
@@ -67,8 +74,8 @@ describe("createCryptoWorker", () => {
 		const config = {
 			serverUrl: "ws://localhost",
 			schedulerHttpUrl: "http://localhost",
-			capabilities: ["crypto"],
-			maxConcurrency: 1,
+			capabilities: [toCapability("crypto")],
+			maxConcurrency: PositiveInt.of(1),
 		};
 		const worker = createCryptoWorker(config);
 
@@ -104,11 +111,11 @@ describe("createCryptoWorker", () => {
 		createCryptoWorker({} as any);
 		const handler = getHandler("signCertificate");
 		const opts = {
-			csr: "csr",
-			serviceId: "svc",
+			csr: "csr" as any,
+			serviceId: "svc" as any,
 			caKeyPair: {} as any,
-			caCertPem: "ca",
-			ttlMs: 3600000,
+			caCertPem: "ca" as never,
+			ttlMs: 3600000 as never,
 		};
 		const result = await handler({ payload: opts });
 
@@ -119,7 +126,7 @@ describe("createCryptoWorker", () => {
 	it("should register createCsr handler", async () => {
 		createCryptoWorker({} as any);
 		const handler = getHandler("createCsr");
-		const opts = { commonName: "test", san: [], keyPem: "key" };
+		const opts = { commonName: "test", san: [], keyPem: "key" as never };
 		const result = await handler({ payload: opts });
 
 		expect(createCsr).toHaveBeenCalledWith(opts);
@@ -130,7 +137,7 @@ describe("createCryptoWorker", () => {
 		createCryptoWorker({} as any);
 		const handler = getHandler("validateCertificate");
 		const result = await handler({
-			payload: { certPem: "cert", caCertPem: "ca" },
+			payload: { certPem: "cert", caCertPem: "ca" as never },
 		});
 
 		expect(validateCertificate).toHaveBeenCalledWith({
@@ -147,7 +154,7 @@ describe("createCryptoWorker", () => {
 
 		expect(validateCertificate).toHaveBeenCalledWith({
 			certPem: "cert",
-			caCertPem: "",
+			caCertPem: "" as never,
 		});
 		expect(result.valid).toBe(true);
 	});
@@ -155,9 +162,9 @@ describe("createCryptoWorker", () => {
 	it("should register parseKey handler", async () => {
 		createCryptoWorker({} as any);
 		const handler = getHandler("parseKey");
-		const result = await handler({ payload: { privateKey: "key" } });
+		const result = await handler({ payload: { privateKey: "key" as never } });
 
-		expect(parseKey).toHaveBeenCalledWith("key");
+		expect(parseKey).toHaveBeenCalledWith("key" as never);
 		expect(result).toEqual({ publicKey: "pk", privateKey: "sk" });
 	});
 
@@ -165,13 +172,17 @@ describe("createCryptoWorker", () => {
 		createCryptoWorker({} as any);
 		const handler = getHandler("sign");
 		const result = await handler({
-			payload: { algorithm: "sha256", body: "body", privateKey: "key" },
+			payload: {
+				algorithm: "sha256",
+				body: "body",
+				privateKey: "key" as never,
+			},
 		});
 
 		expect(sign).toHaveBeenCalledWith({
 			algorithm: "sha256",
 			body: "body",
-			privateKey: "key",
+			privateKey: "key" as never,
 		});
 		expect(result).toBe("signature");
 	});

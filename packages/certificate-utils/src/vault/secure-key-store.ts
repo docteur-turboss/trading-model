@@ -28,7 +28,8 @@ function globalCleanup(): void {
 process.once("exit", globalCleanup);
 process.once("SIGINT", globalCleanup);
 process.once("SIGTERM", globalCleanup);
-import { CRYPTO } from "@trading-model/common/crypto/crypto-constants";
+
+import { CryptoAlg } from "@trading-model/common/crypto/crypto-constants";
 
 const PREV_SIG_USR2 = process.listeners("SIGUSR2")[0] as
 	| (() => void)
@@ -48,9 +49,9 @@ export class SecureKeyStore {
 	private _disposed = false;
 
 	constructor(pem: string) {
-		const len = Buffer.byteLength(pem, CRYPTO.UTF8);
+		const len = Buffer.byteLength(pem, CryptoAlg.UTF8);
 		this._buffer = Buffer.alloc(len); // safe: zeroed, no residual data leak
-		this._buffer.write(pem, CRYPTO.UTF8);
+		this._buffer.write(pem, CryptoAlg.UTF8);
 		STORES.add(this);
 	}
 
@@ -58,7 +59,7 @@ export class SecureKeyStore {
 		if (this._disposed) {
 			throw new Error("SecureKeyStore has been destroyed");
 		}
-		return this._buffer.toString(CRYPTO.UTF8);
+		return this._buffer.toString(CryptoAlg.UTF8);
 	}
 
 	get raw(): Buffer {

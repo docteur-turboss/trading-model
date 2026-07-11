@@ -1,14 +1,20 @@
 import WebSocket from "ws";
 import type { WorkerWsRegisterMessage } from "../contracts/worker-protocol.types";
-import type { Capability } from "../domain/primitives";
-import { type IPAddress, type Port, toInstanceId } from "../domain/primitives";
+import {
+	type Capability,
+	type InstanceId,
+	IPAddress,
+	Port,
+	type PositiveInt,
+	type URLString,
+} from "../domain/primitives";
 import type { IWsConnection } from "../ws/i-ws-connection";
 
 export interface WorkerWsConnectionConfig {
-	workerId: string;
-	serverUrl: string;
+	workerId: InstanceId;
+	serverUrl: URLString;
 	capabilities: Capability[];
-	maxConcurrency: number;
+	maxConcurrency: PositiveInt;
 }
 
 export class WorkerWsConnection implements IWsConnection {
@@ -75,9 +81,9 @@ export class WorkerWsConnection implements IWsConnection {
 	private _sendRegister(): void {
 		const msg: WorkerWsRegisterMessage = {
 			type: "register",
-			workerId: toInstanceId(this._cfg.workerId),
-			host: "" as IPAddress,
-			port: 0 as Port,
+			workerId: this._cfg.workerId,
+			host: IPAddress.of(""),
+			port: Port.of(0),
 			capabilities: this._cfg.capabilities,
 			maxConcurrency: this._cfg.maxConcurrency,
 		};

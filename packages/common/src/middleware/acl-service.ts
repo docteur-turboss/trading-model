@@ -1,6 +1,6 @@
 import type { Request } from "express";
 
-import type { ServiceId } from "../domain/primitives";
+import { ServiceId } from "../domain/primitives";
 import { extractServiceName } from "../utils/spiffe";
 import { DEFAULT_ACL } from "./acl-config";
 import { ResponseException } from "./response-exception";
@@ -30,8 +30,8 @@ export class AclService {
 		const allowed = this._getAllowedCallers(targetService, allowedCallers);
 		if (
 			!(
-				allowed.includes("*" as ServiceId) ||
-				allowed.includes(callerName as ServiceId)
+				allowed.includes(ServiceId.of("*")) ||
+				allowed.includes(ServiceId.of(callerName))
 			)
 		) {
 			this._throwForbidden(

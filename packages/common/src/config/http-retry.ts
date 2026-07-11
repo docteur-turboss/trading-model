@@ -20,11 +20,10 @@ function isNonRetryableClientError(code: number): boolean {
 }
 
 function computeRetryDelay(attempt: number, options?: BackoffConfig): number {
-	return computeExponentialBackoffWithJitter(attempt, {
-		baseDelayMs: options?.baseDelayMs ?? 200,
-		maxDelayMs: options?.maxDelayMs ?? 5_000,
-		jitterMs: options?.jitterMs ?? 0,
-	});
+	return computeExponentialBackoffWithJitter(
+		attempt,
+		options ?? { baseDelayMs: 200, maxDelayMs: 5000 }
+	);
 }
 
 function computeAdaptiveTimeout(baseMs: number, ewmLatencyMs?: number): number {

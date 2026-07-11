@@ -37,7 +37,8 @@ jest.mock("node:os", () => ({
 	availableParallelism: jest.fn(() => 2),
 }));
 
-import { WorkerPool } from "../src/worker-pool";
+import { WorkerTaskType } from "../src/worker-task-type";
+import { WorkerPool } from "../src/workers/worker-pool";
 
 function triggerMessage(
 	worker: FakeWorker,
@@ -73,7 +74,9 @@ describe("WorkerPool", () => {
 		const pool = new WorkerPool({ size: 3, workerScript: "/fake/worker.js" });
 		expect(pool.size).toBe(0);
 
-		pool.execute("generateKeyPair", { algorithm: "ec" }).catch(() => {});
+		pool
+			.execute(WorkerTaskType.GenerateKeyPair, { algorithm: "ec" })
+			.catch(() => {});
 		expect(pool.size).toBe(3);
 		expect(FAKE_WORKERS).toHaveLength(3);
 		void pool.terminate();
@@ -83,18 +86,22 @@ describe("WorkerPool", () => {
 		const pool = new WorkerPool({ workerScript: "/fake/worker.js" });
 		expect(pool.size).toBe(0);
 
-		pool.execute("generateKeyPair", { algorithm: "ec" }).catch(() => {});
+		pool
+			.execute(WorkerTaskType.GenerateKeyPair, { algorithm: "ec" })
+			.catch(() => {});
 		expect(pool.size).toBe(2);
 		void pool.terminate();
 	});
 
 	it("should dispatch a task to an idle worker", () => {
 		const pool = new WorkerPool({ size: 1, workerScript: "/fake/worker.js" });
-		const promise = pool.execute("generateKeyPair", { algorithm: "ec" });
+		const promise = pool.execute(WorkerTaskType.GenerateKeyPair, {
+			algorithm: "ec",
+		});
 
 		expect(FAKE_WORKERS[0].postMessage).toHaveBeenCalledWith({
 			id: expect.any(String),
-			type: "generateKeyPair",
+			type: WorkerTaskType.GenerateKeyPair,
 			data: { algorithm: "ec" },
 		});
 
@@ -104,7 +111,9 @@ describe("WorkerPool", () => {
 
 	it("should resolve when worker sends success", async () => {
 		const pool = new WorkerPool({ size: 1, workerScript: "/fake/worker.js" });
-		const promise = pool.execute("generateKeyPair", { algorithm: "ec" });
+		const promise = pool.execute(WorkerTaskType.GenerateKeyPair, {
+			algorithm: "ec",
+		});
 
 		const call = FAKE_WORKERS[0].postMessage.mock.calls[0][0] as { id: string };
 		triggerMessage(FAKE_WORKERS[0], {
@@ -120,7 +129,9 @@ describe("WorkerPool", () => {
 
 	it("should reject when worker sends error", async () => {
 		const pool = new WorkerPool({ size: 1, workerScript: "/fake/worker.js" });
-		const promise = pool.execute("generateKeyPair", { algorithm: "ec" });
+		const promise = pool.execute(WorkerTaskType.GenerateKeyPair, {
+			algorithm: "ec",
+		});
 
 		const call = FAKE_WORKERS[0].postMessage.mock.calls[0][0] as { id: string };
 		triggerMessage(FAKE_WORKERS[0], {
@@ -136,8 +147,12 @@ describe("WorkerPool", () => {
 	it("should queue tasks when all workers are busy", () => {
 		const pool = new WorkerPool({ size: 1, workerScript: "/fake/worker.js" });
 
-		pool.execute("generateKeyPair", { algorithm: "ec" }).catch(() => {});
-		pool.execute("signCertificate", { csr: "csr" }).catch(() => {});
+		pool
+			.execute(WorkerTaskType.GenerateKeyPair, { algorithm: "ec" })
+			.catch(() => {});
+		pool
+			.execute(WorkerTaskType.SignCertificate, { csr: "csr" })
+			.catch(() => {});
 
 		expect(pool.pending).toBe(1);
 		expect(FAKE_WORKERS[0].postMessage).toHaveBeenCalledTimes(1);
@@ -148,8 +163,12 @@ describe("WorkerPool", () => {
 	it("should dispatch queued task when worker becomes idle", async () => {
 		const pool = new WorkerPool({ size: 1, workerScript: "/fake/worker.js" });
 
-		const p1 = pool.execute("generateKeyPair", { algorithm: "ec" });
-		const p2 = pool.execute("signCertificate", { csr: "csr" }).catch(() => {});
+		const p1 = pool.execute(WorkerTaskType.GenerateKeyPair, {
+			algorithm: "ec",
+		});
+		const p2 = pool
+			.execute(WorkerTaskType.SignCertificate, { csr: "csr" })
+			.catch(() => {});
 
 		expect(pool.pending).toBe(1);
 
@@ -171,7 +190,7 @@ describe("WorkerPool", () => {
 			id: string;
 			type: string;
 		};
-		expect(call2.type).toBe("signCertificate");
+		expect(call2.type).toBe(WorkerTaskType.SignCertificate);
 
 		p2.catch(() => {});
 		await pool.terminate();
@@ -182,10 +201,14 @@ describe("WorkerPool", () => {
 
 		expect(pool.active).toBe(0);
 
-		pool.execute("generateKeyPair", { algorithm: "ec" }).catch(() => {});
+		pool
+			.execute(WorkerTaskType.GenerateKeyPair, { algorithm: "ec" })
+			.catch(() => {});
 		expect(pool.active).toBe(1);
 
-		pool.execute("signCertificate", { csr: "csr" }).catch(() => {});
+		pool
+			.execute(WorkerTaskType.SignCertificate, { csr: "csr" })
+			.catch(() => {});
 		expect(pool.active).toBe(2);
 
 		void pool.terminate();
@@ -195,14 +218,16 @@ describe("WorkerPool", () => {
 		const pool = new WorkerPool({ size: 1, workerScript: "/fake/worker.js" });
 		await pool.terminate();
 
-		await expect(
-			pool.execute("generateKeyPair", { algorithm: "ec" })
-		).rejects.toThrow("terminated");
+		expect(() =>
+			pool.execute(WorkerTaskType.GenerateKeyPair, { algorithm: "ec" })
+		).toThrow("terminated");
 	});
 
 	it("should replace worker on error", () => {
 		const pool = new WorkerPool({ size: 1, workerScript: "/fake/worker.js" });
-		pool.execute("generateKeyPair", { algorithm: "ec" }).catch(() => {});
+		pool
+			.execute(WorkerTaskType.GenerateKeyPair, { algorithm: "ec" })
+			.catch(() => {});
 
 		const initialCount = FAKE_WORKERS.length;
 		triggerError(FAKE_WORKERS[0]);
@@ -213,7 +238,9 @@ describe("WorkerPool", () => {
 
 	it("should replace worker on non-zero exit", () => {
 		const pool = new WorkerPool({ size: 1, workerScript: "/fake/worker.js" });
-		pool.execute("generateKeyPair", { algorithm: "ec" }).catch(() => {});
+		pool
+			.execute(WorkerTaskType.GenerateKeyPair, { algorithm: "ec" })
+			.catch(() => {});
 
 		const initialCount = FAKE_WORKERS.length;
 		triggerExit(FAKE_WORKERS[0], 1);
@@ -224,7 +251,9 @@ describe("WorkerPool", () => {
 
 	it("should not replace worker on zero exit", () => {
 		const pool = new WorkerPool({ size: 1, workerScript: "/fake/worker.js" });
-		pool.execute("generateKeyPair", { algorithm: "ec" }).catch(() => {});
+		pool
+			.execute(WorkerTaskType.GenerateKeyPair, { algorithm: "ec" })
+			.catch(() => {});
 
 		const initialCount = FAKE_WORKERS.length;
 		triggerExit(FAKE_WORKERS[0], 0);
@@ -235,7 +264,9 @@ describe("WorkerPool", () => {
 
 	it("should not replace worker when terminated", () => {
 		const pool = new WorkerPool({ size: 1, workerScript: "/fake/worker.js" });
-		pool.execute("generateKeyPair", { algorithm: "ec" }).catch(() => {});
+		pool
+			.execute(WorkerTaskType.GenerateKeyPair, { algorithm: "ec" })
+			.catch(() => {});
 		void pool.terminate();
 
 		const initialCount = FAKE_WORKERS.length;
@@ -246,7 +277,9 @@ describe("WorkerPool", () => {
 
 	it("should not replace a worker that was already removed", () => {
 		const pool = new WorkerPool({ size: 1, workerScript: "/fake/worker.js" });
-		pool.execute("generateKeyPair", { algorithm: "ec" }).catch(() => {});
+		pool
+			.execute(WorkerTaskType.GenerateKeyPair, { algorithm: "ec" })
+			.catch(() => {});
 
 		const oldWorker = FAKE_WORKERS[0];
 		triggerError(oldWorker);
@@ -277,7 +310,7 @@ describe("WorkerPool", () => {
 		});
 
 		await expect(
-			pool.execute("generateKeyPair", { algorithm: "ec" })
+			pool.execute(WorkerTaskType.GenerateKeyPair, { algorithm: "ec" })
 		).rejects.toThrow("WorkerPool queue is full");
 		await pool.terminate();
 	});
@@ -285,14 +318,18 @@ describe("WorkerPool", () => {
 	it("should create with default options", () => {
 		const pool = new WorkerPool();
 		expect(pool).toBeDefined();
-		pool.execute("generateKeyPair", { algorithm: "ec" }).catch(() => {});
+		pool
+			.execute(WorkerTaskType.GenerateKeyPair, { algorithm: "ec" })
+			.catch(() => {});
 		expect(pool.size).toBe(2);
 		void pool.terminate();
 	});
 
 	it("should handle unknown message id", () => {
 		const pool = new WorkerPool({ size: 1, workerScript: "/fake/worker.js" });
-		pool.execute("generateKeyPair", { algorithm: "ec" }).catch(() => {});
+		pool
+			.execute(WorkerTaskType.GenerateKeyPair, { algorithm: "ec" })
+			.catch(() => {});
 		triggerMessage(FAKE_WORKERS[0], {
 			id: "unknown-id",
 			success: true,
@@ -303,7 +340,9 @@ describe("WorkerPool", () => {
 
 	it("should use default error message when worker sends error without message", async () => {
 		const pool = new WorkerPool({ size: 1, workerScript: "/fake/worker.js" });
-		const promise = pool.execute("generateKeyPair", { algorithm: "ec" });
+		const promise = pool.execute(WorkerTaskType.GenerateKeyPair, {
+			algorithm: "ec",
+		});
 
 		const call = FAKE_WORKERS[0].postMessage.mock.calls[0][0] as { id: string };
 		triggerMessage(FAKE_WORKERS[0], { id: call.id, success: false });
@@ -315,9 +354,9 @@ describe("WorkerPool", () => {
 	it("should break processQueue when all workers busy with more queued tasks", () => {
 		const pool = new WorkerPool({ size: 1, workerScript: "/fake/worker.js" });
 
-		pool.execute("task1", { data: 1 }).catch(() => {});
-		pool.execute("task2", { data: 2 }).catch(() => {});
-		pool.execute("task3", { data: 3 }).catch(() => {});
+		pool.execute("task1" as any, { data: 1 }).catch(() => {});
+		pool.execute("task2" as any, { data: 2 }).catch(() => {});
+		pool.execute("task3" as any, { data: 3 }).catch(() => {});
 
 		expect(pool.pending).toBe(2);
 

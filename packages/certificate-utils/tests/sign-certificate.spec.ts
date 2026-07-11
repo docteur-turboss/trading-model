@@ -1,4 +1,9 @@
 import { describe, expect, it } from "@jest/globals";
+import {
+	toCsrPem,
+	toServiceId,
+	UnixTimestamp,
+} from "@trading-model/common/domain/primitives";
 import { createCsr } from "../src/create-csr";
 import { generateKeyPair, KeyAlgorithm } from "../src/generate-key-pair";
 import { signCertificate } from "../src/sign-certificate";
@@ -6,7 +11,7 @@ import { signCertificate } from "../src/sign-certificate";
 describe("signCertificate", () => {
 	it("should sign a CSR and return a SignedCertificate", () => {
 		const caKeyPair = generateKeyPair(KeyAlgorithm.Rsa4096);
-		const caCertPem = caKeyPair.publicKey;
+		const caCertPem = caKeyPair.publicKey as never;
 		const serviceKeyPair = generateKeyPair(KeyAlgorithm.EcP384);
 		const csr = createCsr({
 			commonName: "test-service",
@@ -15,11 +20,11 @@ describe("signCertificate", () => {
 		});
 
 		const result = signCertificate({
-			csr,
-			serviceId: "svc-123",
+			csr: toCsrPem(csr),
+			serviceId: toServiceId("svc-123"),
 			caKeyPair,
 			caCertPem,
-			ttlMs: 3600000,
+			ttlMs: 3600000 as never,
 		});
 
 		expect(result.serialNumber).toBeDefined();
@@ -34,7 +39,7 @@ describe("signCertificate", () => {
 
 	it("should set correct validity period", () => {
 		const caKeyPair = generateKeyPair(KeyAlgorithm.Rsa4096);
-		const caCertPem = caKeyPair.publicKey;
+		const caCertPem = caKeyPair.publicKey as never;
 		const serviceKeyPair = generateKeyPair(KeyAlgorithm.EcP384);
 		const csr = createCsr({
 			commonName: "validity-test",
@@ -42,11 +47,11 @@ describe("signCertificate", () => {
 			keyPem: serviceKeyPair.privateKey,
 		});
 
-		const ttlMs = 7200000;
+		const ttlMs = 7200000 as never;
 		const before = Date.now();
 		const result = signCertificate({
-			csr,
-			serviceId: "svc-456",
+			csr: toCsrPem(csr),
+			serviceId: toServiceId("svc-456"),
 			caKeyPair,
 			caCertPem,
 			ttlMs,
@@ -55,12 +60,15 @@ describe("signCertificate", () => {
 
 		expect(result.issuedAt.getTime()).toBeGreaterThanOrEqual(before);
 		expect(result.issuedAt.getTime()).toBeLessThanOrEqual(after);
-		expect(result.expiresAt.getTime() - result.issuedAt.getTime()).toBe(ttlMs);
+		expect(
+			UnixTimestamp.toDate(result.expiresAt).getTime() -
+				result.issuedAt.getTime()
+		).toBe(ttlMs);
 	});
 
 	it("should produce unique serial numbers for different certs", () => {
 		const caKeyPair = generateKeyPair(KeyAlgorithm.Rsa4096);
-		const caCertPem = caKeyPair.publicKey;
+		const caCertPem = caKeyPair.publicKey as never;
 		const serviceKeyPair = generateKeyPair(KeyAlgorithm.EcP384);
 		const csr = createCsr({
 			commonName: "unique-serial",
@@ -69,18 +77,18 @@ describe("signCertificate", () => {
 		});
 
 		const r1 = signCertificate({
-			csr,
-			serviceId: "svc-1",
+			csr: toCsrPem(csr),
+			serviceId: toServiceId("svc-1"),
 			caKeyPair,
 			caCertPem,
-			ttlMs: 3600000,
+			ttlMs: 3600000 as never,
 		});
 		const r2 = signCertificate({
-			csr,
-			serviceId: "svc-2",
+			csr: toCsrPem(csr),
+			serviceId: toServiceId("svc-2"),
 			caKeyPair,
 			caCertPem,
-			ttlMs: 3600000,
+			ttlMs: 3600000 as never,
 		});
 
 		expect(r1.serialNumber).not.toBe(r2.serialNumber);
@@ -89,7 +97,7 @@ describe("signCertificate", () => {
 
 	it("should sign with RSA CA key and EC service key", () => {
 		const caKeyPair = generateKeyPair(KeyAlgorithm.EcP384);
-		const caCertPem = caKeyPair.publicKey;
+		const caCertPem = caKeyPair.publicKey as never;
 		const serviceKeyPair = generateKeyPair(KeyAlgorithm.Rsa4096);
 		const csr = createCsr({
 			commonName: "mixed-algo",
@@ -98,11 +106,11 @@ describe("signCertificate", () => {
 		});
 
 		const result = signCertificate({
-			csr,
-			serviceId: "svc-mixed",
+			csr: toCsrPem(csr),
+			serviceId: toServiceId("svc-mixed"),
 			caKeyPair,
 			caCertPem,
-			ttlMs: 60000,
+			ttlMs: 60000 as never,
 		});
 
 		expect(result.certPem).toContain("BEGIN CERTIFICATE");

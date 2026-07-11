@@ -1,4 +1,5 @@
-﻿import {
+﻿import { DurationMs } from "../domain/primitives";
+import {
 	type BackoffConfig,
 	computeExponentialBackoff,
 } from "./backoff-config";
@@ -6,7 +7,7 @@ import { sleep } from "./sleep";
 
 export interface RetryOptions extends BackoffConfig {
 	maxRetries: number;
-	timeoutMs?: number;
+	timeoutMs?: DurationMs;
 	/** Optional jitter in ms to add to each backoff delay. */
 	jitterMs?: number;
 	/** Optional callback to check whether retries should continue. If returns false, the loop aborts. */
@@ -32,7 +33,7 @@ export async function retryWithBackoff<_TResult>(
 		maxRetries,
 		baseDelayMs = 100,
 		maxDelayMs = 5000,
-		timeoutMs = 0,
+		timeoutMs = DurationMs.zero(),
 		jitterMs = 0,
 		shouldRetry,
 	} = options;

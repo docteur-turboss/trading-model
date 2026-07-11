@@ -1,7 +1,8 @@
 import { createHash } from "node:crypto";
 
-import { CRYPTO } from "@trading-model/common/crypto/crypto-constants";
+import { CryptoAlg } from "@trading-model/common/crypto/crypto-constants";
 import {
+	toCommonName,
 	toFingerprint,
 	toSerialNumber,
 } from "@trading-model/common/domain/primitives";
@@ -13,7 +14,9 @@ function _decodeCertBody(certPem: string): string {
 		.filter(
 			(line) => !(line.startsWith("-----BEGIN") || line.startsWith("-----END"))
 		);
-	const decoded = Buffer.from(lines.join(""), "base64").toString(CRYPTO.UTF8);
+	const decoded = Buffer.from(lines.join(""), "base64").toString(
+		CryptoAlg.UTF8
+	);
 	return (JSON.parse(decoded) as { body: string }).body;
 }
 
@@ -28,16 +31,19 @@ function _extractSan(body: string): string[] {
 }
 
 function _parseCertFields(body: string, certPem: string): CertificateInfo {
+	const serialRaw = _extractField(body, /Serial: (.+)/);
+	const subjectRaw = _extractField(body, /Subject: (.+)/);
+	const issuerRaw = _extractField(body, /Issuer: (.+)/);
 	return {
-		serialNumber: toSerialNumber(_extractField(body, /Serial: (.+)/)),
-		subject: _extractField(body, /Subject: (.+)/),
-		issuer: _extractField(body, /Issuer: (.+)/),
+		serialNumber: serialRaw ? toSerialNumber(serialRaw) : ("" as never),
+		subject: subjectRaw ? toCommonName(subjectRaw) : ("" as never),
+		issuer: issuerRaw ? toCommonName(issuerRaw) : ("" as never),
 		notBefore: new Date(_extractField(body, /Not Before: (.+)/)),
 		notAfter: new Date(_extractField(body, /Not After: (.+)/)),
 		fingerprint: toFingerprint(
-			createHash(CRYPTO.SHA256).update(certPem).digest(CRYPTO.HEX)
+			createHash(CryptoAlg.SHA256).update(certPem).digest(CryptoAlg.HEX)
 		),
-		san: _extractSan(body),
+		san: _extractSan(body).map((cn) => toCommonName(cn)),
 	};
 }
 

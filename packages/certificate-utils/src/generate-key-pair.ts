@@ -2,6 +2,7 @@ import {
 	generateKeyPairSync as nodeGenerateKeyPairSync,
 	randomUUID,
 } from "node:crypto";
+import { KeyId, KeyPem } from "@trading-model/common/domain/primitives";
 import {
 	getAlgorithmOptions,
 	getKeyEncoding,
@@ -26,7 +27,10 @@ export function generateKeyPair(
 		...algorithmOptions,
 		...getKeyEncoding(),
 	});
-	return { publicKey: publicKey as string, privateKey: privateKey as string };
+	return {
+		publicKey: KeyPem.of(publicKey as string),
+		privateKey: KeyPem.of(privateKey as string),
+	};
 }
 
 export function generateKeyPairSync(
@@ -39,7 +43,7 @@ export function generateKeyPairWithId(
 	algorithm: KeyAlgorithm = KeyAlgorithm.EcP384
 ): KeyPairWithId {
 	const pair = generateKeyPair(algorithm);
-	return { ...pair, id: randomUUID() };
+	return { ...pair, id: KeyId.of(randomUUID()) };
 }
 
 export function generateKeyPairWithIdSync(

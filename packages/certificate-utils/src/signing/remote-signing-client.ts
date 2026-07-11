@@ -1,4 +1,5 @@
 import { HttpClient } from "@trading-model/common/config/http-client";
+import { DurationMs, URLString } from "@trading-model/common/domain/primitives";
 import type { TlsPaths as TlsClientPaths } from "@trading-model/common/domain/tls-paths";
 import { KeyAlgorithm } from "../keygen/generate-key-pair";
 import { KeyPairClient } from "../keygen/key-pair-client";
@@ -16,20 +17,20 @@ import type {
 import type { CsrOptions } from "./create-csr";
 
 export interface RemoteSigningConfig {
-	baseUrl: string;
+	baseUrl: URLString;
 	tls?: TlsClientPaths;
-	timeoutMs?: number;
+	timeoutMs?: DurationMs;
 }
 
 export class RemoteSigningClient {
 	private readonly _httpClient: HttpClient;
-	private readonly _baseUrl: string;
-	private readonly _timeoutMs: number;
+	private readonly _baseUrl: URLString;
+	private readonly _timeoutMs: DurationMs;
 	private readonly _keyPairClient: KeyPairClient;
 
 	constructor(config: RemoteSigningConfig) {
-		this._baseUrl = config.baseUrl.replace(/\/+$/, "");
-		this._timeoutMs = config.timeoutMs ?? 30000;
+		this._baseUrl = URLString.of(config.baseUrl.replace(/\/+$/, ""));
+		this._timeoutMs = config.timeoutMs ?? DurationMs.of(30000);
 		this._httpClient = config.tls
 			? HttpClient.createWithTls(config.tls)
 			: new HttpClient();
@@ -57,7 +58,7 @@ export class RemoteSigningClient {
 		body: Record<string, unknown>
 	): Promise<TValue> {
 		const result = await this._httpClient.post<TValue>(
-			`${this._baseUrl}${path}`,
+			URLString.of(`${this._baseUrl}${path}`),
 			body,
 			{ timeoutMs: this._timeoutMs }
 		);

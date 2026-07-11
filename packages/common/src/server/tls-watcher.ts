@@ -4,6 +4,7 @@ import type https from "node:https";
 import path from "node:path";
 import { logger } from "../config/logger";
 import type { TlsPaths } from "../domain/tls-paths";
+import { toSecureContextOptions } from "../domain/tls-paths";
 import { normalizeError } from "../utils/errors";
 import { loadTlsFiles } from "./tls-loader";
 
@@ -17,8 +18,8 @@ async function reloadTlsContext(
 		return;
 	}
 	try {
-		const { keyPem, certPem, caPem } = await loadTlsFiles(tls);
-		server.setSecureContext({ key: keyPem, cert: certPem, ca: caPem });
+		const bundle = await loadTlsFiles(tls);
+		server.setSecureContext(toSecureContextOptions(bundle));
 		logger.info("TLS context reloaded", {
 			context: { event: eventType, file: filename },
 		});

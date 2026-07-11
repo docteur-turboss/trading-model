@@ -1,9 +1,10 @@
 import { CircuitState } from "../domain/circuit-state";
+import { DurationMs } from "../domain/primitives";
 import type { IUnkeyedCircuitBreaker } from "./circuit-breaker.interface";
 
 export interface CircuitBreakerConfig {
 	failureThreshold: number;
-	cooldownMs: number;
+	cooldownMs: DurationMs;
 	halfOpenMaxAttempts?: number;
 	onOpen?: (state: {
 		failures: number;
@@ -14,7 +15,7 @@ export interface CircuitBreakerConfig {
 
 export const DEFAULT_CIRCUIT_CONFIG: CircuitBreakerConfig = {
 	failureThreshold: 5,
-	cooldownMs: 30_000,
+	cooldownMs: DurationMs.of(30_000),
 };
 
 interface PersistentState {

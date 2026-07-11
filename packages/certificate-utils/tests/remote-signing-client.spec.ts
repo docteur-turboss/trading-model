@@ -1,4 +1,8 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
+import {
+	toServiceId,
+	URLString,
+} from "@trading-model/common/domain/primitives";
 
 const MOCK_POST: any = jest.fn();
 const MOCK_HTTP_CLIENT_INSTANCE = { post: MOCK_POST };
@@ -15,7 +19,7 @@ import { RemoteSigningClient } from "../src/signing/remote-signing-client";
 
 function getClient(options: Record<string, any> = {}): RemoteSigningClient {
 	return new RemoteSigningClient({
-		baseUrl: "https://signer.example.com",
+		baseUrl: URLString.of("https://signer.example.com"),
 		...options,
 	});
 }
@@ -26,16 +30,18 @@ describe("RemoteSigningClient", () => {
 	});
 
 	it("should strip trailing slashes from baseUrl", () => {
-		const c = getClient({ baseUrl: "https://signer.example.com///" });
+		const c = getClient({
+			baseUrl: URLString.of("https://signer.example.com///"),
+		});
 		expect(c).toBeDefined();
 	});
 
 	it("should create with TLS config", () => {
 		const c = getClient({
 			tls: {
-				caPath: "/ca.pem",
-				certPath: "/cert.pem",
-				keyPath: "/key.pem",
+				caPath: "/ca.pem" as any,
+				certPath: "/cert.pem" as any,
+				keyPath: "/key.pem" as any,
 			},
 		});
 		expect(MOCK_HTTP_CLIENT.createWithTls).toHaveBeenCalledWith({
@@ -111,11 +117,11 @@ describe("RemoteSigningClient", () => {
 			MOCK_POST.mockResolvedValue(signed);
 			const client = getClient();
 			const options = {
-				csr: "csr",
-				serviceId: "svc",
+				csr: "csr" as any,
+				serviceId: toServiceId("svc"),
 				caKeyPair: { publicKey: "pk", privateKey: "sk" } as any,
-				caCertPem: "ca",
-				ttlMs: 3600000,
+				caCertPem: "ca" as never,
+				ttlMs: 3600000 as never,
 			};
 
 			const result = await client.signCertificate(options);
@@ -141,7 +147,7 @@ describe("RemoteSigningClient", () => {
 		it("should post to create-csr endpoint", async () => {
 			MOCK_POST.mockResolvedValue("csr-pem");
 			const client = getClient();
-			const options = { commonName: "test", san: [], keyPem: "key" };
+			const options = { commonName: "test", san: [], keyPem: "key" as never };
 
 			const result = await client.createCsr(options);
 
@@ -166,7 +172,7 @@ describe("RemoteSigningClient", () => {
 		it("should post to validate-certificate endpoint", async () => {
 			MOCK_POST.mockResolvedValue({ valid: true });
 			const client = getClient();
-			const result = await client.validateCertificate("cert-pem");
+			const result = await client.validateCertificate({ certPem: "cert-pem" });
 
 			expect(MOCK_POST).toHaveBeenCalledWith(
 				"https://signer.example.com/api/v1/crypto/validate-certificate",
@@ -179,9 +185,9 @@ describe("RemoteSigningClient", () => {
 		it("should throw on empty response", async () => {
 			MOCK_POST.mockResolvedValue(null);
 			const client = getClient();
-			await expect(client.validateCertificate("cert")).rejects.toThrow(
-				"Empty response from remote signer"
-			);
+			await expect(
+				client.validateCertificate({ certPem: "cert" })
+			).rejects.toThrow("Empty response from remote signer");
 		});
 	});
 
@@ -215,12 +221,16 @@ describe("RemoteSigningClient", () => {
 			const result = await client.sign({
 				algorithm: "sha256",
 				body: "body",
-				privateKey: "private-key",
+				privateKey: "private-key" as never,
 			});
 
 			expect(MOCK_POST).toHaveBeenCalledWith(
 				"https://signer.example.com/api/v1/crypto/sign",
-				{ algorithm: "sha256", body: "body", privateKey: "private-key" },
+				{
+					algorithm: "sha256",
+					body: "body",
+					privateKey: "private-key" as never,
+				},
 				{ timeoutMs: 30000 }
 			);
 			expect(result).toBe("signature");
@@ -230,7 +240,11 @@ describe("RemoteSigningClient", () => {
 			MOCK_POST.mockResolvedValue(undefined);
 			const client = getClient();
 			await expect(
-				client.sign({ algorithm: "sha256", body: "body", privateKey: "key" })
+				client.sign({
+					algorithm: "sha256",
+					body: "body",
+					privateKey: "key" as never,
+				})
 			).rejects.toThrow("Empty response from remote signer");
 		});
 	});

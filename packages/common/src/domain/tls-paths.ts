@@ -1,15 +1,29 @@
+import type { SecureContextOptions } from "node:tls";
+import { type CaPem, type CertPem, FilePath, type KeyPem } from "./primitives";
+
 /** Canonical type for TLS file paths used across all services. */
 export interface TlsPaths {
-	caPath: string;
-	certPath: string;
-	keyPath: string;
+	caPath: FilePath;
+	certPath: FilePath;
+	keyPath: FilePath;
 }
 
 /** In-memory TLS PEM content (key, certificate, CA chain). */
 export interface TlsPemBundle {
-	keyPem: string;
-	certPem: string;
-	caPem: string;
+	keyPem: KeyPem;
+	certPem: CertPem;
+	caPem: CaPem;
+}
+
+/** Converts a TlsPemBundle to the object shape expected by tls.createServer / setSecureContext. */
+export function toSecureContextOptions(
+	bundle: TlsPemBundle
+): SecureContextOptions {
+	return {
+		key: bundle.keyPem,
+		cert: bundle.certPem,
+		ca: bundle.caPem,
+	};
 }
 
 /**
@@ -22,8 +36,8 @@ export function buildTlsFromEnv(env: {
 	TLS_CA_PATH: string;
 }): TlsPaths {
 	return {
-		certPath: env.TLS_CERT_PATH,
-		keyPath: env.TLS_KEY_PATH,
-		caPath: env.TLS_CA_PATH,
+		certPath: FilePath.of(env.TLS_CERT_PATH),
+		keyPath: FilePath.of(env.TLS_KEY_PATH),
+		caPath: FilePath.of(env.TLS_CA_PATH),
 	};
 }

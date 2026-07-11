@@ -1,13 +1,14 @@
 import { HttpClient } from "@trading-model/common/config/http-client";
+import { DurationMs, URLString } from "@trading-model/common/domain/primitives";
 import type { TlsPaths } from "@trading-model/common/domain/tls-paths";
 import { HTTP_HEADERS } from "@trading-model/common/http-headers";
 
 export interface VaultTransitConfig {
-	vaultUrl: string;
+	vaultUrl: URLString;
 	token: string;
 	namespace?: string;
 	tls?: TlsPaths;
-	timeoutMs?: number;
+	timeoutMs?: DurationMs;
 }
 
 export class HashAlgorithmMapper {
@@ -45,19 +46,19 @@ export class KeyVersionManager {
 
 export class VaultTransitHttp {
 	private readonly _httpClient: HttpClient;
-	private readonly _baseUrl: string;
+	private readonly _baseUrl: URLString;
 	private readonly _token: string;
 	private readonly _namespace: string;
-	private readonly _timeoutMs: number;
+	private readonly _timeoutMs: DurationMs;
 	private readonly _algorithmMapper: HashAlgorithmMapper;
 	private readonly _responseParser: VaultResponseParser;
 	private readonly _keyVersionManager: KeyVersionManager;
 
 	constructor(config: VaultTransitConfig) {
-		this._baseUrl = config.vaultUrl.replace(/\/+$/, "");
+		this._baseUrl = URLString.of(config.vaultUrl.replace(/\/+$/, ""));
 		this._token = config.token;
 		this._namespace = config.namespace ?? "";
-		this._timeoutMs = config.timeoutMs ?? 30000;
+		this._timeoutMs = config.timeoutMs ?? DurationMs.of(30000);
 		this._httpClient = config.tls
 			? HttpClient.createWithTls(config.tls)
 			: new HttpClient();
@@ -89,7 +90,9 @@ export class VaultTransitHttp {
 			allow_plaintext_backup: false,
 		};
 		await this._httpClient.post(
-			`${this._baseUrl}/v1/transit/keys/${encodeURIComponent(name)}`,
+			URLString.of(
+				`${this._baseUrl}/v1/transit/keys/${encodeURIComponent(name)}`
+			),
 			payload,
 			{ headers: this._getHeaders(), timeoutMs: this._timeoutMs }
 		);
@@ -100,7 +103,9 @@ export class VaultTransitHttp {
 		payload: Record<string, unknown>
 	): Promise<{ data: { signature: string } }> {
 		const result = await this._httpClient.post<{ data: { signature: string } }>(
-			`${this._baseUrl}/v1/transit/sign/${encodeURIComponent(name)}`,
+			URLString.of(
+				`${this._baseUrl}/v1/transit/sign/${encodeURIComponent(name)}`
+			),
 			payload,
 			{ headers: this._getHeaders(), timeoutMs: this._timeoutMs }
 		);
@@ -113,10 +118,15 @@ export class VaultTransitHttp {
 	async readPublicKey(name: string): Promise<string> {
 		const result = await this._httpClient.get<{
 			data: { keys: Record<string, string> };
-		}>(`${this._baseUrl}/v1/transit/keys/${encodeURIComponent(name)}`, {
-			headers: this._getHeaders(),
-			timeoutMs: this._timeoutMs,
-		});
+		}>(
+			URLString.of(
+				`${this._baseUrl}/v1/transit/keys/${encodeURIComponent(name)}`
+			),
+			{
+				headers: this._getHeaders(),
+				timeoutMs: this._timeoutMs,
+			}
+		);
 		if (!result) {
 			throw new Error(`Key "${name}" not found in Vault Transit`);
 		}
@@ -125,7 +135,9 @@ export class VaultTransitHttp {
 
 	async deleteKey(name: string): Promise<void> {
 		await this._httpClient.delete(
-			`${this._baseUrl}/v1/transit/keys/${encodeURIComponent(name)}`,
+			URLString.of(
+				`${this._baseUrl}/v1/transit/keys/${encodeURIComponent(name)}`
+			),
 			undefined,
 			{ headers: this._getHeaders(), timeoutMs: this._timeoutMs }
 		);

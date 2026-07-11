@@ -1,4 +1,5 @@
 import { describe, expect, it } from "@jest/globals";
+import { HTTP_STATUS } from "../../src/http-status";
 import {
 	HTTP_CODE,
 	ResponseCodes,
@@ -154,12 +155,12 @@ describe("ClassResponseExceptions", () => {
 
 	describe("sendResponse", () => {
 		it("should return ResponseObject with given data and status", () => {
-			const result = sendResponse({ id: 1 }, 201);
+			const result = sendResponse({ id: 1 }, HTTP_STATUS.CREATED);
 			expect(result).toEqual({ status: 201, data: { id: 1 } });
 		});
 
 		it("should return ResponseObject with null data", () => {
-			const result = sendResponse(null, 204);
+			const result = sendResponse(null, HTTP_STATUS.NO_CONTENT);
 			expect(result).toEqual({ status: 204, data: null });
 		});
 	});

@@ -1,5 +1,5 @@
 import { createPublicKey, createSign } from "node:crypto";
-import { CRYPTO } from "@trading-model/common/crypto/crypto-constants";
+import { CryptoAlg } from "@trading-model/common/crypto/crypto-constants";
 
 export interface CsrOptions {
 	commonName: string;
@@ -17,25 +17,25 @@ function _buildCsrData(commonName: string, san: string[]): string {
 	].join("\n");
 }
 
-function _buildCsrBody(
-	commonName: string,
-	san: string[],
-	keyPem: string,
-	signature: string
-): string {
-	const publicKey = createPublicKey(keyPem);
+function _buildCsrBody(params: {
+	commonName: string;
+	san: string[];
+	keyPem: string;
+	signature: string;
+}): string {
+	const publicKey = createPublicKey(params.keyPem);
 	return Buffer.from(
 		JSON.stringify({
-			commonName,
-			san,
+			commonName: params.commonName,
+			san: params.san,
 			publicKey: publicKey.export({ type: "spki", format: "pem" }),
-			signature,
+			signature: params.signature,
 		})
 	).toString("base64");
 }
 
 function _signData(data: string, keyPem: string): string {
-	const sign = createSign(CRYPTO.SHA256);
+	const sign = createSign(CryptoAlg.SHA256);
 	sign.update(data);
 	return sign.sign(keyPem, "base64");
 }
@@ -52,7 +52,7 @@ export function createCsr(options: CsrOptions): string {
 	const { commonName, san, keyPem } = options;
 	const csrData = _buildCsrData(commonName, san);
 	const signature = _signData(csrData, keyPem);
-	const csrBody = _buildCsrBody(commonName, san, keyPem, signature);
+	const csrBody = _buildCsrBody({ commonName, san, keyPem, signature });
 	return _formatCsrOutput(csrBody);
 }
 

@@ -8,7 +8,7 @@ module.exports = {
   moduleNameMapper: {
     '^@trading-model/common/(.*)$': '<rootDir>/../common/src/$1',
   },
-  maxWorkers: 1,
+  maxWorkers: 10,
   collectCoverageFrom: ['src/**/*.ts', '!src/**/*.d.ts', '!src/index.ts'],
   coverageThreshold: {
     global: {

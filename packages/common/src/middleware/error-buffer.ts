@@ -6,13 +6,7 @@ import type {
 	URLString,
 	Version,
 } from "../domain/primitives";
-import {
-	toInstanceId,
-	toISODateTime,
-	toServiceId,
-	toVersion,
-	toCorrelationId,
-} from "../domain/primitives";
+import type { HttpStatusCode } from "../http-status";
 import { CircularBuffer } from "../utils/circular-buffer";
 import { normalizeError } from "../utils/errors";
 
@@ -21,7 +15,7 @@ interface ErrorReport {
 	stack?: string;
 	url: URLString;
 	method: string;
-	statusCode: number;
+	statusCode: HttpStatusCode;
 	correlationId: CorrelationId;
 	timestamp: ISODateTime;
 	serviceName: ServiceId;
@@ -86,5 +80,4 @@ export class ErrorBuffer {
 			normalizeError(err).message
 		);
 	}
-
 }

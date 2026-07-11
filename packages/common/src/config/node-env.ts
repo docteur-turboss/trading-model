@@ -1,6 +1,11 @@
-export const NODE_ENVS = ["development", "test", "staging", "production"] as const;
+export const NODE_ENVS = [
+	"development",
+	"test",
+	"staging",
+	"production",
+] as const;
 
-export type NodeEnv = (typeof NODE_ENVS)[number];
+export type NodeEnv = string & { readonly brand: "NodeEnv" };
 
 export const NODE_ENV = {
 	DEVELOPMENT: "development" as NodeEnv,

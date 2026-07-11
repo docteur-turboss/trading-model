@@ -1,7 +1,4 @@
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
-
-import { CRYPTO } from "./crypto-constants";
-
 import type {
 	Signature,
 	SignedRequest,
@@ -12,6 +9,7 @@ import type { ServiceId } from "../domain/primitives";
 import { toServiceId } from "../domain/primitives";
 import { HTTP_HEADERS } from "../http-headers";
 import { deterministicStringify } from "../utils/deterministic-stringify";
+import { CryptoAlg } from "./crypto-constants";
 
 const DEFAULT_TIMESTAMP_TOLERANCE_MS = 300_000;
 
@@ -31,9 +29,9 @@ export function signRequest(
 		return { timestamp, signature: "" as Signature };
 	}
 	const parts = _buildSignParts(input, timestamp, secret);
-	const signature = createHmac(CRYPTO.SHA256, secret)
+	const signature = createHmac(CryptoAlg.SHA256, secret)
 		.update(parts.join(":"))
-		.digest(CRYPTO.HEX) as Signature;
+		.digest(CryptoAlg.HEX) as Signature;
 	return { timestamp, signature };
 }
 
@@ -75,9 +73,9 @@ function _verifyHmacMatch(
 	signature: string
 ): boolean {
 	const parts = _buildSignParts(input, timestamp, secret);
-	const expected = createHmac(CRYPTO.SHA256, secret)
+	const expected = createHmac(CryptoAlg.SHA256, secret)
 		.update(parts.join(":"))
-		.digest(CRYPTO.HEX);
+		.digest(CryptoAlg.HEX);
 	return (
 		signature.length === expected.length &&
 		timingSafeEqual(Buffer.from(signature), Buffer.from(expected))
@@ -90,7 +88,9 @@ function _buildSignParts(
 	_secret: string
 ): string[] {
 	const bodyString = deterministicStringify(normalizeBody(input.body));
-	const bodyHash = createHash(CRYPTO.SHA256).update(bodyString).digest(CRYPTO.HEX);
+	const bodyHash = createHash(CryptoAlg.SHA256)
+		.update(bodyString)
+		.digest(CryptoAlg.HEX);
 	return [input.serviceName, timestamp, bodyHash, input.method, input.path];
 }
 

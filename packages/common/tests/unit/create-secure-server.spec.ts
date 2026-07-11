@@ -1,4 +1,5 @@
 import { describe, expect, it, jest } from "@jest/globals";
+import { DurationMs, PositiveInt } from "../../src/domain/primitives";
 
 let mockApp: any;
 let pingHandler: any;
@@ -40,7 +41,9 @@ jest.mock("node:https", () => ({
 }));
 
 jest.mock("node:fs/promises", () => ({
-	readFile: jest.fn(() => Promise.resolve("mock-cert-content")),
+	readFile: jest.fn(() =>
+		Promise.resolve("-----BEGIN CERTIFICATE-----\nmock-cert-content")
+	),
 }));
 
 jest.mock("../../src/middleware/response-protocol", () => ({
@@ -67,16 +70,16 @@ import express from "express";
 import { rateLimit } from "express-rate-limit";
 import helmet from "helmet";
 import { logger } from "../../src/config/logger";
-import type { Port } from "../../src/domain/primitives";
+import type { FilePath, Port } from "../../src/domain/primitives";
 import { createSecureServer } from "../../src/server/create-secure-server";
 
 describe("createSecureServer", () => {
 	const defaultOptions = {
 		port: 8443 as Port,
 		tls: {
-			keyPath: "/path/to/key.pem",
-			certPath: "/path/to/cert.pem",
-			caPath: "/path/to/ca.pem",
+			keyPath: "/path/to/key.pem" as FilePath,
+			certPath: "/path/to/cert.pem" as FilePath,
+			caPath: "/path/to/ca.pem" as FilePath,
 		},
 		routes: jest.fn(),
 	};
@@ -126,9 +129,9 @@ describe("createSecureServer", () => {
 		);
 		expect(https.createServer).toHaveBeenCalledWith(
 			expect.objectContaining({
-				key: "mock-cert-content",
-				cert: "mock-cert-content",
-				ca: "mock-cert-content",
+				key: "-----BEGIN CERTIFICATE-----\nmock-cert-content",
+				cert: "-----BEGIN CERTIFICATE-----\nmock-cert-content",
+				ca: "-----BEGIN CERTIFICATE-----\nmock-cert-content",
 				requestCert: true,
 				rejectUnauthorized: true,
 				minVersion: "TLSv1.3",
@@ -185,7 +188,7 @@ describe("createSecureServer", () => {
 	it("should apply custom rate limit config", async () => {
 		await createSecureServer({
 			...defaultOptions,
-			rateLimit: { windowMs: 60000, limit: 50 },
+			rateLimit: { windowMs: DurationMs.of(60000), limit: PositiveInt.of(50) },
 		});
 
 		expect(rateLimit).toHaveBeenCalledWith(

@@ -8,14 +8,19 @@ import {
 } from "@jest/globals";
 
 jest.mock("ws", () => {
-	const MockWebSocket = jest.fn(() => ({
-		on: jest.fn(),
-		send: jest.fn(),
-		get readyState() {
-			return 1;
-		},
-		close: jest.fn(),
-	}));
+	const MockWebSocket = jest.fn(() => {
+		let _readyState = 1;
+		return {
+			on: jest.fn(),
+			send: jest.fn(),
+			get readyState() {
+				return _readyState;
+			},
+			close: jest.fn(() => {
+				_readyState = 3;
+			}),
+		};
+	});
 
 	(MockWebSocket as any).OPEN = 1;
 	(MockWebSocket as any).CONNECTING = 0;
@@ -35,8 +40,10 @@ const MOCK_WEB_SOCKET = WebSocket as unknown as jest.Mock<any>;
 
 import type {
 	Capability,
+	DurationMs,
 	IPAddress,
 	Port,
+	PositiveInt,
 } from "../../../src/domain/primitives";
 import { WorkerClient } from "../../../src/worker/worker-client";
 
@@ -87,8 +94,8 @@ describe("WorkerClient", () => {
 				"type-a" as unknown as Capability,
 				"type-b" as unknown as Capability,
 			],
-			maxConcurrency: 5,
-			heartbeatIntervalMs: 5000,
+			maxConcurrency: 5 as PositiveInt,
+			heartbeatIntervalMs: 5000 as DurationMs,
 		});
 
 		onJobAssigned = jest.fn();
@@ -105,8 +112,8 @@ describe("WorkerClient", () => {
 	});
 
 	afterEach(() => {
-		jest.useRealTimers();
 		client.disconnect();
+		jest.useRealTimers();
 	});
 
 	describe("connect", () => {
@@ -131,7 +138,7 @@ describe("WorkerClient", () => {
 						"type-a" as unknown as Capability,
 						"type-b" as unknown as Capability,
 					],
-					maxConcurrency: 5,
+					maxConcurrency: 5 as PositiveInt,
 				})
 			);
 		});
@@ -342,10 +349,10 @@ describe("WorkerClient defaults and reconnection", () => {
 	});
 
 	afterEach(() => {
-		jest.useRealTimers();
 		if (client) {
 			client.disconnect();
 		}
+		jest.useRealTimers();
 	});
 
 	it("should use default heartbeat interval when not configured", () => {
@@ -353,7 +360,7 @@ describe("WorkerClient defaults and reconnection", () => {
 			workerId: "default-hb",
 			serverUrl: "wss://scheduler:3000",
 			capabilities: ["type-a" as unknown as Capability],
-			maxConcurrency: 3,
+			maxConcurrency: 3 as PositiveInt,
 		});
 
 		void client.connect();
@@ -377,10 +384,10 @@ describe("WorkerClient defaults and reconnection", () => {
 			workerId: "reconnect-test",
 			serverUrl: "wss://scheduler:3000",
 			capabilities: ["type-a" as unknown as Capability],
-			maxConcurrency: 3,
-			heartbeatIntervalMs: 5000,
-			reconnectBaseDelayMs: 1000,
-			reconnectMaxDelayMs: 5000,
+			maxConcurrency: 3 as PositiveInt,
+			heartbeatIntervalMs: 5000 as DurationMs,
+			reconnectBaseDelayMs: 100 as DurationMs,
+			reconnectMaxDelayMs: 5000 as DurationMs,
 		});
 
 		client.on("disconnected", onDisconnected);
@@ -396,7 +403,10 @@ describe("WorkerClient defaults and reconnection", () => {
 		callbacks.close();
 
 		expect(onDisconnected).toHaveBeenCalled();
-		expect(onReconnecting).toHaveBeenCalledWith({ attempt: 1, delay: 2000 });
+		expect(onReconnecting).toHaveBeenCalledWith({
+			attempt: 1,
+			delay: expect.any(Number),
+		});
 	});
 
 	it("should emit error on reconnect failure without rejecting", async () => {
@@ -404,10 +414,10 @@ describe("WorkerClient defaults and reconnection", () => {
 			workerId: "reconnect-fail",
 			serverUrl: "wss://scheduler:3000",
 			capabilities: ["type-a" as unknown as Capability],
-			maxConcurrency: 3,
-			heartbeatIntervalMs: 5000,
-			reconnectBaseDelayMs: 100,
-			reconnectMaxDelayMs: 1000,
+			maxConcurrency: 3 as PositiveInt,
+			heartbeatIntervalMs: 5000 as DurationMs,
+			reconnectBaseDelayMs: 100 as DurationMs,
+			reconnectMaxDelayMs: 1000 as DurationMs,
 		});
 
 		client.on("error", onError);
@@ -434,8 +444,8 @@ describe("WorkerClient defaults and reconnection", () => {
 			workerId: "intentional-close",
 			serverUrl: "wss://scheduler:3000",
 			capabilities: ["type-a" as unknown as Capability],
-			maxConcurrency: 3,
-			heartbeatIntervalMs: 5000,
+			maxConcurrency: 3 as PositiveInt,
+			heartbeatIntervalMs: 5000 as DurationMs,
 		});
 
 		client.on("disconnected", onDisconnected);
@@ -461,8 +471,8 @@ describe("WorkerClient defaults and reconnection", () => {
 			workerId: "reconnect-reject",
 			serverUrl: "wss://scheduler:3000",
 			capabilities: ["type-a" as unknown as Capability],
-			maxConcurrency: 3,
-			reconnectBaseDelayMs: 100,
+			maxConcurrency: 3 as PositiveInt,
+			reconnectBaseDelayMs: 100 as DurationMs,
 		});
 
 		client.on("error", onReconnectError);

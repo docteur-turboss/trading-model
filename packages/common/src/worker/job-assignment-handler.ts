@@ -1,6 +1,7 @@
 import type { HttpClient } from "../config/http-client";
 import type { SchedulerWsJobAssignedMessage } from "../contracts/worker-protocol.types";
 import type { JobId, JobType } from "../domain/primitives";
+import { WorkerStatusCode } from "../domain/primitives";
 import { JobHandlerRegistry } from "./job-handler-registry";
 import { JobHttpClient, JobTracker } from "./job-tracker";
 
@@ -8,7 +9,7 @@ export class JobAssignmentHandler {
 	private readonly _handlerRegistry = new JobHandlerRegistry();
 	private readonly _jobTracker: JobTracker;
 	private readonly _jobHttpClient: JobHttpClient;
-	private _state: "running" | "draining" = "running";
+	private _state: WorkerStatusCode = WorkerStatusCode.Active;
 
 	constructor(httpClient: HttpClient, schedulerHttpUrl: string) {
 		this._jobTracker = new JobTracker();
@@ -29,7 +30,7 @@ export class JobAssignmentHandler {
 	async onJobAssigned(
 		job: SchedulerWsJobAssignedMessage["job"]
 	): Promise<void> {
-		if (this._state === "draining") {
+		if (this._state === WorkerStatusCode.Draining) {
 			await this._jobHttpClient.failJob(job.id, "Worker is draining");
 			return;
 		}
@@ -72,7 +73,7 @@ export class JobAssignmentHandler {
 	}
 
 	onDrain(): void {
-		this._state = "draining";
+		this._state = WorkerStatusCode.Draining;
 	}
 
 	stopAll(): void {
@@ -84,6 +85,6 @@ export class JobAssignmentHandler {
 	}
 
 	get isDraining(): boolean {
-		return this._state === "draining";
+		return this._state === WorkerStatusCode.Draining;
 	}
 }

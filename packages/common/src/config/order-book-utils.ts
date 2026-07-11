@@ -1,38 +1,36 @@
-import { Price, Volume } from "../domain/primitives";
-import type { OrderBookData } from "./event.types";
+import { Cash, Price, Volume } from "../domain/primitives";
+import type { OrderBookData, OrderBookLevel } from "./event.types";
+
+function avgPrice(levels: Set<OrderBookLevel>): Price {
+	let totalQty = Volume.zero();
+	let totalValue = Cash.zero();
+	for (const { price, quantity } of levels) {
+		totalValue = Cash.add(totalValue, Cash.fromProduct(quantity, price));
+		totalQty = Volume.add(totalQty, quantity);
+	}
+	return Price.of(totalQty > 0 ? Number(totalValue) / Number(totalQty) : 0);
+}
 
 export function getAvgBid(orderBook: OrderBookData): Price {
-	let totalQty = 0;
-	let totalValue = 0;
-	for (const { price, quantity } of orderBook.bids) {
-		totalValue += Number(price) * Number(quantity);
-		totalQty += Number(quantity);
-	}
-	return Price.of(totalQty > 0 ? totalValue / totalQty : 0);
+	return avgPrice(orderBook.bids);
 }
 
 export function getAvgAsk(orderBook: OrderBookData): Price {
-	let totalQty = 0;
-	let totalValue = 0;
-	for (const { price, quantity } of orderBook.asks) {
-		totalValue += Number(price) * Number(quantity);
-		totalQty += Number(quantity);
+	return avgPrice(orderBook.asks);
+}
+
+function totalQty(levels: Set<OrderBookLevel>): Volume {
+	let total = Volume.zero();
+	for (const { quantity } of levels) {
+		total = Volume.add(total, quantity);
 	}
-	return Price.of(totalQty > 0 ? totalValue / totalQty : 0);
+	return total;
 }
 
 export function getBidTotalQty(orderBook: OrderBookData): Volume {
-	let total = 0;
-	for (const { quantity } of orderBook.bids) {
-		total += Number(quantity);
-	}
-	return Volume.of(total);
+	return totalQty(orderBook.bids);
 }
 
 export function getAskTotalQty(orderBook: OrderBookData): Volume {
-	let total = 0;
-	for (const { quantity } of orderBook.asks) {
-		total += Number(quantity);
-	}
-	return Volume.of(total);
+	return totalQty(orderBook.asks);
 }

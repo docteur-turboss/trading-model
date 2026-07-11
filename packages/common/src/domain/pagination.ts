@@ -1,23 +1,26 @@
-﻿export interface PaginationQuery {
-	page?: number;
-	limit?: number;
+﻿import type { Limit, PageNumber, PositiveInt } from "./primitives";
+import { toLimit, toPageNumber } from "./primitives/page-number";
+
+export interface PaginationQuery {
+	page?: PageNumber;
+	limit?: Limit;
 }
 
 export interface OffsetPagination {
-	limit?: number;
-	offset?: number;
+	limit?: Limit;
+	offset?: PositiveInt;
 }
 
 export interface PaginationResult<_TValue> {
 	docs: _TValue[];
 	total: number;
-	page: number;
-	limit: number;
+	page: PageNumber;
+	limit: Limit;
 }
 
 export interface ComputedPagination {
-	page: number;
-	limit: number;
+	page: PageNumber;
+	limit: Limit;
 	skip: number;
 }
 
@@ -28,8 +31,8 @@ export function computePagination(
 	defaultLimit = 50,
 	maxLimit = DEFAULT_MAX_LIMIT
 ): ComputedPagination {
-	const page = Math.max(1, query.page ?? 1);
-	const limit = Math.min(maxLimit, query.limit ?? defaultLimit);
+	const page = toPageNumber(query.page ?? 1);
+	const limit = toLimit(query.limit ?? defaultLimit, maxLimit);
 	const skip = (page - 1) * limit;
 	return { page, limit, skip };
 }

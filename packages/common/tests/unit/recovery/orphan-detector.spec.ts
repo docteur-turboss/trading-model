@@ -7,6 +7,7 @@ import {
 	jest,
 } from "@jest/globals";
 import type { JOB_STATUS, Job } from "../../../src/contracts/recovery.types";
+import { JobPriority } from "../../../src/contracts/recovery.types";
 import type {
 	Capability,
 	InstanceId,
@@ -15,6 +16,7 @@ import type {
 	JobType,
 	Port,
 } from "../../../src/domain/primitives";
+import { PositiveInt, UnixTimestamp } from "../../../src/domain/primitives";
 import type { IJobQueue } from "../../../src/recovery/job-queue.interface";
 import type { IJobRepository } from "../../../src/recovery/job-repository.interface";
 import { OrphanDetector } from "../../../src/recovery/orphan-detector";
@@ -26,12 +28,12 @@ function createJob(overrides?: Partial<Job>): Job {
 		id: "test-job-1" as unknown as JobId,
 		type: "test-type" as unknown as JobType,
 		payload: { key: "value" },
-		priority: 3,
+		priority: JobPriority.MEDIUM,
 		status: "assigned" as unknown as JOB_STATUS,
-		ackDeadline: 0,
-		maxRetries: 3,
-		retryCount: 0,
-		createdAt: new Date(),
+		ackDeadline: 0 as PositiveInt,
+		maxRetries: 3 as PositiveInt,
+		retryCount: 0 as PositiveInt,
+		createdAt: UnixTimestamp.now(),
 		history: [],
 		...overrides,
 	};
@@ -115,7 +117,7 @@ describe("OrphanDetector (shared)", () => {
 				host: "10.0.0.1" as IPAddress,
 				port: 9000 as Port,
 				capabilities: ["type-a" as unknown as Capability],
-				maxConcurrency: 5,
+				maxConcurrency: PositiveInt.of(5),
 				currentLoad: 0,
 			});
 
@@ -147,7 +149,7 @@ describe("OrphanDetector (shared)", () => {
 				host: "10.0.0.2" as IPAddress,
 				port: 9001 as Port,
 				capabilities: ["type-a" as unknown as Capability],
-				maxConcurrency: 5,
+				maxConcurrency: PositiveInt.of(5),
 				currentLoad: 0,
 			});
 
@@ -183,7 +185,7 @@ describe("OrphanDetector (shared)", () => {
 				host: "10.0.0.1" as IPAddress,
 				port: 9000 as Port,
 				capabilities: ["type-a" as unknown as Capability],
-				maxConcurrency: 5,
+				maxConcurrency: PositiveInt.of(5),
 				currentLoad: 0,
 			});
 
@@ -226,7 +228,7 @@ describe("OrphanDetector (shared)", () => {
 				host: "10.0.0.1" as IPAddress,
 				port: 9000 as Port,
 				capabilities: ["type-a" as unknown as Capability],
-				maxConcurrency: 5,
+				maxConcurrency: PositiveInt.of(5),
 				currentLoad: 0,
 			});
 

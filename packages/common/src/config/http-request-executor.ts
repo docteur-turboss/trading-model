@@ -2,16 +2,15 @@ import https from "node:https";
 import { URL } from "node:url";
 
 import type { z } from "zod";
-
-import type { TlsPemBundle } from "../domain/tls-paths";
 import type { Hostname } from "../domain/primitives/hostname";
+import type { TlsPemBundle } from "../domain/tls-paths";
 import { CircuitRecorder, type ServiceRoute } from "./circuit-recorder";
 import { HttpClientTimeoutError } from "./http-client-errors";
 import { collectResponseBody } from "./http-response";
 import type { HttpMethod, HttpRequestOptions } from "./http-types";
 import { buildRequestOptions } from "./http-utils";
-import type { ServiceInstanceName } from "./services.types";
 import { RetryExecutor, shouldRetry } from "./retry-executor";
+import type { ServiceInstanceName } from "./services.types";
 
 const DEFAULT_TIMEOUT_MS = 10_000;
 
@@ -105,7 +104,10 @@ export class HttpRequestExecutor {
 		return shouldRetry(error);
 	}
 
-	recordSuccess(hostname: Hostname, serviceName: ServiceInstanceName | undefined): void {
+	recordSuccess(
+		hostname: Hostname,
+		serviceName: ServiceInstanceName | undefined
+	): void {
 		this._circuitRecorder.recordSuccess(hostname, serviceName);
 	}
 

@@ -1,3 +1,4 @@
+import type { ErrorResponse } from "../contracts/error-response";
 import type { HttpStatusCode } from "../http-status";
 
 export class HttpClientError extends Error {
@@ -7,6 +8,14 @@ export class HttpClientError extends Error {
 		super(message);
 		this.name = "HttpClientError";
 		this.statusCode = statusCode;
+	}
+
+	toErrorResponse(): ErrorResponse {
+		return {
+			code: this.code,
+			message: this.message,
+			statusCode: this.statusCode,
+		};
 	}
 }
 

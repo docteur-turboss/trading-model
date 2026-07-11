@@ -1,13 +1,19 @@
-import type { Fingerprint, SerialNumber } from "./primitives";
+import type {
+	CaPem,
+	CertPem,
+	Fingerprint,
+	SerialNumber,
+	UnixTimestamp,
+} from "./primitives";
 
 export interface CertificateBase {
-	certPem: string;
-	caPem: string;
+	certPem: CertPem;
+	caPem: CaPem;
 	serialNumber: SerialNumber;
-	expiresAt: Date;
+	expiresAt: UnixTimestamp;
 }
 
 export interface CertificateResponse extends CertificateBase {
 	fingerprint: Fingerprint;
-	issuedAt?: Date;
+	issuedAt?: UnixTimestamp;
 }

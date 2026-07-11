@@ -8,11 +8,13 @@ export class TimerHandle {
 	startInterval(callback: () => void, intervalMs: number): void {
 		this.stop();
 		this._handle = setInterval(callback, intervalMs);
+		this._handle.unref();
 	}
 
 	startTimeout(callback: () => void, delayMs: number): void {
 		this.stop();
 		this._handle = setTimeout(callback, delayMs);
+		this._handle.unref();
 	}
 
 	stop(): void {

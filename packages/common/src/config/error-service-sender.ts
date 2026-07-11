@@ -1,7 +1,7 @@
-import { NODE_ENV } from "@trading-model/common/config/node-env";
 import { normalizeError } from "../utils/errors";
 import type { HttpMethod } from "./http-types";
 import type { LogEntry } from "./log-types";
+import { NODE_ENV } from "./node-env";
 import type { SensitiveDataSanitizer } from "./sensitive-data-sanitizer";
 
 export class ErrorServiceSender {

@@ -32,16 +32,35 @@ jest.mock("@trading-model/common/utils/errors", () => ({
 }));
 
 jest.mock("../src/generate-key-pair", () => ({
-	generateKeyPair: jest.fn(() => ({ publicKey: "pk", privateKey: "sk" })),
+	generateKeyPair: jest.fn(() => ({
+		publicKey: "pk" as never,
+		privateKey: "sk" as never,
+	})),
 	generateKeyPairWithId: jest.fn(() => ({
-		publicKey: "pk",
-		privateKey: "sk",
+		publicKey: "pk" as never,
+		privateKey: "sk" as never,
 		id: "key-id",
 	})),
-	KeyAlgorithm: { rsa4096: "rsa", ecP384: "ec" },
+	KeyAlgorithm: { Rsa4096: "rsa", EcP384: "ec" },
 }));
 
-import { generateKeyPairWithId } from "../src/generate-key-pair";
+jest.mock("../src/keygen/generate-key-pair", () => ({
+	generateKeyPair: jest.fn(() => ({
+		publicKey: "pk" as never,
+		privateKey: "sk" as never,
+	})),
+	generateKeyPairWithId: jest.fn(() => ({
+		publicKey: "pk" as never,
+		privateKey: "sk" as never,
+		id: "key-id",
+	})),
+	KeyAlgorithm: { Rsa4096: "rsa", EcP384: "ec" },
+}));
+
+import {
+	generateKeyPairWithId,
+	KeyAlgorithm,
+} from "../src/keygen/generate-key-pair";
 import { FileKeyVault } from "../src/vault/key-vault";
 
 describe("FileKeyVault", () => {
@@ -55,25 +74,27 @@ describe("FileKeyVault", () => {
 	it("generate should call generateKeyPairWithId", async () => {
 		const result = await vault.generate();
 
-		expect(generateKeyPairWithId).toHaveBeenCalledWith("ec");
+		expect(generateKeyPairWithId).toHaveBeenCalledWith(KeyAlgorithm.EcP384);
 		expect(result).toEqual({ publicKey: "pk", privateKey: "sk", id: "key-id" });
 	});
 
 	it("generate should pass algorithm to generateKeyPairWithId", async () => {
-		const result = await vault.generate("rsa");
+		const result = await vault.generate(KeyAlgorithm.Rsa4096);
 
-		expect(generateKeyPairWithId).toHaveBeenCalledWith("rsa");
+		expect(generateKeyPairWithId).toHaveBeenCalledWith(KeyAlgorithm.Rsa4096);
 		expect(result).toEqual({ publicKey: "pk", privateKey: "sk", id: "key-id" });
 	});
 
 	it("read should read private key from file", async () => {
-		MOCK_READ_FILE.mockResolvedValue("private-key-content");
+		MOCK_READ_FILE.mockResolvedValue(
+			"-----BEGIN PRIVATE KEY-----\nprivate-key-content"
+		);
 		const result = await vault.read("/path/to/key.pem");
 
 		expect(MOCK_READ_FILE).toHaveBeenCalledWith("/path/to/key.pem", "utf8");
 		expect(result).toEqual({
 			publicKey: "",
-			privateKey: "private-key-content",
+			privateKey: "-----BEGIN PRIVATE KEY-----\nprivate-key-content",
 		});
 	});
 
@@ -82,8 +103,8 @@ describe("FileKeyVault", () => {
 		MOCK_WRITE_FILE.mockResolvedValue(undefined);
 
 		await vault.write("/keys/my-key.pem", {
-			publicKey: "pk",
-			privateKey: "sk",
+			publicKey: "pk" as never,
+			privateKey: "sk" as never,
 		});
 
 		expect(MOCK_MKDIR).toHaveBeenCalledWith("/keys", { recursive: true });
@@ -98,7 +119,7 @@ describe("FileKeyVault", () => {
 
 		await vault.write(
 			"/keys/my-key.pem",
-			{ publicKey: "pk", privateKey: "sk" },
+			{ publicKey: "pk" as never, privateKey: "sk" as never },
 			{ mode: 0o400 }
 		);
 

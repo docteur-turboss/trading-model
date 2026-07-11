@@ -1,4 +1,5 @@
 import { describe, expect, it, jest } from "@jest/globals";
+import { DurationMs, PositiveInt } from "../../src/domain/primitives";
 
 let mockApp: any;
 
@@ -58,7 +59,12 @@ describe("configureApp", () => {
 	});
 
 	it("should apply custom rate limit config", () => {
-		configureApp({ rateLimit: { windowMs: 60000, limit: 50 } });
+		configureApp({
+			rateLimit: {
+				windowMs: DurationMs.of(60000),
+				limit: PositiveInt.of(50),
+			},
+		});
 		expect(rateLimit).toHaveBeenCalledWith(
 			expect.objectContaining({ windowMs: 60000, limit: 50 })
 		);

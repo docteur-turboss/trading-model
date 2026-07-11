@@ -1,4 +1,9 @@
 import { beforeAll, describe, expect, it } from "@jest/globals";
+import {
+	toCsrPem,
+	toServiceId,
+	UnixTimestamp,
+} from "@trading-model/common/domain/primitives";
 import { certificateInfo } from "../src/certificate-info";
 import { createCsr } from "../src/create-csr";
 import { generateKeyPair, KeyAlgorithm } from "../src/generate-key-pair";
@@ -8,7 +13,7 @@ let signed: ReturnType<typeof signCertificate>;
 
 beforeAll(() => {
 	const caKeyPair = generateKeyPair(KeyAlgorithm.EcP384);
-	const caCertPem = caKeyPair.publicKey;
+	const caCertPem = caKeyPair.publicKey as never;
 	const serviceKeyPair = generateKeyPair(KeyAlgorithm.EcP384);
 	const csr = createCsr({
 		commonName: "info-test",
@@ -17,11 +22,11 @@ beforeAll(() => {
 	});
 
 	signed = signCertificate({
-		csr,
-		serviceId: "svc-info",
+		csr: toCsrPem(csr),
+		serviceId: toServiceId("svc-info"),
 		caKeyPair,
 		caCertPem,
-		ttlMs: 3600000,
+		ttlMs: 3600000 as never,
 	});
 });
 
@@ -56,7 +61,9 @@ describe("certificateInfo", () => {
 		const info = certificateInfo(signed.certPem);
 
 		expect(info.notBefore.getTime()).toBe(signed.issuedAt.getTime());
-		expect(info.notAfter.getTime()).toBe(signed.expiresAt.getTime());
+		expect(info.notAfter.getTime()).toBe(
+			UnixTimestamp.toDate(signed.expiresAt).getTime()
+		);
 	});
 
 	it("should compute fingerprint", () => {

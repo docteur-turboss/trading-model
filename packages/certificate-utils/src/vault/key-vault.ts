@@ -1,8 +1,8 @@
 import { constants } from "node:fs";
 import { access, mkdir, readFile, writeFile } from "node:fs/promises";
-
-import { CRYPTO } from "@trading-model/common/crypto/crypto-constants";
 import { logger } from "@trading-model/common/config/logger";
+import { CryptoAlg } from "@trading-model/common/crypto/crypto-constants";
+import { KeyPem } from "@trading-model/common/domain/primitives";
 import { normalizeError } from "@trading-model/common/utils/errors";
 
 import {
@@ -30,8 +30,8 @@ export class FileKeyVault implements KeyVault {
 	}
 
 	async read(keyPath: string): Promise<KeyPair> {
-		const privateKey = await readFile(keyPath, CRYPTO.UTF8);
-		return { publicKey: "", privateKey };
+		const privateKey = KeyPem.of(await readFile(keyPath, CryptoAlg.UTF8));
+		return { publicKey: "" as never, privateKey };
 	}
 
 	async write(

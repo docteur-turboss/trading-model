@@ -1,4 +1,9 @@
 import { describe, expect, it } from "@jest/globals";
+import {
+	toSerialNumber,
+	toServiceId,
+} from "@trading-model/common/domain/primitives";
+import { RevocationReason } from "../../common/src/domain/revocation-request";
 import { createCrl, isRevoked } from "../src/crl";
 import type { RevokedCertificate } from "../src/types";
 
@@ -6,10 +11,10 @@ function makeRevokedEntry(
 	overrides?: Partial<RevokedCertificate>
 ): RevokedCertificate {
 	return {
-		serialNumber: "SN-001",
-		serviceId: "svc-revoked",
+		serialNumber: toSerialNumber("SN-001"),
+		serviceId: toServiceId("svc-revoked"),
 		revokedAt: new Date(),
-		reason: "key_compromise",
+		reason: RevocationReason.KeyCompromise,
 		...overrides,
 	};
 }
@@ -21,7 +26,7 @@ describe("createCrl", () => {
 		const crl = createCrl(entries);
 
 		expect(crl.entries).toHaveLength(1);
-		expect(crl.entries[0].serialNumber).toBe("SN-001");
+		expect(crl.entries[0].serialNumber).toBe(toSerialNumber("SN-001"));
 	});
 
 	it("should set lastUpdate to current time", () => {
@@ -42,7 +47,7 @@ describe("createCrl", () => {
 	});
 
 	it("should use custom TTL for nextUpdate", () => {
-		const crl = createCrl([], 3600000);
+		const crl = createCrl([], 3600000 as never);
 		const expectedNextUpdate = crl.lastUpdate.getTime() + 3600000;
 
 		expect(crl.nextUpdate.getTime()).toBe(expectedNextUpdate);
@@ -57,19 +62,19 @@ describe("createCrl", () => {
 	it("should include all provided revoked entries", () => {
 		const entries = [
 			makeRevokedEntry({
-				serialNumber: "SN-001",
-				serviceId: "svc-1",
-				reason: "key_compromise",
+				serialNumber: toSerialNumber("SN-001"),
+				serviceId: toServiceId("svc-1"),
+				reason: RevocationReason.KeyCompromise,
 			}),
 			makeRevokedEntry({
-				serialNumber: "SN-002",
-				serviceId: "svc-2",
-				reason: "cessation_of_operation",
+				serialNumber: toSerialNumber("SN-002"),
+				serviceId: toServiceId("svc-2"),
+				reason: RevocationReason.CessationOfOperation,
 			}),
 			makeRevokedEntry({
-				serialNumber: "SN-003",
-				serviceId: "svc-3",
-				reason: "superseded",
+				serialNumber: toSerialNumber("SN-003"),
+				serviceId: toServiceId("svc-3"),
+				reason: RevocationReason.Superseded,
 			}),
 		];
 
@@ -81,63 +86,70 @@ describe("createCrl", () => {
 
 describe("isRevoked", () => {
 	it("should return true for a revoked serial number", () => {
-		const crl = createCrl([makeRevokedEntry({ serialNumber: "SN-001" })]);
+		const crl = createCrl([
+			makeRevokedEntry({ serialNumber: toSerialNumber("SN-001") }),
+		]);
 
-		expect(isRevoked("SN-001", crl)).toBe(true);
+		expect(isRevoked(toSerialNumber("SN-001"), crl)).toBe(true);
 	});
 
 	it("should return false for a non-revoked serial number", () => {
-		const crl = createCrl([makeRevokedEntry({ serialNumber: "SN-001" })]);
+		const crl = createCrl([
+			makeRevokedEntry({ serialNumber: toSerialNumber("SN-001") }),
+		]);
 
-		expect(isRevoked("SN-999", crl)).toBe(false);
+		expect(isRevoked(toSerialNumber("SN-999"), crl)).toBe(false);
 	});
 
 	it("should return false for an empty CRL", () => {
 		const crl = createCrl([]);
 
-		expect(isRevoked("SN-001", crl)).toBe(false);
+		expect(isRevoked(toSerialNumber("SN-001"), crl)).toBe(false);
 	});
 
 	it("should return true when multiple entries exist", () => {
 		const crl = createCrl([
-			makeRevokedEntry({ serialNumber: "SN-001" }),
-			makeRevokedEntry({ serialNumber: "SN-002" }),
-			makeRevokedEntry({ serialNumber: "SN-003" }),
+			makeRevokedEntry({ serialNumber: toSerialNumber("SN-001") }),
+			makeRevokedEntry({ serialNumber: toSerialNumber("SN-002") }),
+			makeRevokedEntry({ serialNumber: toSerialNumber("SN-003") }),
 		]);
 
-		expect(isRevoked("SN-002", crl)).toBe(true);
+		expect(isRevoked(toSerialNumber("SN-002"), crl)).toBe(true);
 	});
 
 	it("should return false for an expired revocation entry", () => {
 		const moreThanAYearAgo = new Date(Date.now() - 366 * 24 * 60 * 60 * 1000);
 		const crl = createCrl([
 			makeRevokedEntry({
-				serialNumber: "SN-EXPIRED",
+				serialNumber: toSerialNumber("SN-EXPIRED"),
 				revokedAt: moreThanAYearAgo,
 			}),
 		]);
 
-		expect(isRevoked("SN-EXPIRED", crl)).toBe(false);
+		expect(isRevoked(toSerialNumber("SN-EXPIRED"), crl)).toBe(false);
 	});
 
 	it("should return true for a recent revocation entry", () => {
 		const recent = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 		const crl = createCrl([
-			makeRevokedEntry({ serialNumber: "SN-RECENT", revokedAt: recent }),
+			makeRevokedEntry({
+				serialNumber: toSerialNumber("SN-RECENT"),
+				revokedAt: recent,
+			}),
 		]);
 
-		expect(isRevoked("SN-RECENT", crl)).toBe(true);
+		expect(isRevoked(toSerialNumber("SN-RECENT"), crl)).toBe(true);
 	});
 
 	it("should return false for a revocation exactly at the expiry boundary", () => {
 		const exactlyOneYearAgo = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000);
 		const crl = createCrl([
 			makeRevokedEntry({
-				serialNumber: "SN-BOUNDARY",
+				serialNumber: toSerialNumber("SN-BOUNDARY"),
 				revokedAt: exactlyOneYearAgo,
 			}),
 		]);
 
-		expect(isRevoked("SN-BOUNDARY", crl)).toBe(true);
+		expect(isRevoked(toSerialNumber("SN-BOUNDARY"), crl)).toBe(true);
 	});
 });
