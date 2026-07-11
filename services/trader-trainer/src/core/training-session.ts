@@ -51,8 +51,8 @@ export class TrainingSession {
 		const bestGenome = await runner.run();
 		return {
 			bestGenome,
-			bestFitness: lastCtx?.bestFitness ?? 0,
-			bestFitnessMeta: lastCtx?.bestFitnessMeta,
+			bestFitness: (lastCtx as GenerationContext | null)?.bestFitness ?? 0,
+			bestFitnessMeta: (lastCtx as GenerationContext | null)?.bestFitnessMeta,
 			generation: runner.getGeneration(),
 			generationContext: lastCtx,
 		};

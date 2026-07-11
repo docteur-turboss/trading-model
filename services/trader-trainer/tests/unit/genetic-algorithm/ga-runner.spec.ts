@@ -92,7 +92,11 @@ import { GeneticAlgorithmRunner } from "../../../src/core/genetic-algorithm/ga-r
 import {
 	ActivationType,
 	ConnectionType,
+	CrossoverType,
 	FitnessType,
+	MutationAdaptation,
+	MutationDistribution,
+	MutationScope,
 	NormalisationType,
 	SelectionType,
 } from "../../../src/core/genetic-algorithm/genome";
@@ -321,18 +325,44 @@ function getMinimalGenome() {
 			horizon: { maxEpisodeLength: 100, frameSkip: 1, nStepReturn: 3 },
 			rewardShaping: { sparse: false, normalize: false },
 		},
+		mutation: {
+			rate: 0.1,
+			sigma: 0.5,
+			noiseStd: 0.1,
+			distribution: MutationDistribution.Gaussian,
+			adaptation: MutationAdaptation.Fixed,
+			scope: MutationScope.Global,
+			selfSigma: 0.5,
+			mutateActivations: false,
+			activationMutationRate: 0.1,
+			mutateHyperparams: false,
+			addNeuronRate: 0.1,
+			removeNeuronRate: 0.1,
+			addLayerRate: 0.1,
+			removeLayerRate: 0.1,
+			addConnectionRate: 0.1,
+			removeConnectionRate: 0.1,
+		},
+		crossover: {
+			type: CrossoverType.Uniform,
+			probability: 0.5,
+			blendAlpha: 0.5,
+			sbxEta: 15,
+		},
 		gaControl: {
-			populationSize: 20,
-			maxGenerations: 10,
-			elitismFraction: 0.1,
-			survivorFraction: 0.5,
-			episodesPerIndividual: 2,
+			population: { size: 20, elitismFraction: 0.1, survivorFraction: 0.5 },
+			termination: {
+				rewardThreshold: Number.POSITIVE_INFINITY,
+				stagnationPatience: 10,
+				maxGenerations: 10,
+				timeBudgetMs: 60000,
+			},
+			seeding: { envSeed: 1, mutationSeed: 1, networkSeed: 1 },
+			evaluation: { episodesPerIndividual: 2, seedsPerEval: 1 },
 			selectionType: SelectionType.Tournament,
 			fitnessType: FitnessType.TotalPnl,
-			networkSeed: 1,
-			mutationSeed: 1,
 			mutationRate: 0.1,
-			crossoverRate: 0.5,
+			mutationStd: 0.05,
 		},
 		fitness: 0,
 	};
@@ -364,7 +394,10 @@ describe("GeneticAlgorithmRunner", () => {
 			backendFactory: mockBackendFactory as any,
 			evalConcurrency: 1,
 		});
-		runner.initialise({ networkSeed: 42, mutationSeed: 42, populationSize: 5 });
+		runner.initialise({
+			seeding: { envSeed: 42, mutationSeed: 42, networkSeed: 42 },
+			population: { size: 5, elitismFraction: 0.2, survivorFraction: 0.5 },
+		});
 		const pop = runner.getPopulation();
 		expect(pop.length).toBe(5);
 		expect(runner.getGeneration()).toBe(0);
@@ -416,10 +449,8 @@ describe("GeneticAlgorithmRunner", () => {
 			evalConcurrency: 1,
 		});
 		runner.initialise({
-			networkSeed: 42,
-			mutationSeed: 42,
-			populationSize: 10,
-			elitismFraction: 0.3,
+			seeding: { envSeed: 42, mutationSeed: 42, networkSeed: 42 },
+			population: { size: 10, elitismFraction: 0.3, survivorFraction: 0.5 },
 		});
 		await runner.runGeneration();
 		const pop = runner.getPopulation();
@@ -442,7 +473,10 @@ describe("GeneticAlgorithmRunner", () => {
 			backendFactory: mockBackendFactory as any,
 			evalConcurrency: 1,
 		});
-		runner.initialise({ networkSeed: 42, mutationSeed: 42, populationSize: 4 });
+		runner.initialise({
+			seeding: { envSeed: 42, mutationSeed: 42, networkSeed: 42 },
+			population: { size: 4, elitismFraction: 0.2, survivorFraction: 0.5 },
+		});
 		await runner.runGeneration();
 		const childIds = new Set(runner.getPopulation().map((g) => g.id));
 		// Elites are preserved from parents, so at least some IDs may overlap.
@@ -468,7 +502,10 @@ describe("GeneticAlgorithmRunner", () => {
 			evalConcurrency: 1,
 			onArchiveUpdate,
 		});
-		runner.initialise({ networkSeed: 42, mutationSeed: 42, populationSize: 4 });
+		runner.initialise({
+			seeding: { envSeed: 42, mutationSeed: 42, networkSeed: 42 },
+			population: { size: 4, elitismFraction: 0.2, survivorFraction: 0.5 },
+		});
 		expect(runner.getArchive()).toEqual([]);
 		await runner.runGeneration();
 		expect(onArchiveUpdate).toHaveBeenCalled();
@@ -492,7 +529,10 @@ describe("GeneticAlgorithmRunner", () => {
 			backendFactory: mockBackendFactory as any,
 			evalConcurrency: 1,
 		});
-		runner.initialise({ networkSeed: 42, mutationSeed: 42, populationSize: 2 });
+		runner.initialise({
+			seeding: { envSeed: 42, mutationSeed: 42, networkSeed: 42 },
+			population: { size: 2, elitismFraction: 0.2, survivorFraction: 0.5 },
+		});
 		const ctx1 = await runner.runGeneration();
 		const ctx2 = await runner.runGeneration();
 		expect(ctx2.stagnation).toBeGreaterThanOrEqual(ctx1.stagnation);
@@ -513,7 +553,10 @@ describe("GeneticAlgorithmRunner", () => {
 			backendFactory: mockBackendFactory as any,
 			evalConcurrency: 1,
 		});
-		runner.initialise({ networkSeed: 42, mutationSeed: 42, populationSize: 5 });
+		runner.initialise({
+			seeding: { envSeed: 42, mutationSeed: 42, networkSeed: 42 },
+			population: { size: 5, elitismFraction: 0.2, survivorFraction: 0.5 },
+		});
 		await runner.runGeneration();
 		const ctx = await runner.runGeneration();
 		expect(ctx.population.length).toBe(5);
@@ -537,7 +580,10 @@ describe("GeneticAlgorithmRunner", () => {
 			evalConcurrency: 1,
 			onGeneration,
 		});
-		runner.initialise({ networkSeed: 42, mutationSeed: 42, populationSize: 2 });
+		runner.initialise({
+			seeding: { envSeed: 42, mutationSeed: 42, networkSeed: 42 },
+			population: { size: 2, elitismFraction: 0.2, survivorFraction: 0.5 },
+		});
 		const ctx = await runner.runGeneration();
 		expect(ctx.generation).toBe(1);
 		expect(ctx.population.length).toBe(2);
@@ -668,9 +714,12 @@ describe("full GA loop", () => {
 			onArchiveUpdate,
 		});
 
-		runner.initialise({ networkSeed: 42, mutationSeed: 42, populationSize: 5 });
+		runner.initialise({
+			seeding: { envSeed: 42, mutationSeed: 42, networkSeed: 42 },
+			population: { size: 5, elitismFraction: 0.2, survivorFraction: 0.5 },
+		});
 
-		const customPop = (runner as any)._population.map((g: any) => {
+		const customPop = runner.getPopulation().map((g: any) => {
 			const gCopy = JSON.parse(JSON.stringify(g));
 			gCopy.rl.horizon.frameSkip = 3;
 			gCopy.rl.rewardShaping.normalize = true;

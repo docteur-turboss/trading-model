@@ -24,11 +24,16 @@ export class PendingAckOperations {
 		await this._pendingAck.add(instanceId, messageId, data);
 	}
 
-	async removePendingAck(instanceId: InstanceId, messageId: string): Promise<void> {
+	async removePendingAck(
+		instanceId: InstanceId,
+		messageId: string
+	): Promise<void> {
 		await this._pendingAck.remove(instanceId, messageId);
 	}
 
-	getPendingAcks(instanceId: InstanceId): Promise<Record<string, PendingAckData>> {
+	getPendingAcks(
+		instanceId: InstanceId
+	): Promise<Record<string, PendingAckData>> {
 		return this._pendingAck.getAll(instanceId);
 	}
 }

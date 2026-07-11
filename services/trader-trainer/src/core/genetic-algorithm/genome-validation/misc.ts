@@ -12,8 +12,14 @@ export function validateMutation(
 	ctx: ValidationContext,
 	mutation: MutationGenome
 ): void {
-	checkRange({ ...ctx, path: "mutation.rates.rate" }, mutation.rates.rate, { min: 0.001, max: 0.5 });
-	checkRange({ ...ctx, path: "mutation.rates.sigma" }, mutation.rates.sigma, { min: 1e-5, max: 10 });
+	checkRange({ ...ctx, path: "mutation.rates.rate" }, mutation.rates.rate, {
+		min: 0.001,
+		max: 0.5,
+	});
+	checkRange({ ...ctx, path: "mutation.rates.sigma" }, mutation.rates.sigma, {
+		min: 1e-5,
+		max: 10,
+	});
 	checkRange(
 		{ ...ctx, path: "mutation.rates.selfSigma" },
 		mutation.rates.selfSigma,
@@ -25,17 +31,18 @@ export function validateCrossover(
 	ctx: ValidationContext,
 	crossover: CrossoverGenome
 ): void {
-	checkRange(
-		{ ...ctx, path: "crossover.probability" },
-		crossover.probability,
-		{ min: 0, max: 1 }
-	);
-	checkRange(
-		{ ...ctx, path: "crossover.blendAlpha" },
-		crossover.blendAlpha,
-		{ min: 0, max: 1 }
-	);
-	checkRange({ ...ctx, path: "crossover.sbxEta" }, crossover.sbxEta, { min: 1, max: 100 });
+	checkRange({ ...ctx, path: "crossover.probability" }, crossover.probability, {
+		min: 0,
+		max: 1,
+	});
+	checkRange({ ...ctx, path: "crossover.blendAlpha" }, crossover.blendAlpha, {
+		min: 0,
+		max: 1,
+	});
+	checkRange({ ...ctx, path: "crossover.sbxEta" }, crossover.sbxEta, {
+		min: 1,
+		max: 100,
+	});
 }
 
 export function validateGAControl(
@@ -95,11 +102,18 @@ function repairGAControl(gaControl: GAControlGenome): GAControlGenome {
 			...gaControl.population,
 			size: Math.max(2, Math.round(gaControl.population.size ?? 20)),
 			elitismFraction: clamp(gaControl.population.elitismFraction ?? 0.1, 0, 1),
-			survivorFraction: clamp(gaControl.population.survivorFraction ?? 0.5, 0, 1),
+			survivorFraction: clamp(
+				gaControl.population.survivorFraction ?? 0.5,
+				0,
+				1
+			),
 		},
 		termination: {
 			...gaControl.termination,
-			maxGenerations: Math.max(1, Math.round(gaControl.termination.maxGenerations ?? 100)),
+			maxGenerations: Math.max(
+				1,
+				Math.round(gaControl.termination.maxGenerations ?? 100)
+			),
 		},
 		evaluation: {
 			...gaControl.evaluation,

@@ -17,7 +17,7 @@ describe("FileDlqRepository", () => {
 		}
 	});
 
-	describe("add", () => {
+	describe("insert", () => {
 		it("should append a JSON line to the file", async () => {
 			const repo = new FileDlqRepository(testFilePath);
 
@@ -28,7 +28,7 @@ describe("FileDlqRepository", () => {
 				timestamp: "2026-06-06T12:00:00.000Z",
 			};
 
-			await repo.add(entry);
+			await repo.insert(entry);
 
 			const lines = readFileSync(testFilePath, "utf-8").trim().split("\n");
 			expect(lines).toHaveLength(1);
@@ -43,13 +43,13 @@ describe("FileDlqRepository", () => {
 		it("should append multiple entries as separate lines", async () => {
 			const repo = new FileDlqRepository(testFilePath);
 
-			await repo.add({
+			await repo.insert({
 				message: { id: 1 },
 				deliveryAttempt: 1,
 				timestamp: "2026-06-06T12:00:01.000Z",
 			});
 
-			await repo.add({
+			await repo.insert({
 				message: { id: 2 },
 				reason: "TTL_EXPIRED",
 				deliveryAttempt: 2,
@@ -75,7 +75,7 @@ describe("FileDlqRepository", () => {
 		it("should handle entry without reason", async () => {
 			const repo = new FileDlqRepository(testFilePath);
 
-			await repo.add({
+			await repo.insert({
 				message: "plain string payload",
 				deliveryAttempt: 0,
 				timestamp: "2026-06-06T12:00:03.000Z",

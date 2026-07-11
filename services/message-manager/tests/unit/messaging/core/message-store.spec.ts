@@ -1,5 +1,8 @@
 import { describe, expect, it, jest } from "@jest/globals";
-import { REDIS_RESP, REDIS_STATUS } from "@trading-model/common/persistence/redis-constants";
+import {
+	REDIS_RESP,
+	REDIS_STATUS,
+} from "@trading-model/common/persistence/redis-constants";
 
 const mockXadd = jest
 	.fn<(...args: unknown[]) => Promise<string>>()
@@ -18,7 +21,9 @@ const mockEval = jest
 	.mockResolvedValue([]);
 const mockLlen = jest.fn<() => Promise<number>>().mockResolvedValue(0);
 const mockLrang = jest.fn<() => Promise<string[]>>().mockResolvedValue([]);
-const mockLtrim = jest.fn<() => Promise<string>>().mockResolvedValue(REDIS_RESP.OK);
+const mockLtrim = jest
+	.fn<() => Promise<string>>()
+	.mockResolvedValue(REDIS_RESP.OK);
 const mockRpush = jest.fn<() => Promise<number>>().mockResolvedValue(1);
 const mockSet = jest
 	.fn<(...args: unknown[]) => Promise<string | null>>()

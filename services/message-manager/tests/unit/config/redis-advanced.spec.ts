@@ -1,5 +1,8 @@
 import { describe, expect, it, jest } from "@jest/globals";
-import { REDIS_RESP, REDIS_STATUS } from "@trading-model/common/persistence/redis-constants";
+import {
+	REDIS_RESP,
+	REDIS_STATUS,
+} from "@trading-model/common/persistence/redis-constants";
 
 const mockConnect = jest.fn<() => Promise<void>>().mockResolvedValue(undefined);
 const MockRedisInstance = {

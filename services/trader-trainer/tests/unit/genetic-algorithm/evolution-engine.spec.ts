@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from "@jest/globals";
+import { EpisodeScores } from "../../../src/core/genetic-algorithm/episode-scores";
 import {
 	crossoverGenomes,
 	crossoverWeights,
@@ -131,7 +132,7 @@ describe("EvolutionEngine", () => {
 					computeMs: 100,
 					efficiencyScore: fitness,
 					variance: 0.1,
-					rawScores: [fitness],
+					rawScores: new EpisodeScores([fitness]),
 				},
 			}));
 		}
@@ -168,7 +169,7 @@ describe("EvolutionEngine", () => {
 						computeMs: 100,
 						efficiencyScore: -100,
 						variance: 0,
-						rawScores: [-100],
+						rawScores: new EpisodeScores([-100]),
 					},
 				},
 				{
@@ -179,7 +180,7 @@ describe("EvolutionEngine", () => {
 						computeMs: 100,
 						efficiencyScore: 100,
 						variance: 0,
-						rawScores: [100],
+						rawScores: new EpisodeScores([100]),
 					},
 				},
 				{
@@ -190,7 +191,7 @@ describe("EvolutionEngine", () => {
 						computeMs: 100,
 						efficiencyScore: 0,
 						variance: 0,
-						rawScores: [0],
+						rawScores: new EpisodeScores([0]),
 					},
 				},
 			];

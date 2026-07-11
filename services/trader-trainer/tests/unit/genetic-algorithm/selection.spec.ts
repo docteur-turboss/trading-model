@@ -1,4 +1,5 @@
 import { describe, expect, test } from "@jest/globals";
+import { EpisodeScores } from "../../../src/core/genetic-algorithm/episode-scores";
 import { createDefaultGenome } from "../../../src/core/genetic-algorithm/factory";
 import { SelectionType } from "../../../src/core/genetic-algorithm/genome";
 import type { PopMember } from "../../../src/core/genetic-algorithm/genome-types";
@@ -14,7 +15,7 @@ function makePopulation(): PopMember[] {
 			computeMs: 100,
 			efficiencyScore: fitness,
 			variance: 0.1,
-			rawScores: [fitness, fitness * 0.9, fitness * 1.1],
+			rawScores: new EpisodeScores([fitness, fitness * 0.9, fitness * 1.1]),
 		},
 	}));
 }
@@ -120,7 +121,7 @@ describe("Selection - selectParent", () => {
 				computeMs: 100,
 				efficiencyScore: 0,
 				variance: 0,
-				rawScores: [0, 0, 0],
+				rawScores: new EpisodeScores([0, 0, 0]),
 			},
 		}));
 		const parent = selectParent(pop, SelectionType.Roulette, rng);

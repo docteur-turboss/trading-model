@@ -68,11 +68,11 @@ export class WalEntryParser {
 	}
 
 	private _buildWalEntry(entry: string): MemoryWalEntry {
-	const parsed = JSON.parse(entry) as {
-		topic: Topic;
-		serialized?: string;
-		message?: unknown;
-	};
+		const parsed = JSON.parse(entry) as {
+			topic: Topic;
+			serialized?: string;
+			message?: unknown;
+		};
 		const topic = parsed.topic;
 		const serialized = parsed.serialized ?? safeStringify(parsed.message!);
 		const message = parsed.message ?? JSON.parse(parsed.serialized!);

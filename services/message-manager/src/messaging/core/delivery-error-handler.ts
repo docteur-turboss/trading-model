@@ -1,8 +1,15 @@
 ﻿import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import type { Message } from "@trading-model/common/contracts/message.types";
-import type { Topic } from "@trading-model/common/domain/primitives";
+import type {
+	SequenceNumber,
+	Topic,
+} from "@trading-model/common/domain/primitives";
 import { logger } from "../../config/logger";
-import { DeliveryErrorClassifier, DlqReason, ErrorActionType } from "./delivery-error-classifier";
+import {
+	DeliveryErrorClassifier,
+	DlqReason,
+	ErrorActionType,
+} from "./delivery-error-classifier";
 import type { DeliveryParams } from "./delivery-params";
 import type { MessageDeliveryPort } from "./message-delivery-port";
 
@@ -36,10 +43,10 @@ export class DeliveryErrorHandler {
 	 *
 	 * @returns `true` when the error has been fully handled (no retry needed).
 	 */
-	async handleDeliveryError<TData>(
+	handleDeliveryError<TData>(
 		err: unknown,
 		message: Message<TData>,
-		context: { deliveryAttempt: number },
+		context: { deliveryAttempt: SequenceNumber },
 		deliveryParams: DeliveryParams
 	): Promise<boolean> {
 		const classification = this._classifier.classify(
@@ -48,28 +55,38 @@ export class DeliveryErrorHandler {
 			deliveryParams
 		);
 
-		switch (classification.action) {
-			case ErrorActionType.DLQ:
-				if (classification.reason === DlqReason.MaxRetriesExceeded) {
-					this._recordFailure();
-					logger.error("Max retries exceeded — routing to DLQ", {
-						topic: this._topic,
-						service: this._serviceName,
-						deliveryAttempt: context.deliveryAttempt,
-					});
-				}
-				await this._deliveryPort.markDeadLetter({
-					message,
-					reason: classification.reason,
+		return this._actionHandlers[classification.action](
+			message,
+			context,
+			classification
+		);
+	}
+
+	private readonly _actionHandlers: Record<
+		ErrorActionType,
+		<TData>(
+			message: Message<TData>,
+			context: { deliveryAttempt: SequenceNumber },
+			classification: ReturnType<DeliveryErrorClassifier["classify"]>
+		) => Promise<boolean>
+	> = {
+		[ErrorActionType.DLQ]: async (message, context, classification) => {
+			if (classification.reason === DlqReason.MaxRetriesExceeded) {
+				this._recordFailure();
+				logger.error("Max retries exceeded — routing to DLQ", {
+					topic: this._topic,
+					service: this._serviceName,
 					deliveryAttempt: context.deliveryAttempt,
 				});
-				return true;
-			case ErrorActionType.SWALLOW:
-				return true;
-			case ErrorActionType.RETRY:
-				return false;
-			default:
-				return false;
-		}
-	}
+			}
+			await this._deliveryPort.markDeadLetter({
+				message,
+				reason: classification.reason,
+				deliveryAttempt: context.deliveryAttempt,
+			});
+			return true;
+		},
+		[ErrorActionType.SWALLOW]: async () => true,
+		[ErrorActionType.RETRY]: async () => false,
+	};
 }

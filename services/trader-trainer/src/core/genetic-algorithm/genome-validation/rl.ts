@@ -14,7 +14,10 @@ import { checkPositiveInt, checkRange, err } from "./utils";
 
 export function validateRL(ctx: ValidationContext, rl: RLGenome): void {
 	checkRange({ ...ctx, path: "rl.gamma" }, rl.gamma, { min: 0.8, max: 0.9999 });
-	checkRange({ ...ctx, path: "rl.learningRate" }, rl.learningRate, { min: 1e-6, max: 1e-1 });
+	checkRange({ ...ctx, path: "rl.learningRate" }, rl.learningRate, {
+		min: 1e-6,
+		max: 1e-1,
+	});
 	validateRewardShaping(ctx, rl.rewardShaping);
 	validateHorizon(ctx, rl.horizon);
 	validateDiscretePolicy(ctx, rl.discretePolicy);
@@ -65,11 +68,10 @@ function validateDiscretePolicy(
 		dp.epsilonStart,
 		{ min: 0.1, max: 1.0 }
 	);
-	checkRange(
-		{ ...ctx, path: "rl.discretePolicy.epsilonMin" },
-		dp.epsilonMin,
-		{ min: 0.001, max: 0.2 }
-	);
+	checkRange({ ...ctx, path: "rl.discretePolicy.epsilonMin" }, dp.epsilonMin, {
+		min: 0.001,
+		max: 0.2,
+	});
 	checkRange(
 		{ ...ctx, path: "rl.discretePolicy.epsilonDecay" },
 		dp.epsilonDecay,
@@ -96,11 +98,10 @@ function validateContinuousPolicy(
 			}
 		);
 	}
-	checkRange(
-		{ ...ctx, path: "rl.continuousPolicy.noiseStd" },
-		cp.noiseStd,
-		{ min: 0.001, max: 5 }
-	);
+	checkRange({ ...ctx, path: "rl.continuousPolicy.noiseStd" }, cp.noiseStd, {
+		min: 0.001,
+		max: 5,
+	});
 	checkRange(
 		{ ...ctx, path: "rl.continuousPolicy.noiseDecay" },
 		cp.noiseDecay,
@@ -117,8 +118,14 @@ function validateReplayBuffer(
 		rb.bufferSize,
 		{ min: 100 }
 	);
-	checkRange({ ...ctx, path: "rl.replayBuffer.alphaPER" }, rb.alphaPER, { min: 0, max: 1 });
-	checkRange({ ...ctx, path: "rl.replayBuffer.betaPER" }, rb.betaPER, { min: 0, max: 1 });
+	checkRange({ ...ctx, path: "rl.replayBuffer.alphaPER" }, rb.alphaPER, {
+		min: 0,
+		max: 1,
+	});
+	checkRange({ ...ctx, path: "rl.replayBuffer.betaPER" }, rb.betaPER, {
+		min: 0,
+		max: 1,
+	});
 }
 
 function repairRewardShaping(rs: RewardShapingGenome): RewardShapingGenome {

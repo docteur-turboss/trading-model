@@ -28,6 +28,7 @@ export const VALID_BIAS_TYPES = new Set([
 	InitialisationType.He,
 	InitialisationType.LeCun,
 ]);
+
 import type { Bounded } from "../bounded";
 
 export const VALID_NORM_TYPES = new Set([

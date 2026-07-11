@@ -1,5 +1,8 @@
 ﻿import type { Message } from "@trading-model/common/contracts/message.types";
-import type { Topic, InstanceId } from "@trading-model/common/domain/primitives";
+import type {
+	InstanceId,
+	Topic,
+} from "@trading-model/common/domain/primitives";
 import { ENV } from "../../config/env";
 import { MemoryWalBuffer } from "./memory-wal-buffer";
 import { MessageRoutingFacade } from "./message-routing-facade";
@@ -93,7 +96,9 @@ export class MessageStore
 	removePendingAck(instanceId: InstanceId, messageId: string): Promise<void> {
 		return this._routingFacade.removePendingAck(instanceId, messageId);
 	}
-	getPendingAcks(instanceId: InstanceId): Promise<Record<string, PendingAckData>> {
+	getPendingAcks(
+		instanceId: InstanceId
+	): Promise<Record<string, PendingAckData>> {
 		return this._routingFacade.getPendingAcks(instanceId);
 	}
 	getStreamLag(ref: StreamGroupRef): Promise<number> {

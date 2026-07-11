@@ -1,4 +1,5 @@
 ﻿import type { HttpClient } from "@trading-model/common/config/http-client";
+import { PositiveInt } from "@trading-model/common/domain/primitives";
 import { ENV } from "../../config/env";
 import { DlqDeleteHandler } from "./dlq-delete-handler";
 import { DlqReplayHandler } from "./dlq-replay-handler";
@@ -7,7 +8,7 @@ import { DlqSendHandler } from "./dlq-send-handler";
 
 export interface DlqSendOptions {
 	attempt?: number;
-	maxRetries?: number;
+	maxRetries?: PositiveInt;
 }
 
 export interface IDlqServiceClient {
@@ -39,7 +40,7 @@ export class DlqServiceClient implements IDlqServiceClient {
 			return;
 		}
 		const attempt = options?.attempt ?? 1;
-		const maxRetries = options?.maxRetries ?? 3;
+		const maxRetries = options?.maxRetries ?? PositiveInt.of(3);
 		try {
 			await this._sendHandler.doSend(entry);
 		} catch (err) {

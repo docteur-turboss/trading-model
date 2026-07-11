@@ -76,7 +76,9 @@ export class Wallet implements WalletAPI {
 
 	getMetrics(): WalletMetrics {
 		return computeWalletMetrics({
-			...this._executor,
+			cash: this._executor.cash,
+			position: this._executor.position,
+			price: this._executor.price,
 			peakValuation: this._recorder.getPeakValuation(),
 			initialCash: this._executor.config.initialCash,
 			totalFeesPaid: this._recorder.getTotalFeesPaid(),

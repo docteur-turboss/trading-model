@@ -18,14 +18,14 @@ function dlqHeaders(
 	path: string
 ): Record<string, string> {
 	const timestamp = Date.now().toString();
-	const signature = computeDlqSignature(
-		SERVICE_NAME,
-		HMAC_SECRET,
+	const signature = computeDlqSignature({
+		serviceName: SERVICE_NAME,
+		secret: HMAC_SECRET,
 		body,
 		timestamp,
 		method,
-		path
-	);
+		path,
+	});
 	return {
 		"x-service-name": SERVICE_NAME,
 		"x-signature": signature,

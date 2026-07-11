@@ -1,5 +1,5 @@
-﻿import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
-import type { Topic } from "@trading-model/common/domain/primitives";
+﻿import type { Topic } from "@trading-model/common/domain/primitives";
+import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
 import { HTTP_HEADERS } from "@trading-model/common/http-headers";
 import type WebSocket from "ws";
 import { ENV } from "../../config/env";
@@ -51,7 +51,7 @@ export class PublishGuard {
 		if (!dedupId) {
 			return Promise.resolve(true);
 		}
-		return this._dedup.tryDeduplicate({ deduplicationId: dedupId, ttlS: 300 });
+		return this._dedup.tryDeduplicate(dedupId, 300);
 	}
 
 	checkBackpressure(ws: WebSocket): boolean {

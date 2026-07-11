@@ -7,6 +7,11 @@ const MOCK_CREATE_SECURE_SERVER = jest
 
 jest.mock("@trading-model/common/server/create-secure-server", () => ({
 	createSecureServer: MOCK_CREATE_SECURE_SERVER,
+	buildTlsFromEnv: jest.fn<any>().mockReturnValue({
+		key: "/etc/tls/key.pem",
+		cert: "/etc/tls/cert.pem",
+		ca: "/etc/tls/ca.pem",
+	}),
 }));
 
 jest.mock("config/address-manager", () => ({

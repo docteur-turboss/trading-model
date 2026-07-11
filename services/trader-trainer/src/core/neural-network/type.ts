@@ -60,22 +60,25 @@ export enum InitialisationType {
 /**
  * Optimizer enum re-exported from common (identical values).
  */
-import { Optimizer as OptimizerType } from "@trading-model/common/contracts/admin/training.dto";
-import { ActivationFn } from "@trading-model/common/contracts/admin/training.dto";
+import {
+	ActivationFn,
+	Optimizer as OptimizerType,
+} from "@trading-model/common/contracts/admin/training.dto";
 
 export { OptimizerType };
 
-const ACTIVATION_FN_TO_TYPE: Record<ActivationFn, ActivationType | undefined> = {
-	[ActivationFn.Relu]: ActivationType.Relu,
-	[ActivationFn.Sigmoid]: ActivationType.Sigmoid,
-	[ActivationFn.Tanh]: ActivationType.Tanh,
-	[ActivationFn.Softmax]: ActivationType.Softmax,
-	[ActivationFn.Gelu]: ActivationType.Gelu,
-	[ActivationFn.Elu]: ActivationType.Elu,
-	[ActivationFn.Mish]: ActivationType.Mish,
-	[ActivationFn.LeakyRelu]: ActivationType.LeakyReLu,
-	[ActivationFn.Linear]: undefined,
-};
+const ACTIVATION_FN_TO_TYPE: Record<ActivationFn, ActivationType | undefined> =
+	{
+		[ActivationFn.Relu]: ActivationType.Relu,
+		[ActivationFn.Sigmoid]: ActivationType.Sigmoid,
+		[ActivationFn.Tanh]: ActivationType.Tanh,
+		[ActivationFn.Softmax]: ActivationType.Softmax,
+		[ActivationFn.Gelu]: ActivationType.Gelu,
+		[ActivationFn.Elu]: ActivationType.Elu,
+		[ActivationFn.Mish]: ActivationType.Mish,
+		[ActivationFn.LeakyRelu]: ActivationType.LeakyReLu,
+		[ActivationFn.Linear]: undefined,
+	};
 
 /**
  * Map the canonical API ActivationFn to the runtime ActivationType.
@@ -83,7 +86,7 @@ const ACTIVATION_FN_TO_TYPE: Record<ActivationFn, ActivationType | undefined> = 
  * Returns undefined for values that have no runtime equivalent (Linear).
  */
 export function activationFnToType(
-	fn: ActivationFn,
+	fn: ActivationFn
 ): ActivationType | undefined {
 	return ACTIVATION_FN_TO_TYPE[fn];
 }

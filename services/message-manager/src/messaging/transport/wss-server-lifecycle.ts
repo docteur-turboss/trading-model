@@ -49,6 +49,7 @@ export class WssServerLifecycle {
 			const timer = setTimeout(() => {
 				resolve();
 			}, WSS_SHUTDOWN_TIMEOUT_MS);
+			timer.unref();
 			this._wss!.close(() => {
 				clearTimeout(timer);
 				resolve();

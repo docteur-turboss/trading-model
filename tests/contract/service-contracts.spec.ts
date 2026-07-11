@@ -23,6 +23,18 @@ import { z } from "zod";
 
 const TOPIC_PATTERN = /^[a-z][a-z0-9-]*(\.[a-z0-9-]+)+$/;
 
+const VALID_SERVICE_NAMES = [
+	"financial-scraper",
+	"trader-trainer",
+	"audit-logger",
+	"certificate-authority",
+	"message-manager",
+	"api-gateway",
+	"discovery-server",
+	"dlq-service",
+	"admin-interface",
+] as const;
+
 interface Contract {
 	producer: string;
 	consumers: string[];
@@ -497,37 +509,15 @@ describe("Contract Backward Compatibility", () => {
 	});
 
 	it("all producers are valid service names", () => {
-		const validServices = [
-			"financial-scraper",
-			"trader-trainer",
-			"audit-logger",
-			"certificate-authority",
-			"message-manager",
-			"api-gateway",
-			"discovery-server",
-			"dlq-service",
-			"admin-interface",
-		];
 		for (const c of CONTRACTS) {
-			expect(validServices).toContain(c.producer);
+			expect(VALID_SERVICE_NAMES).toContain(c.producer);
 		}
 	});
 
 	it("all consumers are valid service names", () => {
-		const validServices = [
-			"financial-scraper",
-			"trader-trainer",
-			"audit-logger",
-			"certificate-authority",
-			"message-manager",
-			"api-gateway",
-			"discovery-server",
-			"dlq-service",
-			"admin-interface",
-		];
 		for (const c of CONTRACTS) {
 			for (const consumer of c.consumers) {
-				expect(validServices).toContain(consumer);
+				expect(VALID_SERVICE_NAMES).toContain(consumer);
 			}
 		}
 	});

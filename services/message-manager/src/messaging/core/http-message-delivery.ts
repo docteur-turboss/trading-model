@@ -1,5 +1,8 @@
 ﻿import type { HttpClient } from "@trading-model/common/config/http-client";
-import type { UnixTimestamp } from "@trading-model/common/domain/primitives";
+import {
+	PositiveInt,
+	UnixTimestamp,
+} from "@trading-model/common/domain/primitives";
 
 import type { FileDlqRepository } from "./dlq-repository";
 import type {
@@ -24,8 +27,8 @@ export class HttpMessageDelivery implements MessageDeliveryPort {
 		await this._dqlRepository.insert({
 			message,
 			reason,
-			deliveryAttempt,
-			timestamp: Date.now() as UnixTimestamp,
+			deliveryAttempt: PositiveInt.of(deliveryAttempt),
+			timestamp: UnixTimestamp.now(),
 		});
 	}
 }

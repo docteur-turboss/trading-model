@@ -9,7 +9,7 @@ describe("delivery-decision extras", () => {
 			error: deadLetterError("nack", {
 				reason: "Subscriber rejected",
 			}),
-			deliveryMode: DeliveryMode.AT_LEAST_ONCE,
+			deliveryMode: DeliveryMode.AtLeastOnce,
 			deliveryAttempt: 1,
 			maxRetries: 3,
 		});
@@ -20,7 +20,7 @@ describe("delivery-decision extras", () => {
 	it("should use default reason when DEAD_LETTER_ERROR has no reason", () => {
 		const decision = classifyDeliveryFailure({
 			error: deadLetterError("nack"),
-			deliveryMode: DeliveryMode.AT_LEAST_ONCE,
+			deliveryMode: DeliveryMode.AtLeastOnce,
 			deliveryAttempt: 1,
 			maxRetries: 3,
 		});

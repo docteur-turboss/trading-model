@@ -1,16 +1,14 @@
 ﻿import {
-	Topic,
+	type Topic,
 	toTopic,
 	UnixTimestamp,
 } from "@trading-model/common/domain/primitives";
 import { ENV } from "../../config/env";
 import { ArchiveTimerScheduler } from "./archive-timer-scheduler";
 import { ArchiveTopicsCache } from "./archive-topics-cache";
-import {
-	type IStreamGroupOps,
-	MessageRoutingFacade,
-} from "./message-routing-facade";
+import type { IStreamGroupOps } from "./message-routing-facade";
 import { MongoClientManager } from "./mongo-client-manager";
+import { StreamGroupOperations } from "./stream-group-operations";
 
 export class MongoArchiveStore {
 	private readonly _routing: IStreamGroupOps;
@@ -19,7 +17,7 @@ export class MongoArchiveStore {
 	private readonly _topicsCache = new ArchiveTopicsCache();
 
 	constructor(prefix?: string) {
-		this._routing = new MessageRoutingFacade(prefix ?? ENV.REDIS_PREFIX);
+		this._routing = new StreamGroupOperations(prefix ?? ENV.REDIS_PREFIX);
 	}
 
 	async start(): Promise<void> {

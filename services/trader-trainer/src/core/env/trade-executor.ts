@@ -43,10 +43,10 @@ export class TradeExecutor {
 		if (Number(newPosition) > Number(this._config.maxPosition)) {
 			return false;
 		}
-		const { totalCost, fee } = this._config.computeBuyCosts({
+		const { totalCost, fee } = this._config.computeBuyCosts(
 			amount,
-			price: this._price,
-		});
+			this._price
+		);
 		if (Number(totalCost) > Number(this._cash)) {
 			return false;
 		}
@@ -66,13 +66,13 @@ export class TradeExecutor {
 	}
 	sell(amount: Volume): boolean {
 		const amt = Number(amount);
-		if (!Number.isFinite(amt) || amt > Number(this._position)) {
+		if (!Number.isFinite(amt) || amt <= 0 || amt > Number(this._position)) {
 			return false;
 		}
-		const { netProceeds, fee } = this._config.computeSellProceeds({
+		const { netProceeds, fee } = this._config.computeSellProceeds(
 			amount,
-			price: this._price,
-		});
+			this._price
+		);
 		this._position = Volume.of(
 			this._config.roundValue(Number(this._position) - amt)
 		);

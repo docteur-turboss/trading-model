@@ -1,5 +1,8 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
+import { TradingSymbol } from "@trading-model/common/domain/primitives";
 import { createBounded } from "../../../src/core/genetic-algorithm/bounded";
+import { EpisodeScores } from "../../../src/core/genetic-algorithm/episode-scores";
+import { createDefaultGenome } from "../../../src/core/genetic-algorithm/factory";
 import {
 	ActivationType,
 	ConnectionType,
@@ -17,6 +20,7 @@ import {
 import type { LamarckGenome } from "../../../src/core/genetic-algorithm/genome-types";
 import type { DeepReadonly } from "../../../src/core/genetic-algorithm/shared-types";
 import { MarketDataBuffer } from "../../../src/core/market-data-buffer";
+import { Trainer } from "../../../src/core/trainer";
 import {
 	makeBestGenomeNoMeta,
 	makeMinimalBestGenome,
@@ -66,12 +70,26 @@ jest.mock("../../../src/core/genetic-algorithm/ga-runner", () => {
 				fitness: 2.0,
 				generation: 1,
 				gaControl: {
-					populationSize: 20,
-					elitismFraction: 0.1,
-					survivorFraction: 0.5,
-					episodesPerIndividual: 3,
+					population: {
+						size: 20,
+						elitismFraction: 0.1,
+						survivorFraction: 0.5,
+					},
+					evaluation: {
+						episodesPerIndividual: 3,
+						seedsPerEval: 2,
+					},
+					seeding: { envSeed: 42, mutationSeed: 1337, networkSeed: 7 },
+					termination: {
+						rewardThreshold: Number.POSITIVE_INFINITY,
+						stagnationPatience: 15,
+						maxGenerations: 100,
+						timeBudgetMs: 300000,
+					},
 					selectionType: SelectionType.Tournament,
 					fitnessType: FitnessType.TotalPnl,
+					mutationRate: 0.1,
+					mutationStd: 0.05,
 				},
 				network: {
 					inputDim: 32,
@@ -169,8 +187,7 @@ describe("Trainer", () => {
 	});
 
 	describe("initial state", () => {
-		it("should return null from getBestAgentSummary before training", async () => {
-			const { Trainer } = await import("../../../src/core/trainer");
+		it("should return null from getBestAgentSummary before training", () => {
 			const trainer = new Trainer(dataBuffer);
 
 			const summary = trainer.getBestAgentSummary();
@@ -178,29 +195,25 @@ describe("Trainer", () => {
 			expect(summary).toBeNull();
 		});
 
-		it("should return false from isTraining before training", async () => {
-			const { Trainer } = await import("../../../src/core/trainer");
+		it("should return false from isTraining before training", () => {
 			const trainer = new Trainer(dataBuffer);
 
 			expect(trainer.isTraining()).toBe(false);
 		});
 
-		it("should return 0 from getGeneration before training", async () => {
-			const { Trainer } = await import("../../../src/core/trainer");
+		it("should return 0 from getGeneration before training", () => {
 			const trainer = new Trainer(dataBuffer);
 
 			expect(trainer.getGeneration()).toBe(0);
 		});
 
-		it("should return empty string from getCurrentSymbol before training", async () => {
-			const { Trainer } = await import("../../../src/core/trainer");
+		it("should return empty string from getCurrentSymbol before training", () => {
 			const trainer = new Trainer(dataBuffer);
 
 			expect(trainer.getCurrentSymbol()).toBe("");
 		});
 
-		it("should return null from getGenerationContext before training", async () => {
-			const { Trainer } = await import("../../../src/core/trainer");
+		it("should return null from getGenerationContext before training", () => {
 			const trainer = new Trainer(dataBuffer);
 
 			expect(trainer.getGenerationContext()).toBeNull();
@@ -209,11 +222,10 @@ describe("Trainer", () => {
 
 	describe("train with insufficient data", () => {
 		it("should return failure result with fewer than 10 steps", async () => {
-			const { Trainer } = await import("../../../src/core/trainer");
 			const trainer = new Trainer(dataBuffer);
 			feedCandles(dataBuffer, "BTCUSDT", 5);
 
-			const result = await trainer.train("BTCUSDT");
+			const result = await trainer.train(TradingSymbol.of("BTCUSDT"));
 
 			expect(result.success).toBe(false);
 			expect(trainer.isTraining()).toBe(false);
@@ -221,11 +233,10 @@ describe("Trainer", () => {
 		});
 
 		it("should not start training when train split has fewer than 10 steps after validation split", async () => {
-			const { Trainer } = await import("../../../src/core/trainer");
 			const trainer = new Trainer(dataBuffer);
 			feedCandles(dataBuffer, "BTCUSDT", 11);
 
-			const result = await trainer.train("BTCUSDT");
+			const result = await trainer.train(TradingSymbol.of("BTCUSDT"));
 
 			expect(result.success).toBe(false);
 			expect(trainer.isTraining()).toBe(false);
@@ -233,16 +244,12 @@ describe("Trainer", () => {
 		});
 
 		it("should return failure result if already training", async () => {
-			const { Trainer } = await import("../../../src/core/trainer");
 			const trainer = new Trainer(dataBuffer);
 			feedCandles(dataBuffer, "BTCUSDT", 100);
 
-			Object.defineProperty(trainer, "_training", {
-				value: true,
-				writable: false,
-			});
+			(trainer as any)._status = "training";
 
-			const result = await trainer.train("BTCUSDT");
+			const result = await trainer.train(TradingSymbol.of("BTCUSDT"));
 
 			expect(result.success).toBe(false);
 			expect(trainer.isTraining()).toBe(true);
@@ -251,11 +258,10 @@ describe("Trainer", () => {
 
 	describe("train with sufficient data", () => {
 		it("should return success result with enough data", async () => {
-			const { Trainer } = await import("../../../src/core/trainer");
 			const trainer = new Trainer(dataBuffer);
 			feedCandles(dataBuffer, "BTCUSDT", 100);
 
-			const result = await trainer.train("BTCUSDT");
+			const result = await trainer.train(TradingSymbol.of("BTCUSDT"));
 
 			expect(result.success).toBe(true);
 			if (result.success) {
@@ -266,31 +272,28 @@ describe("Trainer", () => {
 		});
 
 		it("should set currentSymbol after training", async () => {
-			const { Trainer } = await import("../../../src/core/trainer");
 			const trainer = new Trainer(dataBuffer);
 			feedCandles(dataBuffer, "BTCUSDT", 100);
 
-			await trainer.train("BTCUSDT");
+			await trainer.train(TradingSymbol.of("BTCUSDT"));
 
 			expect(trainer.getCurrentSymbol()).toBe("BTCUSDT");
 		});
 
 		it("should update getGeneration from runner", async () => {
-			const { Trainer } = await import("../../../src/core/trainer");
 			const trainer = new Trainer(dataBuffer);
 			feedCandles(dataBuffer, "BTCUSDT", 100);
 
-			await trainer.train("BTCUSDT");
+			await trainer.train(TradingSymbol.of("BTCUSDT"));
 
 			expect(trainer.getGeneration()).toBe(5);
 		});
 
 		it("should update bestGenome after successful training", async () => {
-			const { Trainer } = await import("../../../src/core/trainer");
 			const trainer = new Trainer(dataBuffer);
 			feedCandles(dataBuffer, "BTCUSDT", 100);
 
-			const result = await trainer.train("BTCUSDT");
+			const result = await trainer.train(TradingSymbol.of("BTCUSDT"));
 
 			expect(result.success).toBe(true);
 			const summary = trainer.getBestAgentSummary();
@@ -302,11 +305,10 @@ describe("Trainer", () => {
 			mockRunImpl = () => {
 				return Promise.reject(new Error("training error"));
 			};
-			const { Trainer } = await import("../../../src/core/trainer");
 			const trainer = new Trainer(dataBuffer);
 			feedCandles(dataBuffer, "BTCUSDT", 100);
 
-			const result = await trainer.train("BTCUSDT");
+			const result = await trainer.train(TradingSymbol.of("BTCUSDT"));
 
 			expect(result.success).toBe(false);
 			if (!result.success) {
@@ -320,11 +322,10 @@ describe("Trainer", () => {
 			mockRunImpl = () => {
 				return Promise.reject(new Error("string error"));
 			};
-			const { Trainer } = await import("../../../src/core/trainer");
 			const trainer = new Trainer(dataBuffer);
 			feedCandles(dataBuffer, "BTCUSDT", 100);
 
-			const result = await trainer.train("BTCUSDT");
+			const result = await trainer.train(TradingSymbol.of("BTCUSDT"));
 
 			expect(result.success).toBe(false);
 			if (!result.success) {
@@ -336,11 +337,10 @@ describe("Trainer", () => {
 
 		it("should handle null fitness in training result", async () => {
 			mockRunImpl = async () => ({ id: "no-fitness" });
-			const { Trainer } = await import("../../../src/core/trainer");
 			const trainer = new Trainer(dataBuffer);
 			feedCandles(dataBuffer, "BTCUSDT", 100);
 
-			const result = await trainer.train("BTCUSDT");
+			const result = await trainer.train(TradingSymbol.of("BTCUSDT"));
 
 			expect(result.success).toBe(true);
 			expect(trainer.isTraining()).toBe(false);
@@ -348,9 +348,7 @@ describe("Trainer", () => {
 	});
 
 	describe("computeSharpe", () => {
-		it("should return 0 for empty scores array", async () => {
-			const { Trainer } = await import("../../../src/core/trainer");
-
+		it("should return 0 for empty scores array", () => {
 			const computeSharpe = (
 				Trainer.prototype as unknown as Record<string, unknown>
 			)._computeSharpe as (scores: number[]) => number;
@@ -358,9 +356,7 @@ describe("Trainer", () => {
 			expect(computeSharpe([])).toBe(0);
 		});
 
-		it("should return 0 for single-element scores array", async () => {
-			const { Trainer } = await import("../../../src/core/trainer");
-
+		it("should return 0 for single-element scores array", () => {
 			const computeSharpe = (
 				Trainer.prototype as unknown as Record<string, unknown>
 			)._computeSharpe as (scores: number[]) => number;
@@ -368,9 +364,7 @@ describe("Trainer", () => {
 			expect(computeSharpe([1])).toBe(0);
 		});
 
-		it("should return mean when all scores are identical (std is zero)", async () => {
-			const { Trainer } = await import("../../../src/core/trainer");
-
+		it("should return mean when all scores are identical (std is zero)", () => {
 			const computeSharpe = (
 				Trainer.prototype as unknown as Record<string, unknown>
 			)._computeSharpe as (scores: number[]) => number;
@@ -378,9 +372,7 @@ describe("Trainer", () => {
 			expect(computeSharpe([5, 5, 5])).toBe(5);
 		});
 
-		it("should return positive value for increasing scores", async () => {
-			const { Trainer } = await import("../../../src/core/trainer");
-
+		it("should return positive value for increasing scores", () => {
 			const computeSharpe = (
 				Trainer.prototype as unknown as Record<string, unknown>
 			)._computeSharpe as (scores: number[]) => number;
@@ -390,8 +382,7 @@ describe("Trainer", () => {
 	});
 
 	describe("getGenerationContext", () => {
-		it("should return null when no training has occurred", async () => {
-			const { Trainer } = await import("../../../src/core/trainer");
+		it("should return null when no training has occurred", () => {
 			const trainer = new Trainer(dataBuffer);
 
 			expect(trainer.getGenerationContext()).toBeNull();
@@ -399,15 +390,13 @@ describe("Trainer", () => {
 	});
 
 	describe("getBestAgentSummary with genome", () => {
-		it("should return null when bestGenome is null", async () => {
-			const { Trainer } = await import("../../../src/core/trainer");
+		it("should return null when bestGenome is null", () => {
 			const trainer = new Trainer(dataBuffer);
 
 			expect(trainer.getBestAgentSummary()).toBeNull();
 		});
 
-		it("should return correct summary when bestGenome has fitnessMeta", async () => {
-			const { Trainer } = await import("../../../src/core/trainer");
+		it("should return correct summary when bestGenome has fitnessMeta", () => {
 			const trainer = new Trainer(dataBuffer);
 			const bestGenome = makeMinimalBestGenome() as DeepReadonly<LamarckGenome>;
 			(trainer as any)._lastInfo = {
@@ -433,8 +422,7 @@ describe("Trainer", () => {
 			expect(summary!.network.hiddenLayers.length).toBe(2);
 		});
 
-		it("should return summary with zero sharpe and avgPnl when no fitnessMeta", async () => {
-			const { Trainer } = await import("../../../src/core/trainer");
+		it("should return summary with zero sharpe and avgPnl when no fitnessMeta", () => {
 			const trainer = new Trainer(dataBuffer);
 			const bestGenome = makeBestGenomeNoMeta() as DeepReadonly<LamarckGenome>;
 			(trainer as any)._lastInfo = {
@@ -452,12 +440,8 @@ describe("Trainer", () => {
 			expect(summary!.avgPnl).toBe(0);
 		});
 
-		it("should handle genome with fitnessMeta containing rawScores", async () => {
-			const { Trainer } = await import("../../../src/core/trainer");
+		it("should handle genome with fitnessMeta containing rawScores", () => {
 			const trainer = new Trainer(dataBuffer);
-			const { createDefaultGenome } = await import(
-				"../../../src/core/genetic-algorithm/factory"
-			);
 			const g = createDefaultGenome("test", 3) as DeepReadonly<LamarckGenome>;
 			(trainer as any)._lastInfo = {
 				symbol: "BTCUSDT",
@@ -468,7 +452,7 @@ describe("Trainer", () => {
 					computeMs: 2000,
 					efficiencyScore: 1.0,
 					variance: 0.05,
-					rawScores: [1],
+					rawScores: new EpisodeScores([1]),
 				},
 				generation: 5,
 				generationContext: null,
@@ -480,12 +464,8 @@ describe("Trainer", () => {
 			expect(summary!.avgPnl).toBe(1);
 		});
 
-		it("should return fitness as 0 when bestGenome fitness is null", async () => {
-			const { Trainer } = await import("../../../src/core/trainer");
+		it("should return fitness as 0 when bestGenome fitness is null", () => {
 			const trainer = new Trainer(dataBuffer);
-			const { createDefaultGenome } = await import(
-				"../../../src/core/genetic-algorithm/factory"
-			);
 			const g = createDefaultGenome("test", 3) as DeepReadonly<LamarckGenome>;
 			(trainer as any)._lastInfo = {
 				symbol: "BTCUSDT",
@@ -503,11 +483,10 @@ describe("Trainer", () => {
 
 	describe("callbacks", () => {
 		it("should store generation context after training with onGeneration", async () => {
-			const { Trainer } = await import("../../../src/core/trainer");
 			const trainer = new Trainer(dataBuffer);
 			feedCandles(dataBuffer, "BTCUSDT", 100);
 
-			await trainer.train("BTCUSDT");
+			await trainer.train(TradingSymbol.of("BTCUSDT"));
 
 			const ctx = trainer.getGenerationContext();
 			expect(ctx).not.toBeNull();
@@ -516,11 +495,10 @@ describe("Trainer", () => {
 		});
 
 		it("should set best genome to final result after training", async () => {
-			const { Trainer } = await import("../../../src/core/trainer");
 			const trainer = new Trainer(dataBuffer);
 			feedCandles(dataBuffer, "BTCUSDT", 100);
 
-			await trainer.train("BTCUSDT");
+			await trainer.train(TradingSymbol.of("BTCUSDT"));
 
 			const summary = trainer.getBestAgentSummary();
 			expect(summary).not.toBeNull();
@@ -529,11 +507,10 @@ describe("Trainer", () => {
 
 		it("should skip updating bestGenome when archive is empty", async () => {
 			mockArchiveData = [];
-			const { Trainer } = await import("../../../src/core/trainer");
 			const trainer = new Trainer(dataBuffer);
 			feedCandles(dataBuffer, "BTCUSDT", 100);
 
-			await trainer.train("BTCUSDT");
+			await trainer.train(TradingSymbol.of("BTCUSDT"));
 
 			const ctx = trainer.getGenerationContext();
 			expect(ctx).not.toBeNull();

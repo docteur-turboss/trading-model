@@ -6,6 +6,9 @@
 	}
 
 	wait(delay: number): Promise<void> {
-		return new Promise((resolve) => setTimeout(resolve, delay));
+		return new Promise((resolve) => {
+			const timer = setTimeout(resolve, delay);
+			timer.unref();
+		});
 	}
 }

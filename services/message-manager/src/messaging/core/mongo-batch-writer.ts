@@ -69,7 +69,10 @@ export class MongoBatchWriter {
 		} catch (err) {
 			this._logBulkWriteWarning(err as Error, attempt);
 			if (attempt < MaxRetries - 1) {
-				await new Promise((resolve) => setTimeout(resolve, RetryDelayMs));
+				await new Promise((resolve) => {
+					const timer = setTimeout(resolve, RetryDelayMs);
+					timer.unref();
+				});
 			}
 			return err as Error;
 		}

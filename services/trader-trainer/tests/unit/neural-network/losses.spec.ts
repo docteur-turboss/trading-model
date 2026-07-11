@@ -1,4 +1,5 @@
 import { describe, expect, test } from "@jest/globals";
+import { NumericRange } from "@trading-model/common/domain/numeric-range";
 import { LOSSES } from "../../../src/core/neural-network/losses";
 import type { NeuralNetworkConfig } from "../../../src/core/neural-network/type";
 import {
@@ -31,7 +32,7 @@ function makeConfig(
 		weightMutationScale: 0.1,
 		optimizerHyperparams: {},
 		biasInitialisationType: InitialisationType.Zeros,
-		normalizedInputRange: [0, 3],
+		normalizedInputRange: new NumericRange(0, 3),
 	};
 }
 
@@ -50,12 +51,20 @@ describe("Loss Functions", () => {
 
 	describe(LossFunctionType.MeanSquaredError, () => {
 		test("loss should compute MSE", () => {
-			const loss = LOSSES[LossFunctionType.MeanSquaredError].loss(output, target, cfg);
+			const loss = LOSSES[LossFunctionType.MeanSquaredError].loss(
+				output,
+				target,
+				cfg
+			);
 			expect(loss).toBeCloseTo((0.64 + 0.25 + 0.04) / 3, 5);
 		});
 
 		test("gradient should be 2*(output-target)/n", () => {
-			const grad = LOSSES[LossFunctionType.MeanSquaredError].gradient(output, target, cfg);
+			const grad = LOSSES[LossFunctionType.MeanSquaredError].gradient(
+				output,
+				target,
+				cfg
+			);
 			expect(grad[0]).toBeCloseTo((2 * (0.2 - 1)) / 3, 5);
 			expect(grad[1]).toBeCloseTo((2 * (0.5 - 0)) / 3, 5);
 		});
@@ -63,12 +72,20 @@ describe("Loss Functions", () => {
 
 	describe(LossFunctionType.MeanAbsoluteError, () => {
 		test("loss should compute MAE", () => {
-			const loss = LOSSES[LossFunctionType.MeanAbsoluteError].loss(output, target, cfg);
+			const loss = LOSSES[LossFunctionType.MeanAbsoluteError].loss(
+				output,
+				target,
+				cfg
+			);
 			expect(loss).toBeCloseTo((0.8 + 0.5 + 0.2) / 3, 5);
 		});
 
 		test("gradient should be sign-based", () => {
-			const grad = LOSSES[LossFunctionType.MeanAbsoluteError].gradient(output, target, cfg);
+			const grad = LOSSES[LossFunctionType.MeanAbsoluteError].gradient(
+				output,
+				target,
+				cfg
+			);
 			expect(grad[0]).toBeCloseTo(-1 / 3, 5);
 			expect(grad[1]).toBeCloseTo(1 / 3, 5);
 		});
@@ -76,7 +93,11 @@ describe("Loss Functions", () => {
 		test("gradient should be zero when output equals target", () => {
 			const out = makeOutput([1, 0, 1]);
 			const tgt = makeTarget([1, 0, 1]);
-			const grad = LOSSES[LossFunctionType.MeanAbsoluteError].gradient(out, tgt, cfg);
+			const grad = LOSSES[LossFunctionType.MeanAbsoluteError].gradient(
+				out,
+				tgt,
+				cfg
+			);
 			expect(grad[0]).toBe(0);
 			expect(grad[1]).toBe(0);
 			expect(grad[2]).toBe(0);
@@ -85,7 +106,11 @@ describe("Loss Functions", () => {
 
 	describe(LossFunctionType.RootMeanSquaredError, () => {
 		test("loss should compute RMSE", () => {
-			const loss = LOSSES[LossFunctionType.RootMeanSquaredError].loss(output, target, cfg);
+			const loss = LOSSES[LossFunctionType.RootMeanSquaredError].loss(
+				output,
+				target,
+				cfg
+			);
 			const mse = (0.64 + 0.25 + 0.04) / 3;
 			expect(loss).toBeCloseTo(Math.sqrt(mse), 5);
 		});
@@ -104,12 +129,20 @@ describe("Loss Functions", () => {
 
 	describe(LossFunctionType.MeanBiaisError, () => {
 		test("loss should compute MBE", () => {
-			const loss = LOSSES[LossFunctionType.MeanBiaisError].loss(output, target, cfg);
+			const loss = LOSSES[LossFunctionType.MeanBiaisError].loss(
+				output,
+				target,
+				cfg
+			);
 			expect(loss).toBeCloseTo((0.8 - 0.5 + 0.2) / 3, 5);
 		});
 
 		test("gradient should be finite", () => {
-			const grad = LOSSES[LossFunctionType.MeanBiaisError].gradient(output, target, cfg);
+			const grad = LOSSES[LossFunctionType.MeanBiaisError].gradient(
+				output,
+				target,
+				cfg
+			);
 			for (const g of grad) {
 				expect(Number.isFinite(g)).toBe(true);
 			}
@@ -123,7 +156,11 @@ describe("Loss Functions", () => {
 		});
 
 		test("gradient should be finite", () => {
-			const grad = LOSSES[LossFunctionType.HuberLoss].gradient(output, target, cfg);
+			const grad = LOSSES[LossFunctionType.HuberLoss].gradient(
+				output,
+				target,
+				cfg
+			);
 			for (const g of grad) {
 				expect(Number.isFinite(g)).toBe(true);
 			}
@@ -163,12 +200,20 @@ describe("Loss Functions", () => {
 
 	describe(LossFunctionType.LogCoshLoss, () => {
 		test("loss should compute log-cosh", () => {
-			const loss = LOSSES[LossFunctionType.LogCoshLoss].loss(output, target, cfg);
+			const loss = LOSSES[LossFunctionType.LogCoshLoss].loss(
+				output,
+				target,
+				cfg
+			);
 			expect(Number.isFinite(loss)).toBe(true);
 		});
 
 		test("gradient should be finite", () => {
-			const grad = LOSSES[LossFunctionType.LogCoshLoss].gradient(output, target, cfg);
+			const grad = LOSSES[LossFunctionType.LogCoshLoss].gradient(
+				output,
+				target,
+				cfg
+			);
 			for (const g of grad) {
 				expect(Number.isFinite(g)).toBe(true);
 			}
@@ -185,7 +230,11 @@ describe("Loss Functions", () => {
 		});
 
 		test("gradient should be finite", () => {
-			const grad = LOSSES[LossFunctionType.CrossEntropy].gradient(output, target, cfg);
+			const grad = LOSSES[LossFunctionType.CrossEntropy].gradient(
+				output,
+				target,
+				cfg
+			);
 			for (const g of grad) {
 				expect(Number.isFinite(g)).toBe(true);
 			}
@@ -194,12 +243,20 @@ describe("Loss Functions", () => {
 
 	describe(LossFunctionType.BinaryCrossEntropy, () => {
 		test("loss should compute binary cross-entropy", () => {
-			const loss = LOSSES[LossFunctionType.BinaryCrossEntropy].loss(output, target, cfg);
+			const loss = LOSSES[LossFunctionType.BinaryCrossEntropy].loss(
+				output,
+				target,
+				cfg
+			);
 			expect(Number.isFinite(loss)).toBe(true);
 		});
 
 		test("gradient should be finite", () => {
-			const grad = LOSSES[LossFunctionType.BinaryCrossEntropy].gradient(output, target, cfg);
+			const grad = LOSSES[LossFunctionType.BinaryCrossEntropy].gradient(
+				output,
+				target,
+				cfg
+			);
 			for (const g of grad) {
 				expect(Number.isFinite(g)).toBe(true);
 			}
@@ -222,7 +279,11 @@ describe("Loss Functions", () => {
 		});
 
 		test("gradient should be finite", () => {
-			const grad = LOSSES[LossFunctionType.HingeLoss].gradient(output, target, cfg);
+			const grad = LOSSES[LossFunctionType.HingeLoss].gradient(
+				output,
+				target,
+				cfg
+			);
 			for (const g of grad) {
 				expect(Number.isFinite(g)).toBe(true);
 			}
@@ -242,7 +303,11 @@ describe("Loss Functions", () => {
 		test("loss should compute KL divergence", () => {
 			const out = makeOutput([0.1, 0.8, 0.1]);
 			const tgt = makeTarget([0.2, 0.6, 0.2]);
-			const loss = LOSSES[LossFunctionType.KullbackLeiblerDivergence].loss(out, tgt, cfg);
+			const loss = LOSSES[LossFunctionType.KullbackLeiblerDivergence].loss(
+				out,
+				tgt,
+				cfg
+			);
 			expect(Number.isFinite(loss)).toBe(true);
 		});
 

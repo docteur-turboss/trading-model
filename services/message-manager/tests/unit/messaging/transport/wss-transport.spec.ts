@@ -24,10 +24,8 @@ jest.mock("../../../../src/config/env", () => ({
 	},
 }));
 
-import { REDIS_RESP } from "@trading-model/common/persistence/redis-constants";
-
 jest.mock("../../../../src/config/redis", () => {
-	const set = jest.fn<() => Promise<string | null>>().mockResolvedValue(REDIS_RESP.OK);
+	const set = jest.fn<() => Promise<string | null>>().mockResolvedValue("OK");
 	return {
 		getStreamClient: jest.fn().mockResolvedValue({ set }),
 	};
@@ -70,6 +68,7 @@ jest.mock("ws", () => {
 				}) => {
 					verifyClientHandler = options.verifyClient ?? null;
 					const wss = new EventEmitter();
+					wss.clients = new Set();
 					wss.on = jest.fn(
 						(event: string, handler: (...args: unknown[]) => void) => {
 							if (event === "connection") {

@@ -1,5 +1,12 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import type { NextFunction, Request, Response } from "express";
+
+jest.mock("express-rate-limit", () => {
+	return jest.fn(
+		() => (_req: unknown, _res: unknown, next: () => void) => next()
+	);
+});
+
 import { BROKER_ROUTES } from "../../../../src/messaging/transport/http.routes";
 import { createMockDispatcher } from "../../../helpers/broker.helper";
 

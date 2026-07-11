@@ -178,12 +178,12 @@ function _createDefaultRLGenome(): RLGenome {
 	};
 }
 
-import { toGenomeId } from "@trading-model/common/domain/primitives";
+import type { GenomeId } from "@trading-model/common/domain/primitives";
 
 /** Create a genome with sensible default values for network, RL hyperparameters, mutation, crossover, and GA control. */
 export function createDefaultGenome(id: string, generation = 0): Genome {
 	return {
-		id: toGenomeId(id),
+		id: id as GenomeId,
 		generation,
 		network: createNetworkGenome(),
 		rl: _createDefaultRLGenome(),

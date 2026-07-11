@@ -1,5 +1,6 @@
 ﻿import type { HttpClient } from "@trading-model/common/config/http-client";
 import { HttpMethod } from "@trading-model/common/config/http-types";
+import type { PositiveInt } from "@trading-model/common/domain/primitives";
 import {
 	messageManagerError,
 	normalizeError,
@@ -30,7 +31,7 @@ export class DlqSendHandler {
 		entry: DlqEntry,
 		err: Error,
 		attempt: number,
-		maxRetries: number
+		maxRetries: PositiveInt
 	): Promise<void> {
 		if (attempt <= maxRetries) {
 			const delay = this._retry.computeDelay(attempt);
@@ -57,7 +58,7 @@ export class DlqSendHandler {
 	private async _doRetrySend(
 		entry: DlqEntry,
 		attempt: number,
-		maxRetries: number
+		maxRetries: PositiveInt
 	): Promise<void> {
 		try {
 			await this._postEntry(entry);

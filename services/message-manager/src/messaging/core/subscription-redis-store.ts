@@ -1,5 +1,8 @@
 ﻿import type { ServiceIdentity } from "@trading-model/common/contracts/message.types";
-import type { InstanceId, Topic } from "@trading-model/common/domain/primitives";
+import type {
+	InstanceId,
+	Topic,
+} from "@trading-model/common/domain/primitives";
 
 import type { TopicSubscription } from "./messaging-types";
 import { SubscriptionRedisReader } from "./subscription-redis-reader";

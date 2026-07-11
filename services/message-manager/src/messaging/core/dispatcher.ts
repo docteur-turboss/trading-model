@@ -12,7 +12,10 @@ import type {
 	Message,
 	ServiceIdentity,
 } from "@trading-model/common/contracts/message.types";
-import type { Topic, InstanceId } from "@trading-model/common/domain/primitives";
+import type {
+	InstanceId,
+	Topic,
+} from "@trading-model/common/domain/primitives";
 
 import { AckHandler } from "./ack-handler";
 import { BackpressureMonitor } from "./backpressure-monitor";

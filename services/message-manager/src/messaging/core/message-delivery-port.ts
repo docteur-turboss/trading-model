@@ -1,7 +1,8 @@
 ﻿import type { Message } from "@trading-model/common/contracts/message.types";
+import type { SequenceNumber } from "@trading-model/common/domain/primitives";
 
 export interface MessageDeliveryContext {
-	deliveryAttempt: number;
+	deliveryAttempt: SequenceNumber;
 	consumerGroup: string;
 }
 
@@ -14,7 +15,7 @@ export interface DeliverySendInput {
 export interface DeadLetterInput {
 	message: Message;
 	reason: string;
-	deliveryAttempt: number;
+	deliveryAttempt: SequenceNumber;
 }
 
 export interface MessageDeliveryPort {

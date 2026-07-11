@@ -17,9 +17,7 @@ export interface DataHandler<TData = unknown> {
 		state: SymbolState,
 		maxSize?: number
 	): void;
-	serializeNorms(
-		state: SymbolState
-	): Record<string, unknown>;
+	serializeNorms(state: SymbolState): Record<string, unknown>;
 }
 
 export function serializeAllNorms(

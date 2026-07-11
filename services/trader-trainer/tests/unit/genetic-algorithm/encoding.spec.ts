@@ -28,7 +28,10 @@ function layerActivation(arr: Float32Array, layerIdx: number): ActivationType {
 	return readEncodedLayer(arr, layerOffset(layerIdx)).activation;
 }
 
-function layerConnectionType(arr: Float32Array, layerIdx: number): ConnectionType {
+function layerConnectionType(
+	arr: Float32Array,
+	layerIdx: number
+): ConnectionType {
 	return readEncodedLayer(arr, layerOffset(layerIdx)).connectionType;
 }
 
@@ -50,7 +53,8 @@ describe("encoding", () => {
 		test("should encode learningRate as log-scaled in [0,1]", () => {
 			const g = createDefaultGenome("lr-test");
 			const enc = encodeGenome(g);
-			const expected = (Math.log10(Math.max(1e-6, g.rl.learningRate)) / 6 + 1) / 2;
+			const expected =
+				(Math.log10(Math.max(1e-6, g.rl.learningRate)) / 6 + 1) / 2;
 			expect(enc[ENCODING_OFFSETS.LearningRate]).toBeCloseTo(expected, 6);
 		});
 
@@ -146,7 +150,9 @@ describe("encoding", () => {
 			expect(decoded.generation).toBe(5);
 			expect(decoded.gaControl).toEqual(template.gaControl);
 			expect(decoded.crossover).toEqual(template.crossover);
-			expect(decoded.mutation.rates.noiseStd).toBe(template.mutation.rates.noiseStd);
+			expect(decoded.mutation.rates.noiseStd).toBe(
+				template.mutation.rates.noiseStd
+			);
 			expect(decoded.mutation.distribution).toBe(
 				template.mutation.distribution
 			);

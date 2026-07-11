@@ -1,7 +1,10 @@
 ﻿import type { HttpRequestOptions } from "@trading-model/common/config/http-types";
 import type { HttpRoute } from "@trading-model/common/contracts/signed-request";
 import { signRequest } from "@trading-model/common/crypto/request-signer";
-import { toServiceId } from "@trading-model/common/domain/primitives";
+import {
+	DurationMs,
+	toServiceId,
+} from "@trading-model/common/domain/primitives";
 import { HTTP_HEADERS } from "@trading-model/common/http-headers";
 import { ENV } from "../../config/env";
 import { logger } from "../../config/logger";
@@ -32,7 +35,7 @@ function buildBaseOptions(
 	extra?: Partial<HttpRequestOptions>
 ): HttpRequestOptions & { headers: Record<string, string> } {
 	return {
-		timeoutMs: 5000,
+		timeoutMs: DurationMs.of(5000),
 		...extra,
 		headers: {
 			[HTTP_HEADERS.X_SERVICE_NAME]: "message-manager",

@@ -264,11 +264,26 @@ function crossoverMutation(
 			),
 		},
 		structural: {
-			addNeuronRate: coin(left.structural.addNeuronRate, right.structural.addNeuronRate),
-			removeNeuronRate: coin(left.structural.removeNeuronRate, right.structural.removeNeuronRate),
-			addLayerRate: coin(left.structural.addLayerRate, right.structural.addLayerRate),
-			removeLayerRate: coin(left.structural.removeLayerRate, right.structural.removeLayerRate),
-			addConnectionRate: coin(left.structural.addConnectionRate, right.structural.addConnectionRate),
+			addNeuronRate: coin(
+				left.structural.addNeuronRate,
+				right.structural.addNeuronRate
+			),
+			removeNeuronRate: coin(
+				left.structural.removeNeuronRate,
+				right.structural.removeNeuronRate
+			),
+			addLayerRate: coin(
+				left.structural.addLayerRate,
+				right.structural.addLayerRate
+			),
+			removeLayerRate: coin(
+				left.structural.removeLayerRate,
+				right.structural.removeLayerRate
+			),
+			addConnectionRate: coin(
+				left.structural.addConnectionRate,
+				right.structural.addConnectionRate
+			),
 			removeConnectionRate: coin(
 				left.structural.removeConnectionRate,
 				right.structural.removeConnectionRate

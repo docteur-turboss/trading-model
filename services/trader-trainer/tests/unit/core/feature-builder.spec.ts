@@ -33,7 +33,7 @@ function baseCandle(overrides?: Partial<CandleData>): CandleData {
 		low: Price.of(90),
 		close: Price.of(105),
 		volume: Volume.of(1000),
-		interval: CandleInterval.MIN1,
+		interval: CandleInterval.Min1,
 		closeTimestamp: UnixTimestamp.of(3000),
 		...overrides,
 	};
@@ -48,7 +48,7 @@ function baseTrade(overrides?: Partial<TradeData>): TradeData {
 		price: Price.of(104),
 		tradeId: 1n,
 		quantity: Volume.of(10),
-		side: TradeSide.BUY,
+		side: TradeSide.Buy,
 		...overrides,
 	};
 }
@@ -113,17 +113,25 @@ function trainedNorm(values: number[]): NormalizationStats {
 
 function defaultNorm() {
 	return {
-		candleClose: new NormalizationStats(),
-		candleVolume: new NormalizationStats(),
-		candleOpen: new NormalizationStats(),
-		candleHigh: new NormalizationStats(),
-		candleLow: new NormalizationStats(),
-		tradePrice: new NormalizationStats(),
-		tradeQty: new NormalizationStats(),
-		bid: new NormalizationStats(),
-		ask: new NormalizationStats(),
-		spread: new NormalizationStats(),
-		tickerVolume: new NormalizationStats(),
+		candle: {
+			close: new NormalizationStats(),
+			volume: new NormalizationStats(),
+			open: new NormalizationStats(),
+			high: new NormalizationStats(),
+			low: new NormalizationStats(),
+		},
+		trade: {
+			price: new NormalizationStats(),
+			qty: new NormalizationStats(),
+		},
+		book: {
+			bid: new NormalizationStats(),
+			ask: new NormalizationStats(),
+			spread: new NormalizationStats(),
+		},
+		ticker: {
+			volume: new NormalizationStats(),
+		},
 	};
 }
 
@@ -143,25 +151,25 @@ function makeState(overrides: {
 }) {
 	const norm = defaultNorm();
 	if (overrides.candleClose) {
-		norm.candleClose = overrides.candleClose;
+		norm.candle.close = overrides.candleClose;
 	}
 	if (overrides.tradePrice) {
-		norm.tradePrice = overrides.tradePrice;
+		norm.trade.price = overrides.tradePrice;
 	}
 	if (overrides.tradeQty) {
-		norm.tradeQty = overrides.tradeQty;
+		norm.trade.qty = overrides.tradeQty;
 	}
 	if (overrides.bid) {
-		norm.bid = overrides.bid;
+		norm.book.bid = overrides.bid;
 	}
 	if (overrides.ask) {
-		norm.ask = overrides.ask;
+		norm.book.ask = overrides.ask;
 	}
 	if (overrides.spread) {
-		norm.spread = overrides.spread;
+		norm.book.spread = overrides.spread;
 	}
 	if (overrides.tickerVolume) {
-		norm.tickerVolume = overrides.tickerVolume;
+		norm.ticker.volume = overrides.tickerVolume;
 	}
 	return {
 		candles: overrides.candles,
@@ -356,13 +364,13 @@ describe("buildFeatures", () => {
 						timestamp: UnixTimestamp.of(1500),
 						price: Price.of(104),
 						quantity: Volume.of(10),
-						side: TradeSide.BUY,
+						side: TradeSide.Buy,
 					}),
 					baseTrade({
 						timestamp: UnixTimestamp.of(1600),
 						price: Price.of(106),
 						quantity: Volume.of(5),
-						side: TradeSide.SELL,
+						side: TradeSide.Sell,
 					}),
 				],
 			});

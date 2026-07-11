@@ -73,8 +73,9 @@ export class WalFlushLoop {
 
 	private _sleepWithJitter(ms: number): Promise<void> {
 		const jitter = ms * 0.2 * (Math.random() * 2 - 1);
-		return new Promise((resolve) =>
-			setTimeout(resolve, Math.max(1, Math.round(ms + jitter)))
-		);
+		return new Promise((resolve) => {
+			const timer = setTimeout(resolve, Math.max(1, Math.round(ms + jitter)));
+			timer.unref();
+		});
 	}
 }

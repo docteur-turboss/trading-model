@@ -1,3 +1,4 @@
+import { EpisodeScores } from "../../src/core/genetic-algorithm/episode-scores";
 import { createDefaultGenome } from "../../src/core/genetic-algorithm/factory";
 import type {
 	GenomeFitnessMeta,
@@ -15,7 +16,7 @@ export function makeMinimalFitnessMeta(): GenomeFitnessMeta {
 		computeMs: 5000,
 		efficiencyScore: 1.5,
 		variance: 0.1,
-		rawScores: [1.0, 1.2, 1.4, 1.6, 1.8],
+		rawScores: new EpisodeScores([1.0, 1.2, 1.4, 1.6, 1.8]),
 	};
 }
 

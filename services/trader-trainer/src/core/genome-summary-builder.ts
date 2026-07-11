@@ -51,7 +51,7 @@ export class GenomeSummaryBuilder {
 		fitnessMeta?: GenomeFitnessMeta
 	): BestAgentSummary {
 		return {
-			id: genome.id,
+			id: String(genome.id),
 			generation: genome.generation,
 			fitness,
 			sharpe: fitnessMeta?.rawScores

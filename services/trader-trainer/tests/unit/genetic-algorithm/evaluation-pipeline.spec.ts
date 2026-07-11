@@ -1,5 +1,5 @@
 import { describe, expect, it, jest } from "@jest/globals";
-import { Price } from "@trading-model/common/domain/primitives";
+import { Cash, Price } from "@trading-model/common/domain/primitives";
 import { FeatureVector } from "../../../src/core/feature-vector";
 import { createBounded } from "../../../src/core/genetic-algorithm/bounded";
 import {
@@ -20,6 +20,7 @@ import {
 } from "../../../src/core/genetic-algorithm/genome";
 import type { RLBackend } from "../../../src/core/genetic-algorithm/rl-backend";
 import type { Experience } from "../../../src/core/genetic-algorithm/shared-types";
+import { ExperienceKind } from "../../../src/core/neural-network/type";
 
 const MINIMAL_GENOME = {
 	id: "test",
@@ -88,20 +89,17 @@ const MINIMAL_GENOME = {
 		sbxEta: 15,
 	},
 	gaControl: {
-		populationSize: 20,
-		elitismFraction: 0.1,
-		survivorFraction: 0.5,
+		population: { size: 20, elitismFraction: 0.1, survivorFraction: 0.5 },
+		termination: {
+			rewardThreshold: Number.POSITIVE_INFINITY,
+			stagnationPatience: 10,
+			maxGenerations: 10,
+			timeBudgetMs: 60000,
+		},
+		seeding: { envSeed: 1, mutationSeed: 1, networkSeed: 1 },
+		evaluation: { episodesPerIndividual: 2, seedsPerEval: 1 },
 		selectionType: SelectionType.Tournament,
 		fitnessType: FitnessType.TotalPnl,
-		episodesPerIndividual: 2,
-		seedsPerEval: 1,
-		rewardThreshold: Number.POSITIVE_INFINITY,
-		stagnationPatience: 10,
-		maxGenerations: 10,
-		timeBudgetMs: 60000,
-		envSeed: 1,
-		mutationSeed: 1,
-		networkSeed: 1,
 		mutationRate: 0.1,
 		mutationStd: 0.5,
 	},
@@ -119,7 +117,7 @@ function makeMockBackend(poolSize: number): RLBackend {
 	const pool: Experience[] = [];
 	for (let i = 0; i < poolSize; i++) {
 		pool.push({
-			kind: "qlearning",
+			kind: ExperienceKind.QLearning as const,
 			input: new Float32Array([0.1, 0.2, 0.3]),
 			output: new Float32Array([0.1, 0.2, 0.3]),
 			reward: 1,
@@ -135,7 +133,7 @@ function makeMockBackend(poolSize: number): RLBackend {
 		train: jest.fn(),
 		getWeights: jest.fn(() => new Float32Array([0.1, 0.2])),
 		setWeights: jest.fn(),
-		getPnL: jest.fn(() => 50),
+		getPnL: jest.fn(() => Cash.of(50)),
 		resetEpisode: jest.fn(),
 		getExperiencePool: jest.fn(() => pool),
 	};
@@ -299,13 +297,13 @@ describe("evaluateGenomeAllWindows", () => {
 			},
 		];
 		const backendFactory = jest.fn(() => makeMockBackend(2));
-		await expect(
+		expect(() =>
 			evaluateGenomeAllWindows(
 				badGenome as any,
 				windowSets,
 				backendFactory as any
 			)
-		).rejects.toThrow("[Invariant] inputDim must be positive");
+		).toThrow("[Invariant] inputDim must be positive");
 	});
 
 	it("should handle sparse reward mode", async () => {

@@ -38,7 +38,11 @@ export function mutateSelfAdaptiveParams(
 			...mutationConfig.rates,
 			sigma: _mutateSigma(mutationConfig, sigma, rng),
 			selfSigma: _mutateSelfSigma(mutationConfig, sigma, rng),
-			rate: clamp(mutationConfig.rates.rate + sampleGaussian(rng, 0.01), 0.001, 0.5),
+			rate: clamp(
+				mutationConfig.rates.rate + sampleGaussian(rng, 0.01),
+				0.001,
+				0.5
+			),
 		},
 	};
 }

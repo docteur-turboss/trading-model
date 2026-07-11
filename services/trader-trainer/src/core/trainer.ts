@@ -58,12 +58,12 @@ export class Trainer {
 		return this._status === TrainerStatus.Training;
 	}
 
-	getCurrentSymbol(): TradingSymbol | undefined {
-		return this._lastInfo?.symbol;
+	getCurrentSymbol(): TradingSymbol {
+		return this._lastInfo?.symbol ?? ("" as TradingSymbol);
 	}
 
-	getGeneration(): number | undefined {
-		return this._lastInfo?.generation;
+	getGeneration(): number {
+		return this._lastInfo?.generation ?? 0;
 	}
 
 	async train(symbol: TradingSymbol): Promise<TrainingResult> {
@@ -121,7 +121,11 @@ export class Trainer {
 		return buildBestAgentSummary(this._lastInfo, this._summaryBuilder);
 	}
 
-	getGenerationContext(): GenerationContext | null | undefined {
-		return this._lastInfo?.generationContext;
+	getGenerationContext(): GenerationContext | null {
+		return this._lastInfo?.generationContext ?? null;
+	}
+
+	_computeSharpe(scores: number[]): number {
+		return GenomeSummaryBuilder.computeSharpe(scores);
 	}
 }

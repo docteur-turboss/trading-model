@@ -1,5 +1,11 @@
 import { describe, expect, it, jest } from "@jest/globals";
 
+jest.mock("express-rate-limit", () => {
+	return jest.fn(
+		() => (_req: unknown, _res: unknown, next: () => void) => next()
+	);
+});
+
 import BrokerModule from "../../../src/messaging/index";
 
 jest.mock("../../../src/config/address-manager", () => ({

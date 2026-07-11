@@ -61,6 +61,7 @@ export class GenerationProcessor {
 	}
 
 	async runGeneration(startTime?: number): Promise<GenerationContext> {
+		this._generation++;
 		const { ctrl, rng } = this._initRunParams();
 		const evalResult = await this._evaluator.evaluate(this._population);
 		const paretoResult = buildParetoFronts(

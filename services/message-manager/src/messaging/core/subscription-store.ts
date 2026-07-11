@@ -1,5 +1,8 @@
 ﻿import type { ServiceIdentity } from "@trading-model/common/contracts/message.types";
-import type { Topic, InstanceId } from "@trading-model/common/domain/primitives";
+import type {
+	InstanceId,
+	Topic,
+} from "@trading-model/common/domain/primitives";
 import { ENV } from "../../config/env";
 import { getSubscriptionClient } from "../../config/redis";
 import { InstanceLifecycleManager } from "./instance-lifecycle-manager";

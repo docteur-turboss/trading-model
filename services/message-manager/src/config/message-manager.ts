@@ -26,6 +26,7 @@
  * This module wires the messaging broker into the HTTP server.
  */
 
+import { buildTlsFromEnv } from "@trading-model/common/domain/tls-paths";
 import BrokerModule from "../messaging/index";
 import { ENV } from "./env";
 
@@ -38,11 +39,7 @@ import { ENV } from "./env";
  *
  * This instance is shared across the entire application lifecycle.
  */
-const BROKER = new BrokerModule({
-	certPath: ENV.TLS_CERT_PATH,
-	keyPath: ENV.TLS_KEY_PATH,
-	caPath: ENV.TLS_CA_PATH,
-});
+const BROKER = new BrokerModule(buildTlsFromEnv(ENV));
 
 /**
  * Message broker HTTP route binder.

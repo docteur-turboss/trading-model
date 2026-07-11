@@ -35,6 +35,7 @@ export class RedisClientPool {
 				() => reject(new Error("timeout")),
 				ReconnectTimeoutMs
 			);
+			timeoutId.unref();
 			this._client!.once("ready", () => {
 				clearTimeout(timeoutId);
 				resolve();

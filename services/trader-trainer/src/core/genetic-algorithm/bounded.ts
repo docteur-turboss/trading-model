@@ -9,7 +9,6 @@ export function createBounded<TValue extends number>(
 	min: TValue,
 	max: TValue
 ): Bounded<TValue> {
-	new NumericRange(min, max);
 	return { min, max };
 }
 
@@ -27,6 +26,8 @@ export function isWithinBounds<TValue extends number>(
 	return value >= bounds.min && value <= bounds.max;
 }
 
-export function boundedToRange<TValue extends number>(bounds: Bounded<TValue>): NumericRange {
+export function boundedToRange<TValue extends number>(
+	bounds: Bounded<TValue>
+): NumericRange {
 	return new NumericRange(bounds.min, bounds.max);
 }

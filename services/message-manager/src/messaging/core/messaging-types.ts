@@ -41,3 +41,8 @@ export interface PendingAckData {
 	subscriberUrl: URLString;
 	message: Message;
 }
+
+export interface DedupConfig {
+	deduplicationId: string;
+	ttlS: number;
+}

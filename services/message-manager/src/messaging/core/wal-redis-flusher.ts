@@ -1,4 +1,7 @@
-﻿import type { Topic } from "@trading-model/common/domain/primitives";
+﻿import type {
+	SequenceNumber,
+	Topic,
+} from "@trading-model/common/domain/primitives";
 import { logger } from "../../config/logger";
 import { getStreamClient } from "../../config/redis";
 import { WAL_BATCH_SIZE } from "../../config/wal-config";
@@ -85,7 +88,10 @@ export class WalRedisFlusher {
 			consecutiveErrors: nextErrors,
 			batchSize: raw.length,
 		});
-		const action = await this._errorHandler.handleFlushError(raw, nextErrors);
+		const action = await this._errorHandler.handleFlushError(
+			raw,
+			nextErrors as SequenceNumber
+		);
 		const backoff = Math.min(1000 * 2 ** nextErrors, 30000);
 		await this._sleepWithJitter(backoff);
 		return action !== "abort";
@@ -93,8 +99,9 @@ export class WalRedisFlusher {
 
 	private _sleepWithJitter(ms: number): Promise<void> {
 		const jitter = ms * 0.2 * (Math.random() * 2 - 1);
-		return new Promise((resolve) =>
-			setTimeout(resolve, Math.max(1, Math.round(ms + jitter)))
-		);
+		return new Promise((resolve) => {
+			const timer = setTimeout(resolve, Math.max(1, Math.round(ms + jitter)));
+			timer.unref();
+		});
 	}
 }

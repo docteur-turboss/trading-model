@@ -1,7 +1,7 @@
 ﻿import {
-	InstanceId,
+	type InstanceId,
+	type Topic,
 	toInstanceId,
-	Topic,
 	toTopic,
 } from "@trading-model/common/domain/primitives";
 import { getSubscriptionClient } from "../../config/redis";

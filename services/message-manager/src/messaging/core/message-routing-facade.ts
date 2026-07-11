@@ -4,6 +4,7 @@ import { DeduplicationService } from "./deduplication-service";
 import type {
 	AckRef,
 	ClaimParams,
+	DedupConfig,
 	MessageQuery,
 	PendingAckData,
 	StreamGroupRef,
@@ -28,14 +29,19 @@ export interface IStreamGroupOps {
 }
 
 export interface IPendingAckOps {
-	recoverPendingAcks(ownInstanceId: InstanceId, maxAgeMs?: number): Promise<number>;
+	recoverPendingAcks(
+		ownInstanceId: InstanceId,
+		maxAgeMs?: number
+	): Promise<number>;
 	addPendingAck(
 		instanceId: InstanceId,
 		messageId: string,
 		data: PendingAckData
 	): Promise<void>;
 	removePendingAck(instanceId: InstanceId, messageId: string): Promise<void>;
-	getPendingAcks(instanceId: InstanceId): Promise<Record<string, PendingAckData>>;
+	getPendingAcks(
+		instanceId: InstanceId
+	): Promise<Record<string, PendingAckData>>;
 }
 
 export interface IClaimOps {
@@ -57,22 +63,6 @@ export class MessageRoutingFacade {
 		this._pendingAckOps = new PendingAckOperations(prefix);
 		this._claimManager = new ClaimExecutor(prefix);
 		this._dedupService = new DeduplicationService(prefix);
-	}
-
-	get streamOps(): StreamGroupOperations {
-		return this._streamOps;
-	}
-
-	get pendingAckOps(): PendingAckOperations {
-		return this._pendingAckOps;
-	}
-
-	get claimManager(): ClaimExecutor {
-		return this._claimManager;
-	}
-
-	get dedupService(): DeduplicationService {
-		return this._dedupService;
 	}
 
 	recoverPendingAcks(
@@ -128,11 +118,16 @@ export class MessageRoutingFacade {
 		await this._pendingAckOps.addPendingAck(instanceId, messageId, data);
 	}
 
-	async removePendingAck(instanceId: InstanceId, messageId: string): Promise<void> {
+	async removePendingAck(
+		instanceId: InstanceId,
+		messageId: string
+	): Promise<void> {
 		await this._pendingAckOps.removePendingAck(instanceId, messageId);
 	}
 
-	getPendingAcks(instanceId: InstanceId): Promise<Record<string, PendingAckData>> {
+	getPendingAcks(
+		instanceId: InstanceId
+	): Promise<Record<string, PendingAckData>> {
 		return this._pendingAckOps.getPendingAcks(instanceId);
 	}
 
@@ -141,6 +136,9 @@ export class MessageRoutingFacade {
 	}
 
 	tryDeduplicate(params: DedupConfig): Promise<boolean> {
-		return this._dedupService.tryDeduplicate(params);
+		return this._dedupService.tryDeduplicate(
+			params.deduplicationId,
+			params.ttlS
+		);
 	}
 }

@@ -1,14 +1,21 @@
-﻿import type { Topic } from "@trading-model/common/domain/primitives";
+﻿import {
+	DurationMs,
+	type Topic,
+	UnixTimestamp,
+} from "@trading-model/common/domain/primitives";
 import { ACL_DENY } from "./acl-constants";
 
-const ACL_CACHE_TTL_MS = 300_000;
+const ACL_CACHE_TTL_MS = DurationMs.of(300_000);
 const ACL_CACHE_MAX_SIZE = 1000;
-const ACL_CACHE = new Map<string, { services: string[]; expiresAt: number }>();
-const ACL_LOADING = new Map<string, Promise<string[] | typeof ACL_DENY>>();
+const ACL_CACHE = new Map<
+	Topic,
+	{ services: string[]; expiresAt: UnixTimestamp }
+>();
+const ACL_LOADING = new Map<Topic, Promise<string[] | typeof ACL_DENY>>();
 
-function aclTtlWithJitter(): number {
+function aclTtlWithJitter(): DurationMs {
 	const jitter = ACL_CACHE_TTL_MS * 0.1 * (Math.random() * 2 - 1);
-	return Math.round(ACL_CACHE_TTL_MS + jitter);
+	return DurationMs.of(Math.round(ACL_CACHE_TTL_MS + jitter));
 }
 
 function evictIfNeeded(): void {
@@ -23,7 +30,7 @@ function evictIfNeeded(): void {
 }
 
 function getFromCache(topic: Topic): string[] | null {
-	const now = Date.now();
+	const now = UnixTimestamp.now();
 	const cached = ACL_CACHE.get(topic);
 	if (cached && now < cached.expiresAt) {
 		return cached.services;
@@ -35,12 +42,14 @@ function cacheAndReturn(topic: Topic, services: string[]): string[] {
 	evictIfNeeded();
 	ACL_CACHE.set(topic, {
 		services,
-		expiresAt: Date.now() + aclTtlWithJitter(),
+		expiresAt: UnixTimestamp.of(Date.now() + aclTtlWithJitter()),
 	});
 	return services;
 }
 
-function peekInFlight(topic: Topic): Promise<string[] | typeof ACL_DENY> | undefined {
+function peekInFlight(
+	topic: Topic
+): Promise<string[] | typeof ACL_DENY> | undefined {
 	return ACL_LOADING.get(topic);
 }
 

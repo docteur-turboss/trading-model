@@ -72,7 +72,10 @@ function _mutateActivation(
 	mutation: MutationGenome,
 	rng: () => number
 ): ActivationType {
-	if (mutation.mutateActivations && rng() < mutation.rates.activationMutationRate) {
+	if (
+		mutation.mutateActivations &&
+		rng() < mutation.rates.activationMutationRate
+	) {
 		return pick(ACTIVATIONS, rng);
 	}
 	return layer.activation;
@@ -93,7 +96,9 @@ function _mutateBiasType(
 	mutation: MutationGenome,
 	rng: () => number
 ): InitialisationType {
-	return rng() < mutation.rates.rate * 0.2 ? pick(BIAS_TYPES, rng) : layer.biasType;
+	return rng() < mutation.rates.rate * 0.2
+		? pick(BIAS_TYPES, rng)
+		: layer.biasType;
 }
 
 export function mutateLayer(

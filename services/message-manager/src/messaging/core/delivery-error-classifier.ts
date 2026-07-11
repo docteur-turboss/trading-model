@@ -1,4 +1,10 @@
 ﻿import { DeliveryMode } from "@trading-model/common/config/delivery-mode.types";
+import type {
+	DurationMs,
+	PositiveInt,
+	SequenceNumber,
+	UnixTimestamp,
+} from "@trading-model/common/domain/primitives";
 import { isDeadLetterError } from "@trading-model/common/utils/errors";
 import type { DeliveryParams } from "./delivery-params";
 
@@ -22,7 +28,7 @@ export type ErrorAction =
 export class DeliveryErrorClassifier {
 	classify(
 		err: unknown,
-		deliveryAttempt: number,
+		deliveryAttempt: SequenceNumber,
 		{ ttl, emittedAt, deliveryMode }: DeliveryParams
 	): ErrorAction {
 		if (isDeadLetterError(err)) {
@@ -39,13 +45,16 @@ export class DeliveryErrorClassifier {
 		}
 
 		if (deliveryAttempt >= MAX_RETRIES) {
-			return { action: ErrorActionType.DLQ, reason: DlqReason.MaxRetriesExceeded };
+			return {
+				action: ErrorActionType.DLQ,
+				reason: DlqReason.MaxRetriesExceeded,
+			};
 		}
 
 		return { action: ErrorActionType.RETRY };
 	}
 
-	private _isExpired(ttl: number, emittedAt: number): boolean {
+	private _isExpired(ttl: DurationMs, emittedAt: UnixTimestamp): boolean {
 		if (ttl <= 0 || emittedAt <= 0) {
 			return false;
 		}
@@ -53,4 +62,4 @@ export class DeliveryErrorClassifier {
 	}
 }
 
-const MAX_RETRIES = 10;
+const MAX_RETRIES = 10 as PositiveInt;

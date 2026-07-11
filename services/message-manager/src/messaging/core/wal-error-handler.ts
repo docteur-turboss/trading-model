@@ -1,4 +1,5 @@
-﻿import type { WalEntryParser } from "./wal-entry-parser";
+﻿import type { SequenceNumber } from "@trading-model/common/domain/primitives";
+import type { WalEntryParser } from "./wal-entry-parser";
 import { WalFlushErrorHandler } from "./wal-flush-error-handler";
 
 export enum WalErrorAction {
@@ -19,7 +20,7 @@ export class WalErrorHandler {
 
 	handleFlushError(
 		raw: string[],
-		consecutiveErrors: number
+		consecutiveErrors: SequenceNumber
 	): Promise<WalErrorAction> {
 		return this._delegate.handle(raw, consecutiveErrors, this._walKey());
 	}

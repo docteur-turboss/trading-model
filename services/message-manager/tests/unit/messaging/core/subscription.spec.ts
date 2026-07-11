@@ -63,7 +63,7 @@ describe("Subscription", () => {
 				.mockResolvedValueOnce(undefined);
 
 			const message = createMockMessage("payload", {
-				delivery: { mode: DeliveryMode.AT_LEAST_ONCE, ttl: 60000 },
+				delivery: { mode: DeliveryMode.AtLeastOnce, ttl: 60000 },
 			});
 
 			await subscription.dispatch(message);
@@ -79,7 +79,7 @@ describe("Subscription", () => {
 			);
 
 			const message = createMockMessage("payload", {
-				delivery: { mode: DeliveryMode.AT_LEAST_ONCE, ttl: 60000 },
+				delivery: { mode: DeliveryMode.AtLeastOnce, ttl: 60000 },
 			});
 			await subscription.dispatch(message);
 
@@ -100,7 +100,7 @@ describe("Subscription", () => {
 
 			const message = createMockMessage("payload", {
 				emittedAt: new Date("2026-01-01T00:00:00Z"),
-				delivery: { mode: DeliveryMode.AT_LEAST_ONCE, ttl: 1 },
+				delivery: { mode: DeliveryMode.AtLeastOnce, ttl: 1 },
 			});
 			await subscription.dispatch(message);
 
@@ -117,7 +117,7 @@ describe("Subscription", () => {
 			mockDeliveryPort.send.mockRejectedValue(new Error("Consumer error"));
 
 			const message = createMockMessage("payload", {
-				delivery: { mode: DeliveryMode.AT_MOST_ONCE, ttl: 60000 },
+				delivery: { mode: DeliveryMode.AtMostOnce, ttl: 60000 },
 			});
 			await subscription.dispatch(message);
 
@@ -132,7 +132,7 @@ describe("Subscription", () => {
 			);
 
 			const message = createMockMessage("payload", {
-				delivery: { mode: DeliveryMode.AT_MOST_ONCE, ttl: 60000 },
+				delivery: { mode: DeliveryMode.AtMostOnce, ttl: 60000 },
 			});
 			await subscription.dispatch(message);
 
@@ -148,7 +148,7 @@ describe("Subscription", () => {
 			mockDeliveryPort.send.mockRejectedValue(new Error("Transient error"));
 
 			const message = createMockMessage("payload", {
-				delivery: { mode: DeliveryMode.EXACTLY_ONCE, ttl: 60000 },
+				delivery: { mode: DeliveryMode.ExactlyOnce, ttl: 60000 },
 			});
 			await subscription.dispatch(message);
 
@@ -159,7 +159,7 @@ describe("Subscription", () => {
 			mockDeliveryPort.send.mockRejectedValue(new Error("Transient error"));
 
 			const message = createMockMessage("payload", {
-				delivery: { mode: DeliveryMode.AT_LEAST_ONCE, ttl: 60000 },
+				delivery: { mode: DeliveryMode.AtLeastOnce, ttl: 60000 },
 			});
 
 			await subscription.dispatch(message);
@@ -175,7 +175,7 @@ describe("Subscription", () => {
 			mockDeliveryPort.send.mockRejectedValue(new Error("Service down"));
 
 			const message = createMockMessage("payload", {
-				delivery: { mode: DeliveryMode.AT_LEAST_ONCE, ttl: 60000 },
+				delivery: { mode: DeliveryMode.AtLeastOnce, ttl: 60000 },
 			});
 
 			for (let i = 0; i < 5; i++) {
@@ -187,8 +187,8 @@ describe("Subscription", () => {
 
 			expect(mockDeliveryPort.markDeadLetter).toHaveBeenCalledWith({
 				message,
-				reason: "CIRCUIT_OPEN",
-				deliveryAttempt: expect.any(Number),
+				reason: "OPEN",
+				deliveryAttempt: 5,
 			});
 		});
 
@@ -198,7 +198,7 @@ describe("Subscription", () => {
 				.mockResolvedValueOnce(undefined);
 
 			const message = createMockMessage("payload", {
-				delivery: { mode: DeliveryMode.AT_LEAST_ONCE, ttl: 60000 },
+				delivery: { mode: DeliveryMode.AtLeastOnce, ttl: 60000 },
 			});
 
 			await subscription.dispatch(message);
@@ -217,7 +217,7 @@ describe("Subscription", () => {
 			mockDeliveryPort.send.mockResolvedValue(undefined);
 
 			const message = createMockMessage("payload", {
-				delivery: { mode: DeliveryMode.AT_MOST_ONCE, ttl: 60000 },
+				delivery: { mode: DeliveryMode.AtMostOnce, ttl: 60000 },
 			});
 			await subscription.dispatch(message);
 
@@ -228,7 +228,7 @@ describe("Subscription", () => {
 			mockDeliveryPort.send.mockResolvedValue(undefined);
 
 			const message = createMockMessage("payload", {
-				delivery: { mode: DeliveryMode.EXACTLY_ONCE, ttl: 60000 },
+				delivery: { mode: DeliveryMode.ExactlyOnce, ttl: 60000 },
 			});
 			await subscription.dispatch(message);
 
@@ -274,7 +274,7 @@ describe("Subscription", () => {
 			mockDeliveryPort.send.mockRejectedValue(deadLetterError("Unrecoverable"));
 
 			const message = createMockMessage("payload", {
-				delivery: { mode: DeliveryMode.AT_LEAST_ONCE, ttl: 60000 },
+				delivery: { mode: DeliveryMode.AtLeastOnce, ttl: 60000 },
 			});
 			await subscription.dispatch(message);
 

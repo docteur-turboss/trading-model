@@ -1,5 +1,9 @@
 ﻿import { DeliveryMode } from "@trading-model/common/config/delivery-mode.types";
 import { isNonRetryableClientError } from "@trading-model/common/config/http-retry";
+import type {
+	PositiveInt,
+	SequenceNumber,
+} from "@trading-model/common/domain/primitives";
 import { isDeadLetterError } from "@trading-model/common/utils/errors";
 
 interface DeliveryDecision {
@@ -14,8 +18,8 @@ interface DeliveryDecision {
 export interface DeliveryFailureInput {
 	error: Error & { statusCode?: number; reason?: string };
 	deliveryMode: DeliveryMode;
-	deliveryAttempt: number;
-	maxRetries: number;
+	deliveryAttempt: SequenceNumber;
+	maxRetries: PositiveInt;
 }
 
 export function classifyDeliveryFailure({
@@ -36,7 +40,10 @@ function checkDeadLetter(
 	error: Error & { statusCode?: number; reason?: string }
 ): DeliveryDecision | null {
 	if (isDeadLetterError(error)) {
-		return { retry: false, deadLetterReason: error.reason ?? "DEAD_LETTER" };
+		return {
+			retry: false,
+			deadLetterReason: error.reason ?? "DEAD_LETTER",
+		};
 	}
 	return null;
 }
@@ -64,8 +71,8 @@ function checkAtMostOnce(deliveryMode: DeliveryMode): DeliveryDecision | null {
 }
 
 function checkMaxRetries(
-	deliveryAttempt: number,
-	maxRetries: number
+	deliveryAttempt: SequenceNumber,
+	maxRetries: SequenceNumber | PositiveInt
 ): DeliveryDecision | null {
 	if (deliveryAttempt >= maxRetries) {
 		return { retry: false, deadLetterReason: "MAX_RETRIES" };

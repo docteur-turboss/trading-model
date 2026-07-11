@@ -58,12 +58,14 @@ describe("MongoArchiveStore", () => {
 	it("should start and connect to MongoDB", async () => {
 		const store = new MongoArchiveStore();
 		await store.start();
+		await store.stop();
 	});
 
 	it("should not start twice", async () => {
 		const store = new MongoArchiveStore();
 		await store.start();
 		await store.start();
+		await store.stop();
 	});
 
 	it("should stop and clean up", async () => {

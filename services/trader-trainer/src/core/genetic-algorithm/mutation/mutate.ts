@@ -19,12 +19,12 @@ export function mutateGenome(
 	const network = mutateNetworkStructure({
 		genome,
 		mutationConfig,
-		_sigma: sigma,
+		sigma: sigma,
 		rng,
 	});
 
 	const rl: typeof genome.rl = mutationConfig.mutateHyperparams
-		? mutateRL({ rl: genome.rl, mutation: mutationConfig, _sigma: sigma, rng })
+		? mutateRL({ rl: genome.rl, mutation: mutationConfig, sigma: sigma, rng })
 		: { ...genome.rl };
 
 	const mutation = mutateSelfAdaptiveParams(mutationConfig, sigma, rng);

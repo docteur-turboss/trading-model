@@ -7,6 +7,7 @@ import type {
 import {
 	ActivationType,
 	ConnectionType,
+	ExperienceKind,
 	NormalisationType,
 } from "../../../src/core/neural-network/type";
 
@@ -137,7 +138,7 @@ describe("Agent", () => {
 			const pool = agent.experience.getPool();
 			const exp = pool[0];
 
-			if (exp.kind === "qlearning") {
+			if (exp.kind === ExperienceKind.QLearning) {
 				expect(exp.reward).toBe(1.5);
 				expect(exp.done).toBe(false);
 			} else {
@@ -286,7 +287,7 @@ describe("Agent", () => {
 
 		it("should throw when reward is missing", () => {
 			const exp: Experience = {
-				kind: "bare",
+				kind: ExperienceKind.Bare as const,
 				input: new Float32Array([0.5, -0.3, 0.1, 0.8]),
 				output: new Float32Array([0.1, 0.2, 0.3]),
 			};
@@ -296,7 +297,7 @@ describe("Agent", () => {
 
 		it("should throw when nextState is missing", () => {
 			const exp: Experience = {
-				kind: "bare",
+				kind: ExperienceKind.Bare as const,
 				input: new Float32Array([0.5, -0.3, 0.1, 0.8]),
 				output: new Float32Array([0.1, 0.2, 0.3]),
 			};

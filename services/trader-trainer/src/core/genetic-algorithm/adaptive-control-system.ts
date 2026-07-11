@@ -95,17 +95,16 @@ function _buildAdjustedControl(
 		...ctrl,
 		population: {
 			...ctrl.population,
-			size: adjustPopulationSize(
-				ctrl.population.size,
-				stagnation,
-				isImproving
-			),
+			size: adjustPopulationSize(ctrl.population.size, stagnation, isImproving),
 			elitismFraction: adjustElitism(
 				ctrl.population.elitismFraction,
 				stagnation,
 				isImproving
 			),
-			survivorFraction: adjustSurvivors(ctrl.population.survivorFraction, stagnation),
+			survivorFraction: adjustSurvivors(
+				ctrl.population.survivorFraction,
+				stagnation
+			),
 		},
 		evaluation: {
 			...ctrl.evaluation,

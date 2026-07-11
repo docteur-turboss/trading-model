@@ -1,34 +1,149 @@
 export const FEATURE_DIM = 32;
 
-type FeatureField = {
+interface FeatureField {
 	get: (fv: FeatureVector) => number;
 	set: (fv: FeatureVector, value: number) => void;
-};
+}
 
 const FEATURE_FIELDS: FeatureField[] = [
-	{ get: (f) => f.candle.close, set: (f, v) => { f.candle.close = v; } },
-	{ get: (f) => f.candle.volume, set: (f, v) => { f.candle.volume = v; } },
-	{ get: (f) => f.candle.returnRatio, set: (f, v) => { f.candle.returnRatio = v; } },
-	{ get: (f) => f.candle.positionRatio, set: (f, v) => { f.candle.positionRatio = v; } },
-	{ get: (f) => f.candle.rangeRatio, set: (f, v) => { f.candle.rangeRatio = v; } },
-	{ get: (f) => f.candle.open, set: (f, v) => { f.candle.open = v; } },
-	{ get: (f) => f.candle.high, set: (f, v) => { f.candle.high = v; } },
-	{ get: (f) => f.candle.low, set: (f, v) => { f.candle.low = v; } },
-	{ get: (f) => f.candle.volumeRatio, set: (f, v) => { f.candle.volumeRatio = v; } },
-	{ get: (f) => f.orderBook.avgBid, set: (f, v) => { f.orderBook.avgBid = v; } },
-	{ get: (f) => f.orderBook.avgAsk, set: (f, v) => { f.orderBook.avgAsk = v; } },
-	{ get: (f) => f.orderBook.spreadRatio, set: (f, v) => { f.orderBook.spreadRatio = v; } },
-	{ get: (f) => f.orderBook.imbalance, set: (f, v) => { f.orderBook.imbalance = v; } },
-	{ get: (f) => f.bookTicker.bid, set: (f, v) => { f.bookTicker.bid = v; } },
-	{ get: (f) => f.bookTicker.ask, set: (f, v) => { f.bookTicker.ask = v; } },
-	{ get: (f) => f.bookTicker.spreadRatio, set: (f, v) => { f.bookTicker.spreadRatio = v; } },
-	{ get: (f) => f.trade.avgPrice, set: (f, v) => { f.trade.avgPrice = v; } },
-	{ get: (f) => f.trade.totalQty, set: (f, v) => { f.trade.totalQty = v; } },
-	{ get: (f) => f.trade.buyRatio, set: (f, v) => { f.trade.buyRatio = v; } },
-	{ get: (f) => f.ticker.priceChange, set: (f, v) => { f.ticker.priceChange = v; } },
-	{ get: (f) => f.ticker.volume, set: (f, v) => { f.ticker.volume = v; } },
-	{ get: (f) => f.ticker.dailyRange, set: (f, v) => { f.ticker.dailyRange = v; } },
-	{ get: (f) => f.priceSnapshot, set: (f, v) => { f.priceSnapshot = v; } },
+	{
+		get: (fv) => fv.candle.close,
+		set: (fv, val) => {
+			fv.candle.close = val;
+		},
+	},
+	{
+		get: (fv) => fv.candle.volume,
+		set: (fv, val) => {
+			fv.candle.volume = val;
+		},
+	},
+	{
+		get: (fv) => fv.candle.returnRatio,
+		set: (fv, val) => {
+			fv.candle.returnRatio = val;
+		},
+	},
+	{
+		get: (fv) => fv.candle.positionRatio,
+		set: (fv, val) => {
+			fv.candle.positionRatio = val;
+		},
+	},
+	{
+		get: (fv) => fv.candle.rangeRatio,
+		set: (fv, val) => {
+			fv.candle.rangeRatio = val;
+		},
+	},
+	{
+		get: (fv) => fv.candle.open,
+		set: (fv, val) => {
+			fv.candle.open = val;
+		},
+	},
+	{
+		get: (fv) => fv.candle.high,
+		set: (fv, val) => {
+			fv.candle.high = val;
+		},
+	},
+	{
+		get: (fv) => fv.candle.low,
+		set: (fv, val) => {
+			fv.candle.low = val;
+		},
+	},
+	{
+		get: (fv) => fv.candle.volumeRatio,
+		set: (fv, val) => {
+			fv.candle.volumeRatio = val;
+		},
+	},
+	{
+		get: (fv) => fv.orderBook.avgBid,
+		set: (fv, val) => {
+			fv.orderBook.avgBid = val;
+		},
+	},
+	{
+		get: (fv) => fv.orderBook.avgAsk,
+		set: (fv, val) => {
+			fv.orderBook.avgAsk = val;
+		},
+	},
+	{
+		get: (fv) => fv.orderBook.spreadRatio,
+		set: (fv, val) => {
+			fv.orderBook.spreadRatio = val;
+		},
+	},
+	{
+		get: (fv) => fv.orderBook.imbalance,
+		set: (fv, val) => {
+			fv.orderBook.imbalance = val;
+		},
+	},
+	{
+		get: (fv) => fv.bookTicker.bid,
+		set: (fv, val) => {
+			fv.bookTicker.bid = val;
+		},
+	},
+	{
+		get: (fv) => fv.bookTicker.ask,
+		set: (fv, val) => {
+			fv.bookTicker.ask = val;
+		},
+	},
+	{
+		get: (fv) => fv.bookTicker.spreadRatio,
+		set: (fv, val) => {
+			fv.bookTicker.spreadRatio = val;
+		},
+	},
+	{
+		get: (fv) => fv.trade.avgPrice,
+		set: (fv, val) => {
+			fv.trade.avgPrice = val;
+		},
+	},
+	{
+		get: (fv) => fv.trade.totalQty,
+		set: (fv, val) => {
+			fv.trade.totalQty = val;
+		},
+	},
+	{
+		get: (fv) => fv.trade.buyRatio,
+		set: (fv, val) => {
+			fv.trade.buyRatio = val;
+		},
+	},
+	{
+		get: (fv) => fv.ticker.priceChange,
+		set: (fv, val) => {
+			fv.ticker.priceChange = val;
+		},
+	},
+	{
+		get: (fv) => fv.ticker.volume,
+		set: (fv, val) => {
+			fv.ticker.volume = val;
+		},
+	},
+	{
+		get: (fv) => fv.ticker.dailyRange,
+		set: (fv, val) => {
+			fv.ticker.dailyRange = val;
+		},
+	},
+	{
+		get: (fv) => fv.priceSnapshot,
+		set: (fv, val) => {
+			fv.priceSnapshot = val;
+		},
+	},
 ];
 
 const FEATURE_COUNT = FEATURE_FIELDS.length;
@@ -137,15 +252,17 @@ export class FeatureVector {
 }
 
 class FeatureVectorCodec {
-	private static readonly SLIDING_WINDOW_SIZE = 8;
+	private static readonly _SLIDING_WINDOW_SIZE = 8;
 	// Last element reserved for bias term
-	private static readonly BIAS_INDEX = FEATURE_DIM - 1;
+	private static readonly _BIAS_INDEX = FEATURE_DIM - 1;
 	private readonly _slidingWindow: Float32Array;
 	private readonly _fv: FeatureVector;
 
 	constructor(fv: FeatureVector) {
 		this._fv = fv;
-		this._slidingWindow = new Float32Array(FeatureVectorCodec.SLIDING_WINDOW_SIZE);
+		this._slidingWindow = new Float32Array(
+			FeatureVectorCodec._SLIDING_WINDOW_SIZE
+		);
 	}
 
 	slidingWindow(): Float32Array {
@@ -157,10 +274,10 @@ class FeatureVectorCodec {
 		for (let i = 0; i < FEATURE_COUNT; i++) {
 			arr[i] = FEATURE_FIELDS[i].get(this._fv);
 		}
-		for (let i = 0; i < FeatureVectorCodec.SLIDING_WINDOW_SIZE; i++) {
+		for (let i = 0; i < FeatureVectorCodec._SLIDING_WINDOW_SIZE; i++) {
 			arr[SLIDING_WINDOW_OFFSET + i] = this._slidingWindow[i];
 		}
-		arr[FeatureVectorCodec.BIAS_INDEX] = this._fv.bias;
+		arr[FeatureVectorCodec._BIAS_INDEX] = this._fv.bias;
 		return arr;
 	}
 
@@ -168,9 +285,9 @@ class FeatureVectorCodec {
 		for (let i = 0; i < FEATURE_COUNT; i++) {
 			FEATURE_FIELDS[i].set(this._fv, data[i] ?? 0);
 		}
-		for (let i = 0; i < FeatureVectorCodec.SLIDING_WINDOW_SIZE; i++) {
+		for (let i = 0; i < FeatureVectorCodec._SLIDING_WINDOW_SIZE; i++) {
 			this._slidingWindow[i] = data[SLIDING_WINDOW_OFFSET + i] ?? 0;
 		}
-		this._fv.bias = data[FeatureVectorCodec.BIAS_INDEX] ?? 0;
+		this._fv.bias = data[FeatureVectorCodec._BIAS_INDEX] ?? 0;
 	}
 }

@@ -1,5 +1,8 @@
 import { describe, expect, it, jest } from "@jest/globals";
-import { REDIS_RESP, REDIS_STATUS } from "@trading-model/common/persistence/redis-constants";
+import {
+	REDIS_RESP,
+	REDIS_STATUS,
+} from "@trading-model/common/persistence/redis-constants";
 
 jest.mock("../../../../src/config/logger", () => ({
 	logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },

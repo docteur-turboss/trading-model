@@ -17,7 +17,11 @@ export enum DrainStateKind {
 export class WalDrainCoordinator {
 	private _drainState:
 		| { kind: DrainStateKind.Idle }
-		| { kind: DrainStateKind.Draining; deferred: DrainDeferred; timer: TimerHandle }
+		| {
+				kind: DrainStateKind.Draining;
+				deferred: DrainDeferred;
+				timer: TimerHandle;
+		  }
 		| { kind: DrainStateKind.DrainRequested } = { kind: DrainStateKind.Idle };
 	private _walFlushWaiters: Array<() => void> = [];
 

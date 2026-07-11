@@ -36,22 +36,21 @@ function _computePnL(
 	valuation: Cash,
 	params: ComputeWalletMetricsParams
 ): Cash {
-	return Cash.of(
-		round(Number(valuation) - Number(params.initialCash), params.decimals)
-	);
+	return round(
+		Number(valuation) - Number(params.initialCash),
+		params.decimals
+	) as Cash;
 }
 
 function _computeReturnRate(
 	valuation: Cash,
 	params: ComputeWalletMetricsParams
 ): Percentage {
-	return Percentage.of(
-		round(
-			(Number(valuation) - Number(params.initialCash)) /
-				Number(params.initialCash),
-			params.decimals
-		)
-	);
+	return round(
+		(Number(valuation) - Number(params.initialCash)) /
+			Number(params.initialCash),
+		params.decimals
+	) as unknown as Percentage;
 }
 
 function _computeDrawdown(

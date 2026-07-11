@@ -1,7 +1,7 @@
 export {
 	decodeGenome,
 	decodePopulation,
+	encodedDim as ENCODED_DIM,
 	encodeGenome,
 	encodePopulation,
-	encodedDim as ENCODED_DIM,
 } from "./encoding-indices";

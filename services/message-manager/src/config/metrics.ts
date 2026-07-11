@@ -1,5 +1,10 @@
-﻿import { metricsHandler } from "@trading-model/common/server/metrics-handler";
+﻿import { CircuitState } from "@trading-model/common/domain/circuit-state";
+import { metricsHandler } from "@trading-model/common/server/metrics-handler";
 import promClient from "prom-client";
+
+const circuitBreakerStates = Object.values(CircuitState)
+	.map((state, index) => `${index}=${state}`)
+	.join(", ");
 
 promClient.collectDefaultMetrics({ prefix: "mm_" });
 
@@ -42,7 +47,7 @@ export const SUBSCRIPTION_COUNT = new promClient.Gauge({
 
 export const CIRCUIT_BREAKER_STATE = new promClient.Gauge({
 	name: "mm_circuit_breaker_state",
-	help: "Circuit breaker state (0=closed, 1=open, 2=half-open)",
+	help: `Circuit breaker state (${circuitBreakerStates})`,
 	labelNames: ["subscriber"] as const,
 });
 

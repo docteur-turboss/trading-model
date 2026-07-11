@@ -21,16 +21,19 @@ import {
 describe("Mutation - adaptSigma", () => {
 	const rng = () => 0.5;
 
-	function makeMutationGenome(
-		overrides?: Partial<MutationGenome>
-	): MutationGenome {
+	function makeMutationGenome(overrides?: Record<string, any>): MutationGenome {
 		const base = createDefaultGenome("test").mutation;
 		return {
+			...base.rates,
+			...base.structural,
 			...base,
 			...overrides,
-			rates: { ...base.rates, ...overrides?.rates } as MutationGenome["rates"],
-			structural: { ...base.structural, ...overrides?.structural } as MutationGenome["structural"],
-		} as MutationGenome;
+			rates: { ...base.rates, ...((overrides?.rates as any) ?? {}) },
+			structural: {
+				...base.structural,
+				...((overrides?.structural as any) ?? {}),
+			},
+		} as any;
 	}
 
 	test("fixed adaptation returns sigma directly", () => {
@@ -65,24 +68,21 @@ describe("Mutation - adaptSigma", () => {
 		// selfSigma ≈ 1.0 → path at expected length → sigma stays ~unchanged
 		const m1 = makeMutationGenome({
 			adaptation: MutationAdaptation.Cma,
-			sigma: 0.5,
-			selfSigma: 1.0,
+			rates: { sigma: 0.5, selfSigma: 1.0 },
 		});
 		expect(adaptSigma(m1, rng)).toBeCloseTo(0.5, 5);
 
 		// selfSigma < 1.0 → short path → sigma decreases (exploitation)
 		const m2 = makeMutationGenome({
 			adaptation: MutationAdaptation.Cma,
-			sigma: 0.5,
-			selfSigma: 0.1,
+			rates: { sigma: 0.5, selfSigma: 0.1 },
 		});
 		expect(adaptSigma(m2, rng)).toBeLessThan(0.5);
 
 		// selfSigma > 1.0 → long path → sigma increases (exploration)
 		const m3 = makeMutationGenome({
 			adaptation: MutationAdaptation.Cma,
-			sigma: 0.5,
-			selfSigma: 2.0,
+			rates: { sigma: 0.5, selfSigma: 2.0 },
 		});
 		expect(adaptSigma(m3, rng)).toBeGreaterThan(0.5);
 	});
@@ -90,7 +90,7 @@ describe("Mutation - adaptSigma", () => {
 	test("unknown adaptation returns sigma", () => {
 		const m = makeMutationGenome({
 			adaptation: "unknown_value" as any,
-			sigma: 0.5,
+			rates: { sigma: 0.5 },
 		});
 		expect(adaptSigma(m, rng)).toBe(0.5);
 	});

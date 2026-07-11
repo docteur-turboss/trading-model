@@ -1,4 +1,7 @@
-﻿import type { Topic, InstanceId } from "@trading-model/common/domain/primitives";
+﻿import type {
+	InstanceId,
+	Topic,
+} from "@trading-model/common/domain/primitives";
 
 export class RedisSubscriptionKeys {
 	constructor(private readonly _prefix: string) {}

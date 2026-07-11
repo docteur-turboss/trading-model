@@ -59,20 +59,25 @@ export function fetchUrl(
 	});
 }
 
-export function computeDlqSignature(
-	serviceName: string,
-	secret: string,
-	body: unknown,
-	timestamp: string,
-	method: string,
-	path: string
-): string {
+export interface DlqSignatureInput {
+	serviceName: string;
+	secret: string;
+	body: unknown;
+	timestamp: string;
+	method: string;
+	path: string;
+}
+
+export function computeDlqSignature(input: DlqSignatureInput): string {
 	const bodyHash = crypto
 		.createHash("sha256")
-		.update(JSON.stringify(body))
+		.update(JSON.stringify(input.body))
 		.digest("hex");
-	const payload = `${serviceName}:${timestamp}:${bodyHash}:${method}:${path}`;
-	return crypto.createHmac("sha256", secret).update(payload).digest("hex");
+	const payload = `${input.serviceName}:${input.timestamp}:${bodyHash}:${input.method}:${input.path}`;
+	return crypto
+		.createHmac("sha256", input.secret)
+		.update(payload)
+		.digest("hex");
 }
 
 export const PORTS = {

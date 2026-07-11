@@ -1,8 +1,8 @@
 import type { BaseSymbolState, SymbolNormalizers } from "./market-data-types";
 
-type NormJSON<T> = T extends NormalizationStats
+type NormJSON<Type> = Type extends NormalizationStats
 	? ReturnType<NormalizationStats["toJSON"]>
-	: { [K in keyof T]: NormJSON<T[K]> };
+	: { [Key in keyof Type]: NormJSON<Type[Key]> };
 
 type NormalizationStats = import("./normalization-stats").NormalizationStats;
 

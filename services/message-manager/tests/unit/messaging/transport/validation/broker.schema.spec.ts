@@ -113,7 +113,7 @@ describe("Broker Schemas", () => {
 					priority: 10,
 				},
 				delivery: {
-					mode: DeliveryMode.AT_LEAST_ONCE,
+					mode: DeliveryMode.AtLeastOnce,
 					ttl: 60000,
 					deduplicationId: "dedup-789",
 				},
@@ -187,7 +187,7 @@ describe("Broker Schemas", () => {
 					instanceId: "instance-1",
 				},
 				delivery: {
-					mode: DeliveryMode.AT_LEAST_ONCE,
+					mode: DeliveryMode.AtLeastOnce,
 					ttl: -1,
 				},
 			});

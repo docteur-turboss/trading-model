@@ -70,10 +70,7 @@ export class SymbolStateManager {
 		data: unknown
 	): void {
 		const maxSize = this._memoryManager.getMaxSize();
-		const state = this.states.get(symbol);
-		if (!state) {
-			return;
-		}
+		const state = this._getOrCreate(symbol);
 		const handler = this._handlerMap[dataType];
 		if (!handler) {
 			return;

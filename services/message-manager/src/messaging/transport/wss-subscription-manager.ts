@@ -1,8 +1,8 @@
-﻿import {
+﻿import type { Topic } from "@trading-model/common/domain/primitives";
+import {
 	type ServiceIdentity,
 	toServiceIdentityKey,
 } from "@trading-model/common/domain/service-identity";
-import type { Topic } from "@trading-model/common/domain/primitives";
 import WebSocket from "ws";
 import { TopicSubscriptionHandler } from "./topic-subscription-handler";
 import type { WsTransportMessage } from "./wss-message.types";

@@ -1,1 +1,3 @@
-﻿export const LEASE_HEARTBEAT_FIELD = "heartbeat" as const;
+﻿export type LeaseField = "heartbeat";
+
+export const LEASE_HEARTBEAT_FIELD: LeaseField = "heartbeat";

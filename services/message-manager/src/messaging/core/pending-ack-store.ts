@@ -36,7 +36,9 @@ export class PendingAckStore {
 		await redis.hdel(this._pendingKey(instanceId), messageId);
 	}
 
-	async getAll(instanceId: InstanceId): Promise<Record<string, PendingAckData>> {
+	async getAll(
+		instanceId: InstanceId
+	): Promise<Record<string, PendingAckData>> {
 		const redis = await getStreamClient();
 		const result: Record<string, PendingAckData> = {};
 		let cursor = "0";

@@ -163,7 +163,7 @@ describe("Dispatcher", () => {
 				logger: { info: jest.Mock; warn: jest.Mock; error: jest.Mock };
 			};
 			expect(logger.error).toHaveBeenCalledWith("Message delivery failed", {
-				error: new Error("Unhandled error"),
+				context: { error: new Error("Unhandled error") },
 			});
 
 			jest.restoreAllMocks();

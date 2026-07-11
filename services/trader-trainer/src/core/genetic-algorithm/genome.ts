@@ -1,13 +1,12 @@
 import type { GenomeId, Price } from "@trading-model/common/domain/primitives";
 import type { FeatureVector } from "../feature-vector.js";
-import type { EpisodeScores } from "./episode-scores";
-
 import type {
 	ActivationType,
 	ConnectionType,
 	InitialisationType,
 	NormalisationType,
 } from "../neural-network/type";
+import type { EpisodeScores } from "./episode-scores";
 
 export {
 	ActivationType,
@@ -212,15 +211,24 @@ export interface GATerminationConfig {
 	timeBudgetMs: number;
 }
 
-export function shouldTerminateByReward(config: GATerminationConfig, bestFitness: number): boolean {
+export function shouldTerminateByReward(
+	config: GATerminationConfig,
+	bestFitness: number
+): boolean {
 	return bestFitness >= config.rewardThreshold;
 }
 
-export function shouldTerminateByStagnation(config: GATerminationConfig, stagnationGenerations: number): boolean {
+export function shouldTerminateByStagnation(
+	config: GATerminationConfig,
+	stagnationGenerations: number
+): boolean {
 	return stagnationGenerations >= config.stagnationPatience;
 }
 
-export function shouldTerminateByBudget(config: GATerminationConfig, startTimeMs: number): boolean {
+export function shouldTerminateByBudget(
+	config: GATerminationConfig,
+	startTimeMs: number
+): boolean {
 	return Date.now() - startTimeMs >= config.timeBudgetMs;
 }
 
@@ -232,7 +240,9 @@ export interface GASeedingConfig {
 }
 
 export function toCombinedSeed(config: GASeedingConfig): number {
-	return ((config.envSeed * 31 + config.mutationSeed) * 31 + config.networkSeed) | 0;
+	return (
+		((config.envSeed * 31 + config.mutationSeed) * 31 + config.networkSeed) | 0
+	);
 }
 
 /** GA evaluation configuration. */

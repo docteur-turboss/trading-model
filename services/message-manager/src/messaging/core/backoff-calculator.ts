@@ -1,10 +1,11 @@
-﻿import { computeExponentialBackoff } from "@trading-model/common/utils/backoff-config";
+﻿import type { SequenceNumber } from "@trading-model/common/domain/primitives";
+import { computeExponentialBackoff } from "@trading-model/common/utils/backoff-config";
 
 const BaseDelayMs = 1000;
 const MaxDelayMs = 60_000;
 const JitterFactor = 0.2;
 
-export function backoffDelay(deliveryAttempt: number): number {
+export function backoffDelay(deliveryAttempt: SequenceNumber): number {
 	const delay = computeExponentialBackoff(deliveryAttempt, {
 		baseDelayMs: BaseDelayMs,
 		maxDelayMs: MaxDelayMs,

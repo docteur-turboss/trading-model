@@ -6,8 +6,9 @@ export class BorderNormalizer implements Normalizer {
 		len: number,
 		params?: NormalizeParams
 	): Float32Array {
-		let lo = params?.lo;
-		let hi = params?.hi;
+		const par = params as { min?: number; max?: number } | undefined;
+		let lo = params?.lo ?? par?.min;
+		let hi = params?.hi ?? par?.max;
 
 		if (lo === undefined || hi === undefined) {
 			let min = data[0];

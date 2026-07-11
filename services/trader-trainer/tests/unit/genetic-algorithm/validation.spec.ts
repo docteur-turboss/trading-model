@@ -28,7 +28,7 @@ describe("Validation - validateGenome", () => {
 
 	test("should detect missing id", () => {
 		const genome = createDefaultGenome("valid");
-		const invalid = { ...genome, id: "" };
+		const invalid = { ...genome, id: "" as any };
 		const result = validateGenome(invalid);
 		expect(result.valid).toBe(false);
 	});

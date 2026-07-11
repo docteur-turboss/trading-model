@@ -1,6 +1,7 @@
 ﻿import { DeliveryMode } from "@trading-model/common/config/delivery-mode.types";
 import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import type { Message } from "@trading-model/common/contracts/message.types";
+import type { SequenceNumber } from "@trading-model/common/domain/primitives";
 import { sleep } from "@trading-model/common/utils/sleep";
 import { resolveTarget } from "./address-resolver";
 import { backoffDelay } from "./backoff-calculator";
@@ -38,7 +39,7 @@ export class DeliveryAttemptHandler {
 		context: SubscribersContext,
 		deliveryParams: DeliveryParams
 	): Promise<boolean> {
-		context.deliveryAttempt++;
+		context.deliveryAttempt = (context.deliveryAttempt + 1) as SequenceNumber;
 
 		const handled = await this._errorHandler.handleDeliveryError(
 			err,

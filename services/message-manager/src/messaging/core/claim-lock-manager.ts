@@ -1,6 +1,5 @@
-﻿import type Redis from "ioredis";
-
-import { REDIS_SET } from "@trading-model/common/persistence/redis-constants";
+﻿import { REDIS_SET } from "@trading-model/common/persistence/redis-constants";
+import type Redis from "ioredis";
 import { logger } from "../../config/logger";
 
 export class ClaimLockManager {

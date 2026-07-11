@@ -1,5 +1,5 @@
-import { ExperienceKind } from "./type";
 import type { ForwardContext, PooledExperience } from "./type";
+import { ExperienceKind } from "./type";
 
 export class LearningPool {
 	private _pool: PooledExperience[] = [];

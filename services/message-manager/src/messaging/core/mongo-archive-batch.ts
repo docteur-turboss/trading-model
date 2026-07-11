@@ -3,6 +3,9 @@ import type { Message } from "@trading-model/common/contracts/message.types";
 import type { Topic } from "@trading-model/common/domain/primitives";
 import { ENV } from "../../config/env";
 import { MongoBatchWriter } from "./mongo-batch-writer";
+
+const MS_PER_DAY = 86_400_000;
+
 import { MongoIndexCreator } from "./mongo-index-creator";
 import type { MongoCollectionConfig } from "./mongo-types";
 
@@ -75,6 +78,6 @@ function _messageToArchiveEntry(msg: Message): ArchiveEntry {
 		payload: msg.payload,
 		metadata: msg.metadata as unknown as Record<string, unknown>,
 		archivedAt: new Date(),
-		ttl: new Date(Date.now() + ENV.MONGO_ARCHIVE_RETENTION_DAYS * 86400_000),
+		ttl: new Date(Date.now() + ENV.MONGO_ARCHIVE_RETENTION_DAYS * MS_PER_DAY),
 	};
 }

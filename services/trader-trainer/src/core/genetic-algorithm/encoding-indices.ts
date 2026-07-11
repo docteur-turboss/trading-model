@@ -1,7 +1,11 @@
-import type { Genome } from "./genome-types";
-import { ActivationType, ConnectionType, InitialisationType } from "../neural-network/type";
-import { createBounded } from "./bounded";
+import {
+	ActivationType,
+	ConnectionType,
+	InitialisationType,
+} from "../neural-network/type";
 import type { Bounded } from "./bounded";
+import { createBounded } from "./bounded";
+import type { Genome } from "./genome-types";
 import { clamp } from "./utils";
 
 export const MAX_DEPTH = 12;
@@ -16,141 +20,202 @@ const LAYER_OFFSETS = {
 interface ScalarFieldDef {
 	name: string;
 	key: keyof DecodedScalars;
-	accessor: (g: Genome) => number;
-	encode: (v: number) => number;
-	decode: (v: number) => number;
+	accessor: (genome: Genome) => number;
+	encode: (value: number) => number;
+	decode: (value: number) => number;
 	clamp: Bounded<number>;
 	round?: boolean;
 }
 
 const SCALAR_FIELDS: ScalarFieldDef[] = [
-	{ name: "Gamma", key: "gamma", accessor: (g) => g.rl.gamma, encode: (v) => v, decode: (v) => v, clamp: { min: 0.8, max: 0.9999 } },
 	{
-		name: "LearningRate", key: "learningRate", accessor: (g) => g.rl.learningRate,
-		encode: (v) => (Math.log10(v) / 6 + 1) / 2,
-		decode: (v) => 10 ** (((v * 2) - 1) * 6),
+		name: "Gamma",
+		key: "gamma",
+		accessor: (genome) => genome.rl.gamma,
+		encode: (value) => value,
+		decode: (value) => value,
+		clamp: { min: 0.8, max: 0.9999 },
+	},
+	{
+		name: "LearningRate",
+		key: "learningRate",
+		accessor: (genome) => genome.rl.learningRate,
+		encode: (value) => (Math.log10(value) / 6 + 1) / 2,
+		decode: (value) => 10 ** ((value * 2 - 1) * 6),
 		clamp: { min: 1e-6, max: 1e-1 },
 	},
-	{ name: "ClipMin", key: "clipMin", accessor: (g) => g.rl.rewardShaping.clipBounds.min, encode: (v) => v, decode: (v) => v, clamp: { min: -Infinity, max: Infinity } },
-	{ name: "ClipMax", key: "clipMax", accessor: (g) => g.rl.rewardShaping.clipBounds.max, encode: (v) => v, decode: (v) => v, clamp: { min: -Infinity, max: Infinity } },
 	{
-		name: "ScaleFactor", key: "scaleFactor", accessor: (g) => g.rl.rewardShaping.scaleFactor,
-		encode: (v) => (Math.log10(v) / 3 + 1) / 2,
-		decode: (v) => 10 ** ((v - 1) * 3),
+		name: "ClipMin",
+		key: "clipMin",
+		accessor: (genome) => genome.rl.rewardShaping.clipBounds.min,
+		encode: (value) => value,
+		decode: (value) => value,
+		clamp: { min: Number.NEGATIVE_INFINITY, max: Number.POSITIVE_INFINITY },
+	},
+	{
+		name: "ClipMax",
+		key: "clipMax",
+		accessor: (genome) => genome.rl.rewardShaping.clipBounds.max,
+		encode: (value) => value,
+		decode: (value) => value,
+		clamp: { min: Number.NEGATIVE_INFINITY, max: Number.POSITIVE_INFINITY },
+	},
+	{
+		name: "ScaleFactor",
+		key: "scaleFactor",
+		accessor: (genome) => genome.rl.rewardShaping.scaleFactor,
+		encode: (value) => (Math.log10(value) / 3 + 1) / 2,
+		decode: (value) => 10 ** ((value - 1) * 3),
 		clamp: { min: 0.001, max: 1000 },
 	},
 	{
-		name: "MaxEpisodeLength", key: "maxEpisodeLength", accessor: (g) => g.rl.horizon.maxEpisodeLength,
-		encode: (v) => v / 2_000,
-		decode: (v) => v * 2_000,
+		name: "MaxEpisodeLength",
+		key: "maxEpisodeLength",
+		accessor: (genome) => genome.rl.horizon.maxEpisodeLength,
+		encode: (value) => value / 2_000,
+		decode: (value) => value * 2_000,
 		clamp: { min: 10, max: 20_000 },
 		round: true,
 	},
 	{
-		name: "NStepReturn", key: "nStepReturn", accessor: (g) => g.rl.horizon.nStepReturn,
-		encode: (v) => v / 20,
-		decode: (v) => v * 20,
+		name: "NStepReturn",
+		key: "nStepReturn",
+		accessor: (genome) => genome.rl.horizon.nStepReturn,
+		encode: (value) => value / 20,
+		decode: (value) => value * 20,
 		clamp: { min: 1, max: 20 },
 		round: true,
 	},
 	{
-		name: "FrameSkip", key: "frameSkip", accessor: (g) => g.rl.horizon.frameSkip,
-		encode: (v) => v / 10,
-		decode: (v) => v * 10,
+		name: "FrameSkip",
+		key: "frameSkip",
+		accessor: (genome) => genome.rl.horizon.frameSkip,
+		encode: (value) => value / 10,
+		decode: (value) => value * 10,
 		clamp: { min: 1, max: 10 },
 		round: true,
 	},
 	{
-		name: "EpsilonStart", key: "epsilonStart", accessor: (g) => g.rl.discretePolicy.epsilonStart,
-		encode: (v) => v,
-		decode: (v) => v,
+		name: "EpsilonStart",
+		key: "epsilonStart",
+		accessor: (genome) => genome.rl.discretePolicy.epsilonStart,
+		encode: (value) => value,
+		decode: (value) => value,
 		clamp: { min: 0.1, max: 1.0 },
 	},
 	{
-		name: "EpsilonMin", key: "epsilonMin", accessor: (g) => g.rl.discretePolicy.epsilonMin,
-		encode: (v) => v / 0.2,
-		decode: (v) => v * 0.2,
+		name: "EpsilonMin",
+		key: "epsilonMin",
+		accessor: (genome) => genome.rl.discretePolicy.epsilonMin,
+		encode: (value) => value / 0.2,
+		decode: (value) => value * 0.2,
 		clamp: { min: 0.001, max: 0.2 },
 	},
 	{
-		name: "EpsilonDecay", key: "epsilonDecay", accessor: (g) => g.rl.discretePolicy.epsilonDecay,
-		encode: (v) => v,
-		decode: (v) => v,
+		name: "EpsilonDecay",
+		key: "epsilonDecay",
+		accessor: (genome) => genome.rl.discretePolicy.epsilonDecay,
+		encode: (value) => value,
+		decode: (value) => value,
 		clamp: { min: 0.9, max: 0.9999 },
 	},
 	{
-		name: "Temperature", key: "temperature", accessor: (g) => g.rl.discretePolicy.temperature,
-		encode: (v) => Math.log10(v) / 2 + 0.5,
-		decode: (v) => 10 ** ((v - 0.5) * 2),
+		name: "Temperature",
+		key: "temperature",
+		accessor: (genome) => genome.rl.discretePolicy.temperature,
+		encode: (value) => Math.log10(value) / 2 + 0.5,
+		decode: (value) => 10 ** ((value - 0.5) * 2),
 		clamp: { min: 0.01, max: 100 },
 	},
 	{
-		name: "NoiseStd", key: "noiseStd", accessor: (g) => g.rl.continuousPolicy.noiseStd,
-		encode: (v) => v / 5,
-		decode: (v) => v * 5,
+		name: "NoiseStd",
+		key: "noiseStd",
+		accessor: (genome) => genome.rl.continuousPolicy.noiseStd,
+		encode: (value) => value / 5,
+		decode: (value) => value * 5,
 		clamp: { min: 0.001, max: 5 },
 	},
 	{
-		name: "NoiseDecay", key: "noiseDecay", accessor: (g) => g.rl.continuousPolicy.noiseDecay,
-		encode: (v) => v,
-		decode: (v) => v,
+		name: "NoiseDecay",
+		key: "noiseDecay",
+		accessor: (genome) => genome.rl.continuousPolicy.noiseDecay,
+		encode: (value) => value,
+		decode: (value) => value,
 		clamp: { min: 0.9, max: 0.9999 },
 	},
 	{
-		name: "BufferSize", key: "bufferSize", accessor: (g) => g.rl.replayBuffer.bufferSize,
-		encode: (v) => Math.log10(v) / 6,
-		decode: (v) => 10 ** (v * 6),
+		name: "BufferSize",
+		key: "bufferSize",
+		accessor: (genome) => genome.rl.replayBuffer.bufferSize,
+		encode: (value) => Math.log10(value) / 6,
+		decode: (value) => 10 ** (value * 6),
 		clamp: { min: 100, max: 1_000_000 },
 		round: true,
 	},
 	{
-		name: "AlphaPER", key: "alphaPER", accessor: (g) => g.rl.replayBuffer.alphaPER,
-		encode: (v) => v,
-		decode: (v) => v,
+		name: "AlphaPER",
+		key: "alphaPER",
+		accessor: (genome) => genome.rl.replayBuffer.alphaPER,
+		encode: (value) => value,
+		decode: (value) => value,
 		clamp: { min: 0, max: 1 },
 	},
 	{
-		name: "BetaPER", key: "betaPER", accessor: (g) => g.rl.replayBuffer.betaPER,
-		encode: (v) => v,
-		decode: (v) => v,
+		name: "BetaPER",
+		key: "betaPER",
+		accessor: (genome) => genome.rl.replayBuffer.betaPER,
+		encode: (value) => value,
+		decode: (value) => value,
 		clamp: { min: 0, max: 1 },
 	},
 	{
-		name: "MutationRate", key: "mutationRate", accessor: (g) => g.mutation.rates.rate,
-		encode: (v) => v / 0.5,
-		decode: (v) => v * 0.5,
+		name: "MutationRate",
+		key: "mutationRate",
+		accessor: (genome) => genome.mutation.rates.rate,
+		encode: (value) => value / 0.5,
+		decode: (value) => value * 0.5,
 		clamp: { min: 0.001, max: 0.5 },
 	},
 	{
-		name: "MutationSigma", key: "sigma", accessor: (g) => g.mutation.rates.sigma,
-		encode: (v) => Math.log10(Math.max(1e-5, v)) / 4 + 1.25,
-		decode: (v) => 10 ** ((v - 1.25) * 4),
+		name: "MutationSigma",
+		key: "sigma",
+		accessor: (genome) => genome.mutation.rates.sigma,
+		encode: (value) => Math.log10(Math.max(1e-5, value)) / 4 + 1.25,
+		decode: (value) => 10 ** ((value - 1.25) * 4),
 		clamp: { min: 1e-5, max: 10 },
 	},
 	{
-		name: "MutationSelfSigma", key: "selfSigma", accessor: (g) => g.mutation.rates.selfSigma,
-		encode: (v) => Math.log10(Math.max(1e-5, v)) / 4 + 1.25,
-		decode: (v) => 10 ** ((v - 1.25) * 4),
+		name: "MutationSelfSigma",
+		key: "selfSigma",
+		accessor: (genome) => genome.mutation.rates.selfSigma,
+		encode: (value) => Math.log10(Math.max(1e-5, value)) / 4 + 1.25,
+		decode: (value) => 10 ** ((value - 1.25) * 4),
 		clamp: { min: 1e-5, max: 10 },
 	},
 	{
-		name: "NetworkInputDim", key: "inputDim", accessor: (g) => g.network.inputDim,
-		encode: (v) => v / 256,
-		decode: (v) => v * 256,
+		name: "NetworkInputDim",
+		key: "inputDim",
+		accessor: (genome) => genome.network.inputDim,
+		encode: (value) => value / 256,
+		decode: (value) => value * 256,
 		clamp: { min: 1, max: 256 },
 		round: true,
 	},
 	{
-		name: "NetworkOutputDim", key: "outputDim", accessor: (g) => g.network.outputDim,
-		encode: (v) => v / 64,
-		decode: (v) => v * 64,
+		name: "NetworkOutputDim",
+		key: "outputDim",
+		accessor: (genome) => genome.network.outputDim,
+		encode: (value) => value / 64,
+		decode: (value) => value * 64,
 		clamp: { min: 1, max: 64 },
 		round: true,
 	},
 	{
-		name: "NetworkDepth", key: "depth", accessor: (g) => g.network.hiddenLayers.length,
-		encode: (v) => v / MAX_DEPTH,
-		decode: (v) => v * MAX_DEPTH,
+		name: "NetworkDepth",
+		key: "depth",
+		accessor: (genome) => genome.network.hiddenLayers.length,
+		encode: (value) => value / MAX_DEPTH,
+		decode: (value) => value * MAX_DEPTH,
 		clamp: { min: 1, max: MAX_DEPTH },
 		round: true,
 	},
@@ -158,13 +223,14 @@ const SCALAR_FIELDS: ScalarFieldDef[] = [
 
 type ScalarFieldName = (typeof SCALAR_FIELDS)[number]["name"];
 
-export const ENCODING_OFFSETS: Readonly<Record<ScalarFieldName, number>> = (() => {
-	const map: Record<string, number> = {};
-	for (let i = 0; i < SCALAR_FIELDS.length; i++) {
-		map[SCALAR_FIELDS[i].name] = i;
-	}
-	return map as Readonly<Record<ScalarFieldName, number>>;
-})();
+export const ENCODING_OFFSETS: Readonly<Record<ScalarFieldName, number>> =
+	(() => {
+		const map: Record<string, number> = {};
+		for (let i = 0; i < SCALAR_FIELDS.length; i++) {
+			map[SCALAR_FIELDS[i].name] = i;
+		}
+		return map as Readonly<Record<ScalarFieldName, number>>;
+	})();
 
 export const SCALAR_DIM = SCALAR_FIELDS.length;
 
@@ -211,15 +277,26 @@ export interface EncodedLayer {
 	connectionType: ConnectionType;
 }
 
-export function readEncodedLayer(arr: Float32Array, offset: number): EncodedLayer {
+export function readEncodedLayer(
+	arr: Float32Array,
+	offset: number
+): EncodedLayer {
 	return {
 		neurons: arr[offset + LAYER_OFFSETS.NEURONS],
-		activation: activationFromIndex(Math.round(arr[offset + LAYER_OFFSETS.ACTIVATION])),
-		connectionType: connectionTypeFromIndex(Math.round(arr[offset + LAYER_OFFSETS.CONNECTION_TYPE])),
+		activation: activationFromIndex(
+			Math.round(arr[offset + LAYER_OFFSETS.ACTIVATION])
+		),
+		connectionType: connectionTypeFromIndex(
+			Math.round(arr[offset + LAYER_OFFSETS.CONNECTION_TYPE])
+		),
 	};
 }
 
-function writeEncodedLayer(arr: Float32Array, offset: number, layer: EncodedLayer): void {
+function writeEncodedLayer(
+	arr: Float32Array,
+	offset: number,
+	layer: EncodedLayer
+): void {
 	const actIdx = ACTIVATIONS.indexOf(layer.activation);
 	const ctIdx = CONNECTION_TYPES.indexOf(layer.connectionType);
 	arr[offset + LAYER_OFFSETS.NEURONS] = layer.neurons;
@@ -296,7 +373,9 @@ export function encodePopulation(population: Genome[]): Float32Array {
 	if (population.length === 0) {
 		return new Float32Array(0);
 	}
-	const dim = encodedDim(Math.min(population[0].network.hiddenLayers.length, MAX_DEPTH));
+	const dim = encodedDim(
+		Math.min(population[0].network.hiddenLayers.length, MAX_DEPTH)
+	);
 	const mat = new Float32Array(population.length * dim);
 	for (let i = 0; i < population.length; i++) {
 		mat.set(encodeGenome(population[i]), i * dim);
@@ -310,7 +389,8 @@ export function decodeGenome(vec: Float32Array, template: Genome): Genome {
 	const hiddenLayers: Genome["network"]["hiddenLayers"] = [];
 	for (let i = 0; i < depth; i++) {
 		const enc = readEncodedLayer(vec, layerOffset(i));
-		const biasType = template.network.hiddenLayers[i]?.biasType ?? InitialisationType.Zeros;
+		const biasType =
+			template.network.hiddenLayers[i]?.biasType ?? InitialisationType.Zeros;
 		hiddenLayers.push({
 			neurons: clamp(Math.round(enc.neurons * 512), 1, 512),
 			activation: enc.activation,
@@ -335,7 +415,7 @@ export function decodeGenome(vec: Float32Array, template: Genome): Genome {
 				...template.rl.rewardShaping,
 				clipBounds: createBounded(
 					Math.min(scalars.clipMin, scalars.clipMax - 1e-6),
-					Math.max(scalars.clipMax, scalars.clipMin + 1e-6),
+					Math.max(scalars.clipMax, scalars.clipMin + 1e-6)
 				),
 				scaleFactor: scalars.scaleFactor,
 			},
@@ -377,7 +457,10 @@ export function decodeGenome(vec: Float32Array, template: Genome): Genome {
 	};
 }
 
-export function decodePopulation(mat: Float32Array, templates: Genome[]): Genome[] {
+export function decodePopulation(
+	mat: Float32Array,
+	templates: Genome[]
+): Genome[] {
 	const dims = templates.map((tmpl) =>
 		encodedDim(Math.min(tmpl.network.hiddenLayers.length, MAX_DEPTH))
 	);

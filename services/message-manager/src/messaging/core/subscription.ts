@@ -2,8 +2,11 @@
 	Message,
 	ServiceIdentity,
 } from "@trading-model/common/contracts/message.types";
-import type { Topic } from "@trading-model/common/domain/primitives";
 import { CircuitState } from "@trading-model/common/domain/circuit-state";
+import type {
+	SequenceNumber,
+	Topic,
+} from "@trading-model/common/domain/primitives";
 import { CircuitStateMachine } from "@trading-model/common/reliability/circuit-state-machine";
 import { logger } from "../../config/logger";
 import { backoffDelay as computeBackoffDelay } from "./backoff-calculator";
@@ -40,7 +43,7 @@ export class Subscription {
 	private _metadataExtractor: DeliveryMetadataExtractor;
 	private _attemptHandler: DeliveryAttemptHandler;
 
-	static backoffDelay(deliveryAttempt: number): number {
+	static backoffDelay(deliveryAttempt: SequenceNumber): number {
 		return computeBackoffDelay(deliveryAttempt);
 	}
 
@@ -98,7 +101,8 @@ export class Subscription {
 			await this._deliveryPort.markDeadLetter({
 				message,
 				reason: CircuitState.OPEN.toUpperCase(),
-				deliveryAttempt: this._circuitBreaker.getFailureCount(),
+				deliveryAttempt:
+					this._circuitBreaker.getFailureCount() as SequenceNumber,
 			});
 			return;
 		}
@@ -110,7 +114,9 @@ export class Subscription {
 			deliveryParams,
 			isAcknowledged
 		);
-		this._circuitBreaker.clear();
+		if (isAcknowledged()) {
+			this._circuitBreaker.clear();
+		}
 	}
 
 	private _buildSubscriberContext(): {

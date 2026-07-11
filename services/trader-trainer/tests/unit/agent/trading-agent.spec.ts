@@ -6,6 +6,7 @@ import { TradingAgent } from "../../../src/core/agent/trading-agent";
 import {
 	ActivationType,
 	ConnectionType,
+	ExperienceKind,
 	InitialisationType,
 	LossFunctionType,
 	NormalisationType,
@@ -68,7 +69,7 @@ describe("TradingAgent", () => {
 
 		it("should delegate learnQLearning to underlying agent", () => {
 			const exp = {
-				kind: "qlearning" as const,
+				kind: ExperienceKind.QLearning as const,
 				input: new Float32Array([0.5, -0.3, 0.1, 0.8]),
 				output: new Float32Array([0.1, 0.2, 0.3]),
 				reward: 1,

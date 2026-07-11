@@ -2,11 +2,11 @@ import {
 	computeAdjustedFitness,
 	estimateComplexity,
 } from "./complexity-estimator";
+import { EpisodeScores } from "./episode-scores";
 import type { LamarckGenome, MarketStep } from "./genome-types";
 import type { RLBackend } from "./rl-backend";
 import type { DeepReadonly } from "./shared-types";
-import { EpisodeScores } from "./episode-scores";
-import { computeSharpe, computeVariance } from "./utils";
+import { computeSharpe } from "./utils";
 
 export interface GenomeFitnessMeta {
 	episodesRun: number;

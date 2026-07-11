@@ -1,5 +1,5 @@
 ﻿import {
-	type Topic,
+	Topic,
 	toInstanceId,
 	toMessageId,
 } from "@trading-model/common/domain/primitives";
@@ -47,13 +47,16 @@ export const WssMessageParser = {
 			instanceId: msg.instanceId
 				? toInstanceId(msg.instanceId as string)
 				: undefined,
-			topics: msg.topics as Topic[] | undefined,
+			topics: Array.isArray(msg.topics)
+				? (msg.topics as string[]).map(Topic.of)
+				: undefined,
 			payload: msg.payload,
 			metadata: msg.metadata,
 			traceparent: msg.traceparent as string | undefined,
-			messageId: msg.messageId
-				? toMessageId(msg.messageId as string)
-				: undefined,
+			messageId:
+				msg.messageId && typeof msg.messageId === "string"
+					? toMessageId(msg.messageId as string)
+					: undefined,
 		};
 	},
 };
