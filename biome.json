@@ -204,7 +204,7 @@
 								"selector": {
 									"kind": "interface"
 								},
-								"match": "I(.*)|(.*?)Error|(.+)",
+								"match": "I([A-Z].*)|(.*?)Error|(.+)",
 								"formats": ["PascalCase"]
 							},
 							{
