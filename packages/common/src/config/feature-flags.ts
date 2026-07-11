@@ -1,6 +1,7 @@
 import type {
 	FeatureFlag,
 	FeatureFlagDefinition,
+	PlatformFlagName,
 } from "./feature-flag-definitions";
 import { logger } from "./logger";
 
@@ -17,7 +18,7 @@ interface INternalFlag extends FeatureFlag {
 export type { FeatureFlag, FeatureFlagDefinition };
 
 export class FeatureFlags {
-	private readonly _store = new Map<string, INternalFlag>();
+	private readonly _store = new Map<PlatformFlagName, INternalFlag>();
 	private readonly _envPrefix: string;
 
 	constructor(
@@ -48,19 +49,15 @@ export class FeatureFlags {
 		if (raw === undefined) {
 			return;
 		}
-		const val = raw.toLowerCase();
-		if (val === "1" || val === "true" || val === "yes") {
-			return true;
-		}
-		if (val === "0" || val === "false" || val === "no") {
-			return false;
-		}
-		logger.warn(
-			`FeatureFlags: invalid env value for ${envName}=${raw}, using default`
-		);
+		return parseFlagValue(raw, envName);
 	}
 
-	isEnabled(name: string): boolean {
+	static parse(raw: string): boolean {
+		const result = parseFlagValue(raw, "<test>");
+		return result ?? false;
+	}
+
+	isEnabled(name: PlatformFlagName): boolean {
 		const flag = this._store.get(name);
 		if (!flag) {
 			logger.warn(
@@ -71,7 +68,7 @@ export class FeatureFlags {
 		return flag.enabled;
 	}
 
-	enable(name: string): void {
+	enable(name: PlatformFlagName): void {
 		const flag = this._store.get(name);
 		if (!flag) {
 			logger.warn(`FeatureFlags: cannot enable unknown flag "${name}"`);
@@ -81,7 +78,7 @@ export class FeatureFlags {
 		logger.info(`FeatureFlags: "${name}" enabled`);
 	}
 
-	disable(name: string): void {
+	disable(name: PlatformFlagName): void {
 		const flag = this._store.get(name);
 		if (!flag) {
 			logger.warn(`FeatureFlags: cannot disable unknown flag "${name}"`);
@@ -95,11 +92,11 @@ export class FeatureFlags {
 		return Array.from(this._store.values());
 	}
 
-	get(name: string): FeatureFlag | undefined {
+	get(name: PlatformFlagName): FeatureFlag | undefined {
 		return this._store.get(name);
 	}
 
-	reset(name: string): void {
+	reset(name: PlatformFlagName): void {
 		const flag = this._store.get(name);
 		if (!flag) {
 			logger.warn(`FeatureFlags: cannot reset unknown flag "${name}"`);
@@ -112,4 +109,17 @@ export class FeatureFlags {
 	size(): number {
 		return this._store.size;
 	}
+}
+
+function parseFlagValue(raw: string, source: string): boolean | undefined {
+	const val = raw.toLowerCase();
+	if (val === "1" || val === "true" || val === "yes") {
+		return true;
+	}
+	if (val === "0" || val === "false" || val === "no") {
+		return false;
+	}
+	logger.warn(
+		`FeatureFlags: invalid env value for ${source}=${raw}, using default`
+	);
 }
