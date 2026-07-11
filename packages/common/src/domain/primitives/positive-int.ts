@@ -13,4 +13,25 @@ export const PositiveInt = {
 	one(): PositiveInt {
 		return 1 as PositiveInt;
 	},
+
+	next(value: PositiveInt): PositiveInt {
+		return (value + 1) as PositiveInt;
+	},
+
+	prev(value: PositiveInt): PositiveInt {
+		if (value <= 1) {
+			throw new RangeError(
+				`Cannot decrement PositiveInt below 1, got ${value}`
+			);
+		}
+		return (value - 1) as PositiveInt;
+	},
+
+	clamp(value: number, min: PositiveInt, max: PositiveInt): PositiveInt {
+		return PositiveInt.of(Math.max(min, Math.min(max, Math.round(value))));
+	},
+
+	toNumber(value: PositiveInt): number {
+		return value;
+	},
 };

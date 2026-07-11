@@ -13,4 +13,24 @@ export const Price = {
 	zero(): Price {
 		return 0 as Price;
 	},
+
+	add(left: Price, right: Price): Price {
+		return (left + right) as Price;
+	},
+
+	sub(left: Price, right: Price): Price {
+		return (left - right) as Price;
+	},
+
+	gt(left: Price, right: Price): boolean {
+		return left > right;
+	},
+
+	lt(left: Price, right: Price): boolean {
+		return left < right;
+	},
+
+	toNumber(value: Price): number {
+		return value;
+	},
 };
