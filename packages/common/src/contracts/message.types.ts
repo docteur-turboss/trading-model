@@ -67,13 +67,6 @@ export interface SecurityType {
 }
 
 /**
- * Configuration object for TLS-secured broker connections.
- * Contains file paths to certificates required for mutual TLS authentication.
- */
-/** @deprecated Use TlsPaths from @trading-model/common/domain/tls-paths instead. */
-export type BrokerConfig = import("../domain/tls-paths").TlsPaths;
-
-/**
  * Message envelope combining business payload with technical metadata
  * for routing, delivery, and traceability.
  *

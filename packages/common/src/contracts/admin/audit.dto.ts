@@ -1,4 +1,5 @@
 import type {
+	AuditSummary,
 	CorrelationId,
 	ServiceId,
 	Topic,
@@ -23,7 +24,7 @@ export interface AuditEvent {
 	topic: Topic;
 	publisher: ServiceId;
 	correlationId: CorrelationId;
-	summary: string;
+	summary: AuditSummary;
 	severity: Severity;
 }
 

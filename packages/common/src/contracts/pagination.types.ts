@@ -1,4 +1,5 @@
 ﻿import type { PaginationResult } from "../domain/pagination";
+import type { Limit, PageNumber, PositiveInt } from "../domain/primitives";
 
 export type { DateRange } from "../domain/date-range";
 export type { PaginationQuery, PaginationResult } from "../domain/pagination";
@@ -10,10 +11,10 @@ export type { PaginationQuery, PaginationResult } from "../domain/pagination";
 export interface PaginatedResponse<_TValue> {
 	data: _TValue[];
 	pagination: {
-		page: number;
-		limit: number;
-		total: number;
-		totalPages: number;
+		page: PageNumber;
+		limit: Limit;
+		total: PositiveInt;
+		totalPages: PositiveInt;
 	};
 }
 
@@ -26,8 +27,8 @@ export function toPaginatedResponse<TValue>(
 		pagination: {
 			page: result.page,
 			limit: result.limit,
-			total: result.total,
-			totalPages: Math.ceil(result.total / result.limit),
+			total: result.total as PositiveInt,
+			totalPages: Math.ceil(result.total / result.limit) as PositiveInt,
 		},
 	};
 }

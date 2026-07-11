@@ -1,3 +1,10 @@
+export {
+	isAtLeast,
+	isHigherPriority,
+	isLowerPriority,
+	JOB_STATUS,
+	JobPriority,
+} from "../recovery.types";
 export type { AuditEvent, AuditFilter, AuditVolumeByTopic } from "./audit.dto";
 export { Severity } from "./audit.dto";
 export type { CacheEntry, CacheStats } from "./cache.dto";
@@ -11,13 +18,6 @@ export type {
 	JobStats,
 	JobTimelineEntry,
 } from "./jobs.dto";
-export {
-	JobPriority,
-	isHigherPriority,
-	isLowerPriority,
-	isAtLeast,
-	JOB_STATUS,
-} from "../recovery.types";
 export { JobTimelineEvent } from "./jobs.dto";
 export type { Candle, Ticker } from "./market-data.dto";
 export type {

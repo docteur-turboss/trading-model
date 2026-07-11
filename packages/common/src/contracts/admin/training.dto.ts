@@ -1,6 +1,9 @@
 import type {
+	Fitness,
 	ModelId,
 	Percentage,
+	PositiveInt,
+	SharpeRatio,
 	TradingSymbol,
 } from "../../domain/primitives";
 
@@ -46,9 +49,9 @@ export enum Optimizer {
 export interface TrainingResult {
 	id: ModelId;
 	symbol: TradingSymbol;
-	generation: number;
-	fitness: number;
-	sharpe: number;
+	generation: PositiveInt;
+	fitness: Fitness;
+	sharpe: SharpeRatio;
 	genome?: TrainingGenome;
 }
 
@@ -67,13 +70,13 @@ export interface DenseLayer {
 		| LayerType.Gru
 		| LayerType.Attention
 		| LayerType.Conv1d;
-	units: number;
+	units: PositiveInt;
 	activation: ActivationFn;
 }
 
 export interface DropoutLayer {
 	type: LayerType.Dropout;
-	rate: number;
+	rate: Percentage;
 }
 
 export interface NormalizationLayer {

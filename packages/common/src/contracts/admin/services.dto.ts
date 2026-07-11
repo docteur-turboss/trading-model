@@ -1,12 +1,11 @@
 import type { ServiceInstanceName } from "../../config/services.types";
 import type {
 	InstanceId,
-	IPAddress,
 	ISODateTime,
-	Port,
 	ServiceId,
 	Version,
 } from "../../domain/primitives";
+import type { HostPort } from "../../domain/service-identity";
 
 export enum ServiceStatus {
 	Healthy = "healthy",
@@ -20,10 +19,8 @@ export interface ServiceRegistryEntry {
 	topology?: TopologyLink[];
 }
 
-export interface AdminServiceInstance {
+export interface AdminServiceInstance extends HostPort {
 	instanceId: InstanceId;
-	host: IPAddress;
-	port: Port;
 	version: Version;
 	heartbeat: ISODateTime;
 	status: ServiceStatus;

@@ -1,7 +1,10 @@
 import type {
 	IPAddress,
 	ISODateTime,
+	MemoryAmount,
 	ModelId,
+	Percentage,
+	PositiveInt,
 	Region,
 	WorkerStatusCode,
 } from "../../domain/primitives";
@@ -10,17 +13,17 @@ export interface WorkerEntry {
 	id: ModelId;
 	ip: IPAddress;
 	region: Region;
-	cpu: number;
-	ram: number;
+	cpu: Percentage;
+	ram: MemoryAmount;
 	status: WorkerStatusCode;
 	heartbeat: ISODateTime;
-	activeJobs: number;
+	activeJobs: PositiveInt;
 }
 
 export interface WorkerStats {
-	activeWorkers: number;
-	totalWorkers: number;
-	avgCpu: number;
-	totalJobsPerMin: number;
-	clusterMemory: number;
+	activeWorkers: PositiveInt;
+	totalWorkers: PositiveInt;
+	avgCpu: Percentage;
+	totalJobsPerMin: PositiveInt;
+	clusterMemory: MemoryAmount;
 }

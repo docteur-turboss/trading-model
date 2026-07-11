@@ -1,9 +1,8 @@
 import type { ServiceInstanceName } from "../config/services.types";
-import type { DurationMs, IPAddress, Port, Region, Version } from "../domain/primitives";
+import type { DurationMs, Region, Version } from "../domain/primitives";
+import type { HostPort } from "../domain/service-identity";
 
-export interface ServiceEndpoint {
-	host: IPAddress;
-	port: Port;
+export interface ResolvedEndpoint extends HostPort {
 	version?: Version;
 }
 
@@ -17,6 +16,6 @@ export interface IServiceResolver {
 	resolve(
 		serviceName: ServiceInstanceName,
 		options?: ResolveOptions
-	): Promise<ServiceEndpoint | null>;
+	): Promise<ResolvedEndpoint | null>;
 	invalidateCache?(serviceName?: ServiceInstanceName): void;
 }

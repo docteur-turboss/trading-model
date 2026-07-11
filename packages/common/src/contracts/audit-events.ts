@@ -1,5 +1,5 @@
 import type { ServiceInstanceName } from "../config/services.types";
-import type { InstanceId } from "../domain/primitives";
+import type { InstanceId, UnixTimestamp } from "../domain/primitives";
 
 /** Named references for audit event message keys. */
 export enum AuditEvent {
@@ -14,8 +14,8 @@ export interface AuditEventMap {
 		instanceId: InstanceId;
 	};
 	[AuditEvent.AuditGapDetected]: {
-		from: Date;
-		to: Date;
+		from: UnixTimestamp;
+		to: UnixTimestamp;
 		lostCount?: number;
 	};
 }

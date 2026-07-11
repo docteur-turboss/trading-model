@@ -1,6 +1,7 @@
 import type {
 	MessageId,
 	Percentage,
+	PositiveInt,
 	Topic,
 	UnixTimestamp,
 } from "../../domain/primitives";
@@ -11,13 +12,13 @@ export interface DlqMessage {
 	topic: Topic;
 	messageId: MessageId;
 	failureReason: string;
-	attempts: number;
+	attempts: PositiveInt;
 	payloadPreview: string;
 }
 
 export interface DlqStats {
-	pending: number;
+	pending: PositiveInt;
 	retryRate: Percentage;
-	totalSize: number;
+	totalSize: PositiveInt;
 	lastIncident: UnixTimestamp;
 }

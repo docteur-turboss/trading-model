@@ -3,6 +3,8 @@ import type {
 	InstanceId,
 	JobId,
 	JobType,
+	PositiveInt,
+	UnixTimestamp,
 	WorkerStatus,
 } from "../domain/primitives";
 import type { HostPort } from "../domain/service-identity";
@@ -12,12 +14,12 @@ export type { WorkerStatus };
 export interface WorkerRegistrationBase extends HostPort {
 	workerId: InstanceId;
 	capabilities: Capability[];
-	maxConcurrency: number;
+	maxConcurrency: PositiveInt;
 }
 
 export interface WorkerRegistration extends WorkerRegistrationBase {
 	currentLoad: number;
-	lastHeartbeat: Date;
+	lastHeartbeat: UnixTimestamp;
 	status: WorkerStatus;
 }
 
@@ -48,7 +50,7 @@ export interface SchedulerWsJobAssignedMessage {
 		id: JobId;
 		type: JobType;
 		payload: unknown;
-		ackDeadline: number;
+		ackDeadline: PositiveInt;
 	};
 }
 

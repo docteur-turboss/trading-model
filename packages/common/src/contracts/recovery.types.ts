@@ -1,4 +1,10 @@
-import type { InstanceId, JobId, JobType } from "../domain/primitives";
+import type {
+	InstanceId,
+	JobId,
+	JobType,
+	PositiveInt,
+} from "../domain/primitives";
+import { UnixTimestamp } from "../domain/primitives";
 import type { RetryPolicy } from "../domain/retry-policy";
 import { AppError } from "../utils/errors";
 
@@ -6,27 +12,55 @@ import { AppError } from "../utils/errors";
  * Job priority levels.
  * Higher numeric value = higher priority.
  */
-export enum JobPriority {
-	LOWEST = 1,
-	LOW = 2,
-	MEDIUM = 3,
-	HIGH = 4,
-	HIGHEST = 5,
+export type JobPriority = number & { readonly brand: "JobPriority" };
+export const JobPriority = {
+	LOWEST: 1 as JobPriority,
+	LOW: 2 as JobPriority,
+	MEDIUM: 3 as JobPriority,
+	HIGH: 4 as JobPriority,
+	HIGHEST: 5 as JobPriority,
+
+	isHigherPriority(left: JobPriority, right: JobPriority): boolean {
+		return left > right;
+	},
+
+	isLowerPriority(left: JobPriority, right: JobPriority): boolean {
+		return left < right;
+	},
+
+	isAtLeast(left: JobPriority, threshold: JobPriority): boolean {
+		return left >= threshold;
+	},
+};
+
+/**
+ * @deprecated Use JobPriority.isHigherPriority() instead.
+ */
+export function isHigherPriority(
+	left: JobPriority,
+	right: JobPriority
+): boolean {
+	return JobPriority.isHigherPriority(left, right);
 }
 
-export function isHigherPriority(a: JobPriority, b: JobPriority): boolean {
-	return a > b;
+/**
+ * @deprecated Use JobPriority.isLowerPriority() instead.
+ */
+export function isLowerPriority(
+	left: JobPriority,
+	right: JobPriority
+): boolean {
+	return JobPriority.isLowerPriority(left, right);
 }
 
-export function isLowerPriority(a: JobPriority, b: JobPriority): boolean {
-	return a < b;
+/**
+ * @deprecated Use JobPriority.isAtLeast() instead.
+ */
+export function isAtLeast(left: JobPriority, threshold: JobPriority): boolean {
+	return JobPriority.isAtLeast(left, threshold);
 }
 
-export function isAtLeast(a: JobPriority, threshold: JobPriority): boolean {
-	return a >= threshold;
-}
-
-export enum JOB_STATUS {
+export enum JobStatus {
 	PENDING = "pending",
 	IN_PROGRESS = "in_progress",
 	QUEUED = "queued",
@@ -38,75 +72,77 @@ export enum JOB_STATUS {
 	ORPHANED = "orphaned",
 }
 
-export const JOB_STATUS_NON_TERMINAL: readonly JOB_STATUS[] = [
-	JOB_STATUS.PENDING,
-	JOB_STATUS.QUEUED,
-	JOB_STATUS.ASSIGNED,
-	JOB_STATUS.RUNNING,
-	JOB_STATUS.ORPHANED,
-];
+export namespace JobStatus {
+	const TerminalSet = new Set<JobStatus>([
+		JobStatus.COMPLETED,
+		JobStatus.FAILED,
+		JobStatus.CANCELLED,
+	]);
 
-export const JOB_STATUS_TERMINAL: readonly JOB_STATUS[] = [
-	JOB_STATUS.COMPLETED,
-	JOB_STATUS.FAILED,
-	JOB_STATUS.CANCELLED,
-];
+	const NonTerminalSet = new Set<JobStatus>([
+		JobStatus.PENDING,
+		JobStatus.QUEUED,
+		JobStatus.ASSIGNED,
+		JobStatus.RUNNING,
+		JobStatus.ORPHANED,
+	]);
 
-const TERMINAL_SET = new Set(JOB_STATUS_TERMINAL);
+	const AllValues: JobStatus[] = Object.values(JobStatus).filter(
+		(value): value is JobStatus => typeof value === "string"
+	);
 
-export function isTerminalStatus(status: JOB_STATUS): boolean {
-	return TERMINAL_SET.has(status);
-}
+	const Transitions: Record<JobStatus, ReadonlySet<JobStatus>> = {
+		[JobStatus.PENDING]: new Set([JobStatus.QUEUED]),
+		[JobStatus.IN_PROGRESS]: new Set([JobStatus.COMPLETED, JobStatus.FAILED]),
+		[JobStatus.QUEUED]: new Set([JobStatus.ASSIGNED]),
+		[JobStatus.ASSIGNED]: new Set([JobStatus.RUNNING, JobStatus.ORPHANED]),
+		[JobStatus.RUNNING]: new Set([
+			JobStatus.COMPLETED,
+			JobStatus.FAILED,
+			JobStatus.ORPHANED,
+		]),
+		[JobStatus.ORPHANED]: new Set([JobStatus.QUEUED, JobStatus.FAILED]),
+		[JobStatus.FAILED]: new Set([JobStatus.QUEUED]),
+		[JobStatus.COMPLETED]: new Set(),
+		[JobStatus.CANCELLED]: new Set(),
+	};
 
-const TRANSITIONS: Record<JOB_STATUS, ReadonlySet<JOB_STATUS>> = {
-	[JOB_STATUS.PENDING]: new Set([JOB_STATUS.QUEUED]),
-	[JOB_STATUS.IN_PROGRESS]: new Set([JOB_STATUS.COMPLETED, JOB_STATUS.FAILED]),
-	[JOB_STATUS.QUEUED]: new Set([JOB_STATUS.ASSIGNED]),
-	[JOB_STATUS.ASSIGNED]: new Set([JOB_STATUS.RUNNING, JOB_STATUS.ORPHANED]),
-	[JOB_STATUS.RUNNING]: new Set([
-		JOB_STATUS.COMPLETED,
-		JOB_STATUS.FAILED,
-		JOB_STATUS.ORPHANED,
-	]),
-	[JOB_STATUS.ORPHANED]: new Set([JOB_STATUS.QUEUED, JOB_STATUS.FAILED]),
-	[JOB_STATUS.FAILED]: new Set([JOB_STATUS.QUEUED]),
-	[JOB_STATUS.COMPLETED]: new Set(),
-	[JOB_STATUS.CANCELLED]: new Set(),
-};
+	export function values(): JobStatus[] {
+		return Array.from(AllValues);
+	}
 
-const CANCELLABLE_FROM = new Set<JOB_STATUS>([
-	JOB_STATUS.PENDING,
-	JOB_STATUS.QUEUED,
-	JOB_STATUS.ASSIGNED,
-	JOB_STATUS.RUNNING,
-	JOB_STATUS.ORPHANED,
-]);
+	export function nonTerminal(): JobStatus[] {
+		return Array.from(NonTerminalSet);
+	}
 
-export interface StatusTransition {
-	from: JOB_STATUS;
-	to: JOB_STATUS;
-}
+	export function terminal(): JobStatus[] {
+		return Array.from(TerminalSet);
+	}
 
-export const JobStatusMachine = {
-	canTransition(from: JOB_STATUS, to: JOB_STATUS): boolean {
-		return TRANSITIONS[from]?.has(to) ?? false;
-	},
+	export function isTerminal(status: JobStatus): boolean {
+		return TerminalSet.has(status);
+	}
 
-	canCancel(status: JOB_STATUS): boolean {
-		return CANCELLABLE_FROM.has(status);
-	},
+	export function canTransition(from: JobStatus, to: JobStatus): boolean {
+		return Transitions[from]?.has(to) ?? false;
+	}
 
-	transition(from: JOB_STATUS, to: JOB_STATUS, reason?: string): JobEvent {
-		if (to === JOB_STATUS.CANCELLED && !JobStatusMachine.canCancel(from)) {
+	export function canCancel(status: JobStatus): boolean {
+		return NonTerminalSet.has(status);
+	}
+
+	export function transition(
+		from: JobStatus,
+		to: JobStatus,
+		reason?: string
+	): JobEvent {
+		if (to === JobStatus.CANCELLED && !JobStatus.canCancel(from)) {
 			throw new AppError(reason ?? `Cannot cancel job from ${from}`, {
 				code: "JobStatusError",
 				cause: { from, to },
 			});
 		}
-		if (
-			to !== JOB_STATUS.CANCELLED &&
-			!JobStatusMachine.canTransition(from, to)
-		) {
+		if (to !== JobStatus.CANCELLED && !JobStatus.canTransition(from, to)) {
 			throw new AppError(`Invalid job status transition: ${from} → ${to}`, {
 				code: "JobStatusError",
 				cause: { from, to },
@@ -114,19 +150,38 @@ export const JobStatusMachine = {
 		}
 		return {
 			transition: { from, to },
-			timestamp: new Date(),
+			timestamp: UnixTimestamp.now(),
 			reason: reason ?? "",
 		};
-	},
+	}
+}
 
-	isTerminal(status: JOB_STATUS): boolean {
-		return isTerminalStatus(status);
-	},
-};
+export interface StatusTransition {
+	from: JobStatus;
+	to: JobStatus;
+}
+
+/**
+ * @deprecated Use JobStatus.terminal() instead.
+ */
+export const JOB_STATUS_TERMINAL: readonly JobStatus[] = JobStatus.terminal();
+
+/**
+ * @deprecated Use JobStatus.nonTerminal() instead.
+ */
+export const JOB_STATUS_NON_TERMINAL: readonly JobStatus[] =
+	JobStatus.nonTerminal();
+
+/**
+ * @deprecated Use JobStatus.isTerminal() instead.
+ */
+export function isTerminalStatus(status: JobStatus): boolean {
+	return JobStatus.isTerminal(status);
+}
 
 export interface JobEvent {
 	transition: StatusTransition;
-	timestamp: Date;
+	timestamp: UnixTimestamp;
 	reason: string;
 }
 
@@ -135,12 +190,12 @@ export interface Job<TData = unknown> extends RetryPolicy {
 	type: JobType;
 	payload: TData;
 	priority: JobPriority;
-	status: JOB_STATUS;
+	status: JobStatus;
 	assignedWorkerId?: InstanceId;
-	ackDeadline: number;
-	createdAt: Date;
-	startedAt?: Date;
-	completedAt?: Date;
+	ackDeadline: PositiveInt;
+	createdAt: UnixTimestamp;
+	startedAt?: UnixTimestamp;
+	completedAt?: UnixTimestamp;
 	result?: unknown;
 	error?: string;
 	history: JobEvent[];
@@ -149,3 +204,6 @@ export interface Job<TData = unknown> extends RetryPolicy {
 export type JobUpdateExtras = Partial<
 	Pick<Job, "result" | "error" | "assignedWorkerId" | "ackDeadline">
 >;
+
+/** @deprecated Use `JobStatus` instead. */
+export { JobStatus as JOB_STATUS };

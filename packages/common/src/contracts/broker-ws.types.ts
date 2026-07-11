@@ -51,7 +51,7 @@ export interface WsServerDeliverPayload {
 	payload: unknown;
 }
 
-import type { ErrorResponse } from "../middleware/handle-core-error";
+import type { ErrorResponse } from "./error-response";
 
 export type WsServerErrorPayload = ErrorResponse;
 

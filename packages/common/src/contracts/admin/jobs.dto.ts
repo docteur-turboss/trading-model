@@ -2,10 +2,11 @@ import type {
 	InstanceId,
 	JobId,
 	JobType,
-	UnixTimestamp,
 	JsonObject,
+	PositiveInt,
+	UnixTimestamp,
 } from "../../domain/primitives";
-import type { JobPriority, JOB_STATUS } from "../recovery.types";
+import type { JOB_STATUS, JobPriority } from "../recovery.types";
 
 export enum JobTimelineEvent {
 	Created = "created",
@@ -46,7 +47,7 @@ export interface JobTimelineEntry {
 }
 
 export interface JobStats {
-	pending: number;
-	inProgress: number;
-	failed: number;
+	pending: PositiveInt;
+	inProgress: PositiveInt;
+	failed: PositiveInt;
 }
