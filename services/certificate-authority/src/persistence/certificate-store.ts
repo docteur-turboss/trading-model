@@ -1,5 +1,8 @@
 import type { SignedCertificate } from "@trading-model/certificate-utils/types";
-import type { SerialNumber } from "@trading-model/common/domain/primitives";
+import type {
+	SerialNumber,
+	ServiceId,
+} from "@trading-model/common/domain/primitives";
 import type { Collection } from "mongodb";
 import { MONGO_MANAGER } from "./mongo-manager";
 
@@ -11,7 +14,7 @@ export class CertificateStore {
 	}
 
 	static async connect(_uri?: string): Promise<CertificateStore> {
-		const db = MONGO_MANAGER.getDb();
+		const db = await MONGO_MANAGER.getDb();
 		const collection = db.collection("certificates");
 		await collection.createIndex({ serialNumber: 1 }, { unique: true });
 		await collection.createIndex({ serviceId: 1 });
@@ -33,7 +36,9 @@ export class CertificateStore {
 		return doc as unknown as SignedCertificate | null;
 	}
 
-	async getByServiceId(serviceId: string): Promise<SignedCertificate | null> {
+	async getByServiceId(
+		serviceId: ServiceId
+	): Promise<SignedCertificate | null> {
 		const doc = await this._collection.findOne(
 			{ serviceId },
 			{ sort: { issuedAt: -1 } }

@@ -73,8 +73,8 @@ describe("MONGO_MANAGER", () => {
 		expect(db).toBeDefined();
 	});
 
-	it("should throw getDb before init", async () => {
-		await expect(MONGO_MANAGER.getDb()).rejects.toThrow("not initialized");
+	it("should throw getDb before init", () => {
+		expect(() => MONGO_MANAGER.getDb()).toThrow("not initialized");
 	});
 
 	it("should return pool size", async () => {

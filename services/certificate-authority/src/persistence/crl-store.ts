@@ -11,7 +11,7 @@ export class CrlStore {
 	}
 
 	static async connect(_uri?: string): Promise<CrlStore> {
-		const db = MONGO_MANAGER.getDb();
+		const db = await MONGO_MANAGER.getDb();
 		const collection = db.collection("crl");
 		await collection.createIndex({ serialNumber: 1 }, { unique: true });
 		return new CrlStore(collection);

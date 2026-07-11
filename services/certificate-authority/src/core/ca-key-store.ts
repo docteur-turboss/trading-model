@@ -1,26 +1,25 @@
-import {
-	createPublicKey,
-	existsSync,
-	mkdirSync,
-	readFileSync,
-	writeFileSync,
-} from "node:fs";
-import { CRYPTO } from "@trading-model/common/crypto/crypto-constants";
+import { createPublicKey } from "node:crypto";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import type { KeyPair } from "@trading-model/certificate-utils/types";
+import { CryptoAlg } from "@trading-model/common/crypto/crypto-constants";
+import type { FilePath } from "@trading-model/common/domain/primitives";
+import { KeyPem } from "@trading-model/common/domain/primitives";
 
 export class CaKeyStore {
-	constructor(private readonly _caKeyPath: string) {}
+	constructor(private readonly _caKeyPath: FilePath) {}
 
 	load(): KeyPair | null {
 		if (!existsSync(this._caKeyPath)) {
 			return null;
 		}
-		const privateKey = readFileSync(this._caKeyPath, CRYPTO.UTF8);
-		const publicKey = createPublicKey(privateKey).export({
-			type: "spki",
-			format: "pem",
-		});
-		return { publicKey, privateKey };
+		const privateKey = readFileSync(this._caKeyPath, CryptoAlg.UTF8);
+		const publicKey = KeyPem.of(
+			createPublicKey(privateKey).export({
+				type: "spki",
+				format: "pem",
+			})
+		);
+		return { publicKey, privateKey: KeyPem.of(privateKey) };
 	}
 
 	save(privateKey: string): void {

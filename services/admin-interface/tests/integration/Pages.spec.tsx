@@ -13,7 +13,7 @@ const RICH_DATA = {
 						host: "10.0.0.1",
 						port: 8080,
 						version: "1.0",
-						heartbeat: "ok",
+						heartbeat: "2026-07-11T15:00:00.000Z",
 						status: "healthy",
 						ipPort: "10.0.0.1:8080",
 					},
@@ -77,21 +77,21 @@ const RICH_DATA = {
 			{
 				id: "j1",
 				type: "BACKTEST",
-				priority: "CRITICAL",
+				priority: 5,
 				status: "running",
 				worker: "w1",
 			},
 			{
 				id: "j2",
 				type: "TRAINING",
-				priority: "HIGH",
+				priority: 4,
 				status: "pending",
 				worker: null,
 			},
 			{
 				id: "j3",
 				type: "REPORT",
-				priority: "LOW",
+				priority: 2,
 				status: "completed",
 				worker: "w2",
 			},
@@ -101,7 +101,7 @@ const RICH_DATA = {
 	jobDetail: {
 		id: "j1",
 		type: "BACKTEST",
-		priority: "CRITICAL",
+		priority: 5,
 		status: "running",
 		worker: "w1",
 		timeline: [
@@ -130,7 +130,7 @@ const RICH_DATA = {
 				cpu: 85,
 				ram: 72,
 				status: "Online",
-				heartbeat: "ok",
+				heartbeat: "2026-07-11T15:00:00.000Z",
 				activeJobs: 3,
 			},
 			{
@@ -140,7 +140,7 @@ const RICH_DATA = {
 				cpu: 45,
 				ram: 60,
 				status: "Draining",
-				heartbeat: "ok",
+				heartbeat: "2026-07-11T15:01:00.000Z",
 				activeJobs: 0,
 			},
 			{
@@ -150,7 +150,7 @@ const RICH_DATA = {
 				cpu: 95,
 				ram: 88,
 				status: "Offline",
-				heartbeat: "stale",
+				heartbeat: "2026-07-11T15:02:00.000Z",
 				activeJobs: 0,
 			},
 		],
@@ -444,9 +444,9 @@ describe("Page interactions", () => {
 		fireEvent.click(screen.getByText("Jobs"));
 		expect(await screen.findByText("Job Management")).toBeInTheDocument();
 
-		expect(screen.getByText("CRITICAL")).toBeInTheDocument();
-		expect(screen.getByText("HIGH")).toBeInTheDocument();
-		expect(screen.getByText("LOW")).toBeInTheDocument();
+		expect(screen.getByText("Critical")).toBeInTheDocument();
+		expect(screen.getByText("High")).toBeInTheDocument();
+		expect(screen.getByText("Low")).toBeInTheDocument();
 
 		const checkboxes = screen.getAllByRole("checkbox");
 		fireEvent.click(checkboxes[1]);

@@ -4,6 +4,7 @@
 	JobStatus,
 	type JobUpdateExtras,
 } from "@trading-model/common/contracts/recovery.types";
+import { UnixTimestamp } from "@trading-model/common/domain/primitives";
 
 export class JobStatusUpdater {
 	buildUpdateSet(
@@ -37,7 +38,7 @@ export class JobStatusUpdater {
 	): JobEvent {
 		return {
 			transition: { from: fromStatus, to: toStatus },
-			timestamp: new Date(),
+			timestamp: UnixTimestamp.now(),
 			reason: extras?.error || toStatus,
 		};
 	}

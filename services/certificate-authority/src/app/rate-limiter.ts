@@ -1,6 +1,9 @@
 import { logger } from "@trading-model/common/config/logger";
-import type { AuthToken, UnixTimestamp } from "@trading-model/common/domain/primitives";
-import type { ClientIdentity } from "@trading-model/common/domain/primitives/string-ids";
+import {
+	type AuthToken,
+	UnixTimestamp,
+} from "@trading-model/common/domain/primitives";
+import { ClientIdentity } from "@trading-model/common/domain/primitives/string-ids";
 
 const UNAUTH_SIGN_ATTEMPTS = new Map<
 	string,
@@ -23,7 +26,7 @@ setInterval(() => {
 function _resetEntry(clientIdentity: ClientIdentity): void {
 	UNAUTH_SIGN_ATTEMPTS.set(clientIdentity, {
 		count: 1,
-		resetAt: (Date.now() + UNAUTH_WINDOW_MS) as UnixTimestamp,
+		resetAt: UnixTimestamp.of(Date.now() + UNAUTH_WINDOW_MS),
 	});
 }
 
@@ -62,7 +65,7 @@ export interface ConnectionState {
 
 function _resetRequestWindow(connectionState: ConnectionState): void {
 	connectionState.requestCount = 1;
-	connectionState.requestWindowStart = Date.now() as UnixTimestamp;
+	connectionState.requestWindowStart = UnixTimestamp.now();
 }
 
 function _logRateLimitExceeded(
@@ -96,7 +99,12 @@ export function checkSignRequestRateLimit(
 	clientIdentity: ClientIdentity | undefined,
 	limiterKey: string
 ): boolean {
-	if (!(connectionState.tokenProvided || checkUnauthRateLimit(limiterKey as ClientIdentity))) {
+	if (
+		!(
+			connectionState.tokenProvided ||
+			checkUnauthRateLimit(ClientIdentity.of(limiterKey))
+		)
+	) {
 		return false;
 	}
 	return _checkConnectionRateLimit(connectionState, clientIdentity);

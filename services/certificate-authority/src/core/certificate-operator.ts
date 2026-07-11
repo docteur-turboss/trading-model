@@ -6,7 +6,11 @@ import type {
 	SignedCertificate,
 } from "@trading-model/certificate-utils/types";
 import type { CertSignRequest } from "@trading-model/common/domain/cert-signing";
-import { toServiceId } from "@trading-model/common/domain/primitives";
+import type { CaPem, ServiceId } from "@trading-model/common/domain/primitives";
+import {
+	DurationMs,
+	toServiceId,
+} from "@trading-model/common/domain/primitives";
 import type { RevocationRequest } from "@trading-model/common/domain/revocation-request";
 import { ENV } from "../config/env";
 import type { CertificateStore } from "../persistence/certificate-store";
@@ -21,7 +25,7 @@ export class CertificateOperator {
 	async signServiceCertificate(
 		request: CertSignRequest,
 		caKeyPair: KeyPair,
-		caCertPem: string
+		caCertPem: CaPem
 	): Promise<SignedCertificate> {
 		const { serviceId, csr, ttlMs } = request;
 		const options: SignOptions = {
@@ -29,7 +33,7 @@ export class CertificateOperator {
 			serviceId: toServiceId(serviceId),
 			caKeyPair,
 			caCertPem,
-			ttlMs: ttlMs ?? ENV.CERT_DEFAULT_TTL_MS,
+			ttlMs: (ttlMs ?? DurationMs.of(ENV.CERT_DEFAULT_TTL_MS)) as DurationMs,
 		};
 
 		const signed = signCertificate(options);
@@ -41,7 +45,7 @@ export class CertificateOperator {
 
 	private _buildRevokedCertificate(
 		request: RevocationRequest,
-		serviceId: string
+		serviceId: ServiceId
 	): RevokedCertificate {
 		return {
 			serialNumber: request.serialNumber,

@@ -1,4 +1,5 @@
 import { logger } from "@trading-model/common/config/logger";
+import type { ServiceId } from "@trading-model/common/domain/primitives";
 import type { RequestHandler } from "express";
 import client from "prom-client";
 
@@ -65,7 +66,7 @@ export function incRevoked(): void {
 	REVOKED_CERTIFICATES_TOTAL.inc();
 }
 
-export function incRenewalFailure(serviceId: string): void {
+export function incRenewalFailure(serviceId: ServiceId): void {
 	RENEWAL_FAILURES_TOTAL.inc({ serviceId });
 }
 

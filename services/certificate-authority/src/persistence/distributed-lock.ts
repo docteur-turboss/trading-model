@@ -1,16 +1,20 @@
 import { randomUUID } from "node:crypto";
 import path from "node:path";
-import type { InstanceId } from "@trading-model/common/domain/primitives";
 import type { IDistributedLock } from "@trading-model/common/contracts/distributed-lock.types";
+import {
+	type DurationMs,
+	InstanceId,
+	type URLString,
+} from "@trading-model/common/domain/primitives";
 import { LockAcquisitionChain } from "./lock-acquisition-chain";
 import type { LockBackend, LockContext } from "./lock-backends";
 import { FileSystemLockBackend, RedisLockBackend } from "./lock-backends";
 import { LockConnectionManager } from "./lock-connection-manager";
 
 export interface DistributedLockOptions {
-	uri: string;
+	uri: URLString;
 	lockName: string;
-	ttlMs: number;
+	ttlMs: DurationMs;
 	redisUrl?: string;
 	fallbackDir?: string;
 }
@@ -21,7 +25,7 @@ export class DistributedLock implements IDistributedLock {
 
 	constructor(
 		private readonly _context: LockContext,
-		private readonly _ttlMs: number,
+		private readonly _ttlMs: DurationMs,
 		private readonly _backends: LockBackend[],
 		private readonly _connectionManager?: LockConnectionManager
 	) {
@@ -77,7 +81,7 @@ export class DistributedLock implements IDistributedLock {
 	private static _buildContext(options: DistributedLockOptions): LockContext {
 		return {
 			lockName: options.lockName,
-			instanceId: randomUUID().substring(0, 8) as InstanceId,
+			instanceId: InstanceId.of(randomUUID().substring(0, 8)),
 		};
 	}
 

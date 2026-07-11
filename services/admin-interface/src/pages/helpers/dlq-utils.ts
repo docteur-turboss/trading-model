@@ -1,7 +1,8 @@
+import type { MessageId } from "@trading-model/common/domain/primitives";
 import { useState } from "react";
 
 export function useDlqSelection(
-	data: { messages: { messageId: string }[] } | null | undefined
+	data: { messages: { messageId: MessageId }[] } | null | undefined
 ) {
 	const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 

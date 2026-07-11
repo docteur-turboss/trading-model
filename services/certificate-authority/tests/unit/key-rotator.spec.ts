@@ -68,8 +68,10 @@ describe("KeyRotator", () => {
 			rotator.start();
 
 			expect(logger.info).toHaveBeenCalledWith("Starting CA key rotator", {
-				intervalMs: 3600000,
-				retentionCount: 3,
+				context: {
+					intervalMs: 3600000,
+					retentionCount: 3,
+				},
 			});
 		});
 	});
@@ -122,10 +124,12 @@ describe("KeyRotator", () => {
 			await jest.advanceTimersByTimeAsync(0);
 
 			expect(logger.info).toHaveBeenCalledWith("CA key rotated", {
-				previousKeyId: "old-key",
-				previousVersion: 1,
-				newKeyId: "new-key",
-				newVersion: 2,
+				context: {
+					previousKeyId: "old-key",
+					previousVersion: 1,
+					newKeyId: "new-key",
+					newVersion: 2,
+				},
 			});
 		});
 

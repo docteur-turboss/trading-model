@@ -244,11 +244,11 @@ describe("InMemoryRegistryBackend", () => {
 	});
 
 	describe("generateInstanceToken", () => {
-		it("should return a non-empty 4-part token", () => {
+		it("should return a non-empty 3-part token", () => {
 			const backend = new InMemoryRegistryBackend();
 			const token = backend.generateInstanceToken("test-instance-1");
 			expect(typeof token).toBe("string");
-			expect(token.split(".")).toHaveLength(4);
+			expect(token.split(".")).toHaveLength(3);
 		});
 
 		it("should return different tokens for different calls", () => {

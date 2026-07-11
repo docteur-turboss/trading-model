@@ -1,4 +1,5 @@
 import { logger } from "@trading-model/common/config/logger";
+import type { URLString } from "@trading-model/common/domain/primitives";
 import { type Collection, MongoClient } from "mongodb";
 
 import type { AuditEntry } from "./audit-store";
@@ -8,7 +9,7 @@ export class MongoAuditConnection {
 	private _client: MongoClient;
 	private _collection: Collection<AuditEntry> | null = null;
 
-	constructor(uri: string) {
+	constructor(uri: URLString) {
 		this._client = MONGO_MANAGER.isConnected()
 			? MONGO_MANAGER.getClient()!
 			: new MongoClient(uri);

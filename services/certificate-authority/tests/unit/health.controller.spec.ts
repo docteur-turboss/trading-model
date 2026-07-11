@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 const MOCK_GET_CA_CERT_PEM = jest.fn();
 
 jest.mock("../../src/app", () => ({
-	CONTAINER: {
+	container: {
 		ca: {
 			getCaCertPem: MOCK_GET_CA_CERT_PEM,
 		},

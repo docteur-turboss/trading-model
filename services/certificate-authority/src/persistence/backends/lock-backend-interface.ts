@@ -1,4 +1,7 @@
-import type { InstanceId } from "@trading-model/common/domain/primitives";
+import type {
+	DurationMs,
+	InstanceId,
+} from "@trading-model/common/domain/primitives";
 
 export interface LockContext {
 	lockName: string;
@@ -14,7 +17,7 @@ export interface LockDocument {
 }
 
 export interface LockBackend {
-	acquire(context: LockContext, ttlMs: number): Promise<number | null>;
+	acquire(context: LockContext, ttlMs: DurationMs): Promise<number | null>;
 	release(context: LockContext, fencingToken: number): Promise<boolean>;
 	verifyOwnership(context: LockContext, fencingToken: number): Promise<number>;
 	disconnect?(): void;

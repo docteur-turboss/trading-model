@@ -1,6 +1,6 @@
 import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import type { ServiceInstance } from "@trading-model/common/contracts/service-registry.types";
-import type { InstanceId } from "@trading-model/common/domain/primitives";
+import { InstanceId } from "@trading-model/common/domain/primitives";
 import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
 import { InstanceCleanupHandler } from "./instance-cleanup-handler";
 import { InstanceHeartbeatHandler } from "./instance-heartbeat-handler";
@@ -66,13 +66,15 @@ export class RedisInstanceStore {
 		return this.getMetadata(instanceId);
 	}
 
-	async getInstances(serviceName: ServiceInstanceName): Promise<ServiceInstance[]> {
+	async getInstances(
+		serviceName: ServiceInstanceName
+	): Promise<ServiceInstance[]> {
 		const instanceIds = await this.getServiceInstanceIds(serviceName);
 		if (instanceIds.length === 0) {
 			return [];
 		}
 		const keys = instanceIds.map((id) =>
-			this._deps.keyBuilder.instanceMetadata(id as InstanceId)
+			this._deps.keyBuilder.instanceMetadata(InstanceId.of(id))
 		);
 		return this.getMetadatas(keys);
 	}
@@ -99,7 +101,10 @@ export class RedisInstanceStore {
 		serviceName,
 		instanceId,
 	}: ServiceIdentity): Promise<boolean> {
-		return this.removeInstanceSetAndMetadata(serviceName as unknown as ServiceInstanceName, instanceId);
+		return this.removeInstanceSetAndMetadata(
+			serviceName as unknown as ServiceInstanceName,
+			instanceId
+		);
 	}
 
 	listServiceNames(): Promise<ServiceInstanceName[]> {

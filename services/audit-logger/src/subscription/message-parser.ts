@@ -5,6 +5,7 @@ import type {
 	InstanceId,
 	ISODateTime,
 	MessageId,
+	SequenceNumber,
 	Topic,
 } from "@trading-model/common/domain/primitives";
 
@@ -23,7 +24,7 @@ interface MessageMetadata {
 
 interface INcomingEnvelope {
 	message?: { metadata: MessageMetadata; payload: unknown };
-	context?: { deliveryAttempt: number; consumerGroup: string };
+	context?: { deliveryAttempt: SequenceNumber; consumerGroup: string };
 	metadata?: MessageMetadata;
 	payload?: unknown;
 }

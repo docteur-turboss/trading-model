@@ -1,4 +1,8 @@
-import type { ServiceId } from "@trading-model/common/domain/primitives";
+import type { LogLevel } from "@trading-model/common/config/log-types";
+import {
+	ISODateTime,
+	ServiceId,
+} from "@trading-model/common/domain/primitives";
 import type { LogStats } from "./log-repository";
 
 type MongoDoc = Record<string, unknown>;
@@ -60,7 +64,7 @@ export class LogStatsBuilder {
 	): Record<ServiceId, number> {
 		const result: Record<ServiceId, number> = {};
 		for (const item of (aggResult?.[key] as Record<string, unknown>[]) ?? []) {
-			result[String(item._id) as ServiceId] = Number(item.count);
+			result[ServiceId.of(String(item._id))] = Number(item.count);
 		}
 		return result;
 	}
@@ -68,7 +72,7 @@ export class LogStatsBuilder {
 	private _extractMap(
 		aggResult: Record<string, unknown>,
 		key: string
-	): Record<string, number> {
+	): Record<LogLevel, number> {
 		const result: Record<string, number> = {};
 		for (const item of (aggResult?.[key] as Record<string, unknown>[]) ?? []) {
 			result[String(item._id)] = Number(item.count);
@@ -77,15 +81,17 @@ export class LogStatsBuilder {
 	}
 
 	private _extractDateRange(aggResult: Record<string, unknown>): {
-		earliest?: string;
-		latest?: string;
+		earliest?: ISODateTime;
+		latest?: ISODateTime;
 	} {
 		const dr = (
 			aggResult?.dateRange as Array<{ earliest?: Date; latest?: Date }>
 		)?.[0];
 		return {
-			earliest: dr?.earliest?.toISOString(),
-			latest: dr?.latest?.toISOString(),
+			earliest: dr?.earliest
+				? ISODateTime.of(dr.earliest.toISOString())
+				: undefined,
+			latest: dr?.latest ? ISODateTime.of(dr.latest.toISOString()) : undefined,
 		};
 	}
 }

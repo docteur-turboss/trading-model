@@ -1,12 +1,23 @@
-import type { ServiceStatus } from "@trading-model/common/contracts/admin/services.dto";
+import { ServiceStatus } from "@trading-model/common/contracts/admin/services.dto";
+import type {
+	ISODateTime,
+	PositiveInt,
+	ServiceId,
+	Version,
+} from "@trading-model/common/domain/primitives";
+import {
+	toISODateTime,
+	toServiceId,
+	toVersion,
+} from "@trading-model/common/domain/primitives";
 import type { Column } from "../../components/data-table";
 
 export interface ServiceRow {
-	serviceName: string;
-	instances: number;
+	serviceName: ServiceId;
+	instances: PositiveInt;
 	ipPort: string;
-	version: string;
-	heartbeat: string;
+	version: Version;
+	heartbeat: ISODateTime;
 	status: ServiceStatus;
 }
 
@@ -28,11 +39,13 @@ export function flattenServices(
 				  }
 				| undefined;
 			return {
-				serviceName: svc.serviceName,
-				instances: svc.instances.length,
+				serviceName: toServiceId(svc.serviceName),
+				instances: svc.instances.length as PositiveInt,
 				ipPort: primary ? `${primary.host}:${primary.port}` : "-",
-				version: primary?.version ?? "-",
-				heartbeat: primary?.heartbeat ?? "-",
+				version: toVersion(primary?.version ?? "-"),
+				heartbeat: primary?.heartbeat
+					? toISODateTime(primary.heartbeat)
+					: ("1970-01-01T00:00:00.000Z" as ISODateTime),
 				status: primary?.status ?? ServiceStatus.Down,
 			};
 		}) ?? []

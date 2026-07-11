@@ -25,15 +25,15 @@ describe("InternalQueue", () => {
 
 	describe("enqueue", () => {
 		it("should add a job to the correct priority queue", () => {
-			const job = createJob({ priority: 1 });
+			const job = createJob({ priority: 1 as any });
 			queue.enqueue(job);
 
 			expect(queue.depth()).toBe(1);
 		});
 
 		it("should enqueue jobs at different priorities", () => {
-			queue.enqueue(createJob({ priority: 1 }));
-			queue.enqueue(createJob({ priority: 5 }));
+			queue.enqueue(createJob({ priority: 1 as any }));
+			queue.enqueue(createJob({ priority: 5 as any }));
 
 			expect(queue.depth()).toBe(2);
 		});
@@ -45,8 +45,8 @@ describe("InternalQueue", () => {
 		});
 
 		it("should return the highest priority job first", () => {
-			queue.enqueue(createJob({ id: "low", priority: 5 }));
-			queue.enqueue(createJob({ id: "high", priority: 1 }));
+			queue.enqueue(createJob({ id: "low" as any, priority: 5 as any }));
+			queue.enqueue(createJob({ id: "high" as any, priority: 1 as any }));
 
 			const result = queue.dequeue();
 			expect(result).not.toBeNull();
@@ -54,15 +54,15 @@ describe("InternalQueue", () => {
 		});
 
 		it("should return jobs in FIFO order within the same priority", () => {
-			queue.enqueue(createJob({ id: "first", priority: 3 }));
-			queue.enqueue(createJob({ id: "second", priority: 3 }));
+			queue.enqueue(createJob({ id: "first" as any, priority: 3 as any }));
+			queue.enqueue(createJob({ id: "second" as any, priority: 3 as any }));
 
 			expect(queue.dequeue()!.job.id).toBe("first");
 			expect(queue.dequeue()!.job.id).toBe("second");
 		});
 
 		it("should remove the job from the queue", () => {
-			queue.enqueue(createJob({ priority: 3 }));
+			queue.enqueue(createJob({ priority: 3 as any }));
 			queue.dequeue();
 
 			expect(queue.depth()).toBe(0);
@@ -73,19 +73,19 @@ describe("InternalQueue", () => {
 		it("should call onAckTimeout when ack is not called within timeout", () => {
 			const onTimeout = jest.fn();
 
-			queue.enqueue(createJob({ id: "job-1" }));
-			queue.markDelivered("job-1", onTimeout);
+			queue.enqueue(createJob({ id: "job-1" as any }));
+			queue.markDelivered("job-1" as any, onTimeout);
 
 			jest.advanceTimersByTime(30000);
 
-			expect(onTimeout).toHaveBeenCalledWith("job-1");
+			expect(onTimeout).toHaveBeenCalledWith("job-1" as any);
 		});
 
 		it("should not call onAckTimeout when ack is called in time", () => {
 			const onTimeout = jest.fn();
 
-			queue.markDelivered("job-1", onTimeout);
-			queue.ack("job-1");
+			queue.markDelivered("job-1" as any, onTimeout);
+			queue.ack("job-1" as any);
 
 			jest.advanceTimersByTime(30000);
 
@@ -93,7 +93,7 @@ describe("InternalQueue", () => {
 		});
 
 		it("should not fail when ack is called for unknown jobId", () => {
-			expect(() => queue.ack("unknown")).not.toThrow();
+			expect(() => queue.ack("unknown" as any)).not.toThrow();
 		});
 	});
 
@@ -103,9 +103,9 @@ describe("InternalQueue", () => {
 		});
 
 		it("should return total count across all priorities", () => {
-			queue.enqueue(createJob({ priority: 1 }));
-			queue.enqueue(createJob({ priority: 2 }));
-			queue.enqueue(createJob({ priority: 5 }));
+			queue.enqueue(createJob({ priority: 1 as any }));
+			queue.enqueue(createJob({ priority: 2 as any }));
+			queue.enqueue(createJob({ priority: 5 as any }));
 
 			expect(queue.depth()).toBe(3);
 		});
@@ -113,7 +113,7 @@ describe("InternalQueue", () => {
 
 	describe("markDelivered without callback", () => {
 		it("should not throw when ack timeout fires without callback set", () => {
-			queue.markDelivered("job-1");
+			queue.markDelivered("job-1" as any);
 			expect(() => {
 				jest.advanceTimersByTime(30000);
 			}).not.toThrow();
@@ -124,8 +124,8 @@ describe("InternalQueue", () => {
 		it("should clear all pending ack timers", () => {
 			const onTimeout = jest.fn();
 
-			queue.markDelivered("job-1", onTimeout);
-			queue.markDelivered("job-2", onTimeout);
+			queue.markDelivered("job-1" as any, onTimeout);
+			queue.markDelivered("job-2" as any, onTimeout);
 			queue.stop();
 
 			jest.advanceTimersByTime(30000);

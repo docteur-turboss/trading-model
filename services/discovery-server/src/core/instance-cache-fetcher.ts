@@ -1,6 +1,6 @@
 import { logger } from "@trading-model/common/config/logger";
-import { parseServiceName } from "@trading-model/common/config/services.types";
 import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
+import { parseServiceName } from "@trading-model/common/config/services.types";
 import type {
 	RegistryBackend,
 	ServiceInstance,
@@ -53,7 +53,9 @@ export class InstanceCacheFetcher {
 		);
 		return all.slice(skip, skip + limit);
 	}
-	private _fetchFromBackend(serviceName: ServiceInstanceName): Promise<ServiceInstance[]> {
+	private _fetchFromBackend(
+		serviceName: ServiceInstanceName
+	): Promise<ServiceInstance[]> {
 		return this._backend.getInstances(parseServiceName(serviceName));
 	}
 	private _serveStaleIfUnhealthy(
@@ -90,18 +92,22 @@ export class InstanceCacheFetcher {
 		if (this._healthMonitor.fallbackActive) {
 			return this._backend.getInstance(id);
 		}
-		const cached = this._cache.get(serviceName as unknown as ServiceInstanceName);
+		const cached = this._cache.get(
+			serviceName as unknown as ServiceInstanceName
+		);
 		if (cached) {
-			return Promise.resolve(cached.find(
-				(inst: ServiceInstance) => inst.instanceId === instanceId
-			));
+			return Promise.resolve(
+				cached.find((inst: ServiceInstance) => inst.instanceId === instanceId)
+			);
 		}
 		if (!this._healthMonitor.isHealthy) {
-			const stale = this._cache.getStale(serviceName as unknown as ServiceInstanceName);
+			const stale = this._cache.getStale(
+				serviceName as unknown as ServiceInstanceName
+			);
 			if (stale) {
-				return Promise.resolve(stale.find(
-					(inst: ServiceInstance) => inst.instanceId === instanceId
-				));
+				return Promise.resolve(
+					stale.find((inst: ServiceInstance) => inst.instanceId === instanceId)
+				);
 			}
 		}
 		return this._backend.getInstance({ serviceName, instanceId });

@@ -3,7 +3,12 @@ import type {
 	SignedCertificate,
 } from "@trading-model/certificate-utils/types";
 import type { CertSignRequest } from "@trading-model/common/domain/cert-signing";
-import type { SerialNumber } from "@trading-model/common/domain/primitives";
+import type {
+	CaPem,
+	DurationMs,
+	FilePath,
+	SerialNumber,
+} from "@trading-model/common/domain/primitives";
 import type { RevocationRequest } from "@trading-model/common/domain/revocation-request";
 import type { CaStore } from "../persistence/ca-store";
 import type { CertificateStore } from "../persistence/certificate-store";
@@ -13,8 +18,8 @@ import { type BootstrapResult, CaBootstrapper } from "./ca-bootstrapper";
 import { CertificateOperator } from "./certificate-operator";
 
 export interface CaOptions {
-	caKeyPath: string;
-	caCertTtlMs: number;
+	caKeyPath: FilePath;
+	caCertTtlMs: DurationMs;
 	certificateStore: CertificateStore;
 	crlStore: CrlStore;
 	caStore: CaStore;
@@ -64,7 +69,7 @@ export class CertificateAuthority {
 		return this._operator.getCrl();
 	}
 
-	getCaCertPem(): string {
+	getCaCertPem(): CaPem {
 		return this._state.caCertPem;
 	}
 

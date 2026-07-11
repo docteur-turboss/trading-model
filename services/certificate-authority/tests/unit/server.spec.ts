@@ -2,6 +2,11 @@ import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 
 jest.mock("@trading-model/common/server/create-secure-server", () => ({
 	createSecureServer: jest.fn(),
+	buildTlsFromEnv: jest.fn(() => ({
+		key: "/key.pem",
+		cert: "/cert.pem",
+		ca: "/ca.pem",
+	})),
 }));
 
 jest.mock("../../src/config/env", () => ({

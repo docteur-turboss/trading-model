@@ -32,7 +32,7 @@ function createMockBackend(): jest.Mocked<RegistryBackend> {
 }
 
 const MAKE_INSTANCE = (id: string): ServiceInstance => ({
-	serviceName: "svc",
+	serviceName: "financial-scraper-service",
 	instanceId: id,
 	host: "127.0.0.1",
 	port: 8080,
@@ -68,17 +68,23 @@ describe("CachedRegistryOperations", () => {
 			const instances = [MAKE_INSTANCE("i-1")];
 			mockBackend.getInstances.mockResolvedValue(instances);
 
-			const result = await cachedBackend.getInstances("svc");
+			const result = await cachedBackend.getInstances(
+				"financial-scraper-service"
+			);
 
-			expect(mockBackend.getInstances).toHaveBeenCalledWith("svc");
+			expect(mockBackend.getInstances).toHaveBeenCalledWith(
+				"financial-scraper-service"
+			);
 			expect(result).toEqual(instances);
 		});
 
 		it("should return cached data on cache hit within TTL", async () => {
 			mockBackend.getInstances.mockResolvedValue([MAKE_INSTANCE("i-1")]);
 
-			await cachedBackend.getInstances("svc");
-			const result = await cachedBackend.getInstances("svc");
+			await cachedBackend.getInstances("financial-scraper-service");
+			const result = await cachedBackend.getInstances(
+				"financial-scraper-service"
+			);
 
 			expect(mockBackend.getInstances).toHaveBeenCalledTimes(1);
 			expect(result).toHaveLength(1);
@@ -86,12 +92,14 @@ describe("CachedRegistryOperations", () => {
 
 		it("should re-fetch when cache expires", async () => {
 			mockBackend.getInstances.mockResolvedValue([MAKE_INSTANCE("i-1")]);
-			await cachedBackend.getInstances("svc");
+			await cachedBackend.getInstances("financial-scraper-service");
 
 			jest.advanceTimersByTime(5001);
 
 			mockBackend.getInstances.mockResolvedValue([MAKE_INSTANCE("i-2")]);
-			const result = await cachedBackend.getInstances("svc");
+			const result = await cachedBackend.getInstances(
+				"financial-scraper-service"
+			);
 
 			expect(mockBackend.getInstances).toHaveBeenCalledTimes(2);
 			expect(result[0].instanceId).toBe("i-2");
@@ -103,7 +111,7 @@ describe("CachedRegistryOperations", () => {
 			mockBackend.getInstances.mockResolvedValue([MAKE_INSTANCE("i-1")]);
 			mockBackend.registerInstance.mockResolvedValue("token-1");
 
-			await cachedBackend.getInstances("svc");
+			await cachedBackend.getInstances("financial-scraper-service");
 
 			// Update mock BEFORE register so refreshCache gets fresh data
 			mockBackend.getInstances.mockResolvedValue([
@@ -113,7 +121,9 @@ describe("CachedRegistryOperations", () => {
 			await cachedBackend.registerInstance(MAKE_INSTANCE("i-2"));
 
 			// Cache should already be refreshed by register → no extra backend call
-			const result = await cachedBackend.getInstances("svc");
+			const result = await cachedBackend.getInstances(
+				"financial-scraper-service"
+			);
 
 			expect(mockBackend.getInstances).toHaveBeenCalledTimes(2); // initial read + refreshCache
 			expect(result).toHaveLength(2);
@@ -126,15 +136,17 @@ describe("CachedRegistryOperations", () => {
 			]);
 			mockBackend.removeInstance.mockResolvedValue(true);
 
-			await cachedBackend.getInstances("svc");
+			await cachedBackend.getInstances("financial-scraper-service");
 
 			mockBackend.getInstances.mockResolvedValue([MAKE_INSTANCE("i-2")]);
 			await cachedBackend.removeInstance({
-				serviceName: "svc",
+				serviceName: "financial-scraper-service",
 				instanceId: "i-1",
 			});
 
-			const result = await cachedBackend.getInstances("svc");
+			const result = await cachedBackend.getInstances(
+				"financial-scraper-service"
+			);
 
 			expect(result).toHaveLength(1);
 			expect(mockBackend.getInstances).toHaveBeenCalledTimes(2); // initial read + refreshCache
@@ -144,15 +156,15 @@ describe("CachedRegistryOperations", () => {
 			mockBackend.getInstances.mockResolvedValue([MAKE_INSTANCE("i-1")]);
 			mockBackend.updateHeartbeat.mockResolvedValue(30000);
 
-			await cachedBackend.getInstances("svc");
+			await cachedBackend.getInstances("financial-scraper-service");
 
 			mockBackend.getInstances.mockResolvedValue([MAKE_INSTANCE("i-1")]);
 			await cachedBackend.updateHeartbeat({
-				serviceName: "svc",
+				serviceName: "financial-scraper-service",
 				instanceId: "i-1",
 			});
 
-			await cachedBackend.getInstances("svc");
+			await cachedBackend.getInstances("financial-scraper-service");
 
 			expect(mockBackend.getInstances).toHaveBeenCalledTimes(2); // initial read + refreshCache
 		});
@@ -161,13 +173,15 @@ describe("CachedRegistryOperations", () => {
 			mockBackend.getInstances.mockResolvedValue([MAKE_INSTANCE("i-1")]);
 			mockBackend.updateHeartbeat.mockResolvedValue(false);
 
-			await cachedBackend.getInstances("svc");
+			await cachedBackend.getInstances("financial-scraper-service");
 			await cachedBackend.updateHeartbeat({
-				serviceName: "svc",
+				serviceName: "financial-scraper-service",
 				instanceId: "i-1",
 			});
 
-			const result = await cachedBackend.getInstances("svc");
+			const result = await cachedBackend.getInstances(
+				"financial-scraper-service"
+			);
 
 			// Failed heartbeat → no refreshCache call, so cache still valid
 			expect(mockBackend.getInstances).toHaveBeenCalledTimes(1);
@@ -178,28 +192,28 @@ describe("CachedRegistryOperations", () => {
 	describe("eviction", () => {
 		it("should evict oldest entry when maxEntries exceeded", async () => {
 			mockBackend.getInstances.mockImplementation((name) => {
-				if (name === "svc-a") {
+				if (name === "admin-interface") {
 					return Promise.resolve([MAKE_INSTANCE("i-1")]);
 				}
-				if (name === "svc-b") {
+				if (name === "api-gateway") {
 					return Promise.resolve([MAKE_INSTANCE("i-2")]);
 				}
-				if (name === "svc-c") {
+				if (name === "audit-logger-service") {
 					return Promise.resolve([MAKE_INSTANCE("i-3")]);
 				}
 				return Promise.resolve([MAKE_INSTANCE("i-4")]);
 			});
 
-			await cachedBackend.getInstances("svc-a");
-			await cachedBackend.getInstances("svc-b");
-			await cachedBackend.getInstances("svc-c");
-			await cachedBackend.getInstances("svc-d");
+			await cachedBackend.getInstances("admin-interface");
+			await cachedBackend.getInstances("api-gateway");
+			await cachedBackend.getInstances("audit-logger-service");
+			await cachedBackend.getInstances("certificate-authority");
 
 			expect(mockBackend.getInstances).toHaveBeenCalledTimes(4);
 			expect((cachedBackend as any)._core.cache.size).toBe(3);
 
 			mockBackend.getInstances.mockResolvedValue([MAKE_INSTANCE("i-1")]);
-			await cachedBackend.getInstances("svc-a");
+			await cachedBackend.getInstances("admin-interface");
 
 			// svc-a was evicted, must re-fetch
 			expect(mockBackend.getInstances).toHaveBeenCalledTimes(5);
@@ -211,9 +225,9 @@ describe("CachedRegistryOperations", () => {
 			const instance = MAKE_INSTANCE("i-1");
 			mockBackend.getInstances.mockResolvedValue([instance]);
 
-			await cachedBackend.getInstances("svc");
+			await cachedBackend.getInstances("financial-scraper-service");
 			const result = await cachedBackend.getInstance({
-				serviceName: "svc",
+				serviceName: "financial-scraper-service",
 				instanceId: "i-1",
 			});
 
@@ -224,11 +238,11 @@ describe("CachedRegistryOperations", () => {
 		it("should fall through to backend when cache missed", async () => {
 			mockBackend.getInstance.mockResolvedValue(MAKE_INSTANCE("i-1"));
 			const result = await cachedBackend.getInstance({
-				serviceName: "svc",
+				serviceName: "financial-scraper-service",
 				instanceId: "i-1",
 			});
 			expect(mockBackend.getInstance).toHaveBeenCalledWith({
-				serviceName: "svc",
+				serviceName: "financial-scraper-service",
 				instanceId: "i-1",
 			});
 			expect(result).toBeDefined();
@@ -237,9 +251,11 @@ describe("CachedRegistryOperations", () => {
 
 	describe("passthrough methods", () => {
 		it("should delegate listServiceNames", async () => {
-			mockBackend.listServiceNames.mockResolvedValue(["svc"]);
+			mockBackend.listServiceNames.mockResolvedValue([
+				"financial-scraper-service",
+			]);
 			const result = await cachedBackend.listServiceNames();
-			expect(result).toEqual(["svc"]);
+			expect(result).toEqual(["financial-scraper-service"]);
 		});
 
 		it("should delegate dump", async () => {
@@ -267,11 +283,13 @@ describe("CachedRegistryOperations", () => {
 	describe("sweep", () => {
 		it("should re-fetch on cache miss after TTL via lazy expiration", async () => {
 			mockBackend.getInstances.mockResolvedValue([MAKE_INSTANCE("i-1")]);
-			await cachedBackend.getInstances("svc");
+			await cachedBackend.getInstances("financial-scraper-service");
 
 			jest.advanceTimersByTime(60_000);
 
-			const result = await cachedBackend.getInstances("svc");
+			const result = await cachedBackend.getInstances(
+				"financial-scraper-service"
+			);
 
 			expect(mockBackend.getInstances).toHaveBeenCalledTimes(2);
 			expect(result).toHaveLength(1);

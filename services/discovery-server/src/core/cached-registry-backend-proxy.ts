@@ -4,7 +4,10 @@ import type {
 	RegistryBackend,
 	ServiceInstance,
 } from "@trading-model/common/contracts/service-registry.types";
-import type { InstanceId, ServiceId } from "@trading-model/common/domain/primitives";
+import type {
+	InstanceId,
+	ServiceId,
+} from "@trading-model/common/domain/primitives";
 import { toInstanceId } from "@trading-model/common/domain/primitives";
 import type { ServiceEndpoint } from "@trading-model/common/domain/service-identity";
 import type { TokenValidation } from "@trading-model/common/domain/token-validation";
@@ -34,7 +37,7 @@ export class CachedRegistryBackendProxy {
 	}
 
 	async listServiceNames(): Promise<ServiceInstanceName[]> {
-		return await this._backend.listServiceNames() as ServiceInstanceName[];
+		return (await this._backend.listServiceNames()) as ServiceInstanceName[];
 	}
 
 	async dump(): Promise<Record<ServiceInstanceName, ServiceInstance[]>> {

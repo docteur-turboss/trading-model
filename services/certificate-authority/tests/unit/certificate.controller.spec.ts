@@ -9,7 +9,7 @@ const MOCK_GET_BY_SERVICE_ID = jest.fn();
 const MOCK_REVOKE_CERTIFICATE = jest.fn();
 
 jest.mock("../../src/app", () => ({
-	CONTAINER: {
+	container: {
 		ca: {
 			signServiceCertificate: MOCK_SIGN_SERVICE_CERTIFICATE,
 			revokeCertificate: MOCK_REVOKE_CERTIFICATE,
@@ -84,7 +84,7 @@ describe("certificate.controller", () => {
 			});
 			expect(res.status).toHaveBeenCalledWith(200);
 			expect(res.status().json).toHaveBeenCalledWith({
-				cert: "cert-pem",
+				certPem: "cert-pem",
 				caPem: "ca-pem",
 				serialNumber: "SN-001",
 				expiresAt: signed.expiresAt,
@@ -147,7 +147,7 @@ describe("certificate.controller", () => {
 			expect(MOCK_GET_BY_SERVICE_ID).toHaveBeenCalledWith("svc-1");
 			expect(res.status).toHaveBeenCalledWith(200);
 			expect(res.status().json).toHaveBeenCalledWith({
-				cert: "cert-pem",
+				certPem: "cert-pem",
 				caPem: "ca-pem",
 				serialNumber: "SN-001",
 				issuedAt: cert.issuedAt,

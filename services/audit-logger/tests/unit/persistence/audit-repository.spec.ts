@@ -40,7 +40,7 @@ function makeEvent(
 		receivedAt: new Date(),
 		metadata: {
 			topic: toTopic("test-topic"),
-			eventType: "test.event",
+			eventType: "test.event" as any,
 			publisher: toServiceId("test-service"),
 			instanceId: toInstanceId("instance-1"),
 			messageId: toMessageId("msg-1"),
@@ -161,7 +161,7 @@ describe("AuditRepository", () => {
 			const event = makeEvent();
 			MOCK_COLLECTION.findOne.mockResolvedValue(event);
 
-			const result = await repository.findById("msg-1");
+			const result = await repository.findById("msg-1" as any);
 
 			expect(MOCK_COLLECTION.findOne).toHaveBeenCalledWith({
 				"metadata.messageId": "msg-1",
@@ -172,7 +172,7 @@ describe("AuditRepository", () => {
 		it("should return null when not found", async () => {
 			MOCK_COLLECTION.findOne.mockResolvedValue(null);
 
-			const result = await repository.findById("nonexistent");
+			const result = await repository.findById("nonexistent" as any);
 
 			expect(result).toBeNull();
 		});
@@ -189,10 +189,10 @@ describe("AuditRepository", () => {
 			MOCK_COLLECTION.countDocuments.mockResolvedValue(1);
 
 			const result = await repository.query({
-				topic: "test-topic",
-				publisher: "test-service",
-				page: 1,
-				limit: 10,
+				topic: "test-topic" as any,
+				publisher: "test-service" as any,
+				page: 1 as any,
+				limit: 10 as any,
 			});
 
 			expect(MOCK_COLLECTION.countDocuments).toHaveBeenCalled();
@@ -247,7 +247,7 @@ describe("AuditRepository", () => {
 		});
 
 		it("should apply correlationId filter", async () => {
-			await repository.query({ correlationId: "corr-1" });
+			await repository.query({ correlationId: "corr-1" as any });
 
 			const findFilter = (MOCK_COLLECTION.find as jest.Mock).mock
 				.calls[0][0] as any;
@@ -255,7 +255,7 @@ describe("AuditRepository", () => {
 		});
 
 		it("should cap limit at 1000", async () => {
-			await repository.query({ limit: 5000 });
+			await repository.query({ limit: 5000 as any });
 
 			expect(MOCK_COLLECTION.countDocuments).toHaveBeenCalled();
 

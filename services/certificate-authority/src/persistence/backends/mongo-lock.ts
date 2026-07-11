@@ -1,3 +1,4 @@
+import type { DurationMs } from "@trading-model/common/domain/primitives";
 import type { Collection } from "mongodb";
 import { MongoLockExecutor } from "../mongo-lock-executor";
 import type {
@@ -24,7 +25,10 @@ export class MongoLockBackend implements LockBackend {
 		this._connected = value;
 	}
 
-	async acquire(context: LockContext, ttlMs: number): Promise<number | null> {
+	async acquire(
+		context: LockContext,
+		ttlMs: DurationMs
+	): Promise<number | null> {
 		if (!this._connected) {
 			return null;
 		}

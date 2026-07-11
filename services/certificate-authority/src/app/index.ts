@@ -1,4 +1,9 @@
-﻿import { createBootstrap } from "@trading-model/common/server/bootstrap";
+﻿import {
+	DurationMs,
+	FilePath,
+	URLString,
+} from "@trading-model/common/domain/primitives";
+import { createBootstrap } from "@trading-model/common/server/bootstrap";
 import { ENV } from "../config/env";
 import { CertificateAuthority } from "../core/ca";
 import { Distributor } from "../core/distributor";
@@ -23,8 +28,8 @@ function _initCertificateAuthority(
 	stores: Awaited<ReturnType<typeof _initStores>>
 ): Promise<CertificateAuthority> {
 	return CertificateAuthority.create({
-		caKeyPath: ENV.CA_KEY_PATH,
-		caCertTtlMs: ENV.CA_CERT_TTL_MS,
+		caKeyPath: FilePath.of(ENV.CA_KEY_PATH),
+		caCertTtlMs: DurationMs.of(ENV.CA_CERT_TTL_MS),
 		certificateStore: stores.certificateStore,
 		crlStore: stores.crlStore,
 		caStore: stores.caStore,
@@ -50,7 +55,7 @@ createBootstrap({
 	name: "CertificateAuthority",
 	createServer,
 	onStart: async () => {
-		await MONGO_MANAGER.initialize(ENV.MONGODB_URI);
+		await MONGO_MANAGER.initialize(URLString.of(ENV.MONGODB_URI));
 		const stores = await _initStores();
 		const ca = await _initCertificateAuthority(stores);
 		const distributor = new Distributor({

@@ -9,8 +9,7 @@ interface StatsCardProps {
 	deltaColor?: string;
 }
 
-// biome-ignore lint/correctness/noUnusedVariables: extracted per refactor task
-function computeDelta(current: number, previous: number): number {
+function _computeDelta(current: number, previous: number): number {
 	if (previous === 0) {
 		return current === 0 ? 0 : 100;
 	}

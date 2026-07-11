@@ -1,7 +1,11 @@
 import type { SignedCertificate } from "@trading-model/certificate-utils/types";
 import { logger } from "@trading-model/common/config/logger";
 import type { CertSignRequest } from "@trading-model/common/domain/cert-signing";
-import type { SerialNumber } from "@trading-model/common/domain/primitives";
+import {
+	CsrPem,
+	type SerialNumber,
+	type ServiceId,
+} from "@trading-model/common/domain/primitives";
 import { HTTP_STATUS } from "@trading-model/common/http-status";
 import { CertificateIssuer } from "./certificate-issuer";
 import { NonceConsumer } from "./nonce-consumer";
@@ -10,7 +14,7 @@ import { PopVerifier } from "./pop-verifier";
 interface CertStore {
 	getBySerial(
 		serialNumber: SerialNumber
-	): Promise<{ certPem: string; serviceId: string } | null>;
+	): Promise<{ certPem: string; serviceId: ServiceId } | null>;
 }
 
 import type { NonceContext } from "../persistence/nonce-persister";
@@ -31,7 +35,7 @@ interface RenewalPopInput {
 	certPem: string;
 	nonce: string;
 	signature: string;
-	serviceId: string;
+	serviceId: ServiceId;
 	oldSerialNumber: SerialNumber;
 }
 
@@ -46,7 +50,7 @@ export class CertRenewalError extends Error {
 }
 
 export interface RenewCertRequest {
-	serviceId: string;
+	serviceId: ServiceId;
 	oldSerialNumber: SerialNumber;
 	nonce: string;
 	signature: string;
@@ -83,12 +87,12 @@ export class CertRenewalService {
 			serviceId,
 			oldSerialNumber,
 		});
-		return this._certificateIssuer.issue(serviceId, csr);
+		return this._certificateIssuer.issue(serviceId, CsrPem.of(csr));
 	}
 
 	private async _getOldCertificate(
 		oldSerialNumber: SerialNumber
-	): Promise<{ certPem: string; serviceId: string }> {
+	): Promise<{ certPem: string; serviceId: ServiceId }> {
 		const oldCert = await this._certStore.getBySerial(oldSerialNumber);
 		if (!oldCert) {
 			throw new CertRenewalError(

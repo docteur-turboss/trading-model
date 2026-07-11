@@ -5,7 +5,10 @@ jest.mock("@trading-model/common/middleware/catch-error", () => ({
 }));
 
 jest.mock("@trading-model/common/middleware/response-exception", () => ({
-	sendResponse: (data: any, status: number) => ({ status, data }),
+	sendResponse: (data: any, status: number) => ({
+		status: status as any,
+		data,
+	}),
 }));
 
 jest.mock("@trading-model/common/utils/errors", () => ({

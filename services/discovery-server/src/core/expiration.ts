@@ -1,6 +1,7 @@
 import type { ServiceInstance } from "@trading-model/common/contracts/service-registry.types";
+import { DurationMs } from "@trading-model/common/domain/primitives";
 
-export const CLOCK_SKEW_TOLERANCE_MS = 2000;
+export const CLOCK_SKEW_TOLERANCE_MS = DurationMs.of(2000);
 
 export function isExpiredInstance(
 	instance: ServiceInstance,

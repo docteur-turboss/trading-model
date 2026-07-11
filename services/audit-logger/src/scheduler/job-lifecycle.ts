@@ -2,7 +2,13 @@
 
 import { logger } from "@trading-model/common/config/logger";
 import { JobStatus } from "@trading-model/common/contracts/recovery.types";
-import { type JobId, type JobType, toJobType } from "@trading-model/common/domain/primitives";
+import {
+	JobId,
+	type JobType,
+	PositiveInt,
+	toJobType,
+	UnixTimestamp,
+} from "@trading-model/common/domain/primitives";
 import { ENV } from "../config/env";
 import type { JobRepository } from "../persistence/job-repository";
 import { type Job, JobPriority } from "../types/job.types";
@@ -12,22 +18,32 @@ import type { JobAssignmentManager } from "./job-assignment-manager";
 import type { JobFailureHandler } from "./job-failure-handler";
 import { JobStatusManager } from "./job-status-manager";
 
+export interface JobLifecycleDeps {
+	queue: InternalQueue;
+	backPressure: BackPressure;
+	repository: JobRepository;
+	assignmentManager: JobAssignmentManager;
+	failureHandler: JobFailureHandler;
+}
+
 export class JobLifecycle {
 	private readonly _statusManager: JobStatusManager;
 
-	constructor(
-		private readonly _queue: InternalQueue,
-		private readonly _backPressure: BackPressure,
-		private readonly _repository: JobRepository,
-		private readonly _assignmentManager: JobAssignmentManager,
-		private readonly _failureHandler: JobFailureHandler
-	) {
-		this._statusManager = new JobStatusManager(
-			this._queue,
-			this._repository,
-			this._assignmentManager,
-			this._failureHandler
-		);
+	constructor(private readonly _deps: JobLifecycleDeps) {
+		this._statusManager = new JobStatusManager(this._deps);
+	}
+
+	private get _queue(): InternalQueue {
+		return this._deps.queue;
+	}
+	private get _backPressure(): BackPressure {
+		return this._deps.backPressure;
+	}
+	private get _repository(): JobRepository {
+		return this._deps.repository;
+	}
+	private get _assignmentManager(): JobAssignmentManager {
+		return this._deps.assignmentManager;
 	}
 
 	async submit(
@@ -63,15 +79,15 @@ export class JobLifecycle {
 		maxRetries: number
 	): Job {
 		return {
-			id: randomUUID() as JobId,
+			id: JobId.of(randomUUID()),
 			type: toJobType(type),
 			payload,
 			priority,
 			status: JobStatus.PENDING,
-			ackDeadline: 0,
-			maxRetries,
-			retryCount: 0,
-			createdAt: new Date(),
+			ackDeadline: PositiveInt.of(Date.now() + ENV.ACK_TIMEOUT_MS),
+			maxRetries: PositiveInt.of(maxRetries || 1),
+			retryCount: 0 as unknown as PositiveInt,
+			createdAt: UnixTimestamp.now(),
 			history: [],
 		};
 	}

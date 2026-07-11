@@ -1,5 +1,5 @@
-import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import { logger } from "@trading-model/common/config/logger";
+import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import WebSocket from "ws";
 
@@ -34,7 +34,10 @@ export class ClientConnectionManager {
 	[Symbol.iterator](): IterableIterator<[string, ConnectedClient]> {
 		return this._clients[Symbol.iterator]();
 	}
-	isSubscribed(client: ConnectedClient, serviceName: ServiceInstanceName): boolean {
+	isSubscribed(
+		client: ConnectedClient,
+		serviceName: ServiceInstanceName
+	): boolean {
 		return (
 			client.subscribedServices.has("*") ||
 			client.subscribedServices.has(serviceName)

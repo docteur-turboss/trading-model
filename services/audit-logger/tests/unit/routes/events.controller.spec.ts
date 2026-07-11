@@ -37,8 +37,8 @@ describe("EventsController", () => {
 			const mockResult = {
 				docs: [],
 				total: 0,
-				page: 1,
-				limit: 100,
+				page: 1 as any,
+				limit: 100 as any,
 			};
 			mockRepo.query.mockResolvedValue(mockResult);
 
@@ -49,12 +49,12 @@ describe("EventsController", () => {
 			);
 
 			expect(mockRepo.query).toHaveBeenCalledWith({
-				topic: "test",
+				topic: "test" as any,
 				publisher: undefined,
 				correlationId: undefined,
 				dateRange: undefined,
-				page: 1,
-				limit: 50,
+				page: 1 as any,
+				limit: 50 as any,
 			});
 			expect(result).toMatchObject({ status: 200, data: mockResult });
 		});
@@ -63,8 +63,8 @@ describe("EventsController", () => {
 			mockRepo.query.mockResolvedValue({
 				docs: [],
 				total: 0,
-				page: 1,
-				limit: 100,
+				page: 1 as any,
+				limit: 100 as any,
 			});
 
 			await controller.listEvents(
@@ -86,8 +86,8 @@ describe("EventsController", () => {
 			mockRepo.query.mockResolvedValue({
 				docs: [],
 				total: 0,
-				page: 1,
-				limit: 100,
+				page: 1 as any,
+				limit: 100 as any,
 			});
 
 			const result = await controller.listEvents(

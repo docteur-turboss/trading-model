@@ -1,8 +1,9 @@
 import { logger } from "@trading-model/common/config/logger";
+import type { URLString } from "@trading-model/common/domain/primitives";
 import { MongoConnectionManager } from "@trading-model/common/persistence/mongo-connection-manager";
 import type { Db } from "mongodb";
 
-function _extractDbName(uri: string): string {
+function _extractDbName(uri: URLString): string {
 	try {
 		const path = new URL(uri).pathname.replace(/^\//, "");
 		return path || "admin";
@@ -14,7 +15,7 @@ function _extractDbName(uri: string): string {
 class MongoManager {
 	private _manager: MongoConnectionManager | null = null;
 
-	async initialize(uri: string, poolSizeParam?: number): Promise<void> {
+	async initialize(uri: URLString, poolSizeParam?: number): Promise<void> {
 		if (this._manager) {
 			return;
 		}

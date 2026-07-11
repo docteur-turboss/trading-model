@@ -1,11 +1,13 @@
+import type { ServiceId } from "@trading-model/common/domain/primitives";
+
 export interface NonceContext {
 	nonce: string;
-	serviceId: string;
+	serviceId: ServiceId;
 }
 
 export interface NonceDocument {
 	nonce: string;
-	serviceId: string;
+	serviceId: ServiceId;
 	createdAt: Date;
 }
 

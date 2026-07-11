@@ -1,6 +1,6 @@
 import http from "node:http";
 import { afterEach, describe, expect, it, jest } from "@jest/globals";
-import express from "express";
+import { configureApp } from "@trading-model/common/server/configure-app";
 
 jest.mock("../../src/config/env", () => ({
 	ENV: {
@@ -32,7 +32,7 @@ jest.mock("@trading-model/common/config/logger", () => ({
 }));
 
 jest.mock("../../src/config/address-manager", () => ({
-	ADDRESS_MANAGER_ROUTES: (): void => {},
+	ADDRESS_MANAGER_ROUTES: (_app: any): void => {},
 	BOOTSTRAP_ADDRESS_MANAGER: (): { stop: () => void } => ({
 		stop: (): void => {},
 	}),
@@ -44,8 +44,8 @@ import { BackPressure } from "../../src/scheduler/back-pressure";
 import { InternalQueue } from "../../src/scheduler/internal-queue";
 import { WorkerRegistry } from "../../src/worker/worker-registry";
 
-function createApp(): express.Application {
-	const app = express();
+function createApp() {
+	const app = configureApp();
 	const queue = new InternalQueue(30000);
 	const backPressure = new BackPressure(1000, 0.8);
 	const workers = new WorkerRegistry(30000);

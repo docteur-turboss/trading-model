@@ -1,6 +1,6 @@
 import { randomBytes } from "node:crypto";
-import { CRYPTO } from "@trading-model/common/crypto/crypto-constants";
 import type { RedisConnectionConfig } from "@trading-model/common/config/redis-config";
+import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import type {
 	IInstanceQuery,
 	IInstanceRegistration,
@@ -8,8 +8,11 @@ import type {
 	ITokenManager,
 	ServiceInstance,
 } from "@trading-model/common/contracts/service-registry.types";
-import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
-import { type InstanceId, type ServiceId, toInstanceId } from "@trading-model/common/domain/primitives";
+import { CryptoAlg } from "@trading-model/common/crypto/crypto-constants";
+import type {
+	InstanceId,
+	ServiceId,
+} from "@trading-model/common/domain/primitives";
 import type {
 	ServiceEndpoint,
 	ServiceIdentity,
@@ -53,7 +56,7 @@ export class RedisRegistryBackend
 		const keyBuilder = new RedisKeyBuilder(resolvedPrefix);
 		const redis = createRedisClient(configOrUrl) as Redis;
 		const tokenService = new TokenService(
-			signingSecret ?? randomBytes(32).toString(CRYPTO.HEX)
+			signingSecret ?? randomBytes(32).toString(CryptoAlg.HEX)
 		);
 		const instances = new RedisInstanceRepository({
 			redis,

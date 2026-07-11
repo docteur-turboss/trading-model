@@ -91,9 +91,11 @@ function _buildRecoveryHandlers(
 	return {
 		[JobStatus.PENDING]: (job) => {
 			queue.enqueue({ ...job, status: JobStatus.QUEUED });
+			return Promise.resolve();
 		},
 		[JobStatus.QUEUED]: (job) => {
 			queue.enqueue({ ...job, status: JobStatus.QUEUED });
+			return Promise.resolve();
 		},
 		[JobStatus.ASSIGNED]: async (job) => {
 			await repository.updateStatus(job.id, JobStatus.ORPHANED);

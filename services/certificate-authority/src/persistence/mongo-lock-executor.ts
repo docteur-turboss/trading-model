@@ -1,7 +1,9 @@
 import { logger } from "@trading-model/common/config/logger";
+import type {
+	DurationMs,
+	InstanceId,
+} from "@trading-model/common/domain/primitives";
 import type { Collection } from "mongodb";
-
-import type { InstanceId } from "@trading-model/common/domain/primitives";
 import type { LockContext, LockDocument } from "./lock-backends";
 
 export class MongoLockExecutor {
@@ -10,7 +12,10 @@ export class MongoLockExecutor {
 		private readonly _onDisconnect: () => void
 	) {}
 
-	async acquire(context: LockContext, ttlMs: number): Promise<number | null> {
+	async acquire(
+		context: LockContext,
+		ttlMs: DurationMs
+	): Promise<number | null> {
 		const collection = this._collection();
 		if (!collection) {
 			return null;
@@ -27,7 +32,7 @@ export class MongoLockExecutor {
 	private async _tryAcquire(
 		collection: Collection<LockDocument>,
 		context: LockContext,
-		ttlMs: number
+		ttlMs: DurationMs
 	): Promise<number | null> {
 		const { lockName, instanceId } = context;
 		const now = new Date();
@@ -36,7 +41,13 @@ export class MongoLockExecutor {
 		const nextFencingToken = (prev?.fencingToken ?? 0) + 1;
 		const result = await collection.findOneAndUpdate(
 			_buildLockFilter(lockName, now),
-			_buildLockUpdate(lockName, instanceId, now, expiresAt, nextFencingToken),
+			_buildLockUpdate({
+				name: lockName,
+				instanceId,
+				now,
+				expiresAt,
+				fencingToken: nextFencingToken,
+			}),
 			{ upsert: true, returnDocument: "before" }
 		);
 		const acquired =
@@ -96,20 +107,22 @@ function _buildLockFilter(name: string, now: Date): Record<string, unknown> {
 	};
 }
 
-function _buildLockUpdate(
-	name: string,
-	instanceId: InstanceId,
-	now: Date,
-	expiresAt: Date,
-	fencingToken: number
-): Record<string, unknown> {
+interface LockUpdateInput {
+	name: string;
+	instanceId: InstanceId;
+	now: Date;
+	expiresAt: Date;
+	fencingToken: number;
+}
+
+function _buildLockUpdate(input: LockUpdateInput): Record<string, unknown> {
 	return {
 		$set: {
-			name,
-			acquiredAt: now,
-			expiresAt,
-			instanceId,
-			fencingToken,
+			name: input.name,
+			acquiredAt: input.now,
+			expiresAt: input.expiresAt,
+			instanceId: input.instanceId,
+			fencingToken: input.fencingToken,
 		},
 	};
 }

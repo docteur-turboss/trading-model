@@ -6,8 +6,12 @@ import {
 	it,
 	jest,
 } from "@jest/globals";
-import { REDIS_MODE, REDIS_RESP, REDIS_SET } from "@trading-model/common/persistence/redis-constants";
 import type { ServiceInstance } from "@trading-model/common/contracts/service-registry.types";
+import {
+	REDIS_RESP,
+	REDIS_SET,
+	RedisMode,
+} from "@trading-model/common/persistence/redis-constants";
 
 jest.mock("@trading-model/common/config/logger", () => ({
 	logger: {
@@ -113,7 +117,7 @@ describe("RedisRegistryBackend", () => {
 
 		it("should connect with single mode config", () => {
 			const config: RedisConnectionConfig = {
-				mode: REDIS_MODE.SINGLE,
+				mode: RedisMode.SINGLE,
 				url: "redis://localhost:6380",
 			};
 			const backend = new RedisRegistryBackend(config);
@@ -126,7 +130,7 @@ describe("RedisRegistryBackend", () => {
 
 		it("should connect with sentinel mode config", () => {
 			const config: RedisConnectionConfig = {
-				mode: REDIS_MODE.SENTINEL,
+				mode: RedisMode.SENTINEL,
 				config: {
 					sentinels: [{ host: "127.0.0.1", port: 26379 }],
 					name: "mymaster",
@@ -143,7 +147,7 @@ describe("RedisRegistryBackend", () => {
 
 		it("should connect with cluster mode config", () => {
 			const config: RedisConnectionConfig = {
-				mode: REDIS_MODE.CLUSTER,
+				mode: RedisMode.CLUSTER,
 				config: { nodes: [{ host: "127.0.0.1", port: 7000 }] },
 			};
 			new RedisRegistryBackend(config);
@@ -153,13 +157,13 @@ describe("RedisRegistryBackend", () => {
 		it("should throw for unknown mode", () => {
 			const config = { mode: "unknown" } as unknown as RedisConnectionConfig;
 			expect(() => new RedisRegistryBackend(config)).toThrow(
-				"Unknown Redis connection mode"
+				"Unknown Redis mode:"
 			);
 		});
 
 		it("should use hash-tag prefix wrapping in cluster mode", () => {
 			const config: RedisConnectionConfig = {
-				mode: REDIS_MODE.CLUSTER,
+				mode: RedisMode.CLUSTER,
 				config: { nodes: [{ host: "127.0.0.1", port: 7000 }] },
 			};
 			const backend = new RedisRegistryBackend(config, "discovery:");
@@ -190,14 +194,14 @@ describe("RedisRegistryBackend", () => {
 			const args = MOCK_REDIS_CTOR.mock.calls[0];
 			const retryStrategy = (args[1] as any).retryStrategy as (
 				times: number
-			) => number;
+			) => number | null;
 			expect(retryStrategy(1)).toBe(200);
-			expect(retryStrategy(100)).toBe(5000);
+			expect(retryStrategy(100)).toBeNull();
 		});
 
 		it("should use clusterRetryStrategy with exponential backoff", () => {
 			const config: RedisConnectionConfig = {
-				mode: REDIS_MODE.CLUSTER,
+				mode: RedisMode.CLUSTER,
 				config: { nodes: [{ host: "127.0.0.1", port: 7000 }] },
 			};
 			new RedisRegistryBackend(config);
@@ -543,10 +547,10 @@ describe("RedisRegistryBackend", () => {
 	});
 
 	describe("generateInstanceToken", () => {
-		it("should return a 4-part token", () => {
+		it("should return a 3-part token", () => {
 			const backend = new RedisRegistryBackend("redis://localhost:6379");
 			const token = backend.generateInstanceToken("test-instance-1");
-			expect(token.split(".")).toHaveLength(4);
+			expect(token.split(".")).toHaveLength(3);
 		});
 	});
 
@@ -691,7 +695,9 @@ describe("RedisRegistryBackend", () => {
 
 			jest.advanceTimersByTime(0);
 
-			expect((backend as any)._cleaner.isRunning).toBe(true);
+			expect(
+				(backend as any)._lifecycleService._lifecycle._cleaner.isRunning
+			).toBe(true);
 
 			Math.random = origRandom;
 		});

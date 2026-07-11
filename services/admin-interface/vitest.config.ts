@@ -8,6 +8,7 @@ export default defineConfig({
 		globals: true,
 		setupFiles: ["./tests/helpers/setup.ts"],
 		include: ["tests/**/*.spec.{ts,tsx}"],
+		maxWorkers: 10,
 		coverage: {
 			provider: "v8",
 			include: ["src/**/*.{ts,tsx}"],

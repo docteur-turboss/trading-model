@@ -1,6 +1,7 @@
-﻿import { createHash } from "node:crypto";
+import { createHash } from "node:crypto";
 
-import { CRYPTO } from "@trading-model/common/crypto/crypto-constants";
+import { CryptoAlg } from "@trading-model/common/crypto/crypto-constants";
+import { HTTP_STATUS } from "@trading-model/common/http-status";
 import type { Request, Response } from "express";
 
 import { container } from "../app";
@@ -8,9 +9,9 @@ import { container } from "../app";
 export function health(_req: Request, res: Response): void {
 	const caCertPem = container.ca.getCaCertPem();
 	const caFingerprint = caCertPem
-		? createHash(CRYPTO.SHA256).update(caCertPem).digest(CRYPTO.HEX)
+		? createHash(CryptoAlg.SHA256).update(caCertPem).digest(CryptoAlg.HEX)
 		: null;
-	res.status(200).json({
+	res.status(HTTP_STATUS.OK).json({
 		status: "ok",
 		caInitialized: true,
 		caFingerprint,

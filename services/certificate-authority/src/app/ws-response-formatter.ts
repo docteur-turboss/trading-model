@@ -1,12 +1,13 @@
 import type { CertificateResponse } from "@trading-model/common/domain/certificate-base";
 import type { WebSocket } from "ws";
+import { WsMessageType } from "./ws-message-router";
 
 export function buildSignResponsePayload(
 	id: string,
 	cert: CertificateResponse
 ): string {
 	return JSON.stringify({
-		type: "sign:response",
+		type: WsMessageType.SignResponse,
 		id,
 		success: true,
 		data: {
@@ -21,7 +22,7 @@ export function buildSignResponsePayload(
 
 export function buildSignErrorPayload(id: string, code: number): string {
 	return JSON.stringify({
-		type: "sign:response",
+		type: WsMessageType.SignResponse,
 		id,
 		success: false,
 		error: { message: "Certificate signing failed", code },
@@ -39,7 +40,7 @@ export function sendSignError(
 ): void {
 	ws.send(
 		JSON.stringify({
-			type: "sign:response",
+			type: WsMessageType.SignResponse,
 			id,
 			success: false,
 			error: { message },
@@ -49,7 +50,7 @@ export function sendSignError(
 
 function _buildRateLimitPayload(): string {
 	return JSON.stringify({
-		type: "sign:response",
+		type: WsMessageType.SignResponse,
 		id: "unknown",
 		success: false,
 		error: {

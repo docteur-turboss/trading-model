@@ -1,4 +1,5 @@
 import { logger } from "@trading-model/common/config/logger";
+import type { URLString } from "@trading-model/common/domain/primitives";
 import { type Collection, MongoClient } from "mongodb";
 import type { LockDocument } from "./lock-backends";
 import { MongoLockBackend } from "./lock-backends";
@@ -9,7 +10,7 @@ export class LockConnectionManager {
 	private _collection: Collection<LockDocument> | null = null;
 	readonly mongoBackend: MongoLockBackend;
 
-	constructor(uri: string, _fallbackDir?: string) {
+	constructor(uri: URLString, _fallbackDir?: string) {
 		this._client = new MongoClient(uri);
 		this.mongoBackend = new MongoLockBackend(
 			() => this._collection,

@@ -15,7 +15,10 @@ import type {
 	PaginationResult,
 } from "@trading-model/common/domain/pagination";
 import type {
+	DurationMs,
+	ISODateTime,
 	Percentage,
+	PositiveInt,
 	Topic,
 	TradingSymbol,
 } from "@trading-model/common/domain/primitives";
@@ -52,11 +55,11 @@ export interface ServiceRegistry {
 }
 
 export interface StatsSummary {
-	activeServices: number;
-	totalServices: number;
-	totalInstances: number;
-	errorsRate: number;
-	avgLatency: number;
+	activeServices: PositiveInt;
+	totalServices: PositiveInt;
+	totalInstances: PositiveInt;
+	errorsRate: Percentage;
+	avgLatency: DurationMs;
 }
 
 export type OrderBookLevel =
@@ -77,32 +80,32 @@ export interface PaginatedEvents extends PaginationResult<AuditEvent> {
 
 export interface JobList {
 	jobs: JobEntry[];
-	stats: { pending: number; inProgress: number; failed: number };
+	stats: { pending: PositiveInt; inProgress: PositiveInt; failed: PositiveInt };
 }
 
 export interface DlqMessageList {
 	messages: DlqMessage[];
 	stats: {
-		pending: number;
+		pending: PositiveInt;
 		retryRate: Percentage;
-		totalSize: number;
-		lastIncident: string;
+		totalSize: PositiveInt;
+		lastIncident: ISODateTime;
 	};
 }
 
 export interface PaginatedResults {
 	results: TrainingResult[];
-	total: number;
+	total: PositiveInt;
 }
 
 export interface TrainingFilter {
 	symbol?: TradingSymbol;
-	generation?: number;
+	generation?: PositiveInt;
 }
 
 export interface CacheEntryList {
 	entries: CacheEntry[];
-	stats: { hitRate: Percentage; activeEntries: number };
+	stats: { hitRate: Percentage; activeEntries: PositiveInt };
 }
 
 export interface WorkerList {
@@ -110,10 +113,12 @@ export interface WorkerList {
 	stats: WorkerStats;
 }
 
+import type { HttpStatusCode } from "@trading-model/common/http-status";
+
 export class ApiError extends Error {
-	public readonly code = "ApiError";
+	public readonly code = "ApiError" as const;
 	constructor(
-		public statusCode: number,
+		public statusCode: HttpStatusCode,
 		message: string
 	) {
 		super(message);

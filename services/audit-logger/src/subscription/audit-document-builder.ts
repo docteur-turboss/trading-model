@@ -1,11 +1,12 @@
 import type { EventEnumMap } from "@trading-model/common/config/event.types";
 import {
+	type CorrelationId,
+	type Topic,
 	toCorrelationId,
 	toInstanceId,
 	toMessageId,
 	toServiceId,
 	toTopic,
-	type Topic,
 } from "@trading-model/common/domain/primitives";
 import type { AuditEventDocument } from "../persistence/audit-repository";
 import type { ParsedEnvelope } from "./message-parser";
@@ -29,7 +30,7 @@ function buildAuditMetadata(
 		eventType?: EventEnumMap;
 		publisher?: { serviceName?: string; instanceId?: string };
 		messageId?: string;
-		correlationId?: string;
+		correlationId?: CorrelationId;
 	}
 ): AuditEventDocument["metadata"] {
 	const publisher = metadata?.publisher;

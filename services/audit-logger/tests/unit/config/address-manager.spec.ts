@@ -3,6 +3,7 @@ import { describe, expect, it, jest } from "@jest/globals";
 const MOCK_ADDRESS_MANAGER = {
 	start: jest.fn(),
 	listenExpress: jest.fn(),
+	findService: jest.fn(),
 };
 
 jest.mock(

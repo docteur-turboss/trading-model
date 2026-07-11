@@ -85,9 +85,9 @@ function IntervalSelect({
 			onChange={(evt) => onChange(evt.target.value as CandleInterval)}
 			sx={{ minWidth: 100 }}
 		>
-			<MenuItem value={CandleInterval.MIN1}>1 Minute</MenuItem>
-			<MenuItem value={CandleInterval.MIN5}>5 Minutes</MenuItem>
-			<MenuItem value={CandleInterval.MIN15}>15 Minutes</MenuItem>
+			<MenuItem value={CandleInterval.Min1}>1 Minute</MenuItem>
+			<MenuItem value={CandleInterval.Min5}>5 Minutes</MenuItem>
+			<MenuItem value={CandleInterval.Min15}>15 Minutes</MenuItem>
 			<MenuItem value={CandleInterval.H1}>1 Hour</MenuItem>
 			<MenuItem value={CandleInterval.H4}>4 Hours</MenuItem>
 			<MenuItem value={CandleInterval.D1}>1 Day</MenuItem>

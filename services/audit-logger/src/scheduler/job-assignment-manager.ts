@@ -1,3 +1,4 @@
+import type { JobId } from "@trading-model/common/domain/primitives";
 import type { JobRepository } from "../persistence/job-repository";
 import type { IWorkerProtocol } from "../worker/worker-protocol";
 import type { WorkerRegistry } from "../worker/worker-registry";
@@ -31,6 +32,10 @@ export class JobAssignmentManager {
 
 	setWorkerProtocol(protocol: IWorkerProtocol): void {
 		this._assigner.setWorkerProtocol(protocol);
+	}
+
+	setOnAckTimeout(handler: (jobId: JobId) => void): void {
+		this._assigner.setOnAckTimeout(handler);
 	}
 
 	distributeNext(): void {

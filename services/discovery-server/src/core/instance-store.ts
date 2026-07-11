@@ -1,4 +1,8 @@
 import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
+import {
+	type InstanceId,
+	UnixTimestamp,
+} from "@trading-model/common/domain/primitives";
 import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
 import type { ServiceInstance } from "./types";
 
@@ -15,9 +19,14 @@ import type { ServiceInstance } from "./types";
  * @see CacheStore — client-side cache (address-manager)
  */
 export class InstanceStore {
-	private _services: Map<string, Map<string, ServiceInstance>> = new Map();
+	private _services: Map<
+		ServiceInstanceName,
+		Map<InstanceId, ServiceInstance>
+	> = new Map();
 
-	private _ensureBucket(serviceName: ServiceInstanceName): Map<string, ServiceInstance> {
+	private _ensureBucket(
+		serviceName: ServiceInstanceName
+	): Map<InstanceId, ServiceInstance> {
 		let instances = this._services.get(serviceName);
 		if (!instances) {
 			instances = new Map();
@@ -27,7 +36,7 @@ export class InstanceStore {
 	}
 
 	private _mergeOrCreateInstance(
-		instances: Map<string, ServiceInstance>,
+		instances: Map<InstanceId, ServiceInstance>,
 		instance: ServiceInstance
 	): ServiceInstance {
 		const { instanceId } = instance;
@@ -36,13 +45,13 @@ export class InstanceStore {
 			instances.set(instanceId, {
 				...existing,
 				...instance,
-				lastHeartbeat: Date.now(),
+				lastHeartbeat: UnixTimestamp.now(),
 			});
 		} else {
 			instances.set(instanceId, {
 				...instance,
-				registeredAt: Date.now(),
-				lastHeartbeat: Date.now(),
+				registeredAt: UnixTimestamp.now(),
+				lastHeartbeat: UnixTimestamp.now(),
 			});
 		}
 		return instances.get(instanceId)!;
@@ -50,12 +59,16 @@ export class InstanceStore {
 
 	registerInstance(instance: ServiceInstance): ServiceInstance {
 		const { serviceName } = instance;
-		const instances = this._ensureBucket(serviceName as unknown as ServiceInstanceName);
+		const instances = this._ensureBucket(
+			serviceName as unknown as ServiceInstanceName
+		);
 		return this._mergeOrCreateInstance(instances, instance);
 	}
 
 	updateHeartbeat(identity: ServiceIdentity): number | false {
-		const service = this._services.get(identity.serviceName);
+		const service = this._services.get(
+			identity.serviceName as unknown as ServiceInstanceName
+		);
 		if (!service) {
 			return false;
 		}
@@ -63,7 +76,7 @@ export class InstanceStore {
 		if (!instance) {
 			return false;
 		}
-		instance.lastHeartbeat = Date.now();
+		instance.lastHeartbeat = UnixTimestamp.now();
 		service.set(identity.instanceId, instance);
 		return instance.ttl;
 	}
@@ -77,27 +90,34 @@ export class InstanceStore {
 	}
 
 	getInstance(identity: ServiceIdentity): ServiceInstance | undefined {
-		return this._services.get(identity.serviceName)?.get(identity.instanceId);
+		return this._services
+			.get(identity.serviceName as unknown as ServiceInstanceName)
+			?.get(identity.instanceId);
 	}
 
 	removeInstance(identity: ServiceIdentity): boolean {
-		const service = this._services.get(identity.serviceName);
+		const service = this._services.get(
+			identity.serviceName as unknown as ServiceInstanceName
+		);
 		if (!service) {
 			return false;
 		}
 		const deleted = service.delete(identity.instanceId);
 		if (service.size === 0) {
-			this._services.delete(identity.serviceName);
+			this._services.delete(
+				identity.serviceName as unknown as ServiceInstanceName
+			);
 		}
 		return deleted;
 	}
 
 	listServiceNames(): ServiceInstanceName[] {
-		return [...this._services.keys()] as ServiceInstanceName[];
+		return [...this._services.keys()];
 	}
 
-	dump(): Record<string, ServiceInstance[]> {
-		const snapshot: Record<string, ServiceInstance[]> = {};
+	dump(): Partial<Record<ServiceInstanceName, ServiceInstance[]>> {
+		const snapshot: Partial<Record<ServiceInstanceName, ServiceInstance[]>> =
+			{};
 		for (const [serviceName, instances] of this._services.entries()) {
 			snapshot[serviceName] = [...instances.values()];
 		}

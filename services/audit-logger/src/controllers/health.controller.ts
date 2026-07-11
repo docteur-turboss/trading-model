@@ -1,5 +1,9 @@
+import type { HttpStatusCode } from "@trading-model/common/http-status";
 import { catchSync } from "@trading-model/common/middleware/catch-error";
-import { sendResponse } from "@trading-model/common/middleware/response-exception";
+import {
+	type ResponseObject,
+	sendResponse,
+} from "@trading-model/common/middleware/response-exception";
 import type { RequestHandler } from "express";
 
 import type { BackPressure } from "../scheduler/back-pressure";
@@ -20,7 +24,7 @@ function _healthResponse(
 			averageLoad: workers.averageLoad(),
 			timestamp: new Date().toISOString(),
 		},
-		200
+		200 as HttpStatusCode
 	);
 }
 

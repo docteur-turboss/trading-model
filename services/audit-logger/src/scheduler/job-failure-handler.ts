@@ -3,7 +3,10 @@ import {
 	isTerminalStatus,
 	JobStatus,
 } from "@trading-model/common/contracts/recovery.types";
-import type { JobId } from "@trading-model/common/domain/primitives";
+import {
+	type JobId,
+	PositiveInt,
+} from "@trading-model/common/domain/primitives";
 
 import { ENV } from "../config/env";
 import type { JobRepository } from "../persistence/job-repository";
@@ -58,7 +61,7 @@ export class JobFailureHandler {
 		this._queue.enqueue(updatedJob);
 		await this._repository.incrementRetry(jobId);
 		await this._repository.updateStatus(jobId, JobStatus.QUEUED, {
-			ackDeadline: newDeadline,
+			ackDeadline: PositiveInt.of(newDeadline),
 		});
 		logger.info("Job re-queued after failure", {
 			context: { jobId, retryCount: updatedJob.retryCount },
@@ -70,8 +73,8 @@ export class JobFailureHandler {
 		return {
 			...job,
 			status: JobStatus.QUEUED,
-			ackDeadline: newDeadline,
-			retryCount: job.retryCount + 1,
+			ackDeadline: PositiveInt.of(newDeadline),
+			retryCount: PositiveInt.next(job.retryCount),
 			assignedWorkerId: undefined,
 		};
 	}

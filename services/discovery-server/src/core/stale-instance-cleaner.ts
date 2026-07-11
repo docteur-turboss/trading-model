@@ -1,6 +1,7 @@
-import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import { logger } from "@trading-model/common/config/logger";
+import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import type { ServiceInstance } from "@trading-model/common/contracts/service-registry.types";
+import type { DurationMs } from "@trading-model/common/domain/primitives";
 import {
 	toInstanceId,
 	toServiceId,
@@ -32,7 +33,7 @@ export class StaleInstanceCleaner {
 
 	constructor(
 		private readonly _deps: CleanupDeps,
-		private readonly _intervalMs: number
+		private readonly _intervalMs: DurationMs
 	) {}
 
 	start(): void {

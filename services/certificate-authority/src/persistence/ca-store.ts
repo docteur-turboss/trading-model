@@ -9,10 +9,10 @@ export class CaStore {
 		this._collection = collection;
 	}
 
-	static connect(_uri?: string): Promise<CaStore> {
-		const db = MONGO_MANAGER.getDb();
+	static async connect(_uri?: string): Promise<CaStore> {
+		const db = await MONGO_MANAGER.getDb();
 		const collection = db.collection("ca_store");
-		return Promise.resolve(new CaStore(collection));
+		return new CaStore(collection);
 	}
 
 	/** Connection lifecycle is managed externally by MONGO_MANAGER. */

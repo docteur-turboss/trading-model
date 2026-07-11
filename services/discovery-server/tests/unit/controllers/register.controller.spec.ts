@@ -57,7 +57,7 @@ describe("Register.controller", () => {
 			});
 		});
 
-		it("should reject invalid service name with BadRequest", async () => {
+		it("should reject invalid service name with error", async () => {
 			const invalidPayload = {
 				...validRegisterPayload,
 				serviceName: "unknown-service",
@@ -68,10 +68,7 @@ describe("Register.controller", () => {
 					createRes(),
 					createNext
 				)
-			).resolves.toMatchObject({
-				status: 400,
-				data: { error: "Invalid service name" },
-			});
+			).rejects.toThrow("Invalid ServiceInstanceName");
 		});
 
 		it("should reject invalid IP with BadRequest", async () => {
@@ -174,17 +171,14 @@ describe("Register.controller", () => {
 			).resolves.toMatchObject({ status: 400 });
 		});
 
-		it("should reject unknown service name with NotFound", async () => {
+		it("should reject unknown service name with error", async () => {
 			await expect(
 				controller.getServiceInstances(
 					createReq({ params: { serviceName: "unknown-service" } }),
 					createRes(),
 					createNext
 				)
-			).resolves.toMatchObject({
-				status: 404,
-				data: { error: "Unknown service" },
-			});
+			).rejects.toThrow("Invalid ServiceInstanceName");
 		});
 
 		it("should return instances for known service", async () => {
@@ -256,6 +250,42 @@ describe("Register.controller", () => {
 					createNext
 				)
 			).resolves.toMatchObject({ status: 200 });
+		});
+	});
+
+	describe("register (verifyInstanceName returns false)", () => {
+		it("should reject with Invalid service name when verifyInstanceName returns false", async () => {
+			jest.spyOn(registry, "verifyInstanceName").mockReturnValue(false);
+
+			await expect(
+				controller.register(
+					createReq({ body: validRegisterPayload }),
+					createRes(),
+					createNext
+				)
+			).resolves.toMatchObject({
+				status: 400,
+				data: { error: "Invalid service name" },
+			});
+		});
+	});
+
+	describe("getServiceInstances (verifyInstanceName returns false)", () => {
+		it("should return 404 when verifyInstanceName returns false", async () => {
+			jest.spyOn(registry, "verifyInstanceName").mockReturnValue(false);
+
+			await expect(
+				controller.getServiceInstances(
+					createReq({
+						params: { serviceName: "financial-scraper-service" },
+					}),
+					createRes(),
+					createNext
+				)
+			).resolves.toMatchObject({
+				status: 404,
+				data: { error: "Unknown service" },
+			});
 		});
 	});
 });

@@ -7,14 +7,23 @@ import { JobStatus } from "../types/job.types";
 import type { InternalQueue } from "./internal-queue";
 import type { JobAssignmentManager } from "./job-assignment-manager";
 import type { JobFailureHandler } from "./job-failure-handler";
+import type { JobLifecycleDeps } from "./job-lifecycle";
 
 export class JobStatusManager {
-	constructor(
-		private readonly _queue: InternalQueue,
-		private readonly _repository: JobRepository,
-		private readonly _assignmentManager: JobAssignmentManager,
-		private readonly _failureHandler: JobFailureHandler
-	) {}
+	constructor(private readonly _deps: JobLifecycleDeps) {}
+
+	private get _queue(): InternalQueue {
+		return this._deps.queue;
+	}
+	private get _repository(): JobRepository {
+		return this._deps.repository;
+	}
+	private get _assignmentManager(): JobAssignmentManager {
+		return this._deps.assignmentManager;
+	}
+	private get _failureHandler(): JobFailureHandler {
+		return this._deps.failureHandler;
+	}
 
 	async ack(jobId: JobId): Promise<void> {
 		this._queue.ack(jobId);

@@ -1,6 +1,9 @@
 import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import { generateInstanceId } from "@trading-model/common/crypto/token-service";
-import type { InstanceId, ServiceId } from "@trading-model/common/domain/primitives";
+import type {
+	InstanceId,
+	ServiceId,
+} from "@trading-model/common/domain/primitives";
 import { toServiceId } from "@trading-model/common/domain/primitives";
 import type { ServiceEndpoint } from "@trading-model/common/domain/service-identity";
 import type { TokenValidation } from "@trading-model/common/domain/token-validation";

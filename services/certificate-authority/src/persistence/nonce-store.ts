@@ -1,6 +1,11 @@
 import { randomBytes } from "node:crypto";
-import { CRYPTO } from "@trading-model/common/crypto/crypto-constants";
 import { logger } from "@trading-model/common/config/logger";
+import { CryptoAlg } from "@trading-model/common/crypto/crypto-constants";
+import {
+	DurationMs,
+	type ServiceId,
+	type URLString,
+} from "@trading-model/common/domain/primitives";
 import { TimerHandle } from "@trading-model/common/utils/timer-handle";
 import type { NonceContext, NoncePersistence } from "./nonce-persister";
 import { MongoNoncePersister } from "./nonce-persister";
@@ -11,11 +16,14 @@ interface NonceEntry extends NonceContext {
 
 export class NonceStore {
 	private readonly _l1 = new Map<string, NonceEntry>();
-	private readonly _ttlMs: number;
+	private readonly _ttlMs: DurationMs;
 	private readonly _persister?: NoncePersistence;
 	private readonly _cleanupTimer = new TimerHandle();
 
-	constructor(ttlMs = 300_000, mongoUri?: string) {
+	constructor(
+		ttlMs: DurationMs = DurationMs.of(300_000),
+		mongoUri?: URLString
+	) {
 		this._ttlMs = ttlMs;
 		if (mongoUri) {
 			this._persister = new MongoNoncePersister(mongoUri, ttlMs);
@@ -42,8 +50,8 @@ export class NonceStore {
 		this._persister?.disconnect().catch(() => {});
 	}
 
-	async generate(serviceId: string): Promise<string> {
-		const nonce = randomBytes(32).toString(CRYPTO.HEX);
+	async generate(serviceId: ServiceId): Promise<string> {
+		const nonce = randomBytes(32).toString(CryptoAlg.HEX);
 		const entry: NonceEntry = { nonce, serviceId, createdAt: Date.now() };
 		try {
 			await this._persister?.persist(
@@ -60,7 +68,7 @@ export class NonceStore {
 		return Date.now() - createdAt > this._ttlMs;
 	}
 
-	async consume(nonce: string, serviceId: string): Promise<boolean> {
+	async consume(nonce: string, serviceId: ServiceId): Promise<boolean> {
 		const entry = this._l1.get(nonce);
 		if (entry && this._isExpired(entry.createdAt)) {
 			this._l1.delete(nonce);

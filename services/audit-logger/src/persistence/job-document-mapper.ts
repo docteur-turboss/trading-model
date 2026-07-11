@@ -2,6 +2,10 @@ import type {
 	Job,
 	JobEvent,
 } from "@trading-model/common/contracts/recovery.types";
+import {
+	PositiveInt,
+	UnixTimestamp,
+} from "@trading-model/common/domain/primitives";
 import type { JobDocument } from "./job-document";
 
 export class JobDocumentMapper {
@@ -16,9 +20,9 @@ export class JobDocumentMapper {
 			ackDeadline: job.ackDeadline,
 			maxRetries: job.maxRetries,
 			retryCount: job.retryCount,
-			createdAt: job.createdAt,
-			startedAt: job.startedAt,
-			completedAt: job.completedAt,
+			createdAt: new Date(job.createdAt),
+			startedAt: job.startedAt ? new Date(job.startedAt) : undefined,
+			completedAt: job.completedAt ? new Date(job.completedAt) : undefined,
 			result: job.result,
 			error: job.error,
 			history: _cloneHistory(job.history),
@@ -33,12 +37,16 @@ export class JobDocumentMapper {
 			priority: doc.priority,
 			status: doc.status,
 			assignedWorkerId: doc.assignedWorkerId,
-			ackDeadline: doc.ackDeadline,
+			ackDeadline: PositiveInt.of(doc.ackDeadline),
 			maxRetries: doc.maxRetries,
 			retryCount: doc.retryCount,
-			createdAt: doc.createdAt,
-			startedAt: doc.startedAt,
-			completedAt: doc.completedAt,
+			createdAt: UnixTimestamp.of(doc.createdAt.getTime()),
+			startedAt: doc.startedAt
+				? UnixTimestamp.of(doc.startedAt.getTime())
+				: undefined,
+			completedAt: doc.completedAt
+				? UnixTimestamp.of(doc.completedAt.getTime())
+				: undefined,
 			result: doc.result,
 			error: doc.error,
 			history: _cloneHistory(doc.history),

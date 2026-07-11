@@ -1,11 +1,12 @@
 ﻿import { logger } from "@trading-model/common/config/logger";
+import { CsrPem, toServiceId } from "@trading-model/common/domain/primitives";
 import type { ClientIdentity } from "@trading-model/common/domain/primitives/string-ids";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import type { WebSocket } from "ws";
 import { z } from "zod";
 import { container } from "./index";
-import { WsMessageType } from "./ws-message-router";
 import type { ConnectionState } from "./rate-limiter";
+import { WsMessageType } from "./ws-message-router";
 import {
 	buildSignErrorPayload,
 	buildSignResponsePayload,
@@ -34,14 +35,13 @@ export async function handleSignRequest(
 ): Promise<void> {
 	try {
 		const cert = await container.distributor.requestCertificate(
-			signMsg.data.serviceId,
-			signMsg.data.csr,
+			toServiceId(signMsg.data.serviceId),
+			CsrPem.of(signMsg.data.csr),
 			session.state.tokenProvided ? session.state.bootstrapToken : undefined
 		);
 		ws.send(buildSignResponsePayload(signMsg.id, cert));
 	} catch (err) {
-		const statusCode = ((err as Record<string, unknown>).statusCode ??
-			500) as number;
+		const statusCode = (err as { statusCode?: number }).statusCode ?? 500;
 		logger.warn("WSS sign error", {
 			context: { err: normalizeError(err as Error) },
 		});

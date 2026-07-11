@@ -4,14 +4,32 @@ import type { CacheManager } from "./cache-manager";
 import type { PubSubInvalidator } from "./pub-sub-invalidator";
 import type { RedisHealthMonitor } from "./redis-health-monitor";
 
+export interface CachedRegistryLifecycleDeps {
+	healthMonitor: RedisHealthMonitor;
+	pingManager: BackendPingManager;
+	pubSub: PubSubInvalidator;
+	cache: CacheManager;
+	backend: RegistryBackend;
+}
+
 export class CachedRegistryLifecycle {
-	constructor(
-		private readonly _healthMonitor: RedisHealthMonitor,
-		private readonly _pingManager: BackendPingManager,
-		private readonly _pubSub: PubSubInvalidator,
-		private readonly _cache: CacheManager,
-		private readonly _backend: RegistryBackend
-	) {}
+	constructor(private readonly _deps: CachedRegistryLifecycleDeps) {}
+
+	private get _healthMonitor(): RedisHealthMonitor {
+		return this._deps.healthMonitor;
+	}
+	private get _pingManager(): BackendPingManager {
+		return this._deps.pingManager;
+	}
+	private get _pubSub(): PubSubInvalidator {
+		return this._deps.pubSub;
+	}
+	private get _cache(): CacheManager {
+		return this._deps.cache;
+	}
+	private get _backend(): RegistryBackend {
+		return this._deps.backend;
+	}
 
 	async start(): Promise<void> {
 		this._backend.start();

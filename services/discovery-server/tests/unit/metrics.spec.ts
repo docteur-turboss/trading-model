@@ -27,9 +27,16 @@ jest.mock("prom-client", () => {
 
 import type { Request, Response } from "express";
 import {
+	incCacheInvalidations,
+	incHeartbeatsTotal,
+	incLeaseCleanupCycle,
+	incOperationError,
+	incWsDroppedMessages,
 	METRICS_HANDLER,
 	observeCleanupDuration,
 	setActiveWsConnections,
+	setRegisteredInstances,
+	setRegisteredInstancesPerService,
 	trackRequest,
 } from "../../src/monitoring/metrics";
 
@@ -104,6 +111,74 @@ describe("metrics", () => {
 				expect.stringContaining("text/plain")
 			);
 			expect(res.end).toHaveBeenCalledWith("mock_metrics 1");
+		});
+	});
+
+	describe("setRegisteredInstances", () => {
+		it("should set registered instances gauge without throwing", () => {
+			expect(() => {
+				setRegisteredInstances(10);
+			}).not.toThrow();
+			expect(MOCK_SET).toHaveBeenCalledWith(10);
+		});
+	});
+
+	describe("setRegisteredInstancesPerService", () => {
+		it("should set per-service gauge without throwing", () => {
+			expect(() => {
+				setRegisteredInstancesPerService("financial-scraper-service", 5);
+			}).not.toThrow();
+			expect(MOCK_SET).toHaveBeenCalledWith(
+				{ service: "financial-scraper-service" },
+				5
+			);
+		});
+	});
+
+	describe("incHeartbeatsTotal", () => {
+		it("should increment heartbeat counter without throwing", () => {
+			expect(() => {
+				incHeartbeatsTotal("financial-scraper-service");
+			}).not.toThrow();
+			expect(MOCK_INC).toHaveBeenCalledWith({
+				service: "financial-scraper-service",
+			});
+		});
+	});
+
+	describe("incCacheInvalidations", () => {
+		it("should increment cache invalidation counter without throwing", () => {
+			expect(() => {
+				incCacheInvalidations();
+			}).not.toThrow();
+			expect(MOCK_INC).toHaveBeenCalledWith();
+		});
+	});
+
+	describe("incWsDroppedMessages", () => {
+		it("should increment WS dropped messages counter without throwing", () => {
+			expect(() => {
+				incWsDroppedMessages();
+			}).not.toThrow();
+			expect(MOCK_INC).toHaveBeenCalledWith();
+		});
+	});
+
+	describe("incOperationError", () => {
+		it("should increment operation error counter without throwing", () => {
+			expect(() => {
+				incOperationError("register");
+			}).not.toThrow();
+			expect(MOCK_INC).toHaveBeenCalledWith({ operation: "register" });
+		});
+	});
+
+	describe("incLeaseCleanupCycle", () => {
+		it("should increment lease cleanup cycle counter without throwing", () => {
+			expect(() => {
+				incLeaseCleanupCycle();
+			}).not.toThrow();
+			expect(MOCK_INC).toHaveBeenCalledWith();
 		});
 	});
 });

@@ -1,6 +1,10 @@
 import type { SignedCertificate } from "@trading-model/certificate-utils/types";
 import { validateCertificate } from "@trading-model/certificate-utils/validate-certificate";
 import type { CertSignRequest } from "@trading-model/common/domain/cert-signing";
+import type {
+	CsrPem,
+	ServiceId,
+} from "@trading-model/common/domain/primitives";
 import {
 	toAuthToken,
 	toServiceId,
@@ -22,7 +26,9 @@ export class Distributor {
 		this._options = options;
 	}
 
-	async getCertificate(serviceId: string): Promise<SignedCertificate | null> {
+	async getCertificate(
+		serviceId: ServiceId
+	): Promise<SignedCertificate | null> {
 		const cert = await this._options.certificateStore.getByServiceId(serviceId);
 		if (!cert) {
 			return null;
@@ -40,8 +46,8 @@ export class Distributor {
 	}
 
 	async requestCertificate(
-		serviceId: string,
-		csr: string,
+		serviceId: ServiceId,
+		csr: CsrPem,
 		_bootstrapToken?: string
 	): Promise<SignedCertificate> {
 		const request: CertSignRequest = {

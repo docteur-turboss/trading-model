@@ -7,9 +7,13 @@ import {
 	toSessionId,
 	toUserId,
 } from "@trading-model/common/domain/primitives";
+import type { HttpStatusCode } from "@trading-model/common/http-status";
 import type { z } from "zod";
 
 import { LOGS_INGESTED_TOTAL } from "../config/metrics";
+
+const MS_PER_DAY = 86_400_000;
+
 import type { ServiceLogDocument } from "../persistence/log-repository";
 import { extractError } from "./error-extractor";
 import type { LOG_ENTRY_SCHEMA } from "./log-schemas";
@@ -53,7 +57,7 @@ function buildLogDocument(
 ): ServiceLogDocument {
 	const doc: ServiceLogDocument = {
 		receivedAt,
-		ttl: new Date(Date.now() + ttlDays * 86400_000),
+		ttl: new Date(Date.now() + ttlDays * MS_PER_DAY),
 		level: entry.level,
 		message: entry.message,
 		service: _buildDocService(entry),
@@ -91,7 +95,7 @@ function _buildDocRequest(
 	return {
 		method: entry.request!.method as HttpMethod,
 		url: entry.request!.url as never,
-		statusCode: entry.request!.statusCode,
+		statusCode: entry.request!.statusCode as HttpStatusCode | undefined,
 		durationMs: entry.request!.durationMs as never,
 	};
 }

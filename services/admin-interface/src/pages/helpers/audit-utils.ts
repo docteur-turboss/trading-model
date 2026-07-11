@@ -1,11 +1,17 @@
-import type { Topic } from "@trading-model/common/domain/primitives";
+import type { Severity } from "@trading-model/common/contracts/admin";
+import type {
+	CorrelationId,
+	ISODateTime,
+	ServiceId,
+	Topic,
+} from "@trading-model/common/domain/primitives";
 
 export function createAuditColumns() {
 	return [
 		{
 			id: "timestamp",
 			label: "Timestamp",
-			render: (row: { timestamp: string }) => row.timestamp,
+			render: (row: { timestamp: ISODateTime }) => row.timestamp,
 		},
 		{
 			id: "topic",
@@ -15,12 +21,12 @@ export function createAuditColumns() {
 		{
 			id: "publisher",
 			label: "Publisher",
-			render: (row: { publisher: string }) => row.publisher,
+			render: (row: { publisher: ServiceId }) => row.publisher,
 		},
 		{
 			id: "cid",
 			label: "Correlation ID",
-			render: (row: { correlationId: string }) => row.correlationId,
+			render: (row: { correlationId: CorrelationId }) => row.correlationId,
 		},
 		{
 			id: "summary",
@@ -30,7 +36,7 @@ export function createAuditColumns() {
 		{
 			id: "severity",
 			label: "Severity",
-			render: (row: { severity: string }) => row.severity,
+			render: (row: { severity: Severity }) => row.severity,
 		},
 	];
 }

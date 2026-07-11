@@ -166,9 +166,7 @@ function PriorityChip({ priority }: { priority: JobPriority }) {
 			: priority === JobPriority.HIGH
 				? "warning"
 				: "default";
-	return (
-		<Chip size="small" label={label} color={color} variant="outlined" />
-	);
+	return <Chip size="small" label={label} color={color} variant="outlined" />;
 }
 
 function WorkerCell({ worker }: { worker: string | null | undefined }) {

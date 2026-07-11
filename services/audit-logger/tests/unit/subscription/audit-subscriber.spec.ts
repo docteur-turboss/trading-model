@@ -60,12 +60,12 @@ describe("AuditSubscriber", () => {
 			expect(mockRepo.insert).toHaveBeenCalledWith(
 				expect.objectContaining({
 					metadata: expect.objectContaining({
-						topic: "order.created",
-						eventType: "OrderCreated",
-						publisher: "order-service",
-						instanceId: "instance-1",
-						messageId: "msg-123",
-						correlationId: "corr-456",
+						topic: "order.created" as any,
+						eventType: "OrderCreated" as any,
+						publisher: "order-service" as any,
+						instanceId: "instance-1" as any,
+						messageId: "msg-123" as any,
+						correlationId: "corr-456" as any,
 					}),
 					payload: { orderId: "ord-1" },
 				})
@@ -97,9 +97,9 @@ describe("AuditSubscriber", () => {
 			expect(mockRepo.insert).toHaveBeenCalledWith(
 				expect.objectContaining({
 					metadata: expect.objectContaining({
-						topic: "trade.executed",
-						publisher: "trade-service",
-						instanceId: "instance-2",
+						topic: "trade.executed" as any,
+						publisher: "trade-service" as any,
+						instanceId: "instance-2" as any,
 					}),
 					payload: { tradeId: "t-1" },
 				})
@@ -152,8 +152,8 @@ describe("AuditSubscriber", () => {
 			expect(mockRepo.insert).toHaveBeenCalledWith(
 				expect.objectContaining({
 					metadata: expect.objectContaining({
-						publisher: "unknown",
-						instanceId: "unknown",
+						publisher: "unknown" as any,
+						instanceId: "unknown" as any,
 					}),
 				})
 			);

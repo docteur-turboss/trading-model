@@ -1,4 +1,5 @@
 import type { RegistryBackend } from "@trading-model/common/contracts/service-registry.types";
+import type { DurationMs } from "@trading-model/common/domain/primitives";
 import { TimerHandle } from "@trading-model/common/utils/timer-handle";
 import { FallbackManager } from "./fallback-manager";
 import { FallbackRestoreHandler } from "./fallback-restore-handler";
@@ -13,7 +14,7 @@ export interface HealthCheckCallbacks {
 }
 export interface RedisHealthMonitorConfig {
 	failureThreshold: number;
-	healthCheckIntervalMs: number;
+	healthCheckIntervalMs: DurationMs;
 	shouldRun: () => boolean;
 	callbacks: HealthCheckCallbacks;
 	backend: RegistryBackend;
@@ -22,7 +23,7 @@ export interface RedisHealthMonitorConfig {
 export class RedisHealthMonitor {
 	private readonly _healthCheckHandle = new TimerHandle();
 	private readonly _healthState: HealthStateManager;
-	private readonly _healthCheckIntervalMs: number;
+	private readonly _healthCheckIntervalMs: DurationMs;
 	private readonly _shouldRun: () => boolean;
 	private readonly _callbacks: HealthCheckCallbacks;
 	private readonly _fallbackManager: FallbackManager;

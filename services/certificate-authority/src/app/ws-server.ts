@@ -1,9 +1,13 @@
 import type { RawData, WebSocket } from "ws";
 
-import type { AuthToken } from "@trading-model/common/domain/primitives";
 import { checkSignRequestRateLimit } from "./rate-limiter";
 import { handleAuthMessage } from "./ws-auth";
-import { WsMessageRouter, WsMessageType } from "./ws-message-router";
+import {
+	type CaAuthMessage,
+	type CaSignMessage,
+	WsMessageRouter,
+	WsMessageType,
+} from "./ws-message-router";
 import { sendRateLimitError, sendSignError } from "./ws-response-formatter";
 import type { WssSession } from "./ws-sign-handler";
 import { handleSignRequest, WS_SIGN_SCHEMA } from "./ws-sign-handler";
@@ -12,14 +16,10 @@ const messageRouter = new WsMessageRouter();
 
 messageRouter.register({
 	type: WsMessageType.Auth,
-	handle(
-		ws: WebSocket,
-		msg: Record<string, unknown>,
-		session: WssSession
-	): void {
+	handle(ws: WebSocket, msg: CaAuthMessage, session: WssSession): void {
 		handleAuthMessage({
 			ws,
-			authMsg: msg as { type: WsMessageType.Auth; token: AuthToken },
+			authMsg: msg,
 			state: session.state,
 			clientIdentity: session.clientIdentity,
 		});
@@ -30,12 +30,12 @@ messageRouter.register({
 	type: WsMessageType.Sign,
 	async handle(
 		ws: WebSocket,
-		msg: Record<string, unknown>,
+		msg: CaSignMessage,
 		session: WssSession
 	): Promise<void> {
 		const parsed = WS_SIGN_SCHEMA.safeParse(msg);
 		if (!parsed.success) {
-			sendSignError(ws, (msg.id as string) ?? "unknown", "Invalid request");
+			sendSignError(ws, msg.id, "Invalid request");
 			return;
 		}
 

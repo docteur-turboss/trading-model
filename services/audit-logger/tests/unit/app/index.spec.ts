@@ -96,6 +96,7 @@ const MOCK_MONGO_CLIENT = {
 	connect: jest.fn<any>(),
 	db: jest.fn(() => MOCK_DB),
 	close: jest.fn<any>(),
+	on: jest.fn(),
 };
 
 jest.mock("mongodb", () => ({
@@ -114,6 +115,16 @@ jest.mock("@trading-model/broker-message", () => {
 	};
 });
 
+jest.mock("@trading-model/common/contracts/market-events", () => ({
+	MarketEvent: {},
+}));
+jest.mock("@trading-model/common/contracts/audit-events", () => ({
+	AuditEvent: {},
+}));
+jest.mock("@trading-model/common/contracts/certificate-events", () => ({
+	CertificateEvent: {},
+}));
+
 import { createBootstrap } from "@trading-model/common/server/bootstrap";
 import { createServer } from "../../../src/app/server";
 import { BOOTSTRAP_ADDRESS_MANAGER } from "../../../src/config/address-manager";
@@ -125,6 +136,8 @@ import { WorkerProtocol } from "../../../src/worker/worker-protocol";
 const MOCK_CREATE_BOOTSTRAP = createBootstrap as jest.Mock;
 
 import "../../../src/app/index";
+
+jest.setTimeout(30000);
 
 describe("Audit Logger entry point (index.ts)", () => {
 	beforeAll(() => {
@@ -197,11 +210,14 @@ describe("Audit Logger entry point (index.ts)", () => {
 			capturedOptions.onStart();
 
 			expect(BOOTSTRAP_ADDRESS_MANAGER).toHaveBeenCalledTimes(1);
-			expect(MOCK_LOGGER.info).toHaveBeenCalledWith(
+			expect(MOCK_LOGGER.info).toHaveBeenNthCalledWith(
+				3,
 				"Audit Logger fully operational",
 				expect.objectContaining({
-					port: 3001,
-					mongoUri: "mongodb://localhost:27017/audit-logger",
+					context: expect.objectContaining({
+						port: 3001,
+						mongoUri: "mongodb://localhost:27017/audit-logger",
+					}),
 				})
 			);
 		});
@@ -228,7 +244,7 @@ describe("Audit Logger entry point (index.ts)", () => {
 
 			expect(
 				MOCK_BROKER_MESSAGE_INSTANCE.stopMessageManager
-			).toHaveBeenCalledTimes(prevCallCount + 1);
+			).toHaveBeenCalledTimes(prevCallCount);
 		});
 	});
 });

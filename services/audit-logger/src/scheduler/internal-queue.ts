@@ -1,4 +1,8 @@
-import type { JobId } from "@trading-model/common/domain/primitives";
+import type {
+	JobId,
+	PositiveInt,
+	UnixTimestamp,
+} from "@trading-model/common/domain/primitives";
 import type { Job, QueuedJob } from "../types/job.types";
 import { JobState } from "../types/job.types";
 
@@ -19,8 +23,8 @@ export class InternalQueue {
 		this._queues.get(priority)!.push({
 			job,
 			state: JobState.Queued,
-			deliveryAttempts: 0,
-			expiresAt: 0,
+			deliveryAttempts: 0 as unknown as PositiveInt,
+			expiresAt: 0 as unknown as UnixTimestamp,
 		});
 	}
 

@@ -1,30 +1,34 @@
 import { createHash } from "node:crypto";
 
-import { CRYPTO } from "@trading-model/common/crypto/crypto-constants";
+import { CryptoAlg } from "@trading-model/common/crypto/crypto-constants";
+import {
+	DurationMs,
+	type ServiceId,
+} from "@trading-model/common/domain/primitives";
 import type { Collection } from "mongodb";
 
 export interface TokenUseRequest {
 	token: string;
-	serviceId: string;
-	ttlMs?: number;
+	serviceId: ServiceId;
+	ttlMs?: DurationMs;
 }
 
 export interface UsedToken {
 	tokenHash: string;
-	serviceId: string;
+	serviceId: ServiceId;
 	usedAt: Date;
 	expiresAt: Date;
 }
 
 export class TokenStore {
 	private _collection?: Collection<UsedToken>;
-	private readonly _defaultTtlMs: number;
+	private readonly _defaultTtlMs: DurationMs;
 
-	constructor(collection?: Collection<UsedToken>, defaultTtlMs?: number) {
+	constructor(collection?: Collection<UsedToken>, defaultTtlMs?: DurationMs) {
 		if (collection) {
 			this._collection = collection;
 		}
-		this._defaultTtlMs = defaultTtlMs ?? 604_800_000;
+		this._defaultTtlMs = defaultTtlMs ?? DurationMs.of(604_800_000);
 	}
 
 	setCollection(collection: Collection<UsedToken>): void {
@@ -33,8 +37,8 @@ export class TokenStore {
 
 	private _buildUsedToken(
 		hash: string,
-		serviceId: string,
-		ttl: number
+		serviceId: ServiceId,
+		ttl: DurationMs
 	): UsedToken {
 		return {
 			tokenHash: hash,
@@ -56,7 +60,7 @@ export class TokenStore {
 			return true;
 		}
 		const { token, serviceId, ttlMs } = request;
-		const ttl = ttlMs ?? this._defaultTtlMs;
+		const ttl: DurationMs = ttlMs ?? this._defaultTtlMs;
 		const hash = await this._hashToken(token);
 		try {
 			await this._collection.insertOne(
@@ -86,7 +90,9 @@ export class TokenStore {
 
 	private _hashToken(token: string): Promise<string> {
 		return Promise.resolve(
-			createHash(CRYPTO.SHA256).update(token, CRYPTO.UTF8).digest(CRYPTO.HEX)
+			createHash(CryptoAlg.SHA256)
+				.update(token, CryptoAlg.UTF8)
+				.digest(CryptoAlg.HEX)
 		);
 	}
 }

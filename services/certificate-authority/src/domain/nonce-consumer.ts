@@ -1,3 +1,4 @@
+import type { ServiceId } from "@trading-model/common/domain/primitives";
 import { HTTP_STATUS } from "@trading-model/common/http-status";
 
 import type { NonceContext } from "../persistence/nonce-persister";
@@ -10,7 +11,7 @@ interface NonceStore {
 export class NonceConsumer {
 	constructor(private readonly _nonceStore: NonceStore) {}
 
-	async consume(nonce: string, serviceId: string): Promise<void> {
+	async consume(nonce: string, serviceId: ServiceId): Promise<void> {
 		if (!(await this._nonceStore.consume({ nonce, serviceId }))) {
 			throw new CertRenewalError(
 				"Invalid or expired nonce",

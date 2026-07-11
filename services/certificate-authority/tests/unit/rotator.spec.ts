@@ -81,8 +81,10 @@ describe("Rotator", () => {
 			rotator.start();
 
 			expect(logger.info).toHaveBeenCalledWith("Starting certificate rotator", {
-				intervalMs: 86400000,
-				marginMs: 17280000,
+				context: {
+					intervalMs: 86400000,
+					marginMs: 17280000,
+				},
 			});
 		});
 	});
@@ -152,7 +154,7 @@ describe("Rotator", () => {
 
 			expect(logger.info).toHaveBeenCalledWith(
 				"Rotating expiring certificates",
-				{ count: 1 }
+				{ context: { count: 1 } }
 			);
 		});
 

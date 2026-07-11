@@ -3,6 +3,7 @@ import {
 	toServiceId,
 	toTopic,
 } from "@trading-model/common/domain/primitives";
+import type { HttpStatusCode } from "@trading-model/common/http-status";
 import { catchSync } from "@trading-model/common/middleware/catch-error";
 import { sendResponse } from "@trading-model/common/middleware/response-exception";
 import type { RequestHandler } from "express";
@@ -42,7 +43,7 @@ function _createListEventsHandler(auditRepo: AuditRepository): RequestHandler {
 	return catchSync(async (req) => {
 		const query = _buildAuditEventQuery(req);
 		const result = await auditRepo.query(query);
-		return sendResponse(result, 200);
+		return sendResponse(result, 200 as HttpStatusCode);
 	});
 }
 
@@ -52,16 +53,16 @@ function _createGetEventHandler(auditRepo: AuditRepository): RequestHandler {
 		const event = await auditRepo.findById(messageId);
 
 		if (!event) {
-			return sendResponse({ error: "Event not found" }, 404);
+			return sendResponse({ error: "Event not found" }, 404 as HttpStatusCode);
 		}
 
-		return sendResponse(event, 200);
+		return sendResponse(event, 200 as HttpStatusCode);
 	});
 }
 
 function _createGetStatsHandler(auditRepo: AuditRepository): RequestHandler {
 	return catchSync(async () => {
 		const stats = await auditRepo.getStats();
-		return sendResponse(stats, 200);
+		return sendResponse(stats, 200 as HttpStatusCode);
 	});
 }

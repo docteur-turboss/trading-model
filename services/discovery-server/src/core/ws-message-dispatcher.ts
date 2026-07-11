@@ -1,8 +1,8 @@
 import { logger } from "@trading-model/common/config/logger";
 import {
-	DiscoveryWsMessageType,
 	type DiscoveryWsClientMessage,
 	type DiscoveryWsHeartbeatMessage,
+	DiscoveryWsMessageType,
 	type DiscoveryWsSubscribeMessage,
 } from "@trading-model/common/contracts/discovery-ws-message.types";
 import { normalizeError } from "@trading-model/common/utils/errors";
@@ -20,10 +20,16 @@ export class WsMessageDispatcher {
 			) => void
 		>
 	> = {
-		[DiscoveryWsMessageType.Subscribe]: (clientId, client, message) =>
-			this._handleSubscribe(clientId, client, message as never),
-		[DiscoveryWsMessageType.Heartbeat]: (_clientId, client, message) =>
-			this._handleHeartbeat(client, message as never),
+		[DiscoveryWsMessageType.Subscribe]: (clientId, client, message) => {
+			if (message.type === DiscoveryWsMessageType.Subscribe) {
+				this._handleSubscribe(clientId, client, message);
+			}
+		},
+		[DiscoveryWsMessageType.Heartbeat]: (_clientId, client, message) => {
+			if (message.type === DiscoveryWsMessageType.Heartbeat) {
+				this._handleHeartbeat(client, message);
+			}
+		},
 	};
 
 	handleMessage(
@@ -32,11 +38,8 @@ export class WsMessageDispatcher {
 		data: WebSocket.Data
 	): void {
 		try {
-			const parsed = JSON.parse(data.toString()) as {
-				type: DiscoveryWsMessageType;
-				payload?: Record<string, unknown>;
-			};
-			this._dispatch(clientId, client, parsed as DiscoveryWsClientMessage);
+			const parsed = JSON.parse(data.toString()) as DiscoveryWsClientMessage;
+			this._dispatch(clientId, client, parsed);
 		} catch (error) {
 			logger.warn("Failed to parse WS message", {
 				clientId,

@@ -1,8 +1,8 @@
 import type https from "node:https";
 import type { TLSSocket } from "node:tls";
 import { logger } from "@trading-model/common/config/logger";
-import type { ClientIdentity } from "@trading-model/common/domain/primitives/string-ids";
-import type { UnixTimestamp } from "@trading-model/common/domain/primitives";
+import { UnixTimestamp } from "@trading-model/common/domain/primitives";
+import { ClientIdentity } from "@trading-model/common/domain/primitives/string-ids";
 import { type WebSocket, WebSocketServer } from "ws";
 import type { ConnectionState } from "./rate-limiter";
 import { clearRateLimiterKey } from "./rate-limiter";
@@ -13,7 +13,9 @@ function _extractClientIdentity(
 ): ClientIdentity | undefined {
 	const tlsSocket = req.socket as TLSSocket;
 	const clientCert = tlsSocket.getPeerCertificate?.();
-	return clientCert?.subject?.CN as ClientIdentity | undefined;
+	return clientCert?.subject?.CN
+		? ClientIdentity.of(clientCert.subject.CN)
+		: undefined;
 }
 
 function _createConnectionState(): ConnectionState {
@@ -22,7 +24,7 @@ function _createConnectionState(): ConnectionState {
 		bootstrapToken: undefined,
 		authAttempts: 0,
 		requestCount: 0,
-		requestWindowStart: Date.now() as UnixTimestamp,
+		requestWindowStart: UnixTimestamp.now(),
 	};
 }
 

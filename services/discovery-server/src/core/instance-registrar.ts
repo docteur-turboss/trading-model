@@ -1,8 +1,11 @@
-import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import { logger } from "@trading-model/common/config/logger";
-import { REDIS_RESP, REDIS_SET } from "@trading-model/common/persistence/redis-constants";
+import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import type { ServiceInstance } from "@trading-model/common/contracts/service-registry.types";
 import type { InstanceId } from "@trading-model/common/domain/primitives";
+import {
+	REDIS_RESP,
+	REDIS_SET,
+} from "@trading-model/common/persistence/redis-constants";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import type { RedisDeps } from "./redis-deps";
 
@@ -62,7 +65,9 @@ export class InstanceRegistrar {
 		const finalToken = await this.resolveToken(instanceId);
 		const multi = this._deps.redis.multi();
 		multi.sadd(
-			this._deps.keyBuilder.serviceInstancesSet(serviceName as unknown as ServiceInstanceName),
+			this._deps.keyBuilder.serviceInstancesSet(
+				serviceName as unknown as ServiceInstanceName
+			),
 			instanceId
 		);
 		const storedInstance = await this.buildStoredInstance(instance, now);

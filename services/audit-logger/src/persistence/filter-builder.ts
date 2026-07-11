@@ -1,11 +1,15 @@
 import type { Filter } from "mongodb";
 import type { AuditEventDocument, AuditEventQuery } from "./audit-repository";
 
-const METADATA_FIELDS = {
-	topic: "metadata.topic" as const,
-	publisher: "metadata.publisher" as const,
-	correlationId: "metadata.correlationId" as const,
-} as const;
+const METADATA_FIELDS: {
+	readonly topic: "metadata.topic";
+	readonly publisher: "metadata.publisher";
+	readonly correlationId: "metadata.correlationId";
+} = {
+	topic: "metadata.topic",
+	publisher: "metadata.publisher",
+	correlationId: "metadata.correlationId",
+};
 
 export class FilterBuilder {
 	build(query: AuditEventQuery): Filter<AuditEventDocument> {

@@ -1,11 +1,11 @@
 import { logger } from "@trading-model/common/config/logger";
+import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import {
 	generateInstanceToken as commonGenerateToken,
 	validInstanceToken as commonValidateToken,
 	verifyInstanceName as commonVerifyName,
 	type TokenValidationInput,
 } from "@trading-model/common/crypto/token-service";
-import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import type { InstanceId } from "@trading-model/common/domain/primitives";
 
 export class TokenService {

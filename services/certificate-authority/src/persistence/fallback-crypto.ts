@@ -1,8 +1,8 @@
 import crypto from "node:crypto";
 
-import { CRYPTO } from "@trading-model/common/crypto/crypto-constants";
+import { CryptoAlg } from "@trading-model/common/crypto/crypto-constants";
 
-const ALGORITHM = CRYPTO.AES_256_GCM;
+const ALGORITHM = CryptoAlg.AES_256_GCM;
 const IV_LENGTH = 12;
 
 export function deriveKey(base64Key: string): Buffer {
@@ -19,7 +19,7 @@ export function encrypt(plaintext: string, key: Buffer): string {
 	const iv = crypto.randomBytes(IV_LENGTH);
 	const cipher = crypto.createCipheriv(ALGORITHM, key, iv);
 	const encrypted = Buffer.concat([
-		cipher.update(plaintext, CRYPTO.UTF8),
+		cipher.update(plaintext, CryptoAlg.UTF8),
 		cipher.final(),
 	]);
 	const tag = cipher.getAuthTag();
@@ -57,6 +57,6 @@ export function decrypt(ciphertext: string, key: Buffer): string {
 	const decipher = crypto.createDecipheriv(ALGORITHM, key, iv);
 	decipher.setAuthTag(tag);
 	return Buffer.concat([decipher.update(encrypted), decipher.final()]).toString(
-		CRYPTO.UTF8
+		CryptoAlg.UTF8
 	);
 }

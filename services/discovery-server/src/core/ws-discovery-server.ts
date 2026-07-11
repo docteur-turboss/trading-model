@@ -1,7 +1,7 @@
-import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
-import type { InstanceId } from "@trading-model/common/domain/primitives";
 import type { IncomingMessage } from "node:http";
 import type https from "node:https";
+import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
+import type { InstanceId } from "@trading-model/common/domain/primitives";
 import type WebSocket from "ws";
 import { WebSocketServer } from "ws";
 import { ClientConnectionManager } from "./client-connection-manager";
@@ -40,7 +40,10 @@ export class WsDiscoveryServer {
 		this._broadcastInvalidation(serviceName);
 	}
 
-	notifyInstanceRemoved(serviceName: ServiceInstanceName, _instanceId: InstanceId): void {
+	notifyInstanceRemoved(
+		serviceName: ServiceInstanceName,
+		_instanceId: InstanceId
+	): void {
 		this._broadcastInvalidation(serviceName);
 	}
 

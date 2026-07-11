@@ -1,13 +1,17 @@
 import { createVerify } from "node:crypto";
-import { CRYPTO } from "@trading-model/common/crypto/crypto-constants";
+import { CryptoAlg } from "@trading-model/common/crypto/crypto-constants";
+import type {
+	Subject,
+	URLString,
+} from "@trading-model/common/domain/primitives";
 import { ClaimValidator } from "./claim-validator";
 import { JwksKeyProvider } from "./jwks-key-provider";
 import { type JwtHeader, JwtParser } from "./jwt-parser";
 
 export interface OidcConfig {
-	issuer: string;
+	issuer: URLString;
 	audience: string;
-	jwksUri: string;
+	jwksUri: URLString;
 	/**
 	 * Whitelist of allowed JWT signing algorithms.
 	 * Prevents algorithm confusion attacks (e.g., alg:none, or HMAC with RSA public key).
@@ -17,8 +21,8 @@ export interface OidcConfig {
 }
 
 export interface OidcClaims {
-	sub: string;
-	iss: string;
+	sub: Subject;
+	iss: URLString;
 	aud: string | string[];
 	exp: number;
 	iat: number;
@@ -34,7 +38,7 @@ export interface OidcClaims {
  * public key as an HMAC secret.
  */
 const ALGORITHM_MAP = new Map<string, string>([
-	["RS256", CRYPTO.RSA_SHA256],
+	["RS256", CryptoAlg.RSA_SHA256],
 	["RS384", "RSA-SHA384"],
 	["RS512", "RSA-SHA512"],
 	["ES256", "SHA256"],

@@ -1,8 +1,9 @@
 import BrokerMessage from "@trading-model/broker-message";
 import { logger } from "@trading-model/common/config/logger";
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
-import { MongoConnectionManager } from "@trading-model/common/persistence/mongo-connection-manager";
 import { toInstanceId } from "@trading-model/common/domain/primitives";
+import { buildTlsFromEnv } from "@trading-model/common/domain/tls-paths";
+import { MongoConnectionManager } from "@trading-model/common/persistence/mongo-connection-manager";
 import { createBootstrap } from "@trading-model/common/server/bootstrap";
 import { BOOTSTRAP_ADDRESS_MANAGER } from "../config/address-manager";
 import { ENV } from "../config/env";
@@ -82,11 +83,7 @@ async function _initBrokerMessageConfig(): Promise<BrokerMessage> {
 	const { AddressManager } = await import("../config/address-manager.js");
 	return new BrokerMessage({
 		addressManagerClient: AddressManager,
-		tlsPaths: {
-			keyPath: ENV.TLS_KEY_PATH,
-			caPath: ENV.TLS_CA_PATH,
-			certPath: ENV.TLS_CERT_PATH,
-		},
+		tlsPaths: buildTlsFromEnv(ENV),
 		instanceId: toInstanceId(ENV.INSTANCE_ID),
 		serviceName: ServiceInstanceName.AuditLoggerService,
 	});

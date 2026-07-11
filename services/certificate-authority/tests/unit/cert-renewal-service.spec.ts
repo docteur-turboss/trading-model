@@ -13,6 +13,9 @@ import {
 	CertRenewalService,
 } from "../../src/domain/cert-renewal-service";
 
+const VALID_CSR =
+	"-----BEGIN CERTIFICATE REQUEST-----\ncsr-data\n-----END CERTIFICATE REQUEST-----";
+
 describe("CertRenewalService", () => {
 	const mockCertStore = {
 		getBySerial: jest.fn(),
@@ -47,7 +50,7 @@ describe("CertRenewalService", () => {
 				oldSerialNumber: "SN-001",
 				nonce: "nonce",
 				signature: "sig",
-				csr: "csr",
+				csr: VALID_CSR,
 			})
 		).rejects.toThrow(CertRenewalError);
 
@@ -57,7 +60,7 @@ describe("CertRenewalService", () => {
 				oldSerialNumber: "SN-001",
 				nonce: "nonce",
 				signature: "sig",
-				csr: "csr",
+				csr: VALID_CSR,
 			})
 		).rejects.toHaveProperty("statusCode", 401);
 	});
@@ -78,7 +81,7 @@ describe("CertRenewalService", () => {
 				oldSerialNumber: "SN-001",
 				nonce: "nonce",
 				signature: "sig",
-				csr: "csr",
+				csr: VALID_CSR,
 			})
 		).rejects.toThrow("Original certificate not found");
 	});
@@ -104,7 +107,7 @@ describe("CertRenewalService", () => {
 				oldSerialNumber: "SN-002",
 				nonce: "nonce",
 				signature: "sig",
-				csr: "csr",
+				csr: VALID_CSR,
 			})
 		).rejects.toThrow("Could not acquire distributed lock");
 	});
@@ -137,7 +140,7 @@ describe("CertRenewalService", () => {
 			oldSerialNumber: "SN-002",
 			nonce: "nonce",
 			signature: "sig",
-			csr: "csr",
+			csr: VALID_CSR,
 		});
 
 		expect(result).toEqual(signedCert);
@@ -171,7 +174,7 @@ describe("CertRenewalService", () => {
 			oldSerialNumber: "SN-002",
 			nonce: "nonce",
 			signature: "sig",
-			csr: "csr",
+			csr: VALID_CSR,
 		});
 
 		expect(result).toEqual(signedCert);

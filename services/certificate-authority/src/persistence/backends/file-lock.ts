@@ -1,7 +1,12 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { CRYPTO } from "@trading-model/common/crypto/crypto-constants";
-import { getNodeEnv, logger } from "@trading-model/common/config/logger";
+import { logger } from "@trading-model/common/config/logger";
+import {
+	getNodeEnv,
+	isDevelopment,
+	NODE_ENV,
+} from "@trading-model/common/config/node-env";
+import { CryptoAlg } from "@trading-model/common/crypto/crypto-constants";
 import type { InstanceId } from "@trading-model/common/domain/primitives";
 import type { LockBackend, LockContext } from "./lock-backend-interface";
 
@@ -41,7 +46,7 @@ export class FileSystemLockBackend implements LockBackend {
 
 	private async _isLockHeld(lockFile: string, ttlMs: number): Promise<boolean> {
 		try {
-			const existing = await fs.readFile(lockFile, CRYPTO.UTF8);
+			const existing = await fs.readFile(lockFile, CryptoAlg.UTF8);
 			const data = JSON.parse(existing);
 			return Date.now() - data.acquiredAt < ttlMs;
 		} catch {
@@ -86,7 +91,7 @@ export class FileSystemLockBackend implements LockBackend {
 		const { lockName, instanceId } = context;
 		try {
 			const lockFile = path.join(this._fallbackDir, `${lockName}.lock`);
-			const content = await fs.readFile(lockFile, CRYPTO.UTF8);
+			const content = await fs.readFile(lockFile, CryptoAlg.UTF8);
 			const data = JSON.parse(content);
 			if (
 				data.instanceId === instanceId &&

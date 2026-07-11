@@ -1,17 +1,40 @@
+import type {
+	AuthToken,
+	ServiceId,
+} from "@trading-model/common/domain/primitives";
 import type { RawData, WebSocket } from "ws";
 import { sendJsonError } from "./ws-response-formatter";
 import type { WssSession } from "./ws-sign-handler";
 
 export enum WsMessageType {
 	Auth = "auth",
+	AuthResponse = "auth:response",
 	Sign = "sign",
+	SignResponse = "sign:response",
 }
+
+export interface CaAuthMessage {
+	type: WsMessageType.Auth;
+	token: AuthToken;
+}
+
+export interface CaSignMessage {
+	type: WsMessageType.Sign;
+	id: string;
+	data: {
+		serviceId: ServiceId;
+		csr: string;
+		ttlMs?: number;
+	};
+}
+
+export type CaClientMessage = CaAuthMessage | CaSignMessage;
 
 export interface WsMessageHandler {
 	readonly type: WsMessageType;
 	handle(
 		ws: WebSocket,
-		msg: Record<string, unknown>,
+		msg: CaClientMessage,
 		session: WssSession
 	): Promise<void> | void;
 }
@@ -34,9 +57,9 @@ export class WsMessageRouter {
 			return;
 		}
 
-		const handler = this._handlers.get(msg.type as WsMessageType);
+		const handler = this._handlers.get(msg.type);
 		if (!handler) {
-			sendJsonError(ws, `Unknown message type: ${String(msg.type)}`);
+			sendJsonError(ws, `Unknown message type: ${msg.type}`);
 			return;
 		}
 
@@ -44,9 +67,9 @@ export class WsMessageRouter {
 	}
 }
 
-function _parseWsMessage(raw: RawData): Record<string, unknown> | null {
+function _parseWsMessage(raw: RawData): CaClientMessage | null {
 	try {
-		return JSON.parse(raw.toString()) as Record<string, unknown>;
+		return JSON.parse(raw.toString()) as CaClientMessage;
 	} catch {
 		return null;
 	}

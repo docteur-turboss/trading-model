@@ -1,9 +1,9 @@
+import { parseServiceName } from "@trading-model/common/config/services.types";
 import {
+	type InstanceId,
 	toInstanceId,
 	toServiceId,
-	type InstanceId,
 } from "@trading-model/common/domain/primitives";
-import { parseServiceName } from "@trading-model/common/config/services.types";
 import { catchSync } from "@trading-model/common/middleware/catch-error";
 import { sendResponse } from "@trading-model/common/middleware/response-exception";
 import { isNonEmptyString } from "@trading-model/common/validation/primitives";
@@ -72,7 +72,10 @@ function createGetServiceInstancesHandler(
 		if (!registry.verifyInstanceName(parseServiceName(serviceName))) {
 			return sendResponse({ error: "Unknown service" }, 404);
 		}
-		return sendResponse(registry.getInstances(parseServiceName(serviceName)), 200);
+		return sendResponse(
+			registry.getInstances(parseServiceName(serviceName)),
+			200
+		);
 	});
 }
 

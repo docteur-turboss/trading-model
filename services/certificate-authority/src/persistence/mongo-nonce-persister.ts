@@ -1,4 +1,9 @@
 import { logger } from "@trading-model/common/config/logger";
+import type {
+	DurationMs,
+	ServiceId,
+	URLString,
+} from "@trading-model/common/domain/primitives";
 import { type Db, MongoClient } from "mongodb";
 
 import { MONGO_MANAGER } from "./mongo-manager";
@@ -39,10 +44,10 @@ class NullNonceCollection implements INonceCollection {
 
 export class MongoNoncePersister implements NoncePersistence {
 	private _collection: INonceCollection = new NullNonceCollection();
-	private readonly _mongoUri: string;
-	private readonly _ttlMs: number;
+	private readonly _mongoUri: URLString;
+	private readonly _ttlMs: DurationMs;
 
-	constructor(mongoUri: string, ttlMs: number) {
+	constructor(mongoUri: URLString, ttlMs: DurationMs) {
 		this._mongoUri = mongoUri;
 		this._ttlMs = ttlMs;
 	}
@@ -74,7 +79,7 @@ export class MongoNoncePersister implements NoncePersistence {
 
 	private _buildNonceDocument(
 		nonce: string,
-		serviceId: string,
+		serviceId: ServiceId,
 		createdAt: number
 	): NonceDocument {
 		return { nonce, serviceId, createdAt: new Date(createdAt) };

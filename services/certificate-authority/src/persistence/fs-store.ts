@@ -1,8 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-
-import { CRYPTO } from "@trading-model/common/crypto/crypto-constants";
 import { logger } from "@trading-model/common/config/logger";
+import { CryptoAlg } from "@trading-model/common/crypto/crypto-constants";
 import {
 	AesEncryption,
 	buildEncryption,
@@ -29,7 +28,7 @@ export const NULL_FS_STORE: FsStore = {
 	init: () => {
 		logger.warn("FsStore is DISABLED — no fallback storage available");
 	},
-	save: () => {},
+	save: async () => {},
 	get: () => null,
 	getAll: () => [],
 	delete: async () => {},
@@ -75,7 +74,7 @@ class RealFsStore implements FsStore {
 	async get<TData>(key: string): Promise<TData | null> {
 		try {
 			const fp = this._filePath(key);
-			const raw = await fs.readFile(fp, CRYPTO.UTF8);
+			const raw = await fs.readFile(fp, CryptoAlg.UTF8);
 			const decrypted = this._encryption.deserialize(raw);
 			return JSON.parse(decrypted) as TData;
 		} catch {

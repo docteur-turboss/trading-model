@@ -1,5 +1,4 @@
 import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
-import { parseServiceName } from "@trading-model/common/config/services.types";
 import type {
 	IInstanceQuery,
 	IInstanceRegistration,
@@ -9,10 +8,9 @@ import type {
 	ServiceInstance,
 } from "@trading-model/common/contracts/service-registry.types";
 import type { PaginationQuery } from "@trading-model/common/domain/pagination";
-import {
-	type InstanceId,
-	type ServiceId,
-	toInstanceId,
+import type {
+	InstanceId,
+	ServiceId,
 } from "@trading-model/common/domain/primitives";
 import type {
 	ServiceEndpoint,
@@ -42,13 +40,13 @@ export class CachedRegistryOperations
 	constructor(options: CachedRegistryBackendOptions) {
 		this._core = new CachedRegistryCore(options);
 		this._proxy = new CachedRegistryBackendProxy(options.backend);
-		this._lifecycle = new CachedRegistryLifecycle(
-			this._core.healthMonitor,
-			this._core.pingManager,
-			this._core.pubSub,
-			this._core.cache,
-			options.backend
-		);
+		this._lifecycle = new CachedRegistryLifecycle({
+			healthMonitor: this._core.healthMonitor,
+			pingManager: this._core.pingManager,
+			pubSub: this._core.pubSub,
+			cache: this._core.cache,
+			backend: options.backend,
+		});
 	}
 
 	// ── IInstanceRegistration ──────────────────────────────────────────

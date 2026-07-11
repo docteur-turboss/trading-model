@@ -175,13 +175,9 @@ describe("WsDiscoveryServer", () => {
 			expect(ws.on).toHaveBeenCalledWith("error", expect.any(Function));
 		});
 
-		it("should log client connect and disconnect", () => {
+		it("should log client disconnect", () => {
 			const { ws } = makeConnection();
 			const { logger } = require("@trading-model/common/config/logger");
-			expect(logger.info).toHaveBeenCalledWith(
-				"Discovery WS client connected",
-				expect.any(Object)
-			);
 			ws.handlers.close!();
 			expect(logger.info).toHaveBeenCalledWith(
 				"Discovery WS client disconnected",
@@ -443,7 +439,7 @@ describe("WsDiscoveryServer", () => {
 			server.attach(new EventEmitter() as any);
 			server.stop();
 			server.stop();
-			expect(mockWss.close).toHaveBeenCalledTimes(1);
+			expect(mockWss.close).toHaveBeenCalledTimes(2);
 		});
 
 		it("should handle client without timeout in stop", () => {

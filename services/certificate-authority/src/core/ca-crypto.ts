@@ -4,7 +4,7 @@ import {
 	randomBytes as cryptoRandomBytes,
 } from "node:crypto";
 
-import { CRYPTO } from "@trading-model/common/crypto/crypto-constants";
+import { CryptoAlg } from "@trading-model/common/crypto/crypto-constants";
 
 /**
  * Encrypt a PEM string using AES-256-GCM.
@@ -24,11 +24,11 @@ function _validateKeyLength(keyBase64: string): Buffer {
 
 function _encryptAes256Gcm(pem: string, key: Buffer): string {
 	const iv = cryptoRandomBytes(12);
-	const cipher = createCipheriv(CRYPTO.AES_256_GCM, key, iv);
-	let encrypted = cipher.update(pem, CRYPTO.UTF8, CRYPTO.HEX);
-	encrypted += cipher.final(CRYPTO.HEX);
+	const cipher = createCipheriv(CryptoAlg.AES_256_GCM, key, iv);
+	let encrypted = cipher.update(pem, CryptoAlg.UTF8, CryptoAlg.HEX);
+	encrypted += cipher.final(CryptoAlg.HEX);
 	const tag = cipher.getAuthTag();
-	return `aes256gcm:${iv.toString(CRYPTO.HEX)}:${tag.toString(CRYPTO.HEX)}:${encrypted}`;
+	return `aes256gcm:${iv.toString(CryptoAlg.HEX)}:${tag.toString(CryptoAlg.HEX)}:${encrypted}`;
 }
 
 export function encryptKey(pem: string, keyBase64: string | undefined): string {
@@ -57,8 +57,8 @@ function _parseEncryptedData(data: string): EncryptedPayload | null {
 		throw new Error("Invalid encrypted key format");
 	}
 	return {
-		iv: Buffer.from(parts[0], CRYPTO.HEX),
-		tag: Buffer.from(parts[1], CRYPTO.HEX),
+		iv: Buffer.from(parts[0], CryptoAlg.HEX),
+		tag: Buffer.from(parts[1], CryptoAlg.HEX),
 		encrypted: parts[2],
 	};
 }
@@ -70,10 +70,14 @@ interface EncryptedPayload {
 }
 
 function _decryptAes256Gcm(payload: EncryptedPayload, key: Buffer): string {
-	const decipher = createDecipheriv(CRYPTO.AES_256_GCM, key, payload.iv);
+	const decipher = createDecipheriv(CryptoAlg.AES_256_GCM, key, payload.iv);
 	decipher.setAuthTag(payload.tag);
-	let decrypted = decipher.update(payload.encrypted, CRYPTO.HEX, CRYPTO.UTF8);
-	decrypted += decipher.final(CRYPTO.UTF8);
+	let decrypted = decipher.update(
+		payload.encrypted,
+		CryptoAlg.HEX,
+		CryptoAlg.UTF8
+	);
+	decrypted += decipher.final(CryptoAlg.UTF8);
 	return decrypted;
 }
 

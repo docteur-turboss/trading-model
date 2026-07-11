@@ -1,13 +1,17 @@
+import type { LogLevel } from "@trading-model/common/config/log-types";
 import type { DateRange } from "@trading-model/common/domain/date-range";
 import type { PaginationQuery } from "@trading-model/common/domain/pagination";
-import type { ServiceId } from "@trading-model/common/domain/primitives";
+import type {
+	CorrelationId,
+	ServiceId,
+} from "@trading-model/common/domain/primitives";
 
 type MongoDoc = Record<string, unknown>;
 
 export interface LogQuery extends PaginationQuery {
 	serviceName?: ServiceId;
-	level?: string;
-	correlationId?: string;
+	level?: LogLevel;
+	correlationId?: CorrelationId;
 	dateRange?: DateRange;
 	search?: string;
 }

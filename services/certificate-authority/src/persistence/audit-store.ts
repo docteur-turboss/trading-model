@@ -1,12 +1,16 @@
 import { logger } from "@trading-model/common/config/logger";
-import type { SerialNumber } from "@trading-model/common/domain/primitives";
+import type {
+	SerialNumber,
+	ServiceId,
+	URLString,
+} from "@trading-model/common/domain/primitives";
 
 import { AuditBuffer } from "./audit-buffer";
 import { MongoAuditConnection } from "./mongo-audit-connection";
 
 export interface AuditEntry {
 	action: "sign" | "revoke" | "renew" | "rotate" | "ca_key_rotation";
-	serviceId: string;
+	serviceId: ServiceId;
 	serialNumber: SerialNumber;
 	clientIdentity?: string;
 	requestId?: string;
@@ -19,7 +23,7 @@ export class AuditStore {
 	private readonly _mongoConn: MongoAuditConnection;
 	private readonly _buffer = new AuditBuffer();
 
-	constructor(uri: string) {
+	constructor(uri: URLString) {
 		this._mongoConn = new MongoAuditConnection(uri);
 		this._buffer.start(() => this._flush());
 	}

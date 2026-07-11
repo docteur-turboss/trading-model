@@ -1,5 +1,6 @@
 import { createPublicKey, type KeyObject } from "node:crypto";
 import { JWK_KEY_TYPE } from "@trading-model/common/crypto/crypto-constants";
+import type { URLString } from "@trading-model/common/domain/primitives";
 
 interface Jwk extends Record<string, string | undefined> {
 	kid?: string;
@@ -19,7 +20,7 @@ interface ParsedJwk {
 }
 
 export class JwkFetcher {
-	async fetch(uri: string): Promise<ParsedJwk[]> {
+	async fetch(uri: URLString): Promise<ParsedJwk[]> {
 		const jwks = await this._fetchJwks(uri);
 		const parsed: ParsedJwk[] = [];
 		for (const entry of jwks.keys) {
@@ -31,7 +32,7 @@ export class JwkFetcher {
 		return parsed;
 	}
 
-	private async _fetchJwks(uri: string): Promise<JwksResponse> {
+	private async _fetchJwks(uri: URLString): Promise<JwksResponse> {
 		const response = await fetch(uri, {
 			signal: AbortSignal.timeout(10_000),
 		});

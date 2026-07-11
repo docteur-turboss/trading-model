@@ -50,7 +50,7 @@ import { CertificateAuthority } from "../../src/core/ca";
 const MOCK_CERT_STORE = {
 	connect: jest.fn(),
 	disconnect: jest.fn(),
-	save: jest.fn(),
+	insert: jest.fn(),
 	getBySerial: jest.fn(),
 	getByServiceId: jest.fn(),
 	getExpiring: jest.fn(),
@@ -59,7 +59,7 @@ const MOCK_CERT_STORE = {
 const MOCK_CRL_STORE = {
 	connect: jest.fn(),
 	disconnect: jest.fn(),
-	save: jest.fn(),
+	insert: jest.fn(),
 	getAll: jest.fn(),
 	isRevoked: jest.fn(),
 };
@@ -67,7 +67,7 @@ const MOCK_CRL_STORE = {
 const MOCK_CA_STORE = {
 	connect: jest.fn(),
 	disconnect: jest.fn(),
-	save: jest.fn(),
+	insert: jest.fn(),
 	getLatest: jest.fn(),
 };
 
@@ -92,7 +92,11 @@ function setupBootstrapMocks() {
 	};
 	mockHash.update.mockReturnValue(mockHash);
 	MOCK_CREATE_PUBLIC_KEY.mockReturnValue({
-		export: jest.fn().mockReturnValue("fake-public-key-pem"),
+		export: jest
+			.fn()
+			.mockReturnValue(
+				"-----BEGIN PUBLIC KEY-----\nfake-public\n-----END PUBLIC KEY-----"
+			),
 	});
 	MOCK_CREATE_SIGN.mockReturnValue(mockSign);
 	MOCK_CREATE_HASH.mockReturnValue(mockHash);
@@ -115,14 +119,14 @@ describe("CertificateAuthority", () => {
 					"-----BEGIN PRIVATE KEY-----\nfake-private\n-----END PRIVATE KEY-----",
 			});
 			MOCK_CA_STORE.getLatest.mockResolvedValue(null);
-			MOCK_CA_STORE.save.mockResolvedValue(undefined);
+			MOCK_CA_STORE.insert.mockResolvedValue(undefined);
 
 			const ca = await createCa();
 
 			expect(mockExistsSync).toHaveBeenCalledWith("/etc/ca-keys/ca-key.pem");
 			expect(generateKeyPair).toHaveBeenCalled();
 			expect(mockWriteFileSync).toHaveBeenCalled();
-			expect(MOCK_CA_STORE.save).toHaveBeenCalled();
+			expect(MOCK_CA_STORE.insert).toHaveBeenCalled();
 			expect(ca.isInitialized()).toBe(true);
 		});
 
@@ -160,14 +164,16 @@ describe("CertificateAuthority", () => {
 			);
 			MOCK_CA_STORE.getLatest.mockResolvedValue(null);
 			(generateKeyPair as jest.Mock).mockReturnValue({
-				publicKey: "pk",
-				privateKey: "sk",
+				publicKey:
+					"-----BEGIN PUBLIC KEY-----\nfake-public\n-----END PUBLIC KEY-----",
+				privateKey:
+					"-----BEGIN PRIVATE KEY-----\nfake-private\n-----END PRIVATE KEY-----",
 			});
 
 			const _ca = await createCa();
 
 			expect(generateKeyPair).toHaveBeenCalled();
-			expect(MOCK_CA_STORE.save).toHaveBeenCalled();
+			expect(MOCK_CA_STORE.insert).toHaveBeenCalled();
 		});
 	});
 
@@ -202,7 +208,7 @@ describe("CertificateAuthority", () => {
 			});
 
 			expect(signCertificate).toHaveBeenCalled();
-			expect(MOCK_CERT_STORE.save).toHaveBeenCalled();
+			expect(MOCK_CERT_STORE.insert).toHaveBeenCalled();
 			expect(result.serialNumber).toBe("SN-TEST");
 			expect(result.serviceId).toBe("svc-1");
 		});
@@ -227,7 +233,7 @@ describe("CertificateAuthority", () => {
 					reason: "key_compromise",
 				})
 			).rejects.toThrow("Certificate SN-MISSING not found");
-			expect(MOCK_CRL_STORE.save).not.toHaveBeenCalled();
+			expect(MOCK_CRL_STORE.insert).not.toHaveBeenCalled();
 		});
 
 		it("should add revoked cert to CRL store", async () => {
@@ -256,7 +262,7 @@ describe("CertificateAuthority", () => {
 				reason: "cessation_of_operation",
 			});
 
-			expect(MOCK_CRL_STORE.save).toHaveBeenCalledWith(
+			expect(MOCK_CRL_STORE.insert).toHaveBeenCalledWith(
 				expect.objectContaining({
 					serialNumber: "SN-REVOKE",
 					serviceId: "svc-revoke",

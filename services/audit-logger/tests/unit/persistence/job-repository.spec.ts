@@ -22,16 +22,16 @@ import type { Job } from "../../../src/types/job.types";
 
 function makeJob(overrides: Partial<Job> = {}): Job {
 	return {
-		id: "job-1",
-		type: "test-type",
+		id: "job-1" as any,
+		type: "test-type" as any,
 		payload: { foo: "bar" },
-		priority: 3,
-		status: "queued",
+		priority: 3 as any,
+		status: "queued" as any,
 		assignedWorkerId: undefined,
-		ackDeadline: Date.now() + 30000,
-		maxRetries: 3,
-		retryCount: 0,
-		createdAt: new Date(),
+		ackDeadline: (Date.now() + 30000) as any,
+		maxRetries: 3 as any,
+		retryCount: 0 as any,
+		createdAt: new Date() as any,
 		startedAt: undefined,
 		completedAt: undefined,
 		result: undefined,
@@ -98,13 +98,13 @@ describe("JobRepository", () => {
 			const job = makeJob({
 				history: [
 					{
-						transition: { from: "queued", to: "assigned" },
-						timestamp: new Date("2024-01-01"),
+						transition: { from: "queued" as any, to: "assigned" as any },
+						timestamp: new Date("2024-01-01") as any,
 						reason: "assign",
 					},
 					{
-						transition: { from: "assigned", to: "running" },
-						timestamp: new Date("2024-01-02"),
+						transition: { from: "assigned" as any, to: "running" as any },
+						timestamp: new Date("2024-01-02") as any,
 						reason: "start",
 					},
 				],
@@ -116,11 +116,11 @@ describe("JobRepository", () => {
 				.calls[0][0] as any;
 			expect(doc.history).toHaveLength(2);
 			expect(doc.history[0]).toMatchObject({
-				transition: { from: "queued", to: "assigned" },
+				transition: { from: "queued" as any, to: "assigned" as any },
 				reason: "assign",
 			});
 			expect(doc.history[1]).toMatchObject({
-				transition: { from: "assigned", to: "running" },
+				transition: { from: "assigned" as any, to: "running" as any },
 				reason: "start",
 			});
 		});
@@ -134,15 +134,15 @@ describe("JobRepository", () => {
 				payload: {},
 				priority: 3,
 				status: "queued",
-				ackDeadline: 0,
+				ackDeadline: 1000,
 				maxRetries: 3,
-				retryCount: 0,
+				retryCount: 1,
 				createdAt: new Date(),
 				history: [],
 			};
 			MOCK_COLLECTION.findOne.mockResolvedValue(doc);
 
-			const result = await repository.findById("job-1");
+			const result = await repository.findById("job-1" as any);
 
 			expect(MOCK_COLLECTION.findOne).toHaveBeenCalledWith({ jobId: "job-1" });
 			expect(result).toBeDefined();
@@ -152,7 +152,7 @@ describe("JobRepository", () => {
 		it("should return null when not found", async () => {
 			MOCK_COLLECTION.findOne.mockResolvedValue(null);
 
-			const result = await repository.findById("nonexistent");
+			const result = await repository.findById("nonexistent" as any);
 
 			expect(result).toBeNull();
 		});
@@ -164,25 +164,25 @@ describe("JobRepository", () => {
 				payload: {},
 				priority: 3,
 				status: "queued",
-				ackDeadline: 0,
+				ackDeadline: 1000,
 				maxRetries: 3,
-				retryCount: 0,
+				retryCount: 1,
 				createdAt: new Date(),
 				history: [
 					{
-						transition: { from: "queued", to: "assigned" },
-						timestamp: new Date("2024-01-01"),
+						transition: { from: "queued" as any, to: "assigned" as any },
+						timestamp: new Date("2024-01-01") as any,
 						reason: "assign",
 					},
 				],
 			};
 			MOCK_COLLECTION.findOne.mockResolvedValue(doc);
 
-			const result = await repository.findById("job-1");
+			const result = await repository.findById("job-1" as any);
 
 			expect(result!.history).toHaveLength(1);
 			expect(result!.history[0]).toMatchObject({
-				transition: { from: "queued", to: "assigned" },
+				transition: { from: "queued" as any, to: "assigned" as any },
 				reason: "assign",
 			});
 		});
@@ -194,9 +194,9 @@ describe("JobRepository", () => {
 			MOCK_COLLECTION.findOne.mockResolvedValue(currentDoc);
 			MOCK_COLLECTION.updateOne.mockResolvedValue({ modifiedCount: 1 });
 
-			await repository.updateStatus("job-1", "assigned", {
-				assignedWorkerId: "w1",
-				ackDeadline: 1000,
+			await repository.updateStatus("job-1" as any, "assigned" as any, {
+				assignedWorkerId: "w1" as any,
+				ackDeadline: 1000 as any,
 			});
 
 			expect(MOCK_COLLECTION.updateOne).toHaveBeenCalledWith(
@@ -209,7 +209,7 @@ describe("JobRepository", () => {
 					}),
 					$push: expect.objectContaining({
 						history: expect.objectContaining({
-							transition: { from: "queued", to: "assigned" },
+							transition: { from: "queued" as any, to: "assigned" as any },
 						}),
 					}),
 				})
@@ -219,7 +219,7 @@ describe("JobRepository", () => {
 		it("should do nothing when current document is not found", async () => {
 			MOCK_COLLECTION.findOne.mockResolvedValue(null);
 
-			await repository.updateStatus("nonexistent", "completed");
+			await repository.updateStatus("nonexistent" as any, "completed" as any);
 
 			expect(MOCK_COLLECTION.updateOne).not.toHaveBeenCalled();
 		});
@@ -229,7 +229,7 @@ describe("JobRepository", () => {
 			MOCK_COLLECTION.findOne.mockResolvedValue(currentDoc);
 			MOCK_COLLECTION.updateOne.mockResolvedValue({ modifiedCount: 1 });
 
-			await repository.updateStatus("job-1", "running");
+			await repository.updateStatus("job-1" as any, "running" as any);
 
 			const updateCall = (MOCK_COLLECTION.updateOne as jest.Mock).mock
 				.calls[0][1] as any;
@@ -242,7 +242,7 @@ describe("JobRepository", () => {
 			MOCK_COLLECTION.findOne.mockResolvedValue(currentDoc);
 			MOCK_COLLECTION.updateOne.mockResolvedValue({ modifiedCount: 1 });
 
-			await repository.updateStatus("job-1", "completed", {
+			await repository.updateStatus("job-1" as any, "completed" as any, {
 				result: "success",
 			});
 
@@ -258,7 +258,7 @@ describe("JobRepository", () => {
 			MOCK_COLLECTION.findOne.mockResolvedValue(currentDoc);
 			MOCK_COLLECTION.updateOne.mockResolvedValue({ modifiedCount: 1 });
 
-			await repository.updateStatus("job-1", "failed", {
+			await repository.updateStatus("job-1" as any, "failed" as any, {
 				error: "Something went wrong",
 			});
 
@@ -273,7 +273,7 @@ describe("JobRepository", () => {
 		it("should increment retryCount by 1", async () => {
 			MOCK_COLLECTION.updateOne.mockResolvedValue({ modifiedCount: 1 });
 
-			await repository.incrementRetry("job-1");
+			await repository.incrementRetry("job-1" as any);
 
 			expect(MOCK_COLLECTION.updateOne).toHaveBeenCalledWith(
 				{ jobId: "job-1" },
@@ -284,9 +284,32 @@ describe("JobRepository", () => {
 
 	describe("findNonTerminal", () => {
 		it("should find all non-terminal jobs", async () => {
+			const now = new Date();
 			const docs = [
-				{ jobId: "j1", status: "queued", history: [] },
-				{ jobId: "j2", status: "running", history: [] },
+				{
+					jobId: "j1",
+					type: "test",
+					payload: {},
+					priority: 3,
+					status: "queued",
+					ackDeadline: 1000,
+					maxRetries: 3,
+					retryCount: 1,
+					createdAt: now,
+					history: [],
+				},
+				{
+					jobId: "j2",
+					type: "test",
+					payload: {},
+					priority: 3,
+					status: "running",
+					ackDeadline: 1000,
+					maxRetries: 5,
+					retryCount: 2,
+					createdAt: now,
+					history: [],
+				},
 			];
 			MOCK_COLLECTION.find.mockReturnValue({
 				toArray: jest.fn<any>().mockResolvedValue(docs),
@@ -303,11 +326,19 @@ describe("JobRepository", () => {
 
 	describe("findByWorker", () => {
 		it("should find jobs by worker ID and statuses", async () => {
+			const now = new Date();
 			const docs = [
 				{
 					jobId: "j1",
+					type: "test",
+					payload: {},
+					priority: 3,
 					assignedWorkerId: "w1",
 					status: "assigned",
+					ackDeadline: 1000,
+					maxRetries: 3,
+					retryCount: 1,
+					createdAt: now,
 					history: [],
 				},
 			];
@@ -315,9 +346,9 @@ describe("JobRepository", () => {
 				toArray: jest.fn<any>().mockResolvedValue(docs),
 			});
 
-			const results = await repository.findByWorker("w1", [
-				"assigned",
-				"running",
+			const results = await repository.findByWorker("w1" as any, [
+				"assigned" as any,
+				"running" as any,
 			]);
 
 			expect(MOCK_COLLECTION.find).toHaveBeenCalledWith({
@@ -330,12 +361,26 @@ describe("JobRepository", () => {
 
 	describe("findByStatus", () => {
 		it("should find jobs by status", async () => {
-			const docs = [{ jobId: "j1", status: "queued", history: [] }];
+			const now = new Date();
+			const docs = [
+				{
+					jobId: "j1",
+					type: "test",
+					payload: {},
+					priority: 3,
+					status: "queued",
+					ackDeadline: 1000,
+					maxRetries: 3,
+					retryCount: 1,
+					createdAt: now,
+					history: [],
+				},
+			];
 			MOCK_COLLECTION.find.mockReturnValue({
 				toArray: jest.fn<any>().mockResolvedValue(docs),
 			});
 
-			const results = await repository.findByStatus("queued");
+			const results = await repository.findByStatus("queued" as any);
 
 			expect(MOCK_COLLECTION.find).toHaveBeenCalledWith({ status: "queued" });
 			expect(results).toHaveLength(1);

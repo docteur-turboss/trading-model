@@ -1,5 +1,6 @@
 import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import type { ServiceInstance } from "@trading-model/common/contracts/service-registry.types";
+import type { DurationMs } from "@trading-model/common/domain/primitives";
 import type { ISyncCache } from "@trading-model/common/utils/cache";
 import type { CacheConfig } from "@trading-model/common/utils/cache-config";
 import { LruCache } from "@trading-model/common/utils/lru-cache";
@@ -19,7 +20,11 @@ export class CacheManager implements ISyncCache<ServiceInstance[]> {
 		return this._cache.get(serviceName);
 	}
 
-	set(serviceName: ServiceInstanceName, instances: ServiceInstance[], ttlMs?: number): void {
+	set(
+		serviceName: ServiceInstanceName,
+		instances: ServiceInstance[],
+		ttlMs?: DurationMs
+	): void {
 		this._cache.set(serviceName, instances, ttlMs);
 		this._staleData.set(serviceName, instances);
 	}

@@ -20,6 +20,7 @@ const MOCK_HEALTH_ROUTES = jest.fn();
 const MOCK_EVENTS_ROUTES = jest.fn();
 jest.mock("@trading-model/common/server/create-secure-server", () => ({
 	createSecureServer: jest.fn(() => Promise.resolve(MOCK_SERVER)),
+	buildTlsFromEnv: jest.fn(() => MOCK_TLS_CONFIG),
 }));
 
 jest.mock("../../../src/config/env", () => ({

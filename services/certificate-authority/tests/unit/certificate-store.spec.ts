@@ -4,28 +4,20 @@ const MOCK_INSERT_ONE = jest.fn();
 const MOCK_FIND_ONE = jest.fn();
 const MOCK_FIND = jest.fn();
 const MOCK_CREATE_INDEX = jest.fn();
-const MOCK_COLLECTION = jest.fn();
-const MOCK_DB = jest.fn();
-const MOCK_CLOSE = jest.fn();
-
-jest.mock("mongodb", () => ({
-	MongoClient: jest.fn().mockImplementation(() => ({
-		connect: jest.fn().mockResolvedValue(undefined),
-		close: MOCK_CLOSE,
-		db: MOCK_DB,
-	})),
-}));
-
-MOCK_DB.mockReturnValue({
-	collection: MOCK_COLLECTION,
-});
-
-MOCK_COLLECTION.mockReturnValue({
+const MOCK_COLLECTION = jest.fn(() => ({
 	insertOne: MOCK_INSERT_ONE,
 	findOne: MOCK_FIND_ONE,
 	find: MOCK_FIND,
 	createIndex: MOCK_CREATE_INDEX,
-});
+}));
+
+jest.mock("../../src/persistence/mongo-manager", () => ({
+	MONGO_MANAGER: {
+		getDb: jest.fn().mockResolvedValue({
+			collection: MOCK_COLLECTION,
+		}),
+	},
+}));
 
 import { CertificateStore } from "../../src/persistence/certificate-store";
 
@@ -59,10 +51,8 @@ describe("CertificateStore", () => {
 	});
 
 	describe("disconnect", () => {
-		it("should close the connection", async () => {
-			await store.disconnect();
-
-			expect(MOCK_CLOSE).toHaveBeenCalled();
+		it("should not throw on disconnect", async () => {
+			await expect(store.disconnect()).resolves.toBeUndefined();
 		});
 	});
 

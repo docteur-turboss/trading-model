@@ -1,11 +1,16 @@
-﻿import { createHash, randomUUID } from "node:crypto";
-import { CRYPTO } from "@trading-model/common/crypto/crypto-constants";
+import { createHash, randomUUID } from "node:crypto";
 import {
 	generateKeyPair,
 	KeyAlgorithm,
 } from "@trading-model/certificate-utils/generate-key-pair";
 import type { KeyPair } from "@trading-model/certificate-utils/types";
+import { CryptoAlg } from "@trading-model/common/crypto/crypto-constants";
 import {
+	type CaPem,
+	type DurationMs,
+	type FilePath,
+	type SerialNumber,
+	toCaPem,
 	toFingerprint,
 	toSerialNumber,
 } from "@trading-model/common/domain/primitives";
@@ -15,7 +20,7 @@ import { CertBodyBuilder } from "./cert-body-builder";
 
 export interface BootstrapResult {
 	caKeyPair: KeyPair;
-	caCertPem: string;
+	caCertPem: CaPem;
 }
 
 export class CaBootstrapper {
@@ -23,8 +28,8 @@ export class CaBootstrapper {
 	private readonly _keyStore: CaKeyStore;
 
 	constructor(
-		caKeyPath: string,
-		private readonly _caCertTtlMs: number
+		caKeyPath: FilePath,
+		private readonly _caCertTtlMs: DurationMs
 	) {
 		this._keyStore = new CaKeyStore(caKeyPath);
 	}
@@ -34,51 +39,55 @@ export class CaBootstrapper {
 		if (keyState) {
 			const storedCa = await caStore.getLatest();
 			if (storedCa) {
-				return { caKeyPair: keyState.caKeyPair, caCertPem: storedCa.caCertPem };
+				return { caKeyPair: keyState, caCertPem: storedCa.caCertPem };
 			}
 		}
 		return this._bootstrap(caStore);
 	}
-	private _generateSerialNumber(): string {
-		return randomUUID().replace(/-/g, "").substring(0, 16).toUpperCase();
+	private _generateSerialNumber(): SerialNumber {
+		return toSerialNumber(
+			randomUUID().replace(/-/g, "").substring(0, 16).toUpperCase()
+		);
 	}
-	private _buildCaCert(
-		serialNumber: string,
-		now: Date,
-		expiresAt: Date,
-		caKeyPair: KeyPair
-	): string {
+	private _buildCaCert(params: {
+		serialNumber: SerialNumber;
+		now: Date;
+		expiresAt: Date;
+		caKeyPair: KeyPair;
+	}): CaPem {
 		const certBody = this._certBodyBuilder.build({
-			serialNumber: toSerialNumber(serialNumber),
-			now,
-			expiresAt,
-			publicKey: caKeyPair.publicKey,
+			serialNumber: params.serialNumber,
+			now: params.now,
+			expiresAt: params.expiresAt,
+			publicKey: params.caKeyPair.publicKey,
 			isCa: true,
 		});
-		return this._certBodyBuilder.signAndBuildPem(
-			certBody,
-			caKeyPair.privateKey
+		return toCaPem(
+			this._certBodyBuilder.signAndBuildPem(
+				certBody,
+				params.caKeyPair.privateKey
+			)
 		);
 	}
 	private async _bootstrap(caStore: CaStore): Promise<BootstrapResult> {
 		const caKeyPair = generateKeyPair(KeyAlgorithm.Rsa4096);
 		const serialNumber = this._generateSerialNumber();
 		const now = new Date();
-		const expiresAt = new Date(now.getTime() + this._caCertTtlMs);
-		const caCertPem = this._buildCaCert(
+		const expiresAt = new Date(Date.now() + this._caCertTtlMs);
+		const caCertPem = this._buildCaCert({
 			serialNumber,
 			now,
 			expiresAt,
-			caKeyPair
-		);
+			caKeyPair,
+		});
 		this._keyStore.save(caKeyPair.privateKey);
 		await caStore.insert({
-			id: toSerialNumber(serialNumber),
+			id: serialNumber,
 			caCertPem,
 			createdAt: now,
 			expiresAt,
 			fingerprint: toFingerprint(
-				createHash(CRYPTO.SHA256).update(caCertPem).digest(CRYPTO.HEX)
+				createHash(CryptoAlg.SHA256).update(caCertPem).digest(CryptoAlg.HEX)
 			),
 		});
 		return { caKeyPair, caCertPem };

@@ -64,8 +64,9 @@ describe("LogRepository", () => {
 		expect(mockCreateIndex).toHaveBeenCalled();
 	});
 
-	it("should skip index creation if ttl index exists", async () => {
-		mockIndexExists.mockResolvedValue(true);
+	it("should skip index creation on second call", async () => {
+		await repo.ensureIndexes();
+		mockCreateIndex.mockClear();
 		await repo.ensureIndexes();
 		expect(mockCreateIndex).not.toHaveBeenCalled();
 	});
@@ -73,11 +74,11 @@ describe("LogRepository", () => {
 	it("should insert a document", async () => {
 		mockInsertOne.mockResolvedValue({ acknowledged: true });
 		await repo.insert({
-			receivedAt: new Date(),
-			ttl: new Date(),
-			level: "info",
+			receivedAt: new Date() as any,
+			ttl: new Date() as any,
+			level: "info" as any,
 			message: "test",
-			service: { name: "svc", instanceId: "i1" },
+			service: { name: "svc" as any, instanceId: "i1" as any },
 		});
 		expect(mockInsertOne).toHaveBeenCalled();
 	});
@@ -86,11 +87,11 @@ describe("LogRepository", () => {
 		mockInsertMany.mockResolvedValue({ acknowledged: true });
 		await repo.insertBatch([
 			{
-				receivedAt: new Date(),
-				ttl: new Date(),
-				level: "info",
+				receivedAt: new Date() as any,
+				ttl: new Date() as any,
+				level: "info" as any,
 				message: "test",
-				service: { name: "svc", instanceId: "i1" },
+				service: { name: "svc" as any, instanceId: "i1" as any },
 			},
 		]);
 		expect(mockInsertMany).toHaveBeenCalled();
@@ -105,21 +106,21 @@ describe("LogRepository", () => {
 		mockCountDocuments.mockResolvedValue(1);
 		mockToArray.mockResolvedValue([
 			{
-				receivedAt: new Date(),
-				ttl: new Date(),
-				level: "info",
+				receivedAt: new Date() as any,
+				ttl: new Date() as any,
+				level: "info" as any,
 				message: "test",
-				service: { name: "svc", instanceId: "i1" },
+				service: { name: "svc" as any, instanceId: "i1" as any },
 			},
 		]);
 
 		const result = await repo.query({
-			serviceName: "svc",
-			level: "info",
-			correlationId: "cid-1",
+			serviceName: "svc" as any,
+			level: "info" as any,
+			correlationId: "cid-1" as any,
 			dateRange: new DateRange(new Date("2024-01-01"), new Date("2024-12-31")),
-			page: 1,
-			limit: 10,
+			page: 1 as any,
+			limit: 10 as any,
 		});
 
 		expect(result.docs).toHaveLength(1);
@@ -148,17 +149,17 @@ describe("LogRepository", () => {
 
 		const stats = await repo.getStats();
 		expect(stats.total).toBe(10);
-		expect(stats.byService.svc1).toBe(10);
+		expect(stats.byService["svc1" as any]).toBe(10);
 		expect(stats.byLevel.info).toBe(5);
 	});
 
 	it("should get by id", async () => {
 		mockFindOne.mockResolvedValue({
-			receivedAt: new Date(),
-			ttl: new Date(),
-			level: "info",
+			receivedAt: new Date() as any,
+			ttl: new Date() as any,
+			level: "info" as any,
 			message: "test",
-			service: { name: "svc", instanceId: "i1" },
+			service: { name: "svc" as any, instanceId: "i1" as any },
 		});
 
 		const doc = await repo.findById("507f1f77bcf86cd799439011");

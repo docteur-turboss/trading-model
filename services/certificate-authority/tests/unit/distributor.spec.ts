@@ -101,10 +101,12 @@ describe("Distributor", () => {
 				"csr-body"
 			);
 
-			expect(MOCK_CA.signServiceCertificate).toHaveBeenCalledWith({
-				serviceId: "svc-new",
-				csr: "csr-body",
-			});
+			expect(MOCK_CA.signServiceCertificate).toHaveBeenCalledWith(
+				expect.objectContaining({
+					serviceId: "svc-new",
+					csr: "csr-body",
+				})
+			);
 			expect(result.serialNumber).toBe("SN-NEW");
 		});
 
@@ -121,6 +123,7 @@ describe("Distributor", () => {
 			expect(MOCK_CA.signServiceCertificate).toHaveBeenCalledWith({
 				serviceId: "svc-boot",
 				csr: "csr-body",
+				bootstrapToken: "bootstrap-token-123",
 			});
 			expect(result.serialNumber).toBe("SN-BOOT");
 		});

@@ -1,3 +1,4 @@
+import type { LogLevel } from "@trading-model/common/config/log-types";
 import type { HttpMethod } from "@trading-model/common/contracts/signed-request";
 import {
 	computePagination,
@@ -8,12 +9,14 @@ import type {
 	DurationMs,
 	Environment,
 	InstanceId,
+	ISODateTime,
 	ServiceId,
 	SessionId,
 	URLString,
 	UserId,
 	Version,
 } from "@trading-model/common/domain/primitives";
+import type { HttpStatusCode } from "@trading-model/common/http-status";
 import type { Collection, Db } from "mongodb";
 
 import { LogIndexManager } from "./log-index-manager";
@@ -31,7 +34,7 @@ export interface ServiceInfo {
 export interface ServiceLogDocument {
 	receivedAt: Date;
 	ttl: Date;
-	level: "debug" | "info" | "warn" | "error";
+	level: LogLevel;
 	message: string;
 	service: ServiceInfo;
 	module?: string;
@@ -46,7 +49,7 @@ export interface ServiceLogDocument {
 	request?: {
 		method?: HttpMethod;
 		url?: URLString;
-		statusCode?: number;
+		statusCode?: HttpStatusCode;
 		durationMs?: DurationMs;
 	};
 	user?: {
@@ -59,8 +62,8 @@ export interface ServiceLogDocument {
 export interface LogStats {
 	total: number;
 	byService: Record<ServiceId, number>;
-	byLevel: Record<string, number>;
-	dateRange: { earliest?: string; latest?: string };
+	byLevel: Record<LogLevel, number>;
+	dateRange: { earliest?: ISODateTime; latest?: ISODateTime };
 }
 
 export class LogRepository {

@@ -27,6 +27,7 @@ jest.mock("../../../src/config/env", () => ({
 	},
 }));
 
+import { PositiveInt } from "@trading-model/common/domain/primitives";
 import type { JobRepository } from "../../../src/persistence/job-repository";
 import { JobScheduler } from "../../../src/scheduler/job-scheduler";
 import type { WorkerProtocol } from "../../../src/worker/worker-protocol";
@@ -48,6 +49,7 @@ describe("JobScheduler", () => {
 	let mockRepository: jest.Mocked<JobRepository>;
 
 	beforeEach(() => {
+		jest.clearAllMocks();
 		jest.useFakeTimers();
 
 		mockRepository = {
@@ -73,18 +75,26 @@ describe("JobScheduler", () => {
 			mockRepository.insert.mockResolvedValue(undefined);
 			mockRepository.updateStatus.mockResolvedValue(undefined);
 
-			const jobId = await scheduler.submit("test-type", { data: 1 }, 3, 3);
+			const jobId = await scheduler.submit(
+				"test-type" as any,
+				{ data: 1 },
+				3 as any,
+				3 as any
+			);
 
 			expect(jobId).toBeDefined();
 			expect(typeof jobId).toBe("string");
 			expect(mockRepository.insert).toHaveBeenCalled();
-			expect(mockRepository.updateStatus).toHaveBeenCalledWith(jobId, "queued");
+			expect(mockRepository.updateStatus).toHaveBeenCalledWith(
+				jobId as any,
+				"queued" as any
+			);
 		});
 
 		it("should throw BACK_PRESSURE when queue is full", async () => {
 			scheduler.backPressure.updateQueueDepth(99999);
 
-			await expect(scheduler.submit("test-type", {})).rejects.toThrow(
+			await expect(scheduler.submit("test-type" as any, {})).rejects.toThrow(
 				"Job scheduler at capacity"
 			);
 		});
@@ -93,11 +103,13 @@ describe("JobScheduler", () => {
 			mockRepository.insert.mockResolvedValue(undefined);
 			mockRepository.updateStatus.mockRejectedValue(new Error("DB error"));
 
-			await scheduler.submit("test-type", {});
+			await scheduler.submit("test-type" as any, {});
 
 			expect(MOCK_LOGGER.error).toHaveBeenCalledWith(
 				"Failed to persist queued status",
-				expect.objectContaining({ error: "Error: DB error" })
+				expect.objectContaining({
+					context: expect.objectContaining({ error: "Error: DB error" }),
+				})
 			);
 		});
 	});
@@ -106,11 +118,11 @@ describe("JobScheduler", () => {
 		it("should update job status to running", async () => {
 			mockRepository.updateStatus.mockResolvedValue(undefined);
 
-			await scheduler.ack("job-1");
+			await scheduler.ack("job-1" as any);
 
 			expect(mockRepository.updateStatus).toHaveBeenCalledWith(
-				"job-1",
-				"running"
+				"job-1" as any,
+				"running" as any
 			);
 		});
 	});
@@ -119,12 +131,12 @@ describe("JobScheduler", () => {
 		it("should update job status to completed", async () => {
 			scheduler.workers.register("w1", {
 				workerId: "w1",
-				address: "10.0.0.1",
+				host: "10.0.0.1",
 				port: 9000,
 				capabilities: ["test-type"],
-				maxConcurrency: 5,
+				maxConcurrency: PositiveInt.of(5),
 				currentLoad: 1,
-			});
+			} as any);
 
 			mockRepository.findById.mockResolvedValue({
 				id: "job-1",
@@ -141,11 +153,11 @@ describe("JobScheduler", () => {
 			} as any);
 			mockRepository.updateStatus.mockResolvedValue(undefined);
 
-			await scheduler.complete("job-1", { result: "ok" });
+			await scheduler.complete("job-1" as any, { result: "ok" });
 
 			expect(mockRepository.updateStatus).toHaveBeenCalledWith(
-				"job-1",
-				"completed",
+				"job-1" as any,
+				"completed" as any,
 				expect.objectContaining({ result: { result: "ok" } })
 			);
 		});
@@ -166,11 +178,11 @@ describe("JobScheduler", () => {
 			} as any);
 			mockRepository.updateStatus.mockResolvedValue(undefined);
 
-			await scheduler.complete("job-no-worker", { ok: true });
+			await scheduler.complete("job-no-worker" as any, { ok: true });
 
 			expect(mockRepository.updateStatus).toHaveBeenCalledWith(
-				"job-no-worker",
-				"completed",
+				"job-no-worker" as any,
+				"completed" as any,
 				expect.any(Object)
 			);
 		});
@@ -192,7 +204,7 @@ describe("JobScheduler", () => {
 			mockRepository.updateStatus.mockResolvedValue(undefined);
 
 			await expect(
-				scheduler.complete("job-worker-gone", {})
+				scheduler.complete("job-worker-gone" as any, {})
 			).resolves.not.toThrow();
 		});
 	});
@@ -218,12 +230,14 @@ describe("JobScheduler", () => {
 			} as any);
 			mockRepository.updateStatus.mockResolvedValue(undefined);
 
-			await scheduler.fail("job-retry", "timeout");
+			await scheduler.fail("job-retry" as any, "timeout");
 
-			expect(mockRepository.incrementRetry).toHaveBeenCalledWith("job-retry");
+			expect(mockRepository.incrementRetry).toHaveBeenCalledWith(
+				"job-retry" as any
+			);
 			expect(mockRepository.updateStatus).toHaveBeenCalledWith(
-				"job-retry",
-				"queued",
+				"job-retry" as any,
+				"queued" as any,
 				expect.any(Object)
 			);
 			expect(scheduler.queue.depth()).toBe(1);
@@ -249,11 +263,11 @@ describe("JobScheduler", () => {
 			} as any);
 			mockRepository.updateStatus.mockResolvedValue(undefined);
 
-			await scheduler.fail("job-fail", "fatal");
+			await scheduler.fail("job-fail" as any, "fatal");
 
 			expect(mockRepository.updateStatus).toHaveBeenCalledWith(
-				"job-fail",
-				"failed",
+				"job-fail" as any,
+				"failed" as any,
 				expect.objectContaining({ error: "fatal" })
 			);
 		});
@@ -261,18 +275,20 @@ describe("JobScheduler", () => {
 		it("should do nothing for unknown job", async () => {
 			mockRepository.findById.mockResolvedValue(null);
 
-			await expect(scheduler.fail("unknown", "error")).resolves.not.toThrow();
+			await expect(
+				scheduler.fail("unknown" as any, "error")
+			).resolves.not.toThrow();
 		});
 
 		it("should decrement worker load when failing with assigned worker", async () => {
 			scheduler.workers.register("w1", {
 				workerId: "w1",
-				address: "10.0.0.1",
+				host: "10.0.0.1",
 				port: 9000,
 				capabilities: ["test-type"],
-				maxConcurrency: 5,
+				maxConcurrency: PositiveInt.of(5),
 				currentLoad: 0,
-			});
+			} as any);
 
 			mockRepository.findById.mockResolvedValue({
 				id: "job-worker",
@@ -289,7 +305,7 @@ describe("JobScheduler", () => {
 			} as any);
 			mockRepository.updateStatus.mockResolvedValue(undefined);
 
-			await scheduler.fail("job-worker", "error");
+			await scheduler.fail("job-worker" as any, "error");
 
 			expect(scheduler.workers.get("w1")!.currentLoad).toBe(1);
 		});
@@ -311,7 +327,7 @@ describe("JobScheduler", () => {
 			mockRepository.updateStatus.mockResolvedValue(undefined);
 
 			await expect(
-				scheduler.fail("job-worker-gone", "error")
+				scheduler.fail("job-worker-gone" as any, "error")
 			).resolves.not.toThrow();
 		});
 	});
@@ -337,11 +353,11 @@ describe("JobScheduler", () => {
 			} as any);
 			mockRepository.updateStatus.mockResolvedValue(undefined);
 
-			await scheduler.cancel("job-cancel");
+			await scheduler.cancel("job-cancel" as any);
 
 			expect(mockRepository.updateStatus).toHaveBeenCalledWith(
-				"job-cancel",
-				"cancelled"
+				"job-cancel" as any,
+				"cancelled" as any
 			);
 		});
 
@@ -364,7 +380,7 @@ describe("JobScheduler", () => {
 				error: undefined,
 			} as any);
 
-			await expect(scheduler.cancel("job-running")).rejects.toThrow(
+			await expect(scheduler.cancel("job-running" as any)).rejects.toThrow(
 				"Cannot cancel"
 			);
 		});
@@ -388,7 +404,7 @@ describe("JobScheduler", () => {
 				error: undefined,
 			} as any);
 
-			await expect(scheduler.cancel("job-completed")).rejects.toThrow(
+			await expect(scheduler.cancel("job-completed" as any)).rejects.toThrow(
 				"Cannot cancel"
 			);
 		});
@@ -396,12 +412,12 @@ describe("JobScheduler", () => {
 		it("should decrement worker load when cancelling assigned job", async () => {
 			scheduler.workers.register("w1", {
 				workerId: "w1",
-				address: "10.0.0.1",
+				host: "10.0.0.1",
 				port: 9000,
 				capabilities: [],
-				maxConcurrency: 5,
+				maxConcurrency: PositiveInt.of(5),
 				currentLoad: 3,
-			});
+			} as any);
 
 			mockRepository.findById.mockResolvedValue({
 				id: "job-assigned",
@@ -418,7 +434,7 @@ describe("JobScheduler", () => {
 			} as any);
 			mockRepository.updateStatus.mockResolvedValue(undefined);
 
-			await scheduler.cancel("job-assigned");
+			await scheduler.cancel("job-assigned" as any);
 
 			expect(scheduler.workers.get("w1")!.currentLoad).toBe(2);
 		});
@@ -426,7 +442,7 @@ describe("JobScheduler", () => {
 		it("should do nothing for unknown job", async () => {
 			mockRepository.findById.mockResolvedValue(null);
 
-			await expect(scheduler.cancel("unknown")).resolves.not.toThrow();
+			await expect(scheduler.cancel("unknown" as any)).resolves.not.toThrow();
 		});
 
 		it("should handle cancel when worker is not found in registry", async () => {
@@ -446,7 +462,7 @@ describe("JobScheduler", () => {
 			mockRepository.updateStatus.mockResolvedValue(undefined);
 
 			await expect(
-				scheduler.cancel("job-cancel-worker")
+				scheduler.cancel("job-cancel-worker" as any)
 			).resolves.not.toThrow();
 		});
 	});
@@ -524,8 +540,8 @@ describe("JobScheduler", () => {
 			await scheduler.start();
 
 			expect(mockRepository.updateStatus).toHaveBeenCalledWith(
-				"recover-assigned",
-				"orphaned"
+				"recover-assigned" as any,
+				"orphaned" as any
 			);
 		});
 
@@ -591,17 +607,17 @@ describe("JobScheduler", () => {
 
 			scheduler.workers.register("w1", {
 				workerId: "w1",
-				address: "10.0.0.1",
+				host: "10.0.0.1",
 				port: 9000,
 				capabilities: ["test-type"],
-				maxConcurrency: 5,
+				maxConcurrency: PositiveInt.of(5),
 				currentLoad: 0,
-			});
+			} as any);
 
 			mockRepository.insert.mockResolvedValue(undefined);
 			mockRepository.updateStatus.mockResolvedValue(undefined);
 
-			await scheduler.submit("test-type", {});
+			await scheduler.submit("test-type" as any, {});
 
 			expect(protocol.sendToWorker).toHaveBeenCalled();
 		});
@@ -641,16 +657,16 @@ describe("JobScheduler", () => {
 
 			scheduler.workers.register("w1", {
 				workerId: "w1",
-				address: "10.0.0.1",
+				host: "10.0.0.1",
 				port: 9000,
 				capabilities: ["test-type"],
-				maxConcurrency: 5,
+				maxConcurrency: PositiveInt.of(5),
 				currentLoad: 3,
-			});
+			} as any);
 
 			mockRepository.insert.mockResolvedValue(undefined);
 
-			await scheduler.submit("test-type", {}, 1, 3);
+			await scheduler.submit("test-type" as any, {}, 1 as any, 3 as any);
 
 			jest.advanceTimersByTime(30001);
 			await Promise.resolve();
@@ -680,17 +696,17 @@ describe("JobScheduler", () => {
 
 			scheduler.workers.register("w1", {
 				workerId: "w1",
-				address: "10.0.0.1",
+				host: "10.0.0.1",
 				port: 9000,
 				capabilities: ["test-type"],
-				maxConcurrency: 5,
+				maxConcurrency: PositiveInt.of(5),
 				currentLoad: 3,
-			});
+			} as any);
 
 			mockRepository.insert.mockResolvedValue(undefined);
 			mockRepository.updateStatus.mockResolvedValue(undefined);
 
-			await scheduler.submit("test-type", {}, 1, 3);
+			await scheduler.submit("test-type" as any, {}, 1 as any, 3 as any);
 
 			jest.advanceTimersByTime(30001);
 			await Promise.resolve();
@@ -698,8 +714,8 @@ describe("JobScheduler", () => {
 			await Promise.resolve();
 
 			expect(mockRepository.updateStatus).not.toHaveBeenCalledWith(
-				"job-done",
-				"orphaned"
+				"job-done" as any,
+				"orphaned" as any
 			);
 		});
 
@@ -720,17 +736,17 @@ describe("JobScheduler", () => {
 
 			scheduler.workers.register("w1", {
 				workerId: "w1",
-				address: "10.0.0.1",
+				host: "10.0.0.1",
 				port: 9000,
 				capabilities: ["test-type"],
-				maxConcurrency: 5,
+				maxConcurrency: PositiveInt.of(5),
 				currentLoad: 3,
-			});
+			} as any);
 
 			mockRepository.insert.mockResolvedValue(undefined);
 			mockRepository.updateStatus.mockResolvedValue(undefined);
 
-			await scheduler.submit("test-type", {}, 1, 3);
+			await scheduler.submit("test-type" as any, {}, 1 as any, 3 as any);
 
 			jest.advanceTimersByTime(30001);
 			await Promise.resolve();
@@ -738,8 +754,8 @@ describe("JobScheduler", () => {
 			await Promise.resolve();
 
 			expect(mockRepository.updateStatus).not.toHaveBeenCalledWith(
-				"job-failed",
-				"orphaned"
+				"job-failed" as any,
+				"orphaned" as any
 			);
 		});
 
@@ -760,17 +776,17 @@ describe("JobScheduler", () => {
 
 			scheduler.workers.register("w1", {
 				workerId: "w1",
-				address: "10.0.0.1",
+				host: "10.0.0.1",
 				port: 9000,
 				capabilities: ["test-type"],
-				maxConcurrency: 5,
+				maxConcurrency: PositiveInt.of(5),
 				currentLoad: 3,
-			});
+			} as any);
 
 			mockRepository.insert.mockResolvedValue(undefined);
 			mockRepository.updateStatus.mockResolvedValue(undefined);
 
-			await scheduler.submit("test-type", {}, 1, 3);
+			await scheduler.submit("test-type" as any, {}, 1 as any, 3 as any);
 
 			jest.advanceTimersByTime(30001);
 			await Promise.resolve();
@@ -778,20 +794,20 @@ describe("JobScheduler", () => {
 			await Promise.resolve();
 
 			expect(mockRepository.updateStatus).not.toHaveBeenCalledWith(
-				"job-cancelled",
-				"orphaned"
+				"job-cancelled" as any,
+				"orphaned" as any
 			);
 		});
 
 		it("should decrement load for timed-out assigned worker", async () => {
 			scheduler.workers.register("w1", {
 				workerId: "w1",
-				address: "10.0.0.1",
+				host: "10.0.0.1",
 				port: 9000,
 				capabilities: ["test-type"],
-				maxConcurrency: 5,
+				maxConcurrency: PositiveInt.of(5),
 				currentLoad: 2,
-			});
+			} as any);
 
 			mockRepository.findById.mockResolvedValue({
 				id: "job-assigned",
@@ -809,7 +825,7 @@ describe("JobScheduler", () => {
 			mockRepository.insert.mockResolvedValue(undefined);
 			mockRepository.updateStatus.mockResolvedValue(undefined);
 
-			await scheduler.submit("test-type", {}, 1, 3);
+			await scheduler.submit("test-type" as any, {}, 1 as any, 3 as any);
 
 			jest.advanceTimersByTime(30001);
 			await Promise.resolve();
@@ -822,12 +838,12 @@ describe("JobScheduler", () => {
 		it("should handle ACK timeout without assignedWorkerId", async () => {
 			scheduler.workers.register("w1", {
 				workerId: "w1",
-				address: "10.0.0.1",
+				host: "10.0.0.1",
 				port: 9000,
 				capabilities: ["test-type"],
-				maxConcurrency: 5,
+				maxConcurrency: PositiveInt.of(5),
 				currentLoad: 3,
-			});
+			} as any);
 
 			mockRepository.findById.mockResolvedValue({
 				id: "job-no-worker",
@@ -845,7 +861,7 @@ describe("JobScheduler", () => {
 			mockRepository.insert.mockResolvedValue(undefined);
 			mockRepository.updateStatus.mockResolvedValue(undefined);
 
-			await scheduler.submit("test-type", {}, 1, 3);
+			await scheduler.submit("test-type" as any, {}, 1 as any, 3 as any);
 
 			jest.advanceTimersByTime(30001);
 			await Promise.resolve();
@@ -861,12 +877,12 @@ describe("JobScheduler", () => {
 		it("should handle ACK timeout when worker is not found in registry", async () => {
 			scheduler.workers.register("w1", {
 				workerId: "w1",
-				address: "10.0.0.1",
+				host: "10.0.0.1",
 				port: 9000,
 				capabilities: ["test-type"],
-				maxConcurrency: 5,
+				maxConcurrency: PositiveInt.of(5),
 				currentLoad: 3,
-			});
+			} as any);
 
 			mockRepository.findById.mockResolvedValue({
 				id: "job-orphan",
@@ -884,7 +900,7 @@ describe("JobScheduler", () => {
 			mockRepository.insert.mockResolvedValue(undefined);
 			mockRepository.updateStatus.mockResolvedValue(undefined);
 
-			await scheduler.submit("test-type", {}, 1, 3);
+			await scheduler.submit("test-type" as any, {}, 1 as any, 3 as any);
 
 			jest.advanceTimersByTime(30001);
 			await Promise.resolve();
@@ -900,12 +916,12 @@ describe("JobScheduler", () => {
 		it("should log error when updateStatus fails on ACK timeout", async () => {
 			scheduler.workers.register("w1", {
 				workerId: "w1",
-				address: "10.0.0.1",
+				host: "10.0.0.1",
 				port: 9000,
 				capabilities: ["test-type"],
-				maxConcurrency: 5,
+				maxConcurrency: PositiveInt.of(5),
 				currentLoad: 3,
-			});
+			} as any);
 
 			mockRepository.findById.mockResolvedValue({
 				id: "job-ack-fail",
@@ -930,7 +946,7 @@ describe("JobScheduler", () => {
 				return Promise.resolve(undefined);
 			});
 
-			await scheduler.submit("test-type", {}, 1, 3);
+			await scheduler.submit("test-type" as any, {}, 1 as any, 3 as any);
 
 			jest.advanceTimersByTime(30001);
 			await Promise.resolve();
@@ -946,18 +962,18 @@ describe("JobScheduler", () => {
 		it("should log error when findById fails on ACK timeout", async () => {
 			scheduler.workers.register("w1", {
 				workerId: "w1",
-				address: "10.0.0.1",
+				host: "10.0.0.1",
 				port: 9000,
 				capabilities: ["test-type"],
-				maxConcurrency: 5,
+				maxConcurrency: PositiveInt.of(5),
 				currentLoad: 3,
-			});
+			} as any);
 
 			mockRepository.findById.mockRejectedValue(new Error("DB find failed"));
 			mockRepository.insert.mockResolvedValue(undefined);
 			mockRepository.updateStatus.mockResolvedValue(undefined);
 
-			await scheduler.submit("test-type", {}, 1, 3);
+			await scheduler.submit("test-type" as any, {}, 1 as any, 3 as any);
 
 			jest.advanceTimersByTime(30001);
 			await Promise.resolve();
@@ -966,7 +982,9 @@ describe("JobScheduler", () => {
 
 			expect(MOCK_LOGGER.error).toHaveBeenCalledWith(
 				"Failed to find job on ACK timeout",
-				expect.objectContaining({ error: "Error: DB find failed" })
+				expect.objectContaining({
+					context: expect.objectContaining({ error: "Error: DB find failed" }),
+				})
 			);
 		});
 	});
@@ -975,12 +993,12 @@ describe("JobScheduler", () => {
 		it("should log error when updateStatus fails during assignment", async () => {
 			scheduler.workers.register("w1", {
 				workerId: "w1",
-				address: "10.0.0.1",
+				host: "10.0.0.1",
 				port: 9000,
 				capabilities: ["test-type"],
-				maxConcurrency: 5,
+				maxConcurrency: PositiveInt.of(5),
 				currentLoad: 0,
-			});
+			} as any);
 
 			mockRepository.insert.mockResolvedValue(undefined);
 			let callIdx = 0;
@@ -992,11 +1010,13 @@ describe("JobScheduler", () => {
 				return Promise.resolve(undefined);
 			});
 
-			await scheduler.submit("test-type", {});
+			await scheduler.submit("test-type" as any, {});
 
 			expect(MOCK_LOGGER.error).toHaveBeenCalledWith(
 				"Failed to persist assigned status",
-				expect.objectContaining({ error: "Error: DB write failed" })
+				expect.objectContaining({
+					context: expect.objectContaining({ error: "Error: DB write failed" }),
+				})
 			);
 		});
 	});

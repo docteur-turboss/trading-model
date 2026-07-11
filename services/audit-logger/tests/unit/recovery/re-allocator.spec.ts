@@ -39,13 +39,13 @@ describe("ReAllocator", () => {
 
 	describe("reallocate", () => {
 		it("should mark job as failed when maxRetries exceeded", async () => {
-			const job = createJob({ retryCount: 3, maxRetries: 3 });
+			const job = createJob({ retryCount: 3 as any, maxRetries: 3 as any });
 
 			await reAllocator.reallocate(job);
 
 			expect(mockRepository.updateStatus).toHaveBeenCalledWith(
 				job.id,
-				"failed",
+				"failed" as any,
 				expect.objectContaining({
 					error: expect.stringContaining("max retries"),
 				})
@@ -53,13 +53,17 @@ describe("ReAllocator", () => {
 		});
 
 		it("should re-enqueue job when retries remain", async () => {
-			const job = createJob({ id: "rejob-1", retryCount: 0, maxRetries: 3 });
+			const job = createJob({
+				id: "rejob-1" as any,
+				retryCount: 0 as any,
+				maxRetries: 3 as any,
+			});
 
 			await reAllocator.reallocate(job);
 
 			expect(mockRepository.updateStatus).toHaveBeenCalledWith(
 				job.id,
-				"queued",
+				"queued" as any,
 				expect.objectContaining({ ackDeadline: expect.any(Number) })
 			);
 			expect(mockQueue.depth()).toBe(1);

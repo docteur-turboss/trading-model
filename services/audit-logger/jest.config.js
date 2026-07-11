@@ -4,6 +4,9 @@ module.exports = {
   transform: {
     '^.+\\.tsx?$': ['ts-jest', {
       diagnostics: { ignoreCodes: [151002] },
+      tsconfig: {
+        skipLibCheck: true,
+      },
     }],
   },
   rootDir: '.',

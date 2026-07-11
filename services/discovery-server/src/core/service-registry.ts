@@ -4,7 +4,10 @@ import {
 	generateInstanceId,
 	type TokenValidationInput,
 } from "@trading-model/common/crypto/token-service";
-import type { InstanceId } from "@trading-model/common/domain/primitives";
+import {
+	type AuthToken,
+	InstanceId,
+} from "@trading-model/common/domain/primitives";
 import type {
 	ServiceEndpoint,
 	ServiceIdentity,
@@ -17,7 +20,7 @@ import type { ServiceInstance } from "./types";
 export class ServiceRegistry {
 	private readonly _tokenService: TokenService;
 	private readonly _instanceStore = new InstanceStore();
-	private _token: Map<string, string> = new Map();
+	private _token: Map<InstanceId, AuthToken> = new Map();
 
 	constructor(signingSecret?: string) {
 		this._tokenService = new TokenService(signingSecret ?? generateRandomStr());
@@ -63,7 +66,7 @@ export class ServiceRegistry {
 		return this._instanceStore.listServiceNames();
 	}
 
-	dump(): Record<string, ServiceInstance[]> {
+	dump(): Partial<Record<ServiceInstanceName, ServiceInstance[]>> {
 		return this._instanceStore.dump();
 	}
 
@@ -79,7 +82,7 @@ export class ServiceRegistry {
 		const storedToken = this._token.get(instanceId);
 		const input: TokenValidationInput = {
 			token,
-			instanceId: instanceId as InstanceId,
+			instanceId: InstanceId.of(instanceId),
 			signingSecret: "",
 			storedToken,
 		};

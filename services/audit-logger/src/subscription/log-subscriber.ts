@@ -1,4 +1,5 @@
 import { logger } from "@trading-model/common/config/logger";
+import type { HttpStatusCode } from "@trading-model/common/http-status";
 import { catchSync } from "@trading-model/common/middleware/catch-error";
 import {
 	type ResponseObject,
@@ -22,7 +23,7 @@ async function _storeLogs(
 	try {
 		await logRepo.insertBatch(docs);
 		LOGS_STORED_TOTAL.inc({ status: "success" }, docs.length);
-		return sendResponse({ stored: docs.length }, 200);
+		return sendResponse({ stored: docs.length }, 200 as HttpStatusCode);
 	} catch (err) {
 		logger.error("Failed to store service logs", {
 			context: {
@@ -30,7 +31,10 @@ async function _storeLogs(
 			},
 		});
 		LOGS_STORED_TOTAL.inc({ status: "error" }, docs.length);
-		return sendResponse({ error: "Storage unavailable" }, 503);
+		return sendResponse(
+			{ error: "Storage unavailable" },
+			503 as HttpStatusCode
+		);
 	}
 }
 
@@ -38,7 +42,10 @@ export function createLogHandler(logRepo: LogRepository) {
 	return catchSync((req) => {
 		const parsed = LOGS_BATCH_SCHEMA.safeParse(req.body);
 		if (!parsed.success) {
-			return sendResponse({ error: parsed.error.message }, 400);
+			return sendResponse(
+				{ error: parsed.error.message },
+				400 as HttpStatusCode
+			);
 		}
 
 		const receivedAt = new Date();

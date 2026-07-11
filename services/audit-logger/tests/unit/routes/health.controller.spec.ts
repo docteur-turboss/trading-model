@@ -36,15 +36,15 @@ describe("HealthController", () => {
 	describe("health", () => {
 		it("should return 200 with health metrics", async () => {
 			queue.enqueue({
-				id: "j1",
-				type: "t",
+				id: "j1" as any,
+				type: "t" as any,
 				payload: {},
-				priority: 3,
-				status: "queued",
-				ackDeadline: 0,
-				maxRetries: 3,
-				retryCount: 0,
-				createdAt: new Date(),
+				priority: 3 as any,
+				status: "queued" as any,
+				ackDeadline: 0 as any,
+				maxRetries: 3 as any,
+				retryCount: 0 as any,
+				createdAt: new Date() as any,
 				history: [],
 			});
 

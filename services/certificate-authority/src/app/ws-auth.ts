@@ -2,8 +2,8 @@ import { logger } from "@trading-model/common/config/logger";
 import type { AuthToken } from "@trading-model/common/domain/primitives";
 import type { ClientIdentity } from "@trading-model/common/domain/primitives/string-ids";
 import type { WebSocket } from "ws";
-import { WsMessageType } from "./ws-message-router";
 import type { ConnectionState } from "./rate-limiter";
+import { WsMessageType } from "./ws-message-router";
 
 const AUTH_ATTEMPT_MAX = 5;
 
@@ -28,7 +28,7 @@ function sendAuthResponse(
 ): void {
 	ws.send(
 		JSON.stringify({
-			type: "auth:response",
+			type: WsMessageType.AuthResponse,
 			success,
 			...(errorMessage ? { error: { message: errorMessage } } : {}),
 		})

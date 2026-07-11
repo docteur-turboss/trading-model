@@ -1,8 +1,11 @@
 ﻿import { randomInt } from "node:crypto";
 import { logger } from "@trading-model/common/config/logger";
-import { REDIS_RESP, REDIS_SET } from "@trading-model/common/persistence/redis-constants";
-import { RedisLockConnector } from "../redis-lock-connector";
 import type { InstanceId } from "@trading-model/common/domain/primitives";
+import {
+	REDIS_RESP,
+	REDIS_SET,
+} from "@trading-model/common/persistence/redis-constants";
+import { RedisLockConnector } from "../redis-lock-connector";
 import type { LockBackend, LockContext } from "./lock-backend-interface";
 
 export class RedisLockBackend implements LockBackend {

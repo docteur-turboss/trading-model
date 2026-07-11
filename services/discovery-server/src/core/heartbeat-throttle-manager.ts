@@ -1,8 +1,16 @@
 import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
+import {
+	DurationMs,
+	type UnixTimestamp,
+} from "@trading-model/common/domain/primitives";
 
 export class HeartbeatThrottleManager {
-	private readonly _heartbeatInvalidationThrottleMs = 5000;
-	private _lastHeartbeatInvalidation = new Map<string, number>();
+	private readonly _heartbeatInvalidationThrottleMs: DurationMs =
+		DurationMs.of(5000);
+	private _lastHeartbeatInvalidation = new Map<
+		ServiceInstanceName,
+		UnixTimestamp
+	>();
 
 	async onHeartbeatUpdate(
 		serviceName: ServiceInstanceName,

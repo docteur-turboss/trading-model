@@ -1,5 +1,7 @@
 ﻿import { logger } from "@trading-model/common/config/logger";
 import type { CertificateResponse } from "@trading-model/common/domain/certificate-base";
+import type { ServiceId } from "@trading-model/common/domain/primitives";
+import { toServiceId } from "@trading-model/common/domain/primitives";
 import type { RevocationRequest } from "@trading-model/common/domain/revocation-request";
 import { HTTP_STATUS } from "@trading-model/common/http-status";
 import type { Request, Response } from "express";
@@ -23,7 +25,7 @@ function _validateSignRequest(
 function _sendSignResponse(
 	res: Response,
 	signed: CertificateResponse,
-	serviceId: string
+	serviceId: ServiceId
 ): void {
 	logger.info("Certificate signed", {
 		context: { serviceId, serialNumber: signed.serialNumber },
@@ -93,7 +95,9 @@ export async function getCertificate(
 		if (!serviceId) {
 			return;
 		}
-		const cert = await container.certificateStore.getByServiceId(serviceId);
+		const cert = await container.certificateStore.getByServiceId(
+			toServiceId(serviceId)
+		);
 		if (!cert) {
 			res
 				.status(HTTP_STATUS.NOT_FOUND)

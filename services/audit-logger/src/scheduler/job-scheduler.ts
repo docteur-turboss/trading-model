@@ -2,8 +2,15 @@ import { logger } from "@trading-model/common/config/logger";
 import type { JobId, JobType } from "@trading-model/common/domain/primitives";
 import { ENV } from "../config/env";
 import type { JobRepository } from "../persistence/job-repository";
+import type { OrphanDetector } from "../recovery/orphan-detector";
+import type { ReAllocator } from "../recovery/re-allocator";
 import { JobPriority } from "../types/job.types";
 import type { IWorkerProtocol } from "../worker/worker-protocol";
+import type { WorkerRegistry } from "../worker/worker-registry";
+import type { BackPressure } from "./back-pressure";
+import type { InternalQueue } from "./internal-queue";
+import type { JobAssignmentManager } from "./job-assignment-manager";
+import type { JobFailureHandler } from "./job-failure-handler";
 import { JobLifecycle } from "./job-lifecycle";
 import {
 	createAssignmentManager,
@@ -21,17 +28,20 @@ export class JobScheduler {
 	readonly queue: InternalQueue;
 	readonly backPressure: BackPressure;
 	readonly workers: WorkerRegistry;
-	private readonly _lifecycle: JobLifecycle;
+	private readonly _repository: JobRepository;
+	private readonly _reAllocator: ReAllocator;
 	private readonly _assignmentManager: JobAssignmentManager;
 	private readonly _failureHandler: JobFailureHandler;
+	private readonly _orphanDetector: OrphanDetector;
+	private readonly _lifecycle: JobLifecycle;
 	private _workerProtocol?: IWorkerProtocol;
 
 	constructor(repository: JobRepository) {
+		this._repository = repository;
 		this.queue = createInternalQueue();
 		this.backPressure = createBackPressure();
 		this.workers = createWorkerRegistry();
-		this.repository = repository;
-		this.reAllocator = createReAllocator(repository, this.queue);
+		this._reAllocator = createReAllocator(repository, this.queue);
 		this._assignmentManager = createAssignmentManager(
 			this.queue,
 			this.backPressure,
@@ -41,20 +51,23 @@ export class JobScheduler {
 		this._failureHandler = createFailureHandler(
 			this.queue,
 			repository,
-			this.reAllocator,
+			this._reAllocator,
 			this._assignmentManager
 		);
-		this._lifecycle = new JobLifecycle(
-			this.queue,
-			this.backPressure,
-			repository,
-			this._assignmentManager,
-			this._failureHandler
+		this._assignmentManager.setOnAckTimeout(
+			this._failureHandler.handleAckTimeout.bind(this._failureHandler)
 		);
-		this.orphanDetector = createOrphanDetector(
+		this._lifecycle = new JobLifecycle({
+			queue: this.queue,
+			backPressure: this.backPressure,
+			repository,
+			assignmentManager: this._assignmentManager,
+			failureHandler: this._failureHandler,
+		});
+		this._orphanDetector = createOrphanDetector(
 			this.workers,
 			repository,
-			this.reAllocator
+			this._reAllocator
 		);
 	}
 
@@ -87,19 +100,19 @@ export class JobScheduler {
 	}
 
 	async start(): Promise<void> {
-		const nonTerminal = await this.repository.findNonTerminal();
+		const nonTerminal = await this._repository.findNonTerminal();
 		await recoverJobs(
 			nonTerminal,
 			this.queue,
-			this.repository,
-			this.reAllocator
+			this._repository,
+			this._reAllocator
 		);
 		this.backPressure.updateQueueDepth(this.queue.depth());
 		logSchedulerStart(nonTerminal.length);
-		this.orphanDetector.start();
+		this._orphanDetector.start();
 	}
 	stop(): void {
-		this.orphanDetector.stop();
+		this._orphanDetector.stop();
 		this.queue.stop();
 		this._workerProtocol?.close();
 		logger.info("Audit job scheduler stopped");

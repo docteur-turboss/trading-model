@@ -1,5 +1,5 @@
-import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import { logger } from "@trading-model/common/config/logger";
+import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import { parseServiceName } from "@trading-model/common/config/services.types";
 import type {
 	RegistryBackend,
@@ -39,7 +39,9 @@ export class CacheOrchestrator {
 		return this._fetcher.getInstance(id);
 	}
 
-	private async _refreshFromBackend(serviceName: ServiceInstanceName): Promise<void> {
+	private async _refreshFromBackend(
+		serviceName: ServiceInstanceName
+	): Promise<void> {
 		try {
 			const instances = await this._backend.getInstances(
 				parseServiceName(serviceName)

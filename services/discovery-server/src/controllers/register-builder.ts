@@ -1,9 +1,7 @@
 import { Protocol } from "@trading-model/common/contracts/service-registry.types";
-import type {
-	InstanceId,
-	IPAddress,
-} from "@trading-model/common/domain/primitives";
 import {
+	type InstanceId,
+	IPAddress,
 	Port,
 	toInstanceId,
 	toServiceId,
@@ -23,7 +21,7 @@ export function resolveInstanceId(
 		instanceId ??
 			registry.generateInstanceId({
 				serviceName: toServiceId(serviceName),
-				address: ip as IPAddress,
+				address: IPAddress.of(ip),
 				port: Port.of(port),
 			})
 	);
@@ -37,7 +35,7 @@ export function buildServiceInstance(
 	return {
 		instanceId: resolveInstanceId(data, registry),
 		serviceName: toServiceId(serviceName),
-		host: ip as IPAddress,
+		host: IPAddress.of(ip),
 		port: Port.of(port),
 		version: toVersion(version ?? "1.0.0"),
 		ttl: 30_000,

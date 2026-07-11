@@ -1,5 +1,9 @@
 import type { SignedCertificate } from "@trading-model/certificate-utils/types";
 import type { IDistributedLock } from "@trading-model/common/contracts/distributed-lock.types";
+import type {
+	CsrPem,
+	ServiceId,
+} from "@trading-model/common/domain/primitives";
 import { toServiceId } from "@trading-model/common/domain/primitives";
 import { HTTP_STATUS } from "@trading-model/common/http-status";
 
@@ -19,7 +23,7 @@ export class CertificateIssuer {
 		private readonly _lock?: IDistributedLock
 	) {}
 
-	async issue(serviceId: string, csr: string): Promise<SignedCertificate> {
+	async issue(serviceId: ServiceId, csr: CsrPem): Promise<SignedCertificate> {
 		const acquired = (await this._lock?.acquire()) ?? true;
 		if (!acquired) {
 			throw new CertRenewalError(

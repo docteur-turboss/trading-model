@@ -1,6 +1,6 @@
-import type {
+import {
 	Percentage,
-	Price,
+	type Price,
 } from "@trading-model/common/domain/primitives";
 import type { Column } from "../../components/data-table";
 import type { Candle } from "../../types/dtos";
@@ -16,9 +16,9 @@ export function computePriceChange(candles: Candle[] | null | undefined): {
 	}));
 	const lastPrice = candles?.[candles.length - 1]?.close;
 	const prevPrice = candles?.[0]?.close;
-	const change = (
+	const change = Percentage.of(
 		lastPrice && prevPrice ? ((lastPrice - prevPrice) / prevPrice) * 100 : 0
-	) as Percentage;
+	);
 	return { chartData, lastPrice, change };
 }
 

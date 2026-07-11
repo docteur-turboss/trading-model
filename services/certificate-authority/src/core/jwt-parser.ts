@@ -1,4 +1,4 @@
-import { CRYPTO } from "@trading-model/common/crypto/crypto-constants";
+import { CryptoAlg } from "@trading-model/common/crypto/crypto-constants";
 
 export interface JwtHeader {
 	alg: string;
@@ -23,13 +23,15 @@ export class JwtParser {
 			header: this.parseBase64Json<JwtHeader>(headerB64),
 			payload: this.parseBase64Json<TData>(payloadB64),
 			message: `${headerB64}.${payloadB64}`,
-			signature: Buffer.from(signatureB64, CRYPTO.BASE64URL),
+			signature: Buffer.from(signatureB64, CryptoAlg.BASE64URL),
 		};
 	}
 
 	parseBase64Json<TData>(str: string): TData {
 		try {
-			const decoded = Buffer.from(str, CRYPTO.BASE64URL).toString(CRYPTO.UTF8);
+			const decoded = Buffer.from(str, CryptoAlg.BASE64URL).toString(
+				CryptoAlg.UTF8
+			);
 			return JSON.parse(decoded) as TData;
 		} catch {
 			throw new Error("Failed to parse JWT segment");

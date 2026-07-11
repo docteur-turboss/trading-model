@@ -1,5 +1,8 @@
 import { logger } from "@trading-model/common/config/logger";
-import type { SerialNumber } from "@trading-model/common/domain/primitives";
+import type {
+	SerialNumber,
+	ServiceId,
+} from "@trading-model/common/domain/primitives";
 import { TimerHandle } from "@trading-model/common/utils/timer-handle";
 import type { CertificateStore } from "../persistence/certificate-store";
 import type { CertificateAuthority } from "./ca";
@@ -51,7 +54,7 @@ export class Rotator {
 	}
 
 	private _rotateSingleCert(cert: {
-		serviceId: string;
+		serviceId: ServiceId;
 		serialNumber: SerialNumber;
 		expiresAt: Date;
 	}): void {
@@ -65,7 +68,7 @@ export class Rotator {
 	}
 
 	private _rotateCertWithLogging(cert: {
-		serviceId: string;
+		serviceId: ServiceId;
 		serialNumber: SerialNumber;
 		expiresAt: Date;
 	}): void {
