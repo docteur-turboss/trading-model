@@ -4,19 +4,14 @@ module.exports = {
   testEnvironment: 'node',
   rootDir: '.',
   testMatch: ['**/?(*.)+(spec).ts'],
+  maxWorkers: 3,
   testPathIgnorePatterns: ['/node_modules/', '/dist/'],
   moduleNameMapper: {
     '^@trading-model/common/(.*)$': '<rootDir>/../common/src/$1',
     '^@trading-model/certificate-utils/(.*)$': '<rootDir>/../certificate-utils/src/$1',
     '^@trading-model/broker-message$': '<rootDir>/../broker-message/src/index.ts',
   },
-  collectCoverageFrom: [
-    'src/**/*.ts',
-    '!src/**/*.d.ts',
-    '!src/index.ts',
-    '!src/crl-subscriber.ts',
-    '!src/transport.ts',
-  ],
+  collectCoverageFrom: ['src/**/*.ts', '!src/**/*.d.ts'],
   coverageThreshold: {
     global: {
       branches: 80,

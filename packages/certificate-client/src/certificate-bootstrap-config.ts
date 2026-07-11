@@ -1,7 +1,8 @@
+import { FilePath, URLString } from "@trading-model/common/domain/primitives";
 import type { TlsPaths } from "@trading-model/common/domain/tls-paths";
 
 export interface BootstrapConfig {
-	caUrl: string;
+	caUrl: URLString;
 	serviceId: string;
 	commonName: string;
 	san: string[];
@@ -35,9 +36,9 @@ function _resolveTlsPaths(
 	env: Record<string, string | undefined>
 ): BootstrapConfig["tlsPaths"] {
 	return {
-		certPath: env.TLS_CERT_PATH ?? "/etc/tls/cert.pem",
-		keyPath: env.TLS_KEY_PATH ?? "/etc/tls/key.pem",
-		caPath: env.TLS_CA_PATH ?? "/etc/tls/ca.pem",
+		certPath: FilePath.of(env.TLS_CERT_PATH ?? "/etc/tls/cert.pem"),
+		keyPath: FilePath.of(env.TLS_KEY_PATH ?? "/etc/tls/key.pem"),
+		caPath: FilePath.of(env.TLS_CA_PATH ?? "/etc/tls/ca.pem"),
 	};
 }
 
@@ -49,7 +50,7 @@ export function bootstrapConfigFromEnv(
 		return null;
 	}
 	return {
-		caUrl,
+		caUrl: URLString.of(caUrl),
 		serviceId: _resolveServiceId(env),
 		commonName: _resolveCommonName(env),
 		san: _resolveSan(env),
@@ -66,8 +67,8 @@ function _buildClientTls(
 		return;
 	}
 	return {
-		keyPath: env.CA_CLIENT_TLS_KEY,
-		certPath: env.CA_CLIENT_TLS_CERT ?? "",
-		caPath: env.CA_CLIENT_TLS_CA ?? "",
+		keyPath: FilePath.of(env.CA_CLIENT_TLS_KEY),
+		certPath: FilePath.of(env.CA_CLIENT_TLS_CERT ?? "/etc/tls/client.crt"),
+		caPath: FilePath.of(env.CA_CLIENT_TLS_CA ?? "/etc/tls/client-ca.crt"),
 	};
 }

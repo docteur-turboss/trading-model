@@ -39,11 +39,11 @@ function _buildCleanup(callbacks?: CrlSubscriberCallbacks): {
 } {
 	return {
 		cleanupRevoked: EVENT_MANAGER.on(
-			CertificateEvent.certificateRevoked,
+			CertificateEvent.CertificateRevoked,
 			(payload: unknown) => _onCertificateRevoked(payload, callbacks)
 		),
 		cleanupRotated: EVENT_MANAGER.on(
-			CertificateEvent.caKeyRotated,
+			CertificateEvent.CaKeyRotated,
 			(payload: unknown) => _onCaKeyRotated(payload, callbacks)
 		),
 	};
@@ -55,8 +55,8 @@ export async function subscribeToCertificateEvents(
 ): Promise<() => void> {
 	const { cleanupRevoked, cleanupRotated } = _buildCleanup(callbacks);
 	await messageManager.intents([
-		CertificateEvent.certificateRevoked,
-		CertificateEvent.caKeyRotated,
+		CertificateEvent.CertificateRevoked,
+		CertificateEvent.CaKeyRotated,
 	]);
 	return () => {
 		cleanupRevoked();

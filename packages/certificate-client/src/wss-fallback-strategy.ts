@@ -4,6 +4,10 @@ import type {
 	SignCertificateResponse,
 } from "@trading-model/common/ca/ca-client";
 import { logger } from "@trading-model/common/config/logger";
+import {
+	type PositiveInt,
+	URLString,
+} from "@trading-model/common/domain/primitives";
 import type { NullCaWssTransport } from "./wss-transport";
 import { CaWssTransport, NULL_CA_WSS_TRANSPORT } from "./wss-transport";
 
@@ -13,14 +17,14 @@ export enum TransportMode {
 }
 
 export interface TransportConfig {
-	caUrl: string;
+	caUrl: URLString;
 	tls?: import("@trading-model/common/domain/tls-paths").TlsPaths;
 	retestWssIntervalMs?: number;
 	forceHttps?: boolean;
 	bootstrapToken?: string;
 }
 
-const MAX_UNAUTH_REJECTS = 3;
+const MAX_UNAUTH_REJECTS = 3 as PositiveInt;
 
 export class WssFallbackStrategy {
 	private _mode: TransportMode;
@@ -80,10 +84,12 @@ export class WssFallbackStrategy {
 		this._wssTransport.disconnect();
 	}
 
-	private _buildWsUrl(caUrl: string): string {
-		return caUrl
-			.replace(/\/+$/, "")
-			.replace(/^https:/, "wss:")
-			.replace(/^http:/, "ws:");
+	private _buildWsUrl(caUrl: URLString): URLString {
+		return URLString.of(
+			caUrl
+				.replace(/\/+$/, "")
+				.replace(/^https:/, "wss:")
+				.replace(/^http:/, "ws:")
+		);
 	}
 }

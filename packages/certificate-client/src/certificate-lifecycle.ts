@@ -6,6 +6,7 @@ import {
 	generateKeyPairAsync,
 } from "@trading-model/certificate-utils/async";
 import { KeyAlgorithm } from "@trading-model/certificate-utils/generate-key-pair";
+import type { KeyPair } from "@trading-model/certificate-utils/types";
 import type {
 	CaClient,
 	SignCertificateRequest,
@@ -13,7 +14,9 @@ import type {
 import type { CertificateBase } from "@trading-model/common/domain/certificate-base";
 import {
 	toAuthToken,
+	toCsrPem,
 	toSerialNumber,
+	UnixTimestamp,
 } from "@trading-model/common/domain/primitives";
 import type {
 	CertificateClientConfig,
@@ -42,7 +45,7 @@ export class CertificateLifecycle {
 	async signWithCa(csr: string) {
 		const request: SignCertificateRequest = {
 			serviceId: this._config.serviceId,
-			csr,
+			csr: toCsrPem(csr),
 			bootstrapToken: this._config.bootstrapToken
 				? toAuthToken(this._config.bootstrapToken)
 				: undefined,
@@ -51,7 +54,7 @@ export class CertificateLifecycle {
 	}
 
 	async writeCertificates(
-		keyPair: { privateKey: string },
+		keyPair: KeyPair,
 		response: Pick<CertificateBase, "certPem" | "caPem">
 	): Promise<void> {
 		const { tlsPaths } = this._config;
@@ -63,7 +66,7 @@ export class CertificateLifecycle {
 	}
 
 	buildObtainedCert(
-		keyPair: { privateKey: string },
+		keyPair: KeyPair,
 		response: Omit<CertificateBase, "expiresAt"> & { expiresAt: string }
 	): ObtainedCertificate {
 		return {
@@ -71,7 +74,7 @@ export class CertificateLifecycle {
 			keyPem: keyPair.privateKey,
 			caPem: response.caPem,
 			serialNumber: toSerialNumber(response.serialNumber),
-			expiresAt: new Date(response.expiresAt),
+			expiresAt: UnixTimestamp.of(new Date(response.expiresAt).getTime()),
 		};
 	}
 

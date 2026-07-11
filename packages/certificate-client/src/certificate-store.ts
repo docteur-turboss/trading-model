@@ -1,8 +1,12 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 
+import type { KeyPair } from "@trading-model/certificate-utils/types";
 import type { CertificateBase } from "@trading-model/common/domain/certificate-base";
-import { toSerialNumber } from "@trading-model/common/domain/primitives";
+import {
+	toSerialNumber,
+	UnixTimestamp,
+} from "@trading-model/common/domain/primitives";
 import type { TlsPaths } from "@trading-model/common/domain/tls-paths";
 
 import type { ObtainedCertificate } from "./certificate-client";
@@ -15,7 +19,7 @@ export class CertificateStore {
 	constructor(private readonly _config: StoreConfig) {}
 
 	async writeCertificates(
-		keyPair: { privateKey: string },
+		keyPair: KeyPair,
 		response: Pick<CertificateBase, "certPem" | "caPem">
 	): Promise<void> {
 		const { tlsPaths } = this._config;
@@ -27,7 +31,7 @@ export class CertificateStore {
 	}
 
 	buildObtainedCert(
-		keyPair: { privateKey: string },
+		keyPair: KeyPair,
 		response: Omit<CertificateBase, "expiresAt"> & { expiresAt: string }
 	): ObtainedCertificate {
 		return {
@@ -35,7 +39,7 @@ export class CertificateStore {
 			keyPem: keyPair.privateKey,
 			caPem: response.caPem,
 			serialNumber: toSerialNumber(response.serialNumber),
-			expiresAt: new Date(response.expiresAt),
+			expiresAt: UnixTimestamp.of(new Date(response.expiresAt).getTime()),
 		};
 	}
 }

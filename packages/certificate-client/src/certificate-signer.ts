@@ -5,6 +5,7 @@ import type {
 import {
 	type ServiceId,
 	toAuthToken,
+	toCsrPem,
 } from "@trading-model/common/domain/primitives";
 
 export interface SignerConfig {
@@ -21,7 +22,7 @@ export class CertificateSigner {
 	async signWithCa(csr: string) {
 		const request: SignCertificateRequest = {
 			serviceId: this._config.serviceId,
-			csr,
+			csr: toCsrPem(csr),
 			bootstrapToken: this._config.bootstrapToken
 				? toAuthToken(this._config.bootstrapToken)
 				: undefined,

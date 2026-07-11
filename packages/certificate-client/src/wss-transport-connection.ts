@@ -1,19 +1,21 @@
 import { EventEmitter } from "node:events";
+import type { URLString } from "@trading-model/common/domain/primitives";
 import type { TlsPaths } from "@trading-model/common/domain/tls-paths";
 import { DefaultWsReconnector } from "@trading-model/common/ws/default-ws-reconnector";
 import type { IWsConnection } from "@trading-model/common/ws/i-ws-connection";
 import { WsAuthSender } from "./ws-auth-sender";
 import { WsTransport } from "./ws-transport";
 
-export type ConnectionState =
-	| "disconnected"
-	| "connecting"
-	| "connected"
-	| "reconnecting";
+export enum ConnectionState {
+	Disconnected = "disconnected",
+	Connecting = "connecting",
+	Connected = "connected",
+	Reconnecting = "reconnecting",
+}
 
 export class WssTransportConnection implements IWsConnection {
 	private _emitter = new EventEmitter();
-	private _state: ConnectionState = "disconnected";
+	private _state: ConnectionState = ConnectionState.Disconnected;
 	private readonly _connectionManager: WsTransport;
 	private readonly _reconnectHandler = new DefaultWsReconnector({
 		onReconnect: () => {
@@ -24,7 +26,7 @@ export class WssTransportConnection implements IWsConnection {
 	private readonly _authSender: WsAuthSender;
 
 	constructor(
-		private readonly _url: string,
+		private readonly _url: URLString,
 		tlsConfig?: TlsPaths,
 		private readonly _bootstrapToken?: string
 	) {
@@ -35,8 +37,8 @@ export class WssTransportConnection implements IWsConnection {
 	connect(): void {
 		if (
 			this._reconnectHandler.isDestroyed ||
-			this._state === "connected" ||
-			this._state === "connecting"
+			this._state === ConnectionState.Connected ||
+			this._state === ConnectionState.Connecting
 		) {
 			return;
 		}
@@ -46,7 +48,7 @@ export class WssTransportConnection implements IWsConnection {
 		return this._state;
 	}
 	get isConnected(): boolean {
-		return this._state === "connected";
+		return this._state === ConnectionState.Connected;
 	}
 	get ws() {
 		return this._connectionManager.ws;
@@ -61,7 +63,7 @@ export class WssTransportConnection implements IWsConnection {
 		if (this._reconnectHandler.isDestroyed) {
 			return;
 		}
-		this._state = "connecting";
+		this._state = ConnectionState.Connecting;
 		this._connectionManager.onOpen = () => this._onWsOpen();
 		this._connectionManager.onMessage = (data) => {
 			this._emitter.emit("message", data);
@@ -72,13 +74,13 @@ export class WssTransportConnection implements IWsConnection {
 		this._connectionManager.connect();
 	}
 	private _onWsOpen(): void {
-		this._state = "connected";
+		this._state = ConnectionState.Connected;
 		this._reconnectHandler.reset();
 		this._authSender.send(this._connectionManager.ws);
 		this._emitter.emit("open");
 	}
 	private _onWsClose(): void {
-		this._state = "disconnected";
+		this._state = ConnectionState.Disconnected;
 		if (!this._reconnectHandler.isDestroyed) {
 			this._scheduleReconnect();
 		}
@@ -94,7 +96,7 @@ export class WssTransportConnection implements IWsConnection {
 		this._emitter.emit("error", err);
 	}
 	private _scheduleReconnect(): void {
-		this._state = "reconnecting";
+		this._state = ConnectionState.Reconnecting;
 		this._reconnectHandler.scheduleReconnect(() => {
 			this._connectionManager.disconnect();
 			this._connectWs();
@@ -117,6 +119,6 @@ export class WssTransportConnection implements IWsConnection {
 	disconnect(closeCode?: number, reason?: string): void {
 		this._connectionManager.disconnect(closeCode, reason);
 		this._reconnectHandler.cancel();
-		this._state = "disconnected";
+		this._state = ConnectionState.Disconnected;
 	}
 }

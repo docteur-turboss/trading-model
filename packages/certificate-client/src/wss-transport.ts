@@ -5,12 +5,20 @@ import type {
 	SignCertificateResponse,
 } from "@trading-model/common/ca/ca-client";
 import { logger } from "@trading-model/common/config/logger";
+import type { URLString } from "@trading-model/common/domain/primitives";
 import { isWsConnected } from "@trading-model/common/domain/ws-connection";
-import { AuthHandler } from "./auth-handler";
-import { PendingRequestManager } from "./pending-request-manager";
+import {
+	AuthHandler,
+	type CaAuthResponse,
+	CaWssMessageType,
+} from "./auth-handler";
+import {
+	type CaSignResponse,
+	PendingRequestManager,
+} from "./pending-request-manager";
 import { WssTransportConnection } from "./wss-transport-connection";
 
-type WsMessageHandler = (msg: Record<string, unknown>) => void;
+type CaWssMessage = CaAuthResponse | CaSignResponse;
 
 export type NullCaWssTransport = typeof NULL_CA_WSS_TRANSPORT;
 
@@ -28,20 +36,12 @@ export class CaWssTransport {
 	private readonly _connection: WssTransportConnection;
 	private readonly _pendingManager = new PendingRequestManager();
 	private readonly _authHandler = new AuthHandler();
-	private readonly _messageHandlers: Record<string, WsMessageHandler>;
 
 	constructor(
-		wsUrl: string,
+		wsUrl: URLString,
 		tlsConfig?: import("@trading-model/common/domain/tls-paths").TlsPaths,
 		bootstrapToken?: string
 	) {
-		this._messageHandlers = {
-			"auth:response": (msg) =>
-				this._authHandler.handleResponse(msg, () => this._close()),
-			"sign:response": (msg) => this._pendingManager.handleResponse(msg),
-			response: (msg) => this._pendingManager.handleResponse(msg),
-		};
-
 		this._connection = new WssTransportConnection(
 			wsUrl,
 			tlsConfig,
@@ -68,13 +68,23 @@ export class CaWssTransport {
 		return "wss";
 	}
 
+	private readonly _messageHandlers: Partial<
+		Record<CaWssMessageType, (msg: CaWssMessage) => void>
+	> = {
+		[CaWssMessageType.AuthResponse]: (msg) =>
+			this._authHandler.handleResponse(msg as CaAuthResponse, () =>
+				this._close()
+			),
+		[CaWssMessageType.SignResponse]: (msg) =>
+			this._pendingManager.handleResponse(msg as CaSignResponse),
+		[CaWssMessageType.Response]: (msg) =>
+			this._pendingManager.handleResponse(msg as CaSignResponse),
+	};
+
 	private _onWsMessage(data: import("ws").Data): void {
 		try {
-			const msg = JSON.parse(data.toString());
-			const handler = this._messageHandlers[msg.type as string];
-			if (handler) {
-				handler(msg);
-			}
+			const msg = JSON.parse(data.toString()) as CaWssMessage;
+			this._messageHandlers[msg.type]?.(msg);
 		} catch {
 			logger.error("Invalid WSS message from CA");
 		}

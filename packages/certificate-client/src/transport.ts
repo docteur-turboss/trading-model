@@ -2,6 +2,7 @@ import { CaClient } from "@trading-model/common/ca/ca-client";
 import type {
 	SerialNumber,
 	ServiceId,
+	URLString,
 } from "@trading-model/common/domain/primitives";
 import type { RevocationRequest } from "@trading-model/common/domain/revocation-request";
 import type { TlsPaths } from "@trading-model/common/domain/tls-paths";
@@ -18,7 +19,7 @@ export class TransportManager {
 	private readonly _strategy: WssFallbackStrategy;
 
 	constructor(config: {
-		caUrl: string;
+		caUrl: URLString;
 		tls?: TlsPaths;
 		forceHttps?: boolean;
 		bootstrapToken?: string;

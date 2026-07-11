@@ -1,8 +1,9 @@
 import type https from "node:https";
 import { logger } from "@trading-model/common/config/logger";
-import type {
-	TlsPaths,
-	TlsPemBundle,
+import {
+	type TlsPaths,
+	type TlsPemBundle,
+	toSecureContextOptions,
 } from "@trading-model/common/domain/tls-paths";
 import type { TlsBootstrapOptions } from "@trading-model/common/server/bootstrap";
 import type { SecureServerOptions } from "@trading-model/common/server/create-secure-server";
@@ -35,11 +36,7 @@ function _setupAutoRenewCallback(
 	cert: TlsPemBundle
 ): void {
 	try {
-		server.setSecureContext({
-			key: cert.keyPem,
-			cert: cert.certPem,
-			ca: cert.caPem,
-		});
+		server.setSecureContext(toSecureContextOptions(cert));
 		logger.info("TLS context hot-reloaded after certificate renewal");
 	} catch (err) {
 		logger.error("Failed to hot-reload TLS context", { err });
@@ -56,7 +53,8 @@ function _createTlsBootstrap(config: BootstrapConfig): TlsBootstrapOptions {
 					config.serviceId as unknown as import("@trading-model/common/domain/primitives").ServiceId,
 				onRenew: (cert) =>
 					_setupAutoRenewCallback(server, {
-						keyPem: cert.keyPem,
+						keyPem:
+							cert.keyPem as unknown as import("@trading-model/common/domain/primitives").KeyPem,
 						certPem: cert.certPem,
 						caPem: cert.caPem,
 					}),
@@ -68,7 +66,7 @@ function _createTlsBootstrap(config: BootstrapConfig): TlsBootstrapOptions {
 
 function _startAutoRenew(client: CertificateClient): void {
 	void client.obtainCertificate().then((holder) => {
-		setTimeout(() => holder.startAutoRenew(), 1000);
+		setTimeout(() => holder.startAutoRenew(), 1000).unref();
 	});
 }
 
@@ -122,17 +120,16 @@ async function loadServerDependencies(): Promise<ServerDeps> {
 	return _extractServerDeps(modules);
 }
 
+function _renewContext(server: HttpServer, cert: TlsPemBundle): void {
+	server.raw.setSecureContext(toSecureContextOptions(cert));
+}
+
 function setupAutoRenew(server: HttpServer, config: BootstrapConfig): void {
 	const client = new CertificateClient({
 		...config,
 		serviceId:
 			config.serviceId as unknown as import("@trading-model/common/domain/primitives").ServiceId,
-		onRenew: (cert) =>
-			server.raw.setSecureContext({
-				key: cert.keyPem,
-				cert: cert.certPem,
-				ca: cert.caPem,
-			}),
+		onRenew: (cert) => _renewContext(server, cert),
 	});
 	_startAutoRenew(client);
 }

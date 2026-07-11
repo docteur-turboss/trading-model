@@ -6,7 +6,12 @@ import {
 	it,
 	jest,
 } from "@jest/globals";
-import type { ServiceId } from "@trading-model/common/domain/primitives";
+import {
+	FilePath,
+	type ServiceId,
+	UnixTimestamp,
+	URLString,
+} from "@trading-model/common/domain/primitives";
 
 jest.mock("node:fs/promises", () => ({
 	mkdir: jest.fn(),
@@ -23,9 +28,11 @@ jest.mock("@trading-model/certificate-utils/generate-key-pair", () => ({
 }));
 
 const MOCK_SIGN_CERTIFICATE = jest.fn();
+const MOCK_GET_CERTIFICATE = jest.fn();
 jest.mock("@trading-model/common/ca/ca-client", () => ({
 	CaClient: jest.fn(() => ({
 		signCertificate: MOCK_SIGN_CERTIFICATE,
+		getCertificate: MOCK_GET_CERTIFICATE,
 	})),
 }));
 
@@ -52,14 +59,14 @@ function mockResolved<T>(mock: unknown, value: T): void {
 
 describe("CertificateClient", () => {
 	const defaultConfig = {
-		caUrl: "https://ca:8447",
+		caUrl: URLString.of("https://ca:8447"),
 		serviceId: "my-service" as ServiceId,
 		commonName: "my-service",
 		san: ["my-service"],
 		tlsPaths: {
-			certPath: "/etc/tls/cert.pem",
-			keyPath: "/etc/tls/key.pem",
-			caPath: "/etc/tls/ca.pem",
+			certPath: FilePath.of("/etc/tls/cert.pem"),
+			keyPath: FilePath.of("/etc/tls/key.pem"),
+			caPath: FilePath.of("/etc/tls/ca.pem"),
 		},
 	};
 
@@ -76,21 +83,21 @@ describe("CertificateClient", () => {
 		it("should create a CaClient with the correct URL", () => {
 			new CertificateClient(defaultConfig);
 			expect(CaClient).toHaveBeenCalledWith({
-				baseUrl: "https://ca:8447",
+				baseUrl: URLString.of("https://ca:8447"),
 				tls: undefined,
 			});
 		});
 
 		it("should pass TLS config to CaClient when provided", () => {
 			const tlsPaths = {
-				caPath: "/etc/tls/ca.pem",
-				certPath: "/etc/tls/cert.pem",
-				keyPath: "/etc/tls/key.pem",
+				caPath: FilePath.of("/etc/tls/ca.pem"),
+				certPath: FilePath.of("/etc/tls/cert.pem"),
+				keyPath: FilePath.of("/etc/tls/key.pem"),
 			};
 			const configWithTls = { ...defaultConfig, tls: tlsPaths };
 			new CertificateClient(configWithTls);
 			expect(CaClient).toHaveBeenCalledWith({
-				baseUrl: "https://ca:8447",
+				baseUrl: URLString.of("https://ca:8447"),
 				tls: tlsPaths,
 			});
 		});
@@ -99,10 +106,13 @@ describe("CertificateClient", () => {
 	describe("obtainCertificate", () => {
 		it("should generate key pair, create CSR, and sign certificate", async () => {
 			mockResolved(generateKeyPairAsync, { privateKey: "private-key-pem" });
-			mockResolved(createCsrAsync, "csr-pem-content");
+			mockResolved(
+				createCsrAsync,
+				"-----BEGIN CERTIFICATE REQUEST-----\nAAAA\n-----END CERTIFICATE REQUEST-----"
+			);
 
 			const signResponse = {
-				cert: "signed-cert-pem",
+				certPem: "signed-cert-pem",
 				caPem: "ca-cert-pem",
 				serialNumber: "ABC123",
 				expiresAt: "2027-06-15T00:00:00.000Z",
@@ -120,7 +130,7 @@ describe("CertificateClient", () => {
 			});
 			expect(MOCK_SIGN_CERTIFICATE).toHaveBeenCalledWith({
 				serviceId: "my-service",
-				csr: "csr-pem-content",
+				csr: "-----BEGIN CERTIFICATE REQUEST-----\nAAAA\n-----END CERTIFICATE REQUEST-----",
 				bootstrapToken: undefined,
 			});
 			expect(holder.getCurrentCert()).toEqual({
@@ -128,15 +138,20 @@ describe("CertificateClient", () => {
 				keyPem: "private-key-pem",
 				caPem: "ca-cert-pem",
 				serialNumber: "ABC123",
-				expiresAt: new Date("2027-06-15T00:00:00.000Z"),
+				expiresAt: UnixTimestamp.of(
+					new Date("2027-06-15T00:00:00.000Z").getTime()
+				),
 			});
 		});
 
 		it("should write cert files to disk", async () => {
 			mockResolved(generateKeyPairAsync, { privateKey: "pk" });
-			mockResolved(createCsrAsync, "csr");
+			mockResolved(
+				createCsrAsync,
+				"-----BEGIN CERTIFICATE REQUEST-----\nAAAA\n-----END CERTIFICATE REQUEST-----"
+			);
 			mockResolved(MOCK_SIGN_CERTIFICATE, {
-				cert: "cert",
+				certPem: "cert",
 				caPem: "ca",
 				serialNumber: "sn",
 				expiresAt: "2027-06-15T00:00:00.000Z",
@@ -159,9 +174,12 @@ describe("CertificateClient", () => {
 
 		it("should pass bootstrapToken to signCertificate when configured", async () => {
 			mockResolved(generateKeyPairAsync, { privateKey: "pk" });
-			mockResolved(createCsrAsync, "csr");
+			mockResolved(
+				createCsrAsync,
+				"-----BEGIN CERTIFICATE REQUEST-----\nAAAA\n-----END CERTIFICATE REQUEST-----"
+			);
 			mockResolved(MOCK_SIGN_CERTIFICATE, {
-				cert: "cert",
+				certPem: "cert",
 				caPem: "ca",
 				serialNumber: "sn",
 				expiresAt: "2027-06-15T00:00:00.000Z",
@@ -175,16 +193,19 @@ describe("CertificateClient", () => {
 
 			expect(MOCK_SIGN_CERTIFICATE).toHaveBeenCalledWith({
 				serviceId: "my-service",
-				csr: "csr",
+				csr: "-----BEGIN CERTIFICATE REQUEST-----\nAAAA\n-----END CERTIFICATE REQUEST-----",
 				bootstrapToken: "my-bootstrap-token",
 			});
 		});
 
 		it("should store obtained certificate and return it via getCurrentCert", async () => {
 			mockResolved(generateKeyPairAsync, { privateKey: "pk" });
-			mockResolved(createCsrAsync, "csr");
+			mockResolved(
+				createCsrAsync,
+				"-----BEGIN CERTIFICATE REQUEST-----\nAAAA\n-----END CERTIFICATE REQUEST-----"
+			);
 			mockResolved(MOCK_SIGN_CERTIFICATE, {
-				cert: "cert",
+				certPem: "cert",
 				caPem: "ca",
 				serialNumber: "sn",
 				expiresAt: "2027-06-15T00:00:00.000Z",
@@ -203,9 +224,12 @@ describe("CertificateClient", () => {
 			jest.useRealTimers();
 			const onRenew = jest.fn();
 			mockResolved(generateKeyPairAsync, { privateKey: "pk" });
-			mockResolved(createCsrAsync, "csr");
+			mockResolved(
+				createCsrAsync,
+				"-----BEGIN CERTIFICATE REQUEST-----\nAAAA\n-----END CERTIFICATE REQUEST-----"
+			);
 			mockResolved(MOCK_SIGN_CERTIFICATE, {
-				cert: "cert",
+				certPem: "cert",
 				caPem: "ca",
 				serialNumber: "sn",
 				expiresAt: "2027-06-15T00:00:00.000Z",
@@ -226,9 +250,12 @@ describe("CertificateClient", () => {
 	describe("CertificateHolder", () => {
 		it("should expose obtained certificate via getCurrentCert", async () => {
 			mockResolved(generateKeyPairAsync, { privateKey: "pk" });
-			mockResolved(createCsrAsync, "csr");
+			mockResolved(
+				createCsrAsync,
+				"-----BEGIN CERTIFICATE REQUEST-----\nAAAA\n-----END CERTIFICATE REQUEST-----"
+			);
 			mockResolved(MOCK_SIGN_CERTIFICATE, {
-				cert: "cert",
+				certPem: "cert",
 				caPem: "ca",
 				serialNumber: "sn",
 				expiresAt: "2027-06-15T00:00:00.000Z",
@@ -242,9 +269,12 @@ describe("CertificateClient", () => {
 
 		it("should not throw on stopAutoRenew when no timer is set", async () => {
 			mockResolved(generateKeyPairAsync, { privateKey: "pk" });
-			mockResolved(createCsrAsync, "csr");
+			mockResolved(
+				createCsrAsync,
+				"-----BEGIN CERTIFICATE REQUEST-----\nAAAA\n-----END CERTIFICATE REQUEST-----"
+			);
 			mockResolved(MOCK_SIGN_CERTIFICATE, {
-				cert: "cert",
+				certPem: "cert",
 				caPem: "ca",
 				serialNumber: "sn",
 				expiresAt: "2027-06-15T00:00:00.000Z",
@@ -257,9 +287,12 @@ describe("CertificateClient", () => {
 
 		it("should schedule renewal via startAutoRenew", async () => {
 			mockResolved(generateKeyPairAsync, { privateKey: "pk" });
-			mockResolved(createCsrAsync, "csr");
+			mockResolved(
+				createCsrAsync,
+				"-----BEGIN CERTIFICATE REQUEST-----\nAAAA\n-----END CERTIFICATE REQUEST-----"
+			);
 			mockResolved(MOCK_SIGN_CERTIFICATE, {
-				cert: "cert",
+				certPem: "cert",
 				caPem: "ca",
 				serialNumber: "sn",
 				expiresAt: new Date(Date.now() + 86400000 * 365).toISOString(),
@@ -277,9 +310,12 @@ describe("CertificateClient", () => {
 
 		it("should clear timer via stopAutoRenew", async () => {
 			mockResolved(generateKeyPairAsync, { privateKey: "pk" });
-			mockResolved(createCsrAsync, "csr");
+			mockResolved(
+				createCsrAsync,
+				"-----BEGIN CERTIFICATE REQUEST-----\nAAAA\n-----END CERTIFICATE REQUEST-----"
+			);
 			mockResolved(MOCK_SIGN_CERTIFICATE, {
-				cert: "cert",
+				certPem: "cert",
 				caPem: "ca",
 				serialNumber: "sn",
 				expiresAt: new Date(Date.now() + 86400000 * 365).toISOString(),
@@ -295,6 +331,72 @@ describe("CertificateClient", () => {
 
 			holder.stopAutoRenew();
 			expect(jest.getTimerCount()).toBe(0);
+		});
+	});
+
+	describe("static createObtained", () => {
+		it("should create client and obtain certificate", async () => {
+			mockResolved(generateKeyPairAsync, { privateKey: "pk" });
+			mockResolved(
+				createCsrAsync,
+				"-----BEGIN CERTIFICATE REQUEST-----\nAAAA\n-----END CERTIFICATE REQUEST-----"
+			);
+			mockResolved(MOCK_SIGN_CERTIFICATE, {
+				certPem: "cert",
+				caPem: "ca",
+				serialNumber: "sn",
+				expiresAt: "2027-06-15T00:00:00.000Z",
+			});
+
+			const holder = await CertificateClient.createObtained(defaultConfig);
+			expect(holder.getCurrentCert().certPem).toBe("cert");
+		});
+	});
+
+	describe("signCertificate", () => {
+		it("should delegate to caClient.signCertificate", async () => {
+			mockResolved(MOCK_SIGN_CERTIFICATE, {
+				certPem: "signed",
+				caPem: "ca",
+				serialNumber: "sn",
+				expiresAt: "2027-01-01T00:00:00.000Z",
+			});
+
+			const client = new CertificateClient(defaultConfig);
+			const result = await client.signCertificate({
+				serviceId: "svc" as any,
+				csr: "csr" as any,
+			});
+
+			expect(MOCK_SIGN_CERTIFICATE).toHaveBeenCalledWith({
+				serviceId: "svc",
+				csr: "csr",
+			});
+			expect(result.certPem).toBe("signed");
+		});
+	});
+
+	describe("getCertificate", () => {
+		it("should delegate to caClient.getCertificate", async () => {
+			mockResolved(MOCK_GET_CERTIFICATE, {
+				certPem: "stored-cert",
+				serialNumber: "sn",
+			});
+
+			const client = new CertificateClient(defaultConfig);
+			const result = await client.getCertificate("some-service" as any);
+
+			expect(MOCK_GET_CERTIFICATE).toHaveBeenCalledWith("some-service");
+			expect(result!.certPem).toBe("stored-cert");
+		});
+
+		it("should return null when certificate not found", async () => {
+			mockResolved(MOCK_GET_CERTIFICATE, null);
+
+			const client = new CertificateClient(defaultConfig);
+			const result = await client.getCertificate("unknown" as any);
+
+			expect(result).toBeNull();
 		});
 	});
 });

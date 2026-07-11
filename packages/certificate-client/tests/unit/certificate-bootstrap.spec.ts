@@ -1,4 +1,12 @@
-import { beforeEach, describe, expect, it, jest } from "@jest/globals";
+import {
+	afterEach,
+	beforeEach,
+	describe,
+	expect,
+	it,
+	jest,
+} from "@jest/globals";
+import { FilePath, URLString } from "@trading-model/common/domain/primitives";
 
 jest.mock("node:fs/promises", () => ({
 	access: jest.fn(),
@@ -92,6 +100,10 @@ function mockResolved<T>(mock: unknown, value: T): void {
 function mockRejected(mock: unknown, error: Error): void {
 	(mock as any).mockRejectedValue(error);
 }
+
+afterEach(() => {
+	jest.useRealTimers();
+});
 
 describe("bootstrapConfigFromEnv", () => {
 	beforeEach(() => {
@@ -188,8 +200,8 @@ describe("bootstrapConfigFromEnv", () => {
 		});
 		expect(result!.tls).toEqual({
 			keyPath: "key-content",
-			certPath: "",
-			caPath: "",
+			certPath: "/etc/tls/client.crt",
+			caPath: "/etc/tls/client-ca.crt",
 		});
 	});
 
@@ -214,9 +226,12 @@ describe("bootstrapFromEnv", () => {
 
 	it("should bootstrap when CERT_CLIENT_CA_URL is set", async () => {
 		mockResolved(generateKeyPairAsync, { privateKey: "pk" });
-		mockResolved(createCsrAsync, "csr");
+		mockResolved(
+			createCsrAsync,
+			"-----BEGIN CERTIFICATE REQUEST-----\nAAAA\n-----END CERTIFICATE REQUEST-----"
+		);
 		mockResolved(MOCK_SIGN_CERTIFICATE, {
-			cert: "cert",
+			certPem: "cert",
 			caPem: "ca",
 			serialNumber: "sn",
 			expiresAt: new Date("2027-01-01").toISOString(),
@@ -244,14 +259,14 @@ describe("bootstrapCertificate", () => {
 		mockResolved(fs.access, undefined);
 
 		await bootstrapCertificate({
-			caUrl: "https://ca:8447",
+			caUrl: URLString.of("https://ca:8447"),
 			serviceId: "svc",
 			commonName: "svc",
 			san: ["svc"],
 			tlsPaths: {
-				certPath: "/etc/tls/cert.pem",
-				keyPath: "/etc/tls/key.pem",
-				caPath: "/etc/tls/ca.pem",
+				certPath: FilePath.of("/etc/tls/cert.pem"),
+				keyPath: FilePath.of("/etc/tls/key.pem"),
+				caPath: FilePath.of("/etc/tls/ca.pem"),
 			},
 		});
 
@@ -262,23 +277,26 @@ describe("bootstrapCertificate", () => {
 	it("should bootstrap when cert and key do not exist", async () => {
 		mockRejected(fs.access, new Error("ENOENT"));
 		mockResolved(generateKeyPairAsync, { privateKey: "pk" });
-		mockResolved(createCsrAsync, "csr");
+		mockResolved(
+			createCsrAsync,
+			"-----BEGIN CERTIFICATE REQUEST-----\nAAAA\n-----END CERTIFICATE REQUEST-----"
+		);
 		mockResolved(MOCK_SIGN_CERTIFICATE, {
-			cert: "cert",
+			certPem: "cert",
 			caPem: "ca",
 			serialNumber: "sn",
 			expiresAt: "2027-01-01T00:00:00.000Z",
 		});
 
 		await bootstrapCertificate({
-			caUrl: "https://ca:8447",
+			caUrl: URLString.of("https://ca:8447"),
 			serviceId: "svc",
 			commonName: "svc",
 			san: ["svc"],
 			tlsPaths: {
-				certPath: "/etc/tls/cert.pem",
-				keyPath: "/etc/tls/key.pem",
-				caPath: "/etc/tls/ca.pem",
+				certPath: FilePath.of("/etc/tls/cert.pem"),
+				keyPath: FilePath.of("/etc/tls/key.pem"),
+				caPath: FilePath.of("/etc/tls/ca.pem"),
 			},
 		});
 
@@ -299,30 +317,33 @@ describe("bootstrapCertificate", () => {
 	it("should pass bootstrapToken to signCertificate", async () => {
 		mockRejected(fs.access, new Error("ENOENT"));
 		mockResolved(generateKeyPairAsync, { privateKey: "pk" });
-		mockResolved(createCsrAsync, "csr");
+		mockResolved(
+			createCsrAsync,
+			"-----BEGIN CERTIFICATE REQUEST-----\nAAAA\n-----END CERTIFICATE REQUEST-----"
+		);
 		mockResolved(MOCK_SIGN_CERTIFICATE, {
-			cert: "cert",
+			certPem: "cert",
 			caPem: "ca",
 			serialNumber: "sn",
 			expiresAt: "2027-01-01T00:00:00.000Z",
 		});
 
 		await bootstrapCertificate({
-			caUrl: "https://ca:8447",
+			caUrl: URLString.of("https://ca:8447"),
 			serviceId: "svc",
 			commonName: "svc",
 			san: ["svc"],
 			tlsPaths: {
-				certPath: "/etc/tls/cert.pem",
-				keyPath: "/etc/tls/key.pem",
-				caPath: "/etc/tls/ca.pem",
+				certPath: FilePath.of("/etc/tls/cert.pem"),
+				keyPath: FilePath.of("/etc/tls/key.pem"),
+				caPath: FilePath.of("/etc/tls/ca.pem"),
 			},
 			bootstrapToken: "btoken",
 		});
 
 		expect(MOCK_SIGN_CERTIFICATE).toHaveBeenCalledWith({
 			serviceId: "svc",
-			csr: "csr",
+			csr: "-----BEGIN CERTIFICATE REQUEST-----\nAAAA\n-----END CERTIFICATE REQUEST-----",
 			bootstrapToken: "btoken",
 		});
 	});
@@ -487,9 +508,9 @@ describe("createHttpsServer", () => {
 		expect(MOCK_CREATE_AND_START_HTTPS_SERVER).toHaveBeenCalledWith(MOCK_APP, {
 			port: 8443,
 			tls: {
-				key: "/etc/tls/key.pem",
-				cert: "/etc/tls/cert.pem",
-				ca: "/etc/tls/ca.pem",
+				keyPath: "/etc/tls/key.pem",
+				certPath: "/etc/tls/cert.pem",
+				caPath: "/etc/tls/ca.pem",
 			},
 			watchTls: true,
 		});
@@ -538,14 +559,10 @@ describe("createHttpsServer", () => {
 			env: { CERT_CLIENT_CA_URL: "https://ca:8447" },
 		} as any);
 
-		expect(
-			MOCK_CERTIFICATE_CLIENT_INSTANCE.startAutoRenew
-		).not.toHaveBeenCalled();
+		expect(MOCK_HOLDER.startAutoRenew).not.toHaveBeenCalled();
 
 		jest.advanceTimersByTime(1000);
-		expect(
-			MOCK_CERTIFICATE_CLIENT_INSTANCE.startAutoRenew
-		).toHaveBeenCalledTimes(1);
+		expect(MOCK_HOLDER.startAutoRenew).toHaveBeenCalledTimes(1);
 
 		jest.useRealTimers();
 	});

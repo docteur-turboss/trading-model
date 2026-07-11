@@ -1,5 +1,6 @@
 import { logger } from "@trading-model/common/config/logger";
 import type { CertificateBase } from "@trading-model/common/domain/certificate-base";
+import type { KeyPem } from "@trading-model/common/domain/primitives";
 import { CertRenewScheduler } from "./cert-renew-scheduler";
 import type { CertificateEventEmitter } from "./certificate-event-emitter";
 import { CertificateHolder } from "./certificate-holder";
@@ -8,7 +9,7 @@ import type { CertificateStore } from "./certificate-store";
 import type { KeyGenerator } from "./key-generator";
 
 export interface ObtainedCertificate extends CertificateBase {
-	keyPem: string;
+	keyPem: KeyPem;
 }
 
 export interface LifecycleConfig {

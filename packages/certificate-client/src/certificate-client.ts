@@ -3,7 +3,10 @@ import {
 	CaClient,
 	type SignCertificateRequest,
 } from "@trading-model/common/ca/ca-client";
-import type { ServiceId } from "@trading-model/common/domain/primitives";
+import {
+	type ServiceId,
+	URLString,
+} from "@trading-model/common/domain/primitives";
 import type { TlsPaths } from "@trading-model/common/domain/tls-paths";
 import { CertificateEventEmitter } from "./certificate-event-emitter";
 import type { CertificateHolder } from "./certificate-holder";
@@ -36,7 +39,7 @@ export class CertificateClient {
 
 	constructor(config: CertificateClientConfig) {
 		this._caClient = new CaClient({
-			baseUrl: config.caUrl,
+			baseUrl: URLString.of(config.caUrl),
 			tls: config.tls,
 		});
 		const keyGenerator = new KeyGenerator(config);

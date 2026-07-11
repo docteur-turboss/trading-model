@@ -1,9 +1,18 @@
 import type { SignCertificateResponse } from "@trading-model/common/ca/ca-client";
+import type { CaWssMessageType } from "./auth-handler";
 
 interface PendingRequest {
 	resolve: (value: SignCertificateResponse) => void;
 	reject: (reason: Error) => void;
 	timer: ReturnType<typeof setTimeout>;
+}
+
+export interface CaSignResponse {
+	type: CaWssMessageType.SignResponse | CaWssMessageType.Response;
+	id: string;
+	success: boolean;
+	data?: SignCertificateResponse;
+	error?: { message?: string };
 }
 
 export class PendingRequestManager {
@@ -20,28 +29,21 @@ export class PendingRequestManager {
 		});
 	}
 
-	private _resolvePending(
-		pending: PendingRequest,
-		msg: Record<string, unknown>
-	): void {
-		if (msg.success) {
-			pending.resolve(msg.data as SignCertificateResponse);
+	private _resolvePending(pending: PendingRequest, msg: CaSignResponse): void {
+		if (msg.success && msg.data) {
+			pending.resolve(msg.data);
 		} else {
-			pending.reject(
-				new Error(
-					(msg.error as { message?: string })?.message ?? "WSS request failed"
-				)
-			);
+			pending.reject(new Error(msg.error?.message ?? "WSS request failed"));
 		}
 	}
 
-	handleResponse(msg: Record<string, unknown>): void {
-		const pending = this._pending.get(msg.id as string);
+	handleResponse(msg: CaSignResponse): void {
+		const pending = this._pending.get(msg.id);
 		if (!pending) {
 			return;
 		}
 		clearTimeout(pending.timer);
-		this._pending.delete(msg.id as string);
+		this._pending.delete(msg.id);
 		this._resolvePending(pending, msg);
 	}
 

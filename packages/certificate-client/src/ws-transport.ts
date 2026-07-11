@@ -1,4 +1,8 @@
 import { logger } from "@trading-model/common/config/logger";
+import {
+	DurationMs,
+	type URLString,
+} from "@trading-model/common/domain/primitives";
 import type { TlsPaths } from "@trading-model/common/domain/tls-paths";
 import { createWsConnectTimeout } from "@trading-model/common/utils/ws-reconnect";
 import type { IWsConnection } from "@trading-model/common/ws/i-ws-connection";
@@ -15,7 +19,7 @@ export class WsTransport implements IWsConnection {
 	onTimeout: () => void = () => {};
 
 	constructor(
-		private readonly _url: string,
+		private readonly _url: URLString,
 		tlsConfig?: TlsPaths
 	) {
 		this._tlsBuilder = new TlsConfigBuilder(tlsConfig);
@@ -30,7 +34,7 @@ export class WsTransport implements IWsConnection {
 				logger.warn("WSS connection timeout");
 				ws.close();
 				this.onTimeout?.();
-			}, 10_000);
+			}, DurationMs.of(10_000));
 			ws.on("open", () => {
 				cancelTimeout();
 				this.onOpen?.();

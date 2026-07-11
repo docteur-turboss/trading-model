@@ -8,11 +8,7 @@ export class TlsConfigBuilder {
 	build(): WebSocket.ClientOptions {
 		const opts: WebSocket.ClientOptions = {};
 		if (this._tlsConfig) {
-			const bundle = loadTlsPemBundle({
-				caPem: this._tlsConfig.caPath,
-				certPem: this._tlsConfig.certPath,
-				keyPem: this._tlsConfig.keyPath,
-			});
+			const bundle = loadTlsPemBundle(this._tlsConfig);
 			if (bundle.caPem) {
 				opts.ca = bundle.caPem;
 			}

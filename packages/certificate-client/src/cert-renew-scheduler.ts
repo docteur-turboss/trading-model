@@ -38,7 +38,7 @@ export class CertRenewScheduler {
 	}
 
 	async scheduleRenew(cert: ObtainedCertificate): Promise<void> {
-		const remaining = cert.expiresAt.getTime() - Date.now();
+		const remaining = cert.expiresAt - Date.now();
 		if (remaining <= this._renewMarginMs) {
 			await this._handleExpired();
 			return;

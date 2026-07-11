@@ -10,7 +10,7 @@ import {
 	type SignCertificateRequest,
 } from "@trading-model/common/ca/ca-client";
 import { logger } from "@trading-model/common/config/logger";
-import { toAuthToken } from "@trading-model/common/domain/primitives";
+import { toAuthToken, toCsrPem } from "@trading-model/common/domain/primitives";
 import type { TlsPaths } from "@trading-model/common/domain/tls-paths";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import {
@@ -88,7 +88,7 @@ async function _signWithCa(
 	const request: SignCertificateRequest = {
 		serviceId:
 			config.serviceId as unknown as import("@trading-model/common/domain/primitives").ServiceId,
-		csr,
+		csr: toCsrPem(csr),
 		bootstrapToken: config.bootstrapToken
 			? toAuthToken(config.bootstrapToken)
 			: undefined,
