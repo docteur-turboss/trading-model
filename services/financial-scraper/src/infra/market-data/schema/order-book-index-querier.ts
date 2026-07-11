@@ -17,7 +17,14 @@ const ASKS_BIDS_DEF = zod.object({
 });
 const TABLE_DEF = zod.object({
 	symbol: zod.string(),
-	market: zod.nativeEnum(MarketType),
+	market: zod.enum([
+		MarketType.Crypto,
+		MarketType.Equity,
+		MarketType.Bond,
+		MarketType.Etf,
+		MarketType.Fx,
+		MarketType.Future,
+	]),
 	source: zod.string(),
 	bids: zod.array(ASKS_BIDS_DEF),
 	asks: zod.array(ASKS_BIDS_DEF),
@@ -25,17 +32,17 @@ const TABLE_DEF = zod.object({
 });
 
 export interface OrderBookIndexSnapshot {
-	marketStorage: Map<string, number[]>;
-	sourceStorage: Map<string, number[]>;
-	symbolStorage: Map<string, number[]>;
-	timestampStorage: Map<number, number[]>;
+	marketStorage: Map<MarketType, number[]>;
+	sourceStorage: Map<SourceType, number[]>;
+	symbolStorage: Map<TradingSymbol, number[]>;
+	timestampStorage: Map<UnixTimestamp, number[]>;
 }
 
 export class OrderBookIndexQuerier {
-	private _marketStorage: Map<string, number[]> = new Map();
-	private _sourceStorage: Map<string, number[]> = new Map();
-	private _symbolStorage: Map<string, number[]> = new Map();
-	private _timestampStorage: Map<number, number[]> = new Map();
+	private _marketStorage: Map<MarketType, number[]> = new Map();
+	private _sourceStorage: Map<SourceType, number[]> = new Map();
+	private _symbolStorage: Map<TradingSymbol, number[]> = new Map();
+	private _timestampStorage: Map<UnixTimestamp, number[]> = new Map();
 
 	snapshot(): OrderBookIndexSnapshot {
 		return {
@@ -62,9 +69,9 @@ export class OrderBookIndexQuerier {
 			this._timestampStorage.set(entry.timestamp, [id]);
 		}
 	}
-	private _addToIndex(
-		storage: Map<string, number[]>,
-		key: string,
+	private _addToIndex<TKey extends string>(
+		storage: Map<TKey, number[]>,
+		key: TKey,
 		id: number
 	): void {
 		if (storage.has(key)) {
@@ -74,12 +81,12 @@ export class OrderBookIndexQuerier {
 		}
 	}
 
-	private _queryIndex<TKey>(
-		storage: Map<string, number[]>,
+	private _queryIndex<TKey extends string>(
+		storage: Map<TKey, number[]>,
 		key: TKey,
 		dataStorage: Map<number, OrderBookData>
 	): (OrderBookData | undefined)[] | null {
-		const ids = storage.get(String(key));
+		const ids = storage.get(key);
 		return ids ? ids.map((entryId) => dataStorage.get(entryId)) : null;
 	}
 

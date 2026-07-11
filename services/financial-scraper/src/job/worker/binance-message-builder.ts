@@ -1,16 +1,17 @@
-﻿import { createHash, randomUUID } from "node:crypto";
-
-import { CRYPTO } from "@trading-model/common/crypto/crypto-constants";
+import { createHash, randomUUID } from "node:crypto";
 import { DeliveryMode } from "@trading-model/common/config/delivery-mode.types";
-import type { AuthContext } from "@trading-model/common/contracts/message.types";
 import type { EventEnumMap } from "@trading-model/common/config/event.types";
+import type { AuthContext } from "@trading-model/common/contracts/message.types";
+import { CryptoAlg } from "@trading-model/common/crypto/crypto-constants";
 import type {
+	CorrelationId,
 	InstanceId,
 	MessageId,
 	ServiceId,
 	Topic,
 } from "@trading-model/common/domain/primitives";
 import {
+	toCorrelationId,
 	toInstanceId,
 	toMessageId,
 	toRole,
@@ -45,9 +46,9 @@ export function buildAuthContext(): AuthContext {
 }
 
 export function computeSignature(authContext: unknown): string {
-	return createHash(CRYPTO.SHA256)
+	return createHash(CryptoAlg.SHA256)
 		.update(deterministicStringify(authContext))
-		.digest(CRYPTO.BASE64URL);
+		.digest(CryptoAlg.BASE64URL);
 }
 
 export function buildDeliveryConfig(deliveryMode?: DeliveryMode): {
@@ -60,10 +61,13 @@ export function buildDeliveryConfig(deliveryMode?: DeliveryMode): {
 	};
 }
 
-export function buildIds(): { causationId: string; correlationId: string } {
+export function buildIds(): {
+	causationId: CorrelationId;
+	correlationId: CorrelationId;
+} {
 	return {
-		causationId: randomUUID(),
-		correlationId: randomUUID(),
+		causationId: toCorrelationId(randomUUID()),
+		correlationId: toCorrelationId(randomUUID()),
 	};
 }
 

@@ -17,7 +17,10 @@ export class BinanceWorker {
 	constructor(private readonly _options: BinanceWorkerOptions) {}
 
 	public async run(): Promise<BinanceWorkerResult> {
-		const builderMetadata = new HELPER.metadataBuilder();
+		const MetadataBuilder = HELPER.metadataBuilder as unknown as {
+			new (): typeof HELPER.metadataBuilder.prototype;
+		};
+		const builderMetadata = new MetadataBuilder();
 		const opts = this._options;
 
 		const rawData = await fetchAllRawData(opts);

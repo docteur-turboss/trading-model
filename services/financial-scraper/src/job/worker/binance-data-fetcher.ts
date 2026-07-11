@@ -1,4 +1,5 @@
 ﻿import { CandleInterval } from "@trading-model/common/config/event.types";
+import type { Limit } from "@trading-model/common/domain/primitives";
 
 import {
 	get24hrTickerStats,
@@ -29,12 +30,7 @@ export interface RawBinanceData {
 export function fetchAllRawData(
 	opts: BinanceWorkerOptions
 ): Promise<RawBinanceData> {
-	const {
-		symbol,
-		candleLimit = 100,
-		tradeLimit = 100,
-		orderBookLimit = 100,
-	} = opts;
+	const { symbol, candleLimit, tradeLimit, orderBookLimit } = opts;
 	const interval = opts.interval ?? CandleInterval.Min1;
 	const query: CandleQuery = { symbol, interval };
 
@@ -43,9 +39,9 @@ export function fetchAllRawData(
 
 async function _fetchBinanceData(
 	query: CandleQuery,
-	candleLimit: number,
-	tradeLimit: number,
-	orderBookLimit: number
+	candleLimit: Limit | undefined,
+	tradeLimit: Limit | undefined,
+	orderBookLimit: Limit | undefined
 ): Promise<RawBinanceData> {
 	const { symbol, interval } = query;
 	const [
@@ -56,9 +52,13 @@ async function _fetchBinanceData(
 		priceTickerRaw,
 		bookTickerRaw,
 	] = await Promise.all([
-		getOrderBook({ symbol, limit: orderBookLimit }),
-		getRecentTrades({ symbol, limit: tradeLimit }),
-		getCandlestickData({ symbol, limit: candleLimit, interval }),
+		getOrderBook({ symbol, limit: orderBookLimit ?? (100 as Limit) }),
+		getRecentTrades({ symbol, limit: tradeLimit ?? (100 as Limit) }),
+		getCandlestickData({
+			symbol,
+			limit: candleLimit ?? (100 as Limit),
+			interval,
+		}),
 		get24hrTickerStats([symbol]),
 		getSymbolPriceTicker([symbol]),
 		getOrderBookTicker([symbol]),

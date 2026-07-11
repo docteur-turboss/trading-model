@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { CandleInterval } from "@trading-model/common/config/event.types";
-import { toSymbol } from "@trading-model/common/domain/primitives";
+import { Limit, toSymbol } from "@trading-model/common/domain/primitives";
 
 jest.mock("../../../../src/clients/binance/binance.client", () => ({
 	getOrderBook: jest.fn(),
@@ -30,7 +30,7 @@ jest.mock("../../../../src/config/message-manager", () => ({
 	},
 }));
 
-const MOCK_METADATA_BUILDER_CTOR = jest.fn(() => ({
+const MOCK_METADATA_BUILDER_CTOR = jest.fn<any>().mockReturnValue({
 	setDelivery: jest.fn().mockReturnThis(),
 	setEventType: jest.fn().mockReturnThis(),
 	setTopic: jest.fn().mockReturnThis(),
@@ -38,7 +38,7 @@ const MOCK_METADATA_BUILDER_CTOR = jest.fn(() => ({
 	setIds: jest.fn().mockReturnThis(),
 	setPublisher: jest.fn().mockReturnThis(),
 	toJSON: jest.fn().mockReturnValue({}),
-}));
+});
 
 jest.mock("@trading-model/broker-message", () => ({
 	HELPER: {
@@ -65,6 +65,10 @@ import { BinanceWorker } from "../../../../src/job/worker/binance.worker";
 const BTC = toSymbol("BTCUSDT");
 const ETH = toSymbol("ETHUSDT");
 
+const LIMIT_50 = Limit.of(50, 5000);
+const LIMIT_10 = Limit.of(10, 5000);
+const LIMIT_100 = Limit.of(100, 5000);
+
 const MOCK_GET_ORDER_BOOK = jest.mocked(binanceClient.getOrderBook);
 const MOCK_CANDLESTICK_DATA = jest.mocked(binanceClient.getCandlestickData);
 const MOCK_RECENT_TRADES = jest.mocked(binanceClient.getRecentTrades);
@@ -89,7 +93,7 @@ describe("BinanceWorker", () => {
 	const mockNormalized = {
 		orderBook: { symbol: BTC },
 		recentTrades: [{ tradeId: 1 }],
-		candles: [{ symbol: BTC, interval: CandleInterval.MIN1 }],
+		candles: [{ symbol: BTC, interval: CandleInterval.Min1 }],
 		ticker24h: [{ symbol: BTC }],
 		priceTicker: { BTCUSDT: 50000 },
 		bookTicker: [{ symbol: BTC }],
@@ -128,10 +132,10 @@ describe("BinanceWorker", () => {
 
 		worker = new BinanceWorker({
 			symbol: BTC,
-			interval: CandleInterval.MIN1,
-			candleLimit: 50,
-			tradeLimit: 50,
-			orderBookLimit: 10,
+			interval: CandleInterval.Min1,
+			candleLimit: LIMIT_50,
+			tradeLimit: LIMIT_50,
+			orderBookLimit: LIMIT_10,
 		});
 	});
 
@@ -141,16 +145,16 @@ describe("BinanceWorker", () => {
 
 			expect(MOCK_GET_ORDER_BOOK).toHaveBeenCalledWith({
 				symbol: BTC,
-				limit: 10,
+				limit: LIMIT_10,
 			});
 			expect(MOCK_RECENT_TRADES).toHaveBeenCalledWith({
 				symbol: BTC,
-				limit: 50,
+				limit: LIMIT_50,
 			});
 			expect(MOCK_CANDLESTICK_DATA).toHaveBeenCalledWith({
 				symbol: BTC,
-				limit: 50,
-				interval: CandleInterval.MIN1,
+				limit: LIMIT_50,
+				interval: CandleInterval.Min1,
 			});
 			expect(MOCK24HR_TICKER_STATS).toHaveBeenCalledWith([BTC]);
 			expect(MOCK_SYMBOL_PRICE_TICKER).toHaveBeenCalledWith([BTC]);
@@ -192,12 +196,12 @@ describe("BinanceWorker", () => {
 
 			expect(MOCK_RECENT_TRADES).toHaveBeenCalledWith({
 				symbol: ETH,
-				limit: 100,
+				limit: LIMIT_100,
 			});
 			expect(MOCK_CANDLESTICK_DATA).toHaveBeenCalledWith({
 				symbol: ETH,
-				limit: 100,
-				interval: CandleInterval.MIN1,
+				limit: LIMIT_100,
+				interval: CandleInterval.Min1,
 			});
 		});
 

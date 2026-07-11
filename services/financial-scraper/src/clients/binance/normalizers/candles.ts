@@ -1,4 +1,5 @@
 ﻿import {
+	PositiveInt,
 	Price,
 	UnixTimestamp,
 	Volume,
@@ -24,7 +25,7 @@ export function normalizeCandles(
 		close: Price.of(Number(candle.close)),
 		volume: Volume.of(Number(candle.volume)),
 		closeTimestamp: UnixTimestamp.of(candle.closeTime),
-		trades: candle.numberOfTrades,
+		trades: PositiveInt.of(candle.numberOfTrades),
 		timestamp: UnixTimestamp.of(candle.openTime),
 		source: SourceType.Binance,
 		market: MarketType.Crypto,

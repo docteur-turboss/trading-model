@@ -1,3 +1,4 @@
+import { Port } from "@trading-model/common/domain/primitives";
 import {
 	buildTlsFromEnv,
 	createSecureServer,
@@ -11,7 +12,7 @@ import { MessageManagerListenExpress } from "../config/message-manager";
 /** Create and return a secure Express server configured with TLS, financial routes, address manager, and message manager. */
 export function createServer() {
 	return createSecureServer({
-		port: ENV.PORT,
+		port: Port.of(ENV.PORT),
 		tls: buildTlsFromEnv(ENV),
 		routes: _registerScraperRoutes,
 	});

@@ -1,4 +1,9 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
+import { SourceType } from "@trading-model/common/contracts/market-data.types";
+import {
+	TradingSymbol,
+	UnixTimestamp,
+} from "@trading-model/common/domain/primitives";
 
 const MOCK_EXECUTE_INSERT = jest
 	.fn<() => Promise<void>>()
@@ -19,11 +24,14 @@ jest.mock("../../../../../src/config/db", () => {
 		executeInsert: MOCK_EXECUTE_INSERT,
 	};
 
+	const mockDbConnection = {
+		insertInto: jest.fn(() => mockInsertQuery),
+		selectFrom: jest.fn(() => mockSelectQuery),
+	};
+
 	return {
-		DBConnection: jest.fn(() => ({
-			insertInto: jest.fn(() => mockInsertQuery),
-			selectFrom: jest.fn(() => mockSelectQuery),
-		})),
+		DBConnection: jest.fn(() => mockDbConnection),
+		createDBConnection: jest.fn(() => mockDbConnection),
 	};
 });
 
@@ -75,28 +83,30 @@ describe("trades-schema", () => {
 	describe("selectTradesBy", () => {
 		it("should select trades by symbol", async () => {
 			MOCK_EXECUTE_SELECT_MANY.mockResolvedValue([MAKE_TRADE()] as never[]);
-			const results = await selectTradesBy.symbol("BTCUSDT");
+			const results = await selectTradesBy.symbol(TradingSymbol.of("BTCUSDT"));
 			expect(results).toHaveLength(1);
 			expect(MOCK_EXECUTE_SELECT_MANY).toHaveBeenCalled();
 		});
 
 		it("should select trades by source", async () => {
 			MOCK_EXECUTE_SELECT_MANY.mockResolvedValue([MAKE_TRADE()] as never[]);
-			const results = await selectTradesBy.source("binance");
+			const results = await selectTradesBy.source(SourceType.Binance);
 			expect(results).toHaveLength(1);
 			expect(MOCK_EXECUTE_SELECT_MANY).toHaveBeenCalled();
 		});
 
 		it("should select trades by timestamp", async () => {
 			MOCK_EXECUTE_SELECT_MANY.mockResolvedValue([MAKE_TRADE()] as never[]);
-			const results = await selectTradesBy.timestamp(new Date("2024-01-01"));
+			const results = await selectTradesBy.timestamp(
+				UnixTimestamp.of(new Date("2024-01-01").getTime())
+			);
 			expect(results).toHaveLength(1);
 			expect(MOCK_EXECUTE_SELECT_MANY).toHaveBeenCalled();
 		});
 
 		it("should return empty array when no trades found", async () => {
 			MOCK_EXECUTE_SELECT_MANY.mockResolvedValue([] as never[]);
-			const results = await selectTradesBy.symbol("UNKNOWN");
+			const results = await selectTradesBy.symbol(TradingSymbol.of("UNKNOWN"));
 			expect(results).toEqual([]);
 		});
 	});

@@ -41,7 +41,7 @@ const SELECT = {
 	timestamp: T_MARKET_TRADES.timestamp,
 };
 
-function _toTradeRow(item: TradeData): Record<string, unknown> {
+function _toTradeRow(item: TradeData) {
 	return {
 		side: item.side,
 		price: item.price,

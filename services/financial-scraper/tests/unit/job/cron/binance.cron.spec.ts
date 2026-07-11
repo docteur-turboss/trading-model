@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { CandleInterval } from "@trading-model/common/config/event.types";
+import {
+	PositiveInt,
+	TradingSymbol,
+} from "@trading-model/common/domain/primitives";
 
 jest.mock("os", () => ({
 	cpus: jest.fn(() => new Array(4).fill({})),
@@ -50,10 +54,13 @@ const GET_CRON_HANDLER = (): ((...args: unknown[]) => Promise<unknown>) =>
 		...args: unknown[]
 	) => Promise<unknown>;
 
+const BTC = TradingSymbol.of("BTCUSDT");
+const ETH = TradingSymbol.of("ETHUSDT");
+
 describe("BinanceCronOrchestrator", () => {
 	const defaultConfig = {
 		schedule: "*/1 * * * *",
-		symbols: ["BTCUSDT", "ETHUSDT"],
+		symbols: [BTC, ETH],
 	};
 
 	beforeEach(() => {
@@ -70,7 +77,7 @@ describe("BinanceCronOrchestrator", () => {
 		it("should use provided maxConcurrency when specified", () => {
 			const orchestrator = new BinanceCronOrchestrator({
 				...defaultConfig,
-				maxConcurrency: 3,
+				maxConcurrency: PositiveInt.of(3),
 			});
 			expect(orchestrator).toBeDefined();
 		});
@@ -78,8 +85,8 @@ describe("BinanceCronOrchestrator", () => {
 		it("should cap concurrency at symbols length", () => {
 			const orchestrator = new BinanceCronOrchestrator({
 				schedule: "*/1 * * * *",
-				symbols: ["BTCUSDT"],
-				maxConcurrency: 100,
+				symbols: [BTC],
+				maxConcurrency: PositiveInt.of(100),
 			});
 			expect(orchestrator).toBeDefined();
 		});
@@ -206,14 +213,14 @@ describe("BinanceCronOrchestrator", () => {
 			await cronHandler();
 
 			expect(BinanceWorker).toHaveBeenCalledWith(
-				expect.objectContaining({ interval: CandleInterval.MIN1 })
+				expect.objectContaining({ interval: CandleInterval.Min1 })
 			);
 		});
 
 		it("should use provided candle interval", async () => {
 			const orchestrator = new BinanceCronOrchestrator({
 				...defaultConfig,
-				candleInterval: "5m",
+				candleInterval: CandleInterval.Min5,
 			});
 			orchestrator.start();
 
@@ -228,7 +235,7 @@ describe("BinanceCronOrchestrator", () => {
 			await cronHandler();
 
 			expect(BinanceWorker).toHaveBeenCalledWith(
-				expect.objectContaining({ interval: "5m" })
+				expect.objectContaining({ interval: CandleInterval.Min5 })
 			);
 		});
 	});

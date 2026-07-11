@@ -1,5 +1,10 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { CandleInterval } from "@trading-model/common/config/event.types";
+import { SourceType } from "@trading-model/common/contracts/market-data.types";
+import {
+	TradingSymbol,
+	UnixTimestamp,
+} from "@trading-model/common/domain/primitives";
 
 const MOCK_EXECUTE_INSERT = jest
 	.fn<() => Promise<void>>()
@@ -20,11 +25,14 @@ jest.mock("../../../../../src/config/db", () => {
 		executeInsert: MOCK_EXECUTE_INSERT,
 	};
 
+	const mockDbConnection = {
+		insertInto: jest.fn(() => mockInsertQuery),
+		selectFrom: jest.fn(() => mockSelectQuery),
+	};
+
 	return {
-		DBConnection: jest.fn(() => ({
-			insertInto: jest.fn(() => mockInsertQuery),
-			selectFrom: jest.fn(() => mockSelectQuery),
-		})),
+		DBConnection: jest.fn(() => mockDbConnection),
+		createDBConnection: jest.fn(() => mockDbConnection),
 	};
 });
 
@@ -37,7 +45,7 @@ const MAKE_CANDLE = (overrides: Record<string, unknown> = {}) => ({
 	symbol: "BTCUSDT",
 	market: "crypto",
 	source: "binance",
-	interval: CandleInterval.MIN1,
+	interval: CandleInterval.Min1,
 	low: 50000,
 	open: 50100,
 	high: 50200,
@@ -92,14 +100,14 @@ describe("candles-schema", () => {
 	describe("selectCandlesBy", () => {
 		it("should select candles by symbol", async () => {
 			MOCK_EXECUTE_SELECT_MANY.mockResolvedValue([MAKE_CANDLE()] as never[]);
-			const results = await selectCandlesBy.symbol("BTCUSDT");
+			const results = await selectCandlesBy.symbol(TradingSymbol.of("BTCUSDT"));
 			expect(results).toHaveLength(1);
 			expect(MOCK_EXECUTE_SELECT_MANY).toHaveBeenCalled();
 		});
 
 		it("should select candles by source", async () => {
 			MOCK_EXECUTE_SELECT_MANY.mockResolvedValue([MAKE_CANDLE()] as never[]);
-			const results = await selectCandlesBy.source("binance");
+			const results = await selectCandlesBy.source(SourceType.Binance);
 			expect(results).toHaveLength(1);
 			expect(MOCK_EXECUTE_SELECT_MANY).toHaveBeenCalled();
 		});
@@ -107,7 +115,7 @@ describe("candles-schema", () => {
 		it("should select candles by timestamp after", async () => {
 			MOCK_EXECUTE_SELECT_MANY.mockResolvedValue([MAKE_CANDLE()] as never[]);
 			const results = await selectCandlesBy.timestamp.after(
-				new Date("2024-01-01")
+				UnixTimestamp.of(new Date("2024-01-01").getTime())
 			);
 			expect(results).toHaveLength(1);
 			expect(MOCK_EXECUTE_SELECT_MANY).toHaveBeenCalled();
@@ -116,7 +124,7 @@ describe("candles-schema", () => {
 		it("should select candles by timestamp before", async () => {
 			MOCK_EXECUTE_SELECT_MANY.mockResolvedValue([] as never[]);
 			const results = await selectCandlesBy.timestamp.before(
-				new Date("2024-01-02")
+				UnixTimestamp.of(new Date("2024-01-02").getTime())
 			);
 			expect(results).toHaveLength(0);
 			expect(MOCK_EXECUTE_SELECT_MANY).toHaveBeenCalled();
@@ -124,7 +132,7 @@ describe("candles-schema", () => {
 
 		it("should return empty array when no candles found", async () => {
 			MOCK_EXECUTE_SELECT_MANY.mockResolvedValue([] as never[]);
-			const results = await selectCandlesBy.symbol("UNKNOWN");
+			const results = await selectCandlesBy.symbol(TradingSymbol.of("UNKNOWN"));
 			expect(results).toEqual([]);
 		});
 	});

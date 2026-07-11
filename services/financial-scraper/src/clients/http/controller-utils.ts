@@ -1,3 +1,4 @@
+import { HTTP_STATUS } from "@trading-model/common/http-status";
 import { catchSync } from "@trading-model/common/middleware/catch-error";
 import { sendResponse } from "@trading-model/common/middleware/response-exception";
 import zod from "zod";
@@ -27,14 +28,20 @@ export function createController<TBody>(
 	return catchSync(async (req) => {
 		const parsed = schema.safeParse(req.params);
 		if (!parsed.success) {
-			return sendResponse({ error: parsed.error.message }, 400);
+			return sendResponse(
+				{ error: parsed.error.message },
+				HTTP_STATUS.BAD_REQUEST
+			);
 		}
 
 		try {
-			return sendResponse(JSON.stringify(await fetcher(parsed.data)), 200);
+			return sendResponse(
+				JSON.stringify(await fetcher(parsed.data)),
+				HTTP_STATUS.OK
+			);
 		} catch (err) {
 			if (err instanceof Error && err.message.includes("No result returned")) {
-				return sendResponse({ error: "No data found" }, 404);
+				return sendResponse({ error: "No data found" }, HTTP_STATUS.NOT_FOUND);
 			}
 			throw err instanceof Error ? err : new Error(String(err));
 		}

@@ -1,5 +1,6 @@
-﻿import type {
-	TradingSymbol,
+﻿import type { OhlcvFields } from "@trading-model/common/contracts/market-data.types";
+import {
+	type TradingSymbol,
 	UnixTimestamp,
 } from "@trading-model/common/domain/primitives";
 
@@ -7,6 +8,9 @@
 type PriceString = string & { readonly brand: "PriceString" };
 type VolumeString = string & { readonly brand: "VolumeString" };
 type CashString = string & { readonly brand: "CashString" };
+type PriceChangePercentString = string & {
+	readonly brand: "PriceChangePercentString";
+};
 
 /** A single depth entry with branded types. */
 export interface BinanceDepthEntry {
@@ -52,7 +56,7 @@ export type BinanceAggregateTradeResponse = BinanceAggregateTrade[];
 export interface BinanceTickerBaseStats {
 	symbol: TradingSymbol;
 	priceChange: PriceString;
-	priceChangePercent: string;
+	priceChangePercent: PriceChangePercentString;
 	weightedAvgPrice: PriceString;
 	lastPrice: PriceString;
 	openPrice: PriceString;
@@ -67,13 +71,9 @@ export interface BinanceTickerBaseStats {
 }
 
 /** Parsed candlestick with named fields and branded types. */
-export interface BinanceCandlestickData {
+export interface BinanceCandlestickData
+	extends OhlcvFields<PriceString, VolumeString> {
 	openTime: UnixTimestamp;
-	open: PriceString;
-	high: PriceString;
-	low: PriceString;
-	close: PriceString;
-	volume: VolumeString;
 	closeTime: UnixTimestamp;
 	quoteAssetVolume: CashString;
 	numberOfTrades: number;
@@ -83,22 +83,28 @@ export interface BinanceCandlestickData {
 
 export type BinanceCandlestickDataResponse = BinanceCandlestickData[];
 
+/**
+ * Raw 12-element tuple returned by the Binance /klines endpoint.
+ * @see https://binance-docs.github.io/apidocs/spot/en/#kline-candlestick-data
+ */
+export type RawBinanceCandlestick = [
+	openTime: number,
+	open: string,
+	high: string,
+	low: string,
+	close: string,
+	volume: string,
+	closeTime: number,
+	quoteAssetVolume: string,
+	numberOfTrades: number,
+	takerBuyBaseAssetVolume: string,
+	takerBuyQuoteAssetVolume: string,
+	ignore: string,
+];
+
 /** Convert a raw API tuple to a named-field object. */
 export function parseCandlestick(
-	raw: [
-		openTime: number,
-		open: string,
-		high: string,
-		low: string,
-		close: string,
-		volume: string,
-		closeTime: number,
-		quoteAssetVolume: string,
-		numberOfTrades: number,
-		takerBuyBaseAssetVolume: string,
-		takerBuyQuoteAssetVolume: string,
-		_takerBuyQuoteAssetVolume: string,
-	]
+	raw: RawBinanceCandlestick
 ): BinanceCandlestickData {
 	const [
 		openTime,
@@ -114,13 +120,13 @@ export function parseCandlestick(
 		takerBuyQuoteAssetVolume,
 	] = raw;
 	return {
-		openTime: openTime as UnixTimestamp,
+		openTime: UnixTimestamp.of(openTime),
 		open: open as PriceString,
 		high: high as PriceString,
 		low: low as PriceString,
 		close: close as PriceString,
 		volume: volume as VolumeString,
-		closeTime: closeTime as UnixTimestamp,
+		closeTime: UnixTimestamp.of(closeTime),
 		quoteAssetVolume: quoteAssetVolume as CashString,
 		numberOfTrades,
 		takerBuyBaseAssetVolume: takerBuyBaseAssetVolume as VolumeString,

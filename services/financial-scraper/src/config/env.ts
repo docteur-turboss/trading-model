@@ -1,5 +1,12 @@
 import type { DbConnectionConfig } from "@trading-model/common/domain/db-connection-config";
 import {
+	DbName,
+	DbPassword,
+	DbUser,
+	Hostname,
+	Port,
+} from "@trading-model/common/domain/primitives";
+import {
 	AddressManagerEnvSchema,
 	BaseEnvSchema,
 	validateEnv,
@@ -24,7 +31,7 @@ const FINANCIAL_SCRAPER_ENV_SCHEMA = BaseEnvSchema.extend(
 		}),
 	SCRAPE_INTERVAL: z.string().default("*/1 * * * *"),
 	DB_USER: z.string().default("root"),
-	DB_PASSWORD: z.string().default(""),
+	DB_PASSWORD: z.string().default("password"),
 	DB_NAME: z.string().default("financial_scraper"),
 	DB_HOST: z.string().default("localhost"),
 	DB_PORT: z.coerce.number().int().positive().default(3306),
@@ -35,9 +42,9 @@ export const ENV = validateEnv(FINANCIAL_SCRAPER_ENV_SCHEMA);
 export type Env = z.infer<typeof FINANCIAL_SCRAPER_ENV_SCHEMA>;
 
 export const dbConfig: DbConnectionConfig = {
-	host: ENV.DB_HOST,
-	port: ENV.DB_PORT,
-	user: ENV.DB_USER,
-	password: ENV.DB_PASSWORD,
-	database: ENV.DB_NAME,
+	host: Hostname.of(ENV.DB_HOST),
+	port: Port.of(ENV.DB_PORT),
+	user: DbUser.of(ENV.DB_USER),
+	password: DbPassword.of(ENV.DB_PASSWORD),
+	database: DbName.of(ENV.DB_NAME),
 };

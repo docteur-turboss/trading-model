@@ -15,7 +15,10 @@ import type {
 	BinanceTradeResponse,
 	BinanceTradingDayTickerResponse,
 } from "../../types/binance.api";
-import { parseCandlestick } from "../../types/binance.api";
+import {
+	parseCandlestick,
+	type RawBinanceCandlestick,
+} from "../../types/binance.api";
 import { BINANCE_ENDPOINTS } from "./endpoints";
 import { BINANCE_WEIGHTS } from "./weights";
 
@@ -69,20 +72,10 @@ export async function getCandlestickData(
 		startTime,
 		limit,
 	});
-	const raw = (await _getWithWeight(url, BINANCE_WEIGHTS.candlesticks())) as [
-		number,
-		string,
-		string,
-		string,
-		string,
-		string,
-		number,
-		string,
-		number,
-		string,
-		string,
-		string,
-	][];
+	const raw = (await _getWithWeight(
+		url,
+		BINANCE_WEIGHTS.candlesticks()
+	)) as RawBinanceCandlestick[];
 	return raw.map((tuple) => parseCandlestick(tuple));
 }
 

@@ -49,7 +49,7 @@ const SELECT = {
 	closeTimestamp: T_MARKET_CANDLES.closeTimestamp,
 };
 
-function _toCandleRow(item: CandleData): Record<string, unknown> {
+function _toCandleRow(item: CandleData) {
 	return {
 		low: item.low,
 		open: item.open,

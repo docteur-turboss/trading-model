@@ -22,7 +22,7 @@ describe("MarketDataController", () => {
 
 	it("should persist candles when payload has candles", async () => {
 		const payload: any = {
-			candles: [{ symbol: "BTCUSDT", interval: CandleInterval.MIN1 }],
+			candles: [{ symbol: "BTCUSDT", interval: CandleInterval.Min1 }],
 			recentTrades: [],
 			orderBook: undefined,
 			ticker24h: [],
@@ -90,7 +90,7 @@ describe("MarketDataController", () => {
 
 	it("should persist all data types when payload has everything", async () => {
 		const payload: any = {
-			candles: [{ symbol: "BTCUSDT", interval: CandleInterval.MIN1 }],
+			candles: [{ symbol: "BTCUSDT", interval: CandleInterval.Min1 }],
 			recentTrades: [{ tradeId: 1n }],
 			orderBook: { symbol: "BTCUSDT" },
 			ticker24h: [{ symbol: "BTCUSDT" }],
@@ -129,7 +129,7 @@ describe("MarketDataController", () => {
 		MOCK_MODEL.insertTicker.mockResolvedValue(undefined);
 
 		const payload: any = {
-			candles: [{ symbol: "BTCUSDT", interval: CandleInterval.MIN1 }],
+			candles: [{ symbol: "BTCUSDT", interval: CandleInterval.Min1 }],
 			recentTrades: [{ tradeId: 1n }],
 			orderBook: { symbol: "BTCUSDT" },
 			ticker24h: [{ symbol: "BTCUSDT" }],

@@ -24,19 +24,22 @@ type LimitFunction = <TArgs extends unknown[], TResult>(
 	...args: TArgs
 ) => Promise<TResult>;
 
-import type { CandleInterval } from "@trading-model/common/config/event.types";
-import type { TradingSymbol } from "@trading-model/common/domain/primitives";
+import { CandleInterval } from "@trading-model/common/config/event.types";
+import {
+	PositiveInt,
+	type TradingSymbol,
+} from "@trading-model/common/domain/primitives";
 
 /** Configuration for scheduling a BinanceCronOrchestrator instance. */
 export interface CronConfig {
 	schedule: string;
 	symbols: TradingSymbol[];
-	maxConcurrency?: number;
+	maxConcurrency?: PositiveInt;
 	candleInterval?: CandleInterval;
 }
 
 export class BinanceCronOrchestrator {
-	private readonly _maxConcurrency: number;
+	private readonly _maxConcurrency: PositiveInt;
 
 	constructor(private readonly _config: CronConfig) {
 		/**
@@ -47,7 +50,8 @@ export class BinanceCronOrchestrator {
 		const cpuBased = os.cpus().length * 2;
 
 		this._maxConcurrency =
-			_config.maxConcurrency ?? Math.min(cpuBased, _config.symbols.length);
+			_config.maxConcurrency ??
+			PositiveInt.of(Math.min(cpuBased, _config.symbols.length));
 	}
 
 	/**
@@ -65,15 +69,41 @@ export class BinanceCronOrchestrator {
 			isRunning = true;
 
 			try {
-				await this._executeBatch();
+				await this._executeAllSymbols();
 			} catch (err) {
-				_logBatchError(err);
+				if (err instanceof Error) {
+					_logBatchError(err);
+				} else {
+					logger.error("Unknown batch execution error", { err });
+				}
 			} finally {
 				isRunning = false;
 			}
 		});
 
 		logger.info("Scheduler started", { maxConcurrency: this._maxConcurrency });
+	}
+
+	/**
+	 * Executes a batch run for all configured symbols.
+	 */
+	private async _executeAllSymbols(): Promise<void> {
+		const { BinanceWorker } = await import("../worker/binance.worker");
+		const limiter = await _createLimiter(this._maxConcurrency);
+
+		const results = await Promise.all(
+			this._config.symbols.map((symbol) =>
+				limiter(() => {
+					const worker = new BinanceWorker({
+						symbol,
+						interval: this._config.candleInterval ?? CandleInterval.Min1,
+					});
+					return worker.run();
+				})
+			)
+		);
+
+		await Promise.all(results.map((data) => this.persist(data)));
 	}
 
 	/**
@@ -91,7 +121,9 @@ function _logBatchError(error: unknown): void {
 	logger.error("Batch execution failed", { error });
 }
 
-async function _createLimiter(maxConcurrency: number): Promise<LimitFunction> {
+async function _createLimiter(
+	maxConcurrency: PositiveInt
+): Promise<LimitFunction> {
 	const { default: pLimit } = (await import("p-limit")) as unknown as {
 		default: (concurrency: number) => LimitFunction;
 	};

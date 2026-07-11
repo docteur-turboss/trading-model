@@ -45,7 +45,7 @@ const SELECT = {
 	closeTimestamp: T_MARKET_TICKER.closeTimestamp,
 };
 
-function _toTickerRow(item: TickerData): Record<string, unknown> {
+function _toTickerRow(item: TickerData) {
 	return {
 		low: item.low,
 		high: item.high,

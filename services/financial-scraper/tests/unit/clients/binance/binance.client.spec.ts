@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { CandleInterval } from "@trading-model/common/config/event.types";
-import { toSymbol } from "@trading-model/common/domain/primitives";
+import { Limit, toSymbol } from "@trading-model/common/domain/primitives";
 
 jest.mock("../../../../src/config/http", () => ({
 	httpClients: {
@@ -54,6 +54,9 @@ import { httpClients } from "../../../../src/config/http";
 const BTC = toSymbol("BTCUSDT");
 const MOCK_GET = jest.mocked(httpClients.binance.get);
 
+const LIMIT_100 = Limit.of(100, 5000);
+const LIMIT_500 = Limit.of(500, 5000);
+
 describe("BinanceClient", () => {
 	beforeEach(() => {
 		jest.clearAllMocks();
@@ -61,7 +64,7 @@ describe("BinanceClient", () => {
 	});
 
 	it("getOrderBook should call depth endpoint with weight", async () => {
-		await getOrderBook({ symbol: BTC, limit: 100 });
+		await getOrderBook({ symbol: BTC, limit: LIMIT_100 });
 		expect(MOCK_GET).toHaveBeenCalledWith("/api/v3/depth", {
 			weight: 5,
 		} as never);
@@ -75,7 +78,7 @@ describe("BinanceClient", () => {
 	});
 
 	it("getRecentTrades should call trades endpoint with weight", async () => {
-		await getRecentTrades({ symbol: BTC, limit: 100 });
+		await getRecentTrades({ symbol: BTC, limit: LIMIT_100 });
 		expect(MOCK_GET).toHaveBeenCalledWith("/api/v3/trades", {
 			weight: 25,
 		} as never);
@@ -89,14 +92,14 @@ describe("BinanceClient", () => {
 	});
 
 	it("getHistoricalTrades should call historicalTrades endpoint with weight", async () => {
-		await getHistoricalTrades({ symbol: BTC, limit: 100, fromId: 12345 });
+		await getHistoricalTrades({ symbol: BTC, limit: LIMIT_100, fromId: 12345 });
 		expect(MOCK_GET).toHaveBeenCalledWith("/api/v3/historicalTrades", {
 			weight: 25,
 		} as never);
 	});
 
 	it("getHistoricalTrades should use default limit", async () => {
-		await getHistoricalTrades({ symbol: BTC, limit: 500, fromId: 12345 });
+		await getHistoricalTrades({ symbol: BTC, limit: LIMIT_500, fromId: 12345 });
 		expect(MOCK_GET).toHaveBeenCalledWith("/api/v3/historicalTrades", {
 			weight: 25,
 		} as never);
@@ -105,8 +108,8 @@ describe("BinanceClient", () => {
 	it("getCandlestickData should call candlesticks endpoint with weight", async () => {
 		await getCandlestickData({
 			symbol: BTC,
-			limit: 100,
-			interval: CandleInterval.MIN1,
+			limit: LIMIT_100,
+			interval: CandleInterval.Min1,
 		});
 		expect(MOCK_GET).toHaveBeenCalledWith("/api/v3/klines", {
 			weight: 2,
@@ -116,8 +119,8 @@ describe("BinanceClient", () => {
 	it("getCandlestickData should use default limit", async () => {
 		await getCandlestickData({
 			symbol: BTC,
-			limit: 500,
-			interval: CandleInterval.MIN1,
+			limit: LIMIT_500,
+			interval: CandleInterval.Min1,
 		});
 		expect(MOCK_GET).toHaveBeenCalledWith("/api/v3/klines", {
 			weight: 2,
@@ -128,7 +131,7 @@ describe("BinanceClient", () => {
 		await getCompressedAggregateTrades({
 			symbol: BTC,
 			fromId: 12345,
-			limit: 100,
+			limit: LIMIT_100,
 		});
 		expect(MOCK_GET).toHaveBeenCalledWith("/api/v3/aggTrades", {
 			weight: 4,

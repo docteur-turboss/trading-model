@@ -15,7 +15,7 @@ import { MarketDataController } from "../../src/infra/market-data/market-data.co
 import { MarketDataModel } from "../../src/infra/market-data/market-data.model";
 
 describe("MarketDataController — persist integration", () => {
-	const mockCandles = [{ symbol: "BTCUSDT", interval: CandleInterval.MIN1 }];
+	const mockCandles = [{ symbol: "BTCUSDT", interval: CandleInterval.Min1 }];
 	const mockTrades = [{ tradeId: 1n, symbol: "BTCUSDT" }];
 	const mockOrderBook = { symbol: "BTCUSDT" };
 	const mockTicker24h = [{ symbol: "BTCUSDT" }];

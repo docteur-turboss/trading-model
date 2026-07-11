@@ -16,10 +16,7 @@ function shouldRetry(error: AxiosError): boolean {
 }
 
 function getBackoffDelay(attempt: number): number {
-	return computeExponentialBackoff(attempt, {
-		baseDelayMs: RETRY_CONFIG.baseDelayMs,
-		maxDelayMs: RETRY_CONFIG.maxDelayMs,
-	});
+	return computeExponentialBackoff(attempt, RETRY_CONFIG);
 }
 
 function retryLimitReached(

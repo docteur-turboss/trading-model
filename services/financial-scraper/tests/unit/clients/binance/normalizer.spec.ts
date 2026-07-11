@@ -19,10 +19,15 @@ import {
 
 const SYMBOL = toSymbol("BTCUSDT");
 
+const SYMBOL_QUERY = { symbol: SYMBOL };
+
 describe("BinanceNormalizer", () => {
 	describe("orderBook", () => {
 		it("should normalize depth response to OrderBookData", () => {
-			const result = BinanceNormalizer.orderBook(SYMBOL, mockDepthResponse);
+			const result = BinanceNormalizer.orderBook(
+				SYMBOL_QUERY,
+				mockDepthResponse
+			);
 			expect(result.symbol).toBe("BTCUSDT");
 			expect(result.source).toBe("binance");
 			expect(result.market).toBe("crypto");
@@ -32,7 +37,10 @@ describe("BinanceNormalizer", () => {
 		});
 
 		it("should parse bid/ask prices as numbers", () => {
-			const result = BinanceNormalizer.orderBook(SYMBOL, mockDepthResponse);
+			const result = BinanceNormalizer.orderBook(
+				SYMBOL_QUERY,
+				mockDepthResponse
+			);
 			const firstBid = [...result.bids][0];
 			expect(typeof firstBid.price).toBe("number");
 			expect(typeof firstBid.quantity).toBe("number");
@@ -41,23 +49,23 @@ describe("BinanceNormalizer", () => {
 
 	describe("trades", () => {
 		it("should normalize trade response to TradeData array", () => {
-			const result = BinanceNormalizer.trades(SYMBOL, mockTradeResponse);
+			const result = BinanceNormalizer.trades(SYMBOL_QUERY, mockTradeResponse);
 			expect(result).toHaveLength(2);
 			expect(result[0].symbol).toBe("BTCUSDT");
-			expect(result[0].side).toBe(TradeSide.SELL); // isBuyerMaker = true → sell
-			expect(result[1].side).toBe(TradeSide.BUY);
+			expect(result[0].side).toBe(TradeSide.Sell); // isBuyerMaker = true → sell
+			expect(result[1].side).toBe(TradeSide.Buy);
 		});
 
 		it("should handle historical trade response", () => {
 			const result = BinanceNormalizer.trades(
-				SYMBOL,
+				SYMBOL_QUERY,
 				mockHistoricalTradeResponse
 			);
 			expect(result).toHaveLength(1);
 		});
 
 		it("should convert string price and quantity to numbers", () => {
-			const result = BinanceNormalizer.trades(SYMBOL, mockTradeResponse);
+			const result = BinanceNormalizer.trades(SYMBOL_QUERY, mockTradeResponse);
 			expect(typeof result[0].price).toBe("number");
 			expect(typeof result[0].quantity).toBe("number");
 		});
@@ -66,12 +74,12 @@ describe("BinanceNormalizer", () => {
 	describe("aggregateTrades", () => {
 		it("should normalize aggregate trade response", () => {
 			const result = BinanceNormalizer.aggregateTrades(
-				SYMBOL,
+				SYMBOL_QUERY,
 				mockAggregateTradeResponse
 			);
 			expect(result).toHaveLength(1);
 			expect(result[0].tradeId).toBe(BigInt(28457));
-			expect(result[0].side).toBe(TradeSide.SELL); // m = true → sell
+			expect(result[0].side).toBe(TradeSide.Sell); // m = true → sell
 		});
 
 		it("should set side to buy when m is false", () => {
@@ -87,21 +95,23 @@ describe("BinanceNormalizer", () => {
 					isBestMatch: true,
 				},
 			];
-			const result = BinanceNormalizer.aggregateTrades(SYMBOL, buyPayload);
-			expect(result[0].side).toBe(TradeSide.BUY);
+			const result = BinanceNormalizer.aggregateTrades(
+				SYMBOL_QUERY,
+				buyPayload as never
+			);
+			expect(result[0].side).toBe(TradeSide.Buy);
 		});
 	});
 
 	describe("candles", () => {
 		it("should normalize candlestick response to CandleData array", () => {
 			const result = BinanceNormalizer.candles(
-				SYMBOL,
-				CandleInterval.MIN1,
+				{ symbol: SYMBOL, interval: CandleInterval.Min1 },
 				mockCandlestickResponse
 			);
 			expect(result).toHaveLength(1);
 			expect(result[0].symbol).toBe("BTCUSDT");
-			expect(result[0].interval).toBe(CandleInterval.MIN1);
+			expect(result[0].interval).toBe(CandleInterval.Min1);
 			expect(result[0].open).toBe(0.0163479);
 			expect(result[0].high).toBe(0.8);
 			expect(result[0].low).toBe(0.015758);

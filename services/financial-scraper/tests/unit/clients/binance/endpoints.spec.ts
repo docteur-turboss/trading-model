@@ -53,7 +53,7 @@ describe("BINANCE_ENDPOINTS", () => {
 		it("should build candlestick URL with all params", () => {
 			const url = BINANCE_ENDPOINTS.candlesticks({
 				symbol: BTC,
-				interval: CandleInterval.MIN1,
+				interval: CandleInterval.Min1,
 				startTime:
 					1620000000000 as unknown as import("@trading-model/common/domain/primitives").UnixTimestamp,
 				limit: 100,

@@ -1,5 +1,5 @@
-import type { EventEnumMap } from "@trading-model/common/config/event.types";
 import type { HELPER } from "@trading-model/broker-message";
+import type { EventEnumMap } from "@trading-model/common/config/event.types";
 import { MarketEvent } from "@trading-model/common/contracts/market-events";
 import { toTopic } from "@trading-model/common/domain/primitives";
 import { MessageManager } from "../../config/message-manager";
@@ -15,12 +15,36 @@ const MARKET_DATA_ENTRY_MAP: {
 	event: MarketEvent;
 	name: EventEnumMap;
 }[] = [
-	{ key: "candles", event: MarketEvent.FetchCandlestickSeries, name: MarketEvent.FetchCandlestickSeries },
-	{ key: "orderBook", event: MarketEvent.FetchOrderBookSnapshot, name: MarketEvent.FetchOrderBookSnapshot },
-	{ key: "ticker24h", event: MarketEvent.Fetch24hrTickerStats, name: MarketEvent.Fetch24hrTickerStats },
-	{ key: "bookTicker", event: MarketEvent.FetchOrderBookTickerSnapshot, name: MarketEvent.FetchOrderBookTickerSnapshot },
-	{ key: "priceTicker", event: MarketEvent.FetchPriceTickerSnapshot, name: MarketEvent.FetchPriceTickerSnapshot },
-	{ key: "recentTrades", event: MarketEvent.FetchRecentTrades, name: MarketEvent.FetchRecentTrades },
+	{
+		key: "candles",
+		event: MarketEvent.FetchCandlestickSeries,
+		name: MarketEvent.FetchCandlestickSeries,
+	},
+	{
+		key: "orderBook",
+		event: MarketEvent.FetchOrderBookSnapshot,
+		name: MarketEvent.FetchOrderBookSnapshot,
+	},
+	{
+		key: "ticker24h",
+		event: MarketEvent.Fetch24hrTickerStats,
+		name: MarketEvent.Fetch24hrTickerStats,
+	},
+	{
+		key: "bookTicker",
+		event: MarketEvent.FetchOrderBookTickerSnapshot,
+		name: MarketEvent.FetchOrderBookTickerSnapshot,
+	},
+	{
+		key: "priceTicker",
+		event: MarketEvent.FetchPriceTickerSnapshot,
+		name: MarketEvent.FetchPriceTickerSnapshot,
+	},
+	{
+		key: "recentTrades",
+		event: MarketEvent.FetchRecentTrades,
+		name: MarketEvent.FetchRecentTrades,
+	},
 ];
 
 export function buildMarketDataEntries(

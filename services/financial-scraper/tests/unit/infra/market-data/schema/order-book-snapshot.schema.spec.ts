@@ -1,4 +1,9 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
+import { SourceType } from "@trading-model/common/contracts/market-data.types";
+import {
+	TradingSymbol,
+	UnixTimestamp,
+} from "@trading-model/common/domain/primitives";
 
 const MOCK_EXECUTE_INSERT = jest
 	.fn<() => Promise<void>>()
@@ -19,11 +24,14 @@ jest.mock("../../../../../src/config/db", () => {
 		executeInsert: MOCK_EXECUTE_INSERT,
 	};
 
+	const mockDbConnection = {
+		insertInto: jest.fn(() => mockInsertQuery),
+		selectFrom: jest.fn(() => mockSelectQuery),
+	};
+
 	return {
-		DBConnection: jest.fn(() => ({
-			insertInto: jest.fn(() => mockInsertQuery),
-			selectFrom: jest.fn(() => mockSelectQuery),
-		})),
+		DBConnection: jest.fn(() => mockDbConnection),
+		createDBConnection: jest.fn(() => mockDbConnection),
 	};
 });
 
@@ -73,14 +81,18 @@ describe("order-book-snapshot-schema", () => {
 	describe("selectOrderBookSnapshotsBy", () => {
 		it("should select snapshots by symbol", async () => {
 			MOCK_EXECUTE_SELECT_MANY.mockResolvedValue([MAKE_SNAPSHOT()] as never[]);
-			const results = await selectOrderBookSnapshotsBy.symbol("BTCUSDT");
+			const results = await selectOrderBookSnapshotsBy.symbol(
+				TradingSymbol.of("BTCUSDT")
+			);
 			expect(results).toHaveLength(1);
 			expect(MOCK_EXECUTE_SELECT_MANY).toHaveBeenCalled();
 		});
 
 		it("should select snapshots by source", async () => {
 			MOCK_EXECUTE_SELECT_MANY.mockResolvedValue([MAKE_SNAPSHOT()] as never[]);
-			const results = await selectOrderBookSnapshotsBy.source("binance");
+			const results = await selectOrderBookSnapshotsBy.source(
+				SourceType.Binance
+			);
 			expect(results).toHaveLength(1);
 			expect(MOCK_EXECUTE_SELECT_MANY).toHaveBeenCalled();
 		});
@@ -88,7 +100,7 @@ describe("order-book-snapshot-schema", () => {
 		it("should select snapshots by timestamp after", async () => {
 			MOCK_EXECUTE_SELECT_MANY.mockResolvedValue([MAKE_SNAPSHOT()] as never[]);
 			const results = await selectOrderBookSnapshotsBy.timestamp.after(
-				new Date("2024-01-01")
+				UnixTimestamp.of(new Date("2024-01-01").getTime())
 			);
 			expect(results).toHaveLength(1);
 			expect(MOCK_EXECUTE_SELECT_MANY).toHaveBeenCalled();
@@ -97,7 +109,7 @@ describe("order-book-snapshot-schema", () => {
 		it("should select snapshots by timestamp before", async () => {
 			MOCK_EXECUTE_SELECT_MANY.mockResolvedValue([] as never[]);
 			const results = await selectOrderBookSnapshotsBy.timestamp.before(
-				new Date("2024-01-02")
+				UnixTimestamp.of(new Date("2024-01-02").getTime())
 			);
 			expect(results).toHaveLength(0);
 			expect(MOCK_EXECUTE_SELECT_MANY).toHaveBeenCalled();
@@ -105,7 +117,9 @@ describe("order-book-snapshot-schema", () => {
 
 		it("should return empty array when no snapshots found", async () => {
 			MOCK_EXECUTE_SELECT_MANY.mockResolvedValue([] as never[]);
-			const results = await selectOrderBookSnapshotsBy.symbol("UNKNOWN");
+			const results = await selectOrderBookSnapshotsBy.symbol(
+				TradingSymbol.of("UNKNOWN")
+			);
 			expect(results).toEqual([]);
 		});
 	});

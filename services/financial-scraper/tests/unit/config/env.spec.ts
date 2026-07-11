@@ -86,7 +86,7 @@ describe("env", () => {
 		expect(ENV.SYMBOLS_TO_TRACK).toEqual([]);
 		expect(ENV.SCRAPE_INTERVAL).toBe("*/1 * * * *");
 		expect(ENV.DB_USER).toBe("root");
-		expect(ENV.DB_PASSWORD).toBe("");
+		expect(ENV.DB_PASSWORD).toBe("password");
 		expect(ENV.DB_NAME).toBe("financial_scraper");
 		expect(ENV.DB_HOST).toBe("localhost");
 		expect(ENV.DB_PORT).toBe(3306);

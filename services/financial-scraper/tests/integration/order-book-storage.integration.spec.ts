@@ -1,4 +1,9 @@
 import { beforeEach, describe, expect, it } from "@jest/globals";
+import type { SourceType } from "@trading-model/common/contracts/market-data.types";
+import {
+	TradingSymbol,
+	UnixTimestamp,
+} from "@trading-model/common/domain/primitives";
 import {
 	insertOrderBook,
 	selectOrderBookBy,
@@ -43,7 +48,9 @@ describe("OrderBook storage — full insert/query integration", () => {
 	});
 
 	it("should query by symbol across multiple entries", async () => {
-		const bySymbol = await selectOrderBookBy.symbol("BTCUSDT");
+		const bySymbol = await selectOrderBookBy.symbol(
+			TradingSymbol.of("BTCUSDT")
+		);
 		expect(bySymbol).not.toBeNull();
 
 		for (const entry of bySymbol!) {
@@ -52,7 +59,7 @@ describe("OrderBook storage — full insert/query integration", () => {
 	});
 
 	it("should query by source", async () => {
-		const bySource = await selectOrderBookBy.source("kraken");
+		const bySource = await selectOrderBookBy.source("kraken" as SourceType);
 		expect(bySource).not.toBeNull();
 
 		for (const entry of bySource!) {
@@ -61,7 +68,9 @@ describe("OrderBook storage — full insert/query integration", () => {
 	});
 
 	it("should query entries after a given timestamp", async () => {
-		const after = await selectOrderBookBy.timestamp.after(t1.getTime());
+		const after = await selectOrderBookBy.timestamp.after(
+			UnixTimestamp.of(t1.getTime())
+		);
 		expect(after).not.toBeNull();
 		expect(after!.length).toBeGreaterThanOrEqual(1);
 
@@ -73,14 +82,16 @@ describe("OrderBook storage — full insert/query integration", () => {
 	});
 
 	it("should query entries before a given timestamp", async () => {
-		const before = await selectOrderBookBy.timestamp.before(t3.getTime());
+		const before = await selectOrderBookBy.timestamp.before(
+			UnixTimestamp.of(t3.getTime())
+		);
 		expect(before).not.toBeNull();
 		expect(before!.length).toBeGreaterThanOrEqual(1);
 	});
 
 	it("should return results sorted by timestamp ascending for after query", async () => {
 		const after = await selectOrderBookBy.timestamp.after(
-			t1.getTime() - 3600000
+			UnixTimestamp.of(t1.getTime() - 3600000)
 		);
 		for (let i = 1; i < after!.length; i++) {
 			expect(new Date(after![i]!.timestamp).getTime()).toBeGreaterThanOrEqual(
@@ -90,12 +101,14 @@ describe("OrderBook storage — full insert/query integration", () => {
 	});
 
 	it("should return null for non-existent symbol", async () => {
-		const result = await selectOrderBookBy.symbol("NONEXISTENT");
+		const result = await selectOrderBookBy.symbol(
+			TradingSymbol.of("NONEXISTENT")
+		);
 		expect(result).toBeNull();
 	});
 
 	it("should return null for non-existent source", async () => {
-		const result = await selectOrderBookBy.source("coinbase");
+		const result = await selectOrderBookBy.source("coinbase" as SourceType);
 		expect(result).toBeNull();
 	});
 });
