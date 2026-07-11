@@ -1,8 +1,13 @@
 import type { EventEnumMap } from "@trading-model/common/config/event.types";
 import type { HttpClient } from "@trading-model/common/config/http-client";
-import type { ServiceId } from "@trading-model/common/domain/primitives";
-import { toInstanceId, toTopic } from "@trading-model/common/domain/primitives";
+import {
+	ServiceId,
+	toInstanceId,
+	toTopic,
+	URLString,
+} from "@trading-model/common/domain/primitives";
 import type { HostPort } from "@trading-model/common/domain/service-identity";
+import { toHostPortAddress } from "@trading-model/common/domain/service-identity";
 import {
 	messageManagerError,
 	normalizeError,
@@ -21,13 +26,13 @@ export class TopicRequestBuilder {
 
 	async subscribeToSingleTopic(
 		topic: EventEnumMap,
-		targetUrl: string
+		targetUrl: URLString
 	): Promise<void> {
 		const payload: SubscribesTopicsPayload = {
 			callbackPath: this._config.callbackPath,
 			consumerIdentity: {
 				instanceId: toInstanceId(this._config.instanceId),
-				serviceName: this._config.serviceName as unknown as ServiceId,
+				serviceName: ServiceId.of(this._config.serviceName),
 			},
 			topic: toTopic(topic),
 		};
@@ -44,7 +49,7 @@ export class TopicRequestBuilder {
 
 	async unsubscribeToSingleTopic(
 		topic: EventEnumMap,
-		targetUrl: string
+		targetUrl: URLString
 	): Promise<void> {
 		const payload: UnSubscribesTopicsPayload = {
 			instanceId: this._config.instanceId,
@@ -65,7 +70,7 @@ export class TopicRequestBuilder {
 		for (const topic of topics) {
 			await this.subscribeToSingleTopic(
 				topic,
-				`https://${target.host}:${target.port}/subscribe`
+				URLString.of(`https://${toHostPortAddress(target)}/subscribe`)
 			);
 		}
 	}
@@ -77,7 +82,7 @@ export class TopicRequestBuilder {
 		for (const topic of topics) {
 			await this.unsubscribeToSingleTopic(
 				topic,
-				`https://${target.host}:${target.port}/subscribe`
+				URLString.of(`https://${toHostPortAddress(target)}/subscribe`)
 			);
 		}
 	}

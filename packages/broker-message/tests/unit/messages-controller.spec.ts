@@ -17,7 +17,7 @@ describe("MESSAGE_CONTROLLER", () => {
 			body: {
 				metadata: {
 					topic: "example.debug.create",
-					eventType: "DebugEvent",
+					eventType: "example.debug.create",
 					publisher: {
 						serviceName: ServiceInstanceName.DiscoveryService,
 						instanceId: "550e8400-e29b-41d4-a716-446655440000",
@@ -63,7 +63,7 @@ describe("MESSAGE_CONTROLLER", () => {
 		req.body = {
 			metadata: {
 				topic: "example.debug.create",
-				eventType: "DebugEvent",
+				eventType: "example.debug.create",
 				publisher: {
 					serviceName: ServiceInstanceName.DiscoveryService,
 					instanceId: "550e8400-e29b-41d4-a716-446655440000",
@@ -88,7 +88,7 @@ describe("MESSAGE_CONTROLLER", () => {
 			body: {
 				metadata: {
 					topic: "example.show.create",
-					eventType: "ShowEvent",
+					eventType: "example.show.create",
 					publisher: {
 						serviceName: ServiceInstanceName.DiscoveryService,
 						instanceId: "550e8400-e29b-41d4-a716-446655440000",

@@ -7,7 +7,10 @@ import { IDS_METADATA_PREDICATE } from "./message.schema";
 export interface ChainingMetadata {
 	readonly causationId: CorrelationId | undefined;
 	readonly correlationId: CorrelationId | undefined;
-	setIds(context: { causationId?: string; correlationId?: string }): void;
+	setIds(context: {
+		causationId?: CorrelationId;
+		correlationId?: CorrelationId;
+	}): void;
 	toJSON(): { causationId?: CorrelationId; correlationId?: CorrelationId };
 }
 
@@ -15,7 +18,10 @@ export class MessageChainingMetadata implements ChainingMetadata {
 	private _causationId?: CorrelationId;
 	private _correlationId?: CorrelationId;
 
-	public constructor(data: { causationId?: string; correlationId?: string }) {
+	public constructor(data: {
+		causationId?: CorrelationId;
+		correlationId?: CorrelationId;
+	}) {
 		this.setIds(data);
 	}
 
@@ -28,8 +34,8 @@ export class MessageChainingMetadata implements ChainingMetadata {
 	}
 
 	public setIds(context: {
-		causationId?: string;
-		correlationId?: string;
+		causationId?: CorrelationId;
+		correlationId?: CorrelationId;
 	}): void {
 		if (context.causationId) {
 			IDS_METADATA_PREDICATE.parse(context.causationId);

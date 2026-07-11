@@ -111,7 +111,10 @@ export class MessageMetadata {
 		return this;
 	}
 	public setIds(
-		context: { causationId?: string; correlationId?: string } | null
+		context: {
+			causationId?: CorrelationId;
+			correlationId?: CorrelationId;
+		} | null
 	): this {
 		if (context === null) {
 			this._chaining = NULL_MESSAGE_CHAINING_METADATA;

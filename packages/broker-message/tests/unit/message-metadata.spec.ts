@@ -3,7 +3,7 @@ import { ServiceInstanceName } from "@trading-model/common/config/services.types
 import { MessageMetadata } from "../../src/shared/helper/messages/message";
 
 const TEST_TOPIC = "test.event.created";
-const TEST_EVENT = "TestEvent";
+const TEST_EVENT = "example.debug.create";
 const TEST_PUBLISHER = {
 	serviceName: ServiceInstanceName.DiscoveryService,
 	instanceId: "550e8400-e29b-41d4-a716-446655440000",
@@ -62,8 +62,8 @@ describe("MessageMetadata", () => {
 	describe("setEventType", () => {
 		it("should set event type", () => {
 			const m = buildMinimalMetadata();
-			m.setEventType("UserCreated");
-			expect(m.toJSON().eventType).toBe("UserCreated");
+			m.setEventType("example.show.create");
+			expect(m.toJSON().eventType).toBe("example.show.create");
 		});
 	});
 

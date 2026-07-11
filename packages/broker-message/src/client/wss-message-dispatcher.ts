@@ -1,6 +1,6 @@
 import { logger } from "@trading-model/common/config/logger";
 import type { MessageMetadata } from "@trading-model/common/contracts/message.types";
-import { toTopic, type Topic } from "@trading-model/common/domain/primitives";
+import { type Topic, toTopic } from "@trading-model/common/domain/primitives";
 import { normalizeError } from "@trading-model/common/utils/errors";
 
 export type WssMessageHandler = (
@@ -9,16 +9,45 @@ export type WssMessageHandler = (
 	metadata: MessageMetadata
 ) => void;
 
+export enum WssServerEventType {
+	Message = "message",
+	Connected = "connected",
+	Subscribed = "subscribed",
+	Error = "error",
+}
+
+interface WssMessageEvent {
+	type: WssServerEventType.Message;
+	topic: string;
+	message: { payload?: unknown; metadata?: MessageMetadata };
+}
+
+interface WssConnectedEvent {
+	type: WssServerEventType.Connected;
+	instanceId: string;
+}
+
+interface WssSubscribedEvent {
+	type: WssServerEventType.Subscribed;
+	topics: string[];
+}
+
+interface WssErrorEvent {
+	type: WssServerEventType.Error;
+	message: string;
+}
+
+type WssServerEvent =
+	| WssMessageEvent
+	| WssConnectedEvent
+	| WssSubscribedEvent
+	| WssErrorEvent;
+
 export class WssMessageDispatcher {
 	private _messageHandler: WssMessageHandler;
-	private readonly _handlers: Record<
-		string,
-		(msg: Record<string, unknown>) => void
-	>;
 
 	constructor(messageHandler?: WssMessageHandler) {
 		this._messageHandler = messageHandler ?? (() => {});
-		this._handlers = this._buildHandlers();
 	}
 
 	setMessageHandler(handler: WssMessageHandler): void {
@@ -29,42 +58,24 @@ export class WssMessageDispatcher {
 		return this._messageHandler;
 	}
 
-	private _onMessage(msg: Record<string, unknown>): void {
-		if (!msg.topic) {
-			return;
-		}
-		const message = msg.message as
-			| { payload?: unknown; metadata?: MessageMetadata }
-			| undefined;
+	private _onMessage(msg: WssMessageEvent): void {
 		this._messageHandler(
-			toTopic(msg.topic as string),
-			message?.payload,
-			message?.metadata as MessageMetadata
+			toTopic(msg.topic),
+			msg.message.payload,
+			msg.message.metadata as MessageMetadata
 		);
 	}
 
-	private _onConnected(msg: Record<string, unknown>): void {
+	private _onConnected(msg: WssConnectedEvent): void {
 		logger.info("WSS handshake complete", { brokerInstance: msg.instanceId });
 	}
 
-	private _onSubscribed(msg: Record<string, unknown>): void {
+	private _onSubscribed(msg: WssSubscribedEvent): void {
 		logger.info("WSS topics subscribed", { topics: msg.topics });
 	}
 
-	private _onError(msg: Record<string, unknown>): void {
+	private _onError(msg: WssErrorEvent): void {
 		logger.warn("WSS server error", { message: msg.message });
-	}
-
-	private _buildHandlers(): Record<
-		string,
-		(msg: Record<string, unknown>) => void
-	> {
-		return {
-			message: (msg) => this._onMessage(msg),
-			connected: (msg) => this._onConnected(msg),
-			subscribed: (msg) => this._onSubscribed(msg),
-			error: (msg) => this._onError(msg),
-		};
 	}
 
 	dispatch(raw: string): void {
@@ -79,10 +90,22 @@ export class WssMessageDispatcher {
 	}
 
 	private _dispatchMessage(raw: unknown): void {
-		const msg = raw as Record<string, unknown>;
-		const handler = this._handlers[msg.type as string];
-		if (handler) {
-			handler(msg);
+		const msg = raw as WssServerEvent;
+		switch (msg.type) {
+			case WssServerEventType.Message:
+				this._onMessage(msg);
+				break;
+			case WssServerEventType.Connected:
+				this._onConnected(msg);
+				break;
+			case WssServerEventType.Subscribed:
+				this._onSubscribed(msg);
+				break;
+			case WssServerEventType.Error:
+				this._onError(msg);
+				break;
+			default:
+				break;
 		}
 	}
 }

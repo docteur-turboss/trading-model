@@ -180,6 +180,7 @@ describe("WssClient", () => {
 			(c: string[]) => c[0] === "close"
 		)?.[1];
 		closeHandler(1006, Buffer.from("connection refused"));
+		MOCK_WS_INSTANCE.readyState = 3;
 		expect(client.isConnected()).toBe(false);
 	});
 
@@ -189,6 +190,7 @@ describe("WssClient", () => {
 			(c: string[]) => c[0] === "error"
 		)?.[1];
 		errorHandler(new Error("ECONNREFUSED"));
+		MOCK_WS_INSTANCE.readyState = 3;
 		expect(client.isConnected()).toBe(false);
 	});
 

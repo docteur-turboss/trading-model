@@ -3,7 +3,9 @@ import type { EventEnumMap } from "@trading-model/common/config/event.types";
 import type { HttpClient } from "@trading-model/common/config/http-client";
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import type { MessageMetadata } from "@trading-model/common/contracts/message.types";
+import { URLString } from "@trading-model/common/domain/primitives";
 import type { HostPort } from "@trading-model/common/domain/service-identity";
+import { toHostPortAddress } from "@trading-model/common/domain/service-identity";
 import {
 	isServiceUnreachableError,
 	messageManagerError,
@@ -54,7 +56,7 @@ export class MessageManagerClient implements IPublishClient {
 		metadata: MessageMetadata
 	): Promise<void> {
 		return await this._httpClient.post(
-			`https://${target.host}:${target.port}/message`,
+			URLString.of(`https://${toHostPortAddress(target)}/message`),
 			{ payload, metadata }
 		);
 	}

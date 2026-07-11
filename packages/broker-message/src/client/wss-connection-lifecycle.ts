@@ -1,5 +1,5 @@
-import type { InstanceId } from "@trading-model/common/domain/primitives";
 import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
+import type { InstanceId } from "@trading-model/common/domain/primitives";
 import type { TlsPaths } from "@trading-model/common/domain/tls-paths";
 import type { IWsConnection } from "@trading-model/common/ws/i-ws-connection";
 import { WssConnection, type WssConnectionEvents } from "./wss-connection";
