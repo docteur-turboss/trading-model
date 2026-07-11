@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, test } from "@jest/globals";
-import { toServiceId } from "@trading-model/common/domain/primitives";
-import { UnixTimestamp } from "@trading-model/common/domain/primitives/unix-timestamp";
+import {
+	toServiceId,
+	UnixTimestamp,
+} from "@trading-model/common/domain/primitives";
 import { ServiceCallTracker } from "../../src/monitoring/service-call-tracker";
 
 describe("ServiceCallTracker", () => {

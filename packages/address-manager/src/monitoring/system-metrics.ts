@@ -1,20 +1,48 @@
 import * as os from "node:os";
 
+export type Bytes = number & { readonly brand: "Bytes" };
+export const Bytes = {
+	of(value: number): Bytes {
+		return value as Bytes;
+	},
+};
+
+export type CpuPercent = number & { readonly brand: "CpuPercent" };
+export const CpuPercent = {
+	of(value: number): CpuPercent {
+		return value as CpuPercent;
+	},
+};
+
+export type LoadAvg = number & { readonly brand: "LoadAvg" };
+export const LoadAvg = {
+	of(value: number): LoadAvg {
+		return value as LoadAvg;
+	},
+};
+
+export type Uptime = number & { readonly brand: "Uptime" };
+export const Uptime = {
+	of(value: number): Uptime {
+		return value as Uptime;
+	},
+};
+
 export interface SystemMetricsPayload {
 	memory: {
-		totalBytes: number;
-		usedBytes: number;
-		usedPercent: number;
-		heapUsedBytes: number;
-		heapTotalBytes: number;
+		totalBytes: Bytes;
+		usedBytes: Bytes;
+		usedPercent: CpuPercent;
+		heapUsedBytes: Bytes;
+		heapTotalBytes: Bytes;
 	};
 	cpu: {
-		percent: number;
-		loadAvg1m: number;
-		loadAvg5m: number;
-		loadAvg15m: number;
+		percent: CpuPercent;
+		loadAvg1m: LoadAvg;
+		loadAvg5m: LoadAvg;
+		loadAvg15m: LoadAvg;
 	};
-	uptime: number;
+	uptime: Uptime;
 	collectedAt: number;
 }
 
@@ -22,17 +50,19 @@ export function computeCpuPercent(
 	totalIdle: number,
 	totalTick: number,
 	previous: { idle: number; total: number }
-): { percent: number; previousCpuTimes: { idle: number; total: number } } {
+): { percent: CpuPercent; previousCpuTimes: { idle: number; total: number } } {
 	if (previous.idle === 0 && previous.total === 0) {
 		return {
-			percent: 0,
+			percent: CpuPercent.of(0),
 			previousCpuTimes: { idle: totalIdle, total: totalTick },
 		};
 	}
 	const idleDiff = totalIdle - previous.idle;
 	const totalDiff = totalTick - previous.total;
 	return {
-		percent: totalDiff > 0 ? Math.round((1 - idleDiff / totalDiff) * 100) : 0,
+		percent: CpuPercent.of(
+			totalDiff > 0 ? Math.round((1 - idleDiff / totalDiff) * 100) : 0
+		),
 		previousCpuTimes: { idle: totalIdle, total: totalTick },
 	};
 }
@@ -48,11 +78,11 @@ export class SystemMetrics {
 		const totalMem = os.totalmem();
 		const usedMem = totalMem - os.freemem();
 		return {
-			totalBytes: totalMem,
-			usedBytes: usedMem,
-			usedPercent: totalMem > 0 ? (usedMem / totalMem) * 100 : 0,
-			heapUsedBytes: mem.heapUsed,
-			heapTotalBytes: mem.heapTotal,
+			totalBytes: Bytes.of(totalMem),
+			usedBytes: Bytes.of(usedMem),
+			usedPercent: CpuPercent.of(totalMem > 0 ? (usedMem / totalMem) * 100 : 0),
+			heapUsedBytes: Bytes.of(mem.heapUsed),
+			heapTotalBytes: Bytes.of(mem.heapTotal),
 		};
 	}
 
@@ -60,7 +90,7 @@ export class SystemMetrics {
 		return {
 			memory: this._collectMemory(),
 			cpu: this._collectCpu(this._previousCpuTimes),
-			uptime: os.uptime(),
+			uptime: Uptime.of(os.uptime()),
 			collectedAt: Date.now(),
 		};
 	}
@@ -73,9 +103,9 @@ export class SystemMetrics {
 		const loads = os.loadavg();
 		return {
 			percent: cpuPercent,
-			loadAvg1m: loads[0],
-			loadAvg5m: loads[1],
-			loadAvg15m: loads[2],
+			loadAvg1m: LoadAvg.of(loads[0]),
+			loadAvg5m: LoadAvg.of(loads[1]),
+			loadAvg15m: LoadAvg.of(loads[2]),
 		};
 	}
 
@@ -105,7 +135,7 @@ export class SystemMetrics {
 	private _calculateCpuPercent(
 		cpus: os.CpuInfo[],
 		previousCpuTimes: { idle: number; total: number }
-	): number {
+	): CpuPercent {
 		const { totalIdle, totalTick } = this._sumCpuTimes(cpus);
 		const { percent, previousCpuTimes: newCpuTimes } = computeCpuPercent(
 			totalIdle,

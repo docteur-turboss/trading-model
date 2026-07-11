@@ -1,4 +1,5 @@
 import {
+	DurationMs,
 	type InstanceId,
 	type ServiceId,
 	toServiceId,
@@ -20,7 +21,7 @@ export interface RedisServiceCacheOptions extends Partial<RedisOptions> {}
 export interface RedisCacheConfig {
 	redisUrl: string;
 	prefix?: string;
-	ttlMs?: number;
+	ttlMs?: DurationMs;
 	cacheOptions?: RedisServiceCacheOptions;
 }
 
@@ -35,7 +36,7 @@ export class RedisServiceCache implements IServiceCache {
 		const {
 			redisUrl,
 			prefix = "discovery:cache:",
-			ttlMs = 5000,
+			ttlMs = DurationMs.of(5000),
 			cacheOptions,
 		} = config;
 		this._prefix = prefix;

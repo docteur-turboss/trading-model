@@ -1,10 +1,13 @@
 import { logger } from "@trading-model/common/config/logger";
 import { CircuitState } from "@trading-model/common/domain/circuit-state";
-import type { InstanceId } from "@trading-model/common/domain/primitives";
+import {
+	DurationMs,
+	type InstanceId,
+} from "@trading-model/common/domain/primitives";
 import { CircuitStateMachine } from "@trading-model/common/reliability/circuit-state-machine";
 import { StaleEntrySweeper } from "./stale-entry-sweeper";
 
-export interface INstanceState {
+export interface InstanceState {
 	failures: number;
 	lastFailureTime: number;
 	state: CircuitState;
@@ -35,7 +38,7 @@ export class CircuitBreakerState {
 		if (!machine) {
 			machine = new CircuitStateMachine({
 				failureThreshold: this._failureThreshold,
-				cooldownMs: this._halfOpenTimeoutMs,
+				cooldownMs: DurationMs.of(this._halfOpenTimeoutMs),
 				halfOpenMaxAttempts: 1,
 			});
 			this._instances.set(instanceId, machine);
@@ -48,7 +51,7 @@ export class CircuitBreakerState {
 	recordFailure(instanceId: InstanceId): boolean {
 		return this.getOrCreateMachine(instanceId).recordFailure();
 	}
-	getOrCreateState(instanceId: InstanceId, now: number): INstanceState {
+	getOrCreateState(instanceId: InstanceId, now: number): InstanceState {
 		const machine = this.getOrCreateMachine(instanceId);
 		return {
 			failures: machine.failures,
@@ -56,7 +59,7 @@ export class CircuitBreakerState {
 			state: machine.getState(now),
 		};
 	}
-	checkOpenThreshold(instanceId: InstanceId, _state: INstanceState): void {
+	checkOpenThreshold(instanceId: InstanceId, _state: InstanceState): void {
 		const machine = this._instances.get(instanceId);
 		if (!machine) {
 			return;
@@ -68,7 +71,7 @@ export class CircuitBreakerState {
 			});
 		}
 	}
-	tryHalfOpen(instanceId: InstanceId, state: INstanceState): boolean {
+	tryHalfOpen(instanceId: InstanceId, state: InstanceState): boolean {
 		const now = Date.now();
 		if (
 			state.state === CircuitState.OPEN &&
@@ -79,12 +82,12 @@ export class CircuitBreakerState {
 		}
 		return false;
 	}
-	logHalfOpenClose(instanceId: InstanceId, state: INstanceState): void {
+	logHalfOpenClose(instanceId: InstanceId, state: InstanceState): void {
 		if (state.state === CircuitState.HALF_OPEN) {
 			logger.info("Circuit breaker closed for instance", { instanceId });
 		}
 	}
-	getInstanceState(instanceId: InstanceId): INstanceState | undefined {
+	getInstanceState(instanceId: InstanceId): InstanceState | undefined {
 		const machine = this._instances.get(instanceId);
 		if (!machine) {
 			return;

@@ -4,7 +4,7 @@ import { toServiceId } from "@trading-model/common/domain/primitives";
 import { sleep } from "@trading-model/common/utils/sleep";
 
 import type { ServiceInstance } from "../client/type";
-import { recordDiscoveryMetrics } from "../metrics";
+import { DiscoveryResult, recordDiscoveryMetrics } from "../metrics";
 import type { DiscoveryCircuitBreaker } from "./circuit-breaker";
 import type { IServiceCache } from "./service-cache.interface";
 import type { ServiceDiscovery } from "./service-discovery";
@@ -76,7 +76,10 @@ export class DiscoveryRetryHandler {
 
 		if (!this.circuitBreaker.isOpen(instance.instanceId)) {
 			this._serviceDiscovery.acquireConnection(instance.instanceId);
-			recordDiscoveryMetrics({ serviceName: toServiceId(serviceName), startTime }, "success");
+			recordDiscoveryMetrics(
+				{ serviceName: toServiceId(serviceName), startTime },
+				DiscoveryResult.Success
+			);
 			return instance;
 		}
 
@@ -116,7 +119,10 @@ export class DiscoveryRetryHandler {
 				instanceId: staleInstance.instanceId,
 			}
 		);
-		recordDiscoveryMetrics({ serviceName: toServiceId(serviceName), startTime }, "degraded");
+		recordDiscoveryMetrics(
+			{ serviceName: toServiceId(serviceName), startTime },
+			DiscoveryResult.Degraded
+		);
 		return staleInstance;
 	}
 }

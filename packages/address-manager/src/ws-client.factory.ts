@@ -1,5 +1,9 @@
 import { logger } from "@trading-model/common/config/logger";
-import { type ServiceId, type URLString, toServiceId } from "@trading-model/common/domain/primitives";
+import {
+	type ServiceId,
+	toServiceId,
+	URLString,
+} from "@trading-model/common/domain/primitives";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import type { AddressManagerClient } from "./client/address-manager-client";
 import type { TokenManager } from "./client/token-manager";
@@ -21,7 +25,10 @@ export interface AddressManagerDeps {
 	wsClient?: WebSocketClient;
 }
 
-function _logCacheInvalidationError(serviceName: ServiceId, err: unknown): void {
+function _logCacheInvalidationError(
+	serviceName: ServiceId,
+	err: unknown
+): void {
 	logger.warn("WebSocket cache invalidation failed", {
 		serviceName,
 		error: normalizeError(err),
@@ -40,7 +47,7 @@ function onCacheInvalidateMessage(
 		return;
 	}
 	const serviceName = toServiceId(rawServiceName);
-	serviceCache.delete(serviceName).catch((err: unknown) => {
+	serviceCache.invalidate(serviceName).catch((err: unknown) => {
 		_logCacheInvalidationError(serviceName, err);
 	});
 }
@@ -77,7 +84,7 @@ function createWsClient(ctx: WsClientContext): WebSocketClient {
 	let wsClient: WebSocketClient;
 
 	wsClient = new WebSocketClient({
-		url: config.wsUrl! as URLString,
+		url: URLString.of(config.wsUrl!),
 		subscribedServices: config.wsSubscribedServices ?? ["*"],
 		token: tokenManager.getTokenOrUndefined(),
 		onMessage: (message) => {

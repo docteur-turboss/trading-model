@@ -5,9 +5,12 @@ import {
 	type ServiceInstanceName,
 } from "@trading-model/common/config/services.types";
 import {
+	type DurationMs,
+	type FilePath,
 	Port,
 	toInstanceId,
 	toServiceId,
+	type URLString,
 } from "@trading-model/common/domain/primitives";
 import { AddressManagerClient } from "../../src/client/address-manager-client";
 import type { TokenManager } from "../../src/client/token-manager";
@@ -27,19 +30,19 @@ describe("AddressManagerClient Multi-URL", () => {
 			servicePort: Port.of(8080),
 			addressManagerUrl: "https://ds-primary:3000",
 			discoveryUrls: ["https://ds-primary:3000", "https://ds-secondary:3000"],
-			cacheTtlMs: 30000,
-			discoveryTimeoutMs: 5000,
-			servicePingTimeoutMs: 2000,
-			tokenRefreshIntervalMs: 60000,
-			ttlRefreshIntervalMs: 15000,
+			cacheTtlMs: 30000 as DurationMs,
+			discoveryTimeoutMs: 5000 as DurationMs,
+			servicePingTimeoutMs: 2000 as DurationMs,
+			tokenRefreshIntervalMs: 60000 as DurationMs,
+			ttlRefreshIntervalMs: 15000 as DurationMs,
 			identity: {
 				serviceName: toServiceId("test-service"),
 				instanceId: toInstanceId("test-instance"),
 			},
 			tls: {
-				caPath: "/certs/ca.crt",
-				certPath: "/certs/server.crt",
-				keyPath: "/certs/server.key",
+				caPath: "/certs/ca.crt" as FilePath,
+				certPath: "/certs/server.crt" as FilePath,
+				keyPath: "/certs/server.key" as FilePath,
 			},
 			...overrides,
 		};
@@ -85,7 +88,7 @@ describe("AddressManagerClient Multi-URL", () => {
 		const result = await client.registerService();
 
 		expect(httpClient.post).toHaveBeenCalledWith(
-			"https://ds-primary:3000/register",
+			"https://ds-primary:3000/register" as URLString,
 			expect.any(Object)
 		);
 		expect(result).toBeDefined();
@@ -104,7 +107,7 @@ describe("AddressManagerClient Multi-URL", () => {
 		const result = await client.registerService();
 
 		expect(httpClient.post).toHaveBeenCalledWith(
-			"https://ds-secondary:3000/register",
+			"https://ds-secondary:3000/register" as URLString,
 			expect.any(Object)
 		);
 		expect(result).toBeDefined();
@@ -145,7 +148,7 @@ describe("AddressManagerClient Multi-URL", () => {
 		await client.registerService();
 
 		expect(httpClient.post).toHaveBeenCalledWith(
-			"https://ds-only:3000/register",
+			"https://ds-only:3000/register" as URLString,
 			expect.any(Object)
 		);
 	});

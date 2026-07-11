@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import {
+	DurationMs,
+	FilePath,
 	Port,
 	toInstanceId,
 	toServiceId,
@@ -94,20 +96,20 @@ describe("AddressManager", () => {
 	const defaultConfig = {
 		addressManagerUrl: "http://localhost:8443",
 		servicePort: Port.of(8080),
-		tokenRefreshIntervalMs: 300000,
-		ttlRefreshIntervalMs: 300000,
-		servicePingTimeoutMs: 2000,
-		discoveryTimeoutMs: 5000,
-		cacheTtlMs: 60000,
+		tokenRefreshIntervalMs: DurationMs.of(300000),
+		ttlRefreshIntervalMs: DurationMs.of(300000),
+		servicePingTimeoutMs: DurationMs.of(2000),
+		discoveryTimeoutMs: DurationMs.of(5000),
+		cacheTtlMs: DurationMs.of(60000),
 		discoveryUrls: ["http://localhost:8443"],
 		identity: {
 			serviceName: toServiceId("test-service"),
 			instanceId: toInstanceId("instance-1"),
 		},
 		tls: {
-			caPath: "/path/to/ca.pem",
-			certPath: "/path/to/cert.pem",
-			keyPath: "/path/to/key.pem",
+			caPath: FilePath.of("/path/to/ca.pem"),
+			certPath: FilePath.of("/path/to/cert.pem"),
+			keyPath: FilePath.of("/path/to/key.pem"),
 		},
 	};
 

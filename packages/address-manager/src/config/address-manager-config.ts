@@ -1,4 +1,10 @@
-import type { IPAddress, Port } from "@trading-model/common/domain/primitives";
+import type {
+	DurationMs,
+	IPAddress,
+	Port,
+	PositiveInt,
+	ServiceId,
+} from "@trading-model/common/domain/primitives";
 import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
 import type { TlsPaths } from "@trading-model/common/domain/tls-paths";
 
@@ -15,18 +21,18 @@ interface AddressManagerConfig {
 	publicIp?: IPAddress;
 
 	tls: TlsPaths;
-	tokenRefreshIntervalMs: number;
-	ttlRefreshIntervalMs: number;
-	servicePingTimeoutMs: number;
-	discoveryTimeoutMs: number;
+	tokenRefreshIntervalMs: DurationMs;
+	ttlRefreshIntervalMs: DurationMs;
+	servicePingTimeoutMs: DurationMs;
+	discoveryTimeoutMs: DurationMs;
 
-	cacheTtlMs: number;
-	dnsNameMap?: Record<string, string>;
-	metricsIntervalMs?: number;
+	cacheTtlMs: DurationMs;
+	dnsNameMap?: Record<ServiceId, IPAddress>;
+	metricsIntervalMs?: DurationMs;
 
 	wsUrl?: string;
-	wsSubscribedServices?: string[];
-	maxCallRecords?: number;
+	wsSubscribedServices?: ServiceId[];
+	maxCallRecords?: PositiveInt;
 	preferredNetworkInterface?: string;
 
 	pems?: TlsPaths;
@@ -34,11 +40,11 @@ interface AddressManagerConfig {
 	redisCacheUrl?: string;
 	redisCacheOptions?: Record<string, unknown>;
 
-	circuitBreakerFailureThreshold?: number;
-	circuitBreakerHalfOpenTimeoutMs?: number;
-	circuitBreakerCacheTtlMs?: number;
-	circuitBreakerLatencyWindowSize?: number;
-	circuitBreakerLatencyThresholdMs?: number;
+	circuitBreakerFailureThreshold?: PositiveInt;
+	circuitBreakerHalfOpenTimeoutMs?: DurationMs;
+	circuitBreakerCacheTtlMs?: DurationMs;
+	circuitBreakerLatencyWindowSize?: PositiveInt;
+	circuitBreakerLatencyThresholdMs?: DurationMs;
 }
 
 export type { AddressManagerConfig };

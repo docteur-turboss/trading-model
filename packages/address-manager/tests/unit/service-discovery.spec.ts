@@ -3,6 +3,8 @@ import type { HttpClient } from "@trading-model/common/config/http-client";
 import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import { Protocol } from "@trading-model/common/contracts/service-registry.types";
 import {
+	DurationMs,
+	FilePath,
 	IPAddress,
 	Port,
 	toDurationMs,
@@ -77,22 +79,22 @@ describe("ServiceDiscovery", () => {
 			httpClient,
 			serviceCache: cache,
 			config: {
-				addressManagerUrl: "ee",
-				discoveryTimeoutMs: 5000,
+				addressManagerUrl: "http://localhost:8443",
+				discoveryTimeoutMs: DurationMs.of(5000),
 				servicePort: Port.of(0),
-				tokenRefreshIntervalMs: 0,
-				ttlRefreshIntervalMs: 0,
-				servicePingTimeoutMs: 0,
-				cacheTtlMs: 0,
+				tokenRefreshIntervalMs: DurationMs.of(0),
+				ttlRefreshIntervalMs: DurationMs.of(0),
+				servicePingTimeoutMs: DurationMs.of(0),
+				cacheTtlMs: DurationMs.of(0),
 				discoveryUrls: ["http://localhost:8443"],
 				identity: {
 					serviceName: toServiceId("test-service"),
 					instanceId: toInstanceId("test-instance"),
 				},
 				tls: {
-					caPath: "/path/to/ca.pem",
-					certPath: "/path/to/cert.pem",
-					keyPath: "/path/to/key.pem",
+					caPath: FilePath.of("/path/to/ca.pem"),
+					certPath: FilePath.of("/path/to/cert.pem"),
+					keyPath: FilePath.of("/path/to/key.pem"),
 				},
 			} as AddressManagerConfig,
 			healthChecker,
@@ -280,5 +282,50 @@ describe("ServiceDiscovery", () => {
 
 		expect(result).toEqual(instance);
 		expect(healthChecker.isHealthy).toHaveBeenCalledTimes(1);
+	});
+
+	test("acquireConnection increments connection count for new instance", () => {
+		const id = toInstanceId("instance-1");
+		discovery.acquireConnection(id);
+		expect((discovery as any)._connections.get(id)).toBe(1);
+	});
+
+	test("acquireConnection increments connection count for existing instance", () => {
+		const id = toInstanceId("instance-1");
+		discovery.acquireConnection(id);
+		discovery.acquireConnection(id);
+		expect((discovery as any)._connections.get(id)).toBe(2);
+	});
+
+	test("releaseConnection decrements count and removes when count reaches zero", () => {
+		const id = toInstanceId("instance-1");
+		discovery.acquireConnection(id);
+		discovery.releaseConnection(id);
+		expect((discovery as any)._connections.has(id)).toBe(false);
+	});
+
+	test("releaseConnection decrements count but keeps entry when count > 1", () => {
+		const id = toInstanceId("instance-1");
+		discovery.acquireConnection(id);
+		discovery.acquireConnection(id);
+		discovery.releaseConnection(id);
+		expect((discovery as any)._connections.get(id)).toBe(1);
+	});
+
+	test("releaseConnection does nothing when instance not in map", () => {
+		const id = toInstanceId("unknown-instance");
+		expect(() => discovery.releaseConnection(id)).not.toThrow();
+	});
+
+	test("findAllServices delegates to finder", async () => {
+		const mockFinder = (discovery as any)._finder;
+		mockFinder.findAllServices = jest
+			.fn<() => Promise<ServiceInstance[]>>()
+			.mockResolvedValue([instance]);
+
+		const result = await discovery.findAllServices(svcInstanceName);
+
+		expect(result).toEqual([instance]);
+		expect(mockFinder.findAllServices).toHaveBeenCalledWith(svcInstanceName);
 	});
 });

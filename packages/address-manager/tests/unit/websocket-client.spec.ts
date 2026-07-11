@@ -41,6 +41,7 @@ import { DiscoveryWsMessageType } from "@trading-model/common/contracts/discover
 import {
 	toInstanceId,
 	toServiceId,
+	URLString,
 } from "@trading-model/common/domain/primitives";
 import { WebSocketClient } from "../../src/client/websocket-client";
 
@@ -50,7 +51,7 @@ describe("WebSocketClient", () => {
 	beforeEach(() => {
 		jest.clearAllMocks();
 		MOCK_WEB_SOCKET_INSTANCE.readyState = MOCK_WEB_SOCKET.OPEN;
-		client = new WebSocketClient({ url: "ws://localhost:3000" });
+		client = new WebSocketClient({ url: URLString.of("ws://localhost:3000") });
 	});
 
 	afterEach(() => {
@@ -60,7 +61,9 @@ describe("WebSocketClient", () => {
 	describe("connect", () => {
 		test("should create a new WebSocket connection", () => {
 			client.connect();
-			expect(MOCK_WEB_SOCKET).toHaveBeenCalledWith("ws://localhost:3000");
+			expect(MOCK_WEB_SOCKET).toHaveBeenCalledWith(
+				URLString.of("ws://localhost:3000")
+			);
 		});
 
 		test("should not create duplicate connections", () => {
@@ -82,7 +85,7 @@ describe("WebSocketClient", () => {
 			MOCK_WEB_SOCKET.mockImplementationOnce(() => {
 				throw new Error("Connection refused");
 			});
-			client = new WebSocketClient({ url: "ws://bad-host:3000" });
+			client = new WebSocketClient({ url: URLString.of("ws://bad-host:3000") });
 			expect(() => client.connect()).not.toThrow();
 		});
 
@@ -163,7 +166,7 @@ describe("WebSocketClient", () => {
 		test("should invoke handler when message is received", () => {
 			const handler = jest.fn();
 			client = new WebSocketClient({
-				url: "ws://localhost:3000",
+				url: URLString.of("ws://localhost:3000"),
 				onMessage: handler,
 			});
 			client.connect();
@@ -188,7 +191,7 @@ describe("WebSocketClient", () => {
 		test("should not throw on invalid JSON", () => {
 			const handler = jest.fn();
 			client = new WebSocketClient({
-				url: "ws://localhost:3000",
+				url: URLString.of("ws://localhost:3000"),
 				onMessage: handler,
 			});
 			client.connect();
@@ -240,7 +243,7 @@ describe("WebSocketClient", () => {
 
 		test("should log warning when max reconnect attempts reached", () => {
 			client = new WebSocketClient({
-				url: "ws://localhost:3000",
+				url: URLString.of("ws://localhost:3000"),
 				maxReconnectAttempts: 3,
 			});
 
@@ -265,7 +268,7 @@ describe("WebSocketClient", () => {
 		test("should call connect again when reconnect timer fires", () => {
 			jest.useFakeTimers();
 			client = new WebSocketClient({
-				url: "ws://localhost:3000",
+				url: URLString.of("ws://localhost:3000"),
 				reconnectIntervalMs: 50,
 				maxReconnectAttempts: 5,
 			});
@@ -290,7 +293,7 @@ describe("WebSocketClient", () => {
 
 		test("should not reconnect when disconnect was called before close", () => {
 			client = new WebSocketClient({
-				url: "ws://localhost:3000",
+				url: URLString.of("ws://localhost:3000"),
 				maxReconnectAttempts: 10,
 			});
 			client.connect();
@@ -309,7 +312,7 @@ describe("WebSocketClient", () => {
 		test("should call auth failure handler on close with code 4001", () => {
 			const authHandler = jest.fn();
 			client = new WebSocketClient({
-				url: "ws://localhost:3000",
+				url: URLString.of("ws://localhost:3000"),
 				onAuthFailure: authHandler,
 			});
 			client.connect();
@@ -326,7 +329,7 @@ describe("WebSocketClient", () => {
 		test("should not call auth failure handler on normal close", () => {
 			const authHandler = jest.fn();
 			client = new WebSocketClient({
-				url: "ws://localhost:3000",
+				url: URLString.of("ws://localhost:3000"),
 				onAuthFailure: authHandler,
 			});
 			client.connect();

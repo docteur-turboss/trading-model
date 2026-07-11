@@ -57,7 +57,10 @@ export class ServiceFinder {
 			return cached;
 		}
 		return region
-			? this._resolver.resolveAndValidateServiceInRegion(toServiceId(serviceName), region)
+			? this._resolver.resolveAndValidateServiceInRegion(
+					toServiceId(serviceName),
+					region
+				)
 			: this._resolver.resolveAndValidateService(toServiceId(serviceName));
 	}
 

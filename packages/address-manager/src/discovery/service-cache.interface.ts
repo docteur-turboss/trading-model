@@ -1,18 +1,25 @@
-import type { ServiceId } from "@trading-model/common/domain/primitives";
+import type { CircuitState as CircuitStateEnum } from "@trading-model/common/domain/circuit-state";
+import type {
+	PositiveInt,
+	Region,
+	ServiceId,
+	UnixTimestamp,
+	Version,
+} from "@trading-model/common/domain/primitives";
 import type { ServiceInstance } from "../client/type";
 import type { ICircuitStateStore } from "./circuit-state-store";
 
 export interface CircuitState {
-	failures: number;
-	lastFailureTime: number;
-	state: "closed" | "open" | "half-open";
+	failures: PositiveInt;
+	lastFailureTime: UnixTimestamp;
+	state: CircuitStateEnum;
 }
 
 export interface CacheSetEntry {
 	serviceName: ServiceId;
 	instance: ServiceInstance;
-	region?: string;
-	version?: number;
+	region?: Region;
+	version?: Version;
 }
 
 export interface IServiceCache extends ICircuitStateStore {

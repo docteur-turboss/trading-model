@@ -2,11 +2,14 @@ import { beforeEach, describe, expect, jest, test } from "@jest/globals";
 import type { HttpClient } from "@trading-model/common/config/http-client";
 import { Protocol } from "@trading-model/common/contracts/service-registry.types";
 import {
+	DurationMs,
 	IPAddress,
 	Port,
 	toInstanceId,
 	toServiceId,
 	toVersion,
+	UnixTimestamp,
+	URLString,
 } from "@trading-model/common/domain/primitives";
 import type { ServiceInstance } from "../../src/client/type";
 import { ServiceHealthChecker } from "../../src/discovery/service-health-checker";
@@ -20,12 +23,12 @@ describe("ServiceHealthChecker", () => {
 		host: IPAddress.of("127.0.0.1"),
 		port: Port.of(8080),
 		instanceId: toInstanceId("instance-1"),
-		lastHeartbeat: Date.now(),
+		lastHeartbeat: UnixTimestamp.now(),
 		protocol: Protocol.Http,
-		registeredAt: Date.now(),
+		registeredAt: UnixTimestamp.now(),
 		serviceName: toServiceId("user-service"),
 		version: toVersion("1.0.0"),
-		ttl: 30000,
+		ttl: DurationMs.of(30000),
 	};
 
 	beforeEach(() => {
@@ -33,7 +36,7 @@ describe("ServiceHealthChecker", () => {
 			get: jest.fn(),
 		} as unknown as jest.Mocked<HttpClient>;
 
-		checker = new ServiceHealthChecker(httpClient, 2000);
+		checker = new ServiceHealthChecker(httpClient, DurationMs.of(2000));
 	});
 
 	test("returns true if the service responds successfully", async () => {
@@ -43,9 +46,9 @@ describe("ServiceHealthChecker", () => {
 
 		expect(result).toBe(true);
 		expect(httpClient.get).toHaveBeenCalledWith(
-			"https://user-service:8080/ping",
+			URLString.of("https://user-service:8080/ping"),
 			{
-				timeoutMs: 2000,
+				timeoutMs: DurationMs.of(2000),
 			}
 		);
 	});
@@ -57,9 +60,9 @@ describe("ServiceHealthChecker", () => {
 
 		expect(result).toBe(false);
 		expect(httpClient.get).toHaveBeenCalledWith(
-			"https://user-service:8080/ping",
+			URLString.of("https://user-service:8080/ping"),
 			{
-				timeoutMs: 2000,
+				timeoutMs: DurationMs.of(2000),
 			}
 		);
 	});
@@ -71,7 +74,7 @@ describe("ServiceHealthChecker", () => {
 
 		expect(httpClient.get).toHaveBeenCalledWith(
 			expect.any(String),
-			expect.objectContaining({ timeoutMs: 2000 })
+			expect.objectContaining({ timeoutMs: DurationMs.of(2000) })
 		);
 	});
 
@@ -83,10 +86,25 @@ describe("ServiceHealthChecker", () => {
 	test("IpAddressLocator uses instance.ip for URL construction", () => {
 		checker = new ServiceHealthChecker(
 			httpClient,
-			2000,
+			DurationMs.of(2000),
 			new IpAddressLocator()
 		);
 		const url = (checker as any)._buildPingUrl(instance);
 		expect(url).toBe("https://127.0.0.1:8080/ping");
+	});
+
+	test("recordLatency is a no-op stub", () => {
+		expect(() =>
+			checker.recordLatency(toInstanceId("instance-1"), 42, true)
+		).not.toThrow();
+	});
+
+	test("constructor defaults to ServiceNameLocator when no serviceLocator provided", () => {
+		const defaultChecker = new ServiceHealthChecker(
+			httpClient,
+			DurationMs.of(2000)
+		);
+		const url = (defaultChecker as any)._buildPingUrl(instance);
+		expect(url).toBe("https://user-service:8080/ping");
 	});
 });

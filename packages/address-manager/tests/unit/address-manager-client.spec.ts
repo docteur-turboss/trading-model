@@ -21,6 +21,7 @@ import {
 	toServiceId,
 	toVersion,
 	UnixTimestamp,
+	type URLString,
 } from "@trading-model/common/domain/primitives";
 import { AppError } from "@trading-model/common/utils/errors";
 import { AddressManagerClient } from "../../src/client/address-manager-client";
@@ -87,7 +88,7 @@ describe("AddressManagerClient", () => {
 			httpClient.post.mockResolvedValueOnce(undefined);
 			await client.unregisterService();
 			expect(httpClient.post).toHaveBeenCalledWith(
-				`${config.addressManagerUrl}/unregister`,
+				`${config.addressManagerUrl}/unregister` as URLString,
 				{
 					serviceName: config.identity.serviceName,
 					instanceId: config.identity.instanceId,
@@ -110,7 +111,7 @@ describe("AddressManagerClient", () => {
 			await client.unregisterService();
 
 			expect(httpClient.post).toHaveBeenCalledWith(
-				"https://ds2:3000/unregister",
+				"https://ds2:3000/unregister" as URLString,
 				expect.any(Object),
 				expect.any(Object)
 			);
@@ -212,7 +213,7 @@ describe("AddressManagerClient", () => {
 
 			expect(result).toEqual(response);
 			expect(httpClient.post).toHaveBeenCalledWith(
-				`${config.addressManagerUrl}/register`,
+				`${config.addressManagerUrl}/register` as URLString,
 				{
 					serviceName: config.identity.serviceName,
 					port: config.servicePort,
@@ -238,7 +239,7 @@ describe("AddressManagerClient", () => {
 			await client.refreshTTL();
 
 			expect(httpClient.post).toHaveBeenCalledWith(
-				`${config.addressManagerUrl}/heartbeat`,
+				`${config.addressManagerUrl}/heartbeat` as URLString,
 				{
 					serviceName: config.identity.serviceName,
 					instanceId: config.identity.instanceId,
@@ -267,12 +268,12 @@ describe("AddressManagerClient", () => {
 			await client.refreshTTL();
 
 			expect(httpClient.post).toHaveBeenCalledWith(
-				"https://ds1:3000/heartbeat",
+				"https://ds1:3000/heartbeat" as URLString,
 				expect.any(Object),
 				expect.any(Object)
 			);
 			expect(httpClient.post).toHaveBeenCalledWith(
-				"https://ds2:3000/heartbeat",
+				"https://ds2:3000/heartbeat" as URLString,
 				expect.any(Object),
 				expect.any(Object)
 			);
@@ -304,6 +305,48 @@ describe("AddressManagerClient", () => {
 				.mockResolvedValueOnce(undefined);
 
 			await expect(client.refreshTTL()).resolves.toBeUndefined();
+		});
+	});
+
+	describe("registerService with fallback URL", () => {
+		test("should fall back to addressManagerUrl when discoveryUrls is undefined", async () => {
+			const configWithoutUrls: AddressManagerConfig = {
+				...config,
+				discoveryUrls: undefined as unknown as string[],
+			};
+			const fallbackClient = new AddressManagerClient(
+				httpClient,
+				tokenManager,
+				configWithoutUrls
+			);
+			httpClient.post.mockResolvedValueOnce({} as ServiceRegistrationResponse);
+
+			await fallbackClient.registerService();
+
+			expect(httpClient.post).toHaveBeenCalledWith(
+				"http://localhost:8443/register" as URLString,
+				expect.any(Object)
+			);
+		});
+
+		test("should fall back to addressManagerUrl when discoveryUrls is empty array", async () => {
+			const configEmptyUrls: AddressManagerConfig = {
+				...config,
+				discoveryUrls: [],
+			};
+			const emptyClient = new AddressManagerClient(
+				httpClient,
+				tokenManager,
+				configEmptyUrls
+			);
+			httpClient.post.mockResolvedValueOnce({} as ServiceRegistrationResponse);
+
+			await emptyClient.registerService();
+
+			expect(httpClient.post).toHaveBeenCalledWith(
+				"http://localhost:8443/register" as URLString,
+				expect.any(Object)
+			);
 		});
 	});
 

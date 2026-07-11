@@ -7,6 +7,7 @@ module.exports = {
   moduleNameMapper: {
     '^@trading-model/common/(.*)$': '<rootDir>/../common/src/$1',
   },
+  maxWorkers: 10,
   testPathIgnorePatterns: ['/node_modules/', '/dist/'],
   collectCoverageFrom: ['src/**/*.ts', '!src/**/*.d.ts'],
   coverageThreshold: {

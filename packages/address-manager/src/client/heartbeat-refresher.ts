@@ -1,4 +1,5 @@
 import type { HttpClient } from "@trading-model/common/config/http-client";
+import { URLString } from "@trading-model/common/domain/primitives";
 import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
 import { HTTP_HEADERS } from "@trading-model/common/http-headers";
 import {
@@ -14,7 +15,7 @@ export class HeartbeatRefresher {
 		private readonly _identity: ServiceIdentity
 	) {}
 
-	async refresh(urls: string[]): Promise<void> {
+	async refresh(urls: URLString[]): Promise<void> {
 		if (urls.length === 1) {
 			await this._refreshSingleUrl(urls[0]);
 		} else {
@@ -26,9 +27,9 @@ export class HeartbeatRefresher {
 		return this._identity;
 	}
 
-	private async _sendHeartbeat(url: string): Promise<void> {
+	private async _sendHeartbeat(url: URLString): Promise<void> {
 		await this._httpClient.post(
-			`${url}/heartbeat`,
+			URLString.of(`${url}/heartbeat`),
 			this._buildHeartbeatPayload(),
 			{
 				headers: {
@@ -38,7 +39,7 @@ export class HeartbeatRefresher {
 		);
 	}
 
-	private async _refreshSingleUrl(url: string): Promise<void> {
+	private async _refreshSingleUrl(url: URLString): Promise<void> {
 		try {
 			await this._sendHeartbeat(url);
 		} catch (error) {
@@ -48,7 +49,7 @@ export class HeartbeatRefresher {
 		}
 	}
 
-	private async _refreshMultipleUrls(urls: string[]): Promise<void> {
+	private async _refreshMultipleUrls(urls: URLString[]): Promise<void> {
 		const results = await Promise.allSettled(
 			urls.map((url) => this._sendHeartbeat(url))
 		);

@@ -10,6 +10,7 @@ import {
 	toServiceId,
 	toVersion,
 	UnixTimestamp,
+	type URLString,
 } from "@trading-model/common/domain/primitives";
 import { Port } from "@trading-model/common/domain/primitives/port";
 import type { ServiceInstance } from "../../src/client/type";
@@ -140,7 +141,7 @@ describe("Multi-Region ServiceDiscovery", () => {
 						keyPath: "/path/to/key.pem",
 					},
 					discoveryUrls: ["http://localhost:8443"],
-				} as AddressManagerConfig,
+				} as unknown as AddressManagerConfig,
 				healthChecker,
 			});
 
@@ -150,7 +151,7 @@ describe("Multi-Region ServiceDiscovery", () => {
 			);
 
 			expect(httpClient.get).toHaveBeenCalledWith(
-				"https://ds:3000/services/user-service/region/us-east-1",
+				"https://ds:3000/services/user-service/region/us-east-1" as URLString,
 				expect.any(Object)
 			);
 			expect(result.region).toBe("us-east-1");
@@ -183,7 +184,7 @@ describe("Multi-Region ServiceDiscovery", () => {
 						keyPath: "/path/to/key.pem",
 					},
 					discoveryUrls: ["http://localhost:8443"],
-				} as AddressManagerConfig,
+				} as unknown as AddressManagerConfig,
 				healthChecker,
 			});
 
@@ -222,7 +223,7 @@ describe("Multi-Region ServiceDiscovery", () => {
 						keyPath: "/path/to/key.pem",
 					},
 					discoveryUrls: ["http://localhost:8443"],
-				} as AddressManagerConfig,
+				} as unknown as AddressManagerConfig,
 				healthChecker,
 			});
 
@@ -261,7 +262,7 @@ describe("Multi-Region ServiceDiscovery", () => {
 						keyPath: "/path/to/key.pem",
 					},
 					discoveryUrls: ["http://localhost:8443"],
-				} as AddressManagerConfig,
+				} as unknown as AddressManagerConfig,
 				healthChecker,
 			});
 
@@ -299,7 +300,7 @@ describe("Multi-Region ServiceDiscovery", () => {
 						keyPath: "/path/to/key.pem",
 					},
 					discoveryUrls: ["http://localhost:8443"],
-				} as AddressManagerConfig,
+				} as unknown as AddressManagerConfig,
 				healthChecker,
 			});
 

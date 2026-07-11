@@ -1,4 +1,4 @@
-import type { URLString } from "@trading-model/common/domain/primitives";
+import { URLString } from "@trading-model/common/domain/primitives";
 import type { IWsConnection } from "@trading-model/common/ws/i-ws-connection";
 import WebSocket from "ws";
 
@@ -22,7 +22,7 @@ export class WsConnection implements IWsConnection {
 		}
 		const url = new URL(this._baseUrl);
 		url.searchParams.set("token", this._token);
-		return url.toString() as URLString;
+		return URLString.of(url.toString());
 	}
 
 	get url(): URLString {

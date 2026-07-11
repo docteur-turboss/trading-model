@@ -23,6 +23,23 @@ export class RegistrationAttemptHandler {
 		this._retryScheduler.shouldRetry = value;
 	}
 
+	get shouldRetryRegistration(): boolean {
+		return this.shouldRetry;
+	}
+
+	async tryStickyRegistration(): Promise<void> {
+		let attempt = 1;
+		while (attempt <= RETRY_CONFIG.maxRetries && this.shouldRetry) {
+			if (await this.tryRegister(attempt)) {
+				return;
+			}
+			attempt++;
+		}
+		logger.error("Service registration failed after max retries", {
+			maxRetries: RETRY_CONFIG.maxRetries,
+		});
+	}
+
 	async tryRegister(attempt: number): Promise<boolean> {
 		try {
 			await this._doRegister(attempt);

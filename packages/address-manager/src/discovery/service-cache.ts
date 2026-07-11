@@ -1,4 +1,8 @@
-import type { InstanceId, ServiceId } from "@trading-model/common/domain/primitives";
+import type {
+	DurationMs,
+	InstanceId,
+	ServiceId,
+} from "@trading-model/common/domain/primitives";
 import type { ServiceInstance } from "../client/type";
 import { CacheStore } from "./cache-store";
 import { CircuitStateStore } from "./circuit-state-store";
@@ -27,7 +31,7 @@ export class ServiceCache implements IServiceCache {
 	private readonly _mutex = new SimpleMutex();
 	private readonly _circuitStore = new CircuitStateStore();
 
-	constructor(ttlMs: number) {
+	constructor(ttlMs: DurationMs) {
 		this._cacheStore = new CacheStore(ttlMs);
 	}
 

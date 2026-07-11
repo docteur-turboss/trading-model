@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, jest, test } from "@jest/globals";
 import type { HttpClient } from "@trading-model/common/config/http-client";
+import type { URLString } from "@trading-model/common/domain/primitives";
 import { AppError } from "@trading-model/common/utils/errors";
 import { TokenManager } from "../../src/client/token-manager";
 import type { AddressManagerConfig } from "../../src/config/address-manager-config";
@@ -76,7 +77,7 @@ describe("TokenManager", () => {
 			await manager.refreshToken();
 
 			expect(httpClient.post).toHaveBeenCalledWith(
-				`${config.addressManagerUrl}/token/rotate`,
+				`${config.addressManagerUrl}/token/rotate` as URLString,
 				{
 					instanceId: config.identity.instanceId,
 					serviceName: config.identity.serviceName,
@@ -96,7 +97,7 @@ describe("TokenManager", () => {
 			await manager.refreshToken();
 
 			expect(httpClient.post).toHaveBeenCalledWith(
-				`${config.addressManagerUrl}/token/rotate`,
+				`${config.addressManagerUrl}/token/rotate` as URLString,
 				{
 					instanceId: config.identity.instanceId,
 					serviceName: config.identity.serviceName,

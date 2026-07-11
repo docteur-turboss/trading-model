@@ -1,9 +1,12 @@
-import { type ServiceId, toServiceId } from "@trading-model/common/domain/primitives";
+import {
+	type ServiceId,
+	toServiceId,
+} from "@trading-model/common/domain/primitives";
 import type { ServiceInstance } from "../client/type";
 import type { DnsResolver } from "./dns-resolver";
 
 export class MapResolver implements ServiceLocator {
-	constructor(private readonly _dnsMap: Record<string, string>) {}
+	constructor(private readonly _dnsMap: Record<ServiceId, string>) {}
 
 	locate(instance: ServiceInstance): string {
 		return this._dnsMap[instance.serviceName] ?? instance.serviceName;

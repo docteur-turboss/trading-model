@@ -26,13 +26,7 @@ export class ServiceDiscovery {
 		this._serviceCache = deps.serviceCache;
 		this._config = deps.config;
 		this._healthChecker = deps.healthChecker;
-		this._resolver = new ServiceResolver(
-			deps.httpClient,
-			deps.config,
-			deps.serviceCache,
-			deps.healthChecker,
-			deps.config.discoveryTimeoutMs
-		);
+		this._resolver = new ServiceResolver(deps);
 		this._finder = new ServiceFinder(
 			this._serviceCache,
 			this._healthChecker,

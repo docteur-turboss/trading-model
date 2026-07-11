@@ -1,5 +1,10 @@
 import type { HttpClient } from "@trading-model/common/config/http-client";
-import { type ServiceId, toServiceId } from "@trading-model/common/domain/primitives";
+import {
+	type DurationMs,
+	type ServiceId,
+	toServiceId,
+	URLString,
+} from "@trading-model/common/domain/primitives";
 import {
 	normalizeError,
 	serviceNotFoundError,
@@ -10,14 +15,31 @@ import type { AddressManagerConfig } from "../config/address-manager-config";
 import type { IServiceCache } from "./service-cache.interface";
 import type { ServiceHealthChecker } from "./service-health-checker";
 
+export interface ServiceResolverDeps {
+	httpClient: HttpClient;
+	config: AddressManagerConfig;
+	serviceCache: IServiceCache;
+	healthChecker: ServiceHealthChecker;
+}
+
 export class ServiceResolver {
-	constructor(
-		private readonly _httpClient: HttpClient,
-		private readonly _config: AddressManagerConfig,
-		private readonly _serviceCache: IServiceCache,
-		private readonly _healthChecker: ServiceHealthChecker,
-		private readonly _discoveryTimeoutMs: number
-	) {}
+	constructor(private readonly _deps: ServiceResolverDeps) {}
+
+	private get _httpClient(): HttpClient {
+		return this._deps.httpClient;
+	}
+	private get _config(): AddressManagerConfig {
+		return this._deps.config;
+	}
+	private get _serviceCache(): IServiceCache {
+		return this._deps.serviceCache;
+	}
+	private get _healthChecker(): ServiceHealthChecker {
+		return this._deps.healthChecker;
+	}
+	private get _discoveryTimeoutMs(): DurationMs {
+		return this._deps.config.discoveryTimeoutMs;
+	}
 
 	async resolveAndValidateService(
 		serviceName: ServiceId
@@ -35,7 +57,9 @@ export class ServiceResolver {
 		let instances: unknown;
 		try {
 			instances = await this._httpClient.get<unknown>(
-				`${this._config.addressManagerUrl}/services/${serviceName}/region/${region}`,
+				URLString.of(
+					`${this._config.addressManagerUrl}/services/${serviceName}/region/${region}`
+				),
 				{ timeoutMs: this._discoveryTimeoutMs }
 			);
 		} catch {
@@ -51,7 +75,9 @@ export class ServiceResolver {
 	private async _fetchService(serviceName: ServiceId): Promise<unknown> {
 		try {
 			return await this._httpClient.get<unknown>(
-				`${this._config.addressManagerUrl}/services/${serviceName}`,
+				URLString.of(
+					`${this._config.addressManagerUrl}/services/${serviceName}`
+				),
 				{ timeoutMs: this._discoveryTimeoutMs }
 			);
 		} catch (error) {
@@ -116,7 +142,9 @@ export class ServiceResolver {
 	async findAllServices(serviceName: ServiceId): Promise<ServiceInstance[]> {
 		try {
 			const instances = await this._httpClient.get<ServiceInstance[]>(
-				`${this._config.addressManagerUrl}/services/${serviceName}`,
+				URLString.of(
+					`${this._config.addressManagerUrl}/services/${serviceName}`
+				),
 				{ timeoutMs: this._discoveryTimeoutMs }
 			);
 			return instances ?? [];

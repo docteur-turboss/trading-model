@@ -1,29 +1,46 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { REDIS_RESP } from "@trading-model/common/persistence/redis-constants";
 
-const MOCK_REDIS_INSTANCE: Record<
-	string,
-	jest.Mock<(...args: any[]) => any>
-> = {
+const MOCK_REDIS_INSTANCE = {
 	connect: jest.fn<(...args: any[]) => Promise<void>>().mockResolvedValue(),
 	disconnect: jest.fn<(...args: any[]) => void>(),
 	get: jest
 		.fn<(...args: any[]) => Promise<string | null>>()
 		.mockResolvedValue(null),
-	setex: jest.fn<(...args: any[]) => Promise<string>>().mockResolvedValue(REDIS_RESP.OK),
+	setex: jest
+		.fn<(...args: any[]) => Promise<string>>()
+		.mockResolvedValue(REDIS_RESP.OK),
 	del: jest.fn<(...args: any[]) => Promise<number>>().mockResolvedValue(1),
 	scan: jest
 		.fn<(...args: any[]) => Promise<[string, string[]]>>()
 		.mockResolvedValue(["0", []]),
 	pipeline: jest.fn<(...args: any[]) => any>(),
-	set: jest.fn<(...args: any[]) => Promise<string>>().mockResolvedValue(REDIS_RESP.OK),
+	set: jest
+		.fn<(...args: any[]) => Promise<string>>()
+		.mockResolvedValue(REDIS_RESP.OK),
+	on: jest.fn<(...args: any[]) => any>(),
+	status: "ready",
+	quit: jest.fn<(...args: any[]) => Promise<"OK">>().mockResolvedValue("OK"),
 };
 
 jest.mock("ioredis", () => {
-	return jest.fn(() => MOCK_REDIS_INSTANCE);
+	const redisMock = jest.fn(() => MOCK_REDIS_INSTANCE);
+	return {
+		__esModule: true,
+		default: redisMock,
+		Redis: redisMock,
+		Cluster: jest.fn(() => MOCK_REDIS_INSTANCE),
+	};
 });
 
-import { toServiceId } from "@trading-model/common/domain/primitives";
+import { CircuitState as CircuitStateEnum } from "@trading-model/common/domain/circuit-state";
+import {
+	PositiveInt,
+	Region,
+	toInstanceId,
+	toServiceId,
+	UnixTimestamp,
+} from "@trading-model/common/domain/primitives";
 import { RedisServiceCache } from "../../src/discovery/redis-service-cache";
 
 describe("RedisServiceCache", () => {
@@ -34,7 +51,7 @@ describe("RedisServiceCache", () => {
 		cache = new RedisServiceCache({
 			redisUrl: "redis://localhost:6379",
 			prefix: "discovery:cache:",
-			ttlMs: 5000,
+			ttlMs: 5000 as never,
 		});
 	});
 
@@ -44,7 +61,7 @@ describe("RedisServiceCache", () => {
 			MOCK_REDIS_INSTANCE.get.mockResolvedValue(
 				JSON.stringify({
 					serviceName: "svc",
-					instanceId: "i-1",
+					instanceId: toInstanceId("i-1"),
 					host: "127.0.0.1",
 					port: 8080,
 				})
@@ -54,7 +71,7 @@ describe("RedisServiceCache", () => {
 				serviceName: toServiceId("svc"),
 				instance: {
 					serviceName: "svc",
-					instanceId: "i-1",
+					instanceId: toInstanceId("i-1"),
 					host: "127.0.0.1",
 					port: 8080,
 				} as any,
@@ -80,7 +97,7 @@ describe("RedisServiceCache", () => {
 			await cache.set({
 				serviceName: toServiceId("svc"),
 				instance: { serviceName: "svc" } as any,
-				region: "us-east",
+				region: Region.of("us-east"),
 			});
 			expect(MOCK_REDIS_INSTANCE.setex).toHaveBeenCalledWith(
 				"discovery:cache:svc::us-east",
@@ -146,10 +163,10 @@ describe("RedisServiceCache", () => {
 	describe("circuit state", () => {
 		it("should store circuit state with 2x TTL", async () => {
 			MOCK_REDIS_INSTANCE.setex.mockResolvedValue(REDIS_RESP.OK);
-			await cache.setCircuitState("i-1", {
-				failures: 3,
-				lastFailureTime: 1000,
-				state: "open",
+			await cache.setCircuitState(toInstanceId("i-1"), {
+				failures: PositiveInt.of(3),
+				lastFailureTime: UnixTimestamp.of(1000),
+				state: CircuitStateEnum.OPEN,
 			});
 			expect(MOCK_REDIS_INSTANCE.setex).toHaveBeenCalledWith(
 				"discovery:cache:circuit:i-1",
@@ -160,18 +177,18 @@ describe("RedisServiceCache", () => {
 
 		it("should retrieve circuit state", async () => {
 			const state = {
-				failures: 3,
-				lastFailureTime: 1000,
-				state: "open" as const,
+				failures: PositiveInt.of(3),
+				lastFailureTime: UnixTimestamp.of(1000),
+				state: CircuitStateEnum.OPEN,
 			};
 			MOCK_REDIS_INSTANCE.get.mockResolvedValue(JSON.stringify(state));
-			const result = await cache.getCircuitState("i-1");
+			const result = await cache.getCircuitState(toInstanceId("i-1"));
 			expect(result).toEqual(state);
 		});
 
 		it("should delete circuit state", async () => {
 			MOCK_REDIS_INSTANCE.del.mockResolvedValue(1);
-			await cache.deleteCircuitState("i-1");
+			await cache.deleteCircuitState(toInstanceId("i-1"));
 			expect(MOCK_REDIS_INSTANCE.del).toHaveBeenCalledWith(
 				"discovery:cache:circuit:i-1"
 			);
@@ -190,28 +207,28 @@ describe("RedisServiceCache", () => {
 			const c = new RedisServiceCache({
 				redisUrl: "redis://localhost:6379",
 				prefix: "p:",
-				ttlMs: 1,
+				ttlMs: 1 as never,
 			});
 			expect((c as any)._ttlSec).toBe(1);
 
 			const c2 = new RedisServiceCache({
 				redisUrl: "redis://localhost:6379",
 				prefix: "p:",
-				ttlMs: 999,
+				ttlMs: 999 as never,
 			});
 			expect((c2 as any)._ttlSec).toBe(1);
 
 			const c3 = new RedisServiceCache({
 				redisUrl: "redis://localhost:6379",
 				prefix: "p:",
-				ttlMs: 1000,
+				ttlMs: 1000 as never,
 			});
 			expect((c3 as any)._ttlSec).toBe(1);
 
 			const c4 = new RedisServiceCache({
 				redisUrl: "redis://localhost:6379",
 				prefix: "p:",
-				ttlMs: 1500,
+				ttlMs: 1500 as never,
 			});
 			expect((c4 as any)._ttlSec).toBe(2);
 		});
@@ -249,14 +266,10 @@ describe("RedisServiceCache", () => {
 
 	describe("get with version-parsed data", () => {
 		it("should parse version-tagged entry", async () => {
-			MOCK_REDIS_INSTANCE.get.mockResolvedValue(
-				JSON.stringify({
-					version: 1,
-					instance: { serviceName: "svc", instanceId: "i-1" },
-				})
-			);
+			const instance = { serviceName: "svc", instanceId: toInstanceId("i-1") };
+			MOCK_REDIS_INSTANCE.get.mockResolvedValue(JSON.stringify(instance));
 			const result = await cache.get(toServiceId("svc"));
-			expect(result).toEqual({ serviceName: "svc", instanceId: "i-1" });
+			expect(result).toEqual(instance);
 		});
 	});
 
@@ -286,7 +299,7 @@ describe("RedisServiceCache", () => {
 				["discovery:cache:svc"],
 			]);
 			MOCK_REDIS_INSTANCE.get.mockResolvedValue(
-				JSON.stringify({ serviceName: "svc", instanceId: "i-1" })
+				JSON.stringify({ serviceName: "svc", instanceId: toInstanceId("i-1") })
 			);
 			const result = await cache.entries();
 			expect(result).toHaveLength(1);
@@ -314,36 +327,39 @@ describe("RedisServiceCache", () => {
 		it("should handle setCircuitState failure gracefully", async () => {
 			MOCK_REDIS_INSTANCE.setex.mockRejectedValue(new Error("err"));
 			await expect(
-				cache.setCircuitState("i-1", {
-					failures: 1,
-					lastFailureTime: 0,
-					state: "open",
+				cache.setCircuitState(toInstanceId("i-1"), {
+					failures: PositiveInt.of(1),
+					lastFailureTime: UnixTimestamp.of(0),
+					state: CircuitStateEnum.OPEN,
 				})
 			).resolves.toBeUndefined();
 		});
 
 		it("should return null when getCircuitState key not found", async () => {
 			MOCK_REDIS_INSTANCE.get.mockResolvedValue(null);
-			const result = await cache.getCircuitState("i-2");
+			const result = await cache.getCircuitState(toInstanceId("i-2"));
 			expect(result).toBeNull();
 		});
 
 		it("should handle getCircuitState error gracefully", async () => {
 			MOCK_REDIS_INSTANCE.get.mockRejectedValue(new Error("err"));
-			const result = await cache.getCircuitState("i-1");
+			const result = await cache.getCircuitState(toInstanceId("i-1"));
 			expect(result).toBeNull();
 		});
 
 		it("should handle deleteCircuitState failure gracefully", async () => {
 			MOCK_REDIS_INSTANCE.del.mockRejectedValue(new Error("err"));
-			await expect(cache.deleteCircuitState("i-1")).resolves.toBeUndefined();
+			await expect(
+				cache.deleteCircuitState(toInstanceId("i-1"))
+			).resolves.toBeUndefined();
 		});
 	});
 
 	describe("stop", () => {
-		it("should disconnect", () => {
+		it("should disconnect", async () => {
+			await cache.get(toServiceId("svc"));
 			cache.stop();
-			expect(MOCK_REDIS_INSTANCE.disconnect).toHaveBeenCalled();
+			expect(MOCK_REDIS_INSTANCE.quit).toHaveBeenCalled();
 		});
 	});
 });

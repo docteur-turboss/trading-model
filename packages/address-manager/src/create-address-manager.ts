@@ -1,10 +1,15 @@
 import { logger } from "@trading-model/common/config/logger";
-import type { IPAddress, Port } from "@trading-model/common/domain/primitives";
 import {
+	DurationMs,
+	IPAddress,
+	Port,
+	PositiveInt,
+	ServiceId,
 	toInstanceId,
 	toRegion,
 	toServiceId,
 } from "@trading-model/common/domain/primitives";
+import { buildTlsFromEnv } from "@trading-model/common/domain/tls-paths";
 import { normalizeError } from "@trading-model/common/utils/errors";
 
 import AddressManager from "./index";
@@ -100,13 +105,13 @@ function _buildCoreConfig(env: AddressManagerEnv, discoveryUrls: string[]) {
 		addressManagerUrl: env.ADDRESS_MANAGER_URL,
 		discoveryUrls,
 		localDiscoveryUrl: env.LOCAL_DISCOVERY_URL,
-		cacheTtlMs: env.CACHE_TTL_MS,
-		discoveryTimeoutMs: env.DISCOVERY_TIMEOUT_MS,
-		servicePingTimeoutMs: env.SERVICE_PING_TIMEOUT_MS,
-		servicePort: env.PORT as Port,
-		publicIp: env.PUBLIC_IP as IPAddress | undefined,
-		tokenRefreshIntervalMs: env.TOKEN_REFRESH_INTERVAL_MS,
-		ttlRefreshIntervalMs: env.TTL_REFRESH_INTERVAL_MS,
+		cacheTtlMs: DurationMs.of(env.CACHE_TTL_MS),
+		discoveryTimeoutMs: DurationMs.of(env.DISCOVERY_TIMEOUT_MS),
+		servicePingTimeoutMs: DurationMs.of(env.SERVICE_PING_TIMEOUT_MS),
+		servicePort: Port.of(env.PORT),
+		publicIp: env.PUBLIC_IP ? IPAddress.of(env.PUBLIC_IP) : undefined,
+		tokenRefreshIntervalMs: DurationMs.of(env.TOKEN_REFRESH_INTERVAL_MS),
+		ttlRefreshIntervalMs: DurationMs.of(env.TTL_REFRESH_INTERVAL_MS),
 		preferredNetworkInterface: env.PREFERRED_NETWORK_INTERFACE,
 	};
 }
@@ -116,11 +121,17 @@ function _buildOptionalConfig(
 	wsSubscribedServices: string[] | undefined
 ) {
 	return {
-		dnsNameMap: env.DNS_NAME_MAP,
-		metricsIntervalMs: env.METRICS_INTERVAL_MS,
+		dnsNameMap: env.DNS_NAME_MAP as unknown as
+			| Record<ServiceId, IPAddress>
+			| undefined,
+		metricsIntervalMs: env.METRICS_INTERVAL_MS
+			? DurationMs.of(env.METRICS_INTERVAL_MS)
+			: undefined,
 		wsUrl: env.WS_URL,
-		wsSubscribedServices,
-		maxCallRecords: env.MAX_CALL_RECORDS,
+		wsSubscribedServices: wsSubscribedServices?.map(ServiceId.of),
+		maxCallRecords: env.MAX_CALL_RECORDS
+			? PositiveInt.of(env.MAX_CALL_RECORDS)
+			: undefined,
 	};
 }
 
@@ -133,11 +144,7 @@ function _buildIdentity(env: AddressManagerEnv) {
 }
 
 function _buildTls(env: AddressManagerEnv) {
-	return {
-		caPath: env.TLS_CA_PATH,
-		certPath: env.TLS_CERT_PATH,
-		keyPath: env.TLS_KEY_PATH,
-	};
+	return buildTlsFromEnv(env);
 }
 
 /**

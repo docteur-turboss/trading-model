@@ -26,7 +26,10 @@ export class StaleEntrySweeper {
 	private _sweep(): void {
 		const now = Date.now();
 		for (const [instanceId, machine] of this._instances) {
-			if (machine.getState(now) === CircuitState.CLOSED && machine.failures === 0) {
+			if (
+				machine.getState(now) === CircuitState.CLOSED &&
+				machine.failures === 0
+			) {
 				this._instances.delete(instanceId);
 				this._onSweepInstance?.(instanceId);
 			}

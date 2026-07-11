@@ -1,11 +1,15 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { Protocol } from "@trading-model/common/contracts/service-registry.types";
+import { CircuitState as CircuitStateEnum } from "@trading-model/common/domain/circuit-state";
 import {
+	DurationMs,
 	IPAddress,
 	Port,
+	PositiveInt,
 	toInstanceId,
 	toServiceId,
 	toVersion,
+	UnixTimestamp,
 } from "@trading-model/common/domain/primitives";
 import type { ServiceInstance } from "../../src/client/type";
 import { ServiceCache } from "../../src/discovery/service-cache";
@@ -17,10 +21,10 @@ function makeInstance(overrides?: Partial<ServiceInstance>): ServiceInstance {
 		host: IPAddress.of("127.0.0.1"),
 		port: Port.of(8080),
 		version: toVersion("1.0.0"),
-		ttl: 30000,
+		ttl: DurationMs.of(30000),
 		protocol: Protocol.Http,
-		registeredAt: Date.now(),
-		lastHeartbeat: Date.now(),
+		registeredAt: UnixTimestamp.now(),
+		lastHeartbeat: UnixTimestamp.now(),
 		...overrides,
 	};
 }
@@ -29,7 +33,7 @@ describe("ServiceCache", () => {
 	let cache: ServiceCache;
 
 	beforeEach(() => {
-		cache = new ServiceCache(5000);
+		cache = new ServiceCache(5000 as never);
 	});
 
 	it("should store and return instance", async () => {
@@ -117,32 +121,32 @@ describe("ServiceCache", () => {
 	});
 
 	it("setCircuitState should store and return state", async () => {
-		await cache.setCircuitState("i-1", {
-			failures: 3,
-			lastFailureTime: 1000,
-			state: "open",
+		await cache.setCircuitState(toInstanceId("i-1"), {
+			failures: PositiveInt.of(3),
+			lastFailureTime: UnixTimestamp.of(1000),
+			state: CircuitStateEnum.OPEN,
 		});
-		const result = await cache.getCircuitState("i-1");
+		const result = await cache.getCircuitState(toInstanceId("i-1"));
 		expect(result).toEqual({
-			failures: 3,
-			lastFailureTime: 1000,
-			state: "open",
+			failures: PositiveInt.of(3),
+			lastFailureTime: UnixTimestamp.of(1000),
+			state: CircuitStateEnum.OPEN,
 		});
 	});
 
 	it("getCircuitState should return null for unknown instance", async () => {
-		const result = await cache.getCircuitState("unknown");
+		const result = await cache.getCircuitState(toInstanceId("unknown"));
 		expect(result).toBeNull();
 	});
 
 	it("deleteCircuitState should remove state", async () => {
-		await cache.setCircuitState("i-1", {
-			failures: 1,
-			lastFailureTime: 0,
-			state: "closed",
+		await cache.setCircuitState(toInstanceId("i-1"), {
+			failures: PositiveInt.of(1),
+			lastFailureTime: UnixTimestamp.of(0),
+			state: CircuitStateEnum.CLOSED,
 		});
-		await cache.deleteCircuitState("i-1");
-		const result = await cache.getCircuitState("i-1");
+		await cache.deleteCircuitState(toInstanceId("i-1"));
+		const result = await cache.getCircuitState(toInstanceId("i-1"));
 		expect(result).toBeNull();
 	});
 });

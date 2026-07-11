@@ -1,17 +1,20 @@
 import { logger } from "@trading-model/common/config/logger";
-import type { InstanceId, ServiceId } from "@trading-model/common/domain/primitives";
+import type {
+	DurationMs,
+	InstanceId,
+	ServiceId,
+} from "@trading-model/common/domain/primitives";
 import type { AddressManagerClient } from "./client/address-manager-client";
 import type { TokenManager } from "./client/token-manager";
 import type { WebSocketClient } from "./client/websocket-client";
 import type { IServiceCache } from "./discovery/service-cache.interface";
 import type { ServiceHealthChecker } from "./discovery/service-health-checker";
 import type { HeartbeatManager } from "./heartbeat-manager";
-import type { RegistrationManager } from "./registration-manager";
 import { SteadyStateScheduler } from "./scheduler/steady-state-scheduler";
 import type { ShutdownHandler } from "./shutdown-handler";
 
 export interface LifecycleManagerOptions {
-	registrationManager: RegistrationManager;
+	registrationManager: { tryStickyRegistration(): Promise<void> };
 	heartbeatManager: HeartbeatManager;
 	shutdownHandler: ShutdownHandler;
 	wsClient?: WebSocketClient;
@@ -20,7 +23,7 @@ export interface LifecycleManagerOptions {
 	instanceId: InstanceId;
 	tokenRefreshIntervalMs: number;
 	ttlRefreshIntervalMs: number;
-	cacheTtlMs: number;
+	cacheTtlMs: DurationMs;
 	tokenManager: TokenManager;
 	addressManagerClient: AddressManagerClient;
 	healthChecker: ServiceHealthChecker;

@@ -1,6 +1,9 @@
+import type {
+	DurationMs,
+	InstanceId,
+	ServiceId,
+} from "@trading-model/common/domain/primitives";
 import {
-	type InstanceId,
-	type ServiceId,
 	toInstanceId,
 	toServiceId,
 } from "@trading-model/common/domain/primitives";
@@ -25,7 +28,7 @@ export interface SteadyStateSchedulerOptions {
 	instanceId: InstanceId;
 	tokenRefreshIntervalMs: number;
 	ttlRefreshIntervalMs: number;
-	cacheTtlMs: number;
+	cacheTtlMs: DurationMs;
 }
 
 export class SteadyStateScheduler {

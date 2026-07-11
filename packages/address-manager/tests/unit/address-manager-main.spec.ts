@@ -142,6 +142,9 @@ jest.mock("../../src/client/websocket-client", () => ({
 }));
 
 import {
+	DurationMs,
+	FilePath,
+	IPAddress,
 	Port,
 	toInstanceId,
 	toServiceId,
@@ -156,19 +159,19 @@ function makeConfig(
 		servicePort: Port.of(8080),
 		addressManagerUrl: "https://discovery:3000",
 		discoveryUrls: ["https://discovery:3000"],
-		cacheTtlMs: 30000,
-		servicePingTimeoutMs: 2000,
-		discoveryTimeoutMs: 5000,
-		tokenRefreshIntervalMs: 60000,
-		ttlRefreshIntervalMs: 15000,
+		cacheTtlMs: DurationMs.of(30000),
+		servicePingTimeoutMs: DurationMs.of(2000),
+		discoveryTimeoutMs: DurationMs.of(5000),
+		tokenRefreshIntervalMs: DurationMs.of(60000),
+		ttlRefreshIntervalMs: DurationMs.of(15000),
 		identity: {
 			serviceName: toServiceId("test-service"),
 			instanceId: toInstanceId("instance-1"),
 		},
 		tls: {
-			caPath: "/path/to/ca.pem",
-			certPath: "/path/to/cert.pem",
-			keyPath: "/path/to/key.pem",
+			caPath: FilePath.of("/path/to/ca.pem"),
+			certPath: FilePath.of("/path/to/cert.pem"),
+			keyPath: FilePath.of("/path/to/key.pem"),
 		},
 		...overrides,
 	};
@@ -207,7 +210,11 @@ describe("AddressManager (main)", () => {
 
 	it("should create instance with DNS name map", () => {
 		const am = new AddressManager(
-			makeConfig({ dnsNameMap: { "test-service": "custom-host" } })
+			makeConfig({
+				dnsNameMap: {
+					[toServiceId("test-service")]: IPAddress.of("127.0.0.1"),
+				},
+			})
 		);
 		expect(am).toBeInstanceOf(AddressManager);
 	});
@@ -237,22 +244,22 @@ describe("AddressManager (main)", () => {
 
 	it("should record call success without durationMs", () => {
 		const am = new AddressManager(makeConfig());
-		am.recordCallSuccess("instance-1");
+		am.recordCallSuccess(toInstanceId("instance-1"));
 	});
 
 	it("should record call success with durationMs", () => {
 		const am = new AddressManager(makeConfig());
-		am.recordCallSuccess("instance-1", 42);
+		am.recordCallSuccess(toInstanceId("instance-1"), 42);
 	});
 
 	it("should record call failure without durationMs", () => {
 		const am = new AddressManager(makeConfig());
-		am.recordCallFailure("instance-1");
+		am.recordCallFailure(toInstanceId("instance-1"));
 	});
 
 	it("should record call failure with durationMs", () => {
 		const am = new AddressManager(makeConfig());
-		am.recordCallFailure("instance-1", 100);
+		am.recordCallFailure(toInstanceId("instance-1"), 100);
 	});
 
 	it("should get metrics", () => {
@@ -288,6 +295,13 @@ describe("AddressManager (main)", () => {
 		handle2.stop();
 	});
 
+	it("should complete registration before stopping", async () => {
+		const am = new AddressManager(makeConfig());
+		const handle = am.start();
+		await handle.ready;
+		handle.stop();
+	});
+
 	it("should not crash on start with existing token (sticky registration)", async () => {
 		MOCK_TOKEN_MANAGER.getTokenOrUndefined.mockReturnValue("existing-token");
 		MOCK_ADDRESS_MANAGER_CLIENT.refreshTTL.mockResolvedValue(undefined);
@@ -307,9 +321,9 @@ describe("AddressManager (main)", () => {
 		MOCK_ADDRESS_MANAGER_CLIENT.refreshTTL.mockResolvedValue(undefined);
 		const am = new AddressManager(makeConfig());
 
-		am.recordCallFailure("i-1");
-		am.recordCallFailure("i-1");
-		am.recordCallFailure("i-1");
+		am.recordCallFailure(toInstanceId("i-1"));
+		am.recordCallFailure(toInstanceId("i-1"));
+		am.recordCallFailure(toInstanceId("i-1"));
 
 		// Circuit breaker is open for i-1, findService will retry and eventually fail
 		await expect(

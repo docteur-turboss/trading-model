@@ -1,8 +1,9 @@
 import { logger } from "@trading-model/common/config/logger";
+import { PositiveInt } from "@trading-model/common/domain/primitives";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import type { AddressManagerDeps } from "./types";
 
-const MAX_HEARTBEAT_FAILURES_BEFORE_RE_REGISTER = 3;
+const MAX_HEARTBEAT_FAILURES_BEFORE_RE_REGISTER = PositiveInt.of(3);
 
 export class HeartbeatFailureHandler {
 	private _consecutiveHeartbeatFailures = 0;

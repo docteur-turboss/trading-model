@@ -1,7 +1,7 @@
 import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import type { InstanceId } from "@trading-model/common/domain/primitives";
 import { toServiceId } from "@trading-model/common/domain/primitives";
-import { recordDiscoveryMetrics } from "../metrics";
+import { DiscoveryResult, recordDiscoveryMetrics } from "../metrics";
 import type { DiscoveryCircuitBreaker } from "./circuit-breaker";
 import { DiscoveryRetryHandler } from "./discovery-retry-handler";
 import type { IServiceCache } from "./service-cache.interface";
@@ -55,7 +55,10 @@ export class DiscoveryOrchestrator {
 		if (staleInstance) {
 			return staleInstance;
 		}
-		recordDiscoveryMetrics({ serviceName: toServiceId(serviceName), startTime }, "failure");
+		recordDiscoveryMetrics(
+			{ serviceName: toServiceId(serviceName), startTime },
+			DiscoveryResult.Failure
+		);
 		throw lastError;
 	}
 

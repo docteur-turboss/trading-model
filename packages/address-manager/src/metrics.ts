@@ -1,5 +1,10 @@
+import { CircuitState } from "@trading-model/common/domain/circuit-state";
 import type { ServiceId } from "@trading-model/common/domain/primitives";
 import promClient from "prom-client";
+
+const circuitBreakerStates = Object.values(CircuitState)
+	.map((state, index) => `${index}=${state}`)
+	.join(", ");
 
 export const DISCOVERY_CALLS_TOTAL = new promClient.Counter({
 	name: "address_manager_discovery_calls_total",
@@ -28,7 +33,7 @@ export const HEARTBEAT_TOTAL = new promClient.Counter({
 
 export const CIRCUIT_BREAKER_STATE = new promClient.Gauge({
 	name: "address_manager_circuit_breaker_state",
-	help: "Circuit breaker state per instance (0=closed, 1=open, 2=half-open)",
+	help: `Circuit breaker state per instance (${circuitBreakerStates})`,
 	labelNames: ["instanceId"] as const,
 });
 
@@ -49,9 +54,18 @@ export interface DiscoveryContext {
 	startTime: number;
 }
 
+export const DiscoveryResult = {
+	Success: "success",
+	Failure: "failure",
+	Degraded: "degraded",
+} as const;
+
+export type DiscoveryResult =
+	(typeof DiscoveryResult)[keyof typeof DiscoveryResult];
+
 export function recordDiscoveryMetrics(
 	{ serviceName, startTime }: DiscoveryContext,
-	result: "success" | "failure" | "degraded"
+	result: DiscoveryResult
 ): void {
 	DISCOVERY_CALLS_TOTAL.inc({ serviceName, result });
 	DISCOVERY_DURATION_MS.observe({ serviceName }, Date.now() - startTime);

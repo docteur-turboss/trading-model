@@ -1,4 +1,7 @@
-import type { ServiceId } from "@trading-model/common/domain/primitives";
+import {
+	type DurationMs,
+	ServiceId,
+} from "@trading-model/common/domain/primitives";
 import type { ISyncCache } from "@trading-model/common/utils/cache";
 import type { ServiceInstance } from "../client/type";
 import type { ServiceCacheEntry } from "./type";
@@ -14,34 +17,34 @@ import type { ServiceCacheEntry } from "./type";
  */
 export class CacheStore implements ISyncCache<ServiceInstance> {
 	private readonly _cache: Map<ServiceId, ServiceCacheEntry>;
-	private readonly _ttlMs: number;
+	private readonly _ttlMs: DurationMs;
 
-	constructor(ttlMs: number) {
+	constructor(ttlMs: DurationMs) {
 		this._ttlMs = ttlMs;
 		this._cache = new Map();
 	}
 
 	get(key: string): ServiceInstance | undefined {
-		const entry = this._cache.get(key as ServiceId);
+		const entry = this._cache.get(ServiceId.of(key));
 		if (!entry) {
 			return;
 		}
 		if (this._isExpired(entry)) {
-			this._cache.delete(key as ServiceId);
+			this._cache.delete(ServiceId.of(key));
 			return;
 		}
 		return entry.instance;
 	}
 
-	set(key: string, value: ServiceInstance, ttlMs?: number): void {
-		this._cache.set(key as ServiceId, {
+	set(key: string, value: ServiceInstance, ttlMs?: DurationMs): void {
+		this._cache.set(ServiceId.of(key), {
 			instance: value,
 			expiresAt: Date.now() + (ttlMs ?? this._ttlMs),
 		});
 	}
 
 	delete(key: string): void {
-		this._cache.delete(key as ServiceId);
+		this._cache.delete(ServiceId.of(key));
 	}
 
 	clear(): void {

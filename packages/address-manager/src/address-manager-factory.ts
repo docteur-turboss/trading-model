@@ -1,5 +1,5 @@
-import type { URLString } from "@trading-model/common/domain/primitives";
 import { HttpClient } from "@trading-model/common/config/http-client";
+import { URLString } from "@trading-model/common/domain/primitives";
 import { CacheInvalidationHandler } from "./cache-invalidation-handler";
 import { AddressManagerClient } from "./client/address-manager-client";
 import { TokenManager } from "./client/token-manager";
@@ -23,7 +23,11 @@ import { HEARTBEAT_TOTAL, REGISTRATION_TOTAL } from "./metrics";
 import { MetricsCollector } from "./monitoring/metrics-collector";
 import { RegistrationManager } from "./registration-manager";
 import { ShutdownHandler } from "./shutdown-handler";
-import type { AddressManagerDeps, ShutdownHandlerDeps } from "./types";
+import type {
+	AddressManagerDeps,
+	LifecycleManagerDeps,
+	ShutdownHandlerDeps,
+} from "./types";
 import { WsAuthFailureHandler } from "./ws-auth-failure-handler";
 
 export interface AddressManagerDependencies {
@@ -82,24 +86,26 @@ function createHealthChecker(
 	);
 }
 
-function createDiscoveryInfra(
-	httpClient: HttpClient,
-	serviceCache: IServiceCache,
-	healthChecker: ServiceHealthChecker,
-	config: AddressManagerConfig,
-	circuitBreaker: DiscoveryCircuitBreaker
-): DiscoveryOrchestrator {
+interface DiscoveryInfraDeps {
+	httpClient: HttpClient;
+	serviceCache: IServiceCache;
+	healthChecker: ServiceHealthChecker;
+	config: AddressManagerConfig;
+	circuitBreaker: DiscoveryCircuitBreaker;
+}
+
+function createDiscoveryInfra(deps: DiscoveryInfraDeps): DiscoveryOrchestrator {
 	const discovery = new ServiceDiscovery({
-		httpClient,
-		serviceCache,
-		config,
-		healthChecker,
+		httpClient: deps.httpClient,
+		serviceCache: deps.serviceCache,
+		config: deps.config,
+		healthChecker: deps.healthChecker,
 	});
 	return new DiscoveryOrchestrator({
 		serviceDiscovery: discovery,
-		serviceCache,
-		circuitBreaker,
-		healthChecker,
+		serviceCache: deps.serviceCache,
+		circuitBreaker: deps.circuitBreaker,
+		healthChecker: deps.healthChecker,
 	});
 }
 
@@ -139,7 +145,7 @@ function createWsClient(ctx: WsClientContext): WebSocketClient {
 	let wsClient: WebSocketClient;
 
 	wsClient = new WebSocketClient({
-		url: config.wsUrl! as URLString,
+		url: URLString.of(config.wsUrl!),
 		subscribedServices: config.wsSubscribedServices ?? ["*"],
 		token: tokenManager.getTokenOrUndefined(),
 		onMessage: (message) => {
@@ -170,35 +176,25 @@ function maybeCreateWsClient(
 	});
 }
 
-function createLifecycleManager(
-	config: AddressManagerConfig,
-	circuitBreaker: DiscoveryCircuitBreaker,
-	registrationManager: RegistrationManager,
-	heartbeatManager: HeartbeatManager,
-	wsClient: WebSocketClient | undefined,
-	serviceCache: IServiceCache,
-	tokenManager: TokenManager,
-	addressManagerClient: AddressManagerClient,
-	healthChecker: ServiceHealthChecker
-): LifecycleManager {
+function createLifecycleManager(deps: LifecycleManagerDeps): LifecycleManager {
 	const shutdownHandler = _buildShutdownHandler({
-		registrationManager,
-		wsClient,
-		addressManagerClient,
-		serviceCache,
-		circuitBreaker,
+		registrationManager: deps.registrationManager,
+		wsClient: deps.wsClient,
+		addressManagerClient: deps.addressManagerClient,
+		serviceCache: deps.serviceCache,
+		circuitBreaker: deps.circuitBreaker,
 	});
 
 	return new LifecycleManager(
-		_buildLifecycleOptions(config, {
-			registrationManager,
-			heartbeatManager,
+		_buildLifecycleOptions(deps.config, {
+			registrationManager: deps.registrationManager,
+			heartbeatManager: deps.heartbeatManager,
 			shutdownHandler,
-			wsClient,
-			serviceCache,
-			tokenManager,
-			addressManagerClient,
-			healthChecker,
+			wsClient: deps.wsClient,
+			serviceCache: deps.serviceCache,
+			tokenManager: deps.tokenManager,
+			addressManagerClient: deps.addressManagerClient,
+			healthChecker: deps.healthChecker,
 		})
 	);
 }
@@ -256,13 +252,13 @@ function _buildDiscoveryLayer(
 ) {
 	const circuitBreaker = createCircuitBreaker(config, serviceCache);
 	const healthChecker = createHealthChecker(httpClient, config);
-	const discoveryOrchestrator = createDiscoveryInfra(
+	const discoveryOrchestrator = createDiscoveryInfra({
 		httpClient,
 		serviceCache,
 		healthChecker,
 		config,
-		circuitBreaker
-	);
+		circuitBreaker,
+	});
 	const metricsCollector = new MetricsCollector(
 		circuitBreaker,
 		serviceCache,
@@ -299,17 +295,17 @@ function _buildLifecycleManager(
 	const { registrationManager, heartbeatManager } =
 		_createRegistrationAndHeartbeat(infra);
 
-	return createLifecycleManager(
+	return createLifecycleManager({
 		config,
-		infra.circuitBreaker,
+		circuitBreaker: infra.circuitBreaker,
 		registrationManager,
 		heartbeatManager,
-		infra.wsClient,
-		infra.serviceCache,
-		infra.tokenManager,
-		infra.addressManagerClient,
-		infra.healthChecker
-	);
+		wsClient: infra.wsClient,
+		serviceCache: infra.serviceCache,
+		tokenManager: infra.tokenManager,
+		addressManagerClient: infra.addressManagerClient,
+		healthChecker: infra.healthChecker,
+	});
 }
 
 function _createRegistrationAndHeartbeat(

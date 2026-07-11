@@ -1,5 +1,6 @@
 import type { HttpClient } from "@trading-model/common/config/http-client";
 import { parseServiceName } from "@trading-model/common/config/services.types";
+import { URLString } from "@trading-model/common/domain/primitives";
 import { HTTP_HEADERS } from "@trading-model/common/http-headers";
 import {
 	addressManagerError,
@@ -41,10 +42,10 @@ export class AddressManagerClient {
 		};
 	}
 
-	private _getUrls(): string[] {
+	private _getUrls(): URLString[] {
 		return this._config.discoveryUrls?.length
-			? this._config.discoveryUrls
-			: [this._config.addressManagerUrl];
+			? this._config.discoveryUrls.map(URLString.of)
+			: [URLString.of(this._config.addressManagerUrl)];
 	}
 
 	registerService(): Promise<ServiceRegistrationResponse | undefined> {
@@ -55,13 +56,13 @@ export class AddressManagerClient {
 
 	private async _tryRegisterUrls(
 		payload: RegisterServicePayload,
-		urls: string[]
+		urls: URLString[]
 	): Promise<ServiceRegistrationResponse | undefined> {
 		let lastError: unknown;
 		for (const url of urls) {
 			try {
 				return await this._httpClient.post<ServiceRegistrationResponse>(
-					`${url}/register`,
+					URLString.of(`${url}/register`),
 					payload
 				);
 			} catch (error) {
@@ -86,12 +87,12 @@ export class AddressManagerClient {
 
 	private async _tryUnregisterUrls(
 		token: string,
-		urls: string[]
+		urls: URLString[]
 	): Promise<void> {
 		for (const url of urls) {
 			try {
 				await this._httpClient.post(
-					`${url}/unregister`,
+					URLString.of(`${url}/unregister`),
 					{
 						serviceName: this._config.identity.serviceName,
 						instanceId: this._config.identity.instanceId,

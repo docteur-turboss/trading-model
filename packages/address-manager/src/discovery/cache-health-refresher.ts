@@ -1,5 +1,8 @@
 import { logger } from "@trading-model/common/config/logger";
-import { type ServiceId, toServiceId } from "@trading-model/common/domain/primitives";
+import {
+	type ServiceId,
+	toServiceId,
+} from "@trading-model/common/domain/primitives";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import type { ServiceInstance } from "../client/type";
 import type { ScheduledJob } from "../scheduler/scheduler";

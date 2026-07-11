@@ -97,10 +97,14 @@ export class DiscoveryCircuitBreaker implements ICircuitBreaker {
 		this._recorder.recordLatency(instanceId, durationMs);
 	}
 	isOpen(instanceId: InstanceId): boolean {
-		return this._state.getInstanceState(instanceId)?.state === CircuitState.OPEN;
+		return (
+			this._state.getInstanceState(instanceId)?.state === CircuitState.OPEN
+		);
 	}
 	getState(instanceId: InstanceId): CircuitState {
-		return this._state.getInstanceState(instanceId)?.state ?? CircuitState.CLOSED;
+		return (
+			this._state.getInstanceState(instanceId)?.state ?? CircuitState.CLOSED
+		);
 	}
 	getFailureCount(instanceId: InstanceId): number {
 		return this._state.getInstanceState(instanceId)?.failures ?? 0;

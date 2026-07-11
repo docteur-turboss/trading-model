@@ -1,6 +1,10 @@
 import type { HttpClient } from "@trading-model/common/config/http-client";
+import {
+	type DurationMs,
+	type InstanceId,
+	URLString,
+} from "@trading-model/common/domain/primitives";
 import { PING_PATH } from "@trading-model/common/server/constants";
-import type { InstanceId } from "@trading-model/common/domain/primitives";
 import type { ServiceInstance } from "../client/type";
 import { type ServiceLocator, ServiceNameLocator } from "./service-locator";
 
@@ -26,7 +30,7 @@ import { type ServiceLocator, ServiceNameLocator } from "./service-locator";
  */
 export class ServiceHealthChecker {
 	private readonly _httpClient: HttpClient;
-	private readonly _timeoutMs: number;
+	private readonly _timeoutMs: DurationMs;
 	private readonly _serviceLocator: ServiceLocator;
 
 	/**
@@ -34,7 +38,7 @@ export class ServiceHealthChecker {
 	 */
 	constructor(
 		httpClient: HttpClient,
-		timeoutMs: number,
+		timeoutMs: DurationMs,
 		serviceLocator?: ServiceLocator
 	) {
 		this._httpClient = httpClient;
@@ -86,8 +90,8 @@ export class ServiceHealthChecker {
 		_success: boolean
 	): void {}
 
-	private _buildPingUrl(instance: ServiceInstance): string {
+	private _buildPingUrl(instance: ServiceInstance): URLString {
 		const hostname = this._serviceLocator.locate(instance);
-		return `https://${hostname}:${instance.port}${PING_PATH}`;
+		return URLString.of(`https://${hostname}:${instance.port}${PING_PATH}`);
 	}
 }

@@ -64,9 +64,41 @@ export class RedisCacheOperations {
 	}
 
 	entries(): Promise<
-		Array<{ serviceName: ServiceId; instance: ServiceInstance; region?: string }>
+		Array<{
+			serviceName: ServiceId;
+			instance: ServiceInstance;
+			region?: string;
+		}>
 	> {
 		return this._scanner.entries();
+	}
+
+	private _parseCacheEntry(raw: string): ServiceInstance | null {
+		try {
+			return JSON.parse(raw) as ServiceInstance;
+		} catch {
+			return null;
+		}
+	}
+
+	async set(entry: CacheSetEntry): Promise<void> {
+		try {
+			const key = this._cacheKey(entry.serviceName, entry.region);
+			await this._redis.setex(
+				key,
+				this._ttlSec,
+				JSON.stringify(entry.instance)
+			);
+		} catch (err) {
+			logger.warn("Redis cache set failed", {
+				serviceName: entry.serviceName,
+				error: normalizeError(err),
+			});
+		}
+	}
+
+	async clear(): Promise<void> {
+		await this._scanner.clear();
 	}
 
 	private _cacheKey(serviceName: ServiceId, region?: string): string {

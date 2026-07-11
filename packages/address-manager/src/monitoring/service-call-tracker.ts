@@ -2,7 +2,15 @@ import type {
 	ServiceId,
 	UnixTimestamp,
 } from "@trading-model/common/domain/primitives";
+import type { EndpointKey } from "./call-record-aggregator";
 import { CallRecordAggregator } from "./call-record-aggregator";
+
+export const CallStatus = {
+	Success: "success",
+	Error: "error",
+} as const;
+
+export type CallStatus = (typeof CallStatus)[keyof typeof CallStatus];
 
 export interface CallRecord {
 	targetService: ServiceId;
@@ -10,7 +18,7 @@ export interface CallRecord {
 	method: string;
 	timestamp: UnixTimestamp;
 	durationMs: number;
-	status: "success" | "error";
+	status: CallStatus;
 	bytesSent?: number;
 	bytesReceived?: number;
 	errorMessage?: string;
@@ -19,7 +27,7 @@ export interface CallRecord {
 export interface CallTrackerSnapshot {
 	totalCalls: number;
 	callsByService: Record<ServiceId, number>;
-	callsByEndpoint: Record<string, number>;
+	callsByEndpoint: Record<EndpointKey, number>;
 	errorsTotal: number;
 	avgLatencyMs: number;
 	totalBytesSent: number;
