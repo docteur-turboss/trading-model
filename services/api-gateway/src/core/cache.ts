@@ -1,3 +1,4 @@
+import type { DurationMs } from "@trading-model/common/domain/primitives";
 import type { HttpStatusCode } from "@trading-model/common/http-status";
 import type { ISyncCache } from "@trading-model/common/utils/cache";
 
@@ -10,9 +11,9 @@ export interface ResponseCacheEntry<TData = unknown> {
 export class ResponseCache implements ISyncCache<ResponseCacheEntry> {
 	private readonly _store = new Map<string, ResponseCacheEntry>();
 
-	private readonly _defaultTtlMs: number;
+	private readonly _defaultTtlMs: DurationMs;
 
-	constructor(defaultTtlMs: number) {
+	constructor(defaultTtlMs: DurationMs) {
 		this._defaultTtlMs = defaultTtlMs;
 	}
 
@@ -33,7 +34,7 @@ export class ResponseCache implements ISyncCache<ResponseCacheEntry> {
 	set<TData = unknown>(
 		key: string,
 		value: Omit<ResponseCacheEntry<TData>, "expiresAt">,
-		ttlMs?: number
+		ttlMs?: DurationMs
 	): void {
 		this._store.set(key, {
 			...value,

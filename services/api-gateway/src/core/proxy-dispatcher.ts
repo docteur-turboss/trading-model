@@ -1,12 +1,13 @@
 import { logger } from "@trading-model/common/config/logger";
-import type { ServiceEndpoint } from "@trading-model/common/contracts/service-resolver.types";
+import type { ResolvedEndpoint } from "@trading-model/common/contracts/service-resolver.types";
+import type { ServiceId } from "@trading-model/common/domain/primitives";
+import { toHostPortAddress } from "@trading-model/common/domain/service-identity";
 import {
 	type ResponseObject,
 	sendResponse,
 } from "@trading-model/common/middleware/response-exception";
 import type { Request } from "express";
 import type { ResponseCache } from "./cache";
-import type { ServiceId } from "@trading-model/common/domain/primitives";
 import { forwardRequest } from "./proxy-handler";
 
 interface ProxyContext {
@@ -18,7 +19,7 @@ interface ProxyContext {
 
 export async function proxyAndCache(
 	req: Request,
-	target: ServiceEndpoint,
+	target: ResolvedEndpoint,
 	ctx: ProxyContext,
 	cache: ResponseCache
 ): Promise<ResponseObject> {
@@ -49,14 +50,14 @@ function tryCacheResponse(
 function buildProxyErrorResponse(
 	err: unknown,
 	ctx: ProxyContext,
-	target: ServiceEndpoint
+	target: ResolvedEndpoint
 ): ResponseObject {
 	const message = err instanceof Error ? err.message : "Unknown error";
 	logger.error("Proxy error", {
 		context: {
 			serviceName: ctx.serviceName,
 			majorVersion: ctx.majorVersion,
-			target: `${target.host}:${target.port}`,
+			target: toHostPortAddress(target),
 			error: message,
 		},
 	});

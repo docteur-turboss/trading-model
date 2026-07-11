@@ -1,4 +1,4 @@
-import type { ServiceId } from "@trading-model/common/domain/primitives";
+import { ServiceId } from "@trading-model/common/domain/primitives";
 
 const VERSION_PATH_REGEX =
 	/^\/v(?<major>\d+)\/(?<service>[^/]+)(?<path>\/.*)?$/;
@@ -19,7 +19,7 @@ function extractPathComponents(match: RegExpMatchArray): {
 	};
 	return {
 		majorVersion: Number.parseInt(groups.major, 10),
-		serviceName: groups.service as ServiceId,
+		serviceName: ServiceId.of(groups.service),
 		path: groups.path ?? "/",
 	};
 }

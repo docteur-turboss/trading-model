@@ -18,37 +18,38 @@ function createMockResponse(
 	body: string,
 	headers?: Record<string, string>
 ) {
-	const events: Record<string, Array<(...args: any[]) => void>> = {};
+	const resEvents: Record<string, Array<(...args: any[]) => void>> = {};
+	const reqEvents: Record<string, Array<(...args: any[]) => void>> = {};
 
 	const mockRes: any = {
 		statusCode,
 		headers: headers ?? { "content-type": "application/json" },
 		on: jest.fn((event: string, handler: (...args: any[]) => void) => {
-			if (!events[event]) {
-				events[event] = [];
+			if (!resEvents[event]) {
+				resEvents[event] = [];
 			}
-			events[event].push(handler);
+			resEvents[event].push(handler);
 			return mockRes;
 		}),
 	};
 
 	const mockReq = {
 		on: jest.fn((event: string, handler: (...args: any[]) => void) => {
-			if (!events[event]) {
-				events[event] = [];
+			if (!reqEvents[event]) {
+				reqEvents[event] = [];
 			}
-			events[event].push(handler);
+			reqEvents[event].push(handler);
 			return mockReq;
 		}),
 		write: jest.fn(),
 		end: jest.fn().mockImplementation(() => {
-			if (events.data) {
-				for (const h of events.data) {
+			if (reqEvents.data) {
+				for (const h of reqEvents.data) {
 					h(Buffer.from(body));
 				}
 			}
-			if (events.end) {
-				for (const h of events.end) {
+			if (reqEvents.end) {
+				for (const h of reqEvents.end) {
 					h();
 				}
 			}
@@ -56,7 +57,7 @@ function createMockResponse(
 		destroy: jest.fn(),
 	};
 
-	return { mockRes, mockReq, events };
+	return { mockRes, mockReq, events: resEvents };
 }
 
 function createMockHttps(

@@ -1,6 +1,6 @@
+import { ClientIdentity } from "@trading-model/common/domain/primitives/string-ids";
 import { catchSync } from "@trading-model/common/middleware/catch-error";
 import { sendResponse } from "@trading-model/common/middleware/response-exception";
-import type { ClientIdentity } from "@trading-model/common/domain/primitives/string-ids";
 import type { RequestHandler } from "express";
 
 import { ENV } from "../config/env";
@@ -30,6 +30,7 @@ export const AUTH_MIDDLEWARE: RequestHandler = catchSync((req) => {
 		return sendResponse({ error: "Invalid authentication token" }, 401);
 	}
 
-	(req as unknown as AuthRequest).clientIdentity =
-		`client:${token.slice(0, 8)}` as ClientIdentity;
+	(req as unknown as AuthRequest).clientIdentity = ClientIdentity.of(
+		`client:${token.slice(0, 8)}`
+	);
 });

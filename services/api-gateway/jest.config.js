@@ -8,7 +8,7 @@ module.exports = {
   moduleNameMapper: {
     '^@trading-model/common/(.*)$': '<rootDir>/../../packages/common/src/$1',
   },
-  collectCoverageFrom: ['src/**/*.ts', '!src/**/*.d.ts', '!src/app/index.ts'],
+  collectCoverageFrom: ['src/**/*.ts', '!src/**/*.d.ts'],
   coverageThreshold: {
     global: {
       branches: 80,

@@ -15,6 +15,7 @@ jest.mock("@trading-model/common/server/create-secure-server", () => ({
 				return Promise.resolve({ close: jest.fn(), raw: {} });
 			}
 		),
+	buildTlsFromEnv: jest.fn(() => MOCK_TLS_CONFIG),
 }));
 
 jest.mock("../../src/config/env", () => ({

@@ -1,4 +1,5 @@
 import { logger } from "@trading-model/common/config/logger";
+import type { ServiceId } from "@trading-model/common/domain/primitives";
 import { catchSync } from "@trading-model/common/middleware/catch-error";
 import { sendResponse } from "@trading-model/common/middleware/response-exception";
 import { Router } from "express";
@@ -8,7 +9,6 @@ import { ResponseCache } from "./cache";
 import { parseRequestPath } from "./path-parser";
 import { proxyAndCache, tryServeFromCache } from "./proxy-dispatcher";
 import { DEFAULT_LIMITER } from "./rate-limiter";
-import type { ServiceId } from "@trading-model/common/domain/primitives";
 import { ServiceResolver } from "./service-resolver";
 
 const RESOLVER = new ServiceResolver(
@@ -71,8 +71,16 @@ const catchAllRoute = catchSync(async (req) => {
 	);
 });
 
+function pingHandler(
+	_req: import("express").Request,
+	res: import("express").Response
+): void {
+	res.json({ status: "ok" });
+}
+
 export function createRouter(): Router {
 	const router = Router();
+	router.get("/ping", pingHandler);
 	router.use(AUTH_MIDDLEWARE);
 	router.use(DEFAULT_LIMITER);
 	router.use(catchAllRoute);

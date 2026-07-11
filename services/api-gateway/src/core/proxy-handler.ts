@@ -1,12 +1,13 @@
 import crypto from "node:crypto";
 import type http from "node:http";
 import https from "node:https";
-import { CRYPTO } from "@trading-model/common/crypto/crypto-constants";
 import { logger } from "@trading-model/common/config/logger";
-import type { ServiceEndpoint } from "@trading-model/common/contracts/service-resolver.types";
+import type { ResolvedEndpoint } from "@trading-model/common/contracts/service-resolver.types";
+import { CryptoAlg } from "@trading-model/common/crypto/crypto-constants";
+import { toHostPortAddress } from "@trading-model/common/domain/service-identity";
+import { HTTP_HEADERS } from "@trading-model/common/http-headers";
 import type { HttpStatusCode } from "@trading-model/common/http-status";
 import { HTTP_STATUS } from "@trading-model/common/http-status";
-import { HTTP_HEADERS } from "@trading-model/common/http-headers";
 import type { Request } from "express";
 import { ENV } from "../config/env";
 
@@ -68,28 +69,29 @@ async function handleProxyResponse(
 ): Promise<ProxyResult> {
 	const chunks = await _collectResponseChunks(proxyRes);
 	return {
-		status: (proxyRes.statusCode ?? HTTP_STATUS.SERVICE_UNAVAILABLE) as HttpStatusCode,
-		body: Buffer.concat(chunks).toString(CRYPTO.UTF8),
+		status: (proxyRes.statusCode ??
+			HTTP_STATUS.SERVICE_UNAVAILABLE) as HttpStatusCode,
+		body: Buffer.concat(chunks).toString(CryptoAlg.UTF8),
 		headers: proxyRes.headers as Record<string, string | string[]>,
 	};
 }
 
 export interface ProxyRequestOptions {
 	req: Request;
-	target: ServiceEndpoint;
+	target: ResolvedEndpoint;
 	path: string;
 	timeoutMs?: number;
 }
 
 function _onProxyError(
-	target: ServiceEndpoint,
+	target: ResolvedEndpoint,
 	path: string,
 	reject: (err: Error) => void
 ): (err: Error) => void {
 	return (err: Error) => {
 		logger.error("Proxy request failed", {
 			context: {
-				target: `${target.host}:${target.port}`,
+				target: toHostPortAddress(target),
 				path,
 				error: err.message,
 			},
@@ -112,7 +114,7 @@ interface ProxyExecutionContext {
 	req: Request;
 	resolve: (result: ProxyResult) => void;
 	reject: (err: Error) => void;
-	target: ServiceEndpoint;
+	target: ResolvedEndpoint;
 	path: string;
 	timeoutMs: number;
 }
@@ -148,7 +150,7 @@ export function forwardRequest(
 
 function _buildProxyOptions(opts: ProxyRequestOptions): https.RequestOptions {
 	const { target, req, path, timeoutMs = ENV.PROXY_TIMEOUT_MS } = opts;
-	const url = new URL(path, `https://${target.host}:${target.port}`);
+	const url = new URL(path, `https://${toHostPortAddress(target)}`);
 	return {
 		hostname: target.host,
 		port: target.port,
