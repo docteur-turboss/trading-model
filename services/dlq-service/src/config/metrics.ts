@@ -1,3 +1,4 @@
+import { HTTP_STATUS } from "@trading-model/common/http-status";
 import promClient from "prom-client";
 
 const register = new promClient.Registry();
@@ -57,6 +58,6 @@ export function metricsHandler(
 ): void {
 	res.setHeader("Content-Type", register.contentType);
 	register.metrics().then((data) => {
-		res.status(200).end(data);
+		res.status(HTTP_STATUS.OK).end(data);
 	});
 }

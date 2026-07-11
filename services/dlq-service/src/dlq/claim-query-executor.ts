@@ -1,7 +1,20 @@
-import type { ObjectId } from "mongodb";
-
 import type { InstanceId } from "@trading-model/common/domain/primitives";
+import type { ObjectId } from "mongodb";
 import type { BatchContext } from "./types";
+
+interface BulkClaimRequest {
+	col: import("mongodb").Collection;
+	candidates: import("mongodb").WithId<import("mongodb").Document>[];
+	batchId: string;
+	instanceId: InstanceId;
+	claimProjection: Record<string, unknown>;
+	buildBulkUpdateOps: (
+		candidates: Record<string, unknown>[],
+		now: Date,
+		instanceId: InstanceId,
+		batchId: string
+	) => import("mongodb").AnyBulkWriteOperation[];
+}
 
 export class ClaimQueryExecutor {
 	async findClaimCandidates(
@@ -20,18 +33,16 @@ export class ClaimQueryExecutor {
 	}
 
 	async executeBulkClaim(
-		col: import("mongodb").Collection,
-		candidates: import("mongodb").WithId<import("mongodb").Document>[],
-		batchId: string,
-		instanceId: InstanceId,
-		claimProjection: Record<string, unknown>,
-		buildBulkUpdateOps: (
-			candidates: Record<string, unknown>[],
-			now: Date,
-			instanceId: InstanceId,
-			batchId: string
-		) => import("mongodb").AnyBulkWriteOperation[]
+		req: BulkClaimRequest
 	): Promise<import("mongodb").WithId<import("mongodb").Document>[]> {
+		const {
+			col,
+			candidates,
+			batchId,
+			instanceId,
+			claimProjection,
+			buildBulkUpdateOps,
+		} = req;
 		const now = new Date();
 		const operations = buildBulkUpdateOps(candidates, now, instanceId, batchId);
 

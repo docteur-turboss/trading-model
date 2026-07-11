@@ -1,10 +1,10 @@
 import { Severity } from "@trading-model/common/contracts/admin/audit.dto";
 import {
+	type Topic,
 	toCorrelationId,
 	toServiceId,
 	toTopic,
-	type Topic,
-	type UnixTimestamp,
+	UnixTimestamp,
 } from "@trading-model/common/domain/primitives";
 import {
 	type ResponseObject,
@@ -71,7 +71,7 @@ export function notifyReplayAudit(
 	errorsCount: number
 ): void {
 	void notifyAudit({
-		timestamp: Date.now() as unknown as UnixTimestamp,
+		timestamp: UnixTimestamp.now(),
 		topic: toTopic(topic ?? "unknown"),
 		publisher: toServiceId("dlq-service"),
 		correlationId: toCorrelationId(batchId),

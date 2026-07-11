@@ -1,4 +1,4 @@
-import type { URLString } from "@trading-model/common/domain/primitives";
+import { URLString } from "@trading-model/common/domain/primitives";
 import type Redis from "ioredis";
 import { ENV } from "./env";
 import { logger } from "./logger";
@@ -53,7 +53,7 @@ export class RedisConnection {
 			logger.info("No REDIS_URL configured — Redis queue unavailable");
 			return false;
 		}
-		const client = await this._clientManager.createClient(url as URLString);
+		const client = await this._clientManager.createClient(URLString.of(url));
 		this._attachEventHandlers(client);
 		this._state = ConnectionState.Connected;
 		return true;

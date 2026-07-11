@@ -3,22 +3,44 @@
  * No MongoDB, no HTTP, no Redis — just decisions based on state.
  */
 
+import type {
+	MessageId,
+	PositiveInt,
+} from "@trading-model/common/domain/primitives";
 import {
 	DLQ_MAX_CONSECUTIVE_ERRORS,
 	DLQ_MAX_PASS_COUNT,
 } from "../dlq/dlq-constants";
 import { DlqStatus } from "../dlq/dlq-status";
 
+export interface DlqDecisionInputParams {
+	messageId: MessageId;
+	dlqPassCount: number;
+	retryCount: number;
+	consecutiveErrors: number;
+	totalEntries: number;
+	maxEntries: PositiveInt;
+	maxRetryAttempts: PositiveInt;
+}
+
 export class DlqDecisionInput {
-	constructor(
-		readonly messageId: string,
-		readonly dlqPassCount: number,
-		readonly retryCount: number,
-		readonly consecutiveErrors: number,
-		readonly totalEntries: number,
-		readonly maxEntries: number,
-		readonly maxRetryAttempts: number
-	) {}
+	readonly messageId: MessageId;
+	readonly dlqPassCount: number;
+	readonly retryCount: number;
+	readonly consecutiveErrors: number;
+	readonly totalEntries: number;
+	readonly maxEntries: PositiveInt;
+	readonly maxRetryAttempts: PositiveInt;
+
+	constructor(params: DlqDecisionInputParams) {
+		this.messageId = params.messageId;
+		this.dlqPassCount = params.dlqPassCount;
+		this.retryCount = params.retryCount;
+		this.consecutiveErrors = params.consecutiveErrors;
+		this.totalEntries = params.totalEntries;
+		this.maxEntries = params.maxEntries;
+		this.maxRetryAttempts = params.maxRetryAttempts;
+	}
 
 	isPingPongAbandon(): boolean {
 		return this.dlqPassCount >= DLQ_MAX_PASS_COUNT;
@@ -83,18 +105,18 @@ export class DlqDecisionService {
 	}
 
 	buildClaimFilter(): {
-		retryCountMax: number;
-		consecutiveErrorsMax: number;
-		excludedStatuses: string[];
+		retryCountMax: PositiveInt;
+		consecutiveErrorsMax: PositiveInt;
+		excludedStatuses: DlqStatus[];
 	} {
 		return {
 			retryCountMax: this._maxRetryAttempts(),
-			consecutiveErrorsMax: DLQ_MAX_CONSECUTIVE_ERRORS,
+			consecutiveErrorsMax: DLQ_MAX_CONSECUTIVE_ERRORS as PositiveInt,
 			excludedStatuses: [DlqStatus.Completed, DlqStatus.Abandoned],
 		};
 	}
 
-	private _maxRetryAttempts(): number {
-		return Number.MAX_SAFE_INTEGER;
+	private _maxRetryAttempts(): PositiveInt {
+		return Number.MAX_SAFE_INTEGER as PositiveInt;
 	}
 }

@@ -1,10 +1,11 @@
 import { randomUUID } from "node:crypto";
 
 import {
+	type Limit,
+	type Topic,
 	toInstanceId,
 	toMessageId,
 	toTopic,
-	type Topic,
 	type URLString,
 } from "@trading-model/common/domain/primitives";
 import {
@@ -70,7 +71,7 @@ async function _claimAndReplayBatch(options: ClaimAndReplayOptions): Promise<{
 }
 
 async function _releaseAndClaimEntries(
-	limit: number,
+	limit: Limit,
 	batchId: string,
 	topic: Topic | undefined
 ): Promise<Array<{ id: string; message: unknown }>> {
@@ -92,7 +93,7 @@ function _executeBatchReplay(
 }
 
 function _claimRetryEntries(
-	limit: number,
+	limit: Limit,
 	batchId: string,
 	topic: Topic | undefined
 ): Promise<Array<{ id: string; message: unknown }>> {
@@ -132,7 +133,7 @@ export async function executeReplayPipeline(
 
 	const result = await _claimAndReplayBatch({
 		messageManagerUrl,
-		limit: validation.data.limit,
+		limit: validation.data.limit as Limit,
 		batchId,
 		topic: validation.data.topic ? toTopic(validation.data.topic) : undefined,
 		span,

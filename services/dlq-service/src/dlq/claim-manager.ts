@@ -1,4 +1,7 @@
-import type { InstanceId } from "@trading-model/common/domain/primitives";
+import type {
+	InstanceId,
+	Limit,
+} from "@trading-model/common/domain/primitives";
 import { getCollection } from "../config/db";
 import { ClaimFilterBuilder } from "./claim-filter-builder";
 import { ClaimQueryExecutor } from "./claim-query-executor";
@@ -8,7 +11,7 @@ import type { StoredDlqEntry } from "./repository";
 import { toStoredDlqEntry } from "./repository";
 
 export interface ClaimEntriesOptions {
-	limit: number;
+	limit: Limit;
 	batchId: string;
 	instanceId: InstanceId;
 	topic?: string;
@@ -82,7 +85,7 @@ export class DlqClaimManager {
 	private _findCandidates(
 		col: import("mongodb").Collection,
 		filter: Record<string, unknown>,
-		limit: number
+		limit: Limit
 	): Promise<import("mongodb").WithId<import("mongodb").Document>[]> {
 		return this._queryExecutor.findClaimCandidates(
 			col,
@@ -97,14 +100,16 @@ export class DlqClaimManager {
 		candidates: import("mongodb").WithId<import("mongodb").Document>[],
 		options: ClaimEntriesOptions
 	): Promise<StoredDlqEntry[]> {
-		const claimed = await this._queryExecutor.executeBulkClaim(
+		const claimed = await this._queryExecutor.executeBulkClaim({
 			col,
 			candidates,
-			options.batchId,
-			options.instanceId,
-			CLAIM_PROJECTION,
-			this._filterBuilder.buildBulkUpdateOps.bind(this._filterBuilder)
-		);
+			batchId: options.batchId,
+			instanceId: options.instanceId,
+			claimProjection: CLAIM_PROJECTION,
+			buildBulkUpdateOps: this._filterBuilder.buildBulkUpdateOps.bind(
+				this._filterBuilder
+			),
+		});
 		return claimed.map((doc) => toStoredDlqEntry(doc));
 	}
 

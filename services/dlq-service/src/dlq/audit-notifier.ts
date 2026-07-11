@@ -3,11 +3,11 @@ import {
 	Severity,
 } from "@trading-model/common/contracts/admin/audit.dto";
 import {
+	type Topic,
 	toCorrelationId,
 	toServiceId,
 	toTopic,
-	type Topic,
-	type UnixTimestamp,
+	UnixTimestamp,
 } from "@trading-model/common/domain/primitives";
 import { notifyAudit } from "../config/audit";
 
@@ -17,7 +17,7 @@ export function notifyAddAudit(
 	reason: string | undefined
 ): void {
 	void notifyAudit({
-		timestamp: Date.now() as unknown as UnixTimestamp,
+		timestamp: UnixTimestamp.now(),
 		topic: toTopic(topic ?? "unknown"),
 		publisher: toServiceId("dlq-service"),
 		correlationId: toCorrelationId(id),
@@ -48,7 +48,7 @@ function _buildReplayAuditEvent(
 	failed: number
 ): AuditEvent {
 	return {
-		timestamp: Date.now() as unknown as UnixTimestamp,
+		timestamp: UnixTimestamp.now(),
 		topic: toTopic(topic ?? "unknown"),
 		publisher: toServiceId("dlq-service"),
 		correlationId: toCorrelationId(batchId),
@@ -62,7 +62,7 @@ export function notifyAbandonAudit(count: number): void {
 		return;
 	}
 	void notifyAudit({
-		timestamp: Date.now() as unknown as UnixTimestamp,
+		timestamp: UnixTimestamp.now(),
 		topic: toTopic("dlq-service"),
 		publisher: toServiceId("dlq-service"),
 		correlationId: toCorrelationId("abandon"),
@@ -76,7 +76,7 @@ export function notifyDeleteAudit(ids: string[], deleted: number): void {
 		return;
 	}
 	void notifyAudit({
-		timestamp: Date.now() as unknown as UnixTimestamp,
+		timestamp: UnixTimestamp.now(),
 		topic: toTopic("dlq-service"),
 		publisher: toServiceId("dlq-service"),
 		correlationId: toCorrelationId(ids[0]),

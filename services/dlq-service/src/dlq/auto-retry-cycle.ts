@@ -1,12 +1,13 @@
 import { randomUUID } from "node:crypto";
 import { Severity } from "@trading-model/common/contracts/admin/audit.dto";
 import {
+	Limit,
 	toCorrelationId,
 	toInstanceId,
 	toMessageId,
 	toServiceId,
 	toTopic,
-	type UnixTimestamp,
+	UnixTimestamp,
 	type URLString,
 } from "@trading-model/common/domain/primitives";
 import { notifyAudit } from "../config/audit";
@@ -15,9 +16,9 @@ import { logger } from "../config/logger";
 import { metrics } from "../config/metrics";
 import { resolveMessageManagerUrl } from "./address-resolver";
 import { dlqClaimManager } from "./claim-manager";
+import type { DlqEntryRef } from "./replay-pipeline";
 import { doReplayBatch } from "./replay-pipeline";
 import { dlqRetryManager } from "./retry-manager";
-import type { DlqEntryRef } from "./replay-pipeline";
 import { isShuttingDown } from "./shared/shutdown-flag";
 
 export async function handleAbandonedEntries(source: string): Promise<void> {
@@ -79,7 +80,10 @@ async function _executeAutoRetryCycle(
 	}
 
 	const { success, errors } = await executeAutoRetryReplay(
-		entries.map((entry) => ({ id: toMessageId(entry.id), message: entry.message })),
+		entries.map((entry) => ({
+			id: toMessageId(entry.id),
+			message: entry.message,
+		})),
 		messageManagerUrl,
 		batchId
 	);
@@ -101,7 +105,7 @@ function _claimEntriesForRetry(
 	batchId: string
 ): Promise<Array<{ id: string; message: unknown }>> {
 	return dlqClaimManager.claimEntriesForRetry({
-		limit: ENV.DLQ_AUTO_RETRY_LIMIT,
+		limit: Limit.of(ENV.DLQ_AUTO_RETRY_LIMIT, 100),
 		batchId,
 		instanceId: toInstanceId(ENV.INSTANCE_ID),
 	});
@@ -113,7 +117,7 @@ function _notifyAutoRetryResult(
 	errorsCount: number
 ): void {
 	void notifyAudit({
-		timestamp: Date.now() as unknown as UnixTimestamp,
+		timestamp: UnixTimestamp.now(),
 		topic: toTopic("dlq-service"),
 		publisher: toServiceId("dlq-service"),
 		correlationId: toCorrelationId(batchId),

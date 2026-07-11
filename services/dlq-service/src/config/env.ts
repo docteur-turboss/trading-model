@@ -1,5 +1,5 @@
 import { existsSync, readFileSync } from "node:fs";
-import { CRYPTO } from "@trading-model/common/crypto/crypto-constants";
+import { CryptoAlg } from "@trading-model/common/crypto/crypto-constants";
 import {
 	AddressManagerEnvSchema,
 	BaseEnvSchema,
@@ -73,7 +73,7 @@ function _readSecretFromPath(): string | null {
 	}
 	try {
 		if (existsSync(path)) {
-			const value = readFileSync(path, CRYPTO.UTF8).trim();
+			const value = readFileSync(path, CryptoAlg.UTF8).trim();
 			if (value.length >= 16) {
 				secretCache.value = value;
 				return value;

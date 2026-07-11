@@ -1,6 +1,6 @@
-import { CRYPTO } from "@trading-model/common/crypto/crypto-constants";
-import type { SignedRequest } from "@trading-model/common/contracts/signed-request";
 import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
+import type { SignedRequest } from "@trading-model/common/contracts/signed-request";
+import { CryptoAlg } from "@trading-model/common/crypto/crypto-constants";
 import {
 	normalizeBody,
 	verifySignature as sharedVerifySignature,
@@ -11,11 +11,16 @@ import { HTTP_STATUS } from "@trading-model/common/http-status";
 import type { NextFunction, Request, Response } from "express";
 import { ENV, resolveAuthHmacSecret } from "../config/env";
 
+const TIMESTAMP_TOLERANCE_MS = 300_000;
+
 const ALLOWED_SERVICES = ENV.DLQ_ALLOWED_SERVICES.split(",")
 	.map((service) => service.trim())
 	.filter(Boolean);
 
-function verifySignature(req: Request, serviceName: ServiceInstanceName): boolean {
+function verifySignature(
+	req: Request,
+	serviceName: ServiceInstanceName
+): boolean {
 	const secret = resolveAuthHmacSecret();
 	const provided = _extractSignatureHeader(req);
 	const timestampStr = _extractTimestampHeader(req);
@@ -36,14 +41,14 @@ function verifySignature(req: Request, serviceName: ServiceInstanceName): boolea
 		return true;
 	}
 
-	return _matchFallbackSignature(
+	return _matchFallbackSignature({
 		req,
 		serviceName,
 		provided,
 		secret,
 		timestampStr,
-		route
-	);
+		route,
+	});
 }
 
 function _extractSignatureHeader(req: Request): string {
@@ -54,7 +59,10 @@ function _extractTimestampHeader(req: Request): string {
 	return (req.headers[HTTP_HEADERS.X_TIMESTAMP] as string) || "";
 }
 
-function _buildSignedRequest(req: Request, serviceName: ServiceInstanceName): SignedRequest {
+function _buildSignedRequest(
+	req: Request,
+	serviceName: ServiceInstanceName
+): SignedRequest {
 	return {
 		serviceName: toServiceId(serviceName),
 		method: req.method as SignedRequest["method"],
@@ -63,22 +71,24 @@ function _buildSignedRequest(req: Request, serviceName: ServiceInstanceName): Si
 	};
 }
 
-function _matchFallbackSignature(
-	req: Request,
-	serviceName: ServiceInstanceName,
-	provided: string,
-	secret: string,
-	timestampStr: string,
-	route: SignedRequest
-): boolean {
+interface SignatureContext {
+	req: Request;
+	serviceName: ServiceInstanceName;
+	provided: string;
+	secret: string;
+	timestampStr: string;
+	route: SignedRequest;
+}
+
+function _matchFallbackSignature(ctx: SignatureContext): boolean {
 	const oldParts = [
-		serviceName,
-		timestampStr,
-		_computeBodyString(req) ?? "",
-		route.method,
-		route.path,
+		ctx.serviceName,
+		ctx.timestampStr,
+		_computeBodyString(ctx.req) ?? "",
+		ctx.route.method,
+		ctx.route.path,
 	];
-	return _matchSignature(provided, secret, oldParts);
+	return _matchSignature(ctx.provided, ctx.secret, oldParts);
 }
 
 function _computeBodyString(req: Request): string | null {
@@ -97,7 +107,7 @@ function _validateTimestamp(timestampStr: string, provided: string): boolean {
 	if (Number.isNaN(timestamp)) {
 		return false;
 	}
-	if (Math.abs(Date.now() - timestamp) > 300_000) {
+	if (Math.abs(Date.now() - timestamp) > TIMESTAMP_TOLERANCE_MS) {
 		return false;
 	}
 	return true;
@@ -109,9 +119,9 @@ function _matchSignature(
 	parts: string[]
 ): boolean {
 	const { createHmac, timingSafeEqual } = require("node:crypto");
-	const expected = createHmac(CRYPTO.SHA256, secret)
+	const expected = createHmac(CryptoAlg.SHA256, secret)
 		.update(parts.join(":"))
-		.digest(CRYPTO.HEX);
+		.digest(CryptoAlg.HEX);
 	return (
 		provided.length === expected.length &&
 		timingSafeEqual(Buffer.from(provided), Buffer.from(expected))
@@ -133,12 +143,12 @@ function serviceAuth(req: Request, res: Response, next: NextFunction): void {
 	next();
 }
 
-function _resolveServiceName(req: Request): string | undefined {
+function _resolveServiceName(req: Request): ServiceInstanceName | undefined {
 	const serviceName = req.headers[HTTP_HEADERS.X_SERVICE_NAME] as
 		| string
 		| undefined;
 	if (serviceName && ALLOWED_SERVICES.includes(serviceName)) {
-		return serviceName;
+		return serviceName as ServiceInstanceName;
 	}
 }
 

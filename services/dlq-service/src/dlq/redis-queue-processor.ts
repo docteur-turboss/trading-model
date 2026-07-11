@@ -78,7 +78,10 @@ async function executeClaimReplay(
 ): Promise<void> {
 	logger.info(`DLQ Redis queue: replaying ${entries.length} entries`);
 	const { success, errors } = await doReplayBatch({
-		entries: entries.map((e) => ({ id: toMessageId(e.id), message: e.message })),
+		entries: entries.map((entry) => ({
+			id: toMessageId(entry.id),
+			message: entry.message,
+		})),
 		messageManagerUrl,
 		batchId,
 		instanceId: toInstanceId(ENV.INSTANCE_ID),

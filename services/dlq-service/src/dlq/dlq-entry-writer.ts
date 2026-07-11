@@ -11,6 +11,21 @@ export function dlqCapacityError(message: string): AppError {
 	return new AppError(message, { code: "DlqCapacityError" });
 }
 
+interface NewDlqDocument {
+	messageId: string;
+	contentHash: string;
+	topic: string | null;
+	message: unknown;
+	reason: string | null;
+	deliveryAttempt: number;
+	retryCount: number;
+	dlqPassCount: number;
+	createdAt: Date;
+	status?: DlqStatus;
+	abandonedAt?: Date;
+	lastError?: string;
+}
+
 async function _computeDlqPassCount(
 	col: import("mongodb").Collection,
 	contentHash: string
@@ -29,7 +44,7 @@ function _buildBaseDoc(
 	entry: DlqEntry,
 	hash: { messageId: string; contentHash: string },
 	dlqPassCount: number
-): Record<string, unknown> {
+): NewDlqDocument {
 	return {
 		messageId: hash.messageId,
 		contentHash: hash.contentHash,
@@ -44,7 +59,7 @@ function _buildBaseDoc(
 }
 
 function _applyPingPongAbandon(
-	doc: Record<string, unknown>,
+	doc: NewDlqDocument,
 	dlqPassCount: number
 ): void {
 	if (dlqPassCount >= DLQ_MAX_PASS_COUNT) {
@@ -82,7 +97,7 @@ export class DlqEntryWriter {
 		col: import("mongodb").Collection,
 		entry: DlqEntry,
 		hash: { messageId: string; contentHash: string }
-	): Promise<Record<string, unknown>> {
+	): Promise<NewDlqDocument> {
 		const dlqPassCount = await _computeDlqPassCount(col, hash.contentHash);
 		const doc = _buildBaseDoc(entry, hash, dlqPassCount);
 		_applyPingPongAbandon(doc, dlqPassCount);

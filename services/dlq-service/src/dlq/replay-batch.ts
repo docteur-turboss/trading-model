@@ -1,4 +1,7 @@
-import { toMessageId } from "@trading-model/common/domain/primitives";
+import {
+	PositiveInt,
+	toMessageId,
+} from "@trading-model/common/domain/primitives";
 import { logger } from "../config/logger";
 import {
 	checkBatchRejection,
@@ -64,7 +67,7 @@ function _handleEntryFailure(
 async function runBatchLoop(
 	entries: DlqEntryRef[],
 	ctx: ReplayContext,
-	concurrency: number
+	concurrency: PositiveInt
 ): Promise<void> {
 	for (let i = 0; i < entries.length && !ctx.isTimedOut(); i += concurrency) {
 		const batch = entries.slice(i, i + concurrency);
@@ -127,7 +130,7 @@ async function _runBatchWithTimeout(
 	entries: DlqEntryRef[],
 	ctxBase: BatchReplayContext
 ): Promise<BatchResult> {
-	const ReplayConcurrency = 10;
+	const ReplayConcurrency = PositiveInt.of(10);
 	const ReplayBatchTimeoutMs = 120_000;
 
 	const { ctx, setTimedOut } = _createReplayContext(ctxBase);

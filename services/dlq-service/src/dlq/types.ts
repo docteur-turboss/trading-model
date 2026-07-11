@@ -1,6 +1,12 @@
 import type { Span } from "@opentelemetry/api";
 import type { HttpClient } from "@trading-model/common/config/http-client";
-import type { InstanceId, MessageId, Topic, URLString } from "@trading-model/common/domain/primitives";
+import type {
+	InstanceId,
+	Limit,
+	MessageId,
+	Topic,
+	URLString,
+} from "@trading-model/common/domain/primitives";
 
 export interface BatchContext {
 	batchId: string;
@@ -29,7 +35,7 @@ export interface ReplayBatchOptions extends BatchContext {
 
 export interface ClaimAndReplayOptions extends Pick<BatchContext, "batchId"> {
 	messageManagerUrl: URLString;
-	limit: number;
+	limit: Limit;
 	topic: Topic | undefined;
 	span: Span;
 }

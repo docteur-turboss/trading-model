@@ -6,22 +6,7 @@ module.exports = {
   rootDir: '.',
   testMatch: ['**/?(*.)+(spec).ts'],
   testPathIgnorePatterns: ['/node_modules/', '/dist/'],
-  collectCoverageFrom: [
-    'src/**/*.ts',
-    '!src/**/*.d.ts',
-    '!src/app/**',
-    '!src/config/db.ts',
-    '!src/config/audit.ts',
-    '!src/config/address-manager.ts',
-    '!src/config/logger.ts',
-    '!src/config/env.ts',
-    '!src/config/metrics.ts',
-    '!src/config/redis-queue.ts',
-    '!src/domain/**',
-    '!src/dlq/controller.ts',
-    '!src/dlq/routes.ts',
-    '!src/dlq/repository.ts',
-  ],
+  collectCoverageFrom: ['src/**/*.ts', '!src/**/*.d.ts'],
   coverageThreshold: {
     global: {
       branches: 80,

@@ -612,7 +612,7 @@ describe("DlqRetryManager", () => {
 				.then(() => {
 					expect(mockFindOne).toHaveBeenCalledWith(
 						{ _id: expect.any(Object) },
-						{ projection: { status: 1, processingInstance: 1 } }
+						{ projection: { status: 1 } }
 					);
 					expect(mockUpdateOne).toHaveBeenCalledWith(
 						{ _id: expect.any(Object), processingInstance: "instance-1" },

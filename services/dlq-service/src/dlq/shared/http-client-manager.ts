@@ -1,4 +1,5 @@
 import { HttpClient } from "@trading-model/common/config/http-client";
+import { buildTlsFromEnv } from "@trading-model/common/domain/tls-paths";
 import { ENV } from "../../config/env";
 import { logger } from "../../config/logger";
 
@@ -7,11 +8,7 @@ class SharedHttpClientManager {
 
 	get(): Promise<HttpClient> {
 		if (!this._httpClient) {
-			this._httpClient = new HttpClient({
-				ca: ENV.TLS_CA_PATH,
-				cert: ENV.TLS_CERT_PATH,
-				key: ENV.TLS_KEY_PATH,
-			});
+			this._httpClient = new HttpClient(buildTlsFromEnv(ENV));
 		}
 		return this._httpClient;
 	}

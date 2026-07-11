@@ -1,5 +1,8 @@
 import { describe, expect, it, jest } from "@jest/globals";
-import { REDIS_RESP, REDIS_SET } from "@trading-model/common/persistence/redis-constants";
+import {
+	REDIS_RESP,
+	REDIS_SET,
+} from "@trading-model/common/persistence/redis-constants";
 
 const MOCK_SET = jest.fn();
 const MOCK_EVAL = jest.fn();

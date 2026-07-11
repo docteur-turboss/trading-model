@@ -1,6 +1,5 @@
-﻿import { ObjectId } from "mongodb";
-
-import type { InstanceId } from "@trading-model/common/domain/primitives";
+﻿import type { InstanceId } from "@trading-model/common/domain/primitives";
+import { ObjectId } from "mongodb";
 import { getCollection } from "../config/db";
 import { ENV } from "../config/env";
 import { DlqStatus } from "./dlq-status";

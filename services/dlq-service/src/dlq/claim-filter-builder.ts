@@ -1,6 +1,8 @@
-﻿import { type AnyBulkWriteOperation, ObjectId } from "mongodb";
-
-import type { InstanceId, Topic } from "@trading-model/common/domain/primitives";
+﻿import type {
+	InstanceId,
+	Topic,
+} from "@trading-model/common/domain/primitives";
+import { type AnyBulkWriteOperation, ObjectId } from "mongodb";
 import { ENV } from "../config/env";
 import { DLQ_MAX_CONSECUTIVE_ERRORS } from "./dlq-constants";
 import { DlqStatus } from "./dlq-status";

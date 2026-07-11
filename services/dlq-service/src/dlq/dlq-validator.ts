@@ -1,5 +1,5 @@
 import { SpanStatusCode } from "@opentelemetry/api";
-import { CRYPTO } from "@trading-model/common/crypto/crypto-constants";
+import { CryptoAlg } from "@trading-model/common/crypto/crypto-constants";
 import {
 	type ResponseObject,
 	sendResponse,
@@ -42,7 +42,7 @@ function _checkMessageSize(
 	span: import("@opentelemetry/api").Span
 ): { valid: false; response: ResponseObject } | null {
 	const messageStr = JSON.stringify(message);
-	const msgSize = Buffer.byteLength(messageStr, CRYPTO.UTF8);
+	const msgSize = Buffer.byteLength(messageStr, CryptoAlg.UTF8);
 	if (msgSize > MAX_MESSAGE_BYTES) {
 		return _validationFail(
 			span,

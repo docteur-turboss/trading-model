@@ -1,9 +1,10 @@
-﻿import { ENV } from "../config/env";
+﻿import type { Document } from "mongodb";
+import { ENV } from "../config/env";
 import { DLQ_MAX_CONSECUTIVE_ERRORS } from "./dlq-constants";
 import { DlqStatus } from "./dlq-status";
 
 export class RetryPipelineBuilder {
-	buildFailPipeline(errorMsg?: string): Record<string, unknown>[] {
+	buildFailPipeline(errorMsg?: string): Document[] {
 		return [
 			this._buildErrorStage(errorMsg),
 			this._buildRetryStage(errorMsg),
@@ -12,7 +13,7 @@ export class RetryPipelineBuilder {
 		];
 	}
 
-	buildAbandonFilter(): Record<string, unknown> {
+	buildAbandonFilter(): Document {
 		return {
 			status: { $ne: DlqStatus.Abandoned },
 			processingAt: { $exists: false },
@@ -23,7 +24,7 @@ export class RetryPipelineBuilder {
 		};
 	}
 
-	buildCompletedUpdate(batchId?: string): Record<string, unknown> {
+	buildCompletedUpdate(batchId?: string): Document {
 		return {
 			$set: {
 				status: DlqStatus.Completed,
@@ -34,7 +35,7 @@ export class RetryPipelineBuilder {
 		};
 	}
 
-	private _buildErrorStage(errorMsg?: string): Record<string, unknown> {
+	private _buildErrorStage(errorMsg?: string): Document {
 		return {
 			$set: {
 				consecutiveErrors: {
@@ -48,7 +49,7 @@ export class RetryPipelineBuilder {
 		};
 	}
 
-	private _buildRetryStage(errorMsg?: string): Record<string, unknown> {
+	private _buildRetryStage(errorMsg?: string): Document {
 		return {
 			$set: {
 				retryCount: { $add: ["$retryCount", 1] },
@@ -58,7 +59,7 @@ export class RetryPipelineBuilder {
 		};
 	}
 
-	private _buildStatusStage(): Record<string, unknown> {
+	private _buildStatusStage(): Document {
 		return {
 			$set: {
 				status: {
@@ -71,7 +72,7 @@ export class RetryPipelineBuilder {
 		};
 	}
 
-	private _abandonCondition(): Record<string, unknown> {
+	private _abandonCondition(): Document {
 		return {
 			$or: [
 				{ $gte: ["$retryCount", ENV.DLQ_RETRY_MAX_ATTEMPTS] },

@@ -3,14 +3,17 @@ import type { Collection } from "mongodb";
 
 import { logger } from "./logger";
 
-function keyEquals(a: Record<string, 1 | -1>, b: Record<string, 1 | -1>): boolean {
-	const aKeys = Object.keys(a);
-	const bKeys = Object.keys(b);
+function keyEquals(
+	left: Record<string, 1 | -1>,
+	right: Record<string, 1 | -1>
+): boolean {
+	const aKeys = Object.keys(left);
+	const bKeys = Object.keys(right);
 	if (aKeys.length !== bKeys.length) {
 		return false;
 	}
 	for (const key of aKeys) {
-		if (a[key] !== b[key]) {
+		if (left[key] !== right[key]) {
 			return false;
 		}
 	}
@@ -42,7 +45,7 @@ export class IndexManager {
 		spec: {
 			key: Record<string, 1 | -1>;
 			options?: Record<string, unknown>;
-		},
+		}
 	): Promise<string | null> {
 		const keyStr = JSON.stringify(spec.key);
 		try {

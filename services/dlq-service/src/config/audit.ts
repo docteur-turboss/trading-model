@@ -1,6 +1,7 @@
 import { HttpClient } from "@trading-model/common/config/http-client";
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import type { AuditEvent } from "@trading-model/common/contracts/admin/audit.dto";
+import { buildTlsFromEnv } from "@trading-model/common/domain/tls-paths";
 import { CircuitStateMachine } from "@trading-model/common/reliability/circuit-state-machine";
 import { FIND_A_SERVICE } from "./address-manager";
 import { ENV } from "./env";
@@ -11,11 +12,7 @@ class LazyHttpClient {
 
 	get(): Promise<HttpClient> {
 		if (!this._client) {
-			this._client = new HttpClient({
-				ca: ENV.TLS_CA_PATH,
-				cert: ENV.TLS_CERT_PATH,
-				key: ENV.TLS_KEY_PATH,
-			});
+			this._client = new HttpClient(buildTlsFromEnv(ENV));
 		}
 		return Promise.resolve(this._client);
 	}
