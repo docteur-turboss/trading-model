@@ -7,16 +7,14 @@ import type { HttpStatusCode } from "@trading-model/common/http-status";
 import { catchSync } from "@trading-model/common/middleware/catch-error";
 import { sendResponse } from "@trading-model/common/middleware/response-exception";
 
-import type { LogRepository } from "../persistence/log-repository";
+import type { LogQuery, LogRepository } from "../persistence/log-repository";
 import { parseDateRange, parsePageAndLimit } from "../utils/query-params";
 
-function _buildLogQueryParams(
-	req: import("express").Request
-): Parameters<LogRepository["query"]>[0] {
+function _buildLogQueryParams(req: import("express").Request): LogQuery {
 	const queryParams = req.query as Record<string, string | undefined>;
 	const { search, correlationId, level, serviceName } = queryParams;
 	const dateRange = parseDateRange(queryParams);
-	const pagination = parsePageAndLimit(queryParams);
+	const { page, limit } = parsePageAndLimit(queryParams);
 
 	return {
 		serviceName: serviceName ? toServiceId(serviceName) : undefined,
@@ -24,7 +22,8 @@ function _buildLogQueryParams(
 		correlationId: correlationId ? CorrelationId.of(correlationId) : undefined,
 		dateRange,
 		search: search as string | undefined,
-		...pagination,
+		page,
+		limit,
 	};
 }
 

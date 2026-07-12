@@ -1,7 +1,10 @@
 import BrokerMessage from "@trading-model/broker-message";
 import { logger } from "@trading-model/common/config/logger";
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
-import { toInstanceId } from "@trading-model/common/domain/primitives";
+import {
+	toInstanceId,
+	URLString,
+} from "@trading-model/common/domain/primitives";
 import { buildTlsFromEnv } from "@trading-model/common/domain/tls-paths";
 import { MongoConnectionManager } from "@trading-model/common/persistence/mongo-connection-manager";
 import { createBootstrap } from "@trading-model/common/server/bootstrap";
@@ -103,7 +106,7 @@ createBootstrap({
 	name: "Audit Logger",
 	createServer: async () => {
 		const mongoManager = new MongoConnectionManager({
-			uri: ENV.MONGODB_URI,
+			uri: URLString.of(ENV.MONGODB_URI),
 			dbName: "audit-logger",
 		});
 		const mongoClient = await mongoManager.getConnection();

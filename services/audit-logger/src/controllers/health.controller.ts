@@ -1,6 +1,7 @@
 import type { HttpStatusCode } from "@trading-model/common/http-status";
 import { catchSync } from "@trading-model/common/middleware/catch-error";
 import {
+	HEALTH_STATUS_OK,
 	type ResponseObject,
 	sendResponse,
 } from "@trading-model/common/middleware/response-exception";
@@ -17,7 +18,7 @@ function _healthResponse(
 ): ResponseObject {
 	return sendResponse(
 		{
-			status: "ok",
+			status: HEALTH_STATUS_OK,
 			queueDepth: queue.depth(),
 			canAccept: backPressure.canAccept(),
 			workerCount: workers.count(),
