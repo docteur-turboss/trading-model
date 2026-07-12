@@ -3,7 +3,7 @@ import RefreshIcon from "@mui/icons-material/Refresh";
 import ScheduleIcon from "@mui/icons-material/Schedule";
 import SyncIcon from "@mui/icons-material/Sync";
 import { Box, Button, Chip, CircularProgress, Typography } from "@mui/material";
-import { JobPriority } from "@trading-model/common/contracts/admin";
+import { JobPriority } from "@trading-model/validation/contracts/admin";
 import { useState } from "react";
 import type { Column } from "../components/data-table";
 import { DataTable } from "../components/data-table";

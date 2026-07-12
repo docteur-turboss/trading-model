@@ -63,5 +63,5 @@ Use **mutual TLS (mTLS)** for all inter-service HTTPS communication, with a dedi
 
 - `createSecureServer` handles TLS config centrally via `@trading-model/common`
 - Health checks include certificate expiry monitoring
-- Runbooks document certificate issues (`docs/operations/runbook-certificate-expiry.md`)
+- Runbooks document certificate issues (`docs/operations/runbooks/runbook-certificate-expiry.md`)
 - CI validates certificate configuration in integration tests

@@ -1,6 +1,6 @@
 # ADR-0007: Split @trading-model/common into Domain Packages
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-06
 
 ## Context

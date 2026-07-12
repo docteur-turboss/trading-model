@@ -1,4 +1,3 @@
-import { ServiceStatus } from "@trading-model/common/contracts/admin/services.dto";
 import type {
 	ISODateTime,
 	PositiveInt,
@@ -10,6 +9,7 @@ import {
 	toServiceId,
 	toVersion,
 } from "@trading-model/common/domain/primitives";
+import { ServiceStatus } from "@trading-model/validation/contracts/admin/services.dto";
 import type { Column } from "../../components/data-table";
 
 export interface ServiceRow {

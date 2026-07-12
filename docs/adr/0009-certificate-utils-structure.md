@@ -1,6 +1,6 @@
 # ADR-0009: Reorganize certificate-utils with Domain Sub-directories
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-06
 
 ## Context

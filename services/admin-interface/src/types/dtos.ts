@@ -1,16 +1,4 @@
 import type {
-	AuditEvent,
-	AuditFilter,
-	CacheEntry,
-	DlqMessage,
-	JobEntry,
-	ServiceRegistryEntry,
-	TopologyLink,
-	TrainingResult,
-	WorkerEntry,
-	WorkerStats,
-} from "@trading-model/common/contracts/admin";
-import type {
 	PaginationQuery,
 	PaginationResult,
 } from "@trading-model/common/domain/pagination";
@@ -22,6 +10,25 @@ import type {
 	Topic,
 	TradingSymbol,
 } from "@trading-model/common/domain/primitives";
+import type {
+	AuditEvent,
+	AuditFilter,
+	CacheEntry,
+	DlqMessage,
+	JobEntry,
+	ServiceRegistryEntry,
+	TopologyLink,
+	TrainingResult,
+	WorkerEntry,
+	WorkerStats,
+} from "@trading-model/validation/contracts/admin";
+
+export enum ConfigSource {
+	Vault = "Vault",
+	ConfigMap = "ConfigMap",
+	EnvVar = "EnvVar",
+	Local = "Local",
+}
 
 export type {
 	AdminServiceInstance,
@@ -47,7 +54,7 @@ export type {
 	TrainingResult,
 	WorkerEntry,
 	WorkerStats,
-} from "@trading-model/common/contracts/admin";
+} from "@trading-model/validation/contracts/admin";
 
 export interface ServiceRegistry {
 	services: ServiceRegistryEntry[];
@@ -63,7 +70,7 @@ export interface StatsSummary {
 }
 
 export type OrderBookLevel =
-	import("@trading-model/common/contracts/market-data.types").OrderBookLevel;
+	import("@trading-model/validation/contracts/market-data.types").OrderBookLevel;
 
 export interface OrderBook {
 	bids: OrderBookLevel[];

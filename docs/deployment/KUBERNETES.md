@@ -69,6 +69,8 @@ kubeseal < deploy/k8s/secrets/secrets.yaml > deploy/k8s/secrets/sealed-secrets.y
 kubectl apply -f deploy/k8s/secrets/sealed-secrets.yaml
 ```
 
+See [Sealed Secrets guide](sealed-secrets.md) for detailed setup, key rotation, and migration instructions.
+
 ### 3. Deploy all resources
 
 ```bash

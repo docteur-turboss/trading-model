@@ -1,152 +1,24 @@
-# Project Standards — Index
+# Development Standards
 
-Welcome to the **trading-model** standards directory. This folder contains the detailed conventions, standards, and processes every developer must follow when contributing to this monorepo.
+Welcome to the **trading-model** standards directory. This folder contains the conventions, standards, and processes every developer must follow when contributing to this monorepo.
 
-Each section below summarizes key rules and links to the detailed document.
+| Document | Content |
+| -------- | ------- |
+| [Architecture Standards](./architecture-standards.md) | Monorepo structure, dependency graph, service/package conventions, tech stack |
+| [Commit Standards](./commit-standards.md) | Gitmoji commit format, scopes, body/footer rules |
+| [JSDoc Standards](./jsdoc-standards.md) | JSDoc formatting rules (3rd person, param style) |
+| [PR Standards](./pr-standards.md) | PR template, review process, labels |
+| [Quality Gates](./quality-gates.md) | Quality gates, pre-commit/push hooks, TypeScript strict, dependency audit |
+| [Testing Standards](./testing-standards.md) | Testing standards (Jest, coverage, structure, AAA pattern) |
+| [Code Style](./code-style.md) | Code style, naming conventions, Biome config, import order |
 
----
+## Related Sections
 
-## Architecture
-
-The project is a **monorepo** with npm workspaces. Shared libraries live in `packages/`, microservices in `services/`. Each service exposes an HTTPS server with mTLS on port 3000 (container). Dependency graph: `common → address-manager → broker-message → services`.
-
-- Monorepo structure with `packages/` and `services/`
-- Dependency graph: common → address-manager → broker-message → services
-- Each service: HTTPS + mTLS, port 3000 container, unique host port
-- Entry point: `src/app/index.ts` (createBootstrap), server in `src/app/server.ts`
-- Packages: exports via `exports` (sub-path exports) in package.json
-
-- [ARCHITECTURE.md](./ARCHITECTURE.md)
-
----
-
-## Writing (Code & JSDoc)
-
-Code follows Biome conventions (semi, trailingComma es5, singleQuote, printWidth 100, tabWidth 2, arrowParens avoid, LF). Variables and functions use `camelCase`, classes/types use `PascalCase`, files/directories use `kebab-case`. JSDoc follows the rules in JSDOC_STANDARD.md (3rd person, no @param type, dash separator, @throws for non-obvious).
-
-- Biome config: semi, singleQuote, printWidth 100, LF
-- Naming: camelCase (vars/fns), PascalCase (classes/types), kebab-case (files/dirs)
-- Biome (lint + format), TypeScript strict
-- JSDoc: 3rd person, no redundant types, dash separator, one-liner if possible
-- Import order: Node → External → Workspace → Relative → Side effects
-
-- [WRITING.md](./WRITING.md)
-- [JSDOC_STANDARD.md](./JSDOC_STANDARD.md)
-
----
-
-## Documentation
-
-Centralized documentation lives in `docs/`. Package code docs in `docs/architecture/code/@trading-model/*` and API docs in `docs/architecture/api/`. Service code docs in `docs/architecture/code/<service>/` and API docs in `docs/architecture/api/`. Markdown format, consistent language per file.
-
-- Root docs index: `docs/README.md`
-- Standards: `docs/standards/`
-- Deployment & operations: `docs/deployment/`
-- Architecture API docs: `docs/architecture/api/`
-- Architecture code docs: `docs/architecture/code/` (TypeDoc-generated)
-- Format: Markdown with language-tagged code blocks
-
-- [DOCUMENTATION.md](./DOCUMENTATION.md)
-
----
-
-## Commit
-
-Commit messages follow the gitmoji format: `:emoji:(scope): subject` (e.g. `:recycle:(common): centralize ServiceInstance type`). Use `npm run commit` for the interactive CLI. Automatic validation via commitlint + Husky.
-
-- Format: `:emoji:(scope): subject`
-- Gitmoji emojis (sparkles feat, bug fix, memo docs, recycle refactor, white_check_mark test, wrench chore, etc.)
-- Breaking changes: `:emoji:(scope)!: subject`
-- Scopes: common, config, discovery, broker, trainer, etc.
-- Tool: `npm run commit` (scripts/commit.mjs)
-- Validation: commitlint + Husky pre-commit hook
-
-- [COMMIT.md](./COMMIT.md)
-
----
-
-## Pull Request
-
-Feature branches (`feature/*`, `fix/*`, etc.) merge into `development`. Releases go from `development` to `main`. PR template at `.github/PULL_REQUEST_TEMPLATE.md` includes description, change type, and verification checklist. At least 1 approval required.
-
-- Target branch: development (features), main (releases)
-- Branch names: `feature/*`, `fix/*`, `refactor/*`, `docs/*`, `chore/*`
-- Required checks: lint, build, test (via CI)
-- Review: >= 1 approval
-- Labels: enhancement, bug, documentation, refactor, dependencies
-
-- [PR.md](./PR.md)
-- `.github/PULL_REQUEST_TEMPLATE.md` (PR template)
-
----
-
-## CI/CD
-
-CI (`.github/workflows/ci.yml`) runs lint + build + test on every push/PR. CD (`.github/workflows/release.yml`) triggers on tag `v*.*.*`: quality gate, Docker build+push to GHCR, GitHub Release. Multi-stage Docker images on node:26-alpine with tini.
-
-- CI: lint + build + test on push/PR
-- CD: on tag v\*, multi-stage Docker build, push GHCR, GitHub Release
-- Docker: node:26-alpine, tini, multi-stage builds
-- Permissions: CI read-only, CD contents:write + packages:write
-
-- [CI_CD.md](./CI_CD.md)
-- `.github/workflows/ci.yml`
-- `.github/workflows/release.yml`
-
----
-
-## Security
-
-All services use **mTLS** (certificates generated by `scripts/generate-certs.sh`). HMAC-SHA256 token authentication via `x-instance-token` header. Environment variables validated by Zod at startup (fail-fast). Secrets are never committed. npm audit + Dependabot for dependencies.
-
-- mTLS: all services, certificates via `scripts/generate-certs.sh`
-- Token auth: HMAC-SHA256, header `x-instance-token`
-- Zod validation: fail-fast at startup
-- Secrets: .env excluded, GH secrets for Docker
-- Dependencies: npm audit, Dependabot
-- Reporting: [SECURITY.md](../../SECURITY.md)
-
-- [SECURITY.md](./SECURITY.md)
-- [SECURITY.md](../../SECURITY.md)
-- `scripts/generate-certs.sh`
-
----
-
-## Tests
-
-Jest with ts-jest. Structure: `tests/{unit,integration,e2e,fixtures,helpers}/`. Suffix `.spec.ts` (preferred), `.test.ts` in transition. Coverage thresholds: common 100%, discovery-server 100%, message-manager 100%, financial-scraper 100%, address-manager 80%, broker-message 80%. AAA pattern (Arrange-Act-Assert).
-
-- Framework: Jest + ts-jest
-- Structure: unit/, integration/, e2e/, fixtures/, helpers/
-- Naming: `*.spec.ts` (preferred), `*.test.ts` (legacy)
-- AAA pattern (Arrange, Act, Assert)
-- Mocks in `__mocks__/` directory
-- Thresholds: common/discovery/message-manager/financial-scraper 100%, others 80%
-
-- [TESTING.md](./TESTING.md)
-- [TESTING.md](./TESTING.md)
-
----
-
-## Verification Protocol
-
-Every change follows a mandatory verification protocol that covers before commit, before/during PR, before/during/after release. The protocol ensures nothing is skipped at any stage.
-
-- [VERIFICATION_PROTOCOL.md](./VERIFICATION_PROTOCOL.md)
-
----
-
-## Quality
-
-Tools: Biome (0 errors), Jest (coverage thresholds), TypeScript strict, commitlint, Husky. Gates: pre-commit (lint-staged), pre-push (build + test). CI verifies everything. Dependencies audited regularly (npm audit, Dependabot).
-
-- Biome: 0 errors in CI (warnings tolerated temporarily)
-- TypeScript: strict mode, noImplicitAny, strictNullChecks
-- Pre-commit: lint-staged (Biome)
-- Pre-push: build + tests
-- Coverage: minimum thresholds per module
-- Dependencies: npm audit + Dependabot PRs
-
-- [QUALITY.md](./QUALITY.md)
-- [TESTING.md](./TESTING.md)
-- [WRITING.md](./WRITING.md)
+- [CI/CD](../ci-cd/README.md) — Pipeline standards and workflows
+- [Security](../security/README.md) — Security practices and policies
+- [Documentation Standards](../contributing/documentation-standards.md) — Documentation structure and conventions
+- [Adding a Service](../contributing/adding-a-service.md) — Step-by-step guide for creating a new service
+- [Verification Protocol](verification-protocol.md) — Quality gates before commit, PR, release, deploy
+- [Health Endpoints](health-endpoints.md) — Health check endpoint standards
+- [Architecture Overview](../architecture/README.md) — Bounded contexts, databases
+- [SLO & Burn Rates](../operations/slo.md) — Service Level Objectives

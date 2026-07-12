@@ -43,7 +43,7 @@ docker run --rm -i -v $PWD/tests/load:/tests grafana/k6 run /tests/scenarios/api
 
 ## Capacity Targets
 
-Based on SLO definitions (`docs/standards/SLO.md`):
+Based on SLO definitions (`docs/operations/slo.md`):
 
 | Metric       | Target                     |
 | ------------ | -------------------------- |

@@ -148,13 +148,13 @@ Monitoring Stack ──────────────┘
 | Document | Relevance |
 |---|---|
 | [Incident Response Policy](incident-response-policy.md) | L1-L4 incident classification and response |
-| `docs/operations/runbook-database-failover.md` | Technical database failover procedure |
-| `docs/operations/runbook-service-down.md` | Single service recovery procedure |
-| `docs/operations/runbook-ca-compromise.md` | CA key compromise response |
-| `docs/operations/runbook-certificate-expiry.md` | Certificate expiry runbook |
-| `docs/operations/runbook-data-corruption.md` | Data corruption recovery |
-| `docs/operations/runbook-message-bus-outage.md` | Redis/message-manager recovery |
-| `docs/operations/runbook-deployment-failure.md` | Deployment failure recovery |
+| `docs/operations/runbooks/runbook-database-failover.md` | Technical database failover procedure |
+| `docs/operations/runbooks/runbook-service-down.md` | Single service recovery procedure |
+| `docs/operations/runbooks/runbook-ca-compromise.md` | CA key compromise response |
+| `docs/operations/runbooks/runbook-certificate-expiry.md` | Certificate expiry runbook |
+| `docs/operations/runbooks/runbook-data-corruption.md` | Data corruption recovery |
+| `docs/operations/runbooks/runbook-message-bus-outage.md` | Redis/message-manager recovery |
+| `docs/operations/runbooks/runbook-deployment-failure.md` | Deployment failure recovery |
 | `docs/deployment/BACKUP_DR.md` | Technical backup and DR configuration |
 | `docs/deployment/DATABASE.md` | Database setup and replication |
 | `docs/deployment/DOCKER.md` | Container orchestration |

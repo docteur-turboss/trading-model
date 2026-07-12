@@ -1,9 +1,9 @@
 import { Chip } from "@mui/material";
+import type { WorkerStatusCode } from "@trading-model/common/domain/primitives";
 import type {
 	JOB_STATUS,
 	ServiceStatus,
-} from "@trading-model/common/contracts/admin";
-import type { WorkerStatusCode } from "@trading-model/common/domain/primitives";
+} from "@trading-model/validation/contracts/admin";
 
 enum MuiColor {
 	Success = "success",
@@ -15,7 +15,23 @@ enum MuiColor {
 
 type StatusValue = JOB_STATUS | ServiceStatus | WorkerStatusCode;
 
-const STATUS_COLORS: Record<string, MuiColor> = {
+type KnownStatus =
+	| "healthy"
+	| "online"
+	| "active"
+	| "degraded"
+	| "draining"
+	| "expired"
+	| "down"
+	| "offline"
+	| "failed"
+	| "error"
+	| "critical"
+	| "completed"
+	| "finished"
+	| "info";
+
+const STATUS_COLORS: Record<KnownStatus, MuiColor> = {
 	healthy: MuiColor.Success,
 	online: MuiColor.Success,
 	active: MuiColor.Success,

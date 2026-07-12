@@ -1,0 +1,343 @@
+# @trading-model/common — Shared Infrastructure Package
+
+Central utility package consumed by all other packages and services in the monorepo.
+
+## Why This Package Exists
+
+Every microservice needs the same cross-cutting concerns: HTTPS server setup, mTLS, logging, error handling, environment validation. Without a shared library, each service would duplicate these concerns — leading to inconsistencies, drift, and maintenance overhead.
+
+The alternative — using off-the-shelf libraries directly in each service — was rejected because:
+- Services would need independent mTLS configuration, risking security gaps
+- Logging format and error handling would diverge, making debugging harder
+- Shared types (event enums, service names, delivery modes) would need synchronized copy-paste across services
+
+`@trading-model/common` centralizes these concerns into a single, tested, versioned package with zero internal dependencies.
+
+## Overview
+
+**@trading-model/common** provides: HTTP client, logger, middleware, type definitions, server factories (`createSecureServer`, `createBootstrap`), environment validation (`BaseEnvSchema`, `AddressManagerEnvSchema`), crypto utilities, shared DTOs, and a central `AppError` class with `ErrorCodes`.
+
+This package has **zero internal dependencies** — it only depends on external npm packages (`express`, `zod`, `helmet`, `express-rate-limit`, `chained-error`).
+
+## Logger
+
+Structured logging system with severity levels, memory buffer, file output, and external webhook for errors.
+
+- **Import**: `@trading-model/common/config/logger`
+- **Class**: `Logger`
+- **Pre-configured instance**: `logger`
+
+```ts
+import { logger, LogLevel } from '@trading-model/common/config/logger';
+```
+
+| Method                                                       | Description                                        |
+| ------------------------------------------------------------ | -------------------------------------------------- |
+| `logger.debug(message, context?, url?, serviceInCharge?)`    | Log at DEBUG level                                 |
+| `logger.info(message, context?, url?, serviceInCharge?)`     | Log at INFO level                                  |
+| `logger.warn(message, context?, url?, serviceInCharge?)`     | Log at WARN level                                  |
+| `logger.error(message, context?, url?, serviceInCharge?)`    | Log at ERROR level + sends webhook in prod/staging |
+
+**LogLevel**: `DEBUG = 0`, `INFO = 1`, `WARN = 2`, `ERROR = 3`
+
+Features:
+
+- File output to `./log/<date>-<level>.log`
+- ERROR webhook via `ERROR_URL_WEBHOOK` or `setErrorHandlerService(url)`
+- FIFO buffer (1000 entries max)
+- Unique session ID per instance
+- Circular reference detection
+
+## Bootstrap
+
+Lifecycle manager for services. Signal handling is delegated to a separate module (`signal-handler.ts`) to respect SRP.
+
+- **Import**: `@trading-model/common/server/bootstrap`
+- **Function**: `createBootstrap(options)`
+
+```ts
+import { createBootstrap } from '@trading-model/common/server/bootstrap';
+```
+
+| Option         | Type               | Description              |
+| -------------- | ------------------ | ------------------------ |
+| `name`         | `string`           | Service name             |
+| `createServer` | `() => HttpServer` | HTTPS server factory     |
+| `onStart?`     | `() => void`       | Callback after startup   |
+| `onStop?`      | `() => void`       | Callback before shutdown |
+
+Features:
+
+- Delegates `SIGTERM`, `SIGINT`, `uncaughtException`, and `unhandledRejection` handling to `setupProcessHandlers()`
+- `onStart` and `onStop` callbacks wrapped in try/catch — failures are logged and do not crash the process
+- Graceful shutdown on fatal error: closes HTTP server and calls `onStop` before exit
+
+## SignalHandler
+
+Process signal and error handler registration, extracted from bootstrap for SRP.
+
+- **Import**: `@trading-model/common/server/signal-handler`
+
+```ts
+import {
+  setupProcessHandlers,
+  removeProcessHandlers,
+} from '@trading-model/common/server/signal-handler';
+```
+
+| Function                | Description                                                               |
+| ----------------------- | ------------------------------------------------------------------------- |
+| `setupProcessHandlers`  | Registers SIGTERM, SIGINT, uncaughtException, unhandledRejection handlers |
+| `removeProcessHandlers` | Removes all registered handlers (test cleanup)                            |
+
+## SecureServer
+
+HTTPS server factory with mTLS, rate limiting, and Helmet.
+
+- **Import**: `@trading-model/common/server/create-secure-server`
+- **Function**: `createSecureServer(options)`
+
+```ts
+import { createSecureServer } from '@trading-model/common/server/create-secure-server';
+```
+
+| Option        | Type              | Description                 |
+| ------------- | ----------------- | --------------------------- |
+| `port`        | `number`          | Listening port              |
+| `tls`         | `TlsPaths`        | key/cert/ca paths           |
+| `routes`      | `(app) => void`   | Route mounting              |
+| `rateLimit?`  | `RateLimitConfig` | Rate limiting configuration |
+| `trustProxy?` | `boolean`         | Trust proxy (default: true) |
+
+Features:
+
+- mTLS (TLSv1.3, `requestCert: true`, `rejectUnauthorized: true`)
+- Rate limiting via `express-rate-limit` (100 req/15min by default)
+- Helmet security headers
+- `GET /ping` endpoint (constant `PING_PATH`)
+- `MTLSAuthMiddleware` injected automatically
+- `ResponseProtocol` as last middleware
+- `server.close()` returns a promise that resolves only after all in-flight connections have drained (uses Node.js callback form)
+
+### Internal Architecture
+
+`createSecureServer` delegates each concern to a focused sub-module:
+
+| Module                    | Responsibility                                                                    |
+| ------------------------- | --------------------------------------------------------------------------------- |
+| `configure-app.ts`        | Express app setup: Helmet, trust proxy, body parsers, rate limiter, `/ping` route |
+| `server-factory.ts`       | HTTPS server creation with mTLS (TLSv1.3) and `listen()`                          |
+| `create-secure-server.ts` | Orchestrator: composes app, mTLS middleware, user routes, error middleware        |
+
+This separation follows the Single Responsibility Principle — each module is independently testable and changes to one concern (e.g. rate limiting) do not risk breaking others (e.g. TLS configuration).
+
+## Environment Validation
+
+Fail-fast validation of environment variables via Zod.
+
+- **Import**: `@trading-model/common/validation/env`
+
+```ts
+import {
+  BaseEnvSchema,
+  AddressManagerEnvSchema,
+  validateEnv,
+} from '@trading-model/common/validation/env';
+```
+
+| Schema                    | Description                                                                            |
+| ------------------------- | -------------------------------------------------------------------------------------- |
+| `BaseEnvSchema`           | `NODE_ENV`, `PORT`, `TLS_KEY_PATH`, `TLS_CERT_PATH`, `TLS_CA_PATH`, `LOG_LEVEL`, `CERT_CLIENT_CA_URL?`, `CERT_CLIENT_SERVICE_ID?`, `CERT_CLIENT_COMMON_NAME?`, `CERT_CLIENT_SANS?`, `CERT_CLIENT_BOOTSTRAP_TOKEN?` |
+| `AddressManagerEnvSchema` | `APP_NAME`, `SERVICE_NAME`, `INSTANCE_ID`, `CACHE_TTL_MS`, `ADDRESS_MANAGER_URL`, etc. |
+| `validateEnv(schema)`     | Parses `process.env` and throws `ConfigurationError` on failure                        |
+
+## HttpClient
+
+HTTP client with mTLS support for service-to-service calls.
+
+- **Import**: `@trading-model/common/config/http-client`
+
+```ts
+import { HttpClient } from '@trading-model/common/config/http-client';
+```
+
+| Method                                     | Signature | Returns                   |
+| ------------------------------------------ | --------- | ------------------------- |
+| `get<T>(url, options?, schema?)`           | `GET`     | `Promise<T \| undefined>` |
+| `post<T>(url, body?, options?, schema?)`   | `POST`    | `Promise<T \| undefined>` |
+| `delete<T>(url, body?, options?, schema?)` | `DELETE`  | `Promise<T \| undefined>` |
+
+Options: `timeoutMs`, `headers`
+
+Schema validation (optional `z.ZodType<T>`):
+
+- When a Zod schema is provided, the response is validated at runtime against it
+- If validation fails, a `z.ZodError` is thrown
+- Without a schema, the response is cast as `T` (no runtime check)
+
+Note: Methods return `T \| undefined` because a 204 No Content response resolves without a body. Callers must handle the `undefined` case explicitly (no longer silently cast as `T`).
+
+Errors: `HttpClientError` (non-2xx status), `HttpClientTimeoutError` (timeout), `z.ZodError` (schema validation)
+
+## Middleware
+
+All middlewares are imported from `@trading-model/common/middleware/`.
+
+### catchSync
+
+Wrapper for async Express route handlers.
+
+- **Import**: `@trading-model/common/middleware/catch-error`
+- **Function**: `catchSync(handler)`
+
+### ResponseException
+
+Standardised HTTP errors with fluent status code methods.
+
+- **Import**: `@trading-model/common/middleware/response-exception`
+- **Function**: `ResponseException(reason)`
+
+```ts
+ResponseException('message').NotFound(); // { status: 404, data: 'message' }
+ResponseException('msg').BadRequest(); // { status: 400, data: 'msg' }
+ResponseException().NoContent(); // { status: 204, data: undefined }
+```
+
+Available codes: `ServiceUnavailable(503)`, `UnknownError(500)`, `InvalidToken(498)`, `TooManyRequests(429)`, `IMATeapot(418)`, `PayloadTooLarge(413)`, `Gone(410)`, `Conflict(409)`, `MethodNotAllowed(405)`, `NotFound(404)`, `Forbidden(403)`, `PaymentRequired(402)`, `Unauthorized(401)`, `BadRequest(400)`, `NoContent(204)`, `OK(201)`, `Success(200)`
+
+### ResponseProtocol
+
+Global Express error normalisation middleware.
+
+- **Import**: `@trading-model/common/middleware/response-protocol`
+- Logs 5xx errors with stack trace, URL, method, IP
+
+### MTLSAuthMiddleware
+
+mTLS authentication middleware.
+
+- **Import**: `@trading-model/common/middleware/mtls-auth`
+- Checks `socket.authorized`, extracts client certificate identity
+- Identity resolution: prefers SAN (Subject Alternative Name), falls back to CN (Common Name)
+- Fails closed with **401 Unauthorized** if no SAN or CN is present on the certificate (no default identity leak)
+- Attaches `clientIdentity` to the request (declared via global Express `Request` augmentation — `declare global { namespace Express { interface Request { clientIdentity: string } } }`)
+- Rejects non-TLS connections (e.g. plain HTTP) with a Forbidden error to prevent unauthenticated access
+
+### handleCoreResponse / handleCoreAuthResponse
+
+Response normalisation utilities.
+
+- **Import**: `@trading-model/common/middleware/handle-core-response`
+
+| Function                              | Description                                                |
+| ------------------------------------- | ---------------------------------------------------------- |
+| `handleCoreResponse(coreFn, res)`     | Executes a core function and sends a standardised response |
+| `handleCoreAuthResponse(coreFn, res)` | Same + sets an HTTP-only `token` cookie                    |
+| `ensureAtLeastOneField(fields)`       | Ensures at least one field is truthy                       |
+
+## HTTP Error Reference
+
+| Status Code | Error                 | Description              |
+| ----------- | --------------------- | ------------------------ |
+| 400         | Bad Request           | Invalid input            |
+| 401         | Unauthorized          | Missing or invalid auth  |
+| 403         | Forbidden             | Insufficient permissions |
+| 404         | Not Found             | Resource not found       |
+| 500         | Internal Server Error | Unexpected error         |
+
+## Event Types
+
+- **Import**: `@trading-model/common/config/event.types`
+
+| Export                                                                               | Description                                                                       |
+| ------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------- |
+| `EnumEventMessage`                                                                   | Event name constants (testEvent, fetchRecentTrades, fetchCandlestickSeries, etc.) |
+| `EventMap`                                                                           | Event → payload type mapping                                                      |
+| `EventMessagesArgs<K>`                                                               | Payload type for a given event K                                                  |
+| `EventEnumMap`                                                                       | Union of all event name strings                                                   |
+| `MarketType`                                                                         | `CRYPTO`, `EQUITY`, `BOND`, `ETF`, `FX`, `FUTURE`                                 |
+| `SourceType`                                                                         | `BLOOMBERG`, `BINANCE`, `NYSE`                                                    |
+| `CandleData`, `TradeData`, `OrderBookData`, `BookTickerData`, `TickerData` | Market data entities                                                              |
+
+## Service Types
+
+- **Import**: `@trading-model/common/config/services.types`
+
+```ts
+ServiceInstanceName.DiscoveryService; // 'discovery-service'
+ServiceInstanceName.MessageDeliveryService; // 'message-delivery-service'
+ServiceInstanceName.FinancialScraperService; // 'financial-scraper-service'
+ServiceInstanceName.TraderTrainingService; // 'trader-training-service'
+// + CoreBalancerService, OfficialDataScraperService, etc.
+```
+
+## Delivery Types
+
+- **Import**: `@trading-model/common/config/delivery-mode.types`
+
+```ts
+DeliveryMode.AT_MOST_ONCE; // 'at-most-once'
+DeliveryMode.AT_LEAST_ONCE; // 'at-least-once'
+DeliveryMode.EXACTLY_ONCE; // 'exactly-once'
+```
+
+## Contracts (Shared DTOs)
+
+| Export                      | Kind      | Description                                 |
+| --------------------------- | --------- | ------------------------------------------- |
+| `SubscribesTopicsPayload`   | interface | `{ topics, callbackUrl }`                   |
+| `UnSubscribesTopicsPayload` | interface | `{ topics }`                                |
+| `BrokerConfig`              | interface | `{ serviceName, callbackPath, instanceId }` |
+| `ServiceRegisterPayload`    | interface | `{ name, address, port, protocol, env? }`   |
+| `HeartbeatPayload`          | interface | `{ serviceName, instanceId, authToken }`    |
+| `ServicesQueryPayload`      | interface | `{ serviceName, services, onlyAlive }`      |
+| `ServiceInstance`           | interface | `{ ip, port, protocol, lastHeartbeat: number, registeredAt: number, serviceName, instanceId, env?, ttl, version, region? }` |
+
+## Crypto
+
+| Export              | Description                                                 |
+| ------------------- | ----------------------------------------------------------- |
+| `makePRNG`          | Seeded PRNG (mulberry32) → `(seed: number) => () => number` |
+| `generateRandomStr` | Cryptographically random base64url string                   |
+
+## Error Handling
+
+The project uses a single error class with a discriminant code property.
+
+- **Import**: `@trading-model/common/utils/errors`
+
+```ts
+import { AppError, ErrorCodes } from '@trading-model/common/utils/errors';
+```
+
+| Export       | Description                                              |
+| ------------ | -------------------------------------------------------- |
+| `AppError`   | Single application error class with `code` and `cause`   |
+| `ErrorCodes` | Enum of error codes (`SERVICE_NOT_FOUND`, `MESSAGE_MANAGER_ERROR`, `AGENT_ERROR`, etc.) |
+| `normalizeError(err)` | Normalizes any unknown error into a proper `Error`  |
+
+## Utils
+
+- **Import**: `@trading-model/common/utils/sleep`
+
+```ts
+sleep(ms: number): Promise<void>
+```
+
+- **Import**: `@trading-model/common/utils/deterministic-stringify`
+
+```ts
+deterministicStringify(value: unknown): string
+```
+
+Deterministic JSON serialisation for cryptographic signing. Recursively sorts object keys in lexicographic order so the same logical value always produces the same string, regardless of insertion order. Preserves array order, handles primitives, nulls, and nested objects.
+
+## Deployment
+
+This package is **not deployed independently**. It is built as a workspace dependency and consumed at build time by other packages and services. The compiled output goes to `dist/` via `npm run build` (tsc, CommonJS output).
+
+All other packages reference it as:
+
+```json
+"dependencies": { "@trading-model/common": "*" }
+```

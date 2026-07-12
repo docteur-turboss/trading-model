@@ -17,7 +17,7 @@ The trading-model platform trains autonomous trading agents using Genetic Algori
 | **Art. 1(1)** — Clearly describe system design and operation | Architecture documented in `docs/architecture/`, ADRs in `docs/adr/`, agent topology defined in `services/trader-trainer/src/neural-network/` | ✅ Documented |
 | **Art. 1(2)** — Identify trading algorithms, logic, constraints | GA population evolution + DQN policy network. Constraints: position sizing, market data window (500 candles default), train/validation split (80/20) | ✅ Implemented |
 | **Art. 1(3)** — Risk management controls pre-deployment | Circuit breakers (`@trading-model/common/reliability/circuit-breaker.ts`), rate limiting, position limits validated in env schema | ✅ Implemented |
-| **Art. 1(4)** — Business continuity arrangements | Docker Compose health checks, K8s HPA + PDB, database failover runbooks (`docs/operations/runbook-database-failover.md`) | ✅ Documented |
+| **Art. 1(4)** — Business continuity arrangements | Docker Compose health checks, K8s HPA + PDB, database failover runbooks (`docs/operations/runbooks/runbook-database-failover.md`) | ✅ Documented |
 
 ## 3. Governance & Testing Requirements (RTS 6 Art. 3-5)
 
@@ -105,4 +105,4 @@ When transitioning from research/simulation to production algorithmic trading, t
 | [Data Processing Register](data-processing-register.md) — Activity 5 | ML training data processing classification |
 | `services/trader-trainer/src/` | Agent training source code |
 | `docs/adr/0001-ga-dqn-training.md` | Architecture decision for GA/DQN approach |
-| `docs/operations/runbook-service-down.md` | Service recovery procedures |
+| `docs/operations/runbooks/runbook-service-down.md` | Service recovery procedures |

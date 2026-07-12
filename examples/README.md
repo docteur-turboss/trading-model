@@ -4,7 +4,7 @@ This directory contains executable examples for interacting with the trading-mod
 
 ## Prerequisites
 
-- Docker Compose running with core services (see `docs/tutorials/QUICKSTART.md`)
+- Docker Compose running with core services (see [Quick Start](../docs/getting-started/quickstart.md))
 - TLS certificates generated (`bash scripts/generate-certs.sh`)
 - Admin token configured (set in `.env` as `AUTH_TOKENS`)
 

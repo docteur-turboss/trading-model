@@ -10,24 +10,23 @@ import type { Column } from "../components/data-table";
 import { DataTable } from "../components/data-table";
 import { InfoBox } from "../components/info-box";
 import { useApi } from "../hooks/use-api";
-import type { ConfigEntry } from "../types/dtos";
+import { type ConfigEntry, ConfigSource } from "../types/dtos";
 
 function getSourceColor(
-	source: string
+	source: ConfigSource
 ): "secondary" | "default" | "info" | "warning" {
-	if (source === "Vault") {
-		return "secondary";
+	switch (source) {
+		case ConfigSource.Vault:
+			return "secondary";
+		case ConfigSource.ConfigMap:
+			return "default";
+		case ConfigSource.EnvVar:
+			return "info";
+		case ConfigSource.Local:
+			return "warning";
+		default:
+			return "default";
 	}
-	if (source === "ConfigMap") {
-		return "default";
-	}
-	if (source === "EnvVar") {
-		return "info";
-	}
-	if (source === "Local") {
-		return "warning";
-	}
-	return "default";
 }
 
 function PageLoading() {

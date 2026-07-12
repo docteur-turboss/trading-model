@@ -2,4 +2,4 @@
 
 This project handles real financial market data and trades.
 
-See [docs/standards/SECURITY.md](docs/standards/SECURITY.md) for the full security policy, mTLS setup, and vulnerability reporting process.
+See [docs/security/practices.md](docs/security/practices.md) security practices and [docs/security/](docs/security/) for the full index.

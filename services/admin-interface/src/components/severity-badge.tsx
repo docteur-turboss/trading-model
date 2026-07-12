@@ -1,5 +1,5 @@
 import { Chip } from "@mui/material";
-import type { Severity } from "@trading-model/common/contracts/admin";
+import type { Severity } from "@trading-model/validation/contracts/admin";
 
 const SEVERITY_STYLES: Record<Severity, { color: string; bg: string }> = {
 	INFO: { color: "#1565c0", bg: "#e3f2fd" },

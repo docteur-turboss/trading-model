@@ -19,7 +19,7 @@ npm run release         # Version bump + changelog + tag + push
 
 ## Monorepo layout
 
-- `packages/` — 5 shared libraries under `@trading-model/*` scope
+- `packages/` — 7 shared libraries under `@trading-model/*` scope (common, validation, server-utils, address-manager, broker-message, certificate-utils, certificate-client)
 - `services/` — 9 microservices (flat npm names, no scope)
 - All linked via npm workspaces (`packages/*` and `services/*`)
 
@@ -28,11 +28,17 @@ npm run release         # Version bump + changelog + tag + push
 Packages must be built in this order before services:
 
 1. `@trading-model/common`
-2. `@trading-model/address-manager`
-3. `@trading-model/broker-message`
-4. `@trading-model/certificate-utils`
+2. `@trading-model/validation` + `@trading-model/server-utils` (Phase 1 extraction, depend on common)
+3. `@trading-model/crypto` (Phase 2, depends on validation + common)
+4. `@trading-model/http` (Phase 3, depends on crypto + validation + common)
+5. `@trading-model/jobs` (Phase 4, depends on http + crypto + common)
+6. `@trading-model/address-manager`
+7. `@trading-model/broker-message`
+8. `@trading-model/certificate-utils`
 
-Services can then be built in any order. The root `npm run build` builds only the 4 packages above. Use `npm run build:ts` for a full build of everything.
+Services can then be built in any order. The root `npm run build` builds the 7 packages above. Use `npm run build:ts` for a full build of everything.
+
+> **Note:** Packages 2-5 are extracted from `@trading-model/common` per ADR-0007. During the phased migration, common depends on these packages for re-exports, creating a circular dependency. Tests work via `moduleNameMapper` (see testing conventions). For production builds, `tsconfig.json` `paths` and `skipLibCheck` handle the resolution.
 
 ## Naming quirk: trader-trainer ≠ trader-service
 

@@ -1,6 +1,6 @@
 # ADR-0010: Clean Architecture Migration for message-manager core/
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-06
 
 ## Context

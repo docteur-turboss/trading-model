@@ -11,7 +11,7 @@ bash scripts/generate-certs.sh
 docker compose up -d
 ```
 
-See [Quick Start Tutorial](docs/tutorials/QUICKSTART.md) for a 10-minute hands-on walkthrough.
+See [Quick Start Tutorial](docs/getting-started/quickstart.md) for a 10-minute hands-on walkthrough.
 
 ## Architecture
 
@@ -83,13 +83,13 @@ Pre-push git hook runs: `@biomejs/biome check` → `npm audit` → `build:ts` �
 
 ## Documentation
 
-- [Documentation Index](docs/README.md) — 90+ markdown files across 7 sections
-- [Architecture Standards](docs/standards/ARCHITECTURE.md) — C4 diagrams, dependency graph, service conventions
-- [OpenAPI 3.0](docs/architecture/api/openapi/api-gateway.yaml) — 18 external-facing endpoints
+- [Documentation Index](docs/README.md) — central entry point to all docs
+- [Architecture Standards](docs/standards/architecture-standards.md) — C4 diagrams, dependency graph, service conventions
+- [OpenAPI 3.0](docs/services/openapi/api-gateway.yaml) — 18 external-facing endpoints
 - [ADR Index](docs/adr/README.md) — 10 architecture decision records
 - [Compliance](docs/compliance/) — GDPR register, DPIA, retention policy, breach notification
-- [Operations](docs/operations/) — 9 runbooks + diagnostic guide + incident response
-- [Tutorials](docs/tutorials/QUICKSTART.md) — 10-minute hands-on introduction
+- [Operations](docs/operations/) — runbooks, SLOs, incident response, diagnostic guide
+- [Getting Started](docs/getting-started/quickstart.md) — 10-minute hands-on introduction
 - [Examples](examples/) — 5 executable bash scripts for common API workflows
 
 ## Security

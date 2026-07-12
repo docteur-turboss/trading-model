@@ -57,7 +57,7 @@ All platform assets are documented in:
 - `docker-compose.yml` — container definitions
 - `deploy/` — Kubernetes manifests
 - `docs/deployment/ENV.md` — environment variables and secrets
-- `docs/architecture/api/` — service API documentation
+- `docs/services/` — service API documentation
 
 ## 5. Access Control
 

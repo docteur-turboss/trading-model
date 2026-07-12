@@ -2,97 +2,88 @@
 
 Welcome to the **trading-model** documentation.
 
-## Quick Links
+## Getting Started
 
-- [Contributing](../CONTRIBUTING.md) — how to get started
-- [Code of Conduct](../CODE_OF_CONDUCT.md)
-- [Security policy](../SECURITY.md)
-- [License](../LICENSE.md)
+| Guide | Description |
+| ----- | ----------- |
+| [Quick Start](getting-started/quickstart.md) | 10-minute hands-on tutorial |
+| [Setup Guide](deployment/SETUP.md) | Full machine setup and prerequisites |
 
-## Standards (`docs/standards/`)
+## Architecture
 
-Development conventions, processes, and quality gates:
+| Document | Description |
+| -------- | ----------- |
+| [Architecture Standards](standards/architecture-standards.md) | Monorepo structure, tech stack, service conventions, dependency graph |
+| [Bounded Contexts](architecture/bounded-contexts.md) | DDD context map with integration patterns |
+| [Databases](architecture/databases.md) | MySQL schemas, MongoDB collections, entity definitions |
+| [ADR Index](adr/README.md) | 10 architecture decision records |
 
-| File                                               | Content                                                     |
-| -------------------------------------------------- | ----------------------------------------------------------- |
-| [ARCHITECTURE.md](standards/ARCHITECTURE.md)       | Monorepo structure, service/package conventions, tech stack |
-| [WRITING.md](standards/WRITING.md)                 | Code style, naming, Biome, JSDoc, import order             |
-| [COMMIT.md](standards/COMMIT.md)                   | Gitmoji commit format, scopes, body/footer                  |
-| [PR.md](standards/PR.md)                           | PR template, review process, labels                         |
-| [CI_CD.md](standards/CI_CD.md)                     | CI and CD pipeline details                                  |
-| [TESTING.md](standards/TESTING.md)                 | Jest framework, test structure, coverage thresholds         |
-| [QUALITY.md](standards/QUALITY.md)                 | Linting, coverage, TypeScript strict, gates                 |
-| [SECURITY.md](standards/SECURITY.md)               | mTLS, HMAC tokens, env validation, vulnerability reporting  |
-| [CODE_OF_CONDUCT.md](standards/CODE_OF_CONDUCT.md) | Contributor Covenant                                        |
-| [DOCUMENTATION.md](standards/DOCUMENTATION.md)     | Documentation structure and conventions                     |
-| [JSDOC_STANDARD.md](standards/JSDOC_STANDARD.md)   | JSDoc formatting rules                                      |
-| [DATABASE_MODELS.md](standards/DATABASE_MODELS.md) | MySQL schemas, MongoDB status                               |
-| [SLO.md](standards/SLO.md)                         | Service Level Objectives and burn-rate alerting              |
-| [BOUNDED_CONTEXTS.md](standards/BOUNDED_CONTEXTS.md)| DDD bounded contexts and context map                        |
-| [VERIFICATION_PROTOCOL.md](standards/VERIFICATION_PROTOCOL.md) | Verification and validation protocol                |
-| [HEALTH_ENDPOINTS.md](standards/HEALTH_ENDPOINTS.md)| Health check endpoint standards                              |
+## Concepts
 
-## Deployment & Operations (`docs/deployment/`)
+Conceptual explanations of core algorithms, independent of implementation:
 
-| File                                                | Content                                            |
-| --------------------------------------------------- | -------------------------------------------------- |
-| [CONTRIBUTE.md](deployment/CONTRIBUTE.md)           | Full workflow: branch, commit, PR, review, release |
-| [SETUP.md](deployment/SETUP.md)                     | Machine setup, prerequisites, installation         |
-| [ENV.md](deployment/ENV.md)                         | Environment variable reference                     |
-| [DATABASE.md](deployment/DATABASE.md)               | MySQL and MongoDB setup                            |
-| [DEPLOY.md](deployment/DEPLOY.md)                   | Local, beta, and production deployment             |
-| [DOCKER.md](deployment/DOCKER.md)                   | Docker Compose, images, networks                   |
-| [CI_CD.md](deployment/CI_CD.md)                     | Workflow details and Docker patterns               |
-| [TROUBLESHOOTING.md](deployment/TROUBLESHOOTING.md) | Common issues by category                          |
-| [MULTI_REGION.md](deployment/MULTI_REGION.md)       | Multi-region deployment strategy                    |
-| [KUBERNETES.md](deployment/KUBERNETES.md)           | Kubernetes deployment configuration                 |
-| [BACKUP_DR.md](deployment/BACKUP_DR.md)             | Backup and disaster recovery                        |
+| Document | Description |
+| -------- | ----------- |
+| [Genetic Algorithm](concepts/genetic-algorithm.md) | NSGA-II, Pareto front, selection, crossover, mutation |
+| [Neural Network](concepts/neural-network.md) | Feedforward networks, DQN, backpropagation, experience replay |
+| [Training Process](concepts/training-process.md) | Walk-forward validation, feature engineering, reward shaping |
 
-## Architecture (`docs/architecture/`)
+## Services & Packages
 
-### API Documentation
+Per-service and per-package documentation ([full index](services/README.md)):
 
-Per-service and per-package API docs:
+| Service | Port | Purpose |
+| ------- | ---- | ------- |
+| `discovery-server` | 8443 | Service registry with TTL leases + HMAC tokens |
+| `message-manager` | 8444 | Topic-based pub/sub broker with DLQ routing |
+| `financial-scraper` | 8445 | Binance market data ingestion |
+| `trader-trainer` | 8446 | GA + DQN agent evolution engine |
+| `certificate-authority` | 8447 | X.509 certificate lifecycle |
+| `api-gateway` | 8448 | External entry point: auth, rate-limit, cache, proxy |
+| `admin-interface` | 8449 | React SPA dashboard |
+| `audit-logger` | 8450 | Immutable event traceability |
+| `dlq-service` | 8452 | Dead letter queue with auto-retry + replay |
 
-- [API index](architecture/api/README.md)
-- [@trading-model/common](architecture/api/common.md)
-- [@trading-model/address-manager](architecture/api/address-manager.md)
-- [@trading-model/broker-message](architecture/api/broker-message.md)
-- [@trading-model/certificate-utils](architecture/api/certificate-utils.md)
-- [@trading-model/certificate-client](architecture/api/certificate-client.md)
-- [discovery-server](architecture/api/discovery-server.md)
-- [message-manager](architecture/api/message-manager.md)
-- [financial-scraper](architecture/api/financial-scraper.md)
-- [trader-trainer](architecture/api/trader-trainer.md)
-- [certificate-authority](architecture/api/certificate-authority.md)
-- [api-gateway](architecture/api/api-gateway.md)
-- [audit-logger](architecture/api/audit-logger.md)
-- [dlq-service](architecture/api/dlq-service.md)
+## Deployment & Operations
 
-### Code Documentation (TypeDoc)
+| Section | Description |
+| ------- | ----------- |
+| [Deployment](deployment/README.md) | Docker, K8s, CI/CD, backup, multi-region |
+| [Operations](operations/README.md) | Runbooks, SLOs, incident response, on-call |
+| [Standards](standards/README.md) | Code style, commit conventions, testing, PRs, architecture |
+| [Troubleshooting](troubleshooting/README.md) | Common issues, diagnostics, recovery |
+| [CI/CD](ci-cd/README.md) | Pipeline standards and workflows |
 
-TypeDoc-generated HTML documentation for all packages and services:
+## Development Standards
 
-- [Code docs index](architecture/code/index.html)
-- [@trading-model/common](architecture/code/@trading-model/common/index.html)
-- [@trading-model/address-manager](architecture/code/@trading-model/address-manager/index.html)
-- [@trading-model/broker-message](architecture/code/@trading-model/broker-message/index.html)
+| Document | Description |
+| -------- | ----------- |
+| [Commit Standards](standards/commit-standards.md) | Gitmoji format, scopes, body/footer |
+| [PR Standards](standards/pr-standards.md) | Review process, labels, template |
+| [Testing Standards](standards/testing-standards.md) | Jest/Vitest, coverage thresholds, patterns |
+| [Code Style](standards/code-style.md) | Naming, Biome, import order |
+| [JSDoc Standard](standards/jsdoc-standards.md) | JSDoc formatting rules |
+| [Verification Protocol](standards/verification-protocol.md) | Quality gates before commit, PR, release |
+| [Health Endpoints](standards/health-endpoints.md) | Health check endpoint standards |
 
-## Compliance (`docs/compliance/`)
+## Reference
 
-Regulatory compliance documentation covering GDPR, MiFID II, MAR, and DORA:
+| Document | Description |
+| -------- | ----------- |
+| [Genetic Algorithm](reference/genetic-algorithm.md) | GA module implementation: types, API, code structure |
+| [Neural Network](reference/neural-network.md) | NN module implementation: class API, configuration, types |
+| [Training Process](reference/training-process.md) | Training pipeline implementation: flow, trigger, evaluation |
 
-| File | Content |
-| ---- | ------- |
-| [Compliance Framework](compliance/compliance-framework.md) | Master regulatory map — controls mapped to each regulation |
-| [DPIA](compliance/dpia.md) | Data Protection Impact Assessment (CNIL PIA, Art. 35 GDPR) |
-| [Data Processing Register](compliance/data-processing-register.md) | Art. 30 GDPR register — 5 processing activities |
-| [Data Retention Policy](compliance/data-retention-policy.md) | Retention schedules, legal bases, and deletion mechanisms |
-| [Algorithmic Trading Compliance](compliance/algorithmic-trading-compliance.md) | MiFID II Art. 17 + RTS 6 + MAR for GA/DQN agents |
-| [Information Security Policy](compliance/information-security-policy.md) | ISMS framework aligned with ISO 27001:2022 — 14 control domains |
-| [Access Control Policy](compliance/access-control-policy.md) | mTLS/ACL-based zero-trust service access model |
-| [Incident Response Policy](compliance/incident-response-policy.md) | Incident classification, response lifecycle, regulatory notification |
-| [Business Continuity Policy](compliance/business-continuity-policy.md) | BCP/DR — RTO/RPO targets, backup strategy, recovery procedures |
-| [Third-Party DPAs](compliance/third-party-dpas.md) | Third-party data processing agreement assessments |
+## Cross-Cutting Concerns
 
+| Section | Description |
+| ------- | ----------- |
+| [Security](security/README.md) | mTLS, token auth, vulnerability reporting |
+| [Compliance](compliance/README.md) | GDPR, MiFID II, MAR, DORA documentation |
+| [Glossary](glossary/README.md) | Domain terms (GA, DQN, mTLS, Sharpe ratio, etc.) |
+| [Contributing](contributing/README.md) | Contribution workflow, adding services, documentation standards |
+| [Examples](../../examples/) | Executable API workflow scripts |
 
+## Code Documentation
+
+TypeDoc-generated HTML: `npm run docs:generate` — output at `docs/architecture/code/index.html`.

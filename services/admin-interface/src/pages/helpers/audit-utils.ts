@@ -1,10 +1,10 @@
-import type { Severity } from "@trading-model/common/contracts/admin";
 import type {
 	CorrelationId,
 	ISODateTime,
 	ServiceId,
 	Topic,
 } from "@trading-model/common/domain/primitives";
+import type { Severity } from "@trading-model/validation/contracts/admin";
 
 export function createAuditColumns() {
 	return [
