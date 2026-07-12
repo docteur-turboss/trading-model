@@ -1,12 +1,14 @@
 import type { IncomingMessage } from "node:http";
 import { createGunzip, createInflate } from "node:zlib";
 import type { z } from "zod";
+import type { URLString } from "../domain/primitives";
 import type { HttpStatusCode } from "../http-status";
+import type { HttpMethod } from "./http-types";
 
 interface ResponseCollectionContext<TResponse> {
 	res: IncomingMessage;
-	method: string;
-	urlStr: string;
+	method: HttpMethod;
+	urlStr: URLString;
 	schema?: z.ZodType<TResponse>;
 }
 

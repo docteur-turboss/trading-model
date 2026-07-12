@@ -22,38 +22,23 @@ export function normalizeError(err: unknown): Error {
 	return new Error(`Unknown error: ${String(err)}`);
 }
 
-export type ErrorCode =
-	| "ServiceNotFoundError"
-	| "ServiceUnreachableError"
-	| "AuthenticationError"
-	| "AddressManagerError"
-	| "MessageManagerError"
-	| "MetadataBuilderError"
-	| "TimeoutError"
-	| "NackError"
-	| "DeadLetterError"
-	| "AgentError"
-	| "BackpressureError"
-	| "ConfigurationError"
-	| "AppError"
-	| "DlqCapacityError"
-	| "JobStatusError";
-
-export const ErrorCode = {
-	ServiceNotFound: "ServiceNotFoundError" as ErrorCode,
-	ServiceUnreachable: "ServiceUnreachableError" as ErrorCode,
-	Authentication: "AuthenticationError" as ErrorCode,
-	AddressManager: "AddressManagerError" as ErrorCode,
-	MessageManager: "MessageManagerError" as ErrorCode,
-	MetadataBuilder: "MetadataBuilderError" as ErrorCode,
-	Timeout: "TimeoutError" as ErrorCode,
-	Nack: "NackError" as ErrorCode,
-	DeadLetter: "DeadLetterError" as ErrorCode,
-	Agent: "AgentError" as ErrorCode,
-	Backpressure: "BackpressureError" as ErrorCode,
-	Configuration: "ConfigurationError" as ErrorCode,
-	AppError: "AppError" as ErrorCode,
-} as const;
+export enum ErrorCode {
+	ServiceNotFound = "ServiceNotFoundError",
+	ServiceUnreachable = "ServiceUnreachableError",
+	Authentication = "AuthenticationError",
+	AddressManager = "AddressManagerError",
+	MessageManager = "MessageManagerError",
+	MetadataBuilder = "MetadataBuilderError",
+	Timeout = "TimeoutError",
+	Nack = "NackError",
+	DeadLetter = "DeadLetterError",
+	Agent = "AgentError",
+	Backpressure = "BackpressureError",
+	Configuration = "ConfigurationError",
+	DlqCapacity = "DlqCapacityError",
+	JobStatus = "JobStatusError",
+	AppError = "AppErrorError",
+}
 
 /** Base application error with optional cause/reason metadata and error code. */
 export class AppError extends Error {

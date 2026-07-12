@@ -4,8 +4,6 @@ import type {
 	DurationMs,
 	Environment,
 	InstanceId,
-	IPAddress,
-	Port,
 	Region,
 	ServiceId,
 	UnixTimestamp,
@@ -25,10 +23,8 @@ export enum Protocol {
 }
 
 /** Payload for registering a new service instance in the registry. */
-export interface ServiceRegisterPayload {
+export interface ServiceRegisterPayload extends HostPort {
 	serviceName: ServiceInstanceName;
-	address: IPAddress;
-	port: Port;
 	protocol: Protocol;
 	env?: Environment;
 	version?: Version;

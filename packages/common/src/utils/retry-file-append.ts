@@ -1,3 +1,4 @@
+import { DurationMs } from "../domain/primitives";
 import {
 	type BackoffConfig,
 	computeExponentialBackoff,
@@ -33,8 +34,8 @@ export async function retryFileAppend(
 
 function _retryConfig(options?: Partial<RetryOptions>): BackoffConfig {
 	return {
-		baseDelayMs: options?.baseDelayMs ?? 100,
-		maxDelayMs: options?.maxDelayMs ?? 800,
+		baseDelayMs: options?.baseDelayMs ?? DurationMs.of(100),
+		maxDelayMs: options?.maxDelayMs ?? DurationMs.of(800),
 	};
 }
 
@@ -56,8 +57,8 @@ async function _backoffDelay(
 		setTimeout(
 			resolve,
 			computeExponentialBackoff(attempt, {
-				baseDelayMs: cfg.baseDelayMs ?? 100,
-				maxDelayMs: cfg.maxDelayMs ?? 800,
+				baseDelayMs: cfg.baseDelayMs ?? DurationMs.of(100),
+				maxDelayMs: cfg.maxDelayMs ?? DurationMs.of(800),
 			})
 		)
 	);

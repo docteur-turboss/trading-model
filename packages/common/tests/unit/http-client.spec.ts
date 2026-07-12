@@ -9,7 +9,7 @@ import {
 } from "@jest/globals";
 import { z } from "zod";
 import {
-	type DurationMs,
+	DurationMs,
 	type FilePath,
 	URLString,
 } from "../../src/domain/primitives";
@@ -884,19 +884,25 @@ describe("HttpClient", () => {
 
 describe("computeAdaptiveTimeout", () => {
 	it("should return baseMs × 2 when no EWMA latency", () => {
-		expect(computeAdaptiveTimeout(5000)).toBe(10000);
+		expect(computeAdaptiveTimeout(DurationMs.of(5000))).toBe(10000);
 	});
 
 	it("should return max(baseMs, ewmaLatencyMs × 3) when latency is known", () => {
-		expect(computeAdaptiveTimeout(5000, 2000)).toBe(6000);
+		expect(
+			computeAdaptiveTimeout(DurationMs.of(5000), DurationMs.of(2000))
+		).toBe(6000);
 	});
 
 	it("should return baseMs when EWMA is very small", () => {
-		expect(computeAdaptiveTimeout(5000, 100)).toBe(5000);
+		expect(
+			computeAdaptiveTimeout(DurationMs.of(5000), DurationMs.of(100))
+		).toBe(5000);
 	});
 
 	it("should handle zero baseMs", () => {
-		expect(computeAdaptiveTimeout(0, 1000)).toBe(3000);
+		expect(computeAdaptiveTimeout(DurationMs.of(0), DurationMs.of(1000))).toBe(
+			3000
+		);
 	});
 });
 
@@ -916,18 +922,24 @@ describe("isServiceCircuitOpen", () => {
 
 describe("computeAdaptiveTimeout", () => {
 	it("should return baseMs × 2 when no EWMA latency", () => {
-		expect(computeAdaptiveTimeout(5000)).toBe(10000);
+		expect(computeAdaptiveTimeout(DurationMs.of(5000))).toBe(10000);
 	});
 
 	it("should return max(baseMs, ewmaLatencyMs × 3) when latency is known", () => {
-		expect(computeAdaptiveTimeout(5000, 2000)).toBe(6000);
+		expect(
+			computeAdaptiveTimeout(DurationMs.of(5000), DurationMs.of(2000))
+		).toBe(6000);
 	});
 
 	it("should return baseMs when EWMA is very small", () => {
-		expect(computeAdaptiveTimeout(5000, 100)).toBe(5000);
+		expect(
+			computeAdaptiveTimeout(DurationMs.of(5000), DurationMs.of(100))
+		).toBe(5000);
 	});
 
 	it("should handle zero baseMs", () => {
-		expect(computeAdaptiveTimeout(0, 1000)).toBe(3000);
+		expect(computeAdaptiveTimeout(DurationMs.of(0), DurationMs.of(1000))).toBe(
+			3000
+		);
 	});
 });

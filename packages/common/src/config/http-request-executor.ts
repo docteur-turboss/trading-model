@@ -2,7 +2,7 @@ import https from "node:https";
 import { URL } from "node:url";
 
 import type { z } from "zod";
-import type { Hostname } from "../domain/primitives/hostname";
+import type { URLString } from "../domain/primitives";
 import type { TlsPemBundle } from "../domain/tls-paths";
 import { CircuitRecorder, type ServiceRoute } from "./circuit-recorder";
 import { HttpClientTimeoutError } from "./http-client-errors";
@@ -10,13 +10,12 @@ import { collectResponseBody } from "./http-response";
 import type { HttpMethod, HttpRequestOptions } from "./http-types";
 import { buildRequestOptions } from "./http-utils";
 import { RetryExecutor, shouldRetry } from "./retry-executor";
-import type { ServiceInstanceName } from "./services.types";
 
 const DEFAULT_TIMEOUT_MS = 10_000;
 
 export interface RequestContext<TResponse> {
 	method: HttpMethod;
-	urlStr: string;
+	urlStr: URLString;
 	body?: unknown;
 	options?: HttpRequestOptions;
 	schema?: z.ZodType<TResponse>;
@@ -94,7 +93,7 @@ export class HttpRequestExecutor {
 	}
 
 	checkPreconditions(
-		urlStr: string,
+		urlStr: URLString,
 		options?: HttpRequestOptions
 	): ServiceRoute {
 		return this._circuitRecorder.checkPreconditions(urlStr, options);
@@ -104,22 +103,11 @@ export class HttpRequestExecutor {
 		return shouldRetry(error);
 	}
 
-	recordSuccess(
-		hostname: Hostname,
-		serviceName: ServiceInstanceName | undefined
-	): void {
-		this._circuitRecorder.recordSuccess(hostname, serviceName);
+	recordSuccess(route: ServiceRoute): void {
+		this._circuitRecorder.recordSuccess(route);
 	}
 
-	recordFailure(
-		hostname: Hostname,
-		serviceName: ServiceInstanceName | undefined,
-		serviceInstanceCount?: number
-	): void {
-		this._circuitRecorder.recordFailure(
-			hostname,
-			serviceName,
-			serviceInstanceCount
-		);
+	recordFailure(route: ServiceRoute, serviceInstanceCount?: number): void {
+		this._circuitRecorder.recordFailure(route, serviceInstanceCount);
 	}
 }

@@ -31,6 +31,13 @@ export class CircuitStateMachine implements IUnkeyedCircuitBreaker {
 
 	constructor(protected readonly _config: CircuitBreakerConfig) {}
 
+	static defaultConfig(): CircuitBreakerConfig {
+		return {
+			failureThreshold: 5,
+			cooldownMs: DurationMs.of(30_000),
+		};
+	}
+
 	get failures(): number {
 		return this._failures;
 	}

@@ -8,8 +8,6 @@ import { sleep } from "./sleep";
 export interface RetryOptions extends BackoffConfig {
 	maxRetries: number;
 	timeoutMs?: DurationMs;
-	/** Optional jitter in ms to add to each backoff delay. */
-	jitterMs?: number;
 	/** Optional callback to check whether retries should continue. If returns false, the loop aborts. */
 	shouldRetry?: () => boolean;
 }
@@ -21,8 +19,10 @@ export interface RetryResult<_TResult> {
 	timedOut: boolean;
 }
 
-function _addJitter(delayMs: number, jitterMs: number): number {
-	return jitterMs > 0 ? delayMs + Math.random() * jitterMs : delayMs;
+function _addJitter(delayMs: DurationMs, jitterMs: DurationMs): DurationMs {
+	return jitterMs > 0
+		? DurationMs.of(delayMs + Math.random() * jitterMs)
+		: delayMs;
 }
 
 export async function retryWithBackoff<_TResult>(
@@ -31,10 +31,10 @@ export async function retryWithBackoff<_TResult>(
 ): Promise<RetryResult<_TResult>> {
 	const {
 		maxRetries,
-		baseDelayMs = 100,
-		maxDelayMs = 5000,
+		baseDelayMs = DurationMs.of(100),
+		maxDelayMs = DurationMs.of(5000),
 		timeoutMs = DurationMs.zero(),
-		jitterMs = 0,
+		jitterMs = DurationMs.of(0),
 		shouldRetry,
 	} = options;
 	const start = Date.now();
@@ -73,7 +73,7 @@ export async function retryWithBackoff<_TResult>(
 
 export function withTimeout<TResult>(
 	promise: Promise<TResult>,
-	timeoutMs: number,
+	timeoutMs: DurationMs,
 	timeoutMessage = "Operation timed out"
 ): Promise<TResult> {
 	return Promise.race([
@@ -88,7 +88,7 @@ export function withTimeout<TResult>(
 	]);
 }
 
-export function sleepWithJitter(ms: number): Promise<void> {
+export function sleepWithJitter(ms: DurationMs): Promise<void> {
 	const jitter = ms * 0.2 * (Math.random() * 2 - 1);
 	return sleep(Math.max(1, Math.round(ms + jitter)));
 }

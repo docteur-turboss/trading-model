@@ -1,24 +1,24 @@
 import { describe, expect, it, jest } from "@jest/globals";
+import { URLString } from "../../../src/domain/primitives";
 import { ErrorBuffer } from "../../../src/middleware/error-buffer";
+
+function makeBuffer(batchSize = 10): ErrorBuffer {
+	return new ErrorBuffer({
+		endpoint: URLString.of("http://endpoint"),
+		batchSize,
+		serviceName: "svc" as never,
+		instanceId: "i-1" as never,
+	});
+}
 
 describe("ErrorBuffer", () => {
 	it("should start with zero pending items", () => {
-		const buffer = new ErrorBuffer(
-			"http://endpoint",
-			10,
-			"svc" as never,
-			"i-1" as never
-		);
+		const buffer = makeBuffer();
 		expect(buffer.pendingCount).toBe(0);
 	});
 
 	it("should add error reports", () => {
-		const buffer = new ErrorBuffer(
-			"http://endpoint",
-			10,
-			"svc" as never,
-			"i-1" as never
-		);
+		const buffer = makeBuffer();
 		buffer.add({ message: "error" } as never);
 		expect(buffer.pendingCount).toBe(1);
 	});
@@ -27,12 +27,7 @@ describe("ErrorBuffer", () => {
 		const fetchSpy = jest
 			.spyOn(globalThis as any, "fetch")
 			.mockResolvedValue({ ok: true } as never);
-		const buffer = new ErrorBuffer(
-			"http://endpoint",
-			3,
-			"svc" as never,
-			"i-1" as never
-		);
+		const buffer = makeBuffer(3);
 		buffer.add({ message: "e1" } as never);
 		buffer.add({ message: "e2" } as never);
 		buffer.add({ message: "e3" } as never);
@@ -43,12 +38,7 @@ describe("ErrorBuffer", () => {
 	});
 
 	it("should do nothing on flush when empty", async () => {
-		const buffer = new ErrorBuffer(
-			"http://endpoint",
-			10,
-			"svc" as never,
-			"i-1" as never
-		);
+		const buffer = makeBuffer();
 		await buffer.flush();
 		expect(buffer.pendingCount).toBe(0);
 	});
@@ -57,12 +47,7 @@ describe("ErrorBuffer", () => {
 		const fetchSpy = jest
 			.spyOn(globalThis as any, "fetch")
 			.mockResolvedValue({ ok: true } as never);
-		const buffer = new ErrorBuffer(
-			"http://endpoint",
-			10,
-			"svc" as never,
-			"i-1" as never
-		);
+		const buffer = makeBuffer();
 		buffer.add({ message: "test" } as never);
 		await buffer.flush();
 		expect(fetchSpy).toHaveBeenCalled();
@@ -73,12 +58,7 @@ describe("ErrorBuffer", () => {
 		const fetchSpy = jest
 			.spyOn(globalThis as any, "fetch")
 			.mockRejectedValue(new Error("network error"));
-		const buffer = new ErrorBuffer(
-			"http://endpoint",
-			10,
-			"svc" as never,
-			"i-1" as never
-		);
+		const buffer = makeBuffer();
 		buffer.add({ message: "test" } as never);
 		await buffer.flush();
 		fetchSpy.mockRestore();

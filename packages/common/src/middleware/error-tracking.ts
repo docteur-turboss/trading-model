@@ -20,12 +20,12 @@ const flushTimer = new TimerHandle();
 export function configureErrorTracking(opts: ErrorTrackingConfig): void {
 	config = buildConfig(opts);
 	if (config.endpoint) {
-		errorBuffer = new ErrorBuffer(
-			config.endpoint,
-			config.batchSize,
-			config.serviceName,
-			config.instanceId
-		);
+		errorBuffer = new ErrorBuffer({
+			endpoint: config.endpoint,
+			batchSize: config.batchSize,
+			serviceName: config.serviceName,
+			instanceId: config.instanceId,
+		});
 		startFlushTimer();
 		logger.info("Error tracking configured", {
 			context: { endpoint: config.endpoint, service: config.serviceName },

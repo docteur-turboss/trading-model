@@ -1,5 +1,10 @@
 import { describe, expect, it } from "@jest/globals";
 import type { Request } from "express";
+import {
+	DurationMs,
+	PositiveInt,
+	URLString,
+} from "../../../src/domain/primitives";
 import { HTTP_STATUS } from "../../../src/http-status";
 import { buildErrorReport } from "../../../src/middleware/error-report-builder";
 
@@ -18,9 +23,9 @@ describe("buildErrorReport", () => {
 		serviceName: "my-service" as never,
 		serviceVersion: "1.0.0" as never,
 		instanceId: "i-123" as never,
-		batchSize: 10,
-		flushIntervalMs: 5000,
-		endpoint: "http://endpoint" as never,
+		batchSize: PositiveInt.of(10),
+		flushIntervalMs: DurationMs.of(5000),
+		endpoint: URLString.of("http://endpoint"),
 	};
 
 	it("should build a report from an error", () => {

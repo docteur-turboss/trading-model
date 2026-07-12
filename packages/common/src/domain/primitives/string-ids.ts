@@ -375,6 +375,31 @@ export function fromMessagePriority(value: MessagePriority): number {
 	return value;
 }
 
+export type ConsumerGroupName = BrandedString<"ConsumerGroupName">;
+export const ConsumerGroupName = createStringBrand("ConsumerGroupName");
+export function toConsumerGroupName(value: string): ConsumerGroupName {
+	return ConsumerGroupName.of(value);
+}
+export function fromConsumerGroupName(value: ConsumerGroupName): string {
+	return value;
+}
+
+export type ConsumerId = BrandedString<"ConsumerId">;
+export const ConsumerId = createStringBrand("ConsumerId");
+export function toConsumerId(value: string): ConsumerId {
+	return ConsumerId.of(value);
+}
+export function fromConsumerId(value: ConsumerId): string {
+	return value;
+}
+
+export type BinanceFromId = string & { readonly brand: "BinanceFromId" };
+export const BinanceFromId = {
+	of(value: string | number): BinanceFromId {
+		return String(value) as BinanceFromId;
+	},
+};
+
 // ============================================================================
 // DurationMs — branded number with time-unit helpers
 // ============================================================================

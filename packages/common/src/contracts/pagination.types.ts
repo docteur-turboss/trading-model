@@ -4,18 +4,21 @@ import type { Limit, PageNumber, PositiveInt } from "../domain/primitives";
 export type { DateRange } from "../domain/date-range";
 export type { PaginationQuery, PaginationResult } from "../domain/pagination";
 
+/** Shared pagination metadata embedded in API responses. */
+export interface PaginationInfo {
+	page: PageNumber;
+	limit: Limit;
+	total: PositiveInt;
+	totalPages: PositiveInt;
+}
+
 /**
  * Standard paginated response wrapper.
  * Shares `page`, `limit`, `total` semantics with PaginationResult.
  */
 export interface PaginatedResponse<_TValue> {
 	data: _TValue[];
-	pagination: {
-		page: PageNumber;
-		limit: Limit;
-		total: PositiveInt;
-		totalPages: PositiveInt;
-	};
+	pagination: PaginationInfo;
 }
 
 /** Converts a PaginationResult (internal) to a PaginatedResponse (API response). */

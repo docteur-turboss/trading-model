@@ -1,20 +1,19 @@
 import {
+	DurationMs,
 	InstanceId,
+	PositiveInt,
 	ServiceId,
 	URLString,
 	type Version,
 } from "../domain/primitives";
-
-const DEFAULT_FLUSH_INTERVAL_MS = 5000;
-const DEFAULT_BATCH_SIZE = 50;
 
 export interface ErrorTrackingConfig {
 	endpoint?: URLString;
 	serviceName?: ServiceId;
 	serviceVersion?: Version;
 	instanceId?: InstanceId;
-	flushIntervalMs?: number;
-	batchSize?: number;
+	flushIntervalMs?: DurationMs;
+	batchSize?: PositiveInt;
 }
 
 export type ResolvedErrorTrackingConfig = Required<ErrorTrackingConfig>;
@@ -24,8 +23,8 @@ export const DEFAULT_CONFIG: ResolvedErrorTrackingConfig = {
 	serviceName: ServiceId.of("unknown"),
 	serviceVersion: "0.0.0" as Version,
 	instanceId: InstanceId.of("unknown"),
-	flushIntervalMs: DEFAULT_FLUSH_INTERVAL_MS,
-	batchSize: DEFAULT_BATCH_SIZE,
+	flushIntervalMs: DurationMs.of(5000),
+	batchSize: PositiveInt.of(50),
 };
 
 export function buildConfig(
@@ -43,7 +42,7 @@ export function buildConfig(
 		instanceId: InstanceId.of(
 			opts.instanceId ?? process.env.INSTANCE_ID ?? "unknown"
 		),
-		flushIntervalMs: opts.flushIntervalMs ?? DEFAULT_FLUSH_INTERVAL_MS,
-		batchSize: opts.batchSize ?? DEFAULT_BATCH_SIZE,
+		flushIntervalMs: opts.flushIntervalMs ?? DurationMs.of(5000),
+		batchSize: opts.batchSize ?? PositiveInt.of(50),
 	};
 }

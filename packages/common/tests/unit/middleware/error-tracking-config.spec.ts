@@ -1,5 +1,10 @@
 import { describe, expect, it } from "@jest/globals";
 import {
+	DurationMs,
+	PositiveInt,
+	URLString,
+} from "../../../src/domain/primitives";
+import {
 	buildConfig,
 	DEFAULT_CONFIG,
 } from "../../../src/middleware/error-tracking-config";
@@ -16,12 +21,12 @@ describe("buildConfig", () => {
 
 	it("should apply provided options", () => {
 		const config = buildConfig({
-			endpoint: "https://example.com" as never,
+			endpoint: URLString.of("https://example.com"),
 			serviceName: "my-service" as never,
 			serviceVersion: "1.0.0" as never,
 			instanceId: "i-123" as never,
-			flushIntervalMs: 10000,
-			batchSize: 100,
+			flushIntervalMs: DurationMs.of(10000),
+			batchSize: PositiveInt.of(100),
 		});
 		expect(config.flushIntervalMs).toBe(10000);
 		expect(config.batchSize).toBe(100);

@@ -1,5 +1,9 @@
 import { HTTP_STATUS, type HttpStatusCode } from "../http-status";
 
+/** Standard health-check response status. */
+export const HEALTH_STATUS_OK = "ok" as const;
+export type HealthStatusOk = typeof HEALTH_STATUS_OK;
+
 const HTTP_RESPONSE_DEFINITIONS = [
 	{ key: "serviceUnavailable", code: HTTP_STATUS.SERVICE_UNAVAILABLE },
 	{ key: "unknownError", code: HTTP_STATUS.INTERNAL_SERVER_ERROR },

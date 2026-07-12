@@ -1,14 +1,9 @@
-﻿import type { Limit, PageNumber, PositiveInt } from "./primitives";
+﻿import type { Limit, PageNumber } from "./primitives";
 import { toLimit, toPageNumber } from "./primitives/page-number";
 
 export interface PaginationQuery {
 	page?: PageNumber;
 	limit?: Limit;
-}
-
-export interface OffsetPagination {
-	limit?: Limit;
-	offset?: PositiveInt;
 }
 
 export interface PaginationResult<_TValue> {

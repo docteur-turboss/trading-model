@@ -31,7 +31,7 @@ export class RetryExecutor {
 		for (let attempt = 0; attempt <= retryCount; attempt++) {
 			try {
 				const result = await execute(context, tls);
-				this._circuitRecorder.recordSuccess(route.hostname, route.serviceName);
+				this._circuitRecorder.recordSuccess(route);
 				return result;
 			} catch (error) {
 				lastError = error instanceof Error ? error : new Error(String(error));
@@ -42,8 +42,7 @@ export class RetryExecutor {
 				}
 
 				this._circuitRecorder.recordFailure(
-					route.hostname,
-					route.serviceName,
+					route,
 					context.options?.serviceInstanceCount
 				);
 				throw lastError;

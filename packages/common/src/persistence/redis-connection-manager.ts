@@ -5,7 +5,7 @@ import type {
 	RedisConnectionConfig,
 	RedisSentinelConfig,
 } from "../config/redis-config";
-import type { URLString } from "../domain/primitives";
+import { DurationMs, type URLString } from "../domain/primitives";
 import type { HostPort } from "../domain/service-identity";
 import { normalizeError } from "../utils/errors";
 import { ConnectionManager } from "./connection-manager";
@@ -144,6 +144,10 @@ export function createRedisConnectionManager(
 				client.disconnect();
 			}
 		},
-		{ maxRetries: 5, baseDelayMs: 1000, maxDelayMs: 30000 }
+		{
+			maxRetries: 5,
+			baseDelayMs: DurationMs.of(1000),
+			maxDelayMs: DurationMs.of(30000),
+		}
 	);
 }

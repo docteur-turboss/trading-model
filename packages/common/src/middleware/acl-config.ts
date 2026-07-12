@@ -1,33 +1,34 @@
 import { ServiceId } from "../domain/primitives";
 
-type KnownService =
-	| "certificate-authority"
-	| "discovery-server"
-	| "audit-logger"
-	| "message-manager"
-	| "financial-scraper"
-	| "trader-trainer"
-	| "api-gateway";
+export enum KnownService {
+	CertificateAuthority = "certificate-authority",
+	DiscoveryServer = "discovery-server",
+	AuditLogger = "audit-logger",
+	MessageManager = "message-manager",
+	FinancialScraper = "financial-scraper",
+	TraderTrainer = "trader-trainer",
+	ApiGateway = "api-gateway",
+}
 
 function toServiceId(serviceName: string): ServiceId {
 	return ServiceId.of(serviceName);
 }
 
 export const DEFAULT_ACL: Record<KnownService, readonly ServiceId[]> = {
-	"certificate-authority": [toServiceId("*")],
-	"discovery-server": [toServiceId("*")],
-	"audit-logger": [toServiceId("*")],
-	"message-manager": [
+	[KnownService.CertificateAuthority]: [toServiceId("*")],
+	[KnownService.DiscoveryServer]: [toServiceId("*")],
+	[KnownService.AuditLogger]: [toServiceId("*")],
+	[KnownService.MessageManager]: [
 		toServiceId("discovery-server"),
 		toServiceId("financial-scraper"),
 		toServiceId("trader-trainer"),
 		toServiceId("api-gateway"),
 	],
-	"financial-scraper": [toServiceId("api-gateway")],
-	"trader-trainer": [
+	[KnownService.FinancialScraper]: [toServiceId("api-gateway")],
+	[KnownService.TraderTrainer]: [
 		toServiceId("api-gateway"),
 		toServiceId("financial-scraper"),
 		toServiceId("discovery-server"),
 	],
-	"api-gateway": [toServiceId("admin-interface")],
+	[KnownService.ApiGateway]: [toServiceId("admin-interface")],
 };

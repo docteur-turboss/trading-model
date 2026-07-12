@@ -1,4 +1,4 @@
-import type { DurationMs } from "../domain/primitives";
+import { DurationMs } from "../domain/primitives";
 import {
 	type BackoffConfig,
 	computeExponentialBackoffWithJitter,
@@ -6,7 +6,6 @@ import {
 
 export interface WsReconnectConfig extends BackoffConfig {
 	maxAttempts?: number;
-	jitterMs?: number;
 }
 
 export interface WsReconnectState {
@@ -15,11 +14,14 @@ export interface WsReconnectState {
 	destroyed: boolean;
 }
 
-function calculateDelay(config: WsReconnectConfig, attempt: number): number {
+function calculateDelay(
+	config: WsReconnectConfig,
+	attempt: number
+): DurationMs {
 	return computeExponentialBackoffWithJitter(attempt, {
-		baseDelayMs: config.baseDelayMs ?? 1000,
-		maxDelayMs: config.maxDelayMs ?? 60000,
-		jitterMs: config.jitterMs ?? 500,
+		baseDelayMs: config.baseDelayMs ?? DurationMs.of(1000),
+		maxDelayMs: config.maxDelayMs ?? DurationMs.of(60000),
+		jitterMs: config.jitterMs ?? DurationMs.of(500),
 	});
 }
 
@@ -27,7 +29,7 @@ export interface WsReconnectOptions {
 	state: WsReconnectState;
 	config: WsReconnectConfig;
 	onReconnect: () => void;
-	onSchedule?: (info: { attempt: number; delay: number }) => void;
+	onSchedule?: (info: { attempt: number; delay: DurationMs }) => void;
 	logger: {
 		info: (msg: string, context?: Record<string, unknown>) => void;
 		warn: (msg: string, context?: Record<string, unknown>) => void;

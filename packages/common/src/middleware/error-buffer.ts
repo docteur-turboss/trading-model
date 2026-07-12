@@ -1,3 +1,4 @@
+import type { HttpMethod } from "../config/http-types";
 import type {
 	CorrelationId,
 	InstanceId,
@@ -14,7 +15,7 @@ interface ErrorReport {
 	message: string;
 	stack?: string;
 	url: URLString;
-	method: string;
+	method: HttpMethod;
 	statusCode: HttpStatusCode;
 	correlationId: CorrelationId;
 	timestamp: ISODateTime;
@@ -23,16 +24,26 @@ interface ErrorReport {
 	instanceId: InstanceId;
 }
 
+export interface ErrorBufferConfig {
+	endpoint: URLString;
+	batchSize: number;
+	serviceName: ServiceId;
+	instanceId: InstanceId;
+}
+
 export class ErrorBuffer {
 	private readonly _buffer: CircularBuffer<ErrorReport>;
+	private readonly _endpoint: URLString;
+	private readonly _batchSize: number;
+	private readonly _serviceName: ServiceId;
+	private readonly _instanceId: InstanceId;
 
-	constructor(
-		private readonly _endpoint: string,
-		private readonly _batchSize: number,
-		private readonly _serviceName: ServiceId,
-		private readonly _instanceId: InstanceId
-	) {
-		this._buffer = new CircularBuffer<ErrorReport>(_batchSize * 2);
+	constructor(config: ErrorBufferConfig) {
+		this._endpoint = config.endpoint;
+		this._batchSize = config.batchSize;
+		this._serviceName = config.serviceName;
+		this._instanceId = config.instanceId;
+		this._buffer = new CircularBuffer<ErrorReport>(config.batchSize * 2);
 	}
 
 	add(report: ErrorReport): void {

@@ -123,7 +123,7 @@ export namespace CandleInterval {
 		(value): value is CandleInterval => typeof value === "string"
 	);
 
-	const IntervalToMsMap: Record<string, DurationMs> = {
+	const IntervalToMsMap: Record<CandleInterval, DurationMs> = {
 		"1s": 1000 as DurationMs,
 		"1m": 60000 as DurationMs,
 		"3m": 180000 as DurationMs,
@@ -245,12 +245,9 @@ export interface BookTickerData extends BaseMarketData, BidAsk {
 /**
  * OHLCV fields as used by 24-hour tickers (uses `last` instead of `close`).
  */
-export interface OhlcvTickerData {
-	low: Price;
-	open: Price;
-	high: Price;
+export interface OhlcvTickerData
+	extends Omit<OhlcvFields<Price, Volume>, "close"> {
 	last: Price;
-	volume: Volume;
 }
 
 /** 24-hour price ticker statistics. */

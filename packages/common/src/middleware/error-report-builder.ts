@@ -1,4 +1,5 @@
 import type { Request } from "express";
+import type { HttpMethod } from "../config/http-types";
 import {
 	type CorrelationId,
 	type InstanceId,
@@ -20,7 +21,7 @@ export interface ErrorReportBody {
 	message: string;
 	stack?: string;
 	url: URLString;
-	method: string;
+	method: HttpMethod;
 	statusCode: HttpStatusCode;
 	correlationId: CorrelationId;
 	timestamp: ISODateTime;
@@ -46,7 +47,7 @@ export function buildErrorReport(
 		message: normalized.message,
 		stack: normalized.stack,
 		url: URLString.of(req.originalUrl ?? req.url),
-		method: req.method,
+		method: req.method as HttpMethod,
 		statusCode,
 		correlationId: _extractCorrelationId(req),
 		timestamp: toISODateTime(new Date().toISOString()),

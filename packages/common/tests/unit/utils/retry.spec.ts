@@ -6,6 +6,7 @@ import {
 	it,
 	jest,
 } from "@jest/globals";
+import { DurationMs } from "../../../src/domain/primitives";
 import {
 	retryWithBackoff,
 	sleepWithJitter,
@@ -41,7 +42,10 @@ describe("retryWithBackoff", () => {
 			.mockRejectedValueOnce(new Error("fail2"))
 			.mockResolvedValue("ok");
 
-		const promise = retryWithBackoff(fn, { maxRetries: 3, baseDelayMs: 10 });
+		const promise = retryWithBackoff(fn, {
+			maxRetries: 3,
+			baseDelayMs: DurationMs.of(10),
+		});
 
 		await jest.advanceTimersByTimeAsync(1000);
 		const result = await promise;
@@ -55,7 +59,10 @@ describe("retryWithBackoff", () => {
 		const error = new Error("persistent");
 		const fn = jest.fn<() => Promise<string>>().mockRejectedValue(error);
 
-		const promise = retryWithBackoff(fn, { maxRetries: 2, baseDelayMs: 10 });
+		const promise = retryWithBackoff(fn, {
+			maxRetries: 2,
+			baseDelayMs: DurationMs.of(10),
+		});
 
 		await jest.advanceTimersByTimeAsync(1000);
 		const result = await promise;
@@ -72,7 +79,7 @@ describe("retryWithBackoff", () => {
 
 		const promise = retryWithBackoff(fn, {
 			maxRetries: 5,
-			baseDelayMs: 10,
+			baseDelayMs: DurationMs.of(10),
 			shouldRetry: () => false,
 		});
 
@@ -90,7 +97,7 @@ describe("retryWithBackoff", () => {
 
 		const promise = retryWithBackoff(fn, {
 			maxRetries: 10,
-			baseDelayMs: 500,
+			baseDelayMs: DurationMs.of(500),
 			timeoutMs: 100 as never,
 		});
 
@@ -111,13 +118,13 @@ describe("sleepWithJitter", () => {
 	});
 
 	it("should resolve after the given time with jitter", async () => {
-		const promise = sleepWithJitter(100);
+		const promise = sleepWithJitter(DurationMs.of(100));
 		await jest.advanceTimersByTimeAsync(200);
 		await expect(promise).resolves.toBeUndefined();
 	});
 
 	it("should handle zero ms with jitter", async () => {
-		const promise = sleepWithJitter(0);
+		const promise = sleepWithJitter(DurationMs.of(0));
 		await jest.advanceTimersByTimeAsync(10);
 		await expect(promise).resolves.toBeUndefined();
 	});
@@ -134,20 +141,20 @@ describe("withTimeout", () => {
 
 	it("should resolve if promise completes before timeout", async () => {
 		const promise = Promise.resolve("ok");
-		const result = await withTimeout(promise, 1000);
+		const result = await withTimeout(promise, DurationMs.of(1000));
 		expect(result).toBe("ok");
 	});
 
 	it("should reject if promise takes too long", async () => {
 		const slow = new Promise<string>(() => {});
-		const promise = withTimeout(slow, 100);
+		const promise = withTimeout(slow, DurationMs.of(100));
 		jest.advanceTimersByTime(200);
 		await expect(promise).rejects.toThrow("Operation timed out");
 	});
 
 	it("should use custom timeout message", async () => {
 		const slow = new Promise<string>(() => {});
-		const promise = withTimeout(slow, 100, "Custom timeout");
+		const promise = withTimeout(slow, DurationMs.of(100), "Custom timeout");
 		jest.advanceTimersByTime(200);
 		await expect(promise).rejects.toThrow("Custom timeout");
 	});

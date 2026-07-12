@@ -1,4 +1,5 @@
 import { describe, expect, it, jest } from "@jest/globals";
+import { DurationMs } from "../../../src/domain/primitives";
 import {
 	createWsConnectTimeout,
 	scheduleWsReconnect,
@@ -9,7 +10,10 @@ describe("scheduleWsReconnect", () => {
 		const state = { attempt: 0, timer: null, destroyed: true };
 		scheduleWsReconnect({
 			state,
-			config: { baseDelayMs: 100, maxDelayMs: 1000 },
+			config: {
+				baseDelayMs: DurationMs.of(100),
+				maxDelayMs: DurationMs.of(1000),
+			},
 			onReconnect: jest.fn(),
 			logger: { info: jest.fn(), warn: jest.fn() },
 		});
@@ -20,7 +24,11 @@ describe("scheduleWsReconnect", () => {
 		const state = { attempt: 3, timer: null, destroyed: false };
 		scheduleWsReconnect({
 			state,
-			config: { baseDelayMs: 100, maxDelayMs: 1000, maxAttempts: 3 },
+			config: {
+				baseDelayMs: DurationMs.of(100),
+				maxDelayMs: DurationMs.of(1000),
+				maxAttempts: 3,
+			},
 			onReconnect: jest.fn(),
 			logger: { info: jest.fn(), warn: jest.fn() },
 		});
@@ -33,7 +41,10 @@ describe("scheduleWsReconnect", () => {
 		const onReconnect = jest.fn();
 		scheduleWsReconnect({
 			state,
-			config: { baseDelayMs: 100, maxDelayMs: 1000 },
+			config: {
+				baseDelayMs: DurationMs.of(100),
+				maxDelayMs: DurationMs.of(1000),
+			},
 			onReconnect,
 			logger: { info: jest.fn(), warn: jest.fn() },
 		});

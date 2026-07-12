@@ -1,7 +1,9 @@
+import { type DurationMs, toDurationMs } from "../domain/primitives/string-ids";
+
 export class DelayRange {
 	constructor(
-		readonly baseMs: number,
-		readonly maxMs: number
+		readonly baseMs: DurationMs,
+		readonly maxMs: DurationMs
 	) {
 		if (baseMs <= 0) {
 			throw new RangeError(`baseMs (${baseMs}) must be > 0`);
@@ -11,12 +13,12 @@ export class DelayRange {
 		}
 	}
 
-	backoff(attempt: number): number {
-		return Math.min(this.baseMs * 2 ** attempt, this.maxMs);
+	backoff(attempt: number): DurationMs {
+		return toDurationMs(Math.min(this.baseMs * 2 ** attempt, this.maxMs));
 	}
 
-	withJitter(attempt: number, jitterMs: number): number {
-		return (
+	withJitter(attempt: number, jitterMs: DurationMs): DurationMs {
+		return toDurationMs(
 			this.backoff(attempt) + (jitterMs > 0 ? Math.random() * jitterMs : 0)
 		);
 	}

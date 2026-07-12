@@ -1,15 +1,15 @@
 import { describe, expect, it } from "@jest/globals";
-import { DEFAULT_ACL } from "../../../src/middleware/acl-config";
+import { DEFAULT_ACL, KnownService } from "../../../src/middleware/acl-config";
 
 describe("DEFAULT_ACL", () => {
 	it("should contain entries for all known services", () => {
-		expect(DEFAULT_ACL["certificate-authority"]).toBeDefined();
-		expect(DEFAULT_ACL["discovery-server"]).toBeDefined();
-		expect(DEFAULT_ACL["audit-logger"]).toBeDefined();
-		expect(DEFAULT_ACL["message-manager"]).toBeDefined();
-		expect(DEFAULT_ACL["financial-scraper"]).toBeDefined();
-		expect(DEFAULT_ACL["trader-trainer"]).toBeDefined();
-		expect(DEFAULT_ACL["api-gateway"]).toBeDefined();
+		expect(DEFAULT_ACL[KnownService.CertificateAuthority]).toBeDefined();
+		expect(DEFAULT_ACL[KnownService.DiscoveryServer]).toBeDefined();
+		expect(DEFAULT_ACL[KnownService.AuditLogger]).toBeDefined();
+		expect(DEFAULT_ACL[KnownService.MessageManager]).toBeDefined();
+		expect(DEFAULT_ACL[KnownService.FinancialScraper]).toBeDefined();
+		expect(DEFAULT_ACL[KnownService.TraderTrainer]).toBeDefined();
+		expect(DEFAULT_ACL[KnownService.ApiGateway]).toBeDefined();
 	});
 
 	it("should have at least one ServiceId per service", () => {

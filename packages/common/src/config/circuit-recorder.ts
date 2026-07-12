@@ -1,4 +1,4 @@
-import { Hostname } from "../domain/primitives/hostname";
+import { Hostname, type URLString } from "../domain/primitives";
 import {
 	checkHostnameCircuit,
 	checkServiceCircuit,
@@ -17,7 +17,7 @@ export interface ServiceRoute {
 
 export class CircuitRecorder {
 	checkPreconditions(
-		urlStr: string,
+		urlStr: URLString,
 		options?: HttpRequestOptions
 	): ServiceRoute {
 		const hostname = Hostname.of(new URL(urlStr).hostname);
@@ -32,24 +32,17 @@ export class CircuitRecorder {
 		return { hostname, serviceName };
 	}
 
-	recordSuccess(
-		hostname: Hostname,
-		serviceName: ServiceInstanceName | undefined
-	): void {
-		recordHostnameSuccess(hostname);
-		if (serviceName) {
-			recordServiceSuccess(serviceName);
+	recordSuccess(route: ServiceRoute): void {
+		recordHostnameSuccess(route.hostname);
+		if (route.serviceName) {
+			recordServiceSuccess(route.serviceName);
 		}
 	}
 
-	recordFailure(
-		hostname: Hostname,
-		serviceName: ServiceInstanceName | undefined,
-		serviceInstanceCount?: number
-	): void {
-		recordHostnameFailure(hostname);
-		if (serviceName) {
-			recordServiceFailure(serviceName, serviceInstanceCount);
+	recordFailure(route: ServiceRoute, serviceInstanceCount?: number): void {
+		recordHostnameFailure(route.hostname);
+		if (route.serviceName) {
+			recordServiceFailure(route.serviceName, serviceInstanceCount);
 		}
 	}
 }

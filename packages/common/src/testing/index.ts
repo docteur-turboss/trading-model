@@ -26,4 +26,5 @@ export const mockSendResponseModule = {
 		status,
 		data,
 	}),
+	HEALTH_STATUS_OK: "ok",
 };

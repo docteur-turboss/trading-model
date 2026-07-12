@@ -4,14 +4,15 @@ import { normalizeError } from "../utils/errors";
 import { normalizeDbError } from "./normalize-db-error";
 import { HTTP_CODE, ResponseException } from "./response-exception";
 
-type FileHandle =
-	| "auth"
-	| "newsletter"
-	| "settings"
-	| "user"
-	| "contact"
-	| "transaction"
-	| "kiff-score";
+export enum FileHandle {
+	Auth = "auth",
+	Newsletter = "newsletter",
+	Settings = "settings",
+	User = "user",
+	Contact = "contact",
+	Transaction = "transaction",
+	KiffScore = "kiff-score",
+}
 
 export interface CoreErrorContext {
 	file: FileHandle;

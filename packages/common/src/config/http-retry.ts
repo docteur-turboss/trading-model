@@ -1,3 +1,4 @@
+import { DurationMs } from "../domain/primitives";
 import {
 	type BackoffConfig,
 	computeExponentialBackoffWithJitter,
@@ -19,18 +20,27 @@ function isNonRetryableClientError(code: number): boolean {
 	return code >= 400 && code < 500 && code !== 429;
 }
 
-function computeRetryDelay(attempt: number, options?: BackoffConfig): number {
+function computeRetryDelay(
+	attempt: number,
+	options?: BackoffConfig
+): DurationMs {
 	return computeExponentialBackoffWithJitter(
 		attempt,
-		options ?? { baseDelayMs: 200, maxDelayMs: 5000 }
+		options ?? {
+			baseDelayMs: DurationMs.of(200),
+			maxDelayMs: DurationMs.of(5000),
+		}
 	);
 }
 
-function computeAdaptiveTimeout(baseMs: number, ewmLatencyMs?: number): number {
+function computeAdaptiveTimeout(
+	baseMs: DurationMs,
+	ewmLatencyMs?: DurationMs
+): DurationMs {
 	if (ewmLatencyMs !== undefined) {
-		return Math.max(baseMs, Math.round(ewmLatencyMs * 3));
+		return DurationMs.of(Math.max(baseMs, Math.round(ewmLatencyMs * 3)));
 	}
-	return baseMs * 2;
+	return DurationMs.of(baseMs * 2);
 }
 
 export {

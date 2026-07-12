@@ -1,3 +1,5 @@
+import { NumericRange } from "../numeric-range";
+
 export type PositiveInt = number & { readonly brand: "PositiveInt" };
 
 export const PositiveInt = {
@@ -28,7 +30,7 @@ export const PositiveInt = {
 	},
 
 	clamp(value: number, min: PositiveInt, max: PositiveInt): PositiveInt {
-		return PositiveInt.of(Math.max(min, Math.min(max, Math.round(value))));
+		return PositiveInt.of(new NumericRange(min, max).clamp(Math.round(value)));
 	},
 
 	toNumber(value: PositiveInt): number {

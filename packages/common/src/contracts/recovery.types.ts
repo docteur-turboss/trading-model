@@ -6,7 +6,7 @@ import type {
 } from "../domain/primitives";
 import { UnixTimestamp } from "../domain/primitives";
 import type { RetryPolicy } from "../domain/retry-policy";
-import { AppError } from "../utils/errors";
+import { AppError, ErrorCode } from "../utils/errors";
 
 /**
  * Job priority levels.
@@ -138,13 +138,13 @@ export namespace JobStatus {
 	): JobEvent {
 		if (to === JobStatus.CANCELLED && !JobStatus.canCancel(from)) {
 			throw new AppError(reason ?? `Cannot cancel job from ${from}`, {
-				code: "JobStatusError",
+				code: ErrorCode.JobStatus,
 				cause: { from, to },
 			});
 		}
 		if (to !== JobStatus.CANCELLED && !JobStatus.canTransition(from, to)) {
 			throw new AppError(`Invalid job status transition: ${from} → ${to}`, {
-				code: "JobStatusError",
+				code: ErrorCode.JobStatus,
 				cause: { from, to },
 			});
 		}

@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { MongoClient } from "mongodb";
+import { URLString } from "../../../src/domain/primitives";
 import { MongoConnectionManager } from "../../../src/persistence/mongo-connection-manager";
 
 interface MockClient {
@@ -43,7 +44,7 @@ describe("MongoConnectionManager", () => {
 
 	it("should expose uri and poolSize", () => {
 		const mgr = new MongoConnectionManager({
-			uri: "mongodb://localhost:27017",
+			uri: URLString.of("mongodb://localhost:27017"),
 			dbName: "test",
 			poolSize: 10,
 		});
@@ -53,7 +54,7 @@ describe("MongoConnectionManager", () => {
 
 	it("should register close and reconnect event handlers on the client", async () => {
 		const mgr = new MongoConnectionManager({
-			uri: "mongodb://localhost:27017",
+			uri: URLString.of("mongodb://localhost:27017"),
 			dbName: "test",
 		});
 		await mgr.getConnection();
@@ -67,7 +68,7 @@ describe("MongoConnectionManager", () => {
 
 	it("should set _connected to false when close event fires", async () => {
 		const mgr = new MongoConnectionManager({
-			uri: "mongodb://localhost:27017",
+			uri: URLString.of("mongodb://localhost:27017"),
 			dbName: "test",
 		});
 		await mgr.getConnection();
@@ -80,7 +81,7 @@ describe("MongoConnectionManager", () => {
 
 	it("should set _connected to true when reconnect event fires", async () => {
 		const mgr = new MongoConnectionManager({
-			uri: "mongodb://localhost:27017",
+			uri: URLString.of("mongodb://localhost:27017"),
 			dbName: "test",
 		});
 		await mgr.getConnection();
@@ -94,7 +95,7 @@ describe("MongoConnectionManager", () => {
 
 	it("getDb should call client.db with the configured dbName", async () => {
 		const mgr = new MongoConnectionManager({
-			uri: "mongodb://localhost:27017",
+			uri: URLString.of("mongodb://localhost:27017"),
 			dbName: "test",
 		});
 		const db = await mgr.getDb();
@@ -105,7 +106,7 @@ describe("MongoConnectionManager", () => {
 
 	it("getDb should cache the db instance across calls", async () => {
 		const mgr = new MongoConnectionManager({
-			uri: "mongodb://localhost:27017",
+			uri: URLString.of("mongodb://localhost:27017"),
 			dbName: "test",
 		});
 
@@ -118,7 +119,7 @@ describe("MongoConnectionManager", () => {
 
 	it("resetState should clear state so the next getDb calls client.db again", async () => {
 		const mgr = new MongoConnectionManager({
-			uri: "mongodb://localhost:27017",
+			uri: URLString.of("mongodb://localhost:27017"),
 			dbName: "test",
 		});
 

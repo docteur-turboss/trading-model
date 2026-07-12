@@ -13,6 +13,8 @@ export interface CertificateBase {
 	expiresAt: UnixTimestamp;
 }
 
+export type CertPemPair = Pick<CertificateBase, "certPem" | "caPem">;
+
 export interface CertificateResponse extends CertificateBase {
 	fingerprint: Fingerprint;
 	issuedAt?: UnixTimestamp;

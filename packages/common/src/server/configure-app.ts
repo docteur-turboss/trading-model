@@ -3,6 +3,7 @@ import { rateLimit } from "express-rate-limit";
 import helmet from "helmet";
 
 import type { DurationMs, PositiveInt } from "../domain/primitives";
+import { HEALTH_STATUS_OK } from "../middleware/response-exception";
 import { PING_PATH } from "./constants";
 
 /** Configuration for the rate-limiting middleware. */
@@ -26,7 +27,7 @@ function _buildRateLimiter(config: {
 
 function _addPingRoute(app: Application): void {
 	app.get(PING_PATH, (_req, res) => {
-		res.json({ status: "ok" });
+		res.json({ status: HEALTH_STATUS_OK });
 	});
 }
 

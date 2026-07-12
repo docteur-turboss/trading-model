@@ -1,10 +1,11 @@
 import { type Db, MongoClient } from "mongodb";
 import { logger } from "../config/logger";
+import { DurationMs, type URLString } from "../domain/primitives";
 import { ConnectionManager } from "./connection-manager";
 import { createPoolOptions, resolvePoolSize } from "./mongo-utils";
 
 export interface MongoConnectionConfig {
-	uri: string;
+	uri: URLString;
 	dbName: string;
 	poolSize?: number;
 	minPoolSize?: number;
@@ -15,7 +16,7 @@ export interface MongoConnectionConfig {
 export class MongoConnectionManager extends ConnectionManager<MongoClient> {
 	private _db: Db | null = null;
 	private _dbName: string;
-	private readonly _uri: string;
+	private readonly _uri: URLString;
 	private readonly _poolSize: number;
 
 	constructor(config: MongoConnectionConfig) {
@@ -44,8 +45,8 @@ export class MongoConnectionManager extends ConnectionManager<MongoClient> {
 			},
 			{
 				maxRetries: 10,
-				baseDelayMs: 1000,
-				maxDelayMs: 30000,
+				baseDelayMs: DurationMs.of(1000),
+				maxDelayMs: DurationMs.of(30000),
 			}
 		);
 		this._dbName = config.dbName;
@@ -53,7 +54,7 @@ export class MongoConnectionManager extends ConnectionManager<MongoClient> {
 		this._poolSize = poolSize;
 	}
 
-	get uri(): string {
+	get uri(): URLString {
 		return this._uri;
 	}
 

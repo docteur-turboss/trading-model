@@ -7,6 +7,7 @@ import {
 	isRetryableStatus,
 	isRetryableStatusPermissive,
 } from "../../../src/config/http-retry";
+import { DurationMs } from "../../../src/domain/primitives";
 
 describe("isRetryableStatus", () => {
 	it("should return true for 5xx status codes", () => {
@@ -79,7 +80,10 @@ describe("computeRetryDelay", () => {
 	});
 
 	it("should respect custom options", () => {
-		const delay = computeRetryDelay(1, { baseDelayMs: 500, maxDelayMs: 10000 });
+		const delay = computeRetryDelay(1, {
+			baseDelayMs: DurationMs.of(500),
+			maxDelayMs: DurationMs.of(10000),
+		});
 		expect(delay).toBeGreaterThanOrEqual(0);
 		expect(delay).toBeLessThanOrEqual(10000);
 	});
@@ -87,12 +91,16 @@ describe("computeRetryDelay", () => {
 
 describe("computeAdaptiveTimeout", () => {
 	it("should return baseMs * 2 when no ewmLatencyMs", () => {
-		expect(computeAdaptiveTimeout(5000)).toBe(10000);
+		expect(computeAdaptiveTimeout(DurationMs.of(5000))).toBe(10000);
 	});
 
 	it("should return max of baseMs and ewmLatencyMs * 3", () => {
-		expect(computeAdaptiveTimeout(5000, 1000)).toBe(5000);
-		expect(computeAdaptiveTimeout(2000, 1000)).toBe(3000);
+		expect(
+			computeAdaptiveTimeout(DurationMs.of(5000), DurationMs.of(1000))
+		).toBe(5000);
+		expect(
+			computeAdaptiveTimeout(DurationMs.of(2000), DurationMs.of(1000))
+		).toBe(3000);
 	});
 });
 

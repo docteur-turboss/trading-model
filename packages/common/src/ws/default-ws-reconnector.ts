@@ -1,4 +1,5 @@
 import { logger } from "../config/logger";
+import { DurationMs } from "../domain/primitives";
 import {
 	scheduleWsReconnect,
 	type WsReconnectConfig,
@@ -28,9 +29,9 @@ export class DefaultWsReconnector implements IWsReconnector {
 
 	constructor(options: DefaultWsReconnectorOptions) {
 		this._config = {
-			baseDelayMs: options.config?.baseDelayMs ?? 1000,
-			maxDelayMs: options.config?.maxDelayMs ?? 60000,
-			jitterMs: options.config?.jitterMs ?? 500,
+			baseDelayMs: options.config?.baseDelayMs ?? DurationMs.of(1000),
+			maxDelayMs: options.config?.maxDelayMs ?? DurationMs.of(60000),
+			jitterMs: options.config?.jitterMs ?? DurationMs.of(500),
 		};
 		this._maxAttempts = options.maxAttempts;
 		this._onReconnect = options.onReconnect;

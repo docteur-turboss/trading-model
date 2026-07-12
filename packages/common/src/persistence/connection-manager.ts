@@ -1,19 +1,19 @@
-﻿import { type RetryResult, retryWithBackoff } from "../utils/retry";
+﻿import { DurationMs } from "../domain/primitives";
+import type { BackoffConfig } from "../utils/backoff-config";
+import { type RetryResult, retryWithBackoff } from "../utils/retry";
 
 export interface ConnectionFactory<_TConnection> {
 	connect(): Promise<_TConnection>;
 }
 
-export interface ConnectionManagerOptions {
+export interface ConnectionManagerOptions extends BackoffConfig {
 	maxRetries: number;
-	baseDelayMs: number;
-	maxDelayMs: number;
 }
 
 export const DEFAULT_CONNECTION_OPTIONS: ConnectionManagerOptions = {
 	maxRetries: 10,
-	baseDelayMs: 1000,
-	maxDelayMs: 30000,
+	baseDelayMs: DurationMs.of(1000),
+	maxDelayMs: DurationMs.of(30000),
 };
 
 function _executeRetry<_TResult>(

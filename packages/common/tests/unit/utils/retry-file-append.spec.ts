@@ -5,6 +5,7 @@ jest.mock("node:fs/promises", () => ({
 }));
 
 import fsPromises from "node:fs/promises";
+import { DurationMs } from "../../../src/domain/primitives";
 import { retryFileAppend } from "../../../src/utils/retry-file-append";
 
 describe("retryFileAppend", () => {
@@ -40,7 +41,7 @@ describe("retryFileAppend", () => {
 
 		const result = await retryFileAppend("/tmp/test.log", "data", {
 			maxRetries: 2,
-			baseDelayMs: 10,
+			baseDelayMs: DurationMs.of(10),
 		});
 		expect(result).toBe(false);
 		expect(fsPromises.appendFile).toHaveBeenCalledTimes(2);
