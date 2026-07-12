@@ -9,20 +9,24 @@ import type { IWsConnection } from "@trading-model/common/ws/i-ws-connection";
 import WebSocket from "ws";
 import { TlsConfigBuilder } from "./tls-config-builder";
 
+export interface WsTransportConfig {
+	url: URLString;
+	tlsConfig?: TlsPaths;
+}
+
 export class WsTransport implements IWsConnection {
 	private _ws: WebSocket | undefined;
 	private readonly _tlsBuilder: TlsConfigBuilder;
+	private readonly _url: URLString;
 	onCloseHandler: () => void = () => {};
 	onOpen: () => void = () => {};
 	onMessage: (data: unknown) => void = () => {};
 	onError: (err: Error) => void = () => {};
 	onTimeout: () => void = () => {};
 
-	constructor(
-		private readonly _url: URLString,
-		tlsConfig?: TlsPaths
-	) {
-		this._tlsBuilder = new TlsConfigBuilder(tlsConfig);
+	constructor(config: WsTransportConfig) {
+		this._url = config.url;
+		this._tlsBuilder = new TlsConfigBuilder(config.tlsConfig);
 	}
 
 	connect(): void {

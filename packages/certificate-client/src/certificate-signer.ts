@@ -1,12 +1,12 @@
-import type {
-	CaClient,
-	SignCertificateRequest,
-} from "@trading-model/common/ca/ca-client";
 import {
 	type ServiceId,
 	toAuthToken,
 	toCsrPem,
 } from "@trading-model/common/domain/primitives";
+import type {
+	CaClient,
+	SignCertificateRequest,
+} from "@trading-model/crypto/ca/ca-client";
 
 export interface SignerConfig {
 	serviceId: ServiceId;

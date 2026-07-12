@@ -24,7 +24,7 @@ jest.mock("@trading-model/certificate-utils/generate-key-pair", () => ({
 }));
 
 const MOCK_SIGN_CERTIFICATE = jest.fn();
-jest.mock("@trading-model/common/ca/ca-client", () => ({
+jest.mock("@trading-model/crypto/ca/ca-client", () => ({
 	CaClient: jest.fn(() => ({
 		signCertificate: MOCK_SIGN_CERTIFICATE,
 	})),
@@ -57,7 +57,7 @@ jest.mock("../../src/certificate-client", () => ({
 
 const MOCK_APP = { use: jest.fn() };
 const MOCK_CONFIGURE_APP = jest.fn((..._args: any[]) => MOCK_APP);
-jest.mock("@trading-model/common/server/configure-app", () => ({
+jest.mock("@trading-model/server-utils/server/configure-app", () => ({
 	configureApp: MOCK_CONFIGURE_APP,
 }));
 
@@ -75,7 +75,7 @@ const MOCK_HTTPS_SERVER = { raw: { setSecureContext: jest.fn() } };
 const MOCK_CREATE_AND_START_HTTPS_SERVER = jest.fn((..._args: any[]) =>
 	Promise.resolve(MOCK_HTTPS_SERVER)
 );
-jest.mock("@trading-model/common/server/server-factory", () => ({
+jest.mock("@trading-model/server-utils/server/server-factory", () => ({
 	createAndStartHttpsServer: MOCK_CREATE_AND_START_HTTPS_SERVER,
 }));
 

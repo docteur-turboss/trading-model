@@ -14,7 +14,7 @@ const MOCK_STRATEGY_CURRENT_MODE = jest.fn<(...args: any[]) => any>();
 const MOCK_STRATEGY_SIGN_CERTIFICATE = jest.fn<(...args: any[]) => any>();
 const MOCK_STRATEGY_DISCONNECT = jest.fn<(...args: any[]) => any>();
 
-jest.mock("@trading-model/common/ca/ca-client", () => ({
+jest.mock("@trading-model/crypto/ca/ca-client", () => ({
 	CaClient: jest.fn(() => ({
 		getCertificate: MOCK_GET_CERTIFICATE,
 		revokeCertificate: MOCK_REVOKE_CERTIFICATE,
@@ -36,7 +36,7 @@ jest.mock("../../src/wss-fallback-strategy", () => ({
 	TransportMode: { Wss: "wss", Https: "https" },
 }));
 
-import { CaClient } from "@trading-model/common/ca/ca-client";
+import { CaClient } from "@trading-model/crypto/ca/ca-client";
 import { TransportManager, TransportMode } from "../../src/transport";
 import { WssFallbackStrategy } from "../../src/wss-fallback-strategy";
 

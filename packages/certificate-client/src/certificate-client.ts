@@ -1,13 +1,13 @@
 import type { KeyAlgorithm } from "@trading-model/certificate-utils/generate-key-pair";
 import {
-	CaClient,
-	type SignCertificateRequest,
-} from "@trading-model/common/ca/ca-client";
-import {
 	type ServiceId,
 	URLString,
 } from "@trading-model/common/domain/primitives";
 import type { TlsPaths } from "@trading-model/common/domain/tls-paths";
+import {
+	CaClient,
+	type SignCertificateRequest,
+} from "@trading-model/crypto/ca/ca-client";
 import { CertificateEventEmitter } from "./certificate-event-emitter";
 import type { CertificateHolder } from "./certificate-holder";
 import {
@@ -74,7 +74,7 @@ export class CertificateClient {
 	signCertificate(
 		request: SignCertificateRequest
 	): Promise<
-		import("@trading-model/common/ca/ca-client").SignCertificateResponse
+		import("@trading-model/crypto/ca/ca-client").SignCertificateResponse
 	> {
 		return this._caClient.signCertificate(request);
 	}
@@ -82,7 +82,7 @@ export class CertificateClient {
 	getCertificate(
 		serviceId: ServiceId
 	): Promise<
-		import("@trading-model/common/ca/ca-client").GetCertificateResponse | null
+		import("@trading-model/crypto/ca/ca-client").GetCertificateResponse | null
 	> {
 		return this._caClient.getCertificate(serviceId);
 	}

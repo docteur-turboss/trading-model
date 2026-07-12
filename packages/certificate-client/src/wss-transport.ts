@@ -1,11 +1,10 @@
-﻿import { randomUUID } from "node:crypto";
-
+import { randomUUID } from "node:crypto";
+import { logger } from "@trading-model/common/config/logger";
+import { isWsConnected } from "@trading-model/common/domain/ws-connection";
 import type {
 	SignCertificateRequest,
 	SignCertificateResponse,
-} from "@trading-model/common/ca/ca-client";
-import { logger } from "@trading-model/common/config/logger";
-import { isWsConnected } from "@trading-model/common/domain/ws-connection";
+} from "@trading-model/crypto/ca/ca-client";
 import {
 	AuthHandler,
 	type CaAuthResponse,

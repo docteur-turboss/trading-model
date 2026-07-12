@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import type {
 	SignCertificateRequest,
 	SignCertificateResponse,
-} from "@trading-model/common/ca/ca-client";
+} from "@trading-model/crypto/ca/ca-client";
 
 const mockEventHandlers = new Map<string, (...args: unknown[]) => void>();
 

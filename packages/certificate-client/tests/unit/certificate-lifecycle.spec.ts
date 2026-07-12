@@ -26,7 +26,7 @@ jest.mock("@trading-model/certificate-utils/generate-key-pair", () => ({
 }));
 
 const MOCK_SIGN = jest.fn();
-jest.mock("@trading-model/common/ca/ca-client", () => ({
+jest.mock("@trading-model/crypto/ca/ca-client", () => ({
 	CaClient: jest.fn(() => ({
 		signCertificate: MOCK_SIGN,
 	})),
@@ -46,8 +46,8 @@ import {
 	createCsrAsync,
 	generateKeyPairAsync,
 } from "@trading-model/certificate-utils/async";
-import { CaClient } from "@trading-model/common/ca/ca-client";
 import type { ServiceId } from "@trading-model/common/domain/primitives";
+import { CaClient } from "@trading-model/crypto/ca/ca-client";
 import { CertificateLifecycle } from "../../src/certificate-lifecycle";
 
 function mockResolved<T>(mock: unknown, value: T): void {

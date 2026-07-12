@@ -1,7 +1,7 @@
 import { describe, expect, it, jest } from "@jest/globals";
 
 const MOCK_SIGN = jest.fn<(...args: any[]) => Promise<any>>();
-jest.mock("@trading-model/common/ca/ca-client", () => ({
+jest.mock("@trading-model/crypto/ca/ca-client", () => ({
 	CaClient: jest.fn(() => ({ signCertificate: MOCK_SIGN })),
 }));
 

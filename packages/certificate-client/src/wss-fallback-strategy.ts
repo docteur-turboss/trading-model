@@ -1,13 +1,13 @@
-import type {
-	CaClient,
-	SignCertificateRequest,
-	SignCertificateResponse,
-} from "@trading-model/common/ca/ca-client";
 import { logger } from "@trading-model/common/config/logger";
 import {
 	type PositiveInt,
 	URLString,
 } from "@trading-model/common/domain/primitives";
+import type {
+	CaClient,
+	SignCertificateRequest,
+	SignCertificateResponse,
+} from "@trading-model/crypto/ca/ca-client";
 import type { NullCaWssTransport } from "./wss-transport";
 import { CaWssTransport, NULL_CA_WSS_TRANSPORT } from "./wss-transport";
 import type { WssTransportConfig } from "./wss-transport-connection";

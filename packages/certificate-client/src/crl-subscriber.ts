@@ -1,11 +1,11 @@
 import type BrokerMessage from "@trading-model/broker-message";
 import { EVENT_MANAGER } from "@trading-model/broker-message";
 import { clearValidationCache } from "@trading-model/certificate-utils/validate-certificate";
-import { CertificateEvent } from "@trading-model/common/contracts/certificate-events";
 import type {
 	SerialNumber,
 	ServiceId,
 } from "@trading-model/common/domain/primitives";
+import { CertificateEvent } from "@trading-model/validation/contracts/certificate-events";
 
 export interface CrlSubscriberCallbacks {
 	onCertificateRevoked?: (payload: {

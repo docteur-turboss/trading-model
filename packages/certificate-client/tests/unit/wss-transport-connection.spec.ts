@@ -86,7 +86,7 @@ describe("WssTransportConnection", () => {
 		it("should create WsTransport and WsAuthSender", () => {
 			const conn = new WssTransportConnection({ wsUrl: testUrl });
 
-			expect(WsTransport).toHaveBeenCalledWith(testUrl, undefined);
+			expect(WsTransport).toHaveBeenCalledWith({ url: testUrl });
 			expect(WsAuthSender).toHaveBeenCalledWith(undefined);
 			expect(conn.state).toBe(ConnectionState.Disconnected);
 		});
@@ -99,7 +99,7 @@ describe("WssTransportConnection", () => {
 				bootstrapToken: "my-token",
 			});
 
-			expect(WsTransport).toHaveBeenCalledWith(testUrl, tlsConfig);
+			expect(WsTransport).toHaveBeenCalledWith({ url: testUrl, tlsConfig });
 			expect(WsAuthSender).toHaveBeenCalledWith("my-token");
 		});
 	});

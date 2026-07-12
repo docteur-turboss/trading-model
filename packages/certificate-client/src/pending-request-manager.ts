@@ -1,4 +1,4 @@
-import type { SignCertificateResponse } from "@trading-model/common/ca/ca-client";
+import type { SignCertificateResponse } from "@trading-model/crypto/ca/ca-client";
 import type { CaWssMessageType } from "./auth-handler";
 
 interface PendingRequest {

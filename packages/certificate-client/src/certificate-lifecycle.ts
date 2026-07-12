@@ -8,10 +8,6 @@ import {
 import { KeyAlgorithm } from "@trading-model/certificate-utils/generate-key-pair";
 import type { KeyPair } from "@trading-model/certificate-utils/types";
 import type {
-	CaClient,
-	SignCertificateRequest,
-} from "@trading-model/common/ca/ca-client";
-import type {
 	CertificateBase,
 	CertPemPair,
 } from "@trading-model/common/domain/certificate-base";
@@ -21,6 +17,10 @@ import {
 	toSerialNumber,
 	UnixTimestamp,
 } from "@trading-model/common/domain/primitives";
+import type {
+	CaClient,
+	SignCertificateRequest,
+} from "@trading-model/crypto/ca/ca-client";
 import type {
 	CertificateClientConfig,
 	ObtainedCertificate,

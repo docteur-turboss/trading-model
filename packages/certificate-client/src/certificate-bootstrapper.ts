@@ -5,14 +5,14 @@ import {
 	generateKeyPairAsync,
 } from "@trading-model/certificate-utils/async";
 import { KeyAlgorithm } from "@trading-model/certificate-utils/generate-key-pair";
-import {
-	CaClient,
-	type SignCertificateRequest,
-} from "@trading-model/common/ca/ca-client";
 import { logger } from "@trading-model/common/config/logger";
 import { toAuthToken, toCsrPem } from "@trading-model/common/domain/primitives";
 import type { TlsPaths } from "@trading-model/common/domain/tls-paths";
 import { normalizeError } from "@trading-model/common/utils/errors";
+import {
+	CaClient,
+	type SignCertificateRequest,
+} from "@trading-model/crypto/ca/ca-client";
 import {
 	type BootstrapConfig,
 	bootstrapConfigFromEnv,
@@ -82,7 +82,7 @@ async function _signWithCa(
 	config: BootstrapConfig,
 	csr: string
 ): Promise<
-	import("@trading-model/common/ca/ca-client").SignCertificateResponse
+	import("@trading-model/crypto/ca/ca-client").SignCertificateResponse
 > {
 	const caClient = new CaClient({ baseUrl: config.caUrl, tls: config.tls });
 	const request: SignCertificateRequest = {
@@ -99,7 +99,7 @@ async function _signWithCa(
 async function _writeCertFiles(
 	config: BootstrapConfig,
 	privateKey: string,
-	response: import("@trading-model/common/ca/ca-client").SignCertificateResponse
+	response: import("@trading-model/crypto/ca/ca-client").SignCertificateResponse
 ): Promise<void> {
 	const certDir = path.dirname(config.tlsPaths.certPath);
 	await fs.mkdir(certDir, { recursive: true });
@@ -119,7 +119,7 @@ async function _writeCertFile(
 
 function _logCertWritten(
 	config: BootstrapConfig,
-	response: import("@trading-model/common/ca/ca-client").SignCertificateResponse
+	response: import("@trading-model/crypto/ca/ca-client").SignCertificateResponse
 ): void {
 	logger.info("TLS certificate obtained and written to disk", {
 		serviceId: config.serviceId,

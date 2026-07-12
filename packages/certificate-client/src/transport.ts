@@ -1,4 +1,3 @@
-import { CaClient } from "@trading-model/common/ca/ca-client";
 import type {
 	SerialNumber,
 	ServiceId,
@@ -6,6 +5,7 @@ import type {
 } from "@trading-model/common/domain/primitives";
 import type { RevocationRequest } from "@trading-model/common/domain/revocation-request";
 import type { TlsPaths } from "@trading-model/common/domain/tls-paths";
+import { CaClient } from "@trading-model/crypto/ca/ca-client";
 import {
 	type TransportMode,
 	WssFallbackStrategy,
@@ -36,9 +36,9 @@ export class TransportManager {
 	}
 
 	signCertificate(
-		request: import("@trading-model/common/ca/ca-client").SignCertificateRequest
+		request: import("@trading-model/crypto/ca/ca-client").SignCertificateRequest
 	): Promise<
-		import("@trading-model/common/ca/ca-client").SignCertificateResponse
+		import("@trading-model/crypto/ca/ca-client").SignCertificateResponse
 	> {
 		return this._strategy.signCertificate(request, this._httpsClient);
 	}
@@ -46,7 +46,7 @@ export class TransportManager {
 	async getCertificate(
 		serviceId: ServiceId
 	): Promise<
-		import("@trading-model/common/ca/ca-client").GetCertificateResponse | null
+		import("@trading-model/crypto/ca/ca-client").GetCertificateResponse | null
 	> {
 		return await this._httpsClient.getCertificate(serviceId);
 	}

@@ -77,7 +77,7 @@ describe("WsTransport", () => {
 		mockWsHandlers.clear();
 		mockWsInstance.readyState = MockWebSocket.OPEN;
 		capturedTimeoutCallback = undefined;
-		transport = new WsTransport(testUrl);
+		transport = new WsTransport({ url: testUrl });
 	});
 
 	afterEach(() => {
@@ -125,7 +125,7 @@ describe("WsTransport", () => {
 				certPath: FilePath.of("/etc/tls/cert.pem"),
 				keyPath: FilePath.of("/etc/tls/key.pem"),
 			};
-			transport = new WsTransport(testUrl, tlsPaths);
+			transport = new WsTransport({ url: testUrl, tlsConfig: tlsPaths });
 			transport.connect();
 			expect(TlsConfigBuilder).toHaveBeenCalledWith(tlsPaths);
 		});

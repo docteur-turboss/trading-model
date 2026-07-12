@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 
-import { CertificateEvent } from "@trading-model/common/contracts/certificate-events";
+import { CertificateEvent } from "@trading-model/validation/contracts/certificate-events";
 
 const MOCK_ON = jest
 	.fn<(...args: any[]) => () => void>()

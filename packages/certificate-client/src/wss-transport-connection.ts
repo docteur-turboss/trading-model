@@ -33,7 +33,10 @@ export class WssTransportConnection implements IWsConnection {
 	private readonly _bootstrapToken?: string;
 
 	constructor(config: WssTransportConfig) {
-		this._connectionManager = new WsTransport(config.wsUrl, config.tlsConfig);
+		this._connectionManager = new WsTransport({
+			url: config.wsUrl,
+			tlsConfig: config.tlsConfig,
+		});
 		this._bootstrapToken = config.bootstrapToken;
 		this._authSender = new WsAuthSender(this._bootstrapToken);
 	}
