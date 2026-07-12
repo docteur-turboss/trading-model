@@ -386,8 +386,10 @@ describe("WorkerClient defaults and reconnection", () => {
 			capabilities: ["type-a" as unknown as Capability],
 			maxConcurrency: 3 as PositiveInt,
 			heartbeatIntervalMs: 5000 as DurationMs,
-			reconnectBaseDelayMs: 100 as DurationMs,
-			reconnectMaxDelayMs: 5000 as DurationMs,
+			reconnectConfig: {
+				baseDelayMs: 100 as DurationMs,
+				maxDelayMs: 5000 as DurationMs,
+			},
 		});
 
 		client.on("disconnected", onDisconnected);
@@ -416,8 +418,10 @@ describe("WorkerClient defaults and reconnection", () => {
 			capabilities: ["type-a" as unknown as Capability],
 			maxConcurrency: 3 as PositiveInt,
 			heartbeatIntervalMs: 5000 as DurationMs,
-			reconnectBaseDelayMs: 100 as DurationMs,
-			reconnectMaxDelayMs: 1000 as DurationMs,
+			reconnectConfig: {
+				baseDelayMs: 100 as DurationMs,
+				maxDelayMs: 1000 as DurationMs,
+			},
 		});
 
 		client.on("error", onError);
@@ -472,7 +476,9 @@ describe("WorkerClient defaults and reconnection", () => {
 			serverUrl: "wss://scheduler:3000",
 			capabilities: ["type-a" as unknown as Capability],
 			maxConcurrency: 3 as PositiveInt,
-			reconnectBaseDelayMs: 100 as DurationMs,
+			reconnectConfig: {
+				baseDelayMs: 100 as DurationMs,
+			},
 		});
 
 		client.on("error", onReconnectError);

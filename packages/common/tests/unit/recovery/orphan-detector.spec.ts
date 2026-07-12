@@ -6,8 +6,11 @@ import {
 	it,
 	jest,
 } from "@jest/globals";
-import type { JOB_STATUS, Job } from "../../../src/contracts/recovery.types";
-import { JobPriority } from "../../../src/contracts/recovery.types";
+import type {
+	JOB_STATUS,
+	Job,
+} from "@trading-model/validation/contracts/recovery.types";
+import { JobPriority } from "@trading-model/validation/contracts/recovery.types";
 import type {
 	Capability,
 	InstanceId,

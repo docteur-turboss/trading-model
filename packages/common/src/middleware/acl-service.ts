@@ -10,7 +10,7 @@ export class AclService {
 		private readonly _acl: Record<string, readonly ServiceId[]> = DEFAULT_ACL
 	) {}
 
-	resolveCallerName(req: Request): string {
+	resolveCallerName(req: Request): ServiceId {
 		const callerIdentity = req.clientIdentity;
 		if (!callerIdentity) {
 			this._throwUnauthorized("Unauthenticated");
@@ -23,16 +23,13 @@ export class AclService {
 	}
 
 	authorizeCaller(
-		callerName: string,
-		targetService: string,
+		callerName: ServiceId,
+		targetService: ServiceId,
 		allowedCallers?: readonly ServiceId[]
 	): void {
 		const allowed = this._getAllowedCallers(targetService, allowedCallers);
 		if (
-			!(
-				allowed.includes(ServiceId.of("*")) ||
-				allowed.includes(ServiceId.of(callerName))
-			)
+			!(allowed.includes(ServiceId.of("*")) || allowed.includes(callerName))
 		) {
 			this._throwForbidden(
 				`"${callerName}" is not authorized to access "${targetService}"`
@@ -41,7 +38,7 @@ export class AclService {
 	}
 
 	private _getAllowedCallers(
-		targetService: string,
+		targetService: ServiceId,
 		allowedCallers?: readonly ServiceId[]
 	): readonly ServiceId[] {
 		const allowed = allowedCallers ?? this._acl[targetService];

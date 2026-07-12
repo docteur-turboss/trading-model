@@ -3,7 +3,7 @@ import {
 	ConfigKey,
 	ConfigSource,
 	ConfigValue,
-} from "../../../../src/contracts/admin/config.dto";
+} from "@trading-model/validation/contracts/admin/config.dto";
 
 describe("ConfigSource", () => {
 	it("should have correct enum values", () => {

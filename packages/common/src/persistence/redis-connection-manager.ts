@@ -47,11 +47,7 @@ function createFromUrl(
 }
 
 function createSentinel(
-	config: {
-		sentinels: HostPort[];
-		name: string;
-		password?: string;
-	},
+	config: RedisSentinelConfig,
 	extraOptions?: Partial<RedisOptions>
 ): Redis {
 	const client = new Redis({

@@ -1,4 +1,4 @@
-import type { WorkerRegistration } from "../contracts/worker-protocol.types";
+import type { WorkerRegistration } from "@trading-model/validation/contracts/worker-protocol.types";
 import { WorkerHealthMonitor } from "./worker-health-monitor";
 import { WorkerLoadBalancer } from "./worker-load-balancer";
 import { WorkerStore } from "./worker-store";

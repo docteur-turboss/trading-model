@@ -1,22 +1,22 @@
 /**
  * @deprecated Import per-context types directly:
- *   - MarketEvent, MarketEventMap, market data types from "../contracts/market-data.types"
- *   - AuditEvent, AuditEventMap from "../contracts/audit-events"
- *   - CertificateEvent, CertificateEventMap from "../contracts/certificate-events"
+ *   - MarketEvent, MarketEventMap, market data types from "@trading-model/validation/contracts/market-data.types"
+ *   - AuditEvent, AuditEventMap from "@trading-model/validation/contracts/audit-events"
+ *   - CertificateEvent, CertificateEventMap from "@trading-model/validation/contracts/certificate-events"
  *   - MarketEventMap, AuditEventMap, CertificateEventMap from their respective files
  */
 
-export { AuditEvent } from "../contracts/audit-events";
-export { CertificateEvent } from "../contracts/certificate-events";
-/** @deprecated Use BaseMarketData from "../contracts/market-data.types" */
-/** @deprecated Use OhlcvData from "../contracts/market-data.types" */
-/** @deprecated Use CandleData from "../contracts/market-data.types" */
-/** @deprecated Use TradeData from "../contracts/market-data.types" */
-/** @deprecated Use OrderBookLevel from "../contracts/market-data.types" */
-/** @deprecated Use OrderBookData from "../contracts/market-data.types" */
-/** @deprecated Use BookTickerData from "../contracts/market-data.types" */
-/** @deprecated Use BidAsk from "../contracts/market-data.types" */
-/** @deprecated Use TickerData from "../contracts/market-data.types" */
+export { AuditEvent } from "@trading-model/validation/contracts/audit-events";
+export { CertificateEvent } from "@trading-model/validation/contracts/certificate-events";
+/** @deprecated Use BaseMarketData from "@trading-model/validation/contracts/market-data.types" */
+/** @deprecated Use OhlcvData from "@trading-model/validation/contracts/market-data.types" */
+/** @deprecated Use CandleData from "@trading-model/validation/contracts/market-data.types" */
+/** @deprecated Use TradeData from "@trading-model/validation/contracts/market-data.types" */
+/** @deprecated Use OrderBookLevel from "@trading-model/validation/contracts/market-data.types" */
+/** @deprecated Use OrderBookData from "@trading-model/validation/contracts/market-data.types" */
+/** @deprecated Use BookTickerData from "@trading-model/validation/contracts/market-data.types" */
+/** @deprecated Use BidAsk from "@trading-model/validation/contracts/market-data.types" */
+/** @deprecated Use TickerData from "@trading-model/validation/contracts/market-data.types" */
 export type {
 	BaseMarketData,
 	BidAsk,
@@ -27,11 +27,11 @@ export type {
 	OrderBookLevel,
 	TickerData,
 	TradeData,
-} from "../contracts/market-data.types";
-/** @deprecated Use MarketType from "../contracts/market-data.types" */
-/** @deprecated Use SourceType from "../contracts/market-data.types" */
-/** @deprecated Use CandleInterval from "../contracts/market-data.types" */
-/** @deprecated Use TradeSide from "../contracts/market-data.types" */
+} from "@trading-model/validation/contracts/market-data.types";
+/** @deprecated Use MarketType from "@trading-model/validation/contracts/market-data.types" */
+/** @deprecated Use SourceType from "@trading-model/validation/contracts/market-data.types" */
+/** @deprecated Use CandleInterval from "@trading-model/validation/contracts/market-data.types" */
+/** @deprecated Use TradeSide from "@trading-model/validation/contracts/market-data.types" */
 export {
 	CandleInterval,
 	getAskTotalQty,
@@ -41,12 +41,12 @@ export {
 	MarketType,
 	SourceType,
 	TradeSide,
-} from "../contracts/market-data.types";
-export { MarketEvent } from "../contracts/market-events";
+} from "@trading-model/validation/contracts/market-data.types";
+export { MarketEvent } from "@trading-model/validation/contracts/market-events";
 
-import { AuditEvent } from "../contracts/audit-events";
-import { CertificateEvent } from "../contracts/certificate-events";
-import { MarketEvent } from "../contracts/market-events";
+import { AuditEvent } from "@trading-model/validation/contracts/audit-events";
+import { CertificateEvent } from "@trading-model/validation/contracts/certificate-events";
+import { MarketEvent } from "@trading-model/validation/contracts/market-events";
 
 /**
  * @deprecated Use per-context enums: MarketEvent, AuditEvent, CertificateEvent.
@@ -60,9 +60,9 @@ export const EnumEventMessage = {
 export type EnumEventMessage =
 	(typeof EnumEventMessage)[keyof typeof EnumEventMessage];
 
-import type { AuditEventMap } from "../contracts/audit-events";
-import type { CertificateEventMap } from "../contracts/certificate-events";
-import type { MarketEventMap } from "../contracts/market-events";
+import type { AuditEventMap } from "@trading-model/validation/contracts/audit-events";
+import type { CertificateEventMap } from "@trading-model/validation/contracts/certificate-events";
+import type { MarketEventMap } from "@trading-model/validation/contracts/market-events";
 
 /** Union interface combining all per-context event maps. */
 export interface EventMap

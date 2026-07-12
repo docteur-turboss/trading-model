@@ -4,7 +4,7 @@ import {
 	isObject,
 	isValidIP,
 	isValidPort,
-} from "../../src/validation/primitives";
+} from "@trading-model/validation/validation/primitives";
 
 describe("primitives", () => {
 	describe("isNonEmptyString", () => {

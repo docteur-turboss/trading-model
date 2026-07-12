@@ -1,5 +1,6 @@
 import { describe, expect, it, jest } from "@jest/globals";
 import { setupAuditLogging } from "../../../src/config/setup-audit-logging";
+import type { HostPort } from "../../../src/domain/service-identity";
 
 describe("setupAuditLogging", () => {
 	it("should set audit resolver on logger", () => {
@@ -7,7 +8,7 @@ describe("setupAuditLogging", () => {
 		const logger = { setAuditResolver, info: jest.fn() } as never;
 		const addressManager = {
 			findService: jest
-				.fn<() => Promise<{ host: string; port: number } | null>>()
+				.fn<() => Promise<HostPort | null>>()
 				.mockResolvedValue({ host: "127.0.0.1", port: 3000 }),
 		} as never;
 		const tlsPaths = {} as never;
@@ -37,7 +38,7 @@ describe("setupAuditLogging", () => {
 		const logger = { setAuditResolver, info: infoFn } as never;
 		const addressManager = {
 			findService: jest
-				.fn<() => Promise<{ host: string; port: number } | null>>()
+				.fn<() => Promise<HostPort | null>>()
 				.mockResolvedValue({ host: "10.0.0.1", port: 3000 }),
 		} as never;
 		const tlsPaths = {} as never;
@@ -60,7 +61,7 @@ describe("setupAuditLogging", () => {
 		const logger = { setAuditResolver, info: infoFn } as never;
 		const addressManager = {
 			findService: jest
-				.fn<() => Promise<{ host: string; port: number } | null>>()
+				.fn<() => Promise<HostPort | null>>()
 				.mockResolvedValue({ host: "10.0.0.1", port: 3000 }),
 		} as never;
 		const tlsPaths = {} as never;
@@ -78,7 +79,7 @@ describe("setupAuditLogging", () => {
 		const logger = { setAuditResolver, info: jest.fn() } as never;
 		const addressManager = {
 			findService: jest
-				.fn<() => Promise<{ host: string; port: number } | null>>()
+				.fn<() => Promise<HostPort | null>>()
 				.mockRejectedValue(new Error("connection error")),
 		} as never;
 		const tlsPaths = {} as never;

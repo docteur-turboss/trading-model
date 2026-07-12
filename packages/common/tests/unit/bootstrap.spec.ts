@@ -19,10 +19,10 @@ jest.mock("../../src/config/logger", () => ({
 	_private: class {},
 }));
 
-jest.mock("../../src/server/signal-handler", () => {
+jest.mock("@trading-model/server-utils/server/signal-handler", () => {
 	const actual = jest.requireActual<
-		typeof import("../../src/server/signal-handler")
-	>("../../src/server/signal-handler");
+		typeof import("@trading-model/server-utils/server/signal-handler")
+	>("@trading-model/server-utils/server/signal-handler");
 	return {
 		...actual,
 		setupProcessHandlers: jest.fn((shutdown: any, hardShutdown: any) => {
@@ -32,8 +32,8 @@ jest.mock("../../src/server/signal-handler", () => {
 	};
 });
 
-import { createBootstrap } from "../../src/server/bootstrap";
-import { removeProcessHandlers } from "../../src/server/signal-handler";
+import { createBootstrap } from "@trading-model/server-utils/server/bootstrap";
+import { removeProcessHandlers } from "@trading-model/server-utils/server/signal-handler";
 
 describe("createBootstrap", () => {
 	beforeEach(() => {

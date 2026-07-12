@@ -1,5 +1,6 @@
 import { describe, expect, it } from "@jest/globals";
 import type { Request } from "express";
+import { ServiceId } from "../../../src/domain/primitives";
 import { AclService } from "../../../src/middleware/acl-service";
 
 function mockRequest(overrides?: Record<string, unknown>): Request {
@@ -17,13 +18,13 @@ describe("AclService", () => {
 		const req = mockRequest({
 			clientIdentity: "spiffe://cluster.local/ns/default/sa/my-service",
 		});
-		expect(acl.resolveCallerName(req)).toBe("my-service");
+		expect(acl.resolveCallerName(req)).toBe(ServiceId.of("my-service"));
 	});
 
 	it("should resolve caller from client: prefix", () => {
 		const acl = new AclService();
 		const req = mockRequest({ clientIdentity: "client:gateway" });
-		expect(acl.resolveCallerName(req)).toBe("api-gateway");
+		expect(acl.resolveCallerName(req)).toBe(ServiceId.of("api-gateway"));
 	});
 
 	it("should throw unauthorized when no identity", () => {
@@ -34,42 +35,58 @@ describe("AclService", () => {
 
 	it("should authorize caller with wildcard", () => {
 		const acl = new AclService({
-			"test-service": ["*" as never],
+			"test-service": [ServiceId.of("*")],
 		});
 		expect(() =>
-			acl.authorizeCaller("any-caller", "test-service")
+			acl.authorizeCaller(
+				ServiceId.of("any-caller"),
+				ServiceId.of("test-service")
+			)
 		).not.toThrow();
 	});
 
 	it("should authorize specific caller", () => {
 		const acl = new AclService({
-			"test-service": ["allowed-caller" as never],
+			"test-service": [ServiceId.of("allowed-caller")],
 		});
 		expect(() =>
-			acl.authorizeCaller("allowed-caller", "test-service")
+			acl.authorizeCaller(
+				ServiceId.of("allowed-caller"),
+				ServiceId.of("test-service")
+			)
 		).not.toThrow();
 	});
 
 	it("should throw forbidden for unauthorized caller", () => {
 		const acl = new AclService({
-			"test-service": ["allowed-caller" as never],
+			"test-service": [ServiceId.of("allowed-caller")],
 		});
 		expect(() =>
-			acl.authorizeCaller("unknown-caller", "test-service")
+			acl.authorizeCaller(
+				ServiceId.of("unknown-caller"),
+				ServiceId.of("test-service")
+			)
 		).toThrow();
 	});
 
 	it("should use custom allowedCallers when provided", () => {
 		const acl = new AclService();
 		expect(() =>
-			acl.authorizeCaller("custom-caller", "any-service", [
-				"custom-caller" as never,
-			])
+			acl.authorizeCaller(
+				ServiceId.of("custom-caller"),
+				ServiceId.of("any-service"),
+				[ServiceId.of("custom-caller")]
+			)
 		).not.toThrow();
 	});
 
 	it("should throw forbidden for missing ACL entry", () => {
 		const acl = new AclService({});
-		expect(() => acl.authorizeCaller("caller", "unknown-service")).toThrow();
+		expect(() =>
+			acl.authorizeCaller(
+				ServiceId.of("caller"),
+				ServiceId.of("unknown-service")
+			)
+		).toThrow();
 	});
 });

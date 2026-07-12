@@ -1,28 +1,7 @@
-import type { HttpMethod } from "../config/http-types";
-import type {
-	CorrelationId,
-	InstanceId,
-	ISODateTime,
-	ServiceId,
-	URLString,
-	Version,
-} from "../domain/primitives";
-import type { HttpStatusCode } from "../http-status";
+import type { InstanceId, ServiceId, URLString } from "../domain/primitives";
 import { CircularBuffer } from "../utils/circular-buffer";
 import { normalizeError } from "../utils/errors";
-
-interface ErrorReport {
-	message: string;
-	stack?: string;
-	url: URLString;
-	method: HttpMethod;
-	statusCode: HttpStatusCode;
-	correlationId: CorrelationId;
-	timestamp: ISODateTime;
-	serviceName: ServiceId;
-	serviceVersion: Version;
-	instanceId: InstanceId;
-}
+import type { ErrorReportBody } from "./error-report-builder";
 
 export interface ErrorBufferConfig {
 	endpoint: URLString;
@@ -32,7 +11,7 @@ export interface ErrorBufferConfig {
 }
 
 export class ErrorBuffer {
-	private readonly _buffer: CircularBuffer<ErrorReport>;
+	private readonly _buffer: CircularBuffer<ErrorReportBody>;
 	private readonly _endpoint: URLString;
 	private readonly _batchSize: number;
 	private readonly _serviceName: ServiceId;
@@ -43,10 +22,10 @@ export class ErrorBuffer {
 		this._batchSize = config.batchSize;
 		this._serviceName = config.serviceName;
 		this._instanceId = config.instanceId;
-		this._buffer = new CircularBuffer<ErrorReport>(config.batchSize * 2);
+		this._buffer = new CircularBuffer<ErrorReportBody>(config.batchSize * 2);
 	}
 
-	add(report: ErrorReport): void {
+	add(report: ErrorReportBody): void {
 		this._buffer.add(report);
 		if (this._buffer.size >= this._batchSize) {
 			void this.flush();
@@ -65,7 +44,7 @@ export class ErrorBuffer {
 		return this._buffer.size;
 	}
 
-	private async _post(batch: ErrorReport[]): Promise<void> {
+	private async _post(batch: ErrorReportBody[]): Promise<void> {
 		try {
 			await this._sendBatch(batch);
 		} catch (err) {
@@ -73,7 +52,7 @@ export class ErrorBuffer {
 		}
 	}
 
-	private _sendBatch(batch: ErrorReport[]): Promise<Response> {
+	private _sendBatch(batch: ErrorReportBody[]): Promise<Response> {
 		return fetch(this._endpoint, {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },

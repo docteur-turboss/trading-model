@@ -1,4 +1,4 @@
-import type { WorkerWsHeartbeatMessage } from "../contracts/worker-protocol.types";
+import type { WorkerWsHeartbeatMessage } from "@trading-model/validation/contracts/worker-protocol.types";
 import { toInstanceId } from "../domain/primitives";
 import { TimerHandle } from "../utils/timer-handle";
 

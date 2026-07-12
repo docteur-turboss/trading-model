@@ -1,10 +1,21 @@
 /** @type {import('ts-jest').JestConfigWithTsJest} */
 module.exports = {
-  preset: 'ts-jest',
   testEnvironment: 'node',
   rootDir: '.',
+  transform: {
+    '^.+\\.tsx?$': [
+      'ts-jest',
+      {
+        tsconfig: 'tsconfig.json',
+        diagnostics: false,
+      },
+    ],
+  },
   testMatch: ['**/?(*.)+(spec).ts'],
   moduleNameMapper: {
+    '^@trading-model/crypto/(.*)$': '<rootDir>/../crypto/src/$1',
+    '^@trading-model/validation/(.*)$': '<rootDir>/../validation/src/$1',
+    '^@trading-model/server-utils/(.*)$': '<rootDir>/../server-utils/src/$1',
     '^@trading-model/common/(.*)$': '<rootDir>/src/$1',
   },
   testPathIgnorePatterns: ['/node_modules/', '/dist/'],

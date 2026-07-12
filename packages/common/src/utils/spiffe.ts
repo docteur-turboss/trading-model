@@ -1,10 +1,12 @@
-export function extractServiceName(clientIdentity: string): string | null {
+import { ServiceId } from "../domain/primitives";
+
+export function extractServiceName(clientIdentity: string): ServiceId | null {
 	if (clientIdentity.startsWith("spiffe://")) {
 		const parts = clientIdentity.split("/");
-		return parts[parts.length - 1] || null;
+		return ServiceId.of(parts[parts.length - 1] || "");
 	}
 	if (clientIdentity.startsWith("client:")) {
-		return "api-gateway";
+		return ServiceId.of("api-gateway");
 	}
-	return clientIdentity || null;
+	return clientIdentity ? ServiceId.of(clientIdentity) : null;
 }

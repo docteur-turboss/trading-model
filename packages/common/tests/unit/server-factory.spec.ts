@@ -48,9 +48,9 @@ jest.mock("../../src/config/logger", () => ({
 
 import fs from "node:fs";
 import fsPromises from "node:fs/promises";
+import { setupTlsWatcher } from "@trading-model/server-utils/server/server-factory";
 import { logger } from "../../src/config/logger";
 import type { FilePath } from "../../src/domain/primitives";
-import { setupTlsWatcher } from "../../src/server/server-factory";
 
 const TLS_CONFIG = {
 	keyPath: "/path/to/key.pem" as FilePath,

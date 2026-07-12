@@ -8,7 +8,7 @@ import {
 	JOB_STATUS_TERMINAL,
 	JobPriority,
 	JobStatus,
-} from "../../../src/contracts/recovery.types";
+} from "@trading-model/validation/contracts/recovery.types";
 
 describe("JobPriority", () => {
 	it("should have correct constants", () => {

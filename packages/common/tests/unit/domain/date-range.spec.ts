@@ -123,7 +123,10 @@ describe("DateRange", () => {
 
 	describe("fromUnixTimestamps", () => {
 		it("should create range from unix timestamps", () => {
-			const range = DateRange.fromUnixTimestamps(1704067200000, 1735689599999);
+			const range = DateRange.fromUnixTimestamps({
+				fromMs: 1704067200000,
+				toMs: 1735689599999,
+			});
 			expect(range.start).toEqual(new Date(1704067200000));
 			expect(range.end).toEqual(new Date(1735689599999));
 		});

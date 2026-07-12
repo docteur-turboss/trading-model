@@ -1,5 +1,5 @@
 import { describe, expect, it } from "@jest/globals";
-import { generateInstanceToken } from "../../../src/crypto/token-generator";
+import { generateInstanceToken } from "@trading-model/crypto/crypto/token-generator";
 
 describe("generateInstanceToken", () => {
 	it("should generate a 3-part token", () => {

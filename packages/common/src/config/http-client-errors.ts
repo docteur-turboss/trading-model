@@ -1,4 +1,4 @@
-import type { ErrorResponse } from "../contracts/error-response";
+import type { ErrorResponse } from "@trading-model/validation/contracts/error-response";
 import type { HttpStatusCode } from "../http-status";
 
 export class HttpClientError extends Error {

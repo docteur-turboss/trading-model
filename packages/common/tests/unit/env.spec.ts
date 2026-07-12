@@ -6,12 +6,12 @@ import {
 	it,
 	jest,
 } from "@jest/globals";
-import { AppError } from "../../src/utils/errors";
 import {
 	AddressManagerEnvSchema,
 	BaseEnvSchema,
 	validateEnv,
-} from "../../src/validation/env";
+} from "@trading-model/validation/validation/env";
+import { AppError } from "../../src/utils/errors";
 
 describe("validateEnv", () => {
 	const OldEnv = process.env;
@@ -83,7 +83,7 @@ describe("validateEnv", () => {
 			const {
 				validateEnv: validate2,
 				BaseEnvSchema: BaseSchema2,
-			} = require("../../src/validation/env");
+			} = require("@trading-model/validation/validation/env");
 
 			delete process.env.NODE_ENV;
 			delete process.env.TLS_KEY_PATH;

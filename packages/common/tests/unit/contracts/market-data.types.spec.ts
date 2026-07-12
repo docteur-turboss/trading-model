@@ -11,7 +11,7 @@ import {
 	sourceTypeValues,
 	TradeSide,
 	tradeSideValues,
-} from "../../../src/contracts/market-data.types";
+} from "@trading-model/validation/contracts/market-data.types";
 
 describe("MarketType", () => {
 	it("should have correct enum values", () => {

@@ -1,5 +1,5 @@
 import type https from "node:https";
-import { HttpMethod } from "../contracts/signed-request";
+import { HttpMethod } from "@trading-model/validation/contracts/signed-request";
 import type { DurationMs, PositiveInt, ServiceId } from "../domain/primitives";
 
 export type HttpHeaderValue = string & { readonly brand: "HttpHeaderValue" };

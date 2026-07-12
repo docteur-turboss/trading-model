@@ -1,4 +1,5 @@
-﻿import type { Price } from "./price";
+﻿import type { DecimalPrecision } from "./decimal-precision";
+import type { Price } from "./price";
 import type { Volume } from "./volume";
 
 export type Cash = number & { readonly brand: "Cash" };
@@ -33,7 +34,7 @@ export const Cash = {
 		return left < right;
 	},
 
-	round(value: Cash, decimals: number): Cash {
+	round(value: Cash, decimals: DecimalPrecision): Cash {
 		const factor = 10 ** decimals;
 		return (Math.round(value * factor) / factor) as Cash;
 	},

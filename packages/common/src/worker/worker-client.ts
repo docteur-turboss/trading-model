@@ -1,9 +1,9 @@
-﻿import type {
+import type {
 	SchedulerOutgoingMessage,
 	SchedulerWsJobAssignedMessage,
 	WorkerIncomingMessage,
 	WorkerWsHeartbeatMessage,
-} from "../contracts/worker-protocol.types";
+} from "@trading-model/validation/contracts/worker-protocol.types";
 import {
 	type Capability,
 	DurationMs,
@@ -11,6 +11,7 @@ import {
 	toInstanceId,
 	URLString,
 } from "../domain/primitives";
+import type { BackoffConfig } from "../utils/backoff-config";
 import { DefaultWsReconnector } from "../ws/default-ws-reconnector";
 import { wireConnectionEvents } from "./connection-wire";
 import { TypedEventEmitter } from "./typed-event-emitter";
@@ -24,8 +25,7 @@ export interface WorkerClientConfig {
 	capabilities: Capability[];
 	maxConcurrency: PositiveInt;
 	heartbeatIntervalMs?: DurationMs;
-	reconnectBaseDelayMs?: DurationMs;
-	reconnectMaxDelayMs?: DurationMs;
+	reconnectConfig?: BackoffConfig;
 }
 export interface WorkerClientEvents {
 	connected: [];
@@ -40,15 +40,19 @@ export interface WorkerClientEvents {
 
 function normalizeConfig(
 	config: WorkerClientConfig
-): Required<WorkerClientConfig> {
+): Required<WorkerClientConfig> & {
+	reconnectBaseDelayMs: DurationMs;
+	reconnectMaxDelayMs: DurationMs;
+} {
+	const reconnect = config.reconnectConfig ?? {};
 	return {
 		workerId: config.workerId,
 		serverUrl: config.serverUrl,
 		capabilities: config.capabilities,
 		maxConcurrency: config.maxConcurrency,
 		heartbeatIntervalMs: config.heartbeatIntervalMs ?? DurationMs.of(15000),
-		reconnectBaseDelayMs: config.reconnectBaseDelayMs ?? DurationMs.of(1000),
-		reconnectMaxDelayMs: config.reconnectMaxDelayMs ?? DurationMs.of(30000),
+		reconnectBaseDelayMs: reconnect.baseDelayMs ?? DurationMs.of(1000),
+		reconnectMaxDelayMs: reconnect.maxDelayMs ?? DurationMs.of(30000),
 	};
 }
 
@@ -64,7 +68,7 @@ function _buildConnection(
 }
 
 function _buildReconnector(
-	cfg: Required<WorkerClientConfig>,
+	cfg: ReturnType<typeof normalizeConfig>,
 	onReconnect: () => Promise<void>,
 	onSchedule: (info: { attempt: number; delay: number }) => void
 ): DefaultWsReconnector {

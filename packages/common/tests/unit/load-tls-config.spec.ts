@@ -1,6 +1,6 @@
 import { describe, expect, it } from "@jest/globals";
+import { loadTlsConfig } from "@trading-model/server-utils/server/load-tls-config";
 import type { FilePath } from "../../src/domain/primitives";
-import { loadTlsConfig } from "../../src/server/load-tls-config";
 
 describe("loadTlsConfig", () => {
 	it("should return TLS config from paths", () => {

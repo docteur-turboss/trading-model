@@ -1,13 +1,13 @@
-﻿import type {
+import type {
 	CandleData,
 	OrderBookData,
 	TradeData,
-} from "../contracts/market-data.types";
+} from "@trading-model/validation/contracts/market-data.types";
 import {
 	getAvgAsk,
 	getAvgBid,
 	TradeSide,
-} from "../contracts/market-data.types";
+} from "@trading-model/validation/contracts/market-data.types";
 import { Price } from "../domain/primitives";
 
 export function getSpread(ob: OrderBookData): Price {

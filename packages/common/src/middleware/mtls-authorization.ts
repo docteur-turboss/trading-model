@@ -22,7 +22,7 @@ export { DEFAULT_ACL } from "./acl-config";
  * ```
  */
 export function MTLSAuthorizationMiddleware(
-	targetService: string,
+	targetService: ServiceId,
 	allowedCallers?: ServiceId[]
 ) {
 	const acl = new AclService();

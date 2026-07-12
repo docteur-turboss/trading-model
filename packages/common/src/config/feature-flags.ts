@@ -111,12 +111,15 @@ export class FeatureFlags {
 	}
 }
 
+const TRUTHY_VALUES = new Set(["1", "true", "yes"]);
+const FALSY_VALUES = new Set(["0", "false", "no"]);
+
 function parseFlagValue(raw: string, source: string): boolean | undefined {
 	const val = raw.toLowerCase();
-	if (val === "1" || val === "true" || val === "yes") {
+	if (TRUTHY_VALUES.has(val)) {
 		return true;
 	}
-	if (val === "0" || val === "false" || val === "no") {
+	if (FALSY_VALUES.has(val)) {
 		return false;
 	}
 	logger.warn(

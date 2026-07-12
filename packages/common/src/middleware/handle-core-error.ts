@@ -1,5 +1,5 @@
+import type { ErrorResponse } from "@trading-model/validation/contracts/error-response";
 import { logger } from "../config/logger";
-import type { ErrorResponse } from "../contracts/error-response";
 import { normalizeError } from "../utils/errors";
 import { normalizeDbError } from "./normalize-db-error";
 import { HTTP_CODE, ResponseException } from "./response-exception";

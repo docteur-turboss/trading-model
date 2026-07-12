@@ -4,6 +4,7 @@ import type {
 	Port,
 	Region,
 	ServiceId,
+	Version,
 } from "./primitives";
 
 /** Uniquely identifies a service instance in the distributed system. */
@@ -12,6 +13,11 @@ export interface ServiceIdentity {
 	instanceId: InstanceId;
 	/** Deployment region for geo-affinity routing. */
 	region?: Region;
+}
+
+/** Extends ServiceIdentity with a software version. */
+export interface ServiceInstanceIdentity extends ServiceIdentity {
+	version: Version;
 }
 
 /** Builds a compound string key from a service identity. */

@@ -1,4 +1,6 @@
-﻿export type Percentage = number & { readonly brand: "Percentage" };
+﻿import type { DecimalPrecision } from "./decimal-precision";
+
+export type Percentage = number & { readonly brand: "Percentage" };
 
 export const Percentage = {
 	of(value: number): Percentage {
@@ -44,7 +46,7 @@ export const Percentage = {
 		return value * percentage;
 	},
 
-	round(value: Percentage, decimals: number): Percentage {
+	round(value: Percentage, decimals: DecimalPrecision): Percentage {
 		const factor = 10 ** decimals;
 		return (Math.round(value * factor) / factor) as Percentage;
 	},

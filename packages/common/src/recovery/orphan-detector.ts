@@ -1,5 +1,5 @@
+import { JOB_STATUS } from "@trading-model/validation/contracts/recovery.types";
 import { logger } from "../config/logger";
-import { JOB_STATUS } from "../contracts/recovery.types";
 import { TimerHandle } from "../utils/timer-handle";
 import type { WorkerRegistry } from "../worker/worker-registry";
 import type { IJobRepository } from "./job-repository.interface";

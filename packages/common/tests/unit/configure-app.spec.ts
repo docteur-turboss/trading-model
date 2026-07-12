@@ -22,10 +22,10 @@ jest.mock("express-rate-limit", () => ({
 	rateLimit: jest.fn(() => "rateLimitMiddleware"),
 }));
 
+import { configureApp } from "@trading-model/server-utils/server/configure-app";
 import express from "express";
 import { rateLimit } from "express-rate-limit";
 import helmet from "helmet";
-import { configureApp } from "../../src/server/configure-app";
 
 describe("configureApp", () => {
 	it("should create app with helmet, body parsers, rate limiter, and ping route", () => {

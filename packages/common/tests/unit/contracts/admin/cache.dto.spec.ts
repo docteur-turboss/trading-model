@@ -5,7 +5,7 @@ import {
 	fromDataSize,
 	toCacheKey,
 	toDataSize,
-} from "../../../../src/contracts/admin/cache.dto";
+} from "@trading-model/validation/contracts/admin/cache.dto";
 
 describe("CacheStatus", () => {
 	it("should have correct enum values", () => {

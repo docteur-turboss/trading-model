@@ -5,7 +5,7 @@ const BLOCKED_IPV4_PREFIXES = ["127.", "10.", "0.", "169.254.", "192.168."];
 const BLOCKED_IPV6 = ["::1", "::ffff:127.", "fe80:", "fc00:", "fd00:"];
 
 /** Hostnames that are always allowed regardless of DNS resolution. */
-const ALLOWED_HOSTNAMES = new Set<string>(["localhost"]);
+const ALLOWED_HOSTNAMES = new Set<Hostname>(["localhost" as Hostname]);
 
 /**
  * Validates that a hostname or IP is safe for outgoing HTTP requests.

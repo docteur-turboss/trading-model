@@ -50,11 +50,11 @@ jest.mock("@opentelemetry/instrumentation-express", () => ({
 	ExpressInstrumentation: jest.fn(),
 }));
 
-import { logger } from "../../../src/config/logger";
 import {
 	initializeTelemetry,
 	shutdownTelemetry,
-} from "../../../src/server/telemetry";
+} from "@trading-model/server-utils/server/telemetry";
+import { logger } from "../../../src/config/logger";
 
 const testConfig = {
 	serviceName: "test-service" as never,

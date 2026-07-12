@@ -2,7 +2,7 @@ import { describe, expect, it } from "@jest/globals";
 import {
 	WsClientMessageType,
 	WsServerMessageType,
-} from "../../../src/contracts/broker-ws.types";
+} from "@trading-model/validation/contracts/broker-ws.types";
 
 describe("WsClientMessageType", () => {
 	it("should have expected values", () => {

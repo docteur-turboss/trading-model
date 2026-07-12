@@ -1,5 +1,5 @@
+import type { SchedulerWsJobAssignedMessage } from "@trading-model/validation/contracts/worker-protocol.types";
 import type { HttpClient } from "../config/http-client";
-import type { SchedulerWsJobAssignedMessage } from "../contracts/worker-protocol.types";
 import type { JobId, JobType } from "../domain/primitives";
 import { WorkerStatusCode } from "../domain/primitives";
 import { JobHandlerRegistry } from "./job-handler-registry";

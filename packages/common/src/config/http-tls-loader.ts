@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import type https from "node:https";
 
-import { CryptoAlg } from "../crypto/crypto-constants";
+import { CryptoAlg } from "@trading-model/crypto/crypto/crypto-constants";
 import { CaPem, CertPem, KeyPem } from "../domain/primitives";
 import type { TlsPaths, TlsPemBundle } from "../domain/tls-paths";
 import { normalizeError } from "../utils/errors";

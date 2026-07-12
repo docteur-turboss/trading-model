@@ -1,5 +1,5 @@
 import { describe, expect, it } from "@jest/globals";
-import { generateRandomStr } from "../../src/crypto/random";
+import { generateRandomStr } from "@trading-model/crypto/crypto/random";
 
 describe("generateRandomStr", () => {
 	it("should return a string", () => {

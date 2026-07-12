@@ -1,6 +1,9 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
-import type { JOB_STATUS, Job } from "../../../src/contracts/recovery.types";
-import { JobPriority } from "../../../src/contracts/recovery.types";
+import type {
+	JOB_STATUS,
+	Job,
+} from "@trading-model/validation/contracts/recovery.types";
+import { JobPriority } from "@trading-model/validation/contracts/recovery.types";
 import type { JobId, JobType } from "../../../src/domain/primitives";
 import {
 	type PositiveInt,

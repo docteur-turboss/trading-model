@@ -1,3 +1,5 @@
+import { UnixTimestamp } from "./primitives";
+
 export class DateRange {
 	readonly start?: Date;
 	readonly end?: Date;
@@ -48,7 +50,13 @@ export class DateRange {
 		return this.start <= other.end && other.start <= this.end;
 	}
 
-	static fromUnixTimestamps(fromMs: number, toMs: number): DateRange {
-		return new DateRange(new Date(fromMs), new Date(toMs));
+	static fromUnixTimestamps(range: {
+		fromMs: UnixTimestamp;
+		toMs: UnixTimestamp;
+	}): DateRange {
+		return new DateRange(
+			UnixTimestamp.toDate(range.fromMs),
+			UnixTimestamp.toDate(range.toMs)
+		);
 	}
 }

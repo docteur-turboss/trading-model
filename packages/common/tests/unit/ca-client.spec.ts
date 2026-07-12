@@ -25,7 +25,7 @@ jest.mock("../../src/config/http-client", () => {
 	return { HttpClient: MockHttpClient };
 });
 
-import { CaClient } from "../../src/ca/ca-client";
+import { CaClient } from "@trading-model/crypto/ca/ca-client";
 import type { FilePath } from "../../src/domain/primitives";
 
 describe("CaClient", () => {

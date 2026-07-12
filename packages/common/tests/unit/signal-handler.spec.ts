@@ -20,7 +20,7 @@ jest.mock("../../src/config/logger", () => ({
 import {
 	removeProcessHandlers,
 	setupProcessHandlers,
-} from "../../src/server/signal-handler";
+} from "@trading-model/server-utils/server/signal-handler";
 
 describe("signal-handler", () => {
 	let processOnSpy: any;

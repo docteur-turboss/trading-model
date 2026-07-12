@@ -1,5 +1,5 @@
 import { CircuitState } from "../domain/circuit-state";
-import { DurationMs } from "../domain/primitives";
+import { DurationMs, UnixTimestamp } from "../domain/primitives";
 import type { IUnkeyedCircuitBreaker } from "./circuit-breaker.interface";
 
 export interface CircuitBreakerConfig {
@@ -26,7 +26,7 @@ interface PersistentState {
 
 export class CircuitStateMachine implements IUnkeyedCircuitBreaker {
 	protected _failures = 0;
-	protected _openUntil = 0;
+	protected _openUntil: UnixTimestamp = 0 as UnixTimestamp;
 	protected _halfOpenAttempts = 0;
 
 	constructor(protected readonly _config: CircuitBreakerConfig) {}
@@ -43,11 +43,11 @@ export class CircuitStateMachine implements IUnkeyedCircuitBreaker {
 	}
 
 	check(): CircuitState {
-		return this.getState(Date.now());
+		return this.getState(UnixTimestamp.now());
 	}
 
 	isAllowed(): boolean {
-		return !this.isOpen(Date.now());
+		return !this.isOpen(UnixTimestamp.now());
 	}
 
 	getFailureCount(): number {
@@ -78,7 +78,7 @@ export class CircuitStateMachine implements IUnkeyedCircuitBreaker {
 	}
 
 	getState(now?: number): CircuitState {
-		const effectiveNow = now ?? Date.now();
+		const effectiveNow = now ?? UnixTimestamp.now();
 		if (this._openUntil > effectiveNow) {
 			return CircuitState.OPEN;
 		}
@@ -89,7 +89,7 @@ export class CircuitStateMachine implements IUnkeyedCircuitBreaker {
 	}
 
 	isOpen(now?: number): boolean {
-		const effectiveNow = now ?? Date.now();
+		const effectiveNow = now ?? UnixTimestamp.now();
 		if (this._openUntil > effectiveNow) {
 			return true;
 		}
@@ -100,7 +100,7 @@ export class CircuitStateMachine implements IUnkeyedCircuitBreaker {
 	}
 
 	recordFailure(count = 1, threshold?: number): boolean {
-		const effectiveNow = Date.now();
+		const effectiveNow = UnixTimestamp.now();
 		const prevState = this.getState(effectiveNow);
 		this._failures += count;
 		if (this._openUntil > 0) {
@@ -109,7 +109,10 @@ export class CircuitStateMachine implements IUnkeyedCircuitBreaker {
 				this._config.halfOpenMaxAttempts !== undefined &&
 				this._halfOpenAttempts >= this._config.halfOpenMaxAttempts
 			) {
-				this._openUntil = effectiveNow + this._config.cooldownMs;
+				this._openUntil = UnixTimestamp.add(
+					effectiveNow,
+					this._config.cooldownMs
+				);
 				this._config.onOpen?.({
 					failures: this._failures,
 					halfOpenAttempts: this._halfOpenAttempts,
@@ -120,7 +123,10 @@ export class CircuitStateMachine implements IUnkeyedCircuitBreaker {
 			return false;
 		}
 		if (this._failures >= (threshold ?? this._config.failureThreshold)) {
-			this._openUntil = effectiveNow + this._config.cooldownMs;
+			this._openUntil = UnixTimestamp.add(
+				effectiveNow,
+				this._config.cooldownMs
+			);
 			this._config.onOpen?.({
 				failures: this._failures,
 				halfOpenAttempts: this._halfOpenAttempts,
@@ -133,13 +139,13 @@ export class CircuitStateMachine implements IUnkeyedCircuitBreaker {
 
 	recordSuccess(): void {
 		this._failures = 0;
-		this._openUntil = 0;
+		this._openUntil = 0 as UnixTimestamp;
 		this._halfOpenAttempts = 0;
 	}
 
 	reset(): void {
 		this._failures = 0;
-		this._openUntil = 0;
+		this._openUntil = 0 as UnixTimestamp;
 		this._halfOpenAttempts = 0;
 	}
 
@@ -148,7 +154,7 @@ export class CircuitStateMachine implements IUnkeyedCircuitBreaker {
 	}
 
 	protected _transitionToClosed(): void {
-		this._openUntil = 0;
+		this._openUntil = 0 as UnixTimestamp;
 		this._halfOpenAttempts = 0;
 	}
 

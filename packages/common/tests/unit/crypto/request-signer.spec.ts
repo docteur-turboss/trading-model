@@ -5,7 +5,7 @@ import {
 	normalizeBody,
 	signRequest,
 	verifySignature,
-} from "../../../src/crypto/request-signer";
+} from "@trading-model/crypto/crypto/request-signer";
 import { HTTP_HEADERS } from "../../../src/http-headers";
 
 const secret = "test-secret-key-12345";

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "@jest/globals";
-import { toPaginatedResponse } from "../../../src/contracts/pagination.types";
+import { toPaginatedResponse } from "@trading-model/validation/contracts/pagination.types";
 
 describe("toPaginatedResponse", () => {
 	it("should create a paginated response from PaginationResult", () => {

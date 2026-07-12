@@ -33,6 +33,10 @@ export const ResponseCodes = Object.fromEntries(
 	HTTP_RESPONSE_DEFINITIONS.map(({ key, code }) => [key, code])
 ) as { [TKey in ResponseMethodKey]: HttpStatusCode };
 
+const HTTP_RESPONSE_MAP = new Map(
+	HTTP_RESPONSE_DEFINITIONS.map((def) => [def.key, def])
+);
+
 export type ResponseCodeKey = keyof typeof ResponseCodes;
 export type ResponseCodeValue =
 	(typeof HTTP_RESPONSE_DEFINITIONS)[number]["code"];
@@ -59,13 +63,11 @@ const ResponseMethodProxyHandler: ProxyHandler<ClassResponseExceptions> = {
 		if (typeof prop === "symbol" || prop in target) {
 			return Reflect.get(target, prop);
 		}
-		const def = HTTP_RESPONSE_DEFINITIONS.find(
-			(definition) => definition.key === prop
-		);
+		const def = HTTP_RESPONSE_MAP.get(prop as string);
 		if (!def) {
 			return;
 		}
-		if (def.key === "noContent") {
+		if (def.key === HTTP_CODE.noContent) {
 			return () => ({ status: def.code, data: undefined });
 		}
 		return () => ({ status: def.code, data: target.reason });

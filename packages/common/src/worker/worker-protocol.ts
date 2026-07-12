@@ -1,10 +1,10 @@
 import type https from "node:https";
-import WebSocket from "ws";
-import { logger } from "../config/logger";
 import type {
 	SchedulerOutgoingMessage,
 	WorkerIncomingMessage,
-} from "../contracts/worker-protocol.types";
+} from "@trading-model/validation/contracts/worker-protocol.types";
+import WebSocket from "ws";
+import { logger } from "../config/logger";
 import type { WorkerRegistry } from "./worker-registry";
 import { WorkerWsManager } from "./worker-ws-manager";
 
