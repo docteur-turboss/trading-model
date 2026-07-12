@@ -81,10 +81,10 @@ function _decryptAes256Gcm(payload: EncryptedPayload, key: Buffer): string {
 	return decrypted;
 }
 
-function _zeroBuffers(key: Buffer, iv: Buffer, tag: Buffer): void {
+function _zeroBuffers(key: Buffer, payload: EncryptedPayload): void {
 	key.fill(0);
-	iv.fill(0);
-	tag.fill(0);
+	payload.iv.fill(0);
+	payload.tag.fill(0);
 }
 
 export function decryptKey(
@@ -100,6 +100,6 @@ export function decryptKey(
 	}
 	const key = _validateKeyLength(keyBase64);
 	const result = _decryptAes256Gcm(parsed, key);
-	_zeroBuffers(key, parsed.iv, parsed.tag);
+	_zeroBuffers(key, parsed);
 	return result;
 }

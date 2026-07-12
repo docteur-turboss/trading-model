@@ -1,4 +1,5 @@
 import { logger } from "@trading-model/common/config/logger";
+import type { URLString } from "@trading-model/common/domain/primitives";
 import Redis from "ioredis";
 import type { RedisCache } from "./redis-cache.types";
 
@@ -15,7 +16,7 @@ export class RealRedisCache implements RedisCache {
 		};
 	}
 
-	private _createClient(redisUrl: string): Redis {
+	private _createClient(redisUrl: URLString): Redis {
 		const client = new Redis(redisUrl, this._buildCacheRedisOptions());
 		client.on("error", (err) =>
 			logger.warn("Redis cache error (falling through to DB)", {
@@ -25,7 +26,7 @@ export class RealRedisCache implements RedisCache {
 		return client;
 	}
 
-	constructor(redisUrl: string) {
+	constructor(redisUrl: URLString) {
 		this._client = this._createClient(redisUrl);
 	}
 

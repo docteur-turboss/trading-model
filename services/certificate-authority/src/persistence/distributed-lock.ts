@@ -3,6 +3,7 @@ import path from "node:path";
 import type { IDistributedLock } from "@trading-model/common/contracts/distributed-lock.types";
 import {
 	type DurationMs,
+	FilePath,
 	InstanceId,
 	type URLString,
 } from "@trading-model/common/domain/primitives";
@@ -15,8 +16,8 @@ export interface DistributedLockOptions {
 	uri: URLString;
 	lockName: string;
 	ttlMs: DurationMs;
-	redisUrl?: string;
-	fallbackDir?: string;
+	redisUrl?: URLString;
+	fallbackDir?: FilePath;
 }
 
 export class DistributedLock implements IDistributedLock {
@@ -96,7 +97,7 @@ export class DistributedLock implements IDistributedLock {
 		backends.push(
 			new FileSystemLockBackend(
 				options.fallbackDir ??
-					path.join(process.cwd(), "data", "ca-fallback", "locks")
+					FilePath.of(path.join(process.cwd(), "data", "ca-fallback", "locks"))
 			)
 		);
 		return backends;

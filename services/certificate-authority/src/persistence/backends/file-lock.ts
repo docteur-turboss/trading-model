@@ -7,11 +7,14 @@ import {
 	NODE_ENV,
 } from "@trading-model/common/config/node-env";
 import { CryptoAlg } from "@trading-model/common/crypto/crypto-constants";
-import type { InstanceId } from "@trading-model/common/domain/primitives";
+import type {
+	FilePath,
+	InstanceId,
+} from "@trading-model/common/domain/primitives";
 import type { LockBackend, LockContext } from "./lock-backend-interface";
 
 export class FileSystemLockBackend implements LockBackend {
-	constructor(private readonly _fallbackDir: string) {}
+	constructor(private readonly _fallbackDir: FilePath) {}
 
 	async acquire(context: LockContext, ttlMs: number): Promise<number | null> {
 		if (!this._isFsBackendAllowed()) {

@@ -1,10 +1,11 @@
+import type { URLString } from "@trading-model/common/domain/primitives";
 import Redis from "ioredis";
 
 export class RedisLockConnector {
 	private _client: Redis | undefined;
 	private _available = true;
 
-	constructor(redisUrl: string) {
+	constructor(redisUrl: URLString) {
 		this._connect(redisUrl);
 	}
 
@@ -17,7 +18,7 @@ export class RedisLockConnector {
 		};
 	}
 
-	private _connect(redisUrl: string): void {
+	private _connect(redisUrl: URLString): void {
 		try {
 			this._client = new Redis(redisUrl, this._buildRedisOptions());
 			this._client.on("error", () => {

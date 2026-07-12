@@ -1,6 +1,9 @@
 ﻿import { randomInt } from "node:crypto";
 import { logger } from "@trading-model/common/config/logger";
-import type { InstanceId } from "@trading-model/common/domain/primitives";
+import type {
+	InstanceId,
+	URLString,
+} from "@trading-model/common/domain/primitives";
 import {
 	REDIS_RESP,
 	REDIS_SET,
@@ -11,7 +14,7 @@ import type { LockBackend, LockContext } from "./lock-backend-interface";
 export class RedisLockBackend implements LockBackend {
 	private readonly _connector: RedisLockConnector;
 
-	constructor(redisUrl: string) {
+	constructor(redisUrl: URLString) {
 		this._connector = new RedisLockConnector(redisUrl);
 	}
 

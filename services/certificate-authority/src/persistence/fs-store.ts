@@ -2,6 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { logger } from "@trading-model/common/config/logger";
 import { CryptoAlg } from "@trading-model/common/crypto/crypto-constants";
+import { FilePath } from "@trading-model/common/domain/primitives";
 import {
 	AesEncryption,
 	buildEncryption,
@@ -36,13 +37,14 @@ export const NULL_FS_STORE: FsStore = {
 
 class RealFsStore implements FsStore {
 	readonly disabled = false;
-	private readonly _baseDir: string;
+	private readonly _baseDir: FilePath;
 	private readonly _encryption: FileEncryption;
 	private readonly _fileReader: FallbackFileReader;
 
-	constructor(options: { baseDir?: string; encryption?: FileEncryption }) {
+	constructor(options: { baseDir?: FilePath; encryption?: FileEncryption }) {
 		this._baseDir =
-			options.baseDir ?? path.join(process.cwd(), "data", "ca-fallback");
+			options.baseDir ??
+			FilePath.of(path.join(process.cwd(), "data", "ca-fallback"));
 		this._encryption = options.encryption ?? NOOP_ENCRYPTION;
 		this._fileReader = new FallbackFileReader(this._baseDir, this._encryption);
 	}
@@ -96,7 +98,7 @@ class RealFsStore implements FsStore {
 }
 
 export function createFsStore(options?: {
-	baseDir?: string;
+	baseDir?: FilePath;
 	encryptionKey?: string;
 	disableFallback?: boolean;
 }): FsStore {
