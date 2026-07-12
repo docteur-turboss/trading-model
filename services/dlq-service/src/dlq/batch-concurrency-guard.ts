@@ -1,10 +1,9 @@
 import { CircuitStateMachine } from "@trading-model/common/reliability/circuit-state-machine";
 import type { DlqEntryRef, DlqError } from "./types";
 
-const MmCircuitBreaker = new CircuitStateMachine({
-	failureThreshold: 5,
-	cooldownMs: 30_000,
-});
+const MmCircuitBreaker = new CircuitStateMachine(
+	CircuitStateMachine.defaultConfig()
+);
 
 let activeBatches = 0;
 const MAX_CONCURRENT_BATCHES = 2;

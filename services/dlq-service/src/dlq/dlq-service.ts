@@ -2,6 +2,7 @@
 
 import type { PaginationQuery } from "@trading-model/common/domain/pagination";
 import {
+	HEALTH_STATUS_OK,
 	type ResponseObject,
 	sendResponse,
 } from "@trading-model/common/middleware/response-exception";
@@ -96,7 +97,7 @@ export async function deleteEntries(req: {
 
 export async function healthCheck(): Promise<ResponseObject> {
 	const count = await dlqRepository.count();
-	return sendResponse({ status: "ok", entries: count }, 200);
+	return sendResponse({ status: HEALTH_STATUS_OK, entries: count }, 200);
 }
 
 export function readyCheck(): Promise<ResponseObject> {

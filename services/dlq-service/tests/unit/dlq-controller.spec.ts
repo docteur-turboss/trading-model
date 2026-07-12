@@ -107,6 +107,7 @@ jest.mock("@trading-model/common/middleware/catch-error", () => ({
 
 jest.mock("@trading-model/common/middleware/response-exception", () => ({
 	sendResponse: (data: unknown, statusCode: number) => ({ data, statusCode }),
+	HEALTH_STATUS_OK: "ok",
 }));
 
 jest.mock("@trading-model/common/config/http-client", () => ({

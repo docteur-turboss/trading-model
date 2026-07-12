@@ -4,12 +4,20 @@ let mockCircuitOpen = false;
 let mockRecordSuccess: jest.Mock;
 let mockRecordFailure: jest.Mock;
 
+const mockDefaultConfig = {
+	failureThreshold: 5,
+	cooldownMs: 30_000,
+};
+
 jest.mock("@trading-model/common/reliability/circuit-state-machine", () => ({
-	CircuitStateMachine: jest.fn(() => ({
-		isOpen: () => mockCircuitOpen,
-		recordSuccess: mockRecordSuccess,
-		recordFailure: mockRecordFailure,
-	})),
+	CircuitStateMachine: Object.assign(
+		jest.fn(() => ({
+			isOpen: () => mockCircuitOpen,
+			recordSuccess: mockRecordSuccess,
+			recordFailure: mockRecordFailure,
+		})),
+		{ defaultConfig: () => mockDefaultConfig }
+	),
 }));
 
 describe("batch-concurrency-guard", () => {
