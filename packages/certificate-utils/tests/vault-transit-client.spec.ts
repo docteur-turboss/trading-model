@@ -180,7 +180,7 @@ describe("VaultTransitClient", () => {
 
 			await client.sign({
 				keyName: "my-key",
-				algorithm: "sha512",
+				algorithm: HashAlgorithm.Sha512,
 				input: "data",
 			});
 			expect(MOCK_POST).toHaveBeenCalledWith(
@@ -191,7 +191,7 @@ describe("VaultTransitClient", () => {
 
 			await client.sign({
 				keyName: "my-key",
-				algorithm: "sha1",
+				algorithm: HashAlgorithm.Sha1,
 				input: "data",
 			});
 			expect(MOCK_POST).toHaveBeenCalledWith(
@@ -202,7 +202,7 @@ describe("VaultTransitClient", () => {
 
 			await client.sign({
 				keyName: "my-key",
-				algorithm: "unknown",
+				algorithm: "unknown" as HashAlgorithm,
 				input: "data",
 			});
 			expect(MOCK_POST).toHaveBeenCalledWith(
