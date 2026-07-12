@@ -6,6 +6,26 @@
 #    docker compose down -v
 # =============================================================================
 
+# Shared environment templates — reduces duplications across service blocks
+x-core-env: &core-env
+  NODE_ENV: ${NODE_ENV:-production}
+  PORT: '3000'
+  TLS_KEY_PATH: /certs/server-key.pem
+  TLS_CERT_PATH: /certs/server.crt
+  TLS_CA_PATH: /certs/ca.crt
+  LOG_LEVEL: ${LOG_LEVEL:-info}
+
+x-message-env: &message-env
+  <<: *core-env
+  CACHE_TTL_MS: '30000'
+  SERVICE_PING_TIMEOUT_MS: '2000'
+  TOKEN_REFRESH_INTERVAL_MS: '60000'
+  TTL_REFRESH_INTERVAL_MS: '15000'
+  ADDRESS_MANAGER_URL: https://discovery-server:3000
+  MESSAGE_BUS_INIT_TIMEOUT_MS: '5000'
+  MESSAGE_BUS_SHUTDOWN_TIMEOUT_MS: '5000'
+  MESSAGE_CALLBACK_PATH: message
+
 services:
   # ---------------------------------------------------------------------------
   #  MongoDB — Message Manager persistence
@@ -57,12 +77,7 @@ services:
     ports:
       - '${DISCOVERY_PORT:-8443}:3000'
     environment:
-      NODE_ENV: ${NODE_ENV:-production}
-      PORT: '3000'
-      TLS_KEY_PATH: /certs/server-key.pem
-      TLS_CERT_PATH: /certs/server.crt
-      TLS_CA_PATH: /certs/ca.crt
-      LOG_LEVEL: ${LOG_LEVEL:-info}
+      <<: *core-env
       ERROR_URL_WEBHOOK: ${ERROR_URL_WEBHOOK:-}
       CLEANUP_SERVICE_INTERVAL_MS: '600000'
     volumes:
@@ -87,12 +102,7 @@ services:
     ports:
       - '${CA_PORT:-8447}:3000'
     environment:
-      NODE_ENV: ${NODE_ENV:-production}
-      PORT: '3000'
-      TLS_KEY_PATH: /certs/server-key.pem
-      TLS_CERT_PATH: /certs/server.crt
-      TLS_CA_PATH: /certs/ca.crt
-      LOG_LEVEL: ${LOG_LEVEL:-info}
+      <<: *core-env
       MONGODB_URI: mongodb://mongo:27017/certificate-authority
       CA_KEY_PATH: /etc/ca-keys/ca-key.pem
       CA_CERT_TTL_MS: '31536000000'
@@ -129,25 +139,12 @@ services:
     ports:
       - '${MESSAGE_PORT:-8444}:3000'
     environment:
-      NODE_ENV: ${NODE_ENV:-production}
-      PORT: '3000'
-      TLS_KEY_PATH: /certs/server-key.pem
-      TLS_CERT_PATH: /certs/server.crt
-      TLS_CA_PATH: /certs/ca.crt
-      LOG_LEVEL: ${LOG_LEVEL:-info}
+      <<: *message-env
       APP_NAME: message-manager
       APP_VERSION: ${APP_VERSION:-1.3.0}
       SERVICE_NAME: message-delivery-service
       INSTANCE_ID: ${INSTANCE_ID:-message-manager-1}
-      CACHE_TTL_MS: '30000'
-      SERVICE_PING_TIMEOUT_MS: '2000'
-      TOKEN_REFRESH_INTERVAL_MS: '60000'
-      TTL_REFRESH_INTERVAL_MS: '15000'
-      ADDRESS_MANAGER_URL: https://discovery-server:3000
       ERROR_URL_WEBHOOK: ${ERROR_URL_WEBHOOK:-}
-      MESSAGE_BUS_INIT_TIMEOUT_MS: '5000'
-      MESSAGE_BUS_SHUTDOWN_TIMEOUT_MS: '5000'
-      MESSAGE_CALLBACK_PATH: message
       MONGODB_URI: mongodb://mongo:27017/message-manager
     volumes:
       - ${TLS_CERTS_DIR:-./certs}:/certs:ro
@@ -177,25 +174,12 @@ services:
     ports:
       - '${SCRAPER_PORT:-8445}:3000'
     environment:
-      NODE_ENV: ${NODE_ENV:-production}
-      PORT: '3000'
-      TLS_KEY_PATH: /certs/server-key.pem
-      TLS_CERT_PATH: /certs/server.crt
-      TLS_CA_PATH: /certs/ca.crt
-      LOG_LEVEL: ${LOG_LEVEL:-info}
+      <<: *message-env
       APP_NAME: financial-scraper
       APP_VERSION: ${APP_VERSION:-1.3.0}
       SERVICE_NAME: financial-scrapper-service
       INSTANCE_ID: ${INSTANCE_ID:-financial-scraper-1}
-      CACHE_TTL_MS: '30000'
-      SERVICE_PING_TIMEOUT_MS: '2000'
-      TOKEN_REFRESH_INTERVAL_MS: '60000'
-      TTL_REFRESH_INTERVAL_MS: '15000'
-      ADDRESS_MANAGER_URL: https://discovery-server:3000
       ERROR_URL_WEBHOOK: ${ERROR_URL_WEBHOOK:-}
-      MESSAGE_BUS_INIT_TIMEOUT_MS: '5000'
-      MESSAGE_BUS_SHUTDOWN_TIMEOUT_MS: '5000'
-      MESSAGE_CALLBACK_PATH: message
       DB_USER: ${MYSQL_USER:-root}
       DB_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       DB_NAME: ${MYSQL_DATABASE:-financial_scraper}
@@ -226,25 +210,11 @@ services:
     ports:
       - '${TRAINER_PORT:-8446}:3000'
     environment:
-      NODE_ENV: ${NODE_ENV:-production}
-      PORT: '3000'
-      TLS_KEY_PATH: /certs/server-key.pem
-      TLS_CERT_PATH: /certs/server.crt
-      TLS_CA_PATH: /certs/ca.crt
-      LOG_LEVEL: ${LOG_LEVEL:-info}
+      <<: *message-env
       APP_NAME: trader-trainer
       APP_VERSION: ${APP_VERSION:-1.3.0}
       SERVICE_NAME: trader-training-service
       INSTANCE_ID: ${INSTANCE_ID:-trader-trainer-1}
-      CACHE_TTL_MS: '30000'
-      SERVICE_PING_TIMEOUT_MS: '2000'
-      TOKEN_REFRESH_INTERVAL_MS: '60000'
-      TTL_REFRESH_INTERVAL_MS: '15000'
-      ADDRESS_MANAGER_URL: https://discovery-server:3000
-      ERROR_URL_WEBHOOK: ${ERROR_URL_WEBHOOK:-}
-      MESSAGE_BUS_INIT_TIMEOUT_MS: '5000'
-      MESSAGE_BUS_SHUTDOWN_TIMEOUT_MS: '5000'
-      MESSAGE_CALLBACK_PATH: message
       TRAINER_SYMBOLS: ${TRAINER_SYMBOLS:-BTCUSDT,ETHUSDT}
       TRAINER_DATA_WINDOW: ${TRAINER_DATA_WINDOW:-500}
       TRAINER_VALIDATION_SPLIT: ${TRAINER_VALIDATION_SPLIT:-0.2}
@@ -279,12 +249,7 @@ services:
     ports:
       - '${GATEWAY_PORT:-8448}:3000'
     environment:
-      NODE_ENV: ${NODE_ENV:-production}
-      PORT: '3000'
-      TLS_KEY_PATH: /certs/server-key.pem
-      TLS_CERT_PATH: /certs/server.crt
-      TLS_CA_PATH: /certs/ca.crt
-      LOG_LEVEL: ${LOG_LEVEL:-info}
+      <<: *core-env
       DISCOVERY_SERVICE_URL: https://discovery-server:3000
       RATE_LIMIT_WINDOW_MS: '60000'
       RATE_LIMIT_MAX: '100'
@@ -317,25 +282,12 @@ services:
     ports:
       - '${AUDIT_PORT:-8450}:3000'
     environment:
-      NODE_ENV: ${NODE_ENV:-production}
-      PORT: '3000'
-      TLS_KEY_PATH: /certs/server-key.pem
-      TLS_CERT_PATH: /certs/server.crt
-      TLS_CA_PATH: /certs/ca.crt
-      LOG_LEVEL: ${LOG_LEVEL:-info}
+      <<: *message-env
       APP_NAME: audit-logger
       APP_VERSION: ${APP_VERSION:-1.0.0}
       SERVICE_NAME: audit-logger-service
       INSTANCE_ID: ${INSTANCE_ID:-audit-logger-1}
-      CACHE_TTL_MS: '30000'
-      SERVICE_PING_TIMEOUT_MS: '2000'
-      TOKEN_REFRESH_INTERVAL_MS: '60000'
-      TTL_REFRESH_INTERVAL_MS: '15000'
-      ADDRESS_MANAGER_URL: https://discovery-server:3000
       ERROR_URL_WEBHOOK: ${ERROR_URL_WEBHOOK:-}
-      MESSAGE_BUS_INIT_TIMEOUT_MS: '5000'
-      MESSAGE_BUS_SHUTDOWN_TIMEOUT_MS: '5000'
-      MESSAGE_CALLBACK_PATH: message
       MONGODB_URI: mongodb://mongo:27017/audit-logger
     volumes:
       - ${TLS_CERTS_DIR:-./certs}:/certs:ro
@@ -365,25 +317,12 @@ services:
     ports:
       - '${DLQ_PORT:-8452}:3000'
     environment:
-      NODE_ENV: ${NODE_ENV:-production}
-      PORT: '3000'
-      TLS_KEY_PATH: /certs/server-key.pem
-      TLS_CERT_PATH: /certs/server.crt
-      TLS_CA_PATH: /certs/ca.crt
-      LOG_LEVEL: ${LOG_LEVEL:-info}
+      <<: *message-env
       APP_NAME: dlq-service
       APP_VERSION: ${APP_VERSION:-1.0.0}
       SERVICE_NAME: dlq-service
       INSTANCE_ID: ${INSTANCE_ID:-dlq-service-1}
-      CACHE_TTL_MS: '30000'
-      SERVICE_PING_TIMEOUT_MS: '2000'
-      TOKEN_REFRESH_INTERVAL_MS: '60000'
-      TTL_REFRESH_INTERVAL_MS: '15000'
-      ADDRESS_MANAGER_URL: https://discovery-server:3000
       ERROR_URL_WEBHOOK: ${ERROR_URL_WEBHOOK:-}
-      MESSAGE_BUS_INIT_TIMEOUT_MS: '5000'
-      MESSAGE_BUS_SHUTDOWN_TIMEOUT_MS: '5000'
-      MESSAGE_CALLBACK_PATH: message
       MONGO_URI: mongodb://mongo:27017
       MONGO_DB: dlq
       MONGO_COLLECTION: dlq_entries
@@ -400,8 +339,6 @@ services:
       retries: 3
     depends_on:
       mongo:
-        condition: service_healthy
-      discovery-server:
         condition: service_healthy
       discovery-server:
         condition: service_healthy
