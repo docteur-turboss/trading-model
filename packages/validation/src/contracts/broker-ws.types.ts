@@ -44,7 +44,10 @@ export interface WsClientMessage {
 		| WsClientPublishPayload;
 }
 
-export type AckStatus = "ok" | "error";
+export enum AckStatus {
+	Ok = "ok",
+	Error = "error",
+}
 
 export interface WsServerAckPayload {
 	status: AckStatus;
