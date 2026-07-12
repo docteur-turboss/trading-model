@@ -38,6 +38,13 @@ import { TokenHandler } from "./token-handler";
 import { TokenManagerService } from "./token-manager-service";
 import { TokenService } from "./token-service";
 
+export interface RegistryBackendConfig {
+	configOrUrl: string | RedisConnectionConfig;
+	prefix?: string;
+	signingSecret?: string;
+	cleanupIntervalMs?: number;
+}
+
 export class RedisRegistryBackend
 	implements IInstanceRegistration, IInstanceQuery, ITokenManager, ILifecycle
 {
@@ -46,12 +53,13 @@ export class RedisRegistryBackend
 	private readonly _tokenManager: TokenManagerService;
 	private readonly _lifecycleService: LifecycleService;
 
-	constructor(
-		configOrUrl: string | RedisConnectionConfig,
-		prefix = "discovery:",
-		signingSecret?: string,
-		cleanupIntervalMs = 10_000
-	) {
+	constructor(config: RegistryBackendConfig) {
+		const {
+			configOrUrl,
+			prefix = "discovery:",
+			signingSecret,
+			cleanupIntervalMs = 10_000,
+		} = config;
 		const resolvedPrefix = computePrefix(prefix, configOrUrl);
 		const keyBuilder = new RedisKeyBuilder(resolvedPrefix);
 		const redis = createRedisClient(configOrUrl) as Redis;

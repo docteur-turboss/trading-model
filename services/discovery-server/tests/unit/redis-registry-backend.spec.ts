@@ -106,7 +106,9 @@ describe("RedisRegistryBackend", () => {
 
 	describe("constructor", () => {
 		it("should connect with a string URL (legacy mode)", () => {
-			const backend = new RedisRegistryBackend("redis://localhost:6379");
+			const backend = new RedisRegistryBackend({
+				configOrUrl: "redis://localhost:6379",
+			});
 			expect(MOCK_REDIS_CTOR).toHaveBeenCalledWith(
 				"redis://localhost:6379",
 				expect.any(Object)
@@ -120,7 +122,7 @@ describe("RedisRegistryBackend", () => {
 				mode: RedisMode.SINGLE,
 				url: "redis://localhost:6380",
 			};
-			const backend = new RedisRegistryBackend(config);
+			const backend = new RedisRegistryBackend({ configOrUrl: config });
 			expect(MOCK_REDIS_CTOR).toHaveBeenCalledWith(
 				"redis://localhost:6380",
 				expect.any(Object)
@@ -136,7 +138,7 @@ describe("RedisRegistryBackend", () => {
 					name: "mymaster",
 				},
 			};
-			new RedisRegistryBackend(config);
+			new RedisRegistryBackend({ configOrUrl: config });
 			expect(MOCK_REDIS_CTOR).toHaveBeenCalledWith(
 				expect.objectContaining({
 					sentinels: [{ host: "127.0.0.1", port: 26379 }],
@@ -150,13 +152,13 @@ describe("RedisRegistryBackend", () => {
 				mode: RedisMode.CLUSTER,
 				config: { nodes: [{ host: "127.0.0.1", port: 7000 }] },
 			};
-			new RedisRegistryBackend(config);
+			new RedisRegistryBackend({ configOrUrl: config });
 			expect(MOCK_CLUSTER).toHaveBeenCalled();
 		});
 
 		it("should throw for unknown mode", () => {
 			const config = { mode: "unknown" } as unknown as RedisConnectionConfig;
-			expect(() => new RedisRegistryBackend(config)).toThrow(
+			expect(() => new RedisRegistryBackend({ configOrUrl: config })).toThrow(
 				"Unknown Redis mode:"
 			);
 		});
@@ -166,7 +168,10 @@ describe("RedisRegistryBackend", () => {
 				mode: RedisMode.CLUSTER,
 				config: { nodes: [{ host: "127.0.0.1", port: 7000 }] },
 			};
-			const backend = new RedisRegistryBackend(config, "discovery:");
+			const backend = new RedisRegistryBackend({
+				configOrUrl: config,
+				prefix: "discovery:",
+			});
 			(backend as any).registerInstance(makeInstance({ instanceId: "i1" }));
 			expect(MOCK_REDIS.set).toHaveBeenCalledWith(
 				expect.stringMatching(/^{discovery}:instance:i1:token/),
@@ -177,7 +182,9 @@ describe("RedisRegistryBackend", () => {
 
 		it("should log redis connection errors via event handler", () => {
 			const { logger } = require("@trading-model/common/config/logger");
-			const backend = new RedisRegistryBackend("redis://localhost:6379");
+			const backend = new RedisRegistryBackend({
+				configOrUrl: "redis://localhost:6379",
+			});
 			const errorHandler = MOCK_REDIS.on.mock.calls.find(
 				(c: unknown[]) => c[0] === "error"
 			)?.[1] as (err: Error) => void;
@@ -190,7 +197,7 @@ describe("RedisRegistryBackend", () => {
 		});
 
 		it("should use retryStrategy with exponential backoff", () => {
-			new RedisRegistryBackend("redis://localhost:6379");
+			new RedisRegistryBackend({ configOrUrl: "redis://localhost:6379" });
 			const args = MOCK_REDIS_CTOR.mock.calls[0];
 			const retryStrategy = (args[1] as any).retryStrategy as (
 				times: number
@@ -204,7 +211,7 @@ describe("RedisRegistryBackend", () => {
 				mode: RedisMode.CLUSTER,
 				config: { nodes: [{ host: "127.0.0.1", port: 7000 }] },
 			};
-			new RedisRegistryBackend(config);
+			new RedisRegistryBackend({ configOrUrl: config });
 			const args = MOCK_CLUSTER.mock.calls[0];
 			const clusterRetryStrategy = (args[1] as any).clusterRetryStrategy as (
 				times: number
@@ -216,7 +223,9 @@ describe("RedisRegistryBackend", () => {
 
 	describe("registerInstance", () => {
 		it("should register a new instance and return a token", async () => {
-			const backend = new RedisRegistryBackend("redis://localhost:6379");
+			const backend = new RedisRegistryBackend({
+				configOrUrl: "redis://localhost:6379",
+			});
 			const token = await backend.registerInstance(makeInstance());
 			expect(token).toBeDefined();
 			expect(typeof token).toBe("string");
@@ -233,7 +242,9 @@ describe("RedisRegistryBackend", () => {
 		it("should retrieve existing token when NX set fails", async () => {
 			MOCK_REDIS.set.mockResolvedValue(null);
 			MOCK_REDIS.get.mockResolvedValue("existing-token");
-			const backend = new RedisRegistryBackend("redis://localhost:6379");
+			const backend = new RedisRegistryBackend({
+				configOrUrl: "redis://localhost:6379",
+			});
 			const token = await backend.registerInstance(makeInstance());
 			expect(token).toBe("existing-token");
 			expect(MOCK_REDIS.get).toHaveBeenCalledWith(
@@ -254,7 +265,9 @@ describe("RedisRegistryBackend", () => {
 				}
 				return Promise.resolve(REDIS_RESP.OK);
 			});
-			const backend = new RedisRegistryBackend("redis://localhost:6379");
+			const backend = new RedisRegistryBackend({
+				configOrUrl: "redis://localhost:6379",
+			});
 			await backend.registerInstance(
 				makeInstance({ lastHeartbeat: Date.now() })
 			);
@@ -268,7 +281,9 @@ describe("RedisRegistryBackend", () => {
 		it("should log warning when existing metadata is corrupt", async () => {
 			const { logger } = require("@trading-model/common/config/logger");
 			MOCK_REDIS.get.mockResolvedValue("invalid-json");
-			const backend = new RedisRegistryBackend("redis://localhost:6379");
+			const backend = new RedisRegistryBackend({
+				configOrUrl: "redis://localhost:6379",
+			});
 			await backend.registerInstance(makeInstance());
 			expect(logger.warn).toHaveBeenCalledWith(
 				"Failed to parse existing instance metadata",
@@ -279,7 +294,9 @@ describe("RedisRegistryBackend", () => {
 		it("should preserve the provided registeredAt value", async () => {
 			const registeredAt = 5000000;
 			MOCK_REDIS.set.mockResolvedValue(REDIS_RESP.OK);
-			const backend = new RedisRegistryBackend("redis://localhost:6379");
+			const backend = new RedisRegistryBackend({
+				configOrUrl: "redis://localhost:6379",
+			});
 			await backend.registerInstance(makeInstance({ registeredAt }));
 			const setCall = MOCK_MULTI.set.mock.calls.find((c: string[]) =>
 				c[0].includes(":metadata")
@@ -290,7 +307,9 @@ describe("RedisRegistryBackend", () => {
 
 		it("should use current time when registeredAt is null", async () => {
 			MOCK_REDIS.set.mockResolvedValue(REDIS_RESP.OK);
-			const backend = new RedisRegistryBackend("redis://localhost:6379");
+			const backend = new RedisRegistryBackend({
+				configOrUrl: "redis://localhost:6379",
+			});
 			await backend.registerInstance(
 				makeInstance({ registeredAt: null as any })
 			);
@@ -304,7 +323,9 @@ describe("RedisRegistryBackend", () => {
 		it("should return generated token when existing token lookup returns null", async () => {
 			MOCK_REDIS.set.mockResolvedValue(null);
 			MOCK_REDIS.get.mockResolvedValue(null);
-			const backend = new RedisRegistryBackend("redis://localhost:6379");
+			const backend = new RedisRegistryBackend({
+				configOrUrl: "redis://localhost:6379",
+			});
 			const token = await backend.registerInstance(makeInstance());
 			expect(token).toBeDefined();
 			expect(typeof token).toBe("string");
@@ -317,7 +338,9 @@ describe("RedisRegistryBackend", () => {
 			MOCK_REDIS.get.mockResolvedValue(
 				JSON.stringify(makeInstance({ ttl: 30000 }))
 			);
-			const backend = new RedisRegistryBackend("redis://localhost:6379");
+			const backend = new RedisRegistryBackend({
+				configOrUrl: "redis://localhost:6379",
+			});
 			const result = await backend.updateHeartbeat(
 				"financial-scraper-service",
 				"test-instance-1"
@@ -328,7 +351,9 @@ describe("RedisRegistryBackend", () => {
 
 		it("should return false when instance is not a member", async () => {
 			MOCK_REDIS.sismember.mockResolvedValue(0);
-			const backend = new RedisRegistryBackend("redis://localhost:6379");
+			const backend = new RedisRegistryBackend({
+				configOrUrl: "redis://localhost:6379",
+			});
 			const result = await backend.updateHeartbeat(
 				"financial-scraper-service",
 				"test-instance-1"
@@ -339,7 +364,9 @@ describe("RedisRegistryBackend", () => {
 		it("should return false when metadata is missing", async () => {
 			MOCK_REDIS.sismember.mockResolvedValue(1);
 			MOCK_REDIS.get.mockResolvedValue(null);
-			const backend = new RedisRegistryBackend("redis://localhost:6379");
+			const backend = new RedisRegistryBackend({
+				configOrUrl: "redis://localhost:6379",
+			});
 			const result = await backend.updateHeartbeat(
 				"financial-scraper-service",
 				"test-instance-1"
@@ -351,7 +378,9 @@ describe("RedisRegistryBackend", () => {
 			const { logger } = require("@trading-model/common/config/logger");
 			MOCK_REDIS.sismember.mockResolvedValue(1);
 			MOCK_REDIS.get.mockResolvedValue("not-json");
-			const backend = new RedisRegistryBackend("redis://localhost:6379");
+			const backend = new RedisRegistryBackend({
+				configOrUrl: "redis://localhost:6379",
+			});
 			const result = await backend.updateHeartbeat(
 				"financial-scraper-service",
 				"test-instance-1"
@@ -366,7 +395,9 @@ describe("RedisRegistryBackend", () => {
 
 	describe("updateToken", () => {
 		it("should set a new token and return it", async () => {
-			const backend = new RedisRegistryBackend("redis://localhost:6379");
+			const backend = new RedisRegistryBackend({
+				configOrUrl: "redis://localhost:6379",
+			});
 			const token = await backend.updateToken("test-instance-1");
 			expect(token).toBeDefined();
 			expect(MOCK_REDIS.set).toHaveBeenCalledWith(
@@ -379,7 +410,9 @@ describe("RedisRegistryBackend", () => {
 	describe("getInstances", () => {
 		it("should return empty array when no instance IDs exist", async () => {
 			MOCK_REDIS.smembers.mockResolvedValue([]);
-			const backend = new RedisRegistryBackend("redis://localhost:6379");
+			const backend = new RedisRegistryBackend({
+				configOrUrl: "redis://localhost:6379",
+			});
 			const instances = await backend.getInstances("financial-scraper-service");
 			expect(instances).toEqual([]);
 		});
@@ -388,7 +421,9 @@ describe("RedisRegistryBackend", () => {
 			const inst = makeInstance();
 			MOCK_REDIS.smembers.mockResolvedValue(["test-instance-1"]);
 			MOCK_REDIS.mget.mockResolvedValue([JSON.stringify(inst)]);
-			const backend = new RedisRegistryBackend("redis://localhost:6379");
+			const backend = new RedisRegistryBackend({
+				configOrUrl: "redis://localhost:6379",
+			});
 			const instances = await backend.getInstances("financial-scraper-service");
 			expect(instances).toHaveLength(1);
 			expect(instances[0].instanceId).toBe("test-instance-1");
@@ -401,7 +436,9 @@ describe("RedisRegistryBackend", () => {
 				JSON.stringify(makeInstance({ instanceId: "i1" })),
 				"corrupt",
 			]);
-			const backend = new RedisRegistryBackend("redis://localhost:6379");
+			const backend = new RedisRegistryBackend({
+				configOrUrl: "redis://localhost:6379",
+			});
 			const instances = await backend.getInstances("financial-scraper-service");
 			expect(instances).toHaveLength(1);
 			expect(logger.warn).toHaveBeenCalledWith(
@@ -413,7 +450,9 @@ describe("RedisRegistryBackend", () => {
 		it("should skip null entries from mget", async () => {
 			MOCK_REDIS.smembers.mockResolvedValue(["i1"]);
 			MOCK_REDIS.mget.mockResolvedValue([null]);
-			const backend = new RedisRegistryBackend("redis://localhost:6379");
+			const backend = new RedisRegistryBackend({
+				configOrUrl: "redis://localhost:6379",
+			});
 			const instances = await backend.getInstances("financial-scraper-service");
 			expect(instances).toEqual([]);
 		});
@@ -423,7 +462,9 @@ describe("RedisRegistryBackend", () => {
 		it("should return an instance when found", async () => {
 			const inst = makeInstance();
 			MOCK_REDIS.get.mockResolvedValue(JSON.stringify(inst));
-			const backend = new RedisRegistryBackend("redis://localhost:6379");
+			const backend = new RedisRegistryBackend({
+				configOrUrl: "redis://localhost:6379",
+			});
 			const result = await backend.getInstance(
 				"financial-scraper-service",
 				"test-instance-1"
@@ -434,7 +475,9 @@ describe("RedisRegistryBackend", () => {
 
 		it("should return undefined when not found", async () => {
 			MOCK_REDIS.get.mockResolvedValue(null);
-			const backend = new RedisRegistryBackend("redis://localhost:6379");
+			const backend = new RedisRegistryBackend({
+				configOrUrl: "redis://localhost:6379",
+			});
 			const result = await backend.getInstance(
 				"financial-scraper-service",
 				"test-instance-1"
@@ -445,7 +488,9 @@ describe("RedisRegistryBackend", () => {
 		it("should return undefined and log warning on corrupt data", async () => {
 			const { logger } = require("@trading-model/common/config/logger");
 			MOCK_REDIS.get.mockResolvedValue("not-json");
-			const backend = new RedisRegistryBackend("redis://localhost:6379");
+			const backend = new RedisRegistryBackend({
+				configOrUrl: "redis://localhost:6379",
+			});
 			const result = await backend.getInstance(
 				"financial-scraper-service",
 				"test-instance-1"
@@ -460,7 +505,9 @@ describe("RedisRegistryBackend", () => {
 
 	describe("removeInstance", () => {
 		it("should remove an instance and return true", async () => {
-			const backend = new RedisRegistryBackend("redis://localhost:6379");
+			const backend = new RedisRegistryBackend({
+				configOrUrl: "redis://localhost:6379",
+			});
 			const result = await backend.removeInstance({
 				serviceName: "financial-scraper-service",
 				instanceId: "test-instance-1",
@@ -475,7 +522,9 @@ describe("RedisRegistryBackend", () => {
 
 		it("should return false when multi.exec returns null", async () => {
 			MOCK_MULTI.exec.mockResolvedValue(null);
-			const backend = new RedisRegistryBackend("redis://localhost:6379");
+			const backend = new RedisRegistryBackend({
+				configOrUrl: "redis://localhost:6379",
+			});
 			const result = await backend.removeInstance(
 				"financial-scraper-service",
 				"test-instance-1"
@@ -485,7 +534,9 @@ describe("RedisRegistryBackend", () => {
 
 		it("should return false when srem result count is not 1", async () => {
 			MOCK_MULTI.exec.mockResolvedValue([[null, 0]]);
-			const backend = new RedisRegistryBackend("redis://localhost:6379");
+			const backend = new RedisRegistryBackend({
+				configOrUrl: "redis://localhost:6379",
+			});
 			const result = await backend.removeInstance(
 				"financial-scraper-service",
 				"test-instance-1"
@@ -500,7 +551,9 @@ describe("RedisRegistryBackend", () => {
 				"discovery:service:financial-scraper-service:instances",
 				"discovery:service:message-delivery-service:instances",
 			]);
-			const backend = new RedisRegistryBackend("redis://localhost:6379");
+			const backend = new RedisRegistryBackend({
+				configOrUrl: "redis://localhost:6379",
+			});
 			const names = await backend.listServiceNames();
 			expect(names).toEqual([
 				"financial-scraper-service",
@@ -510,7 +563,9 @@ describe("RedisRegistryBackend", () => {
 
 		it("should return empty array when no keys exist", async () => {
 			MOCK_REDIS.keys.mockResolvedValue([]);
-			const backend = new RedisRegistryBackend("redis://localhost:6379");
+			const backend = new RedisRegistryBackend({
+				configOrUrl: "redis://localhost:6379",
+			});
 			const names = await backend.listServiceNames();
 			expect(names).toEqual([]);
 		});
@@ -520,7 +575,9 @@ describe("RedisRegistryBackend", () => {
 				"discovery:service:financial-scraper-service:instances",
 				"some:other:key",
 			]);
-			const backend = new RedisRegistryBackend("redis://localhost:6379");
+			const backend = new RedisRegistryBackend({
+				configOrUrl: "redis://localhost:6379",
+			});
 			const names = await backend.listServiceNames();
 			expect(names).toEqual(["financial-scraper-service"]);
 		});
@@ -529,7 +586,9 @@ describe("RedisRegistryBackend", () => {
 	describe("dump", () => {
 		it("should return empty object when no services exist", async () => {
 			MOCK_REDIS.keys.mockResolvedValue([]);
-			const backend = new RedisRegistryBackend("redis://localhost:6379");
+			const backend = new RedisRegistryBackend({
+				configOrUrl: "redis://localhost:6379",
+			});
 			const snapshot = await backend.dump();
 			expect(snapshot).toEqual({});
 		});
@@ -540,7 +599,9 @@ describe("RedisRegistryBackend", () => {
 			]);
 			MOCK_REDIS.smembers.mockResolvedValue(["i1"]);
 			MOCK_REDIS.mget.mockResolvedValue([JSON.stringify(makeInstance())]);
-			const backend = new RedisRegistryBackend("redis://localhost:6379");
+			const backend = new RedisRegistryBackend({
+				configOrUrl: "redis://localhost:6379",
+			});
 			const snapshot = await backend.dump();
 			expect(snapshot["financial-scraper-service"]).toHaveLength(1);
 		});
@@ -548,7 +609,9 @@ describe("RedisRegistryBackend", () => {
 
 	describe("generateInstanceToken", () => {
 		it("should return a 3-part token", () => {
-			const backend = new RedisRegistryBackend("redis://localhost:6379");
+			const backend = new RedisRegistryBackend({
+				configOrUrl: "redis://localhost:6379",
+			});
 			const token = backend.generateInstanceToken("test-instance-1");
 			expect(token.split(".")).toHaveLength(3);
 		});
@@ -556,7 +619,9 @@ describe("RedisRegistryBackend", () => {
 
 	describe("validInstanceToken", () => {
 		it("should return true for a valid token", async () => {
-			const backend = new RedisRegistryBackend("redis://localhost:6379");
+			const backend = new RedisRegistryBackend({
+				configOrUrl: "redis://localhost:6379",
+			});
 			const token = backend.generateInstanceToken("test-instance-1");
 			MOCK_REDIS.get.mockResolvedValue(token);
 			const result = await backend.validInstanceToken({
@@ -567,7 +632,9 @@ describe("RedisRegistryBackend", () => {
 		});
 
 		it("should return false for token with wrong part count", async () => {
-			const backend = new RedisRegistryBackend("redis://localhost:6379");
+			const backend = new RedisRegistryBackend({
+				configOrUrl: "redis://localhost:6379",
+			});
 			const result = await backend.validInstanceToken({
 				token: "invalid",
 				instanceId: "test-instance-1",
@@ -576,7 +643,9 @@ describe("RedisRegistryBackend", () => {
 		});
 
 		it("should return false when decodedId does not match instanceId", async () => {
-			const backend = new RedisRegistryBackend("redis://localhost:6379");
+			const backend = new RedisRegistryBackend({
+				configOrUrl: "redis://localhost:6379",
+			});
 			const result = await backend.validInstanceToken({
 				token: "dGVzdC1pbnN0YW5jZS0x.dGVzdA.dGVzdA.dGVzdA",
 				instanceId: "wrong-id",
@@ -585,7 +654,9 @@ describe("RedisRegistryBackend", () => {
 		});
 
 		it("should return false for invalid HMAC signature", async () => {
-			const backend = new RedisRegistryBackend("redis://localhost:6379");
+			const backend = new RedisRegistryBackend({
+				configOrUrl: "redis://localhost:6379",
+			});
 			const token = backend.generateInstanceToken("test-instance-1");
 			const parts = token.split(".");
 			const tampered = `${parts[0]}.${parts[1]}.${parts[2]}.${"a".repeat(43)}`;
@@ -598,7 +669,9 @@ describe("RedisRegistryBackend", () => {
 		});
 
 		it("should return false when stored token differs", async () => {
-			const backend = new RedisRegistryBackend("redis://localhost:6379");
+			const backend = new RedisRegistryBackend({
+				configOrUrl: "redis://localhost:6379",
+			});
 			const token = backend.generateInstanceToken("test-instance-1");
 			MOCK_REDIS.get.mockResolvedValue("different-stored-token");
 			const result = await backend.validInstanceToken({
@@ -610,7 +683,9 @@ describe("RedisRegistryBackend", () => {
 
 		it("should log warning when timingSafeEqual throws", async () => {
 			const { logger } = require("@trading-model/common/config/logger");
-			const backend = new RedisRegistryBackend("redis://localhost:6379");
+			const backend = new RedisRegistryBackend({
+				configOrUrl: "redis://localhost:6379",
+			});
 			const token = backend.generateInstanceToken("test-instance-1");
 			const parts = token.split(".");
 			const badSignature = "a".repeat(100);
@@ -630,7 +705,9 @@ describe("RedisRegistryBackend", () => {
 
 	describe("verifyInstanceName", () => {
 		it("should return true for known service names", () => {
-			const backend = new RedisRegistryBackend("redis://localhost:6379");
+			const backend = new RedisRegistryBackend({
+				configOrUrl: "redis://localhost:6379",
+			});
 			expect(backend.verifyInstanceName("financial-scraper-service")).toBe(
 				true
 			);
@@ -638,7 +715,9 @@ describe("RedisRegistryBackend", () => {
 		});
 
 		it("should return false for unknown service names", () => {
-			const backend = new RedisRegistryBackend("redis://localhost:6379");
+			const backend = new RedisRegistryBackend({
+				configOrUrl: "redis://localhost:6379",
+			});
 			expect(backend.verifyInstanceName("unknown-service")).toBe(false);
 		});
 	});
@@ -658,7 +737,9 @@ describe("RedisRegistryBackend", () => {
 		});
 
 		it("start should connect and set up cleanup interval", () => {
-			const backend = new RedisRegistryBackend("redis://localhost:6379");
+			const backend = new RedisRegistryBackend({
+				configOrUrl: "redis://localhost:6379",
+			});
 			backend.start();
 			expect(MOCK_REDIS.connect).toHaveBeenCalled();
 		});
@@ -666,7 +747,9 @@ describe("RedisRegistryBackend", () => {
 		it("stop should disconnect and clear cleanup interval", () => {
 			const origRandom = Math.random;
 			Math.random = jest.fn(() => 0);
-			const backend = new RedisRegistryBackend("redis://localhost:6379");
+			const backend = new RedisRegistryBackend({
+				configOrUrl: "redis://localhost:6379",
+			});
 			backend.start();
 			jest.advanceTimersByTime(0);
 			backend.stop();
@@ -677,7 +760,9 @@ describe("RedisRegistryBackend", () => {
 		it("should log error if connecting fails", async () => {
 			const { logger } = require("@trading-model/common/config/logger");
 			MOCK_REDIS.connect.mockRejectedValue(new Error("Connection refused"));
-			const backend = new RedisRegistryBackend("redis://localhost:6379");
+			const backend = new RedisRegistryBackend({
+				configOrUrl: "redis://localhost:6379",
+			});
 			backend.start();
 			await Promise.resolve();
 			expect(logger.error).toHaveBeenCalledWith(
@@ -690,7 +775,9 @@ describe("RedisRegistryBackend", () => {
 			const origRandom = Math.random;
 			Math.random = jest.fn(() => 0);
 
-			const backend = new RedisRegistryBackend("redis://localhost:6379");
+			const backend = new RedisRegistryBackend({
+				configOrUrl: "redis://localhost:6379",
+			});
 			backend.start();
 
 			jest.advanceTimersByTime(0);
@@ -717,7 +804,9 @@ describe("RedisRegistryBackend", () => {
 			MOCK_REDIS.mget.mockResolvedValue([JSON.stringify(oldInstance)]);
 
 			const { logger } = require("@trading-model/common/config/logger");
-			const backend = new RedisRegistryBackend("redis://localhost:6379");
+			const backend = new RedisRegistryBackend({
+				configOrUrl: "redis://localhost:6379",
+			});
 			await backend.forceCleanup();
 
 			expect(logger.warn).toHaveBeenCalledWith(
@@ -741,7 +830,9 @@ describe("RedisRegistryBackend", () => {
 			MOCK_REDIS.mget.mockResolvedValue([JSON.stringify(freshInstance)]);
 
 			const { logger } = require("@trading-model/common/config/logger");
-			const backend = new RedisRegistryBackend("redis://localhost:6379");
+			const backend = new RedisRegistryBackend({
+				configOrUrl: "redis://localhost:6379",
+			});
 			await backend.forceCleanup();
 
 			expect(logger.warn).not.toHaveBeenCalledWith(
@@ -756,7 +847,9 @@ describe("RedisRegistryBackend", () => {
 
 			const { logger } = require("@trading-model/common/config/logger");
 			MOCK_REDIS.keys.mockRejectedValue(new Error("Redis error"));
-			const backend = new RedisRegistryBackend("redis://localhost:6379");
+			const backend = new RedisRegistryBackend({
+				configOrUrl: "redis://localhost:6379",
+			});
 			backend.start();
 
 			jest.advanceTimersByTime(10000);
@@ -773,7 +866,9 @@ describe("RedisRegistryBackend", () => {
 		});
 
 		it("stop should be safe to call multiple times", () => {
-			const backend = new RedisRegistryBackend("redis://localhost:6379");
+			const backend = new RedisRegistryBackend({
+				configOrUrl: "redis://localhost:6379",
+			});
 			backend.stop();
 			backend.stop();
 			expect(MOCK_REDIS.disconnect).toHaveBeenCalledTimes(2);

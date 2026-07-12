@@ -21,7 +21,7 @@ export function resolveInstanceId(
 		instanceId ??
 			registry.generateInstanceId({
 				serviceName: toServiceId(serviceName),
-				address: IPAddress.of(ip),
+				host: IPAddress.of(ip),
 				port: Port.of(port),
 			})
 	);
