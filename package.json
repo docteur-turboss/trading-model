@@ -8,6 +8,9 @@
   ],
   "scripts": {
     "build:common": "npm run -w @trading-model/common build",
+    "build:crypto": "npm run -w @trading-model/crypto build",
+    "build:validation": "npm run -w @trading-model/validation build",
+    "build:server-utils": "npm run -w @trading-model/server-utils build",
     "build:address-manager": "npm run -w @trading-model/address-manager build",
     "build:broker-message": "npm run -w @trading-model/broker-message build",
     "build:certificate-utils": "npm run -w @trading-model/certificate-utils build",
@@ -19,7 +22,7 @@
     "dev:admin": "npm run -w admin-interface dev",
     "test:admin": "npm run -w admin-interface test",
     "lint:admin": "npm run -w admin-interface lint",
-    "build": "npm run build:common && npm run build:address-manager && npm run build:broker-message && npm run build:certificate-utils && npm run build:certificate-client",
+    "build": "npm run build:common && npm run build:crypto && npm run build:address-manager && npm run build:broker-message && npm run build:certificate-utils && npm run build:certificate-client",
     "build:ts": "npm run build:common && npm run -w services/message-manager build && npm run -w services/discovery-server build && npm run -w services/financial-scraper build && npm run -w services/trader-trainer build && npm run -w services/certificate-authority build && npm run -w services/api-gateway build && npm run -w services/audit-logger build && npm run -w services/admin-interface build && npm run -w packages/certificate-utils build",
     "commit": "node scripts/commit.mjs",
     "release": "node scripts/release.mjs",

@@ -21,22 +21,7 @@
       "types": "./dist/utils/*.d.ts",
       "default": "./dist/utils/*.js"
     },
-    "./server/*": {
-      "types": "./dist/server/*.d.ts",
-      "default": "./dist/server/*.js"
-    },
-    "./validation/*": {
-      "types": "./dist/validation/*.d.ts",
-      "default": "./dist/validation/*.js"
-    },
-    "./contracts/admin": {
-      "types": "./dist/contracts/admin/index.d.ts",
-      "default": "./dist/contracts/admin/index.js"
-    },
-    "./contracts/*": {
-      "types": "./dist/contracts/*.d.ts",
-      "default": "./dist/contracts/*.js"
-    },
+
     "./worker/*": {
       "types": "./dist/worker/*.d.ts",
       "default": "./dist/worker/*.js"
@@ -52,10 +37,6 @@
     "./domain/*": {
       "types": "./dist/domain/*.d.ts",
       "default": "./dist/domain/*.js"
-    },
-    "./ca/*": {
-      "types": "./dist/ca/*.d.ts",
-      "default": "./dist/ca/*.js"
     },
 	"./crl/*": {
 			"types": "./dist/crl/*.d.ts",
@@ -73,10 +54,6 @@
       "types": "./dist/http-status.d.ts",
       "default": "./dist/http-status.js"
     },
-    "./crypto/*": {
-      "types": "./dist/crypto/*.d.ts",
-      "default": "./dist/crypto/*.js"
-    },
 	"./ws/*": {
 			"types": "./dist/ws/*.d.ts",
 			"default": "./dist/ws/*.js"
@@ -91,6 +68,9 @@
 		}
   },
   "dependencies": {
+    "@trading-model/crypto": "*",
+    "@trading-model/server-utils": "*",
+    "@trading-model/validation": "*",
     "@opentelemetry/api": "^1.9.1",
     "@opentelemetry/exporter-trace-otlp-http": "^0.219.0",
     "@opentelemetry/instrumentation-express": "^0.67.0",

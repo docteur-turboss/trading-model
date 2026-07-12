@@ -1,0 +1,27 @@
+{
+  "name": "@trading-model/crypto",
+  "version": "1.0.0",
+  "description": "Cryptographic utilities and CA client extracted from @trading-model/common",
+  "license": "ISC",
+  "type": "commonjs",
+  "exports": {
+    "./*": {
+      "types": "./dist/*.d.ts",
+      "default": "./dist/*.js"
+    }
+  },
+  "dependencies": {
+    "@trading-model/common": "*",
+    "@trading-model/validation": "*"
+  },
+  "devDependencies": {
+    "@types/node": "^25.9.2",
+    "jest": "^30.4.2",
+    "ts-jest": "^29.4.11",
+    "typescript": "^6.0.3"
+  },
+  "scripts": {
+    "test": "jest",
+    "build": "tsc"
+  }
+}
