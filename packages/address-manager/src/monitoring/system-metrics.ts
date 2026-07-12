@@ -28,6 +28,11 @@ export const Uptime = {
 	},
 };
 
+export interface CpuTimes {
+	idle: number;
+	total: number;
+}
+
 export interface SystemMetricsPayload {
 	memory: {
 		totalBytes: Bytes;
@@ -49,8 +54,8 @@ export interface SystemMetricsPayload {
 export function computeCpuPercent(
 	totalIdle: number,
 	totalTick: number,
-	previous: { idle: number; total: number }
-): { percent: CpuPercent; previousCpuTimes: { idle: number; total: number } } {
+	previous: CpuTimes
+): { percent: CpuPercent; previousCpuTimes: CpuTimes } {
 	if (previous.idle === 0 && previous.total === 0) {
 		return {
 			percent: CpuPercent.of(0),
@@ -68,7 +73,7 @@ export function computeCpuPercent(
 }
 
 export class SystemMetrics {
-	private _previousCpuTimes: { idle: number; total: number } = {
+	private _previousCpuTimes: CpuTimes = {
 		idle: 0,
 		total: 0,
 	};
@@ -95,10 +100,7 @@ export class SystemMetrics {
 		};
 	}
 
-	private _collectCpu(previousCpuTimes: {
-		idle: number;
-		total: number;
-	}): SystemMetricsPayload["cpu"] {
+	private _collectCpu(previousCpuTimes: CpuTimes): SystemMetricsPayload["cpu"] {
 		const cpuPercent = this._calculateCpuPercent(os.cpus(), previousCpuTimes);
 		const loads = os.loadavg();
 		return {
@@ -134,7 +136,7 @@ export class SystemMetrics {
 
 	private _calculateCpuPercent(
 		cpus: os.CpuInfo[],
-		previousCpuTimes: { idle: number; total: number }
+		previousCpuTimes: CpuTimes
 	): CpuPercent {
 		const { totalIdle, totalTick } = this._sumCpuTimes(cpus);
 		const { percent, previousCpuTimes: newCpuTimes } = computeCpuPercent(

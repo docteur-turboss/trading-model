@@ -24,25 +24,13 @@ import { MetricsCollector } from "./monitoring/metrics-collector";
 import { RegistrationManager } from "./registration-manager";
 import { ShutdownHandler } from "./shutdown-handler";
 import type {
+	AddressManagerDependencies,
 	AddressManagerDeps,
 	LifecycleManagerDeps,
 	ShutdownHandlerDeps,
 } from "./types";
 import { WsAuthFailureHandler } from "./ws-auth-failure-handler";
-
-export interface AddressManagerDependencies {
-	tokenManager: TokenManager;
-	discoveryOrchestrator: DiscoveryOrchestrator;
-	metricsCollector: MetricsCollector;
-	lifecycleManager: LifecycleManager;
-}
-
-export interface WsClientContext {
-	config: AddressManagerConfig;
-	addressManagerClient: AddressManagerClient;
-	tokenManager: TokenManager;
-	serviceCache: IServiceCache;
-}
+import type { WsClientContext } from "./ws-client.factory";
 
 function createHttpClient(config: AddressManagerConfig): HttpClient {
 	return HttpClient.createWithTls(config.pems ?? config.tls);

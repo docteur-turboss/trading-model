@@ -1,19 +1,21 @@
 import { logger } from "@trading-model/common/config/logger";
 import type { ServiceId } from "@trading-model/common/domain/primitives";
 import { normalizeError } from "@trading-model/common/utils/errors";
-import type Redis from "ioredis";
 import type { ServiceInstance } from "../client/type";
 import { RedisCacheScanner } from "./redis-cache-scanner";
+import type { RedisStoreConfig } from "./redis-store-config";
 import type { CacheSetEntry } from "./service-cache.interface";
 
 export class RedisCacheOperations {
+	private readonly _redis: import("ioredis").Redis;
+	private readonly _prefix: string;
+	private readonly _ttlSec: number;
 	private readonly _scanner: RedisCacheScanner;
 
-	constructor(
-		private readonly _redis: Redis,
-		private readonly _prefix: string,
-		private readonly _ttlSec: number
-	) {
+	constructor(config: RedisStoreConfig) {
+		this._redis = config.redis;
+		this._prefix = config.prefix;
+		this._ttlSec = config.ttlSec;
 		this._scanner = new RedisCacheScanner(this._redis, this._prefix);
 	}
 

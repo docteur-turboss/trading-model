@@ -4,12 +4,22 @@ import type { CircuitBreakerLatency } from "./circuit-breaker-latency";
 import type { CircuitBreakerPersistence } from "./circuit-breaker-persistence";
 import type { CircuitBreakerState } from "./circuit-breaker-state";
 
+export interface CircuitBreakerComponents {
+	state: CircuitBreakerState;
+	latency: CircuitBreakerLatency;
+	persistence: CircuitBreakerPersistence;
+}
+
 export class CircuitBreakerRecorder {
-	constructor(
-		private readonly _state: CircuitBreakerState,
-		private readonly _latency: CircuitBreakerLatency,
-		private readonly _persistence: CircuitBreakerPersistence
-	) {}
+	private readonly _state: CircuitBreakerState;
+	private readonly _latency: CircuitBreakerLatency;
+	private readonly _persistence: CircuitBreakerPersistence;
+
+	constructor(components: CircuitBreakerComponents) {
+		this._state = components.state;
+		this._latency = components.latency;
+		this._persistence = components.persistence;
+	}
 
 	async loadFromStore(instanceId: InstanceId): Promise<void> {
 		await this._persistence.loadFromStore(instanceId, this._state.instances);

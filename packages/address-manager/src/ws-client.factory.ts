@@ -1,4 +1,5 @@
 import { logger } from "@trading-model/common/config/logger";
+import { DiscoveryWsMessageType } from "@trading-model/common/contracts/discovery-ws-message.types";
 import {
 	type ServiceId,
 	toServiceId,
@@ -11,18 +12,13 @@ import { WebSocketClient, type WsMessage } from "./client/websocket-client";
 import type { AddressManagerConfig } from "./config/address-manager-config";
 import type { IServiceCache } from "./discovery/service-cache.interface";
 import { REGISTRATION_TOTAL } from "./metrics";
+import type { AddressManagerDeps } from "./types";
 
 export interface WsClientContext {
 	config: AddressManagerConfig;
 	addressManagerClient: AddressManagerClient;
 	tokenManager: TokenManager;
 	serviceCache: IServiceCache;
-}
-
-export interface AddressManagerDeps {
-	addressManagerClient: AddressManagerClient;
-	tokenManager: TokenManager;
-	wsClient?: WebSocketClient;
 }
 
 function _logCacheInvalidationError(
@@ -39,7 +35,7 @@ function onCacheInvalidateMessage(
 	message: WsMessage,
 	serviceCache: IServiceCache
 ): void {
-	if (message.type !== "cache.invalidate") {
+	if (message.type !== DiscoveryWsMessageType.CacheInvalidate) {
 		return;
 	}
 	const rawServiceName = message.payload?.serviceName as string | undefined;

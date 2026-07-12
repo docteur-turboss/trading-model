@@ -4,6 +4,7 @@ import {
 	DiscoveryWsMessageType,
 } from "@trading-model/common/contracts/discovery-ws-message.types";
 import type { URLString } from "@trading-model/common/domain/primitives";
+import { DurationMs } from "@trading-model/common/domain/primitives";
 import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import { DefaultWsReconnector } from "@trading-model/common/ws/default-ws-reconnector";
@@ -39,9 +40,9 @@ export class WebSocketClient {
 		this._reconnectHandler = new DefaultWsReconnector({
 			maxAttempts: options.maxReconnectAttempts ?? 10,
 			config: {
-				baseDelayMs: options.reconnectIntervalMs ?? 5000,
-				maxDelayMs: options.reconnectIntervalMs ?? 5000,
-				jitterMs: 0,
+				baseDelayMs: DurationMs.of(options.reconnectIntervalMs ?? 5000),
+				maxDelayMs: DurationMs.of(options.reconnectIntervalMs ?? 5000),
+				jitterMs: DurationMs.of(0),
 			},
 			onReconnect: () => this.connect(),
 		});

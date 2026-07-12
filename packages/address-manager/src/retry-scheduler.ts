@@ -1,4 +1,5 @@
 import { logger } from "@trading-model/common/config/logger";
+import { DurationMs } from "@trading-model/common/domain/primitives";
 import { computeExponentialBackoff } from "@trading-model/common/utils/backoff-config";
 import {
 	retryWithBackoff as commonRetryWithBackoff,
@@ -9,9 +10,9 @@ import { sleep } from "@trading-model/common/utils/sleep";
 
 export interface RetryConfig {
 	maxRetries: number;
-	baseDelayMs: number;
-	maxDelayMs: number;
-	backgroundIntervalMs: number;
+	baseDelayMs: DurationMs;
+	maxDelayMs: DurationMs;
+	backgroundIntervalMs: DurationMs;
 }
 
 export class RetryScheduler {
@@ -96,7 +97,7 @@ export class RetryScheduler {
 			maxRetries: options?.maxRetries ?? this._config.maxRetries,
 			baseDelayMs: options?.baseDelayMs ?? this._config.baseDelayMs,
 			maxDelayMs: options?.maxDelayMs ?? this._config.maxDelayMs,
-			jitterMs: 1000,
+			jitterMs: DurationMs.of(1000),
 			shouldRetry: () => this._shouldRetry,
 		});
 	}

@@ -12,6 +12,7 @@ import {
 } from "@trading-model/common/domain/primitives";
 import type { ServiceInstance } from "../../src/client/type";
 import type { DiscoveryCircuitBreaker } from "../../src/discovery/circuit-breaker";
+import type { DiscoveryContext } from "../../src/discovery/discovery-context";
 import { DiscoveryRetryHandler } from "../../src/discovery/discovery-retry-handler";
 import type { IServiceCache } from "../../src/discovery/service-cache.interface";
 import type { ServiceDiscovery } from "../../src/discovery/service-discovery";
@@ -40,9 +41,13 @@ import { recordDiscoveryMetrics } from "../../src/metrics";
 
 describe("DiscoveryRetryHandler", () => {
 	const FixedTimestamp = 1_700_000_000_000;
-	const startTime = Date.now();
+	const startTime = UnixTimestamp.now();
 	const serviceId = toServiceId("user-service");
 	const svcInstanceName = serviceId as unknown as ServiceInstanceName;
+	const discoveryCtx: DiscoveryContext = {
+		serviceName: svcInstanceName,
+		startTime,
+	};
 	const instance: ServiceInstance = {
 		host: IPAddress.of("127.0.0.1"),
 		port: Port.of(8080),
@@ -132,7 +137,7 @@ describe("DiscoveryRetryHandler", () => {
 			mockDiscovery.findService.mockResolvedValue(instance);
 			mockCircuitBreaker.isOpen.mockReturnValue(false);
 
-			const result = await handler.attemptDiscovery(svcInstanceName, startTime);
+			const result = await handler.attemptDiscovery(discoveryCtx);
 
 			expect(result).toBe(instance);
 			expect(mockCircuitBreaker.loadFromStore).toHaveBeenCalledWith(
@@ -158,7 +163,7 @@ describe("DiscoveryRetryHandler", () => {
 				.mockReturnValueOnce(true)
 				.mockReturnValueOnce(false);
 
-			const result = await handler.attemptDiscovery(svcInstanceName, startTime);
+			const result = await handler.attemptDiscovery(discoveryCtx);
 
 			expect(result).toBe(instance);
 			expect(mockCircuitBreaker.loadFromStore).toHaveBeenCalledTimes(2);
@@ -178,9 +183,9 @@ describe("DiscoveryRetryHandler", () => {
 			mockDiscovery.findService.mockResolvedValue(instance);
 			mockCircuitBreaker.isOpen.mockReturnValue(true);
 
-			await expect(
-				handler.attemptDiscovery(svcInstanceName, startTime)
-			).rejects.toThrow("Discovery failed");
+			await expect(handler.attemptDiscovery(discoveryCtx)).rejects.toThrow(
+				"Discovery failed"
+			);
 
 			expect(mockCircuitBreaker.loadFromStore).toHaveBeenCalledTimes(3);
 			expect(mockCircuitBreaker.isOpen).toHaveBeenCalledTimes(3);
@@ -198,7 +203,7 @@ describe("DiscoveryRetryHandler", () => {
 				.mockResolvedValueOnce(instance);
 			mockCircuitBreaker.isOpen.mockReturnValue(false);
 
-			const result = await handler.attemptDiscovery(svcInstanceName, startTime);
+			const result = await handler.attemptDiscovery(discoveryCtx);
 
 			expect(result).toBe(instance);
 			expect(mockDiscovery.findService).toHaveBeenCalledTimes(2);
@@ -213,9 +218,9 @@ describe("DiscoveryRetryHandler", () => {
 		test("throws last error when findService throws on all attempts", async () => {
 			mockDiscovery.findService.mockRejectedValue(new Error("service failure"));
 
-			await expect(
-				handler.attemptDiscovery(svcInstanceName, startTime)
-			).rejects.toThrow("service failure");
+			await expect(handler.attemptDiscovery(discoveryCtx)).rejects.toThrow(
+				"service failure"
+			);
 
 			expect(mockDiscovery.findService).toHaveBeenCalledTimes(3);
 			expect(sleep).toHaveBeenCalledTimes(2);
@@ -226,17 +231,17 @@ describe("DiscoveryRetryHandler", () => {
 		test("wraps non-Error thrown values in Error via _captureError", async () => {
 			mockDiscovery.findService.mockRejectedValue("string error");
 
-			await expect(
-				handler.attemptDiscovery(svcInstanceName, startTime)
-			).rejects.toThrow("string error");
+			await expect(handler.attemptDiscovery(discoveryCtx)).rejects.toThrow(
+				"string error"
+			);
 		});
 
 		test("uses exponential backoff for retry delays", async () => {
 			mockDiscovery.findService.mockRejectedValue(new Error("fail"));
 
-			await expect(
-				handler.attemptDiscovery(svcInstanceName, startTime)
-			).rejects.toThrow("fail");
+			await expect(handler.attemptDiscovery(discoveryCtx)).rejects.toThrow(
+				"fail"
+			);
 
 			expect(sleep).toHaveBeenCalledTimes(2);
 			expect(sleep).toHaveBeenNthCalledWith(1, 100);
@@ -248,10 +253,7 @@ describe("DiscoveryRetryHandler", () => {
 		test("returns stale instance when cache has one", async () => {
 			mockCache.get.mockResolvedValue(instance);
 
-			const result = await handler.fallbackToStaleCache(
-				svcInstanceName,
-				startTime
-			);
+			const result = await handler.fallbackToStaleCache(discoveryCtx);
 
 			expect(result).toBe(instance);
 			expect(mockCache.get).toHaveBeenCalledWith(serviceId);
@@ -271,10 +273,7 @@ describe("DiscoveryRetryHandler", () => {
 		test("returns null when no stale cache exists", async () => {
 			mockCache.get.mockResolvedValue(null);
 
-			const result = await handler.fallbackToStaleCache(
-				svcInstanceName,
-				startTime
-			);
+			const result = await handler.fallbackToStaleCache(discoveryCtx);
 
 			expect(result).toBeNull();
 			expect(mockCache.get).toHaveBeenCalledWith(serviceId);
@@ -285,10 +284,7 @@ describe("DiscoveryRetryHandler", () => {
 		test("returns null when cache lookup throws", async () => {
 			mockCache.get.mockRejectedValue(new Error("cache error"));
 
-			const result = await handler.fallbackToStaleCache(
-				svcInstanceName,
-				startTime
-			);
+			const result = await handler.fallbackToStaleCache(discoveryCtx);
 
 			expect(result).toBeNull();
 			expect(mockCache.get).toHaveBeenCalledWith(serviceId);
@@ -306,9 +302,9 @@ describe("DiscoveryRetryHandler", () => {
 			mockDiscovery.findService.mockResolvedValue(instance);
 			mockCircuitBreaker.isOpen.mockReturnValue(true);
 
-			await expect(
-				handler.attemptDiscovery(svcInstanceName, startTime)
-			).rejects.toThrow("Discovery failed");
+			await expect(handler.attemptDiscovery(discoveryCtx)).rejects.toThrow(
+				"Discovery failed"
+			);
 
 			expect(mockCircuitBreaker.loadFromStore).toHaveBeenCalledTimes(3);
 			expect(mockCircuitBreaker.loadFromStore).toHaveBeenCalledWith(
@@ -327,7 +323,7 @@ describe("DiscoveryRetryHandler", () => {
 			);
 			mockCircuitBreaker.isOpen.mockReturnValue(false);
 
-			const result = await handler.attemptDiscovery(svcInstanceName, startTime);
+			const result = await handler.attemptDiscovery(discoveryCtx);
 
 			expect(result).toBe(instance);
 			expect(mockCircuitBreaker.loadFromStore).toHaveBeenCalledWith(

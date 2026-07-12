@@ -1,9 +1,11 @@
 import { beforeEach, describe, expect, jest, test } from "@jest/globals";
+import { HttpMethod } from "@trading-model/common/contracts/signed-request";
 import { CircuitState } from "@trading-model/common/domain/circuit-state";
 import type {
 	ServiceId,
 	UnixTimestamp,
 } from "@trading-model/common/domain/primitives";
+import { CallStatus } from "../../src/monitoring/service-call-tracker";
 
 jest.mock("../../src/metrics", () => ({
 	CIRCUIT_BREAKER_INSTANCES_TOTAL: {
@@ -106,10 +108,10 @@ describe("MetricsCollector", () => {
 				tracker.record({
 					targetService: "svc" as unknown as ServiceId,
 					endpoint: "/test",
-					method: "GET",
+					method: HttpMethod.Get,
 					timestamp: 0 as unknown as UnixTimestamp,
 					durationMs: 10,
-					status: "success",
+					status: CallStatus.Success,
 				});
 			}
 			expect(tracker.getRecords()).toHaveLength(3);

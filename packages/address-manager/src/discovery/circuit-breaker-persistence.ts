@@ -1,7 +1,6 @@
 import { logger } from "@trading-model/common/config/logger";
 import { CircuitState } from "@trading-model/common/domain/circuit-state";
 import {
-	DurationMs,
 	type InstanceId,
 	PositiveInt,
 	UnixTimestamp,
@@ -71,8 +70,7 @@ export class CircuitBreakerPersistence {
 		persisted: import("./circuit-breaker-state").InstanceState
 	): CircuitStateMachine {
 		const machine = new CircuitStateMachine({
-			failureThreshold: 5,
-			cooldownMs: DurationMs.of(30_000),
+			...CircuitStateMachine.defaultConfig(),
 			halfOpenMaxAttempts: 1,
 		});
 		machine.restore({

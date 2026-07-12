@@ -93,10 +93,7 @@ export class AddressManagerClient {
 			try {
 				await this._httpClient.post(
 					URLString.of(`${url}/unregister`),
-					{
-						serviceName: this._config.identity.serviceName,
-						instanceId: this._config.identity.instanceId,
-					},
+					this._config.identity,
 					{ headers: { [HTTP_HEADERS.X_INSTANCE_TOKEN]: token } }
 				);
 				return;

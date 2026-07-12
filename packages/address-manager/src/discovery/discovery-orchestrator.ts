@@ -1,8 +1,12 @@
 import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import type { InstanceId } from "@trading-model/common/domain/primitives";
-import { toServiceId } from "@trading-model/common/domain/primitives";
+import {
+	toServiceId,
+	UnixTimestamp,
+} from "@trading-model/common/domain/primitives";
 import { DiscoveryResult, recordDiscoveryMetrics } from "../metrics";
 import type { DiscoveryCircuitBreaker } from "./circuit-breaker";
+import type { DiscoveryContext } from "./discovery-context";
 import { DiscoveryRetryHandler } from "./discovery-retry-handler";
 import type { IServiceCache } from "./service-cache.interface";
 import type { ServiceDiscovery } from "./service-discovery";
@@ -35,28 +39,27 @@ export class DiscoveryOrchestrator {
 	async findService(
 		serviceName: ServiceInstanceName
 	): Promise<import("../client/type").ServiceInstance> {
-		const startTime = Date.now();
+		const ctx: DiscoveryContext = {
+			serviceName,
+			startTime: UnixTimestamp.now(),
+		};
 		try {
-			return await this._retryHandler.attemptDiscovery(serviceName, startTime);
+			return await this._retryHandler.attemptDiscovery(ctx);
 		} catch (lastError) {
-			return this._handleDiscoveryFailure(serviceName, startTime, lastError);
+			return this._handleDiscoveryFailure(ctx, lastError);
 		}
 	}
 
 	private async _handleDiscoveryFailure(
-		serviceName: ServiceInstanceName,
-		startTime: number,
+		ctx: DiscoveryContext,
 		lastError: unknown
 	): Promise<import("../client/type").ServiceInstance> {
-		const staleInstance = await this._retryHandler.fallbackToStaleCache(
-			serviceName,
-			startTime
-		);
+		const staleInstance = await this._retryHandler.fallbackToStaleCache(ctx);
 		if (staleInstance) {
 			return staleInstance;
 		}
 		recordDiscoveryMetrics(
-			{ serviceName: toServiceId(serviceName), startTime },
+			{ serviceName: toServiceId(ctx.serviceName), startTime: ctx.startTime },
 			DiscoveryResult.Failure
 		);
 		throw lastError;

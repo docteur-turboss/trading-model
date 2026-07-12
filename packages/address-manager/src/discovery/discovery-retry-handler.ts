@@ -1,11 +1,13 @@
 import { logger } from "@trading-model/common/config/logger";
 import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
+import type { UnixTimestamp } from "@trading-model/common/domain/primitives";
 import { toServiceId } from "@trading-model/common/domain/primitives";
 import { sleep } from "@trading-model/common/utils/sleep";
 
 import type { ServiceInstance } from "../client/type";
 import { DiscoveryResult, recordDiscoveryMetrics } from "../metrics";
 import type { DiscoveryCircuitBreaker } from "./circuit-breaker";
+import type { DiscoveryContext } from "./discovery-context";
 import type { IServiceCache } from "./service-cache.interface";
 import type { ServiceDiscovery } from "./service-discovery";
 
@@ -23,10 +25,7 @@ export class DiscoveryRetryHandler {
 		readonly circuitBreaker: DiscoveryCircuitBreaker
 	) {}
 
-	async attemptDiscovery(
-		serviceName: ServiceInstanceName,
-		startTime: number
-	): Promise<ServiceInstance> {
+	async attemptDiscovery(ctx: DiscoveryContext): Promise<ServiceInstance> {
 		let lastError: Error | null = null;
 
 		for (
@@ -35,11 +34,13 @@ export class DiscoveryRetryHandler {
 			attempt++
 		) {
 			try {
-				const instance = await this._serviceDiscovery.findService(serviceName);
+				const instance = await this._serviceDiscovery.findService(
+					ctx.serviceName
+				);
 				const result = await this._checkServiceCircuitBreaker({
 					instance,
-					serviceName,
-					startTime,
+					serviceName: ctx.serviceName,
+					startTime: ctx.startTime,
 					attempt,
 				});
 				if (result) {
@@ -68,7 +69,7 @@ export class DiscoveryRetryHandler {
 	private async _checkServiceCircuitBreaker(params: {
 		instance: ServiceInstance;
 		serviceName: ServiceInstanceName;
-		startTime: number;
+		startTime: UnixTimestamp;
 		attempt: number;
 	}): Promise<ServiceInstance | null> {
 		const { instance, serviceName, startTime, attempt } = params;
@@ -91,15 +92,14 @@ export class DiscoveryRetryHandler {
 	}
 
 	async fallbackToStaleCache(
-		serviceName: ServiceInstanceName,
-		startTime: number
+		ctx: DiscoveryContext
 	): Promise<ServiceInstance | null> {
 		try {
 			const staleInstance = await this._serviceCache.get(
-				toServiceId(serviceName)
+				toServiceId(ctx.serviceName)
 			);
 			if (staleInstance) {
-				return this._returnStaleInstance(staleInstance, serviceName, startTime);
+				return this._returnStaleInstance(staleInstance, ctx);
 			}
 		} catch (err) {
 			logger.debug("Cache lookup failed in fallback path", { error: err });
@@ -109,18 +109,17 @@ export class DiscoveryRetryHandler {
 
 	private _returnStaleInstance(
 		staleInstance: ServiceInstance,
-		serviceName: ServiceInstanceName,
-		startTime: number
+		ctx: DiscoveryContext
 	): ServiceInstance {
 		logger.warn(
 			"Circuit breaker exhausted — returning stale cached instance as fallback",
 			{
-				serviceName,
+				serviceName: ctx.serviceName,
 				instanceId: staleInstance.instanceId,
 			}
 		);
 		recordDiscoveryMetrics(
-			{ serviceName: toServiceId(serviceName), startTime },
+			{ serviceName: toServiceId(ctx.serviceName), startTime: ctx.startTime },
 			DiscoveryResult.Degraded
 		);
 		return staleInstance;

@@ -10,6 +10,7 @@ import type { Cluster, Redis, RedisOptions } from "ioredis";
 import type { ServiceInstance } from "../client/type";
 import { RedisCacheOperations } from "./redis-cache-operations";
 import { RedisCircuitStateStore } from "./redis-circuit-state-store";
+import type { StoreOptions } from "./redis-store-config";
 import type {
 	CacheSetEntry,
 	CircuitState,
@@ -27,8 +28,7 @@ export interface RedisCacheConfig {
 
 export class RedisServiceCache implements IServiceCache {
 	private readonly _connectionManager: ConnectionManager<Redis | Cluster>;
-	private readonly _prefix: string;
-	private readonly _ttlSec: number;
+	private readonly _storeOptions: StoreOptions;
 	private _cacheOps: RedisCacheOperations | null = null;
 	private _circuitState: RedisCircuitStateStore | null = null;
 
@@ -39,8 +39,10 @@ export class RedisServiceCache implements IServiceCache {
 			ttlMs = DurationMs.of(5000),
 			cacheOptions,
 		} = config;
-		this._prefix = prefix;
-		this._ttlSec = Math.max(1, Math.ceil(ttlMs / 1000));
+		this._storeOptions = {
+			prefix,
+			ttlSec: Math.max(1, Math.ceil(ttlMs / 1000)),
+		};
 		this._connectionManager = createRedisConnectionManager(
 			redisUrl,
 			cacheOptions
@@ -50,18 +52,16 @@ export class RedisServiceCache implements IServiceCache {
 	private async _ensureReady(): Promise<Redis> {
 		const client = (await this._connectionManager.getConnection()) as Redis;
 		if (!this._cacheOps) {
-			this._cacheOps = new RedisCacheOperations(
-				client,
-				this._prefix,
-				this._ttlSec
-			);
+			this._cacheOps = new RedisCacheOperations({
+				redis: client,
+				...this._storeOptions,
+			});
 		}
 		if (!this._circuitState) {
-			this._circuitState = new RedisCircuitStateStore(
-				client,
-				this._prefix,
-				this._ttlSec
-			);
+			this._circuitState = new RedisCircuitStateStore({
+				redis: client,
+				...this._storeOptions,
+			});
 		}
 		return client;
 	}

@@ -56,11 +56,11 @@ export class DiscoveryCircuitBreaker implements ICircuitBreaker {
 			stateStore ?? new CircuitStateStore(),
 			loadFromStoreCacheTtlMs
 		);
-		this._recorder = new CircuitBreakerRecorder(
-			this._state,
-			this._latency,
-			this._persistence
-		);
+		this._recorder = new CircuitBreakerRecorder({
+			state: this._state,
+			latency: this._latency,
+			persistence: this._persistence,
+		});
 	}
 
 	async loadFromStore(instanceId: InstanceId): Promise<void> {

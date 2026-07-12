@@ -1,3 +1,4 @@
+import type { HttpMethod } from "@trading-model/common/config/http-types";
 import type {
 	ServiceId,
 	UnixTimestamp,
@@ -5,17 +6,15 @@ import type {
 import type { EndpointKey } from "./call-record-aggregator";
 import { CallRecordAggregator } from "./call-record-aggregator";
 
-export const CallStatus = {
-	Success: "success",
-	Error: "error",
-} as const;
-
-export type CallStatus = (typeof CallStatus)[keyof typeof CallStatus];
+export enum CallStatus {
+	Success = "success",
+	Error = "error",
+}
 
 export interface CallRecord {
 	targetService: ServiceId;
 	endpoint: string;
-	method: string;
+	method: HttpMethod;
 	timestamp: UnixTimestamp;
 	durationMs: number;
 	status: CallStatus;

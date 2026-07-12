@@ -1,16 +1,20 @@
 import { logger } from "@trading-model/common/config/logger";
 import type { InstanceId } from "@trading-model/common/domain/primitives";
 import { normalizeError } from "@trading-model/common/utils/errors";
-import type Redis from "ioredis";
 import type { ICircuitStateStore } from "./circuit-state-store";
+import type { RedisStoreConfig } from "./redis-store-config";
 import type { CircuitState } from "./service-cache.interface";
 
 export class RedisCircuitStateStore implements ICircuitStateStore {
-	constructor(
-		private readonly _redis: Redis,
-		private readonly _prefix: string,
-		private readonly _ttlSec: number
-	) {}
+	private readonly _redis: import("ioredis").Redis;
+	private readonly _prefix: string;
+	private readonly _ttlSec: number;
+
+	constructor(config: RedisStoreConfig) {
+		this._redis = config.redis;
+		this._prefix = config.prefix;
+		this._ttlSec = config.ttlSec;
+	}
 
 	async setCircuitState(
 		instanceId: InstanceId,

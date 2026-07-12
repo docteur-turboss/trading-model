@@ -209,28 +209,28 @@ describe("RedisServiceCache", () => {
 				prefix: "p:",
 				ttlMs: 1 as never,
 			});
-			expect((c as any)._ttlSec).toBe(1);
+			expect((c as any)._storeOptions.ttlSec).toBe(1);
 
 			const c2 = new RedisServiceCache({
 				redisUrl: "redis://localhost:6379",
 				prefix: "p:",
 				ttlMs: 999 as never,
 			});
-			expect((c2 as any)._ttlSec).toBe(1);
+			expect((c2 as any)._storeOptions.ttlSec).toBe(1);
 
 			const c3 = new RedisServiceCache({
 				redisUrl: "redis://localhost:6379",
 				prefix: "p:",
 				ttlMs: 1000 as never,
 			});
-			expect((c3 as any)._ttlSec).toBe(1);
+			expect((c3 as any)._storeOptions.ttlSec).toBe(1);
 
 			const c4 = new RedisServiceCache({
 				redisUrl: "redis://localhost:6379",
 				prefix: "p:",
 				ttlMs: 1500 as never,
 			});
-			expect((c4 as any)._ttlSec).toBe(2);
+			expect((c4 as any)._storeOptions.ttlSec).toBe(2);
 		});
 	});
 

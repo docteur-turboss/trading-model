@@ -1,13 +1,14 @@
 import { logger } from "@trading-model/common/config/logger";
+import { DurationMs } from "@trading-model/common/domain/primitives";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import { RetryScheduler } from "./retry-scheduler";
 import type { AddressManagerDeps } from "./types";
 
 const RETRY_CONFIG = {
 	maxRetries: 10,
-	baseDelayMs: 1000,
-	maxDelayMs: 30_000,
-	backgroundIntervalMs: 30_000,
+	baseDelayMs: DurationMs.of(1000),
+	maxDelayMs: DurationMs.of(30_000),
+	backgroundIntervalMs: DurationMs.of(30_000),
 };
 
 export class RegistrationAttemptHandler {

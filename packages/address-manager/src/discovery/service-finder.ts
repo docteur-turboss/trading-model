@@ -6,13 +6,25 @@ import type { IServiceCache } from "./service-cache.interface";
 import type { ServiceHealthChecker } from "./service-health-checker";
 import type { ServiceResolver } from "./service-resolver";
 
+export interface ServiceFinderDeps {
+	serviceCache: IServiceCache;
+	healthChecker: ServiceHealthChecker;
+	resolver: ServiceResolver;
+	config: AddressManagerConfig;
+}
+
 export class ServiceFinder {
-	constructor(
-		private readonly _serviceCache: IServiceCache,
-		private readonly _healthChecker: ServiceHealthChecker,
-		private readonly _resolver: ServiceResolver,
-		private readonly _config: AddressManagerConfig
-	) {}
+	private readonly _serviceCache: IServiceCache;
+	private readonly _healthChecker: ServiceHealthChecker;
+	private readonly _resolver: ServiceResolver;
+	private readonly _config: AddressManagerConfig;
+
+	constructor(deps: ServiceFinderDeps) {
+		this._serviceCache = deps.serviceCache;
+		this._healthChecker = deps.healthChecker;
+		this._resolver = deps.resolver;
+		this._config = deps.config;
+	}
 
 	private async _getHealthyCachedInstance(
 		serviceName: ServiceInstanceName
