@@ -2,14 +2,6 @@ import { randomBytes } from "node:crypto";
 import type { RedisConnectionConfig } from "@trading-model/common/config/redis-config";
 import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import type {
-	IInstanceQuery,
-	IInstanceRegistration,
-	ILifecycle,
-	ITokenManager,
-	ServiceInstance,
-} from "@trading-model/common/contracts/service-registry.types";
-import { CryptoAlg } from "@trading-model/common/crypto/crypto-constants";
-import type {
 	InstanceId,
 	ServiceId,
 } from "@trading-model/common/domain/primitives";
@@ -18,6 +10,14 @@ import type {
 	ServiceIdentity,
 } from "@trading-model/common/domain/service-identity";
 import type { TokenValidation } from "@trading-model/common/domain/token-validation";
+import { CryptoAlg } from "@trading-model/crypto/crypto/crypto-constants";
+import type {
+	IInstanceQuery,
+	IInstanceRegistration,
+	ILifecycle,
+	ITokenManager,
+	ServiceInstance,
+} from "@trading-model/validation/contracts/service-registry.types";
 
 export type {
 	RedisClusterNodesConfig,

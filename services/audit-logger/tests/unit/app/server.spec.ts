@@ -18,7 +18,7 @@ const MOCK_TLS_CONFIG = {
 const MOCK_MESSAGE_HANDLER = jest.fn();
 const MOCK_HEALTH_ROUTES = jest.fn();
 const MOCK_EVENTS_ROUTES = jest.fn();
-jest.mock("@trading-model/common/server/create-secure-server", () => ({
+jest.mock("@trading-model/server-utils/server/create-secure-server", () => ({
 	createSecureServer: jest.fn(() => Promise.resolve(MOCK_SERVER)),
 	buildTlsFromEnv: jest.fn(() => MOCK_TLS_CONFIG),
 }));
@@ -53,7 +53,7 @@ jest.mock("../../../src/subscription/audit-subscriber", () => ({
 	createMessageHandler: jest.fn(() => MOCK_MESSAGE_HANDLER),
 }));
 
-import { createSecureServer } from "@trading-model/common/server/create-secure-server";
+import { createSecureServer } from "@trading-model/server-utils/server/create-secure-server";
 import { createServer } from "../../../src/app/server";
 import { eventsRoutes } from "../../../src/routes/events.routes";
 import { healthRoutes } from "../../../src/routes/health.routes";

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file broker.routes.ts
  *
  * @description
@@ -26,10 +26,10 @@
  * No business logic is performed here; purely request/response orchestration.
  */
 
-import type { MessageMetadata } from "@trading-model/common/contracts/message.types";
 import { toInstanceId, toTopic } from "@trading-model/common/domain/primitives";
 import { catchSync } from "@trading-model/common/middleware/catch-error";
 import { sendResponse } from "@trading-model/common/middleware/response-exception";
+import type { MessageMetadata } from "@trading-model/validation/contracts/message.types";
 import type { Dispatcher } from "../core/dispatcher";
 import {
 	PUBLISH_SCHEMA,

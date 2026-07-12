@@ -1,11 +1,11 @@
 import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
-import type { ITokenManager } from "@trading-model/common/contracts/service-registry.types";
 import type {
 	InstanceId,
 	ServiceId,
 } from "@trading-model/common/domain/primitives";
 import type { ServiceEndpoint } from "@trading-model/common/domain/service-identity";
 import type { TokenValidation } from "@trading-model/common/domain/token-validation";
+import type { ITokenManager } from "@trading-model/validation/contracts/service-registry.types";
 import type { TokenHandler } from "./token-handler";
 
 export class TokenManagerService implements ITokenManager {

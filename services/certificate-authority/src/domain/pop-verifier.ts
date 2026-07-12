@@ -1,5 +1,5 @@
 import { createPublicKey, createVerify, X509Certificate } from "node:crypto";
-import { CryptoAlg } from "@trading-model/common/crypto/crypto-constants";
+import { CryptoAlg } from "@trading-model/crypto/crypto/crypto-constants";
 
 export interface PopVerificationInput {
 	certPem: string;

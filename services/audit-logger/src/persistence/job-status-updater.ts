@@ -1,10 +1,10 @@
-﻿import {
+import { UnixTimestamp } from "@trading-model/common/domain/primitives";
+import {
 	isTerminalStatus,
 	type JobEvent,
 	JobStatus,
 	type JobUpdateExtras,
-} from "@trading-model/common/contracts/recovery.types";
-import { UnixTimestamp } from "@trading-model/common/domain/primitives";
+} from "@trading-model/validation/contracts/recovery.types";
 
 export class JobStatusUpdater {
 	buildUpdateSet(

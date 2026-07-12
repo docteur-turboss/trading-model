@@ -1,6 +1,6 @@
-﻿import type { HttpClient } from "@trading-model/common/config/http-client";
-import { HttpMethod } from "@trading-model/common/contracts/signed-request";
+import type { HttpClient } from "@trading-model/common/config/http-client";
 import { normalizeError } from "@trading-model/common/utils/errors";
+import { HttpMethod } from "@trading-model/validation/contracts/signed-request";
 import { logger } from "../../config/logger";
 import type { DlqEntry } from "./dlq-repository";
 import { signedOptions } from "./request-signer";

@@ -1,6 +1,6 @@
-﻿import { context, propagation } from "@opentelemetry/api";
-import type { MessageMetadata } from "@trading-model/common/contracts/message.types";
+import { context, propagation } from "@opentelemetry/api";
 import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
+import type { MessageMetadata } from "@trading-model/validation/contracts/message.types";
 import type WebSocket from "ws";
 import { logger } from "../../config/logger";
 import type { Dispatcher } from "../core/dispatcher";

@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import type {
 	RegistryBackend,
 	ServiceInstance,
-} from "@trading-model/common/contracts/service-registry.types";
+} from "@trading-model/validation/contracts/service-registry.types";
 import { CachedRegistryBackendProxy } from "../../src/core/cached-registry-backend-proxy";
 
 function createMockBackend(): jest.Mocked<RegistryBackend> {

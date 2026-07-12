@@ -1,9 +1,10 @@
 ﻿import { getStreamClient } from "../../config/redis";
+import type { RedisKeyBuilder } from "../../infrastructure/redis/redis-key-builder";
 import { WalEntryParser } from "./wal-entry-parser";
 
 export class WalBatchFlusher {
 	constructor(
-		private readonly _prefix: string,
+		private readonly _keys: RedisKeyBuilder,
 		private readonly _streamMaxlen: number,
 		private readonly _messageTtlS: number
 	) {}
@@ -29,7 +30,7 @@ export class WalBatchFlusher {
 			if (!parsed) {
 				continue;
 			}
-			const key = `${this._prefix}stream:${parsed.topic}`;
+			const key = this._keys.key("stream", parsed.topic);
 			multi.xadd(
 				key,
 				"MAXLEN",

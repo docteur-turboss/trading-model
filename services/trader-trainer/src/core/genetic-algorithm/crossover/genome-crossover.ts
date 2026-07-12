@@ -1,9 +1,11 @@
+import { NumericRange } from "@trading-model/common/domain/numeric-range";
 import type {
+	NoiseStd,
 	Percentage,
 	PositiveInt,
 	Probability,
+	Temperature,
 } from "@trading-model/common/domain/primitives";
-import { createBounded } from "../bounded";
 import type {
 	ContinuousPolicyGenome,
 	CrossoverGenome,
@@ -130,9 +132,9 @@ function crossoverRewardShaping(
 	const { left, right, crossoverFn, rng } = ctx;
 	return {
 		clip: rng() < 0.5 ? left.clip : right.clip,
-		clipBounds: createBounded(
-			crossoverFn(left.clipBounds.min, right.clipBounds.min),
-			crossoverFn(left.clipBounds.max, right.clipBounds.max)
+		clipBounds: new NumericRange(
+			crossoverFn(left.clipBounds.lo, right.clipBounds.lo),
+			crossoverFn(left.clipBounds.hi, right.clipBounds.hi)
 		),
 		scale: rng() < 0.5 ? left.scale : right.scale,
 		scaleFactor: crossoverFn(left.scaleFactor, right.scaleFactor) as Percentage,
@@ -173,7 +175,10 @@ function crossoverDiscretePolicy(
 			left.epsilonDecay,
 			right.epsilonDecay
 		) as Probability,
-		temperature: crossoverFn(left.temperature, right.temperature),
+		temperature: crossoverFn(
+			left.temperature,
+			right.temperature
+		) as Temperature,
 	};
 }
 
@@ -183,11 +188,11 @@ function crossoverContinuousPolicy(
 	const { left, right, crossoverFn, rng } = ctx;
 	return {
 		type: rng() < 0.5 ? left.type : right.type,
-		clipBounds: createBounded(
-			crossoverFn(left.clipBounds.min, right.clipBounds.min),
-			crossoverFn(left.clipBounds.max, right.clipBounds.max)
+		clipBounds: new NumericRange(
+			crossoverFn(left.clipBounds.lo, right.clipBounds.lo),
+			crossoverFn(left.clipBounds.hi, right.clipBounds.hi)
 		),
-		noiseStd: crossoverFn(left.noiseStd, right.noiseStd),
+		noiseStd: crossoverFn(left.noiseStd, right.noiseStd) as NoiseStd,
 		noiseDecay: crossoverFn(left.noiseDecay, right.noiseDecay) as Probability,
 	};
 }

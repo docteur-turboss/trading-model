@@ -5,7 +5,7 @@ import {
 } from "@trading-model/common/domain/primitives";
 import type { TokenValidation } from "@trading-model/common/domain/token-validation";
 import { ResponseException } from "@trading-model/common/middleware/response-exception";
-import { isNonEmptyString } from "@trading-model/common/validation/primitives";
+import { isNonEmptyString } from "@trading-model/validation/validation/primitives";
 
 import type { ServiceRegistry } from "../core/service-registry";
 

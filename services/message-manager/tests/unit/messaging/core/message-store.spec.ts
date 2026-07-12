@@ -290,7 +290,10 @@ describe("MessageStore", () => {
 
 		const messages = await messageStore.getMessagesBetween({
 			topic: "test.topic",
-			timeRange: DateRange.fromUnixTimestamps(Date.now() - 7200000, Date.now()),
+			timeRange: DateRange.fromUnixTimestamps({
+				fromMs: Date.now() - 7200000,
+				toMs: Date.now(),
+			}),
 			limit: 10,
 		});
 

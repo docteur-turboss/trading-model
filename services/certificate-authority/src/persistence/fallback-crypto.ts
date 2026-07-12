@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
 
-import { CryptoAlg } from "@trading-model/common/crypto/crypto-constants";
+import { CryptoAlg } from "@trading-model/crypto/crypto/crypto-constants";
 
 const ALGORITHM = CryptoAlg.AES_256_GCM;
 const IV_LENGTH = 12;

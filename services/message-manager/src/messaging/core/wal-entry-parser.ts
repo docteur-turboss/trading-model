@@ -1,6 +1,6 @@
-﻿import type { Message } from "@trading-model/common/contracts/message.types";
 import type { Topic } from "@trading-model/common/domain/primitives";
 import { safeStringify } from "@trading-model/common/utils/safe-stringify";
+import type { Message } from "@trading-model/validation/contracts/message.types";
 
 import { logger } from "../../config/logger";
 import type { MemoryWalBuffer } from "./memory-wal-buffer";

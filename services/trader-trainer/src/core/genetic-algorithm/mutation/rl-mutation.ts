@@ -1,9 +1,9 @@
+import { NumericRange } from "@trading-model/common/domain/numeric-range";
 import type {
 	Percentage,
 	PositiveInt,
 	Probability,
 } from "@trading-model/common/domain/primitives";
-import { createBounded } from "../bounded";
 import type { MutationGenome, RLGenome } from "../genome-types";
 import { sampleGaussian, sampleNoise } from "../noise";
 import { clamp } from "../utils";
@@ -62,9 +62,9 @@ function _mutateRewardShaping(
 	return {
 		rewardShaping: {
 			...rl.rewardShaping,
-			clipBounds: createBounded(
-				perturb(rl.rewardShaping.clipBounds.min, 0.1),
-				perturb(rl.rewardShaping.clipBounds.max, 0.1)
+			clipBounds: new NumericRange(
+				perturb(rl.rewardShaping.clipBounds.lo, 0.1),
+				perturb(rl.rewardShaping.clipBounds.hi, 0.1)
 			),
 			scaleFactor: Math.max(
 				0.01,

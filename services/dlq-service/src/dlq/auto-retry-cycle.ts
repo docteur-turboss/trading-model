@@ -1,5 +1,4 @@
 import { randomUUID } from "node:crypto";
-import { Severity } from "@trading-model/common/contracts/admin/audit.dto";
 import {
 	Limit,
 	toCorrelationId,
@@ -10,6 +9,7 @@ import {
 	UnixTimestamp,
 	type URLString,
 } from "@trading-model/common/domain/primitives";
+import { Severity } from "@trading-model/validation/contracts/admin/audit.dto";
 import { notifyAudit } from "../config/audit";
 import { ENV } from "../config/env";
 import { logger } from "../config/logger";

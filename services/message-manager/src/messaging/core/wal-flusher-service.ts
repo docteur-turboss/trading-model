@@ -1,6 +1,7 @@
 ﻿import type { Topic } from "@trading-model/common/domain/primitives";
 import { ENV } from "../../config/env";
 import { getStreamClient } from "../../config/redis";
+import type { RedisKeyBuilder } from "../../infrastructure/redis/redis-key-builder";
 import type { MemoryWalBuffer } from "./memory-wal-buffer";
 import type { MemoryWalEntry } from "./memory-wal-entry";
 import { WalBatchFlusher } from "./wal-batch-flusher";
@@ -14,14 +15,14 @@ import { WalShutdownDrainer } from "./wal-shutdown-drainer";
 const WAL_LIST_MAX_LEN = 1_000_000;
 
 export class WalStorage {
-	private readonly _prefix: string;
+	private readonly _keys: RedisKeyBuilder;
 
-	constructor(prefix: string) {
-		this._prefix = prefix;
+	constructor(keys: RedisKeyBuilder) {
+		this._keys = keys;
 	}
 
 	walKey(): string {
-		return `${this._prefix}wal_buffer`;
+		return this._keys.key("wal_buffer");
 	}
 
 	async storeInWal(topic: Topic, serialized: string): Promise<void> {
@@ -42,12 +43,12 @@ export class WalFlusherService {
 	private readonly _walStorage: WalStorage;
 
 	constructor(
-		private readonly _prefix: string,
+		private readonly _keys: RedisKeyBuilder,
 		private readonly _memoryWalBuffer: MemoryWalBuffer
 	) {
-		this._walStorage = new WalStorage(this._prefix);
+		this._walStorage = new WalStorage(this._keys);
 		const batchFlusher = new WalBatchFlusher(
-			this._prefix,
+			this._keys,
 			ENV.REDIS_STREAM_MAXLEN,
 			ENV.REDIS_MESSAGE_TTL_S
 		);

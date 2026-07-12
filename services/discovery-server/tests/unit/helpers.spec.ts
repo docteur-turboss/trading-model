@@ -6,7 +6,7 @@ jest.mock("@trading-model/common/middleware/response-exception", () => ({
 	})),
 }));
 
-jest.mock("@trading-model/common/validation/primitives", () => ({
+jest.mock("@trading-model/validation/validation/primitives", () => ({
 	isNonEmptyString: (v: any) => typeof v === "string" && v.trim().length > 0,
 }));
 

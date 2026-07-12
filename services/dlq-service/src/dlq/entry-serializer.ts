@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 
-import { CryptoAlg } from "@trading-model/common/crypto/crypto-constants";
+import { CryptoAlg } from "@trading-model/crypto/crypto/crypto-constants";
 import type { DlqEntry } from "./repository";
 
 export interface EntryHash {

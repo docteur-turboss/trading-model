@@ -6,11 +6,11 @@ import {
 	isDevelopment,
 	NODE_ENV,
 } from "@trading-model/common/config/node-env";
-import { CryptoAlg } from "@trading-model/common/crypto/crypto-constants";
 import type {
 	FilePath,
 	InstanceId,
 } from "@trading-model/common/domain/primitives";
+import { CryptoAlg } from "@trading-model/crypto/crypto/crypto-constants";
 import type { LockBackend, LockContext } from "./lock-backend-interface";
 
 export class FileSystemLockBackend implements LockBackend {

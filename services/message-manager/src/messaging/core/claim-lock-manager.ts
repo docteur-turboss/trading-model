@@ -1,12 +1,13 @@
 ﻿import { REDIS_SET } from "@trading-model/common/persistence/redis-constants";
 import type Redis from "ioredis";
 import { logger } from "../../config/logger";
+import type { RedisKeyBuilder } from "../../infrastructure/redis/redis-key-builder";
 
 export class ClaimLockManager {
-	constructor(private readonly _prefix: string) {}
+	constructor(private readonly _keys: RedisKeyBuilder) {}
 
 	private _lockKey(): string {
-		return `${this._prefix}claim-lock`;
+		return this._keys.key("claim-lock");
 	}
 
 	async acquire(redis: Redis, consumerId: string): Promise<boolean> {

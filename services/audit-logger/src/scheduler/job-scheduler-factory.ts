@@ -1,5 +1,5 @@
-﻿import { logger } from "@trading-model/common/config/logger";
-import { JobStatus } from "@trading-model/common/contracts/recovery.types";
+import { logger } from "@trading-model/common/config/logger";
+import { JobStatus } from "@trading-model/validation/contracts/recovery.types";
 import { ENV } from "../config/env";
 import type { JobRepository } from "../persistence/job-repository";
 import { OrphanDetector } from "../recovery/orphan-detector";
@@ -112,7 +112,7 @@ function _buildRecoveryHandlers(
 }
 
 export function logSchedulerStart(recovered: number): void {
-	logger.info("Job scheduler started — recovered jobs from persistence", {
+	logger.info("Job scheduler started and recovered jobs from persistence", {
 		recovered,
 	});
 }

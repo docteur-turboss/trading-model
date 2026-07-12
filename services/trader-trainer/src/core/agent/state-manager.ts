@@ -1,3 +1,4 @@
+import { Probability } from "@trading-model/common/domain/primitives";
 import type { NeuralNetwork } from "../neural-network/neural-network";
 
 interface GenomeTarget {
@@ -19,8 +20,8 @@ export class StateManager {
 	private readonly _gamma: number;
 
 	constructor(private readonly _cfg: StateManagerConfig = {}) {
-		this._epsilon = _cfg.epsilonStart ?? 1.0;
-		this._gamma = _cfg.gamma ?? 0.99;
+		this._epsilon = Probability.of(_cfg.epsilonStart ?? 1.0);
+		this._gamma = Probability.of(_cfg.gamma ?? 0.99);
 	}
 
 	getEpsilon(): number {

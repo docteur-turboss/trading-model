@@ -1,8 +1,8 @@
-﻿import { DeliveryMode } from "@trading-model/common/config/delivery-mode.types";
+import { DeliveryMode } from "@trading-model/common/config/delivery-mode.types";
 import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
-import type { Message } from "@trading-model/common/contracts/message.types";
 import type { SequenceNumber } from "@trading-model/common/domain/primitives";
 import { sleep } from "@trading-model/common/utils/sleep";
+import type { Message } from "@trading-model/validation/contracts/message.types";
 import { resolveTarget } from "./address-resolver";
 import { backoffDelay } from "./backoff-calculator";
 import type { DeliveryErrorHandler } from "./delivery-error-handler";
@@ -13,13 +13,25 @@ import type {
 	MessageDeliveryPort,
 } from "./message-delivery-port";
 
+export interface DeliveryAttemptHandlerDeps {
+	deliveryPort: MessageDeliveryPort;
+	errorHandler: DeliveryErrorHandler;
+	callbackURL: string;
+	serviceName: ServiceInstanceName;
+}
+
 export class DeliveryAttemptHandler {
-	constructor(
-		private readonly _deliveryPort: MessageDeliveryPort,
-		private readonly _errorHandler: DeliveryErrorHandler,
-		private readonly _callbackURL: string,
-		private readonly _serviceName: ServiceInstanceName
-	) {}
+	private readonly _deliveryPort: MessageDeliveryPort;
+	private readonly _errorHandler: DeliveryErrorHandler;
+	private readonly _callbackURL: string;
+	private readonly _serviceName: ServiceInstanceName;
+
+	constructor(deps: DeliveryAttemptHandlerDeps) {
+		this._deliveryPort = deps.deliveryPort;
+		this._errorHandler = deps.errorHandler;
+		this._callbackURL = deps.callbackURL;
+		this._serviceName = deps.serviceName;
+	}
 
 	async attempt<TData>(
 		message: Message<TData>,

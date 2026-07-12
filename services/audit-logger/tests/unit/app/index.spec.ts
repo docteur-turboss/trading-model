@@ -13,7 +13,7 @@ jest.mock("@trading-model/common/config/logger", () => ({
 
 let capturedOptions: any;
 
-jest.mock("@trading-model/common/server/bootstrap", () => ({
+jest.mock("@trading-model/server-utils/server/bootstrap", () => ({
 	createBootstrap: jest.fn((options: any) => {
 		capturedOptions = options;
 		return { server: null, shutdown: jest.fn() };
@@ -115,17 +115,17 @@ jest.mock("@trading-model/broker-message", () => {
 	};
 });
 
-jest.mock("@trading-model/common/contracts/market-events", () => ({
+jest.mock("@trading-model/validation/contracts/market-events", () => ({
 	MarketEvent: {},
 }));
-jest.mock("@trading-model/common/contracts/audit-events", () => ({
+jest.mock("@trading-model/validation/contracts/audit-events", () => ({
 	AuditEvent: {},
 }));
-jest.mock("@trading-model/common/contracts/certificate-events", () => ({
+jest.mock("@trading-model/validation/contracts/certificate-events", () => ({
 	CertificateEvent: {},
 }));
 
-import { createBootstrap } from "@trading-model/common/server/bootstrap";
+import { createBootstrap } from "@trading-model/server-utils/server/bootstrap";
 import { createServer } from "../../../src/app/server";
 import { BOOTSTRAP_ADDRESS_MANAGER } from "../../../src/config/address-manager";
 import { AuditRepository } from "../../../src/persistence/audit-repository";

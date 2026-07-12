@@ -1,13 +1,13 @@
-﻿import type {
-	Message,
-	ServiceIdentity,
-} from "@trading-model/common/contracts/message.types";
 import { CircuitState } from "@trading-model/common/domain/circuit-state";
 import type {
 	SequenceNumber,
 	Topic,
 } from "@trading-model/common/domain/primitives";
 import { CircuitStateMachine } from "@trading-model/common/reliability/circuit-state-machine";
+import type {
+	Message,
+	ServiceIdentity,
+} from "@trading-model/validation/contracts/message.types";
 import { logger } from "../../config/logger";
 import { backoffDelay as computeBackoffDelay } from "./backoff-calculator";
 import { DeliveryAttemptHandler } from "./delivery-attempt-handler";
@@ -67,12 +67,12 @@ export class Subscription {
 	private _createAttemptHandler(
 		config: SubscriptionConfig
 	): DeliveryAttemptHandler {
-		return new DeliveryAttemptHandler(
-			config.deliveryPort,
-			this._errorHandler,
-			config.callbackURL,
-			config.serviceIdentity.serviceName
-		);
+		return new DeliveryAttemptHandler({
+			deliveryPort: config.deliveryPort,
+			errorHandler: this._errorHandler,
+			callbackURL: config.callbackURL,
+			serviceName: config.serviceIdentity.serviceName,
+		});
 	}
 
 	private _createErrorHandler(
@@ -90,7 +90,7 @@ export class Subscription {
 		const deliveryParams = this._metadataExtractor.extract(message);
 
 		if (this._circuitBreaker.isOpen()) {
-			logger.warn("Circuit breaker open — rejecting dispatch", {
+			logger.warn("Circuit breaker open and rejecting dispatch", {
 				topic: this.topic,
 				service: this.serviceIdentity.serviceName,
 				failureCount: this._circuitBreaker.getFailureCount(),

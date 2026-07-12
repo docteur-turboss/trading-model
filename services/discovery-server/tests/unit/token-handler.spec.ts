@@ -11,7 +11,7 @@ jest.mock("@trading-model/common/config/logger", () => ({
 
 const mockGenerateInstanceId = jest.fn();
 
-jest.mock("@trading-model/common/crypto/token-service", () => ({
+jest.mock("@trading-model/crypto/crypto/token-service", () => ({
 	generateInstanceId: (...args: unknown[]) => mockGenerateInstanceId(...args),
 }));
 

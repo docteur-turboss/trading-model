@@ -1,20 +1,20 @@
 import {
 	Cash,
+	DecimalPrecision,
 	type Percentage,
 	type Price,
 	type Volume,
 } from "@trading-model/common/domain/primitives";
 
-export function roundValue(value: number, decimals: number): number {
-	const factor = 10 ** decimals;
-	return Math.round(value * factor) / factor;
+export function roundValue(value: number, decimals: DecimalPrecision): number {
+	return DecimalPrecision.round(value, decimals);
 }
 
 export interface TradeCostParams {
 	amount: Volume;
 	price: Price;
 	feeRate: Percentage;
-	decimals: number;
+	decimals: DecimalPrecision;
 }
 
 function _computeBaseCost(params: TradeCostParams): number {

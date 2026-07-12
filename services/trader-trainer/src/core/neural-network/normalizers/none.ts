@@ -1,11 +1,11 @@
-import type { NormalizeParams, Normalizer } from "./normalizer-interface";
+import type {
+	DataSlice,
+	NormalizeParams,
+	Normalizer,
+} from "./normalizer-interface";
 
 export class NoneNormalizer implements Normalizer {
-	normalize(
-		data: Float32Array,
-		_len: number,
-		_params?: NormalizeParams
-	): Float32Array {
-		return data;
+	normalize(slice: DataSlice, _params?: NormalizeParams): Float32Array {
+		return slice.data;
 	}
 }

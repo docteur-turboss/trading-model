@@ -1,14 +1,16 @@
 import { randomBytes } from "node:crypto";
 import { logger } from "@trading-model/common/config/logger";
-import { CryptoAlg } from "@trading-model/common/crypto/crypto-constants";
 import {
 	DurationMs,
 	type ServiceId,
-	type URLString,
 } from "@trading-model/common/domain/primitives";
 import { TimerHandle } from "@trading-model/common/utils/timer-handle";
+import { CryptoAlg } from "@trading-model/crypto/crypto/crypto-constants";
 import type { NonceContext, NoncePersistence } from "./nonce-persister";
-import { MongoNoncePersister } from "./nonce-persister";
+import {
+	MongoNoncePersister,
+	type NoncePersisterConfig,
+} from "./nonce-persister";
 
 interface NonceEntry extends NonceContext {
 	createdAt: number;
@@ -20,13 +22,10 @@ export class NonceStore {
 	private readonly _persister?: NoncePersistence;
 	private readonly _cleanupTimer = new TimerHandle();
 
-	constructor(
-		ttlMs: DurationMs = DurationMs.of(300_000),
-		mongoUri?: URLString
-	) {
-		this._ttlMs = ttlMs;
-		if (mongoUri) {
-			this._persister = new MongoNoncePersister(mongoUri, ttlMs);
+	constructor(config?: NoncePersisterConfig) {
+		this._ttlMs = config?.ttlMs ?? DurationMs.of(300_000);
+		if (config?.mongoUri) {
+			this._persister = new MongoNoncePersister(config);
 		}
 		this._startCleanup();
 	}

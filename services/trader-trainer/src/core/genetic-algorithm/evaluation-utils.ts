@@ -1,21 +1,19 @@
-import { PositiveInt, Ratio } from "@trading-model/common/domain/primitives";
+import {
+	DurationMs,
+	PositiveInt,
+	Ratio,
+} from "@trading-model/common/domain/primitives";
 import {
 	computeAdjustedFitness,
 	estimateComplexity,
 } from "./complexity-estimator";
 import { EpisodeScores } from "./episode-scores";
-import type { LamarckGenome, MarketStep } from "./genome-types";
+import type { WindowSet } from "./generation-types";
+import type { GenomeFitnessMeta } from "./genome";
+import type { LamarckGenome } from "./genome-types";
 import type { RLBackend } from "./rl-backend";
 import type { DeepReadonly } from "./shared-types";
 import { computeSharpe } from "./utils";
-
-export interface GenomeFitnessMeta {
-	episodesRun: PositiveInt;
-	computeMs: number;
-	efficiencyScore: Ratio;
-	variance: number;
-	rawScores: EpisodeScores;
-}
 
 export function lamarckianUpdate(
 	genome: DeepReadonly<LamarckGenome>,
@@ -61,15 +59,15 @@ function invariant(condition: boolean, message: string): asserts condition {
 
 export function _validateGenomeInputs(
 	genome: DeepReadonly<LamarckGenome>,
-	windowSet: { id: string; train: MarketStep[]; validation: MarketStep[] }
+	windowSet: WindowSet
 ): void {
 	invariant(genome.network.inputDim > 0, "inputDim must be positive");
 	invariant(genome.network.outputDim > 0, "outputDim must be positive");
 	invariant(
 		genome.rl.rewardShaping?.clipBounds !== null &&
-			typeof genome.rl.rewardShaping.clipBounds.min === "number" &&
-			typeof genome.rl.rewardShaping.clipBounds.max === "number",
-		"rewardShaping.clipBounds must have numeric min/max"
+			typeof genome.rl.rewardShaping.clipBounds.lo === "number" &&
+			typeof genome.rl.rewardShaping.clipBounds.hi === "number",
+		"rewardShaping.clipBounds must have numeric lo/hi"
 	);
 	invariant(windowSet.train.length > 0, "windowSet.train must not be empty");
 	invariant(
@@ -117,7 +115,7 @@ function _buildFitnessMeta(
 	const scores = new EpisodeScores(allRaw);
 	return {
 		episodesRun: PositiveInt.of(Math.max(1, scores.length)),
-		computeMs: Date.now() - t0,
+		computeMs: DurationMs.of(Date.now() - t0),
 		efficiencyScore: Ratio.of(Number.isFinite(adjFitness) ? adjFitness : 0),
 		variance: scores.variance(),
 		rawScores: scores,

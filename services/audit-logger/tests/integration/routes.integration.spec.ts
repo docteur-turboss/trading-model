@@ -1,6 +1,6 @@
 import http from "node:http";
 import { afterEach, describe, expect, it, jest } from "@jest/globals";
-import { configureApp } from "@trading-model/common/server/configure-app";
+import { configureApp } from "@trading-model/server-utils/server/configure-app";
 
 jest.mock("../../src/config/env", () => ({
 	ENV: {

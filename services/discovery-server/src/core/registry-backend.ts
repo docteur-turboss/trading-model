@@ -1,11 +1,4 @@
 import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
-import type {
-	IInstanceQuery,
-	IInstanceRegistration,
-	ILifecycle,
-	ITokenManager,
-	ServiceInstance,
-} from "@trading-model/common/contracts/service-registry.types";
 import {
 	type InstanceId,
 	type ServiceId,
@@ -16,6 +9,13 @@ import type {
 	ServiceIdentity,
 } from "@trading-model/common/domain/service-identity";
 import type { TokenValidation } from "@trading-model/common/domain/token-validation";
+import type {
+	IInstanceQuery,
+	IInstanceRegistration,
+	ILifecycle,
+	ITokenManager,
+	ServiceInstance,
+} from "@trading-model/validation/contracts/service-registry.types";
 import { ServiceRegistry } from "./service-registry";
 
 /**

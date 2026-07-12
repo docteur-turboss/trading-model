@@ -15,7 +15,7 @@ export const bookTickerHandler: DataHandler<BookTickerData> = {
 			state.norm.book.spread.update(bt.ask - bt.bid);
 		}
 	},
-	mutateState(_symbol, data, state, _maxSize) {
+	mutateState({ data, state }) {
 		state.bookTicker = data;
 	},
 	serializeNorms(_state) {

@@ -1,7 +1,7 @@
 import {
 	buildTlsFromEnv,
 	createSecureServer,
-} from "@trading-model/common/server/create-secure-server";
+} from "@trading-model/server-utils/server/create-secure-server";
 
 import { ENV } from "../config/env";
 import { DlqRoutes } from "../dlq/routes";

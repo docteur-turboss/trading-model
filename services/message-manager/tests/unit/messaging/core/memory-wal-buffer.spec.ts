@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
+import { RedisKeyBuilder } from "../../../../src/infrastructure/redis/redis-key-builder";
 
 const mockFallbackInstance = {
 	recoverFromFallbackFile: jest.fn().mockResolvedValue([]),
@@ -40,6 +41,8 @@ jest.mock("../../../../src/config/metrics", () => ({
 	BUFFER_DROPPED_TOTAL: { inc: jest.fn() },
 }));
 
+const testKeys = new RedisKeyBuilder("test:");
+
 describe("MemoryWalBuffer", () => {
 	beforeEach(() => {
 		jest.clearAllMocks();
@@ -52,7 +55,7 @@ describe("MemoryWalBuffer", () => {
 			MemoryWalBuffer,
 		} = require("../../../../src/messaging/core/memory-wal-buffer");
 		const { logger } = require("../../../../src/config/logger");
-		const buffer = new MemoryWalBuffer("test:");
+		const buffer = new MemoryWalBuffer(testKeys);
 		for (let i = 0; i < 5; i++) {
 			await buffer.push({ topic: "t", serialized: "{}" } as never);
 		}
@@ -64,7 +67,7 @@ describe("MemoryWalBuffer", () => {
 		const {
 			MemoryWalBuffer,
 		} = require("../../../../src/messaging/core/memory-wal-buffer");
-		const buffer = new MemoryWalBuffer("test:");
+		const buffer = new MemoryWalBuffer(testKeys);
 		for (let i = 0; i < 7; i++) {
 			await buffer.push({ topic: "t", serialized: "{}" } as never);
 		}
@@ -75,7 +78,7 @@ describe("MemoryWalBuffer", () => {
 		const {
 			MemoryWalBuffer,
 		} = require("../../../../src/messaging/core/memory-wal-buffer");
-		const buffer = new MemoryWalBuffer("test:");
+		const buffer = new MemoryWalBuffer(testKeys);
 		buffer.startFlusher();
 		buffer.stopFlusher();
 		expect(true).toBe(true);
@@ -88,7 +91,7 @@ describe("MemoryWalBuffer", () => {
 		const {
 			MemoryWalBuffer,
 		} = require("../../../../src/messaging/core/memory-wal-buffer");
-		const buffer = new MemoryWalBuffer("test:");
+		const buffer = new MemoryWalBuffer(testKeys);
 		const count = await buffer.recoverFromFallbackFile();
 		expect(count).toBe(1);
 	});
@@ -97,7 +100,7 @@ describe("MemoryWalBuffer", () => {
 		const {
 			MemoryWalBuffer,
 		} = require("../../../../src/messaging/core/memory-wal-buffer");
-		const buffer = new MemoryWalBuffer("test:");
+		const buffer = new MemoryWalBuffer(testKeys);
 		const count = await buffer.recoverFromFallbackFile();
 		expect(count).toBe(0);
 	});

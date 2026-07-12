@@ -2,6 +2,7 @@
 
 import { logger } from "../../config/logger";
 import { getStreamClient } from "../../config/redis";
+import type { RedisKeyBuilder } from "../../infrastructure/redis/redis-key-builder";
 import { ClaimLockManager } from "./claim-lock-manager";
 import type { ClaimParams } from "./messaging-types";
 import { TopicClaimScanner } from "./topic-claim-scanner";
@@ -10,9 +11,9 @@ export class ClaimExecutor {
 	private readonly _lockManager: ClaimLockManager;
 	private readonly _topicScanner: TopicClaimScanner;
 
-	constructor(private readonly _prefix: string) {
-		this._lockManager = new ClaimLockManager(this._prefix);
-		this._topicScanner = new TopicClaimScanner(this._prefix);
+	constructor(private readonly _keys: RedisKeyBuilder) {
+		this._lockManager = new ClaimLockManager(this._keys);
+		this._topicScanner = new TopicClaimScanner(this._keys);
 	}
 
 	claimPendingMessages(params: ClaimParams): Promise<number> {

@@ -2,6 +2,7 @@ export * from "./genome";
 
 import type {
 	Cash,
+	DurationMs,
 	Fitness,
 	GenomeId,
 	PositiveInt,
@@ -15,7 +16,7 @@ export interface EpisodeLog {
 	reward: Reward;
 	steps: number;
 	pnl: Cash;
-	computeMs: number;
+	computeMs: DurationMs;
 }
 
 export interface GenerationSummary {
@@ -25,6 +26,6 @@ export interface GenerationSummary {
 	efficiency: Ratio;
 	popSize: PositiveInt;
 	stagnation: PositiveInt;
-	elapsedMs: number;
+	elapsedMs: DurationMs;
 	gaControl: import("./genome").GAControlGenome;
 }

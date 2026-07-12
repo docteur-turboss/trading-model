@@ -110,8 +110,8 @@ jest.mock("../../src/config/metrics", () => ({
 	},
 }));
 
-jest.mock("@trading-model/common/validation/env", () => {
-	const actual = jest.requireActual("@trading-model/common/validation/env");
+jest.mock("@trading-model/validation/validation/env", () => {
+	const actual = jest.requireActual("@trading-model/validation/validation/env");
 	return {
 		...actual,
 		validateEnv: (schema: unknown) => {

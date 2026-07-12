@@ -1,9 +1,9 @@
-﻿import { randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
+import { toMessageId } from "@trading-model/common/domain/primitives";
 import type {
 	Message,
 	MessageMetadata,
-} from "@trading-model/common/contracts/message.types";
-import { toMessageId } from "@trading-model/common/domain/primitives";
+} from "@trading-model/validation/contracts/message.types";
 import { sanitizePayload } from "./payload-sanitizer";
 
 export class MessageFactory {

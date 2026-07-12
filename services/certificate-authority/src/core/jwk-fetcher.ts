@@ -1,6 +1,6 @@
 import { createPublicKey, type KeyObject } from "node:crypto";
-import { JWK_KEY_TYPE } from "@trading-model/common/crypto/crypto-constants";
 import type { URLString } from "@trading-model/common/domain/primitives";
+import { JWK_KEY_TYPE } from "@trading-model/crypto/crypto/crypto-constants";
 
 interface Jwk extends Record<string, string | undefined> {
 	kid?: string;

@@ -61,7 +61,7 @@ export interface CertRenewalDeps {
 	certStore: CertStore;
 	nonceStore: NonceStore;
 	ca: CertificateAuthority;
-	lock?: import("@trading-model/common/contracts/distributed-lock.types").IDistributedLock;
+	lock?: import("@trading-model/validation/contracts/distributed-lock.types").IDistributedLock;
 }
 
 export class CertRenewalService {

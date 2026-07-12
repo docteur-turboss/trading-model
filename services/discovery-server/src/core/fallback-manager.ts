@@ -1,6 +1,6 @@
 import { logger } from "@trading-model/common/config/logger";
-import type { RegistryBackend } from "@trading-model/common/contracts/service-registry.types";
 import { TimerHandle } from "@trading-model/common/utils/timer-handle";
+import type { RegistryBackend } from "@trading-model/validation/contracts/service-registry.types";
 import type { HealthCheckCallbacks } from "./redis-health-monitor";
 
 export class FallbackManager {

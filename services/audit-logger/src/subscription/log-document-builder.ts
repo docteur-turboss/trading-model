@@ -1,4 +1,3 @@
-import type { HttpMethod } from "@trading-model/common/contracts/signed-request";
 import {
 	toCorrelationId,
 	toEnvironment,
@@ -8,6 +7,7 @@ import {
 	toUserId,
 } from "@trading-model/common/domain/primitives";
 import type { HttpStatusCode } from "@trading-model/common/http-status";
+import type { HttpMethod } from "@trading-model/validation/contracts/signed-request";
 import type { z } from "zod";
 
 import { LOGS_INGESTED_TOTAL } from "../config/metrics";

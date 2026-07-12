@@ -23,7 +23,7 @@ import {
 	type RawBinanceCandlestick,
 } from "../../types/binance.api";
 import { BINANCE_ENDPOINTS } from "./endpoints";
-import { BINANCE_WEIGHTS } from "./weights";
+import { type ApiWeight, BINANCE_WEIGHTS } from "./weights";
 
 const BINANCE = httpClients.binance;
 
@@ -82,7 +82,10 @@ export async function getCandlestickData(
 	return raw.map((tuple) => parseCandlestick(tuple as RawBinanceCandlestick));
 }
 
-async function _getWithWeight(url: string, weight: number): Promise<unknown> {
+async function _getWithWeight(
+	url: string,
+	weight: ApiWeight
+): Promise<unknown> {
 	return (await BINANCE.get(url, { weight })).data;
 }
 

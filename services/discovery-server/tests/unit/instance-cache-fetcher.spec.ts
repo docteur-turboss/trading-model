@@ -9,7 +9,7 @@ import {
 import type {
 	RegistryBackend,
 	ServiceInstance,
-} from "@trading-model/common/contracts/service-registry.types";
+} from "@trading-model/validation/contracts/service-registry.types";
 import type { CacheManager } from "../../src/core/cache-manager";
 import { InstanceCacheFetcher } from "../../src/core/instance-cache-fetcher";
 import type { RedisHealthMonitor } from "../../src/core/redis-health-monitor";

@@ -9,7 +9,7 @@ import {
 import type {
 	RegistryBackend,
 	ServiceInstance,
-} from "@trading-model/common/contracts/service-registry.types";
+} from "@trading-model/validation/contracts/service-registry.types";
 import { CachedRegistryOperations } from "../../src/core/cached-registry-operations";
 
 function createMockBackend(): jest.Mocked<RegistryBackend> {

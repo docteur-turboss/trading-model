@@ -11,7 +11,7 @@ export const candleHandler: DataHandler<CandleData> = {
 		state.norm.candle.high.update(candle.high);
 		state.norm.candle.low.update(candle.low);
 	},
-	mutateState(_symbol, data, state, maxSize) {
+	mutateState({ data, state, maxSize }) {
 		state.candles.push(data);
 		if (maxSize !== undefined && state.candles.length > maxSize) {
 			state.candles = state.candles.slice(-maxSize);

@@ -45,7 +45,10 @@ function _trainStep(ctx: TrainStepContext): void {
 	if (_shouldSkipFrame(index, genome.rl.horizon.frameSkip)) {
 		return;
 	}
-	backend.step(trainData[index].features, trainData[index].price);
+	backend.step({
+		features: trainData[index].features,
+		price: trainData[index].price,
+	});
 	const pool = backend.getExperiencePool();
 	if (!_canTrain(pool)) {
 		return;

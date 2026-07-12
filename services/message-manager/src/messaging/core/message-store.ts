@@ -1,9 +1,10 @@
-﻿import type { Message } from "@trading-model/common/contracts/message.types";
 import type {
 	InstanceId,
 	Topic,
 } from "@trading-model/common/domain/primitives";
+import type { Message } from "@trading-model/validation/contracts/message.types";
 import { ENV } from "../../config/env";
+import { RedisKeyBuilder } from "../../infrastructure/redis/redis-key-builder";
 import { MemoryWalBuffer } from "./memory-wal-buffer";
 import { MessageRoutingFacade } from "./message-routing-facade";
 import type { IMessageRouting } from "./message-routing-interface";
@@ -23,22 +24,18 @@ import type { IWalLifecycle } from "./wal-lifecycle-interface";
 export class MessageStore
 	implements IMessageRouting, IMessageStorage, IWalLifecycle
 {
+	private readonly _keys: RedisKeyBuilder;
 	private readonly _memoryWalBuffer: MemoryWalBuffer;
 	private readonly _routingFacade: MessageRoutingFacade;
 	private readonly _walFlusher: WalFlusherService;
 	private readonly _streamWriter: MessageStreamWriter;
 
 	constructor() {
-		this._routingFacade = new MessageRoutingFacade(ENV.REDIS_PREFIX);
-		this._memoryWalBuffer = new MemoryWalBuffer(ENV.REDIS_PREFIX);
-		this._walFlusher = new WalFlusherService(
-			ENV.REDIS_PREFIX,
-			this._memoryWalBuffer
-		);
-		this._streamWriter = new MessageStreamWriter(
-			ENV.REDIS_PREFIX,
-			this._walFlusher
-		);
+		this._keys = new RedisKeyBuilder(ENV.REDIS_PREFIX);
+		this._routingFacade = new MessageRoutingFacade(this._keys);
+		this._memoryWalBuffer = new MemoryWalBuffer(this._keys);
+		this._walFlusher = new WalFlusherService(this._keys, this._memoryWalBuffer);
+		this._streamWriter = new MessageStreamWriter(this._keys, this._walFlusher);
 		this._walFlusher.start();
 		this._memoryWalBuffer.startFlusher();
 	}

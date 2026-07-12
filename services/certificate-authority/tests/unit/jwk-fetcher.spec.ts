@@ -1,7 +1,7 @@
 import { generateKeyPairSync } from "node:crypto";
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 
-jest.mock("@trading-model/common/crypto/crypto-constants", () => ({
+jest.mock("@trading-model/crypto/crypto/crypto-constants", () => ({
 	JWK_KEY_TYPE: { RSA: "RSA", EC: "EC" },
 }));
 

@@ -8,6 +8,7 @@ import { ZScoreNormalizer } from "./normalizers/z-score";
 import { NormalisationType } from "./type";
 
 export type {
+	DataSlice,
 	NormalizeParams,
 	Normalizer,
 } from "./normalizers/normalizer-interface";

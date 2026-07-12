@@ -1,4 +1,5 @@
 import { describe, expect, test } from "@jest/globals";
+import { DurationMs } from "@trading-model/common/domain/primitives";
 import { EpisodeScores } from "../../../src/core/genetic-algorithm/episode-scores";
 import { createDefaultGenome } from "../../../src/core/genetic-algorithm/factory";
 import { SelectionType } from "../../../src/core/genetic-algorithm/genome";
@@ -12,7 +13,7 @@ function makePopulation(): PopMember[] {
 		fitness,
 		fitnessMeta: {
 			episodesRun: 3,
-			computeMs: 100,
+			computeMs: DurationMs.of(100),
 			efficiencyScore: fitness,
 			variance: 0.1,
 			rawScores: new EpisodeScores([fitness, fitness * 0.9, fitness * 1.1]),
@@ -118,7 +119,7 @@ describe("Selection - selectParent", () => {
 			fitness: 0,
 			fitnessMeta: {
 				episodesRun: 3,
-				computeMs: 100,
+				computeMs: DurationMs.of(100),
 				efficiencyScore: 0,
 				variance: 0,
 				rawScores: new EpisodeScores([0, 0, 0]),

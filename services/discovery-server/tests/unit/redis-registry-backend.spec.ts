@@ -6,12 +6,12 @@ import {
 	it,
 	jest,
 } from "@jest/globals";
-import type { ServiceInstance } from "@trading-model/common/contracts/service-registry.types";
 import {
 	REDIS_RESP,
 	REDIS_SET,
 	RedisMode,
 } from "@trading-model/common/persistence/redis-constants";
+import type { ServiceInstance } from "@trading-model/validation/contracts/service-registry.types";
 
 jest.mock("@trading-model/common/config/logger", () => ({
 	logger: {

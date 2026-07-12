@@ -1,9 +1,9 @@
 import { SpanStatusCode } from "@opentelemetry/api";
-import { CryptoAlg } from "@trading-model/common/crypto/crypto-constants";
 import {
 	type ResponseObject,
 	sendResponse,
 } from "@trading-model/common/middleware/response-exception";
+import { CryptoAlg } from "@trading-model/crypto/crypto/crypto-constants";
 import type { z } from "zod";
 import { isDbConnected } from "../config/db";
 import { DlqEntrySchema } from "./dlq-schemas";

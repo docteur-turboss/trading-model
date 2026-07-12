@@ -3,13 +3,18 @@ import { agentError } from "@trading-model/common/utils/errors";
 import type { LayerMemory } from "./type";
 import { GAUSSIAN_NOISE as gaussianNoise } from "./utils";
 
+interface CursorBufferOptions {
+	buffer: Float32Array;
+	initialCursor?: number;
+}
+
 class CursorBuffer {
 	private readonly _buffer: Float32Array;
 	private _cursor: number;
 
-	constructor(buffer: Float32Array, initialCursor = 0) {
-		this._buffer = buffer;
-		this._cursor = initialCursor;
+	constructor(options: CursorBufferOptions) {
+		this._buffer = options.buffer;
+		this._cursor = options.initialCursor ?? 0;
 	}
 
 	get cursor(): number {
@@ -55,7 +60,7 @@ export function parameterCount(layers: LayerMemory[]): number {
 export function getWeights(layers: LayerMemory[]): Float32Array {
 	const total = parameterCount(layers);
 	const buffer = new Float32Array(total);
-	const buf = new CursorBuffer(buffer);
+	const buf = new CursorBuffer({ buffer });
 	for (const layer of layers) {
 		buf.writeAll(layer.weights);
 		buf.writeAll(layer.bias);
@@ -82,7 +87,7 @@ function _validateBufferLength(
 
 export function setWeights(layers: LayerMemory[], buffer: Float32Array): void {
 	_validateBufferLength(layers, buffer);
-	const buf = new CursorBuffer(buffer);
+	const buf = new CursorBuffer({ buffer });
 	for (const layer of layers) {
 		for (let i = 0; i < layer.weights.length; i++) {
 			layer.weights[i] = buf.read();

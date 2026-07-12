@@ -21,12 +21,16 @@ const tracer = trace.getTracer("dlq-service");
 
 import type { Topic } from "@trading-model/common/domain/primitives";
 
-function _buildPaginationQuery(query: Record<string, unknown>): {
+export interface DlqPaginationQuery {
 	topic: Topic | undefined;
 	limit: PaginationQuery["limit"];
 	offset: number;
 	cursor: string | undefined;
-} {
+}
+
+function _buildPaginationQuery(
+	query: Record<string, unknown>
+): DlqPaginationQuery {
 	const cursor = query.cursor as string | undefined;
 	const topic = query.topic as string | undefined;
 	const limit = Math.min(
@@ -56,16 +60,14 @@ export async function listEntries(req: {
 	);
 }
 
-interface ListResponseParams {
+export interface DlqListResponse {
 	entries: import("./repository").StoredDlqEntry[];
 	limit: number;
 	offset: number | undefined;
 	cursor: string | undefined;
 }
 
-function _buildListResponse(
-	params: ListResponseParams
-): Record<string, unknown> {
+function _buildListResponse(params: DlqListResponse): Record<string, unknown> {
 	const hasMore = params.entries.length === params.limit;
 	const response: Record<string, unknown> = {
 		entries: params.entries,

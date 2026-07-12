@@ -1,9 +1,9 @@
-﻿import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
-import type { Message } from "@trading-model/common/contracts/message.types";
+import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import type {
 	SequenceNumber,
 	Topic,
 } from "@trading-model/common/domain/primitives";
+import type { Message } from "@trading-model/validation/contracts/message.types";
 import { logger } from "../../config/logger";
 import {
 	DeliveryErrorClassifier,
@@ -73,7 +73,7 @@ export class DeliveryErrorHandler {
 		[ErrorActionType.DLQ]: async (message, context, classification) => {
 			if (classification.reason === DlqReason.MaxRetriesExceeded) {
 				this._recordFailure();
-				logger.error("Max retries exceeded — routing to DLQ", {
+				logger.error("Max retries exceeded and routing to DLQ", {
 					topic: this._topic,
 					service: this._serviceName,
 					deliveryAttempt: context.deliveryAttempt,

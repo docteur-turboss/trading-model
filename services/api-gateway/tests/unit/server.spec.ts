@@ -6,7 +6,7 @@ const MOCK_TLS_CONFIG = {
 	ca: "/certs/ca.pem",
 };
 
-jest.mock("@trading-model/common/server/create-secure-server", () => ({
+jest.mock("@trading-model/server-utils/server/create-secure-server", () => ({
 	createSecureServer: jest
 		.fn()
 		.mockImplementation(
@@ -38,7 +38,7 @@ jest.mock("../../src/core/router", () => ({
 	createRouter: jest.fn(() => ({ stack: [] })),
 }));
 
-import { createSecureServer } from "@trading-model/common/server/create-secure-server";
+import { createSecureServer } from "@trading-model/server-utils/server/create-secure-server";
 import { createServer } from "../../src/app/server";
 
 describe("server", () => {

@@ -1,12 +1,12 @@
 import { randomUUID } from "node:crypto";
 import path from "node:path";
-import type { IDistributedLock } from "@trading-model/common/contracts/distributed-lock.types";
 import {
 	type DurationMs,
 	FilePath,
 	InstanceId,
 	type URLString,
 } from "@trading-model/common/domain/primitives";
+import type { IDistributedLock } from "@trading-model/validation/contracts/distributed-lock.types";
 import { LockAcquisitionChain } from "./lock-acquisition-chain";
 import type { LockBackend, LockContext } from "./lock-backends";
 import { FileSystemLockBackend, RedisLockBackend } from "./lock-backends";
@@ -105,10 +105,10 @@ export class DistributedLock implements IDistributedLock {
 
 	static fromOptions(options: DistributedLockOptions): DistributedLock {
 		const context = DistributedLock._buildContext(options);
-		const connectionManager = new LockConnectionManager(
-			options.uri,
-			options.fallbackDir
-		);
+		const connectionManager = new LockConnectionManager({
+			uri: options.uri,
+			fallbackDir: options.fallbackDir,
+		});
 		const backends = DistributedLock._buildBackends(options, connectionManager);
 		return new DistributedLock(
 			context,

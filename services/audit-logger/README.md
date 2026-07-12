@@ -27,7 +27,7 @@ Requires MongoDB 7+ running at `MONGODB_URI`.
 
 ## API
 
-See [API doc](../../docs/architecture/api/audit-logger.md) for full endpoint reference.
+See [API doc](../../docs/services/audit-logger.md) for full endpoint reference.
 
 ## Architecture
 

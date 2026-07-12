@@ -57,7 +57,7 @@ jest.mock("../../src/core/instance-cleanup-handler", () => ({
 	})),
 }));
 
-import type { ServiceInstance } from "@trading-model/common/contracts/service-registry.types";
+import type { ServiceInstance } from "@trading-model/validation/contracts/service-registry.types";
 import type { RedisDeps } from "../../src/core/redis-deps";
 import { RedisInstanceStore } from "../../src/core/redis-instance-store";
 

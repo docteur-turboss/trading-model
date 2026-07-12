@@ -1,5 +1,6 @@
 import type { Price } from "@trading-model/common/domain/primitives";
 import { buildFeatures as buildFeaturesFn } from "../feature-builder";
+import type { WindowSet } from "../genetic-algorithm/generation-types";
 import type { MarketStep } from "../genetic-algorithm/genome-types";
 import type { SymbolState, TradingSymbol } from "../market-data-types";
 import type { MarketDataContext } from "./market-data-context";
@@ -49,13 +50,15 @@ export class WindowSplitter {
 		};
 	}
 
+	private static _nextId = 0;
+
 	splitTrainValidation(
 		steps: MarketStep[],
 		validationSplit: number
 	): { train: MarketStep[]; validation: MarketStep[]; id: string } {
 		const splitIdx = Math.floor(steps.length * (1 - validationSplit));
 		return {
-			id: `window_${Date.now()}`,
+			id: `window_${++WindowSplitter._nextId}`,
 			train: steps.slice(0, splitIdx),
 			validation: steps.slice(splitIdx),
 		};
@@ -64,7 +67,7 @@ export class WindowSplitter {
 	getAllWindows(
 		ctx: MarketDataContext,
 		validationSplit: number = DEFAULT_VALIDATION_SPLIT
-	): { id: string; train: MarketStep[]; validation: MarketStep[] } | null {
+	): WindowSet | null {
 		const steps = this.buildMarketSteps(ctx);
 		if (steps.length < MIN_TRAINING_STEPS) {
 			return null;

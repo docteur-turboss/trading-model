@@ -1,12 +1,12 @@
 import type { SignOptions } from "@trading-model/certificate-utils/sign-certificate";
 import { signCertificate } from "@trading-model/certificate-utils/sign-certificate";
 import type {
-	KeyPair,
+	CaCredentials,
 	RevokedCertificate,
 	SignedCertificate,
 } from "@trading-model/certificate-utils/types";
 import type { CertSignRequest } from "@trading-model/common/domain/cert-signing";
-import type { CaPem, ServiceId } from "@trading-model/common/domain/primitives";
+import type { ServiceId } from "@trading-model/common/domain/primitives";
 import {
 	DurationMs,
 	toServiceId,
@@ -24,15 +24,13 @@ export class CertificateOperator {
 
 	async signServiceCertificate(
 		request: CertSignRequest,
-		caKeyPair: KeyPair,
-		caCertPem: CaPem
+		ca: CaCredentials
 	): Promise<SignedCertificate> {
 		const { serviceId, csr, ttlMs } = request;
 		const options: SignOptions = {
 			csr,
 			serviceId: toServiceId(serviceId),
-			caKeyPair,
-			caCertPem,
+			ca,
 			ttlMs: (ttlMs ?? DurationMs.of(ENV.CERT_DEFAULT_TTL_MS)) as DurationMs,
 		};
 

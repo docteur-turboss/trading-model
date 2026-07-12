@@ -1,9 +1,9 @@
 import { createVerify } from "node:crypto";
-import { CryptoAlg } from "@trading-model/common/crypto/crypto-constants";
 import type {
 	Subject,
 	URLString,
 } from "@trading-model/common/domain/primitives";
+import { CryptoAlg } from "@trading-model/crypto/crypto/crypto-constants";
 import { ClaimValidator } from "./claim-validator";
 import { JwksKeyProvider } from "./jwks-key-provider";
 import { type JwtHeader, JwtParser } from "./jwt-parser";

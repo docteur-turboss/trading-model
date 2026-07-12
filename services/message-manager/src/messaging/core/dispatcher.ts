@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Message dispatch coordinator.
  *
  * Maintains an in-memory registry of subscriptions per topic
@@ -8,22 +8,22 @@
 
 import type { HttpClient } from "@trading-model/common/config/http-client";
 import { logger } from "@trading-model/common/config/logger";
-import type {
-	Message,
-	ServiceIdentity,
-} from "@trading-model/common/contracts/message.types";
-import type {
-	InstanceId,
-	Topic,
-} from "@trading-model/common/domain/primitives";
+import type { InstanceId } from "@trading-model/common/domain/primitives";
+import type { Message } from "@trading-model/validation/contracts/message.types";
 
 import { AckHandler } from "./ack-handler";
 import { BackpressureMonitor } from "./backpressure-monitor";
 import type { FileDlqRepository } from "./dlq-repository";
 import { HttpMessageDelivery } from "./http-message-delivery";
 import { MessageFactory } from "./message-factory";
-import type { TopicSubscription } from "./messaging-types";
+import type { SubscriptionParams, TopicSubscription } from "./messaging-types";
 import { SubscriptionRegistry } from "./subscription-registry";
+
+function isRejected<TValue>(
+	result: PromiseSettledResult<TValue>
+): result is PromiseRejectedResult {
+	return result.status === "rejected";
+}
 
 export class Dispatcher {
 	private readonly _registry: SubscriptionRegistry;
@@ -46,7 +46,7 @@ export class Dispatcher {
 	async publish(
 		payload: unknown,
 		metadata: Omit<
-			import("@trading-model/common/contracts/message.types").MessageMetadata,
+			import("@trading-model/validation/contracts/message.types").MessageMetadata,
 			"emittedAt" | "messageId"
 		>
 	): Promise<string> {
@@ -55,11 +55,7 @@ export class Dispatcher {
 		return msg.metadata.messageId!;
 	}
 
-	subscribe(params: {
-		topic: Topic;
-		callbackPath: string;
-		consumerIdentity: ServiceIdentity;
-	}): void {
+	subscribe(params: SubscriptionParams): void {
 		this._registry.subscribe(params);
 	}
 
@@ -90,7 +86,7 @@ export class Dispatcher {
 			subscriptions.map((subscription) => subscription.dispatch(message))
 		);
 		for (const result of results) {
-			if (result.status === "rejected") {
+			if (isRejected(result)) {
 				logger.error("Message delivery failed", {
 					context: { error: result.reason },
 				});
@@ -101,11 +97,7 @@ export class Dispatcher {
 	/**
 	 * @deprecated Use `subscribe` instead.
 	 */
-	registerSubscription(params: {
-		topic: Topic;
-		callbackPath: string;
-		consumerIdentity: ServiceIdentity;
-	}): void {
+	registerSubscription(params: SubscriptionParams): void {
 		this.subscribe(params);
 	}
 

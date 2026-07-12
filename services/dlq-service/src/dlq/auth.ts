@@ -1,13 +1,13 @@
 import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
-import type { SignedRequest } from "@trading-model/common/contracts/signed-request";
-import { CryptoAlg } from "@trading-model/common/crypto/crypto-constants";
-import {
-	normalizeBody,
-	verifySignature as sharedVerifySignature,
-} from "@trading-model/common/crypto/request-signer";
 import { toServiceId } from "@trading-model/common/domain/primitives";
 import { HTTP_HEADERS } from "@trading-model/common/http-headers";
 import { HTTP_STATUS } from "@trading-model/common/http-status";
+import { CryptoAlg } from "@trading-model/crypto/crypto/crypto-constants";
+import {
+	normalizeBody,
+	verifySignature as sharedVerifySignature,
+} from "@trading-model/crypto/crypto/request-signer";
+import type { SignedRequest } from "@trading-model/validation/contracts/signed-request";
 import type { NextFunction, Request, Response } from "express";
 import { ENV, resolveAuthHmacSecret } from "../config/env";
 

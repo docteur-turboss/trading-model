@@ -1,4 +1,5 @@
-﻿import { FileWalFallback } from "./file-wal-fallback";
+﻿import type { RedisKeyBuilder } from "../../infrastructure/redis/redis-key-builder";
+import { FileWalFallback } from "./file-wal-fallback";
 import type { MemoryWalEntry } from "./memory-wal-entry";
 import { RedisWalFallback } from "./redis-wal-fallback";
 
@@ -6,8 +7,8 @@ export class MemoryWalFallback {
 	private readonly _redis: RedisWalFallback;
 	private readonly _file: FileWalFallback;
 
-	constructor(prefix: string) {
-		this._redis = new RedisWalFallback(prefix);
+	constructor(keys: RedisKeyBuilder) {
+		this._redis = new RedisWalFallback(keys);
 		this._file = new FileWalFallback();
 	}
 

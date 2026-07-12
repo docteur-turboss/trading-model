@@ -1,7 +1,7 @@
-﻿import { logger } from "@trading-model/common/config/logger";
-import type { Job } from "@trading-model/common/contracts/recovery.types";
+import { logger } from "@trading-model/common/config/logger";
 import type { JobId } from "@trading-model/common/domain/primitives";
 import { hasExceededMaxRetries } from "@trading-model/common/domain/retry-policy";
+import type { Job } from "@trading-model/validation/contracts/recovery.types";
 import type { JobRepository } from "../persistence/job-repository";
 import { JobStatus } from "../types/job.types";
 import type { InternalQueue } from "./internal-queue";

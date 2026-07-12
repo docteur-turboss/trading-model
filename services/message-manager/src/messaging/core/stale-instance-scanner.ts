@@ -1,9 +1,9 @@
 ﻿import type { InstanceId } from "@trading-model/common/domain/primitives";
 import type Redis from "ioredis";
-
 import { ENV } from "../../config/env";
 import { logger } from "../../config/logger";
 import { getSubscriptionClient } from "../../config/redis";
+import type { RedisKeyBuilder } from "../../infrastructure/redis/redis-key-builder";
 import { LEASE_HEARTBEAT_FIELD } from "./messaging-constants";
 import { StaleInstanceRemover } from "./stale-instance-remover";
 
@@ -25,14 +25,14 @@ function isHeartbeatExpired(lastBeat: number): boolean {
 export class StaleInstanceScanner {
 	private readonly _remover: StaleInstanceRemover;
 
-	constructor(private readonly _prefix: string) {
-		this._remover = new StaleInstanceRemover(this._prefix);
+	constructor(private readonly _keys: RedisKeyBuilder) {
+		this._remover = new StaleInstanceRemover(this._keys);
 	}
 
 	async isStaleByHeartbeat(instanceId: InstanceId): Promise<boolean> {
 		const redis = await getSubscriptionClient();
 		const heartbeat = await redis.hget(
-			`${this._prefix}lease:${instanceId}`,
+			this._keys.key("lease", instanceId),
 			LEASE_HEARTBEAT_FIELD
 		);
 		if (!heartbeat) {
@@ -45,7 +45,7 @@ export class StaleInstanceScanner {
 		redis: Redis,
 		instanceId: InstanceId
 	): Promise<boolean> {
-		const leaseKey = `${this._prefix}lease:${instanceId}`;
+		const leaseKey = this._keys.key("lease", instanceId);
 		const ttl = await redis.ttl(leaseKey);
 		if (ttl > 0) {
 			return false;
@@ -72,7 +72,7 @@ export class StaleInstanceScanner {
 		cursor: string
 	): Promise<{ cursor: string; removed: number }> {
 		const [nextCursor, instanceIds] = await redis.sscan(
-			`${this._prefix}active-instances`,
+			this._keys.key("active-instances"),
 			cursor,
 			"COUNT",
 			100

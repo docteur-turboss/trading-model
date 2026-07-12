@@ -1,6 +1,6 @@
-import type { RegistryBackend } from "@trading-model/common/contracts/service-registry.types";
 import type { DurationMs } from "@trading-model/common/domain/primitives";
 import { TimerHandle } from "@trading-model/common/utils/timer-handle";
+import type { RegistryBackend } from "@trading-model/validation/contracts/service-registry.types";
 import { FallbackManager } from "./fallback-manager";
 import { FallbackRestoreHandler } from "./fallback-restore-handler";
 import { HealthStateManager } from "./health-state-manager";

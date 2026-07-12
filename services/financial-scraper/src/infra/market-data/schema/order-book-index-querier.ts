@@ -1,13 +1,13 @@
-import {
-	MarketType,
-	type SourceType,
-} from "@trading-model/common/contracts/market-data.types";
 import type {
 	Price,
 	TradingSymbol,
 	UnixTimestamp,
 	Volume,
 } from "@trading-model/common/domain/primitives";
+import {
+	MarketType,
+	type SourceType,
+} from "@trading-model/validation/contracts/market-data.types";
 import zod from "zod";
 import type { OrderBookData } from "../market-data.types";
 

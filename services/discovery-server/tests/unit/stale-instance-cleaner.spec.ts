@@ -27,11 +27,11 @@ jest.mock("@trading-model/common/utils/timer-handle", () => ({
 	})),
 }));
 
+import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
 import type {
 	ServiceInstance,
 	ServiceInstanceName,
-} from "@trading-model/common/contracts/service-registry.types";
-import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
+} from "@trading-model/validation/contracts/service-registry.types";
 import type {
 	CleanupDeps,
 	SyncCleanupDeps,

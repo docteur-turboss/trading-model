@@ -1,7 +1,7 @@
 import { describe, expect, it, jest } from "@jest/globals";
+import { NumericRange } from "@trading-model/common/domain/numeric-range";
 import { Cash, Price } from "@trading-model/common/domain/primitives";
 import { FeatureVector } from "../../../src/core/feature-vector";
-import { createBounded } from "../../../src/core/genetic-algorithm/bounded";
 import {
 	evaluateGenomeAllWindows,
 	pooledEval,
@@ -43,7 +43,7 @@ const MINIMAL_GENOME = {
 		},
 		continuousPolicy: {
 			type: ContinuousPolicyType.ActionClipping,
-			clipBounds: createBounded(-1, 1),
+			clipBounds: new NumericRange(-1, 1),
 			noiseStd: 0.1,
 			noiseDecay: 0.995,
 		},
@@ -57,7 +57,7 @@ const MINIMAL_GENOME = {
 		horizon: { maxEpisodeLength: 100, frameSkip: 1, nStepReturn: 3 },
 		rewardShaping: {
 			clip: false,
-			clipBounds: createBounded(-1, 1),
+			clipBounds: new NumericRange(-1, 1),
 			scale: false,
 			scaleFactor: 1,
 			normalize: false,
@@ -211,7 +211,7 @@ describe("evaluateGenomeAllWindows", () => {
 				...MINIMAL_GENOME.rl,
 				rewardShaping: {
 					clip: true,
-					clipBounds: createBounded(-1, 1),
+					clipBounds: new NumericRange(-1, 1),
 					scale: false,
 					scaleFactor: 1,
 					normalize: true,
@@ -313,7 +313,7 @@ describe("evaluateGenomeAllWindows", () => {
 				...MINIMAL_GENOME.rl,
 				rewardShaping: {
 					clip: true,
-					clipBounds: createBounded(-1, 1),
+					clipBounds: new NumericRange(-1, 1),
 					scale: false,
 					scaleFactor: 1,
 					normalize: false,

@@ -1,8 +1,8 @@
-﻿import {
+import {
 	AddressManagerEnvSchema,
 	BaseEnvSchema,
 	validateEnv,
-} from "@trading-model/common/validation/env";
+} from "@trading-model/validation/validation/env";
 import { z } from "zod";
 
 const MM_EXTRA_SHAPE = {

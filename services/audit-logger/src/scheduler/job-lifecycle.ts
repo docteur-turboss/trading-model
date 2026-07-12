@@ -1,7 +1,6 @@
-﻿import { randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 
 import { logger } from "@trading-model/common/config/logger";
-import { JobStatus } from "@trading-model/common/contracts/recovery.types";
 import {
 	JobId,
 	type JobType,
@@ -9,6 +8,7 @@ import {
 	toJobType,
 	UnixTimestamp,
 } from "@trading-model/common/domain/primitives";
+import { JobStatus } from "@trading-model/validation/contracts/recovery.types";
 import { ENV } from "../config/env";
 import type { JobRepository } from "../persistence/job-repository";
 import { type Job, JobPriority } from "../types/job.types";
@@ -64,7 +64,7 @@ export class JobLifecycle {
 
 	private _checkBackPressure(): void {
 		if (!this._backPressure.canAccept()) {
-			logger.warn("Back pressure active — rejecting job submission");
+			logger.warn("Back pressure active and rejecting job submission");
 			throw Object.assign(new Error("Job scheduler at capacity"), {
 				code: "BACK_PRESSURE",
 				retryAfter: this._backPressure.retryAfterSeconds(),

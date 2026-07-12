@@ -1,9 +1,9 @@
-import type { IDistributedLock } from "@trading-model/common/contracts/distributed-lock.types";
 import {
 	REDIS_RESP,
 	REDIS_SET,
 } from "@trading-model/common/persistence/redis-constants";
 import { TimerHandle } from "@trading-model/common/utils/timer-handle";
+import type { IDistributedLock } from "@trading-model/validation/contracts/distributed-lock.types";
 import type { Redis } from "ioredis";
 
 const LOCK_PREFIX = "dlq:lock:";

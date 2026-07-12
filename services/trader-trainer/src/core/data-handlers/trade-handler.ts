@@ -8,7 +8,7 @@ export const tradeHandler: DataHandler<TradeData> = {
 		state.norm.trade.price.update(trade.price);
 		state.norm.trade.qty.update(trade.quantity);
 	},
-	mutateState(_symbol, data, state, maxSize) {
+	mutateState({ data, state, maxSize }) {
 		state.trades.push(data);
 		if (maxSize !== undefined && state.trades.length > maxSize) {
 			state.trades = state.trades.slice(-maxSize);

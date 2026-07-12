@@ -280,8 +280,8 @@ describe("Mutation - mutateGenome", () => {
 		expect(mutated.rl.gamma).toBeLessThanOrEqual(0.9999);
 		expect(mutated.rl.learningRate).toBeGreaterThanOrEqual(1e-6);
 		expect(mutated.rl.learningRate).toBeLessThanOrEqual(1e-1);
-		expect(mutated.rl.rewardShaping.clipBounds.min).toBeDefined();
-		expect(mutated.rl.rewardShaping.clipBounds.max).toBeDefined();
+		expect(mutated.rl.rewardShaping.clipBounds.lo).toBeDefined();
+		expect(mutated.rl.rewardShaping.clipBounds.hi).toBeDefined();
 		expect(mutated.rl.rewardShaping.scaleFactor).toBeGreaterThanOrEqual(0.01);
 		expect(mutated.rl.discretePolicy.epsilonStart).toBeGreaterThanOrEqual(0.1);
 		expect(mutated.rl.discretePolicy.epsilonStart).toBeLessThanOrEqual(1.0);

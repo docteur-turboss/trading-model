@@ -67,7 +67,7 @@ export enum InitialisationType {
 import {
 	ActivationFn,
 	Optimizer as OptimizerType,
-} from "@trading-model/common/contracts/admin/training.dto";
+} from "@trading-model/validation/contracts/admin/training.dto";
 
 export { OptimizerType };
 
@@ -95,10 +95,16 @@ export function activationFnToType(
 	return ACTIVATION_FN_TO_TYPE[fn];
 }
 
+/**
+ * Number of neurons per layer, from input to output.
+ * Each element represents the neuron count for a single layer.
+ */
+export type NeuronsByLayer = number[];
+
 /** Network topology and layer configuration. */
 export interface NetworkArchitecture {
 	/** Number of neurons per layer, from input to output. */
-	neuronsByLayer: number[];
+	neuronsByLayer: NeuronsByLayer;
 
 	/** Activation function applied to every hidden + output layer. */
 	activationType?: ActivationType[];
@@ -284,8 +290,8 @@ export interface LayerMemory extends LayerWeights {
 	accumGradW: Float32Array;
 	accumGradB: Float32Array;
 
-	fanIn: number;
-	fanOut: number;
+	fanIn: PositiveInt;
+	fanOut: PositiveInt;
 
 	wState: OptimizerState;
 	bState: OptimizerState;

@@ -30,16 +30,15 @@ export class Wallet implements WalletAPI {
 
 	constructor(params: WalletConfigParams) {
 		const config = new WalletConfig(params);
-		const price = config.initialPrice;
-		const cash = config.initialCash;
-		this._recorder = new TradeRecorder(config.initialCash, config.decimals);
-		this._executor = new TradeExecutor(
-			config,
-			this._recorder,
-			price,
-			cash,
-			Volume.zero()
-		);
+		this._recorder = new TradeRecorder({
+			initialCash: config.initialCash,
+			decimals: config.decimals,
+		});
+		this._executor = new TradeExecutor(config, this._recorder, {
+			price: config.initialPrice,
+			cash: config.initialCash,
+			position: Volume.zero(),
+		});
 	}
 
 	buy(amount: Volume): boolean {

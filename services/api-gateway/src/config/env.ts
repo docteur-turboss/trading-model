@@ -1,7 +1,7 @@
 import {
 	BaseEnvSchema,
 	validateEnv,
-} from "@trading-model/common/validation/env";
+} from "@trading-model/validation/validation/env";
 import { z } from "zod";
 
 const API_GATEWAY_ENV_SHAPE = {

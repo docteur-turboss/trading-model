@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 
-jest.mock("@trading-model/common/validation/env", () => ({
+jest.mock("@trading-model/validation/validation/env", () => ({
 	BaseEnvSchema: { extend: jest.fn(() => ({})) },
 	validateEnv: jest.fn(() => ({ PORT: 8443 })),
 }));

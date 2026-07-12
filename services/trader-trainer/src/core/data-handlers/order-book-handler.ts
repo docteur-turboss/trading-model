@@ -21,7 +21,7 @@ export const orderBookHandler: DataHandler<OrderBookData> = {
 			state.norm.book.spread.update(avgAsk - avgBid);
 		}
 	},
-	mutateState(_symbol, data, state, _maxSize) {
+	mutateState({ data, state }) {
 		state.orderBook = data;
 	},
 	serializeNorms(state) {

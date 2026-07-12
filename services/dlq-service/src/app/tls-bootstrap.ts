@@ -1,7 +1,7 @@
 import { createTlsBootstrap } from "@trading-model/certificate-client";
 import { logger } from "@trading-model/common/config/logger";
-import type { TlsBootstrapOptions } from "@trading-model/common/server/bootstrap";
 import { normalizeError } from "@trading-model/common/utils/errors";
+import type { TlsBootstrapOptions } from "@trading-model/server-utils/server/bootstrap";
 import { reloadHttpClientTls } from "../dlq/controller-reexports";
 
 export function createResilientTlsBootstrap(): TlsBootstrapOptions | null {

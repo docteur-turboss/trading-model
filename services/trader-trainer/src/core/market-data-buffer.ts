@@ -1,5 +1,6 @@
 import type { Price } from "@trading-model/common/domain/primitives";
 import { EvictionPolicy } from "./eviction-policy";
+import type { WindowSet } from "./genetic-algorithm/generation-types";
 import type { MarketStep } from "./genetic-algorithm/genome-types";
 import type { MarketDataContext } from "./market-data/market-data-context";
 import {
@@ -78,14 +79,14 @@ export class MarketDataBuffer {
 	splitTrainValidation(
 		steps: MarketStep[],
 		validationSplit: number
-	): { train: MarketStep[]; validation: MarketStep[]; id: string } {
+	): WindowSet {
 		return this._windowSplitter.splitTrainValidation(steps, validationSplit);
 	}
 
 	getAllWindows(
 		symbol: TradingSymbol,
 		validationSplit: number = DEFAULT_VALIDATION_SPLIT
-	): { id: string; train: MarketStep[]; validation: MarketStep[] } | null {
+	): WindowSet | null {
 		const ctx: MarketDataContext = {
 			symbol,
 			priceSnapshot: this._priceSnapshot,

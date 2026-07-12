@@ -1,12 +1,12 @@
 import { HttpClient } from "@trading-model/common/config/http-client";
-import type { ServiceInstance } from "@trading-model/common/contracts/service-registry.types";
-import type { ResolvedEndpoint } from "@trading-model/common/contracts/service-resolver.types";
 import {
 	IPAddress,
 	type ServiceId,
 	UnixTimestamp,
 	type Version,
 } from "@trading-model/common/domain/primitives";
+import type { ServiceInstance } from "@trading-model/validation/contracts/service-registry.types";
+import type { ResolvedEndpoint } from "@trading-model/validation/contracts/service-resolver.types";
 
 interface CachedService {
 	instances: ResolvedEndpoint[];

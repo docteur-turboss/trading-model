@@ -20,7 +20,7 @@ jest.mock("@trading-model/common/utils/timer-handle", () => ({
 	})),
 }));
 
-import type { RegistryBackend } from "@trading-model/common/contracts/service-registry.types";
+import type { RegistryBackend } from "@trading-model/validation/contracts/service-registry.types";
 import { RedisHealthMonitor } from "../../src/core/redis-health-monitor";
 
 function createMockCallbacks() {

@@ -1,3 +1,4 @@
+import { DurationMs } from "@trading-model/common/domain/primitives";
 import { beforeEach, describe, expect, it } from "@jest/globals";
 import { EpisodeScores } from "../../../src/core/genetic-algorithm/episode-scores";
 import {
@@ -129,7 +130,7 @@ describe("EvolutionEngine", () => {
 				fitness,
 				fitnessMeta: {
 					episodesRun: 3,
-					computeMs: 100,
+					computeMs: DurationMs.of(100),
 					efficiencyScore: fitness,
 					variance: 0.1,
 					rawScores: new EpisodeScores([fitness]),
@@ -166,7 +167,7 @@ describe("EvolutionEngine", () => {
 					fitness: -100,
 					fitnessMeta: {
 						episodesRun: 3,
-						computeMs: 100,
+						computeMs: DurationMs.of(100),
 						efficiencyScore: -100,
 						variance: 0,
 						rawScores: new EpisodeScores([-100]),
@@ -177,7 +178,7 @@ describe("EvolutionEngine", () => {
 					fitness: 100,
 					fitnessMeta: {
 						episodesRun: 3,
-						computeMs: 100,
+						computeMs: DurationMs.of(100),
 						efficiencyScore: 100,
 						variance: 0,
 						rawScores: new EpisodeScores([100]),
@@ -188,7 +189,7 @@ describe("EvolutionEngine", () => {
 					fitness: 0,
 					fitnessMeta: {
 						episodesRun: 3,
-						computeMs: 100,
+						computeMs: DurationMs.of(100),
 						efficiencyScore: 0,
 						variance: 0,
 						rawScores: new EpisodeScores([0]),

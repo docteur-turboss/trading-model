@@ -1,3 +1,10 @@
+import type {
+	Fitness,
+	Percentage,
+	PositiveInt,
+	Probability,
+	SharpeRatio,
+} from "@trading-model/common/domain/primitives";
 import type { GenerationContext } from "./genetic-algorithm/ga-runner";
 import type {
 	ActivationType,
@@ -13,40 +20,40 @@ import type { TradingSymbol } from "./market-data-types";
 /** Summary of the best trained agent for API responses. */
 export interface BestAgentSummary {
 	id: string;
-	generation: number;
-	fitness: number;
-	sharpe: number;
+	generation: PositiveInt;
+	fitness: Fitness;
+	sharpe: SharpeRatio;
 	avgPnl: number;
 	negFlops: number;
 	complexityPenalty: number;
 	gaControl: {
-		populationSize: number;
-		elitismFraction: number;
-		survivorFraction: number;
-		episodesPerIndividual: number;
+		populationSize: PositiveInt;
+		elitismFraction: Probability;
+		survivorFraction: Probability;
+		episodesPerIndividual: PositiveInt;
 		selectionType: SelectionType;
 		fitnessType: FitnessType;
 	};
 	network: {
-		inputDim: number;
-		outputDim: number;
-		hiddenLayers: { neurons: number; activation: ActivationType }[];
+		inputDim: PositiveInt;
+		outputDim: PositiveInt;
+		hiddenLayers: { neurons: PositiveInt; activation: ActivationType }[];
 	};
 	rl: {
-		gamma: number;
-		learningRate: number;
-		epsilonStart: number;
-		epsilonMin: number;
-		epsilonDecay: number;
+		gamma: Probability;
+		learningRate: Percentage;
+		epsilonStart: Probability;
+		epsilonMin: Probability;
+		epsilonDecay: Probability;
 	};
 }
 
 export interface LastTrainingInfo {
 	symbol: TradingSymbol;
 	bestGenome: DeepReadonly<LamarckGenome>;
-	bestFitness: number;
+	bestFitness: Fitness;
 	bestFitnessMeta?: GenomeFitnessMeta;
-	generation: number;
+	generation: PositiveInt;
 	generationContext: GenerationContext | null;
 }
 

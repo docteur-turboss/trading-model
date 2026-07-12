@@ -1,4 +1,4 @@
-import type { MarketEvent } from "@trading-model/common/contracts/market-events";
+import type { MarketEvent } from "@trading-model/validation/contracts/market-events";
 import { DataType } from "../core/data-handlers/data-types";
 import {
 	MarketDataBuffer,

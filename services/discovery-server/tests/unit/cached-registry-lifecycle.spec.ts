@@ -6,7 +6,7 @@ import {
 	it,
 	jest,
 } from "@jest/globals";
-import type { RegistryBackend } from "@trading-model/common/contracts/service-registry.types";
+import type { RegistryBackend } from "@trading-model/validation/contracts/service-registry.types";
 import type { BackendPingManager } from "../../src/core/backend-ping-manager";
 import type { CacheManager } from "../../src/core/cache-manager";
 import {

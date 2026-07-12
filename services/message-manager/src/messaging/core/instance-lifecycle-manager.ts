@@ -5,6 +5,7 @@
 	toTopic,
 } from "@trading-model/common/domain/primitives";
 import { getSubscriptionClient } from "../../config/redis";
+import type { RedisKeyBuilder } from "../../infrastructure/redis/redis-key-builder";
 import { LEASE_HEARTBEAT_FIELD } from "./messaging-constants";
 import { RedisSubscriptionKeys } from "./redis-subscription-keys";
 import { StaleInstanceScanner } from "./stale-instance-scanner";
@@ -15,9 +16,9 @@ export class InstanceLifecycleManager {
 	private _keys: RedisSubscriptionKeys;
 	private _scanner: StaleInstanceScanner;
 
-	constructor(prefix: string) {
-		this._keys = new RedisSubscriptionKeys(prefix);
-		this._scanner = new StaleInstanceScanner(prefix);
+	constructor(keys: RedisKeyBuilder) {
+		this._keys = new RedisSubscriptionKeys(keys);
+		this._scanner = new StaleInstanceScanner(keys);
 	}
 
 	async heartbeat(instanceId: InstanceId): Promise<void> {

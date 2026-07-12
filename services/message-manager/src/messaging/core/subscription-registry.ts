@@ -1,8 +1,6 @@
-﻿import type { ServiceIdentity } from "@trading-model/common/contracts/message.types";
 import type { Topic } from "@trading-model/common/domain/primitives";
-
 import type { HttpMessageDelivery } from "./http-message-delivery";
-import type { TopicSubscription } from "./messaging-types";
+import type { SubscriptionParams, TopicSubscription } from "./messaging-types";
 import { Subscription } from "./subscription";
 
 export class SubscriptionRegistry {
@@ -13,11 +11,7 @@ export class SubscriptionRegistry {
 
 	constructor(private readonly _deliveryPort: HttpMessageDelivery) {}
 
-	subscribe(params: {
-		topic: Topic;
-		callbackPath: string;
-		consumerIdentity: ServiceIdentity;
-	}): void {
+	subscribe(params: SubscriptionParams): void {
 		const { topic, consumerIdentity, callbackPath } = params;
 
 		const current = this._subscriptionsByTopic.get(topic) ?? [];

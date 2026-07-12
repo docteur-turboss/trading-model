@@ -1,7 +1,8 @@
-import type {
-	ActivationType,
-	GenomeFitnessMeta,
-} from "./genetic-algorithm/genome";
+import {
+	type Fitness,
+	SharpeRatio,
+} from "@trading-model/common/domain/primitives";
+import type { GenomeFitnessMeta } from "./genetic-algorithm/genome";
 import type { LamarckGenome } from "./genetic-algorithm/genome-types";
 import type { DeepReadonly } from "./genetic-algorithm/shared-types";
 import type { BestAgentSummary } from "./trainer";
@@ -26,12 +27,10 @@ export class GenomeSummaryBuilder {
 		return {
 			inputDim: genome.network.inputDim,
 			outputDim: genome.network.outputDim,
-			hiddenLayers: genome.network.hiddenLayers.map(
-				(layer: { neurons: number; activation: ActivationType }) => ({
-					neurons: layer.neurons,
-					activation: layer.activation,
-				})
-			),
+			hiddenLayers: genome.network.hiddenLayers.map((layer) => ({
+				neurons: layer.neurons,
+				activation: layer.activation,
+			})),
 		};
 	}
 
@@ -47,16 +46,18 @@ export class GenomeSummaryBuilder {
 
 	build(
 		genome: DeepReadonly<LamarckGenome>,
-		fitness: number,
+		fitness: Fitness,
 		fitnessMeta?: GenomeFitnessMeta
 	): BestAgentSummary {
 		return {
 			id: String(genome.id),
 			generation: genome.generation,
 			fitness,
-			sharpe: fitnessMeta?.rawScores
-				? GenomeSummaryBuilder.computeSharpe(fitnessMeta.rawScores.values)
-				: 0,
+			sharpe: SharpeRatio.of(
+				fitnessMeta?.rawScores
+					? GenomeSummaryBuilder.computeSharpe(fitnessMeta.rawScores.values)
+					: 0
+			),
 			avgPnl: fitnessMeta?.rawScores
 				? GenomeSummaryBuilder.computeAvgPnl(fitnessMeta.rawScores.values)
 				: 0,

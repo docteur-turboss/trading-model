@@ -4,7 +4,7 @@ import {
 	randomBytes as cryptoRandomBytes,
 } from "node:crypto";
 
-import { CryptoAlg } from "@trading-model/common/crypto/crypto-constants";
+import { CryptoAlg } from "@trading-model/crypto/crypto/crypto-constants";
 
 /**
  * Encrypt a PEM string using AES-256-GCM.

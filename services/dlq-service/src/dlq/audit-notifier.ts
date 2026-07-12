@@ -1,14 +1,14 @@
 import {
-	type AuditEvent,
-	Severity,
-} from "@trading-model/common/contracts/admin/audit.dto";
-import {
 	type Topic,
 	toCorrelationId,
 	toServiceId,
 	toTopic,
 	UnixTimestamp,
 } from "@trading-model/common/domain/primitives";
+import {
+	type AuditEvent,
+	Severity,
+} from "@trading-model/validation/contracts/admin/audit.dto";
 import { notifyAudit } from "../config/audit";
 
 export function notifyAddAudit(

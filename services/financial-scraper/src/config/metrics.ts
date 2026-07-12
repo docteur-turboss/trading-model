@@ -44,4 +44,4 @@ export const dbWriteLatencySeconds = new promClient.Histogram({
 	buckets: [0.01, 0.05, 0.1, 0.5, 1, 2],
 });
 
-export { metricsHandler } from "@trading-model/common/server/metrics-handler";
+export { metricsHandler } from "@trading-model/server-utils/server/metrics-handler";

@@ -42,14 +42,19 @@ class NullNonceCollection implements INonceCollection {
 	}
 }
 
+export interface NoncePersisterConfig {
+	mongoUri: URLString;
+	ttlMs: DurationMs;
+}
+
 export class MongoNoncePersister implements NoncePersistence {
 	private _collection: INonceCollection = new NullNonceCollection();
 	private readonly _mongoUri: URLString;
 	private readonly _ttlMs: DurationMs;
 
-	constructor(mongoUri: URLString, ttlMs: DurationMs) {
-		this._mongoUri = mongoUri;
-		this._ttlMs = ttlMs;
+	constructor(config: NoncePersisterConfig) {
+		this._mongoUri = config.mongoUri;
+		this._ttlMs = config.ttlMs;
 	}
 
 	private async _resolveDb(): Promise<Db> {

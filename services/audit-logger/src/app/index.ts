@@ -7,7 +7,7 @@ import {
 } from "@trading-model/common/domain/primitives";
 import { buildTlsFromEnv } from "@trading-model/common/domain/tls-paths";
 import { MongoConnectionManager } from "@trading-model/common/persistence/mongo-connection-manager";
-import { createBootstrap } from "@trading-model/common/server/bootstrap";
+import { createBootstrap } from "@trading-model/server-utils/server/bootstrap";
 import { BOOTSTRAP_ADDRESS_MANAGER } from "../config/address-manager";
 import { ENV } from "../config/env";
 import { AuditRepository } from "../persistence/audit-repository";
@@ -67,9 +67,9 @@ async function _subscribeToAllTopics(
 ): Promise<void> {
 	const [{ MarketEvent }, { AuditEvent }, { CertificateEvent }] =
 		await Promise.all([
-			import("@trading-model/common/contracts/market-events"),
-			import("@trading-model/common/contracts/audit-events"),
-			import("@trading-model/common/contracts/certificate-events"),
+			import("@trading-model/validation/contracts/market-events"),
+			import("@trading-model/validation/contracts/audit-events"),
+			import("@trading-model/validation/contracts/certificate-events"),
 		]);
 	const AllTopics = [
 		...Object.values(MarketEvent),

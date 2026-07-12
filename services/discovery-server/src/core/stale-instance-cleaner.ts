@@ -1,6 +1,5 @@
 import { logger } from "@trading-model/common/config/logger";
 import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
-import type { ServiceInstance } from "@trading-model/common/contracts/service-registry.types";
 import type { DurationMs } from "@trading-model/common/domain/primitives";
 import {
 	toInstanceId,
@@ -9,6 +8,7 @@ import {
 import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import { TimerHandle } from "@trading-model/common/utils/timer-handle";
+import type { ServiceInstance } from "@trading-model/validation/contracts/service-registry.types";
 
 import { isAliveInstance, isExpiredInstance } from "./expiration";
 

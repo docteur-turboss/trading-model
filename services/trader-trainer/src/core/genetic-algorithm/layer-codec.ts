@@ -1,27 +1,27 @@
 import { ActivationType, ConnectionType } from "../neural-network/type";
 
-export const LAYER_FIELDS = [
-	"neurons",
-	"activation",
-	"connectionType",
-] as const;
-export const LAYER_STRIDE = LAYER_FIELDS.length;
+const OFFSET_NEURONS = 0;
+const OFFSET_ACTIVATION = 1;
+const OFFSET_CONNECTION = 2;
+export const LAYER_STRIDE = 3;
 
 class ActivationCodec {
 	private readonly _toCode: Map<ActivationType, number>;
 	private readonly _fromCode: Map<number, ActivationType>;
+	private readonly _default: ActivationType;
 
-	constructor(entries: [number, ActivationType][]) {
+	constructor(entries: [number, ActivationType][], default_: ActivationType) {
 		this._fromCode = new Map(entries);
 		this._toCode = new Map(entries.map(([key, value]) => [value, key]));
+		this._default = default_;
 	}
 
 	encode(type: ActivationType): number {
-		return this._toCode.get(type) ?? 0;
+		return this._toCode.get(type) ?? this._toCode.get(this._default)!;
 	}
 
 	decode(code: number): ActivationType {
-		return this._fromCode.get(Math.round(code)) ?? this._fromCode.get(0)!;
+		return this._fromCode.get(Math.round(code)) ?? this._default;
 	}
 
 	allValues(): ActivationType[] {
@@ -32,18 +32,20 @@ class ActivationCodec {
 class ConnectionTypeCodec {
 	private readonly _toCode: Map<ConnectionType, number>;
 	private readonly _fromCode: Map<number, ConnectionType>;
+	private readonly _default: ConnectionType;
 
-	constructor(entries: [number, ConnectionType][]) {
+	constructor(entries: [number, ConnectionType][], default_: ConnectionType) {
 		this._fromCode = new Map(entries);
 		this._toCode = new Map(entries.map(([key, value]) => [value, key]));
+		this._default = default_;
 	}
 
 	encode(type: ConnectionType): number {
-		return this._toCode.get(type) ?? 0;
+		return this._toCode.get(type) ?? this._toCode.get(this._default)!;
 	}
 
 	decode(code: number): ConnectionType {
-		return this._fromCode.get(Math.round(code)) ?? this._fromCode.get(0)!;
+		return this._fromCode.get(Math.round(code)) ?? this._default;
 	}
 
 	allValues(): ConnectionType[] {
@@ -51,22 +53,15 @@ class ConnectionTypeCodec {
 	}
 }
 
-const ACTIVATION_CODEC = new ActivationCodec([
-	[0, ActivationType.Relu],
-	[1, ActivationType.Sigmoid],
-	[2, ActivationType.Tanh],
-	[3, ActivationType.LeakyReLu],
-	[4, ActivationType.Elu],
-	[5, ActivationType.Mish],
-	[6, ActivationType.Gelu],
-	[7, ActivationType.Softmax],
-]);
+const ACTIVATION_CODEC = new ActivationCodec(
+	Object.values(ActivationType).map((type, index) => [index, type]),
+	ActivationType.Relu
+);
 
-const CONNECTION_TYPE_CODEC = new ConnectionTypeCodec([
-	[0, ConnectionType.DenseSkip],
-	[1, ConnectionType.FullyConnected],
-	[2, ConnectionType.ResidualConnection],
-]);
+const CONNECTION_TYPE_CODEC = new ConnectionTypeCodec(
+	Object.values(ConnectionType).map((type, index) => [index, type]),
+	ConnectionType.DenseSkip
+);
 
 export const ACTIVATIONS: ActivationType[] = ACTIVATION_CODEC.allValues();
 export const CONNECTION_TYPES: ConnectionType[] =
@@ -91,9 +86,11 @@ export function readEncodedLayer(
 	offset: number
 ): EncodedLayer {
 	return {
-		neurons: arr[offset],
-		activation: ACTIVATION_CODEC.decode(arr[offset + 1]),
-		connectionType: CONNECTION_TYPE_CODEC.decode(arr[offset + 2]),
+		neurons: arr[offset + OFFSET_NEURONS],
+		activation: ACTIVATION_CODEC.decode(arr[offset + OFFSET_ACTIVATION]),
+		connectionType: CONNECTION_TYPE_CODEC.decode(
+			arr[offset + OFFSET_CONNECTION]
+		),
 	};
 }
 
@@ -102,7 +99,9 @@ export function writeEncodedLayer(
 	offset: number,
 	layer: EncodedLayer
 ): void {
-	arr[offset] = layer.neurons;
-	arr[offset + 1] = ACTIVATION_CODEC.encode(layer.activation);
-	arr[offset + 2] = CONNECTION_TYPE_CODEC.encode(layer.connectionType);
+	arr[offset + OFFSET_NEURONS] = layer.neurons;
+	arr[offset + OFFSET_ACTIVATION] = ACTIVATION_CODEC.encode(layer.activation);
+	arr[offset + OFFSET_CONNECTION] = CONNECTION_TYPE_CODEC.encode(
+		layer.connectionType
+	);
 }

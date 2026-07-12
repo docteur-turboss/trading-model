@@ -1,9 +1,8 @@
-﻿import { randomUUID } from "node:crypto";
-import type { ServiceIdentity } from "@trading-model/common/contracts/message.types";
+import { randomUUID } from "node:crypto";
 import { toTopic } from "@trading-model/common/domain/primitives";
-
 import { getSubscriptionClient } from "../../config/redis";
-import type { TopicSubscription } from "./messaging-types";
+import type { RedisKeyBuilder } from "../../infrastructure/redis/redis-key-builder";
+import type { SubscriptionParams, TopicSubscription } from "./messaging-types";
 import { RedisSubscriptionKeys } from "./redis-subscription-keys";
 import { SubscriptionCleanupHandler } from "./subscription-cleanup-handler";
 import type { SubscriptionEntry } from "./subscription-redis-store";
@@ -14,16 +13,13 @@ export class SubscriptionRedisWriter {
 	private _keys: RedisSubscriptionKeys;
 	private _cleanup: SubscriptionCleanupHandler;
 
-	constructor(prefix: string) {
-		this._keys = new RedisSubscriptionKeys(prefix);
-		this._cleanup = new SubscriptionCleanupHandler(prefix);
+	constructor(keys: RedisKeyBuilder) {
+		this._keys = new RedisSubscriptionKeys(keys);
+		this._cleanup = new SubscriptionCleanupHandler(keys);
 	}
 
-	async add(
-		topic: string,
-		callbackPath: string,
-		serviceIdentity: ServiceIdentity
-	): Promise<void> {
+	async add(params: SubscriptionParams): Promise<void> {
+		const { topic, callbackPath, consumerIdentity: serviceIdentity } = params;
 		const redis = await getSubscriptionClient();
 		const subKey = this._keys.subKey({
 			topic: toTopic(topic),

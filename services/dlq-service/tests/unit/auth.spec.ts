@@ -3,7 +3,7 @@ import { describe, expect, it, jest } from "@jest/globals";
 const mockVerifySignature = jest.fn();
 const mockNormalizeBody = jest.fn();
 
-jest.mock("@trading-model/common/crypto/request-signer", () => ({
+jest.mock("@trading-model/crypto/crypto/request-signer", () => ({
 	verifySignature: (...args: unknown[]) => mockVerifySignature(...args),
 	normalizeBody: (...args: unknown[]) => mockNormalizeBody(...args),
 }));

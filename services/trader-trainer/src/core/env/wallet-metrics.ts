@@ -1,5 +1,6 @@
 import {
 	Cash,
+	DecimalPrecision,
 	Percentage,
 	type PositiveInt,
 } from "@trading-model/common/domain/primitives";
@@ -14,22 +15,17 @@ export interface WalletMetrics {
 	tradeCount: PositiveInt;
 }
 
-function round(value: number, decimals: number): number {
-	const factor = 10 ** decimals;
-	return Math.round(value * factor) / factor;
-}
-
 export interface ComputeWalletMetricsParams extends PortfolioState {
 	peakValuation: Cash;
 	initialCash: Cash;
 	totalFeesPaid: Cash;
 	tradeCount: PositiveInt;
-	decimals: number;
+	decimals: DecimalPrecision;
 }
 
 function _computeValuation(params: ComputeWalletMetricsParams): Cash {
 	return Cash.of(
-		round(
+		DecimalPrecision.round(
 			Number(params.cash) + params.position * Number(params.price),
 			params.decimals
 		)
@@ -40,7 +36,7 @@ function _computePnL(
 	valuation: Cash,
 	params: ComputeWalletMetricsParams
 ): Cash {
-	return round(
+	return DecimalPrecision.round(
 		Number(valuation) - Number(params.initialCash),
 		params.decimals
 	) as Cash;
@@ -50,7 +46,7 @@ function _computeReturnRate(
 	valuation: Cash,
 	params: ComputeWalletMetricsParams
 ): Percentage {
-	return round(
+	return DecimalPrecision.round(
 		(Number(valuation) - Number(params.initialCash)) /
 			Number(params.initialCash),
 		params.decimals
@@ -63,7 +59,7 @@ function _computeDrawdown(
 ): Percentage {
 	return Percentage.of(
 		Number(params.peakValuation) > 0
-			? round(
+			? DecimalPrecision.round(
 					(Number(params.peakValuation) - Number(valuation)) /
 						Number(params.peakValuation),
 					params.decimals

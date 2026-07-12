@@ -255,10 +255,12 @@ describe("makeTradingAgentBackend", () => {
 	it("should call step and return reward", () => {
 		const genome = getMinimalGenome();
 		const backend = makeTradingAgentBackend(genome as any);
-		const result = backend.step(
-			FeatureVector.fromFloat32Array(new Float32Array([0.5, 0.5, 0.5])),
-			Price.of(100)
-		);
+		const result = backend.step({
+			features: FeatureVector.fromFloat32Array(
+				new Float32Array([0.5, 0.5, 0.5])
+			),
+			price: Price.of(100),
+		});
 		expect(result.reward).toBe(1);
 	});
 

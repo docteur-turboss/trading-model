@@ -1,5 +1,6 @@
 import {
 	Cash,
+	DecimalPrecision,
 	Percentage,
 	Price,
 	Volume,
@@ -17,7 +18,7 @@ export interface WalletConfigParams {
 	initialPrice: Price;
 	feeRate?: Percentage;
 	maxPosition?: Volume;
-	decimals?: number;
+	decimals?: DecimalPrecision;
 }
 
 export class WalletConfig {
@@ -25,7 +26,7 @@ export class WalletConfig {
 	readonly initialPrice: Price;
 	readonly feeRate: Percentage;
 	readonly maxPosition: Volume;
-	readonly decimals: number;
+	readonly decimals: DecimalPrecision;
 
 	constructor(params: WalletConfigParams) {
 		const resolved: Required<WalletConfigParams> = {
@@ -33,7 +34,7 @@ export class WalletConfig {
 			initialPrice: Price.of(Number(params.initialPrice)),
 			feeRate: Percentage.of(params.feeRate ?? Percentage.zero()),
 			maxPosition: Volume.of(params.maxPosition ?? Volume.of(Number.MAX_VALUE)),
-			decimals: params.decimals ?? 8,
+			decimals: params.decimals ?? DecimalPrecision.of(8),
 		};
 		validateConfig(resolved);
 		this.initialCash = resolved.initialCash;

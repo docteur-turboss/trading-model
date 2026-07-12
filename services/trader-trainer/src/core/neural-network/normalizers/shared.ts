@@ -1,4 +1,5 @@
 import { NumericRange } from "@trading-model/common/domain/numeric-range";
+import type { DataSlice } from "./normalizer-interface";
 
 export function _findMaxAbs(data: Float32Array): number {
 	let maxAbs = 0;
@@ -25,7 +26,8 @@ export function _findMinMax(data: Float32Array): NumericRange {
 	return new NumericRange(min, max);
 }
 
-export function _computeMean(data: Float32Array, len: number): number {
+export function _computeMean(slice: DataSlice): number {
+	const { data, len } = slice;
 	let sum = 0;
 	for (const value of data) {
 		sum += value;
@@ -33,11 +35,8 @@ export function _computeMean(data: Float32Array, len: number): number {
 	return sum / len;
 }
 
-export function _computeInvStd(
-	data: Float32Array,
-	mean: number,
-	len: number
-): number {
+export function _computeInvStd(slice: DataSlice, mean: number): number {
+	const { data, len } = slice;
 	let variance = 0;
 	for (const value of data) {
 		variance += (value - mean) ** 2;

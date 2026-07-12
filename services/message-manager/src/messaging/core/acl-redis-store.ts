@@ -2,14 +2,17 @@
 import { ENV } from "../../config/env";
 import { logger } from "../../config/logger";
 import { getRedisClient } from "../../config/redis";
+import { RedisKeyBuilder } from "../../infrastructure/redis/redis-key-builder";
 import { ACL_DENY } from "./acl-constants";
+
+const AclKeys = new RedisKeyBuilder(ENV.REDIS_PREFIX);
 
 export async function loadFromRedis(
 	topic: Topic
 ): Promise<string[] | typeof ACL_DENY> {
 	try {
 		const redis = await getRedisClient();
-		const aclKey = `${ENV.REDIS_PREFIX}acl:${topic}`;
+		const aclKey = AclKeys.key("acl", topic);
 		const services = await redis.smembers(aclKey);
 		return services;
 	} catch {

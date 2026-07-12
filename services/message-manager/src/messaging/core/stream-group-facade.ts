@@ -1,4 +1,5 @@
-﻿import type { Message } from "@trading-model/common/contracts/message.types";
+import type { Message } from "@trading-model/validation/contracts/message.types";
+import type { RedisKeyBuilder } from "../../infrastructure/redis/redis-key-builder";
 import type { AckRef, MessageQuery, StreamGroupRef } from "./messaging-types";
 import type {
 	GetMessagesBetweenParams,
@@ -9,8 +10,8 @@ import { StreamGroupManager } from "./stream-group-manager";
 export class StreamGroupFacade {
 	private readonly _streamGroupManager: StreamGroupManager;
 
-	constructor(prefix: string) {
-		this._streamGroupManager = new StreamGroupManager(prefix);
+	constructor(keys: RedisKeyBuilder) {
+		this._streamGroupManager = new StreamGroupManager(keys);
 	}
 
 	async ensureConsumerGroup(ref: StreamGroupRef): Promise<void> {

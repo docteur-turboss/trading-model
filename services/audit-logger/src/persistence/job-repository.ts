@@ -1,11 +1,11 @@
-﻿import {
-	type Job,
-	JobStatus,
-} from "@trading-model/common/contracts/recovery.types";
 import type {
 	InstanceId,
 	JobId,
 } from "@trading-model/common/domain/primitives";
+import {
+	type Job,
+	JobStatus,
+} from "@trading-model/validation/contracts/recovery.types";
 import type { Collection, Db } from "mongodb";
 import type { JobDocument } from "./job-document";
 import { JobDocumentMapper } from "./job-document-mapper";
@@ -47,7 +47,7 @@ export class JobRepository {
 	async updateStatus(
 		jobId: JobId,
 		status: JobStatus,
-		extras?: import("@trading-model/common/contracts/recovery.types").JobUpdateExtras
+		extras?: import("@trading-model/validation/contracts/recovery.types").JobUpdateExtras
 	): Promise<void> {
 		const current = await this._collection.findOne({ jobId });
 		if (!current) {

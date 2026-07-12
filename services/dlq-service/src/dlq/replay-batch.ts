@@ -19,6 +19,12 @@ import type {
 	ReplayBatchOptions,
 } from "./types";
 
+function isRejected<TValue>(
+	result: PromiseSettledResult<TValue>
+): result is PromiseRejectedResult {
+	return result.status === "rejected";
+}
+
 export interface ReplayContext extends BatchReplayContext {
 	isTimedOut: () => boolean;
 	successCount: { value: number };
@@ -83,7 +89,7 @@ function processBatchResults(options: ProcessBatchResultsOptions): void {
 	for (let idx = 0; idx < batchResults.length; idx++) {
 		const result = batchResults[idx];
 		const entry = batch[idx];
-		if (result.status === "rejected") {
+		if (isRejected(result)) {
 			_recordFailedEntry(entry, result, ctx);
 		}
 	}
@@ -94,10 +100,9 @@ function _recordFailedEntry(
 	result: PromiseSettledResult<void>,
 	ctx: ProcessBatchResultsOptions["ctx"]
 ): void {
-	const errorMsg =
-		result.status === "rejected"
-			? ((result.reason as Error)?.message ?? "unknown error")
-			: "unknown error";
+	const errorMsg = isRejected(result)
+		? ((result.reason as Error)?.message ?? "unknown error")
+		: "unknown error";
 	ctx.errors.push({
 		id: toMessageId(entry?.id ?? "unknown"),
 		error: errorMsg,

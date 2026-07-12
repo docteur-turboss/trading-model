@@ -1,12 +1,12 @@
 import { beforeEach, describe, expect, it } from "@jest/globals";
 import {
-	MarketType,
-	SourceType,
-} from "@trading-model/common/contracts/market-data.types";
-import {
 	TradingSymbol,
 	UnixTimestamp,
 } from "@trading-model/common/domain/primitives";
+import {
+	MarketType,
+	SourceType,
+} from "@trading-model/validation/contracts/market-data.types";
 
 import {
 	insertOrderBook,

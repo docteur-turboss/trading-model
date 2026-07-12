@@ -1,6 +1,7 @@
 ﻿import { ENV } from "../../config/env";
 import { logger } from "../../config/logger";
 import { BUFFER_DROPPED_TOTAL } from "../../config/metrics";
+import type { RedisKeyBuilder } from "../../infrastructure/redis/redis-key-builder";
 import type { MemoryWalEntry } from "./memory-wal-entry";
 import { MemoryWalFallback } from "./memory-wal-fallback";
 import { MemoryWalFlusher } from "./memory-wal-flusher";
@@ -10,9 +11,9 @@ export class MemoryWalBuffer {
 	private readonly _flusher: MemoryWalFlusher;
 	private readonly _fallback: MemoryWalFallback;
 
-	constructor(private readonly _prefix: string) {
-		this._flusher = new MemoryWalFlusher(this._prefix);
-		this._fallback = new MemoryWalFallback(this._prefix);
+	constructor(private readonly _keys: RedisKeyBuilder) {
+		this._flusher = new MemoryWalFlusher(this._keys);
+		this._fallback = new MemoryWalFallback(this._keys);
 	}
 
 	startFlusher(): void {

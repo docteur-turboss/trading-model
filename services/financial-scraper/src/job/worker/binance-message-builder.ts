@@ -1,8 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 import { DeliveryMode } from "@trading-model/common/config/delivery-mode.types";
 import type { EventEnumMap } from "@trading-model/common/config/event.types";
-import type { AuthContext } from "@trading-model/common/contracts/message.types";
-import { CryptoAlg } from "@trading-model/common/crypto/crypto-constants";
 import type {
 	CorrelationId,
 	InstanceId,
@@ -20,6 +18,8 @@ import {
 	toTenantId,
 } from "@trading-model/common/domain/primitives";
 import { deterministicStringify } from "@trading-model/common/utils/deterministic-stringify";
+import { CryptoAlg } from "@trading-model/crypto/crypto/crypto-constants";
+import type { AuthContext } from "@trading-model/validation/contracts/message.types";
 
 import { ENV } from "../../config/env";
 

@@ -1,6 +1,7 @@
 import { jest } from "@jest/globals";
 import { createMockHttpClient as createCommonMockHttpClient } from "@trading-model/common/tests/helpers/mock-common";
 import type { Dispatcher } from "../../src/messaging/core/dispatcher";
+import type { SubscriptionParams } from "../../src/messaging/core/messaging-types";
 import type { Subscription } from "../../src/messaging/core/subscription";
 import { mockServiceIdentity } from "../fixtures/broker.fixture";
 
@@ -13,22 +14,8 @@ export function createMockDispatcher(
 		publish: jest
 			.fn<(payload: unknown, metadata: unknown) => Promise<void>>()
 			.mockResolvedValue(undefined),
-		subscribe:
-			jest.fn<
-				(params: {
-					topic: string;
-					callbackPath: string;
-					consumerIdentity: typeof mockServiceIdentity;
-				}) => void
-			>(),
-		registerSubscription:
-			jest.fn<
-				(params: {
-					topic: string;
-					callbackPath: string;
-					consumerIdentity: typeof mockServiceIdentity;
-				}) => void
-			>(),
+		subscribe: jest.fn<(params: SubscriptionParams) => void>(),
+		registerSubscription: jest.fn<(params: SubscriptionParams) => void>(),
 		dispatch: jest
 			.fn<(message: unknown) => Promise<void>>()
 			.mockResolvedValue(undefined),

@@ -1,9 +1,10 @@
-﻿import {
+import {
 	type Topic,
 	toTopic,
 	UnixTimestamp,
 } from "@trading-model/common/domain/primitives";
 import { ENV } from "../../config/env";
+import { RedisKeyBuilder } from "../../infrastructure/redis/redis-key-builder";
 import { ArchiveTimerScheduler } from "./archive-timer-scheduler";
 import { ArchiveTopicsCache } from "./archive-topics-cache";
 import type { IStreamGroupOps } from "./message-routing-facade";
@@ -17,7 +18,8 @@ export class MongoArchiveStore {
 	private readonly _topicsCache = new ArchiveTopicsCache();
 
 	constructor(prefix?: string) {
-		this._routing = new StreamGroupOperations(prefix ?? ENV.REDIS_PREFIX);
+		const keys = new RedisKeyBuilder(prefix ?? ENV.REDIS_PREFIX);
+		this._routing = new StreamGroupOperations(keys);
 	}
 
 	async start(): Promise<void> {
@@ -80,7 +82,7 @@ export class MongoArchiveStore {
 
 	private async _writeArchiveBatch(
 		client: NonNullable<typeof this._clientManager.client>,
-		messages: import("@trading-model/common/contracts/message.types").Message[]
+		messages: import("@trading-model/validation/contracts/message.types").Message[]
 	): Promise<void> {
 		const { MongoArchiveBatchWriter } = await import(
 			"./mongo-archive-batch.js"

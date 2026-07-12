@@ -1,17 +1,21 @@
+import { NumericRange } from "@trading-model/common/domain/numeric-range";
 import {
 	Percentage,
 	PositiveInt,
 	Probability,
 } from "@trading-model/common/domain/primitives";
-import {
-	ActivationType,
-	ConnectionType,
-	InitialisationType,
-} from "../neural-network/type";
-import type { Bounded } from "./bounded";
-import { createBounded } from "./bounded";
+import { NoiseStd } from "@trading-model/common/domain/primitives/noise-std";
+import { Temperature } from "@trading-model/common/domain/primitives/temperature";
+import { InitialisationType } from "../neural-network/type";
 import type { Genome } from "./genome-types";
-import { LAYER_STRIDE } from "./layer-codec";
+import {
+	LAYER_STRIDE,
+	readEncodedLayer,
+	writeEncodedLayer,
+} from "./layer-codec";
+
+export { readEncodedLayer } from "./layer-codec";
+
 import { clamp } from "./utils";
 
 export const MAX_DEPTH = 12;
@@ -22,7 +26,7 @@ interface ScalarFieldDef {
 	accessor: (genome: Genome) => number;
 	encode: (value: number) => number;
 	decode: (value: number) => number;
-	clamp: Bounded<number>;
+	clamp: NumericRange;
 	round?: boolean;
 }
 
@@ -33,7 +37,7 @@ const SCALAR_FIELDS: ScalarFieldDef[] = [
 		accessor: (genome) => genome.rl.gamma,
 		encode: (value) => value,
 		decode: (value) => value,
-		clamp: { min: 0.8, max: 0.9999 },
+		clamp: new NumericRange(0.8, 0.9999),
 	},
 	{
 		name: "LearningRate",
@@ -41,23 +45,23 @@ const SCALAR_FIELDS: ScalarFieldDef[] = [
 		accessor: (genome) => genome.rl.learningRate,
 		encode: (value) => (Math.log10(value) / 6 + 1) / 2,
 		decode: (value) => 10 ** ((value * 2 - 1) * 6),
-		clamp: { min: 1e-6, max: 1e-1 },
+		clamp: new NumericRange(1e-6, 1e-1),
 	},
 	{
 		name: "ClipMin",
 		key: "clipMin",
-		accessor: (genome) => genome.rl.rewardShaping.clipBounds.min,
+		accessor: (genome) => genome.rl.rewardShaping.clipBounds.lo,
 		encode: (value) => value,
 		decode: (value) => value,
-		clamp: { min: Number.NEGATIVE_INFINITY, max: Number.POSITIVE_INFINITY },
+		clamp: new NumericRange(Number.NEGATIVE_INFINITY, Number.POSITIVE_INFINITY),
 	},
 	{
 		name: "ClipMax",
 		key: "clipMax",
-		accessor: (genome) => genome.rl.rewardShaping.clipBounds.max,
+		accessor: (genome) => genome.rl.rewardShaping.clipBounds.hi,
 		encode: (value) => value,
 		decode: (value) => value,
-		clamp: { min: Number.NEGATIVE_INFINITY, max: Number.POSITIVE_INFINITY },
+		clamp: new NumericRange(Number.NEGATIVE_INFINITY, Number.POSITIVE_INFINITY),
 	},
 	{
 		name: "ScaleFactor",
@@ -65,7 +69,7 @@ const SCALAR_FIELDS: ScalarFieldDef[] = [
 		accessor: (genome) => genome.rl.rewardShaping.scaleFactor,
 		encode: (value) => (Math.log10(value) / 3 + 1) / 2,
 		decode: (value) => 10 ** ((value - 1) * 3),
-		clamp: { min: 0.001, max: 1000 },
+		clamp: new NumericRange(0.001, 1000),
 	},
 	{
 		name: "MaxEpisodeLength",
@@ -73,7 +77,7 @@ const SCALAR_FIELDS: ScalarFieldDef[] = [
 		accessor: (genome) => genome.rl.horizon.maxEpisodeLength,
 		encode: (value) => value / 2_000,
 		decode: (value) => value * 2_000,
-		clamp: { min: 10, max: 20_000 },
+		clamp: new NumericRange(10, 20_000),
 		round: true,
 	},
 	{
@@ -82,7 +86,7 @@ const SCALAR_FIELDS: ScalarFieldDef[] = [
 		accessor: (genome) => genome.rl.horizon.nStepReturn,
 		encode: (value) => value / 20,
 		decode: (value) => value * 20,
-		clamp: { min: 1, max: 20 },
+		clamp: new NumericRange(1, 20),
 		round: true,
 	},
 	{
@@ -91,7 +95,7 @@ const SCALAR_FIELDS: ScalarFieldDef[] = [
 		accessor: (genome) => genome.rl.horizon.frameSkip,
 		encode: (value) => value / 10,
 		decode: (value) => value * 10,
-		clamp: { min: 1, max: 10 },
+		clamp: new NumericRange(1, 10),
 		round: true,
 	},
 	{
@@ -100,7 +104,7 @@ const SCALAR_FIELDS: ScalarFieldDef[] = [
 		accessor: (genome) => genome.rl.discretePolicy.epsilonStart,
 		encode: (value) => value,
 		decode: (value) => value,
-		clamp: { min: 0.1, max: 1.0 },
+		clamp: new NumericRange(0.1, 1.0),
 	},
 	{
 		name: "EpsilonMin",
@@ -108,7 +112,7 @@ const SCALAR_FIELDS: ScalarFieldDef[] = [
 		accessor: (genome) => genome.rl.discretePolicy.epsilonMin,
 		encode: (value) => value / 0.2,
 		decode: (value) => value * 0.2,
-		clamp: { min: 0.001, max: 0.2 },
+		clamp: new NumericRange(0.001, 0.2),
 	},
 	{
 		name: "EpsilonDecay",
@@ -116,7 +120,7 @@ const SCALAR_FIELDS: ScalarFieldDef[] = [
 		accessor: (genome) => genome.rl.discretePolicy.epsilonDecay,
 		encode: (value) => value,
 		decode: (value) => value,
-		clamp: { min: 0.9, max: 0.9999 },
+		clamp: new NumericRange(0.9, 0.9999),
 	},
 	{
 		name: "Temperature",
@@ -124,7 +128,7 @@ const SCALAR_FIELDS: ScalarFieldDef[] = [
 		accessor: (genome) => genome.rl.discretePolicy.temperature,
 		encode: (value) => Math.log10(value) / 2 + 0.5,
 		decode: (value) => 10 ** ((value - 0.5) * 2),
-		clamp: { min: 0.01, max: 100 },
+		clamp: new NumericRange(0.01, 100),
 	},
 	{
 		name: "NoiseStd",
@@ -132,7 +136,7 @@ const SCALAR_FIELDS: ScalarFieldDef[] = [
 		accessor: (genome) => genome.rl.continuousPolicy.noiseStd,
 		encode: (value) => value / 5,
 		decode: (value) => value * 5,
-		clamp: { min: 0.001, max: 5 },
+		clamp: new NumericRange(0.001, 5),
 	},
 	{
 		name: "NoiseDecay",
@@ -140,7 +144,7 @@ const SCALAR_FIELDS: ScalarFieldDef[] = [
 		accessor: (genome) => genome.rl.continuousPolicy.noiseDecay,
 		encode: (value) => value,
 		decode: (value) => value,
-		clamp: { min: 0.9, max: 0.9999 },
+		clamp: new NumericRange(0.9, 0.9999),
 	},
 	{
 		name: "BufferSize",
@@ -148,7 +152,7 @@ const SCALAR_FIELDS: ScalarFieldDef[] = [
 		accessor: (genome) => genome.rl.replayBuffer.bufferSize,
 		encode: (value) => Math.log10(value) / 6,
 		decode: (value) => 10 ** (value * 6),
-		clamp: { min: 100, max: 1_000_000 },
+		clamp: new NumericRange(100, 1_000_000),
 		round: true,
 	},
 	{
@@ -157,7 +161,7 @@ const SCALAR_FIELDS: ScalarFieldDef[] = [
 		accessor: (genome) => genome.rl.replayBuffer.alphaPER,
 		encode: (value) => value,
 		decode: (value) => value,
-		clamp: { min: 0, max: 1 },
+		clamp: new NumericRange(0, 1),
 	},
 	{
 		name: "BetaPER",
@@ -165,7 +169,7 @@ const SCALAR_FIELDS: ScalarFieldDef[] = [
 		accessor: (genome) => genome.rl.replayBuffer.betaPER,
 		encode: (value) => value,
 		decode: (value) => value,
-		clamp: { min: 0, max: 1 },
+		clamp: new NumericRange(0, 1),
 	},
 	{
 		name: "MutationRate",
@@ -173,7 +177,7 @@ const SCALAR_FIELDS: ScalarFieldDef[] = [
 		accessor: (genome) => genome.mutation.rates.rate,
 		encode: (value) => value / 0.5,
 		decode: (value) => value * 0.5,
-		clamp: { min: 0.001, max: 0.5 },
+		clamp: new NumericRange(0.001, 0.5),
 	},
 	{
 		name: "MutationSigma",
@@ -181,7 +185,7 @@ const SCALAR_FIELDS: ScalarFieldDef[] = [
 		accessor: (genome) => genome.mutation.rates.sigma,
 		encode: (value) => Math.log10(Math.max(1e-5, value)) / 4 + 1.25,
 		decode: (value) => 10 ** ((value - 1.25) * 4),
-		clamp: { min: 1e-5, max: 10 },
+		clamp: new NumericRange(1e-5, 10),
 	},
 	{
 		name: "MutationSelfSigma",
@@ -189,7 +193,7 @@ const SCALAR_FIELDS: ScalarFieldDef[] = [
 		accessor: (genome) => genome.mutation.rates.selfSigma,
 		encode: (value) => Math.log10(Math.max(1e-5, value)) / 4 + 1.25,
 		decode: (value) => 10 ** ((value - 1.25) * 4),
-		clamp: { min: 1e-5, max: 10 },
+		clamp: new NumericRange(1e-5, 10),
 	},
 	{
 		name: "NetworkInputDim",
@@ -197,7 +201,7 @@ const SCALAR_FIELDS: ScalarFieldDef[] = [
 		accessor: (genome) => genome.network.inputDim,
 		encode: (value) => value / 256,
 		decode: (value) => value * 256,
-		clamp: { min: 1, max: 256 },
+		clamp: new NumericRange(1, 256),
 		round: true,
 	},
 	{
@@ -206,7 +210,7 @@ const SCALAR_FIELDS: ScalarFieldDef[] = [
 		accessor: (genome) => genome.network.outputDim,
 		encode: (value) => value / 64,
 		decode: (value) => value * 64,
-		clamp: { min: 1, max: 64 },
+		clamp: new NumericRange(1, 64),
 		round: true,
 	},
 	{
@@ -215,7 +219,7 @@ const SCALAR_FIELDS: ScalarFieldDef[] = [
 		accessor: (genome) => genome.network.hiddenLayers.length,
 		encode: (value) => value / MAX_DEPTH,
 		decode: (value) => value * MAX_DEPTH,
-		clamp: { min: 1, max: MAX_DEPTH },
+		clamp: new NumericRange(1, MAX_DEPTH),
 		round: true,
 	},
 ];
@@ -223,13 +227,9 @@ const SCALAR_FIELDS: ScalarFieldDef[] = [
 type ScalarFieldName = (typeof SCALAR_FIELDS)[number]["name"];
 
 export const ENCODING_OFFSETS: Readonly<Record<ScalarFieldName, number>> =
-	(() => {
-		const map: Record<string, number> = {};
-		for (let i = 0; i < SCALAR_FIELDS.length; i++) {
-			map[SCALAR_FIELDS[i].name] = i;
-		}
-		return map as Readonly<Record<ScalarFieldName, number>>;
-	})();
+	Object.freeze(
+		Object.fromEntries(SCALAR_FIELDS.map((field, index) => [field.name, index]))
+	) as Readonly<Record<ScalarFieldName, number>>;
 
 export const SCALAR_DIM = SCALAR_FIELDS.length;
 
@@ -237,66 +237,12 @@ export const SCALAR_DIM = SCALAR_FIELDS.length;
 /*  Layer encoding (neurons+activation+connectionType)                 */
 /* ------------------------------------------------------------------ */
 
-export const ACTIVATIONS: ActivationType[] = [
-	ActivationType.Relu,
-	ActivationType.Sigmoid,
-	ActivationType.Tanh,
-	ActivationType.LeakyReLu,
-	ActivationType.Elu,
-	ActivationType.Mish,
-	ActivationType.Gelu,
-	ActivationType.Softmax,
-];
-
-export const CONNECTION_TYPES: ConnectionType[] = [
-	ConnectionType.DenseSkip,
-	ConnectionType.FullyConnected,
-	ConnectionType.ResidualConnection,
-];
-
-export function activationFromIndex(idx: number): ActivationType {
-	return ACTIVATIONS[idx] ?? ACTIVATIONS[0];
-}
-
-export function connectionTypeFromIndex(idx: number): ConnectionType {
-	return CONNECTION_TYPES[idx] ?? CONNECTION_TYPES[0];
-}
-
 export function encodedDim(hiddenLayerCount: number): number {
 	return SCALAR_DIM + hiddenLayerCount * LAYER_STRIDE;
 }
 
 export function layerOffset(layerIndex: number): number {
 	return SCALAR_DIM + layerIndex * LAYER_STRIDE;
-}
-
-export interface EncodedLayer {
-	neurons: number;
-	activation: ActivationType;
-	connectionType: ConnectionType;
-}
-
-export function readEncodedLayer(
-	arr: Float32Array,
-	offset: number
-): EncodedLayer {
-	return {
-		neurons: arr[offset],
-		activation: activationFromIndex(Math.round(arr[offset + 1])),
-		connectionType: connectionTypeFromIndex(Math.round(arr[offset + 2])),
-	};
-}
-
-function writeEncodedLayer(
-	arr: Float32Array,
-	offset: number,
-	layer: EncodedLayer
-): void {
-	const actIdx = ACTIVATIONS.indexOf(layer.activation);
-	const ctIdx = CONNECTION_TYPES.indexOf(layer.connectionType);
-	arr[offset] = layer.neurons;
-	arr[offset + 1] = actIdx >= 0 ? actIdx : 0;
-	arr[offset + 2] = ctIdx >= 0 ? ctIdx : 0;
 }
 
 /* ------------------------------------------------------------------ */
@@ -315,8 +261,8 @@ interface DecodedScalars {
 	epsilonStart: Probability;
 	epsilonMin: Probability;
 	epsilonDecay: Probability;
-	temperature: number;
-	noiseStd: number;
+	temperature: Temperature;
+	noiseStd: NoiseStd;
 	noiseDecay: Probability;
 	bufferSize: PositiveInt;
 	alphaPER: Probability;
@@ -330,15 +276,12 @@ interface DecodedScalars {
 }
 
 function decodeScalars(arr: Float32Array): DecodedScalars {
-	const result: Record<string, number> = {};
-	for (let i = 0; i < SCALAR_FIELDS.length; i++) {
-		const field = SCALAR_FIELDS[i];
-		const raw = arr[i];
-		const decoded = field.decode(raw);
-		const clamped = clamp(decoded, field.clamp.min, field.clamp.max);
-		result[field.key] = field.round ? Math.round(clamped) : clamped;
-	}
-	return result as unknown as DecodedScalars;
+	const entries = SCALAR_FIELDS.map((field, idx) => {
+		const decoded = field.decode(arr[idx]);
+		const clamped = field.clamp.clamp(decoded);
+		return [field.key, field.round ? Math.round(clamped) : clamped] as const;
+	});
+	return Object.fromEntries(entries) as unknown as DecodedScalars;
 }
 
 function writeLayers(arr: Float32Array, net: Genome["network"]): void {
@@ -408,7 +351,7 @@ export function decodeGenome(vec: Float32Array, template: Genome): Genome {
 			learningRate: Percentage.of(scalars.learningRate),
 			rewardShaping: {
 				...template.rl.rewardShaping,
-				clipBounds: createBounded(
+				clipBounds: new NumericRange(
 					Math.min(scalars.clipMin, scalars.clipMax - 1e-6),
 					Math.max(scalars.clipMax, scalars.clipMin + 1e-6)
 				),
@@ -424,11 +367,11 @@ export function decodeGenome(vec: Float32Array, template: Genome): Genome {
 				epsilonStart: Probability.of(scalars.epsilonStart),
 				epsilonMin: Probability.of(scalars.epsilonMin),
 				epsilonDecay: Probability.of(scalars.epsilonDecay),
-				temperature: scalars.temperature,
+				temperature: Temperature.of(scalars.temperature),
 			},
 			continuousPolicy: {
 				...template.rl.continuousPolicy,
-				noiseStd: scalars.noiseStd,
+				noiseStd: NoiseStd.of(scalars.noiseStd),
 				noiseDecay: Probability.of(scalars.noiseDecay),
 			},
 			replayBuffer: {

@@ -28,7 +28,7 @@ npm run -w api-gateway dev
 
 All routes: `https://host:8448/v{major}/{serviceName}/**`
 
-See [API doc](../../docs/architecture/api/api-gateway.md) for full endpoint reference.
+See [API doc](../../docs/services/api-gateway.md) for full endpoint reference.
 
 ## Architecture
 

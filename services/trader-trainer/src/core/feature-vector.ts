@@ -11,154 +11,34 @@ import { emptyTrade } from "./features/trade-features";
 
 export const FEATURE_DIM = 32;
 
-interface FeatureField {
-	get: (fv: FeatureVector) => number;
-	set: (fv: FeatureVector, value: number) => void;
-}
-
-const FEATURE_FIELDS: FeatureField[] = [
-	{
-		get: (fv) => fv.candle.close,
-		set: (fv, val) => {
-			fv.candle.close = val as Price;
-		},
-	},
-	{
-		get: (fv) => fv.candle.volume,
-		set: (fv, val) => {
-			fv.candle.volume = val as Volume;
-		},
-	},
-	{
-		get: (fv) => fv.candle.returnRatio,
-		set: (fv, val) => {
-			fv.candle.returnRatio = val as Ratio;
-		},
-	},
-	{
-		get: (fv) => fv.candle.positionRatio,
-		set: (fv, val) => {
-			fv.candle.positionRatio = val as Ratio;
-		},
-	},
-	{
-		get: (fv) => fv.candle.rangeRatio,
-		set: (fv, val) => {
-			fv.candle.rangeRatio = val as Ratio;
-		},
-	},
-	{
-		get: (fv) => fv.candle.open,
-		set: (fv, val) => {
-			fv.candle.open = val as Price;
-		},
-	},
-	{
-		get: (fv) => fv.candle.high,
-		set: (fv, val) => {
-			fv.candle.high = val as Price;
-		},
-	},
-	{
-		get: (fv) => fv.candle.low,
-		set: (fv, val) => {
-			fv.candle.low = val as Price;
-		},
-	},
-	{
-		get: (fv) => fv.candle.volumeRatio,
-		set: (fv, val) => {
-			fv.candle.volumeRatio = val as Ratio;
-		},
-	},
-	{
-		get: (fv) => fv.orderBook.avgBid,
-		set: (fv, val) => {
-			fv.orderBook.avgBid = val as Price;
-		},
-	},
-	{
-		get: (fv) => fv.orderBook.avgAsk,
-		set: (fv, val) => {
-			fv.orderBook.avgAsk = val as Price;
-		},
-	},
-	{
-		get: (fv) => fv.orderBook.spreadRatio,
-		set: (fv, val) => {
-			fv.orderBook.spreadRatio = val as Ratio;
-		},
-	},
-	{
-		get: (fv) => fv.orderBook.imbalance,
-		set: (fv, val) => {
-			fv.orderBook.imbalance = val as Ratio;
-		},
-	},
-	{
-		get: (fv) => fv.bookTicker.bid,
-		set: (fv, val) => {
-			fv.bookTicker.bid = val as Price;
-		},
-	},
-	{
-		get: (fv) => fv.bookTicker.ask,
-		set: (fv, val) => {
-			fv.bookTicker.ask = val as Price;
-		},
-	},
-	{
-		get: (fv) => fv.bookTicker.spreadRatio,
-		set: (fv, val) => {
-			fv.bookTicker.spreadRatio = val as Ratio;
-		},
-	},
-	{
-		get: (fv) => fv.trade.avgPrice,
-		set: (fv, val) => {
-			fv.trade.avgPrice = val as Price;
-		},
-	},
-	{
-		get: (fv) => fv.trade.totalQty,
-		set: (fv, val) => {
-			fv.trade.totalQty = val as Volume;
-		},
-	},
-	{
-		get: (fv) => fv.trade.buyRatio,
-		set: (fv, val) => {
-			fv.trade.buyRatio = val as Ratio;
-		},
-	},
-	{
-		get: (fv) => fv.ticker.priceChange,
-		set: (fv, val) => {
-			fv.ticker.priceChange = val as Ratio;
-		},
-	},
-	{
-		get: (fv) => fv.ticker.volume,
-		set: (fv, val) => {
-			fv.ticker.volume = val as Volume;
-		},
-	},
-	{
-		get: (fv) => fv.ticker.dailyRange,
-		set: (fv, val) => {
-			fv.ticker.dailyRange = val as Ratio;
-		},
-	},
-	{
-		get: (fv) => fv.priceSnapshot,
-		set: (fv, val) => {
-			fv.priceSnapshot = val as Price;
-		},
-	},
-];
-
-const FEATURE_COUNT = FEATURE_FIELDS.length;
+const FEATURE_COUNT = 23;
 const SLIDING_WINDOW_OFFSET = FEATURE_COUNT;
+
+const FEATURE_INDEX = {
+	CLOSE: 0,
+	VOLUME: 1,
+	RETURN_RATIO: 2,
+	POSITION_RATIO: 3,
+	RANGE_RATIO: 4,
+	OPEN: 5,
+	HIGH: 6,
+	LOW: 7,
+	VOLUME_RATIO: 8,
+	AVG_BID: 9,
+	AVG_ASK: 10,
+	SPREAD_RATIO_OB: 11,
+	IMBALANCE: 12,
+	BID: 13,
+	ASK: 14,
+	SPREAD_RATIO_BT: 15,
+	AVG_PRICE: 16,
+	TOTAL_QTY: 17,
+	BUY_RATIO: 18,
+	PRICE_CHANGE: 19,
+	TICKER_VOLUME: 20,
+	DAILY_RANGE: 21,
+	PRICE_SNAPSHOT: 22,
+} as const;
 
 export interface CandleFeatures {
 	close: Price;
@@ -252,23 +132,72 @@ class FeatureVectorCodec {
 
 	encode(): Float32Array {
 		const arr = new Float32Array(FEATURE_DIM);
-		for (let i = 0; i < FEATURE_COUNT; i++) {
-			arr[i] = FEATURE_FIELDS[i].get(this._fv);
-		}
+		const fv = this._fv;
+		const sw = this._slidingWindow;
+
+		arr[FEATURE_INDEX.CLOSE] = fv.candle.close;
+		arr[FEATURE_INDEX.VOLUME] = fv.candle.volume;
+		arr[FEATURE_INDEX.RETURN_RATIO] = fv.candle.returnRatio;
+		arr[FEATURE_INDEX.POSITION_RATIO] = fv.candle.positionRatio;
+		arr[FEATURE_INDEX.RANGE_RATIO] = fv.candle.rangeRatio;
+		arr[FEATURE_INDEX.OPEN] = fv.candle.open;
+		arr[FEATURE_INDEX.HIGH] = fv.candle.high;
+		arr[FEATURE_INDEX.LOW] = fv.candle.low;
+		arr[FEATURE_INDEX.VOLUME_RATIO] = fv.candle.volumeRatio;
+		arr[FEATURE_INDEX.AVG_BID] = fv.orderBook.avgBid;
+		arr[FEATURE_INDEX.AVG_ASK] = fv.orderBook.avgAsk;
+		arr[FEATURE_INDEX.SPREAD_RATIO_OB] = fv.orderBook.spreadRatio;
+		arr[FEATURE_INDEX.IMBALANCE] = fv.orderBook.imbalance;
+		arr[FEATURE_INDEX.BID] = fv.bookTicker.bid;
+		arr[FEATURE_INDEX.ASK] = fv.bookTicker.ask;
+		arr[FEATURE_INDEX.SPREAD_RATIO_BT] = fv.bookTicker.spreadRatio;
+		arr[FEATURE_INDEX.AVG_PRICE] = fv.trade.avgPrice;
+		arr[FEATURE_INDEX.TOTAL_QTY] = fv.trade.totalQty;
+		arr[FEATURE_INDEX.BUY_RATIO] = fv.trade.buyRatio;
+		arr[FEATURE_INDEX.PRICE_CHANGE] = fv.ticker.priceChange;
+		arr[FEATURE_INDEX.TICKER_VOLUME] = fv.ticker.volume;
+		arr[FEATURE_INDEX.DAILY_RANGE] = fv.ticker.dailyRange;
+		arr[FEATURE_INDEX.PRICE_SNAPSHOT] = fv.priceSnapshot;
+
 		for (let i = 0; i < FeatureVectorCodec._SLIDING_WINDOW_SIZE; i++) {
-			arr[SLIDING_WINDOW_OFFSET + i] = this._slidingWindow[i];
+			arr[SLIDING_WINDOW_OFFSET + i] = sw[i];
 		}
-		arr[FeatureVectorCodec._BIAS_INDEX] = this._fv.bias;
+		arr[FeatureVectorCodec._BIAS_INDEX] = fv.bias;
+
 		return arr;
 	}
 
 	decode(data: Float32Array): void {
-		for (let i = 0; i < FEATURE_COUNT; i++) {
-			FEATURE_FIELDS[i].set(this._fv, data[i] ?? 0);
-		}
+		const fv = this._fv;
+		const sw = this._slidingWindow;
+
+		fv.candle.close = data[FEATURE_INDEX.CLOSE] as Price;
+		fv.candle.volume = data[FEATURE_INDEX.VOLUME] as Volume;
+		fv.candle.returnRatio = data[FEATURE_INDEX.RETURN_RATIO] as Ratio;
+		fv.candle.positionRatio = data[FEATURE_INDEX.POSITION_RATIO] as Ratio;
+		fv.candle.rangeRatio = data[FEATURE_INDEX.RANGE_RATIO] as Ratio;
+		fv.candle.open = data[FEATURE_INDEX.OPEN] as Price;
+		fv.candle.high = data[FEATURE_INDEX.HIGH] as Price;
+		fv.candle.low = data[FEATURE_INDEX.LOW] as Price;
+		fv.candle.volumeRatio = data[FEATURE_INDEX.VOLUME_RATIO] as Ratio;
+		fv.orderBook.avgBid = data[FEATURE_INDEX.AVG_BID] as Price;
+		fv.orderBook.avgAsk = data[FEATURE_INDEX.AVG_ASK] as Price;
+		fv.orderBook.spreadRatio = data[FEATURE_INDEX.SPREAD_RATIO_OB] as Ratio;
+		fv.orderBook.imbalance = data[FEATURE_INDEX.IMBALANCE] as Ratio;
+		fv.bookTicker.bid = data[FEATURE_INDEX.BID] as Price;
+		fv.bookTicker.ask = data[FEATURE_INDEX.ASK] as Price;
+		fv.bookTicker.spreadRatio = data[FEATURE_INDEX.SPREAD_RATIO_BT] as Ratio;
+		fv.trade.avgPrice = data[FEATURE_INDEX.AVG_PRICE] as Price;
+		fv.trade.totalQty = data[FEATURE_INDEX.TOTAL_QTY] as Volume;
+		fv.trade.buyRatio = data[FEATURE_INDEX.BUY_RATIO] as Ratio;
+		fv.ticker.priceChange = data[FEATURE_INDEX.PRICE_CHANGE] as Ratio;
+		fv.ticker.volume = data[FEATURE_INDEX.TICKER_VOLUME] as Volume;
+		fv.ticker.dailyRange = data[FEATURE_INDEX.DAILY_RANGE] as Ratio;
+		fv.priceSnapshot = data[FEATURE_INDEX.PRICE_SNAPSHOT] as Price;
+
 		for (let i = 0; i < FeatureVectorCodec._SLIDING_WINDOW_SIZE; i++) {
-			this._slidingWindow[i] = data[SLIDING_WINDOW_OFFSET + i] ?? 0;
+			sw[i] = data[SLIDING_WINDOW_OFFSET + i] ?? 0;
 		}
-		this._fv.bias = data[FeatureVectorCodec._BIAS_INDEX] ?? 0;
+		fv.bias = data[FeatureVectorCodec._BIAS_INDEX] ?? 0;
 	}
 }

@@ -1,15 +1,15 @@
 import { logger } from "@trading-model/common/config/logger";
 import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import { parseServiceName } from "@trading-model/common/config/services.types";
-import type {
-	RegistryBackend,
-	ServiceInstance,
-} from "@trading-model/common/contracts/service-registry.types";
 import {
 	computePagination,
 	type PaginationQuery,
 } from "@trading-model/common/domain/pagination";
 import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
+import type {
+	RegistryBackend,
+	ServiceInstance,
+} from "@trading-model/validation/contracts/service-registry.types";
 import type { CacheManager } from "./cache-manager";
 import type { RedisHealthMonitor } from "./redis-health-monitor";
 

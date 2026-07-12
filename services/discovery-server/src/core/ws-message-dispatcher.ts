@@ -1,11 +1,11 @@
 import { logger } from "@trading-model/common/config/logger";
+import { normalizeError } from "@trading-model/common/utils/errors";
 import {
 	type DiscoveryWsClientMessage,
 	type DiscoveryWsHeartbeatMessage,
 	DiscoveryWsMessageType,
 	type DiscoveryWsSubscribeMessage,
-} from "@trading-model/common/contracts/discovery-ws-message.types";
-import { normalizeError } from "@trading-model/common/utils/errors";
+} from "@trading-model/validation/contracts/discovery-ws-message.types";
 import type WebSocket from "ws";
 import type { ConnectedClient } from "./client-connection-manager";
 

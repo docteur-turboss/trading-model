@@ -1,5 +1,5 @@
 import { describe, expect, test } from "@jest/globals";
-import { createBounded } from "../../../src/core/genetic-algorithm/bounded";
+import { NumericRange } from "@trading-model/common/domain/numeric-range";
 import {
 	computeFitness,
 	shapeReward,
@@ -69,7 +69,7 @@ describe("Fitness - computeFitness", () => {
 describe("Fitness - shapeReward", () => {
 	const cfg: RewardShapingGenome = {
 		clip: true,
-		clipBounds: createBounded(-1, 1),
+		clipBounds: new NumericRange(-1, 1),
 		scale: true,
 		scaleFactor: 2,
 		normalize: false,

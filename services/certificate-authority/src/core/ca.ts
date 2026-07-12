@@ -7,7 +7,6 @@ import type {
 	CaPem,
 	DurationMs,
 	FilePath,
-	SerialNumber,
 } from "@trading-model/common/domain/primitives";
 import type { RevocationRequest } from "@trading-model/common/domain/revocation-request";
 import type { CaStore } from "../persistence/ca-store";
@@ -23,13 +22,6 @@ export interface CaOptions {
 	certificateStore: CertificateStore;
 	crlStore: CrlStore;
 	caStore: CaStore;
-}
-
-export interface CertBodyInput {
-	serialNumber: SerialNumber;
-	now: Date;
-	expiresAt: Date;
-	publicKey: string;
 }
 
 export class CertificateAuthority {
@@ -54,11 +46,10 @@ export class CertificateAuthority {
 	}
 
 	signServiceCertificate(request: CertSignRequest): Promise<SignedCertificate> {
-		return this._operator.signServiceCertificate(
-			request,
-			this._state.caKeyPair,
-			this._state.caCertPem
-		);
+		return this._operator.signServiceCertificate(request, {
+			caKeyPair: this._state.caKeyPair,
+			caCertPem: this._state.caCertPem,
+		});
 	}
 
 	async revokeCertificate(request: RevocationRequest): Promise<void> {

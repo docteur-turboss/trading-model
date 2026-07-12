@@ -1,7 +1,8 @@
-import type { Normalizer } from "./normalizer-interface";
+import type { DataSlice, Normalizer } from "./normalizer-interface";
 
 export class RobustScalingNormalizer implements Normalizer {
-	normalize(data: Float32Array, len: number): Float32Array {
+	normalize(slice: DataSlice): Float32Array {
+		const { data, len } = slice;
 		const sorted = new Float32Array(data);
 		sorted.sort();
 

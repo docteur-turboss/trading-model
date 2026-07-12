@@ -8,13 +8,13 @@ const mockGenerateToken = jest.fn();
 const mockValidateToken = jest.fn();
 const mockVerifyName = jest.fn();
 
-jest.mock("@trading-model/common/crypto/token-service", () => ({
+jest.mock("@trading-model/crypto/crypto/token-service", () => ({
 	generateInstanceToken: (...args: unknown[]) => mockGenerateToken(...args),
 	validInstanceToken: (...args: unknown[]) => mockValidateToken(...args),
 	verifyInstanceName: (...args: unknown[]) => mockVerifyName(...args),
 }));
 
-import type { TokenValidationInput } from "@trading-model/common/crypto/token-service";
+import type { TokenValidationInput } from "@trading-model/crypto/crypto/token-service";
 import { TokenService } from "../../src/core/token-service";
 
 describe("TokenService", () => {

@@ -1,5 +1,4 @@
 import { describe, expect, test } from "@jest/globals";
-import { createBounded } from "../../../src/core/genetic-algorithm/bounded";
 import { createDefaultGenome } from "../../../src/core/genetic-algorithm/factory";
 import {
 	ContinuousPolicyType,
@@ -54,16 +53,16 @@ describe("Validation - validateGenome", () => {
 		expect(result.valid).toBe(false);
 	});
 
-	test("should detect clipMin >= clipMax", () => {
+	test("should detect missing rewardShaping clipBounds", () => {
 		const genome = createDefaultGenome("valid");
-		genome.rl.rewardShaping.clipBounds = createBounded(5, 1);
+		(genome.rl.rewardShaping as any).clipBounds = undefined;
 		const result = validateGenome(genome);
 		expect(result.valid).toBe(false);
 	});
 
-	test("should detect continuousPolicy clipMin >= clipMax", () => {
+	test("should detect missing continuousPolicy clipBounds", () => {
 		const genome = createDefaultGenome("valid");
-		genome.rl.continuousPolicy.clipBounds = createBounded(5, 0);
+		(genome.rl.continuousPolicy as any).clipBounds = undefined;
 		const result = validateGenome(genome);
 		expect(result.valid).toBe(false);
 		expect(
@@ -122,22 +121,20 @@ describe("Validation - repairGenome", () => {
 		expect(repaired.network.normalization).toBe(NormalisationType.None);
 	});
 
-	test("should repair inverted clipMin/clipMax", () => {
+	test("should repair missing rewardShaping clipBounds", () => {
 		const genome = createDefaultGenome("repair");
-		genome.rl.rewardShaping.clipBounds = createBounded(5, 1);
+		(genome.rl.rewardShaping as any).clipBounds = undefined;
 		const repaired = repairGenome(genome);
-		expect(repaired.rl.rewardShaping.clipBounds.min).toBeLessThan(
-			repaired.rl.rewardShaping.clipBounds.max
-		);
+		expect(repaired.rl.rewardShaping.clipBounds.lo).toBe(-1);
+		expect(repaired.rl.rewardShaping.clipBounds.hi).toBe(1);
 	});
 
-	test("should repair invalid continuous policy clipping", () => {
+	test("should repair missing continuousPolicy clipBounds", () => {
 		const genome = createDefaultGenome("repair");
-		genome.rl.continuousPolicy.clipBounds = createBounded(5, 1);
+		(genome.rl.continuousPolicy as any).clipBounds = undefined;
 		const repaired = repairGenome(genome);
-		expect(repaired.rl.continuousPolicy.clipBounds.min).toBeLessThan(
-			repaired.rl.continuousPolicy.clipBounds.max
-		);
+		expect(repaired.rl.continuousPolicy.clipBounds.lo).toBe(-1);
+		expect(repaired.rl.continuousPolicy.clipBounds.hi).toBe(1);
 	});
 
 	test("should repair population size", () => {
@@ -253,10 +250,10 @@ describe("Validation - repairGenome", () => {
 		expect(repaired.network.outputDim).toBe(1);
 		expect(repaired.rl.gamma).toBe(0.99);
 		expect(repaired.rl.learningRate).toBe(0.001);
-		expect(repaired.rl.rewardShaping.clipBounds.min).toBe(-1);
-		expect(repaired.rl.rewardShaping.clipBounds.max).toBe(1);
-		expect(repaired.rl.continuousPolicy.clipBounds.min).toBe(-1);
-		expect(repaired.rl.continuousPolicy.clipBounds.max).toBe(1);
+		expect(repaired.rl.rewardShaping.clipBounds.lo).toBe(-1);
+		expect(repaired.rl.rewardShaping.clipBounds.hi).toBe(1);
+		expect(repaired.rl.continuousPolicy.clipBounds.lo).toBe(-1);
+		expect(repaired.rl.continuousPolicy.clipBounds.hi).toBe(1);
 		expect(repaired.rl.rewardShaping.scaleFactor).toBe(1);
 		expect(repaired.rl.discretePolicy.type).toBe(
 			DiscretePolicyType.EpsilonGreedy

@@ -1,10 +1,11 @@
-﻿import type { ServiceIdentity } from "@trading-model/common/contracts/message.types";
 import type {
 	InstanceId,
 	Topic,
 } from "@trading-model/common/domain/primitives";
+import type { ServiceIdentity } from "@trading-model/validation/contracts/message.types";
+import type { RedisKeyBuilder } from "../../infrastructure/redis/redis-key-builder";
 
-import type { TopicSubscription } from "./messaging-types";
+import type { SubscriptionParams, TopicSubscription } from "./messaging-types";
 import { SubscriptionRedisReader } from "./subscription-redis-reader";
 import { SubscriptionRedisWriter } from "./subscription-redis-writer";
 
@@ -20,17 +21,13 @@ export class SubscriptionRedisStore {
 	private _reader: SubscriptionRedisReader;
 	private _writer: SubscriptionRedisWriter;
 
-	constructor(prefix: string) {
-		this._reader = new SubscriptionRedisReader(prefix);
-		this._writer = new SubscriptionRedisWriter(prefix);
+	constructor(keys: RedisKeyBuilder) {
+		this._reader = new SubscriptionRedisReader(keys);
+		this._writer = new SubscriptionRedisWriter(keys);
 	}
 
-	add(
-		topic: Topic,
-		callbackPath: string,
-		serviceIdentity: ServiceIdentity
-	): Promise<void> {
-		return this._writer.add(topic, callbackPath, serviceIdentity);
+	add(params: SubscriptionParams): Promise<void> {
+		return this._writer.add(params);
 	}
 
 	remove(sub: TopicSubscription): Promise<void> {

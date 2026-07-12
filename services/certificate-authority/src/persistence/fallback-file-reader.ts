@@ -1,8 +1,8 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { logger } from "@trading-model/common/config/logger";
-import { CryptoAlg } from "@trading-model/common/crypto/crypto-constants";
 import { normalizeError } from "@trading-model/common/utils/errors";
+import { CryptoAlg } from "@trading-model/crypto/crypto/crypto-constants";
 
 export interface FileEncryption {
 	readonly extension: string;
@@ -10,11 +10,19 @@ export interface FileEncryption {
 	deserialize(ciphertext: string): string;
 }
 
+export interface FallbackFileReaderOptions {
+	baseDir: string;
+	encryption: FileEncryption;
+}
+
 export class FallbackFileReader {
-	constructor(
-		private readonly _baseDir: string,
-		private readonly _encryption: FileEncryption
-	) {}
+	constructor(options: FallbackFileReaderOptions) {
+		this._baseDir = options.baseDir;
+		this._encryption = options.encryption;
+	}
+
+	private readonly _baseDir: string;
+	private readonly _encryption: FileEncryption;
 
 	async readAll<TData>(): Promise<TData[]> {
 		try {

@@ -5,13 +5,18 @@ import type { LockDocument } from "./lock-backends";
 import { MongoLockBackend } from "./lock-backends";
 import { MONGO_MANAGER } from "./mongo-manager";
 
+export interface LockConnectionConfig {
+	uri: URLString;
+	fallbackDir?: string;
+}
+
 export class LockConnectionManager {
 	private _client: MongoClient;
 	private _collection: Collection<LockDocument> | null = null;
 	readonly mongoBackend: MongoLockBackend;
 
-	constructor(uri: URLString, _fallbackDir?: string) {
-		this._client = new MongoClient(uri);
+	constructor(config: LockConnectionConfig) {
+		this._client = new MongoClient(config.uri);
 		this.mongoBackend = new MongoLockBackend(
 			() => this._collection,
 			() => {

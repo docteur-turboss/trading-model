@@ -25,6 +25,8 @@ jest.mock("@trading-model/common/config/logger", () => ({
 	logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
 
+import { DurationMs } from "@trading-model/common/domain/primitives";
+
 const mockMongoIsInitialized = jest.fn().mockReturnValue(false);
 const mockMongoGetDb = jest.fn();
 
@@ -83,7 +85,7 @@ describe("NonceStore", () => {
 
 	it("should return false for expired nonce", async () => {
 		jest.useFakeTimers();
-		const store = new NonceStore(100);
+		const store = new NonceStore({ ttlMs: DurationMs.of(100) });
 		const nonce = await store.generate("svc-1");
 		jest.advanceTimersByTime(200);
 		const result = await store.consume(nonce, "svc-1");
@@ -102,7 +104,10 @@ describe("NonceStore", () => {
 			})),
 		});
 
-		const store = new NonceStore(300000, "mongodb://localhost:27017/test");
+		const store = new NonceStore({
+			ttlMs: DurationMs.of(300000),
+			mongoUri: "mongodb://localhost:27017/test",
+		});
 		await store.connect();
 		expect(mockCreateIndex).toHaveBeenCalledTimes(2);
 	});
@@ -119,7 +124,10 @@ describe("NonceStore", () => {
 		});
 		mockInsertOne.mockResolvedValue({ acknowledged: true });
 
-		const store = new NonceStore(300000, "mongodb://localhost:27017/test");
+		const store = new NonceStore({
+			ttlMs: DurationMs.of(300000),
+			mongoUri: "mongodb://localhost:27017/test",
+		});
 		await store.connect();
 		const nonce = await store.generate("svc-1");
 		expect(mockInsertOne).toHaveBeenCalled();
@@ -142,7 +150,10 @@ describe("NonceStore", () => {
 			createdAt: new Date(),
 		});
 
-		const store = new NonceStore(300000, "mongodb://localhost:27017/test");
+		const store = new NonceStore({
+			ttlMs: DurationMs.of(300000),
+			mongoUri: "mongodb://localhost:27017/test",
+		});
 		await store.connect();
 		const result = await store.consume("test-nonce", "svc-1");
 		expect(result).toBe(true);
@@ -160,7 +171,10 @@ describe("NonceStore", () => {
 		});
 		mockFindOneAndDelete.mockResolvedValue(null);
 
-		const store = new NonceStore(300000, "mongodb://localhost:27017/test");
+		const store = new NonceStore({
+			ttlMs: DurationMs.of(300000),
+			mongoUri: "mongodb://localhost:27017/test",
+		});
 		await store.connect();
 		const result = await store.consume("test-nonce", "svc-1");
 		expect(result).toBe(false);
@@ -178,7 +192,10 @@ describe("NonceStore", () => {
 			throw new Error("Connection error");
 		});
 
-		const store = new NonceStore(300000, "mongodb://localhost:27017/test");
+		const store = new NonceStore({
+			ttlMs: DurationMs.of(300000),
+			mongoUri: "mongodb://localhost:27017/test",
+		});
 		await store.connect();
 	});
 });

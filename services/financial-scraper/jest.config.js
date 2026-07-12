@@ -3,13 +3,16 @@ module.exports = {
   testEnvironment: 'node',
   transform: {
     '^.+\\.tsx?$': ['ts-jest', {
-      diagnostics: { ignoreCodes: [151002] },
+      diagnostics: false,
     }],
   },
   rootDir: '.',
   testMatch: ['**/?(*.)+(spec).ts'],
   testPathIgnorePatterns: ['/node_modules/', '/dist/'],
   moduleNameMapper: {
+    '^@trading-model/crypto/(.*)$': '<rootDir>/../../packages/crypto/src/$1',
+    '^@trading-model/validation/(.*)$': '<rootDir>/../../packages/validation/src/$1',
+    '^@trading-model/server-utils/(.*)$': '<rootDir>/../../packages/server-utils/src/$1',
     '^@trading-model/common/(.*)$': '<rootDir>/../../packages/common/src/$1',
     '^infra/(.*)$': '<rootDir>/src/infra/$1',
     '^config/(.*)$': '<rootDir>/src/config/$1',

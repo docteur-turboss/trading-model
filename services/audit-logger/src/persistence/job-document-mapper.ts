@@ -1,11 +1,11 @@
-import type {
-	Job,
-	JobEvent,
-} from "@trading-model/common/contracts/recovery.types";
 import {
 	PositiveInt,
 	UnixTimestamp,
 } from "@trading-model/common/domain/primitives";
+import type {
+	Job,
+	JobEvent,
+} from "@trading-model/validation/contracts/recovery.types";
 import type { JobDocument } from "./job-document";
 
 export class JobDocumentMapper {

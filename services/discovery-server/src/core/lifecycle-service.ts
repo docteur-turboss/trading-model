@@ -1,4 +1,4 @@
-import type { ILifecycle } from "@trading-model/common/contracts/service-registry.types";
+import type { ILifecycle } from "@trading-model/validation/contracts/service-registry.types";
 import type { RedisBackendLifecycle } from "./redis-backend-lifecycle";
 
 export class LifecycleService implements ILifecycle {

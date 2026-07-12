@@ -1,12 +1,12 @@
-﻿import { logger } from "@trading-model/common/config/logger";
-import {
-	isTerminalStatus,
-	JobStatus,
-} from "@trading-model/common/contracts/recovery.types";
+import { logger } from "@trading-model/common/config/logger";
 import {
 	type JobId,
 	PositiveInt,
 } from "@trading-model/common/domain/primitives";
+import {
+	isTerminalStatus,
+	JobStatus,
+} from "@trading-model/validation/contracts/recovery.types";
 
 import { ENV } from "../config/env";
 import type { JobRepository } from "../persistence/job-repository";

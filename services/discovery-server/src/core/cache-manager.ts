@@ -1,9 +1,9 @@
 import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
-import type { ServiceInstance } from "@trading-model/common/contracts/service-registry.types";
 import type { DurationMs } from "@trading-model/common/domain/primitives";
 import type { ISyncCache } from "@trading-model/common/utils/cache";
 import type { CacheConfig } from "@trading-model/common/utils/cache-config";
 import { LruCache } from "@trading-model/common/utils/lru-cache";
+import type { ServiceInstance } from "@trading-model/validation/contracts/service-registry.types";
 
 export class CacheManager implements ISyncCache<ServiceInstance[]> {
 	private _cache: LruCache<ServiceInstance[]>;

@@ -13,13 +13,11 @@ export interface ActionMapperConfig {
 
 type ActionSpaceStrategy = (output: Float32Array, amount: Volume) => ActionMap;
 
-const HOLD_ACTION_INDEX = 1;
-
-const DISCRETE_ACTIONS: readonly TradeAction[] = [
-	TradeAction.Sell,
-	TradeAction.Hold,
-	TradeAction.Buy,
-];
+const DISCRETE_ACTIONS: ReadonlyMap<number, TradeAction> = new Map([
+	[0, TradeAction.Sell],
+	[1, TradeAction.Hold],
+	[2, TradeAction.Buy],
+]);
 
 const ACTION_SPACE_STRATEGIES: Record<ActionSpace, ActionSpaceStrategy> = {
 	[ActionSpace.Continuous]: (
@@ -49,8 +47,8 @@ const ACTION_SPACE_STRATEGIES: Record<ActionSpace, ActionSpaceStrategy> = {
 			}
 		}
 		return {
-			action: DISCRETE_ACTIONS[idx] ?? TradeAction.Hold,
-			amount: idx === HOLD_ACTION_INDEX ? Volume.zero() : Volume.of(amount),
+			action: DISCRETE_ACTIONS.get(idx) ?? TradeAction.Hold,
+			amount: idx === 1 ? Volume.zero() : Volume.of(amount),
 		};
 	},
 };

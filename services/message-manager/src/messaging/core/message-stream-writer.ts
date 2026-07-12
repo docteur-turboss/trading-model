@@ -1,6 +1,7 @@
-﻿import type { Message } from "@trading-model/common/contracts/message.types";
 import type { Topic } from "@trading-model/common/domain/primitives";
 import { safeStringify } from "@trading-model/common/utils/safe-stringify";
+import type { Message } from "@trading-model/validation/contracts/message.types";
+import type { RedisKeyBuilder } from "../../infrastructure/redis/redis-key-builder";
 
 import { RedisStreamStore } from "./redis-stream-store";
 import { WalFallbackHandler } from "./wal-fallback-handler";
@@ -18,10 +19,10 @@ export class MessageStreamWriter {
 	private readonly _serializer: PayloadSerializer;
 
 	constructor(
-		private readonly _prefix: string,
+		private readonly _keys: RedisKeyBuilder,
 		private readonly _walFlusher: WalFlusherService
 	) {
-		this._streamStore = new RedisStreamStore(this._prefix);
+		this._streamStore = new RedisStreamStore(this._keys);
 		this._walFallback = new WalFallbackHandler(this._walFlusher);
 		this._serializer = new PayloadSerializer();
 	}

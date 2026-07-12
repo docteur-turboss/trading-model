@@ -7,9 +7,14 @@ import type { FeatureVector } from "../feature-vector";
 import { ConnectionType, InitialisationType } from "../neural-network/type";
 import type { DeepReadonly, LamarckGenome } from "./shared-types";
 
+export interface StepInput {
+	features: FeatureVector;
+	price: Price;
+}
+
 export interface RLBackend {
 	forwardPass(features: FeatureVector): Float32Array;
-	step(features: FeatureVector, price: Price): { reward: number };
+	step(input: StepInput): { reward: number };
 	train(experience: Experience, gamma: number): void;
 	getWeights(): Float32Array;
 	setWeights(weights: Float32Array): void;
@@ -106,7 +111,7 @@ export function makeTradingAgentBackend(
 	return {
 		forwardPass: (features) =>
 			agent.forwardPass(features.toFloat32Array()).output,
-		step: (features, price) => agent.step(features.toFloat32Array(), price),
+		step: (input) => agent.step(input.features.toFloat32Array(), input.price),
 		train: _makeTrainFn(agent),
 		getWeights: () => agent.getWeights(),
 		setWeights: (weights) => agent.setWeights(weights),

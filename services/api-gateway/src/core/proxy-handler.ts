@@ -2,12 +2,12 @@ import crypto from "node:crypto";
 import type http from "node:http";
 import https from "node:https";
 import { logger } from "@trading-model/common/config/logger";
-import type { ResolvedEndpoint } from "@trading-model/common/contracts/service-resolver.types";
-import { CryptoAlg } from "@trading-model/common/crypto/crypto-constants";
 import { toHostPortAddress } from "@trading-model/common/domain/service-identity";
 import { HTTP_HEADERS } from "@trading-model/common/http-headers";
 import type { HttpStatusCode } from "@trading-model/common/http-status";
 import { HTTP_STATUS } from "@trading-model/common/http-status";
+import { CryptoAlg } from "@trading-model/crypto/crypto/crypto-constants";
+import type { ResolvedEndpoint } from "@trading-model/validation/contracts/service-resolver.types";
 import type { Request } from "express";
 import { ENV } from "../config/env";
 

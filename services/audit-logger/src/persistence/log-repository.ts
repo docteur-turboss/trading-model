@@ -1,5 +1,4 @@
 import type { LogLevel } from "@trading-model/common/config/log-types";
-import type { HttpMethod } from "@trading-model/common/contracts/signed-request";
 import {
 	computePagination,
 	type PaginationResult,
@@ -17,6 +16,7 @@ import type {
 	Version,
 } from "@trading-model/common/domain/primitives";
 import type { HttpStatusCode } from "@trading-model/common/http-status";
+import type { HttpMethod } from "@trading-model/validation/contracts/signed-request";
 import type { Collection, Db } from "mongodb";
 
 import { LogIndexManager } from "./log-index-manager";

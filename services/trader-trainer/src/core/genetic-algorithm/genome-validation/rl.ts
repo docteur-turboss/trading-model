@@ -1,9 +1,11 @@
+import { NumericRange } from "@trading-model/common/domain/numeric-range";
 import type {
 	Percentage,
 	PositiveInt,
 	Probability,
 } from "@trading-model/common/domain/primitives";
-import { createBounded } from "../bounded";
+import { NoiseStd } from "@trading-model/common/domain/primitives/noise-std";
+import { Temperature } from "@trading-model/common/domain/primitives/temperature";
 import type {
 	ContinuousPolicyGenome,
 	DiscretePolicyGenome,
@@ -34,13 +36,13 @@ function validateRewardShaping(
 	ctx: ValidationContext,
 	rs: RewardShapingGenome
 ): void {
-	if (!rs.clipBounds || rs.clipBounds.min >= rs.clipBounds.max) {
+	if (!rs.clipBounds || rs.clipBounds.lo >= rs.clipBounds.hi) {
 		err(
 			{ ...ctx, path: "rl.rewardShapingenome.clip" },
-			"clipBounds.min must be < clipBounds.max",
+			"clipBounds.lo must be < clipBounds.hi",
 			{
-				clipMin: rs.clipBounds?.min,
-				clipMax: rs.clipBounds?.max,
+				clipMin: rs.clipBounds?.lo,
+				clipMax: rs.clipBounds?.hi,
 			}
 		);
 	}
@@ -93,13 +95,13 @@ function validateContinuousPolicy(
 	ctx: ValidationContext,
 	cp: ContinuousPolicyGenome
 ): void {
-	if (!cp.clipBounds || cp.clipBounds.min >= cp.clipBounds.max) {
+	if (!cp.clipBounds || cp.clipBounds.lo >= cp.clipBounds.hi) {
 		err(
 			{ ...ctx, path: "rl.continuousPolicy.clip" },
-			"clipBounds.min must be < clipBounds.max",
+			"clipBounds.lo must be < clipBounds.hi",
 			{
-				clipMin: cp.clipBounds?.min,
-				clipMax: cp.clipBounds?.max,
+				clipMin: cp.clipBounds?.lo,
+				clipMax: cp.clipBounds?.hi,
 			}
 		);
 	}
@@ -134,11 +136,11 @@ function validateReplayBuffer(
 }
 
 function repairRewardShaping(rs: RewardShapingGenome): RewardShapingGenome {
-	const rawMin = rs.clipBounds?.min ?? -1;
-	const rawMax = rs.clipBounds?.max ?? 1;
+	const rawMin = rs.clipBounds?.lo ?? -1;
+	const rawMax = rs.clipBounds?.hi ?? 1;
 	return {
 		...rs,
-		clipBounds: createBounded(
+		clipBounds: new NumericRange(
 			Math.min(rawMin, rawMax - 1e-6),
 			Math.max(rawMax, rawMin + 1e-6)
 		),
@@ -166,22 +168,22 @@ function repairDiscretePolicy(dp: DiscretePolicyGenome): DiscretePolicyGenome {
 		epsilonStart: clamp(dp.epsilonStart ?? 1.0, 0.1, 1.0) as Probability,
 		epsilonMin: clamp(dp.epsilonMin ?? 0.05, 0.001, 0.2) as Probability,
 		epsilonDecay: clamp(dp.epsilonDecay ?? 0.995, 0.9, 0.9999) as Probability,
-		temperature: Math.max(0.01, dp.temperature ?? 1.0),
+		temperature: Temperature.of(Math.max(0.01, dp.temperature ?? 1.0)),
 	};
 }
 
 function repairContinuousPolicy(
 	cp: ContinuousPolicyGenome
 ): ContinuousPolicyGenome {
-	const rawMin = cp.clipBounds?.min ?? -1;
-	const rawMax = cp.clipBounds?.max ?? 1;
+	const rawMin = cp.clipBounds?.lo ?? -1;
+	const rawMax = cp.clipBounds?.hi ?? 1;
 	return {
 		type: cp.type ?? ContinuousPolicyType.TanhSquashing,
-		clipBounds: createBounded(
+		clipBounds: new NumericRange(
 			Math.min(rawMin, rawMax - 1e-6),
 			Math.max(rawMax, rawMin + 1e-6)
 		),
-		noiseStd: Math.max(0.001, cp.noiseStd ?? 0.1),
+		noiseStd: NoiseStd.of(Math.max(0.001, cp.noiseStd ?? 0.1)),
 		noiseDecay: clamp(cp.noiseDecay ?? 0.999, 0.9, 0.9999) as Probability,
 	};
 }

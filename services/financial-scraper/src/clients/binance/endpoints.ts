@@ -14,50 +14,75 @@ export interface BinanceEndpointQuery {
 	endTime?: UnixTimestamp;
 }
 
+function buildUrl(
+	path: string,
+	params?: Record<string, string | number | undefined>
+): string {
+	const defined: Record<string, string> = {};
+	if (params) {
+		for (const [key, value] of Object.entries(params)) {
+			if (value !== undefined) {
+				defined[key] = String(value);
+			}
+		}
+	}
+	const qs = new URLSearchParams(defined).toString();
+	return qs ? `${path}?${qs}` : path;
+}
+
+function buildArraySymbolQuery(symbols: TradingSymbol[]): string {
+	return `[${symbols.map((entry) => `"${entry}"`)}]`;
+}
+
+function arraySymbolEndpoint(path: string, symbol?: TradingSymbol[]): string {
+	if (!symbol || symbol.length === 0) return path;
+	return `${path}?symbols=${encodeURIComponent(buildArraySymbolQuery(symbol))}`;
+}
+
 export const BINANCE_ENDPOINTS = {
 	depth: (query?: BinanceEndpointQuery): string =>
-		query?.symbol && query?.limit
-			? `/api/v3/depth?symbol=${query.symbol}&limit=${query.limit}`
-			: "/api/v3/depth",
+		buildUrl("/api/v3/depth", {
+			symbol: query?.symbol,
+			limit: query?.limit,
+		}),
 
 	trades: (query?: BinanceEndpointQuery): string =>
-		query?.symbol && query?.limit
-			? `/api/v3/trades?symbol=${query.symbol}&limit=${query.limit}`
-			: "/api/v3/trades",
+		buildUrl("/api/v3/trades", {
+			symbol: query?.symbol,
+			limit: query?.limit,
+		}),
 
 	historicalTrades: (query?: BinanceEndpointQuery): string =>
-		query?.symbol && query?.limit && query?.fromId
-			? `/api/v3/historicalTrades?symbol=${query.symbol}&limit=${query.limit}&fromId=${query.fromId}`
-			: "/api/v3/historicalTrades",
+		buildUrl("/api/v3/historicalTrades", {
+			symbol: query?.symbol,
+			limit: query?.limit,
+			fromId: query?.fromId,
+		}),
 
 	compressedAggregateTrades: (query?: BinanceEndpointQuery): string =>
-		query?.symbol && query?.fromId && query?.limit
-			? `/api/v3/aggTrades?symbol=${query.symbol}&fromId=${query.fromId}&limit=${query.limit}`
-			: "/api/v3/aggTrades",
+		buildUrl("/api/v3/aggTrades", {
+			symbol: query?.symbol,
+			fromId: query?.fromId,
+			limit: query?.limit,
+		}),
 
 	candlesticks: (query?: BinanceEndpointQuery & SymbolInterval): string =>
-		query?.symbol && query?.interval && query?.startTime && query?.limit
-			? `/api/v3/klines?symbol=${query.symbol}&interval=${query.interval}&startTime=${query.startTime}&limit=${query.limit}`
-			: "/api/v3/klines",
-	/**
-	 * 24hr ticker price change statistics.
-	 * @param symbol {string[]} - list of symbols to fetch stats for
-	 * @returns {string} - the full endpoint
-	 */
+		buildUrl("/api/v3/klines", {
+			symbol: query?.symbol,
+			interval: query?.interval,
+			startTime: query?.startTime,
+			limit: query?.limit,
+		}),
+
 	change24hrStats: (symbol?: TradingSymbol[]): string =>
-		symbol && symbol.length > 0
-			? `/api/v3/ticker/24hr?symbols=${encodeURIComponent(`[${symbol.map((entry) => `"${entry}"`)}]`)}`
-			: "/api/v3/ticker/24hr",
+		arraySymbolEndpoint("/api/v3/ticker/24hr", symbol),
+
 	tradingDayTicker: (symbol?: TradingSymbol[]): string =>
-		symbol && symbol.length > 0
-			? `/api/v3/ticker/tradingDay?symbols=${encodeURIComponent(`[${symbol.map((entry) => `"${entry}"`)}]`)}`
-			: "/api/v3/ticker/tradingDay",
+		arraySymbolEndpoint("/api/v3/ticker/tradingDay", symbol),
+
 	symbolPriceTicker: (symbol?: TradingSymbol[]): string =>
-		symbol && symbol.length > 0
-			? `/api/v3/ticker/price?symbols=${encodeURIComponent(`[${symbol.map((entry) => `"${entry}"`)}]`)}`
-			: "/api/v3/ticker/price",
+		arraySymbolEndpoint("/api/v3/ticker/price", symbol),
+
 	orderBookTicker: (symbol?: TradingSymbol[]): string =>
-		symbol && symbol.length > 0
-			? `/api/v3/ticker/bookTicker?symbols=${encodeURIComponent(`[${symbol.map((entry) => `"${entry}"`)}]`)}`
-			: "/api/v3/ticker/bookTicker",
+		arraySymbolEndpoint("/api/v3/ticker/bookTicker", symbol),
 };

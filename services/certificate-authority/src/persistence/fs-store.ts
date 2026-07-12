@@ -1,8 +1,8 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { logger } from "@trading-model/common/config/logger";
-import { CryptoAlg } from "@trading-model/common/crypto/crypto-constants";
 import { FilePath } from "@trading-model/common/domain/primitives";
+import { CryptoAlg } from "@trading-model/crypto/crypto/crypto-constants";
 import {
 	AesEncryption,
 	buildEncryption,
@@ -46,7 +46,10 @@ class RealFsStore implements FsStore {
 			options.baseDir ??
 			FilePath.of(path.join(process.cwd(), "data", "ca-fallback"));
 		this._encryption = options.encryption ?? NOOP_ENCRYPTION;
-		this._fileReader = new FallbackFileReader(this._baseDir, this._encryption);
+		this._fileReader = new FallbackFileReader({
+			baseDir: this._baseDir,
+			encryption: this._encryption,
+		});
 	}
 
 	async init(): Promise<void> {

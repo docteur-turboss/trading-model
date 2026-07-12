@@ -1,5 +1,5 @@
-﻿import type { TradeData } from "@trading-model/common/config/event.types";
-import { TradeSide } from "@trading-model/common/contracts/market-data.types";
+import type { TradeData } from "@trading-model/common/config/event.types";
+import { TradeSide } from "@trading-model/validation/contracts/market-data.types";
 import type { FeatureContext } from "../feature-context";
 
 function filterRecentTrades(

@@ -1,4 +1,4 @@
-import { createBootstrap } from "@trading-model/common/server/bootstrap";
+import { createBootstrap } from "@trading-model/server-utils/server/bootstrap";
 import { ENV } from "../config/env";
 import { LeaseManager } from "../core/lease-manager";
 import { ServiceRegistry } from "../core/service-registry";

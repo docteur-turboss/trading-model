@@ -1,5 +1,4 @@
 import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
-import { generateInstanceId } from "@trading-model/common/crypto/token-service";
 import type {
 	InstanceId,
 	ServiceId,
@@ -7,6 +6,7 @@ import type {
 import { toServiceId } from "@trading-model/common/domain/primitives";
 import type { ServiceEndpoint } from "@trading-model/common/domain/service-identity";
 import type { TokenValidation } from "@trading-model/common/domain/token-validation";
+import { generateInstanceId } from "@trading-model/crypto/crypto/token-service";
 import type Redis from "ioredis";
 import type { RedisKeyBuilder } from "./redis-key-builder";
 import type { TokenService } from "./token-service";

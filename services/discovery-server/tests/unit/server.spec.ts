@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 
-jest.mock("@trading-model/common/server/create-secure-server", () => ({
+jest.mock("@trading-model/server-utils/server/create-secure-server", () => ({
 	createSecureServer: jest.fn(),
 	buildTlsFromEnv: jest.fn(() => ({
 		keyPath: "/certs/key.pem",
@@ -35,7 +35,7 @@ describe("createServer", () => {
 
 	it("should create a secure server with full config", () => {
 		const { createSecureServer } = jest.requireMock(
-			"@trading-model/common/server/create-secure-server"
+			"@trading-model/server-utils/server/create-secure-server"
 		) as { createSecureServer: jest.Mock };
 		const mockServer = { close: jest.fn() };
 		createSecureServer.mockReturnValue(mockServer);
@@ -56,7 +56,7 @@ describe("createServer", () => {
 
 	it("should register heartbeat and registry routes", () => {
 		const { createSecureServer } = jest.requireMock(
-			"@trading-model/common/server/create-secure-server"
+			"@trading-model/server-utils/server/create-secure-server"
 		) as { createSecureServer: jest.Mock };
 		const { HEARTBEAT_ROUTES } = jest.requireMock(
 			"../../src/routes/heartbeat.routes"

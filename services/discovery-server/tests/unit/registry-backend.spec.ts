@@ -1,5 +1,5 @@
 import { describe, expect, it } from "@jest/globals";
-import type { ServiceInstance } from "@trading-model/common/contracts/service-registry.types";
+import type { ServiceInstance } from "@trading-model/validation/contracts/service-registry.types";
 import { InMemoryRegistryBackend } from "../../src/core/registry-backend";
 
 function makeInstance(overrides?: Partial<ServiceInstance>): ServiceInstance {

@@ -1,11 +1,11 @@
 import { logger } from "@trading-model/common/config/logger";
 import { toInstanceId } from "@trading-model/common/domain/primitives";
-import { createBootstrap } from "@trading-model/common/server/bootstrap";
+import { normalizeError } from "@trading-model/common/utils/errors";
+import { createBootstrap } from "@trading-model/server-utils/server/bootstrap";
 import {
 	initializeTelemetry,
 	shutdownTelemetry,
-} from "@trading-model/common/server/telemetry";
-import { normalizeError } from "@trading-model/common/utils/errors";
+} from "@trading-model/server-utils/server/telemetry";
 import { AddressManager } from "../config/address-manager";
 import { closeDb, getDb, resetDbState } from "../config/db";
 import { ENV } from "../config/env";

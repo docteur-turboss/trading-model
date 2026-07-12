@@ -1,11 +1,11 @@
-﻿import { logger } from "@trading-model/common/config/logger";
-import { JobStatus } from "@trading-model/common/contracts/recovery.types";
-import type { WorkerRegistration } from "@trading-model/common/contracts/worker-protocol.types";
+import { logger } from "@trading-model/common/config/logger";
 import {
 	type JobId,
 	PositiveInt,
 	toInstanceId,
 } from "@trading-model/common/domain/primitives";
+import { JobStatus } from "@trading-model/validation/contracts/recovery.types";
+import type { WorkerRegistration } from "@trading-model/validation/contracts/worker-protocol.types";
 import { ENV } from "../config/env";
 import type { JobRepository } from "../persistence/job-repository";
 import type { Job } from "../types/job.types";

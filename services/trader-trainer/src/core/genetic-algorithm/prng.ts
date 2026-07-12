@@ -1,1 +1,1 @@
-export { makePRNG } from "@trading-model/common/crypto/prng";
+export { makePRNG } from "@trading-model/crypto/crypto/prng";

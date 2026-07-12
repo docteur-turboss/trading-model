@@ -12,6 +12,54 @@
 4. **Memory Optimization**: Dynamically allocate population size based on available physical memory
 5. **Agent Export**: Deploy best agents to Trader-Executor via Message Manager library or direct HTTPS
 
+### Why This Approach
+
+| Challenge | Solution |
+| --------- | -------- |
+| Trading is a high-dimensional sequential decision problem | Deep Q-Learning handles state-action value approximation |
+| Optimal architecture (layers, neurons, activations) is unknown | GA searches the topology space automatically |
+| RL hyperparameters (lr, gamma, epsilon decay) are hard to tune | GA mutates/crossovers them alongside architecture |
+| Single training run may produce brittle agents | Population-based evolution with Pareto archive preserves diverse solutions |
+| Overfitting to recent market conditions | Walk-forward validation on held-out windows |
+
+---
+
+### Termination Conditions
+
+The GA loop stops when **any** of these conditions is met (checked in order):
+
+1. `bestFitness >= rewardThreshold` — target fitness reached
+2. `stagnation >= stagnationPatience` — no improvement for N generations
+3. `generation >= maxGenerations` — max generations reached
+4. `elapsedMs >= timeBudgetMs` — time budget exhausted
+
+---
+
+### Service Dependencies
+
+**Message Manager** (`@trading-model/broker-message`): Primary data source. Subscribes to market data events via callback.
+
+| Event | Data | Frequency |
+| ----- | ---- | --------- |
+| `fetchCandlestickSeries` | OHLCV arrays | Periodic |
+| `fetchRecentTrades` | Trade arrays | Real-time |
+| `fetchOrderBookSnapshot` | Order book depth | Snapshot |
+| `fetchOrderBookTickerSnapshot` | Best bid/ask | Real-time |
+| `fetch24hrTickerStats` | 24h statistics | Periodic |
+| `fetchPriceTickerSnapshot` | Current prices | Real-time |
+
+**Address Manager** (`@trading-model/address-manager`): Service discovery and health monitoring. Every instance registers with the address manager for dynamic endpoint resolution, health check pings, and TTL management.
+
+**Trader-Executor** (output): The best trained agent is exposed via `/best-agent` REST endpoint for the consuming service to poll or receive.
+
+---
+
+### Health Checks
+
+- **Service ping**: Address manager pings each instance to verify liveness
+- **`/ping` endpoint**: Returns 200 when service is alive
+- **`/training-status` endpoint**: Shows if training is active, on which symbol, and current generation
+
 ---
 
 ## System Architecture
@@ -52,9 +100,6 @@
 ## Directory Structure
 
 ```
-
-```
-
 services/trader-trainer/
 ├── src/
 │ ├── app/
@@ -130,11 +175,10 @@ services/trader-trainer/
 │ └── index.ts # Public API barrel export
 │
 ├── docs/ # Technical documentation
+│ ├── API.md
 │ ├── GENETIC_ALGORITHM.md
 │ ├── NEURAL_NETWORK.md
-│ ├── TRAINING_PROCESS.md
-│ ├── API.md
-│ └── INTEGRATION.md
+│ └── TRAINING_PROCESS.md
 │
 ├── package.json # Dependencies
 ├── tsconfig.json # TypeScript config
@@ -436,6 +480,44 @@ return best_genome_from(P)
 
 ---
 
+## Key Design Decisions
+
+### 1. Lamarckian Evolution (Weight Inheritance)
+
+After each evaluation window, trained neural network weights are **frozen back** into the genome (`trainedWeights`). Offspring inherit these weights (via crossover + mutation), so each generation builds on the knowledge of the previous one rather than starting from scratch.
+
+**File**: `ga-runner.ts` (`lamarckianUpdate`)
+
+### 2. Walk-Forward Validation
+
+Each symbol's market data is split into `train` (80%) and `validation` (20%) windows. The agent learns on `train` data via Q-learning, but fitness is computed **only on `validation` data** — guaranteeing out-of-sample evaluation.
+
+**File**: `ga-runner.ts` (`WindowSet` type)
+
+### 3. NSGA-II Multi-Objective Optimization
+
+Three competing objectives are optimized simultaneously: **avgPnl** (maximize), **sharpe** (maximize), **negFlops** (minimize complexity). Non-dominated sorting preserves solutions that excel in different trade-offs. A persistent `ParetoArchive` keeps the best solutions across generations.
+
+**File**: `pareto-engine.ts`
+
+### 4. Self-Adaptive GA Control
+
+GA meta-parameters (population size, elitism fraction, episodes per individual) are **themselves evolved** during training. The `adaptGAControl` function adjusts them based on stagnation and improvement history.
+
+**File**: `adaptive-control-system.ts`
+
+### 5. Immutable Genome Architecture
+
+All genome operations produce **new frozen objects** using `deepFreeze`. This eliminates mutation bugs and enables safe concurrent evaluation across the population.
+
+### 6. Pooled Parallel Evaluation
+
+Genomes are evaluated concurrently with a configurable concurrency cap (`evalConcurrency`, default 4). Each genome creates its own `RLBackend` (TradingAgent), runs Q-learning training, then evaluates on validation data.
+
+**File**: `ga-runner.ts` (`pooledEval`)
+
+---
+
 ## Integration with Microservices
 
 ### Input: Real Market Data
@@ -463,6 +545,44 @@ Trader-Executor Service
     ↓
 Live trading execution
 ```
+
+#### Agent Export Format
+
+The best agent summary (available at `/best-agent`) contains all fields needed to reconstruct and deploy:
+
+```typescript
+const agent = new TradingAgent({
+  nnConfig: {
+    neuronsByLayer: [
+      summary.network.inputDim,
+      ...summary.network.hiddenLayers.map(l => l.neurons),
+      summary.network.outputDim,
+    ],
+    activationFunctions: summary.network.hiddenLayers.map(l => l.activation),
+  },
+  wallet: { initialCash: 1000, initialPrice: 1 },
+  actionSpace: 'discrete',
+  tradeAmount: 1,
+  stateManagerCfg: {
+    epsilonStart: summary.rl.epsilonStart,
+    epsilonMin: summary.rl.epsilonMin,
+    epsilonDecay: summary.rl.epsilonDecay,
+    gamma: summary.rl.gamma,
+  },
+});
+```
+
+For complete agent reconstruction (with trained weights), the `trainedWeights` field would need to be exported — this is currently internal but can be added to the API response.
+
+#### Adding New Market Data Sources
+
+To consume additional market data:
+
+1. Add event type to imports in `app/index.ts`
+2. Subscribe in the `onStart` handler
+3. Add to `MessageManager.intents()` array
+4. Process data in `MarketDataBuffer` (add new normalizer if needed)
+5. Add feature dimension in `buildFeatures()` if new data is used as input
 
 ---
 
@@ -549,7 +669,7 @@ type SelectionType = 'tournament' | 'roulette' | 'rank' | 'sus';
 
 ## Code Standards
 
-See [CODE_OF_CONDUCT.md](../../docs/CODE_OF_CONDUCT.md) for:
+See [Monorepo Standards](../../docs/standards/README.md) for:
 
 - Naming conventions
 - File organization

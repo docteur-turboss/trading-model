@@ -1,8 +1,9 @@
-import type { Normalizer } from "./normalizer-interface";
+import type { DataSlice, Normalizer } from "./normalizer-interface";
 import { _findMinMax } from "./shared";
 
 export class MinMaxNormalizer implements Normalizer {
-	normalize(data: Float32Array, len: number): Float32Array {
+	normalize(slice: DataSlice): Float32Array {
+		const { data, len } = slice;
 		const { lo: min, hi: max } = _findMinMax(data);
 		const range = 1 / (max - min) || 1;
 		for (let i = 0; i < len; i++) {

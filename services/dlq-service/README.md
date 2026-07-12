@@ -30,7 +30,7 @@ Requires MongoDB 7+ and Redis 7+.
 
 ## API
 
-See [API doc](../../docs/architecture/api/dlq-service.md) for full endpoint reference.
+See [API doc](../../docs/services/dlq-service.md) for full endpoint reference.
 
 ## Architecture
 

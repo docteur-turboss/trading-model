@@ -1,7 +1,7 @@
-﻿import type { Message } from "@trading-model/common/contracts/message.types";
 import type { Topic } from "@trading-model/common/domain/primitives";
-
+import type { Message } from "@trading-model/validation/contracts/message.types";
 import { getStreamClient } from "../../config/redis";
+import type { RedisKeyBuilder } from "../../infrastructure/redis/redis-key-builder";
 import type { MessageQuery } from "./messaging-types";
 import type {
 	GetMessagesBetweenParams,
@@ -9,10 +9,10 @@ import type {
 } from "./stream-group-manager";
 
 export class StreamMessageReader {
-	constructor(private readonly _prefix: string) {}
+	constructor(private readonly _keys: RedisKeyBuilder) {}
 
 	private _streamKey(topic: Topic): string {
-		return `${this._prefix}stream:${topic}`;
+		return this._keys.key("stream", topic);
 	}
 
 	async readFromGroup(

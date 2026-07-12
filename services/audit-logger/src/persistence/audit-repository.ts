@@ -1,5 +1,4 @@
 import type { EventEnumMap } from "@trading-model/common/config/event.types";
-import type { AuditFilter } from "@trading-model/common/contracts/admin/audit.dto";
 import type { DateRange } from "@trading-model/common/domain/date-range";
 import type {
 	PaginationQuery,
@@ -13,6 +12,7 @@ import type {
 	Topic,
 } from "@trading-model/common/domain/primitives";
 import { agentError } from "@trading-model/common/utils/errors";
+import type { AuditFilter } from "@trading-model/validation/contracts/admin/audit.dto";
 import type { Collection, Db } from "mongodb";
 import { AuditQuerier } from "./audit-querier";
 

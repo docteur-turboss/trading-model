@@ -1,4 +1,7 @@
 import { describe, expect, it, jest } from "@jest/globals";
+import { RedisKeyBuilder } from "../../../../src/infrastructure/redis/redis-key-builder";
+
+const testKeys = new RedisKeyBuilder("test:");
 
 // These tests target specific uncovered branches without importing complex deps
 
@@ -86,7 +89,7 @@ describe("pending-ack-store branches", () => {
 			const {
 				PendingAckStore,
 			} = require("../../../../src/messaging/core/pending-ack-store");
-			const store = new PendingAckStore("test:");
+			const store = new PendingAckStore(testKeys);
 			return store.recoverStale("i1", 120000).then((count: number) => {
 				expect(count).toBe(1);
 			});
@@ -102,7 +105,7 @@ describe("pending-ack-store branches", () => {
 			const {
 				PendingAckStore,
 			} = require("../../../../src/messaging/core/pending-ack-store");
-			const store = new PendingAckStore("test:");
+			const store = new PendingAckStore(testKeys);
 			return store.recoverStale("i1", 120000).then((count: number) => {
 				expect(count).toBe(0);
 			});

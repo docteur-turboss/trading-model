@@ -1,10 +1,10 @@
-﻿import type { DlqEntry } from "@trading-model/common/contracts/dlq.types";
 import {
 	SequenceNumber,
 	Topic,
 	type UnixTimestamp,
 } from "@trading-model/common/domain/primitives";
 import { AppError } from "@trading-model/common/utils/errors";
+import type { DlqEntry } from "@trading-model/validation/contracts/dlq.types";
 import type { Document, WithId } from "mongodb";
 import { getCollection } from "../config/db";
 import { DlqEntryWriter, dlqCapacityError } from "./dlq-entry-writer";

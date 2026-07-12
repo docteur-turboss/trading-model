@@ -1,3 +1,4 @@
+import { DurationMs } from "@trading-model/common/domain/primitives";
 import { EpisodeScores } from "../../src/core/genetic-algorithm/episode-scores";
 import { createDefaultGenome } from "../../src/core/genetic-algorithm/factory";
 import type {
@@ -13,7 +14,7 @@ export function makeMinimalBestGenome(): DeepReadonly<LamarckGenome> {
 export function makeMinimalFitnessMeta(): GenomeFitnessMeta {
 	return {
 		episodesRun: 10,
-		computeMs: 5000,
+		computeMs: DurationMs.of(5000),
 		efficiencyScore: 1.5,
 		variance: 0.1,
 		rawScores: new EpisodeScores([1.0, 1.2, 1.4, 1.6, 1.8]),

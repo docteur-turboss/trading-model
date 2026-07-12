@@ -5,17 +5,17 @@
 	toTopic,
 } from "@trading-model/common/domain/primitives";
 import { normalizeError } from "@trading-model/common/utils/errors";
-
 import { logger } from "../../config/logger";
 import { getSubscriptionClient } from "../../config/redis";
+import type { RedisKeyBuilder } from "../../infrastructure/redis/redis-key-builder";
 import { RedisSubscriptionKeys } from "./redis-subscription-keys";
 import type { SubscriptionEntry } from "./subscription-redis-store";
 
 export class SubscriptionRedisReader {
 	private _keys: RedisSubscriptionKeys;
 
-	constructor(prefix: string) {
-		this._keys = new RedisSubscriptionKeys(prefix);
+	constructor(keys: RedisKeyBuilder) {
+		this._keys = new RedisSubscriptionKeys(keys);
 	}
 
 	async getByTopic(topic: Topic): Promise<SubscriptionEntry[]> {

@@ -26,6 +26,7 @@
   },
   "dependencies": {
     "@trading-model/common": "*",
+    "@trading-model/broker-message": "*",
     "@trading-model/address-manager": "*",
     "@opentelemetry/instrumentation-ioredis": "^0.67.0",
     "axios": "^1.17.0",

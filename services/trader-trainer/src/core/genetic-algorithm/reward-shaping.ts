@@ -1,4 +1,3 @@
-import { clampToBounded } from "./bounded";
 import type { LamarckGenome, MarketStep } from "./genome-types";
 import type { RLBackend } from "./rl-backend";
 import type { DeepReadonly } from "./shared-types";
@@ -10,7 +9,7 @@ function shapeReward(
 ): number {
 	let shaped = raw;
 	if (config.clip) {
-		shaped = clampToBounded(shaped, config.clipBounds);
+		shaped = config.clipBounds.clamp(shaped);
 	}
 	return shaped;
 }
@@ -31,7 +30,10 @@ export interface StepRewardContext {
 
 export function _computeShapedReward(ctx: StepRewardContext): number {
 	const { backend, step, rShape, runStats } = ctx;
-	const { reward } = backend.step(step.features, step.price);
+	const { reward } = backend.step({
+		features: step.features,
+		price: step.price,
+	});
 	let shaped = shapeReward(reward, rShape);
 	if (rShape.normalize) {
 		runStats?.update(shaped);
@@ -70,7 +72,10 @@ export function nStepReturn(
 
 export function _stepAndShapeReward(ctx: StepRewardContext): number {
 	const { backend, step, rShape, runStats } = ctx;
-	const { reward } = backend.step(step.features, step.price);
+	const { reward } = backend.step({
+		features: step.features,
+		price: step.price,
+	});
 	const shaped = shapeReward(reward, rShape);
 
 	if (rShape.normalize && runStats) {

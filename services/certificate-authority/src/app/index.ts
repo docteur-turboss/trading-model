@@ -1,9 +1,9 @@
-﻿import {
+import {
 	DurationMs,
 	FilePath,
 	URLString,
 } from "@trading-model/common/domain/primitives";
-import { createBootstrap } from "@trading-model/common/server/bootstrap";
+import { createBootstrap } from "@trading-model/server-utils/server/bootstrap";
 import { ENV } from "../config/env";
 import { CertificateAuthority } from "../core/ca";
 import { Distributor } from "../core/distributor";

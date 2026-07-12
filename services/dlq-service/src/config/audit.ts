@@ -1,8 +1,8 @@
 import { HttpClient } from "@trading-model/common/config/http-client";
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
-import type { AuditEvent } from "@trading-model/common/contracts/admin/audit.dto";
 import { buildTlsFromEnv } from "@trading-model/common/domain/tls-paths";
 import { CircuitStateMachine } from "@trading-model/common/reliability/circuit-state-machine";
+import type { AuditEvent } from "@trading-model/validation/contracts/admin/audit.dto";
 import { FIND_A_SERVICE } from "./address-manager";
 import { ENV } from "./env";
 import { logger } from "./logger";

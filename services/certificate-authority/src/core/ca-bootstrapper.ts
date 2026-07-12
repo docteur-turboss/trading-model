@@ -4,7 +4,6 @@ import {
 	KeyAlgorithm,
 } from "@trading-model/certificate-utils/generate-key-pair";
 import type { KeyPair } from "@trading-model/certificate-utils/types";
-import { CryptoAlg } from "@trading-model/common/crypto/crypto-constants";
 import {
 	type CaPem,
 	type DurationMs,
@@ -14,6 +13,7 @@ import {
 	toFingerprint,
 	toSerialNumber,
 } from "@trading-model/common/domain/primitives";
+import { CryptoAlg } from "@trading-model/crypto/crypto/crypto-constants";
 import type { CaStore } from "../persistence/ca-store";
 import { CaKeyStore } from "./ca-key-store";
 import { CertBodyBuilder } from "./cert-body-builder";
@@ -63,10 +63,10 @@ export class CaBootstrapper {
 			isCa: true,
 		});
 		return toCaPem(
-			this._certBodyBuilder.signAndBuildPem(
+			this._certBodyBuilder.signAndBuildPem({
 				certBody,
-				params.caKeyPair.privateKey
-			)
+				privateKey: params.caKeyPair.privateKey,
+			})
 		);
 	}
 	private async _bootstrap(caStore: CaStore): Promise<BootstrapResult> {

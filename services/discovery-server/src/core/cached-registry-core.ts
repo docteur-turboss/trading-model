@@ -1,10 +1,10 @@
 import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
+import type { PaginationQuery } from "@trading-model/common/domain/pagination";
+import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
 import type {
 	RegistryBackend,
 	ServiceInstance,
-} from "@trading-model/common/contracts/service-registry.types";
-import type { PaginationQuery } from "@trading-model/common/domain/pagination";
-import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
+} from "@trading-model/validation/contracts/service-registry.types";
 import { BackendPingManager } from "./backend-ping-manager";
 import { CacheManager } from "./cache-manager";
 import { CacheOrchestrator } from "./cache-orchestrator";

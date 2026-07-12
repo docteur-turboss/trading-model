@@ -1,4 +1,3 @@
-import { clampToBounded } from "./bounded";
 import type { RewardShapingGenome } from "./genome-types";
 import { FitnessType } from "./genome-types";
 
@@ -112,7 +111,7 @@ export function shapeReward(raw: number, cfg: RewardShapingGenome): number {
 		result *= cfg.scaleFactor;
 	}
 	if (cfg.clip) {
-		result = clampToBounded(result, cfg.clipBounds);
+		result = cfg.clipBounds.clamp(result);
 	}
 	return result;
 }

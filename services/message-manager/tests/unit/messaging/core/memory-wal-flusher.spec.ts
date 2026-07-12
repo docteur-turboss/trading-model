@@ -20,6 +20,7 @@ jest.mock("../../../../src/config/redis", () => ({
 }));
 
 import { getStreamClient } from "../../../../src/config/redis";
+import { RedisKeyBuilder } from "../../../../src/infrastructure/redis/redis-key-builder";
 import type { MemoryWalEntry } from "../../../../src/messaging/core/memory-wal-entry";
 import { MemoryWalFlusher } from "../../../../src/messaging/core/memory-wal-flusher";
 
@@ -46,7 +47,7 @@ function makeEntry(overrides?: Partial<MemoryWalEntry>): MemoryWalEntry {
 		serialized: '{"hello":"world"}',
 		message: {
 			type: "test",
-		} as unknown as import("@trading-model/common/contracts/message.types").Message,
+		} as unknown as import("@trading-model/validation/contracts/message.types").Message,
 		...overrides,
 	};
 }
@@ -61,7 +62,7 @@ describe("MemoryWalFlusher", () => {
 		(getStreamClient as jest.Mock<() => Promise<unknown>>).mockResolvedValue(
 			mockRedis
 		);
-		flusher = new MemoryWalFlusher("test:");
+		flusher = new MemoryWalFlusher(new RedisKeyBuilder("test:"));
 		buffer = [];
 	});
 

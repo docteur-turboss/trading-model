@@ -1,4 +1,3 @@
-﻿import type { Message } from "@trading-model/common/contracts/message.types";
 import type {
 	ConsumerGroupName,
 	ConsumerId,
@@ -8,6 +7,7 @@ import type {
 	UnixTimestamp,
 	URLString,
 } from "@trading-model/common/domain/primitives";
+import type { Message } from "@trading-model/validation/contracts/message.types";
 
 export interface TopicSubscription {
 	topic: Topic;
@@ -48,3 +48,5 @@ export interface DedupConfig {
 	deduplicationId: string;
 	ttlS: number;
 }
+
+export type { SubscribesTopicsPayload as SubscriptionParams } from "@trading-model/broker-message";

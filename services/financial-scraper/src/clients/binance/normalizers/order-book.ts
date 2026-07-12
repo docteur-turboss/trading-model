@@ -1,13 +1,13 @@
-﻿import {
+import {
 	MarketType,
 	SourceType,
 } from "@trading-model/common/config/event.types";
-import type { OrderBookLevel } from "@trading-model/common/contracts/market-data.types";
 import {
 	Price,
 	UnixTimestamp,
 	Volume,
 } from "@trading-model/common/domain/primitives";
+import type { OrderBookLevel } from "@trading-model/validation/contracts/market-data.types";
 import type { OrderBookData } from "../../../infra/market-data/market-data.types";
 import type {
 	BinanceDepthEntry,

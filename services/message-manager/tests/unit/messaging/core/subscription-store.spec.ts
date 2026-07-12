@@ -102,13 +102,21 @@ describe("SubscriptionStore", () => {
 	});
 
 	it("should add a subscription", async () => {
-		await store.add("test.topic", "/cb", serviceIdentity);
+		await store.add({
+			topic: "test.topic",
+			callbackPath: "/cb",
+			consumerIdentity: serviceIdentity,
+		});
 		expect(mockRedis.multi).toHaveBeenCalled();
 	});
 
 	it("should skip add if subscription exists", async () => {
 		mockRedis.exists.mockResolvedValue(1);
-		await store.add("test.topic", "/cb", serviceIdentity);
+		await store.add({
+			topic: "test.topic",
+			callbackPath: "/cb",
+			consumerIdentity: serviceIdentity,
+		});
 		expect(mockRedis.multi).not.toHaveBeenCalled();
 	});
 

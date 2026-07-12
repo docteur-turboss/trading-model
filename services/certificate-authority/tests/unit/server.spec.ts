@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 
-jest.mock("@trading-model/common/server/create-secure-server", () => ({
+jest.mock("@trading-model/server-utils/server/create-secure-server", () => ({
 	createSecureServer: jest.fn(),
 	buildTlsFromEnv: jest.fn(() => ({
 		key: "/key.pem",
@@ -30,7 +30,7 @@ jest.mock("../../src/routes/health.routes", () => ({
 	healthRoutes: jest.fn(),
 }));
 
-import { createSecureServer } from "@trading-model/common/server/create-secure-server";
+import { createSecureServer } from "@trading-model/server-utils/server/create-secure-server";
 import { createServer } from "../../src/app/server";
 import { certificateRoutes } from "../../src/routes/certificate.routes";
 import { crlRoutes } from "../../src/routes/crl.routes";

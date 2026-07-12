@@ -1,12 +1,4 @@
 import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
-import type {
-	IInstanceQuery,
-	IInstanceRegistration,
-	ILifecycle,
-	ITokenManager,
-	RegistryBackend,
-	ServiceInstance,
-} from "@trading-model/common/contracts/service-registry.types";
 import type { PaginationQuery } from "@trading-model/common/domain/pagination";
 import type {
 	InstanceId,
@@ -17,6 +9,14 @@ import type {
 	ServiceIdentity,
 } from "@trading-model/common/domain/service-identity";
 import type { TokenValidation } from "@trading-model/common/domain/token-validation";
+import type {
+	IInstanceQuery,
+	IInstanceRegistration,
+	ILifecycle,
+	ITokenManager,
+	RegistryBackend,
+	ServiceInstance,
+} from "@trading-model/validation/contracts/service-registry.types";
 import { CachedRegistryBackendProxy } from "./cached-registry-backend-proxy";
 import { CachedRegistryCore } from "./cached-registry-core";
 import { CachedRegistryLifecycle } from "./cached-registry-lifecycle";

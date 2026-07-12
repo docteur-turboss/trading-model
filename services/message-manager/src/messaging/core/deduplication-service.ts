@@ -1,8 +1,8 @@
 ﻿import { REDIS_SET } from "@trading-model/common/persistence/redis-constants";
 import { LruCache } from "@trading-model/common/utils/lru-cache";
-
 import { logger } from "../../config/logger";
 import { getStreamClient } from "../../config/redis";
+import type { RedisKeyBuilder } from "../../infrastructure/redis/redis-key-builder";
 
 export class DeduplicationService {
 	private _localDedupCache = new LruCache<boolean>({
@@ -14,7 +14,7 @@ export class DeduplicationService {
 		ttlMs: 3600_000,
 	});
 
-	constructor(private readonly _prefix: string) {}
+	constructor(private readonly _keys: RedisKeyBuilder) {}
 
 	async tryDeduplicate(
 		deduplicationId: string,
@@ -36,7 +36,7 @@ export class DeduplicationService {
 		ttlS: number
 	): Promise<boolean> {
 		const redis = await getStreamClient();
-		const key = `${this._prefix}dedup:${deduplicationId}`;
+		const key = this._keys.key("dedup", deduplicationId);
 		const result = await redis.set(
 			key,
 			Date.now().toString(),

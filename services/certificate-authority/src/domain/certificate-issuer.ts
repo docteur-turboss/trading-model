@@ -1,11 +1,11 @@
 import type { SignedCertificate } from "@trading-model/certificate-utils/types";
-import type { IDistributedLock } from "@trading-model/common/contracts/distributed-lock.types";
 import type {
 	CsrPem,
 	ServiceId,
 } from "@trading-model/common/domain/primitives";
 import { toServiceId } from "@trading-model/common/domain/primitives";
 import { HTTP_STATUS } from "@trading-model/common/http-status";
+import type { IDistributedLock } from "@trading-model/validation/contracts/distributed-lock.types";
 
 import { CertRenewalError } from "./cert-renewal-service";
 

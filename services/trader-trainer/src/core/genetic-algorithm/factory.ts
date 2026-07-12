@@ -1,3 +1,4 @@
+import { NumericRange } from "@trading-model/common/domain/numeric-range";
 import type { GenomeId } from "@trading-model/common/domain/primitives";
 import {
 	Fitness,
@@ -5,13 +6,15 @@ import {
 	PositiveInt,
 	Probability,
 } from "@trading-model/common/domain/primitives";
+import { NoiseStd } from "@trading-model/common/domain/primitives/noise-std";
+import { Temperature } from "@trading-model/common/domain/primitives/temperature";
 import {
 	ActivationType,
 	ConnectionType,
 	InitialisationType,
 	NormalisationType,
 } from "../neural-network/type";
-import { createBounded } from "./bounded";
+
 import type {
 	ContinuousPolicyGenome,
 	CrossoverGenome,
@@ -65,7 +68,7 @@ export function createNetworkGenome(): NetworkGenome {
 export function createRewardShapingGenome(): RewardShapingGenome {
 	return {
 		clip: false,
-		clipBounds: createBounded(-1, 1),
+		clipBounds: new NumericRange(-1, 1),
 		scale: false,
 		scaleFactor: Percentage.of(1),
 		normalize: false,
@@ -87,15 +90,15 @@ export function createDiscretePolicyGenome(): DiscretePolicyGenome {
 		epsilonStart: Probability.of(1.0),
 		epsilonMin: Probability.of(0.05),
 		epsilonDecay: Probability.of(0.995),
-		temperature: 1.0,
+		temperature: Temperature.of(1.0),
 	};
 }
 
 export function createContinuousPolicyGenome(): ContinuousPolicyGenome {
 	return {
 		type: ContinuousPolicyType.TanhSquashing,
-		clipBounds: createBounded(-1, 1),
-		noiseStd: 0.1,
+		clipBounds: new NumericRange(-1, 1),
+		noiseStd: NoiseStd.of(0.1),
 		noiseDecay: Probability.of(0.999),
 	};
 }

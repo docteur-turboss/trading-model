@@ -1,12 +1,13 @@
 ﻿import type { InstanceId } from "@trading-model/common/domain/primitives";
+import type { RedisKeyBuilder } from "../../infrastructure/redis/redis-key-builder";
 import type { PendingAckData } from "./messaging-types";
 import { PendingAckStore } from "./pending-ack-store";
 
 export class PendingAckFacade {
 	private readonly _pendingAckStore: PendingAckStore;
 
-	constructor(prefix: string) {
-		this._pendingAckStore = new PendingAckStore(prefix);
+	constructor(keys: RedisKeyBuilder) {
+		this._pendingAckStore = new PendingAckStore(keys);
 	}
 
 	recoverStale(ownInstanceId: InstanceId, maxAgeMs = 120_000): Promise<number> {

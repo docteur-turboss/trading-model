@@ -1,12 +1,12 @@
 import { parseServiceName } from "@trading-model/common/config/services.types";
 import {
-	type InstanceId,
 	toInstanceId,
 	toServiceId,
 } from "@trading-model/common/domain/primitives";
+import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
 import { catchSync } from "@trading-model/common/middleware/catch-error";
 import { sendResponse } from "@trading-model/common/middleware/response-exception";
-import { isNonEmptyString } from "@trading-model/common/validation/primitives";
+import { isNonEmptyString } from "@trading-model/validation/validation/primitives";
 import type { RequestHandler } from "express";
 import type { ServiceRegistry } from "../core/service-registry";
 import { buildServiceInstance } from "./register-builder";
@@ -81,12 +81,15 @@ function createGetServiceInstancesHandler(
 
 function _validateRouteParams(
 	req: import("express").Request
-): { serviceName: string; instanceId: InstanceId } | null {
+): ServiceIdentity | null {
 	const { serviceName, instanceId } = req.params;
 	if (!(isNonEmptyString(serviceName) && isNonEmptyString(instanceId))) {
 		return null;
 	}
-	return { serviceName, instanceId: toInstanceId(instanceId) };
+	return {
+		serviceName: toServiceId(serviceName),
+		instanceId: toInstanceId(instanceId),
+	};
 }
 
 function createGetInstanceHandler(registry: ServiceRegistry): RequestHandler {
@@ -95,10 +98,7 @@ function createGetInstanceHandler(registry: ServiceRegistry): RequestHandler {
 		if (!params) {
 			return sendResponse({ error: "Invalid route parameters" }, 400);
 		}
-		const instance = registry.getInstance({
-			serviceName: toServiceId(params.serviceName),
-			instanceId: toInstanceId(params.instanceId),
-		});
+		const instance = registry.getInstance(params);
 		if (!instance) {
 			return sendResponse({ error: "Instance not found" }, 404);
 		}

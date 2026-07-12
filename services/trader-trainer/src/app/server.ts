@@ -4,7 +4,7 @@ import { ResponseException } from "@trading-model/common/middleware/response-exc
 import {
 	buildTlsFromEnv,
 	createSecureServer,
-} from "@trading-model/common/server/create-secure-server";
+} from "@trading-model/server-utils/server/create-secure-server";
 
 import { ADDRESS_MANAGER_ROUTES } from "../config/address-manager";
 import { ENV } from "../config/env";

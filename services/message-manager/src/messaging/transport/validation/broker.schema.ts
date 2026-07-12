@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file broker.schema.ts
  *
  * @description
@@ -23,7 +23,6 @@
 import { DeliveryMode } from "@trading-model/common/config/delivery-mode.types";
 import type { EventEnumMap } from "@trading-model/common/config/event.types";
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
-import type { Signature } from "@trading-model/common/contracts/signed-request";
 import {
 	toCorrelationId,
 	toInstanceId,
@@ -31,15 +30,12 @@ import {
 	toServiceId,
 	toTopic,
 } from "@trading-model/common/domain/primitives";
+import type { Signature } from "@trading-model/validation/contracts/signed-request";
 import { z } from "zod";
 
-/**
- * @description
- * Shared primitive validators for topics, callback paths, and instance IDs
- */
-const TOPIC_SCHEMA = z.string().min(1);
+const TOPIC_SCHEMA = z.string().min(1).transform(toTopic);
 const CALLBACK_PATH_SCHEMA = z.string().min(1);
-const INSTANCE_ID_SCHEMA = z.string().min(1);
+const INSTANCE_ID_SCHEMA = z.string().min(1).transform(toInstanceId);
 
 /**
  * @description

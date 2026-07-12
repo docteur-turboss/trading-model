@@ -1,5 +1,6 @@
 ﻿import { TimerHandle } from "@trading-model/common/utils/timer-handle";
 import { ENV } from "../../config/env";
+import type { RedisKeyBuilder } from "../../infrastructure/redis/redis-key-builder";
 import { FlushFailureHandler } from "./flush-failure-handler";
 import { FlushGuard } from "./flush-guard";
 import type { MemoryWalEntry } from "./memory-wal-entry";
@@ -15,9 +16,9 @@ export class MemoryWalFlusher {
 	private readonly _flushGuard: FlushGuard;
 	private readonly _flushFailureHandler: FlushFailureHandler;
 
-	constructor(readonly _prefix: string) {
+	constructor(readonly _keys: RedisKeyBuilder) {
 		this._walBatchFlusher = new WalBatchFlusher(
-			_prefix,
+			_keys,
 			ENV.REDIS_STREAM_MAXLEN,
 			ENV.REDIS_MESSAGE_TTL_S
 		);

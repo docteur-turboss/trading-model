@@ -1,5 +1,5 @@
 import type { Cash } from "@trading-model/common/domain/primitives";
-import type { PortfolioState } from "./portfolio-state";
+import type { PortfolioState, ValuationConfig } from "./portfolio-state";
 import { TradeHistory, type TradeRecord } from "./trade-history";
 import { ValuationTracker } from "./valuation-tracker";
 
@@ -9,8 +9,8 @@ export class TradeRecorder {
 	readonly valuationTracker: ValuationTracker;
 	readonly tradeHistory = new TradeHistory();
 
-	constructor(initialCash: Cash, decimals: number) {
-		this.valuationTracker = new ValuationTracker(initialCash, decimals);
+	constructor(config: ValuationConfig) {
+		this.valuationTracker = new ValuationTracker(config);
 	}
 
 	getState(state: PortfolioState): PortfolioState {

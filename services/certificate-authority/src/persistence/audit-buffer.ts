@@ -3,6 +3,12 @@ import { TimerHandle } from "@trading-model/common/utils/timer-handle";
 
 import type { AuditEntry } from "./audit-store";
 
+export interface AuditBufferConfig {
+	maxBuffer?: number;
+	batchSize?: number;
+	flushIntervalMs?: number;
+}
+
 export class AuditBuffer {
 	private readonly _pendingEntries: AuditEntry[] = [];
 	private readonly _flushTimer = new TimerHandle();
@@ -10,10 +16,10 @@ export class AuditBuffer {
 	private readonly _flushIntervalMs: number;
 	readonly batchSize: number;
 
-	constructor(maxBuffer = 5000, batchSize = 200, flushIntervalMs = 5000) {
-		this._maxBuffer = maxBuffer;
-		this.batchSize = batchSize;
-		this._flushIntervalMs = flushIntervalMs;
+	constructor(config?: AuditBufferConfig) {
+		this._maxBuffer = config?.maxBuffer ?? 5000;
+		this.batchSize = config?.batchSize ?? 200;
+		this._flushIntervalMs = config?.flushIntervalMs ?? 5000;
 	}
 
 	get pendingCount(): number {

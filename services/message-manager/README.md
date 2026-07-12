@@ -120,8 +120,8 @@ tests/
 
 ## Architecture
 
-See [docs/architecture.md](./docs/architecture.md) for the detailed architecture documentation.
+See [ARCHITECTURE.md](./ARCHITECTURE.md) for the detailed architecture documentation.
 
 ## API Endpoints
 
-See [docs/api.md](./docs/api.md) for the REST API reference.
+See [API.md](./API.md) for the REST API reference.

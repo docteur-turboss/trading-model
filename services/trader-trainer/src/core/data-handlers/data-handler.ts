@@ -8,15 +8,17 @@ import { tradeHandler } from "./trade-handler";
 
 export { DataType };
 
+export interface MutateStateContext<TData = unknown> {
+	symbol: import("../market-data-types").TradingSymbol;
+	data: TData;
+	state: SymbolState;
+	maxSize?: number;
+}
+
 export interface DataHandler<TData = unknown> {
 	readonly dataType: DataType;
 	updateNorms(state: SymbolState, data: TData): void;
-	mutateState(
-		symbol: import("../market-data-types").TradingSymbol,
-		data: TData,
-		state: SymbolState,
-		maxSize?: number
-	): void;
+	mutateState(ctx: MutateStateContext<TData>): void;
 	serializeNorms(state: SymbolState): Record<string, unknown>;
 }
 

@@ -1,4 +1,5 @@
 import { describe, expect, it, jest } from "@jest/globals";
+import { RedisKeyBuilder } from "../../../../src/infrastructure/redis/redis-key-builder";
 
 jest.mock("../../../../src/config/redis", () => ({
 	getStreamClient: jest.fn().mockResolvedValue({}),
@@ -18,13 +19,15 @@ jest.mock("../../../../src/config/logger", () => ({
 	},
 }));
 
+const testKeys = new RedisKeyBuilder("test:");
+
 // These tests cover default-parameter branches in facade/operations files
 describe("branch coverage: default parameter branches", () => {
 	it("pending-ack-facade recoverStale default param", async () => {
 		const {
 			PendingAckFacade,
 		} = require("../../../../src/messaging/core/pending-ack-facade");
-		const facade = new PendingAckFacade("test:");
+		const facade = new PendingAckFacade(testKeys);
 		const result = await facade.recoverStale("instance-1");
 		expect(result).toBe(0);
 	});
@@ -33,7 +36,7 @@ describe("branch coverage: default parameter branches", () => {
 		const {
 			PendingAckOperations,
 		} = require("../../../../src/messaging/core/pending-ack-operations");
-		const ops = new PendingAckOperations("test:");
+		const ops = new PendingAckOperations(testKeys);
 		const result = await ops.recoverPendingAcks("instance-1");
 		expect(result).toBe(0);
 	});
@@ -42,7 +45,7 @@ describe("branch coverage: default parameter branches", () => {
 		const {
 			MessageRoutingFacade,
 		} = require("../../../../src/messaging/core/message-routing-facade");
-		const facade = new MessageRoutingFacade("test:");
+		const facade = new MessageRoutingFacade(testKeys);
 		const result = await facade.recoverPendingAcks("instance-1");
 		expect(result).toBe(0);
 	});
@@ -107,7 +110,7 @@ describe("branch coverage: default parameter branches", () => {
 		const {
 			TopicClaimScanner,
 		} = require("../../../../src/messaging/core/topic-claim-scanner");
-		const scanner = new TopicClaimScanner("test:");
+		const scanner = new TopicClaimScanner(testKeys);
 		const count = await scanner.claimForTopic(mockRedis as never, "t", {
 			groupName: "g",
 			consumerId: "c",
@@ -125,7 +128,7 @@ describe("branch coverage: default parameter branches", () => {
 		const {
 			TopicClaimScanner,
 		} = require("../../../../src/messaging/core/topic-claim-scanner");
-		const scanner = new TopicClaimScanner("test:");
+		const scanner = new TopicClaimScanner(testKeys);
 		const count = await scanner.claimForTopic(mockRedis as never, "t", {
 			groupName: "g",
 			consumerId: "c",

@@ -1,10 +1,11 @@
 ﻿import type { Topic } from "@trading-model/common/domain/primitives";
 import type Redis from "ioredis";
+import type { RedisKeyBuilder } from "../../infrastructure/redis/redis-key-builder";
 
 import type { ClaimParams } from "./messaging-types";
 
 export class TopicClaimScanner {
-	constructor(private readonly _prefix: string) {}
+	constructor(private readonly _keys: RedisKeyBuilder) {}
 
 	async scan(redis: Redis): Promise<string[]> {
 		const topics: Topic[] = [];
@@ -21,7 +22,7 @@ export class TopicClaimScanner {
 		claimOpts: Required<ClaimParams>
 	): Promise<number> {
 		const { groupName, consumerId, minIdleMs, count } = claimOpts;
-		const streamKey = `${this._prefix}stream:${topic}`;
+		const streamKey = this._keys.key("stream", topic);
 		try {
 			const pending = await redis.xpending(
 				streamKey,
@@ -58,7 +59,7 @@ export class TopicClaimScanner {
 		topics: Topic[]
 	): Promise<string> {
 		const [nextCursor, batch] = await redis.sscan(
-			`${this._prefix}topics`,
+			this._keys.key("topics"),
 			cursor,
 			"COUNT",
 			100

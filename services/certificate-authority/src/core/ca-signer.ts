@@ -1,5 +1,5 @@
 import { createPrivateKey, createSign, type KeyObject } from "node:crypto";
-import { CryptoAlg } from "@trading-model/common/crypto/crypto-constants";
+import { CryptoAlg } from "@trading-model/crypto/crypto/crypto-constants";
 import forge from "node-forge";
 
 function _selectAlgorithm(nodeKey: KeyObject): string {

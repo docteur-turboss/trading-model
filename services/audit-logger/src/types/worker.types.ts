@@ -9,4 +9,4 @@ export type {
 	WorkerWsDisconnectMessage,
 	WorkerWsHeartbeatMessage,
 	WorkerWsRegisterMessage,
-} from "@trading-model/common/contracts/worker-protocol.types";
+} from "@trading-model/validation/contracts/worker-protocol.types";

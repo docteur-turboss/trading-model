@@ -3,6 +3,7 @@ import type { ServiceIdentity } from "@trading-model/common/domain/service-ident
 import { HTTP_HEADERS } from "@trading-model/common/http-headers";
 import type WebSocket from "ws";
 import { ENV } from "../../config/env";
+import { RedisKeyBuilder } from "../../infrastructure/redis/redis-key-builder";
 import { authorizeTopic } from "../core/acl";
 import { DeduplicationService } from "../core/deduplication-service";
 import type { Dispatcher } from "../core/dispatcher";
@@ -22,7 +23,9 @@ export class PublishGuard {
 		private readonly _dispatcher: Dispatcher,
 		readonly _rateLimiter: WssRateLimiter
 	) {
-		this._dedup = new DeduplicationService(`${ENV.REDIS_PREFIX}wss-`);
+		this._dedup = new DeduplicationService(
+			new RedisKeyBuilder(`${ENV.REDIS_PREFIX}wss-`)
+		);
 	}
 
 	async checkTopicAuth(

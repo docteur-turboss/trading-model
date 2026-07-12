@@ -1,5 +1,6 @@
 import type {
 	Cash,
+	DecimalPrecision,
 	Percentage,
 	Price,
 	Volume,
@@ -34,8 +35,12 @@ function _validateMaxPosition(maxPosition: Volume): void {
 	}
 }
 
-function _validateDecimals(decimals: number): void {
-	if (!Number.isInteger(decimals) || decimals < 1 || decimals > 15) {
+function _validateDecimals(decimals: DecimalPrecision): void {
+	if (
+		!Number.isInteger(Number(decimals)) ||
+		Number(decimals) < 1 ||
+		Number(decimals) > 15
+	) {
 		throw new Error(
 			`Invalid decimals: ${decimals}. Must be an integer in [1, 15]`
 		);

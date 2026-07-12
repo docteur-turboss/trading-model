@@ -9,7 +9,6 @@ import type {
 	GenomeEvaluationContext,
 } from "./evaluation-phase";
 import { evalPhase } from "./evaluation-phase";
-import type { GenomeFitnessMeta } from "./evaluation-utils";
 import {
 	_computeAllResults,
 	_validateEvalResult,
@@ -17,7 +16,8 @@ import {
 	deepFreeze,
 	lamarckianUpdate,
 } from "./evaluation-utils";
-import type { LamarckGenome, MarketStep } from "./genome-types";
+import type { WindowSet } from "./generation-types";
+import type { GenomeFitnessMeta, LamarckGenome } from "./genome-types";
 import { precomputeRewards } from "./reward-shaping";
 import type { BackendFactory } from "./rl-backend";
 import type { DeepReadonly } from "./shared-types";
@@ -31,7 +31,7 @@ export type { EvaluationResult, GenomeFitnessMeta };
  */
 export function evaluateSingleGenomeOnWindow(
 	genome: DeepReadonly<LamarckGenome>,
-	windowSet: { id: string; train: MarketStep[]; validation: MarketStep[] },
+	windowSet: WindowSet,
 	backendFactory: BackendFactory
 ): EvaluationResult {
 	_validateGenomeInputs(genome, windowSet);
@@ -80,11 +80,7 @@ export function evaluateSingleGenomeOnWindow(
  */
 export function evaluateGenomeAllWindows(
 	genome: DeepReadonly<LamarckGenome>,
-	windowSets: Array<{
-		id: string;
-		train: MarketStep[];
-		validation: MarketStep[];
-	}>,
+	windowSets: WindowSet[],
 	backendFactory: BackendFactory
 ): Promise<{
 	updatedGenome: DeepReadonly<LamarckGenome>;
@@ -147,21 +143,13 @@ export async function pooledEval<TItem, TResult>(
 
 export interface EvaluateFitnessContext {
 	population: DeepReadonly<LamarckGenome>[];
-	windowSets: {
-		id: string;
-		train: MarketStep[];
-		validation: MarketStep[];
-	}[];
+	windowSets: WindowSet[];
 	backendFactory: BackendFactory;
 	concurrency: number;
 }
 
 function _makeEvalFn(
-	windowSets: {
-		id: string;
-		train: MarketStep[];
-		validation: MarketStep[];
-	}[],
+	windowSets: WindowSet[],
 	backendFactory: BackendFactory
 ): (
 	genome: DeepReadonly<LamarckGenome>

@@ -1,11 +1,11 @@
 import { logger } from "@trading-model/common/config/logger";
-import type { ResolvedEndpoint } from "@trading-model/common/contracts/service-resolver.types";
 import type { ServiceId } from "@trading-model/common/domain/primitives";
 import { toHostPortAddress } from "@trading-model/common/domain/service-identity";
 import {
 	type ResponseObject,
 	sendResponse,
 } from "@trading-model/common/middleware/response-exception";
+import type { ResolvedEndpoint } from "@trading-model/validation/contracts/service-resolver.types";
 import type { Request } from "express";
 import type { ResponseCache } from "./cache";
 import { forwardRequest } from "./proxy-handler";

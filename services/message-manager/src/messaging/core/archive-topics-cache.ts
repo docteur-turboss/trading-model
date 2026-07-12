@@ -1,7 +1,9 @@
 ﻿import { TimerHandle } from "@trading-model/common/utils/timer-handle";
 import { ENV } from "../../config/env";
+import { RedisKeyBuilder } from "../../infrastructure/redis/redis-key-builder";
 
 export class ArchiveTopicsCache {
+	private readonly _keys = new RedisKeyBuilder(ENV.REDIS_PREFIX);
 	private _topicsCache: string[] = [];
 	private readonly _topicsCacheTimer = new TimerHandle();
 
@@ -10,7 +12,7 @@ export class ArchiveTopicsCache {
 			try {
 				const { getSubscriptionClient } = await import("../../config/redis.js");
 				const redis = await getSubscriptionClient();
-				const topics = await redis.smembers(`${ENV.REDIS_PREFIX}topics`);
+				const topics = await redis.smembers(this._keys.key("topics"));
 				this._topicsCache = topics;
 			} catch {}
 		}, 30_000);

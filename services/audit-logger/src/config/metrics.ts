@@ -1,4 +1,4 @@
-import { metricsHandler } from "@trading-model/common/server/metrics-handler";
+import { metricsHandler } from "@trading-model/server-utils/server/metrics-handler";
 import promClient from "prom-client";
 
 promClient.collectDefaultMetrics({ prefix: "audit_" });

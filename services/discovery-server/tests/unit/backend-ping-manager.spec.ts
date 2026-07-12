@@ -4,8 +4,8 @@ jest.mock("@trading-model/common/config/logger", () => ({
 	logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
 
-import type { RegistryBackend } from "@trading-model/common/contracts/service-registry.types";
 import { REDIS_STATUS } from "@trading-model/common/persistence/redis-constants";
+import type { RegistryBackend } from "@trading-model/validation/contracts/service-registry.types";
 import { BackendPingManager } from "../../src/core/backend-ping-manager";
 import type { PubSubInvalidator } from "../../src/core/pub-sub-invalidator";
 

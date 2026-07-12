@@ -2,7 +2,7 @@ import { describe, expect, it, jest } from "@jest/globals";
 
 const MOCK_CREATE_BOOTSTRAP = jest.fn<any>();
 
-jest.mock("@trading-model/common/server/bootstrap", () => ({
+jest.mock("@trading-model/server-utils/server/bootstrap", () => ({
 	createBootstrap: MOCK_CREATE_BOOTSTRAP,
 }));
 

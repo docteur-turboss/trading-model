@@ -96,8 +96,7 @@ export class FeedForwardEngine {
 			return data;
 		}
 		return NORMALIZERS[this._config.normalisationType].normalize(
-			data,
-			len,
+			{ data, len },
 			params
 		);
 	}

@@ -1,10 +1,9 @@
 import { createHash } from "node:crypto";
-
-import { CryptoAlg } from "@trading-model/common/crypto/crypto-constants";
 import {
 	DurationMs,
 	type ServiceId,
 } from "@trading-model/common/domain/primitives";
+import { CryptoAlg } from "@trading-model/crypto/crypto/crypto-constants";
 import type { Collection } from "mongodb";
 
 export interface TokenUseRequest {

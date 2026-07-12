@@ -71,7 +71,7 @@ export class SymbolStateManager {
 		if (!handler) {
 			return;
 		}
-		handler.mutateState(symbol, data, state, maxSize);
+		handler.mutateState({ symbol, data, state, maxSize });
 		this._normManager.updateNorms(dataType, state, data);
 		this._memoryManager.enforceMemoryLimit();
 	}

@@ -1,4 +1,5 @@
-﻿import type { InstanceId } from "@trading-model/common/domain/primitives";
+import type { InstanceId } from "@trading-model/common/domain/primitives";
+import type { RedisKeyBuilder } from "../../infrastructure/redis/redis-key-builder";
 import { ClaimExecutor } from "./claim-executor";
 import { DeduplicationService } from "./deduplication-service";
 import type {
@@ -21,10 +22,14 @@ export interface IStreamGroupOps {
 	getPendingCount(ref: StreamGroupRef): Promise<number>;
 	getMessagesAfter(
 		query: MessageQuery
-	): Promise<import("@trading-model/common/contracts/message.types").Message[]>;
+	): Promise<
+		import("@trading-model/validation/contracts/message.types").Message[]
+	>;
 	getMessagesBetween(
 		params: import("./stream-group-manager").GetMessagesBetweenParams
-	): Promise<import("@trading-model/common/contracts/message.types").Message[]>;
+	): Promise<
+		import("@trading-model/validation/contracts/message.types").Message[]
+	>;
 	getStreamLag(ref: StreamGroupRef): Promise<number>;
 }
 
@@ -58,11 +63,11 @@ export class MessageRoutingFacade {
 	private readonly _claimManager: ClaimExecutor;
 	private readonly _dedupService: DeduplicationService;
 
-	constructor(prefix: string) {
-		this._streamOps = new StreamGroupOperations(prefix);
-		this._pendingAckOps = new PendingAckOperations(prefix);
-		this._claimManager = new ClaimExecutor(prefix);
-		this._dedupService = new DeduplicationService(prefix);
+	constructor(keys: RedisKeyBuilder) {
+		this._streamOps = new StreamGroupOperations(keys);
+		this._pendingAckOps = new PendingAckOperations(keys);
+		this._claimManager = new ClaimExecutor(keys);
+		this._dedupService = new DeduplicationService(keys);
 	}
 
 	recoverPendingAcks(
@@ -97,7 +102,7 @@ export class MessageRoutingFacade {
 	getMessagesAfter(
 		query: MessageQuery
 	): Promise<
-		import("@trading-model/common/contracts/message.types").Message[]
+		import("@trading-model/validation/contracts/message.types").Message[]
 	> {
 		return this._streamOps.getMessagesAfter(query);
 	}
@@ -105,7 +110,7 @@ export class MessageRoutingFacade {
 	getMessagesBetween(
 		params: import("./stream-group-manager").GetMessagesBetweenParams
 	): Promise<
-		import("@trading-model/common/contracts/message.types").Message[]
+		import("@trading-model/validation/contracts/message.types").Message[]
 	> {
 		return this._streamOps.getMessagesBetween(params);
 	}

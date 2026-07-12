@@ -1,10 +1,10 @@
 import { existsSync, readFileSync } from "node:fs";
-import { CryptoAlg } from "@trading-model/common/crypto/crypto-constants";
+import { CryptoAlg } from "@trading-model/crypto/crypto/crypto-constants";
 import {
 	AddressManagerEnvSchema,
 	BaseEnvSchema,
 	validateEnv,
-} from "@trading-model/common/validation/env";
+} from "@trading-model/validation/validation/env";
 import { z } from "zod";
 
 const DlqEnvSchema = BaseEnvSchema.extend(AddressManagerEnvSchema.shape).extend(

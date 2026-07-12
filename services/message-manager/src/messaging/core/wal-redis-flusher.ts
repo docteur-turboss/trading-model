@@ -5,6 +5,7 @@
 import { logger } from "../../config/logger";
 import { getStreamClient } from "../../config/redis";
 import { WAL_BATCH_SIZE } from "../../config/wal-config";
+import type { RedisKeyBuilder } from "../../infrastructure/redis/redis-key-builder";
 import type { MemoryWalBuffer } from "./memory-wal-buffer";
 import { WalBatchFlusher } from "./wal-batch-flusher";
 import { WalEntryParser } from "./wal-entry-parser";
@@ -24,10 +25,10 @@ export class WalRedisFlusher {
 	private readonly _errorHandler: WalErrorHandler;
 
 	constructor(
-		private readonly _prefix: string,
+		private readonly _keys: RedisKeyBuilder,
 		private readonly _memoryWalBuffer: MemoryWalBuffer
 	) {
-		this._batchFlusher = new WalBatchFlusher(this._prefix, 0, 0);
+		this._batchFlusher = new WalBatchFlusher(this._keys, 0, 0);
 		this._errorHandler = new WalErrorHandler(
 			() => this._walKey(),
 			new WalEntryParser(this._memoryWalBuffer)
@@ -35,7 +36,7 @@ export class WalRedisFlusher {
 	}
 
 	private _walKey(): string {
-		return `${this._prefix}wal_buffer`;
+		return this._keys.key("wal_buffer");
 	}
 
 	async storeInWal(topic: Topic, serialized: string): Promise<void> {

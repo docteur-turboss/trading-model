@@ -2,19 +2,20 @@
 import { ENV } from "../../config/env";
 import { logger } from "../../config/logger";
 import { getStreamClient } from "../../config/redis";
+import type { RedisKeyBuilder } from "../../infrastructure/redis/redis-key-builder";
 import type { PendingAckData } from "./messaging-types";
 import { StaleEntryScanner } from "./stale-entry-scanner";
 
 export class PendingAckStore {
-	private readonly _prefix: string;
+	private readonly _keys: RedisKeyBuilder;
 	private readonly _staleScanner = new StaleEntryScanner();
 
-	constructor(prefix: string) {
-		this._prefix = prefix;
+	constructor(keys: RedisKeyBuilder) {
+		this._keys = keys;
 	}
 
 	private _pendingKey(instanceId: InstanceId): string {
-		return `${this._prefix}pending:${instanceId}`;
+		return this._keys.key("pending", instanceId);
 	}
 
 	async add(

@@ -1,4 +1,3 @@
-import { Severity } from "@trading-model/common/contracts/admin/audit.dto";
 import {
 	type Topic,
 	toCorrelationId,
@@ -10,6 +9,7 @@ import {
 	type ResponseObject,
 	sendResponse,
 } from "@trading-model/common/middleware/response-exception";
+import { Severity } from "@trading-model/validation/contracts/admin/audit.dto";
 import { notifyAudit } from "../config/audit";
 import { metrics } from "../config/metrics";
 import type { DlqError } from "./replay-batch";

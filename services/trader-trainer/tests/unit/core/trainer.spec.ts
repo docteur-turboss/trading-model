@@ -1,5 +1,8 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
-import { TradingSymbol } from "@trading-model/common/domain/primitives";
+import {
+	DurationMs,
+	TradingSymbol,
+} from "@trading-model/common/domain/primitives";
 import { createBounded } from "../../../src/core/genetic-algorithm/bounded";
 import { EpisodeScores } from "../../../src/core/genetic-algorithm/episode-scores";
 import { createDefaultGenome } from "../../../src/core/genetic-algorithm/factory";
@@ -449,7 +452,7 @@ describe("Trainer", () => {
 				bestFitness: 0.5,
 				bestFitnessMeta: {
 					episodesRun: 5,
-					computeMs: 2000,
+					computeMs: DurationMs.of(2000),
 					efficiencyScore: 1.0,
 					variance: 0.05,
 					rawScores: new EpisodeScores([1]),

@@ -1,5 +1,5 @@
-﻿import type { Message } from "@trading-model/common/contracts/message.types";
 import type { Topic } from "@trading-model/common/domain/primitives";
+import type { Message } from "@trading-model/validation/contracts/message.types";
 
 export interface MemoryWalEntry {
 	topic: Topic;

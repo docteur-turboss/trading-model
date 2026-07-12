@@ -1,13 +1,13 @@
-﻿import type { Message } from "@trading-model/common/contracts/message.types";
 import type { DateRange } from "@trading-model/common/domain/date-range";
 import type {
 	ConsumerGroupName,
 	ConsumerId,
 	Topic,
 } from "@trading-model/common/domain/primitives";
-
+import type { Message } from "@trading-model/validation/contracts/message.types";
 import { logger } from "../../config/logger";
 import { getStreamClient } from "../../config/redis";
+import type { RedisKeyBuilder } from "../../infrastructure/redis/redis-key-builder";
 import type { AckRef, MessageQuery, StreamGroupRef } from "./messaging-types";
 import { computeLag } from "./stream-lag-calculator";
 import { StreamMessageReader } from "./stream-message-reader";
@@ -29,12 +29,12 @@ export interface GetMessagesBetweenParams {
 export class StreamGroupManager {
 	private readonly _reader: StreamMessageReader;
 
-	constructor(private readonly _prefix: string) {
-		this._reader = new StreamMessageReader(this._prefix);
+	constructor(private readonly _keys: RedisKeyBuilder) {
+		this._reader = new StreamMessageReader(this._keys);
 	}
 
 	private _streamKey(topic: Topic): string {
-		return `${this._prefix}stream:${topic}`;
+		return this._keys.key("stream", topic);
 	}
 
 	async ensureConsumerGroup(ref: StreamGroupRef): Promise<void> {

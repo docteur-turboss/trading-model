@@ -1,13 +1,13 @@
-﻿import type { ServiceIdentity } from "@trading-model/common/contracts/message.types";
 import type {
 	InstanceId,
 	Topic,
 } from "@trading-model/common/domain/primitives";
 import { ENV } from "../../config/env";
 import { getSubscriptionClient } from "../../config/redis";
+import { RedisKeyBuilder } from "../../infrastructure/redis/redis-key-builder";
 import { InstanceLifecycleManager } from "./instance-lifecycle-manager";
 import { LEASE_HEARTBEAT_FIELD } from "./messaging-constants";
-import type { TopicSubscription } from "./messaging-types";
+import type { SubscriptionParams, TopicSubscription } from "./messaging-types";
 import {
 	type SubscriptionEntry,
 	SubscriptionRedisStore,
@@ -21,17 +21,13 @@ export class SubscriptionStore {
 	private _lifecycleManager: InstanceLifecycleManager;
 
 	constructor() {
-		const prefix = ENV.REDIS_PREFIX;
-		this._redisStore = new SubscriptionRedisStore(prefix);
-		this._lifecycleManager = new InstanceLifecycleManager(prefix);
+		const keys = new RedisKeyBuilder(ENV.REDIS_PREFIX);
+		this._redisStore = new SubscriptionRedisStore(keys);
+		this._lifecycleManager = new InstanceLifecycleManager(keys);
 	}
 
-	add(
-		topic: Topic,
-		callbackPath: string,
-		serviceIdentity: ServiceIdentity
-	): Promise<void> {
-		return this._redisStore.add(topic, callbackPath, serviceIdentity);
+	add(params: SubscriptionParams): Promise<void> {
+		return this._redisStore.add(params);
 	}
 
 	remove(sub: TopicSubscription): Promise<void> {

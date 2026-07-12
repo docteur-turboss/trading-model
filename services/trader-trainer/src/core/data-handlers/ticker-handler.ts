@@ -7,7 +7,7 @@ export const tickerHandler: DataHandler<TickerData> = {
 	updateNorms(state, ticker) {
 		state.norm.ticker.volume.update(ticker.volume);
 	},
-	mutateState(_symbol, data, state, _maxSize) {
+	mutateState({ data, state }) {
 		state.ticker24h = data;
 	},
 	serializeNorms(state) {

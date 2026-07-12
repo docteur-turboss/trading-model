@@ -1,11 +1,12 @@
-import type { NormalizeParams, Normalizer } from "./normalizer-interface";
+import type {
+	DataSlice,
+	NormalizeParams,
+	Normalizer,
+} from "./normalizer-interface";
 
 export class BorderNormalizer implements Normalizer {
-	normalize(
-		data: Float32Array,
-		len: number,
-		params?: NormalizeParams
-	): Float32Array {
+	normalize(slice: DataSlice, params?: NormalizeParams): Float32Array {
+		const { data, len } = slice;
 		const par = params as { min?: number; max?: number } | undefined;
 		let lo = params?.lo ?? par?.min;
 		let hi = params?.hi ?? par?.max;

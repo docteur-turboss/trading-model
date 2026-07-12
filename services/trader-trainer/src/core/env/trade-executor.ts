@@ -1,29 +1,32 @@
-﻿import { TradeSide } from "@trading-model/common/contracts/market-data.types";
 import {
 	Cash,
 	type Price,
 	Volume,
 } from "@trading-model/common/domain/primitives";
+import { TradeSide } from "@trading-model/validation/contracts/market-data.types";
+import type { PortfolioState } from "./portfolio-state";
 import type { TradeRecorder } from "./trade-recorder";
 import type { WalletConfig } from "./wallet-config";
 
 export class TradeExecutor {
+	private _state: PortfolioState;
+
 	constructor(
 		private readonly _config: WalletConfig,
 		private readonly _recorder: TradeRecorder,
-		private _price: Price,
-		private _cash: Cash,
-		private _position: Volume
-	) {}
+		initialState: PortfolioState
+	) {
+		this._state = initialState;
+	}
 
 	get price(): Price {
-		return this._price;
+		return this._state.price;
 	}
 	get cash(): Cash {
-		return this._cash;
+		return this._state.cash;
 	}
 	get position(): Volume {
-		return this._position;
+		return this._state.position;
 	}
 	get config(): WalletConfig {
 		return this._config;
@@ -38,54 +41,63 @@ export class TradeExecutor {
 			return false;
 		}
 		const newPosition = Volume.of(
-			this._config.roundValue(Number(this._position) + amt)
+			this._config.roundValue(Number(this._state.position) + amt)
 		);
 		if (Number(newPosition) > Number(this._config.maxPosition)) {
 			return false;
 		}
 		const { totalCost, fee } = this._config.computeBuyCosts(
 			amount,
-			this._price
+			this._state.price
 		);
-		if (Number(totalCost) > Number(this._cash)) {
+		if (Number(totalCost) > Number(this._state.cash)) {
 			return false;
 		}
-		this._position = newPosition;
-		this._cash = Cash.of(
-			this._config.roundValue(Number(this._cash) - Number(totalCost))
+		const cashAfterBuy = Cash.of(
+			this._config.roundValue(Number(this._state.cash) - Number(totalCost))
 		);
+		this._state = { ...this._state, position: newPosition, cash: cashAfterBuy };
 		this._recorder.recordTrade({
 			action: TradeSide.Buy,
 			amount,
 			fee: Cash.of(this._config.roundValue(Number(fee))),
-			price: this._price,
-			cashAfter: this._cash,
-			positionAfter: this._position,
+			price: this._state.price,
+			cashAfter: this._state.cash,
+			positionAfter: this._state.position,
 		});
 		return true;
 	}
 	sell(amount: Volume): boolean {
 		const amt = Number(amount);
-		if (!Number.isFinite(amt) || amt <= 0 || amt > Number(this._position)) {
+		if (
+			!Number.isFinite(amt) ||
+			amt <= 0 ||
+			amt > Number(this._state.position)
+		) {
 			return false;
 		}
 		const { netProceeds, fee } = this._config.computeSellProceeds(
 			amount,
-			this._price
+			this._state.price
 		);
-		this._position = Volume.of(
-			this._config.roundValue(Number(this._position) - amt)
+		const positionAfterSell = Volume.of(
+			this._config.roundValue(Number(this._state.position) - amt)
 		);
-		this._cash = Cash.of(
-			this._config.roundValue(Number(this._cash) + netProceeds)
+		const cashAfterSell = Cash.of(
+			this._config.roundValue(Number(this._state.cash) + netProceeds)
 		);
+		this._state = {
+			...this._state,
+			position: positionAfterSell,
+			cash: cashAfterSell,
+		};
 		this._recorder.recordTrade({
 			action: TradeSide.Sell,
 			amount,
 			fee: Cash.of(this._config.roundValue(Number(fee))),
-			price: this._price,
-			cashAfter: this._cash,
-			positionAfter: this._position,
+			price: this._state.price,
+			cashAfter: this._state.cash,
+			positionAfter: this._state.position,
 		});
 		return true;
 	}
@@ -93,14 +105,16 @@ export class TradeExecutor {
 		if (!Number.isFinite(Number(newPrice)) || Number(newPrice) <= 0) {
 			throw new Error(`setPrice received invalid value: ${newPrice}`);
 		}
-		this._price = newPrice;
+		this._state = { ...this._state, price: newPrice };
 		this._recorder.incrementStep();
 		this._recorder.recordValuation(this);
 	}
 	reset(): void {
-		this._price = this._config.initialPrice;
-		this._cash = this._config.initialCash;
-		this._position = Volume.zero();
+		this._state = {
+			price: this._config.initialPrice,
+			cash: this._config.initialCash,
+			position: Volume.zero(),
+		};
 		this._recorder.reset();
 	}
 }

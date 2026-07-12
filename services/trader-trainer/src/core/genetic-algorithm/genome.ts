@@ -1,11 +1,14 @@
 import type {
+	DurationMs,
 	Fitness,
 	GenomeId,
+	NoiseStd,
 	Percentage,
 	PositiveInt,
 	Price,
 	Probability,
 	Ratio,
+	Temperature,
 } from "@trading-model/common/domain/primitives";
 import type { FeatureVector } from "../feature-vector.js";
 import type {
@@ -23,10 +26,10 @@ export {
 	NormalisationType,
 } from "../neural-network/type";
 
-import type { Bounded } from "./bounded";
+import type { NumericRange } from "@trading-model/common/domain/numeric-range";
 
 /** Clipping bounds for reward shaping and continuous policy. */
-export type ClipBounds = Bounded<number>;
+export type ClipBounds = NumericRange;
 
 /** Configuration for a single neural network hidden layer. */
 export interface LayerGenome {
@@ -46,7 +49,7 @@ export interface NetworkGenome {
 
 /** Reward shaping configuration: clipping, scaling, normalisation, and sparse/dense mode. */
 export interface RewardShapingGenome {
-	clipBounds: Bounded<number>;
+	clipBounds: ClipBounds;
 	clip: boolean;
 	scale: boolean;
 	scaleFactor: Percentage;
@@ -72,7 +75,7 @@ export interface DiscretePolicyGenome {
 	epsilonStart: Probability;
 	epsilonMin: Probability;
 	epsilonDecay: Probability;
-	temperature: number;
+	temperature: Temperature;
 }
 
 export enum ContinuousPolicyType {
@@ -83,9 +86,9 @@ export enum ContinuousPolicyType {
 
 /** Continuous policy hyperparameters for action clipping and exploration noise. */
 export interface ContinuousPolicyGenome {
-	clipBounds: Bounded<number>;
+	clipBounds: ClipBounds;
 	type: ContinuousPolicyType;
-	noiseStd: number;
+	noiseStd: NoiseStd;
 	noiseDecay: Probability;
 }
 
@@ -137,7 +140,7 @@ export enum MutationScope {
 export interface MutationRates {
 	rate: Percentage;
 	sigma: Percentage;
-	noiseStd: number;
+	noiseStd: NoiseStd;
 	selfSigma: Percentage;
 	activationMutationRate: Percentage;
 }
@@ -216,12 +219,12 @@ export interface GATerminationConfig {
 	rewardThreshold: Fitness;
 	stagnationPatience: PositiveInt;
 	maxGenerations: PositiveInt;
-	timeBudgetMs: number;
+	timeBudgetMs: DurationMs;
 }
 
 export function shouldTerminateByReward(
 	config: GATerminationConfig,
-	bestFitness: number
+	bestFitness: Fitness
 ): boolean {
 	return bestFitness >= config.rewardThreshold;
 }
@@ -274,7 +277,7 @@ export interface GAControlGenome {
 /** Metadata attached to a genome after fitness evaluation. */
 export interface GenomeFitnessMeta {
 	episodesRun: PositiveInt;
-	computeMs: number;
+	computeMs: DurationMs;
 	efficiencyScore: Ratio;
 	variance: number;
 	rawScores: EpisodeScores;

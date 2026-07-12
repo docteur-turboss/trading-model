@@ -2,7 +2,7 @@ import {
 	AddressManagerEnvSchema,
 	BaseEnvSchema,
 	validateEnv,
-} from "@trading-model/common/validation/env";
+} from "@trading-model/validation/validation/env";
 import { z } from "zod";
 
 const AUDIT_LOGGER_ENV_SHAPE = {

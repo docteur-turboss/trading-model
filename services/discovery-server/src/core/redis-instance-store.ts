@@ -1,7 +1,7 @@
 import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
-import type { ServiceInstance } from "@trading-model/common/contracts/service-registry.types";
 import { InstanceId } from "@trading-model/common/domain/primitives";
 import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
+import type { ServiceInstance } from "@trading-model/validation/contracts/service-registry.types";
 import { InstanceCleanupHandler } from "./instance-cleanup-handler";
 import { InstanceHeartbeatHandler } from "./instance-heartbeat-handler";
 import { InstanceMetadataReader } from "./instance-metadata-reader";
