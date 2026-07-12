@@ -5,25 +5,31 @@ import type {
 } from "@trading-model/common/contracts/admin";
 import type { WorkerStatusCode } from "@trading-model/common/domain/primitives";
 
-type MuiColor = "success" | "warning" | "error" | "default" | "info";
+enum MuiColor {
+	Success = "success",
+	Warning = "warning",
+	Error = "error",
+	Default = "default",
+	Info = "info",
+}
 
 type StatusValue = JOB_STATUS | ServiceStatus | WorkerStatusCode;
 
 const STATUS_COLORS: Record<string, MuiColor> = {
-	healthy: "success",
-	online: "success",
-	active: "success",
-	degraded: "warning",
-	draining: "warning",
-	expired: "warning",
-	down: "error",
-	offline: "error",
-	failed: "error",
-	error: "error",
-	critical: "error",
-	completed: "info",
-	finished: "info",
-	info: "info",
+	healthy: MuiColor.Success,
+	online: MuiColor.Success,
+	active: MuiColor.Success,
+	degraded: MuiColor.Warning,
+	draining: MuiColor.Warning,
+	expired: MuiColor.Warning,
+	down: MuiColor.Error,
+	offline: MuiColor.Error,
+	failed: MuiColor.Error,
+	error: MuiColor.Error,
+	critical: MuiColor.Error,
+	completed: MuiColor.Info,
+	finished: MuiColor.Info,
+	info: MuiColor.Info,
 };
 
 interface StatusBadgeProps {
@@ -38,20 +44,20 @@ function StatusChip({
 	label: string;
 	color: MuiColor | undefined;
 }) {
+	const chipColor =
+		color === MuiColor.Default
+			? undefined
+			: (color as unknown as "success" | "warning" | "error" | "info");
 	return (
 		<Chip
 			size="small"
 			label={label}
-			color={
-				color === "default"
-					? undefined
-					: (color as "success" | "warning" | "error" | "info")
-			}
+			color={chipColor}
 			variant="outlined"
 			sx={{
 				fontWeight: 600,
 				fontSize: "0.7rem",
-				...(color === "default" && {
+				...(chipColor === undefined && {
 					borderColor: "#bdbdbd",
 					color: "#757575",
 				}),
@@ -61,6 +67,7 @@ function StatusChip({
 }
 
 export function StatusBadge({ status, label }: StatusBadgeProps) {
-	const color: MuiColor = STATUS_COLORS[status.toLowerCase()] ?? "default";
+	const color: MuiColor =
+		STATUS_COLORS[status.toLowerCase()] ?? MuiColor.Default;
 	return <StatusChip label={label ?? status} color={color} />;
 }
