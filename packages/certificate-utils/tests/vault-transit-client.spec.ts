@@ -31,6 +31,7 @@ jest.mock("@trading-model/common/utils/errors", () => ({
 	),
 }));
 
+import { HashAlgorithm } from "../src/signing/vault-transit-http";
 import { VaultTransitClient } from "../src/signing/vault-transit-client";
 
 function createClient(overrides: Record<string, any> = {}): VaultTransitClient {
@@ -136,7 +137,7 @@ describe("VaultTransitClient", () => {
 
 			const result = await client.sign({
 				keyName: "my-key",
-				algorithm: "sha256",
+				algorithm: HashAlgorithm.Sha256,
 				input: "input-data",
 			});
 
@@ -157,7 +158,7 @@ describe("VaultTransitClient", () => {
 
 			const result = await client.sign({
 				keyName: "my-key",
-				algorithm: "sha384",
+				algorithm: HashAlgorithm.Sha384,
 				input: "data",
 			});
 
@@ -169,7 +170,7 @@ describe("VaultTransitClient", () => {
 			const client = createClient();
 
 			await expect(
-				client.sign({ keyName: "my-key", algorithm: "sha256", input: "data" })
+				client.sign({ keyName: "my-key", algorithm: HashAlgorithm.Sha256, input: "data" })
 			).rejects.toThrow("Empty response from Vault Transit sign");
 		});
 
