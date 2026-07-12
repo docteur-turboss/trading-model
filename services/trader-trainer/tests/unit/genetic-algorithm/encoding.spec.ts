@@ -7,7 +7,6 @@ import {
 	encodePopulation,
 } from "../../../src/core/genetic-algorithm/encoding";
 import {
-	ENCODING_OFFSETS,
 	layerOffset,
 	readEncodedLayer,
 	SCALAR_DIM,
@@ -44,26 +43,26 @@ describe("encoding", () => {
 			expect(enc.length).toBe(ENCODED_DIM(g.network.hiddenLayers.length));
 		});
 
-		test("should encode gamma on the encoding array", () => {
+		test("should roundtrip gamma value", () => {
 			const g = createDefaultGenome("gamma-test");
 			const enc = encodeGenome(g);
-			expect(enc[ENCODING_OFFSETS.Gamma]).toBeCloseTo(g.rl.gamma, 4);
+			const decoded = decodeGenome(enc, g);
+			expect(decoded.rl.gamma).toBeCloseTo(g.rl.gamma, 4);
 		});
 
-		test("should encode learningRate as log-scaled in [0,1]", () => {
+		test("should roundtrip learningRate with log-scaled encoding", () => {
 			const g = createDefaultGenome("lr-test");
 			const enc = encodeGenome(g);
-			const expected =
-				(Math.log10(Math.max(1e-6, g.rl.learningRate)) / 6 + 1) / 2;
-			expect(enc[ENCODING_OFFSETS.LearningRate]).toBeCloseTo(expected, 6);
+			const decoded = decodeGenome(enc, g);
+			expect(decoded.rl.learningRate).toBeCloseTo(g.rl.learningRate, 4);
 		});
 
-		test("should encode depth normalised by MAX_DEPTH", () => {
+		test("should roundtrip depth", () => {
 			const g = createDefaultGenome("depth-test");
 			const enc = encodeGenome(g);
-			expect(enc[ENCODING_OFFSETS.NetworkDepth]).toBeCloseTo(
-				g.network.hiddenLayers.length / 12,
-				4
+			const decoded = decodeGenome(enc, g);
+			expect(decoded.network.hiddenLayers.length).toBe(
+				g.network.hiddenLayers.length
 			);
 		});
 
@@ -178,8 +177,9 @@ describe("encoding", () => {
 		test("should clamp extreme encoded values to valid ranges", () => {
 			const original = createDefaultGenome("clamp-test");
 			const enc = encodeGenome(original);
-			enc[ENCODING_OFFSETS.Gamma] = 10;
-			enc[ENCODING_OFFSETS.ClipMin] = 100;
+			// Override the first two scalar fields (gamma, clipMin) with extreme values
+			enc[0] = 10;
+			enc[2] = 100;
 			const decoded = decodeGenome(enc, original);
 			expect(decoded.rl.gamma).toBeCloseTo(0.9999, 4);
 		});

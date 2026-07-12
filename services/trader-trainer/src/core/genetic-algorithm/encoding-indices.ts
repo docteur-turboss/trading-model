@@ -9,9 +9,9 @@ import { Temperature } from "@trading-model/common/domain/primitives/temperature
 import { InitialisationType } from "../neural-network/type";
 import type { Genome } from "./genome-types";
 import {
+	EncodedLayer,
 	LAYER_STRIDE,
 	readEncodedLayer,
-	writeEncodedLayer,
 } from "./layer-codec";
 
 export { readEncodedLayer } from "./layer-codec";
@@ -224,13 +224,6 @@ const SCALAR_FIELDS: ScalarFieldDef[] = [
 	},
 ];
 
-type ScalarFieldName = (typeof SCALAR_FIELDS)[number]["name"];
-
-export const ENCODING_OFFSETS: Readonly<Record<ScalarFieldName, number>> =
-	Object.freeze(
-		Object.fromEntries(SCALAR_FIELDS.map((field, index) => [field.name, index]))
-	) as Readonly<Record<ScalarFieldName, number>>;
-
 export const SCALAR_DIM = SCALAR_FIELDS.length;
 
 /* ------------------------------------------------------------------ */
@@ -287,11 +280,12 @@ function decodeScalars(arr: Float32Array): DecodedScalars {
 function writeLayers(arr: Float32Array, net: Genome["network"]): void {
 	const layers = net.hiddenLayers.slice(0, MAX_DEPTH);
 	for (let i = 0; i < layers.length; i++) {
-		writeEncodedLayer(arr, layerOffset(i), {
-			neurons: layers[i].neurons / 512,
-			activation: layers[i].activation,
-			connectionType: layers[i].connectionType,
-		});
+		const enc = new EncodedLayer(
+			layers[i].neurons / 512,
+			layers[i].activation,
+			layers[i].connectionType
+		);
+		enc.write(arr, layerOffset(i));
 	}
 }
 

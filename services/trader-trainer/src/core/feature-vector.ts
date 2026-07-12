@@ -11,35 +11,6 @@ import { emptyTrade } from "./features/trade-features";
 
 export const FEATURE_DIM = 32;
 
-const FEATURE_COUNT = 23;
-const SLIDING_WINDOW_OFFSET = FEATURE_COUNT;
-
-const FEATURE_INDEX = {
-	CLOSE: 0,
-	VOLUME: 1,
-	RETURN_RATIO: 2,
-	POSITION_RATIO: 3,
-	RANGE_RATIO: 4,
-	OPEN: 5,
-	HIGH: 6,
-	LOW: 7,
-	VOLUME_RATIO: 8,
-	AVG_BID: 9,
-	AVG_ASK: 10,
-	SPREAD_RATIO_OB: 11,
-	IMBALANCE: 12,
-	BID: 13,
-	ASK: 14,
-	SPREAD_RATIO_BT: 15,
-	AVG_PRICE: 16,
-	TOTAL_QTY: 17,
-	BUY_RATIO: 18,
-	PRICE_CHANGE: 19,
-	TICKER_VOLUME: 20,
-	DAILY_RANGE: 21,
-	PRICE_SNAPSHOT: 22,
-} as const;
-
 export interface CandleFeatures {
 	close: Price;
 	volume: Volume;
@@ -113,9 +84,13 @@ export class FeatureVector {
 }
 
 class FeatureVectorCodec {
+	private static readonly _FEATURE_COUNT = 23;
 	private static readonly _SLIDING_WINDOW_SIZE = 8;
+	private static readonly _SLIDING_WINDOW_OFFSET =
+		FeatureVectorCodec._FEATURE_COUNT;
 	// Last element reserved for bias term
 	private static readonly _BIAS_INDEX = FEATURE_DIM - 1;
+
 	private readonly _slidingWindow: Float32Array;
 	private readonly _fv: FeatureVector;
 
@@ -135,32 +110,32 @@ class FeatureVectorCodec {
 		const fv = this._fv;
 		const sw = this._slidingWindow;
 
-		arr[FEATURE_INDEX.CLOSE] = fv.candle.close;
-		arr[FEATURE_INDEX.VOLUME] = fv.candle.volume;
-		arr[FEATURE_INDEX.RETURN_RATIO] = fv.candle.returnRatio;
-		arr[FEATURE_INDEX.POSITION_RATIO] = fv.candle.positionRatio;
-		arr[FEATURE_INDEX.RANGE_RATIO] = fv.candle.rangeRatio;
-		arr[FEATURE_INDEX.OPEN] = fv.candle.open;
-		arr[FEATURE_INDEX.HIGH] = fv.candle.high;
-		arr[FEATURE_INDEX.LOW] = fv.candle.low;
-		arr[FEATURE_INDEX.VOLUME_RATIO] = fv.candle.volumeRatio;
-		arr[FEATURE_INDEX.AVG_BID] = fv.orderBook.avgBid;
-		arr[FEATURE_INDEX.AVG_ASK] = fv.orderBook.avgAsk;
-		arr[FEATURE_INDEX.SPREAD_RATIO_OB] = fv.orderBook.spreadRatio;
-		arr[FEATURE_INDEX.IMBALANCE] = fv.orderBook.imbalance;
-		arr[FEATURE_INDEX.BID] = fv.bookTicker.bid;
-		arr[FEATURE_INDEX.ASK] = fv.bookTicker.ask;
-		arr[FEATURE_INDEX.SPREAD_RATIO_BT] = fv.bookTicker.spreadRatio;
-		arr[FEATURE_INDEX.AVG_PRICE] = fv.trade.avgPrice;
-		arr[FEATURE_INDEX.TOTAL_QTY] = fv.trade.totalQty;
-		arr[FEATURE_INDEX.BUY_RATIO] = fv.trade.buyRatio;
-		arr[FEATURE_INDEX.PRICE_CHANGE] = fv.ticker.priceChange;
-		arr[FEATURE_INDEX.TICKER_VOLUME] = fv.ticker.volume;
-		arr[FEATURE_INDEX.DAILY_RANGE] = fv.ticker.dailyRange;
-		arr[FEATURE_INDEX.PRICE_SNAPSHOT] = fv.priceSnapshot;
+		arr[0] = fv.candle.close;
+		arr[1] = fv.candle.volume;
+		arr[2] = fv.candle.returnRatio;
+		arr[3] = fv.candle.positionRatio;
+		arr[4] = fv.candle.rangeRatio;
+		arr[5] = fv.candle.open;
+		arr[6] = fv.candle.high;
+		arr[7] = fv.candle.low;
+		arr[8] = fv.candle.volumeRatio;
+		arr[9] = fv.orderBook.avgBid;
+		arr[10] = fv.orderBook.avgAsk;
+		arr[11] = fv.orderBook.spreadRatio;
+		arr[12] = fv.orderBook.imbalance;
+		arr[13] = fv.bookTicker.bid;
+		arr[14] = fv.bookTicker.ask;
+		arr[15] = fv.bookTicker.spreadRatio;
+		arr[16] = fv.trade.avgPrice;
+		arr[17] = fv.trade.totalQty;
+		arr[18] = fv.trade.buyRatio;
+		arr[19] = fv.ticker.priceChange;
+		arr[20] = fv.ticker.volume;
+		arr[21] = fv.ticker.dailyRange;
+		arr[22] = fv.priceSnapshot;
 
 		for (let i = 0; i < FeatureVectorCodec._SLIDING_WINDOW_SIZE; i++) {
-			arr[SLIDING_WINDOW_OFFSET + i] = sw[i];
+			arr[FeatureVectorCodec._SLIDING_WINDOW_OFFSET + i] = sw[i];
 		}
 		arr[FeatureVectorCodec._BIAS_INDEX] = fv.bias;
 
@@ -171,32 +146,32 @@ class FeatureVectorCodec {
 		const fv = this._fv;
 		const sw = this._slidingWindow;
 
-		fv.candle.close = data[FEATURE_INDEX.CLOSE] as Price;
-		fv.candle.volume = data[FEATURE_INDEX.VOLUME] as Volume;
-		fv.candle.returnRatio = data[FEATURE_INDEX.RETURN_RATIO] as Ratio;
-		fv.candle.positionRatio = data[FEATURE_INDEX.POSITION_RATIO] as Ratio;
-		fv.candle.rangeRatio = data[FEATURE_INDEX.RANGE_RATIO] as Ratio;
-		fv.candle.open = data[FEATURE_INDEX.OPEN] as Price;
-		fv.candle.high = data[FEATURE_INDEX.HIGH] as Price;
-		fv.candle.low = data[FEATURE_INDEX.LOW] as Price;
-		fv.candle.volumeRatio = data[FEATURE_INDEX.VOLUME_RATIO] as Ratio;
-		fv.orderBook.avgBid = data[FEATURE_INDEX.AVG_BID] as Price;
-		fv.orderBook.avgAsk = data[FEATURE_INDEX.AVG_ASK] as Price;
-		fv.orderBook.spreadRatio = data[FEATURE_INDEX.SPREAD_RATIO_OB] as Ratio;
-		fv.orderBook.imbalance = data[FEATURE_INDEX.IMBALANCE] as Ratio;
-		fv.bookTicker.bid = data[FEATURE_INDEX.BID] as Price;
-		fv.bookTicker.ask = data[FEATURE_INDEX.ASK] as Price;
-		fv.bookTicker.spreadRatio = data[FEATURE_INDEX.SPREAD_RATIO_BT] as Ratio;
-		fv.trade.avgPrice = data[FEATURE_INDEX.AVG_PRICE] as Price;
-		fv.trade.totalQty = data[FEATURE_INDEX.TOTAL_QTY] as Volume;
-		fv.trade.buyRatio = data[FEATURE_INDEX.BUY_RATIO] as Ratio;
-		fv.ticker.priceChange = data[FEATURE_INDEX.PRICE_CHANGE] as Ratio;
-		fv.ticker.volume = data[FEATURE_INDEX.TICKER_VOLUME] as Volume;
-		fv.ticker.dailyRange = data[FEATURE_INDEX.DAILY_RANGE] as Ratio;
-		fv.priceSnapshot = data[FEATURE_INDEX.PRICE_SNAPSHOT] as Price;
+		fv.candle.close = data[0] as Price;
+		fv.candle.volume = data[1] as Volume;
+		fv.candle.returnRatio = data[2] as Ratio;
+		fv.candle.positionRatio = data[3] as Ratio;
+		fv.candle.rangeRatio = data[4] as Ratio;
+		fv.candle.open = data[5] as Price;
+		fv.candle.high = data[6] as Price;
+		fv.candle.low = data[7] as Price;
+		fv.candle.volumeRatio = data[8] as Ratio;
+		fv.orderBook.avgBid = data[9] as Price;
+		fv.orderBook.avgAsk = data[10] as Price;
+		fv.orderBook.spreadRatio = data[11] as Ratio;
+		fv.orderBook.imbalance = data[12] as Ratio;
+		fv.bookTicker.bid = data[13] as Price;
+		fv.bookTicker.ask = data[14] as Price;
+		fv.bookTicker.spreadRatio = data[15] as Ratio;
+		fv.trade.avgPrice = data[16] as Price;
+		fv.trade.totalQty = data[17] as Volume;
+		fv.trade.buyRatio = data[18] as Ratio;
+		fv.ticker.priceChange = data[19] as Ratio;
+		fv.ticker.volume = data[20] as Volume;
+		fv.ticker.dailyRange = data[21] as Ratio;
+		fv.priceSnapshot = data[22] as Price;
 
 		for (let i = 0; i < FeatureVectorCodec._SLIDING_WINDOW_SIZE; i++) {
-			sw[i] = data[SLIDING_WINDOW_OFFSET + i] ?? 0;
+			sw[i] = data[FeatureVectorCodec._SLIDING_WINDOW_OFFSET + i] ?? 0;
 		}
 		fv.bias = data[FeatureVectorCodec._BIAS_INDEX] ?? 0;
 	}

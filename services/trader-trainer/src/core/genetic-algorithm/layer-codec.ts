@@ -1,8 +1,5 @@
 import { ActivationType, ConnectionType } from "../neural-network/type";
 
-const OFFSET_NEURONS = 0;
-const OFFSET_ACTIVATION = 1;
-const OFFSET_CONNECTION = 2;
 export const LAYER_STRIDE = 3;
 
 class ActivationCodec {
@@ -75,33 +72,41 @@ export function connectionTypeFromIndex(idx: number): ConnectionType {
 	return CONNECTION_TYPE_CODEC.decode(idx);
 }
 
-export interface EncodedLayer {
-	neurons: number;
-	activation: ActivationType;
-	connectionType: ConnectionType;
+export class EncodedLayer {
+	constructor(
+		readonly neurons: number,
+		readonly activation: ActivationType,
+		readonly connectionType: ConnectionType
+	) {}
+
+	static read(arr: Float32Array, offset: number): EncodedLayer {
+		return new EncodedLayer(
+			arr[offset],
+			ACTIVATION_CODEC.decode(arr[offset + 1]),
+			CONNECTION_TYPE_CODEC.decode(arr[offset + 2])
+		);
+	}
+
+	write(arr: Float32Array, offset: number): void {
+		arr[offset] = this.neurons;
+		arr[offset + 1] = ACTIVATION_CODEC.encode(this.activation);
+		arr[offset + 2] = CONNECTION_TYPE_CODEC.encode(this.connectionType);
+	}
 }
 
+/** @deprecated Use {@link EncodedLayer.read} instead */
 export function readEncodedLayer(
 	arr: Float32Array,
 	offset: number
 ): EncodedLayer {
-	return {
-		neurons: arr[offset + OFFSET_NEURONS],
-		activation: ACTIVATION_CODEC.decode(arr[offset + OFFSET_ACTIVATION]),
-		connectionType: CONNECTION_TYPE_CODEC.decode(
-			arr[offset + OFFSET_CONNECTION]
-		),
-	};
+	return EncodedLayer.read(arr, offset);
 }
 
+/** @deprecated Use {@link EncodedLayer.write} instead */
 export function writeEncodedLayer(
 	arr: Float32Array,
 	offset: number,
 	layer: EncodedLayer
 ): void {
-	arr[offset + OFFSET_NEURONS] = layer.neurons;
-	arr[offset + OFFSET_ACTIVATION] = ACTIVATION_CODEC.encode(layer.activation);
-	arr[offset + OFFSET_CONNECTION] = CONNECTION_TYPE_CODEC.encode(
-		layer.connectionType
-	);
+	layer.write(arr, offset);
 }
