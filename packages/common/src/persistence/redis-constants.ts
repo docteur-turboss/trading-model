@@ -1,27 +1,27 @@
-export type RedisStatus = string & { readonly brand: "RedisStatus" };
+export enum RedisStatus {
+	READY = "ready",
+	CONNECTING = "connecting",
+	RECONNECTING = "reconnecting",
+	CLOSE = "close",
+}
+/** @deprecated Use {@link RedisStatus} enum directly */
+export const REDIS_STATUS = RedisStatus;
 
-export const REDIS_STATUS = {
-	READY: "ready" as RedisStatus,
-	CONNECTING: "connecting" as RedisStatus,
-	RECONNECTING: "reconnecting" as RedisStatus,
-	CLOSE: "close" as RedisStatus,
-} as const;
+export enum RedisResp {
+	OK = "OK",
+	PONG = "PONG",
+}
+/** @deprecated Use {@link RedisResp} enum directly */
+export const REDIS_RESP = RedisResp;
 
-export type RedisResp = string & { readonly brand: "RedisResp" };
-
-export const REDIS_RESP = {
-	OK: "OK" as RedisResp,
-	PONG: "PONG" as RedisResp,
-} as const;
-
-export type RedisSet = string & { readonly brand: "RedisSet" };
-
-export const REDIS_SET = {
-	NX: "NX" as RedisSet,
-	XX: "XX" as RedisSet,
-	EX: "EX" as RedisSet,
-	PX: "PX" as RedisSet,
-} as const;
+export enum RedisSet {
+	NX = "NX",
+	XX = "XX",
+	EX = "EX",
+	PX = "PX",
+}
+/** @deprecated Use {@link RedisSet} enum directly */
+export const REDIS_SET = RedisSet;
 
 export enum RedisMode {
 	SINGLE = "single",

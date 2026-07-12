@@ -1,33 +1,33 @@
 import { describe, expect, it } from "@jest/globals";
 import {
-	REDIS_RESP,
-	REDIS_SET,
-	REDIS_STATUS,
 	RedisMode,
+	RedisResp,
+	RedisSet,
+	RedisStatus,
 } from "../../../src/persistence/redis-constants";
 
-describe("REDIS_STATUS", () => {
+describe("RedisStatus", () => {
 	it("should have correct values", () => {
-		expect(REDIS_STATUS.READY).toBe("ready");
-		expect(REDIS_STATUS.CONNECTING).toBe("connecting");
-		expect(REDIS_STATUS.RECONNECTING).toBe("reconnecting");
-		expect(REDIS_STATUS.CLOSE).toBe("close");
+		expect(RedisStatus.READY).toBe("ready");
+		expect(RedisStatus.CONNECTING).toBe("connecting");
+		expect(RedisStatus.RECONNECTING).toBe("reconnecting");
+		expect(RedisStatus.CLOSE).toBe("close");
 	});
 });
 
-describe("REDIS_RESP", () => {
+describe("RedisResp", () => {
 	it("should have correct values", () => {
-		expect(REDIS_RESP.OK).toBe("OK");
-		expect(REDIS_RESP.PONG).toBe("PONG");
+		expect(RedisResp.OK).toBe("OK");
+		expect(RedisResp.PONG).toBe("PONG");
 	});
 });
 
-describe("REDIS_SET", () => {
+describe("RedisSet", () => {
 	it("should have correct values", () => {
-		expect(REDIS_SET.NX).toBe("NX");
-		expect(REDIS_SET.XX).toBe("XX");
-		expect(REDIS_SET.EX).toBe("EX");
-		expect(REDIS_SET.PX).toBe("PX");
+		expect(RedisSet.NX).toBe("NX");
+		expect(RedisSet.XX).toBe("XX");
+		expect(RedisSet.EX).toBe("EX");
+		expect(RedisSet.PX).toBe("PX");
 	});
 });
 

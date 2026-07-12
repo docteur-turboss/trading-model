@@ -2,7 +2,7 @@ import type {
 	WorkerRegistration,
 	WorkerStatus,
 } from "@trading-model/validation/contracts/worker-protocol.types";
-import { UnixTimestamp } from "../domain/primitives";
+import { UnixTimestamp, WorkerStatusCode } from "../domain/primitives";
 
 function _findStaleWorkers(
 	workers: Map<string, WorkerRegistration>,
@@ -12,7 +12,7 @@ function _findStaleWorkers(
 	const stale: string[] = [];
 	for (const [id, worker] of workers) {
 		if (now - worker.lastHeartbeat > heartbeatTtlMs) {
-			worker.status = "offline";
+			worker.status = WorkerStatusCode.Offline;
 			stale.push(id);
 		}
 	}
@@ -43,7 +43,7 @@ export class WorkerStore {
 		this._workers.set(workerId, {
 			...registration,
 			lastHeartbeat: UnixTimestamp.now(),
-			status: "active",
+			status: WorkerStatusCode.Active,
 		});
 	}
 
