@@ -1,7 +1,10 @@
 import { logger } from "@trading-model/common/config/logger";
 import type { ServiceId } from "@trading-model/common/domain/primitives";
 import { catchSync } from "@trading-model/common/middleware/catch-error";
-import { sendResponse } from "@trading-model/common/middleware/response-exception";
+import {
+	HEALTH_STATUS_OK,
+	sendResponse,
+} from "@trading-model/common/middleware/response-exception";
 import { Router } from "express";
 import { ENV } from "../config/env";
 import { AUTH_MIDDLEWARE } from "./auth";
@@ -75,7 +78,7 @@ function pingHandler(
 	_req: import("express").Request,
 	res: import("express").Response
 ): void {
-	res.json({ status: "ok" });
+	res.json({ status: HEALTH_STATUS_OK });
 }
 
 export function createRouter(): Router {
