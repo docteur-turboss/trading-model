@@ -3,6 +3,7 @@ import { normalizeError } from "@trading-model/common/utils/errors";
 import { CryptoAlg } from "@trading-model/crypto/crypto/crypto-constants";
 
 import {
+	HashAlgorithm,
 	HashAlgorithmMapper,
 	VaultResponseParser,
 	type VaultTransitConfig,
@@ -13,7 +14,7 @@ export type { VaultTransitConfig } from "./vault-transit-http";
 
 export interface SignRequest {
 	keyName: string;
-	algorithm: string;
+	algorithm: HashAlgorithm;
 	input: string;
 }
 

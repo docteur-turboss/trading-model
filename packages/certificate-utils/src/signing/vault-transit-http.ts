@@ -11,15 +11,23 @@ export interface VaultTransitConfig {
 	timeoutMs?: DurationMs;
 }
 
+export enum HashAlgorithm {
+	Sha256 = "sha256",
+	Sha384 = "sha384",
+	Sha512 = "sha512",
+	Sha1 = "sha1",
+}
+
+const HASH_ALGORITHM_VAULT_MAP: Record<HashAlgorithm, string> = {
+	[HashAlgorithm.Sha256]: "sha2-256",
+	[HashAlgorithm.Sha384]: "sha2-384",
+	[HashAlgorithm.Sha512]: "sha2-512",
+	[HashAlgorithm.Sha1]: "sha1",
+};
+
 export class HashAlgorithmMapper {
-	getHashAlgorithm(algorithm: string): string {
-		const map: Record<string, string> = {
-			sha256: "sha2-256",
-			sha384: "sha2-384",
-			sha512: "sha2-512",
-			sha1: "sha1",
-		};
-		return map[algorithm] ?? "sha2-256";
+	getHashAlgorithm(algorithm: HashAlgorithm): string {
+		return HASH_ALGORITHM_VAULT_MAP[algorithm] ?? "sha2-256";
 	}
 }
 
@@ -67,7 +75,7 @@ export class VaultTransitHttp {
 		this._keyVersionManager = new KeyVersionManager();
 	}
 
-	getHashAlgorithm(algorithm: string): string {
+	getHashAlgorithm(algorithm: HashAlgorithm): string {
 		return this._algorithmMapper.getHashAlgorithm(algorithm);
 	}
 
