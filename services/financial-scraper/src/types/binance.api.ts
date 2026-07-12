@@ -83,10 +83,7 @@ export interface BinanceCandlestickData
 
 export type BinanceCandlestickDataResponse = BinanceCandlestickData[];
 
-/**
- * Raw 12-element tuple returned by the Binance /klines endpoint.
- * @see https://binance-docs.github.io/apidocs/spot/en/#kline-candlestick-data
- */
+/** Raw candlestick tuple as returned by the Binance REST API (11 positional elements). */
 export type RawBinanceCandlestick = [
 	openTime: number,
 	open: string,
@@ -99,7 +96,6 @@ export type RawBinanceCandlestick = [
 	numberOfTrades: number,
 	takerBuyBaseAssetVolume: string,
 	takerBuyQuoteAssetVolume: string,
-	ignore: string,
 ];
 
 /** Convert a raw API tuple to a named-field object. */
@@ -120,15 +116,15 @@ export function parseCandlestick(
 		takerBuyQuoteAssetVolume,
 	] = raw;
 	return {
-		openTime: UnixTimestamp.of(openTime),
+		openTime: UnixTimestamp.of(openTime as number),
 		open: open as PriceString,
 		high: high as PriceString,
 		low: low as PriceString,
 		close: close as PriceString,
 		volume: volume as VolumeString,
-		closeTime: UnixTimestamp.of(closeTime),
+		closeTime: UnixTimestamp.of(closeTime as number),
 		quoteAssetVolume: quoteAssetVolume as CashString,
-		numberOfTrades,
+		numberOfTrades: numberOfTrades as number,
 		takerBuyBaseAssetVolume: takerBuyBaseAssetVolume as VolumeString,
 		takerBuyQuoteAssetVolume: takerBuyQuoteAssetVolume as CashString,
 	};

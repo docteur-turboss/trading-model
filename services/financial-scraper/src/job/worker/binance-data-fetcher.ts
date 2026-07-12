@@ -18,6 +18,12 @@ import type {
 	BinanceWorkerResult,
 } from "./binance-worker-types";
 
+export interface FetchLimits {
+	candleLimit?: Limit;
+	tradeLimit?: Limit;
+	orderBookLimit?: Limit;
+}
+
 export interface RawBinanceData {
 	orderBookRaw: Awaited<ReturnType<typeof getOrderBook>>;
 	tradesRaw: Awaited<ReturnType<typeof getRecentTrades>>;
@@ -33,17 +39,17 @@ export function fetchAllRawData(
 	const { symbol, candleLimit, tradeLimit, orderBookLimit } = opts;
 	const interval = opts.interval ?? CandleInterval.Min1;
 	const query: CandleQuery = { symbol, interval };
+	const limits: FetchLimits = { candleLimit, tradeLimit, orderBookLimit };
 
-	return _fetchBinanceData(query, candleLimit, tradeLimit, orderBookLimit);
+	return _fetchBinanceData(query, limits);
 }
 
 async function _fetchBinanceData(
 	query: CandleQuery,
-	candleLimit: Limit | undefined,
-	tradeLimit: Limit | undefined,
-	orderBookLimit: Limit | undefined
+	limits: FetchLimits
 ): Promise<RawBinanceData> {
 	const { symbol, interval } = query;
+	const { candleLimit, tradeLimit, orderBookLimit } = limits;
 	const [
 		orderBookRaw,
 		tradesRaw,

@@ -1,11 +1,12 @@
 import { isRetryableStatusPermissive } from "@trading-model/common/config/http-retry";
+import { DurationMs } from "@trading-model/common/domain/primitives";
 import { computeExponentialBackoff } from "@trading-model/common/utils/backoff-config";
 import type { AxiosError, AxiosInstance, AxiosRequestConfig } from "axios";
 
 const RETRY_CONFIG = {
 	retries: 5,
-	baseDelayMs: 300,
-	maxDelayMs: 10000,
+	baseDelayMs: DurationMs.of(300),
+	maxDelayMs: DurationMs.of(10000),
 };
 
 function shouldRetry(error: AxiosError): boolean {

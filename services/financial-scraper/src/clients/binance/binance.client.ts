@@ -2,7 +2,10 @@ import type {
 	CandlestickQuery,
 	MarketDataQuery,
 } from "@trading-model/common/domain/candlestick-query";
-import type { TradingSymbol } from "@trading-model/common/domain/primitives";
+import type {
+	BinanceFromId,
+	TradingSymbol,
+} from "@trading-model/common/domain/primitives";
 import { httpClients } from "../../config/http";
 import type {
 	Binance24hrTickerStatsResponse,
@@ -26,7 +29,7 @@ const BINANCE = httpClients.binance;
 
 /** Parameter object for Binance trade queries (historical or aggregate). */
 export interface BinanceTradeQuery extends MarketDataQuery {
-	fromId: string | number;
+	fromId: BinanceFromId;
 }
 
 /** @deprecated Use BinanceTradeQuery instead. */
@@ -75,8 +78,8 @@ export async function getCandlestickData(
 	const raw = (await _getWithWeight(
 		url,
 		BINANCE_WEIGHTS.candlesticks()
-	)) as RawBinanceCandlestick[];
-	return raw.map((tuple) => parseCandlestick(tuple));
+	)) as unknown[][];
+	return raw.map((tuple) => parseCandlestick(tuple as RawBinanceCandlestick));
 }
 
 async function _getWithWeight(url: string, weight: number): Promise<unknown> {

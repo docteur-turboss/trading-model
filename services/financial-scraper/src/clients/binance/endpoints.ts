@@ -1,5 +1,6 @@
 import type { SymbolInterval } from "@trading-model/common/domain/candlestick-query";
 import type {
+	BinanceFromId,
 	TradingSymbol,
 	UnixTimestamp,
 } from "@trading-model/common/domain/primitives";
@@ -8,7 +9,7 @@ import type {
 export interface BinanceEndpointQuery {
 	symbol?: TradingSymbol;
 	limit?: number;
-	fromId?: string | number;
+	fromId?: BinanceFromId;
 	startTime?: UnixTimestamp;
 	endTime?: UnixTimestamp;
 }

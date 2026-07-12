@@ -1,6 +1,10 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { CandleInterval } from "@trading-model/common/config/event.types";
-import { Limit, toSymbol } from "@trading-model/common/domain/primitives";
+import {
+	BinanceFromId,
+	Limit,
+	toSymbol,
+} from "@trading-model/common/domain/primitives";
 
 jest.mock("../../../../src/config/http", () => ({
 	httpClients: {
@@ -92,14 +96,22 @@ describe("BinanceClient", () => {
 	});
 
 	it("getHistoricalTrades should call historicalTrades endpoint with weight", async () => {
-		await getHistoricalTrades({ symbol: BTC, limit: LIMIT_100, fromId: 12345 });
+		await getHistoricalTrades({
+			symbol: BTC,
+			limit: LIMIT_100,
+			fromId: BinanceFromId.of(12345),
+		});
 		expect(MOCK_GET).toHaveBeenCalledWith("/api/v3/historicalTrades", {
 			weight: 25,
 		} as never);
 	});
 
 	it("getHistoricalTrades should use default limit", async () => {
-		await getHistoricalTrades({ symbol: BTC, limit: LIMIT_500, fromId: 12345 });
+		await getHistoricalTrades({
+			symbol: BTC,
+			limit: LIMIT_500,
+			fromId: BinanceFromId.of(12345),
+		});
 		expect(MOCK_GET).toHaveBeenCalledWith("/api/v3/historicalTrades", {
 			weight: 25,
 		} as never);
@@ -130,7 +142,7 @@ describe("BinanceClient", () => {
 	it("getCompressedAggregateTrades should call aggTrades endpoint with weight", async () => {
 		await getCompressedAggregateTrades({
 			symbol: BTC,
-			fromId: 12345,
+			fromId: BinanceFromId.of(12345),
 			limit: LIMIT_100,
 		});
 		expect(MOCK_GET).toHaveBeenCalledWith("/api/v3/aggTrades", {
@@ -139,7 +151,10 @@ describe("BinanceClient", () => {
 	});
 
 	it("getCompressedAggregateTrades should use default limit", async () => {
-		await getCompressedAggregateTrades({ symbol: BTC, fromId: 12345 });
+		await getCompressedAggregateTrades({
+			symbol: BTC,
+			fromId: BinanceFromId.of(12345),
+		});
 		expect(MOCK_GET).toHaveBeenCalledWith("/api/v3/aggTrades", {
 			weight: 4,
 		} as never);
