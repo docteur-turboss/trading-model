@@ -1,3 +1,14 @@
+import type {
+	Price,
+	Ratio,
+	Volume,
+} from "@trading-model/common/domain/primitives";
+import { emptyBookTicker } from "./features/bookticker-features";
+import { emptyCandle } from "./features/candle-features";
+import { emptyOrderBook } from "./features/orderbook-features";
+import { emptyTicker } from "./features/ticker-features";
+import { emptyTrade } from "./features/trade-features";
+
 export const FEATURE_DIM = 32;
 
 interface FeatureField {
@@ -9,139 +20,139 @@ const FEATURE_FIELDS: FeatureField[] = [
 	{
 		get: (fv) => fv.candle.close,
 		set: (fv, val) => {
-			fv.candle.close = val;
+			fv.candle.close = val as Price;
 		},
 	},
 	{
 		get: (fv) => fv.candle.volume,
 		set: (fv, val) => {
-			fv.candle.volume = val;
+			fv.candle.volume = val as Volume;
 		},
 	},
 	{
 		get: (fv) => fv.candle.returnRatio,
 		set: (fv, val) => {
-			fv.candle.returnRatio = val;
+			fv.candle.returnRatio = val as Ratio;
 		},
 	},
 	{
 		get: (fv) => fv.candle.positionRatio,
 		set: (fv, val) => {
-			fv.candle.positionRatio = val;
+			fv.candle.positionRatio = val as Ratio;
 		},
 	},
 	{
 		get: (fv) => fv.candle.rangeRatio,
 		set: (fv, val) => {
-			fv.candle.rangeRatio = val;
+			fv.candle.rangeRatio = val as Ratio;
 		},
 	},
 	{
 		get: (fv) => fv.candle.open,
 		set: (fv, val) => {
-			fv.candle.open = val;
+			fv.candle.open = val as Price;
 		},
 	},
 	{
 		get: (fv) => fv.candle.high,
 		set: (fv, val) => {
-			fv.candle.high = val;
+			fv.candle.high = val as Price;
 		},
 	},
 	{
 		get: (fv) => fv.candle.low,
 		set: (fv, val) => {
-			fv.candle.low = val;
+			fv.candle.low = val as Price;
 		},
 	},
 	{
 		get: (fv) => fv.candle.volumeRatio,
 		set: (fv, val) => {
-			fv.candle.volumeRatio = val;
+			fv.candle.volumeRatio = val as Ratio;
 		},
 	},
 	{
 		get: (fv) => fv.orderBook.avgBid,
 		set: (fv, val) => {
-			fv.orderBook.avgBid = val;
+			fv.orderBook.avgBid = val as Price;
 		},
 	},
 	{
 		get: (fv) => fv.orderBook.avgAsk,
 		set: (fv, val) => {
-			fv.orderBook.avgAsk = val;
+			fv.orderBook.avgAsk = val as Price;
 		},
 	},
 	{
 		get: (fv) => fv.orderBook.spreadRatio,
 		set: (fv, val) => {
-			fv.orderBook.spreadRatio = val;
+			fv.orderBook.spreadRatio = val as Ratio;
 		},
 	},
 	{
 		get: (fv) => fv.orderBook.imbalance,
 		set: (fv, val) => {
-			fv.orderBook.imbalance = val;
+			fv.orderBook.imbalance = val as Ratio;
 		},
 	},
 	{
 		get: (fv) => fv.bookTicker.bid,
 		set: (fv, val) => {
-			fv.bookTicker.bid = val;
+			fv.bookTicker.bid = val as Price;
 		},
 	},
 	{
 		get: (fv) => fv.bookTicker.ask,
 		set: (fv, val) => {
-			fv.bookTicker.ask = val;
+			fv.bookTicker.ask = val as Price;
 		},
 	},
 	{
 		get: (fv) => fv.bookTicker.spreadRatio,
 		set: (fv, val) => {
-			fv.bookTicker.spreadRatio = val;
+			fv.bookTicker.spreadRatio = val as Ratio;
 		},
 	},
 	{
 		get: (fv) => fv.trade.avgPrice,
 		set: (fv, val) => {
-			fv.trade.avgPrice = val;
+			fv.trade.avgPrice = val as Price;
 		},
 	},
 	{
 		get: (fv) => fv.trade.totalQty,
 		set: (fv, val) => {
-			fv.trade.totalQty = val;
+			fv.trade.totalQty = val as Volume;
 		},
 	},
 	{
 		get: (fv) => fv.trade.buyRatio,
 		set: (fv, val) => {
-			fv.trade.buyRatio = val;
+			fv.trade.buyRatio = val as Ratio;
 		},
 	},
 	{
 		get: (fv) => fv.ticker.priceChange,
 		set: (fv, val) => {
-			fv.ticker.priceChange = val;
+			fv.ticker.priceChange = val as Ratio;
 		},
 	},
 	{
 		get: (fv) => fv.ticker.volume,
 		set: (fv, val) => {
-			fv.ticker.volume = val;
+			fv.ticker.volume = val as Volume;
 		},
 	},
 	{
 		get: (fv) => fv.ticker.dailyRange,
 		set: (fv, val) => {
-			fv.ticker.dailyRange = val;
+			fv.ticker.dailyRange = val as Ratio;
 		},
 	},
 	{
 		get: (fv) => fv.priceSnapshot,
 		set: (fv, val) => {
-			fv.priceSnapshot = val;
+			fv.priceSnapshot = val as Price;
 		},
 	},
 ];
@@ -150,70 +161,40 @@ const FEATURE_COUNT = FEATURE_FIELDS.length;
 const SLIDING_WINDOW_OFFSET = FEATURE_COUNT;
 
 export interface CandleFeatures {
-	close: number;
-	volume: number;
-	returnRatio: number;
-	positionRatio: number;
-	rangeRatio: number;
-	open: number;
-	high: number;
-	low: number;
-	volumeRatio: number;
+	close: Price;
+	volume: Volume;
+	returnRatio: Ratio;
+	positionRatio: Ratio;
+	rangeRatio: Ratio;
+	open: Price;
+	high: Price;
+	low: Price;
+	volumeRatio: Ratio;
 }
 
 export interface OrderBookFeatures {
-	avgBid: number;
-	avgAsk: number;
-	spreadRatio: number;
-	imbalance: number;
+	avgBid: Price;
+	avgAsk: Price;
+	spreadRatio: Ratio;
+	imbalance: Ratio;
 }
 
 export interface BookTickerFeatures {
-	bid: number;
-	ask: number;
-	spreadRatio: number;
+	bid: Price;
+	ask: Price;
+	spreadRatio: Ratio;
 }
 
 export interface TradeFeatures {
-	avgPrice: number;
-	totalQty: number;
-	buyRatio: number;
+	avgPrice: Price;
+	totalQty: Volume;
+	buyRatio: Ratio;
 }
 
 export interface TickerFeatures {
-	priceChange: number;
-	volume: number;
-	dailyRange: number;
-}
-
-function emptyCandle(): CandleFeatures {
-	return {
-		close: 0,
-		volume: 0,
-		returnRatio: 0,
-		positionRatio: 0,
-		rangeRatio: 0,
-		open: 0,
-		high: 0,
-		low: 0,
-		volumeRatio: 0,
-	};
-}
-
-function emptyOrderBook(): OrderBookFeatures {
-	return { avgBid: 0, avgAsk: 0, spreadRatio: 0, imbalance: 0 };
-}
-
-function emptyBookTicker(): BookTickerFeatures {
-	return { bid: 0, ask: 0, spreadRatio: 0 };
-}
-
-function emptyTrade(): TradeFeatures {
-	return { avgPrice: 0, totalQty: 0, buyRatio: 0 };
-}
-
-function emptyTicker(): TickerFeatures {
-	return { priceChange: 0, volume: 0, dailyRange: 0 };
+	priceChange: Ratio;
+	volume: Volume;
+	dailyRange: Ratio;
 }
 
 export class FeatureVector {
@@ -222,7 +203,7 @@ export class FeatureVector {
 	bookTicker: BookTickerFeatures;
 	trade: TradeFeatures;
 	ticker: TickerFeatures;
-	priceSnapshot = 0;
+	priceSnapshot: Price = 0 as Price;
 	private readonly _codec: FeatureVectorCodec;
 	bias = 0;
 

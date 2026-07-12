@@ -1,3 +1,8 @@
+import type {
+	Percentage,
+	PositiveInt,
+	Probability,
+} from "@trading-model/common/domain/primitives";
 import { createBounded } from "../bounded";
 import type {
 	ContinuousPolicyGenome,
@@ -137,24 +142,30 @@ function repairRewardShaping(rs: RewardShapingGenome): RewardShapingGenome {
 			Math.min(rawMin, rawMax - 1e-6),
 			Math.max(rawMax, rawMin + 1e-6)
 		),
-		scaleFactor: Math.max(0.001, rs.scaleFactor ?? 1),
+		scaleFactor: Math.max(0.001, rs.scaleFactor ?? 1) as Percentage,
 	};
 }
 
 function repairHorizon(horizon: HorizonGenome): HorizonGenome {
 	return {
-		maxEpisodeLength: Math.max(10, Math.round(horizon.maxEpisodeLength ?? 500)),
-		nStepReturn: Math.max(1, Math.round(horizon.nStepReturn ?? 1)),
-		frameSkip: Math.max(1, Math.round(horizon.frameSkip ?? 1)),
+		maxEpisodeLength: Math.max(
+			10,
+			Math.round(horizon.maxEpisodeLength ?? 500)
+		) as PositiveInt,
+		nStepReturn: Math.max(
+			1,
+			Math.round(horizon.nStepReturn ?? 1)
+		) as PositiveInt,
+		frameSkip: Math.max(1, Math.round(horizon.frameSkip ?? 1)) as PositiveInt,
 	};
 }
 
 function repairDiscretePolicy(dp: DiscretePolicyGenome): DiscretePolicyGenome {
 	return {
 		type: dp.type ?? DiscretePolicyType.EpsilonGreedy,
-		epsilonStart: clamp(dp.epsilonStart ?? 1.0, 0.1, 1.0),
-		epsilonMin: clamp(dp.epsilonMin ?? 0.05, 0.001, 0.2),
-		epsilonDecay: clamp(dp.epsilonDecay ?? 0.995, 0.9, 0.9999),
+		epsilonStart: clamp(dp.epsilonStart ?? 1.0, 0.1, 1.0) as Probability,
+		epsilonMin: clamp(dp.epsilonMin ?? 0.05, 0.001, 0.2) as Probability,
+		epsilonDecay: clamp(dp.epsilonDecay ?? 0.995, 0.9, 0.9999) as Probability,
 		temperature: Math.max(0.01, dp.temperature ?? 1.0),
 	};
 }
@@ -171,24 +182,27 @@ function repairContinuousPolicy(
 			Math.max(rawMax, rawMin + 1e-6)
 		),
 		noiseStd: Math.max(0.001, cp.noiseStd ?? 0.1),
-		noiseDecay: clamp(cp.noiseDecay ?? 0.999, 0.9, 0.9999),
+		noiseDecay: clamp(cp.noiseDecay ?? 0.999, 0.9, 0.9999) as Probability,
 	};
 }
 
 function repairReplayBuffer(rb: ReplayBufferGenome): ReplayBufferGenome {
 	return {
-		bufferSize: Math.max(100, Math.round(rb.bufferSize ?? 10_000)),
+		bufferSize: Math.max(
+			100,
+			Math.round(rb.bufferSize ?? 10_000)
+		) as PositiveInt,
 		prioritized: rb.prioritized,
-		alphaPER: clamp(rb.alphaPER ?? 0.6, 0, 1),
-		betaPER: clamp(rb.betaPER ?? 0.4, 0, 1),
+		alphaPER: clamp(rb.alphaPER ?? 0.6, 0, 1) as Probability,
+		betaPER: clamp(rb.betaPER ?? 0.4, 0, 1) as Probability,
 		betaAnneal: rb.betaAnneal,
 	};
 }
 
 export function repairRL(rl: RLGenome): typeof rl {
 	return {
-		gamma: clamp(rl.gamma ?? 0.99, 0.8, 0.9999),
-		learningRate: clamp(rl.learningRate ?? 1e-3, 1e-6, 1e-1),
+		gamma: clamp(rl.gamma ?? 0.99, 0.8, 0.9999) as Probability,
+		learningRate: clamp(rl.learningRate ?? 1e-3, 1e-6, 1e-1) as Percentage,
 		rewardShaping: repairRewardShaping(rl.rewardShaping),
 		horizon: repairHorizon(rl.horizon),
 		discretePolicy: repairDiscretePolicy(rl.discretePolicy),

@@ -1,9 +1,9 @@
+import { NumericRange } from "@trading-model/common/domain/numeric-range";
 import {
 	Percentage,
 	PositiveInt,
 	Probability,
 } from "@trading-model/common/domain/primitives";
-import { NumericRange } from "./bounded";
 import { MAX_DEPTH } from "./genome-layout-constants";
 import type { Genome } from "./genome-types";
 
@@ -36,7 +36,7 @@ const SCALAR_FIELDS: ScalarFieldDef[] = [
 	},
 	{
 		key: "clipMin",
-		accessor: (genome) => genome.rl.rewardShaping.clipBounds.lo,
+		accessor: (genome) => genome.rl.rewardShaping.clipBounds.min,
 		encode: (value) => value,
 		decode: (value) => value,
 		clamp: new NumericRange(Number.NEGATIVE_INFINITY, Number.POSITIVE_INFINITY),
@@ -44,7 +44,7 @@ const SCALAR_FIELDS: ScalarFieldDef[] = [
 	},
 	{
 		key: "clipMax",
-		accessor: (genome) => genome.rl.rewardShaping.clipBounds.hi,
+		accessor: (genome) => genome.rl.rewardShaping.clipBounds.max,
 		encode: (value) => value,
 		decode: (value) => value,
 		clamp: new NumericRange(Number.NEGATIVE_INFINITY, Number.POSITIVE_INFINITY),

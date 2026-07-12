@@ -30,7 +30,8 @@ export class CheckpointSerializer {
 		return {
 			savedAt: Date.now() as UnixTimestamp,
 			symbol: target.symbol,
-			generation: (target.genome.generation as number | undefined) ?? 0,
+			generation:
+				(target.genome.generation as unknown as number | undefined) ?? 0,
 			fitness,
 		};
 	}

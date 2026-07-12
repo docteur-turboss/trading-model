@@ -82,13 +82,13 @@ export class GenerationProcessor {
 			evalResult.metas,
 			paretoResult.avgEff
 		);
-		this._evolvePopulation(paretoResult, newCtrl, ctrl, rng);
-		const ctx = this._buildContext(
-			paretoResult,
+		this._evolvePopulation({ result: paretoResult, newCtrl, ctrl, rng });
+		const ctx = this._buildContext({
+			result: paretoResult,
 			trackResult,
 			newCtrl,
-			startTime
-		);
+			startTime,
+		});
 		this._cfg.onGeneration?.(ctx);
 		return ctx;
 	}
@@ -104,7 +104,7 @@ export class GenerationProcessor {
 
 	private _adaptControl(
 		ctrl: DeepReadonly<GAControlGenome>
-	): Readonly<GAControlGenome> {
+	): DeepReadonly<GAControlGenome> {
 		return adaptGAControl(
 			ctrl,
 			this._evaluator.stagnationTracker.efficiencyHistory,
@@ -112,15 +112,16 @@ export class GenerationProcessor {
 		);
 	}
 
-	private _evolvePopulation(
+	private _evolvePopulation(params: {
 		result: {
 			popWithMeta: PopMember[];
 			popMeta: import("./pareto").PopulationMeta;
-		},
-		newCtrl: Readonly<GAControlGenome>,
-		ctrl: DeepReadonly<GAControlGenome>,
-		rng: () => number
-	): void {
+		};
+		newCtrl: DeepReadonly<GAControlGenome>;
+		ctrl: DeepReadonly<GAControlGenome>;
+		rng: () => number;
+	}): void {
+		const { result, newCtrl, ctrl, rng } = params;
 		const ranked = sortPopulation(result.popWithMeta, result.popMeta);
 		const elites = selectElites(ranked, newCtrl);
 		this._population = buildNextPopulation(elites, {
@@ -132,12 +133,13 @@ export class GenerationProcessor {
 		});
 	}
 
-	private _buildContext(
-		result: { avgFit: number; avgEff: number; popWithMeta: PopMember[] },
-		trackResult: import("./stagnation-tracker").TrackResult | undefined,
-		newCtrl: Readonly<GAControlGenome>,
-		startTime?: number
-	): GenerationContext {
+	private _buildContext(params: {
+		result: { avgFit: number; avgEff: number; popWithMeta: PopMember[] };
+		trackResult: import("./stagnation-tracker").TrackResult | undefined;
+		newCtrl: DeepReadonly<GAControlGenome>;
+		startTime?: number;
+	}): GenerationContext {
+		const { result, trackResult, newCtrl, startTime } = params;
 		return {
 			generation: this._generation,
 			population: this._population,

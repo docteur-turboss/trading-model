@@ -1,27 +1,28 @@
+import type { PositiveInt } from "@trading-model/common/domain/primitives";
 import { ConnectionType } from "../neural-network/type";
 import type { Genome, NetworkGenome } from "./genome-types";
 
 /** Bounds that define how complex a network topology is allowed to be. */
 export interface TopologyConstraints {
 	/** Maximum number of hidden layers */
-	maxDepth: number;
+	maxDepth: PositiveInt;
 	/** Maximum neurons in any single hidden layer */
-	maxNeuronsPerLayer: number;
+	maxNeuronsPerLayer: PositiveInt;
 	/** Maximum total trainable parameters (weights + biases) */
-	maxTotalParams: number;
+	maxTotalParams: PositiveInt;
 	/** If true, residual/skip connections are only allowed after the first layer */
 	skipConnectionsFromLayer1Only: boolean;
 	/** Minimum neurons per hidden layer */
-	minNeuronsPerLayer: number;
+	minNeuronsPerLayer: PositiveInt;
 }
 
 /** Sensible default topology bounds for a trading-agent network. */
 export const DEFAULT_TOPOLOGY_CONSTRAINTS: TopologyConstraints = {
-	maxDepth: 8,
-	maxNeuronsPerLayer: 512,
-	maxTotalParams: 2_000_000,
+	maxDepth: 8 as PositiveInt,
+	maxNeuronsPerLayer: 512 as PositiveInt,
+	maxTotalParams: 2_000_000 as PositiveInt,
 	skipConnectionsFromLayer1Only: false,
-	minNeuronsPerLayer: 1,
+	minNeuronsPerLayer: 1 as PositiveInt,
 };
 
 /** Count total trainable parameters (weights + biases) in a network topology. */

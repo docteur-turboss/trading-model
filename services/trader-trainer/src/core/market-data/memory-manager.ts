@@ -1,12 +1,10 @@
 import { EvictionPolicy } from "../eviction-policy";
 import type { SymbolState, TradingSymbol } from "../market-data-types";
+import type { MemoryConfig } from "../memory-config";
 
-export interface MemoryManagerConfig {
+export interface MemoryManagerConfig extends MemoryConfig {
 	states: Map<TradingSymbol, SymbolState>;
 	accessOrder: TradingSymbol[];
-	maxSize: number;
-	maxMemoryBytes: number;
-	evictionPolicy: EvictionPolicy;
 }
 
 /** Manages in-memory state limits with configurable eviction. */

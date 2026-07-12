@@ -1,11 +1,7 @@
-import type { FeatureVector } from "../feature-vector";
-import type { SymbolState } from "../market-data-types";
+import type { FeatureContext } from "../feature-context";
 
-export function buildSlidingWindowFeatures(
-	features: FeatureVector,
-	state: SymbolState,
-	idx: number
-): void {
+export function buildSlidingWindowFeatures(ctx: FeatureContext): void {
+	const { features, state, idx } = ctx;
 	const sw = features.slidingWindow();
 	const lookbackStart = Math.max(0, idx - 8);
 	let swIdx = 0;

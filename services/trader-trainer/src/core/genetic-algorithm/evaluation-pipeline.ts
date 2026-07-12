@@ -108,13 +108,15 @@ export function evaluateGenomeAllWindows(
 		allPnL.push(result.finalPnL);
 	}
 
-	return _computeAllResults({
-		genome,
-		currentGenome,
-		allRaw,
-		allPnL,
-		t0,
-	});
+	return Promise.resolve(
+		_computeAllResults({
+			genome,
+			currentGenome,
+			allRaw,
+			allPnL,
+			t0,
+		})
+	);
 }
 
 /**

@@ -52,10 +52,12 @@ createBootstrap({
 
 		await MessageManager.intents(CONTAINER.getSubscribedIntents());
 
-		CONTAINER.startTrainingLoop(
-			ENV.TRAINER_SYMBOLS.split(",").map((symbol) => toSymbol(symbol.trim())),
-			60_000
-		);
+		CONTAINER.startTrainingLoop({
+			symbols: ENV.TRAINER_SYMBOLS.split(",").map((symbol) =>
+				toSymbol(symbol.trim())
+			),
+			intervalMs: 60_000,
+		});
 	},
 	onStop: async () => {
 		CONTAINER.stopTrainingLoop();

@@ -1,4 +1,8 @@
 import type { NumericRange } from "@trading-model/common/domain/numeric-range";
+import type {
+	PositiveInt,
+	Reward,
+} from "@trading-model/common/domain/primitives";
 import type { OptimizerHyperparams, OptimizerState } from "./optimizer";
 
 export enum LossFunctionType {
@@ -120,7 +124,7 @@ export interface NetworkArchitecture {
 	enablePool?: boolean;
 
 	/** @default 10_000 */
-	poolMaxSize?: number;
+	poolMaxSize?: PositiveInt;
 }
 
 /** Hyperparameters controlling the loss computation. */
@@ -197,23 +201,24 @@ export enum ExperienceKind {
 	Supervised = "supervised",
 }
 
-/**
- * A bare experience tuple stored during fastForward when no RL signal is available.
- */
-export interface BareExperience {
-	kind: ExperienceKind.Bare;
+interface ExperienceBase {
 	input: Float32Array;
 	output: Float32Array;
 }
 
 /**
+ * A bare experience tuple stored during fastForward when no RL signal is available.
+ */
+export interface BareExperience extends ExperienceBase {
+	kind: ExperienceKind.Bare;
+}
+
+/**
  * A Q-learning experience tuple stored in the replay pool.
  */
-export interface QLearningExperience {
+export interface QLearningExperience extends ExperienceBase {
 	kind: ExperienceKind.QLearning;
-	input: Float32Array;
-	output: Float32Array;
-	reward: number;
+	reward: Reward;
 	nextState: Float32Array;
 	done: boolean;
 }
@@ -221,10 +226,8 @@ export interface QLearningExperience {
 /**
  * A supervised-learning experience tuple (ground-truth target available).
  */
-export interface SupervisedExperience {
+export interface SupervisedExperience extends ExperienceBase {
 	kind: ExperienceKind.Supervised;
-	input: Float32Array;
-	output: Float32Array;
 	target: Float32Array;
 }
 

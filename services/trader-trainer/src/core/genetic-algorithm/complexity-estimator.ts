@@ -4,12 +4,7 @@
  */
 
 import { ActivationType, type LamarckGenome } from "./genome-types";
-
-type DeepReadonly<TValue> = TValue extends (infer UItem)[]
-	? readonly DeepReadonly<UItem>[]
-	: TValue extends object
-		? { readonly [KKey in keyof TValue]: DeepReadonly<TValue[KKey]> }
-		: TValue;
+import type { DeepReadonly } from "./shared-types";
 
 const FlopSoftCapMacs = 5_000_000;
 const MemSoftCapMb = 200_000_000;

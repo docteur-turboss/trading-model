@@ -10,9 +10,23 @@ export type {
 
 export type DeepReadonly<TValue> = TValue extends (infer UValue)[]
 	? readonly DeepReadonly<UValue>[]
-	: TValue extends object
-		? { readonly [KValue in keyof TValue]: DeepReadonly<TValue[KValue]> }
-		: TValue;
+	: TValue extends number
+		? TValue
+		: TValue extends string
+			? TValue
+			: TValue extends boolean
+				? TValue
+				: TValue extends bigint
+					? TValue
+					: TValue extends symbol
+						? TValue
+						: TValue extends null | undefined
+							? TValue
+							: {
+									readonly [KValue in keyof TValue]: DeepReadonly<
+										TValue[KValue]
+									>;
+								};
 
 export function deepFreeze<TValue>(obj: TValue): DeepReadonly<TValue> {
 	if (obj === null || typeof obj !== "object") {

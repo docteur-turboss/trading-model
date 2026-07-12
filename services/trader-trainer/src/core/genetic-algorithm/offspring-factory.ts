@@ -13,7 +13,7 @@ import { generateId } from "./utils";
 
 export function selectElites(
 	ranked: PopMember[],
-	newCtrl: Readonly<GAControlGenome>
+	newCtrl: DeepReadonly<GAControlGenome>
 ): DeepReadonly<LamarckGenome>[] {
 	const nElite = Math.max(
 		1,
@@ -28,7 +28,7 @@ export function selectElites(
 
 interface ProduceOneOffspringParams {
 	ranked: PopMember[];
-	newCtrl: Readonly<GAControlGenome>;
+	newCtrl: DeepReadonly<GAControlGenome>;
 	coRng: () => number;
 	mutRng: () => number;
 	rng: () => number;
@@ -38,7 +38,7 @@ interface ProduceOneOffspringParams {
 function _crossoverAndMutateWeights(
 	pA: LamarckGenome,
 	pB: LamarckGenome,
-	newCtrl: Readonly<GAControlGenome>,
+	newCtrl: DeepReadonly<GAControlGenome>,
 	coRng: () => number,
 	mutRng: () => number
 ): Float32Array | undefined {
@@ -60,7 +60,7 @@ function _crossoverAndMutateWeights(
 
 function _buildOffspringGenome(
 	childStruct: LamarckGenome,
-	newCtrl: Readonly<GAControlGenome>,
+	newCtrl: DeepReadonly<GAControlGenome>,
 	generation: number,
 	childWeights: Float32Array | undefined
 ): DeepReadonly<LamarckGenome> {
@@ -94,13 +94,15 @@ function produceOneOffspring(
 
 export interface OffspringContext {
 	ranked: PopMember[];
-	newCtrl: Readonly<GAControlGenome>;
+	newCtrl: DeepReadonly<GAControlGenome>;
 	ctrl: DeepReadonly<GAControlGenome>;
 	rng: () => number;
 	generation: number;
 }
 
-function _computeOffspringCount(newCtrl: Readonly<GAControlGenome>): number {
+function _computeOffspringCount(
+	newCtrl: DeepReadonly<GAControlGenome>
+): number {
 	const nElite = Math.max(
 		1,
 		Math.round(newCtrl.population.elitismFraction * newCtrl.population.size)

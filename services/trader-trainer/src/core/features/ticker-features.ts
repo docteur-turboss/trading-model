@@ -1,11 +1,15 @@
-import type { Ratio } from "@trading-model/common/domain/primitives";
+import type { Ratio, Volume } from "@trading-model/common/domain/primitives";
 
 export interface TickerFeatures {
 	priceChange: Ratio;
-	volume: number;
+	volume: Volume;
 	dailyRange: Ratio;
 }
 
 export function emptyTicker(): TickerFeatures {
-	return { priceChange: 0 as Ratio, volume: 0, dailyRange: 0 as Ratio };
+	return {
+		priceChange: 0 as Ratio,
+		volume: 0 as Volume,
+		dailyRange: 0 as Ratio,
+	};
 }

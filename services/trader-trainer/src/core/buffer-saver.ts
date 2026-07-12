@@ -1,7 +1,10 @@
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { logger } from "@trading-model/common/config/logger";
-import type { TradingSymbol } from "@trading-model/common/domain/primitives";
+import type {
+	FilePath,
+	TradingSymbol,
+} from "@trading-model/common/domain/primitives";
 import type { SymbolStateSerializable } from "./buffer-serializable-types";
 import {
 	createDefaultHandlers,
@@ -13,7 +16,7 @@ import type { MarketDataBuffer } from "./market-data-buffer";
 export class BufferSaver {
 	private readonly _handlers: DataHandler[];
 
-	constructor(private readonly _checkpointDir: string) {
+	constructor(private readonly _checkpointDir: FilePath) {
 		this._handlers = createDefaultHandlers();
 	}
 

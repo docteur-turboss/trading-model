@@ -1,3 +1,4 @@
+import type { PositiveInt } from "@trading-model/common/domain/primitives";
 import {
 	ActivationType,
 	ConnectionType,
@@ -109,7 +110,7 @@ export function mutateLayer(
 	const sigma = adaptSigma(mutation, rng);
 	return {
 		...layer,
-		neurons: _mutateNeuronCount(layer, sigma, mutation, rng),
+		neurons: _mutateNeuronCount(layer, sigma, mutation, rng) as PositiveInt,
 		activation: _mutateActivation(layer, mutation, rng),
 		connectionType: _mutateConnectionType(layer, mutation, rng),
 		biasType: _mutateBiasType(layer, mutation, rng),
@@ -136,7 +137,10 @@ function _maybeAddNeuron(
 ): void {
 	if (layers.length > 0 && rng() < mutationConfig.structural.addNeuronRate) {
 		const li = Math.floor(rng() * layers.length);
-		layers[li] = { ...layers[li], neurons: layers[li].neurons + 1 };
+		layers[li] = {
+			...layers[li],
+			neurons: (layers[li].neurons + 1) as PositiveInt,
+		};
 	}
 }
 
@@ -149,14 +153,14 @@ function _maybeRemoveNeuron(
 		const li = Math.floor(rng() * layers.length);
 		layers[li] = {
 			...layers[li],
-			neurons: Math.max(1, layers[li].neurons - 1),
+			neurons: Math.max(1, layers[li].neurons - 1) as PositiveInt,
 		};
 	}
 }
 
 function _createRandomLayer(rng: () => number): LayerGenome {
 	return {
-		neurons: 16 + Math.floor(rng() * 32),
+		neurons: (16 + Math.floor(rng() * 32)) as PositiveInt,
 		activation: pick(ACTIVATIONS, rng),
 		connectionType: ConnectionType.DenseSkip,
 		biasType: InitialisationType.Zeros,

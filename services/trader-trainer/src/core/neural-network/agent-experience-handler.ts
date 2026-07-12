@@ -9,6 +9,14 @@ import type {
 } from "./type";
 import { ExperienceKind } from "./type";
 
+export interface ExperienceInput {
+	input: Float32Array;
+	output: Float32Array;
+	reward?: number;
+	nextState?: Float32Array;
+	done?: boolean;
+}
+
 type LearnStrategyMap = {
 	[Kind in Experience["kind"]]?: (
 		nn: NeuralNetwork,
@@ -35,13 +43,8 @@ export class AgentExperienceHandler {
 		this._pool = createExperiencePool(enablePool, poolMaxSize);
 	}
 
-	private _buildExperience(
-		input: Float32Array,
-		output: Float32Array,
-		reward?: number,
-		nextState?: Float32Array,
-		done?: boolean
-	): Experience {
+	private _buildExperience(ei: ExperienceInput): Experience {
+		const { input, output, reward, nextState, done } = ei;
 		return reward !== undefined && nextState !== undefined
 			? {
 					kind: ExperienceKind.QLearning,
@@ -54,16 +57,8 @@ export class AgentExperienceHandler {
 			: { kind: ExperienceKind.Bare, input, output: output.slice() };
 	}
 
-	recordExperience(
-		input: Float32Array,
-		output: Float32Array,
-		reward?: number,
-		nextState?: Float32Array,
-		done?: boolean
-	): void {
-		this._pool.add(
-			this._buildExperience(input, output, reward, nextState, done)
-		);
+	recordExperience(ei: ExperienceInput): void {
+		this._pool.add(this._buildExperience(ei));
 	}
 
 	getPool(): Experience[] {

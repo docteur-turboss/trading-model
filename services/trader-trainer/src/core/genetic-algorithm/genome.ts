@@ -1,4 +1,12 @@
-import type { GenomeId, Price } from "@trading-model/common/domain/primitives";
+import type {
+	Fitness,
+	GenomeId,
+	Percentage,
+	PositiveInt,
+	Price,
+	Probability,
+	Ratio,
+} from "@trading-model/common/domain/primitives";
 import type { FeatureVector } from "../feature-vector.js";
 import type {
 	ActivationType,
@@ -22,7 +30,7 @@ export type ClipBounds = Bounded<number>;
 
 /** Configuration for a single neural network hidden layer. */
 export interface LayerGenome {
-	neurons: number;
+	neurons: PositiveInt;
 	activation: ActivationType;
 	connectionType: ConnectionType;
 	biasType: InitialisationType;
@@ -30,8 +38,8 @@ export interface LayerGenome {
 
 /** Neural network architecture definition within a genome. */
 export interface NetworkGenome {
-	inputDim: number;
-	outputDim: number;
+	inputDim: PositiveInt;
+	outputDim: PositiveInt;
 	hiddenLayers: LayerGenome[];
 	normalization: NormalisationType;
 }
@@ -41,16 +49,16 @@ export interface RewardShapingGenome {
 	clipBounds: Bounded<number>;
 	clip: boolean;
 	scale: boolean;
-	scaleFactor: number;
+	scaleFactor: Percentage;
 	normalize: boolean;
 	sparse: boolean;
 }
 
 /** Episode horizon parameters: length, n-step return depth, and frame skip. */
 export interface HorizonGenome {
-	maxEpisodeLength: number;
-	nStepReturn: number;
-	frameSkip: number;
+	maxEpisodeLength: PositiveInt;
+	nStepReturn: PositiveInt;
+	frameSkip: PositiveInt;
 }
 
 export enum DiscretePolicyType {
@@ -61,9 +69,9 @@ export enum DiscretePolicyType {
 /** Discrete policy hyperparameters for epsilon-greedy or softmax selection. */
 export interface DiscretePolicyGenome {
 	type: DiscretePolicyType;
-	epsilonStart: number;
-	epsilonMin: number;
-	epsilonDecay: number;
+	epsilonStart: Probability;
+	epsilonMin: Probability;
+	epsilonDecay: Probability;
 	temperature: number;
 }
 
@@ -78,22 +86,22 @@ export interface ContinuousPolicyGenome {
 	clipBounds: Bounded<number>;
 	type: ContinuousPolicyType;
 	noiseStd: number;
-	noiseDecay: number;
+	noiseDecay: Probability;
 }
 
 /** Experience replay buffer configuration. */
 export interface ReplayBufferGenome {
-	bufferSize: number;
+	bufferSize: PositiveInt;
 	prioritized: boolean;
-	alphaPER: number;
-	betaPER: number;
+	alphaPER: Probability;
+	betaPER: Probability;
 	betaAnneal: boolean;
 }
 
 /** Shared scalar hyperparameters: discount factor and step size. */
 export interface RLScalars {
-	gamma: number;
-	learningRate: number;
+	gamma: Probability;
+	learningRate: Percentage;
 }
 
 /** Complete reinforcement learning hyperparameter set. */
@@ -127,21 +135,21 @@ export enum MutationScope {
 
 /** Mutation rate hyperparameters. */
 export interface MutationRates {
-	rate: number;
-	sigma: number;
+	rate: Percentage;
+	sigma: Percentage;
 	noiseStd: number;
-	selfSigma: number;
-	activationMutationRate: number;
+	selfSigma: Percentage;
+	activationMutationRate: Percentage;
 }
 
 /** Mutation structural modification rates. */
 export interface MutationStructural {
-	addNeuronRate: number;
-	removeNeuronRate: number;
-	addLayerRate: number;
-	removeLayerRate: number;
-	addConnectionRate: number;
-	removeConnectionRate: number;
+	addNeuronRate: Percentage;
+	removeNeuronRate: Percentage;
+	addLayerRate: Percentage;
+	removeLayerRate: Percentage;
+	addConnectionRate: Percentage;
+	removeConnectionRate: Percentage;
 }
 
 /** Mutation operator configuration. */
@@ -167,9 +175,9 @@ export enum CrossoverType {
 /** Crossover operator configuration. */
 export interface CrossoverGenome {
 	type: CrossoverType;
-	probability: number;
-	blendAlpha: number;
-	sbxEta: number;
+	probability: Probability;
+	blendAlpha: Percentage;
+	sbxEta: PositiveInt;
 }
 
 export enum SelectionType {
@@ -190,9 +198,9 @@ export enum FitnessType {
 
 /** GA population control parameters. */
 export interface GAPopulationConfig {
-	size: number;
-	elitismFraction: number;
-	survivorFraction: number;
+	size: PositiveInt;
+	elitismFraction: Probability;
+	survivorFraction: Probability;
 }
 
 export function eliteCount(config: GAPopulationConfig): number {
@@ -205,9 +213,9 @@ export function survivorCount(config: GAPopulationConfig): number {
 
 /** GA termination criteria. */
 export interface GATerminationConfig {
-	rewardThreshold: number;
-	stagnationPatience: number;
-	maxGenerations: number;
+	rewardThreshold: Fitness;
+	stagnationPatience: PositiveInt;
+	maxGenerations: PositiveInt;
 	timeBudgetMs: number;
 }
 
@@ -247,8 +255,8 @@ export function toCombinedSeed(config: GASeedingConfig): number {
 
 /** GA evaluation configuration. */
 export interface GAEvaluationConfig {
-	episodesPerIndividual: number;
-	seedsPerEval: number;
+	episodesPerIndividual: PositiveInt;
+	seedsPerEval: PositiveInt;
 }
 
 /** Self-adaptive GA control parameters. */
@@ -259,15 +267,15 @@ export interface GAControlGenome {
 	evaluation: GAEvaluationConfig;
 	selectionType: SelectionType;
 	fitnessType: FitnessType;
-	mutationRate: number;
-	mutationStd: number;
+	mutationRate: Percentage;
+	mutationStd: Percentage;
 }
 
 /** Metadata attached to a genome after fitness evaluation. */
 export interface GenomeFitnessMeta {
-	episodesRun: number;
+	episodesRun: PositiveInt;
 	computeMs: number;
-	efficiencyScore: number;
+	efficiencyScore: Ratio;
 	variance: number;
 	rawScores: EpisodeScores;
 }
@@ -275,7 +283,7 @@ export interface GenomeFitnessMeta {
 /** Top-level genome: network architecture, RL hyperparameters, mutation, crossover, and GA control. */
 export interface Genome {
 	id: GenomeId;
-	generation: number;
+	generation: PositiveInt;
 	network: NetworkGenome;
 	rl: RLGenome;
 	mutation: MutationGenome;
@@ -291,7 +299,7 @@ export type LamarckGenome = Genome & {
 /** An evaluated population member: pairs a genome with its computed fitness data. */
 export interface PopMember {
 	genome: LamarckGenome;
-	fitness: number;
+	fitness: Fitness;
 	fitnessMeta: GenomeFitnessMeta;
 }
 

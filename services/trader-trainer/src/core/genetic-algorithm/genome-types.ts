@@ -1,21 +1,30 @@
 export * from "./genome";
 
+import type {
+	Cash,
+	Fitness,
+	GenomeId,
+	PositiveInt,
+	Ratio,
+	Reward,
+} from "@trading-model/common/domain/primitives";
+
 export interface EpisodeLog {
-	genomeId: string;
+	genomeId: GenomeId;
 	episode: number;
-	reward: number;
+	reward: Reward;
 	steps: number;
-	pnl: number;
+	pnl: Cash;
 	computeMs: number;
 }
 
 export interface GenerationSummary {
-	generation: number;
-	bestFitness: number;
-	avgFitness: number;
-	efficiency: number;
-	popSize: number;
-	stagnation: number;
+	generation: PositiveInt;
+	bestFitness: Fitness;
+	avgFitness: Fitness;
+	efficiency: Ratio;
+	popSize: PositiveInt;
+	stagnation: PositiveInt;
 	elapsedMs: number;
 	gaControl: import("./genome").GAControlGenome;
 }

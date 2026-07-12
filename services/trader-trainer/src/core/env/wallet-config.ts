@@ -8,6 +8,7 @@ import {
 	computeBuyCosts,
 	computeSellProceeds,
 	roundValue,
+	type TradeCostParams,
 } from "./wallet-costs";
 import { validateConfig } from "./wallet-validation";
 
@@ -46,27 +47,26 @@ export class WalletConfig {
 		return roundValue(value, this.decimals);
 	}
 
-	computeBuyCosts(
-		amount: Volume,
-		price: Price
-	): { totalCost: Cash; fee: Cash } {
-		return computeBuyCosts({
+	private _buildTradeParams(amount: Volume, price: Price): TradeCostParams {
+		return {
 			amount,
 			price,
 			feeRate: this.feeRate,
 			decimals: this.decimals,
-		});
+		};
+	}
+
+	computeBuyCosts(
+		amount: Volume,
+		price: Price
+	): import("./wallet-costs").BuyCostResult {
+		return computeBuyCosts(this._buildTradeParams(amount, price));
 	}
 
 	computeSellProceeds(
 		amount: Volume,
 		price: Price
-	): { netProceeds: Cash; fee: Cash } {
-		return computeSellProceeds({
-			amount,
-			price,
-			feeRate: this.feeRate,
-			decimals: this.decimals,
-		});
+	): import("./wallet-costs").SellProceedsResult {
+		return computeSellProceeds(this._buildTradeParams(amount, price));
 	}
 }

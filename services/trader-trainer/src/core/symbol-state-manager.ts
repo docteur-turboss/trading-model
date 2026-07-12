@@ -3,16 +3,12 @@ import {
 	type DataHandler,
 } from "./data-handlers/data-handler";
 import type { DataType } from "./data-handlers/data-types";
-import type { EvictionPolicy } from "./eviction-policy";
 import { MemoryManager } from "./market-data/memory-manager";
 import type { SymbolState, TradingSymbol } from "./market-data-types";
+import type { MemoryConfig } from "./memory-config";
 import { NormalizationManager } from "./normalization-manager";
 
-export interface SymbolStateManagerConfig {
-	maxSize: number;
-	maxMemoryBytes: number;
-	evictionPolicy: EvictionPolicy;
-}
+export interface SymbolStateManagerConfig extends MemoryConfig {}
 
 export class SymbolStateManager {
 	readonly states: Map<TradingSymbol, SymbolState> = new Map();

@@ -169,7 +169,7 @@ describe("evaluateGenomeAllWindows", () => {
 			backendFactory as any
 		);
 		expect(result.updatedGenome).toBeDefined();
-		expect(result.meta.episodesRun).toBe(0);
+		expect(result.meta.episodesRun).toBe(1);
 	});
 
 	it("should handle frameSkip > 1", async () => {

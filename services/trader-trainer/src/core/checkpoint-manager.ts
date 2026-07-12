@@ -1,6 +1,9 @@
 import { existsSync, mkdirSync } from "node:fs";
 import { logger } from "@trading-model/common/config/logger";
-import type { TradingSymbol } from "@trading-model/common/domain/primitives";
+import type {
+	FilePath,
+	TradingSymbol,
+} from "@trading-model/common/domain/primitives";
 import { BufferLoader } from "./buffer-loader";
 import { BufferSaver } from "./buffer-saver";
 import {
@@ -16,12 +19,12 @@ import type {
 } from "./market-data-buffer";
 
 export interface CheckpointManagerConfig {
-	checkpointDir: string;
+	checkpointDir: FilePath;
 	maxCheckpoints?: number;
 }
 
 export class CheckpointManager {
-	private readonly _checkpointDir: string;
+	private readonly _checkpointDir: FilePath;
 	private readonly _maxCheckpoints: number;
 	private readonly _fileHelper: CheckpointFileHelper;
 	private readonly _bufferSaver: BufferSaver;

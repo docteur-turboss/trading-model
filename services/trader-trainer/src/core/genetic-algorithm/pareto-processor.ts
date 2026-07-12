@@ -1,3 +1,4 @@
+import { Fitness } from "@trading-model/common/domain/primitives";
 import type {
 	GenomeFitnessMeta,
 	LamarckGenome,
@@ -22,7 +23,7 @@ export function buildParetoFronts(
 
 	const popWithMeta: PopMember[] = updatedPop.map((genome, idx) => ({
 		genome: genome as PopMember["genome"],
-		fitness: metas[idx].efficiencyScore,
+		fitness: Fitness.of(metas[idx].efficiencyScore),
 		fitnessMeta: metas[idx],
 	}));
 

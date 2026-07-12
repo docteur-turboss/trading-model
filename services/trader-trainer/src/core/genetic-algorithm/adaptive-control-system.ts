@@ -5,27 +5,7 @@
  */
 
 import type { GAControlGenome } from "./genome-types";
-
-type DeepReadonly<TValue> = TValue extends (infer UItem)[]
-	? readonly DeepReadonly<UItem>[]
-	: TValue extends object
-		? { readonly [KKey in keyof TValue]: DeepReadonly<TValue[KKey]> }
-		: TValue;
-
-function deepFreeze<TValue>(obj: TValue): DeepReadonly<TValue> {
-	if (obj === null || typeof obj !== "object") {
-		return obj as DeepReadonly<TValue>;
-	}
-
-	for (const key of Object.keys(obj)) {
-		const val = (obj as Record<string, unknown>)[key];
-		if (val !== null && typeof val === "object" && !Object.isFrozen(val)) {
-			deepFreeze(val);
-		}
-	}
-
-	return Object.freeze(obj) as DeepReadonly<TValue>;
-}
+import { type DeepReadonly, deepFreeze } from "./shared-types";
 
 function adjustPopulationSize(
 	popSize: number,
@@ -95,21 +75,25 @@ function _buildAdjustedControl(
 		...ctrl,
 		population: {
 			...ctrl.population,
-			size: adjustPopulationSize(ctrl.population.size, stagnation, isImproving),
+			size: adjustPopulationSize(
+				ctrl.population.size as unknown as number,
+				stagnation,
+				isImproving
+			),
 			elitismFraction: adjustElitism(
-				ctrl.population.elitismFraction,
+				ctrl.population.elitismFraction as unknown as number,
 				stagnation,
 				isImproving
 			),
 			survivorFraction: adjustSurvivors(
-				ctrl.population.survivorFraction,
+				ctrl.population.survivorFraction as unknown as number,
 				stagnation
 			),
 		},
 		evaluation: {
 			...ctrl.evaluation,
 			episodesPerIndividual: adjustEpisodes(
-				ctrl.evaluation.episodesPerIndividual,
+				ctrl.evaluation.episodesPerIndividual as unknown as number,
 				stagnation,
 				isImproving
 			),
@@ -121,7 +105,7 @@ export function adaptGAControl(
 	ctrl: DeepReadonly<GAControlGenome>,
 	effHistory: number[],
 	stagnation: number
-): Readonly<GAControlGenome> {
+): DeepReadonly<GAControlGenome> {
 	if (effHistory.length < 3) {
 		return ctrl;
 	}
@@ -149,13 +133,15 @@ export function checkTerminationConditions(
 	ctx: TerminationCheckContext
 ): StopCondition {
 	const { generation, bestFitness, stagnation, elapsedMs, ctrl } = ctx;
-	if (bestFitness >= ctrl.termination.rewardThreshold) {
+	if (bestFitness >= (ctrl.termination.rewardThreshold as unknown as number)) {
 		return { shouldStop: true, reason: "Reward threshold reached" };
 	}
-	if (stagnation >= ctrl.termination.stagnationPatience) {
+	if (
+		stagnation >= (ctrl.termination.stagnationPatience as unknown as number)
+	) {
 		return { shouldStop: true, reason: "Stagnation patience exceeded" };
 	}
-	if (generation >= ctrl.termination.maxGenerations) {
+	if (generation >= (ctrl.termination.maxGenerations as unknown as number)) {
 		return { shouldStop: true, reason: "Max generations reached" };
 	}
 	if (elapsedMs >= ctrl.termination.timeBudgetMs) {

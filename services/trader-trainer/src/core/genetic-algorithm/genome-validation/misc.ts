@@ -1,4 +1,9 @@
 import type {
+	Percentage,
+	PositiveInt,
+	Probability,
+} from "@trading-model/common/domain/primitives";
+import type {
 	CrossoverGenome,
 	GAControlGenome,
 	Genome,
@@ -79,9 +84,9 @@ function repairMutation(mutation: MutationGenome): MutationGenome {
 		...mutation,
 		rates: {
 			...mutation.rates,
-			rate: clamp(mutation.rates.rate ?? 0.1, 0.001, 0.5),
-			sigma: Math.max(1e-5, mutation.rates.sigma ?? 0.05),
-			selfSigma: Math.max(1e-5, mutation.rates.selfSigma ?? 0.05),
+			rate: clamp(mutation.rates.rate ?? 0.1, 0.001, 0.5) as Percentage,
+			sigma: Math.max(1e-5, mutation.rates.sigma ?? 0.05) as Percentage,
+			selfSigma: Math.max(1e-5, mutation.rates.selfSigma ?? 0.05) as Percentage,
 		},
 	};
 }
@@ -89,9 +94,9 @@ function repairMutation(mutation: MutationGenome): MutationGenome {
 function repairCrossover(crossover: CrossoverGenome): CrossoverGenome {
 	return {
 		...crossover,
-		probability: clamp(crossover.probability ?? 0.7, 0, 1),
-		blendAlpha: clamp(crossover.blendAlpha ?? 0.5, 0, 1),
-		sbxEta: Math.max(1, crossover.sbxEta ?? 2),
+		probability: clamp(crossover.probability ?? 0.7, 0, 1) as Probability,
+		blendAlpha: clamp(crossover.blendAlpha ?? 0.5, 0, 1) as Percentage,
+		sbxEta: Math.max(1, crossover.sbxEta ?? 2) as PositiveInt,
 	};
 }
 
@@ -100,27 +105,34 @@ function repairGAControl(gaControl: GAControlGenome): GAControlGenome {
 		...gaControl,
 		population: {
 			...gaControl.population,
-			size: Math.max(2, Math.round(gaControl.population.size ?? 20)),
-			elitismFraction: clamp(gaControl.population.elitismFraction ?? 0.1, 0, 1),
+			size: Math.max(
+				2,
+				Math.round(gaControl.population.size ?? 20)
+			) as PositiveInt,
+			elitismFraction: clamp(
+				gaControl.population.elitismFraction ?? 0.1,
+				0,
+				1
+			) as Probability,
 			survivorFraction: clamp(
 				gaControl.population.survivorFraction ?? 0.5,
 				0,
 				1
-			),
+			) as Probability,
 		},
 		termination: {
 			...gaControl.termination,
 			maxGenerations: Math.max(
 				1,
 				Math.round(gaControl.termination.maxGenerations ?? 100)
-			),
+			) as PositiveInt,
 		},
 		evaluation: {
 			...gaControl.evaluation,
 			episodesPerIndividual: Math.max(
 				1,
 				Math.round(gaControl.evaluation.episodesPerIndividual ?? 3)
-			),
+			) as PositiveInt,
 		},
 	};
 }

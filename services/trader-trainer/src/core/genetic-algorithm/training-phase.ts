@@ -12,6 +12,15 @@ export interface TrainPhaseContext {
 	genome: DeepReadonly<LamarckGenome>;
 }
 
+interface TrainStepContext extends TrainPhaseContext {
+	index: number;
+	maxT: number;
+}
+
+interface ExperienceContext extends TrainStepContext {
+	prev: Experience;
+}
+
 function _shouldSkipFrame(index: number, frameSkip: number): boolean {
 	return index % frameSkip !== 0;
 }
@@ -20,14 +29,8 @@ function _canTrain(pool: Experience[]): boolean {
 	return pool.length >= 2;
 }
 
-function _buildTrainExperience(
-	prev: Experience,
-	index: number,
-	rewardBuf: Float32Array,
-	genome: DeepReadonly<LamarckGenome>,
-	trainData: MarketStep[],
-	maxT: number
-): Experience {
+function _buildTrainExperience(ctx: ExperienceContext): Experience {
+	const { prev, index, rewardBuf, genome, trainData, maxT } = ctx;
 	return {
 		...prev,
 		kind: ExperienceKind.QLearning,
@@ -37,14 +40,8 @@ function _buildTrainExperience(
 	};
 }
 
-function _trainStep(
-	index: number,
-	backend: RLBackend,
-	trainData: MarketStep[],
-	rewardBuf: Float32Array,
-	genome: DeepReadonly<LamarckGenome>,
-	maxT: number
-): void {
+function _trainStep(ctx: TrainStepContext): void {
+	const { index, backend, trainData, genome } = ctx;
 	if (_shouldSkipFrame(index, genome.rl.horizon.frameSkip)) {
 		return;
 	}
@@ -54,14 +51,10 @@ function _trainStep(
 		return;
 	}
 	backend.train(
-		_buildTrainExperience(
-			pool[pool.length - 2],
-			index,
-			rewardBuf,
-			genome,
-			trainData,
-			maxT
-		),
+		_buildTrainExperience({
+			...ctx,
+			prev: pool[pool.length - 2],
+		}),
 		genome.rl.gamma
 	);
 }
@@ -70,6 +63,6 @@ export function trainPhase(ctx: TrainPhaseContext): void {
 	const { backend, trainData, rewardBuf, genome } = ctx;
 	const maxT = Math.min(trainData.length, genome.rl.horizon.maxEpisodeLength);
 	for (let index = 0; index < maxT; index++) {
-		_trainStep(index, backend, trainData, rewardBuf, genome, maxT);
+		_trainStep({ index, backend, trainData, rewardBuf, genome, maxT });
 	}
 }

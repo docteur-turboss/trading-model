@@ -1,3 +1,4 @@
+import type { Percentage } from "@trading-model/common/domain/primitives";
 import type { MutationGenome } from "../genome-types";
 import { MutationDistribution } from "../genome-types";
 import { sampleGaussian, sampleNoise } from "../noise";
@@ -36,13 +37,13 @@ export function mutateSelfAdaptiveParams(
 		...mutationConfig,
 		rates: {
 			...mutationConfig.rates,
-			sigma: _mutateSigma(mutationConfig, sigma, rng),
-			selfSigma: _mutateSelfSigma(mutationConfig, sigma, rng),
+			sigma: _mutateSigma(mutationConfig, sigma, rng) as Percentage,
+			selfSigma: _mutateSelfSigma(mutationConfig, sigma, rng) as Percentage,
 			rate: clamp(
 				mutationConfig.rates.rate + sampleGaussian(rng, 0.01),
 				0.001,
 				0.5
-			),
+			) as Percentage,
 		},
 	};
 }

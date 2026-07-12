@@ -1,4 +1,5 @@
 import { logger } from "@trading-model/common/config/logger";
+import type { PositiveInt } from "@trading-model/common/domain/primitives";
 import { ENV } from "../config/env";
 import { createDefaultGenome } from "./genetic-algorithm/factory";
 import {
@@ -64,16 +65,17 @@ export class TrainingSession {
 			...defaultControl,
 			population: {
 				...defaultControl.population,
-				size: ENV.TRAINER_POPULATION_SIZE,
+				size: ENV.TRAINER_POPULATION_SIZE as PositiveInt,
 			},
 			termination: {
 				...defaultControl.termination,
-				maxGenerations: ENV.TRAINER_GENERATIONS,
+				maxGenerations: ENV.TRAINER_GENERATIONS as PositiveInt,
 				timeBudgetMs: ENV.TRAINER_TIME_BUDGET_MS,
 			},
 			evaluation: {
 				...defaultControl.evaluation,
-				episodesPerIndividual: ENV.TRAINER_EPISODES_PER_INDIVIDUAL,
+				episodesPerIndividual:
+					ENV.TRAINER_EPISODES_PER_INDIVIDUAL as PositiveInt,
 			},
 		};
 	}

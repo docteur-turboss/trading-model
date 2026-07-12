@@ -1,3 +1,8 @@
+import type {
+	Percentage,
+	PositiveInt,
+	Probability,
+} from "@trading-model/common/domain/primitives";
 import { createBounded } from "../bounded";
 import type {
 	ContinuousPolicyGenome,
@@ -42,7 +47,9 @@ function _crossoverLayerPair(
 	rng: () => number
 ): LayerGenome {
 	return {
-		neurons: Math.round(crossoverFn(layerLeft.neurons, layerRight.neurons)),
+		neurons: Math.round(
+			crossoverFn(layerLeft.neurons, layerRight.neurons)
+		) as PositiveInt,
 		activation: rng() < 0.5 ? layerLeft.activation : layerRight.activation,
 		connectionType:
 			rng() < 0.5 ? layerLeft.connectionType : layerRight.connectionType,
@@ -128,7 +135,7 @@ function crossoverRewardShaping(
 			crossoverFn(left.clipBounds.max, right.clipBounds.max)
 		),
 		scale: rng() < 0.5 ? left.scale : right.scale,
-		scaleFactor: crossoverFn(left.scaleFactor, right.scaleFactor),
+		scaleFactor: crossoverFn(left.scaleFactor, right.scaleFactor) as Percentage,
 		normalize: rng() < 0.5 ? left.normalize : right.normalize,
 		sparse: rng() < 0.5 ? left.sparse : right.sparse,
 	};
@@ -141,9 +148,13 @@ function crossoverHorizon(
 	return {
 		maxEpisodeLength: Math.round(
 			crossoverFn(left.maxEpisodeLength, right.maxEpisodeLength)
-		),
-		nStepReturn: Math.round(crossoverFn(left.nStepReturn, right.nStepReturn)),
-		frameSkip: Math.round(crossoverFn(left.frameSkip, right.frameSkip)),
+		) as PositiveInt,
+		nStepReturn: Math.round(
+			crossoverFn(left.nStepReturn, right.nStepReturn)
+		) as PositiveInt,
+		frameSkip: Math.round(
+			crossoverFn(left.frameSkip, right.frameSkip)
+		) as PositiveInt,
 	};
 }
 
@@ -153,9 +164,15 @@ function crossoverDiscretePolicy(
 	const { left, right, crossoverFn, rng } = ctx;
 	return {
 		type: rng() < 0.5 ? left.type : right.type,
-		epsilonStart: crossoverFn(left.epsilonStart, right.epsilonStart),
-		epsilonMin: crossoverFn(left.epsilonMin, right.epsilonMin),
-		epsilonDecay: crossoverFn(left.epsilonDecay, right.epsilonDecay),
+		epsilonStart: crossoverFn(
+			left.epsilonStart,
+			right.epsilonStart
+		) as Probability,
+		epsilonMin: crossoverFn(left.epsilonMin, right.epsilonMin) as Probability,
+		epsilonDecay: crossoverFn(
+			left.epsilonDecay,
+			right.epsilonDecay
+		) as Probability,
 		temperature: crossoverFn(left.temperature, right.temperature),
 	};
 }
@@ -171,7 +188,7 @@ function crossoverContinuousPolicy(
 			crossoverFn(left.clipBounds.max, right.clipBounds.max)
 		),
 		noiseStd: crossoverFn(left.noiseStd, right.noiseStd),
-		noiseDecay: crossoverFn(left.noiseDecay, right.noiseDecay),
+		noiseDecay: crossoverFn(left.noiseDecay, right.noiseDecay) as Probability,
 	};
 }
 
@@ -180,10 +197,12 @@ function crossoverReplayBuffer(
 ): ReplayBufferGenome {
 	const { left, right, crossoverFn, rng } = ctx;
 	return {
-		bufferSize: Math.round(crossoverFn(left.bufferSize, right.bufferSize)),
+		bufferSize: Math.round(
+			crossoverFn(left.bufferSize, right.bufferSize)
+		) as PositiveInt,
 		prioritized: rng() < 0.5 ? left.prioritized : right.prioritized,
-		alphaPER: crossoverFn(left.alphaPER, right.alphaPER),
-		betaPER: crossoverFn(left.betaPER, right.betaPER),
+		alphaPER: crossoverFn(left.alphaPER, right.alphaPER) as Probability,
+		betaPER: crossoverFn(left.betaPER, right.betaPER) as Probability,
 		betaAnneal: rng() < 0.5 ? left.betaAnneal : right.betaAnneal,
 	};
 }
@@ -202,8 +221,11 @@ function _crossoverGammaAndLR(
 	crossoverFn: (valueA: number, valueB: number) => number
 ): RLScalars {
 	return {
-		gamma: crossoverFn(left.gamma, right.gamma),
-		learningRate: crossoverFn(left.learningRate, right.learningRate),
+		gamma: crossoverFn(left.gamma, right.gamma) as Probability,
+		learningRate: crossoverFn(
+			left.learningRate,
+			right.learningRate
+		) as Percentage,
 	};
 }
 

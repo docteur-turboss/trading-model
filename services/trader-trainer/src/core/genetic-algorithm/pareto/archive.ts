@@ -1,12 +1,7 @@
 import type { LamarckGenome } from "../genome-types";
+import type { DeepReadonly } from "../shared-types";
 import type { ObjectiveVector } from "./domination";
 import { dominates } from "./domination";
-
-type DeepReadonly<TValue> = TValue extends (infer UValue)[]
-	? readonly DeepReadonly<UValue>[]
-	: TValue extends object
-		? { readonly [KValue in keyof TValue]: DeepReadonly<TValue[KValue]> }
-		: TValue;
 
 export class ParetoArchive {
 	private _members: DeepReadonly<LamarckGenome>[] = [];

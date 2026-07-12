@@ -28,9 +28,9 @@ export function buildFeatures(ctx: FeatureBuilderContext): FeatureVector {
 	buildOrderBookFeatures({ features, state, idx });
 	buildBookTickerFeatures({ features, state, idx });
 	buildTradeFeatures({ features, state, idx });
-	buildTickerFeatures(features, state);
+	buildTickerFeatures({ features, state, idx });
 	buildPriceSnapshotFeature({ features, state, idx, priceSnapshot });
-	buildSlidingWindowFeatures(features, state, idx);
+	buildSlidingWindowFeatures({ features, state, idx });
 
 	features.bias = 1.0;
 	return features;

@@ -1,3 +1,8 @@
+import type {
+	Percentage,
+	PositiveInt,
+	Probability,
+} from "@trading-model/common/domain/primitives";
 import { createBounded } from "../bounded";
 import type { MutationGenome, RLGenome } from "../genome-types";
 import { sampleGaussian, sampleNoise } from "../noise";
@@ -38,12 +43,12 @@ function _mutateGammaAndLR(
 	const perturb = _perturbFn(mutation, rng);
 
 	return {
-		gamma: clamp(perturb(rl.gamma, 0.01), 0.8, 0.9999),
+		gamma: clamp(perturb(rl.gamma, 0.01), 0.8, 0.9999) as Probability,
 		learningRate: clamp(
 			rl.learningRate * Math.exp(sampleGaussian(rng, 0.3)),
 			1e-6,
 			1e-1
-		),
+		) as Percentage,
 	};
 }
 
@@ -61,7 +66,10 @@ function _mutateRewardShaping(
 				perturb(rl.rewardShaping.clipBounds.min, 0.1),
 				perturb(rl.rewardShaping.clipBounds.max, 0.1)
 			),
-			scaleFactor: Math.max(0.01, perturb(rl.rewardShaping.scaleFactor, 0.1)),
+			scaleFactor: Math.max(
+				0.01,
+				perturb(rl.rewardShaping.scaleFactor, 0.1)
+			) as Percentage,
 		},
 	};
 }
@@ -93,9 +101,19 @@ function _mutateHorizon(
 ): Pick<RLGenome, "horizon"> {
 	return {
 		horizon: {
-			maxEpisodeLength: _mutateMaxEpisodeLength(rl.horizon, mutation, rng),
-			nStepReturn: _mutateDiscreteStepParam(rl.horizon.nStepReturn, rng),
-			frameSkip: _mutateDiscreteStepParam(rl.horizon.frameSkip, rng),
+			maxEpisodeLength: _mutateMaxEpisodeLength(
+				rl.horizon,
+				mutation,
+				rng
+			) as PositiveInt,
+			nStepReturn: _mutateDiscreteStepParam(
+				rl.horizon.nStepReturn,
+				rng
+			) as PositiveInt,
+			frameSkip: _mutateDiscreteStepParam(
+				rl.horizon.frameSkip,
+				rng
+			) as PositiveInt,
 		},
 	};
 }
@@ -113,17 +131,17 @@ function _mutateDiscretePolicy(
 				perturb(rl.discretePolicy.epsilonStart, 0.05),
 				0.1,
 				1.0
-			),
+			) as Probability,
 			epsilonMin: clamp(
 				perturb(rl.discretePolicy.epsilonMin, 0.01),
 				0.001,
 				0.2
-			),
+			) as Probability,
 			epsilonDecay: clamp(
 				perturb(rl.discretePolicy.epsilonDecay, 0.002),
 				0.9,
 				0.9999
-			),
+			) as Probability,
 			temperature: Math.max(0.01, perturb(rl.discretePolicy.temperature, 0.1)),
 		},
 	};
@@ -143,7 +161,7 @@ function _mutateContinuousPolicy(
 				perturb(rl.continuousPolicy.noiseDecay, 0.001),
 				0.9,
 				0.9999
-			),
+			) as Probability,
 		},
 	};
 }
@@ -164,9 +182,20 @@ function _mutateReplayBuffer(
 	return {
 		replayBuffer: {
 			...rl.replayBuffer,
-			bufferSize: _mutateReplayBufferSize(rl.replayBuffer.bufferSize, rng),
-			alphaPER: clamp(perturb(rl.replayBuffer.alphaPER, 0.05), 0, 1),
-			betaPER: clamp(perturb(rl.replayBuffer.betaPER, 0.05), 0, 1),
+			bufferSize: _mutateReplayBufferSize(
+				rl.replayBuffer.bufferSize,
+				rng
+			) as PositiveInt,
+			alphaPER: clamp(
+				perturb(rl.replayBuffer.alphaPER, 0.05),
+				0,
+				1
+			) as Probability,
+			betaPER: clamp(
+				perturb(rl.replayBuffer.betaPER, 0.05),
+				0,
+				1
+			) as Probability,
 		},
 	};
 }

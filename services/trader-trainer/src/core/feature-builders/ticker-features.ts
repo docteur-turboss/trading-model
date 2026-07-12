@@ -1,10 +1,7 @@
-import type { FeatureVector } from "../feature-vector";
-import type { SymbolState } from "../market-data-types";
+import type { FeatureContext } from "../feature-context";
 
-export function buildTickerFeatures(
-	features: FeatureVector,
-	state: SymbolState
-): void {
+export function buildTickerFeatures(ctx: FeatureContext): void {
+	const { features, state } = ctx;
 	if (state.ticker24h) {
 		const tk = state.ticker24h;
 		features.ticker.priceChange =

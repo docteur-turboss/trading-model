@@ -1,3 +1,10 @@
+import type { GenomeId } from "@trading-model/common/domain/primitives";
+import {
+	Fitness,
+	Percentage,
+	PositiveInt,
+	Probability,
+} from "@trading-model/common/domain/primitives";
 import {
 	ActivationType,
 	ConnectionType,
@@ -32,13 +39,13 @@ import {
 function _createDefaultHiddenLayers(): NetworkGenome["hiddenLayers"] {
 	return [
 		{
-			neurons: 64,
+			neurons: PositiveInt.of(64),
 			activation: ActivationType.Relu,
 			connectionType: ConnectionType.DenseSkip,
 			biasType: InitialisationType.Zeros,
 		},
 		{
-			neurons: 32,
+			neurons: PositiveInt.of(32),
 			activation: ActivationType.Relu,
 			connectionType: ConnectionType.DenseSkip,
 			biasType: InitialisationType.Zeros,
@@ -48,8 +55,8 @@ function _createDefaultHiddenLayers(): NetworkGenome["hiddenLayers"] {
 
 export function createNetworkGenome(): NetworkGenome {
 	return {
-		inputDim: 32,
-		outputDim: 3,
+		inputDim: PositiveInt.of(32),
+		outputDim: PositiveInt.of(3),
 		hiddenLayers: _createDefaultHiddenLayers(),
 		normalization: NormalisationType.None,
 	};
@@ -60,7 +67,7 @@ export function createRewardShapingGenome(): RewardShapingGenome {
 		clip: false,
 		clipBounds: createBounded(-1, 1),
 		scale: false,
-		scaleFactor: 1,
+		scaleFactor: Percentage.of(1),
 		normalize: false,
 		sparse: false,
 	};
@@ -68,18 +75,18 @@ export function createRewardShapingGenome(): RewardShapingGenome {
 
 export function createHorizonGenome(): HorizonGenome {
 	return {
-		maxEpisodeLength: 500,
-		nStepReturn: 1,
-		frameSkip: 1,
+		maxEpisodeLength: PositiveInt.of(500),
+		nStepReturn: PositiveInt.of(1),
+		frameSkip: PositiveInt.of(1),
 	};
 }
 
 export function createDiscretePolicyGenome(): DiscretePolicyGenome {
 	return {
 		type: DiscretePolicyType.EpsilonGreedy,
-		epsilonStart: 1.0,
-		epsilonMin: 0.05,
-		epsilonDecay: 0.995,
+		epsilonStart: Probability.of(1.0),
+		epsilonMin: Probability.of(0.05),
+		epsilonDecay: Probability.of(0.995),
 		temperature: 1.0,
 	};
 }
@@ -89,16 +96,16 @@ export function createContinuousPolicyGenome(): ContinuousPolicyGenome {
 		type: ContinuousPolicyType.TanhSquashing,
 		clipBounds: createBounded(-1, 1),
 		noiseStd: 0.1,
-		noiseDecay: 0.999,
+		noiseDecay: Probability.of(0.999),
 	};
 }
 
 export function createReplayBufferGenome(): ReplayBufferGenome {
 	return {
-		bufferSize: 10_000,
+		bufferSize: PositiveInt.of(10_000),
 		prioritized: false,
-		alphaPER: 0.6,
-		betaPER: 0.4,
+		alphaPER: Probability.of(0.6),
+		betaPER: Probability.of(0.4),
 		betaAnneal: true,
 	};
 }
@@ -106,19 +113,19 @@ export function createReplayBufferGenome(): ReplayBufferGenome {
 export function createMutationGenome(): MutationGenome {
 	return {
 		rates: {
-			rate: 0.1,
-			sigma: 0.05,
+			rate: Percentage.of(0.1),
+			sigma: Percentage.of(0.05),
 			noiseStd: 0.02,
-			selfSigma: 0.05,
-			activationMutationRate: 0.05,
+			selfSigma: Percentage.of(0.05),
+			activationMutationRate: Percentage.of(0.05),
 		},
 		structural: {
-			addNeuronRate: 0.01,
-			removeNeuronRate: 0.01,
-			addLayerRate: 0.005,
-			removeLayerRate: 0.005,
-			addConnectionRate: 0.01,
-			removeConnectionRate: 0.01,
+			addNeuronRate: Percentage.of(0.01),
+			removeNeuronRate: Percentage.of(0.01),
+			addLayerRate: Percentage.of(0.005),
+			removeLayerRate: Percentage.of(0.005),
+			addConnectionRate: Percentage.of(0.01),
+			removeConnectionRate: Percentage.of(0.01),
 		},
 		distribution: MutationDistribution.Gaussian,
 		adaptation: MutationAdaptation.Fixed,
@@ -131,23 +138,23 @@ export function createMutationGenome(): MutationGenome {
 export function createCrossoverGenome(): CrossoverGenome {
 	return {
 		type: CrossoverType.Uniform,
-		probability: 0.7,
-		blendAlpha: 0.5,
-		sbxEta: 2,
+		probability: Probability.of(0.7),
+		blendAlpha: Percentage.of(0.5),
+		sbxEta: PositiveInt.of(2),
 	};
 }
 
 export function createGAControlGenome(): GAControlGenome {
 	return {
 		population: {
-			size: 20,
-			elitismFraction: 0.1,
-			survivorFraction: 0.5,
+			size: PositiveInt.of(20),
+			elitismFraction: Probability.of(0.1),
+			survivorFraction: Probability.of(0.5),
 		},
 		termination: {
-			rewardThreshold: Number.POSITIVE_INFINITY,
-			stagnationPatience: 15,
-			maxGenerations: 100,
+			rewardThreshold: Fitness.of(Number.POSITIVE_INFINITY),
+			stagnationPatience: PositiveInt.of(15),
+			maxGenerations: PositiveInt.of(100),
 			timeBudgetMs: 5 * 60 * 1_000,
 		},
 		seeding: {
@@ -156,20 +163,20 @@ export function createGAControlGenome(): GAControlGenome {
 			networkSeed: 7,
 		},
 		evaluation: {
-			episodesPerIndividual: 3,
-			seedsPerEval: 2,
+			episodesPerIndividual: PositiveInt.of(3),
+			seedsPerEval: PositiveInt.of(2),
 		},
 		selectionType: SelectionType.Tournament,
 		fitnessType: FitnessType.TotalPnl,
-		mutationRate: 0.1,
-		mutationStd: 0.05,
+		mutationRate: Percentage.of(0.1),
+		mutationStd: Percentage.of(0.05),
 	} as GAControlGenome;
 }
 
 function _createDefaultRLGenome(): RLGenome {
 	return {
-		gamma: 0.99,
-		learningRate: 1e-3,
+		gamma: Probability.of(0.99),
+		learningRate: Percentage.of(1e-3),
 		rewardShaping: createRewardShapingGenome(),
 		horizon: createHorizonGenome(),
 		discretePolicy: createDiscretePolicyGenome(),
@@ -178,13 +185,14 @@ function _createDefaultRLGenome(): RLGenome {
 	};
 }
 
-import type { GenomeId } from "@trading-model/common/domain/primitives";
-
 /** Create a genome with sensible default values for network, RL hyperparameters, mutation, crossover, and GA control. */
-export function createDefaultGenome(id: string, generation = 0): Genome {
+export function createDefaultGenome(
+	id: string,
+	generation = 0 as PositiveInt
+): Genome {
 	return {
 		id: id as GenomeId,
-		generation,
+		generation: generation as PositiveInt,
 		network: createNetworkGenome(),
 		rl: _createDefaultRLGenome(),
 		mutation: createMutationGenome(),

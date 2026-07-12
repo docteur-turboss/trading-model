@@ -5,6 +5,11 @@ import type { Trainer } from "../core/trainer";
 
 const MIN_CANDLE_RATIO = 0.1;
 
+export interface TrainingLoopConfig {
+	symbols: TradingSymbol[];
+	intervalMs: number;
+}
+
 export class TrainingLoop {
 	private readonly _trainingInterval = new TimerHandle();
 
@@ -13,7 +18,8 @@ export class TrainingLoop {
 		private readonly _dataBuffer: MarketDataBuffer
 	) {}
 
-	start(symbols: TradingSymbol[], intervalMs: number): void {
+	start(config: TrainingLoopConfig): void {
+		const { symbols, intervalMs } = config;
 		const runTraining = () => this._runTrainingForSymbols(symbols);
 
 		void runTraining();

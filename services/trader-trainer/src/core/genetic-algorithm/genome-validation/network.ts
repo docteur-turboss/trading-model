@@ -1,3 +1,4 @@
+import type { PositiveInt } from "@trading-model/common/domain/primitives";
 import {
 	ActivationType,
 	ConnectionType,
@@ -16,7 +17,7 @@ import {
 
 function _createDefaultHiddenLayer(): LayerGenome {
 	return {
-		neurons: 32,
+		neurons: 32 as PositiveInt,
 		activation: ActivationType.Relu,
 		connectionType: ConnectionType.DenseSkip,
 		biasType: InitialisationType.Zeros,
@@ -94,7 +95,7 @@ export function validateNetwork(
 
 function repairLayer(layer: LayerGenome): LayerGenome {
 	return {
-		neurons: Math.max(1, Math.round(layer.neurons ?? 32)),
+		neurons: Math.max(1, Math.round(layer.neurons ?? 32)) as PositiveInt,
 		activation: VALID_ACTIVATIONS.has(layer.activation)
 			? layer.activation
 			: ActivationType.Relu,
@@ -116,8 +117,8 @@ function _repairHiddenLayers(network: NetworkGenome): LayerGenome[] {
 
 export function repairNetwork(network: NetworkGenome): NetworkGenome {
 	return {
-		inputDim: Math.max(1, Math.round(network.inputDim ?? 1)),
-		outputDim: Math.max(1, Math.round(network.outputDim ?? 1)),
+		inputDim: Math.max(1, Math.round(network.inputDim ?? 1)) as PositiveInt,
+		outputDim: Math.max(1, Math.round(network.outputDim ?? 1)) as PositiveInt,
 		hiddenLayers: _repairHiddenLayers(network),
 		normalization: VALID_NORM_TYPES.has(network.normalization)
 			? network.normalization

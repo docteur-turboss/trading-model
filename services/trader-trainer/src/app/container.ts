@@ -8,7 +8,7 @@ import type {
 import type { TradingSymbol } from "../core/market-data-types";
 import { Trainer } from "../core/trainer";
 import { MarketDataEventRouter } from "./market-data-event-router";
-import { TrainingLoop } from "./training-loop";
+import { TrainingLoop, type TrainingLoopConfig } from "./training-loop";
 
 export interface AppContainerConfig {
 	bufferSize: number;
@@ -82,8 +82,8 @@ export class ApplicationContainer {
 		return this.eventRouter.getSubscribedIntents();
 	}
 
-	startTrainingLoop(symbols: TradingSymbol[], intervalMs: number): void {
-		this._trainingLoop.start(symbols, intervalMs);
+	startTrainingLoop(config: TrainingLoopConfig): void {
+		this._trainingLoop.start(config);
 	}
 
 	stopTrainingLoop(): void {

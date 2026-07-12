@@ -1,3 +1,4 @@
+import { PositiveInt, Ratio } from "@trading-model/common/domain/primitives";
 import {
 	computeAdjustedFitness,
 	estimateComplexity,
@@ -9,9 +10,9 @@ import type { DeepReadonly } from "./shared-types";
 import { computeSharpe } from "./utils";
 
 export interface GenomeFitnessMeta {
-	episodesRun: number;
+	episodesRun: PositiveInt;
 	computeMs: number;
-	efficiencyScore: number;
+	efficiencyScore: Ratio;
 	variance: number;
 	rawScores: EpisodeScores;
 }
@@ -46,6 +47,9 @@ export function deepFreeze<TValue>(obj: TValue): DeepReadonly<TValue> {
 }
 
 function computeFitness(_fitnessType: string, scores: number[]): number {
+	if (scores.length === 0) {
+		return 0;
+	}
 	return scores.reduce((sum, value) => sum + value, 0) / scores.length;
 }
 
@@ -112,9 +116,9 @@ function _buildFitnessMeta(
 ): GenomeFitnessMeta {
 	const scores = new EpisodeScores(allRaw);
 	return {
-		episodesRun: scores.length,
+		episodesRun: PositiveInt.of(Math.max(1, scores.length)),
 		computeMs: Date.now() - t0,
-		efficiencyScore: adjFitness,
+		efficiencyScore: Ratio.of(Number.isFinite(adjFitness) ? adjFitness : 0),
 		variance: scores.variance(),
 		rawScores: scores,
 	};

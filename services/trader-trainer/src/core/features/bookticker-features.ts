@@ -1,11 +1,11 @@
-import type { Ratio } from "@trading-model/common/domain/primitives";
+import type { Price, Ratio } from "@trading-model/common/domain/primitives";
 
 export interface BookTickerFeatures {
-	bid: number;
-	ask: number;
+	bid: Price;
+	ask: Price;
 	spreadRatio: Ratio;
 }
 
 export function emptyBookTicker(): BookTickerFeatures {
-	return { bid: 0, ask: 0, spreadRatio: 0 as Ratio };
+	return { bid: 0 as Price, ask: 0 as Price, spreadRatio: 0 as Ratio };
 }

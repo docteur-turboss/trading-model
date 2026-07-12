@@ -1,3 +1,4 @@
+import type { PositiveInt } from "@trading-model/common/domain/primitives";
 import { createDefaultGenome } from "./factory";
 import type { GAControlGenome, LamarckGenome } from "./genome-types";
 import { createOffspring, type OffspringContext } from "./offspring-factory";
@@ -7,7 +8,10 @@ export function createInitialPopulation(
 	ctrl: DeepReadonly<GAControlGenome>
 ): DeepReadonly<LamarckGenome>[] {
 	return Array.from({ length: ctrl.population.size }, (_unused, index) => {
-		const baseGenome = createDefaultGenome(`g0_${index}`, 0) as LamarckGenome;
+		const baseGenome = createDefaultGenome(
+			`g0_${index}`,
+			0 as PositiveInt
+		) as LamarckGenome;
 		return deepFreeze({
 			...baseGenome,
 			gaControl: ctrl,

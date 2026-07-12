@@ -1,4 +1,7 @@
-import type { GenomeId } from "@trading-model/common/domain/primitives";
+import type {
+	GenomeId,
+	PositiveInt,
+} from "@trading-model/common/domain/primitives";
 import type {
 	Genome,
 	ValidationContext,
@@ -35,7 +38,7 @@ export function repairGenome(genome: Genome): Genome {
 			typeof genome.id === "string" && genome.id.length > 0
 				? genome.id
 				: ("repaired" as unknown as GenomeId),
-		generation: Math.max(0, Math.round(genome.generation ?? 0)),
+		generation: Math.max(0, Math.round(genome.generation ?? 0)) as PositiveInt,
 		network: repairNetwork(genome.network),
 		rl: repairRL(genome.rl),
 		mutation: repairMutation(genome.mutation),

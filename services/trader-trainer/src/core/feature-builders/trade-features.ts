@@ -1,8 +1,6 @@
 ﻿import type { TradeData } from "@trading-model/common/config/event.types";
 import { TradeSide } from "@trading-model/common/contracts/market-data.types";
 import type { FeatureContext } from "../feature-context";
-import type { FeatureVector } from "../feature-vector";
-import type { SymbolState } from "../market-data-types";
 
 function filterRecentTrades(
 	trades: TradeData[],
@@ -12,10 +10,10 @@ function filterRecentTrades(
 }
 
 function setTradeFeatures(
-	features: FeatureVector,
-	state: SymbolState,
+	ctx: FeatureContext,
 	recentTrades: TradeData[]
 ): void {
+	const { features, state } = ctx;
 	const avgPrice =
 		recentTrades.reduce((acc, trade) => acc + trade.price, 0) /
 		recentTrades.length;
@@ -29,10 +27,10 @@ function setTradeFeatures(
 }
 
 export function buildTradeFeatures(ctx: FeatureContext): void {
-	const { features, state, idx } = ctx;
+	const { state, idx } = ctx;
 	const cur = state.candles[idx];
 	const recentTrades = filterRecentTrades(state.trades, cur.timestamp - 60000);
 	if (recentTrades.length > 0) {
-		setTradeFeatures(features, state, recentTrades);
+		setTradeFeatures(ctx, recentTrades);
 	}
 }

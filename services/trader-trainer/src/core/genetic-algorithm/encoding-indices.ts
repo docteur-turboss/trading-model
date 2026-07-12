@@ -1,4 +1,9 @@
 import {
+	Percentage,
+	PositiveInt,
+	Probability,
+} from "@trading-model/common/domain/primitives";
+import {
 	ActivationType,
 	ConnectionType,
 	InitialisationType,
@@ -6,16 +11,10 @@ import {
 import type { Bounded } from "./bounded";
 import { createBounded } from "./bounded";
 import type { Genome } from "./genome-types";
+import { LAYER_STRIDE } from "./layer-codec";
 import { clamp } from "./utils";
 
 export const MAX_DEPTH = 12;
-const LAYER_STRIDE = 3;
-
-const LAYER_OFFSETS = {
-	NEURONS: 0,
-	ACTIVATION: 1,
-	CONNECTION_TYPE: 2,
-} as const;
 
 interface ScalarFieldDef {
 	name: string;
@@ -282,13 +281,9 @@ export function readEncodedLayer(
 	offset: number
 ): EncodedLayer {
 	return {
-		neurons: arr[offset + LAYER_OFFSETS.NEURONS],
-		activation: activationFromIndex(
-			Math.round(arr[offset + LAYER_OFFSETS.ACTIVATION])
-		),
-		connectionType: connectionTypeFromIndex(
-			Math.round(arr[offset + LAYER_OFFSETS.CONNECTION_TYPE])
-		),
+		neurons: arr[offset],
+		activation: activationFromIndex(Math.round(arr[offset + 1])),
+		connectionType: connectionTypeFromIndex(Math.round(arr[offset + 2])),
 	};
 }
 
@@ -299,9 +294,9 @@ function writeEncodedLayer(
 ): void {
 	const actIdx = ACTIVATIONS.indexOf(layer.activation);
 	const ctIdx = CONNECTION_TYPES.indexOf(layer.connectionType);
-	arr[offset + LAYER_OFFSETS.NEURONS] = layer.neurons;
-	arr[offset + LAYER_OFFSETS.ACTIVATION] = actIdx >= 0 ? actIdx : 0;
-	arr[offset + LAYER_OFFSETS.CONNECTION_TYPE] = ctIdx >= 0 ? ctIdx : 0;
+	arr[offset] = layer.neurons;
+	arr[offset + 1] = actIdx >= 0 ? actIdx : 0;
+	arr[offset + 2] = ctIdx >= 0 ? ctIdx : 0;
 }
 
 /* ------------------------------------------------------------------ */
@@ -309,33 +304,33 @@ function writeEncodedLayer(
 /* ------------------------------------------------------------------ */
 
 interface DecodedScalars {
-	gamma: number;
-	learningRate: number;
+	gamma: Probability;
+	learningRate: Percentage;
 	clipMin: number;
 	clipMax: number;
-	scaleFactor: number;
-	maxEpisodeLength: number;
-	nStepReturn: number;
-	frameSkip: number;
-	epsilonStart: number;
-	epsilonMin: number;
-	epsilonDecay: number;
+	scaleFactor: Percentage;
+	maxEpisodeLength: PositiveInt;
+	nStepReturn: PositiveInt;
+	frameSkip: PositiveInt;
+	epsilonStart: Probability;
+	epsilonMin: Probability;
+	epsilonDecay: Probability;
 	temperature: number;
 	noiseStd: number;
-	noiseDecay: number;
-	bufferSize: number;
-	alphaPER: number;
-	betaPER: number;
-	mutationRate: number;
-	sigma: number;
-	selfSigma: number;
-	inputDim: number;
-	outputDim: number;
-	depth: number;
+	noiseDecay: Probability;
+	bufferSize: PositiveInt;
+	alphaPER: Probability;
+	betaPER: Probability;
+	mutationRate: Percentage;
+	sigma: Percentage;
+	selfSigma: Percentage;
+	inputDim: PositiveInt;
+	outputDim: PositiveInt;
+	depth: PositiveInt;
 }
 
 function decodeScalars(arr: Float32Array): DecodedScalars {
-	const result: Partial<DecodedScalars> = {};
+	const result: Record<string, number> = {};
 	for (let i = 0; i < SCALAR_FIELDS.length; i++) {
 		const field = SCALAR_FIELDS[i];
 		const raw = arr[i];
@@ -343,7 +338,7 @@ function decodeScalars(arr: Float32Array): DecodedScalars {
 		const clamped = clamp(decoded, field.clamp.min, field.clamp.max);
 		result[field.key] = field.round ? Math.round(clamped) : clamped;
 	}
-	return result as DecodedScalars;
+	return result as unknown as DecodedScalars;
 }
 
 function writeLayers(arr: Float32Array, net: Genome["network"]): void {
@@ -392,64 +387,64 @@ export function decodeGenome(vec: Float32Array, template: Genome): Genome {
 		const biasType =
 			template.network.hiddenLayers[i]?.biasType ?? InitialisationType.Zeros;
 		hiddenLayers.push({
-			neurons: clamp(Math.round(enc.neurons * 512), 1, 512),
+			neurons: clamp(Math.round(enc.neurons * 512), 1, 512) as PositiveInt,
 			activation: enc.activation,
 			connectionType: enc.connectionType,
 			biasType,
 		});
 	}
 	const network: Genome["network"] = {
-		inputDim: scalars.inputDim,
-		outputDim: scalars.outputDim,
+		inputDim: PositiveInt.of(scalars.inputDim),
+		outputDim: PositiveInt.of(scalars.outputDim),
 		hiddenLayers,
 		normalization: template.network.normalization,
 	};
 	return {
 		id: template.id,
-		generation: template.generation,
+		generation: template.generation as PositiveInt,
 		network,
 		rl: {
-			gamma: scalars.gamma,
-			learningRate: scalars.learningRate,
+			gamma: Probability.of(scalars.gamma),
+			learningRate: Percentage.of(scalars.learningRate),
 			rewardShaping: {
 				...template.rl.rewardShaping,
 				clipBounds: createBounded(
 					Math.min(scalars.clipMin, scalars.clipMax - 1e-6),
 					Math.max(scalars.clipMax, scalars.clipMin + 1e-6)
 				),
-				scaleFactor: scalars.scaleFactor,
+				scaleFactor: Percentage.of(scalars.scaleFactor),
 			},
 			horizon: {
-				maxEpisodeLength: scalars.maxEpisodeLength,
-				nStepReturn: scalars.nStepReturn,
-				frameSkip: scalars.frameSkip,
+				maxEpisodeLength: PositiveInt.of(scalars.maxEpisodeLength),
+				nStepReturn: PositiveInt.of(scalars.nStepReturn),
+				frameSkip: PositiveInt.of(scalars.frameSkip),
 			},
 			discretePolicy: {
 				...template.rl.discretePolicy,
-				epsilonStart: scalars.epsilonStart,
-				epsilonMin: scalars.epsilonMin,
-				epsilonDecay: scalars.epsilonDecay,
+				epsilonStart: Probability.of(scalars.epsilonStart),
+				epsilonMin: Probability.of(scalars.epsilonMin),
+				epsilonDecay: Probability.of(scalars.epsilonDecay),
 				temperature: scalars.temperature,
 			},
 			continuousPolicy: {
 				...template.rl.continuousPolicy,
 				noiseStd: scalars.noiseStd,
-				noiseDecay: scalars.noiseDecay,
+				noiseDecay: Probability.of(scalars.noiseDecay),
 			},
 			replayBuffer: {
 				...template.rl.replayBuffer,
-				bufferSize: scalars.bufferSize,
-				alphaPER: scalars.alphaPER,
-				betaPER: scalars.betaPER,
+				bufferSize: PositiveInt.of(scalars.bufferSize),
+				alphaPER: Probability.of(scalars.alphaPER),
+				betaPER: Probability.of(scalars.betaPER),
 			},
 		},
 		mutation: {
 			...template.mutation,
 			rates: {
 				...template.mutation.rates,
-				rate: scalars.mutationRate,
-				sigma: scalars.sigma,
-				selfSigma: scalars.selfSigma,
+				rate: Percentage.of(scalars.mutationRate),
+				sigma: Percentage.of(scalars.sigma),
+				selfSigma: Percentage.of(scalars.selfSigma),
 			},
 		},
 		crossover: { ...template.crossover },
