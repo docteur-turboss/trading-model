@@ -108,9 +108,15 @@ Pre-push git hook runs: `@biomejs/biome check` → `npm audit` → `build:ts` �
 
 ## Status
 
-**Production-ready with ongoing improvements.** Audited across 19 dimensions:
+**Pre-production — improvements needed before production use.** While the architecture and core services are functional, several areas require hardening before this is ready for production workloads:
 
-- Architecture, Backup/DR, CI/CD, Clean Architecture, Code Smells, Compliance, Concurrency, Documentation, Error Handling, Operations, Performance, Security (OWASP), SOLID, Testing.
+- [ ] Full audit of error handling and retry logic across all services
+- [ ] Load testing under realistic market conditions
+- [ ] Comprehensive disaster recovery validation
+- [ ] Security review of all inter-service communication paths
+- [ ] Documentation gaps in operations runbooks and incident response
+- [ ] End-to-end monitoring and alerting coverage validation
+- [ ] Performance benchmarking and resource profiling
 
 See [CHANGELOG.md](CHANGELOG.md) for version history.
 
