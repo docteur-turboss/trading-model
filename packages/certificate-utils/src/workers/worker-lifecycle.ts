@@ -5,11 +5,19 @@ export interface WorkerEntry {
 	busy: boolean;
 }
 
-interface WorkerMessage {
+export interface WorkerMessage {
 	id: string;
 	success: boolean;
 	data?: unknown;
 	error?: string;
+}
+
+export interface WorkerLifecycleOptions {
+	poolSize: number;
+	workerScript: string;
+	onMessage: (entry: WorkerEntry, msg: WorkerMessage) => void;
+	onError: (entry: WorkerEntry) => void;
+	onExit: (entry: WorkerEntry, code: number) => void;
 }
 
 export class WorkerLifecycle {
@@ -22,18 +30,12 @@ export class WorkerLifecycle {
 	private readonly _onError: (entry: WorkerEntry) => void;
 	private readonly _onExit: (entry: WorkerEntry, code: number) => void;
 
-	constructor(
-		poolSize: number,
-		workerScript: string,
-		onMessage: (entry: WorkerEntry, msg: WorkerMessage) => void,
-		onError: (entry: WorkerEntry) => void,
-		onExit: (entry: WorkerEntry, code: number) => void
-	) {
-		this._poolSize = poolSize;
-		this._workerScript = workerScript;
-		this._onMessage = onMessage;
-		this._onError = onError;
-		this._onExit = onExit;
+	constructor(options: WorkerLifecycleOptions) {
+		this._poolSize = options.poolSize;
+		this._workerScript = options.workerScript;
+		this._onMessage = options.onMessage;
+		this._onError = options.onError;
+		this._onExit = options.onExit;
 	}
 
 	get size(): number {

@@ -11,6 +11,12 @@ import {
 
 export type { VaultTransitConfig } from "./vault-transit-http";
 
+export interface SignRequest {
+	keyName: string;
+	algorithm: string;
+	input: string;
+}
+
 export class VaultTransitClient {
 	private readonly _http: VaultTransitHttp;
 	private readonly _algorithmMapper: HashAlgorithmMapper;
@@ -30,8 +36,9 @@ export class VaultTransitClient {
 		await this._http.createKey(name, vaultKeyType);
 	}
 
-	async sign(name: string, algorithm: string, input: string): Promise<string> {
-		const result = await this._http.postSign(name, {
+	async sign(request: SignRequest): Promise<string> {
+		const { keyName, algorithm, input } = request;
+		const result = await this._http.postSign(keyName, {
 			input: Buffer.from(input, CryptoAlg.UTF8).toString("base64"),
 			hash_algorithm: this._algorithmMapper.getHashAlgorithm(algorithm),
 		});

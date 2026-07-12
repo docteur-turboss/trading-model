@@ -1,6 +1,10 @@
 import { availableParallelism } from "node:os";
 import { join } from "node:path";
-import { type WorkerEntry, WorkerLifecycle } from "./worker-lifecycle";
+import {
+	type WorkerEntry,
+	WorkerLifecycle,
+	type WorkerLifecycleOptions,
+} from "./worker-lifecycle";
 import {
 	type TaskEntry,
 	type TaskType,
@@ -22,13 +26,13 @@ export class WorkerPool {
 		const workerScript =
 			options.workerScript ?? join(__dirname, "worker-script.js");
 		this._taskQueue = new WorkerTaskQueue(options.maxQueueSize);
-		this._workerLifecycle = new WorkerLifecycle(
+		this._workerLifecycle = new WorkerLifecycle({
 			poolSize,
 			workerScript,
-			(entry, msg) => this._onWorkerMessage(entry, msg),
-			(entry) => this._onWorkerError(entry),
-			(entry, code) => this._onWorkerExit(entry, code)
-		);
+			onMessage: (entry, msg) => this._onWorkerMessage(entry, msg),
+			onError: (entry) => this._onWorkerError(entry),
+			onExit: (entry, code) => this._onWorkerExit(entry, code),
+		} satisfies WorkerLifecycleOptions);
 	}
 
 	start(): void {

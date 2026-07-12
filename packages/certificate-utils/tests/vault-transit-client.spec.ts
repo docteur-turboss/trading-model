@@ -134,7 +134,11 @@ describe("VaultTransitClient", () => {
 			});
 			const client = createClient();
 
-			const result = await client.sign("my-key", "sha256", "input-data");
+			const result = await client.sign({
+				keyName: "my-key",
+				algorithm: "sha256",
+				input: "input-data",
+			});
 
 			expect(MOCK_POST).toHaveBeenCalledWith(
 				"https://vault.example.com/v1/transit/sign/my-key",
@@ -151,7 +155,11 @@ describe("VaultTransitClient", () => {
 			MOCK_POST.mockResolvedValue({ data: { signature: "base64sig" } });
 			const client = createClient();
 
-			const result = await client.sign("my-key", "sha384", "data");
+			const result = await client.sign({
+				keyName: "my-key",
+				algorithm: "sha384",
+				input: "data",
+			});
 
 			expect(result).toBe("base64sig");
 		});
@@ -160,30 +168,42 @@ describe("VaultTransitClient", () => {
 			MOCK_POST.mockResolvedValue(null);
 			const client = createClient();
 
-			await expect(client.sign("my-key", "sha256", "data")).rejects.toThrow(
-				"Empty response from Vault Transit sign"
-			);
+			await expect(
+				client.sign({ keyName: "my-key", algorithm: "sha256", input: "data" })
+			).rejects.toThrow("Empty response from Vault Transit sign");
 		});
 
 		it("should map algorithm to vault hash algorithm", async () => {
 			MOCK_POST.mockResolvedValue({ data: { signature: "vault:v1:sig" } });
 			const client = createClient();
 
-			await client.sign("my-key", "sha512", "data");
+			await client.sign({
+				keyName: "my-key",
+				algorithm: "sha512",
+				input: "data",
+			});
 			expect(MOCK_POST).toHaveBeenCalledWith(
 				expect.any(String),
 				expect.objectContaining({ hash_algorithm: "sha2-512" }),
 				expect.any(Object)
 			);
 
-			await client.sign("my-key", "sha1", "data");
+			await client.sign({
+				keyName: "my-key",
+				algorithm: "sha1",
+				input: "data",
+			});
 			expect(MOCK_POST).toHaveBeenCalledWith(
 				expect.any(String),
 				expect.objectContaining({ hash_algorithm: "sha1" }),
 				expect.any(Object)
 			);
 
-			await client.sign("my-key", "unknown", "data");
+			await client.sign({
+				keyName: "my-key",
+				algorithm: "unknown",
+				input: "data",
+			});
 			expect(MOCK_POST).toHaveBeenCalledWith(
 				expect.any(String),
 				expect.objectContaining({ hash_algorithm: "sha2-256" }),
