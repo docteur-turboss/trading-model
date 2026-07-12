@@ -1,13 +1,13 @@
 import { logger } from "@trading-model/common/config/logger";
-import {
-	type DiscoveryWsMessage,
-	DiscoveryWsMessageType,
-} from "@trading-model/common/contracts/discovery-ws-message.types";
 import type { URLString } from "@trading-model/common/domain/primitives";
 import { DurationMs } from "@trading-model/common/domain/primitives";
 import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import { DefaultWsReconnector } from "@trading-model/common/ws/default-ws-reconnector";
+import {
+	type DiscoveryWsMessage,
+	DiscoveryWsMessageType,
+} from "@trading-model/validation/contracts/discovery-ws-message.types";
 import type WebSocket from "ws";
 import { WsConnection } from "./ws-connection";
 

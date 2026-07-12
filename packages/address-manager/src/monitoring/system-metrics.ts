@@ -1,4 +1,5 @@
 import * as os from "node:os";
+import type { DurationMs } from "@trading-model/common/domain/primitives";
 
 export type Bytes = number & { readonly brand: "Bytes" };
 export const Bytes = {
@@ -29,8 +30,8 @@ export const Uptime = {
 };
 
 export interface CpuTimes {
-	idle: number;
-	total: number;
+	idle: DurationMs;
+	total: DurationMs;
 }
 
 export interface SystemMetricsPayload {
@@ -59,7 +60,10 @@ export function computeCpuPercent(
 	if (previous.idle === 0 && previous.total === 0) {
 		return {
 			percent: CpuPercent.of(0),
-			previousCpuTimes: { idle: totalIdle, total: totalTick },
+			previousCpuTimes: {
+				idle: totalIdle as DurationMs,
+				total: totalTick as DurationMs,
+			},
 		};
 	}
 	const idleDiff = totalIdle - previous.idle;
@@ -68,14 +72,17 @@ export function computeCpuPercent(
 		percent: CpuPercent.of(
 			totalDiff > 0 ? Math.round((1 - idleDiff / totalDiff) * 100) : 0
 		),
-		previousCpuTimes: { idle: totalIdle, total: totalTick },
+		previousCpuTimes: {
+			idle: totalIdle as DurationMs,
+			total: totalTick as DurationMs,
+		},
 	};
 }
 
 export class SystemMetrics {
 	private _previousCpuTimes: CpuTimes = {
-		idle: 0,
-		total: 0,
+		idle: 0 as DurationMs,
+		total: 0 as DurationMs,
 	};
 
 	private _collectMemory(): SystemMetricsPayload["memory"] {
@@ -149,6 +156,6 @@ export class SystemMetrics {
 	}
 
 	reset(): void {
-		this._previousCpuTimes = { idle: 0, total: 0 };
+		this._previousCpuTimes = { idle: 0 as DurationMs, total: 0 as DurationMs };
 	}
 }

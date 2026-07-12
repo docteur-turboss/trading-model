@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
-import type { DiscoveryWsMessage } from "@trading-model/common/contracts/discovery-ws-message.types";
-import { DiscoveryWsMessageType } from "@trading-model/common/contracts/discovery-ws-message.types";
 import type { JsonObject } from "@trading-model/common/domain/primitives";
 import { toServiceId } from "@trading-model/common/domain/primitives";
+import type { DiscoveryWsMessage } from "@trading-model/validation/contracts/discovery-ws-message.types";
+import { DiscoveryWsMessageType } from "@trading-model/validation/contracts/discovery-ws-message.types";
 import { CacheInvalidationHandler } from "../../src/cache-invalidation-handler";
 import type { IServiceCache } from "../../src/discovery/service-cache.interface";
 

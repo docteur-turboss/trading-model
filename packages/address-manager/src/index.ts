@@ -49,13 +49,13 @@ export default class AddressManager {
 	private _createHealthChecker(
 		config: AddressManagerConfig
 	): ServiceHealthChecker {
-		return new ServiceHealthChecker(
-			this._httpClient,
-			config.servicePingTimeoutMs,
-			config.dnsNameMap
+		return new ServiceHealthChecker({
+			httpClient: this._httpClient,
+			timeoutMs: config.servicePingTimeoutMs,
+			serviceLocator: config.dnsNameMap
 				? new MappingServiceLocator(new MapResolver(config.dnsNameMap))
-				: undefined
-		);
+				: undefined,
+		});
 	}
 
 	private _createServiceDiscovery(

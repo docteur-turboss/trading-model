@@ -12,7 +12,6 @@ import {
 	registerServiceName,
 	type ServiceInstanceName,
 } from "@trading-model/common/config/services.types";
-import { Protocol } from "@trading-model/common/contracts/service-registry.types";
 import {
 	IPAddress,
 	Port,
@@ -24,6 +23,7 @@ import {
 	type URLString,
 } from "@trading-model/common/domain/primitives";
 import { AppError } from "@trading-model/common/utils/errors";
+import { Protocol } from "@trading-model/validation/contracts/service-registry.types";
 import { AddressManagerClient } from "../../src/client/address-manager-client";
 import { LocalIPDetector } from "../../src/client/local-ip-detector";
 import type { TokenManager } from "../../src/client/token-manager";

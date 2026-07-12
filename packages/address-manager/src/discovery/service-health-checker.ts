@@ -4,7 +4,7 @@ import {
 	type InstanceId,
 	URLString,
 } from "@trading-model/common/domain/primitives";
-import { PING_PATH } from "@trading-model/common/server/constants";
+import { PING_PATH } from "@trading-model/server-utils/server/constants";
 import type { ServiceInstance } from "../client/type";
 import { type ServiceLocator, ServiceNameLocator } from "./service-locator";
 
@@ -28,6 +28,12 @@ import { type ServiceLocator, ServiceNameLocator } from "./service-locator";
  * the health checker from any specific deployment topology (Docker Compose,
  * Kubernetes, direct IP, etc.).
  */
+export interface HealthCheckOptions {
+	httpClient: HttpClient;
+	timeoutMs: DurationMs;
+	serviceLocator?: ServiceLocator;
+}
+
 export class ServiceHealthChecker {
 	private readonly _httpClient: HttpClient;
 	private readonly _timeoutMs: DurationMs;
@@ -36,14 +42,10 @@ export class ServiceHealthChecker {
 	/**
 	 * Creates a new ServiceHealthChecker.
 	 */
-	constructor(
-		httpClient: HttpClient,
-		timeoutMs: DurationMs,
-		serviceLocator?: ServiceLocator
-	) {
-		this._httpClient = httpClient;
-		this._timeoutMs = timeoutMs;
-		this._serviceLocator = serviceLocator ?? new ServiceNameLocator();
+	constructor(options: HealthCheckOptions) {
+		this._httpClient = options.httpClient;
+		this._timeoutMs = options.timeoutMs;
+		this._serviceLocator = options.serviceLocator ?? new ServiceNameLocator();
 	}
 
 	/**

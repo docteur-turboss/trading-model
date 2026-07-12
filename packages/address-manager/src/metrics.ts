@@ -57,14 +57,11 @@ export interface DiscoveryContext {
 	startTime: UnixTimestamp;
 }
 
-export const DiscoveryResult = {
-	Success: "success",
-	Failure: "failure",
-	Degraded: "degraded",
-} as const;
-
-export type DiscoveryResult =
-	(typeof DiscoveryResult)[keyof typeof DiscoveryResult];
+export enum DiscoveryResult {
+	Success = "success",
+	Failure = "failure",
+	Degraded = "degraded",
+}
 
 export function recordDiscoveryMetrics(
 	{ serviceName, startTime }: DiscoveryContext,

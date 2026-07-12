@@ -1,11 +1,16 @@
 import { beforeEach, describe, expect, test } from "@jest/globals";
-import { HttpMethod } from "@trading-model/common/contracts/signed-request";
+import type {
+	Bytes,
+	DurationMs,
+} from "@trading-model/common/domain/primitives";
 import {
 	toServiceId,
 	UnixTimestamp,
 } from "@trading-model/common/domain/primitives";
+import { HttpMethod } from "@trading-model/validation/contracts/signed-request";
 import {
 	CallStatus,
+	Endpoint,
 	ServiceCallTracker,
 } from "../../src/monitoring/service-call-tracker";
 
@@ -31,30 +36,30 @@ describe("ServiceCallTracker", () => {
 		test("should aggregate records correctly", () => {
 			tracker.record({
 				targetService: toServiceId("svc-a"),
-				endpoint: "/register",
+				endpoint: Endpoint.of("/register"),
 				method: HttpMethod.Post,
 				timestamp: UnixTimestamp.now(),
-				durationMs: 100,
+				durationMs: 100 as DurationMs,
 				status: CallStatus.Success,
-				bytesSent: 50,
-				bytesReceived: 200,
+				bytesSent: 50 as Bytes,
+				bytesReceived: 200 as Bytes,
 			});
 			tracker.record({
 				targetService: toServiceId("svc-a"),
-				endpoint: "/register",
+				endpoint: Endpoint.of("/register"),
 				method: HttpMethod.Post,
 				timestamp: UnixTimestamp.now(),
-				durationMs: 200,
+				durationMs: 200 as DurationMs,
 				status: CallStatus.Success,
-				bytesSent: 50,
-				bytesReceived: 200,
+				bytesSent: 50 as Bytes,
+				bytesReceived: 200 as Bytes,
 			});
 			tracker.record({
 				targetService: toServiceId("svc-b"),
-				endpoint: "/heartbeat",
+				endpoint: Endpoint.of("/heartbeat"),
 				method: "WS" as unknown as HttpMethod,
 				timestamp: UnixTimestamp.now(),
-				durationMs: 5,
+				durationMs: 5 as DurationMs,
 				status: CallStatus.Error,
 				errorMessage: "timeout",
 			});
@@ -77,10 +82,10 @@ describe("ServiceCallTracker", () => {
 		test("should remove all records", () => {
 			tracker.record({
 				targetService: toServiceId("svc-a"),
-				endpoint: "/ping",
+				endpoint: Endpoint.of("/ping"),
 				method: HttpMethod.Get,
 				timestamp: UnixTimestamp.now(),
-				durationMs: 10,
+				durationMs: 10 as DurationMs,
 				status: CallStatus.Success,
 			});
 			expect(tracker.snapshot().totalCalls).toBe(1);
@@ -95,10 +100,10 @@ describe("ServiceCallTracker", () => {
 			for (let i = 0; i < 5; i++) {
 				smallTracker.record({
 					targetService: toServiceId("svc"),
-					endpoint: "/test",
+					endpoint: Endpoint.of("/test"),
 					method: HttpMethod.Get,
 					timestamp: UnixTimestamp.now(),
-					durationMs: i,
+					durationMs: i as DurationMs,
 					status: CallStatus.Success,
 				});
 			}
@@ -110,10 +115,10 @@ describe("ServiceCallTracker", () => {
 		test("should return all stored records as readonly array", () => {
 			tracker.record({
 				targetService: toServiceId("svc"),
-				endpoint: "/test",
+				endpoint: Endpoint.of("/test"),
 				method: HttpMethod.Get,
 				timestamp: UnixTimestamp.of(1000),
-				durationMs: 50,
+				durationMs: 50 as DurationMs,
 				status: CallStatus.Success,
 			});
 			const records = tracker.getRecords();

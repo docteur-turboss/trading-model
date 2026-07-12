@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, jest, test } from "@jest/globals";
 import type { HttpClient } from "@trading-model/common/config/http-client";
 import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
-import { Protocol } from "@trading-model/common/contracts/service-registry.types";
 import type { IPAddress } from "@trading-model/common/domain/primitives";
 import {
 	toDurationMs,
@@ -13,6 +12,7 @@ import {
 	type URLString,
 } from "@trading-model/common/domain/primitives";
 import { Port } from "@trading-model/common/domain/primitives/port";
+import { Protocol } from "@trading-model/validation/contracts/service-registry.types";
 import type { ServiceInstance } from "../../src/client/type";
 import type { AddressManagerConfig } from "../../src/config/address-manager-config";
 import type { ServiceCache } from "../../src/discovery/service-cache";

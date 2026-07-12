@@ -19,17 +19,28 @@ import {
 	LifecycleManager,
 	type LifecycleManagerOptions,
 } from "./lifecycle-manager";
-import { HEARTBEAT_TOTAL, REGISTRATION_TOTAL } from "./metrics";
+import {
+	DiscoveryResult,
+	HEARTBEAT_TOTAL,
+	REGISTRATION_TOTAL,
+} from "./metrics";
 import { MetricsCollector } from "./monitoring/metrics-collector";
 import { RegistrationManager } from "./registration-manager";
 import { ShutdownHandler } from "./shutdown-handler";
 import type {
-	AddressManagerDependencies,
-	AddressManagerDeps,
-	LifecycleManagerDeps,
+	LifecycleDeps,
+	ServiceClientDeps,
 	ShutdownHandlerDeps,
 } from "./types";
 import { WsAuthFailureHandler } from "./ws-auth-failure-handler";
+
+interface AddressManagerDependencies {
+	tokenManager: TokenManager;
+	discoveryOrchestrator: DiscoveryOrchestrator;
+	metricsCollector: MetricsCollector;
+	lifecycleManager: LifecycleManager;
+}
+
 import type { WsClientContext } from "./ws-client.factory";
 
 function createHttpClient(config: AddressManagerConfig): HttpClient {
@@ -65,13 +76,13 @@ function createHealthChecker(
 	httpClient: HttpClient,
 	config: AddressManagerConfig
 ): ServiceHealthChecker {
-	return new ServiceHealthChecker(
+	return new ServiceHealthChecker({
 		httpClient,
-		config.servicePingTimeoutMs,
-		config.dnsNameMap
+		timeoutMs: config.servicePingTimeoutMs,
+		serviceLocator: config.dnsNameMap
 			? new MappingServiceLocator(new MapResolver(config.dnsNameMap))
-			: undefined
-	);
+			: undefined,
+	});
 }
 
 interface DiscoveryInfraDeps {
@@ -98,24 +109,26 @@ function createDiscoveryInfra(deps: DiscoveryInfraDeps): DiscoveryOrchestrator {
 }
 
 function _buildRegistrationManager(
-	deps: AddressManagerDeps
+	deps: ServiceClientDeps
 ): RegistrationManager {
 	return new RegistrationManager({
 		...deps,
-		onSuccess: () => REGISTRATION_TOTAL.inc({ result: "success" }),
-		onFailure: () => REGISTRATION_TOTAL.inc({ result: "failure" }),
+		onSuccess: () =>
+			REGISTRATION_TOTAL.inc({ result: DiscoveryResult.Success }),
+		onFailure: () =>
+			REGISTRATION_TOTAL.inc({ result: DiscoveryResult.Failure }),
 	});
 }
 
-function _buildHeartbeatManager(deps: AddressManagerDeps): HeartbeatManager {
+function _buildHeartbeatManager(deps: ServiceClientDeps): HeartbeatManager {
 	return new HeartbeatManager({
 		...deps,
-		onSuccess: () => HEARTBEAT_TOTAL.inc({ result: "success" }),
-		onFailure: () => HEARTBEAT_TOTAL.inc({ result: "failure" }),
+		onSuccess: () => HEARTBEAT_TOTAL.inc({ result: DiscoveryResult.Success }),
+		onFailure: () => HEARTBEAT_TOTAL.inc({ result: DiscoveryResult.Failure }),
 	});
 }
 
-function createRegistrationAndHeartbeat(deps: AddressManagerDeps): {
+function createRegistrationAndHeartbeat(deps: ServiceClientDeps): {
 	registrationManager: RegistrationManager;
 	heartbeatManager: HeartbeatManager;
 } {
@@ -164,7 +177,7 @@ function maybeCreateWsClient(
 	});
 }
 
-function createLifecycleManager(deps: LifecycleManagerDeps): LifecycleManager {
+function createLifecycleManager(deps: LifecycleDeps): LifecycleManager {
 	const shutdownHandler = _buildShutdownHandler({
 		registrationManager: deps.registrationManager,
 		wsClient: deps.wsClient,

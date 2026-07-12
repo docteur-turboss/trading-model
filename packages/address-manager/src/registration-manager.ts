@@ -1,7 +1,7 @@
 import { logger } from "@trading-model/common/config/logger";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import { sleep } from "@trading-model/common/utils/sleep";
-import type { AddressManagerDeps } from "./types";
+import type { ServiceClientDeps } from "./types";
 
 const MAX_REGISTRATION_RETRIES = 10;
 const REGISTRATION_BASE_DELAY_MS = 1000;
@@ -10,7 +10,7 @@ const REGISTRATION_MAX_DELAY_MS = 30_000;
 export class RegistrationManager {
 	shouldRetryRegistration = true;
 
-	constructor(private readonly _deps: AddressManagerDeps) {}
+	constructor(private readonly _deps: ServiceClientDeps) {}
 
 	private _computeDelay(attempt: number): number {
 		return Math.min(

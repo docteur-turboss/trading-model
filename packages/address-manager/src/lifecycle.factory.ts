@@ -1,50 +1,43 @@
-import type { AddressManagerClient } from "./client/address-manager-client";
-import type { TokenManager } from "./client/token-manager";
-import type { WebSocketClient } from "./client/websocket-client";
 import type { AddressManagerConfig } from "./config/address-manager-config";
-import type { DiscoveryCircuitBreaker } from "./discovery/circuit-breaker";
-import type { IServiceCache } from "./discovery/service-cache.interface";
-import type { ServiceHealthChecker } from "./discovery/service-health-checker";
 import { HeartbeatManager } from "./heartbeat-manager";
 import {
 	LifecycleManager,
 	type LifecycleManagerOptions,
 } from "./lifecycle-manager";
-import { HEARTBEAT_TOTAL, REGISTRATION_TOTAL } from "./metrics";
+import {
+	DiscoveryResult,
+	HEARTBEAT_TOTAL,
+	REGISTRATION_TOTAL,
+} from "./metrics";
 import { RegistrationAttemptHandler } from "./registration-attempt-handler";
 import { ShutdownHandler } from "./shutdown-handler";
-import type { AddressManagerDeps, ShutdownHandlerDeps } from "./types";
-
-export interface LifecycleDeps {
-	circuitBreaker: DiscoveryCircuitBreaker;
-	registrationManager: RegistrationAttemptHandler;
-	heartbeatManager: HeartbeatManager;
-	wsClient?: WebSocketClient;
-	serviceCache: IServiceCache;
-	tokenManager: TokenManager;
-	addressManagerClient: AddressManagerClient;
-	healthChecker: ServiceHealthChecker;
-}
+import type {
+	LifecycleDeps,
+	ServiceClientDeps,
+	ShutdownHandlerDeps,
+} from "./types";
 
 function _buildRegistrationManager(
-	deps: AddressManagerDeps
+	deps: ServiceClientDeps
 ): RegistrationAttemptHandler {
 	return new RegistrationAttemptHandler({
 		...deps,
-		onSuccess: () => REGISTRATION_TOTAL.inc({ result: "success" }),
-		onFailure: () => REGISTRATION_TOTAL.inc({ result: "failure" }),
+		onSuccess: () =>
+			REGISTRATION_TOTAL.inc({ result: DiscoveryResult.Success }),
+		onFailure: () =>
+			REGISTRATION_TOTAL.inc({ result: DiscoveryResult.Failure }),
 	});
 }
 
-function _buildHeartbeatManager(deps: AddressManagerDeps): HeartbeatManager {
+function _buildHeartbeatManager(deps: ServiceClientDeps): HeartbeatManager {
 	return new HeartbeatManager({
 		...deps,
-		onSuccess: () => HEARTBEAT_TOTAL.inc({ result: "success" }),
-		onFailure: () => HEARTBEAT_TOTAL.inc({ result: "failure" }),
+		onSuccess: () => HEARTBEAT_TOTAL.inc({ result: DiscoveryResult.Success }),
+		onFailure: () => HEARTBEAT_TOTAL.inc({ result: DiscoveryResult.Failure }),
 	});
 }
 
-function createRegistrationAndHeartbeat(deps: AddressManagerDeps): {
+function createRegistrationAndHeartbeat(deps: ServiceClientDeps): {
 	registrationManager: RegistrationAttemptHandler;
 	heartbeatManager: HeartbeatManager;
 } {
@@ -99,7 +92,7 @@ export function createLifecycleManager(
 	);
 }
 
-export function buildRegistrationAndHeartbeat(deps: AddressManagerDeps): {
+export function buildRegistrationAndHeartbeat(deps: ServiceClientDeps): {
 	registrationManager: RegistrationAttemptHandler;
 	heartbeatManager: HeartbeatManager;
 } {

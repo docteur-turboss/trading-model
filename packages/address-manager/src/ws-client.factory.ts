@@ -1,18 +1,18 @@
 import { logger } from "@trading-model/common/config/logger";
-import { DiscoveryWsMessageType } from "@trading-model/common/contracts/discovery-ws-message.types";
 import {
 	type ServiceId,
 	toServiceId,
 	URLString,
 } from "@trading-model/common/domain/primitives";
 import { normalizeError } from "@trading-model/common/utils/errors";
+import { DiscoveryWsMessageType } from "@trading-model/validation/contracts/discovery-ws-message.types";
 import type { AddressManagerClient } from "./client/address-manager-client";
 import type { TokenManager } from "./client/token-manager";
 import { WebSocketClient, type WsMessage } from "./client/websocket-client";
 import type { AddressManagerConfig } from "./config/address-manager-config";
 import type { IServiceCache } from "./discovery/service-cache.interface";
-import { REGISTRATION_TOTAL } from "./metrics";
-import type { AddressManagerDeps } from "./types";
+import { DiscoveryResult, REGISTRATION_TOTAL } from "./metrics";
+import type { ServiceClientDeps } from "./types";
 
 export interface WsClientContext {
 	config: AddressManagerConfig;
@@ -50,12 +50,12 @@ function onCacheInvalidateMessage(
 
 function _handleRegistrationSuccess(
 	res: { token?: string } | undefined,
-	deps: AddressManagerDeps
+	deps: ServiceClientDeps
 ): void {
 	if (res?.token) {
 		deps.tokenManager.setToken(res.token);
 		deps.wsClient?.updateToken(res.token);
-		REGISTRATION_TOTAL.inc({ result: "success" });
+		REGISTRATION_TOTAL.inc({ result: DiscoveryResult.Success });
 		logger.info("Re-registered after WS auth failure");
 	}
 }
@@ -66,7 +66,7 @@ function _handleRegistrationError(err: unknown): void {
 	});
 }
 
-function onWsAuthFailure(deps: AddressManagerDeps): void {
+function onWsAuthFailure(deps: ServiceClientDeps): void {
 	logger.warn("WebSocket auth failure — forcing re-registration");
 	deps.addressManagerClient
 		.registerService()
@@ -76,7 +76,7 @@ function onWsAuthFailure(deps: AddressManagerDeps): void {
 
 function createWsClient(ctx: WsClientContext): WebSocketClient {
 	const { config, addressManagerClient, tokenManager, serviceCache } = ctx;
-	const deps: AddressManagerDeps = { addressManagerClient, tokenManager };
+	const deps: ServiceClientDeps = { addressManagerClient, tokenManager };
 	let wsClient: WebSocketClient;
 
 	wsClient = new WebSocketClient({

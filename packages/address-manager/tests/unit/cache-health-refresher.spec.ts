@@ -1,5 +1,4 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
-import { Protocol } from "@trading-model/common/contracts/service-registry.types";
 import {
 	IPAddress,
 	Port,
@@ -9,6 +8,7 @@ import {
 	toVersion,
 	UnixTimestamp,
 } from "@trading-model/common/domain/primitives";
+import { Protocol } from "@trading-model/validation/contracts/service-registry.types";
 import type { ServiceInstance } from "../../src/client/type";
 import { CacheHealthRefresher } from "../../src/discovery/cache-health-refresher";
 import type { IServiceCache } from "../../src/discovery/service-cache.interface";

@@ -2,7 +2,7 @@ import { logger } from "@trading-model/common/config/logger";
 import { DurationMs } from "@trading-model/common/domain/primitives";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import { RetryScheduler } from "./retry-scheduler";
-import type { AddressManagerDeps } from "./types";
+import type { ServiceClientDeps } from "./types";
 
 const RETRY_CONFIG = {
 	maxRetries: 10,
@@ -14,7 +14,7 @@ const RETRY_CONFIG = {
 export class RegistrationAttemptHandler {
 	private readonly _retryScheduler = new RetryScheduler(RETRY_CONFIG);
 
-	constructor(private readonly _deps: AddressManagerDeps) {}
+	constructor(private readonly _deps: ServiceClientDeps) {}
 
 	get shouldRetry(): boolean {
 		return this._retryScheduler.shouldRetry;

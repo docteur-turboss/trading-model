@@ -8,6 +8,12 @@ import {
 } from "@trading-model/common/utils/errors";
 import type { TokenManager } from "./token-manager";
 
+function isRejected<TValue>(
+	result: PromiseSettledResult<TValue>
+): result is PromiseRejectedResult {
+	return result.status === "rejected";
+}
+
 export class HeartbeatRefresher {
 	constructor(
 		private readonly _httpClient: HttpClient,
@@ -53,7 +59,7 @@ export class HeartbeatRefresher {
 		const results = await Promise.allSettled(
 			urls.map((url) => this._sendHeartbeat(url))
 		);
-		const failures = results.filter((result) => result.status === "rejected");
+		const failures = results.filter(isRejected);
 		if (failures.length === results.length) {
 			throw addressManagerError("Failed to refresh service TTL", {
 				cause: normalizeError((failures[0] as PromiseRejectedResult).reason),

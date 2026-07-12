@@ -1,8 +1,8 @@
+import { TimerHandle } from "@trading-model/common/utils/timer-handle";
 import {
 	removeProcessHandlers,
 	setupProcessHandlers,
-} from "@trading-model/common/server/signal-handler";
-import { TimerHandle } from "@trading-model/common/utils/timer-handle";
+} from "@trading-model/server-utils/server/signal-handler";
 import type { ShutdownHandlerDeps } from "./types";
 
 export class ShutdownHandler {

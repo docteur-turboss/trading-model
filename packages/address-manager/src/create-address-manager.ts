@@ -9,13 +9,16 @@ import {
 	toRegion,
 	toServiceId,
 } from "@trading-model/common/domain/primitives";
-import { buildTlsFromEnv } from "@trading-model/common/domain/tls-paths";
+import {
+	buildTlsFromEnv,
+	type TlsEnvVars,
+} from "@trading-model/common/domain/tls-paths";
 import { normalizeError } from "@trading-model/common/utils/errors";
 
 import AddressManager from "./index";
 
 /** Environment variables required to configure and create an Address Manager instance. */
-export interface AddressManagerEnv {
+export interface AddressManagerEnv extends TlsEnvVars {
 	ADDRESS_MANAGER_URL: string;
 	ADDRESS_MANAGER_URLS?: string;
 	CACHE_TTL_MS: number;
@@ -26,9 +29,6 @@ export interface AddressManagerEnv {
 	PORT: number;
 	TOKEN_REFRESH_INTERVAL_MS: number;
 	TTL_REFRESH_INTERVAL_MS: number;
-	TLS_CERT_PATH: string;
-	TLS_KEY_PATH: string;
-	TLS_CA_PATH: string;
 
 	/** Deployment region / datacenter identifier. */
 	REGION?: string;

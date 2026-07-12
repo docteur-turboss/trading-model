@@ -1,5 +1,4 @@
 import { beforeEach, describe, expect, jest, test } from "@jest/globals";
-import { Protocol } from "@trading-model/common/contracts/service-registry.types";
 import {
 	IPAddress,
 	Port,
@@ -9,6 +8,7 @@ import {
 	toVersion,
 	UnixTimestamp,
 } from "@trading-model/common/domain/primitives";
+import { Protocol } from "@trading-model/validation/contracts/service-registry.types";
 
 jest.mock("@trading-model/common/config/logger", () => ({
 	logger: {

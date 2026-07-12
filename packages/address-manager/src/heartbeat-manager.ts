@@ -1,7 +1,7 @@
 import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
 import type { AddressManagerClient } from "./client/address-manager-client";
 import { HeartbeatFailureHandler } from "./heartbeat-failure-handler";
-import type { AddressManagerDeps } from "./types";
+import type { ServiceClientDeps } from "./types";
 
 interface WsHeartbeatClient {
 	readonly isConnected: boolean;
@@ -16,7 +16,7 @@ export class HeartbeatManager {
 	private _onSuccess: () => void;
 	private readonly _failureHandler: HeartbeatFailureHandler;
 
-	constructor(deps: AddressManagerDeps) {
+	constructor(deps: ServiceClientDeps) {
 		this._addressManagerClient = deps.addressManagerClient;
 		this._wsClient = deps.wsClient;
 		this._onSuccess = deps.onSuccess ?? (() => {});

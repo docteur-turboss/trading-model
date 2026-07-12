@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, jest, test } from "@jest/globals";
+import type { DurationMs } from "@trading-model/common/domain/primitives";
 import {
 	computeCpuPercent,
 	SystemMetrics,
@@ -6,19 +7,28 @@ import {
 
 describe("computeCpuPercent", () => {
 	test("should return 0 and set previous on first call", () => {
-		const result = computeCpuPercent(100, 500, { idle: 0, total: 0 });
+		const result = computeCpuPercent(100, 500, {
+			idle: 0 as DurationMs,
+			total: 0 as DurationMs,
+		});
 		expect(result.percent).toBe(0);
 		expect(result.previousCpuTimes).toEqual({ idle: 100, total: 500 });
 	});
 
 	test("should compute positive percent when totalDiff > 0", () => {
-		const result = computeCpuPercent(100, 500, { idle: 50, total: 200 });
+		const result = computeCpuPercent(100, 500, {
+			idle: 50 as DurationMs,
+			total: 200 as DurationMs,
+		});
 		expect(result.percent).toBeGreaterThan(0);
 		expect(result.percent).toBeLessThanOrEqual(100);
 	});
 
 	test("should return 0 when totalDiff <= 0", () => {
-		const result = computeCpuPercent(100, 500, { idle: 100, total: 500 });
+		const result = computeCpuPercent(100, 500, {
+			idle: 100 as DurationMs,
+			total: 500 as DurationMs,
+		});
 		expect(result.percent).toBe(0);
 		expect(result.previousCpuTimes).toEqual({ idle: 100, total: 500 });
 	});

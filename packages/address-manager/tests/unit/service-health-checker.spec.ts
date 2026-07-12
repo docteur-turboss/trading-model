@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, jest, test } from "@jest/globals";
 import type { HttpClient } from "@trading-model/common/config/http-client";
-import { Protocol } from "@trading-model/common/contracts/service-registry.types";
 import {
 	DurationMs,
 	IPAddress,
@@ -11,6 +10,7 @@ import {
 	UnixTimestamp,
 	URLString,
 } from "@trading-model/common/domain/primitives";
+import { Protocol } from "@trading-model/validation/contracts/service-registry.types";
 import type { ServiceInstance } from "../../src/client/type";
 import { ServiceHealthChecker } from "../../src/discovery/service-health-checker";
 import { IpAddressLocator } from "../../src/discovery/service-locator";
@@ -36,7 +36,10 @@ describe("ServiceHealthChecker", () => {
 			get: jest.fn(),
 		} as unknown as jest.Mocked<HttpClient>;
 
-		checker = new ServiceHealthChecker(httpClient, DurationMs.of(2000));
+		checker = new ServiceHealthChecker({
+			httpClient,
+			timeoutMs: DurationMs.of(2000),
+		});
 	});
 
 	test("returns true if the service responds successfully", async () => {
@@ -84,11 +87,11 @@ describe("ServiceHealthChecker", () => {
 	});
 
 	test("IpAddressLocator uses instance.ip for URL construction", () => {
-		checker = new ServiceHealthChecker(
+		checker = new ServiceHealthChecker({
 			httpClient,
-			DurationMs.of(2000),
-			new IpAddressLocator()
-		);
+			timeoutMs: DurationMs.of(2000),
+			serviceLocator: new IpAddressLocator(),
+		});
 		const url = (checker as any)._buildPingUrl(instance);
 		expect(url).toBe("https://127.0.0.1:8080/ping");
 	});
@@ -100,10 +103,10 @@ describe("ServiceHealthChecker", () => {
 	});
 
 	test("constructor defaults to ServiceNameLocator when no serviceLocator provided", () => {
-		const defaultChecker = new ServiceHealthChecker(
+		const defaultChecker = new ServiceHealthChecker({
 			httpClient,
-			DurationMs.of(2000)
-		);
+			timeoutMs: DurationMs.of(2000),
+		});
 		const url = (defaultChecker as any)._buildPingUrl(instance);
 		expect(url).toBe("https://user-service:8080/ping");
 	});

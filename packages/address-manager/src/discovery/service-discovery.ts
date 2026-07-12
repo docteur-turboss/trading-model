@@ -1,14 +1,19 @@
-﻿import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
+﻿import type { HttpClient } from "@trading-model/common/config/http-client";
+import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import type { InstanceId } from "@trading-model/common/domain/primitives";
 import type { ServiceInstance } from "../client/type";
 import type { AddressManagerConfig } from "../config/address-manager-config";
-import type { DiscoveryDeps } from "./discovery-deps";
 import type { IServiceCache } from "./service-cache.interface";
 import { ServiceFinder, type ServiceFinderDeps } from "./service-finder";
 import type { ServiceHealthChecker } from "./service-health-checker";
 import { ServiceResolver } from "./service-resolver";
 
-export type ServiceDiscoveryDeps = DiscoveryDeps;
+export interface ServiceDiscoveryDeps {
+	httpClient: HttpClient;
+	serviceCache: IServiceCache;
+	config: AddressManagerConfig;
+	healthChecker: ServiceHealthChecker;
+}
 
 export class ServiceDiscovery {
 	private readonly _serviceCache: IServiceCache;

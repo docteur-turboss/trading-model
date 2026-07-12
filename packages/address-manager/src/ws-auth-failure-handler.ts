@@ -3,7 +3,7 @@ import { normalizeError } from "@trading-model/common/utils/errors";
 import type { AddressManagerClient } from "./client/address-manager-client";
 import type { TokenManager } from "./client/token-manager";
 import type { WebSocketClient } from "./client/websocket-client";
-import { REGISTRATION_TOTAL } from "./metrics";
+import { DiscoveryResult, REGISTRATION_TOTAL } from "./metrics";
 
 export interface WsAuthFailureDeps {
 	addressManagerClient: AddressManagerClient;
@@ -27,7 +27,7 @@ export class WsAuthFailureHandler {
 		if (res?.token) {
 			deps.tokenManager.setToken(res.token);
 			deps.wsClient?.updateToken(res.token);
-			REGISTRATION_TOTAL.inc({ result: "success" });
+			REGISTRATION_TOTAL.inc({ result: DiscoveryResult.Success });
 			logger.info("Re-registered after WS auth failure");
 		}
 	}

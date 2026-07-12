@@ -1,5 +1,8 @@
 import type { HttpMethod } from "@trading-model/common/config/http-types";
 import type {
+	Bytes,
+	DurationMs,
+	PositiveInt,
 	ServiceId,
 	UnixTimestamp,
 } from "@trading-model/common/domain/primitives";
@@ -11,36 +14,43 @@ export enum CallStatus {
 	Error = "error",
 }
 
+export type Endpoint = string & { readonly brand: "Endpoint" };
+export const Endpoint = {
+	of(value: string): Endpoint {
+		return value as Endpoint;
+	},
+};
+
 export interface CallRecord {
 	targetService: ServiceId;
-	endpoint: string;
+	endpoint: Endpoint;
 	method: HttpMethod;
 	timestamp: UnixTimestamp;
-	durationMs: number;
+	durationMs: DurationMs;
 	status: CallStatus;
-	bytesSent?: number;
-	bytesReceived?: number;
+	bytesSent?: Bytes;
+	bytesReceived?: Bytes;
 	errorMessage?: string;
 }
 
 export interface CallTrackerSnapshot {
-	totalCalls: number;
+	totalCalls: PositiveInt;
 	callsByService: Record<ServiceId, number>;
 	callsByEndpoint: Record<EndpointKey, number>;
-	errorsTotal: number;
-	avgLatencyMs: number;
-	totalBytesSent: number;
-	totalBytesReceived: number;
+	errorsTotal: PositiveInt;
+	avgLatencyMs: DurationMs;
+	totalBytesSent: Bytes;
+	totalBytesReceived: Bytes;
 }
 
 const EMPTY_SNAPSHOT: CallTrackerSnapshot = {
-	totalCalls: 0,
+	totalCalls: 0 as PositiveInt,
 	callsByService: {},
 	callsByEndpoint: {},
-	errorsTotal: 0,
-	avgLatencyMs: 0,
-	totalBytesSent: 0,
-	totalBytesReceived: 0,
+	errorsTotal: 0 as PositiveInt,
+	avgLatencyMs: 0 as DurationMs,
+	totalBytesSent: 0 as Bytes,
+	totalBytesReceived: 0 as Bytes,
 };
 
 export class ServiceCallTracker {
@@ -70,13 +80,13 @@ export class ServiceCallTracker {
 	private _buildSnapshot(total: number): CallTrackerSnapshot {
 		const agg = this._aggregator.aggregate(this._records);
 		return {
-			totalCalls: total,
+			totalCalls: total as PositiveInt,
 			callsByService: agg.callsByService,
 			callsByEndpoint: agg.callsByEndpoint,
-			errorsTotal: agg.errorsTotal,
-			avgLatencyMs: Math.round(agg.totalLatency / total),
-			totalBytesSent: agg.bytesSent,
-			totalBytesReceived: agg.bytesReceived,
+			errorsTotal: agg.errorsTotal as PositiveInt,
+			avgLatencyMs: Math.round(agg.totalLatency / total) as DurationMs,
+			totalBytesSent: agg.bytesSent as Bytes,
+			totalBytesReceived: agg.bytesReceived as Bytes,
 		};
 	}
 

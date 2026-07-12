@@ -1,10 +1,10 @@
 import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
-import { ServiceInstance } from "@trading-model/common/contracts/service-registry.types";
 import type {
 	InstanceId,
 	IPAddress,
 	Port,
 } from "@trading-model/common/domain/primitives";
+import { ServiceInstance } from "@trading-model/validation/contracts/service-registry.types";
 
 export { ServiceInstance };
 

@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, jest, test } from "@jest/globals";
 import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
-import { Protocol } from "@trading-model/common/contracts/service-registry.types";
 import {
 	IPAddress,
 	Port,
@@ -10,6 +9,7 @@ import {
 	toVersion,
 	UnixTimestamp,
 } from "@trading-model/common/domain/primitives";
+import { Protocol } from "@trading-model/validation/contracts/service-registry.types";
 import type { ServiceInstance } from "../../src/client/type";
 import type { DiscoveryCircuitBreaker } from "../../src/discovery/circuit-breaker";
 import type { DiscoveryContext } from "../../src/discovery/discovery-context";

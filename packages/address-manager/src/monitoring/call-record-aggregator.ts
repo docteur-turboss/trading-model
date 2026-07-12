@@ -1,4 +1,8 @@
-import type { ServiceId } from "@trading-model/common/domain/primitives";
+import type {
+	Bytes,
+	DurationMs,
+	ServiceId,
+} from "@trading-model/common/domain/primitives";
 import { type CallRecord, CallStatus } from "./service-call-tracker";
 
 export type EndpointKey = string & { readonly brand: "EndpointKey" };
@@ -12,9 +16,9 @@ export interface AggregationTotals {
 	callsByService: Record<ServiceId, number>;
 	callsByEndpoint: Record<EndpointKey, number>;
 	errorsTotal: number;
-	totalLatency: number;
-	bytesSent: number;
-	bytesReceived: number;
+	totalLatency: DurationMs;
+	bytesSent: Bytes;
+	bytesReceived: Bytes;
 }
 
 export class CallRecordAggregator {
@@ -39,9 +43,9 @@ export class CallRecordAggregator {
 	> {
 		let totals = {
 			errorsTotal: 0,
-			totalLatency: 0,
-			bytesSent: 0,
-			bytesReceived: 0,
+			totalLatency: 0 as DurationMs,
+			bytesSent: 0 as Bytes,
+			bytesReceived: 0 as Bytes,
 		};
 		for (const record of records) {
 			this._aggregateRecord(record, callsByService, callsByEndpoint);
@@ -74,9 +78,10 @@ export class CallRecordAggregator {
 		return {
 			errorsTotal:
 				totals.errorsTotal + (record.status === CallStatus.Error ? 1 : 0),
-			totalLatency: totals.totalLatency + record.durationMs,
-			bytesSent: totals.bytesSent + (record.bytesSent ?? 0),
-			bytesReceived: totals.bytesReceived + (record.bytesReceived ?? 0),
+			totalLatency: (totals.totalLatency + record.durationMs) as DurationMs,
+			bytesSent: (totals.bytesSent + (record.bytesSent ?? 0)) as Bytes,
+			bytesReceived: (totals.bytesReceived +
+				(record.bytesReceived ?? 0)) as Bytes,
 		};
 	}
 }

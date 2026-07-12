@@ -1,6 +1,7 @@
 import { HttpClient } from "@trading-model/common/config/http-client";
 import { AddressManagerClient } from "./client/address-manager-client";
 import { TokenManager } from "./client/token-manager";
+import type { WebSocketClient } from "./client/websocket-client";
 import type { AddressManagerConfig } from "./config/address-manager-config";
 import { DiscoveryCircuitBreaker } from "./discovery/circuit-breaker";
 import type { ICircuitStateStore } from "./discovery/circuit-state-store";
@@ -17,12 +18,32 @@ import {
 } from "./lifecycle.factory";
 import type { LifecycleManager } from "./lifecycle-manager";
 import { MetricsCollector } from "./monitoring/metrics-collector";
-import type {
-	AddressManagerDependencies,
-	ClientInfrastructure,
-	DiscoveryLayer,
-	HttpLayer,
-} from "./types";
+
+interface HttpLayer {
+	httpClient: HttpClient;
+	tokenManager: TokenManager;
+	addressManagerClient: AddressManagerClient;
+	serviceCache: IServiceCache;
+}
+
+interface DiscoveryLayer {
+	circuitBreaker: DiscoveryCircuitBreaker;
+	healthChecker: ServiceHealthChecker;
+	discoveryOrchestrator: DiscoveryOrchestrator;
+	metricsCollector: MetricsCollector;
+}
+
+interface ClientInfrastructure extends HttpLayer, DiscoveryLayer {
+	wsClient: WebSocketClient | undefined;
+}
+
+interface AddressManagerDependencies {
+	tokenManager: TokenManager;
+	discoveryOrchestrator: DiscoveryOrchestrator;
+	metricsCollector: MetricsCollector;
+	lifecycleManager: LifecycleManager;
+}
+
 import { maybeCreateWsClient } from "./ws-client.factory";
 
 export class AddressManagerBuilder {
@@ -58,13 +79,13 @@ export class AddressManagerBuilder {
 	}
 
 	private _createHealthChecker(httpClient: HttpClient): ServiceHealthChecker {
-		return new ServiceHealthChecker(
+		return new ServiceHealthChecker({
 			httpClient,
-			this._config.servicePingTimeoutMs,
-			this._config.dnsNameMap
+			timeoutMs: this._config.servicePingTimeoutMs,
+			serviceLocator: this._config.dnsNameMap
 				? new MapResolver(this._config.dnsNameMap)
-				: undefined
-		);
+				: undefined,
+		});
 	}
 
 	private _createDiscoveryInfra(

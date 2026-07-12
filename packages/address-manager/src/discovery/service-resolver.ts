@@ -12,11 +12,15 @@ import {
 } from "@trading-model/common/utils/errors";
 import type { ServiceInstance } from "../client/type";
 import type { AddressManagerConfig } from "../config/address-manager-config";
-import type { DiscoveryDeps } from "./discovery-deps";
 import type { IServiceCache } from "./service-cache.interface";
 import type { ServiceHealthChecker } from "./service-health-checker";
 
-export type ServiceResolverDeps = DiscoveryDeps;
+export interface ServiceResolverDeps {
+	httpClient: HttpClient;
+	serviceCache: IServiceCache;
+	config: AddressManagerConfig;
+	healthChecker: ServiceHealthChecker;
+}
 
 export class ServiceResolver {
 	constructor(private readonly _deps: ServiceResolverDeps) {}

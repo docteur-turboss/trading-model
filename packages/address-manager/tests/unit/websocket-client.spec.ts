@@ -37,12 +37,12 @@ jest.mock("@trading-model/common/config/logger", () => ({
 	},
 }));
 
-import { DiscoveryWsMessageType } from "@trading-model/common/contracts/discovery-ws-message.types";
 import {
 	toInstanceId,
 	toServiceId,
 	URLString,
 } from "@trading-model/common/domain/primitives";
+import { DiscoveryWsMessageType } from "@trading-model/validation/contracts/discovery-ws-message.types";
 import { WebSocketClient } from "../../src/client/websocket-client";
 
 describe("WebSocketClient", () => {
