@@ -13,7 +13,7 @@ jest.mock("@trading-model/common/worker/base-worker", () => ({
 	__esModule: true,
 }));
 
-jest.mock("../src/generate-key-pair", () => ({
+jest.mock("../src/keygen/generate-key-pair", () => ({
 	generateKeyPair: jest.fn(() => ({
 		publicKey: "pk" as never,
 		privateKey: "sk" as never,
@@ -26,7 +26,7 @@ jest.mock("../src/generate-key-pair", () => ({
 	KeyAlgorithm: { rsa4096: "rsa", ecP384: "ec" },
 }));
 
-jest.mock("../src/sign-certificate", () => ({
+jest.mock("../src/signing/sign-certificate", () => ({
 	signCertificate: jest.fn(() => ({
 		serialNumber: "SN-001",
 		certPem: "cert",
@@ -38,29 +38,29 @@ jest.mock("../src/sign-certificate", () => ({
 	})),
 }));
 
-jest.mock("../src/create-csr", () => ({
+jest.mock("../src/signing/create-csr", () => ({
 	createCsr: jest.fn(() => "csr-pem"),
 }));
 
-jest.mock("../src/validate-certificate", () => ({
+jest.mock("../src/validation/validate-certificate", () => ({
 	validateCertificate: jest.fn(() => ({ valid: true })),
 }));
 
-jest.mock("../src/sign", () => ({
+jest.mock("../src/format/sign", () => ({
 	parseKey: jest.fn(() => ({ publicKey: "pk", privateKey: "sk" })),
 	sign: jest.fn(() => "signature"),
 }));
 
-import { createCsr } from "../src/create-csr";
-import { createCryptoWorker } from "../src/crypto-worker";
+import { parseKey, sign } from "../src/format/sign";
 import {
 	generateKeyPair,
 	generateKeyPairWithIdSync,
 	KeyAlgorithm,
-} from "../src/generate-key-pair";
-import { parseKey, sign } from "../src/sign";
-import { signCertificate } from "../src/sign-certificate";
-import { validateCertificate } from "../src/validate-certificate";
+} from "../src/keygen/generate-key-pair";
+import { createCsr } from "../src/signing/create-csr";
+import { signCertificate } from "../src/signing/sign-certificate";
+import { validateCertificate } from "../src/validation/validate-certificate";
+import { createCryptoWorker } from "../src/workers/crypto-worker";
 
 function getHandler(type: string): (job: any) => Promise<any> {
 	const call = MOCK_REGISTER_HANDLER.mock.calls.find(
@@ -113,8 +113,7 @@ describe("createCryptoWorker", () => {
 		const opts = {
 			csr: "csr" as any,
 			serviceId: "svc" as any,
-			caKeyPair: {} as any,
-			caCertPem: "ca" as never,
+			ca: { caKeyPair: {} as any, caCertPem: "ca" as never },
 			ttlMs: 3600000 as never,
 		};
 		const result = await handler({ payload: opts });
@@ -188,10 +187,10 @@ describe("createCryptoWorker", () => {
 	});
 
 	afterAll(() => {
-		jest.unmock("../src/generate-key-pair");
-		jest.unmock("../src/sign-certificate");
-		jest.unmock("../src/create-csr");
-		jest.unmock("../src/validate-certificate");
-		jest.unmock("../src/sign");
+		jest.unmock("../src/keygen/generate-key-pair");
+		jest.unmock("../src/signing/sign-certificate");
+		jest.unmock("../src/signing/create-csr");
+		jest.unmock("../src/validation/validate-certificate");
+		jest.unmock("../src/format/sign");
 	});
 });

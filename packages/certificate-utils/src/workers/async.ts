@@ -1,19 +1,19 @@
-import type { CsrOptions } from "./create-csr";
-import { KeyAlgorithm } from "./generate-key-pair";
-import type { SignOptions } from "./sign-certificate";
-import type { RemoteSigningClient } from "./signing/remote-signing-client";
+import { KeyAlgorithm } from "../keygen/generate-key-pair";
 import type {
 	KeyPair,
 	KeyPairWithId,
 	SignedCertificate,
 	SignInput,
-} from "./types";
+} from "../keygen/types";
+import type { CsrOptions } from "../signing/create-csr";
+import type { RemoteSigningClient } from "../signing/remote-signing-client";
+import type { SignOptions } from "../signing/sign-certificate";
 import type {
 	CertificateValidationInput,
 	ValidationResult,
-} from "./validate-certificate";
+} from "../validation/validate-certificate";
+import { getPool } from "./lazy-pool";
 import { WorkerTaskType } from "./worker-task-type";
-import { getPool } from "./workers/lazy-pool";
 
 let remoteClient: RemoteSigningClient | null = null;
 

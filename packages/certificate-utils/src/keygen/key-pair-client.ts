@@ -3,8 +3,14 @@ import {
 	type DurationMs,
 	URLString,
 } from "@trading-model/common/domain/primitives";
-import type { KeyPair, KeyPairWithId } from "../types";
-import { KeyAlgorithm } from "./generate-key-pair";
+import { KeyAlgorithm } from "./key-algorithm";
+import type { KeyPair, KeyPairWithId } from "./types";
+
+export interface KeyPairClientConfig {
+	httpClient: HttpClient;
+	baseUrl: URLString;
+	timeoutMs: DurationMs;
+}
 
 function _checkResult<TValue>(result: TValue | undefined | null): TValue {
 	if (!result) {
@@ -14,11 +20,15 @@ function _checkResult<TValue>(result: TValue | undefined | null): TValue {
 }
 
 export class KeyPairClient {
-	constructor(
-		private readonly _httpClient: HttpClient,
-		private readonly _baseUrl: URLString,
-		private readonly _timeoutMs: DurationMs
-	) {}
+	private readonly _httpClient: HttpClient;
+	private readonly _baseUrl: URLString;
+	private readonly _timeoutMs: DurationMs;
+
+	constructor(config: KeyPairClientConfig) {
+		this._httpClient = config.httpClient;
+		this._baseUrl = config.baseUrl;
+		this._timeoutMs = config.timeoutMs;
+	}
 
 	async generateKeyPair(
 		algorithm: KeyAlgorithm = KeyAlgorithm.EcP384

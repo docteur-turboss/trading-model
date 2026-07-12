@@ -1,7 +1,7 @@
 import { createSign } from "node:crypto";
 import { describe, expect, it } from "@jest/globals";
 import { toSerialNumber } from "@trading-model/common/domain/primitives";
-import { generateKeyPair, KeyAlgorithm } from "../src/generate-key-pair";
+import { generateKeyPair, KeyAlgorithm } from "../src/keygen/generate-key-pair";
 import { CertBodyBuilder } from "../src/validation/cert-body-builder";
 import { validateCertificate } from "../src/validation/validate-certificate";
 
@@ -21,7 +21,10 @@ function createValidCertPem(ttlMs = 3600000): {
 		subject: "test-service",
 		san: ["test.internal"],
 	});
-	const signature = builder.signCertBody(body, caKeyPair.privateKey);
+	const signature = builder.signCertBody({
+		certBody: body,
+		privateKey: caKeyPair.privateKey,
+	});
 	const certPem = builder.buildCertPem(body, signature, caKeyPair.publicKey);
 	return { certPem, caCertPem: caKeyPair.publicKey };
 }

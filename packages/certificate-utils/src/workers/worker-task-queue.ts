@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { WorkerTaskType } from "../worker-task-type";
+import type { WorkerTaskType } from "./worker-task-type";
 
 export type TaskType = WorkerTaskType;
 

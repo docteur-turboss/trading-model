@@ -59,7 +59,7 @@ function loadModule(): void {
 			generateKeyPairWithIdSync,
 			KeyAlgorithm: { rsa4096: "rsa", ecP384: "ec" },
 		}));
-		jest.mock("../src/sign-certificate", () => ({
+		jest.mock("../src/signing/sign-certificate", () => ({
 			signCertificate,
 		}));
 		jest.mock("../src/signing/create-csr", () => ({

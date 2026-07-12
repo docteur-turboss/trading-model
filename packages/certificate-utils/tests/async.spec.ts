@@ -29,6 +29,7 @@ jest.mock("../src/signing/remote-signing-client", () => ({
 	RemoteSigningClient: jest.fn(() => MOCK_REMOTE_SIGNING_CLIENT),
 }));
 
+import { KeyAlgorithm } from "../src/keygen/generate-key-pair";
 import {
 	createCsrAsync,
 	generateKeyPairAsync,
@@ -38,8 +39,7 @@ import {
 	signAsync,
 	signCertificateAsync,
 	validateCertificateAsync,
-} from "../src/async";
-import { KeyAlgorithm } from "../src/generate-key-pair";
+} from "../src/workers/async";
 
 describe("async module - pool path", () => {
 	beforeEach(() => {

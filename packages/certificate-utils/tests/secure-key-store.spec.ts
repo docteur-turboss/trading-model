@@ -1,5 +1,5 @@
 import { describe, expect, it } from "@jest/globals";
-import { SecureKeyStore } from "../src/vault/secure-key-store";
+import { SecureKeyStore } from "../src/keygen/secure-key-store";
 
 describe("SecureKeyStore", () => {
 	it("should store and read a PEM string", () => {

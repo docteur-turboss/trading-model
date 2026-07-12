@@ -33,7 +33,7 @@ import {
 	parsePem,
 	privateKeyFromPem,
 	resolvePublicKey,
-} from "../src/format";
+} from "../src/format/format";
 
 describe("chunks", () => {
 	it("should split a string into chunks of given size", () => {

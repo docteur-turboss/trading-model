@@ -1,5 +1,5 @@
 import { describe, expect, it } from "@jest/globals";
-import { generateKeyPair, KeyAlgorithm } from "../src/generate-key-pair";
+import { generateKeyPair, KeyAlgorithm } from "../src/keygen/generate-key-pair";
 import { LocalSigningProvider } from "../src/signing/signing-provider";
 
 describe("LocalSigningProvider", () => {

@@ -1,10 +1,15 @@
 import { createSign } from "node:crypto";
-
-import { CryptoAlg } from "@trading-model/common/crypto/crypto-constants";
 import type {
 	KeyPem,
 	SerialNumber,
 } from "@trading-model/common/domain/primitives";
+import { CryptoAlg } from "@trading-model/crypto/crypto/crypto-constants";
+
+export interface SigningMaterial {
+	certBody: string;
+	privateKey: string;
+	issuerCert?: string;
+}
 
 export interface CertBodyBuilderOptions {
 	serialNumber: SerialNumber;
@@ -41,19 +46,15 @@ export class CertBodyBuilder {
 		return this._buildLines(options).join("\n");
 	}
 
-	signCertBody(certBody: string, privateKey: string): string {
+	signCertBody(material: SigningMaterial): string {
 		const sign = createSign(CryptoAlg.SHA256);
-		sign.update(certBody);
-		return sign.sign(privateKey, "base64");
+		sign.update(material.certBody);
+		return sign.sign(material.privateKey, "base64");
 	}
 
-	signAndBuildPem(
-		certBody: string,
-		privateKey: string,
-		issuerCert?: string
-	): string {
-		const signature = this.signCertBody(certBody, privateKey);
-		return this.buildCertPem(certBody, signature, issuerCert);
+	signAndBuildPem(material: SigningMaterial): string {
+		const signature = this.signCertBody(material);
+		return this.buildCertPem(material.certBody, signature, material.issuerCert);
 	}
 
 	private _buildPayload(

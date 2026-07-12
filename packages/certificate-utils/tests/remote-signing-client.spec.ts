@@ -14,7 +14,7 @@ jest.mock("@trading-model/common/config/http-client", () => ({
 	HttpClient: MOCK_HTTP_CLIENT,
 }));
 
-import { KeyAlgorithm } from "../src/generate-key-pair";
+import { KeyAlgorithm } from "../src/keygen/generate-key-pair";
 import { RemoteSigningClient } from "../src/signing/remote-signing-client";
 
 function getClient(options: Record<string, any> = {}): RemoteSigningClient {
@@ -119,8 +119,10 @@ describe("RemoteSigningClient", () => {
 			const options = {
 				csr: "csr" as any,
 				serviceId: toServiceId("svc"),
-				caKeyPair: { publicKey: "pk", privateKey: "sk" } as any,
-				caCertPem: "ca" as never,
+				ca: {
+					caKeyPair: { publicKey: "pk", privateKey: "sk" } as any,
+					caCertPem: "ca" as never,
+				},
 				ttlMs: 3600000 as never,
 			};
 

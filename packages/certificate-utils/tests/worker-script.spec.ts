@@ -54,22 +54,22 @@ function loadModule(): void {
 			createPublicKey: mockCreatePublicKey,
 			createSign: mockCreateSign,
 		}));
-		jest.mock("../src/generate-key-pair", () => ({
+		jest.mock("../src/keygen/generate-key-pair", () => ({
 			generateKeyPair,
 			generateKeyPairWithIdSync,
 			KeyAlgorithm: { rsa4096: "rsa", ecP384: "ec" },
 		}));
-		jest.mock("../src/sign-certificate", () => ({
+		jest.mock("../src/signing/sign-certificate", () => ({
 			signCertificate,
 		}));
-		jest.mock("../src/create-csr", () => ({
+		jest.mock("../src/signing/create-csr", () => ({
 			createCsr,
 		}));
-		jest.mock("../src/validate-certificate", () => ({
+		jest.mock("../src/validation/validate-certificate", () => ({
 			validateCertificate,
 		}));
 
-		require("../src/worker-script");
+		require("../src/workers/worker-script");
 	});
 }
 
@@ -85,7 +85,7 @@ describe("worker-script", () => {
 
 	it("should throw when imported outside a worker thread", () => {
 		jest.isolateModules(() => {
-			expect(() => require("../src/worker-script")).toThrow(
+			expect(() => require("../src/workers/worker-script")).toThrow(
 				"worker-script must be run as a worker thread"
 			);
 		});

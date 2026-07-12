@@ -3,18 +3,18 @@ import { DurationMs, URLString } from "@trading-model/common/domain/primitives";
 import type { TlsPaths as TlsClientPaths } from "@trading-model/common/domain/tls-paths";
 import { KeyAlgorithm } from "../keygen/generate-key-pair";
 import { KeyPairClient } from "../keygen/key-pair-client";
-import type { SignOptions } from "../sign-certificate";
 import type {
 	KeyPair,
 	KeyPairWithId,
 	SignedCertificate,
 	SignInput,
-} from "../types";
+} from "../keygen/types";
 import type {
 	CertificateValidationInput,
 	ValidationResult,
 } from "../validation/validate-certificate";
 import type { CsrOptions } from "./create-csr";
+import type { SignOptions } from "./sign-certificate";
 
 export interface RemoteSigningConfig {
 	baseUrl: URLString;
@@ -34,11 +34,11 @@ export class RemoteSigningClient {
 		this._httpClient = config.tls
 			? HttpClient.createWithTls(config.tls)
 			: new HttpClient();
-		this._keyPairClient = new KeyPairClient(
-			this._httpClient,
-			this._baseUrl,
-			this._timeoutMs
-		);
+		this._keyPairClient = new KeyPairClient({
+			httpClient: this._httpClient,
+			baseUrl: this._baseUrl,
+			timeoutMs: this._timeoutMs,
+		});
 	}
 
 	generateKeyPair(

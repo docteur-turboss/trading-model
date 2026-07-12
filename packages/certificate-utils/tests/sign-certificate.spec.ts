@@ -4,9 +4,9 @@ import {
 	toServiceId,
 	UnixTimestamp,
 } from "@trading-model/common/domain/primitives";
-import { createCsr } from "../src/create-csr";
-import { generateKeyPair, KeyAlgorithm } from "../src/generate-key-pair";
-import { signCertificate } from "../src/sign-certificate";
+import { generateKeyPair, KeyAlgorithm } from "../src/keygen/generate-key-pair";
+import { createCsr } from "../src/signing/create-csr";
+import { signCertificate } from "../src/signing/sign-certificate";
 
 describe("signCertificate", () => {
 	it("should sign a CSR and return a SignedCertificate", () => {
@@ -22,8 +22,7 @@ describe("signCertificate", () => {
 		const result = signCertificate({
 			csr: toCsrPem(csr),
 			serviceId: toServiceId("svc-123"),
-			caKeyPair,
-			caCertPem,
+			ca: { caKeyPair, caCertPem },
 			ttlMs: 3600000 as never,
 		});
 
@@ -52,8 +51,7 @@ describe("signCertificate", () => {
 		const result = signCertificate({
 			csr: toCsrPem(csr),
 			serviceId: toServiceId("svc-456"),
-			caKeyPair,
-			caCertPem,
+			ca: { caKeyPair, caCertPem },
 			ttlMs,
 		});
 		const after = Date.now();
@@ -79,15 +77,13 @@ describe("signCertificate", () => {
 		const r1 = signCertificate({
 			csr: toCsrPem(csr),
 			serviceId: toServiceId("svc-1"),
-			caKeyPair,
-			caCertPem,
+			ca: { caKeyPair, caCertPem },
 			ttlMs: 3600000 as never,
 		});
 		const r2 = signCertificate({
 			csr: toCsrPem(csr),
 			serviceId: toServiceId("svc-2"),
-			caKeyPair,
-			caCertPem,
+			ca: { caKeyPair, caCertPem },
 			ttlMs: 3600000 as never,
 		});
 
@@ -108,8 +104,7 @@ describe("signCertificate", () => {
 		const result = signCertificate({
 			csr: toCsrPem(csr),
 			serviceId: toServiceId("svc-mixed"),
-			caKeyPair,
-			caCertPem,
+			ca: { caKeyPair, caCertPem },
 			ttlMs: 60000 as never,
 		});
 

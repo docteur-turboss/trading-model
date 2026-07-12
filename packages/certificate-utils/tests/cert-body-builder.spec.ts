@@ -1,7 +1,7 @@
 import { createPublicKey, createVerify } from "node:crypto";
 import { describe, expect, it } from "@jest/globals";
 import { toSerialNumber } from "@trading-model/common/domain/primitives";
-import { generateKeyPair, KeyAlgorithm } from "../src/generate-key-pair";
+import { generateKeyPair, KeyAlgorithm } from "../src/keygen/generate-key-pair";
 import { CertBodyBuilder } from "../src/validation/cert-body-builder";
 
 describe("CertBodyBuilder", () => {
@@ -74,7 +74,10 @@ describe("CertBodyBuilder", () => {
 			publicKey: keyPair.publicKey,
 		});
 
-		const signature = builder.signCertBody(body, keyPair.privateKey);
+		const signature = builder.signCertBody({
+			certBody: body,
+			privateKey: keyPair.privateKey,
+		});
 
 		expect(signature).toBeDefined();
 		expect(typeof signature).toBe("string");
@@ -90,7 +93,10 @@ describe("CertBodyBuilder", () => {
 			publicKey: keyPair.publicKey,
 			subject: "svc",
 		});
-		const signature = builder.signCertBody(body, keyPair.privateKey);
+		const signature = builder.signCertBody({
+			certBody: body,
+			privateKey: keyPair.privateKey,
+		});
 
 		const pem = builder.buildCertPem(body, signature, keyPair.publicKey);
 
@@ -121,7 +127,10 @@ describe("CertBodyBuilder", () => {
 			expiresAt: new Date("2025-01-01"),
 			publicKey: keyPair.publicKey,
 		});
-		const signature = builder.signCertBody(body, keyPair.privateKey);
+		const signature = builder.signCertBody({
+			certBody: body,
+			privateKey: keyPair.privateKey,
+		});
 
 		const pem = builder.buildCertPem(body, signature);
 
@@ -151,11 +160,11 @@ describe("CertBodyBuilder", () => {
 			publicKey: keyPair.publicKey,
 		});
 
-		const pem = builder.signAndBuildPem(
-			body,
-			keyPair.privateKey,
-			keyPair.publicKey
-		);
+		const pem = builder.signAndBuildPem({
+			certBody: body,
+			privateKey: keyPair.privateKey,
+			issuerCert: keyPair.publicKey,
+		});
 
 		expect(pem).toContain("BEGIN CERTIFICATE");
 		expect(pem).toContain("END CERTIFICATE");
@@ -171,7 +180,10 @@ describe("CertBodyBuilder", () => {
 			publicKey: keyPair.publicKey,
 		});
 
-		const pem = builder.signAndBuildPem(body, keyPair.privateKey);
+		const pem = builder.signAndBuildPem({
+			certBody: body,
+			privateKey: keyPair.privateKey,
+		});
 
 		expect(pem).toContain("BEGIN CERTIFICATE");
 		expect(pem).toContain("END CERTIFICATE");
@@ -186,7 +198,10 @@ describe("CertBodyBuilder", () => {
 			expiresAt: new Date("2025-01-01"),
 			publicKey: keyPair.publicKey,
 		});
-		const signature = builder.signCertBody(body, keyPair.privateKey);
+		const signature = builder.signCertBody({
+			certBody: body,
+			privateKey: keyPair.privateKey,
+		});
 
 		const verify = createVerify("sha256");
 		verify.update(body);

@@ -1,20 +1,21 @@
 import { describe, expect, it } from "@jest/globals";
 import forge from "node-forge";
-import { CsrParser, SanEntryType } from "../src/csr-parser";
+import type { CsrSubject } from "../src/signing/create-csr";
+import { CsrParser, SanEntryType } from "../src/validation/csr-parser";
 
-function createRealCsrPem(commonName: string, sanDnsNames: string[]): string {
+function createRealCsrPem(subject: CsrSubject): string {
 	const keys = forge.pki.rsa.generateKeyPair(2048);
 	const csr = forge.pki.createCertificationRequest();
 	csr.publicKey = keys.publicKey;
-	csr.subject.addField({ name: "commonName", value: commonName });
-	if (sanDnsNames.length > 0) {
+	csr.subject.addField({ name: "commonName", value: subject.commonName });
+	if (subject.san.length > 0) {
 		csr.setAttributes([
 			{
 				name: "extensionRequest",
 				extensions: [
 					{
 						name: "subjectAltName",
-						altNames: sanDnsNames.map((dns) => ({
+						altNames: subject.san.map((dns) => ({
 							type: 2,
 							value: dns,
 						})),
@@ -52,7 +53,10 @@ describe("SanEntryType", () => {
 
 describe("CsrParser", () => {
 	it("should parse CSR with SAN entries", () => {
-		const pem = createRealCsrPem("test-service", ["test.example.com"]);
+		const pem = createRealCsrPem({
+			commonName: "test-service",
+			san: ["test.example.com"],
+		});
 		const parser = new CsrParser();
 		const result = parser.parse(pem);
 
@@ -62,10 +66,10 @@ describe("CsrParser", () => {
 	});
 
 	it("should parse CSR with multiple SAN entries", () => {
-		const pem = createRealCsrPem("multi-san", [
-			"a.example.com",
-			"b.example.com",
-		]);
+		const pem = createRealCsrPem({
+			commonName: "multi-san",
+			san: ["a.example.com", "b.example.com"],
+		});
 		const parser = new CsrParser();
 		const result = parser.parse(pem);
 

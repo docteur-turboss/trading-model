@@ -29,7 +29,7 @@ process.once("exit", globalCleanup);
 process.once("SIGINT", globalCleanup);
 process.once("SIGTERM", globalCleanup);
 
-import { CryptoAlg } from "@trading-model/common/crypto/crypto-constants";
+import { CryptoAlg } from "@trading-model/crypto/crypto/crypto-constants";
 
 const PREV_SIG_USR2 = process.listeners("SIGUSR2")[0] as
 	| (() => void)

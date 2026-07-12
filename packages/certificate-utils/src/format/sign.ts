@@ -1,7 +1,7 @@
 import { createPublicKey, createSign } from "node:crypto";
 import { KeyPem } from "@trading-model/common/domain/primitives";
 
-import type { KeyPair, SignInput } from "./types";
+import type { KeyPair, SignInput } from "../keygen/types";
 
 export function parseKey(privateKey: string): KeyPair {
 	const publicKey = createPublicKey(privateKey).export({

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "@jest/globals";
-import { createCsr } from "../src/create-csr";
-import { generateKeyPair, KeyAlgorithm } from "../src/generate-key-pair";
+import { generateKeyPair, KeyAlgorithm } from "../src/keygen/generate-key-pair";
+import { createCsr } from "../src/signing/create-csr";
 
 describe("createCsr", () => {
 	it("should create a CSR in PEM format", () => {

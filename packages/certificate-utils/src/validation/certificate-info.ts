@@ -1,12 +1,11 @@
 import { createHash } from "node:crypto";
-
-import { CryptoAlg } from "@trading-model/common/crypto/crypto-constants";
 import {
 	toCommonName,
 	toFingerprint,
 	toSerialNumber,
 } from "@trading-model/common/domain/primitives";
-import type { CertificateInfo } from "./types";
+import { CryptoAlg } from "@trading-model/crypto/crypto/crypto-constants";
+import type { CertificateInfo } from "../keygen/types";
 
 function _decodeCertBody(certPem: string): string {
 	const lines = certPem

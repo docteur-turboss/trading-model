@@ -7,10 +7,10 @@ import {
 	getAlgorithmOptions,
 	getKeyEncoding,
 	KeyAlgorithm,
-} from "../key-algorithm";
-import type { KeyPair, KeyPairWithId } from "../types";
+} from "./key-algorithm";
+import type { KeyPair, KeyPairWithId } from "./types";
 
-export type { KeyPair, KeyPairWithId } from "../types";
+export type { KeyPair, KeyPairWithId } from "./types";
 
 export { KeyAlgorithm };
 

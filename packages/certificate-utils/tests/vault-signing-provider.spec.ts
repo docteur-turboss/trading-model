@@ -1,6 +1,6 @@
 import { describe, expect, it, jest } from "@jest/globals";
-import { VaultSigningProvider } from "../src/vault/vault-signing-provider";
-import type { VaultTransitClient } from "../src/vault/vault-transit-client";
+import { VaultSigningProvider } from "../src/signing/vault-signing-provider";
+import type { VaultTransitClient } from "../src/signing/vault-transit-client";
 
 function createMockVault(): jest.Mocked<VaultTransitClient> {
 	return {

@@ -1,15 +1,12 @@
 import { constants } from "node:fs";
 import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import { logger } from "@trading-model/common/config/logger";
-import { CryptoAlg } from "@trading-model/common/crypto/crypto-constants";
 import { KeyPem } from "@trading-model/common/domain/primitives";
 import { normalizeError } from "@trading-model/common/utils/errors";
+import { CryptoAlg } from "@trading-model/crypto/crypto/crypto-constants";
 
-import {
-	generateKeyPairWithId,
-	KeyAlgorithm,
-} from "../keygen/generate-key-pair";
-import type { KeyPair, KeyPairWithId } from "../types";
+import { generateKeyPairWithId, KeyAlgorithm } from "./generate-key-pair";
+import type { KeyPair, KeyPairWithId } from "./types";
 
 export interface KeyVault {
 	generate(algorithm?: KeyAlgorithm): Promise<KeyPairWithId>;

@@ -1,10 +1,10 @@
 import { createSign } from "node:crypto";
 import { beforeAll, describe, expect, it } from "@jest/globals";
 import { toCsrPem, toServiceId } from "@trading-model/common/domain/primitives";
-import { createCsr } from "../src/create-csr";
-import { generateKeyPair, KeyAlgorithm } from "../src/generate-key-pair";
-import { signCertificate } from "../src/sign-certificate";
-import { validateCertificate } from "../src/validate-certificate";
+import { generateKeyPair, KeyAlgorithm } from "../src/keygen/generate-key-pair";
+import { createCsr } from "../src/signing/create-csr";
+import { signCertificate } from "../src/signing/sign-certificate";
+import { validateCertificate } from "../src/validation/validate-certificate";
 
 let caKeyPair: ReturnType<typeof generateKeyPair>;
 let serviceKeyPair: ReturnType<typeof generateKeyPair>;
@@ -21,8 +21,7 @@ function signNewCert(ttlMs = 3600000) {
 	return signCertificate({
 		csr: toCsrPem(csr),
 		serviceId: toServiceId("svc-validate"),
-		caKeyPair,
-		caCertPem,
+		ca: { caKeyPair, caCertPem },
 		ttlMs: ttlMs as never,
 	});
 }

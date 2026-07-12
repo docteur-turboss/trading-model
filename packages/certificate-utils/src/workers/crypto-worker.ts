@@ -3,17 +3,16 @@ import {
 	BaseWorker,
 	type BaseWorkerConfig,
 } from "@trading-model/common/worker/base-worker";
-
-import { type CsrOptions, createCsr } from "./create-csr";
+import { parseKey, sign } from "../format/sign";
 import {
 	generateKeyPair,
 	generateKeyPairWithIdSync,
 	type KeyAlgorithm,
-} from "./generate-key-pair";
-import { parseKey, sign } from "./sign";
-import { type SignOptions, signCertificate } from "./sign-certificate";
-import type { KeyPair, KeyPairWithId, SignInput } from "./types";
-import { validateCertificate } from "./validate-certificate";
+} from "../keygen/generate-key-pair";
+import type { KeyPair, KeyPairWithId, SignInput } from "../keygen/types";
+import { type CsrOptions, createCsr } from "../signing/create-csr";
+import { type SignOptions, signCertificate } from "../signing/sign-certificate";
+import { validateCertificate } from "../validation/validate-certificate";
 
 const HANDLERS: [JobType, (job: { payload: unknown }) => Promise<unknown>][] = [
 	[

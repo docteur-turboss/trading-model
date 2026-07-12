@@ -18,13 +18,13 @@ export function extractPublicKeyFromBody(_body: string): string | null {
 	throw new Error("extractPublicKeyFromBody is deprecated");
 }
 
-export { CertificateParser } from "./certificate-parser";
-export { CsrParser } from "./csr-parser";
-export { KeyConverter } from "./key-converter";
+export { KeyConverter } from "../keygen/key-converter";
+export { CertificateParser } from "../validation/certificate-parser";
+export { CsrParser } from "../validation/csr-parser";
 
-import { CertificateParser } from "./certificate-parser";
-import { CsrParser } from "./csr-parser";
-import { KeyConverter } from "./key-converter";
+import { KeyConverter } from "../keygen/key-converter";
+import { CertificateParser } from "../validation/certificate-parser";
+import { CsrParser } from "../validation/csr-parser";
 
 const certParser = new CertificateParser();
 const csrParser = new CsrParser();

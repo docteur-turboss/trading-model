@@ -37,6 +37,11 @@ export interface KeyPair {
 	privateKey: KeyPem;
 }
 
+export interface CaCredentials {
+	caKeyPair: KeyPair;
+	caCertPem: CaPem;
+}
+
 export type KeyPairWithId = KeyPair & { id: KeyId };
 
 export interface CertificateInfo {

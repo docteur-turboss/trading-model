@@ -4,7 +4,7 @@
  * Delegates all signing operations to HashiCorp Vault Transit,
  * so the CA private key never leaves Vault's HSM boundary.
  */
-import type { SigningProvider } from "../signing/signing-provider";
+import type { SigningProvider } from "./signing-provider";
 import type { VaultTransitClient } from "./vault-transit-client";
 
 export class VaultSigningProvider implements SigningProvider {

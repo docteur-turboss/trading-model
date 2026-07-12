@@ -5,13 +5,14 @@ import {
 import {
 	DurationMs,
 	type SerialNumber,
+	UnixTimestamp,
 } from "@trading-model/common/domain/primitives";
-import type { RevokedCertificate } from "./types";
+import type { RevokedCertificate } from "../keygen/types";
 
 export interface Crl {
 	entries: RevokedCertificate[];
-	lastUpdate: Date;
-	nextUpdate: Date;
+	lastUpdate: UnixTimestamp;
+	nextUpdate: UnixTimestamp;
 }
 
 export function createCrl(
@@ -20,8 +21,8 @@ export function createCrl(
 ): Crl {
 	return {
 		entries: revoked,
-		lastUpdate: new Date(),
-		nextUpdate: new Date(Date.now() + ttlMs),
+		lastUpdate: UnixTimestamp.now(),
+		nextUpdate: UnixTimestamp.add(UnixTimestamp.now(), ttlMs),
 	};
 }
 
@@ -39,9 +40,9 @@ export function isRevoked(serialNumber: SerialNumber, crl: Crl): boolean {
  * Delegates to CrlCache.fromCrlEntries to share the same revocation-check implementation pattern.
  */
 export function createCrlChecker(crl: Crl): ICrlChecker {
-	const oneYearAgo = Date.now() - 365 * 24 * 60 * 60 * 1000;
+	const oneYearAgo = UnixTimestamp.now() - 365 * 24 * 60 * 60 * 1000;
 	const activeEntries = crl.entries.filter(
-		(entry) => entry.revokedAt.getTime() >= oneYearAgo
+		(entry) => entry.revokedAt >= oneYearAgo
 	);
 	return CrlCache.fromCrlEntries(activeEntries);
 }

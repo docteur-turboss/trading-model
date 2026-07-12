@@ -1,6 +1,6 @@
 import { logger } from "@trading-model/common/config/logger";
-import { CryptoAlg } from "@trading-model/common/crypto/crypto-constants";
 import { normalizeError } from "@trading-model/common/utils/errors";
+import { CryptoAlg } from "@trading-model/crypto/crypto/crypto-constants";
 
 import {
 	HashAlgorithmMapper,

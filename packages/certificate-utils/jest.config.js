@@ -6,7 +6,18 @@ module.exports = {
   testMatch: ['**/?(*.)+(spec).ts'],
   testPathIgnorePatterns: ['/node_modules/', '/dist/'],
   moduleNameMapper: {
+    '^@trading-model/crypto/(.*)$': '<rootDir>/../crypto/src/$1',
+    '^@trading-model/validation/(.*)$': '<rootDir>/../validation/src/$1',
+    '^@trading-model/server-utils/(.*)$': '<rootDir>/../server-utils/src/$1',
     '^@trading-model/common/(.*)$': '<rootDir>/../common/src/$1',
+  },
+  transform: {
+    '^.+\\.tsx?$': [
+      'ts-jest',
+      {
+        diagnostics: false,
+      },
+    ],
   },
   maxWorkers: 10,
   collectCoverageFrom: ['src/**/*.ts', '!src/**/*.d.ts', '!src/index.ts'],

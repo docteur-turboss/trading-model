@@ -1,6 +1,6 @@
 import { describe, expect, it } from "@jest/globals";
-import { generateKeyPair, KeyAlgorithm } from "../src/generate-key-pair";
-import { parseKey, sign } from "../src/sign";
+import { parseKey, sign } from "../src/format/sign";
+import { generateKeyPair, KeyAlgorithm } from "../src/keygen/generate-key-pair";
 
 describe("parseKey", () => {
 	it("should extract public key from EC private key", () => {

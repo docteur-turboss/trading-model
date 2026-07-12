@@ -5,11 +5,11 @@ import {
 	generateKeyPairWithIdSync,
 	type KeyAlgorithm,
 } from "../keygen/generate-key-pair";
-import { type SignOptions, signCertificate } from "../sign-certificate";
+import type { SignInput } from "../keygen/types";
 import { type CsrOptions, createCsr } from "../signing/create-csr";
-import type { SignInput } from "../types";
+import { type SignOptions, signCertificate } from "../signing/sign-certificate";
 import { validateCertificate } from "../validation/validate-certificate";
-import { WorkerTaskType } from "../worker-task-type";
+import { WorkerTaskType } from "./worker-task-type";
 
 interface BaseTask {
 	id: string;

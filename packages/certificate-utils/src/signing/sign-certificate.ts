@@ -1,6 +1,4 @@
 import { createHash, createPublicKey, randomUUID } from "node:crypto";
-
-import { CryptoAlg } from "@trading-model/common/crypto/crypto-constants";
 import type { CertSignRequest } from "@trading-model/common/domain/cert-signing";
 import type {
 	CaPem,
@@ -17,15 +15,15 @@ import {
 	toSerialNumber,
 	UnixTimestamp,
 } from "@trading-model/common/domain/primitives";
-import type { KeyPair, SignedCertificate } from "./types";
+import { CryptoAlg } from "@trading-model/crypto/crypto/crypto-constants";
+import type { CaCredentials, SignedCertificate } from "../keygen/types";
 import {
 	CertBodyBuilder,
 	type CertBodyBuilderOptions,
-} from "./validation/cert-body-builder";
+} from "../validation/cert-body-builder";
 
 export interface SignOptions extends CertSignRequest {
-	caKeyPair: KeyPair;
-	caCertPem: CaPem;
+	ca: CaCredentials;
 	ttlMs: DurationMs;
 }
 
@@ -67,8 +65,8 @@ function parseCsr(
 
 interface CertificateBuildOptions {
 	serialNumber: SerialNumber;
-	now: Date;
-	expiresAt: Date;
+	now: UnixTimestamp;
+	expiresAt: UnixTimestamp;
 	publicKeyPem: KeyPem;
 	commonName: CommonName;
 	san: string[];
@@ -79,8 +77,8 @@ function _buildCertificateOptions(
 ): CertBodyBuilderOptions {
 	return {
 		serialNumber: params.serialNumber,
-		now: params.now,
-		expiresAt: params.expiresAt,
+		now: UnixTimestamp.toDate(params.now),
+		expiresAt: UnixTimestamp.toDate(params.expiresAt),
 		publicKey: params.publicKeyPem,
 		subject: params.commonName,
 		san: params.san,
@@ -90,8 +88,7 @@ function _buildCertificateOptions(
 interface CertBuildParams {
 	builder: CertBodyBuilder;
 	certOptions: CertificateBuildOptions;
-	caKeyPair: KeyPair;
-	caCertPem: CaPem;
+	ca: CaCredentials;
 }
 
 function _buildCert(params: CertBuildParams): {
@@ -102,14 +99,14 @@ function _buildCert(params: CertBuildParams): {
 	const certBody = params.builder.build(
 		_buildCertificateOptions(params.certOptions)
 	);
-	const signature = params.builder.signCertBody(
+	const signature = params.builder.signCertBody({
 		certBody,
-		params.caKeyPair.privateKey
-	);
+		privateKey: params.ca.caKeyPair.privateKey,
+	});
 	const certPem = params.builder.buildCertPem(
 		certBody,
 		signature,
-		params.caCertPem
+		params.ca.caCertPem
 	);
 	return { certBody, signature, certPem: toCertPem(certPem) };
 }
@@ -119,8 +116,8 @@ interface SignedCertResultParams {
 	certPem: CertPem;
 	caCertPem: CaPem;
 	serviceId: import("@trading-model/common/domain/primitives").ServiceId;
-	now: Date;
-	expiresAt: Date;
+	now: UnixTimestamp;
+	expiresAt: UnixTimestamp;
 }
 
 function _buildSignedCertificateResult(
@@ -134,18 +131,18 @@ function _buildSignedCertificateResult(
 		certPem: params.certPem,
 		caPem: params.caCertPem,
 		serviceId: params.serviceId,
-		issuedAt: params.now,
-		expiresAt: UnixTimestamp.of(params.expiresAt.getTime()),
+		issuedAt: UnixTimestamp.toDate(params.now),
+		expiresAt: params.expiresAt,
 		fingerprint: toFingerprint(fingerprint),
 	};
 }
 
 export function signCertificate(options: SignOptions): SignedCertificate {
-	const { csr, serviceId, caKeyPair, caCertPem, ttlMs } = options;
+	const { csr, serviceId, ca, ttlMs } = options;
 	const csrData = parseCsr(csr);
 	const serialNumber = _buildSerialNumber();
-	const now = new Date();
-	const expiresAt = new Date(now.getTime() + ttlMs);
+	const now = UnixTimestamp.now();
+	const expiresAt = UnixTimestamp.add(now, ttlMs);
 	const publicKeyPem = _exportPublicKeyPem(createPublicKey(csrData.publicKey));
 	const builder = new CertBodyBuilder();
 	const { certPem } = _buildCert({
@@ -158,13 +155,12 @@ export function signCertificate(options: SignOptions): SignedCertificate {
 			commonName: csrData.commonName,
 			san: csrData.san,
 		},
-		caKeyPair,
-		caCertPem,
+		ca,
 	});
 	return _buildSignedCertificateResult({
 		serialNumber,
 		certPem,
-		caCertPem,
+		caCertPem: ca.caCertPem,
 		serviceId,
 		now,
 		expiresAt,

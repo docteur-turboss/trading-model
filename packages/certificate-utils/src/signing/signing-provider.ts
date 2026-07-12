@@ -12,8 +12,8 @@
  */
 import { createPrivateKey, sign as nodeSign } from "node:crypto";
 
-import { CryptoAlg } from "@trading-model/common/crypto/crypto-constants";
-import type { KeyPair } from "../types";
+import { CryptoAlg } from "@trading-model/crypto/crypto/crypto-constants";
+import type { KeyPair } from "../keygen/types";
 
 export interface SigningProvider {
 	/** Returns the public key PEM of the CA signing key. */

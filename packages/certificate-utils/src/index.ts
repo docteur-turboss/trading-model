@@ -1,7 +1,7 @@
-export { certificateInfo } from "./certificate-info";
-export { createCsr } from "./create-csr";
-export { createCrl, isRevoked } from "./crl";
-export { generateKeyPair, KeyAlgorithm } from "./generate-key-pair";
-export { signCertificate } from "./sign-certificate";
-export * from "./types";
-export { validateCertificate } from "./validate-certificate";
+export { generateKeyPair, KeyAlgorithm } from "./keygen/generate-key-pair";
+export type * from "./keygen/types";
+export { createCsr } from "./signing/create-csr";
+export { signCertificate } from "./signing/sign-certificate";
+export { certificateInfo } from "./validation/certificate-info";
+export { createCrl, isRevoked } from "./validation/crl";
+export { validateCertificate } from "./validation/validate-certificate";

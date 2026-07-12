@@ -4,7 +4,7 @@ import {
 	generateKeyPairWithId,
 	generateKeyPairWithIdSync,
 	KeyAlgorithm,
-} from "../src/generate-key-pair";
+} from "../src/keygen/generate-key-pair";
 
 describe("generateKeyPair", () => {
 	it("should generate an RSA 4096 key pair", () => {

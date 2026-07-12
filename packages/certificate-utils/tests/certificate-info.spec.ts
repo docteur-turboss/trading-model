@@ -4,10 +4,10 @@ import {
 	toServiceId,
 	UnixTimestamp,
 } from "@trading-model/common/domain/primitives";
-import { certificateInfo } from "../src/certificate-info";
-import { createCsr } from "../src/create-csr";
-import { generateKeyPair, KeyAlgorithm } from "../src/generate-key-pair";
-import { signCertificate } from "../src/sign-certificate";
+import { generateKeyPair, KeyAlgorithm } from "../src/keygen/generate-key-pair";
+import { createCsr } from "../src/signing/create-csr";
+import { signCertificate } from "../src/signing/sign-certificate";
+import { certificateInfo } from "../src/validation/certificate-info";
 
 let signed: ReturnType<typeof signCertificate>;
 
@@ -24,8 +24,7 @@ beforeAll(() => {
 	signed = signCertificate({
 		csr: toCsrPem(csr),
 		serviceId: toServiceId("svc-info"),
-		caKeyPair,
-		caCertPem,
+		ca: { caKeyPair, caCertPem },
 		ttlMs: 3600000 as never,
 	});
 });

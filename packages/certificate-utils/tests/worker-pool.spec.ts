@@ -37,8 +37,8 @@ jest.mock("node:os", () => ({
 	availableParallelism: jest.fn(() => 2),
 }));
 
-import { WorkerTaskType } from "../src/worker-task-type";
 import { WorkerPool } from "../src/workers/worker-pool";
+import { WorkerTaskType } from "../src/workers/worker-task-type";
 
 function triggerMessage(
 	worker: FakeWorker,

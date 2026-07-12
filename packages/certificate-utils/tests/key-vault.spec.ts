@@ -31,19 +31,6 @@ jest.mock("@trading-model/common/utils/errors", () => ({
 	),
 }));
 
-jest.mock("../src/generate-key-pair", () => ({
-	generateKeyPair: jest.fn(() => ({
-		publicKey: "pk" as never,
-		privateKey: "sk" as never,
-	})),
-	generateKeyPairWithId: jest.fn(() => ({
-		publicKey: "pk" as never,
-		privateKey: "sk" as never,
-		id: "key-id",
-	})),
-	KeyAlgorithm: { Rsa4096: "rsa", EcP384: "ec" },
-}));
-
 jest.mock("../src/keygen/generate-key-pair", () => ({
 	generateKeyPair: jest.fn(() => ({
 		publicKey: "pk" as never,
@@ -61,7 +48,7 @@ import {
 	generateKeyPairWithId,
 	KeyAlgorithm,
 } from "../src/keygen/generate-key-pair";
-import { FileKeyVault } from "../src/vault/key-vault";
+import { FileKeyVault } from "../src/keygen/key-vault";
 
 describe("FileKeyVault", () => {
 	let vault: FileKeyVault;
@@ -148,6 +135,6 @@ describe("FileKeyVault", () => {
 	});
 
 	afterAll(() => {
-		jest.unmock("../src/generate-key-pair");
+		jest.unmock("../src/keygen/generate-key-pair");
 	});
 });
