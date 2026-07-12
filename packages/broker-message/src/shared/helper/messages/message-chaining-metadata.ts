@@ -4,14 +4,16 @@ import {
 } from "@trading-model/common/domain/primitives";
 import { IDS_METADATA_PREDICATE } from "./message.schema";
 
+export interface ChainingIds {
+	causationId?: CorrelationId;
+	correlationId?: CorrelationId;
+}
+
 export interface ChainingMetadata {
 	readonly causationId: CorrelationId | undefined;
 	readonly correlationId: CorrelationId | undefined;
-	setIds(context: {
-		causationId?: CorrelationId;
-		correlationId?: CorrelationId;
-	}): void;
-	toJSON(): { causationId?: CorrelationId; correlationId?: CorrelationId };
+	setIds(context: ChainingIds): void;
+	toJSON(): ChainingIds;
 }
 
 export class MessageChainingMetadata implements ChainingMetadata {

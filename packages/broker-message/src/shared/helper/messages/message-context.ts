@@ -9,18 +9,18 @@ import {
 	SECURITY_METADATA_CONTEXT_PREDICATE,
 } from "./message.schema";
 
+export interface MessageContextData {
+	delivery?: DeliveryType;
+	routing?: RoutingType;
+	security?: SecurityType;
+}
+
 export class MessageContext {
 	public readonly delivery?: DeliveryType;
 	public readonly routing?: RoutingType;
 	public readonly security?: SecurityType;
 
-	constructor(
-		data: {
-			delivery?: DeliveryType;
-			routing?: RoutingType;
-			security?: SecurityType;
-		} = {}
-	) {
+	constructor(data: MessageContextData = {}) {
 		this.delivery = data.delivery;
 		this.routing = data.routing;
 		this.security = data.security;
@@ -69,11 +69,7 @@ export class MessageContext {
 		});
 	}
 
-	toJSON(): {
-		delivery?: DeliveryType;
-		routing?: RoutingType;
-		security?: SecurityType;
-	} {
+	toJSON(): MessageContextData {
 		return {
 			delivery: this.delivery,
 			routing: this.routing,
