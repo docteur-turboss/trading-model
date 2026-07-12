@@ -18,7 +18,10 @@ jest.mock("@trading-model/common/config/logger", () => ({
 
 import type { ServiceId } from "@trading-model/common/domain/primitives";
 import type { CertificateHolder } from "../../src/certificate-holder";
-import { CertificateLifecycleOrchestrator } from "../../src/certificate-lifecycle-orchestrator";
+import {
+	CertificateLifecycleOrchestrator,
+	type LifecycleDeps,
+} from "../../src/certificate-lifecycle-orchestrator";
 
 describe("CertificateLifecycleOrchestrator", () => {
 	const mockKeyGenerator = {
@@ -103,13 +106,13 @@ describe("CertificateLifecycleOrchestrator", () => {
 			expiresAt: 1234567890 as any,
 		});
 		mockStore.writeCertificates.mockResolvedValue(undefined as any);
-		orchestrator = new CertificateLifecycleOrchestrator(
-			mockKeyGenerator as any,
-			mockSigner as any,
-			mockStore as any,
-			mockEventEmitter as any,
-			mockConfig
-		);
+		orchestrator = new CertificateLifecycleOrchestrator({
+			keyGenerator: mockKeyGenerator as any,
+			signer: mockSigner as any,
+			store: mockStore as any,
+			eventEmitter: mockEventEmitter as any,
+			config: mockConfig,
+		} satisfies LifecycleDeps);
 	});
 
 	afterEach(() => {
@@ -136,11 +139,13 @@ describe("CertificateLifecycleOrchestrator", () => {
 
 		it("should use custom renewMarginMs when provided", async () => {
 			const orchestratorWithCustomMargin = new CertificateLifecycleOrchestrator(
-				mockKeyGenerator as any,
-				mockSigner as any,
-				mockStore as any,
-				mockEventEmitter as any,
-				{ ...mockConfig, renewMarginMs: 300000 }
+				{
+					keyGenerator: mockKeyGenerator as any,
+					signer: mockSigner as any,
+					store: mockStore as any,
+					eventEmitter: mockEventEmitter as any,
+					config: { ...mockConfig, renewMarginMs: 300000 },
+				} satisfies LifecycleDeps
 			);
 			const holder = await orchestratorWithCustomMargin.obtainCertificate();
 			expect(holder.getCurrentCert().certPem).toBe("cert-pem");
@@ -148,13 +153,13 @@ describe("CertificateLifecycleOrchestrator", () => {
 
 		it("should call onRenew callback via eventEmitter when configured", async () => {
 			const onRenew = jest.fn();
-			const orchestratorWithOnRenew = new CertificateLifecycleOrchestrator(
-				mockKeyGenerator as any,
-				mockSigner as any,
-				mockStore as any,
-				mockEventEmitter as any,
-				{ ...mockConfig, onRenew }
-			);
+			const orchestratorWithOnRenew = new CertificateLifecycleOrchestrator({
+				keyGenerator: mockKeyGenerator as any,
+				signer: mockSigner as any,
+				store: mockStore as any,
+				eventEmitter: mockEventEmitter as any,
+				config: { ...mockConfig, onRenew },
+			} satisfies LifecycleDeps);
 			await orchestratorWithOnRenew.obtainCertificate();
 			expect(mockEventEmitter.notifyOnRenew).toHaveBeenCalledWith(
 				onRenew,

@@ -84,7 +84,7 @@ describe("WssTransportConnection", () => {
 
 	describe("constructor", () => {
 		it("should create WsTransport and WsAuthSender", () => {
-			const conn = new WssTransportConnection(testUrl);
+			const conn = new WssTransportConnection({ wsUrl: testUrl });
 
 			expect(WsTransport).toHaveBeenCalledWith(testUrl, undefined);
 			expect(WsAuthSender).toHaveBeenCalledWith(undefined);
@@ -93,7 +93,11 @@ describe("WssTransportConnection", () => {
 
 		it("should pass tlsConfig and bootstrapToken", () => {
 			const tlsConfig = {} as any;
-			const _conn = new WssTransportConnection(testUrl, tlsConfig, "my-token");
+			const _conn = new WssTransportConnection({
+				wsUrl: testUrl,
+				tlsConfig,
+				bootstrapToken: "my-token",
+			});
 
 			expect(WsTransport).toHaveBeenCalledWith(testUrl, tlsConfig);
 			expect(WsAuthSender).toHaveBeenCalledWith("my-token");
@@ -102,7 +106,7 @@ describe("WssTransportConnection", () => {
 
 	describe("connect", () => {
 		it("should set state to Connecting, set up callbacks, and call connectionManager.connect()", () => {
-			const conn = new WssTransportConnection(testUrl);
+			const conn = new WssTransportConnection({ wsUrl: testUrl });
 
 			conn.connect();
 
@@ -116,7 +120,7 @@ describe("WssTransportConnection", () => {
 		});
 
 		it("should be idempotent when already Connected", () => {
-			const conn = new WssTransportConnection(testUrl);
+			const conn = new WssTransportConnection({ wsUrl: testUrl });
 			conn.connect();
 			(mockWsTransport.onOpen as () => void)();
 			(mockWsTransport.connect as jest.Mock).mockClear();
@@ -127,7 +131,7 @@ describe("WssTransportConnection", () => {
 		});
 
 		it("should be idempotent when already Connecting", () => {
-			const conn = new WssTransportConnection(testUrl);
+			const conn = new WssTransportConnection({ wsUrl: testUrl });
 			conn.connect();
 			(mockWsTransport.connect as jest.Mock).mockClear();
 
@@ -138,7 +142,7 @@ describe("WssTransportConnection", () => {
 
 		it("should do nothing when reconnector is destroyed", () => {
 			mockReconnectorIsDestroyed = true;
-			const conn = new WssTransportConnection(testUrl);
+			const conn = new WssTransportConnection({ wsUrl: testUrl });
 
 			conn.connect();
 
@@ -147,7 +151,7 @@ describe("WssTransportConnection", () => {
 		});
 
 		it("should not call connect again when reconnector becomes destroyed between connect and _connectWs", () => {
-			const conn = new WssTransportConnection(testUrl);
+			const conn = new WssTransportConnection({ wsUrl: testUrl });
 
 			conn.connect();
 
@@ -157,7 +161,7 @@ describe("WssTransportConnection", () => {
 
 	describe("onOpen callback", () => {
 		it("should set state to Connected, reset reconnector, send auth, and emit open", () => {
-			const conn = new WssTransportConnection(testUrl);
+			const conn = new WssTransportConnection({ wsUrl: testUrl });
 			const openListener = jest.fn<(...args: any[]) => any>();
 			conn.on("open", openListener);
 
@@ -173,7 +177,7 @@ describe("WssTransportConnection", () => {
 
 	describe("onClose callback", () => {
 		it("should set state to Reconnecting (via _scheduleReconnect), schedule reconnect, and emit close", () => {
-			const conn = new WssTransportConnection(testUrl);
+			const conn = new WssTransportConnection({ wsUrl: testUrl });
 			const closeListener = jest.fn<(...args: any[]) => any>();
 			conn.on("close", closeListener);
 
@@ -185,7 +189,7 @@ describe("WssTransportConnection", () => {
 		});
 
 		it("should not schedule reconnect on close when reconnector is destroyed", () => {
-			const conn = new WssTransportConnection(testUrl);
+			const conn = new WssTransportConnection({ wsUrl: testUrl });
 			conn.connect();
 			mockReconnectorIsDestroyed = true;
 
@@ -198,7 +202,7 @@ describe("WssTransportConnection", () => {
 
 	describe("onError callback", () => {
 		it("should schedule reconnect and emit error when ws is not open", () => {
-			const conn = new WssTransportConnection(testUrl);
+			const conn = new WssTransportConnection({ wsUrl: testUrl });
 			const errorListener = jest.fn<(...args: any[]) => any>();
 			conn.on("error", errorListener);
 			const testError = new Error("test error");
@@ -212,7 +216,7 @@ describe("WssTransportConnection", () => {
 		});
 
 		it("should schedule reconnect when ws is null", () => {
-			const conn = new WssTransportConnection(testUrl);
+			const conn = new WssTransportConnection({ wsUrl: testUrl });
 			conn.on("error", jest.fn<(...args: any[]) => any>());
 			mockWsTransport.ws = null;
 
@@ -223,7 +227,7 @@ describe("WssTransportConnection", () => {
 		});
 
 		it("should not schedule reconnect when ws is open", () => {
-			const conn = new WssTransportConnection(testUrl);
+			const conn = new WssTransportConnection({ wsUrl: testUrl });
 			conn.on("error", jest.fn<(...args: any[]) => any>());
 
 			conn.connect();
@@ -235,7 +239,7 @@ describe("WssTransportConnection", () => {
 
 	describe("onTimeout callback", () => {
 		it("should set state to Reconnecting and schedule reconnect", () => {
-			const conn = new WssTransportConnection(testUrl);
+			const conn = new WssTransportConnection({ wsUrl: testUrl });
 
 			conn.connect();
 			(mockWsTransport.onTimeout as () => void)();
@@ -247,7 +251,7 @@ describe("WssTransportConnection", () => {
 
 	describe("disconnect", () => {
 		it("should disconnect connection, cancel reconnect, and set state to Disconnected", () => {
-			const conn = new WssTransportConnection(testUrl);
+			const conn = new WssTransportConnection({ wsUrl: testUrl });
 			conn.connect();
 
 			conn.disconnect(1001, "going away");
@@ -263,7 +267,7 @@ describe("WssTransportConnection", () => {
 
 	describe("send", () => {
 		it("should return false when ws is null", () => {
-			const conn = new WssTransportConnection(testUrl);
+			const conn = new WssTransportConnection({ wsUrl: testUrl });
 			conn.connect();
 			mockWsTransport.ws = null;
 
@@ -273,7 +277,7 @@ describe("WssTransportConnection", () => {
 		});
 
 		it("should return false when ws is not OPEN", () => {
-			const conn = new WssTransportConnection(testUrl);
+			const conn = new WssTransportConnection({ wsUrl: testUrl });
 			conn.connect();
 			mockWsObject.readyState = 3;
 
@@ -283,7 +287,7 @@ describe("WssTransportConnection", () => {
 		});
 
 		it("should return true when data is a string", () => {
-			const conn = new WssTransportConnection(testUrl);
+			const conn = new WssTransportConnection({ wsUrl: testUrl });
 			conn.connect();
 
 			const result = conn.send("hello");
@@ -293,7 +297,7 @@ describe("WssTransportConnection", () => {
 		});
 
 		it("should JSON.stringify non-string data", () => {
-			const conn = new WssTransportConnection(testUrl);
+			const conn = new WssTransportConnection({ wsUrl: testUrl });
 			conn.connect();
 
 			const result = conn.send({ type: "ping" });
@@ -305,7 +309,7 @@ describe("WssTransportConnection", () => {
 		});
 
 		it("should return false when ws.send throws", () => {
-			const conn = new WssTransportConnection(testUrl);
+			const conn = new WssTransportConnection({ wsUrl: testUrl });
 			conn.connect();
 			(mockWsObject.send as jest.Mock).mockImplementationOnce(() => {
 				throw new Error("send failed");
@@ -319,7 +323,7 @@ describe("WssTransportConnection", () => {
 
 	describe("getters", () => {
 		it("should return isConnected based on state", () => {
-			const conn = new WssTransportConnection(testUrl);
+			const conn = new WssTransportConnection({ wsUrl: testUrl });
 
 			expect(conn.isConnected).toBe(false);
 
@@ -331,7 +335,7 @@ describe("WssTransportConnection", () => {
 		});
 
 		it("should return current state via state getter", () => {
-			const conn = new WssTransportConnection(testUrl);
+			const conn = new WssTransportConnection({ wsUrl: testUrl });
 
 			expect(conn.state).toBe(ConnectionState.Disconnected);
 
@@ -343,7 +347,7 @@ describe("WssTransportConnection", () => {
 		});
 
 		it("should delegate ws getter to connectionManager.ws", () => {
-			const conn = new WssTransportConnection(testUrl);
+			const conn = new WssTransportConnection({ wsUrl: testUrl });
 			conn.connect();
 
 			expect(conn.ws).toBe(mockWsTransport.ws);
@@ -352,7 +356,7 @@ describe("WssTransportConnection", () => {
 
 	describe("on", () => {
 		it("should register event listeners and return this for chaining", () => {
-			const conn = new WssTransportConnection(testUrl);
+			const conn = new WssTransportConnection({ wsUrl: testUrl });
 			const listener = jest.fn<(...args: any[]) => any>();
 
 			const result = conn.on("custom-event", listener);
@@ -363,7 +367,7 @@ describe("WssTransportConnection", () => {
 
 	describe("reconnect flow", () => {
 		it("should trigger disconnect and _connectWs when scheduled reconnect callback is invoked", () => {
-			const conn = new WssTransportConnection(testUrl);
+			const conn = new WssTransportConnection({ wsUrl: testUrl });
 			conn.connect();
 
 			(mockWsTransport.onTimeout as () => void)();
@@ -381,7 +385,7 @@ describe("WssTransportConnection", () => {
 		});
 
 		it("should skip _connectWs when reconnector is destroyed before reconnection", () => {
-			const conn = new WssTransportConnection(testUrl);
+			const conn = new WssTransportConnection({ wsUrl: testUrl });
 			conn.connect();
 			(mockWsTransport.onTimeout as () => void)();
 			expect(capturedScheduleReconnectCallback).toBeDefined();
@@ -398,7 +402,7 @@ describe("WssTransportConnection", () => {
 
 	describe("onMessage callback", () => {
 		it("should emit message event when connectionManager receives data", () => {
-			const conn = new WssTransportConnection(testUrl);
+			const conn = new WssTransportConnection({ wsUrl: testUrl });
 			const messageListener = jest.fn<(...args: any[]) => any>();
 			conn.on("message", messageListener);
 			conn.connect();

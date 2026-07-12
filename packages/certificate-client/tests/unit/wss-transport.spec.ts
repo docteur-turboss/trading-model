@@ -82,16 +82,14 @@ describe("CaWssTransport", () => {
 		mockEventHandlers.clear();
 		mockConnectionInstance.state = "connected";
 		mockAuthHandlerInstance.isAuthSent = false;
-		transport = new CaWssTransport(testUrl);
+		transport = new CaWssTransport({ wsUrl: testUrl });
 	});
 
 	describe("constructor", () => {
-		it("should create WssTransportConnection with the given url", () => {
-			expect(WssTransportConnection).toHaveBeenCalledWith(
-				testUrl,
-				undefined,
-				undefined
-			);
+		it("should create WssTransportConnection with the given config", () => {
+			expect(WssTransportConnection).toHaveBeenCalledWith({
+				wsUrl: testUrl,
+			});
 		});
 
 		it("should set up open and message event listeners", () => {

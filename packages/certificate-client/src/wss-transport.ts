@@ -5,7 +5,6 @@ import type {
 	SignCertificateResponse,
 } from "@trading-model/common/ca/ca-client";
 import { logger } from "@trading-model/common/config/logger";
-import type { URLString } from "@trading-model/common/domain/primitives";
 import { isWsConnected } from "@trading-model/common/domain/ws-connection";
 import {
 	AuthHandler,
@@ -16,7 +15,10 @@ import {
 	type CaSignResponse,
 	PendingRequestManager,
 } from "./pending-request-manager";
-import { WssTransportConnection } from "./wss-transport-connection";
+import {
+	type WssTransportConfig,
+	WssTransportConnection,
+} from "./wss-transport-connection";
 
 type CaWssMessage = CaAuthResponse | CaSignResponse;
 
@@ -37,16 +39,8 @@ export class CaWssTransport {
 	private readonly _pendingManager = new PendingRequestManager();
 	private readonly _authHandler = new AuthHandler();
 
-	constructor(
-		wsUrl: URLString,
-		tlsConfig?: import("@trading-model/common/domain/tls-paths").TlsPaths,
-		bootstrapToken?: string
-	) {
-		this._connection = new WssTransportConnection(
-			wsUrl,
-			tlsConfig,
-			bootstrapToken
-		);
+	constructor(config: WssTransportConfig) {
+		this._connection = new WssTransportConnection(config);
 		this._connection.on("open", () => {
 			this._authHandler.reset();
 		});

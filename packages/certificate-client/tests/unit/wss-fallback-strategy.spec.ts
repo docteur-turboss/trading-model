@@ -72,11 +72,9 @@ describe("WssFallbackStrategy", () => {
 			});
 
 			expect(strategy.currentMode).toBe(TransportMode.Wss);
-			expect(CaWssTransport).toHaveBeenCalledWith(
-				"wss://ca.example.com",
-				undefined,
-				undefined
-			);
+			expect(CaWssTransport).toHaveBeenCalledWith({
+				wsUrl: "wss://ca.example.com",
+			});
 		});
 
 		it("should convert http URL to ws URL", () => {
@@ -84,11 +82,9 @@ describe("WssFallbackStrategy", () => {
 				caUrl: "http://ca.example.com" as any,
 			});
 
-			expect(CaWssTransport).toHaveBeenCalledWith(
-				"ws://ca.example.com",
-				undefined,
-				undefined
-			);
+			expect(CaWssTransport).toHaveBeenCalledWith({
+				wsUrl: "ws://ca.example.com",
+			});
 		});
 
 		it("should strip trailing slashes from the URL", () => {
@@ -96,11 +92,9 @@ describe("WssFallbackStrategy", () => {
 				caUrl: "https://ca.example.com///" as any,
 			});
 
-			expect(CaWssTransport).toHaveBeenCalledWith(
-				"wss://ca.example.com",
-				undefined,
-				undefined
-			);
+			expect(CaWssTransport).toHaveBeenCalledWith({
+				wsUrl: "wss://ca.example.com",
+			});
 		});
 
 		it("should pass tls config and bootstrapToken to CaWssTransport", () => {
@@ -111,11 +105,11 @@ describe("WssFallbackStrategy", () => {
 				bootstrapToken: "my-token",
 			});
 
-			expect(CaWssTransport).toHaveBeenCalledWith(
-				"wss://ca.example.com",
-				tls,
-				"my-token"
-			);
+			expect(CaWssTransport).toHaveBeenCalledWith({
+				wsUrl: "wss://ca.example.com",
+				tlsConfig: tls,
+				bootstrapToken: "my-token",
+			});
 		});
 	});
 

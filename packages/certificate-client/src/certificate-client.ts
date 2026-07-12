@@ -12,6 +12,7 @@ import { CertificateEventEmitter } from "./certificate-event-emitter";
 import type { CertificateHolder } from "./certificate-holder";
 import {
 	CertificateLifecycleOrchestrator,
+	type LifecycleDeps,
 	type ObtainedCertificate,
 } from "./certificate-lifecycle-orchestrator";
 import { CertificateSigner } from "./certificate-signer";
@@ -46,17 +47,17 @@ export class CertificateClient {
 		const signer = new CertificateSigner(config, this._caClient);
 		const store = new CertificateStore(config);
 		const eventEmitter = new CertificateEventEmitter();
-		this._orchestrator = new CertificateLifecycleOrchestrator(
+		this._orchestrator = new CertificateLifecycleOrchestrator({
 			keyGenerator,
 			signer,
 			store,
 			eventEmitter,
-			{
+			config: {
 				serviceId: config.serviceId,
 				onRenew: config.onRenew,
 				renewMarginMs: config.renewMarginMs,
-			}
-		);
+			},
+		} satisfies LifecycleDeps);
 	}
 
 	static createObtained(

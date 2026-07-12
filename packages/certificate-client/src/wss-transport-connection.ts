@@ -6,6 +6,12 @@ import type { IWsConnection } from "@trading-model/common/ws/i-ws-connection";
 import { WsAuthSender } from "./ws-auth-sender";
 import { WsTransport } from "./ws-transport";
 
+export interface WssTransportConfig {
+	wsUrl: URLString;
+	tlsConfig?: TlsPaths;
+	bootstrapToken?: string;
+}
+
 export enum ConnectionState {
 	Disconnected = "disconnected",
 	Connecting = "connecting",
@@ -24,13 +30,11 @@ export class WssTransportConnection implements IWsConnection {
 		},
 	});
 	private readonly _authSender: WsAuthSender;
+	private readonly _bootstrapToken?: string;
 
-	constructor(
-		private readonly _url: URLString,
-		tlsConfig?: TlsPaths,
-		private readonly _bootstrapToken?: string
-	) {
-		this._connectionManager = new WsTransport(this._url, tlsConfig);
+	constructor(config: WssTransportConfig) {
+		this._connectionManager = new WsTransport(config.wsUrl, config.tlsConfig);
+		this._bootstrapToken = config.bootstrapToken;
 		this._authSender = new WsAuthSender(this._bootstrapToken);
 	}
 

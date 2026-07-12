@@ -10,6 +10,7 @@ import {
 } from "@trading-model/common/domain/primitives";
 import type { NullCaWssTransport } from "./wss-transport";
 import { CaWssTransport, NULL_CA_WSS_TRANSPORT } from "./wss-transport";
+import type { WssTransportConfig } from "./wss-transport-connection";
 
 export enum TransportMode {
 	Wss = "wss",
@@ -37,11 +38,11 @@ export class WssFallbackStrategy {
 			this._wssTransport = NULL_CA_WSS_TRANSPORT;
 		} else {
 			this._mode = TransportMode.Wss;
-			this._wssTransport = new CaWssTransport(
-				this._buildWsUrl(config.caUrl),
-				config.tls,
-				config.bootstrapToken
-			);
+			this._wssTransport = new CaWssTransport({
+				wsUrl: this._buildWsUrl(config.caUrl),
+				tlsConfig: config.tls,
+				bootstrapToken: config.bootstrapToken,
+			} satisfies WssTransportConfig);
 		}
 	}
 

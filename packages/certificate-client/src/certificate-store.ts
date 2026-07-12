@@ -2,7 +2,10 @@ import fs from "node:fs/promises";
 import path from "node:path";
 
 import type { KeyPair } from "@trading-model/certificate-utils/types";
-import type { CertificateBase } from "@trading-model/common/domain/certificate-base";
+import type {
+	CertificateBase,
+	CertPemPair,
+} from "@trading-model/common/domain/certificate-base";
 import {
 	toSerialNumber,
 	UnixTimestamp,
@@ -20,7 +23,7 @@ export class CertificateStore {
 
 	async writeCertificates(
 		keyPair: KeyPair,
-		response: Pick<CertificateBase, "certPem" | "caPem">
+		response: CertPemPair
 	): Promise<void> {
 		const { tlsPaths } = this._config;
 		const certDir = path.dirname(tlsPaths.certPath);

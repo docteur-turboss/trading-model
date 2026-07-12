@@ -18,14 +18,28 @@ export interface LifecycleConfig {
 	renewMarginMs?: number;
 }
 
+export interface LifecycleDeps {
+	keyGenerator: KeyGenerator;
+	signer: CertificateSigner;
+	store: CertificateStore;
+	eventEmitter: CertificateEventEmitter;
+	config: LifecycleConfig;
+}
+
 export class CertificateLifecycleOrchestrator {
-	constructor(
-		private readonly _keyGenerator: KeyGenerator,
-		private readonly _signer: CertificateSigner,
-		private readonly _store: CertificateStore,
-		private readonly _eventEmitter: CertificateEventEmitter,
-		private readonly _config: LifecycleConfig
-	) {}
+	private readonly _keyGenerator: KeyGenerator;
+	private readonly _signer: CertificateSigner;
+	private readonly _store: CertificateStore;
+	private readonly _eventEmitter: CertificateEventEmitter;
+	private readonly _config: LifecycleConfig;
+
+	constructor(deps: LifecycleDeps) {
+		this._keyGenerator = deps.keyGenerator;
+		this._signer = deps.signer;
+		this._store = deps.store;
+		this._eventEmitter = deps.eventEmitter;
+		this._config = deps.config;
+	}
 
 	private _logCertObtained(response: {
 		serialNumber: string;
