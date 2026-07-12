@@ -2,14 +2,16 @@
 import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import type { Message } from "@trading-model/common/contracts/message.types";
 import {
+	type ConsumerGroupName,
 	DurationMs,
 	type SequenceNumber,
+	toConsumerGroupName,
 	UnixTimestamp,
 } from "@trading-model/common/domain/primitives";
 import type { DeliveryParams } from "./delivery-params";
 
 interface SubscribersContext {
-	consumerGroup: string;
+	consumerGroup: ConsumerGroupName;
 	deliveryAttempt: SequenceNumber;
 	ack(): Promise<void>;
 }
@@ -32,7 +34,7 @@ export class DeliveryMetadataExtractor {
 		onAck: () => void
 	): SubscribersContext {
 		return {
-			consumerGroup: serviceName,
+			consumerGroup: toConsumerGroupName(serviceName),
 			deliveryAttempt: 0 as SequenceNumber,
 			ack: () => {
 				onAck();

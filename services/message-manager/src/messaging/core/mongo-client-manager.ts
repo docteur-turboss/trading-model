@@ -1,4 +1,5 @@
-﻿import { MongoConnectionManager } from "@trading-model/common/persistence/mongo-connection-manager";
+﻿import { URLString } from "@trading-model/common/domain/primitives";
+import { MongoConnectionManager } from "@trading-model/common/persistence/mongo-connection-manager";
 import type { MongoClient } from "mongodb";
 import { ENV } from "../../config/env";
 import { logger } from "../../config/logger";
@@ -31,7 +32,7 @@ export class MongoClientManager {
 
 	async connectClient(): Promise<void> {
 		this._manager = new MongoConnectionManager({
-			uri: ENV.MONGO_ARCHIVE_URI!,
+			uri: URLString.of(ENV.MONGO_ARCHIVE_URI!),
 			dbName: ENV.MONGO_ARCHIVE_DB,
 		});
 		this._client = await this._manager.getConnection();

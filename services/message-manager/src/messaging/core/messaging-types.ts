@@ -1,5 +1,7 @@
 ﻿import type { Message } from "@trading-model/common/contracts/message.types";
 import type {
+	ConsumerGroupName,
+	ConsumerId,
 	InstanceId,
 	MessageId,
 	Topic,
@@ -14,7 +16,7 @@ export interface TopicSubscription {
 
 export interface StreamGroupRef {
 	topic: Topic;
-	groupName: string;
+	groupName: ConsumerGroupName;
 }
 
 export interface AckRef extends StreamGroupRef {
@@ -29,8 +31,8 @@ export interface MessageQuery {
 
 /** Params for claiming pending messages from a consumer group. */
 export interface ClaimParams {
-	groupName: string;
-	consumerId: string;
+	groupName: ConsumerGroupName;
+	consumerId: ConsumerId;
 	minIdleMs?: number;
 	count?: number;
 }

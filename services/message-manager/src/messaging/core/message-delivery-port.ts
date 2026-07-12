@@ -1,13 +1,17 @@
 ﻿import type { Message } from "@trading-model/common/contracts/message.types";
-import type { SequenceNumber } from "@trading-model/common/domain/primitives";
+import type {
+	ConsumerGroupName,
+	SequenceNumber,
+	URLString,
+} from "@trading-model/common/domain/primitives";
 
 export interface MessageDeliveryContext {
 	deliveryAttempt: SequenceNumber;
-	consumerGroup: string;
+	consumerGroup: ConsumerGroupName;
 }
 
 export interface DeliverySendInput {
-	url: string;
+	url: URLString;
 	message: Message;
 	context: MessageDeliveryContext;
 }

@@ -61,10 +61,7 @@ export class Subscription {
 	private _createCircuitBreaker(
 		_config: SubscriptionConfig
 	): CircuitStateMachine {
-		return new CircuitStateMachine({
-			failureThreshold: 5,
-			cooldownMs: 30_000,
-		});
+		return new CircuitStateMachine(CircuitStateMachine.defaultConfig());
 	}
 
 	private _createAttemptHandler(

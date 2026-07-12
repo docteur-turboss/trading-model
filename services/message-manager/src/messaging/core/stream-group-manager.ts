@@ -1,6 +1,10 @@
 ﻿import type { Message } from "@trading-model/common/contracts/message.types";
 import type { DateRange } from "@trading-model/common/domain/date-range";
-import type { Topic } from "@trading-model/common/domain/primitives";
+import type {
+	ConsumerGroupName,
+	ConsumerId,
+	Topic,
+} from "@trading-model/common/domain/primitives";
 
 import { logger } from "../../config/logger";
 import { getStreamClient } from "../../config/redis";
@@ -10,8 +14,8 @@ import { StreamMessageReader } from "./stream-message-reader";
 
 export interface ReadFromGroupParams {
 	topic: Topic;
-	groupName: string;
-	consumerId: string;
+	groupName: ConsumerGroupName;
+	consumerId: ConsumerId;
 	count?: number;
 	blockMs?: number;
 }
