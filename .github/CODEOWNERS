@@ -2,19 +2,19 @@
 # Order matters: last matching pattern wins.
 
 # CI/CD pipeline changes require engineer review
-/.github/   @trading-model/engineering
+/.github/   @docteur-turboss
 
 # Security-sensitive paths require security review
-/deploy/k8s/secrets/    @trading-model/security
-/certs/                  @trading-model/security
-scripts/generate-certs.sh @trading-model/security
+/deploy/k8s/secrets/    @docteur-turboss
+/certs/                  @docteur-turboss
+scripts/generate-certs.sh @docteur-turboss
 
 # Core shared packages require architecture review
-/packages/common/        @trading-model/architecture
-/packages/address-manager/ @trading-model/architecture
-/packages/broker-message/  @trading-model/architecture
+/packages/common/        @docteur-turboss
+/packages/address-manager/ @docteur-turboss
+/packages/broker-message/  @docteur-turboss
 
 # Production infrastructure requires ops review
-/deploy/                 @trading-model/ops
-/docker-compose.yml      @trading-model/ops
-/observability/          @trading-model/ops
+/deploy/                 @docteur-turboss
+/docker-compose.yml      @docteur-turboss
+/observability/          @docteur-turboss
