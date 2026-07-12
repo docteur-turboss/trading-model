@@ -3,6 +3,7 @@ import { parseServiceName } from "@trading-model/common/config/services.types";
 import { toInstanceId } from "@trading-model/common/domain/primitives";
 import {
 	buildTlsFromEnv,
+	type TlsEnvVars,
 	type TlsPaths,
 } from "@trading-model/common/domain/tls-paths";
 import MessageManagerClass from "../../index";
@@ -33,10 +34,7 @@ export function createMessageManager(options: MessageManagerOptions) {
 	};
 }
 
-interface ServiceEnv {
-	TLS_CERT_PATH: string;
-	TLS_KEY_PATH: string;
-	TLS_CA_PATH: string;
+interface ServiceEnv extends TlsEnvVars {
 	INSTANCE_ID: string;
 	SERVICE_NAME: string;
 	MESSAGE_CALLBACK_PATH: string;

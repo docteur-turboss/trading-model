@@ -1,6 +1,6 @@
 import { logger } from "@trading-model/common/config/logger";
-import type { MessageMetadata } from "@trading-model/common/contracts/message.types";
 import { normalizeError } from "@trading-model/common/utils/errors";
+import type { MessageMetadata } from "@trading-model/validation/contracts/message.types";
 
 export interface PendingPublish {
 	payload: unknown;

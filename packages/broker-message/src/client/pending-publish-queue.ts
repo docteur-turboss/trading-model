@@ -1,4 +1,4 @@
-import type { MessageMetadata } from "@trading-model/common/contracts/message.types";
+import type { MessageMetadata } from "@trading-model/validation/contracts/message.types";
 
 import {
 	type FallbackPublishFn,

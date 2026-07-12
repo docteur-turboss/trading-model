@@ -2,7 +2,7 @@ import type {
 	DeliveryType,
 	RoutingType,
 	SecurityType,
-} from "@trading-model/common/contracts/message.types";
+} from "@trading-model/validation/contracts/message.types";
 import {
 	DELIVERY_METADATA_MODE_PREDICATE,
 	ROUTING_METADATA_CONTEXT_PREDICATE,

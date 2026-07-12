@@ -1,24 +1,35 @@
 import { DeliveryMode } from "@trading-model/common/config/delivery-mode.types";
 import { EnumEventMessage } from "@trading-model/common/config/event.types";
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
+import {
+	toRole,
+	toSubject,
+	toTenantId,
+} from "@trading-model/common/domain/primitives";
 import { z } from "zod";
 
 export const SECURITY_METADATA_CONTEXT_PREDICATE = z
 	.object({
 		authContext: z
 			.object({
-				subject: z.string(
-					"authContext.subject must be a string representing the authenticated subject identifier."
-				),
+				subject: z
+					.string(
+						"authContext.subject must be a string representing the authenticated subject identifier."
+					)
+					.transform(toSubject),
 				roles: z.array(
-					z.string(
-						"authContext.roles must contain only string role identifiers."
-					),
+					z
+						.string(
+							"authContext.roles must contain only string role identifiers."
+						)
+						.transform(toRole),
 					"authContext.roles must be an array of role identifiers (string[])."
 				),
-				tenantId: z.string(
-					"authContext.tenantId must be a string representing the tenant identifier."
-				),
+				tenantId: z
+					.string(
+						"authContext.tenantId must be a string representing the tenant identifier."
+					)
+					.transform(toTenantId),
 			})
 			.optional(),
 		signature: z

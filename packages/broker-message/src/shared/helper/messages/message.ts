@@ -1,13 +1,13 @@
 import type { EventEnumMap } from "@trading-model/common/config/event.types";
-import type {
-	MessageMetadata as MetadataType,
-	ServiceIdentity,
-} from "@trading-model/common/contracts/message.types";
 import {
 	type CorrelationId,
 	type Topic,
 	toTopic,
 } from "@trading-model/common/domain/primitives";
+import type {
+	MessageMetadata as MetadataType,
+	ServiceIdentity,
+} from "@trading-model/validation/contracts/message.types";
 import {
 	EVENT_TYPE_METADATA_PREDICATE,
 	PUBLISHER_METADATA_CONTEXT_PREDICATE,
@@ -64,7 +64,7 @@ export class MessageMetadata {
 
 	public setSecurity(
 		context:
-			| import("@trading-model/common/contracts/message.types").SecurityType
+			| import("@trading-model/validation/contracts/message.types").SecurityType
 			| null
 	): this {
 		this._context = this._context.withSecurity(context);
@@ -72,7 +72,7 @@ export class MessageMetadata {
 	}
 	public setDelivery(
 		context:
-			| import("@trading-model/common/contracts/message.types").DeliveryType
+			| import("@trading-model/validation/contracts/message.types").DeliveryType
 			| null
 	): this {
 		this._context = this._context.withDelivery(context);
@@ -80,7 +80,7 @@ export class MessageMetadata {
 	}
 	public setRouting(
 		context:
-			| import("@trading-model/common/contracts/message.types").RoutingType
+			| import("@trading-model/validation/contracts/message.types").RoutingType
 			| null
 	): this {
 		this._context = this._context.withRouting(context);

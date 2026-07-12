@@ -1,5 +1,5 @@
-import type { MessageMetadata } from "@trading-model/common/contracts/message.types";
 import type { Topic } from "@trading-model/common/domain/primitives";
+import type { MessageMetadata } from "@trading-model/validation/contracts/message.types";
 import { PendingPublishQueue } from "./pending-publish-queue";
 import type { WssClientConfig } from "./wss-connection-lifecycle";
 import { WssConnectionOrchestrator } from "./wss-connection-orchestrator";

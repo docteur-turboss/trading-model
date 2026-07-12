@@ -1,7 +1,7 @@
 import { logger } from "@trading-model/common/config/logger";
-import type { MessageMetadata } from "@trading-model/common/contracts/message.types";
 import { type Topic, toTopic } from "@trading-model/common/domain/primitives";
 import { normalizeError } from "@trading-model/common/utils/errors";
+import type { MessageMetadata } from "@trading-model/validation/contracts/message.types";
 
 export type WssMessageHandler = (
 	topic: Topic,
@@ -43,11 +43,23 @@ type WssServerEvent =
 	| WssSubscribedEvent
 	| WssErrorEvent;
 
+type WssEventHandler = (msg: WssServerEvent) => void;
+
 export class WssMessageDispatcher {
 	private _messageHandler: WssMessageHandler;
+	private readonly _handlers: Record<string, WssEventHandler>;
 
 	constructor(messageHandler?: WssMessageHandler) {
 		this._messageHandler = messageHandler ?? (() => {});
+		this._handlers = {
+			[WssServerEventType.Message]: (msg) =>
+				this._onMessage(msg as WssMessageEvent),
+			[WssServerEventType.Connected]: (msg) =>
+				this._onConnected(msg as WssConnectedEvent),
+			[WssServerEventType.Subscribed]: (msg) =>
+				this._onSubscribed(msg as WssSubscribedEvent),
+			[WssServerEventType.Error]: (msg) => this._onError(msg as WssErrorEvent),
+		};
 	}
 
 	setMessageHandler(handler: WssMessageHandler): void {
@@ -91,21 +103,6 @@ export class WssMessageDispatcher {
 
 	private _dispatchMessage(raw: unknown): void {
 		const msg = raw as WssServerEvent;
-		switch (msg.type) {
-			case WssServerEventType.Message:
-				this._onMessage(msg);
-				break;
-			case WssServerEventType.Connected:
-				this._onConnected(msg);
-				break;
-			case WssServerEventType.Subscribed:
-				this._onSubscribed(msg);
-				break;
-			case WssServerEventType.Error:
-				this._onError(msg);
-				break;
-			default:
-				break;
-		}
+		this._handlers[msg.type]?.(msg);
 	}
 }

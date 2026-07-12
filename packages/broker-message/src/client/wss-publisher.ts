@@ -1,5 +1,5 @@
 import { context, propagation } from "@opentelemetry/api";
-import type { MessageMetadata } from "@trading-model/common/contracts/message.types";
+import type { MessageMetadata } from "@trading-model/validation/contracts/message.types";
 import type { IPublishClient } from "./i-publish-client";
 import type { PendingPublishQueue } from "./pending-publish-queue";
 import type { WssConnectionOrchestrator } from "./wss-connection-orchestrator";

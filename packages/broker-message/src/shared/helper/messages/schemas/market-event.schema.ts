@@ -1,11 +1,4 @@
 import {
-	type CandleInterval,
-	candleIntervalValues,
-	type TradeSide,
-	tradeSideValues,
-} from "@trading-model/common/contracts/market-data.types";
-import { MarketEvent } from "@trading-model/common/contracts/market-events";
-import {
 	BaseMarketDataShape,
 	BidAskShape,
 	OhlcvShape,
@@ -15,6 +8,13 @@ import {
 	PriceSchema,
 	VolumeSchema,
 } from "@trading-model/common/domain/primitives.schema";
+import {
+	type CandleInterval,
+	candleIntervalValues,
+	type TradeSide,
+	tradeSideValues,
+} from "@trading-model/validation/contracts/market-data.types";
+import { MarketEvent } from "@trading-model/validation/contracts/market-events";
 import { z } from "zod";
 
 const SET_OBJECT = z.object({
