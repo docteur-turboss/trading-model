@@ -49,7 +49,7 @@ describe("address-resolver", () => {
 	});
 
 	it("should resolve from service discovery", async () => {
-		MOCK_FIND_A_SERVICE.mockResolvedValue({ ip: "10.0.0.1", port: 3000 });
+		MOCK_FIND_A_SERVICE.mockResolvedValue({ host: "10.0.0.1", port: 3000 });
 
 		const { resolveMessageManagerUrl } = jest.requireActual(
 			"../../src/dlq/address-resolver"

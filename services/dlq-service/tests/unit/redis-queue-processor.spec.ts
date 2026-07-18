@@ -38,6 +38,8 @@ jest.mock("../../src/config/redis-queue", () => ({
 jest.mock("../../src/dlq/claim-manager", () => ({
 	dlqClaimManager: {
 		claimEntriesByIds: MOCK_CLAIM_ENTRIES_BY_IDS,
+	},
+	claimReleaseManager: {
 		releaseStaleClaims: MOCK_RELEASE_STALE,
 	},
 }));

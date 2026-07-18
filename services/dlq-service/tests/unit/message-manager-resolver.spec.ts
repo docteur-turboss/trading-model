@@ -33,7 +33,7 @@ describe("message-manager-resolver", () => {
 	it("should fall back to address manager when ENV is not set", async () => {
 		envMock.ENV.MESSAGE_MANAGER_URL = "";
 		MOCK_FIND_A_SERVICE.mockResolvedValue({
-			ip: "10.0.0.5",
+			host: "10.0.0.5",
 			port: 3000,
 		});
 

@@ -28,6 +28,8 @@ jest.mock("../../src/dlq/repository", () => ({
 jest.mock("../../src/dlq/claim-manager", () => ({
 	dlqClaimManager: {
 		claimEntriesForRetry: MOCK_CLAIM_ENTRIES_FOR_RETRY,
+	},
+	claimReleaseManager: {
 		releaseStaleClaims: MOCK_RELEASE_STALE_CLAIMS,
 		releaseClaimWithoutCount: MOCK_RELEASE_CLAIM_WITHOUT_COUNT,
 		releaseAllActiveClaims: MOCK_RELEASE_ALL_CLAIMS,

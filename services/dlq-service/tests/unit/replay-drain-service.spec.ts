@@ -8,7 +8,8 @@ jest.mock("../../src/config/logger", () => ({
 }));
 
 jest.mock("../../src/dlq/claim-manager", () => ({
-	dlqClaimManager: {
+	dlqClaimManager: {},
+	claimReleaseManager: {
 		releaseAllActiveClaims: MOCK_RELEASE_ALL_ACTIVE,
 	},
 }));

@@ -34,6 +34,14 @@ jest.mock("../../src/config/metrics", () => ({
 jest.mock("../../src/dlq/claim-manager", () => ({
 	dlqClaimManager: {
 		claimEntriesForRetry: MOCK_CLAIM_ENTRIES_FOR_RETRY,
+	},
+}));
+
+jest.mock("../../src/dlq/claim-manager", () => ({
+	dlqClaimManager: {
+		claimEntriesForRetry: MOCK_CLAIM_ENTRIES_FOR_RETRY,
+	},
+	claimReleaseManager: {
 		releaseStaleClaims: MOCK_RELEASE_STALE,
 	},
 }));
@@ -68,7 +76,7 @@ describe("auto-retry-cycle", () => {
 		jest.resetModules();
 		MOCK_IS_SHUTTING_DOWN.mockReturnValue(false);
 		getAddressManagerMock().FIND_A_SERVICE.mockResolvedValue({
-			ip: "10.0.0.5",
+			host: "10.0.0.5",
 			port: 3000,
 		});
 	});

@@ -43,25 +43,8 @@ jest.mock("../../src/dlq/claim-query-executor", () => ({
 	})),
 }));
 
-jest.mock("../../src/dlq/claim-release-manager", () => ({
-	ClaimReleaseManager: jest.fn(() => ({
-		releaseStaleClaims: jest.fn(),
-		releaseAllActiveClaims: jest.fn(),
-		releaseClaimsByInstance: jest.fn(),
-		releaseClaimWithoutCount: jest.fn(),
-		incrementRetryCount: jest.fn(),
-		claimEntry: jest.fn(),
-	})),
-}));
-
 describe("DlqClaimManager", () => {
 	let DlqClaimManagerClass: new () => {
-		releaseStaleClaims: (ms?: number) => Promise<number>;
-		releaseAllActiveClaims: () => Promise<number>;
-		releaseClaimsByInstance: (id: string) => Promise<number>;
-		releaseClaimWithoutCount: (id: string) => Promise<void>;
-		incrementRetryCount: (id: string) => Promise<boolean>;
-		claimEntry: (id: string, ctx: Record<string, unknown>) => Promise<unknown>;
 		claimEntriesForRetry: (opts: Record<string, unknown>) => Promise<unknown[]>;
 		claimEntriesByIds: (
 			ids: string[],
@@ -78,36 +61,6 @@ describe("DlqClaimManager", () => {
 
 	beforeEach(() => {
 		jest.clearAllMocks();
-	});
-
-	it("should release stale claims", async () => {
-		const manager = new DlqClaimManagerClass();
-		await manager.releaseStaleClaims(60000);
-	});
-
-	it("should release all active claims", async () => {
-		const manager = new DlqClaimManagerClass();
-		await manager.releaseAllActiveClaims();
-	});
-
-	it("should release claims by instance", async () => {
-		const manager = new DlqClaimManagerClass();
-		await manager.releaseClaimsByInstance("instance-1");
-	});
-
-	it("should release claim without count", async () => {
-		const manager = new DlqClaimManagerClass();
-		await manager.releaseClaimWithoutCount("id-1");
-	});
-
-	it("should increment retry count", async () => {
-		const manager = new DlqClaimManagerClass();
-		await manager.incrementRetryCount("id-1");
-	});
-
-	it("should claim entry", async () => {
-		const manager = new DlqClaimManagerClass();
-		await manager.claimEntry("id-1", { batchId: "b-1", instanceId: "i-1" });
 	});
 
 	it("should return empty when claimEntriesForRetry has no candidates", async () => {

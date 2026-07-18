@@ -71,7 +71,7 @@ describe("audit", () => {
 	});
 
 	it("should resolve URL via FIND_A_SERVICE and send event", async () => {
-		MOCK_FIND_A_SERVICE.mockResolvedValue({ ip: "10.0.0.1", port: 3000 });
+		MOCK_FIND_A_SERVICE.mockResolvedValue({ host: "10.0.0.1", port: 3000 });
 		MOCK_POST.mockResolvedValue(undefined);
 
 		const { notifyAudit } = jest.requireActual("../../src/config/audit") as {
@@ -109,7 +109,7 @@ describe("audit", () => {
 	});
 
 	it("should record failure on send error", async () => {
-		MOCK_FIND_A_SERVICE.mockResolvedValue({ ip: "10.0.0.1", port: 3000 });
+		MOCK_FIND_A_SERVICE.mockResolvedValue({ host: "10.0.0.1", port: 3000 });
 		MOCK_POST.mockRejectedValue(new Error("send failed"));
 
 		const { notifyAudit } = jest.requireActual("../../src/config/audit") as {

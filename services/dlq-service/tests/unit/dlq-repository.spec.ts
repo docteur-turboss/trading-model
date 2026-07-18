@@ -327,11 +327,6 @@ describe("DlqClaimManager", () => {
 			claimEntriesForRetry: (
 				...args: never[]
 			) => Promise<Record<string, unknown>[]>;
-			claimEntry: (...args: never[]) => Promise<Record<string, unknown> | null>;
-			releaseStaleClaims: (...args: never[]) => Promise<number>;
-			releaseAllActiveClaims: (...args: never[]) => Promise<number>;
-			releaseClaimsByInstance: (...args: never[]) => Promise<number>;
-			incrementRetryCount: (...args: never[]) => Promise<boolean>;
 		};
 	};
 
@@ -446,106 +441,6 @@ describe("DlqClaimManager", () => {
 					expect(result).toHaveLength(1);
 					expect(result[0].id).toBe("id2");
 				});
-		});
-	});
-
-	describe("claimEntry", () => {
-		it("should claim a single entry by ID via findOneAndUpdate", () => {
-			const cm = new DlqClaimManagerClass();
-			const fakeDoc = {
-				_id: { toHexString: () => "id1" },
-				topic: "t1",
-				message: { x: 1 },
-				reason: null,
-				deliveryAttempt: 1,
-				createdAt: new Date("2024-01-01"),
-			};
-			mockFindOneAndUpdate.mockResolvedValueOnce(fakeDoc);
-
-			return cm
-				.claimEntry("aaaaaaaaaaaaaaaaaaaaaaaa", {
-					batchId: "batch-1",
-					instanceId: "instance-1",
-				})
-				.then((result) => {
-					expect(result).not.toBeNull();
-					expect(result!.id).toBe("id1");
-					expect(mockFindOneAndUpdate).toHaveBeenCalledWith(
-						{
-							_id: expect.any(Object),
-							retryCount: { $lt: 3 },
-							processingAt: { $exists: false },
-							status: { $nin: ["completed", "abandoned"] },
-							consecutiveErrors: { $lt: 3 },
-						},
-						{
-							$set: expect.objectContaining({
-								processingInstance: "instance-1",
-								lastBatchId: "batch-1",
-							}),
-						},
-						expect.objectContaining({ returnDocument: "after" })
-					);
-				});
-		});
-
-		it("should return null if entry is already claimed or completed", () => {
-			const cm = new DlqClaimManagerClass();
-			mockFindOneAndUpdate.mockResolvedValueOnce(null);
-
-			return cm
-				.claimEntry("aaaaaaaaaaaaaaaaaaaaaaaa", {
-					batchId: "batch-1",
-					instanceId: "instance-1",
-				})
-				.then((result) => {
-					expect(result).toBeNull();
-				});
-		});
-	});
-
-	describe("releaseStaleClaims", () => {
-		it("should unset processingAt for stale entries", () => {
-			const cm = new DlqClaimManagerClass();
-			mockUpdateMany.mockResolvedValueOnce({ modifiedCount: 5 });
-
-			return cm.releaseStaleClaims(30_000).then((result: number) => {
-				expect(result).toBe(5);
-				expect(mockUpdateMany).toHaveBeenCalledWith(
-					{ processingAt: { $lt: expect.any(Date) } },
-					{ $unset: { processingAt: "", processingInstance: "" } }
-				);
-			});
-		});
-	});
-
-	describe("releaseAllActiveClaims", () => {
-		it("should unset processingAt for all entries with active claims", () => {
-			const cm = new DlqClaimManagerClass();
-			mockUpdateMany.mockResolvedValueOnce({ modifiedCount: 3 });
-
-			return cm.releaseAllActiveClaims().then((result: number) => {
-				expect(result).toBe(3);
-				expect(mockUpdateMany).toHaveBeenCalledWith(
-					{ processingAt: { $exists: true } },
-					{ $unset: { processingAt: "", processingInstance: "" } }
-				);
-			});
-		});
-	});
-
-	describe("releaseClaimsByInstance", () => {
-		it("should unset processingAt for claims of the specified instance", () => {
-			const cm = new DlqClaimManagerClass();
-			mockUpdateMany.mockResolvedValueOnce({ modifiedCount: 2 });
-
-			return cm.releaseClaimsByInstance("instance-1").then((result: number) => {
-				expect(result).toBe(2);
-				expect(mockUpdateMany).toHaveBeenCalledWith(
-					{ processingInstance: "instance-1" },
-					{ $unset: { processingAt: "", processingInstance: "" } }
-				);
-			});
 		});
 	});
 });

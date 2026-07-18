@@ -1,9 +1,15 @@
 import { describe, expect, it, jest } from "@jest/globals";
 
-const MOCK_CREATE_CLIENT = jest.fn();
-const MOCK_GET_CLIENT = jest.fn();
-const MOCK_CLOSE_CLIENT = jest.fn();
-const MOCK_REMOVE_ALL_LISTENERS = jest.fn();
+const MOCK_CREATE_REDIS_CLIENT = jest.fn();
+const MOCK_CLIENT_CONNECT = jest.fn();
+const MOCK_CLIENT_QUIT = jest.fn();
+const MOCK_CLIENT_DISCONNECT = jest.fn();
+const MOCK_CLIENT_ON = jest.fn();
+const MOCK_CLIENT_REMOVE_ALL_LISTENERS = jest.fn();
+
+jest.mock("@trading-model/common/persistence/redis-connection-manager", () => ({
+	createRedisClient: MOCK_CREATE_REDIS_CLIENT,
+}));
 
 jest.mock("../../src/config/env", () => ({
 	ENV: {
@@ -15,14 +21,17 @@ jest.mock("../../src/config/logger", () => ({
 	logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
 
-jest.mock("../../src/config/redis-client-manager", () => ({
-	RedisClientManager: jest.fn(() => ({
-		createClient: MOCK_CREATE_CLIENT,
-		getClient: MOCK_GET_CLIENT,
-		closeClient: MOCK_CLOSE_CLIENT,
-		removeAllListeners: MOCK_REMOVE_ALL_LISTENERS,
-	})),
-}));
+function makeMockClient(overrides?: Record<string, unknown>) {
+	return {
+		on: MOCK_CLIENT_ON,
+		connect: MOCK_CLIENT_CONNECT,
+		quit: MOCK_CLIENT_QUIT,
+		disconnect: MOCK_CLIENT_DISCONNECT,
+		removeAllListeners: MOCK_CLIENT_REMOVE_ALL_LISTENERS,
+		status: "ready",
+		...overrides,
+	};
+}
 
 describe("RedisConnection", () => {
 	let RedisConnectionClass: new () => {
@@ -44,11 +53,9 @@ describe("RedisConnection", () => {
 	});
 
 	it("should connect successfully", async () => {
-		const mockRedisClient = {
-			on: jest.fn(),
-		};
-		MOCK_CREATE_CLIENT.mockResolvedValue(mockRedisClient as never);
-		MOCK_GET_CLIENT.mockReturnValue(null as never);
+		const mockClient = makeMockClient();
+		MOCK_CREATE_REDIS_CLIENT.mockReturnValue(mockClient);
+		MOCK_CLIENT_CONNECT.mockResolvedValue(undefined);
 
 		const conn = new RedisConnectionClass();
 		const result = await conn.connect();
@@ -58,26 +65,22 @@ describe("RedisConnection", () => {
 	});
 
 	it("should return true when already connected", async () => {
-		const mockRedisClient = { on: jest.fn() };
-		MOCK_CREATE_CLIENT.mockResolvedValue(mockRedisClient as never);
-		MOCK_GET_CLIENT.mockReturnValueOnce(null as never).mockReturnValue(
-			mockRedisClient as never
-		);
+		const mockClient = makeMockClient();
+		MOCK_CREATE_REDIS_CLIENT.mockReturnValue(mockClient);
+		MOCK_CLIENT_CONNECT.mockResolvedValue(undefined);
 
 		const conn = new RedisConnectionClass();
 		await conn.connect();
 		const result = await conn.connect();
 
 		expect(result).toBe(true);
-		expect(MOCK_CREATE_CLIENT).toHaveBeenCalledTimes(1);
+		expect(MOCK_CREATE_REDIS_CLIENT).toHaveBeenCalledTimes(1);
 	});
 
 	it("should handle reconnection after close", async () => {
-		const mockRedisClient = { on: jest.fn() };
-		MOCK_CREATE_CLIENT.mockResolvedValue(mockRedisClient as never);
-		MOCK_GET_CLIENT.mockReturnValueOnce(null as never).mockReturnValue(
-			mockRedisClient as never
-		);
+		const mockClient = makeMockClient();
+		MOCK_CREATE_REDIS_CLIENT.mockReturnValue(mockClient);
+		MOCK_CLIENT_CONNECT.mockResolvedValue(undefined);
 
 		const conn = new RedisConnectionClass();
 		await conn.connect();
@@ -86,11 +89,12 @@ describe("RedisConnection", () => {
 		await conn.close();
 		expect(conn.isAvailable()).toBe(false);
 
-		MOCK_GET_CLIENT.mockReturnValue(null as never);
+		const mockClient2 = makeMockClient();
+		MOCK_CREATE_REDIS_CLIENT.mockReturnValue(mockClient2);
 
 		const result = await conn.connect();
 		expect(result).toBe(true);
-		expect(MOCK_CREATE_CLIENT).toHaveBeenCalledTimes(2);
+		expect(MOCK_CREATE_REDIS_CLIENT).toHaveBeenCalledTimes(2);
 	});
 
 	it("should return false when REDIS_URL is not set", async () => {
@@ -98,7 +102,6 @@ describe("RedisConnection", () => {
 			ENV: { REDIS_URL: string };
 		};
 		envMock.ENV.REDIS_URL = "";
-		MOCK_GET_CLIENT.mockReturnValue(null as never);
 
 		const conn = new RedisConnectionClass();
 		const result = await conn.connect();
@@ -109,8 +112,9 @@ describe("RedisConnection", () => {
 	});
 
 	it("should handle connect error for first connection", async () => {
-		MOCK_CREATE_CLIENT.mockRejectedValue(new Error("connection refused"));
-		MOCK_GET_CLIENT.mockReturnValue(null as never);
+		MOCK_CREATE_REDIS_CLIENT.mockImplementation(() => {
+			throw new Error("connection refused");
+		});
 
 		const conn = new RedisConnectionClass();
 		const result = await conn.connect();
@@ -120,76 +124,73 @@ describe("RedisConnection", () => {
 	});
 
 	it("should handle connect error for reconnection", async () => {
-		const mockRedisClient = { on: jest.fn() };
-		MOCK_CREATE_CLIENT.mockResolvedValueOnce(mockRedisClient as never);
-		MOCK_GET_CLIENT.mockReturnValueOnce(null as never).mockReturnValue(
-			mockRedisClient as never
-		);
+		const mockClient = makeMockClient();
+		MOCK_CREATE_REDIS_CLIENT.mockReturnValueOnce(mockClient);
+		MOCK_CLIENT_CONNECT.mockResolvedValue(undefined);
 
 		const conn = new RedisConnectionClass();
 		await conn.connect();
 		await conn.close();
 
-		MOCK_CREATE_CLIENT.mockRejectedValue(new Error("connection refused"));
+		MOCK_CREATE_REDIS_CLIENT.mockImplementation(() => {
+			throw new Error("connection refused");
+		});
 		const result = await conn.connect();
 
 		expect(result).toBe(false);
 	});
 
 	it("should close connection", async () => {
-		const mockRedisClient = { on: jest.fn() };
-		MOCK_CREATE_CLIENT.mockResolvedValue(mockRedisClient as never);
-		MOCK_GET_CLIENT.mockReturnValueOnce(null as never).mockReturnValue(
-			mockRedisClient as never
-		);
+		const mockClient = makeMockClient();
+		MOCK_CREATE_REDIS_CLIENT.mockReturnValue(mockClient);
+		MOCK_CLIENT_CONNECT.mockResolvedValue(undefined);
 
 		const conn = new RedisConnectionClass();
 		await conn.connect();
 		await conn.close();
 
-		expect(MOCK_CLOSE_CLIENT).toHaveBeenCalled();
-		expect(MOCK_REMOVE_ALL_LISTENERS).toHaveBeenCalled();
+		expect(MOCK_CLIENT_QUIT).toHaveBeenCalled();
+		expect(MOCK_CLIENT_REMOVE_ALL_LISTENERS).toHaveBeenCalled();
 		expect(conn.isAvailable()).toBe(false);
 	});
 
 	it("should handle close when no client exists", async () => {
-		MOCK_GET_CLIENT.mockReturnValue(null as never);
-
 		const conn = new RedisConnectionClass();
 		await conn.close();
 
-		expect(MOCK_CLOSE_CLIENT).not.toHaveBeenCalled();
+		expect(MOCK_CLIENT_QUIT).not.toHaveBeenCalled();
 		expect(conn.isAvailable()).toBe(false);
 	});
 
-	it("should return client via getClient", () => {
-		const mockClient = { on: jest.fn() };
-		MOCK_GET_CLIENT.mockReturnValue(mockClient as never);
+	it("should return client via getClient", async () => {
+		const mockClient = makeMockClient();
+		MOCK_CREATE_REDIS_CLIENT.mockReturnValue(mockClient);
+		MOCK_CLIENT_CONNECT.mockResolvedValue(undefined);
 
 		const conn = new RedisConnectionClass();
+		await conn.connect();
 		expect(conn.getClient()).toBe(mockClient);
 	});
 
 	it("should handle close of existing non-connected client before connect", async () => {
-		const mockOldClient = { on: jest.fn() };
-		const mockNewClient = { on: jest.fn() };
-		MOCK_GET_CLIENT.mockReturnValueOnce(mockOldClient as never)
-			.mockReturnValueOnce(mockOldClient as never)
-			.mockReturnValueOnce(mockOldClient as never)
-			.mockReturnValue(mockNewClient as never);
-		MOCK_CREATE_CLIENT.mockResolvedValue(mockNewClient as never);
+		const mockOldClient = makeMockClient({ status: "connecting" });
+		const mockNewClient = makeMockClient();
+
+		MOCK_CREATE_REDIS_CLIENT.mockReturnValueOnce(mockOldClient);
+		MOCK_CLIENT_CONNECT.mockRejectedValue(new Error("timeout"));
 
 		const conn = new RedisConnectionClass();
 		await conn.connect();
+		expect(conn.isAvailable()).toBe(false);
 
-		expect(MOCK_CLOSE_CLIENT).toHaveBeenCalledWith();
+		MOCK_CREATE_REDIS_CLIENT.mockReturnValue(mockNewClient);
+		MOCK_CLIENT_CONNECT.mockResolvedValue(undefined);
+
+		const result = await conn.connect();
+		expect(result).toBe(true);
 	});
 
 	it("should return false when already connecting", async () => {
-		const mockClient = { on: jest.fn() };
-		MOCK_CREATE_CLIENT.mockResolvedValue(mockClient as never);
-		MOCK_GET_CLIENT.mockReturnValue(null as never);
-
 		const conn = new RedisConnectionClass() as {
 			connect: (onReconnect?: () => void) => Promise<boolean>;
 			_state: string;
@@ -202,14 +203,25 @@ describe("RedisConnection", () => {
 	});
 
 	describe("event handlers", () => {
-		function makeClient(): { on: jest.Mock } & Record<string, unknown> {
-			return { on: jest.fn() };
+		function createHandlerClient() {
+			const handlers: Record<string, (...args: unknown[]) => void> = {};
+			return {
+				on: jest.fn((event: string, fn: (...args: unknown[]) => void) => {
+					handlers[event] = fn;
+				}),
+				connect: MOCK_CLIENT_CONNECT,
+				quit: MOCK_CLIENT_QUIT,
+				disconnect: MOCK_CLIENT_DISCONNECT,
+				removeAllListeners: MOCK_CLIENT_REMOVE_ALL_LISTENERS,
+				status: "ready",
+				_handlers: handlers,
+			};
 		}
 
 		it("should attach event handlers during connect", async () => {
-			const mockClient = makeClient();
-			MOCK_CREATE_CLIENT.mockResolvedValue(mockClient as never);
-			MOCK_GET_CLIENT.mockReturnValue(null as never);
+			const mockClient = createHandlerClient();
+			MOCK_CREATE_REDIS_CLIENT.mockReturnValue(mockClient);
+			MOCK_CLIENT_CONNECT.mockResolvedValue(undefined);
 
 			const conn = new RedisConnectionClass();
 			await conn.connect();
@@ -223,49 +235,35 @@ describe("RedisConnection", () => {
 		});
 
 		it("should set state to Connected on connect event (first connect)", async () => {
-			const mockClient = { on: jest.fn() };
-			const handler: Record<string, () => void> = {};
-			mockClient.on.mockImplementation((event: string, fn: () => void) => {
-				handler[event] = fn;
-			});
-			MOCK_CREATE_CLIENT.mockResolvedValue(mockClient as never);
-			MOCK_GET_CLIENT.mockReturnValue(null as never);
+			const mockClient = createHandlerClient();
+			MOCK_CREATE_REDIS_CLIENT.mockReturnValue(mockClient);
+			MOCK_CLIENT_CONNECT.mockResolvedValue(undefined);
 
 			const conn = new RedisConnectionClass();
 			await conn.connect();
 
 			expect(conn.isAvailable()).toBe(true);
 
-			handler.connect();
+			mockClient._handlers.connect();
 			expect(conn.isAvailable()).toBe(true);
 		});
 
 		it("should set state to Disconnected on close event", async () => {
-			const mockClient = { on: jest.fn() };
-			const handler: Record<string, () => void> = {};
-			mockClient.on.mockImplementation((event: string, fn: () => void) => {
-				handler[event] = fn;
-			});
-			MOCK_CREATE_CLIENT.mockResolvedValue(mockClient as never);
-			MOCK_GET_CLIENT.mockReturnValue(null as never);
+			const mockClient = createHandlerClient();
+			MOCK_CREATE_REDIS_CLIENT.mockReturnValue(mockClient);
+			MOCK_CLIENT_CONNECT.mockResolvedValue(undefined);
 
 			const conn = new RedisConnectionClass();
 			await conn.connect();
 
-			handler.close();
+			mockClient._handlers.close();
 			expect(conn.isAvailable()).toBe(false);
 		});
 
 		it("should log error and disconnect on error event", async () => {
-			const mockClient = { on: jest.fn() };
-			const handler: Record<string, (...args: unknown[]) => void> = {};
-			mockClient.on.mockImplementation(
-				(event: string, fn: (...args: unknown[]) => void) => {
-					handler[event] = fn;
-				}
-			);
-			MOCK_CREATE_CLIENT.mockResolvedValue(mockClient as never);
-			MOCK_GET_CLIENT.mockReturnValue(null as never);
+			const mockClient = createHandlerClient();
+			MOCK_CREATE_REDIS_CLIENT.mockReturnValue(mockClient);
+			MOCK_CLIENT_CONNECT.mockResolvedValue(undefined);
 			const logger = jest.requireMock("../../src/config/logger") as {
 				logger: { error: jest.Mock };
 			};
@@ -273,7 +271,7 @@ describe("RedisConnection", () => {
 			const conn = new RedisConnectionClass();
 			await conn.connect();
 
-			handler.error(new Error("redis error"));
+			mockClient._handlers.error(new Error("redis error"));
 
 			expect(logger.logger.error).toHaveBeenCalledWith(
 				"Redis queue client error",
@@ -283,23 +281,28 @@ describe("RedisConnection", () => {
 		});
 
 		it("should reconnect and invoke callback on reconnect", async () => {
-			const registerHandler: Record<string, (...args: unknown[]) => void> = {};
+			const handlers: Record<string, (...args: unknown[]) => void> = {};
 			const mockClient = {
 				on: jest.fn((event: string, fn: (...args: unknown[]) => void) => {
-					registerHandler[event] = fn;
+					handlers[event] = fn;
 				}),
+				connect: MOCK_CLIENT_CONNECT,
+				quit: MOCK_CLIENT_QUIT,
+				disconnect: MOCK_CLIENT_DISCONNECT,
+				removeAllListeners: MOCK_CLIENT_REMOVE_ALL_LISTENERS,
+				status: "ready",
 			};
-			MOCK_CREATE_CLIENT.mockResolvedValue(mockClient as never);
-			MOCK_GET_CLIENT.mockReturnValue(null as never);
+			MOCK_CREATE_REDIS_CLIENT.mockReturnValue(mockClient);
+			MOCK_CLIENT_CONNECT.mockResolvedValue(undefined);
 
 			const onReconnect = jest.fn();
 			const conn = new RedisConnectionClass();
 			await conn.connect(onReconnect);
 
-			registerHandler.close();
+			handlers.close();
 			expect(conn.isAvailable()).toBe(false);
 
-			registerHandler.connect();
+			handlers.connect();
 			expect(conn.isAvailable()).toBe(true);
 			expect(onReconnect).toHaveBeenCalled();
 		});

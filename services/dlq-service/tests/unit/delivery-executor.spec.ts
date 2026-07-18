@@ -10,7 +10,8 @@ jest.mock("../../src/config/logger", () => ({
 }));
 
 jest.mock("../../src/dlq/claim-manager", () => ({
-	dlqClaimManager: {
+	dlqClaimManager: {},
+	claimReleaseManager: {
 		incrementRetryCount: MOCK_INCREMENT_RETRY,
 		releaseClaimWithoutCount: MOCK_RELEASE_CLAIM,
 	},

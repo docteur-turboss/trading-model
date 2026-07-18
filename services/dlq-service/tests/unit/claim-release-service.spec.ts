@@ -7,7 +7,8 @@ const MOCK_PUSH = jest.fn();
 const MOCK_IS_AVAILABLE = jest.fn();
 
 jest.mock("../../src/dlq/claim-manager", () => ({
-	dlqClaimManager: {
+	dlqClaimManager: {},
+	claimReleaseManager: {
 		releaseClaimsByInstance: MOCK_RELEASE_CLAIMS,
 		releaseStaleClaims: MOCK_RELEASE_STALE,
 	},

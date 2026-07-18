@@ -1,5 +1,5 @@
 import { describe, expect, it, jest } from "@jest/globals";
-import { AppError } from "@trading-model/common/utils/errors";
+import { createAppError } from "@trading-model/common/utils/errors";
 
 jest.mock("../../src/config/env", () => ({
 	ENV: {
@@ -95,7 +95,7 @@ describe("dlq-error-builder", () => {
 				) => Record<string, unknown>;
 			};
 			const span = createMockSpan();
-			const capacityErr = new AppError("capacity", {
+			const capacityErr = createAppError("capacity", {
 				code: "DlqCapacityError",
 			});
 

@@ -11,6 +11,7 @@ jest.mock("ioredis", () => {
 		quit: MOCK_QUIT,
 		disconnect: MOCK_DISCONNECT,
 		call: MOCK_CALL,
+		on: jest.fn(),
 		status: "ready",
 	}));
 });
