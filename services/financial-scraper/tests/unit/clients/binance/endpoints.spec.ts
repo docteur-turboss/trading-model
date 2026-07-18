@@ -39,7 +39,7 @@ describe("BINANCE_ENDPOINTS", () => {
 			const url = BINANCE_ENDPOINTS.historicalTrades({
 				symbol: BTC,
 				limit: 500,
-				fromId: BinanceFromId.of(12345),
+				fromId: BinanceFromId.of("12345"),
 			});
 			expect(url).toBe(
 				"/api/v3/historicalTrades?symbol=BTCUSDT&limit=500&fromId=12345"
@@ -89,7 +89,7 @@ describe("BINANCE_ENDPOINTS", () => {
 		it("should build aggTrades URL with all params", () => {
 			const url = BINANCE_ENDPOINTS.compressedAggregateTrades({
 				symbol: BTC,
-				fromId: BinanceFromId.of(12345),
+				fromId: BinanceFromId.of("12345"),
 				limit: 100,
 			});
 			expect(url).toBe(

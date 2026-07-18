@@ -13,8 +13,6 @@ import {
 	selectOrderBookBy,
 } from "../../../../../src/infra/market-data/schema/order-book.schema";
 
-// The Zod schema in the source validates against arrays + Date,
-// not the OrderBookData TS type (Set + number).
 const MAKE_BOOK = (overrides: Record<string, unknown> = {}) => ({
 	symbol: "BTCUSDT",
 	source: "binance",

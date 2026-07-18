@@ -99,7 +99,7 @@ describe("BinanceClient", () => {
 		await getHistoricalTrades({
 			symbol: BTC,
 			limit: LIMIT_100,
-			fromId: BinanceFromId.of(12345),
+			fromId: BinanceFromId.of("12345"),
 		});
 		expect(MOCK_GET).toHaveBeenCalledWith("/api/v3/historicalTrades", {
 			weight: 25,
@@ -110,7 +110,7 @@ describe("BinanceClient", () => {
 		await getHistoricalTrades({
 			symbol: BTC,
 			limit: LIMIT_500,
-			fromId: BinanceFromId.of(12345),
+			fromId: BinanceFromId.of("12345"),
 		});
 		expect(MOCK_GET).toHaveBeenCalledWith("/api/v3/historicalTrades", {
 			weight: 25,
@@ -142,7 +142,7 @@ describe("BinanceClient", () => {
 	it("getCompressedAggregateTrades should call aggTrades endpoint with weight", async () => {
 		await getCompressedAggregateTrades({
 			symbol: BTC,
-			fromId: BinanceFromId.of(12345),
+			fromId: BinanceFromId.of("12345"),
 			limit: LIMIT_100,
 		});
 		expect(MOCK_GET).toHaveBeenCalledWith("/api/v3/aggTrades", {
@@ -153,7 +153,7 @@ describe("BinanceClient", () => {
 	it("getCompressedAggregateTrades should use default limit", async () => {
 		await getCompressedAggregateTrades({
 			symbol: BTC,
-			fromId: BinanceFromId.of(12345),
+			fromId: BinanceFromId.of("12345"),
 		});
 		expect(MOCK_GET).toHaveBeenCalledWith("/api/v3/aggTrades", {
 			weight: 4,

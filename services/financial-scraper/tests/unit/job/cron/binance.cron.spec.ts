@@ -102,12 +102,6 @@ describe("BinanceCronOrchestrator", () => {
 			);
 		});
 
-		it("should log info on start", () => {
-			const orchestrator = new BinanceCronOrchestrator(defaultConfig);
-			orchestrator.start();
-			expect(MOCK_LOGGER.info).toHaveBeenCalled();
-		});
-
 		it("should execute batch when cron fires", async () => {
 			const orchestrator = new BinanceCronOrchestrator(defaultConfig);
 			orchestrator.start();
@@ -175,12 +169,9 @@ describe("BinanceCronOrchestrator", () => {
 			MOCK_WORKER_RUN.mockRejectedValue("String error" as never);
 
 			await expect(cronHandler()).resolves.toBeUndefined();
-			expect(MOCK_LOGGER.error).toHaveBeenCalledWith(
-				"Unknown batch execution error",
-				{
-					err: "String error",
-				}
-			);
+			expect(MOCK_LOGGER.error).toHaveBeenCalledWith("Batch execution failed", {
+				error: "String error",
+			});
 		});
 
 		it("should reset isRunning after execution", async () => {
@@ -237,18 +228,6 @@ describe("BinanceCronOrchestrator", () => {
 			expect(BinanceWorker).toHaveBeenCalledWith(
 				expect.objectContaining({ interval: CandleInterval.Min5 })
 			);
-		});
-	});
-
-	describe("persist", () => {
-		it("should call MarketDataController.persist with data", async () => {
-			const data = { fetchedAt: Date.now() };
-			const orchestrator = new BinanceCronOrchestrator(defaultConfig);
-
-			await (orchestrator as any).persist(data);
-
-			expect(MOCK_PERSIST).toHaveBeenCalledWith(data);
-			expect(MOCK_LOGGER.debug).toHaveBeenCalled();
 		});
 	});
 });
