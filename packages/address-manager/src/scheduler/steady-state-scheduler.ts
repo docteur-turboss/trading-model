@@ -15,7 +15,7 @@ import { RedisServiceCache } from "../discovery/redis-service-cache";
 import type { IServiceCache } from "../discovery/service-cache.interface";
 import type { ServiceHealthChecker } from "../discovery/service-health-checker";
 import type { HeartbeatManager } from "../heartbeat-manager";
-import { RefreshJob } from "./refresh-job";
+import { createRefreshJob } from "./refresh-job";
 import { Scheduler } from "./scheduler";
 
 export interface SteadyStateSchedulerOptions {
@@ -52,7 +52,7 @@ export class SteadyStateScheduler {
 
 	private _registerTokenRefresh(): void {
 		this._scheduler.register(
-			new RefreshJob(
+			createRefreshJob(
 				this._options.tokenManager,
 				() => this._options.tokenManager.refreshToken(),
 				this._options.tokenRefreshIntervalMs
@@ -62,7 +62,7 @@ export class SteadyStateScheduler {
 
 	private _registerHeartbeat(): void {
 		this._scheduler.register(
-			new RefreshJob(
+			createRefreshJob(
 				this._options.addressManagerClient,
 				() => this._performHeartbeat(),
 				this._options.ttlRefreshIntervalMs
