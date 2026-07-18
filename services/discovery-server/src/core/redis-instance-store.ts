@@ -2,10 +2,11 @@ import type { ServiceInstanceName } from "@trading-model/common/config/services.
 import { InstanceId } from "@trading-model/common/domain/primitives";
 import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
 import type { ServiceInstance } from "@trading-model/validation/contracts/service-registry.types";
-import { InstanceCleanupHandler } from "./instance-cleanup-handler";
+import { removeInstanceSetAndMetadata } from "./instance-cleanup-handler";
 import { InstanceHeartbeatHandler } from "./instance-heartbeat-handler";
 import { InstanceMetadataReader } from "./instance-metadata-reader";
 import { InstanceRegistrar } from "./instance-registrar";
+import type { IInstanceStore } from "./instance-store.interface";
 import type { RedisDeps } from "./redis-deps";
 
 /**
@@ -15,104 +16,72 @@ import type { RedisDeps } from "./redis-deps";
  *   - Create: `registerInstance(instance)`
  *   - Read:   `getMetadata(instanceId)`, `getServiceInstanceIds(serviceName)`, `getMetadatas(keys)`, `listServiceNames()`
  *   - Update: `updateHeartbeat(serviceName, instanceId)`
- *   - Delete: `removeInstanceSetAndMetadata(serviceName, instanceId)`
+ *   - Delete: `removeInstanceSetAndMetadata(identity)`
  *
  * @see InstanceStore — in-memory counterpart
  * @see CacheStore — client-side cache (address-manager)
  */
-export class RedisInstanceStore {
-	private readonly _reader: InstanceMetadataReader;
-	private readonly _registrar: InstanceRegistrar;
-	private readonly _heartbeatHandler: InstanceHeartbeatHandler;
-	private readonly _cleanupHandler: InstanceCleanupHandler;
+export class RedisInstanceStore implements IInstanceStore {
+	public readonly reader: InstanceMetadataReader;
+	public readonly registrar: InstanceRegistrar;
+	public readonly heartbeatHandler: InstanceHeartbeatHandler;
+	public readonly deps: RedisDeps;
 
-	constructor(readonly _deps: RedisDeps) {
-		const { redis, keyBuilder } = _deps;
-		this._reader = new InstanceMetadataReader({ redis, keyBuilder });
-		this._registrar = new InstanceRegistrar(_deps);
-		this._heartbeatHandler = new InstanceHeartbeatHandler(
+	constructor(deps: RedisDeps) {
+		const { redis, keyBuilder } = deps;
+		this.deps = deps;
+		this.reader = new InstanceMetadataReader({ redis, keyBuilder });
+		this.registrar = new InstanceRegistrar(deps);
+		this.heartbeatHandler = new InstanceHeartbeatHandler(
 			{ redis, keyBuilder },
-			this._reader
+			this.reader
 		);
-		this._cleanupHandler = new InstanceCleanupHandler({ redis, keyBuilder });
 	}
 
-	resolveToken(instanceId: InstanceId): Promise<string> {
-		return this._registrar.resolveToken(instanceId);
+	registerInstance(instance: ServiceInstance): Promise<string> {
+		return this.registrar.registerInstance(instance);
 	}
 
-	buildStoredInstance(
-		instance: ServiceInstance,
-		now: number
-	): Promise<ServiceInstance> {
-		return this._registrar.buildStoredInstance(instance, now);
+	updateHeartbeat(identity: ServiceIdentity): Promise<number | false> {
+		return this.heartbeatHandler.updateHeartbeat(identity);
 	}
 
-	getMetadata(instanceId: InstanceId): Promise<ServiceInstance | undefined> {
-		return this._reader.getMetadata(instanceId);
-	}
-
-	getServiceInstanceIds(serviceName: ServiceInstanceName): Promise<string[]> {
-		return this._reader.getServiceInstanceIds(serviceName);
-	}
-
-	getMetadatas(keys: string[]): Promise<ServiceInstance[]> {
-		return this._reader.getMetadatas(keys);
+	listServiceNames(): Promise<ServiceInstanceName[]> {
+		return this.reader.listServiceNames() as Promise<ServiceInstanceName[]>;
 	}
 
 	getInstance({
 		instanceId,
 	}: ServiceIdentity): Promise<ServiceInstance | undefined> {
-		return this.getMetadata(instanceId);
+		return this.reader.getMetadata(instanceId);
 	}
 
 	async getInstances(
 		serviceName: ServiceInstanceName
 	): Promise<ServiceInstance[]> {
-		const instanceIds = await this.getServiceInstanceIds(serviceName);
+		const instanceIds = await this.reader.getServiceInstanceIds(serviceName);
 		if (instanceIds.length === 0) {
 			return [];
 		}
 		const keys = instanceIds.map((id) =>
-			this._deps.keyBuilder.instanceMetadata(InstanceId.of(id))
+			this.deps.keyBuilder.instanceMetadata(InstanceId.of(id))
 		);
-		return this.getMetadatas(keys);
+		return this.reader.getMetadatas(keys);
 	}
 
-	registerInstance(instance: ServiceInstance): Promise<string> {
-		return this._registrar.registerInstance(instance);
-	}
-
-	updateHeartbeat(identity: ServiceIdentity): Promise<number | false> {
-		return this._heartbeatHandler.updateHeartbeat(identity);
-	}
-
-	removeInstanceSetAndMetadata(
-		serviceName: ServiceInstanceName,
-		instanceId: InstanceId
-	): Promise<boolean> {
-		return this._cleanupHandler.removeInstanceSetAndMetadata(
-			serviceName,
-			instanceId
+	removeInstanceSetAndMetadata(identity: ServiceIdentity): Promise<boolean> {
+		return removeInstanceSetAndMetadata(
+			{ redis: this.deps.redis, keyBuilder: this.deps.keyBuilder },
+			identity
 		);
 	}
 
-	removeInstance({
-		serviceName,
-		instanceId,
-	}: ServiceIdentity): Promise<boolean> {
-		return this.removeInstanceSetAndMetadata(
-			serviceName as unknown as ServiceInstanceName,
-			instanceId
-		);
-	}
-
-	listServiceNames(): Promise<ServiceInstanceName[]> {
-		return this._reader.listServiceNames() as Promise<ServiceInstanceName[]>;
+	removeInstance(identity: ServiceIdentity): Promise<boolean> {
+		return this.removeInstanceSetAndMetadata(identity);
 	}
 
 	async dump(): Promise<Record<string, ServiceInstance[]>> {
-		const serviceNames = await this.listServiceNames();
+		const serviceNames = await this.reader.listServiceNames();
 		const snapshot: Record<string, ServiceInstance[]> = {};
 		for (const name of serviceNames) {
 			snapshot[name] = await this.getInstances(name);

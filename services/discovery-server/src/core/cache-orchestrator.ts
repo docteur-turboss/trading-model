@@ -1,8 +1,6 @@
 import { logger } from "@trading-model/common/config/logger";
 import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import { parseServiceName } from "@trading-model/common/config/services.types";
-import type { PaginationQuery } from "@trading-model/common/domain/pagination";
-import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
 import type {
 	RegistryBackend,
 	ServiceInstance,
@@ -13,30 +11,19 @@ import { InstanceCacheFetcher } from "./instance-cache-fetcher";
 import type { RedisHealthMonitor } from "./redis-health-monitor";
 
 export class CacheOrchestrator {
-	private readonly _throttleManager = new HeartbeatThrottleManager();
-	private readonly _fetcher: InstanceCacheFetcher;
+	public readonly throttleManager = new HeartbeatThrottleManager();
+	public readonly fetcher: InstanceCacheFetcher;
 
 	constructor(
 		private readonly _backend: RegistryBackend,
 		private readonly _cache: CacheManager,
 		private readonly _healthMonitor: RedisHealthMonitor
 	) {
-		this._fetcher = new InstanceCacheFetcher(
+		this.fetcher = new InstanceCacheFetcher(
 			this._backend,
 			this._cache,
 			this._healthMonitor
 		);
-	}
-
-	getInstances(
-		serviceName: ServiceInstanceName,
-		pagination?: PaginationQuery
-	): Promise<ServiceInstance[]> {
-		return this._fetcher.getInstances(serviceName, pagination);
-	}
-
-	getInstance(id: ServiceIdentity): Promise<ServiceInstance | undefined> {
-		return this._fetcher.getInstance(id);
 	}
 
 	private async _refreshFromBackend(
@@ -69,6 +56,6 @@ export class CacheOrchestrator {
 		serviceName: ServiceInstanceName,
 		publish: (name: ServiceInstanceName) => Promise<void>
 	): Promise<void> {
-		return this._throttleManager.onHeartbeatUpdate(serviceName, publish);
+		return this.throttleManager.onHeartbeatUpdate(serviceName, publish);
 	}
 }

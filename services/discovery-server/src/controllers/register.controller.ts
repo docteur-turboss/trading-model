@@ -37,7 +37,11 @@ function createRegisterHandler(registry: ServiceRegistry): RequestHandler {
 		if (!data) {
 			return _buildValidationError(req);
 		}
-		if (!registry.verifyInstanceName(parseServiceName(data.serviceName))) {
+		if (
+			!registry.tokenManager.verifyInstanceName(
+				parseServiceName(data.serviceName)
+			)
+		) {
 			return sendResponse({ error: "Invalid service name" }, 400);
 		}
 		const instance = buildServiceInstance(data, registry);
@@ -47,7 +51,7 @@ function createRegisterHandler(registry: ServiceRegistry): RequestHandler {
 
 function createListServicesHandler(registry: ServiceRegistry): RequestHandler {
 	return catchSync(() => {
-		return sendResponse(registry.listServiceNames(), 200);
+		return sendResponse(registry.instanceStore.listServiceNames(), 200);
 	});
 }
 
@@ -69,11 +73,13 @@ function createGetServiceInstancesHandler(
 		if (!serviceName) {
 			return sendResponse({ error: "serviceName is required" }, 400);
 		}
-		if (!registry.verifyInstanceName(parseServiceName(serviceName))) {
+		if (
+			!registry.tokenManager.verifyInstanceName(parseServiceName(serviceName))
+		) {
 			return sendResponse({ error: "Unknown service" }, 404);
 		}
 		return sendResponse(
-			registry.getInstances(parseServiceName(serviceName)),
+			registry.instanceStore.getInstances(parseServiceName(serviceName)),
 			200
 		);
 	});
@@ -98,7 +104,7 @@ function createGetInstanceHandler(registry: ServiceRegistry): RequestHandler {
 		if (!params) {
 			return sendResponse({ error: "Invalid route parameters" }, 400);
 		}
-		const instance = registry.getInstance(params);
+		const instance = registry.instanceStore.getInstance(params);
 		if (!instance) {
 			return sendResponse({ error: "Instance not found" }, 404);
 		}

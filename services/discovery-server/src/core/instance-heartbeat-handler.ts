@@ -1,9 +1,6 @@
 import { logger } from "@trading-model/common/config/logger";
 import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
-import {
-	type ServiceIdentity,
-	toServiceIdentityKey,
-} from "@trading-model/common/domain/service-identity";
+import { ServiceIdentity } from "@trading-model/common/domain/service-identity";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import { InstanceMetadataReader } from "./instance-metadata-reader";
 import type { RedisDepsWithoutToken } from "./redis-deps";
@@ -41,7 +38,7 @@ export class InstanceHeartbeatHandler {
 		);
 		multi.set(
 			this._deps.keyBuilder.instanceUpdatedBy(identity.instanceId),
-			toServiceIdentityKey(identity)
+			ServiceIdentity.toKey(identity)
 		);
 		await multi.exec();
 	}

@@ -1,10 +1,7 @@
 import { logger } from "@trading-model/common/config/logger";
 import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import { parseServiceName } from "@trading-model/common/config/services.types";
-import {
-	computePagination,
-	type PaginationQuery,
-} from "@trading-model/common/domain/pagination";
+import { PaginationQuery } from "@trading-model/common/domain/pagination";
 import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
 import type {
 	RegistryBackend,
@@ -30,7 +27,7 @@ export class InstanceCacheFetcher {
 		if (this._healthMonitor.fallbackActive) {
 			return this._fetchFromBackend(serviceName);
 		}
-		const cached = this._cache.get(serviceName);
+		const cached = this._cache.cache.get(serviceName);
 		if (cached) {
 			return Promise.resolve(cached);
 		}
@@ -46,7 +43,7 @@ export class InstanceCacheFetcher {
 		pagination: PaginationQuery
 	): Promise<ServiceInstance[]> {
 		const all = await this._backend.getInstances(parseServiceName(serviceName));
-		const { skip, limit } = computePagination(
+		const { skip, limit } = PaginationQuery.compute(
 			pagination,
 			all.length,
 			all.length
@@ -62,7 +59,7 @@ export class InstanceCacheFetcher {
 		serviceName: ServiceInstanceName
 	): ServiceInstance[] | undefined {
 		if (!this._healthMonitor.isHealthy) {
-			const stale = this._cache.getStale(serviceName);
+			const stale = this._cache.staleData.get(serviceName);
 			if (stale) {
 				logger.warn(
 					"Backend unhealthy — serving stale cached instance list for",
@@ -92,7 +89,7 @@ export class InstanceCacheFetcher {
 		if (this._healthMonitor.fallbackActive) {
 			return this._backend.getInstance(id);
 		}
-		const cached = this._cache.get(
+		const cached = this._cache.cache.get(
 			serviceName as unknown as ServiceInstanceName
 		);
 		if (cached) {
@@ -101,7 +98,7 @@ export class InstanceCacheFetcher {
 			);
 		}
 		if (!this._healthMonitor.isHealthy) {
-			const stale = this._cache.getStale(
+			const stale = this._cache.staleData.get(
 				serviceName as unknown as ServiceInstanceName
 			);
 			if (stale) {

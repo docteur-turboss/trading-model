@@ -4,6 +4,7 @@ import {
 	UnixTimestamp,
 } from "@trading-model/common/domain/primitives";
 import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
+import type { IInstanceStore } from "./instance-store.interface";
 import type { ServiceInstance } from "./types";
 
 /**
@@ -18,7 +19,7 @@ import type { ServiceInstance } from "./types";
  * @see RedisInstanceStore — Redis-backed counterpart
  * @see CacheStore — client-side cache (address-manager)
  */
-export class InstanceStore {
+export class InstanceStore implements IInstanceStore {
 	private _services: Map<
 		ServiceInstanceName,
 		Map<InstanceId, ServiceInstance>

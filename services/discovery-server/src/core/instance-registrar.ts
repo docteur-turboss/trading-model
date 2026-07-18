@@ -6,6 +6,7 @@ import {
 	REDIS_SET,
 } from "@trading-model/common/persistence/redis-constants";
 import { normalizeError } from "@trading-model/common/utils/errors";
+import { generateInstanceToken } from "@trading-model/crypto/crypto/token-service";
 import type { ServiceInstance } from "@trading-model/validation/contracts/service-registry.types";
 import type { RedisDeps } from "./redis-deps";
 
@@ -14,7 +15,7 @@ export class InstanceRegistrar {
 
 	async resolveToken(instanceId: InstanceId): Promise<string> {
 		const tokenKey = this._deps.keyBuilder.instanceToken(instanceId);
-		const token = this._deps.tokenService.generateInstanceToken(instanceId);
+		const token = generateInstanceToken(instanceId, this._deps.signingSecret);
 		const tokenSet = await this._deps.redis.set(tokenKey, token, REDIS_SET.NX);
 		return tokenSet === REDIS_RESP.OK
 			? token

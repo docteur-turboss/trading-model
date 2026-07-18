@@ -1,95 +1,43 @@
 import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
-import {
-	type AuthToken,
-	InstanceId,
-} from "@trading-model/common/domain/primitives";
+import type { InstanceId } from "@trading-model/common/domain/primitives";
 import type {
 	ServiceEndpoint,
 	ServiceIdentity,
 } from "@trading-model/common/domain/service-identity";
 import type { TokenValidation } from "@trading-model/common/domain/token-validation";
-import { generateRandomStr } from "@trading-model/crypto/crypto/random";
-import {
-	generateInstanceId,
-	type TokenValidationInput,
-} from "@trading-model/crypto/crypto/token-service";
 import { InstanceStore } from "./instance-store";
-import { TokenService } from "./token-service";
+import { InstanceTokenManager } from "./instance-token-manager";
 import type { ServiceInstance } from "./types";
 
 export class ServiceRegistry {
-	private readonly _tokenService: TokenService;
-	private readonly _instanceStore = new InstanceStore();
-	private _token: Map<InstanceId, AuthToken> = new Map();
+	public readonly tokenManager: InstanceTokenManager;
+	public readonly instanceStore = new InstanceStore();
 
 	constructor(signingSecret?: string) {
-		this._tokenService = new TokenService(signingSecret ?? generateRandomStr());
+		this.tokenManager = new InstanceTokenManager(signingSecret);
 	}
 
 	registerInstance(instance: ServiceInstance) {
 		const { instanceId } = instance;
-		const token = this._tokenService.generateInstanceToken(instanceId);
-		this._instanceStore.registerInstance(instance);
-		this._token.set(instanceId, token);
-		const stored = this._instanceStore.getInstance({
+		const token = this.tokenManager.generateToken(instanceId);
+		this.instanceStore.registerInstance(instance);
+		this.tokenManager.setToken(instanceId, token);
+		const stored = this.instanceStore.getInstance({
 			serviceName: instance.serviceName,
 			instanceId,
 		});
 		return { ...stored!, token };
 	}
 
-	updateHeartbeat(identity: ServiceIdentity): number | false {
-		return this._instanceStore.updateHeartbeat(identity);
-	}
-
 	updateToken(instanceId: InstanceId): string {
-		const newToken = this._tokenService.generateInstanceToken(instanceId);
-		this._token.set(instanceId, newToken);
+		const newToken = this.tokenManager.generateToken(instanceId);
+		this.tokenManager.setToken(instanceId, newToken);
 		return newToken;
 	}
 
-	getInstances(serviceName: ServiceInstanceName): ServiceInstance[] {
-		return this._instanceStore.getInstances(serviceName);
-	}
-
-	getInstance(identity: ServiceIdentity): ServiceInstance | undefined {
-		return this._instanceStore.getInstance(identity);
-	}
-
 	removeInstance(identity: ServiceIdentity): boolean {
-		const result = this._instanceStore.removeInstance(identity);
-		this._token.delete(identity.instanceId);
+		const result = this.instanceStore.removeInstance(identity);
+		this.tokenManager.deleteToken(identity.instanceId);
 		return result;
-	}
-
-	listServiceNames(): ServiceInstanceName[] {
-		return this._instanceStore.listServiceNames();
-	}
-
-	dump(): Partial<Record<ServiceInstanceName, ServiceInstance[]>> {
-		return this._instanceStore.dump();
-	}
-
-	generateInstanceToken(instanceId: InstanceId): string {
-		return this._tokenService.generateInstanceToken(instanceId);
-	}
-
-	generateInstanceId(endpoint: ServiceEndpoint): string {
-		return generateInstanceId(endpoint);
-	}
-
-	validInstanceToken({ token, instanceId }: TokenValidation): boolean {
-		const storedToken = this._token.get(instanceId);
-		const input: TokenValidationInput = {
-			token,
-			instanceId: InstanceId.of(instanceId),
-			signingSecret: "",
-			storedToken,
-		};
-		return this._tokenService.validInstanceToken(input);
-	}
-
-	verifyInstanceName(serviceName: ServiceInstanceName): boolean {
-		return this._tokenService.verifyInstanceName(serviceName);
 	}
 }

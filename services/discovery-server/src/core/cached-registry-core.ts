@@ -1,5 +1,4 @@
 import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
-import type { PaginationQuery } from "@trading-model/common/domain/pagination";
 import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
 import type {
 	RegistryBackend,
@@ -8,9 +7,17 @@ import type {
 import { BackendPingManager } from "./backend-ping-manager";
 import { CacheManager } from "./cache-manager";
 import { CacheOrchestrator } from "./cache-orchestrator";
-import type { CachedRegistryBackendOptions } from "./cached-registry-operations";
 import { PubSubInvalidator } from "./pub-sub-invalidator";
 import { RedisHealthMonitor } from "./redis-health-monitor";
+
+export interface CachedRegistryBackendOptions {
+	backend: RegistryBackend;
+	cacheTtlMs: number;
+	redisUrlForPubSub?: string;
+	maxEntries?: number;
+	redisFailureThreshold?: number;
+	redisHealthCheckIntervalMs?: number;
+}
 
 export class CachedRegistryCore {
 	readonly cache: CacheManager;
@@ -90,15 +97,6 @@ export class CachedRegistryCore {
 			);
 		}
 		return result;
-	}
-	getInstances(
-		serviceName: ServiceInstanceName,
-		pagination?: PaginationQuery
-	): Promise<ServiceInstance[]> {
-		return this.orchestrator.getInstances(serviceName, pagination);
-	}
-	getInstance(id: ServiceIdentity): Promise<ServiceInstance | undefined> {
-		return this.orchestrator.getInstance(id);
 	}
 	async removeInstance(id: ServiceIdentity): Promise<boolean> {
 		const { serviceName } = id;

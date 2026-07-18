@@ -1,3 +1,4 @@
+import { logger } from "@trading-model/common/config/logger";
 import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import type {
 	InstanceId,
@@ -6,26 +7,36 @@ import type {
 import { toServiceId } from "@trading-model/common/domain/primitives";
 import type { ServiceEndpoint } from "@trading-model/common/domain/service-identity";
 import type { TokenValidation } from "@trading-model/common/domain/token-validation";
-import { generateInstanceId } from "@trading-model/crypto/crypto/token-service";
+import {
+	generateInstanceId,
+	generateInstanceToken,
+	type TokenValidationInput,
+	validInstanceToken,
+	verifyInstanceName,
+} from "@trading-model/crypto/crypto/token-service";
+import type { ITokenManager } from "@trading-model/validation/contracts/service-registry.types";
 import type Redis from "ioredis";
-import type { RedisKeyBuilder } from "./redis-key-builder";
-import type { TokenService } from "./token-service";
+import type { ServiceRegistryKeyBuilder } from "./redis-key-builder";
 
-export class TokenHandler {
+export class TokenHandler implements ITokenManager {
 	constructor(
 		private readonly _redis: Redis,
-		private readonly _keyBuilder: RedisKeyBuilder,
-		private readonly _tokenService: TokenService
+		private readonly _keyBuilder: ServiceRegistryKeyBuilder,
+		private readonly _signingSecret: string
 	) {}
 
 	async updateToken(instanceId: InstanceId): Promise<string> {
-		const newToken = this._tokenService.generateInstanceToken(instanceId);
+		const newToken = this._generateInstanceToken(instanceId);
 		await this._redis.set(this._keyBuilder.instanceToken(instanceId), newToken);
 		return newToken;
 	}
 
 	generateInstanceToken(instanceId: InstanceId): string {
-		return this._tokenService.generateInstanceToken(instanceId);
+		return this._generateInstanceToken(instanceId);
+	}
+
+	private _generateInstanceToken(instanceId: InstanceId): string {
+		return generateInstanceToken(instanceId, this._signingSecret);
 	}
 
 	async validInstanceToken({
@@ -35,13 +46,18 @@ export class TokenHandler {
 		const storedToken = await this._redis.get(
 			this._keyBuilder.instanceToken(instanceId)
 		);
-		return this._tokenService.validInstanceToken({
+		const input: TokenValidationInput = {
 			token,
 			instanceId:
 				instanceId as import("@trading-model/common/domain/primitives").InstanceId,
-			signingSecret: "",
+			signingSecret: this._signingSecret,
 			storedToken,
-		});
+		};
+		const result = validInstanceToken(input);
+		if (!result) {
+			logger.warn("Token validation failed", { instanceId });
+		}
+		return result;
 	}
 
 	generateInstanceId(endpoint: ServiceEndpoint): ServiceId {
@@ -49,6 +65,6 @@ export class TokenHandler {
 	}
 
 	verifyInstanceName(serviceName: ServiceInstanceName): boolean {
-		return this._tokenService.verifyInstanceName(serviceName);
+		return verifyInstanceName(serviceName as never);
 	}
 }

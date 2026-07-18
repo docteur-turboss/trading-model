@@ -1,32 +1,31 @@
 import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import type { InstanceId } from "@trading-model/common/domain/primitives";
+import { RedisKeyBuilder } from "@trading-model/common/persistence/redis-key-builder";
 
-export class RedisKeyBuilder {
-	constructor(private readonly _prefix: string) {}
-
+export class ServiceRegistryKeyBuilder extends RedisKeyBuilder {
 	serviceInstancesSet(serviceName: ServiceInstanceName): string {
-		return `${this._prefix}service:${serviceName}:instances`;
+		return this.key("service", serviceName, "instances");
 	}
 
 	instanceMetadata(instanceId: InstanceId): string {
-		return `${this._prefix}instance:${instanceId}:metadata`;
+		return this.key("instance", instanceId, "metadata");
 	}
 
 	instanceToken(instanceId: InstanceId): string {
-		return `${this._prefix}instance:${instanceId}:token`;
+		return this.key("instance", instanceId, "token");
 	}
 
 	instanceUpdatedBy(instanceId: InstanceId): string {
-		return `${this._prefix}instance:${instanceId}:updatedBy`;
+		return this.key("instance", instanceId, "updatedBy");
 	}
 
 	servicePattern(): string {
-		return `${this._prefix}service:*:instances`;
+		return this.key("service:*:instances");
 	}
 
 	parseServiceName(key: string): string | null {
 		const match = key.match(
-			new RegExp(`^${this._prefix}service:(.+):instances$`)
+			new RegExp(`^${this.key("service:(.+):instances")}$`)
 		);
 		return match ? match[1] : null;
 	}

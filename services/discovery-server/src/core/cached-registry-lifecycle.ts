@@ -13,53 +13,37 @@ export interface CachedRegistryLifecycleDeps {
 }
 
 export class CachedRegistryLifecycle {
-	constructor(private readonly _deps: CachedRegistryLifecycleDeps) {}
-
-	private get _healthMonitor(): RedisHealthMonitor {
-		return this._deps.healthMonitor;
-	}
-	private get _pingManager(): BackendPingManager {
-		return this._deps.pingManager;
-	}
-	private get _pubSub(): PubSubInvalidator {
-		return this._deps.pubSub;
-	}
-	private get _cache(): CacheManager {
-		return this._deps.cache;
-	}
-	private get _backend(): RegistryBackend {
-		return this._deps.backend;
-	}
+	constructor(public readonly deps: CachedRegistryLifecycleDeps) {}
 
 	async start(): Promise<void> {
-		this._backend.start();
+		this.deps.backend.start();
 
-		await this._pubSub.start(this._cache);
+		await this.deps.pubSub.start(this.deps.cache);
 
-		this._healthMonitor.start();
+		this.deps.healthMonitor.start();
 	}
 
 	async ping(): Promise<boolean> {
-		if (this._healthMonitor.fallbackActive) {
+		if (this.deps.healthMonitor.fallbackActive) {
 			return false;
 		}
-		await this._pingManager.pingPubSub();
-		return this._pingManager.pingBackend();
+		await this.deps.pingManager.pingPubSub();
+		return this.deps.pingManager.pingBackend();
 	}
 
 	markUnhealthy(): void {
-		this._healthMonitor.markUnhealthy();
+		this.deps.healthMonitor.markUnhealthy();
 	}
 
 	setFallbackBackend(fallback: RegistryBackend): void {
-		this._healthMonitor.setFallbackBackend(fallback);
-		this._cache.clear();
+		this.deps.healthMonitor.setFallbackBackend(fallback);
+		this.deps.cache.clear();
 	}
 
 	stop(): void {
-		this._healthMonitor.stop();
-		this._cache.clear();
-		this._pubSub.stop();
-		this._healthMonitor.stopBackend();
+		this.deps.healthMonitor.stop();
+		this.deps.cache.clear();
+		this.deps.pubSub.stop();
+		this.deps.healthMonitor.stopBackend();
 	}
 }

@@ -61,7 +61,7 @@ function _handleHeartbeat(
 		req.headers[HTTP_HEADERS.X_INSTANCE_TOKEN],
 		data.instanceId
 	);
-	const ttl = registry.updateHeartbeat({
+	const ttl = registry.instanceStore.updateHeartbeat({
 		serviceName: data.serviceName,
 		instanceId: data.instanceId,
 	});

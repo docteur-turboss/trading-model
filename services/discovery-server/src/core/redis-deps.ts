@@ -1,14 +1,13 @@
 import type { Redis } from "ioredis";
-import type { RedisKeyBuilder } from "./redis-key-builder";
-import type { TokenService } from "./token-service";
+import type { ServiceRegistryKeyBuilder } from "./redis-key-builder";
 
 export interface RedisDeps {
 	redis: Redis;
-	keyBuilder: RedisKeyBuilder;
-	tokenService: TokenService;
+	keyBuilder: ServiceRegistryKeyBuilder;
+	signingSecret: string;
 }
 
 export interface RedisDepsWithoutToken {
 	redis: Redis;
-	keyBuilder: RedisKeyBuilder;
+	keyBuilder: ServiceRegistryKeyBuilder;
 }

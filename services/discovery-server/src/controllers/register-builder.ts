@@ -19,7 +19,7 @@ export function resolveInstanceId(
 	const { serviceName, instanceId, ip, port } = data;
 	return toInstanceId(
 		instanceId ??
-			registry.generateInstanceId({
+			registry.tokenManager.generateInstanceId({
 				serviceName: toServiceId(serviceName),
 				host: IPAddress.of(ip),
 				port: Port.of(port),

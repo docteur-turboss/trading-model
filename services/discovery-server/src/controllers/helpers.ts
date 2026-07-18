@@ -23,7 +23,7 @@ export function validateInstanceToken(
 		token: toAuthToken(tokenHeader),
 		instanceId: toInstanceId(instanceId),
 	};
-	if (!registry.validInstanceToken(validation)) {
+	if (!registry.tokenManager.validInstanceToken(validation)) {
 		throw ResponseException("Invalid instance token").unauthorized();
 	}
 }

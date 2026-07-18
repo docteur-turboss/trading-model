@@ -6,18 +6,14 @@ import { LruCache } from "@trading-model/common/utils/lru-cache";
 import type { ServiceInstance } from "@trading-model/validation/contracts/service-registry.types";
 
 export class CacheManager implements ISyncCache<ServiceInstance[]> {
-	private _cache: LruCache<ServiceInstance[]>;
-	private _staleData: LruCache<ServiceInstance[]>;
+	public readonly cache: LruCache<ServiceInstance[]>;
+	public readonly staleData: LruCache<ServiceInstance[]>;
 
 	constructor(config: CacheConfig) {
-		this._cache = new LruCache<ServiceInstance[]>(config);
-		this._staleData = new LruCache<ServiceInstance[]>({
+		this.cache = new LruCache<ServiceInstance[]>(config);
+		this.staleData = new LruCache<ServiceInstance[]>({
 			maxSize: config.maxSize,
 		});
-	}
-
-	get(serviceName: ServiceInstanceName): ServiceInstance[] | undefined {
-		return this._cache.get(serviceName);
 	}
 
 	set(
@@ -25,33 +21,21 @@ export class CacheManager implements ISyncCache<ServiceInstance[]> {
 		instances: ServiceInstance[],
 		ttlMs?: DurationMs
 	): void {
-		this._cache.set(serviceName, instances, ttlMs);
-		this._staleData.set(serviceName, instances);
-	}
-
-	getStale(serviceName: ServiceInstanceName): ServiceInstance[] | undefined {
-		return this._staleData.get(serviceName);
+		this.cache.set(serviceName, instances, ttlMs);
+		this.staleData.set(serviceName, instances);
 	}
 
 	delete(serviceName: ServiceInstanceName): void {
-		this._cache.delete(serviceName);
-		this._staleData.delete(serviceName);
+		this.cache.delete(serviceName);
+		this.staleData.delete(serviceName);
 	}
 
 	invalidate(serviceName: ServiceInstanceName): void {
 		this.delete(serviceName);
 	}
 
-	has(key: string): boolean {
-		return this._cache.has(key);
-	}
-
-	get size(): number {
-		return this._cache.size;
-	}
-
 	clear(): void {
-		this._cache.clear();
-		this._staleData.clear();
+		this.cache.clear();
+		this.staleData.clear();
 	}
 }

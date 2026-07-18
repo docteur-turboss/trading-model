@@ -2,21 +2,19 @@ import { logger } from "@trading-model/common/config/logger";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import { TimerHandle } from "@trading-model/common/utils/timer-handle";
 import { isAliveInstance } from "./expiration";
-import { ExpiredInstanceCleaner } from "./expired-instance-cleaner";
 import type { ServiceRegistry } from "./service-registry";
+import { StaleInstanceCleaner } from "./stale-instance-cleaner";
 import type { ServiceInstance } from "./types";
 
 export class LeaseManager {
 	private _cleanupIntervalMs: number;
 	private readonly _intervalHandle = new TimerHandle();
-	private readonly _expiredCleaner: ExpiredInstanceCleaner;
 
 	constructor(
 		readonly _registry: ServiceRegistry,
 		options?: { cleanupIntervalMs?: number }
 	) {
 		this._cleanupIntervalMs = options?.cleanupIntervalMs ?? 5000;
-		this._expiredCleaner = new ExpiredInstanceCleaner(_registry);
 	}
 
 	start(): void {
@@ -25,7 +23,23 @@ export class LeaseManager {
 		}
 		this._intervalHandle.startInterval(() => {
 			try {
-				this._expiredCleaner.cleanupExpiredInstances();
+				StaleInstanceCleaner.cleanupSync({
+					listServiceNames: () =>
+						this._registry.instanceStore.listServiceNames(),
+					getInstances: (name) =>
+						this._registry.instanceStore.getInstances(name),
+					removeInstance: (id) => {
+						try {
+							this._registry.removeInstance(id);
+						} catch (err) {
+							logger.error("Failed to remove expired instance", {
+								serviceName: id.serviceName,
+								instanceId: id.instanceId,
+								error: normalizeError(err),
+							});
+						}
+					},
+				});
 			} catch (err) {
 				logger.error("Cleanup error", { error: normalizeError(err) });
 			}
