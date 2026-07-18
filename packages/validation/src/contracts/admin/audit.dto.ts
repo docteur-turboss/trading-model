@@ -27,8 +27,3 @@ export interface AuditEvent {
 	summary: AuditSummary;
 	severity: Severity;
 }
-
-export interface AuditVolumeByTopic {
-	topic: Topic;
-	count: number;
-}

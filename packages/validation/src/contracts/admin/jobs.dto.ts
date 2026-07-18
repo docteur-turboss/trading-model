@@ -7,8 +7,8 @@ import type {
 	UnixTimestamp,
 } from "@trading-model/common/domain/primitives";
 import type {
-	JOB_STATUS,
 	JobPriority,
+	JobStatus,
 } from "@trading-model/validation/contracts/recovery.types";
 
 export enum JobTimelineEvent {
@@ -27,7 +27,7 @@ export interface JobSummary {
 	id: JobId;
 	type: JobType;
 	priority: JobPriority;
-	status: JOB_STATUS;
+	status: JobStatus;
 	worker: InstanceId | null;
 }
 

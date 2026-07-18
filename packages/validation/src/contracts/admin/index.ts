@@ -1,16 +1,19 @@
 export {
-	isAtLeast,
-	isHigherPriority,
-	isLowerPriority,
-	JOB_STATUS,
 	JobPriority,
+	JobStatus,
 } from "../recovery.types";
-export type { AuditEvent, AuditFilter, AuditVolumeByTopic } from "./audit.dto";
+export type { AuditEvent, AuditFilter } from "./audit.dto";
 export { Severity } from "./audit.dto";
-export type { CacheEntry, CacheStats } from "./cache.dto";
+export type {
+	CacheEntry,
+	CacheKey,
+	CacheStats,
+	CacheStatus,
+	DataSize,
+} from "./cache.dto";
 export type { CertificateEntry } from "./certificates.dto";
 export { CertificateStatus } from "./certificates.dto";
-export type { ConfigEntry } from "./config.dto";
+export type { ConfigEntry, ConfigKey, ConfigValue } from "./config.dto";
 export { ConfigSource } from "./config.dto";
 export type { DlqMessage, DlqStats } from "./dlq.dto";
 export type {

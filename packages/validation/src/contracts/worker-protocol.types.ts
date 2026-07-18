@@ -1,11 +1,14 @@
 import type {
-	Capability,
 	InstanceId,
 	JobId,
 	JobType,
 	PositiveInt,
 	UnixTimestamp,
 	WorkerStatus,
+} from "@trading-model/common/domain/primitives";
+import {
+	Capability,
+	WorkerStatusCode,
 } from "@trading-model/common/domain/primitives";
 import type { HostPort } from "@trading-model/common/domain/service-identity";
 
@@ -66,3 +69,14 @@ export type SchedulerOutgoingMessage =
 	| SchedulerWsJobAssignedMessage
 	| SchedulerWsHeartbeatAckMessage
 	| SchedulerWsDrainMessage;
+
+export function isWorkerSuitable(
+	worker: WorkerRegistration,
+	jobType: string
+): boolean {
+	return (
+		worker.status === WorkerStatusCode.Active &&
+		worker.capabilities.includes(Capability.of(jobType)) &&
+		worker.currentLoad < worker.maxConcurrency
+	);
+}
