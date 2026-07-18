@@ -2,10 +2,10 @@ import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { EVENT_MANAGER } from "../../src/client/event-manager-client";
 
 const MOCK_MESSAGE_MANAGER_CLIENT_INSTANCE = {
-	subscribeToTopics: jest.fn(),
-	unSubscribeToTopic: jest.fn(),
+	subscribe: jest.fn(),
+	unsubscribe: jest.fn(),
 	publishDirectMessage: jest.fn(),
-	publishAsyncMessage: jest.fn(),
+	publish: jest.fn(),
 };
 
 jest.mock("../../src/client/message-manager-client", () => ({
@@ -80,23 +80,23 @@ describe("BrokerMessage", () => {
 	});
 
 	describe("intents", () => {
-		it("should call subscribeToTopics with topics", async () => {
+		it("should call subscribe with topics", async () => {
 			const topics = ["example.debug.create"];
 			await broker.intents(topics);
 			expect(
-				MOCK_MESSAGE_MANAGER_CLIENT_INSTANCE.subscribeToTopics
+				MOCK_MESSAGE_MANAGER_CLIENT_INSTANCE.subscribe
 			).toHaveBeenCalledWith(topics);
 			expect(broker.topics.topics).toEqual(topics);
 		});
 	});
 
 	describe("stopMessageManager", () => {
-		it("should call unSubscribeToTopic with topics", async () => {
+		it("should call unsubscribe with topics", async () => {
 			const topics = ["example.debug.create"];
 			broker.topics.topics = topics;
 			await broker.stopMessageManager();
 			expect(
-				MOCK_MESSAGE_MANAGER_CLIENT_INSTANCE.unSubscribeToTopic
+				MOCK_MESSAGE_MANAGER_CLIENT_INSTANCE.unsubscribe
 			).toHaveBeenCalledWith(topics);
 		});
 
@@ -165,7 +165,7 @@ describe("BrokerMessage", () => {
 		});
 
 		describe("indirect", () => {
-			it("should call publishAsyncMessage", async () => {
+			it("should call publish", async () => {
 				const metadata = {
 					topic: "test",
 					eventType: "test",
@@ -176,7 +176,7 @@ describe("BrokerMessage", () => {
 				};
 				await broker.post.indirect({ data: "test" }, metadata);
 				expect(
-					MOCK_MESSAGE_MANAGER_CLIENT_INSTANCE.publishAsyncMessage
+					MOCK_MESSAGE_MANAGER_CLIENT_INSTANCE.publish
 				).toHaveBeenCalledWith({ data: "test" }, metadata);
 			});
 		});
