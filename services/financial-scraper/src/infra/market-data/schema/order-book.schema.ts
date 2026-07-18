@@ -10,9 +10,9 @@ import { normalizeError } from "@trading-model/common/utils/errors";
 
 import type { OrderBookData } from "../market-data.types";
 import {
-	OrderBookIndexManager,
+	OrderBookIndexQuerier,
 	type OrderBookIndexSnapshot,
-} from "./order-book-index-manager";
+} from "./order-book-index-querier";
 
 interface MarketOrderBooksSnapshot {
 	storage: Map<number, OrderBookData>;
@@ -22,7 +22,7 @@ interface MarketOrderBooksSnapshot {
 
 const MARKER_ORDER_BOOKS = new (class MarketOrderBooksStore {
 	private _storage: Map<number, OrderBookData> = new Map();
-	private _indexManager = new OrderBookIndexManager();
+	private _indexQuerier = new OrderBookIndexQuerier();
 	private _id = 10000;
 
 	insertInto(data: OrderBookData[]) {
@@ -34,7 +34,7 @@ const MARKER_ORDER_BOOKS = new (class MarketOrderBooksStore {
 
 		try {
 			for (const entry of data) {
-				this._indexManager.indexEntry(this._id, entry);
+				this._indexQuerier.indexEntry(this._id, entry);
 				this._storage.set(this._id, entry);
 				this._id++;
 			}
@@ -48,7 +48,7 @@ const MARKER_ORDER_BOOKS = new (class MarketOrderBooksStore {
 	private _snapshotState(): MarketOrderBooksSnapshot {
 		return {
 			storage: this._storage,
-			index: this._indexManager.snapshot(),
+			index: this._indexQuerier.snapshot(),
 			id: this._id,
 		};
 	}
@@ -56,7 +56,7 @@ const MARKER_ORDER_BOOKS = new (class MarketOrderBooksStore {
 	private _restoreState(snapshot: MarketOrderBooksSnapshot): void {
 		this._id = snapshot.id;
 		this._storage = snapshot.storage;
-		this._indexManager.restore(snapshot.index);
+		this._indexQuerier.restore(snapshot.index);
 	}
 
 	getById(id: number) {
@@ -67,23 +67,23 @@ const MARKER_ORDER_BOOKS = new (class MarketOrderBooksStore {
 	}
 
 	getBySymbol(symbol: TradingSymbol) {
-		return this._indexManager.getBySymbol(symbol, this._storage);
+		return this._indexQuerier.getBySymbol(symbol, this._storage);
 	}
 
 	getByMarket(market: MarketType) {
-		return this._indexManager.getByMarket(market, this._storage);
+		return this._indexQuerier.getByMarket(market, this._storage);
 	}
 
 	getBySource(source: SourceType) {
-		return this._indexManager.getBySource(source, this._storage);
+		return this._indexQuerier.getBySource(source, this._storage);
 	}
 
 	getAfterTimestamp(timestamp: UnixTimestamp) {
-		return this._indexManager.getAfterTimestamp(timestamp, this._storage);
+		return this._indexQuerier.getAfterTimestamp(timestamp, this._storage);
 	}
 
 	getBeforeTimestamp(timestamp: UnixTimestamp) {
-		return this._indexManager.getBeforeTimestamp(timestamp, this._storage);
+		return this._indexQuerier.getBeforeTimestamp(timestamp, this._storage);
 	}
 })();
 

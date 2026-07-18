@@ -70,11 +70,6 @@ export function sendAllMarketData(
 	builder: typeof HELPER.metadataBuilder.prototype
 ): void {
 	for (const entry of entries) {
-		sendMarketData({
-			data: entry.data,
-			topic: entry.topic,
-			eventType: entry.eventType,
-			builder,
-		});
+		sendMarketData({ ...entry, builder });
 	}
 }

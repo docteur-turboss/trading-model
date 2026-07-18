@@ -11,7 +11,8 @@ import {
 	normalizeTrades,
 } from "./normalizers/trades";
 
-export type { CandleQuery, SymbolQuery } from "./normalizers/query-types";
+export type { SymbolInterval } from "@trading-model/common/domain/candlestick-query";
+export type { SymbolQuery } from "./normalizers/query-types";
 
 export const BinanceNormalizer = {
 	orderBook: normalizeOrderBook,

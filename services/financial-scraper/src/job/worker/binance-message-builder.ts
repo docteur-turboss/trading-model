@@ -1,4 +1,4 @@
-import { createHash, randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import { DeliveryMode } from "@trading-model/common/config/delivery-mode.types";
 import type { EventEnumMap } from "@trading-model/common/config/event.types";
 import type {
@@ -18,7 +18,7 @@ import {
 	toTenantId,
 } from "@trading-model/common/domain/primitives";
 import { deterministicStringify } from "@trading-model/common/utils/deterministic-stringify";
-import { CryptoAlg } from "@trading-model/crypto/crypto/crypto-constants";
+import { sha256Base64url } from "@trading-model/crypto/crypto/hash-utils";
 import type { AuthContext } from "@trading-model/validation/contracts/message.types";
 
 import { ENV } from "../../config/env";
@@ -46,9 +46,7 @@ export function buildAuthContext(): AuthContext {
 }
 
 export function computeSignature(authContext: unknown): string {
-	return createHash(CryptoAlg.SHA256)
-		.update(deterministicStringify(authContext))
-		.digest(CryptoAlg.BASE64URL);
+	return sha256Base64url(deterministicStringify(authContext));
 }
 
 export function buildDeliveryConfig(deliveryMode?: DeliveryMode): {

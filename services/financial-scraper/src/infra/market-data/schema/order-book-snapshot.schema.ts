@@ -28,15 +28,6 @@ const T_ORDER_BOOK = new (class TOrderBook extends Table<
 	}
 })();
 
-const SELECT = {
-	symbol: T_ORDER_BOOK.symbol,
-	market: T_ORDER_BOOK.market,
-	source: T_ORDER_BOOK.source,
-	bids: T_ORDER_BOOK.bids,
-	asks: T_ORDER_BOOK.asks,
-	timestamp: T_ORDER_BOOK.timestamp,
-};
-
 function serializeSet(entries: Set<OrderBookLevel>): string {
 	return JSON.stringify(
 		Array.from(entries).map((entry) => ({
@@ -45,6 +36,15 @@ function serializeSet(entries: Set<OrderBookLevel>): string {
 		}))
 	);
 }
+
+const SELECT = {
+	symbol: T_ORDER_BOOK.symbol,
+	market: T_ORDER_BOOK.market,
+	source: T_ORDER_BOOK.source,
+	bids: T_ORDER_BOOK.bids,
+	asks: T_ORDER_BOOK.asks,
+	timestamp: T_ORDER_BOOK.timestamp,
+};
 
 export const insertOrderBookSnapshot = async (
 	data: OrderBookData[]

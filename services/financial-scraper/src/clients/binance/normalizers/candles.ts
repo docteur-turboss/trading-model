@@ -1,4 +1,5 @@
-﻿import {
+﻿import type { SymbolInterval } from "@trading-model/common/domain/candlestick-query";
+import {
 	PositiveInt,
 	Price,
 	UnixTimestamp,
@@ -10,10 +11,9 @@ import {
 	SourceType,
 } from "../../../infra/market-data/market-data.types";
 import type { BinanceCandlestickDataResponse } from "../../../types/binance.api";
-import type { CandleQuery } from "./query-types";
 
 export function normalizeCandles(
-	query: CandleQuery,
+	query: SymbolInterval,
 	payload: BinanceCandlestickDataResponse
 ): CandleData[] {
 	return payload.map((candle) => ({

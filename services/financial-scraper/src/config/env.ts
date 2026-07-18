@@ -6,8 +6,8 @@ import {
 	Hostname,
 	Port,
 } from "@trading-model/common/domain/primitives";
+import { AddressManagerEnvSchema } from "@trading-model/validation/validation/address-manager-env";
 import {
-	AddressManagerEnvSchema,
 	BaseEnvSchema,
 	validateEnv,
 } from "@trading-model/validation/validation/env";

@@ -1,7 +1,4 @@
-import type {
-	CandlestickQuery,
-	MarketDataQuery,
-} from "@trading-model/common/domain/candlestick-query";
+import type { CandlestickQuery } from "@trading-model/common/domain/candlestick-query";
 import type {
 	BinanceFromId,
 	TradingSymbol,
@@ -22,24 +19,18 @@ import {
 	parseCandlestick,
 	type RawBinanceCandlestick,
 } from "../../types/binance.api";
-import { BINANCE_ENDPOINTS } from "./endpoints";
+import { BINANCE_ENDPOINTS, type BinanceQueryParams } from "./endpoints";
 import { type ApiWeight, BINANCE_WEIGHTS } from "./weights";
 
 const BINANCE = httpClients.binance;
 
 /** Parameter object for Binance trade queries (historical or aggregate). */
-export interface BinanceTradeQuery extends MarketDataQuery {
+export interface BinanceTradeQuery extends BinanceQueryParams {
 	fromId: BinanceFromId;
 }
 
-/** @deprecated Use BinanceTradeQuery instead. */
-export type BinanceHistoricalTradeQuery = BinanceTradeQuery;
-
-/** @deprecated Use BinanceTradeQuery instead. */
-export type BinanceAggregateTradeQuery = BinanceTradeQuery;
-
 export async function getOrderBook(
-	query: MarketDataQuery
+	query: BinanceQueryParams
 ): Promise<BinanceDepthResponse> {
 	const { symbol, limit = 100 } = query;
 	const weight = BINANCE_WEIGHTS.depth(limit);
@@ -48,7 +39,7 @@ export async function getOrderBook(
 }
 
 export async function getRecentTrades(
-	query: MarketDataQuery
+	query: BinanceQueryParams
 ): Promise<BinanceTradeResponse> {
 	const { symbol, limit = 500 } = query;
 	const weight = BINANCE_WEIGHTS.trades();

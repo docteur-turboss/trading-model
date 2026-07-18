@@ -1,18 +1,22 @@
 import type { SymbolInterval } from "@trading-model/common/domain/candlestick-query";
 import type {
 	BinanceFromId,
+	PositiveInt,
 	TradingSymbol,
 	UnixTimestamp,
 } from "@trading-model/common/domain/primitives";
 
-/** Parameter object for Binance endpoint queries. */
-export interface BinanceEndpointQuery {
-	symbol?: TradingSymbol;
-	limit?: number;
+/** Base query parameters shared across Binance market-data endpoints. */
+export interface BinanceQueryParams {
+	symbol: TradingSymbol;
+	limit?: PositiveInt;
 	fromId?: BinanceFromId;
 	startTime?: UnixTimestamp;
 	endTime?: UnixTimestamp;
 }
+
+/** All-optional variant used for URL building. */
+export interface BinanceEndpointQuery extends Partial<BinanceQueryParams> {}
 
 function buildUrl(
 	path: string,
@@ -35,7 +39,9 @@ function buildArraySymbolQuery(symbols: TradingSymbol[]): string {
 }
 
 function arraySymbolEndpoint(path: string, symbol?: TradingSymbol[]): string {
-	if (!symbol || symbol.length === 0) return path;
+	if (!symbol || symbol.length === 0) {
+		return path;
+	}
 	return `${path}?symbols=${encodeURIComponent(buildArraySymbolQuery(symbol))}`;
 }
 
