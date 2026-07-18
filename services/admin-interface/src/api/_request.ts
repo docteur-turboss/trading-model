@@ -1,9 +1,20 @@
-import { createHttpClientError } from "@trading-model/common/config/http-client-errors";
-import { HTTP_HEADERS } from "@trading-model/common/http-headers";
+/** Minimal HTTP client error — kept local to avoid CJS dependency in Vite build. */
+export class HttpClientError extends Error {
+	readonly name = "HttpClientError" as const;
+	constructor(
+		message: string,
+		readonly statusCode?: number
+	) {
+		super(message);
+	}
+}
 
 const API_BASE = import.meta.env.VITE_API_GATEWAY_URL ?? "/v1";
 
 let adminToken = import.meta.env.VITE_ADMIN_TOKEN ?? "";
+
+const CONTENT_TYPE = "Content-Type";
+const X_API_KEY = "x-api-key";
 
 export function setAdminToken(token: string) {
 	adminToken = token;
@@ -30,14 +41,14 @@ export async function request<TData>(
 	const res = await fetch(`${API_BASE}${path}`, {
 		method,
 		headers: {
-			[HTTP_HEADERS.CONTENT_TYPE]: "application/json",
-			[HTTP_HEADERS.X_API_KEY]: adminToken,
+			[CONTENT_TYPE]: "application/json",
+			[X_API_KEY]: adminToken,
 		},
 		body: body ? JSON.stringify(body) : undefined,
 	});
 	if (!res.ok) {
 		const err = await res.json().catch(() => ({ error: res.statusText }));
-		throw createHttpClientError(
+		throw new HttpClientError(
 			(err as { error?: string }).error ?? "Unknown error",
 			res.status
 		);

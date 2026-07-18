@@ -9,13 +9,6 @@ interface StatsCardProps {
 	deltaColor?: string;
 }
 
-function _computeDelta(current: number, previous: number): number {
-	if (previous === 0) {
-		return current === 0 ? 0 : 100;
-	}
-	return Math.round(((current - previous) / previous) * 100);
-}
-
 function DeltaIndicator({
 	delta,
 	deltaColor,

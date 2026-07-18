@@ -1,9 +1,4 @@
 import { Chip } from "@mui/material";
-import type { WorkerStatusCode } from "@trading-model/common/domain/primitives";
-import type {
-	JOB_STATUS,
-	ServiceStatus,
-} from "@trading-model/validation/contracts/admin";
 
 enum MuiColor {
 	Success = "success",
@@ -13,8 +8,6 @@ enum MuiColor {
 	Info = "info",
 }
 
-type StatusValue = JOB_STATUS | ServiceStatus | WorkerStatusCode;
-
 type KnownStatus =
 	| "healthy"
 	| "online"
@@ -22,6 +15,8 @@ type KnownStatus =
 	| "degraded"
 	| "draining"
 	| "expired"
+	| "evicted"
+	| "unknown"
 	| "down"
 	| "offline"
 	| "failed"
@@ -29,7 +24,10 @@ type KnownStatus =
 	| "critical"
 	| "completed"
 	| "finished"
-	| "info";
+	| "info"
+	| "valid"
+	| "expiring"
+	| "revoked";
 
 const STATUS_COLORS: Record<KnownStatus, MuiColor> = {
 	healthy: MuiColor.Success,
@@ -38,6 +36,8 @@ const STATUS_COLORS: Record<KnownStatus, MuiColor> = {
 	degraded: MuiColor.Warning,
 	draining: MuiColor.Warning,
 	expired: MuiColor.Warning,
+	evicted: MuiColor.Warning,
+	unknown: MuiColor.Default,
 	down: MuiColor.Error,
 	offline: MuiColor.Error,
 	failed: MuiColor.Error,
@@ -46,10 +46,13 @@ const STATUS_COLORS: Record<KnownStatus, MuiColor> = {
 	completed: MuiColor.Info,
 	finished: MuiColor.Info,
 	info: MuiColor.Info,
+	valid: MuiColor.Success,
+	expiring: MuiColor.Warning,
+	revoked: MuiColor.Error,
 };
 
 interface StatusBadgeProps {
-	status: StatusValue;
+	status: string;
 	label?: string;
 }
 
@@ -84,6 +87,6 @@ function StatusChip({
 
 export function StatusBadge({ status, label }: StatusBadgeProps) {
 	const color: MuiColor =
-		STATUS_COLORS[status.toLowerCase()] ?? MuiColor.Default;
+		STATUS_COLORS[status.toLowerCase() as KnownStatus] ?? MuiColor.Default;
 	return <StatusChip label={label ?? status} color={color} />;
 }

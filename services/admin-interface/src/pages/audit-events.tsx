@@ -12,7 +12,7 @@ import {
 import {
 	toCorrelationId,
 	toTopic,
-} from "@trading-model/common/domain/primitives";
+} from "@trading-model/common/domain/primitives/messaging-ids";
 import { useState } from "react";
 import {
 	Bar,
@@ -249,7 +249,7 @@ export function AuditEvents() {
 
 			<DataTable
 				columns={columns}
-				rows={data?.events ?? []}
+				rows={data?.docs ?? []}
 				getId={(row) => `${row.timestamp}-${row.correlationId}`}
 				total={data?.total ?? 0}
 			/>

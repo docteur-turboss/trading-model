@@ -4,13 +4,13 @@ import LockIcon from "@mui/icons-material/Lock";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import SyncIcon from "@mui/icons-material/Sync";
 import { Box, Button, Chip, CircularProgress, Typography } from "@mui/material";
-
+import { ConfigSource } from "@trading-model/validation/contracts/admin";
 import { API_CLIENT } from "../api/api-client";
 import type { Column } from "../components/data-table";
 import { DataTable } from "../components/data-table";
 import { InfoBox } from "../components/info-box";
 import { useApi } from "../hooks/use-api";
-import { type ConfigEntry, ConfigSource } from "../types/dtos";
+import type { ConfigEntry } from "../types/dtos";
 
 function getSourceColor(
 	source: ConfigSource

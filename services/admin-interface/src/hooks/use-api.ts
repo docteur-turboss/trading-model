@@ -1,5 +1,5 @@
-import { isHttpClientError } from "@trading-model/common/config/http-client-errors";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { HttpClientError } from "../api/_request";
 
 interface UseApiResult<TData> {
 	data: TData | null;
@@ -29,7 +29,7 @@ export function useApi<TData>(
 			}
 		} catch (err) {
 			if (mountedRef.current) {
-				if (isHttpClientError(err)) {
+				if (err instanceof HttpClientError) {
 					setError(`Error ${err.statusCode}: ${err.message}`);
 				} else {
 					setError((err as Error).message);

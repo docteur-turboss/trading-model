@@ -22,7 +22,6 @@ import type {
 	WorkerEntry,
 	WorkerStats,
 } from "@trading-model/validation/contracts/admin";
-import { ConfigSource } from "@trading-model/validation/contracts/admin";
 
 export type {
 	AdminServiceInstance,

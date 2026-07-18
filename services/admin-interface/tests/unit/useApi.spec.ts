@@ -97,7 +97,7 @@ describe("useApi", () => {
 
 		await vi.advanceTimersToNextTimerAsync();
 		await waitFor(() => expect(result.current.loading).toBe(false));
-		expect(result.current.error).toBe("Error 403: Forbidden");
+		expect(result.current.error).toBe("Forbidden");
 	});
 
 	it("should succeed after retry when refetch is called after error", async () => {
