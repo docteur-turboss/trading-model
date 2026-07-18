@@ -3,24 +3,23 @@ import type {
 	SequenceNumber,
 	Topic,
 } from "@trading-model/common/domain/primitives";
+import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
+import type { TopicBinding } from "@trading-model/common/domain/topic-binding";
 import { CircuitStateMachine } from "@trading-model/common/reliability/circuit-state-machine";
-import type {
-	Message,
-	ServiceIdentity,
-} from "@trading-model/validation/contracts/message.types";
+import type { Message } from "@trading-model/validation/contracts/message.types";
 import { logger } from "../../config/logger";
 import { backoffDelay as computeBackoffDelay } from "./backoff-calculator";
 import { DeliveryAttemptHandler } from "./delivery-attempt-handler";
 import { DeliveryErrorHandler } from "./delivery-error-handler";
 import type { SubscribersContext } from "./delivery-metadata-extractor";
-import { DeliveryMetadataExtractor } from "./delivery-metadata-extractor";
+import {
+	buildSubscriberContext,
+	extractDeliveryParams,
+} from "./delivery-metadata-extractor";
 import type { DeliveryParams } from "./delivery-params";
 import type { MessageDeliveryPort } from "./message-delivery-port";
 
-export interface SubscriptionConfig {
-	topic: Topic;
-	callbackURL: string;
-	serviceIdentity: ServiceIdentity;
+export interface SubscriptionConfig extends TopicBinding {
 	deliveryPort: MessageDeliveryPort;
 }
 
@@ -35,12 +34,11 @@ export interface SubscriptionConfig {
  */
 export class Subscription {
 	readonly topic: Topic;
-	readonly callbackURL: string;
+	readonly callbackPath: string;
 	readonly serviceIdentity: ServiceIdentity;
 	private _deliveryPort: MessageDeliveryPort;
 	private _circuitBreaker: CircuitStateMachine;
 	private _errorHandler: DeliveryErrorHandler;
-	private _metadataExtractor: DeliveryMetadataExtractor;
 	private _attemptHandler: DeliveryAttemptHandler;
 
 	static backoffDelay(deliveryAttempt: SequenceNumber): number {
@@ -49,12 +47,11 @@ export class Subscription {
 
 	constructor(config: SubscriptionConfig) {
 		this.topic = config.topic;
-		this.callbackURL = config.callbackURL;
+		this.callbackPath = config.callbackPath;
 		this.serviceIdentity = config.serviceIdentity;
 		this._deliveryPort = config.deliveryPort;
 		this._circuitBreaker = this._createCircuitBreaker(config);
 		this._errorHandler = this._createErrorHandler(config);
-		this._metadataExtractor = new DeliveryMetadataExtractor();
 		this._attemptHandler = this._createAttemptHandler(config);
 	}
 
@@ -70,7 +67,7 @@ export class Subscription {
 		return new DeliveryAttemptHandler({
 			deliveryPort: config.deliveryPort,
 			errorHandler: this._errorHandler,
-			callbackURL: config.callbackURL,
+			callbackPath: config.callbackPath,
 			serviceName: config.serviceIdentity.serviceName,
 		});
 	}
@@ -87,7 +84,7 @@ export class Subscription {
 	}
 
 	async dispatch<TData>(message: Message<TData>): Promise<void> {
-		const deliveryParams = this._metadataExtractor.extract(message);
+		const deliveryParams = extractDeliveryParams(message);
 
 		if (this._circuitBreaker.isOpen()) {
 			logger.warn("Circuit breaker open and rejecting dispatch", {
@@ -121,7 +118,7 @@ export class Subscription {
 		isAcknowledged: () => boolean;
 	} {
 		let acknowledged = false;
-		const context = this._metadataExtractor.buildSubscriberContext(
+		const context = buildSubscriberContext(
 			this.serviceIdentity.serviceName,
 			() => {
 				acknowledged = true;

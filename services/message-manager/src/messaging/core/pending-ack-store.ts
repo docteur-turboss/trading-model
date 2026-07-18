@@ -64,7 +64,11 @@ export class PendingAckStore {
 		for (let i = 0; i < batch.length; i += 2) {
 			try {
 				result[batch[i]] = JSON.parse(batch[i + 1]);
-			} catch {}
+			} catch (err) {
+				logger.warn("Failed to parse pending ack entry", {
+					err: (err as Error).message,
+				});
+			}
 		}
 		return nextCursor;
 	}

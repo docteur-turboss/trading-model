@@ -10,7 +10,7 @@ import type {
 	PendingAckData,
 	StreamGroupRef,
 } from "./messaging-types";
-import { PendingAckOperations } from "./pending-ack-operations";
+import { PendingAckStore } from "./pending-ack-store";
 import { StreamGroupOperations } from "./stream-group-operations";
 
 export interface IStreamGroupOps {
@@ -57,15 +57,17 @@ export interface IDedupOps {
 	tryDeduplicate(deduplicationId: string, ttlS: number): Promise<boolean>;
 }
 
-export class MessageRoutingFacade {
+export class MessageRoutingFacade
+	implements IStreamGroupOps, IPendingAckOps, IClaimOps, IDedupOps
+{
 	private readonly _streamOps: StreamGroupOperations;
-	private readonly _pendingAckOps: PendingAckOperations;
+	private readonly _pendingAckOps: PendingAckStore;
 	private readonly _claimManager: ClaimExecutor;
 	private readonly _dedupService: DeduplicationService;
 
 	constructor(keys: RedisKeyBuilder) {
 		this._streamOps = new StreamGroupOperations(keys);
-		this._pendingAckOps = new PendingAckOperations(keys);
+		this._pendingAckOps = new PendingAckStore(keys);
 		this._claimManager = new ClaimExecutor(keys);
 		this._dedupService = new DeduplicationService(keys);
 	}
@@ -74,7 +76,7 @@ export class MessageRoutingFacade {
 		ownInstanceId: InstanceId,
 		maxAgeMs = 120_000
 	): Promise<number> {
-		return this._pendingAckOps.recoverPendingAcks(ownInstanceId, maxAgeMs);
+		return this._pendingAckOps.recoverStale(ownInstanceId, maxAgeMs);
 	}
 
 	claimPendingMessages(params: ClaimParams): Promise<number> {
@@ -120,20 +122,20 @@ export class MessageRoutingFacade {
 		messageId: string,
 		data: PendingAckData
 	): Promise<void> {
-		await this._pendingAckOps.addPendingAck(instanceId, messageId, data);
+		await this._pendingAckOps.add(instanceId, messageId, data);
 	}
 
 	async removePendingAck(
 		instanceId: InstanceId,
 		messageId: string
 	): Promise<void> {
-		await this._pendingAckOps.removePendingAck(instanceId, messageId);
+		await this._pendingAckOps.remove(instanceId, messageId);
 	}
 
 	getPendingAcks(
 		instanceId: InstanceId
 	): Promise<Record<string, PendingAckData>> {
-		return this._pendingAckOps.getPendingAcks(instanceId);
+		return this._pendingAckOps.getAll(instanceId);
 	}
 
 	getStreamLag(ref: StreamGroupRef): Promise<number> {

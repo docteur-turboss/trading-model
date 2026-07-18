@@ -1,8 +1,5 @@
 ﻿import type { Topic } from "@trading-model/common/domain/primitives";
-import {
-	type ServiceIdentity,
-	toServiceIdentityKey,
-} from "@trading-model/common/domain/service-identity";
+import { ServiceIdentity } from "@trading-model/common/domain/service-identity";
 import WebSocket from "ws";
 import { TopicSubscriptionHandler } from "./topic-subscription-handler";
 import type { WsTransportMessage } from "./wss-message.types";
@@ -30,11 +27,11 @@ export class WssSubscriptionManager {
 	}
 
 	get(identity: ServiceIdentity): WebSocket | undefined {
-		return this._subscriptions.get(toServiceIdentityKey(identity))?.ws;
+		return this._subscriptions.get(ServiceIdentity.toKey(identity))?.ws;
 	}
 
 	has(identity: ServiceIdentity): boolean {
-		return this._subscriptions.has(toServiceIdentityKey(identity));
+		return this._subscriptions.has(ServiceIdentity.toKey(identity));
 	}
 
 	enforceCapacity(ws: WebSocket): boolean {
@@ -47,7 +44,7 @@ export class WssSubscriptionManager {
 
 	add(ctx: SubscriptionContext): string {
 		const { ws, identity, topics } = ctx;
-		const subKey = toServiceIdentityKey(identity);
+		const subKey = ServiceIdentity.toKey(identity);
 		this._subscriptions.set(subKey, { identity, topics, ws });
 		return subKey;
 	}

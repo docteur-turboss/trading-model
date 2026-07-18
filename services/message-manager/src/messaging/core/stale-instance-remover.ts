@@ -5,6 +5,7 @@
 	toTopic,
 } from "@trading-model/common/domain/primitives";
 import type Redis from "ioredis";
+import { logger } from "../../config/logger";
 import type { RedisKeyBuilder } from "../../infrastructure/redis/redis-key-builder";
 
 import { LEASE_HEARTBEAT_FIELD } from "./messaging-constants";
@@ -62,7 +63,12 @@ export class StaleInstanceRemover {
 				if (remaining === 0) {
 					await redis.srem(this._keys.topicsSetKey(), topic);
 				}
-			} catch {}
+			} catch (err) {
+				logger.warn("Failed to cleanup orphaned topic", {
+					topic,
+					err: (err as Error).message,
+				});
+			}
 		}
 	}
 }

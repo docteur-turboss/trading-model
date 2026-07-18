@@ -6,18 +6,16 @@ import type {
 } from "@trading-model/validation/contracts/message.types";
 import { sanitizePayload } from "./payload-sanitizer";
 
-export class MessageFactory {
-	create(
-		payload: unknown,
-		metadata: Omit<MessageMetadata, "emittedAt" | "messageId">
-	): Message {
-		return {
-			metadata: {
-				...metadata,
-				emittedAt: new Date(),
-				messageId: toMessageId(randomUUID()),
-			},
-			payload: sanitizePayload(payload),
-		};
-	}
+export function createMessage(
+	payload: unknown,
+	metadata: Omit<MessageMetadata, "emittedAt" | "messageId">
+): Message {
+	return {
+		metadata: {
+			...metadata,
+			emittedAt: new Date(),
+			messageId: toMessageId(randomUUID()),
+		},
+		payload: sanitizePayload(payload),
+	};
 }

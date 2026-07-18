@@ -1,10 +1,12 @@
 import type {
 	ConsumerGroupName,
 	ConsumerId,
+	DurationMs,
 	InstanceId,
+	Limit,
 	MessageId,
+	PositiveInt,
 	Topic,
-	UnixTimestamp,
 	URLString,
 } from "@trading-model/common/domain/primitives";
 import type { Message } from "@trading-model/validation/contracts/message.types";
@@ -26,15 +28,15 @@ export interface AckRef extends StreamGroupRef {
 export interface MessageQuery {
 	topic: Topic;
 	afterTimestamp: UnixTimestamp;
-	limit?: number;
+	limit?: Limit;
 }
 
 /** Params for claiming pending messages from a consumer group. */
 export interface ClaimParams {
 	groupName: ConsumerGroupName;
 	consumerId: ConsumerId;
-	minIdleMs?: number;
-	count?: number;
+	minIdleMs?: DurationMs;
+	count?: PositiveInt;
 }
 
 /** Data stored for a pending ACK entry. */

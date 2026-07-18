@@ -2,18 +2,15 @@ import type {
 	InstanceId,
 	Topic,
 } from "@trading-model/common/domain/primitives";
-import type { ServiceIdentity } from "@trading-model/validation/contracts/message.types";
+import type { TopicBinding } from "@trading-model/common/domain/topic-binding";
 import type { RedisKeyBuilder } from "../../infrastructure/redis/redis-key-builder";
 
 import type { SubscriptionParams, TopicSubscription } from "./messaging-types";
 import { SubscriptionRedisReader } from "./subscription-redis-reader";
 import { SubscriptionRedisWriter } from "./subscription-redis-writer";
 
-export interface SubscriptionEntry {
+export interface SubscriptionEntry extends TopicBinding {
 	id: string;
-	topic: Topic;
-	callbackPath: string;
-	serviceIdentity: ServiceIdentity;
 	createdAt: string;
 }
 

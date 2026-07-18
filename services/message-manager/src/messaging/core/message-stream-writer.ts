@@ -7,16 +7,13 @@ import { RedisStreamStore } from "./redis-stream-store";
 import { WalFallbackHandler } from "./wal-fallback-handler";
 import type { WalFlusherService } from "./wal-flusher-service";
 
-export class PayloadSerializer {
-	serialize(message: Message): string {
-		return safeStringify(message);
-	}
+export function serializePayload(message: Message): string {
+	return safeStringify(message);
 }
 
 export class MessageStreamWriter {
 	private readonly _streamStore: RedisStreamStore;
 	private readonly _walFallback: WalFallbackHandler;
-	private readonly _serializer: PayloadSerializer;
 
 	constructor(
 		private readonly _keys: RedisKeyBuilder,
@@ -24,7 +21,6 @@ export class MessageStreamWriter {
 	) {
 		this._streamStore = new RedisStreamStore(this._keys);
 		this._walFallback = new WalFallbackHandler(this._walFlusher);
-		this._serializer = new PayloadSerializer();
 	}
 
 	get streamStore(): RedisStreamStore {
@@ -35,12 +31,8 @@ export class MessageStreamWriter {
 		return this._walFallback;
 	}
 
-	get serializer(): PayloadSerializer {
-		return this._serializer;
-	}
-
 	async store(topic: Topic, message: Message): Promise<string> {
-		const serialized = this._serializer.serialize(message);
+		const serialized = serializePayload(message);
 
 		if (this._walFallback.isPayloadTooLarge(topic, serialized)) {
 			return "payload-too-large";

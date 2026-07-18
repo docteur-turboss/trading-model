@@ -1,29 +1,6 @@
 /**
- * @file broker.routes.ts
- *
- * @description
- * Exposes **Express-compatible route handlers** for the broker module.
- * Handles:
- * - Subscribing a service to a topic
- * - Unsubscribing a service from a topic
- * - Publishing a message to a topic
- *
- * Each handler uses **Zod validation** to ensure request payload correctness
- * and **ResponseException** to standardize HTTP responses.
- *
- * @responsability
- * - Validate HTTP requests for broker operations
- * - Forward requests to the Broker core
- * - Handle success and error responses uniformly
- *
- * @restrictions
- * - These functions are middleware factories, not full Express apps
- * - Always throw exceptions to signal HTTP response codes
- * - Must be used inside a try/catch wrapper (here `catchSync`)
- *
- * @architecture
- * Layer connecting the **core Broker** to HTTP endpoints.
- * No business logic is performed here; purely request/response orchestration.
+ * Express-compatible route handlers for the broker module (subscribe, unsubscribe, publish).
+ * Uses Zod validation and ResponseException for standardized HTTP responses.
  */
 
 import { toInstanceId, toTopic } from "@trading-model/common/domain/primitives";
@@ -38,18 +15,7 @@ import {
 } from "./validation/broker.schema";
 
 /**
- * Subscribe a service to a topic
- *
- * @description
- * Validates the request body against the `SUBSCRIBE_SCHEMA` and forwards
- * the subscription request to the Dispatcher instance.
- * Responds with HTTP 204 No Content on success.
- *
- * @param dispatcher - The Dispatcher instance used to manage subscriptions.
- * @returns Express-compatible middleware function
- *
- * @throws {ResponseException.BadRequest} If validation fails
- * @throws {ResponseException.NoContent} On successful subscription
+ * Validates subscription request and forwards to Dispatcher. Returns 204 on success.
  */
 export const SUBSCRIPTION_TO_A_TOPIC = (dispatcher: Dispatcher) =>
 	catchSync((req) => {
@@ -65,15 +31,7 @@ export const SUBSCRIPTION_TO_A_TOPIC = (dispatcher: Dispatcher) =>
 	});
 
 /**
- * Unsubscribe a service from a topic
- *
- * @description
- * Validates the request body against the `UNSUBSCRIBE_SCHEMA` and forwards
- * the unsubscription request to the Dispatcher instance.
- * Responds with HTTP 204 No Content on success.
- *
- * @param dispatcher - The Dispatcher instance used to manage subscriptions.
- * @returns Express-compatible middleware function
+ * Validates unsubscription request and forwards to Dispatcher. Returns 204 on success.
  */
 export const DELETE_A_SUBSCRIPTION = (dispatcher: Dispatcher) =>
 	catchSync((req) => {
@@ -92,15 +50,7 @@ export const DELETE_A_SUBSCRIPTION = (dispatcher: Dispatcher) =>
 	});
 
 /**
- * Publish a message to a topic
- *
- * @description
- * Validates the request body against the `PUBLISH_SCHEMA` and forwards
- * the payload and metadata to the Dispatcher instance.
- * Responds with HTTP 204 No Content on success.
- *
- * @param dispatcher - The Dispatcher instance used to publish messages.
- * @returns Express-compatible middleware function
+ * Validates publish request and forwards payload + metadata to Dispatcher. Returns 204 on success.
  */
 export const PUBLISH_A_MESSAGE = (dispatcher: Dispatcher) =>
 	catchSync(async (req) => {

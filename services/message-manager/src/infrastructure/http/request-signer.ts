@@ -1,4 +1,5 @@
 import type { HttpRequestOptions } from "@trading-model/common/config/http-types";
+import { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import {
 	DurationMs,
 	toServiceId,
@@ -38,7 +39,7 @@ function buildBaseOptions(
 		timeoutMs: DurationMs.of(5000),
 		...extra,
 		headers: {
-			[HTTP_HEADERS.X_SERVICE_NAME]: "message-manager",
+			[HTTP_HEADERS.X_SERVICE_NAME]: ServiceInstanceName.MessageManagerService,
 			...(extra?.headers ?? {}),
 		},
 	};
@@ -51,7 +52,7 @@ function addSignature(
 ): void {
 	const { timestamp, signature } = signRequest(
 		{
-			serviceName: toServiceId("message-manager"),
+			serviceName: toServiceId(ServiceInstanceName.MessageManagerService),
 			method: route.method,
 			path: route.path,
 			body: route.body,

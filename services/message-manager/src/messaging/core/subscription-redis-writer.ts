@@ -19,7 +19,7 @@ export class SubscriptionRedisWriter {
 	}
 
 	async add(params: SubscriptionParams): Promise<void> {
-		const { topic, callbackPath, consumerIdentity: serviceIdentity } = params;
+		const { topic, callbackPath, serviceIdentity } = params;
 		const redis = await getSubscriptionClient();
 		const subKey = this._keys.subKey({
 			topic: toTopic(topic),

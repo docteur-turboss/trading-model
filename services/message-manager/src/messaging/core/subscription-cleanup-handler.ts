@@ -3,6 +3,7 @@
 	Topic,
 } from "@trading-model/common/domain/primitives";
 import type Redis from "ioredis";
+import { logger } from "../../config/logger";
 import type { RedisKeyBuilder } from "../../infrastructure/redis/redis-key-builder";
 
 import type { TopicSubscription } from "./messaging-types";
@@ -37,10 +38,12 @@ export class SubscriptionCleanupHandler {
 	): void {
 		const instanceScard = results[results.length - 2];
 		if (this._isZeroScard(instanceScard)) {
-			redis
-				.srem(this._keys.activeInstancesKey(), instanceId)
-				.then(() => {})
-				.catch(() => {});
+			redis.srem(this._keys.activeInstancesKey(), instanceId).catch((err) => {
+				logger.warn("Failed to cleanup empty instance", {
+					instanceId,
+					err: (err as Error).message,
+				});
+			});
 		}
 	}
 
@@ -53,7 +56,12 @@ export class SubscriptionCleanupHandler {
 		if (this._isZeroScard(scardResult)) {
 			try {
 				await redis.srem(this._keys.topicsSetKey(), topic);
-			} catch {}
+			} catch (err) {
+				logger.warn("Failed to cleanup empty topic", {
+					topic,
+					err: (err as Error).message,
+				});
+			}
 		}
 	}
 

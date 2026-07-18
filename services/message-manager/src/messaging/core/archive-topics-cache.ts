@@ -1,5 +1,6 @@
 ﻿import { TimerHandle } from "@trading-model/common/utils/timer-handle";
 import { ENV } from "../../config/env";
+import { logger } from "../../config/logger";
 import { RedisKeyBuilder } from "../../infrastructure/redis/redis-key-builder";
 
 export class ArchiveTopicsCache {
@@ -14,7 +15,11 @@ export class ArchiveTopicsCache {
 				const redis = await getSubscriptionClient();
 				const topics = await redis.smembers(this._keys.key("topics"));
 				this._topicsCache = topics;
-			} catch {}
+			} catch (err) {
+				logger.error("Failed to refresh topics cache", {
+					err: (err as Error).message,
+				});
+			}
 		}, 30_000);
 		this._topicsCacheTimer.unref();
 	}

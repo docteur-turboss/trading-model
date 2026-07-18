@@ -11,11 +11,11 @@ import { logger } from "@trading-model/common/config/logger";
 import type { InstanceId } from "@trading-model/common/domain/primitives";
 import type { Message } from "@trading-model/validation/contracts/message.types";
 
-import { AckHandler } from "./ack-handler";
-import { BackpressureMonitor } from "./backpressure-monitor";
+import { handleAck as logAck, handleNack as logNack } from "./ack-handler";
+import { getBackpressureRatio as backpressureRatio } from "./backpressure-monitor";
 import type { FileDlqRepository } from "./dlq-repository";
 import { HttpMessageDelivery } from "./http-message-delivery";
-import { MessageFactory } from "./message-factory";
+import { createMessage } from "./message-factory";
 import type { SubscriptionParams, TopicSubscription } from "./messaging-types";
 import { SubscriptionRegistry } from "./subscription-registry";
 
@@ -25,22 +25,28 @@ function isRejected<TValue>(
 	return result.status === "rejected";
 }
 
+export interface DispatcherDeps {
+	deliveryPort: HttpMessageDelivery;
+	registry: SubscriptionRegistry;
+}
+
 export class Dispatcher {
 	private readonly _registry: SubscriptionRegistry;
 	private readonly _deliveryPort: HttpMessageDelivery;
-	private readonly _ackHandler: AckHandler;
-	private readonly _backpressureMonitor: BackpressureMonitor;
-	private readonly _messageFactory: MessageFactory;
 
+	constructor(httpClient: HttpClient, dlqRepository: FileDlqRepository);
+	constructor(deps: DispatcherDeps);
 	constructor(
-		httpClient: HttpClient,
-		readonly dlqRepository: FileDlqRepository
+		param1: HttpClient | DispatcherDeps,
+		dlqRepository?: FileDlqRepository
 	) {
-		this._deliveryPort = new HttpMessageDelivery(httpClient, dlqRepository);
-		this._registry = new SubscriptionRegistry(this._deliveryPort);
-		this._ackHandler = new AckHandler();
-		this._backpressureMonitor = new BackpressureMonitor();
-		this._messageFactory = new MessageFactory();
+		if ("deliveryPort" in param1) {
+			this._deliveryPort = param1.deliveryPort;
+			this._registry = param1.registry;
+		} else {
+			this._deliveryPort = new HttpMessageDelivery(param1, dlqRepository!);
+			this._registry = new SubscriptionRegistry(this._deliveryPort);
+		}
 	}
 
 	async publish(
@@ -50,7 +56,7 @@ export class Dispatcher {
 			"emittedAt" | "messageId"
 		>
 	): Promise<string> {
-		const msg = this._messageFactory.create(payload, metadata);
+		const msg = createMessage(payload, metadata);
 		await this.dispatch(msg);
 		return msg.metadata.messageId!;
 	}
@@ -94,30 +100,16 @@ export class Dispatcher {
 		}
 	}
 
-	/**
-	 * @deprecated Use `subscribe` instead.
-	 */
-	registerSubscription(params: SubscriptionParams): void {
-		this.subscribe(params);
-	}
-
-	/**
-	 * @deprecated Use `unsubscribe` instead.
-	 */
-	unregisterSubscription(params: TopicSubscription): void {
-		this.unsubscribe(params);
-	}
-
 	getBackpressureRatio(): number {
-		return this._backpressureMonitor.getBackpressureRatio();
+		return backpressureRatio();
 	}
 
 	handleAck(messageId: string, instanceId: InstanceId): void {
-		this._ackHandler.handleAck(messageId, instanceId);
+		logAck(messageId, instanceId);
 	}
 
 	handleNack(messageId: string, instanceId: InstanceId): void {
-		this._ackHandler.handleNack(messageId, instanceId);
+		logNack(messageId, instanceId);
 	}
 
 	unsubscribe(params: TopicSubscription): void {

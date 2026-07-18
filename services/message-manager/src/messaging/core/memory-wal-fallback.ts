@@ -2,8 +2,9 @@
 import { FileWalFallback } from "./file-wal-fallback";
 import type { MemoryWalEntry } from "./memory-wal-entry";
 import { RedisWalFallback } from "./redis-wal-fallback";
+import type { WalFallback } from "./wal-fallback.interface";
 
-export class MemoryWalFallback {
+export class MemoryWalFallback implements WalFallback {
 	private readonly _redis: RedisWalFallback;
 	private readonly _file: FileWalFallback;
 
@@ -12,15 +13,15 @@ export class MemoryWalFallback {
 		this._file = new FileWalFallback();
 	}
 
-	trySaveToRedis(removed: MemoryWalEntry[]): Promise<boolean> {
-		return this._redis.trySave(removed);
+	async trySave(removed: MemoryWalEntry[]): Promise<boolean> {
+		const saved = await this._redis.trySave(removed);
+		if (!saved) {
+			await this._file.trySave(removed);
+		}
+		return saved;
 	}
 
-	trySaveToFallback(removed: MemoryWalEntry[]): Promise<void> {
-		return this._file.trySave(removed);
-	}
-
-	recoverFromFallbackFile(): Promise<MemoryWalEntry[]> {
+	recover(): Promise<MemoryWalEntry[]> {
 		return this._file.recover();
 	}
 }

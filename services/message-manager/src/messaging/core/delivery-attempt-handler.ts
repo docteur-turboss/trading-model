@@ -16,20 +16,20 @@ import type {
 export interface DeliveryAttemptHandlerDeps {
 	deliveryPort: MessageDeliveryPort;
 	errorHandler: DeliveryErrorHandler;
-	callbackURL: string;
+	callbackPath: string;
 	serviceName: ServiceInstanceName;
 }
 
 export class DeliveryAttemptHandler {
 	private readonly _deliveryPort: MessageDeliveryPort;
 	private readonly _errorHandler: DeliveryErrorHandler;
-	private readonly _callbackURL: string;
+	private readonly _callbackPath: string;
 	private readonly _serviceName: ServiceInstanceName;
 
 	constructor(deps: DeliveryAttemptHandlerDeps) {
 		this._deliveryPort = deps.deliveryPort;
 		this._errorHandler = deps.errorHandler;
-		this._callbackURL = deps.callbackURL;
+		this._callbackPath = deps.callbackPath;
 		this._serviceName = deps.serviceName;
 	}
 
@@ -71,7 +71,7 @@ export class DeliveryAttemptHandler {
 		message: Message<TData>,
 		context: SubscribersContext
 	): Promise<boolean> {
-		const target = await resolveTarget(this._serviceName, this._callbackURL);
+		const target = await resolveTarget(this._serviceName, this._callbackPath);
 
 		const sendInput: DeliverySendInput = {
 			url: target,

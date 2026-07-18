@@ -1,5 +1,3 @@
-﻿export class BackpressureMonitor {
-	getBackpressureRatio(): number {
-		return 0;
-	}
+﻿export function getBackpressureRatio(): number {
+	return 0;
 }

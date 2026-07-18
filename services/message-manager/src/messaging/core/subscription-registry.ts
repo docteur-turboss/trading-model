@@ -12,13 +12,13 @@ export class SubscriptionRegistry {
 	constructor(private readonly _deliveryPort: HttpMessageDelivery) {}
 
 	subscribe(params: SubscriptionParams): void {
-		const { topic, consumerIdentity, callbackPath } = params;
+		const { topic, serviceIdentity, callbackPath } = params;
 
 		const current = this._subscriptionsByTopic.get(topic) ?? [];
 
 		if (
 			current.some(
-				(sub) => sub.serviceIdentity.instanceId === consumerIdentity.instanceId
+				(sub) => sub.serviceIdentity.instanceId === serviceIdentity.instanceId
 			)
 		) {
 			return;
@@ -26,8 +26,8 @@ export class SubscriptionRegistry {
 
 		const subscription = new Subscription({
 			topic,
-			callbackURL: callbackPath,
-			serviceIdentity: consumerIdentity,
+			callbackPath,
+			serviceIdentity,
 			deliveryPort: this._deliveryPort,
 		});
 

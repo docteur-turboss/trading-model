@@ -1,27 +1,5 @@
 ﻿/**
- * @file index.ts
- *
- * @description
- * This module initializes the **broker system** with TLS configuration, message dispatcher,
- * and exposes the HTTP routes for publishing and subscribing messages.
- *
- * @responsability
- * - Instantiate the Broker core with a Dispatcher
- * - Configure TLS HTTP client for internal message delivery
- * - Expose Express routes for message publication and subscription management
- *
- * @restrictions
- * - This module does not handle business logic of messages
- * - TLS paths must point to valid certificate files
- * - Only one instance of Broker should be created per process
- *
- * @architecture
- * Acts as the **entry point for the broker service**.
- * Composition:
- * - `HttpClient` → handles secure HTTP communication
- * - `Dispatcher` → manages subscriptions and message delivery
- * - `Broker` → exposes publish/subscribe API
- * - `BROKER_ROUTES` → maps HTTP endpoints to broker actions
+ * Initializes the broker system: HTTP client, dispatcher, and Express routes.
  */
 
 import { HttpClient } from "@trading-model/common/config/http-client";
@@ -32,30 +10,16 @@ import { Dispatcher } from "./core/dispatcher";
 import { FileDlqRepository } from "./core/dlq-repository";
 import { BROKER_ROUTES } from "./transport/http.routes";
 
-/**
- * BrokerModule
- *
- * @description
- * Encapsulates the broker system initialization.
- * Instantiates the HTTP client and dispatcher,
- * and exposes an Express listener to attach broker routes.
- */
-export default class BrokerModule {
-	private _dispatcher: Dispatcher;
+export interface BrokerModule {
+	listen: (app: Application) => void;
+}
 
-	private _httpClient: HttpClient;
-
-	public listen: (app: Application) => void;
-
-	/**
-	 * @param config - Broker TLS and connection configuration.
-	 */
-	constructor(config: BrokerConfig) {
-		this._httpClient = HttpClient.createWithTls(config);
-
-		const dqlRepository = new FileDlqRepository();
-		this._dispatcher = new Dispatcher(this._httpClient, dqlRepository);
-
-		this.listen = (app) => app.use(BROKER_ROUTES(this._dispatcher));
-	}
+/** @param config - Broker TLS and connection configuration. */
+export default function createBrokerModule(config: BrokerConfig): BrokerModule {
+	const httpClient = HttpClient.createWithTls(config);
+	const dqlRepository = new FileDlqRepository();
+	const dispatcher = new Dispatcher(httpClient, dqlRepository);
+	return {
+		listen: (app) => app.use(BROKER_ROUTES(dispatcher)),
+	};
 }

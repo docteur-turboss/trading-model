@@ -60,7 +60,7 @@ const IDENTIFY_SCHEMA = z.object({
 export const SUBSCRIBE_SCHEMA = z.object({
 	topic: TOPIC_SCHEMA,
 	callbackPath: CALLBACK_PATH_SCHEMA,
-	consumerIdentity: IDENTIFY_SCHEMA,
+	serviceIdentity: IDENTIFY_SCHEMA,
 });
 
 /**

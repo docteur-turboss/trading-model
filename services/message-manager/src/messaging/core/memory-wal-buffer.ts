@@ -56,7 +56,7 @@ export class MemoryWalBuffer {
 	}
 
 	async recoverFromFallbackFile(): Promise<number> {
-		const entries = await this._fallback.recoverFromFallbackFile();
+		const entries = await this._fallback.recover();
 		if (entries.length > 0) {
 			this._buffer.push(...entries);
 			logger.info(`Recovered ${entries.length} WAL entries from fallback file`);
@@ -71,10 +71,7 @@ export class MemoryWalBuffer {
 			excess
 		);
 
-		const saved = await this._fallback.trySaveToRedis(removed);
-		if (!saved) {
-			await this._fallback.trySaveToFallback(removed);
-		}
+		await this._fallback.trySave(removed);
 	}
 
 	private _spliceExcess(): { excess: number; removed: MemoryWalEntry[] } {

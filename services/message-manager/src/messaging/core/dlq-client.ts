@@ -1,5 +1,10 @@
 ﻿import type { HttpClient } from "@trading-model/common/config/http-client";
-import { PositiveInt } from "@trading-model/common/domain/primitives";
+import {
+	type Limit,
+	PositiveInt,
+	type Topic,
+	URLString,
+} from "@trading-model/common/domain/primitives";
 import { ENV } from "../../config/env";
 import { DlqDeleteHandler } from "./dlq-delete-handler";
 import { DlqReplayHandler } from "./dlq-replay-handler";
@@ -14,7 +19,7 @@ export interface DlqSendOptions {
 export interface IDlqServiceClient {
 	readonly isEnabled: boolean;
 	send(entry: DlqEntry, options?: DlqSendOptions): Promise<void>;
-	replay(topic?: string, limit?: number): Promise<DlqEntry[]>;
+	replay(topic?: Topic, limit?: Limit): Promise<DlqEntry[]>;
 	delete(entryIds: string[]): Promise<void>;
 }
 
@@ -22,10 +27,10 @@ export class DlqServiceClient implements IDlqServiceClient {
 	private readonly _sendHandler: DlqSendHandler;
 	private readonly _replayHandler: DlqReplayHandler;
 	private readonly _deleteHandler: DlqDeleteHandler;
-	private readonly _serviceUrl: string;
+	private readonly _serviceUrl: URLString;
 
 	constructor(httpClient: HttpClient) {
-		this._serviceUrl = ENV.DLQ_SERVICE_URL || "";
+		this._serviceUrl = URLString.of(ENV.DLQ_SERVICE_URL || "");
 		this._sendHandler = new DlqSendHandler(httpClient, this._serviceUrl);
 		this._replayHandler = new DlqReplayHandler(httpClient, this._serviceUrl);
 		this._deleteHandler = new DlqDeleteHandler(httpClient, this._serviceUrl);
@@ -53,7 +58,7 @@ export class DlqServiceClient implements IDlqServiceClient {
 		}
 	}
 
-	replay(topic?: string, limit = 100): Promise<DlqEntry[]> {
+	replay(topic?: Topic, limit?: Limit): Promise<DlqEntry[]> {
 		if (!this.isEnabled) {
 			return Promise.resolve([]);
 		}

@@ -35,7 +35,11 @@ export class WalDrainCoordinator {
 		return this._drainState.kind !== DrainStateKind.Idle;
 	}
 
-	async drain(timeoutMs = 10_000): Promise<void> {
+	private static readonly _DEFAULT_DRAIN_TIMEOUT_MS = 10_000;
+
+	async drain(
+		timeoutMs = WalDrainCoordinator._DEFAULT_DRAIN_TIMEOUT_MS
+	): Promise<void> {
 		if (this._drainState.kind !== DrainStateKind.Idle) {
 			return;
 		}

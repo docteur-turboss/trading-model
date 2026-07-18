@@ -1,59 +1,18 @@
 ﻿/**
- * @file message-manager.ts
- *
- * @description
- * Composition module for the Message Broker HTTP interface.
- *
- * This file instantiates a Broker client from the `messaging` package
- * using TLS configuration provided via environment variables, then
- * exposes its HTTP listener to be mounted by the application server.
- *
- * This module does not start the broker by itself and does not perform
- * any message processing logic.
- *
- * @responsability
- * - Instantiate the Broker with TLS configuration
- * - Expose the Broker HTTP listener
- * - Provide a single shared Broker instance for the process
- *
- * @restrictions
- * - Must not contain message handling or business logic
- * - Must not reconfigure the Broker after instantiation
- * - Must not start or stop the Broker lifecycle explicitly
- *
- * @architecture
- * Infrastructure / integration layer.
- * This module wires the messaging broker into the HTTP server.
+ * Instantiates a Broker client with TLS config and exposes its HTTP listener.
  */
 
 import { buildTlsFromEnv } from "@trading-model/common/domain/tls-paths";
-import BrokerModule from "../messaging/index";
+import createBrokerModule from "../messaging/index";
 import { ENV } from "./env";
 
 /**
- * Broker singleton instance.
- *
- * @description
- * Instantiated once at module load time using TLS configuration
- * provided by the runtime environment.
- *
- * This instance is shared across the entire application lifecycle.
+ * Broker singleton, instantiated at module load time.
  */
-const BROKER = new BrokerModule(buildTlsFromEnv(ENV));
+const BROKER = createBrokerModule(buildTlsFromEnv(ENV));
 
 /**
- * Message broker HTTP route binder.
- *
- * @description
- * Exposes HTTP endpoints required by the messaging broker.
- *
- * This function is intended to be mounted directly on an Express
- * (or compatible) application instance.
- *
- * @returns {void}
- *
- * @lifecycle
- * Must be registered during HTTP server initialization.
+ * HTTP route binder to be mounted on an Express app instance.
  */
 const MESSAGE_MANAGER_ROUTES = BROKER.listen;
 

@@ -5,20 +5,17 @@ import {
 	messageManagerError,
 	normalizeError,
 } from "@trading-model/common/utils/errors";
+import { sleep } from "@trading-model/common/utils/sleep";
 import { logger } from "../../config/logger";
 import type { DlqEntry } from "./dlq-repository";
-import { DlqRetryWithBackoff } from "./dlq-retry-with-backoff";
+import { computeDelay } from "./dlq-retry-with-backoff";
 import { signedOptions } from "./request-signer";
 
 export class DlqSendHandler {
-	private readonly _retry: DlqRetryWithBackoff;
-
 	constructor(
 		private readonly _httpClient: HttpClient,
 		private readonly _serviceUrl: string
-	) {
-		this._retry = new DlqRetryWithBackoff();
-	}
+	) {}
 
 	async doSend(entry: DlqEntry): Promise<void> {
 		await this._postEntry(entry);
@@ -34,7 +31,7 @@ export class DlqSendHandler {
 		maxRetries: PositiveInt
 	): Promise<void> {
 		if (attempt <= maxRetries) {
-			const delay = this._retry.computeDelay(attempt);
+			const delay = computeDelay(attempt);
 			logger.warn("Retrying DLQ send after error", {
 				context: {
 					attempt,
@@ -43,7 +40,7 @@ export class DlqSendHandler {
 					error: normalizeError(err),
 				},
 			});
-			await this._retry.wait(delay);
+			await sleep(delay);
 			return this._doRetrySend(entry, attempt, maxRetries);
 		}
 		logger.error("Failed to send DLQ entry to service after retries", {

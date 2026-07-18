@@ -6,7 +6,7 @@ import { MongoBatchWriter } from "./mongo-batch-writer";
 
 const MS_PER_DAY = 86_400_000;
 
-import { MongoIndexCreator } from "./mongo-index-creator";
+import { createMongoIndexes } from "./mongo-index-creator";
 import type { MongoCollectionConfig } from "./mongo-types";
 
 export interface ArchiveEntry {
@@ -39,16 +39,16 @@ export interface MongoClient {
 }
 
 export class MongoArchiveBatchWriter {
-	private readonly _indexCreator: MongoIndexCreator;
+	private readonly _config: MongoCollectionConfig;
 	private readonly _batchWriter: MongoBatchWriter;
 
 	constructor(config: MongoCollectionConfig) {
-		this._indexCreator = new MongoIndexCreator(config);
+		this._config = config;
 		this._batchWriter = new MongoBatchWriter(config);
 	}
 
 	async createIndexes(): Promise<void> {
-		await this._indexCreator.createIndexes();
+		await createMongoIndexes(this._config);
 	}
 
 	async _insertBatch(docs: unknown[]): Promise<void> {

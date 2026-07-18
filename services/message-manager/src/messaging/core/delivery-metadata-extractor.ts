@@ -18,28 +18,28 @@ interface SubscribersContext {
 
 export type { SubscribersContext };
 
-export class DeliveryMetadataExtractor {
-	extract<TData>(message: Message<TData>): DeliveryParams {
-		const ttl = DurationMs.of(message.metadata.delivery?.ttl ?? 0);
-		const deliveryMode =
-			message.metadata.delivery?.mode ?? DeliveryMode.AtLeastOnce;
-		const emittedAt = UnixTimestamp.of(
-			new Date(message.metadata.emittedAt ?? 0).getTime()
-		);
-		return { ttl, deliveryMode, emittedAt };
-	}
+export function extractDeliveryParams<TData>(
+	message: Message<TData>
+): DeliveryParams {
+	const ttl = DurationMs.of(message.metadata.delivery?.ttl ?? 0);
+	const deliveryMode =
+		message.metadata.delivery?.mode ?? DeliveryMode.AtLeastOnce;
+	const emittedAt = UnixTimestamp.of(
+		new Date(message.metadata.emittedAt ?? 0).getTime()
+	);
+	return { ttl, deliveryMode, emittedAt };
+}
 
-	buildSubscriberContext(
-		serviceName: ServiceInstanceName,
-		onAck: () => void
-	): SubscribersContext {
-		return {
-			consumerGroup: toConsumerGroupName(serviceName),
-			deliveryAttempt: 0 as SequenceNumber,
-			ack: () => {
-				onAck();
-				return Promise.resolve();
-			},
-		};
-	}
+export function buildSubscriberContext(
+	serviceName: ServiceInstanceName,
+	onAck: () => void
+): SubscribersContext {
+	return {
+		consumerGroup: toConsumerGroupName(serviceName),
+		deliveryAttempt: 0 as SequenceNumber,
+		ack: () => {
+			onAck();
+			return Promise.resolve();
+		},
+	};
 }

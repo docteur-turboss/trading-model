@@ -30,7 +30,11 @@ export class MongoClientManager {
 		);
 	}
 
-	async connectClient(): Promise<void> {
+	isConnected(): boolean {
+		return this._manager?.isConnected() ?? false;
+	}
+
+	async getConnection(): Promise<void> {
 		this._manager = new MongoConnectionManager({
 			uri: URLString.of(ENV.MONGO_ARCHIVE_URI!),
 			dbName: ENV.MONGO_ARCHIVE_DB,
@@ -76,7 +80,7 @@ export class MongoClientManager {
 		});
 	}
 
-	async closeClient(): Promise<void> {
+	async close(): Promise<void> {
 		if (!this._manager) {
 			return;
 		}

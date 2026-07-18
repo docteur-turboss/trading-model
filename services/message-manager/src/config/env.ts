@@ -1,5 +1,5 @@
+import { AddressManagerEnvSchema } from "@trading-model/validation/validation/address-manager-env";
 import {
-	AddressManagerEnvSchema,
 	BaseEnvSchema,
 	validateEnv,
 } from "@trading-model/validation/validation/env";

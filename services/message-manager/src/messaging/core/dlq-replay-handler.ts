@@ -1,4 +1,5 @@
 import type { HttpClient } from "@trading-model/common/config/http-client";
+import type { Limit, Topic } from "@trading-model/common/domain/primitives";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import { HttpMethod } from "@trading-model/validation/contracts/signed-request";
 import { logger } from "../../config/logger";
@@ -11,7 +12,7 @@ export class DlqReplayHandler {
 		private readonly _serviceUrl: string
 	) {}
 
-	async replay(topic?: string, limit = 100): Promise<DlqEntry[]> {
+	async replay(topic?: Topic, limit?: Limit): Promise<DlqEntry[]> {
 		try {
 			return await this._doReplay(topic, limit);
 		} catch (err) {
@@ -19,7 +20,7 @@ export class DlqReplayHandler {
 		}
 	}
 
-	private async _doReplay(topic?: string, limit = 100): Promise<DlqEntry[]> {
+	private async _doReplay(topic?: Topic, limit?: Limit): Promise<DlqEntry[]> {
 		const url = this._buildReplayUrl(topic, limit);
 		const result = await this._httpClient.get<{ entries: DlqEntry[] }>(
 			url,
@@ -33,12 +34,12 @@ export class DlqReplayHandler {
 		return result?.entries ?? [];
 	}
 
-	private _buildReplayUrl(topic?: string, limit = 100): string {
+	private _buildReplayUrl(topic?: Topic, limit?: Limit): string {
 		const params = new URLSearchParams();
 		if (topic) {
 			params.set("topic", topic);
 		}
-		params.set("limit", limit.toString());
+		params.set("limit", String(limit ?? 100));
 		return `${this._serviceUrl}/dlq?${params.toString()}`;
 	}
 

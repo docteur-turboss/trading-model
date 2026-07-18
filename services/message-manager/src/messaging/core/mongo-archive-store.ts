@@ -4,6 +4,7 @@ import {
 	UnixTimestamp,
 } from "@trading-model/common/domain/primitives";
 import { ENV } from "../../config/env";
+import { logger } from "../../config/logger";
 import { RedisKeyBuilder } from "../../infrastructure/redis/redis-key-builder";
 import { ArchiveTimerScheduler } from "./archive-timer-scheduler";
 import { ArchiveTopicsCache } from "./archive-topics-cache";
@@ -35,7 +36,7 @@ export class MongoArchiveStore {
 	}
 
 	private async _initArchiveClient(): Promise<void> {
-		await this._clientManager.connectClient();
+		await this._clientManager.getConnection();
 		await this._clientManager.ensureIndexes();
 		this._timerScheduler.start(ENV.MONGO_ARCHIVE_INTERVAL_MS, () =>
 			this._archiveBatch()
@@ -69,7 +70,12 @@ export class MongoArchiveStore {
 				return;
 			}
 			await this._writeArchiveBatch(client, messages);
-		} catch {}
+		} catch (err) {
+			logger.error("Failed to archive topic", {
+				topic,
+				err: (err as Error).message,
+			});
+		}
 	}
 
 	private _fetchTopicMessages(topic: Topic) {
@@ -98,7 +104,7 @@ export class MongoArchiveStore {
 	async stop(): Promise<void> {
 		this._timerScheduler.stop();
 		this._topicsCache.stopRefresh();
-		await this._clientManager.closeClient();
+		await this._clientManager.close();
 	}
 }
 
