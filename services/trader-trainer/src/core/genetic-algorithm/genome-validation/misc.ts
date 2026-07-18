@@ -1,3 +1,4 @@
+import { NumericRange } from "@trading-model/common/domain/numeric-range";
 import type {
 	Percentage,
 	PositiveInt,
@@ -17,18 +18,20 @@ export function validateMutation(
 	ctx: ValidationContext,
 	mutation: MutationGenome
 ): void {
-	checkRange({ ...ctx, path: "mutation.rates.rate" }, mutation.rates.rate, {
-		min: 0.001,
-		max: 0.5,
-	});
-	checkRange({ ...ctx, path: "mutation.rates.sigma" }, mutation.rates.sigma, {
-		min: 1e-5,
-		max: 10,
-	});
+	checkRange(
+		{ ...ctx, path: "mutation.rates.rate" },
+		mutation.rates.rate,
+		new NumericRange(0.001, 0.5)
+	);
+	checkRange(
+		{ ...ctx, path: "mutation.rates.sigma" },
+		mutation.rates.sigma,
+		new NumericRange(1e-5, 10)
+	);
 	checkRange(
 		{ ...ctx, path: "mutation.rates.selfSigma" },
 		mutation.rates.selfSigma,
-		{ min: 1e-5, max: 10 }
+		new NumericRange(1e-5, 10)
 	);
 }
 
@@ -36,18 +39,21 @@ export function validateCrossover(
 	ctx: ValidationContext,
 	crossover: CrossoverGenome
 ): void {
-	checkRange({ ...ctx, path: "crossover.probability" }, crossover.probability, {
-		min: 0,
-		max: 1,
-	});
-	checkRange({ ...ctx, path: "crossover.blendAlpha" }, crossover.blendAlpha, {
-		min: 0,
-		max: 1,
-	});
-	checkRange({ ...ctx, path: "crossover.sbxEta" }, crossover.sbxEta, {
-		min: 1,
-		max: 100,
-	});
+	checkRange(
+		{ ...ctx, path: "crossover.probability" },
+		crossover.probability,
+		new NumericRange(0, 1)
+	);
+	checkRange(
+		{ ...ctx, path: "crossover.blendAlpha" },
+		crossover.blendAlpha,
+		new NumericRange(0, 1)
+	);
+	checkRange(
+		{ ...ctx, path: "crossover.sbxEta" },
+		crossover.sbxEta,
+		new NumericRange(1, 100)
+	);
 }
 
 export function validateGAControl(
@@ -62,12 +68,12 @@ export function validateGAControl(
 	checkRange(
 		{ ...ctx, path: "gaControl.population.elitismFraction" },
 		ga.population.elitismFraction,
-		{ min: 0, max: 1 }
+		new NumericRange(0, 1)
 	);
 	checkRange(
 		{ ...ctx, path: "gaControl.population.survivorFraction" },
 		ga.population.survivorFraction,
-		{ min: 0, max: 1 }
+		new NumericRange(0, 1)
 	);
 	checkPositiveInt(
 		{ ...ctx, path: "gaControl.termination.maxGenerations" },

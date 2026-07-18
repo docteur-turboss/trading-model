@@ -1,8 +1,8 @@
+import type { MutateNetworkContext } from "../genome-network";
+import { mutateLayer, mutateNetworkStructure } from "../genome-network";
+import type { MutateRLContext } from "../genome-rl";
+import { mutateRL } from "../genome-rl";
 import type { LamarckGenome } from "../genome-types";
-import type { MutateNetworkContext } from "./network-mutation";
-import { mutateLayer, mutateNetworkStructure } from "./network-mutation";
-import type { MutateRLContext } from "./rl-mutation";
-import { mutateRL } from "./rl-mutation";
 import { mutateSelfAdaptiveParams } from "./self-adaptive-mutation";
 import { adaptSigma } from "./sigma-adapters";
 

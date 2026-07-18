@@ -1,16 +1,14 @@
 import type { LossConfig } from "../type";
-import type { LossDefinition } from "./loss-definition";
-import { validateLengths } from "./validate-lengths";
+import { BaseLoss } from "./base-loss";
 
 const EPSILON = 1e-10;
 
-export class BinaryCrossEntropyLoss implements LossDefinition {
-	loss(
+export class BinaryCrossEntropyLoss extends BaseLoss {
+	computeLoss(
 		output: Float32Array,
 		target: Float32Array,
 		_config: Required<LossConfig>
 	): number {
-		validateLengths(output, target);
 		const len = output.length;
 		let sum = 0;
 		for (let i = 0; i < len; i++) {
@@ -23,21 +21,19 @@ export class BinaryCrossEntropyLoss implements LossDefinition {
 		return sum / len;
 	}
 
-	gradient(
+	computeGradient(
 		output: Float32Array,
 		target: Float32Array,
-		_config: Required<LossConfig>
-	): Float32Array {
-		validateLengths(output, target);
+		_config: Required<LossConfig>,
+		out: Float32Array,
+		invN: number
+	): void {
 		const len = output.length;
-		const out = new Float32Array(len);
-		const invN = 1 / len;
 		for (let i = 0; i < len; i++) {
 			const outVal = output[i];
 			const tgt = target[i];
 			out[i] =
 				(-tgt / (outVal + EPSILON) + (1 - tgt) / (1 - outVal + EPSILON)) * invN;
 		}
-		return out;
 	}
 }

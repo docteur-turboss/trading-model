@@ -28,13 +28,6 @@ export class TradeExecutor {
 	get position(): Volume {
 		return this._state.position;
 	}
-	get config(): WalletConfig {
-		return this._config;
-	}
-	get recorder(): TradeRecorder {
-		return this._recorder;
-	}
-
 	buy(amount: Volume): boolean {
 		const amt = Number(amount);
 		if (!Number.isFinite(amt) || amt <= 0) {
@@ -107,7 +100,7 @@ export class TradeExecutor {
 		}
 		this._state = { ...this._state, price: newPrice };
 		this._recorder.incrementStep();
-		this._recorder.recordValuation(this);
+		this._recorder.recordValuation(this._state);
 	}
 	reset(): void {
 		this._state = {

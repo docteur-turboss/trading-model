@@ -11,36 +11,34 @@ import {
 
 export class NormalizationManager {
 	private readonly _handlerMap: Record<DataType, DataHandler>;
+	private readonly _handlers: DataHandler[];
 
 	constructor(handlers?: DataHandler[]) {
-		const defaultHandlers = handlers ?? createDefaultHandlers();
+		this._handlers = handlers ?? createDefaultHandlers();
 		this._handlerMap = Object.fromEntries(
-			defaultHandlers.map((handler) => [handler.dataType, handler])
+			this._handlers.map((handler) => [handler.dataType, handler])
 		) as Record<DataType, DataHandler>;
 	}
 
 	createNormStats(): SymbolNormalizers {
-		return {
-			candle: {
-				close: new NormalizationStats(),
-				volume: new NormalizationStats(),
-				open: new NormalizationStats(),
-				high: new NormalizationStats(),
-				low: new NormalizationStats(),
-			},
-			trade: {
-				price: new NormalizationStats(),
-				qty: new NormalizationStats(),
-			},
-			book: {
-				bid: new NormalizationStats(),
-				ask: new NormalizationStats(),
-				spread: new NormalizationStats(),
-			},
-			ticker: {
-				volume: new NormalizationStats(),
-			},
+		const candle = {
+			close: new NormalizationStats(),
+			volume: new NormalizationStats(),
+			open: new NormalizationStats(),
+			high: new NormalizationStats(),
+			low: new NormalizationStats(),
 		};
+		const trade = {
+			price: new NormalizationStats(),
+			qty: new NormalizationStats(),
+		};
+		const book = {
+			bid: new NormalizationStats(),
+			ask: new NormalizationStats(),
+			spread: new NormalizationStats(),
+		};
+		const ticker = { volume: new NormalizationStats() };
+		return { candle, trade, book, ticker };
 	}
 
 	updateNorms(dataType: DataType, state: SymbolState, data: unknown): void {

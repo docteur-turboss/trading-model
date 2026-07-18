@@ -1,4 +1,4 @@
-import { MutationDistribution } from "./genome-types";
+import { MutationDistribution } from "./genome-mutation";
 
 export interface NoiseSampler {
 	readonly type: MutationDistribution;

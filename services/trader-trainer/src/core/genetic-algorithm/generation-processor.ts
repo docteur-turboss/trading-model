@@ -37,17 +37,17 @@ export class GenerationProcessor {
 	get generation(): number {
 		return this._generation;
 	}
-	get archive(): import("./pareto").ParetoArchive {
-		return this._evaluator.archive;
+	getArchiveMembers(): DeepReadonly<LamarckGenome>[] {
+		return this._evaluator.getArchiveMembers();
 	}
 	get lastBestGenome(): DeepReadonly<LamarckGenome> | undefined {
-		return this._evaluator.archive.members[0];
+		return this.getArchiveMembers()[0];
 	}
 	get bestFitness(): number {
-		return this._evaluator.stagnationTracker.bestFitness;
+		return this._evaluator.getBestFitness();
 	}
 	get stagnation(): number {
-		return this._evaluator.stagnationTracker.stagnation;
+		return this._evaluator.getStagnation();
 	}
 
 	initialise(baseControl?: Partial<GAControlGenome>): void {
@@ -77,7 +77,7 @@ export class GenerationProcessor {
 			this._cfg.onArchiveUpdate
 		);
 		const newCtrl = this._adaptControl(ctrl);
-		const trackResult = this._evaluator.stagnationTracker.track(
+		const trackResult = this._evaluator.trackStagnation(
 			paretoResult.popWithMeta,
 			evalResult.metas,
 			paretoResult.avgEff
@@ -107,8 +107,8 @@ export class GenerationProcessor {
 	): DeepReadonly<GAControlGenome> {
 		return adaptGAControl(
 			ctrl,
-			this._evaluator.stagnationTracker.efficiencyHistory,
-			this._evaluator.stagnationTracker.stagnation
+			this._evaluator.getEfficiencyHistory(),
+			this._evaluator.getStagnation()
 		);
 	}
 
@@ -143,8 +143,8 @@ export class GenerationProcessor {
 		return {
 			generation: this._generation,
 			population: this._population,
-			archive: this._evaluator.archive.members,
-			bestFitness: this._evaluator.stagnationTracker.bestFitness,
+			archive: this._evaluator.getArchiveMembers(),
+			bestFitness: this._evaluator.getBestFitness(),
 			bestGenome:
 				trackResult?.genome ??
 				(this._population[0] as DeepReadonly<LamarckGenome>),
@@ -152,7 +152,7 @@ export class GenerationProcessor {
 			avgFitness: result.avgFit,
 			efficiencyScore: result.avgEff,
 			elapsedMs: Date.now() - (startTime ?? Date.now()),
-			stagnation: this._evaluator.stagnationTracker.stagnation,
+			stagnation: this._evaluator.getStagnation(),
 			gaControl: newCtrl,
 		};
 	}

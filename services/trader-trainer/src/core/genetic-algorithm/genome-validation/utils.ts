@@ -29,7 +29,7 @@ export const VALID_BIAS_TYPES = new Set([
 	InitialisationType.LeCun,
 ]);
 
-import { NumericRange } from "@trading-model/common/domain/numeric-range";
+import type { NumericRange } from "@trading-model/common/domain/numeric-range";
 
 export const VALID_NORM_TYPES = new Set([
 	NormalisationType.None,
@@ -53,23 +53,15 @@ export function err(
 export function checkRange(
 	ctx: ValidationContext,
 	value: unknown,
-	bounds: NumericRange | { min: number; max: number }
+	bounds: NumericRange
 ): void {
-	const lo =
-		bounds instanceof NumericRange
-			? bounds.lo
-			: (bounds as { min: number; max: number }).min;
-	const hi =
-		bounds instanceof NumericRange
-			? bounds.hi
-			: (bounds as { min: number; max: number }).max;
 	if (
 		typeof value !== "number" ||
 		!Number.isFinite(value) ||
-		value < lo ||
-		value > hi
+		value < bounds.lo ||
+		value > bounds.hi
 	) {
-		err(ctx, `must be a finite number in [${lo}, ${hi}]`, value);
+		err(ctx, `must be a finite number in [${bounds.lo}, ${bounds.hi}]`, value);
 	}
 }
 

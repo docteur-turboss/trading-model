@@ -1,8 +1,6 @@
 import { logger } from "@trading-model/common/config/logger";
+import { EpisodeScores } from "./genetic-algorithm/episode-scores";
 import type { GenerationContext } from "./genetic-algorithm/ga-runner";
-import type { LamarckGenome } from "./genetic-algorithm/genome-types";
-import type { DeepReadonly } from "./genetic-algorithm/shared-types";
-import { GenomeSummaryBuilder } from "./genome-summary-builder";
 import type { MarketDataBuffer } from "./market-data-buffer";
 import type { TradingSymbol } from "./market-data-types";
 import { TrainingPrerequisiteValidator } from "./training-prerequisite-validator";
@@ -10,30 +8,14 @@ import {
 	TrainingSession,
 	type TrainingSessionResult,
 } from "./training-session";
-import {
-	type BestAgentSummary,
-	buildBestAgentSummary,
-	type LastTrainingInfo,
-} from "./training-state";
+import { type BestAgentSummary, LastTrainingInfo } from "./training-state";
+import type {
+	TrainingFailure,
+	TrainingResult,
+	TrainingSuccess,
+} from "./training-types";
 
 export type { BestAgentSummary };
-
-/** Indicates that training completed successfully with the resulting best genome. */
-export interface TrainingSuccess {
-	success: true;
-	symbol: TradingSymbol;
-	bestGenome: DeepReadonly<LamarckGenome>;
-}
-
-/** Indicates that training failed with an error. */
-export interface TrainingFailure {
-	success: false;
-	symbol: TradingSymbol;
-	error: Error;
-}
-
-/** Discriminated result of a training cycle. */
-export type TrainingResult = TrainingSuccess | TrainingFailure;
 
 enum TrainerStatus {
 	Idle = "idle",
@@ -44,7 +26,6 @@ enum TrainerStatus {
 export class Trainer {
 	private _status: TrainerStatus = TrainerStatus.Idle;
 	private _lastInfo: LastTrainingInfo | null = null;
-	private readonly _summaryBuilder = new GenomeSummaryBuilder();
 	private readonly _validator: TrainingPrerequisiteValidator;
 
 	constructor(private readonly _dataBuffer: MarketDataBuffer) {
@@ -89,7 +70,19 @@ export class Trainer {
 	): Promise<TrainingSuccess> {
 		const session = new TrainingSession(windowSet);
 		const result: TrainingSessionResult = await session.run();
-		this._lastInfo = {
+		this._lastInfo = new LastTrainingInfo(
+			symbol,
+			result.bestGenome,
+			result.bestFitness,
+			result.bestFitnessMeta,
+			result.generation,
+			result.generationContext
+		);
+		logger.info("Training complete", {
+			context: { symbol, bestFitness: result.bestFitness },
+		});
+		return {
+			success: true,
 			symbol,
 			bestGenome: result.bestGenome,
 			bestFitness: result.bestFitness,
@@ -97,10 +90,6 @@ export class Trainer {
 			generation: result.generation,
 			generationContext: result.generationContext,
 		};
-		logger.info("Training complete", {
-			context: { symbol, bestFitness: result.bestFitness },
-		});
-		return { success: true, symbol, bestGenome: result.bestGenome };
 	}
 
 	private _handleTrainingError(
@@ -118,7 +107,7 @@ export class Trainer {
 		if (!this._lastInfo) {
 			return null;
 		}
-		return buildBestAgentSummary(this._lastInfo, this._summaryBuilder);
+		return this._lastInfo.buildBestAgentSummary();
 	}
 
 	getGenerationContext(): GenerationContext | null {
@@ -126,6 +115,6 @@ export class Trainer {
 	}
 
 	_computeSharpe(scores: number[]): number {
-		return GenomeSummaryBuilder.computeSharpe(scores);
+		return new EpisodeScores(scores).sharpe();
 	}
 }

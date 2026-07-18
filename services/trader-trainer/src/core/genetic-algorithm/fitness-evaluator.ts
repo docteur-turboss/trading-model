@@ -9,7 +9,7 @@ import type { ObjectiveVector } from "./nsga2";
 import { ParetoArchive } from "./pareto";
 import type { BackendFactory } from "./rl-backend";
 import type { DeepReadonly } from "./shared-types";
-import { StagnationTracker } from "./stagnation-tracker";
+import { StagnationTracker, type TrackResult } from "./stagnation-tracker";
 
 export interface FitnessEvaluatorConfig {
 	windowSets: WindowSet[];
@@ -30,12 +30,32 @@ export class FitnessEvaluator {
 		this._evalConcurrency = config.evalConcurrency;
 	}
 
-	get archive(): ParetoArchive {
-		return this._archive;
+	getArchiveMembers(): DeepReadonly<LamarckGenome>[] {
+		return this._archive.members;
 	}
 
-	get stagnationTracker(): StagnationTracker {
-		return this._stagnationTracker;
+	getArchiveSize(): number {
+		return this._archive.size;
+	}
+
+	getBestFitness(): number {
+		return this._stagnationTracker.bestFitness;
+	}
+
+	getStagnation(): number {
+		return this._stagnationTracker.stagnation;
+	}
+
+	getEfficiencyHistory(): number[] {
+		return this._stagnationTracker.efficiencyHistory;
+	}
+
+	trackStagnation(
+		popWithMeta: PopMember[],
+		metas: GenomeFitnessMeta[],
+		avgEff: number
+	): TrackResult | undefined {
+		return this._stagnationTracker.track(popWithMeta, metas, avgEff);
 	}
 
 	evaluate(population: DeepReadonly<LamarckGenome>[]): Promise<{

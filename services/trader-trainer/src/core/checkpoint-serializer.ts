@@ -18,11 +18,11 @@ export interface CheckpointMetadata {
 }
 
 export class CheckpointSerializer {
-	toJson(genome: DeepReadonly<LamarckGenome>): string {
+	serialize(genome: DeepReadonly<LamarckGenome>): string {
 		return JSON.stringify(genome, null, 2);
 	}
 
-	fromJson<TValue>(raw: string): TValue {
+	deserialize<TValue>(raw: string): TValue {
 		return JSON.parse(raw) as TValue;
 	}
 

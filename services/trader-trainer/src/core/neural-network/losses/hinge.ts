@@ -1,14 +1,12 @@
 import type { LossConfig } from "../type";
-import type { LossDefinition } from "./loss-definition";
-import { validateLengths } from "./validate-lengths";
+import { BaseLoss } from "./base-loss";
 
-export class HingeLoss implements LossDefinition {
-	loss(
+export class HingeLoss extends BaseLoss {
+	computeLoss(
 		output: Float32Array,
 		target: Float32Array,
 		_config: Required<LossConfig>
 	): number {
-		validateLengths(output, target);
 		const len = output.length;
 		let sum = 0;
 		for (let i = 0; i < len; i++) {
@@ -18,20 +16,18 @@ export class HingeLoss implements LossDefinition {
 		return sum / len;
 	}
 
-	gradient(
+	computeGradient(
 		output: Float32Array,
 		target: Float32Array,
-		_config: Required<LossConfig>
-	): Float32Array {
-		validateLengths(output, target);
+		_config: Required<LossConfig>,
+		out: Float32Array,
+		invN: number
+	): void {
 		const len = output.length;
-		const out = new Float32Array(len);
-		const invN = 1 / len;
 		for (let i = 0; i < len; i++) {
 			const outVal = output[i];
 			const tgt = target[i];
 			out[i] = (tgt * outVal < 1 ? -tgt : 0) * invN;
 		}
-		return out;
 	}
 }

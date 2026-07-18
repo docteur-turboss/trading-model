@@ -8,11 +8,7 @@ import { NoiseStd } from "@trading-model/common/domain/primitives/noise-std";
 import { Temperature } from "@trading-model/common/domain/primitives/temperature";
 import { InitialisationType } from "../neural-network/type";
 import type { Genome } from "./genome-types";
-import {
-	EncodedLayer,
-	LAYER_STRIDE,
-	readEncodedLayer,
-} from "./layer-codec";
+import { EncodedLayer, LAYER_STRIDE, readEncodedLayer } from "./layer-codec";
 
 export { readEncodedLayer } from "./layer-codec";
 
@@ -20,9 +16,11 @@ import { clamp } from "./utils";
 
 export const MAX_DEPTH = 12;
 
-interface ScalarFieldDef {
+interface ScalarFieldDef<
+	TKey extends keyof DecodedScalars = keyof DecodedScalars,
+> {
 	name: string;
-	key: keyof DecodedScalars;
+	key: TKey;
 	accessor: (genome: Genome) => number;
 	encode: (value: number) => number;
 	decode: (value: number) => number;
@@ -30,7 +28,35 @@ interface ScalarFieldDef {
 	round?: boolean;
 }
 
-const SCALAR_FIELDS: ScalarFieldDef[] = [
+export interface DecodedScalars {
+	gamma: Probability;
+	learningRate: Percentage;
+	clipMin: number;
+	clipMax: number;
+	scaleFactor: Percentage;
+	maxEpisodeLength: PositiveInt;
+	nStepReturn: PositiveInt;
+	frameSkip: PositiveInt;
+	epsilonStart: Probability;
+	epsilonMin: Probability;
+	epsilonDecay: Probability;
+	temperature: Temperature;
+	noiseStd: NoiseStd;
+	noiseDecay: Probability;
+	bufferSize: PositiveInt;
+	alphaPER: Probability;
+	betaPER: Probability;
+	mutationRate: Percentage;
+	sigma: Percentage;
+	selfSigma: Percentage;
+	inputDim: PositiveInt;
+	outputDim: PositiveInt;
+	depth: PositiveInt;
+}
+
+const SCALAR_FIELDS: {
+	[K in keyof DecodedScalars]: ScalarFieldDef<K>;
+}[keyof DecodedScalars][] = [
 	{
 		name: "Gamma",
 		key: "gamma",
@@ -222,13 +248,9 @@ const SCALAR_FIELDS: ScalarFieldDef[] = [
 		clamp: new NumericRange(1, MAX_DEPTH),
 		round: true,
 	},
-];
+] as const;
 
 export const SCALAR_DIM = SCALAR_FIELDS.length;
-
-/* ------------------------------------------------------------------ */
-/*  Layer encoding (neurons+activation+connectionType)                 */
-/* ------------------------------------------------------------------ */
 
 export function encodedDim(hiddenLayerCount: number): number {
 	return SCALAR_DIM + hiddenLayerCount * LAYER_STRIDE;
@@ -238,43 +260,15 @@ export function layerOffset(layerIndex: number): number {
 	return SCALAR_DIM + layerIndex * LAYER_STRIDE;
 }
 
-/* ------------------------------------------------------------------ */
-/*  Schema-driven encode / decode                                      */
-/* ------------------------------------------------------------------ */
-
-interface DecodedScalars {
-	gamma: Probability;
-	learningRate: Percentage;
-	clipMin: number;
-	clipMax: number;
-	scaleFactor: Percentage;
-	maxEpisodeLength: PositiveInt;
-	nStepReturn: PositiveInt;
-	frameSkip: PositiveInt;
-	epsilonStart: Probability;
-	epsilonMin: Probability;
-	epsilonDecay: Probability;
-	temperature: Temperature;
-	noiseStd: NoiseStd;
-	noiseDecay: Probability;
-	bufferSize: PositiveInt;
-	alphaPER: Probability;
-	betaPER: Probability;
-	mutationRate: Percentage;
-	sigma: Percentage;
-	selfSigma: Percentage;
-	inputDim: PositiveInt;
-	outputDim: PositiveInt;
-	depth: PositiveInt;
-}
-
 function decodeScalars(arr: Float32Array): DecodedScalars {
-	const entries = SCALAR_FIELDS.map((field, idx) => {
-		const decoded = field.decode(arr[idx]);
+	const result: Record<string, number> = {};
+	for (let i = 0; i < SCALAR_FIELDS.length; i++) {
+		const field = SCALAR_FIELDS[i];
+		const decoded = field.decode(arr[i]);
 		const clamped = field.clamp.clamp(decoded);
-		return [field.key, field.round ? Math.round(clamped) : clamped] as const;
-	});
-	return Object.fromEntries(entries) as unknown as DecodedScalars;
+		result[field.key] = field.round ? Math.round(clamped) : clamped;
+	}
+	return result as unknown as DecodedScalars;
 }
 
 function writeLayers(arr: Float32Array, net: Genome["network"]): void {

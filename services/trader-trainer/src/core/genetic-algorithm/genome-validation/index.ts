@@ -8,6 +8,8 @@ import type {
 	ValidationError,
 	ValidationResult,
 } from "../genome";
+import { repairNetwork, validateNetwork } from "../genome-network";
+import { repairRL, validateRL } from "../genome-rl";
 import {
 	repairCrossover,
 	repairGAControl,
@@ -17,8 +19,6 @@ import {
 	validateIdentity,
 	validateMutation,
 } from "./misc";
-import { repairNetwork, validateNetwork } from "./network";
-import { repairRL, validateRL } from "./rl";
 
 export function validateGenome(genome: Genome): ValidationResult {
 	const errors: ValidationError[] = [];

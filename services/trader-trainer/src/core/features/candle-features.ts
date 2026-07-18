@@ -4,19 +4,16 @@ import type {
 	Volume,
 } from "@trading-model/common/domain/primitives";
 
-export interface OhlcvNormalized {
+export interface CandleFeatures {
+	returnRatio: Ratio;
+	positionRatio: Ratio;
+	rangeRatio: Ratio;
+	volumeRatio: Ratio;
 	close: Price;
 	volume: Volume;
 	open: Price;
 	high: Price;
 	low: Price;
-}
-
-export interface CandleFeatures extends OhlcvNormalized {
-	returnRatio: Ratio;
-	positionRatio: Ratio;
-	rangeRatio: Ratio;
-	volumeRatio: Ratio;
 }
 
 export function emptyCandle(): CandleFeatures {

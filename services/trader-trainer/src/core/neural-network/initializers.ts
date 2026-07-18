@@ -1,49 +1,36 @@
+import type { WeightInitializer } from "./initializers/weight-initializer";
 import type { LayerDims } from "./layer-dims";
 import { InitialisationType } from "./type";
 import { GAUSSIAN_NOISE } from "./utils";
 
-export interface WeightInitializer {
-	initialize(dims: LayerDims): number;
-}
+export type { WeightInitializer } from "./initializers/weight-initializer";
 
-class ZerosInitializer implements WeightInitializer {
-	initialize(_dims: LayerDims): number {
-		return 0;
-	}
-}
-
-class HeInitializer implements WeightInitializer {
-	initialize(dims: LayerDims): number {
+const Zeros: WeightInitializer = { initialize: () => 0 };
+const Random: WeightInitializer = { initialize: () => Math.random() * 2 - 1 };
+const He: WeightInitializer = {
+	initialize: (dims: LayerDims) => {
 		const scale = Math.sqrt(2 / dims.fanIn);
 		return GAUSSIAN_NOISE(scale);
-	}
-}
-
-class XavierInitializer implements WeightInitializer {
-	initialize(dims: LayerDims): number {
+	},
+};
+const Xavier: WeightInitializer = {
+	initialize: (dims: LayerDims) => {
 		const limit = Math.sqrt(6 / (dims.fanIn + dims.fanOut));
 		return (Math.random() * 2 - 1) * limit;
-	}
-}
-
-class LeCunInitializer implements WeightInitializer {
-	initialize(dims: LayerDims): number {
+	},
+};
+const LeCun: WeightInitializer = {
+	initialize: (dims: LayerDims) => {
 		const scale = Math.sqrt(1 / dims.fanIn);
 		return GAUSSIAN_NOISE(scale);
-	}
-}
+	},
+};
 
-class RandomInitializer implements WeightInitializer {
-	initialize(_dims: LayerDims): number {
-		return Math.random() * 2 - 1;
-	}
-}
-
-export const ZEROS = new ZerosInitializer();
-export const HE = new HeInitializer();
-export const XAVIER = new XavierInitializer();
-export const LE_CUN = new LeCunInitializer();
-export const RANDOM_INIT = new RandomInitializer();
+export const ZEROS = Zeros;
+export const HE = He;
+export const XAVIER = Xavier;
+export const LE_CUN = LeCun;
+export const RANDOM_INIT = Random;
 
 export const INITIALIZERS: Record<InitialisationType, WeightInitializer> = {
 	[InitialisationType.Zeros]: ZEROS,

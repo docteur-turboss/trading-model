@@ -15,7 +15,7 @@ export { DEFAULT_VALIDATION_SPLIT, MIN_TRAINING_STEPS };
 
 export interface MarketDataBufferConfig {
 	maxSize?: number;
-	maxMemoryMb?: number;
+	maxMemoryBytes?: number;
 	evictionPolicy?: EvictionPolicy;
 }
 
@@ -30,7 +30,7 @@ export class MarketDataBuffer {
 	constructor(config: MarketDataBufferConfig = {}) {
 		this._stateManager = new SymbolStateManager({
 			maxSize: config.maxSize ?? 10000,
-			maxMemoryBytes: (config.maxMemoryMb ?? 512) * 1024 * 1024,
+			maxMemoryBytes: config.maxMemoryBytes ?? 512 * 1024 * 1024,
 			evictionPolicy: config.evictionPolicy ?? EvictionPolicy.None,
 		});
 		this._windowSplitter = new WindowSplitter(this._stateManager.states);

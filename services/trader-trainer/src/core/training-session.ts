@@ -54,7 +54,7 @@ export class TrainingSession {
 			bestGenome,
 			bestFitness: (lastCtx as GenerationContext | null)?.bestFitness ?? 0,
 			bestFitnessMeta: (lastCtx as GenerationContext | null)?.bestFitnessMeta,
-			generation: runner.getGeneration(),
+			generation: runner.processor.generation,
 			generationContext: lastCtx,
 		};
 	}

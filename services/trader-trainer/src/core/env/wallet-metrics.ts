@@ -3,8 +3,9 @@ import {
 	DecimalPrecision,
 	Percentage,
 	type PositiveInt,
+	type Price,
+	type Volume,
 } from "@trading-model/common/domain/primitives";
-import type { PortfolioState } from "./portfolio-state";
 
 export interface WalletMetrics {
 	pnl: Cash;
@@ -15,69 +16,62 @@ export interface WalletMetrics {
 	tradeCount: PositiveInt;
 }
 
-export interface ComputeWalletMetricsParams extends PortfolioState {
-	peakValuation: Cash;
-	initialCash: Cash;
-	totalFeesPaid: Cash;
-	tradeCount: PositiveInt;
-	decimals: DecimalPrecision;
-}
+export class ComputeWalletMetricsParams {
+	constructor(
+		readonly cash: Cash,
+		readonly position: Volume,
+		readonly price: Price,
+		readonly peakValuation: Cash,
+		readonly initialCash: Cash,
+		readonly totalFeesPaid: Cash,
+		readonly tradeCount: PositiveInt,
+		readonly decimals: DecimalPrecision
+	) {}
 
-function _computeValuation(params: ComputeWalletMetricsParams): Cash {
-	return Cash.of(
-		DecimalPrecision.round(
-			Number(params.cash) + params.position * Number(params.price),
-			params.decimals
-		)
-	);
-}
+	private _computeValuation(): Cash {
+		return Cash.of(
+			DecimalPrecision.round(
+				Number(this.cash) + this.position * Number(this.price),
+				this.decimals
+			)
+		);
+	}
 
-function _computePnL(
-	valuation: Cash,
-	params: ComputeWalletMetricsParams
-): Cash {
-	return DecimalPrecision.round(
-		Number(valuation) - Number(params.initialCash),
-		params.decimals
-	) as Cash;
-}
+	private _computePnL(valuation: Cash): Cash {
+		return DecimalPrecision.round(
+			Number(valuation) - Number(this.initialCash),
+			this.decimals
+		) as Cash;
+	}
 
-function _computeReturnRate(
-	valuation: Cash,
-	params: ComputeWalletMetricsParams
-): Percentage {
-	return DecimalPrecision.round(
-		(Number(valuation) - Number(params.initialCash)) /
-			Number(params.initialCash),
-		params.decimals
-	) as unknown as Percentage;
-}
+	private _computeReturnRate(valuation: Cash): Percentage {
+		return DecimalPrecision.round(
+			(Number(valuation) - Number(this.initialCash)) / Number(this.initialCash),
+			this.decimals
+		) as unknown as Percentage;
+	}
 
-function _computeDrawdown(
-	valuation: Cash,
-	params: ComputeWalletMetricsParams
-): Percentage {
-	return Percentage.of(
-		Number(params.peakValuation) > 0
-			? DecimalPrecision.round(
-					(Number(params.peakValuation) - Number(valuation)) /
-						Number(params.peakValuation),
-					params.decimals
-				)
-			: 0
-	);
-}
+	private _computeDrawdown(valuation: Cash): Percentage {
+		return Percentage.of(
+			Number(this.peakValuation) > 0
+				? DecimalPrecision.round(
+						(Number(this.peakValuation) - Number(valuation)) /
+							Number(this.peakValuation),
+						this.decimals
+					)
+				: 0
+		);
+	}
 
-export function computeWalletMetrics(
-	params: ComputeWalletMetricsParams
-): WalletMetrics {
-	const valuation: Cash = _computeValuation(params);
-	return {
-		pnl: _computePnL(valuation, params),
-		returnRate: _computeReturnRate(valuation, params),
-		peakValuation: params.peakValuation,
-		drawdown: _computeDrawdown(valuation, params),
-		totalFeesPaid: params.totalFeesPaid,
-		tradeCount: params.tradeCount,
-	};
+	compute(): WalletMetrics {
+		const valuation = this._computeValuation();
+		return {
+			pnl: this._computePnL(valuation),
+			returnRate: this._computeReturnRate(valuation),
+			peakValuation: this.peakValuation,
+			drawdown: this._computeDrawdown(valuation),
+			totalFeesPaid: this.totalFeesPaid,
+			tradeCount: this.tradeCount,
+		};
+	}
 }

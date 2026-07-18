@@ -1,3 +1,6 @@
+import { AdamOptimizer } from "./optimizers/adam";
+import { RmspropOptimizer } from "./optimizers/rmsprop";
+import { SgdOptimizer } from "./optimizers/sgd";
 import { OptimizerType } from "./type";
 
 export interface OptimizerHyperparams {
@@ -45,64 +48,6 @@ export interface OptimizerStepOptions<
 export interface Optimizer {
 	initState(size: number): OptimizerState;
 	step(options: OptimizerStepOptions): void;
-}
-
-class SgdOptimizer implements Optimizer {
-	initState(_size: number): SgdState {
-		return { stepCount: 0 };
-	}
-
-	step(options: OptimizerStepOptions<SgdState>): void {
-		const { params, grads, state, lr } = options;
-		state.stepCount++;
-		for (let i = 0; i < params.length; i++) {
-			params[i] -= lr * grads[i];
-		}
-	}
-}
-
-class AdamOptimizer implements Optimizer {
-	initState(size: number): AdamState {
-		return {
-			stepCount: 0,
-			moment1: new Float32Array(size),
-			moment2: new Float32Array(size),
-		};
-	}
-
-	step(options: OptimizerStepOptions<AdamState>): void {
-		const { params, grads, state, lr, hp } = options;
-		state.stepCount++;
-		const stepT = state.stepCount;
-		const lrT =
-			(lr * Math.sqrt(1 - hp.beta2 ** stepT)) / (1 - hp.beta1 ** stepT);
-
-		for (let i = 0; i < params.length; i++) {
-			const grad = grads[i];
-			state.moment1[i] = hp.beta1 * state.moment1[i] + (1 - hp.beta1) * grad;
-			state.moment2[i] =
-				hp.beta2 * state.moment2[i] + (1 - hp.beta2) * grad * grad;
-			params[i] -=
-				(lrT * state.moment1[i]) / (Math.sqrt(state.moment2[i]) + hp.epsilon);
-		}
-	}
-}
-
-class RmspropOptimizer implements Optimizer {
-	initState(size: number): RmspropState {
-		return { stepCount: 0, moment2: new Float32Array(size) };
-	}
-
-	step(options: OptimizerStepOptions<RmspropState>): void {
-		const { params, grads, state, lr, hp } = options;
-		state.stepCount++;
-		for (let i = 0; i < params.length; i++) {
-			const grad = grads[i];
-			state.moment2[i] =
-				hp.beta2 * state.moment2[i] + (1 - hp.beta2) * grad * grad;
-			params[i] -= (lr / (Math.sqrt(state.moment2[i]) + hp.epsilon)) * grad;
-		}
-	}
 }
 
 export const SGD = new SgdOptimizer();

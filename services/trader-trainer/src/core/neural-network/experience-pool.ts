@@ -33,10 +33,19 @@ export class ExperiencePool implements IExperiencePool {
 	}
 
 	private _evictOldest(): void {
-		const firstKey = this._poolMap.keys().next().value!;
+		const firstKey = this._firstMapKey();
 		const oldest = this._poolMap.get(firstKey);
 		this._poolMap.delete(firstKey);
 		this._poolInputToId.delete(oldest!.input);
+	}
+
+	private _firstMapKey(): number {
+		for (const key of this._poolMap.keys()) {
+			return key;
+		}
+		throw new Error(
+			"unreachable: caller checks poolMap.size > 0 before eviction"
+		);
 	}
 
 	public add(experience: Experience): void {

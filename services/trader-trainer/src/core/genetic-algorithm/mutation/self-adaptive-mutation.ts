@@ -1,6 +1,6 @@
 import type { Percentage } from "@trading-model/common/domain/primitives";
-import type { MutationGenome } from "../genome-types";
-import { MutationDistribution } from "../genome-types";
+import type { MutationGenome } from "../genome-mutation";
+import { MutationDistribution } from "../genome-mutation";
 import { sampleGaussian, sampleNoise } from "../noise";
 import { clamp } from "../utils";
 

@@ -1,5 +1,5 @@
-import type { MutationGenome } from "../genome-types";
-import { MutationAdaptation } from "../genome-types";
+import type { MutationGenome } from "../genome-mutation";
+import { MutationAdaptation } from "../genome-mutation";
 import { sampleGaussian } from "../noise";
 
 interface SigmaAdapter {

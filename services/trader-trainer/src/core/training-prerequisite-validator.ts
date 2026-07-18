@@ -5,7 +5,7 @@ import {
 	MIN_TRAINING_STEPS,
 } from "./market-data-buffer";
 import type { TradingSymbol } from "./market-data-types";
-import type { TrainingFailure } from "./trainer";
+import type { TrainingFailure } from "./training-types";
 
 export class TrainingPrerequisiteValidator {
 	constructor(

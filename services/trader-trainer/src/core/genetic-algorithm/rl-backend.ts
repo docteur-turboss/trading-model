@@ -26,8 +26,7 @@ export interface RLBackend {
 export type BackendFactory = (genome: DeepReadonly<LamarckGenome>) => RLBackend;
 
 function _buildNNConfig(
-	genome: DeepReadonly<LamarckGenome>,
-	rb: DeepReadonly<LamarckGenome["rl"]["replayBuffer"]>
+	genome: DeepReadonly<LamarckGenome>
 ): TradingAgentConfig["nnConfig"] {
 	return {
 		neuronsByLayer: [
@@ -45,7 +44,7 @@ function _buildNNConfig(
 			genome.network.hiddenLayers[0]?.biasType ?? InitialisationType.Random,
 		normalisationType: genome.network.normalization,
 		enablePool: true,
-		poolMaxSize: rb.bufferSize,
+		poolMaxSize: genome.rl.replayBuffer.bufferSize,
 	};
 }
 
@@ -65,7 +64,7 @@ function _buildAgentConfig(
 	genome: DeepReadonly<LamarckGenome>
 ): TradingAgentConfig {
 	return {
-		nnConfig: _buildNNConfig(genome, genome.rl.replayBuffer),
+		nnConfig: _buildNNConfig(genome),
 		wallet: { initialCash: Cash.of(1000), initialPrice: Price.of(1) },
 		actionSpace: ActionSpace.Discrete,
 		tradeAmount: Volume.of(1),
@@ -96,7 +95,7 @@ function _makeTrainFn(agent: TradingAgent): RLBackend["train"] {
 		try {
 			agent.learnQLearning(experience, gamma);
 		} catch {
-			// Q-learning error skipped
+			logger.warn("Q-learning training step failed");
 		}
 	};
 }

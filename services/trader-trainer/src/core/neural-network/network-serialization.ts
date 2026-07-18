@@ -3,42 +3,6 @@ import { agentError } from "@trading-model/common/utils/errors";
 import type { LayerMemory } from "./type";
 import { GAUSSIAN_NOISE as gaussianNoise } from "./utils";
 
-interface CursorBufferOptions {
-	buffer: Float32Array;
-	initialCursor?: number;
-}
-
-class CursorBuffer {
-	private readonly _buffer: Float32Array;
-	private _cursor: number;
-
-	constructor(options: CursorBufferOptions) {
-		this._buffer = options.buffer;
-		this._cursor = options.initialCursor ?? 0;
-	}
-
-	get cursor(): number {
-		return this._cursor;
-	}
-
-	read(): number {
-		const value = this._buffer[this._cursor];
-		this._cursor++;
-		return value;
-	}
-
-	write(value: number): void {
-		this._buffer[this._cursor] = value;
-		this._cursor++;
-	}
-
-	writeAll(values: Float32Array): void {
-		for (let i = 0; i < values.length; i++) {
-			this._buffer[this._cursor++] = values[i];
-		}
-	}
-}
-
 /**
  * Count total trainable parameters (weights + biases) across all layers.
  */
@@ -60,10 +24,14 @@ export function parameterCount(layers: LayerMemory[]): number {
 export function getWeights(layers: LayerMemory[]): Float32Array {
 	const total = parameterCount(layers);
 	const buffer = new Float32Array(total);
-	const buf = new CursorBuffer({ buffer });
+	let cursor = 0;
 	for (const layer of layers) {
-		buf.writeAll(layer.weights);
-		buf.writeAll(layer.bias);
+		for (let i = 0; i < layer.weights.length; i++) {
+			buffer[cursor++] = layer.weights[i];
+		}
+		for (let i = 0; i < layer.bias.length; i++) {
+			buffer[cursor++] = layer.bias[i];
+		}
 	}
 	return buffer;
 }
@@ -87,13 +55,13 @@ function _validateBufferLength(
 
 export function setWeights(layers: LayerMemory[], buffer: Float32Array): void {
 	_validateBufferLength(layers, buffer);
-	const buf = new CursorBuffer({ buffer });
+	let cursor = 0;
 	for (const layer of layers) {
 		for (let i = 0; i < layer.weights.length; i++) {
-			layer.weights[i] = buf.read();
+			layer.weights[i] = buffer[cursor++];
 		}
 		for (let i = 0; i < layer.bias.length; i++) {
-			layer.bias[i] = buf.read();
+			layer.bias[i] = buffer[cursor++];
 		}
 	}
 }

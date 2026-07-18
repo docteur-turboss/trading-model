@@ -1,3 +1,4 @@
+import { checkTerminationConditions } from "./adaptive-control-system";
 import type { GARunnerConfig, GenerationContext } from "./generation-processor";
 import { GenerationProcessor } from "./generation-processor";
 import type {
@@ -22,26 +23,18 @@ export interface ParetoFrontContext {
 }
 
 export class GeneticAlgorithmRunner {
-	private readonly _processor: GenerationProcessor;
+	public readonly processor: GenerationProcessor;
 
 	constructor(private readonly _cfg: GARunnerConfig) {
-		this._processor = new GenerationProcessor(_cfg);
-	}
-
-	public initialise(baseControl?: Partial<GAControlGenome>): void {
-		this._processor.initialise(baseControl);
-	}
-
-	public runGeneration(startTime?: number): Promise<GenerationContext> {
-		return this._processor.runGeneration(startTime);
+		this.processor = new GenerationProcessor(_cfg);
 	}
 
 	public async run(): Promise<DeepReadonly<LamarckGenome>> {
-		this.initialise(this._cfg.initialControl);
+		this.processor.initialise(this._cfg.initialControl);
 		const startTime = Date.now();
 
 		while (true) {
-			const ctx = await this.runGeneration(startTime);
+			const ctx = await this.processor.runGeneration(startTime);
 			if (this._shouldTerminate(ctx)) {
 				break;
 			}
@@ -51,32 +44,18 @@ export class GeneticAlgorithmRunner {
 	}
 
 	private _shouldTerminate(ctx: GenerationContext): boolean {
-		return (
-			ctx.bestFitness >= ctx.gaControl.termination.rewardThreshold ||
-			ctx.stagnation >= ctx.gaControl.termination.stagnationPatience ||
-			ctx.generation >= ctx.gaControl.termination.maxGenerations ||
-			ctx.elapsedMs >= ctx.gaControl.termination.timeBudgetMs
-		);
+		return checkTerminationConditions({
+			generation: ctx.generation,
+			bestFitness: ctx.bestFitness,
+			stagnation: ctx.stagnation,
+			elapsedMs: ctx.elapsedMs,
+			ctrl: ctx.gaControl,
+		}).shouldStop;
 	}
 
 	private _bestGenome(): DeepReadonly<LamarckGenome> {
 		return (
-			this._processor.archive.members[0] ??
-			this._processor.lastBestGenome ??
-			this._processor.population[0]
+			this.processor.getArchiveMembers()[0] ?? this.processor.population[0]
 		);
-	}
-
-	public getPopulation(): DeepReadonly<LamarckGenome>[] {
-		return this._processor.population;
-	}
-	public getBestGenome(): DeepReadonly<LamarckGenome> | null {
-		return this._processor.lastBestGenome ?? null;
-	}
-	public getArchive(): DeepReadonly<LamarckGenome>[] {
-		return this._processor.archive.members;
-	}
-	public getGeneration(): number {
-		return this._processor.generation;
 	}
 }

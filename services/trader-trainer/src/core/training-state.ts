@@ -14,7 +14,7 @@ import type {
 } from "./genetic-algorithm/genome";
 import type { LamarckGenome } from "./genetic-algorithm/genome-types";
 import type { DeepReadonly } from "./genetic-algorithm/shared-types";
-import type { GenomeSummaryBuilder } from "./genome-summary-builder";
+import { buildSummary } from "./genome-summary-builder";
 import type { TradingSymbol } from "./market-data-types";
 
 /** Summary of the best trained agent for API responses. */
@@ -48,18 +48,21 @@ export interface BestAgentSummary {
 	};
 }
 
-export interface LastTrainingInfo {
-	symbol: TradingSymbol;
-	bestGenome: DeepReadonly<LamarckGenome>;
-	bestFitness: Fitness;
-	bestFitnessMeta?: GenomeFitnessMeta;
-	generation: PositiveInt;
-	generationContext: GenerationContext | null;
-}
+export class LastTrainingInfo {
+	constructor(
+		readonly symbol: TradingSymbol,
+		readonly bestGenome: DeepReadonly<LamarckGenome>,
+		readonly bestFitness: Fitness,
+		readonly bestFitnessMeta: GenomeFitnessMeta | undefined,
+		readonly generation: PositiveInt,
+		readonly generationContext: GenerationContext | null
+	) {}
 
-export function buildBestAgentSummary(
-	info: LastTrainingInfo,
-	builder: GenomeSummaryBuilder
-): BestAgentSummary {
-	return builder.build(info.bestGenome, info.bestFitness, info.bestFitnessMeta);
+	buildBestAgentSummary(): BestAgentSummary {
+		return buildSummary(
+			this.bestGenome,
+			this.bestFitness,
+			this.bestFitnessMeta
+		);
+	}
 }

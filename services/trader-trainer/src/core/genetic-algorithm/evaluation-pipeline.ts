@@ -9,18 +9,17 @@ import type {
 	GenomeEvaluationContext,
 } from "./evaluation-phase";
 import { evalPhase } from "./evaluation-phase";
+import { computeAllResults, lamarckianUpdate } from "./evaluation-utils";
 import {
-	_computeAllResults,
-	_validateEvalResult,
-	_validateGenomeInputs,
-	deepFreeze,
-	lamarckianUpdate,
-} from "./evaluation-utils";
+	validateEvalResult,
+	validateGenomeInputs,
+} from "./evaluation-validation";
 import type { WindowSet } from "./generation-types";
 import type { GenomeFitnessMeta, LamarckGenome } from "./genome-types";
 import { precomputeRewards } from "./reward-shaping";
 import type { BackendFactory } from "./rl-backend";
 import type { DeepReadonly } from "./shared-types";
+import { deepFreeze } from "./shared-types";
 import { trainPhase } from "./training-phase";
 
 export type { EvaluationResult, GenomeFitnessMeta };
@@ -34,7 +33,7 @@ export function evaluateSingleGenomeOnWindow(
 	windowSet: WindowSet,
 	backendFactory: BackendFactory
 ): EvaluationResult {
-	_validateGenomeInputs(genome, windowSet);
+	validateGenomeInputs(genome, windowSet);
 
 	const shadowBackend = backendFactory(genome);
 	const shadowStats = new NormalizationStats();
@@ -62,7 +61,7 @@ export function evaluateSingleGenomeOnWindow(
 	};
 	const evalResult = evalPhase(evalCtx);
 
-	_validateEvalResult(evalResult);
+	validateEvalResult(evalResult);
 
 	return {
 		updatedGenome,
@@ -105,7 +104,7 @@ export function evaluateGenomeAllWindows(
 	}
 
 	return Promise.resolve(
-		_computeAllResults({
+		computeAllResults({
 			genome,
 			currentGenome,
 			allRaw,

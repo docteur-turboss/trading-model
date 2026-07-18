@@ -3,6 +3,7 @@ import { createBootstrap } from "@trading-model/server-utils/server/bootstrap";
 import { BOOTSTRAP_ADDRESS_MANAGER } from "../config/address-manager";
 import { ENV } from "../config/env";
 import { MessageManager } from "../config/message-manager";
+import { DataType } from "../core/data-handlers/data-types";
 import { ApplicationContainer } from "./container";
 import { createServer } from "./server";
 
@@ -23,7 +24,7 @@ const CONTAINER = new ApplicationContainer({
 	episodesPerIndividual: ENV.TRAINER_EPISODES_PER_INDIVIDUAL,
 });
 
-const { trainer } = CONTAINER;
+const { trainer, eventHandler, trainingLoop } = CONTAINER;
 
 createBootstrap({
 	name: "Trader Trainer",
@@ -32,27 +33,27 @@ createBootstrap({
 		addressManager = BOOTSTRAP_ADDRESS_MANAGER();
 
 		MessageManager.on("fetchCandlestickSeries" as never, (data: never) =>
-			CONTAINER.onCandlestickSeries(data as never)
+			eventHandler.handle(DataType.Candle, data)
 		);
 		MessageManager.on("fetchRecentTrades" as never, (data: never) =>
-			CONTAINER.onRecentTrades(data as never)
+			eventHandler.handle(DataType.Trade, data)
 		);
 		MessageManager.on("fetchOrderBookSnapshot" as never, (data: never) =>
-			CONTAINER.onOrderBookSnapshot(data as never)
+			eventHandler.handle(DataType.OrderBook, data)
 		);
 		MessageManager.on("fetchOrderBookTickerSnapshot" as never, (data: never) =>
-			CONTAINER.onOrderBookTickerSnapshot(data as never)
+			eventHandler.handle(DataType.BookTicker, data)
 		);
 		MessageManager.on("fetch24hrTickerStats" as never, (data: never) =>
-			CONTAINER.on24hrTickerStats(data as never)
+			eventHandler.handle(DataType.Ticker, data)
 		);
 		MessageManager.on("fetchPriceTickerSnapshot" as never, (data: never) =>
-			CONTAINER.onPriceTickerSnapshot(data as never)
+			eventHandler.handle(DataType.Price, data)
 		);
 
-		await MessageManager.intents(CONTAINER.getSubscribedIntents());
+		await MessageManager.intents(eventHandler.getSubscribedIntents());
 
-		CONTAINER.startTrainingLoop({
+		trainingLoop.start({
 			symbols: ENV.TRAINER_SYMBOLS.split(",").map((symbol) =>
 				toSymbol(symbol.trim())
 			),
@@ -60,7 +61,7 @@ createBootstrap({
 		});
 	},
 	onStop: async () => {
-		CONTAINER.stopTrainingLoop();
+		trainingLoop.stop();
 		addressManager.stop();
 		await MessageManager.stopMessageManager();
 	},

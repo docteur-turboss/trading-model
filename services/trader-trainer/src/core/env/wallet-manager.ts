@@ -6,7 +6,10 @@ import {
 import { TradeExecutor } from "./trade-executor";
 import { type TradeRecord, TradeRecorder } from "./trade-recorder";
 import { WalletConfig, type WalletConfigParams } from "./wallet-config";
-import { computeWalletMetrics, type WalletMetrics } from "./wallet-metrics";
+import {
+	ComputeWalletMetricsParams,
+	type WalletMetrics,
+} from "./wallet-metrics";
 
 export type { TradeRecord, WalletConfigParams as WalletConfig, WalletMetrics };
 
@@ -27,9 +30,11 @@ export interface WalletAPI {
 export class Wallet implements WalletAPI {
 	private readonly _executor: TradeExecutor;
 	private readonly _recorder: TradeRecorder;
+	private readonly _config: WalletConfig;
 
 	constructor(params: WalletConfigParams) {
 		const config = new WalletConfig(params);
+		this._config = config;
 		this._recorder = new TradeRecorder({
 			initialCash: config.initialCash,
 			decimals: config.decimals,
@@ -74,16 +79,16 @@ export class Wallet implements WalletAPI {
 	}
 
 	getMetrics(): WalletMetrics {
-		return computeWalletMetrics({
-			cash: this._executor.cash,
-			position: this._executor.position,
-			price: this._executor.price,
-			peakValuation: this._recorder.getPeakValuation(),
-			initialCash: this._executor.config.initialCash,
-			totalFeesPaid: this._recorder.getTotalFeesPaid(),
-			tradeCount: this._recorder.getTradeCount(),
-			decimals: this._executor.config.decimals,
-		});
+		return new ComputeWalletMetricsParams(
+			this._executor.cash,
+			this._executor.position,
+			this._executor.price,
+			this._recorder.getPeakValuation(),
+			this._config.initialCash,
+			this._recorder.getTotalFeesPaid(),
+			this._recorder.getTradeCount(),
+			this._config.decimals
+		).compute();
 	}
 
 	getHistory(): Readonly<TradeRecord[]> {

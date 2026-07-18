@@ -1,5 +1,4 @@
 import { logger } from "@trading-model/common/config/logger";
-import { NumericRange } from "@trading-model/common/domain/numeric-range";
 import { agentError } from "@trading-model/common/utils/errors";
 import { INITIALIZERS } from "./initializers";
 import type { LayerDims } from "./layer-dims";
@@ -9,60 +8,9 @@ import {
 	type OptimizerHyperparams,
 } from "./optimizer";
 import type { LayerMemory, LayerWeights, NeuralNetworkConfig } from "./type";
-import {
-	ActivationType,
-	ConnectionType,
-	InitialisationType,
-	LossFunctionType,
-	NormalisationType,
-	OptimizerType,
-} from "./type";
+import { ActivationType, LossFunctionType } from "./type";
 
-function _resolveActivationType(
-	cfg: NeuralNetworkConfig
-): Required<NeuralNetworkConfig>["activationType"] {
-	return (
-		cfg.activationType ??
-		new Array(cfg.neuronsByLayer.length - 1).fill(ActivationType.Relu)
-	);
-}
-
-function _resolveBiasInit(
-	cfg: NeuralNetworkConfig
-): Required<NeuralNetworkConfig>["biasInitialisationType"] {
-	return (
-		cfg.biasInitialisationType ??
-		cfg.initialisationType ??
-		InitialisationType.Random
-	);
-}
-
-export function mergeConfig(
-	cfg: NeuralNetworkConfig
-): Required<NeuralNetworkConfig> {
-	return {
-		useBias: cfg.useBias ?? true,
-		deltaHuber: cfg.deltaHuber ?? 1,
-		enablePool: cfg.enablePool ?? true,
-		neuronsByLayer: cfg.neuronsByLayer,
-		poolMaxSize: cfg.poolMaxSize ?? 10_000,
-		learningRate: cfg.learningRate ?? 0.001,
-		optimizerType: cfg.optimizerType ?? OptimizerType.Sgd,
-		gradientClipNorm: cfg.gradientClipNorm ?? 5.0,
-		biasMutationScale: cfg.biasMutationScale ?? 0.05,
-		normalisationType: cfg.normalisationType ?? NormalisationType.None,
-		weightMutationScale: cfg.weightMutationScale ?? 0.1,
-		optimizerHyperparams: cfg.optimizerHyperparams ?? {},
-		initialisationType: cfg.initialisationType ?? InitialisationType.Random,
-		connectionType: cfg.connectionType ?? ConnectionType.FullyConnected,
-		lossFunctionType: cfg.lossFunctionType ?? LossFunctionType.MeanSquaredError,
-		normalizedInputRange:
-			cfg.normalizedInputRange ??
-			new NumericRange(0, cfg.neuronsByLayer[0] - 1),
-		biasInitialisationType: _resolveBiasInit(cfg),
-		activationType: _resolveActivationType(cfg),
-	};
-}
+export { mergeConfig } from "./type";
 
 function _initializeWeights(
 	dims: LayerDims,

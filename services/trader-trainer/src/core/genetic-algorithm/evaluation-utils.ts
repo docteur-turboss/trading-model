@@ -3,17 +3,16 @@ import {
 	PositiveInt,
 	Ratio,
 } from "@trading-model/common/domain/primitives";
+
 import {
 	computeAdjustedFitness,
 	estimateComplexity,
 } from "./complexity-estimator";
 import { EpisodeScores } from "./episode-scores";
-import type { WindowSet } from "./generation-types";
 import type { GenomeFitnessMeta } from "./genome";
 import type { LamarckGenome } from "./genome-types";
 import type { RLBackend } from "./rl-backend";
 import type { DeepReadonly } from "./shared-types";
-import { computeSharpe } from "./utils";
 
 export function lamarckianUpdate(
 	genome: DeepReadonly<LamarckGenome>,
@@ -26,67 +25,11 @@ export function lamarckianUpdate(
 	} as DeepReadonly<LamarckGenome>;
 }
 
-export function deepFreeze<TValue>(obj: TValue): DeepReadonly<TValue> {
-	if (obj === null || typeof obj !== "object") {
-		return obj as DeepReadonly<TValue>;
-	}
-
-	if (ArrayBuffer.isView(obj)) {
-		return obj as DeepReadonly<TValue>;
-	}
-
-	for (const key of Object.keys(obj)) {
-		const val = (obj as Record<string, unknown>)[key];
-		if (val !== null && typeof val === "object" && !Object.isFrozen(val)) {
-			deepFreeze(val);
-		}
-	}
-	return Object.freeze(obj) as DeepReadonly<TValue>;
-}
-
-function computeFitness(_fitnessType: string, scores: number[]): number {
+function computeFitness(scores: number[]): number {
 	if (scores.length === 0) {
 		return 0;
 	}
-	return scores.reduce((sum, value) => sum + value, 0) / scores.length;
-}
-
-function invariant(condition: boolean, message: string): asserts condition {
-	if (!condition) {
-		throw new Error(`[Invariant] ${message}`);
-	}
-}
-
-export function _validateGenomeInputs(
-	genome: DeepReadonly<LamarckGenome>,
-	windowSet: WindowSet
-): void {
-	invariant(genome.network.inputDim > 0, "inputDim must be positive");
-	invariant(genome.network.outputDim > 0, "outputDim must be positive");
-	invariant(
-		genome.rl.rewardShaping?.clipBounds !== null &&
-			typeof genome.rl.rewardShaping.clipBounds.lo === "number" &&
-			typeof genome.rl.rewardShaping.clipBounds.hi === "number",
-		"rewardShaping.clipBounds must have numeric lo/hi"
-	);
-	invariant(windowSet.train.length > 0, "windowSet.train must not be empty");
-	invariant(
-		windowSet.validation.length > 0,
-		"windowSet.validation must not be empty"
-	);
-}
-
-export function _validateEvalResult(result: {
-	rawScores: number[];
-	finalPnL: number;
-}): void {
-	invariant(
-		Number.isFinite(result.finalPnL),
-		`finalPnL must be finite, got ${result.finalPnL}`
-	);
-	for (const score of result.rawScores) {
-		invariant(Number.isFinite(score), `rawScore must be finite, got ${score}`);
-	}
+	return new EpisodeScores(scores).mean();
 }
 
 export interface ComputeAllResultsContext {
@@ -97,13 +40,34 @@ export interface ComputeAllResultsContext {
 	t0: number;
 }
 
+export function computeAllResults(ctx: ComputeAllResultsContext): {
+	updatedGenome: DeepReadonly<LamarckGenome>;
+	meta: GenomeFitnessMeta;
+	objectives: { avgPnl: number; sharpe: number; negFlops: number };
+} {
+	const { genome, currentGenome, allRaw, allPnL, t0 } = ctx;
+	const complexity = estimateComplexity(currentGenome);
+	const adjFitness = _computeAdjustedFitnessForGenome(
+		genome,
+		currentGenome,
+		allRaw,
+		complexity
+	);
+
+	return {
+		updatedGenome: currentGenome,
+		meta: _buildFitnessMeta(allRaw, adjFitness, t0),
+		objectives: _buildObjectives(allPnL, allRaw, complexity),
+	};
+}
+
 function _computeAdjustedFitnessForGenome(
 	genome: DeepReadonly<LamarckGenome>,
 	currentGenome: DeepReadonly<LamarckGenome>,
-	allRaw: number[]
+	allRaw: number[],
+	complexity: ReturnType<typeof estimateComplexity>
 ): number {
-	const complexity = estimateComplexity(currentGenome);
-	const fitness = computeFitness(genome.gaControl.fitnessType, allRaw);
+	const fitness = computeFitness(allRaw);
 	return computeAdjustedFitness(fitness, complexity, 0.15);
 }
 
@@ -125,31 +89,11 @@ function _buildFitnessMeta(
 function _buildObjectives(
 	allPnL: number[],
 	allRaw: number[],
-	complexity: import("./complexity-estimator").ComplexityProfile
+	complexity: { inferenceFLOPs: number }
 ): { avgPnl: number; sharpe: number; negFlops: number } {
 	return {
 		avgPnl: allPnL.reduce((sum, value) => sum + value, 0) / allPnL.length,
-		sharpe: computeSharpe(allRaw),
+		sharpe: new EpisodeScores(allRaw).sharpe(),
 		negFlops: -complexity.inferenceFLOPs,
-	};
-}
-
-export function _computeAllResults(ctx: ComputeAllResultsContext): {
-	updatedGenome: DeepReadonly<LamarckGenome>;
-	meta: GenomeFitnessMeta;
-	objectives: { avgPnl: number; sharpe: number; negFlops: number };
-} {
-	const { genome, currentGenome, allRaw, allPnL, t0 } = ctx;
-	const complexity = estimateComplexity(currentGenome);
-	const adjFitness = _computeAdjustedFitnessForGenome(
-		genome,
-		currentGenome,
-		allRaw
-	);
-
-	return {
-		updatedGenome: currentGenome,
-		meta: _buildFitnessMeta(allRaw, adjFitness, t0),
-		objectives: _buildObjectives(allPnL, allRaw, complexity),
 	};
 }

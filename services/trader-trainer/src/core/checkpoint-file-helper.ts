@@ -40,7 +40,7 @@ export class CheckpointFileHelper {
 
 	save(target: CheckpointTarget): void {
 		const path = this.checkpointPath(target.symbol);
-		this._io.writeFile(path, this._serializer.toJson(target.genome));
+		this._io.writeFile(path, this._serializer.serialize(target.genome));
 		this._writeMetadata(target);
 		logger.info("Checkpoint saved", {
 			context: {
@@ -63,7 +63,8 @@ export class CheckpointFileHelper {
 			return null;
 		}
 		const raw = this._io.readFile(path);
-		const genome = this._serializer.fromJson<DeepReadonly<LamarckGenome>>(raw);
+		const genome =
+			this._serializer.deserialize<DeepReadonly<LamarckGenome>>(raw);
 		logger.info("Checkpoint loaded", {
 			context: {
 				symbol,

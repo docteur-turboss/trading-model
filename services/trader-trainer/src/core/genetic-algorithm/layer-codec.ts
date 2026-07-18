@@ -1,5 +1,11 @@
 import { ActivationType, ConnectionType } from "../neural-network/type";
 
+enum LayerField {
+	Neurons = 0,
+	Activation = 1,
+	ConnectionType = 2,
+}
+
 export const LAYER_STRIDE = 3;
 
 class ActivationCodec {
@@ -81,16 +87,20 @@ export class EncodedLayer {
 
 	static read(arr: Float32Array, offset: number): EncodedLayer {
 		return new EncodedLayer(
-			arr[offset],
-			ACTIVATION_CODEC.decode(arr[offset + 1]),
-			CONNECTION_TYPE_CODEC.decode(arr[offset + 2])
+			arr[offset + LayerField.Neurons],
+			ACTIVATION_CODEC.decode(arr[offset + LayerField.Activation]),
+			CONNECTION_TYPE_CODEC.decode(arr[offset + LayerField.ConnectionType])
 		);
 	}
 
 	write(arr: Float32Array, offset: number): void {
-		arr[offset] = this.neurons;
-		arr[offset + 1] = ACTIVATION_CODEC.encode(this.activation);
-		arr[offset + 2] = CONNECTION_TYPE_CODEC.encode(this.connectionType);
+		arr[offset + LayerField.Neurons] = this.neurons;
+		arr[offset + LayerField.Activation] = ACTIVATION_CODEC.encode(
+			this.activation
+		);
+		arr[offset + LayerField.ConnectionType] = CONNECTION_TYPE_CODEC.encode(
+			this.connectionType
+		);
 	}
 }
 

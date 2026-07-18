@@ -1,10 +1,6 @@
-import type { Port } from "@trading-model/common/domain/primitives";
 import { catchSync } from "@trading-model/common/middleware/catch-error";
 import { ResponseException } from "@trading-model/common/middleware/response-exception";
-import {
-	buildTlsFromEnv,
-	createSecureServer,
-} from "@trading-model/server-utils/server/create-secure-server";
+import { createServiceServer } from "@trading-model/server-utils/server/service-server-factory";
 
 import { ADDRESS_MANAGER_ROUTES } from "../config/address-manager";
 import { ENV } from "../config/env";
@@ -13,9 +9,8 @@ import type { Trainer } from "../core/trainer";
 
 /** Create and return a secure Express server with trader-trainer routes. */
 export function createServer(trainer: Trainer) {
-	return createSecureServer({
-		port: ENV.PORT as Port,
-		tls: buildTlsFromEnv(ENV),
+	return createServiceServer({
+		env: ENV,
 		routes: (app) => {
 			app.get("/best-agent", createBestAgentHandler(trainer));
 			app.get("/training-status", createTrainingStatusHandler(trainer));
