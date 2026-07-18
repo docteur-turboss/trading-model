@@ -1,4 +1,5 @@
 import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
+import { DurationMs } from "@trading-model/common/domain/primitives";
 import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
 import type {
 	RegistryBackend,
@@ -31,7 +32,7 @@ export class CachedRegistryCore {
 		this._backend = options.backend;
 		this.cache = new CacheManager({
 			maxSize: options.maxEntries ?? 5000,
-			ttlMs: options.cacheTtlMs,
+			ttlMs: DurationMs.of(options.cacheTtlMs),
 		});
 		this.pubSub = new PubSubInvalidator(options.redisUrlForPubSub);
 		this.pingManager = new BackendPingManager(
@@ -41,7 +42,9 @@ export class CachedRegistryCore {
 		);
 		this.healthMonitor = new RedisHealthMonitor({
 			failureThreshold: options.redisFailureThreshold ?? 3,
-			healthCheckIntervalMs: options.redisHealthCheckIntervalMs ?? 15_000,
+			healthCheckIntervalMs: DurationMs.of(
+				options.redisHealthCheckIntervalMs ?? 15_000
+			),
 			shouldRun: () =>
 				Boolean(options.redisUrlForPubSub || this.pingManager.isRedisBackend()),
 			callbacks: {

@@ -1,19 +1,10 @@
-import type { IncomingMessage } from "node:http";
 import type https from "node:https";
 import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import type { InstanceId } from "@trading-model/common/domain/primitives";
-import type WebSocket from "ws";
+import type { WebSocketServer as WssServerLike } from "ws";
 import { WebSocketServer } from "ws";
 import { ClientConnectionManager } from "./client-connection-manager";
 import { WsProtocolHandler } from "./ws-protocol-handler";
-
-interface WssServerLike {
-	on(
-		event: "connection",
-		listener: (ws: WebSocket, req: IncomingMessage) => void
-	): void;
-	close(callback?: () => void): void;
-}
 
 interface WsDiscoveryServerOptions {
 	path?: string;

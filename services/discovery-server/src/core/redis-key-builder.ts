@@ -1,32 +1,39 @@
 import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import type { InstanceId } from "@trading-model/common/domain/primitives";
-import { RedisKeyBuilder } from "@trading-model/common/persistence/redis-key-builder";
+import { buildRedisKey } from "@trading-model/common/persistence/redis-key-builder";
 
-export class ServiceRegistryKeyBuilder extends RedisKeyBuilder {
-	serviceInstancesSet(serviceName: ServiceInstanceName): string {
-		return this.key("service", serviceName, "instances");
-	}
+export function serviceInstancesSet(
+	prefix: string,
+	serviceName: ServiceInstanceName
+): string {
+	return buildRedisKey(prefix, "service", serviceName, "instances");
+}
 
-	instanceMetadata(instanceId: InstanceId): string {
-		return this.key("instance", instanceId, "metadata");
-	}
+export function instanceMetadata(
+	prefix: string,
+	instanceId: InstanceId
+): string {
+	return buildRedisKey(prefix, "instance", instanceId, "metadata");
+}
 
-	instanceToken(instanceId: InstanceId): string {
-		return this.key("instance", instanceId, "token");
-	}
+export function instanceToken(prefix: string, instanceId: InstanceId): string {
+	return buildRedisKey(prefix, "instance", instanceId, "token");
+}
 
-	instanceUpdatedBy(instanceId: InstanceId): string {
-		return this.key("instance", instanceId, "updatedBy");
-	}
+export function instanceUpdatedBy(
+	prefix: string,
+	instanceId: InstanceId
+): string {
+	return buildRedisKey(prefix, "instance", instanceId, "updatedBy");
+}
 
-	servicePattern(): string {
-		return this.key("service:*:instances");
-	}
+export function servicePattern(prefix: string): string {
+	return buildRedisKey(prefix, "service:*:instances");
+}
 
-	parseServiceName(key: string): string | null {
-		const match = key.match(
-			new RegExp(`^${this.key("service:(.+):instances")}$`)
-		);
-		return match ? match[1] : null;
-	}
+export function parseServiceName(prefix: string, key: string): string | null {
+	const match = key.match(
+		new RegExp(`^${buildRedisKey(prefix, "service:(.+):instances")}$`)
+	);
+	return match ? match[1] : null;
 }

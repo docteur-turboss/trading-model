@@ -4,6 +4,7 @@ import {
 	toServiceId,
 } from "@trading-model/common/domain/primitives";
 import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
+import type { HttpStatusCode } from "@trading-model/common/http-status";
 import { catchSync } from "@trading-model/common/middleware/catch-error";
 import { sendResponse } from "@trading-model/common/middleware/response-exception";
 import { isNonEmptyString } from "@trading-model/validation/validation/primitives";
@@ -27,7 +28,7 @@ function _buildValidationError(
 			error: "Invalid request body",
 			details: REGISTER_SCHEMA.safeParse(req.body).error!.flatten().fieldErrors,
 		},
-		400
+		400 as HttpStatusCode
 	);
 }
 
@@ -42,16 +43,25 @@ function createRegisterHandler(registry: ServiceRegistry): RequestHandler {
 				parseServiceName(data.serviceName)
 			)
 		) {
-			return sendResponse({ error: "Invalid service name" }, 400);
+			return sendResponse(
+				{ error: "Invalid service name" },
+				400 as HttpStatusCode
+			);
 		}
 		const instance = buildServiceInstance(data, registry);
-		return sendResponse(registry.registerInstance(instance), 201);
+		return sendResponse(
+			registry.registerInstance(instance),
+			201 as HttpStatusCode
+		);
 	});
 }
 
 function createListServicesHandler(registry: ServiceRegistry): RequestHandler {
 	return catchSync(() => {
-		return sendResponse(registry.instanceStore.listServiceNames(), 200);
+		return sendResponse(
+			registry.instanceStore.listServiceNames(),
+			200 as HttpStatusCode
+		);
 	});
 }
 
@@ -71,16 +81,19 @@ function createGetServiceInstancesHandler(
 	return catchSync((req) => {
 		const serviceName = _validateServiceNameParam(req);
 		if (!serviceName) {
-			return sendResponse({ error: "serviceName is required" }, 400);
+			return sendResponse(
+				{ error: "serviceName is required" },
+				400 as HttpStatusCode
+			);
 		}
 		if (
 			!registry.tokenManager.verifyInstanceName(parseServiceName(serviceName))
 		) {
-			return sendResponse({ error: "Unknown service" }, 404);
+			return sendResponse({ error: "Unknown service" }, 404 as HttpStatusCode);
 		}
 		return sendResponse(
 			registry.instanceStore.getInstances(parseServiceName(serviceName)),
-			200
+			200 as HttpStatusCode
 		);
 	});
 }
@@ -102,13 +115,19 @@ function createGetInstanceHandler(registry: ServiceRegistry): RequestHandler {
 	return catchSync((req) => {
 		const params = _validateRouteParams(req);
 		if (!params) {
-			return sendResponse({ error: "Invalid route parameters" }, 400);
+			return sendResponse(
+				{ error: "Invalid route parameters" },
+				400 as HttpStatusCode
+			);
 		}
 		const instance = registry.instanceStore.getInstance(params);
 		if (!instance) {
-			return sendResponse({ error: "Instance not found" }, 404);
+			return sendResponse(
+				{ error: "Instance not found" },
+				404 as HttpStatusCode
+			);
 		}
-		return sendResponse(instance, 200);
+		return sendResponse(instance, 200 as HttpStatusCode);
 	});
 }
 

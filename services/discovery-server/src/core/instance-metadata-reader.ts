@@ -4,6 +4,12 @@ import type { InstanceId } from "@trading-model/common/domain/primitives";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import type { ServiceInstance } from "@trading-model/validation/contracts/service-registry.types";
 import type { RedisDepsWithoutToken } from "./redis-deps";
+import {
+	instanceMetadata,
+	parseServiceName,
+	serviceInstancesSet,
+	servicePattern,
+} from "./redis-key-builder";
 
 export class InstanceMetadataReader {
 	constructor(private readonly _deps: RedisDepsWithoutToken) {}
@@ -12,7 +18,7 @@ export class InstanceMetadataReader {
 		instanceId: InstanceId
 	): Promise<ServiceInstance | undefined> {
 		const json = await this._deps.redis.get(
-			this._deps.keyBuilder.instanceMetadata(instanceId)
+			instanceMetadata(this._deps.keyPrefix, instanceId)
 		);
 		if (!json) {
 			return;
@@ -29,7 +35,7 @@ export class InstanceMetadataReader {
 
 	getServiceInstanceIds(serviceName: ServiceInstanceName): Promise<string[]> {
 		return this._deps.redis.smembers(
-			this._deps.keyBuilder.serviceInstancesSet(serviceName)
+			serviceInstancesSet(this._deps.keyPrefix, serviceName)
 		);
 	}
 
@@ -52,10 +58,10 @@ export class InstanceMetadataReader {
 
 	async listServiceNames(): Promise<string[]> {
 		const keys = await this._deps.redis.keys(
-			this._deps.keyBuilder.servicePattern()
+			servicePattern(this._deps.keyPrefix)
 		);
 		return keys
-			.map((key) => this._deps.keyBuilder.parseServiceName(key))
+			.map((key) => parseServiceName(this._deps.keyPrefix, key))
 			.filter((name): name is string => name !== null);
 	}
 }

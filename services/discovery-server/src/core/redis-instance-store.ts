@@ -8,6 +8,7 @@ import { InstanceMetadataReader } from "./instance-metadata-reader";
 import { InstanceRegistrar } from "./instance-registrar";
 import type { IInstanceStore } from "./instance-store.interface";
 import type { RedisDeps } from "./redis-deps";
+import { instanceMetadata } from "./redis-key-builder";
 
 /**
  * Redis-backed server-side registry of discovered service instances.
@@ -28,12 +29,12 @@ export class RedisInstanceStore implements IInstanceStore {
 	public readonly deps: RedisDeps;
 
 	constructor(deps: RedisDeps) {
-		const { redis, keyBuilder } = deps;
+		const { redis, keyPrefix } = deps;
 		this.deps = deps;
-		this.reader = new InstanceMetadataReader({ redis, keyBuilder });
+		this.reader = new InstanceMetadataReader({ redis, keyPrefix });
 		this.registrar = new InstanceRegistrar(deps);
 		this.heartbeatHandler = new InstanceHeartbeatHandler(
-			{ redis, keyBuilder },
+			{ redis, keyPrefix },
 			this.reader
 		);
 	}
@@ -64,14 +65,14 @@ export class RedisInstanceStore implements IInstanceStore {
 			return [];
 		}
 		const keys = instanceIds.map((id) =>
-			this.deps.keyBuilder.instanceMetadata(InstanceId.of(id))
+			instanceMetadata(this.deps.keyPrefix, InstanceId.of(id))
 		);
 		return this.reader.getMetadatas(keys);
 	}
 
 	removeInstanceSetAndMetadata(identity: ServiceIdentity): Promise<boolean> {
 		return removeInstanceSetAndMetadata(
-			{ redis: this.deps.redis, keyBuilder: this.deps.keyBuilder },
+			{ redis: this.deps.redis, keyPrefix: this.deps.keyPrefix },
 			identity
 		);
 	}
@@ -84,7 +85,9 @@ export class RedisInstanceStore implements IInstanceStore {
 		const serviceNames = await this.reader.listServiceNames();
 		const snapshot: Record<string, ServiceInstance[]> = {};
 		for (const name of serviceNames) {
-			snapshot[name] = await this.getInstances(name);
+			snapshot[name as ServiceInstanceName] = await this.getInstances(
+				name as ServiceInstanceName
+			);
 		}
 		return snapshot;
 	}

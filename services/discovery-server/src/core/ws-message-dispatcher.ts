@@ -1,4 +1,5 @@
 import { logger } from "@trading-model/common/config/logger";
+import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import {
 	type DiscoveryWsClientMessage,
@@ -88,7 +89,8 @@ export class WsMessageDispatcher {
 		message: DiscoveryWsHeartbeatMessage
 	): void {
 		if (message.payload?.serviceName) {
-			client.serviceName = message.payload.serviceName;
+			client.serviceName = message.payload
+				.serviceName as unknown as ServiceInstanceName;
 		}
 		if (message.payload?.instanceId) {
 			client.instanceId = message.payload.instanceId;

@@ -37,9 +37,7 @@ import { TokenHandler } from "../../src/core/token-handler";
 describe("TokenHandler", () => {
 	let handler: TokenHandler;
 	let mockRedis: { get: jest.Mock; set: jest.Mock };
-	const mockKeyBuilder = {
-		instanceToken: jest.fn().mockReturnValue("instance:test-instance-1:token"),
-	};
+	const keyPrefix = "";
 	const instanceId = "test-instance-1" as never;
 	const signingSecret = "test-secret";
 
@@ -48,11 +46,7 @@ describe("TokenHandler", () => {
 
 		mockRedis = { get: jest.fn(), set: jest.fn() };
 
-		handler = new TokenHandler(
-			mockRedis as never,
-			mockKeyBuilder as never,
-			signingSecret
-		);
+		handler = new TokenHandler(mockRedis as never, keyPrefix, signingSecret);
 	});
 
 	describe("generateInstanceToken", () => {

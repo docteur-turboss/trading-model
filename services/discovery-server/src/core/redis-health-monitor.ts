@@ -1,8 +1,8 @@
+import { logger } from "@trading-model/common/config/logger";
 import type { DurationMs } from "@trading-model/common/domain/primitives";
 import { TimerHandle } from "@trading-model/common/utils/timer-handle";
 import type { RegistryBackend } from "@trading-model/validation/contracts/service-registry.types";
 import { FallbackManager } from "./fallback-manager";
-import { FallbackRestoreHandler } from "./fallback-restore-handler";
 import { HealthStateManager } from "./health-state-manager";
 
 export interface HealthCheckCallbacks {
@@ -27,7 +27,6 @@ export class RedisHealthMonitor {
 	private readonly _shouldRun: () => boolean;
 	private readonly _callbacks: HealthCheckCallbacks;
 	private readonly _fallbackManager: FallbackManager;
-	private readonly _restoreHandler: FallbackRestoreHandler;
 
 	constructor(config: RedisHealthMonitorConfig) {
 		this._healthState = new HealthStateManager(config.failureThreshold);
@@ -39,11 +38,6 @@ export class RedisHealthMonitor {
 			config.healthCheckIntervalMs * 6,
 			config.callbacks
 		);
-		this._restoreHandler = new FallbackRestoreHandler(
-			this._healthState,
-			this._fallbackManager,
-			config.callbacks
-		);
 	}
 	get isHealthy(): boolean {
 		return this._healthState.isHealthy;
@@ -53,6 +47,26 @@ export class RedisHealthMonitor {
 	}
 	get fallbackActive(): boolean {
 		return this._fallbackManager.fallbackActive;
+	}
+
+	private async _performRestoreCheck(): Promise<void> {
+		if (this._healthState.isHealthy) {
+			return;
+		}
+		try {
+			if (await this._callbacks.ping()) {
+				this._handleRestoreSuccess();
+			}
+		} catch {
+			logger.warn("Redis restore attempt failed — staying on stale cache");
+		}
+	}
+
+	private _handleRestoreSuccess(): void {
+		this._fallbackManager.restoreOriginalBackend();
+		this._healthState.handleHealthSuccess(() =>
+			this._callbacks.onHealthRestored()
+		);
 	}
 
 	start(): void {
@@ -85,9 +99,7 @@ export class RedisHealthMonitor {
 				healthCheckRunning = false;
 			}
 		}, this._healthCheckIntervalMs);
-		this._fallbackManager.startRestoreLoop(() =>
-			this._restoreHandler.performRestoreCheck()
-		);
+		this._fallbackManager.startRestoreLoop(() => this._performRestoreCheck());
 	}
 	stop(): void {
 		this._clearTimers();

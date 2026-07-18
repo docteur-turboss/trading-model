@@ -1,4 +1,6 @@
+import type { UnixTimestamp } from "@trading-model/common/domain/primitives";
 import {
+	DurationMs,
 	type InstanceId,
 	IPAddress,
 	Port,
@@ -38,9 +40,9 @@ export function buildServiceInstance(
 		host: IPAddress.of(ip),
 		port: Port.of(port),
 		version: toVersion(version ?? "1.0.0"),
-		ttl: 30_000,
+		ttl: DurationMs.of(30_000),
 		protocol: Protocol.Mtls,
-		registeredAt: Date.now(),
-		lastHeartbeat: Date.now(),
+		registeredAt: Date.now() as UnixTimestamp,
+		lastHeartbeat: Date.now() as UnixTimestamp,
 	};
 }

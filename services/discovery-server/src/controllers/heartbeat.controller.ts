@@ -1,9 +1,11 @@
+import type { InstanceId } from "@trading-model/common/domain/primitives";
 import {
 	toInstanceId,
 	toServiceId,
 } from "@trading-model/common/domain/primitives";
 import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
 import { HTTP_HEADERS } from "@trading-model/common/http-headers";
+import type { HttpStatusCode } from "@trading-model/common/http-status";
 import { catchSync } from "@trading-model/common/middleware/catch-error";
 import type { ResponseObject } from "@trading-model/common/middleware/response-exception";
 import { sendResponse } from "@trading-model/common/middleware/response-exception";
@@ -53,7 +55,7 @@ function _handleHeartbeat(
 				details: HEARTBEAT_SCHEMA.safeParse(req.body).error!.flatten()
 					.fieldErrors,
 			},
-			400
+			400 as HttpStatusCode
 		);
 	}
 	validateInstanceToken(
@@ -66,9 +68,9 @@ function _handleHeartbeat(
 		instanceId: data.instanceId,
 	});
 	if (!ttl) {
-		return sendResponse({ error: "Instance not found" }, 404);
+		return sendResponse({ error: "Instance not found" }, 404 as HttpStatusCode);
 	}
-	return sendResponse({ ttl }, 200);
+	return sendResponse({ ttl }, 200 as HttpStatusCode);
 }
 
 function _createHeartbeatHandler(registry: ServiceRegistry): RequestHandler {
@@ -96,16 +98,16 @@ function _handleRotateToken(
 				details: ROTATE_TOKEN_SCHEMA.safeParse(req.body).error!.flatten()
 					.fieldErrors,
 			},
-			400
+			400 as HttpStatusCode
 		);
 	}
 	validateInstanceToken(
 		registry,
 		req.headers[HTTP_HEADERS.X_INSTANCE_TOKEN],
-		instanceId
+		instanceId as InstanceId
 	);
-	const newToken = registry.updateToken(instanceId);
-	return sendResponse({ token: newToken }, 200);
+	const newToken = registry.updateToken(instanceId as InstanceId);
+	return sendResponse({ token: newToken }, 200 as HttpStatusCode);
 }
 
 function _createRotateTokenHandler(registry: ServiceRegistry): RequestHandler {

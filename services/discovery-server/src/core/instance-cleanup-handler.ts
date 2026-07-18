@@ -1,5 +1,12 @@
+import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
 import type { RedisDepsWithoutToken } from "./redis-deps";
+import {
+	instanceMetadata,
+	instanceToken,
+	instanceUpdatedBy,
+	serviceInstancesSet,
+} from "./redis-key-builder";
 
 export async function removeInstanceSetAndMetadata(
 	deps: RedisDepsWithoutToken,
@@ -7,12 +14,15 @@ export async function removeInstanceSetAndMetadata(
 ): Promise<boolean> {
 	const multi = deps.redis.multi();
 	multi.srem(
-		deps.keyBuilder.serviceInstancesSet(identity.serviceName as string),
+		serviceInstancesSet(
+			deps.keyPrefix,
+			identity.serviceName as ServiceInstanceName
+		),
 		identity.instanceId
 	);
-	multi.del(deps.keyBuilder.instanceMetadata(identity.instanceId));
-	multi.del(deps.keyBuilder.instanceToken(identity.instanceId));
-	multi.del(deps.keyBuilder.instanceUpdatedBy(identity.instanceId));
+	multi.del(instanceMetadata(deps.keyPrefix, identity.instanceId));
+	multi.del(instanceToken(deps.keyPrefix, identity.instanceId));
+	multi.del(instanceUpdatedBy(deps.keyPrefix, identity.instanceId));
 
 	const results = await multi.exec();
 	if (!results) {

@@ -83,11 +83,9 @@ describe("RedisInstanceStore", () => {
 
 		deps = {
 			redis: {} as never,
-			keyBuilder: {
-				instanceMetadata: jest.fn().mockReturnValue("instance:i1:metadata"),
-			} as never,
-			tokenService: {} as never,
-		};
+			keyPrefix: "",
+			signingSecret: "test-secret",
+		} as never;
 
 		store = new RedisInstanceStore(deps);
 	});

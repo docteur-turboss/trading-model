@@ -1,10 +1,8 @@
-import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
-import type { InstanceId } from "@trading-model/common/domain/primitives";
 import type {
-	ServiceEndpoint,
-	ServiceIdentity,
-} from "@trading-model/common/domain/service-identity";
-import type { TokenValidation } from "@trading-model/common/domain/token-validation";
+	AuthToken,
+	InstanceId,
+} from "@trading-model/common/domain/primitives";
+import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
 import { InstanceStore } from "./instance-store";
 import { InstanceTokenManager } from "./instance-token-manager";
 import type { ServiceInstance } from "./types";
@@ -21,7 +19,7 @@ export class ServiceRegistry {
 		const { instanceId } = instance;
 		const token = this.tokenManager.generateToken(instanceId);
 		this.instanceStore.registerInstance(instance);
-		this.tokenManager.setToken(instanceId, token);
+		this.tokenManager.setToken(instanceId, token as unknown as AuthToken);
 		const stored = this.instanceStore.getInstance({
 			serviceName: instance.serviceName,
 			instanceId,
@@ -31,7 +29,7 @@ export class ServiceRegistry {
 
 	updateToken(instanceId: InstanceId): string {
 		const newToken = this.tokenManager.generateToken(instanceId);
-		this.tokenManager.setToken(instanceId, newToken);
+		this.tokenManager.setToken(instanceId, newToken as unknown as AuthToken);
 		return newToken;
 	}
 

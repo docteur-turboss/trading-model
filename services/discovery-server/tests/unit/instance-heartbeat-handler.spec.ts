@@ -51,32 +51,21 @@ import type { ServiceIdentity } from "@trading-model/common/domain/service-ident
 import type { ServiceInstance } from "@trading-model/validation/contracts/service-registry.types";
 import { InstanceHeartbeatHandler } from "../../src/core/instance-heartbeat-handler";
 import type { InstanceMetadataReader } from "../../src/core/instance-metadata-reader";
-import type { RedisKeyBuilder } from "../../src/core/redis-key-builder";
 
 describe("InstanceHeartbeatHandler", () => {
 	let handler: InstanceHeartbeatHandler;
-	let keyBuilder: jest.Mocked<RedisKeyBuilder>;
 	let mockReader: jest.Mocked<InstanceMetadataReader>;
 
 	beforeEach(() => {
 		jest.clearAllMocks();
 		jest.useFakeTimers();
 
-		keyBuilder = {
-			serviceInstancesSet: jest.fn().mockReturnValue("service:svc:instances"),
-			instanceMetadata: jest.fn().mockReturnValue("instance:i1:metadata"),
-			instanceToken: jest.fn().mockReturnValue("instance:i1:token"),
-			instanceUpdatedBy: jest.fn().mockReturnValue("instance:i1:updatedBy"),
-			servicePattern: jest.fn().mockReturnValue("service:*:instances"),
-			parseServiceName: jest.fn().mockReturnValue("svc"),
-		} as unknown as jest.Mocked<RedisKeyBuilder>;
-
 		mockReader = {
 			getMetadata: jest.fn<() => Promise<ServiceInstance | undefined>>(),
 		} as unknown as jest.Mocked<InstanceMetadataReader>;
 
 		handler = new InstanceHeartbeatHandler(
-			{ redis: MOCK_REDIS as never, keyBuilder },
+			{ redis: MOCK_REDIS as never, keyPrefix: "" },
 			mockReader
 		);
 	});
@@ -93,7 +82,7 @@ describe("InstanceHeartbeatHandler", () => {
 		it("should create a default InstanceMetadataReader when not provided", () => {
 			const h = new InstanceHeartbeatHandler({
 				redis: MOCK_REDIS as never,
-				keyBuilder,
+				keyPrefix: "",
 			});
 			expect(h).toBeInstanceOf(InstanceHeartbeatHandler);
 		});

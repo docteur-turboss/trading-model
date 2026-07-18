@@ -19,7 +19,7 @@ export class HeartbeatThrottleManager {
 		const now = Date.now();
 		const last = this._lastHeartbeatInvalidation.get(serviceName) ?? 0;
 		if (now - last >= this._heartbeatInvalidationThrottleMs) {
-			this._lastHeartbeatInvalidation.set(serviceName, now);
+			this._lastHeartbeatInvalidation.set(serviceName, now as UnixTimestamp);
 			await publish(serviceName);
 		}
 	}

@@ -34,6 +34,10 @@ export class CacheManager implements ISyncCache<ServiceInstance[]> {
 		this.delete(serviceName);
 	}
 
+	get(key: string): ServiceInstance[] | undefined {
+		return this.cache.get(key);
+	}
+
 	clear(): void {
 		this.cache.clear();
 		this.staleData.clear();

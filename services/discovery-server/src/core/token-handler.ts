@@ -16,18 +16,18 @@ import {
 } from "@trading-model/crypto/crypto/token-service";
 import type { ITokenManager } from "@trading-model/validation/contracts/service-registry.types";
 import type Redis from "ioredis";
-import type { ServiceRegistryKeyBuilder } from "./redis-key-builder";
+import { instanceToken } from "./redis-key-builder";
 
 export class TokenHandler implements ITokenManager {
 	constructor(
 		private readonly _redis: Redis,
-		private readonly _keyBuilder: ServiceRegistryKeyBuilder,
+		private readonly _keyPrefix: string,
 		private readonly _signingSecret: string
 	) {}
 
 	async updateToken(instanceId: InstanceId): Promise<string> {
 		const newToken = this._generateInstanceToken(instanceId);
-		await this._redis.set(this._keyBuilder.instanceToken(instanceId), newToken);
+		await this._redis.set(instanceToken(this._keyPrefix, instanceId), newToken);
 		return newToken;
 	}
 
@@ -44,7 +44,7 @@ export class TokenHandler implements ITokenManager {
 		instanceId,
 	}: TokenValidation): Promise<boolean> {
 		const storedToken = await this._redis.get(
-			this._keyBuilder.instanceToken(instanceId)
+			instanceToken(this._keyPrefix, instanceId)
 		);
 		const input: TokenValidationInput = {
 			token,
