@@ -55,12 +55,11 @@ describe("stale-entry-scanner pendingAt vs emittedAt branches", () => {
 });
 
 describe("message-stream-writer serializer and store", () => {
-	it("PayloadSerializer serializes a message", () => {
+	it("serializePayload serializes a message", () => {
 		const {
-			PayloadSerializer,
+			serializePayload,
 		} = require("../../../../src/messaging/core/message-stream-writer");
-		const s = new PayloadSerializer();
-		const result = s.serialize({ topic: "t", metadata: {} } as never);
+		const result = serializePayload({ topic: "t", metadata: {} } as never);
 		expect(result).toBe('{"topic":"t","metadata":{}}');
 	});
 });

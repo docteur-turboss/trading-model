@@ -105,7 +105,7 @@ describe("SubscriptionStore", () => {
 		await store.add({
 			topic: "test.topic",
 			callbackPath: "/cb",
-			consumerIdentity: serviceIdentity,
+			serviceIdentity: serviceIdentity,
 		});
 		expect(mockRedis.multi).toHaveBeenCalled();
 	});
@@ -115,7 +115,7 @@ describe("SubscriptionStore", () => {
 		await store.add({
 			topic: "test.topic",
 			callbackPath: "/cb",
-			consumerIdentity: serviceIdentity,
+			serviceIdentity: serviceIdentity,
 		});
 		expect(mockRedis.multi).not.toHaveBeenCalled();
 	});

@@ -2,9 +2,8 @@ import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { RedisKeyBuilder } from "../../../../src/infrastructure/redis/redis-key-builder";
 
 const mockFallbackInstance = {
-	recoverFromFallbackFile: jest.fn().mockResolvedValue([]),
-	trySaveToRedis: jest.fn().mockResolvedValue(true),
-	trySaveToFallback: jest.fn(),
+	recover: jest.fn().mockResolvedValue([]),
+	trySave: jest.fn().mockResolvedValue(true),
 };
 
 const mockFlusherInstance = {
@@ -46,8 +45,8 @@ const testKeys = new RedisKeyBuilder("test:");
 describe("MemoryWalBuffer", () => {
 	beforeEach(() => {
 		jest.clearAllMocks();
-		mockFallbackInstance.recoverFromFallbackFile.mockResolvedValue([]);
-		mockFallbackInstance.trySaveToRedis.mockResolvedValue(true);
+		mockFallbackInstance.recover.mockResolvedValue([]);
+		mockFallbackInstance.trySave.mockResolvedValue(true);
 	});
 
 	it("should push entries and warn near capacity", async () => {
@@ -85,7 +84,7 @@ describe("MemoryWalBuffer", () => {
 	});
 
 	it("recoverFromFallbackFile with entries", async () => {
-		mockFallbackInstance.recoverFromFallbackFile.mockResolvedValue([
+		mockFallbackInstance.recover.mockResolvedValue([
 			{ topic: "t", serialized: "{}" },
 		]);
 		const {

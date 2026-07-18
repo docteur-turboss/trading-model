@@ -41,7 +41,7 @@ export const createMockMessage = <T = unknown>(
 export const mockSubscribeParams = {
 	topic: "test.topic",
 	callbackPath: "message/callback",
-	consumerIdentity: mockSubscriberIdentity,
+	serviceIdentity: mockSubscriberIdentity,
 };
 
 export const mockUnsubscribeParams = {
@@ -59,6 +59,6 @@ export const mockPublishMetadata = {
 };
 
 export const mockAddress = {
-	ip: "10.0.0.1",
+	host: "10.0.0.1",
 	port: 8444,
 };

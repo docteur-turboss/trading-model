@@ -20,8 +20,8 @@ import { createMockHttpClient } from "../helpers/broker.helper";
 
 jest.mock("config/address-manager", () => ({
 	FIND_A_SERVICE: jest
-		.fn<() => Promise<{ ip: string; port: number }>>()
-		.mockResolvedValue({ ip: "10.0.0.1", port: 8444 }),
+		.fn<() => Promise<{ host: string; port: number }>>()
+		.mockResolvedValue({ host: "10.0.0.1", port: 8444 }),
 }));
 
 describe("Message Broker Integration", () => {
@@ -47,7 +47,7 @@ describe("Message Broker Integration", () => {
 		dispatcher.subscribe({
 			topic: "market.data",
 			callbackPath: "message/receive",
-			consumerIdentity: mockSubscriberIdentity,
+			serviceIdentity: mockSubscriberIdentity,
 		});
 
 		await dispatcher.publish(
@@ -79,13 +79,13 @@ describe("Message Broker Integration", () => {
 		dispatcher.subscribe({
 			topic: "market.data",
 			callbackPath: "msg/recv",
-			consumerIdentity: { ...mockSubscriberIdentity, instanceId: "sub-1" },
+			serviceIdentity: { ...mockSubscriberIdentity, instanceId: "sub-1" },
 		});
 
 		dispatcher.subscribe({
 			topic: "market.data",
 			callbackPath: "msg/recv",
-			consumerIdentity: { ...mockSubscriberIdentity, instanceId: "sub-2" },
+			serviceIdentity: { ...mockSubscriberIdentity, instanceId: "sub-2" },
 		});
 
 		await dispatcher.publish(
@@ -107,7 +107,7 @@ describe("Message Broker Integration", () => {
 		dispatcher.subscribe({
 			topic: "market.data",
 			callbackPath: "msg/recv",
-			consumerIdentity: mockSubscriberIdentity,
+			serviceIdentity: mockSubscriberIdentity,
 		});
 
 		dispatcher.unsubscribe({
@@ -134,7 +134,7 @@ describe("Message Broker Integration", () => {
 		dispatcher.subscribe({
 			topic: "other.topic",
 			callbackPath: "msg/recv",
-			consumerIdentity: mockSubscriberIdentity,
+			serviceIdentity: mockSubscriberIdentity,
 		});
 
 		await dispatcher.publish(
@@ -158,13 +158,13 @@ describe("Message Broker Integration", () => {
 		dispatcher.subscribe({
 			topic: "market.data",
 			callbackPath: "msg/recv",
-			consumerIdentity: { ...mockSubscriberIdentity, instanceId: "sub-1" },
+			serviceIdentity: { ...mockSubscriberIdentity, instanceId: "sub-1" },
 		});
 
 		dispatcher.subscribe({
 			topic: "market.data",
 			callbackPath: "msg/recv",
-			consumerIdentity: { ...mockSubscriberIdentity, instanceId: "sub-2" },
+			serviceIdentity: { ...mockSubscriberIdentity, instanceId: "sub-2" },
 		});
 
 		await dispatcher.publish(
@@ -186,7 +186,7 @@ describe("Message Broker Integration", () => {
 		dispatcher.subscribe({
 			topic: "test",
 			callbackPath: "msg",
-			consumerIdentity: mockSubscriberIdentity,
+			serviceIdentity: mockSubscriberIdentity,
 		});
 
 		await dispatcher.publish(

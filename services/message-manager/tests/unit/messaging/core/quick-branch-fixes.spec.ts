@@ -23,21 +23,12 @@ const testKeys = new RedisKeyBuilder("test:");
 
 // These tests cover default-parameter branches in facade/operations files
 describe("branch coverage: default parameter branches", () => {
-	it("pending-ack-facade recoverStale default param", async () => {
+	it("pending-ack-store recoverStale default param", async () => {
 		const {
-			PendingAckFacade,
-		} = require("../../../../src/messaging/core/pending-ack-facade");
-		const facade = new PendingAckFacade(testKeys);
-		const result = await facade.recoverStale("instance-1");
-		expect(result).toBe(0);
-	});
-
-	it("pending-ack-operations recoverPendingAcks default param", async () => {
-		const {
-			PendingAckOperations,
-		} = require("../../../../src/messaging/core/pending-ack-operations");
-		const ops = new PendingAckOperations(testKeys);
-		const result = await ops.recoverPendingAcks("instance-1");
+			PendingAckStore,
+		} = require("../../../../src/messaging/core/pending-ack-store");
+		const store = new PendingAckStore(testKeys);
+		const result = await store.recoverStale("instance-1");
 		expect(result).toBe(0);
 	});
 
@@ -364,7 +355,7 @@ describe("branch coverage: mongo-client-manager", () => {
 		});
 	});
 
-	it("closeClient skips when no manager", async () => {
+	it("close skips when no manager", async () => {
 		jest.isolateModules(() => {
 			const env = require("../../../../src/config/env");
 			env.ENV.MONGO_ARCHIVE_URI = "mongodb://localhost:27017";
@@ -372,7 +363,7 @@ describe("branch coverage: mongo-client-manager", () => {
 				MongoClientManager,
 			} = require("../../../../src/messaging/core/mongo-client-manager");
 			const mgr = new MongoClientManager();
-			return mgr.closeClient().then(() => {
+			return mgr.close().then(() => {
 				expect(true).toBe(true);
 			});
 		});

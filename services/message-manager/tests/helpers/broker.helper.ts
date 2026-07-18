@@ -15,13 +15,10 @@ export function createMockDispatcher(
 			.fn<(payload: unknown, metadata: unknown) => Promise<void>>()
 			.mockResolvedValue(undefined),
 		subscribe: jest.fn<(params: SubscriptionParams) => void>(),
-		registerSubscription: jest.fn<(params: SubscriptionParams) => void>(),
 		dispatch: jest
 			.fn<(message: unknown) => Promise<void>>()
 			.mockResolvedValue(undefined),
 		unsubscribe:
-			jest.fn<(params: { topic: string; instanceId: string }) => void>(),
-		unregisterSubscription:
 			jest.fn<(params: { topic: string; instanceId: string }) => void>(),
 	} as unknown as jest.Mocked<Dispatcher>;
 }
@@ -31,7 +28,7 @@ export function createMockSubscription(
 ): jest.Mocked<Subscription> {
 	return {
 		topic: "test.topic",
-		callbackURL: "message/callback",
+		callbackPath: "message/callback",
 		serviceIdentity: mockServiceIdentity,
 		dispatch: jest
 			.fn<(httpClient: HttpClient, message: unknown) => Promise<void>>()

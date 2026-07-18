@@ -26,8 +26,8 @@ jest.mock("@trading-model/common/config/logger", () => ({
 
 jest.mock("config/address-manager", () => ({
 	FIND_A_SERVICE: jest
-		.fn<() => Promise<{ ip: string; port: number }>>()
-		.mockResolvedValue({ ip: "10.0.0.1", port: 8444 }),
+		.fn<() => Promise<{ host: string; port: number }>>()
+		.mockResolvedValue({ host: "10.0.0.1", port: 8444 }),
 }));
 
 describe("Dispatcher", () => {
@@ -48,9 +48,9 @@ describe("Dispatcher", () => {
 		}
 	});
 
-	describe("registerSubscription", () => {
+	describe("subscribe", () => {
 		it("should register a new subscription for a topic", async () => {
-			dispatcher.registerSubscription(mockSubscribeParams);
+			dispatcher.subscribe(mockSubscribeParams);
 
 			const message = createMockMessage("test");
 			await dispatcher.dispatch(message);
@@ -59,8 +59,8 @@ describe("Dispatcher", () => {
 		});
 
 		it("should not register duplicate subscriptions for the same instance", async () => {
-			dispatcher.registerSubscription(mockSubscribeParams);
-			dispatcher.registerSubscription(mockSubscribeParams);
+			dispatcher.subscribe(mockSubscribeParams);
+			dispatcher.subscribe(mockSubscribeParams);
 
 			const message = createMockMessage("test");
 			await dispatcher.dispatch(message);
@@ -69,8 +69,8 @@ describe("Dispatcher", () => {
 		});
 
 		it("should register subscriptions for different topics separately", async () => {
-			dispatcher.registerSubscription(mockSubscribeParams);
-			dispatcher.registerSubscription({
+			dispatcher.subscribe(mockSubscribeParams);
+			dispatcher.subscribe({
 				...mockSubscribeParams,
 				topic: "other.topic",
 			});
@@ -85,11 +85,11 @@ describe("Dispatcher", () => {
 		});
 
 		it("should register multiple instances for the same topic", async () => {
-			dispatcher.registerSubscription(mockSubscribeParams);
-			dispatcher.registerSubscription({
+			dispatcher.subscribe(mockSubscribeParams);
+			dispatcher.subscribe({
 				topic: "test.topic",
 				callbackPath: "other/callback",
-				consumerIdentity: {
+				serviceIdentity: {
 					...mockSubscriberIdentity,
 					instanceId: "subscriber-2",
 				},
@@ -112,7 +112,7 @@ describe("Dispatcher", () => {
 		});
 
 		it("should dispatch to all matching subscriptions", async () => {
-			dispatcher.registerSubscription(mockSubscribeParams);
+			dispatcher.subscribe(mockSubscribeParams);
 
 			const message = createMockMessage("test");
 			await dispatcher.dispatch(message);
@@ -121,7 +121,7 @@ describe("Dispatcher", () => {
 		});
 
 		it("should not dispatch to subscriptions of other topics", async () => {
-			dispatcher.registerSubscription(mockSubscribeParams);
+			dispatcher.subscribe(mockSubscribeParams);
 
 			const message = createMockMessage("test", { topic: "other.topic" });
 			await dispatcher.dispatch(message);
@@ -132,10 +132,10 @@ describe("Dispatcher", () => {
 		it("should not fail when a subscription dispatch throws", async () => {
 			mockHttpClient.post.mockRejectedValueOnce(new Error("Delivery failed"));
 
-			dispatcher.registerSubscription(mockSubscribeParams);
-			dispatcher.registerSubscription({
+			dispatcher.subscribe(mockSubscribeParams);
+			dispatcher.subscribe({
 				...mockSubscribeParams,
-				consumerIdentity: {
+				serviceIdentity: {
 					...mockSubscriberIdentity,
 					instanceId: "subscriber-2",
 				},
@@ -152,7 +152,7 @@ describe("Dispatcher", () => {
 				.spyOn(Subscription.prototype, "dispatch")
 				.mockRejectedValue(new Error("Unhandled error"));
 
-			dispatcher.registerSubscription(mockSubscribeParams);
+			dispatcher.subscribe(mockSubscribeParams);
 
 			const message = createMockMessage("test");
 			await dispatcher.dispatch(message);
@@ -170,11 +170,11 @@ describe("Dispatcher", () => {
 		});
 
 		it("should deduplicate subscriptions by instanceId", async () => {
-			dispatcher.registerSubscription(mockSubscribeParams);
-			dispatcher.registerSubscription({
+			dispatcher.subscribe(mockSubscribeParams);
+			dispatcher.subscribe({
 				...mockSubscribeParams,
 				callbackPath: "different/path",
-				consumerIdentity: mockSubscriberIdentity,
+				serviceIdentity: mockSubscriberIdentity,
 			});
 
 			const message = createMockMessage("test");
@@ -184,10 +184,10 @@ describe("Dispatcher", () => {
 		});
 	});
 
-	describe("unregisterSubscription", () => {
+	describe("unsubscribe", () => {
 		it("should remove a subscription from a topic", async () => {
-			dispatcher.registerSubscription(mockSubscribeParams);
-			dispatcher.unregisterSubscription({
+			dispatcher.subscribe(mockSubscribeParams);
+			dispatcher.unsubscribe({
 				topic: "test.topic",
 				instanceId: mockSubscriberIdentity.instanceId,
 			});
@@ -200,7 +200,7 @@ describe("Dispatcher", () => {
 
 		it("should do nothing when unregistering from a non-existent topic", () => {
 			expect(() =>
-				dispatcher.unregisterSubscription({
+				dispatcher.unsubscribe({
 					topic: "nonexistent.topic",
 					instanceId: "unknown",
 				})
@@ -208,16 +208,16 @@ describe("Dispatcher", () => {
 		});
 
 		it("should keep other subscriptions when removing one instance", async () => {
-			dispatcher.registerSubscription(mockSubscribeParams);
-			dispatcher.registerSubscription({
+			dispatcher.subscribe(mockSubscribeParams);
+			dispatcher.subscribe({
 				...mockSubscribeParams,
-				consumerIdentity: {
+				serviceIdentity: {
 					...mockSubscriberIdentity,
 					instanceId: "subscriber-2",
 				},
 			});
 
-			dispatcher.unregisterSubscription({
+			dispatcher.unsubscribe({
 				topic: "test.topic",
 				instanceId: mockSubscriberIdentity.instanceId,
 			});

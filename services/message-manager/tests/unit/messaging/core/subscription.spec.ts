@@ -14,8 +14,8 @@ jest.mock("@trading-model/common/utils/sleep", () => ({
 
 jest.mock("config/address-manager", () => ({
 	FIND_A_SERVICE: jest
-		.fn<() => Promise<{ ip: string; port: number }>>()
-		.mockResolvedValue({ ip: "10.0.0.1", port: 8444 }),
+		.fn<() => Promise<{ host: string; port: number }>>()
+		.mockResolvedValue({ host: "10.0.0.1", port: 8444 }),
 }));
 
 describe("Subscription", () => {
@@ -29,7 +29,7 @@ describe("Subscription", () => {
 		};
 		subscription = new Subscription({
 			topic: "test.topic",
-			callbackURL: "message/callback",
+			callbackPath: "message/callback",
 			serviceIdentity: mockServiceIdentity,
 			deliveryPort: mockDeliveryPort,
 		});
@@ -288,9 +288,9 @@ describe("Subscription", () => {
 	});
 
 	describe("topic and identity", () => {
-		it("should expose topic, callbackURL, and serviceIdentity", () => {
+		it("should expose topic, callbackPath, and serviceIdentity", () => {
 			expect(subscription.topic).toBe("test.topic");
-			expect(subscription.callbackURL).toBe("message/callback");
+			expect(subscription.callbackPath).toBe("message/callback");
 			expect(subscription.serviceIdentity).toEqual(mockServiceIdentity);
 		});
 	});

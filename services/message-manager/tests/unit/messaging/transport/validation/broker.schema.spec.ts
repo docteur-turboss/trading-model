@@ -14,7 +14,7 @@ describe("Broker Schemas", () => {
 			const result = SUBSCRIBE_SCHEMA.safeParse({
 				topic: "test.topic",
 				callbackPath: "message/callback",
-				consumerIdentity: {
+				serviceIdentity: {
 					serviceName: ServiceInstanceName.FinancialScraperService,
 					instanceId: "instance-1",
 				},
@@ -27,7 +27,7 @@ describe("Broker Schemas", () => {
 			const result = SUBSCRIBE_SCHEMA.safeParse({
 				topic: "",
 				callbackPath: "message/callback",
-				consumerIdentity: {
+				serviceIdentity: {
 					serviceName: ServiceInstanceName.FinancialScraperService,
 					instanceId: "instance-1",
 				},
@@ -39,7 +39,7 @@ describe("Broker Schemas", () => {
 		it("should reject missing callbackPath", () => {
 			const result = SUBSCRIBE_SCHEMA.safeParse({
 				topic: "test.topic",
-				consumerIdentity: {
+				serviceIdentity: {
 					serviceName: ServiceInstanceName.FinancialScraperService,
 					instanceId: "instance-1",
 				},
@@ -52,7 +52,7 @@ describe("Broker Schemas", () => {
 			const result = SUBSCRIBE_SCHEMA.safeParse({
 				topic: "test.topic",
 				callbackPath: "message/callback",
-				consumerIdentity: {
+				serviceIdentity: {
 					serviceName: "nonexistent-service",
 					instanceId: "instance-1",
 				},

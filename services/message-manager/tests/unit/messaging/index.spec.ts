@@ -6,7 +6,7 @@ jest.mock("express-rate-limit", () => {
 	);
 });
 
-import BrokerModule from "../../../src/messaging/index";
+import createBrokerModule from "../../../src/messaging/index";
 
 jest.mock("../../../src/config/address-manager", () => ({
 	ADDRESS_MANAGER_ROUTES: jest.fn(),
@@ -20,9 +20,9 @@ jest.mock("@trading-model/common/config/http-client", () => {
 	return { HttpClient: MockHttpClient };
 });
 
-describe("BrokerModule", () => {
-	it("should construct without error", () => {
-		const module = new BrokerModule({
+describe("createBrokerModule", () => {
+	it("should create without error", () => {
+		const module = createBrokerModule({
 			caPath: "/certs/ca.pem",
 			certPath: "/certs/cert.pem",
 			keyPath: "/certs/key.pem",
@@ -32,7 +32,7 @@ describe("BrokerModule", () => {
 	});
 
 	it("should expose a listen method", () => {
-		const module = new BrokerModule({
+		const module = createBrokerModule({
 			caPath: "/certs/ca.pem",
 			certPath: "/certs/cert.pem",
 			keyPath: "/certs/key.pem",
@@ -43,7 +43,7 @@ describe("BrokerModule", () => {
 	});
 
 	it("should accept an Express app in listen method", () => {
-		const module = new BrokerModule({
+		const module = createBrokerModule({
 			caPath: "/certs/ca.pem",
 			certPath: "/certs/cert.pem",
 			keyPath: "/certs/key.pem",

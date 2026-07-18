@@ -798,7 +798,6 @@ describe("WssTransport", () => {
 			raw: Buffer
 		) => Promise<void>;
 
-		// First publish with dedup id
 		await msgHandler(
 			Buffer.from(
 				JSON.stringify({
@@ -813,7 +812,6 @@ describe("WssTransport", () => {
 		);
 		expect(mockDispatcher.publish).toHaveBeenCalledTimes(1);
 
-		// Second publish with same dedup id hits local cache
 		await msgHandler(
 			Buffer.from(
 				JSON.stringify({

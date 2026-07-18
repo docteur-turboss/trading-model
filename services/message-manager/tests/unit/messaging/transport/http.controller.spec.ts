@@ -35,7 +35,7 @@ describe("HTTP Controller", () => {
 				body: {
 					topic: "test.topic",
 					callbackPath: "message/callback",
-					consumerIdentity: {
+					serviceIdentity: {
 						serviceName: ServiceInstanceName.FinancialScraperService,
 						instanceId: "instance-1",
 					},
