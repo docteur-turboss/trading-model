@@ -1,9 +1,9 @@
+import { KeyAlgorithm } from "@trading-model/certificate-utils/keygen/generate-key-pair";
+import type { KeyPair } from "@trading-model/certificate-utils/keygen/types";
 import {
 	createCsrAsync,
 	generateKeyPairAsync,
-} from "@trading-model/certificate-utils/async";
-import { KeyAlgorithm } from "@trading-model/certificate-utils/generate-key-pair";
-import type { KeyPair } from "@trading-model/certificate-utils/types";
+} from "@trading-model/certificate-utils/workers/async";
 
 export interface SigningRequest {
 	keyPair: KeyPair;

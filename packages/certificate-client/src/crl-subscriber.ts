@@ -1,6 +1,6 @@
 import type BrokerMessage from "@trading-model/broker-message";
 import { EVENT_MANAGER } from "@trading-model/broker-message";
-import { clearValidationCache } from "@trading-model/certificate-utils/validate-certificate";
+import { clearValidationCache } from "@trading-model/certificate-utils/validation/validate-certificate";
 import type {
 	SerialNumber,
 	ServiceId,

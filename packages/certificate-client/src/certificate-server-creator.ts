@@ -3,7 +3,7 @@ import type {
 	HttpServer,
 	HttpsServerOptions,
 } from "@trading-model/server-utils/server/server-factory";
-import type { CreateHttpsServerOptions } from "./certificate-bootstrap-config";
+import type { CreateHttpsServerOptions } from "./certificate-bootstrap";
 
 interface ServerDeps {
 	configureApp: (opts: {

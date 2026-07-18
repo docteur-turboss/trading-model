@@ -5,7 +5,7 @@ import type WebSocket from "ws";
 export function buildTlsConfig(tlsConfig?: TlsPaths): WebSocket.ClientOptions {
 	const agentOpts = buildHttpsAgentOptions(tlsConfig) ?? {};
 	const opts: WebSocket.ClientOptions = {
-		...agentOpts,
+		...(agentOpts as WebSocket.ClientOptions),
 		rejectUnauthorized: true,
 		minVersion: "TLSv1.3",
 		ciphers:

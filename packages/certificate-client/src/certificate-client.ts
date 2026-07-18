@@ -1,4 +1,4 @@
-import type { KeyAlgorithm } from "@trading-model/certificate-utils/generate-key-pair";
+import type { KeyAlgorithm } from "@trading-model/certificate-utils/keygen/generate-key-pair";
 import {
 	type ServiceId,
 	URLString,

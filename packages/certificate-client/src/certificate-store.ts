@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 
-import type { KeyPair } from "@trading-model/certificate-utils/types";
+import type { KeyPair } from "@trading-model/certificate-utils/keygen/types";
 import type {
 	CertificateBase,
 	CertPemPair,
