@@ -24,7 +24,7 @@ export class TopicSubscriptionService {
 		this._requestBuilder = new TopicRequestBuilder(_httpClient, _config);
 	}
 
-	async subscribeToTopics(topics: EventEnumMap[]): Promise<void> {
+	async subscribe(topics: EventEnumMap[]): Promise<void> {
 		try {
 			const target = await this._findMessageService();
 			await this._requestBuilder.subscribeAll(topics, target);
@@ -33,7 +33,7 @@ export class TopicSubscriptionService {
 		}
 	}
 
-	async unSubscribeToTopic(topics: EventEnumMap[]): Promise<void> {
+	async unsubscribe(topics: EventEnumMap[]): Promise<void> {
 		try {
 			const target = await this._findMessageService();
 			await this._requestBuilder.unsubscribeAll(topics, target);

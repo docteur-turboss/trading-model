@@ -1,5 +1,6 @@
 import type { Topic } from "@trading-model/common/domain/primitives";
 import type { MessageMetadata } from "@trading-model/validation/contracts/message.types";
+import type { IMessageClient } from "./i-message-client";
 import { PendingPublishQueue } from "./pending-publish-queue";
 import type { WssClientConfig } from "./wss-connection-lifecycle";
 import { WssConnectionOrchestrator } from "./wss-connection-orchestrator";
@@ -11,7 +12,7 @@ import { WssPublishClient } from "./wss-publisher";
 
 export type { WssMessageHandler } from "./wss-message-dispatcher";
 
-export class WssClient {
+export class WssClient implements IMessageClient {
 	private readonly _orchestrator: WssConnectionOrchestrator;
 	private readonly _dispatcher: WssMessageDispatcher;
 	private readonly _queue: PendingPublishQueue;
@@ -62,18 +63,21 @@ export class WssClient {
 		return this._publisher.publish(payload, metadata);
 	}
 
-	subscribe(topics: Topic[]): Promise<void> {
-		this._orchestrator.addTopics(topics);
+	subscribe(topics: readonly string[]): Promise<void> {
+		this._orchestrator.addTopics(topics as Topic[]);
 		if (this._orchestrator.isConnected()) {
-			this._orchestrator.send({ type: "subscribe", topics });
+			this._orchestrator.send({ type: "subscribe", topics: topics as Topic[] });
 		}
 		return Promise.resolve();
 	}
 
-	unsubscribe(topics: Topic[]): Promise<void> {
-		this._orchestrator.removeTopics(topics);
+	unsubscribe(topics: readonly string[]): Promise<void> {
+		this._orchestrator.removeTopics(topics as Topic[]);
 		if (this._orchestrator.isConnected()) {
-			this._orchestrator.send({ type: "unsubscribe", topics });
+			this._orchestrator.send({
+				type: "unsubscribe",
+				topics: topics as Topic[],
+			});
 		}
 		return Promise.resolve();
 	}

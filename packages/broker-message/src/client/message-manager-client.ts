@@ -3,8 +3,7 @@ import type { EventEnumMap } from "@trading-model/common/config/event.types";
 import type { HttpClient } from "@trading-model/common/config/http-client";
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import { URLString } from "@trading-model/common/domain/primitives";
-import type { HostPort } from "@trading-model/common/domain/service-identity";
-import { toHostPortAddress } from "@trading-model/common/domain/service-identity";
+import { HostPort } from "@trading-model/common/domain/service-identity";
 import {
 	isServiceUnreachableError,
 	messageManagerError,
@@ -13,11 +12,11 @@ import {
 } from "@trading-model/common/utils/errors";
 import type { MessageMetadata } from "@trading-model/validation/contracts/message.types";
 import type { MessageManagerConfig } from "../shared/types/config";
-import type { IPublishClient } from "./i-publish-client";
+import type { IMessageClient } from "./i-message-client";
 import { TopicSubscriptionService } from "./topic-subscription-service";
 
 /** Client for interacting with the Message Delivery Service via HTTP. */
-export class MessageManagerClient implements IPublishClient {
+export class MessageManagerClient implements IMessageClient {
 	private _subscriptionService: TopicSubscriptionService;
 
 	constructor(
@@ -32,12 +31,12 @@ export class MessageManagerClient implements IPublishClient {
 		);
 	}
 
-	subscribeToTopics(topics: EventEnumMap[]): Promise<void> {
-		return this._subscriptionService.subscribeToTopics(topics);
+	subscribe(topics: readonly string[]): Promise<void> {
+		return this._subscriptionService.subscribe(topics as EventEnumMap[]);
 	}
 
-	unSubscribeToTopic(topics: EventEnumMap[]): Promise<void> {
-		return this._subscriptionService.unSubscribeToTopic(topics);
+	unsubscribe(topics: readonly string[]): Promise<void> {
+		return this._subscriptionService.unsubscribe(topics as EventEnumMap[]);
 	}
 
 	private async _findService(service: ServiceInstanceName): Promise<HostPort> {
@@ -56,7 +55,7 @@ export class MessageManagerClient implements IPublishClient {
 		metadata: MessageMetadata
 	): Promise<void> {
 		return await this._httpClient.post(
-			URLString.of(`https://${toHostPortAddress(target)}/message`),
+			URLString.of(`https://${HostPort.toAddress(target)}/message`),
 			{ payload, metadata }
 		);
 	}
@@ -70,14 +69,7 @@ export class MessageManagerClient implements IPublishClient {
 		});
 	}
 
-	publish<TPayload = unknown>(
-		payload: TPayload,
-		metadata: MessageMetadata
-	): Promise<void> {
-		return this.publishAsyncMessage(payload, metadata);
-	}
-
-	async publishAsyncMessage<TPayload = unknown>(
+	async publish<TPayload = unknown>(
 		payload: TPayload,
 		metadata: MessageMetadata
 	): Promise<void> {

@@ -1,7 +1,7 @@
 import * as https from "node:https";
 import { buildHttpsAgentOptions } from "@trading-model/common/config/http-tls-loader";
 import type { TlsPaths } from "@trading-model/common/domain/tls-paths";
-import type { IWsConnection } from "@trading-model/common/ws/i-ws-connection";
+import { BaseWsConnection } from "@trading-model/common/ws/base-ws-connection";
 import WebSocket from "ws";
 
 export interface WssConnectionEvents {
@@ -11,16 +11,12 @@ export interface WssConnectionEvents {
 	onError: (err: Error) => void;
 }
 
-export class WssConnection implements IWsConnection {
-	private _ws: WebSocket | undefined;
+export class WssConnection extends BaseWsConnection {
 	private _wsUrl?: string;
 	private readonly _agent?: https.Agent;
-	onCloseHandler?: () => void;
-	onOpen?: () => void;
-	onMessage?: (data: unknown) => void;
-	onError?: (err: Error) => void;
 
 	constructor(tlsConfig?: Partial<TlsPaths>) {
+		super();
 		const opts =
 			tlsConfig?.caPath && tlsConfig?.certPath && tlsConfig?.keyPath
 				? buildHttpsAgentOptions(tlsConfig as TlsPaths)
@@ -39,9 +35,7 @@ export class WssConnection implements IWsConnection {
 		if (!url) {
 			return;
 		}
-		try {
-			this._ws?.close();
-		} catch {}
+		this._ws?.close();
 		this._ws = new WebSocket(url, { agent: this._agent });
 		this._ws.on("open", () => {
 			this.onOpen?.();
@@ -49,9 +43,7 @@ export class WssConnection implements IWsConnection {
 		this._ws.on("message", (raw: WebSocket.RawData) => {
 			this.onMessage?.(raw.toString());
 		});
-		this._ws.on("close", (code: number, reason) => {
-			this._lastCloseCode = code;
-			this._lastCloseReason = reason as unknown as Buffer;
+		this._ws.on("close", () => {
 			this.onCloseHandler?.();
 		});
 		this._ws.on("error", (err: Error) => {
@@ -60,28 +52,5 @@ export class WssConnection implements IWsConnection {
 			} catch {}
 			this.onError?.(err);
 		});
-	}
-
-	disconnect(closeCode?: number, reason?: string): void {
-		try {
-			this._ws?.close(closeCode, reason);
-		} catch {}
-	}
-	send(data: unknown): boolean {
-		if (this._ws?.readyState !== WebSocket.OPEN) {
-			return false;
-		}
-		try {
-			this._ws.send(JSON.stringify(data));
-			return true;
-		} catch {
-			return false;
-		}
-	}
-	get isConnected(): boolean {
-		return this._ws?.readyState === WebSocket.OPEN;
-	}
-	get ws(): WebSocket | undefined {
-		return this._ws;
 	}
 }

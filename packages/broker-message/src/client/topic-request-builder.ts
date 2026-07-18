@@ -6,8 +6,7 @@ import {
 	toTopic,
 	URLString,
 } from "@trading-model/common/domain/primitives";
-import type { HostPort } from "@trading-model/common/domain/service-identity";
-import { toHostPortAddress } from "@trading-model/common/domain/service-identity";
+import { HostPort } from "@trading-model/common/domain/service-identity";
 import {
 	messageManagerError,
 	normalizeError,
@@ -30,7 +29,7 @@ export class TopicRequestBuilder {
 	): Promise<void> {
 		const payload: SubscribesTopicsPayload = {
 			callbackPath: this._config.callbackPath,
-			consumerIdentity: {
+			serviceIdentity: {
 				instanceId: toInstanceId(this._config.instanceId),
 				serviceName: ServiceId.of(this._config.serviceName),
 			},
@@ -70,7 +69,7 @@ export class TopicRequestBuilder {
 		for (const topic of topics) {
 			await this.subscribeToSingleTopic(
 				topic,
-				URLString.of(`https://${toHostPortAddress(target)}/subscribe`)
+				URLString.of(`https://${HostPort.toAddress(target)}/subscribe`)
 			);
 		}
 	}
@@ -82,7 +81,7 @@ export class TopicRequestBuilder {
 		for (const topic of topics) {
 			await this.unsubscribeToSingleTopic(
 				topic,
-				URLString.of(`https://${toHostPortAddress(target)}/subscribe`)
+				URLString.of(`https://${HostPort.toAddress(target)}/subscribe`)
 			);
 		}
 	}

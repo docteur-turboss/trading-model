@@ -47,19 +47,25 @@ type WssEventHandler = (msg: WssServerEvent) => void;
 
 export class WssMessageDispatcher {
 	private _messageHandler: WssMessageHandler;
-	private readonly _handlers: Record<string, WssEventHandler>;
+	private readonly _handlers: Map<WssServerEventType, WssEventHandler>;
 
 	constructor(messageHandler?: WssMessageHandler) {
 		this._messageHandler = messageHandler ?? (() => {});
-		this._handlers = {
-			[WssServerEventType.Message]: (msg) =>
-				this._onMessage(msg as WssMessageEvent),
-			[WssServerEventType.Connected]: (msg) =>
-				this._onConnected(msg as WssConnectedEvent),
-			[WssServerEventType.Subscribed]: (msg) =>
-				this._onSubscribed(msg as WssSubscribedEvent),
-			[WssServerEventType.Error]: (msg) => this._onError(msg as WssErrorEvent),
-		};
+		this._handlers = new Map([
+			[
+				WssServerEventType.Message,
+				(msg) => this._onMessage(msg as WssMessageEvent),
+			],
+			[
+				WssServerEventType.Connected,
+				(msg) => this._onConnected(msg as WssConnectedEvent),
+			],
+			[
+				WssServerEventType.Subscribed,
+				(msg) => this._onSubscribed(msg as WssSubscribedEvent),
+			],
+			[WssServerEventType.Error, (msg) => this._onError(msg as WssErrorEvent)],
+		]);
 	}
 
 	setMessageHandler(handler: WssMessageHandler): void {
@@ -103,6 +109,6 @@ export class WssMessageDispatcher {
 
 	private _dispatchMessage(raw: unknown): void {
 		const msg = raw as WssServerEvent;
-		this._handlers[msg.type]?.(msg);
+		this._handlers.get(msg.type)?.(msg);
 	}
 }

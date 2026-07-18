@@ -1,11 +1,13 @@
 import { DeliveryMode } from "@trading-model/common/config/delivery-mode.types";
-import { EnumEventMessage } from "@trading-model/common/config/event.types";
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import {
 	toRole,
 	toSubject,
 	toTenantId,
 } from "@trading-model/common/domain/primitives";
+import { AuditEvent } from "@trading-model/validation/contracts/audit-events";
+import { CertificateEvent } from "@trading-model/validation/contracts/certificate-events";
+import { MarketEvent } from "@trading-model/validation/contracts/market-events";
 import { z } from "zod";
 
 export const SECURITY_METADATA_CONTEXT_PREDICATE = z
@@ -106,8 +108,14 @@ export const TOPIC_METADATA_PREDICATE = z
 	.toLowerCase()
 	.regex(/^[a-z]+\.[a-z]+\.[a-z]+$/);
 
+const ALL_EVENT_TYPES = [
+	...Object.values(MarketEvent),
+	...Object.values(AuditEvent),
+	...Object.values(CertificateEvent),
+] as const;
+
 export const EVENT_TYPE_METADATA_PREDICATE = z.enum(
-	Object.values(EnumEventMessage) as [string, ...string[]],
+	ALL_EVENT_TYPES as [string, ...string[]],
 	{ error: () => "eventType is invalid. Must be a valid event type string." }
 );
 
