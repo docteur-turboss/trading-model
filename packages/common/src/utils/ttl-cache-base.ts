@@ -1,20 +1,20 @@
 import type { ISyncCache } from "./cache";
 
-interface CacheEntry<T> {
-	value: T;
+interface CacheEntry<TValue> {
+	value: TValue;
 	expiresAt: number;
 }
 
-export class TtlCacheBase<T> implements ISyncCache<T> {
-	protected readonly _store = new Map<string, CacheEntry<T>>();
+export class TtlCacheBase<TValue> implements ISyncCache<TValue> {
+	protected readonly _store = new Map<string, CacheEntry<TValue>>();
 	protected readonly _defaultTtlMs: number;
 
 	constructor(defaultTtlMs: number) {
 		this._defaultTtlMs = defaultTtlMs;
 	}
 
-	entries(): Array<{ key: string; value: T }> {
-		const result: Array<{ key: string; value: T }> = [];
+	entries(): Array<{ key: string; value: TValue }> {
+		const result: Array<{ key: string; value: TValue }> = [];
 		for (const [key, entry] of this._store) {
 			if (!this._isExpired(entry)) {
 				result.push({ key, value: entry.value });
@@ -27,7 +27,7 @@ export class TtlCacheBase<T> implements ISyncCache<T> {
 		this._store.clear();
 	}
 
-	protected _isExpired(entry: CacheEntry<T>): boolean {
+	protected _isExpired(entry: CacheEntry<TValue>): boolean {
 		return this._defaultTtlMs > 0 && Date.now() >= entry.expiresAt;
 	}
 
@@ -43,7 +43,7 @@ export class TtlCacheBase<T> implements ISyncCache<T> {
 		return true;
 	}
 
-	get(key: string): T | undefined {
+	get(key: string): TValue | undefined {
 		const entry = this._store.get(key);
 		if (!entry) {
 			return;
@@ -55,7 +55,7 @@ export class TtlCacheBase<T> implements ISyncCache<T> {
 		return entry.value;
 	}
 
-	set(key: string, value: T, ttlMs?: number): void {
+	set(key: string, value: TValue, ttlMs?: number): void {
 		const effectiveTtl = ttlMs ?? this._defaultTtlMs;
 		this._store.set(key, {
 			value,

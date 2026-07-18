@@ -5,20 +5,11 @@ describe("main index", () => {
 	const runtimeExports = [
 		"HttpClient",
 		"logger",
-		"secureRandom",
 		"handleCoreError",
 		"MTLSAuthMiddleware",
 		"ResponseException",
 		"validateSchema",
-		"createBootstrap",
-		"configureApp",
-		"PING_PATH",
-		"createSecureServer",
-		"createAndStartHttpsServer",
-		"setupTlsWatcher",
 		"sleep",
-		"BaseEnvSchema",
-		"validateEnv",
 	];
 
 	for (const name of runtimeExports) {

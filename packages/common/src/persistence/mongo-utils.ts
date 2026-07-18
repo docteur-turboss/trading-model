@@ -35,12 +35,17 @@ export function createPoolOptions(
 	};
 }
 
-export async function findPaginated<TDocument extends Document>(
+export function findPaginated<TDocument extends Document>(
 	collection: Collection<TDocument>,
 	filter: Filter<TDocument>,
 	sort: Sort,
 	skip: number,
 	limit: number
 ): Promise<TDocument[]> {
-	return collection.find(filter).sort(sort).skip(skip).limit(limit).toArray();
+	return collection
+		.find(filter)
+		.sort(sort)
+		.skip(skip)
+		.limit(limit)
+		.toArray() as Promise<TDocument[]>;
 }

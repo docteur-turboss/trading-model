@@ -1,3 +1,4 @@
+import { z } from "zod";
 import {
 	type BaseMarketData,
 	type BidAsk,
@@ -5,8 +6,7 @@ import {
 	type OhlcvData,
 	type OhlcvTickerData,
 	SourceType,
-} from "@trading-model/validation/contracts/market-data.types";
-import { z } from "zod";
+} from "../contracts/market-data.types";
 
 import { PriceSchema, VolumeSchema } from "./primitives.schema";
 
