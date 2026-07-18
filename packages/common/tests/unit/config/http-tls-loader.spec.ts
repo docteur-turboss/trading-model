@@ -17,7 +17,7 @@ jest.mock("node:fs", () => ({
 
 import {
 	buildHttpsAgentOptions,
-	loadTlsPemBundle,
+	loadTlsPemBundleSync,
 } from "../../../src/config/http-tls-loader";
 import type { FilePath } from "../../../src/domain/primitives/file-path";
 
@@ -26,13 +26,13 @@ const certPath = "/etc/tls/cert.pem" as unknown as FilePath;
 const keyPath = "/etc/tls/key.pem" as unknown as FilePath;
 const emptyPath = "" as unknown as FilePath;
 
-describe("loadTlsPemBundle", () => {
+describe("loadTlsPemBundleSync", () => {
 	it("should return empty object when no config", () => {
-		expect(loadTlsPemBundle()).toEqual({});
+		expect(loadTlsPemBundleSync()).toEqual({});
 	});
 
 	it("should load CA certificate only", () => {
-		const result = loadTlsPemBundle({
+		const result = loadTlsPemBundleSync({
 			caPath,
 			certPath: emptyPath,
 			keyPath: emptyPath,
@@ -43,7 +43,7 @@ describe("loadTlsPemBundle", () => {
 	});
 
 	it("should load client certificate only", () => {
-		const result = loadTlsPemBundle({
+		const result = loadTlsPemBundleSync({
 			caPath: emptyPath,
 			certPath,
 			keyPath: emptyPath,
@@ -54,7 +54,7 @@ describe("loadTlsPemBundle", () => {
 	});
 
 	it("should load client key only", () => {
-		const result = loadTlsPemBundle({
+		const result = loadTlsPemBundleSync({
 			caPath: emptyPath,
 			certPath: emptyPath,
 			keyPath,
@@ -65,7 +65,7 @@ describe("loadTlsPemBundle", () => {
 	});
 
 	it("should load all TLS files", () => {
-		const result = loadTlsPemBundle({ caPath, certPath, keyPath });
+		const result = loadTlsPemBundleSync({ caPath, certPath, keyPath });
 		expect(result.caPem).toBeDefined();
 		expect(result.certPem).toBeDefined();
 		expect(result.keyPem).toBeDefined();

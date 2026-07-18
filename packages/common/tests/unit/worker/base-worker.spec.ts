@@ -258,15 +258,10 @@ describe("BaseWorker", () => {
 				id: "job-ack",
 				type: "test-type",
 				payload: {},
-				ackDeadline: Date.now(), // expires immediately
+				ackDeadline: Date.now(),
 			});
 
-			// Advance past the ack timer (which fires at remaining=0)
 			await jest.advanceTimersByTimeAsync(1);
-
-			// The ack timer callback (line 83) fires and deletes the job from activeJobs
-			// The handler is still pending
-			// The finally block will also try to delete it later — no-op
 		});
 
 		it("should handle non-Error throw from handler", async () => {
@@ -284,7 +279,6 @@ describe("BaseWorker", () => {
 
 			await jest.runAllTimersAsync();
 
-			// The non-Error value is converted to string via String(err)
 			expect(MOCK_POST).toHaveBeenCalledWith(
 				"https://scheduler:3000/jobs/job-err/fail",
 				{

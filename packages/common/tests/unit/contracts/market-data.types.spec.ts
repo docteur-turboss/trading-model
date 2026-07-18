@@ -1,16 +1,9 @@
 import { describe, expect, it } from "@jest/globals";
 import {
 	CandleInterval,
-	candleIntervalToMs,
-	candleIntervalValues,
-	inverseTradeSide,
-	isMarketDecentralized,
 	MarketType,
-	marketTypeValues,
 	SourceType,
-	sourceTypeValues,
 	TradeSide,
-	tradeSideValues,
 } from "@trading-model/validation/contracts/market-data.types";
 
 describe("MarketType", () => {
@@ -73,35 +66,5 @@ describe("TradeSide", () => {
 	it("should list all values", () => {
 		const values = TradeSide.values();
 		expect(values).toContain(TradeSide.Buy);
-	});
-});
-
-describe("deprecated functions", () => {
-	it("isMarketDecentralized should work", () => {
-		expect(isMarketDecentralized(MarketType.Crypto)).toBe(true);
-	});
-
-	it("marketTypeValues should work", () => {
-		expect(marketTypeValues()).toContain(MarketType.Crypto);
-	});
-
-	it("sourceTypeValues should work", () => {
-		expect(sourceTypeValues()).toContain(SourceType.Binance);
-	});
-
-	it("candleIntervalToMs should work", () => {
-		expect(candleIntervalToMs(CandleInterval.H1)).toBe(3600000);
-	});
-
-	it("candleIntervalValues should work", () => {
-		expect(candleIntervalValues()).toContain(CandleInterval.H1);
-	});
-
-	it("inverseTradeSide should work", () => {
-		expect(inverseTradeSide(TradeSide.Buy)).toBe(TradeSide.Sell);
-	});
-
-	it("tradeSideValues should work", () => {
-		expect(tradeSideValues()).toContain(TradeSide.Buy);
 	});
 });

@@ -7,34 +7,42 @@ import type {
 import { WorkerHealthMonitor } from "../../../src/worker/worker-health-monitor";
 import type { WorkerStore } from "../../../src/worker/worker-store";
 
+function makeWorkerMap(
+	workers: Record<string, Partial<WorkerRegistration>>
+): Map<string, WorkerRegistration> {
+	return new Map(
+		Object.entries(workers).map(([k, v]) => [
+			k,
+			{
+				currentLoad: 0,
+				maxConcurrency: 1 as PositiveInt,
+				status: "active" as WorkerStatusCode,
+				lastHeartbeat: 0 as never,
+				...v,
+			},
+		])
+	);
+}
+
 function createMockStore(
 	workers: Record<string, Partial<WorkerRegistration>>
 ): WorkerStore {
+	const map = makeWorkerMap(workers);
 	return {
 		purgeStaleWorkers: jest.fn(() => []),
 		size: jest.fn(() => Object.keys(workers).length),
-		all: jest.fn(
-			() =>
-				new Map(
-					Object.entries(workers).map(([k, v]) => [
-						k,
-						{
-							currentLoad: 0,
-							maxConcurrency: 1 as PositiveInt,
-							status: "active" as WorkerStatusCode,
-							lastHeartbeat: 0 as never,
-							...v,
-						},
-					])
-				)
-		),
+		all: jest.fn(() => new Map(map)),
+		values: jest.fn(() => map.values()),
 	} as never;
 }
 
 describe("WorkerHealthMonitor", () => {
 	it("should purge stale workers", () => {
 		const purgeStaleWorkers = jest.fn(() => ["worker-1"]);
-		const store = { purgeStaleWorkers } as never;
+		const store = {
+			purgeStaleWorkers,
+			values: jest.fn(() => [][Symbol.iterator]()),
+		} as never;
 		const monitor = new WorkerHealthMonitor(store);
 		const result = monitor.purgeStaleWorkers();
 		expect(result).toEqual(["worker-1"]);
@@ -52,7 +60,8 @@ describe("WorkerHealthMonitor", () => {
 			w2: { currentLoad: 5, maxConcurrency: 10 as PositiveInt },
 		});
 		const monitor = new WorkerHealthMonitor(store);
-		expect(monitor.averageLoad()).toBeCloseTo(0.35); // (0.2 + 0.5) / 2
+		const expectedAverage = (0.2 + 0.5) / 2;
+		expect(monitor.averageLoad()).toBeCloseTo(expectedAverage);
 	});
 
 	it("should skip workers with 0 maxConcurrency in average load", () => {

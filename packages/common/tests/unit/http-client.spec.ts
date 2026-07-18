@@ -29,8 +29,6 @@ import https from "node:https";
 import {
 	computeAdaptiveTimeout,
 	HttpClient,
-	HttpClientError,
-	HttpClientTimeoutError,
 	isServiceCircuitOpen,
 } from "../../src/config/http-client";
 import {
@@ -160,7 +158,7 @@ describe("HttpClient", () => {
 			const promise = client.get(URLString.of("https://example.com/api"));
 			simulateResponse(404, "", "text/plain");
 
-			await expect(promise).rejects.toThrow(HttpClientError);
+			await expect(promise).rejects.toMatchObject({ name: "HttpClientError" });
 		});
 
 		it("should reject on request error", async () => {
@@ -177,7 +175,9 @@ describe("HttpClient", () => {
 			});
 			mockReq._timeoutCb();
 
-			await expect(promise).rejects.toThrow(HttpClientTimeoutError);
+			await expect(promise).rejects.toMatchObject({
+				name: "HttpClientTimeoutError",
+			});
 		});
 
 		it("should reject on JSON parse error", async () => {
@@ -478,7 +478,9 @@ describe("HttpClient", () => {
 					errorHandler!(new Error("ECONNRESET"));
 					await expect(promise).rejects.toThrow("ECONNRESET");
 				} else {
-					await expect(promise).rejects.toThrow(HttpClientError);
+					await expect(promise).rejects.toMatchObject({
+						name: "HttpClientError",
+					});
 					await expect(promise).rejects.toThrow(
 						"Circuit breaker open for cb-sequential.example.com"
 					);
@@ -540,7 +542,7 @@ describe("HttpClient", () => {
 		});
 
 		it("should respect dynamic threshold based on instance count", async () => {
-			isServiceCircuitOpen("dynamic-service" as ServiceInstanceName); // warm up entry
+			isServiceCircuitOpen("dynamic-service" as ServiceInstanceName);
 
 			for (let i = 0; i < 6; i++) {
 				const promise = client.get(
@@ -667,7 +669,7 @@ describe("HttpClient", () => {
 			const promise = client.get(URLString.of("https://example.com/api"), {
 				retryCount: 1 as PositiveInt,
 			});
-			await expect(promise).rejects.toThrow(HttpClientError);
+			await expect(promise).rejects.toMatchObject({ name: "HttpClientError" });
 		});
 	});
 

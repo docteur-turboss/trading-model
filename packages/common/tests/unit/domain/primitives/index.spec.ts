@@ -34,8 +34,6 @@ describe("domain/primitives/index", () => {
 		"fromCommonName",
 		"toCertificateId",
 		"toCommonName",
-		"formatWorkerDisplayName",
-		"parseWorkerDisplayName",
 		"WorkerStatusCode",
 		"fromFilePath",
 		"toFilePath",

@@ -332,7 +332,6 @@ describe("createBootstrap", () => {
 			createServer: createServer as any,
 		});
 
-		// Two ticks: one to propagate rejection through .then(), one for .catch()
 		await Promise.resolve();
 		await Promise.resolve();
 
@@ -438,7 +437,7 @@ describe("createBootstrap", () => {
 		jest.useFakeTimers();
 		process.exitCode = undefined;
 		const mockServer = {
-			close: jest.fn(() => new Promise<void>(() => {})), // never resolves
+			close: jest.fn(() => new Promise<void>(() => {})),
 		};
 
 		const result = createBootstrap({

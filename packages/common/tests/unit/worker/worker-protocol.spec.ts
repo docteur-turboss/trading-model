@@ -84,17 +84,23 @@ describe("WorkerProtocol", () => {
 		jest.clearAllMocks();
 
 		mockRegistry = {
-			register: jest.fn(),
-			unregister: jest.fn(),
-			heartbeat: jest.fn(),
-			updateLoad: jest.fn(),
-			setStatus: jest.fn(),
-			get: jest.fn(),
-			findBestWorker: jest.fn(),
-			purgeStaleWorkers: jest.fn(),
-			count: jest.fn(),
-			averageLoad: jest.fn(),
-			getAllActive: jest.fn(),
+			store: {
+				register: jest.fn(),
+				unregister: jest.fn(),
+				heartbeat: jest.fn(),
+				updateLoad: jest.fn(),
+				setStatus: jest.fn(),
+				get: jest.fn(),
+				size: jest.fn(),
+			},
+			loadBalancer: {
+				findBestWorker: jest.fn(),
+			},
+			healthMonitor: {
+				purgeStaleWorkers: jest.fn(),
+				averageLoad: jest.fn(),
+				getAllActive: jest.fn(),
+			},
 		} as unknown as jest.Mocked<WorkerRegistry>;
 
 		onWorkerDisconnect = jest.fn();
@@ -147,7 +153,7 @@ describe("WorkerProtocol", () => {
 					})
 				);
 
-				expect(mockRegistry.register).toHaveBeenCalledWith("w1", {
+				expect(mockRegistry.store.register).toHaveBeenCalledWith("w1", {
 					workerId: "w1" as unknown as InstanceId,
 					host: "10.0.0.1" as IPAddress,
 					port: 9000 as Port,
@@ -191,8 +197,8 @@ describe("WorkerProtocol", () => {
 					})
 				);
 
-				expect(mockRegistry.heartbeat).toHaveBeenCalledWith("w1");
-				expect(mockRegistry.updateLoad).toHaveBeenCalledWith("w1", 3);
+				expect(mockRegistry.store.heartbeat).toHaveBeenCalledWith("w1");
+				expect(mockRegistry.store.updateLoad).toHaveBeenCalledWith("w1", 3);
 				expect(ws.send).toHaveBeenCalledWith(
 					JSON.stringify({ type: "heartbeat.ack" })
 				);
@@ -253,7 +259,7 @@ describe("WorkerProtocol", () => {
 					})
 				);
 
-				expect(mockRegistry.unregister).toHaveBeenCalledWith("w1");
+				expect(mockRegistry.store.unregister).toHaveBeenCalledWith("w1");
 				expect(onWorkerDisconnect).toHaveBeenCalledWith("w1");
 				expect(logger.info).toHaveBeenCalledWith("Worker disconnected", {
 					context: {
@@ -308,9 +314,9 @@ describe("WorkerProtocol", () => {
 
 				messageHandler(JSON.stringify({ type: "unknown" }));
 
-				expect(mockRegistry.register).not.toHaveBeenCalled();
-				expect(mockRegistry.heartbeat).not.toHaveBeenCalled();
-				expect(mockRegistry.unregister).not.toHaveBeenCalled();
+				expect(mockRegistry.store.register).not.toHaveBeenCalled();
+				expect(mockRegistry.store.heartbeat).not.toHaveBeenCalled();
+				expect(mockRegistry.store.unregister).not.toHaveBeenCalled();
 			});
 		});
 
@@ -336,7 +342,10 @@ describe("WorkerProtocol", () => {
 
 				closeHandler();
 
-				expect(mockRegistry.setStatus).toHaveBeenCalledWith("w1", "draining");
+				expect(mockRegistry.store.setStatus).toHaveBeenCalledWith(
+					"w1",
+					"draining"
+				);
 				expect(onWorkerDisconnect).toHaveBeenCalledWith("w1");
 			});
 
@@ -347,7 +356,7 @@ describe("WorkerProtocol", () => {
 
 				closeHandler();
 
-				expect(mockRegistry.setStatus).not.toHaveBeenCalled();
+				expect(mockRegistry.store.setStatus).not.toHaveBeenCalled();
 				expect(onWorkerDisconnect).not.toHaveBeenCalled();
 			});
 
@@ -373,7 +382,7 @@ describe("WorkerProtocol", () => {
 
 				closeHandler2();
 
-				expect(mockRegistry.setStatus).not.toHaveBeenCalled();
+				expect(mockRegistry.store.setStatus).not.toHaveBeenCalled();
 				expect(onWorkerDisconnect).not.toHaveBeenCalled();
 			});
 		});

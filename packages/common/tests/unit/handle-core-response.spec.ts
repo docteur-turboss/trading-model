@@ -173,8 +173,8 @@ describe("handleCoreResponse", () => {
 				mapping
 			);
 			expect(result).toEqual({
-				errorCode: "404",
-				errorMessage: "User not found",
+				code: "404",
+				message: "User not found",
 			});
 		});
 
@@ -210,7 +210,7 @@ describe("handleCoreResponse", () => {
 				file: "user" as any,
 				context: "test",
 			});
-			expect(result).toEqual({ data: { id: 1 }, statusCode: "success" });
+			expect(result).toEqual({ data: { id: 1 }, statusCode: 200 });
 		});
 
 		it("should map errors using provided mapping", async () => {
@@ -221,8 +221,8 @@ describe("handleCoreResponse", () => {
 				{ file: "user" as any, context: "test" }
 			);
 			expect(result).toEqual({
-				errorCode: "404",
-				errorMessage: "Not found",
+				code: "404",
+				message: "Not found",
 			});
 		});
 
@@ -232,7 +232,7 @@ describe("handleCoreResponse", () => {
 				file: "user" as any,
 				context: "test",
 			});
-			expect(result).toEqual({ data: "data", statusCode: "success" });
+			expect(result).toEqual({ data: "data", statusCode: 200 });
 		});
 	});
 });

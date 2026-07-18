@@ -1,20 +1,19 @@
 import { describe, expect, it } from "@jest/globals";
 import {
-	AppError,
 	addressManagerError,
 	agentError,
 	authenticationError,
+	createAppError,
 	deadLetterError,
 	isAddressManagerError,
 	isAgentError,
+	isAppError,
 	isAuthenticationError,
 	isMessageManagerError,
-	isMetadataBuilderError,
 	isServiceNotFoundError,
 	isServiceUnreachableError,
 	isTimeoutError,
 	messageManagerError,
-	metadataBuilderError,
 	nackError,
 	normalizeError,
 	serviceNotFoundError,
@@ -26,13 +25,13 @@ describe("AppError", () => {
 	it("should be constructable with message", () => {
 		const error = serviceNotFoundError("test");
 		expect(error).toBeInstanceOf(Error);
-		expect(error).toBeInstanceOf(AppError);
+		expect(isAppError(error)).toBe(true);
 		expect(error.message).toBe("test");
 	});
 
 	it("should store cause", () => {
 		const cause = new Error("root");
-		const error = new AppError("test", { cause });
+		const error = createAppError("test", { cause });
 		expect(error.cause).toBe(cause);
 	});
 
@@ -69,11 +68,6 @@ describe("AppError", () => {
 	it("should be identified by type guard for MessageManagerError", () => {
 		const error = messageManagerError("Failed");
 		expect(isMessageManagerError(error)).toBe(true);
-	});
-
-	it("should be identified by type guard for MetadataBuilderError", () => {
-		const error = metadataBuilderError("Missing field");
-		expect(isMetadataBuilderError(error)).toBe(true);
 	});
 
 	it("should be identified by type guard for TimeoutError", () => {

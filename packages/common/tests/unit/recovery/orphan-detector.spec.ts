@@ -24,7 +24,8 @@ import type { IJobQueue } from "../../../src/recovery/job-queue.interface";
 import type { IJobRepository } from "../../../src/recovery/job-repository.interface";
 import { OrphanDetector } from "../../../src/recovery/orphan-detector";
 import { ReAllocator } from "../../../src/recovery/re-allocator";
-import { WorkerRegistry } from "../../../src/worker/worker-registry";
+import type { WorkerRegistry } from "../../../src/worker/worker-registry";
+import { createWorkerRegistry } from "../../../src/worker/worker-registry";
 
 function createJob(overrides?: Partial<Job>): Job {
 	return {
@@ -61,7 +62,7 @@ describe("OrphanDetector (shared)", () => {
 			enqueue: jest.fn(),
 		} as unknown as jest.Mocked<IJobQueue>;
 
-		registry = new WorkerRegistry(5000);
+		registry = createWorkerRegistry(5000);
 		reAllocator = new ReAllocator(mockRepository, mockQueue, 30000);
 	});
 
@@ -115,7 +116,7 @@ describe("OrphanDetector (shared)", () => {
 
 	describe("detection cycle", () => {
 		it("should detect orphaned jobs from stale workers", () => {
-			registry.register("stale-worker", {
+			registry.store.register("stale-worker", {
 				workerId: "stale-worker" as unknown as InstanceId,
 				host: "10.0.0.1" as IPAddress,
 				port: 9000 as Port,
@@ -147,7 +148,7 @@ describe("OrphanDetector (shared)", () => {
 		});
 
 		it("should update status to orphaned and reallocate stale jobs", async () => {
-			registry.register("stale-w", {
+			registry.store.register("stale-w", {
 				workerId: "stale-w" as unknown as InstanceId,
 				host: "10.0.0.2" as IPAddress,
 				port: 9001 as Port,
@@ -183,7 +184,7 @@ describe("OrphanDetector (shared)", () => {
 		it("should log error but not crash when detection fails", () => {
 			mockRepository.findByWorker.mockRejectedValue(new Error("DB error"));
 
-			registry.register("bad-worker", {
+			registry.store.register("bad-worker", {
 				workerId: "bad-worker" as unknown as InstanceId,
 				host: "10.0.0.1" as IPAddress,
 				port: 9000 as Port,
@@ -226,7 +227,7 @@ describe("OrphanDetector (shared)", () => {
 		it("should handle non-Error rejection in detection cycle", () => {
 			mockRepository.findByWorker.mockRejectedValue("string error");
 
-			registry.register("w1", {
+			registry.store.register("w1", {
 				workerId: "w1" as unknown as InstanceId,
 				host: "10.0.0.1" as IPAddress,
 				port: 9000 as Port,

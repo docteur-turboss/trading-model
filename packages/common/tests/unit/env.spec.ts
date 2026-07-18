@@ -6,12 +6,11 @@ import {
 	it,
 	jest,
 } from "@jest/globals";
+import { AddressManagerEnvSchema } from "@trading-model/validation/validation/address-manager-env";
 import {
-	AddressManagerEnvSchema,
 	BaseEnvSchema,
 	validateEnv,
 } from "@trading-model/validation/validation/env";
-import { AppError } from "../../src/utils/errors";
 
 describe("validateEnv", () => {
 	const OldEnv = process.env;
@@ -46,7 +45,7 @@ describe("validateEnv", () => {
 		delete process.env.TLS_CERT_PATH;
 		delete process.env.TLS_CA_PATH;
 
-		expect(() => validateEnv(BaseEnvSchema)).toThrow(AppError);
+		expect(() => validateEnv(BaseEnvSchema)).toThrow(Error);
 	});
 
 	it("should apply default values", () => {
@@ -107,7 +106,7 @@ describe("validateEnv", () => {
 		delete process.env.TLS_CERT_PATH;
 		delete process.env.TLS_CA_PATH;
 
-		expect(() => validateEnv(BaseEnvSchema)).toThrow(AppError);
+		expect(() => validateEnv(BaseEnvSchema)).toThrow(Error);
 	});
 
 	it("should handle invalid env when treeifyError is not a function", () => {
@@ -120,7 +119,7 @@ describe("validateEnv", () => {
 		delete process.env.TLS_CERT_PATH;
 		delete process.env.TLS_CA_PATH;
 
-		expect(() => validateEnv(BaseEnvSchema)).toThrow(AppError);
+		expect(() => validateEnv(BaseEnvSchema)).toThrow(Error);
 
 		zod.z.treeifyError = origTreeifyError;
 	});

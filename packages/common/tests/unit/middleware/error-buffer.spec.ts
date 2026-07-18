@@ -32,7 +32,6 @@ describe("ErrorBuffer", () => {
 		buffer.add({ message: "e2" } as never);
 		buffer.add({ message: "e3" } as never);
 		expect(fetchSpy).toHaveBeenCalled();
-		// Wait for fire-and-forget auto-flush to complete before restoring mock
 		await new Promise<void>((resolve) => setImmediate(resolve));
 		fetchSpy.mockRestore();
 	});

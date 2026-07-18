@@ -1,12 +1,12 @@
 import { describe, expect, it } from "@jest/globals";
 import {
-	toHostPortAddress,
-	toServiceIdentityKey,
+	HostPort,
+	ServiceIdentity,
 } from "../../../src/domain/service-identity";
 
-describe("toServiceIdentityKey", () => {
+describe("ServiceIdentity.toKey", () => {
 	it("should combine serviceName and instanceId with colon", () => {
-		const key = toServiceIdentityKey({
+		const key = ServiceIdentity.toKey({
 			serviceName: "trader-service" as never,
 			instanceId: "inst-001" as never,
 		});
@@ -14,7 +14,7 @@ describe("toServiceIdentityKey", () => {
 	});
 
 	it("should work with region present (region is not included in key)", () => {
-		const key = toServiceIdentityKey({
+		const key = ServiceIdentity.toKey({
 			serviceName: "audit-logger" as never,
 			instanceId: "node-42" as never,
 			region: "us-east-1" as never,
@@ -23,9 +23,9 @@ describe("toServiceIdentityKey", () => {
 	});
 });
 
-describe("toHostPortAddress", () => {
+describe("HostPort.toAddress", () => {
 	it("should format host and port with colon", () => {
-		const addr = toHostPortAddress({
+		const addr = HostPort.toAddress({
 			host: "192.168.1.1" as never,
 			port: 8080 as never,
 		});
@@ -33,7 +33,7 @@ describe("toHostPortAddress", () => {
 	});
 
 	it("should work with IPv6 addresses", () => {
-		const addr = toHostPortAddress({
+		const addr = HostPort.toAddress({
 			host: "::1" as never,
 			port: 443 as never,
 		});
