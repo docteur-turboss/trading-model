@@ -1,15 +1,14 @@
 import { afterEach, describe, expect, it, jest } from "@jest/globals";
 import type { ObtainedCertificate } from "../../src/certificate-client";
-import { CertificateEventEmitter } from "../../src/certificate-event-emitter";
+import { notifyOnRenew } from "../../src/certificate-event-emitter";
 
 afterEach(() => {
 	jest.useFakeTimers();
 	jest.useRealTimers();
 });
 
-describe("CertificateEventEmitter", () => {
+describe("notifyOnRenew", () => {
 	it("should call onRenew callback via setImmediate", async () => {
-		const emitter = new CertificateEventEmitter();
 		const onRenew = jest.fn();
 		const cert = {
 			certPem: "cert" as any,
@@ -19,14 +18,13 @@ describe("CertificateEventEmitter", () => {
 			expiresAt: new Date() as any,
 		} satisfies ObtainedCertificate;
 
-		emitter.notifyOnRenew(onRenew, cert);
+		notifyOnRenew(onRenew, cert);
 		await new Promise<void>((resolve) => setImmediate(resolve));
 
 		expect(onRenew).toHaveBeenCalledWith(cert);
 	});
 
 	it("should not throw when onRenew is undefined", () => {
-		const emitter = new CertificateEventEmitter();
 		const cert = {
 			certPem: "cert" as any,
 			keyPem: "key" as never,
@@ -35,6 +33,6 @@ describe("CertificateEventEmitter", () => {
 			expiresAt: new Date() as any,
 		} satisfies ObtainedCertificate;
 
-		expect(() => emitter.notifyOnRenew(undefined, cert)).not.toThrow();
+		expect(() => notifyOnRenew(undefined, cert)).not.toThrow();
 	});
 });

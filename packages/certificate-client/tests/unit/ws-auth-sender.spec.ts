@@ -2,7 +2,7 @@ import { describe, expect, it, jest } from "@jest/globals";
 
 import { WebSocket } from "ws";
 
-describe("WsAuthSender", () => {
+describe("sendWsAuth", () => {
 	function createMockWs(ws: Partial<WebSocket> = {}): WebSocket {
 		return { readyState: WebSocket.OPEN, send: jest.fn(), ...ws } as any;
 	}
@@ -11,10 +11,9 @@ describe("WsAuthSender", () => {
 		const mockSend = jest.fn();
 		const ws = createMockWs({ send: mockSend });
 
-		const { WsAuthSender } =
+		const { sendWsAuth } =
 			require("../../src/ws-auth-sender") as typeof import("../../src/ws-auth-sender");
-		const sender = new WsAuthSender("my-token");
-		sender.send(ws);
+		sendWsAuth(ws, "my-token");
 
 		expect(mockSend).toHaveBeenCalledWith(
 			JSON.stringify({ type: "auth", token: "my-token" }),
@@ -26,10 +25,9 @@ describe("WsAuthSender", () => {
 		const mockSend = jest.fn();
 		const ws = createMockWs({ send: mockSend });
 
-		const { WsAuthSender } =
+		const { sendWsAuth } =
 			require("../../src/ws-auth-sender") as typeof import("../../src/ws-auth-sender");
-		const sender = new WsAuthSender("");
-		sender.send(ws);
+		sendWsAuth(ws, "");
 
 		expect(mockSend).not.toHaveBeenCalled();
 	});
@@ -38,36 +36,32 @@ describe("WsAuthSender", () => {
 		const mockSend = jest.fn();
 		const ws = createMockWs({ send: mockSend });
 
-		const { WsAuthSender } =
+		const { sendWsAuth } =
 			require("../../src/ws-auth-sender") as typeof import("../../src/ws-auth-sender");
-		const sender = new WsAuthSender();
-		sender.send(ws);
+		sendWsAuth(ws);
 
 		expect(mockSend).not.toHaveBeenCalled();
 	});
 
 	it("should not send when ws is null", () => {
-		const { WsAuthSender } =
+		const { sendWsAuth } =
 			require("../../src/ws-auth-sender") as typeof import("../../src/ws-auth-sender");
-		const sender = new WsAuthSender("token");
-		expect(() => sender.send(null)).not.toThrow();
+		expect(() => sendWsAuth(null, "token")).not.toThrow();
 	});
 
 	it("should not send when ws is undefined", () => {
-		const { WsAuthSender } =
+		const { sendWsAuth } =
 			require("../../src/ws-auth-sender") as typeof import("../../src/ws-auth-sender");
-		const sender = new WsAuthSender("token");
-		expect(() => sender.send(undefined)).not.toThrow();
+		expect(() => sendWsAuth(undefined, "token")).not.toThrow();
 	});
 
 	it("should not send when ws is not connected", () => {
 		const mockSend = jest.fn();
 		const ws = createMockWs({ readyState: WebSocket.CLOSED, send: mockSend });
 
-		const { WsAuthSender } =
+		const { sendWsAuth } =
 			require("../../src/ws-auth-sender") as typeof import("../../src/ws-auth-sender");
-		const sender = new WsAuthSender("token");
-		sender.send(ws);
+		sendWsAuth(ws, "token");
 
 		expect(mockSend).not.toHaveBeenCalled();
 	});
@@ -81,10 +75,9 @@ describe("WsAuthSender", () => {
 			});
 		const ws = createMockWs({ send: mockSend });
 
-		const { WsAuthSender } =
+		const { sendWsAuth } =
 			require("../../src/ws-auth-sender") as typeof import("../../src/ws-auth-sender");
-		const sender = new WsAuthSender("my-token");
-		sender.send(ws);
+		sendWsAuth(ws, "my-token");
 
 		expect(mockSend).toHaveBeenCalled();
 	});

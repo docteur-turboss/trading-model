@@ -22,7 +22,7 @@ describe("CertificateSigner", () => {
 			caClient
 		);
 
-		const result = await signer.signWithCa(
+		const result = await signer.signCertificate(
 			"-----BEGIN CERTIFICATE REQUEST-----\nAAAA\n-----END CERTIFICATE REQUEST-----"
 		);
 
@@ -48,7 +48,7 @@ describe("CertificateSigner", () => {
 			caClient
 		);
 
-		await signer.signWithCa(
+		await signer.signCertificate(
 			"-----BEGIN CERTIFICATE REQUEST-----\nAAAA\n-----END CERTIFICATE REQUEST-----"
 		);
 

@@ -34,7 +34,7 @@ describe("CertificateLifecycleOrchestrator", () => {
 			>(),
 	};
 	const mockSigner = {
-		signWithCa:
+		signCertificate:
 			jest.fn<
 				(csr: string) => Promise<{
 					certPem: string;
@@ -71,12 +71,6 @@ describe("CertificateLifecycleOrchestrator", () => {
 				}
 			>(),
 	};
-	const mockEventEmitter = {
-		notifyOnRenew:
-			jest.fn<
-				(onRenew: ((cert: any) => void) | undefined, cert: any) => void
-			>(),
-	};
 	const mockConfig = {
 		serviceId: "test-svc" as ServiceId,
 		onRenew: undefined as ((cert: any) => void) | undefined,
@@ -92,7 +86,7 @@ describe("CertificateLifecycleOrchestrator", () => {
 			keyPair: { privateKey: "pk-pem" as never, publicKey: "pub-pem" as never },
 			csr: "csr-data",
 		});
-		mockSigner.signWithCa.mockResolvedValue({
+		mockSigner.signCertificate.mockResolvedValue({
 			certPem: "cert-pem" as any,
 			caPem: "ca-pem" as any,
 			serialNumber: "SN123" as any,
@@ -110,7 +104,6 @@ describe("CertificateLifecycleOrchestrator", () => {
 			keyGenerator: mockKeyGenerator as any,
 			signer: mockSigner as any,
 			store: mockStore as any,
-			eventEmitter: mockEventEmitter as any,
 			config: mockConfig,
 		} satisfies LifecycleDeps);
 	});
@@ -124,16 +117,12 @@ describe("CertificateLifecycleOrchestrator", () => {
 			const holder: CertificateHolder = await orchestrator.obtainCertificate();
 
 			expect(mockKeyGenerator.generateKeyAndCsr).toHaveBeenCalledTimes(1);
-			expect(mockSigner.signWithCa).toHaveBeenCalledWith("csr-data");
+			expect(mockSigner.signCertificate).toHaveBeenCalledWith("csr-data");
 			expect(mockStore.writeCertificates).toHaveBeenCalledWith(
 				{ privateKey: "pk-pem" as any, publicKey: "pub-pem" as any },
 				expect.objectContaining({ certPem: "cert-pem", caPem: "ca-pem" })
 			);
 			expect(mockStore.buildObtainedCert).toHaveBeenCalled();
-			expect(mockEventEmitter.notifyOnRenew).toHaveBeenCalledWith(
-				undefined,
-				expect.objectContaining({ certPem: "cert-pem" })
-			);
 			expect(holder.getCurrentCert().certPem).toBe("cert-pem");
 		});
 
@@ -143,7 +132,6 @@ describe("CertificateLifecycleOrchestrator", () => {
 					keyGenerator: mockKeyGenerator as any,
 					signer: mockSigner as any,
 					store: mockStore as any,
-					eventEmitter: mockEventEmitter as any,
 					config: { ...mockConfig, renewMarginMs: 300000 },
 				} satisfies LifecycleDeps
 			);
@@ -151,19 +139,19 @@ describe("CertificateLifecycleOrchestrator", () => {
 			expect(holder.getCurrentCert().certPem).toBe("cert-pem");
 		});
 
-		it("should call onRenew callback via eventEmitter when configured", async () => {
+		it("should call onRenew callback via setImmediate when configured", async () => {
+			jest.useRealTimers();
 			const onRenew = jest.fn();
 			const orchestratorWithOnRenew = new CertificateLifecycleOrchestrator({
 				keyGenerator: mockKeyGenerator as any,
 				signer: mockSigner as any,
 				store: mockStore as any,
-				eventEmitter: mockEventEmitter as any,
 				config: { ...mockConfig, onRenew },
 			} satisfies LifecycleDeps);
 			await orchestratorWithOnRenew.obtainCertificate();
-			expect(mockEventEmitter.notifyOnRenew).toHaveBeenCalledWith(
-				onRenew,
-				expect.any(Object)
+			await new Promise<void>((resolve) => setImmediate(resolve));
+			expect(onRenew).toHaveBeenCalledWith(
+				expect.objectContaining({ certPem: "cert-pem" })
 			);
 		});
 	});

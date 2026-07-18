@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import type {
 	SignCertificateRequest,
-	SignCertificateResponse,
+	WireCertificateResponse,
 } from "@trading-model/crypto/ca/ca-client";
 
 const mockEventHandlers = new Map<string, (...args: unknown[]) => void>();
@@ -29,7 +29,7 @@ const mockAuthHandlerInstance: Record<string, unknown> = {
 };
 
 const mockPendingManagerInstance: Record<string, unknown> = {
-	create: jest.fn<(...args: unknown[]) => Promise<SignCertificateResponse>>(),
+	create: jest.fn<(...args: unknown[]) => Promise<WireCertificateResponse>>(),
 	handleResponse: jest.fn<(...args: unknown[]) => void>(),
 	rejectAll: jest.fn<(...args: unknown[]) => void>(),
 	cancel: jest.fn<(...args: unknown[]) => void>(),
@@ -151,7 +151,7 @@ describe("CaWssTransport", () => {
 
 	describe("destroy", () => {
 		it("should call disconnect", () => {
-			transport.destroy();
+			transport.disconnect();
 
 			expect(mockConnectionInstance.disconnect).toHaveBeenCalled();
 			expect(mockPendingManagerInstance.rejectAll).toHaveBeenCalledWith(
@@ -163,7 +163,7 @@ describe("CaWssTransport", () => {
 	describe("signCertificate", () => {
 		it("should create a pending request and send sign request via ws", () => {
 			(isWsConnected as unknown as jest.Mock).mockReturnValue(true);
-			const expectedPromise = new Promise<SignCertificateResponse>(() => {});
+			const expectedPromise = new Promise<WireCertificateResponse>(() => {});
 			(mockPendingManagerInstance.create as jest.Mock).mockReturnValue(
 				expectedPromise
 			);
@@ -311,7 +311,7 @@ describe("CaWssTransport", () => {
 		});
 
 		it("should have destroy and disconnect as no-ops", () => {
-			expect(() => NULL_CA_WSS_TRANSPORT.destroy()).not.toThrow();
+			expect(() => NULL_CA_WSS_TRANSPORT.disconnect()).not.toThrow();
 			expect(() => NULL_CA_WSS_TRANSPORT.disconnect()).not.toThrow();
 		});
 	});

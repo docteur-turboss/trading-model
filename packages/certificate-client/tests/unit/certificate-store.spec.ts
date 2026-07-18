@@ -8,9 +8,9 @@ jest.mock("node:fs/promises", () => ({
 	writeFile: mockWriteFile,
 }));
 
-import { CertificateStore } from "../../src/certificate-store";
+import { DiskCertificateStore } from "../../src/certificate-store";
 
-describe("CertificateStore", () => {
+describe("DiskCertificateStore", () => {
 	const config = {
 		tlsPaths: {
 			certPath: "/etc/tls/cert.pem" as any,
@@ -27,7 +27,7 @@ describe("CertificateStore", () => {
 		mockMkdir.mockResolvedValue(undefined as any);
 		mockWriteFile.mockResolvedValue(undefined as any);
 
-		const store = new CertificateStore(config);
+		const store = new DiskCertificateStore(config);
 		await store.writeCertificates(
 			{
 				privateKey: "private-key-content" as any,
@@ -55,7 +55,7 @@ describe("CertificateStore", () => {
 	});
 
 	it("should build obtained certificate from key pair and response", () => {
-		const store = new CertificateStore(config);
+		const store = new DiskCertificateStore(config);
 		const result = store.buildObtainedCert(
 			{ privateKey: "pk-val" as any, publicKey: "pub-val" as any },
 			{

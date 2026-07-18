@@ -120,7 +120,7 @@ describe("CertificateClient", () => {
 			mockResolved(MOCK_SIGN_CERTIFICATE, signResponse);
 
 			const client = new CertificateClient(defaultConfig);
-			const holder = await client.obtainCertificate();
+			const holder = await client.orchestrator.obtainCertificate();
 
 			expect(generateKeyPairAsync).toHaveBeenCalled();
 			expect(createCsrAsync).toHaveBeenCalledWith({
@@ -158,7 +158,7 @@ describe("CertificateClient", () => {
 			});
 
 			const client = new CertificateClient(defaultConfig);
-			await client.obtainCertificate();
+			await client.orchestrator.obtainCertificate();
 
 			expect(fs.mkdir).toHaveBeenCalledWith("/etc/tls", { recursive: true });
 			expect(fs.writeFile).toHaveBeenCalledWith("/etc/tls/key.pem", "pk", {
@@ -189,7 +189,7 @@ describe("CertificateClient", () => {
 				...defaultConfig,
 				bootstrapToken: "my-bootstrap-token",
 			});
-			await client.obtainCertificate();
+			await client.orchestrator.obtainCertificate();
 
 			expect(MOCK_SIGN_CERTIFICATE).toHaveBeenCalledWith({
 				serviceId: "my-service",
@@ -212,7 +212,7 @@ describe("CertificateClient", () => {
 			});
 
 			const client = new CertificateClient(defaultConfig);
-			const holder = await client.obtainCertificate();
+			const holder = await client.orchestrator.obtainCertificate();
 			const current = holder.getCurrentCert();
 
 			expect(current.certPem).toBe("cert");
@@ -239,7 +239,7 @@ describe("CertificateClient", () => {
 				...defaultConfig,
 				onRenew,
 			});
-			await client.obtainCertificate();
+			await client.orchestrator.obtainCertificate();
 			await new Promise<void>((resolve) => setImmediate(resolve));
 			expect(onRenew).toHaveBeenCalledWith(
 				expect.objectContaining({ certPem: "cert" })
@@ -262,7 +262,7 @@ describe("CertificateClient", () => {
 			});
 
 			const client = new CertificateClient(defaultConfig);
-			const holder = await client.obtainCertificate();
+			const holder = await client.orchestrator.obtainCertificate();
 			expect(holder.getCurrentCert().certPem).toBe("cert");
 			expect(holder.getCurrentCert().keyPem).toBe("pk");
 		});
@@ -281,7 +281,7 @@ describe("CertificateClient", () => {
 			});
 
 			const client = new CertificateClient(defaultConfig);
-			const holder = await client.obtainCertificate();
+			const holder = await client.orchestrator.obtainCertificate();
 			expect(() => holder.stopAutoRenew()).not.toThrow();
 		});
 
@@ -299,7 +299,7 @@ describe("CertificateClient", () => {
 			});
 
 			const client = new CertificateClient(defaultConfig);
-			const holder = await client.obtainCertificate();
+			const holder = await client.orchestrator.obtainCertificate();
 
 			jest.useFakeTimers();
 			holder.startAutoRenew();
@@ -322,7 +322,7 @@ describe("CertificateClient", () => {
 			});
 
 			const client = new CertificateClient(defaultConfig);
-			const holder = await client.obtainCertificate();
+			const holder = await client.orchestrator.obtainCertificate();
 
 			jest.useFakeTimers();
 			holder.startAutoRenew();
@@ -363,7 +363,7 @@ describe("CertificateClient", () => {
 			});
 
 			const client = new CertificateClient(defaultConfig);
-			const result = await client.signCertificate({
+			const result = await client.caClient.signCertificate({
 				serviceId: "svc" as any,
 				csr: "csr" as any,
 			});
@@ -384,7 +384,9 @@ describe("CertificateClient", () => {
 			});
 
 			const client = new CertificateClient(defaultConfig);
-			const result = await client.getCertificate("some-service" as any);
+			const result = await client.caClient.getCertificate(
+				"some-service" as any
+			);
 
 			expect(MOCK_GET_CERTIFICATE).toHaveBeenCalledWith("some-service");
 			expect(result!.certPem).toBe("stored-cert");
@@ -394,7 +396,7 @@ describe("CertificateClient", () => {
 			mockResolved(MOCK_GET_CERTIFICATE, null);
 
 			const client = new CertificateClient(defaultConfig);
-			const result = await client.getCertificate("unknown" as any);
+			const result = await client.caClient.getCertificate("unknown" as any);
 
 			expect(result).toBeNull();
 		});

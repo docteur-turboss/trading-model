@@ -6,7 +6,6 @@ let mockReconnectorReset: jest.Mock<(...args: any[]) => any>;
 let mockReconnectorCancel: jest.Mock<(...args: any[]) => any>;
 let mockReconnectorScheduleReconnect: jest.Mock<(...args: any[]) => any>;
 let capturedScheduleReconnectCallback: (() => void) | undefined;
-let mockWsAuthSenderSend: jest.Mock<(...args: any[]) => any>;
 
 const mockWsObject: Record<string, unknown> = {
 	readyState: 1,
@@ -57,14 +56,11 @@ jest.mock("@trading-model/common/ws/default-ws-reconnector", () => ({
 		}),
 }));
 
+const mockSendWsAuth = jest.fn<(...args: any[]) => any>();
 jest.mock("../../src/ws-auth-sender", () => ({
-	WsAuthSender: jest.fn<(...args: any[]) => any>().mockImplementation(() => {
-		mockWsAuthSenderSend = jest.fn<(...args: any[]) => any>();
-		return { send: mockWsAuthSenderSend };
-	}),
+	sendWsAuth: mockSendWsAuth,
 }));
 
-import { WsAuthSender } from "../../src/ws-auth-sender";
 import { WsTransport } from "../../src/ws-transport";
 import {
 	ConnectionState,
@@ -83,11 +79,10 @@ describe("WssTransportConnection", () => {
 	});
 
 	describe("constructor", () => {
-		it("should create WsTransport and WsAuthSender", () => {
+		it("should create WsTransport", () => {
 			const conn = new WssTransportConnection({ wsUrl: testUrl });
 
 			expect(WsTransport).toHaveBeenCalledWith({ url: testUrl });
-			expect(WsAuthSender).toHaveBeenCalledWith(undefined);
 			expect(conn.state).toBe(ConnectionState.Disconnected);
 		});
 
@@ -100,7 +95,6 @@ describe("WssTransportConnection", () => {
 			});
 
 			expect(WsTransport).toHaveBeenCalledWith({ url: testUrl, tlsConfig });
-			expect(WsAuthSender).toHaveBeenCalledWith("my-token");
 		});
 	});
 
@@ -170,7 +164,7 @@ describe("WssTransportConnection", () => {
 
 			expect(conn.state).toBe(ConnectionState.Connected);
 			expect(mockReconnectorReset).toHaveBeenCalledTimes(1);
-			expect(mockWsAuthSenderSend).toHaveBeenCalledWith(mockWsObject);
+			expect(mockSendWsAuth).toHaveBeenCalledWith(mockWsObject, undefined);
 			expect(openListener).toHaveBeenCalledTimes(1);
 		});
 	});

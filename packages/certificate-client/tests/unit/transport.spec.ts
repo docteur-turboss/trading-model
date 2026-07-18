@@ -161,7 +161,7 @@ describe("TransportManager", () => {
 		it("should call disconnect", () => {
 			const manager = new TransportManager(defaultConfig);
 			const disconnectSpy = jest.spyOn(manager, "disconnect");
-			manager.destroy();
+			manager.disconnect();
 			expect(disconnectSpy).toHaveBeenCalled();
 		});
 	});

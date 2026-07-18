@@ -57,14 +57,12 @@ jest.mock("@trading-model/common/config/logger", () => ({
 }));
 
 jest.mock("../../src/tls-config-builder", () => ({
-	TlsConfigBuilder: jest.fn(() => ({
-		build: jest.fn(() => ({})),
-	})),
+	buildTlsConfig: jest.fn(() => ({})),
 }));
 
 import { logger } from "@trading-model/common/config/logger";
 import { createWsConnectTimeout } from "@trading-model/common/utils/ws-reconnect";
-import { TlsConfigBuilder } from "../../src/tls-config-builder";
+import { buildTlsConfig } from "../../src/tls-config-builder";
 import { WsTransport } from "../../src/ws-transport";
 
 describe("WsTransport", () => {
@@ -119,7 +117,7 @@ describe("WsTransport", () => {
 			);
 		});
 
-		it("should call TlsConfigBuilder constructor with the provided TLS config", () => {
+		it("should call buildTlsConfig with the provided TLS config", () => {
 			const tlsPaths = {
 				caPath: FilePath.of("/etc/tls/ca.pem"),
 				certPath: FilePath.of("/etc/tls/cert.pem"),
@@ -127,7 +125,7 @@ describe("WsTransport", () => {
 			};
 			transport = new WsTransport({ url: testUrl, tlsConfig: tlsPaths });
 			transport.connect();
-			expect(TlsConfigBuilder).toHaveBeenCalledWith(tlsPaths);
+			expect(buildTlsConfig).toHaveBeenCalledWith(tlsPaths);
 		});
 	});
 
@@ -372,8 +370,8 @@ describe("WsTransport", () => {
 			expect(transport.ws).toBe(mockWsInstance);
 		});
 
-		it("should return undefined before connect is called", () => {
-			expect(transport.ws).toBeUndefined();
+		it("should return null before connect is called", () => {
+			expect(transport.ws).toBeNull();
 		});
 	});
 });

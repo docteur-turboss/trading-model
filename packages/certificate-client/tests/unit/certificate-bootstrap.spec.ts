@@ -49,6 +49,9 @@ const MOCK_CERTIFICATE_CLIENT_INSTANCE = {
 	obtainCertificate: jest.fn(() => Promise.resolve(MOCK_HOLDER)),
 	stopAutoRenew: jest.fn(),
 	getCurrentCert: jest.fn(),
+	orchestrator: {
+		obtainCertificate: jest.fn(() => Promise.resolve(MOCK_HOLDER)),
+	},
 };
 const MOCK_CERTIFICATE_CLIENT = jest.fn(() => MOCK_CERTIFICATE_CLIENT_INSTANCE);
 jest.mock("../../src/certificate-client", () => ({
