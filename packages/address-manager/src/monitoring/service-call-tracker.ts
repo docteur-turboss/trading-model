@@ -6,7 +6,7 @@ import type {
 	ServiceId,
 	UnixTimestamp,
 } from "@trading-model/common/domain/primitives";
-import type { EndpointKey } from "./call-record-aggregator";
+import type { AggregationTotals, EndpointKey } from "./call-record-aggregator";
 import { CallRecordAggregator } from "./call-record-aggregator";
 
 export enum CallStatus {
@@ -31,6 +31,37 @@ export interface CallRecord {
 	bytesSent?: Bytes;
 	bytesReceived?: Bytes;
 	errorMessage?: string;
+}
+
+export function aggregateRecord(
+	record: CallRecord,
+	callsByService: Record<ServiceId, number>,
+	callsByEndpoint: Record<EndpointKey, number>
+): void {
+	callsByService[record.targetService] =
+		(callsByService[record.targetService] ?? 0) + 1;
+	const ep = `${record.method} ${record.endpoint}` as EndpointKey;
+	callsByEndpoint[ep] = (callsByEndpoint[ep] ?? 0) + 1;
+}
+
+export function aggregateTotals(
+	record: CallRecord,
+	totals: Pick<
+		AggregationTotals,
+		"errorsTotal" | "totalLatency" | "bytesSent" | "bytesReceived"
+	>
+): Pick<
+	AggregationTotals,
+	"errorsTotal" | "totalLatency" | "bytesSent" | "bytesReceived"
+> {
+	return {
+		errorsTotal:
+			totals.errorsTotal + (record.status === CallStatus.Error ? 1 : 0),
+		totalLatency: (totals.totalLatency + record.durationMs) as DurationMs,
+		bytesSent: (totals.bytesSent + (record.bytesSent ?? 0)) as Bytes,
+		bytesReceived: (totals.bytesReceived +
+			(record.bytesReceived ?? 0)) as Bytes,
+	};
 }
 
 export interface CallTrackerSnapshot {

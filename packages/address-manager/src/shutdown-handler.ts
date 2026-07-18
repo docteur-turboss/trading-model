@@ -12,14 +12,14 @@ export class ShutdownHandler {
 	constructor(private readonly _deps: ShutdownHandlerDeps) {}
 
 	shutdown(): void {
-		this._deps.registrationManager.shouldRetryRegistration = false;
+		this._deps.registrationManager.stopRetrying();
 	}
 
 	async fullStop(): Promise<void> {
 		this.shutdown();
 		this._disconnectWs();
-		await this._unregisterService();
-		this._deps.serviceCache.stop();
+		await this._tryUnregisterService();
+		this._deps.serviceCache.close();
 		this._deps.circuitBreaker.clear();
 		this._metricsTimer.stop();
 	}
@@ -28,12 +28,10 @@ export class ShutdownHandler {
 		this._deps.wsClient?.disconnect();
 	}
 
-	private async _unregisterService(): Promise<void> {
+	private async _tryUnregisterService(): Promise<void> {
 		try {
 			await this._deps.addressManagerClient.unregisterService();
-		} catch {
-			// no-op — best-effort unregistration
-		}
+		} catch {}
 	}
 
 	setupSignalHandlers(scheduler: { stop: () => void }): void {

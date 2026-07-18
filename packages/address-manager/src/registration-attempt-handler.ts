@@ -1,6 +1,7 @@
 import { logger } from "@trading-model/common/config/logger";
 import { DurationMs } from "@trading-model/common/domain/primitives";
 import { normalizeError } from "@trading-model/common/utils/errors";
+import { sleep } from "@trading-model/common/utils/sleep";
 import { RetryScheduler } from "./retry-scheduler";
 import type { ServiceClientDeps } from "./types";
 
@@ -8,7 +9,6 @@ const RETRY_CONFIG = {
 	maxRetries: 10,
 	baseDelayMs: DurationMs.of(1000),
 	maxDelayMs: DurationMs.of(30_000),
-	backgroundIntervalMs: DurationMs.of(30_000),
 };
 
 export class RegistrationAttemptHandler {
@@ -26,6 +26,14 @@ export class RegistrationAttemptHandler {
 
 	get shouldRetryRegistration(): boolean {
 		return this.shouldRetry;
+	}
+
+	set shouldRetryRegistration(value: boolean) {
+		this.shouldRetry = value;
+	}
+
+	stopRetrying(): void {
+		this.shouldRetry = false;
 	}
 
 	async tryStickyRegistration(): Promise<void> {
@@ -91,9 +99,7 @@ export class RegistrationAttemptHandler {
 
 	private async _waitWithJitteredDelay(attempt: number): Promise<void> {
 		await Promise.race([
-			new Promise<void>((resolve) =>
-				setTimeout(resolve, this._retryScheduler.computeJitteredDelay(attempt))
-			),
+			sleep(this._retryScheduler.computeJitteredDelay(attempt)),
 			this._retryScheduler.createStopWait(),
 		]);
 	}
@@ -102,5 +108,14 @@ export class RegistrationAttemptHandler {
 		this._deps.onSuccess?.();
 		this._deps.tokenManager.setToken(res.token);
 		this._deps.wsClient?.updateToken(res.token);
+	}
+
+	start(): { stop: () => void } {
+		void this.tryStickyRegistration();
+		return {
+			stop: () => {
+				this.shouldRetry = false;
+			},
+		};
 	}
 }

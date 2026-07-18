@@ -84,7 +84,7 @@ export class DiscoveryRetryHandler {
 			return instance;
 		}
 
-		await this._serviceCache.invalidate(toServiceId(serviceName));
+		await this._serviceCache.delete(toServiceId(serviceName));
 		if (attempt < DiscoveryRetryHandler._CIRCUIT_BREAKER_MAX_RETRIES) {
 			await sleep(this._backoffDelay(attempt));
 		}

@@ -1,3 +1,5 @@
+import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
+import type { Application } from "express";
 import {
 	type AddressManagerEnv,
 	createAddressManager,
@@ -7,8 +9,10 @@ export function createServiceAddressManager(env: AddressManagerEnv) {
 	const am = createAddressManager(env);
 	return {
 		AddressManager: am,
-		BOOTSTRAP_ADDRESS_MANAGER: am.start,
-		ADDRESS_MANAGER_ROUTES: am.listenExpress,
-		FIND_A_SERVICE: am.findService,
+		BOOTSTRAP_ADDRESS_MANAGER: () => am.lifecycleManager.start(),
+		ADDRESS_MANAGER_ROUTES: (app: Application) =>
+			am.metricsCollector.listenExpress(app),
+		FIND_A_SERVICE: (serviceName: ServiceInstanceName) =>
+			am.discoveryOrchestrator.findService(serviceName),
 	};
 }

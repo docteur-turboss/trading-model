@@ -3,44 +3,37 @@ import type {
 	InstanceId,
 	ServiceId,
 } from "@trading-model/common/domain/primitives";
+import { MemoryStoreAdapter } from "@trading-model/common/persistence/index";
+import { TtlCacheBase } from "@trading-model/common/utils/ttl-cache-base";
 import type { ServiceInstance } from "../client/type";
-import { CacheStore } from "./cache-store";
-import { CircuitStateStore } from "./circuit-state-store";
 import type {
 	CacheSetEntry,
-	CircuitState,
 	IServiceCache,
+	PersistedCircuitState,
 } from "./service-cache.interface";
 
-class SimpleMutex {
-	private _promise: Promise<void> = Promise.resolve();
-	async acquire(): Promise<() => void> {
+export class ServiceCache implements IServiceCache {
+	private readonly _cacheStore: TtlCacheBase<ServiceInstance>;
+	private _mutexPromise: Promise<void> = Promise.resolve();
+	private readonly _circuitStore =
+		new MemoryStoreAdapter<PersistedCircuitState>();
+
+	constructor(ttlMs: DurationMs) {
+		this._cacheStore = new TtlCacheBase(ttlMs);
+	}
+
+	private async _withLock<TValue>(fn: () => TValue): Promise<TValue> {
 		let release: () => void;
 		const next = new Promise<void>((resolve) => {
 			release = resolve;
 		});
-		const prev = this._promise;
-		this._promise = next;
+		const prev = this._mutexPromise;
+		this._mutexPromise = next;
 		await prev;
-		return release!;
-	}
-}
-
-export class ServiceCache implements IServiceCache {
-	private readonly _cacheStore: CacheStore;
-	private readonly _mutex = new SimpleMutex();
-	private readonly _circuitStore = new CircuitStateStore();
-
-	constructor(ttlMs: DurationMs) {
-		this._cacheStore = new CacheStore(ttlMs);
-	}
-
-	private async _withLock<TValue>(fn: () => TValue): Promise<TValue> {
-		const release = await this._mutex.acquire();
 		try {
 			return fn();
 		} finally {
-			release();
+			release!();
 		}
 	}
 
@@ -60,9 +53,6 @@ export class ServiceCache implements IServiceCache {
 			this._cacheStore.delete(serviceName);
 		});
 	}
-	invalidate(serviceName: ServiceId, region?: string): Promise<void> {
-		return this.delete(serviceName, region);
-	}
 
 	clear(): Promise<void> {
 		return this._withLock(() => {
@@ -76,21 +66,31 @@ export class ServiceCache implements IServiceCache {
 			region?: string;
 		}>
 	> {
-		return this._withLock(() => this._cacheStore.entries());
+		return this._withLock(() =>
+			this._cacheStore.entries().map(({ key, value }) => ({
+				serviceName: key as unknown as ServiceId,
+				instance: value,
+			}))
+		);
 	}
 	getVersion(_serviceName: ServiceId, _region?: string): Promise<number> {
 		return Promise.resolve(0);
 	}
-	stop(): void {
-		this._cacheStore.stop();
+	close(): void {
+		this._cacheStore.close();
 	}
-	setCircuitState(instanceId: InstanceId, state: CircuitState): Promise<void> {
-		return this._circuitStore.setCircuitState(instanceId, state);
+	setCircuitState(
+		instanceId: InstanceId,
+		state: PersistedCircuitState
+	): Promise<void> {
+		return this._circuitStore.set(instanceId, state);
 	}
-	getCircuitState(instanceId: InstanceId): Promise<CircuitState | null> {
-		return this._circuitStore.getCircuitState(instanceId);
+	getCircuitState(
+		instanceId: InstanceId
+	): Promise<PersistedCircuitState | null> {
+		return this._circuitStore.get(instanceId);
 	}
 	deleteCircuitState(instanceId: InstanceId): Promise<void> {
-		return this._circuitStore.deleteCircuitState(instanceId);
+		return this._circuitStore.delete(instanceId);
 	}
 }

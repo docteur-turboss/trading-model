@@ -1,4 +1,5 @@
 import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
+import type { IHeartbeatSender } from "@trading-model/common/reliability/heartbeat-interfaces";
 import type { AddressManagerClient } from "./client/address-manager-client";
 import { HeartbeatFailureHandler } from "./heartbeat-failure-handler";
 import type { ServiceClientDeps } from "./types";
@@ -10,7 +11,7 @@ interface WsHeartbeatClient {
 	updateToken(token: string): void;
 }
 
-export class HeartbeatManager {
+export class HeartbeatManager implements IHeartbeatSender {
 	private _addressManagerClient: AddressManagerClient;
 	private _wsClient: WsHeartbeatClient | undefined;
 	private _onSuccess: () => void;

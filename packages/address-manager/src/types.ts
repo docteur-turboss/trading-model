@@ -7,7 +7,6 @@ import type { IServiceCache } from "./discovery/service-cache.interface";
 import type { ServiceHealthChecker } from "./discovery/service-health-checker";
 import type { HeartbeatManager } from "./heartbeat-manager";
 import type { RegistrationAttemptHandler } from "./registration-attempt-handler";
-import type { RegistrationManager } from "./registration-manager";
 
 export interface ServiceClientDeps {
 	addressManagerClient: AddressManagerClient;
@@ -18,7 +17,7 @@ export interface ServiceClientDeps {
 }
 
 export interface ShutdownHandlerDeps {
-	registrationManager: { shouldRetryRegistration: boolean };
+	registrationManager: { stopRetrying: () => void };
 	wsClient: WebSocketClient | undefined;
 	addressManagerClient: AddressManagerClient;
 	serviceCache: IServiceCache;
@@ -28,7 +27,7 @@ export interface ShutdownHandlerDeps {
 export interface LifecycleDeps {
 	config: AddressManagerConfig;
 	circuitBreaker: DiscoveryCircuitBreaker;
-	registrationManager: RegistrationManager | RegistrationAttemptHandler;
+	registrationManager: RegistrationAttemptHandler;
 	heartbeatManager: HeartbeatManager;
 	wsClient?: WebSocketClient;
 	serviceCache: IServiceCache;

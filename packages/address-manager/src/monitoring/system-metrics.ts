@@ -1,33 +1,11 @@
 import * as os from "node:os";
-import type { DurationMs } from "@trading-model/common/domain/primitives";
-
-export type Bytes = number & { readonly brand: "Bytes" };
-export const Bytes = {
-	of(value: number): Bytes {
-		return value as Bytes;
-	},
-};
-
-export type CpuPercent = number & { readonly brand: "CpuPercent" };
-export const CpuPercent = {
-	of(value: number): CpuPercent {
-		return value as CpuPercent;
-	},
-};
-
-export type LoadAvg = number & { readonly brand: "LoadAvg" };
-export const LoadAvg = {
-	of(value: number): LoadAvg {
-		return value as LoadAvg;
-	},
-};
-
-export type Uptime = number & { readonly brand: "Uptime" };
-export const Uptime = {
-	of(value: number): Uptime {
-		return value as Uptime;
-	},
-};
+import {
+	Bytes,
+	CpuPercent,
+	type DurationMs,
+	LoadAvg,
+	Uptime,
+} from "@trading-model/common/domain/primitives";
 
 export interface CpuTimes {
 	idle: DurationMs;

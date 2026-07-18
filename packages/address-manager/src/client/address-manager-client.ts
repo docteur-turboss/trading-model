@@ -1,4 +1,5 @@
 import type { HttpClient } from "@trading-model/common/config/http-client";
+import { logger } from "@trading-model/common/config/logger";
 import { parseServiceName } from "@trading-model/common/config/services.types";
 import { URLString } from "@trading-model/common/domain/primitives";
 import { HTTP_HEADERS } from "@trading-model/common/http-headers";
@@ -97,7 +98,12 @@ export class AddressManagerClient {
 					{ headers: { [HTTP_HEADERS.X_INSTANCE_TOKEN]: token } }
 				);
 				return;
-			} catch {}
+			} catch (err) {
+				logger.warn("Failed to unregister from URL", {
+					url,
+					err: (err as Error).message,
+				});
+			}
 		}
 	}
 

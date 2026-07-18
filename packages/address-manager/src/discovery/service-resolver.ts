@@ -41,16 +41,14 @@ export class ServiceResolver {
 		return this._deps.config.discoveryTimeoutMs;
 	}
 
-	async resolveAndValidateService(
-		serviceName: ServiceId
-	): Promise<ServiceInstance> {
+	async findService(serviceName: ServiceId): Promise<ServiceInstance> {
 		const instances = await this._fetchService(serviceName);
 		const instance = this._extractFirstInstance(instances, serviceName);
 		await this._validateAndCache(instance, serviceName);
 		return instance;
 	}
 
-	async resolveAndValidateServiceInRegion(
+	async findServiceInRegion(
 		serviceName: ServiceId,
 		region: string
 	): Promise<ServiceInstance> {
@@ -63,13 +61,13 @@ export class ServiceResolver {
 				{ timeoutMs: this._discoveryTimeoutMs }
 			);
 		} catch {
-			return this.resolveAndValidateService(serviceName);
+			return this.findService(serviceName);
 		}
 		const found = await this._findHealthyInstance(instances, serviceName);
 		if (found) {
 			return found;
 		}
-		return this.resolveAndValidateService(serviceName);
+		return this.findService(serviceName);
 	}
 
 	private async _fetchService(serviceName: ServiceId): Promise<unknown> {
@@ -108,7 +106,7 @@ export class ServiceResolver {
 	): Promise<void> {
 		const isHealthy = await this._healthChecker.isHealthy(instance);
 		if (!isHealthy) {
-			await this._serviceCache.invalidate(toServiceId(serviceName));
+			await this._serviceCache.delete(toServiceId(serviceName));
 			throw serviceUnreachableError(`Service "${serviceName}" is unreachable`);
 		}
 		await this._serviceCache.set({

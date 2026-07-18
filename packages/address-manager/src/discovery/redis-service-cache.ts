@@ -13,8 +13,8 @@ import { RedisCircuitStateStore } from "./redis-circuit-state-store";
 import type { StoreOptions } from "./redis-store-config";
 import type {
 	CacheSetEntry,
-	CircuitState,
 	IServiceCache,
+	PersistedCircuitState,
 } from "./service-cache.interface";
 
 export interface RedisServiceCacheOptions extends Partial<RedisOptions> {}
@@ -84,9 +84,9 @@ export class RedisServiceCache implements IServiceCache {
 		return this._cacheOps!.set(entry);
 	}
 
-	async invalidate(serviceName: ServiceId, region?: string): Promise<void> {
+	async delete(serviceName: ServiceId, region?: string): Promise<void> {
 		await this._ensureReady();
-		return this._cacheOps!.invalidate(serviceName, region);
+		return this._cacheOps!.delete(serviceName, region);
 	}
 
 	async clear(): Promise<void> {
@@ -111,13 +111,15 @@ export class RedisServiceCache implements IServiceCache {
 
 	async setCircuitState(
 		instanceId: InstanceId,
-		state: CircuitState
+		state: PersistedCircuitState
 	): Promise<void> {
 		await this._ensureReady();
 		return this._circuitState!.setCircuitState(instanceId, state);
 	}
 
-	async getCircuitState(instanceId: InstanceId): Promise<CircuitState | null> {
+	async getCircuitState(
+		instanceId: InstanceId
+	): Promise<PersistedCircuitState | null> {
 		await this._ensureReady();
 		return this._circuitState!.getCircuitState(instanceId);
 	}
@@ -127,7 +129,7 @@ export class RedisServiceCache implements IServiceCache {
 		return this._circuitState!.deleteCircuitState(instanceId);
 	}
 
-	stop(): void {
+	close(): void {
 		this._connectionManager.close().catch(() => {});
 	}
 }

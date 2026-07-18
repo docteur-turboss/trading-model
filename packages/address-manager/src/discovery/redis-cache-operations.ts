@@ -54,11 +54,11 @@ export class RedisCacheOperations {
 		}
 	}
 
-	async invalidate(serviceName: ServiceId, region?: string): Promise<void> {
+	async delete(serviceName: ServiceId, region?: string): Promise<void> {
 		try {
 			await this._redis.del(this._cacheKey(serviceName, region));
 		} catch (err) {
-			logger.warn("Redis cache invalidate failed", {
+			logger.warn("Redis cache delete failed", {
 				serviceName,
 				error: normalizeError(err),
 			});

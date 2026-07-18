@@ -60,7 +60,7 @@ export class CacheHealthRefresher implements ScheduledJob {
 	}): Promise<void> {
 		const healthy = await this._healthChecker.isHealthy(entry.instance);
 		if (!healthy) {
-			await this._serviceCache.invalidate(toServiceId(entry.serviceName));
+			await this._serviceCache.delete(toServiceId(entry.serviceName));
 			logger.warn("Cache health refresher invalidated unhealthy service", {
 				serviceName: entry.serviceName,
 			});

@@ -1,18 +1,16 @@
-import { logger } from "@trading-model/common/config/logger";
 import { DurationMs } from "@trading-model/common/domain/primitives";
-import { computeExponentialBackoff } from "@trading-model/common/utils/backoff-config";
+import {
+	type BackoffConfig,
+	computeExponentialBackoffWithJitter,
+} from "@trading-model/common/utils/backoff-config";
 import {
 	retryWithBackoff as commonRetryWithBackoff,
 	type RetryOptions,
 	type RetryResult,
 } from "@trading-model/common/utils/retry";
-import { sleep } from "@trading-model/common/utils/sleep";
 
-export interface RetryConfig {
+export interface RetryConfig extends BackoffConfig {
 	maxRetries: number;
-	baseDelayMs: DurationMs;
-	maxDelayMs: DurationMs;
-	backgroundIntervalMs: DurationMs;
 }
 
 export class RetryScheduler {
@@ -29,13 +27,11 @@ export class RetryScheduler {
 	}
 
 	computeJitteredDelay(attempt: number): number {
-		return (
-			computeExponentialBackoff(attempt, {
-				baseDelayMs: this._config.baseDelayMs,
-				maxDelayMs: this._config.maxDelayMs,
-			}) +
-			Math.random() * 1000
-		);
+		return computeExponentialBackoffWithJitter(attempt, {
+			baseDelayMs: this._config.baseDelayMs,
+			maxDelayMs: this._config.maxDelayMs,
+			jitterMs: DurationMs.of(1000),
+		});
 	}
 
 	createStopWait(): Promise<void> {
@@ -49,44 +45,6 @@ export class RetryScheduler {
 			};
 			setImmediate(check);
 		});
-	}
-
-	async waitForBackgroundRetry(): Promise<void> {
-		const jitteredInterval =
-			this._config.backgroundIntervalMs + Math.random() * 5000;
-		await Promise.race([sleep(jitteredInterval), this.createStopWait()]);
-		await new Promise<void>((resolve) => setImmediate(resolve));
-	}
-
-	async retryLoop(
-		attemptFn: (attempt: number) => Promise<boolean>,
-		onExhausted: () => Promise<void>
-	): Promise<void> {
-		for (let attempt = 1; attempt <= this._config.maxRetries; attempt++) {
-			if (!this._shouldRetry) {
-				return;
-			}
-			if (await attemptFn(attempt)) {
-				return;
-			}
-		}
-		logger.warn("Max retries exhausted — entering background retry mode");
-		return onExhausted();
-	}
-
-	async backgroundRetryLoop(
-		attemptFn: (attempt: number) => Promise<boolean>,
-		onStopped: () => never
-	): Promise<void> {
-		let backgroundAttempts = 0;
-		while (this._shouldRetry) {
-			backgroundAttempts++;
-			if (await attemptFn(backgroundAttempts)) {
-				return;
-			}
-			await this.waitForBackgroundRetry();
-		}
-		return onStopped();
 	}
 
 	retryWithBackoff<TResult>(

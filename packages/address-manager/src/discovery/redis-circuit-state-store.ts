@@ -1,31 +1,31 @@
 import { logger } from "@trading-model/common/config/logger";
 import type { InstanceId } from "@trading-model/common/domain/primitives";
 import { normalizeError } from "@trading-model/common/utils/errors";
-import type { ICircuitStateStore } from "./circuit-state-store";
+import type { ICircuitStateStore } from "./circuit-state-store.interface";
+import { RedisStoreAdapter } from "./redis-store-adapter";
 import type { RedisStoreConfig } from "./redis-store-config";
-import type { CircuitState } from "./service-cache.interface";
+import type { PersistedCircuitState } from "./service-cache.interface";
 
 export class RedisCircuitStateStore implements ICircuitStateStore {
-	private readonly _redis: import("ioredis").Redis;
-	private readonly _prefix: string;
-	private readonly _ttlSec: number;
+	private readonly _adapter: RedisStoreAdapter<PersistedCircuitState>;
+	private readonly _ttlMs: number;
 
 	constructor(config: RedisStoreConfig) {
-		this._redis = config.redis;
-		this._prefix = config.prefix;
-		this._ttlSec = config.ttlSec;
+		this._adapter = new RedisStoreAdapter<PersistedCircuitState>(
+			config.redis,
+			config.prefix,
+			config.ttlSec
+		);
+		this._ttlMs = config.ttlSec * 1000;
 	}
 
 	async setCircuitState(
 		instanceId: InstanceId,
-		state: CircuitState
+		state: PersistedCircuitState
 	): Promise<void> {
 		try {
-			await this._redis.setex(
-				this._circuitKey(instanceId),
-				this._ttlSec * 2,
-				JSON.stringify(state)
-			);
+			const key = this._circuitKey(instanceId);
+			await this._adapter.set(key, state, this._ttlMs * 2);
 		} catch (err) {
 			logger.warn("Redis circuit state set failed", {
 				instanceId,
@@ -34,13 +34,12 @@ export class RedisCircuitStateStore implements ICircuitStateStore {
 		}
 	}
 
-	async getCircuitState(instanceId: InstanceId): Promise<CircuitState | null> {
+	async getCircuitState(
+		instanceId: InstanceId
+	): Promise<PersistedCircuitState | null> {
 		try {
-			const raw = await this._redis.get(this._circuitKey(instanceId));
-			if (!raw) {
-				return null;
-			}
-			return JSON.parse(raw) as CircuitState;
+			const key = this._circuitKey(instanceId);
+			return await this._adapter.get(key);
 		} catch (err) {
 			logger.warn("Redis circuit state get failed", {
 				instanceId,
@@ -52,7 +51,8 @@ export class RedisCircuitStateStore implements ICircuitStateStore {
 
 	async deleteCircuitState(instanceId: InstanceId): Promise<void> {
 		try {
-			await this._redis.del(this._circuitKey(instanceId));
+			const key = this._circuitKey(instanceId);
+			await this._adapter.delete(key);
 		} catch (err) {
 			logger.warn("Redis circuit state delete failed", {
 				instanceId,
@@ -62,6 +62,6 @@ export class RedisCircuitStateStore implements ICircuitStateStore {
 	}
 
 	private _circuitKey(instanceId: InstanceId): string {
-		return `${this._prefix}circuit:${instanceId}`;
+		return `circuit:${instanceId}`;
 	}
 }

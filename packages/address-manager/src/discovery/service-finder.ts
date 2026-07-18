@@ -39,7 +39,7 @@ export class ServiceFinder {
 		if (isHealthy) {
 			return cachedInstance;
 		}
-		await this._serviceCache.invalidate(toServiceId(serviceName));
+		await this._serviceCache.delete(toServiceId(serviceName));
 		return null;
 	}
 
@@ -69,11 +69,8 @@ export class ServiceFinder {
 			return cached;
 		}
 		return region
-			? this._resolver.resolveAndValidateServiceInRegion(
-					toServiceId(serviceName),
-					region
-				)
-			: this._resolver.resolveAndValidateService(toServiceId(serviceName));
+			? this._resolver.findServiceInRegion(toServiceId(serviceName), region)
+			: this._resolver.findService(toServiceId(serviceName));
 	}
 
 	findAllServices(

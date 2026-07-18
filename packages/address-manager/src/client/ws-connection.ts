@@ -1,20 +1,16 @@
 import { URLString } from "@trading-model/common/domain/primitives";
-import type { IWsConnection } from "@trading-model/common/ws/i-ws-connection";
+import { BaseWsConnection } from "@trading-model/common/ws/base-ws-connection";
 import WebSocket from "ws";
 
-export class WsConnection implements IWsConnection {
-	private _ws: WebSocket | null = null;
-
-	onOpen: () => void = () => {};
-	onMessage: (data: unknown) => void = () => {};
-	onError: (err: Error) => void = () => {};
-	onCloseHandler: () => void = () => {};
+export class WsConnection extends BaseWsConnection {
 	lastCloseCode?: number;
 
 	constructor(
 		private readonly _baseUrl: URLString,
 		private _token?: string
-	) {}
+	) {
+		super();
+	}
 
 	private get _url(): URLString {
 		if (!this._token) {
@@ -40,24 +36,6 @@ export class WsConnection implements IWsConnection {
 			});
 			this._ws.on("error", (err: Error) => this.onError?.(err));
 		} catch {}
-	}
-
-	disconnect(closeCode?: number, reason?: string): void {
-		if (this._ws) {
-			this._ws.close(closeCode, reason);
-		}
-	}
-
-	get isConnected(): boolean {
-		return this._ws !== null && this._ws.readyState === WebSocket.OPEN;
-	}
-
-	send(data: unknown): boolean {
-		if (this._ws && this._ws.readyState === WebSocket.OPEN) {
-			this._ws.send(typeof data === "string" ? data : JSON.stringify(data));
-			return true;
-		}
-		return false;
 	}
 
 	updateToken(token: string): void {

@@ -1,10 +1,14 @@
 import type { InstanceId } from "@trading-model/common/domain/primitives";
 import type { ServiceInstance } from "../client/type";
 import { LeastConnectionsStrategy } from "./strategies/least-connections-strategy";
-import { RandomStrategy } from "./strategies/random-strategy";
-import { RoundRobinStrategy } from "./strategies/round-robin-strategy";
+import { createRandomStrategy } from "./strategies/random-strategy";
+import { createRoundRobinStrategy } from "./strategies/round-robin-strategy";
 
-export { LeastConnectionsStrategy, RandomStrategy, RoundRobinStrategy };
+export {
+	createRandomStrategy,
+	createRoundRobinStrategy,
+	LeastConnectionsStrategy,
+};
 
 export interface LoadBalancingStrategy {
 	select(instances: ServiceInstance[]): ServiceInstance;
@@ -26,13 +30,13 @@ const LOAD_BALANCER_REGISTRY: Record<
 	LoadBalancingStrategyType,
 	LoadBalancingStrategy
 > = {
-	[LoadBalancingStrategyType.Random]: new RandomStrategy(),
-	[LoadBalancingStrategyType.RoundRobin]: new RoundRobinStrategy(),
+	[LoadBalancingStrategyType.Random]: createRandomStrategy(),
+	[LoadBalancingStrategyType.RoundRobin]: createRoundRobinStrategy(),
 	[LoadBalancingStrategyType.LeastConnections]: new LeastConnectionsStrategy(),
 };
 
 export function createLoadBalancer(
 	strategy: LoadBalancingStrategyType
 ): LoadBalancingStrategy {
-	return LOAD_BALANCER_REGISTRY[strategy] ?? new RoundRobinStrategy();
+	return LOAD_BALANCER_REGISTRY[strategy] ?? createRoundRobinStrategy();
 }

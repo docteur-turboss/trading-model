@@ -43,7 +43,7 @@ function onCacheInvalidateMessage(
 		return;
 	}
 	const serviceName = toServiceId(rawServiceName);
-	serviceCache.invalidate(serviceName).catch((err: unknown) => {
+	serviceCache.delete(serviceName).catch((err: unknown) => {
 		_logCacheInvalidationError(serviceName, err);
 	});
 }
