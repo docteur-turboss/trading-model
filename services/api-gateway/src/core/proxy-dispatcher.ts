@@ -1,6 +1,7 @@
 import { logger } from "@trading-model/common/config/logger";
 import type { ServiceId } from "@trading-model/common/domain/primitives";
-import { toHostPortAddress } from "@trading-model/common/domain/service-identity";
+import { HostPort } from "@trading-model/common/domain/service-identity";
+import { HTTP_STATUS } from "@trading-model/common/http-status";
 import {
 	type ResponseObject,
 	sendResponse,
@@ -39,7 +40,7 @@ function tryCacheResponse(
 	result: { body: string; status: number },
 	cache: ResponseCache
 ): void {
-	if (req.method === "GET" && result.status === 200) {
+	if (req.method === "GET" && result.status === HTTP_STATUS.OK) {
 		const parsed = tryParseJson(result.body);
 		if (parsed) {
 			cache.set(ctx.cacheKey, { data: parsed, status: result.status });
@@ -57,7 +58,7 @@ function buildProxyErrorResponse(
 		context: {
 			serviceName: ctx.serviceName,
 			majorVersion: ctx.majorVersion,
-			target: toHostPortAddress(target),
+			target: HostPort.toAddress(target),
 			error: message,
 		},
 	});

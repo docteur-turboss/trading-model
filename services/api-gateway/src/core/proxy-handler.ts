@@ -1,57 +1,20 @@
-import crypto from "node:crypto";
 import type http from "node:http";
 import https from "node:https";
 import { logger } from "@trading-model/common/config/logger";
-import { toHostPortAddress } from "@trading-model/common/domain/service-identity";
-import { HTTP_HEADERS } from "@trading-model/common/http-headers";
+import { HostPort } from "@trading-model/common/domain/service-identity";
 import type { HttpStatusCode } from "@trading-model/common/http-status";
 import { HTTP_STATUS } from "@trading-model/common/http-status";
 import { CryptoAlg } from "@trading-model/crypto/crypto/crypto-constants";
 import type { ResolvedEndpoint } from "@trading-model/validation/contracts/service-resolver.types";
 import type { Request } from "express";
 import { ENV } from "../config/env";
+import type { ProxyRequestOptions } from "./proxy-options-builder";
+import { tlsOptionsBuilder } from "./proxy-options-builder";
 
 export interface ProxyResult {
 	status: HttpStatusCode;
 	body: string;
 	headers: Record<string, string | string[]>;
-}
-
-function _isBlockedHeader(key: string): boolean {
-	const lower = key.toLowerCase();
-	return (
-		lower === "x-api-key" ||
-		lower === "authorization" ||
-		lower === "host" ||
-		lower === "connection" ||
-		lower === "keep-alive"
-	);
-}
-
-function _serializeHeaderValue(value: string | string[]): string {
-	return typeof value === "string" ? value : value.join(", ");
-}
-
-function _addProxyHeaders(headers: Record<string, string>, req: Request): void {
-	headers[HTTP_HEADERS.X_FORWARDED_FOR] =
-		req.ip ?? req.socket.remoteAddress ?? "unknown";
-	headers[HTTP_HEADERS.X_FORWARDED_PROTO] = "https";
-	headers[HTTP_HEADERS.X_REQUEST_ID] =
-		(req.headers[HTTP_HEADERS.X_REQUEST_ID] as string) ?? crypto.randomUUID();
-}
-
-function buildSafeHeaders(req: Request): Record<string, string> {
-	const headers: Record<string, string> = {};
-	for (const [key, value] of Object.entries(req.headers)) {
-		if (_isBlockedHeader(key)) {
-			continue;
-		}
-		if (typeof value === "string" || Array.isArray(value)) {
-			headers[key] = _serializeHeaderValue(value);
-		}
-	}
-	_addProxyHeaders(headers, req);
-	return headers;
 }
 
 function _collectResponseChunks(
@@ -76,13 +39,6 @@ async function handleProxyResponse(
 	};
 }
 
-export interface ProxyRequestOptions {
-	req: Request;
-	target: ResolvedEndpoint;
-	path: string;
-	timeoutMs?: number;
-}
-
 function _onProxyError(
 	target: ResolvedEndpoint,
 	path: string,
@@ -91,7 +47,7 @@ function _onProxyError(
 	return (err: Error) => {
 		logger.error("Proxy request failed", {
 			context: {
-				target: toHostPortAddress(target),
+				target: HostPort.toAddress(target),
 				path,
 				error: err.message,
 			},
@@ -135,7 +91,12 @@ export function forwardRequest(
 ): Promise<ProxyResult> {
 	const { req, target, path, timeoutMs = ENV.PROXY_TIMEOUT_MS } = opts;
 	return new Promise((resolve, reject) => {
-		const options = _buildProxyOptions({ target, req, path, timeoutMs });
+		const options = tlsOptionsBuilder.buildOptions({
+			target,
+			req,
+			path,
+			timeoutMs,
+		});
 		_executeProxyRequest({
 			options,
 			req,
@@ -146,20 +107,6 @@ export function forwardRequest(
 			timeoutMs,
 		});
 	});
-}
-
-function _buildProxyOptions(opts: ProxyRequestOptions): https.RequestOptions {
-	const { target, req, path, timeoutMs = ENV.PROXY_TIMEOUT_MS } = opts;
-	const url = new URL(path, `https://${toHostPortAddress(target)}`);
-	return {
-		hostname: target.host,
-		port: target.port,
-		path: url.pathname + url.search,
-		method: req.method,
-		headers: buildSafeHeaders(req),
-		rejectUnauthorized: true,
-		timeout: timeoutMs,
-	};
 }
 
 function _writeRequestBody(proxyReq: http.ClientRequest, body: unknown): void {

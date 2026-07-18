@@ -1,6 +1,7 @@
-import { ClientIdentity } from "@trading-model/common/domain/primitives/string-ids";
+import { ClientIdentity } from "@trading-model/common/domain/primitives/auth-ids";
 import { catchSync } from "@trading-model/common/middleware/catch-error";
 import { sendResponse } from "@trading-model/common/middleware/response-exception";
+import { parseCommaSeparated } from "@trading-model/common/utils/comma-separated";
 import type { RequestHandler } from "express";
 
 import { ENV } from "../config/env";
@@ -10,11 +11,7 @@ export interface AuthRequest {
 }
 
 function getValidTokens(): Set<string> {
-	return new Set(
-		ENV.AUTH_TOKENS.split(",")
-			.map((part) => part.trim())
-			.filter((part) => part.length > 0)
-	);
+	return new Set(parseCommaSeparated(ENV.AUTH_TOKENS));
 }
 
 export const AUTH_MIDDLEWARE: RequestHandler = catchSync((req) => {

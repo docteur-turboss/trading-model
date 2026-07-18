@@ -68,7 +68,7 @@ export class ServiceResolver {
 					Number.parseInt(inst.version.split(".")[0], 10) === majorVersion
 			)
 			.map((inst) => ({
-				host: IPAddress.of(inst.ip),
+				host: IPAddress.of(inst.host),
 				port: inst.port,
 				version: inst.version as Version,
 			}));
