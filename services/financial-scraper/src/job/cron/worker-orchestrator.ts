@@ -24,7 +24,7 @@ export class WorkerOrchestrator {
 	}
 
 	async executeAll(): Promise<void> {
-		const { BinanceWorker } = await import("../worker/binance.worker");
+		const { BinanceWorker } = await import("../worker/binance.worker.js");
 		const limiter = await _createLimiter(this._maxConcurrency);
 
 		const results = await Promise.all(

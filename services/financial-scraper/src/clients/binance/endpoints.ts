@@ -9,7 +9,7 @@ import type {
 /** Base query parameters shared across Binance market-data endpoints. */
 export interface BinanceQueryParams {
 	symbol: TradingSymbol;
-	limit?: PositiveInt;
+	limit?: number | PositiveInt;
 	fromId?: BinanceFromId;
 	startTime?: UnixTimestamp;
 	endTime?: UnixTimestamp;

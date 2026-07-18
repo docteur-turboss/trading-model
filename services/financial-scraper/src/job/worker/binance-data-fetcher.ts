@@ -1,6 +1,9 @@
 ﻿import { CandleInterval } from "@trading-model/common/config/event.types";
 import type { SymbolInterval } from "@trading-model/common/domain/candlestick-query";
-import type { Limit } from "@trading-model/common/domain/primitives";
+import type {
+	Limit,
+	PositiveInt,
+} from "@trading-model/common/domain/primitives";
 import {
 	get24hrTickerStats,
 	getCandlestickData,
@@ -55,8 +58,14 @@ async function _fetchBinanceData(
 		priceTickerRaw,
 		bookTickerRaw,
 	] = await Promise.all([
-		getOrderBook({ symbol, limit: orderBookLimit ?? (100 as Limit) }),
-		getRecentTrades({ symbol, limit: tradeLimit ?? (100 as Limit) }),
+		getOrderBook({
+			symbol,
+			limit: orderBookLimit ?? (100 as unknown as PositiveInt),
+		}),
+		getRecentTrades({
+			symbol,
+			limit: tradeLimit ?? (100 as unknown as PositiveInt),
+		}),
 		getCandlestickData({
 			symbol,
 			limit: candleLimit ?? (100 as Limit),

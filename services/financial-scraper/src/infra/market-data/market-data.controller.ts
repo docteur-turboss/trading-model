@@ -13,7 +13,11 @@
 import type { BinanceWorkerResult } from "../../job/worker/binance.worker";
 import { MarketDataModel } from "./market-data.model";
 
-export const MarketDataController = new (class {
+interface MarketDataController {
+	persist(payload: BinanceWorkerResult): Promise<void>;
+}
+
+export const MarketDataController: MarketDataController = new (class {
 	async persist(payload: BinanceWorkerResult): Promise<void> {
 		const tasks: Promise<void>[] = [];
 

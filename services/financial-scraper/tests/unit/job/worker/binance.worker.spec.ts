@@ -53,10 +53,6 @@ jest.mock("../../../../src/config/env", () => ({
 	},
 }));
 
-jest.mock("uuid", () => ({
-	v4: () => "00000000-0000-0000-0000-000000000000",
-}));
-
 import * as binanceClient from "../../../../src/clients/binance/binance.client";
 import { BinanceNormalizer } from "../../../../src/clients/binance/normalizer";
 import { MessageManager } from "../../../../src/config/message-manager";
