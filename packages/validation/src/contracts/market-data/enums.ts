@@ -11,7 +11,8 @@ export enum MarketType {
 }
 
 export namespace MarketType {
-	export const values = createEnumValues(MarketType);
+	export const values: () => MarketType[] =
+		createEnumValues<MarketType>(MarketType);
 
 	export function isDecentralized(value: MarketType): boolean {
 		return value === MarketType.Crypto;
@@ -25,7 +26,8 @@ export enum SourceType {
 }
 
 export namespace SourceType {
-	export const values = createEnumValues(SourceType);
+	export const values: () => SourceType[] =
+		createEnumValues<SourceType>(SourceType);
 }
 
 export enum CandleInterval {
@@ -48,7 +50,8 @@ export enum CandleInterval {
 }
 
 export namespace CandleInterval {
-	export const values = createEnumValues(CandleInterval);
+	export const values: () => CandleInterval[] =
+		createEnumValues<CandleInterval>(CandleInterval);
 
 	const IntervalToMsMap: Record<CandleInterval, DurationMs> = {
 		"1s": 1000 as DurationMs,
@@ -80,7 +83,8 @@ export enum TradeSide {
 }
 
 export namespace TradeSide {
-	export const values = createEnumValues(TradeSide);
+	export const values: () => TradeSide[] =
+		createEnumValues<TradeSide>(TradeSide);
 
 	export function inverse(value: TradeSide): TradeSide {
 		return value === TradeSide.Buy ? TradeSide.Sell : TradeSide.Buy;

@@ -7,7 +7,7 @@ import type {
 	PositiveInt,
 	Region,
 	WorkerStatusCode,
-} from "../../domain/primitives";
+} from "@trading-model/common/domain/primitives";
 
 export interface WorkerEntry {
 	id: ModelId;

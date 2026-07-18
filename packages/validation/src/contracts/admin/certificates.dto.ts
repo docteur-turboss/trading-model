@@ -4,7 +4,7 @@ import type {
 	Fingerprint,
 	ISODateTime,
 	ServiceId,
-} from "../../domain/primitives";
+} from "@trading-model/common/domain/primitives";
 
 export enum CertificateStatus {
 	Valid = "valid",

@@ -1,11 +1,5 @@
 import { AddressManagerEnvSchema } from "../src/validation/address-manager-env";
-import {
-	BaseEnvSchema,
-	MongoDbEnvSchema,
-	MySQLEnvSchema,
-	RedisEnvSchema,
-	validateEnv,
-} from "../src/validation/env";
+import { BaseEnvSchema, validateEnv } from "../src/validation/env";
 
 describe("BaseEnvSchema", () => {
 	it("uses defaults for optional fields", () => {
@@ -16,7 +10,7 @@ describe("BaseEnvSchema", () => {
 		});
 		expect(result.PORT).toBe(3000);
 		expect(result.LOG_LEVEL).toBe("info");
-		expect(result.ERROR_URL_WEBHOOK).toBe("");
+		expect(result.NODE_ENV).toBe("development");
 	});
 
 	it("parses valid input with all fields", () => {
@@ -139,90 +133,6 @@ describe("AddressManagerEnvSchema", () => {
 
 	it("rejects missing required fields", () => {
 		expect(() => AddressManagerEnvSchema.parse({})).toThrow();
-	});
-});
-
-describe("DISCOVERY_SERVICE_URL", () => {
-	it("defaults to https://discovery-server:3000", () => {
-		const result = BaseEnvSchema.parse({
-			TLS_KEY_PATH: "/key.pem",
-			TLS_CERT_PATH: "/cert.pem",
-			TLS_CA_PATH: "/ca.pem",
-		});
-		expect(result.DISCOVERY_SERVICE_URL).toBe("https://discovery-server:3000");
-	});
-
-	it("accepts custom URL", () => {
-		const result = BaseEnvSchema.parse({
-			TLS_KEY_PATH: "/key.pem",
-			TLS_CERT_PATH: "/cert.pem",
-			TLS_CA_PATH: "/ca.pem",
-			DISCOVERY_SERVICE_URL: "https://ds.custom:8443",
-		});
-		expect(result.DISCOVERY_SERVICE_URL).toBe("https://ds.custom:8443");
-	});
-});
-
-describe("MongoDbEnvSchema", () => {
-	it("uses defaults when no values provided", () => {
-		const result = MongoDbEnvSchema.parse({});
-		expect(result.MONGO_URI).toBe("mongodb://localhost:27017");
-		expect(result.MONGO_DB).toBe("app");
-		expect(result.MONGO_COLLECTION).toBe("records");
-	});
-
-	it("parses valid input", () => {
-		const result = MongoDbEnvSchema.parse({
-			MONGO_URI: "mongodb://mongo:27017/test",
-			MONGO_DB: "test",
-			MONGO_COLLECTION: "entries",
-		});
-		expect(result.MONGO_URI).toBe("mongodb://mongo:27017/test");
-		expect(result.MONGO_DB).toBe("test");
-		expect(result.MONGO_COLLECTION).toBe("entries");
-	});
-});
-
-describe("MySQLEnvSchema", () => {
-	it("uses defaults when no values provided", () => {
-		const result = MySQLEnvSchema.parse({});
-		expect(result.DB_HOST).toBe("localhost");
-		expect(result.DB_PORT).toBe(3306);
-		expect(result.DB_USER).toBe("root");
-		expect(result.DB_PASSWORD).toBe("");
-		expect(result.DB_NAME).toBe("trading_model");
-	});
-
-	it("parses valid input", () => {
-		const result = MySQLEnvSchema.parse({
-			DB_HOST: "10.0.0.5",
-			DB_PORT: "5432",
-			DB_USER: "admin",
-			DB_PASSWORD: "secret",
-			DB_NAME: "my_db",
-		});
-		expect(result.DB_HOST).toBe("10.0.0.5");
-		expect(result.DB_PORT).toBe(5432);
-		expect(result.DB_USER).toBe("admin");
-		expect(result.DB_PASSWORD).toBe("secret");
-		expect(result.DB_NAME).toBe("my_db");
-	});
-});
-
-describe("RedisEnvSchema", () => {
-	it("uses defaults when no values provided", () => {
-		const result = RedisEnvSchema.parse({});
-		expect(result.REDIS_TLS_ENABLED).toBe(false);
-		expect(result.REDIS_PREFIX).toBe("mm:");
-		expect(result.REDIS_MAX_RECONNECT_ATTEMPTS).toBe(10);
-	});
-
-	it("parses REDIS_TLS_ENABLED as boolean", () => {
-		const enabled = RedisEnvSchema.parse({ REDIS_TLS_ENABLED: "true" });
-		expect(enabled.REDIS_TLS_ENABLED).toBe(true);
-
-		const disabled = RedisEnvSchema.parse({ REDIS_TLS_ENABLED: "false" });
-		expect(disabled.REDIS_TLS_ENABLED).toBe(false);
 	});
 });
 

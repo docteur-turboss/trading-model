@@ -40,7 +40,8 @@ export namespace JobStatus {
 		JobStatus.CANCELLED,
 	]);
 
-	export const values = createEnumValues(JobStatus);
+	export const values: () => JobStatus[] =
+		createEnumValues<JobStatus>(JobStatus);
 
 	export function isTerminal(status: JobStatus): boolean {
 		return TerminalSet.has(status);

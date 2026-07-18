@@ -5,7 +5,7 @@ import type {
 	PositiveInt,
 	SharpeRatio,
 	TradingSymbol,
-} from "../../domain/primitives";
+} from "@trading-model/common/domain/primitives";
 
 export enum LayerType {
 	Dense = "dense",

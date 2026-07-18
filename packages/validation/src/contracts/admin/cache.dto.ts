@@ -3,7 +3,7 @@ import type {
 	Percentage,
 	PositiveInt,
 	ServiceId,
-} from "../../domain/primitives";
+} from "@trading-model/common/domain/primitives";
 
 export type CacheKey = string & { readonly brand: "CacheKey" };
 export type DataSize = string & { readonly brand: "DataSize" };
