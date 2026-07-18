@@ -12,7 +12,7 @@ export interface RedisClusterNodesConfig {
 	password?: string;
 }
 
-export type RedisMode = RedisConnectionConfig["mode"];
+export type RedisConnectionMode = RedisConnectionConfig["mode"];
 
 export type RedisConnectionConfig =
 	| { mode: "single"; url: URLString }

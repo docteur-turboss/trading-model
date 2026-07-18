@@ -1,7 +1,5 @@
-export type Fitness = number & { readonly brand: "Fitness" };
+import type { BrandedNumber } from "./branded-utils";
+import { createNumberBrand } from "./branded-utils";
 
-export const Fitness = {
-	of(value: number): Fitness {
-		return value as Fitness;
-	},
-};
+export type Fitness = BrandedNumber<"Fitness">;
+export const Fitness = createNumberBrand<"Fitness">("Fitness");

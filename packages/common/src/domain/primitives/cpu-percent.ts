@@ -1,7 +1,5 @@
-export type CpuPercent = number & { readonly brand: "CpuPercent" };
+import type { BrandedNumber } from "./branded-utils";
+import { createNumberBrand } from "./branded-utils";
 
-export const CpuPercent = {
-	of(value: number): CpuPercent {
-		return value as CpuPercent;
-	},
-};
+export type CpuPercent = BrandedNumber<"CpuPercent">;
+export const CpuPercent = createNumberBrand<"CpuPercent">("CpuPercent");

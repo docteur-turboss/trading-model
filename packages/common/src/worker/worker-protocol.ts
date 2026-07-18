@@ -58,7 +58,7 @@ export class WorkerProtocol implements IWorkerProtocol {
 		const workerId = this._wsManager.findWorkerIdByWs(ws);
 		if (workerId) {
 			this._wsManager.deleteConnection(workerId);
-			this._workerRegistry.setStatus(workerId, "draining");
+			this._workerRegistry.store.setStatus(workerId, "draining");
 			this._onWorkerDisconnect(workerId);
 		}
 	}
@@ -66,7 +66,7 @@ export class WorkerProtocol implements IWorkerProtocol {
 		message: WorkerIncomingMessage & { type: "register" },
 		ws: WebSocket
 	): void {
-		this._workerRegistry.register(message.workerId, {
+		this._workerRegistry.store.register(message.workerId, {
 			workerId: message.workerId,
 			host: message.host,
 			port: message.port,
@@ -82,8 +82,11 @@ export class WorkerProtocol implements IWorkerProtocol {
 	private _handleHeartbeat(
 		message: WorkerIncomingMessage & { type: "heartbeat" }
 	): void {
-		this._workerRegistry.heartbeat(message.workerId);
-		this._workerRegistry.updateLoad(message.workerId, message.currentLoad);
+		this._workerRegistry.store.heartbeat(message.workerId);
+		this._workerRegistry.store.updateLoad(
+			message.workerId,
+			message.currentLoad
+		);
 		const ws = this._wsManager.getConnection(message.workerId);
 		if (ws && ws.readyState === WebSocket.OPEN) {
 			ws.send(JSON.stringify({ type: "heartbeat.ack" }));
@@ -93,7 +96,7 @@ export class WorkerProtocol implements IWorkerProtocol {
 		message: WorkerIncomingMessage & { type: "disconnect" }
 	): void {
 		this._wsManager.deleteConnection(message.workerId);
-		this._workerRegistry.unregister(message.workerId);
+		this._workerRegistry.store.unregister(message.workerId);
 		this._onWorkerDisconnect(message.workerId);
 		logger.info("Worker disconnected", {
 			context: { workerId: message.workerId, reason: message.reason },

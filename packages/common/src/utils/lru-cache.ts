@@ -1,27 +1,21 @@
-import type { ISyncCache } from "./cache";
 import type { CacheConfig } from "./cache-config";
+import { TtlCacheBase } from "./ttl-cache-base";
 
-export class LruCache<TValue> implements ISyncCache<TValue> {
+export class LruCache<TValue> extends TtlCacheBase<TValue> {
 	private readonly _maxSize: number;
-	private readonly _ttlMs: number;
-	private readonly _store = new Map<
-		string,
-		{ value: TValue; expiresAt: number }
-	>();
 
 	constructor(config: CacheConfig = { maxSize: 1000, ttlMs: 60000 as never }) {
+		super(config.ttlMs ?? 60000);
 		this._maxSize = config.maxSize;
-		this._ttlMs = config.ttlMs ?? 60000;
 	}
 
 	has(key: string): boolean {
-		const entry = this._store.get(key);
-		if (!entry) {
+		if (!super.has(key)) {
 			return false;
 		}
-		if (this._ttlMs > 0 && Date.now() > entry.expiresAt) {
-			this._store.delete(key);
-			return false;
+		const entry = this._store.get(key);
+		if (entry) {
+			this._touch(key, entry);
 		}
 		return true;
 	}
@@ -38,10 +32,6 @@ export class LruCache<TValue> implements ISyncCache<TValue> {
 		return this._touchAndReturn(key, entry);
 	}
 
-	private _isExpired(entry: { value: TValue; expiresAt: number }): boolean {
-		return this._ttlMs > 0 && Date.now() > entry.expiresAt;
-	}
-
 	private _touchAndReturn(
 		key: string,
 		entry: { value: TValue; expiresAt: number }
@@ -49,6 +39,14 @@ export class LruCache<TValue> implements ISyncCache<TValue> {
 		this._store.delete(key);
 		this._store.set(key, entry);
 		return entry.value;
+	}
+
+	private _touch(
+		key: string,
+		entry: { value: TValue; expiresAt: number }
+	): void {
+		this._store.delete(key);
+		this._store.set(key, entry);
 	}
 
 	private _evictIfNeeded(key: string): void {
@@ -64,23 +62,10 @@ export class LruCache<TValue> implements ISyncCache<TValue> {
 
 	set(key: string, value: TValue, ttlMs?: number): void {
 		this._evictIfNeeded(key);
-		const effectiveTtl = ttlMs ?? this._ttlMs;
-		this._store.set(key, {
-			value,
-			expiresAt:
-				effectiveTtl > 0 ? Date.now() + effectiveTtl : Number.POSITIVE_INFINITY,
-		});
-	}
-
-	delete(key: string): void {
-		this._store.delete(key);
+		super.set(key, value, ttlMs);
 	}
 
 	get size(): number {
 		return this._store.size;
-	}
-
-	clear(): void {
-		this._store.clear();
 	}
 }

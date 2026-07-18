@@ -1,14 +1,14 @@
 import type {
-	JOB_STATUS,
 	Job,
+	JobStatus,
 	JobUpdateExtras,
 } from "@trading-model/validation/contracts/recovery.types";
 
 export interface IJobRepository {
-	findByWorker(workerId: string, statuses: JOB_STATUS[]): Promise<Job[]>;
+	findByWorker(workerId: string, statuses: JobStatus[]): Promise<Job[]>;
 	updateStatus(
 		jobId: string,
-		status: JOB_STATUS,
+		status: JobStatus,
 		extras?: JobUpdateExtras
 	): Promise<void>;
 }

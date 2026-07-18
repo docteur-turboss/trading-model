@@ -22,7 +22,6 @@ export class WorkerWsConnection implements IWsConnection {
 	rejectOnError = true;
 	onOpen: () => void = () => {};
 	onMessage: (data: unknown) => void = () => {};
-	onClose: () => void = () => {};
 	onError: (err: Error) => void = () => {};
 
 	onCloseHandler: () => void = () => {};
@@ -51,7 +50,6 @@ export class WorkerWsConnection implements IWsConnection {
 			this.onMessage?.(data);
 		});
 		ws.on("close", () => {
-			this.onClose?.();
 			this.onCloseHandler?.();
 		});
 		ws.on("error", (err) => {

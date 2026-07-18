@@ -3,6 +3,7 @@ import { createGunzip, createInflate } from "node:zlib";
 import type { z } from "zod";
 import type { URLString } from "../domain/primitives";
 import type { HttpStatusCode } from "../http-status";
+import { createHttpClientError } from "./http-client-errors";
 import type { HttpMethod } from "./http-types";
 
 interface ResponseCollectionContext<TResponse> {
@@ -50,7 +51,7 @@ function collectResponseBody<TResponse>(
 		stream.on("end", () => {
 			if (res.statusCode && (res.statusCode < 200 || res.statusCode >= 300)) {
 				return reject(
-					new (require("./http-client-errors").HttpClientError)(
+					createHttpClientError(
 						`HTTP ${res.statusCode} on ${method} ${urlStr}`,
 						res.statusCode as HttpStatusCode
 					)

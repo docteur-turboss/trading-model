@@ -143,14 +143,10 @@ export class CircuitStateMachine implements IUnkeyedCircuitBreaker {
 		this._halfOpenAttempts = 0;
 	}
 
-	reset(): void {
+	clear(): void {
 		this._failures = 0;
 		this._openUntil = 0 as UnixTimestamp;
 		this._halfOpenAttempts = 0;
-	}
-
-	clear(): void {
-		this.reset();
 	}
 
 	protected _transitionToClosed(): void {

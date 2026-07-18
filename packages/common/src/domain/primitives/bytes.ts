@@ -1,7 +1,5 @@
-export type Bytes = number & { readonly brand: "Bytes" };
+import type { BrandedNumber } from "./branded-utils";
+import { createNumberBrand } from "./branded-utils";
 
-export const Bytes = {
-	of(value: number): Bytes {
-		return value as Bytes;
-	},
-};
+export type Bytes = BrandedNumber<"Bytes">;
+export const Bytes = createNumberBrand<"Bytes">("Bytes");

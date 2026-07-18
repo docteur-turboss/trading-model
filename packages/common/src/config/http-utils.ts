@@ -2,8 +2,7 @@ import https from "node:https";
 import type { URL } from "node:url";
 import { Port } from "../domain/primitives";
 import { Hostname } from "../domain/primitives/hostname";
-import type { TlsPemBundle } from "../domain/tls-paths";
-import type { HttpHeaders, HttpMethod, HttpRequestOptions } from "./http-types";
+import type { HttpHeaders, HttpMethod, TlsHttpOptions } from "./http-types";
 
 let sharedAgent: https.Agent | null = null;
 
@@ -20,9 +19,7 @@ function getKeepAliveAgent(): https.Agent {
 	return sharedAgent;
 }
 
-function _buildDefaultHeaders(
-	options: HttpRequestOptions & Partial<TlsPemBundle>
-): HttpHeaders {
+function _buildDefaultHeaders(options: TlsHttpOptions): HttpHeaders {
 	return {
 		"Content-Type": "application/json",
 		"Accept-Encoding": "gzip, deflate",
@@ -45,7 +42,7 @@ function _buildUrlParts(url: URL): UrlParts {
 }
 
 function _buildTlsOptions(
-	options: HttpRequestOptions & Partial<TlsPemBundle>
+	options: TlsHttpOptions
 ): Partial<https.RequestOptions> {
 	return {
 		cert: options.certPem,
@@ -59,7 +56,7 @@ function _buildTlsOptions(
 function buildRequestOptions(
 	method: HttpMethod,
 	url: URL,
-	options: HttpRequestOptions & Partial<TlsPemBundle>
+	options: TlsHttpOptions
 ): https.RequestOptions {
 	return {
 		method,

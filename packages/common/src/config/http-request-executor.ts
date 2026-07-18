@@ -2,16 +2,22 @@ import https from "node:https";
 import { URL } from "node:url";
 
 import type { z } from "zod";
-import type { URLString } from "../domain/primitives";
+import type { DurationMs, URLString } from "../domain/primitives";
 import type { TlsPemBundle } from "../domain/tls-paths";
-import { CircuitRecorder, type ServiceRoute } from "./circuit-recorder";
-import { HttpClientTimeoutError } from "./http-client-errors";
+import { sleep } from "../utils/sleep";
+import {
+	type CircuitRecorder,
+	getDefaultCircuitRecorder,
+	type ServiceRoute,
+} from "./circuit-recorder";
+import { createHttpClientTimeoutError } from "./http-client-errors";
+import { shouldRetry } from "./http-error-classifier";
 import { collectResponseBody } from "./http-response";
+import { computeRetryDelay, DEFAULT_RETRY_COUNT } from "./http-retry";
 import type { HttpMethod, HttpRequestOptions } from "./http-types";
 import { buildRequestOptions } from "./http-utils";
-import { RetryExecutor, shouldRetry } from "./retry-executor";
 
-const DEFAULT_TIMEOUT_MS = 10_000;
+const DEFAULT_TIMEOUT_MS = 10_000 as DurationMs;
 
 export interface RequestContext<TResponse> {
 	method: HttpMethod;
@@ -24,11 +30,10 @@ export interface RequestContext<TResponse> {
 export type { ServiceRoute };
 
 export class HttpRequestExecutor {
-	private readonly _executor: RetryExecutor;
-	private readonly _circuitRecorder = new CircuitRecorder();
+	private readonly _circuitRecorder: CircuitRecorder;
 
-	constructor() {
-		this._executor = new RetryExecutor(this._circuitRecorder);
+	constructor(circuitRecorder?: CircuitRecorder) {
+		this._circuitRecorder = circuitRecorder ?? getDefaultCircuitRecorder();
 	}
 
 	execute<TResponse>(
@@ -57,7 +62,7 @@ export class HttpRequestExecutor {
 			const onTimeout = () => {
 				req.destroy();
 				reject(
-					new HttpClientTimeoutError(
+					createHttpClientTimeoutError(
 						`Request timed out after ${timeoutMs}ms`,
 						timeoutMs
 					)
@@ -79,17 +84,36 @@ export class HttpRequestExecutor {
 		});
 	}
 
-	executeWithRetry<TResponse>(
+	async executeWithRetry<TResponse>(
 		context: RequestContext<TResponse>,
 		route: ServiceRoute,
 		tls?: Partial<TlsPemBundle>
 	): Promise<TResponse | undefined> {
-		return this._executor.executeWithRetry(
-			context,
-			(ctx, tls) => this.execute(ctx, tls),
-			route,
-			tls
-		);
+		const retryCount = context.options?.retryCount ?? DEFAULT_RETRY_COUNT;
+		let lastError: Error | null = null;
+
+		for (let attempt = 0; attempt <= retryCount; attempt++) {
+			try {
+				const result = await this.execute(context, tls);
+				this._circuitRecorder.recordSuccess(route);
+				return result;
+			} catch (error) {
+				lastError = error instanceof Error ? error : new Error(String(error));
+
+				if (attempt < retryCount && shouldRetry(lastError)) {
+					await sleep(computeRetryDelay(attempt));
+					continue;
+				}
+
+				this._circuitRecorder.recordFailure(
+					route,
+					context.options?.serviceInstanceCount
+				);
+				throw lastError;
+			}
+		}
+
+		throw lastError ?? new Error("Request failed");
 	}
 
 	checkPreconditions(
@@ -97,10 +121,6 @@ export class HttpRequestExecutor {
 		options?: HttpRequestOptions
 	): ServiceRoute {
 		return this._circuitRecorder.checkPreconditions(urlStr, options);
-	}
-
-	shouldRetry(error: Error): boolean {
-		return shouldRetry(error);
 	}
 
 	recordSuccess(route: ServiceRoute): void {

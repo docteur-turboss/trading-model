@@ -44,22 +44,6 @@ export {
 } from "@trading-model/validation/contracts/market-data.types";
 export { MarketEvent } from "@trading-model/validation/contracts/market-events";
 
-import { AuditEvent } from "@trading-model/validation/contracts/audit-events";
-import { CertificateEvent } from "@trading-model/validation/contracts/certificate-events";
-import { MarketEvent } from "@trading-model/validation/contracts/market-events";
-
-/**
- * @deprecated Use per-context enums: MarketEvent, AuditEvent, CertificateEvent.
- */
-export const EnumEventMessage = {
-	...MarketEvent,
-	...AuditEvent,
-	...CertificateEvent,
-} as const;
-/** @deprecated Use MarketEvent | AuditEvent | CertificateEvent as a type. */
-export type EnumEventMessage =
-	(typeof EnumEventMessage)[keyof typeof EnumEventMessage];
-
 import type { AuditEventMap } from "@trading-model/validation/contracts/audit-events";
 import type { CertificateEventMap } from "@trading-model/validation/contracts/certificate-events";
 import type { MarketEventMap } from "@trading-model/validation/contracts/market-events";
@@ -71,7 +55,10 @@ export interface EventMap
 		CertificateEventMap {}
 
 /** Union of all valid event message string values. */
-export type EventEnumMap = `${EnumEventMessage}`;
+export type EventEnumMap =
+	| `${MarketEvent}`
+	| `${AuditEvent}`
+	| `${CertificateEvent}`;
 
 /** Extracts the payload type for a given event message. */
 export type EventMessagesArgs<TValue extends EventEnumMap> =

@@ -1,11 +1,14 @@
 import { logger } from "../config/logger";
 import { DurationMs } from "../domain/primitives";
 import {
-	scheduleWsReconnect,
-	type WsReconnectConfig,
-} from "../utils/ws-reconnect";
-import { ReconnectStateManager } from "../worker/reconnect-state-manager";
+	type BackoffConfig,
+	computeExponentialBackoffWithJitter,
+} from "../utils/backoff-config";
 import type { IWsReconnector } from "./i-ws-reconnector";
+
+export interface WsReconnectConfig extends BackoffConfig {
+	maxAttempts?: number;
+}
 
 export interface DefaultWsReconnectorOptions {
 	config?: WsReconnectConfig;
@@ -16,7 +19,17 @@ export interface DefaultWsReconnectorOptions {
 }
 
 export class DefaultWsReconnector implements IWsReconnector {
-	private readonly _stateManager = new ReconnectStateManager();
+	private _state: {
+		attempt: number;
+		timer: ReturnType<typeof setTimeout> | null;
+		destroyed: boolean;
+	} = {
+		attempt: 0,
+		timer: null,
+		destroyed: false,
+	};
+	private _shouldReconnect = true;
+	private _intentionalClose = false;
 	private readonly _config: WsReconnectConfig;
 	private readonly _maxAttempts?: number;
 	private readonly _onReconnect: () => void;
@@ -40,23 +53,23 @@ export class DefaultWsReconnector implements IWsReconnector {
 	}
 
 	get shouldReconnect(): boolean {
-		return this._stateManager.shouldReconnect;
+		return this._shouldReconnect;
 	}
 
 	set shouldReconnect(value: boolean) {
-		this._stateManager.shouldReconnect = value;
+		this._shouldReconnect = value;
 	}
 
 	get intentionalClose(): boolean {
-		return this._stateManager.intentionalClose;
+		return this._intentionalClose;
 	}
 
 	get reconnectAttempt(): number {
-		return this._stateManager.reconnectAttempt;
+		return this._state.attempt;
 	}
 
 	get attempt(): number {
-		return this._stateManager.attempt;
+		return this._state.attempt;
 	}
 
 	get permanentlyFellBack(): boolean {
@@ -64,53 +77,74 @@ export class DefaultWsReconnector implements IWsReconnector {
 	}
 
 	get isDestroyed(): boolean {
-		return this._stateManager.state.destroyed;
+		return this._state.destroyed;
 	}
 
 	reset(): void {
-		this._stateManager.reset();
+		this._intentionalClose = false;
+		this._state.attempt = 0;
 	}
 
 	cancel(): void {
-		this._stateManager.cancel();
+		if (this._state.timer) {
+			clearTimeout(this._state.timer);
+			this._state.timer = null;
+		}
 	}
 
 	stop(): void {
-		this._stateManager.stop();
+		this._shouldReconnect = false;
+		this._state.destroyed = true;
+		this.cancel();
 	}
 
 	markIntentionalClose(): void {
-		this._stateManager.markIntentionalClose();
+		this._intentionalClose = true;
 	}
 
-	scheduleReconnect(connectFn?: () => void): void {
-		if (!this._stateManager.shouldReconnect) {
-			return;
-		}
-		if (this._hasReachedMaxAttempts()) {
-			return;
-		}
-		scheduleWsReconnect({
-			state: this._stateManager.state,
-			config: this._config,
-			onReconnect: connectFn ?? this._onReconnect,
-			onSchedule: this._onSchedule,
-			logger,
+	private _calculateDelay(
+		config: WsReconnectConfig,
+		attempt: number
+	): DurationMs {
+		return computeExponentialBackoffWithJitter(attempt, {
+			baseDelayMs: config.baseDelayMs ?? DurationMs.of(1000),
+			maxDelayMs: config.maxDelayMs ?? DurationMs.of(60000),
+			jitterMs: config.jitterMs ?? DurationMs.of(500),
 		});
 	}
 
-	private _hasReachedMaxAttempts(): boolean {
+	scheduleReconnect(connectFn?: () => void): void {
+		if (!this._shouldReconnect) {
+			return;
+		}
+		if (this._state.destroyed) {
+			return;
+		}
 		if (
 			this._maxAttempts !== undefined &&
-			this._stateManager.attempt >= this._maxAttempts
+			this._state.attempt >= this._maxAttempts
 		) {
+			logger.warn("WebSocket max reconnect attempts reached", {
+				context: { attempts: this._state.attempt },
+			});
 			this._permanentlyFellBack = true;
 			this._onPermanentFallback?.();
-			logger.warn("WebSocket max reconnect attempts reached", {
-				context: { attempts: this._stateManager.attempt },
-			});
-			return true;
+			return;
 		}
-		return false;
+		if (this._state.timer) {
+			clearTimeout(this._state.timer);
+			this._state.timer = null;
+		}
+		this._state.attempt++;
+		const delay = this._calculateDelay(this._config, this._state.attempt);
+		this._onSchedule?.({ attempt: this._state.attempt, delay });
+		logger.info(
+			`WebSocket reconnecting in ${Math.round(delay)}ms (attempt ${this._state.attempt})`
+		);
+		this._state.timer = setTimeout(() => {
+			this._state.timer = null;
+			(connectFn ?? this._onReconnect)();
+		}, delay);
+		this._state.timer.unref();
 	}
 }

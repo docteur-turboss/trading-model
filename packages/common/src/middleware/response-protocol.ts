@@ -1,42 +1,16 @@
 import type { NextFunction, Request, Response } from "express";
 import { logger } from "../config/logger";
-import {
-	isAddressManagerError,
-	isAgentError,
-	isAuthenticationError,
-	isDeadLetterError,
-	isMessageManagerError,
-	isServiceNotFoundError,
-	isServiceUnreachableError,
-} from "../utils/errors";
-import { ResponseException, type ResponseObject } from "./response-exception";
+import { HTTP_STATUS, type HttpStatusCode } from "../http-status";
+import { isAppError } from "../utils/errors";
+import type { ResponseObject } from "./response-exception";
 
 type ErrorInput = Error | ResponseObject;
 
-function _isServiceError(err: Error): boolean {
-	return (
-		isAddressManagerError(err) ||
-		isMessageManagerError(err) ||
-		isDeadLetterError(err) ||
-		isAgentError(err)
-	);
-}
-
 function mapErrorToResponse(err: Error): ResponseObject {
-	const response = ResponseException(err.message);
-	if (isServiceNotFoundError(err)) {
-		return response.notFound();
-	}
-	if (isServiceUnreachableError(err)) {
-		return response.gone();
-	}
-	if (isAuthenticationError(err)) {
-		return response.invalidToken();
-	}
-	if (_isServiceError(err)) {
-		return response.serviceUnavailable();
-	}
-	return response.unknownError();
+	const httpStatus = isAppError(err)
+		? (err.httpStatus as HttpStatusCode)
+		: HTTP_STATUS.INTERNAL_SERVER_ERROR;
+	return { status: httpStatus, data: err.message };
 }
 
 function logServerError(

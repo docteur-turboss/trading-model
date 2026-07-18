@@ -3,12 +3,12 @@ import { HttpClient } from "../config/http-client";
 import type {
 	Capability,
 	DurationMs,
-	JobId,
 	JobType,
 	PositiveInt,
 } from "../domain/primitives";
 import type { TlsPaths } from "../domain/tls-paths";
 import { JobAssignmentHandler } from "./job-assignment-handler";
+import type { JobHandler } from "./job-handler-registry";
 import { WorkerClient, type WorkerClientConfig } from "./worker-client";
 
 export interface BaseWorkerConfig {
@@ -20,12 +20,6 @@ export interface BaseWorkerConfig {
 	heartbeatIntervalMs?: DurationMs;
 	tlsConfig?: Partial<TlsPaths>;
 }
-
-export type JobHandler<TData = unknown> = (job: {
-	id: JobId;
-	type: JobType;
-	payload: TData;
-}) => Promise<unknown>;
 
 export class BaseWorker {
 	protected readonly client: WorkerClient;
@@ -59,14 +53,7 @@ export class BaseWorker {
 		jobType: JobType,
 		handler: JobHandler<TPayload>
 	): void {
-		this._jobHandler.registerHandler(
-			jobType,
-			handler as (job: {
-				id: JobId;
-				type: JobType;
-				payload: unknown;
-			}) => Promise<unknown>
-		);
+		this._jobHandler.registerHandler(jobType, handler);
 	}
 
 	async start(): Promise<void> {

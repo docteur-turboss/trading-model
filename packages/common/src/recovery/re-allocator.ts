@@ -1,11 +1,11 @@
 import {
-	JOB_STATUS,
+	JobStatus as JOB_STATUS,
 	type Job,
 	type JobEvent,
 } from "@trading-model/validation/contracts/recovery.types";
 import { logger } from "../config/logger";
 import { PositiveInt, UnixTimestamp } from "../domain/primitives";
-import { hasExceededMaxRetries } from "../domain/retry-policy";
+import { RetryPolicy } from "../domain/retry-policy";
 import type { IJobQueue } from "./job-queue.interface";
 import type { IJobRepository } from "./job-repository.interface";
 
@@ -45,7 +45,7 @@ export class ReAllocator {
 	}
 
 	async reallocate(job: Job): Promise<void> {
-		if (hasExceededMaxRetries(job)) {
+		if (RetryPolicy.hasExceededMaxRetries(job)) {
 			return this._failMaxRetries(job);
 		}
 		const newDeadline = PositiveInt.of(Date.now() + this._ackTimeoutMs);

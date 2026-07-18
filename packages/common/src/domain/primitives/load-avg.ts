@@ -1,7 +1,5 @@
-export type LoadAvg = number & { readonly brand: "LoadAvg" };
+import type { BrandedNumber } from "./branded-utils";
+import { createNumberBrand } from "./branded-utils";
 
-export const LoadAvg = {
-	of(value: number): LoadAvg {
-		return value as LoadAvg;
-	},
-};
+export type LoadAvg = BrandedNumber<"LoadAvg">;
+export const LoadAvg = createNumberBrand<"LoadAvg">("LoadAvg");

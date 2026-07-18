@@ -1,10 +1,11 @@
+import type { PositiveInt } from "../domain/primitives";
 import { DurationMs } from "../domain/primitives";
 import {
 	type BackoffConfig,
 	computeExponentialBackoffWithJitter,
 } from "../utils/backoff-config";
 
-const DEFAULT_RETRY_COUNT = 3;
+const DEFAULT_RETRY_COUNT = 3 as PositiveInt;
 
 function isRetryableStatus(code: number): boolean {
 	return code >= 500 || code === 429;

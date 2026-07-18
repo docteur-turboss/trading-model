@@ -1,4 +1,4 @@
-import { JOB_STATUS } from "@trading-model/validation/contracts/recovery.types";
+import { JobStatus as JOB_STATUS } from "@trading-model/validation/contracts/recovery.types";
 import { logger } from "../config/logger";
 import { TimerHandle } from "../utils/timer-handle";
 import type { WorkerRegistry } from "../worker/worker-registry";
@@ -67,7 +67,7 @@ export class OrphanDetector {
 	}
 
 	private async _detectOrphans(): Promise<void> {
-		const staleWorkerIds = this._workers.purgeStaleWorkers();
+		const staleWorkerIds = this._workers.healthMonitor.purgeStaleWorkers();
 		if (staleWorkerIds.length === 0) {
 			return;
 		}

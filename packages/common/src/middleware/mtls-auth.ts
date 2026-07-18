@@ -1,6 +1,6 @@
 import type { TLSSocket } from "node:tls";
 
-import { ClientIdentity } from "../domain/primitives/string-ids";
+import { ClientIdentity } from "../domain/primitives/auth-ids";
 import { catchSync } from "./catch-error";
 import { ResponseException } from "./response-exception";
 

@@ -1,5 +1,5 @@
 export interface IWsConnection {
-	connect(): void | Promise<void>;
+	connect(): void;
 	disconnect(closeCode?: number, reason?: string): void;
 	send(data: unknown): boolean;
 	readonly isConnected: boolean;
@@ -7,4 +7,5 @@ export interface IWsConnection {
 	onOpen?: () => void;
 	onMessage?: (data: unknown) => void;
 	onError?: (err: Error) => void;
+	on?(event: string, listener: (...args: unknown[]) => void): this;
 }

@@ -2,41 +2,29 @@ import { normalizeError } from "../utils/errors";
 import type { HttpMethod } from "./http-types";
 import type { LogEntry } from "./log-types";
 import { NODE_ENV } from "./node-env";
-import type { SensitiveDataSanitizer } from "./sensitive-data-sanitizer";
 
-export class ErrorServiceSender {
-	private readonly _env: string | undefined;
+function _shouldSend(env: string | undefined): boolean {
+	return env === NODE_ENV.PRODUCTION || env === NODE_ENV.STAGING;
+}
 
-	constructor(
-		private readonly _sanitizer: SensitiveDataSanitizer,
-		env: string | undefined
-	) {
-		this._env = env;
+export async function sendError(
+	safeStringify: (value: unknown) => string,
+	entry: LogEntry,
+	env: string | undefined
+): Promise<void> {
+	if (!_shouldSend(env)) {
+		return;
 	}
-
-	private _shouldSend(): boolean {
-		return this._env === NODE_ENV.PRODUCTION || this._env === NODE_ENV.STAGING;
-	}
-
-	async send(entry: LogEntry): Promise<void> {
-		if (!this._shouldSend()) {
-			return;
-		}
-		try {
-			await this._postEntry(entry);
-		} catch (err) {
-			console.error(
-				"Failed to send log to service:",
-				normalizeError(err).message
-			);
-		}
-	}
-
-	private async _postEntry(entry: LogEntry): Promise<void> {
+	try {
 		await fetch(process.env.ERROR_URL_WEBHOOK ?? "/", {
 			method: "POST" as HttpMethod,
 			headers: { "Content-Type": "application/json" },
-			body: this._sanitizer.safeStringify(entry),
+			body: safeStringify(entry),
 		});
+	} catch (err) {
+		console.error(
+			"Failed to send log to service:",
+			normalizeError(err).message
+		);
 	}
 }

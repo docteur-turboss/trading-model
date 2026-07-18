@@ -1,5 +1,7 @@
-import type { WorkerRegistration } from "@trading-model/validation/contracts/worker-protocol.types";
-import { Capability, WorkerStatusCode } from "../domain/primitives";
+import {
+	isWorkerSuitable,
+	type WorkerRegistration,
+} from "@trading-model/validation/contracts/worker-protocol.types";
 import type { WorkerStore } from "./worker-store";
 
 function _pickLowerLoad(
@@ -19,8 +21,8 @@ export class WorkerLoadBalancer {
 	findBestWorker(jobType: string): WorkerRegistration | null {
 		let best: WorkerRegistration | null = null;
 		let bestLoad = Number.POSITIVE_INFINITY;
-		for (const worker of this._store.all().values()) {
-			if (!this._isWorkerSuitable(worker, jobType)) {
+		for (const worker of this._store.values()) {
+			if (!isWorkerSuitable(worker, jobType)) {
 				continue;
 			}
 			best = _pickLowerLoad(worker, best, bestLoad);
@@ -29,16 +31,5 @@ export class WorkerLoadBalancer {
 			}
 		}
 		return best;
-	}
-
-	private _isWorkerSuitable(
-		worker: WorkerRegistration,
-		jobType: string
-	): boolean {
-		return (
-			worker.status === WorkerStatusCode.Active &&
-			worker.capabilities.includes(Capability.of(jobType)) &&
-			worker.currentLoad < worker.maxConcurrency
-		);
 	}
 }

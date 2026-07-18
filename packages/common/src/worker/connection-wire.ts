@@ -20,7 +20,7 @@ export function wireConnectionEvents(
 		handlers.heartbeat.start();
 		handlers.emitter.emit("connected");
 	};
-	connection.onClose = () => {
+	connection.onCloseHandler = () => {
 		handlers.heartbeat.stop();
 		handlers.emitter.emit("disconnected");
 		if (!handlers.reconnector.intentionalClose) {

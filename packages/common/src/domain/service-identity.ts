@@ -15,14 +15,16 @@ export interface ServiceIdentity {
 	region?: Region;
 }
 
+export namespace ServiceIdentity {
+	/** Builds a compound string key from a service identity. */
+	export function toKey(identity: ServiceIdentity): string {
+		return `${identity.serviceName}:${identity.instanceId}`;
+	}
+}
+
 /** Extends ServiceIdentity with a software version. */
 export interface ServiceInstanceIdentity extends ServiceIdentity {
 	version: Version;
-}
-
-/** Builds a compound string key from a service identity. */
-export function toServiceIdentityKey(identity: ServiceIdentity): string {
-	return `${identity.serviceName}:${identity.instanceId}`;
 }
 
 /** Host and port pair for network endpoints. */
@@ -31,9 +33,11 @@ export interface HostPort {
 	port: Port;
 }
 
-/** Formats a HostPort as "host:port". */
-export function toHostPortAddress(hp: HostPort): string {
-	return `${hp.host}:${hp.port}`;
+export namespace HostPort {
+	/** Formats a HostPort as "host:port". */
+	export function toAddress(hp: HostPort): string {
+		return `${hp.host}:${hp.port}`;
+	}
 }
 
 /** Identifies a service by name, network address, and port. */

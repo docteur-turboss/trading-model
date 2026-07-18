@@ -1,7 +1,5 @@
-export type Uptime = number & { readonly brand: "Uptime" };
+import type { BrandedNumber } from "./branded-utils";
+import { createNumberBrand } from "./branded-utils";
 
-export const Uptime = {
-	of(value: number): Uptime {
-		return value as Uptime;
-	},
-};
+export type Uptime = BrandedNumber<"Uptime">;
+export const Uptime = createNumberBrand<"Uptime">("Uptime");

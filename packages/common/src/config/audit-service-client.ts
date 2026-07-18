@@ -2,7 +2,6 @@ import { type JsonObject, URLString } from "../domain/primitives";
 import type { TlsPaths } from "../domain/tls-paths";
 import { normalizeError } from "../utils/errors";
 import { HttpClient } from "./http-client";
-import type { SensitiveDataSanitizer } from "./sensitive-data-sanitizer";
 
 interface AuditTarget {
 	url: URLString;
@@ -11,14 +10,14 @@ interface AuditTarget {
 type AuditResolver = () => Promise<AuditTarget | null>;
 
 export class AuditServiceClient {
-	private readonly _sanitizer: SensitiveDataSanitizer;
+	private readonly _safeStringify: (value: unknown) => string;
 	private readonly _auditResolver: AuditResolver;
 
 	constructor(
-		sanitizer: SensitiveDataSanitizer,
+		safeStringify: (value: unknown) => string,
 		auditResolver?: AuditResolver
 	) {
-		this._sanitizer = sanitizer;
+		this._safeStringify = safeStringify;
 		this._auditResolver = auditResolver ?? (() => Promise.resolve(null));
 	}
 
@@ -41,7 +40,7 @@ export class AuditServiceClient {
 		auditTarget: AuditTarget,
 		entry: JsonObject
 	): Promise<void> {
-		const body = this._sanitizer.safeStringify(entry);
+		const body = this._safeStringify(entry);
 		const client = HttpClient.createWithTls(auditTarget.tls);
 		await client.post(URLString.of(`${auditTarget.url}/api/logs`), body);
 	}

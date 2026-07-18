@@ -14,7 +14,7 @@ export class WorkerHealthMonitor {
 			return 0;
 		}
 		let total = 0;
-		for (const worker of this._store.all().values()) {
+		for (const worker of this._store.values()) {
 			if (worker.maxConcurrency > 0) {
 				total += worker.currentLoad / worker.maxConcurrency;
 			}
@@ -23,7 +23,7 @@ export class WorkerHealthMonitor {
 	}
 
 	getAllActive(): WorkerRegistration[] {
-		return Array.from(this._store.all().values()).filter(
+		return Array.from(this._store.values()).filter(
 			(registration) => registration.status === WorkerStatusCode.Active
 		);
 	}

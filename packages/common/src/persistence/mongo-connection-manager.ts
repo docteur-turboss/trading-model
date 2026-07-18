@@ -70,6 +70,16 @@ export class MongoConnectionManager extends ConnectionManager<MongoClient> {
 		return this._db;
 	}
 
+	async tryReconnect(): Promise<boolean> {
+		await this.resetState();
+		try {
+			await this.getConnection();
+			return true;
+		} catch {
+			return false;
+		}
+	}
+
 	protected _clearState(): void {
 		super._clearState();
 		this._db = null;

@@ -1,12 +1,10 @@
 import {
 	type BaseMarketData,
 	type BidAsk,
-	type MarketType,
-	marketTypeValues,
+	MarketType,
 	type OhlcvData,
 	type OhlcvTickerData,
-	type SourceType,
-	sourceTypeValues,
+	SourceType,
 } from "@trading-model/validation/contracts/market-data.types";
 import { z } from "zod";
 
@@ -16,12 +14,12 @@ export const BaseMarketDataShape = {
 	symbol: z.string("Symbol is required and must be a string"),
 	timestamp: z.number("Timestamp is required and must be a number"),
 	source: z.enum(
-		sourceTypeValues() as [SourceType, ...SourceType[]],
-		`Source is required and must be part of: ${sourceTypeValues().join(", ")}`
+		SourceType.values() as [SourceType, ...SourceType[]],
+		`Source is required and must be part of: ${SourceType.values().join(", ")}`
 	),
 	market: z.enum(
-		marketTypeValues() as [MarketType, ...MarketType[]],
-		`Market is required and must be part of: ${marketTypeValues().join(", ")}`
+		MarketType.values() as [MarketType, ...MarketType[]],
+		`Market is required and must be part of: ${MarketType.values().join(", ")}`
 	),
 } as const satisfies Record<keyof BaseMarketData, z.ZodType>;
 

@@ -1,5 +1,5 @@
 import { NumericRange } from "../domain/numeric-range";
-import { type DurationMs, toDurationMs } from "../domain/primitives/string-ids";
+import { type DurationMs, toDurationMs } from "../domain/primitives/time-ids";
 
 export class DelayRange {
 	readonly range: NumericRange;
@@ -12,11 +12,11 @@ export class DelayRange {
 		return this.range.hi as DurationMs;
 	}
 
-	constructor(baseMs: DurationMs, maxMs: DurationMs) {
-		if (baseMs <= 0) {
-			throw new RangeError(`baseMs (${baseMs}) must be > 0`);
+	constructor(config: { baseMs: DurationMs; maxMs: DurationMs }) {
+		if (config.baseMs <= 0) {
+			throw new RangeError(`baseMs (${config.baseMs}) must be > 0`);
 		}
-		this.range = new NumericRange(baseMs, maxMs);
+		this.range = new NumericRange(config.baseMs, config.maxMs);
 	}
 
 	backoff(attempt: number): DurationMs {

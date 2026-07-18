@@ -6,8 +6,8 @@ import {
 } from "../domain/primitives";
 import type { TlsPaths } from "../domain/tls-paths";
 import { AuditServiceClient } from "./audit-service-client";
-import { ErrorServiceSender } from "./error-service-sender";
-import { LogFileWriter } from "./log-file-writer";
+import { sendError } from "./error-service-sender";
+import { writeLogFile } from "./log-file-writer";
 import {
 	type LogEntry,
 	LogLevel,
@@ -15,24 +15,17 @@ import {
 	type LogOptions,
 } from "./log-types";
 import { getNodeEnv } from "./node-env";
-import type { SensitiveDataSanitizer } from "./sensitive-data-sanitizer";
-
 export class LogDispatcher {
-	private readonly _sanitizer: SensitiveDataSanitizer;
+	private readonly _safeStringify: (value: unknown) => string;
 	private _auditClient: AuditServiceClient;
-	private readonly _logFileWriter: LogFileWriter;
-	private readonly _errorServiceSender: ErrorServiceSender;
 	private readonly _sessionId: SessionId;
+	private readonly _env: string | undefined;
 
-	constructor(sanitizer: SensitiveDataSanitizer, sessionId: SessionId) {
-		this._sanitizer = sanitizer;
+	constructor(safeStringify: (value: unknown) => string, sessionId: SessionId) {
+		this._safeStringify = safeStringify;
 		this._sessionId = sessionId;
-		this._auditClient = new AuditServiceClient(this._sanitizer);
-		this._logFileWriter = new LogFileWriter(this._sanitizer);
-		this._errorServiceSender = new ErrorServiceSender(
-			this._sanitizer,
-			getNodeEnv()
-		);
+		this._env = getNodeEnv();
+		this._auditClient = new AuditServiceClient(this._safeStringify);
 	}
 
 	private _maybeSendToAudit(data: LogEntry, level: LogLevel): void {
@@ -59,7 +52,7 @@ export class LogDispatcher {
 			serviceInCharge,
 		};
 
-		this._logFileWriter.write(data, level);
+		writeLogFile(data, level, this._safeStringify);
 		this._maybeSendToAudit(data, level);
 
 		return data;
@@ -71,10 +64,10 @@ export class LogDispatcher {
 			tls: TlsPaths;
 		} | null>
 	): void {
-		this._auditClient = new AuditServiceClient(this._sanitizer, resolver);
+		this._auditClient = new AuditServiceClient(this._safeStringify, resolver);
 	}
 
 	sendError(logEntry: LogEntry): void {
-		void this._errorServiceSender.send(logEntry);
+		void sendError(this._safeStringify, logEntry, this._env);
 	}
 }

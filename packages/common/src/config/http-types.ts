@@ -1,6 +1,7 @@
 import type https from "node:https";
 import { HttpMethod } from "@trading-model/validation/contracts/signed-request";
 import type { DurationMs, PositiveInt, ServiceId } from "../domain/primitives";
+import type { TlsPemBundle } from "../domain/tls-paths";
 
 export type HttpHeaderValue = string & { readonly brand: "HttpHeaderValue" };
 export const HttpHeaderValue = {
@@ -34,3 +35,6 @@ interface HttpRequestOptions {
 
 export type { HttpRequestOptions };
 export { HttpMethod };
+
+/** Combines HTTP request options with optional TLS PEM bundle for mTLS connections. */
+export type TlsHttpOptions = HttpRequestOptions & Partial<TlsPemBundle>;

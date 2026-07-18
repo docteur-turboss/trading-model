@@ -1,4 +1,4 @@
-import { DurationMs } from "../domain/primitives/string-ids";
+import { DurationMs } from "../domain/primitives/time-ids";
 import { DelayRange } from "./delay-range";
 
 export interface BackoffConfig {
@@ -11,25 +11,25 @@ export function createDelayRange(
 	baseMs: DurationMs,
 	maxMs: DurationMs
 ): DelayRange {
-	return new DelayRange(baseMs, maxMs);
+	return new DelayRange({ baseMs, maxMs });
 }
 
 export function computeExponentialBackoff(
 	attempt: number,
 	options: BackoffConfig
 ): DurationMs {
-	return new DelayRange(
-		options.baseDelayMs ?? DurationMs.of(200),
-		options.maxDelayMs ?? DurationMs.of(5000)
-	).backoff(attempt);
+	return new DelayRange({
+		baseMs: options.baseDelayMs ?? DurationMs.of(200),
+		maxMs: options.maxDelayMs ?? DurationMs.of(5000),
+	}).backoff(attempt);
 }
 
 export function computeExponentialBackoffWithJitter(
 	attempt: number,
 	options: BackoffConfig
 ): DurationMs {
-	return new DelayRange(
-		options.baseDelayMs ?? DurationMs.of(200),
-		options.maxDelayMs ?? DurationMs.of(5000)
-	).withJitter(attempt, options.jitterMs ?? DurationMs.of(0));
+	return new DelayRange({
+		baseMs: options.baseDelayMs ?? DurationMs.of(200),
+		maxMs: options.maxDelayMs ?? DurationMs.of(5000),
+	}).withJitter(attempt, options.jitterMs ?? DurationMs.of(0));
 }

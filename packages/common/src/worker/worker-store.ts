@@ -83,7 +83,11 @@ export class WorkerStore {
 	}
 
 	all(): Map<string, WorkerRegistration> {
-		return this._workers;
+		return new Map(this._workers);
+	}
+
+	values(): IterableIterator<WorkerRegistration> {
+		return this._workers.values();
 	}
 
 	size(): number {

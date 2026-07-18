@@ -3,34 +3,38 @@ import { mkdir } from "node:fs/promises";
 import path from "node:path";
 
 import type { LogEntry, LogLevel } from "./log-types";
-import type { SensitiveDataSanitizer } from "./sensitive-data-sanitizer";
 
-export class LogFileWriter {
-	constructor(private readonly _sanitizer: SensitiveDataSanitizer) {}
+function _buildLogFileName(data: LogEntry, level: LogLevel): string {
+	const ts = new Date(data.timestamp);
+	return `${ts.getFullYear()}.${ts.getMonth() + 1}.${ts.getDate()}-${level}.log`;
+}
 
-	private _buildLogFileName(data: LogEntry, level: LogLevel): string {
-		const ts = new Date(data.timestamp);
-		return `${ts.getFullYear()}.${ts.getMonth() + 1}.${ts.getDate()}-${level}.log`;
-	}
-
-	private _appendToFile(filePath: string, data: LogEntry): void {
-		appendFile(filePath, `${this._sanitizer.safeStringify(data)}\n`, (err) => {
-			if (err) {
-				console.error("[Logger] Failed to write log file:", err);
-			}
-		});
-	}
-
-	write(data: LogEntry, level: LogLevel): void {
-		const logDir = process.env.LOG_DIR;
-		if (!logDir) {
-			return;
+function _appendToFile(
+	filePath: string,
+	data: LogEntry,
+	safeStringify: (value: unknown) => string
+): void {
+	appendFile(filePath, `${safeStringify(data)}\n`, (err) => {
+		if (err) {
+			console.error("[Logger] Failed to write log file:", err);
 		}
-		const logFilePath = path.resolve(logDir);
-		mkdir(logFilePath, { recursive: true }).catch(() => {});
-		this._appendToFile(
-			path.resolve(logFilePath, this._buildLogFileName(data, level)),
-			data
-		);
+	});
+}
+
+export function writeLogFile(
+	data: LogEntry,
+	level: LogLevel,
+	safeStringify: (value: unknown) => string
+): void {
+	const logDir = process.env.LOG_DIR;
+	if (!logDir) {
+		return;
 	}
+	const logFilePath = path.resolve(logDir);
+	mkdir(logFilePath, { recursive: true }).catch(() => {});
+	_appendToFile(
+		path.resolve(logFilePath, _buildLogFileName(data, level)),
+		data,
+		safeStringify
+	);
 }

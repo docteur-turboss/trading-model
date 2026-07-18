@@ -5,6 +5,8 @@ export interface RetryPolicy {
 	maxRetries: PositiveInt;
 }
 
-export function hasExceededMaxRetries(policy: RetryPolicy): boolean {
-	return policy.retryCount >= policy.maxRetries;
+export namespace RetryPolicy {
+	export function hasExceededMaxRetries(policy: RetryPolicy): boolean {
+		return policy.retryCount >= policy.maxRetries;
+	}
 }

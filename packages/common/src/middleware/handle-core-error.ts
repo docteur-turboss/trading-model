@@ -1,8 +1,9 @@
 import type { ErrorResponse } from "@trading-model/validation/contracts/error-response";
 import { logger } from "../config/logger";
+import { HTTP_STATUS, type HttpStatusCode } from "../http-status";
 import { normalizeError } from "../utils/errors";
 import { normalizeDbError } from "./normalize-db-error";
-import { HTTP_CODE, ResponseException } from "./response-exception";
+import { ResponseException } from "./response-exception";
 
 export enum FileHandle {
 	Auth = "auth",
@@ -25,12 +26,7 @@ export type ErrorMapping = Record<string, ErrorResponse>;
 
 export interface CoreSuccessResult<TData = string> {
 	data: TData;
-	statusCode: string;
-}
-
-export interface CoreErrorResult {
-	errorCode: string;
-	errorMessage: string;
+	statusCode: HttpStatusCode;
 }
 
 export function ensureAtLeastOneField(fields: Record<string, unknown>) {
@@ -45,10 +41,9 @@ export const handleCoreError = (
 	ctx: CoreErrorContext,
 	err: unknown,
 	mapping: ErrorMapping
-): CoreErrorResult | never => {
+): ErrorResponse | never => {
 	if (err instanceof Error && mapping[err.message]) {
-		const { code, message } = mapping[err.message];
-		return { errorCode: code, errorMessage: message };
+		return mapping[err.message];
 	}
 
 	logger.error("Core operation failed", {
@@ -65,10 +60,10 @@ export const handleOnlyDataCore = async <TData>(
 	fn: () => Promise<TData>,
 	errorMap: ErrorMapping,
 	ctx: CoreErrorContext
-): Promise<CoreSuccessResult<TData | string> | CoreErrorResult> => {
+): Promise<CoreSuccessResult<TData | string> | ErrorResponse> => {
 	try {
 		const result = await fn();
-		return { data: result, statusCode: HTTP_CODE.success };
+		return { data: result, statusCode: HTTP_STATUS.OK };
 	} catch (err) {
 		return handleCoreError(ctx, err, errorMap);
 	}

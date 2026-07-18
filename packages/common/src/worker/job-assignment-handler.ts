@@ -1,12 +1,12 @@
 import type { SchedulerWsJobAssignedMessage } from "@trading-model/validation/contracts/worker-protocol.types";
 import type { HttpClient } from "../config/http-client";
-import type { JobId, JobType } from "../domain/primitives";
+import type { JobType } from "../domain/primitives";
 import { WorkerStatusCode } from "../domain/primitives";
-import { JobHandlerRegistry } from "./job-handler-registry";
+import type { JobHandler } from "./job-handler-registry";
 import { JobHttpClient, JobTracker } from "./job-tracker";
 
 export class JobAssignmentHandler {
-	private readonly _handlerRegistry = new JobHandlerRegistry();
+	private readonly _handlerRegistry = new Map<JobType, JobHandler>();
 	private readonly _jobTracker: JobTracker;
 	private readonly _jobHttpClient: JobHttpClient;
 	private _state: WorkerStatusCode = WorkerStatusCode.Active;
@@ -18,13 +18,9 @@ export class JobAssignmentHandler {
 
 	registerHandler<TPayload = unknown>(
 		jobType: JobType,
-		handler: (job: {
-			id: JobId;
-			type: JobType;
-			payload: TPayload;
-		}) => Promise<unknown>
+		handler: JobHandler<TPayload>
 	): void {
-		this._handlerRegistry.register(jobType, handler);
+		this._handlerRegistry.set(jobType, handler as JobHandler);
 	}
 
 	async onJobAssigned(

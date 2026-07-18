@@ -15,28 +15,31 @@ import {
 export type { LogEntry, LogOptions };
 export { LogLevel };
 
+import { CircularBuffer } from "../utils/circular-buffer";
 import { formatLogEntry } from "./console-formatter";
-import { LogBuffer } from "./log-buffer";
+import { createLogger } from "./create-logger";
 import { LogDispatcher } from "./log-dispatcher";
-import { getNodeEnv, NODE_ENV as NODE_ENV_CONST } from "./node-env";
-import { SensitiveDataSanitizer } from "./sensitive-data-sanitizer";
+import { safeStringify } from "./sensitive-data-sanitizer";
 import { generateSessionId } from "./session-id-generator";
 
 export class Logger {
 	private _logLevel: LogLevel;
 	private _userId: UserId = UserId.of("unknown");
 	private readonly _sessionId: SessionId;
-	private readonly _buffer: LogBuffer;
+	private readonly _buffer: CircularBuffer<LogEntry>;
 	private readonly _dispatcher: LogDispatcher;
 
-	constructor(logLevel: LogLevel = LogLevel.Info) {
+	constructor(
+		logLevel: LogLevel = LogLevel.Info,
+		sessionId?: SessionId,
+		buffer?: CircularBuffer<LogEntry>,
+		dispatcher?: LogDispatcher
+	) {
 		this._logLevel = logLevel;
-		this._sessionId = generateSessionId(logLevel);
-		this._buffer = new LogBuffer();
-		this._dispatcher = new LogDispatcher(
-			new SensitiveDataSanitizer(),
-			this._sessionId
-		);
+		this._sessionId = sessionId ?? generateSessionId(logLevel);
+		this._buffer = buffer ?? new CircularBuffer<LogEntry>(1000);
+		this._dispatcher =
+			dispatcher ?? new LogDispatcher(safeStringify, this._sessionId);
 	}
 
 	private _log(
@@ -118,13 +121,6 @@ export class Logger {
 }
 
 /** Global logger instance pre-configured based on the current environment. */
-const NODE_ENV = getNodeEnv();
-export const logger = new Logger(
-	NODE_ENV === NODE_ENV_CONST.DEVELOPMENT
-		? LogLevel.Debug
-		: NODE_ENV === NODE_ENV_CONST.STAGING
-			? LogLevel.Info
-			: LogLevel.Warn
-);
+export const logger: Logger = createLogger();
 
 export const LOGGER = Logger;
