@@ -19,6 +19,7 @@ module.exports = {
     '^@trading-model/common/(.*)$': '<rootDir>/../../packages/common/src/$1',
     '^@trading-model/certificate-utils/types$': '<rootDir>/../../packages/certificate-utils/src/keygen/types',
     '^@trading-model/certificate-utils/generate-key-pair$': '<rootDir>/../../packages/certificate-utils/src/keygen/generate-key-pair',
+    '^@trading-model/certificate-utils$': '<rootDir>/../../packages/certificate-utils/src/index',
     '^@trading-model/certificate-utils/sign-certificate$': '<rootDir>/../../packages/certificate-utils/src/signing/sign-certificate',
     '^@trading-model/certificate-utils/validate-certificate$': '<rootDir>/../../packages/certificate-utils/src/validation/validate-certificate',
     '^@trading-model/certificate-utils/async$': '<rootDir>/../../packages/certificate-utils/src/workers/async',

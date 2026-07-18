@@ -10,6 +10,7 @@ module.exports = {
   testMatch: ['**/?(*.)+(spec).ts'],
   testPathIgnorePatterns: ['/node_modules/', '/dist/'],
   moduleNameMapper: {
+    '^(\\.{1,2}/.*)\\.js$': '$1',
     '^@trading-model/crypto/(.*)$': '<rootDir>/../../packages/crypto/src/$1',
     '^@trading-model/validation/(.*)$': '<rootDir>/../../packages/validation/src/$1',
     '^@trading-model/server-utils/(.*)$': '<rootDir>/../../packages/server-utils/src/$1',

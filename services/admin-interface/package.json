@@ -20,6 +20,7 @@
     "@mui/icons-material": "^7.0.0",
     "@mui/material": "^7.0.0",
     "@trading-model/common": "*",
+    "@trading-model/validation": "*",
     "i18next": "^26.3.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
@@ -28,6 +29,7 @@
     "recharts": "^2.15.0"
   },
   "devDependencies": {
+    "@rollup/plugin-commonjs": "^29.0.3",
     "@testing-library/jest-dom": "^6.6.0",
     "@testing-library/react": "^16.0.0",
     "@types/react": "^19.0.0",

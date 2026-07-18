@@ -8,6 +8,10 @@
     "./*": {
       "types": "./dist/*.d.ts",
       "default": "./dist/*.js"
+    },
+    "./contracts/admin": {
+      "types": "./dist/contracts/admin/index.d.ts",
+      "default": "./dist/contracts/admin/index.js"
     }
   },
   "dependencies": {
@@ -22,6 +26,7 @@
   },
   "scripts": {
     "test": "jest",
+    "test:coverage": "jest --coverage",
     "build": "tsc"
   }
 }
