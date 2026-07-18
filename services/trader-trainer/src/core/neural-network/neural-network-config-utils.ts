@@ -1,4 +1,5 @@
 import { logger } from "@trading-model/common/config/logger";
+import type { PositiveInt } from "@trading-model/common/domain/primitives";
 import { agentError } from "@trading-model/common/utils/errors";
 import { INITIALIZERS } from "./initializers";
 import type { LayerDims } from "./layer-dims";
@@ -50,8 +51,8 @@ function _buildLayerMemory(
 	opt: import("./optimizer").Optimizer
 ): LayerMemory {
 	return {
-		fanIn: dims.fanIn,
-		fanOut: dims.fanOut,
+		fanIn: dims.fanIn as unknown as PositiveInt,
+		fanOut: dims.fanOut as unknown as PositiveInt,
 		weights: _initializeWeights(dims, config),
 		bias: _initializeBiases(dims, config),
 		output: new Float32Array(dims.fanOut),

@@ -1,8 +1,10 @@
 import { NumericRange } from "@trading-model/common/domain/numeric-range";
 import type {
+	NoiseStd,
 	Percentage,
 	PositiveInt,
 	Probability,
+	Temperature,
 } from "@trading-model/common/domain/primitives";
 import type { MutationGenome } from "../genome-mutation";
 import { sampleGaussian, sampleNoise } from "../noise";
@@ -131,7 +133,10 @@ function _mutateDiscretePolicy(
 				0.9,
 				0.9999
 			) as Probability,
-			temperature: Math.max(0.01, perturb(rl.discretePolicy.temperature, 0.1)),
+			temperature: Math.max(
+				0.01,
+				perturb(rl.discretePolicy.temperature, 0.1)
+			) as unknown as Temperature,
 		},
 	};
 }
@@ -145,7 +150,10 @@ function _mutateContinuousPolicy(
 	return {
 		continuousPolicy: {
 			...rl.continuousPolicy,
-			noiseStd: Math.max(0.001, perturb(rl.continuousPolicy.noiseStd, 0.02)),
+			noiseStd: Math.max(
+				0.001,
+				perturb(rl.continuousPolicy.noiseStd, 0.02)
+			) as unknown as NoiseStd,
 			noiseDecay: clamp(
 				perturb(rl.continuousPolicy.noiseDecay, 0.001),
 				0.9,

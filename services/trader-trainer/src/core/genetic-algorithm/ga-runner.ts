@@ -1,11 +1,7 @@
 import { checkTerminationConditions } from "./adaptive-control-system";
 import type { GARunnerConfig, GenerationContext } from "./generation-processor";
 import { GenerationProcessor } from "./generation-processor";
-import type {
-	GAControlGenome,
-	GenomeFitnessMeta,
-	LamarckGenome,
-} from "./genome-types";
+import type { GenomeFitnessMeta, LamarckGenome } from "./genome-types";
 import type { ObjectiveVector } from "./nsga2";
 import type { DeepReadonly } from "./shared-types";
 

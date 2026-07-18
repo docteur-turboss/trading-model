@@ -7,45 +7,32 @@ import {
 import type { TradingSymbol } from "./market-data-types";
 import type { TrainingFailure } from "./training-types";
 
-export class TrainingPrerequisiteValidator {
-	constructor(
-		private readonly _dataBuffer: MarketDataBuffer,
-		private readonly _isTraining: () => boolean
-	) {}
-
-	validate(
-		symbol: TradingSymbol
-	):
-		| { ok: true; windowSet: WindowSet }
-		| { ok: false; error: TrainingFailure } {
-		if (this._isTraining()) {
-			return {
-				ok: false,
-				error: {
-					success: false,
-					symbol,
-					error: new Error("Already training"),
-				},
-			};
-		}
-
-		const windowSet = this._dataBuffer.getAllWindows(
-			symbol,
-			ENV.TRAINER_VALIDATION_SPLIT
-		);
-		if (!windowSet || windowSet.train.length < MIN_TRAINING_STEPS) {
-			return {
-				ok: false,
-				error: {
-					success: false,
-					symbol,
-					error: new Error(
-						`Not enough data for ${symbol}, need at least ${MIN_TRAINING_STEPS} steps`
-					),
-				},
-			};
-		}
-
-		return { ok: true, windowSet };
+export function validateTrainingPrerequisites(
+	dataBuffer: MarketDataBuffer,
+	isTraining: () => boolean,
+	symbol: TradingSymbol
+): { ok: true; windowSet: WindowSet } | { ok: false; error: TrainingFailure } {
+	if (isTraining()) {
+		return {
+			ok: false,
+			error: { success: false, symbol, error: new Error("Already training") },
+		};
 	}
+	const windowSet = dataBuffer.getAllWindows(
+		symbol,
+		ENV.TRAINER_VALIDATION_SPLIT
+	);
+	if (!windowSet || windowSet.train.length < MIN_TRAINING_STEPS) {
+		return {
+			ok: false,
+			error: {
+				success: false,
+				symbol,
+				error: new Error(
+					`Not enough data for ${symbol}, need at least ${MIN_TRAINING_STEPS} steps`
+				),
+			},
+		};
+	}
+	return { ok: true, windowSet };
 }

@@ -1,5 +1,6 @@
 import {
 	type Cash,
+	type PositiveInt,
 	type Price,
 	Volume,
 } from "@trading-model/common/domain/primitives";
@@ -86,7 +87,7 @@ export class Wallet implements WalletAPI {
 			this._recorder.getPeakValuation(),
 			this._config.initialCash,
 			this._recorder.getTotalFeesPaid(),
-			this._recorder.getTradeCount(),
+			this._recorder.getTradeCount() as unknown as PositiveInt,
 			this._config.decimals
 		).compute();
 	}

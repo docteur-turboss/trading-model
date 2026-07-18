@@ -1,7 +1,7 @@
 import { EvictionPolicy } from "../core/eviction-policy";
-import type {
+import {
 	MarketDataBuffer,
-	MarketDataBufferConfig,
+	type MarketDataBufferConfig,
 } from "../core/market-data-buffer";
 import type { TradingSymbol } from "../core/market-data-types";
 import { Trainer } from "../core/trainer";

@@ -1,4 +1,9 @@
 import type { TradeData } from "@trading-model/common/config/event.types";
+import type {
+	Price,
+	Ratio,
+	Volume,
+} from "@trading-model/common/domain/primitives";
 import { TradeSide } from "@trading-model/validation/contracts/market-data.types";
 import type { FeatureContext } from "../feature-context";
 
@@ -21,9 +26,9 @@ function setTradeFeatures(
 	const buyQty = recentTrades
 		.filter((trade) => trade.side === TradeSide.Buy)
 		.reduce((acc, trade) => acc + trade.quantity, 0);
-	features.trade.avgPrice = state.norm.trade.price.normalize(avgPrice);
-	features.trade.totalQty = state.norm.trade.qty.normalize(totalQty);
-	features.trade.buyRatio = totalQty > 0 ? buyQty / totalQty : 0.5;
+	features.trade.avgPrice = state.norm.trade.price.normalize(avgPrice) as Price;
+	features.trade.totalQty = state.norm.trade.qty.normalize(totalQty) as Volume;
+	features.trade.buyRatio = (totalQty > 0 ? buyQty / totalQty : 0.5) as Ratio;
 }
 
 export function buildTradeFeatures(ctx: FeatureContext): void {

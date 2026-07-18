@@ -86,8 +86,8 @@ export class SymbolStateManager {
 		const victims = this._memoryManager.enforceMemoryLimit(total, (sym) =>
 			this._estimateMemoryBytes(this.states.get(sym))
 		);
-		for (const v of victims) {
-			this.states.delete(v);
+		for (const val of victims) {
+			this.states.delete(val);
 		}
 	}
 

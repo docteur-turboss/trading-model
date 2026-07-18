@@ -62,8 +62,8 @@ export function computeAllResults(ctx: ComputeAllResultsContext): {
 }
 
 function _computeAdjustedFitnessForGenome(
-	genome: DeepReadonly<LamarckGenome>,
-	currentGenome: DeepReadonly<LamarckGenome>,
+	_genome: DeepReadonly<LamarckGenome>,
+	_currentGenome: DeepReadonly<LamarckGenome>,
 	allRaw: number[],
 	complexity: ReturnType<typeof estimateComplexity>
 ): number {

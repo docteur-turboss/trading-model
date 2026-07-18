@@ -1,3 +1,4 @@
+import type { Price } from "@trading-model/common/domain/primitives";
 import type { PriceSnapshotFeatureContext } from "../feature-context";
 import { toSymbol } from "../market-data-types";
 
@@ -8,5 +9,7 @@ export function buildPriceSnapshotFeature(
 	const cur = state.candles[idx];
 	const snapPrice =
 		priceSnapshot[toSymbol(state.candles[idx].symbol)] ?? cur.close;
-	features.priceSnapshot = state.norm.candle.close.normalize(snapPrice);
+	features.priceSnapshot = state.norm.candle.close.normalize(
+		snapPrice
+	) as Price;
 }

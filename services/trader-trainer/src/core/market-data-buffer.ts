@@ -52,6 +52,10 @@ export class MarketDataBuffer {
 		this._priceSnapshot = { ...this._priceSnapshot, ...prices };
 	}
 
+	getPriceSnapshot(): Record<TradingSymbol, Price> {
+		return this._priceSnapshot;
+	}
+
 	getSymbols(): TradingSymbol[] {
 		return this._stateManager.getSymbols();
 	}

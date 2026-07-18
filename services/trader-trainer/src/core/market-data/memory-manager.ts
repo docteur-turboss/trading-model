@@ -1,5 +1,5 @@
 import { EvictionPolicy } from "../eviction-policy";
-import type { SymbolState, TradingSymbol } from "../market-data-types";
+import type { TradingSymbol } from "../market-data-types";
 import type { MemoryConfig } from "../memory-config";
 
 /** Manages in-memory state limits with configurable eviction. */

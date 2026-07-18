@@ -55,7 +55,7 @@ export interface DecodedScalars {
 }
 
 const SCALAR_FIELDS: {
-	[K in keyof DecodedScalars]: ScalarFieldDef<K>;
+	[TKey in keyof DecodedScalars]: ScalarFieldDef<TKey>;
 }[keyof DecodedScalars][] = [
 	{
 		name: "Gamma",

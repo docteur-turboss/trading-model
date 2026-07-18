@@ -1,5 +1,6 @@
 import { logger } from "@trading-model/common/config/logger";
 import type { PositiveInt } from "@trading-model/common/domain/primitives";
+import { DurationMs } from "@trading-model/common/domain/primitives";
 import { ENV } from "../config/env";
 import { createDefaultGenome } from "./genetic-algorithm/factory";
 import {
@@ -70,7 +71,7 @@ export class TrainingSession {
 			termination: {
 				...defaultControl.termination,
 				maxGenerations: ENV.TRAINER_GENERATIONS as PositiveInt,
-				timeBudgetMs: ENV.TRAINER_TIME_BUDGET_MS,
+				timeBudgetMs: DurationMs.of(ENV.TRAINER_TIME_BUDGET_MS),
 			},
 			evaluation: {
 				...defaultControl.evaluation,

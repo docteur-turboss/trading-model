@@ -1,3 +1,4 @@
+import type { Reward } from "@trading-model/common/domain/primitives";
 import { agentError } from "@trading-model/common/utils/errors";
 import { createExperiencePool, type IExperiencePool } from "./experience-pool";
 import type { NeuralNetwork } from "./neural-network";
@@ -50,7 +51,7 @@ export class AgentExperienceHandler {
 					kind: ExperienceKind.QLearning,
 					input,
 					output: output.slice(),
-					reward,
+					reward: reward as unknown as Reward,
 					nextState,
 					done: done ?? false,
 				}

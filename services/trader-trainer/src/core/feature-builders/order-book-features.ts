@@ -5,6 +5,7 @@ import {
 	getBidTotalQty,
 	type OrderBookData,
 } from "@trading-model/common/config/event.types";
+import type { Price, Ratio } from "@trading-model/common/domain/primitives";
 import type { FeatureContext } from "../feature-context";
 import type { SymbolState } from "../market-data-types";
 import type { OrderBookAverages } from "../order-book-averages";
@@ -29,14 +30,20 @@ export function buildOrderBookFeatures(ctx: FeatureContext): void {
 	const { features, state } = ctx;
 	const obAvg = orderBookAverages(state);
 	if (obAvg) {
-		features.orderBook.avgBid = state.norm.book.bid.normalize(obAvg.avgBid);
-		features.orderBook.avgAsk = state.norm.book.ask.normalize(obAvg.avgAsk);
-		features.orderBook.spreadRatio =
+		features.orderBook.avgBid = state.norm.book.bid.normalize(
+			obAvg.avgBid
+		) as Price;
+		features.orderBook.avgAsk = state.norm.book.ask.normalize(
+			obAvg.avgAsk
+		) as Price;
+		features.orderBook.spreadRatio = (
 			obAvg.avgAsk > 0 && obAvg.avgBid > 0
 				? (obAvg.avgAsk - obAvg.avgBid) / obAvg.avgAsk
-				: 0;
+				: 0
+		) as Ratio;
 		const totalQty = obAvg.bidQty + obAvg.askQty;
-		features.orderBook.imbalance =
-			totalQty > 0 ? (obAvg.bidQty - obAvg.askQty) / totalQty : 0;
+		features.orderBook.imbalance = (
+			totalQty > 0 ? (obAvg.bidQty - obAvg.askQty) / totalQty : 0
+		) as Ratio;
 	}
 }

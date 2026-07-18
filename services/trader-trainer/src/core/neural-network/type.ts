@@ -1,13 +1,13 @@
-export {
+export type {
 	LossConfig,
 	MutationConfig,
-	mergeConfig,
 	NetworkArchitecture,
 	NetworkInitConfig,
 	NeuralNetworkConfig,
 	NeuronsByLayer,
 	OptimizerConfig,
 } from "./type/config";
+export { mergeConfig } from "./type/config";
 export {
 	ActivationType,
 	activationFnToType,
@@ -18,8 +18,7 @@ export {
 	NormalisationType,
 	OptimizerType,
 } from "./type/enums";
-
-export {
+export type {
 	BareExperience,
 	Experience,
 	ForwardContext,

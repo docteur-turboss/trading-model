@@ -1,3 +1,4 @@
+import type { Reward } from "@trading-model/common/domain/primitives";
 import type { Experience } from "../../core/neural-network/type";
 import { ExperienceKind } from "../../core/neural-network/type";
 import type { LamarckGenome, MarketStep } from "./genome-types";
@@ -34,7 +35,7 @@ function _buildTrainExperience(ctx: ExperienceContext): Experience {
 	return {
 		...prev,
 		kind: ExperienceKind.QLearning,
-		reward: nStepReturn(rewardBuf, index, genome),
+		reward: nStepReturn(rewardBuf, index, genome) as unknown as Reward,
 		nextState: trainData[index].features.toFloat32Array(),
 		done: index === maxT - 1,
 	};

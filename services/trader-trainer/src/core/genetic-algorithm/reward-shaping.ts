@@ -1,3 +1,4 @@
+import type { NumericRange } from "@trading-model/common/domain/numeric-range";
 import type { LamarckGenome, MarketStep } from "./genome-types";
 import type { RLBackend } from "./rl-backend";
 import type { DeepReadonly } from "./shared-types";
@@ -9,7 +10,7 @@ function shapeReward(
 ): number {
 	let shaped = raw;
 	if (config.clip) {
-		shaped = config.clipBounds.clamp(shaped);
+		shaped = (config.clipBounds as unknown as NumericRange).clamp(shaped);
 	}
 	return shaped;
 }

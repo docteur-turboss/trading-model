@@ -2,6 +2,7 @@ import { join } from "node:path";
 import { logger } from "@trading-model/common/config/logger";
 import type { TradingSymbol } from "@trading-model/common/domain/primitives";
 import { type CheckpointIO, NodeCheckpointIO } from "./checkpoint-io";
+import { CheckpointPathResolver } from "./checkpoint-path-resolver";
 import {
 	type CheckpointMetadata,
 	CheckpointSerializer,
@@ -20,26 +21,20 @@ export { CheckpointSerializer } from "./checkpoint-serializer";
 export class CheckpointFileHelper {
 	private readonly _io: CheckpointIO;
 	private readonly _serializer: CheckpointSerializer;
+	private readonly _pathResolver: CheckpointPathResolver;
 
 	constructor(
-		private readonly _checkpointDir: string,
+		checkpointDir: string,
 		io?: CheckpointIO,
 		serializer?: CheckpointSerializer
 	) {
 		this._io = io ?? new NodeCheckpointIO();
 		this._serializer = serializer ?? new CheckpointSerializer();
-	}
-
-	checkpointPath(symbol: TradingSymbol): string {
-		return join(this._checkpointDir, `best_genome_${symbol}.json`);
-	}
-
-	metadataPath(symbol: TradingSymbol): string {
-		return join(this._checkpointDir, `metadata_${symbol}.json`);
+		this._pathResolver = new CheckpointPathResolver(checkpointDir);
 	}
 
 	save(target: CheckpointTarget): void {
-		const path = this.checkpointPath(target.symbol);
+		const path = this._pathResolver.checkpointPath(target.symbol);
 		this._io.writeFile(path, this._serializer.serialize(target.genome));
 		this._writeMetadata(target);
 		logger.info("Checkpoint saved", {
@@ -53,11 +48,14 @@ export class CheckpointFileHelper {
 
 	private _writeMetadata(target: CheckpointTarget): void {
 		const meta = this._serializer.buildMetadata(target);
-		this._io.writeFile(this.metadataPath(target.symbol), JSON.stringify(meta));
+		this._io.writeFile(
+			this._pathResolver.metadataPath(target.symbol),
+			JSON.stringify(meta)
+		);
 	}
 
 	load(symbol: TradingSymbol): DeepReadonly<LamarckGenome> | null {
-		const path = this.checkpointPath(symbol);
+		const path = this._pathResolver.checkpointPath(symbol);
 		if (!this._io.fileExists(path)) {
 			logger.info("No checkpoint found for symbol", { context: { symbol } });
 			return null;
@@ -77,14 +75,16 @@ export class CheckpointFileHelper {
 
 	listMetadataFiles(): string[] {
 		const { readdirSync } = require("node:fs") as typeof import("node:fs");
-		return readdirSync(this._checkpointDir).filter((file: string) =>
-			file.startsWith("metadata_")
+		return readdirSync(this._pathResolver.getDirectory()).filter(
+			(file: string) => file.startsWith("metadata_")
 		);
 	}
 
 	readSingleMetadataFile(file: string): CheckpointMetadata | null {
 		try {
-			const raw = this._io.readFile(join(this._checkpointDir, file));
+			const raw = this._io.readFile(
+				join(this._pathResolver.getDirectory(), file)
+			);
 			return this._serializer.parseMetadata(raw);
 		} catch {
 			return null;

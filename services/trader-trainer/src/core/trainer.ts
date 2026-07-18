@@ -1,9 +1,13 @@
 import { logger } from "@trading-model/common/config/logger";
+import type {
+	Fitness,
+	PositiveInt,
+} from "@trading-model/common/domain/primitives";
 import { EpisodeScores } from "./genetic-algorithm/episode-scores";
 import type { GenerationContext } from "./genetic-algorithm/ga-runner";
 import type { MarketDataBuffer } from "./market-data-buffer";
 import type { TradingSymbol } from "./market-data-types";
-import { TrainingPrerequisiteValidator } from "./training-prerequisite-validator";
+import { validateTrainingPrerequisites } from "./training-prerequisite-validator";
 import {
 	TrainingSession,
 	type TrainingSessionResult,
@@ -26,14 +30,7 @@ enum TrainerStatus {
 export class Trainer {
 	private _status: TrainerStatus = TrainerStatus.Idle;
 	private _lastInfo: LastTrainingInfo | null = null;
-	private readonly _validator: TrainingPrerequisiteValidator;
-
-	constructor(private readonly _dataBuffer: MarketDataBuffer) {
-		this._validator = new TrainingPrerequisiteValidator(
-			this._dataBuffer,
-			() => this._status === TrainerStatus.Training
-		);
-	}
+	constructor(private readonly _dataBuffer: MarketDataBuffer) {}
 
 	isTraining(): boolean {
 		return this._status === TrainerStatus.Training;
@@ -48,7 +45,11 @@ export class Trainer {
 	}
 
 	async train(symbol: TradingSymbol): Promise<TrainingResult> {
-		const validation = this._validator.validate(symbol);
+		const validation = validateTrainingPrerequisites(
+			this._dataBuffer,
+			() => this._status === TrainerStatus.Training,
+			symbol
+		);
 		if (!validation.ok) {
 			return validation.error;
 		}
@@ -73,9 +74,9 @@ export class Trainer {
 		this._lastInfo = new LastTrainingInfo(
 			symbol,
 			result.bestGenome,
-			result.bestFitness,
+			result.bestFitness as unknown as Fitness,
 			result.bestFitnessMeta,
-			result.generation,
+			result.generation as unknown as PositiveInt,
 			result.generationContext
 		);
 		logger.info("Training complete", {
@@ -85,9 +86,9 @@ export class Trainer {
 			success: true,
 			symbol,
 			bestGenome: result.bestGenome,
-			bestFitness: result.bestFitness,
+			bestFitness: result.bestFitness as unknown as Fitness,
 			bestFitnessMeta: result.bestFitnessMeta,
-			generation: result.generation,
+			generation: result.generation as unknown as PositiveInt,
 			generationContext: result.generationContext,
 		};
 	}
