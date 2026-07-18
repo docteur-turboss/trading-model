@@ -3,8 +3,6 @@ import type { Topic } from "@trading-model/common/domain/primitives";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import { DefaultWsReconnector } from "@trading-model/common/ws/default-ws-reconnector";
 import type { PendingPublishQueue } from "./pending-publish-queue";
-import { TopicSet } from "./topic-subscription-manager";
-import { WsConnectionEventHandler } from "./ws-connection-event-handler";
 import type { WssClientConfig } from "./wss-connection-lifecycle";
 import { WssConnectionLifecycle } from "./wss-connection-lifecycle";
 
@@ -16,8 +14,7 @@ export class WssConnectionOrchestrator {
 		onReconnect: () => {},
 		onPermanentFallback: () => this._queue.drainToHttp(),
 	});
-	private readonly _topicManager = new TopicSet();
-	private readonly _eventHandler: WsConnectionEventHandler;
+	private _topics: Topic[] = [];
 	private readonly _onConnect: () => void;
 
 	constructor(
@@ -26,20 +23,21 @@ export class WssConnectionOrchestrator {
 		private readonly _queue: PendingPublishQueue
 	) {
 		this._lifecycle = new WssConnectionLifecycle(config, {
-			onOpen: () =>
-				this._eventHandler.onWsOpen(
-					(data) => this._lifecycle.send(data),
-					this._topicManager.topics
-				),
+			onOpen: () => {
+				this._reconnector.reset();
+				logger.info("WSS connected");
+				if (this._topics.length > 0) {
+					this._lifecycle.send({
+						type: "subscribe",
+						topics: this._topics,
+					});
+				}
+				this._queue.flush((data) => this._lifecycle.send(data));
+			},
 			onMessage: (raw: string) => onMessage(raw),
-			onClose: () => this._eventHandler.onWsClose(),
-			onError: (err: Error) => this._eventHandler.onWsError(err),
+			onClose: () => logger.warn("WSS disconnected"),
+			onError: (err: Error) => logger.warn("WSS error", { error: err.message }),
 		});
-		this._eventHandler = new WsConnectionEventHandler(
-			this._lifecycle,
-			this._reconnector,
-			this._queue
-		);
 		this._onConnect = () => {
 			this._lifecycle.connect();
 		};
@@ -50,7 +48,7 @@ export class WssConnectionOrchestrator {
 	}
 
 	connect(topics: Topic[]): void {
-		this._topicManager.setTopics(topics);
+		this._topics = topics;
 		this._reconnector.shouldReconnect = true;
 		this._connectWs();
 	}
@@ -66,7 +64,7 @@ export class WssConnectionOrchestrator {
 			logger.warn("WSS connection failed", {
 				error: normalizeError(err as Error),
 			});
-			this._eventHandler.scheduleReconnect(() => this._onConnect());
+			this._reconnector.scheduleReconnect(() => this._onConnect());
 		}
 	}
 
@@ -83,11 +81,11 @@ export class WssConnectionOrchestrator {
 	}
 
 	addTopics(topics: Topic[]): void {
-		this._topicManager.addTopics(topics);
+		this._topics = [...new Set([...this._topics, ...topics])];
 	}
 
 	removeTopics(topics: Topic[]): void {
-		this._topicManager.removeTopics(topics);
+		this._topics = this._topics.filter((topic) => !topics.includes(topic));
 	}
 
 	get shouldReconnect(): boolean {
