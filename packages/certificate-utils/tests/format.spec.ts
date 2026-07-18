@@ -27,10 +27,8 @@ jest.mock("node:crypto", () => {
 
 import {
 	chunks,
-	extractPublicKeyFromBody,
 	parseCertInfo,
 	parseCsrInfo,
-	parsePem,
 	privateKeyFromPem,
 	resolvePublicKey,
 } from "../src/format/format";
@@ -54,20 +52,6 @@ describe("chunks", () => {
 
 	it("should return single chunk when size exceeds length", () => {
 		expect(chunks("ab", 5)).toEqual(["ab"]);
-	});
-});
-
-describe("parsePem", () => {
-	it("should throw with deprecation message", () => {
-		expect(() => parsePem("pem")).toThrow("parsePem is deprecated");
-	});
-});
-
-describe("extractPublicKeyFromBody", () => {
-	it("should throw with deprecation message", () => {
-		expect(() => extractPublicKeyFromBody("body")).toThrow(
-			"extractPublicKeyFromBody is deprecated"
-		);
 	});
 });
 

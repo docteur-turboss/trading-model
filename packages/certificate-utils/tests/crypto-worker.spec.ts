@@ -18,7 +18,7 @@ jest.mock("../src/keygen/generate-key-pair", () => ({
 		publicKey: "pk" as never,
 		privateKey: "sk" as never,
 	})),
-	generateKeyPairWithIdSync: jest.fn(() => ({
+	generateKeyPairWithId: jest.fn(() => ({
 		publicKey: "pk" as never,
 		privateKey: "sk" as never,
 		id: "id1",
@@ -54,7 +54,7 @@ jest.mock("../src/format/sign", () => ({
 import { parseKey, sign } from "../src/format/sign";
 import {
 	generateKeyPair,
-	generateKeyPairWithIdSync,
+	generateKeyPairWithId,
 	KeyAlgorithm,
 } from "../src/keygen/generate-key-pair";
 import { createCsr } from "../src/signing/create-csr";
@@ -101,9 +101,7 @@ describe("createCryptoWorker", () => {
 			payload: { algorithm: KeyAlgorithm.Rsa4096 },
 		});
 
-		expect(generateKeyPairWithIdSync).toHaveBeenCalledWith(
-			KeyAlgorithm.Rsa4096
-		);
+		expect(generateKeyPairWithId).toHaveBeenCalledWith(KeyAlgorithm.Rsa4096);
 		expect(result).toEqual({ publicKey: "pk", privateKey: "sk", id: "id1" });
 	});
 

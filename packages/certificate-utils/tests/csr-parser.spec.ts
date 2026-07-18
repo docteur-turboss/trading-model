@@ -1,9 +1,9 @@
 import { describe, expect, it } from "@jest/globals";
+import type { SubjectName } from "@trading-model/common/domain/subject-name";
 import forge from "node-forge";
-import type { CsrSubject } from "../src/signing/create-csr";
 import { CsrParser, SanEntryType } from "../src/validation/csr-parser";
 
-function createRealCsrPem(subject: CsrSubject): string {
+function createRealCsrPem(subject: SubjectName): string {
 	const keys = forge.pki.rsa.generateKeyPair(2048);
 	const csr = forge.pki.createCertificationRequest();
 	csr.publicKey = keys.publicKey;

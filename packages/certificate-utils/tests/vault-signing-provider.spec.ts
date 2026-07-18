@@ -37,14 +37,14 @@ describe("VaultSigningProvider", () => {
 
 	it("should delegate sign to vault signBytes", async () => {
 		const vault = createMockVault();
-		vault.signBytes.mockResolvedValue("signed-binary");
+		vault.signBytes.mockResolvedValue(Buffer.from("signed-binary"));
 		const provider = new VaultSigningProvider(vault, "test-key", "pk");
 
 		const input = Buffer.from("tbs-der-bytes", "binary");
 		const signature = await provider.sign(input);
 
-		expect(vault.signBytes).toHaveBeenCalledWith("test-key", "tbs-der-bytes");
-		expect(signature).toEqual(Buffer.from("signed-binary", "binary"));
+		expect(vault.signBytes).toHaveBeenCalledWith("test-key", input);
+		expect(signature).toEqual(Buffer.from("signed-binary"));
 	});
 
 	it("should destroy vault client on destroy", () => {

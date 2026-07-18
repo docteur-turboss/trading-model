@@ -2,7 +2,6 @@ import { describe, expect, it } from "@jest/globals";
 import {
 	generateKeyPair,
 	generateKeyPairWithId,
-	generateKeyPairWithIdSync,
 	KeyAlgorithm,
 } from "../src/keygen/generate-key-pair";
 
@@ -46,13 +45,5 @@ describe("generateKeyPair (keygen path)", () => {
 		expect(result.privateKey).toBeDefined();
 		expect(result.id).toBeDefined();
 		expect(typeof result.id).toBe("string");
-	});
-
-	it("generateKeyPairWithIdSync should generate a key pair with an id", () => {
-		const result = generateKeyPairWithIdSync(KeyAlgorithm.Rsa4096);
-
-		expect(result.publicKey).toBeDefined();
-		expect(result.privateKey).toBeDefined();
-		expect(result.id).toBeDefined();
 	});
 });

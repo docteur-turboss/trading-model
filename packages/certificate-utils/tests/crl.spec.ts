@@ -6,7 +6,7 @@ import {
 } from "@trading-model/common/domain/primitives";
 import { RevocationReason } from "../../common/src/domain/revocation-request";
 import type { RevokedCertificate } from "../src/keygen/types";
-import { createCrl, isRevoked } from "../src/validation/crl";
+import { createCrl } from "../src/validation/crl";
 
 function makeRevokedEntry(
 	overrides?: Partial<RevokedCertificate>
@@ -81,75 +81,5 @@ describe("createCrl", () => {
 		const crl = createCrl(entries);
 
 		expect(crl.entries).toHaveLength(3);
-	});
-});
-
-describe("isRevoked", () => {
-	it("should return true for a revoked serial number", () => {
-		const crl = createCrl([
-			makeRevokedEntry({ serialNumber: toSerialNumber("SN-001") }),
-		]);
-
-		expect(isRevoked(toSerialNumber("SN-001"), crl)).toBe(true);
-	});
-
-	it("should return false for a non-revoked serial number", () => {
-		const crl = createCrl([
-			makeRevokedEntry({ serialNumber: toSerialNumber("SN-001") }),
-		]);
-
-		expect(isRevoked(toSerialNumber("SN-999"), crl)).toBe(false);
-	});
-
-	it("should return false for an empty CRL", () => {
-		const crl = createCrl([]);
-
-		expect(isRevoked(toSerialNumber("SN-001"), crl)).toBe(false);
-	});
-
-	it("should return true when multiple entries exist", () => {
-		const crl = createCrl([
-			makeRevokedEntry({ serialNumber: toSerialNumber("SN-001") }),
-			makeRevokedEntry({ serialNumber: toSerialNumber("SN-002") }),
-			makeRevokedEntry({ serialNumber: toSerialNumber("SN-003") }),
-		]);
-
-		expect(isRevoked(toSerialNumber("SN-002"), crl)).toBe(true);
-	});
-
-	it("should return false for an expired revocation entry", () => {
-		const moreThanAYearAgo = UnixTimestamp.now() - 366 * 24 * 60 * 60 * 1000;
-		const crl = createCrl([
-			makeRevokedEntry({
-				serialNumber: toSerialNumber("SN-EXPIRED"),
-				revokedAt: moreThanAYearAgo,
-			}),
-		]);
-
-		expect(isRevoked(toSerialNumber("SN-EXPIRED"), crl)).toBe(false);
-	});
-
-	it("should return true for a recent revocation entry", () => {
-		const recent = UnixTimestamp.now() - 30 * 24 * 60 * 60 * 1000;
-		const crl = createCrl([
-			makeRevokedEntry({
-				serialNumber: toSerialNumber("SN-RECENT"),
-				revokedAt: recent,
-			}),
-		]);
-
-		expect(isRevoked(toSerialNumber("SN-RECENT"), crl)).toBe(true);
-	});
-
-	it("should return false for a revocation exactly at the expiry boundary", () => {
-		const exactlyOneYearAgo = UnixTimestamp.now() - 365 * 24 * 60 * 60 * 1000;
-		const crl = createCrl([
-			makeRevokedEntry({
-				serialNumber: toSerialNumber("SN-BOUNDARY"),
-				revokedAt: exactlyOneYearAgo,
-			}),
-		]);
-
-		expect(isRevoked(toSerialNumber("SN-BOUNDARY"), crl)).toBe(true);
 	});
 });

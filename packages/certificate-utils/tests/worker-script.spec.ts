@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 let mockPostMessage: jest.Mock;
 let mockOn: jest.Mock;
 let generateKeyPair: jest.Mock;
-let generateKeyPairWithIdSync: jest.Mock;
+let generateKeyPairWithId: jest.Mock;
 let signCertificate: jest.Mock;
 let createCsr: jest.Mock;
 let validateCertificate: jest.Mock;
@@ -18,7 +18,7 @@ function loadModule(): void {
 	mockOn = jest.fn();
 
 	generateKeyPair = jest.fn(() => ({ publicKey: "pk", privateKey: "sk" }));
-	generateKeyPairWithIdSync = jest.fn(() => ({
+	generateKeyPairWithId = jest.fn(() => ({
 		publicKey: "pk",
 		privateKey: "sk",
 		id: "id1",
@@ -56,7 +56,7 @@ function loadModule(): void {
 		}));
 		jest.mock("../src/keygen/generate-key-pair", () => ({
 			generateKeyPair,
-			generateKeyPairWithIdSync,
+			generateKeyPairWithId,
 			KeyAlgorithm: { rsa4096: "rsa", ecP384: "ec" },
 		}));
 		jest.mock("../src/signing/sign-certificate", () => ({
@@ -122,7 +122,7 @@ describe("worker-script", () => {
 			data: { algorithm: "ec" },
 		});
 
-		expect(generateKeyPairWithIdSync).toHaveBeenCalledWith("ec");
+		expect(generateKeyPairWithId).toHaveBeenCalledWith("ec");
 		expect(mockPostMessage).toHaveBeenCalledWith({
 			id: "task-2",
 			success: true,

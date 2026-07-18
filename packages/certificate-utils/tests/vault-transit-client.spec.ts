@@ -31,8 +31,8 @@ jest.mock("@trading-model/common/utils/errors", () => ({
 	),
 }));
 
-import { HashAlgorithm } from "../src/signing/vault-transit-http";
 import { VaultTransitClient } from "../src/signing/vault-transit-client";
+import { HashAlgorithm } from "../src/signing/vault-transit-http";
 
 function createClient(overrides: Record<string, any> = {}): VaultTransitClient {
 	return new VaultTransitClient({
@@ -170,7 +170,11 @@ describe("VaultTransitClient", () => {
 			const client = createClient();
 
 			await expect(
-				client.sign({ keyName: "my-key", algorithm: HashAlgorithm.Sha256, input: "data" })
+				client.sign({
+					keyName: "my-key",
+					algorithm: HashAlgorithm.Sha256,
+					input: "data",
+				})
 			).rejects.toThrow("Empty response from Vault Transit sign");
 		});
 
@@ -214,36 +218,44 @@ describe("VaultTransitClient", () => {
 	});
 
 	describe("signBytes", () => {
-		it("should sign DER bytes and return binary signature", async () => {
+		it("should sign DER bytes and return signature as Buffer", async () => {
 			MOCK_POST.mockResolvedValue({ data: { signature: "vault:v1:AAECAw==" } });
 			const client = createClient();
 
-			const result = await client.signBytes("my-key", "\x00\x01\x02\x03");
+			const result = await client.signBytes(
+				"my-key",
+				Buffer.from([0x00, 0x01, 0x02, 0x03])
+			);
 
 			expect(MOCK_POST).toHaveBeenCalledWith(
 				"https://vault.example.com/v1/transit/sign/my-key",
 				{ input: "AAECAw==", hash_algorithm: "sha2-256" },
 				{ headers: { "X-Vault-Token": "s.test-token" }, timeoutMs: 30000 }
 			);
-			expect(result).toBe("\x00\x01\x02\x03");
+			expect(Buffer.isBuffer(result)).toBe(true);
+			expect(result).toEqual(Buffer.from([0x00, 0x01, 0x02, 0x03]));
 		});
 
 		it("should handle signature without colon prefix", async () => {
 			MOCK_POST.mockResolvedValue({ data: { signature: "AAECAw==" } });
 			const client = createClient();
 
-			const result = await client.signBytes("my-key", "\x00\x01\x02\x03");
+			const result = await client.signBytes(
+				"my-key",
+				Buffer.from([0x00, 0x01, 0x02, 0x03])
+			);
 
-			expect(result).toBe("\x00\x01\x02\x03");
+			expect(Buffer.isBuffer(result)).toBe(true);
+			expect(result).toEqual(Buffer.from([0x00, 0x01, 0x02, 0x03]));
 		});
 
 		it("should throw on empty response", async () => {
 			MOCK_POST.mockResolvedValue(null);
 			const client = createClient();
 
-			await expect(client.signBytes("my-key", "der")).rejects.toThrow(
-				"Empty response from Vault Transit sign"
-			);
+			await expect(
+				client.signBytes("my-key", Buffer.from("der"))
+			).rejects.toThrow("Empty response from Vault Transit sign");
 		});
 	});
 
