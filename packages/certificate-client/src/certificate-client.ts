@@ -4,11 +4,7 @@ import {
 	URLString,
 } from "@trading-model/common/domain/primitives";
 import type { TlsPaths } from "@trading-model/common/domain/tls-paths";
-import {
-	CaClient,
-	type SignCertificateRequest,
-} from "@trading-model/crypto/ca/ca-client";
-import { CertificateEventEmitter } from "./certificate-event-emitter";
+import { CaClient } from "@trading-model/crypto/ca/ca-client";
 import type { CertificateHolder } from "./certificate-holder";
 import {
 	CertificateLifecycleOrchestrator,
@@ -16,7 +12,7 @@ import {
 	type ObtainedCertificate,
 } from "./certificate-lifecycle-orchestrator";
 import { CertificateSigner } from "./certificate-signer";
-import { CertificateStore } from "./certificate-store";
+import { DiskCertificateStore } from "./certificate-store";
 import { KeyGenerator } from "./key-generator";
 
 export interface CertificateClientConfig {
@@ -35,23 +31,21 @@ export interface CertificateClientConfig {
 export type { ObtainedCertificate };
 
 export class CertificateClient {
-	private readonly _caClient: CaClient;
-	private readonly _orchestrator: CertificateLifecycleOrchestrator;
+	public readonly caClient: CaClient;
+	public readonly orchestrator: CertificateLifecycleOrchestrator;
 
 	constructor(config: CertificateClientConfig) {
-		this._caClient = new CaClient({
+		this.caClient = new CaClient({
 			baseUrl: URLString.of(config.caUrl),
 			tls: config.tls,
 		});
 		const keyGenerator = new KeyGenerator(config);
-		const signer = new CertificateSigner(config, this._caClient);
-		const store = new CertificateStore(config);
-		const eventEmitter = new CertificateEventEmitter();
-		this._orchestrator = new CertificateLifecycleOrchestrator({
+		const signer = new CertificateSigner(config, this.caClient);
+		const store = new DiskCertificateStore(config);
+		this.orchestrator = new CertificateLifecycleOrchestrator({
 			keyGenerator,
 			signer,
 			store,
-			eventEmitter,
 			config: {
 				serviceId: config.serviceId,
 				onRenew: config.onRenew,
@@ -64,26 +58,6 @@ export class CertificateClient {
 		config: CertificateClientConfig
 	): Promise<CertificateHolder> {
 		const client = new CertificateClient(config);
-		return client.obtainCertificate();
-	}
-
-	obtainCertificate(): Promise<CertificateHolder> {
-		return this._orchestrator.obtainCertificate();
-	}
-
-	signCertificate(
-		request: SignCertificateRequest
-	): Promise<
-		import("@trading-model/crypto/ca/ca-client").SignCertificateResponse
-	> {
-		return this._caClient.signCertificate(request);
-	}
-
-	getCertificate(
-		serviceId: ServiceId
-	): Promise<
-		import("@trading-model/crypto/ca/ca-client").GetCertificateResponse | null
-	> {
-		return this._caClient.getCertificate(serviceId);
+		return client.orchestrator.obtainCertificate();
 	}
 }

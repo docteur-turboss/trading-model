@@ -3,7 +3,7 @@ import { logger } from "@trading-model/common/config/logger";
 import { isWsConnected } from "@trading-model/common/domain/ws-connection";
 import type {
 	SignCertificateRequest,
-	SignCertificateResponse,
+	WireCertificateResponse,
 } from "@trading-model/crypto/ca/ca-client";
 import {
 	AuthHandler,
@@ -26,10 +26,9 @@ export type NullCaWssTransport = typeof NULL_CA_WSS_TRANSPORT;
 export const NULL_CA_WSS_TRANSPORT = {
 	isConnected: false,
 	isAuthSent: false,
-	signCertificate: (): Promise<SignCertificateResponse> => {
+	signCertificate: (): Promise<WireCertificateResponse> => {
 		throw new Error("WSS transport not available");
 	},
-	destroy: () => {},
 	disconnect: () => {},
 };
 
@@ -88,11 +87,6 @@ export class CaWssTransport {
 		this._pendingManager.rejectAll(new Error("Transport disconnected"));
 	}
 
-	/** @deprecated Use {@link disconnect()} instead */
-	destroy(): void {
-		this.disconnect();
-	}
-
 	private _sendSignRequest(id: string, request: SignCertificateRequest): void {
 		const ws = this._connection.ws;
 		if (!isWsConnected(ws)) {
@@ -119,7 +113,7 @@ export class CaWssTransport {
 
 	signCertificate(
 		request: SignCertificateRequest
-	): Promise<SignCertificateResponse> {
+	): Promise<WireCertificateResponse> {
 		const id = randomUUID();
 		const promise = this._pendingManager.create(id);
 		this._sendSignRequest(id, request);

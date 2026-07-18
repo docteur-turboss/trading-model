@@ -1,8 +1,8 @@
-import type { SignCertificateResponse } from "@trading-model/crypto/ca/ca-client";
+import type { WireCertificateResponse } from "@trading-model/crypto/ca/ca-client";
 import type { CaWssMessageType } from "./auth-handler";
 
 interface PendingRequest {
-	resolve: (value: SignCertificateResponse) => void;
+	resolve: (value: WireCertificateResponse) => void;
 	reject: (reason: Error) => void;
 	timer: ReturnType<typeof setTimeout>;
 }
@@ -11,15 +11,15 @@ export interface CaSignResponse {
 	type: CaWssMessageType.SignResponse | CaWssMessageType.Response;
 	id: string;
 	success: boolean;
-	data?: SignCertificateResponse;
+	data?: WireCertificateResponse;
 	error?: { message?: string };
 }
 
 export class PendingRequestManager {
 	private readonly _pending = new Map<string, PendingRequest>();
 
-	create(id: string): Promise<SignCertificateResponse> {
-		return new Promise<SignCertificateResponse>((resolve, reject) => {
+	create(id: string): Promise<WireCertificateResponse> {
+		return new Promise<WireCertificateResponse>((resolve, reject) => {
 			const timer = setTimeout(() => {
 				this._pending.delete(id);
 				reject(new Error("WSS request timed out"));

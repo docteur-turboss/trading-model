@@ -5,33 +5,29 @@ import {
 } from "@trading-model/common/domain/primitives";
 import type { TlsPaths } from "@trading-model/common/domain/tls-paths";
 import { createWsConnectTimeout } from "@trading-model/common/utils/ws-reconnect";
-import type { IWsConnection } from "@trading-model/common/ws/i-ws-connection";
+import { BaseWsConnection } from "@trading-model/common/ws/base-ws-connection";
 import WebSocket from "ws";
-import { TlsConfigBuilder } from "./tls-config-builder";
+import { buildTlsConfig } from "./tls-config-builder";
 
 export interface WsTransportConfig {
 	url: URLString;
 	tlsConfig?: TlsPaths;
 }
 
-export class WsTransport implements IWsConnection {
-	private _ws: WebSocket | undefined;
-	private readonly _tlsBuilder: TlsConfigBuilder;
+export class WsTransport extends BaseWsConnection {
+	private readonly _tlsConfig?: import("@trading-model/common/domain/tls-paths").TlsPaths;
 	private readonly _url: URLString;
-	onCloseHandler: () => void = () => {};
-	onOpen: () => void = () => {};
-	onMessage: (data: unknown) => void = () => {};
-	onError: (err: Error) => void = () => {};
 	onTimeout: () => void = () => {};
 
 	constructor(config: WsTransportConfig) {
+		super();
 		this._url = config.url;
-		this._tlsBuilder = new TlsConfigBuilder(config.tlsConfig);
+		this._tlsConfig = config.tlsConfig;
 	}
 
 	connect(): void {
 		try {
-			const ws = new WebSocket(this._url, this._tlsBuilder.build());
+			const ws = new WebSocket(this._url, buildTlsConfig(this._tlsConfig));
 			ws.binaryType = "nodebuffer";
 			this._ws = ws;
 			const cancelTimeout = createWsConnectTimeout(() => {
@@ -59,35 +55,5 @@ export class WsTransport implements IWsConnection {
 			logger.error("Failed to create WSS connection", { err });
 			this.onTimeout?.();
 		}
-	}
-
-	disconnect(closeCode?: number, reason?: string): void {
-		try {
-			this._ws?.removeAllListeners();
-			this._ws?.close(closeCode, reason);
-		} catch {
-			logger.debug("WebSocket close error during disconnect");
-		}
-	}
-	send(data: unknown): boolean {
-		if (!this._ws || this._ws.readyState !== WebSocket.OPEN) {
-			return false;
-		}
-		try {
-			this._ws.send(typeof data === "string" ? data : JSON.stringify(data));
-			return true;
-		} catch {
-			return false;
-		}
-	}
-	get isConnected(): boolean {
-		try {
-			return this._ws?.readyState === WebSocket.OPEN;
-		} catch {
-			return false;
-		}
-	}
-	get ws(): WebSocket | undefined {
-		return this._ws;
 	}
 }

@@ -1,10 +1,4 @@
 import fs from "node:fs/promises";
-import path from "node:path";
-import {
-	createCsrAsync,
-	generateKeyPairAsync,
-} from "@trading-model/certificate-utils/async";
-import { KeyAlgorithm } from "@trading-model/certificate-utils/generate-key-pair";
 import { logger } from "@trading-model/common/config/logger";
 import { toAuthToken, toCsrPem } from "@trading-model/common/domain/primitives";
 import type { TlsPaths } from "@trading-model/common/domain/tls-paths";
@@ -17,7 +11,8 @@ import {
 	type BootstrapConfig,
 	bootstrapConfigFromEnv,
 } from "./certificate-bootstrap-config";
-import type { SigningRequest } from "./key-generator";
+import { DiskCertificateStore } from "./certificate-store";
+import { KeyGenerator } from "./key-generator";
 
 export async function bootstrapFromEnv(
 	env: Record<string, string | undefined>
@@ -37,9 +32,18 @@ export async function bootstrapCertificate(
 		return existing;
 	}
 
-	const { keyPair, csr } = await _generateKeyAndCsr(config);
+	const keyGenerator = new KeyGenerator(config);
+	const { keyPair, csr } = await keyGenerator.generateKeyAndCsr();
 	const response = await _signWithCa(config, csr);
-	await _writeCertFiles(config, keyPair.privateKey, response);
+	const store = new DiskCertificateStore({ tlsPaths: config.tlsPaths });
+	await store.writeCertificates(keyPair, response);
+
+	logger.info("TLS certificate obtained and written to disk", {
+		serviceId: config.serviceId,
+		certPath: config.tlsPaths.certPath,
+		serialNumber: response.serialNumber,
+		expiresAt: response.expiresAt,
+	});
 
 	return { ...config.tlsPaths };
 }
@@ -62,27 +66,11 @@ async function _tryLoadExistingCert(
 	}
 }
 
-async function _generateKeyAndCsr(
-	config: BootstrapConfig
-): Promise<SigningRequest> {
-	logger.info("Obtaining TLS certificate from CA", {
-		serviceId: config.serviceId,
-		caUrl: config.caUrl,
-	});
-	const keyPair = await generateKeyPairAsync(KeyAlgorithm.EcP384);
-	const csr = await createCsrAsync({
-		commonName: config.commonName,
-		san: config.san,
-		keyPem: keyPair.privateKey,
-	});
-	return { keyPair, csr };
-}
-
 async function _signWithCa(
 	config: BootstrapConfig,
 	csr: string
 ): Promise<
-	import("@trading-model/crypto/ca/ca-client").SignCertificateResponse
+	import("@trading-model/crypto/ca/ca-client").WireCertificateResponse
 > {
 	const caClient = new CaClient({ baseUrl: config.caUrl, tls: config.tls });
 	const request: SignCertificateRequest = {
@@ -94,37 +82,4 @@ async function _signWithCa(
 			: undefined,
 	};
 	return await caClient.signCertificate(request);
-}
-
-async function _writeCertFiles(
-	config: BootstrapConfig,
-	privateKey: string,
-	response: import("@trading-model/crypto/ca/ca-client").SignCertificateResponse
-): Promise<void> {
-	const certDir = path.dirname(config.tlsPaths.certPath);
-	await fs.mkdir(certDir, { recursive: true });
-	await _writeCertFile(config.tlsPaths.keyPath, privateKey, 0o600);
-	await _writeCertFile(config.tlsPaths.certPath, response.certPem, 0o644);
-	await _writeCertFile(config.tlsPaths.caPath, response.caPem, 0o644);
-	_logCertWritten(config, response);
-}
-
-async function _writeCertFile(
-	filePath: string,
-	content: string,
-	mode: number
-): Promise<void> {
-	await fs.writeFile(filePath, content, { mode });
-}
-
-function _logCertWritten(
-	config: BootstrapConfig,
-	response: import("@trading-model/crypto/ca/ca-client").SignCertificateResponse
-): void {
-	logger.info("TLS certificate obtained and written to disk", {
-		serviceId: config.serviceId,
-		certPath: config.tlsPaths.certPath,
-		serialNumber: response.serialNumber,
-		expiresAt: response.expiresAt,
-	});
 }

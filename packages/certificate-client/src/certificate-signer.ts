@@ -19,7 +19,7 @@ export class CertificateSigner {
 		private readonly _caClient: CaClient
 	) {}
 
-	async signWithCa(csr: string) {
+	async signCertificate(csr: string) {
 		const request: SignCertificateRequest = {
 			serviceId: this._config.serviceId,
 			csr: toCsrPem(csr),

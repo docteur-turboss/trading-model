@@ -3,7 +3,7 @@ import type { URLString } from "@trading-model/common/domain/primitives";
 import type { TlsPaths } from "@trading-model/common/domain/tls-paths";
 import { DefaultWsReconnector } from "@trading-model/common/ws/default-ws-reconnector";
 import type { IWsConnection } from "@trading-model/common/ws/i-ws-connection";
-import { WsAuthSender } from "./ws-auth-sender";
+import { sendWsAuth } from "./ws-auth-sender";
 import { WsTransport } from "./ws-transport";
 
 export interface WssTransportConfig {
@@ -20,6 +20,11 @@ export enum ConnectionState {
 }
 
 export class WssTransportConnection implements IWsConnection {
+	onOpen: () => void = () => {};
+	onMessage: (data: unknown) => void = () => {};
+	onCloseHandler: () => void = () => {};
+	onError: (err: Error) => void = () => {};
+
 	private _emitter = new EventEmitter();
 	private _state: ConnectionState = ConnectionState.Disconnected;
 	private readonly _connectionManager: WsTransport;
@@ -29,7 +34,6 @@ export class WssTransportConnection implements IWsConnection {
 			this._connectWs();
 		},
 	});
-	private readonly _authSender: WsAuthSender;
 	private readonly _bootstrapToken?: string;
 
 	constructor(config: WssTransportConfig) {
@@ -38,7 +42,6 @@ export class WssTransportConnection implements IWsConnection {
 			tlsConfig: config.tlsConfig,
 		});
 		this._bootstrapToken = config.bootstrapToken;
-		this._authSender = new WsAuthSender(this._bootstrapToken);
 	}
 
 	connect(): void {
@@ -73,6 +76,7 @@ export class WssTransportConnection implements IWsConnection {
 		this._state = ConnectionState.Connecting;
 		this._connectionManager.onOpen = () => this._onWsOpen();
 		this._connectionManager.onMessage = (data) => {
+			this.onMessage(data);
 			this._emitter.emit("message", data);
 		};
 		this._connectionManager.onCloseHandler = () => this._onWsClose();
@@ -83,7 +87,8 @@ export class WssTransportConnection implements IWsConnection {
 	private _onWsOpen(): void {
 		this._state = ConnectionState.Connected;
 		this._reconnectHandler.reset();
-		this._authSender.send(this._connectionManager.ws);
+		sendWsAuth(this._connectionManager.ws, this._bootstrapToken);
+		this.onOpen();
 		this._emitter.emit("open");
 	}
 	private _onWsClose(): void {
@@ -91,6 +96,7 @@ export class WssTransportConnection implements IWsConnection {
 		if (!this._reconnectHandler.isDestroyed) {
 			this._scheduleReconnect();
 		}
+		this.onCloseHandler();
 		this._emitter.emit("close");
 	}
 	private _onWsError(err: Error): void {
@@ -100,6 +106,7 @@ export class WssTransportConnection implements IWsConnection {
 		) {
 			this._scheduleReconnect();
 		}
+		this.onError(err);
 		this._emitter.emit("error", err);
 	}
 	private _scheduleReconnect(): void {

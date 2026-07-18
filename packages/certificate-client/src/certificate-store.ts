@@ -18,7 +18,7 @@ export interface StoreConfig {
 	tlsPaths: TlsPaths;
 }
 
-export class CertificateStore {
+export class DiskCertificateStore {
 	constructor(private readonly _config: StoreConfig) {}
 
 	async writeCertificates(

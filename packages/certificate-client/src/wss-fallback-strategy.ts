@@ -6,7 +6,7 @@ import {
 import type {
 	CaClient,
 	SignCertificateRequest,
-	SignCertificateResponse,
+	WireCertificateResponse,
 } from "@trading-model/crypto/ca/ca-client";
 import type { NullCaWssTransport } from "./wss-transport";
 import { CaWssTransport, NULL_CA_WSS_TRANSPORT } from "./wss-transport";
@@ -67,7 +67,7 @@ export class WssFallbackStrategy {
 	async signCertificate(
 		request: SignCertificateRequest,
 		httpsClient: CaClient
-	): Promise<SignCertificateResponse> {
+	): Promise<WireCertificateResponse> {
 		if (this._mode === TransportMode.Wss && this._wssTransport.isConnected) {
 			if (this._checkWssAuthThreshold()) {
 				return httpsClient.signCertificate(request);

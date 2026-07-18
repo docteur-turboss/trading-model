@@ -38,7 +38,7 @@ export class TransportManager {
 	signCertificate(
 		request: import("@trading-model/crypto/ca/ca-client").SignCertificateRequest
 	): Promise<
-		import("@trading-model/crypto/ca/ca-client").SignCertificateResponse
+		import("@trading-model/crypto/ca/ca-client").WireCertificateResponse
 	> {
 		return this._strategy.signCertificate(request, this._httpsClient);
 	}
@@ -68,9 +68,5 @@ export class TransportManager {
 
 	disconnect(): void {
 		this._strategy.disconnect();
-	}
-
-	destroy(): void {
-		this.disconnect();
 	}
 }
