@@ -346,8 +346,9 @@ describe("Wallet module", () => {
 			wallet.buy(Volume.of(10));
 			wallet.setPrice(Price.of(60));
 			const metrics = wallet.getMetrics();
-			// valuation = (1000 - 10*50) + 10*60 = 1100, returnRate = (1100-1000)/1000 = 0.1
-			expect(metrics.returnRate).toBeCloseTo(0.1, 5);
+			const expectedValuation = 1000 - 10 * 50 + 10 * 60;
+			const expectedReturnRate = (expectedValuation - 1000) / 1000;
+			expect(metrics.returnRate).toBeCloseTo(expectedReturnRate, 5);
 		});
 
 		test("should handle zero cash in metrics drawdown", () => {

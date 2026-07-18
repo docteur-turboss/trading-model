@@ -10,6 +10,7 @@
 
 import { beforeEach, describe, expect, test } from "@jest/globals";
 import { crossoverGenomes } from "../../../src/core/genetic-algorithm/crossover";
+import { EpisodeScores } from "../../../src/core/genetic-algorithm/episode-scores";
 import { createDefaultGenome } from "../../../src/core/genetic-algorithm/factory";
 import { computeFitness } from "../../../src/core/genetic-algorithm/fitness";
 import { FitnessType } from "../../../src/core/genetic-algorithm/genome";
@@ -51,7 +52,6 @@ describe("Genetic Algorithm - Core Operators", () => {
 				mutateGenome(baseGenome, rng),
 			];
 
-			// All mutations should produce valid genomes
 			genomes.forEach((g) => {
 				expect(g).toBeDefined();
 				expect(g.network).toBeDefined();
@@ -59,7 +59,6 @@ describe("Genetic Algorithm - Core Operators", () => {
 		});
 
 		test("should support adaptive mutation strength", () => {
-			// Test multiple mutations
 			const mutated1 = mutateGenome(baseGenome, rng);
 			const mutated2 = mutateGenome(mutated1, rng);
 
@@ -101,7 +100,6 @@ describe("Genetic Algorithm - Core Operators", () => {
 		});
 
 		test("should support different crossover types", () => {
-			// Uniform crossover
 			const offspring1 = crossoverGenomes(parent1, parent2, rng);
 
 			expect(offspring1).toBeDefined();
@@ -126,10 +124,10 @@ describe("Genetic Algorithm - Core Operators", () => {
 	});
 
 	describe("Fitness Calculation", () => {
-		let scores: number[];
+		let scores: EpisodeScores;
 
 		beforeEach(() => {
-			scores = [100, 120, 110, 130, 140];
+			scores = new EpisodeScores([100, 120, 110, 130, 140]);
 		});
 
 		test("should calculate fitness from score array", () => {
@@ -147,7 +145,7 @@ describe("Genetic Algorithm - Core Operators", () => {
 		});
 
 		test("should penalize losses", () => {
-			const negativeScores = [-100, -50, -30];
+			const negativeScores = new EpisodeScores([-100, -50, -30]);
 
 			const fitness = computeFitness(FitnessType.TotalPnl, negativeScores);
 			expect(fitness).toBeLessThan(
@@ -156,8 +154,8 @@ describe("Genetic Algorithm - Core Operators", () => {
 		});
 
 		test("should reward higher Sharpe ratio", () => {
-			const lowSharpe = [10, -10, 10, -10];
-			const highSharpe = [10, 11, 10, 11];
+			const lowSharpe = new EpisodeScores([10, -10, 10, -10]);
+			const highSharpe = new EpisodeScores([10, 11, 10, 11]);
 
 			const fitness1 = computeFitness(FitnessType.Sharpe, lowSharpe);
 			const fitness2 = computeFitness(FitnessType.Sharpe, highSharpe);
@@ -179,9 +177,7 @@ describe("Genetic Algorithm - Core Operators", () => {
 				...baseGenome,
 				network: {
 					...baseGenome.network,
-					hiddenLayers: [
-						{ neurons: -5 }, // Invalid negative
-					],
+					hiddenLayers: [{ neurons: -5 }],
 				},
 			};
 
@@ -194,9 +190,7 @@ describe("Genetic Algorithm - Core Operators", () => {
 				...baseGenome,
 				network: {
 					...baseGenome.network,
-					hiddenLayers: [
-						{ neurons: 0 }, // Invalid zero
-					],
+					hiddenLayers: [{ neurons: 0 }],
 				},
 			};
 
@@ -262,7 +256,6 @@ describe("Genetic Algorithm - Core Operators", () => {
 				population = offspring;
 			}
 
-			// All genomes should remain valid
 			population.forEach((g) => {
 				expect(validateGenome(g).valid).toBe(true);
 			});

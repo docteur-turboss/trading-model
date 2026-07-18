@@ -1,5 +1,5 @@
-import { DurationMs } from "@trading-model/common/domain/primitives";
 import { beforeEach, describe, expect, it } from "@jest/globals";
+import { DurationMs } from "@trading-model/common/domain/primitives";
 import { EpisodeScores } from "../../../src/core/genetic-algorithm/episode-scores";
 import {
 	crossoverGenomes,

@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
+import { NumericRange } from "@trading-model/common/domain/numeric-range";
 import {
 	DurationMs,
 	TradingSymbol,
 } from "@trading-model/common/domain/primitives";
-import { createBounded } from "../../../src/core/genetic-algorithm/bounded";
 import { EpisodeScores } from "../../../src/core/genetic-algorithm/episode-scores";
 import { createDefaultGenome } from "../../../src/core/genetic-algorithm/factory";
 import {
@@ -24,6 +24,7 @@ import type { LamarckGenome } from "../../../src/core/genetic-algorithm/genome-t
 import type { DeepReadonly } from "../../../src/core/genetic-algorithm/shared-types";
 import { MarketDataBuffer } from "../../../src/core/market-data-buffer";
 import { Trainer } from "../../../src/core/trainer";
+import { LastTrainingInfo } from "../../../src/core/training-state";
 import {
 	makeBestGenomeNoMeta,
 	makeMinimalBestGenome,
@@ -112,7 +113,7 @@ jest.mock("../../../src/core/genetic-algorithm/ga-runner", () => {
 					learningRate: 0.001,
 					rewardShaping: {
 						clip: false,
-						clipBounds: createBounded(-1, 1),
+						clipBounds: new NumericRange(-1, 1),
 						scale: false,
 						scaleFactor: 1,
 						normalize: false,
@@ -128,7 +129,7 @@ jest.mock("../../../src/core/genetic-algorithm/ga-runner", () => {
 					},
 					continuousPolicy: {
 						type: ContinuousPolicyType.TanhSquashing,
-						clipBounds: createBounded(-1, 1),
+						clipBounds: new NumericRange(-1, 1),
 						noiseStd: 0.1,
 						noiseDecay: 0.999,
 					},
@@ -166,7 +167,7 @@ jest.mock("../../../src/core/genetic-algorithm/ga-runner", () => {
 				},
 			});
 		}),
-		getGeneration: jest.fn<() => number>().mockReturnValue(5),
+		processor: { generation: 5 },
 	};
 	return {
 		GeneticAlgorithmRunner: jest.fn().mockImplementation((opts: any) => {
@@ -402,14 +403,14 @@ describe("Trainer", () => {
 		it("should return correct summary when bestGenome has fitnessMeta", () => {
 			const trainer = new Trainer(dataBuffer);
 			const bestGenome = makeMinimalBestGenome() as DeepReadonly<LamarckGenome>;
-			(trainer as any)._lastInfo = {
-				symbol: "BTCUSDT",
+			(trainer as any)._lastInfo = new LastTrainingInfo(
+				"BTCUSDT" as never,
 				bestGenome,
-				bestFitness: 1.5,
-				bestFitnessMeta: makeMinimalFitnessMeta(),
-				generation: 5,
-				generationContext: null,
-			};
+				1.5 as never,
+				makeMinimalFitnessMeta(),
+				5 as never,
+				null
+			);
 
 			const summary = trainer.getBestAgentSummary();
 
@@ -428,13 +429,14 @@ describe("Trainer", () => {
 		it("should return summary with zero sharpe and avgPnl when no fitnessMeta", () => {
 			const trainer = new Trainer(dataBuffer);
 			const bestGenome = makeBestGenomeNoMeta() as DeepReadonly<LamarckGenome>;
-			(trainer as any)._lastInfo = {
-				symbol: "BTCUSDT",
+			(trainer as any)._lastInfo = new LastTrainingInfo(
+				"BTCUSDT" as never,
 				bestGenome,
-				bestFitness: 0.5,
-				generation: 5,
-				generationContext: null,
-			};
+				0.5 as never,
+				undefined,
+				5 as never,
+				null
+			);
 
 			const summary = trainer.getBestAgentSummary();
 
@@ -446,20 +448,20 @@ describe("Trainer", () => {
 		it("should handle genome with fitnessMeta containing rawScores", () => {
 			const trainer = new Trainer(dataBuffer);
 			const g = createDefaultGenome("test", 3) as DeepReadonly<LamarckGenome>;
-			(trainer as any)._lastInfo = {
-				symbol: "BTCUSDT",
-				bestGenome: g,
-				bestFitness: 0.5,
-				bestFitnessMeta: {
+			(trainer as any)._lastInfo = new LastTrainingInfo(
+				"BTCUSDT" as never,
+				g,
+				0.5 as never,
+				{
 					episodesRun: 5,
 					computeMs: DurationMs.of(2000),
 					efficiencyScore: 1.0,
 					variance: 0.05,
 					rawScores: new EpisodeScores([1]),
 				},
-				generation: 5,
-				generationContext: null,
-			};
+				5 as never,
+				null
+			);
 
 			const summary = trainer.getBestAgentSummary();
 
@@ -470,13 +472,14 @@ describe("Trainer", () => {
 		it("should return fitness as 0 when bestGenome fitness is null", () => {
 			const trainer = new Trainer(dataBuffer);
 			const g = createDefaultGenome("test", 3) as DeepReadonly<LamarckGenome>;
-			(trainer as any)._lastInfo = {
-				symbol: "BTCUSDT",
-				bestGenome: g,
-				bestFitness: 0,
-				generation: 5,
-				generationContext: null,
-			};
+			(trainer as any)._lastInfo = new LastTrainingInfo(
+				"BTCUSDT" as never,
+				g,
+				0 as never,
+				undefined,
+				5 as never,
+				null
+			);
 
 			const summary = trainer.getBestAgentSummary();
 

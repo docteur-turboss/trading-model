@@ -1,5 +1,6 @@
 import { describe, expect, test } from "@jest/globals";
 import { NumericRange } from "@trading-model/common/domain/numeric-range";
+import { EpisodeScores } from "../../../src/core/genetic-algorithm/episode-scores";
 import {
 	computeFitness,
 	shapeReward,
@@ -8,7 +9,7 @@ import { FitnessType } from "../../../src/core/genetic-algorithm/genome";
 import type { RewardShapingGenome } from "../../../src/core/genetic-algorithm/genome-types";
 
 describe("Fitness - computeFitness", () => {
-	const scores = [100, 120, 110, 130, 140];
+	const scores = new EpisodeScores([100, 120, 110, 130, 140]);
 
 	test("total_pnl should return sum of scores", () => {
 		const result = computeFitness(FitnessType.TotalPnl, scores);
@@ -20,8 +21,11 @@ describe("Fitness - computeFitness", () => {
 		expect(result).toBeGreaterThan(0);
 	});
 
-	test("sharpe should return 0 for constant scores", () => {
-		const result = computeFitness(FitnessType.Sharpe, [5, 5, 5]);
+	test("sharpe should return mean for constant scores", () => {
+		const result = computeFitness(
+			FitnessType.Sharpe,
+			new EpisodeScores([5, 5, 5])
+		);
 		expect(result).toBe(5);
 	});
 
@@ -31,12 +35,18 @@ describe("Fitness - computeFitness", () => {
 	});
 
 	test("sortino should handle no negative returns", () => {
-		const result = computeFitness(FitnessType.Sortino, [10, 20, 30]);
+		const result = computeFitness(
+			FitnessType.Sortino,
+			new EpisodeScores([10, 20, 30])
+		);
 		expect(result).toBeGreaterThan(0);
 	});
 
 	test("sortino should handle negative returns", () => {
-		const result = computeFitness(FitnessType.Sortino, [10, -5, 20, -3]);
+		const result = computeFitness(
+			FitnessType.Sortino,
+			new EpisodeScores([10, -5, 20, -3])
+		);
 		expect(Number.isFinite(result)).toBe(true);
 	});
 
@@ -46,7 +56,10 @@ describe("Fitness - computeFitness", () => {
 	});
 
 	test("calmar should handle drawdown correctly", () => {
-		const result = computeFitness(FitnessType.Calmar, [100, -50, 200, -100]);
+		const result = computeFitness(
+			FitnessType.Calmar,
+			new EpisodeScores([100, -50, 200, -100])
+		);
 		expect(Number.isFinite(result)).toBe(true);
 	});
 
@@ -56,7 +69,7 @@ describe("Fitness - computeFitness", () => {
 	});
 
 	test("should return -Infinity for empty scores", () => {
-		const result = computeFitness(FitnessType.Sharpe, []);
+		const result = computeFitness(FitnessType.Sharpe, new EpisodeScores([]));
 		expect(result).toBe(Number.NEGATIVE_INFINITY);
 	});
 

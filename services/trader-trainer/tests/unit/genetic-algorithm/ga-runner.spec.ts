@@ -396,13 +396,13 @@ describe("GeneticAlgorithmRunner", () => {
 			backendFactory: mockBackendFactory as any,
 			evalConcurrency: 1,
 		});
-		runner.initialise({
+		runner.processor.initialise({
 			seeding: { envSeed: 42, mutationSeed: 42, networkSeed: 42 },
 			population: { size: 5, elitismFraction: 0.2, survivorFraction: 0.5 },
 		});
-		const pop = runner.getPopulation();
+		const pop = runner.processor.population;
 		expect(pop.length).toBe(5);
-		expect(runner.getGeneration()).toBe(0);
+		expect(runner.processor.generation).toBe(0);
 	});
 
 	it("should create genomes with unique IDs", () => {
@@ -411,8 +411,8 @@ describe("GeneticAlgorithmRunner", () => {
 			backendFactory: mockBackendFactory as any,
 			evalConcurrency: 1,
 		});
-		runner.initialise();
-		const pop = runner.getPopulation();
+		runner.processor.initialise();
+		const pop = runner.processor.population;
 		const ids = new Set(pop.map((g) => g.id));
 		expect(ids.size).toBe(pop.length);
 	});
@@ -422,8 +422,8 @@ describe("GeneticAlgorithmRunner", () => {
 			windowSets: [{ id: "w1", train: [], validation: [] }],
 			backendFactory: mockBackendFactory as any,
 		});
-		runner.initialise();
-		expect(runner.getBestGenome()).toBeNull();
+		runner.processor.initialise();
+		expect(runner.processor.lastBestGenome).toBeUndefined();
 	});
 
 	it("should return empty archive before running", () => {
@@ -431,8 +431,8 @@ describe("GeneticAlgorithmRunner", () => {
 			windowSets: [{ id: "w1", train: [], validation: [] }],
 			backendFactory: mockBackendFactory as any,
 		});
-		runner.initialise();
-		expect(runner.getArchive()).toEqual([]);
+		runner.processor.initialise();
+		expect(runner.processor.getArchiveMembers()).toEqual([]);
 	});
 
 	it("should select elites based on elitismFraction", async () => {
@@ -450,14 +450,14 @@ describe("GeneticAlgorithmRunner", () => {
 			backendFactory: mockBackendFactory as any,
 			evalConcurrency: 1,
 		});
-		runner.initialise({
+		runner.processor.initialise({
 			seeding: { envSeed: 42, mutationSeed: 42, networkSeed: 42 },
 			population: { size: 10, elitismFraction: 0.3, survivorFraction: 0.5 },
 		});
-		await runner.runGeneration();
-		const pop = runner.getPopulation();
+		await runner.processor.runGeneration();
+		const pop = runner.processor.population;
 		expect(pop.length).toBe(10);
-		expect(runner.getGeneration()).toBe(1);
+		expect(runner.processor.generation).toBe(1);
 	});
 
 	it("should produce offspring with some new IDs after runGeneration (elites carry over)", async () => {
@@ -475,16 +475,14 @@ describe("GeneticAlgorithmRunner", () => {
 			backendFactory: mockBackendFactory as any,
 			evalConcurrency: 1,
 		});
-		runner.initialise({
+		runner.processor.initialise({
 			seeding: { envSeed: 42, mutationSeed: 42, networkSeed: 42 },
 			population: { size: 4, elitismFraction: 0.2, survivorFraction: 0.5 },
 		});
-		await runner.runGeneration();
-		const childIds = new Set(runner.getPopulation().map((g) => g.id));
-		// Elites are preserved from parents, so at least some IDs may overlap.
-		// But the population size should stay the same.
+		await runner.processor.runGeneration();
+		const childIds = new Set(runner.processor.population.map((g) => g.id));
 		expect(childIds.size).toBeGreaterThan(0);
-		expect(runner.getPopulation().length).toBe(4);
+		expect(runner.processor.population.length).toBe(4);
 	});
 
 	it("should update Pareto archive after runGeneration", async () => {
@@ -504,15 +502,15 @@ describe("GeneticAlgorithmRunner", () => {
 			evalConcurrency: 1,
 			onArchiveUpdate,
 		});
-		runner.initialise({
+		runner.processor.initialise({
 			seeding: { envSeed: 42, mutationSeed: 42, networkSeed: 42 },
 			population: { size: 4, elitismFraction: 0.2, survivorFraction: 0.5 },
 		});
-		expect(runner.getArchive()).toEqual([]);
-		await runner.runGeneration();
+		expect(runner.processor.getArchiveMembers()).toEqual([]);
+		await runner.processor.runGeneration();
 		expect(onArchiveUpdate).toHaveBeenCalled();
-		if (runner.getArchive().length > 0) {
-			expect(runner.getArchive()[0].id).toBeDefined();
+		if (runner.processor.getArchiveMembers().length > 0) {
+			expect(runner.processor.getArchiveMembers()[0].id).toBeDefined();
 		}
 	});
 
@@ -531,12 +529,12 @@ describe("GeneticAlgorithmRunner", () => {
 			backendFactory: mockBackendFactory as any,
 			evalConcurrency: 1,
 		});
-		runner.initialise({
+		runner.processor.initialise({
 			seeding: { envSeed: 42, mutationSeed: 42, networkSeed: 42 },
 			population: { size: 2, elitismFraction: 0.2, survivorFraction: 0.5 },
 		});
-		const ctx1 = await runner.runGeneration();
-		const ctx2 = await runner.runGeneration();
+		const ctx1 = await runner.processor.runGeneration();
+		const ctx2 = await runner.processor.runGeneration();
 		expect(ctx2.stagnation).toBeGreaterThanOrEqual(ctx1.stagnation);
 	});
 
@@ -555,12 +553,12 @@ describe("GeneticAlgorithmRunner", () => {
 			backendFactory: mockBackendFactory as any,
 			evalConcurrency: 1,
 		});
-		runner.initialise({
+		runner.processor.initialise({
 			seeding: { envSeed: 42, mutationSeed: 42, networkSeed: 42 },
 			population: { size: 5, elitismFraction: 0.2, survivorFraction: 0.5 },
 		});
-		await runner.runGeneration();
-		const ctx = await runner.runGeneration();
+		await runner.processor.runGeneration();
+		const ctx = await runner.processor.runGeneration();
 		expect(ctx.population.length).toBe(5);
 	});
 
@@ -582,11 +580,11 @@ describe("GeneticAlgorithmRunner", () => {
 			evalConcurrency: 1,
 			onGeneration,
 		});
-		runner.initialise({
+		runner.processor.initialise({
 			seeding: { envSeed: 42, mutationSeed: 42, networkSeed: 42 },
 			population: { size: 2, elitismFraction: 0.2, survivorFraction: 0.5 },
 		});
-		const ctx = await runner.runGeneration();
+		const ctx = await runner.processor.runGeneration();
 		expect(ctx.generation).toBe(1);
 		expect(ctx.population.length).toBe(2);
 		expect(onGeneration).toHaveBeenCalledTimes(1);
@@ -655,7 +653,7 @@ describe("full GA loop", () => {
 		});
 		const result = await runner.run();
 		expect(result).toBeDefined();
-		expect(runner.getBestGenome()).not.toBeNull();
+		expect(runner.processor.lastBestGenome).toBeDefined();
 	});
 
 	it("should exercise advanced GA branches (frameSkip, normalize, sparse, NSGA-II, weight crossover)", async () => {
@@ -716,24 +714,15 @@ describe("full GA loop", () => {
 			onArchiveUpdate,
 		});
 
-		runner.initialise({
+		runner.processor.initialise({
 			seeding: { envSeed: 42, mutationSeed: 42, networkSeed: 42 },
 			population: { size: 5, elitismFraction: 0.2, survivorFraction: 0.5 },
 		});
 
-		const customPop = runner.getPopulation().map((g: any) => {
-			const gCopy = JSON.parse(JSON.stringify(g));
-			gCopy.rl.horizon.frameSkip = 3;
-			gCopy.rl.rewardShaping.normalize = true;
-			gCopy.rl.rewardShaping.sparse = true;
-			return Object.freeze(gCopy);
-		});
-		(runner as any).population = customPop;
-
 		for (let i = 0; i < 4; i++) {
-			await runner.runGeneration();
+			await runner.processor.runGeneration();
 		}
-		expect(runner.getBestGenome()).not.toBeNull();
+		expect(runner.processor.lastBestGenome).toBeDefined();
 		expect(onArchiveUpdate).toHaveBeenCalled();
 	});
 
@@ -776,7 +765,7 @@ describe("full GA loop", () => {
 			} as any,
 		});
 		const result = await runner.run();
-		expect(runner.getGeneration()).toBeLessThan(100);
+		expect(runner.processor.generation).toBeLessThan(100);
 		expect(result).toBeDefined();
 	});
 
@@ -819,7 +808,7 @@ describe("full GA loop", () => {
 			} as any,
 		});
 		const result = await runner.run();
-		expect(runner.getGeneration()).toBeLessThan(100);
+		expect(runner.processor.generation).toBeLessThan(100);
 		expect(result).toBeDefined();
 	});
 
@@ -862,7 +851,7 @@ describe("full GA loop", () => {
 			} as any,
 		});
 		const result = await runner.run();
-		expect(runner.getGeneration()).toBeLessThan(100);
+		expect(runner.processor.generation).toBeLessThan(100);
 		expect(result).toBeDefined();
 	});
 

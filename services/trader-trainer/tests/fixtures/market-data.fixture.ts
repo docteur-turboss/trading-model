@@ -29,9 +29,9 @@ export function makeCandle(
 ): CandleData {
 	const t = Date.now() + seq++ * 60000;
 	return {
-		source: SourceType.BINANCE,
+		source: SourceType.Binance,
 		timestamp: UnixTimestamp.of(t),
-		market: MarketType.CRYPTO,
+		market: MarketType.Crypto,
 		open: Price.of(100),
 		high: Price.of(105),
 		low: Price.of(95),
@@ -49,9 +49,9 @@ export function makeTrade(
 ): TradeData {
 	return {
 		symbol: TradingSymbol.of(symbol),
-		source: SourceType.BINANCE,
+		source: SourceType.Binance,
 		timestamp: UnixTimestamp.of(Date.now() + seq++ * 1000),
-		market: MarketType.CRYPTO,
+		market: MarketType.Crypto,
 		price: Price.of(101),
 		tradeId: BigInt(seq),
 		quantity: Volume.of(10),
@@ -62,9 +62,9 @@ export function makeTrade(
 export function makeOrderBook(symbol: string): OrderBookData {
 	return {
 		symbol: TradingSymbol.of(symbol),
-		source: SourceType.BINANCE,
+		source: SourceType.Binance,
 		timestamp: UnixTimestamp.of(Date.now()),
-		market: MarketType.CRYPTO,
+		market: MarketType.Crypto,
 		bids: new Set([
 			{ price: Price.of(100), quantity: Volume.of(10) },
 			{ price: Price.of(99), quantity: Volume.of(20) },
@@ -79,9 +79,9 @@ export function makeOrderBook(symbol: string): OrderBookData {
 export function makeOrderBookEmpty(symbol: string): OrderBookData {
 	return {
 		symbol: TradingSymbol.of(symbol),
-		source: SourceType.BINANCE,
+		source: SourceType.Binance,
 		timestamp: UnixTimestamp.of(Date.now()),
-		market: MarketType.CRYPTO,
+		market: MarketType.Crypto,
 		bids: new Set(),
 		asks: new Set(),
 	};
@@ -90,9 +90,9 @@ export function makeOrderBookEmpty(symbol: string): OrderBookData {
 export function makeBookTicker(symbol: string): BookTickerData {
 	return {
 		symbol: TradingSymbol.of(symbol),
-		source: SourceType.BINANCE,
+		source: SourceType.Binance,
 		timestamp: UnixTimestamp.of(Date.now()),
-		market: MarketType.CRYPTO,
+		market: MarketType.Crypto,
 		bidQty: Volume.of(10),
 		askQty: Volume.of(15),
 		bid: Price.of(100),
@@ -103,9 +103,9 @@ export function makeBookTicker(symbol: string): BookTickerData {
 export function makeBookTickerZeroBidAsk(symbol: string): BookTickerData {
 	return {
 		symbol: TradingSymbol.of(symbol),
-		source: SourceType.BINANCE,
+		source: SourceType.Binance,
 		timestamp: UnixTimestamp.of(Date.now()),
-		market: MarketType.CRYPTO,
+		market: MarketType.Crypto,
 		bidQty: Volume.of(0),
 		askQty: Volume.of(0),
 		bid: Price.of(0),
@@ -116,9 +116,9 @@ export function makeBookTickerZeroBidAsk(symbol: string): BookTickerData {
 export function makeTicker24h(symbol: string): TickerData {
 	return {
 		symbol: TradingSymbol.of(symbol),
-		source: SourceType.BINANCE,
+		source: SourceType.Binance,
 		timestamp: UnixTimestamp.of(Date.now()),
-		market: MarketType.CRYPTO,
+		market: MarketType.Crypto,
 		low: Price.of(90),
 		open: Price.of(100),
 		high: Price.of(110),

@@ -177,7 +177,6 @@ describe("encoding", () => {
 		test("should clamp extreme encoded values to valid ranges", () => {
 			const original = createDefaultGenome("clamp-test");
 			const enc = encodeGenome(original);
-			// Override the first two scalar fields (gamma, clipMin) with extreme values
 			enc[0] = 10;
 			enc[2] = 100;
 			const decoded = decodeGenome(enc, original);

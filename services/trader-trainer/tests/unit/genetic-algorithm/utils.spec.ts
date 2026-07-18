@@ -1,10 +1,6 @@
 import { describe, expect, test } from "@jest/globals";
-import {
-	clamp,
-	computeSharpe,
-	computeVariance,
-	generateId,
-} from "../../../src/core/genetic-algorithm/utils";
+import { EpisodeScores } from "../../../src/core/genetic-algorithm/episode-scores";
+import { clamp, generateId } from "../../../src/core/genetic-algorithm/utils";
 import { NormalizationStats } from "../../../src/core/normalization-stats";
 
 describe("Utils - clamp", () => {
@@ -75,34 +71,36 @@ describe("Utils - NormalizationStats", () => {
 	});
 });
 
-describe("Utils - computeVariance", () => {
+describe("EpisodeScores - variance", () => {
 	test("should return 0 for fewer than 2 elements", () => {
-		expect(computeVariance([1])).toBe(0);
-		expect(computeVariance([])).toBe(0);
+		expect(new EpisodeScores([1]).variance()).toBe(0);
+		expect(new EpisodeScores([]).variance()).toBe(0);
 	});
 
 	test("should compute variance correctly", () => {
-		const variance = computeVariance([1, 2, 3, 4, 5]);
-		expect(variance).toBe(2.5);
+		const scores = new EpisodeScores([1, 2, 3, 4, 5]);
+		expect(scores.variance()).toBe(2.5);
 	});
 
 	test("should return 0 for constant array", () => {
-		expect(computeVariance([5, 5, 5])).toBe(0);
+		const scores = new EpisodeScores([5, 5, 5]);
+		expect(scores.variance()).toBe(0);
 	});
 });
 
-describe("Utils - computeSharpe", () => {
+describe("EpisodeScores - sharpe", () => {
 	test("should return 0 for fewer than 2 elements", () => {
-		expect(computeSharpe([1])).toBe(0);
-		expect(computeSharpe([])).toBe(0);
+		expect(new EpisodeScores([1]).sharpe()).toBe(0);
+		expect(new EpisodeScores([]).sharpe()).toBe(0);
 	});
 
-	test("should return 0 for zero standard deviation", () => {
-		expect(computeSharpe([5, 5, 5])).toBe(0);
+	test("should return mean for zero standard deviation", () => {
+		const scores = new EpisodeScores([5, 5, 5]);
+		expect(scores.sharpe()).toBe(5);
 	});
 
 	test("should compute positive sharpe for positive mean", () => {
-		const sharpe = computeSharpe([1, 2, 3]);
-		expect(sharpe).toBeGreaterThan(0);
+		const scores = new EpisodeScores([1, 2, 3]);
+		expect(scores.sharpe()).toBeGreaterThan(0);
 	});
 });

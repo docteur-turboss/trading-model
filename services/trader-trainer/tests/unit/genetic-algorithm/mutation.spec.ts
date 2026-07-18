@@ -65,21 +65,18 @@ describe("Mutation - adaptSigma", () => {
 	});
 
 	test("cma adapts sigma via selfSigma path length", () => {
-		// selfSigma ≈ 1.0 → path at expected length → sigma stays ~unchanged
 		const m1 = makeMutationGenome({
 			adaptation: MutationAdaptation.Cma,
 			rates: { sigma: 0.5, selfSigma: 1.0 },
 		});
 		expect(adaptSigma(m1, rng)).toBeCloseTo(0.5, 5);
 
-		// selfSigma < 1.0 → short path → sigma decreases (exploitation)
 		const m2 = makeMutationGenome({
 			adaptation: MutationAdaptation.Cma,
 			rates: { sigma: 0.5, selfSigma: 0.1 },
 		});
 		expect(adaptSigma(m2, rng)).toBeLessThan(0.5);
 
-		// selfSigma > 1.0 → long path → sigma increases (exploration)
 		const m3 = makeMutationGenome({
 			adaptation: MutationAdaptation.Cma,
 			rates: { sigma: 0.5, selfSigma: 2.0 },
@@ -241,24 +238,24 @@ describe("Mutation - mutateGenome", () => {
 		genome.mutation.structural.removeNeuronRate = 0;
 		genome.mutation.structural.addLayerRate = 0;
 		genome.mutation.structural.removeLayerRate = 0;
-		// Calls before mutateRL: 2 layers + 5 rate checks = 7 calls
-		// Then within mutateRL before horizon: gamma(1) + lr(2) + clipMin(1) + clipMax(1) + scaleFactor(1) + maxEpiLen(1) = 7 calls
-		// So nStepReturn outer = call 15, inner = call 16
-		// frameSkip outer = call 17, inner = call 18
+		const NSTEP_OUTER_CALL = 15;
+		const NSTEP_INNER_CALL = 16;
+		const FRAMESKIP_OUTER_CALL = 17;
+		const FRAMESKIP_INNER_CALL = 18;
 		let idx = 0;
 		const rng = () => {
 			idx++;
-			if (idx === 15) {
-				return 0.05; // nStepReturn outer  < 0.1  → true
+			if (idx === NSTEP_OUTER_CALL) {
+				return 0.05;
 			}
-			if (idx === 16) {
-				return 0.05; // nStepReturn inner  < 0.5  → true  → +1
+			if (idx === NSTEP_INNER_CALL) {
+				return 0.05;
 			}
-			if (idx === 17) {
-				return 0.05; // frameSkip outer   < 0.1  → true
+			if (idx === FRAMESKIP_OUTER_CALL) {
+				return 0.05;
 			}
-			if (idx === 18) {
-				return 0.6; // frameSkip inner  >= 0.5  → false → -1
+			if (idx === FRAMESKIP_INNER_CALL) {
+				return 0.6;
 			}
 			return 0.5;
 		};

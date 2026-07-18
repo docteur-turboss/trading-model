@@ -224,17 +224,16 @@ describe("TradingAgent", () => {
 		});
 
 		it("should execute a buy action when discrete output has highest value at index 2", () => {
-			// override NN weights so output[2] = sigmoid(5) > output[0/1] = sigmoid(-5)
 			const buf = new Float32Array(agent.parameterCount());
 			buf[24] = 1;
 			buf[25] = 1;
 			buf[26] = 1;
 			buf[27] = 1;
 			buf[28] = 1;
-			buf[29] = 1; // hidden biases = 1
+			buf[29] = 1;
 			buf[48] = -5;
 			buf[49] = -5;
-			buf[50] = 5; // output biases: idx 0/1 low, idx 2 high
+			buf[50] = 5;
 			agent.setWeights(buf);
 
 			const result = agent.step(

@@ -254,7 +254,6 @@ describe("Agent", () => {
 
 			agent.fastForward({ input });
 
-			// Manually attach target to pool entries
 			const pool = agent.experience.getPool();
 			(pool[0] as { kind: string; target: Float32Array }).kind = "supervised";
 			(pool[0] as { kind: string; target: Float32Array }).target =
@@ -271,7 +270,6 @@ describe("Agent", () => {
 
 			agent.fastForward({ input });
 
-			// No target attached — skipes training but still clears pool
 			agent.experience.learnFromPool(agent.nn);
 
 			expect(agent.experience.getPoolSize()).toBe(0);

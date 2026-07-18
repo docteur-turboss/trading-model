@@ -77,7 +77,7 @@ describe("MarketDataBuffer", () => {
 
 	it("should evict oldest symbol under memory pressure with LRU policy", () => {
 		const buf = new MarketDataBuffer({
-			maxMemoryMb: 0.001,
+			maxMemoryBytes: 1049,
 			evictionPolicy: EvictionPolicy.Lru,
 		});
 		buf.addData(
@@ -144,14 +144,13 @@ describe("MarketDataBuffer", () => {
 			expect(small.getMaxSize()).toBe(50);
 		});
 
-		it("should handle eviction with orphaned accessOrder entry", () => {
+		it("should handle eviction under memory pressure", () => {
 			const buf = new MarketDataBuffer({
-				maxMemoryMb: 0.00001,
+				maxMemoryBytes: 10,
 				evictionPolicy: EvictionPolicy.Lru,
 			});
 			feedCandles(buf, "BTCUSDT", 3);
 			feedCandles(buf, "ETHUSDT", 3);
-			(buf as any)._stateManager.accessOrder[0] = undefined as any;
 			buf.addData(
 				DataType.Candle,
 				TradingSymbol.of("SOLUSDT"),
@@ -164,17 +163,39 @@ describe("MarketDataBuffer", () => {
 			expect(buf.getSymbols().length).toBeGreaterThan(0);
 		});
 
-		it("should handle eviction with symbol missing from states", () => {
+		it("should evict symbols under memory pressure until at least one remains", () => {
 			const buf = new MarketDataBuffer({
-				maxMemoryMb: 0.00001,
+				maxMemoryBytes: 10,
 				evictionPolicy: EvictionPolicy.Lru,
 			});
-			feedCandles(buf, "BTCUSDT", 3);
-			feedCandles(buf, "ETHUSDT", 3);
-			(buf as any)._stateManager.states.delete(
-				(buf as any)._stateManager.accessOrder[0]
+			buf.addData(
+				DataType.Candle,
+				TradingSymbol.of("BTCUSDT"),
+				makeCandle({
+					symbol: TradingSymbol.of("BTCUSDT"),
+					close: Price.of(50000),
+					timestamp: UnixTimestamp.of(1),
+				})
 			);
-			feedCandles(buf, "SOLUSDT", 3);
+			buf.addData(
+				DataType.Candle,
+				TradingSymbol.of("ETHUSDT"),
+				makeCandle({
+					symbol: TradingSymbol.of("ETHUSDT"),
+					close: Price.of(3000),
+					timestamp: UnixTimestamp.of(1),
+				})
+			);
+			buf.addData(
+				DataType.Candle,
+				TradingSymbol.of("SOLUSDT"),
+				makeCandle({
+					symbol: TradingSymbol.of("SOLUSDT"),
+					close: Price.of(100),
+					timestamp: UnixTimestamp.of(1),
+				})
+			);
+			expect(buf.getSymbols().length).toBeGreaterThan(0);
 			expect(buf.getSymbols().length).toBeLessThanOrEqual(3);
 		});
 	});
@@ -309,9 +330,9 @@ describe("MarketDataBuffer", () => {
 
 			buffer.addData(DataType.Trade, TradingSymbol.of("BTCUSDT"), {
 				symbol: TradingSymbol.of("BTCUSDT"),
-				source: SourceType.BINANCE,
+				source: SourceType.Binance,
 				timestamp: UnixTimestamp.of(0),
-				market: MarketType.CRYPTO,
+				market: MarketType.Crypto,
 				price: Price.of(100),
 				tradeId: BigInt(999),
 				quantity: Volume.of(0),
@@ -353,7 +374,7 @@ describe("MarketDataBuffer", () => {
 
 		it("should account for orderBook size in eviction memory estimate", () => {
 			const buf = new MarketDataBuffer({
-				maxMemoryMb: 0.0001,
+				maxMemoryBytes: 105,
 				evictionPolicy: EvictionPolicy.Lru,
 			});
 			buf.addData(

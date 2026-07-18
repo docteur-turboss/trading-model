@@ -25,9 +25,9 @@ import { NormalizationStats } from "../../../src/core/normalization-stats";
 function baseCandle(overrides?: Partial<CandleData>): CandleData {
 	return {
 		symbol: toSymbol("BTCUSDT"),
-		source: SourceType.BINANCE,
+		source: SourceType.Binance,
 		timestamp: UnixTimestamp.of(2000),
-		market: MarketType.CRYPTO,
+		market: MarketType.Crypto,
 		open: Price.of(100),
 		high: Price.of(110),
 		low: Price.of(90),
@@ -42,9 +42,9 @@ function baseCandle(overrides?: Partial<CandleData>): CandleData {
 function baseTrade(overrides?: Partial<TradeData>): TradeData {
 	return {
 		symbol: toSymbol("BTCUSDT"),
-		source: SourceType.BINANCE,
+		source: SourceType.Binance,
 		timestamp: UnixTimestamp.of(1500),
-		market: MarketType.CRYPTO,
+		market: MarketType.Crypto,
 		price: Price.of(104),
 		tradeId: 1n,
 		quantity: Volume.of(10),
@@ -56,9 +56,9 @@ function baseTrade(overrides?: Partial<TradeData>): TradeData {
 function makeOrderBook(bidPrice: number, askPrice: number): OrderBookData {
 	return {
 		symbol: toSymbol("BTCUSDT"),
-		source: SourceType.BINANCE,
+		source: SourceType.Binance,
 		timestamp: UnixTimestamp.of(2000),
-		market: MarketType.CRYPTO,
+		market: MarketType.Crypto,
 		bids: new Set([{ price: Price.of(bidPrice), quantity: Volume.of(5) }]),
 		asks: new Set([{ price: Price.of(askPrice), quantity: Volume.of(3) }]),
 	};
@@ -72,9 +72,9 @@ function makeBookTicker(
 ): BookTickerData {
 	return {
 		symbol: toSymbol("BTCUSDT"),
-		source: SourceType.BINANCE,
+		source: SourceType.Binance,
 		timestamp: UnixTimestamp.of(2000),
-		market: MarketType.CRYPTO,
+		market: MarketType.Crypto,
 		bid: Price.of(bid),
 		ask: Price.of(ask),
 		bidQty: Volume.of(bidQty),
@@ -91,9 +91,9 @@ function makeTicker24h(
 ): TickerData {
 	return {
 		symbol: toSymbol("BTCUSDT"),
-		source: SourceType.BINANCE,
+		source: SourceType.Binance,
 		timestamp: UnixTimestamp.of(2000),
-		market: MarketType.CRYPTO,
+		market: MarketType.Crypto,
 		open: Price.of(open),
 		high: Price.of(high),
 		low: Price.of(low),

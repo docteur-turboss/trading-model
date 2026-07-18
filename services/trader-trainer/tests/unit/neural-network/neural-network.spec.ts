@@ -189,8 +189,6 @@ describe("NeuralNetwork", () => {
 				useBias: false,
 				gradientClipNorm: 1,
 			});
-			// Set weights to large value so gradient norm exceeds clip norm
-			// parameterCount = weights(1) + bias(1) = 2
 			nn.setWeights(new Float32Array([100, 0]));
 			const input = new Float32Array([1000]);
 			const target = new Float32Array([0]);
