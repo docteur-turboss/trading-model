@@ -116,7 +116,7 @@ function _buildSignedCertificateResult(
 		certPem: params.certPem,
 		caPem: params.caCertPem,
 		serviceId: params.serviceId,
-		issuedAt: UnixTimestamp.toDate(params.now),
+		issuedAt: params.now,
 		expiresAt: params.expiresAt,
 		fingerprint: toFingerprint(fingerprint),
 	};

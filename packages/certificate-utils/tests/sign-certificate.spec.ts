@@ -56,11 +56,15 @@ describe("signCertificate", () => {
 		});
 		const after = Date.now();
 
-		expect(result.issuedAt.getTime()).toBeGreaterThanOrEqual(before);
-		expect(result.issuedAt.getTime()).toBeLessThanOrEqual(after);
+		expect(
+			UnixTimestamp.toDate(result.issuedAt).getTime()
+		).toBeGreaterThanOrEqual(before);
+		expect(UnixTimestamp.toDate(result.issuedAt).getTime()).toBeLessThanOrEqual(
+			after
+		);
 		expect(
 			UnixTimestamp.toDate(result.expiresAt).getTime() -
-				result.issuedAt.getTime()
+				UnixTimestamp.toDate(result.issuedAt).getTime()
 		).toBe(ttlMs);
 	});
 

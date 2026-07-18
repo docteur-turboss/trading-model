@@ -6,6 +6,9 @@ import {
 } from "@trading-model/common/domain/primitives";
 import type { TlsPaths } from "@trading-model/common/domain/tls-paths";
 import { HTTP_HEADERS } from "@trading-model/common/http-headers";
+import { getLatestKeyVersion } from "./vault-response-parser";
+
+export { HashAlgorithm } from "./vault-response-parser";
 
 export enum VaultKeyType {
 	Rsa2048 = "rsa-2048",
@@ -23,42 +26,6 @@ export interface VaultTransitConfig {
 	timeoutMs?: DurationMs;
 }
 
-export enum HashAlgorithm {
-	Sha256 = "sha256",
-	Sha384 = "sha384",
-	Sha512 = "sha512",
-	Sha1 = "sha1",
-}
-
-const HASH_ALGORITHM_VAULT_MAP: Record<HashAlgorithm, string> = {
-	[HashAlgorithm.Sha256]: "sha2-256",
-	[HashAlgorithm.Sha384]: "sha2-384",
-	[HashAlgorithm.Sha512]: "sha2-512",
-	[HashAlgorithm.Sha1]: "sha1",
-};
-
-function _getHashAlgorithm(algorithm: HashAlgorithm): string {
-	return HASH_ALGORITHM_VAULT_MAP[algorithm] ?? "sha2-256";
-}
-
-function _getSignatureString(result: { data: { signature: string } }): string {
-	const raw = result.data.signature;
-	const colonIdx = raw.lastIndexOf(":");
-	return colonIdx >= 0 ? raw.slice(colonIdx + 1) : raw;
-}
-
-function _getLatestKeyVersion(
-	name: string,
-	keys: Record<string, string>
-): string {
-	const versions = Object.keys(keys);
-	if (versions.length === 0) {
-		throw new Error(`Key "${name}" has no versions`);
-	}
-	const sorted = versions.sort((_prev, _next) => Number(_next) - Number(_prev));
-	return keys[sorted[0]];
-}
-
 export class VaultTransitHttp {
 	private readonly _httpClient: HttpClient;
 	private readonly _baseUrl: URLString;
@@ -74,14 +41,6 @@ export class VaultTransitHttp {
 		this._httpClient = config.tls
 			? HttpClient.createWithTls(config.tls)
 			: new HttpClient();
-	}
-
-	getHashAlgorithm(algorithm: HashAlgorithm): string {
-		return _getHashAlgorithm(algorithm);
-	}
-
-	getSignatureString(result: { data: { signature: string } }): string {
-		return _getSignatureString(result);
 	}
 
 	private _getHeaders(): Record<string, string> {
@@ -139,7 +98,7 @@ export class VaultTransitHttp {
 		if (!result) {
 			throw new Error(`Key "${name}" not found in Vault Transit`);
 		}
-		return _getLatestKeyVersion(name, result.data.keys);
+		return getLatestKeyVersion(name, result.data.keys);
 	}
 
 	async deleteKey(name: string): Promise<void> {

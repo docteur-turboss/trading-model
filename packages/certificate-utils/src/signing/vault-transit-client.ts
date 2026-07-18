@@ -2,6 +2,7 @@ import { logger } from "@trading-model/common/config/logger";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import { CryptoAlg } from "@trading-model/crypto/crypto/crypto-constants";
 
+import { getHashAlgorithm, getSignatureString } from "./vault-response-parser";
 import {
 	type HashAlgorithm,
 	type VaultTransitConfig,
@@ -37,9 +38,9 @@ export class VaultTransitClient {
 		const { keyName, algorithm, input } = request;
 		const result = await this._http.postSign(keyName, {
 			input: Buffer.from(input, CryptoAlg.UTF8).toString("base64"),
-			hash_algorithm: this._http.getHashAlgorithm(algorithm),
+			hash_algorithm: getHashAlgorithm(algorithm),
 		});
-		return this._http.getSignatureString(result);
+		return getSignatureString(result);
 	}
 
 	async signBytes(name: string, derBytes: Buffer): Promise<Buffer> {
@@ -47,7 +48,7 @@ export class VaultTransitClient {
 			input: derBytes.toString("base64"),
 			hash_algorithm: "sha2-256",
 		});
-		const signatureBase64 = this._http.getSignatureString(result);
+		const signatureBase64 = getSignatureString(result);
 		return Buffer.from(signatureBase64, "base64");
 	}
 

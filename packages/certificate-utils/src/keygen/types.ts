@@ -7,12 +7,13 @@ import type {
 	KeyPem,
 	SerialNumber,
 	ServiceId,
+	UnixTimestamp,
 } from "@trading-model/common/domain/primitives";
 import type { RevokedCertificate } from "@trading-model/common/domain/revoked-certificate";
 
 export interface SignedCertificate extends CertificateBase {
 	serviceId: ServiceId;
-	issuedAt: Date;
+	issuedAt: UnixTimestamp;
 	fingerprint: Fingerprint;
 }
 
