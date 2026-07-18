@@ -3,7 +3,16 @@ import fsPromises from "node:fs/promises";
 import type https from "node:https";
 import path from "node:path";
 
-import { CryptoAlg } from "@trading-model/crypto/crypto/crypto-constants";
+const CryptoAlg = {
+	SHA256: "sha256",
+	SHA512: "sha512",
+	RSA_SHA256: "RSA-SHA256",
+	UTF8: "utf8",
+	BASE64URL: "base64url",
+	HEX: "hex",
+	AES_256_GCM: "aes-256-gcm",
+} as const;
+
 import { CaPem, CertPem, KeyPem } from "../domain/primitives";
 import type { TlsPaths, TlsPemBundle } from "../domain/tls-paths";
 import { normalizeError } from "../utils/errors";

@@ -59,7 +59,7 @@ export class LatencyTracker {
 	}
 
 	private _checkThreshold(
-		key: string,
+		_key: string,
 		window: LatencyWindow
 	): number | undefined {
 		if (this._p99ThresholdMs <= 0) {
@@ -72,7 +72,9 @@ export class LatencyTracker {
 	}
 
 	private _computeP99(window: LatencyWindow): number {
-		const sorted = window.samples.slice(0, window.count).sort((a, b) => a - b);
+		const sorted = window.samples
+			.slice(0, window.count)
+			.sort((left, right) => left - right);
 		const idx = Math.ceil(sorted.length * 0.99) - 1;
 		return sorted[Math.max(0, idx)];
 	}

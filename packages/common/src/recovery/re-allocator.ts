@@ -1,9 +1,9 @@
+import { logger } from "../config/logger";
 import {
 	JobStatus as JOB_STATUS,
 	type Job,
 	type JobEvent,
-} from "@trading-model/validation/contracts/recovery.types";
-import { logger } from "../config/logger";
+} from "../contracts/recovery-types";
 import { PositiveInt, UnixTimestamp } from "../domain/primitives";
 import { RetryPolicy } from "../domain/retry-policy";
 import type { IJobQueue } from "./job-queue.interface";

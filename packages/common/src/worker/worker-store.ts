@@ -1,7 +1,7 @@
 import type {
 	WorkerRegistration,
 	WorkerStatus,
-} from "@trading-model/validation/contracts/worker-protocol.types";
+} from "../contracts/worker-protocol-types";
 import { UnixTimestamp, WorkerStatusCode } from "../domain/primitives";
 
 function _findStaleWorkers(

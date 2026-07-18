@@ -1,4 +1,4 @@
-import type { ErrorResponse } from "@trading-model/validation/contracts/error-response";
+import type { ErrorResponse } from "../contracts/error-response";
 import type { HttpStatusCode } from "../http-status";
 import { createAppError, ErrorCode } from "../utils/errors";
 
@@ -17,12 +17,15 @@ export function createHttpClientError(
 	message: string,
 	statusCode?: HttpStatusCode
 ): HttpClientError {
-	const err = createAppError(message, {
-		code: ErrorCode.HttpClient,
-	}) as unknown as HttpClientError;
-	err.name = "HttpClientError";
-	err.statusCode = statusCode;
-	return err;
+	return Object.assign(
+		createAppError(message, {
+			code: ErrorCode.HttpClient,
+		}),
+		{
+			name: "HttpClientError",
+			statusCode,
+		}
+	) as unknown as HttpClientError;
 }
 
 export function isHttpClientError(err: unknown): err is HttpClientError {
@@ -56,12 +59,15 @@ export function createHttpClientTimeoutError(
 	message: string,
 	timeoutMs: number
 ): HttpClientTimeoutError {
-	const err = createAppError(message, {
-		code: ErrorCode.HttpClientTimeout,
-	}) as unknown as HttpClientTimeoutError;
-	err.name = "HttpClientTimeoutError";
-	err.timeoutMs = timeoutMs;
-	return err;
+	return Object.assign(
+		createAppError(message, {
+			code: ErrorCode.HttpClientTimeout,
+		}),
+		{
+			name: "HttpClientTimeoutError",
+			timeoutMs,
+		}
+	) as unknown as HttpClientTimeoutError;
 }
 
 export function isHttpClientTimeoutError(

@@ -1,5 +1,5 @@
-import type { WorkerWsRegisterMessage } from "@trading-model/validation/contracts/worker-protocol.types";
 import WebSocket from "ws";
+import type { WorkerWsRegisterMessage } from "../contracts/worker-protocol-types";
 import {
 	type Capability,
 	type InstanceId,

@@ -165,7 +165,7 @@ export class CircuitStateMachine implements IUnkeyedCircuitBreaker {
 
 	restore(state: PersistentState): void {
 		this._failures = state.failures;
-		this._openUntil = state.openUntil;
+		this._openUntil = state.openUntil as UnixTimestamp;
 		this._halfOpenAttempts = state.halfOpenAttempts;
 	}
 }

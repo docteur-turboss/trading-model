@@ -8,11 +8,11 @@ export interface WorkerRegistryDeps {
 	healthMonitor: WorkerHealthMonitor;
 }
 
-export type WorkerRegistry = {
+export interface WorkerRegistry {
 	store: WorkerStore;
 	loadBalancer: WorkerLoadBalancer;
 	healthMonitor: WorkerHealthMonitor;
-};
+}
 
 export function createWorkerRegistry(heartbeatTtlMs: number): WorkerRegistry;
 export function createWorkerRegistry(deps: WorkerRegistryDeps): WorkerRegistry;

@@ -1,4 +1,4 @@
-import type { WorkerRegistration } from "@trading-model/validation/contracts/worker-protocol.types";
+import type { WorkerRegistration } from "../contracts/worker-protocol-types";
 import { WorkerStatusCode } from "../domain/primitives";
 import type { WorkerStore } from "./worker-store";
 

@@ -1,11 +1,13 @@
-import type { WorkerWsHeartbeatMessage } from "@trading-model/validation/contracts/worker-protocol.types";
+import type { WorkerWsHeartbeatMessage } from "../contracts/worker-protocol-types";
 import { DurationMs, toInstanceId, URLString } from "../domain/primitives";
 import { DefaultWsReconnector } from "../ws/default-ws-reconnector";
 import type { WorkerClientConfig } from "./worker-client";
 import { WorkerHeartbeat } from "./worker-heartbeat";
 import { WorkerWsConnection } from "./worker-ws-connection";
 
-export type NormalizedConfig = Required<WorkerClientConfig> & {
+export type NormalizedConfig = Required<
+	Omit<WorkerClientConfig, "reconnectConfig">
+> & {
 	reconnectBaseDelayMs: DurationMs;
 	reconnectMaxDelayMs: DurationMs;
 };

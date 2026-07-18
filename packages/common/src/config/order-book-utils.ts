@@ -3,4 +3,4 @@ export {
 	getAvgAsk,
 	getAvgBid,
 	getBidTotalQty,
-} from "@trading-model/validation/contracts/market-data/orderbook.types";
+} from "../contracts/market-data/orderbook.types";

@@ -2,7 +2,7 @@ import type {
 	SchedulerOutgoingMessage,
 	SchedulerWsJobAssignedMessage,
 	WorkerIncomingMessage,
-} from "@trading-model/validation/contracts/worker-protocol.types";
+} from "../contracts/worker-protocol-types";
 import type { Capability, DurationMs, PositiveInt } from "../domain/primitives";
 import type { BackoffConfig } from "../utils/backoff-config";
 import type { DefaultWsReconnector } from "../ws/default-ws-reconnector";

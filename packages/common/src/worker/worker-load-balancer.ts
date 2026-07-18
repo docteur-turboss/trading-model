@@ -1,7 +1,7 @@
 import {
 	isWorkerSuitable,
 	type WorkerRegistration,
-} from "@trading-model/validation/contracts/worker-protocol.types";
+} from "../contracts/worker-protocol-types";
 import type { WorkerStore } from "./worker-store";
 
 function _pickLowerLoad(

@@ -66,7 +66,7 @@ export class BaseWorker {
 	}
 
 	private async _onJobAssigned(
-		job: import("../contracts/worker-protocol.types").SchedulerWsJobAssignedMessage["job"]
+		job: import("../contracts/worker-protocol-types").SchedulerWsJobAssignedMessage["job"]
 	): Promise<void> {
 		await this._jobHandler.onJobAssigned(job);
 		this.client.sendHeartbeat(this._jobHandler.activeCount);

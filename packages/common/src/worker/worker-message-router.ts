@@ -2,7 +2,7 @@ import type { EventEmitter } from "node:events";
 import type {
 	SchedulerOutgoingMessage,
 	SchedulerWsJobAssignedMessage,
-} from "@trading-model/validation/contracts/worker-protocol.types";
+} from "../contracts/worker-protocol-types";
 import type { JsonObject } from "../domain/primitives";
 
 export class WorkerMessageRouter {
