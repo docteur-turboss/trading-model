@@ -142,7 +142,9 @@ describe("LeaseManager", () => {
 			lm.start();
 			jest.advanceTimersByTime(5000);
 
-			const remaining = registry.getInstances("financial-scraper-service");
+			const remaining = registry.instanceStore.getInstances(
+				"financial-scraper-service"
+			);
 			expect(remaining).toHaveLength(1);
 			expect(remaining[0].instanceId).toBe("alive-id");
 		});
@@ -184,9 +186,11 @@ describe("LeaseManager", () => {
 			const registry = new ServiceRegistry();
 			const lm = new LeaseManager(registry);
 
-			jest.spyOn(registry, "listServiceNames").mockImplementation(() => {
-				throw new Error("unexpected error");
-			});
+			jest
+				.spyOn(registry.instanceStore, "listServiceNames")
+				.mockImplementation(() => {
+					throw new Error("unexpected error");
+				});
 
 			lm.start();
 			jest.advanceTimersByTime(5000);

@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { REDIS_STATUS } from "@trading-model/common/persistence/redis-constants";
+import type { LruCache } from "@trading-model/common/utils/lru-cache";
+import type { ServiceInstance } from "@trading-model/validation/contracts/service-registry.types";
 import type { CacheManager } from "../../src/core/cache-manager";
 
 jest.mock("@trading-model/common/config/logger", () => ({
@@ -47,14 +49,26 @@ import { PubSubInvalidator } from "../../src/core/pub-sub-invalidator";
 
 function createMockCacheManager(): jest.Mocked<CacheManager> {
 	return {
-		get: jest.fn(),
+		cache: {
+			get: jest.fn(),
+			set: jest.fn(),
+			has: jest.fn(),
+			delete: jest.fn(),
+			clear: jest.fn(),
+			size: 0,
+		} as unknown as jest.Mocked<LruCache<ServiceInstance[]>>,
+		staleData: {
+			get: jest.fn(),
+			set: jest.fn(),
+			has: jest.fn(),
+			delete: jest.fn(),
+			clear: jest.fn(),
+			size: 0,
+		} as unknown as jest.Mocked<LruCache<ServiceInstance[]>>,
 		set: jest.fn(),
-		getStale: jest.fn(),
 		delete: jest.fn(),
 		invalidate: jest.fn(),
-		has: jest.fn(),
 		clear: jest.fn(),
-		size: 0,
 	} as unknown as jest.Mocked<CacheManager>;
 }
 

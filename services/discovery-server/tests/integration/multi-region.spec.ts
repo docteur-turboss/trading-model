@@ -39,7 +39,9 @@ describe("Multi-Region Support", () => {
 			lastHeartbeat: Date.now(),
 		});
 
-		const allInstances = registry.getInstances("financial-scraper-service");
+		const allInstances = registry.instanceStore.getInstances(
+			"financial-scraper-service"
+		);
 		expect(allInstances).toHaveLength(2);
 
 		const usInstances = allInstances.filter((i) => i.region === "us-east-1");
@@ -61,7 +63,9 @@ describe("Multi-Region Support", () => {
 			lastHeartbeat: Date.now(),
 		});
 
-		const instances = registry.getInstances("financial-scraper-service");
+		const instances = registry.instanceStore.getInstances(
+			"financial-scraper-service"
+		);
 		expect(instances[0].region).toBeUndefined();
 	});
 
@@ -79,12 +83,12 @@ describe("Multi-Region Support", () => {
 			lastHeartbeat: Date.now(),
 		});
 
-		registry.updateHeartbeat({
+		registry.instanceStore.updateHeartbeat({
 			serviceName: "financial-scraper-service",
 			instanceId: "node-us",
 		});
 
-		const instance = registry.getInstance({
+		const instance = registry.instanceStore.getInstance({
 			serviceName: "financial-scraper-service",
 			instanceId: "node-us",
 		});
@@ -118,7 +122,7 @@ describe("Multi-Region Support", () => {
 			lastHeartbeat: Date.now(),
 		});
 
-		const instance = registry.getInstance({
+		const instance = registry.instanceStore.getInstance({
 			serviceName: "financial-scraper-service",
 			instanceId: "node-1",
 		});

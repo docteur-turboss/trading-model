@@ -255,7 +255,9 @@ describe("Register.controller", () => {
 
 	describe("register (verifyInstanceName returns false)", () => {
 		it("should reject with Invalid service name when verifyInstanceName returns false", async () => {
-			jest.spyOn(registry, "verifyInstanceName").mockReturnValue(false);
+			jest
+				.spyOn(registry.tokenManager, "verifyInstanceName")
+				.mockReturnValue(false);
 
 			await expect(
 				controller.register(
@@ -272,7 +274,9 @@ describe("Register.controller", () => {
 
 	describe("getServiceInstances (verifyInstanceName returns false)", () => {
 		it("should return 404 when verifyInstanceName returns false", async () => {
-			jest.spyOn(registry, "verifyInstanceName").mockReturnValue(false);
+			jest
+				.spyOn(registry.tokenManager, "verifyInstanceName")
+				.mockReturnValue(false);
 
 			await expect(
 				controller.getServiceInstances(

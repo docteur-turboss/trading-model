@@ -6,6 +6,7 @@ import {
 	it,
 	jest,
 } from "@jest/globals";
+import type { LruCache } from "@trading-model/common/utils/lru-cache";
 import type {
 	RegistryBackend,
 	ServiceInstance,
@@ -44,14 +45,26 @@ function createMockBackend(): jest.Mocked<RegistryBackend> {
 
 function createMockCache(): jest.Mocked<CacheManager> {
 	return {
-		get: jest.fn(),
+		cache: {
+			get: jest.fn(),
+			set: jest.fn(),
+			has: jest.fn(),
+			delete: jest.fn(),
+			clear: jest.fn(),
+			size: 0,
+		} as unknown as jest.Mocked<LruCache<ServiceInstance[]>>,
+		staleData: {
+			get: jest.fn(),
+			set: jest.fn(),
+			has: jest.fn(),
+			delete: jest.fn(),
+			clear: jest.fn(),
+			size: 0,
+		} as unknown as jest.Mocked<LruCache<ServiceInstance[]>>,
 		set: jest.fn(),
-		getStale: jest.fn(),
 		delete: jest.fn(),
 		invalidate: jest.fn(),
-		has: jest.fn(),
 		clear: jest.fn(),
-		size: 0,
 	} as unknown as jest.Mocked<CacheManager>;
 }
 
@@ -111,7 +124,7 @@ describe("CacheOrchestrator", () => {
 			const instances = [MAKE_INSTANCE("i-1")];
 			mockBackend.getInstances.mockResolvedValue(instances);
 
-			const result = await orchestrator.getInstances(A_SERVICE);
+			const result = await orchestrator.fetcher.getInstances(A_SERVICE);
 
 			expect(result).toEqual(instances);
 		});
@@ -119,7 +132,7 @@ describe("CacheOrchestrator", () => {
 		it("should pass pagination to fetcher", async () => {
 			mockBackend.getInstances.mockResolvedValue([]);
 
-			await orchestrator.getInstances(A_SERVICE, { page: 1, limit: 5 });
+			await orchestrator.fetcher.getInstances(A_SERVICE, { page: 1, limit: 5 });
 
 			expect(mockBackend.getInstances).toHaveBeenCalledWith(A_SERVICE);
 		});
@@ -128,9 +141,9 @@ describe("CacheOrchestrator", () => {
 	describe("getInstance", () => {
 		it("should delegate to internal fetcher and return instance from cache", async () => {
 			const instance = MAKE_INSTANCE("i-1");
-			mockCache.get.mockReturnValue([instance]);
+			mockCache.cache.get.mockReturnValue([instance]);
 
-			const result = await orchestrator.getInstance({
+			const result = await orchestrator.fetcher.getInstance({
 				serviceName: A_SERVICE,
 				instanceId: "i-1",
 			});
@@ -140,10 +153,10 @@ describe("CacheOrchestrator", () => {
 
 		it("should delegate to internal fetcher and fall through to backend on cache miss", async () => {
 			const instance = MAKE_INSTANCE("i-1");
-			mockCache.get.mockReturnValue(undefined);
+			mockCache.cache.get.mockReturnValue(undefined);
 			mockBackend.getInstance.mockResolvedValue(instance);
 
-			const result = await orchestrator.getInstance({
+			const result = await orchestrator.fetcher.getInstance({
 				serviceName: A_SERVICE,
 				instanceId: "i-1",
 			});

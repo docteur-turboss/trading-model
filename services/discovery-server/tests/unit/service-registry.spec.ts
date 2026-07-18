@@ -51,7 +51,7 @@ describe("ServiceRegistry", () => {
 	describe("updateHeartbeat", () => {
 		it("should update heartbeat and return TTL", () => {
 			registry.registerInstance(validServiceInstance());
-			const result = registry.updateHeartbeat({
+			const result = registry.instanceStore.updateHeartbeat({
 				serviceName: "financial-scraper-service",
 				instanceId: "test-instance-1",
 			});
@@ -59,7 +59,7 @@ describe("ServiceRegistry", () => {
 		});
 
 		it("should return false for unknown service", () => {
-			const result = registry.updateHeartbeat({
+			const result = registry.instanceStore.updateHeartbeat({
 				serviceName: "unknown-service",
 				instanceId: "test-instance-1",
 			});
@@ -68,7 +68,7 @@ describe("ServiceRegistry", () => {
 
 		it("should return false for unknown instance", () => {
 			registry.registerInstance(validServiceInstance());
-			const result = registry.updateHeartbeat({
+			const result = registry.instanceStore.updateHeartbeat({
 				serviceName: "financial-scraper-service",
 				instanceId: "unknown-instance",
 			});
@@ -96,12 +96,14 @@ describe("ServiceRegistry", () => {
 		it("should return all instances for a service", () => {
 			registry.registerInstance(validServiceInstance());
 			registry.registerInstance(secondServiceInstance());
-			const instances = registry.getInstances("financial-scraper-service");
+			const instances = registry.instanceStore.getInstances(
+				"financial-scraper-service"
+			);
 			expect(instances).toHaveLength(2);
 		});
 
 		it("should return empty array for unknown service", () => {
-			const instances = registry.getInstances("unknown-service");
+			const instances = registry.instanceStore.getInstances("unknown-service");
 			expect(instances).toEqual([]);
 		});
 	});
@@ -109,7 +111,7 @@ describe("ServiceRegistry", () => {
 	describe("getInstance", () => {
 		it("should return a specific instance", () => {
 			registry.registerInstance(validServiceInstance());
-			const instance = registry.getInstance({
+			const instance = registry.instanceStore.getInstance({
 				serviceName: "financial-scraper-service",
 				instanceId: "test-instance-1",
 			});
@@ -118,7 +120,7 @@ describe("ServiceRegistry", () => {
 		});
 
 		it("should return undefined for unknown service", () => {
-			const instance = registry.getInstance({
+			const instance = registry.instanceStore.getInstance({
 				serviceName: "unknown-service",
 				instanceId: "test-instance-1",
 			});
@@ -127,7 +129,7 @@ describe("ServiceRegistry", () => {
 
 		it("should return undefined for unknown instance", () => {
 			registry.registerInstance(validServiceInstance());
-			const instance = registry.getInstance({
+			const instance = registry.instanceStore.getInstance({
 				serviceName: "financial-scraper-service",
 				instanceId: "unknown-instance",
 			});
@@ -143,9 +145,9 @@ describe("ServiceRegistry", () => {
 				instanceId: "test-instance-1",
 			});
 			expect(removed).toBe(true);
-			expect(registry.getInstances("financial-scraper-service")).toHaveLength(
-				0
-			);
+			expect(
+				registry.instanceStore.getInstances("financial-scraper-service")
+			).toHaveLength(0);
 		});
 
 		it("should remove the service map when last instance is removed", () => {
@@ -154,7 +156,7 @@ describe("ServiceRegistry", () => {
 				serviceName: "financial-scraper-service",
 				instanceId: "test-instance-1",
 			});
-			expect(registry.listServiceNames()).not.toContain(
+			expect(registry.instanceStore.listServiceNames()).not.toContain(
 				"financial-scraper-service"
 			);
 		});
@@ -179,14 +181,14 @@ describe("ServiceRegistry", () => {
 
 	describe("listServiceNames", () => {
 		it("should return empty array for empty registry", () => {
-			expect(registry.listServiceNames()).toEqual([]);
+			expect(registry.instanceStore.listServiceNames()).toEqual([]);
 		});
 
 		it("should return all unique service names", () => {
 			registry.registerInstance(validServiceInstance());
 			registry.registerInstance(secondServiceInstance());
 			registry.registerInstance(otherServiceInstance());
-			const names = registry.listServiceNames();
+			const names = registry.instanceStore.listServiceNames();
 			expect(names).toContain("financial-scraper-service");
 			expect(names).toContain("message-delivery-service");
 			expect(names).toHaveLength(2);
@@ -195,14 +197,14 @@ describe("ServiceRegistry", () => {
 
 	describe("dump", () => {
 		it("should return empty object for empty registry", () => {
-			expect(registry.dump()).toEqual({});
+			expect(registry.instanceStore.dump()).toEqual({});
 		});
 
 		it("should return a snapshot of all instances grouped by service", () => {
 			registry.registerInstance(validServiceInstance());
 			registry.registerInstance(secondServiceInstance());
 			registry.registerInstance(otherServiceInstance());
-			const snapshot = registry.dump();
+			const snapshot = registry.instanceStore.dump();
 			expect(Object.keys(snapshot)).toHaveLength(2);
 			expect(snapshot["financial-scraper-service"]).toHaveLength(2);
 			expect(snapshot["message-delivery-service"]).toHaveLength(1);
@@ -211,21 +213,21 @@ describe("ServiceRegistry", () => {
 
 	describe("generateInstanceToken", () => {
 		it("should return a non-empty string", () => {
-			const token = registry.generateInstanceToken("test-instance-1");
+			const token = registry.tokenManager.generateToken("test-instance-1");
 			expect(typeof token).toBe("string");
 			expect(token.length).toBeGreaterThan(0);
 		});
 
 		it("should return different tokens for different calls", () => {
-			const t1 = registry.generateInstanceToken("test-instance-1");
-			const t2 = registry.generateInstanceToken("test-instance-1");
+			const t1 = registry.tokenManager.generateToken("test-instance-1");
+			const t2 = registry.tokenManager.generateToken("test-instance-1");
 			expect(t1).not.toBe(t2);
 		});
 	});
 
 	describe("generateInstanceId", () => {
 		it("should return a non-empty base64 string", () => {
-			const id = registry.generateInstanceId({
+			const id = registry.tokenManager.generateInstanceId({
 				serviceName: "financial-scraper-service",
 				address: "192.168.1.10",
 				port: 8444,
@@ -238,7 +240,7 @@ describe("ServiceRegistry", () => {
 	describe("validInstanceToken", () => {
 		it("should return true for a valid token", () => {
 			const registered = registry.registerInstance(validServiceInstance());
-			const isValid = registry.validInstanceToken({
+			const isValid = registry.tokenManager.validInstanceToken({
 				token: registered.token as string,
 				instanceId: registered.instanceId!,
 			});
@@ -247,7 +249,7 @@ describe("ServiceRegistry", () => {
 
 		it("should return false for a token with wrong part count", () => {
 			registry.registerInstance(validServiceInstance());
-			const isValid = registry.validInstanceToken({
+			const isValid = registry.tokenManager.validInstanceToken({
 				token: "invalid-token",
 				instanceId: "test-instance-1",
 			});
@@ -255,7 +257,7 @@ describe("ServiceRegistry", () => {
 		});
 
 		it("should return false for unknown instance", () => {
-			const isValid = registry.validInstanceToken({
+			const isValid = registry.tokenManager.validInstanceToken({
 				token: "a.b.c.d",
 				instanceId: "unknown-instance",
 			});
@@ -263,7 +265,7 @@ describe("ServiceRegistry", () => {
 		});
 
 		it("should return false when encodedId is not valid base64url", () => {
-			const isValid = registry.validInstanceToken({
+			const isValid = registry.tokenManager.validInstanceToken({
 				token: "!!!.dGVzdA.dGVzdA.dGVzdA",
 				instanceId: "test-instance-1",
 			});
@@ -271,7 +273,7 @@ describe("ServiceRegistry", () => {
 		});
 
 		it("should return false when decodedId does not match instanceId", () => {
-			const isValid = registry.validInstanceToken({
+			const isValid = registry.tokenManager.validInstanceToken({
 				token: "dGVzdC1pbnN0YW5jZS0x.dGVzdA.dGVzdA.dGVzdA",
 				instanceId: "wrong-instance",
 			});
@@ -279,7 +281,7 @@ describe("ServiceRegistry", () => {
 		});
 
 		it("should return false when HMAC signature is invalid", () => {
-			const isValid = registry.validInstanceToken({
+			const isValid = registry.tokenManager.validInstanceToken({
 				token: `dGVzdC1pbnN0YW5jZS0x.dGVzdA.dGVzdA.${"a".repeat(43)}`,
 				instanceId: "test-instance-1",
 			});
@@ -287,7 +289,7 @@ describe("ServiceRegistry", () => {
 		});
 
 		it("should return false when signature length differs from expected HMAC", () => {
-			const isValid = registry.validInstanceToken({
+			const isValid = registry.tokenManager.validInstanceToken({
 				token: `dGVzdC1pbnN0YW5jZS0x.dGVzdA.dGVzdA.${"a".repeat(100)}`,
 				instanceId: "test-instance-1",
 			});
@@ -297,12 +299,16 @@ describe("ServiceRegistry", () => {
 
 	describe("verifyInstanceName", () => {
 		it("should return true for known service names", () => {
-			const result = registry.verifyInstanceName("financial-scraper-service");
+			const result = registry.tokenManager.verifyInstanceName(
+				"financial-scraper-service"
+			);
 			expect(result).toBe(true);
 		});
 
 		it("should return false for unknown service names", () => {
-			const result = registry.verifyInstanceName("completely-made-up-service");
+			const result = registry.tokenManager.verifyInstanceName(
+				"completely-made-up-service"
+			);
 			expect(result).toBe(false);
 		});
 	});

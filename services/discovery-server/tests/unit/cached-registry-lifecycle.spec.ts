@@ -6,7 +6,11 @@ import {
 	it,
 	jest,
 } from "@jest/globals";
-import type { RegistryBackend } from "@trading-model/validation/contracts/service-registry.types";
+import type { LruCache } from "@trading-model/common/utils/lru-cache";
+import type {
+	RegistryBackend,
+	ServiceInstance,
+} from "@trading-model/validation/contracts/service-registry.types";
 import type { BackendPingManager } from "../../src/core/backend-ping-manager";
 import type { CacheManager } from "../../src/core/cache-manager";
 import {
@@ -49,14 +53,26 @@ function createMockDeps(): jest.Mocked<CachedRegistryLifecycleDeps> {
 			client: { status: "close" },
 		} as unknown as jest.Mocked<PubSubInvalidator>,
 		cache: {
-			clear: jest.fn(),
-			get: jest.fn(),
+			cache: {
+				get: jest.fn(),
+				set: jest.fn(),
+				has: jest.fn(),
+				delete: jest.fn(),
+				clear: jest.fn(),
+				size: 0,
+			} as unknown as jest.Mocked<LruCache<ServiceInstance[]>>,
+			staleData: {
+				get: jest.fn(),
+				set: jest.fn(),
+				has: jest.fn(),
+				delete: jest.fn(),
+				clear: jest.fn(),
+				size: 0,
+			} as unknown as jest.Mocked<LruCache<ServiceInstance[]>>,
 			set: jest.fn(),
 			delete: jest.fn(),
 			invalidate: jest.fn(),
-			has: jest.fn(),
-			getStale: jest.fn(),
-			size: 0,
+			clear: jest.fn(),
 		} as unknown as jest.Mocked<CacheManager>,
 		backend: {
 			start: jest.fn(),

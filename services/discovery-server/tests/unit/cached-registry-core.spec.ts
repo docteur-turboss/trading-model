@@ -133,32 +133,35 @@ describe("CachedRegistryCore", () => {
 	});
 
 	describe("getInstances", () => {
-		it("should delegate to orchestrator", async () => {
+		it("should delegate to orchestrator fetcher", async () => {
 			const instances = [MAKE_INSTANCE("i-1")];
 			mockBackend.getInstances.mockResolvedValue(instances);
 
-			const result = await core.getInstances(A_SERVICE);
+			const result = await core.orchestrator.fetcher.getInstances(A_SERVICE);
 
 			expect(result).toEqual(instances);
 		});
 
-		it("should pass pagination to orchestrator", async () => {
-			const spy = jest.spyOn(core.orchestrator, "getInstances");
+		it("should pass pagination to fetcher", async () => {
+			const spy = jest.spyOn(core.orchestrator.fetcher, "getInstances");
 			mockBackend.getInstances.mockResolvedValue([]);
 
-			await core.getInstances(A_SERVICE, { page: 1, limit: 10 });
+			await core.orchestrator.fetcher.getInstances(A_SERVICE, {
+				page: 1,
+				limit: 10,
+			});
 
 			expect(spy).toHaveBeenCalledWith(A_SERVICE, { page: 1, limit: 10 });
 		});
 	});
 
 	describe("getInstance", () => {
-		it("should delegate to orchestrator", async () => {
+		it("should return instance from cache", async () => {
 			const instance = MAKE_INSTANCE("i-1");
 			mockBackend.getInstances.mockResolvedValue([instance]);
-			await core.getInstances(A_SERVICE);
+			await core.orchestrator.fetcher.getInstances(A_SERVICE);
 
-			const result = await core.getInstance({
+			const result = await core.orchestrator.fetcher.getInstance({
 				serviceName: A_SERVICE,
 				instanceId: "i-1",
 			});

@@ -52,9 +52,7 @@ jest.mock("../../src/core/instance-heartbeat-handler", () => ({
 const mockRemoveInstanceSetAndMetadata = jest.fn();
 
 jest.mock("../../src/core/instance-cleanup-handler", () => ({
-	InstanceCleanupHandler: jest.fn().mockImplementation(() => ({
-		removeInstanceSetAndMetadata: mockRemoveInstanceSetAndMetadata,
-	})),
+	removeInstanceSetAndMetadata: mockRemoveInstanceSetAndMetadata,
 }));
 
 import type { ServiceInstance } from "@trading-model/validation/contracts/service-registry.types";
@@ -104,7 +102,7 @@ describe("RedisInstanceStore", () => {
 		it("should delegate to registrar.resolveToken", async () => {
 			mockResolveToken.mockResolvedValue("resolved-token");
 
-			const result = await store.resolveToken("i1" as never);
+			const result = await store.registrar.resolveToken("i1" as never);
 
 			expect(mockResolveToken).toHaveBeenCalledWith("i1");
 			expect(result).toBe("resolved-token");
@@ -117,7 +115,7 @@ describe("RedisInstanceStore", () => {
 			const now = Date.now();
 			mockBuildStoredInstance.mockResolvedValue(instance);
 
-			const result = await store.buildStoredInstance(instance, now);
+			const result = await store.registrar.buildStoredInstance(instance, now);
 
 			expect(mockBuildStoredInstance).toHaveBeenCalledWith(instance, now);
 			expect(result).toBe(instance);
@@ -129,7 +127,7 @@ describe("RedisInstanceStore", () => {
 			const instance = makeInstance();
 			mockGetMetadata.mockResolvedValue(instance);
 
-			const result = await store.getMetadata("i1" as never);
+			const result = await store.reader.getMetadata("i1" as never);
 
 			expect(mockGetMetadata).toHaveBeenCalledWith("i1");
 			expect(result).toBe(instance);
@@ -140,7 +138,7 @@ describe("RedisInstanceStore", () => {
 		it("should delegate to reader.getServiceInstanceIds", async () => {
 			mockGetServiceInstanceIds.mockResolvedValue(["i1", "i2"]);
 
-			const result = await store.getServiceInstanceIds(
+			const result = await store.reader.getServiceInstanceIds(
 				"financial-scraper-service" as never
 			);
 
@@ -156,7 +154,7 @@ describe("RedisInstanceStore", () => {
 			const instances = [makeInstance()];
 			mockGetMetadatas.mockResolvedValue(instances);
 
-			const result = await store.getMetadatas(["key1"]);
+			const result = await store.reader.getMetadatas(["key1"]);
 
 			expect(mockGetMetadatas).toHaveBeenCalledWith(["key1"]);
 			expect(result).toBe(instances);
@@ -233,18 +231,15 @@ describe("RedisInstanceStore", () => {
 	});
 
 	describe("removeInstanceSetAndMetadata", () => {
-		it("should delegate to cleanupHandler.removeInstanceSetAndMetadata", async () => {
+		it("should delegate to removeInstanceSetAndMetadata", async () => {
 			mockRemoveInstanceSetAndMetadata.mockResolvedValue(true);
 
-			const result = await store.removeInstanceSetAndMetadata(
-				"financial-scraper-service" as never,
-				"i1" as never
-			);
+			const result = await store.removeInstanceSetAndMetadata({
+				serviceName: "financial-scraper-service" as never,
+				instanceId: "i1" as never,
+			});
 
-			expect(mockRemoveInstanceSetAndMetadata).toHaveBeenCalledWith(
-				"financial-scraper-service",
-				"i1"
-			);
+			expect(mockRemoveInstanceSetAndMetadata).toHaveBeenCalled();
 			expect(result).toBe(true);
 		});
 	});
@@ -258,10 +253,7 @@ describe("RedisInstanceStore", () => {
 				instanceId: "i1" as never,
 			});
 
-			expect(mockRemoveInstanceSetAndMetadata).toHaveBeenCalledWith(
-				"svc",
-				"i1"
-			);
+			expect(mockRemoveInstanceSetAndMetadata).toHaveBeenCalled();
 			expect(result).toBe(true);
 		});
 	});

@@ -36,7 +36,9 @@ describe("Discovery Service — Full Flow Integration", () => {
 		expect(result.instanceId).toBe("node-1");
 		expect(result.token).toBeDefined();
 
-		const instances = registry.getInstances("financial-scraper-service");
+		const instances = registry.instanceStore.getInstances(
+			"financial-scraper-service"
+		);
 		expect(instances).toHaveLength(1);
 		expect(instances[0].ip).toBe("10.0.0.1");
 	});
@@ -66,7 +68,9 @@ describe("Discovery Service — Full Flow Integration", () => {
 			lastHeartbeat: Date.now(),
 		});
 
-		expect(registry.getInstances("financial-scraper-service")).toHaveLength(2);
+		expect(
+			registry.instanceStore.getInstances("financial-scraper-service")
+		).toHaveLength(2);
 	});
 
 	it("should validate instance tokens after registration", () => {
@@ -83,13 +87,13 @@ describe("Discovery Service — Full Flow Integration", () => {
 		});
 
 		expect(
-			registry.validInstanceToken({
+			registry.tokenManager.validInstanceToken({
 				token: registered.token as string,
 				instanceId: "node-1",
 			})
 		).toBe(true);
 		expect(
-			registry.validInstanceToken({
+			registry.tokenManager.validInstanceToken({
 				token: "wrong-token",
 				instanceId: "node-1",
 			})
@@ -110,11 +114,11 @@ describe("Discovery Service — Full Flow Integration", () => {
 		});
 
 		const token = registered.token as string;
-		expect(registry.validInstanceToken({ token, instanceId: "node-1" })).toBe(
-			true
-		);
+		expect(
+			registry.tokenManager.validInstanceToken({ token, instanceId: "node-1" })
+		).toBe(true);
 
-		const ttl = registry.updateHeartbeat({
+		const ttl = registry.instanceStore.updateHeartbeat({
 			serviceName: "financial-scraper-service",
 			instanceId: "node-1",
 		});
@@ -123,11 +127,14 @@ describe("Discovery Service — Full Flow Integration", () => {
 		const newToken = registry.updateToken("node-1");
 		expect(newToken).not.toBe(token);
 		expect(
-			registry.validInstanceToken({ token: newToken, instanceId: "node-1" })
+			registry.tokenManager.validInstanceToken({
+				token: newToken,
+				instanceId: "node-1",
+			})
 		).toBe(true);
-		expect(registry.validInstanceToken({ token, instanceId: "node-1" })).toBe(
-			false
-		);
+		expect(
+			registry.tokenManager.validInstanceToken({ token, instanceId: "node-1" })
+		).toBe(false);
 	});
 
 	it("should remove instance and update token on removeInstance", () => {
@@ -160,11 +167,18 @@ describe("Discovery Service — Full Flow Integration", () => {
 			instanceId: "node-1",
 		});
 		expect(removed).toBe(true);
-		expect(registry.getInstances("financial-scraper-service")).toHaveLength(0);
 		expect(
-			registry.validInstanceToken({ token: "any-token", instanceId: "node-1" })
+			registry.instanceStore.getInstances("financial-scraper-service")
+		).toHaveLength(0);
+		expect(
+			registry.tokenManager.validInstanceToken({
+				token: "any-token",
+				instanceId: "node-1",
+			})
 		).toBe(false);
-		expect(registry.listServiceNames()).toEqual(["message-delivery-service"]);
+		expect(registry.instanceStore.listServiceNames()).toEqual([
+			"message-delivery-service",
+		]);
 	});
 
 	it("should expose a dump of current registry state", () => {
@@ -180,15 +194,23 @@ describe("Discovery Service — Full Flow Integration", () => {
 			lastHeartbeat: Date.now(),
 		});
 
-		const snapshot = registry.dump();
+		const snapshot = registry.instanceStore.dump();
 		expect(snapshot["financial-scraper-service"]).toBeDefined();
 		expect(snapshot["financial-scraper-service"]).toHaveLength(1);
 	});
 
 	it("should verify instance names against known services", () => {
-		expect(registry.verifyInstanceName("financial-scraper-service")).toBe(true);
-		expect(registry.verifyInstanceName("message-delivery-service")).toBe(true);
-		expect(registry.verifyInstanceName("discovery-service")).toBe(true);
-		expect(registry.verifyInstanceName("completely-fake-service")).toBe(false);
+		expect(
+			registry.tokenManager.verifyInstanceName("financial-scraper-service")
+		).toBe(true);
+		expect(
+			registry.tokenManager.verifyInstanceName("message-delivery-service")
+		).toBe(true);
+		expect(registry.tokenManager.verifyInstanceName("discovery-service")).toBe(
+			true
+		);
+		expect(
+			registry.tokenManager.verifyInstanceName("completely-fake-service")
+		).toBe(false);
 	});
 });

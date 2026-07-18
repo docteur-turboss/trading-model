@@ -6,6 +6,7 @@ import {
 	it,
 	jest,
 } from "@jest/globals";
+import type { LruCache } from "@trading-model/common/utils/lru-cache";
 import type {
 	RegistryBackend,
 	ServiceInstance,
@@ -44,14 +45,26 @@ function createMockBackend(): jest.Mocked<RegistryBackend> {
 
 function createMockCache(): jest.Mocked<CacheManager> {
 	return {
-		get: jest.fn(),
+		cache: {
+			get: jest.fn(),
+			set: jest.fn(),
+			has: jest.fn(),
+			delete: jest.fn(),
+			clear: jest.fn(),
+			size: 0,
+		} as unknown as jest.Mocked<LruCache<ServiceInstance[]>>,
+		staleData: {
+			get: jest.fn(),
+			set: jest.fn(),
+			has: jest.fn(),
+			delete: jest.fn(),
+			clear: jest.fn(),
+			size: 0,
+		} as unknown as jest.Mocked<LruCache<ServiceInstance[]>>,
 		set: jest.fn(),
-		getStale: jest.fn(),
 		delete: jest.fn(),
 		invalidate: jest.fn(),
-		has: jest.fn(),
 		clear: jest.fn(),
-		size: 0,
 	} as unknown as jest.Mocked<CacheManager>;
 }
 
@@ -150,16 +163,16 @@ describe("InstanceCacheFetcher", () => {
 
 			expect(mockBackend.getInstances).toHaveBeenCalledWith(A_SERVICE);
 			expect(result).toEqual(instances);
-			expect(mockCache.get).not.toHaveBeenCalled();
+			expect(mockCache.cache.get).not.toHaveBeenCalled();
 		});
 
 		it("should return cached data on cache hit", async () => {
 			const instances = [MAKE_INSTANCE("i-1")];
-			mockCache.get.mockReturnValue(instances);
+			mockCache.cache.get.mockReturnValue(instances);
 
 			const result = await fetcher.getInstances(A_SERVICE);
 
-			expect(mockCache.get).toHaveBeenCalledWith(A_SERVICE);
+			expect(mockCache.cache.get).toHaveBeenCalledWith(A_SERVICE);
 			expect(result).toEqual(instances);
 			expect(mockBackend.getInstances).not.toHaveBeenCalled();
 		});
@@ -167,13 +180,13 @@ describe("InstanceCacheFetcher", () => {
 		it("should serve stale data when backend is unhealthy and stale exists", async () => {
 			const { logger } = require("@trading-model/common/config/logger");
 			mockHealthMonitor.isHealthy = false;
-			mockCache.get.mockReturnValue(undefined);
+			mockCache.cache.get.mockReturnValue(undefined);
 			const staleInstances = [MAKE_INSTANCE("i-1")];
-			mockCache.getStale.mockReturnValue(staleInstances);
+			mockCache.staleData.get.mockReturnValue(staleInstances);
 
 			const result = await fetcher.getInstances(A_SERVICE);
 
-			expect(mockCache.getStale).toHaveBeenCalledWith(A_SERVICE);
+			expect(mockCache.staleData.get).toHaveBeenCalledWith(A_SERVICE);
 			expect(result).toEqual(staleInstances);
 			expect(logger.warn).toHaveBeenCalledWith(
 				"Backend unhealthy — serving stale cached instance list for",
@@ -184,8 +197,8 @@ describe("InstanceCacheFetcher", () => {
 		it("should return empty list when unhealthy and no stale data", async () => {
 			const { logger } = require("@trading-model/common/config/logger");
 			mockHealthMonitor.isHealthy = false;
-			mockCache.get.mockReturnValue(undefined);
-			mockCache.getStale.mockReturnValue(undefined);
+			mockCache.cache.get.mockReturnValue(undefined);
+			mockCache.staleData.get.mockReturnValue(undefined);
 
 			const result = await fetcher.getInstances(A_SERVICE);
 
@@ -199,7 +212,7 @@ describe("InstanceCacheFetcher", () => {
 		it("should fetch from backend and cache on cache miss when healthy", async () => {
 			const instances = [MAKE_INSTANCE("i-1")];
 			mockHealthMonitor.isHealthy = true;
-			mockCache.get.mockReturnValue(undefined);
+			mockCache.cache.get.mockReturnValue(undefined);
 			mockBackend.getInstances.mockResolvedValue(instances);
 
 			const result = await fetcher.getInstances(A_SERVICE);
@@ -230,7 +243,7 @@ describe("InstanceCacheFetcher", () => {
 
 		it("should return instance from cached list when available", async () => {
 			const instances = [MAKE_INSTANCE("i-1"), MAKE_INSTANCE("i-2")];
-			mockCache.get.mockReturnValue(instances);
+			mockCache.cache.get.mockReturnValue(instances);
 
 			const result = await fetcher.getInstance({
 				serviceName: A_SERVICE,
@@ -244,22 +257,22 @@ describe("InstanceCacheFetcher", () => {
 		it("should return stale instance when unhealthy and stale data exists", async () => {
 			const staleInstances = [MAKE_INSTANCE("i-1")];
 			mockHealthMonitor.isHealthy = false;
-			mockCache.get.mockReturnValue(undefined);
-			mockCache.getStale.mockReturnValue(staleInstances);
+			mockCache.cache.get.mockReturnValue(undefined);
+			mockCache.staleData.get.mockReturnValue(staleInstances);
 
 			const result = await fetcher.getInstance({
 				serviceName: A_SERVICE,
 				instanceId: "i-1",
 			});
 
-			expect(mockCache.getStale).toHaveBeenCalledWith(A_SERVICE);
+			expect(mockCache.staleData.get).toHaveBeenCalledWith(A_SERVICE);
 			expect(result).toEqual(staleInstances[0]);
 		});
 
 		it("should fall through to backend when cache miss and healthy", async () => {
 			const instance = MAKE_INSTANCE("i-1");
 			mockHealthMonitor.isHealthy = true;
-			mockCache.get.mockReturnValue(undefined);
+			mockCache.cache.get.mockReturnValue(undefined);
 			mockBackend.getInstance.mockResolvedValue(instance);
 
 			const result = await fetcher.getInstance({
@@ -277,8 +290,8 @@ describe("InstanceCacheFetcher", () => {
 		it("should fall through to backend when cache miss and unhealthy with no stale", async () => {
 			const instance = MAKE_INSTANCE("i-1");
 			mockHealthMonitor.isHealthy = false;
-			mockCache.get.mockReturnValue(undefined);
-			mockCache.getStale.mockReturnValue(undefined);
+			mockCache.cache.get.mockReturnValue(undefined);
+			mockCache.staleData.get.mockReturnValue(undefined);
 			mockBackend.getInstance.mockResolvedValue(instance);
 
 			const result = await fetcher.getInstance({

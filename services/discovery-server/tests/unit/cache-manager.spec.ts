@@ -42,14 +42,14 @@ describe("CacheManager", () => {
 	});
 
 	describe("get", () => {
-		it("should delegate to _cache.get", () => {
+		it("should delegate to cache.get", () => {
 			const instances = [makeInstance("i-1")];
 			const mockCacheGet = (
 				MockLruCache.mock.instances[0] as LruCache<ServiceInstance[]>
 			).get as jest.Mock;
 			mockCacheGet.mockReturnValue(instances);
 
-			const result = cacheManager.get("financial-scraper-service");
+			const result = cacheManager.cache.get("financial-scraper-service");
 			expect(result).toBe(instances);
 			expect(mockCacheGet).toHaveBeenCalledWith("financial-scraper-service");
 		});
@@ -60,7 +60,7 @@ describe("CacheManager", () => {
 			).get as jest.Mock;
 			mockCacheGet.mockReturnValue(undefined);
 
-			const result = cacheManager.get("unknown-service");
+			const result = cacheManager.cache.get("unknown-service");
 			expect(result).toBeUndefined();
 		});
 	});
@@ -103,14 +103,14 @@ describe("CacheManager", () => {
 	});
 
 	describe("getStale", () => {
-		it("should return from _staleData", () => {
+		it("should return from staleData.get", () => {
 			const instances = [makeInstance("i-1")];
 			const mockStaleGet = (
 				MockLruCache.mock.instances[1] as LruCache<ServiceInstance[]>
 			).get as jest.Mock;
 			mockStaleGet.mockReturnValue(instances);
 
-			const result = cacheManager.getStale("financial-scraper-service");
+			const result = cacheManager.staleData.get("financial-scraper-service");
 			expect(result).toBe(instances);
 		});
 	});
@@ -139,13 +139,13 @@ describe("CacheManager", () => {
 	});
 
 	describe("has", () => {
-		it("should delegate to _cache.has", () => {
+		it("should delegate to cache.has", () => {
 			const mockCacheHas = (
 				MockLruCache.mock.instances[0] as LruCache<ServiceInstance[]>
 			).has as jest.Mock;
 			mockCacheHas.mockReturnValue(true);
 
-			const result = cacheManager.has("financial-scraper-service");
+			const result = cacheManager.cache.has("financial-scraper-service");
 			expect(result).toBe(true);
 			expect(mockCacheHas).toHaveBeenCalledWith("financial-scraper-service");
 		});
@@ -156,20 +156,20 @@ describe("CacheManager", () => {
 			).has as jest.Mock;
 			mockCacheHas.mockReturnValue(false);
 
-			const result = cacheManager.has("unknown-service");
+			const result = cacheManager.cache.has("unknown-service");
 			expect(result).toBe(false);
 		});
 	});
 
 	describe("size", () => {
-		it("should return the size from _cache", () => {
+		it("should return the size from cache", () => {
 			Object.defineProperty(
 				MockLruCache.mock.instances[0] as LruCache<ServiceInstance[]>,
 				"size",
 				{ get: () => 5 }
 			);
 
-			expect(cacheManager.size).toBe(5);
+			expect(cacheManager.cache.size).toBe(5);
 		});
 	});
 

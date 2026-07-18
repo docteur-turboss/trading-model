@@ -21,58 +21,65 @@ jest.mock("ioredis", () => ({
 	Redis: jest.fn(),
 }));
 
+jest.mock("@trading-model/crypto/crypto/token-service", () => {
+	const actual = jest.requireActual(
+		"@trading-model/crypto/crypto/token-service"
+	);
+	return {
+		...actual,
+		generateInstanceToken: jest.fn(),
+		validInstanceToken: jest.fn(),
+	};
+});
+
 import { TokenHandler } from "../../src/core/token-handler";
-import type { TokenService } from "../../src/core/token-service";
 
 describe("TokenHandler", () => {
 	let handler: TokenHandler;
-	let tokenService: jest.Mocked<TokenService>;
 	let mockRedis: { get: jest.Mock; set: jest.Mock };
 	const mockKeyBuilder = {
 		instanceToken: jest.fn().mockReturnValue("instance:test-instance-1:token"),
 	};
 	const instanceId = "test-instance-1" as never;
+	const signingSecret = "test-secret";
 
 	beforeEach(() => {
 		jest.clearAllMocks();
 
 		mockRedis = { get: jest.fn(), set: jest.fn() };
-		tokenService = {
-			generateInstanceToken: jest.fn(),
-			validInstanceToken: jest.fn(),
-			verifyInstanceName: jest.fn(),
-		} as unknown as jest.Mocked<TokenService>;
 
 		handler = new TokenHandler(
 			mockRedis as never,
 			mockKeyBuilder as never,
-			tokenService
+			signingSecret
 		);
 	});
 
 	describe("generateInstanceToken", () => {
-		it("should delegate to tokenService.generateInstanceToken", () => {
-			tokenService.generateInstanceToken.mockReturnValue("token");
+		it("should generate a token for the instance", () => {
+			const { generateInstanceToken: mockGenerate } = jest.requireMock(
+				"@trading-model/crypto/crypto/token-service"
+			) as { generateInstanceToken: jest.Mock };
+			mockGenerate.mockReturnValue("token");
 
 			const result = handler.generateInstanceToken(instanceId);
 
-			expect(tokenService.generateInstanceToken).toHaveBeenCalledWith(
-				instanceId
-			);
+			expect(mockGenerate).toHaveBeenCalledWith(instanceId, signingSecret);
 			expect(result).toBe("token");
 		});
 	});
 
 	describe("updateToken", () => {
 		it("should generate a new token and persist it in Redis", async () => {
-			tokenService.generateInstanceToken.mockReturnValue("new-token");
+			const { generateInstanceToken: mockGenerate } = jest.requireMock(
+				"@trading-model/crypto/crypto/token-service"
+			) as { generateInstanceToken: jest.Mock };
+			mockGenerate.mockReturnValue("new-token");
 			mockRedis.set.mockResolvedValue("OK");
 
 			const result = await handler.updateToken(instanceId);
 
-			expect(tokenService.generateInstanceToken).toHaveBeenCalledWith(
-				instanceId
-			);
+			expect(mockGenerate).toHaveBeenCalledWith(instanceId, signingSecret);
 			expect(mockRedis.set).toHaveBeenCalledWith(
 				"instance:test-instance-1:token",
 				"new-token"
@@ -83,8 +90,11 @@ describe("TokenHandler", () => {
 
 	describe("validInstanceToken", () => {
 		it("should return true when stored token validation passes", async () => {
+			const { validInstanceToken: mockValidate } = jest.requireMock(
+				"@trading-model/crypto/crypto/token-service"
+			) as { validInstanceToken: jest.Mock };
 			mockRedis.get.mockResolvedValue("stored-token");
-			tokenService.validInstanceToken.mockReturnValue(true);
+			mockValidate.mockReturnValue(true);
 
 			const result = await handler.validInstanceToken({
 				token: "stored-token",
@@ -95,18 +105,21 @@ describe("TokenHandler", () => {
 			expect(mockRedis.get).toHaveBeenCalledWith(
 				"instance:test-instance-1:token"
 			);
-			expect(tokenService.validInstanceToken).toHaveBeenCalledWith(
+			expect(mockValidate).toHaveBeenCalledWith(
 				expect.objectContaining({
 					token: "stored-token",
-					signingSecret: "",
+					signingSecret,
 					storedToken: "stored-token",
 				})
 			);
 		});
 
 		it("should return false when stored token validation fails", async () => {
+			const { validInstanceToken: mockValidate } = jest.requireMock(
+				"@trading-model/crypto/crypto/token-service"
+			) as { validInstanceToken: jest.Mock };
 			mockRedis.get.mockResolvedValue("stored-token");
-			tokenService.validInstanceToken.mockReturnValue(false);
+			mockValidate.mockReturnValue(false);
 
 			const result = await handler.validInstanceToken({
 				token: "wrong-token",
@@ -130,22 +143,15 @@ describe("TokenHandler", () => {
 	});
 
 	describe("verifyInstanceName", () => {
-		it("should delegate to tokenService.verifyInstanceName", () => {
-			tokenService.verifyInstanceName.mockReturnValue(true);
-
+		it("should return true when name is valid", () => {
 			const result = handler.verifyInstanceName(
 				"financial-scraper-service" as never
 			);
 
 			expect(result).toBe(true);
-			expect(tokenService.verifyInstanceName).toHaveBeenCalledWith(
-				"financial-scraper-service"
-			);
 		});
 
 		it("should return false when name is not recognized", () => {
-			tokenService.verifyInstanceName.mockReturnValue(false);
-
 			const result = handler.verifyInstanceName("unknown" as never);
 
 			expect(result).toBe(false);
