@@ -1,5 +1,6 @@
 import type { ServerOptions } from "node:https";
 import https from "node:https";
+import { loadTlsPemBundle } from "@trading-model/common/config/http-tls-loader";
 import { logger } from "@trading-model/common/config/logger";
 import type { Port } from "@trading-model/common/domain/primitives";
 import type {
@@ -8,7 +9,6 @@ import type {
 } from "@trading-model/common/domain/tls-paths";
 import { toSecureContextOptions } from "@trading-model/common/domain/tls-paths";
 import type { Application } from "express";
-import { loadTlsFiles } from "./tls-loader";
 import { setupTlsWatcher } from "./tls-watcher";
 
 export interface HttpsServerOptions {
@@ -62,7 +62,7 @@ export async function createAndStartHttpsServer(
 	app: Application,
 	options: HttpsServerOptions
 ): Promise<HttpServer> {
-	const tlsContext = await loadTlsFiles(options.tls);
+	const tlsContext = await loadTlsPemBundle(options.tls);
 	const httpsServer = https.createServer(_buildServerOptions(tlsContext), app);
 
 	_startListening(httpsServer, options.port);
