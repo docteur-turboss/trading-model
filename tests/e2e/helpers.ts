@@ -1,4 +1,4 @@
-import crypto from "node:crypto";
+import { createHash, createHmac } from "node:crypto";
 import http from "node:http";
 import https from "node:https";
 
@@ -69,15 +69,11 @@ export interface DlqSignatureInput {
 }
 
 export function computeDlqSignature(input: DlqSignatureInput): string {
-	const bodyHash = crypto
-		.createHash("sha256")
+	const bodyHash = createHash("sha256")
 		.update(JSON.stringify(input.body))
 		.digest("hex");
 	const payload = `${input.serviceName}:${input.timestamp}:${bodyHash}:${input.method}:${input.path}`;
-	return crypto
-		.createHmac("sha256", input.secret)
-		.update(payload)
-		.digest("hex");
+	return createHmac("sha256", input.secret).update(payload).digest("hex");
 }
 
 export const PORTS = {

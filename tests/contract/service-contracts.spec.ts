@@ -84,7 +84,7 @@ const TRADE_PAYLOAD = MARKET_DATA_PAYLOAD.extend({
  * Each entry documents a producer-consumer agreement.
  */
 const CONTRACTS: Contract[] = [
-	// ── financial-scraper → trader-trainer ─────────────────────────────────
+	// financial-scraper → trader-trainer
 	{
 		producer: "financial-scraper",
 		consumers: ["trader-trainer"],
@@ -147,7 +147,7 @@ const CONTRACTS: Contract[] = [
 		}),
 	},
 
-	// ── audit-logger contracts ─────────────────────────────────────────────
+	// audit-logger contracts ─────────────────────────────────────────────
 	{
 		producer: "audit-logger",
 		consumers: ["discovery-server", "dlq-service"],
@@ -184,7 +184,7 @@ const CONTRACTS: Contract[] = [
 		}),
 	},
 
-	// ── certificate-authority contracts ────────────────────────────────────
+	// certificate-authority contracts ────────────────────────────────────
 	{
 		producer: "certificate-authority",
 		consumers: ["discovery-server", "api-gateway"],
@@ -225,7 +225,7 @@ const CONTRACTS: Contract[] = [
 		}),
 	},
 
-	// ── message-manager contracts ─────────────────────────────────────────
+	// message-manager contracts ─────────────────────────────────────────
 	{
 		producer: "message-manager",
 		consumers: ["dlq-service"],
@@ -250,7 +250,7 @@ const CONTRACTS: Contract[] = [
 		}),
 	},
 
-	// ── trader-trainer contracts ──────────────────────────────────────────
+	// trader-trainer contracts ──────────────────────────────────────────
 	{
 		producer: "trader-trainer",
 		consumers: ["admin-interface"],
@@ -275,7 +275,7 @@ const CONTRACTS: Contract[] = [
 		}),
 	},
 
-	// ── api-gateway contracts ──────────────────────────────────────────────
+	// api-gateway contracts ──────────────────────────────────────────────
 	{
 		producer: "api-gateway",
 		consumers: ["admin-interface"],
@@ -296,7 +296,7 @@ const CONTRACTS: Contract[] = [
 		}),
 	},
 
-	// ── discovery-server contracts ─────────────────────────────────────────
+	// discovery-server contracts ─────────────────────────────────────────
 	{
 		producer: "discovery-server",
 		consumers: [
@@ -353,7 +353,7 @@ const CONTRACTS: Contract[] = [
 		}),
 	},
 
-	// ── message-manager bilateral ──────────────────────────────────────────
+	// message-manager bilateral ──────────────────────────────────────────
 	{
 		producer: "message-manager",
 		consumers: [
@@ -381,7 +381,7 @@ const CONTRACTS: Contract[] = [
 		}),
 	},
 
-	// ── certificate-authority expiry warnings ──────────────────────────────
+	// certificate-authority expiry warnings ──────────────────────────────
 	{
 		producer: "certificate-authority",
 		consumers: ["api-gateway", "admin-interface"],
@@ -404,7 +404,7 @@ const CONTRACTS: Contract[] = [
 		}),
 	},
 
-	// ── dlq-service resolution events ─────────────────────────────────────
+	// dlq-service resolution events ─────────────────────────────────────
 	{
 		producer: "dlq-service",
 		consumers: ["audit-logger", "admin-interface"],
@@ -427,7 +427,7 @@ const CONTRACTS: Contract[] = [
 		}),
 	},
 
-	// ── trader-trainer model events ────────────────────────────────────────
+	// trader-trainer model events ────────────────────────────────────────
 	{
 		producer: "trader-trainer",
 		consumers: ["admin-interface", "api-gateway"],
