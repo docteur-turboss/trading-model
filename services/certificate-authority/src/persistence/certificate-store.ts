@@ -3,14 +3,12 @@ import type {
 	SerialNumber,
 	ServiceId,
 } from "@trading-model/common/domain/primitives";
-import type { Collection } from "mongodb";
+import { MongoStoreBase } from "@trading-model/common/persistence/mongo-store-base";
 import { MONGO_MANAGER } from "./mongo-manager";
 
-export class CertificateStore {
-	private readonly _collection: Collection;
-
-	private constructor(collection: Collection) {
-		this._collection = collection;
+export class CertificateStore extends MongoStoreBase<SignedCertificate> {
+	private constructor(collection: import("mongodb").Collection) {
+		super(collection);
 	}
 
 	static async connect(_uri?: string): Promise<CertificateStore> {
@@ -20,13 +18,6 @@ export class CertificateStore {
 		await collection.createIndex({ serviceId: 1 });
 		await collection.createIndex({ expiresAt: 1 });
 		return new CertificateStore(collection);
-	}
-
-	/** Connection lifecycle is managed externally by MONGO_MANAGER. */
-	async disconnect(): Promise<void> {}
-
-	async insert(cert: SignedCertificate): Promise<void> {
-		await this._collection.insertOne(cert);
 	}
 
 	async getBySerial(

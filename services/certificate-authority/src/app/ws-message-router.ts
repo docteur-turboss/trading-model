@@ -1,5 +1,6 @@
 import type {
 	AuthToken,
+	CsrPem,
 	ServiceId,
 } from "@trading-model/common/domain/primitives";
 import type { RawData, WebSocket } from "ws";
@@ -23,7 +24,7 @@ export interface CaSignMessage {
 	id: string;
 	data: {
 		serviceId: ServiceId;
-		csr: string;
+		csr: CsrPem;
 		ttlMs?: number;
 	};
 }

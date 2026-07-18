@@ -7,13 +7,14 @@ import {
 import { TimerHandle } from "@trading-model/common/utils/timer-handle";
 import { CryptoAlg } from "@trading-model/crypto/crypto/crypto-constants";
 import type { NonceContext, NoncePersistence } from "./nonce-persister";
-import {
-	MongoNoncePersister,
-	type NoncePersisterConfig,
-} from "./nonce-persister";
 
 interface NonceEntry extends NonceContext {
 	createdAt: number;
+}
+
+export interface NonceStoreOptions {
+	ttlMs?: DurationMs;
+	persister?: NoncePersistence;
 }
 
 export class NonceStore {
@@ -22,11 +23,9 @@ export class NonceStore {
 	private readonly _persister?: NoncePersistence;
 	private readonly _cleanupTimer = new TimerHandle();
 
-	constructor(config?: NoncePersisterConfig) {
-		this._ttlMs = config?.ttlMs ?? DurationMs.of(300_000);
-		if (config?.mongoUri) {
-			this._persister = new MongoNoncePersister(config);
-		}
+	constructor(options?: NonceStoreOptions) {
+		this._ttlMs = options?.ttlMs ?? DurationMs.of(300_000);
+		this._persister = options?.persister;
 		this._startCleanup();
 	}
 
@@ -67,30 +66,27 @@ export class NonceStore {
 		return Date.now() - createdAt > this._ttlMs;
 	}
 
-	async consume(nonce: string, serviceId: ServiceId): Promise<boolean> {
-		const entry = this._l1.get(nonce);
+	async consume(context: NonceContext): Promise<boolean> {
+		const entry = this._l1.get(context.nonce);
 		if (entry && this._isExpired(entry.createdAt)) {
-			this._l1.delete(nonce);
+			this._l1.delete(context.nonce);
 			return false;
 		}
-		const doc = await this._persister?.consume({
-			nonce,
-			serviceId,
-		} as NonceContext);
+		const doc = await this._persister?.consume(context);
 		if (doc) {
 			if (
-				doc.serviceId !== serviceId ||
+				doc.serviceId !== context.serviceId ||
 				this._isExpired(doc.createdAt.getTime())
 			) {
 				return false;
 			}
-			this._l1.delete(nonce);
+			this._l1.delete(context.nonce);
 			return true;
 		}
-		if (!entry || entry.serviceId !== serviceId) {
+		if (!entry || entry.serviceId !== context.serviceId) {
 			return false;
 		}
-		this._l1.delete(nonce);
+		this._l1.delete(context.nonce);
 		return true;
 	}
 	get size(): number {

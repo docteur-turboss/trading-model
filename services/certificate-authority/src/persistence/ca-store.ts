@@ -1,25 +1,16 @@
 import type { CaMetadata } from "@trading-model/certificate-utils/types";
-import type { Collection } from "mongodb";
+import { MongoStoreBase } from "@trading-model/common/persistence/mongo-store-base";
 import { MONGO_MANAGER } from "./mongo-manager";
 
-export class CaStore {
-	private readonly _collection: Collection;
-
-	private constructor(collection: Collection) {
-		this._collection = collection;
+export class CaStore extends MongoStoreBase<CaMetadata> {
+	private constructor(collection: import("mongodb").Collection) {
+		super(collection);
 	}
 
 	static async connect(_uri?: string): Promise<CaStore> {
 		const db = await MONGO_MANAGER.getDb();
 		const collection = db.collection("ca_store");
 		return new CaStore(collection);
-	}
-
-	/** Connection lifecycle is managed externally by MONGO_MANAGER. */
-	async disconnect(): Promise<void> {}
-
-	async insert(metadata: CaMetadata): Promise<void> {
-		await this._collection.insertOne(metadata);
 	}
 
 	async getLatest(): Promise<CaMetadata | null> {

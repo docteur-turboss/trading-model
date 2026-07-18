@@ -1,6 +1,6 @@
 import { logger } from "@trading-model/common/config/logger";
 import type { AuthToken } from "@trading-model/common/domain/primitives";
-import type { ClientIdentity } from "@trading-model/common/domain/primitives/string-ids";
+import type { ClientIdentity } from "@trading-model/common/domain/primitives/auth-ids";
 import type { WebSocket } from "ws";
 import type { ConnectionState } from "./rate-limiter";
 import { WsMessageType } from "./ws-message-router";

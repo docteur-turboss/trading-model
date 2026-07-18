@@ -8,7 +8,7 @@ import { CryptoAlg } from "@trading-model/crypto/crypto/crypto-constants";
 export class CaKeyStore {
 	constructor(private readonly _caKeyPath: FilePath) {}
 
-	load(): KeyPair | null {
+	read(): KeyPair | null {
 		if (!existsSync(this._caKeyPath)) {
 			return null;
 		}
@@ -22,7 +22,7 @@ export class CaKeyStore {
 		return { publicKey, privateKey: KeyPem.of(privateKey) };
 	}
 
-	save(privateKey: string): void {
+	write(privateKey: string): void {
 		const dir = this._caKeyPath.substring(0, this._caKeyPath.lastIndexOf("/"));
 		if (!existsSync(dir)) {
 			mkdirSync(dir, { recursive: true });

@@ -31,7 +31,13 @@ export class JwkCache {
 
 	lookupSingleKey(): KeyObject | undefined {
 		if (this._cachedKeys.size === 1) {
-			return this._cachedKeys.values().next().value;
+			return this._firstMapValue();
+		}
+	}
+
+	private _firstMapValue(): KeyObject | undefined {
+		for (const value of this._cachedKeys.values()) {
+			return value;
 		}
 	}
 

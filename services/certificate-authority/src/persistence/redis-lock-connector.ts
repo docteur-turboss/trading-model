@@ -40,7 +40,7 @@ export class RedisLockConnector {
 		return this._available;
 	}
 
-	set available(value: boolean) {
+	setAvailable(value: boolean): void {
 		this._available = value;
 	}
 

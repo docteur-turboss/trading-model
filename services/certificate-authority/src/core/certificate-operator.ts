@@ -22,7 +22,7 @@ export class CertificateOperator {
 		private readonly _crlStore: CrlStore
 	) {}
 
-	async signServiceCertificate(
+	async signCertificate(
 		request: CertSignRequest,
 		ca: CaCredentials
 	): Promise<SignedCertificate> {

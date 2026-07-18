@@ -1,9 +1,8 @@
-import { createHash } from "node:crypto";
 import {
 	DurationMs,
 	type ServiceId,
 } from "@trading-model/common/domain/primitives";
-import { CryptoAlg } from "@trading-model/crypto/crypto/crypto-constants";
+import { sha256Hex } from "@trading-model/crypto/crypto/hash-utils";
 import type { Collection } from "mongodb";
 
 export interface TokenUseRequest {
@@ -88,10 +87,6 @@ export class TokenStore {
 	}
 
 	private _hashToken(token: string): Promise<string> {
-		return Promise.resolve(
-			createHash(CryptoAlg.SHA256)
-				.update(token, CryptoAlg.UTF8)
-				.digest(CryptoAlg.HEX)
-		);
+		return Promise.resolve(sha256Hex(token));
 	}
 }

@@ -1,8 +1,4 @@
-import { Port } from "@trading-model/common/domain/primitives";
-import {
-	buildTlsFromEnv,
-	createSecureServer,
-} from "@trading-model/server-utils/server/create-secure-server";
+import { createServiceServer } from "@trading-model/server-utils/server/service-server-factory";
 
 import { ENV } from "../config/env";
 import { certificateRoutes } from "../routes/certificate.routes";
@@ -16,9 +12,8 @@ function _mountRoutes(app: import("express").Application): void {
 }
 
 export function createServer() {
-	return createSecureServer({
-		port: Port.of(ENV.PORT),
-		tls: buildTlsFromEnv(ENV),
+	return createServiceServer({
+		env: ENV,
 		routes: _mountRoutes,
 	});
 }

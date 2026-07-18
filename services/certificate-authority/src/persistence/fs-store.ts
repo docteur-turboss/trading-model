@@ -18,7 +18,7 @@ export { AesEncryption, NOOP_ENCRYPTION };
 export interface FsStore {
 	readonly disabled: boolean;
 	init(): Promise<void>;
-	save(key: string, data: Record<string, unknown>): Promise<void>;
+	set(key: string, data: Record<string, unknown>): Promise<void>;
 	get<TData>(key: string): Promise<TData | null>;
 	getAll<TData>(): Promise<TData[]>;
 	delete(key: string): Promise<void>;
@@ -29,7 +29,7 @@ export const NULL_FS_STORE: FsStore = {
 	init: () => {
 		logger.warn("FsStore is DISABLED — no fallback storage available");
 	},
-	save: async () => {},
+	set: async () => {},
 	get: () => null,
 	getAll: () => [],
 	delete: async () => {},
@@ -67,7 +67,7 @@ class RealFsStore implements FsStore {
 		return path.join(this._baseDir, `${safe}${this._encryption.extension}`);
 	}
 
-	async save(key: string, data: Record<string, unknown>): Promise<void> {
+	async set(key: string, data: Record<string, unknown>): Promise<void> {
 		const fp = this._filePath(key);
 		const tmp = `${fp}.tmp`;
 		const serialized = JSON.stringify(data, null, 0);

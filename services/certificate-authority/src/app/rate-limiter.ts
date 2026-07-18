@@ -3,7 +3,7 @@ import {
 	type AuthToken,
 	UnixTimestamp,
 } from "@trading-model/common/domain/primitives";
-import { ClientIdentity } from "@trading-model/common/domain/primitives/string-ids";
+import { ClientIdentity } from "@trading-model/common/domain/primitives/auth-ids";
 
 const UNAUTH_SIGN_ATTEMPTS = new Map<
 	string,

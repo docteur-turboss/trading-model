@@ -25,7 +25,7 @@ export class LockConnectionManager {
 		);
 	}
 
-	get isAvailable(): boolean {
+	isConnected(): boolean {
 		return this._collection !== null;
 	}
 
@@ -66,7 +66,7 @@ export class LockConnectionManager {
 		}
 	}
 
-	async disconnect(): Promise<void> {
+	async close(): Promise<void> {
 		if (!MONGO_MANAGER.isConnected()) {
 			try {
 				await this._client.close();

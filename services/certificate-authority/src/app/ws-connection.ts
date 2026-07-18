@@ -2,7 +2,7 @@ import type https from "node:https";
 import type { TLSSocket } from "node:tls";
 import { logger } from "@trading-model/common/config/logger";
 import { UnixTimestamp } from "@trading-model/common/domain/primitives";
-import { ClientIdentity } from "@trading-model/common/domain/primitives/string-ids";
+import { ClientIdentity } from "@trading-model/common/domain/primitives/auth-ids";
 import { type WebSocket, WebSocketServer } from "ws";
 import type { ConnectionState } from "./rate-limiter";
 import { clearRateLimiterKey } from "./rate-limiter";

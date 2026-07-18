@@ -7,29 +7,14 @@ import {
 	type ServiceId,
 } from "@trading-model/common/domain/primitives";
 import { HTTP_STATUS } from "@trading-model/common/http-status";
+import type { CertificateStore } from "../persistence/certificate-store";
+import type { NonceStore } from "../persistence/nonce-store";
+import type { CertificateAuthority } from "./certificate-issuer";
 import { CertificateIssuer } from "./certificate-issuer";
-import { NonceConsumer } from "./nonce-consumer";
+import { consumeNonce } from "./nonce-consumer";
 import { PopVerifier } from "./pop-verifier";
 
-interface CertStore {
-	getBySerial(
-		serialNumber: SerialNumber
-	): Promise<{ certPem: string; serviceId: ServiceId } | null>;
-}
-
-import type { NonceContext } from "../persistence/nonce-persister";
-
-interface NonceStore {
-	consume(context: NonceContext): Promise<boolean>;
-}
-
 export type SignServiceCertRequest = CertSignRequest;
-
-interface CertificateAuthority {
-	signServiceCertificate(
-		request: SignServiceCertRequest
-	): Promise<SignedCertificate>;
-}
 
 interface RenewalPopInput {
 	certPem: string;
@@ -39,14 +24,32 @@ interface RenewalPopInput {
 	oldSerialNumber: SerialNumber;
 }
 
-export class CertRenewalError extends Error {
-	public readonly statusCode: number;
-	public readonly code = "CertRenewalError";
-	constructor(message: string, statusCode: number = HTTP_STATUS.BAD_REQUEST) {
-		super(message);
-		this.name = "CertRenewalError";
-		this.statusCode = statusCode;
-	}
+export interface CertRenewalErrorData {
+	readonly name: "CertRenewalError";
+	readonly message: string;
+	readonly statusCode: number;
+	readonly code: "CertRenewalError";
+}
+
+export type CertRenewalError = Error & CertRenewalErrorData;
+
+export function createCertRenewalError(
+	message: string,
+	statusCode: number = HTTP_STATUS.BAD_REQUEST
+): CertRenewalError {
+	const err = new Error(message) as CertRenewalError;
+	err.name = "CertRenewalError";
+	err.code = "CertRenewalError";
+	err.statusCode = statusCode;
+	return err;
+}
+
+export function isCertRenewalError(err: unknown): err is CertRenewalError {
+	return (
+		typeof err === "object" &&
+		err !== null &&
+		(err as CertRenewalError).name === "CertRenewalError"
+	);
 }
 
 export interface RenewCertRequest {
@@ -58,7 +61,7 @@ export interface RenewCertRequest {
 }
 
 export interface CertRenewalDeps {
-	certStore: CertStore;
+	certStore: CertificateStore;
 	nonceStore: NonceStore;
 	ca: CertificateAuthority;
 	lock?: import("@trading-model/validation/contracts/distributed-lock.types").IDistributedLock;
@@ -66,19 +69,19 @@ export interface CertRenewalDeps {
 
 export class CertRenewalService {
 	private readonly _popVerifier = new PopVerifier();
-	private readonly _certStore: CertStore;
-	private readonly _nonceConsumer: NonceConsumer;
+	private readonly _certStore: CertificateStore;
+	private readonly _nonceStore: NonceStore;
 	private readonly _certificateIssuer: CertificateIssuer;
 
 	constructor(deps: CertRenewalDeps) {
 		this._certStore = deps.certStore;
-		this._nonceConsumer = new NonceConsumer(deps.nonceStore);
+		this._nonceStore = deps.nonceStore;
 		this._certificateIssuer = new CertificateIssuer(deps.ca, deps.lock);
 	}
 
 	async renew(request: RenewCertRequest): Promise<SignedCertificate> {
 		const { serviceId, oldSerialNumber, nonce, signature, csr } = request;
-		await this._nonceConsumer.consume(nonce, serviceId);
+		await consumeNonce(this._nonceStore, nonce, serviceId);
 		const oldCert = await this._getOldCertificate(oldSerialNumber);
 		this._verifyPop({
 			certPem: oldCert.certPem,
@@ -87,7 +90,10 @@ export class CertRenewalService {
 			serviceId,
 			oldSerialNumber,
 		});
-		return this._certificateIssuer.issue(serviceId, CsrPem.of(csr));
+		return this._certificateIssuer.signCertificate({
+			serviceId,
+			csr: CsrPem.of(csr),
+		});
 	}
 
 	private async _getOldCertificate(
@@ -95,7 +101,7 @@ export class CertRenewalService {
 	): Promise<{ certPem: string; serviceId: ServiceId }> {
 		const oldCert = await this._certStore.getBySerial(oldSerialNumber);
 		if (!oldCert) {
-			throw new CertRenewalError(
+			throw createCertRenewalError(
 				"Original certificate not found",
 				HTTP_STATUS.NOT_FOUND
 			);
@@ -109,7 +115,7 @@ export class CertRenewalService {
 			logger.warn("Proof-of-possession failed", {
 				context: { serviceId, oldSerialNumber },
 			});
-			throw new CertRenewalError(
+			throw createCertRenewalError(
 				"Proof-of-possession failed — signature does not match certificate public key",
 				HTTP_STATUS.FORBIDDEN
 			);

@@ -1,6 +1,6 @@
 ﻿import { logger } from "@trading-model/common/config/logger";
 import { CsrPem, toServiceId } from "@trading-model/common/domain/primitives";
-import type { ClientIdentity } from "@trading-model/common/domain/primitives/string-ids";
+import type { ClientIdentity } from "@trading-model/common/domain/primitives/auth-ids";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import type { WebSocket } from "ws";
 import { z } from "zod";

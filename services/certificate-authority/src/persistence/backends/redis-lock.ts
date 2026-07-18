@@ -50,7 +50,7 @@ export class RedisLockBackend implements LockBackend {
 			REDIS_SET.NX
 		);
 		if (acquired === REDIS_RESP.OK) {
-			this._connector.available = true;
+			this._connector.setAvailable(true);
 			return nextFencingToken;
 		}
 	}
@@ -69,7 +69,7 @@ export class RedisLockBackend implements LockBackend {
 
 	private _handleAcquireError(err: unknown): void {
 		logger.warn("Redis lock acquire failed", { context: { err } });
-		this._connector.available = false;
+		this._connector.setAvailable(false);
 	}
 
 	async acquire(context: LockContext, ttlMs: number): Promise<number | null> {

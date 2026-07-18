@@ -1,7 +1,8 @@
-import { logger } from "@trading-model/common/config/logger";
 import type { ServiceId } from "@trading-model/common/domain/primitives";
 import type { RequestHandler } from "express";
 import client from "prom-client";
+
+import { sendAlertWebhook } from "./alert-webhook";
 
 const METRICS_REGISTRY = new client.Registry();
 
@@ -82,80 +83,9 @@ export function setWorkerPoolPending(pending: number): void {
 	WORKER_POOL_PENDING.set(pending);
 }
 
-function buildWebhookPayload(
-	title: string,
-	message: string,
-	severity: string,
-	labels?: Record<string, string>
-): string {
-	return JSON.stringify({
-		title,
-		message,
-		severity,
-		labels,
-		timestamp: new Date().toISOString(),
-		source: "certificate-authority",
-	});
-}
-
-function logWebhookResult(res: Response, webhookUrl: string): void {
-	if (!res.ok) {
-		logger.warn("Alert webhook returned non-OK status", {
-			context: {
-				status: res.status,
-				webhookUrl,
-			},
-		});
-	}
-}
-
-function logWebhookError(err: unknown, webhookUrl: string): void {
-	logger.warn("Alert webhook delivery failed", {
-		context: {
-			err: (err as Error).message,
-			webhookUrl,
-		},
-	});
-}
-
-async function _doPostWebhook(webhookUrl: string, body: string): Promise<void> {
-	const res = await fetch(webhookUrl, {
-		method: "POST",
-		headers: { "Content-Type": "application/json" },
-		body,
-		signal: AbortSignal.timeout(10_000),
-	});
-	logWebhookResult(res, webhookUrl);
-}
-
-interface SendAlertWebhookOptions {
-	webhookUrl: string | undefined;
-	title: string;
-	message: string;
-	severity?: "info" | "warning" | "error";
-	labels?: Record<string, string>;
-}
-
-export async function sendAlertWebhook(
-	options: SendAlertWebhookOptions
-): Promise<void> {
-	const { webhookUrl, title, message, severity = "error", labels } = options;
-	if (!webhookUrl) {
-		return;
-	}
-	try {
-		await _doPostWebhook(
-			webhookUrl,
-			buildWebhookPayload(title, message, severity, labels)
-		);
-	} catch (err) {
-		logWebhookError(err, webhookUrl);
-	}
-}
-
 export const METRICS_HANDLER: RequestHandler = async (_req, res) => {
 	res.setHeader("Content-Type", METRICS_REGISTRY.contentType);
 	res.end(await METRICS_REGISTRY.metrics());
 };
 
-export { METRICS_REGISTRY };
+export { METRICS_REGISTRY, sendAlertWebhook };

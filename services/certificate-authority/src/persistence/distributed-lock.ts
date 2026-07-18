@@ -38,7 +38,7 @@ export class DistributedLock implements IDistributedLock {
 	}
 
 	async disconnect(): Promise<void> {
-		await this._connectionManager?.disconnect();
+		await this._connectionManager?.close();
 		for (const backend of this._backends) {
 			backend.disconnect?.();
 		}

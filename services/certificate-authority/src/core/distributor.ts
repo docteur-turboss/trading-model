@@ -57,7 +57,7 @@ export class Distributor {
 				? toAuthToken(_bootstrapToken)
 				: undefined,
 		};
-		const cert = await this._options.ca.signServiceCertificate(request);
+		const cert = await this._options.ca.signCertificate(request);
 		return cert;
 	}
 }

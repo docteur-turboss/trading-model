@@ -2,6 +2,7 @@ import type {
 	RevokedCertificate,
 	SignedCertificate,
 } from "@trading-model/certificate-utils/types";
+import type { CertSigner } from "@trading-model/common/domain/cert-signer.interface";
 import type { CertSignRequest } from "@trading-model/common/domain/cert-signing";
 import type {
 	CaPem,
@@ -24,7 +25,7 @@ export interface CaOptions {
 	caStore: CaStore;
 }
 
-export class CertificateAuthority {
+export class CertificateAuthority implements CertSigner {
 	private readonly _state: BootstrapResult;
 	private readonly _operator: CertificateOperator;
 
@@ -45,8 +46,8 @@ export class CertificateAuthority {
 		return new CertificateAuthority(state, options);
 	}
 
-	signServiceCertificate(request: CertSignRequest): Promise<SignedCertificate> {
-		return this._operator.signServiceCertificate(request, {
+	signCertificate(request: CertSignRequest): Promise<SignedCertificate> {
+		return this._operator.signCertificate(request, {
 			caKeyPair: this._state.caKeyPair,
 			caCertPem: this._state.caCertPem,
 		});
