@@ -1,6 +1,6 @@
+import { isHttpClientError } from "@trading-model/common/config/http-client-errors";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { API_CLIENT, setAdminToken } from "../../src/api/api-client";
-import { ApiError } from "../../src/types/dtos";
 
 const MOCK_FETCH = vi.fn();
 globalThis.fetch = MOCK_FETCH;
@@ -311,9 +311,9 @@ describe("api-client", () => {
 	});
 
 	describe("error handling", () => {
-		it("should throw ApiError on non-ok response", async () => {
+		it("should throw HttpClientError on non-ok response", async () => {
 			MOCK_FETCH.mockResolvedValue(mockResponse({ error: "Not Found" }, 404));
-			await expect(API_CLIENT.getServices()).rejects.toThrow(ApiError);
+			await expect(API_CLIENT.getServices()).rejects.toThrow(Error);
 		});
 
 		it("should include status code in error", async () => {
@@ -321,8 +321,8 @@ describe("api-client", () => {
 			try {
 				await API_CLIENT.getServices();
 			} catch (err) {
-				expect(err).toBeInstanceOf(ApiError);
-				expect((err as ApiError).statusCode).toBe(403);
+				expect(isHttpClientError(err)).toBe(true);
+				expect(err).toHaveProperty("statusCode", 403);
 			}
 		});
 

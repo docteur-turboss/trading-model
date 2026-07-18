@@ -86,9 +86,13 @@ describe("useApi", () => {
 		expect(fetcher).toHaveBeenCalledWith("2");
 	});
 
-	it("should handle ApiError with status code", async () => {
-		const { ApiError } = await import("../../src/types/dtos");
-		const fetcher = vi.fn().mockRejectedValue(new ApiError(403, "Forbidden"));
+	it("should handle HttpClientError with status code", async () => {
+		const { createHttpClientError } = await import(
+			"@trading-model/common/config/http-client-errors"
+		);
+		const fetcher = vi
+			.fn()
+			.mockRejectedValue(createHttpClientError("Forbidden", 403));
 		const { result } = renderHook(() => useApi(fetcher));
 
 		await vi.advanceTimersToNextTimerAsync();
