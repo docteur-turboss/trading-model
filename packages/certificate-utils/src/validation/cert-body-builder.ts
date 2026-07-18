@@ -1,9 +1,10 @@
-import { createSign } from "node:crypto";
 import type {
 	KeyPem,
 	SerialNumber,
 } from "@trading-model/common/domain/primitives";
 import { CryptoAlg } from "@trading-model/crypto/crypto/crypto-constants";
+import { chunks } from "../format/format";
+import { sign } from "../format/sign";
 
 export interface SigningMaterial {
 	certBody: string;
@@ -21,35 +22,37 @@ export interface CertBodyBuilderOptions {
 	isCa?: boolean;
 }
 
-export class CertBodyBuilder {
-	private _buildLines(options: CertBodyBuilderOptions): string[] {
-		const { serialNumber, now, expiresAt, publicKey, subject, san, isCa } =
-			options;
-		const lines = [
-			`Serial: ${serialNumber}`,
-			"Issuer: CN=TradingModelCA",
-			`Subject: CN=${subject ?? "TradingModelCA"}`,
-			`Not Before: ${now.toISOString()}`,
-			`Not After: ${expiresAt.toISOString()}`,
-		];
-		if (san && san.length > 0) {
-			lines.push(`SAN: ${san.join(", ")}`);
-		}
-		if (isCa) {
-			lines.push("CA: TRUE");
-		}
-		lines.push(`Public Key: ${publicKey}`);
-		return lines;
+export function buildCertBodyLines(options: CertBodyBuilderOptions): string[] {
+	const { serialNumber, now, expiresAt, publicKey, subject, san, isCa } =
+		options;
+	const lines = [
+		`Serial: ${serialNumber}`,
+		"Issuer: CN=TradingModelCA",
+		`Subject: CN=${subject ?? "TradingModelCA"}`,
+		`Not Before: ${now.toISOString()}`,
+		`Not After: ${expiresAt.toISOString()}`,
+	];
+	if (san && san.length > 0) {
+		lines.push(`SAN: ${san.join(", ")}`);
 	}
+	if (isCa) {
+		lines.push("CA: TRUE");
+	}
+	lines.push(`Public Key: ${publicKey}`);
+	return lines;
+}
 
+export class CertBodyBuilder {
 	build(options: CertBodyBuilderOptions): string {
-		return this._buildLines(options).join("\n");
+		return buildCertBodyLines(options).join("\n");
 	}
 
 	signCertBody(material: SigningMaterial): string {
-		const sign = createSign(CryptoAlg.SHA256);
-		sign.update(material.certBody);
-		return sign.sign(material.privateKey, "base64");
+		return sign({
+			algorithm: CryptoAlg.SHA256,
+			body: material.certBody,
+			privateKey: material.privateKey as unknown as KeyPem,
+		});
 	}
 
 	signAndBuildPem(material: SigningMaterial): string {
@@ -81,12 +84,4 @@ export class CertBodyBuilder {
 			"-----END CERTIFICATE-----",
 		].join("\n");
 	}
-}
-
-function chunks(str: string, size: number): string[] {
-	const result: string[] = [];
-	for (let i = 0; i < str.length; i += size) {
-		result.push(str.slice(i, i + size));
-	}
-	return result;
 }

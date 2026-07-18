@@ -1,5 +1,6 @@
 import { createPublicKey, createVerify } from "node:crypto";
 import { CryptoAlg } from "@trading-model/crypto/crypto/crypto-constants";
+import { decodePem } from "../format/format";
 
 export interface CertificateValidationInput {
 	certPem: string;
@@ -71,15 +72,6 @@ export function validateCertificate(
 	}
 }
 
-function _decodePemBody(pem: string): string {
-	const lines = pem
-		.split("\n")
-		.filter(
-			(line) => !(line.startsWith("-----BEGIN") || line.startsWith("-----END"))
-		);
-	return Buffer.from(lines.join(""), "base64").toString(CryptoAlg.UTF8);
-}
-
 function parseCert(certPem: string): ParsedCertData {
-	return JSON.parse(_decodePemBody(certPem));
+	return JSON.parse(decodePem(certPem));
 }

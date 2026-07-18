@@ -1,16 +1,13 @@
 import { createPublicKey, createSign } from "node:crypto";
+import type { SubjectName } from "@trading-model/common/domain/subject-name";
 import { CryptoAlg } from "@trading-model/crypto/crypto/crypto-constants";
+import { chunks } from "../format/format";
 
-export interface CsrSubject {
-	commonName: string;
-	san: string[];
-}
-
-export interface CsrOptions extends CsrSubject {
+export interface CsrOptions extends SubjectName {
 	keyPem: string;
 }
 
-function _buildCsrData(subject: CsrSubject): string {
+function _buildCsrData(subject: SubjectName): string {
 	const sanExtension = subject.san.map((dns) => `DNS:${dns}`).join(",");
 	return [
 		"-----BEGIN CERTIFICATE REQUEST-----",
@@ -20,12 +17,12 @@ function _buildCsrData(subject: CsrSubject): string {
 	].join("\n");
 }
 
-function _buildCsrBody(params: {
-	commonName: string;
-	san: string[];
-	keyPem: string;
-	signature: string;
-}): string {
+function _buildCsrBody(
+	params: SubjectName & {
+		keyPem: string;
+		signature: string;
+	}
+): string {
 	const publicKey = createPublicKey(params.keyPem);
 	return Buffer.from(
 		JSON.stringify({
@@ -57,12 +54,4 @@ export function createCsr(options: CsrOptions): string {
 	const signature = _signData(csrData, keyPem);
 	const csrBody = _buildCsrBody({ commonName, san, keyPem, signature });
 	return _formatCsrOutput(csrBody);
-}
-
-function chunks(str: string, size: number): string[] {
-	const result: string[] = [];
-	for (let i = 0; i < str.length; i += size) {
-		result.push(str.slice(i, i + size));
-	}
-	return result;
 }

@@ -13,7 +13,7 @@ export interface KeyPairClientConfig {
 }
 
 function _checkResult<TValue>(result: TValue | undefined | null): TValue {
-	if (!result) {
+	if (result === undefined || result === null) {
 		throw new Error("Empty response from remote signer");
 	}
 	return result;

@@ -1,4 +1,4 @@
-import { createHash, createPublicKey, randomUUID } from "node:crypto";
+import { createPublicKey } from "node:crypto";
 import type { CertSignRequest } from "@trading-model/common/domain/cert-signing";
 import type {
 	CaPem,
@@ -12,11 +12,13 @@ import {
 	toCertPem,
 	toCommonName,
 	toFingerprint,
-	toSerialNumber,
 	UnixTimestamp,
 } from "@trading-model/common/domain/primitives";
-import { CryptoAlg } from "@trading-model/crypto/crypto/crypto-constants";
+import type { SubjectName } from "@trading-model/common/domain/subject-name";
+import { sha256Hex } from "@trading-model/crypto/crypto/hash-utils";
+import { decodePem } from "../format/format";
 import type { CaCredentials, SignedCertificate } from "../keygen/types";
+import { generateSerialNumber } from "../utils/serial-number-utils";
 import {
 	CertBodyBuilder,
 	type CertBodyBuilderOptions,
@@ -28,9 +30,7 @@ export interface SignOptions extends CertSignRequest {
 }
 
 function _buildSerialNumber(): SerialNumber {
-	return toSerialNumber(
-		randomUUID().replace(/-/g, "").substring(0, 16).toUpperCase()
-	);
+	return generateSerialNumber();
 }
 
 function _exportPublicKeyPem(
@@ -39,23 +39,12 @@ function _exportPublicKeyPem(
 	return KeyPem.of(publicKey.export({ type: "spki", format: "pem" }));
 }
 
-function _parseCsrBody(csr: string): string {
-	const lines = csr
-		.split("\n")
-		.filter(
-			(line) => !(line.startsWith("-----BEGIN") || line.startsWith("-----END"))
-		);
-	return Buffer.from(lines.join(""), "base64").toString(CryptoAlg.UTF8);
-}
+type ParsedCsr = SubjectName<CommonName> & { publicKey: KeyPem };
 
 function parseCsr(
 	csr: import("@trading-model/common/domain/primitives").CsrPem
-): {
-	commonName: CommonName;
-	san: string[];
-	publicKey: KeyPem;
-} {
-	const parsed = JSON.parse(_parseCsrBody(csr));
+): ParsedCsr {
+	const parsed = JSON.parse(decodePem(csr));
 	return {
 		commonName: toCommonName(parsed.commonName),
 		san: parsed.san ?? [],
@@ -63,13 +52,11 @@ function parseCsr(
 	};
 }
 
-interface CertificateBuildOptions {
+interface CertificateBuildOptions extends SubjectName<CommonName> {
 	serialNumber: SerialNumber;
 	now: UnixTimestamp;
 	expiresAt: UnixTimestamp;
 	publicKeyPem: KeyPem;
-	commonName: CommonName;
-	san: string[];
 }
 
 function _buildCertificateOptions(
@@ -123,9 +110,7 @@ interface SignedCertResultParams {
 function _buildSignedCertificateResult(
 	params: SignedCertResultParams
 ): SignedCertificate {
-	const fingerprint = createHash(CryptoAlg.SHA256)
-		.update(params.certPem)
-		.digest(CryptoAlg.HEX);
+	const fingerprint = sha256Hex(params.certPem);
 	return {
 		serialNumber: params.serialNumber,
 		certPem: params.certPem,

@@ -46,8 +46,8 @@ export class WorkerLifecycle {
 		return this._terminated;
 	}
 
-	set terminated(value: boolean) {
-		this._terminated = value;
+	markTerminated(): void {
+		this._terminated = true;
 	}
 
 	ensureStarted(): void {
@@ -69,6 +69,24 @@ export class WorkerLifecycle {
 		worker.on("exit", (code) => this._onExit(entry, code));
 
 		this._workers.push(entry);
+	}
+
+	releaseWorker(entry: WorkerEntry): void {
+		entry.busy = false;
+	}
+
+	dispatchTask(task: { id: string; type: string; data: unknown }): boolean {
+		const idleWorker = this.findIdleWorker();
+		if (!idleWorker) {
+			return false;
+		}
+		idleWorker.busy = true;
+		idleWorker.worker.postMessage({
+			id: task.id,
+			type: task.type,
+			data: task.data,
+		});
+		return true;
 	}
 
 	replaceWorker(entry: WorkerEntry): void {

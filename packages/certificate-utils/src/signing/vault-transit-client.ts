@@ -3,9 +3,7 @@ import { normalizeError } from "@trading-model/common/utils/errors";
 import { CryptoAlg } from "@trading-model/crypto/crypto/crypto-constants";
 
 import {
-	HashAlgorithm,
-	HashAlgorithmMapper,
-	VaultResponseParser,
+	type HashAlgorithm,
 	type VaultTransitConfig,
 	VaultTransitHttp,
 } from "./vault-transit-http";
@@ -20,39 +18,37 @@ export interface SignRequest {
 
 export class VaultTransitClient {
 	private readonly _http: VaultTransitHttp;
-	private readonly _algorithmMapper: HashAlgorithmMapper;
-	private readonly _responseParser: VaultResponseParser;
 
 	constructor(config: VaultTransitConfig) {
 		this._http = new VaultTransitHttp(config);
-		this._algorithmMapper = new HashAlgorithmMapper();
-		this._responseParser = new VaultResponseParser();
 	}
 
 	async createKey(
 		name: string,
 		keyType: "rsa-4096" | "ecdsa-p384"
 	): Promise<void> {
-		const vaultKeyType = keyType === "rsa-4096" ? "rsa-4096" : "ecdsa-p384";
-		await this._http.createKey(name, vaultKeyType);
+		await this._http.createKey(
+			name,
+			keyType as import("./vault-transit-http").VaultKeyType
+		);
 	}
 
 	async sign(request: SignRequest): Promise<string> {
 		const { keyName, algorithm, input } = request;
 		const result = await this._http.postSign(keyName, {
 			input: Buffer.from(input, CryptoAlg.UTF8).toString("base64"),
-			hash_algorithm: this._algorithmMapper.getHashAlgorithm(algorithm),
+			hash_algorithm: this._http.getHashAlgorithm(algorithm),
 		});
-		return this._responseParser.getSignatureString(result);
+		return this._http.getSignatureString(result);
 	}
 
-	async signBytes(name: string, derBytes: string): Promise<string> {
+	async signBytes(name: string, derBytes: Buffer): Promise<Buffer> {
 		const result = await this._http.postSign(name, {
-			input: Buffer.from(derBytes, "binary").toString("base64"),
+			input: derBytes.toString("base64"),
 			hash_algorithm: "sha2-256",
 		});
-		const signatureBase64 = this._responseParser.getSignatureString(result);
-		return Buffer.from(signatureBase64, "base64").toString("binary");
+		const signatureBase64 = this._http.getSignatureString(result);
+		return Buffer.from(signatureBase64, "base64");
 	}
 
 	readPublicKey(name: string): Promise<string> {

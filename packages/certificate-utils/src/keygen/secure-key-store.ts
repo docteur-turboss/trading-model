@@ -18,9 +18,7 @@ const STORES = new Set<SecureKeyStore>();
 
 function globalCleanup(): void {
 	for (const store of STORES) {
-		try {
-			store.destroy();
-		} catch {}
+		store.destroy();
 	}
 	STORES.clear();
 }
@@ -50,9 +48,13 @@ export class SecureKeyStore {
 
 	constructor(pem: string) {
 		const len = Buffer.byteLength(pem, CryptoAlg.UTF8);
-		this._buffer = Buffer.alloc(len); // safe: zeroed, no residual data leak
+		this._buffer = SecureKeyStore._createSecureBuffer(len);
 		this._buffer.write(pem, CryptoAlg.UTF8);
 		STORES.add(this);
+	}
+
+	private static _createSecureBuffer(len: number): Buffer {
+		return Buffer.alloc(len);
 	}
 
 	read(): string {

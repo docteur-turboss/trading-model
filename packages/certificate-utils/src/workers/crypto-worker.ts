@@ -6,7 +6,7 @@ import {
 import { parseKey, sign } from "../format/sign";
 import {
 	generateKeyPair,
-	generateKeyPairWithIdSync,
+	generateKeyPairWithId,
 	type KeyAlgorithm,
 } from "../keygen/generate-key-pair";
 import type { KeyPair, KeyPairWithId, SignInput } from "../keygen/types";
@@ -28,7 +28,7 @@ const HANDLERS: [JobType, (job: { payload: unknown }) => Promise<unknown>][] = [
 		JobType.of("generateKeyPairWithId"),
 		(job: { payload: unknown }) =>
 			Promise.resolve(
-				generateKeyPairWithIdSync(
+				generateKeyPairWithId(
 					(job.payload as { algorithm: KeyAlgorithm }).algorithm
 				) as KeyPairWithId
 			),

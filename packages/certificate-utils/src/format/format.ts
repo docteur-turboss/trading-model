@@ -6,29 +6,24 @@ export function chunks(str: string, size: number): string[] {
 	return result;
 }
 
-/** @deprecated Use X509Certificate for parsing certificates. */
-export function parsePem<TValue = unknown>(_pem: string): TValue {
-	throw new Error(
-		"parsePem is deprecated — use X509Certificate or certificationRequestFromPem"
-	);
+export function decodePem(pem: string): string {
+	const lines = pem
+		.split("\n")
+		.filter(
+			(line) => !(line.startsWith("-----BEGIN") || line.startsWith("-----END"))
+		);
+	return Buffer.from(lines.join(""), "base64").toString("utf8");
 }
 
-/** @deprecated Use X509Certificate.publicKey instead. */
-export function extractPublicKeyFromBody(_body: string): string | null {
-	throw new Error("extractPublicKeyFromBody is deprecated");
-}
-
-export { KeyConverter } from "../keygen/key-converter";
+export { privateKeyFromPem, resolvePublicKey } from "../keygen/key-converter";
 export { CertificateParser } from "../validation/certificate-parser";
 export { CsrParser } from "../validation/csr-parser";
 
-import { KeyConverter } from "../keygen/key-converter";
 import { CertificateParser } from "../validation/certificate-parser";
 import { CsrParser } from "../validation/csr-parser";
 
 const certParser = new CertificateParser();
 const csrParser = new CsrParser();
-const keyConverter = new KeyConverter();
 
 export function parseCertInfo(pem: string) {
 	return certParser.parse(pem);
@@ -36,12 +31,4 @@ export function parseCertInfo(pem: string) {
 
 export function parseCsrInfo(csrPem: string) {
 	return csrParser.parse(csrPem);
-}
-
-export function privateKeyFromPem(pem: string) {
-	return keyConverter.privateKeyFromPem(pem);
-}
-
-export function resolvePublicKey(issuerCert: string) {
-	return keyConverter.resolvePublicKey(issuerCert);
 }

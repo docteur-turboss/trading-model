@@ -1,11 +1,23 @@
 import { HttpClient } from "@trading-model/common/config/http-client";
-import { DurationMs, URLString } from "@trading-model/common/domain/primitives";
+import {
+	type AuthToken,
+	DurationMs,
+	URLString,
+} from "@trading-model/common/domain/primitives";
 import type { TlsPaths } from "@trading-model/common/domain/tls-paths";
 import { HTTP_HEADERS } from "@trading-model/common/http-headers";
 
+export enum VaultKeyType {
+	Rsa2048 = "rsa-2048",
+	Rsa4096 = "rsa-4096",
+	EcdsaP256 = "ecdsa-p256",
+	EcdsaP384 = "ecdsa-p384",
+	Ed25519 = "ed25519",
+}
+
 export interface VaultTransitConfig {
 	vaultUrl: URLString;
-	token: string;
+	token: AuthToken;
 	namespace?: string;
 	tls?: TlsPaths;
 	timeoutMs?: DurationMs;
@@ -25,42 +37,34 @@ const HASH_ALGORITHM_VAULT_MAP: Record<HashAlgorithm, string> = {
 	[HashAlgorithm.Sha1]: "sha1",
 };
 
-export class HashAlgorithmMapper {
-	getHashAlgorithm(algorithm: HashAlgorithm): string {
-		return HASH_ALGORITHM_VAULT_MAP[algorithm] ?? "sha2-256";
-	}
+function _getHashAlgorithm(algorithm: HashAlgorithm): string {
+	return HASH_ALGORITHM_VAULT_MAP[algorithm] ?? "sha2-256";
 }
 
-export class VaultResponseParser {
-	getSignatureString(result: { data: { signature: string } }): string {
-		const raw = result.data.signature;
-		const colonIdx = raw.lastIndexOf(":");
-		return colonIdx >= 0 ? raw.slice(colonIdx + 1) : raw;
-	}
+function _getSignatureString(result: { data: { signature: string } }): string {
+	const raw = result.data.signature;
+	const colonIdx = raw.lastIndexOf(":");
+	return colonIdx >= 0 ? raw.slice(colonIdx + 1) : raw;
 }
 
-export class KeyVersionManager {
-	getLatestKeyVersion(name: string, keys: Record<string, string>): string {
-		const versions = Object.keys(keys);
-		if (versions.length === 0) {
-			throw new Error(`Key "${name}" has no versions`);
-		}
-		const sorted = versions.sort(
-			(_prev, _next) => Number(_next) - Number(_prev)
-		);
-		return keys[sorted[0]];
+function _getLatestKeyVersion(
+	name: string,
+	keys: Record<string, string>
+): string {
+	const versions = Object.keys(keys);
+	if (versions.length === 0) {
+		throw new Error(`Key "${name}" has no versions`);
 	}
+	const sorted = versions.sort((_prev, _next) => Number(_next) - Number(_prev));
+	return keys[sorted[0]];
 }
 
 export class VaultTransitHttp {
 	private readonly _httpClient: HttpClient;
 	private readonly _baseUrl: URLString;
-	private readonly _token: string;
+	private readonly _token: AuthToken;
 	private readonly _namespace: string;
 	private readonly _timeoutMs: DurationMs;
-	private readonly _algorithmMapper: HashAlgorithmMapper;
-	private readonly _responseParser: VaultResponseParser;
-	private readonly _keyVersionManager: KeyVersionManager;
 
 	constructor(config: VaultTransitConfig) {
 		this._baseUrl = URLString.of(config.vaultUrl.replace(/\/+$/, ""));
@@ -70,17 +74,14 @@ export class VaultTransitHttp {
 		this._httpClient = config.tls
 			? HttpClient.createWithTls(config.tls)
 			: new HttpClient();
-		this._algorithmMapper = new HashAlgorithmMapper();
-		this._responseParser = new VaultResponseParser();
-		this._keyVersionManager = new KeyVersionManager();
 	}
 
 	getHashAlgorithm(algorithm: HashAlgorithm): string {
-		return this._algorithmMapper.getHashAlgorithm(algorithm);
+		return _getHashAlgorithm(algorithm);
 	}
 
 	getSignatureString(result: { data: { signature: string } }): string {
-		return this._responseParser.getSignatureString(result);
+		return _getSignatureString(result);
 	}
 
 	private _getHeaders(): Record<string, string> {
@@ -91,7 +92,7 @@ export class VaultTransitHttp {
 		return headers;
 	}
 
-	async createKey(name: string, vaultKeyType: string): Promise<void> {
+	async createKey(name: string, vaultKeyType: VaultKeyType): Promise<void> {
 		const payload: Record<string, unknown> = {
 			type: vaultKeyType,
 			exportable: false,
@@ -138,7 +139,7 @@ export class VaultTransitHttp {
 		if (!result) {
 			throw new Error(`Key "${name}" not found in Vault Transit`);
 		}
-		return this._keyVersionManager.getLatestKeyVersion(name, result.data.keys);
+		return _getLatestKeyVersion(name, result.data.keys);
 	}
 
 	async deleteKey(name: string): Promise<void> {

@@ -33,21 +33,9 @@ export function generateKeyPair(
 	};
 }
 
-export function generateKeyPairSync(
-	algorithm: KeyAlgorithm = KeyAlgorithm.EcP384
-): KeyPair {
-	return generateKeyPair(algorithm);
-}
-
 export function generateKeyPairWithId(
 	algorithm: KeyAlgorithm = KeyAlgorithm.EcP384
 ): KeyPairWithId {
 	const pair = generateKeyPair(algorithm);
 	return { ...pair, id: KeyId.of(randomUUID()) };
-}
-
-export function generateKeyPairWithIdSync(
-	algorithm: KeyAlgorithm = KeyAlgorithm.EcP384
-): KeyPairWithId {
-	return generateKeyPairWithId(algorithm);
 }

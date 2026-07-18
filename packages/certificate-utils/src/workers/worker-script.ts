@@ -2,7 +2,7 @@ import { createPublicKey, createSign } from "node:crypto";
 import { parentPort } from "node:worker_threads";
 import {
 	generateKeyPair,
-	generateKeyPairWithIdSync,
+	generateKeyPairWithId,
 	type KeyAlgorithm,
 } from "../keygen/generate-key-pair";
 import type { SignInput } from "../keygen/types";
@@ -75,7 +75,7 @@ const HANDLERS: Partial<Record<WorkerTaskType, TaskHandler>> = {
 	},
 	[WorkerTaskType.GenerateKeyPairWithId]: (task) => {
 		const typedTask = task as GenerateKeyPairWithIdTask;
-		const result = generateKeyPairWithIdSync(typedTask.data.algorithm);
+		const result = generateKeyPairWithId(typedTask.data.algorithm);
 		PP.postMessage({ id: typedTask.id, success: true, data: result });
 	},
 	[WorkerTaskType.SignCertificate]: (task) => {

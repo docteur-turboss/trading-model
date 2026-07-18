@@ -66,7 +66,7 @@ export class WorkerPool {
 	}
 
 	async terminate(): Promise<void> {
-		this._workerLifecycle.terminated = true;
+		this._workerLifecycle.markTerminated();
 		this._taskQueue.rejectAll("WorkerPool terminated");
 		this._taskQueue.clear();
 		await this._workerLifecycle.terminateAll();
@@ -81,7 +81,7 @@ export class WorkerPool {
 			error?: string;
 		}
 	): void {
-		entry.busy = false;
+		this._workerLifecycle.releaseWorker(entry);
 		this._taskQueue.resolveTask(msg.id, msg.success, msg.data, msg.error);
 		this._tryDispatchNext();
 	}
@@ -91,13 +91,13 @@ export class WorkerPool {
 	}
 
 	private _onWorkerError(entry: WorkerEntry): void {
-		entry.busy = false;
+		this._workerLifecycle.releaseWorker(entry);
 		this._taskQueue.decrementActive();
 		this._workerLifecycle.replaceWorker(entry);
 	}
 
 	private _onWorkerExit(entry: WorkerEntry, code: number): void {
-		entry.busy = false;
+		this._workerLifecycle.releaseWorker(entry);
 		if (code !== 0 && !this._workerLifecycle.terminated) {
 			this._taskQueue.decrementActive();
 			this._workerLifecycle.replaceWorker(entry);
@@ -105,16 +105,6 @@ export class WorkerPool {
 	}
 
 	private _tryDispatch(task: TaskEntry): boolean {
-		const idleWorker = this._workerLifecycle.findIdleWorker();
-		if (!idleWorker) {
-			return false;
-		}
-		idleWorker.busy = true;
-		idleWorker.worker.postMessage({
-			id: task.id,
-			type: task.type,
-			data: task.data,
-		});
-		return true;
+		return this._workerLifecycle.dispatchTask(task);
 	}
 }

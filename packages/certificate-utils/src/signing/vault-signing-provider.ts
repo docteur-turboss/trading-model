@@ -35,12 +35,7 @@ export class VaultSigningProvider implements SigningProvider {
 	}
 
 	async sign(tbsDerBytes: Buffer): Promise<Buffer> {
-		const derBinary = tbsDerBytes.toString("binary");
-		const signatureBinary = await this._vault.signBytes(
-			this._keyName,
-			derBinary
-		);
-		return Buffer.from(signatureBinary, "binary");
+		return await this._vault.signBytes(this._keyName, tbsDerBytes);
 	}
 
 	isRemote(): boolean {

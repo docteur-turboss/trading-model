@@ -4,7 +4,6 @@ import {
 } from "@trading-model/common/crl/crl-cache";
 import {
 	DurationMs,
-	type SerialNumber,
 	UnixTimestamp,
 } from "@trading-model/common/domain/primitives";
 import type { RevokedCertificate } from "../keygen/types";
@@ -24,15 +23,6 @@ export function createCrl(
 		lastUpdate: UnixTimestamp.now(),
 		nextUpdate: UnixTimestamp.add(UnixTimestamp.now(), ttlMs),
 	};
-}
-
-/**
- * Check if a certificate serial number is in the CRL.
- * Delegates to CrlCache via createCrlChecker under the hood.
- * @deprecated Use createCrlChecker(crl).isRevoked(serialNumber) instead for consistency with ICrlChecker.
- */
-export function isRevoked(serialNumber: SerialNumber, crl: Crl): boolean {
-	return createCrlChecker(crl).isRevoked(serialNumber);
 }
 
 /**
