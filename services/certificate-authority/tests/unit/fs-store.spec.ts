@@ -54,7 +54,7 @@ describe("FsStore", () => {
 
 	it("should silently succeed on save when disabled", async () => {
 		const store = NULL_FS_STORE;
-		await expect(store.save(TEST_KEY, TEST_DATA)).resolves.toBeUndefined();
+		await expect(store.set(TEST_KEY, TEST_DATA)).resolves.toBeUndefined();
 	});
 
 	it("should return empty array from getAll when disabled", async () => {
@@ -79,7 +79,7 @@ describe("FsStore", () => {
 		mockReadFile.mockResolvedValue(JSON.stringify(TEST_DATA));
 
 		const store = createFsStore();
-		await store.save(TEST_KEY, TEST_DATA);
+		await store.set(TEST_KEY, TEST_DATA);
 
 		const result = await store.get(TEST_KEY);
 		expect(result).toEqual(TEST_DATA);
@@ -141,7 +141,7 @@ describe("FsStore", () => {
 		});
 
 		const store = createFsStore({ encryptionKey: key });
-		await store.save(TEST_KEY, TEST_DATA);
+		await store.set(TEST_KEY, TEST_DATA);
 
 		const result = await store.get<typeof TEST_DATA>(TEST_KEY);
 		expect(result).toEqual(TEST_DATA);

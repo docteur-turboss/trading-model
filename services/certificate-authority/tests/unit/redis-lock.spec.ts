@@ -15,7 +15,7 @@ jest.mock("../../src/persistence/redis-lock-connector", () => ({
 		get available() {
 			return mockAvailable;
 		},
-		set available(v: boolean) {
+		setAvailable(v: boolean) {
 			mockAvailable = v;
 		},
 		disconnect: mockDisconnect,

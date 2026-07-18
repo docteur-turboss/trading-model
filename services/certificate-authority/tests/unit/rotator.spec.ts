@@ -21,7 +21,7 @@ import { Rotator } from "../../src/core/rotator";
 const MOCK_CA = {
 	isInitialized: jest.fn(),
 	getCaCertPem: jest.fn(),
-	signServiceCertificate: jest.fn(),
+	signCertificate: jest.fn(),
 	revokeCertificate: jest.fn(),
 	getCrl: jest.fn(),
 	initialize: jest.fn(),

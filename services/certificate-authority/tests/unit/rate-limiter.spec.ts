@@ -4,7 +4,7 @@ jest.mock("@trading-model/common/config/logger", () => ({
 	logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
 
-import { ClientIdentity } from "@trading-model/common/domain/primitives/string-ids";
+import { ClientIdentity } from "@trading-model/common/domain/primitives/auth-ids";
 import {
 	checkSignRequestRateLimit,
 	checkUnauthRateLimit,

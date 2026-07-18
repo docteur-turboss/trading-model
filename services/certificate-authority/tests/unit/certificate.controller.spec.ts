@@ -11,7 +11,7 @@ const MOCK_REVOKE_CERTIFICATE = jest.fn();
 jest.mock("../../src/app", () => ({
 	container: {
 		ca: {
-			signServiceCertificate: MOCK_SIGN_SERVICE_CERTIFICATE,
+			signCertificate: MOCK_SIGN_SERVICE_CERTIFICATE,
 			revokeCertificate: MOCK_REVOKE_CERTIFICATE,
 		},
 		certificateStore: {

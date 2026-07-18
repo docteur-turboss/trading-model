@@ -177,7 +177,7 @@ describe("CertificateAuthority", () => {
 		});
 	});
 
-	describe("signServiceCertificate", () => {
+	describe("signCertificate", () => {
 		it("should sign a certificate and save to store", async () => {
 			setupBootstrapMocks();
 			mockExistsSync.mockReturnValue(false);
@@ -202,7 +202,7 @@ describe("CertificateAuthority", () => {
 
 			const ca = await createCa();
 
-			const result = await ca.signServiceCertificate({
+			const result = await ca.signCertificate({
 				serviceId: "svc-1",
 				csr: "csr-data",
 			});

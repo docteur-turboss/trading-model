@@ -25,7 +25,7 @@ jest.mock("@trading-model/common/config/logger", () => ({
 	logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
 
-import { DurationMs } from "@trading-model/common/domain/primitives";
+import { DurationMs, URLString } from "@trading-model/common/domain/primitives";
 
 const mockMongoIsInitialized = jest.fn().mockReturnValue(false);
 const mockMongoGetDb = jest.fn();
@@ -38,6 +38,7 @@ jest.mock("../../src/persistence/mongo-manager", () => ({
 	},
 }));
 
+import { MongoNoncePersister } from "../../src/persistence/mongo-nonce-persister";
 import { NonceStore } from "../../src/persistence/nonce-store";
 
 describe("NonceStore", () => {
@@ -65,21 +66,24 @@ describe("NonceStore", () => {
 	it("should consume nonce in memory-only mode", async () => {
 		const store = new NonceStore();
 		const nonce = await store.generate("svc-1");
-		const result = await store.consume(nonce, "svc-1");
+		const result = await store.consume({ nonce, serviceId: "svc-1" });
 		expect(result).toBe(true);
 		expect(store.size).toBe(0);
 	});
 
 	it("should return false for unknown nonce", async () => {
 		const store = new NonceStore();
-		const result = await store.consume("unknown", "svc-1");
+		const result = await store.consume({
+			nonce: "unknown",
+			serviceId: "svc-1",
+		});
 		expect(result).toBe(false);
 	});
 
 	it("should return false for mismatched serviceId", async () => {
 		const store = new NonceStore();
 		const nonce = await store.generate("svc-1");
-		const result = await store.consume(nonce, "svc-2");
+		const result = await store.consume({ nonce, serviceId: "svc-2" });
 		expect(result).toBe(false);
 	});
 
@@ -88,7 +92,7 @@ describe("NonceStore", () => {
 		const store = new NonceStore({ ttlMs: DurationMs.of(100) });
 		const nonce = await store.generate("svc-1");
 		jest.advanceTimersByTime(200);
-		const result = await store.consume(nonce, "svc-1");
+		const result = await store.consume({ nonce, serviceId: "svc-1" });
 		expect(result).toBe(false);
 		jest.useRealTimers();
 	});
@@ -104,9 +108,13 @@ describe("NonceStore", () => {
 			})),
 		});
 
+		const persister = new MongoNoncePersister({
+			ttlMs: DurationMs.of(300000),
+			mongoUri: URLString.of("mongodb://localhost:27017/test"),
+		});
 		const store = new NonceStore({
 			ttlMs: DurationMs.of(300000),
-			mongoUri: "mongodb://localhost:27017/test",
+			persister,
 		});
 		await store.connect();
 		expect(mockCreateIndex).toHaveBeenCalledTimes(2);
@@ -124,9 +132,13 @@ describe("NonceStore", () => {
 		});
 		mockInsertOne.mockResolvedValue({ acknowledged: true });
 
+		const persister = new MongoNoncePersister({
+			ttlMs: DurationMs.of(300000),
+			mongoUri: URLString.of("mongodb://localhost:27017/test"),
+		});
 		const store = new NonceStore({
 			ttlMs: DurationMs.of(300000),
-			mongoUri: "mongodb://localhost:27017/test",
+			persister,
 		});
 		await store.connect();
 		const nonce = await store.generate("svc-1");
@@ -150,12 +162,19 @@ describe("NonceStore", () => {
 			createdAt: new Date(),
 		});
 
+		const persister = new MongoNoncePersister({
+			ttlMs: DurationMs.of(300000),
+			mongoUri: URLString.of("mongodb://localhost:27017/test"),
+		});
 		const store = new NonceStore({
 			ttlMs: DurationMs.of(300000),
-			mongoUri: "mongodb://localhost:27017/test",
+			persister,
 		});
 		await store.connect();
-		const result = await store.consume("test-nonce", "svc-1");
+		const result = await store.consume({
+			nonce: "test-nonce",
+			serviceId: "svc-1",
+		});
 		expect(result).toBe(true);
 	});
 
@@ -171,12 +190,19 @@ describe("NonceStore", () => {
 		});
 		mockFindOneAndDelete.mockResolvedValue(null);
 
+		const persister = new MongoNoncePersister({
+			ttlMs: DurationMs.of(300000),
+			mongoUri: URLString.of("mongodb://localhost:27017/test"),
+		});
 		const store = new NonceStore({
 			ttlMs: DurationMs.of(300000),
-			mongoUri: "mongodb://localhost:27017/test",
+			persister,
 		});
 		await store.connect();
-		const result = await store.consume("test-nonce", "svc-1");
+		const result = await store.consume({
+			nonce: "test-nonce",
+			serviceId: "svc-1",
+		});
 		expect(result).toBe(false);
 	});
 
@@ -192,9 +218,13 @@ describe("NonceStore", () => {
 			throw new Error("Connection error");
 		});
 
+		const persister = new MongoNoncePersister({
+			ttlMs: DurationMs.of(300000),
+			mongoUri: URLString.of("mongodb://localhost:27017/test"),
+		});
 		const store = new NonceStore({
 			ttlMs: DurationMs.of(300000),
-			mongoUri: "mongodb://localhost:27017/test",
+			persister,
 		});
 		await store.connect();
 	});

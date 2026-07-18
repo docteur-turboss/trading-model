@@ -8,10 +8,7 @@ jest.mock("../../src/domain/pop-verifier", () => ({
 	})),
 }));
 
-import {
-	CertRenewalError,
-	CertRenewalService,
-} from "../../src/domain/cert-renewal-service";
+import { CertRenewalService } from "../../src/domain/cert-renewal-service";
 
 const VALID_CSR =
 	"-----BEGIN CERTIFICATE REQUEST-----\ncsr-data\n-----END CERTIFICATE REQUEST-----";
@@ -24,7 +21,7 @@ describe("CertRenewalService", () => {
 		consume: jest.fn(),
 	};
 	const mockCa = {
-		signServiceCertificate: jest.fn(),
+		signCertificate: jest.fn(),
 	};
 	const mockLock = {
 		acquire: jest.fn(),
@@ -52,7 +49,7 @@ describe("CertRenewalService", () => {
 				signature: "sig",
 				csr: VALID_CSR,
 			})
-		).rejects.toThrow(CertRenewalError);
+		).rejects.toThrow(Error);
 
 		await expect(
 			service.renew({
@@ -126,7 +123,7 @@ describe("CertRenewalService", () => {
 			expiresAt: new Date(),
 			fingerprint: "fp",
 		};
-		mockCa.signServiceCertificate.mockResolvedValue(signedCert);
+		mockCa.signCertificate.mockResolvedValue(signedCert);
 
 		const service = new CertRenewalService({
 			certStore: mockCertStore as any,
@@ -161,7 +158,7 @@ describe("CertRenewalService", () => {
 			expiresAt: new Date(),
 			fingerprint: "fp",
 		};
-		mockCa.signServiceCertificate.mockResolvedValue(signedCert);
+		mockCa.signCertificate.mockResolvedValue(signedCert);
 
 		const service = new CertRenewalService({
 			certStore: mockCertStore as any,

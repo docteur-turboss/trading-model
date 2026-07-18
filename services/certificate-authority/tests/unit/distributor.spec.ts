@@ -14,7 +14,7 @@ const MOCK_CA = {
 		.mockReturnValue(
 			"-----BEGIN CERTIFICATE-----\nca-cert\n-----END CERTIFICATE-----"
 		),
-	signServiceCertificate: jest.fn(),
+	signCertificate: jest.fn(),
 	revokeCertificate: jest.fn(),
 	getCrl: jest.fn(),
 	initialize: jest.fn(),
@@ -94,14 +94,14 @@ describe("Distributor", () => {
 	describe("requestCertificate", () => {
 		it("should sign and return a new certificate", async () => {
 			const newCert = { ...FAKE_CERT, serialNumber: "SN-NEW" };
-			MOCK_CA.signServiceCertificate.mockResolvedValue(newCert);
+			MOCK_CA.signCertificate.mockResolvedValue(newCert);
 
 			const result = await distributor.requestCertificate(
 				"svc-new",
 				"csr-body"
 			);
 
-			expect(MOCK_CA.signServiceCertificate).toHaveBeenCalledWith(
+			expect(MOCK_CA.signCertificate).toHaveBeenCalledWith(
 				expect.objectContaining({
 					serviceId: "svc-new",
 					csr: "csr-body",
@@ -112,7 +112,7 @@ describe("Distributor", () => {
 
 		it("should pass bootstrap token to CA signing", async () => {
 			const newCert = { ...FAKE_CERT, serialNumber: "SN-BOOT" };
-			MOCK_CA.signServiceCertificate.mockResolvedValue(newCert);
+			MOCK_CA.signCertificate.mockResolvedValue(newCert);
 
 			const result = await distributor.requestCertificate(
 				"svc-boot",
@@ -120,7 +120,7 @@ describe("Distributor", () => {
 				"bootstrap-token-123"
 			);
 
-			expect(MOCK_CA.signServiceCertificate).toHaveBeenCalledWith({
+			expect(MOCK_CA.signCertificate).toHaveBeenCalledWith({
 				serviceId: "svc-boot",
 				csr: "csr-body",
 				bootstrapToken: "bootstrap-token-123",
