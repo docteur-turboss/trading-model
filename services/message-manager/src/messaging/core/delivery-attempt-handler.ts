@@ -1,6 +1,9 @@
 import { DeliveryMode } from "@trading-model/common/config/delivery-mode.types";
 import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
-import type { SequenceNumber } from "@trading-model/common/domain/primitives";
+import type {
+	SequenceNumber,
+	ServiceId,
+} from "@trading-model/common/domain/primitives";
 import { sleep } from "@trading-model/common/utils/sleep";
 import type { Message } from "@trading-model/validation/contracts/message.types";
 import { resolveTarget } from "./address-resolver";
@@ -71,7 +74,10 @@ export class DeliveryAttemptHandler {
 		message: Message<TData>,
 		context: SubscribersContext
 	): Promise<boolean> {
-		const target = await resolveTarget(this._serviceName, this._callbackPath);
+		const target = await resolveTarget(
+			this._serviceName as unknown as ServiceId,
+			this._callbackPath
+		);
 
 		const sendInput: DeliverySendInput = {
 			url: target,

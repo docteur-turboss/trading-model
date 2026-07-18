@@ -1,13 +1,18 @@
-﻿import type Redis from "ioredis";
-
+﻿import {
+	DurationMs,
+	type PositiveInt,
+	type Topic,
+} from "@trading-model/common/domain/primitives";
+import type Redis from "ioredis";
 import { logger } from "../../config/logger";
 import { getStreamClient } from "../../config/redis";
 import type { RedisKeyBuilder } from "../../infrastructure/redis/redis-key-builder";
 import { ClaimLockManager } from "./claim-lock-manager";
+import type { IClaimOps } from "./claim-ops-interface";
 import type { ClaimParams } from "./messaging-types";
 import { TopicClaimScanner } from "./topic-claim-scanner";
 
-export class ClaimExecutor {
+export class ClaimExecutor implements IClaimOps {
 	private readonly _lockManager: ClaimLockManager;
 	private readonly _topicScanner: TopicClaimScanner;
 
@@ -20,8 +25,8 @@ export class ClaimExecutor {
 		return this._doClaimPendingMessages({
 			groupName: params.groupName,
 			consumerId: params.consumerId,
-			minIdleMs: params.minIdleMs ?? 60_000,
-			count: params.count ?? 100,
+			minIdleMs: params.minIdleMs ?? DurationMs.of(60_000),
+			count: params.count ?? (100 as PositiveInt),
 		});
 	}
 
@@ -29,8 +34,8 @@ export class ClaimExecutor {
 		return this._doClaimPendingMessages({
 			groupName: params.groupName,
 			consumerId: params.consumerId,
-			minIdleMs: params.minIdleMs ?? 60_000,
-			count: params.count ?? 100,
+			minIdleMs: params.minIdleMs ?? DurationMs.of(60_000),
+			count: params.count ?? (100 as PositiveInt),
 		});
 	}
 
@@ -67,7 +72,11 @@ export class ClaimExecutor {
 		let total = 0;
 
 		for (const topic of topics) {
-			total += await this._topicScanner.claimForTopic(redis, topic, params);
+			total += await this._topicScanner.claimForTopic(
+				redis,
+				topic as Topic,
+				params
+			);
 		}
 
 		if (total > 0) {

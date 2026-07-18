@@ -1,33 +1,33 @@
-﻿import { REDIS_SET } from "@trading-model/common/persistence/redis-constants";
+﻿import { DurationMs } from "@trading-model/common/domain/primitives";
+import { REDIS_SET } from "@trading-model/common/persistence/redis-constants";
 import { LruCache } from "@trading-model/common/utils/lru-cache";
 import { logger } from "../../config/logger";
 import { getStreamClient } from "../../config/redis";
 import type { RedisKeyBuilder } from "../../infrastructure/redis/redis-key-builder";
+import type { IDedupOps } from "./dedup-ops-interface";
+import type { DedupConfig } from "./messaging-types";
 
-export class DeduplicationService {
+export class DeduplicationService implements IDedupOps {
 	private _localDedupCache = new LruCache<boolean>({
 		maxSize: 10000,
-		ttlMs: 300_000,
+		ttlMs: DurationMs.of(300_000),
 	});
 	private _degradedDedupCache = new LruCache<boolean>({
 		maxSize: 50000,
-		ttlMs: 3600_000,
+		ttlMs: DurationMs.of(3600_000),
 	});
 
 	constructor(private readonly _keys: RedisKeyBuilder) {}
 
-	async tryDeduplicate(
-		deduplicationId: string,
-		ttlS: number
-	): Promise<boolean> {
-		if (this._localDedupCache.has(deduplicationId)) {
+	async tryDeduplicate(params: DedupConfig): Promise<boolean> {
+		if (this._localDedupCache.has(params.deduplicationId)) {
 			return false;
 		}
 
 		try {
-			return await this._tryRedisDedup(deduplicationId, ttlS);
+			return await this._tryRedisDedup(params.deduplicationId, params.ttlS);
 		} catch (err) {
-			return this._useDegradedCache(deduplicationId, err as Error);
+			return this._useDegradedCache(params.deduplicationId, err as Error);
 		}
 	}
 

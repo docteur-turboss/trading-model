@@ -17,9 +17,7 @@ export class AckNackHandler {
 			);
 			return;
 		}
-		this._dispatcher
-			.handleAck(msg.messageId, ctx.identity.instanceId)
-			.catch(() => {});
+		this._dispatcher.handleAck(msg.messageId, ctx.identity.instanceId);
 	}
 
 	handleNack(
@@ -33,8 +31,6 @@ export class AckNackHandler {
 			);
 			return;
 		}
-		this._dispatcher
-			.handleNack(msg.messageId, ctx.identity.instanceId)
-			.catch(() => {});
+		this._dispatcher.handleNack(msg.messageId, ctx.identity.instanceId);
 	}
 }

@@ -1,4 +1,7 @@
-import type { Topic } from "@trading-model/common/domain/primitives";
+import {
+	DurationMs,
+	type Topic,
+} from "@trading-model/common/domain/primitives";
 import { retryWithBackoff } from "@trading-model/common/utils/retry";
 import type Redis from "ioredis";
 
@@ -19,9 +22,9 @@ export class RedisStreamStore {
 			() => this._tryStoreOnce(topic, serialized, redis),
 			{
 				maxRetries: MAX_WAL_RETRY,
-				baseDelayMs: 100,
-				maxDelayMs: 5000,
-				timeoutMs: STORE_OPERATION_TIMEOUT_MS,
+				baseDelayMs: DurationMs.of(100),
+				maxDelayMs: DurationMs.of(5000),
+				timeoutMs: DurationMs.of(STORE_OPERATION_TIMEOUT_MS),
 			}
 		);
 

@@ -1,4 +1,7 @@
-﻿import type { InstanceId } from "@trading-model/common/domain/primitives";
+﻿import type {
+	InstanceId,
+	Topic,
+} from "@trading-model/common/domain/primitives";
 import type Redis from "ioredis";
 import { ENV } from "../../config/env";
 import { logger } from "../../config/logger";
@@ -87,10 +90,13 @@ export class StaleInstanceScanner {
 	): Promise<number> {
 		let removed = 0;
 		for (const instanceId of instanceIds) {
-			if (!(await this._isInstanceStale(redis, instanceId))) {
+			if (!(await this._isInstanceStale(redis, instanceId as InstanceId))) {
 				continue;
 			}
-			removed += await this._removeStaleInstance(redis, instanceId);
+			removed += await this._removeStaleInstance(
+				redis,
+				instanceId as InstanceId
+			);
 		}
 		return removed;
 	}
@@ -100,7 +106,7 @@ export class StaleInstanceScanner {
 		instanceId: InstanceId
 	): Promise<number> {
 		const topics = await this._remover.removeSubscriptions(redis, instanceId);
-		await this._remover.cleanupOrphanedTopics(redis, topics);
+		await this._remover.cleanupOrphanedTopics(redis, topics as Topic[]);
 		logger.info("Removed stale subscription by heartbeat", {
 			instanceId,
 			topics: topics.join(","),

@@ -18,7 +18,11 @@ import {
 } from "../fixtures/broker.fixture";
 import { createMockHttpClient } from "../helpers/broker.helper";
 
-jest.mock("config/address-manager", () => ({
+jest.mock("@trading-model/common/utils/sleep", () => ({
+	sleep: jest.fn(() => Promise.resolve()),
+}));
+
+jest.mock("../../src/config/address-manager", () => ({
 	FIND_A_SERVICE: jest
 		.fn<() => Promise<{ host: string; port: number }>>()
 		.mockResolvedValue({ host: "10.0.0.1", port: 8444 }),

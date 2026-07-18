@@ -141,14 +141,14 @@ describe("MessageStore", () => {
 	});
 
 	afterEach(async () => {
-		await messageStore.drainAndStop(100);
+		await messageStore.wal.drainAndStop(100);
 		messageStore.stop();
 	});
 
 	it("should store a message in Redis stream", async () => {
 		mockXadd.mockResolvedValue("1689000000000-0");
 
-		const result = await messageStore.store("test.topic", {
+		const result = await messageStore.storage.store("test.topic", {
 			metadata: {
 				messageId: "msg-1",
 				topic: "test.topic",
@@ -166,7 +166,7 @@ describe("MessageStore", () => {
 	it("should ensure consumer group", async () => {
 		mockRedis.xgroup = jest.fn().mockResolvedValue(REDIS_RESP.OK);
 
-		await messageStore.ensureConsumerGroup({
+		await messageStore.streamOps.ensureConsumerGroup({
 			topic: "test.topic",
 			groupName: "test-group",
 		});
@@ -184,7 +184,7 @@ describe("MessageStore", () => {
 		const busyError = new Error("BUSYGROUP Consumer Group name already exists");
 		mockRedis.xgroup = jest.fn().mockRejectedValue(busyError);
 
-		await messageStore.ensureConsumerGroup({
+		await messageStore.streamOps.ensureConsumerGroup({
 			topic: "test.topic",
 			groupName: "test-group",
 		});
@@ -194,7 +194,7 @@ describe("MessageStore", () => {
 		const otherError = new Error("OTHER error");
 		mockRedis.xgroup = jest.fn().mockRejectedValue(otherError);
 
-		await messageStore.ensureConsumerGroup({
+		await messageStore.streamOps.ensureConsumerGroup({
 			topic: "test.topic",
 			groupName: "test-group",
 		});
@@ -208,7 +208,7 @@ describe("MessageStore", () => {
 			],
 		]);
 
-		const messages = await messageStore.readFromGroup({
+		const messages = await messageStore.streamOps.readFromGroup({
 			topic: "test.topic",
 			groupName: "test-group",
 			consumerId: "consumer-1",
@@ -223,7 +223,7 @@ describe("MessageStore", () => {
 	it("should return empty when no messages in group", async () => {
 		mockXreadgroup.mockResolvedValue(null);
 
-		const messages = await messageStore.readFromGroup({
+		const messages = await messageStore.streamOps.readFromGroup({
 			topic: "test.topic",
 			groupName: "test-group",
 			consumerId: "consumer-1",
@@ -233,7 +233,7 @@ describe("MessageStore", () => {
 	});
 
 	it("should ack a message", async () => {
-		await messageStore.ackMessage({
+		await messageStore.streamOps.ackMessage({
 			topic: "test.topic",
 			groupName: "test-group",
 			messageId: "1689000000000-0",
@@ -257,7 +257,7 @@ describe("MessageStore", () => {
 			],
 		]);
 
-		const messages = await messageStore.getMessagesAfter({
+		const messages = await messageStore.streamOps.getMessagesAfter({
 			topic: "test.topic",
 			afterTimestamp: Date.now() - 3600000,
 			limit: 10,
@@ -269,7 +269,7 @@ describe("MessageStore", () => {
 	it("should return empty when xrange has no data field", async () => {
 		mockXrange.mockResolvedValue([["id", ["other-field", "value"]]]);
 
-		const messages = await messageStore.getMessagesAfter({
+		const messages = await messageStore.streamOps.getMessagesAfter({
 			topic: "test.topic",
 			afterTimestamp: 0,
 			limit: 10,
@@ -288,7 +288,7 @@ describe("MessageStore", () => {
 			],
 		]);
 
-		const messages = await messageStore.getMessagesBetween({
+		const messages = await messageStore.streamOps.getMessagesBetween({
 			topic: "test.topic",
 			timeRange: DateRange.fromUnixTimestamps({
 				fromMs: Date.now() - 7200000,
@@ -303,7 +303,7 @@ describe("MessageStore", () => {
 	it("should get pending count", async () => {
 		mockXpending.mockResolvedValue({ pending: 5 } as never);
 
-		const count = await messageStore.getPendingCount({
+		const count = await messageStore.streamOps.getPendingCount({
 			topic: "test.topic",
 			groupName: "test-group",
 		});
@@ -312,7 +312,7 @@ describe("MessageStore", () => {
 	});
 
 	it("should add pending ack", async () => {
-		await messageStore.addPendingAck("inst-1", "msg-1", {
+		await messageStore.pendingAckOps.addPendingAck("inst-1", "msg-1", {
 			topic: "test.topic",
 			subscriberUrl: "http://sub",
 			message: {} as never,
@@ -322,7 +322,7 @@ describe("MessageStore", () => {
 	});
 
 	it("should remove pending ack", async () => {
-		await messageStore.removePendingAck("inst-1", "msg-1");
+		await messageStore.pendingAckOps.removePendingAck("inst-1", "msg-1");
 
 		expect(mockHdel).toHaveBeenCalled();
 	});
@@ -336,7 +336,7 @@ describe("MessageStore", () => {
 			],
 		]);
 
-		const acks = await messageStore.getPendingAcks("inst-1");
+		const acks = await messageStore.pendingAckOps.getPendingAcks("inst-1");
 
 		expect(acks["msg-1"]).toBeDefined();
 	});
@@ -344,7 +344,7 @@ describe("MessageStore", () => {
 	it("should deduplicate with Redis", async () => {
 		mockSet.mockResolvedValue(REDIS_RESP.OK);
 
-		const result = await messageStore.tryDeduplicate({
+		const result = await messageStore.dedupOps.tryDeduplicate({
 			deduplicationId: "dedup-1",
 			ttlS: 300,
 		});
@@ -353,13 +353,13 @@ describe("MessageStore", () => {
 	});
 
 	it("should reject duplicate", async () => {
-		const first = await messageStore.tryDeduplicate({
+		const first = await messageStore.dedupOps.tryDeduplicate({
 			deduplicationId: "dedup-test-2",
 			ttlS: 300,
 		});
 		expect(first).toBe(true);
 
-		const second = await messageStore.tryDeduplicate({
+		const second = await messageStore.dedupOps.tryDeduplicate({
 			deduplicationId: "dedup-test-2",
 			ttlS: 300,
 		});
@@ -369,13 +369,13 @@ describe("MessageStore", () => {
 	it("should handle dedup with Redis down", async () => {
 		mockSet.mockRejectedValue(new Error("redis down"));
 
-		const result = await messageStore.tryDeduplicate({
+		const result = await messageStore.dedupOps.tryDeduplicate({
 			deduplicationId: "dedup-2",
 			ttlS: 300,
 		});
 		expect(result).toBe(true);
 
-		const duplicate = await messageStore.tryDeduplicate({
+		const duplicate = await messageStore.dedupOps.tryDeduplicate({
 			deduplicationId: "dedup-2",
 			ttlS: 300,
 		});
@@ -387,7 +387,7 @@ describe("MessageStore", () => {
 			["name", "test-group", "last-delivered-id", "1689000000000-0"],
 		]);
 
-		const lag = await messageStore.getStreamLag({
+		const lag = await messageStore.streamOps.getStreamLag({
 			topic: "test.topic",
 			groupName: "test-group",
 		});
@@ -397,7 +397,7 @@ describe("MessageStore", () => {
 	it("should return 0 lag when no group info", async () => {
 		mockCall.mockResolvedValue([]);
 
-		const lag = await messageStore.getStreamLag({
+		const lag = await messageStore.streamOps.getStreamLag({
 			topic: "test.topic",
 			groupName: "test-group",
 		});
@@ -407,18 +407,18 @@ describe("MessageStore", () => {
 	it("should drain wal on startup", async () => {
 		mockLlen.mockResolvedValue(0);
 
-		await messageStore.drainWalOnStartup();
+		await messageStore.wal.drainOnStartup();
 	});
 
 	it("should handle claim pending messages with no lock", async () => {
 		mockSet.mockResolvedValue(null);
 
-		const result = await messageStore.claimPendingMessages(
-			"test-group",
-			"consumer-1",
-			60000,
-			100
-		);
+		const result = await messageStore.claimOps.claimPendingMessages({
+			groupName: "test-group" as never,
+			consumerId: "consumer-1" as never,
+			minIdleMs: 60000 as never,
+			count: 100 as never,
+		});
 
 		expect(result).toBe(0);
 	});
@@ -430,18 +430,18 @@ describe("MessageStore", () => {
 		]);
 		mockXclaim.mockResolvedValue([["1689000000000-0", ["data", "{}"]]]);
 
-		const result = await messageStore.claimPendingMessages(
-			"test-group",
-			"consumer-1",
-			60000,
-			100
-		);
+		const result = await messageStore.claimOps.claimPendingMessages({
+			groupName: "test-group" as never,
+			consumerId: "consumer-1" as never,
+			minIdleMs: 60000 as never,
+			count: 100 as never,
+		});
 
 		expect(result).toBe(1);
 	});
 
 	it("should drain and stop", async () => {
-		await messageStore.drainAndStop(100);
+		await messageStore.wal.drainAndStop(100);
 	});
 
 	it("should recover pending acks", async () => {
@@ -461,21 +461,30 @@ describe("MessageStore", () => {
 			],
 		]);
 
-		const count = await messageStore.recoverPendingAcks("inst-1", 120000);
+		const count = await messageStore.pendingAckOps.recoverPendingAcks(
+			"inst-1",
+			120000
+		);
 		expect(count).toBe(1);
 	});
 
 	it("should recover pending acks with parse error", async () => {
 		mockHscan.mockResolvedValue(["0", ["bad-msg", "not-json"]]);
 
-		const count = await messageStore.recoverPendingAcks("inst-1", 120000);
+		const count = await messageStore.pendingAckOps.recoverPendingAcks(
+			"inst-1",
+			120000
+		);
 		expect(count).toBe(1);
 	});
 
 	it("should recover pending acks with error", async () => {
 		mockHscan.mockRejectedValue(new Error("scan error"));
 
-		const count = await messageStore.recoverPendingAcks("inst-1", 120000);
+		const count = await messageStore.pendingAckOps.recoverPendingAcks(
+			"inst-1",
+			120000
+		);
 		expect(count).toBe(0);
 	});
 
@@ -495,7 +504,10 @@ describe("MessageStore", () => {
 			],
 		]);
 
-		const count = await messageStore.recoverPendingAcks("inst-1", 120000);
+		const count = await messageStore.pendingAckOps.recoverPendingAcks(
+			"inst-1",
+			120000
+		);
 		expect(count).toBe(1);
 	});
 
@@ -504,7 +516,7 @@ describe("MessageStore", () => {
 			["name", "wrong-group", "last-delivered-id", "1689000000000-0"],
 		]);
 
-		const lag = await messageStore.getStreamLag({
+		const lag = await messageStore.streamOps.getStreamLag({
 			topic: "test.topic",
 			groupName: "test-group",
 		});
@@ -529,26 +541,29 @@ describe("MessageStore", () => {
 				]),
 		});
 
-		await messageStore.drainWal(500);
+		await messageStore.wal.drain(500);
 	});
 
 	it("should drain wal with no pending entries", async () => {
 		mockLlen.mockResolvedValue(0);
 
-		await messageStore.drainWal(500);
+		await messageStore.wal.drain(500);
 	});
 
 	it("should be idempotent for drainWal", async () => {
 		mockLlen.mockResolvedValue(0);
 
-		await Promise.all([messageStore.drainWal(500), messageStore.drainWal(500)]);
+		await Promise.all([
+			messageStore.wal.drain(500),
+			messageStore.wal.drain(500),
+		]);
 	});
 
 	it("should handle wal flush with malformed entries", async () => {
 		mockEval.mockResolvedValueOnce(["not-json"]).mockResolvedValue([]);
 		mockLlen.mockResolvedValue(1);
 
-		await messageStore.drainWal(500);
+		await messageStore.wal.drain(500);
 	});
 
 	it("should handle wal flush with consecutive errors", async () => {
@@ -565,6 +580,6 @@ describe("MessageStore", () => {
 				.mockResolvedValue([failResult]),
 		});
 
-		await messageStore.drainWal(500);
+		await messageStore.wal.drain(500);
 	});
 });

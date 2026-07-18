@@ -1,4 +1,5 @@
 import {
+	type Limit,
 	type Topic,
 	toTopic,
 	UnixTimestamp,
@@ -8,9 +9,9 @@ import { logger } from "../../config/logger";
 import { RedisKeyBuilder } from "../../infrastructure/redis/redis-key-builder";
 import { ArchiveTimerScheduler } from "./archive-timer-scheduler";
 import { ArchiveTopicsCache } from "./archive-topics-cache";
-import type { IStreamGroupOps } from "./message-routing-facade";
 import { MongoClientManager } from "./mongo-client-manager";
 import { StreamGroupOperations } from "./stream-group-operations";
+import type { IStreamGroupOps } from "./stream-group-ops-interface";
 
 export class MongoArchiveStore {
 	private readonly _routing: IStreamGroupOps;
@@ -56,7 +57,7 @@ export class MongoArchiveStore {
 		}
 
 		for (const topic of topics) {
-			await this._archiveTopic(topic, client);
+			await this._archiveTopic(topic as Topic, client);
 		}
 	}
 
@@ -82,7 +83,7 @@ export class MongoArchiveStore {
 		return this._routing.getMessagesAfter({
 			topic: toTopic(topic),
 			afterTimestamp: UnixTimestamp.of(Date.now() - 3600_000),
-			limit: ENV.MONGO_ARCHIVE_BATCH_SIZE,
+			limit: ENV.MONGO_ARCHIVE_BATCH_SIZE as Limit,
 		});
 	}
 

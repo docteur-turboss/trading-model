@@ -4,9 +4,10 @@ import { logger } from "../../config/logger";
 import { getStreamClient } from "../../config/redis";
 import type { RedisKeyBuilder } from "../../infrastructure/redis/redis-key-builder";
 import type { PendingAckData } from "./messaging-types";
+import type { IPendingAckOps } from "./pending-ack-ops-interface";
 import { StaleEntryScanner } from "./stale-entry-scanner";
 
-export class PendingAckStore {
+export class PendingAckStore implements IPendingAckOps {
 	private readonly _keys: RedisKeyBuilder;
 	private readonly _staleScanner = new StaleEntryScanner();
 
@@ -18,7 +19,7 @@ export class PendingAckStore {
 		return this._keys.key("pending", instanceId);
 	}
 
-	async add(
+	async addPendingAck(
 		instanceId: InstanceId,
 		messageId: string,
 		data: PendingAckData
@@ -32,12 +33,15 @@ export class PendingAckStore {
 		await redis.expire(this._pendingKey(instanceId), ENV.REDIS_MESSAGE_TTL_S);
 	}
 
-	async remove(instanceId: InstanceId, messageId: string): Promise<void> {
+	async removePendingAck(
+		instanceId: InstanceId,
+		messageId: string
+	): Promise<void> {
 		const redis = await getStreamClient();
 		await redis.hdel(this._pendingKey(instanceId), messageId);
 	}
 
-	async getAll(
+	async getPendingAcks(
 		instanceId: InstanceId
 	): Promise<Record<string, PendingAckData>> {
 		const redis = await getStreamClient();
@@ -73,12 +77,12 @@ export class PendingAckStore {
 		return nextCursor;
 	}
 
-	async recoverStale(
+	async recoverPendingAcks(
 		ownInstanceId: string,
 		maxAgeMs = 120_000
 	): Promise<number> {
 		try {
-			return await this._doRecoverStale(ownInstanceId, maxAgeMs);
+			return await this._doRecoverPendingAcks(ownInstanceId, maxAgeMs);
 		} catch (err) {
 			logger.warn("Failed to recover pending acks", {
 				context: { error: (err as Error).message },
@@ -87,12 +91,12 @@ export class PendingAckStore {
 		}
 	}
 
-	private async _doRecoverStale(
+	private async _doRecoverPendingAcks(
 		ownInstanceId: string,
 		maxAgeMs: number
 	): Promise<number> {
 		const redis = await getStreamClient();
-		const pendingKey = this._pendingKey(ownInstanceId);
+		const pendingKey = this._pendingKey(ownInstanceId as InstanceId);
 		const now = Date.now();
 
 		const staleIds = await this._staleScanner.scan(

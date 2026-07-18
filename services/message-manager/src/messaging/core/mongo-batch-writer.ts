@@ -64,7 +64,8 @@ export class MongoBatchWriter {
 		attempt: number
 	): Promise<Error | null> {
 		try {
-			await col.bulkWrite(bulkOps);
+			// biome-ignore lint/suspicious/noExplicitAny: bulkOps is unknown[] but mongodb expects any[]
+			await col.bulkWrite(bulkOps as any);
 			return null;
 		} catch (err) {
 			this._logBulkWriteWarning(err as Error, attempt);

@@ -51,7 +51,7 @@ export class MemoryWalFlusher {
 
 	private _flushBatch(batch: MemoryWalEntry[]): Promise<boolean> {
 		if (batch.length === 0) {
-			return false;
+			return Promise.resolve(false);
 		}
 		const serialized = batch.map((entry) =>
 			JSON.stringify({

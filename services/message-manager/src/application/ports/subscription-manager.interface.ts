@@ -1,6 +1,6 @@
 import type { Topic } from "@trading-model/common/domain/primitives";
 import type { TopicBinding } from "@trading-model/common/domain/topic-binding";
-import type { TopicSubscription } from "./messaging-types";
+import type { TopicSubscription } from "../../messaging/core/messaging-types";
 
 export type SubscriptionEntry = TopicBinding;
 

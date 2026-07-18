@@ -5,12 +5,12 @@ import type {
 } from "../../src/messaging/core/message";
 
 export const mockServiceIdentity = {
-	serviceName: "FinancialScraperService" as const,
+	serviceName: "financial-scraper-service" as const,
 	instanceId: "instance-1",
 };
 
 export const mockSubscriberIdentity = {
-	serviceName: "TraderTrainingService" as const,
+	serviceName: "trader-trainer" as const,
 	instanceId: "subscriber-1",
 };
 

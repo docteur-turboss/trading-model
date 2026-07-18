@@ -23,21 +23,12 @@ const testKeys = new RedisKeyBuilder("test:");
 
 // These tests cover default-parameter branches in facade/operations files
 describe("branch coverage: default parameter branches", () => {
-	it("pending-ack-store recoverStale default param", async () => {
+	it("pending-ack-store recoverPendingAcks default param", async () => {
 		const {
 			PendingAckStore,
 		} = require("../../../../src/messaging/core/pending-ack-store");
 		const store = new PendingAckStore(testKeys);
-		const result = await store.recoverStale("instance-1");
-		expect(result).toBe(0);
-	});
-
-	it("message-routing-facade recoverPendingAcks default param", async () => {
-		const {
-			MessageRoutingFacade,
-		} = require("../../../../src/messaging/core/message-routing-facade");
-		const facade = new MessageRoutingFacade(testKeys);
-		const result = await facade.recoverPendingAcks("instance-1");
+		const result = await store.recoverPendingAcks("instance-1");
 		expect(result).toBe(0);
 	});
 

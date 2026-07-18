@@ -1,38 +1,36 @@
-import type {
-	InstanceId,
-	Topic,
-} from "@trading-model/common/domain/primitives";
-import type { Message } from "@trading-model/validation/contracts/message.types";
 import { ENV } from "../../config/env";
 import { RedisKeyBuilder } from "../../infrastructure/redis/redis-key-builder";
+import { ClaimExecutor } from "./claim-executor";
+import { DeduplicationService } from "./deduplication-service";
 import { MemoryWalBuffer } from "./memory-wal-buffer";
-import { MessageRoutingFacade } from "./message-routing-facade";
-import type { IMessageRouting } from "./message-routing-interface";
-import type { IMessageStorage } from "./message-storage-interface";
 import { MessageStreamWriter } from "./message-stream-writer";
-import type {
-	AckRef,
-	ClaimParams,
-	DedupConfig,
-	MessageQuery,
-	PendingAckData,
-	StreamGroupRef,
-} from "./messaging-types";
+import { PendingAckStore } from "./pending-ack-store";
+import { StreamGroupOperations } from "./stream-group-operations";
 import { WalFlusherService } from "./wal-flusher-service";
-import type { IWalLifecycle } from "./wal-lifecycle-interface";
 
-export class MessageStore
-	implements IMessageRouting, IMessageStorage, IWalLifecycle
-{
+export { ClaimExecutor } from "./claim-executor";
+export { DeduplicationService } from "./deduplication-service";
+export { MessageStreamWriter } from "./message-stream-writer";
+export { PendingAckStore } from "./pending-ack-store";
+export { StreamGroupOperations } from "./stream-group-operations";
+export { WalFlusherService } from "./wal-flusher-service";
+
+export class MessageStore {
 	private readonly _keys: RedisKeyBuilder;
+	private readonly _streamOps: StreamGroupOperations;
+	private readonly _pendingAckOps: PendingAckStore;
+	private readonly _claimOps: ClaimExecutor;
+	private readonly _dedupOps: DeduplicationService;
 	private readonly _memoryWalBuffer: MemoryWalBuffer;
-	private readonly _routingFacade: MessageRoutingFacade;
 	private readonly _walFlusher: WalFlusherService;
 	private readonly _streamWriter: MessageStreamWriter;
 
 	constructor() {
 		this._keys = new RedisKeyBuilder(ENV.REDIS_PREFIX);
-		this._routingFacade = new MessageRoutingFacade(this._keys);
+		this._streamOps = new StreamGroupOperations(this._keys);
+		this._pendingAckOps = new PendingAckStore(this._keys);
+		this._claimOps = new ClaimExecutor(this._keys);
+		this._dedupOps = new DeduplicationService(this._keys);
 		this._memoryWalBuffer = new MemoryWalBuffer(this._keys);
 		this._walFlusher = new WalFlusherService(this._keys, this._memoryWalBuffer);
 		this._streamWriter = new MessageStreamWriter(this._keys, this._walFlusher);
@@ -40,8 +38,20 @@ export class MessageStore
 		this._memoryWalBuffer.startFlusher();
 	}
 
-	get routing(): MessageRoutingFacade {
-		return this._routingFacade;
+	get streamOps(): StreamGroupOperations {
+		return this._streamOps;
+	}
+
+	get pendingAckOps(): PendingAckStore {
+		return this._pendingAckOps;
+	}
+
+	get claimOps(): ClaimExecutor {
+		return this._claimOps;
+	}
+
+	get dedupOps(): DeduplicationService {
+		return this._dedupOps;
 	}
 
 	get storage(): MessageStreamWriter {
@@ -52,72 +62,8 @@ export class MessageStore
 		return this._walFlusher;
 	}
 
-	recoverPendingAcks(
-		ownInstanceId: string,
-		maxAgeMs = 120_000
-	): Promise<number> {
-		return this._routingFacade.recoverPendingAcks(ownInstanceId, maxAgeMs);
-	}
-	claimPendingMessages(params: ClaimParams): Promise<number> {
-		return this._routingFacade.claimPendingMessages(params);
-	}
-	ensureConsumerGroup(ref: StreamGroupRef): Promise<void> {
-		return this._routingFacade.ensureConsumerGroup(ref);
-	}
-	readFromGroup(
-		params: import("./stream-group-manager").ReadFromGroupParams
-	): Promise<Array<{ id: string; data: string }>> {
-		return this._routingFacade.readFromGroup(params);
-	}
-	ackMessage(ref: AckRef): Promise<void> {
-		return this._routingFacade.ackMessage(ref);
-	}
-	getPendingCount(ref: StreamGroupRef): Promise<number> {
-		return this._routingFacade.getPendingCount(ref);
-	}
-	getMessagesAfter(query: MessageQuery): Promise<Message[]> {
-		return this._routingFacade.getMessagesAfter(query);
-	}
-	getMessagesBetween(
-		params: import("./stream-group-manager").GetMessagesBetweenParams
-	): Promise<Message[]> {
-		return this._routingFacade.getMessagesBetween(params);
-	}
-	addPendingAck(
-		instanceId: InstanceId,
-		messageId: string,
-		data: PendingAckData
-	): Promise<void> {
-		return this._routingFacade.addPendingAck(instanceId, messageId, data);
-	}
-	removePendingAck(instanceId: InstanceId, messageId: string): Promise<void> {
-		return this._routingFacade.removePendingAck(instanceId, messageId);
-	}
-	getPendingAcks(
-		instanceId: InstanceId
-	): Promise<Record<string, PendingAckData>> {
-		return this._routingFacade.getPendingAcks(instanceId);
-	}
-	getStreamLag(ref: StreamGroupRef): Promise<number> {
-		return this._routingFacade.getStreamLag(ref);
-	}
-	tryDeduplicate(params: DedupConfig): Promise<boolean> {
-		return this._routingFacade.tryDeduplicate(params);
-	}
-	store(topic: Topic, message: Message): Promise<string> {
-		return this._streamWriter.store(topic, message);
-	}
-	async drainAndStop(timeoutMs = 10_000): Promise<void> {
-		await this._walFlusher.drainAndStop(timeoutMs);
-	}
 	stop(): void {
 		this._walFlusher.stop();
 		this._memoryWalBuffer.stopFlusher();
-	}
-	async drainWalOnStartup(): Promise<void> {
-		await this._walFlusher.drainOnStartup();
-	}
-	async drainWal(timeoutMs = 10_000): Promise<void> {
-		await this._walFlusher.drain(timeoutMs);
 	}
 }

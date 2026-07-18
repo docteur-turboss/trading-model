@@ -64,7 +64,7 @@ export class TopicClaimScanner {
 			"COUNT",
 			100
 		);
-		topics.push(...batch);
+		topics.push(...(batch as Topic[]));
 		return nextCursor;
 	}
 }

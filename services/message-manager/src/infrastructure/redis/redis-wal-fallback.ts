@@ -1,5 +1,5 @@
 import { getStreamClient } from "../../config/redis";
-import type { MemoryWalEntry } from "./memory-wal-entry";
+import type { MemoryWalEntry } from "../../messaging/core/memory-wal-entry";
 import type { RedisKeyBuilder } from "./redis-key-builder";
 
 export class RedisWalFallback {

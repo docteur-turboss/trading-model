@@ -54,7 +54,7 @@ export class PublishGuard {
 		if (!dedupId) {
 			return Promise.resolve(true);
 		}
-		return this._dedup.tryDeduplicate(dedupId, 300);
+		return this._dedup.tryDeduplicate({ deduplicationId: dedupId, ttlS: 300 });
 	}
 
 	checkBackpressure(ws: WebSocket): boolean {

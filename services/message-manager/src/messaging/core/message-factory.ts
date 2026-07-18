@@ -1,5 +1,8 @@
 import { randomUUID } from "node:crypto";
-import { toMessageId } from "@trading-model/common/domain/primitives";
+import {
+	toMessageId,
+	UnixTimestamp,
+} from "@trading-model/common/domain/primitives";
 import type {
 	Message,
 	MessageMetadata,
@@ -13,7 +16,7 @@ export function createMessage(
 	return {
 		metadata: {
 			...metadata,
-			emittedAt: new Date(),
+			emittedAt: UnixTimestamp.now(),
 			messageId: toMessageId(randomUUID()),
 		},
 		payload: sanitizePayload(payload),

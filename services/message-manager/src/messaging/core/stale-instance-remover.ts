@@ -25,7 +25,7 @@ export class StaleInstanceRemover {
 		const leaseKey = this._keys.leaseKey(instanceId);
 		const topics = await redis.hkeys(leaseKey);
 		const multi = redis.multi();
-		this._addRemovalCommands(multi, instanceId, leaseKey, topics);
+		this._addRemovalCommands(multi, instanceId, leaseKey, topics as Topic[]);
 		await multi.exec();
 		return topics;
 	}

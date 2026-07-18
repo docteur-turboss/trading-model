@@ -71,19 +71,21 @@ export class DeliveryErrorHandler {
 		) => Promise<boolean>
 	> = {
 		[ErrorActionType.DLQ]: async (message, context, classification) => {
-			if (classification.reason === DlqReason.MaxRetriesExceeded) {
-				this._recordFailure();
-				logger.error("Max retries exceeded and routing to DLQ", {
-					topic: this._topic,
-					service: this._serviceName,
+			if (classification.action === ErrorActionType.DLQ) {
+				if (classification.reason === DlqReason.MaxRetriesExceeded) {
+					this._recordFailure();
+					logger.error("Max retries exceeded and routing to DLQ", {
+						topic: this._topic,
+						service: this._serviceName,
+						deliveryAttempt: context.deliveryAttempt,
+					});
+				}
+				await this._deliveryPort.markDeadLetter({
+					message,
+					reason: classification.reason,
 					deliveryAttempt: context.deliveryAttempt,
 				});
 			}
-			await this._deliveryPort.markDeadLetter({
-				message,
-				reason: classification.reason,
-				deliveryAttempt: context.deliveryAttempt,
-			});
 			return true;
 		},
 		[ErrorActionType.SWALLOW]: async () => true,

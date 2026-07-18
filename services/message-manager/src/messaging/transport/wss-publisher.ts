@@ -1,4 +1,6 @@
 import { context, propagation } from "@opentelemetry/api";
+import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
+import type { Topic } from "@trading-model/common/domain/primitives";
 import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
 import type { MessageMetadata } from "@trading-model/validation/contracts/message.types";
 import type WebSocket from "ws";
@@ -35,13 +37,18 @@ export class WssPublisher {
 		ws: WebSocket,
 		ctx: { identity: ServiceIdentity }
 	): Promise<boolean> {
-		if (!this._rateLimiter.checkAndReject(ctx.identity.serviceName, ws)) {
+		if (
+			!this._rateLimiter.checkAndReject(
+				ctx.identity.serviceName as ServiceInstanceName,
+				ws
+			)
+		) {
 			return false;
 		}
 		const topic = (msg.metadata as Record<string, unknown>)?.topic as
 			| string
 			| undefined;
-		if (!(await this._guard.checkTopicAuth(topic, ctx, ws))) {
+		if (!(await this._guard.checkTopicAuth(topic as Topic, ctx, ws))) {
 			return false;
 		}
 		if (!(await this._guard.checkDedup(msg))) {

@@ -12,7 +12,7 @@ jest.mock("@trading-model/common/utils/sleep", () => ({
 	sleep: jest.fn(() => Promise.resolve()),
 }));
 
-jest.mock("config/address-manager", () => ({
+jest.mock("../../../../src/config/address-manager", () => ({
 	FIND_A_SERVICE: jest
 		.fn<() => Promise<{ host: string; port: number }>>()
 		.mockResolvedValue({ host: "10.0.0.1", port: 8444 }),

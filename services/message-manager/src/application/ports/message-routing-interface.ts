@@ -7,7 +7,7 @@ import type {
 	MessageQuery,
 	PendingAckData,
 	StreamGroupRef,
-} from "./messaging-types";
+} from "../../messaging/core/messaging-types";
 
 export interface IMessageRouting {
 	recoverPendingAcks(
@@ -17,13 +17,13 @@ export interface IMessageRouting {
 	claimPendingMessages(params: ClaimParams): Promise<number>;
 	ensureConsumerGroup(ref: StreamGroupRef): Promise<void>;
 	readFromGroup(
-		params: import("./stream-group-manager").ReadFromGroupParams
+		params: import("../../messaging/core/stream-group-manager").ReadFromGroupParams
 	): Promise<Array<{ id: string; data: string }>>;
 	ackMessage(ref: AckRef): Promise<void>;
 	getPendingCount(ref: StreamGroupRef): Promise<number>;
 	getMessagesAfter(query: MessageQuery): Promise<Message[]>;
 	getMessagesBetween(
-		params: import("./stream-group-manager").GetMessagesBetweenParams
+		params: import("../../messaging/core/stream-group-manager").GetMessagesBetweenParams
 	): Promise<Message[]>;
 	addPendingAck(
 		instanceId: InstanceId,

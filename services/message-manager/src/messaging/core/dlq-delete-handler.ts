@@ -1,4 +1,5 @@
 import type { HttpClient } from "@trading-model/common/config/http-client";
+import { DurationMs, URLString } from "@trading-model/common/domain/primitives";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import { HttpMethod } from "@trading-model/validation/contracts/signed-request";
 import { logger } from "../../config/logger";
@@ -21,13 +22,13 @@ export class DlqDeleteHandler {
 	private async _doDelete(entryIds: string[]): Promise<void> {
 		const body = { ids: entryIds };
 		await this._httpClient.post(
-			`${this._serviceUrl}/dlq/delete`,
+			URLString.of(`${this._serviceUrl}/dlq/delete`),
 			body,
 			signedOptions({
 				method: HttpMethod.Post,
 				path: "/dlq/delete",
 				body,
-				extra: { timeoutMs: 5000 },
+				extra: { timeoutMs: DurationMs.of(5000) },
 			})
 		);
 	}

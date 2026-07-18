@@ -1,6 +1,7 @@
 ﻿import type { HttpClient } from "@trading-model/common/config/http-client";
 import { HttpMethod } from "@trading-model/common/config/http-types";
 import type { PositiveInt } from "@trading-model/common/domain/primitives";
+import { DurationMs, URLString } from "@trading-model/common/domain/primitives";
 import {
 	messageManagerError,
 	normalizeError,
@@ -74,13 +75,13 @@ export class DlqSendHandler {
 
 	private async _postEntry(entry: DlqEntry): Promise<void> {
 		await this._httpClient.post(
-			`${this._serviceUrl}/dlq`,
+			URLString.of(`${this._serviceUrl}/dlq`),
 			entry,
 			signedOptions({
 				method: HttpMethod.Post,
 				path: "/dlq",
 				body: entry,
-				extra: { timeoutMs: 5000 },
+				extra: { timeoutMs: DurationMs.of(5000) },
 			})
 		);
 	}

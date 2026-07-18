@@ -4,6 +4,7 @@
  */
 
 import { toInstanceId, toTopic } from "@trading-model/common/domain/primitives";
+import type { HttpStatusCode } from "@trading-model/common/http-status";
 import { catchSync } from "@trading-model/common/middleware/catch-error";
 import { sendResponse } from "@trading-model/common/middleware/response-exception";
 import type { MessageMetadata } from "@trading-model/validation/contracts/message.types";
@@ -22,12 +23,15 @@ export const SUBSCRIPTION_TO_A_TOPIC = (dispatcher: Dispatcher) =>
 		const parsed = SUBSCRIBE_SCHEMA.safeParse(req.body);
 
 		if (!parsed.success) {
-			return sendResponse({ error: parsed.error.message }, 400);
+			return sendResponse(
+				{ error: parsed.error.message },
+				400 as HttpStatusCode
+			);
 		}
 
 		dispatcher.subscribe(parsed.data);
 
-		return sendResponse(undefined, 204);
+		return sendResponse(undefined, 204 as HttpStatusCode);
 	});
 
 /**
@@ -38,7 +42,10 @@ export const DELETE_A_SUBSCRIPTION = (dispatcher: Dispatcher) =>
 		const parsed = UNSUBSCRIBE_SCHEMA.safeParse(req.body);
 
 		if (!parsed.success) {
-			return sendResponse({ error: parsed.error.message }, 400);
+			return sendResponse(
+				{ error: parsed.error.message },
+				400 as HttpStatusCode
+			);
 		}
 
 		dispatcher.unsubscribe({
@@ -46,7 +53,7 @@ export const DELETE_A_SUBSCRIPTION = (dispatcher: Dispatcher) =>
 			instanceId: toInstanceId(parsed.data.instanceId),
 		});
 
-		return sendResponse(undefined, 204);
+		return sendResponse(undefined, 204 as HttpStatusCode);
 	});
 
 /**
@@ -57,7 +64,10 @@ export const PUBLISH_A_MESSAGE = (dispatcher: Dispatcher) =>
 		const parsed = PUBLISH_SCHEMA.safeParse(req.body);
 
 		if (!parsed.success) {
-			return sendResponse({ error: parsed.error.message }, 400);
+			return sendResponse(
+				{ error: parsed.error.message },
+				400 as HttpStatusCode
+			);
 		}
 
 		await dispatcher.publish(
@@ -65,5 +75,5 @@ export const PUBLISH_A_MESSAGE = (dispatcher: Dispatcher) =>
 			parsed.data.metadata as Omit<MessageMetadata, "emittedAt" | "messageId">
 		);
 
-		return sendResponse(undefined, 204);
+		return sendResponse(undefined, 204 as HttpStatusCode);
 	});

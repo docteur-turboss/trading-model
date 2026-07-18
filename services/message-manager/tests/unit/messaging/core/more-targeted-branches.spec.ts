@@ -65,7 +65,7 @@ describe("message-stream-writer serializer and store", () => {
 });
 
 describe("pending-ack-store branches", () => {
-	it("recoverStale with stale entries detected", async () => {
+	it("recoverPendingAcks with stale entries detected", async () => {
 		const now = Date.now();
 		const mockRedis = {
 			hscan: jest.fn().mockResolvedValue([
@@ -89,13 +89,13 @@ describe("pending-ack-store branches", () => {
 				PendingAckStore,
 			} = require("../../../../src/messaging/core/pending-ack-store");
 			const store = new PendingAckStore(testKeys);
-			return store.recoverStale("i1", 120000).then((count: number) => {
+			return store.recoverPendingAcks("i1", 120000).then((count: number) => {
 				expect(count).toBe(1);
 			});
 		});
 	});
 
-	it("recoverStale error returns 0", async () => {
+	it("recoverPendingAcks error returns 0", async () => {
 		jest.isolateModules(() => {
 			const redis = require("../../../../src/config/redis");
 			redis.getStreamClient = jest.fn().mockRejectedValue(new Error("err"));
@@ -105,7 +105,7 @@ describe("pending-ack-store branches", () => {
 				PendingAckStore,
 			} = require("../../../../src/messaging/core/pending-ack-store");
 			const store = new PendingAckStore(testKeys);
-			return store.recoverStale("i1", 120000).then((count: number) => {
+			return store.recoverPendingAcks("i1", 120000).then((count: number) => {
 				expect(count).toBe(0);
 			});
 		});

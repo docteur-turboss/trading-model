@@ -6,8 +6,9 @@ import type {
 	GetMessagesBetweenParams,
 	ReadFromGroupParams,
 } from "./stream-group-manager";
+import type { IStreamGroupOps } from "./stream-group-ops-interface";
 
-export class StreamGroupOperations {
+export class StreamGroupOperations implements IStreamGroupOps {
 	private readonly _streamGroup: StreamGroupFacade;
 
 	constructor(keys: RedisKeyBuilder) {
