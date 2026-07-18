@@ -4,7 +4,6 @@ import type {
 	CorrelationId,
 	ServiceId,
 } from "@trading-model/common/domain/primitives";
-import { MongoFilterBuilder } from "./mongo-filter-builder";
 
 type MongoDoc = Record<string, unknown>;
 
@@ -15,27 +14,29 @@ export interface LogQuery extends QueryEnvelope {
 	search?: string;
 }
 
-export class LogQueryBuilder extends MongoFilterBuilder<LogQuery> {
-	build(params: LogQuery): MongoDoc {
-		return this.buildFilter(params);
+export function buildLogQueryFilter(params: LogQuery): MongoDoc {
+	const filter: MongoDoc = {};
+	if (params.serviceName) {
+		filter["service.name"] = params.serviceName;
 	}
-
-	buildFilter(params: LogQuery): MongoDoc {
-		const filter: MongoDoc = {};
-
-		this._addIfPresent(filter, "service.name", params.serviceName);
-		this._addIfPresent(filter, "level", params.level);
-		this._addIfPresent(filter, "correlationId", params.correlationId);
-		this._addDateRangeFilter(filter, params.dateRange, "receivedAt");
-		this._addSearchFilter(filter, params);
-
-		return filter;
+	if (params.level) {
+		filter.level = params.level;
 	}
-
-	private _addSearchFilter(filter: MongoDoc, params: LogQuery): void {
-		if (!params.search) {
-			return;
+	if (params.correlationId) {
+		filter.correlationId = params.correlationId;
+	}
+	if (params.dateRange) {
+		const rangeFilter: Record<string, Date | undefined> = {};
+		if (params.dateRange.start) {
+			rangeFilter.$gte = params.dateRange.start;
 		}
+		if (params.dateRange.end) {
+			rangeFilter.$lte = params.dateRange.end;
+		}
+		filter.receivedAt = rangeFilter;
+	}
+	if (params.search) {
 		filter.message = { $regex: params.search, $options: "i" };
 	}
+	return filter;
 }

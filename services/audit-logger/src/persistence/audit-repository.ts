@@ -53,7 +53,9 @@ export interface AuditStats {
 
 const COLLECTION = "audit_events";
 
-export class AuditRepository implements MongoRepository<AuditEventDocument> {
+export class AuditRepository
+	implements MongoRepository<AuditEventDocument, AuditEventQuery>
+{
 	private readonly _collection: Collection<AuditEventDocument>;
 	private readonly _querier: AuditQuerier;
 
@@ -102,10 +104,8 @@ export class AuditRepository implements MongoRepository<AuditEventDocument> {
 		return this._querier.findById(messageId);
 	}
 
-	query(
-		query: Record<string, unknown>
-	): Promise<PaginationResult<AuditEventDocument>> {
-		return this._querier.query(query as AuditEventQuery);
+	query(query: AuditEventQuery): Promise<PaginationResult<AuditEventDocument>> {
+		return this._querier.query(query);
 	}
 
 	getStats(): Promise<AuditStats> {

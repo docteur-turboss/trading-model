@@ -22,7 +22,7 @@ import type { HttpMethod } from "@trading-model/validation/contracts/signed-requ
 import type { Collection, Db } from "mongodb";
 
 import { ensureLogIndexes } from "./log-index-manager";
-import { type LogQuery, LogQueryBuilder } from "./log-query-builder";
+import { buildLogQueryFilter, type LogQuery } from "./log-query-builder";
 import { LogStatsBuilder } from "./log-stats-builder";
 
 export type { LogQuery } from "./log-query-builder";
@@ -68,10 +68,11 @@ export interface LogStats {
 	dateRange: { earliest?: ISODateTime; latest?: ISODateTime };
 }
 
-export class LogRepository implements MongoRepository<ServiceLogDocument> {
+export class LogRepository
+	implements MongoRepository<ServiceLogDocument, LogQuery>
+{
 	private readonly _collection: Collection<ServiceLogDocument>;
 	private readonly _statsBuilder = new LogStatsBuilder();
-	private readonly _queryBuilder = new LogQueryBuilder();
 	private _indexesEnsured = false;
 
 	constructor(private readonly _db: Db) {
@@ -97,10 +98,8 @@ export class LogRepository implements MongoRepository<ServiceLogDocument> {
 		await this._collection.insertMany(docs as never[], { ordered: false });
 	}
 
-	async query(
-		params: Record<string, unknown>
-	): Promise<PaginationResult<ServiceLogDocument>> {
-		const filter = this._queryBuilder.build(params as LogQuery);
+	async query(params: LogQuery): Promise<PaginationResult<ServiceLogDocument>> {
+		const filter = buildLogQueryFilter(params);
 		const { page, limit, skip } = PaginationQuery.compute(params);
 		const total = await this._collection.countDocuments(filter);
 		const docs = await findPaginated(

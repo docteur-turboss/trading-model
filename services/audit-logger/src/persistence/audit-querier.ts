@@ -10,15 +10,13 @@ import type {
 	AuditEventQuery,
 	AuditStats,
 } from "./audit-repository";
-import { FilterBuilder } from "./filter-builder";
+import { buildAuditEventFilter } from "./filter-builder";
 import { StatsAggregator } from "./stats-aggregator";
 
 export class AuditQuerier {
-	private readonly _filterBuilder: FilterBuilder;
 	private readonly _statsAggregator: StatsAggregator;
 
 	constructor(private readonly _collection: Collection<AuditEventDocument>) {
-		this._filterBuilder = new FilterBuilder();
 		this._statsAggregator = new StatsAggregator(this._collection);
 	}
 
@@ -26,7 +24,7 @@ export class AuditQuerier {
 		query: AuditEventQuery
 	): Promise<PaginationResult<AuditEventDocument>> {
 		const { page, limit, skip } = PaginationQuery.compute(query, 100);
-		const filter = this._filterBuilder.build(query);
+		const filter = buildAuditEventFilter(query);
 
 		const [data, total] = await Promise.all([
 			findPaginated(this._collection, filter, { receivedAt: -1 }, skip, limit),

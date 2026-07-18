@@ -14,20 +14,14 @@ import {
 } from "@trading-model/validation/contracts/recovery.types";
 import type { Collection, Db } from "mongodb";
 import type { JobDocument } from "./job-document";
-import { JobDocumentMapper } from "./job-document-mapper";
-import { JobFilterBuilder } from "./job-filter-builder";
-import { JobStatusUpdater } from "./job-status-updater";
+import { documentToJob, jobToDocument } from "./job-document-mapper";
+import { buildJobFilter } from "./job-filter-builder";
+import { buildHistoryEntry, buildUpdateSet } from "./job-status-updater";
 
 const COLLECTION = "audit_jobs";
 
-export { JobDocumentMapper } from "./job-document-mapper";
-export { JobStatusUpdater } from "./job-status-updater";
-
 export class JobRepository implements MongoRepository<Job> {
 	private readonly _collection: Collection<JobDocument>;
-	private readonly _mapper = new JobDocumentMapper();
-	private readonly _statusUpdater = new JobStatusUpdater();
-	private readonly _filterBuilder = new JobFilterBuilder();
 
 	constructor(db: Db) {
 		this._collection = db.collection<JobDocument>(COLLECTION);
@@ -44,12 +38,12 @@ export class JobRepository implements MongoRepository<Job> {
 	}
 
 	async insert(job: Job): Promise<void> {
-		await this._collection.insertOne(this._mapper.toDocument(job));
+		await this._collection.insertOne(jobToDocument(job));
 	}
 
 	async findById(id: string): Promise<Job | null> {
 		const doc = await this._collection.findOne({ jobId: id as JobId });
-		return doc ? this._mapper.fromDocument(doc) : null;
+		return doc ? documentToJob(doc) : null;
 	}
 
 	insertBatch(_: Job[]): Promise<void> {
@@ -58,7 +52,7 @@ export class JobRepository implements MongoRepository<Job> {
 
 	async query(query: Record<string, unknown>): Promise<PaginationResult<Job>> {
 		const { page, limit, skip } = PaginationQuery.compute(query);
-		const filter = this._filterBuilder.build(query as never);
+		const filter = buildJobFilter(query as never);
 		const docs = await findPaginated(
 			this._collection,
 			filter as never,
@@ -68,7 +62,7 @@ export class JobRepository implements MongoRepository<Job> {
 		);
 		const total = await this._collection.countDocuments(filter as never);
 		return {
-			docs: docs.map((doc) => this._mapper.fromDocument(doc)),
+			docs: docs.map((doc) => documentToJob(doc)),
 			total,
 			page,
 			limit,
@@ -85,12 +79,8 @@ export class JobRepository implements MongoRepository<Job> {
 			return;
 		}
 
-		const updateSet = this._statusUpdater.buildUpdateSet(status, extras);
-		const historyEntry = this._statusUpdater.buildHistoryEntry(
-			current.status,
-			status,
-			extras
-		);
+		const updateSet = buildUpdateSet(status, extras);
+		const historyEntry = buildHistoryEntry(current.status, status, extras);
 
 		await this._collection.updateOne(
 			{ jobId },
@@ -110,7 +100,7 @@ export class JobRepository implements MongoRepository<Job> {
 				},
 			})
 			.toArray();
-		return docs.map((doc) => this._mapper.fromDocument(doc));
+		return docs.map((doc) => documentToJob(doc));
 	}
 
 	async findByWorker(
@@ -120,11 +110,11 @@ export class JobRepository implements MongoRepository<Job> {
 		const docs = await this._collection
 			.find({ assignedWorkerId: workerId, status: { $in: statuses } })
 			.toArray();
-		return docs.map((doc) => this._mapper.fromDocument(doc));
+		return docs.map((doc) => documentToJob(doc));
 	}
 
 	async findByStatus(status: JobStatus): Promise<Job[]> {
 		const docs = await this._collection.find({ status }).toArray();
-		return docs.map((doc) => this._mapper.fromDocument(doc));
+		return docs.map((doc) => documentToJob(doc));
 	}
 }

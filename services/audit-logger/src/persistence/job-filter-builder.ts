@@ -4,7 +4,6 @@ import type {
 	JobType,
 } from "@trading-model/common/domain/primitives";
 import type { JobStatus } from "@trading-model/validation/contracts/recovery.types";
-import { MongoFilterBuilder } from "./mongo-filter-builder";
 
 type MongoDoc = Record<string, unknown>;
 
@@ -14,15 +13,26 @@ export interface JobQuery extends QueryEnvelope {
 	assignedWorkerId?: InstanceId;
 }
 
-export class JobFilterBuilder extends MongoFilterBuilder<JobQuery> {
-	build(params: JobQuery): MongoDoc {
-		const filter: MongoDoc = {};
-
-		this._addIfPresent(filter, "status", params.status);
-		this._addIfPresent(filter, "type", params.type);
-		this._addIfPresent(filter, "assignedWorkerId", params.assignedWorkerId);
-		this._addDateRangeFilter(filter, params.dateRange, "createdAt");
-
-		return filter;
+export function buildJobFilter(params: JobQuery): MongoDoc {
+	const filter: MongoDoc = {};
+	if (params.status) {
+		filter.status = params.status;
 	}
+	if (params.type) {
+		filter.type = params.type;
+	}
+	if (params.assignedWorkerId) {
+		filter.assignedWorkerId = params.assignedWorkerId;
+	}
+	if (params.dateRange) {
+		const rangeFilter: Record<string, Date | undefined> = {};
+		if (params.dateRange.start) {
+			rangeFilter.$gte = params.dateRange.start;
+		}
+		if (params.dateRange.end) {
+			rangeFilter.$lte = params.dateRange.end;
+		}
+		filter.createdAt = rangeFilter;
+	}
+	return filter;
 }
