@@ -2,7 +2,7 @@ import { execSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import readline from 'node:readline';
+import { cursorTo, clearScreenDown } from 'node:readline';
 
 const GITMOJIS = [
   { emoji: ':sparkles:', code: '✨', name: 'feat', desc: 'New feature' },
@@ -47,39 +47,54 @@ const CATEGORIES = [
 ];
 
 const SCOPES = [
-  'auth',
-  'scraper',
+  'address-manager',
+  'admin-interface',
   'api',
-  'wallet',
-  'core',
-  'deps',
-  'discovery',
+  'api-gateway',
+  'audit-logger',
+  'auth',
   'broker',
-  'trainer',
-  'router',
+  'certificate-authority',
+  'certificate-client',
+  'certificate-utils',
   'common',
   'config',
+  'core',
   'database',
-  'middleware',
-  'utils',
-  'types',
-  'address-manager',
-  'message-manager',
-  'financial-scraper',
-  'trader-trainer',
+  'deps',
+  'discovery',
   'discovery-server',
+  'dlq-service',
   'docs',
+  'docker',
+  'examples',
+  'financial-scraper',
   'github-actions',
   'husky',
-
+  'k8s',
+  'message-manager',
+  'middleware',
+  'multiple',
+  'observability',
+  'release',
+  'router',
+  'scraper',
+  'scripts',
+  'tests',
+  'trader-trainer',
+  'trainer',
+  'types',
+  'utils',
+  'validation',
+  'wallet',
 ];
 
 const stdin = process.stdin;
 const stdout = process.stdout;
 
 function clearScreen() {
-  readline.cursorTo(stdout, 0, 0);
-  readline.clearScreenDown(stdout);
+  cursorTo(stdout, 0, 0);
+  clearScreenDown(stdout);
 }
 
 function hideCursor() {
@@ -115,16 +130,34 @@ function keypress() {
 }
 
 async function textInput(label) {
-  rawMode(false);
-  showCursor();
-  const rl = readline.createInterface({ input: stdin, output: stdout });
-  const value = await new Promise(resolve => {
-    rl.question(`${label}: `, answer => resolve(answer.trim()));
-  });
-  rl.close();
   rawMode(true);
   hideCursor();
-  return value;
+  let input = '';
+  while (true) {
+    clearScreen();
+    stdout.write(`\n  ${label}: ${input}\n\n`);
+    stdout.write('  Enter confirm · Esc cancel\n');
+    const key = await keypress();
+    if (key === 'ENTER') {
+      rawMode(true);
+      hideCursor();
+      return input.trim();
+    }
+    if (key === 'ESC') {
+      rawMode(true);
+      hideCursor();
+      return null;
+    }
+    if (key === '\x7F' || key === '\b') {
+      input = input.slice(0, -1);
+    } else {
+      for (const ch of key) {
+        if (ch.charCodeAt(0) >= 32) {
+          input += ch;
+        }
+      }
+    }
+  }
 }
 
 const PAGE_SIZE = 8;
@@ -138,7 +171,7 @@ function btnWide(label, width) {
   return `${' '.repeat(left)}${inner}${' '.repeat(right)}`;
 }
 
-function renderMenu(title, items, cursor, offset, renderItem) {
+function renderMenu(title, items, cursor, offset, renderItem, searchBuffer) {
   clearScreen();
   stdout.write(`\n  ${title}\n\n`);
 
@@ -163,7 +196,10 @@ function renderMenu(title, items, cursor, offset, renderItem) {
   } else {
     stdout.write(`  ${' '.repeat(rowW)}\n`);
   }
-  stdout.write('\n  ↑↓ navigate · Enter select · Esc back\n');
+  if (searchBuffer) {
+    stdout.write(`\n  Search: ${searchBuffer}\n`);
+  }
+  stdout.write('\n  ↑↓ navigate · Enter select · Esc back · Type to search\n');
 }
 
 const CONTINUE = Symbol('CONTINUE');
@@ -187,41 +223,113 @@ const MENU_ACTIONS = {
   ESC: () => ({ type: 'return', value: null }),
 };
 
+function findItemIndex(items, renderItem, searchBuffer) {
+  const lower = searchBuffer.toLowerCase();
+  let idx = items.findIndex((item, i) => {
+    const label = renderItem(item, i).toLowerCase();
+    return label.startsWith(lower);
+  });
+  if (idx === -1) {
+    idx = items.findIndex((item, i) => {
+      const label = renderItem(item, i).toLowerCase();
+      return label.includes(lower);
+    });
+  }
+  return idx;
+}
+
 async function pickFromList(title, items, renderItem) {
   let cursor = 0;
   let offset = 0;
+  let searchBuffer = '';
   rawMode(true);
   hideCursor();
   while (true) {
-    renderMenu(title, items, cursor, offset, renderItem);
+    renderMenu(title, items, cursor, offset, renderItem, searchBuffer);
     const key = await keypress();
-    const action = MENU_ACTIONS[key];
-    if (!action) continue;
-    const result = action(cursor, offset, items);
-    if (result.type === 'return') return result.value;
-    cursor = result.cursor;
-    offset = result.offset;
+    if (key === 'UP' || key === 'DOWN') {
+      searchBuffer = '';
+      const result = MENU_ACTIONS[key](cursor, offset, items);
+      if (result.type === 'return') return result.value;
+      cursor = result.cursor;
+      offset = result.offset;
+    } else if (key === 'ENTER') {
+      return items[cursor];
+    } else if (key === 'ESC') {
+      return null;
+    } else if (key === '\x7F' || key === '\b') {
+      searchBuffer = searchBuffer.slice(0, -1);
+      if (searchBuffer) {
+        const idx = findItemIndex(items, renderItem, searchBuffer);
+        if (idx !== -1) {
+          cursor = idx;
+          if (cursor < offset) offset = cursor;
+          if (cursor >= offset + PAGE_SIZE) offset = cursor - PAGE_SIZE + 1;
+        }
+      } else {
+        cursor = 0;
+        offset = 0;
+      }
+    } else if (key.length === 1 && /[a-zA-Z0-9_-]/.test(key)) {
+      searchBuffer += key.toLowerCase();
+      const idx = findItemIndex(items, renderItem, searchBuffer);
+      if (idx !== -1) {
+        cursor = idx;
+        if (cursor < offset) offset = cursor;
+        if (cursor >= offset + PAGE_SIZE) offset = cursor - PAGE_SIZE + 1;
+      }
+    }
   }
 }
 
 async function multiLineInput(label) {
-  rawMode(false);
-  showCursor();
-  stdout.write(`\n${label}\n`);
-  stdout.write('(Empty line to finish)\n\n');
-  const rl = readline.createInterface({ input: stdin, output: stdout });
-  const lines = [];
-  while (true) {
-    const line = await new Promise(resolve => {
-      rl.question('> ', resolve);
-    });
-    if (!line.trim()) break;
-    lines.push(line);
-  }
-  rl.close();
   rawMode(true);
   hideCursor();
-  return lines;
+  const lines = [];
+  let currentLine = '';
+  while (true) {
+    clearScreen();
+    stdout.write(`\n${label}\n`);
+    stdout.write('(Empty line to finish)\n\n');
+    for (const line of lines) {
+      stdout.write(`  ${line}\n`);
+    }
+    stdout.write(`> ${currentLine}\n`);
+    stdout.write('\n  Enter next line · Empty Enter finish · Esc cancel\n');
+    const key = await keypress();
+    if (key === 'ENTER') {
+      if (!currentLine.trim() && lines.length > 0) {
+        rawMode(true);
+        hideCursor();
+        return lines;
+      }
+      if (currentLine.trim()) {
+        lines.push(currentLine.trim());
+        currentLine = '';
+      } else {
+        rawMode(true);
+        hideCursor();
+        return lines;
+      }
+    } else if (key === 'ESC') {
+      rawMode(true);
+      hideCursor();
+      return [];
+    } else if (key === '\x7F' || key === '\b') {
+      currentLine = currentLine.slice(0, -1);
+    } else {
+      for (const ch of key) {
+        if (ch === '\r' || ch === '\n') {
+          if (currentLine.trim()) {
+            lines.push(currentLine.trim());
+            currentLine = '';
+          }
+        } else if (ch.charCodeAt(0) >= 32) {
+          currentLine += ch;
+        }
+      }
+    }
+  }
 }
 
 async function main() {
@@ -270,11 +378,21 @@ async function main() {
 
   const subject = await textInput('Subject');
   if (!subject) {
-    stdout.write('\nSubject required.\n');
-    process.exit(1);
+    clearScreen();
+    showCursor();
+    rawMode(false);
+    stdout.write('\nCancelled.\n');
+    process.exit(0);
   }
 
   const breaking = await textInput('Breaking change? (y/N)');
+  if (breaking === null) {
+    clearScreen();
+    showCursor();
+    rawMode(false);
+    stdout.write('\nCancelled.\n');
+    process.exit(0);
+  }
   const breakingFlag = ['y', 'yes'].includes(breaking.toLowerCase()) ? '!' : '';
   const header = `${selected.emoji}${scopePart}${breakingFlag}: ${subject}`;
 
@@ -298,8 +416,10 @@ async function main() {
   stdout.write('\n\n─────────────────────────────\n');
 
   const confirm = await textInput('Commit? (Y/n)');
-  if (['n', 'no'].includes(confirm.toLowerCase())) {
+  if (confirm === null || ['n', 'no'].includes(confirm.toLowerCase())) {
     clearScreen();
+    showCursor();
+    rawMode(false);
     stdout.write('\nCancelled.\n');
     process.exit(0);
   }
@@ -310,12 +430,15 @@ async function main() {
     rawMode(false);
     showCursor();
     execSync(`git commit -F "${file}"`, { stdio: 'inherit' });
+    clearScreen();
+    stdout.write('\nCommitted ✓\n');
   } catch {
     process.exit(1);
   } finally {
     rawMode(false);
     showCursor();
   }
+  process.exit(0);
 }
 
 main();

@@ -169,7 +169,7 @@ describe("validInstanceToken", () => {
 			const token = generateInstanceToken(instanceId, signingSecret);
 			const storedToken = generateInstanceToken(instanceId, signingSecret);
 			const storedParts = storedToken.split(".");
-			storedParts[2] = storedParts[2].replace(/[a-zA-Z0-9]/, "X");
+			storedParts[2] = `X${storedParts[2].slice(1)}`;
 			const invalidStored = storedParts.join(".");
 			const result = validInstanceToken({
 				token,

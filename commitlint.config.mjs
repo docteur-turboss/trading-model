@@ -49,6 +49,7 @@ export default {
         'trainer',
         'types',
         'utils',
+        'validation',
         'wallet',
       ],
     ],
