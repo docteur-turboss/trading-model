@@ -1,4 +1,5 @@
 import { ClientIdentity } from "@trading-model/common/domain/primitives/auth-ids";
+import type { HttpStatusCode } from "@trading-model/common/http-status";
 import { catchSync } from "@trading-model/common/middleware/catch-error";
 import { sendResponse } from "@trading-model/common/middleware/response-exception";
 import { parseCommaSeparated } from "@trading-model/common/utils/comma-separated";
@@ -19,12 +20,18 @@ export const AUTH_MIDDLEWARE: RequestHandler = catchSync((req) => {
 	const token = req.headers[tokenHeader] ?? req.headers.authorization;
 
 	if (!token || typeof token !== "string") {
-		return sendResponse({ error: "Missing authentication token" }, 401);
+		return sendResponse(
+			{ error: "Missing authentication token" },
+			401 as HttpStatusCode
+		);
 	}
 
 	const validTokens = getValidTokens();
 	if (validTokens.size > 0 && !validTokens.has(token)) {
-		return sendResponse({ error: "Invalid authentication token" }, 401);
+		return sendResponse(
+			{ error: "Invalid authentication token" },
+			401 as HttpStatusCode
+		);
 	}
 
 	(req as unknown as AuthRequest).clientIdentity = ClientIdentity.of(

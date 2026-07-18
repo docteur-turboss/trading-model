@@ -3,7 +3,7 @@ import { HostPort } from "@trading-model/common/domain/service-identity";
 import type { ResolvedEndpoint } from "@trading-model/validation/contracts/service-resolver.types";
 import type { Request } from "express";
 import { ENV } from "../config/env";
-import { headerSanitizer } from "./proxy-header-sanitizer";
+import { safeHeaders } from "./proxy-header-sanitizer";
 
 export interface ProxyRequestOptions {
 	req: Request;
@@ -21,7 +21,7 @@ export class TlsOptionsBuilder {
 			port: target.port,
 			path: url.pathname + url.search,
 			method: req.method,
-			headers: headerSanitizer.safeHeaders(req),
+			headers: safeHeaders(req),
 			rejectUnauthorized: true,
 			timeout: timeoutMs,
 		};

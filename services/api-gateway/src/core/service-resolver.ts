@@ -3,6 +3,7 @@ import {
 	IPAddress,
 	type ServiceId,
 	UnixTimestamp,
+	URLString,
 	type Version,
 } from "@trading-model/common/domain/primitives";
 import type { ServiceInstance } from "@trading-model/validation/contracts/service-registry.types";
@@ -54,7 +55,7 @@ export class ServiceResolver {
 		cacheKey: string
 	): Promise<ResolvedEndpoint | null> {
 		const response = await this._httpClient.get<{ data: ServiceInstance[] }>(
-			`${this._discoveryUrl}/services/${serviceName}`
+			URLString.of(`${this._discoveryUrl}/services/${serviceName}`)
 		);
 		const instances = Array.isArray(response)
 			? response

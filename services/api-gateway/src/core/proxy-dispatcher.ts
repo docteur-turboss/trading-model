@@ -1,7 +1,10 @@
 import { logger } from "@trading-model/common/config/logger";
 import type { ServiceId } from "@trading-model/common/domain/primitives";
 import { HostPort } from "@trading-model/common/domain/service-identity";
-import { HTTP_STATUS } from "@trading-model/common/http-status";
+import {
+	HTTP_STATUS,
+	type HttpStatusCode,
+} from "@trading-model/common/http-status";
 import {
 	type ResponseObject,
 	sendResponse,
@@ -43,7 +46,10 @@ function tryCacheResponse(
 	if (req.method === "GET" && result.status === HTTP_STATUS.OK) {
 		const parsed = tryParseJson(result.body);
 		if (parsed) {
-			cache.set(ctx.cacheKey, { data: parsed, status: result.status });
+			cache.set(ctx.cacheKey, {
+				data: parsed,
+				status: result.status as HttpStatusCode,
+			});
 		}
 	}
 }
@@ -62,7 +68,10 @@ function buildProxyErrorResponse(
 			error: message,
 		},
 	});
-	return sendResponse({ error: "Service unavailable", details: message }, 503);
+	return sendResponse(
+		{ error: "Service unavailable", details: message },
+		503 as HttpStatusCode
+	);
 }
 
 function tryParseJson(raw: string): unknown | null {

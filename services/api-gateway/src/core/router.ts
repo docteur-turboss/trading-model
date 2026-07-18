@@ -1,5 +1,9 @@
 import { logger } from "@trading-model/common/config/logger";
-import type { ServiceId } from "@trading-model/common/domain/primitives";
+import {
+	DurationMs,
+	type ServiceId,
+} from "@trading-model/common/domain/primitives";
+import type { HttpStatusCode } from "@trading-model/common/http-status";
 import { catchSync } from "@trading-model/common/middleware/catch-error";
 import {
 	HEALTH_STATUS_OK,
@@ -18,7 +22,7 @@ const RESOLVER = new ServiceResolver(
 	ENV.DISCOVERY_SERVICE_URL,
 	ENV.CACHE_TTL_MS
 );
-const CACHE = new ResponseCache(ENV.CACHE_TTL_MS);
+const CACHE = new ResponseCache(DurationMs.of(ENV.CACHE_TTL_MS));
 
 function _validatePath(
 	req: import("express").Request
@@ -29,11 +33,14 @@ function _validatePath(
 	if (!parsed) {
 		return sendResponse(
 			{ error: "Invalid route format. Expected /v{version}/{serviceName}/**" },
-			400
+			400 as HttpStatusCode
 		);
 	}
 	if (!parsed.valid) {
-		return sendResponse({ error: "Invalid version number" }, 400);
+		return sendResponse(
+			{ error: "Invalid version number" },
+			400 as HttpStatusCode
+		);
 	}
 	return parsed;
 }
@@ -56,7 +63,7 @@ const catchAllRoute = catchSync(async (req) => {
 				service: serviceName,
 				version: majorVersion,
 			},
-			404
+			404 as HttpStatusCode
 		);
 	}
 
