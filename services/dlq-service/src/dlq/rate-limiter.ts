@@ -1,84 +1,11 @@
 import rateLimit from "express-rate-limit";
-import Redis from "ioredis";
-import RedisStore from "rate-limit-redis";
-import { ENV } from "../config/env";
-import { logger } from "../config/logger";
+import { redisClientManager } from "./rate-limiter-redis-client";
+import { createRedisStore } from "./rate-limiter-store";
 
 const activeRateLimiters: Array<{ resetKey: (key: string) => void }> = [];
 
-let sharedRedisClient: Redis | null = null;
-let sharedRedisInit = false;
-
-function getOrCreateRedis(): Redis | null {
-	if (sharedRedisClient) {
-		return sharedRedisClient;
-	}
-	if (sharedRedisInit) {
-		return null;
-	}
-	sharedRedisInit = true;
-
-	if (!ENV.REDIS_URL) {
-		return null;
-	}
-	return _createRedisClient();
-}
-
-function _createRedisClient(): Redis | null {
-	try {
-		sharedRedisClient = _newRedisClient();
-		sharedRedisClient.connect().catch(() => {
-			sharedRedisClient = null;
-			sharedRedisInit = false;
-		});
-		return sharedRedisClient;
-	} catch {
-		return null;
-	}
-}
-
-function _newRedisClient(): Redis {
-	return new Redis(ENV.REDIS_URL!, {
-		lazyConnect: true,
-		retryStrategy: (times) => Math.min(times * 200, 5_000),
-	});
-}
-
-function createStore(): undefined | RedisStore {
-	const client = getOrCreateRedis();
-	if (!client) {
-		_logStoreFallback();
-		return;
-	}
-	return _buildRedisStore(client);
-}
-
-function _logStoreFallback(): void {
-	logger.warn(
-		"Redis unavailable — rate limiting falls back to per-instance memory store"
-	);
-}
-
-function _buildRedisStore(client: Redis): RedisStore {
-	const sendCommand = (...args: string[]): Promise<number> => {
-		return client.call(
-			args[0],
-			...args.slice(1)
-		) as Promise<unknown> as Promise<number>;
-	};
-	return new RedisStore({ sendCommand });
-}
-
 export async function closeRedisClient(): Promise<void> {
-	if (sharedRedisClient) {
-		try {
-			await sharedRedisClient.quit();
-		} catch {
-			sharedRedisClient.disconnect();
-		}
-		sharedRedisClient = null;
-	}
-	sharedRedisInit = false;
+	await redisClientManager.close();
 }
 
 export function closeRateLimiters(): void {
@@ -94,7 +21,7 @@ function createDlqRateLimiter(opts: {
 		...opts,
 		standardHeaders: true,
 		legacyHeaders: false,
-		store: createStore(),
+		store: createRedisStore(),
 	});
 	_trackLimiter(limiter);
 	return limiter;

@@ -83,3 +83,5 @@ export class ClaimReleaseManager {
 		return result.modifiedCount > 0;
 	}
 }
+
+export const claimReleaseManager = new ClaimReleaseManager();

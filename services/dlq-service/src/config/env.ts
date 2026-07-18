@@ -1,11 +1,12 @@
 import { existsSync, readFileSync } from "node:fs";
 import { CryptoAlg } from "@trading-model/crypto/crypto/crypto-constants";
+import { AddressManagerEnvSchema } from "@trading-model/validation/validation/address-manager-env";
 import {
-	AddressManagerEnvSchema,
 	BaseEnvSchema,
 	validateEnv,
 } from "@trading-model/validation/validation/env";
 import { z } from "zod";
+import { logger } from "./logger";
 
 const DlqEnvSchema = BaseEnvSchema.extend(AddressManagerEnvSchema.shape).extend(
 	{
@@ -79,6 +80,10 @@ function _readSecretFromPath(): string | null {
 				return value;
 			}
 		}
-	} catch {}
+	} catch (err) {
+		logger.warn("Failed to read DLQ_AUTH_HMAC_SECRET_PATH", {
+			err: (err as Error).message,
+		});
+	}
 	return null;
 }

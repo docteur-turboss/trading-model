@@ -1,11 +1,11 @@
 import type {
 	InstanceId,
 	Limit,
+	Topic,
 } from "@trading-model/common/domain/primitives";
 import { getCollection } from "../config/db";
 import { ClaimFilterBuilder } from "./claim-filter-builder";
 import { ClaimQueryExecutor } from "./claim-query-executor";
-import { ClaimReleaseManager } from "./claim-release-manager";
 import { CLAIM_PROJECTION } from "./dlq-constants";
 import type { StoredDlqEntry } from "./repository";
 import { toStoredDlqEntry } from "./repository";
@@ -14,40 +14,12 @@ export interface ClaimEntriesOptions {
 	limit: Limit;
 	batchId: string;
 	instanceId: InstanceId;
-	topic?: string;
+	topic?: Topic;
 }
 
 export class DlqClaimManager {
 	private readonly _filterBuilder = new ClaimFilterBuilder();
 	private readonly _queryExecutor = new ClaimQueryExecutor();
-	private readonly _releaseManager = new ClaimReleaseManager();
-
-	releaseStaleClaims(staleThresholdMs?: number): Promise<number> {
-		return this._releaseManager.releaseStaleClaims(staleThresholdMs);
-	}
-
-	releaseAllActiveClaims(): Promise<number> {
-		return this._releaseManager.releaseAllActiveClaims();
-	}
-
-	releaseClaimsByInstance(instanceId: InstanceId): Promise<number> {
-		return this._releaseManager.releaseClaimsByInstance(instanceId);
-	}
-
-	releaseClaimWithoutCount(id: string): Promise<void> {
-		return this._releaseManager.releaseClaimWithoutCount(id);
-	}
-
-	incrementRetryCount(id: string): Promise<boolean> {
-		return this._releaseManager.incrementRetryCount(id);
-	}
-
-	claimEntry(
-		id: string,
-		ctx: import("./types").BatchContext
-	): Promise<StoredDlqEntry | null> {
-		return this._releaseManager.claimEntry(id, ctx);
-	}
 
 	async claimEntriesForRetry(
 		options: ClaimEntriesOptions
@@ -129,3 +101,4 @@ export class DlqClaimManager {
 }
 
 export const dlqClaimManager = new DlqClaimManager();
+export { claimReleaseManager } from "./claim-release-manager";

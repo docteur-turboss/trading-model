@@ -15,7 +15,7 @@ import {
 
 import { ENV } from "../config/env";
 import { logger } from "../config/logger";
-import { dlqClaimManager } from "./claim-manager";
+import { claimReleaseManager, dlqClaimManager } from "./claim-manager";
 import { mmResolveError, resolveMMUrlOrFail } from "./dlq-replay-resolver";
 import {
 	buildReplayResponse,
@@ -75,7 +75,7 @@ async function _releaseAndClaimEntries(
 	batchId: string,
 	topic: Topic | undefined
 ): Promise<Array<{ id: string; message: unknown }>> {
-	await dlqClaimManager.releaseStaleClaims();
+	await claimReleaseManager.releaseStaleClaims();
 	return _claimRetryEntries(limit, batchId, topic);
 }
 

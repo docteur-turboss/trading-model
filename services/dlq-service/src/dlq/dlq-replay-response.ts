@@ -1,3 +1,4 @@
+import { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import {
 	type Topic,
 	toCorrelationId,
@@ -73,7 +74,7 @@ export function notifyReplayAudit(
 	void notifyAudit({
 		timestamp: UnixTimestamp.now(),
 		topic: toTopic(topic ?? "unknown"),
-		publisher: toServiceId("dlq-service"),
+		publisher: toServiceId(ServiceInstanceName.DlqService),
 		correlationId: toCorrelationId(batchId),
 		summary: `DLQ replay: ${successCount} succeeded, ${errorsCount} failed`,
 		severity: errorsCount > 0 ? Severity.Error : Severity.Info,

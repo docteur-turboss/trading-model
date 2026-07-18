@@ -1,4 +1,7 @@
-﻿import { AppError } from "@trading-model/common/utils/errors";
+﻿import {
+	type AppError,
+	createAppError,
+} from "@trading-model/common/utils/errors";
 import { getCollection } from "../config/db";
 import { ENV } from "../config/env";
 import { DedupInserter } from "./dedup-inserter";
@@ -8,7 +11,7 @@ import { EntrySerializer } from "./entry-serializer";
 import type { DlqEntry } from "./repository";
 
 export function dlqCapacityError(message: string): AppError {
-	return new AppError(message, { code: "DlqCapacityError" });
+	return createAppError(message, { code: "DlqCapacityError" });
 }
 
 interface NewDlqDocument {

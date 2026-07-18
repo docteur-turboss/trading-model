@@ -1,4 +1,5 @@
 import { logger } from "@trading-model/common/config/logger";
+import { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import { toInstanceId } from "@trading-model/common/domain/primitives";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import { createBootstrap } from "@trading-model/server-utils/server/bootstrap";
@@ -45,7 +46,7 @@ async function _onBeforeServer(): Promise<void> {
 
 function _onStart(): void {
 	initializeTelemetry({
-		serviceName: "dlq-service",
+		serviceName: ServiceInstanceName.DlqService,
 		serviceVersion: "2.0.0",
 		instanceId: toInstanceId(process.env.INSTANCE_ID ?? "dlq-1"),
 		otlpEndpoint: process.env.OTEL_EXPORTER_OTLP_ENDPOINT,

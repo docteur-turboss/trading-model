@@ -1,6 +1,4 @@
-import { createHash } from "node:crypto";
-
-import { CryptoAlg } from "@trading-model/crypto/crypto/crypto-constants";
+import { sha256Hex } from "@trading-model/crypto/crypto/hash-utils";
 import type { DlqEntry } from "./repository";
 
 export interface EntryHash {
@@ -12,8 +10,8 @@ export interface EntryHash {
 export class EntrySerializer {
 	computeHash(entry: DlqEntry): EntryHash {
 		const serialized = this._serialize(entry);
-		const messageId = entry.messageId ?? this._sha256Hex(serialized);
-		const contentHash = this._sha256Hex(serialized);
+		const messageId = entry.messageId ?? sha256Hex(serialized);
+		const contentHash = sha256Hex(serialized);
 		return { messageId, contentHash, serialized };
 	}
 
@@ -23,9 +21,5 @@ export class EntrySerializer {
 			message: entry.message,
 			reason: entry.reason,
 		});
-	}
-
-	private _sha256Hex(input: string): string {
-		return createHash(CryptoAlg.SHA256).update(input).digest(CryptoAlg.HEX);
 	}
 }

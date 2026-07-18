@@ -1,5 +1,6 @@
 import { HttpClient } from "@trading-model/common/config/http-client";
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
+import { HostPort } from "@trading-model/common/domain/service-identity";
 import { buildTlsFromEnv } from "@trading-model/common/domain/tls-paths";
 import { CircuitStateMachine } from "@trading-model/common/reliability/circuit-state-machine";
 import type { AuditEvent } from "@trading-model/validation/contracts/admin/audit.dto";
@@ -34,7 +35,7 @@ class AuditUrlResolver {
 				ServiceInstanceName.AuditLoggerService
 			);
 			if (target) {
-				return `https://${target.ip}:${target.port}`;
+				return `https://${HostPort.toAddress(target)}`;
 			}
 		} catch {
 			logger.warn("Cannot resolve audit-logger URL via address-manager");

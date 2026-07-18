@@ -1,4 +1,5 @@
 import { type Span, SpanStatusCode, trace } from "@opentelemetry/api";
+import { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import type { ResponseObject } from "@trading-model/common/middleware/response-exception";
 import { sendResponse } from "@trading-model/common/middleware/response-exception";
 import type { z } from "zod";
@@ -13,7 +14,7 @@ import { dlqRepository } from "./repository";
 type ValidatedData = z.infer<typeof DlqEntrySchema>;
 type PostInsertStep = (id: string, data: ValidatedData) => Promise<void>;
 
-const tracer = trace.getTracer("dlq-service");
+const tracer = trace.getTracer(ServiceInstanceName.DlqService);
 
 const postInsertSteps: PostInsertStep[] = [
 	(_id) => {

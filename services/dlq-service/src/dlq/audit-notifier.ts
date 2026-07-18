@@ -1,3 +1,4 @@
+import { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import {
 	type Topic,
 	toCorrelationId,
@@ -19,7 +20,7 @@ export function notifyAddAudit(
 	void notifyAudit({
 		timestamp: UnixTimestamp.now(),
 		topic: toTopic(topic ?? "unknown"),
-		publisher: toServiceId("dlq-service"),
+		publisher: toServiceId(ServiceInstanceName.DlqService),
 		correlationId: toCorrelationId(id),
 		summary: `DLQ entry added: ${reason ?? "no reason"}`,
 		severity: Severity.Warning,
@@ -28,7 +29,7 @@ export function notifyAddAudit(
 
 export interface ReplayAuditResult {
 	batchId: string;
-	topic?: string;
+	topic?: Topic;
 	success: number;
 	failed: number;
 }
@@ -50,7 +51,7 @@ function _buildReplayAuditEvent(
 	return {
 		timestamp: UnixTimestamp.now(),
 		topic: toTopic(topic ?? "unknown"),
-		publisher: toServiceId("dlq-service"),
+		publisher: toServiceId(ServiceInstanceName.DlqService),
 		correlationId: toCorrelationId(batchId),
 		summary: `DLQ replay: ${success} succeeded, ${failed} failed`,
 		severity: failed > 0 ? Severity.Error : Severity.Info,
@@ -64,7 +65,7 @@ export function notifyAbandonAudit(count: number): void {
 	void notifyAudit({
 		timestamp: UnixTimestamp.now(),
 		topic: toTopic("dlq-service"),
-		publisher: toServiceId("dlq-service"),
+		publisher: toServiceId(ServiceInstanceName.DlqService),
 		correlationId: toCorrelationId("abandon"),
 		summary: `${count} DLQ entries abandoned after max retries`,
 		severity: Severity.Critical,
@@ -78,7 +79,7 @@ export function notifyDeleteAudit(ids: string[], deleted: number): void {
 	void notifyAudit({
 		timestamp: UnixTimestamp.now(),
 		topic: toTopic("dlq-service"),
-		publisher: toServiceId("dlq-service"),
+		publisher: toServiceId(ServiceInstanceName.DlqService),
 		correlationId: toCorrelationId(ids[0]),
 		summary: `${deleted} DLQ entries deleted`,
 		severity: Severity.Info,

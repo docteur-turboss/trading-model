@@ -1,120 +1,11 @@
-import { randomUUID } from "node:crypto";
-
-import {
-	toInstanceId,
-	toMessageId,
-	type URLString,
-} from "@trading-model/common/domain/primitives";
-import { ObjectId } from "mongodb";
-import { ENV } from "../config/env";
-import { logger } from "../config/logger";
-import { metrics } from "../config/metrics";
-import { dlqRedisQueue } from "../config/redis-queue";
 import { resolveMessageManagerUrl } from "./address-resolver";
-import { handleAbandonedEntries } from "./auto-retry";
-import { dlqClaimManager } from "./claim-manager";
+import { claimReleaseManager } from "./claim-manager";
+import { claimReplayOrchestrator } from "./redis-claim-replay-orchestrator";
+import { queuePopService } from "./redis-queue-pop-service";
 import { RedisWorkerTimer } from "./redis-worker-timer";
-import { doReplayBatch } from "./replay-pipeline";
-import { isShuttingDown } from "./shared/shutdown-flag";
-
-async function _popRedisQueueEntries(): Promise<string[]> {
-	const entryIds: string[] = [];
-	for (let i = 0; i < ENV.DLQ_AUTO_RETRY_LIMIT; i++) {
-		const entryId = await dlqRedisQueue.pop();
-		if (!entryId) {
-			break;
-		}
-		entryIds.push(entryId);
-	}
-	return entryIds;
-}
-
-async function claimBatchEntries(
-	entryIds: string[],
-	batchId: string
-): Promise<Array<{ id: string; message: unknown }> | null> {
-	const validIds = _filterValidObjectIds(entryIds);
-	if (validIds.length === 0) {
-		return null;
-	}
-
-	const claimed = await _claimByIds(validIds, batchId);
-	if (claimed.length === 0) {
-		return null;
-	}
-
-	if (isShuttingDown()) {
-		_requeueRemaining(entryIds);
-		return null;
-	}
-
-	return claimed.map((entry) => ({ id: entry.id, message: entry.message }));
-}
-
-function _filterValidObjectIds(ids: string[]): string[] {
-	return ids.filter((id) => ObjectId.isValid(id));
-}
-
-function _claimByIds(
-	validIds: string[],
-	batchId: string
-): Promise<Array<{ id: string; message: unknown }>> {
-	return dlqClaimManager.claimEntriesByIds(validIds, {
-		batchId,
-		instanceId: toInstanceId(ENV.INSTANCE_ID),
-	});
-}
-
-function _requeueRemaining(entryIds: string[]): void {
-	for (const remaining of entryIds) {
-		void dlqRedisQueue.push(remaining);
-	}
-}
-
-async function executeClaimReplay(
-	entries: Array<{ id: string; message: unknown }>,
-	messageManagerUrl: URLString,
-	batchId: string
-): Promise<void> {
-	logger.info(`DLQ Redis queue: replaying ${entries.length} entries`);
-	const { success, errors } = await doReplayBatch({
-		entries: entries.map((entry) => ({
-			id: toMessageId(entry.id),
-			message: entry.message,
-		})),
-		messageManagerUrl,
-		batchId,
-		instanceId: toInstanceId(ENV.INSTANCE_ID),
-	});
-
-	if (success > 0) {
-		metrics.entriesReplayed.inc(success);
-	}
-	if (errors.length > 0) {
-		metrics.entriesReplayFailed.inc(errors.length);
-	}
-
-	if (errors.length > 0) {
-		await handleAbandonedEntries("DLQ Redis queue");
-	}
-
-	logger.info(`DLQ Redis queue: ${success} replayed, ${errors.length} failed`);
-}
-
-async function _claimAndReplayEntries(
-	entryIds: string[],
-	messageManagerUrl: URLString
-): Promise<void> {
-	const batchId = `redis-${Date.now()}-${randomUUID().slice(0, 8)}`;
-	const entries = await claimBatchEntries(entryIds, batchId);
-	if (!entries || entries.length === 0) {
-		return;
-	}
-	await executeClaimReplay(entries, messageManagerUrl, batchId);
-}
 
 export async function processRedisQueue(): Promise<void> {
-	if (_shouldSkipRedisProcessing()) {
+	if (queuePopService.shouldSkip()) {
 		return;
 	}
 
@@ -123,24 +14,14 @@ export async function processRedisQueue(): Promise<void> {
 		return;
 	}
 
-	await dlqClaimManager.releaseStaleClaims();
+	await claimReleaseManager.releaseStaleClaims();
 
-	const entryIds = await _popRedisQueueEntries();
+	const entryIds = await queuePopService.popEntries();
 	if (entryIds.length === 0) {
 		return;
 	}
 
-	await _claimAndReplayEntries(entryIds, messageManagerUrl);
-}
-
-function _shouldSkipRedisProcessing(): boolean {
-	if (isShuttingDown()) {
-		return true;
-	}
-	if (!dlqRedisQueue.isAvailable()) {
-		return true;
-	}
-	return false;
+	await claimReplayOrchestrator.claimAndReplay(entryIds, messageManagerUrl);
 }
 
 export const redisWorkerTimer = new RedisWorkerTimer(processRedisQueue);

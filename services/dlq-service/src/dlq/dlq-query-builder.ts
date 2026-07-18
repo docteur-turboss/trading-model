@@ -1,15 +1,14 @@
-﻿import type { Document, Filter } from "mongodb";
+﻿import type { OffsetPagination } from "@trading-model/common/domain/pagination";
+import type { Topic } from "@trading-model/common/domain/primitives";
+import type { Document, Filter } from "mongodb";
 import { ObjectId } from "mongodb";
-
 import { ENV } from "../config/env";
 import { DLQ_MAX_CONSECUTIVE_ERRORS } from "./dlq-constants";
 import { DlqStatus } from "./dlq-status";
 
-export interface DlqListOptions {
-	topic?: string;
+export interface DlqListOptions extends Partial<OffsetPagination> {
+	topic?: Topic;
 	before?: string;
-	limit?: number;
-	offset?: number;
 }
 
 export class DlqQueryBuilder {

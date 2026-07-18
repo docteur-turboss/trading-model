@@ -1,5 +1,6 @@
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import { URLString } from "@trading-model/common/domain/primitives";
+import { HostPort } from "@trading-model/common/domain/service-identity";
 import { FIND_A_SERVICE } from "../../config/address-manager";
 import { ENV } from "../../config/env";
 import { logger } from "../../config/logger";
@@ -20,7 +21,7 @@ async function _resolveViaAddressManager(): Promise<URLString | null> {
 			ServiceInstanceName.MessageDeliveryService
 		);
 		if (target) {
-			return URLString.of(`https://${target.ip}:${target.port}`);
+			return URLString.of(`https://${HostPort.toAddress(target)}`);
 		}
 	} catch {
 		logger.warn("DLQ address-manager resolution failed");

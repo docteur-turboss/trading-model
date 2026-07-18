@@ -96,7 +96,7 @@ function processBatchResults(options: ProcessBatchResultsOptions): void {
 }
 
 function _recordFailedEntry(
-	entry: { id: string; message: unknown } | undefined,
+	entry: DlqEntryRef | undefined,
 	result: PromiseSettledResult<void>,
 	ctx: ProcessBatchResultsOptions["ctx"]
 ): void {
@@ -104,7 +104,7 @@ function _recordFailedEntry(
 		? ((result.reason as Error)?.message ?? "unknown error")
 		: "unknown error";
 	ctx.errors.push({
-		id: toMessageId(entry?.id ?? "unknown"),
+		id: entry?.id ?? toMessageId("unknown"),
 		error: errorMsg,
 	});
 	logger.error("DLQ replay entry failed", {

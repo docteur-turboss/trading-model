@@ -1,4 +1,5 @@
 import { SpanStatusCode } from "@opentelemetry/api";
+import type { Bytes } from "@trading-model/common/domain/primitives";
 import {
 	type ResponseObject,
 	sendResponse,
@@ -8,7 +9,7 @@ import type { z } from "zod";
 import { isDbConnected } from "../config/db";
 import { DlqEntrySchema } from "./dlq-schemas";
 
-const MAX_MESSAGE_BYTES = 5 * 1024 * 1024;
+const MAX_MESSAGE_BYTES = (5 * 1024 * 1024) as Bytes;
 
 export function validateAddEntryBody(
 	body: unknown,

@@ -1,5 +1,6 @@
+import { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import { logger } from "../config/logger";
-import { dlqClaimManager } from "./claim-manager";
+import { claimReleaseManager } from "./claim-manager";
 import { dlqRetryManager } from "./retry-manager";
 import { isShuttingDown } from "./shared/shutdown-flag";
 import type { BatchContext, DlqEntryRef } from "./types";
@@ -19,7 +20,7 @@ async function _deliverMessage(
 	}
 	await client.post(`${messageManagerUrl}/message`, entry.message, {
 		timeoutMs: 10_000,
-		serviceName: "message-manager" as never,
+		serviceName: ServiceInstanceName.MessageManagerService,
 		retryCount: 3,
 	});
 }
@@ -54,7 +55,7 @@ async function _forceReleaseClaim(
 }
 
 async function _forceIncrementRetry(entryId: string): Promise<void> {
-	await dlqClaimManager.incrementRetryCount(entryId).catch((err) => {
+	await claimReleaseManager.incrementRetryCount(entryId).catch((err) => {
 		logger.error(
 			"CRITICAL: Failed to increment retryCount after markRetried failure",
 			{ entryId, error: (err as Error).message }
@@ -63,7 +64,7 @@ async function _forceIncrementRetry(entryId: string): Promise<void> {
 }
 
 async function _forceReleaseClaimWithoutCount(entryId: string): Promise<void> {
-	await dlqClaimManager.releaseClaimWithoutCount(entryId).catch((err) => {
+	await claimReleaseManager.releaseClaimWithoutCount(entryId).catch((err) => {
 		logger.error("CRITICAL: Failed to release claim after error", {
 			entryId,
 			error: (err as Error).message,

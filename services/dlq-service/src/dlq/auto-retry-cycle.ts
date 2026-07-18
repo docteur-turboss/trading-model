@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import {
 	Limit,
 	toCorrelationId,
@@ -15,7 +16,7 @@ import { ENV } from "../config/env";
 import { logger } from "../config/logger";
 import { metrics } from "../config/metrics";
 import { resolveMessageManagerUrl } from "./address-resolver";
-import { dlqClaimManager } from "./claim-manager";
+import { claimReleaseManager, dlqClaimManager } from "./claim-manager";
 import type { DlqEntryRef } from "./replay-pipeline";
 import { doReplayBatch } from "./replay-pipeline";
 import { dlqRetryManager } from "./retry-manager";
@@ -70,7 +71,7 @@ function _emitRetryMetrics(result: {
 async function _executeAutoRetryCycle(
 	messageManagerUrl: URLString
 ): Promise<void> {
-	await dlqClaimManager.releaseStaleClaims();
+	await claimReleaseManager.releaseStaleClaims();
 
 	const batchId = _generateBatchId("auto-retry");
 	const entries = await _claimEntriesForRetry(batchId);
@@ -119,7 +120,7 @@ function _notifyAutoRetryResult(
 	void notifyAudit({
 		timestamp: UnixTimestamp.now(),
 		topic: toTopic("dlq-service"),
-		publisher: toServiceId("dlq-service"),
+		publisher: toServiceId(ServiceInstanceName.DlqService),
 		correlationId: toCorrelationId(batchId),
 		summary: `DLQ replay: ${success} succeeded, ${errorsCount} failed`,
 		severity: errorsCount > 0 ? Severity.Error : Severity.Info,

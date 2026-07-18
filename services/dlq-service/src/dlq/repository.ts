@@ -3,7 +3,7 @@ import {
 	Topic,
 	type UnixTimestamp,
 } from "@trading-model/common/domain/primitives";
-import { AppError } from "@trading-model/common/utils/errors";
+import { type AppError, isAppError } from "@trading-model/common/utils/errors";
 import type { DlqEntry } from "@trading-model/validation/contracts/dlq.types";
 import type { Document, WithId } from "mongodb";
 import { getCollection } from "../config/db";
@@ -18,7 +18,7 @@ export type { DlqListOptions };
 export { dlqCapacityError };
 
 export function isDlqCapacityError(err: unknown): err is AppError {
-	return err instanceof AppError && err.code === "DlqCapacityError";
+	return isAppError(err) && err.code === "DlqCapacityError";
 }
 
 export { DlqStatus } from "./dlq-status";

@@ -1,5 +1,5 @@
 import { logger } from "../config/logger";
-import { dlqClaimManager } from "./claim-manager";
+import { claimReleaseManager } from "./claim-manager";
 import { activeReplays } from "./shared/active-replay-counter";
 
 function _sleep(ms: number): Promise<void> {
@@ -39,8 +39,8 @@ export class ReplayDrainService {
 		logger.warn(
 			`${activeReplays.count} replays did not complete within drain timeout — releasing their claims`
 		);
-		await dlqClaimManager.releaseAllActiveClaims();
+		await claimReleaseManager.releaseAllActiveClaims();
 		await _sleep(500);
-		await dlqClaimManager.releaseAllActiveClaims();
+		await claimReleaseManager.releaseAllActiveClaims();
 	}
 }

@@ -1,3 +1,4 @@
+import type { PositiveInt } from "@trading-model/common/domain/primitives";
 import { CircuitStateMachine } from "@trading-model/common/reliability/circuit-state-machine";
 import type { DlqEntryRef, DlqError } from "./types";
 
@@ -6,7 +7,7 @@ const MmCircuitBreaker = new CircuitStateMachine(
 );
 
 let activeBatches = 0;
-const MAX_CONCURRENT_BATCHES = 2;
+const MAX_CONCURRENT_BATCHES = 2 as PositiveInt;
 
 function _rejectAll(
 	entries: DlqEntryRef[],

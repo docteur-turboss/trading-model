@@ -1,7 +1,8 @@
+import type { DurationMs } from "@trading-model/common/domain/primitives";
 import { logger } from "../config/logger";
 import { isShuttingDown } from "./shared/shutdown-flag";
 
-const RedisWorkerIntervalMs = 1000;
+const RedisWorkerIntervalMs = 1000 as DurationMs;
 
 export class RedisWorkerTimer {
 	private _timer: ReturnType<typeof setTimeout> | null = null;

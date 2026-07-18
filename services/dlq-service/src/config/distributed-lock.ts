@@ -5,6 +5,7 @@ import {
 import { TimerHandle } from "@trading-model/common/utils/timer-handle";
 import type { IDistributedLock } from "@trading-model/validation/contracts/distributed-lock.types";
 import type { Redis } from "ioredis";
+import { logger } from "./logger";
 
 const LOCK_PREFIX = "dlq:lock:";
 const LOCK_TTL = 30; // Seconds — auto-release if process crashes
@@ -55,7 +56,12 @@ export class DistributedLock implements IDistributedLock {
 				LOCK_TTL,
 				REDIS_SET.XX
 			);
-		} catch {}
+		} catch (err) {
+			logger.warn("Failed to renew distributed lock", {
+				lockName: this._lockName,
+				err: (err as Error).message,
+			});
+		}
 	}
 
 	async release(lockId?: string): Promise<void> {

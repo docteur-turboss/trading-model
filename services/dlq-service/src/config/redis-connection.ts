@@ -1,8 +1,7 @@
-import { URLString } from "@trading-model/common/domain/primitives";
+import { createRedisClient } from "@trading-model/common/persistence/redis-connection-manager";
 import type Redis from "ioredis";
 import { ENV } from "./env";
 import { logger } from "./logger";
-import { RedisClientManager } from "./redis-client-manager";
 
 enum ConnectionState {
 	Idle = "Idle",
@@ -12,7 +11,7 @@ enum ConnectionState {
 }
 
 export class RedisConnection {
-	private readonly _clientManager = new RedisClientManager();
+	private _client: Redis | null = null;
 	private _state: ConnectionState = ConnectionState.Idle;
 	private _onReconnect: () => void = () => {};
 
@@ -34,9 +33,10 @@ export class RedisConnection {
 		}
 	}
 	async close(): Promise<void> {
-		if (this._clientManager.getClient()) {
-			await this._clientManager.closeClient();
-			this._clientManager.removeAllListeners();
+		if (this._client) {
+			await this._disconnectClient();
+			this._removeClientListeners();
+			this._client = null;
 		}
 		this._state = ConnectionState.Disconnected;
 	}
@@ -44,7 +44,7 @@ export class RedisConnection {
 		return this._state === ConnectionState.Connected;
 	}
 	getClient(): Redis | null {
-		return this._clientManager.getClient();
+		return this._client;
 	}
 
 	private async _tryConnect(): Promise<boolean> {
@@ -53,8 +53,10 @@ export class RedisConnection {
 			logger.info("No REDIS_URL configured — Redis queue unavailable");
 			return false;
 		}
-		const client = await this._clientManager.createClient(URLString.of(url));
+		const client = createRedisClient(url) as Redis;
+		await client.connect();
 		this._attachEventHandlers(client);
+		this._client = client;
 		this._state = ConnectionState.Connected;
 		return true;
 	}
@@ -75,15 +77,26 @@ export class RedisConnection {
 		return this._state === ConnectionState.Disconnected;
 	}
 	private _isConnected(): boolean {
-		return Boolean(
-			this._clientManager.getClient() &&
-				this._state === ConnectionState.Connected
-		);
+		return Boolean(this._client && this._state === ConnectionState.Connected);
 	}
 	private async _closeExistingClient(): Promise<void> {
-		if (this._clientManager.getClient() && !this._isConnected()) {
+		if (this._client && !this._isConnected()) {
 			await this.close();
 		}
+	}
+	private async _disconnectClient(): Promise<void> {
+		try {
+			if (this._client?.status === "ready") {
+				await this._client.quit();
+			} else {
+				this._client?.disconnect();
+			}
+		} catch {
+			this._client?.disconnect();
+		}
+	}
+	private _removeClientListeners(): void {
+		this._client?.removeAllListeners();
 	}
 	private _attachEventHandlers(client: Redis): void {
 		client.on("connect", () => this._onConnect());
