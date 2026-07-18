@@ -1,4 +1,3 @@
-import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import type { ServiceId } from "@trading-model/common/domain/primitives";
 import { toServiceId } from "@trading-model/common/domain/primitives";
 import { HTTP_HEADERS } from "@trading-model/common/http-headers";
@@ -9,7 +8,8 @@ import type {
 	SignedRequestAuth,
 	Timestamp,
 } from "@trading-model/validation/contracts/signed-request";
-import { CryptoAlg } from "./crypto-constants";
+import { sha256Hex } from "./hash-utils";
+import { createHmacSha256, verifyHmacSha256 } from "./hmac-utils";
 
 const DEFAULT_TIMESTAMP_TOLERANCE_MS = 300_000;
 
@@ -29,9 +29,7 @@ export function signRequest(
 		return { timestamp, signature: "" as Signature };
 	}
 	const parts = _buildSignParts(input, timestamp, secret);
-	const signature = createHmac(CryptoAlg.SHA256, secret)
-		.update(parts.join(":"))
-		.digest(CryptoAlg.HEX) as Signature;
+	const signature = createHmacSha256(secret, ...parts) as Signature;
 	return { timestamp, signature };
 }
 
@@ -73,13 +71,7 @@ function _verifyHmacMatch(
 	signature: string
 ): boolean {
 	const parts = _buildSignParts(input, timestamp, secret);
-	const expected = createHmac(CryptoAlg.SHA256, secret)
-		.update(parts.join(":"))
-		.digest(CryptoAlg.HEX);
-	return (
-		signature.length === expected.length &&
-		timingSafeEqual(Buffer.from(signature), Buffer.from(expected))
-	);
+	return verifyHmacSha256(secret, signature, ...parts);
 }
 
 function _buildSignParts(
@@ -88,9 +80,7 @@ function _buildSignParts(
 	_secret: string
 ): string[] {
 	const bodyString = deterministicStringify(normalizeBody(input.body));
-	const bodyHash = createHash(CryptoAlg.SHA256)
-		.update(bodyString)
-		.digest(CryptoAlg.HEX);
+	const bodyHash = sha256Hex(bodyString);
 	return [input.serviceName, timestamp, bodyHash, input.method, input.path];
 }
 

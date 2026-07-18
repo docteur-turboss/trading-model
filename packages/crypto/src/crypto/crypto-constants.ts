@@ -7,9 +7,3 @@ export enum CryptoAlg {
 	HEX = "hex",
 	AES_256_GCM = "aes-256-gcm",
 }
-
-export enum JwkKeyType {
-	RSA = "RSA",
-	EC = "EC",
-	OKP = "OKP",
-}

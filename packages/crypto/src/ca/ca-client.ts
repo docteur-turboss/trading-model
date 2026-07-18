@@ -28,8 +28,6 @@ export interface WireCertificateResponse
 	fingerprint: Fingerprint;
 }
 
-export interface SignCertificateResponse extends WireCertificateResponse {}
-
 export interface GetCertificateResponse extends WireCertificateResponse {
 	issuedAt: string;
 }
@@ -65,7 +63,7 @@ export class CaClient {
 	 */
 	async signCertificate(
 		request: SignCertificateRequest
-	): Promise<SignCertificateResponse> {
+	): Promise<WireCertificateResponse> {
 		const { serviceId, csr, ttlMs, bootstrapToken } = request;
 		const body: JsonObject = { serviceId, csr };
 		if (ttlMs) {
@@ -75,7 +73,7 @@ export class CaClient {
 			body.bootstrapToken = bootstrapToken;
 		}
 
-		const result = await this._httpClient.post<SignCertificateResponse>(
+		const result = await this._httpClient.post<WireCertificateResponse>(
 			URLString.of(`${this._baseUrl}/api/v1/certificate/sign`),
 			body
 		);
