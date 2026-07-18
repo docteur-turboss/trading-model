@@ -42,13 +42,13 @@ jest.mock("../../src/config/address-manager", () => ({
 import { healthRoutes } from "../../src/routes/health.routes";
 import { BackPressure } from "../../src/scheduler/back-pressure";
 import { InternalQueue } from "../../src/scheduler/internal-queue";
-import { WorkerRegistry } from "../../src/worker/worker-registry";
+import { createWorkerRegistry } from "../../src/worker/worker-registry";
 
 function createApp() {
 	const app = configureApp();
 	const queue = new InternalQueue(30000);
 	const backPressure = new BackPressure(1000, 0.8);
-	const workers = new WorkerRegistry(30000);
+	const workers = createWorkerRegistry(30000);
 	app.use("/", healthRoutes(queue, backPressure, workers));
 	return app;
 }

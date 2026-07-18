@@ -19,11 +19,12 @@ jest.mock("../../../src/config/env", () => ({
 }));
 
 import { PositiveInt } from "@trading-model/common/domain/primitives";
+import { OrphanDetector } from "@trading-model/common/recovery/orphan-detector";
+import { ReAllocator } from "@trading-model/common/recovery/re-allocator";
 import type { JobRepository } from "../../../src/persistence/job-repository";
-import { OrphanDetector } from "../../../src/recovery/orphan-detector";
-import { ReAllocator } from "../../../src/recovery/re-allocator";
 import { InternalQueue } from "../../../src/scheduler/internal-queue";
-import { WorkerRegistry } from "../../../src/worker/worker-registry";
+import type { WorkerRegistry } from "../../../src/worker/worker-registry";
+import { createWorkerRegistry } from "../../../src/worker/worker-registry";
 import { createJob } from "../../fixtures/job.fixture";
 
 describe("OrphanDetector", () => {
@@ -48,7 +49,7 @@ describe("OrphanDetector", () => {
 		} as unknown as jest.Mocked<JobRepository>;
 
 		mockQueue = new InternalQueue(30000);
-		registry = new WorkerRegistry(5000);
+		registry = createWorkerRegistry(5000);
 		reAllocator = new ReAllocator(mockRepository, mockQueue, 30000);
 	});
 
@@ -102,7 +103,7 @@ describe("OrphanDetector", () => {
 
 	describe("detection cycle", () => {
 		it("should detect orphaned jobs from stale workers", () => {
-			registry.register("stale-worker", {
+			registry.store.register("stale-worker", {
 				workerId: "stale-worker" as any,
 				host: "10.0.0.1" as any,
 				port: 9000 as any,
@@ -136,7 +137,7 @@ describe("OrphanDetector", () => {
 		it("should log error but not crash when detection fails", () => {
 			mockRepository.findByWorker.mockRejectedValue(new Error("DB error"));
 
-			registry.register("bad-worker", {
+			registry.store.register("bad-worker", {
 				workerId: "bad-worker" as any,
 				host: "10.0.0.1" as any,
 				port: 9000 as any,
@@ -163,7 +164,7 @@ describe("OrphanDetector", () => {
 		it("should handle non-Error rejection in detection cycle", () => {
 			mockRepository.findByWorker.mockRejectedValue("string error");
 
-			registry.register("w1", {
+			registry.store.register("w1", {
 				workerId: "w1" as any,
 				host: "10.0.0.1" as any,
 				port: 9000 as any,

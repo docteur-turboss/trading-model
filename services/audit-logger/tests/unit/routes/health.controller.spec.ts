@@ -18,7 +18,8 @@ jest.mock(
 import { createHealthController } from "../../../src/controllers/health.controller";
 import { BackPressure } from "../../../src/scheduler/back-pressure";
 import { InternalQueue } from "../../../src/scheduler/internal-queue";
-import { WorkerRegistry } from "../../../src/worker/worker-registry";
+import type { WorkerRegistry } from "../../../src/worker/worker-registry";
+import { createWorkerRegistry } from "../../../src/worker/worker-registry";
 
 describe("HealthController", () => {
 	let queue: InternalQueue;
@@ -29,7 +30,7 @@ describe("HealthController", () => {
 	beforeEach(() => {
 		queue = new InternalQueue(30000);
 		backPressure = new BackPressure(100, 0.85);
-		workers = new WorkerRegistry(30000);
+		workers = createWorkerRegistry(30000);
 		controller = createHealthController(queue, backPressure, workers);
 	});
 

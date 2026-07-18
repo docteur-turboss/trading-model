@@ -75,12 +75,12 @@ describe("JobScheduler", () => {
 			mockRepository.insert.mockResolvedValue(undefined);
 			mockRepository.updateStatus.mockResolvedValue(undefined);
 
-			const jobId = await scheduler.submit(
-				"test-type" as any,
-				{ data: 1 },
-				3 as any,
-				3 as any
-			);
+			const jobId = await scheduler.submit({
+				type: "test-type" as any,
+				payload: { data: 1 },
+				priority: 3 as any,
+				maxRetries: 3 as any,
+			});
 
 			expect(jobId).toBeDefined();
 			expect(typeof jobId).toBe("string");
@@ -94,16 +94,16 @@ describe("JobScheduler", () => {
 		it("should throw BACK_PRESSURE when queue is full", async () => {
 			scheduler.backPressure.updateQueueDepth(99999);
 
-			await expect(scheduler.submit("test-type" as any, {})).rejects.toThrow(
-				"Job scheduler at capacity"
-			);
+			await expect(
+				scheduler.submit({ type: "test-type" as any, payload: {} })
+			).rejects.toThrow("Job scheduler at capacity");
 		});
 
 		it("should log error when enqueueJob updateStatus fails", async () => {
 			mockRepository.insert.mockResolvedValue(undefined);
 			mockRepository.updateStatus.mockRejectedValue(new Error("DB error"));
 
-			await scheduler.submit("test-type" as any, {});
+			await scheduler.submit({ type: "test-type" as any, payload: {} });
 
 			expect(MOCK_LOGGER.error).toHaveBeenCalledWith(
 				"Failed to persist queued status",
@@ -129,7 +129,7 @@ describe("JobScheduler", () => {
 
 	describe("complete", () => {
 		it("should update job status to completed", async () => {
-			scheduler.workers.register("w1", {
+			scheduler.workers.store.register("w1", {
 				workerId: "w1",
 				host: "10.0.0.1",
 				port: 9000,
@@ -281,7 +281,7 @@ describe("JobScheduler", () => {
 		});
 
 		it("should decrement worker load when failing with assigned worker", async () => {
-			scheduler.workers.register("w1", {
+			scheduler.workers.store.register("w1", {
 				workerId: "w1",
 				host: "10.0.0.1",
 				port: 9000,
@@ -307,7 +307,7 @@ describe("JobScheduler", () => {
 
 			await scheduler.fail("job-worker" as any, "error");
 
-			expect(scheduler.workers.get("w1")!.currentLoad).toBe(1);
+			expect(scheduler.workers.store.get("w1")!.currentLoad).toBe(1);
 		});
 
 		it("should handle fail when worker is not found in registry", async () => {
@@ -410,7 +410,7 @@ describe("JobScheduler", () => {
 		});
 
 		it("should decrement worker load when cancelling assigned job", async () => {
-			scheduler.workers.register("w1", {
+			scheduler.workers.store.register("w1", {
 				workerId: "w1",
 				host: "10.0.0.1",
 				port: 9000,
@@ -436,7 +436,7 @@ describe("JobScheduler", () => {
 
 			await scheduler.cancel("job-assigned" as any);
 
-			expect(scheduler.workers.get("w1")!.currentLoad).toBe(2);
+			expect(scheduler.workers.store.get("w1")!.currentLoad).toBe(2);
 		});
 
 		it("should do nothing for unknown job", async () => {
@@ -605,7 +605,7 @@ describe("JobScheduler", () => {
 			const protocol = { sendToWorker: jest.fn() } as unknown as WorkerProtocol;
 			scheduler.setWorkerProtocol(protocol);
 
-			scheduler.workers.register("w1", {
+			scheduler.workers.store.register("w1", {
 				workerId: "w1",
 				host: "10.0.0.1",
 				port: 9000,
@@ -617,7 +617,7 @@ describe("JobScheduler", () => {
 			mockRepository.insert.mockResolvedValue(undefined);
 			mockRepository.updateStatus.mockResolvedValue(undefined);
 
-			await scheduler.submit("test-type" as any, {});
+			await scheduler.submit({ type: "test-type" as any, payload: {} });
 
 			expect(protocol.sendToWorker).toHaveBeenCalled();
 		});
@@ -655,7 +655,7 @@ describe("JobScheduler", () => {
 			} as any);
 			mockRepository.updateStatus.mockResolvedValue(undefined);
 
-			scheduler.workers.register("w1", {
+			scheduler.workers.store.register("w1", {
 				workerId: "w1",
 				host: "10.0.0.1",
 				port: 9000,
@@ -666,7 +666,12 @@ describe("JobScheduler", () => {
 
 			mockRepository.insert.mockResolvedValue(undefined);
 
-			await scheduler.submit("test-type" as any, {}, 1 as any, 3 as any);
+			await scheduler.submit({
+				type: "test-type" as any,
+				payload: {},
+				priority: 1 as any,
+				maxRetries: 3 as any,
+			});
 
 			jest.advanceTimersByTime(30001);
 			await Promise.resolve();
@@ -694,7 +699,7 @@ describe("JobScheduler", () => {
 				assignedWorkerId: undefined,
 			} as any);
 
-			scheduler.workers.register("w1", {
+			scheduler.workers.store.register("w1", {
 				workerId: "w1",
 				host: "10.0.0.1",
 				port: 9000,
@@ -706,7 +711,12 @@ describe("JobScheduler", () => {
 			mockRepository.insert.mockResolvedValue(undefined);
 			mockRepository.updateStatus.mockResolvedValue(undefined);
 
-			await scheduler.submit("test-type" as any, {}, 1 as any, 3 as any);
+			await scheduler.submit({
+				type: "test-type" as any,
+				payload: {},
+				priority: 1 as any,
+				maxRetries: 3 as any,
+			});
 
 			jest.advanceTimersByTime(30001);
 			await Promise.resolve();
@@ -734,7 +744,7 @@ describe("JobScheduler", () => {
 				assignedWorkerId: undefined,
 			} as any);
 
-			scheduler.workers.register("w1", {
+			scheduler.workers.store.register("w1", {
 				workerId: "w1",
 				host: "10.0.0.1",
 				port: 9000,
@@ -746,7 +756,12 @@ describe("JobScheduler", () => {
 			mockRepository.insert.mockResolvedValue(undefined);
 			mockRepository.updateStatus.mockResolvedValue(undefined);
 
-			await scheduler.submit("test-type" as any, {}, 1 as any, 3 as any);
+			await scheduler.submit({
+				type: "test-type" as any,
+				payload: {},
+				priority: 1 as any,
+				maxRetries: 3 as any,
+			});
 
 			jest.advanceTimersByTime(30001);
 			await Promise.resolve();
@@ -774,7 +789,7 @@ describe("JobScheduler", () => {
 				assignedWorkerId: undefined,
 			} as any);
 
-			scheduler.workers.register("w1", {
+			scheduler.workers.store.register("w1", {
 				workerId: "w1",
 				host: "10.0.0.1",
 				port: 9000,
@@ -786,7 +801,12 @@ describe("JobScheduler", () => {
 			mockRepository.insert.mockResolvedValue(undefined);
 			mockRepository.updateStatus.mockResolvedValue(undefined);
 
-			await scheduler.submit("test-type" as any, {}, 1 as any, 3 as any);
+			await scheduler.submit({
+				type: "test-type" as any,
+				payload: {},
+				priority: 1 as any,
+				maxRetries: 3 as any,
+			});
 
 			jest.advanceTimersByTime(30001);
 			await Promise.resolve();
@@ -800,7 +820,7 @@ describe("JobScheduler", () => {
 		});
 
 		it("should decrement load for timed-out assigned worker", async () => {
-			scheduler.workers.register("w1", {
+			scheduler.workers.store.register("w1", {
 				workerId: "w1",
 				host: "10.0.0.1",
 				port: 9000,
@@ -825,18 +845,23 @@ describe("JobScheduler", () => {
 			mockRepository.insert.mockResolvedValue(undefined);
 			mockRepository.updateStatus.mockResolvedValue(undefined);
 
-			await scheduler.submit("test-type" as any, {}, 1 as any, 3 as any);
+			await scheduler.submit({
+				type: "test-type" as any,
+				payload: {},
+				priority: 1 as any,
+				maxRetries: 3 as any,
+			});
 
 			jest.advanceTimersByTime(30001);
 			await Promise.resolve();
 			await Promise.resolve();
 			await Promise.resolve();
 
-			expect(scheduler.workers.get("w1")!.currentLoad).toBe(2);
+			expect(scheduler.workers.store.get("w1")!.currentLoad).toBe(2);
 		});
 
 		it("should handle ACK timeout without assignedWorkerId", async () => {
-			scheduler.workers.register("w1", {
+			scheduler.workers.store.register("w1", {
 				workerId: "w1",
 				host: "10.0.0.1",
 				port: 9000,
@@ -861,7 +886,12 @@ describe("JobScheduler", () => {
 			mockRepository.insert.mockResolvedValue(undefined);
 			mockRepository.updateStatus.mockResolvedValue(undefined);
 
-			await scheduler.submit("test-type" as any, {}, 1 as any, 3 as any);
+			await scheduler.submit({
+				type: "test-type" as any,
+				payload: {},
+				priority: 1 as any,
+				maxRetries: 3 as any,
+			});
 
 			jest.advanceTimersByTime(30001);
 			await Promise.resolve();
@@ -875,7 +905,7 @@ describe("JobScheduler", () => {
 		});
 
 		it("should handle ACK timeout when worker is not found in registry", async () => {
-			scheduler.workers.register("w1", {
+			scheduler.workers.store.register("w1", {
 				workerId: "w1",
 				host: "10.0.0.1",
 				port: 9000,
@@ -900,7 +930,12 @@ describe("JobScheduler", () => {
 			mockRepository.insert.mockResolvedValue(undefined);
 			mockRepository.updateStatus.mockResolvedValue(undefined);
 
-			await scheduler.submit("test-type" as any, {}, 1 as any, 3 as any);
+			await scheduler.submit({
+				type: "test-type" as any,
+				payload: {},
+				priority: 1 as any,
+				maxRetries: 3 as any,
+			});
 
 			jest.advanceTimersByTime(30001);
 			await Promise.resolve();
@@ -914,7 +949,7 @@ describe("JobScheduler", () => {
 		});
 
 		it("should log error when updateStatus fails on ACK timeout", async () => {
-			scheduler.workers.register("w1", {
+			scheduler.workers.store.register("w1", {
 				workerId: "w1",
 				host: "10.0.0.1",
 				port: 9000,
@@ -946,7 +981,12 @@ describe("JobScheduler", () => {
 				return Promise.resolve(undefined);
 			});
 
-			await scheduler.submit("test-type" as any, {}, 1 as any, 3 as any);
+			await scheduler.submit({
+				type: "test-type" as any,
+				payload: {},
+				priority: 1 as any,
+				maxRetries: 3 as any,
+			});
 
 			jest.advanceTimersByTime(30001);
 			await Promise.resolve();
@@ -960,7 +1000,7 @@ describe("JobScheduler", () => {
 		});
 
 		it("should log error when findById fails on ACK timeout", async () => {
-			scheduler.workers.register("w1", {
+			scheduler.workers.store.register("w1", {
 				workerId: "w1",
 				host: "10.0.0.1",
 				port: 9000,
@@ -973,7 +1013,12 @@ describe("JobScheduler", () => {
 			mockRepository.insert.mockResolvedValue(undefined);
 			mockRepository.updateStatus.mockResolvedValue(undefined);
 
-			await scheduler.submit("test-type" as any, {}, 1 as any, 3 as any);
+			await scheduler.submit({
+				type: "test-type" as any,
+				payload: {},
+				priority: 1 as any,
+				maxRetries: 3 as any,
+			});
 
 			jest.advanceTimersByTime(30001);
 			await Promise.resolve();
@@ -991,7 +1036,7 @@ describe("JobScheduler", () => {
 
 	describe("distributeNext error handling", () => {
 		it("should log error when updateStatus fails during assignment", async () => {
-			scheduler.workers.register("w1", {
+			scheduler.workers.store.register("w1", {
 				workerId: "w1",
 				host: "10.0.0.1",
 				port: 9000,
@@ -1010,7 +1055,7 @@ describe("JobScheduler", () => {
 				return Promise.resolve(undefined);
 			});
 
-			await scheduler.submit("test-type" as any, {});
+			await scheduler.submit({ type: "test-type" as any, payload: {} });
 
 			expect(MOCK_LOGGER.error).toHaveBeenCalledWith(
 				"Failed to persist assigned status",
