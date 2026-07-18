@@ -202,7 +202,7 @@ describe("ServiceDiscovery", () => {
 		healthChecker.isHealthy.mockResolvedValue(false);
 
 		await expect(discovery.findService(svcInstanceName)).rejects.toThrow(
-			AppError
+			'Service "user-service" is unreachable'
 		);
 
 		expect(cache.delete).toHaveBeenCalledWith(serviceName);
@@ -282,21 +282,27 @@ describe("ServiceDiscovery", () => {
 	test("acquireConnection increments connection count for new instance", () => {
 		const id = toInstanceId("instance-1");
 		discovery.acquireConnection(id);
-		expect((discovery as any)._connections.get(id)).toBe(1);
+		expect((discovery as any)._connectionTracker.getConnectionCount(id)).toBe(
+			1
+		);
 	});
 
 	test("acquireConnection increments connection count for existing instance", () => {
 		const id = toInstanceId("instance-1");
 		discovery.acquireConnection(id);
 		discovery.acquireConnection(id);
-		expect((discovery as any)._connections.get(id)).toBe(2);
+		expect((discovery as any)._connectionTracker.getConnectionCount(id)).toBe(
+			2
+		);
 	});
 
 	test("releaseConnection decrements count and removes when count reaches zero", () => {
 		const id = toInstanceId("instance-1");
 		discovery.acquireConnection(id);
 		discovery.releaseConnection(id);
-		expect((discovery as any)._connections.has(id)).toBe(false);
+		expect((discovery as any)._connectionTracker.getConnectionCount(id)).toBe(
+			0
+		);
 	});
 
 	test("releaseConnection decrements count but keeps entry when count > 1", () => {
@@ -304,7 +310,9 @@ describe("ServiceDiscovery", () => {
 		discovery.acquireConnection(id);
 		discovery.acquireConnection(id);
 		discovery.releaseConnection(id);
-		expect((discovery as any)._connections.get(id)).toBe(1);
+		expect((discovery as any)._connectionTracker.getConnectionCount(id)).toBe(
+			1
+		);
 	});
 
 	test("releaseConnection does nothing when instance not in map", () => {

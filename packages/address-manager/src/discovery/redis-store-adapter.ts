@@ -6,7 +6,7 @@ interface RedisLike {
 	del(...keys: string[]): Promise<number>;
 }
 
-export class RedisStoreAdapter<T> implements IStoreAdapter<T> {
+export class RedisStoreAdapter<TValue> implements IStoreAdapter<TValue> {
 	private readonly _redis: RedisLike;
 	private readonly _prefix: string;
 	private readonly _ttlSec: number;
@@ -17,15 +17,15 @@ export class RedisStoreAdapter<T> implements IStoreAdapter<T> {
 		this._ttlSec = ttlSec;
 	}
 
-	async get(key: string): Promise<T | null> {
+	async get(key: string): Promise<TValue | null> {
 		const raw = await this._redis.get(`${this._prefix}${key}`);
 		if (!raw) {
 			return null;
 		}
-		return JSON.parse(raw) as T;
+		return JSON.parse(raw) as TValue;
 	}
 
-	async set(key: string, value: T, ttlMs?: number): Promise<void> {
+	async set(key: string, value: TValue, ttlMs?: number): Promise<void> {
 		const ttlSec = ttlMs === undefined ? this._ttlSec : Math.ceil(ttlMs / 1000);
 		await this._redis.setex(
 			`${this._prefix}${key}`,
