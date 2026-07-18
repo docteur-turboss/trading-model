@@ -1,9 +1,12 @@
 ﻿import type { HttpClient } from "@trading-model/common/config/http-client";
 import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
-import type { InstanceId } from "@trading-model/common/domain/primitives";
-import { toServiceId } from "@trading-model/common/domain/primitives";
+import {
+	type InstanceId,
+	toServiceId,
+} from "@trading-model/common/domain/primitives";
 import type { ServiceInstance } from "../client/type";
 import type { AddressManagerConfig } from "../config/address-manager-config";
+import { ConnectionTracker } from "./connection-tracker";
 import type { IServiceCache } from "./service-cache.interface";
 import type { ServiceHealthChecker } from "./service-health-checker";
 import { ServiceResolver } from "./service-resolver";
@@ -20,15 +23,15 @@ export class ServiceDiscovery {
 	private readonly _config: AddressManagerConfig;
 	private readonly _healthChecker: ServiceHealthChecker;
 	private readonly _resolver: ServiceResolver;
+	private readonly _connectionTracker: ConnectionTracker;
 
 	constructor(deps: ServiceDiscoveryDeps) {
 		this._serviceCache = deps.serviceCache;
 		this._config = deps.config;
 		this._healthChecker = deps.healthChecker;
 		this._resolver = new ServiceResolver(deps);
+		this._connectionTracker = new ConnectionTracker();
 	}
-
-	private readonly _connections = new Map<InstanceId, number>();
 
 	private async _getHealthyCachedInstance(
 		serviceName: ServiceInstanceName
@@ -78,21 +81,11 @@ export class ServiceDiscovery {
 	}
 
 	acquireConnection(instanceId: InstanceId): void {
-		this._connections.set(
-			instanceId,
-			(this._connections.get(instanceId) ?? 0) + 1
-		);
+		this._connectionTracker.acquire(instanceId);
 	}
 
 	releaseConnection(instanceId: InstanceId): void {
-		const count = this._connections.get(instanceId);
-		if (count !== undefined) {
-			if (count <= 1) {
-				this._connections.delete(instanceId);
-			} else {
-				this._connections.set(instanceId, count - 1);
-			}
-		}
+		this._connectionTracker.release(instanceId);
 	}
 
 	findAllServices(

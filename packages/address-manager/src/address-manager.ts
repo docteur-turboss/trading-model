@@ -1,5 +1,7 @@
+import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import { buildAddressManagerDependencies } from "./address-manager-factory";
 import type { TokenManager } from "./client/token-manager";
+import type { ServiceInstance } from "./client/type";
 import type { AddressManagerConfig } from "./config/address-manager-config";
 import type { DiscoveryOrchestrator } from "./discovery/discovery-orchestrator";
 import type { LifecycleManager } from "./lifecycle-manager";
@@ -17,5 +19,9 @@ export default class AddressManager {
 		this.discoveryOrchestrator = deps.discoveryOrchestrator;
 		this.metricsCollector = deps.metricsCollector;
 		this.lifecycleManager = deps.lifecycleManager;
+	}
+
+	findService(serviceName: ServiceInstanceName): Promise<ServiceInstance> {
+		return this.discoveryOrchestrator.findService(serviceName);
 	}
 }
