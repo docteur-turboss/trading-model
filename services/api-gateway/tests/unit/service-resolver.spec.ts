@@ -8,10 +8,10 @@ import {
 } from "@jest/globals";
 import { ServiceResolver } from "../../src/core/service-resolver";
 
-const makeInstance = (ip: string, port: number, version: string) => ({
+const makeInstance = (host: string, port: number, version: string) => ({
 	serviceName: "sector-allocator",
-	instanceId: `inst-${ip}`,
-	ip,
+	instanceId: `inst-${host}`,
+	host,
 	port,
 	version,
 	ttl: 30_000,
