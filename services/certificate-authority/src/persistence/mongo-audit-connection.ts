@@ -11,7 +11,8 @@ export class MongoAuditConnection {
 
 	constructor(uri: URLString) {
 		this._client = MONGO_MANAGER.isConnected()
-			? MONGO_MANAGER.getClient()!
+			? // biome-ignore lint/suspicious/noExplicitAny: getClient() returns unknown, but matches MongoClient shape
+				(MONGO_MANAGER.getClient() as any)
 			: new MongoClient(uri);
 	}
 
@@ -27,9 +28,9 @@ export class MongoAuditConnection {
 		return this._collection !== null;
 	}
 
-	private _resolveDb(): import("mongodb").Db {
+	private async _resolveDb(): Promise<import("mongodb").Db> {
 		return MONGO_MANAGER.isConnected()
-			? MONGO_MANAGER.getDb()
+			? await MONGO_MANAGER.getDb()
 			: this._client.db();
 	}
 
@@ -64,7 +65,9 @@ export class MongoAuditConnection {
 	private async _tryConnect(): Promise<boolean> {
 		try {
 			await this._ensureClientConnected();
-			this._collection = this._resolveDb().collection<AuditEntry>("audit_log");
+			this._collection = (await this._resolveDb()).collection<AuditEntry>(
+				"audit_log"
+			);
 			await this._createAuditIndexes();
 			return true;
 		} catch (err) {

@@ -76,7 +76,9 @@ export class MongoNoncePersister implements NoncePersistence {
 
 	async connect(): Promise<void> {
 		const db = await this._resolveDb();
-		this._collection = db.collection<NonceDocument>("nonces");
+		this._collection = db.collection<NonceDocument>(
+			"nonces"
+		) as unknown as INonceCollection;
 		await this._createIndexes();
 	}
 

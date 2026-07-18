@@ -1,6 +1,7 @@
 import { createPublicKey, type KeyObject } from "node:crypto";
 import type { URLString } from "@trading-model/common/domain/primitives";
-import { JWK_KEY_TYPE } from "@trading-model/crypto/crypto/crypto-constants";
+
+const JWK_KEY_TYPE = { RSA: "RSA", EC: "EC" } as const;
 
 interface Jwk extends Record<string, string | undefined> {
 	kid?: string;

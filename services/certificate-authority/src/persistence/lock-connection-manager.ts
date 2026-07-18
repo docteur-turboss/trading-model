@@ -29,10 +29,11 @@ export class LockConnectionManager {
 		return this._collection !== null;
 	}
 
-	private _connectViaManager(): void {
-		this._client = MONGO_MANAGER.getClient();
+	private async _connectViaManager(): Promise<void> {
+		this._client =
+			MONGO_MANAGER.getClient() as unknown as import("mongodb").MongoClient;
 		const db = MONGO_MANAGER.getDb();
-		this._collection = db.collection<LockDocument>("locks");
+		this._collection = (await db).collection<LockDocument>("locks");
 	}
 
 	private async _connectDirectly(): Promise<void> {
@@ -55,7 +56,7 @@ export class LockConnectionManager {
 	async connect(): Promise<void> {
 		try {
 			if (MONGO_MANAGER.isConnected()) {
-				this._connectViaManager();
+				await this._connectViaManager();
 			} else {
 				await this._connectDirectly();
 			}

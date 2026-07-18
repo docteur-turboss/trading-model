@@ -1,15 +1,16 @@
-import type { SignOptions } from "@trading-model/certificate-utils/sign-certificate";
-import { signCertificate } from "@trading-model/certificate-utils/sign-certificate";
 import type {
 	CaCredentials,
 	RevokedCertificate,
 	SignedCertificate,
-} from "@trading-model/certificate-utils/types";
+} from "@trading-model/certificate-utils/keygen/types";
+import type { SignOptions } from "@trading-model/certificate-utils/signing/sign-certificate";
+import { signCertificate } from "@trading-model/certificate-utils/signing/sign-certificate";
 import type { CertSignRequest } from "@trading-model/common/domain/cert-signing";
 import type { ServiceId } from "@trading-model/common/domain/primitives";
 import {
 	DurationMs,
 	toServiceId,
+	UnixTimestamp,
 } from "@trading-model/common/domain/primitives";
 import type { RevocationRequest } from "@trading-model/common/domain/revocation-request";
 import { ENV } from "../config/env";
@@ -48,7 +49,7 @@ export class CertificateOperator {
 		return {
 			serialNumber: request.serialNumber,
 			serviceId: toServiceId(serviceId),
-			revokedAt: new Date(),
+			revokedAt: UnixTimestamp.now(),
 			reason: request.reason,
 		};
 	}

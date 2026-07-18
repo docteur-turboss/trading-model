@@ -1,10 +1,11 @@
-import type { CaMetadata } from "@trading-model/certificate-utils/types";
+import type { CaMetadata } from "@trading-model/certificate-utils/keygen/types";
 import { MongoStoreBase } from "@trading-model/common/persistence/mongo-store-base";
 import { MONGO_MANAGER } from "./mongo-manager";
 
 export class CaStore extends MongoStoreBase<CaMetadata> {
 	private constructor(collection: import("mongodb").Collection) {
-		super(collection);
+		// biome-ignore lint/suspicious/noExplicitAny: MongoStoreBase expects Collection<unknown>, incoming is unparameterized
+		super(collection as any);
 	}
 
 	static async connect(_uri?: string): Promise<CaStore> {

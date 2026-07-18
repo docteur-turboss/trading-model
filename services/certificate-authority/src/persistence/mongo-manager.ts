@@ -48,7 +48,8 @@ function getClient() {
 }
 
 function getDb(): Promise<Db> {
-	return _require().getDb();
+	// biome-ignore lint/suspicious/noExplicitAny: _require() result has unknown type, getDb() returns Db-like
+	return _require().getDb() as any;
 }
 
 function isConnected(): boolean {

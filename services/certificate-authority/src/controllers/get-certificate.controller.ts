@@ -1,5 +1,8 @@
 import { logger } from "@trading-model/common/config/logger";
-import { toServiceId } from "@trading-model/common/domain/primitives";
+import {
+	toServiceId,
+	type UnixTimestamp,
+} from "@trading-model/common/domain/primitives";
 import { HTTP_STATUS } from "@trading-model/common/http-status";
 import type { Request, Response } from "express";
 
@@ -24,8 +27,8 @@ function sendSuccess(
 		certPem: string;
 		caPem: string;
 		serialNumber: string;
-		issuedAt: Date;
-		expiresAt: Date;
+		issuedAt: UnixTimestamp;
+		expiresAt: UnixTimestamp;
 		fingerprint: string;
 	}
 ): void {

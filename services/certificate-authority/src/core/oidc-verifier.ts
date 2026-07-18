@@ -47,6 +47,7 @@ const ALGORITHM_MAP = new Map<string, string>([
 ]);
 
 export class OidcVerifier {
+	private readonly _config: OidcConfig;
 	private readonly _allowedAlgorithms: Set<string>;
 	private readonly _jwtParser: JwtParser;
 	private readonly _claimValidator: ClaimValidator;

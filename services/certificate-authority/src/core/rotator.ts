@@ -2,6 +2,7 @@ import { logger } from "@trading-model/common/config/logger";
 import type {
 	SerialNumber,
 	ServiceId,
+	UnixTimestamp,
 } from "@trading-model/common/domain/primitives";
 import { TimerHandle } from "@trading-model/common/utils/timer-handle";
 import type { CertificateStore } from "../persistence/certificate-store";
@@ -56,7 +57,7 @@ export class Rotator {
 	private _rotateSingleCert(cert: {
 		serviceId: ServiceId;
 		serialNumber: SerialNumber;
-		expiresAt: Date;
+		expiresAt: UnixTimestamp;
 	}): void {
 		logger.info("Rotating certificate", {
 			context: {
@@ -70,7 +71,7 @@ export class Rotator {
 	private _rotateCertWithLogging(cert: {
 		serviceId: ServiceId;
 		serialNumber: SerialNumber;
-		expiresAt: Date;
+		expiresAt: UnixTimestamp;
 	}): void {
 		try {
 			this._rotateSingleCert(cert);

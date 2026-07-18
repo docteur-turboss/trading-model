@@ -30,12 +30,13 @@ jest.mock("node:fs", () => {
 	};
 });
 
-jest.mock("@trading-model/certificate-utils/generate-key-pair", () => ({
-	KeyAlgorithm: { rsa4096: "rsa", ecP384: "ec" },
+jest.mock("@trading-model/certificate-utils", () => ({
 	generateKeyPair: jest.fn(),
+	generateSerialNumber: jest.fn(),
+	KeyAlgorithm: { rsa4096: "rsa", ecP384: "ec" },
 }));
 
-jest.mock("@trading-model/certificate-utils/sign-certificate", () => ({
+jest.mock("@trading-model/certificate-utils/signing/sign-certificate", () => ({
 	signCertificate: jest.fn(),
 }));
 
@@ -43,8 +44,8 @@ jest.mock("../../src/config/env", () => ({
 	ENV: { CERT_DEFAULT_TTL_MS: 604800000 },
 }));
 
-import { generateKeyPair } from "@trading-model/certificate-utils/generate-key-pair";
-import { signCertificate } from "@trading-model/certificate-utils/sign-certificate";
+import { generateKeyPair } from "@trading-model/certificate-utils";
+import { signCertificate } from "@trading-model/certificate-utils/signing/sign-certificate";
 import { CertificateAuthority } from "../../src/core/ca";
 
 const MOCK_CERT_STORE = {

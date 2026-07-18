@@ -3,9 +3,7 @@ import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 const mockVerify = jest.fn().mockReturnValue(true);
 
 jest.mock("../../src/domain/pop-verifier", () => ({
-	PopVerifier: jest.fn().mockImplementation(() => ({
-		verify: mockVerify,
-	})),
+	verifyProofOfPossession: mockVerify,
 }));
 
 import { CertRenewalService } from "../../src/domain/cert-renewal-service";

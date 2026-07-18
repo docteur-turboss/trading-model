@@ -14,7 +14,7 @@ function _extractClientIdentity(
 	const tlsSocket = req.socket as TLSSocket;
 	const clientCert = tlsSocket.getPeerCertificate?.();
 	return clientCert?.subject?.CN
-		? ClientIdentity.of(clientCert.subject.CN)
+		? ClientIdentity.of(String(clientCert.subject.CN))
 		: undefined;
 }
 

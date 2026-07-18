@@ -3,7 +3,7 @@ import {
 	generateSerialNumber,
 	KeyAlgorithm,
 } from "@trading-model/certificate-utils";
-import type { KeyPair } from "@trading-model/certificate-utils/types";
+import type { KeyPair } from "@trading-model/certificate-utils/keygen/types";
 import {
 	type CaPem,
 	type DurationMs,

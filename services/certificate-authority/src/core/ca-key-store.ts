@@ -1,6 +1,6 @@
 import { createPublicKey } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import type { KeyPair } from "@trading-model/certificate-utils/types";
+import type { KeyPair } from "@trading-model/certificate-utils/keygen/types";
 import type { FilePath } from "@trading-model/common/domain/primitives";
 import { KeyPem } from "@trading-model/common/domain/primitives";
 import { CryptoAlg } from "@trading-model/crypto/crypto/crypto-constants";

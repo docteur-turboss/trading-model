@@ -1,5 +1,5 @@
-import type { SignedCertificate } from "@trading-model/certificate-utils/types";
-import { validateCertificate } from "@trading-model/certificate-utils/validate-certificate";
+import type { SignedCertificate } from "@trading-model/certificate-utils/keygen/types";
+import { validateCertificate } from "@trading-model/certificate-utils/validation/validate-certificate";
 import type { CertSignRequest } from "@trading-model/common/domain/cert-signing";
 import type {
 	CsrPem,

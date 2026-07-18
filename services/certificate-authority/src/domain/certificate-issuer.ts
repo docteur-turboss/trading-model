@@ -1,4 +1,4 @@
-import type { SignedCertificate } from "@trading-model/certificate-utils/types";
+import type { SignedCertificate } from "@trading-model/certificate-utils/keygen/types";
 import type { CertSignRequest } from "@trading-model/common/domain/cert-signing";
 import { HTTP_STATUS } from "@trading-model/common/http-status";
 import type { IDistributedLock } from "@trading-model/validation/contracts/distributed-lock.types";
@@ -10,8 +10,6 @@ export interface CertificateAuthority {
 }
 
 export class CertificateIssuer {
-	private readonly _lock: IDistributedLock | undefined;
-
 	constructor(
 		private readonly _ca: CertificateAuthority,
 		private readonly _lock?: IDistributedLock

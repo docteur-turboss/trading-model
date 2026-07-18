@@ -1,7 +1,7 @@
 import type {
 	RevokedCertificate,
 	SignedCertificate,
-} from "@trading-model/certificate-utils/types";
+} from "@trading-model/certificate-utils/keygen/types";
 import type { CertSigner } from "@trading-model/common/domain/cert-signer.interface";
 import type { CertSignRequest } from "@trading-model/common/domain/cert-signing";
 import type {
@@ -25,7 +25,7 @@ export interface CaOptions {
 	caStore: CaStore;
 }
 
-export class CertificateAuthority implements CertSigner {
+export class CertificateAuthority implements CertSigner<SignedCertificate> {
 	private readonly _state: BootstrapResult;
 	private readonly _operator: CertificateOperator;
 

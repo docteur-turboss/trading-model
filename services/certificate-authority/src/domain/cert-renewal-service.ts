@@ -1,4 +1,4 @@
-import type { SignedCertificate } from "@trading-model/certificate-utils/types";
+import type { SignedCertificate } from "@trading-model/certificate-utils/keygen/types";
 import { logger } from "@trading-model/common/config/logger";
 import type { CertSignRequest } from "@trading-model/common/domain/cert-signing";
 import {
@@ -12,7 +12,7 @@ import type { NonceStore } from "../persistence/nonce-store";
 import type { CertificateAuthority } from "./certificate-issuer";
 import { CertificateIssuer } from "./certificate-issuer";
 import { consumeNonce } from "./nonce-consumer";
-import { PopVerifier } from "./pop-verifier";
+import { verifyProofOfPossession } from "./pop-verifier";
 
 export type SignServiceCertRequest = CertSignRequest;
 
@@ -37,10 +37,11 @@ export function createCertRenewalError(
 	message: string,
 	statusCode: number = HTTP_STATUS.BAD_REQUEST
 ): CertRenewalError {
-	const err = new Error(message) as CertRenewalError;
-	err.name = "CertRenewalError";
-	err.code = "CertRenewalError";
-	err.statusCode = statusCode;
+	const err = Object.assign(new Error(message), {
+		name: "CertRenewalError",
+		code: "CertRenewalError",
+		statusCode,
+	}) as CertRenewalError;
 	return err;
 }
 
@@ -68,7 +69,6 @@ export interface CertRenewalDeps {
 }
 
 export class CertRenewalService {
-	private readonly _popVerifier = new PopVerifier();
 	private readonly _certStore: CertificateStore;
 	private readonly _nonceStore: NonceStore;
 	private readonly _certificateIssuer: CertificateIssuer;
@@ -111,7 +111,7 @@ export class CertRenewalService {
 
 	private _verifyPop(input: RenewalPopInput): void {
 		const { certPem, nonce, signature, serviceId, oldSerialNumber } = input;
-		if (!this._popVerifier.verify({ certPem, nonce, signature })) {
+		if (!verifyProofOfPossession({ certPem, nonce, signature })) {
 			logger.warn("Proof-of-possession failed", {
 				context: { serviceId, oldSerialNumber },
 			});

@@ -14,7 +14,7 @@ export function buildSignResponsePayload(
 			certPem: cert.certPem,
 			caPem: cert.caPem,
 			serialNumber: cert.serialNumber,
-			expiresAt: cert.expiresAt.toISOString(),
+			expiresAt: new Date(cert.expiresAt as unknown as number).toISOString(),
 			fingerprint: cert.fingerprint,
 		},
 	});

@@ -28,10 +28,11 @@ export const NULL_FS_STORE: FsStore = {
 	disabled: true,
 	init: () => {
 		logger.warn("FsStore is DISABLED — no fallback storage available");
+		return Promise.resolve();
 	},
 	set: async () => {},
-	get: () => null,
-	getAll: () => [],
+	get: async () => null,
+	getAll: async () => [],
 	delete: async () => {},
 };
 
