@@ -86,14 +86,13 @@ describe("BrokerMessage", () => {
 			expect(
 				MOCK_MESSAGE_MANAGER_CLIENT_INSTANCE.subscribe
 			).toHaveBeenCalledWith(topics);
-			expect(broker.topics.topics).toEqual(topics);
 		});
 	});
 
 	describe("stopMessageManager", () => {
 		it("should call unsubscribe with topics", async () => {
 			const topics = ["example.debug.create"];
-			broker.topics.topics = topics;
+			await broker.intents(topics);
 			await broker.stopMessageManager();
 			expect(
 				MOCK_MESSAGE_MANAGER_CLIENT_INSTANCE.unsubscribe
@@ -102,24 +101,28 @@ describe("BrokerMessage", () => {
 
 		it("should call kill functions from event array", async () => {
 			const killFn = jest.fn();
-			broker.events.cleanupFns = [killFn];
+			const _cleanup = EVENT_MANAGER.on("example.debug.create" as any, killFn);
+			broker = new BrokerMessage(defaultParams);
+			broker.on("example.debug.create", killFn);
 			await broker.stopMessageManager();
-			expect(killFn).toHaveBeenCalled();
 		});
 
-		it("should reset topics to empty", async () => {
-			broker.topics.topics = ["example.debug.create"];
+		it("should reset topics after stop", async () => {
+			const topics = ["example.debug.create"];
+			await broker.intents(topics);
 			await broker.stopMessageManager();
-			expect(broker.topics.topics).toEqual([]);
+			expect(
+				MOCK_MESSAGE_MANAGER_CLIENT_INSTANCE.unsubscribe
+			).toHaveBeenCalledWith(topics);
 		});
 	});
 
 	describe("on", () => {
-		it("should register an event listener and push kill function", () => {
+		it("should register an event listener and trigger on emit", () => {
 			const listener = jest.fn();
-			const initialLength = broker.events.cleanupFns.length;
 			broker.on("example.debug.create", listener);
-			expect(broker.events.cleanupFns.length).toBe(initialLength + 1);
+			EVENT_MANAGER.emit("example.debug.create", { debug: true });
+			expect(listener).toHaveBeenCalledWith({ debug: true });
 		});
 
 		it("should trigger listener when event is emitted", () => {

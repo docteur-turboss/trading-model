@@ -53,7 +53,7 @@ export default class BrokerMessage {
 	intents(
 		topics: Parameters<MessageManagerClient["subscribe"]>[0]
 	): Promise<void> {
-		this._topics = topics;
+		this._topics = topics as EventEnumMap[];
 		return this._messageManagerClient.subscribe(topics);
 	}
 

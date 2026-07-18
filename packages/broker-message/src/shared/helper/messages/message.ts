@@ -9,23 +9,19 @@ import type {
 	ServiceIdentity,
 } from "@trading-model/validation/contracts/message.types";
 import {
-	EVENT_TYPE_METADATA_PREDICATE,
-	PUBLISHER_METADATA_CONTEXT_PREDICATE,
-	SCHEMA_METADATA_VERSION_PREDICATE,
-	TOPIC_METADATA_PREDICATE,
-} from "./message.schema";
-import {
 	type ChainingMetadata,
 	MessageChainingMetadata,
 	NULL_MESSAGE_CHAINING_METADATA,
 } from "./message-chaining-metadata";
 import { MessageContext } from "./message-context";
+import { MessageMetadataValidator } from "./message-metadata-validator";
 
 export class MessageMetadata {
 	public topic: Topic;
 	public eventType: EventEnumMap;
 	public publisher: ServiceIdentity;
 	public schemaVersion = "1.0.0" as const;
+	private readonly _validator: MessageMetadataValidator;
 	private _context: MessageContext;
 	private _chaining: ChainingMetadata;
 
@@ -35,9 +31,10 @@ export class MessageMetadata {
 		publisher: ServiceIdentity,
 		data: Partial<Omit<MetadataType, "topic" | "eventType" | "publisher">> = {}
 	) {
-		TOPIC_METADATA_PREDICATE.parse(topic);
-		EVENT_TYPE_METADATA_PREDICATE.parse(eventType);
-		PUBLISHER_METADATA_CONTEXT_PREDICATE.parse(publisher);
+		this._validator = new MessageMetadataValidator();
+		this._validator.validateTopic(topic);
+		this._validator.validateEventType(eventType);
+		this._validator.validatePublisher(publisher);
 		this.topic = toTopic(topic);
 		this.eventType = eventType;
 		this.publisher = publisher;
@@ -87,7 +84,7 @@ export class MessageMetadata {
 		return this;
 	}
 	public setPublisher(context: ServiceIdentity): this {
-		PUBLISHER_METADATA_CONTEXT_PREDICATE.parse(context);
+		this._validator.validatePublisher(context);
 		this.publisher = context;
 		return this;
 	}
@@ -96,17 +93,17 @@ export class MessageMetadata {
 			this.schemaVersion = "1.0.0";
 			return this;
 		}
-		SCHEMA_METADATA_VERSION_PREDICATE.parse(version);
+		this._validator.validateSchemaVersion(version);
 		this.schemaVersion = version as "1.0.0";
 		return this;
 	}
 	public setEventType(event: EventEnumMap): this {
-		EVENT_TYPE_METADATA_PREDICATE.parse(event);
+		this._validator.validateEventType(event);
 		this.eventType = event;
 		return this;
 	}
 	public setTopic(topic: Topic): this {
-		TOPIC_METADATA_PREDICATE.parse(topic);
+		this._validator.validateTopic(topic);
 		this.topic = toTopic(topic);
 		return this;
 	}
