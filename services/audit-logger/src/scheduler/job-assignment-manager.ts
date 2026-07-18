@@ -44,7 +44,7 @@ export class JobAssignmentManager {
 			return;
 		}
 
-		const worker = this._workers.findBestWorker(queued.job.type);
+		const worker = this._workers.loadBalancer.findBestWorker(queued.job.type);
 		if (!worker) {
 			this._queue.enqueue(queued.job);
 			return;
@@ -57,7 +57,7 @@ export class JobAssignmentManager {
 		if (!workerId) {
 			return;
 		}
-		const worker = this._workers.get(workerId);
+		const worker = this._workers.store.get(workerId);
 		if (!worker) {
 			return;
 		}

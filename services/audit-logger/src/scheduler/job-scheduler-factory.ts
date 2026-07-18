@@ -1,11 +1,12 @@
 import { logger } from "@trading-model/common/config/logger";
+import { OrphanDetector } from "@trading-model/common/recovery/orphan-detector";
+import { ReAllocator } from "@trading-model/common/recovery/re-allocator";
 import { JobStatus } from "@trading-model/validation/contracts/recovery.types";
 import { ENV } from "../config/env";
 import type { JobRepository } from "../persistence/job-repository";
-import { OrphanDetector } from "../recovery/orphan-detector";
-import { ReAllocator } from "../recovery/re-allocator";
 import type { Job } from "../types/job.types";
-import { WorkerRegistry } from "../worker/worker-registry";
+import type { WorkerRegistry } from "../worker/worker-registry";
+import { createWorkerRegistry as buildWorkerRegistry } from "../worker/worker-registry";
 import { BackPressure } from "./back-pressure";
 import { InternalQueue } from "./internal-queue";
 import { JobAssignmentManager } from "./job-assignment-manager";
@@ -20,7 +21,7 @@ export function createBackPressure(): BackPressure {
 }
 
 export function createWorkerRegistry(): WorkerRegistry {
-	return new WorkerRegistry(ENV.WORKER_HEARTBEAT_TTL_MS);
+	return buildWorkerRegistry(ENV.WORKER_HEARTBEAT_TTL_MS);
 }
 
 export function createReAllocator(

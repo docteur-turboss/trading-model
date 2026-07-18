@@ -1,7 +1,8 @@
 import {
-	computePagination,
+	PaginationQuery,
 	type PaginationResult,
 } from "@trading-model/common/domain/pagination";
+import { findPaginated } from "@trading-model/common/persistence/mongo-utils";
 import type { Collection } from "mongodb";
 
 import type {
@@ -24,16 +25,11 @@ export class AuditQuerier {
 	async query(
 		query: AuditEventQuery
 	): Promise<PaginationResult<AuditEventDocument>> {
-		const { page, limit, skip } = computePagination(query, 100);
+		const { page, limit, skip } = PaginationQuery.compute(query, 100);
 		const filter = this._filterBuilder.build(query);
 
 		const [data, total] = await Promise.all([
-			this._collection
-				.find(filter)
-				.sort({ receivedAt: -1 })
-				.skip(skip)
-				.limit(limit)
-				.toArray(),
+			findPaginated(this._collection, filter, { receivedAt: -1 }, skip, limit),
 			this._collection.countDocuments(filter),
 		]);
 

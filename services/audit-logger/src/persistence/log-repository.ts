@@ -1,6 +1,6 @@
 import type { LogLevel } from "@trading-model/common/config/log-types";
 import {
-	computePagination,
+	PaginationQuery,
 	type PaginationResult,
 } from "@trading-model/common/domain/pagination";
 import type {
@@ -16,10 +16,12 @@ import type {
 	Version,
 } from "@trading-model/common/domain/primitives";
 import type { HttpStatusCode } from "@trading-model/common/http-status";
+import type { MongoRepository } from "@trading-model/common/persistence/mongo-repository.interface";
+import { findPaginated } from "@trading-model/common/persistence/mongo-utils";
 import type { HttpMethod } from "@trading-model/validation/contracts/signed-request";
 import type { Collection, Db } from "mongodb";
 
-import { LogIndexManager } from "./log-index-manager";
+import { ensureLogIndexes } from "./log-index-manager";
 import { type LogQuery, LogQueryBuilder } from "./log-query-builder";
 import { LogStatsBuilder } from "./log-stats-builder";
 
@@ -66,19 +68,22 @@ export interface LogStats {
 	dateRange: { earliest?: ISODateTime; latest?: ISODateTime };
 }
 
-export class LogRepository {
+export class LogRepository implements MongoRepository<ServiceLogDocument> {
 	private readonly _collection: Collection<ServiceLogDocument>;
 	private readonly _statsBuilder = new LogStatsBuilder();
 	private readonly _queryBuilder = new LogQueryBuilder();
-	private readonly _indexManager: LogIndexManager;
+	private _indexesEnsured = false;
 
 	constructor(private readonly _db: Db) {
 		this._collection = this._db.collection<ServiceLogDocument>("service_logs");
-		this._indexManager = new LogIndexManager(this._db);
 	}
 
 	async ensureIndexes(): Promise<void> {
-		await this._indexManager.ensure();
+		if (this._indexesEnsured) {
+			return;
+		}
+		this._indexesEnsured = true;
+		await ensureLogIndexes(this._db);
 	}
 
 	async insert(doc: ServiceLogDocument): Promise<void> {
@@ -92,16 +97,19 @@ export class LogRepository {
 		await this._collection.insertMany(docs as never[], { ordered: false });
 	}
 
-	async query(params: LogQuery): Promise<PaginationResult<ServiceLogDocument>> {
-		const filter = this._queryBuilder.build(params);
-		const { page, limit, skip } = computePagination(params);
+	async query(
+		params: Record<string, unknown>
+	): Promise<PaginationResult<ServiceLogDocument>> {
+		const filter = this._queryBuilder.build(params as LogQuery);
+		const { page, limit, skip } = PaginationQuery.compute(params);
 		const total = await this._collection.countDocuments(filter);
-		const docs = await this._collection
-			.find(filter)
-			.sort({ receivedAt: -1 })
-			.skip(skip)
-			.limit(limit)
-			.toArray();
+		const docs = await findPaginated(
+			this._collection,
+			filter,
+			{ receivedAt: -1 },
+			skip,
+			limit
+		);
 
 		return { docs, total, page, limit };
 	}

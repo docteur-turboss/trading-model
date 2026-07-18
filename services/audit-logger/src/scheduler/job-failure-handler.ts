@@ -3,14 +3,10 @@ import {
 	type JobId,
 	PositiveInt,
 } from "@trading-model/common/domain/primitives";
-import {
-	isTerminalStatus,
-	JobStatus,
-} from "@trading-model/validation/contracts/recovery.types";
-
+import type { ReAllocator } from "@trading-model/common/recovery/re-allocator";
+import { JobStatus } from "@trading-model/validation/contracts/recovery.types";
 import { ENV } from "../config/env";
 import type { JobRepository } from "../persistence/job-repository";
-import type { ReAllocator } from "../recovery/re-allocator";
 import type { Job } from "../types/job.types";
 import type { InternalQueue } from "./internal-queue";
 import type { JobAssignmentManager } from "./job-assignment-manager";
@@ -89,7 +85,7 @@ export class JobFailureHandler {
 	}
 
 	private _onAckTimeoutJobFound(job: Job | null, jobId: JobId): void {
-		if (!job || isTerminalStatus(job.status)) {
+		if (!job || JobStatus.isTerminal(job.status)) {
 			return;
 		}
 

@@ -1,6 +1,5 @@
 import { UnixTimestamp } from "@trading-model/common/domain/primitives";
 import {
-	isTerminalStatus,
 	type JobEvent,
 	JobStatus,
 	type JobUpdateExtras,
@@ -14,7 +13,7 @@ export class JobStatusUpdater {
 		const updateSet: Record<string, unknown> = {
 			status,
 			...(status === JobStatus.RUNNING ? { startedAt: new Date() } : {}),
-			...(isTerminalStatus(status) ? { completedAt: new Date() } : {}),
+			...(JobStatus.isTerminal(status) ? { completedAt: new Date() } : {}),
 		};
 		if (extras?.result !== undefined) {
 			updateSet.result = extras.result;

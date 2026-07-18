@@ -21,8 +21,8 @@ function _healthResponse(
 			status: HEALTH_STATUS_OK,
 			queueDepth: queue.depth(),
 			canAccept: backPressure.canAccept(),
-			workerCount: workers.count(),
-			averageLoad: workers.averageLoad(),
+			workerCount: workers.store.size(),
+			averageLoad: workers.healthMonitor.averageLoad(),
 			timestamp: new Date().toISOString(),
 		},
 		200 as HttpStatusCode

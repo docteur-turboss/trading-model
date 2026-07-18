@@ -1,7 +1,13 @@
+import {
+	PaginationQuery,
+	type PaginationResult,
+} from "@trading-model/common/domain/pagination";
 import type {
 	InstanceId,
 	JobId,
 } from "@trading-model/common/domain/primitives";
+import type { MongoRepository } from "@trading-model/common/persistence/mongo-repository.interface";
+import { findPaginated } from "@trading-model/common/persistence/mongo-utils";
 import {
 	type Job,
 	JobStatus,
@@ -9,6 +15,7 @@ import {
 import type { Collection, Db } from "mongodb";
 import type { JobDocument } from "./job-document";
 import { JobDocumentMapper } from "./job-document-mapper";
+import { JobFilterBuilder } from "./job-filter-builder";
 import { JobStatusUpdater } from "./job-status-updater";
 
 const COLLECTION = "audit_jobs";
@@ -16,10 +23,11 @@ const COLLECTION = "audit_jobs";
 export { JobDocumentMapper } from "./job-document-mapper";
 export { JobStatusUpdater } from "./job-status-updater";
 
-export class JobRepository {
+export class JobRepository implements MongoRepository<Job> {
 	private readonly _collection: Collection<JobDocument>;
 	private readonly _mapper = new JobDocumentMapper();
 	private readonly _statusUpdater = new JobStatusUpdater();
+	private readonly _filterBuilder = new JobFilterBuilder();
 
 	constructor(db: Db) {
 		this._collection = db.collection<JobDocument>(COLLECTION);
@@ -39,9 +47,32 @@ export class JobRepository {
 		await this._collection.insertOne(this._mapper.toDocument(job));
 	}
 
-	async findById(jobId: JobId): Promise<Job | null> {
-		const doc = await this._collection.findOne({ jobId });
+	async findById(id: string): Promise<Job | null> {
+		const doc = await this._collection.findOne({ jobId: id as JobId });
 		return doc ? this._mapper.fromDocument(doc) : null;
+	}
+
+	insertBatch(_: Job[]): Promise<void> {
+		throw new Error("Batch insert not supported for jobs");
+	}
+
+	async query(query: Record<string, unknown>): Promise<PaginationResult<Job>> {
+		const { page, limit, skip } = PaginationQuery.compute(query);
+		const filter = this._filterBuilder.build(query as never);
+		const docs = await findPaginated(
+			this._collection,
+			filter as never,
+			{ createdAt: -1 },
+			skip,
+			limit
+		);
+		const total = await this._collection.countDocuments(filter as never);
+		return {
+			docs: docs.map((doc) => this._mapper.fromDocument(doc)),
+			total,
+			page,
+			limit,
+		};
 	}
 
 	async updateStatus(

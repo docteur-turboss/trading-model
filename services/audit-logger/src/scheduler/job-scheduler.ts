@@ -1,10 +1,9 @@
 import { logger } from "@trading-model/common/config/logger";
-import type { JobId, JobType } from "@trading-model/common/domain/primitives";
-import { ENV } from "../config/env";
+import type { JobId } from "@trading-model/common/domain/primitives";
+import type { OrphanDetector } from "@trading-model/common/recovery/orphan-detector";
+import type { ReAllocator } from "@trading-model/common/recovery/re-allocator";
 import type { JobRepository } from "../persistence/job-repository";
-import type { OrphanDetector } from "../recovery/orphan-detector";
-import type { ReAllocator } from "../recovery/re-allocator";
-import { JobPriority } from "../types/job.types";
+import type { SubmitJobParams } from "../types/job.types";
 import type { IWorkerProtocol } from "../worker/worker-protocol";
 import type { WorkerRegistry } from "../worker/worker-registry";
 import type { BackPressure } from "./back-pressure";
@@ -75,13 +74,8 @@ export class JobScheduler {
 		this._workerProtocol = protocol;
 		this._assignmentManager.setWorkerProtocol(protocol);
 	}
-	submit(
-		type: JobType,
-		payload: unknown,
-		priority: JobPriority = JobPriority.MEDIUM,
-		maxRetries: number = ENV.MAX_RETRIES_PER_JOB
-	): Promise<string> {
-		return this._lifecycle.submit(type, payload, priority, maxRetries);
+	submit(params: SubmitJobParams): Promise<string> {
+		return this._lifecycle.submit(params);
 	}
 	ack(jobId: JobId): Promise<void> {
 		return this._lifecycle.ack(jobId);

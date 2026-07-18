@@ -1,8 +1,4 @@
-import { Port } from "@trading-model/common/domain/primitives";
-import {
-	buildTlsFromEnv,
-	createSecureServer,
-} from "@trading-model/server-utils/server/create-secure-server";
+import { createServiceServer } from "@trading-model/server-utils/server/service-server-factory";
 
 import { ADDRESS_MANAGER_ROUTES } from "../config/address-manager";
 import { ENV } from "../config/env";
@@ -18,9 +14,8 @@ export function createServer(
 ) {
 	const messageHandler = createMessageHandler(auditRepo);
 
-	return createSecureServer({
-		port: Port.of(ENV.PORT),
-		tls: buildTlsFromEnv(ENV),
+	return createServiceServer({
+		env: ENV,
 		routes: (app) => {
 			_registerRoutes(app, scheduler, auditRepo, messageHandler);
 		},

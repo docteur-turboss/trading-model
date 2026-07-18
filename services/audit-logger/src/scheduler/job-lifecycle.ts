@@ -3,7 +3,6 @@ import { randomUUID } from "node:crypto";
 import { logger } from "@trading-model/common/config/logger";
 import {
 	JobId,
-	type JobType,
 	PositiveInt,
 	toJobType,
 	UnixTimestamp,
@@ -11,7 +10,11 @@ import {
 import { JobStatus } from "@trading-model/validation/contracts/recovery.types";
 import { ENV } from "../config/env";
 import type { JobRepository } from "../persistence/job-repository";
-import { type Job, JobPriority } from "../types/job.types";
+import {
+	type Job,
+	JobPriority,
+	type SubmitJobParams,
+} from "../types/job.types";
 import type { BackPressure } from "./back-pressure";
 import type { InternalQueue } from "./internal-queue";
 import type { JobAssignmentManager } from "./job-assignment-manager";
@@ -46,18 +49,13 @@ export class JobLifecycle {
 		return this._deps.assignmentManager;
 	}
 
-	async submit(
-		type: JobType,
-		payload: unknown,
-		priority: JobPriority = JobPriority.MEDIUM,
-		maxRetries: number = ENV.MAX_RETRIES_PER_JOB
-	): Promise<string> {
+	async submit(params: SubmitJobParams): Promise<string> {
 		this._checkBackPressure();
-		const job = this._createJob(type, payload, priority, maxRetries);
+		const job = this._createJob(params);
 		await this._repository.insert(job);
 		this._enqueueJob(job);
 		logger.info("Job submitted", {
-			context: { jobId: job.id, type, priority },
+			context: { jobId: job.id, type: params.type, priority: params.priority },
 		});
 		return job.id;
 	}
@@ -72,12 +70,13 @@ export class JobLifecycle {
 		}
 	}
 
-	private _createJob(
-		type: JobType,
-		payload: unknown,
-		priority: JobPriority,
-		maxRetries: number
-	): Job {
+	private _createJob(params: SubmitJobParams): Job {
+		const {
+			type,
+			payload,
+			maxRetries = ENV.MAX_RETRIES_PER_JOB,
+			priority = JobPriority.MEDIUM,
+		} = params;
 		return {
 			id: JobId.of(randomUUID()),
 			type: toJobType(type),

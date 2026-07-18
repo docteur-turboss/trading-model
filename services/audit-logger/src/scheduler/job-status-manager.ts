@@ -1,6 +1,6 @@
 import { logger } from "@trading-model/common/config/logger";
 import type { JobId } from "@trading-model/common/domain/primitives";
-import { hasExceededMaxRetries } from "@trading-model/common/domain/retry-policy";
+import { RetryPolicy } from "@trading-model/common/domain/retry-policy";
 import type { Job } from "@trading-model/validation/contracts/recovery.types";
 import type { JobRepository } from "../persistence/job-repository";
 import { JobStatus } from "../types/job.types";
@@ -48,7 +48,7 @@ export class JobStatusManager {
 			return;
 		}
 		this._assignmentManager.decrementWorkerLoad(job.assignedWorkerId);
-		if (hasExceededMaxRetries(job)) {
+		if (RetryPolicy.hasExceededMaxRetries(job)) {
 			await this._failureHandler.handlePermanentFailure(jobId, error);
 		} else {
 			await this._failureHandler.handleRetryableFailure(jobId, job, error);

@@ -1,17 +1,25 @@
 import type {
+	JobType,
 	PositiveInt,
 	UnixTimestamp,
 } from "@trading-model/common/domain/primitives";
 import {
-	JOB_STATUS_NON_TERMINAL,
 	type Job,
 	type JobEvent,
 	JobPriority,
-	JOB_STATUS as JobStatus,
+	JobStatus,
 } from "@trading-model/validation/contracts/recovery.types";
 
 export type { Job, JobEvent };
-export { JOB_STATUS_NON_TERMINAL, JobPriority, JobStatus };
+export { JobPriority, JobStatus };
+
+/** Parameter object for submitting a new job to the scheduler. */
+export interface SubmitJobParams {
+	type: JobType;
+	payload: unknown;
+	priority?: JobPriority;
+	maxRetries?: number;
+}
 
 export enum JobState {
 	Queued = "queued",

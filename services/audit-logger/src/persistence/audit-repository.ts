@@ -1,8 +1,7 @@
 import type { EventEnumMap } from "@trading-model/common/config/event.types";
-import type { DateRange } from "@trading-model/common/domain/date-range";
 import type {
-	PaginationQuery,
 	PaginationResult,
+	QueryEnvelope,
 } from "@trading-model/common/domain/pagination";
 import type {
 	CorrelationId,
@@ -11,6 +10,7 @@ import type {
 	ServiceId,
 	Topic,
 } from "@trading-model/common/domain/primitives";
+import type { MongoRepository } from "@trading-model/common/persistence/mongo-repository.interface";
 import { agentError } from "@trading-model/common/utils/errors";
 import type { AuditFilter } from "@trading-model/validation/contracts/admin/audit.dto";
 import type { Collection, Db } from "mongodb";
@@ -29,9 +29,17 @@ export interface AuditEventDocument {
 	payload: unknown;
 }
 
-export interface AuditEventQuery extends PaginationQuery, AuditFilter {
-	dateRange?: DateRange;
-}
+export const METADATA_FIELDS: {
+	readonly topic: "metadata.topic";
+	readonly publisher: "metadata.publisher";
+	readonly correlationId: "metadata.correlationId";
+} = {
+	topic: "metadata.topic",
+	publisher: "metadata.publisher",
+	correlationId: "metadata.correlationId",
+};
+
+export interface AuditEventQuery extends QueryEnvelope, AuditFilter {}
 
 export interface AuditStats {
 	totalEvents: number;
@@ -45,7 +53,7 @@ export interface AuditStats {
 
 const COLLECTION = "audit_events";
 
-export class AuditRepository {
+export class AuditRepository implements MongoRepository<AuditEventDocument> {
 	private readonly _collection: Collection<AuditEventDocument>;
 	private readonly _querier: AuditQuerier;
 
@@ -55,12 +63,15 @@ export class AuditRepository {
 	}
 
 	async ensureIndexes(): Promise<void> {
-		await this._collection.createIndex({ "metadata.correlationId": 1 });
+		await this._collection.createIndex({ [METADATA_FIELDS.correlationId]: 1 });
 		await this._collection.createIndex({
-			"metadata.publisher": 1,
+			[METADATA_FIELDS.publisher]: 1,
 			receivedAt: -1,
 		});
-		await this._collection.createIndex({ "metadata.topic": 1, receivedAt: -1 });
+		await this._collection.createIndex({
+			[METADATA_FIELDS.topic]: 1,
+			receivedAt: -1,
+		});
 		await this._collection.createIndex({ receivedAt: -1 });
 	}
 
@@ -91,8 +102,10 @@ export class AuditRepository {
 		return this._querier.findById(messageId);
 	}
 
-	query(query: AuditEventQuery): Promise<PaginationResult<AuditEventDocument>> {
-		return this._querier.query(query);
+	query(
+		query: Record<string, unknown>
+	): Promise<PaginationResult<AuditEventDocument>> {
+		return this._querier.query(query as AuditEventQuery);
 	}
 
 	getStats(): Promise<AuditStats> {

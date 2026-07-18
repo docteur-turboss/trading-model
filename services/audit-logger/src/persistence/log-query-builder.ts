@@ -1,22 +1,21 @@
 import type { LogLevel } from "@trading-model/common/config/log-types";
-import type { DateRange } from "@trading-model/common/domain/date-range";
-import type { PaginationQuery } from "@trading-model/common/domain/pagination";
+import type { QueryEnvelope } from "@trading-model/common/domain/pagination";
 import type {
 	CorrelationId,
 	ServiceId,
 } from "@trading-model/common/domain/primitives";
+import { MongoFilterBuilder } from "./mongo-filter-builder";
 
 type MongoDoc = Record<string, unknown>;
 
-export interface LogQuery extends PaginationQuery {
+export interface LogQuery extends QueryEnvelope {
 	serviceName?: ServiceId;
 	level?: LogLevel;
 	correlationId?: CorrelationId;
-	dateRange?: DateRange;
 	search?: string;
 }
 
-export class LogQueryBuilder {
+export class LogQueryBuilder extends MongoFilterBuilder<LogQuery> {
 	build(params: LogQuery): MongoDoc {
 		return this.buildFilter(params);
 	}
@@ -27,35 +26,10 @@ export class LogQueryBuilder {
 		this._addIfPresent(filter, "service.name", params.serviceName);
 		this._addIfPresent(filter, "level", params.level);
 		this._addIfPresent(filter, "correlationId", params.correlationId);
-		this._addDateRangeFilter(filter, params);
+		this._addDateRangeFilter(filter, params.dateRange, "receivedAt");
 		this._addSearchFilter(filter, params);
 
 		return filter;
-	}
-
-	private _addIfPresent(
-		filter: MongoDoc,
-		key: string,
-		value: string | undefined
-	): void {
-		if (value) {
-			filter[key] = value;
-		}
-	}
-
-	private _addDateRangeFilter(filter: MongoDoc, params: LogQuery): void {
-		const dr = params.dateRange;
-		if (!dr) {
-			return;
-		}
-		const rangeFilter: Record<string, Date | undefined> = {};
-		if (dr.start) {
-			rangeFilter.$gte = dr.start;
-		}
-		if (dr.end) {
-			rangeFilter.$lte = dr.end;
-		}
-		filter.receivedAt = rangeFilter;
 	}
 
 	private _addSearchFilter(filter: MongoDoc, params: LogQuery): void {
