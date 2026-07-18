@@ -22,19 +22,12 @@ import type {
 	WorkerEntry,
 	WorkerStats,
 } from "@trading-model/validation/contracts/admin";
-
-export enum ConfigSource {
-	Vault = "Vault",
-	ConfigMap = "ConfigMap",
-	EnvVar = "EnvVar",
-	Local = "Local",
-}
+import { ConfigSource } from "@trading-model/validation/contracts/admin";
 
 export type {
 	AdminServiceInstance,
 	AuditEvent,
 	AuditFilter,
-	AuditVolumeByTopic,
 	CacheEntry,
 	CacheStats,
 	Candle,
@@ -118,17 +111,4 @@ export interface CacheEntryList {
 export interface WorkerList {
 	workers: WorkerEntry[];
 	stats: WorkerStats;
-}
-
-import type { HttpStatusCode } from "@trading-model/common/http-status";
-
-export class ApiError extends Error {
-	public readonly code = "ApiError" as const;
-	constructor(
-		public statusCode: HttpStatusCode,
-		message: string
-	) {
-		super(message);
-		this.name = "ApiError";
-	}
 }

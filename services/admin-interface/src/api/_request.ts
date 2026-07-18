@@ -1,5 +1,5 @@
+import { createHttpClientError } from "@trading-model/common/config/http-client-errors";
 import { HTTP_HEADERS } from "@trading-model/common/http-headers";
-import { ApiError } from "../types/dtos";
 
 const API_BASE = import.meta.env.VITE_API_GATEWAY_URL ?? "/v1";
 
@@ -37,9 +37,9 @@ export async function request<TData>(
 	});
 	if (!res.ok) {
 		const err = await res.json().catch(() => ({ error: res.statusText }));
-		throw new ApiError(
-			res.status,
-			(err as { error?: string }).error ?? "Unknown error"
+		throw createHttpClientError(
+			(err as { error?: string }).error ?? "Unknown error",
+			res.status
 		);
 	}
 	return res.json() as Promise<TData>;

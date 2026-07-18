@@ -1,14 +1,9 @@
 import AddIcon from "@mui/icons-material/Add";
-import BoltIcon from "@mui/icons-material/Bolt";
-import DnsIcon from "@mui/icons-material/Dns";
-import MemoryIcon from "@mui/icons-material/Memory";
 import RefreshIcon from "@mui/icons-material/Refresh";
-import StorageIcon from "@mui/icons-material/Storage";
 import {
 	Box,
 	Button,
 	CircularProgress,
-	Grid,
 	LinearProgress,
 	Typography,
 } from "@mui/material";
@@ -16,12 +11,12 @@ import {
 import { API_CLIENT } from "../api/api-client";
 import type { Column } from "../components/data-table";
 import { DataTable } from "../components/data-table";
-import { InfoBox } from "../components/info-box";
-import { StatsCard } from "../components/stats-card";
 import { StatusBadge } from "../components/status-badge";
 import { useApi } from "../hooks/use-api";
 import type { WorkerEntry } from "../types/dtos";
 import { getLoadColor } from "./helpers/workers-utils";
+import { WorkerInfoBoxes } from "./workers-info";
+import { WorkerStats } from "./workers-stats";
 
 function LoadProgress({ value, color }: { value: number; color?: string }) {
 	return (
@@ -63,125 +58,6 @@ function PageLoading() {
 	return (
 		<Box sx={{ display: "flex", justifyContent: "center", mt: 4 }}>
 			<CircularProgress />
-		</Box>
-	);
-}
-
-function ActiveWorkersCard({
-	active,
-	total,
-}: {
-	active: number;
-	total: number;
-}) {
-	return (
-		<Grid size={{ xs: 3 }}>
-			<StatsCard
-				icon={<MemoryIcon />}
-				value={`${active} / ${total}`}
-				label="WORKERS ACTIFS"
-				delta="+2 instances provisioned"
-				deltaColor="success.main"
-			/>
-		</Grid>
-	);
-}
-
-function AvgCpuCard({ cpu }: { cpu: number }) {
-	return (
-		<Grid size={{ xs: 3 }}>
-			<StatsCard
-				icon={<BoltIcon />}
-				value={`${cpu}%`}
-				label="CHARGE MOYENNE CPU"
-				delta="12% stable over 4h"
-			/>
-		</Grid>
-	);
-}
-
-function TotalJobsPerMinCard({ count }: { count: number }) {
-	return (
-		<Grid size={{ xs: 3 }}>
-			<StatsCard
-				icon={<DnsIcon />}
-				value={String(count)}
-				label="TOTAL JOBS/MIN"
-				delta="Capacity: 2,500/min"
-			/>
-		</Grid>
-	);
-}
-
-function ClusterMemoryCard({ memory }: { memory: number }) {
-	return (
-		<Grid size={{ xs: 3 }}>
-			<StatsCard
-				icon={<StorageIcon />}
-				value={`${memory} GB`}
-				label="MÉMOIRE CLUSTER"
-				delta="64% pool utilization"
-			/>
-		</Grid>
-	);
-}
-
-function WorkerStats({
-	data,
-}: {
-	data:
-		| {
-				stats: {
-					activeWorkers: number;
-					totalWorkers: number;
-					avgCpu: number;
-					totalJobsPerMin: number;
-					clusterMemory: number;
-				};
-		  }
-		| null
-		| undefined;
-}) {
-	return (
-		<Grid container spacing={2} sx={{ mb: 3 }}>
-			<ActiveWorkersCard
-				active={data?.stats.activeWorkers ?? 0}
-				total={data?.stats.totalWorkers ?? 0}
-			/>
-			<AvgCpuCard cpu={data?.stats.avgCpu ?? 0} />
-			<TotalJobsPerMinCard count={data?.stats.totalJobsPerMin ?? 0} />
-			<ClusterMemoryCard memory={data?.stats.clusterMemory ?? 0} />
-		</Grid>
-	);
-}
-
-function DrainModeBox() {
-	return (
-		<InfoBox
-			icon={<RefreshIcon />}
-			title="What is 'Drain' mode?"
-			description="Draining prepares a node for software update by letting running jobs finish gracefully."
-			color="info.main"
-		/>
-	);
-}
-
-function AutoScalingBox() {
-	return (
-		<InfoBox
-			icon={<BoltIcon />}
-			title="Auto-scaling"
-			description="The system added 3 additional nodes 22 minutes ago due to a traffic spike on API Gateway."
-			color="info.main"
-		/>
-	);
-}
-
-function WorkerInfoBoxes() {
-	return (
-		<Box sx={{ display: "flex", gap: 2, mt: 3 }}>
-			<DrainModeBox />
-			<AutoScalingBox />
 		</Box>
 	);
 }
