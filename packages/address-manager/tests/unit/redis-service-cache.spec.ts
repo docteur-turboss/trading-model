@@ -116,7 +116,7 @@ describe("RedisServiceCache", () => {
 	describe("delete", () => {
 		it("should delete key from Redis", async () => {
 			MOCK_REDIS_INSTANCE.del.mockResolvedValue(1);
-			await cache.invalidate(toServiceId("svc"));
+			await cache.delete(toServiceId("svc"));
 			expect(MOCK_REDIS_INSTANCE.del).toHaveBeenCalledWith(
 				"discovery:cache:svc"
 			);
@@ -124,9 +124,7 @@ describe("RedisServiceCache", () => {
 
 		it("should handle errors gracefully", async () => {
 			MOCK_REDIS_INSTANCE.del.mockRejectedValue(new Error("error"));
-			await expect(
-				cache.invalidate(toServiceId("svc"))
-			).resolves.toBeUndefined();
+			await expect(cache.delete(toServiceId("svc"))).resolves.toBeUndefined();
 		});
 	});
 
@@ -355,10 +353,10 @@ describe("RedisServiceCache", () => {
 		});
 	});
 
-	describe("stop", () => {
+	describe("close", () => {
 		it("should disconnect", async () => {
 			await cache.get(toServiceId("svc"));
-			cache.stop();
+			cache.close();
 			expect(MOCK_REDIS_INSTANCE.quit).toHaveBeenCalled();
 		});
 	});

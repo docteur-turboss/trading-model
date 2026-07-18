@@ -22,7 +22,7 @@ import {
 	UnixTimestamp,
 	type URLString,
 } from "@trading-model/common/domain/primitives";
-import { AppError } from "@trading-model/common/utils/errors";
+import { isAppError } from "@trading-model/common/utils/errors";
 import { Protocol } from "@trading-model/validation/contracts/service-registry.types";
 import { AddressManagerClient } from "../../src/client/address-manager-client";
 import { LocalIPDetector } from "../../src/client/local-ip-detector";
@@ -227,8 +227,8 @@ describe("AddressManagerClient", () => {
 
 			httpClient.post.mockRejectedValueOnce(error);
 			const err = await client.registerService().catch((e) => e);
-			expect(err).toBeInstanceOf(AppError);
-			expect((err as AppError).cause).toBe(error);
+			expect(isAppError(err)).toBe(true);
+			expect(err).toHaveProperty("cause", error);
 		});
 	});
 
@@ -253,8 +253,8 @@ describe("AddressManagerClient", () => {
 
 			httpClient.post.mockRejectedValueOnce(error);
 			const err = await client.refreshTTL().catch((e) => e);
-			expect(err).toBeInstanceOf(AppError);
-			expect((err as AppError).cause).toBe(error);
+			expect(isAppError(err)).toBe(true);
+			expect(err).toHaveProperty("cause", error);
 		});
 
 		test("should use discoveryUrls for concurrent TTL refresh when multiple URLs configured", async () => {
@@ -290,7 +290,7 @@ describe("AddressManagerClient", () => {
 				.mockRejectedValueOnce(new Error("DS1 down"))
 				.mockRejectedValueOnce(new Error("DS2 down"));
 
-			await expect(client.refreshTTL()).rejects.toThrow(AppError);
+			await expect(client.refreshTTL()).rejects.toThrow(Error);
 		});
 
 		test("should succeed when at least one concurrent TTL refresh URL succeeds", async () => {

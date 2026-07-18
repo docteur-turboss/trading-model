@@ -130,7 +130,6 @@ describe("AddressManagerClient Multi-URL", () => {
 		client = new AddressManagerClient(httpClient, tokenManager, config);
 		await client.refreshTTL();
 
-		// With concurrent mode, both URLs are called in parallel
 		const calls = (httpClient.post as jest.Mock).mock.calls;
 		const calledUrls = calls.map((c: unknown[]) => c[0]);
 		expect(calledUrls).toContain("https://ds-primary:3000/heartbeat");

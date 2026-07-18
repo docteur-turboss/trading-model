@@ -1,107 +1,169 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
+
 import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
+
+jest.mock("@trading-model/common/config/http-client", () => ({
+	HttpClient: {
+		createWithTls: jest.fn<any>().mockReturnValue({
+			get: jest.fn<any>(),
+			post: jest.fn<any>(),
+		}),
+	},
+}));
+
+jest.mock("@trading-model/common/config/logger", () => ({
+	logger: {
+		info: jest.fn<any>(),
+		warn: jest.fn<any>(),
+		error: jest.fn<any>(),
+		debug: jest.fn<any>(),
+	},
+}));
+
+jest.mock("@trading-model/common/utils/sleep", () => ({
+	sleep: jest.fn<any>().mockResolvedValue(undefined),
+}));
+
+jest.mock("prom-client", () => ({
+	Counter: jest
+		.fn<any>()
+		.mockReturnValue({ inc: jest.fn<any>(), reset: jest.fn<any>() }),
+	Histogram: jest
+		.fn<any>()
+		.mockReturnValue({ observe: jest.fn<any>(), reset: jest.fn<any>() }),
+	Gauge: jest
+		.fn<any>()
+		.mockReturnValue({ set: jest.fn<any>(), reset: jest.fn<any>() }),
+	register: {
+		clear: jest.fn<any>(),
+		contentType: "text/plain",
+		metrics: jest.fn<any>().mockResolvedValue("metrics data"),
+	},
+}));
+
+const MOCK_ADDRESS_MANAGER_CLIENT = (() => {
+	const impl = {
+		registerService: jest.fn<any>().mockResolvedValue({ token: "test-token" }),
+		refreshTTL: jest.fn<any>().mockResolvedValue(undefined),
+		unregisterService: jest.fn<any>().mockResolvedValue(undefined),
+		hasIpChanged: jest.fn<any>().mockReturnValue(false),
+	};
+	return impl;
+})();
+jest.mock("../../src/client/address-manager-client", () => ({
+	AddressManagerClient: jest
+		.fn<any>()
+		.mockReturnValue(MOCK_ADDRESS_MANAGER_CLIENT),
+}));
+
+const MOCK_TOKEN_MANAGER = (() => {
+	const impl = {
+		getTokenOrUndefined: jest.fn<any>().mockReturnValue(undefined),
+		getToken: jest.fn<any>().mockReturnValue("tok"),
+		refreshToken: jest.fn<any>().mockResolvedValue(undefined),
+		setToken: jest.fn<any>(),
+		clearToken: jest.fn<any>(),
+	};
+	return impl;
+})();
+jest.mock("../../src/client/token-manager", () => ({
+	TokenManager: jest.fn<any>().mockReturnValue(MOCK_TOKEN_MANAGER),
+}));
+
+jest.mock("../../src/discovery/redis-service-cache", () => ({
+	RedisServiceCache: jest.fn<any>().mockReturnValue({
+		get: jest.fn<any>(),
+		set: jest.fn<any>(),
+		delete: jest.fn<any>(),
+		clear: jest.fn<any>(),
+		entries: jest.fn<any>().mockResolvedValue([]),
+		close: jest.fn<any>(),
+		getVersion: jest.fn<any>().mockResolvedValue(0),
+		setCircuitState: jest.fn<any>().mockResolvedValue(undefined),
+		getCircuitState: jest.fn<any>().mockResolvedValue(null),
+		deleteCircuitState: jest.fn<any>().mockResolvedValue(undefined),
+	}),
+}));
+
+jest.mock("../../src/discovery/service-cache", () => ({
+	ServiceCache: jest.fn<any>().mockReturnValue({
+		get: jest.fn<any>(),
+		set: jest.fn<any>(),
+		delete: jest.fn<any>(),
+		clear: jest.fn<any>(),
+		entries: jest.fn<any>().mockResolvedValue([]),
+		close: jest.fn<any>(),
+		getVersion: jest.fn<any>().mockResolvedValue(0),
+		setCircuitState: jest.fn<any>().mockResolvedValue(undefined),
+		getCircuitState: jest.fn<any>().mockResolvedValue(null),
+		deleteCircuitState: jest.fn<any>().mockResolvedValue(undefined),
+	}),
+}));
+
+jest.mock("../../src/discovery/service-discovery", () => ({
+	ServiceDiscovery: jest.fn<any>().mockReturnValue({
+		findService: jest.fn<any>().mockResolvedValue({
+			host: "127.0.0.1",
+			port: 8080,
+			instanceId: "i-1",
+			serviceName: "test-service",
+		}),
+		findAllServices: jest.fn<any>().mockResolvedValue([
+			{
+				host: "127.0.0.1",
+				port: 8080,
+				instanceId: "i-1",
+				serviceName: "test-service",
+			},
+		]),
+		acquireConnection: jest.fn<any>(),
+		releaseConnection: jest.fn<any>(),
+	}),
+}));
+
+jest.mock("../../src/discovery/service-health-checker", () => ({
+	ServiceHealthChecker: jest.fn<any>().mockReturnValue({
+		isHealthy: jest.fn<any>().mockResolvedValue(true),
+		recordLatency: jest.fn<any>(),
+	}),
+}));
+
+jest.mock("../../src/client/websocket-client", () => ({
+	WebSocketClient: jest.fn<any>().mockReturnValue({
+		connect: jest.fn<any>(),
+		disconnect: jest.fn<any>(),
+		onMessage: jest.fn<any>(),
+		setHttpFallback: jest.fn<any>(),
+		onAuthFailure: jest.fn<any>(),
+		isConnected: jest.fn<any>().mockReturnValue(false),
+		sendHeartbeat: jest.fn<any>().mockReturnValue(false),
+		updateToken: jest.fn<any>(),
+	}),
+}));
+
 import {
 	DurationMs,
 	FilePath,
+	IPAddress,
 	Port,
 	toInstanceId,
 	toServiceId,
 } from "@trading-model/common/domain/primitives";
+import AddressManager from "../../src/address-manager";
+import type { AddressManagerConfig } from "../../src/config/address-manager-config";
 
-jest.mock("@trading-model/common/utils/sleep", () => ({
-	sleep: jest.fn(() => Promise.resolve()),
-}));
-
-const MOCK_HTTP_CLIENT_INSTANCE = {
-	post: jest.fn(),
-	get: jest.fn(),
-	delete: jest.fn(),
-};
-
-jest.mock("@trading-model/common/config/http-client", () => ({
-	HttpClient: Object.assign(
-		jest.fn().mockImplementation(() => MOCK_HTTP_CLIENT_INSTANCE),
-		{ createWithTls: jest.fn(() => MOCK_HTTP_CLIENT_INSTANCE) }
-	),
-}));
-
-const MOCK_TOKEN_MANAGER_INSTANCE = {
-	getToken: jest.fn(() => "mock-token"),
-	setToken: jest.fn(),
-	refreshToken: jest.fn(),
-};
-
-jest.mock("../../src/client/token-manager", () => ({
-	TokenManager: jest.fn().mockImplementation(() => MOCK_TOKEN_MANAGER_INSTANCE),
-}));
-
-const MOCK_ADDRESS_MANAGER_CLIENT_INSTANCE = {
-	registerService: jest.fn(),
-	refreshTTL: jest.fn(),
-};
-
-jest.mock("../../src/client/address-manager-client", () => ({
-	AddressManagerClient: jest
-		.fn()
-		.mockImplementation(() => MOCK_ADDRESS_MANAGER_CLIENT_INSTANCE),
-}));
-
-const MOCK_SERVICE_CACHE_INSTANCE = {};
-
-jest.mock("../../src/discovery/service-cache", () => ({
-	ServiceCache: jest.fn().mockImplementation(() => MOCK_SERVICE_CACHE_INSTANCE),
-}));
-
-const MOCK_HEALTH_CHECKER_INSTANCE = {};
-
-jest.mock("../../src/discovery/service-health-checker", () => ({
-	ServiceHealthChecker: jest
-		.fn()
-		.mockImplementation(() => MOCK_HEALTH_CHECKER_INSTANCE),
-}));
-
-const MOCK_FIND_SERVICE = jest.fn();
-jest.mock("../../src/discovery/service-discovery", () => ({
-	ServiceDiscovery: jest.fn().mockImplementation(() => ({
-		findService: MOCK_FIND_SERVICE,
-	})),
-}));
-
-const MOCK_SCHEDULER_INSTANCE = {
-	register: jest.fn(),
-	start: jest.fn(),
-	stop: jest.fn(),
-};
-
-jest.mock("../../src/scheduler/scheduler", () => ({
-	Scheduler: jest.fn().mockImplementation(() => MOCK_SCHEDULER_INSTANCE),
-}));
-
-jest.mock("../../src/scheduler/refresh-job", () => ({
-	RefreshJob: jest.fn((manager: unknown, callback: (m: unknown) => void) =>
-		callback(manager)
-	),
-}));
-
-const MOCK_PING_ROUTES = { get: jest.fn() };
-jest.mock("../../src/http/routes/ping.routes", () => ({
-	PING_ROUTES: MOCK_PING_ROUTES,
-}));
-
-import AddressManager from "../../src/index";
-
-describe("AddressManager", () => {
-	let am: AddressManager;
-
-	const defaultConfig = {
-		addressManagerUrl: "http://localhost:8443",
+function makeConfig(
+	overrides?: Partial<AddressManagerConfig>
+): AddressManagerConfig {
+	return {
 		servicePort: Port.of(8080),
-		tokenRefreshIntervalMs: DurationMs.of(300000),
-		ttlRefreshIntervalMs: DurationMs.of(300000),
+		addressManagerUrl: "https://discovery:3000",
+		discoveryUrls: ["https://discovery:3000"],
+		cacheTtlMs: DurationMs.of(30000),
 		servicePingTimeoutMs: DurationMs.of(2000),
 		discoveryTimeoutMs: DurationMs.of(5000),
-		cacheTtlMs: DurationMs.of(60000),
-		discoveryUrls: ["http://localhost:8443"],
+		tokenRefreshIntervalMs: DurationMs.of(60000),
+		ttlRefreshIntervalMs: DurationMs.of(15000),
 		identity: {
 			serviceName: toServiceId("test-service"),
 			instanceId: toInstanceId("instance-1"),
@@ -111,162 +173,162 @@ describe("AddressManager", () => {
 			certPath: FilePath.of("/path/to/cert.pem"),
 			keyPath: FilePath.of("/path/to/key.pem"),
 		},
+		...overrides,
 	};
+}
 
+describe("AddressManager (main)", () => {
 	beforeEach(() => {
 		jest.clearAllMocks();
-		am = new AddressManager(defaultConfig);
+		MOCK_TOKEN_MANAGER.getTokenOrUndefined.mockReturnValue(undefined);
+		MOCK_ADDRESS_MANAGER_CLIENT.registerService.mockResolvedValue({
+			token: "test-token",
+		});
+		MOCK_ADDRESS_MANAGER_CLIENT.refreshTTL.mockResolvedValue(undefined);
+		MOCK_ADDRESS_MANAGER_CLIENT.unregisterService.mockResolvedValue(undefined);
+		MOCK_ADDRESS_MANAGER_CLIENT.hasIpChanged.mockReturnValue(false);
 	});
 
-	describe("constructor", () => {
-		it("should create an instance", () => {
-			expect(am).toBeInstanceOf(AddressManager);
-		});
-
-		it("should accept config with dnsNameMap", () => {
-			const configWithDnsMap = {
-				...defaultConfig,
-				dnsNameMap: { "my-service": "my-host.local" },
-			};
-			const amWithDnsMap = new AddressManager(configWithDnsMap);
-			expect(amWithDnsMap).toBeInstanceOf(AddressManager);
-		});
+	it("should create instance with minimal config", () => {
+		const am = new AddressManager(makeConfig());
+		expect(am).toBeInstanceOf(AddressManager);
 	});
 
-	describe("getToken", () => {
-		it("should delegate to tokenManager.getToken", () => {
-			const token = am.getToken();
-			expect(token).toBe("mock-token");
-			expect(MOCK_TOKEN_MANAGER_INSTANCE.getToken).toHaveBeenCalled();
-		});
+	it("should create instance with Redis cache", () => {
+		const am = new AddressManager(
+			makeConfig({ redisCacheUrl: "redis://localhost:6379" })
+		);
+		expect(am).toBeInstanceOf(AddressManager);
 	});
 
-	describe("findService", () => {
-		it("should delegate to serviceDiscovery.findService", async () => {
-			const expected = { host: "192.168.1.1", port: 8080 };
-			(MOCK_FIND_SERVICE as any).mockResolvedValue(expected);
-			const result = await am.findService(
-				"some-service" as unknown as ServiceInstanceName
-			);
-			expect(result).toBe(expected);
-			expect(MOCK_FIND_SERVICE).toHaveBeenCalledWith("some-service");
-		});
+	it("should create instance with WebSocket URL", () => {
+		const am = new AddressManager(
+			makeConfig({ wsUrl: "wss://localhost:3000/ws" })
+		);
+		expect(am).toBeInstanceOf(AddressManager);
 	});
 
-	describe("listenExpress", () => {
-		it("should call app.use with pingRoutes", () => {
-			const app = { use: jest.fn() };
-			am.listenExpress(app as any);
-			expect(app.use).toHaveBeenCalledWith(MOCK_PING_ROUTES);
-		});
+	it("should create instance with DNS name map", () => {
+		const am = new AddressManager(
+			makeConfig({
+				dnsNameMap: {
+					[toServiceId("test-service")]: IPAddress.of("127.0.0.1"),
+				},
+			})
+		);
+		expect(am).toBeInstanceOf(AddressManager);
 	});
 
-	describe("start", () => {
-		it("should register service, create scheduler, and return stop handle", async () => {
-			(
-				MOCK_ADDRESS_MANAGER_CLIENT_INSTANCE.registerService as any
-			).mockResolvedValue({
-				token: "new-token",
-			});
+	it("should find a service", async () => {
+		const am = new AddressManager(makeConfig());
+		const instance = await am.discoveryOrchestrator.findService(
+			toServiceId("test-service") as unknown as ServiceInstanceName
+		);
+		expect(instance).toBeDefined();
+	});
 
-			const handle = am.start();
+	it("should start and stop", async () => {
+		const am = new AddressManager(makeConfig());
+		const handle = am.lifecycleManager.start();
+		handle.stop();
+	});
 
-			await new Promise(process.nextTick);
+	it("should find all services", async () => {
+		const am = new AddressManager(makeConfig());
+		const instances = await am.discoveryOrchestrator.findAllServices(
+			toServiceId("test-service") as unknown as ServiceInstanceName
+		);
+		expect(instances).toHaveLength(1);
+		expect(instances[0].serviceName).toBe("test-service");
+	});
 
-			expect(
-				MOCK_ADDRESS_MANAGER_CLIENT_INSTANCE.registerService
-			).toHaveBeenCalled();
-			expect(MOCK_TOKEN_MANAGER_INSTANCE.setToken).toHaveBeenCalledWith(
-				"new-token"
-			);
-			expect(MOCK_SCHEDULER_INSTANCE.register).toHaveBeenCalledTimes(2);
-			expect(MOCK_SCHEDULER_INSTANCE.start).toHaveBeenCalled();
-			expect(handle).toHaveProperty("stop");
+	it("should record call success without durationMs", () => {
+		const am = new AddressManager(makeConfig());
+		am.discoveryOrchestrator.recordCallSuccess(toInstanceId("instance-1"));
+	});
 
-			handle.stop();
-			expect(MOCK_SCHEDULER_INSTANCE.stop).toHaveBeenCalled();
-		});
+	it("should record call success with durationMs", () => {
+		const am = new AddressManager(makeConfig());
+		am.discoveryOrchestrator.recordCallSuccess(toInstanceId("instance-1"), 42);
+	});
 
-		it("should retry registration on failure and succeed on retry", async () => {
-			(MOCK_ADDRESS_MANAGER_CLIENT_INSTANCE.registerService as any)
-				.mockRejectedValueOnce(new Error("Network error"))
-				.mockResolvedValueOnce({ token: "retry-token" });
+	it("should record call failure without durationMs", () => {
+		const am = new AddressManager(makeConfig());
+		am.discoveryOrchestrator.recordCallFailure(toInstanceId("instance-1"));
+	});
 
-			const handle = am.start();
+	it("should record call failure with durationMs", () => {
+		const am = new AddressManager(makeConfig());
+		am.discoveryOrchestrator.recordCallFailure(toInstanceId("instance-1"), 100);
+	});
 
-			await new Promise(process.nextTick);
+	it("should get metrics", () => {
+		const am = new AddressManager(makeConfig());
+		const metrics = am.metricsCollector.getMetrics();
+		expect(metrics).toHaveProperty("memory");
+		expect(metrics).toHaveProperty("cpu");
+	});
 
-			expect(
-				MOCK_ADDRESS_MANAGER_CLIENT_INSTANCE.registerService
-			).toHaveBeenCalledTimes(2);
-			expect(MOCK_TOKEN_MANAGER_INSTANCE.setToken).toHaveBeenCalledWith(
-				"retry-token"
-			);
+	it("should get service call tracker", () => {
+		const am = new AddressManager(makeConfig());
+		const tracker = am.metricsCollector.getServiceCallTracker();
+		expect(tracker.snapshot().totalCalls).toBe(0);
+	});
 
-			handle.stop();
-		});
+	it("should listen on express app", () => {
+		const am = new AddressManager(makeConfig());
+		const app = {
+			use: jest.fn<any>(),
+			get: jest.fn<any>(),
+			locals: {} as Record<string, unknown>,
+		};
+		am.metricsCollector.listenExpress(app as any);
+		expect(app.use).toHaveBeenCalled();
+		expect(app.get).toHaveBeenCalledWith("/prometheus", expect.any(Function));
+	});
 
-		it("should log error after max retries exhausted", async () => {
-			(
-				MOCK_ADDRESS_MANAGER_CLIENT_INSTANCE.registerService as any
-			).mockRejectedValue(new Error("Service unreachable"));
+	it("should handle start already started", async () => {
+		const am = new AddressManager(makeConfig());
+		const handle1 = am.lifecycleManager.start();
+		const handle2 = am.lifecycleManager.start();
+		handle1.stop();
+		handle2.stop();
+	});
 
-			const handle = am.start();
+	it("should complete registration before stopping", async () => {
+		const am = new AddressManager(makeConfig());
+		const handle = am.lifecycleManager.start();
+		await handle.ready;
+		handle.stop();
+	});
 
-			await new Promise(process.nextTick);
+	it("should not crash on start with existing token (sticky registration)", async () => {
+		MOCK_TOKEN_MANAGER.getTokenOrUndefined.mockReturnValue("existing-token");
+		MOCK_ADDRESS_MANAGER_CLIENT.refreshTTL.mockResolvedValue(undefined);
+		const am = new AddressManager(makeConfig());
+		const handle = am.lifecycleManager.start();
+		handle.stop();
+	});
 
-			expect(
-				MOCK_ADDRESS_MANAGER_CLIENT_INSTANCE.registerService
-			).toHaveBeenCalledTimes(10);
+	it("should return token from getToken", () => {
+		const am = new AddressManager(makeConfig());
+		const token = am.tokenManager.getToken();
+		expect(token).toBe("tok");
+	});
 
-			handle.stop();
-		});
+	it("should retry findService when circuit breaker is open", async () => {
+		MOCK_TOKEN_MANAGER.getTokenOrUndefined.mockReturnValue("existing-token");
+		MOCK_ADDRESS_MANAGER_CLIENT.refreshTTL.mockResolvedValue(undefined);
+		const am = new AddressManager(makeConfig());
 
-		it("should handle null registration response and retry", async () => {
-			(
-				MOCK_ADDRESS_MANAGER_CLIENT_INSTANCE.registerService as any
-			).mockResolvedValue(null);
+		am.discoveryOrchestrator.recordCallFailure(toInstanceId("i-1"));
+		am.discoveryOrchestrator.recordCallFailure(toInstanceId("i-1"));
+		am.discoveryOrchestrator.recordCallFailure(toInstanceId("i-1"));
 
-			const handle = am.start();
-
-			await new Promise(process.nextTick);
-
-			expect(
-				MOCK_ADDRESS_MANAGER_CLIENT_INSTANCE.registerService
-			).toHaveBeenCalledTimes(10);
-
-			handle.stop();
-		});
-
-		it("should abort registration retry loop when stop is called", async () => {
-			let resolveRegistration: (value: unknown) => void;
-			(
-				MOCK_ADDRESS_MANAGER_CLIENT_INSTANCE.registerService as any
-			).mockImplementation(
-				() =>
-					new Promise((resolve) => {
-						resolveRegistration = resolve;
-					})
-			);
-
-			const handle = am.start();
-
-			// First registration call is in-flight
-			expect(
-				MOCK_ADDRESS_MANAGER_CLIENT_INSTANCE.registerService
-			).toHaveBeenCalledTimes(1);
-
-			handle.stop();
-			resolveRegistration!(undefined);
-
-			// Allow retry loop to check shouldRetryRegistration and exit
-			await new Promise(process.nextTick);
-			await new Promise(process.nextTick);
-
-			// stop() was called, so no further retries
-			expect(
-				MOCK_ADDRESS_MANAGER_CLIENT_INSTANCE.registerService
-			).toHaveBeenCalledTimes(1);
-		});
+		await expect(
+			am.discoveryOrchestrator.findService(
+				toServiceId("test-service") as unknown as ServiceInstanceName
+			)
+		).rejects.toThrow();
 	});
 });

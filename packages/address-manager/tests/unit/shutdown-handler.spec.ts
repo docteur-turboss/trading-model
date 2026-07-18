@@ -13,7 +13,7 @@ jest.mock("@trading-model/server-utils/server/signal-handler", () => ({
 function createMockDeps(): jest.Mocked<ShutdownHandlerDeps> {
 	return {
 		registrationManager: {
-			shouldRetryRegistration: true,
+			stopRetrying: jest.fn<() => void>(),
 		},
 		wsClient: {
 			disconnect: jest.fn<() => void>(),
@@ -24,7 +24,7 @@ function createMockDeps(): jest.Mocked<ShutdownHandlerDeps> {
 				.mockResolvedValue(undefined),
 		} as never,
 		serviceCache: {
-			stop: jest.fn<() => void>(),
+			close: jest.fn<() => void>(),
 		} as never,
 		circuitBreaker: {
 			clear: jest.fn<() => void>(),
@@ -42,19 +42,18 @@ describe("ShutdownHandler", () => {
 		jest.clearAllMocks();
 	});
 
-	it("shutdown() should set shouldRetryRegistration to false", () => {
-		expect(deps.registrationManager.shouldRetryRegistration).toBe(true);
+	it("shutdown() should call stopRetrying on registrationManager", () => {
 		handler.shutdown();
-		expect(deps.registrationManager.shouldRetryRegistration).toBe(false);
+		expect(deps.registrationManager.stopRetrying).toHaveBeenCalled();
 	});
 
-	it("fullStop() should disconnect, unregister, stop cache, clear circuit breaker", async () => {
+	it("fullStop() should disconnect, unregister, close cache, clear circuit breaker", async () => {
 		await handler.fullStop();
 		expect(deps.wsClient!.disconnect).toHaveBeenCalledTimes(1);
 		expect(deps.addressManagerClient.unregisterService).toHaveBeenCalledTimes(
 			1
 		);
-		expect(deps.serviceCache.stop).toHaveBeenCalledTimes(1);
+		expect(deps.serviceCache.close).toHaveBeenCalledTimes(1);
 		expect(deps.circuitBreaker.clear).toHaveBeenCalledTimes(1);
 	});
 

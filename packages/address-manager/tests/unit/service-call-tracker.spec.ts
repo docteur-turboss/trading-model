@@ -72,7 +72,8 @@ describe("ServiceCallTracker", () => {
 				"WS /heartbeat": 1,
 			});
 			expect(snap.errorsTotal).toBe(1);
-			expect(snap.avgLatencyMs).toBe(102); // Math.round((100+200+5)/3) = 102
+			const expectedAvgLatency = Math.round((100 + 200 + 5) / 3);
+			expect(snap.avgLatencyMs).toBe(expectedAvgLatency);
 			expect(snap.totalBytesSent).toBe(100);
 			expect(snap.totalBytesReceived).toBe(400);
 		});

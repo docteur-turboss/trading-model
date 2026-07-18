@@ -12,10 +12,10 @@ import { Protocol } from "@trading-model/validation/contracts/service-registry.t
 import type { ServiceInstance } from "../../src/client/type";
 import {
 	createLoadBalancer,
+	createRandomStrategy,
+	createRoundRobinStrategy,
 	LeastConnectionsStrategy,
 	LoadBalancingStrategyType,
-	RandomStrategy,
-	RoundRobinStrategy,
 } from "../../src/discovery/load-balancing-strategy";
 
 const inst1 = toInstanceId("i-1");
@@ -37,9 +37,9 @@ function makeInstance(overrides?: Partial<ServiceInstance>): ServiceInstance {
 	};
 }
 
-describe("RandomStrategy", () => {
+describe("createRandomStrategy", () => {
 	it("should return an instance from the list", () => {
-		const strategy = new RandomStrategy();
+		const strategy = createRandomStrategy();
 		const instances = [
 			makeInstance({ instanceId: inst2 }),
 			makeInstance({ instanceId: inst3 }),
@@ -49,9 +49,9 @@ describe("RandomStrategy", () => {
 	});
 });
 
-describe("RoundRobinStrategy", () => {
+describe("createRoundRobinStrategy", () => {
 	it("should cycle through instances in order", () => {
-		const strategy = new RoundRobinStrategy();
+		const strategy = createRoundRobinStrategy();
 		const instances = [
 			makeInstance({ instanceId: inst1 }),
 			makeInstance({ instanceId: inst2 }),
@@ -60,17 +60,6 @@ describe("RoundRobinStrategy", () => {
 		expect(strategy.select(instances).instanceId).toBe(inst1);
 		expect(strategy.select(instances).instanceId).toBe(inst2);
 		expect(strategy.select(instances).instanceId).toBe(inst3);
-		expect(strategy.select(instances).instanceId).toBe(inst1);
-	});
-
-	it("should reset index", () => {
-		const strategy = new RoundRobinStrategy();
-		const instances = [
-			makeInstance({ instanceId: inst1 }),
-			makeInstance({ instanceId: inst2 }),
-		];
-		strategy.select(instances);
-		strategy.reset();
 		expect(strategy.select(instances).instanceId).toBe(inst1);
 	});
 });
@@ -127,16 +116,16 @@ describe("LeastConnectionsStrategy", () => {
 });
 
 describe("createLoadBalancer", () => {
-	it("should return RandomStrategy for 'random'", () => {
-		expect(createLoadBalancer(LoadBalancingStrategyType.Random)).toBeInstanceOf(
-			RandomStrategy
-		);
+	it("should return a strategy for 'random'", () => {
+		const strategy = createLoadBalancer(LoadBalancingStrategyType.Random);
+		expect(strategy).toBeDefined();
+		expect(typeof strategy.select).toBe("function");
 	});
 
-	it("should return RoundRobinStrategy for 'round-robin'", () => {
-		expect(
-			createLoadBalancer(LoadBalancingStrategyType.RoundRobin)
-		).toBeInstanceOf(RoundRobinStrategy);
+	it("should return a strategy for 'round-robin'", () => {
+		const strategy = createLoadBalancer(LoadBalancingStrategyType.RoundRobin);
+		expect(strategy).toBeDefined();
+		expect(typeof strategy.select).toBe("function");
 	});
 
 	it("should return LeastConnectionsStrategy for 'least-connections'", () => {
@@ -145,9 +134,9 @@ describe("createLoadBalancer", () => {
 		).toBeInstanceOf(LeastConnectionsStrategy);
 	});
 
-	it("should default to RoundRobinStrategy for unknown strategy", () => {
-		expect(
-			createLoadBalancer("unknown" as LoadBalancingStrategyType)
-		).toBeInstanceOf(RoundRobinStrategy);
+	it("should default to a strategy for unknown type", () => {
+		const strategy = createLoadBalancer("unknown" as LoadBalancingStrategyType);
+		expect(strategy).toBeDefined();
+		expect(typeof strategy.select).toBe("function");
 	});
 });

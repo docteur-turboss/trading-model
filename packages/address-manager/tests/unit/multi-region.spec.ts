@@ -50,7 +50,7 @@ function createMockCache(): jest.Mocked<ServiceCache> {
 				) => Promise<void>
 			>()
 			.mockResolvedValue(undefined),
-		invalidate: jest
+		delete: jest
 			.fn<(name: string) => Promise<void>>()
 			.mockResolvedValue(undefined),
 		clear: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),

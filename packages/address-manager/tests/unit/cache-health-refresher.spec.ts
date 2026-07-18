@@ -39,13 +39,13 @@ describe("CacheHealthRefresher", () => {
 			get: jest.fn(),
 			set: jest.fn(),
 			getVersion: jest.fn(),
-			invalidate: jest.fn(),
+			delete: jest.fn(),
 			clear: jest.fn(),
 			entries: jest.fn(),
 			setCircuitState: jest.fn(),
 			getCircuitState: jest.fn(),
 			deleteCircuitState: jest.fn(),
-			stop: jest.fn(),
+			close: jest.fn(),
 		} as jest.Mocked<IServiceCache>;
 		healthChecker = {
 			isHealthy: jest.fn(),
@@ -107,7 +107,7 @@ describe("CacheHealthRefresher", () => {
 		await refresher.execute();
 		healthChecker.isHealthy.mockResolvedValue(false);
 		await refresher.execute();
-		expect(serviceCache.invalidate).toHaveBeenCalledWith(
+		expect(serviceCache.delete).toHaveBeenCalledWith(
 			toServiceId("unhealthy-svc")
 		);
 	});
@@ -119,7 +119,7 @@ describe("CacheHealthRefresher", () => {
 		]);
 		healthChecker.isHealthy.mockRejectedValue(new Error("check error"));
 		await refresher.execute();
-		expect(serviceCache.invalidate).not.toHaveBeenCalled();
+		expect(serviceCache.delete).not.toHaveBeenCalled();
 	});
 
 	it("should reset offset when entries length changes", async () => {

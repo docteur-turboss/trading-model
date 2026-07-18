@@ -13,16 +13,16 @@ import {
 	UnixTimestamp,
 } from "@trading-model/common/domain/primitives";
 import { DiscoveryCircuitBreaker } from "../../src/discovery/circuit-breaker";
-import type { ICircuitStateStore } from "../../src/discovery/circuit-state-store";
-import type { CircuitState } from "../../src/discovery/service-cache.interface";
+import type { ICircuitStateStore } from "../../src/discovery/circuit-state-store.interface";
+import type { PersistedCircuitState } from "../../src/discovery/service-cache.interface";
 
 function createMockStateStore(): jest.Mocked<ICircuitStateStore> {
 	return {
 		setCircuitState: jest
-			.fn<(instanceId: string, state: CircuitState) => Promise<void>>()
+			.fn<(instanceId: string, state: PersistedCircuitState) => Promise<void>>()
 			.mockResolvedValue(undefined),
 		getCircuitState: jest
-			.fn<(instanceId: string) => Promise<CircuitState | null>>()
+			.fn<(instanceId: string) => Promise<PersistedCircuitState | null>>()
 			.mockResolvedValue(null),
 		deleteCircuitState: jest
 			.fn<(instanceId: string) => Promise<void>>()

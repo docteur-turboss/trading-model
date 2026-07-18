@@ -53,7 +53,6 @@ describe("Scheduler", () => {
 	describe("register", () => {
 		test("should register a job before starting", () => {
 			scheduler.register(mockJob);
-			// no error should be thrown
 		});
 
 		test("should throw if registering after start", () => {
@@ -87,11 +86,10 @@ describe("Scheduler", () => {
 			scheduler.register(mockJob);
 			scheduler.start();
 
-			// Get the callback send to cron.schedule
 			const callback = (cron.schedule as jest.Mock).mock
 				.calls[0][1] as () => Promise<void>;
 
-			await callback(); // simulate cron tick
+			await callback();
 			expect(mockJob.execute).toHaveBeenCalledTimes(1);
 		});
 
@@ -159,7 +157,7 @@ describe("Scheduler", () => {
 		test("calling start multiple times should not reschedule jobs", () => {
 			scheduler.register(mockJob);
 			scheduler.start();
-			scheduler.start(); // second start
+			scheduler.start();
 
 			expect(cron.schedule).toHaveBeenCalledTimes(1);
 		});
@@ -174,7 +172,6 @@ describe("Scheduler", () => {
 
 			expect(mockTask.stop).toHaveBeenCalledTimes(1);
 
-			// After stop, we can restart normally
 			const newJob: ScheduledJob = {
 				schedule: "*/2 * * * *",
 				execute: jest.fn() as () => Promise<void>,

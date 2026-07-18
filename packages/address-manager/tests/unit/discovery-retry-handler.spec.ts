@@ -82,7 +82,7 @@ describe("DiscoveryRetryHandler", () => {
 				.fn<() => Promise<ServiceInstance | null>>()
 				.mockResolvedValue(null),
 			set: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
-			invalidate: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
+			delete: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
 			clear: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
 			entries: jest.fn<() => Promise<unknown[]>>().mockResolvedValue([]),
 			getVersion: jest.fn<() => Promise<number>>().mockResolvedValue(0),
@@ -95,7 +95,7 @@ describe("DiscoveryRetryHandler", () => {
 			deleteCircuitState: jest
 				.fn<() => Promise<void>>()
 				.mockResolvedValue(undefined),
-			stop: jest.fn(),
+			close: jest.fn(),
 		} as unknown as jest.Mocked<IServiceCache>;
 	}
 
@@ -153,7 +153,7 @@ describe("DiscoveryRetryHandler", () => {
 				{ serviceName: serviceId, startTime },
 				"success"
 			);
-			expect(mockCache.invalidate).not.toHaveBeenCalled();
+			expect(mockCache.delete).not.toHaveBeenCalled();
 			expect(sleep).not.toHaveBeenCalled();
 		});
 
@@ -168,8 +168,8 @@ describe("DiscoveryRetryHandler", () => {
 			expect(result).toBe(instance);
 			expect(mockCircuitBreaker.loadFromStore).toHaveBeenCalledTimes(2);
 			expect(mockCircuitBreaker.isOpen).toHaveBeenCalledTimes(2);
-			expect(mockCache.invalidate).toHaveBeenCalledTimes(1);
-			expect(mockCache.invalidate).toHaveBeenCalledWith(serviceId);
+			expect(mockCache.delete).toHaveBeenCalledTimes(1);
+			expect(mockCache.delete).toHaveBeenCalledWith(serviceId);
 			expect(mockDiscovery.acquireConnection).toHaveBeenCalledTimes(1);
 			expect(sleep).toHaveBeenCalledTimes(1);
 			expect(sleep).toHaveBeenCalledWith(100);
@@ -189,7 +189,7 @@ describe("DiscoveryRetryHandler", () => {
 
 			expect(mockCircuitBreaker.loadFromStore).toHaveBeenCalledTimes(3);
 			expect(mockCircuitBreaker.isOpen).toHaveBeenCalledTimes(3);
-			expect(mockCache.invalidate).toHaveBeenCalledTimes(3);
+			expect(mockCache.delete).toHaveBeenCalledTimes(3);
 			expect(sleep).toHaveBeenCalledTimes(2);
 			expect(sleep).toHaveBeenNthCalledWith(1, 100);
 			expect(sleep).toHaveBeenNthCalledWith(2, 200);

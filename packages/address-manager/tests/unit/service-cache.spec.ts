@@ -61,7 +61,7 @@ describe("ServiceCache", () => {
 	it("should delete entry", async () => {
 		const inst = makeInstance();
 		await cache.set({ serviceName: toServiceId("svc"), instance: inst });
-		await cache.invalidate(toServiceId("svc"));
+		await cache.delete(toServiceId("svc"));
 		const result = await cache.get(toServiceId("svc"));
 		expect(result).toBeNull();
 	});
@@ -110,12 +110,12 @@ describe("ServiceCache", () => {
 		expect(v).toBe(0);
 	});
 
-	it("stop should clear cache", async () => {
+	it("close should clear cache", async () => {
 		await cache.set({
 			serviceName: toServiceId("svc"),
 			instance: makeInstance(),
 		});
-		cache.stop();
+		cache.close();
 		const result = await cache.get(toServiceId("svc"));
 		expect(result).toBeNull();
 	});

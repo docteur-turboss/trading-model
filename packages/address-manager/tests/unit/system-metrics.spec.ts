@@ -75,7 +75,7 @@ describe("SystemMetrics", () => {
 		});
 
 		test("should return non-zero cpu percent on second call", () => {
-			metrics.collect(); // first call establishes baseline
+			metrics.collect();
 			const snapshot = metrics.collect();
 			expect(snapshot.cpu.percent).toBeGreaterThanOrEqual(0);
 		});
@@ -83,9 +83,9 @@ describe("SystemMetrics", () => {
 
 	describe("reset", () => {
 		test("should clear previous cpu times", () => {
-			metrics.collect(); // establish baseline
+			metrics.collect();
 			metrics.reset();
-			const snapshot = metrics.collect(); // first call after reset
+			const snapshot = metrics.collect();
 			expect(snapshot.cpu.percent).toBe(0);
 		});
 	});

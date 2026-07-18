@@ -7,14 +7,13 @@ import {
 	test,
 } from "@jest/globals";
 
-// Mock WebSocket before importing
 const MOCK_WEB_SOCKET_INSTANCE: Record<string, unknown> = {
 	on: jest.fn(),
 	send: jest.fn(),
 	close: jest.fn(() => {
-		MOCK_WEB_SOCKET_INSTANCE.readyState = 3; // CLOSED
+		MOCK_WEB_SOCKET_INSTANCE.readyState = 3;
 	}),
-	readyState: 1, // OPEN
+	readyState: 1,
 };
 const MOCK_WEB_SOCKET = jest.fn(() => MOCK_WEB_SOCKET_INSTANCE) as jest.Mock & {
 	OPEN: number;

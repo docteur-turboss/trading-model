@@ -7,7 +7,7 @@ const MOCK_ADDRESS_MANAGER_INSTANCE = {
 	listenExpress: jest.fn(),
 };
 
-jest.mock("../../src/index", () => ({
+jest.mock("../../src/address-manager", () => ({
 	__esModule: true,
 	default: jest.fn().mockImplementation(() => MOCK_ADDRESS_MANAGER_INSTANCE),
 }));
