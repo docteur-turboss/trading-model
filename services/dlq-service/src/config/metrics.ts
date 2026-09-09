@@ -1,4 +1,4 @@
-import { HTTP_STATUS } from "@trading-model/common/http-status";
+import { createMetricsHandler } from "@trading-model/server-utils/adapters/inbound/metrics-handler";
 import promClient from "prom-client";
 
 const register = new promClient.Registry();
@@ -49,15 +49,4 @@ export const metrics = {
 	}),
 };
 
-export function metricsHandler(
-	_req: unknown,
-	res: {
-		setHeader: (key: string, value: string) => void;
-		status: (code: number) => { end: (value: string) => void };
-	}
-): void {
-	res.setHeader("Content-Type", register.contentType);
-	register.metrics().then((data) => {
-		res.status(HTTP_STATUS.OK).end(data);
-	});
-}
+export const metricsHandler = createMetricsHandler(register);

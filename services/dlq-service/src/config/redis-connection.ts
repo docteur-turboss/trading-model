@@ -1,6 +1,6 @@
 import { createRedisClient } from "@trading-model/common/persistence/redis-connection-manager";
 import type Redis from "ioredis";
-import { ENV } from "./env";
+import { ENV } from "../infrastructure/config/env";
 import { logger } from "./logger";
 
 enum ConnectionState {

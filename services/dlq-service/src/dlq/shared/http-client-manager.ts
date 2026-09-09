@@ -1,7 +1,7 @@
 import { HttpClient } from "@trading-model/common/config/http-client";
 import { buildTlsFromEnv } from "@trading-model/common/domain/tls-paths";
-import { ENV } from "../../config/env";
 import { logger } from "../../config/logger";
+import { ENV } from "../../infrastructure/config/env";
 
 class SharedHttpClientManager {
 	private _httpClient: HttpClient | null = null;
@@ -10,7 +10,7 @@ class SharedHttpClientManager {
 		if (!this._httpClient) {
 			this._httpClient = new HttpClient(buildTlsFromEnv(ENV));
 		}
-		return this._httpClient;
+		return Promise.resolve(this._httpClient);
 	}
 
 	async reloadTls(): Promise<void> {
@@ -48,4 +48,5 @@ export function reloadHttpClientTls(): Promise<void> {
 
 export function closeHttpClient(): Promise<void> {
 	sharedHttpClient.close();
+	return Promise.resolve();
 }

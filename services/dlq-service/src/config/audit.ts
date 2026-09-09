@@ -1,11 +1,17 @@
 import { HttpClient } from "@trading-model/common/config/http-client";
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
+import {
+	DurationMs,
+	PositiveInt,
+	toServiceId,
+	URLString,
+} from "@trading-model/common/domain/primitives";
 import { HostPort } from "@trading-model/common/domain/service-identity";
 import { buildTlsFromEnv } from "@trading-model/common/domain/tls-paths";
 import { CircuitStateMachine } from "@trading-model/common/reliability/circuit-state-machine";
-import type { AuditEvent } from "@trading-model/validation/contracts/admin/audit.dto";
+import type { AuditEvent } from "@trading-model/validation/adapters/inbound/admin/audit.dto";
+import { ENV } from "../infrastructure/config/env";
 import { FIND_A_SERVICE } from "./address-manager";
-import { ENV } from "./env";
 import { logger } from "./logger";
 
 class LazyHttpClient {
@@ -49,7 +55,7 @@ const urlResolver = new AuditUrlResolver();
 
 const auditCircuitBreaker = new CircuitStateMachine({
 	failureThreshold: 10,
-	cooldownMs: 60_000,
+	cooldownMs: DurationMs.of(60_000),
 	halfOpenMaxAttempts: 1,
 	onOpen: (state) => {
 		logger.warn(
@@ -82,10 +88,10 @@ async function _sendAuditEvent(event: AuditEvent): Promise<void> {
 		return;
 	}
 	const client = await httpClient.get();
-	await client.post(`${url}/audit`, event, {
-		timeoutMs: 5000,
-		serviceName: ServiceInstanceName.AuditLoggerService,
-		retryCount: 2,
+	await client.post(URLString.of(`${url}/audit`), event, {
+		timeoutMs: DurationMs.of(5000),
+		serviceName: toServiceId(ServiceInstanceName.AuditLoggerService),
+		retryCount: PositiveInt.of(2),
 	});
 }
 

@@ -1,14 +1,15 @@
+import { DurationMs } from "@trading-model/common/domain/primitives";
 import {
 	REDIS_RESP,
 	REDIS_SET,
 } from "@trading-model/common/persistence/redis-constants";
 import { TimerHandle } from "@trading-model/common/utils/timer-handle";
-import type { IDistributedLock } from "@trading-model/validation/contracts/distributed-lock.types";
+import type { IDistributedLock } from "@trading-model/validation/adapters/outbound/distributed-lock.types";
 import type { Redis } from "ioredis";
 import { logger } from "./logger";
 
 const LOCK_PREFIX = "dlq:lock:";
-const LOCK_TTL = 30; // Seconds — auto-release if process crashes
+const LOCK_TTL_SECONDS = 30; // Auto-release if process crashes
 
 export class DistributedLock implements IDistributedLock {
 	private readonly _renewalInterval = new TimerHandle();
@@ -29,7 +30,7 @@ export class DistributedLock implements IDistributedLock {
 			this._key,
 			id,
 			REDIS_SET.EX,
-			LOCK_TTL,
+			LOCK_TTL_SECONDS,
 			REDIS_SET.NX
 		);
 		if (acquired === REDIS_RESP.OK) {
@@ -43,7 +44,7 @@ export class DistributedLock implements IDistributedLock {
 	private _startRenewal(lockId: string): void {
 		this._renewalInterval.startInterval(
 			() => this._renewLock(lockId),
-			(LOCK_TTL / 2) * 1000
+			DurationMs.of((LOCK_TTL_SECONDS / 2) * 1000)
 		);
 	}
 
@@ -53,7 +54,7 @@ export class DistributedLock implements IDistributedLock {
 				this._key,
 				lockId,
 				REDIS_SET.EX,
-				LOCK_TTL,
+				LOCK_TTL_SECONDS,
 				REDIS_SET.XX
 			);
 		} catch (err) {

@@ -1,7 +1,7 @@
 import { URLString } from "@trading-model/common/domain/primitives";
 import { MongoConnectionManager as CommonMongoConnectionManager } from "@trading-model/common/persistence/mongo-connection-manager";
 import type { Collection } from "mongodb";
-import { ENV } from "./env";
+import { ENV } from "../infrastructure/config/env";
 import { IndexManager } from "./index-manager";
 import { logger } from "./logger";
 
@@ -15,6 +15,7 @@ export class MongoConnectionManager extends CommonMongoConnectionManager {
 		super({
 			uri: URLString.of(ENV.MONGO_URI),
 			dbName: ENV.MONGO_DB,
+			collectionName: ENV.MONGO_COLLECTION,
 			minPoolSize: 2,
 			poolSize: 10,
 		});
@@ -37,7 +38,9 @@ export class MongoConnectionManager extends CommonMongoConnectionManager {
 
 	private async _initCollection(): Promise<Collection> {
 		const database = await this.getDb();
-		const col = database.collection(ENV.MONGO_COLLECTION);
+		const col = database.collection(
+			this.collectionName ?? ENV.MONGO_COLLECTION
+		);
 
 		this._missingCriticalIndexes =
 			await this._indexManager.createCollectionIndexes(col);

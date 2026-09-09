@@ -20,7 +20,7 @@ function keyEquals(
 	return true;
 }
 
-const CRITICAL_INDEX_KEYS = [
+const CRITICAL_INDEX_KEYS: Record<string, 1 | -1>[] = [
 	{ retryCount: 1, createdAt: -1 },
 	{ createdAt: -1 },
 	{ messageId: 1 },
