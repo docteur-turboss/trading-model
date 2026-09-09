@@ -32,6 +32,7 @@
     "@types/express": "^5.0.6",
     "@types/jest": "^30.0.0",
     "@types/node": "^26.5.0",
+    "@types/ws": "^8.16.0",
     "jest": "^30.5.1",
     "standard-version": "^9.5.0",
     "ts-jest": "^29.4.12",
@@ -40,8 +41,14 @@
   },
   "dependencies": {
     "@trading-model/common": "*",
-    "ioredis": "^6.0.0",
+    "@trading-model/crypto": "*",
+    "@trading-model/server-utils": "*",
+    "@trading-model/validation": "*",
     "express": "^5.2.1",
+    "express-rate-limit": "^8.7.0",
+    "ioredis": "^6.0.0",
+    "prom-client": "^15.1.3",
+    "ws": "^8.21.3",
     "zod": "^4.5.4"
   }
 }

@@ -1,6 +1,6 @@
 const config = {
   $schema: './node_modules/@stryker-mutator/core/schema/stryker-schema.json',
-  packageManager: 'npm',
+  packageManager: 'bun',
   testRunner: 'jest',
   checkers: ['typescript'],
   concurrency: 4,

@@ -10,9 +10,12 @@
 x-core-env: &core-env
   NODE_ENV: ${NODE_ENV:-production}
   PORT: '3000'
-  TLS_KEY_PATH: /certs/server-key.pem
-  TLS_CERT_PATH: /certs/server.crt
-  TLS_CA_PATH: /certs/ca.crt
+  # mTLS via SPIFFE SVIDs (ADR-0011) — mandatory. The spiffe-helper sidecars
+  # write the SVID (key, cert, trust bundle) into /run/spire/svid before the
+  # service binds, so no manual ./certs bundle is required.
+  TLS_KEY_PATH: /run/spire/svid/svid_key.pem
+  TLS_CERT_PATH: /run/spire/svid/svid.pem
+  TLS_CA_PATH: /run/spire/svid/bundle.pem
   LOG_LEVEL: ${LOG_LEVEL:-info}
 
 x-message-env: &message-env
@@ -66,6 +69,34 @@ services:
       retries: 5
 
   # ---------------------------------------------------------------------------
+  #  Migration — apply pending SQL migrations (single source of truth for schema)
+  # ---------------------------------------------------------------------------
+  migrate:
+    image: oven/bun:1-alpine
+    container_name: trading-migrate
+    restart: "no"
+    entrypoint: ["sh", "-c"]
+    command:
+      - |
+        set -e
+        bun add mysql2 >/dev/null 2>&1
+        bun /migrations/migrate.mjs up
+    environment:
+      DB_HOST: mysql
+      DB_PORT: "3306"
+      DB_USER: ${MYSQL_USER:-root}
+      DB_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      DB_NAME: ${MYSQL_DATABASE:-financial_scraper}
+    volumes:
+      - ./scripts/migrate.mjs:/migrations/migrate.mjs:ro
+      - ./scripts/migrations:/migrations/migrations:ro
+    networks:
+      - data-net
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  # ---------------------------------------------------------------------------
   #  Discovery Server — Service registry & lease management
   # ---------------------------------------------------------------------------
   discovery-server:
@@ -81,51 +112,117 @@ services:
       ERROR_URL_WEBHOOK: ${ERROR_URL_WEBHOOK:-}
       CLEANUP_SERVICE_INTERVAL_MS: '600000'
     volumes:
-      - ${TLS_CERTS_DIR:-./certs}:/certs:ro
+      - svid-discovery:/run/spire/svid
     networks:
       - backend-net
     healthcheck:
-      test: curl -sk --cert /certs/server.crt --key /certs/server-key.pem https://localhost:3000/ping || exit 1
+      test: curl -sk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem https://localhost:3000/ping || exit 1
       interval: 15s
       timeout: 5s
       retries: 3
 
   # ---------------------------------------------------------------------------
-  #  Certificate Authority — X.509 certificate issuance & lifecycle
+  #  SPIRE Server — workload identity issuance (ADR-0011)
   # ---------------------------------------------------------------------------
-  certificate-authority:
-    build:
-      context: .
-      dockerfile: services/certificate-authority/Dockerfile
-    container_name: trading-ca
+  spire-server:
+    image: ghcr.io/spiffe/spire-server:1.11.3
+    container_name: trading-spire-server
     restart: unless-stopped
-    ports:
-      - '${CA_PORT:-8447}:3000'
-    environment:
-      <<: *core-env
-      MONGODB_URI: mongodb://mongo:27017/certificate-authority
-      CA_KEY_PATH: /etc/ca-keys/ca-key.pem
-      CA_CERT_TTL_MS: '31536000000'
-      CERT_ROTATION_INTERVAL_MS: '86400000'
-      CERT_ROTATION_MARGIN_MS: '17280000'
-      CERT_DEFAULT_TTL_MS: '604800000'
-      DISCOVERY_SERVICE_URL: https://discovery-server:3000
+    user: "1000:1000"
+    command: ["/opt/spire/bin/spire-server", "run", "-config", "/etc/spire/server.conf"]
     volumes:
-      - ${TLS_CERTS_DIR:-./certs}:/certs:ro
-      - ca-keys:/etc/ca-keys
+      - ./deploy/compose/spire/server.conf:/etc/spire/server.conf:ro
+      - spire-data:/run/spire/data
+      - spire-server-sockets:/run/spire/sockets
     networks:
       - backend-net
-      - data-net
     healthcheck:
-      test: curl -sk --cert /certs/server.crt --key /certs/server-key.pem https://localhost:3000/ping || exit 1
-      interval: 15s
+      test: /opt/spire/bin/spire-server healthcheck -registrationUDSPath /run/spire/sockets/public/api.sock || exit 1
+      interval: 10s
       timeout: 5s
-      retries: 3
+      retries: 5
+
+  # ---------------------------------------------------------------------------
+  #  SPIRE Agent — attests workload containers via the Docker socket
+  # ---------------------------------------------------------------------------
+  spire-agent:
+    image: ghcr.io/spiffe/spire-agent:1.11.3
+    container_name: trading-spire-agent
+    restart: unless-stopped
+    user: "0:0"
+    command: ["/opt/spire/bin/spire-agent", "run", "-config", "/etc/spire/agent.conf"]
+    volumes:
+      - ./deploy/compose/spire/agent.conf:/etc/spire/agent.conf:ro
+      - /var/run/docker.sock:/run/docker.sock
+      - spire-agent-sockets:/run/spire/agent-sockets
+      - spire-data:/run/spire/data
+    networks:
+      - backend-net
     depends_on:
-      mongo:
+      spire-server:
         condition: service_healthy
-      discovery-server:
+    healthcheck:
+      test: /opt/spire/bin/spire-agent healthcheck -socketPath /run/spire/agent-sockets/public/api.sock || exit 1
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ---------------------------------------------------------------------------
+  #  SPIRE Entries — idempotent registration of node + workload entries
+  # ---------------------------------------------------------------------------
+  spire-entries:
+    image: ghcr.io/spiffe/spire-server:1.11.3
+    container_name: trading-spire-entries
+    restart: "no"
+    user: "1000:1000"
+    volumes:
+      - spire-server-sockets:/run/spire/sockets
+    networks:
+      - backend-net
+    environment:
+      SPIFFE_TD: trading-model.local
+      SPIFFE_NS: trading-model
+    depends_on:
+      spire-server:
         condition: service_healthy
+    entrypoint:
+      - /bin/sh
+      - -ec
+      - |
+        set -eu
+        SOCK=/run/spire/sockets/admin.sock
+        REG=/opt/spire/bin/spire-server
+        for i in $$(seq 1 30); do
+          [ -S "$$SOCK" ] && break
+          echo "Waiting for admin socket... ($$i/30)"
+          sleep 2
+        done
+        [ -S "$$SOCK" ] || { echo "admin socket not found"; exit 1; }
+
+        AGENT_ID="spiffe://$${SPIFFE_TD}/ns/$${SPIFFE_NS}/sa/spire-agent"
+        if "$$REG" entry show -registrationUDSPath "$$SOCK" -spiffeID "$$AGENT_ID" | grep -q "Entry found"; then
+          echo "agent entry exists: $$AGENT_ID"
+        else
+          "$$REG" entry create -registrationUDSPath "$$SOCK" \
+            -node -spiffeID "$$AGENT_ID" \
+            -selector "docker:label:com.docker.compose.service:spire-agent"
+        fi
+
+        for helper in \
+          api-gateway audit-logger discovery-server \
+          dlq-service financial-scraper message-manager trader-trainer; do
+          id="spiffe://$${SPIFFE_TD}/ns/$${SPIFFE_NS}/sa/$${helper}"
+          if "$$REG" entry show -registrationUDSPath "$$SOCK" -spiffeID "$$id" | grep -q "Entry found"; then
+            echo "entry exists: $$id"
+          else
+            "$$REG" entry create -registrationUDSPath "$$SOCK" \
+              -spiffeID "$$id" \
+              -parentID "$$AGENT_ID" \
+              -selector "docker:label:com.docker.compose.service:spiffe-helper-$${helper}" \
+              -ttl 3600 -x509SVIDTTL 3600
+          fi
+        done
+        echo "SPIRE entries reconciled."
 
   # ---------------------------------------------------------------------------
   #  Message Manager — Event bus / message broker
@@ -147,12 +244,12 @@ services:
       ERROR_URL_WEBHOOK: ${ERROR_URL_WEBHOOK:-}
       MONGODB_URI: mongodb://mongo:27017/message-manager
     volumes:
-      - ${TLS_CERTS_DIR:-./certs}:/certs:ro
+      - svid-message:/run/spire/svid
     networks:
       - backend-net
       - data-net
     healthcheck:
-      test: curl -sk --cert /certs/server.crt --key /certs/server-key.pem https://localhost:3000/ping || exit 1
+      test: curl -sk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem https://localhost:3000/ping || exit 1
       interval: 15s
       timeout: 5s
       retries: 3
@@ -186,13 +283,15 @@ services:
       DB_HOST: mysql
       DB_PORT: '3306'
     volumes:
-      - ${TLS_CERTS_DIR:-./certs}:/certs:ro
+      - svid-scraper:/run/spire/svid
     networks:
       - backend-net
       - data-net
     depends_on:
       mysql:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
       discovery-server:
         condition: service_healthy
       message-manager:
@@ -223,11 +322,11 @@ services:
       TRAINER_TIME_BUDGET_MS: ${TRAINER_TIME_BUDGET_MS:-300000}
       TRAINER_EPISODES_PER_INDIVIDUAL: ${TRAINER_EPISODES_PER_INDIVIDUAL:-3}
     volumes:
-      - ${TLS_CERTS_DIR:-./certs}:/certs:ro
+      - svid-trainer:/run/spire/svid
     networks:
       - backend-net
     healthcheck:
-      test: curl -sk --cert /certs/server.crt --key /certs/server-key.pem https://localhost:3000/ping || exit 1
+      test: curl -sk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem https://localhost:3000/ping || exit 1
       interval: 15s
       timeout: 5s
       retries: 3
@@ -258,11 +357,11 @@ services:
       AUTH_TOKENS: ''
       PROXY_TIMEOUT_MS: '10000'
     volumes:
-      - ${TLS_CERTS_DIR:-./certs}:/certs:ro
+      - svid-gateway:/run/spire/svid
     networks:
       - backend-net
     healthcheck:
-      test: curl -sk --cert /certs/server.crt --key /certs/server-key.pem https://localhost:3000/ping || exit 1
+      test: curl -sk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem https://localhost:3000/ping || exit 1
       interval: 15s
       timeout: 5s
       retries: 3
@@ -290,12 +389,12 @@ services:
       ERROR_URL_WEBHOOK: ${ERROR_URL_WEBHOOK:-}
       MONGODB_URI: mongodb://mongo:27017/audit-logger
     volumes:
-      - ${TLS_CERTS_DIR:-./certs}:/certs:ro
+      - svid-audit:/run/spire/svid
     networks:
       - backend-net
       - data-net
     healthcheck:
-      test: curl -sk --cert /certs/server.crt --key /certs/server-key.pem https://localhost:3000/ping || exit 1
+      test: curl -sk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem https://localhost:3000/ping || exit 1
       interval: 15s
       timeout: 5s
       retries: 3
@@ -328,12 +427,12 @@ services:
       MONGO_COLLECTION: dlq_entries
       MAX_ENTRIES: '100000'
     volumes:
-      - ${TLS_CERTS_DIR:-./certs}:/certs:ro
+      - svid-dlq:/run/spire/svid
     networks:
       - backend-net
       - data-net
     healthcheck:
-      test: curl -sk --cert /certs/server.crt --key /certs/server-key.pem https://localhost:3000/ping || exit 1
+      test: curl -sk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem https://localhost:3000/ping || exit 1
       interval: 15s
       timeout: 5s
       retries: 3
@@ -342,6 +441,158 @@ services:
         condition: service_healthy
       discovery-server:
         condition: service_healthy
+
+  # ---------------------------------------------------------------------------
+  #  SPIFFE Helpers — spiffe-helper sidecars (ADR-0011)
+  #  Each writes the service SVID into a shared svid-<svc> volume consumed by
+  #  the main service (TLS_*_PATH point at /run/spire/svid). Mandatory.
+  # ---------------------------------------------------------------------------
+  spiffe-helper-discovery:
+    image: ghcr.io/spiffe/spiffe-helper:0.6.0
+    container_name: trading-helper-discovery
+    restart: unless-stopped
+    network_mode: "service:discovery-server"
+    volumes:
+      - spire-agent-sockets:/run/spire/agent-sockets:ro
+      - svid-discovery:/run/spire/svid
+    command:
+      - -socketPath=/run/spire/agent-sockets/public/api.sock
+      - -certDir=/run/spire/svid
+      - -svidFileName=svid.pem
+      - -svidKeyFileName=svid_key.pem
+      - -svidBundleFileName=bundle.pem
+      - -renewSignal=SIGHUP
+    depends_on:
+      spire-agent:
+        condition: service_healthy
+      discovery-server:
+        condition: service_started
+
+  spiffe-helper-message:
+    image: ghcr.io/spiffe/spiffe-helper:0.6.0
+    container_name: trading-helper-message
+    restart: unless-stopped
+    network_mode: "service:message-manager"
+    volumes:
+      - spire-agent-sockets:/run/spire/agent-sockets:ro
+      - svid-message:/run/spire/svid
+    command:
+      - -socketPath=/run/spire/agent-sockets/public/api.sock
+      - -certDir=/run/spire/svid
+      - -svidFileName=svid.pem
+      - -svidKeyFileName=svid_key.pem
+      - -svidBundleFileName=bundle.pem
+      - -renewSignal=SIGHUP
+    depends_on:
+      spire-agent:
+        condition: service_healthy
+      message-manager:
+        condition: service_started
+
+  spiffe-helper-scraper:
+    image: ghcr.io/spiffe/spiffe-helper:0.6.0
+    container_name: trading-helper-scraper
+    restart: unless-stopped
+    network_mode: "service:financial-scraper"
+    volumes:
+      - spire-agent-sockets:/run/spire/agent-sockets:ro
+      - svid-scraper:/run/spire/svid
+    command:
+      - -socketPath=/run/spire/agent-sockets/public/api.sock
+      - -certDir=/run/spire/svid
+      - -svidFileName=svid.pem
+      - -svidKeyFileName=svid_key.pem
+      - -svidBundleFileName=bundle.pem
+      - -renewSignal=SIGHUP
+    depends_on:
+      spire-agent:
+        condition: service_healthy
+      financial-scraper:
+        condition: service_started
+
+  spiffe-helper-trainer:
+    image: ghcr.io/spiffe/spiffe-helper:0.6.0
+    container_name: trading-helper-trainer
+    restart: unless-stopped
+    network_mode: "service:trader-trainer"
+    volumes:
+      - spire-agent-sockets:/run/spire/agent-sockets:ro
+      - svid-trainer:/run/spire/svid
+    command:
+      - -socketPath=/run/spire/agent-sockets/public/api.sock
+      - -certDir=/run/spire/svid
+      - -svidFileName=svid.pem
+      - -svidKeyFileName=svid_key.pem
+      - -svidBundleFileName=bundle.pem
+      - -renewSignal=SIGHUP
+    depends_on:
+      spire-agent:
+        condition: service_healthy
+      trader-trainer:
+        condition: service_started
+
+  spiffe-helper-gateway:
+    image: ghcr.io/spiffe/spiffe-helper:0.6.0
+    container_name: trading-helper-gateway
+    restart: unless-stopped
+    network_mode: "service:api-gateway"
+    volumes:
+      - spire-agent-sockets:/run/spire/agent-sockets:ro
+      - svid-gateway:/run/spire/svid
+    command:
+      - -socketPath=/run/spire/agent-sockets/public/api.sock
+      - -certDir=/run/spire/svid
+      - -svidFileName=svid.pem
+      - -svidKeyFileName=svid_key.pem
+      - -svidBundleFileName=bundle.pem
+      - -renewSignal=SIGHUP
+    depends_on:
+      spire-agent:
+        condition: service_healthy
+      api-gateway:
+        condition: service_started
+
+  spiffe-helper-audit:
+    image: ghcr.io/spiffe/spiffe-helper:0.6.0
+    container_name: trading-helper-audit
+    restart: unless-stopped
+    network_mode: "service:audit-logger"
+    volumes:
+      - spire-agent-sockets:/run/spire/agent-sockets:ro
+      - svid-audit:/run/spire/svid
+    command:
+      - -socketPath=/run/spire/agent-sockets/public/api.sock
+      - -certDir=/run/spire/svid
+      - -svidFileName=svid.pem
+      - -svidKeyFileName=svid_key.pem
+      - -svidBundleFileName=bundle.pem
+      - -renewSignal=SIGHUP
+    depends_on:
+      spire-agent:
+        condition: service_healthy
+      audit-logger:
+        condition: service_started
+
+  spiffe-helper-dlq:
+    image: ghcr.io/spiffe/spiffe-helper:0.6.0
+    container_name: trading-helper-dlq
+    restart: unless-stopped
+    network_mode: "service:dlq-service"
+    volumes:
+      - spire-agent-sockets:/run/spire/agent-sockets:ro
+      - svid-dlq:/run/spire/svid
+    command:
+      - -socketPath=/run/spire/agent-sockets/public/api.sock
+      - -certDir=/run/spire/svid
+      - -svidFileName=svid.pem
+      - -svidKeyFileName=svid_key.pem
+      - -svidBundleFileName=bundle.pem
+      - -renewSignal=SIGHUP
+    depends_on:
+      spire-agent:
+        condition: service_healthy
+      dlq-service:
+        condition: service_started
 
   # ---------------------------------------------------------------------------
   #  Admin Interface — React SPA served by nginx
@@ -375,4 +626,13 @@ networks:
 volumes:
   mongo-data:
   mysql-data:
-  ca-keys:
+  spire-data:
+  spire-server-sockets:
+  spire-agent-sockets:
+  svid-discovery:
+  svid-message:
+  svid-scraper:
+  svid-trainer:
+  svid-gateway:
+  svid-audit:
+  svid-dlq:

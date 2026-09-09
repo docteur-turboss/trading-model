@@ -7,7 +7,6 @@
 # Security-sensitive paths require security review
 /deploy/k8s/secrets/    @docteur-turboss
 /certs/                  @docteur-turboss
-scripts/generate-certs.sh @docteur-turboss
 
 # Core shared packages require architecture review
 /packages/common/        @docteur-turboss
