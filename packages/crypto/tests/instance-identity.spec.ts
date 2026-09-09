@@ -7,7 +7,7 @@ import {
 import {
 	generateInstanceId,
 	verifyInstanceName,
-} from "../src/crypto/instance-identity";
+} from "../src/domain/services/instance-identity";
 
 describe("generateInstanceId", () => {
 	const endpoint = {

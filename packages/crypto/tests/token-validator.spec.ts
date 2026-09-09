@@ -1,9 +1,9 @@
-import { createHmac } from "node:crypto";
 import { InstanceId } from "@trading-model/common/domain/primitives";
-import { CryptoAlg } from "../src/crypto/crypto-constants";
-import { generateRandomStr } from "../src/crypto/random";
-import { generateInstanceToken } from "../src/crypto/token-generator";
-import { validInstanceToken } from "../src/crypto/token-validator";
+import { CryptoAlg } from "../src/domain/constants/crypto-constants";
+import { createHmacSha256Formatted } from "../src/domain/services/hmac-utils";
+import { generateRandomStr } from "../src/domain/services/random";
+import { generateInstanceToken } from "../src/domain/services/token-generator";
+import { validInstanceToken } from "../src/domain/services/token-validator";
 
 function createLegacyToken(
 	instanceId: string,
@@ -15,9 +15,12 @@ function createLegacyToken(
 		CryptoAlg.BASE64URL
 	);
 	const nonce = generateRandomStr();
-	const hmac = createHmac(CryptoAlg.SHA256, secret)
-		.update(`${encodedId}.${timestampB64}.${nonce}`)
-		.digest(CryptoAlg.BASE64URL);
+	const hmac = createHmacSha256Formatted({
+		secret,
+		parts: [encodedId, timestampB64, nonce],
+		separator: ".",
+		digest: CryptoAlg.BASE64URL,
+	});
 	return `${encodedId}.${timestampB64}.${nonce}.${hmac}`;
 }
 

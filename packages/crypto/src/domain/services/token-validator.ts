@@ -1,6 +1,6 @@
-import { createHmac, timingSafeEqual } from "node:crypto";
 import type { InstanceId } from "@trading-model/common/domain/primitives";
-import { CryptoAlg } from "./crypto-constants";
+import { CryptoAlg } from "../constants/crypto-constants";
+import { verifyHmacSha256Formatted } from "./hmac-utils";
 
 export interface TokenValidationOptions {
 	maxAgeMs?: number;
@@ -33,14 +33,13 @@ interface HmacVerificationInput {
 function verifyHmac(input: HmacVerificationInput): boolean {
 	const { encodedId, payloadParts, signature, signingSecret } = input;
 	const payload = payloadParts.join(".");
-	const expectedHmac = createHmac(CryptoAlg.SHA256, signingSecret)
-		.update(`${encodedId}.${payload}`)
-		.digest(CryptoAlg.BASE64URL);
-	try {
-		return timingSafeEqual(Buffer.from(expectedHmac), Buffer.from(signature));
-	} catch {
-		return false;
-	}
+	return verifyHmacSha256Formatted({
+		secret: signingSecret,
+		signature,
+		parts: [encodedId, payload],
+		separator: ".",
+		digest: CryptoAlg.BASE64URL,
+	});
 }
 
 function checkTokenFormat(token: string): TokenFormat | null {

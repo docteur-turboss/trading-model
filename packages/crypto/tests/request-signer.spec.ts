@@ -1,6 +1,6 @@
 import { ServiceId } from "@trading-model/common/domain/primitives";
 import { HTTP_HEADERS } from "@trading-model/common/http-headers";
-import { HttpMethod } from "@trading-model/validation/contracts/signed-request";
+import { HttpMethod } from "@trading-model/validation/adapters/inbound/signed-request";
 
 const DEFAULT_TIMESTAMP_TOLERANCE_MS = 300_000;
 
@@ -10,7 +10,7 @@ import {
 	normalizeBody,
 	signRequest,
 	verifySignature,
-} from "../src/crypto/request-signer";
+} from "../src/domain/services/request-signer";
 
 const longSecret = "this-is-a-long-secret-123456";
 const shortSecret = "short";

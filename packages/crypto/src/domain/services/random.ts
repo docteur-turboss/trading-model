@@ -1,4 +1,4 @@
-import { CryptoAlg } from "./crypto-constants";
+import { CryptoAlg } from "../constants/crypto-constants";
 
 export const generateRandomStr = (): string =>
 	Buffer.from(

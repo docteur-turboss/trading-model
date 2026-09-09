@@ -7,9 +7,13 @@ import type {
 	SignedRequest,
 	SignedRequestAuth,
 	Timestamp,
-} from "@trading-model/validation/contracts/signed-request";
+} from "@trading-model/validation/adapters/inbound/signed-request";
 import { sha256Hex } from "./hash-utils";
-import { createHmacSha256, verifyHmacSha256 } from "./hmac-utils";
+import {
+	createHmacSha256,
+	isTimestampFresh,
+	verifyHmacSha256,
+} from "./hmac-utils";
 
 const DEFAULT_TIMESTAMP_TOLERANCE_MS = 300_000;
 
@@ -47,7 +51,6 @@ export function verifySignature(
 	const {
 		signature,
 		timestamp,
-		secret,
 		toleranceMs = DEFAULT_TIMESTAMP_TOLERANCE_MS,
 	} = options;
 	if (!(timestamp && signature)) {
@@ -56,20 +59,18 @@ export function verifySignature(
 	if (!_isTimestampValid(timestamp, toleranceMs)) {
 		return false;
 	}
-	return _verifyHmacMatch(input, timestamp, secret, signature);
+	return _verifyHmacMatch(input, options);
 }
 
 function _isTimestampValid(timestamp: string, toleranceMs: number): boolean {
-	const ts = Number.parseInt(timestamp, 10);
-	return !Number.isNaN(ts) && Math.abs(Date.now() - ts) <= toleranceMs;
+	return isTimestampFresh(Number.parseInt(timestamp, 10), toleranceMs);
 }
 
 function _verifyHmacMatch(
 	input: SignedRequest,
-	timestamp: string,
-	secret: string,
-	signature: string
+	options: SignatureVerificationOptions
 ): boolean {
+	const { timestamp, secret, signature } = options;
 	const parts = _buildSignParts(input, timestamp, secret);
 	return verifyHmacSha256(secret, signature, ...parts);
 }

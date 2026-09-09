@@ -1,4 +1,4 @@
-import { generateRandomStr } from "../src/crypto/random";
+import { generateRandomStr } from "../src/domain/services/random";
 
 describe("generateRandomStr", () => {
 	it("should return a non-empty string", () => {

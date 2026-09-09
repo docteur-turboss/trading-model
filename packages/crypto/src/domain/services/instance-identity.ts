@@ -1,8 +1,7 @@
-import { createHmac } from "node:crypto";
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import { InstanceId } from "@trading-model/common/domain/primitives";
 import type { ServiceEndpoint } from "@trading-model/common/domain/service-identity";
-import { CryptoAlg } from "./crypto-constants";
+import { createHmacSha256Formatted } from "./hmac-utils";
 import { generateRandomStr } from "./random";
 
 export function generateInstanceId({
@@ -10,9 +9,12 @@ export function generateInstanceId({
 	host,
 	port,
 }: ServiceEndpoint): string {
-	return createHmac(CryptoAlg.SHA256, generateRandomStr())
-		.update(`${serviceName}-${host}:${port}-${Date.now()}`)
-		.digest("base64");
+	return createHmacSha256Formatted({
+		secret: generateRandomStr(),
+		parts: [`${serviceName}-${host}:${port}-${Date.now()}`],
+		separator: ":",
+		digest: "base64",
+	});
 }
 
 export function verifyInstanceName(serviceName: ServiceInstanceName): boolean {
