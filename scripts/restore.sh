@@ -10,7 +10,7 @@ set -euo pipefail
 BACKUP_DIR="${BACKUP_DIR:-./backups}"
 RESTORE_TIMESTAMP="${RESTORE_TIMESTAMP:-latest}"
 DRY_RUN=false
-COMPONENTS="mongodb,mysql,redis,ca-keys,checkpoints"
+COMPONENTS="mongodb,mysql,redis,checkpoints"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -184,32 +184,6 @@ restore_redis() {
   ok "Redis restore complete — ${keys} keys"
 }
 
-restore_ca_keys() {
-  local file="${BACKUP_DIR}/ca-keys/ca-keys_${RESTORE_TIMESTAMP}.tar.gz"
-  if [ "$RESTORE_TIMESTAMP" = "latest" ]; then
-    file=$(find "${BACKUP_DIR}/ca-keys" -name "ca-keys_*.tar.gz" 2>/dev/null | sort | tail -1)
-  fi
-  if [ -z "$file" ] || [ ! -f "$file" ]; then
-    warn "No CA keys backup found, skipping"
-    return
-  fi
-
-  if ! docker ps --filter "name=trading-ca" --format '{{.Names}}' | grep -q .; then
-    warn "CA container not running, copying file for manual restore: ${file}"
-    return
-  fi
-
-  if $DRY_RUN; then
-    warn "[DRY-RUN] Would restore CA keys from ${file}"
-    return
-  fi
-
-  docker cp "$file" trading-ca:/tmp/ca-keys.tar.gz
-  docker exec trading-ca tar xzf /tmp/ca-keys.tar.gz -C /etc/ca-keys/
-  docker exec trading-ca rm -f /tmp/ca-keys.tar.gz
-  ok "CA keys restore complete"
-}
-
 restore_checkpoints() {
   local file="${BACKUP_DIR}/checkpoints/checkpoints_${RESTORE_TIMESTAMP}.tar.gz"
   if [ "$RESTORE_TIMESTAMP" = "latest" ]; then
@@ -252,7 +226,6 @@ for part in "${PARTS[@]}"; do
     mongodb)     restore_mongodb ;;
     mysql)       restore_mysql ;;
     redis)       restore_redis ;;
-    ca-keys)     restore_ca_keys ;;
     checkpoints) restore_checkpoints ;;
     *)           warn "Unknown component: ${part}" ;;
   esac

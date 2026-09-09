@@ -10,7 +10,7 @@ set -euo pipefail
 BACKUP_DIR="${BACKUP_DIR:-/backups}"
 RESTORE_TIMESTAMP="${RESTORE_TIMESTAMP:-latest}"
 DRY_RUN=false
-COMPONENTS="mongodb,mysql,redis,ca-keys,checkpoints"
+COMPONENTS="mongodb,mysql,redis,checkpoints"
 K8S_NAMESPACE="${K8S_NAMESPACE:-trading-model}"
 
 while [[ $# -gt 0 ]]; do
@@ -169,34 +169,6 @@ restore_redis() {
   ok "Redis restore triggered — pod replacing with restored data"
 }
 
-restore_ca_keys() {
-  local file
-  if [ "$RESTORE_TIMESTAMP" = "latest" ]; then
-    file=$(find "${BACKUP_DIR}/ca-keys" -name "ca-keys_*.tar.gz" 2>/dev/null | sort | tail -1)
-  else
-    file="${BACKUP_DIR}/ca-keys/ca-keys_${RESTORE_TIMESTAMP}.tar.gz"
-  fi
-  if [ -z "$file" ] || [ ! -f "$file" ]; then
-    warn "No CA keys backup found, skipping"
-    return
-  fi
-
-  local pod
-  pod=$(kubectl get pods -n "${K8S_NAMESPACE}" -l app.kubernetes.io/component=certificate-authority -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)
-  if [ -z "$pod" ]; then
-    warn "No CA pod found, copying file for manual restore: ${file}"
-    return
-  fi
-
-  if $DRY_RUN; then
-    warn "[DRY-RUN] Would restore CA keys from ${file}"
-    return
-  fi
-
-  cat "$file" | kubectl_exec "${pod}" -- tar xzf - -C /etc/ca-keys/ 2>/dev/null
-  ok "CA keys restore complete"
-}
-
 restore_checkpoints() {
   local file
   if [ "$RESTORE_TIMESTAMP" = "latest" ]; then
@@ -241,7 +213,6 @@ for part in "${PARTS[@]}"; do
     mongodb)     restore_mongodb ;;
     mysql)       restore_mysql ;;
     redis)       restore_redis ;;
-    ca-keys)     restore_ca_keys ;;
     checkpoints) restore_checkpoints ;;
     *)           warn "Unknown component: ${part}" ;;
   esac

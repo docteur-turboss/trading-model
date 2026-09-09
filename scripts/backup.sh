@@ -9,7 +9,7 @@ set -euo pipefail
 BACKUP_DIR="${BACKUP_DIR:-./backups}"
 TIMESTAMP="$(date +%Y-%m-%d_%H%M%S)"
 DRY_RUN=false
-COMPONENTS="mongodb,mysql,redis,ca-keys,checkpoints"
+COMPONENTS="mongodb,mysql,redis,checkpoints"
 RETENTION_DAYS="${RETENTION_DAYS:-30}"
 S3_BUCKET="${BACKUP_S3_BUCKET:-}"
 
@@ -101,29 +101,6 @@ backup_redis() {
   done
 }
 
-backup_ca_keys() {
-  log "Starting CA keys backup..."
-  local dest="${BACKUP_DIR}/ca-keys"
-  mkdir -p "$dest"
-  local file="${dest}/ca-keys_${TIMESTAMP}.tar.gz"
-
-  if ! docker ps --filter "name=trading-ca" --format '{{.Names}}' | grep -q .; then
-    warn "CA container not running, skipping CA keys backup"
-    return
-  fi
-
-  if $DRY_RUN; then
-    warn "[DRY-RUN] Would backup CA keys from trading-ca"
-    return
-  fi
-
-  if docker exec trading-ca tar czf - -C /etc/ca-keys . 2>/dev/null > "$file"; then
-    ok "CA keys backup complete: ${file}"
-  else
-    fail "CA keys backup failed"
-  fi
-}
-
 backup_checkpoints() {
   log "Starting trader-trainer checkpoints backup..."
   local dest="${BACKUP_DIR}/checkpoints"
@@ -187,7 +164,6 @@ for part in "${PARTS[@]}"; do
     mongodb)     backup_mongodb ;;
     mysql)       backup_mysql ;;
     redis)       backup_redis ;;
-    ca-keys)     backup_ca_keys ;;
     checkpoints) backup_checkpoints ;;
     *)           warn "Unknown component: ${part}" ;;
   esac

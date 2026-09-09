@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Secret rotation script for trading-model
-# Rotates: CA root key, HMAC secrets, admin tokens
-# Usage: bash scripts/rotate-secrets.sh [--component ca|hmac|tokens|all]
+# Rotates: HMAC secrets, admin tokens
+# Usage: bash scripts/rotate-secrets.sh [--component hmac|tokens|all]
 
 set -euo pipefail
 
@@ -10,34 +10,6 @@ NAMESPACE=${NAMESPACE:-trading-model}
 
 log() { echo "[rotate-secrets] $(date -u +%Y-%m-%dT%H:%M:%SZ) $*"; }
 warn() { echo "[rotate-secrets] WARN: $*" >&2; }
-
-rotate_ca_key() {
-  log "Rotating CA root key..."
-  if $DRY_RUN; then
-    log "[DRY-RUN] Would: kubectl exec certificate-authority-0 -- /app/rotate-ca-key"
-    return
-  fi
-
-  local pod
-  pod=$(kubectl get pods -n "$NAMESPACE" -l app.kubernetes.io/component=certificate-authority -o jsonpath='{.items[0].metadata.name}')
-  if [ -z "$pod" ]; then
-    warn "No certificate-authority pod found"
-    return 1
-  fi
-
-  kubectl exec -n "$NAMESPACE" "$pod" -- node -e "
-    const ca = require('./dist/core/ca');
-    ca.rotateRootKey().then(() => {
-      console.log('CA key rotated');
-      process.exit(0);
-    }).catch(err => {
-      console.error(err);
-      process.exit(1);
-    });
-  "
-  log "CA root key rotation initiated"
-  log "New keys saved to /etc/ca-keys/ — ensure backup runs after rotation"
-}
 
 rotate_hmac_secret() {
   log "Rotating HMAC secret..."
@@ -106,9 +78,6 @@ COMPONENT="${1:-all}"
 log "Starting secret rotation — component: ${COMPONENT}"
 
 case "$COMPONENT" in
-  ca)
-    rotate_ca_key
-    ;;
   hmac)
     rotate_hmac_secret
     ;;
@@ -116,15 +85,13 @@ case "$COMPONENT" in
     rotate_admin_tokens
     ;;
   all)
-    rotate_ca_key
     rotate_hmac_secret
     rotate_admin_tokens
     ;;
   *)
-    echo "Usage: $0 [--component ca|hmac|tokens|all]"
+    echo "Usage: $0 [--component hmac|tokens|all]"
     exit 1
     ;;
 esac
 
 log "Secret rotation complete"
-log "Remember: run backup after key rotation to preserve new keys"

@@ -6,7 +6,10 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import mysql from 'mysql2/promise';
 
-const MIGRATIONS_DIR = join(dirname(fileURLToPath(import.meta.url)), 'migrations');
+const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
+const MIGRATIONS_DIR = existsSync(join(SCRIPT_DIR, 'migrations'))
+  ? join(SCRIPT_DIR, 'migrations')
+  : SCRIPT_DIR;
 const MIGRATIONS_TABLE = '_migrations';
 
 const [, , command] = process.argv;
