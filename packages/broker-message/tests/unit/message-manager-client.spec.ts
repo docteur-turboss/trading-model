@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
-import { MessageManagerClient } from "../../src/client/message-manager-client";
+import { MessageManagerClient } from "../../src/adapters/outbound/message-manager-client";
 
 describe("MessageManagerClient", () => {
 	let client: MessageManagerClient;

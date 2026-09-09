@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
-import { EVENT_MANAGER } from "../../src/client/event-manager-client";
+import { EVENT_MANAGER } from "../../src/application/services/event-manager-client";
 
 /* eslint-disable @typescript-eslint/no-unused-vars */
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "@jest/globals";
 
-import { MESSAGE_PAYLOAD_SCHEMA } from "../../src/shared/helper/messages/message.schema";
+import { MESSAGE_PAYLOAD_SCHEMA } from "../../src/shared/barrel/message.schema";
 
 describe("MESSAGE_PAYLOAD_SCHEMA", () => {
 	describe("auditHeartbeat", () => {

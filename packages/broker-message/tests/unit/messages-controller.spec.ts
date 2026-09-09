@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
-import { EVENT_MANAGER } from "../../src/client/event-manager-client";
-import { MESSAGE_CONTROLLER } from "../../src/http/messages.controller";
+import { MESSAGE_CONTROLLER } from "../../src/adapters/inbound/messages.controller";
+import { EVENT_MANAGER } from "../../src/application/services/event-manager-client";
 
 function flushMicrotasks(): Promise<void> {
 	return new Promise((resolve) => setTimeout(resolve, 0));

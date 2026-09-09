@@ -18,15 +18,15 @@
     "@trading-model/common": "*",
     "@trading-model/address-manager": "*",
     "express": "^5.2.1",
-    "zod": "^4.4.3"
+    "zod": "^4.5.4"
   },
   "devDependencies": {
     "@types/express": "^5.0.6",
-    "@types/node": "^25.9.2",
+    "@types/node": "^26.5.0",
     "typescript": "^6.0.3",
-    "@jest/globals": "^30.4.1",
-    "jest": "^30.4.2",
-    "ts-jest": "^29.4.11"
+    "@jest/globals": "^30.5.1",
+    "jest": "^30.5.1",
+    "ts-jest": "^29.4.12"
   },
   "scripts": {
     "test": "jest",

@@ -38,7 +38,7 @@ jest.mock("@opentelemetry/api", () => ({
 	propagation: { inject: jest.fn() },
 }));
 
-import { WssClient } from "../../src/client/wss-client";
+import { WssClient } from "../../src/adapters/outbound/wss-client";
 
 describe("WssClient", () => {
 	let client: WssClient;

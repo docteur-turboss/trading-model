@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
-import { EVENT_MANAGER } from "../../src/client/event-manager-client";
+import { EVENT_MANAGER } from "../../src/application/services/event-manager-client";
 
 const MOCK_MESSAGE_MANAGER_CLIENT_INSTANCE = {
 	subscribe: jest.fn(),
@@ -8,7 +8,7 @@ const MOCK_MESSAGE_MANAGER_CLIENT_INSTANCE = {
 	publish: jest.fn(),
 };
 
-jest.mock("../../src/client/message-manager-client", () => ({
+jest.mock("../../src/adapters/outbound/message-manager-client", () => ({
 	MessageManagerClient: jest
 		.fn()
 		.mockImplementation(() => MOCK_MESSAGE_MANAGER_CLIENT_INSTANCE),
@@ -23,7 +23,7 @@ jest.mock("@trading-model/common/config/http-client", () => ({
 
 const MOCK_CREATE_CALLBACK_ROUTE = jest.fn();
 
-jest.mock("../../src/http/messages.routes", () => ({
+jest.mock("../../src/adapters/inbound/messages.routes", () => ({
 	CREATE_CALLBACK_ROUTE: jest.fn(() => MOCK_CREATE_CALLBACK_ROUTE),
 }));
 
@@ -57,7 +57,7 @@ describe("BrokerMessage", () => {
 		it("should use default callbackPath when not provided", () => {
 			const {
 				MessageManagerClient,
-			} = require("../../src/client/message-manager-client");
+			} = require("../../src/adapters/outbound/message-manager-client");
 			expect(MessageManagerClient).toHaveBeenCalledWith(
 				expect.any(Object),
 				expect.objectContaining({ callbackPath: "message" }),
@@ -68,7 +68,7 @@ describe("BrokerMessage", () => {
 		it("should use provided callbackPath", () => {
 			const {
 				MessageManagerClient,
-			} = require("../../src/client/message-manager-client");
+			} = require("../../src/adapters/outbound/message-manager-client");
 			jest.clearAllMocks();
 			new BrokerMessage({ ...defaultParams, callbackPath: "/custom" } as any);
 			expect(MessageManagerClient).toHaveBeenCalledWith(
@@ -101,7 +101,7 @@ describe("BrokerMessage", () => {
 
 		it("should call kill functions from event array", async () => {
 			const killFn = jest.fn();
-			const _cleanup = EVENT_MANAGER.on("example.debug.create" as any, killFn);
+			EVENT_MANAGER.on("example.debug.create" as any, killFn);
 			broker = new BrokerMessage(defaultParams);
 			broker.on("example.debug.create", killFn);
 			await broker.stopMessageManager();

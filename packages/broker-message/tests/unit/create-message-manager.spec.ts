@@ -13,7 +13,7 @@ jest.mock("../../src/index", () => ({
 
 jest.mock("@trading-model/address-manager", () => ({}));
 
-import { createMessageManager } from "../../src/shared/helper/create-message-manager";
+import { createMessageManager } from "../../src/application/services/create-message-manager";
 
 describe("createMessageManager", () => {
 	const options = {

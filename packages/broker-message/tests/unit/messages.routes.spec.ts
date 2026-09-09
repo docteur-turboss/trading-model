@@ -1,10 +1,10 @@
 import { describe, expect, it, jest } from "@jest/globals";
 
-jest.mock("../../src/http/messages.controller", () => ({
+jest.mock("../../src/adapters/inbound/messages.controller", () => ({
 	MESSAGE_CONTROLLER: jest.fn(),
 }));
 
-import { CREATE_CALLBACK_ROUTE } from "../../src/http/messages.routes";
+import { CREATE_CALLBACK_ROUTE } from "../../src/adapters/inbound/messages.routes";
 
 describe("CREATE_CALLBACK_ROUTE", () => {
 	it("should return a router", () => {

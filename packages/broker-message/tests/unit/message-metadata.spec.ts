@@ -1,6 +1,6 @@
 import { describe, expect, it } from "@jest/globals";
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
-import { MessageMetadata } from "../../src/shared/helper/messages/message";
+import { MessageMetadataBuilder } from "../../src/domain/messages/message-metadata-builder";
 
 const TEST_TOPIC = "test.event.created";
 const TEST_EVENT = "example.debug.create";
@@ -9,15 +9,19 @@ const TEST_PUBLISHER = {
 	instanceId: "550e8400-e29b-41d4-a716-446655440000",
 };
 
-function buildMinimalMetadata(): MessageMetadata {
-	return new MessageMetadata(TEST_TOPIC, TEST_EVENT, TEST_PUBLISHER);
+function buildMinimalMetadata(): MessageMetadataBuilder {
+	return new MessageMetadataBuilder(TEST_TOPIC, TEST_EVENT, TEST_PUBLISHER);
 }
 
-describe("MessageMetadata", () => {
+describe("MessageMetadataBuilder", () => {
 	describe("constructor", () => {
 		it("should create with required fields", () => {
-			const m = new MessageMetadata(TEST_TOPIC, TEST_EVENT, TEST_PUBLISHER);
-			expect(m).toBeInstanceOf(MessageMetadata);
+			const m = new MessageMetadataBuilder(
+				TEST_TOPIC,
+				TEST_EVENT,
+				TEST_PUBLISHER
+			);
+			expect(m).toBeInstanceOf(MessageMetadataBuilder);
 			expect(m.topic).toBe(TEST_TOPIC);
 			expect(m.eventType).toBe(TEST_EVENT);
 			expect(m.publisher.serviceName).toBe(
@@ -27,12 +31,12 @@ describe("MessageMetadata", () => {
 
 		it("should throw on invalid topic format", () => {
 			expect(
-				() => new MessageMetadata("no-dots", TEST_EVENT, TEST_PUBLISHER)
+				() => new MessageMetadataBuilder("no-dots", TEST_EVENT, TEST_PUBLISHER)
 			).toThrow();
 		});
 
 		it("should accept optional context data", () => {
-			const withData = new MessageMetadata(
+			const withData = new MessageMetadataBuilder(
 				TEST_TOPIC,
 				TEST_EVENT,
 				TEST_PUBLISHER,
