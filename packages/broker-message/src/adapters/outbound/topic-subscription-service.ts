@@ -1,0 +1,66 @@
+import type addressManagerClient from "@trading-model/address-manager";
+import type { EventEnumMap } from "@trading-model/common/config/event.types";
+import type { HttpClient } from "@trading-model/common/config/http-client";
+import { ServiceInstanceName } from "@trading-model/common/config/services.types";
+import type { HostPort } from "@trading-model/common/domain/service-identity";
+import {
+	isMessageManagerError,
+	isServiceUnreachableError,
+	messageManagerError,
+	normalizeError,
+	serviceUnreachableError,
+} from "@trading-model/common/utils/errors";
+import type { MessageManagerConfig } from "../../domain/types/config";
+import { TopicRequestBuilder } from "./topic-request-builder";
+
+export class TopicSubscriptionService {
+	private readonly _requestBuilder: TopicRequestBuilder;
+
+	constructor(
+		readonly _httpClient: HttpClient,
+		readonly _config: MessageManagerConfig,
+		private readonly _addressManagerClient: addressManagerClient
+	) {
+		this._requestBuilder = new TopicRequestBuilder(_httpClient, _config);
+	}
+
+	async subscribe(topics: EventEnumMap[]): Promise<void> {
+		try {
+			const target = await this._findMessageService();
+			await this._requestBuilder.subscribeAll(topics, target);
+		} catch (err) {
+			this._handleSubscribeError(err, "subscribe");
+		}
+	}
+
+	async unsubscribe(topics: EventEnumMap[]): Promise<void> {
+		try {
+			const target = await this._findMessageService();
+			await this._requestBuilder.unsubscribeAll(topics, target);
+		} catch (err) {
+			this._handleSubscribeError(err, "unsubscribe");
+		}
+	}
+
+	private async _findMessageService(): Promise<HostPort> {
+		const target = await this._addressManagerClient.findService(
+			ServiceInstanceName.MessageDeliveryService
+		);
+		if (!target) {
+			throw serviceUnreachableError("Unable to contact the message manager");
+		}
+		return target;
+	}
+
+	private _handleSubscribeError(err: unknown, action: string): never {
+		if (isServiceUnreachableError(err)) {
+			throw err;
+		}
+		if (isMessageManagerError(err)) {
+			return undefined as never;
+		}
+		throw messageManagerError(`Failed to ${action} topic to Message Manager`, {
+			cause: normalizeError(err),
+		});
+	}
+}
