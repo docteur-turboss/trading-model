@@ -7,7 +7,7 @@ import type {
 import {
 	MarketType,
 	type SourceType,
-} from "@trading-model/validation/contracts/market-data.types";
+} from "@trading-model/validation/shared/contracts/market-data.types";
 import zod from "zod";
 import type { OrderBookData } from "../market-data.types";
 

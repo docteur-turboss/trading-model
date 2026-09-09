@@ -1,7 +1,7 @@
-import { createBootstrap } from "@trading-model/server-utils/server/bootstrap";
+import { createBootstrap } from "@trading-model/server-utils/application/services/bootstrap";
 import { BOOTSTRAP_ADDRESS_MANAGER } from "../config/address-manager";
 import { createServer } from "./server";
-import "../config/env";
+import "../infrastructure/config/env";
 
 const NULL_ADDRESS_MANAGER = { stop() {} };
 

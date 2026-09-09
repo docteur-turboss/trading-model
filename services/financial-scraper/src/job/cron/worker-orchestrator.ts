@@ -4,7 +4,7 @@ import type {
 	PositiveInt,
 	TradingSymbol,
 } from "@trading-model/common/domain/primitives";
-import { MarketDataController } from "../../infra/market-data/market-data.controller";
+import { MarketDataController } from "../../application/market-data.controller";
 import type { BinanceWorkerResult } from "../worker/binance.worker";
 
 type LimitFunction = <TArgs extends unknown[], TResult>(

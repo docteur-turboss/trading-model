@@ -44,20 +44,22 @@ export function fetchAllRawData(
 	return _fetchBinanceData(query, limits);
 }
 
-async function _fetchBinanceData(
+function _fetchAllRaw(
 	query: SymbolInterval,
 	limits: FetchLimits
-): Promise<RawBinanceData> {
+): Promise<
+	[
+		RawBinanceData["orderBookRaw"],
+		RawBinanceData["tradesRaw"],
+		RawBinanceData["candlesRaw"],
+		RawBinanceData["ticker24hRaw"],
+		RawBinanceData["priceTickerRaw"],
+		RawBinanceData["bookTickerRaw"],
+	]
+> {
 	const { symbol, interval } = query;
 	const { candleLimit, tradeLimit, orderBookLimit } = limits;
-	const [
-		orderBookRaw,
-		tradesRaw,
-		candlesRaw,
-		ticker24hRaw,
-		priceTickerRaw,
-		bookTickerRaw,
-	] = await Promise.all([
+	return Promise.all([
 		getOrderBook({
 			symbol,
 			limit: orderBookLimit ?? (100 as unknown as PositiveInt),
@@ -75,6 +77,20 @@ async function _fetchBinanceData(
 		getSymbolPriceTicker([symbol]),
 		getOrderBookTicker([symbol]),
 	]);
+}
+
+async function _fetchBinanceData(
+	query: SymbolInterval,
+	limits: FetchLimits
+): Promise<RawBinanceData> {
+	const [
+		orderBookRaw,
+		tradesRaw,
+		candlesRaw,
+		ticker24hRaw,
+		priceTickerRaw,
+		bookTickerRaw,
+	] = await _fetchAllRaw(query, limits);
 
 	return {
 		orderBookRaw,

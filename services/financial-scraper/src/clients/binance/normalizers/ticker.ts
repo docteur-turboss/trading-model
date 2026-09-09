@@ -10,18 +10,16 @@ import {
 } from "../../../infra/market-data/market-data.types";
 import type {
 	Binance24hrTickerStatsResponse,
+	BinanceTickerBaseStats,
 	BinanceTradingDayTickerResponse,
 } from "../../../types/binance.api";
 
-export function normalizeTicker24h(
-	payload: Binance24hrTickerStatsResponse
-): TickerData[] {
+function normalizeTickers(payload: BinanceTickerBaseStats[]): TickerData[] {
 	return payload.map((item) => ({
 		market: MarketType.Crypto,
 		source: SourceType.Binance,
 		timestamp: UnixTimestamp.of(item.openTime),
-		symbol:
-			item.symbol as import("@trading-model/common/domain/primitives").TradingSymbol,
+		symbol: item.symbol,
 		open: Price.of(Number(item.openPrice)),
 		high: Price.of(Number(item.highPrice)),
 		low: Price.of(Number(item.lowPrice)),
@@ -31,20 +29,14 @@ export function normalizeTicker24h(
 	}));
 }
 
+export function normalizeTicker24h(
+	payload: Binance24hrTickerStatsResponse
+): TickerData[] {
+	return normalizeTickers(payload);
+}
+
 export function normalizeTradingDayTicker(
 	payload: BinanceTradingDayTickerResponse
 ): TickerData[] {
-	return payload.map((item) => ({
-		market: MarketType.Crypto,
-		source: SourceType.Binance,
-		timestamp: UnixTimestamp.of(item.openTime),
-		symbol:
-			item.symbol as import("@trading-model/common/domain/primitives").TradingSymbol,
-		open: Price.of(Number(item.openPrice)),
-		high: Price.of(Number(item.highPrice)),
-		low: Price.of(Number(item.lowPrice)),
-		last: Price.of(Number(item.lastPrice)),
-		volume: Volume.of(Number(item.volume)),
-		closeTimestamp: UnixTimestamp.of(item.closeTime),
-	}));
+	return normalizeTickers(payload);
 }

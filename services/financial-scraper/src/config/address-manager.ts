@@ -1,6 +1,6 @@
-import { createServiceAddressManager } from "@trading-model/address-manager/create-service-address-manager";
+import { createServiceAddressManager } from "@trading-model/address-manager/application/create-service-address-manager";
 
-import { ENV } from "./env";
+import { ENV } from "../infrastructure/config/env";
 
 const { AddressManager, BOOTSTRAP_ADDRESS_MANAGER, ADDRESS_MANAGER_ROUTES } =
 	createServiceAddressManager(ENV);

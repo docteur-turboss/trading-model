@@ -2,7 +2,7 @@ import {
 	type TradingSymbol,
 	UnixTimestamp,
 } from "@trading-model/common/domain/primitives";
-import type { OhlcvFields } from "@trading-model/validation/contracts/market-data.types";
+import type { OhlcvFields } from "@trading-model/validation/shared/contracts/market-data.types";
 
 /** Binance sends numeric values as strings; these branded types distinguish them at the type level. */
 type PriceString = string & { readonly brand: "PriceString" };

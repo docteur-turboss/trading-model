@@ -1,7 +1,6 @@
-import { createServiceMessageManager } from "@trading-model/broker-message/shared/helper/create-message-manager";
-
+import { createServiceMessageManager } from "@trading-model/broker-message/application/services/create-message-manager";
+import { ENV } from "../infrastructure/config/env";
 import { AddressManager } from "./address-manager";
-import { ENV } from "./env";
 
 export const {
 	messageManager: MessageManager,

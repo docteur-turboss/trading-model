@@ -18,10 +18,10 @@ import {
 	toTenantId,
 } from "@trading-model/common/domain/primitives";
 import { deterministicStringify } from "@trading-model/common/utils/deterministic-stringify";
-import { sha256Base64url } from "@trading-model/crypto/crypto/hash-utils";
-import type { AuthContext } from "@trading-model/validation/contracts/message.types";
+import { sha256Base64url } from "@trading-model/crypto/domain/services/hash-utils";
+import type { AuthContext } from "@trading-model/validation/domain/contracts/message.types";
 
-import { ENV } from "../../config/env";
+import { ENV } from "../../infrastructure/config/env";
 
 export interface MarketDataEntry {
 	data: unknown;

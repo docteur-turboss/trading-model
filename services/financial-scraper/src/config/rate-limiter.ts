@@ -1,3 +1,5 @@
+import { sleep } from "@trading-model/common/utils/sleep";
+
 interface RateLimitBucket {
 	capacity: number;
 	tokens: number;
@@ -31,10 +33,6 @@ function _refillBucket(bucket: RateLimitBucket): void {
 	bucket.lastRefill = now;
 }
 
-function _sleep(ms: number): Promise<void> {
-	return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
 export async function acquireToken(
 	baseURL: string,
 	weight: number
@@ -46,6 +44,6 @@ export async function acquireToken(
 			bucket.tokens -= weight;
 			return;
 		}
-		await _sleep(50);
+		await sleep(50);
 	}
 }

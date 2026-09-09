@@ -1,7 +1,7 @@
 import type { HELPER } from "@trading-model/broker-message";
 import type { EventEnumMap } from "@trading-model/common/config/event.types";
 import { toTopic } from "@trading-model/common/domain/primitives";
-import { MarketEvent } from "@trading-model/validation/contracts/market-events";
+import { MarketEvent } from "@trading-model/validation/domain/contracts/market-events";
 import { MessageManager } from "../../config/message-manager";
 import { type MarketDataEntry, makeEntry } from "./binance-worker-helpers";
 import type { BinanceWorkerResult } from "./binance-worker-types";
