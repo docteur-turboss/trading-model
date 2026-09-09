@@ -9,7 +9,7 @@ Internal messaging backbone for inter-service communication. Provides topic-base
 - Node.js 20+
 - MongoDB 7+ (for message persistence — planned)
 - Access to a running [Discovery Server](../discovery-server/README.md) (service registry)
-- TLS certificates for mTLS communication
+- mTLS automatique via SPIRE (ADR-0011) — aucun certificat manuel à générer
 
 ## Installation
 
@@ -41,7 +41,7 @@ See [.env.example](./.env.example) for all available variables.
 | `TLS_KEY_PATH`                    | Path to TLS private key       | —                          |
 | `TLS_CERT_PATH`                   | Path to TLS certificate       | —                          |
 | `TLS_CA_PATH`                     | Path to CA certificate        | —                          |
-| `SERVICE_NAME`                    | Service identity for registry | `message-delivery-service` |
+| `SERVICE_NAME`                    | Service identity for registry | `message-manager`          |
 | `INSTANCE_ID`                     | Unique instance identifier    | —                          |
 | `ADDRESS_MANAGER_URL`             | Discovery server URL          | —                          |
 | `CACHE_TTL_MS`                    | Service cache TTL             | `84000000`                 |
@@ -61,7 +61,7 @@ npm run dev
 
 # Production build
 npm run build
-node dist/src/app/index.js
+node dist/application/index.js
 ```
 
 ## Testing
@@ -90,26 +90,35 @@ npm run test:watch
 
 ```
 src/
-├── app/                        # Service bootstrap & HTTP server
+├── application/                # Service bootstrap & entry point
 │   ├── index.ts                # Entry point (lifecycle via createBootstrap)
-│   └── server.ts               # Express server factory (createSecureServer)
+│   ├── server.ts               # Express server factory (createSecureServer)
+│   └── ports/                  # Application ports (interfaces)
+├── adapters/                   # Ports/adapters wiring (outbound delivery, DLQ, WAL)
+│   └── outbound/
+│       ├── http-message-delivery.ts
+│       ├── dlq-repository.ts
+│       ├── request-signer.ts
+│       └── file-wal-fallback.ts
+├── domain/                     # Domain types & business rules
+├── infrastructure/
+│   ├── app/index.ts            # Composition root wiring
+│   ├── redis/                  # Redis-backed stores
+│   ├── mongodb/                # Mongo-backed stores
+│   ├── fallback/               # Fallback repositories
+│   └── config/env.ts           # Zod-validated environment variables
 ├── config/
-│   ├── env.ts                  # Zod-validated environment variables
 │   ├── address-manager.ts      # Service discovery client setup
 │   └── message-manager.ts      # Broker singleton & route binder
-├── messaging/
-│   ├── index.ts                # BrokerModule entry point (composition root)
-│   ├── broker.type.ts          # IdentifyType, BrokerConfig type definitions
-│   ├── core/                   # Messaging domain logic
-│   │   ├── broker.ts           # Broker facade (publish, subscribe, unsubscribe)
-│   │   ├── dispatcher.ts       # In-memory subscription registry & message routing
-│   │   ├── message.ts          # Message envelope & metadata interfaces
-│   │   └── subscription.ts     # Per-subscriber delivery (retry, TTL, DLQ)
-│   └── transport/              # HTTP transport layer
+├── messaging/                  # Messaging domain logic
+│   ├── core/                   # Broker facade, dispatcher, DLQ, claim/dedup logic
+│   └── transport/              # HTTP/WS transport layer
 │       ├── http.controller.ts  # Request handlers (subscribe, unsubscribe, publish)
 │       ├── http.routes.ts      # Express route definitions
+│       ├── wss-*.ts            # WebSocket transport handling
 │       └── validation/
 │           └── broker.schema.ts # Zod schemas for request validation
+└── shared/                     # Shared types & helpers
 
 tests/
 ├── unit/                       # Unit tests mirroring src structure

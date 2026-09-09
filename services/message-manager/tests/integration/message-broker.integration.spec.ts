@@ -10,8 +10,8 @@ import {
 	it,
 	jest,
 } from "@jest/globals";
+import { FileDlqRepository } from "../../src/adapters/outbound/dlq-repository";
 import { Dispatcher } from "../../src/messaging/core/dispatcher";
-import { FileDlqRepository } from "../../src/messaging/core/dlq-repository";
 import {
 	mockServiceIdentity,
 	mockSubscriberIdentity,

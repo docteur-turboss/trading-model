@@ -38,7 +38,7 @@ jest.mock("../../../src/config/logger", () => ({
 	logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
 
-jest.mock("../../../src/config/env", () => ({
+jest.mock("../../../src/infrastructure/config/env", () => ({
 	ENV: {
 		REDIS_URL: "redis://localhost:6379",
 		REDIS_PASSWORD: undefined,

@@ -42,7 +42,7 @@ jest.mock("../../../src/config/logger", () => ({
 	logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
 
-jest.mock("../../../src/config/env", () => ({
+jest.mock("../../../src/infrastructure/config/env", () => ({
 	ENV: {
 		OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel:4318",
 		APP_NAME: "test-app",

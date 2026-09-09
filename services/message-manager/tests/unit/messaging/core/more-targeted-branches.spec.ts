@@ -83,7 +83,7 @@ describe("pending-ack-store branches", () => {
 		jest.isolateModules(() => {
 			const redis = require("../../../../src/config/redis");
 			redis.getStreamClient = jest.fn().mockResolvedValue(mockRedis);
-			const env = require("../../../../src/config/env");
+			const env = require("../../../../src/infrastructure/config/env");
 			env.ENV.REDIS_MESSAGE_TTL_S = 3600;
 			const {
 				PendingAckStore,
@@ -99,7 +99,7 @@ describe("pending-ack-store branches", () => {
 		jest.isolateModules(() => {
 			const redis = require("../../../../src/config/redis");
 			redis.getStreamClient = jest.fn().mockRejectedValue(new Error("err"));
-			const env = require("../../../../src/config/env");
+			const env = require("../../../../src/infrastructure/config/env");
 			env.ENV.REDIS_MESSAGE_TTL_S = 3600;
 			const {
 				PendingAckStore,

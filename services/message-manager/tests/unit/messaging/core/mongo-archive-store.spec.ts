@@ -24,7 +24,7 @@ jest.mock("../../../../src/config/logger", () => ({
 	logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
 
-jest.mock("../../../../src/config/env", () => ({
+jest.mock("../../../../src/infrastructure/config/env", () => ({
 	ENV: {
 		MONGO_ARCHIVE_URI: "mongodb://mongo:27017",
 		MONGO_ARCHIVE_DB: "test_archive",

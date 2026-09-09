@@ -6,7 +6,7 @@ jest.mock("../../../../src/config/redis", () => ({
 	getSubscriptionClient: jest.fn().mockResolvedValue({}),
 }));
 
-jest.mock("../../../../src/config/env", () => ({
+jest.mock("../../../../src/infrastructure/config/env", () => ({
 	ENV: { REDIS_MESSAGE_TTL_S: 3600, REDIS_PREFIX: "test:" },
 }));
 
@@ -34,11 +34,11 @@ describe("branch coverage: default parameter branches", () => {
 
 	it("request-signer short secret path", () => {
 		jest.isolateModules(() => {
-			const env = require("../../../../src/config/env");
+			const env = require("../../../../src/infrastructure/config/env");
 			env.ENV.DLQ_AUTH_HMAC_SECRET = "";
 			const {
 				signedOptions,
-			} = require("../../../../src/messaging/core/request-signer");
+			} = require("../../../../src/adapters/outbound/request-signer");
 			const { logger } = require("../../../../src/config/logger");
 			signedOptions({ method: "GET", path: "/test", body: undefined });
 			expect(logger.warn).toHaveBeenCalled();
@@ -164,11 +164,11 @@ describe("branch coverage: default parameter branches", () => {
 
 	it("request-signer long secret signs request", () => {
 		jest.isolateModules(() => {
-			const env = require("../../../../src/config/env");
+			const env = require("../../../../src/infrastructure/config/env");
 			env.ENV.DLQ_AUTH_HMAC_SECRET = "a-string-at-least-16-chars!!";
 			const {
 				signedOptions,
-			} = require("../../../../src/messaging/core/request-signer");
+			} = require("../../../../src/adapters/outbound/request-signer");
 			const opts = signedOptions({
 				method: "POST",
 				path: "/test",
@@ -181,7 +181,7 @@ describe("branch coverage: default parameter branches", () => {
 
 	it("redis-client-factory redisRetryDelay with retries > 1", () => {
 		jest.isolateModules(() => {
-			const env = require("../../../../src/config/env");
+			const env = require("../../../../src/infrastructure/config/env");
 			env.ENV.REDIS_MAX_RECONNECT_ATTEMPTS = 10;
 			const {
 				redisRetryDelay,
@@ -193,7 +193,7 @@ describe("branch coverage: default parameter branches", () => {
 
 	it("redis-client-factory redisRetryDelay with max attempts reached", () => {
 		jest.isolateModules(() => {
-			const env = require("../../../../src/config/env");
+			const env = require("../../../../src/infrastructure/config/env");
 			env.ENV.REDIS_MAX_RECONNECT_ATTEMPTS = 3;
 			const {
 				redisRetryDelay,
@@ -245,7 +245,7 @@ describe("branch coverage: flush-failure-handler", () => {
 describe("branch coverage: wal-fallback-handler", () => {
 	it("isPayloadTooLarge returns false when within limit", () => {
 		jest.isolateModules(() => {
-			const env = require("../../../../src/config/env");
+			const env = require("../../../../src/infrastructure/config/env");
 			env.ENV.MAX_PAYLOAD_BYTES = 1024;
 			const {
 				WalFallbackHandler,
@@ -257,7 +257,7 @@ describe("branch coverage: wal-fallback-handler", () => {
 
 	it("isPayloadTooLarge returns true when exceeds limit", () => {
 		jest.isolateModules(() => {
-			const env = require("../../../../src/config/env");
+			const env = require("../../../../src/infrastructure/config/env");
 			env.ENV.MAX_PAYLOAD_BYTES = 4;
 			const {
 				WalFallbackHandler,
@@ -269,7 +269,7 @@ describe("branch coverage: wal-fallback-handler", () => {
 
 	it("storeInWal catch path buffers in memory", async () => {
 		jest.isolateModules(() => {
-			const env = require("../../../../src/config/env");
+			const env = require("../../../../src/infrastructure/config/env");
 			env.ENV.MAX_PAYLOAD_BYTES = 99999;
 			const {
 				WalFallbackHandler,
@@ -295,7 +295,7 @@ describe("branch coverage: wal-fallback-handler", () => {
 describe("branch coverage: mongo-client-manager", () => {
 	it("canStart returns false when no MONGO_ARCHIVE_URI", () => {
 		jest.isolateModules(() => {
-			const env = require("../../../../src/config/env");
+			const env = require("../../../../src/infrastructure/config/env");
 			env.ENV.MONGO_ARCHIVE_URI = "";
 			const {
 				MongoClientManager,
@@ -307,7 +307,7 @@ describe("branch coverage: mongo-client-manager", () => {
 
 	it("canStart returns false when already started", () => {
 		jest.isolateModules(() => {
-			const env = require("../../../../src/config/env");
+			const env = require("../../../../src/infrastructure/config/env");
 			env.ENV.MONGO_ARCHIVE_URI = "mongodb://localhost:27017";
 			const {
 				MongoClientManager,
@@ -320,7 +320,7 @@ describe("branch coverage: mongo-client-manager", () => {
 
 	it("canStart returns true when configured and not started", () => {
 		jest.isolateModules(() => {
-			const env = require("../../../../src/config/env");
+			const env = require("../../../../src/infrastructure/config/env");
 			env.ENV.MONGO_ARCHIVE_URI = "mongodb://localhost:27017";
 			const {
 				MongoClientManager,
@@ -332,7 +332,7 @@ describe("branch coverage: mongo-client-manager", () => {
 
 	it("ensureIndexes skips when no client", async () => {
 		jest.isolateModules(() => {
-			const env = require("../../../../src/config/env");
+			const env = require("../../../../src/infrastructure/config/env");
 			env.ENV.MONGO_ARCHIVE_URI = "mongodb://localhost:27017";
 			env.ENV.MONGO_ARCHIVE_DB = "test";
 			env.ENV.MONGO_ARCHIVE_COLLECTION = "archive";
@@ -348,7 +348,7 @@ describe("branch coverage: mongo-client-manager", () => {
 
 	it("close skips when no manager", async () => {
 		jest.isolateModules(() => {
-			const env = require("../../../../src/config/env");
+			const env = require("../../../../src/infrastructure/config/env");
 			env.ENV.MONGO_ARCHIVE_URI = "mongodb://localhost:27017";
 			const {
 				MongoClientManager,

@@ -8,7 +8,7 @@ jest.mock("../../../../src/config/logger", () => ({
 	logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
 
-jest.mock("../../../../src/config/env", () => ({
+jest.mock("../../../../src/infrastructure/config/env", () => ({
 	ENV: {
 		REDIS_STREAM_MAXLEN: 1000,
 		REDIS_MESSAGE_TTL_S: 3600,
@@ -47,7 +47,7 @@ function makeEntry(overrides?: Partial<MemoryWalEntry>): MemoryWalEntry {
 		serialized: '{"hello":"world"}',
 		message: {
 			type: "test",
-		} as unknown as import("@trading-model/validation/contracts/message.types").Message,
+		} as unknown as import("@trading-model/validation/domain/contracts/message.types").Message,
 		...overrides,
 	};
 }

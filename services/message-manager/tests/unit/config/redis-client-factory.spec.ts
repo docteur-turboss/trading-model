@@ -30,7 +30,7 @@ describe("redis-client-factory", () => {
 	describe("redisRetryDelay", () => {
 		it("should return null when max attempts is 0", () => {
 			jest.isolateModules(() => {
-				const env = require("../../../src/config/env");
+				const env = require("../../../src/infrastructure/config/env");
 				env.ENV.REDIS_MAX_RECONNECT_ATTEMPTS = 0;
 				const {
 					redisRetryDelay,
@@ -43,7 +43,7 @@ describe("redis-client-factory", () => {
 	describe("buildRedisInstance", () => {
 		it("should build standalone client when no sentinel or cluster", () => {
 			jest.isolateModules(() => {
-				const env = require("../../../src/config/env");
+				const env = require("../../../src/infrastructure/config/env");
 				Object.assign(env.ENV, {
 					REDIS_URL: "redis://localhost:6379",
 					REDIS_TLS_ENABLED: false,
@@ -61,7 +61,7 @@ describe("redis-client-factory", () => {
 
 		it("should build sentinel client", () => {
 			jest.isolateModules(() => {
-				const env = require("../../../src/config/env");
+				const env = require("../../../src/infrastructure/config/env");
 				Object.assign(env.ENV, {
 					REDIS_SENTINEL_MASTER_NAME: "mymaster",
 					REDIS_SENTINEL_NODES: JSON.stringify([
@@ -79,7 +79,7 @@ describe("redis-client-factory", () => {
 
 		it("should throw on invalid sentinel nodes JSON", () => {
 			jest.isolateModules(() => {
-				const env = require("../../../src/config/env");
+				const env = require("../../../src/infrastructure/config/env");
 				Object.assign(env.ENV, {
 					REDIS_SENTINEL_MASTER_NAME: "mymaster",
 					REDIS_SENTINEL_NODES: "not-json",
@@ -94,7 +94,7 @@ describe("redis-client-factory", () => {
 
 		it("should build cluster client when cluster nodes are set", () => {
 			jest.isolateModules(() => {
-				const env = require("../../../src/config/env");
+				const env = require("../../../src/infrastructure/config/env");
 				Object.assign(env.ENV, {
 					REDIS_CLUSTER_NODES: JSON.stringify([
 						{ host: "cluster-1", port: 7000 },
@@ -112,7 +112,7 @@ describe("redis-client-factory", () => {
 
 		it("should throw on invalid cluster nodes JSON", () => {
 			jest.isolateModules(() => {
-				const env = require("../../../src/config/env");
+				const env = require("../../../src/infrastructure/config/env");
 				Object.assign(env.ENV, {
 					REDIS_CLUSTER_NODES: "bad-json",
 					REDIS_MAX_RECONNECT_ATTEMPTS: 10,

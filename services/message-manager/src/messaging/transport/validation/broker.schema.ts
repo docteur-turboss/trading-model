@@ -20,17 +20,19 @@
  * Acts as a **data contract enforcement** component.
  */
 
-import { DeliveryMode } from "@trading-model/common/config/delivery-mode.types";
+import {
+	DELIVERY_METADATA_MODE_PREDICATE,
+	ROUTING_METADATA_CONTEXT_PREDICATE,
+	SECURITY_METADATA_CONTEXT_PREDICATE,
+} from "@trading-model/broker-message/shared/barrel/message.schema";
 import type { EventEnumMap } from "@trading-model/common/config/event.types";
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import {
 	toCorrelationId,
 	toInstanceId,
-	toMessageId,
 	toServiceId,
 	toTopic,
 } from "@trading-model/common/domain/primitives";
-import type { Signature } from "@trading-model/validation/contracts/signed-request";
 import { z } from "zod";
 
 const TOPIC_SCHEMA = z.string().min(1).transform(toTopic);
@@ -94,43 +96,11 @@ export const PUBLISH_METADATA_SCHEMA = z.object({
 
 	publisher: IDENTIFY_SCHEMA,
 
-	routing: z
-		.object({
-			partitionKey: z
-				.string()
-				.optional()
-				.transform((val) => (val ? toCorrelationId(val) : undefined)),
-			priority: z.number().int().optional(),
-		})
-		.optional(),
+	routing: ROUTING_METADATA_CONTEXT_PREDICATE,
 
-	delivery: z
-		.object({
-			mode: z.enum(
-				Object.values(DeliveryMode) as [DeliveryMode, ...DeliveryMode[]]
-			),
-			ttl: z.number().int().positive().optional(),
-			deduplicationId: z
-				.string()
-				.optional()
-				.transform((val) => (val ? toMessageId(val) : undefined)),
-		})
-		.optional(),
+	delivery: DELIVERY_METADATA_MODE_PREDICATE,
 
-	security: z
-		.object({
-			authContext: z
-				.object({
-					subject: z.string(),
-					roles: z.array(z.string()),
-					tenantId: z.string(),
-				})
-				.optional(),
-			signature: z.string().optional() as unknown as z.ZodType<
-				Signature | undefined
-			>,
-		})
-		.optional(),
+	security: SECURITY_METADATA_CONTEXT_PREDICATE,
 });
 
 /**

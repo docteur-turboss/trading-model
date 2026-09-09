@@ -15,7 +15,7 @@ jest.mock("../../../../src/config/logger", () => ({
 	logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
 
-jest.mock("../../../../src/config/env", () => ({
+jest.mock("../../../../src/infrastructure/config/env", () => ({
 	ENV: {
 		MAX_PAYLOAD_BYTES: 5 * 1024 * 1024,
 		BROKER_INSTANCE_ID: "test-broker",
@@ -38,6 +38,7 @@ jest.mock("../../../../src/messaging/core/acl", () => {
 let connectionHandler:
 	| ((ws: Record<string, unknown>, req: IncomingMessage) => void)
 	| null = null;
+const createdWssList: Record<string, unknown>[] = [];
 
 jest.mock("ws", () => {
 	const EventEmitter = require("node:events");
@@ -64,6 +65,7 @@ jest.mock("ws", () => {
 					cb();
 				}
 			});
+			createdWssList.push(wss);
 			return wss;
 		}),
 		WebSocket: WebSocketMock,
@@ -128,7 +130,10 @@ describe("WssTransport edge", () => {
 	});
 
 	afterEach(async () => {
-		await transport.shutdown();
+		for (const wss of createdWssList) {
+			await transport.shutdown(wss as never);
+		}
+		createdWssList.length = 0;
 	});
 
 	it("should handle publish with ACL denying but no topic", async () => {

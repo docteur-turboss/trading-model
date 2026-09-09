@@ -34,7 +34,7 @@ jest.mock("../../../src/config/logger", () => ({
 	logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
 
-jest.mock("../../../src/config/env", () => ({
+jest.mock("../../../src/infrastructure/config/env", () => ({
 	ENV: {},
 }));
 
@@ -58,7 +58,7 @@ describe("redis sentinel", () => {
 
 	it("should create sentinel client", () => {
 		jest.isolateModules(() => {
-			const env = require("../../../src/config/env");
+			const env = require("../../../src/infrastructure/config/env");
 			Object.assign(env.ENV, BASE_ENV, {
 				REDIS_SENTINEL_MASTER_NAME: "mymaster",
 				REDIS_SENTINEL_NODES: JSON.stringify([
@@ -74,7 +74,7 @@ describe("redis sentinel", () => {
 
 	it("should create sentinel client with TLS", () => {
 		jest.isolateModules(() => {
-			const env = require("../../../src/config/env");
+			const env = require("../../../src/infrastructure/config/env");
 			Object.assign(env.ENV, BASE_ENV, {
 				REDIS_SENTINEL_MASTER_NAME: "mymaster",
 				REDIS_SENTINEL_NODES: JSON.stringify([
@@ -91,7 +91,7 @@ describe("redis sentinel", () => {
 
 	it("should handle invalid sentinel nodes JSON", () => {
 		jest.isolateModules(() => {
-			const env = require("../../../src/config/env");
+			const env = require("../../../src/infrastructure/config/env");
 			Object.assign(env.ENV, BASE_ENV, {
 				REDIS_SENTINEL_MASTER_NAME: "mymaster",
 				REDIS_SENTINEL_NODES: "not-json",
@@ -105,7 +105,7 @@ describe("redis sentinel", () => {
 describe("redis cluster", () => {
 	it("should create cluster client", () => {
 		jest.isolateModules(() => {
-			const env = require("../../../src/config/env");
+			const env = require("../../../src/infrastructure/config/env");
 			Object.assign(env.ENV, BASE_ENV, {
 				REDIS_CLUSTER_NODES: JSON.stringify([
 					{ host: "cluster-1", port: 7000 },
@@ -120,7 +120,7 @@ describe("redis cluster", () => {
 
 	it("should handle invalid cluster nodes JSON", () => {
 		jest.isolateModules(() => {
-			const env = require("../../../src/config/env");
+			const env = require("../../../src/infrastructure/config/env");
 			Object.assign(env.ENV, BASE_ENV, {
 				REDIS_CLUSTER_NODES: "bad-json",
 			});
@@ -133,7 +133,7 @@ describe("redis cluster", () => {
 describe("redis sentinel no nodes", () => {
 	it("should throw when sentinel master is set but no nodes configured", () => {
 		jest.isolateModules(() => {
-			const env = require("../../../src/config/env");
+			const env = require("../../../src/infrastructure/config/env");
 			Object.assign(env.ENV, BASE_ENV, {
 				REDIS_SENTINEL_MASTER_NAME: "mymaster",
 				REDIS_SENTINEL_NODES: undefined,

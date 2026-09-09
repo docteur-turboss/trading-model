@@ -1,7 +1,7 @@
 import { appendFile } from "node:fs/promises";
 import { describe, expect, it, jest } from "@jest/globals";
-import { FileDlqRepository } from "../../../../src/messaging/core/dlq-repository";
-import { HttpMessageDelivery } from "../../../../src/messaging/core/http-message-delivery";
+import { FileDlqRepository } from "../../../../src/adapters/outbound/dlq-repository";
+import { HttpMessageDelivery } from "../../../../src/adapters/outbound/http-message-delivery";
 import { createMockMessage } from "../../../fixtures/broker.fixture";
 import { createMockHttpClient } from "../../../helpers/broker.helper";
 

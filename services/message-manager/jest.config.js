@@ -20,9 +20,11 @@ module.exports = {
     '^@trading-model/validation/(.*)$': '<rootDir>/../../packages/validation/src/$1',
     '^@trading-model/server-utils/(.*)$': '<rootDir>/../../packages/server-utils/src/$1',
     '^@trading-model/address-manager/(.*)$': '<rootDir>/../../packages/address-manager/src/$1',
+    '^@trading-model/broker-message$': '<rootDir>/../../packages/broker-message/src/index.ts',
+    '^@trading-model/broker-message/(.*)$': '<rootDir>/../../packages/broker-message/src/$1',
     '^@trading-model/common/tests/(.*)$': '<rootDir>/../../packages/common/tests/$1',
     '^config/(.*)$': '<rootDir>/src/config/$1',
-    '^messaging$': '<rootDir>/src/messaging/index.ts',
+    '^messaging$': '<rootDir>/src/application/index.ts',
     '^messaging/(.*)$': '<rootDir>/src/messaging/$1',
   },
   transform: {

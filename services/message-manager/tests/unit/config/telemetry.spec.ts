@@ -40,7 +40,7 @@ jest.mock("../../../src/config/logger", () => ({
 	logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
 
-jest.mock("../../../src/config/env", () => ({
+jest.mock("../../../src/infrastructure/config/env", () => ({
 	ENV: {
 		OTEL_EXPORTER_OTLP_ENDPOINT: undefined,
 		APP_NAME: "test-app",
@@ -66,7 +66,9 @@ describe("telemetry", () => {
 	});
 
 	it("should initialize when endpoint is configured", () => {
-		const envModule = jest.requireMock("../../../src/config/env") as {
+		const envModule = jest.requireMock(
+			"../../../src/infrastructure/config/env"
+		) as {
 			ENV: Record<string, unknown>;
 		};
 		envModule.ENV.OTEL_EXPORTER_OTLP_ENDPOINT = "http://otel:4318";

@@ -6,7 +6,7 @@ import { afterAll, describe, expect, it } from "@jest/globals";
 import {
 	type DlqEntry,
 	FileDlqRepository,
-} from "../../../../src/messaging/core/dlq-repository";
+} from "../../../../src/adapters/outbound/dlq-repository";
 
 describe("FileDlqRepository", () => {
 	const testFilePath = join(tmpdir(), `dlq-test-${Date.now()}.jsonl`);

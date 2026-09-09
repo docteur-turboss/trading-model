@@ -16,7 +16,7 @@ jest.mock("../../../../src/config/logger", () => ({
 	logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
 
-jest.mock("../../../../src/config/env", () => ({
+jest.mock("../../../../src/infrastructure/config/env", () => ({
 	ENV: {
 		MAX_PAYLOAD_BYTES: 5 * 1024 * 1024,
 		BROKER_INSTANCE_ID: "test-broker",
@@ -47,6 +47,7 @@ let verifyClientHandler:
 			cb: (result: boolean, code?: number, message?: string) => void
 	  ) => void)
 	| null = null;
+const createdWssList: Record<string, unknown>[] = [];
 
 jest.mock("ws", () => {
 	const EventEmitter = require("node:events");
@@ -85,6 +86,7 @@ jest.mock("ws", () => {
 							cb();
 						}
 					});
+					createdWssList.push(wss);
 					return wss;
 				}
 			),
@@ -151,7 +153,10 @@ describe("WssTransport", () => {
 	});
 
 	afterEach(async () => {
-		await transport.shutdown();
+		for (const wss of createdWssList) {
+			await transport.shutdown(wss as never);
+		}
+		createdWssList.length = 0;
 	});
 
 	it("should create instance without server", () => {
@@ -183,7 +188,8 @@ describe("WssTransport", () => {
 	});
 
 	it("should shutdown gracefully", async () => {
-		await transport.shutdown();
+		const wss = transport.attach(mockServer);
+		await transport.shutdown(wss);
 		expect(transport.getConnectedCount()).toBe(0);
 	});
 
@@ -192,8 +198,9 @@ describe("WssTransport", () => {
 	});
 
 	it("should handle shutdown twice", async () => {
-		await transport.shutdown();
-		await transport.shutdown();
+		const wss = transport.attach(mockServer);
+		await transport.shutdown(wss);
+		await transport.shutdown(wss);
 	});
 
 	it("should deny connection without x-service-name header", () => {

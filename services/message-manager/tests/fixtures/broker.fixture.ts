@@ -1,8 +1,5 @@
 import { DeliveryMode } from "@trading-model/common/config/delivery-mode.types";
-import type {
-	Message,
-	MessageMetadata,
-} from "../../src/messaging/core/message";
+import type { Message, MessageMetadata } from "../../src/shared/message";
 
 export const mockServiceIdentity = {
 	serviceName: "financial-scraper-service" as const,

@@ -29,7 +29,7 @@ jest.mock("../../../../src/config/logger", () => ({
 	},
 }));
 
-jest.mock("../../../../src/config/env", () => ({
+jest.mock("../../../../src/infrastructure/config/env", () => ({
 	ENV: {
 		MEMORY_WAL_BUFFER_SIZE: 5,
 		MEMORY_WAL_BUFFER_WARN_PCT: 0.8,

@@ -10,7 +10,7 @@ jest.mock("../../../../src/config/redis", () => ({
 	getRedisClient: jest.fn(),
 }));
 
-jest.mock("../../../../src/config/env", () => ({
+jest.mock("../../../../src/infrastructure/config/env", () => ({
 	ENV: {
 		REDIS_PREFIX: "mm:",
 	},

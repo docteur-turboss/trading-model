@@ -2,11 +2,11 @@ import { describe, expect, it, jest } from "@jest/globals";
 
 const MOCK_CREATE_BOOTSTRAP = jest.fn<any>();
 
-jest.mock("@trading-model/server-utils/server/bootstrap", () => ({
+jest.mock("@trading-model/server-utils/application/services/bootstrap", () => ({
 	createBootstrap: MOCK_CREATE_BOOTSTRAP,
 }));
 
-jest.mock("../../../src/app/server", () => ({
+jest.mock("../../../src/infrastructure/app/server", () => ({
 	createServer: jest.fn(() => ({ close: jest.fn() })),
 }));
 
@@ -16,7 +16,7 @@ jest.mock("config/address-manager", () => ({
 	})),
 }));
 
-jest.mock("config/env", () => ({
+jest.mock("../../../src/infrastructure/config/env", () => ({
 	ENV: {
 		NODE_ENV: "test",
 		PORT: 3000,
@@ -40,7 +40,7 @@ jest.mock("config/env", () => ({
 	},
 }));
 
-import "../../../src/app/index";
+import "../../../src/infrastructure/app/index";
 
 describe("app/index", () => {
 	it("should call createBootstrap on load", () => {

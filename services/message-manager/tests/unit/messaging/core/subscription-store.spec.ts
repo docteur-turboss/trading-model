@@ -69,7 +69,7 @@ jest.mock("../../../../src/config/logger", () => ({
 	logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
 
-jest.mock("../../../../src/config/env", () => ({
+jest.mock("../../../../src/infrastructure/config/env", () => ({
 	ENV: {
 		REDIS_PREFIX: "mm:",
 		STALE_HEARTBEAT_INTERVAL_MS: 10000,

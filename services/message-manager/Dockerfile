@@ -39,4 +39,4 @@ COPY --from=build /app/services/message-manager/dist ./services/message-manager/
 
 EXPOSE 3000
 ENTRYPOINT ["/sbin/tini", "--"]
-CMD ["node", "services/message-manager/dist/app/index.js"]
+CMD ["node", "services/message-manager/dist/application/index.js"]

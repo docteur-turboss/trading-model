@@ -11,7 +11,7 @@ describe("env", () => {
 				REDIS_URL: "redis://redis:6379",
 			};
 
-			const { ENV } = require("../../../src/config/env");
+			const { ENV } = require("../../../src/infrastructure/config/env");
 			expect(ENV.REDIS_URL).toBe("redis://redis:6379");
 			expect(ENV.BROKER_INSTANCE_ID).toBe("message-manager-1");
 		});
@@ -27,7 +27,7 @@ describe("env", () => {
 				REDIS_URL: "redis://redis:6379",
 			};
 
-			const { ENV } = require("../../../src/config/env");
+			const { ENV } = require("../../../src/infrastructure/config/env");
 			expect(ENV.REDIS_URL).toBe("redis://redis:6379");
 		});
 	});
@@ -45,7 +45,7 @@ describe("env", () => {
 				BROKER_INSTANCE_ID: "broker-2",
 			};
 
-			const { ENV } = require("../../../src/config/env");
+			const { ENV } = require("../../../src/infrastructure/config/env");
 			expect(ENV.REDIS_URL).toBe("redis://custom:6380");
 			expect(ENV.REDIS_PASSWORD).toBe("secret");
 			expect(ENV.REDIS_PREFIX).toBe("custom:");
@@ -63,7 +63,7 @@ describe("env", () => {
 				REDIS_TLS_ENABLED: "true",
 			};
 
-			const { ENV } = require("../../../src/config/env");
+			const { ENV } = require("../../../src/infrastructure/config/env");
 			expect(ENV.REDIS_TLS_ENABLED).toBe(true);
 		});
 	});
@@ -81,7 +81,7 @@ describe("env", () => {
 				MONGO_ARCHIVE_RETENTION_DAYS: "7",
 			};
 
-			const { ENV } = require("../../../src/config/env");
+			const { ENV } = require("../../../src/infrastructure/config/env");
 			expect(ENV.MONGO_ARCHIVE_URI).toBe("mongodb://mongo:27017");
 			expect(ENV.MONGO_ARCHIVE_DB).toBe("test_db");
 			expect(ENV.MONGO_ARCHIVE_INTERVAL_MS).toBe(5000);
