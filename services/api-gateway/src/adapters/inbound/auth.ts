@@ -5,7 +5,7 @@ import { sendResponse } from "@trading-model/common/middleware/response-exceptio
 import { parseCommaSeparated } from "@trading-model/common/utils/comma-separated";
 import type { RequestHandler } from "express";
 
-import { ENV } from "../config/env";
+import { ENV } from "../../infrastructure/config/env";
 
 export interface AuthRequest {
 	clientIdentity: ClientIdentity;

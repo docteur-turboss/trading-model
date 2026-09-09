@@ -1,9 +1,9 @@
 import type https from "node:https";
 import { HostPort } from "@trading-model/common/domain/service-identity";
-import type { ResolvedEndpoint } from "@trading-model/validation/contracts/service-resolver.types";
+import type { ResolvedEndpoint } from "@trading-model/validation/adapters/outbound/service-resolver.types";
 import type { Request } from "express";
-import { ENV } from "../config/env";
-import { safeHeaders } from "./proxy-header-sanitizer";
+import { ENV } from "../../infrastructure/config/env";
+import { safeHeaders } from "../../shared/proxy-header-sanitizer";
 
 export interface ProxyRequestOptions {
 	req: Request;

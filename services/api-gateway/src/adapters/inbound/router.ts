@@ -10,13 +10,16 @@ import {
 	sendResponse,
 } from "@trading-model/common/middleware/response-exception";
 import { Router } from "express";
-import { ENV } from "../config/env";
+import {
+	proxyAndCache,
+	tryServeFromCache,
+} from "../../application/proxy-dispatcher";
+import { ResponseCache } from "../../infrastructure/cache";
+import { ENV } from "../../infrastructure/config/env";
+import { parseRequestPath } from "../../shared/path-parser";
+import { ServiceResolver } from "../outbound/service-resolver";
 import { AUTH_MIDDLEWARE } from "./auth";
-import { ResponseCache } from "./cache";
-import { parseRequestPath } from "./path-parser";
-import { proxyAndCache, tryServeFromCache } from "./proxy-dispatcher";
 import { DEFAULT_LIMITER } from "./rate-limiter";
-import { ServiceResolver } from "./service-resolver";
 
 const RESOLVER = new ServiceResolver(
 	ENV.DISCOVERY_SERVICE_URL,
@@ -36,12 +39,14 @@ function _validatePath(
 			400 as HttpStatusCode
 		);
 	}
+
 	if (!parsed.valid) {
 		return sendResponse(
 			{ error: "Invalid version number" },
 			400 as HttpStatusCode
 		);
 	}
+
 	return parsed;
 }
 
@@ -50,6 +55,7 @@ const catchAllRoute = catchSync(async (req) => {
 	if (typeof parsed === "object" && "status" in parsed) {
 		return parsed;
 	}
+
 	const { majorVersion, serviceName, path } = parsed;
 
 	const target = await RESOLVER.resolve(serviceName, majorVersion);

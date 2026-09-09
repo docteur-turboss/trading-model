@@ -1,4 +1,4 @@
-import { createBootstrap } from "@trading-model/server-utils/server/bootstrap";
+import { createBootstrap } from "@trading-model/server-utils/application/services/bootstrap";
 
 import { createServer } from "./server";
 

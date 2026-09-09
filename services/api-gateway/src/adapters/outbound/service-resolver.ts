@@ -6,8 +6,8 @@ import {
 	URLString,
 	type Version,
 } from "@trading-model/common/domain/primitives";
-import type { ServiceInstance } from "@trading-model/validation/contracts/service-registry.types";
-import type { ResolvedEndpoint } from "@trading-model/validation/contracts/service-resolver.types";
+import type { ServiceInstance } from "@trading-model/validation/adapters/outbound/service-registry.types";
+import type { ResolvedEndpoint } from "@trading-model/validation/adapters/outbound/service-resolver.types";
 
 interface CachedService {
 	instances: ResolvedEndpoint[];

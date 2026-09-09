@@ -4,10 +4,10 @@ import { logger } from "@trading-model/common/config/logger";
 import { HostPort } from "@trading-model/common/domain/service-identity";
 import type { HttpStatusCode } from "@trading-model/common/http-status";
 import { HTTP_STATUS } from "@trading-model/common/http-status";
-import { CryptoAlg } from "@trading-model/crypto/crypto/crypto-constants";
-import type { ResolvedEndpoint } from "@trading-model/validation/contracts/service-resolver.types";
+import { CryptoAlg } from "@trading-model/crypto/domain/constants/crypto-constants";
+import type { ResolvedEndpoint } from "@trading-model/validation/adapters/outbound/service-resolver.types";
 import type { Request } from "express";
-import { ENV } from "../config/env";
+import { ENV } from "../../infrastructure/config/env";
 import type { ProxyRequestOptions } from "./proxy-options-builder";
 import { tlsOptionsBuilder } from "./proxy-options-builder";
 

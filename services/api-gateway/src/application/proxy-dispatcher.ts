@@ -9,10 +9,10 @@ import {
 	type ResponseObject,
 	sendResponse,
 } from "@trading-model/common/middleware/response-exception";
-import type { ResolvedEndpoint } from "@trading-model/validation/contracts/service-resolver.types";
+import type { ResolvedEndpoint } from "@trading-model/validation/adapters/outbound/service-resolver.types";
 import type { Request } from "express";
-import type { ResponseCache } from "./cache";
-import { forwardRequest } from "./proxy-handler";
+import { forwardRequest } from "../adapters/outbound/proxy-handler";
+import type { ResponseCache } from "../infrastructure/cache";
 
 interface ProxyContext {
 	serviceName: ServiceId;

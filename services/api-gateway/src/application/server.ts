@@ -1,7 +1,6 @@
-import { createServiceServer } from "@trading-model/server-utils/server/service-server-factory";
-
-import { ENV } from "../config/env";
-import { createRouter } from "../core/router";
+import { createServiceServer } from "@trading-model/server-utils/adapters/inbound/service-server-factory";
+import { createRouter } from "../adapters/inbound/router";
+import { ENV } from "../infrastructure/config/env";
 
 function _mountGatewayRoutes(app: import("express").Application): void {
 	app.use("/", createRouter());
