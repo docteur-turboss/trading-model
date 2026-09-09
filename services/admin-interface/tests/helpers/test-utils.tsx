@@ -2,7 +2,7 @@ import { ThemeProvider } from "@mui/material/styles";
 import { type RenderOptions, render } from "@testing-library/react";
 import type { ReactElement } from "react";
 import { MemoryRouter } from "react-router-dom";
-import { THEME } from "../../src/theme";
+import { THEME } from "../../src/shared/theme";
 
 function AllProviders({ children }: { children: React.ReactNode }) {
 	return (

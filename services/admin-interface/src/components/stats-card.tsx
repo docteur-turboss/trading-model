@@ -50,7 +50,7 @@ function MetricRow({
 		<Box sx={{ display: "flex", alignItems: "flex-start", gap: 2, padding: 2 }}>
 			<Box sx={{ color: "primary.main", mt: 0.5 }}>{icon}</Box>
 			<Box>
-				<Typography variant="h5" fontWeight={700}>
+				<Typography variant="h5" sx={{ fontWeight: 700 }}>
 					{value}
 				</Typography>
 				<Typography

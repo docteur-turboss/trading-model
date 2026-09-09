@@ -110,7 +110,7 @@ function MarketDataHeader() {
 	return (
 		<Box>
 			<Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-				<Typography variant="h4" fontWeight={700}>
+				<Typography variant="h4" sx={{ fontWeight: 700 }}>
 					Market Data
 				</Typography>
 				<Chip label="LIVE" size="small" color="success" />

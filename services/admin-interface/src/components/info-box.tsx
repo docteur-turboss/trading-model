@@ -23,7 +23,7 @@ function InfoBoxText({
 }) {
 	return (
 		<Box>
-			<Typography variant="subtitle2" fontWeight={600} sx={{ color }}>
+			<Typography variant="subtitle2" sx={{ color, fontWeight: 600 }}>
 				{title}
 			</Typography>
 			<Typography variant="body2" color="text.secondary">

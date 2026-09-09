@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeAll, describe, expect, it, vi } from "vitest";
-import { App } from "../../src/app";
+import { App } from "../../src/infrastructure/app/app";
 
 const EMPTY_DATA_MAP: Record<string, unknown> = {
 	services: { services: [], topology: [] },
@@ -23,7 +23,6 @@ const EMPTY_DATA_MAP: Record<string, unknown> = {
 	},
 	candles: [],
 	training: { results: [], total: 0 },
-	certificates: [],
 	audit: { events: [], total: 0, page: 0, limit: 5, volumeByTopic: [] },
 	stats: {
 		activeServices: 0,
@@ -44,7 +43,6 @@ const URL_MOCK_ROUTES: [string, unknown][] = [
 	["/messages/dlq", EMPTY_DATA_MAP.dlq],
 	["/scraper/candles", EMPTY_DATA_MAP.candles],
 	["/trainer/results", EMPTY_DATA_MAP.training],
-	["/ca/certificates", EMPTY_DATA_MAP.certificates],
 	["/audit/events", EMPTY_DATA_MAP.audit],
 ];
 
@@ -107,12 +105,6 @@ describe("App Integration", () => {
 		render(<App />);
 		fireEvent.click(screen.getByText("Market Data"));
 		expect(await screen.findByText("Market Data")).toBeInTheDocument();
-	});
-
-	it("should navigate to Certificates page", async () => {
-		render(<App />);
-		fireEvent.click(screen.getByText("Certificates"));
-		expect(await screen.findByText("Certificates")).toBeInTheDocument();
 	});
 
 	it("should navigate to Training page", async () => {

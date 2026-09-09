@@ -36,7 +36,7 @@ function ConfirmDialogTitle({
 	return (
 		<DialogTitle sx={{ display: "flex", alignItems: "center", gap: 1 }}>
 			<WarningAmberIcon color="error" />
-			<Typography variant="h6" fontWeight={600}>
+			<Typography variant="h6" sx={{ fontWeight: 600 }}>
 				{title}
 			</Typography>
 			<IconButton onClick={onCancel} sx={{ ml: "auto" }}>
@@ -52,7 +52,7 @@ function ImpactList({ impactItems }: { impactItems: string[] }) {
 	}
 	return (
 		<Alert severity="error" sx={{ mb: 2 }}>
-			<Typography variant="subtitle2" fontWeight={600} sx={{ mb: 0.5 }}>
+			<Typography variant="subtitle2" sx={{ mb: 0.5, fontWeight: 600 }}>
 				Expected Impact:
 			</Typography>
 			<List dense disablePadding>
@@ -60,7 +60,7 @@ function ImpactList({ impactItems }: { impactItems: string[] }) {
 					<ListItem key={item} sx={{ py: 0.25, px: 0 }}>
 						<ListItemText
 							primary={item}
-							primaryTypographyProps={{ variant: "body2" }}
+							slotProps={{ primary: { variant: "body2" } }}
 						/>
 					</ListItem>
 				))}

@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { App } from "../../src/app";
+import { App } from "../../src/infrastructure/app/app";
 
 const RICH_DATA = {
 	services: {
@@ -248,32 +248,6 @@ const RICH_DATA = {
 		],
 		total: 3,
 	},
-	certificates: [
-		{
-			id: "c1",
-			commonName: "api.example.com",
-			issuer: "CA",
-			fingerprint: "abc123def456",
-			expiresAt: "2025-01-01",
-			status: "valid",
-		},
-		{
-			id: "c2",
-			commonName: "expired.example.com",
-			issuer: "CA",
-			fingerprint: "def789ghi012",
-			expiresAt: "2024-06-01",
-			status: "expiring",
-		},
-		{
-			id: "c3",
-			commonName: "revoked.example.com",
-			issuer: "CA",
-			fingerprint: "jkl345mno678",
-			expiresAt: "2023-01-01",
-			status: "revoked",
-		},
-	],
 	audit: {
 		events: [
 			{
@@ -333,7 +307,6 @@ function mockFetch(extraJobs?: boolean) {
 		["/messages/dlq", RICH_DATA.dlq],
 		["/scraper/candles", RICH_DATA.candles],
 		["/trainer/results", RICH_DATA.training],
-		["/ca/certificates", RICH_DATA.certificates],
 		["/audit/events", RICH_DATA.audit],
 	];
 
@@ -523,7 +496,6 @@ describe("Page interactions", () => {
 				["/gateway/cache", RICH_DATA.cache],
 				["/messages/dlq", RICH_DATA.dlq],
 				["/trainer/results", RICH_DATA.training],
-				["/ca/certificates", RICH_DATA.certificates],
 				["/audit/events", RICH_DATA.audit],
 			];
 			const route = routes.find(([key]) => url.includes(key));
@@ -558,17 +530,6 @@ describe("Page interactions", () => {
 
 		fireEvent.mouseDown(await screen.findByRole("combobox"));
 		fireEvent.click(await screen.findByRole("option", { name: "All Topics" }));
-	});
-
-	it("Certificates: should render all certificate statuses", async () => {
-		globalThis.fetch = mockFetch();
-		render(<App />);
-		fireEvent.click(screen.getByText("Certificates"));
-		expect(await screen.findByText("Certificates")).toBeInTheDocument();
-
-		expect(screen.getByText("api.example.com")).toBeInTheDocument();
-		expect(screen.getByText("expired.example.com")).toBeInTheDocument();
-		expect(screen.getByText("revoked.example.com")).toBeInTheDocument();
 	});
 
 	it("should navigate from Services to Config page", async () => {
@@ -654,7 +615,6 @@ describe("Page interactions", () => {
 				["/gateway/cache", RICH_DATA.cache],
 				["/messages/dlq", RICH_DATA.dlq],
 				["/trainer/results", RICH_DATA.training],
-				["/ca/certificates", RICH_DATA.certificates],
 				["/audit/events", RICH_DATA.audit],
 			];
 			const route = routes.find(([key]) => url.includes(key));
@@ -718,9 +678,6 @@ describe("Error states", () => {
 
 		await navigateTo("Market Data");
 		expect(screen.getByText("LIVE")).toBeInTheDocument();
-
-		await navigateTo("Certificates");
-		expect(screen.getAllByText("Certificates").length).toBeGreaterThan(0);
 
 		await navigateTo("Training");
 		expect(screen.getByText("Training Results")).toBeInTheDocument();

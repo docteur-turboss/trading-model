@@ -15,7 +15,6 @@ graph LR
     MM["message-manager"]
     FS["financial-scraper"]
     TT["trader-trainer"]
-    CA["certificate-authority"]
     AL["audit-logger"]
     DLQ["dlq-service"]
 
@@ -25,7 +24,6 @@ graph LR
     GW --> MM
     GW --> FS
     GW --> TT
-    GW --> CA
     GW --> AL
     GW --> DLQ
 ```
@@ -71,7 +69,6 @@ services/admin-interface/
 │  I18nextProvider → BrowserRouter → Routes → Layout    │
 │    / → redirect /services                             │
 │    /services → <Services />                           │
-│    /certificates → <Certificates />                   │
 │    /audit/events → <AuditEvents />                    │
 │    /jobs → <Jobs />                                   │
 │    /broker/dlq → <Dlq />                              │
@@ -141,15 +138,15 @@ User navigates to /services
     → data received → render DataTable + StatsCards
 ```
 
-### Write Operations (e.g., Revoke Certificate)
+### Write Operations (e.g., Retry DLQ message)
 
 ```
-User clicks "Revoke" on certificate row
+User clicks "Retry" on a dead letter entry
   → ModalConfirm opens with warning
   → User confirms
-    → api.revokeCertificate(certId)
-      → POST /v1/ca/revoke { certificateId }
-    → on success, refetch certificate list
+    → api.retryDlqEntry(messageId)
+      → POST /v1/broker/dlq/{messageId}/retry
+    → on success, refetch DLQ list
     → on error, display ApiError message
 ```
 
@@ -183,7 +180,6 @@ All routes are nested under a single `<Layout>` component:
 | ------------------- | ---------------------- | ------------------------------------ |
 | `/`                 | Redirect → `/services` | Default landing                      |
 | `/services`         | `Services`             | Service registry + network topology  |
-| `/certificates`     | `Certificates`         | Certificate list + revocation        |
 | `/audit/events`     | `AuditEvents`          | Paginated audit log with topic chart |
 | `/jobs`             | `Jobs`                 | Job queue with detail drawer         |
 | `/broker/dlq`       | `Dlq`                  | Dead letter queue management         |

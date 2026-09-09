@@ -375,38 +375,6 @@ describe("api-client", () => {
 		});
 	});
 
-	describe("getCertificates", () => {
-		it("should fetch certificate list", async () => {
-			const certs = [
-				{
-					id: "cert-1",
-					commonName: "api-gateway",
-					fingerprint: "abc123",
-					expiresAt: "2025-01-01",
-					status: "valid",
-					issuer: "CA",
-				},
-			];
-			MOCK_FETCH.mockResolvedValue(mockResponse(certs));
-			const result = await API_CLIENT.getCertificates();
-			expect(result).toHaveLength(1);
-		});
-	});
-
-	describe("revokeCertificate", () => {
-		it("should send POST revoke request", async () => {
-			MOCK_FETCH.mockResolvedValue(mockResponse(null));
-			await API_CLIENT.revokeCertificate("cert-1");
-			expect(MOCK_FETCH).toHaveBeenCalledWith(
-				"/v1/ca/revoke",
-				expect.objectContaining({
-					method: "POST",
-					body: JSON.stringify({ certificateId: "cert-1" }),
-				})
-			);
-		});
-	});
-
 	describe("setAdminToken", () => {
 		it("should update the token for subsequent requests", async () => {
 			setAdminToken("new-token");

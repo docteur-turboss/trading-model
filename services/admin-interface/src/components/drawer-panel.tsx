@@ -25,7 +25,7 @@ function DrawerHeader({
 	return (
 		<Box sx={{ padding: 2, borderBottom: 1, borderColor: "divider" }}>
 			<Box sx={{ display: "flex", alignItems: "center", mb: 1 }}>
-				<Typography variant="h6" fontWeight={600} sx={{ flexGrow: 1 }}>
+				<Typography variant="h6" sx={{ flexGrow: 1, fontWeight: 600 }}>
 					{title}
 				</Typography>
 				<IconButton onClick={onClose} size="small">
@@ -115,7 +115,9 @@ export function DrawerPanel({
 			anchor="right"
 			open={open}
 			onClose={onClose}
-			PaperProps={{ sx: { width: "40%", minWidth: 400, maxWidth: 600 } }}
+			slotProps={{
+				paper: { sx: { width: "40%", minWidth: 400, maxWidth: 600 } },
+			}}
 		>
 			<Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
 				<DrawerHeader title={title} subtitle={subtitle} onClose={onClose} />

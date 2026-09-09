@@ -83,7 +83,7 @@ function CacheHeaderTitle({
 }) {
 	return (
 		<Box>
-			<Typography variant="h4" fontWeight={700}>
+			<Typography variant="h4" sx={{ fontWeight: 700 }}>
 				{title}
 			</Typography>
 			<Typography variant="body2" color="text.secondary">

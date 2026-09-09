@@ -14,7 +14,6 @@ Admin Interface is a **React 19** single-page application built with **Vite 6** 
 - **Job Queue** — monitor pending/in-progress/failed jobs, cancel stuck jobs
 - **Training Management** — start/stop training, view results and genome inspection
 - **Market Data** — candles chart, order book, tickers
-- **Certificate Management** — view and revoke mTLS certificates
 - **Cache Management** — inspect and invalidate api-gateway cache
 - **Workers** — monitor worker nodes with CPU/RAM load
 - **Config Viewer** — inspect service configuration with source badges
@@ -85,7 +84,6 @@ src/
 ├── pages/
 │   ├── audit-events.tsx         # /audit/events
 │   ├── cache.tsx                # /cache
-│   ├── certificates.tsx         # /certificates
 │   ├── config.tsx               # /config
 │   ├── dlq.tsx                  # /broker/dlq
 │   ├── jobs.tsx                 # /jobs

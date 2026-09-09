@@ -190,7 +190,7 @@ function AuditPageHeader({ onRefresh }: { onRefresh: () => void }) {
 	return (
 		<Box sx={{ display: "flex", justifyContent: "space-between", mb: 3 }}>
 			<Box>
-				<Typography variant="h4" fontWeight={700}>
+				<Typography variant="h4" sx={{ fontWeight: 700 }}>
 					Audit Events
 				</Typography>
 				<Typography variant="body2" color="text.secondary">

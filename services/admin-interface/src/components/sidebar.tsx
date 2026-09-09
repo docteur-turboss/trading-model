@@ -64,7 +64,7 @@ function SidebarHeader() {
 		<Box sx={{ padding: 2, borderBottom: 1, borderColor: "divider" }}>
 			<Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1.5 }}>
 				<MonitorHeartIcon color="primary" />
-				<Typography variant="h6" fontWeight={700}>
+				<Typography variant="h6" sx={{ fontWeight: 700 }}>
 					Admin Dashboard
 				</Typography>
 			</Box>
@@ -99,7 +99,7 @@ function UserAvatar() {
 function UserInfo() {
 	return (
 		<Box>
-			<Typography variant="caption" fontWeight={600} display="block">
+			<Typography variant="caption" sx={{ fontWeight: 600, display: "block" }}>
 				Admin User
 			</Typography>
 			<Typography variant="caption" color="text.secondary">
@@ -166,9 +166,11 @@ function NavItemLabel({ label, active }: { label: string; active: boolean }) {
 	return (
 		<ListItemText
 			primary={label}
-			primaryTypographyProps={{
-				variant: "body2",
-				fontWeight: active ? 600 : 400,
+			slotProps={{
+				primary: {
+					variant: "body2",
+					sx: { fontWeight: active ? 600 : 400 },
+				},
 			}}
 		/>
 	);
@@ -250,7 +252,9 @@ function LogoutButton() {
 				</ListItemIcon>
 				<ListItemText
 					primary="Logout"
-					primaryTypographyProps={{ variant: "body2", fontWeight: 600 }}
+					slotProps={{
+						primary: { variant: "body2", sx: { fontWeight: 600 } },
+					}}
 				/>
 			</ListItemButton>
 		</Box>

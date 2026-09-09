@@ -122,8 +122,7 @@ function JobLogsTab({ logs }: { logs: string[] }) {
 				<Typography
 					key={log}
 					variant="caption"
-					display="block"
-					sx={{ fontFamily: "monospace" }}
+					sx={{ display: "block", fontFamily: "monospace" }}
 				>
 					{log}
 				</Typography>

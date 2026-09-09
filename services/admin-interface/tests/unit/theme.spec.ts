@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { THEME } from "../../src/theme";
+import { THEME } from "../../src/shared/theme";
 
 describe("THEME", () => {
 	it("should export a valid MUI THEME", () => {
