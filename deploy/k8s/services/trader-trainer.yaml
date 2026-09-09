@@ -1,4 +1,4 @@
-apiVersion: v1
+﻿apiVersion: v1
 kind: Service
 metadata:
   name: trader-trainer
@@ -65,11 +65,6 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.name
-            - name: CERT_CLIENT_BOOTSTRAP_TOKEN
-              valueFrom:
-                secretKeyRef:
-                  name: trading-model-secrets
-                  key: SERVICE_BOOTSTRAP_TOKEN
             - name: ERROR_URL_WEBHOOK
               value: ""
           resources:
@@ -80,12 +75,8 @@ spec:
               cpu: "1"
               memory: 1Gi
           volumeMounts:
-            - name: tls-certs
-              mountPath: /etc/tls
-              readOnly: true
-            - name: tls-certs
-              mountPath: /certs
-              readOnly: true
+            - name: svid
+              mountPath: /run/spire/svid
             - name: trainer-checkpoints
               mountPath: /data/checkpoints
           livenessProbe:
@@ -94,9 +85,9 @@ spec:
                 - curl
                 - -sk
                 - --cert
-                - /certs/server.crt
+                - /run/spire/svid/svid.pem
                 - --key
-                - /certs/server-key.pem
+                - /run/spire/svid/svid_key.pem
                 - https://localhost:3000/ping
             initialDelaySeconds: 20
             periodSeconds: 15
@@ -108,9 +99,9 @@ spec:
                 - curl
                 - -sk
                 - --cert
-                - /certs/server.crt
+                - /run/spire/svid/svid.pem
                 - --key
-                - /certs/server-key.pem
+                - /run/spire/svid/svid_key.pem
                 - https://localhost:3000/health/ready
             initialDelaySeconds: 10
             periodSeconds: 10
@@ -122,9 +113,9 @@ spec:
                 - curl
                 - -sk
                 - --cert
-                - /certs/server.crt
+                - /run/spire/svid/svid.pem
                 - --key
-                - /certs/server-key.pem
+                - /run/spire/svid/svid_key.pem
                 - https://localhost:3000/ping
             initialDelaySeconds: 30
             periodSeconds: 5
@@ -136,11 +127,31 @@ spec:
                   - /bin/sh
                   - -c
                   - sleep 10
+        - name: spiffe-helper
+          image: ghcr.io/spiffe/spiffe-helper:0.6.0
+          imagePullPolicy: IfNotPresent
+          args:
+            - -socketPath=/run/spire/agent-sockets/public/api.sock
+            - -certDir=/run/spire/svid
+            - -svidFileName=svid.pem
+            - -svidKeyFileName=svid_key.pem
+            - -svidBundleFileName=bundle.pem
+            - -renewSignal=SIGHUP
+          volumeMounts:
+            - name: spire-agent-socket
+              mountPath: /run/spire/agent-sockets
+            - name: svid
+              mountPath: /run/spire/svid
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
       volumes:
-        - name: tls-certs
-          secret:
-            secretName: trading-model-tls
-            optional: false
+        - name: spire-agent-socket
+          hostPath:
+            path: /run/spire/agent-sockets
+            type: DirectoryOrCreate
+        - name: svid
+          emptyDir: {}
         - name: trainer-checkpoints
           persistentVolumeClaim:
             claimName: trainer-checkpoints-pvc

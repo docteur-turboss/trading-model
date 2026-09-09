@@ -1,4 +1,4 @@
-apiVersion: v1
+﻿apiVersion: v1
 kind: Service
 metadata:
   name: message-manager
@@ -62,11 +62,6 @@ spec:
                   fieldPath: metadata.name
             - name: REDIS_URL
               value: "redis://redis-primary:6379"
-            - name: CERT_CLIENT_BOOTSTRAP_TOKEN
-              valueFrom:
-                secretKeyRef:
-                  name: trading-model-secrets
-                  key: SERVICE_BOOTSTRAP_TOKEN
             - name: ERROR_URL_WEBHOOK
               value: ""
           resources:
@@ -77,12 +72,8 @@ spec:
               cpu: 500m
               memory: 512Mi
           volumeMounts:
-            - name: tls-certs
-              mountPath: /etc/tls
-              readOnly: true
-            - name: tls-certs
-              mountPath: /certs
-              readOnly: true
+            - name: svid
+              mountPath: /run/spire/svid
           livenessProbe:
             httpGet:
               path: /ping
@@ -116,8 +107,28 @@ spec:
                   - /bin/sh
                   - -c
                   - sleep 15
+        - name: spiffe-helper
+          image: ghcr.io/spiffe/spiffe-helper:0.6.0
+          imagePullPolicy: IfNotPresent
+          args:
+            - -socketPath=/run/spire/agent-sockets/public/api.sock
+            - -certDir=/run/spire/svid
+            - -svidFileName=svid.pem
+            - -svidKeyFileName=svid_key.pem
+            - -svidBundleFileName=bundle.pem
+            - -renewSignal=SIGHUP
+          volumeMounts:
+            - name: spire-agent-socket
+              mountPath: /run/spire/agent-sockets
+            - name: svid
+              mountPath: /run/spire/svid
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
       volumes:
-        - name: tls-certs
-          secret:
-            secretName: trading-model-tls
-            optional: false
+        - name: spire-agent-socket
+          hostPath:
+            path: /run/spire/agent-sockets
+            type: DirectoryOrCreate
+        - name: svid
+          emptyDir: {}

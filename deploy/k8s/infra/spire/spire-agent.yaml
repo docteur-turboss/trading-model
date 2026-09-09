@@ -1,0 +1,208 @@
+# SPIRE Agent — DaemonSet attesting workloads via Kubernetes PSAT + k8s workload
+# attestation (ADR-0011). Exposes the Workload API socket to every pod on the
+# node via hostPath; spiffe-helper sidecars consume SVIDs from it.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: spire-agent
+  labels:
+    app.kubernetes.io/component: spire-agent
+    app.kubernetes.io/part-of: trading-model
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: spire-agent-config
+  labels:
+    app.kubernetes.io/component: spire-agent
+    app.kubernetes.io/part-of: trading-model
+data:
+  agent.conf: |
+    agent {
+      trust_domain = "trading-model.local"
+      data_dir = "/run/spire/data"
+      log_level = "INFO"
+      server_address = "spire-server"
+      server_port = "8081"
+      socket_path = "/run/spire/agent-sockets/public/api.sock"
+      svid_ttl = "1h"
+    }
+
+    plugins {
+      NodeAttestor "k8s_psat" {
+        plugin_data {
+          cluster = "trading-model"
+          token_audience = ["spire-server"]
+        }
+      }
+      KeyManager "disk" {
+        plugin_data {
+          keys_path = "/run/spire/data/agent-keys.pem"
+        }
+      }
+      WorkloadAttestor "k8s" {
+        plugin_data {
+          # DEV: set skip_kubelet_verification to false and provide
+          # kubelet_ca_path in production (ADR-0011 follow-up).
+          skip_kubelet_verification = true
+          allowed_container_names = ["app", "spiffe-helper", "prometheus", "blackbox-exporter"]
+        }
+      }
+    }
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: spire-agent
+  labels:
+    app.kubernetes.io/component: spire-agent
+    app.kubernetes.io/part-of: trading-model
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: spire-agent
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: spire-agent
+        app.kubernetes.io/part-of: trading-model
+    spec:
+      serviceAccountName: spire-agent
+      hostPID: false
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: spire-agent
+          image: ghcr.io/spiffe/spire-agent:1.11.3
+          imagePullPolicy: IfNotPresent
+          command: ["/opt/spire/bin/spire-agent", "run"]
+          args: ["-config", "/etc/spire/agent.conf"]
+          ports:
+            - name: api
+              containerPort: 8080
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          volumeMounts:
+            - name: spire-config
+              mountPath: /etc/spire
+              readOnly: true
+            - name: spire-agent-sockets
+              mountPath: /run/spire/agent-sockets
+            - name: spire-data
+              mountPath: /run/spire/data
+            - name: spire-agent-state
+              mountPath: /var/lib/spire-agent
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+          livenessProbe:
+            exec:
+              command: ["/opt/spire/bin/spire-agent", "healthcheck", "-socketPath", "/run/spire/agent-sockets/public/api.sock"]
+            initialDelaySeconds: 15
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            exec:
+              command: ["/opt/spire/bin/spire-agent", "healthcheck", "-socketPath", "/run/spire/agent-sockets/public/api.sock"]
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            successThreshold: 1
+      volumes:
+        - name: spire-config
+          configMap:
+            name: spire-agent-config
+        - name: spire-agent-sockets
+          hostPath:
+            path: /run/spire/agent-sockets
+            type: DirectoryOrCreate
+        - name: spire-data
+          hostPath:
+            path: /run/spire/data
+            type: DirectoryOrCreate
+        - name: spire-agent-state
+          hostPath:
+            path: /var/lib/spire-agent
+            type: DirectoryOrCreate
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: spire-agent
+  labels:
+    app.kubernetes.io/component: spire-agent
+    app.kubernetes.io/part-of: trading-model
+rules:
+  - apiGroups: [""]
+    resources: ["namespaces"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["pods", "serviceaccounts"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["authentication.k8s.io"]
+    resources: ["tokenreviews"]
+    verbs: ["create"]
+  - apiGroups: ["coordination.k8s.io"]
+    resources: ["leases"]
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: spire-agent
+  labels:
+    app.kubernetes.io/component: spire-agent
+    app.kubernetes.io/part-of: trading-model
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: spire-agent
+subjects:
+  - kind: ServiceAccount
+    name: spire-agent
+    namespace: trading-model
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: spire-server
+  labels:
+    app.kubernetes.io/component: spire-server
+    app.kubernetes.io/part-of: trading-model
+rules:
+  - apiGroups: [""]
+    resources: ["namespaces"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["authentication.k8s.io"]
+    resources: ["tokenreviews"]
+    verbs: ["create"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: spire-server
+  labels:
+    app.kubernetes.io/component: spire-server
+    app.kubernetes.io/part-of: trading-model
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: spire-server
+subjects:
+  - kind: ServiceAccount
+    name: spire-server
+    namespace: trading-model

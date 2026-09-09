@@ -1,0 +1,92 @@
+# SPIRE registration entries — one-time idempotent reconciliation job.
+# Registers the SPIRE agent node entry and one workload entry per service so
+# each service account gets an SVID under spiffe://trading-model.local/ns/.../sa/...
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: spire-entries
+  labels:
+    app.kubernetes.io/component: spire-entries
+    app.kubernetes.io/part-of: trading-model
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: spire-entries
+  labels:
+    app.kubernetes.io/component: spire-entries
+    app.kubernetes.io/part-of: trading-model
+spec:
+  backoffLimit: 2
+  ttlSecondsAfterFinished: 3600
+  template:
+    spec:
+      serviceAccountName: spire-entries
+      restartPolicy: Never
+      affinity:
+        podAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  app.kubernetes.io/component: spire-server
+              topologyKey: kubernetes.io/hostname
+      containers:
+        - name: spire-entries
+          image: ghcr.io/spiffe/spire-server:1.11.3
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh", "-ec"]
+          args:
+            - |
+              set -eu
+              REG=/opt/spire/bin/spire-server
+              SOCK=/run/spire/server-sockets/admin.sock
+              TD=trading-model.local
+              NS=trading-model
+
+              # Wait for the SPIRE server admin socket to appear.
+              for i in $(seq 1 30); do
+                [ -S "$SOCK" ] && break
+                echo "Waiting for admin socket... ($i/30)"
+                sleep 5
+              done
+              [ -S "$SOCK" ] || { echo "admin socket not found"; exit 1; }
+
+              AGENT_ID="spiffe://${TD}/ns/${NS}/sa/spire-agent"
+              if "$REG" entry show -registrationUDSPath "$SOCK" -spiffeID "$AGENT_ID" | grep -q "Entry found"; then
+                echo "agent entry exists: $AGENT_ID"
+              else
+                "$REG" entry create -registrationUDSPath "$SOCK" \
+                  -node \
+                  -spiffeID "$AGENT_ID" \
+                  -selector "k8s_psat:cluster:trading-model" \
+                  -selector "k8s_psat:agent_ns:${NS}" \
+                  -selector "k8s_psat:agent_sa:spire-agent" \
+                  -dns "spire-agent"
+              fi
+
+              for sa in \
+                admin-interface api-gateway audit-logger discovery-server \
+                dlq-service financial-scraper message-manager trader-trainer \
+                prometheus blackbox-exporter; do
+                id="spiffe://${TD}/ns/${NS}/sa/${sa}"
+                if "$REG" entry show -registrationUDSPath "$SOCK" -spiffeID "$id" | grep -q "Entry found"; then
+                  echo "entry exists: $id"
+                else
+                  "$REG" entry create -registrationUDSPath "$SOCK" \
+                    -spiffeID "$id" \
+                    -parentID "$AGENT_ID" \
+                    -selector "k8s:ns:${NS}" \
+                    -selector "k8s:sa:${sa}" \
+                    -dns "${sa}" \
+                    -ttl 3600 -x509SVIDTTL 3600
+                fi
+              done
+              echo "SPIRE entries reconciled."
+          volumeMounts:
+            - name: spire-server-sockets
+              mountPath: /run/spire/server-sockets
+      volumes:
+        - name: spire-server-sockets
+          hostPath:
+            path: /run/spire/server-sockets
+            type: DirectoryOrCreate

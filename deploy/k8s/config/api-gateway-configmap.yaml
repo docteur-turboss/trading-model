@@ -1,4 +1,4 @@
-apiVersion: v1
+﻿apiVersion: v1
 kind: ConfigMap
 metadata:
   name: api-gateway-config
@@ -8,9 +8,9 @@ metadata:
 data:
   NODE_ENV: "production"
   PORT: "3000"
-  TLS_KEY_PATH: "/etc/tls/key.pem"
-  TLS_CERT_PATH: "/etc/tls/cert.pem"
-  TLS_CA_PATH: "/etc/tls/ca.pem"
+  TLS_KEY_PATH: "/run/spire/svid/svid_key.pem"
+  TLS_CERT_PATH: "/run/spire/svid/svid.pem"
+  TLS_CA_PATH: "/run/spire/svid/bundle.pem"
   LOG_LEVEL: "info"
   DISCOVERY_SERVICE_URL: "https://discovery-server:3000"
   RATE_LIMIT_WINDOW_MS: "60000"
@@ -18,12 +18,6 @@ data:
   CACHE_TTL_MS: "30000"
   AUTH_TOKEN_HEADER: "x-api-key"
   PROXY_TIMEOUT_MS: "10000"
-  CERT_CLIENT_CA_URL: "https://certificate-authority:3000"
-  CERT_CLIENT_SERVICE_ID: "api-gateway"
-  CERT_CLIENT_SANS: "api-gateway,localhost"
-  CA_CLIENT_TLS_KEY: "/certs/server-key.pem"
-  CA_CLIENT_TLS_CERT: "/certs/server.crt"
-  CA_CLIENT_TLS_CA: "/certs/ca.crt"
 ---
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler

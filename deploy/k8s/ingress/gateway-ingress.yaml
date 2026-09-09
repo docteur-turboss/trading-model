@@ -8,6 +8,9 @@ metadata:
   annotations:
     nginx.ingress.kubernetes.io/backend-protocol: HTTPS
     nginx.ingress.kubernetes.io/proxy-ssl-verify: "on"
+    # Ingress-controller client identity for upstream mTLS. The ingress
+    # controller runs outside this repo and needs a static client cert; mint
+    # it from the SPIRE trust domain (bundle.pem as ca.crt + a client SVID).
     nginx.ingress.kubernetes.io/proxy-ssl-secret: trading-model/trading-model-tls
     nginx.ingress.kubernetes.io/rewrite-target: /$2
     nginx.ingress.kubernetes.io/limit-rps: "100"
@@ -29,13 +32,6 @@ spec:
             backend:
               service:
                 name: discovery-server
-                port:
-                  number: 3000
-          - path: /v1/(certificate|crl)(/.*)?
-            pathType: ImplementationSpecific
-            backend:
-              service:
-                name: certificate-authority
                 port:
                   number: 3000
           - path: /v1/(events|audit)(/.*)?

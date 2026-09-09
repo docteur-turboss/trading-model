@@ -66,7 +66,7 @@ spec:
                   cp /tools/* /usr/local/bin/
                   chmod +x /usr/local/bin/aws /usr/local/bin/mysql /usr/local/bin/redis-cli
                   /scripts/backup-k8s.sh \
-                    --components mongodb,mysql,redis,ca-keys,checkpoints
+                    --components mongodb,mysql,redis,checkpoints
               env:
                 - name: BACKUP_DIR
                   value: /backups
@@ -187,11 +187,11 @@ rules:
     verbs: ["get", "list"]
   - apiGroups: [""]
     resources: ["pods/exec"]
-    resourceNames: ["statefulset/mongo-dlq", "statefulset/mongo-audit", "statefulset/mysql", "deployment/redis-primary", "deployment/certificate-authority", "deployment/trader-trainer"]
+    resourceNames: ["statefulset/mongo-dlq", "statefulset/mongo-audit", "statefulset/mysql", "deployment/redis-primary", "deployment/trader-trainer"]
     verbs: ["create"]
   - apiGroups: [""]
     resources: ["secrets"]
-    resourceNames: ["trading-model-tls", "trading-model-ca-keys", "trading-model-secrets"]
+    resourceNames: ["trading-model-secrets"]
     verbs: ["get"]
   - apiGroups: [""]
     resources: ["pods/log"]

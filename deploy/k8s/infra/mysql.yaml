@@ -278,7 +278,6 @@ data:
       `trades`           INT NULL,
       `timestamp`        DATETIME(3) NOT NULL,
       `close_timestamp`  DATETIME(3) NOT NULL,
-      `created_at`       TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       PRIMARY KEY (`id`, `symbol`, `market`, `interval_value`, `timestamp`, `source`),
       INDEX `idx_candles_timestamp` (`timestamp` ASC) INVISIBLE,
       INDEX `idx_candles_symbol` (`symbol` ASC) VISIBLE
@@ -294,7 +293,6 @@ data:
       `quantity`    DECIMAL(30,10) NOT NULL,
       `side`        ENUM('buy', 'sell') NOT NULL,
       `timestamp`   DATETIME(3) NOT NULL,
-      `created_at`  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       PRIMARY KEY (`symbol`, `market`, `source`, `trade_id`, `timestamp`),
       INDEX `idx_trades_timestamp` (`timestamp` ASC) INVISIBLE,
       INDEX `idx_trades_symbol` (`symbol` ASC) VISIBLE
@@ -312,7 +310,6 @@ data:
       `volume`           DECIMAL(30,10) NOT NULL,
       `timestamp`        DATETIME(3) NOT NULL,
       `close_time`       DATETIME(3) NOT NULL,
-      `created_at`       TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       PRIMARY KEY (`id`, `symbol`, `market`, `timestamp`, `source`),
       INDEX `idx_tickers_timestamp` (`timestamp` ASC) INVISIBLE,
       INDEX `idx_tickers_symbol` (`symbol` ASC) VISIBLE

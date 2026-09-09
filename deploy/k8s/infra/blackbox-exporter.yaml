@@ -1,4 +1,12 @@
 apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: blackbox-exporter
+  labels:
+    app.kubernetes.io/component: blackbox-exporter
+    app.kubernetes.io/part-of: trading-model
+---
+apiVersion: v1
 kind: Service
 metadata:
   name: blackbox-exporter
@@ -31,6 +39,7 @@ spec:
         app.kubernetes.io/component: blackbox-exporter
         app.kubernetes.io/part-of: trading-model
     spec:
+      serviceAccountName: blackbox-exporter
       automountServiceAccountToken: false
       terminationGracePeriodSeconds: 10
       containers:
@@ -64,10 +73,34 @@ spec:
               port: 9115
             initialDelaySeconds: 5
             periodSeconds: 10
+        - name: spiffe-helper
+          image: ghcr.io/spiffe/spiffe-helper:0.6.0
+          imagePullPolicy: IfNotPresent
+          args:
+            - -socketPath=/run/spire/agent-sockets/public/api.sock
+            - -certDir=/run/spire/svid
+            - -svidFileName=svid.pem
+            - -svidKeyFileName=svid_key.pem
+            - -svidBundleFileName=bundle.pem
+            - -renewSignal=SIGHUP
+          volumeMounts:
+            - name: spire-agent-socket
+              mountPath: /run/spire/agent-sockets
+            - name: svid
+              mountPath: /run/spire/svid
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
       volumes:
         - name: config
           configMap:
             name: blackbox-exporter-config
+        - name: spire-agent-socket
+          hostPath:
+            path: /run/spire/agent-sockets
+            type: DirectoryOrCreate
+        - name: svid
+          emptyDir: {}
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -88,6 +121,9 @@ data:
           fail_if_not_ssl: true
           tls_config:
             insecure_skip_verify: false
+            ca_file: /run/spire/svid/bundle.pem
+            cert_file: /run/spire/svid/svid.pem
+            key_file: /run/spire/svid/svid_key.pem
       http_2xx_no_tls:
         prober: http
         timeout: 5s

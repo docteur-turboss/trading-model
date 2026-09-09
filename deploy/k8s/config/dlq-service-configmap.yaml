@@ -1,4 +1,4 @@
-apiVersion: v1
+﻿apiVersion: v1
 kind: ConfigMap
 metadata:
   name: dlq-service-config
@@ -9,9 +9,9 @@ data:
   NODE_ENV: "production"
   PORT: "3000"
   LOG_LEVEL: "info"
-  TLS_KEY_PATH: "/etc/tls/key.pem"
-  TLS_CERT_PATH: "/etc/tls/cert.pem"
-  TLS_CA_PATH: "/etc/tls/ca.pem"
+  TLS_KEY_PATH: "/run/spire/svid/svid_key.pem"
+  TLS_CERT_PATH: "/run/spire/svid/svid.pem"
+  TLS_CA_PATH: "/run/spire/svid/bundle.pem"
   MONGO_URI: "mongodb://mongo-dlq-0.mongo-dlq-headless:27017,mongo-dlq-1.mongo-dlq-headless:27017,mongo-dlq-2.mongo-dlq-headless:27017/dlq?replicaSet=rs0"
   MONGO_DB: "dlq"
   MONGO_COLLECTION: "dlq_entries"
@@ -19,12 +19,6 @@ data:
   DLQ_RETRY_MAX_ATTEMPTS: "3"
   MESSAGE_MANAGER_URL: "https://message-manager:3000"
   REDIS_URL: "redis://redis-primary:6379"
-  CERT_CLIENT_CA_URL: "https://certificate-authority:3000"
-  CERT_CLIENT_SERVICE_ID: "dlq-service"
-  CERT_CLIENT_SANS: "dlq-service,localhost"
-  CA_CLIENT_TLS_KEY: "/certs/server-key.pem"
-  CA_CLIENT_TLS_CERT: "/certs/server.crt"
-  CA_CLIENT_TLS_CA: "/certs/ca.crt"
 ---
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler

@@ -10,7 +10,6 @@ resources:
   - ../config/message-manager-configmap.yaml
   - ../config/financial-scraper-configmap.yaml
   - ../config/trader-trainer-configmap.yaml
-  - ../config/certificate-authority-configmap.yaml
   - ../config/api-gateway-configmap.yaml
   - ../config/audit-logger-configmap.yaml
   - ../config/dlq-service-configmap.yaml
@@ -18,6 +17,7 @@ resources:
   - ../infra/mysql.yaml
   - ../infra/mongodb.yaml
   - ../infra/mongo-audit.yaml
+  - ../infra/spire
   - ../infra/otel-collector.yaml
   - ../infra/jaeger.yaml
   - ../infra/prometheus.yaml
@@ -28,7 +28,6 @@ resources:
   - ../services/message-manager.yaml
   - ../services/financial-scraper.yaml
   - ../services/trader-trainer.yaml
-  - ../services/certificate-authority.yaml
   - ../services/api-gateway.yaml
   - ../services/audit-logger.yaml
   - ../services/dlq-service.yaml

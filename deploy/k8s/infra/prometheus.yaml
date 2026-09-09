@@ -1,4 +1,12 @@
 apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: prometheus
+  labels:
+    app.kubernetes.io/component: prometheus
+    app.kubernetes.io/part-of: trading-model
+---
+apiVersion: v1
 kind: Service
 metadata:
   name: prometheus
@@ -32,6 +40,7 @@ spec:
         app.kubernetes.io/component: prometheus
         app.kubernetes.io/part-of: trading-model
     spec:
+      serviceAccountName: prometheus
       terminationGracePeriodSeconds: 120
       containers:
         - name: prometheus
@@ -57,9 +66,8 @@ spec:
               readOnly: true
             - name: prometheus-data
               mountPath: /prometheus
-            - name: tls-certs
-              mountPath: /etc/tls
-              readOnly: true
+            - name: svid
+              mountPath: /run/spire/svid
           livenessProbe:
             httpGet:
               path: /-/healthy
@@ -74,10 +82,34 @@ spec:
             initialDelaySeconds: 10
             periodSeconds: 10
             timeoutSeconds: 3
+        - name: spiffe-helper
+          image: ghcr.io/spiffe/spiffe-helper:0.6.0
+          imagePullPolicy: IfNotPresent
+          args:
+            - -socketPath=/run/spire/agent-sockets/public/api.sock
+            - -certDir=/run/spire/svid
+            - -svidFileName=svid.pem
+            - -svidKeyFileName=svid_key.pem
+            - -svidBundleFileName=bundle.pem
+            - -renewSignal=SIGHUP
+          volumeMounts:
+            - name: spire-agent-socket
+              mountPath: /run/spire/agent-sockets
+            - name: svid
+              mountPath: /run/spire/svid
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
       volumes:
         - name: config
           configMap:
             name: prometheus-config
+        - name: spire-agent-socket
+          hostPath:
+            path: /run/spire/agent-sockets
+            type: DirectoryOrCreate
+        - name: svid
+          emptyDir: {}
   volumeClaimTemplates:
     - metadata:
         name: prometheus-data
@@ -113,72 +145,63 @@ data:
       - job_name: 'message-manager'
         scheme: https
         tls_config:
-          ca_file: /etc/tls/ca.pem
-          cert_file: /etc/tls/server.crt
-          key_file: /etc/tls/server-key.pem
+          ca_file: /run/spire/svid/bundle.pem
+          cert_file: /run/spire/svid/svid.pem
+          key_file: /run/spire/svid/svid_key.pem
         static_configs:
           - targets: ['message-manager:3000']
 
       - job_name: 'discovery-server'
         scheme: https
         tls_config:
-          ca_file: /etc/tls/ca.pem
-          cert_file: /etc/tls/server.crt
-          key_file: /etc/tls/server-key.pem
+          ca_file: /run/spire/svid/bundle.pem
+          cert_file: /run/spire/svid/svid.pem
+          key_file: /run/spire/svid/svid_key.pem
         static_configs:
           - targets: ['discovery-server:3000']
-
-      - job_name: 'certificate-authority'
-        scheme: https
-        tls_config:
-          ca_file: /etc/tls/ca.pem
-          cert_file: /etc/tls/server.crt
-          key_file: /etc/tls/server-key.pem
-        static_configs:
-          - targets: ['certificate-authority:3000']
 
       - job_name: 'dlq-service'
         scheme: https
         tls_config:
-          ca_file: /etc/tls/ca.pem
-          cert_file: /etc/tls/server.crt
-          key_file: /etc/tls/server-key.pem
+          ca_file: /run/spire/svid/bundle.pem
+          cert_file: /run/spire/svid/svid.pem
+          key_file: /run/spire/svid/svid_key.pem
         static_configs:
           - targets: ['dlq-service:3000']
 
       - job_name: 'api-gateway'
         scheme: https
         tls_config:
-          ca_file: /etc/tls/ca.pem
-          cert_file: /etc/tls/server.crt
-          key_file: /etc/tls/server-key.pem
+          ca_file: /run/spire/svid/bundle.pem
+          cert_file: /run/spire/svid/svid.pem
+          key_file: /run/spire/svid/svid_key.pem
         static_configs:
           - targets: ['api-gateway:3000']
 
       - job_name: 'audit-logger'
         scheme: https
         tls_config:
-          ca_file: /etc/tls/ca.pem
-          cert_file: /etc/tls/server.crt
-          key_file: /etc/tls/server-key.pem
+          ca_file: /run/spire/svid/bundle.pem
+          cert_file: /run/spire/svid/svid.pem
+          key_file: /run/spire/svid/svid_key.pem
         static_configs:
           - targets: ['audit-logger:3000']
 
       - job_name: 'financial-scraper'
         scheme: https
         tls_config:
-          ca_file: /etc/tls/ca.pem
-          cert_file: /etc/tls/server.crt
-          key_file: /etc/tls/server-key.pem
+          ca_file: /run/spire/svid/bundle.pem
+          cert_file: /run/spire/svid/svid.pem
+          key_file: /run/spire/svid/svid_key.pem
         static_configs:
           - targets: ['financial-scraper:3000']
 
       - job_name: 'trader-trainer'
         scheme: https
         tls_config:
-          ca_file: /etc/tls/ca.pem
-          cert_file: /etc/tls/server.crt
-          key_file: /etc/tls/server-key.pem
+          ca_file: /run/spire/svid/bundle.pem
+          cert_file: /run/spire/svid/svid.pem
+          key_file: /run/spire/svid/svid_key.pem
         static_configs:
           - targets: ['trader-trainer:3000']
 

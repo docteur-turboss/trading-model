@@ -16,8 +16,6 @@ images:
     newTag: staging
   - name: ghcr.io/trading-model/trader-trainer
     newTag: staging
-  - name: ghcr.io/trading-model/certificate-authority
-    newTag: staging
   - name: ghcr.io/trading-model/api-gateway
     newTag: staging
   - name: ghcr.io/trading-model/audit-logger

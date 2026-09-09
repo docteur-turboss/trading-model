@@ -48,7 +48,7 @@ cmd_apply() {
     kubectl rollout status -n "$NAMESPACE" "deployment/${service}" --timeout=120s
   else
     for dep in discovery-server message-manager financial-scraper trader-trainer \
-               certificate-authority api-gateway audit-logger dlq-service admin-interface; do
+               api-gateway audit-logger dlq-service admin-interface; do
       kubectl rollout status -n "$NAMESPACE" "deployment/${dep}" --timeout=120s 2>/dev/null || \
         log "Warning: $dep rollout status check failed (may not exist)"
     done
@@ -238,7 +238,6 @@ cmd_smoke_test() {
   local services=(
     "discovery-server:https://discovery-server:3000/health/ready"
     "message-manager:https://message-manager:3000/health/ready"
-    "certificate-authority:https://certificate-authority:3000/health/ready"
     "api-gateway:https://api-gateway:3000/health/ready"
     "audit-logger:https://audit-logger:3000/health/ready"
     "dlq-service:https://dlq-service:3000/health/ready"
@@ -253,7 +252,7 @@ cmd_smoke_test() {
     local url="${entry#*:}"
 
     if kubectl exec -n "$NAMESPACE" deployment/discovery-server -- \
-         curl -sk --cert /certs/server.crt --key /certs/server-key.pem "$url" -o /dev/null -w '%{http_code}' 2>/dev/null | grep -q "200"; then
+         curl -sk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem "$url" -o /dev/null -w '%{http_code}' 2>/dev/null | grep -q "200"; then
       log "  ✓ $name is healthy"
     else
       err "  ✗ $name is NOT healthy"

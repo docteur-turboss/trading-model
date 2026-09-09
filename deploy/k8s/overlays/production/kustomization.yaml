@@ -15,8 +15,6 @@ images:
     newTag: latest
   - name: ghcr.io/trading-model/trader-trainer
     newTag: latest
-  - name: ghcr.io/trading-model/certificate-authority
-    newTag: latest
   - name: ghcr.io/trading-model/api-gateway
     newTag: latest
   - name: ghcr.io/trading-model/audit-logger
