@@ -1,11 +1,14 @@
 ﻿import { logger } from "@trading-model/common/config/logger";
 import { normalizeError } from "@trading-model/common/utils/errors";
+import type { HttpServer } from "../../adapters/inbound/create-secure-server";
+import { setupProcessHandlers } from "../../infrastructure/signal-handler";
+import type { BootstrapOptions } from "../../shared/bootstrap-types";
 import { gracefulShutdown, hardShutdown } from "./bootstrap-shutdown";
-import type { BootstrapOptions } from "./bootstrap-types";
-import type { HttpServer } from "./create-secure-server";
-import { setupProcessHandlers } from "./signal-handler";
 
-export type { BootstrapOptions, TlsBootstrapOptions } from "./bootstrap-types";
+export type {
+	BootstrapOptions,
+	TlsBootstrapOptions,
+} from "../../shared/bootstrap-types";
 
 export function createBootstrap(options: BootstrapOptions): {
 	shutdown: (signal: string) => Promise<void>;

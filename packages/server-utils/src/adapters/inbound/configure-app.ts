@@ -6,7 +6,7 @@ import { HEALTH_STATUS_OK } from "@trading-model/common/middleware/response-exce
 import express, { type Application } from "express";
 import { rateLimit } from "express-rate-limit";
 import helmet from "helmet";
-import { PING_PATH } from "./constants";
+import { PING_PATH } from "../../shared/constants";
 
 /** Configuration for the rate-limiting middleware. */
 export interface RateLimitConfig {

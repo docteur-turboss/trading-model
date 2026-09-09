@@ -9,7 +9,7 @@ import type {
 } from "@trading-model/common/domain/tls-paths";
 import { toSecureContextOptions } from "@trading-model/common/domain/tls-paths";
 import type { Application } from "express";
-import { setupTlsWatcher } from "./tls-watcher";
+import { setupTlsWatcher } from "../../infrastructure/tls-watcher";
 
 export interface HttpsServerOptions {
 	port: Port;
@@ -74,4 +74,4 @@ export async function createAndStartHttpsServer(
 	return { raw: httpsServer, close: _createCloseHandle(httpsServer) };
 }
 
-export { setupTlsWatcher } from "./tls-watcher";
+export { setupTlsWatcher } from "../../infrastructure/tls-watcher";

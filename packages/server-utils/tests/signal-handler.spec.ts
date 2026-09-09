@@ -1,7 +1,7 @@
 import {
 	removeProcessHandlers,
 	setupProcessHandlers,
-} from "../src/server/signal-handler";
+} from "../src/infrastructure/signal-handler";
 
 describe("signal-handler", () => {
 	beforeEach(() => {

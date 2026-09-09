@@ -1,5 +1,7 @@
+import type { ServiceId } from "@trading-model/common/domain/primitives";
 import type { TlsPaths } from "@trading-model/common/domain/tls-paths";
 import { MTLSAuthMiddleware } from "@trading-model/common/middleware/mtls-auth";
+import { MTLSAuthorizationMiddleware } from "@trading-model/common/middleware/mtls-authorization";
 import { ResponseProtocol } from "@trading-model/common/middleware/response-protocol";
 import type { Application } from "express";
 import { configureApp, RateLimitConfig } from "./configure-app";
@@ -13,11 +15,25 @@ export { buildTlsFromEnv } from "@trading-model/common/domain/tls-paths";
 export type { TlsPaths };
 export { HttpServer, RateLimitConfig };
 
+/** Options for enabling caller authorization (ACL) on a secure server. */
+export interface AuthorizationOptions {
+	/** The service this server enforces authorization on behalf of. */
+	targetService: ServiceId;
+	/** Explicit allowlist; falls back to {@link DEFAULT_ACL} when omitted. */
+	allowedCallers?: ServiceId[];
+	/**
+	 * Defaults to `false`. Enable once workloads present attested SVIDs
+	 * (ADR-0011) so the caller identity from the SPIFFE ID is enforceable.
+	 */
+	enabled?: boolean;
+}
+
 /** Options for creating an mTLS-secured HTTPS server. */
 export interface SecureServerOptions extends HttpsServerOptions {
 	routes: (app: Application) => void;
 	rateLimit?: RateLimitConfig;
 	trustProxy?: boolean;
+	authorize?: AuthorizationOptions;
 }
 
 /**
@@ -37,6 +53,15 @@ export async function createSecureServer(
 	});
 
 	app.use(MTLSAuthMiddleware);
+
+	if (options.authorize?.enabled) {
+		app.use(
+			MTLSAuthorizationMiddleware(
+				options.authorize.targetService,
+				options.authorize.allowedCallers
+			)
+		);
+	}
 
 	options.routes(app);
 

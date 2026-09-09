@@ -12,7 +12,7 @@ jest.mock("@trading-model/common/config/http-tls-loader", () => ({
 
 import https from "node:https";
 import { loadTlsPemBundle } from "@trading-model/common/config/http-tls-loader";
-import { createAndStartHttpsServer } from "../src/server/server-factory";
+import { createAndStartHttpsServer } from "../src/adapters/inbound/server-factory";
 
 describe("createAndStartHttpsServer", () => {
 	beforeEach(() => {

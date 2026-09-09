@@ -11,7 +11,7 @@ jest.mock("node:fs/promises", () => ({
 }));
 
 import path from "node:path";
-import { setupTlsWatcher } from "../src/server/tls-watcher";
+import { setupTlsWatcher } from "../src/infrastructure/tls-watcher";
 
 describe("setupTlsWatcher", () => {
 	beforeEach(() => {

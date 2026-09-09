@@ -5,7 +5,7 @@ jest.mock("prom-client", () => ({
 	},
 }));
 
-import { metricsHandler } from "../src/server/metrics-handler";
+import { metricsHandler } from "../src/adapters/inbound/metrics-handler";
 
 describe("metricsHandler", () => {
 	it("should be a function", () => {

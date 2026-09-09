@@ -2,7 +2,7 @@ import type http from "node:http";
 import {
 	gracefulShutdown,
 	hardShutdown,
-} from "../src/server/bootstrap-shutdown";
+} from "../src/application/services/bootstrap-shutdown";
 
 function createMockServer() {
 	return {

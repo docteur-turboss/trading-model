@@ -1,5 +1,5 @@
 import type https from "node:https";
-import type { HttpServer } from "./create-secure-server";
+import type { HttpServer } from "../adapters/inbound/create-secure-server";
 
 export interface TlsBootstrapOptions {
 	ensure: () => Promise<void>;

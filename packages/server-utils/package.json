@@ -13,21 +13,21 @@
   "dependencies": {
     "@trading-model/common": "*",
     "@opentelemetry/api": "^1.9.1",
-    "@opentelemetry/exporter-trace-otlp-http": "^0.219.0",
-    "@opentelemetry/instrumentation-express": "^0.67.0",
-    "@opentelemetry/instrumentation-http": "^0.219.0",
-    "@opentelemetry/resources": "^2.8.0",
-    "@opentelemetry/sdk-node": "^0.219.0",
-    "@opentelemetry/semantic-conventions": "^1.41.1",
+    "@opentelemetry/exporter-trace-otlp-http": "^0.222.0",
+    "@opentelemetry/instrumentation-express": "^0.70.0",
+    "@opentelemetry/instrumentation-http": "^0.222.0",
+    "@opentelemetry/resources": "^2.11.0",
+    "@opentelemetry/sdk-node": "^0.222.0",
+    "@opentelemetry/semantic-conventions": "^1.43.0",
     "express": "^5.2.1",
-    "express-rate-limit": "^8.5.1",
-    "helmet": "^8.2.0"
+    "express-rate-limit": "^8.7.0",
+    "helmet": "^8.3.0"
   },
   "devDependencies": {
     "@types/express": "^5.0.6",
-    "@types/node": "^25.9.2",
-    "jest": "^30.4.2",
-    "ts-jest": "^29.4.11",
+    "@types/node": "^26.5.0",
+    "jest": "^30.5.1",
+    "ts-jest": "^29.4.12",
     "typescript": "^6.0.3"
   },
   "scripts": {

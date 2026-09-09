@@ -14,7 +14,7 @@ jest.mock("@opentelemetry/exporter-trace-otlp-http", () => ({
 import {
 	initializeTelemetry,
 	shutdownTelemetry,
-} from "../src/server/telemetry";
+} from "../src/infrastructure/telemetry";
 
 const BASE_CONFIG = {
 	serviceName: "test-service" as never,

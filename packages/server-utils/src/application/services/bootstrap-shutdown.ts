@@ -1,8 +1,8 @@
 import { logger } from "@trading-model/common/config/logger";
 import { DurationMs } from "@trading-model/common/domain/primitives";
 import { normalizeError } from "@trading-model/common/utils/errors";
-import type { BootstrapOptions } from "./bootstrap-types";
-import type { HttpServer } from "./create-secure-server";
+import type { HttpServer } from "../../adapters/inbound/create-secure-server";
+import type { BootstrapOptions } from "../../shared/bootstrap-types";
 
 function _closeServerOnShutdown(server: HttpServer | null): void {
 	if (!server) {
