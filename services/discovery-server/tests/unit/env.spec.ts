@@ -26,7 +26,7 @@ describe("env configuration", () => {
 		process.env.TLS_CA_PATH = "/certs/ca.pem";
 		process.env.ERROR_URL_WEBHOOK = "https://hooks.example.com/error";
 
-		const { ENV } = require("../../src/config/env") as {
+		const { ENV } = require("../../src/infrastructure/config/env") as {
 			ENV: Record<string, unknown>;
 		};
 		expect(ENV.PORT).toBe(3000);
@@ -42,7 +42,7 @@ describe("env configuration", () => {
 		process.env.TLS_CA_PATH = "/certs/ca.pem";
 		process.env.ERROR_URL_WEBHOOK = "https://hooks.example.com/error";
 
-		const { ENV } = require("../../src/config/env") as {
+		const { ENV } = require("../../src/infrastructure/config/env") as {
 			ENV: Record<string, unknown>;
 		};
 		expect(ENV.PORT).toBe(8443);
@@ -55,7 +55,7 @@ describe("env configuration", () => {
 		process.env.TLS_CA_PATH = "/certs/ca.pem";
 		process.env.ERROR_URL_WEBHOOK = "https://hooks.example.com/error";
 
-		const { ENV } = require("../../src/config/env") as {
+		const { ENV } = require("../../src/infrastructure/config/env") as {
 			ENV: Record<string, unknown>;
 		};
 		expect(ENV.CLEANUP_SERVICE_INTERVAL_MS).toBe(10000);
@@ -70,7 +70,7 @@ describe("env configuration", () => {
 		process.env.ERROR_URL_WEBHOOK = "not-a-url";
 
 		jest.isolateModules(() => {
-			expect(() => require("../../src/config/env")).toThrow(
+			expect(() => require("../../src/infrastructure/config/env")).toThrow(
 				"Environment validation failed"
 			);
 		});

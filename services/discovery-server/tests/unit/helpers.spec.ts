@@ -6,13 +6,13 @@ jest.mock("@trading-model/common/middleware/response-exception", () => ({
 	})),
 }));
 
-jest.mock("@trading-model/validation/validation/primitives", () => ({
+jest.mock("@trading-model/validation/shared/validation/primitives", () => ({
 	isNonEmptyString: (v: any) => typeof v === "string" && v.trim().length > 0,
 }));
 
 import { ResponseException } from "@trading-model/common/middleware/response-exception";
-import { validateInstanceToken } from "../../src/controllers/helpers";
-import { ServiceRegistry } from "../../src/core/service-registry";
+import { ServiceRegistry } from "../../src/domain/service-registry";
+import { validateInstanceToken } from "../../src/shared/helpers";
 
 describe("helpers", () => {
 	let registry: ServiceRegistry;

@@ -1,6 +1,6 @@
 import { describe, expect, it, jest } from "@jest/globals";
 
-import { ServiceRegistry } from "../../src/core/service-registry";
+import { ServiceRegistry } from "../../src/domain/service-registry";
 
 const MOCK_ROUTER = {
 	post: jest.fn(),

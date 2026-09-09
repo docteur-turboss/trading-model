@@ -6,7 +6,7 @@ import {
 	it,
 	jest,
 } from "@jest/globals";
-import type { ServiceInstance } from "../../src/core/types";
+import type { ServiceInstance } from "../../src/shared/types";
 
 jest.mock("@trading-model/common/config/logger", () => ({
 	logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
@@ -14,8 +14,8 @@ jest.mock("@trading-model/common/config/logger", () => ({
 
 jest.useFakeTimers();
 
-import { LeaseManager } from "../../src/core/lease-manager";
-import { ServiceRegistry } from "../../src/core/service-registry";
+import { LeaseManager } from "../../src/domain/lease-manager";
+import { ServiceRegistry } from "../../src/domain/service-registry";
 
 describe("LeaseManager", () => {
 	let leaseManager: LeaseManager;

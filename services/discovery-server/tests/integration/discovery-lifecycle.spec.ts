@@ -8,7 +8,7 @@ import {
 	jest,
 } from "@jest/globals";
 import express from "express";
-import { ServiceRegistry } from "../../src/core/service-registry";
+import { ServiceRegistry } from "../../src/domain/service-registry";
 import { HEARTBEAT_ROUTES } from "../../src/routes/heartbeat.routes";
 import { REGISTRY_ROUTES } from "../../src/routes/register.routes";
 
@@ -16,7 +16,7 @@ jest.mock("@trading-model/common/config/logger", () => ({
 	logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
 
-jest.mock("../../src/config/env", () => ({
+jest.mock("../../src/infrastructure/config/env", () => ({
 	env: {
 		CLEANUP_SERVICE_INTERVAL_MS: 5000,
 		ERROR_URL_WEBHOOK: "https://hooks.example.com/error",

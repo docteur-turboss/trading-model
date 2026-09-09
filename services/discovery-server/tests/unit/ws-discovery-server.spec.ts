@@ -80,7 +80,10 @@ import { WebSocketServer } from "ws";
 import { WsDiscoveryServer } from "../../src/core/ws-discovery-server";
 
 const MOCK_WEB_SOCKET_SERVER = WebSocketServer as unknown as jest.Mock;
-const CREATED_SERVERS: WsDiscoveryServer[] = [];
+const CREATED_SERVERS: Array<{
+	server: WsDiscoveryServer;
+	wss: ReturnType<typeof createMockWss>;
+}> = [];
 
 function makeConnection(): { server: WsDiscoveryServer; ws: MockWs } {
 	const ws = createMockWs();
@@ -93,7 +96,7 @@ function makeConnection(): { server: WsDiscoveryServer; ws: MockWs } {
 	connHandler!(ws, {
 		socket: { remoteAddress: "127.0.0.1", remotePort: 12345 },
 	});
-	CREATED_SERVERS.push(server);
+	CREATED_SERVERS.push({ server, wss: mockWss });
 	return { server, ws };
 }
 
@@ -104,7 +107,7 @@ describe("WsDiscoveryServer", () => {
 
 	afterEach(() => {
 		for (const s of CREATED_SERVERS) {
-			s.stop();
+			s.server.stop(s.wss);
 		}
 		CREATED_SERVERS.length = 0;
 	});
@@ -140,7 +143,7 @@ describe("WsDiscoveryServer", () => {
 				expect.any(Object),
 				expect.any(Object)
 			);
-			server.stop();
+			server.stop(mockWss);
 		});
 
 		it("should not handle upgrade when path does not match", () => {
@@ -372,7 +375,7 @@ describe("WsDiscoveryServer", () => {
 			ws.send.mockClear();
 			server.notifyServiceChanged("financial-scraper-service");
 			expect(ws.send).not.toHaveBeenCalled();
-			server.stop();
+			server.stop(mockWss);
 		});
 
 		it("should log warning when send fails", () => {
@@ -422,14 +425,9 @@ describe("WsDiscoveryServer", () => {
 			mockWss.getConnectionHandler()!(ws, {
 				socket: { remoteAddress: "127.0.0.1", remotePort: 12345 },
 			});
-			server.stop();
+			server.stop(mockWss);
 			expect(ws.close).toHaveBeenCalled();
 			expect(mockWss.close).toHaveBeenCalled();
-		});
-
-		it("should be safe to call if not attached", () => {
-			const server = new WsDiscoveryServer();
-			expect(() => server.stop()).not.toThrow();
 		});
 
 		it("should be safe to call multiple times", () => {
@@ -437,8 +435,8 @@ describe("WsDiscoveryServer", () => {
 			MOCK_WEB_SOCKET_SERVER.mockImplementation(() => mockWss);
 			const server = new WsDiscoveryServer();
 			server.attach(new EventEmitter() as any);
-			server.stop();
-			server.stop();
+			server.stop(mockWss);
+			server.stop(mockWss);
 			expect(mockWss.close).toHaveBeenCalledTimes(2);
 		});
 

@@ -22,7 +22,7 @@ jest.mock("@trading-model/common/middleware/response-exception", () => {
 });
 
 import { createRegisterController } from "../../../src/controllers/register.controller";
-import { ServiceRegistry } from "../../../src/core/service-registry";
+import { ServiceRegistry } from "../../../src/domain/service-registry";
 
 describe("Register.controller", () => {
 	let registry: ServiceRegistry;

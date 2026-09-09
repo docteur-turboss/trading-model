@@ -5,9 +5,9 @@ jest.mock("@trading-model/common/config/logger", () => ({
 }));
 
 import { REDIS_STATUS } from "@trading-model/common/persistence/redis-constants";
-import type { RegistryBackend } from "@trading-model/validation/contracts/service-registry.types";
-import { BackendPingManager } from "../../src/core/backend-ping-manager";
-import type { PubSubInvalidator } from "../../src/core/pub-sub-invalidator";
+import type { RegistryBackend } from "@trading-model/validation/adapters/outbound/service-registry.types";
+import { BackendPingManager } from "../../src/infrastructure/backend-ping-manager";
+import type { PubSubInvalidator } from "../../src/infrastructure/pub-sub-invalidator";
 
 function createMockPubSub(): PubSubInvalidator {
 	return {

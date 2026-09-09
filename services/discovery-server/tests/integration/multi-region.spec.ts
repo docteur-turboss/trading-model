@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
-import { ServiceRegistry } from "../../src/core/service-registry";
+import { ServiceRegistry } from "../../src/domain/service-registry";
 
 jest.mock("@trading-model/common/config/logger", () => ({
 	logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },

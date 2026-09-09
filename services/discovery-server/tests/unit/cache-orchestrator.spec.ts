@@ -10,10 +10,10 @@ import type { LruCache } from "@trading-model/common/utils/lru-cache";
 import type {
 	RegistryBackend,
 	ServiceInstance,
-} from "@trading-model/validation/contracts/service-registry.types";
-import type { CacheManager } from "../../src/core/cache-manager";
-import { CacheOrchestrator } from "../../src/core/cache-orchestrator";
-import type { RedisHealthMonitor } from "../../src/core/redis-health-monitor";
+} from "@trading-model/validation/adapters/outbound/service-registry.types";
+import { CacheOrchestrator } from "../../src/application/cache-orchestrator";
+import type { CacheManager } from "../../src/infrastructure/cache-manager";
+import type { RedisHealthMonitor } from "../../src/infrastructure/redis-health-monitor";
 
 jest.mock("@trading-model/common/config/logger", () => ({
 	logger: {

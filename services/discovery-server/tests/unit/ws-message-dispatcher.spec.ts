@@ -9,9 +9,9 @@ jest.mock("@trading-model/common/config/logger", () => ({
 	},
 }));
 
-import { DiscoveryWsMessageType } from "@trading-model/validation/contracts/discovery-ws-message.types";
+import { DiscoveryWsMessageType } from "@trading-model/validation/adapters/inbound/discovery-ws-message.types";
 import type WebSocket from "ws";
-import type { ConnectedClient } from "../../src/core/client-connection-manager";
+import type { ConnectedClient } from "../../src/adapters/inbound/client-connection-manager";
 import { WsMessageDispatcher } from "../../src/core/ws-message-dispatcher";
 
 function createMockClient(

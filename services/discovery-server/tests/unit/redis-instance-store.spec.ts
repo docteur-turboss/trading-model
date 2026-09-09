@@ -20,7 +20,7 @@ const mockGetServiceInstanceIds = jest.fn();
 const mockGetMetadatas = jest.fn();
 const mockListServiceNames = jest.fn();
 
-jest.mock("../../src/core/instance-metadata-reader", () => ({
+jest.mock("../../src/adapters/outbound/instance-metadata-reader", () => ({
 	InstanceMetadataReader: jest.fn().mockImplementation(() => ({
 		getMetadata: mockGetMetadata,
 		getServiceInstanceIds: mockGetServiceInstanceIds,
@@ -33,7 +33,7 @@ const mockResolveToken = jest.fn();
 const mockBuildStoredInstance = jest.fn();
 const mockRegisterInstance = jest.fn();
 
-jest.mock("../../src/core/instance-registrar", () => ({
+jest.mock("../../src/adapters/outbound/instance-registrar", () => ({
 	InstanceRegistrar: jest.fn().mockImplementation(() => ({
 		resolveToken: mockResolveToken,
 		buildStoredInstance: mockBuildStoredInstance,
@@ -43,7 +43,7 @@ jest.mock("../../src/core/instance-registrar", () => ({
 
 const mockHeartbeatUpdate = jest.fn();
 
-jest.mock("../../src/core/instance-heartbeat-handler", () => ({
+jest.mock("../../src/adapters/outbound/instance-heartbeat-handler", () => ({
 	InstanceHeartbeatHandler: jest.fn().mockImplementation(() => ({
 		updateHeartbeat: mockHeartbeatUpdate,
 	})),
@@ -51,13 +51,13 @@ jest.mock("../../src/core/instance-heartbeat-handler", () => ({
 
 const mockRemoveInstanceSetAndMetadata = jest.fn();
 
-jest.mock("../../src/core/instance-cleanup-handler", () => ({
+jest.mock("../../src/adapters/outbound/instance-cleanup-handler", () => ({
 	removeInstanceSetAndMetadata: mockRemoveInstanceSetAndMetadata,
 }));
 
-import type { ServiceInstance } from "@trading-model/validation/contracts/service-registry.types";
-import type { RedisDeps } from "../../src/core/redis-deps";
-import { RedisInstanceStore } from "../../src/core/redis-instance-store";
+import type { ServiceInstance } from "@trading-model/validation/adapters/outbound/service-registry.types";
+import { RedisInstanceStore } from "../../src/adapters/outbound/redis-instance-store";
+import type { RedisDeps } from "../../src/shared/redis-deps";
 
 function makeInstance(overrides?: Partial<ServiceInstance>): ServiceInstance {
 	return {

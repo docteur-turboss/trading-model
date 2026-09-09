@@ -48,9 +48,9 @@ jest.mock("ioredis", () => ({
 }));
 
 import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
-import type { ServiceInstance } from "@trading-model/validation/contracts/service-registry.types";
-import { InstanceHeartbeatHandler } from "../../src/core/instance-heartbeat-handler";
-import type { InstanceMetadataReader } from "../../src/core/instance-metadata-reader";
+import type { ServiceInstance } from "@trading-model/validation/adapters/outbound/service-registry.types";
+import { InstanceHeartbeatHandler } from "../../src/adapters/outbound/instance-heartbeat-handler";
+import type { InstanceMetadataReader } from "../../src/adapters/outbound/instance-metadata-reader";
 
 describe("InstanceHeartbeatHandler", () => {
 	let handler: InstanceHeartbeatHandler;

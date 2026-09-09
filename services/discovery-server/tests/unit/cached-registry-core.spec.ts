@@ -9,8 +9,8 @@ import {
 import type {
 	RegistryBackend,
 	ServiceInstance,
-} from "@trading-model/validation/contracts/service-registry.types";
-import { CachedRegistryCore } from "../../src/core/cached-registry-core";
+} from "@trading-model/validation/adapters/outbound/service-registry.types";
+import { CachedRegistryCore } from "../../src/application/cached-registry-core";
 
 jest.mock("@trading-model/common/config/logger", () => ({
 	logger: {

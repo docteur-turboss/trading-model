@@ -4,7 +4,7 @@ jest.mock("@trading-model/common/config/logger", () => ({
 	logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
 
-import { HealthStateManager } from "../../src/core/health-state-manager";
+import { HealthStateManager } from "../../src/domain/health-state-manager";
 
 describe("HealthStateManager", () => {
 	let manager: HealthStateManager;

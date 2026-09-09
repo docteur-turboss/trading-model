@@ -20,7 +20,7 @@ jest.mock("@trading-model/common/middleware/response-exception", () => ({
 }));
 
 import { createHeartbeatController } from "../../../src/controllers/heartbeat.controller";
-import { ServiceRegistry } from "../../../src/core/service-registry";
+import { ServiceRegistry } from "../../../src/domain/service-registry";
 
 describe("Heartbeat.controller", () => {
 	let registry: ServiceRegistry;

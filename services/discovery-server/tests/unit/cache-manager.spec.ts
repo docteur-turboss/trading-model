@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
-import type { ServiceInstance } from "@trading-model/validation/contracts/service-registry.types";
+import type { ServiceInstance } from "@trading-model/validation/adapters/outbound/service-registry.types";
 
 jest.mock("@trading-model/common/utils/lru-cache");
 
 import type { CacheConfig } from "@trading-model/common/utils/cache-config";
 import { LruCache } from "@trading-model/common/utils/lru-cache";
-import { CacheManager } from "../../src/core/cache-manager";
+import { CacheManager } from "../../src/infrastructure/cache-manager";
 
 function makeInstance(id: string): ServiceInstance {
 	return {

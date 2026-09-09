@@ -10,15 +10,15 @@ import type { LruCache } from "@trading-model/common/utils/lru-cache";
 import type {
 	RegistryBackend,
 	ServiceInstance,
-} from "@trading-model/validation/contracts/service-registry.types";
-import type { BackendPingManager } from "../../src/core/backend-ping-manager";
-import type { CacheManager } from "../../src/core/cache-manager";
+} from "@trading-model/validation/adapters/outbound/service-registry.types";
 import {
 	CachedRegistryLifecycle,
 	type CachedRegistryLifecycleDeps,
-} from "../../src/core/cached-registry-lifecycle";
-import type { PubSubInvalidator } from "../../src/core/pub-sub-invalidator";
-import type { RedisHealthMonitor } from "../../src/core/redis-health-monitor";
+} from "../../src/application/cached-registry-lifecycle";
+import type { BackendPingManager } from "../../src/infrastructure/backend-ping-manager";
+import type { CacheManager } from "../../src/infrastructure/cache-manager";
+import type { PubSubInvalidator } from "../../src/infrastructure/pub-sub-invalidator";
+import type { RedisHealthMonitor } from "../../src/infrastructure/redis-health-monitor";
 
 jest.mock("@trading-model/common/config/logger", () => ({
 	logger: {

@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { REDIS_STATUS } from "@trading-model/common/persistence/redis-constants";
 import type { LruCache } from "@trading-model/common/utils/lru-cache";
-import type { ServiceInstance } from "@trading-model/validation/contracts/service-registry.types";
-import type { CacheManager } from "../../src/core/cache-manager";
+import type { ServiceInstance } from "@trading-model/validation/adapters/outbound/service-registry.types";
+import type { CacheManager } from "../../src/infrastructure/cache-manager";
 
 jest.mock("@trading-model/common/config/logger", () => ({
 	logger: {
@@ -45,7 +45,7 @@ jest.mock("ioredis", () => ({
 	Redis: mockRedisCtor,
 }));
 
-import { PubSubInvalidator } from "../../src/core/pub-sub-invalidator";
+import { PubSubInvalidator } from "../../src/infrastructure/pub-sub-invalidator";
 
 function createMockCacheManager(): jest.Mocked<CacheManager> {
 	return {

@@ -34,7 +34,7 @@ import WebSocket from "ws";
 import {
 	ClientConnectionManager,
 	type ConnectedClient,
-} from "../../src/core/client-connection-manager";
+} from "../../src/adapters/inbound/client-connection-manager";
 
 function makeClient(overrides?: Partial<ConnectedClient>): ConnectedClient {
 	return {

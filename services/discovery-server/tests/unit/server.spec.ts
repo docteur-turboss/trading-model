@@ -1,13 +1,11 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 
-jest.mock("@trading-model/server-utils/server/create-secure-server", () => ({
-	createSecureServer: jest.fn(),
-	buildTlsFromEnv: jest.fn(() => ({
-		keyPath: "/certs/key.pem",
-		certPath: "/certs/cert.pem",
-		caPath: "/certs/ca.pem",
-	})),
-}));
+jest.mock(
+	"@trading-model/server-utils/adapters/inbound/service-server-factory",
+	() => ({
+		createServiceServer: jest.fn(),
+	})
+);
 
 jest.mock("../../src/routes/heartbeat.routes", () => ({
 	HEARTBEAT_ROUTES: jest.fn(),
@@ -17,7 +15,7 @@ jest.mock("../../src/routes/register.routes", () => ({
 	REGISTRY_ROUTES: jest.fn(),
 }));
 
-jest.mock("../../src/config/env", () => ({
+jest.mock("../../src/infrastructure/config/env", () => ({
 	ENV: {
 		PORT: 8443,
 		TLS_KEY_PATH: "/certs/key.pem",
@@ -26,7 +24,8 @@ jest.mock("../../src/config/env", () => ({
 	},
 }));
 
-import { createServer } from "../../src/app/server";
+import { createServer } from "../../src/application/server";
+import type { ServiceRegistry } from "../../src/domain/service-registry";
 
 describe("createServer", () => {
 	beforeEach(() => {
@@ -34,20 +33,20 @@ describe("createServer", () => {
 	});
 
 	it("should create a secure server with full config", () => {
-		const { createSecureServer } = jest.requireMock(
-			"@trading-model/server-utils/server/create-secure-server"
-		) as { createSecureServer: jest.Mock };
+		const { createServiceServer } = jest.requireMock(
+			"@trading-model/server-utils/adapters/inbound/service-server-factory"
+		) as { createServiceServer: jest.Mock };
 		const mockServer = { close: jest.fn() };
-		createSecureServer.mockReturnValue(mockServer);
+		createServiceServer.mockReturnValue(mockServer);
 
-		const result = createServer();
+		const result = createServer({} as ServiceRegistry);
 
-		expect(createSecureServer).toHaveBeenCalledWith({
-			port: 8443,
-			tls: {
-				keyPath: "/certs/key.pem",
-				certPath: "/certs/cert.pem",
-				caPath: "/certs/ca.pem",
+		expect(createServiceServer).toHaveBeenCalledWith({
+			env: {
+				PORT: 8443,
+				TLS_KEY_PATH: "/certs/key.pem",
+				TLS_CERT_PATH: "/certs/cert.pem",
+				TLS_CA_PATH: "/certs/ca.pem",
 			},
 			routes: expect.any(Function),
 		});
@@ -55,9 +54,9 @@ describe("createServer", () => {
 	});
 
 	it("should register heartbeat and registry routes", () => {
-		const { createSecureServer } = jest.requireMock(
-			"@trading-model/server-utils/server/create-secure-server"
-		) as { createSecureServer: jest.Mock };
+		const { createServiceServer } = jest.requireMock(
+			"@trading-model/server-utils/adapters/inbound/service-server-factory"
+		) as { createServiceServer: jest.Mock };
 		const { HEARTBEAT_ROUTES } = jest.requireMock(
 			"../../src/routes/heartbeat.routes"
 		) as {
@@ -70,7 +69,7 @@ describe("createServer", () => {
 		};
 
 		const app = { use: jest.fn() };
-		createSecureServer.mockImplementation(((opts: {
+		createServiceServer.mockImplementation(((opts: {
 			routes: (app: { use: jest.Mock }) => void;
 		}) => {
 			opts.routes(app);
@@ -82,7 +81,7 @@ describe("createServer", () => {
 		HEARTBEAT_ROUTES.mockReturnValue(hrRouter);
 		REGISTRY_ROUTES.mockReturnValue(rrRouter);
 
-		void createServer();
+		void createServer({} as ServiceRegistry);
 
 		expect(app.use).toHaveBeenCalledWith("/", rrRouter);
 		expect(app.use).toHaveBeenCalledWith("/", hrRouter);

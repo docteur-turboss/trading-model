@@ -3,7 +3,7 @@ import {
 	generateInstanceToken,
 	validInstanceToken,
 	verifyInstanceName,
-} from "../../src/core/token-service";
+} from "../../src/shared/token-service";
 
 describe("TokenService re-exports", () => {
 	it("should re-export generateInstanceToken", () => {

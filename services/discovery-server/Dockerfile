@@ -36,4 +36,4 @@ COPY --from=build /app/services/discovery-server/dist ./services/discovery-serve
 
 EXPOSE 3000
 ENTRYPOINT ["/sbin/tini", "--"]
-CMD ["node", "services/discovery-server/dist/app/index.js"]
+CMD ["node", "services/discovery-server/dist/application/index.js"]

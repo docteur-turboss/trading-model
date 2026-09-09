@@ -7,7 +7,7 @@ import {
 	jest,
 } from "@jest/globals";
 
-import { HeartbeatThrottleManager } from "../../src/core/heartbeat-throttle-manager";
+import { HeartbeatThrottleManager } from "../../src/domain/heartbeat-throttle-manager";
 
 describe("HeartbeatThrottleManager", () => {
 	let manager: HeartbeatThrottleManager;

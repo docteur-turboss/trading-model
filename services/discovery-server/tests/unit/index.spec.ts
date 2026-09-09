@@ -1,14 +1,14 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 
-jest.mock("@trading-model/server-utils/server/bootstrap", () => ({
+jest.mock("@trading-model/server-utils/application/services/bootstrap", () => ({
 	createBootstrap: jest.fn(),
 }));
 
-jest.mock("../../src/app/server", () => ({
+jest.mock("../../src/application/server", () => ({
 	createServer: jest.fn(),
 }));
 
-jest.mock("../../src/config/env", () => ({
+jest.mock("../../src/infrastructure/config/env", () => ({
 	ENV: {
 		PORT: 3000,
 		TLS_KEY_PATH: "/key",
@@ -19,11 +19,16 @@ jest.mock("../../src/config/env", () => ({
 	},
 }));
 
-jest.mock("../../src/core/service-registry", () => {
+jest.mock("../../src/domain/service-registry", () => {
 	const { ServiceRegistry } = jest.requireActual(
-		"../../src/core/service-registry"
+		"../../src/domain/service-registry"
 	);
 	return { ServiceRegistry };
+});
+
+jest.mock("../../src/domain/lease-manager", () => {
+	const { LeaseManager } = jest.requireActual("../../src/domain/lease-manager");
+	return { LeaseManager };
 });
 
 describe("app/index", () => {
@@ -33,15 +38,17 @@ describe("app/index", () => {
 
 	it("should call createBootstrap with correct options on load", () => {
 		const { createBootstrap } = jest.requireMock(
-			"@trading-model/server-utils/server/bootstrap"
+			"@trading-model/server-utils/application/services/bootstrap"
 		) as {
 			createBootstrap: jest.Mock;
 		};
-		const { createServer } = jest.requireMock("../../src/app/server") as {
+		const { createServer } = jest.requireMock(
+			"../../src/application/server"
+		) as {
 			createServer: jest.Mock;
 		};
 
-		require("../../src/app/index");
+		require("../../src/application/index");
 
 		expect(createBootstrap).toHaveBeenCalledTimes(1);
 		expect(createBootstrap).toHaveBeenCalledWith({

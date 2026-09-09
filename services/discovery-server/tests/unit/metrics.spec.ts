@@ -38,7 +38,7 @@ import {
 	setRegisteredInstances,
 	setRegisteredInstancesPerService,
 	trackRequest,
-} from "../../src/monitoring/metrics";
+} from "../../src/infrastructure/monitoring/metrics";
 
 describe("metrics", () => {
 	beforeEach(() => {
@@ -100,17 +100,20 @@ describe("metrics", () => {
 		it("should return Prometheus metrics content type", async () => {
 			const req = {} as Request;
 			const res = {
-				setHeader: jest.fn(),
-				end: jest.fn(),
+				set: jest.fn(),
+				send: jest.fn(),
 			} as unknown as Response;
 
-			await METRICS_HANDLER(req, res);
+			METRICS_HANDLER(req, res);
 
-			expect(res.setHeader).toHaveBeenCalledWith(
+			expect(res.set).toHaveBeenCalledWith(
 				"Content-Type",
 				expect.stringContaining("text/plain")
 			);
-			expect(res.end).toHaveBeenCalledWith("mock_metrics 1");
+
+			await new Promise((r) => setImmediate(r));
+
+			expect(res.send).toHaveBeenCalledWith("mock_metrics 1");
 		});
 	});
 

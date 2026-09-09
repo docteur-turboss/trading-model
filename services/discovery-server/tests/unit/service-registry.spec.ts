@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "@jest/globals";
-import { ServiceRegistry } from "../../src/core/service-registry";
+import { ServiceRegistry } from "../../src/domain/service-registry";
 import {
 	otherServiceInstance,
 	secondServiceInstance,

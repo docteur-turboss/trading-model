@@ -31,12 +31,12 @@ import type { ServiceIdentity } from "@trading-model/common/domain/service-ident
 import type {
 	ServiceInstance,
 	ServiceInstanceName,
-} from "@trading-model/validation/contracts/service-registry.types";
+} from "@trading-model/validation/adapters/outbound/service-registry.types";
 import type {
 	CleanupDeps,
 	SyncCleanupDeps,
-} from "../../src/core/stale-instance-cleaner";
-import { StaleInstanceCleaner } from "../../src/core/stale-instance-cleaner";
+} from "../../src/domain/stale-instance-cleaner";
+import { StaleInstanceCleaner } from "../../src/domain/stale-instance-cleaner";
 
 function makeInstance(overrides?: Partial<ServiceInstance>): ServiceInstance {
 	return {
