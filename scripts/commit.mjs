@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { cursorTo, clearScreenDown } from 'node:readline';
+import { SCOPES } from './gitmoji-scopes.mjs';
 
 const GITMOJIS = [
   { emoji: ':sparkles:', code: '✨', name: 'feat', desc: 'New feature' },
@@ -44,49 +45,6 @@ const CATEGORIES = [
   { title: '🔧 Chore', icon: '🔧', start: 18, end: 21 },
   { title: '👷 CI', icon: '👷', start: 22, end: 23 },
   { title: '🔒 Security', icon: '🔒', start: 24, end: 25 },
-];
-
-const SCOPES = [
-  'address-manager',
-  'admin-interface',
-  'api',
-  'api-gateway',
-  'audit-logger',
-  'auth',
-  'broker',
-  'certificate-authority',
-  'certificate-client',
-  'certificate-utils',
-  'common',
-  'config',
-  'core',
-  'database',
-  'deps',
-  'discovery',
-  'discovery-server',
-  'dlq-service',
-  'docs',
-  'docker',
-  'examples',
-  'financial-scraper',
-  'github-actions',
-  'husky',
-  'k8s',
-  'message-manager',
-  'middleware',
-  'multiple',
-  'observability',
-  'release',
-  'router',
-  'scraper',
-  'scripts',
-  'tests',
-  'trader-trainer',
-  'trainer',
-  'types',
-  'utils',
-  'validation',
-  'wallet',
 ];
 
 const stdin = process.stdin;
