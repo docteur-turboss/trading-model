@@ -1,0 +1,122 @@
+name: Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        type: choice
+        options:
+          - staging
+          - production
+      image_tag:
+        description: 'Image tag to deploy (default: staging | latest)'
+        required: false
+        type: string
+      canary:
+        description: 'Enable canary deployment (K8s canary + smoke test + auto rollback)'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-${{ github.event.inputs.environment }}
+  cancel-in-progress: false
+
+env:
+  NAMESPACE: trading-model
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: 'stable'
+
+      - name: Configure kubeconfig
+        shell: bash
+        run: |
+          KUBECONFIG_CONTENT="${{ secrets[format('KUBECONFIG_{0}', github.event.inputs.environment)] }}"
+          if [ -z "$KUBECONFIG_CONTENT" ]; then
+            echo "::error::Missing secret KUBECONFIG_$(echo ${github.event.inputs.environment} | tr '[:lower:]' '[:upper:]')"
+            exit 1
+          fi
+          mkdir -p "$HOME/.kube"
+          echo "$KUBECONFIG_CONTENT" | base64 -d > "$HOME/.kube/config"
+          chmod 600 "$HOME/.kube/config"
+          kubectl cluster-info
+
+      - name: Resolve image tag
+        id: tag
+        shell: bash
+        run: |
+          ENV="${{ github.event.inputs.environment }}"
+          TAG="${{ github.event.inputs.image_tag }}"
+          if [ -z "$TAG" ]; then
+            case "$ENV" in
+              staging) TAG="staging" ;;
+              production) TAG="latest" ;;
+            esac
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "Deploying tag: $TAG to $ENV"
+
+      # Migrations must run before the new image rolls out.
+      - name: Run database migrations
+        shell: bash
+        run: |
+          NS="${{ env.NAMESPACE }}"
+          if [ "${{ github.event.inputs.environment }}" = "staging" ]; then
+            NS="trading-model-staging"
+          fi
+          kubectl create configmap migration-files -n "$NS" \
+            --from-file=migrate.mjs=scripts/migrate.mjs \
+            --from-file=scripts/migrations \
+            --dry-run=client -o yaml | kubectl apply -f -
+          kubectl apply -n "$NS" -f deploy/k8s/jobs/migration-job.yaml
+          kubectl wait --for=condition=complete job/db-migrate -n "$NS" --timeout=180s
+
+      - name: Apply overlay and wait for rollout
+        id: apply
+        shell: bash
+        run: |
+          ENV="${{ github.event.inputs.environment }}"
+          NS="${{ env.NAMESPACE }}"
+          [ "$ENV" = "staging" ] && NS="trading-model-staging"
+          kubectl apply -k "deploy/k8s/overlays/$ENV"
+          for dep in discovery-server message-manager financial-scraper trader-trainer \
+                     api-gateway audit-logger dlq-service admin-interface; do
+            kubectl rollout status "deployment/$dep" -n "$NS" --timeout=180s || true
+          done
+
+      - name: Canary + smoke test (if enabled)
+        if: ${{ github.event.inputs.canary == 'true' }}
+        shell: bash
+        run: |
+          chmod +x deploy/k8s/scripts/deploy-k8s.sh
+          for dep in discovery-server message-manager financial-scraper trader-trainer \
+                     api-gateway audit-logger dlq-service admin-interface; do
+            ./deploy/k8s/scripts/deploy-k8s.sh canary "$dep" 2 || true
+          done
+          ./deploy/k8s/scripts/deploy-k8s.sh smoke-test
+
+      - name: Rollback on failure
+        if: failure()
+        shell: bash
+        run: |
+          ENV="${{ github.event.inputs.environment }}"
+          NS="${{ env.NAMESPACE }}"
+          [ "$ENV" = "staging" ] && NS="trading-model-staging"
+          for dep in discovery-server message-manager financial-scraper trader-trainer \
+                     api-gateway audit-logger dlq-service admin-interface; do
+            kubectl rollout undo "deployment/$dep" -n "$NS" 2>/dev/null || true
+          done
