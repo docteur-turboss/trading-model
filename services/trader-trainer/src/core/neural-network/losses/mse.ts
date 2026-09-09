@@ -1,5 +1,6 @@
 import type { LossConfig } from "../type";
 import { BaseLoss } from "./base-loss";
+import { sumSquaredErrors } from "./squared-error";
 
 export class MeanSquaredError extends BaseLoss {
 	computeLoss(
@@ -7,13 +8,7 @@ export class MeanSquaredError extends BaseLoss {
 		target: Float32Array,
 		_config: Required<LossConfig>
 	): number {
-		const len = output.length;
-		let sum = 0;
-		for (let i = 0; i < len; i++) {
-			const err = target[i] - output[i];
-			sum += err * err;
-		}
-		return sum / len;
+		return sumSquaredErrors(output, target) / output.length;
 	}
 
 	computeGradient(

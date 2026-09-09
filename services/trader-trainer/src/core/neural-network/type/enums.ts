@@ -1,7 +1,7 @@
 import {
 	ActivationFn,
 	Optimizer as OptimizerType,
-} from "@trading-model/validation/contracts/admin/training.dto";
+} from "@trading-model/validation/adapters/inbound/admin/training.dto";
 
 export { OptimizerType };
 

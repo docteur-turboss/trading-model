@@ -1,11 +1,11 @@
 import { existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
 import { logger } from "@trading-model/common/config/logger";
 import type {
 	FilePath,
 	TradingSymbol,
 } from "@trading-model/common/domain/primitives";
 import { type Price, toSymbol } from "@trading-model/common/domain/primitives";
+import { bufferStatePath, logBufferCheckpointError } from "./buffer-checkpoint";
 import type { SymbolStateSerializable } from "./buffer-serializable-types";
 import {
 	MarketDataBuffer,
@@ -18,14 +18,14 @@ export class BufferLoader {
 	constructor(private readonly _checkpointDir: FilePath) {}
 
 	private _bufferStatePath(): string {
-		return join(this._checkpointDir, "market_data_buffer.json");
+		return bufferStatePath(this._checkpointDir);
 	}
 
 	load(config?: MarketDataBufferConfig): MarketDataBuffer | null {
 		try {
 			return this._doLoadBuffer(config);
 		} catch (err) {
-			this._logBufferLoadError(err);
+			logBufferCheckpointError("load", err);
 			return null;
 		}
 	}
@@ -47,14 +47,6 @@ export class BufferLoader {
 			},
 		});
 		return buffer;
-	}
-
-	private _logBufferLoadError(err: unknown): void {
-		logger.error("Failed to load market data buffer checkpoint", {
-			context: {
-				error: err instanceof Error ? err.message : String(err),
-			},
-		});
 	}
 
 	private _readBufferState(path: string): {

@@ -9,12 +9,13 @@ import type { SymbolState, TradingSymbol } from "./market-data-types";
 import type { MemoryConfig } from "./memory-config";
 import { NormalizationManager } from "./normalization-manager";
 
-export interface SymbolStateManagerConfig extends MemoryConfig {}
+export type SymbolStateManagerConfig = MemoryConfig;
 
 export class SymbolStateManager {
 	readonly states: Map<TradingSymbol, SymbolState> = new Map();
 	private readonly _memoryManager: MemoryManager;
 	private readonly _normManager: NormalizationManager;
+	private readonly _handlers: DataHandler[];
 	private readonly _handlerMap: Record<DataType, DataHandler>;
 	private readonly _evictionPolicy: EvictionPolicy;
 
@@ -26,9 +27,9 @@ export class SymbolStateManager {
 			evictionPolicy: config.evictionPolicy,
 		});
 		this._normManager = new NormalizationManager(handlers);
-		const defaultHandlers = handlers ?? createDefaultHandlers();
+		this._handlers = handlers ?? createDefaultHandlers();
 		this._handlerMap = Object.fromEntries(
-			defaultHandlers.map((handler) => [handler.dataType, handler])
+			this._handlers.map((handler) => [handler.dataType, handler])
 		) as Record<DataType, DataHandler>;
 	}
 
@@ -56,8 +57,10 @@ export class SymbolStateManager {
 
 	private _createSymbolState(): SymbolState {
 		return {
-			candles: [],
-			trades: [],
+			...Object.assign(
+				{},
+				...this._handlers.map((handler) => handler.createState())
+			),
 			norm: this._normManager.createNormStats(),
 		};
 	}
@@ -103,10 +106,10 @@ export class SymbolStateManager {
 		if (!state) {
 			return 0;
 		}
-		const candleBytes = state.candles.length * 200;
-		const tradeBytes = state.trades.length * 100;
-		const orderBookBytes = state.orderBook ? 5000 : 0;
-		return candleBytes + tradeBytes + orderBookBytes;
+		return this._handlers.reduce(
+			(total, handler) => total + handler.estimateMemoryBytes(state),
+			0
+		);
 	}
 
 	getSymbols(): TradingSymbol[] {

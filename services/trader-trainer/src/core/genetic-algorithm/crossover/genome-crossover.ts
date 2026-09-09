@@ -1,6 +1,5 @@
 import type { LamarckGenome } from "../genome-fitness";
-import { crossoverNetwork } from "../genome-network";
-import { crossoverRL } from "../genome-rl";
+import { GENOME_SECTIONS } from "../genome-sections";
 import { crossoverMutation } from "./crossover-mutation";
 
 export { crossoverMutation } from "./crossover-mutation";
@@ -17,13 +16,13 @@ export function crossoverGenomes(
 
 	return {
 		...parentA,
-		network: crossoverNetwork({
-			left: parentA.network,
-			right: parentB.network,
+		network: GENOME_SECTIONS.network.crossover(
+			parentA.network,
+			parentB.network,
 			co,
-			rng,
-		}),
-		rl: crossoverRL({ left: parentA.rl, right: parentB.rl, co, rng }),
+			rng
+		),
+		rl: GENOME_SECTIONS.rl.crossover(parentA.rl, parentB.rl, co, rng),
 		mutation: crossoverMutation(parentA.mutation, parentB.mutation, rng),
 	};
 }

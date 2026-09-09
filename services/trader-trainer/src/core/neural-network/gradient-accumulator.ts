@@ -61,32 +61,20 @@ export class GradientAccumulator {
 	}
 
 	averageAndApply(layer: LayerMemory, numSamples: number): void {
-		this._scaleGradients(
-			layer.accumGradW,
-			layer.accumGradB,
-			layer.gradW,
-			layer.gradB,
-			numSamples
-		);
+		this._scaleGradients(layer, numSamples);
 		this._applyWeightOptimizerStep(layer);
 		this._applyBiasOptimizerStep(layer);
 		layer.accumGradW.fill(0);
 		layer.accumGradB.fill(0);
 	}
 
-	private _scaleGradients(
-		accumGradW: Float32Array,
-		accumGradB: Float32Array,
-		gradW: Float32Array,
-		gradB: Float32Array,
-		numSamples: number
-	): void {
+	private _scaleGradients(layer: LayerMemory, numSamples: number): void {
 		const scale = 1 / numSamples;
-		for (let i = 0; i < accumGradW.length; i++) {
-			gradW[i] = accumGradW[i] * scale;
+		for (let i = 0; i < layer.accumGradW.length; i++) {
+			layer.gradW[i] = layer.accumGradW[i] * scale;
 		}
-		for (let i = 0; i < accumGradB.length; i++) {
-			gradB[i] = accumGradB[i] * scale;
+		for (let i = 0; i < layer.accumGradB.length; i++) {
+			layer.gradB[i] = layer.accumGradB[i] * scale;
 		}
 	}
 

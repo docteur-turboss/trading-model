@@ -15,7 +15,7 @@ export {
 } from "@trading-model/common/domain/primitives";
 export { NormalizationStats };
 
-import { FEATURE_DIM } from "./feature-vector";
+import { FEATURE_DIM } from "./feature-vector-codec";
 
 export { FEATURE_DIM };
 

@@ -48,17 +48,50 @@ export interface BestAgentSummary {
 	};
 }
 
-export class LastTrainingInfo {
-	constructor(
-		readonly symbol: TradingSymbol,
-		readonly bestGenome: DeepReadonly<LamarckGenome>,
-		readonly bestFitness: Fitness,
-		readonly bestFitnessMeta: GenomeFitnessMeta | undefined,
-		readonly generation: PositiveInt,
-		readonly generationContext: GenerationContext | null
-	) {}
+export interface LastTrainingInfoData {
+	symbol: TradingSymbol;
+	bestGenome: DeepReadonly<LamarckGenome>;
+	bestFitness: Fitness;
+	bestFitnessMeta: GenomeFitnessMeta | undefined;
+	generation: PositiveInt;
+	generationContext: GenerationContext | null;
+}
 
-	buildBestAgentSummary(): BestAgentSummary {
+export interface TrainingSnapshot {
+	readonly symbol: TradingSymbol;
+	readonly generation: PositiveInt;
+	readonly generationContext: GenerationContext | null;
+	buildBestAgentSummary(): BestAgentSummary | null;
+}
+
+export class NullLastTrainingInfo implements TrainingSnapshot {
+	readonly symbol: TradingSymbol = "" as TradingSymbol;
+	readonly generation: PositiveInt = 0 as unknown as PositiveInt;
+	readonly generationContext: GenerationContext | null = null;
+
+	buildBestAgentSummary(): BestAgentSummary | null {
+		return null;
+	}
+}
+
+export class LastTrainingInfo implements TrainingSnapshot {
+	readonly symbol: TradingSymbol;
+	readonly bestGenome: DeepReadonly<LamarckGenome>;
+	readonly bestFitness: Fitness;
+	readonly bestFitnessMeta: GenomeFitnessMeta | undefined;
+	readonly generation: PositiveInt;
+	readonly generationContext: GenerationContext | null;
+
+	constructor(data: LastTrainingInfoData) {
+		this.symbol = data.symbol;
+		this.bestGenome = data.bestGenome;
+		this.bestFitness = data.bestFitness;
+		this.bestFitnessMeta = data.bestFitnessMeta;
+		this.generation = data.generation;
+		this.generationContext = data.generationContext;
+	}
+
+	buildBestAgentSummary(): BestAgentSummary | null {
 		return buildSummary(
 			this.bestGenome,
 			this.bestFitness,

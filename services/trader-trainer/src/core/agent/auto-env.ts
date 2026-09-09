@@ -1,11 +1,12 @@
 import type { Price } from "@trading-model/common/domain/primitives";
+import type TradingAgent from "../../domain/agent/trading-agent";
 import type { WalletMetrics } from "../env/wallet-manager";
-import type TradingAgent from "./trading-agent";
+import type { TradeAction } from "./action-types";
 
 /** Configuration for the autonomous environment coupler. */
 export interface AutoEnvConfig {
 	onStep?: (res: {
-		action: string;
+		action: TradeAction;
 		reward: number;
 		metrics: WalletMetrics;
 	}) => void;

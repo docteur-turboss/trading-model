@@ -1,8 +1,10 @@
 import { logger } from "@trading-model/common/config/logger";
 import { Cash, Price, Volume } from "@trading-model/common/domain/primitives";
 import type { Experience } from "../../core/neural-network/type";
+import TradingAgent, {
+	type TradingAgentConfig,
+} from "../../domain/agent/trading-agent";
 import { ActionSpace } from "../agent/action-types";
-import TradingAgent, { type TradingAgentConfig } from "../agent/trading-agent";
 import type { FeatureVector } from "../feature-vector";
 import { ConnectionType, InitialisationType } from "../neural-network/type";
 import type { DeepReadonly, LamarckGenome } from "./shared-types";

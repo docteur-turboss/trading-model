@@ -25,8 +25,8 @@ export class WalletConfig {
 
 	constructor(params: WalletConfigParams) {
 		const resolved: Required<WalletConfigParams> = {
-			initialCash: Cash.of(Number(params.initialCash)),
-			initialPrice: Price.of(Number(params.initialPrice)),
+			initialCash: Cash.of(params.initialCash),
+			initialPrice: Price.of(params.initialPrice),
 			feeRate: Percentage.of(params.feeRate ?? Percentage.zero()),
 			maxPosition: Volume.of(params.maxPosition ?? Volume.of(Number.MAX_VALUE)),
 			decimals: params.decimals ?? DecimalPrecision.of(8),

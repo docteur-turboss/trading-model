@@ -48,7 +48,10 @@ const ACTION_SPACE_STRATEGIES: Record<ActionSpace, ActionSpaceStrategy> = {
 		}
 		return {
 			action: DISCRETE_ACTIONS.get(idx) ?? TradeAction.Hold,
-			amount: idx === 1 ? Volume.zero() : Volume.of(amount),
+			amount:
+				DISCRETE_ACTIONS.get(idx) === TradeAction.Hold
+					? Volume.zero()
+					: Volume.of(amount),
 		};
 	},
 };

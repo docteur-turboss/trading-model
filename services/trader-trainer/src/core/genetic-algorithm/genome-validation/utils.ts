@@ -14,7 +14,6 @@ export const VALID_ACTIVATIONS = new Set([
 	ActivationType.Elu,
 	ActivationType.Mish,
 	ActivationType.Gelu,
-	ActivationType.Softmax,
 ]);
 export const VALID_CONNECTION_TYPES = new Set([
 	ConnectionType.DenseSkip,

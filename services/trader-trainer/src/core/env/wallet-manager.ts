@@ -8,8 +8,9 @@ import { TradeExecutor } from "./trade-executor";
 import { type TradeRecord, TradeRecorder } from "./trade-recorder";
 import { WalletConfig, type WalletConfigParams } from "./wallet-config";
 import {
-	ComputeWalletMetricsParams,
+	type ComputeWalletMetricsParams,
 	type WalletMetrics,
+	WalletMetricsComputer,
 } from "./wallet-metrics";
 
 export type { TradeRecord, WalletConfigParams as WalletConfig, WalletMetrics };
@@ -80,16 +81,17 @@ export class Wallet implements WalletAPI {
 	}
 
 	getMetrics(): WalletMetrics {
-		return new ComputeWalletMetricsParams(
-			this._executor.cash,
-			this._executor.position,
-			this._executor.price,
-			this._recorder.getPeakValuation(),
-			this._config.initialCash,
-			this._recorder.getTotalFeesPaid(),
-			this._recorder.getTradeCount() as unknown as PositiveInt,
-			this._config.decimals
-		).compute();
+		const params: ComputeWalletMetricsParams = {
+			cash: this._executor.cash,
+			position: this._executor.position,
+			price: this._executor.price,
+			peakValuation: this._recorder.getPeakValuation(),
+			initialCash: this._config.initialCash,
+			totalFeesPaid: this._recorder.getTotalFeesPaid(),
+			tradeCount: this._recorder.getTradeCount() as unknown as PositiveInt,
+			decimals: this._config.decimals,
+		};
+		return new WalletMetricsComputer(params).compute();
 	}
 
 	getHistory(): Readonly<TradeRecord[]> {

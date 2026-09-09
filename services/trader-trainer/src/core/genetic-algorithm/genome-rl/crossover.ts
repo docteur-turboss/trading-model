@@ -141,37 +141,27 @@ export function crossoverRL(ctx: {
 	const { left, right, co, rng } = ctx;
 	const crossoverFn = (valueA: number, valueB: number) =>
 		crossoverScalar({ left: valueA, right: valueB, co, rng });
+	const section = <TLeft, TRight>(left: TLeft, right: TRight) => ({
+		left,
+		right,
+		crossoverFn,
+		rng,
+	});
 
 	return {
 		..._crossoverGammaAndLR(left, right, crossoverFn),
-		rewardShaping: crossoverRewardShaping({
-			left: left.rewardShaping,
-			right: right.rewardShaping,
-			crossoverFn,
-			rng,
-		}),
-		horizon: crossoverHorizon({
-			left: left.horizon,
-			right: right.horizon,
-			crossoverFn,
-		}),
-		discretePolicy: crossoverDiscretePolicy({
-			left: left.discretePolicy,
-			right: right.discretePolicy,
-			crossoverFn,
-			rng,
-		}),
-		continuousPolicy: crossoverContinuousPolicy({
-			left: left.continuousPolicy,
-			right: right.continuousPolicy,
-			crossoverFn,
-			rng,
-		}),
-		replayBuffer: crossoverReplayBuffer({
-			left: left.replayBuffer,
-			right: right.replayBuffer,
-			crossoverFn,
-			rng,
-		}),
+		rewardShaping: crossoverRewardShaping(
+			section(left.rewardShaping, right.rewardShaping)
+		),
+		horizon: crossoverHorizon(section(left.horizon, right.horizon)),
+		discretePolicy: crossoverDiscretePolicy(
+			section(left.discretePolicy, right.discretePolicy)
+		),
+		continuousPolicy: crossoverContinuousPolicy(
+			section(left.continuousPolicy, right.continuousPolicy)
+		),
+		replayBuffer: crossoverReplayBuffer(
+			section(left.replayBuffer, right.replayBuffer)
+		),
 	};
 }

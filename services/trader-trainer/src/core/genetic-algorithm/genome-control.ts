@@ -210,30 +210,27 @@ function buildAdjustedControl(
 		...ctrl,
 		population: {
 			...ctrl.population,
-			size: adjustPopulationSize(
-				ctrl.population.size as unknown as number,
-				stagnation,
-				isImproving
+			size: PositiveInt.of(
+				adjustPopulationSize(ctrl.population.size, stagnation, isImproving)
 			),
-			elitismFraction: adjustElitism(
-				ctrl.population.elitismFraction as unknown as number,
-				stagnation,
-				isImproving
+			elitismFraction: Probability.of(
+				adjustElitism(ctrl.population.elitismFraction, stagnation, isImproving)
 			),
-			survivorFraction: adjustSurvivors(
-				ctrl.population.survivorFraction as unknown as number,
-				stagnation
+			survivorFraction: Probability.of(
+				adjustSurvivors(ctrl.population.survivorFraction, stagnation)
 			),
 		},
 		evaluation: {
 			...ctrl.evaluation,
-			episodesPerIndividual: adjustEpisodes(
-				ctrl.evaluation.episodesPerIndividual as unknown as number,
-				stagnation,
-				isImproving
+			episodesPerIndividual: PositiveInt.of(
+				adjustEpisodes(
+					ctrl.evaluation.episodesPerIndividual,
+					stagnation,
+					isImproving
+				)
 			),
 		},
-	} as GAControlGenome;
+	};
 }
 
 export function adaptGAControl(
@@ -265,15 +262,13 @@ export function checkTerminationConditions(
 	ctx: TerminationCheckContext
 ): StopCondition {
 	const { generation, bestFitness, stagnation, elapsedMs, ctrl } = ctx;
-	if (bestFitness >= (ctrl.termination.rewardThreshold as unknown as number)) {
+	if (bestFitness >= ctrl.termination.rewardThreshold) {
 		return { shouldStop: true, reason: "Reward threshold reached" };
 	}
-	if (
-		stagnation >= (ctrl.termination.stagnationPatience as unknown as number)
-	) {
+	if (stagnation >= ctrl.termination.stagnationPatience) {
 		return { shouldStop: true, reason: "Stagnation patience exceeded" };
 	}
-	if (generation >= (ctrl.termination.maxGenerations as unknown as number)) {
+	if (generation >= ctrl.termination.maxGenerations) {
 		return { shouldStop: true, reason: "Max generations reached" };
 	}
 	if (elapsedMs >= ctrl.termination.timeBudgetMs) {

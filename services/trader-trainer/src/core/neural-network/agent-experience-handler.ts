@@ -1,7 +1,7 @@
 import type { Reward } from "@trading-model/common/domain/primitives";
 import { agentError } from "@trading-model/common/utils/errors";
+import type { NeuralNetwork } from "../../domain/neural-network/neural-network";
 import { createExperiencePool, type IExperiencePool } from "./experience-pool";
-import type { NeuralNetwork } from "./neural-network";
 import { computeQLearningTarget } from "./q-value-computer";
 import type {
 	Experience,

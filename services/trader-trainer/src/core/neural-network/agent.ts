@@ -1,6 +1,6 @@
 import { agentError } from "@trading-model/common/utils/errors";
+import { NeuralNetwork } from "../../domain/neural-network/neural-network";
 import { AgentExperienceHandler } from "./agent-experience-handler";
-import { NeuralNetwork } from "./neural-network";
 import { ScoreTracker } from "./score-tracker";
 import type { NetworkArchitecture, NeuralNetworkConfig } from "./type";
 

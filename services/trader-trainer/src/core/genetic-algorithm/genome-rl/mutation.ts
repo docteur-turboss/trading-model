@@ -18,6 +18,20 @@ export interface MutateRLContext {
 	rng: () => number;
 }
 
+/**
+ * Mutates a discrete step parameter (e.g. nStepReturn, frameSkip).
+ * First rng draw gates the mutation (< 0.1), second picks direction (< 0.5 => +1).
+ */
+export function mutateDiscreteStepParam(
+	value: number,
+	rng: () => number
+): number {
+	return Math.max(
+		1,
+		Math.round(value + (rng() < 0.1 ? (rng() < 0.5 ? 1 : -1) : 0))
+	);
+}
+
 function _perturbFn(
 	mutation: MutationGenome,
 	rng: () => number
@@ -79,10 +93,7 @@ function _mutateMaxEpisodeLength(
 }
 
 function _mutateDiscreteStepParam(value: number, rng: () => number): number {
-	return Math.max(
-		1,
-		Math.round(value + (rng() < 0.1 ? (rng() < 0.5 ? 1 : -1) : 0))
-	);
+	return mutateDiscreteStepParam(value, rng);
 }
 
 function _mutateHorizon(

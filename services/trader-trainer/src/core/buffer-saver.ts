@@ -1,10 +1,10 @@
 import { writeFileSync } from "node:fs";
-import { join } from "node:path";
 import { logger } from "@trading-model/common/config/logger";
 import type {
 	FilePath,
 	TradingSymbol,
 } from "@trading-model/common/domain/primitives";
+import { bufferStatePath, logBufferCheckpointError } from "./buffer-checkpoint";
 import type { SymbolStateSerializable } from "./buffer-serializable-types";
 import {
 	createDefaultHandlers,
@@ -21,14 +21,14 @@ export class BufferSaver {
 	}
 
 	private _bufferStatePath(): string {
-		return join(this._checkpointDir, "market_data_buffer.json");
+		return bufferStatePath(this._checkpointDir);
 	}
 
 	save(buffer: MarketDataBuffer): void {
 		try {
 			this._doSaveBuffer(buffer);
 		} catch (err) {
-			this._logBufferSaveError(err);
+			logBufferCheckpointError("save", err);
 		}
 	}
 
@@ -90,14 +90,6 @@ export class BufferSaver {
 		this._writeBufferState(symbols, symbolsData, buffer.getPriceSnapshot());
 		logger.info("Market data buffer checkpoint saved", {
 			context: { symbols: symbols.length, path: this._bufferStatePath() },
-		});
-	}
-
-	private _logBufferSaveError(err: unknown): void {
-		logger.error("Failed to save market data buffer checkpoint", {
-			context: {
-				error: err instanceof Error ? err.message : String(err),
-			},
 		});
 	}
 }

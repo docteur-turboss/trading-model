@@ -1,5 +1,4 @@
 import type {
-	Cash,
 	DecimalPrecision,
 	Percentage,
 	Price,
@@ -7,40 +6,26 @@ import type {
 } from "@trading-model/common/domain/primitives";
 import type { WalletConfigParams } from "./wallet-config";
 
-function _validateInitialCash(initialCash: Cash): void {
-	if (!Number.isFinite(Number(initialCash)) || Number(initialCash) < 0) {
-		throw new Error(`Invalid initialCash: ${initialCash}`);
-	}
-}
-
 function _validateInitialPrice(initialPrice: Price): void {
-	if (!Number.isFinite(Number(initialPrice)) || Number(initialPrice) <= 0) {
+	if (!Number.isFinite(initialPrice) || initialPrice <= 0) {
 		throw new Error(`Invalid initialPrice: ${initialPrice}`);
 	}
 }
 
 function _validateFeeRate(feeRate: Percentage): void {
-	if (
-		!Number.isFinite(Number(feeRate)) ||
-		Number(feeRate) < 0 ||
-		Number(feeRate) >= 1
-	) {
+	if (!Number.isFinite(feeRate) || feeRate < 0 || feeRate >= 1) {
 		throw new Error(`Invalid feeRate: ${feeRate}. Must be in [0, 1[`);
 	}
 }
 
 function _validateMaxPosition(maxPosition: Volume): void {
-	if (Number(maxPosition) <= 0) {
+	if (maxPosition <= 0) {
 		throw new Error(`Invalid maxPosition: ${maxPosition}`);
 	}
 }
 
 function _validateDecimals(decimals: DecimalPrecision): void {
-	if (
-		!Number.isInteger(Number(decimals)) ||
-		Number(decimals) < 1 ||
-		Number(decimals) > 15
-	) {
+	if (!Number.isInteger(decimals) || decimals < 1 || decimals > 15) {
 		throw new Error(
 			`Invalid decimals: ${decimals}. Must be an integer in [1, 15]`
 		);
@@ -48,7 +33,6 @@ function _validateDecimals(decimals: DecimalPrecision): void {
 }
 
 export function validateConfig(config: Required<WalletConfigParams>): void {
-	_validateInitialCash(config.initialCash);
 	_validateInitialPrice(config.initialPrice);
 	_validateFeeRate(config.feeRate);
 	_validateMaxPosition(config.maxPosition);

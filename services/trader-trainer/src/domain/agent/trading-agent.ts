@@ -1,15 +1,20 @@
 import { Cash, Price, Volume } from "@trading-model/common/domain/primitives";
+import { ActionMapper } from "../../core/agent/action-mapper";
+import { type ActionSpace, TradeAction } from "../../core/agent/action-types";
+import StateManager, {
+	type StateManagerConfig,
+} from "../../core/agent/state-manager";
 import {
 	createWallet,
 	type WalletAPI,
 	type WalletConfig,
 	type WalletMetrics,
-} from "../env/wallet-manager";
-import { Agent } from "../neural-network/agent";
-import type { Experience, NeuralNetworkConfig } from "../neural-network/type";
-import { ActionMapper } from "./action-mapper";
-import { type ActionSpace, TradeAction } from "./action-types";
-import StateManager, { type StateManagerConfig } from "./state-manager";
+} from "../../core/env/wallet-manager";
+import { Agent } from "../../core/neural-network/agent";
+import type {
+	Experience,
+	NeuralNetworkConfig,
+} from "../../core/neural-network/type";
 
 export interface TradingAgentConfig {
 	nnConfig: NeuralNetworkConfig;
@@ -27,6 +32,7 @@ const ACTION_EXECUTORS: Record<TradeAction, ActionExecutor> = {
 	[TradeAction.Sell]: (wallet: WalletAPI, amount: Volume) =>
 		wallet.sell(Volume.of(amount)),
 	[TradeAction.Hold]: () => false,
+	[TradeAction.None]: () => false,
 };
 
 export class TradingAgent {
@@ -58,7 +64,7 @@ export class TradingAgent {
 	public step(
 		input: Float32Array,
 		price?: Price
-	): { action: TradeAction | "none"; reward: number; metrics: WalletMetrics } {
+	): { action: TradeAction; reward: number; metrics: WalletMetrics } {
 		if (price !== undefined) {
 			this.wallet.setPrice(price);
 		}
@@ -73,7 +79,7 @@ export class TradingAgent {
 		this.state.decayEpsilon();
 
 		return {
-			action: executed ? action : "none",
+			action: executed ? action : TradeAction.None,
 			reward,
 			metrics: this.wallet.getMetrics(),
 		};

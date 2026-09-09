@@ -1,8 +1,9 @@
 import {
 	Cash,
-	DecimalPrecision,
+	type DecimalPrecision,
 } from "@trading-model/common/domain/primitives";
 import type { PortfolioState, ValuationConfig } from "./portfolio-state";
+import { computePnL, computeValuation } from "./portfolio-valuation";
 
 export class ValuationTracker {
 	private readonly _history: Cash[] = [];
@@ -25,27 +26,25 @@ export class ValuationTracker {
 	}
 
 	computeValuation(state: PortfolioState): Cash {
-		return Cash.of(
-			DecimalPrecision.round(
-				Number(state.cash) + state.position * state.price,
-				this._decimals
-			)
+		return computeValuation(
+			state.cash,
+			state.position,
+			state.price,
+			this._decimals
 		);
 	}
 
 	computePnL(state: PortfolioState): Cash {
-		const valuation = this.computeValuation(state);
-		return Cash.of(
-			DecimalPrecision.round(
-				Number(valuation) - Number(this._initialCash),
-				this._decimals
-			)
+		return computePnL(
+			this.computeValuation(state),
+			this._initialCash,
+			this._decimals
 		);
 	}
 
 	getPeakValuation(): Cash {
 		return this._history.length > 0
-			? Cash.of(Math.max(...this._history.map((val) => Number(val))))
+			? Cash.of(Math.max(...this._history))
 			: this._initialCash;
 	}
 

@@ -3,7 +3,7 @@ import {
 	type Price,
 	type Volume,
 } from "@trading-model/common/domain/primitives";
-import type { TradeSide } from "@trading-model/validation/contracts/market-data.types";
+import type { TradeSide } from "@trading-model/validation/shared/contracts/market-data.types";
 
 export interface TradeRecord {
 	step: number;
@@ -42,9 +42,7 @@ export class TradeHistory {
 	}
 
 	record(trade: Omit<TradeRecord, "step">): void {
-		this._totalFeesPaid = Cash.of(
-			Number(this._totalFeesPaid) + Number(trade.fee)
-		);
+		this._totalFeesPaid = Cash.add(this._totalFeesPaid, trade.fee);
 		this._tradeCount++;
 		this._history.push({
 			step: this._step,

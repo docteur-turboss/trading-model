@@ -39,13 +39,12 @@ export interface NetworkGenome {
 
 function _validateEnumField(
 	ctx: ValidationContext,
-	path: string,
 	value: unknown,
 	validSet: Set<unknown>,
 	label: string
 ): void {
 	if (!validSet.has(value)) {
-		err({ ...ctx, path }, `unknown ${label}`, value);
+		err(ctx, `unknown ${label}`, value);
 	}
 }
 
@@ -65,22 +64,19 @@ export function validateLayer(
 ): void {
 	checkPositiveInt({ ...ctx, path: `${ctx.path}.neurons` }, layer.neurons);
 	_validateEnumField(
-		ctx,
-		`${ctx.path}.activation`,
+		{ ...ctx, path: `${ctx.path}.activation` },
 		layer.activation,
 		VALID_ACTIVATIONS,
 		"activation type"
 	);
 	_validateEnumField(
-		ctx,
-		`${ctx.path}.connectionType`,
+		{ ...ctx, path: `${ctx.path}.connectionType` },
 		layer.connectionType,
 		VALID_CONNECTION_TYPES,
 		"connection type"
 	);
 	_validateEnumField(
-		ctx,
-		`${ctx.path}.biasType`,
+		{ ...ctx, path: `${ctx.path}.biasType` },
 		layer.biasType,
 		VALID_BIAS_TYPES,
 		"bias type"

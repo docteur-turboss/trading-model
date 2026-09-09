@@ -1,5 +1,5 @@
 import { Probability } from "@trading-model/common/domain/primitives";
-import type { NeuralNetwork } from "../neural-network/neural-network";
+import type { NeuralNetwork } from "../../domain/neural-network/neural-network";
 
 interface GenomeTarget {
 	nn: Pick<NeuralNetwork, "setWeights" | "distributeAroundWeights">;

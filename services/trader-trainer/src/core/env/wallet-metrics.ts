@@ -1,11 +1,12 @@
 import {
-	Cash,
+	type Cash,
 	DecimalPrecision,
 	Percentage,
 	type PositiveInt,
 	type Price,
 	type Volume,
 } from "@trading-model/common/domain/primitives";
+import { computePnL, computeValuation } from "./portfolio-valuation";
 
 export interface WalletMetrics {
 	pnl: Cash;
@@ -16,48 +17,53 @@ export interface WalletMetrics {
 	tradeCount: PositiveInt;
 }
 
-export class ComputeWalletMetricsParams {
-	constructor(
-		readonly cash: Cash,
-		readonly position: Volume,
-		readonly price: Price,
-		readonly peakValuation: Cash,
-		readonly initialCash: Cash,
-		readonly totalFeesPaid: Cash,
-		readonly tradeCount: PositiveInt,
-		readonly decimals: DecimalPrecision
-	) {}
+export interface ComputeWalletMetricsParams {
+	cash: Cash;
+	position: Volume;
+	price: Price;
+	peakValuation: Cash;
+	initialCash: Cash;
+	totalFeesPaid: Cash;
+	tradeCount: PositiveInt;
+	decimals: DecimalPrecision;
+}
+
+export class WalletMetricsComputer {
+	constructor(private readonly _params: ComputeWalletMetricsParams) {}
 
 	private _computeValuation(): Cash {
-		return Cash.of(
-			DecimalPrecision.round(
-				Number(this.cash) + this.position * Number(this.price),
-				this.decimals
-			)
+		return computeValuation(
+			this._params.cash,
+			this._params.position,
+			this._params.price,
+			this._params.decimals
 		);
 	}
 
 	private _computePnL(valuation: Cash): Cash {
-		return DecimalPrecision.round(
-			Number(valuation) - Number(this.initialCash),
-			this.decimals
-		) as Cash;
+		return computePnL(
+			valuation,
+			this._params.initialCash,
+			this._params.decimals
+		);
 	}
 
 	private _computeReturnRate(valuation: Cash): Percentage {
-		return DecimalPrecision.round(
-			(Number(valuation) - Number(this.initialCash)) / Number(this.initialCash),
-			this.decimals
-		) as unknown as Percentage;
+		const ratio =
+			(valuation - this._params.initialCash) / this._params.initialCash;
+		const rounded = DecimalPrecision.round(ratio, this._params.decimals);
+		return Number.isFinite(rounded)
+			? Percentage.of(rounded)
+			: (rounded as Percentage);
 	}
 
 	private _computeDrawdown(valuation: Cash): Percentage {
 		return Percentage.of(
-			Number(this.peakValuation) > 0
+			this._params.peakValuation > 0
 				? DecimalPrecision.round(
-						(Number(this.peakValuation) - Number(valuation)) /
-							Number(this.peakValuation),
-						this.decimals
+						(this._params.peakValuation - valuation) /
+							this._params.peakValuation,
+						this._params.decimals
 					)
 				: 0
 		);
@@ -68,10 +74,10 @@ export class ComputeWalletMetricsParams {
 		return {
 			pnl: this._computePnL(valuation),
 			returnRate: this._computeReturnRate(valuation),
-			peakValuation: this.peakValuation,
+			peakValuation: this._params.peakValuation,
 			drawdown: this._computeDrawdown(valuation),
-			totalFeesPaid: this.totalFeesPaid,
-			tradeCount: this.tradeCount,
+			totalFeesPaid: this._params.totalFeesPaid,
+			tradeCount: this._params.tradeCount,
 		};
 	}
 }

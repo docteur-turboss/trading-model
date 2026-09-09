@@ -1,4 +1,8 @@
-import type { Price } from "@trading-model/common/domain/primitives";
+import {
+	Percentage,
+	PositiveInt,
+	type Price,
+} from "@trading-model/common/domain/primitives";
 import { buildFeatures as buildFeaturesFn } from "../feature-builder";
 import type { WindowSet } from "../genetic-algorithm/generation-types";
 import type { MarketStep } from "../genetic-algorithm/genome-types";
@@ -6,10 +10,10 @@ import type { SymbolState, TradingSymbol } from "../market-data-types";
 import type { MarketDataContext } from "./market-data-context";
 
 /** Minimum number of market steps required before training can start. */
-export const MIN_TRAINING_STEPS = 10;
+export const MIN_TRAINING_STEPS = PositiveInt.of(10);
 
 /** Default fraction of data held out for validation during training. */
-export const DEFAULT_VALIDATION_SPLIT = 0.2;
+export const DEFAULT_VALIDATION_SPLIT = Percentage.of(0.2);
 
 /** Handles building market steps and train/validation window splitting. */
 export class WindowSplitter {

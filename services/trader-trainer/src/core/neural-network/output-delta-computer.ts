@@ -3,44 +3,40 @@ import type { OutputDeltasContext } from "./backprop-engine";
 import { LOSSES } from "./losses";
 import type { NeuralNetworkConfig } from "./type";
 import { ActivationType } from "./type";
+import { clipGradients } from "./utils";
+
+interface OutputDeltaNeuronContext {
+	output: Float32Array;
+	target: Float32Array;
+	outputZ: Float32Array;
+	lossGrad: Float32Array;
+	activation: ActivationType;
+}
 
 export class OutputDeltaComputer {
 	constructor(private readonly _config: Required<NeuralNetworkConfig>) {}
 
 	private _computeOutputDeltaForNeuron(
 		idx: number,
-		output: Float32Array,
-		target: Float32Array,
-		outputZ: Float32Array,
-		lossGrad: Float32Array,
-		activation: ActivationType
+		ctx: OutputDeltaNeuronContext
 	): number {
-		if (activation === ActivationType.Softmax) {
-			return output[idx] - target[idx];
+		if (ctx.activation === ActivationType.Softmax) {
+			return ctx.output[idx] - ctx.target[idx];
 		}
 		return (
-			lossGrad[idx] *
-			this._activationDerivative(output[idx], outputZ[idx], activation)
+			ctx.lossGrad[idx] *
+			this._activationDerivative(
+				ctx.output[idx],
+				ctx.outputZ[idx],
+				ctx.activation
+			)
 		);
 	}
 
-	private _computeOutputDeltas(
-		output: Float32Array,
-		target: Float32Array,
-		outputZ: Float32Array,
-		lossGrad: Float32Array,
-		activation: ActivationType
-	): Float32Array {
-		const delta = new Float32Array(output.length);
-		for (let j = 0; j < output.length; j++) {
-			delta[j] = this._computeOutputDeltaForNeuron(
-				j,
-				output,
-				target,
-				outputZ,
-				lossGrad,
-				activation
-			);
+	private _computeOutputDeltas(ctx: OutputDeltaNeuronContext): Float32Array {
+		const delta = new Float32Array(ctx.output.length);
+		for (let j = 0; j < ctx.output.length; j++) {
+			delta[j] = this._computeOutputDeltaForNeuron(j, ctx);
 		}
 		return delta;
 	}
@@ -48,13 +44,13 @@ export class OutputDeltaComputer {
 	compute(ctx: OutputDeltasContext): Float32Array {
 		const { outputZ, output, target, activation } = ctx;
 		const lossGrad = this._computeLossGradient(output, target);
-		const delta = this._computeOutputDeltas(
+		const delta = this._computeOutputDeltas({
+			outputZ,
 			output,
 			target,
-			outputZ,
 			lossGrad,
-			activation
-		);
+			activation,
+		});
 		return this._clipGradients(delta);
 	}
 
@@ -81,26 +77,7 @@ export class OutputDeltaComputer {
 		delta: Float32Array,
 		maxNorm: number = this._config.gradientClipNorm
 	): Float32Array {
-		if (maxNorm <= 0) {
-			return delta;
-		}
-		const data = delta;
-
-		let sum = 0;
-		for (const _value of data) {
-			sum += _value * _value;
-		}
-		const norm = Math.sqrt(sum);
-
-		if (norm > maxNorm) {
-			const scale = maxNorm / norm;
-			for (let i = 0; i < data.length; i++) {
-				data[i] *= scale;
-			}
-			return data;
-		}
-
-		return data;
+		return clipGradients(delta, maxNorm);
 	}
 
 	private _activationDerivative(

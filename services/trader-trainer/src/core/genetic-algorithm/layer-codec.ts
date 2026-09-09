@@ -6,62 +6,40 @@ enum LayerField {
 	ConnectionType = 2,
 }
 
-export const LAYER_STRIDE = 3;
+export const LAYER_STRIDE = LayerField.ConnectionType + 1;
 
-class ActivationCodec {
-	private readonly _toCode: Map<ActivationType, number>;
-	private readonly _fromCode: Map<number, ActivationType>;
-	private readonly _default: ActivationType;
+class EnumCodec<TValue extends string> {
+	private readonly _toCode: Map<TValue, number>;
+	private readonly _fromCode: Map<number, TValue>;
+	private readonly _default: TValue;
 
-	constructor(entries: [number, ActivationType][], default_: ActivationType) {
+	constructor(entries: [number, TValue][], default_: TValue) {
 		this._fromCode = new Map(entries);
 		this._toCode = new Map(entries.map(([key, value]) => [value, key]));
 		this._default = default_;
 	}
 
-	encode(type: ActivationType): number {
+	encode(type: TValue): number {
 		return this._toCode.get(type) ?? this._toCode.get(this._default)!;
 	}
 
-	decode(code: number): ActivationType {
+	decode(code: number): TValue {
 		return this._fromCode.get(Math.round(code)) ?? this._default;
 	}
 
-	allValues(): ActivationType[] {
+	allValues(): TValue[] {
 		return Array.from(this._toCode.keys());
 	}
 }
 
-class ConnectionTypeCodec {
-	private readonly _toCode: Map<ConnectionType, number>;
-	private readonly _fromCode: Map<number, ConnectionType>;
-	private readonly _default: ConnectionType;
-
-	constructor(entries: [number, ConnectionType][], default_: ConnectionType) {
-		this._fromCode = new Map(entries);
-		this._toCode = new Map(entries.map(([key, value]) => [value, key]));
-		this._default = default_;
-	}
-
-	encode(type: ConnectionType): number {
-		return this._toCode.get(type) ?? this._toCode.get(this._default)!;
-	}
-
-	decode(code: number): ConnectionType {
-		return this._fromCode.get(Math.round(code)) ?? this._default;
-	}
-
-	allValues(): ConnectionType[] {
-		return Array.from(this._toCode.keys());
-	}
-}
-
-const ACTIVATION_CODEC = new ActivationCodec(
-	Object.values(ActivationType).map((type, index) => [index, type]),
+const ACTIVATION_CODEC = new EnumCodec<ActivationType>(
+	Object.values(ActivationType)
+		.filter((type) => type !== ActivationType.Softmax)
+		.map((type, index) => [index, type]),
 	ActivationType.Relu
 );
 
-const CONNECTION_TYPE_CODEC = new ConnectionTypeCodec(
+const CONNECTION_TYPE_CODEC = new EnumCodec<ConnectionType>(
 	Object.values(ConnectionType).map((type, index) => [index, type]),
 	ConnectionType.DenseSkip
 );

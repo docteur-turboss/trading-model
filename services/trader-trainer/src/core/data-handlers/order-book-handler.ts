@@ -3,11 +3,24 @@ import {
 	getAvgBid,
 	type OrderBookData,
 } from "@trading-model/common/config/event.types";
+import { NormalizationStats } from "../normalization-stats";
 import type { DataHandler } from "./data-handler";
 import { DataType } from "./data-types";
 
 export const orderBookHandler: DataHandler<OrderBookData> = {
 	dataType: DataType.OrderBook,
+	createState() {
+		return { orderBook: undefined };
+	},
+	createNorms() {
+		return {
+			book: {
+				bid: new NormalizationStats(),
+				ask: new NormalizationStats(),
+				spread: new NormalizationStats(),
+			},
+		};
+	},
 	updateNorms(state, orderBook) {
 		const avgBid = getAvgBid(orderBook);
 		const avgAsk = getAvgAsk(orderBook);
@@ -23,6 +36,9 @@ export const orderBookHandler: DataHandler<OrderBookData> = {
 	},
 	mutateState({ data, state }) {
 		state.orderBook = data;
+	},
+	estimateMemoryBytes(state) {
+		return state.orderBook ? 5000 : 0;
 	},
 	serializeNorms(state) {
 		return {

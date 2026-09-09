@@ -1,7 +1,6 @@
 import type { LossConfig } from "../type";
+import { EPSILON } from "../utils";
 import { BaseLoss } from "./base-loss";
-
-const EPSILON = 1e-10;
 
 export class CrossEntropyLoss extends BaseLoss {
 	computeLoss(

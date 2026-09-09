@@ -19,7 +19,6 @@ export const MAX_DEPTH = 12;
 interface ScalarFieldDef<
 	TKey extends keyof DecodedScalars = keyof DecodedScalars,
 > {
-	name: string;
 	key: TKey;
 	accessor: (genome: Genome) => number;
 	encode: (value: number) => number;
@@ -58,7 +57,6 @@ const SCALAR_FIELDS: {
 	[TKey in keyof DecodedScalars]: ScalarFieldDef<TKey>;
 }[keyof DecodedScalars][] = [
 	{
-		name: "Gamma",
 		key: "gamma",
 		accessor: (genome) => genome.rl.gamma,
 		encode: (value) => value,
@@ -66,7 +64,6 @@ const SCALAR_FIELDS: {
 		clamp: new NumericRange(0.8, 0.9999),
 	},
 	{
-		name: "LearningRate",
 		key: "learningRate",
 		accessor: (genome) => genome.rl.learningRate,
 		encode: (value) => (Math.log10(value) / 6 + 1) / 2,
@@ -74,7 +71,6 @@ const SCALAR_FIELDS: {
 		clamp: new NumericRange(1e-6, 1e-1),
 	},
 	{
-		name: "ClipMin",
 		key: "clipMin",
 		accessor: (genome) => genome.rl.rewardShaping.clipBounds.lo,
 		encode: (value) => value,
@@ -82,7 +78,6 @@ const SCALAR_FIELDS: {
 		clamp: new NumericRange(Number.NEGATIVE_INFINITY, Number.POSITIVE_INFINITY),
 	},
 	{
-		name: "ClipMax",
 		key: "clipMax",
 		accessor: (genome) => genome.rl.rewardShaping.clipBounds.hi,
 		encode: (value) => value,
@@ -90,7 +85,6 @@ const SCALAR_FIELDS: {
 		clamp: new NumericRange(Number.NEGATIVE_INFINITY, Number.POSITIVE_INFINITY),
 	},
 	{
-		name: "ScaleFactor",
 		key: "scaleFactor",
 		accessor: (genome) => genome.rl.rewardShaping.scaleFactor,
 		encode: (value) => (Math.log10(value) / 3 + 1) / 2,
@@ -98,7 +92,6 @@ const SCALAR_FIELDS: {
 		clamp: new NumericRange(0.001, 1000),
 	},
 	{
-		name: "MaxEpisodeLength",
 		key: "maxEpisodeLength",
 		accessor: (genome) => genome.rl.horizon.maxEpisodeLength,
 		encode: (value) => value / 2_000,
@@ -107,7 +100,6 @@ const SCALAR_FIELDS: {
 		round: true,
 	},
 	{
-		name: "NStepReturn",
 		key: "nStepReturn",
 		accessor: (genome) => genome.rl.horizon.nStepReturn,
 		encode: (value) => value / 20,
@@ -116,7 +108,6 @@ const SCALAR_FIELDS: {
 		round: true,
 	},
 	{
-		name: "FrameSkip",
 		key: "frameSkip",
 		accessor: (genome) => genome.rl.horizon.frameSkip,
 		encode: (value) => value / 10,
@@ -125,7 +116,6 @@ const SCALAR_FIELDS: {
 		round: true,
 	},
 	{
-		name: "EpsilonStart",
 		key: "epsilonStart",
 		accessor: (genome) => genome.rl.discretePolicy.epsilonStart,
 		encode: (value) => value,
@@ -133,7 +123,6 @@ const SCALAR_FIELDS: {
 		clamp: new NumericRange(0.1, 1.0),
 	},
 	{
-		name: "EpsilonMin",
 		key: "epsilonMin",
 		accessor: (genome) => genome.rl.discretePolicy.epsilonMin,
 		encode: (value) => value / 0.2,
@@ -141,7 +130,6 @@ const SCALAR_FIELDS: {
 		clamp: new NumericRange(0.001, 0.2),
 	},
 	{
-		name: "EpsilonDecay",
 		key: "epsilonDecay",
 		accessor: (genome) => genome.rl.discretePolicy.epsilonDecay,
 		encode: (value) => value,
@@ -149,7 +137,6 @@ const SCALAR_FIELDS: {
 		clamp: new NumericRange(0.9, 0.9999),
 	},
 	{
-		name: "Temperature",
 		key: "temperature",
 		accessor: (genome) => genome.rl.discretePolicy.temperature,
 		encode: (value) => Math.log10(value) / 2 + 0.5,
@@ -157,7 +144,6 @@ const SCALAR_FIELDS: {
 		clamp: new NumericRange(0.01, 100),
 	},
 	{
-		name: "NoiseStd",
 		key: "noiseStd",
 		accessor: (genome) => genome.rl.continuousPolicy.noiseStd,
 		encode: (value) => value / 5,
@@ -165,7 +151,6 @@ const SCALAR_FIELDS: {
 		clamp: new NumericRange(0.001, 5),
 	},
 	{
-		name: "NoiseDecay",
 		key: "noiseDecay",
 		accessor: (genome) => genome.rl.continuousPolicy.noiseDecay,
 		encode: (value) => value,
@@ -173,7 +158,6 @@ const SCALAR_FIELDS: {
 		clamp: new NumericRange(0.9, 0.9999),
 	},
 	{
-		name: "BufferSize",
 		key: "bufferSize",
 		accessor: (genome) => genome.rl.replayBuffer.bufferSize,
 		encode: (value) => Math.log10(value) / 6,
@@ -182,7 +166,6 @@ const SCALAR_FIELDS: {
 		round: true,
 	},
 	{
-		name: "AlphaPER",
 		key: "alphaPER",
 		accessor: (genome) => genome.rl.replayBuffer.alphaPER,
 		encode: (value) => value,
@@ -190,7 +173,6 @@ const SCALAR_FIELDS: {
 		clamp: new NumericRange(0, 1),
 	},
 	{
-		name: "BetaPER",
 		key: "betaPER",
 		accessor: (genome) => genome.rl.replayBuffer.betaPER,
 		encode: (value) => value,
@@ -198,7 +180,6 @@ const SCALAR_FIELDS: {
 		clamp: new NumericRange(0, 1),
 	},
 	{
-		name: "MutationRate",
 		key: "mutationRate",
 		accessor: (genome) => genome.mutation.rates.rate,
 		encode: (value) => value / 0.5,
@@ -206,7 +187,6 @@ const SCALAR_FIELDS: {
 		clamp: new NumericRange(0.001, 0.5),
 	},
 	{
-		name: "MutationSigma",
 		key: "sigma",
 		accessor: (genome) => genome.mutation.rates.sigma,
 		encode: (value) => Math.log10(Math.max(1e-5, value)) / 4 + 1.25,
@@ -214,7 +194,6 @@ const SCALAR_FIELDS: {
 		clamp: new NumericRange(1e-5, 10),
 	},
 	{
-		name: "MutationSelfSigma",
 		key: "selfSigma",
 		accessor: (genome) => genome.mutation.rates.selfSigma,
 		encode: (value) => Math.log10(Math.max(1e-5, value)) / 4 + 1.25,
@@ -222,7 +201,6 @@ const SCALAR_FIELDS: {
 		clamp: new NumericRange(1e-5, 10),
 	},
 	{
-		name: "NetworkInputDim",
 		key: "inputDim",
 		accessor: (genome) => genome.network.inputDim,
 		encode: (value) => value / 256,
@@ -231,7 +209,6 @@ const SCALAR_FIELDS: {
 		round: true,
 	},
 	{
-		name: "NetworkOutputDim",
 		key: "outputDim",
 		accessor: (genome) => genome.network.outputDim,
 		encode: (value) => value / 64,
@@ -240,7 +217,6 @@ const SCALAR_FIELDS: {
 		round: true,
 	},
 	{
-		name: "NetworkDepth",
 		key: "depth",
 		accessor: (genome) => genome.network.hiddenLayers.length,
 		encode: (value) => value / MAX_DEPTH,
@@ -261,14 +237,14 @@ export function layerOffset(layerIndex: number): number {
 }
 
 function decodeScalars(arr: Float32Array): DecodedScalars {
-	const result: Record<string, number> = {};
+	const result: Partial<Record<keyof DecodedScalars, number>> = {};
 	for (let i = 0; i < SCALAR_FIELDS.length; i++) {
 		const field = SCALAR_FIELDS[i];
 		const decoded = field.decode(arr[i]);
 		const clamped = field.clamp.clamp(decoded);
 		result[field.key] = field.round ? Math.round(clamped) : clamped;
 	}
-	return result as unknown as DecodedScalars;
+	return result as DecodedScalars;
 }
 
 function writeLayers(arr: Float32Array, net: Genome["network"]): void {
@@ -309,9 +285,11 @@ export function encodePopulation(population: Genome[]): Float32Array {
 	return mat;
 }
 
-export function decodeGenome(vec: Float32Array, template: Genome): Genome {
-	const scalars = decodeScalars(vec);
-	const depth = scalars.depth;
+function decodeHiddenLayers(
+	vec: Float32Array,
+	template: Genome,
+	depth: number
+): Genome["network"]["hiddenLayers"] {
 	const hiddenLayers: Genome["network"]["hiddenLayers"] = [];
 	for (let i = 0; i < depth; i++) {
 		const enc = readEncodedLayer(vec, layerOffset(i));
@@ -324,6 +302,97 @@ export function decodeGenome(vec: Float32Array, template: Genome): Genome {
 			biasType,
 		});
 	}
+	return hiddenLayers;
+}
+
+function decodeRewardShaping(
+	scalars: DecodedScalars,
+	template: Genome
+): Genome["rl"]["rewardShaping"] {
+	return {
+		...template.rl.rewardShaping,
+		clipBounds: new NumericRange(
+			Math.min(scalars.clipMin, scalars.clipMax - 1e-6),
+			Math.max(scalars.clipMax, scalars.clipMin + 1e-6)
+		),
+		scaleFactor: Percentage.of(scalars.scaleFactor),
+	};
+}
+
+function decodeHorizon(scalars: DecodedScalars): Genome["rl"]["horizon"] {
+	return {
+		maxEpisodeLength: PositiveInt.of(scalars.maxEpisodeLength),
+		nStepReturn: PositiveInt.of(scalars.nStepReturn),
+		frameSkip: PositiveInt.of(scalars.frameSkip),
+	};
+}
+
+function decodeDiscretePolicy(
+	scalars: DecodedScalars,
+	template: Genome
+): Genome["rl"]["discretePolicy"] {
+	return {
+		...template.rl.discretePolicy,
+		epsilonStart: Probability.of(scalars.epsilonStart),
+		epsilonMin: Probability.of(scalars.epsilonMin),
+		epsilonDecay: Probability.of(scalars.epsilonDecay),
+		temperature: Temperature.of(scalars.temperature),
+	};
+}
+
+function decodeContinuousPolicy(
+	scalars: DecodedScalars,
+	template: Genome
+): Genome["rl"]["continuousPolicy"] {
+	return {
+		...template.rl.continuousPolicy,
+		noiseStd: NoiseStd.of(scalars.noiseStd),
+		noiseDecay: Probability.of(scalars.noiseDecay),
+	};
+}
+
+function decodeReplayBuffer(
+	scalars: DecodedScalars,
+	template: Genome
+): Genome["rl"]["replayBuffer"] {
+	return {
+		...template.rl.replayBuffer,
+		bufferSize: PositiveInt.of(scalars.bufferSize),
+		alphaPER: Probability.of(scalars.alphaPER),
+		betaPER: Probability.of(scalars.betaPER),
+	};
+}
+
+function decodeRL(scalars: DecodedScalars, template: Genome): Genome["rl"] {
+	return {
+		gamma: Probability.of(scalars.gamma),
+		learningRate: Percentage.of(scalars.learningRate),
+		rewardShaping: decodeRewardShaping(scalars, template),
+		horizon: decodeHorizon(scalars),
+		discretePolicy: decodeDiscretePolicy(scalars, template),
+		continuousPolicy: decodeContinuousPolicy(scalars, template),
+		replayBuffer: decodeReplayBuffer(scalars, template),
+	};
+}
+
+function decodeMutation(
+	scalars: DecodedScalars,
+	template: Genome
+): Genome["mutation"] {
+	return {
+		...template.mutation,
+		rates: {
+			...template.mutation.rates,
+			rate: Percentage.of(scalars.mutationRate),
+			sigma: Percentage.of(scalars.sigma),
+			selfSigma: Percentage.of(scalars.selfSigma),
+		},
+	};
+}
+
+export function decodeGenome(vec: Float32Array, template: Genome): Genome {
+	const scalars = decodeScalars(vec);
+	const hiddenLayers = decodeHiddenLayers(vec, template, scalars.depth);
 	const network: Genome["network"] = {
 		inputDim: PositiveInt.of(scalars.inputDim),
 		outputDim: PositiveInt.of(scalars.outputDim),
@@ -334,50 +403,8 @@ export function decodeGenome(vec: Float32Array, template: Genome): Genome {
 		id: template.id,
 		generation: template.generation as PositiveInt,
 		network,
-		rl: {
-			gamma: Probability.of(scalars.gamma),
-			learningRate: Percentage.of(scalars.learningRate),
-			rewardShaping: {
-				...template.rl.rewardShaping,
-				clipBounds: new NumericRange(
-					Math.min(scalars.clipMin, scalars.clipMax - 1e-6),
-					Math.max(scalars.clipMax, scalars.clipMin + 1e-6)
-				),
-				scaleFactor: Percentage.of(scalars.scaleFactor),
-			},
-			horizon: {
-				maxEpisodeLength: PositiveInt.of(scalars.maxEpisodeLength),
-				nStepReturn: PositiveInt.of(scalars.nStepReturn),
-				frameSkip: PositiveInt.of(scalars.frameSkip),
-			},
-			discretePolicy: {
-				...template.rl.discretePolicy,
-				epsilonStart: Probability.of(scalars.epsilonStart),
-				epsilonMin: Probability.of(scalars.epsilonMin),
-				epsilonDecay: Probability.of(scalars.epsilonDecay),
-				temperature: Temperature.of(scalars.temperature),
-			},
-			continuousPolicy: {
-				...template.rl.continuousPolicy,
-				noiseStd: NoiseStd.of(scalars.noiseStd),
-				noiseDecay: Probability.of(scalars.noiseDecay),
-			},
-			replayBuffer: {
-				...template.rl.replayBuffer,
-				bufferSize: PositiveInt.of(scalars.bufferSize),
-				alphaPER: Probability.of(scalars.alphaPER),
-				betaPER: Probability.of(scalars.betaPER),
-			},
-		},
-		mutation: {
-			...template.mutation,
-			rates: {
-				...template.mutation.rates,
-				rate: Percentage.of(scalars.mutationRate),
-				sigma: Percentage.of(scalars.sigma),
-				selfSigma: Percentage.of(scalars.selfSigma),
-			},
-		},
+		rl: decodeRL(scalars, template),
+		mutation: decodeMutation(scalars, template),
 		crossover: { ...template.crossover },
 		gaControl: { ...template.gaControl },
 	};

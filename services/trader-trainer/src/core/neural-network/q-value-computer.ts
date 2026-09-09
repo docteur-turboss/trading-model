@@ -1,4 +1,4 @@
-import type { NeuralNetwork } from "./neural-network";
+import type { NeuralNetwork } from "../../domain/neural-network/neural-network";
 import type { QLearningExperience } from "./type";
 
 export function computeQLearningTarget(

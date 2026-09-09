@@ -50,13 +50,9 @@ export interface Optimizer {
 	step(options: OptimizerStepOptions): void;
 }
 
-export const SGD = new SgdOptimizer();
-export const ADAM = new AdamOptimizer();
-export const RMSPROP = new RmspropOptimizer();
-
 export const OPTIMIZERS: Record<OptimizerType, Optimizer> = {
-	[OptimizerType.Sgd]: SGD,
-	[OptimizerType.Adam]: ADAM,
-	[OptimizerType.Adamw]: ADAM,
-	[OptimizerType.Rmsprop]: RMSPROP,
+	[OptimizerType.Sgd]: new SgdOptimizer(),
+	[OptimizerType.Adam]: new AdamOptimizer(),
+	[OptimizerType.Adamw]: new AdamOptimizer(),
+	[OptimizerType.Rmsprop]: new RmspropOptimizer(),
 };

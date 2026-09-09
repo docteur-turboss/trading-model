@@ -1,4 +1,4 @@
-import type {
+import {
 	TradingSymbol,
 	UnixTimestamp,
 } from "@trading-model/common/domain/primitives";
@@ -30,8 +30,7 @@ export class CheckpointSerializer {
 		return {
 			savedAt: Date.now() as UnixTimestamp,
 			symbol: target.symbol,
-			generation:
-				(target.genome.generation as unknown as number | undefined) ?? 0,
+			generation: target.genome.generation ?? 0,
 			fitness,
 		};
 	}
@@ -40,10 +39,10 @@ export class CheckpointSerializer {
 		try {
 			const meta = JSON.parse(raw);
 			return {
-				symbol: meta.symbol as TradingSymbol,
-				generation: meta.generation,
-				fitness: meta.fitness,
-				savedAt: meta.savedAt as UnixTimestamp,
+				symbol: TradingSymbol.of(meta.symbol),
+				generation: meta.generation as number,
+				fitness: meta.fitness as number,
+				savedAt: UnixTimestamp.of(meta.savedAt),
 			};
 		} catch {
 			return null;

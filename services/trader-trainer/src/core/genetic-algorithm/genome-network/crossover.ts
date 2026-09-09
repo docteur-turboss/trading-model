@@ -28,15 +28,20 @@ function _crossoverExcessLayer(
 	return rng() < 0.5 ? { ...longer[idx] } : null;
 }
 
+interface HiddenLayerCrossoverContext {
+	minLen: number;
+	maxLen: number;
+	longer: LayerGenome[];
+	left: NetworkGenome;
+	right: NetworkGenome;
+	crossoverFn: (valueA: number, valueB: number) => number;
+	rng: () => number;
+}
+
 function _crossoverHiddenLayers(
-	minLen: number,
-	maxLen: number,
-	longer: LayerGenome[],
-	left: NetworkGenome,
-	right: NetworkGenome,
-	crossoverFn: (valueA: number, valueB: number) => number,
-	rng: () => number
+	ctx: HiddenLayerCrossoverContext
 ): LayerGenome[] {
+	const { minLen, maxLen, longer, left, right, crossoverFn, rng } = ctx;
 	const hiddenLayers: LayerGenome[] = [];
 	for (let i = 0; i < maxLen; i++) {
 		if (i >= minLen) {
@@ -77,15 +82,15 @@ export function crossoverNetwork(ctx: {
 
 	return {
 		...left,
-		hiddenLayers: _crossoverHiddenLayers(
+		hiddenLayers: _crossoverHiddenLayers({
 			minLen,
 			maxLen,
 			longer,
 			left,
 			right,
 			crossoverFn,
-			rng
-		),
+			rng,
+		}),
 		normalization: rng() < 0.5 ? left.normalization : right.normalization,
 	};
 }

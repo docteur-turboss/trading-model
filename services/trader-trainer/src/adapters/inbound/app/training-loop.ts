@@ -1,7 +1,8 @@
+import { DurationMs } from "@trading-model/common/domain/primitives";
 import { TimerHandle } from "@trading-model/common/utils/timer-handle";
-import type { MarketDataBuffer } from "../core/market-data-buffer";
-import type { TradingSymbol } from "../core/market-data-types";
-import type { Trainer } from "../core/trainer";
+import type { MarketDataBuffer } from "../../../core/market-data-buffer";
+import type { TradingSymbol } from "../../../core/market-data-types";
+import type { Trainer } from "../../../core/trainer";
 
 const MIN_CANDLE_RATIO = 0.1;
 
@@ -23,7 +24,10 @@ export class TrainingLoop {
 		const runTraining = () => this._runTrainingForSymbols(symbols);
 
 		void runTraining();
-		this._trainingInterval.startInterval(runTraining, intervalMs);
+		this._trainingInterval.startInterval(
+			runTraining,
+			DurationMs.of(intervalMs)
+		);
 	}
 
 	private _hasEnoughData(symbol: TradingSymbol): boolean {

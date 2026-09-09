@@ -8,55 +8,87 @@ function _coin<TValue>(
 	return rng() < 0.5 ? valueA : valueB;
 }
 
+function _coinField<TSection, TKey extends keyof TSection>(
+	left: TSection,
+	right: TSection,
+	key: TKey,
+	rng: () => number
+): TSection[TKey] {
+	return _coin(left[key], right[key], rng);
+}
+
+function _crossoverRates(
+	left: MutationGenome,
+	right: MutationGenome,
+	rng: () => number
+): MutationGenome["rates"] {
+	return {
+		rate: _coinField(left.rates, right.rates, "rate", rng),
+		sigma: _coinField(left.rates, right.rates, "sigma", rng),
+		noiseStd: _coinField(left.rates, right.rates, "noiseStd", rng),
+		selfSigma: _coinField(left.rates, right.rates, "selfSigma", rng),
+		activationMutationRate: _coinField(
+			left.rates,
+			right.rates,
+			"activationMutationRate",
+			rng
+		),
+	};
+}
+
+function _crossoverStructural(
+	left: MutationGenome,
+	right: MutationGenome,
+	rng: () => number
+): MutationGenome["structural"] {
+	return {
+		addNeuronRate: _coinField(
+			left.structural,
+			right.structural,
+			"addNeuronRate",
+			rng
+		),
+		removeNeuronRate: _coinField(
+			left.structural,
+			right.structural,
+			"removeNeuronRate",
+			rng
+		),
+		addLayerRate: _coinField(
+			left.structural,
+			right.structural,
+			"addLayerRate",
+			rng
+		),
+		removeLayerRate: _coinField(
+			left.structural,
+			right.structural,
+			"removeLayerRate",
+			rng
+		),
+		addConnectionRate: _coinField(
+			left.structural,
+			right.structural,
+			"addConnectionRate",
+			rng
+		),
+		removeConnectionRate: _coinField(
+			left.structural,
+			right.structural,
+			"removeConnectionRate",
+			rng
+		),
+	};
+}
+
 export function crossoverMutation(
 	left: MutationGenome,
 	right: MutationGenome,
 	rng: () => number
 ): MutationGenome {
 	return {
-		rates: {
-			rate: _coin(left.rates.rate, right.rates.rate, rng),
-			sigma: _coin(left.rates.sigma, right.rates.sigma, rng),
-			noiseStd: _coin(left.rates.noiseStd, right.rates.noiseStd, rng),
-			selfSigma: _coin(left.rates.selfSigma, right.rates.selfSigma, rng),
-			activationMutationRate: _coin(
-				left.rates.activationMutationRate,
-				right.rates.activationMutationRate,
-				rng
-			),
-		},
-		structural: {
-			addNeuronRate: _coin(
-				left.structural.addNeuronRate,
-				right.structural.addNeuronRate,
-				rng
-			),
-			removeNeuronRate: _coin(
-				left.structural.removeNeuronRate,
-				right.structural.removeNeuronRate,
-				rng
-			),
-			addLayerRate: _coin(
-				left.structural.addLayerRate,
-				right.structural.addLayerRate,
-				rng
-			),
-			removeLayerRate: _coin(
-				left.structural.removeLayerRate,
-				right.structural.removeLayerRate,
-				rng
-			),
-			addConnectionRate: _coin(
-				left.structural.addConnectionRate,
-				right.structural.addConnectionRate,
-				rng
-			),
-			removeConnectionRate: _coin(
-				left.structural.removeConnectionRate,
-				right.structural.removeConnectionRate,
-				rng
-			),
-		},
+		rates: _crossoverRates(left, right, rng),
+		structural: _crossoverStructural(left, right, rng),
 		distribution: _coin(left.distribution, right.distribution, rng),
 		adaptation: _coin(left.adaptation, right.adaptation, rng),
 		scope: _coin(left.scope, right.scope, rng),

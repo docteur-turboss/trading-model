@@ -3,7 +3,7 @@ import {
 	PositiveInt,
 	Ratio,
 } from "@trading-model/common/domain/primitives";
-
+import { computeAvgPnl } from "../genome-summary-builder";
 import {
 	computeAdjustedFitness,
 	estimateComplexity,
@@ -26,10 +26,7 @@ export function lamarckianUpdate(
 }
 
 function computeFitness(scores: number[]): number {
-	if (scores.length === 0) {
-		return 0;
-	}
-	return new EpisodeScores(scores).mean();
+	return computeAvgPnl(scores);
 }
 
 export interface ComputeAllResultsContext {

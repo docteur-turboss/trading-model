@@ -84,19 +84,20 @@ function _isDominated(
 	);
 }
 
-function _sampleDomination(
-	objectives: ObjectiveVector[],
-	dominated: Int32Array,
-	idx: number,
-	sampleSize: number,
-	rng: () => number
-): void {
-	const pool = _buildPool(objectives.length, idx);
-	for (let sample = 0; sample < sampleSize; sample++) {
-		const pick = sample + Math.floor(rng() * (pool.length - sample));
+interface SamplingState {
+	objectives: ObjectiveVector[];
+	dominated: Int32Array;
+	sampleSize: number;
+	rng: () => number;
+}
+
+function _sampleDomination(state: SamplingState, idx: number): void {
+	const pool = _buildPool(state.objectives.length, idx);
+	for (let sample = 0; sample < state.sampleSize; sample++) {
+		const pick = sample + Math.floor(state.rng() * (pool.length - sample));
 		[pool[sample], pool[pick]] = [pool[pick], pool[sample]];
-		if (_isDominated(objectives, pool[sample], idx)) {
-			dominated[idx]++;
+		if (_isDominated(state.objectives, pool[sample], idx)) {
+			state.dominated[idx]++;
 		}
 	}
 }
@@ -108,9 +109,10 @@ function nondominatedSortApprox(
 	const count = objectives.length;
 	const sampleSize = Math.min(count - 1, Math.ceil(Math.sqrt(count) * 4));
 	const dominated = new Int32Array(count);
+	const state: SamplingState = { objectives, dominated, sampleSize, rng };
 
 	for (let i = 0; i < count; i++) {
-		_sampleDomination(objectives, dominated, i, sampleSize, rng);
+		_sampleDomination(state, i);
 	}
 
 	return Array.from(dominated);
@@ -151,20 +153,6 @@ function _computeCrowdingRange(
 	);
 }
 
-function _accumulateCrowdingDistances(
-	sorted: number[],
-	key: keyof ObjectiveVector,
-	objectives: ObjectiveVector[],
-	crowding: number[],
-	range: number
-): void {
-	for (let mid = 1; mid < sorted.length - 1; mid++) {
-		crowding[sorted[mid]] +=
-			(objectives[sorted[mid + 1]][key] - objectives[sorted[mid - 1]][key]) /
-			range;
-	}
-}
-
 function _computeCrowdingForObjective(
 	key: keyof ObjectiveVector,
 	objectives: ObjectiveVector[],
@@ -178,7 +166,11 @@ function _computeCrowdingForObjective(
 	if (range === 0) {
 		return;
 	}
-	_accumulateCrowdingDistances(sorted, key, objectives, crowding, range);
+	for (let mid = 1; mid < sorted.length - 1; mid++) {
+		crowding[sorted[mid]] +=
+			(objectives[sorted[mid + 1]][key] - objectives[sorted[mid - 1]][key]) /
+			range;
+	}
 }
 
 function assignCrowding(

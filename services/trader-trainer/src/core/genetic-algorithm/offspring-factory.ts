@@ -35,13 +35,18 @@ interface ProduceOneOffspringParams {
 	generation: number;
 }
 
+interface CrossoverAndMutateWeightsParams {
+	pA: LamarckGenome;
+	pB: LamarckGenome;
+	newCtrl: DeepReadonly<GAControlGenome>;
+	coRng: () => number;
+	mutRng: () => number;
+}
+
 function _crossoverAndMutateWeights(
-	pA: LamarckGenome,
-	pB: LamarckGenome,
-	newCtrl: DeepReadonly<GAControlGenome>,
-	coRng: () => number,
-	mutRng: () => number
+	params: CrossoverAndMutateWeightsParams
 ): Float32Array | undefined {
+	const { pA, pB, newCtrl, coRng, mutRng } = params;
 	if (!(pA.trainedWeights && pB.trainedWeights)) {
 		return;
 	}
@@ -81,13 +86,13 @@ function produceOneOffspring(
 	const pB = selectParent(ranked, newCtrl.selectionType, rng);
 
 	const childStruct = mutateGenome(crossoverGenomes(pA, pB, coRng), mutRng);
-	const childWeights = _crossoverAndMutateWeights(
+	const childWeights = _crossoverAndMutateWeights({
 		pA,
 		pB,
 		newCtrl,
 		coRng,
-		mutRng
-	);
+		mutRng,
+	});
 
 	return _buildOffspringGenome(childStruct, newCtrl, generation, childWeights);
 }

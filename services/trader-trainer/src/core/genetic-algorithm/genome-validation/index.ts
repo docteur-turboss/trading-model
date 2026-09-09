@@ -8,8 +8,7 @@ import type {
 	ValidationError,
 	ValidationResult,
 } from "../genome";
-import { repairNetwork, validateNetwork } from "../genome-network";
-import { repairRL, validateRL } from "../genome-rl";
+import { GENOME_SECTIONS } from "../genome-sections";
 import {
 	repairCrossover,
 	repairGAControl,
@@ -24,8 +23,8 @@ export function validateGenome(genome: Genome): ValidationResult {
 	const errors: ValidationError[] = [];
 	const ctx: ValidationContext = { errors, path: "" };
 	validateIdentity(ctx, genome);
-	validateNetwork(ctx, genome.network);
-	validateRL(ctx, genome.rl);
+	GENOME_SECTIONS.network.validate(ctx, genome.network);
+	GENOME_SECTIONS.rl.validate(ctx, genome.rl);
 	validateMutation(ctx, genome.mutation);
 	validateCrossover(ctx, genome.crossover);
 	validateGAControl(ctx, genome.gaControl);
@@ -39,8 +38,8 @@ export function repairGenome(genome: Genome): Genome {
 				? genome.id
 				: ("repaired" as unknown as GenomeId),
 		generation: Math.max(0, Math.round(genome.generation ?? 0)) as PositiveInt,
-		network: repairNetwork(genome.network),
-		rl: repairRL(genome.rl),
+		network: GENOME_SECTIONS.network.repair(genome.network),
+		rl: GENOME_SECTIONS.rl.repair(genome.rl),
 		mutation: repairMutation(genome.mutation),
 		crossover: repairCrossover(genome.crossover),
 		gaControl: repairGAControl(genome.gaControl),

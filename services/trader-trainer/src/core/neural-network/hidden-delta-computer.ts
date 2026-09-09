@@ -5,6 +5,15 @@ import type {
 	LayerMemory,
 	NeuralNetworkConfig,
 } from "./type";
+import { clipGradients } from "./utils";
+
+interface NeuronDeltaContext {
+	next: LayerMemory;
+	nextDeltas: Float32Array;
+	currentOutput: Float32Array;
+	currentZ: Float32Array;
+	activation: ActivationType;
+}
 
 export class HiddenDeltaComputer {
 	constructor(
@@ -26,17 +35,13 @@ export class HiddenDeltaComputer {
 
 	private _computeNeuronDelta(
 		neuronIdx: number,
-		next: LayerMemory,
-		nextDeltas: Float32Array,
-		currentOutput: Float32Array,
-		currentZ: Float32Array,
-		activation: ActivationType
+		ctx: NeuronDeltaContext
 	): number {
-		const sum = this._backpropagateDelta(neuronIdx, next, nextDeltas);
+		const sum = this._backpropagateDelta(neuronIdx, ctx.next, ctx.nextDeltas);
 		const grad = this._activationDerivative(
-			currentOutput[neuronIdx],
-			currentZ[neuronIdx],
-			activation
+			ctx.currentOutput[neuronIdx],
+			ctx.currentZ[neuronIdx],
+			ctx.activation
 		);
 		return sum * grad;
 	}
@@ -51,16 +56,16 @@ export class HiddenDeltaComputer {
 		const activation = this._config.activationType[layerIdx];
 		const currentOutput = context.layerOutputs[layerIdx];
 		const currentZ = context.layerZValues[layerIdx];
+		const neuronCtx: NeuronDeltaContext = {
+			next,
+			nextDeltas,
+			currentOutput,
+			currentZ,
+			activation,
+		};
 		const delta = new Float32Array(current.fanOut);
 		for (let i = 0; i < current.fanOut; i++) {
-			delta[i] = this._computeNeuronDelta(
-				i,
-				next,
-				nextDeltas,
-				currentOutput,
-				currentZ,
-				activation
-			);
+			delta[i] = this._computeNeuronDelta(i, neuronCtx);
 		}
 		return this._clipGradients(delta);
 	}
@@ -83,26 +88,7 @@ export class HiddenDeltaComputer {
 		delta: Float32Array,
 		maxNorm: number = this._config.gradientClipNorm
 	): Float32Array {
-		if (maxNorm <= 0) {
-			return delta;
-		}
-		const data = delta;
-
-		let sum = 0;
-		for (const _value of data) {
-			sum += _value * _value;
-		}
-		const norm = Math.sqrt(sum);
-
-		if (norm > maxNorm) {
-			const scale = maxNorm / norm;
-			for (let i = 0; i < data.length; i++) {
-				data[i] *= scale;
-			}
-			return data;
-		}
-
-		return data;
+		return clipGradients(delta, maxNorm);
 	}
 
 	private _activationDerivative(

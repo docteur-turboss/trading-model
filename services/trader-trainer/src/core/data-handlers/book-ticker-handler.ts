@@ -4,6 +4,12 @@ import { DataType } from "./data-types";
 
 export const bookTickerHandler: DataHandler<BookTickerData> = {
 	dataType: DataType.BookTicker,
+	createState() {
+		return { bookTicker: undefined };
+	},
+	createNorms() {
+		return {};
+	},
 	updateNorms(state, bt) {
 		if (bt.bid > 0) {
 			state.norm.book.bid.update(bt.bid);
@@ -17,6 +23,9 @@ export const bookTickerHandler: DataHandler<BookTickerData> = {
 	},
 	mutateState({ data, state }) {
 		state.bookTicker = data;
+	},
+	estimateMemoryBytes(state) {
+		return state.bookTicker ? 128 : 0;
 	},
 	serializeNorms(_state) {
 		return {};

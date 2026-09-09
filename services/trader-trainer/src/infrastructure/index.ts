@@ -1,11 +1,11 @@
 import { toSymbol } from "@trading-model/common/domain/primitives";
-import { createBootstrap } from "@trading-model/server-utils/server/bootstrap";
+import { createBootstrap } from "@trading-model/server-utils/application/services/bootstrap";
+import { createServer } from "../app/server";
 import { BOOTSTRAP_ADDRESS_MANAGER } from "../config/address-manager";
-import { ENV } from "../config/env";
 import { MessageManager } from "../config/message-manager";
 import { DataType } from "../core/data-handlers/data-types";
+import { ENV } from "./config/env";
 import { ApplicationContainer } from "./container";
-import { createServer } from "./server";
 
 const NULL_ADDRESS_MANAGER = { stop() {} };
 

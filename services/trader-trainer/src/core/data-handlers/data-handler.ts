@@ -1,4 +1,8 @@
-import type { SymbolState } from "../market-data-types";
+import type {
+	BaseSymbolState,
+	SymbolNormalizers,
+	SymbolState,
+} from "../market-data-types";
 import { bookTickerHandler } from "./book-ticker-handler";
 import { candleHandler } from "./candle-handler";
 import { DataType } from "./data-types";
@@ -20,6 +24,21 @@ export interface DataHandler<TData = unknown> {
 	updateNorms(state: SymbolState, data: TData): void;
 	mutateState(ctx: MutateStateContext<TData>): void;
 	serializeNorms(state: SymbolState): Record<string, unknown>;
+	estimateMemoryBytes(state: SymbolState): number;
+	createState(): Partial<BaseSymbolState>;
+	createNorms(): Partial<SymbolNormalizers>;
+}
+
+export function pushWithMaxSize<TData>(
+	array: TData[],
+	data: TData,
+	maxSize?: number
+): TData[] {
+	array.push(data);
+	if (maxSize !== undefined && array.length > maxSize) {
+		return array.slice(-maxSize);
+	}
+	return array;
 }
 
 export function serializeAllNorms(

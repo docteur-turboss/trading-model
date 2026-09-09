@@ -3,11 +3,7 @@ import {
 	type DataHandler,
 	type DataType,
 } from "./data-handlers/data-handler";
-import {
-	NormalizationStats,
-	type SymbolNormalizers,
-	type SymbolState,
-} from "./market-data-types";
+import type { SymbolNormalizers, SymbolState } from "./market-data-types";
 
 export class NormalizationManager {
 	private readonly _handlerMap: Record<DataType, DataHandler>;
@@ -21,24 +17,10 @@ export class NormalizationManager {
 	}
 
 	createNormStats(): SymbolNormalizers {
-		const candle = {
-			close: new NormalizationStats(),
-			volume: new NormalizationStats(),
-			open: new NormalizationStats(),
-			high: new NormalizationStats(),
-			low: new NormalizationStats(),
-		};
-		const trade = {
-			price: new NormalizationStats(),
-			qty: new NormalizationStats(),
-		};
-		const book = {
-			bid: new NormalizationStats(),
-			ask: new NormalizationStats(),
-			spread: new NormalizationStats(),
-		};
-		const ticker = { volume: new NormalizationStats() };
-		return { candle, trade, book, ticker };
+		return Object.assign(
+			{},
+			...this._handlers.map((handler) => handler.createNorms())
+		) as SymbolNormalizers;
 	}
 
 	updateNorms(dataType: DataType, state: SymbolState, data: unknown): void {

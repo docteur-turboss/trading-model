@@ -1,3 +1,5 @@
+import { TrainingLoop } from "../adapters/inbound/app/training-loop";
+import { DataEventHandler } from "../app/event-handlers";
 import { EvictionPolicy } from "../core/eviction-policy";
 import {
 	MarketDataBuffer,
@@ -5,8 +7,6 @@ import {
 } from "../core/market-data-buffer";
 import type { TradingSymbol } from "../core/market-data-types";
 import { Trainer } from "../core/trainer";
-import { DataEventHandler } from "./event-handlers";
-import { TrainingLoop } from "./training-loop";
 
 export interface AppContainerConfig {
 	bufferSize: number;

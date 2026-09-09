@@ -3,8 +3,8 @@ import type {
 	Fitness,
 	PositiveInt,
 } from "@trading-model/common/domain/primitives";
-import { EpisodeScores } from "./genetic-algorithm/episode-scores";
 import type { GenerationContext } from "./genetic-algorithm/ga-runner";
+import { computeSharpe } from "./genome-summary-builder";
 import type { MarketDataBuffer } from "./market-data-buffer";
 import type { TradingSymbol } from "./market-data-types";
 import { validateTrainingPrerequisites } from "./training-prerequisite-validator";
@@ -12,7 +12,12 @@ import {
 	TrainingSession,
 	type TrainingSessionResult,
 } from "./training-session";
-import { type BestAgentSummary, LastTrainingInfo } from "./training-state";
+import {
+	type BestAgentSummary,
+	LastTrainingInfo,
+	NullLastTrainingInfo,
+	type TrainingSnapshot,
+} from "./training-state";
 import type {
 	TrainingFailure,
 	TrainingResult,
@@ -29,7 +34,7 @@ enum TrainerStatus {
 /** Orchestrates GA training cycles: feeds market data, runs generations, tracks best genome. */
 export class Trainer {
 	private _status: TrainerStatus = TrainerStatus.Idle;
-	private _lastInfo: LastTrainingInfo | null = null;
+	private _lastInfo: TrainingSnapshot = new NullLastTrainingInfo();
 	constructor(private readonly _dataBuffer: MarketDataBuffer) {}
 
 	isTraining(): boolean {
@@ -37,11 +42,11 @@ export class Trainer {
 	}
 
 	getCurrentSymbol(): TradingSymbol {
-		return this._lastInfo?.symbol ?? ("" as TradingSymbol);
+		return this._lastInfo.symbol;
 	}
 
 	getGeneration(): number {
-		return this._lastInfo?.generation ?? 0;
+		return this._lastInfo.generation;
 	}
 
 	async train(symbol: TradingSymbol): Promise<TrainingResult> {
@@ -71,14 +76,14 @@ export class Trainer {
 	): Promise<TrainingSuccess> {
 		const session = new TrainingSession(windowSet);
 		const result: TrainingSessionResult = await session.run();
-		this._lastInfo = new LastTrainingInfo(
+		this._lastInfo = new LastTrainingInfo({
 			symbol,
-			result.bestGenome,
-			result.bestFitness as unknown as Fitness,
-			result.bestFitnessMeta,
-			result.generation as unknown as PositiveInt,
-			result.generationContext
-		);
+			bestGenome: result.bestGenome,
+			bestFitness: result.bestFitness as unknown as Fitness,
+			bestFitnessMeta: result.bestFitnessMeta,
+			generation: result.generation as unknown as PositiveInt,
+			generationContext: result.generationContext,
+		});
 		logger.info("Training complete", {
 			context: { symbol, bestFitness: result.bestFitness },
 		});
@@ -105,17 +110,14 @@ export class Trainer {
 	}
 
 	getBestAgentSummary(): BestAgentSummary | null {
-		if (!this._lastInfo) {
-			return null;
-		}
 		return this._lastInfo.buildBestAgentSummary();
 	}
 
 	getGenerationContext(): GenerationContext | null {
-		return this._lastInfo?.generationContext ?? null;
+		return this._lastInfo.generationContext;
 	}
 
 	_computeSharpe(scores: number[]): number {
-		return new EpisodeScores(scores).sharpe();
+		return computeSharpe(scores);
 	}
 }

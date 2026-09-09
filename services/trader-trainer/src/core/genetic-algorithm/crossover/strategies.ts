@@ -14,6 +14,11 @@ function lerpNum(first: number, second: number, blend: number): number {
 	return first + (second - first) * blend;
 }
 
+function uniformLike(ctx: CrossoverStrategyContext): number {
+	const { left, right, rng } = ctx;
+	return rng() < 0.5 ? left : right;
+}
+
 const CROSSOVER_STRATEGIES: Record<CrossoverGenome["type"], CrossoverFn> = {
 	[CrossoverType.Arithmetic]: (ctx) => {
 		const { left, right, co } = ctx;
@@ -37,18 +42,9 @@ const CROSSOVER_STRATEGIES: Record<CrossoverGenome["type"], CrossoverFn> = {
 				: (1 / (2 * (1 - randomValue))) ** (1 / (co.sbxEta + 1));
 		return 0.5 * ((1 + beta) * left + (1 - beta) * right);
 	},
-	[CrossoverType.Uniform]: (ctx) => {
-		const { left, right, rng } = ctx;
-		return rng() < 0.5 ? left : right;
-	},
-	[CrossoverType.OnePoint]: (ctx) => {
-		const { left, right, rng } = ctx;
-		return rng() < 0.5 ? left : right;
-	},
-	[CrossoverType.TwoPoint]: (ctx) => {
-		const { left, right, rng } = ctx;
-		return rng() < 0.5 ? left : right;
-	},
+	[CrossoverType.Uniform]: uniformLike,
+	[CrossoverType.OnePoint]: uniformLike,
+	[CrossoverType.TwoPoint]: uniformLike,
 };
 
 export interface CrossoverScalarContext {

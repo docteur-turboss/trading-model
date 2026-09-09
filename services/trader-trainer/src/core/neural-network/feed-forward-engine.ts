@@ -36,19 +36,10 @@ export class FeedForwardEngine {
 	}
 
 	private _computeLayer(
-		layer: LayerMemory,
-		current: Float32Array,
-		layerIndex: number,
-		originalInput: Float32Array,
+		ctx: LayerComputationContext,
 		layerZValues: Float32Array[],
 		layerOutputs: Float32Array[]
 	): Float32Array {
-		const ctx: LayerComputationContext = {
-			layer,
-			current,
-			layerIndex,
-			originalInput,
-		};
 		const { preActivations, output } =
 			this._layerComputer.computeLayerOutput(ctx);
 		layerZValues.push(preActivations);
@@ -68,10 +59,12 @@ export class FeedForwardEngine {
 
 		for (let layerIndex = 0; layerIndex < this._layers.length; layerIndex++) {
 			current = this._computeLayer(
-				this._layers[layerIndex],
-				current,
-				layerIndex,
-				originalInput,
+				{
+					layer: this._layers[layerIndex],
+					current,
+					layerIndex,
+					originalInput,
+				},
 				layerZValues,
 				layerOutputs
 			);

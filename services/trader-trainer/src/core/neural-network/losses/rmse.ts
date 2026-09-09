@@ -1,7 +1,7 @@
 import type { LossConfig } from "../type";
+import { EPSILON } from "../utils";
 import { BaseLoss } from "./base-loss";
-
-const EPSILON = 1e-10;
+import { sumSquaredErrors } from "./squared-error";
 
 export class RootMeanSquaredError extends BaseLoss {
 	computeLoss(
@@ -9,13 +9,7 @@ export class RootMeanSquaredError extends BaseLoss {
 		target: Float32Array,
 		_config: Required<LossConfig>
 	): number {
-		const len = output.length;
-		let sum = 0;
-		for (let i = 0; i < len; i++) {
-			const err = target[i] - output[i];
-			sum += err * err;
-		}
-		return Math.sqrt(sum / len);
+		return Math.sqrt(sumSquaredErrors(output, target) / output.length);
 	}
 
 	computeGradient(
@@ -26,11 +20,7 @@ export class RootMeanSquaredError extends BaseLoss {
 		invN: number
 	): void {
 		const len = output.length;
-		let sum = 0;
-		for (let i = 0; i < len; i++) {
-			const diff = output[i] - target[i];
-			sum += diff * diff;
-		}
+		const sum = sumSquaredErrors(output, target);
 		const rmse = Math.sqrt(sum * invN) + EPSILON;
 		const scale = invN / rmse;
 		for (let i = 0; i < len; i++) {

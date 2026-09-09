@@ -31,7 +31,6 @@ const ACTIVATIONS: ActivationType[] = [
 	ActivationType.Elu,
 	ActivationType.Mish,
 	ActivationType.Gelu,
-	ActivationType.Softmax,
 ];
 
 const CONNECTION_TYPES: ConnectionType[] = [
