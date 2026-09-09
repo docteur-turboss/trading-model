@@ -81,22 +81,19 @@ For the full list including variants (🏷️ feat-types, 🎉 feat-init, 🚑 f
 | `audit-logger`      | Audit-logger service                   |
 | `dlq-service`       | DLQ service                            |
 | `api-gateway`       | API gateway service                    |
-| `certificate-authority` | Certificate authority service      |
 | `admin-interface`   | Admin interface SPA                    |
-| `certificate-utils` | @trading-model/certificate-utils package |
-| `certificate-client` | @trading-model/certificate-client package |
 
 ## Body and Footer (Optional)
 
 - **Body**: Multi-line text explaining the _why_ and _how_ of the change
 - **Footer**: References to issues, tickets, or breaking changes
 
-## Recommended Tool: `npm run commit`
+## Recommended Tool: `bun run commit`
 
 Launches the interactive commit creation interface:
 
 ```bash
-npm run commit
+bun run commit
 ```
 
 This command runs `scripts/commit.mjs` which provides a console UI for:
@@ -124,13 +121,13 @@ Configured Husky hooks:
 
 ```
 dev  ──→ commit ──→ push ──→ PR ──→ merge ──→ beta deploy
-        npm run     git push  (auto      dev
+        bun run     git push  (auto      dev
         commit                 lint
                                build
                                test)
 
 main ←── merge dev ────→ tag ──→ stable deploy
-              (if OK)     npm run
+              (if OK)     bun run
                           release
 ```
 
@@ -140,19 +137,16 @@ Commands for a full cycle:
 # ── Dev ──────────────────────────────────────────────────
 git checkout development && git pull
 git checkout -b feat/my-thing
-npm ci && npm run build && npm test
+bun install --frozen-lockfile && bun run build && bun run test
 # ... code ...
-npm run commit                        # interactive conventional commit
+bun run commit                        # interactive conventional commit
 git push -u origin feat/my-thing      # push → CI runs, open PR
 
 # ── Maintainer ────────────────────────────────────────────
-# Merge PR on GitHub into development, validate beta, then:
-git checkout main && git pull
-git merge development
-npm run release                       # bumps version, updates CHANGELOG.md
-git add -A && git commit -m ":rocket:(release): v$(node -p "require('./package.json').version")"
-git tag v$(node -p "require('./package.json').version")
-git push --follow-tags                # CI builds Docker images → GHCR
+# Merge PR on GitHub into development, validate beta, then merge to main
+# and run the "Release" workflow (GitHub Actions → Actions → Release).
+# It bumps versions, updates CHANGELOG.md, tags, builds Docker images → GHCR,
+# creates the GitHub Release and publishes docs. No local release command.
 ```
 
 ## Examples

@@ -9,7 +9,7 @@ Provides durable storage for undeliverable messages with replay capability, auto
 ## Quick Start
 
 ```bash
-npm run -w dlq-service dev
+bun run --filter dlq-service dev
 ```
 
 Requires MongoDB 7+ and Redis 7+.
@@ -39,8 +39,8 @@ See [ARCHITECTURE.md](./ARCHITECTURE.md).
 ## Testing
 
 ```bash
-npm test
-npm run test:coverage
+bun run test
+bun run test:coverage
 ```
 
 Coverage target: 80%.

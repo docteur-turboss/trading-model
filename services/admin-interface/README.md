@@ -22,22 +22,22 @@ Admin Interface is a **React 19** single-page application built with **Vite 6** 
 
 ```bash
 # Install dependencies (from monorepo root)
-npm install
+bun install
 
 # Start Vite dev server (port 5173)
-npm run -w admin-interface dev
+bun run --filter admin-interface dev
 ```
 
 ## Scripts
 
 | Script                                     | Description               |
 | ------------------------------------------ | ------------------------- |
-| `npm run -w admin-interface dev`           | Vite dev server with HMR  |
-| `npm run -w admin-interface build`         | `tsc -b && vite build`    |
-| `npm run -w admin-interface preview`       | Preview production build  |
-| `npm run -w admin-interface test`          | Vitest (all tests)        |
-| `npm run -w admin-interface test:coverage` | Vitest with 100% coverage |
-| `npm run -w admin-interface lint`          | ESLint                    |
+| `bun run --filter admin-interface dev`           | Vite dev server with HMR  |
+| `bun run --filter admin-interface build`         | `tsc -b && vite build`    |
+| `bun run --filter admin-interface preview`       | Preview production build  |
+| `bun run --filter admin-interface test`          | Vitest (all tests)        |
+| `bun run --filter admin-interface test:coverage` | Vitest with 100% coverage |
+| `bun run --filter admin-interface lint`          | ESLint                    |
 
 ## Tech Stack
 

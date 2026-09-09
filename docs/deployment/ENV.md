@@ -10,7 +10,6 @@ Service abbreviation legend:
 | MM    | message-manager                                                                                     |
 | FS    | financial-scraper                                                                                   |
 | TT    | trader-trainer                                                                                      |
-| CA    | certificate-authority                                                                               |
 | GW    | api-gateway                                                                                         |
 | AL    | audit-logger                                                                                        |
 | DLQ   | dlq-service                                                                                         |
@@ -27,9 +26,9 @@ Defined in `@trading-model/common` (`BaseEnvSchema`).
 | --------------- | ---------------------------------------------- | ----------------------- | -------- | ----------------------------- | -------- |
 | `NODE_ENV`      | `development \| test \| staging \| production` | `production`            | no       | Runtime environment           | All*     |
 | `PORT`          | number                                         | `3000`                  | no       | Internal container HTTPS port | All*     |
-| `TLS_KEY_PATH`  | string                                         | `/certs/server-key.pem` | **yes**  | Path to TLS private key (PEM) | All*     |
-| `TLS_CERT_PATH` | string                                         | `/certs/server.crt`     | **yes**  | Path to TLS certificate (PEM) | All*     |
-| `TLS_CA_PATH`   | string                                         | `/certs/ca.crt`         | **yes**  | Path to CA certificate (PEM)  | All*     |
+| `TLS_KEY_PATH`  | string                                         | `/run/spire/svid/svid_key.pem` | **yes**  | Path to TLS private key (PEM) | All*     |
+| `TLS_CERT_PATH` | string                                         | `/run/spire/svid/svid.pem`     | **yes**  | Path to TLS certificate (PEM) | All*     |
+| `TLS_CA_PATH`   | string                                         | `/run/spire/svid/bundle.pem`   | **yes**  | Path to CA certificate (PEM)  | All*     |
 | `LOG_LEVEL`     | `error \| warn \| info \| debug`               | `info`                  | no       | Logging verbosity             | All*     |
 
 ---
@@ -42,20 +41,20 @@ Defined in `@trading-model/common` (`AddressManagerEnvSchema`).
 
 | Variable                          | Type   | Default                         | Required | Description                                      | Services       |
 | --------------------------------- | ------ | ------------------------------- | -------- | ------------------------------------------------ | -------------- |
-| `APP_NAME`                        | string | _varies_                        | **yes**  | Logical application name                         | MM, FS, TT, CA, AL, DLQ |
-| `APP_VERSION`                     | string | `1.0.0`                         | no       | Application version                              | MM, FS, TT, CA, AL, DLQ |
-| `SERVICE_NAME`                    | string | _varies_                        | **yes**  | Service identity registered in discovery         | MM, FS, TT, CA, AL, DLQ |
-| `INSTANCE_ID`                     | string | _varies_                        | **yes**  | Unique instance identifier                       | MM, FS, TT, CA, AL, DLQ |
-| `CACHE_TTL_MS`                    | number | `30000`                         | no       | In-memory cache TTL                              | MM, FS, TT, CA, AL, DLQ |
-| `SERVICE_PING_TIMEOUT_MS`         | number | `2000`                          | no       | Timeout for health check pings                   | MM, FS, TT, CA, AL, DLQ |
-| `TOKEN_REFRESH_INTERVAL_MS`       | number | `60000`                         | no       | Auth token refresh interval                      | MM, FS, TT, CA, AL, DLQ |
-| `TTL_REFRESH_INTERVAL_MS`         | number | `15000`                         | no       | Service lease TTL refresh interval               | MM, FS, TT, CA, AL, DLQ |
-| `ADDRESS_MANAGER_URL`             | URL    | `https://discovery-server:3000` | **yes**  | Discovery server base URL                        | MM, FS, TT, CA, AL, DLQ |
-| `DNS_NAME_MAP`                    | string | `'{}'`                          | no       | Custom DNS name to address mapping (JSON object) | MM, FS, TT, CA, AL, DLQ |
-| `ERROR_URL_WEBHOOK`               | URL    | _(empty)_                       | no       | Error notification webhook endpoint              | MM, FS, TT, DS, CA, AL, DLQ |
-| `MESSAGE_BUS_INIT_TIMEOUT_MS`     | number | `5000`                          | no       | Message bus client init timeout                  | MM, FS, TT, CA, AL, DLQ |
-| `MESSAGE_BUS_SHUTDOWN_TIMEOUT_MS` | number | `5000`                          | no       | Message bus client shutdown timeout              | MM, FS, TT, CA, AL, DLQ |
-| `MESSAGE_CALLBACK_PATH`           | string | `message`                       | no       | Callback path for incoming messages              | MM, FS, TT, CA, AL, DLQ |
+| `APP_NAME`                        | string | _varies_                        | **yes**  | Logical application name                         | MM, FS, TT, AL, DLQ |
+| `APP_VERSION`                     | string | `1.0.0`                         | no       | Application version                              | MM, FS, TT, AL, DLQ |
+| `SERVICE_NAME`                    | string | _varies_                        | **yes**  | Service identity registered in discovery         | MM, FS, TT, AL, DLQ |
+| `INSTANCE_ID`                     | string | _varies_                        | **yes**  | Unique instance identifier                       | MM, FS, TT, AL, DLQ |
+| `CACHE_TTL_MS`                    | number | `30000`                         | no       | In-memory cache TTL                              | MM, FS, TT, AL, DLQ |
+| `SERVICE_PING_TIMEOUT_MS`         | number | `2000`                          | no       | Timeout for health check pings                   | MM, FS, TT, AL, DLQ |
+| `TOKEN_REFRESH_INTERVAL_MS`       | number | `60000`                         | no       | Auth token refresh interval                      | MM, FS, TT, AL, DLQ |
+| `TTL_REFRESH_INTERVAL_MS`         | number | `15000`                         | no       | Service lease TTL refresh interval               | MM, FS, TT, AL, DLQ |
+| `ADDRESS_MANAGER_URL`             | URL    | `https://discovery-server:3000` | **yes**  | Discovery server base URL                        | MM, FS, TT, AL, DLQ |
+| `DNS_NAME_MAP`                    | string | `'{}'`                          | no       | Custom DNS name to address mapping (JSON object) | MM, FS, TT, AL, DLQ |
+| `ERROR_URL_WEBHOOK`               | URL    | _(empty)_                       | no       | Error notification webhook endpoint              | MM, FS, TT, DS, AL, DLQ |
+| `MESSAGE_BUS_INIT_TIMEOUT_MS`     | number | `5000`                          | no       | Message bus client init timeout                  | MM, FS, TT, AL, DLQ |
+| `MESSAGE_BUS_SHUTDOWN_TIMEOUT_MS` | number | `5000`                          | no       | Message bus client shutdown timeout              | MM, FS, TT, AL, DLQ |
+| `MESSAGE_CALLBACK_PATH`           | string | `message`                       | no       | Callback path for incoming messages              | MM, FS, TT, AL, DLQ |
 
 ---
 
@@ -71,18 +70,15 @@ Defined in `@trading-model/common` (`AddressManagerEnvSchema`).
 
 ---
 
-## Certificate Authority
+## Workload Identity (SPIRE / spiffe-helper)
 
-| Variable                    | Type   | Default           | Required | Description                              | Services |
-| --------------------------- | ------ | ----------------- | -------- | ---------------------------------------- | -------- |
-| `MONGODB_URI`               | string | `mongodb://mongo:27017/certificate-authority` | **yes**  | MongoDB connection URI    | CA       |
-| `CA_KEY_PATH`               | string | `/etc/ca-keys/ca-key.pem` | **yes**  | CA private key path                | CA       |
-| `CA_CERT_TTL_MS`            | number | `31536000000` (1y)| no       | Validity duration for CA-signed certs    | CA       |
-| `CERT_ROTATION_INTERVAL_MS` | number | `86400000` (1d)   | no       | Interval between certificate rotation checks | CA |
-| `CERT_ROTATION_MARGIN_MS`   | number | `17280000` (~4.8h)| no       | Renewal margin before certificate expiry | CA       |
-| `CERT_DEFAULT_TTL_MS`       | number | `604800000` (7d)  | no       | Default TTL for issued certificates      | CA       |
-| `CERT_MAX_TTL_MS`           | number | `31536000000` (1y)| no       | Maximum allowed TTL for issued certs   | CA       |
-| `DISCOVERY_SERVICE_URL`     | URL    | `https://discovery-server:3000` | **yes**  | Discovery server URL      | CA       |
+The platform uses SPIFFE/SPIRE (ADR-0011) for workload identity, **mandatory**.
+SVID files are written by `spiffe-helper` sidecars into `/run/spire/svid`
+(`svid.pem`, `svid_key.pem`, `bundle.pem`) and consumed via the standard
+`TLS_*_PATH` variables above. No manual certificate generation is required.
+
+The in-house `certificate-authority` service and its `CERT_CLIENT_*` /
+`CA_*` variables were **decommissioned** per ADR-0011.
 
 ---
 
@@ -180,12 +176,10 @@ Defined in `@trading-model/common` (`AddressManagerEnvSchema`).
 | `MESSAGE_PORT`        | number | `8444`                  | Host port for message-manager      | DC       |
 | `SCRAPER_PORT`        | number | `8445`                  | Host port for financial-scraper    | DC       |
 | `TRAINER_PORT`        | number | `8446`                  | Host port for trader-trainer       | DC       |
-| `CA_PORT`             | number | `8447`                  | Host port for certificate-authority| DC       |
 | `GATEWAY_PORT`        | number | `8448`                  | Host port for api-gateway          | DC       |
 | `ADMIN_PORT`          | number | `8449`                  | Host port for admin-interface      | DC       |
 | `AUDIT_PORT`          | number | `8450`                  | Host port for audit-logger         | DC       |
 | `DLQ_PORT`            | number | `8452`                  | Host port for dlq-service          | DC       |
-| `TLS_CERTS_DIR`       | string | `./certs`               | Host TLS certificates directory    | DC       |
 | `MYSQL_ROOT_PASSWORD` | string | `changeme`              | MySQL root password                | DC       |
 | `MYSQL_DATABASE`      | string | `financial_scraper`     | MySQL database name                | DC       |
 | `IMAGE_REGISTRY`      | string | `ghcr.io/trading-model` | Container registry prefix          | DC       |
@@ -225,13 +219,11 @@ DISCOVERY_PORT=8443
 MESSAGE_PORT=8444
 SCRAPER_PORT=8445
 TRAINER_PORT=8446
-CA_PORT=8447
 GATEWAY_PORT=8448
 ADMIN_PORT=8449
 AUDIT_PORT=8450
 
-# TLS certificates directory
-TLS_CERTS_DIR=./certs
+# mTLS is automatic via SPIRE (ADR-0011) — no TLS_CERTS_DIR needed
 
 # MySQL
 MYSQL_ROOT_PASSWORD=changeme

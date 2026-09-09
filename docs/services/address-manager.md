@@ -69,7 +69,7 @@ interface AddressManagerConfig {
 | Field                    | Type                     | Default | Description                                                                      |
 | ------------------------ | ------------------------ | ------- | -------------------------------------------------------------------------------- |
 | `instanceId`             | `string`                 | —       | Unique identifier for this service instance                                      |
-| `serviceName`            | `string`                 | —       | Logical service name (e.g. `financial-scraper-service`)                          |
+| `serviceName`            | `string`                 | —       | Logical service name (e.g. `financial-scraper`)                          |
 | `servicePort`            | `number`                 | —       | Port the service listens on                                                      |
 | `addressManagerUrl`      | `string`                 | —       | Discovery-server base URL                                                        |
 | `tokenRefreshIntervalMs` | `number`                 | `60000` | Token rotation interval                                                          |
@@ -315,7 +315,7 @@ const am = new AddressManager({
 am.listenExpress(app);
 const { stop } = am.start();
 
-const instance = await am.findService('financial-scraper-service');
+const instance = await am.findService('financial-scraper');
 console.log(`Found at ${instance.ip}:${instance.port}`);
 
 const token = am.getToken();
@@ -330,9 +330,9 @@ import AddressManager from '@trading-model/address-manager';
 const am = new AddressManager({
   // ...
   dnsNameMap: {
-    'discovery-service': 'discovery-server',
-    'financial-scraper-service': 'scraper',
-    'message-delivery-service': 'msg-svc',
+    'discovery-server': 'discovery-server',
+    'financial-scraper': 'scraper',
+    'message-manager': 'msg-svc',
   },
 });
 ```
@@ -345,4 +345,4 @@ This package is built as a workspace dependency. Consuming services reference it
 "dependencies": { "@trading-model/address-manager": "*" }
 ```
 
-Build: `npm run build` (tsc, CommonJS output). The compiled output goes to `dist/`.
+Build: `bun run build` (tsc, CommonJS output). The compiled output goes to `dist/`.

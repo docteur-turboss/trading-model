@@ -6,28 +6,24 @@ Protect the infrastructure, guarantee data integrity, and ensure robust authenti
 
 ## mTLS (Mutual TLS)
 
-All services communicate via **HTTPS with mTLS** enabled. Each service has its own client certificate and verifies the peer server's certificate.
+All services communicate via **HTTPS with mTLS** enabled. Each service authenticates with its own SPIFFE identity (ADR-0011) and verifies the peer's SVID.
 
-### Certificate Generation
+### Workload Identity (SPIRE)
 
-Use the script `scripts/generate-certs.sh`:
+mTLS identities are issued by **SPIRE**: `spiffe-helper` sidecars fetch each
+service's SVID and write it to `/run/spire/svid` (`svid.pem`, `svid_key.pem`,
+`bundle.pem`), consumed via `TLS_*_PATH`. No manual certificate generation is
+required.
 
-```bash
-bash scripts/generate-certs.sh
-```
+Each SVID carries a SPIFFE URI SAN (`spiffe://trading-model.local/ns/<namespace>/sa/<service>`) — one identity per service (8 services):
 
-This script generates in `./certs/`:
-
-- `ca.crt` — Certificate Authority (CA) certificate
-- `server.crt` — Server certificate (signed by CA)
-- `server-key.pem` — Server private key
-
-Certificates include SAN (Subject Alternative Names) for all services:
-
-- `localhost`
+- `admin-interface`
+- `api-gateway`
+- `audit-logger`
 - `discovery-server`
-- `message-manager`
+- `dlq-service`
 - `financial-scraper`
+- `message-manager`
 - `trader-trainer`
 
 ### mTLS Configuration in the Service
@@ -113,10 +109,10 @@ NODE_ENV=development
 PORT=3000
 LOG_LEVEL=info
 
-# TLS
-TLS_KEY_PATH=./certs/server-key.pem
-TLS_CERT_PATH=./certs/server.crt
-TLS_CA_PATH=./certs/ca.crt
+# TLS (SPIRE SVIDs in Docker/K8s)
+TLS_KEY_PATH=/run/spire/svid/svid_key.pem
+TLS_CERT_PATH=/run/spire/svid/svid.pem
+TLS_CA_PATH=/run/spire/svid/bundle.pem
 
 # Gateway auth (api-gateway)
 AUTH_TOKENS=your-api-key-here
@@ -135,7 +131,7 @@ AUTH_TOKEN_HEADER=x-api-key
 
 ## Dependencies
 
-- **npm audit**: Run regularly to detect known vulnerabilities
+- **bun audit**: Run regularly to detect known vulnerabilities
 - **Dependabot**: Enabled on the repository — automatic PRs for security updates
 - Quick review and merge of Dependabot PRs (high priority)
 - No dependencies with known vulnerabilities in production
@@ -171,6 +167,5 @@ Refer to [SECURITY.md](../../SECURITY.md) — the root security document contain
 ## References
 
 - [SECURITY.md](../../SECURITY.md) — Security policy (reporting, procedure)
-- `scripts/generate-certs.sh` — mTLS certificate generation script
 - [Architecture Standards](../standards/architecture-standards.md) — Network security overview
 - [Quality Gates](../standards/quality-gates.md) — Quality standards including security

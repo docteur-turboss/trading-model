@@ -1,79 +1,69 @@
-# Runbook: TLS Certificate Expiry
+# Runbook: SVID / TLS Certificate Expiry
 
 **Alert:** `CertificateExpiry`  
 **Severity:** SEV2 (warning), SEV1 (if expired)
 
 ## Detection
 
-- Prometheus alert: `CertificateExpiry` fires when last renewal > 7 days
+- Prometheus alert: `CertificateExpiry` fires when an SVID is near expiry
 - mTLS handshake failures between services
 - Logs show "certificate expired" or "x509: certificate has expired"
+- `spiffe-helper` sidecars fail to renew against the Workload API
 
 ## Automated Renewal
 
-The certificate-client package handles automatic mTLS certificate renewal:
+SPIRE manages SVID lifecycle automatically (ADR-0011):
 
-- Renewal is triggered before expiry (margin: `CERT_ROTATION_MARGIN_MS` = 17280000ms = 5 days)
-- The CA issues new certificates automatically
-- Services hot-reload TLS config via `reloadTlsPaths()` on `HttpClient`
+- `spire-server` issues short-lived X.509-SVIDs (`default_svid_ttl = 1h`); the
+  SPIRE agent rotates them before expiry.
+- `spiffe-helper` sidecars re-fetch SVIDs and rewrite `svid.pem`,
+  `svid_key.pem`, `bundle.pem` in the shared volume.
+- The service TLS watcher hot-reloads the files on change
+  (`packages/server-utils/src/infrastructure/tls-watcher.ts`); outbound
+  `HttpClient` re-reads them per request.
 
 ## Manual Renewal
 
 ### If automatic renewal failed:
 
 ```bash
-# 1. Check CA is operational
-kubectl exec -n trading-model deployment/certificate-authority -- \
-  curl -sk https://localhost:3000/ping
+# 1. Check SPIRE Server and Agent are healthy
+kubectl rollout status -n trading-model deployment/spire-server --timeout=60s
+kubectl get pods -n trading-model -l app.kubernetes.io/component=spire-agent
 
-# 2. Check certificate expiry for a service
+# 2. Check the SVID the workload currently presents
 kubectl exec -n trading-model deployment/discovery-server -- \
-  openssl s_client -connect localhost:3000 -cert /certs/server.crt -key /certs/server-key.pem </dev/null 2>/dev/null | \
-  openssl x509 -noout -enddate
+  openssl x509 -in /run/spire/svid/svid.pem -noout -enddate
 
-# 3. Force certificate renewal by restarting the service
+# 3. Force SVID re-fetch by restarting the spiffe-helper sidecar (or the pod)
 kubectl rollout restart -n trading-model deployment/discovery-server
 kubectl rollout status -n trading-model deployment/discovery-server
 
-# 4. Verify new certificate
+# 4. Verify the renewed SVID
 kubectl exec -n trading-model deployment/discovery-server -- \
-  openssl s_client -connect localhost:3000 -cert /certs/server.crt -key /certs/server-key.pem </dev/null 2>/dev/null | \
-  openssl x509 -noout -enddate
+  openssl x509 -in /run/spire/svid/svid.pem -noout -enddate
 ```
 
-### Full PKI renewal (if CA cert itself is expiring):
+### Full trust bundle renewal (SPIRE root CA):
 
 ```bash
-# 1. Generate new CA cert
-cd scripts
-./generate-certs.sh
+# SPIRE Server manages its own CA (ca_manager). To rotate the root key/cert:
+# 1. Trigger rotation on the SPIRE server
+kubectl exec -n trading-model deployment/spire-server -- \
+  /opt/spire/bin/spire-server rotate -registrationUDSPath /run/spire/server-sockets/admin.sock
 
-# 2. Deploy new CA cert to all services
-kubectl create secret generic -n trading-model trading-model-tls \
-  --from-file=ca.crt=../certs/ca.crt \
-  --from-file=server.crt=../certs/server.crt \
-  --from-file=server-key.pem=../certs/server-key.pem \
-  --dry-run=client -o yaml | kubectl apply -f -
-
-# 3. Restart all services
-kubectl rollout restart -n trading-model deployment -l app.kubernetes.io/part-of=trading-model
+# 2. Agents/helpers pick up the new bundle automatically via the Workload API
 ```
 
-## CA Certificate Management
+## SPIRE Certificate Management
 
-The CA root certificate has a 10-year validity (`CA_CERT_TTL_MS: 31536000000`).
-Intermediate certificates are rotated daily (`CERT_ROTATION_INTERVAL_MS: 86400000`).
-
-### Monitor CA cert expiry
-
-```bash
-kubectl exec -n trading-model deployment/certificate-authority -- \
-  openssl x509 -in /etc/ca-keys/ca-cert.pem -noout -enddate
-```
+- SVID TTL: 1 hour (`default_svid_ttl`), renewed by the agent automatically.
+- CA TTL: 168h (`ca_ttl`), managed by SPIRE's `ca_manager`.
+- Trust bundle is served to all agents through the Workload API.
 
 ## Prevention
 
-- CA automatic rotation is enabled and monitored
-- Certificate expiry alert at 7 days before expiration
-- Keep `scripts/generate-certs.sh` available for emergency re-issuance
-- Monitor `certificate_last_renewed_seconds` metric in Grafana
+- SPIRE agent + `spiffe-helper` handle renewal; watch agent logs for
+  attestation/rotation errors.
+- Monitor the `certificate_last_renewed_seconds` / agent rotation metrics in
+  Grafana.

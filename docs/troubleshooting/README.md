@@ -9,7 +9,7 @@ Common issues grouped by category. For per-service debugging, see [Diagnostic Gu
 | Symptom                           | Likely cause                                 | Fix                                                                                     |
 | --------------------------------- | -------------------------------------------- | --------------------------------------------------------------------------------------- |
 | `port is already allocated`       | Local service (e.g. MySQL on 3306) conflicts | Stop the local service, or edit `.env` to use different host ports                      |
-| Container exits immediately       | Wrong `TLS_CERTS_DIR` in `.env`              | Ensure `.env` points to a directory with valid `server-key.pem`, `server.crt`, `ca.crt` |
+| Container exits immediately       | SVID not ready yet on first boot             | Expected on first `docker compose up`: `spiffe-helper` writes the SVID, then the service restarts successfully |
 | Containers keep restarting        | Service dependency not ready                 | Run `docker compose logs <service-name>` to see the specific error                      |
 | `docker compose` not found        | Docker not installed or v1 syntax            | Install Docker Desktop or `docker-compose-v2` package                                   |
 | First pull is very slow           | Initial download of database images          | This only happens once; subsequent runs use cached layers                               |
@@ -24,7 +24,7 @@ Common issues grouped by category. For per-service debugging, see [Diagnostic Gu
 | Symptom                                       | Likely cause              | Fix                                                                                  |
 | --------------------------------------------- | ------------------------- | ------------------------------------------------------------------------------------ |
 | `ER_NOT_SUPPORTED_AUTH_MODE`                  | MySQL not initialized     | `docker compose down -v` then `docker compose up -d` to re-init                      |
-| Table not found                               | `init-db.sql` not mounted | Check `docker compose config` shows the mount. Ensure `./scripts/init-db.sql` exists |
+| Table not found                               | Migrations not applied       | `docker compose up -d` runs the `migrate` service; check `docker compose logs migrate` |
 | `financial-scraper` fails with `ECONNREFUSED` | MySQL not healthy yet     | Wait — the service waits for health check. Check `docker compose logs mysql`         |
 | MySQL fails to start                          | Port 3306 already used    | Stop local MySQL or change port mapping                                              |
 | `Access denied for user`                      | Wrong password in `.env`  | Verify `MYSQL_ROOT_PASSWORD` matches between `.env` and `docker-compose.yml`         |
@@ -58,25 +58,23 @@ Common issues grouped by category. For per-service debugging, see [Diagnostic Gu
 
 | Symptom                           | Likely cause                          | Fix                                                                            |
 | --------------------------------- | ------------------------------------- | ------------------------------------------------------------------------------ |
-| `ECONNREFUSED` on startup         | TLS certs missing or invalid          | Run OpenSSL commands from [SETUP.md](../deployment/SETUP.md) step 4                          |
-| Certificate errors in logs        | Wrong paths in `.env`                 | Verify `TLS_CERTS_DIR` and that `server-key.pem`, `server.crt`, `ca.crt` exist |
-| `wget` health check fails         | Self-signed cert not trusted          | Expected for local dev — the health check uses `curl -sk` (skip verify)        |
-| `UNABLE_TO_VERIFY_LEAF_SIGNATURE` | mTLS misconfiguration                 | Regenerate certificates matching the CA chain                                  |
-| Certificate expired               | Certs generated with short expiry     | Re-run OpenSSL commands with `-days 365` or longer                             |
-| `SSL_ERROR_BAD_CERT_DOMAIN`       | Certificate CN doesn't match hostname | Use `-subj "/CN=<hostname>"` when generating server cert                       |
+| `ECONNREFUSED` on startup         | SVID not written yet / SPIRE not ready| Check `docker compose logs spiffe-helper-<svc>` and `spire-agent`; wait for entries |
+| Certificate errors in logs        | Stale SVID or missing bundle          | `docker compose restart <svc>` to re-fetch the SVID via `spiffe-helper`         |
+| `wget` health check fails         | Self-signed SVID not trusted          | Expected for local dev — the health check uses `curl -sk` (skip verify)        |
+| `UNABLE_TO_VERIFY_LEAF_SIGNATURE` | mTLS misconfiguration                 | Verify the service CA bundle (`bundle.pem`) matches the SPIRE trust domain      |
+| SVID renewal failed               | SPIRE agent attestation problem       | Check `docker compose logs spire-agent`; reconcile entries (spire-entries)      |
 
 ---
 
-## Node.js / npm
+## Bun
 
 | Symptom                                                 | Likely cause                            | Fix                                                                             |
 | ------------------------------------------------------- | --------------------------------------- | ------------------------------------------------------------------------------- |
-| `npm ci` fails                                          | Node.js < 20                            | Run `node --version`; install Node.js 20+                                       |
-| `npm run build` fails                                   | Missing dependencies                    | Run `npm ci` first (clean install from lockfile)                                |
-| Test coverage below threshold                           | New code not fully tested               | Write tests for uncovered paths. Run `npm test -- --coverage` to see the report |
-| `command not found: biome`                              | `npm ci` not run                        | Run `npm ci` to install dev dependencies                                        |
-| `npm ci` fails with `Missing: <package> from lock file` | Lock file out of sync with package.json | Run `npm install` to update lock file                                           |
-| `ERR_OSSL_EVP_UNSUPPORTED`                              | Node.js 17+ OpenSSL changes             | Set `NODE_OPTIONS=--openssl-legacy-provider` or upgrade to Node.js 20+          |
+| `bun install --frozen-lockfile` fails                                          | Bun outdated / unsupported platform     | Run `bun --version`; update Bun (`bun upgrade`)                                 |
+| `bun run build` fails                                   | Missing dependencies                    | Run `bun install --frozen-lockfile` first (clean install from lockfile)                                |
+| Test coverage below threshold                           | New code not fully tested               | Write tests for uncovered paths. Run `bun run test --coverage` to see the report |
+| `command not found: biome`                              | `bun install --frozen-lockfile` not run                        | Run `bun install --frozen-lockfile` to install dev dependencies                                        |
+| `bun install --frozen-lockfile` fails with `Missing: <package> from lock file` | Lock file out of sync with package.json | Run `bun install` to update lock file                                           |
 
 ---
 
@@ -95,7 +93,7 @@ Common issues grouped by category. For per-service debugging, see [Diagnostic Gu
 | ---------------------------------------------------------------------------- | -------------------------------------- | -------------------------------------------------------- |
 | Biome not running in VS Code                                                 | Biome VS Code extension not installed  | Install `biomejs.biome` extension from marketplace       |
 | Biome format conflicts with editor settings                                  | Editor uses default formatter          | Set `"editor.defaultFormatter": "biomejs.biome"` in settings |
-| `Parsing error: Cannot find module 'typescript'`            | TypeScript not installed in workspace                 | Run `npm ci` to install dependencies                                                    |
+| `Parsing error: Cannot find module 'typescript'`            | TypeScript not installed in workspace                 | Run `bun install --frozen-lockfile` to install dependencies                                                    |
 
 ---
 
@@ -115,10 +113,10 @@ Common issues grouped by category. For per-service debugging, see [Diagnostic Gu
 
 | Symptom                       | Likely cause                      | Fix                                                             |
 | ----------------------------- | --------------------------------- | --------------------------------------------------------------- |
-| `husky` pre-commit hook fails | Commit message format invalid     | Use `npm run commit` (interactive). See STANDARDS.md for format |
+| `husky` pre-commit hook fails | Commit message format invalid     | Use `bun run commit` (interactive). See STANDARDS.md for format |
 | `commitlint` error            | Non-conventional commit           | Rewrite commit message. Format: `<gitmoji>(<scope>): <subject>` |
 | Push rejected                 | Branch not up to date with `main` | `git pull --rebase origin main` and resolve conflicts           |
-| `husky` not running           | Git hooks path not set            | Run `npx husky install` or `git config core.hooksPath .husky`   |
+| `husky` not running           | Git hooks path not set            | Run `bunx husky install` or `git config core.hooksPath .husky`   |
 | `LF will be replaced by CRLF` | Line ending mismatch              | Set `git config core.autocrlf true` on Windows                  |
 
 ---
@@ -131,7 +129,7 @@ Common issues grouped by category. For per-service debugging, see [Diagnostic Gu
 | Mock not called             | Mock setup before action        | Call `mockResolvedValue` before invoking the tested function |
 | State leaking between tests | Shared mutable state            | Use `beforeEach` instead of `beforeAll` for test setup       |
 | Flaky tests                 | Timing-dependent assertions     | Use event-based waits instead of fixed `setTimeout` delays   |
-| `jest` command not found    | Dev dependencies not installed  | Run `npm ci` to install dev dependencies including Jest      |
+| `jest` command not found    | Dev dependencies not installed  | Run `bun install --frozen-lockfile` to install dev dependencies including Jest      |
 
 ---
 
@@ -142,5 +140,5 @@ If the issue is not listed above:
 1. Check `docker compose logs -f` for real-time errors from all services
 2. Check a specific service: `docker compose logs <service-name>`
 3. Verify your `.env` matches `.env.example`
-4. Ensure TLS certificates are valid (not expired, paths are correct)
+4. Ensure SPIRE is healthy (`docker compose logs spire-agent`) and SVIDs exist (`docker compose logs spiffe-helper-<svc>`)
 5. Open a GitHub issue with the full error message and `docker compose logs` output

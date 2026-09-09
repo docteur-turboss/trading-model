@@ -24,16 +24,15 @@ Quick-reference for debugging each service: key logs, metrics, health endpoints,
 | **Debug endpoints** | `GET /api/messages?status=failed` — failed messages, `GET /api/messages/:id` — single message                                    |
 | **Common failures** | Subscriber unreachable → retries → DLQ. Check subscriber health and network. Circuit breaker opens after 5 consecutive failures. |
 
-## 3. Certificate Authority
+## 3. Workload Identity (SPIRE)
 
 | Aspect              | Details                                                                                                                                 |
 | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| **Health**          | `GET /health` → `{"status":"ok","caInitialized":true}`                                                                                  |
-| **Port**            | 8447 (host) / 3000 (container)                                                                                                          |
-| **Key logs**        | `CA initialized`, `Certificate signed for`, `Certificate revoked`, `Rotation check complete`, `CRL updated`                             |
-| **Metrics**         | `ca_certificates_issued`, `ca_certificates_revoked`, `ca_crl_size`, `ca_rotation_errors`                                                |
-| **Debug endpoints** | `GET /api/v1/crl` — current CRL, `GET /api/v1/certificate/:serviceId` — service cert                                                    |
-| **Common failures** | CA key missing → service cannot start. Certificate expiry → mTLS handshake failures. Check `CA_KEY_PATH` and `CERT_ROTATION_MARGIN_MS`. |
+| **Health**          | SPIRE Server: `spire-server healthcheck`; Agent: `spire-agent healthcheck` (ADR-0011)                                                    |
+| **Port**            | SPIRE Server gRPC 8081 (cluster-internal); Workload API socket `/run/spire/agent-sockets/public/api.sock`                                 |
+| **Key logs**        | Agent: `attesting workload`, `rotating SVID`; Server: `entry registered`, attestor failures                                             |
+| **Debug endpoints** | Workload API → `spiffe-helper` writes `svid.pem` / `svid_key.pem` / `bundle.pem`                                                          |
+| **Common failures** | Agent cannot reach server → attestation/rotation failures. SVID not found in volume → check `spiffe-helper` sidecar + Workload API socket. |
 
 ## 4. Financial Scraper
 
@@ -105,7 +104,7 @@ Quick-reference for debugging each service: key logs, metrics, health endpoints,
 
 ```bash
 # Check all service health endpoints
-for port in 8443 8444 8445 8446 8447 8448 8450 8452; do
+for port in 8443 8444 8445 8446 8448 8450 8452; do
   echo "Port $port: $(curl -sk https://localhost:$port/ping 2>/dev/null || echo 'UNREACHABLE')"
 done
 
@@ -115,7 +114,6 @@ docker logs -f trading-message     # message-manager
 docker logs -f trading-gateway     # api-gateway
 docker logs -f trading-scraper     # financial-scraper
 docker logs -f trading-trainer     # trader-trainer
-docker logs -f trading-ca          # certificate-authority
 docker logs -f trading-audit       # audit-logger
 docker logs -f trading-dlq         # dlq-service
 ```

@@ -6,7 +6,7 @@ Centralised service instance registry with TTL-based lease management and HMAC-S
 
 | Property         | Value                                   |
 | ---------------- | --------------------------------------- |
-| Service name     | `discovery-service`                     |
+| Service name     | `discovery-server`                     |
 | Port (host)      | `8443`                                  |
 | Port (container) | `3000`                                  |
 | Dependencies     | `@trading-model/common` only            |
@@ -29,7 +29,7 @@ Registers or updates a service instance. Requires a valid TLS client certificate
 
 ```json
 {
-  "serviceName": "financial-scraper-service",
+  "serviceName": "financial-scraper",
   "instanceId": "uuid-instance-id",
   "ip": "192.168.1.10",
   "port": 3000,
@@ -44,7 +44,7 @@ Returns the full `ServiceInstance` object with the issued token:
 ```json
 {
   "instanceId": "uuid-instance-id",
-  "serviceName": "financial-scraper-service",
+  "serviceName": "financial-scraper",
   "ip": "192.168.1.10",
   "port": 3000,
   "version": "1.0.0",
@@ -66,7 +66,7 @@ Extends the TTL (lease) of a service instance. Called periodically by each servi
 
 ```json
 {
-  "serviceName": "financial-scraper-service",
+  "serviceName": "financial-scraper",
   "instanceId": "uuid-instance-id",
   "authToken": "hmac-sha256-token-value"
 }
@@ -105,8 +105,8 @@ Lists all registered service names.
 
 ```json
 [
-  "financial-scraper-service",
-  "trader-training-service"
+  "financial-scraper",
+  "trader-trainer"
 ]
 ```
 
@@ -121,7 +121,7 @@ Lists all instances of a given service.
 ```json
 [
   {
-    "serviceName": "financial-scraper-service",
+    "serviceName": "financial-scraper",
     "instanceId": "uuid-instance-id",
     "ip": "192.168.1.10",
     "port": 3000,
@@ -143,7 +143,7 @@ Returns detailed metadata for a specific service instance.
 
 ```json
 {
-  "serviceName": "financial-scraper-service",
+  "serviceName": "financial-scraper",
   "instanceId": "uuid-instance-id",
   "ip": "192.168.1.10",
   "port": 3000,
@@ -177,9 +177,9 @@ The discovery-server follows a dependency injection pattern. No singletons are u
 
 | Class / Factory                        | Instantiator   | Notes                                            |
 | -------------------------------------- | -------------- | ------------------------------------------------ |
-| `new ServiceRegistry()`                | `app/index.ts` | Central in-memory registry (no singleton export) |
-| `new LeaseManager(registry, options?)` | `app/index.ts` | Accepts `ServiceRegistry` in constructor         |
-| `createServer(registry)`               | `app/index.ts` | HTTPS server factory                             |
+| `new ServiceRegistry()`                | `src/application/index.ts` | Central in-memory registry (no singleton export) |
+| `new LeaseManager(registry, options?)` | `src/application/index.ts` | Accepts `ServiceRegistry` in constructor         |
+| `createServer(registry)`               | `src/application/index.ts` | HTTPS server factory                             |
 
 ### Controller & Route Factories
 
@@ -192,7 +192,7 @@ All controllers and routes receive their dependencies via factory parameters:
 | `registryRoutes(registry)`            | `Router`                                                       |
 | `heartbeatRoutes(registry)`           | `Router`                                                       |
 
-### Composition Root (`app/index.ts`)
+### Composition Root (`src/application/index.ts`)
 
 ```ts
 const registry = new ServiceRegistry();
@@ -234,4 +234,4 @@ Controllers are created via factories that accept a `ServiceRegistry` instance.
 
 ## Deployment
 
-The service is bootstrapped via `createBootstrap()` which attaches `SIGTERM`/`SIGINT` handlers. The composition root (`src/app/index.ts`) creates a `new ServiceRegistry()` and `new LeaseManager(registry)`, then passes the registry to `createServer(registry)`. The `LeaseManager` is started in `onStart` and stopped in `onStop`.
+The service is bootstrapped via `createBootstrap()` which attaches `SIGTERM`/`SIGINT` handlers. The composition root (`src/application/index.ts`) creates a `new ServiceRegistry()` and `new LeaseManager(registry)`, then passes the registry to `createServer(registry)`. The `LeaseManager` is started in `onStart` and stopped in `onStop`.

@@ -15,11 +15,11 @@ Market data ingestion service that fetches real-time financial data from Binance
 
 ```bash
 # From the monorepo root
-npm install
+bun install
 
 # Or from this directory
 cd services/financial-scraper
-npm install
+bun install
 ```
 
 ## Configuration
@@ -60,10 +60,10 @@ See [.env.example](./.env.example) for all available variables.
 
 ```bash
 # Development (with ts-node)
-npm run dev
+bun run dev
 
 # Production build
-npm run build
+bun run build
 node dist/application/index.js
 ```
 
@@ -71,24 +71,24 @@ node dist/application/index.js
 
 ```bash
 # All tests
-npm test
+bun run test
 
 # With coverage
-npm run test:coverage
+bun run test:coverage
 
 # Watch mode
-npm run test:watch
+bun run test:watch
 ```
 
 ## Scripts
 
 | Script                  | Description                           |
 | ----------------------- | ------------------------------------- |
-| `npm run dev`           | Run in development mode via `ts-node` |
-| `npm run build`         | Compile TypeScript to `dist/`         |
-| `npm test`              | Execute all tests                     |
-| `npm run test:coverage` | Execute tests with coverage report    |
-| `npm run test:watch`    | Execute tests in watch mode           |
+| `bun run dev`           | Run in development mode via `ts-node` |
+| `bun run build`         | Compile TypeScript to `dist/`         |
+| `bun run test`              | Execute all tests                     |
+| `bun run test:coverage` | Execute tests with coverage report    |
+| `bun run test:watch`    | Execute tests in watch mode           |
 
 ## Project Structure
 

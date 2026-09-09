@@ -81,7 +81,7 @@ Is there a known cause? → Recent deploy / config change / upstream outage
 
 This section applies when a security incident involves:
 
-- Unauthorized access to or disclosure of secrets (CA keys, service tokens, HMAC secrets)
+- Unauthorized access to or disclosure of secrets (SPIRE CA keys, service tokens, HMAC secrets)
 - Data integrity compromise (audit log tampering, message forgery)
 - Any incident that could trigger regulatory notification obligations
 

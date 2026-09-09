@@ -132,7 +132,7 @@ import BrokerMessage, { HELPER } from '@trading-model/broker-message';
 const metadata = new HELPER.metadataBuilder()
   .setTopic('market.trade.recent.fetch')
   .setEventType('market.trade.recent.fetch')
-  .setPublisher({ serviceName: 'financial-scraper-service', instanceId: 'uuid' })
+  .setPublisher({ serviceName: 'financial-scraper', instanceId: 'uuid' })
   .setDelivery({ mode: 'at-least-once' })
   .toJSON();
 ```
@@ -280,4 +280,4 @@ This package is built as a workspace dependency. Consuming services reference it
 "dependencies": { "@trading-model/broker-message": "*" }
 ```
 
-Build: `npm run build` (tsc, Node16 module output). The compiled output goes to `dist/`.
+Build: `bun run build` (tsc, Node16 module output). The compiled output goes to `dist/`.

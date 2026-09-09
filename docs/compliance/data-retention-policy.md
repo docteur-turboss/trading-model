@@ -11,14 +11,13 @@ Data shall be retained only as long as necessary for the purposes for which it i
 
 | Data Type                                  | System                    | Retention Period                      | Legal Basis                                                            | Deletion Mechanism                                      |
 | ------------------------------------------ | ------------------------- | ------------------------------------- | ---------------------------------------------------------------------- | ------------------------------------------------------- |
-| **Market data** (candles, trades, tickers) | MySQL `financial_scraper` | **5 years**                           | MiFID II Art. 72 (record-keeping of transactions)                      | `PURGE_MARKET_DATA_BEFORE_DAYS` env var (default: 1827) |
+| **Market data** (candles, trades, tickers) | MySQL `financial_scraper` | **5 years**                           | MiFID II Art. 72 (record-keeping of transactions)                      | MySQL event `purge_old_market_data` (migration 003, daily, cutoff 1827 days) |
 | **Audit events**                           | MongoDB `audit_events`    | **5 years**                           | MiFID II (record-keeping), GDPR Art. 30 (processing register evidence) | TTL index on `recordedAt` field                         |
 | **Service messages** (transit)             | Redis Streams             | **2 hours**                           | Operational necessity only — transient routing                         | Stream MAXLEN ~500000 entries                           |
 | **Message archive**                        | MongoDB `message_archive` | **90 days**                           | Operational debugging                                                  | TTL index (disabled by default; enable via config)      |
 | **Dead letter entries**                    | MongoDB `dlq_entries`     | **30 days**                           | Operational — messages not delivered after retries                     | Prune cron (daily) + `ENTRY_TTL_MS`                     |
-| **Certificates (active)**                  | MongoDB + disk            | **7 days** (auto-rotation)            | Security best practice                                                 | `CERT_DEFAULT_TTL_MS` = 604800000                       |
-| **Certificates (revoked/expired)**         | MongoDB `crl_entries`     | **90 days**                           | CRL history for audit                                                  | TTL index                                               |
-| **CA keys**                                | Filesystem (AES-256 GCM)  | **3 versions** (current + 2 previous) | Key rollback capability                                                | `CA_KEY_RETENTION_VERSIONS` = 3                         |
+| **SVIDs**                                  | `/run/spire/svid` (spiffe-helper) | **1h TTL** (auto-rotated)            | Security best practice                                                 | SPIRE Server SVID rotation                              |
+| **SPIRE trust bundle**                     | SPIRE datastore (MySQL `spire`) | **168h** (ca_ttl)                    | Security best practice                                                 | SPIRE CA manager                                       |
 | **Service tokens**                         | K8s Secrets               | **Until rotated** (weekly)            | Security                                                               | Manual rotation via `scripts/rotate-secrets.sh`         |
 | **Operational logs**                       | stdout / Promtail → Loki  | **30 days**                           | Operational debugging                                                  | Loki retention: `744h` (configurable)                   |
 | **Prometheus metrics**                     | Prometheus TSDB           | **15 days**                           | Operational monitoring                                                 | `--storage.tsdb.retention.time=15d`                     |
@@ -48,7 +47,7 @@ Data shall be retained only as long as necessary for the purposes for which it i
 -- Enable event scheduler
 SET GLOBAL event_scheduler = ON;
 
--- Daily purge of data older than PURGE_MARKET_DATA_BEFORE_DAYS (default: 1827 days = 5 years)
+-- Daily purge of data older than 1827 days (5 years) — see migration 003
 CREATE EVENT IF NOT EXISTS purge_old_market_data
 ON SCHEDULE EVERY 1 DAY
 STARTS CURRENT_TIMESTAMP

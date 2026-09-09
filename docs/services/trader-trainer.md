@@ -6,7 +6,7 @@ Training service for trading agents using genetic algorithms and neural networks
 
 | Property         | Value                                                                                      |
 | ---------------- | ------------------------------------------------------------------------------------------ |
-| Service name     | `trader-training-service`                                                                  |
+| Service name     | `trader-trainer`                                                                  |
 | Port (host)      | `8446`                                                                                     |
 | Port (container) | `3000`                                                                                     |
 | Dependencies     | `@trading-model/common`, `@trading-model/address-manager`, `@trading-model/broker-message` |

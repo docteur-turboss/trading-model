@@ -13,10 +13,10 @@ All security and operational incidents affecting the trading-model platform shal
 
 | Level | Severity | Definition | Examples | Response Time |
 |---|---|---|---|---|
-| **L1** | Critical | Compromise of cryptographic keys, persistent unauthorised access, or extended platform outage | CA private key compromise, full platform DoS, database exfiltration | Immediate (≤ 15 min) |
-| **L2** | High | Service degradation, data integrity concern, or potential unauthorised access | Service certificate compromise, audit-logger failure, persistent message loss | ≤ 1 hour |
+| **L1** | Critical | Compromise of cryptographic keys, persistent unauthorised access, or extended platform outage | SPIRE CA key compromise, full platform DoS, database exfiltration | Immediate (≤ 15 min) |
+| **L2** | High | Service degradation, data integrity concern, or potential unauthorised access | SVID compromise, audit-logger failure, persistent message loss | ≤ 1 hour |
 | **L3** | Medium | Isolated service failure, configuration error, or limited data loss | Single service crash, DLQ overflow, rate limit bypass | ≤ 4 hours |
-| **L4** | Low | Minor misconfiguration, alert noise, or non-security operational issue | Stale certificate warning, minor log formatting issue | ≤ 24 hours |
+| **L4** | Low | Minor misconfiguration, alert noise, or non-security operational issue | Stale SVID warning, minor log formatting issue | ≤ 24 hours |
 
 ## 3. Incident Response Lifecycle
 
@@ -35,7 +35,7 @@ Detection → Triage → Containment → Eradication → Recovery → Post-Morte
 | **Automated alerts** | Prometheus + Alertmanager, Grafana | Anomaly detection, threshold-based alerts (CPU, memory, error rates) |
 | **Health checks** | Kubernetes liveness/readiness probes, service health endpoints | `/health` endpoint on every service |
 | **Audit gap detection** | Audit-logger | Missing heartbeat events trigger gap detection |
-| **CRL cache invalidation** | Certificate-authority + Redis pub/sub | Certificate revocation propagates in real-time |
+| **SVID rotation / trust bundle update** | SPIRE + spiffe-helper sidecars | SVID rotation propagates via the Workload API |
 | **Log monitoring** | Loki + Promtail | Structured log aggregation and querying |
 
 ### 3.2 Triage
@@ -52,7 +52,7 @@ Upon incident detection, the on-call engineer shall:
 
 | Incident Type | Containment Strategy |
 |---|---|
-| **Certificate compromise** | Revoke certificates via CA. Scale compromised instance to zero. Rotate affected keys |
+| **SVID / trust compromise** | Re-register workloads via SPIRE, rotate trust bundle. Scale compromised instance to zero. Rotate affected keys |
 | **Service misconfiguration** | Rollback to last known good configuration. Halt deployment pipeline |
 | **Data integrity issue** | Stop affected service. Restore from backup. Initiate data validation |
 | **Unauthorised access** | Revoke all session tokens. Rotate affected credentials. Isolate service network |
@@ -128,12 +128,12 @@ All incidents are logged with the audit-logger for traceability and compliance:
   "correlationId": "inc-20260615-001",
   "eventType": "INCIDENT_DETECTED",
   "severity": "HIGH",
-  "affectedService": "certificate-authority",
-  "summary": "Certificate renewal failure for discovery-server",
+  "affectedService": "discovery-server",
+  "summary": "SVID renewal failure for discovery-server",
   "detectedAt": "2026-06-15T10:30:00Z",
   "containedAt": "2026-06-15T10:45:00Z",
   "resolvedAt": "2026-06-15T11:00:00Z",
-  "actionTaken": "Manual certificate renewal triggered. Root cause: Redis connectivity issue."
+  "actionTaken": "SPIRE entry reconciled and spiffe-helper restarted. Root cause: SPIRE agent connectivity issue."
 }
 ```
 
@@ -144,7 +144,7 @@ All incidents are logged with the audit-logger for traceability and compliance:
 | **Tabletop exercise** | Annual | Platform Security Lead, DevOps Lead, Lead Developer |
 | **Automated chaos testing** | Quarterly | CI/CD pipeline injects controlled failures |
 | **Full recovery drill** | Annual | Complete platform recovery from backup |
-| **Certificate expiry simulation** | Annual | Verify auto-renewal and alerting |
+| **Certificate expiry simulation** | Annual | Verify SVID auto-rotation and alerting |
 
 ## 9. Cross-References
 

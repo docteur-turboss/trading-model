@@ -1,6 +1,6 @@
 # ADR-0005: Mutual TLS for All Inter-Service Communication
 
-**Status:** Accepted
+**Status:** Superseded by [ADR-0011](./0011-spiffe-spire-workload-identity.md)
 **Date:** 2026-06
 
 ## Context

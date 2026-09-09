@@ -37,7 +37,6 @@ Services with additional health endpoints:
 
 | Service               | Endpoint       | Returns                                          |
 | --------------------- | -------------- | ------------------------------------------------ |
-| Certificate Authority | `GET /health`  | `{"status":"ok","caInitialized":true,...}`        |
 | Audit Logger          | `GET /health`  | `{"status":"ok","queueDepth":N,...}`              |
 | discovery-server      | `GET /ping`    | `{"status":"ok"}` (no /health)                    |
 

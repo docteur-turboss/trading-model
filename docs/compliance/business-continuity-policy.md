@@ -9,7 +9,7 @@
 
 This policy defines the Business Continuity (BC) and Disaster Recovery (DR) framework for the trading-model platform. It ensures that critical platform functions can be maintained or restored within defined timeframes in the event of a disruption.
 
-**Scope:** All 9 microservices, 5 packages, databases (MongoDB, MySQL, Redis), CI/CD infrastructure, and supporting observability stack.
+**Scope:** All 8 microservices, 6 packages, databases (MongoDB, MySQL, Redis), CI/CD infrastructure, and supporting observability stack.
 
 ## 2. Business Impact Analysis (BIA)
 
@@ -17,7 +17,7 @@ This policy defines the Business Continuity (BC) and Disaster Recovery (DR) fram
 
 | Tier | Definition | Services | Maximum Tolerable Downtime (MTD) |
 |---|---|---|---|
-| **T1 — Critical** | Core platform function; loss immediately impacts compliance or security | certificate-authority, discovery-server | 15 minutes |
+| **T1 — Critical** | Core platform function; loss immediately impacts compliance or security | spire-server, discovery-server | 15 minutes |
 | **T2 — High** | Core business function; loss significantly impacts platform capability | message-manager, audit-logger, trader-trainer | 1 hour |
 | **T3 — Medium** | Supporting function; loss impacts operations but not compliance | financial-scraper, dlq-service, api-gateway | 4 hours |
 | **T4 — Low** | Non-critical; loss has minimal operational impact | admin-interface, monitoring stack | 24 hours |
@@ -40,7 +40,7 @@ This policy defines the Business Continuity (BC) and Disaster Recovery (DR) fram
 | **Single service crash** | High | Isolated | L4 — Low |
 | **Database node failure** | Medium | High (data unavailable) | L2 — High |
 | **Redis cluster failure** | Medium | Critical (message routing) | L1 — Critical |
-| **Certificate authority outage** | Low | Critical (no new certificates) | L1 — Critical |
+| **SPIRE server outage** | Low | Critical (no new SVIDs) | L1 — Critical |
 | **Full region failure** | Low | Critical (full platform) | L1 — Critical |
 | **CI/CD pipeline compromise** | Low | High (supply chain risk) | L2 — High |
 | **Cryptographic key compromise** | Low | Critical (full rebuild) | L1 — Critical |
@@ -62,16 +62,16 @@ This policy defines the Business Continuity (BC) and Disaster Recovery (DR) fram
 4. **Backup:** Daily MongoDB dump (or Atlas snapshot). Point-in-time recovery available.
 5. **Verification:** Replica set status: `rs.status().ok === 1`
 
-#### 3.2.3 Certificate Authority Outage
+#### 3.2.3 SPIRE Server Outage
 
-1. **Detection:** Certificate renewal failure alerts from all services
-2. **Impact:** No new certificates, no certificate renewal. Existing certificates valid for up to 7 days.
+1. **Detection:** SVID renewal failure alerts from all services
+2. **Impact:** No new SVIDs, no renewal. Existing SVIDs valid for up to the configured TTL.
 3. **Response:**
-   - Diagnose CA service (certificate-authority:8447)
-   - If CA database (MongoDB) unavailable, Redis cache may serve CRL data temporarily
-   - If CA key files corrupted, restore from encrypted backup (CronJob daily)
-4. **Escalation:** If unrecoverable within 4 hours, generate temporary self-signed certs via `scripts/generate-certs.sh`
-5. **Recovery:** Full CA rebuild from backup or bootstrap new CA with re-enrolment of all services
+   - Diagnose SPIRE server (spire-server) and agent health
+   - Reconcile workload entries (spire-entries job)
+   - Restart `spiffe-helper` sidecars to re-fetch SVIDs
+4. **Escalation:** If unrecoverable within 4 hours, restore the SPIRE datastore from backup (CronJob daily)
+5. **Recovery:** Full SPIRE datastore restore or re-bootstrap with re-enrolment of all workloads
 
 #### 3.2.4 Full Platform Outage
 
@@ -80,7 +80,7 @@ This policy defines the Business Continuity (BC) and Disaster Recovery (DR) fram
 3. **Recovery:**
    - Infrastructure rebuild via `docker-compose up -d` or `kubectl apply -f deploy/`
    - Database restoration from backup (MongoDB: latest dump, MySQL: binlog + dump)
-   - Certificate re-issuance from CA backup or bootstrap
+   - SPIRE datastore restore or re-bootstrap (SVID re-enrolment of all workloads)
    - Service restart in dependency order
 
 ## 4. Backup Strategy
@@ -89,7 +89,7 @@ This policy defines the Business Continuity (BC) and Disaster Recovery (DR) fram
 
 | Data | Type | Frequency | Retention | Location |
 |---|---|---|---|---|
-| CA keys (AES-256 encrypted) | File | Daily (CronJob) | 30 days | Off-site / different K8s cluster |
+| SPIRE datastore (MySQL `spire`) | Dump | Daily (CronJob) | 30 days | Off-site / different K8s cluster |
 | MongoDB (audit, cert, dlq) | Dump | Daily | 30 days | Object storage (S3-compatible) |
 | MySQL (market data) | Dump | Daily | 30 days | Object storage (S3-compatible) |
 | Redis (streams, cache) | RDB / AOF | Continuous AOF | 7 days | Persistent volume |
@@ -99,27 +99,27 @@ This policy defines the Business Continuity (BC) and Disaster Recovery (DR) fram
 ### 4.2 Backup Verification
 
 - Weekly automated restoration test for MongoDB and MySQL (CI pipeline)
-- Monthly full recovery drill for CA keys
+- Monthly full recovery drill for SPIRE datastore
 - Backup integrity verified via checksum after each backup job
 
 ## 5. Dependency Order for Recovery
 
 ```
-Certificate Authority (CA) ────┐
-                               │
-Discovery Server ──────────────┤
-                               │
-Message Manager ───────────────┤
-                               ├──► All Other Services
-Database (MongoDB/MySQL/Redis)─┤
-                               │
-Monitoring Stack ──────────────┘
+SPIRE Server ────────────────────┐
+                                │
+Discovery Server ───────────────┤
+                                │
+Message Manager ────────────────┤
+                                ├──► All Other Services
+Database (MongoDB/MySQL/Redis)──┤
+                                │
+Monitoring Stack ───────────────┘
 ```
 
 **Ordered recovery sequence:**
 
 1. **Databases** — MongoDB, MySQL, Redis (restore from backup if needed)
-2. **Certificate Authority** — Regenerate or restore CA keys
+2. **SPIRE Server** — restore SPIRE datastore, reconcile entries, re-issue SVIDs
 3. **Discovery Server** — Start first for service registry
 4. **Message Manager** — Start next for inter-service communication
 5. **All other services** — Parallel start (financial-scraper, trader-trainer, etc.)
@@ -150,8 +150,7 @@ Monitoring Stack ──────────────┘
 | [Incident Response Policy](incident-response-policy.md) | L1-L4 incident classification and response |
 | `docs/operations/runbooks/runbook-database-failover.md` | Technical database failover procedure |
 | `docs/operations/runbooks/runbook-service-down.md` | Single service recovery procedure |
-| `docs/operations/runbooks/runbook-ca-compromise.md` | CA key compromise response |
-| `docs/operations/runbooks/runbook-certificate-expiry.md` | Certificate expiry runbook |
+| `docs/operations/runbooks/runbook-certificate-expiry.md` | SVID / certificate expiry runbook |
 | `docs/operations/runbooks/runbook-data-corruption.md` | Data corruption recovery |
 | `docs/operations/runbooks/runbook-message-bus-outage.md` | Redis/message-manager recovery |
 | `docs/operations/runbooks/runbook-deployment-failure.md` | Deployment failure recovery |

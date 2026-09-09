@@ -46,7 +46,7 @@ If multiple services were deployed together:
 ```bash
 # Revert to previous known-good image tags
 for service in discovery-server message-manager financial-scraper trader-trainer \
-               certificate-authority api-gateway audit-logger dlq-service admin-interface; do
+               api-gateway audit-logger dlq-service admin-interface; do
   kubectl set image -n trading-model deployment/$service $service=ghcr.io/trading-model/$service:<previous-stable-tag>
 done
 
@@ -59,11 +59,8 @@ kubectl rollout status -n trading-model deployment/message-manager
 ## Canary Deployment Rollback (via deploy scripts)
 
 ```bash
-# If using canary deployment script
-./scripts/deploy-beta.sh --rollback
-
 # Manual rollback for K8s
-./scripts/deploy-k8s.sh rollback
+./deploy/k8s/scripts/deploy-k8s.sh rollback <service>
 ```
 
 ## Root Cause Investigation
@@ -99,7 +96,7 @@ kubectl describe pod -n trading-model -l app.kubernetes.io/component=<service-na
 ### After successful rollback
 
 - [ ] Verify all health endpoints return 200
-- [ ] Run E2E smoke tests (`npm run test:e2e:docker`)
+- [ ] Run E2E smoke tests (`bun run test:e2e:docker`)
 - [ ] Confirm Prometheus alerts resolve
 - [ ] Document deployment failure in post-mortem
 

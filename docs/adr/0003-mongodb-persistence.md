@@ -1,26 +1,28 @@
-# ADR-0003: MongoDB for Audit, CA, and DLQ Persistence
+# ADR-0003: MongoDB for Audit and DLQ Persistence
+
+> **Note:** The `certificate-authority` scope of this ADR is superseded by
+> [ADR-0011](./0011-spiffe-spire-workload-identity.md) — the CA was
+> decommissioned in favour of SPIRE.
 
 **Status:** Accepted
 **Date:** 2026-06
 
 ## Context
 
-Three services require persistent storage:
+Two services require persistent storage:
 
 - **audit-logger**: Immutable event stream with flexible query patterns
-- **certificate-authority**: Certificate metadata, CRL entries, CA key storage
 - **dlq-service**: Dead letter messages with replay metadata
 
 ## Decision
 
-Use **MongoDB 7** as the shared persistence layer for all three services, deployed as a single replica set.
+Use **MongoDB 7** as the shared persistence layer for both services, deployed as a single replica set.
 
 ### Schema Design
 
 Each service uses a separate database within the same MongoDB instance:
 
 - `audit_logger` → `audit_events` collection (time-series optimized)
-- `certificate-authority` → `certificates`, `crl_entries`, `ca_metadata` collections
 - `dlq-service` → `dead_letter_entries` collection
 
 ## Alternatives Considered

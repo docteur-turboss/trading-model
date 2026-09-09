@@ -16,7 +16,7 @@ Welcome to the **trading-model** documentation.
 | [Architecture Standards](standards/architecture-standards.md) | Monorepo structure, tech stack, service conventions, dependency graph |
 | [Bounded Contexts](architecture/bounded-contexts.md) | DDD context map with integration patterns |
 | [Databases](architecture/databases.md) | MySQL schemas, MongoDB collections, entity definitions |
-| [ADR Index](adr/README.md) | 10 architecture decision records |
+| [ADR Index](adr/README.md) | 11 architecture decision records |
 
 ## Concepts
 
@@ -38,7 +38,6 @@ Per-service and per-package documentation ([full index](services/README.md)):
 | `message-manager` | 8444 | Topic-based pub/sub broker with DLQ routing |
 | `financial-scraper` | 8445 | Binance market data ingestion |
 | `trader-trainer` | 8446 | GA + DQN agent evolution engine |
-| `certificate-authority` | 8447 | X.509 certificate lifecycle |
 | `api-gateway` | 8448 | External entry point: auth, rate-limit, cache, proxy |
 | `admin-interface` | 8449 | React SPA dashboard |
 | `audit-logger` | 8450 | Immutable event traceability |
@@ -86,4 +85,4 @@ Per-service and per-package documentation ([full index](services/README.md)):
 
 ## Code Documentation
 
-TypeDoc-generated HTML: `npm run docs:generate` — output at `docs/architecture/code/index.html`.
+TypeDoc-generated HTML: `bun run docs:generate` — output at `docs/architecture/code/index.html`.

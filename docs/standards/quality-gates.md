@@ -23,7 +23,7 @@ Triggered on every `git commit` — fast, must pass in seconds:
 
 ```bash
 # .husky/pre-commit
-npx lint-staged
+bunx lint-staged
 ```
 
 `lint-staged` applies `@biomejs/biome` only to modified files.
@@ -34,8 +34,8 @@ Triggered on every `git push` — more thorough:
 
 ```bash
 # .husky/pre-push
-npm run build
-npm test
+bun run build
+bun run test
 ```
 
 ### CI (GitHub Actions)
@@ -43,9 +43,9 @@ npm test
 Triggered on every push and PR — full validation:
 
 ```bash
-npm run lint
-npm run build
-npm run test:coverage
+bun run lint
+bun run build
+bun run test:coverage
 ```
 
 ## Linting
@@ -56,7 +56,7 @@ npm run test:coverage
 - Test files (`.spec.ts`) and fixtures are excluded from linting
 
 ```bash
-npm run lint  # npx @biomejs/biome check .
+bun run lint  # bunx @biomejs/biome check .
 ```
 
 ### Biome Configuration
@@ -110,7 +110,7 @@ Strict rules enabled:
 
 ## Dependencies
 
-- **npm audit** — Run regularly: `npm audit`
+- **bun audit** — Run regularly: `bun audit`
 - **Dependabot** — Enabled on the repository, automatic PRs
 - **Dependabot PR review** — Priority, merge quickly
 - **No dependencies with known vulnerabilities** in production
@@ -123,10 +123,10 @@ Strict rules enabled:
 
 Before merging a PR, verify:
 
-- [ ] `npm run lint` — 0 errors
-- [ ] `npm run build` — Build succeeded
-- [ ] `npm test` — All tests pass
-- [ ] `npm run test:coverage` — Coverage thresholds met
+- [ ] `bun run lint` — 0 errors
+- [ ] `bun run build` — Build succeeded
+- [ ] `bun run test` — All tests pass
+- [ ] `bun run test:coverage` — Coverage thresholds met
 - [ ] Code review approved (>= 1 approval)
 - [ ] No secrets committed
 - [ ] Compliance with naming and structure standards

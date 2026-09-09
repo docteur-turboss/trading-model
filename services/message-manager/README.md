@@ -15,11 +15,11 @@ Internal messaging backbone for inter-service communication. Provides topic-base
 
 ```bash
 # From the monorepo root
-npm install
+bun install
 
 # Or from this directory
 cd services/message-manager
-npm install
+bun install
 ```
 
 ## Configuration
@@ -57,10 +57,10 @@ See [.env.example](./.env.example) for all available variables.
 
 ```bash
 # Development (with ts-node)
-npm run dev
+bun run dev
 
 # Production build
-npm run build
+bun run build
 node dist/application/index.js
 ```
 
@@ -68,23 +68,23 @@ node dist/application/index.js
 
 ```bash
 # All tests
-npm test
+bun run test
 
 # With coverage
-npm run test:coverage
+bun run test:coverage
 
 # Watch mode
-npm run test:watch
+bun run test:watch
 ```
 
 ## Scripts
 
 | Script           | Description                           |
 | ---------------- | ------------------------------------- |
-| `npm run dev`    | Run in development mode via `ts-node` |
-| `npm run build`  | Compile TypeScript to `dist/`         |
-| `npm test`       | Execute all tests                     |
-| `npm run eslint` | Run ESLint on source files            |
+| `bun run dev`    | Run in development mode via `ts-node` |
+| `bun run build`  | Compile TypeScript to `dist/`         |
+| `bun run test`       | Execute all tests                     |
+| `bun run eslint` | Run ESLint on source files            |
 
 ## Project Structure
 

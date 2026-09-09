@@ -12,20 +12,14 @@
 # Clone and install
 git clone <repo-url> trading-model
 cd trading-model
-npm ci
+bun install --frozen-lockfile
 ```
 
-## Step 1: Generate TLS Certificates
+## Step 1: Start Core Infrastructure
 
-Every service requires mTLS certificates. The project ships a helper script:
-
-```bash
-bash scripts/generate-certs.sh
-```
-
-This creates a self-signed Root CA, server certs for each service, and client certs in `./certs/`.
-
-## Step 2: Start Core Infrastructure
+> mTLS is automatic: each service obtains its identity from SPIRE via `spiffe-helper`
+> sidecars (ADR-0011), which write the SVID into `/run/spire/svid`. No certificate
+> generation or `./certs` bundle is required.
 
 ```bash
 # Start discovery-server + message-manager + databases
@@ -37,7 +31,7 @@ curl -sk https://localhost:8443/ping
 # → {"status":"ok"}
 ```
 
-## Step 3: Start the API Gateway
+## Step 2: Start the API Gateway
 
 The gateway is the single entry point for all external requests:
 
@@ -49,7 +43,7 @@ curl -sk https://localhost:8448/ping
 # → {"status":"ok","service":"api-gateway"}
 ```
 
-## Step 4: See the Service Registry
+## Step 3: See the Service Registry
 
 Set your admin token (from `.env` file — look for `AUTH_TOKENS` or `ADMIN_TOKEN`):
 
@@ -63,9 +57,9 @@ curl -sk https://localhost:8448/v1/discovery/services \
   -H "x-api-key: $ADMIN_TOKEN"
 ```
 
-You should see `discovery-service` and `message-delivery-service` listed.
+You should see `discovery-server` and `message-manager` listed.
 
-## Step 5: Publish a Message
+## Step 4: Publish a Message
 
 ```bash
 # Publish a market data event
@@ -73,7 +67,7 @@ curl -sk https://localhost:8448/v1/broker/message \
   -H "x-api-key: $ADMIN_TOKEN" \
   -H 'Content-Type: application/json' \
   -d '{
-    "targetService": "audit-logger-service",
+    "targetService": "audit-logger",
     "payload": {
       "symbol": "BTCUSDT",
       "price": 50000.0,
@@ -98,7 +92,7 @@ curl -sk https://localhost:8448/v1/broker/message \
 # → 204 No Content
 ```
 
-## Step 6: View Audit Events
+## Step 5: View Audit Events
 
 Start the audit-logger:
 
@@ -115,11 +109,11 @@ curl -sk https://localhost:8448/v1/audit/events?limit=5 \
 
 You should see your published message recorded as an audit event.
 
-## Step 7: Start the Admin Dashboard
+## Step 6: Start the Admin Dashboard
 
 ```bash
 # Start the React SPA
-npm run -w admin-interface dev
+bun run -w admin-interface dev
 ```
 
 Open `http://localhost:5173` in your browser. Navigate to **Services** to see the service registry, or **Audit Events** to see your published message.
@@ -133,4 +127,4 @@ Open `http://localhost:5173` in your browser. Navigate to **Services** to see th
 | Debug a failed message           | `docs/operations/runbooks/runbook-message-bus-outage.md` |
 | Set up monitoring                | `docs/deployment/DOCKER.md#monitoring`          |
 | Deploy to Kubernetes             | `docs/deployment/KUBERNETES.md`                 |
-| Run the full test suite          | `npm test --workspaces`                         |
+| Run the full test suite          | `bun run test`                         |

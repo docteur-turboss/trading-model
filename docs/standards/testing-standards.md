@@ -89,11 +89,9 @@ describe('MyComponent', () => {
 | Package / Service              | Branches | Functions | Lines | Statements | Framework |
 | ------------------------------ | -------- | --------- | ----- | ---------- | --------- |
 | @trading-model/common          | 100%     | 100%      | 100%  | 100%       | Jest      |
-| @trading-model/certificate-utils | 100%   | 100%      | 100%  | 100%       | Jest      |
 | discovery-server               | 100%     | 100%      | 100%  | 100%       | Jest      |
 | message-manager                | 100%     | 100%      | 100%  | 100%       | Jest      |
 | financial-scraper              | 100%     | 100%      | 100%  | 100%       | Jest      |
-| certificate-authority          | 100%     | 100%      | 100%  | 100%       | Jest      |
 | audit-logger                   | 100%     | 100%      | 100%  | 100%       | Jest      |
 | admin-interface                | 100%     | 100%      | 100%  | 100%       | Vitest    |
 | @trading-model/address-manager | 80%      | 80%       | 80%   | 80%        | Jest      |
@@ -106,7 +104,7 @@ Coverage is checked by Jest on every test run. Below the threshold, tests fail.
 ### Generate HTML report
 
 ```bash
-npm test -- --coverage --coverageReporters=html
+bun run test --coverage --coverageReporters=html
 # Open coverage/index.html
 ```
 
@@ -292,46 +290,46 @@ describe('Event Emission', () => {
 ### Run all tests
 
 ```bash
-npm test
+bun run test
 ```
 
 ### Run tests for a specific service
 
 ```bash
-npm test -- --testPathPattern="packages/broker-message"
-npm test -- --testPathPattern="packages/address-manager"
-npm test -- --testPathPattern="discovery-server"
+bun run test --testPathPattern="packages/broker-message"
+bun run test --testPathPattern="packages/address-manager"
+bun run test --testPathPattern="discovery-server"
 ```
 
 ### Run tests in watch mode (development)
 
 ```bash
-npm test -- --watch
+bun run test --watch
 ```
 
 ### Run tests with coverage
 
 ```bash
-npm test -- --coverage
+bun run test --coverage
 ```
 
 ### Run tests for a specific file
 
 ```bash
-npm test -- messageManagerClient.spec.ts
-npm test -- address-manager.integration.spec.ts
+bun run test -- messageManagerClient.spec.ts
+bun run test -- address-manager.integration.spec.ts
 ```
 
 ### Run tests filtered by name
 
 ```bash
-npm test -- --testNamePattern="should subscribe to topics"
+bun run test --testNamePattern="should subscribe to topics"
 ```
 
 ### Run tests in parallel
 
 ```bash
-npm test -- --maxWorkers=4
+bun run test --maxWorkers=4
 ```
 
 ## Fixtures and Helpers

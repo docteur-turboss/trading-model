@@ -215,7 +215,7 @@ graph LR
 
 Multi-stage build (see `Dockerfile`):
 
-1. **Build stage** (`node:26-alpine`) — `npm ci` + `npm run build` (tsc + vite)
+1. **Build stage** (`oven/bun:1-alpine`) — `bun install --frozen-lockfile` + `bun run build` (tsc + vite)
 2. **Runtime stage** (`nginx:alpine`) — serves `dist/` via nginx
 
 Health check: `wget -qO- http://localhost:80/ping || exit 1`

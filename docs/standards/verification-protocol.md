@@ -19,9 +19,9 @@ Every change — from a single commit to a full release — carries risk. This p
 | #   | Check                                      | How                                                        |
 | --- | ------------------------------------------ | ---------------------------------------------------------- |
 | 1   | Branch is up to date with base             | `git merge <base>` (e.g. `development`)                    |
-| 2   | Lint passes (0 errors)                     | `npm run lint`                                             |
-| 3   | Build succeeds                             | `npm run build`                                            |
-| 4   | All tests pass                             | `npm run test:coverage`                                    |
+| 2   | Lint passes (0 errors)                     | `bun run lint`                                             |
+| 3   | Build succeeds                             | `bun run build`                                            |
+| 4   | All tests pass                             | `bun run test:coverage`                                    |
 | 5   | New code has test coverage                 | At least 80% for new/modified code                         |
 | 6   | PR description follows PR.md template      | Include type of change, additions, modifications, removals |
 | 7   | No breaking changes without migration path | Document in PR body                                        |
@@ -37,9 +37,8 @@ Every change — from a single commit to a full release — carries risk. This p
 | 3   | All CI checks green                               | CI pipeline (ci.yml)                         |
 | 4   | Migration scripts included if schema changes      | Review                                        |
 | 5   | Documentation updated if API / behaviour changed  | Review                                        |
-| 6   | CHANGELOG entry added                             | `npm run release` (manual)                    |
-| 7   | Branch is up to date with `development`           | `git merge development`                       |
-| 8   | Squash & merge strategy                           | No merge commits on development               |
+| 6   | Branch is up to date with `development`           | `git merge development`                       |
+| 7   | Squash & merge strategy                           | No merge commits on development               |
 
 ## Before Creating a Release Tag
 
@@ -47,11 +46,9 @@ Every change — from a single commit to a full release — carries risk. This p
 | --- | ------------------------------------------------ | -------------------------------------------- |
 | 1   | All features are merged to `development`          | GitHub PR list                               |
 | 2   | `development` has been deployed and verified      | Beta deployment + canary check               |
-| 3   | Version bumped                                    | `npm run release` (updates package.json)     |
-| 4   | CHANGELOG generated                               | `npm run release` (auto-generates)           |
+| 3   | `development` merged to `main`                    | `git checkout main && git merge development` |
+| 4   | Version bumped + CHANGELOG generated + tag pushed | Release workflow (GitHub Actions)            |
 | 5   | Breaking changes documented                       | CHANGELOG footer section                     |
-| 6   | `development` merged to `main`                    | `git checkout main && git merge development` |
-| 7   | Tag created                                       | `git tag v*.*.*`                             |
 
 ## Before Deploying to Production
 
@@ -73,7 +70,7 @@ Every change — from a single commit to a full release — carries risk. This p
 | Unit tests         | Jest                      | CI                 | [Testing Standards](testing-standards.md)          |
 | Coverage thresholds| Jest                      | CI                 | [Testing Standards](testing-standards.md)          |
 | PR review          | GitHub protected branches | Merge              | [PR Standards](pr-standards.md)                    |
-| Security audit     | `npm audit`               | CI                 | [Security](../security/README.md)                  |
+| Security audit     | `bun audit`               | CI                 | [Security](../security/README.md)                  |
 
 ## Related
 

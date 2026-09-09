@@ -6,7 +6,7 @@ This guide walks through creating a new microservice in the trading-model monore
 - Understanding of the [architecture conventions](../standards/architecture-standards.md)
 
 - Familiarity with the [monorepo structure](../standards/architecture-standards.md#dependency-graph)
-- Node.js and npm installed
+- Node.js and bun installed
 
 ## Directory Structure
 
@@ -15,28 +15,22 @@ Create `services/my-service/` with the standard layout:
 ```
 services/my-service/
 ├── src/
-│   ├── app/
-│   │   ├── index.ts        # Entry point (createBootstrap)
-│   │   ├── server.ts       # HTTPS server with mTLS
-│   │   └── routes/         # Route definitions
+│   ├── application/        # Entry point (index.ts), server, use-case orchestration
+│   ├── domain/             # Entities, domain services, ports (interfaces)
+│   ├── adapters/           # Driving/driven adapters
+│   │   ├── inbound/        # Express controllers, route definitions
+│   │   └── outbound/       # HTTP/WS clients to other services
+│   ├── infrastructure/     # External integrations (Redis, MongoDB, HTTP)
 │   ├── config/
-│   │   ├── env.ts          # Zod validation of environment variables
-│   │   └── constants.ts    # Service constants
-│   ├── core/
-│   │   ├── services/       # Business logic
-│   │   ├── repositories/   # Data access
-│   │   └── types/          # Domain types
-│   ├── controllers/        # HTTP controllers
-│   ├── middleware/         # Express middleware
-│   └── utils/             # Utility functions
+│   │   └── env.ts          # Zod validation of environment variables
+│   └── shared/             # Shared types, constants, utils
 ├── tests/
 │   ├── unit/
 │   ├── integration/
-│   ├── e2e/
 │   ├── fixtures/
 │   └── helpers/
 ├── docs/                  # Service-specific documentation
-├── Dockerfile             # Multi-stage, node:26-alpine, tini
+├── Dockerfile             # Multi-stage, oven/bun:1-alpine, tini
 ├── package.json
 ├── tsconfig.json
 └── jest.config.js
@@ -49,6 +43,8 @@ services/my-service/
   "name": "my-service",
   "dependencies": {
     "@trading-model/common": "*",
+    "@trading-model/validation": "*",
+    "@trading-model/server-utils": "*",
     "@trading-model/address-manager": "*",
     "@trading-model/broker-message": "*",
     "express": "^5.2.1",
@@ -57,7 +53,7 @@ services/my-service/
 }
 ```
 
-## Entry Point (`src/app/index.ts`)
+## Entry Point (`src/application/index.ts`)
 
 ```typescript
 import { createBootstrap } from '@trading-model/common/server/bootstrap';
@@ -72,12 +68,12 @@ createBootstrap({
 });
 ```
 
-## HTTPS Server (`src/app/server.ts`)
+## HTTPS Server (`src/application/server.ts`)
 
 ```typescript
 import { createSecureServer } from '@trading-model/common/server/create-secure-server';
 import { loadTlsConfig } from '@trading-model/common/server/load-tls-config';
-import { myRoutes } from './routes/my.routes';
+import { myRoutes } from '../adapters/inbound/my.routes';
 import { env } from '../config/env';
 
 export function createServer() {
@@ -96,35 +92,33 @@ export function createServer() {
 All services follow the same multi-stage Docker pattern:
 
 ```dockerfile
-FROM node:26-alpine AS deps
+FROM oven/bun:1-alpine AS deps
 WORKDIR /app
-COPY package.json package-lock.json ./
+COPY package.json bun.lock ./
 COPY packages/ packages/
-COPY services/my-service/package.json services/my-service/
-RUN npm ci --omit=dev --ignore-scripts && npm cache clean --force
+COPY services/ services/
+RUN bun install --frozen-lockfile --production
 
-FROM node:26-alpine AS build
+FROM oven/bun:1-alpine AS build
 WORKDIR /app
-COPY package.json package-lock.json ./
+COPY package.json bun.lock ./
 COPY packages/ packages/
-COPY services/my-service/ services/my-service/
-RUN npm ci
-RUN npm run build:common
+COPY services/ services/
+RUN bun install --frozen-lockfile
+RUN bun run build
 WORKDIR /app/services/my-service
-RUN npx tsc
+RUN bun run build
 
-FROM node:26-alpine AS runtime
+FROM oven/bun:1-alpine AS runtime
 WORKDIR /app
 RUN apk add --no-cache tini curl
-COPY --from=deps /app/package.json /app/package-lock.json ./
 COPY --from=deps /app/node_modules ./node_modules
-COPY --from=deps /app/services/my-service/package.json ./services/my-service/
-COPY --from=build /app/packages/common/package.json ./packages/common/
-COPY --from=build /app/packages/common/dist ./packages/common/dist
+COPY --from=build /app/packages ./packages
+COPY --from=build /app/services/my-service/package.json ./services/my-service/
 COPY --from=build /app/services/my-service/dist ./services/my-service/dist
 EXPOSE 3000
 ENTRYPOINT ["/sbin/tini", "--"]
-CMD ["node", "services/my-service/dist/app/index.js"]
+CMD ["bun", "services/my-service/dist/application/index.js"]
 ```
 
 ## Registering in the Monorepo

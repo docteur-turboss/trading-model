@@ -33,22 +33,22 @@ main ──────────────────╂─── (hotfix)
 
 ## Code Organization
 
-The project is an npm workspaces monorepo:
+The project is an bun workspaces monorepo:
 
 ```
 trading-model/
-├── packages/     # 5 shared libraries (@trading-model/*)
+├── packages/     # 6 shared libraries (@trading-model/*)
 │   ├── common/              # Base types, schemas, utilities
+│   ├── validation/          # Zod schemas, DTOs, admin contracts
+│   ├── server-utils/        # Secure HTTPS server factory, TLS watcher
+│   ├── crypto/              # Hashing, signature, crypto primitives
 │   ├── address-manager/     # Service discovery client
-│   ├── broker-message/      # Message bus protocol types
-│   ├── certificate-utils/   # X.509 certificate utilities
-│   └── certificate-client/  # Certificate authority HTTP client
-├── services/     # 9 microservices (kebab-case directory names)
+│   └── broker-message/      # Message bus protocol types
+├── services/     # 8 microservices (kebab-case directory names)
 │   ├── discovery-server/
 │   ├── message-manager/
 │   ├── financial-scraper/
-│   ├── trader-trainer/      # npm name: trader-service
-│   ├── certificate-authority/
+│   ├── trader-trainer/      # bun name: trader-service
 │   ├── api-gateway/
 │   ├── audit-logger/
 │   ├── dlq-service/
@@ -113,8 +113,8 @@ git checkout -b feature/my-feature
 ### 3. Local development
 
 ```bash
-npm ci            # clean install from lockfile
-npm run build     # compile shared packages
+bun install --frozen-lockfile            # clean install from lockfile
+bun run build     # compile shared packages
 ```
 
 Refer to code standards in [`docs/standards/`](../standards/README.md).
@@ -122,15 +122,15 @@ Refer to code standards in [`docs/standards/`](../standards/README.md).
 ### 4. Local validation
 
 ```bash
-npm run lint       # Biome
-npm run build      # TypeScript
-npm test           # Jest — minimum 80% coverage
+bun run lint       # Biome
+bun run build      # TypeScript
+bun run test           # Jest — minimum 80% coverage
 ```
 
 ### 5. Commit
 
 ```bash
-npm run commit     # interactive gitmoji tool
+bun run commit     # interactive gitmoji tool
 ```
 
 Conventional format:
@@ -171,23 +171,18 @@ See [`docs/standards/pr-standards.md`](../standards/pr-standards.md) for the tem
 
 ### 10. Release
 
-```bash
-git checkout main && git pull
-git merge development
-npm run release                  # bump version, CHANGELOG
-git add -A
-git commit -m ":bookmark:(release): v$(node -p "require('./package.json').version")"
-git tag v$(node -p "require('./package.json').version")
-git push --follow-tags           # triggers release.yml
-```
+1. Merge `development` into `main` via a pull request (or `git checkout main && git merge development`).
+2. Push `main`.
+3. Run the **Release** workflow: GitHub Actions → **Actions** → **Release** → **Run workflow** (optionally pick `bump_type`).
 
-This triggers:
+The workflow then:
 
 1. Quality gate (lint + build + test)
-2. Build Docker images for all 9 services
-3. Push to **GitHub Container Registry** (`ghcr.io/trading-model/<service>`)
-4. Generate TypeDoc and publish to GitHub Pages
-5. Create a **GitHub Release** with changelog + pull commands
+2. Version bump + CHANGELOG generation (via `scripts/release.mjs`), committed and tagged `v*.*.*`
+3. Build Docker images for all services
+4. Push to **GitHub Container Registry** (`ghcr.io/trading-model/<service>`)
+5. Generate TypeDoc and publish to GitHub Pages
+6. Create a **GitHub Release** with changelog + pull commands
 
 ### 11. Deploy (Production)
 
@@ -206,13 +201,13 @@ IMAGE_TAG=$(node -p "require('./package.json').version") docker compose up -d
 
 ```
 dev  ──→ commit ──→ push ──→ PR ──→ merge ──→ beta deploy (canary)
-        npm run     git push  (auto      dev    docker compose
+        bun run     git push  (auto      dev    docker compose
         commit                 lint               pull + up -d
                                typecheck
                                test)         (validate)
 
 main ←── merge dev ────→ tag v* ──→ release.yml ──→ stable deploy
-              (if OK)     npm run   quality           docker compose
+              (if OK)     bun run   quality           docker compose
                           release   docker (8 images) pull + up -d
                                     docs (GitHub Pages)
                                     GitHub Release
@@ -235,7 +230,7 @@ main ←── merge dev ────→ tag v* ──→ release.yml ──→ 
 Full cycle steps 4–11:
 
 - Validate locally (lint, build, test)
-- Commit with `npm run commit`
+- Commit with `bun run commit`
 - Push and create the PR
 - Review others' PRs
 - Merge into `development`
@@ -249,16 +244,13 @@ Full cycle steps 4–11:
 # Dev
 git checkout development && git pull
 git checkout -b feature/my-feature
-npm ci && npm run build && npm test
+bun install --frozen-lockfile && bun run build && bun run test
 # ... code ...
-npm run commit
+bun run commit
 git push -u origin feature/my-feature
 
 # Release (maintainer)
 git checkout main && git pull
 git merge development
-npm run release
-git add -A && git commit -m ":bookmark:(release): v$(node -p "require('./package.json').version")"
-git tag v$(node -p "require('./package.json').version")
-git push --follow-tags
+# run the "Release" workflow: GitHub Actions → Actions → Release → Run workflow
 ```

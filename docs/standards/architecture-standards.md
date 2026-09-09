@@ -6,29 +6,29 @@ Ensure consistency, maintainability, and scalability across the entire trading-m
 
 ## How
 
-The project follows a monorepo structure with **npm workspaces**. All shared components live in `packages/` and all microservices in `services/`.
+The project follows a monorepo structure with **bun workspaces**. All shared components live in `packages/` and all microservices in `services/`.
 
 ```
 trading-model/
-├── packages/           # Shared libraries (npm workspace)
+├── packages/           # Shared libraries (bun workspace)
 │   ├── common/              # @trading-model/common
+│   ├── validation/          # @trading-model/validation
+│   ├── server-utils/        # @trading-model/server-utils
+│   ├── crypto/              # @trading-model/crypto
 │   ├── address-manager/     # @trading-model/address-manager
-│   ├── broker-message/      # @trading-model/broker-message
-│   ├── certificate-utils/   # @trading-model/certificate-utils
-│   └── certificate-client/  # @trading-model/certificate-client
+│   └── broker-message/      # @trading-model/broker-message
 ├── services/           # Microservices
 │   ├── discovery-server/
 │   ├── message-manager/
 │   ├── financial-scraper/
 │   ├── trader-trainer/
-│   ├── certificate-authority/
 │   ├── api-gateway/
 │   ├── audit-logger/
 │   ├── dlq-service/
 │   └── admin-interface/ # React SPA (Vite, MUI, Vitest)
 ├── .github/workflows/  # CI/CD
 ├── docs/               # Centralized documentation
-├── scripts/            # Utilities (commit, release, certs)
+├── scripts/            # Utilities (commit, release, migrations)
 └── biome.json           # Root Biome config
 ```
 
@@ -40,7 +40,7 @@ trading-model/
 | **packages/** | Reusable libraries (public or internal)     |
 | **services/** | Independently deployable microservices      |
 | **docs/**     | Centralized project documentation           |
-| **scripts/**  | Automation scripts (commit, release, certs) |
+| **scripts/**  | Automation scripts (commit, release, migrations) |
 
 ### For Whom
 
@@ -83,9 +83,6 @@ discovery-server (depends only on @trading-model/common)
 
 admin-interface (depends only on @trading-model/common/contracts for DTOs)
 - React SPA served by nginx, not a Node.js microservice
-
-@trading-model/certificate-client (depends on common, certificate-utils, broker-message)
-- Client-side certificate lifecycle management
 ```
 
 The **discovery-server** depends only on `@trading-model/common`. All other services depend on `common`, `address-manager`, and `broker-message` as needed.
@@ -96,16 +93,18 @@ The **admin-interface** is a React SPA (not a Node.js microservice). It imports 
 
 | Package                          | Purpose                                                                                                                                                                                                                                                                     | Dependencies            |
 | -------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------- |
-| `@trading-model/common`          | Logger, HTTP client, middleware (catchSync, MTLSAuthMiddleware, ResponseProtocol), server factories (createSecureServer, createBootstrap), env validation (BaseEnvSchema, validateEnv), event types, service types, delivery mode enum, error classes (`AppError` + `ErrorCodes`), crypto utilities, shared DTOs | None (only npm deps)    |
+| `@trading-model/common`          | Logger, HTTP client, middleware (catchSync, MTLSAuthMiddleware, ResponseProtocol), server factories (createSecureServer, createBootstrap), env validation (BaseEnvSchema, validateEnv), event types, service types, delivery mode enum, error classes (`AppError` + `ErrorCodes`), crypto utilities, shared DTOs | None (only bun deps)    |
 | `@trading-model/address-manager` | Service discovery client, token manager, service cache with health checking, scheduler/jobs                                                                                                                                                                                 | common                  |
 | `@trading-model/broker-message`  | Inter-service messaging SDK: message manager client, event emitter, message controller/routes, validation schemas                                                                                                                                                           | common, address-manager |
-| `@trading-model/certificate-utils` | X.509 certificate generation, signing, validation, CRL management, key pair generation, CSR creation                                                                                                                                                                      | common |
-| `@trading-model/certificate-client` | Automatic mTLS certificate provisioning and renewal from the certificate-authority                                                                                                                                                                                         | common, certificate-utils, broker-message |
 
-## Security Model
+## Workload Identity & Security Model
 
 - All inter-service communication uses **HTTPS with mutual TLS** (mTLS).
-- No service trusts another without explicit certificate validation.
+- Workload identity is provided by **SPIFFE/SPIRE** (ADR-0011): each workload is
+  attested and issued short-lived X.509-SVIDs (with a `spiffe://` URI SAN),
+  consumed via `spiffe-helper` sidecars. The former in-house CA and
+  `certificate-client` were decommissioned.
+- No service trusts another without explicit certificate/bundle validation.
 - The Discovery-Server issues and rotates HMAC tokens.
 - Live trading will be gated by risk limits, capital exposure constraints, and fail-safe mechanisms (planned).
 
@@ -125,31 +124,25 @@ Each service exposes an HTTPS server with mTLS enabled. The internal container p
 | dlq-service       | 8452            | 3000           |               |
 | admin-interface   | 5173 (dev)      | 80             | SPA via nginx |
 | api-gateway       | 8448            | 3000           |               |
-| certificate-authority | 8447         | 3000           |               |
 
 ### Service Structure
+
+Services follow a hexagonal architecture (ADR-0010): business logic is isolated in `domain/` + `application/`, driven by `adapters/` (controllers, routes) and backed by `infrastructure/` (Redis, Mongo, HTTP clients). Legacy module layouts (`core/`, `messaging/`, `persistence/`) may still coexist in some services during migration.
 
 ```
 services/<name>/
 ├── src/
-│   ├── app/
-│   │   ├── index.ts        # Entry point (uses createBootstrap)
-│   │   ├── server.ts       # Creates and configures the Express server
-│   │   └── routes/         # Route definitions
-│   ├── config/
-│   │   ├── env.ts          # Zod validation of environment variables
-│   │   └── constants.ts    # Service constants
-│   ├── core/
-│   │   ├── services/       # Business logic
-│   │   ├── repositories/   # Data access
-│   │   └── types/          # Domain types
-│   ├── controllers/        # HTTP controllers
-│   ├── middleware/         # Express middleware
-│   └── utils/             # Utility functions
+│   ├── application/        # Entry point (index.ts), server, use-case orchestration
+│   ├── domain/             # Entities, domain services, ports (interfaces)
+│   ├── adapters/           # Driven/driving adapters (HTTP controllers, routes, clients)
+│   │   ├── inbound/        # Express controllers, route definitions
+│   │   └── outbound/       # HTTP/WS clients to other services
+│   ├── infrastructure/     # External integrations (Redis, MongoDB, HTTP)
+│   ├── config/             # env.ts — Zod validation of environment variables
+│   └── shared/             # Shared types, constants, utils
 ├── tests/
 │   ├── unit/
 │   ├── integration/
-│   ├── e2e/
 │   ├── fixtures/
 │   └── helpers/
 ├── docs/                  # Service-specific documentation
@@ -159,11 +152,11 @@ services/<name>/
 └── jest.config.js
 ```
 
-### Entry Point (`src/app/index.ts`)
+### Entry Point (`src/application/index.ts`)
 
 ```typescript
 import { createBootstrap } from '@trading-model/common/server/bootstrap';
-import { LeaseManagerInstance } from '../core/lease-manager';
+import { LeaseManager } from '../domain/lease-manager';
 import { createServer } from './server';
 import '../config/env';
 
@@ -171,21 +164,21 @@ createBootstrap({
   name: 'Discovery',
   createServer,
   onStart: () => {
-    LeaseManagerInstance.start();
+    LeaseManager.start();
   },
   onStop: () => {
-    LeaseManagerInstance.stop();
+    LeaseManager.stop();
   },
 });
 ```
 
-### Server (`src/app/server.ts`)
+### Server (`src/application/server.ts`)
 
 ```typescript
 import { createSecureServer } from '@trading-model/common/server/create-secure-server';
 import { loadTlsConfig } from '@trading-model/common/server/load-tls-config';
-import { heartbeatRoutes } from '../routes/heartbeat.routes';
-import { registryRoutes } from '../routes/register.routes';
+import { heartbeatRoutes } from '../adapters/inbound/heartbeat.routes';
+import { registryRoutes } from '../adapters/inbound/register.routes';
 import { env } from '../config/env';
 
 export function createServer() {
@@ -220,13 +213,12 @@ Each package declares its exports via the `exports` field in `package.json`. Ent
     "./crypto/*": { "types": "./dist/crypto/*.d.ts", "default": "./dist/crypto/*.js" },
     "./worker/*": { "types": "./dist/worker/*.d.ts", "default": "./dist/worker/*.js" },
     "./recovery/*": { "types": "./dist/recovery/*.d.ts", "default": "./dist/recovery/*.js" },
-    "./reliability/*": { "types": "./dist/reliability/*.d.ts", "default": "./dist/reliability/*.js" },
-    "./ca/*": { "types": "./dist/ca/*.d.ts", "default": "./dist/ca/*.js" }
+    "./reliability/*": { "types": "./dist/reliability/*.d.ts", "default": "./dist/reliability/*.js" }
   }
 }
 ```
 
-**@trading-model/address-manager** and **@trading-model/broker-message** (simplified exports):
+**@trading-model/validation**, **@trading-model/server-utils**, **@trading-model/crypto**, **@trading-model/address-manager** and **@trading-model/broker-message** (simplified exports):
 
 ```json
 {

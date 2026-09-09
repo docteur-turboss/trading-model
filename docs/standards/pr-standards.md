@@ -84,9 +84,9 @@ If yes, describe impact and migration:
 
 ## Checklist
 
-- [ ] `npm run lint` — 0 errors
-- [ ] `npm run build` — Success
-- [ ] `npm test` — All tests pass
+- [ ] `bun run lint` — 0 errors
+- [ ] `bun run build` — Success
+- [ ] `bun run test` — All tests pass
 
 ## Closes Issues
 
@@ -103,9 +103,9 @@ Before a PR can be merged, it must pass all of the following checks:
 
 | Check     | Command                 | Trigger   |
 | --------- | ----------------------- | --------- |
-| **Lint**  | `npm run lint`          | Push / PR |
-| **Build** | `npm run build`         | Push / PR |
-| **Test**  | `npm run test:coverage` | Push / PR |
+| **Lint**  | `bun run lint`          | Push / PR |
+| **Build** | `bun run build`         | Push / PR |
+| **Test**  | `bun run test:coverage` | Push / PR |
 
 These checks run automatically via GitHub Actions in `.github/workflows/ci.yml`.
 
@@ -147,13 +147,13 @@ duplication between discovery-server and message-manager.
 
 ### ✅ Additions
 
-- Type `ServiceInstance` in `packages/common/src/contracts/service-instance.type.ts`
+- Type `ServiceId` in `packages/common/src/domain/primitives/general-ids.ts`
 - Unit tests for the new type
 
 ### :recycle: Modifications
 
-- Discovery-server now imports from `@trading-model/common/contracts`
-- Message-manager now imports from `@trading-model/common/contracts`
+- Discovery-server now imports from `@trading-model/common/domain`
+- Message-manager now imports from `@trading-model/common/domain`
 - Removed duplicate definitions in each service
 
 ### :fire: Removals
@@ -173,9 +173,9 @@ No — the type is identical, only the import path changes.
 
 ## Checklist
 
-- [x] `npm run lint` — 0 errors
-- [x] `npm run build` — Success
-- [x] `npm test` — All tests pass
+- [x] `bun run lint` — 0 errors
+- [x] `bun run build` — Success
+- [x] `bun run test` — All tests pass
 
 ## Closes Issues
 

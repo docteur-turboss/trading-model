@@ -19,8 +19,7 @@ graph TD
         MSG["message storage"]
     end
     subgraph "Security Context"
-        CA["certificate-authority"]
-        CT["certificate-client"]
+        SP["spire-server / spiffe-helper"]
     end
     subgraph "Discovery Context"
         DS["discovery-server"]
@@ -36,8 +35,7 @@ graph TD
     FS -->|"MarketEvent (published)"| MM
     MM -->|"MarketEvent (consumed)"| TT
     TT -->|"AgentPayload (published)"| MM
-    CA -->|"CRL (published)"| MM
-    MM -->|"CRL (consumed)"| AL
+    MM -->|"events"| AL
     AL -.->|"subscribe (all topics)"| MM
     DS --> GW
     GW --> DS
@@ -70,10 +68,9 @@ graph TD
 
 ### 4. Security Context
 
-- **Owner:** `certificate-authority`
-- **Client library:** `certificate-client`
-- **Core entities:** Certificate, CSR, CRL, KeyPair
-- **Publishes:** CRL updates to Audit Context (`certificate.revoked`, `ca.key.rotated`)
+- **Owner:** SPIFFE/SPIRE (ADR-0011) — `spire-server`, `spire-agent`, `spiffe-helper` sidecars
+- **Core entities:** SVID, Registration Entry, Trust Bundle
+- **Responsibilities:** Workload attestation, X.509 SVID issuance/rotation, SPIFFE identity
 
 ### 5. Discovery Context
 
@@ -102,7 +99,7 @@ graph TD
 | Market Data → Training | Pub/Sub (async)      | Message Manager topics                |
 | Any → Audit            | Pub/Sub (async)      | Audit-logger subscribes to all topics |
 | Services → Discovery   | Request/Reply (sync) | HTTPS mTLS                            |
-| Services → Security    | Request/Reply (sync) | HTTP mTLS CSR signing                 |
+| Services → Security    | Request/Reply (sync) | SPIFFE/SPIRE workload attestation + Workload API |
 | External → Platform    | Proxy (sync)         | API Gateway                           |
 
 ## Migration from Current State

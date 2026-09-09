@@ -34,7 +34,7 @@ This register documents all data processing activities of the trading-model plat
 | **Data categories**      | Message payloads (JSON), metadata (topic, publisher identity, timestamps, correlation IDs), delivery status   |
 | **Legal basis**          | Legitimate interest (Art. 6(1)(f)) — necessary for system operation                                           |
 | **Data subjects**        | None — inter-service operational data                                                                         |
-| **Recipients**           | All 9 platform services (internal only)                                                                       |
+| **Recipients**           | All 8 platform services (internal only)                                                                       |
 | **Transfers outside EU** | None — all services are self-hosted                                                                           |
 | **Retention period**     | Redis Streams: 2h TTL. MongoDB archive: 90 days. DLQ: 30 days                                                 |
 | **Technical measures**   | mTLS everywhere, message payload sanitization, HMAC integrity, deduplication                                  |
@@ -54,19 +54,19 @@ This register documents all data processing activities of the trading-model plat
 | **Technical measures**   | Append-only MongoDB collection, correlation ID linking, gap detection, TTL index                                 |
 | **System**               | audit-logger → MongoDB (audit_events collection)                                                                 |
 
-## Processing Activity 4: Certificate Management
+## Processing Activity 4: Workload Identity (SPIRE SVIDs)
 
 | Field                    | Value                                                                                                                          |
 | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------ |
-| **Purpose**              | X.509 certificate lifecycle management for mTLS mutual authentication between all platform services                            |
-| **Data categories**      | Service identities (service names, instance IDs), RSA public keys, X.509 certificates, certificate serial numbers, CRL entries |
+| **Purpose**              | SPIFFE/SPIRE workload identity management (SVID issuance/rotation) for mTLS mutual authentication between all platform services |
+| **Data categories**      | Service identities (service names, namespaces, service accounts), SVIDs (short-lived X.509), trust bundle |
 | **Legal basis**          | Legitimate interest (Art. 6(1)(f)) — necessary for platform security                                                           |
 | **Data subjects**        | None — service identities only, no human identities                                                                            |
-| **Recipients**           | All 9 platform services (certificate distribution via certificate-client)                                                      |
+| **Recipients**           | All 8 platform services (SVID distribution via `spiffe-helper` sidecars)                                                      |
 | **Transfers outside EU** | None                                                                                                                           |
-| **Retention period**     | Active certificates: 7 days (auto-rotation). Expired/revoked: 90 days. CA keys: 3 versions retained                            |
-| **Technical measures**   | AES-256-GCM encryption at rest for CA keys, SecureKeyStore for in-memory keys, mTLS distribution                               |
-| **System**               | certificate-authority → MongoDB + filesystem (AES-256 encrypted)                                                               |
+| **Retention period**     | SVIDs: 1h TTL (auto-rotated). Trust bundle: 168h (ca_ttl). SPIRE datastore entries: retained for workload lifecycle               |
+| **Technical measures**   | Workload attestation (docker / k8s_psat), short-lived SVIDs, automatic rotation, SPIFFE trust bundle                          |
+| **System**               | SPIRE Server → SPIRE Agent → spiffe-helper (datastore: MySQL `spire`)                                                           |
 
 ## Processing Activity 5: ML Training Data
 
@@ -91,7 +91,7 @@ This register documents all data processing activities of the trading-model plat
 | Market Data Ingestion | ❌ None        | Legitimate interest         | 5 years (MiFID II)  | Binance API (Cayman Islands) |
 | Message Routing       | ❌ None        | Legitimate interest         | 2h–90 days          | None                         |
 | Audit Logging         | ❌ None        | Legal obligation + Interest | 90 days → target 5y | None                         |
-| Certificate Mgmt      | ❌ None        | Legitimate interest         | 7 days–90 days      | None                         |
+| Workload Identity      | ❌ None        | Legitimate interest         | 1h–168h           | None                         |
 | ML Training           | ❌ None        | Legitimate interest         | Per-agent           | None                         |
 
 **Conclusion:** All 5 processing activities operate on machine-generated data without any personal data (Art. 4(1) GDPR). No data subject rights (access, rectification, erasure, portability) are triggered. No consent is required. No Data Protection Officer appointment is mandatory.

@@ -15,8 +15,9 @@ An ADR documents a significant architectural decision, including the context, al
 | [ADR-0003](./0003-mongodb-persistence.md)     | MongoDB for Audit, CA, and DLQ Persistence             | Accepted | 2026-06 |
 | [ADR-0004](./0004-mysql-group-replication.md) | MySQL with Group Replication for Market Data           | Accepted | 2026-06 |
 | [ADR-0005](./0005-mtls-security.md)           | Mutual TLS for All Inter-Service Communication         | Accepted | 2026-06 |
-| [ADR-0006](./0006-monorepo-npm-workspaces.md) | Monorepo Structure with npm Workspaces                 | Accepted | 2026-06 |
+| [ADR-0006](./0006-monorepo-bun-workspaces.md) | Monorepo Structure with bun Workspaces                 | Accepted | 2026-06 |
 | [ADR-0007](./0007-common-package-split.md)   | Common Package Split                                   | Accepted | 2026-06 |
 | [ADR-0008](./0008-message-broker-choice.md)  | Message Broker Choice                                  | Accepted | 2026-06 |
 | [ADR-0009](./0009-certificate-utils-structure.md) | Certificate Utils Structure                       | Accepted | 2026-06 |
 | [ADR-0010](./0010-clean-architecture-migration.md) | Clean Architecture Migration                    | Accepted | 2026-06 |
+| [ADR-0011](./0011-spiffe-spire-workload-identity.md) | SPIFFE/SPIRE Workload Identity                 | Accepted | 2026-09 |

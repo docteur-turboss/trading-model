@@ -9,7 +9,7 @@ Routes, authenticates, rate-limits, caches, and proxies all incoming HTTP reques
 ## Quick Start
 
 ```bash
-npm run -w api-gateway dev
+bun run --filter api-gateway dev
 ```
 
 ## Configuration
@@ -37,6 +37,6 @@ See [ARCHITECTURE.md](./ARCHITECTURE.md).
 ## Testing
 
 ```bash
-npm test
-npm run test:coverage
+bun run test
+bun run test:coverage
 ```

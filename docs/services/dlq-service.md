@@ -13,7 +13,6 @@ Stores and manages dead letter entries — messages that could not be delivered 
 | ----------------------------------- | ------------- |
 | `@trading-model/common`             | runtime       |
 | `@trading-model/address-manager`    | runtime       |
-| `@trading-model/certificate-client` | runtime       |
 | MongoDB                             | persistence   |
 | Redis                               | rate limiting |
 
@@ -31,36 +30,39 @@ All endpoints are mTLS-secured and served on **container port 3000**:
 | `DELETE` | `/dlq/:id`        | Delete a dead letter entry           |
 | `GET`    | `/health`         | Health check                         |
 
-See source code at `services/dlq-service/src/dlq/` for detailed request/response schemas.
+See source code at `services/dlq-service/src/shared/` (`dlq-schemas.ts`) for detailed request/response schemas.
 
 ## Examples
 
+> mTLS uses the service SVID (SPIRE). Run these inside the service container,
+> e.g. `docker compose exec -T dlq-service sh -c 'curl ...'`.
+
 ```bash
 # List dead letter entries
-curl -sk --cert /certs/client.crt --key /certs/client-key.pem \
-  https://localhost:8452/dlq
+curl -sk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem \
+  https://localhost:3000/dlq
 
 # Get a single entry
-curl -sk --cert /certs/client.crt --key /certs/client-key.pem \
-  https://localhost:8452/dlq/entry-uuid-123
+curl -sk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem \
+  https://localhost:3000/dlq/entry-uuid-123
 
 # Replay a single entry (re-inject to message bus)
-curl -sk --cert /certs/client.crt --key /certs/client-key.pem \
-  https://localhost:8452/dlq/entry-uuid-123/replay -X POST
+curl -sk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem \
+  https://localhost:3000/dlq/entry-uuid-123/replay -X POST
 
 # Replay all entries matching a filter
-curl -sk --cert /certs/client.crt --key /certs/client-key.pem \
-  https://localhost:8452/dlq/replay -X POST \
+curl -sk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem \
+  https://localhost:3000/dlq/replay -X POST \
   -H 'Content-Type: application/json' \
   -d '{"topic":"market.trade.recent.fetch"}'
 
 # Delete a single entry
-curl -sk --cert /certs/client.crt --key /certs/client-key.pem \
-  https://localhost:8452/dlq/entry-uuid-123 -X DELETE
+curl -sk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem \
+  https://localhost:3000/dlq/entry-uuid-123 -X DELETE
 
 # Health check
-curl -sk --cert /certs/client.crt --key /certs/client-key.pem \
-  https://localhost:8452/health
+curl -sk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem \
+  https://localhost:3000/health
 
 # Purge all DLQ entries (via API gateway with admin token)
 curl -sk https://localhost:8448/v1/messages/dlq -X DELETE \

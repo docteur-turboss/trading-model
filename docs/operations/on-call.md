@@ -38,7 +38,6 @@
 ```
 discovery-server:       curl -sk https://discovery-server:3000/ping
 message-manager:        curl -sk https://message-manager:3000/health/ready
-certificate-authority:  curl -sk https://certificate-authority:3000/ping
 api-gateway:            curl -sk https://api-gateway:3000/ping
 audit-logger:           curl -sk https://audit-logger:3000/ping
 dlq-service:            curl -sk https://dlq-service:3000/health

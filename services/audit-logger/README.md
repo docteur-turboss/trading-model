@@ -9,7 +9,7 @@ Subscribes to all message bus topics, persists events to MongoDB, and provides q
 ## Quick Start
 
 ```bash
-npm run -w audit-logger dev
+bun run --filter audit-logger dev
 ```
 
 Requires MongoDB 7+ running at `MONGODB_URI`.
@@ -36,8 +36,8 @@ See [ARCHITECTURE.md](./ARCHITECTURE.md).
 ## Testing
 
 ```bash
-npm test
-npm run test:coverage
+bun run test
+bun run test:coverage
 ```
 
 Coverage target: 100%.

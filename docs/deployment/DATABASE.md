@@ -16,7 +16,7 @@ The project uses two database engines managed by the **Financial Scraper** (MySQ
 
 ### Tables
 
-Three tables are defined in `scripts/init-db.sql` (mounted in `/docker-entrypoint-initdb.d/`):
+Three tables are defined in the SQL migrations (`scripts/migrations/`, applied by the `migrate` service):
 
 | Table              | Content                   |
 | ------------------ | ------------------------- |
@@ -56,14 +56,16 @@ environment:
 
 ### Initialization
 
-The file `scripts/init-db.sql` is mounted in the MySQL container:
+The schema is applied through SQL migrations by the `migrate` service (`docker-compose.yml`), which runs `scripts/migrate.mjs up` once `mysql` is healthy:
 
 ```yaml
-volumes:
-  - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+migrate:
+  depends_on:
+    mysql:
+      condition: service_healthy
 ```
 
-MySQL automatically executes all `.sql` files in this directory on **first startup** (empty database).
+The `financial-scraper` waits for `migrate` to complete (`condition: service_completed_successfully`) before starting.
 
 ---
 
@@ -73,17 +75,15 @@ MySQL automatically executes all `.sql` files in this directory on **first start
 
 **Container:** `trading-mongo`
 
-A single MongoDB 7 instance serves **5 databases**, each owned by a different service.
+A single MongoDB 7 instance serves **3 databases**, each owned by a different service.
 
 ### Databases
 
 | Database                | Service               | Connection URI                                            | Status           |
 | ----------------------- | --------------------- | --------------------------------------------------------- | ---------------- |
 | `message-manager`       | message-manager       | `mongodb://mongo:27017/message-manager`                   | In-memory (Zod)  |
-| `certificate-authority` | certificate-authority | `mongodb://mongo:27017/certificate-authority`             | Operational      |
 | `audit-logger`          | audit-logger          | `mongodb://mongo:27017/audit-logger`                      | Operational      |
 | `dlq-service`           | dlq-service           | `mongodb://mongo:27017/dlq-service`                       | Operational      |
-| `dlq-service`           | dlq-service           | `mongodb://mongo:27017/dlq-service`                       | Active           |
 
 ### Persistent volume
 
@@ -99,7 +99,6 @@ Different services use different patterns:
 | Service               | Schema approach                                      |
 | --------------------- | ---------------------------------------------------- |
 | message-manager       | Zod validation schemas only (in-memory broker)       |
-| certificate-authority | Mongoose models for certificates, keys, CRLs         |
 | audit-logger          | Mongoose models for immutable audit events           |
 | dlq-service           | Mongoose models for dead-letter queue entries        |
 
@@ -109,11 +108,23 @@ Different services use different patterns:
 
 ### MySQL
 
-For schema changes, add `ALTER TABLE` / `CREATE TABLE IF NOT EXISTS` statements to `scripts/init-db.sql`, then restart the MySQL container:
+The schema is managed via SQL migrations in `scripts/migrations/`. To create a new migration:
 
 ```bash
-docker compose down -v mysql
-docker compose up -d mysql
+bun scripts/migrate.mjs create <migration_name>
+```
+
+Then edit the generated `.up.sql` / `.down.sql` files and run:
+
+```bash
+bun scripts/migrate.mjs up
+```
+
+In Docker, migrations are applied automatically by the `migrate` service on `docker compose up -d`. For a fresh start:
+
+```bash
+docker compose down -v
+docker compose up -d
 ```
 
 > ⚠️ Destructive changes (column removal, constraint modification) may require manual intervention in production.
@@ -132,4 +143,4 @@ MongoDB uses schema-on-read. Mongoose models define document shapes at the appli
 docker compose down -v
 ```
 
-Removes containers **and** all named volumes (`mongo-data`, `mysql-data`, `ca-keys`). On next `docker compose up -d`, databases are reinitialized via init scripts.
+Removes containers **and** all named volumes (`mongo-data`, `mysql-data`, `spire-data`, `spire-agent-sockets`). On next `docker compose up -d`, the schema is recreated by the `migrate` service.

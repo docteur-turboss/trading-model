@@ -6,7 +6,7 @@ Microservices-based AI trading platform. Ingests market data, trains autonomous 
 
 ```bash
 git clone <repo-url> && cd trading-model
-npm ci
+bun install --frozen-lockfile
 docker compose up -d
 ```
 
@@ -59,16 +59,16 @@ See [Quick Start Tutorial](docs/getting-started/quickstart.md) for a 10-minute h
 ## Commands
 
 ```bash
-npm ci                       # Install all workspace dependencies
-npm run build                # Build 6 shared packages in dependency order
-npm run build:ts             # Full build (packages + 8 services)
-npm run lint                 # Biome check across the monorepo
-npm test --workspaces        # All workspace tests
-npm run test:coverage        # All tests with coverage
-npm run test:contract        # Contract tests
-npm run test:e2e             # E2E tests (requires Docker Compose up)
-npm run docs:generate        # TypeDoc HTML
-npm run commit               # Interactive gitmoji commit CLI
+bun install --frozen-lockfile                       # Install all workspace dependencies
+bun run build                # Build 6 shared packages in dependency order
+bun run build:ts             # Full build (packages + 8 services)
+bun run lint                 # Biome check across the monorepo
+bun run test        # All workspace tests
+bun run test:coverage        # All tests with coverage
+bun run test:contract        # Contract tests
+bun run test:e2e             # E2E tests (requires Docker Compose up)
+bun run docs:generate        # TypeDoc HTML
+bun run commit               # Interactive gitmoji commit CLI
 # Release: GitHub Actions → "Release" workflow (version bump + images + GitHub Release + docs)
 ```
 
@@ -85,7 +85,7 @@ npm run commit               # Interactive gitmoji commit CLI
 
 12+ automated jobs on every push/PR: lint, typecheck, audit, test+coverage, mutation test, K8s validate, container scan, secrets scan, SBOM, contract tests, E2E, load tests.
 
-Pre-push git hook runs: `@biomejs/biome check` → `npm audit` → `build:ts` → `test:coverage`.
+Pre-push git hook runs: `@biomejs/biome check` → `bun audit` → `build:ts` → `test:coverage`.
 
 ## Documentation
 

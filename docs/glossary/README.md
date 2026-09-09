@@ -14,9 +14,6 @@ A DDD concept: a logical boundary within which a particular domain model applies
 
 ## C
 
-**CRL (Certificate Revocation List)**
-List of revoked X.509 certificates maintained by the Certificate Authority. Used by services to reject connections from compromised peers.
-
 **Circuit Breaker**
 Failure-handling pattern that stops repeated requests to a failing service after a threshold of failures, preventing cascading failures.
 
@@ -89,6 +86,9 @@ Mechanism allowing services to find each other dynamically. The discovery-server
 
 **Sharpe Ratio**
 Risk-adjusted return metric: `(return - risk_free_rate) / standard_deviation_of_returns`. Higher values indicate better risk-adjusted performance.
+
+**SVID (SPIFFE Verifiable Identity Document)**
+Short-lived X.509 identity issued by the SPIRE Server after workload attestation, carrying a `spiffe://` URI SAN (ADR-0011). Rotated automatically (1h TTL). Replaces the decommissioned internal certificate-authority.
 
 ## T
 

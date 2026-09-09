@@ -32,7 +32,7 @@ and low-latency service-to-service communication.
 │  │ message-manager  (×2-3)    │  │   │  │ message-manager  (×2-3)    │  │
 │  │ financial-scraper (×2-3)   │  │   │  │ financial-scraper (×2-3)   │  │
 │  │ trader-trainer    (×1-2)   │  │   │  │ trader-trainer    (×1-2)   │  │
-│  │ certificate-auth  (×2)     │  │   │  │ certificate-auth  (×2)     │  │
+│  │ spire-server      (×2)     │  │   │  │ spire-server      (×2)     │  │
 │  │ api-gateway       (×2-3)   │  │   │  │ api-gateway       (×2-3)   │  │
 │  │ audit-logger      (×2)     │  │   │  │ audit-logger      (×2)     │  │
 │  │ dlq-service       (×2)     │  │   │  │ dlq-service       (×2)     │  │
@@ -163,7 +163,7 @@ A Redis cluster is required for the distributed registry backend:
 ### Cross-Region Networking
 
 - Low-latency links between regions (AWS Direct Connect / Azure ExpressRoute)
-- mTLS certificates valid for cross-region DNS names
+- SVIDs valid across regions (SPIRE trust bundle + cross-region SPIRE Server sync)
 - Firewall rules allowing inter-region traffic on discovery ports (3000)
 
 ### Database Replication

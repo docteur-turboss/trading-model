@@ -27,7 +27,7 @@ Configuration `biome.json` applied across the entire monorepo:
 }
 ```
 
-Run: `npx @biomejs/biome format .` (CI) / `npx @biomejs/biome format --write .` (local formatting).
+Run: `bunx @biomejs/biome format .` (CI) / `bunx @biomejs/biome format --write .` (local formatting).
 
 ## Naming Conventions
 
@@ -121,11 +121,11 @@ Configuration in `biome.json` at the monorepo root — Biome replaces both ESLin
 
 - **TypeScript strict** enabled
 - **0 Biome errors allowed** in CI
-- Run: `npx @biomejs/biome check .` (CI) / `npx @biomejs/biome check --write .` (local fix)
+- Run: `bunx @biomejs/biome check .` (CI) / `bunx @biomejs/biome check --write .` (local fix)
 
 ## Code Organization
 
-The monorepo uses npm workspaces:
+The monorepo uses bun workspaces:
 
 ```
 trading-model/

@@ -29,13 +29,10 @@ docs/
 │   ├── common.md                        # @trading-model/common
 │   ├── address-manager.md               # @trading-model/address-manager
 │   ├── broker-message.md                # @trading-model/broker-message
-│   ├── certificate-utils.md             # @trading-model/certificate-utils
-│   ├── certificate-client.md            # @trading-model/certificate-client
 │   ├── discovery-server.md              # Service registry
 │   ├── message-manager.md               # Message broker
 │   ├── financial-scraper.md             # Market data ingestion
 │   ├── trader-trainer.md                # GA/DQN training engine
-│   ├── certificate-authority.md         # X.509 CA
 │   ├── api-gateway.md                   # External API gateway
 │   ├── audit-logger.md                  # Audit trail
 │   ├── dlq-service.md                   # Dead letter queue
@@ -78,10 +75,9 @@ docs/
 │   ├── slo.md                           # Service Level Objectives
 │   ├── incident-response.md             # Incident management
 │   ├── on-call.md                       # On-call procedures
-│   └── runbooks/                        # Runbooks (7 files)
+│   └── runbooks/                        # Runbooks (6 files)
 │       ├── runbook-service-down.md          # Service crash recovery
 │       ├── runbook-database-failover.md     # Database failover
-│       ├── runbook-ca-compromise.md         # CA key compromise
 │       ├── runbook-message-bus-outage.md    # Message bus outage
 │       ├── runbook-certificate-expiry.md    # Certificate expiry
 │       ├── runbook-data-corruption.md       # Data corruption
@@ -100,8 +96,8 @@ docs/
 ├── adr/                                 # Architecture Decision Records
 │   ├── README.md                        # Index
 │   ├── 0001-ga-dqn-training.md
-│   ├── ... (10 ADRs)
-│   └── 0010-clean-architecture-migration.md
+│   ├── ... (11 ADRs)
+│   └── 0011-spiffe-spire-workload-identity.md
 ├── architecture/code/                   # TypeDoc-generated HTML
 │   └── ...
 └── examples/                            # Example scripts
@@ -137,7 +133,7 @@ createBootstrap({
 ```
 
 ```bash
-npm run build:common && npm run build:address-manager && npm run build:broker-message
+bun run build:common && bun run build:address-manager && bun run build:broker-message
 ```
 
 ```yaml
@@ -148,8 +144,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - run: npm ci
-      - run: npm run lint
+      - run: bun install --frozen-lockfile
+      - run: bun run lint
 ```
 
 ## References

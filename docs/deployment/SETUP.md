@@ -4,20 +4,16 @@
 
 | Tool                           | Version    | Usage                      |
 | ------------------------------ | ---------- | -------------------------- |
-| Node.js                        | 20+        | JavaScript runtime         |
-| npm                            | (included) | Package manager            |
+| Bun                           | 1.3+       | JS runtime + package manager |
 | Docker Desktop / Docker Engine | 24+        | Containerization           |
 | Git                            | 2.40+      | Version control            |
-| OpenSSL                        | 3.x        | TLS certificate generation |
 
 Verify installed versions:
 
 ```bash
-node --version     # ≥ 20.x
-npm --version
+bun --version      # ≥ 1.3.x
 docker --version   # ≥ 24.x
 git --version      # ≥ 2.40
-openssl version    # ≥ 3.x
 ```
 
 ---
@@ -34,48 +30,37 @@ cd trading-model
 ### 2. Install dependencies
 
 ```bash
-npm ci
+bun install --frozen-lockfile
 ```
 
-`npm ci` uses the lockfile (`package-lock.json`) for a deterministic and reproducible installation.
+`bun install --frozen-lockfile` uses the lockfile (`bun.lock`) for a deterministic and reproducible installation.
 
 ### 3. Build shared packages
 
 ```bash
-npm run build
+bun run build
 ```
 
 Compiles the monorepo packages in this order:
 
 1. `common` (`packages/common`)
-2. `address-manager` (`packages/address-manager`)
-3. `broker-message` (`packages/broker-message`)
-4. `certificate-utils` (`packages/certificate-utils`)
+2. `validation` (`packages/validation`) + `server-utils` (`packages/server-utils`)
+3. `crypto` (`packages/crypto`)
+4. `address-manager` (`packages/address-manager`)
+5. `broker-message` (`packages/broker-message`)
 
-Packages are used by all 9 microservices as `@trading-model/*` workspace dependencies.
+Packages are used by the microservices as `@trading-model/*` workspace dependencies.
 
-### 4. Generate TLS certificates
+### 4. mTLS via SPIRE (automatic)
 
-```bash
-mkdir -p certs
-openssl req -new -x509 -days 365 -nodes -subj "/CN=Trading-CA" -keyout certs/ca-key.pem -out certs/ca.crt
-openssl genrsa -out certs/server-key.pem 2048
-openssl req -new -key certs/server-key.pem -subj "/CN=localhost" -out certs/server.csr
-openssl x509 -req -days 365 -in certs/server.csr -CA certs/ca.crt -CAkey certs/ca-key.pem -CAcreateserial -out certs/server.crt
-rm -f certs/server.csr certs/ca-key.pem certs/ca.srl
-```
+No certificate generation is required. mTLS identities are issued by SPIRE
+(ADR-0011): `spiffe-helper` sidecars write each service SVID into
+`/run/spire/svid` (`svid.pem`, `svid_key.pem`, `bundle.pem`), which the services
+use via `TLS_KEY_PATH` / `TLS_CERT_PATH` / `TLS_CA_PATH`. There is no `./certs`
+bundle to create or mount.
 
-Produces the following files in `./certs/`:
-
-| File             | Role                                |
-| ---------------- | ----------------------------------- |
-| `ca.crt`         | Certificate Authority certificate   |
-| `server.crt`     | Server certificate signed by the CA |
-| `server-key.pem` | Server private key                  |
-
-Certificates are mounted read-only in each Docker container via `${TLS_CERTS_DIR:-./certs}:/certs:ro`.
-
-> **Never commit certificates.** They are in `.gitignore`.
+> **Never commit certificates.** SVIDs live in compose/K8s volumes and are
+> never checked in.
 
 ### 5. Configure environment
 
@@ -111,13 +96,12 @@ First run downloads database images (MongoDB 7, MySQL 8) and builds service imag
 docker compose ps
 ```
 
-All 10 containers should show `Up` or `healthy`:
+All containers should show `Up` or `healthy`:
 
 ```
 trading-mongo      Up (healthy)
 trading-mysql      Up (healthy)
 trading-discovery  Up (healthy)
-trading-ca         Up (healthy)
 trading-message    Up (healthy)
 trading-scraper    Up (healthy)
 trading-trainer    Up (healthy)
@@ -132,7 +116,6 @@ curl -sk https://localhost:8443/ping     # discovery-server
 curl -sk https://localhost:8444/ping     # message-manager
 curl -sk https://localhost:8445/ping     # financial-scraper
 curl -sk https://localhost:8446/ping     # trader-trainer
-curl -sk https://localhost:8447/ping     # certificate-authority
 curl -sk https://localhost:8448/ping     # api-gateway
 curl -sk https://localhost:8450/ping     # audit-logger
 
@@ -149,7 +132,7 @@ docker compose logs -f
 ### 9. Run tests
 
 ```bash
-npm test
+bun run test
 ```
 
 ### 10. Stop
@@ -309,62 +292,23 @@ docker compose version
 docker run hello-world
 ```
 
-#### Node.js (optional — for local builds)
+#### Bun (optional — for local builds)
 
 ```bash
-if command -v node &> /dev/null; then
-    echo "Node.js already installed: $(node --version)"
+if command -v bun &> /dev/null; then
+    echo "Bun already installed: $(bun --version)"
 else
-    curl -fsSL https://deb.nodesource.com/setup_22.x | sudo bash -
-    sudo apt install -y nodejs
+    curl -fsSL https://bun.sh/install | bash
 fi
-node --version   # Expected: v22.x
-npm --version
+bun --version
 ```
 
-### 4. TLS Certificates
+### 4. mTLS via SPIRE
 
-The project uses **mTLS** for all inter-service communication. Every server needs its own set.
-
-#### 4.1 Generate the CA (once, on admin machine)
-
-```bash
-mkdir -p certs && cd certs
-openssl req -new -x509 -days 3650 -nodes \
-    -subj "/CN=Trading-CA" \
-    -keyout ca-key.pem \
-    -out ca.crt
-cd ..
-```
-
-> **Store `ca-key.pem` in a safe place.** It is the root of trust for the entire fleet.
-
-#### 4.2 Generate per-host server certificate
-
-```bash
-cd trading-model
-mkdir -p certs
-openssl genrsa -out certs/server-key.pem 2048
-openssl req -new -key certs/server-key.pem \
-    -subj "/CN=$(hostname -f)" \
-    -out certs/server.csr
-# Sign with the CA (requires ca-key.pem)
-openssl x509 -req -days 365 \
-    -in certs/server.csr \
-    -CA certs/ca.crt \
-    -CAkey certs/ca-key.pem \
-    -CAcreateserial \
-    -out certs/server.crt
-rm -f certs/server.csr certs/ca.srl
-```
-
-#### 4.3 Copy certificates (if signing was remote)
-
-```bash
-scp certs/ca.crt trading@<NEW_SERVER>:~/trading-model/certs/
-scp certs/server.crt trading@<NEW_SERVER>:~/trading-model/certs/
-scp certs/server-key.pem trading@<NEW_SERVER>:~/trading-model/certs/
-```
+The project uses **mTLS** for all inter-service communication, with identities
+issued automatically by **SPIRE** (ADR-0011). Each workload's `spiffe-helper`
+sidecar fetches an SVID and writes it to `/run/spire/svid`. No per-host
+certificate generation or `./certs` bundle is required.
 
 ### 5. Project Checkout
 
@@ -373,11 +317,11 @@ cd ~
 git clone https://github.com/trading-model/trading-model.git
 cd trading-model
 
-# Install npm dependencies (try clean install, fall back to install)
-npm ci 2>/dev/null || { echo "npm ci failed — falling back to npm install"; npm install; }
+# Install bun dependencies (try clean install, fall back to install)
+bun install --frozen-lockfile 2>/dev/null || { echo "bun install --frozen-lockfile failed — falling back to bun install"; bun install; }
 
 # TypeScript build (only needed for local image builds)
-npm run build
+bun run build
 ```
 
 ### 6. Environment Configuration
@@ -395,7 +339,6 @@ Customize per server role:
 | `MESSAGE_PORT`        | 8444 — Message Manager                        |
 | `SCRAPER_PORT`        | 8445 — Financial Scraper                      |
 | `TRAINER_PORT`        | 8446 — Trader Trainer                         |
-| `TLS_CERTS_DIR`       | Path to certificates directory                |
 | `MYSQL_ROOT_PASSWORD` | MySQL root password (change it!)              |
 | `IMAGE_TAG`           | `latest` or a specific version tag            |
 | `LOG_LEVEL`           | `info` (or `debug` for diagnostics)           |
@@ -434,7 +377,6 @@ NAME               IMAGE                                                   STATU
 trading-mongo      mongo:7                                                 Up (healthy)
 trading-mysql      mysql:8                                                 Up (healthy)
 trading-discovery  ghcr.io/trading-model/discovery-server:latest           Up (healthy)
-trading-ca         ghcr.io/trading-model/certificate-authority:latest      Up (healthy)
 trading-message    ghcr.io/trading-model/message-manager:latest            Up (healthy)
 trading-scraper    ghcr.io/trading-model/financial-scraper:latest          Up (healthy)
 trading-trainer    ghcr.io/trading-model/trader-trainer:latest             Up (healthy)
@@ -450,7 +392,6 @@ curl -sk https://localhost:8443/ping    # Discovery Server
 curl -sk https://localhost:8444/ping    # Message Manager
 curl -sk https://localhost:8445/ping    # Financial Scraper
 curl -sk https://localhost:8446/ping    # Trader Trainer
-curl -sk https://localhost:8447/ping    # Certificate Authority
 curl -sk https://localhost:8448/ping    # API Gateway
 curl -sk https://localhost:8450/ping    # Audit Logger
 curl http://localhost:8449/             # Admin Interface (HTTP)
@@ -481,17 +422,7 @@ sudo usermod -aG docker $USER
 # ── Project ───────────────────────────────────────────
 git clone https://github.com/trading-model/trading-model.git
 cd trading-model
-npm ci && npm run build
-mkdir -p certs && cd certs
-openssl req -new -x509 -days 365 -nodes -subj "/CN=Trading-CA" \
-    -keyout ca-key.pem -out ca.crt
-openssl genrsa -out server-key.pem 2048
-openssl req -new -key server-key.pem -subj "/CN=$(hostname -f)" \
-    -out server.csr
-openssl x509 -req -days 365 -in server.csr -CA ca.crt -CAkey ca-key.pem \
-    -CAcreateserial -out server.crt
-rm -f server.csr ca-key.pem ca.srl
-cd ..
+bun install --frozen-lockfile && bun run build
 cp .env.example .env
 # nano .env
 
@@ -509,13 +440,15 @@ curl -sk https://localhost:8443/ping
 On fleet machines, only Docker is required:
 
 ```bash
-# No Node.js, no build
+# No Bun, no build
 git clone https://github.com/trading-model/trading-model.git
 cd trading-model
 cp .env.example .env
-mkdir -p certs && openssl req -x509 -nodes ...  # or copy certs
 IMAGE_TAG=<version> docker compose pull
 IMAGE_TAG=<version> docker compose up -d
 ```
 
-Development tools (Node.js, npm, compilers) are not needed on fleet machines.
+> mTLS is automatic via SPIRE (ADR-0011) — no certificate generation or `./certs`
+> bundle is needed on fleet machines.
+
+Development tools (Bun, compilers) are not needed on fleet machines.

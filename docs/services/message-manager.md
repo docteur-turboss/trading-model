@@ -6,7 +6,7 @@ Pub/sub message brokering service with delivery guarantees and MongoDB persisten
 
 | Property         | Value                                                              |
 | ---------------- | ------------------------------------------------------------------ |
-| Service name     | `message-delivery-service`                                         |
+| Service name     | `message-manager`                                         |
 | Port (host)      | `8444`                                                             |
 | Port (container) | `3000`                                                             |
 | Dependencies     | `@trading-model/common`, `@trading-model/address-manager`, MongoDB |
@@ -43,7 +43,7 @@ Body (validated by `PublishSchema`):
     "eventType": "market.trade.recent.fetch",
     "schemaVersion": "1.0.0",
     "publisher": {
-      "serviceName": "financial-scraper-service",
+      "serviceName": "financial-scraper",
       "instanceId": "uuid-123"
     },
     "delivery": {
@@ -70,7 +70,7 @@ Body (validated by `SubscribeSchema`):
   "topic": "market.trade.recent.fetch",
   "callbackPath": "message",
   "consumerIdentity": {
-    "serviceName": "trader-training-service",
+    "serviceName": "trader-trainer",
     "instanceId": "uuid"
   }
 }

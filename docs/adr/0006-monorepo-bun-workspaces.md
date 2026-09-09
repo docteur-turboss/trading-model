@@ -1,4 +1,4 @@
-# ADR-0006: Monorepo Structure with npm Workspaces
+# ADR-0006: Monorepo Structure with bun Workspaces
 
 **Status:** Accepted
 **Date:** 2026-06
@@ -14,7 +14,7 @@ The platform consists of 5 shared libraries and 9 microservices that must be dev
 
 ## Decision
 
-Use a **monorepo** managed by **npm workspaces** with the following structure:
+Use a **monorepo** managed by **bun workspaces** with the following structure:
 
 ```
 trading-model/
@@ -33,15 +33,15 @@ trading-model/
 | Alternative                             | Reason for Rejection                                                               |
 | --------------------------------------- | ---------------------------------------------------------------------------------- |
 | Multi-repo (separate repos per service) | Coordination overhead; no atomic cross-repo changes; harder shared type management |
-| Lerna                                   | Additional tooling; npm workspaces now support all needed features                 |
-| pnpm workspaces                         | Faster installs but adds toolchain complexity; team familiar with npm              |
+| Lerna                                   | Additional tooling; bun workspaces now support all needed features                 |
+| pnpm workspaces                         | Faster installs but adds toolchain complexity; team familiar with bun              |
 | Bazel                                   | Overkill for this project size; steep learning curve                               |
 
 ## Consequences
 
 ### Positive
 
-- Single `npm ci` installs all dependencies
+- Single `bun install --frozen-lockfile` installs all dependencies
 - Shared TypeScript types via `@trading-model/*` without publishing
 - Biome and TypeScript config shared at root level
 - Husky hooks enforce commit format, linting, and tests before push
@@ -52,11 +52,11 @@ trading-model/
 - Build order matters (packages must build before services)
 - Root `node_modules` size grows with all dependencies
 - Git history is shared — large refactors touch many files
-- Workspace command naming requires care (`npm test -w trader-service` vs directory `services/trader-trainer`)
+- Workspace command naming requires care (`bun run --filter trader-service test` vs directory `services/trader-trainer`)
 
 ### Mitigations
 
 - Build scripts enforce package dependency order
-- Weekly `npm audit` and Dependabot for dependency updates
+- Weekly `bun audit` and Dependabot for dependency updates
 - `commitlint` enforces structured commit messages with scopes
 - `AGENTS.md` documents workspace quirks (naming, build order)

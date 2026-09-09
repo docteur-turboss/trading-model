@@ -85,10 +85,12 @@ kubectl create secret docker-registry -n trading-model ghcr-secret \
 **Fix:**
 
 ```bash
-# Check certificate expiry
-echo | openssl s_client -connect <service>:3000 -cert <(kubectl get secret -n trading-model trading-model-tls -o jsonpath='{.data.server\.crt}' | base64 -d) 2>/dev/null | openssl x509 -noout -enddate
+# Check SVID expiry (SPIRE-issued, 1h TTL by default)
+kubectl exec -n trading-model deployment/<service> -- \
+  openssl x509 -in /run/spire/svid/svid.pem -noout -dates
 
-# Re-issue certificates via CA service or manual rotation
+# Re-issue: restart the spiffe-helper sidecar (it re-fetches the SVID from SPIRE)
+kubectl rollout restart deployment/<service> -n trading-model
 ```
 
 ## Recovery Verification

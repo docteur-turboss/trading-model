@@ -17,7 +17,7 @@ The alternative — using off-the-shelf libraries directly in each service — w
 
 **@trading-model/common** provides: HTTP client, logger, middleware, type definitions, server factories (`createSecureServer`, `createBootstrap`), environment validation (`BaseEnvSchema`, `AddressManagerEnvSchema`), crypto utilities, shared DTOs, and a central `AppError` class with `ErrorCodes`.
 
-This package has **zero internal dependencies** — it only depends on external npm packages (`express`, `zod`, `helmet`, `express-rate-limit`, `chained-error`).
+This package has **zero internal dependencies** — it only depends on external bun packages (`express`, `zod`, `helmet`, `express-rate-limit`, `chained-error`).
 
 ## Logger
 
@@ -147,7 +147,7 @@ import {
 
 | Schema                    | Description                                                                            |
 | ------------------------- | -------------------------------------------------------------------------------------- |
-| `BaseEnvSchema`           | `NODE_ENV`, `PORT`, `TLS_KEY_PATH`, `TLS_CERT_PATH`, `TLS_CA_PATH`, `LOG_LEVEL`, `CERT_CLIENT_CA_URL?`, `CERT_CLIENT_SERVICE_ID?`, `CERT_CLIENT_COMMON_NAME?`, `CERT_CLIENT_SANS?`, `CERT_CLIENT_BOOTSTRAP_TOKEN?` |
+| `BaseEnvSchema`           | `NODE_ENV`, `PORT`, `TLS_KEY_PATH`, `TLS_CERT_PATH`, `TLS_CA_PATH`, `LOG_LEVEL` |
 | `AddressManagerEnvSchema` | `APP_NAME`, `SERVICE_NAME`, `INSTANCE_ID`, `CACHE_TTL_MS`, `ADDRESS_MANAGER_URL`, etc. |
 | `validateEnv(schema)`     | Parses `process.env` and throws `ConfigurationError` on failure                        |
 
@@ -264,11 +264,17 @@ Response normalisation utilities.
 - **Import**: `@trading-model/common/config/services.types`
 
 ```ts
-ServiceInstanceName.DiscoveryService; // 'discovery-service'
-ServiceInstanceName.MessageDeliveryService; // 'message-delivery-service'
-ServiceInstanceName.FinancialScraperService; // 'financial-scraper-service'
-ServiceInstanceName.TraderTrainingService; // 'trader-training-service'
-// + CoreBalancerService, OfficialDataScraperService, etc.
+export enum ServiceInstanceName {
+	AdminInterface = "admin-interface",
+	ApiGatewayService = "api-gateway",
+	AuditLoggerService = "audit-logger-service",
+	DiscoveryService = "discovery-service",
+	DlqService = "dlq-service",
+	FinancialScraperService = "financial-scraper-service",
+	MessageDeliveryService = "message-delivery-service",
+	MessageManagerService = "message-manager",
+	TraderTrainerService = "trader-trainer",
+}
 ```
 
 ## Delivery Types
@@ -334,7 +340,7 @@ Deterministic JSON serialisation for cryptographic signing. Recursively sorts ob
 
 ## Deployment
 
-This package is **not deployed independently**. It is built as a workspace dependency and consumed at build time by other packages and services. The compiled output goes to `dist/` via `npm run build` (tsc, CommonJS output).
+This package is **not deployed independently**. It is built as a workspace dependency and consumed at build time by other packages and services. The compiled output goes to `dist/` via `bun run build` (tsc, CommonJS output).
 
 All other packages reference it as:
 

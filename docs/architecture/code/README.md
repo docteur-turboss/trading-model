@@ -21,8 +21,8 @@ The rendering matches [discord.js](https://discord.js.org/docs/packages/discord.
 ## Generation
 
 ```bash
-npm run docs:generate          # Generate full HTML documentation
-npm run docs:generate:dry      # Preview modules without generating
+bun run docs:generate          # Generate full HTML documentation
+bun run docs:generate:dry      # Preview modules without generating
 ```
 
 ## Script

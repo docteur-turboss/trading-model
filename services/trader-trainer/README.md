@@ -12,10 +12,10 @@ Key features: GA evolution, Deep Q-Learning, memory-aware scaling, adaptive cont
 
 ```bash
 cd services/trader-trainer
-npm install
-npm run dev           # Development server
-npm test              # Run tests
-npm run build         # Production build
+bun install
+bun run dev           # Development server
+bun run test              # Run tests
+bun run build         # Production build
 ```
 
 See [Quick Start](../../docs/getting-started/quickstart.md) for a full platform walkthrough.

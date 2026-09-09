@@ -23,48 +23,43 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
+      - uses: oven-sh/setup-bun@v2
         with:
-          node-version: 'lts/*'
-          cache: 'npm'
-      - run: npm ci
-      - run: npm run lint
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - run: bun run lint
 
   typecheck:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
+      - uses: oven-sh/setup-bun@v2
         with:
-          node-version: 'lts/*'
-          cache: 'npm'
-      - run: npm ci
+          bun-version: latest
+      - run: bun install --frozen-lockfile
       - name: Build packages (dependency order)
-        run: npm run build
+        run: bun run build
       - name: Type-check services
         run: |
-          npm run -w services/message-manager build
-          npm run -w services/discovery-server build
-          npm run -w services/financial-scraper build
-          npm run -w services/trader-trainer build
-          npm run -w services/certificate-authority build
-          npm run -w services/api-gateway build
-          npm run -w services/admin-interface build
-          npm run -w services/audit-logger build
-          npm run -w services/dlq-service build
-          npm run -w packages/certificate-utils build
+          bun run --filter message-manager build
+          bun run --filter discovery-server build
+          bun run --filter financial-scraper build
+          bun run --filter trader-service build
+          bun run --filter api-gateway build
+          bun run --filter admin-interface build
+          bun run --filter audit-logger build
+          bun run --filter dlq-service build
 
   test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
+      - uses: oven-sh/setup-bun@v2
         with:
-          node-version: 'lts/*'
-          cache: 'npm'
-      - run: npm ci
-      - run: npm run build
-      - run: npm run test:coverage
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - run: bun run build
+      - run: bun run test:coverage
 ```
 
 **Jobs**:
@@ -99,12 +94,12 @@ jobs:
       version: ${{ steps.version.outputs.version }}
     steps:
       - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
-        with: { node-version: 'lts/*', cache: 'npm' }
-      - run: npm ci
-      - run: npm run lint
-      - run: npm run build
-      - run: npm run test:coverage
+      - uses: oven-sh/setup-bun@v2
+        with: { bun-version: latest }
+      - run: bun install --frozen-lockfile
+      - run: bun run lint
+      - run: bun run build
+      - run: bun run test:coverage
       - name: Extract version from tag
         id: version
         run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
@@ -130,9 +125,6 @@ jobs:
           - name: trader-trainer
             context: .
             dockerfile: services/trader-trainer/Dockerfile
-          - name: certificate-authority
-            context: .
-            dockerfile: services/certificate-authority/Dockerfile
           - name: api-gateway
             context: .
             dockerfile: services/api-gateway/Dockerfile
@@ -211,10 +203,10 @@ jobs:
 | Workflow      | File                            | Trigger                | What it does                                                       |
 | ------------- | ------------------------------- | ---------------------- | ------------------------------------------------------------------ |
 | **CI**        | `.github/workflows/ci.yml`      | `push`, `pull_request` | Lint → Typecheck → Test + Codecov                                  |
-| **Release**   | `.github/workflows/release.yml` | tag `v*.*.*`           | Quality gate → 9 Docker images → GHCR → GitHub Release → Docs     |
+| **Release**   | `.github/workflows/release.yml` | tag `v*.*.*`           | Quality gate → 8 Docker images → GHCR → GitHub Release → Docs     |
 | **Backup Test** | `.github/workflows/backup-test.yml` | weekly cron       | Validate backup/restore scripts                                    |
 
-All workflows run on `ubuntu-latest` with Node.js LTS and npm cache. Failure in any workflow blocks merging.
+All workflows run on `ubuntu-latest` with Bun. Failure in any workflow blocks merging.
 
 **Concurrency:** CI grouped by workflow + ref, cancel-in-progress on new push. Release runs single pipeline (`group: pages`).
 
@@ -238,7 +230,7 @@ Example for `v2.0.3`:
 
 ### Documentation Deployment
 
-The release workflow runs `npm run docs:generate` (TypeDoc), uploads the output as a Pages artifact, and deploys to GitHub Pages. The generated docs live at `docs/architecture/code/`.
+The release workflow runs `bun run docs:generate` (TypeDoc), uploads the output as a Pages artifact, and deploys to GitHub Pages. The generated docs live at `docs/architecture/code/`.
 
 ## Related Documentation
 

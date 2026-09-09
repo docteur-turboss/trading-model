@@ -1,7 +1,7 @@
 # Data Protection Impact Assessment (DPIA)
 
 > **Performed:** 2026-06  
-> **Assessment scope:** trading-model platform (all 9 services, 5 packages)  
+> **Assessment scope:** trading-model platform (all 8 services, 6 packages)  
 > **Methodology:** CNIL PIA framework (Art. 35 GDPR)
 
 ## 1. System Overview
@@ -10,9 +10,9 @@ The trading-model platform is a microservices-based algorithmic trading research
 
 **Key characteristics:**
 
-- 9 backend microservices (Node.js/TypeScript/Express)
+- 8 backend microservices (Node.js/TypeScript/Express)
 - Event-driven architecture (message-manager on Redis Streams)
-- mTLS mutual authentication (certificate-authority)
+- mTLS via SPIFFE/SPIRE workload identity (ADR-0011)
 - Self-hosted databases (MongoDB, MySQL, Redis)
 - React SPA admin dashboard (admin-interface)
 
@@ -42,9 +42,9 @@ The trading-model platform is a microservices-based algorithmic trading research
 | Dimension       | Assessment                                                                                                        |
 | --------------- | ----------------------------------------------------------------------------------------------------------------- |
 | **Likelihood**  | Low — mTLS everywhere, SecureKeyStore, AES-256-GCM at rest, automountServiceAccountToken: false                   |
-| **Impact**      | High — compromise of CA keys or service tokens could disrupt platform security                                    |
+| **Impact**      | High — compromise of SPIRE CA keys / SVIDs or service tokens could disrupt platform security                                    |
 | **Severity**    | Tolerable (not PII-related)                                                                                       |
-| **Mitigations** | Automatic certificate rotation (7 days), backup CronJob daily, incident response procedure, SealedSecrets for K8s |
+| **Mitigations** | Automatic SVID rotation (1h TTL), backup CronJob daily, incident response procedure, SealedSecrets for K8s |
 
 ### Risk 3: Binance Data Transfer (Cayman Islands)
 
@@ -70,7 +70,7 @@ The trading-model platform is a microservices-based algorithmic trading research
 | -------------------------------- | -------------- | ------------------------------------------------------ |
 | ZERO PII architecture            | ✅ Implemented | No collection, storage, or processing of personal data |
 | TLS 1.3 mTLS everywhere          | ✅ Implemented | All inter-service communication encrypted              |
-| AES-256-GCM encryption at rest   | ✅ Implemented | CA keys, discovery cache, filesystem fallback          |
+| AES-256-GCM encryption at rest   | ✅ Implemented | SPIRE datastore, discovery cache, filesystem fallback          |
 | Triple-layer log redaction       | ✅ Implemented | Pino + JSON regex + PEM sanitization                   |
 | Append-only audit trail          | ✅ Implemented | MongoDB with correlation IDs + gap detection           |
 | Automatic TTL-based retention    | ✅ Implemented | MongoDB indexes (30-90 days), Redis TTL                |

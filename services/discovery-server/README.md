@@ -11,8 +11,8 @@ Central service registry for the microservice platform. Handles service instance
 ## Installation
 
 ```bash
-npm install
-npm run build
+bun install
+bun run build
 ```
 
 ## Configuration
@@ -35,16 +35,16 @@ Copy `.env.example` to `.env` and fill in the values.
 ## Running
 
 ```bash
-npm run dev     # ts-node src/application/index.ts
-npm run build   # tsc
+bun run dev     # ts-node src/application/index.ts
+bun run build   # tsc
 ```
 
 ## Testing
 
 ```bash
-npm test                          # all tests
-npm test -- --watch               # watch mode
-npm test -- --coverage            # with coverage report
+bun run test                          # all tests
+bun run test --watch               # watch mode
+bun run test --coverage            # with coverage report
 ```
 
 ### Test structure

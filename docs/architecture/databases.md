@@ -21,9 +21,10 @@ MongoDB 7 is used by several services via the native `mongodb` driver (no Mongoo
 | Service | Stores |
 | ------- | ------ |
 | **message-manager** | Message archival data |
-| **certificate-authority** | Certificates, CRL, CA metadata, tokens, nonces, distributed locks |
 | **audit-logger** | Audit event persistence |
 | **dlq-service** | Dead letter entries |
+
+> SPIRE Server (ADR-0011) uses MySQL for its datastore (`spire` database).
 
 ## Schema Validation
 

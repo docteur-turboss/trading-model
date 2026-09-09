@@ -4,7 +4,7 @@
 
 ## End-to-End Flow
 
-## 1. Service Initialization (`app/index.ts`)
+## 1. Service Initialization (`src/infrastructure/index.ts`)
 
 On startup:
 

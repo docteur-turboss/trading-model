@@ -26,9 +26,6 @@ kubectl create secret generic trading-model-secrets \
   --namespace trading-model \
   --from-literal=AUTH_TOKENS='your-real-tokens' \
   --from-literal=SIGNING_SECRET='your-signing-secret' \
-  --from-literal=SERVICE_BOOTSTRAP_TOKEN='your-bootstrap-token' \
-  --from-literal=CA_BOOTSTRAP_TOKEN='your-ca-bootstrap-token' \
-  --from-literal=CA_BOOTSTRAP_TOKENS='your-ca-bootstrap-tokens' \
   --from-literal=MYSQL_ROOT_PASSWORD='your-mysql-root-password' \
   --from-literal=MYSQL_PASSWORD='your-mysql-password' \
   --from-literal=DLQ_AUTH_HMAC_SECRET='your-dlq-hmac-secret' \

@@ -6,7 +6,7 @@ Immutable traceability service for all decisions, transactions, and errors. Subs
 
 | Property         | Value                                                                                               |
 | ---------------- | --------------------------------------------------------------------------------------------------- |
-| Service name     | `audit-logger-service`                                                                              |
+| Service name     | `audit-logger`                                                                              |
 | Port (host)      | `8450`                                                                                              |
 | Port (container) | `3000`                                                                                              |
 | Dependencies     | `@trading-model/common`, `@trading-model/address-manager`, `@trading-model/broker-message`, MongoDB |
@@ -72,7 +72,7 @@ List and filter audit events.
       "messageId": "msg-uuid-123",
       "topic": "market.trade.recent.fetch",
       "eventType": "market.trade.recent.fetch",
-      "publisher": "financial-scraper-service",
+      "publisher": "financial-scraper",
       "correlationId": "corr-uuid-456",
       "payload": { "symbol": "BTCUSDT", "price": 50000.0 },
       "recordedAt": "2025-01-15T10:30:00Z"
@@ -101,7 +101,7 @@ Aggregate audit statistics.
     "market.candlestick.series.fetch": 12000
   },
   "eventsByPublisher": {
-    "financial-scraper-service": 30000
+    "financial-scraper": 30000
   },
   "dateRange": {
     "earliest": "2025-01-01T00:00:00Z",
@@ -168,7 +168,7 @@ Event Bus (Message Manager) ──POST /message──→ Audit Logger ──→ 
 | --------------------------- | ---------------------------------------- | ----------------------------- |
 | `PORT`                      | `3000`                                   | Service listen port           |
 | `MONGODB_URI`               | `mongodb://localhost:27017/audit-logger` | MongoDB connection            |
-| `SERVICE_NAME`              | `audit-logger-service`                   | Discovery service name        |
+| `SERVICE_NAME`              | `audit-logger`                   | Discovery service name        |
 | `ADDRESS_MANAGER_URL`       | `https://localhost:8443`                 | Discovery server URL          |
 | `MAX_QUEUE_DEPTH`           | `10000`                                  | Max internal queue depth      |
 | `MAX_WORKER_LOAD_RATIO`     | `0.85`                                   | Back-pressure threshold       |
