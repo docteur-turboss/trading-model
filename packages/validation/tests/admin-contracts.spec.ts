@@ -1,26 +1,26 @@
+import { Capability } from "@trading-model/common/domain/primitives";
 import { z } from "zod";
 import {
-	CertificateStatus,
 	ConfigSource,
 	JobPriority,
 	JobStatus,
 	JobTimelineEvent,
 	ServiceStatus,
 	Severity,
-} from "../src/contracts/admin";
-import { CacheStatus } from "../src/contracts/admin/cache.dto";
+} from "../src/adapters/inbound/admin";
+import { CacheStatus } from "../src/adapters/inbound/admin/cache.dto";
 import {
 	ActivationFn,
 	LayerType,
 	Optimizer,
-} from "../src/contracts/admin/training.dto";
+} from "../src/adapters/inbound/admin/training.dto";
+import { isWorkerSuitable } from "../src/domain/contracts/worker-protocol.types";
+import { validateEnv } from "../src/infrastructure/validation/env";
 import {
 	getAskTotalQty,
 	getAvgBid,
 	getBidTotalQty,
-} from "../src/contracts/market-data/orderbook.types";
-import { isWorkerSuitable } from "../src/contracts/worker-protocol.types";
-import { validateEnv } from "../src/validation/env";
+} from "../src/shared/contracts/market-data.types";
 
 describe("admin contracts", () => {
 	it("Severity has expected values", () => {
@@ -28,12 +28,6 @@ describe("admin contracts", () => {
 		expect(Severity.Warning).toBe("WARNING");
 		expect(Severity.Error).toBe("ERROR");
 		expect(Severity.Critical).toBe("CRITICAL");
-	});
-
-	it("CertificateStatus has expected values", () => {
-		expect(CertificateStatus.Valid).toBe("valid");
-		expect(CertificateStatus.Expiring).toBe("expiring");
-		expect(CertificateStatus.Revoked).toBe("revoked");
 	});
 
 	it("ConfigSource has expected values", () => {
@@ -152,7 +146,7 @@ describe("worker-protocol", () => {
 			currentLoad: 3,
 			maxConcurrency: 10,
 		};
-		const result = isWorkerSuitable(worker as never, "trading");
+		const result = isWorkerSuitable(worker as never, Capability.of("trading"));
 		expect(result).toBe(true);
 	});
 
@@ -163,7 +157,7 @@ describe("worker-protocol", () => {
 			currentLoad: 3,
 			maxConcurrency: 10,
 		};
-		const result = isWorkerSuitable(worker as never, "trading");
+		const result = isWorkerSuitable(worker as never, Capability.of("trading"));
 		expect(result).toBe(false);
 	});
 
@@ -174,7 +168,7 @@ describe("worker-protocol", () => {
 			currentLoad: 3,
 			maxConcurrency: 10,
 		};
-		const result = isWorkerSuitable(worker as never, "trading");
+		const result = isWorkerSuitable(worker as never, Capability.of("trading"));
 		expect(result).toBe(false);
 	});
 
@@ -185,7 +179,7 @@ describe("worker-protocol", () => {
 			currentLoad: 10,
 			maxConcurrency: 10,
 		};
-		const result = isWorkerSuitable(worker as never, "trading");
+		const result = isWorkerSuitable(worker as never, Capability.of("trading"));
 		expect(result).toBe(false);
 	});
 });

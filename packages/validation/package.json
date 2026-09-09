@@ -5,23 +5,23 @@
   "license": "ISC",
   "type": "commonjs",
   "exports": {
+    "./adapters/inbound/admin": {
+      "types": "./dist/adapters/inbound/admin/index.d.ts",
+      "default": "./dist/adapters/inbound/admin/index.js"
+    },
     "./*": {
       "types": "./dist/*.d.ts",
       "default": "./dist/*.js"
-    },
-    "./contracts/admin": {
-      "types": "./dist/contracts/admin/index.d.ts",
-      "default": "./dist/contracts/admin/index.js"
     }
   },
   "dependencies": {
     "@trading-model/common": "*",
-    "zod": "^4.4.3"
+    "zod": "^4.5.4"
   },
   "devDependencies": {
-    "@types/node": "^25.9.2",
-    "jest": "^30.4.2",
-    "ts-jest": "^29.4.11",
+    "@types/node": "^26.5.0",
+    "jest": "^30.5.1",
+    "ts-jest": "^29.4.12",
     "typescript": "^6.0.3"
   },
   "scripts": {

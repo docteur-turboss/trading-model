@@ -1,19 +1,11 @@
-import { AuditEvent } from "../src/contracts/audit-events";
-import { CertificateEvent } from "../src/contracts/certificate-events";
-import { DiscoveryWsMessageType } from "../src/contracts/discovery-ws-message.types";
-import { MarketEvent } from "../src/contracts/market-events";
+import { DiscoveryWsMessageType } from "../src/adapters/inbound/discovery-ws-message.types";
+import { AuditEvent } from "../src/domain/contracts/audit-events";
+import { MarketEvent } from "../src/domain/contracts/market-events";
 
 describe("AuditEvent", () => {
 	it("has expected values", () => {
 		expect(AuditEvent.AuditHeartbeat).toBe("audit.heartbeat");
 		expect(AuditEvent.AuditGapDetected).toBe("audit.gap.detected");
-	});
-});
-
-describe("CertificateEvent", () => {
-	it("has expected values", () => {
-		expect(CertificateEvent.CertificateRevoked).toBe("ca.certificate.revoked");
-		expect(CertificateEvent.CaKeyRotated).toBe("ca.key.rotated");
 	});
 });
 

@@ -1,4 +1,4 @@
-import { JobPriority, JobStatus } from "../src/contracts/recovery.types";
+import { JobPriority, JobStatus } from "../src/domain/contracts/recovery.types";
 
 describe("JobPriority", () => {
 	it("has correct constant values", () => {

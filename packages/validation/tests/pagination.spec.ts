@@ -1,4 +1,4 @@
-import { toPaginatedResponse } from "../src/contracts/pagination.types";
+import { toPaginatedResponse } from "../src/shared/contracts/pagination.types";
 
 describe("toPaginatedResponse", () => {
 	it("converts a pagination result correctly", () => {

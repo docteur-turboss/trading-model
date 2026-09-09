@@ -1,5 +1,8 @@
-import { AddressManagerEnvSchema } from "../src/validation/address-manager-env";
-import { BaseEnvSchema, validateEnv } from "../src/validation/env";
+import { AddressManagerEnvSchema } from "../src/infrastructure/validation/address-manager-env";
+import {
+	BaseEnvSchema,
+	validateEnv,
+} from "../src/infrastructure/validation/env";
 
 describe("BaseEnvSchema", () => {
 	it("uses defaults for optional fields", () => {
@@ -21,20 +24,10 @@ describe("BaseEnvSchema", () => {
 			TLS_CERT_PATH: "/cert.pem",
 			TLS_CA_PATH: "/ca.pem",
 			LOG_LEVEL: "error",
-			CERT_CLIENT_CA_URL: "https://ca.example.com",
-			CERT_CLIENT_SERVICE_ID: "my-service",
-			CERT_CLIENT_COMMON_NAME: "my-service.example.com",
-			CERT_CLIENT_SANS: "alt1.example.com,alt2.example.com",
-			CERT_CLIENT_BOOTSTRAP_TOKEN: "bootstrap-123",
 		});
 		expect(result.NODE_ENV).toBe("production");
 		expect(result.PORT).toBe(443);
 		expect(result.LOG_LEVEL).toBe("error");
-		expect(result.CERT_CLIENT_CA_URL).toBe("https://ca.example.com");
-		expect(result.CERT_CLIENT_SERVICE_ID).toBe("my-service");
-		expect(result.CERT_CLIENT_COMMON_NAME).toBe("my-service.example.com");
-		expect(result.CERT_CLIENT_SANS).toBe("alt1.example.com,alt2.example.com");
-		expect(result.CERT_CLIENT_BOOTSTRAP_TOKEN).toBe("bootstrap-123");
 	});
 
 	it("rejects invalid NODE_ENV", () => {
