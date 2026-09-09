@@ -1,12 +1,9 @@
-export type Ratio = number & { readonly brand: "Ratio" };
+import type { BrandedNumber } from "./branded-utils";
+import { createNumberBrand } from "./branded-utils";
 
+export type Ratio = BrandedNumber<"Ratio">;
 export const Ratio = {
-	of(value: number): Ratio {
-		if (!Number.isFinite(value)) {
-			throw new RangeError(`Ratio must be a finite number, got ${value}`);
-		}
-		return value as Ratio;
-	},
+	...createNumberBrand<"Ratio">("Ratio", { finite: true }),
 
 	zero(): Ratio {
 		return 0 as Ratio;

@@ -1,4 +1,10 @@
-export type SharpeRatio = number & { readonly brand: "SharpeRatio" };
+import type { BrandedNumber } from "./branded-utils";
+import { createNumberBrand } from "./branded-utils";
+
+export type SharpeRatio = BrandedNumber<"SharpeRatio">;
+export const SharpeRatio = createNumberBrand<"SharpeRatio">("SharpeRatio", {
+	finite: true,
+});
 
 export function toSharpeRatio(value: number): SharpeRatio {
 	return SharpeRatio.of(value);
@@ -7,12 +13,3 @@ export function toSharpeRatio(value: number): SharpeRatio {
 export function fromSharpeRatio(value: SharpeRatio): number {
 	return value;
 }
-
-export const SharpeRatio = {
-	of(value: number): SharpeRatio {
-		if (!Number.isFinite(value)) {
-			throw new RangeError(`SharpeRatio must be a finite number, got ${value}`);
-		}
-		return value as SharpeRatio;
-	},
-};

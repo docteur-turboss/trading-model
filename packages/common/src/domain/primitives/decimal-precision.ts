@@ -1,14 +1,15 @@
-export type DecimalPrecision = number & { readonly brand: "DecimalPrecision" };
+import type { BrandedNumber } from "./branded-utils";
+import { createNumberBrand } from "./branded-utils";
 
+export type DecimalPrecision = BrandedNumber<"DecimalPrecision">;
 export const DecimalPrecision = {
-	of(value: number): DecimalPrecision {
-		if (!Number.isInteger(value) || value < 0 || value > 15) {
-			throw new RangeError(
-				`DecimalPrecision must be an integer in [0, 15], got ${value}`
-			);
-		}
-		return value as DecimalPrecision;
-	},
+	...createNumberBrand<"DecimalPrecision">("DecimalPrecision", {
+		integer: true,
+		min: 0,
+		max: 15,
+		message: (value) =>
+			`DecimalPrecision must be an integer in [0, 15], got ${value}`,
+	}),
 
 	round(value: number, decimals: DecimalPrecision): number {
 		const factor = 10 ** decimals;

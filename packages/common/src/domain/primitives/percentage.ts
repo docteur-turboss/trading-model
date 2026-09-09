@@ -1,14 +1,10 @@
-﻿import type { DecimalPrecision } from "./decimal-precision";
+﻿import type { BrandedNumber } from "./branded-utils";
+import { createNumberBrand } from "./branded-utils";
+import type { DecimalPrecision } from "./decimal-precision";
 
-export type Percentage = number & { readonly brand: "Percentage" };
-
+export type Percentage = BrandedNumber<"Percentage">;
 export const Percentage = {
-	of(value: number): Percentage {
-		if (!Number.isFinite(value)) {
-			throw new RangeError(`Percentage must be a finite number, got ${value}`);
-		}
-		return value as Percentage;
-	},
+	...createNumberBrand<"Percentage">("Percentage", { finite: true }),
 
 	fromPercent(percent: number): Percentage {
 		return Percentage.of(percent / 100);

@@ -1,14 +1,12 @@
-export type FailureCount = number & { readonly brand: "FailureCount" };
+import type { BrandedNumber } from "./branded-utils";
+import { createNumberBrand } from "./branded-utils";
 
+export type FailureCount = BrandedNumber<"FailureCount">;
 export const FailureCount = {
-	of(value: number): FailureCount {
-		if (!Number.isInteger(value) || value < 0) {
-			throw new RangeError(
-				`FailureCount must be a non-negative integer, got ${value}`
-			);
-		}
-		return value as FailureCount;
-	},
+	...createNumberBrand<"FailureCount">("FailureCount", {
+		integer: true,
+		min: 0,
+	}),
 
 	zero(): FailureCount {
 		return 0 as FailureCount;

@@ -1,5 +1,5 @@
 import {
-	Capability,
+	type Capability,
 	type InstanceId,
 	type JobId,
 	type JobType,
@@ -70,11 +70,11 @@ export type SchedulerOutgoingMessage =
 
 export function isWorkerSuitable(
 	worker: WorkerRegistration,
-	jobType: string
+	jobType: Capability
 ): boolean {
 	return (
 		worker.status === WorkerStatusCode.Active &&
-		worker.capabilities.includes(Capability.of(jobType)) &&
+		worker.capabilities.includes(jobType) &&
 		worker.currentLoad < worker.maxConcurrency
 	);
 }

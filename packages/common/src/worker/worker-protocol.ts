@@ -5,6 +5,7 @@ import type {
 	SchedulerOutgoingMessage,
 	WorkerIncomingMessage,
 } from "../contracts/worker-protocol-types";
+import { WorkerStatusCode } from "../domain/primitives";
 import type { WorkerRegistry } from "./worker-registry";
 import { WorkerWsManager } from "./worker-ws-manager";
 
@@ -58,7 +59,7 @@ export class WorkerProtocol implements IWorkerProtocol {
 		const workerId = this._wsManager.findWorkerIdByWs(ws);
 		if (workerId) {
 			this._wsManager.deleteConnection(workerId);
-			this._workerRegistry.store.setStatus(workerId, "draining");
+			this._workerRegistry.store.setStatus(workerId, WorkerStatusCode.Draining);
 			this._onWorkerDisconnect(workerId);
 		}
 	}

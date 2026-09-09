@@ -1,5 +1,5 @@
 import type { WorkerWsHeartbeatMessage } from "../contracts/worker-protocol-types";
-import { toInstanceId } from "../domain/primitives";
+import { DurationMs, toInstanceId } from "../domain/primitives";
 import { TimerHandle } from "../utils/timer-handle";
 
 export class WorkerHeartbeat {
@@ -25,7 +25,7 @@ export class WorkerHeartbeat {
 				workerId: toInstanceId(this._workerId),
 				currentLoad: 0,
 			});
-		}, this._intervalMs);
+		}, DurationMs.of(this._intervalMs));
 	}
 
 	stop(): void {

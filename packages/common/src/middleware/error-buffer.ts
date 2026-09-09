@@ -1,7 +1,10 @@
+import type { Request } from "express";
 import type { InstanceId, ServiceId, URLString } from "../domain/primitives";
+import type { HttpStatusCode } from "../http-status";
 import { CircularBuffer } from "../utils/circular-buffer";
 import { normalizeError } from "../utils/errors";
-import type { ErrorReportBody } from "./error-report-builder";
+import { buildErrorReport, type ErrorReportBody } from "./error-report-builder";
+import type { ResolvedErrorTrackingConfig } from "./error-tracking-config";
 
 export interface ErrorBufferConfig {
 	endpoint: URLString;
@@ -10,7 +13,18 @@ export interface ErrorBufferConfig {
 	instanceId: InstanceId;
 }
 
-export class ErrorBuffer {
+export interface IErrorBuffer {
+	report(
+		err: unknown,
+		req: Request,
+		statusCode: HttpStatusCode,
+		config: ResolvedErrorTrackingConfig
+	): void;
+	flush(): Promise<void>;
+	readonly pendingCount: number;
+}
+
+export class ErrorBuffer implements IErrorBuffer {
 	private readonly _buffer: CircularBuffer<ErrorReportBody>;
 	private readonly _endpoint: URLString;
 	private readonly _batchSize: number;
@@ -23,6 +37,15 @@ export class ErrorBuffer {
 		this._serviceName = config.serviceName;
 		this._instanceId = config.instanceId;
 		this._buffer = new CircularBuffer<ErrorReportBody>(config.batchSize * 2);
+	}
+
+	report(
+		err: unknown,
+		req: Request,
+		statusCode: HttpStatusCode,
+		config: ResolvedErrorTrackingConfig
+	): void {
+		this.add(buildErrorReport(err, req, statusCode, config));
 	}
 
 	add(report: ErrorReportBody): void {
@@ -69,5 +92,20 @@ export class ErrorBuffer {
 			"[ErrorTracking] Failed to flush error reports:",
 			normalizeError(err).message
 		);
+	}
+}
+
+export class NullErrorBuffer implements IErrorBuffer {
+	report(
+		_err: unknown,
+		_req: Request,
+		_statusCode: HttpStatusCode,
+		_config: ResolvedErrorTrackingConfig
+	): void {}
+
+	async flush(): Promise<void> {}
+
+	get pendingCount(): number {
+		return 0;
 	}
 }

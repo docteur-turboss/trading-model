@@ -1,3 +1,5 @@
+import { HTTP_STATUS } from "../../http-status";
+
 export function normalizeError(err: unknown): Error {
 	if (err instanceof Error) {
 		return err;
@@ -56,7 +58,7 @@ export function createAppError(
 		code: options?.code ?? ErrorCode.AppError,
 		cause: options?.cause,
 		reason: options?.reason,
-		httpStatus: options?.httpStatus ?? 500,
+		httpStatus: options?.httpStatus ?? HTTP_STATUS.INTERNAL_SERVER_ERROR,
 	}) as AppError;
 }
 

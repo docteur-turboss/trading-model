@@ -46,7 +46,14 @@ export class HttpRequestExecutor {
 			...context.options,
 			...tls,
 		});
+		return this._performRequest(context, requestOptions, timeoutMs);
+	}
 
+	private _performRequest<TResponse>(
+		context: RequestContext<TResponse>,
+		requestOptions: https.RequestOptions,
+		timeoutMs: DurationMs
+	): Promise<TResponse | undefined> {
 		return new Promise<TResponse | undefined>((resolve, reject) => {
 			const req = https.request(requestOptions, (res) => {
 				collectResponseBody({
@@ -58,29 +65,36 @@ export class HttpRequestExecutor {
 			});
 
 			req.on("error", (err) => reject(err));
-
-			const onTimeout = () => {
-				req.destroy();
-				reject(
-					createHttpClientTimeoutError(
-						`Request timed out after ${timeoutMs}ms`,
-						timeoutMs
-					)
-				);
-			};
-			req.setTimeout(timeoutMs, onTimeout);
-			req.on("close", () => {
-				if (req.destroyed) {
-					return;
-				}
-				req.removeListener("timeout", onTimeout);
-			});
+			this._registerTimeout(req, reject, timeoutMs);
 
 			if (context.body) {
 				req.write(JSON.stringify(context.body));
 			}
 
 			req.end();
+		});
+	}
+
+	private _registerTimeout(
+		req: ReturnType<typeof https.request>,
+		reject: (reason?: unknown) => void,
+		timeoutMs: DurationMs
+	): void {
+		const onTimeout = () => {
+			req.destroy();
+			reject(
+				createHttpClientTimeoutError(
+					`Request timed out after ${timeoutMs}ms`,
+					timeoutMs
+				)
+			);
+		};
+		req.setTimeout(timeoutMs, onTimeout);
+		req.on("close", () => {
+			if (req.destroyed) {
+				return;
+			}
+			req.removeListener("timeout", onTimeout);
 		});
 	}
 

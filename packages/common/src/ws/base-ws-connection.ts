@@ -1,13 +1,43 @@
 import WebSocket from "ws";
 import type { IWsConnection } from "./i-ws-connection";
 
+export interface WsConnectionHooks {
+	onOpen?: () => void;
+	onMessage?: (raw: WebSocket.RawData) => void;
+	onClose?: (code: number) => void;
+	onError?: (err: Error) => void;
+}
+
 export abstract class BaseWsConnection implements IWsConnection {
 	protected _ws: WebSocket | null = null;
 
 	onOpen: () => void = () => {};
 	onMessage: (data: unknown) => void = () => {};
-	onCloseHandler: () => void = () => {};
+	onCloseHandler: (code?: number) => void = () => {};
 	onError: (err: Error) => void = () => {};
+
+	protected attachHandlers(ws: WebSocket, hooks: WsConnectionHooks = {}): void {
+		this._ws = ws;
+		ws.on("open", () => {
+			hooks.onOpen?.();
+			this.onOpen?.();
+		});
+		ws.on("message", (raw: WebSocket.RawData) => {
+			if (hooks.onMessage) {
+				hooks.onMessage(raw);
+			} else {
+				this.onMessage?.(raw);
+			}
+		});
+		ws.on("close", (code: number) => {
+			hooks.onClose?.(code);
+			this.onCloseHandler?.(code);
+		});
+		ws.on("error", (err: Error) => {
+			hooks.onError?.(err);
+			this.onError?.(err);
+		});
+	}
 
 	abstract connect(): void;
 
@@ -42,25 +72,5 @@ export abstract class BaseWsConnection implements IWsConnection {
 		} catch {
 			return false;
 		}
-	}
-
-	on(event: string, listener: (...args: unknown[]) => void): this {
-		switch (event) {
-			case "open":
-				this.onOpen = listener as () => void;
-				break;
-			case "message":
-				this.onMessage = listener as (data: unknown) => void;
-				break;
-			case "close":
-				this.onCloseHandler = listener as () => void;
-				break;
-			case "error":
-				this.onError = listener as (err: Error) => void;
-				break;
-			default:
-				break;
-		}
-		return this;
 	}
 }

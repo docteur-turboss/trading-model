@@ -7,6 +7,7 @@ import { createPoolOptions, resolvePoolSize } from "./mongo-utils";
 export interface MongoConnectionConfig {
 	uri: URLString;
 	dbName: string;
+	collectionName?: string;
 	poolSize?: number;
 	minPoolSize?: number;
 	serverSelectionTimeoutMS?: number;
@@ -18,6 +19,7 @@ export class MongoConnectionManager extends ConnectionManager<MongoClient> {
 	private _dbName: string;
 	private readonly _uri: URLString;
 	private readonly _poolSize: number;
+	private readonly _collectionName?: string;
 
 	constructor(config: MongoConnectionConfig) {
 		const poolSize = resolvePoolSize(config.poolSize);
@@ -52,6 +54,7 @@ export class MongoConnectionManager extends ConnectionManager<MongoClient> {
 		this._dbName = config.dbName;
 		this._uri = config.uri;
 		this._poolSize = poolSize;
+		this._collectionName = config.collectionName;
 	}
 
 	get uri(): URLString {
@@ -68,6 +71,10 @@ export class MongoConnectionManager extends ConnectionManager<MongoClient> {
 			this._db = client.db(this._dbName);
 		}
 		return this._db;
+	}
+
+	protected get collectionName(): string | undefined {
+		return this._collectionName;
 	}
 
 	async tryReconnect(): Promise<boolean> {

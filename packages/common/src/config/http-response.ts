@@ -2,7 +2,7 @@ import type { IncomingMessage } from "node:http";
 import { createGunzip, createInflate } from "node:zlib";
 import type { z } from "zod";
 import type { URLString } from "../domain/primitives";
-import type { HttpStatusCode } from "../http-status";
+import { HTTP_STATUS, type HttpStatusCode } from "../http-status";
 import { createHttpClientError } from "./http-client-errors";
 import type { HttpMethod } from "./http-types";
 
@@ -58,7 +58,7 @@ function collectResponseBody<TResponse>(
 				);
 			}
 
-			if (res.statusCode === 204) {
+			if (res.statusCode === HTTP_STATUS.NO_CONTENT) {
 				return resolve(undefined);
 			}
 

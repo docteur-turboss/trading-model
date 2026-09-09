@@ -8,14 +8,13 @@ import type {
 import type { RetryPolicy } from "../domain/retry-policy";
 import { createEnumValues } from "./enum-utils";
 
-export type JobPriority = number & { readonly brand: "JobPriority" };
-export const JobPriority = {
-	LOWEST: 1 as JobPriority,
-	LOW: 2 as JobPriority,
-	MEDIUM: 3 as JobPriority,
-	HIGH: 4 as JobPriority,
-	HIGHEST: 5 as JobPriority,
-};
+export enum JobPriority {
+	LOWEST = 1,
+	LOW = 2,
+	MEDIUM = 3,
+	HIGH = 4,
+	HIGHEST = 5,
+}
 
 export enum JobStatus {
 	PENDING = "pending",

@@ -31,6 +31,12 @@ interface HttpRequestOptions {
 	agent?: https.Agent;
 	serviceName?: ServiceId;
 	serviceInstanceCount?: PositiveInt;
+	/**
+	 * When using a custom trust bundle (mTLS / SPIFFE SVIDs), Node's default
+	 * hostname verification is disabled because SVIDs carry only a `spiffe://`
+	 * URI SAN. Set this to `true` to re-enable standard hostname verification.
+	 */
+	verifyHostname?: boolean;
 }
 
 export type { HttpRequestOptions };

@@ -44,13 +44,18 @@ function _buildUrlParts(url: URL): UrlParts {
 function _buildTlsOptions(
 	options: TlsHttpOptions
 ): Partial<https.RequestOptions> {
-	return {
+	const hasCustomTrust = Boolean(options.caPem || options.certPem);
+	const tlsOptions: Partial<https.RequestOptions> = {
 		cert: options.certPem,
 		key: options.keyPem,
 		ca: options.caPem,
 		rejectUnauthorized: true,
 		agent: options?.agent ?? getKeepAliveAgent(),
 	};
+	if (hasCustomTrust && !options.verifyHostname) {
+		tlsOptions.checkServerIdentity = () => undefined;
+	}
+	return tlsOptions;
 }
 
 function buildRequestOptions(

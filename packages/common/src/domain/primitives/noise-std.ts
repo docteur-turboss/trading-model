@@ -1,14 +1,9 @@
-export type NoiseStd = number & { readonly brand: "NoiseStd" };
+import type { BrandedNumber } from "./branded-utils";
+import { createNumberBrand } from "./branded-utils";
 
+export type NoiseStd = BrandedNumber<"NoiseStd">;
 export const NoiseStd = {
-	of(value: number): NoiseStd {
-		if (!Number.isFinite(value) || value < 0) {
-			throw new RangeError(
-				`NoiseStd must be a non-negative finite number, got ${value}`
-			);
-		}
-		return value as NoiseStd;
-	},
+	...createNumberBrand<"NoiseStd">("NoiseStd", { finite: true, min: 0 }),
 
 	zero(): NoiseStd {
 		return 0 as NoiseStd;

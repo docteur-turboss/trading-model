@@ -18,10 +18,12 @@ import { loadTlsPemBundleSync } from "./http-tls-loader";
 import type { HttpMethod, HttpRequestOptions } from "./http-types";
 
 export class HttpClient {
-	private readonly _tlsBundle: Partial<TlsPemBundle>;
+	private _tlsBundle: Partial<TlsPemBundle>;
 	private readonly _executor: HttpRequestExecutor;
+	private readonly _tlsPaths?: Partial<TlsPaths>;
 
 	constructor(tlsConfig?: Partial<TlsPaths>) {
+		this._tlsPaths = tlsConfig;
 		this._tlsBundle = loadTlsPemBundleSync(tlsConfig);
 		this._executor = new HttpRequestExecutor();
 	}
@@ -87,6 +89,12 @@ export class HttpClient {
 			context.urlStr,
 			context.options
 		);
+
+		if (this._tlsPaths) {
+			// Re-read key/cert/bundle on every request so SVID rotation (SPIFFE,
+			// ADR-0011) is picked up as soon as spiffe-helper rewrites the files.
+			this._tlsBundle = loadTlsPemBundleSync(this._tlsPaths);
+		}
 
 		return this._executor.executeWithRetry(context, route, {
 			caPem: this._tlsBundle.caPem,

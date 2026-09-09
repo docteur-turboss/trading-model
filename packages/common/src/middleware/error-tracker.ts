@@ -3,8 +3,11 @@ import { logger } from "../config/logger";
 import { URLString } from "../domain/primitives";
 import { HTTP_STATUS, type HttpStatusCode } from "../http-status";
 import { TimerHandle } from "../utils/timer-handle";
-import { ErrorBuffer } from "./error-buffer";
-import { buildErrorReport } from "./error-report-builder";
+import {
+	ErrorBuffer,
+	type IErrorBuffer,
+	NullErrorBuffer,
+} from "./error-buffer";
 import {
 	buildConfig,
 	DEFAULT_CONFIG,
@@ -14,7 +17,7 @@ import {
 
 export class ErrorTracker {
 	private _config: ResolvedErrorTrackingConfig = DEFAULT_CONFIG;
-	private _errorBuffer: ErrorBuffer | null = null;
+	private _errorBuffer: IErrorBuffer = new NullErrorBuffer();
 	private readonly _flushTimer = new TimerHandle();
 
 	configure(opts: ErrorTrackingConfig): void {
@@ -41,7 +44,7 @@ export class ErrorTracker {
 			return;
 		}
 		this._flushTimer.startInterval(
-			() => void this._errorBuffer?.flush(),
+			() => void this._errorBuffer.flush(),
 			this._config.flushIntervalMs
 		);
 		this._flushTimer.unref();
@@ -52,11 +55,7 @@ export class ErrorTracker {
 	}
 
 	reportError(err: unknown, req: Request, statusCode: HttpStatusCode): void {
-		if (!this._errorBuffer) {
-			return;
-		}
-		const report = buildErrorReport(err, req, statusCode, this._config);
-		this._errorBuffer.add(report);
+		this._errorBuffer.report(err, req, statusCode, this._config);
 	}
 
 	private _determineStatusCode(res: Response): HttpStatusCode {
@@ -78,7 +77,7 @@ export class ErrorTracker {
 		}
 		return (err, req, res, next) => {
 			const statusCode = this._determineStatusCode(res);
-			if (statusCode >= 500) {
+			if (statusCode >= HTTP_STATUS.INTERNAL_SERVER_ERROR) {
 				this.reportError(err, req, statusCode);
 			}
 			next(err);
@@ -93,9 +92,9 @@ export class ErrorTracker {
 
 	shutdown(): void {
 		this._stopFlushTimer();
-		if (this._errorBuffer && this._errorBuffer.pendingCount > 0) {
+		if (this._errorBuffer.pendingCount > 0) {
 			void this._errorBuffer.flush();
 		}
-		this._errorBuffer = null;
+		this._errorBuffer = new NullErrorBuffer();
 	}
 }

@@ -3,7 +3,6 @@ export enum ServiceInstanceName {
 	AdminInterface = "admin-interface",
 	ApiGatewayService = "api-gateway",
 	AuditLoggerService = "audit-logger-service",
-	CertificateAuthorityService = "certificate-authority",
 	DiscoveryService = "discovery-service",
 	DlqService = "dlq-service",
 	FinancialScraperService = "financial-scraper-service",

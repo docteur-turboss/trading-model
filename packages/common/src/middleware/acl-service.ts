@@ -1,7 +1,7 @@
 import type { Request } from "express";
 
 import { ServiceId } from "../domain/primitives";
-import { extractServiceName } from "../utils/spiffe";
+import { extractCanonicalServiceName } from "../utils/spiffe";
 import { DEFAULT_ACL } from "./acl-config";
 import { ResponseException } from "./response-exception";
 
@@ -15,7 +15,7 @@ export class AclService {
 		if (!callerIdentity) {
 			this._throwUnauthorized("Unauthenticated");
 		}
-		const callerName = extractServiceName(callerIdentity);
+		const callerName = extractCanonicalServiceName(callerIdentity);
 		if (!callerName) {
 			this._throwForbidden("Could not resolve caller identity");
 		}

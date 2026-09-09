@@ -1,3 +1,4 @@
+import { DurationMs } from "../domain/primitives";
 import { TimerHandle } from "../utils/timer-handle";
 
 export class AckTimerManager {
@@ -5,7 +6,10 @@ export class AckTimerManager {
 
 	start(jobId: string, ackDeadline: number, onTimeout: () => void): void {
 		const handle = new TimerHandle();
-		handle.startTimeout(onTimeout, Math.max(ackDeadline - Date.now(), 0));
+		handle.startTimeout(
+			onTimeout,
+			DurationMs.of(Math.max(ackDeadline - Date.now(), 0))
+		);
 		this._timers.set(jobId, handle);
 	}
 

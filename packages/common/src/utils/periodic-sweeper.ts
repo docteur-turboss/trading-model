@@ -1,3 +1,4 @@
+import { DurationMs } from "../domain/primitives";
 import { TimerHandle } from "./timer-handle";
 
 export interface PeriodicSweeperOptions {
@@ -26,7 +27,7 @@ export class PeriodicSweeper {
 		setTimeout(() => {
 			this._handle.startInterval(() => {
 				this._sweepFn();
-			}, this._intervalMs);
+			}, DurationMs.of(this._intervalMs));
 			this._handle.unref();
 		}, initialDelay);
 	}

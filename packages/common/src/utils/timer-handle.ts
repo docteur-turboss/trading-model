@@ -1,3 +1,5 @@
+import type { DurationMs } from "../domain/primitives";
+
 export class TimerHandle {
 	private _handle: ReturnType<typeof setInterval> | null = null;
 
@@ -5,15 +7,15 @@ export class TimerHandle {
 		return this._handle !== null;
 	}
 
-	startInterval(callback: () => void, intervalMs: number): void {
+	startInterval(callback: () => void, intervalMs: DurationMs): void {
 		this.stop();
-		this._handle = setInterval(callback, intervalMs);
+		this._handle = setInterval(callback, Number(intervalMs));
 		this._handle.unref();
 	}
 
-	startTimeout(callback: () => void, delayMs: number): void {
+	startTimeout(callback: () => void, delayMs: DurationMs): void {
 		this.stop();
-		this._handle = setTimeout(callback, delayMs);
+		this._handle = setTimeout(callback, Number(delayMs));
 		this._handle.unref();
 	}
 

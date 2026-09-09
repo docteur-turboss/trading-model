@@ -11,7 +11,7 @@ export function fromDbUser(value: DbUser): string {
 }
 
 export type DbPassword = BrandedString<"DbPassword">;
-export const DbPassword = createStringBrand("DbPassword");
+export const DbPassword = createStringBrand("DbPassword", undefined, true);
 export function toDbPassword(value: string): DbPassword {
 	return DbPassword.of(value);
 }

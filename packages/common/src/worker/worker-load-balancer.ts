@@ -2,6 +2,7 @@ import {
 	isWorkerSuitable,
 	type WorkerRegistration,
 } from "../contracts/worker-protocol-types";
+import { Capability } from "../domain/primitives";
 import type { WorkerStore } from "./worker-store";
 
 function _pickLowerLoad(
@@ -19,10 +20,11 @@ export class WorkerLoadBalancer {
 	constructor(private readonly _store: WorkerStore) {}
 
 	findBestWorker(jobType: string): WorkerRegistration | null {
+		const wanted = Capability.of(jobType);
 		let best: WorkerRegistration | null = null;
 		let bestLoad = Number.POSITIVE_INFINITY;
 		for (const worker of this._store.values()) {
-			if (!isWorkerSuitable(worker, jobType)) {
+			if (!isWorkerSuitable(worker, wanted)) {
 				continue;
 			}
 			best = _pickLowerLoad(worker, best, bestLoad);

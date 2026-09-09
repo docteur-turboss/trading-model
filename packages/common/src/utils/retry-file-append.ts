@@ -4,6 +4,7 @@ import {
 	computeExponentialBackoff,
 } from "./backoff-config";
 import type { RetryOptions } from "./retry";
+import { sleep } from "./sleep";
 
 /**
  * Appends content to a file with exponential backoff retry.
@@ -26,7 +27,7 @@ export async function retryFileAppend(
 			return true;
 		}
 		if (attempt < maxRetries - 1) {
-			await _backoffDelay(attempt, retryCfg);
+			await sleep(computeExponentialBackoff(attempt, retryCfg));
 		}
 	}
 	return false;
@@ -47,19 +48,4 @@ async function _tryAppend(filePath: string, content: string): Promise<boolean> {
 	} catch {
 		return false;
 	}
-}
-
-async function _backoffDelay(
-	attempt: number,
-	cfg: BackoffConfig
-): Promise<void> {
-	await new Promise((resolve) =>
-		setTimeout(
-			resolve,
-			computeExponentialBackoff(attempt, {
-				baseDelayMs: cfg.baseDelayMs ?? DurationMs.of(100),
-				maxDelayMs: cfg.maxDelayMs ?? DurationMs.of(800),
-			})
-		)
-	);
 }

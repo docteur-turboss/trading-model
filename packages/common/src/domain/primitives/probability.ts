@@ -1,14 +1,13 @@
-export type Probability = number & { readonly brand: "Probability" };
+import type { BrandedNumber } from "./branded-utils";
+import { createNumberBrand } from "./branded-utils";
 
+export type Probability = BrandedNumber<"Probability">;
 export const Probability = {
-	of(value: number): Probability {
-		if (!Number.isFinite(value) || value < 0 || value > 1) {
-			throw new RangeError(
-				`Probability must be a finite number in [0, 1], got ${value}`
-			);
-		}
-		return value as Probability;
-	},
+	...createNumberBrand<"Probability">("Probability", {
+		finite: true,
+		min: 0,
+		max: 1,
+	}),
 
 	zero(): Probability {
 		return 0 as Probability;

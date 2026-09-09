@@ -1,4 +1,5 @@
 import type { SecureContextOptions } from "node:tls";
+import { z } from "zod";
 import { type CaPem, type CertPem, FilePath, type KeyPem } from "./primitives";
 
 /** Canonical type for TLS file paths used across all services. */
@@ -16,6 +17,13 @@ export interface TlsEnvVars {
 	TLS_CERT_PATH: string;
 	TLS_CA_PATH: string;
 }
+
+/** Zod schema for the TLS env trio, keyed to `TlsEnvVars`. */
+export const TlsEnvVarsSchema = z.object({
+	TLS_KEY_PATH: z.string().min(1),
+	TLS_CERT_PATH: z.string().min(1),
+	TLS_CA_PATH: z.string().min(1),
+});
 
 /** In-memory TLS PEM content (key, certificate, CA chain). */
 export interface TlsPemBundle {

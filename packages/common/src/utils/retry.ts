@@ -25,6 +25,28 @@ function _addJitter(delayMs: DurationMs, jitterMs: DurationMs): DurationMs {
 		: delayMs;
 }
 
+function _hasTimedOut(start: number, timeoutMs: DurationMs): boolean {
+	return timeoutMs > 0 && Date.now() - start > timeoutMs;
+}
+
+async function _attemptOnce<TResult>(
+	fn: () => Promise<TResult>
+): Promise<{ ok: true; result: TResult } | { ok: false; error: Error }> {
+	try {
+		return { ok: true, result: await fn() };
+	} catch (err) {
+		return { ok: false, error: err as Error };
+	}
+}
+
+async function _sleepBackoff(
+	attempt: number,
+	config: BackoffConfig
+): Promise<void> {
+	const delay = computeExponentialBackoff(attempt, config);
+	await sleep(_addJitter(delay, config.jitterMs ?? DurationMs.of(0)));
+}
+
 export async function retryWithBackoff<_TResult>(
 	fn: () => Promise<_TResult>,
 	options: RetryOptions
@@ -39,36 +61,33 @@ export async function retryWithBackoff<_TResult>(
 	} = options;
 	const start = Date.now();
 	let lastError: Error | null = null;
-	let attempt = 0;
 
-	while (attempt < maxRetries) {
+	for (let attempt = 0; attempt < maxRetries; attempt++) {
 		if (shouldRetry && !shouldRetry()) {
 			return { result: null, lastError, attempts: attempt, timedOut: false };
 		}
-		if (timeoutMs > 0 && Date.now() - start > timeoutMs) {
+		if (_hasTimedOut(start, timeoutMs)) {
 			return { result: null, lastError, attempts: attempt, timedOut: true };
 		}
-		try {
-			const result = await fn();
+		const outcome = await _attemptOnce(fn);
+		if (outcome.ok) {
 			return {
-				result,
+				result: outcome.result,
 				lastError: null,
 				attempts: attempt + 1,
 				timedOut: false,
 			};
-		} catch (err) {
-			attempt++;
-			lastError = err as Error;
-			if (attempt < maxRetries) {
-				const delay = computeExponentialBackoff(attempt, {
-					baseDelayMs,
-					maxDelayMs,
-				});
-				await sleep(_addJitter(delay, jitterMs));
-			}
+		}
+		lastError = outcome.error;
+		if (attempt + 1 < maxRetries) {
+			await _sleepBackoff(attempt + 1, {
+				baseDelayMs,
+				maxDelayMs,
+				jitterMs,
+			});
 		}
 	}
-	return { result: null, lastError, attempts: attempt, timedOut: false };
+	return { result: null, lastError, attempts: maxRetries, timedOut: false };
 }
 
 export function withTimeout<TResult>(

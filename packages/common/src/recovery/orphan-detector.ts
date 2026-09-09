@@ -1,5 +1,6 @@
 import { logger } from "../config/logger";
 import { JobStatus as JOB_STATUS } from "../contracts/recovery-types";
+import { DurationMs } from "../domain/primitives";
 import { TimerHandle } from "../utils/timer-handle";
 import type { WorkerRegistry } from "../worker/worker-registry";
 import type { IJobRepository } from "./job-repository.interface";
@@ -32,7 +33,7 @@ export class OrphanDetector {
 		}
 		this._intervalHandle.startInterval(
 			() => void this._runDetection(),
-			this._intervalMs
+			DurationMs.of(this._intervalMs)
 		);
 		logger.info("Orphan detector started", {
 			context: { intervalMs: this._intervalMs },

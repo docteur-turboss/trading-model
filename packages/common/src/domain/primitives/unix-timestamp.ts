@@ -1,14 +1,12 @@
-﻿export type UnixTimestamp = number & { readonly brand: "UnixTimestamp" };
+﻿import type { BrandedNumber } from "./branded-utils";
+import { createNumberBrand } from "./branded-utils";
 
+export type UnixTimestamp = BrandedNumber<"UnixTimestamp">;
 export const UnixTimestamp = {
-	of(value: number): UnixTimestamp {
-		if (!Number.isFinite(value) || value < 0) {
-			throw new RangeError(
-				`UnixTimestamp must be a non-negative finite number, got ${value}`
-			);
-		}
-		return value as UnixTimestamp;
-	},
+	...createNumberBrand<"UnixTimestamp">("UnixTimestamp", {
+		finite: true,
+		min: 0,
+	}),
 
 	now(): UnixTimestamp {
 		return Date.now() as UnixTimestamp;

@@ -13,5 +13,6 @@ export {
 	type ResponseCodeValue,
 	type ResponseObject,
 } from "./response-exception/http-codes";
+export type { IResponseBuilder } from "./response-exception/i-response-builder";
 
 export { sendResponse } from "./response-exception/send-response";

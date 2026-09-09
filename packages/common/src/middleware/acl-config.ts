@@ -1,13 +1,13 @@
 import { ServiceId } from "../domain/primitives";
 
 export enum KnownService {
-	CertificateAuthority = "certificate-authority",
 	DiscoveryServer = "discovery-server",
 	AuditLogger = "audit-logger",
 	MessageManager = "message-manager",
 	FinancialScraper = "financial-scraper",
 	TraderTrainer = "trader-trainer",
 	ApiGateway = "api-gateway",
+	DlqService = "dlq-service",
 }
 
 function toServiceId(serviceName: string): ServiceId {
@@ -15,7 +15,6 @@ function toServiceId(serviceName: string): ServiceId {
 }
 
 export const DEFAULT_ACL: Record<KnownService, readonly ServiceId[]> = {
-	[KnownService.CertificateAuthority]: [toServiceId("*")],
 	[KnownService.DiscoveryServer]: [toServiceId("*")],
 	[KnownService.AuditLogger]: [toServiceId("*")],
 	[KnownService.MessageManager]: [
@@ -31,4 +30,5 @@ export const DEFAULT_ACL: Record<KnownService, readonly ServiceId[]> = {
 		toServiceId("discovery-server"),
 	],
 	[KnownService.ApiGateway]: [toServiceId("admin-interface")],
+	[KnownService.DlqService]: [toServiceId("*")],
 };

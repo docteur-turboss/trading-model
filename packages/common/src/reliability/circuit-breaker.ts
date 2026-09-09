@@ -1,16 +1,17 @@
 import { CircuitState } from "../domain/circuit-state";
 import type { ICircuitBreaker } from "./circuit-breaker.interface";
-import type { CircuitBreakerConfig } from "./circuit-state-machine";
-import {
+import { CircuitMachineRegistry } from "./circuit-machine-registry";
+import type {
+	CircuitBreakerConfig,
 	CircuitStateMachine,
-	DEFAULT_CIRCUIT_CONFIG,
 } from "./circuit-state-machine";
+import { DEFAULT_CIRCUIT_CONFIG } from "./circuit-state-machine";
 import { LatencyTracker } from "./latency-tracker";
 
 export type { CircuitBreakerConfig, CircuitState };
 
 export class CircuitBreaker implements ICircuitBreaker<string> {
-	private readonly _machines = new Map<string, CircuitStateMachine>();
+	private readonly _machines: CircuitMachineRegistry;
 	private readonly _config: CircuitBreakerConfig;
 	private readonly _latencyTracker: LatencyTracker | undefined;
 	protected readonly _onPersist?: (
@@ -29,6 +30,7 @@ export class CircuitBreaker implements ICircuitBreaker<string> {
 		}
 	) {
 		this._config = { ...DEFAULT_CIRCUIT_CONFIG, ...config };
+		this._machines = new CircuitMachineRegistry(this._config);
 		this._latencyTracker =
 			options?.latencyWindowSize && options.latencyWindowSize > 0
 				? new LatencyTracker(
@@ -41,20 +43,13 @@ export class CircuitBreaker implements ICircuitBreaker<string> {
 	}
 
 	getMachine(key: string): CircuitStateMachine {
-		let machine = this._machines.get(key);
-		if (!machine) {
-			machine = new CircuitStateMachine(this._config);
-			this._machines.set(key, machine);
-		}
-		return machine;
+		return this._machines.getMachine(key);
 	}
 
 	forEachMachine(
 		fn: (key: string, machine: CircuitStateMachine) => void
 	): void {
-		for (const [key, machine] of this._machines) {
-			fn(key, machine);
-		}
+		this._machines.forEachMachine(fn);
 	}
 
 	check(key: string): CircuitState {
@@ -117,27 +112,15 @@ export class CircuitBreaker implements ICircuitBreaker<string> {
 		}
 	}
 
-	getStateSummary(): Record<string, number> {
-		const summary: Record<string, number> = {
-			closed: 0,
-			open: 0,
-			"half-open": 0,
-		};
-		for (const machine of this._machines.values()) {
-			const state = machine.getState();
-			summary[state]++;
-		}
-		return summary;
+	getStateSummary(): Record<CircuitState, number> {
+		return this._machines.getStateSummary();
 	}
 
 	removeMachine(key: string): void {
-		this._machines.delete(key);
+		this._machines.removeMachine(key);
 	}
 
 	clear(): void {
-		for (const machine of this._machines.values()) {
-			machine.clear();
-		}
 		this._machines.clear();
 		this._latencyTracker?.clear();
 	}

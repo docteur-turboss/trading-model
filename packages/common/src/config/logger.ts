@@ -42,20 +42,31 @@ export class Logger {
 			dispatcher ?? new LogDispatcher(safeStringify, this._sessionId);
 	}
 
-	private _log(
-		level: LogLevel,
-		label: string,
-		consoleFn: (message?: unknown, ...optionalParams: unknown[]) => void,
-		message: string,
-		context?: JsonObject
-	): void {
+	private _log(level: LogLevel, message: string, context?: JsonObject): void {
 		if (!LogLevelThreshold.isAtLeast(level, this._logLevel)) {
 			return;
 		}
 		const logEntry = this._buildLogEntry(level, message, context);
+		const { label, consoleFn } = this._consoleTarget(level);
 		this._emitLog(logEntry, label, consoleFn, context);
 		if (level === LogLevel.Error) {
 			this._dispatcher.sendError(logEntry);
+		}
+	}
+
+	private _consoleTarget(level: LogLevel): {
+		label: string;
+		consoleFn: (message?: unknown, ...optionalParams: unknown[]) => void;
+	} {
+		switch (level) {
+			case LogLevel.Debug:
+				return { label: "DEBUG", consoleFn: console.debug };
+			case LogLevel.Warn:
+				return { label: "WARN", consoleFn: console.warn };
+			case LogLevel.Error:
+				return { label: "ERROR", consoleFn: console.error };
+			default:
+				return { label: "INFO", consoleFn: console.info };
 		}
 	}
 
@@ -87,19 +98,19 @@ export class Logger {
 	}
 
 	debug(message: string, context?: JsonObject) {
-		this._log(LogLevel.Debug, "DEBUG", console.debug, message, context);
+		this._log(LogLevel.Debug, message, context);
 	}
 
 	info(message: string, context?: JsonObject) {
-		this._log(LogLevel.Info, "INFO", console.info, message, context);
+		this._log(LogLevel.Info, message, context);
 	}
 
 	warn(message: string, context?: JsonObject) {
-		this._log(LogLevel.Warn, "WARN", console.warn, message, context);
+		this._log(LogLevel.Warn, message, context);
 	}
 
 	error(message: string, context?: JsonObject) {
-		this._log(LogLevel.Error, "ERROR", console.error, message, context);
+		this._log(LogLevel.Error, message, context);
 	}
 
 	setUserId(userId: UserId) {

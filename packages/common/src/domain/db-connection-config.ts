@@ -16,7 +16,7 @@ export function createDbConfigFromEnv(
 		port: Port.of(Number(process.env.DB_PORT) || 3306),
 		user: DbUser.of(process.env.DB_USER ?? "root"),
 		password: DbPassword.of(process.env.DB_PASSWORD ?? ""),
-		database: DbName.of(process.env.DB_NAME ?? "trading_model"),
+		database: DbName.of(process.env.DB_NAME ?? "financial_scraper"),
 		...overrides,
 	};
 }

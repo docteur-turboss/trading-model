@@ -16,6 +16,7 @@ export const HTTP_STATUS = {
 	BAD_REQUEST: 400 as HttpStatusCode,
 	UNAUTHORIZED: 401 as HttpStatusCode,
 	FORBIDDEN: 403 as HttpStatusCode,
+	REQUEST_TIMEOUT: 408 as HttpStatusCode,
 	NOT_FOUND: 404 as HttpStatusCode,
 	METHOD_NOT_ALLOWED: 405 as HttpStatusCode,
 	CONFLICT: 409 as HttpStatusCode,

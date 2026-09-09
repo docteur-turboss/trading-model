@@ -1,16 +1,13 @@
 import { NumericRange } from "../numeric-range";
+import type { BrandedNumber } from "./branded-utils";
+import { createNumberBrand } from "./branded-utils";
 
-export type PositiveInt = number & { readonly brand: "PositiveInt" };
-
+export type PositiveInt = BrandedNumber<"PositiveInt">;
 export const PositiveInt = {
-	of(value: number): PositiveInt {
-		if (!Number.isInteger(value) || value < 1) {
-			throw new RangeError(
-				`PositiveInt must be a positive integer, got ${value}`
-			);
-		}
-		return value as PositiveInt;
-	},
+	...createNumberBrand<"PositiveInt">("PositiveInt", {
+		integer: true,
+		min: 1,
+	}),
 
 	one(): PositiveInt {
 		return 1 as PositiveInt;

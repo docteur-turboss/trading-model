@@ -1,14 +1,9 @@
-export type Temperature = number & { readonly brand: "Temperature" };
+import type { BrandedNumber } from "./branded-utils";
+import { createNumberBrand } from "./branded-utils";
 
+export type Temperature = BrandedNumber<"Temperature">;
 export const Temperature = {
-	of(value: number): Temperature {
-		if (!Number.isFinite(value) || value < 0) {
-			throw new RangeError(
-				`Temperature must be a non-negative finite number, got ${value}`
-			);
-		}
-		return value as Temperature;
-	},
+	...createNumberBrand<"Temperature">("Temperature", { finite: true, min: 0 }),
 
 	zero(): Temperature {
 		return 0 as Temperature;

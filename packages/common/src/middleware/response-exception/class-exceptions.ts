@@ -1,7 +1,8 @@
 import { HTTP_STATUS } from "../../http-status";
 import type { ResponseObject } from "./http-codes";
+import type { IResponseBuilder } from "./i-response-builder";
 
-export class ClassResponseExceptions {
+export class ClassResponseExceptions implements IResponseBuilder {
 	readonly reason: string;
 
 	constructor(reason: unknown) {
@@ -77,6 +78,5 @@ export class ClassResponseExceptions {
 	}
 }
 
-export const ResponseException = (
-	reason: unknown = ""
-): ClassResponseExceptions => new ClassResponseExceptions(reason);
+export const ResponseException = (reason: unknown = ""): IResponseBuilder =>
+	new ClassResponseExceptions(reason);

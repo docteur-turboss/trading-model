@@ -32,6 +32,6 @@ export interface ICircuitBreaker<TKey extends string = string> {
 		fallback?: () => TResult
 	): Promise<TResult>;
 	recordLatency?(key: TKey, durationMs: number): void;
-	getStateSummary?(): Record<string, number>;
+	getStateSummary?(): Record<CircuitState, number>;
 	loadFromStore?(key: TKey): Promise<void>;
 }

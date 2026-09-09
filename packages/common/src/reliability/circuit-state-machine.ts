@@ -104,37 +104,48 @@ export class CircuitStateMachine implements IUnkeyedCircuitBreaker {
 		const prevState = this.getState(effectiveNow);
 		this._failures += count;
 		if (this._openUntil > 0) {
-			this._halfOpenAttempts++;
-			if (
-				this._config.halfOpenMaxAttempts !== undefined &&
-				this._halfOpenAttempts >= this._config.halfOpenMaxAttempts
-			) {
-				this._openUntil = UnixTimestamp.add(
-					effectiveNow,
-					this._config.cooldownMs
-				);
-				this._config.onOpen?.({
-					failures: this._failures,
-					halfOpenAttempts: this._halfOpenAttempts,
-					previousState: prevState,
-				});
-				return true;
-			}
-			return false;
+			return this._recordHalfOpenFailure(effectiveNow, prevState);
 		}
-		if (this._failures >= (threshold ?? this._config.failureThreshold)) {
-			this._openUntil = UnixTimestamp.add(
-				effectiveNow,
-				this._config.cooldownMs
-			);
-			this._config.onOpen?.({
-				failures: this._failures,
-				halfOpenAttempts: this._halfOpenAttempts,
-				previousState: prevState,
-			});
+		return this._recordClosedFailure(effectiveNow, threshold, prevState);
+	}
+
+	private _openCircuit(
+		effectiveNow: UnixTimestamp,
+		prevState: CircuitState
+	): void {
+		this._openUntil = UnixTimestamp.add(effectiveNow, this._config.cooldownMs);
+		this._config.onOpen?.({
+			failures: this._failures,
+			halfOpenAttempts: this._halfOpenAttempts,
+			previousState: prevState,
+		});
+	}
+
+	private _recordHalfOpenFailure(
+		effectiveNow: UnixTimestamp,
+		prevState: CircuitState
+	): boolean {
+		this._halfOpenAttempts++;
+		if (
+			this._config.halfOpenMaxAttempts !== undefined &&
+			this._halfOpenAttempts >= this._config.halfOpenMaxAttempts
+		) {
+			this._openCircuit(effectiveNow, prevState);
 			return true;
 		}
 		return false;
+	}
+
+	private _recordClosedFailure(
+		effectiveNow: UnixTimestamp,
+		threshold: number | undefined,
+		prevState: CircuitState
+	): boolean {
+		if (this._failures < (threshold ?? this._config.failureThreshold)) {
+			return false;
+		}
+		this._openCircuit(effectiveNow, prevState);
+		return true;
 	}
 
 	recordSuccess(): void {
