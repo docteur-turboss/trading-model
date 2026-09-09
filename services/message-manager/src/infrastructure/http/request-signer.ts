@@ -5,10 +5,10 @@ import {
 	toServiceId,
 } from "@trading-model/common/domain/primitives";
 import { HTTP_HEADERS } from "@trading-model/common/http-headers";
-import { signRequest } from "@trading-model/crypto/crypto/request-signer";
-import type { HttpRoute } from "@trading-model/validation/contracts/signed-request";
-import { ENV } from "../../config/env";
+import { signRequest } from "@trading-model/crypto/domain/services/request-signer";
+import type { HttpRoute } from "@trading-model/validation/adapters/inbound/signed-request";
 import { logger } from "../../config/logger";
+import { ENV } from "../config/env";
 
 function getHmacSecret(): string {
 	return ENV.DLQ_AUTH_HMAC_SECRET ?? "";

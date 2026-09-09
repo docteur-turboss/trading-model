@@ -1,7 +1,7 @@
 ﻿import type { Collection } from "mongodb";
 import { logger } from "../../config/logger";
+import type { MongoCollectionConfig } from "../../shared/mongo-types";
 import type { ArchiveEntry } from "./mongo-archive-batch";
-import type { MongoCollectionConfig } from "./mongo-types";
 
 type MongoCollection = Collection<Record<string, unknown>>;
 

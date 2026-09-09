@@ -2,8 +2,8 @@ import type {
 	InstanceId,
 	Topic,
 } from "@trading-model/common/domain/primitives";
-import { ENV } from "../../config/env";
 import { getSubscriptionClient } from "../../config/redis";
+import { ENV } from "../../infrastructure/config/env";
 import { RedisKeyBuilder } from "../../infrastructure/redis/redis-key-builder";
 import { InstanceLifecycleManager } from "./instance-lifecycle-manager";
 import { LEASE_HEARTBEAT_FIELD } from "./messaging-constants";

@@ -6,7 +6,7 @@ import {
 import type {
 	Message,
 	MessageMetadata,
-} from "@trading-model/validation/contracts/message.types";
+} from "@trading-model/validation/domain/contracts/message.types";
 import { sanitizePayload } from "./payload-sanitizer";
 
 export function createMessage(

@@ -5,10 +5,10 @@ import {
 	type Topic,
 	URLString,
 } from "@trading-model/common/domain/primitives";
-import { ENV } from "../../config/env";
+import type { DlqEntry } from "../../adapters/outbound/dlq-repository";
+import { ENV } from "../../infrastructure/config/env";
 import { DlqDeleteHandler } from "./dlq-delete-handler";
 import { DlqReplayHandler } from "./dlq-replay-handler";
-import type { DlqEntry } from "./dlq-repository";
 import { DlqSendHandler } from "./dlq-send-handler";
 
 export interface DlqSendOptions {

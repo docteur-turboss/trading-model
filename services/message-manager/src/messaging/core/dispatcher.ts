@@ -9,12 +9,11 @@
 import type { HttpClient } from "@trading-model/common/config/http-client";
 import { logger } from "@trading-model/common/config/logger";
 import type { InstanceId } from "@trading-model/common/domain/primitives";
-import type { Message } from "@trading-model/validation/contracts/message.types";
-
+import type { Message } from "@trading-model/validation/domain/contracts/message.types";
+import type { FileDlqRepository } from "../../adapters/outbound/dlq-repository";
+import { HttpMessageDelivery } from "../../adapters/outbound/http-message-delivery";
 import { handleAck as logAck, handleNack as logNack } from "./ack-handler";
 import { getBackpressureRatio as backpressureRatio } from "./backpressure-monitor";
-import type { FileDlqRepository } from "./dlq-repository";
-import { HttpMessageDelivery } from "./http-message-delivery";
 import { createMessage } from "./message-factory";
 import type { SubscriptionParams, TopicSubscription } from "./messaging-types";
 import { SubscriptionRegistry } from "./subscription-registry";
@@ -25,34 +24,19 @@ function isRejected<TValue>(
 	return result.status === "rejected";
 }
 
-export interface DispatcherDeps {
-	deliveryPort: HttpMessageDelivery;
-	registry: SubscriptionRegistry;
-}
-
 export class Dispatcher {
 	private readonly _registry: SubscriptionRegistry;
 	private readonly _deliveryPort: HttpMessageDelivery;
 
-	constructor(httpClient: HttpClient, dlqRepository: FileDlqRepository);
-	constructor(deps: DispatcherDeps);
-	constructor(
-		param1: HttpClient | DispatcherDeps,
-		dlqRepository?: FileDlqRepository
-	) {
-		if ("deliveryPort" in param1) {
-			this._deliveryPort = param1.deliveryPort;
-			this._registry = param1.registry;
-		} else {
-			this._deliveryPort = new HttpMessageDelivery(param1, dlqRepository!);
-			this._registry = new SubscriptionRegistry(this._deliveryPort);
-		}
+	constructor(httpClient: HttpClient, dlqRepository: FileDlqRepository) {
+		this._deliveryPort = new HttpMessageDelivery(httpClient, dlqRepository);
+		this._registry = new SubscriptionRegistry(this._deliveryPort);
 	}
 
 	async publish(
 		payload: unknown,
 		metadata: Omit<
-			import("@trading-model/validation/contracts/message.types").MessageMetadata,
+			import("@trading-model/validation/domain/contracts/message.types").MessageMetadata,
 			"emittedAt" | "messageId"
 		>
 	): Promise<string> {

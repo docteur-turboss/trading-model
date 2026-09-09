@@ -1,8 +1,9 @@
 ﻿import { URLString } from "@trading-model/common/domain/primitives";
 import { MongoConnectionManager } from "@trading-model/common/persistence/mongo-connection-manager";
 import type { MongoClient } from "mongodb";
-import { ENV } from "../../config/env";
 import { logger } from "../../config/logger";
+import { ENV } from "../../infrastructure/config/env";
+import type { MongoCollectionConfig } from "../../shared/mongo-types";
 
 export class MongoClientManager {
 	private _manager: MongoConnectionManager | null = null;
@@ -10,6 +11,15 @@ export class MongoClientManager {
 
 	get client(): MongoClient | null {
 		return this._client;
+	}
+
+	getCollectionConfig(): MongoCollectionConfig {
+		const { dbName, collectionName } = _archiveConfig();
+		return {
+			client: this._client!,
+			dbName,
+			collectionName,
+		};
 	}
 
 	canStart(): boolean {
@@ -35,10 +45,7 @@ export class MongoClientManager {
 	}
 
 	async getConnection(): Promise<void> {
-		this._manager = new MongoConnectionManager({
-			uri: URLString.of(ENV.MONGO_ARCHIVE_URI!),
-			dbName: ENV.MONGO_ARCHIVE_DB,
-		});
+		this._manager = new MongoConnectionManager(_archiveConfig());
 		this._client = await this._manager.getConnection();
 		logger.info("MongoDB archival store connected");
 	}
@@ -63,11 +70,7 @@ export class MongoClientManager {
 		const { MongoArchiveBatchWriter } = await import(
 			"./mongo-archive-batch.js"
 		);
-		const writer = new MongoArchiveBatchWriter({
-			client: this._client!,
-			dbName: ENV.MONGO_ARCHIVE_DB,
-			collectionName: ENV.MONGO_ARCHIVE_COLLECTION,
-		});
+		const writer = new MongoArchiveBatchWriter(this.getCollectionConfig());
 		await writer.createIndexes();
 		logger.info("MongoDB archive indexes ensured");
 	}
@@ -92,4 +95,16 @@ export class MongoClientManager {
 		this._client = null;
 		this._manager = null;
 	}
+}
+
+function _archiveConfig(): {
+	uri: URLString;
+	dbName: string;
+	collectionName: string;
+} {
+	return {
+		uri: URLString.of(ENV.MONGO_ARCHIVE_URI!),
+		dbName: ENV.MONGO_ARCHIVE_DB,
+		collectionName: ENV.MONGO_ARCHIVE_COLLECTION,
+	};
 }

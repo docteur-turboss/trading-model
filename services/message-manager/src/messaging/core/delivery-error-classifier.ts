@@ -21,7 +21,7 @@ export enum ErrorActionType {
 }
 
 export type ErrorAction =
-	| { action: ErrorActionType.DLQ; reason: DlqReason }
+	| { action: ErrorActionType.DLQ; reason: string }
 	| { action: ErrorActionType.SWALLOW }
 	| { action: ErrorActionType.RETRY };
 
@@ -32,7 +32,7 @@ export class DeliveryErrorClassifier {
 		{ ttl, emittedAt, deliveryMode }: DeliveryParams
 	): ErrorAction {
 		if (isDeadLetterError(err)) {
-			const reason = (err.reason ?? DlqReason.NoReason) as DlqReason;
+			const reason = err.reason ?? DlqReason.NoReason;
 			return { action: ErrorActionType.DLQ, reason };
 		}
 

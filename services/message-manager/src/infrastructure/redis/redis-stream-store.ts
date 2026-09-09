@@ -4,10 +4,9 @@ import {
 } from "@trading-model/common/domain/primitives";
 import { retryWithBackoff } from "@trading-model/common/utils/retry";
 import type Redis from "ioredis";
-
-import { ENV } from "../../config/env";
 import { logger } from "../../config/logger";
 import { getStreamClient } from "../../config/redis";
+import { ENV } from "../config/env";
 import type { RedisKeyBuilder } from "./redis-key-builder";
 
 const MAX_WAL_RETRY = 10;

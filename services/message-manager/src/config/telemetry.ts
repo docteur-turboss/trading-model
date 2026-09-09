@@ -6,7 +6,7 @@ import { IORedisInstrumentation } from "@opentelemetry/instrumentation-ioredis";
 import { resourceFromAttributes } from "@opentelemetry/resources";
 import { NodeSDK } from "@opentelemetry/sdk-node";
 
-import { ENV } from "./env";
+import { ENV } from "../infrastructure/config/env";
 import { logger } from "./logger";
 
 let sdk: NodeSDK | null = null;

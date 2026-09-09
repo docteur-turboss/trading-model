@@ -1,6 +1,6 @@
 ﻿import type { Topic } from "@trading-model/common/domain/primitives";
-import { ENV } from "../../config/env";
 import { getStreamClient } from "../../config/redis";
+import { ENV } from "../../infrastructure/config/env";
 import type { RedisKeyBuilder } from "../../infrastructure/redis/redis-key-builder";
 import type { MemoryWalBuffer } from "./memory-wal-buffer";
 import type { MemoryWalEntry } from "./memory-wal-entry";

@@ -1,6 +1,6 @@
-﻿import { ENV } from "../../config/env";
-import { logger } from "../../config/logger";
+﻿import { logger } from "../../config/logger";
 import { BUFFER_DROPPED_TOTAL } from "../../config/metrics";
+import { ENV } from "../../infrastructure/config/env";
 import type { RedisKeyBuilder } from "../../infrastructure/redis/redis-key-builder";
 import type { MemoryWalEntry } from "./memory-wal-entry";
 import { MemoryWalFallback } from "./memory-wal-fallback";

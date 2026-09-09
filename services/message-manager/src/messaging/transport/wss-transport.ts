@@ -3,8 +3,9 @@ import type { Server as HttpsServer } from "node:https";
 import type { Topic } from "@trading-model/common/domain/primitives";
 import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
 import type WebSocket from "ws";
-import { ENV } from "../../config/env";
+import type { WebSocketServer } from "ws";
 import { logger } from "../../config/logger";
+import { ENV } from "../../infrastructure/config/env";
 import type { Dispatcher } from "../core/dispatcher";
 import { WssConnectionHandler } from "./wss-connection-handler";
 import { WssMessageRouter } from "./wss-message-router";
@@ -32,8 +33,8 @@ export class WssTransport {
 		);
 	}
 
-	attach(server: HttpsServer): void {
-		this._connectionHandler.attach(server, (ws, req) =>
+	attach(server: HttpsServer): WebSocketServer {
+		return this._connectionHandler.attach(server, (ws, req) =>
 			this._handleConnection(ws, req)
 		);
 	}
@@ -117,8 +118,8 @@ export class WssTransport {
 		this._subscriptionManager.broadcast(message);
 	}
 
-	async shutdown(): Promise<void> {
-		await this._connectionHandler.shutdown();
+	async shutdown(wss: WebSocketServer): Promise<void> {
+		await this._connectionHandler.shutdown(wss);
 		this._rateLimiter.shutdown();
 		this._publisher.shutdown();
 	}

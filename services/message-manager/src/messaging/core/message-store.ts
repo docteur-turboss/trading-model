@@ -1,4 +1,4 @@
-import { ENV } from "../../config/env";
+import { ENV } from "../../infrastructure/config/env";
 import { RedisKeyBuilder } from "../../infrastructure/redis/redis-key-builder";
 import { ClaimExecutor } from "./claim-executor";
 import { DeduplicationService } from "./deduplication-service";

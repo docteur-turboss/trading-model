@@ -1,4 +1,5 @@
-﻿import { TimerHandle } from "@trading-model/common/utils/timer-handle";
+﻿import { toDurationMs } from "@trading-model/common/domain/primitives";
+import { TimerHandle } from "@trading-model/common/utils/timer-handle";
 import { logger } from "../../config/logger";
 import { getStreamClient } from "../../config/redis";
 import type { MemoryWalBuffer } from "./memory-wal-buffer";
@@ -70,7 +71,7 @@ export class WalDrainCoordinator {
 				this._drainState = { kind: DrainStateKind.Idle };
 				resolveDeferred!();
 			}
-		}, timeoutMs);
+		}, toDurationMs(timeoutMs));
 		this._drainState = {
 			kind: DrainStateKind.Draining,
 			deferred: { promise: deferred, resolve: resolveDeferred! },

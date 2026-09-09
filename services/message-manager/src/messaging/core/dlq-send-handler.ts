@@ -7,10 +7,10 @@ import {
 	normalizeError,
 } from "@trading-model/common/utils/errors";
 import { sleep } from "@trading-model/common/utils/sleep";
+import type { DlqEntry } from "../../adapters/outbound/dlq-repository";
+import { signedOptions } from "../../adapters/outbound/request-signer";
 import { logger } from "../../config/logger";
-import type { DlqEntry } from "./dlq-repository";
 import { computeDelay } from "./dlq-retry-with-backoff";
-import { signedOptions } from "./request-signer";
 
 export class DlqSendHandler {
 	constructor(

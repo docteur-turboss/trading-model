@@ -1,8 +1,9 @@
 import { getStreamClient } from "../../config/redis";
 import type { MemoryWalEntry } from "../../messaging/core/memory-wal-entry";
+import type { WalFallback } from "../../messaging/core/wal-fallback.interface";
 import type { RedisKeyBuilder } from "./redis-key-builder";
 
-export class RedisWalFallback {
+export class RedisWalFallback implements WalFallback {
 	constructor(private readonly _keys: RedisKeyBuilder) {}
 
 	async trySave(removed: MemoryWalEntry[]): Promise<boolean> {

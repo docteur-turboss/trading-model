@@ -1,5 +1,5 @@
 import type { Topic } from "@trading-model/common/domain/primitives";
-import type { Message } from "@trading-model/validation/contracts/message.types";
+import type { Message } from "@trading-model/validation/domain/contracts/message.types";
 import { getStreamClient } from "../../config/redis";
 import type { RedisKeyBuilder } from "../../infrastructure/redis/redis-key-builder";
 import type { MessageQuery } from "./messaging-types";

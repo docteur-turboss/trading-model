@@ -1,4 +1,5 @@
 ﻿import { logger } from "@trading-model/common/config/logger";
+import { toDurationMs } from "@trading-model/common/domain/primitives";
 import { TimerHandle } from "@trading-model/common/utils/timer-handle";
 
 interface PersistenceOp {
@@ -31,7 +32,7 @@ export class PersistenceRetryQueue {
 		}
 		this._timer.startInterval(() => {
 			this.flush().catch(() => {});
-		}, this._retryIntervalMs);
+		}, toDurationMs(this._retryIntervalMs));
 		this._timer.unref();
 	}
 

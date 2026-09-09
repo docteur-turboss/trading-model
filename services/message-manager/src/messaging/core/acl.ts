@@ -1,8 +1,8 @@
 ﻿import type { Topic } from "@trading-model/common/domain/primitives";
 import { HTTP_HEADERS } from "@trading-model/common/http-headers";
+import { loadFromRedis } from "../../adapters/outbound/acl-redis-store";
 import { getCachedOrLoad } from "./acl-cache";
 import { ACL_DENY } from "./acl-constants";
-import { loadFromRedis } from "./acl-redis-store";
 
 function extractServiceName(req: {
 	headers: Record<string, string | string[] | undefined>;

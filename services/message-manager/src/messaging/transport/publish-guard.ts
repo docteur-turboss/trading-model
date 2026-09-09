@@ -2,7 +2,7 @@
 import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
 import { HTTP_HEADERS } from "@trading-model/common/http-headers";
 import type WebSocket from "ws";
-import { ENV } from "../../config/env";
+import { ENV } from "../../infrastructure/config/env";
 import { RedisKeyBuilder } from "../../infrastructure/redis/redis-key-builder";
 import { authorizeTopic } from "../core/acl";
 import { DeduplicationService } from "../core/deduplication-service";

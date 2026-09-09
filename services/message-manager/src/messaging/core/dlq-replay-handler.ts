@@ -2,10 +2,10 @@ import type { HttpClient } from "@trading-model/common/config/http-client";
 import type { Limit, Topic } from "@trading-model/common/domain/primitives";
 import { DurationMs, URLString } from "@trading-model/common/domain/primitives";
 import { normalizeError } from "@trading-model/common/utils/errors";
-import { HttpMethod } from "@trading-model/validation/contracts/signed-request";
+import { HttpMethod } from "@trading-model/validation/adapters/inbound/signed-request";
+import type { DlqEntry } from "../../adapters/outbound/dlq-repository";
+import { signedOptions } from "../../adapters/outbound/request-signer";
 import { logger } from "../../config/logger";
-import type { DlqEntry } from "./dlq-repository";
-import { signedOptions } from "./request-signer";
 
 export class DlqReplayHandler {
 	constructor(

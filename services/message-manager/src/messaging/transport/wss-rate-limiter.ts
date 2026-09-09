@@ -1,4 +1,5 @@
 ﻿import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
+import { toDurationMs } from "@trading-model/common/domain/primitives";
 import { TimerHandle } from "@trading-model/common/utils/timer-handle";
 import type WebSocket from "ws";
 import { Deque } from "./deque";
@@ -10,7 +11,7 @@ interface RateLimitEntry {
 
 const RATE_LIMIT_WINDOW_MS = 60_000;
 const RATE_LIMIT_MAX_PER_WINDOW = 10000;
-const RATE_LIMIT_CLEANUP_INTERVAL_MS = 60_000;
+const RATE_LIMIT_CLEANUP_INTERVAL_MS = toDurationMs(60_000);
 const STALE_MS = 120_000;
 
 export class WssRateLimiter {

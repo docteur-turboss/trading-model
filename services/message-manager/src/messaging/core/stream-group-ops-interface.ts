@@ -1,4 +1,4 @@
-import type { Message } from "@trading-model/validation/contracts/message.types";
+import type { Message } from "@trading-model/validation/domain/contracts/message.types";
 import type { AckRef, MessageQuery, StreamGroupRef } from "./messaging-types";
 
 export interface IStreamGroupOps {

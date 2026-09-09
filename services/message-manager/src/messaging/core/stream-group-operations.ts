@@ -1,4 +1,4 @@
-import type { Message } from "@trading-model/validation/contracts/message.types";
+import type { Message } from "@trading-model/validation/domain/contracts/message.types";
 import type { RedisKeyBuilder } from "../../infrastructure/redis/redis-key-builder";
 import type { AckRef, MessageQuery, StreamGroupRef } from "./messaging-types";
 import { StreamGroupFacade } from "./stream-group-facade";

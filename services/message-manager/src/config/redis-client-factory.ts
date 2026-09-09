@@ -3,7 +3,7 @@ import type { HostPort } from "@trading-model/common/domain/service-identity";
 import { computeExponentialBackoff } from "@trading-model/common/utils/backoff-config";
 import Redis, { Cluster, type RedisOptions } from "ioredis";
 
-import { ENV } from "./env";
+import { ENV } from "../infrastructure/config/env";
 import { logger } from "./logger";
 
 export function redisRetryDelay(retries: number): number | null {

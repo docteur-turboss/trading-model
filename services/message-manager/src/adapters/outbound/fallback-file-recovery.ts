@@ -1,5 +1,5 @@
-﻿import { ENV } from "../../config/env";
-import type { MemoryWalEntry } from "./memory-wal-entry";
+﻿import { ENV } from "../../infrastructure/config/env";
+import type { MemoryWalEntry } from "../../messaging/core/memory-wal-entry";
 
 export class FallbackFileRecovery {
 	async recover(): Promise<MemoryWalEntry[]> {

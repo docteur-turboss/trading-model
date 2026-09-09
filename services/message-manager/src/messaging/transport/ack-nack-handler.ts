@@ -12,9 +12,7 @@ export class AckNackHandler {
 		ctx: { identity: ServiceIdentity }
 	): void {
 		if (typeof msg.messageId !== "string") {
-			ws.send(
-				JSON.stringify({ type: "error", message: "messageId must be a string" })
-			);
+			this._sendMessageIdError(ws);
 			return;
 		}
 		this._dispatcher.handleAck(msg.messageId, ctx.identity.instanceId);
@@ -26,11 +24,15 @@ export class AckNackHandler {
 		ctx: { identity: ServiceIdentity }
 	): void {
 		if (typeof msg.messageId !== "string") {
-			ws.send(
-				JSON.stringify({ type: "error", message: "messageId must be a string" })
-			);
+			this._sendMessageIdError(ws);
 			return;
 		}
 		this._dispatcher.handleNack(msg.messageId, ctx.identity.instanceId);
+	}
+
+	private _sendMessageIdError(ws: WebSocket): void {
+		ws.send(
+			JSON.stringify({ type: "error", message: "messageId must be a string" })
+		);
 	}
 }

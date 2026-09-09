@@ -2,6 +2,7 @@
 import type { Server as HttpsServer } from "node:https";
 import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
 import type WebSocket from "ws";
+import type { WebSocketServer } from "ws";
 import { ClientVerifier } from "./client-verifier";
 import { ConnectionEventHandler } from "./connection-event-handler";
 import type { WssRateLimiter } from "./wss-rate-limiter";
@@ -26,8 +27,8 @@ export class WssConnectionHandler {
 	attach(
 		server: HttpsServer,
 		onConnection: (ws: WebSocket, req: IncomingMessage) => void
-	): void {
-		this._serverLifecycle.attach(server, onConnection);
+	): WebSocketServer {
+		return this._serverLifecycle.attach(server, onConnection);
 	}
 
 	parseConnectionHeaders(req: IncomingMessage): {
@@ -49,7 +50,7 @@ export class WssConnectionHandler {
 		this._connectionEventHandler.registerErrorHandler(ws, identity);
 	}
 
-	async shutdown(): Promise<void> {
-		await this._serverLifecycle.shutdown();
+	async shutdown(wss: WebSocketServer): Promise<void> {
+		await this._serverLifecycle.shutdown(wss);
 	}
 }

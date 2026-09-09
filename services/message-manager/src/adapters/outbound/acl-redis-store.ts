@@ -1,9 +1,9 @@
 ﻿import type { Topic } from "@trading-model/common/domain/primitives";
-import { ENV } from "../../config/env";
 import { logger } from "../../config/logger";
 import { getRedisClient } from "../../config/redis";
+import { ENV } from "../../infrastructure/config/env";
 import { RedisKeyBuilder } from "../../infrastructure/redis/redis-key-builder";
-import { ACL_DENY } from "./acl-constants";
+import { ACL_DENY } from "../../messaging/core/acl-constants";
 
 const AclKeys = new RedisKeyBuilder(ENV.REDIS_PREFIX);
 

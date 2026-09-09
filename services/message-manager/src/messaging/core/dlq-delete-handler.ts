@@ -1,9 +1,9 @@
 import type { HttpClient } from "@trading-model/common/config/http-client";
 import { DurationMs, URLString } from "@trading-model/common/domain/primitives";
 import { normalizeError } from "@trading-model/common/utils/errors";
-import { HttpMethod } from "@trading-model/validation/contracts/signed-request";
+import { HttpMethod } from "@trading-model/validation/adapters/inbound/signed-request";
+import { signedOptions } from "../../adapters/outbound/request-signer";
 import { logger } from "../../config/logger";
-import { signedOptions } from "./request-signer";
 
 export class DlqDeleteHandler {
 	constructor(

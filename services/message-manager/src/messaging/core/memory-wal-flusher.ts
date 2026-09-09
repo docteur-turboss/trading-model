@@ -1,5 +1,6 @@
-﻿import { TimerHandle } from "@trading-model/common/utils/timer-handle";
-import { ENV } from "../../config/env";
+﻿import { toDurationMs } from "@trading-model/common/domain/primitives";
+import { TimerHandle } from "@trading-model/common/utils/timer-handle";
+import { ENV } from "../../infrastructure/config/env";
 import type { RedisKeyBuilder } from "../../infrastructure/redis/redis-key-builder";
 import { FlushFailureHandler } from "./flush-failure-handler";
 import { FlushGuard } from "./flush-guard";
@@ -33,7 +34,7 @@ export class MemoryWalFlusher {
 	startFlusher(buffer: MemoryWalEntry[]): void {
 		this._flusherTimer.startInterval(() => {
 			this.flush(buffer).catch(() => {});
-		}, 500);
+		}, toDurationMs(500));
 		this._flusherTimer.unref();
 	}
 

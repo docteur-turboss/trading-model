@@ -4,8 +4,8 @@ import {
 	toTopic,
 	UnixTimestamp,
 } from "@trading-model/common/domain/primitives";
-import { ENV } from "../../config/env";
 import { logger } from "../../config/logger";
+import { ENV } from "../../infrastructure/config/env";
 import { RedisKeyBuilder } from "../../infrastructure/redis/redis-key-builder";
 import { ArchiveTimerScheduler } from "./archive-timer-scheduler";
 import { ArchiveTopicsCache } from "./archive-topics-cache";
@@ -46,8 +46,7 @@ export class MongoArchiveStore {
 	}
 
 	private async _archiveBatch(): Promise<void> {
-		const client = this._clientManager.client;
-		if (!client) {
+		if (!this._clientManager.client) {
 			return;
 		}
 
@@ -57,20 +56,17 @@ export class MongoArchiveStore {
 		}
 
 		for (const topic of topics) {
-			await this._archiveTopic(topic as Topic, client);
+			await this._archiveTopic(topic as Topic);
 		}
 	}
 
-	private async _archiveTopic(
-		topic: Topic,
-		client: NonNullable<typeof this._clientManager.client>
-	): Promise<void> {
+	private async _archiveTopic(topic: Topic): Promise<void> {
 		try {
 			const messages = await this._fetchTopicMessages(topic);
 			if (messages.length === 0) {
 				return;
 			}
-			await this._writeArchiveBatch(client, messages);
+			await this._writeArchiveBatch(messages);
 		} catch (err) {
 			logger.error("Failed to archive topic", {
 				topic,
@@ -88,17 +84,14 @@ export class MongoArchiveStore {
 	}
 
 	private async _writeArchiveBatch(
-		client: NonNullable<typeof this._clientManager.client>,
 		messages: import("@trading-model/validation/contracts/message.types").Message[]
 	): Promise<void> {
 		const { MongoArchiveBatchWriter } = await import(
 			"./mongo-archive-batch.js"
 		);
-		const writer = new MongoArchiveBatchWriter({
-			client,
-			dbName: ENV.MONGO_ARCHIVE_DB,
-			collectionName: ENV.MONGO_ARCHIVE_COLLECTION,
-		});
+		const writer = new MongoArchiveBatchWriter(
+			this._clientManager.getCollectionConfig()
+		);
 		await writer.writeArchiveBatch(messages);
 	}
 

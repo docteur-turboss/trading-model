@@ -1,7 +1,7 @@
 ﻿import type { Topic } from "@trading-model/common/domain/primitives";
-import { ENV } from "../../config/env";
 import { logger } from "../../config/logger";
 import { MESSAGES_DLQ_TOTAL } from "../../config/metrics";
+import { ENV } from "../../infrastructure/config/env";
 import type { MemoryWalEntry } from "./memory-wal-entry";
 import type { WalFlusherService } from "./wal-flusher-service";
 

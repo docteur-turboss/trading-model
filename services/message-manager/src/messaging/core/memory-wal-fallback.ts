@@ -1,5 +1,5 @@
-﻿import type { RedisKeyBuilder } from "../../infrastructure/redis/redis-key-builder";
-import { FileWalFallback } from "./file-wal-fallback";
+﻿import { FileWalFallback } from "../../adapters/outbound/file-wal-fallback";
+import type { RedisKeyBuilder } from "../../infrastructure/redis/redis-key-builder";
 import type { MemoryWalEntry } from "./memory-wal-entry";
 import { RedisWalFallback } from "./redis-wal-fallback";
 import type { WalFallback } from "./wal-fallback.interface";

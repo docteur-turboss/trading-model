@@ -1,6 +1,9 @@
-﻿import { logger } from "../../config/logger";
+﻿import { DurationMs } from "@trading-model/common/domain/primitives";
+import { sleepWithJitter } from "@trading-model/common/utils/retry";
+import { logger } from "../../config/logger";
 import { getStreamClient } from "../../config/redis";
 import type { WalBatchFlusher } from "./wal-batch-flusher";
+import { WalErrorAction } from "./wal-error-handler";
 import type { WalFlushErrorHandler } from "./wal-flush-error-handler";
 
 const WAL_BATCH_SIZE = 50;
@@ -67,15 +70,7 @@ export class WalFlushLoop {
 			this._walKey()
 		);
 		const backoff = Math.min(1000 * 2 ** nextErrors, 30000);
-		await this._sleepWithJitter(backoff);
-		return action !== "abort";
-	}
-
-	private _sleepWithJitter(ms: number): Promise<void> {
-		const jitter = ms * 0.2 * (Math.random() * 2 - 1);
-		return new Promise((resolve) => {
-			const timer = setTimeout(resolve, Math.max(1, Math.round(ms + jitter)));
-			timer.unref();
-		});
+		await sleepWithJitter(DurationMs.of(backoff));
+		return action !== WalErrorAction.Abort;
 	}
 }

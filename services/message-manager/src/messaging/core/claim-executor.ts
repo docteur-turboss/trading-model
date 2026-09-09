@@ -30,15 +30,6 @@ export class ClaimExecutor implements IClaimOps {
 		});
 	}
 
-	claimEntriesForRetry(params: ClaimParams): Promise<number> {
-		return this._doClaimPendingMessages({
-			groupName: params.groupName,
-			consumerId: params.consumerId,
-			minIdleMs: params.minIdleMs ?? DurationMs.of(60_000),
-			count: params.count ?? (100 as PositiveInt),
-		});
-	}
-
 	private async _doClaimPendingMessages(
 		params: Required<ClaimParams>
 	): Promise<number> {

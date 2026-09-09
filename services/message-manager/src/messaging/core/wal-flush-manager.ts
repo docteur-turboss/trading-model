@@ -1,4 +1,5 @@
-﻿import { TimerHandle } from "@trading-model/common/utils/timer-handle";
+﻿import { toDurationMs } from "@trading-model/common/domain/primitives";
+import { TimerHandle } from "@trading-model/common/utils/timer-handle";
 import { logger } from "../../config/logger";
 import type { WalDrainCoordinator } from "./wal-drain-coordinator";
 import type { WalFlushLoop } from "./wal-flush-loop";
@@ -34,7 +35,7 @@ export class WalFlushManager {
 	start(): void {
 		this._walFlusherTimer.startInterval(() => {
 			this.flush().catch(() => {});
-		}, 1000);
+		}, toDurationMs(1000));
 		this._walFlusherTimer.unref();
 	}
 

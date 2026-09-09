@@ -1,7 +1,8 @@
 ﻿import type { Topic } from "@trading-model/common/domain/primitives";
 import { ServiceIdentity } from "@trading-model/common/domain/service-identity";
-import WebSocket from "ws";
+import type WebSocket from "ws";
 import { TopicSubscriptionHandler } from "./topic-subscription-handler";
+import { WssBroadcaster } from "./wss-broadcaster";
 import type { WsTransportMessage } from "./wss-message.types";
 
 export interface WsSubscription {
@@ -19,8 +20,9 @@ export interface SubscriptionContext {
 const MAX_CONNECTIONS = 10000;
 
 export class WssSubscriptionManager {
-	private _subscriptions = new Map<string, WsSubscription>();
+	private readonly _subscriptions = new Map<string, WsSubscription>();
 	private readonly _topicHandler = new TopicSubscriptionHandler();
+	private readonly _broadcaster = new WssBroadcaster(this._subscriptions);
 
 	get size(): number {
 		return this._subscriptions.size;
@@ -62,50 +64,11 @@ export class WssSubscriptionManager {
 	}
 
 	broadcastToTopic(topic: Topic, message: unknown): number {
-		const payload = JSON.stringify({ type: "message", topic, message });
-		let count = 0;
-		for (const [key, sub] of [...this._subscriptions]) {
-			if (this._isSubscribedToTopic(sub, topic)) {
-				count += this._trySendAndTrack(key, sub, payload) ? 1 : 0;
-			}
-		}
-		return count;
+		return this._broadcaster.broadcastToTopic(topic, message);
 	}
 
 	broadcast(message: unknown): void {
-		const payload = JSON.stringify(message);
-		for (const [key, sub] of [...this._subscriptions]) {
-			this._trySend(key, sub, payload);
-		}
-	}
-
-	private _isSubscribedToTopic(sub: WsSubscription, topic: Topic): boolean {
-		return sub.topics.has(topic) && sub.ws.readyState === WebSocket.OPEN;
-	}
-
-	private _trySendAndTrack(
-		key: string,
-		sub: WsSubscription,
-		payload: string
-	): boolean {
-		try {
-			sub.ws.send(payload);
-			return true;
-		} catch {
-			this._subscriptions.delete(key);
-			return false;
-		}
-	}
-
-	private _trySend(key: string, sub: WsSubscription, payload: string): void {
-		if (sub.ws.readyState !== WebSocket.OPEN) {
-			return;
-		}
-		try {
-			sub.ws.send(payload);
-		} catch {
-			this._subscriptions.delete(key);
-		}
+		this._broadcaster.broadcast(message);
 	}
 
 	clear(): void {

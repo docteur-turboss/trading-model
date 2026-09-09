@@ -2,7 +2,7 @@ import { context, propagation } from "@opentelemetry/api";
 import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import type { Topic } from "@trading-model/common/domain/primitives";
 import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
-import type { MessageMetadata } from "@trading-model/validation/contracts/message.types";
+import type { MessageMetadata } from "@trading-model/validation/domain/contracts/message.types";
 import type WebSocket from "ws";
 import { logger } from "../../config/logger";
 import type { Dispatcher } from "../core/dispatcher";

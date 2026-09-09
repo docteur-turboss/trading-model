@@ -1,6 +1,7 @@
-﻿import { TimerHandle } from "@trading-model/common/utils/timer-handle";
-import { ENV } from "../../config/env";
+﻿import { toDurationMs } from "@trading-model/common/domain/primitives";
+import { TimerHandle } from "@trading-model/common/utils/timer-handle";
 import { logger } from "../../config/logger";
+import { ENV } from "../../infrastructure/config/env";
 import { RedisKeyBuilder } from "../../infrastructure/redis/redis-key-builder";
 
 export class ArchiveTopicsCache {
@@ -20,7 +21,7 @@ export class ArchiveTopicsCache {
 					err: (err as Error).message,
 				});
 			}
-		}, 30_000);
+		}, toDurationMs(30_000));
 		this._topicsCacheTimer.unref();
 	}
 

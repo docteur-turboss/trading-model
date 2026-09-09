@@ -5,7 +5,7 @@ import type {
 	ServiceId,
 } from "@trading-model/common/domain/primitives";
 import { sleep } from "@trading-model/common/utils/sleep";
-import type { Message } from "@trading-model/validation/contracts/message.types";
+import type { Message } from "@trading-model/validation/domain/contracts/message.types";
 import { resolveTarget } from "./address-resolver";
 import { backoffDelay } from "./backoff-calculator";
 import type { DeliveryErrorHandler } from "./delivery-error-handler";

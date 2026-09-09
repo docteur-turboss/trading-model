@@ -1,6 +1,6 @@
 import type { DeliveryMode } from "@trading-model/common/config/delivery-mode.types";
 import type { SequenceNumber } from "@trading-model/common/domain/primitives";
-import type { Message } from "@trading-model/validation/contracts/message.types";
+import type { Message } from "@trading-model/validation/domain/contracts/message.types";
 
 export interface IErrorHandler<TInput = unknown, TOutput = unknown> {
 	handle(input: TInput, ...args: unknown[]): Promise<TOutput> | TOutput;

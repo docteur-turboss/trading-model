@@ -4,4 +4,4 @@
  */
 
 export type { TlsPaths as BrokerConfig } from "@trading-model/common/domain/tls-paths";
-export type { ServiceIdentity } from "@trading-model/validation/contracts/message.types";
+export type { ServiceIdentity } from "@trading-model/validation/domain/contracts/message.types";

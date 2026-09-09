@@ -1,5 +1,5 @@
-import { createBootstrap } from "@trading-model/server-utils/server/bootstrap";
-import { BOOTSTRAP_ADDRESS_MANAGER } from "../config/address-manager";
+import { createBootstrap } from "@trading-model/server-utils/application/services/bootstrap";
+import { BOOTSTRAP_ADDRESS_MANAGER } from "../../config/address-manager";
 import { createServer } from "./server";
 import "../config/env";
 

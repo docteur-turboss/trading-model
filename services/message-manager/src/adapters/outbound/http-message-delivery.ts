@@ -3,13 +3,12 @@ import {
 	PositiveInt,
 	UnixTimestamp,
 } from "@trading-model/common/domain/primitives";
-
-import type { FileDlqRepository } from "./dlq-repository";
 import type {
 	DeadLetterInput,
 	DeliverySendInput,
 	MessageDeliveryPort,
-} from "./message-delivery-port";
+} from "../../messaging/core/message-delivery-port";
+import type { FileDlqRepository } from "./dlq-repository";
 
 export class HttpMessageDelivery implements MessageDeliveryPort {
 	constructor(

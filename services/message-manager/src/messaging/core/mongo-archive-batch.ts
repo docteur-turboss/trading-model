@@ -1,13 +1,16 @@
 import type { EventEnumMap } from "@trading-model/common/config/event.types";
-import type { Topic } from "@trading-model/common/domain/primitives";
-import type { Message } from "@trading-model/validation/contracts/message.types";
-import { ENV } from "../../config/env";
+import type {
+	DurationMs,
+	Topic,
+} from "@trading-model/common/domain/primitives";
+import type { Message } from "@trading-model/validation/domain/contracts/message.types";
+import { ENV } from "../../infrastructure/config/env";
 import { MongoBatchWriter } from "./mongo-batch-writer";
 
-const MS_PER_DAY = 86_400_000;
+const MS_PER_DAY = 86_400_000 as DurationMs;
 
+import type { MongoCollectionConfig } from "../../shared/mongo-types";
 import { createMongoIndexes } from "./mongo-index-creator";
-import type { MongoCollectionConfig } from "./mongo-types";
 
 export interface ArchiveEntry {
 	messageId: string;

@@ -1,4 +1,4 @@
-﻿import type { MongoCollectionConfig } from "./mongo-types";
+﻿import type { MongoCollectionConfig } from "../../shared/mongo-types";
 
 function _getCollection(
 	config: MongoCollectionConfig

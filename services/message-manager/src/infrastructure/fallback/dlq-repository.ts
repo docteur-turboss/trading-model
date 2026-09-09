@@ -1,6 +1,6 @@
 import { appendFile } from "node:fs/promises";
 
-import type { DlqEntry } from "@trading-model/validation/contracts/dlq.types";
+import type { DlqEntry } from "@trading-model/validation/domain/contracts/dlq.types";
 
 export type { DlqEntry };
 

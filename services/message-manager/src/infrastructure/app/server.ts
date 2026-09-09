@@ -1,8 +1,8 @@
-import { createServiceServer } from "@trading-model/server-utils/server/service-server-factory";
+import { createServiceServer } from "@trading-model/server-utils/adapters/inbound/service-server-factory";
 
-import { ADDRESS_MANAGER_ROUTES } from "../config/address-manager";
+import { ADDRESS_MANAGER_ROUTES } from "../../config/address-manager";
+import { MESSAGE_MANAGER_ROUTES } from "../../config/message-manager";
 import { ENV } from "../config/env";
-import { MESSAGE_MANAGER_ROUTES } from "../config/message-manager";
 
 function mountRoutes(app: import("express").Application) {
 	ADDRESS_MANAGER_ROUTES(app);
