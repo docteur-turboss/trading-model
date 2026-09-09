@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
 # Example: Publish a market data event
-# Prerequisites: docker compose up -d, TLS certs generated
+# Prerequisites: docker compose up -d.
+# mTLS uses SPIRE SVIDs; run this script inside a service container (which has
+# the SVID in /run/spire/svid) or provide a client cert via CERT/KEY.
 
 set -euo pipefail
 
 API_GATEWAY="${API_GATEWAY:-https://localhost:8448}"
 ADMIN_TOKEN="${ADMIN_TOKEN:-changeme}"
-CERTS_DIR="${CERTS_DIR:-./certs}"
 
 echo "=== Publishing a market data event ==="
 curl -sk "${API_GATEWAY}/v1/broker/message" \

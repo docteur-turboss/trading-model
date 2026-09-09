@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
 # Example: Register a mock service with the Discovery Server
-# Prerequisites: docker compose up -d discovery-server, TLS certs generated
+# Prerequisites: docker compose up -d discovery-server.
+# mTLS uses SPIRE SVIDs; run this script inside a service container (which has
+# the SVID in /run/spire/svid) or provide a client cert via CERT/KEY.
 
 set -euo pipefail
 
 DISCOVERY_URL="${DISCOVERY_URL:-https://localhost:8443}"
-CERTS_DIR="${CERTS_DIR:-./certs}"
-CERT="${CERTS_DIR}/client.crt"
-KEY="${CERTS_DIR}/client-key.pem"
+CERT="${CERT:-/run/spire/svid/svid.pem}"
+KEY="${KEY:-/run/spire/svid/svid_key.pem}"
 
 SERVICE_NAME="${1:-example-service}"
 INSTANCE_ID="$(uuidgen 2>/dev/null || echo "inst-$(date +%s)")"
