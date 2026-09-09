@@ -4,7 +4,7 @@
 
 ## Prerequisites
 
-- Node.js 20+ (see `.nvmrc`)
+- Bun 1.3+ (see `bun --version`)
 - Docker Desktop (for Compose)
 - Git
 
@@ -113,7 +113,7 @@ You should see your published message recorded as an audit event.
 
 ```bash
 # Start the React SPA
-bun run -w admin-interface dev
+bun run --filter admin-interface dev
 ```
 
 Open `http://localhost:5173` in your browser. Navigate to **Services** to see the service registry, or **Audit Events** to see your published message.

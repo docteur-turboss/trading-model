@@ -19,7 +19,7 @@ export default function () {
       `${GATEWAY_URL}/ping`,
       `${GATEWAY_URL}/v1/discovery-server/health`,
       `${GATEWAY_URL}/v1/message-manager/health/ready`,
-      `${GATEWAY_URL}/v1/certificate-authority/ping`,
+      `${GATEWAY_URL}/v1/discovery/services`,
     ];
 
     for (const url of endpoints) {

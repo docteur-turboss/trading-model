@@ -7,50 +7,66 @@ export interface FetchResult {
 	body: string;
 }
 
+interface FetchOptions {
+	method?: string;
+	body?: unknown;
+	headers?: Record<string, string>;
+	timeout?: number;
+}
+
+function buildRequestOptions(options?: FetchOptions): http.RequestOptions {
+	const bodyData = options?.body ? JSON.stringify(options.body) : undefined;
+	return {
+		method: options?.method || "GET",
+		headers: {
+			"Content-Type": "application/json",
+			...options?.headers,
+			...(bodyData
+				? { "Content-Length": Buffer.byteLength(bodyData).toString() }
+				: {}),
+		},
+		rejectUnauthorized: false,
+		timeout: options?.timeout || 10000,
+	};
+}
+
+function collectResponse(
+	res: http.IncomingMessage,
+	resolve: (result: FetchResult) => void
+): void {
+	let data = "";
+	res.on("data", (chunk: string) => {
+		data += chunk;
+	});
+	res.on("end", () => resolve({ status: res.statusCode ?? 0, body: data }));
+}
+
+function registerErrorHandlers(
+	req: http.ClientRequest,
+	reject: (reason?: unknown) => void,
+	options?: FetchOptions
+): void {
+	req.on("error", (err: Error) => reject(err));
+	req.on("timeout", () => {
+		req.destroy();
+		reject(new Error(`Request timeout after ${options?.timeout || 10000}ms`));
+	});
+}
+
 export function fetchUrl(
 	url: string,
-	options?: {
-		method?: string;
-		body?: unknown;
-		headers?: Record<string, string>;
-		timeout?: number;
-	}
+	options?: FetchOptions
 ): Promise<FetchResult> {
 	return new Promise((resolve, reject) => {
 		const isHttps = url.startsWith("https");
 		const lib = isHttps ? https : http;
 		const bodyData = options?.body ? JSON.stringify(options.body) : undefined;
 
-		const req = lib.request(
-			url,
-			{
-				method: options?.method || "GET",
-				headers: {
-					"Content-Type": "application/json",
-					...options?.headers,
-					...(bodyData
-						? { "Content-Length": Buffer.byteLength(bodyData).toString() }
-						: {}),
-				},
-				rejectUnauthorized: false,
-				timeout: options?.timeout || 10000,
-			},
-			(res) => {
-				let data = "";
-				res.on("data", (chunk: string) => {
-					data += chunk;
-				});
-				res.on("end", () =>
-					resolve({ status: res.statusCode ?? 0, body: data })
-				);
-			}
-		);
-
-		req.on("error", (err: Error) => reject(err));
-		req.on("timeout", () => {
-			req.destroy();
-			reject(new Error(`Request timeout after ${options?.timeout || 10000}ms`));
+		const req = lib.request(url, buildRequestOptions(options), (res) => {
+			collectResponse(res, resolve);
 		});
+
+		registerErrorHandlers(req, reject, options);
 
 		if (bodyData) {
 			req.write(bodyData);

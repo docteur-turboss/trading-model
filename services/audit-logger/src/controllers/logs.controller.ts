@@ -3,7 +3,7 @@ import {
 	CorrelationId,
 	toServiceId,
 } from "@trading-model/common/domain/primitives";
-
+import type { RequestHandler } from "express";
 import type { LogQuery, LogRepository } from "../persistence/log-repository";
 import { parseDateRange, parsePageAndLimit } from "../utils/query-params";
 import { createQueryController } from "./controller-factory";
@@ -25,7 +25,11 @@ function _buildLogQueryParams(req: import("express").Request): LogQuery {
 	};
 }
 
-export function getLogsController(logRepo: LogRepository) {
+export function getLogsController(logRepo: LogRepository): {
+	listLogs: RequestHandler;
+	getLogStats: RequestHandler;
+	getLogById: RequestHandler;
+} {
 	const { list, getById, stats } = createQueryController(
 		logRepo,
 		_buildLogQueryParams,

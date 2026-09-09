@@ -311,7 +311,7 @@ function publishRelease(newVersion, args) {
   if (!args.publish || args.dryRun) return;
   console.log('\n  ── Publishing release ──\n');
   console.log('  → Generating documentation...');
-  run('npm run docs:generate');
+  run('bun run docs:generate');
   console.log('  → Staging files...');
   run('git add -A');
   const commitMsg = `:rocket:(release): v${newVersion}`;

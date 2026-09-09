@@ -3,7 +3,7 @@ import {
 	toServiceId,
 	toTopic,
 } from "@trading-model/common/domain/primitives";
-
+import type { RequestHandler } from "express";
 import type {
 	AuditEventQuery,
 	AuditRepository,
@@ -28,7 +28,11 @@ function _buildAuditEventQuery(
 	};
 }
 
-export function createEventsController(auditRepo: AuditRepository) {
+export function createEventsController(auditRepo: AuditRepository): {
+	listEvents: RequestHandler;
+	getEvent: RequestHandler;
+	getStats: RequestHandler;
+} {
 	const { list, getById, stats } = createQueryController(
 		auditRepo,
 		_buildAuditEventQuery,

@@ -2,8 +2,8 @@
  * Generates HTML documentation using TypeDoc for all packages and services.
  *
  * Usage:
- *   node scripts/generate-docs.mjs               # full HTML generation
- *   node scripts/generate-docs.mjs --dry-run      # count files only
+ *   bun scripts/generate-docs.mjs               # full HTML generation
+ *   bun scripts/generate-docs.mjs --dry-run      # count files only
  *
  * Output: docs/architecture/code/
  * Each module gets its own subdirectory with TypeDoc HTML output.
@@ -71,7 +71,7 @@ function posix(p) {
 
 function buildTypedocArgs(mod) {
   const args = [
-    'npx typedoc',
+    'bunx typedoc',
     ...mod.entryPoints.map(ep => `"${posix(ep)}"`),
     `--out "${posix(join(OUT_DIR, mod.label))}"`,
     `--tsconfig "${posix(mod.tsconfig)}"`,

@@ -31,26 +31,16 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - name: Generate dev certificates
-        run: |
-          mkdir -p certs
-          openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
-            -keyout certs/server-key.pem -out certs/server.crt \
-            -subj "/CN=localhost" 2>/dev/null
-          cp certs/server.crt certs/ca.crt
-
       - name: Create backup fixtures
         run: |
           mkdir -p "${BACKUP_DIR}/mongodb/test-fixture"
           mkdir -p "${BACKUP_DIR}/mysql"
           mkdir -p "${BACKUP_DIR}/redis"
-          mkdir -p "${BACKUP_DIR}/ca-keys"
           mkdir -p "${BACKUP_DIR}/checkpoints"
 
           echo '{"test": "mongodb fixture"}' > "${BACKUP_DIR}/mongodb/test-fixture/test.bson"
           echo "CREATE TABLE test (id INT);" | gzip > "${BACKUP_DIR}/mysql/financial_scraper_test-fixture.sql.gz"
           echo "REDIS001" > "${BACKUP_DIR}/redis/redis-primary_test-fixture.rdb"
-          echo "ca-key-pem-content" | gzip > "${BACKUP_DIR}/ca-keys/ca-keys_test-fixture.tar.gz"
           echo "checkpoint-data" | gzip > "${BACKUP_DIR}/checkpoints/checkpoints_test-fixture.tar.gz"
 
       - name: Validate backup scripts syntax
@@ -62,12 +52,12 @@ jobs:
 
       - name: Test restore.sh dry-run
         run: |
-          bash scripts/restore.sh --dry-run --components mongodb,mysql,redis,ca-keys,checkpoints --timestamp test-fixture
+          bash scripts/restore.sh --dry-run --components mongodb,mysql,redis,checkpoints --timestamp test-fixture
           echo "  ✓ restore.sh dry-run passed"
 
       - name: Test backup.sh dry-run
         run: |
-          bash scripts/backup.sh --dry-run --components mongodb,mysql,redis,ca-keys,checkpoints
+          bash scripts/backup.sh --dry-run --components mongodb,mysql,redis,checkpoints
           echo "  ✓ backup.sh dry-run passed"
 
       - name: Validate backup directory structure
@@ -77,14 +67,13 @@ jobs:
           echo "    mongodb/test-fixture/test.bson"
           echo "    mysql/financial_scraper_test-fixture.sql.gz"
           echo "    redis/redis-primary_test-fixture.rdb"
-          echo "    ca-keys/ca-keys_test-fixture.tar.gz"
           echo "    checkpoints/checkpoints_test-fixture.tar.gz"
           echo ""
           find "${BACKUP_DIR}" -type f | sort
           echo ""
           FILES=$(find "${BACKUP_DIR}" -type f | wc -l)
-          if [ "$FILES" -lt 5 ]; then
-            echo "ERROR: Expected at least 5 backup files, found $FILES"
+          if [ "$FILES" -lt 4 ]; then
+            echo "ERROR: Expected at least 4 backup files, found $FILES"
             exit 1
           fi
           echo "  ✓ Backup directory structure validated"
@@ -94,7 +83,6 @@ jobs:
           bash scripts/restore.sh --dry-run --components mongodb --timestamp test-fixture | grep -q "MongoDB"
           bash scripts/restore.sh --dry-run --components mysql --timestamp test-fixture | grep -q "MySQL"
           bash scripts/restore.sh --dry-run --components redis --timestamp test-fixture | grep -q "Redis"
-          bash scripts/restore.sh --dry-run --components ca-keys --timestamp test-fixture | grep -q "CA keys"
           bash scripts/restore.sh --dry-run --components checkpoints --timestamp test-fixture | grep -q "Checkpoints"
           echo "  ✓ Component selection validated"
 

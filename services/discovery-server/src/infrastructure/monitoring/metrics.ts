@@ -1,4 +1,5 @@
 import { createMetricsHandler } from "@trading-model/server-utils/adapters/inbound/metrics-handler";
+import type { RequestHandler } from "express";
 import client from "prom-client";
 
 const METRICS_REGISTRY = new client.Registry();
@@ -137,6 +138,7 @@ export function incLeaseCleanupCycle(): void {
 	LEASE_CLEANUP_CYCLES_TOTAL.inc();
 }
 
-export const METRICS_HANDLER = createMetricsHandler(METRICS_REGISTRY);
+export const METRICS_HANDLER: RequestHandler =
+	createMetricsHandler(METRICS_REGISTRY);
 
 export { METRICS_REGISTRY };

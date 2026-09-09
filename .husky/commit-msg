@@ -1,1 +1,1 @@
-npx --no -- commitlint --edit $1 --config commitlint.config.mjs
+bunx --no -- commitlint --edit $1 --config commitlint.config.mjs

@@ -8,4 +8,6 @@ export function createMetricsHandler(registry: Registry): RequestHandler {
 	};
 }
 
-export const metricsHandler = createMetricsHandler(promClient.register);
+export const metricsHandler: RequestHandler = createMetricsHandler(
+	promClient.register
+);

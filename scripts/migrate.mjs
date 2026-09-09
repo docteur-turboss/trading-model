@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 
 import { createHash } from 'node:crypto';
 import { readdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
@@ -15,14 +15,14 @@ const MIGRATIONS_TABLE = '_migrations';
 const [, , command] = process.argv;
 
 if (!command || !['up', 'down', 'status', 'create'].includes(command)) {
-  console.error('Usage: node scripts/migrate.mjs <up|down|status|create> [name]');
+  console.error('Usage: bun scripts/migrate.mjs <up|down|status|create> [name]');
   process.exit(1);
 }
 
 if (command === 'create') {
   const name = process.argv[3];
   if (!name) {
-    console.error('Usage: node scripts/migrate.mjs create <migration_name>');
+    console.error('Usage: bun scripts/migrate.mjs create <migration_name>');
     process.exit(1);
   }
   const timestamp = Date.now();

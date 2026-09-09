@@ -23,7 +23,7 @@ spec:
       restartPolicy: Never
       containers:
         - name: migrate
-          image: node:26-alpine
+          image: oven/bun:1-alpine
           command:
             - sh
             - -c
@@ -31,8 +31,8 @@ spec:
               set -euo pipefail
               apk add --no-cache curl
               cd /migrations
-              npm install mysql2 2>/dev/null
-              node /migrations/migrate.mjs up
+              bun add mysql2 2>/dev/null
+              bun /migrations/migrate.mjs up
           env:
             - name: DB_HOST
               value: mysql-primary

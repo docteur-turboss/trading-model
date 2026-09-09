@@ -1,4 +1,5 @@
 import { createMetricsHandler } from "@trading-model/server-utils/adapters/inbound/metrics-handler";
+import type { RequestHandler } from "express";
 import promClient from "prom-client";
 
 const register = new promClient.Registry();
@@ -49,4 +50,4 @@ export const metrics = {
 	}),
 };
 
-export const metricsHandler = createMetricsHandler(register);
+export const metricsHandler: RequestHandler = createMetricsHandler(register);

@@ -13,7 +13,6 @@ const SERVICES = [
 	{ name: "message-manager", url: "https://localhost:8444/health/ready" },
 	{ name: "financial-scraper", url: "https://localhost:8445/health" },
 	{ name: "trader-trainer", url: "https://localhost:8446/ping" },
-	{ name: "certificate-authority", url: "https://localhost:8447/ping" },
 	{ name: "api-gateway", url: "https://localhost:8448/ping" },
 	{ name: "admin-interface", url: "http://localhost:8449/ping" },
 	{ name: "audit-logger", url: "https://localhost:8450/ping" },

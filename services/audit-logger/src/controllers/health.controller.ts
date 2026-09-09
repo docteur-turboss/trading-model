@@ -33,7 +33,7 @@ export function createHealthController(
 	queue: InternalQueue,
 	backPressure: BackPressure,
 	workers: WorkerRegistry
-) {
+): { health: RequestHandler } {
 	const health: RequestHandler = catchSync(() =>
 		_healthResponse(queue, backPressure, workers)
 	);

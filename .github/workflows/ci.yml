@@ -17,47 +17,43 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
+      - uses: oven-sh/setup-bun@v2
         with:
-          node-version: 'lts/*'
-          cache: 'npm'
-      - run: npm ci
-      - run: npm run lint
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - run: bun run lint
 
   typecheck:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
+      - uses: oven-sh/setup-bun@v2
         with:
-          node-version: 'lts/*'
-          cache: 'npm'
-      - run: npm ci
+          bun-version: latest
+      - run: bun install --frozen-lockfile
       - name: Build packages (dependency order)
-        run: npm run build
+        run: bun run build
       - name: Type-check services
         run: |
-          npm run -w services/message-manager build
-          npm run -w services/discovery-server build
-          npm run -w services/financial-scraper build
-          npm run -w services/trader-trainer build
-          npm run -w services/certificate-authority build
-          npm run -w services/api-gateway build
-          npm run -w services/admin-interface build
-          npm run -w services/audit-logger build
-          npm run -w services/dlq-service build
+          bun run --filter message-manager build
+          bun run --filter discovery-server build
+          bun run --filter financial-scraper build
+          bun run --filter trader-service build
+          bun run --filter api-gateway build
+          bun run --filter admin-interface build
+          bun run --filter audit-logger build
+          bun run --filter dlq-service build
 
   test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
+      - uses: oven-sh/setup-bun@v2
         with:
-          node-version: 'lts/*'
-          cache: 'npm'
-      - run: npm ci
-      - run: npm run build
-      - run: npm run test:coverage
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - run: bun run build
+      - run: bun run test:coverage
 
       - name: Import Codecov GPG key
         run: |

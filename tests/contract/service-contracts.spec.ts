@@ -1,4 +1,4 @@
-import { describe, expect, it } from "@jest/globals";
+﻿import { describe, expect, it } from "@jest/globals";
 import { AuditEvent } from "@trading-model/validation/contracts/audit-events";
 import { MarketEvent } from "@trading-model/validation/contracts/market-events";
 import { z } from "zod";
@@ -27,7 +27,6 @@ const VALID_SERVICE_NAMES = [
 	"financial-scraper",
 	"trader-trainer",
 	"audit-logger",
-	"certificate-authority",
 	"message-manager",
 	"api-gateway",
 	"discovery-server",
@@ -84,7 +83,7 @@ const TRADE_PAYLOAD = MARKET_DATA_PAYLOAD.extend({
  * Each entry documents a producer-consumer agreement.
  */
 const CONTRACTS: Contract[] = [
-	// financial-scraper → trader-trainer
+	// financial-scraper â†’ trader-trainer
 	{
 		producer: "financial-scraper",
 		consumers: ["trader-trainer"],
@@ -147,7 +146,7 @@ const CONTRACTS: Contract[] = [
 		}),
 	},
 
-	// audit-logger contracts ─────────────────────────────────────────────
+	// audit-logger contracts â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 	{
 		producer: "audit-logger",
 		consumers: ["discovery-server", "dlq-service"],
@@ -184,48 +183,7 @@ const CONTRACTS: Contract[] = [
 		}),
 	},
 
-	// certificate-authority contracts ────────────────────────────────────
-	{
-		producer: "certificate-authority",
-		consumers: ["discovery-server", "api-gateway"],
-		topic: "ca.certificate.revoked",
-		eventType: "certificate_revoked",
-		version: "1.0",
-		payloadSchema: z.object({
-			serialNumber: z.string(),
-			serviceId: z.string(),
-			reason: z.string(),
-			revokedAt: z.string(),
-			instanceId: z.string(),
-		}),
-		samplePayload: () => ({
-			serialNumber: "deadbeef1234",
-			serviceId: "discovery-server",
-			reason: "key_compromise",
-			revokedAt: new Date().toISOString(),
-			instanceId: "550e8400-e29b-41d4-a716-446655440000",
-		}),
-	},
-
-	{
-		producer: "certificate-authority",
-		consumers: ["discovery-server"],
-		topic: "ca.key.rotated",
-		eventType: "key_rotation",
-		version: "1.0",
-		payloadSchema: z.object({
-			keyId: z.string(),
-			keyVersion: z.number().int().positive(),
-			instanceId: z.string(),
-		}),
-		samplePayload: () => ({
-			keyId: "ca-root-key",
-			keyVersion: 3,
-			instanceId: "550e8400-e29b-41d4-a716-446655440000",
-		}),
-	},
-
-	// message-manager contracts ─────────────────────────────────────────
+	// message-manager contracts â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 	{
 		producer: "message-manager",
 		consumers: ["dlq-service"],
@@ -250,7 +208,7 @@ const CONTRACTS: Contract[] = [
 		}),
 	},
 
-	// trader-trainer contracts ──────────────────────────────────────────
+	// trader-trainer contracts â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 	{
 		producer: "trader-trainer",
 		consumers: ["admin-interface"],
@@ -275,7 +233,7 @@ const CONTRACTS: Contract[] = [
 		}),
 	},
 
-	// api-gateway contracts ──────────────────────────────────────────────
+	// api-gateway contracts â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 	{
 		producer: "api-gateway",
 		consumers: ["admin-interface"],
@@ -296,15 +254,10 @@ const CONTRACTS: Contract[] = [
 		}),
 	},
 
-	// discovery-server contracts ─────────────────────────────────────────
+	// discovery-server contracts â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 	{
 		producer: "discovery-server",
-		consumers: [
-			"message-manager",
-			"certificate-authority",
-			"api-gateway",
-			"dlq-service",
-		],
+		consumers: ["message-manager", "api-gateway", "dlq-service"],
 		topic: "discovery.service.registered",
 		eventType: "service_registered",
 		version: "1.0",
@@ -330,12 +283,7 @@ const CONTRACTS: Contract[] = [
 
 	{
 		producer: "discovery-server",
-		consumers: [
-			"message-manager",
-			"certificate-authority",
-			"api-gateway",
-			"dlq-service",
-		],
+		consumers: ["message-manager", "api-gateway", "dlq-service"],
 		topic: "discovery.service.deregistered",
 		eventType: "service_deregistered",
 		version: "1.0",
@@ -353,7 +301,7 @@ const CONTRACTS: Contract[] = [
 		}),
 	},
 
-	// message-manager bilateral ──────────────────────────────────────────
+	// message-manager bilateral â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 	{
 		producer: "message-manager",
 		consumers: [
@@ -381,30 +329,7 @@ const CONTRACTS: Contract[] = [
 		}),
 	},
 
-	// certificate-authority expiry warnings ──────────────────────────────
-	{
-		producer: "certificate-authority",
-		consumers: ["api-gateway", "admin-interface"],
-		topic: "ca.certificate.expiring",
-		eventType: "certificate_expiry_warning",
-		version: "1.0",
-		payloadSchema: z.object({
-			serialNumber: z.string(),
-			serviceId: z.string(),
-			expiresAt: z.string(),
-			daysRemaining: z.number().int().nonnegative(),
-			instanceId: z.string(),
-		}),
-		samplePayload: () => ({
-			serialNumber: "deadbeef5678",
-			serviceId: "api-gateway",
-			expiresAt: new Date(Date.now() + 86400000 * 7).toISOString(),
-			daysRemaining: 7,
-			instanceId: "550e8400-e29b-41d4-a716-446655440000",
-		}),
-	},
-
-	// dlq-service resolution events ─────────────────────────────────────
+	// dlq-service resolution events â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 	{
 		producer: "dlq-service",
 		consumers: ["audit-logger", "admin-interface"],
@@ -427,7 +352,7 @@ const CONTRACTS: Contract[] = [
 		}),
 	},
 
-	// trader-trainer model events ────────────────────────────────────────
+	// trader-trainer model events â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 	{
 		producer: "trader-trainer",
 		consumers: ["admin-interface", "api-gateway"],
@@ -451,11 +376,11 @@ const CONTRACTS: Contract[] = [
 	},
 ];
 
-// ── Contract validation tests ────────────────────────────────────────────
+// â”€â”€ Contract validation tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 describe("Service Contracts", () => {
 	for (const contract of CONTRACTS) {
-		describe(`${contract.producer} → ${contract.consumers.join(", ")}`, () => {
+		describe(`${contract.producer} â†’ ${contract.consumers.join(", ")}`, () => {
 			it(`[${contract.version}] topic "${contract.topic}" should match pattern`, () => {
 				expect(contract.topic).toMatch(TOPIC_PATTERN);
 			});
@@ -469,7 +394,7 @@ describe("Service Contracts", () => {
 				const result = contract.payloadSchema.safeParse(payload);
 				if (!result.success) {
 					console.error(
-						`Schema validation failed for ${contract.producer} → ${contract.consumers.join(", ")}`,
+						`Schema validation failed for ${contract.producer} â†’ ${contract.consumers.join(", ")}`,
 						result.error.issues
 					);
 				}
@@ -496,7 +421,7 @@ describe("Service Contracts", () => {
 	}
 });
 
-// ── Backward compatibility tests ─────────────────────────────────────────
+// â”€â”€ Backward compatibility tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 describe("Contract Backward Compatibility", () => {
 	it("all contracts have unique topic + eventType combinations", () => {

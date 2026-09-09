@@ -43,10 +43,5 @@
     "husky": "^9.1.7",
     "typedoc": "^0.28.19",
     "typescript": "^6.0.3"
-  },
-  "dependencies": {
-    "@adobe/css-tools": "^4.5.0",
-    "@asamuzakjp/css-color": "^6.0.7",
-    "@asamuzakjp/dom-selector": "^8.3.2"
   }
 }

@@ -4,11 +4,6 @@
   "workspaces": {
     "": {
       "name": "trading-model",
-      "dependencies": {
-        "@adobe/css-tools": "^4.5.0",
-        "@asamuzakjp/css-color": "^6.0.7",
-        "@asamuzakjp/dom-selector": "^8.3.2",
-      },
       "devDependencies": {
         "@biomejs/biome": "2.5.2",
         "@commitlint/cli": "^21.0.2",

@@ -27,9 +27,9 @@
 ## Checklist
 
 - [ ] Code follows [project standards](../docs/standards/code-style.md)
-- [ ] Tests added/updated and all pass (`npm test`)
-- [ ] Lint passes (`npm run lint`)
-- [ ] Build passes (`npm run build`)
+- [ ] Tests added/updated and all pass (`bun run test`)
+- [ ] Lint passes (`bun run lint`)
+- [ ] Build passes (`bun run build`)
 - [ ] JSDoc updated for public APIs
 - [ ] Docs updated if needed (standards, deployment, architecture)
 - [ ] Commit messages follow [gitmoji convention](../docs/standards/commit-standards.md)
