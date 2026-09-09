@@ -1,5 +1,6 @@
 import { Box, Button, Chip, Typography } from "@mui/material";
-import { JobPriority } from "@trading-model/validation/contracts/admin";
+import { JobPriority } from "@trading-model/validation/adapters/inbound/admin";
+import type { ReactNode } from "react";
 import { DrawerPanel } from "../components/drawer-panel";
 import type { JobTimelineEntry } from "../types/dtos";
 
@@ -102,6 +103,56 @@ function PriorityChip({ priority }: { priority: JobPriority }) {
 
 export { PriorityChip };
 
+function JobPayloadTab({ payload }: { payload: unknown }) {
+	return (
+		<Typography
+			variant="body2"
+			component="pre"
+			sx={{ fontFamily: "monospace", fontSize: "0.75rem" }}
+		>
+			{JSON.stringify(payload, null, 2)}
+		</Typography>
+	);
+}
+
+function JobLogsTab({ logs }: { logs: string[] }) {
+	return (
+		<>
+			{logs.map((log) => (
+				<Typography
+					key={log}
+					variant="caption"
+					display="block"
+					sx={{ fontFamily: "monospace" }}
+				>
+					{log}
+				</Typography>
+			))}
+		</>
+	);
+}
+
+function buildJobTabs(jobDetail: {
+	timeline: JobTimelineEntry[];
+	payload: unknown;
+	logs: string[];
+}): { label: string; content: ReactNode }[] {
+	return [
+		{
+			label: "Timeline",
+			content: <JobTimeline entries={jobDetail.timeline} />,
+		},
+		{
+			label: "Payload",
+			content: <JobPayloadTab payload={jobDetail.payload} />,
+		},
+		{
+			label: "Logs",
+			content: <JobLogsTab logs={jobDetail.logs} />,
+		},
+	];
+}
+
 export function JobDetailDrawer({
 	selectedJobId,
 	jobDetail,
@@ -121,41 +172,7 @@ export function JobDetailDrawer({
 			title={`Job Details - ${selectedJobId ?? ""}`}
 			subtitle={`ID: ${selectedJobId ?? ""}`}
 			onClose={onClose}
-			tabs={
-				jobDetail
-					? [
-							{
-								label: "Timeline",
-								content: <JobTimeline entries={jobDetail.timeline} />,
-							},
-							{
-								label: "Payload",
-								content: (
-									<Typography
-										variant="body2"
-										component="pre"
-										sx={{ fontFamily: "monospace", fontSize: "0.75rem" }}
-									>
-										{JSON.stringify(jobDetail.payload, null, 2)}
-									</Typography>
-								),
-							},
-							{
-								label: "Logs",
-								content: jobDetail.logs.map((log) => (
-									<Typography
-										key={log}
-										variant="caption"
-										display="block"
-										sx={{ fontFamily: "monospace" }}
-									>
-										{log}
-									</Typography>
-								)),
-							},
-						]
-					: []
-			}
+			tabs={jobDetail ? buildJobTabs(jobDetail) : []}
 			actions={
 				<>
 					<Button variant="contained" color="primary">

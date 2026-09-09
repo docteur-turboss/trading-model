@@ -4,7 +4,7 @@ import type {
 	ServiceId,
 	Topic,
 } from "@trading-model/common/domain/primitives";
-import type { Severity } from "@trading-model/validation/contracts/admin";
+import type { Severity } from "@trading-model/validation/adapters/inbound/admin";
 
 export function createAuditColumns() {
 	return [

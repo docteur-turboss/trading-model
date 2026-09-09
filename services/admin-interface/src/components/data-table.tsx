@@ -123,6 +123,104 @@ function DataTableRow<TData>({
 	);
 }
 
+interface DataTablePaginationProps {
+	total: number;
+	page: number;
+	rowsPerPage: number;
+	onPageChange?: (page: number) => void;
+}
+
+function DataTablePagination({
+	total,
+	page,
+	rowsPerPage,
+	onPageChange,
+}: DataTablePaginationProps) {
+	return (
+		<TablePagination
+			component="div"
+			count={total}
+			page={page}
+			onPageChange={(_, pageNum) => onPageChange?.(pageNum)}
+			rowsPerPage={rowsPerPage}
+			rowsPerPageOptions={[rowsPerPage]}
+		/>
+	);
+}
+
+interface DataTableBodyProps<TData> {
+	columns: Column<TData>[];
+	rows: TData[];
+	selectable: boolean;
+	selectedIds?: Set<string>;
+	getId: (row: TData) => string;
+	onSelectOne?: (id: string) => void;
+	allSelected: boolean;
+	indeterminate: boolean;
+	onSelectAll?: (selected: boolean) => void;
+	orderBy: string | null;
+	orderDir: "asc" | "desc";
+	onSort: (colId: string) => void;
+}
+
+function DataTableBody<TData>({
+	columns,
+	rows,
+	selectable,
+	selectedIds,
+	getId,
+	onSelectOne,
+	allSelected,
+	indeterminate,
+	onSelectAll,
+	orderBy,
+	orderDir,
+	onSort,
+}: DataTableBodyProps<TData>) {
+	return (
+		<Table size="small">
+			<DataTableHead
+				columns={columns}
+				selectable={selectable}
+				allSelected={allSelected}
+				indeterminate={indeterminate}
+				onSelectAll={onSelectAll}
+				orderBy={orderBy}
+				orderDir={orderDir}
+				onSort={onSort}
+			/>
+			<TableBody>
+				{rows.map((row) => (
+					<DataTableRow
+						key={getId(row)}
+						row={row}
+						columns={columns}
+						selectable={selectable}
+						selectedIds={selectedIds}
+						getId={getId}
+						onSelectOne={onSelectOne}
+					/>
+				))}
+			</TableBody>
+		</Table>
+	);
+}
+
+function useSortState(): {
+	orderBy: string | null;
+	orderDir: "asc" | "desc";
+	handleSort: (colId: string) => void;
+} {
+	const [orderBy, setOrderBy] = useState<string | null>(null);
+	const [orderDir, setOrderDir] = useState<"asc" | "desc">("asc");
+	const handleSort = (colId: string) => {
+		const isAsc = orderBy === colId && orderDir === "asc";
+		setOrderBy(colId);
+		setOrderDir(isAsc ? "desc" : "asc");
+	};
+	return { orderBy, orderDir, handleSort };
+}
+
 export function DataTable<TData>({
 	columns,
 	rows,
@@ -136,14 +234,7 @@ export function DataTable<TData>({
 	getId,
 	selectable = false,
 }: DataTableProps<TData>) {
-	const [orderBy, setOrderBy] = useState<string | null>(null);
-	const [orderDir, setOrderDir] = useState<"asc" | "desc">("asc");
-
-	const handleSort = (colId: string) => {
-		const isAsc = orderBy === colId && orderDir === "asc";
-		setOrderBy(colId);
-		setOrderDir(isAsc ? "desc" : "asc");
-	};
+	const { orderBy, orderDir, handleSort } = useSortState();
 
 	const allSelected =
 		selectable && rows.length > 0 && selectedIds?.size === rows.length;
@@ -153,40 +244,27 @@ export function DataTable<TData>({
 	return (
 		<Paper variant="outlined">
 			<TableContainer>
-				<Table size="small">
-					<DataTableHead
-						columns={columns}
-						selectable={selectable}
-						allSelected={allSelected}
-						indeterminate={indeterminate}
-						onSelectAll={onSelectAll}
-						orderBy={orderBy}
-						orderDir={orderDir}
-						onSort={handleSort}
-					/>
-					<TableBody>
-						{rows.map((row) => (
-							<DataTableRow
-								key={getId(row)}
-								row={row}
-								columns={columns}
-								selectable={selectable}
-								selectedIds={selectedIds}
-								getId={getId}
-								onSelectOne={onSelectOne}
-							/>
-						))}
-					</TableBody>
-				</Table>
+				<DataTableBody
+					columns={columns}
+					rows={rows}
+					selectable={selectable}
+					selectedIds={selectedIds}
+					getId={getId}
+					onSelectOne={onSelectOne}
+					allSelected={allSelected}
+					indeterminate={indeterminate}
+					onSelectAll={onSelectAll}
+					orderBy={orderBy}
+					orderDir={orderDir}
+					onSort={handleSort}
+				/>
 			</TableContainer>
 			{total > 0 && (
-				<TablePagination
-					component="div"
-					count={total}
+				<DataTablePagination
+					total={total}
 					page={page}
-					onPageChange={(_, pageNum) => onPageChange?.(pageNum)}
 					rowsPerPage={rowsPerPage}
-					rowsPerPageOptions={[rowsPerPage]}
+					onPageChange={onPageChange}
 				/>
 			)}
 		</Paper>

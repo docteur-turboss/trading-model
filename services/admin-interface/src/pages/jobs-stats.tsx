@@ -1,4 +1,4 @@
-import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
+import ErrorOutlineIcon from "@mui/icons-material/ErrorOutlined";
 import ScheduleIcon from "@mui/icons-material/Schedule";
 import SyncIcon from "@mui/icons-material/Sync";
 import { Box } from "@mui/material";

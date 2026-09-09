@@ -6,7 +6,6 @@ import MonitorHeartIcon from "@mui/icons-material/MonitorHeart";
 import NotificationsNoneIcon from "@mui/icons-material/NotificationsNone";
 import ScheduleIcon from "@mui/icons-material/Schedule";
 import SettingsIcon from "@mui/icons-material/Settings";
-import ShieldIcon from "@mui/icons-material/Shield";
 import StorageIcon from "@mui/icons-material/Storage";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
 import WarningIcon from "@mui/icons-material/Warning";
@@ -33,7 +32,6 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
 	{ label: "Services", path: "/services", icon: <MonitorHeartIcon /> },
-	{ label: "Certificates", path: "/certificates", icon: <ShieldIcon /> },
 	{ label: "Audit Events", path: "/audit/events", icon: <DescriptionIcon /> },
 	{ label: "Jobs", path: "/jobs", icon: <ScheduleIcon />, badge: 3 },
 	{

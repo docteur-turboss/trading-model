@@ -8,6 +8,38 @@ interface UseApiResult<TData> {
 	refetch: () => void;
 }
 
+function formatError(err: unknown): string {
+	if (err instanceof HttpClientError) {
+		return `Error ${err.statusCode}: ${err.message}`;
+	}
+	return (err as Error).message;
+}
+
+async function performFetch<TData>(
+	fetcher: () => Promise<TData>,
+	mountedRef: { current: boolean },
+	setData: (data: TData) => void,
+	setLoading: (loading: boolean) => void,
+	setError: (error: string | null) => void
+): Promise<void> {
+	setLoading(true);
+	setError(null);
+	try {
+		const result = await fetcher();
+		if (mountedRef.current) {
+			setData(result);
+		}
+	} catch (err) {
+		if (mountedRef.current) {
+			setError(formatError(err));
+		}
+	} finally {
+		if (mountedRef.current) {
+			setLoading(false);
+		}
+	}
+}
+
 export function useApi<TData>(
 	fetcher: () => Promise<TData>,
 	deps: unknown[] = []
@@ -19,28 +51,17 @@ export function useApi<TData>(
 	const fetcherRef = useRef(fetcher);
 	fetcherRef.current = fetcher;
 
-	const fetch = useCallback(async () => {
-		setLoading(true);
-		setError(null);
-		try {
-			const result = await fetcherRef.current();
-			if (mountedRef.current) {
-				setData(result);
-			}
-		} catch (err) {
-			if (mountedRef.current) {
-				if (err instanceof HttpClientError) {
-					setError(`Error ${err.statusCode}: ${err.message}`);
-				} else {
-					setError((err as Error).message);
-				}
-			}
-		} finally {
-			if (mountedRef.current) {
-				setLoading(false);
-			}
-		}
-	}, []);
+	const fetch = useCallback(
+		() =>
+			performFetch(
+				fetcherRef.current,
+				mountedRef,
+				setData,
+				setLoading,
+				setError
+			),
+		[]
+	);
 
 	useEffect(() => {
 		mountedRef.current = true;

@@ -9,7 +9,7 @@ import {
 	toServiceId,
 	toVersion,
 } from "@trading-model/common/domain/primitives";
-import { ServiceStatus } from "@trading-model/validation/contracts/admin/services.dto";
+import { ServiceStatus } from "@trading-model/validation/adapters/inbound/admin/services.dto";
 import type { Column } from "../../components/data-table";
 
 export interface ServiceRow {

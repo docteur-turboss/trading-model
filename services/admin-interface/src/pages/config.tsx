@@ -4,7 +4,7 @@ import LockIcon from "@mui/icons-material/Lock";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import SyncIcon from "@mui/icons-material/Sync";
 import { Box, Button, Chip, CircularProgress, Typography } from "@mui/material";
-import { ConfigSource } from "@trading-model/validation/contracts/admin";
+import { ConfigSource } from "@trading-model/validation/adapters/inbound/admin";
 import { API_CLIENT } from "../api/api-client";
 import type { Column } from "../components/data-table";
 import { DataTable } from "../components/data-table";

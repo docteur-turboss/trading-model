@@ -21,7 +21,7 @@ import type {
 	TrainingResult,
 	WorkerEntry,
 	WorkerStats,
-} from "@trading-model/validation/contracts/admin";
+} from "@trading-model/validation/adapters/inbound/admin";
 
 export type {
 	AdminServiceInstance,
@@ -30,7 +30,6 @@ export type {
 	CacheEntry,
 	CacheStats,
 	Candle,
-	CertificateEntry,
 	ConfigEntry,
 	DlqMessage,
 	DlqStats,
@@ -46,7 +45,7 @@ export type {
 	TrainingResult,
 	WorkerEntry,
 	WorkerStats,
-} from "@trading-model/validation/contracts/admin";
+} from "@trading-model/validation/adapters/inbound/admin";
 
 export interface ServiceRegistry {
 	services: ServiceRegistryEntry[];
@@ -62,7 +61,7 @@ export interface StatsSummary {
 }
 
 export type OrderBookLevel =
-	import("@trading-model/validation/contracts/market-data.types").OrderBookLevel;
+	import("@trading-model/validation/shared/contracts/market-data.types").OrderBookLevel;
 
 export interface OrderBook {
 	bids: OrderBookLevel[];
