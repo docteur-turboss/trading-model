@@ -20,7 +20,7 @@ describe("env", () => {
 	});
 
 	function loadEnv(): Record<string, unknown> {
-		const mod = require("../../src/config/env") as {
+		const mod = require("../../src/infrastructure/config/env") as {
 			ENV: Record<string, unknown>;
 		};
 		return mod.ENV;

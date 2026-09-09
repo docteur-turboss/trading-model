@@ -9,14 +9,14 @@ jest.mock("@trading-model/common/middleware/response-exception", () => ({
 	sendResponse: (data: any, status: number) => ({ status, data }),
 }));
 
-jest.mock("../../src/config/env", () => ({
+jest.mock("../../src/infrastructure/config/env", () => ({
 	ENV: {
 		AUTH_TOKEN_HEADER: "x-api-key",
 		AUTH_TOKENS: "valid-token-1,valid-token-2",
 	},
 }));
 
-import { AUTH_MIDDLEWARE } from "../../src/core/auth";
+import { AUTH_MIDDLEWARE } from "../../src/adapters/inbound/auth";
 
 describe("AUTH_MIDDLEWARE", () => {
 	beforeEach(() => {

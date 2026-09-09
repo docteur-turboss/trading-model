@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { createReq } from "../helpers/express";
 
-jest.mock("../../src/config/env", () => ({
+jest.mock("../../src/infrastructure/config/env", () => ({
 	ENV: {
 		PROXY_TIMEOUT_MS: 10000,
 	},
@@ -99,7 +99,7 @@ describe("proxy-handler", () => {
 		);
 
 		const { forwardRequest: forward } = await Promise.resolve(
-			require("../../src/core/proxy-handler")
+			require("../../src/adapters/outbound/proxy-handler")
 		);
 		const req = createReq({
 			method: "GET",
@@ -139,7 +139,7 @@ describe("proxy-handler", () => {
 		);
 
 		const { forwardRequest: forward } = await Promise.resolve(
-			require("../../src/core/proxy-handler")
+			require("../../src/adapters/outbound/proxy-handler")
 		);
 		const req = createReq({
 			method: "GET",
@@ -168,7 +168,7 @@ describe("proxy-handler", () => {
 		});
 
 		const { forwardRequest: forward } = await Promise.resolve(
-			require("../../src/core/proxy-handler")
+			require("../../src/adapters/outbound/proxy-handler")
 		);
 		const req = createReq({ method: "GET" });
 		await expect(
@@ -200,7 +200,7 @@ describe("proxy-handler", () => {
 		});
 
 		const { forwardRequest: forward } = await Promise.resolve(
-			require("../../src/core/proxy-handler")
+			require("../../src/adapters/outbound/proxy-handler")
 		);
 		const req = createReq({ method: "GET" });
 		await expect(
@@ -230,7 +230,7 @@ describe("proxy-handler", () => {
 		);
 
 		const { forwardRequest: forward } = await Promise.resolve(
-			require("../../src/core/proxy-handler")
+			require("../../src/adapters/outbound/proxy-handler")
 		);
 		const req = createReq({
 			method: "GET",
@@ -265,7 +265,7 @@ describe("proxy-handler", () => {
 		);
 
 		const { forwardRequest: forward } = await Promise.resolve(
-			require("../../src/core/proxy-handler")
+			require("../../src/adapters/outbound/proxy-handler")
 		);
 		const req = createReq({
 			method: "GET",
@@ -297,7 +297,7 @@ describe("proxy-handler", () => {
 		);
 
 		const { forwardRequest: forward } = await Promise.resolve(
-			require("../../src/core/proxy-handler")
+			require("../../src/adapters/outbound/proxy-handler")
 		);
 		const req = createReq({
 			method: "GET",
@@ -330,7 +330,7 @@ describe("proxy-handler", () => {
 		);
 
 		const { forwardRequest: forward } = await Promise.resolve(
-			require("../../src/core/proxy-handler")
+			require("../../src/adapters/outbound/proxy-handler")
 		);
 		const req = createReq({
 			method: "GET",
@@ -367,7 +367,7 @@ describe("proxy-handler", () => {
 		);
 
 		const { forwardRequest: forward } = await Promise.resolve(
-			require("../../src/core/proxy-handler")
+			require("../../src/adapters/outbound/proxy-handler")
 		);
 		const req = createReq({ method: "GET" });
 		const result = await forward({ req, target: MOCK_TARGET, path: "/test" });
@@ -401,7 +401,7 @@ describe("proxy-handler", () => {
 		);
 
 		const { forwardRequest: forward } = await Promise.resolve(
-			require("../../src/core/proxy-handler")
+			require("../../src/adapters/outbound/proxy-handler")
 		);
 		const req = createReq({
 			method: "POST",

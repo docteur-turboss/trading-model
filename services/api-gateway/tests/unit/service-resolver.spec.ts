@@ -6,7 +6,7 @@ import {
 	it,
 	jest,
 } from "@jest/globals";
-import { ServiceResolver } from "../../src/core/service-resolver";
+import { ServiceResolver } from "../../src/adapters/outbound/service-resolver";
 
 const makeInstance = (host: string, port: number, version: string) => ({
 	serviceName: "sector-allocator",

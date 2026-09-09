@@ -1,24 +1,20 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 
-const MOCK_TLS_CONFIG = {
-	key: "/certs/key.pem",
-	cert: "/certs/cert.pem",
-	ca: "/certs/ca.pem",
-};
+jest.mock(
+	"@trading-model/server-utils/adapters/inbound/service-server-factory",
+	() => ({
+		createServiceServer: jest
+			.fn()
+			.mockImplementation(
+				(opts: { env: unknown; routes: (app: any) => void }) => {
+					opts.routes({ use: jest.fn() });
+					return Promise.resolve({ close: jest.fn(), raw: {} });
+				}
+			),
+	})
+);
 
-jest.mock("@trading-model/server-utils/server/create-secure-server", () => ({
-	createSecureServer: jest
-		.fn()
-		.mockImplementation(
-			(opts: { port: number; tls: unknown; routes: (app: any) => void }) => {
-				opts.routes({ use: jest.fn() });
-				return Promise.resolve({ close: jest.fn(), raw: {} });
-			}
-		),
-	buildTlsFromEnv: jest.fn(() => MOCK_TLS_CONFIG),
-}));
-
-jest.mock("../../src/config/env", () => ({
+jest.mock("../../src/infrastructure/config/env", () => ({
 	ENV: {
 		PORT: 3000,
 		TLS_KEY_PATH: "/certs/key.pem",
@@ -34,25 +30,26 @@ jest.mock("../../src/config/env", () => ({
 	},
 }));
 
-jest.mock("../../src/core/router", () => ({
+jest.mock("../../src/adapters/inbound/router", () => ({
 	createRouter: jest.fn(() => ({ stack: [] })),
 }));
 
-import { createSecureServer } from "@trading-model/server-utils/server/create-secure-server";
-import { createServer } from "../../src/app/server";
+import { createServiceServer } from "@trading-model/server-utils/adapters/inbound/service-server-factory";
+import { createServer } from "../../src/application/server";
 
 describe("server", () => {
 	beforeEach(() => {
 		jest.clearAllMocks();
 	});
 
-	it("should call createSecureServer with port and tls config", () => {
+	it("should call createServiceServer with env config", () => {
 		void createServer();
 
-		expect(createSecureServer).toHaveBeenCalledWith(
+		expect(createServiceServer).toHaveBeenCalledWith(
 			expect.objectContaining({
-				port: 3000,
-				tls: MOCK_TLS_CONFIG,
+				env: expect.objectContaining({
+					PORT: 3000,
+				}),
 			})
 		);
 	});

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
-import { ResponseCache } from "../../src/core/cache";
+import { ResponseCache } from "../../src/infrastructure/cache";
 
 describe("ResponseCache", () => {
 	let cache: ResponseCache;

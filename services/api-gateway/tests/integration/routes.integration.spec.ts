@@ -2,7 +2,7 @@ import http from "node:http";
 import { afterEach, describe, expect, it, jest } from "@jest/globals";
 import express from "express";
 
-jest.mock("../../src/config/env", () => ({
+jest.mock("../../src/infrastructure/config/env", () => ({
 	ENV: {
 		NODE_ENV: "test",
 		PORT: 0,
@@ -23,7 +23,7 @@ jest.mock("@trading-model/common/config/logger", () => ({
 	logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
 
-import { createRouter } from "../../src/core/router";
+import { createRouter } from "../../src/adapters/inbound/router";
 
 function createApp(): express.Application {
 	const app = express();

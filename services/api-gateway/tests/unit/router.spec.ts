@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { createReq } from "../helpers/express";
 
-jest.mock("../../src/config/env", () => ({
+jest.mock("../../src/infrastructure/config/env", () => ({
 	ENV: {
 		DISCOVERY_SERVICE_URL: "https://discovery:3000",
 		AUTH_TOKEN_HEADER: "x-api-key",
@@ -29,7 +29,7 @@ jest.mock("@trading-model/common/config/logger", () => ({
 	logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
 
-jest.mock("../../src/core/service-resolver", () => ({
+jest.mock("../../src/adapters/outbound/service-resolver", () => ({
 	ServiceResolver: jest.fn().mockImplementation(() => ({
 		resolve: jest.fn().mockImplementation((name: string) => {
 			if (name === "unknown-service") {
@@ -44,7 +44,7 @@ jest.mock("../../src/core/service-resolver", () => ({
 	})),
 }));
 
-jest.mock("../../src/core/proxy-handler", () => ({
+jest.mock("../../src/adapters/outbound/proxy-handler", () => ({
 	forwardRequest: jest.fn().mockResolvedValue({
 		status: 200,
 		body: JSON.stringify({ data: "ok" }),
@@ -52,16 +52,16 @@ jest.mock("../../src/core/proxy-handler", () => ({
 	}),
 }));
 
-jest.mock("../../src/core/rate-limiter", () => ({
+jest.mock("../../src/adapters/inbound/rate-limiter", () => ({
 	DEFAULT_LIMITER: jest.fn((_req: any, _res: any, next: () => void) => next()),
 	STRICT_LIMITER: jest.fn((_req: any, _res: any, next: () => void) => next()),
 }));
 
-jest.mock("../../src/core/auth", () => ({
+jest.mock("../../src/adapters/inbound/auth", () => ({
 	AUTH_MIDDLEWARE: jest.fn((_req: any, _res: any, next: () => void) => next()),
 }));
 
-import { createRouter } from "../../src/core/router";
+import { createRouter } from "../../src/adapters/inbound/router";
 
 describe("router", () => {
 	let router: ReturnType<typeof createRouter>;
@@ -82,7 +82,8 @@ describe("router", () => {
 		const authLayer = nonRouteLayers.find(
 			(layer: any) =>
 				layer.name === "AUTH_MIDDLEWARE" ||
-				layer.handle === require("../../src/core/auth").AUTH_MIDDLEWARE
+				layer.handle ===
+					require("../../src/adapters/inbound/auth").AUTH_MIDDLEWARE
 		);
 
 		expect(authLayer).toBeDefined();
@@ -95,7 +96,9 @@ describe("router", () => {
 		}
 
 		function mockForwardSuccess(body: unknown) {
-			const { forwardRequest } = require("../../src/core/proxy-handler");
+			const {
+				forwardRequest,
+			} = require("../../src/adapters/outbound/proxy-handler");
 			forwardRequest.mockReset();
 			forwardRequest.mockResolvedValue({
 				status: 200,
@@ -171,7 +174,9 @@ describe("router", () => {
 		});
 
 		it("should return 503 on proxy error", async () => {
-			const { forwardRequest } = require("../../src/core/proxy-handler");
+			const {
+				forwardRequest,
+			} = require("../../src/adapters/outbound/proxy-handler");
 			forwardRequest.mockReset();
 			forwardRequest.mockRejectedValue(new Error("Connection timeout"));
 
@@ -204,7 +209,9 @@ describe("router", () => {
 		});
 
 		it("should handle non-JSON response body", async () => {
-			const { forwardRequest } = require("../../src/core/proxy-handler");
+			const {
+				forwardRequest,
+			} = require("../../src/adapters/outbound/proxy-handler");
 			forwardRequest.mockReset();
 			forwardRequest.mockResolvedValue({
 				status: 200,
@@ -238,7 +245,9 @@ describe("router", () => {
 		});
 
 		it("should handle non-Error proxy exception", async () => {
-			const { forwardRequest } = require("../../src/core/proxy-handler");
+			const {
+				forwardRequest,
+			} = require("../../src/adapters/outbound/proxy-handler");
 			forwardRequest.mockReset();
 			forwardRequest.mockRejectedValue("string error");
 

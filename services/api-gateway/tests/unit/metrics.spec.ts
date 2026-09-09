@@ -30,7 +30,7 @@ import {
 	metricsHandler,
 	PROXY_REQUEST_DURATION_SECONDS,
 	SERVICE_ERRORS_TOTAL,
-} from "../../src/config/metrics";
+} from "../../src/infrastructure/config/metrics";
 
 describe("metrics", () => {
 	beforeEach(() => {
