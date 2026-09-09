@@ -1,0 +1,116 @@
+import { logger } from "@trading-model/common/config/logger";
+import type {
+	DurationMs,
+	InstanceId,
+	ServiceId,
+} from "@trading-model/common/domain/primitives";
+import type { AddressManagerClient } from "../adapters/outbound/client/address-manager-client";
+import type { WebSocketClient } from "../adapters/outbound/client/websocket-client";
+import type { ServiceHealthChecker } from "../adapters/outbound/discovery/service-health-checker";
+import type { IServiceCache } from "../domain/discovery/service-cache.interface";
+import type { ShutdownHandler } from "../infrastructure/shutdown-handler";
+import type { TokenManager } from "./client/token-manager";
+import type { HeartbeatManager } from "./heartbeat-manager";
+import { SteadyStateScheduler } from "./scheduler/steady-state-scheduler";
+
+export interface LifecycleManagerOptions {
+	registrationManager: { tryStickyRegistration(): Promise<void> };
+	heartbeatManager: HeartbeatManager;
+	shutdownHandler: ShutdownHandler;
+	wsClient?: WebSocketClient;
+	serviceCache: IServiceCache;
+	serviceName: ServiceId;
+	instanceId: InstanceId;
+	tokenRefreshIntervalMs: number;
+	ttlRefreshIntervalMs: number;
+	cacheTtlMs: DurationMs;
+	tokenManager: TokenManager;
+	addressManagerClient: AddressManagerClient;
+	healthChecker: ServiceHealthChecker;
+}
+
+export class LifecycleManager {
+	private _started = false;
+
+	constructor(private readonly _options: LifecycleManagerOptions) {}
+
+	start(): { stop: () => void; ready: Promise<void> } {
+		if (this._started) {
+			return this._returnExistingHandle();
+		}
+		this._options.shutdownHandler.removeSignalHandlers();
+		this._started = true;
+
+		const steadyState = this._createSteadyState();
+		steadyState.setup();
+		const registrationPromise = this._startRegistration(steadyState);
+		this._options.shutdownHandler.setupSignalHandlers(steadyState);
+
+		return {
+			ready: registrationPromise,
+			stop: this._createStopHandler(steadyState),
+		};
+	}
+
+	private _createSteadyState(): SteadyStateScheduler {
+		const {
+			tokenManager,
+			addressManagerClient,
+			heartbeatManager,
+			serviceCache,
+			healthChecker,
+			serviceName,
+			instanceId,
+			tokenRefreshIntervalMs,
+			ttlRefreshIntervalMs,
+			cacheTtlMs,
+		} = this._options;
+		return new SteadyStateScheduler({
+			tokenManager,
+			addressManagerClient,
+			heartbeatManager,
+			serviceCache,
+			healthChecker,
+			serviceName,
+			instanceId,
+			tokenRefreshIntervalMs,
+			ttlRefreshIntervalMs,
+			cacheTtlMs,
+		});
+	}
+
+	private _returnExistingHandle(): { stop: () => void; ready: Promise<void> } {
+		logger.warn("AddressManager already started — returning existing handle");
+		return {
+			ready: Promise.resolve(),
+			stop: () => {
+				this._options.shutdownHandler.shutdown();
+			},
+		};
+	}
+
+	private _startRegistration(steadyState: SteadyStateScheduler): Promise<void> {
+		return this._register().then(() => {
+			if (!this._started) {
+				return;
+			}
+			this._options.wsClient?.connect();
+			steadyState.start();
+		});
+	}
+
+	private _createStopHandler(
+		steadyState: SteadyStateScheduler
+	): () => Promise<void> {
+		return async () => {
+			this._started = false;
+			this._options.shutdownHandler.removeSignalHandlers();
+			steadyState.stop();
+			await this._options.shutdownHandler.fullStop();
+		};
+	}
+
+	private async _register(): Promise<void> {
+		await this._options.registrationManager.tryStickyRegistration();
+	}
+}

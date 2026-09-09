@@ -1,0 +1,72 @@
+import { CircuitState } from "@trading-model/common/domain/circuit-state";
+import type { Application } from "express";
+import promClient from "prom-client";
+import { METRICS_ROUTES } from "../../adapters/inbound/routes/metrics.routes";
+import { PING_ROUTES } from "../../adapters/inbound/routes/ping.routes";
+import type { DiscoveryCircuitBreaker } from "../../application/discovery/circuit-breaker";
+import type { IServiceCache } from "../../domain/discovery/service-cache.interface";
+import { CACHE_ENTRY_COUNT, CIRCUIT_BREAKER_INSTANCES_TOTAL } from "../metrics";
+import { ServiceCallTracker } from "./service-call-tracker";
+import { SystemMetrics, type SystemMetricsPayload } from "./system-metrics";
+
+export class MetricsCollector {
+	private readonly _systemMetrics: SystemMetrics;
+	private readonly _serviceCallTracker: ServiceCallTracker;
+
+	constructor(
+		private readonly _circuitBreaker: DiscoveryCircuitBreaker,
+		private readonly _serviceCache: IServiceCache,
+		maxCallRecords?: number
+	) {
+		this._systemMetrics = new SystemMetrics();
+		this._serviceCallTracker = new ServiceCallTracker(maxCallRecords ?? 1000);
+	}
+
+	listenExpress(app: Application): void {
+		this._setupMetricsSnapshot(app);
+		this._setupPrometheusEndpoint(app);
+		app.use(PING_ROUTES);
+		app.use(METRICS_ROUTES);
+	}
+
+	private _setupMetricsSnapshot(app: Application): void {
+		app.locals.metricsSnapshot = () => ({
+			...this._systemMetrics.collect(),
+			callTracker: this._serviceCallTracker.snapshot(),
+		});
+	}
+
+	private _setupPrometheusEndpoint(app: Application): void {
+		app.get("/prometheus", async (_req, res) => {
+			res.set("Content-Type", promClient.register.contentType);
+			res.end(await promClient.register.metrics());
+		});
+	}
+
+	getMetrics(): SystemMetricsPayload {
+		return this._systemMetrics.collect();
+	}
+
+	getServiceCallTracker(): ServiceCallTracker {
+		return this._serviceCallTracker;
+	}
+
+	async collectSaturationMetrics(): Promise<void> {
+		const summary = this._circuitBreaker.getStateSummary();
+		CIRCUIT_BREAKER_INSTANCES_TOTAL.set(
+			{ state: CircuitState.CLOSED },
+			summary[CircuitState.CLOSED]
+		);
+		CIRCUIT_BREAKER_INSTANCES_TOTAL.set(
+			{ state: CircuitState.OPEN },
+			summary[CircuitState.OPEN]
+		);
+		CIRCUIT_BREAKER_INSTANCES_TOTAL.set(
+			{ state: CircuitState.HALF_OPEN },
+			summary[CircuitState.HALF_OPEN]
+		);
+
+		const entries = await this._serviceCache.entries();
+		CACHE_ENTRY_COUNT.set(entries.length);
+	}
+}

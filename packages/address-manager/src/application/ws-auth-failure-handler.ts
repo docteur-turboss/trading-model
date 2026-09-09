@@ -1,0 +1,40 @@
+import { logger } from "@trading-model/common/config/logger";
+import { normalizeError } from "@trading-model/common/utils/errors";
+import type { AddressManagerClient } from "../adapters/outbound/client/address-manager-client";
+import type { WebSocketClient } from "../adapters/outbound/client/websocket-client";
+import { DiscoveryResult, REGISTRATION_TOTAL } from "../infrastructure/metrics";
+import type { TokenManager } from "./client/token-manager";
+
+export interface WsAuthFailureDeps {
+	addressManagerClient: AddressManagerClient;
+	tokenManager: TokenManager;
+	wsClient?: WebSocketClient;
+}
+
+export class WsAuthFailureHandler {
+	handle(deps: WsAuthFailureDeps): void {
+		logger.warn("WebSocket auth failure \u2014 forcing re-registration");
+		deps.addressManagerClient
+			.registerService()
+			.then((res) => this._handleRegistrationSuccess(res, deps))
+			.catch((err) => this._handleRegistrationError(err));
+	}
+
+	private _handleRegistrationSuccess(
+		res: { token?: string } | undefined,
+		deps: WsAuthFailureDeps
+	): void {
+		if (res?.token) {
+			deps.tokenManager.setToken(res.token);
+			deps.wsClient?.updateToken(res.token);
+			REGISTRATION_TOTAL.inc({ result: DiscoveryResult.Success });
+			logger.info("Re-registered after WS auth failure");
+		}
+	}
+
+	private _handleRegistrationError(err: unknown): void {
+		logger.error("Re-registration after WS auth failure failed", {
+			error: normalizeError(err),
+		});
+	}
+}

@@ -1,1 +1,1 @@
-export { default } from "./address-manager";
+export { default } from "./application/address-manager";
