@@ -3,11 +3,11 @@ import { describe, expect, it, jest } from "@jest/globals";
 const MOCK_INSERT = jest.fn();
 const MOCK_VALIDATE = jest.fn();
 
-jest.mock("../../src/dlq/repository", () => ({
+jest.mock("../../src/adapters/outbound/repository", () => ({
 	dlqRepository: { insert: MOCK_INSERT },
 }));
 
-jest.mock("../../src/dlq/dlq-validator", () => ({
+jest.mock("../../src/adapters/inbound/dlq-validator", () => ({
 	validateAddEntryBody: MOCK_VALIDATE,
 }));
 
@@ -17,15 +17,15 @@ jest.mock("../../src/config/metrics", () => ({
 	},
 }));
 
-jest.mock("../../src/dlq/dlq-redis-pusher", () => ({
+jest.mock("../../src/adapters/outbound/dlq-redis-pusher", () => ({
 	pushToRedisQueue: jest.fn(),
 }));
 
-jest.mock("../../src/dlq/audit-notifier", () => ({
+jest.mock("../../src/adapters/outbound/audit-notifier", () => ({
 	notifyAddAudit: jest.fn(),
 }));
 
-jest.mock("../../src/dlq/dlq-error-builder", () => ({
+jest.mock("../../src/shared/dlq-error-builder", () => ({
 	handleAddEntryError: jest.fn((err: unknown) => ({
 		data: { error: (err as Error).message },
 		status: 500,
@@ -49,7 +49,7 @@ describe("add-entry-pipeline", () => {
 		MOCK_INSERT.mockResolvedValue("entry-id-123");
 
 		const { addEntry } = jest.requireActual(
-			"../../src/dlq/add-entry-pipeline"
+			"../../src/application/services/add-entry-pipeline"
 		) as { addEntry: (req: { body: unknown }) => Promise<unknown> };
 
 		const result = await addEntry({ body: {} });
@@ -64,7 +64,7 @@ describe("add-entry-pipeline", () => {
 		});
 
 		const { addEntry } = jest.requireActual(
-			"../../src/dlq/add-entry-pipeline"
+			"../../src/application/services/add-entry-pipeline"
 		) as { addEntry: (req: { body: unknown }) => Promise<unknown> };
 
 		const result = await addEntry({ body: {} });
@@ -81,7 +81,7 @@ describe("add-entry-pipeline", () => {
 		MOCK_INSERT.mockRejectedValue(new Error("db error"));
 
 		const { addEntry } = jest.requireActual(
-			"../../src/dlq/add-entry-pipeline"
+			"../../src/application/services/add-entry-pipeline"
 		) as { addEntry: (req: { body: unknown }) => Promise<unknown> };
 
 		const result = await addEntry({ body: {} });

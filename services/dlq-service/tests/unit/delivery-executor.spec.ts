@@ -9,7 +9,7 @@ jest.mock("../../src/config/logger", () => ({
 	logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
 
-jest.mock("../../src/dlq/claim-manager", () => ({
+jest.mock("../../src/application/services/claim-manager", () => ({
 	dlqClaimManager: {},
 	claimReleaseManager: {
 		incrementRetryCount: MOCK_INCREMENT_RETRY,
@@ -17,7 +17,7 @@ jest.mock("../../src/dlq/claim-manager", () => ({
 	},
 }));
 
-jest.mock("../../src/dlq/retry-manager", () => ({
+jest.mock("../../src/adapters/outbound/retry-manager", () => ({
 	dlqRetryManager: {
 		markRetried: MOCK_MARK_RETRIED,
 	},
@@ -51,7 +51,9 @@ describe("delivery-executor", () => {
 
 	beforeEach(() => {
 		jest.clearAllMocks();
-		const mod = jest.requireActual("../../src/dlq/delivery-executor") as {
+		const mod = jest.requireActual(
+			"../../src/adapters/outbound/delivery-executor"
+		) as {
 			deliverEntry: typeof deliverEntry;
 		};
 		deliverEntry = mod.deliverEntry;

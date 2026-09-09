@@ -7,7 +7,7 @@ jest.mock("../../src/config/logger", () => ({
 	logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
 
-jest.mock("../../src/dlq/claim-manager", () => ({
+jest.mock("../../src/application/services/claim-manager", () => ({
 	dlqClaimManager: {},
 	claimReleaseManager: {
 		releaseAllActiveClaims: MOCK_RELEASE_ALL_ACTIVE,
@@ -28,7 +28,9 @@ describe("ReplayDrainService", () => {
 	};
 
 	beforeAll(() => {
-		const mod = jest.requireActual("../../src/dlq/replay-drain-service") as {
+		const mod = jest.requireActual(
+			"../../src/application/services/replay-drain-service"
+		) as {
 			ReplayDrainService: typeof ReplayDrainServiceClass;
 		};
 		ReplayDrainServiceClass = mod.ReplayDrainService;

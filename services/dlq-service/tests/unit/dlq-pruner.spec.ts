@@ -2,7 +2,7 @@ import { describe, expect, it, jest } from "@jest/globals";
 
 const MOCK_PRUNE = jest.fn();
 
-jest.mock("../../src/config/env", () => ({
+jest.mock("../../src/infrastructure/config/env", () => ({
 	ENV: {
 		MAX_ENTRIES: 100,
 		DLQ_PRUNE_INTERVAL_MS: 60000,
@@ -20,7 +20,7 @@ jest.mock("../../src/config/metrics", () => ({
 	},
 }));
 
-jest.mock("../../src/dlq/repository", () => ({
+jest.mock("../../src/adapters/outbound/repository", () => ({
 	dlqRepository: {
 		prune: MOCK_PRUNE,
 	},
@@ -34,7 +34,7 @@ describe("DlqPruner", () => {
 	};
 
 	beforeAll(() => {
-		const mod = jest.requireActual("../../src/dlq/dlq-pruner") as {
+		const mod = jest.requireActual("../../src/infrastructure/dlq-pruner") as {
 			DlqPruner: typeof DlqPrunerClass;
 		};
 		DlqPrunerClass = mod.DlqPruner;

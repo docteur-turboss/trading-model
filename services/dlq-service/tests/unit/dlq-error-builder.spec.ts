@@ -1,7 +1,7 @@
 import { describe, expect, it, jest } from "@jest/globals";
 import { createAppError } from "@trading-model/common/utils/errors";
 
-jest.mock("../../src/config/env", () => ({
+jest.mock("../../src/infrastructure/config/env", () => ({
 	ENV: {
 		MONGO_URI: "mongodb://localhost:27017",
 		MONGO_DB: "test",
@@ -46,7 +46,7 @@ describe("dlq-error-builder", () => {
 	describe("validationFail", () => {
 		it("should return validation failure response", () => {
 			const { validationFail } = jest.requireActual(
-				"../../src/dlq/dlq-error-builder"
+				"../../src/shared/dlq-error-builder"
 			) as {
 				validationFail: (...args: unknown[]) => {
 					valid: false;
@@ -64,7 +64,7 @@ describe("dlq-error-builder", () => {
 
 		it("should include extra fields in response", () => {
 			const { validationFail } = jest.requireActual(
-				"../../src/dlq/dlq-error-builder"
+				"../../src/shared/dlq-error-builder"
 			) as {
 				validationFail: (...args: unknown[]) => {
 					valid: false;
@@ -87,7 +87,7 @@ describe("dlq-error-builder", () => {
 	describe("handleAddEntryError", () => {
 		it("should handle capacity error", () => {
 			const { handleAddEntryError } = jest.requireActual(
-				"../../src/dlq/dlq-error-builder"
+				"../../src/shared/dlq-error-builder"
 			) as {
 				handleAddEntryError: (
 					err: unknown,
@@ -105,7 +105,7 @@ describe("dlq-error-builder", () => {
 
 		it("should handle storage error", () => {
 			const { handleAddEntryError } = jest.requireActual(
-				"../../src/dlq/dlq-error-builder"
+				"../../src/shared/dlq-error-builder"
 			) as {
 				handleAddEntryError: (
 					err: unknown,

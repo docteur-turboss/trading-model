@@ -7,7 +7,7 @@ const MOCK_DO_REPLAY_BATCH = jest.fn();
 const MOCK_NOTIFY_AUDIT = jest.fn();
 const MOCK_IS_SHUTTING_DOWN = jest.fn();
 
-jest.mock("../../src/config/env", () => ({
+jest.mock("../../src/infrastructure/config/env", () => ({
 	ENV: {
 		DLQ_AUTO_RETRY_ENABLED: true,
 		DLQ_AUTO_RETRY_LIMIT: 50,
@@ -31,13 +31,13 @@ jest.mock("../../src/config/metrics", () => ({
 	},
 }));
 
-jest.mock("../../src/dlq/claim-manager", () => ({
+jest.mock("../../src/application/services/claim-manager", () => ({
 	dlqClaimManager: {
 		claimEntriesForRetry: MOCK_CLAIM_ENTRIES_FOR_RETRY,
 	},
 }));
 
-jest.mock("../../src/dlq/claim-manager", () => ({
+jest.mock("../../src/application/services/claim-manager", () => ({
 	dlqClaimManager: {
 		claimEntriesForRetry: MOCK_CLAIM_ENTRIES_FOR_RETRY,
 	},
@@ -46,13 +46,13 @@ jest.mock("../../src/dlq/claim-manager", () => ({
 	},
 }));
 
-jest.mock("../../src/dlq/retry-manager", () => ({
+jest.mock("../../src/adapters/outbound/retry-manager", () => ({
 	dlqRetryManager: {
 		abandonExhaustedEntries: MOCK_ABANDON_EXHAUSTED,
 	},
 }));
 
-jest.mock("../../src/dlq/replay-pipeline", () => ({
+jest.mock("../../src/shared/replay-pipeline", () => ({
 	doReplayBatch: MOCK_DO_REPLAY_BATCH,
 }));
 
@@ -82,13 +82,13 @@ describe("auto-retry-cycle", () => {
 	});
 
 	it("should autoRetryTick and skip when disabled", async () => {
-		const envMock = jest.requireMock("../../src/config/env") as {
+		const envMock = jest.requireMock("../../src/infrastructure/config/env") as {
 			ENV: { DLQ_AUTO_RETRY_ENABLED: boolean };
 		};
 		envMock.ENV.DLQ_AUTO_RETRY_ENABLED = false;
 
 		const { autoRetryTick } = jest.requireActual(
-			"../../src/dlq/auto-retry-cycle"
+			"../../src/application/services/auto-retry-cycle"
 		) as { autoRetryTick: () => Promise<void> };
 
 		await autoRetryTick();
@@ -100,7 +100,7 @@ describe("auto-retry-cycle", () => {
 		MOCK_IS_SHUTTING_DOWN.mockReturnValue(true);
 
 		const { autoRetryTick } = jest.requireActual(
-			"../../src/dlq/auto-retry-cycle"
+			"../../src/application/services/auto-retry-cycle"
 		) as { autoRetryTick: () => Promise<void> };
 
 		await autoRetryTick();
@@ -112,7 +112,7 @@ describe("auto-retry-cycle", () => {
 		getAddressManagerMock().FIND_A_SERVICE.mockResolvedValue(null);
 
 		const { autoRetryTick } = jest.requireActual(
-			"../../src/dlq/auto-retry-cycle"
+			"../../src/application/services/auto-retry-cycle"
 		) as { autoRetryTick: () => Promise<void> };
 
 		await autoRetryTick();
@@ -132,7 +132,7 @@ describe("auto-retry-cycle", () => {
 		MOCK_ABANDON_EXHAUSTED.mockResolvedValue(5);
 
 		const { autoRetryTick } = jest.requireActual(
-			"../../src/dlq/auto-retry-cycle"
+			"../../src/application/services/auto-retry-cycle"
 		) as { autoRetryTick: () => Promise<void> };
 
 		await autoRetryTick();
@@ -154,7 +154,7 @@ describe("auto-retry-cycle", () => {
 		});
 
 		const { autoRetryTick } = jest.requireActual(
-			"../../src/dlq/auto-retry-cycle"
+			"../../src/application/services/auto-retry-cycle"
 		) as { autoRetryTick: () => Promise<void> };
 
 		await autoRetryTick();
@@ -169,7 +169,7 @@ describe("auto-retry-cycle", () => {
 		MOCK_CLAIM_ENTRIES_FOR_RETRY.mockResolvedValue([]);
 
 		const { autoRetryTick } = jest.requireActual(
-			"../../src/dlq/auto-retry-cycle"
+			"../../src/application/services/auto-retry-cycle"
 		) as { autoRetryTick: () => Promise<void> };
 
 		await autoRetryTick();

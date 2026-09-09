@@ -7,7 +7,7 @@ const mockCount = jest.fn();
 const mockPrune = jest.fn();
 const mockQueryQueuable = jest.fn();
 
-jest.mock("../../src/dlq/repository", () => ({
+jest.mock("../../src/adapters/outbound/repository", () => ({
 	dlqRepository: {
 		insert: mockInsert,
 		query: mockQuery,
@@ -23,7 +23,7 @@ const mockReleaseStaleClaims = jest.fn();
 const mockClaimEntry = jest.fn();
 const mockIncrementRetryCount = jest.fn();
 
-jest.mock("../../src/dlq/claim-manager", () => ({
+jest.mock("../../src/application/services/claim-manager", () => ({
 	dlqClaimManager: {
 		claimEntriesForRetry: mockClaimEntriesForRetry,
 		releaseStaleClaims: mockReleaseStaleClaims,
@@ -35,14 +35,14 @@ jest.mock("../../src/dlq/claim-manager", () => ({
 	},
 }));
 
-jest.mock("../../src/dlq/retry-manager", () => ({
+jest.mock("../../src/adapters/outbound/retry-manager", () => ({
 	dlqRetryManager: {
 		markRetried: jest.fn(),
 		abandonExhaustedEntries: jest.fn(),
 	},
 }));
 
-jest.mock("../../src/config/env", () => ({
+jest.mock("../../src/infrastructure/config/env", () => ({
 	ENV: {
 		MAX_ENTRIES: 100,
 		MESSAGE_MANAGER_URL: "https://message-manager:3000",
@@ -141,7 +141,7 @@ describe("DLQ Controller", () => {
 	};
 
 	beforeAll(() => {
-		controller = jest.requireActual("../../src/dlq/controller");
+		controller = jest.requireActual("../../src/adapters/inbound/controller");
 	});
 
 	afterAll(() => {

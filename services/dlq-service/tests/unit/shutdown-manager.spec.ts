@@ -15,18 +15,18 @@ jest.mock("../../src/config/redis-queue", () => ({
 	dlqRedisQueue: { close: MOCK_CLOSE_REDIS_QUEUE },
 }));
 
-jest.mock("../../src/dlq/auto-retry-scheduler", () => ({
+jest.mock("../../src/infrastructure/auto-retry-scheduler", () => ({
 	stopAutoRetry: MOCK_STOP_AUTO_RETRY,
 }));
 
-jest.mock("../../src/dlq/claim-release-service", () => ({
+jest.mock("../../src/application/services/claim-release-service", () => ({
 	ClaimReleaseService: jest.fn(() => ({
 		releaseStale: MOCK_RELEASE_STALE,
 		releaseAndRequeue: MOCK_RELEASE_AND_REQUEUE,
 	})),
 }));
 
-jest.mock("../../src/dlq/dlq-pruner", () => ({
+jest.mock("../../src/infrastructure/dlq-pruner", () => ({
 	DlqPruner: jest.fn(() => ({
 		prune: MOCK_PRUNE,
 		start: MOCK_PRUNE_START,
@@ -34,7 +34,7 @@ jest.mock("../../src/dlq/dlq-pruner", () => ({
 	})),
 }));
 
-jest.mock("../../src/dlq/replay-drain-service", () => ({
+jest.mock("../../src/application/services/replay-drain-service", () => ({
 	ReplayDrainService: jest.fn(() => ({
 		drain: MOCK_DRAIN,
 	})),
@@ -56,7 +56,7 @@ describe("shutdown-manager", () => {
 	it("should prune old entries", async () => {
 		MOCK_PRUNE.mockResolvedValue(5);
 		const { pruneOldEntries } = jest.requireActual(
-			"../../src/dlq/shutdown-manager"
+			"../../src/application/shutdown-manager"
 		) as { pruneOldEntries: () => Promise<number> };
 		const result = await pruneOldEntries();
 		expect(result).toBe(5);
@@ -65,7 +65,7 @@ describe("shutdown-manager", () => {
 	it("should release stale claims", async () => {
 		MOCK_RELEASE_STALE.mockResolvedValue(undefined);
 		const { releaseStaleClaims } = jest.requireActual(
-			"../../src/dlq/shutdown-manager"
+			"../../src/application/shutdown-manager"
 		) as { releaseStaleClaims: (ms?: number) => Promise<void> };
 		await releaseStaleClaims(60000);
 		expect(MOCK_RELEASE_STALE).toHaveBeenCalledWith(60000);
@@ -78,7 +78,7 @@ describe("shutdown-manager", () => {
 		MOCK_RELEASE_AND_REQUEUE.mockResolvedValue(undefined);
 
 		const { shutdownSchedulers } = jest.requireActual(
-			"../../src/dlq/shutdown-manager"
+			"../../src/application/shutdown-manager"
 		) as { shutdownSchedulers: () => Promise<void> };
 		await shutdownSchedulers();
 
@@ -93,7 +93,7 @@ describe("shutdown-manager", () => {
 
 	it("should start and stop periodic prune", async () => {
 		const { startPeriodicPrune, stopPeriodicPrune } = jest.requireActual(
-			"../../src/dlq/shutdown-manager"
+			"../../src/application/shutdown-manager"
 		) as {
 			startPeriodicPrune: () => void;
 			stopPeriodicPrune: () => void;
@@ -112,7 +112,7 @@ describe("shutdown-manager", () => {
 		MOCK_RELEASE_AND_REQUEUE.mockResolvedValue(undefined);
 
 		const { shutdown } = jest.requireActual(
-			"../../src/dlq/shutdown-manager"
+			"../../src/application/shutdown-manager"
 		) as { shutdown: () => Promise<void> };
 		await shutdown();
 

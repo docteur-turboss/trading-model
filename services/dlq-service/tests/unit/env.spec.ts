@@ -49,21 +49,27 @@ describe("env", () => {
 		});
 
 		it("should return the env var value when set", () => {
-			const { resolveAuthHmacSecret } = require("../../src/config/env");
+			const {
+				resolveAuthHmacSecret,
+			} = require("../../src/infrastructure/config/env");
 			const secret = resolveAuthHmacSecret();
 			expect(secret).toBe("test-secret-16-chars");
 		});
 
 		it("should throw when no secret is available", () => {
 			delete process.env.DLQ_AUTH_HMAC_SECRET;
-			const { resolveAuthHmacSecret } = require("../../src/config/env");
+			const {
+				resolveAuthHmacSecret,
+			} = require("../../src/infrastructure/config/env");
 			expect(() => resolveAuthHmacSecret()).toThrow(
 				"DLQ_AUTH_HMAC_SECRET is required"
 			);
 		});
 
 		it("should cache the secret value", () => {
-			const { resolveAuthHmacSecret } = require("../../src/config/env");
+			const {
+				resolveAuthHmacSecret,
+			} = require("../../src/infrastructure/config/env");
 			const first = resolveAuthHmacSecret();
 			delete process.env.DLQ_AUTH_HMAC_SECRET;
 			const second = resolveAuthHmacSecret();
@@ -82,7 +88,9 @@ describe("env", () => {
 			delete process.env.DLQ_AUTH_HMAC_SECRET;
 			process.env.DLQ_AUTH_HMAC_SECRET_PATH = filePath;
 
-			const { resolveAuthHmacSecret } = require("../../src/config/env");
+			const {
+				resolveAuthHmacSecret,
+			} = require("../../src/infrastructure/config/env");
 			const secret = resolveAuthHmacSecret();
 			expect(secret).toBe("file-based-secret-16!!");
 			require("node:fs").unlinkSync(filePath);

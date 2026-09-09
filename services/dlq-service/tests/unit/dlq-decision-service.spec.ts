@@ -3,7 +3,7 @@ import {
 	PositiveInt,
 	toMessageId,
 } from "@trading-model/common/domain/primitives";
-import { DlqDecisionService } from "../../src/domain/dlq-decision-service";
+import { DlqDecisionService } from "../../src/domain/decision-service";
 
 describe("DlqDecisionService", () => {
 	const service = new DlqDecisionService();

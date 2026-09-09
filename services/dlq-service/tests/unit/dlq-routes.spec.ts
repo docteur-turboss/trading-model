@@ -41,7 +41,7 @@ jest.mock("../../src/config/db", () => ({
 	getMissingCriticalIndexes: () => [],
 }));
 
-jest.mock("../../src/dlq/repository", () => ({
+jest.mock("../../src/adapters/outbound/repository", () => ({
 	dlqRepository: {
 		insert: jest.fn(),
 		query: jest.fn(),
@@ -52,7 +52,7 @@ jest.mock("../../src/dlq/repository", () => ({
 	},
 }));
 
-jest.mock("../../src/dlq/claim-manager", () => ({
+jest.mock("../../src/application/services/claim-manager", () => ({
 	dlqClaimManager: {
 		claimEntriesForRetry: jest.fn(),
 		releaseStaleClaims: jest.fn(),
@@ -63,7 +63,7 @@ jest.mock("../../src/dlq/claim-manager", () => ({
 	},
 }));
 
-jest.mock("../../src/dlq/retry-manager", () => ({
+jest.mock("../../src/adapters/outbound/retry-manager", () => ({
 	dlqRetryManager: {
 		markRetried: jest.fn(),
 		abandonExhaustedEntries: jest.fn(),
@@ -75,7 +75,7 @@ jest.mock("../../src/config/address-manager", () => ({
 	AddressManager: { start: jest.fn() },
 }));
 
-jest.mock("../../src/config/env", () => ({
+jest.mock("../../src/infrastructure/config/env", () => ({
 	ENV: {
 		DLQ_AUTH_HMAC_SECRET: "test-secret-16-chars",
 		DLQ_ALLOWED_SERVICES: "message-manager,admin",
@@ -110,8 +110,10 @@ jest.mock("../../src/config/metrics", () => ({
 	},
 }));
 
-jest.mock("@trading-model/validation/validation/env", () => {
-	const actual = jest.requireActual("@trading-model/validation/validation/env");
+jest.mock("@trading-model/validation/infrastructure/validation/env", () => {
+	const actual = jest.requireActual(
+		"@trading-model/validation/infrastructure/validation/env"
+	);
 	return {
 		...actual,
 		validateEnv: (schema: unknown) => {
@@ -164,7 +166,7 @@ describe("DLQ Routes", () => {
 	let DlqRoutes: () => ReturnType<typeof import("express").Router>;
 
 	beforeAll(() => {
-		const routes = jest.requireActual("../../src/dlq/routes");
+		const routes = jest.requireActual("../../src/adapters/inbound/routes");
 		DlqRoutes = routes.DlqRoutes;
 	});
 

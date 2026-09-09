@@ -1,11 +1,8 @@
 import { describe, expect, it, jest } from "@jest/globals";
 
 const MOCK_GET_COLLECTION = jest.fn();
-const _MOCK_FIND = jest.fn();
-const _MOCK_TO_ARRAY = jest.fn();
-const _MOCK_BULK_WRITE = jest.fn();
 
-jest.mock("../../src/config/env", () => ({
+jest.mock("../../src/infrastructure/config/env", () => ({
 	ENV: {
 		MONGO_URI: "mongodb://localhost:27017/test",
 		MONGO_DB: "test",
@@ -21,10 +18,10 @@ jest.mock("../../src/config/db", () => ({
 	getCollection: MOCK_GET_COLLECTION,
 }));
 
-jest.mock("../../src/dlq/claim-filter-builder", () => ({
-	ClaimFilterBuilder: jest.fn(() => ({
+jest.mock("../../src/adapters/outbound/dlq-query-builder", () => ({
+	DlqQueryBuilder: jest.fn(() => ({
 		buildClaimFilter: jest.fn(() => ({ status: "pending" })),
-		buildAtomicCondition: jest.fn(() => ({ status: "pending" })),
+		buildQueuableQuery: jest.fn(() => ({ status: "pending" })),
 		buildBulkUpdateOps: jest.fn(() => []),
 		toValidObjectIds: jest.fn((ids: string[]) => ids.filter(Boolean)),
 	})),
@@ -34,7 +31,7 @@ const MOCK_FIND_CANDIDATES = jest.fn();
 const MOCK_EXECUTE_BULK_CLAIM = jest.fn();
 const MOCK_FETCH_CLAIMED = jest.fn();
 
-jest.mock("../../src/dlq/claim-query-executor", () => ({
+jest.mock("../../src/adapters/outbound/claim-query-executor", () => ({
 	ClaimQueryExecutor: jest.fn(() => ({
 		findClaimCandidates: MOCK_FIND_CANDIDATES,
 		executeBulkClaim: MOCK_EXECUTE_BULK_CLAIM,
@@ -53,7 +50,9 @@ describe("DlqClaimManager", () => {
 	};
 
 	beforeAll(() => {
-		const mod = jest.requireActual("../../src/dlq/claim-manager") as {
+		const mod = jest.requireActual(
+			"../../src/application/services/claim-manager"
+		) as {
 			DlqClaimManager: typeof DlqClaimManagerClass;
 		};
 		DlqClaimManagerClass = mod.DlqClaimManager;

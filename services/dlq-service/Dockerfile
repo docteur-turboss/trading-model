@@ -12,7 +12,7 @@ COPY packages/ packages/
 COPY services/dlq-service/ services/dlq-service/
 RUN npm ci
 RUN npm run build:common
-RUN npm run build:certificate-utils
+RUN npm run build:address-manager
 WORKDIR /app/services/dlq-service
 RUN npm run build
 
@@ -24,8 +24,8 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/services/dlq-service/package.json ./services/dlq-service/
 COPY --from=build /app/packages/common/package.json ./packages/common/
 COPY --from=build /app/packages/common/dist ./packages/common/dist
-COPY --from=build /app/packages/certificate-client/package.json ./packages/certificate-client/
-COPY --from=build /app/packages/certificate-client/dist ./packages/certificate-client/dist
+COPY --from=build /app/packages/address-manager/package.json ./packages/address-manager/
+COPY --from=build /app/packages/address-manager/dist ./packages/address-manager/dist
 COPY --from=build /app/services/dlq-service/dist ./services/dlq-service/dist
 EXPOSE 3000
 
@@ -33,7 +33,7 @@ RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 USER appuser
 
 HEALTHCHECK --interval=15s --timeout=5s --retries=3 \
-  CMD curl -sk --cert /certs/server.crt --key /certs/server-key.pem https://localhost:3000/health || exit 1
+  CMD curl -sk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem https://localhost:3000/health || exit 1
 
 ENTRYPOINT ["/sbin/tini", "--"]
-CMD ["node", "--max-old-space-size=192", "services/dlq-service/dist/app/index.js"]
+CMD ["node", "--max-old-space-size=192", "services/dlq-service/dist/infrastructure/app/index.js"]

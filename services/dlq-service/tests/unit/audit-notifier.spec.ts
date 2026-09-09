@@ -13,7 +13,7 @@ describe("audit-notifier", () => {
 	describe("notifyAddAudit", () => {
 		it("should notify audit on add with topic and reason", () => {
 			const { notifyAddAudit } = jest.requireActual(
-				"../../src/dlq/audit-notifier"
+				"../../src/adapters/outbound/audit-notifier"
 			) as {
 				notifyAddAudit: (
 					id: string,
@@ -33,7 +33,7 @@ describe("audit-notifier", () => {
 
 		it("should notify audit on add without topic and reason", () => {
 			const { notifyAddAudit } = jest.requireActual(
-				"../../src/dlq/audit-notifier"
+				"../../src/adapters/outbound/audit-notifier"
 			) as {
 				notifyAddAudit: (
 					id: string,
@@ -54,7 +54,7 @@ describe("audit-notifier", () => {
 	describe("notifyReplayAudit", () => {
 		it("should skip when success and failed are 0", () => {
 			const { notifyReplayAudit } = jest.requireActual(
-				"../../src/dlq/audit-notifier"
+				"../../src/adapters/outbound/audit-notifier"
 			) as {
 				notifyReplayAudit: (result: {
 					batchId: string;
@@ -70,7 +70,7 @@ describe("audit-notifier", () => {
 
 		it("should notify on success", () => {
 			const { notifyReplayAudit } = jest.requireActual(
-				"../../src/dlq/audit-notifier"
+				"../../src/adapters/outbound/audit-notifier"
 			) as {
 				notifyReplayAudit: (result: {
 					batchId: string;
@@ -90,7 +90,7 @@ describe("audit-notifier", () => {
 
 		it("should notify on failure", () => {
 			const { notifyReplayAudit } = jest.requireActual(
-				"../../src/dlq/audit-notifier"
+				"../../src/adapters/outbound/audit-notifier"
 			) as {
 				notifyReplayAudit: (result: {
 					batchId: string;
@@ -109,34 +109,10 @@ describe("audit-notifier", () => {
 		});
 	});
 
-	describe("notifyAbandonAudit", () => {
-		it("should skip when count is 0", () => {
-			const { notifyAbandonAudit } = jest.requireActual(
-				"../../src/dlq/audit-notifier"
-			) as { notifyAbandonAudit: (count: number) => void };
-			notifyAbandonAudit(0);
-
-			expect(MOCK_NOTIFY_AUDIT).not.toHaveBeenCalled();
-		});
-
-		it("should notify on abandon", () => {
-			const { notifyAbandonAudit } = jest.requireActual(
-				"../../src/dlq/audit-notifier"
-			) as { notifyAbandonAudit: (count: number) => void };
-			notifyAbandonAudit(5);
-
-			expect(MOCK_NOTIFY_AUDIT).toHaveBeenCalledWith(
-				expect.objectContaining({
-					summary: "5 DLQ entries abandoned after max retries",
-				})
-			);
-		});
-	});
-
 	describe("notifyDeleteAudit", () => {
 		it("should skip when deleted is 0", () => {
 			const { notifyDeleteAudit } = jest.requireActual(
-				"../../src/dlq/audit-notifier"
+				"../../src/adapters/outbound/audit-notifier"
 			) as { notifyDeleteAudit: (ids: string[], deleted: number) => void };
 			notifyDeleteAudit(["id1"], 0);
 
@@ -145,7 +121,7 @@ describe("audit-notifier", () => {
 
 		it("should notify on delete", () => {
 			const { notifyDeleteAudit } = jest.requireActual(
-				"../../src/dlq/audit-notifier"
+				"../../src/adapters/outbound/audit-notifier"
 			) as { notifyDeleteAudit: (ids: string[], deleted: number) => void };
 			notifyDeleteAudit(["id1", "id2"], 2);
 

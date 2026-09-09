@@ -42,13 +42,15 @@ describe("rate-limiter", () => {
 	});
 
 	it("should create rate limiters with env REDIS_URL set", () => {
-		jest.doMock("../../src/config/env", () => ({
+		jest.doMock("../../src/infrastructure/config/env", () => ({
 			ENV: {
 				REDIS_URL: "redis://localhost:6379",
 			},
 		}));
 
-		const rateLimiter = jest.requireActual("../../src/dlq/rate-limiter") as {
+		const rateLimiter = jest.requireActual(
+			"../../src/adapters/inbound/rate-limiter"
+		) as {
 			_createReplayLimiter: () => unknown;
 			_createWriteLimiter: () => unknown;
 			_createHealthLimiter: () => unknown;
@@ -65,7 +67,9 @@ describe("rate-limiter", () => {
 	});
 
 	it("should close redis client", async () => {
-		const rateLimiter = jest.requireActual("../../src/dlq/rate-limiter") as {
+		const rateLimiter = jest.requireActual(
+			"../../src/adapters/inbound/rate-limiter"
+		) as {
 			closeRedisClient: () => Promise<void>;
 		};
 
@@ -75,13 +79,15 @@ describe("rate-limiter", () => {
 	});
 
 	it("should handle close redis client quit error", async () => {
-		jest.doMock("../../src/config/env", () => ({
+		jest.doMock("../../src/infrastructure/config/env", () => ({
 			ENV: {
 				REDIS_URL: "redis://localhost:6379",
 			},
 		}));
 
-		const rateLimiter = jest.requireActual("../../src/dlq/rate-limiter") as {
+		const rateLimiter = jest.requireActual(
+			"../../src/adapters/inbound/rate-limiter"
+		) as {
 			_createReplayLimiter: () => unknown;
 			closeRedisClient: () => Promise<void>;
 		};
@@ -95,7 +101,9 @@ describe("rate-limiter", () => {
 	});
 
 	it("should close rate limiters", () => {
-		const rateLimiter = jest.requireActual("../../src/dlq/rate-limiter") as {
+		const rateLimiter = jest.requireActual(
+			"../../src/adapters/inbound/rate-limiter"
+		) as {
 			closeRateLimiters: () => void;
 		};
 
@@ -103,7 +111,7 @@ describe("rate-limiter", () => {
 	});
 
 	it("should handle connect failure gracefully", () => {
-		jest.doMock("../../src/config/env", () => ({
+		jest.doMock("../../src/infrastructure/config/env", () => ({
 			ENV: {
 				REDIS_URL: "redis://localhost:6379",
 			},
@@ -111,7 +119,9 @@ describe("rate-limiter", () => {
 
 		MOCK_CONNECT.mockRejectedValue(new Error("connect failed"));
 
-		const rateLimiter = jest.requireActual("../../src/dlq/rate-limiter") as {
+		const rateLimiter = jest.requireActual(
+			"../../src/adapters/inbound/rate-limiter"
+		) as {
 			_createReplayLimiter: () => unknown;
 		};
 

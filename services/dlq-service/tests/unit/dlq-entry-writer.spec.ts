@@ -10,19 +10,19 @@ jest.mock("../../src/config/db", () => ({
 	getCollection: MOCK_GET_COLLECTION,
 }));
 
-jest.mock("../../src/config/env", () => ({
+jest.mock("../../src/infrastructure/config/env", () => ({
 	ENV: {
 		MAX_ENTRIES: 100,
 	},
 }));
 
-jest.mock("../../src/dlq/entry-serializer", () => ({
+jest.mock("../../src/shared/entry-serializer", () => ({
 	EntrySerializer: jest.fn(() => ({
 		computeHash: MOCK_COMPUTE_HASH,
 	})),
 }));
 
-jest.mock("../../src/dlq/dedup-inserter", () => ({
+jest.mock("../../src/adapters/outbound/dedup-inserter", () => ({
 	DedupInserter: jest.fn(() => ({
 		insert: MOCK_INSERT,
 	})),
@@ -39,7 +39,7 @@ describe("dlq-entry-writer", () => {
 
 	it("should export dlqCapacityError", () => {
 		const { dlqCapacityError } = jest.requireActual(
-			"../../src/dlq/dlq-entry-writer"
+			"../../src/adapters/outbound/dlq-entry-writer"
 		) as { dlqCapacityError: (msg: string) => Error };
 		const err = dlqCapacityError("test error");
 		expect(err.message).toBe("test error");
@@ -61,7 +61,7 @@ describe("dlq-entry-writer", () => {
 		MOCK_INSERT.mockResolvedValue("inserted-id");
 
 		const { DlqEntryWriter } = jest.requireActual(
-			"../../src/dlq/dlq-entry-writer"
+			"../../src/adapters/outbound/dlq-entry-writer"
 		) as {
 			DlqEntryWriter: new () => {
 				insert: (entry: Record<string, unknown>) => Promise<string>;
@@ -87,7 +87,7 @@ describe("dlq-entry-writer", () => {
 		MOCK_ESTIMATED_DOC_COUNT.mockResolvedValue(100);
 
 		const { DlqEntryWriter } = jest.requireActual(
-			"../../src/dlq/dlq-entry-writer"
+			"../../src/adapters/outbound/dlq-entry-writer"
 		) as {
 			DlqEntryWriter: new () => {
 				insert: (entry: Record<string, unknown>) => Promise<string>;
@@ -120,7 +120,7 @@ describe("dlq-entry-writer", () => {
 		MOCK_INSERT.mockResolvedValue("inserted-id");
 
 		const { DlqEntryWriter } = jest.requireActual(
-			"../../src/dlq/dlq-entry-writer"
+			"../../src/adapters/outbound/dlq-entry-writer"
 		) as {
 			DlqEntryWriter: new () => {
 				insert: (entry: Record<string, unknown>) => Promise<string>;

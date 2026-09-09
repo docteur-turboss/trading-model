@@ -18,7 +18,7 @@ describe("dlq-redis-pusher", () => {
 		MOCK_PUSH.mockResolvedValue(true);
 
 		const { pushToRedisQueue } = jest.requireActual(
-			"../../src/dlq/dlq-redis-pusher"
+			"../../src/adapters/outbound/dlq-redis-pusher"
 		) as { pushToRedisQueue: (id: string) => Promise<void> };
 		await pushToRedisQueue("test-id-123");
 
@@ -29,7 +29,7 @@ describe("dlq-redis-pusher", () => {
 		MOCK_PUSH.mockRejectedValue(new Error("Redis unavailable"));
 
 		const { pushToRedisQueue } = jest.requireActual(
-			"../../src/dlq/dlq-redis-pusher"
+			"../../src/adapters/outbound/dlq-redis-pusher"
 		) as { pushToRedisQueue: (id: string) => Promise<void> };
 		await expect(pushToRedisQueue("test-id")).resolves.toBeUndefined();
 	});

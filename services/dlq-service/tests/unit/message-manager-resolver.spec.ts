@@ -7,7 +7,7 @@ jest.mock("../../src/config/address-manager", () => ({
 	FIND_A_SERVICE: MOCK_FIND_A_SERVICE,
 }));
 
-jest.mock("../../src/config/env", () => envMock);
+jest.mock("../../src/infrastructure/config/env", () => envMock);
 
 jest.mock("../../src/config/logger", () => ({
 	logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },

@@ -1,6 +1,6 @@
 import { describe, expect, it, jest } from "@jest/globals";
 
-jest.mock("../../src/config/env", () => ({
+jest.mock("../../src/infrastructure/config/env", () => ({
 	ENV: {
 		MONGO_URI: "mongodb://localhost:27017",
 		MONGO_DB: "test",

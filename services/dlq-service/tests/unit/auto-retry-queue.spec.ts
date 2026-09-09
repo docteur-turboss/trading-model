@@ -3,7 +3,7 @@ import { describe, expect, it, jest } from "@jest/globals";
 const MOCK_LIST_QUEUABLE = jest.fn();
 const MOCK_PUSH = jest.fn();
 
-jest.mock("../../src/dlq/repository", () => ({
+jest.mock("../../src/adapters/outbound/repository", () => ({
 	dlqRepository: { listQueuable: MOCK_LIST_QUEUABLE },
 }));
 
@@ -24,7 +24,7 @@ describe("auto-retry-queue", () => {
 		MOCK_LIST_QUEUABLE.mockResolvedValue(["id1", "id2"]);
 
 		const { rebuildQueueFromMongo } = jest.requireActual(
-			"../../src/dlq/auto-retry-queue"
+			"../../src/application/services/auto-retry-queue"
 		) as { rebuildQueueFromMongo: () => Promise<void> };
 		await rebuildQueueFromMongo();
 
@@ -38,7 +38,7 @@ describe("auto-retry-queue", () => {
 		MOCK_LIST_QUEUABLE.mockRejectedValue(new Error("DB error"));
 
 		const { rebuildQueueFromMongo } = jest.requireActual(
-			"../../src/dlq/auto-retry-queue"
+			"../../src/application/services/auto-retry-queue"
 		) as { rebuildQueueFromMongo: () => Promise<void> };
 		await expect(rebuildQueueFromMongo()).resolves.toBeUndefined();
 	});
@@ -47,7 +47,7 @@ describe("auto-retry-queue", () => {
 		MOCK_LIST_QUEUABLE.mockResolvedValue([]);
 
 		const { rebuildQueueFromMongo } = jest.requireActual(
-			"../../src/dlq/auto-retry-queue"
+			"../../src/application/services/auto-retry-queue"
 		) as { rebuildQueueFromMongo: () => Promise<void> };
 		await rebuildQueueFromMongo();
 

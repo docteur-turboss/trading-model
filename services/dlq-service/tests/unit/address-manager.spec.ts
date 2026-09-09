@@ -1,7 +1,7 @@
 import { describe, expect, it, jest } from "@jest/globals";
 
 jest.mock(
-	"@trading-model/address-manager/create-service-address-manager",
+	"@trading-model/address-manager/application/create-service-address-manager",
 	() => ({
 		createServiceAddressManager: () => ({
 			AddressManager: { start: jest.fn() },
@@ -10,7 +10,7 @@ jest.mock(
 	})
 );
 
-jest.mock("../../src/config/env", () => ({
+jest.mock("../../src/infrastructure/config/env", () => ({
 	ENV: {
 		ADDRESS_MANAGER_URL: "https://localhost:8443",
 		CACHE_TTL_MS: 84000000,

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "@jest/globals";
-import { DeleteSchema, DlqEntrySchema } from "../../src/dlq/dlq-schemas";
+import { DeleteSchema, DlqEntrySchema } from "../../src/shared/dlq-schemas";
 
 describe("dlq-schemas", () => {
 	describe("DlqEntrySchema", () => {

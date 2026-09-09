@@ -41,7 +41,7 @@ jest.mock("../../src/config/db", () => ({
 	getCollection: mockCollection,
 }));
 
-jest.mock("../../src/config/env", () => ({
+jest.mock("../../src/infrastructure/config/env", () => ({
 	ENV: {
 		DLQ_RETRY_MAX_ATTEMPTS: 3,
 		MAX_ENTRIES: 100,
@@ -70,7 +70,7 @@ describe("DlqRepository", () => {
 	};
 
 	beforeAll(() => {
-		const mod = jest.requireActual("../../src/dlq/repository");
+		const mod = jest.requireActual("../../src/adapters/outbound/repository");
 		DlqRepositoryClass = mod.DlqRepository;
 	});
 
@@ -331,7 +331,9 @@ describe("DlqClaimManager", () => {
 	};
 
 	beforeAll(() => {
-		const mod = jest.requireActual("../../src/dlq/claim-manager");
+		const mod = jest.requireActual(
+			"../../src/application/services/claim-manager"
+		);
 		DlqClaimManagerClass = mod.DlqClaimManager;
 	});
 
@@ -454,7 +456,7 @@ describe("DlqRetryManager", () => {
 	};
 
 	beforeAll(() => {
-		const mod = jest.requireActual("../../src/dlq/retry-manager");
+		const mod = jest.requireActual("../../src/adapters/outbound/retry-manager");
 		DlqRetryManagerClass = mod.DlqRetryManager;
 	});
 

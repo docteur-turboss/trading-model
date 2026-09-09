@@ -7,7 +7,7 @@ const MOCK_CLOSE_SUPER = jest.fn();
 const MOCK_CLEAR_STATE_SUPER = jest.fn();
 const MOCK_CREATE_COLLECTION_INDEXES = jest.fn();
 
-jest.mock("../../src/config/env", () => ({
+jest.mock("../../src/infrastructure/config/env", () => ({
 	ENV: {
 		MONGO_URI: "mongodb://localhost:27017/test",
 		MONGO_DB: "test_db",

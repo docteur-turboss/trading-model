@@ -5,7 +5,7 @@ const MOCK_UPDATE_MANY = jest.fn();
 const MOCK_UPDATE_ONE = jest.fn();
 const MOCK_FIND_ONE_AND_UPDATE = jest.fn();
 
-jest.mock("../../src/config/env", () => ({
+jest.mock("../../src/infrastructure/config/env", () => ({
 	ENV: {
 		MONGO_URI: "mongodb://localhost:27017/test",
 		MONGO_DB: "test",
@@ -32,7 +32,9 @@ describe("ClaimReleaseManager", () => {
 	};
 
 	beforeAll(() => {
-		const mod = jest.requireActual("../../src/dlq/claim-release-manager") as {
+		const mod = jest.requireActual(
+			"../../src/adapters/outbound/claim-release-manager"
+		) as {
 			ClaimReleaseManager: typeof ClaimReleaseManagerClass;
 		};
 		ClaimReleaseManagerClass = mod.ClaimReleaseManager;

@@ -5,7 +5,7 @@ const MOCK_IS_AVAILABLE = jest.fn();
 const MOCK_CONNECT = jest.fn();
 const MOCK_CLOSE = jest.fn();
 
-jest.mock("../../src/config/env", () => ({
+jest.mock("../../src/infrastructure/config/env", () => ({
 	ENV: {
 		REDIS_URL: "redis://localhost:6379",
 	},

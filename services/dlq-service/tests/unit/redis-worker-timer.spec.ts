@@ -20,7 +20,9 @@ describe("RedisWorkerTimer", () => {
 	};
 
 	beforeAll(() => {
-		const mod = jest.requireActual("../../src/dlq/redis-worker-timer") as {
+		const mod = jest.requireActual(
+			"../../src/infrastructure/redis-worker-timer"
+		) as {
 			RedisWorkerTimer: typeof RedisWorkerTimerClass;
 		};
 		RedisWorkerTimerClass = mod.RedisWorkerTimer;

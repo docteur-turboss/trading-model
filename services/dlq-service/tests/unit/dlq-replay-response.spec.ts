@@ -23,7 +23,7 @@ describe("dlq-replay-response", () => {
 	describe("buildReplayResponse", () => {
 		it("should build response with success count and errors", () => {
 			const { buildReplayResponse } = jest.requireActual(
-				"../../src/dlq/dlq-replay-response"
+				"../../src/application/services/dlq-replay-response"
 			) as {
 				buildReplayResponse: (
 					batchId: string,
@@ -45,7 +45,7 @@ describe("dlq-replay-response", () => {
 
 		it("should build response without errors when errors array is empty", () => {
 			const { buildReplayResponse } = jest.requireActual(
-				"../../src/dlq/dlq-replay-response"
+				"../../src/application/services/dlq-replay-response"
 			) as {
 				buildReplayResponse: (
 					batchId: string,
@@ -66,7 +66,7 @@ describe("dlq-replay-response", () => {
 
 		it("should emit metrics with both counts", () => {
 			const { buildReplayResponse } = jest.requireActual(
-				"../../src/dlq/dlq-replay-response"
+				"../../src/application/services/dlq-replay-response"
 			) as {
 				buildReplayResponse: (
 					batchId: string,
@@ -91,7 +91,7 @@ describe("dlq-replay-response", () => {
 
 		it("should not emit replay metrics when counts are zero", () => {
 			const { buildReplayResponse } = jest.requireActual(
-				"../../src/dlq/dlq-replay-response"
+				"../../src/application/services/dlq-replay-response"
 			) as {
 				buildReplayResponse: (
 					batchId: string,
@@ -118,7 +118,7 @@ describe("dlq-replay-response", () => {
 	describe("noEntriesResponse", () => {
 		it("should return empty response", () => {
 			const { noEntriesResponse } = jest.requireActual(
-				"../../src/dlq/dlq-replay-response"
+				"../../src/application/services/dlq-replay-response"
 			) as {
 				noEntriesResponse: () => {
 					response: { data: unknown; status: number };
@@ -132,53 +132,6 @@ describe("dlq-replay-response", () => {
 			expect(result.response.status).toBe(200);
 			expect(result.successCount).toBe(0);
 			expect(result.errors).toEqual([]);
-		});
-	});
-
-	describe("notifyReplayAudit", () => {
-		it("should notify audit with error severity when errors exist", () => {
-			const { notifyReplayAudit } = jest.requireActual(
-				"../../src/dlq/dlq-replay-response"
-			) as {
-				notifyReplayAudit: (
-					batchId: string,
-					topic: string | undefined,
-					successCount: number,
-					errorsCount: number
-				) => void;
-			};
-			const auditMock = jest.requireMock("../../src/config/audit") as {
-				notifyAudit: jest.Mock;
-			};
-
-			notifyReplayAudit("batch-5", "test-topic", 3, 1);
-
-			expect(auditMock.notifyAudit).toHaveBeenCalled();
-			const call = auditMock.notifyAudit.mock.calls[0][0];
-			expect(call.severity).toBe("ERROR");
-			expect(call.summary).toContain("3 succeeded, 1 failed");
-		});
-
-		it("should notify audit with info severity when no errors", () => {
-			const { notifyReplayAudit } = jest.requireActual(
-				"../../src/dlq/dlq-replay-response"
-			) as {
-				notifyReplayAudit: (
-					batchId: string,
-					topic: string | undefined,
-					successCount: number,
-					errorsCount: number
-				) => void;
-			};
-			const auditMock = jest.requireMock("../../src/config/audit") as {
-				notifyAudit: jest.Mock;
-			};
-
-			notifyReplayAudit("batch-6", undefined, 5, 0);
-
-			expect(auditMock.notifyAudit).toHaveBeenCalled();
-			const call = auditMock.notifyAudit.mock.calls[0][0];
-			expect(call.severity).toBe("INFO");
 		});
 	});
 });

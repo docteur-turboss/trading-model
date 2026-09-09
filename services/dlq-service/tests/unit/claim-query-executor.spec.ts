@@ -24,7 +24,9 @@ describe("ClaimQueryExecutor", () => {
 	};
 
 	beforeAll(() => {
-		const mod = jest.requireActual("../../src/dlq/claim-query-executor") as {
+		const mod = jest.requireActual(
+			"../../src/adapters/outbound/claim-query-executor"
+		) as {
 			ClaimQueryExecutor: typeof ClaimQueryExecutorClass;
 		};
 		ClaimQueryExecutorClass = mod.ClaimQueryExecutor;

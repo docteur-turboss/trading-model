@@ -12,6 +12,10 @@ jest.mock("prom-client", () => {
 	}));
 	return {
 		Registry: MockRegistry,
+		register: {
+			contentType: "text/plain",
+			metrics: jest.fn(() => Promise.resolve("metrics data")),
+		},
 		collectDefaultMetrics: jest.fn(),
 		Counter: jest.fn(() => ({ ...mockMetric, inc: jest.fn() })),
 		Histogram: jest.fn(() => ({ ...mockMetric, observe: jest.fn() })),
@@ -40,10 +44,14 @@ describe("metrics", () => {
 	it("metricsHandler should respond with metrics data", async () => {
 		const { metricsHandler } = require("../../src/config/metrics");
 		const res = {
-			setHeader: jest.fn(),
-			status: jest.fn(() => ({ end: jest.fn() })),
+			set: jest.fn(),
+			send: jest.fn(),
 		};
-		await metricsHandler(null, res);
-		expect(res.setHeader).toHaveBeenCalledWith("Content-Type", "text/plain");
+		metricsHandler(null, res);
+		expect(res.set).toHaveBeenCalledWith("Content-Type", "text/plain");
+
+		await new Promise((r) => setImmediate(r));
+
+		expect(res.send).toHaveBeenCalledWith("metrics data");
 	});
 });

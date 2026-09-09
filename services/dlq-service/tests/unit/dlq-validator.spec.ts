@@ -1,6 +1,6 @@
 import { describe, expect, it, jest } from "@jest/globals";
 
-jest.mock("../../src/config/env", () => ({
+jest.mock("../../src/infrastructure/config/env", () => ({
 	ENV: {
 		MONGO_URI: "mongodb://localhost:27017",
 		MONGO_DB: "test",
@@ -43,7 +43,7 @@ describe("dlq-validator", () => {
 
 	it("should validate a correct entry body", () => {
 		const { validateAddEntryBody } = jest.requireActual(
-			"../../src/dlq/dlq-validator"
+			"../../src/adapters/inbound/dlq-validator"
 		) as {
 			validateAddEntryBody: (...args: unknown[]) => {
 				valid: boolean;
@@ -68,7 +68,7 @@ describe("dlq-validator", () => {
 
 	it("should reject an invalid entry body (missing deliveryAttempt)", () => {
 		const { validateAddEntryBody } = jest.requireActual(
-			"../../src/dlq/dlq-validator"
+			"../../src/adapters/inbound/dlq-validator"
 		) as {
 			validateAddEntryBody: (...args: unknown[]) => {
 				valid: boolean;
@@ -90,7 +90,7 @@ describe("dlq-validator", () => {
 
 	it("should reject message exceeding 5MB", () => {
 		const { validateAddEntryBody } = jest.requireActual(
-			"../../src/dlq/dlq-validator"
+			"../../src/adapters/inbound/dlq-validator"
 		) as {
 			validateAddEntryBody: (...args: unknown[]) => {
 				valid: boolean;
@@ -115,7 +115,7 @@ describe("dlq-validator", () => {
 	it("should return 503 when db is not connected", () => {
 		mockIsDbConnected.mockReturnValue(false);
 		const { validateAddEntryBody } = jest.requireActual(
-			"../../src/dlq/dlq-validator"
+			"../../src/adapters/inbound/dlq-validator"
 		) as {
 			validateAddEntryBody: (...args: unknown[]) => {
 				valid: boolean;

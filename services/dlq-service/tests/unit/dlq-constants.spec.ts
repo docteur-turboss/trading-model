@@ -2,7 +2,7 @@ import { describe, expect, it } from "@jest/globals";
 
 describe("dlq-constants", () => {
 	it("should export DLQ_MAX_CONSECUTIVE_ERRORS as 3", () => {
-		const mod = jest.requireActual("../../src/dlq/dlq-constants") as Record<
+		const mod = jest.requireActual("../../src/domain/dlq-constants") as Record<
 			string,
 			unknown
 		>;
@@ -10,7 +10,7 @@ describe("dlq-constants", () => {
 	});
 
 	it("should export DLQ_MAX_PASS_COUNT as 3", () => {
-		const mod = jest.requireActual("../../src/dlq/dlq-constants") as Record<
+		const mod = jest.requireActual("../../src/domain/dlq-constants") as Record<
 			string,
 			unknown
 		>;
@@ -18,7 +18,7 @@ describe("dlq-constants", () => {
 	});
 
 	it("should export CLAIM_PROJECTION with expected fields", () => {
-		const mod = jest.requireActual("../../src/dlq/dlq-constants") as Record<
+		const mod = jest.requireActual("../../src/domain/dlq-constants") as Record<
 			string,
 			unknown
 		>;

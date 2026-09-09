@@ -1,6 +1,6 @@
 import { describe, expect, it, jest } from "@jest/globals";
 
-jest.mock("../../src/config/env", () => ({
+jest.mock("../../src/infrastructure/config/env", () => ({
 	ENV: {
 		MONGO_URI: "mongodb://localhost:27017",
 		MONGO_DB: "test",
@@ -36,35 +36,31 @@ jest.mock("../../src/config/redis-queue", () => ({
 
 describe("entry-validation barrel", () => {
 	it("should re-export handleAddEntryError", () => {
-		const mod = jest.requireActual("../../src/dlq/entry-validation") as Record<
-			string,
-			unknown
-		>;
+		const mod = jest.requireActual(
+			"../../src/shared/entry-validation"
+		) as Record<string, unknown>;
 		expect(typeof mod.handleAddEntryError).toBe("function");
 	});
 
 	it("should re-export pushToRedisQueue", () => {
-		const mod = jest.requireActual("../../src/dlq/entry-validation") as Record<
-			string,
-			unknown
-		>;
+		const mod = jest.requireActual(
+			"../../src/shared/entry-validation"
+		) as Record<string, unknown>;
 		expect(typeof mod.pushToRedisQueue).toBe("function");
 	});
 
 	it("should re-export DeleteSchema and DlqEntrySchema", () => {
-		const mod = jest.requireActual("../../src/dlq/entry-validation") as Record<
-			string,
-			unknown
-		>;
+		const mod = jest.requireActual(
+			"../../src/shared/entry-validation"
+		) as Record<string, unknown>;
 		expect(mod.DeleteSchema).toBeDefined();
 		expect(mod.DlqEntrySchema).toBeDefined();
 	});
 
 	it("should re-export validateAddEntryBody", () => {
-		const mod = jest.requireActual("../../src/dlq/entry-validation") as Record<
-			string,
-			unknown
-		>;
+		const mod = jest.requireActual(
+			"../../src/shared/entry-validation"
+		) as Record<string, unknown>;
 		expect(typeof mod.validateAddEntryBody).toBe("function");
 	});
 });

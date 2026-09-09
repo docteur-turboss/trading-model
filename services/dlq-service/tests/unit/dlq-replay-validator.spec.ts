@@ -20,7 +20,7 @@ describe("dlq-replay-validator", () => {
 
 	it("should validate a valid query with all fields", () => {
 		const { validateReplayQuery } = jest.requireActual(
-			"../../src/dlq/dlq-replay-validator"
+			"../../src/adapters/inbound/dlq-replay-validator"
 		) as {
 			validateReplayQuery: (
 				query: unknown,
@@ -43,7 +43,7 @@ describe("dlq-replay-validator", () => {
 
 	it("should validate a query with default limit", () => {
 		const { validateReplayQuery } = jest.requireActual(
-			"../../src/dlq/dlq-replay-validator"
+			"../../src/adapters/inbound/dlq-replay-validator"
 		) as {
 			validateReplayQuery: (
 				query: unknown,
@@ -61,7 +61,7 @@ describe("dlq-replay-validator", () => {
 
 	it("should use 'all' as topic when topic is not provided", () => {
 		const { validateReplayQuery } = jest.requireActual(
-			"../../src/dlq/dlq-replay-validator"
+			"../../src/adapters/inbound/dlq-replay-validator"
 		) as {
 			validateReplayQuery: (
 				query: unknown,
@@ -76,7 +76,7 @@ describe("dlq-replay-validator", () => {
 
 	it("should return validation error for invalid query", () => {
 		const { validateReplayQuery } = jest.requireActual(
-			"../../src/dlq/dlq-replay-validator"
+			"../../src/adapters/inbound/dlq-replay-validator"
 		) as {
 			validateReplayQuery: (
 				query: unknown,
@@ -96,7 +96,7 @@ describe("dlq-replay-validator", () => {
 
 	it("should return validation error for non-numeric limit", () => {
 		const { validateReplayQuery } = jest.requireActual(
-			"../../src/dlq/dlq-replay-validator"
+			"../../src/adapters/inbound/dlq-replay-validator"
 		) as {
 			validateReplayQuery: (
 				query: unknown,
@@ -111,7 +111,7 @@ describe("dlq-replay-validator", () => {
 
 	it("should return validation error for limit exceeding max", () => {
 		const { validateReplayQuery } = jest.requireActual(
-			"../../src/dlq/dlq-replay-validator"
+			"../../src/adapters/inbound/dlq-replay-validator"
 		) as {
 			validateReplayQuery: (
 				query: unknown,

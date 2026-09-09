@@ -5,7 +5,7 @@ const MOCK_START_REDIS_WORKER = jest.fn();
 const MOCK_STOP_REDIS_WORKER = jest.fn();
 const MOCK_IS_SHUTTING_DOWN = jest.fn();
 
-jest.mock("../../src/config/env", () => ({
+jest.mock("../../src/infrastructure/config/env", () => ({
 	ENV: {
 		DLQ_AUTO_RETRY_ENABLED: true,
 		DLQ_AUTO_RETRY_INTERVAL_MS: 30000,
@@ -16,11 +16,11 @@ jest.mock("../../src/config/logger", () => ({
 	logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
 
-jest.mock("../../src/dlq/auto-retry", () => ({
+jest.mock("../../src/shared/auto-retry", () => ({
 	autoRetryTick: MOCK_AUTO_RETRY_TICK,
 }));
 
-jest.mock("../../src/dlq/redis-queue-processor", () => ({
+jest.mock("../../src/application/services/redis-queue-processor", () => ({
 	startRedisWorkerLoop: MOCK_START_REDIS_WORKER,
 	stopRedisWorkerTimer: MOCK_STOP_REDIS_WORKER,
 }));
@@ -44,7 +44,7 @@ describe("auto-retry-scheduler", () => {
 		MOCK_AUTO_RETRY_TICK.mockResolvedValue(undefined);
 
 		const { startAutoRetry } = jest.requireActual(
-			"../../src/dlq/auto-retry-scheduler"
+			"../../src/infrastructure/auto-retry-scheduler"
 		) as { startAutoRetry: () => void; stopAutoRetry: () => void };
 
 		startAutoRetry();
@@ -53,13 +53,13 @@ describe("auto-retry-scheduler", () => {
 	});
 
 	it("should not start auto retry when disabled", () => {
-		const envMock = jest.requireMock("../../src/config/env") as {
+		const envMock = jest.requireMock("../../src/infrastructure/config/env") as {
 			ENV: { DLQ_AUTO_RETRY_ENABLED: boolean };
 		};
 		envMock.ENV.DLQ_AUTO_RETRY_ENABLED = false;
 
 		const { startAutoRetry } = jest.requireActual(
-			"../../src/dlq/auto-retry-scheduler"
+			"../../src/infrastructure/auto-retry-scheduler"
 		) as { startAutoRetry: () => void };
 
 		startAutoRetry();
@@ -69,7 +69,7 @@ describe("auto-retry-scheduler", () => {
 
 	it("should stop auto retry", () => {
 		const { stopAutoRetry } = jest.requireActual(
-			"../../src/dlq/auto-retry-scheduler"
+			"../../src/infrastructure/auto-retry-scheduler"
 		) as { stopAutoRetry: () => void };
 
 		stopAutoRetry();
@@ -85,7 +85,7 @@ describe("auto-retry-scheduler", () => {
 		};
 
 		const { stopAutoRetry } = jest.requireActual(
-			"../../src/dlq/auto-retry-scheduler"
+			"../../src/infrastructure/auto-retry-scheduler"
 		) as { stopAutoRetry: () => void };
 
 		stopAutoRetry();

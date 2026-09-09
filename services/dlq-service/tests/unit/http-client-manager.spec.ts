@@ -15,7 +15,7 @@ jest.mock("@trading-model/common/domain/tls-paths", () => {
 	return { buildTlsFromEnv: mockBuildTlsFromEnv };
 });
 
-jest.mock("../../src/config/env", () => ({
+jest.mock("../../src/infrastructure/config/env", () => ({
 	ENV: {
 		TLS_CA_PATH: "/tmp/ca.pem",
 		TLS_CERT_PATH: "/tmp/cert.pem",

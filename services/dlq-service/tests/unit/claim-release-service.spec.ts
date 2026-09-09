@@ -6,7 +6,7 @@ const MOCK_LIST_QUEUABLE = jest.fn();
 const MOCK_PUSH = jest.fn();
 const MOCK_IS_AVAILABLE = jest.fn();
 
-jest.mock("../../src/dlq/claim-manager", () => ({
+jest.mock("../../src/application/services/claim-manager", () => ({
 	dlqClaimManager: {},
 	claimReleaseManager: {
 		releaseClaimsByInstance: MOCK_RELEASE_CLAIMS,
@@ -14,7 +14,7 @@ jest.mock("../../src/dlq/claim-manager", () => ({
 	},
 }));
 
-jest.mock("../../src/dlq/repository", () => ({
+jest.mock("../../src/adapters/outbound/repository", () => ({
 	dlqRepository: { listQueuable: MOCK_LIST_QUEUABLE },
 }));
 
@@ -22,7 +22,7 @@ jest.mock("../../src/config/redis-queue", () => ({
 	dlqRedisQueue: { push: MOCK_PUSH, isAvailable: MOCK_IS_AVAILABLE },
 }));
 
-jest.mock("../../src/config/env", () => ({
+jest.mock("../../src/infrastructure/config/env", () => ({
 	ENV: {
 		INSTANCE_ID: "test-instance",
 		MONGO_URI: "mongodb://localhost:27017",
@@ -60,7 +60,7 @@ describe("ClaimReleaseService", () => {
 			MOCK_PUSH.mockResolvedValue(true);
 
 			const { ClaimReleaseService } = jest.requireActual(
-				"../../src/dlq/claim-release-service"
+				"../../src/application/services/claim-release-service"
 			) as {
 				ClaimReleaseService: new () => {
 					releaseAndRequeue: () => Promise<void>;
@@ -81,7 +81,7 @@ describe("ClaimReleaseService", () => {
 			MOCK_IS_AVAILABLE.mockReturnValue(false);
 
 			const { ClaimReleaseService } = jest.requireActual(
-				"../../src/dlq/claim-release-service"
+				"../../src/application/services/claim-release-service"
 			) as {
 				ClaimReleaseService: new () => {
 					releaseAndRequeue: () => Promise<void>;
@@ -98,7 +98,7 @@ describe("ClaimReleaseService", () => {
 			MOCK_RELEASE_CLAIMS.mockResolvedValue(0);
 
 			const { ClaimReleaseService } = jest.requireActual(
-				"../../src/dlq/claim-release-service"
+				"../../src/application/services/claim-release-service"
 			) as {
 				ClaimReleaseService: new () => {
 					releaseAndRequeue: () => Promise<void>;
@@ -117,7 +117,7 @@ describe("ClaimReleaseService", () => {
 			MOCK_RELEASE_STALE.mockResolvedValue(3);
 
 			const { ClaimReleaseService } = jest.requireActual(
-				"../../src/dlq/claim-release-service"
+				"../../src/application/services/claim-release-service"
 			) as {
 				ClaimReleaseService: new () => {
 					releaseAndRequeue: () => Promise<void>;
@@ -134,7 +134,7 @@ describe("ClaimReleaseService", () => {
 			MOCK_RELEASE_STALE.mockResolvedValue(0);
 
 			const { ClaimReleaseService } = jest.requireActual(
-				"../../src/dlq/claim-release-service"
+				"../../src/application/services/claim-release-service"
 			) as {
 				ClaimReleaseService: new () => {
 					releaseAndRequeue: () => Promise<void>;

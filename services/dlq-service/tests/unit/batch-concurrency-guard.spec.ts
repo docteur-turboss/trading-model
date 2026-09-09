@@ -30,7 +30,7 @@ describe("batch-concurrency-guard", () => {
 
 	it("should return null when batches are within limit and circuit is closed", () => {
 		const { checkBatchRejection } = jest.requireActual(
-			"../../src/dlq/batch-concurrency-guard"
+			"../../src/infrastructure/batch-concurrency-guard"
 		) as {
 			checkBatchRejection: (
 				entries: { id: string }[],
@@ -45,7 +45,7 @@ describe("batch-concurrency-guard", () => {
 
 	it("should reject when too many concurrent batches", () => {
 		const { checkBatchRejection, incrementActiveBatches } = jest.requireActual(
-			"../../src/dlq/batch-concurrency-guard"
+			"../../src/infrastructure/batch-concurrency-guard"
 		) as {
 			checkBatchRejection: (
 				entries: { id: string }[],
@@ -68,7 +68,7 @@ describe("batch-concurrency-guard", () => {
 		mockCircuitOpen = true;
 
 		const { checkBatchRejection } = jest.requireActual(
-			"../../src/dlq/batch-concurrency-guard"
+			"../../src/infrastructure/batch-concurrency-guard"
 		) as {
 			checkBatchRejection: (
 				entries: { id: string }[],
@@ -88,7 +88,7 @@ describe("batch-concurrency-guard", () => {
 		mockCircuitOpen = true;
 
 		const { checkBatchRejection } = jest.requireActual(
-			"../../src/dlq/batch-concurrency-guard"
+			"../../src/infrastructure/batch-concurrency-guard"
 		) as {
 			checkBatchRejection: (
 				entries: { id: string }[],
@@ -106,7 +106,9 @@ describe("batch-concurrency-guard", () => {
 			incrementActiveBatches,
 			decrementActiveBatches,
 			checkBatchRejection,
-		} = jest.requireActual("../../src/dlq/batch-concurrency-guard") as {
+		} = jest.requireActual(
+			"../../src/infrastructure/batch-concurrency-guard"
+		) as {
 			checkBatchRejection: (
 				entries: { id: string }[],
 				batchId: string
@@ -127,7 +129,7 @@ describe("batch-concurrency-guard", () => {
 
 	it("should record success on recordBatchResult with success > 0", () => {
 		const { recordBatchResult } = jest.requireActual(
-			"../../src/dlq/batch-concurrency-guard"
+			"../../src/infrastructure/batch-concurrency-guard"
 		) as {
 			recordBatchResult: (success: number) => void;
 		};
@@ -139,7 +141,7 @@ describe("batch-concurrency-guard", () => {
 
 	it("should record failure on recordBatchResult with success = 0", () => {
 		const { recordBatchResult } = jest.requireActual(
-			"../../src/dlq/batch-concurrency-guard"
+			"../../src/infrastructure/batch-concurrency-guard"
 		) as {
 			recordBatchResult: (success: number) => void;
 		};

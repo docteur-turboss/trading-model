@@ -10,13 +10,13 @@ jest.mock("../../src/config/db", () => ({
 	getCollection: MOCK_GET_COLLECTION,
 }));
 
-jest.mock("../../src/config/env", () => ({
+jest.mock("../../src/infrastructure/config/env", () => ({
 	ENV: {
 		DLQ_AUTO_RETRY_LIMIT: 50,
 	},
 }));
 
-jest.mock("../../src/dlq/dlq-query-builder", () => ({
+jest.mock("../../src/adapters/outbound/dlq-query-builder", () => ({
 	DlqQueryBuilder: jest.fn(() => ({
 		buildQueuableQuery: MOCK_BUILD_QUEUABLE_QUERY,
 		buildActiveClaimQuery: MOCK_BUILD_ACTIVE_CLAIM_QUERY,
@@ -30,7 +30,9 @@ describe("DlqQueueRepository", () => {
 	};
 
 	beforeAll(() => {
-		const mod = jest.requireActual("../../src/dlq/dlq-queue-repository") as {
+		const mod = jest.requireActual(
+			"../../src/adapters/outbound/dlq-queue-repository"
+		) as {
 			DlqQueueRepository: typeof DlqQueueRepositoryClass;
 		};
 		DlqQueueRepositoryClass = mod.DlqQueueRepository;

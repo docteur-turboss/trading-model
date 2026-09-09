@@ -14,7 +14,7 @@ const MOCK_RELEASE_CLAIM_WITHOUT_COUNT = jest.fn();
 const MOCK_RELEASE_ALL_CLAIMS = jest.fn();
 const MOCK_RELEASE_CLAIMS_BY_INSTANCE = jest.fn();
 
-jest.mock("../../src/dlq/repository", () => ({
+jest.mock("../../src/adapters/outbound/repository", () => ({
 	dlqRepository: {
 		insert: MOCK_INSERT,
 		query: MOCK_QUERY,
@@ -25,7 +25,7 @@ jest.mock("../../src/dlq/repository", () => ({
 	},
 }));
 
-jest.mock("../../src/dlq/claim-manager", () => ({
+jest.mock("../../src/application/services/claim-manager", () => ({
 	dlqClaimManager: {
 		claimEntriesForRetry: MOCK_CLAIM_ENTRIES_FOR_RETRY,
 	},
@@ -37,14 +37,14 @@ jest.mock("../../src/dlq/claim-manager", () => ({
 	},
 }));
 
-jest.mock("../../src/dlq/retry-manager", () => ({
+jest.mock("../../src/adapters/outbound/retry-manager", () => ({
 	dlqRetryManager: {
 		markRetried: MOCK_MARK_RETRIED,
 		abandonExhaustedEntries: MOCK_ABANDON_EXHAUSTED,
 	},
 }));
 
-jest.mock("../../src/config/env", () => ({
+jest.mock("../../src/infrastructure/config/env", () => ({
 	ENV: {
 		MAX_ENTRIES: 100,
 		MESSAGE_MANAGER_URL: "https://message-manager:3000",
@@ -123,7 +123,7 @@ describe("Controller - Auto Retry", () => {
 
 	beforeAll(() => {
 		controller = jest.requireActual(
-			"../../src/dlq/controller-reexports"
+			"../../src/shared/controller-reexports"
 		) as Record<string, unknown>;
 	});
 

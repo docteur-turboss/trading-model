@@ -11,7 +11,7 @@ jest.mock("@trading-model/common/persistence/redis-connection-manager", () => ({
 	createRedisClient: MOCK_CREATE_REDIS_CLIENT,
 }));
 
-jest.mock("../../src/config/env", () => ({
+jest.mock("../../src/infrastructure/config/env", () => ({
 	ENV: {
 		REDIS_URL: "redis://localhost:6379",
 	},
@@ -98,7 +98,7 @@ describe("RedisConnection", () => {
 	});
 
 	it("should return false when REDIS_URL is not set", async () => {
-		const envMock = jest.requireMock("../../src/config/env") as {
+		const envMock = jest.requireMock("../../src/infrastructure/config/env") as {
 			ENV: { REDIS_URL: string };
 		};
 		envMock.ENV.REDIS_URL = "";
