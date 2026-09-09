@@ -4,6 +4,7 @@ import type {
 	CorrelationId,
 	ServiceId,
 } from "@trading-model/common/domain/primitives";
+import { buildDateRangeFilter } from "./date-range-filter";
 
 type MongoDoc = Record<string, unknown>;
 
@@ -26,14 +27,7 @@ export function buildLogQueryFilter(params: LogQuery): MongoDoc {
 		filter.correlationId = params.correlationId;
 	}
 	if (params.dateRange) {
-		const rangeFilter: Record<string, Date | undefined> = {};
-		if (params.dateRange.start) {
-			rangeFilter.$gte = params.dateRange.start;
-		}
-		if (params.dateRange.end) {
-			rangeFilter.$lte = params.dateRange.end;
-		}
-		filter.receivedAt = rangeFilter;
+		filter.receivedAt = buildDateRangeFilter(params.dateRange);
 	}
 	if (params.search) {
 		filter.message = { $regex: params.search, $options: "i" };

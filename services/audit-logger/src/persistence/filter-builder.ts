@@ -3,7 +3,8 @@ import {
 	type AuditEventDocument,
 	type AuditEventQuery,
 	METADATA_FIELDS,
-} from "./audit-repository";
+} from "../adapters/outbound/persistence/audit-repository";
+import { buildDateRangeFilter } from "./date-range-filter";
 
 export function buildAuditEventFilter(
 	query: AuditEventQuery
@@ -20,14 +21,7 @@ export function buildAuditEventFilter(
 		filter[METADATA_FIELDS.correlationId] = query.correlationId;
 	}
 	if (query.dateRange) {
-		const rangeFilter: Record<string, Date | undefined> = {};
-		if (query.dateRange.start) {
-			rangeFilter.$gte = query.dateRange.start;
-		}
-		if (query.dateRange.end) {
-			rangeFilter.$lte = query.dateRange.end;
-		}
-		filter.receivedAt = rangeFilter;
+		filter.receivedAt = buildDateRangeFilter(query.dateRange);
 	}
 
 	return filter;

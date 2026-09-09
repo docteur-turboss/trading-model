@@ -1,4 +1,4 @@
-import type { AuditRepository } from "../persistence/audit-repository";
+import type { AuditRepository } from "../adapters/outbound/persistence/audit-repository";
 import type { JobRepository } from "../persistence/job-repository";
 import { JobScheduler } from "../scheduler/job-scheduler";
 import { WorkerProtocol } from "../worker/worker-protocol";

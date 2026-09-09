@@ -4,12 +4,12 @@ import {
 	PositiveInt,
 } from "@trading-model/common/domain/primitives";
 import type { ReAllocator } from "@trading-model/common/recovery/re-allocator";
-import { JobStatus } from "@trading-model/validation/contracts/recovery.types";
-import { ENV } from "../config/env";
-import type { JobRepository } from "../persistence/job-repository";
-import type { Job } from "../types/job.types";
-import type { InternalQueue } from "./internal-queue";
-import type { JobAssignmentManager } from "./job-assignment-manager";
+import { JobStatus } from "@trading-model/validation/domain/contracts/recovery.types";
+import { ENV } from "../../infrastructure/config/env";
+import type { JobRepository } from "../../persistence/job-repository";
+import type { InternalQueue } from "../../scheduler/internal-queue";
+import type { JobAssignmentManager } from "../../scheduler/job-assignment-manager";
+import type { Job } from "../../types/job.types";
 
 export interface JobFailureHandlerDeps {
 	queue: InternalQueue;

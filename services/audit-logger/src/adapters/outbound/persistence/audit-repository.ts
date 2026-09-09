@@ -12,9 +12,10 @@ import type {
 } from "@trading-model/common/domain/primitives";
 import type { MongoRepository } from "@trading-model/common/persistence/mongo-repository.interface";
 import { agentError } from "@trading-model/common/utils/errors";
-import type { AuditFilter } from "@trading-model/validation/contracts/admin/audit.dto";
+import type { AuditFilter } from "@trading-model/validation/adapters/inbound/admin/audit.dto";
 import type { Collection, Db } from "mongodb";
-import { AuditQuerier } from "./audit-querier";
+import { AuditQuerier } from "../../../persistence/audit-querier";
+import type { DateRange } from "../../../types/date-range";
 
 export interface AuditEventDocument {
 	receivedAt: Date;
@@ -45,10 +46,7 @@ export interface AuditStats {
 	totalEvents: number;
 	eventsByTopic: Record<Topic, number>;
 	eventsByPublisher: Record<ServiceId, number>;
-	dateRange: {
-		earliest: Date | null;
-		latest: Date | null;
-	};
+	dateRange: DateRange<Date>;
 }
 
 const COLLECTION = "audit_events";

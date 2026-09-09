@@ -2,9 +2,9 @@ import type { HttpStatusCode } from "@trading-model/common/http-status";
 import { catchSync } from "@trading-model/common/middleware/catch-error";
 import { sendResponse } from "@trading-model/common/middleware/response-exception";
 import type { RequestHandler } from "express";
-import type { AuditRepository } from "../persistence/audit-repository";
-import { buildAuditDocument } from "./audit-document-builder";
-import { parseEnvelope } from "./message-parser";
+import { parseEnvelope } from "../../../subscription/message-parser";
+import { buildAuditDocument } from "../../outbound/persistence/audit-document-builder";
+import type { AuditRepository } from "../../outbound/persistence/audit-repository";
 
 export function createMessageHandler(
 	auditRepo: AuditRepository

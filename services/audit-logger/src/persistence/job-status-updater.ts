@@ -3,7 +3,7 @@ import {
 	type JobEvent,
 	JobStatus,
 	type JobUpdateExtras,
-} from "@trading-model/validation/contracts/recovery.types";
+} from "@trading-model/validation/domain/contracts/recovery.types";
 
 export function buildUpdateSet(
 	status: JobStatus,

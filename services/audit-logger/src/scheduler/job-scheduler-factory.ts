@@ -1,8 +1,9 @@
 import { logger } from "@trading-model/common/config/logger";
 import { OrphanDetector } from "@trading-model/common/recovery/orphan-detector";
 import { ReAllocator } from "@trading-model/common/recovery/re-allocator";
-import { JobStatus } from "@trading-model/validation/contracts/recovery.types";
-import { ENV } from "../config/env";
+import { JobStatus } from "@trading-model/validation/domain/contracts/recovery.types";
+import { JobFailureHandler } from "../domain/scheduler/job-failure-handler";
+import { ENV } from "../infrastructure/config/env";
 import type { JobRepository } from "../persistence/job-repository";
 import type { Job } from "../types/job.types";
 import type { WorkerRegistry } from "../worker/worker-registry";
@@ -10,7 +11,6 @@ import { createWorkerRegistry as buildWorkerRegistry } from "../worker/worker-re
 import { BackPressure } from "./back-pressure";
 import { InternalQueue } from "./internal-queue";
 import { JobAssignmentManager } from "./job-assignment-manager";
-import { JobFailureHandler } from "./job-failure-handler";
 
 export function createInternalQueue(): InternalQueue {
 	return new InternalQueue(ENV.ACK_TIMEOUT_MS);

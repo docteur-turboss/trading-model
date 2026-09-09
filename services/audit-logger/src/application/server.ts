@@ -1,12 +1,11 @@
-import { createServiceServer } from "@trading-model/server-utils/server/service-server-factory";
-
+import { createServiceServer } from "@trading-model/server-utils/adapters/inbound/service-server-factory";
+import { createMessageHandler } from "../adapters/inbound/subscription/audit-subscriber";
+import type { AuditRepository } from "../adapters/outbound/persistence/audit-repository";
 import { ADDRESS_MANAGER_ROUTES } from "../config/address-manager";
-import { ENV } from "../config/env";
-import type { AuditRepository } from "../persistence/audit-repository";
+import { ENV } from "../infrastructure/config/env";
 import { eventsRoutes } from "../routes/events.routes";
 import { healthRoutes } from "../routes/health.routes";
 import type { JobScheduler } from "../scheduler/job-scheduler";
-import { createMessageHandler } from "../subscription/audit-subscriber";
 
 export function createServer(
 	scheduler: JobScheduler,

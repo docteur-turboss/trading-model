@@ -4,10 +4,18 @@ import type {
 	UnixTimestamp,
 } from "@trading-model/common/domain/primitives";
 import type { Job, QueuedJob } from "../types/job.types";
-import { JobState } from "../types/job.types";
+import { JobPriority, JobState } from "../types/job.types";
+
+const PRIORITY_LEVELS: JobPriority[] = [
+	JobPriority.LOWEST,
+	JobPriority.LOW,
+	JobPriority.MEDIUM,
+	JobPriority.HIGH,
+	JobPriority.HIGHEST,
+];
 
 export class InternalQueue {
-	private readonly _queues: Map<number, QueuedJob[]> = new Map();
+	private readonly _queues: Map<JobPriority, QueuedJob[]> = new Map();
 	private readonly _ackTimers: Map<string, NodeJS.Timeout> = new Map();
 	private readonly _ackTimeoutMs: number;
 
@@ -29,7 +37,7 @@ export class InternalQueue {
 	}
 
 	dequeue(): QueuedJob | null {
-		for (let priority = 1; priority <= 5; priority++) {
+		for (const priority of PRIORITY_LEVELS) {
 			const queue = this._queues.get(priority);
 			if (queue && queue.length > 0) {
 				return queue.shift()!;

@@ -7,17 +7,17 @@ import {
 	toJobType,
 	UnixTimestamp,
 } from "@trading-model/common/domain/primitives";
-import { JobStatus } from "@trading-model/validation/contracts/recovery.types";
-import { ENV } from "../config/env";
-import type { JobRepository } from "../persistence/job-repository";
+import { JobStatus } from "@trading-model/validation/domain/contracts/recovery.types";
+import { ENV } from "../../infrastructure/config/env";
+import type { JobRepository } from "../../persistence/job-repository";
+import type { BackPressure } from "../../scheduler/back-pressure";
+import type { InternalQueue } from "../../scheduler/internal-queue";
+import type { JobAssignmentManager } from "../../scheduler/job-assignment-manager";
 import {
 	type Job,
 	JobPriority,
 	type SubmitJobParams,
-} from "../types/job.types";
-import type { BackPressure } from "./back-pressure";
-import type { InternalQueue } from "./internal-queue";
-import type { JobAssignmentManager } from "./job-assignment-manager";
+} from "../../types/job.types";
 import type { JobFailureHandler } from "./job-failure-handler";
 import { JobStatusManager } from "./job-status-manager";
 

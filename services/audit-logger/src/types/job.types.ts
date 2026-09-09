@@ -8,7 +8,7 @@ import {
 	type JobEvent,
 	JobPriority,
 	JobStatus,
-} from "@trading-model/validation/contracts/recovery.types";
+} from "@trading-model/validation/domain/contracts/recovery.types";
 
 export type { Job, JobEvent };
 export { JobPriority, JobStatus };

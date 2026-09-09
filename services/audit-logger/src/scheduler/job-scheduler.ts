@@ -2,6 +2,8 @@ import { logger } from "@trading-model/common/config/logger";
 import type { JobId } from "@trading-model/common/domain/primitives";
 import type { OrphanDetector } from "@trading-model/common/recovery/orphan-detector";
 import type { ReAllocator } from "@trading-model/common/recovery/re-allocator";
+import type { JobFailureHandler } from "../domain/scheduler/job-failure-handler";
+import { JobLifecycle } from "../domain/scheduler/job-lifecycle";
 import type { JobRepository } from "../persistence/job-repository";
 import type { SubmitJobParams } from "../types/job.types";
 import type { IWorkerProtocol } from "../worker/worker-protocol";
@@ -9,8 +11,6 @@ import type { WorkerRegistry } from "../worker/worker-registry";
 import type { BackPressure } from "./back-pressure";
 import type { InternalQueue } from "./internal-queue";
 import type { JobAssignmentManager } from "./job-assignment-manager";
-import type { JobFailureHandler } from "./job-failure-handler";
-import { JobLifecycle } from "./job-lifecycle";
 import {
 	createAssignmentManager,
 	createBackPressure,
@@ -33,7 +33,6 @@ export class JobScheduler {
 	private readonly _failureHandler: JobFailureHandler;
 	private readonly _orphanDetector: OrphanDetector;
 	private readonly _lifecycle: JobLifecycle;
-	private _workerProtocol?: IWorkerProtocol;
 
 	constructor(repository: JobRepository) {
 		this._repository = repository;
@@ -71,7 +70,6 @@ export class JobScheduler {
 	}
 
 	setWorkerProtocol(protocol: IWorkerProtocol): void {
-		this._workerProtocol = protocol;
 		this._assignmentManager.setWorkerProtocol(protocol);
 	}
 	submit(params: SubmitJobParams): Promise<string> {
@@ -108,7 +106,6 @@ export class JobScheduler {
 	stop(): void {
 		this._orphanDetector.stop();
 		this.queue.stop();
-		this._workerProtocol?.close();
 		logger.info("Audit job scheduler stopped");
 	}
 }

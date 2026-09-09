@@ -8,8 +8,8 @@ import {
 	toServiceId,
 	toTopic,
 } from "@trading-model/common/domain/primitives";
-import type { AuditEventDocument } from "../persistence/audit-repository";
-import type { ParsedEnvelope } from "./message-parser";
+import type { ParsedEnvelope } from "../../../subscription/message-parser";
+import type { AuditEventDocument } from "./audit-repository";
 
 export function buildAuditDocument(parsed: ParsedEnvelope): AuditEventDocument {
 	const { topic, payload, metadata } = parsed;

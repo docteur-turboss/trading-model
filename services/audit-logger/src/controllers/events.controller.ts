@@ -3,16 +3,13 @@ import {
 	toServiceId,
 	toTopic,
 } from "@trading-model/common/domain/primitives";
-import type { HttpStatusCode } from "@trading-model/common/http-status";
-import { catchSync } from "@trading-model/common/middleware/catch-error";
-import { sendResponse } from "@trading-model/common/middleware/response-exception";
-import type { RequestHandler } from "express";
 
 import type {
 	AuditEventQuery,
 	AuditRepository,
-} from "../persistence/audit-repository";
+} from "../adapters/outbound/persistence/audit-repository";
 import { parseDateRange, parsePageAndLimit } from "../utils/query-params";
+import { createQueryController } from "./controller-factory";
 
 function _buildAuditEventQuery(
 	req: import("express").Request
@@ -32,37 +29,11 @@ function _buildAuditEventQuery(
 }
 
 export function createEventsController(auditRepo: AuditRepository) {
-	const listEvents = _createListEventsHandler(auditRepo);
-	const getEvent = _createGetEventHandler(auditRepo);
-	const getStats = _createGetStatsHandler(auditRepo);
+	const { list, getById, stats } = createQueryController(
+		auditRepo,
+		_buildAuditEventQuery,
+		{ notFoundMessage: "Event not found", idParam: "messageId" }
+	);
 
-	return { listEvents, getEvent, getStats };
-}
-
-function _createListEventsHandler(auditRepo: AuditRepository): RequestHandler {
-	return catchSync(async (req) => {
-		const query = _buildAuditEventQuery(req);
-		const result = await auditRepo.query(query);
-		return sendResponse(result, 200 as HttpStatusCode);
-	});
-}
-
-function _createGetEventHandler(auditRepo: AuditRepository): RequestHandler {
-	return catchSync(async (req) => {
-		const { messageId } = req.params as { messageId: string };
-		const event = await auditRepo.findById(messageId);
-
-		if (!event) {
-			return sendResponse({ error: "Event not found" }, 404 as HttpStatusCode);
-		}
-
-		return sendResponse(event, 200 as HttpStatusCode);
-	});
-}
-
-function _createGetStatsHandler(auditRepo: AuditRepository): RequestHandler {
-	return catchSync(async () => {
-		const stats = await auditRepo.getStats();
-		return sendResponse(stats, 200 as HttpStatusCode);
-	});
+	return { listEvents: list, getEvent: getById, getStats: stats };
 }

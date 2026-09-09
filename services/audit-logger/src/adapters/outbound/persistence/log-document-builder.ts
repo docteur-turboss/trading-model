@@ -1,4 +1,5 @@
 import {
+	type DurationMs,
 	toCorrelationId,
 	toEnvironment,
 	toInstanceId,
@@ -7,16 +8,16 @@ import {
 	toUserId,
 } from "@trading-model/common/domain/primitives";
 import type { HttpStatusCode } from "@trading-model/common/http-status";
-import type { HttpMethod } from "@trading-model/validation/contracts/signed-request";
+import type { HttpMethod } from "@trading-model/validation/adapters/inbound/signed-request";
 import type { z } from "zod";
 
-import { LOGS_INGESTED_TOTAL } from "../config/metrics";
+import { LOGS_INGESTED_TOTAL } from "../../../config/metrics";
 
-const MS_PER_DAY = 86_400_000;
+const MS_PER_DAY = 86_400_000 as DurationMs;
 
-import type { ServiceLogDocument } from "../persistence/log-repository";
-import { extractError } from "./error-extractor";
-import type { LOG_ENTRY_SCHEMA } from "./log-schemas";
+import type { ServiceLogDocument } from "../../../persistence/log-repository";
+import { extractError } from "../../../subscription/error-extractor";
+import type { LOG_ENTRY_SCHEMA } from "../../../subscription/log-schemas";
 
 function _buildDocService(
 	entry: z.infer<typeof LOG_ENTRY_SCHEMA>

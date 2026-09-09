@@ -5,7 +5,7 @@ import {
 import type {
 	Job,
 	JobEvent,
-} from "@trading-model/validation/contracts/recovery.types";
+} from "@trading-model/validation/domain/contracts/recovery.types";
 import type { JobDocument } from "./job-document";
 
 export function jobToDocument(job: Job): JobDocument {

@@ -1,11 +1,11 @@
 import { logger } from "@trading-model/common/config/logger";
 import type { JobId } from "@trading-model/common/domain/primitives";
 import { RetryPolicy } from "@trading-model/common/domain/retry-policy";
-import type { Job } from "@trading-model/validation/contracts/recovery.types";
-import type { JobRepository } from "../persistence/job-repository";
-import { JobStatus } from "../types/job.types";
-import type { InternalQueue } from "./internal-queue";
-import type { JobAssignmentManager } from "./job-assignment-manager";
+import type { Job } from "@trading-model/validation/domain/contracts/recovery.types";
+import type { JobRepository } from "../../persistence/job-repository";
+import type { InternalQueue } from "../../scheduler/internal-queue";
+import type { JobAssignmentManager } from "../../scheduler/job-assignment-manager";
+import { JobStatus } from "../../types/job.types";
 import type { JobFailureHandler } from "./job-failure-handler";
 import type { JobLifecycleDeps } from "./job-lifecycle";
 

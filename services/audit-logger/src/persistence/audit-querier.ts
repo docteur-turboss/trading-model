@@ -9,7 +9,7 @@ import type {
 	AuditEventDocument,
 	AuditEventQuery,
 	AuditStats,
-} from "./audit-repository";
+} from "../adapters/outbound/persistence/audit-repository";
 import { buildAuditEventFilter } from "./filter-builder";
 import { StatsAggregator } from "./stats-aggregator";
 

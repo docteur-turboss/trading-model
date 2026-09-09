@@ -1,6 +1,6 @@
 import { URLString } from "@trading-model/common/domain/primitives";
 import { MongoConnectionManager } from "@trading-model/common/persistence/mongo-connection-manager";
-import { AuditRepository } from "../persistence/audit-repository";
+import { AuditRepository } from "../adapters/outbound/persistence/audit-repository";
 import { JobRepository } from "../persistence/job-repository";
 
 export async function createRepositories(mongoUri: string): Promise<{

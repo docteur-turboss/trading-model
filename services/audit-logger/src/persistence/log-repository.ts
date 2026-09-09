@@ -20,6 +20,7 @@ import type { MongoRepository } from "@trading-model/common/persistence/mongo-re
 import { findPaginated } from "@trading-model/common/persistence/mongo-utils";
 import type { HttpMethod } from "@trading-model/validation/contracts/signed-request";
 import type { Collection, Db } from "mongodb";
+import type { DateRange } from "../types/date-range";
 
 import { ensureLogIndexes } from "./log-index-manager";
 import { buildLogQueryFilter, type LogQuery } from "./log-query-builder";
@@ -65,7 +66,7 @@ export interface LogStats {
 	total: number;
 	byService: Record<ServiceId, number>;
 	byLevel: Record<LogLevel, number>;
-	dateRange: { earliest?: ISODateTime; latest?: ISODateTime };
+	dateRange: DateRange<ISODateTime>;
 }
 
 export class LogRepository

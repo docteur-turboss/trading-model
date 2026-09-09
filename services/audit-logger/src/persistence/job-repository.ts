@@ -11,7 +11,7 @@ import { findPaginated } from "@trading-model/common/persistence/mongo-utils";
 import {
 	type Job,
 	JobStatus,
-} from "@trading-model/validation/contracts/recovery.types";
+} from "@trading-model/validation/domain/contracts/recovery.types";
 import type { Collection, Db } from "mongodb";
 import type { JobDocument } from "./job-document";
 import { documentToJob, jobToDocument } from "./job-document-mapper";
@@ -46,8 +46,11 @@ export class JobRepository implements MongoRepository<Job> {
 		return doc ? documentToJob(doc) : null;
 	}
 
-	insertBatch(_: Job[]): Promise<void> {
-		throw new Error("Batch insert not supported for jobs");
+	async insertBatch(jobs: Job[]): Promise<void> {
+		if (jobs.length === 0) {
+			return;
+		}
+		await this._collection.insertMany(jobs.map(jobToDocument));
 	}
 
 	async query(query: Record<string, unknown>): Promise<PaginationResult<Job>> {
@@ -72,7 +75,7 @@ export class JobRepository implements MongoRepository<Job> {
 	async updateStatus(
 		jobId: JobId,
 		status: JobStatus,
-		extras?: import("@trading-model/validation/contracts/recovery.types").JobUpdateExtras
+		extras?: import("@trading-model/validation/domain/contracts/recovery.types").JobUpdateExtras
 	): Promise<void> {
 		const current = await this._collection.findOne({ jobId });
 		if (!current) {

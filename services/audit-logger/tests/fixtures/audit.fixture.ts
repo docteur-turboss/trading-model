@@ -2,7 +2,7 @@ import type {
 	AuditEventDocument,
 	AuditStats,
 	PaginatedResult,
-} from "../../src/persistence/audit-repository";
+} from "../../src/adapters/outbound/persistence/audit-repository";
 
 export const createAuditEvent = (
 	overrides?: Partial<AuditEventDocument>

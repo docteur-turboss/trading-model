@@ -3,12 +3,10 @@ import {
 	CorrelationId,
 	toServiceId,
 } from "@trading-model/common/domain/primitives";
-import type { HttpStatusCode } from "@trading-model/common/http-status";
-import { catchSync } from "@trading-model/common/middleware/catch-error";
-import { sendResponse } from "@trading-model/common/middleware/response-exception";
 
 import type { LogQuery, LogRepository } from "../persistence/log-repository";
 import { parseDateRange, parsePageAndLimit } from "../utils/query-params";
+import { createQueryController } from "./controller-factory";
 
 function _buildLogQueryParams(req: import("express").Request): LogQuery {
 	const queryParams = req.query as Record<string, string | undefined>;
@@ -28,42 +26,15 @@ function _buildLogQueryParams(req: import("express").Request): LogQuery {
 }
 
 export function getLogsController(logRepo: LogRepository) {
+	const { list, getById, stats } = createQueryController(
+		logRepo,
+		_buildLogQueryParams,
+		{ notFoundMessage: "Log entry not found" }
+	);
+
 	return {
-		listLogs: _createListLogsHandler(logRepo),
-		getLogStats: _createGetLogStatsHandler(logRepo),
-		getLogById: _createGetLogByIdHandler(logRepo),
+		listLogs: list,
+		getLogStats: stats,
+		getLogById: getById,
 	};
-}
-
-function _createListLogsHandler(
-	logRepo: LogRepository
-): import("express").RequestHandler {
-	return catchSync(async (req) => {
-		const result = await logRepo.query(_buildLogQueryParams(req));
-		return sendResponse(result, 200 as HttpStatusCode);
-	});
-}
-
-function _createGetLogStatsHandler(
-	logRepo: LogRepository
-): import("express").RequestHandler {
-	return catchSync(async () => {
-		const stats = await logRepo.getStats();
-		return sendResponse(stats, 200 as HttpStatusCode);
-	});
-}
-
-function _createGetLogByIdHandler(
-	logRepo: LogRepository
-): import("express").RequestHandler {
-	return catchSync(async (req) => {
-		const doc = await logRepo.findById(String(req.params.id));
-		if (!doc) {
-			return sendResponse(
-				{ error: "Log entry not found" },
-				404 as HttpStatusCode
-			);
-		}
-		return sendResponse(doc, 200 as HttpStatusCode);
-	});
 }

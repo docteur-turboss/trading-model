@@ -1,7 +1,6 @@
 import { Router } from "express";
-
+import type { AuditRepository } from "../adapters/outbound/persistence/audit-repository";
 import { createEventsController } from "../controllers/events.controller";
-import type { AuditRepository } from "../persistence/audit-repository";
 
 export function eventsRoutes(auditRepo: AuditRepository): Router {
 	const router = Router();

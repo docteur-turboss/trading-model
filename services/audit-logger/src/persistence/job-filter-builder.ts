@@ -3,7 +3,7 @@ import type {
 	InstanceId,
 	JobType,
 } from "@trading-model/common/domain/primitives";
-import type { JobStatus } from "@trading-model/validation/contracts/recovery.types";
+import type { JobStatus } from "@trading-model/validation/domain/contracts/recovery.types";
 
 type MongoDoc = Record<string, unknown>;
 

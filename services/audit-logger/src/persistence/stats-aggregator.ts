@@ -1,13 +1,17 @@
-﻿import type { ServiceId, Topic } from "@trading-model/common/domain/primitives";
+import type { ServiceId, Topic } from "@trading-model/common/domain/primitives";
 import type { Collection } from "mongodb";
-import type { AuditEventDocument, AuditStats } from "./audit-repository";
+import type {
+	AuditEventDocument,
+	AuditStats,
+} from "../adapters/outbound/persistence/audit-repository";
+import type { DateRange } from "../types/date-range";
 
 function aggregateByField(
 	col: Collection<AuditEventDocument>,
 	field: string
-): Promise<Array<{ id: string; count: number }>> {
+): Promise<Array<{ _id: string; count: number }>> {
 	return col
-		.aggregate<{ id: string; count: number }>([
+		.aggregate<{ _id: string; count: number }>([
 			{
 				$group: {
 					_id: `$metadata.${field}`,
@@ -20,9 +24,9 @@ function aggregateByField(
 
 function aggregateDateRange(
 	col: Collection<AuditEventDocument>
-): Promise<Array<{ earliest: Date | null; latest: Date | null }>> {
+): Promise<DateRange<Date>[]> {
 	return col
-		.aggregate<{ earliest: Date | null; latest: Date | null }>([
+		.aggregate<DateRange<Date>>([
 			{
 				$group: {
 					_id: null,
@@ -35,21 +39,16 @@ function aggregateDateRange(
 }
 
 function toMap(
-	items: Array<{ id: string; count: number }>
+	items: Array<{ _id: string; count: number }>
 ): Record<string, number> {
-	return Object.fromEntries(
-		items.map((item) => [
-			(item as unknown as Record<string, string>)._id,
-			item.count,
-		])
-	);
+	return Object.fromEntries(items.map((item) => [item._id, item.count]));
 }
 
 function buildStatsResult(
 	totalEvents: number,
-	topicAgg: Array<{ id: string; count: number }>,
-	publisherAgg: Array<{ id: string; count: number }>,
-	dateRange: Array<{ earliest: Date | null; latest: Date | null }>
+	topicAgg: Array<{ _id: string; count: number }>,
+	publisherAgg: Array<{ _id: string; count: number }>,
+	dateRange: DateRange<Date>[]
 ): AuditStats {
 	return {
 		totalEvents,
@@ -74,9 +73,9 @@ export class StatsAggregator {
 	private _fetchStatsData(): Promise<
 		[
 			number,
-			Array<{ id: string; count: number }>,
-			Array<{ id: string; count: number }>,
-			Array<{ earliest: Date | null; latest: Date | null }>,
+			Array<{ _id: string; count: number }>,
+			Array<{ _id: string; count: number }>,
+			DateRange<Date>[],
 		]
 	> {
 		return Promise.all([

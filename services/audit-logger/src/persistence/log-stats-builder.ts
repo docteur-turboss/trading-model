@@ -3,6 +3,7 @@ import {
 	ISODateTime,
 	ServiceId,
 } from "@trading-model/common/domain/primitives";
+import type { DateRange } from "../types/date-range";
 import type { LogStats } from "./log-repository";
 
 type MongoDoc = Record<string, unknown>;
@@ -63,8 +64,11 @@ export class LogStatsBuilder {
 		key: string
 	): Record<ServiceId, number> {
 		const result: Record<ServiceId, number> = {};
-		for (const item of (aggResult?.[key] as Record<string, unknown>[]) ?? []) {
-			result[ServiceId.of(String(item._id))] = Number(item.count);
+		for (const item of (aggResult?.[key] as Array<{
+			_id: string;
+			count: number;
+		}>) ?? []) {
+			result[ServiceId.of(String(item._id))] = item.count;
 		}
 		return result;
 	}
@@ -74,24 +78,24 @@ export class LogStatsBuilder {
 		key: string
 	): Record<LogLevel, number> {
 		const result: Record<string, number> = {};
-		for (const item of (aggResult?.[key] as Record<string, unknown>[]) ?? []) {
-			result[String(item._id)] = Number(item.count);
+		for (const item of (aggResult?.[key] as Array<{
+			_id: string;
+			count: number;
+		}>) ?? []) {
+			result[String(item._id)] = item.count;
 		}
 		return result;
 	}
 
-	private _extractDateRange(aggResult: Record<string, unknown>): {
-		earliest?: ISODateTime;
-		latest?: ISODateTime;
-	} {
+	private _extractDateRange(
+		aggResult: Record<string, unknown>
+	): DateRange<ISODateTime> {
 		const dr = (
 			aggResult?.dateRange as Array<{ earliest?: Date; latest?: Date }>
 		)?.[0];
 		return {
-			earliest: dr?.earliest
-				? ISODateTime.of(dr.earliest.toISOString())
-				: undefined,
-			latest: dr?.latest ? ISODateTime.of(dr.latest.toISOString()) : undefined,
+			earliest: dr?.earliest ? ISODateTime.of(dr.earliest.toISOString()) : null,
+			latest: dr?.latest ? ISODateTime.of(dr.latest.toISOString()) : null,
 		};
 	}
 }

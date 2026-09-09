@@ -6,14 +6,13 @@ import {
 	sendResponse,
 } from "@trading-model/common/middleware/response-exception";
 import { normalizeError } from "@trading-model/common/utils/errors";
-
-import { ENV } from "../config/env";
+import { _buildLogDocuments } from "../adapters/outbound/persistence/log-document-builder";
 import { LOGS_STORED_TOTAL } from "../config/metrics";
+import { ENV } from "../infrastructure/config/env";
 import type {
 	LogRepository,
 	ServiceLogDocument,
 } from "../persistence/log-repository";
-import { _buildLogDocuments } from "./log-document-builder";
 import { LOGS_BATCH_SCHEMA } from "./log-schemas";
 
 async function _storeLogs(

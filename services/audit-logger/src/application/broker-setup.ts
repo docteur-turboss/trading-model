@@ -3,7 +3,7 @@ import { logger } from "@trading-model/common/config/logger";
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import { toInstanceId } from "@trading-model/common/domain/primitives";
 import { buildTlsFromEnv } from "@trading-model/common/domain/tls-paths";
-import { ENV } from "../config/env";
+import { ENV } from "../infrastructure/config/env";
 
 export async function createBrokerMessage(): Promise<{
 	brokerMessage: BrokerMessage;
@@ -22,16 +22,13 @@ export async function createBrokerMessage(): Promise<{
 async function subscribeToAllTopics(
 	brokerMessage: BrokerMessage
 ): Promise<void> {
-	const [{ MarketEvent }, { AuditEvent }, { CertificateEvent }] =
-		await Promise.all([
-			import("@trading-model/validation/contracts/market-events"),
-			import("@trading-model/validation/contracts/audit-events"),
-			import("@trading-model/validation/contracts/certificate-events"),
-		]);
+	const [{ MarketEvent }, { AuditEvent }] = await Promise.all([
+		import("@trading-model/validation/domain/contracts/market-events"),
+		import("@trading-model/validation/domain/contracts/audit-events"),
+	]);
 	const allTopics = [
 		...Object.values(MarketEvent),
 		...Object.values(AuditEvent),
-		...Object.values(CertificateEvent),
 	];
 	await brokerMessage.intents(allTopics);
 	logger.info("Subscribed to all event topics", {
