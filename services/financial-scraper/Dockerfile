@@ -42,4 +42,4 @@ COPY --from=build /app/services/financial-scraper/dist ./services/financial-scra
 
 EXPOSE 3000
 ENTRYPOINT ["/sbin/tini", "--"]
-CMD ["node", "services/financial-scraper/dist/app/index.js"]
+CMD ["node", "services/financial-scraper/dist/application/index.js"]

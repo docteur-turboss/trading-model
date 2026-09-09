@@ -92,6 +92,8 @@ The worker publishes 6 events to the message bus for each symbol:
 
 ### 4. Persistence Layer (`src/infra/market-data/`)
 
+The `src/infra/market-data/` directory only contains the storage schemas and type definitions. The persistence orchestration controller has migrated to `src/application/market-data.controller.ts`, and the `MarketDataModel` facade now lives in `src/domain/market-data.model.ts`.
+
 | Component                    | Storage                           | Tables/Structures                                                                        |
 | ---------------------------- | --------------------------------- | ---------------------------------------------------------------------------------------- |
 | `schema/trades.schema.ts`    | MySQL (`mysql2` + `ts-sql-query`) | `market_trades` — id, symbol, market, source, side, price, quantity, tradeId, timestamp  |
@@ -99,7 +101,7 @@ The worker publishes 6 events to the message bus for each symbol:
 | `schema/ticker24h.schema.ts` | MySQL                             | `market_tickers` — id, symbol, market, source, OHLC, volume, timestamps                  |
 | `schema/orderBook.schema.ts` | In-memory (`Map`)                 | Indexed by symbol, source, market, timestamp with reverse lookup maps                    |
 
-The `MarketDataModel` class provides a unified facade over all schema modules. `MarketDataController.persist()` conditionally delegates to it.
+The `MarketDataModel` class (in `src/domain/market-data.model.ts`) provides a unified facade over all schema modules. `MarketDataController.persist()` (in `src/application/market-data.controller.ts`) conditionally delegates to it.
 
 ### 5. REST API (`src/clients/http/`)
 
@@ -162,7 +164,7 @@ All routes use Zod-validated parameters and return standardized error responses 
 
 All configuration is validated at startup via Zod schemas from `@trading-model/common`. The service requires:
 
-- **TLS certificates** — all inter-service communication uses mutual TLS
+- **mTLS via SPIRE** — all inter-service communication uses mutual TLS, automatic via SPIRE SVIDs (ADR-0011); no manual certificates
 - **MySQL connection** — user, password, host, port, database name
 - **Discovery Server URL** — for service registration and heartbeat
 - **Cron schedule** — defined in `BinanceCronOrchestrator` configuration

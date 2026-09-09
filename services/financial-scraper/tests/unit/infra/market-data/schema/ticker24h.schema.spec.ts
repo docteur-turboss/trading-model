@@ -3,7 +3,7 @@ import {
 	TradingSymbol,
 	UnixTimestamp,
 } from "@trading-model/common/domain/primitives";
-import { SourceType } from "@trading-model/validation/contracts/market-data.types";
+import { SourceType } from "@trading-model/validation/shared/contracts/market-data.types";
 
 const MOCK_EXECUTE_INSERT = jest
 	.fn<() => Promise<void>>()
@@ -55,7 +55,6 @@ const MAKE_TICKER = (overrides: Record<string, unknown> = {}) => ({
 });
 
 const BTC = TradingSymbol.of("BTCUSDT");
-const _ETH = TradingSymbol.of("ETHUSDT");
 const UNKNOWN = TradingSymbol.of("UNKNOWN");
 
 describe("ticker24h-schema", () => {

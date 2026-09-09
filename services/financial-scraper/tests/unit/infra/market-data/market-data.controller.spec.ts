@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { CandleInterval } from "@trading-model/common/config/event.types";
 
-jest.mock("../../../../src/infra/market-data/market-data.model", () => ({
+jest.mock("../../../../src/domain/market-data.model", () => ({
 	MarketDataModel: {
 		insertCandles: jest.fn<any>(),
 		insertTrades: jest.fn<any>(),
@@ -10,8 +10,8 @@ jest.mock("../../../../src/infra/market-data/market-data.model", () => ({
 	},
 }));
 
-import { MarketDataController } from "../../../../src/infra/market-data/market-data.controller";
-import { MarketDataModel } from "../../../../src/infra/market-data/market-data.model";
+import { MarketDataController } from "../../../../src/application/market-data.controller";
+import { MarketDataModel } from "../../../../src/domain/market-data.model";
 
 const MOCK_MODEL = jest.mocked(MarketDataModel);
 

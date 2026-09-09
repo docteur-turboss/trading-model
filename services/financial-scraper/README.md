@@ -9,7 +9,7 @@ Market data ingestion service that fetches real-time financial data from Binance
 - Node.js 20+
 - MySQL 8+ (for trades, candles, tickers persistence)
 - Access to a running [Discovery Server](../discovery-server/README.md) (service registry)
-- TLS certificates for mTLS communication
+- mTLS automatique via SPIRE (ADR-0011) — aucun certificat manuel à générer
 
 ## Installation
 
@@ -41,7 +41,7 @@ See [.env.example](./.env.example) for all available variables.
 | `TLS_KEY_PATH`        | Path to TLS private key             | —                           |
 | `TLS_CERT_PATH`       | Path to TLS certificate             | —                           |
 | `TLS_CA_PATH`         | Path to CA certificate              | —                           |
-| `SERVICE_NAME`        | Service identity for registry       | `financial-scraper-service` |
+| `SERVICE_NAME`        | Service identity for registry       | `financial-scraper`        |
 | `INSTANCE_ID`         | Unique instance identifier          | —                           |
 | `ADDRESS_MANAGER_URL` | Discovery server URL                | —                           |
 | `BINANCE_API_KEY`     | Binance API key (optional)          | `''`                        |
@@ -64,7 +64,7 @@ npm run dev
 
 # Production build
 npm run build
-node dist/app/index.js
+node dist/application/index.js
 ```
 
 ## Testing
@@ -94,9 +94,12 @@ npm run test:watch
 
 ```
 src/
-├── app/                        # Service bootstrap & HTTP server
+├── application/                # Service bootstrap & HTTP server
 │   ├── index.ts                # Entry point
-│   └── server.ts               # Express server factory
+│   ├── server.ts               # Express server factory
+│   └── market-data.controller.ts # Application-level persistence orchestration
+├── domain/
+│   └── market-data.model.ts    # Repository facade
 ├── clients/
 │   ├── binance/                # Binance API client
 │   │   ├── binance.client.ts   # API call functions with rate-limit weights
@@ -113,9 +116,7 @@ src/
 │   ├── follows.ts              # Tracked symbols configuration
 │   ├── http.ts                 # Axios client factory (rate-limited, retry)
 │   └── message-manager.ts      # Message bus client setup
-├── infra/market-data/          # Data access & persistence layer
-│   ├── market-data.controller.ts  # Application-level persistence orchestration
-│   ├── market-data.model.ts    # Repository facade
+├── infra/market-data/          # Persistence schemas
 │   ├── market-data.types.ts    # Re-exported entity types
 │   └── schema/                 # Per-entity storage implementations
 │       ├── candles-schema.ts   # Candlestick MySQL table & queries

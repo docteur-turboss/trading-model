@@ -4,7 +4,7 @@ import {
 	TradingSymbol,
 	UnixTimestamp,
 } from "@trading-model/common/domain/primitives";
-import { SourceType } from "@trading-model/validation/contracts/market-data.types";
+import { SourceType } from "@trading-model/validation/shared/contracts/market-data.types";
 
 const MOCK_EXECUTE_INSERT = jest
 	.fn<() => Promise<void>>()

@@ -36,14 +36,14 @@ jest.mock("../../../../src/job/worker/binance.worker", () => ({
 	})),
 }));
 
-jest.mock("../../../../src/infra/market-data/market-data.controller", () => ({
+jest.mock("../../../../src/application/market-data.controller", () => ({
 	MarketDataController: {
 		persist: jest.fn<any>(),
 	},
 }));
 
 import { logger } from "@trading-model/common/config/logger";
-import { MarketDataController } from "../../../../src/infra/market-data/market-data.controller";
+import { MarketDataController } from "../../../../src/application/market-data.controller";
 import { BinanceCronOrchestrator } from "../../../../src/job/cron/binance.cron";
 
 const MOCK_LOGGER = jest.mocked(logger);

@@ -16,7 +16,7 @@ jest.mock("../../../../src/infra/market-data/schema/order-book.schema", () => ({
 	insertOrderBook: jest.fn(),
 }));
 
-import { MarketDataModel } from "../../../../src/infra/market-data/market-data.model";
+import { MarketDataModel } from "../../../../src/domain/market-data.model";
 
 describe("MarketDataModel", () => {
 	beforeEach(() => {

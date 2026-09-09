@@ -35,7 +35,7 @@ describe("env", () => {
 		delete process.env.LOG_LEVEL;
 		delete process.env.PORT;
 
-		const { ENV } = require("../../../src/config/env");
+		const { ENV } = require("../../../src/infrastructure/config/env");
 		expect(ENV.LOG_LEVEL).toBe("info");
 		expect(ENV.PORT).toBe(3000);
 	});
@@ -43,7 +43,7 @@ describe("env", () => {
 	it("should export correct values when all env vars provided", () => {
 		setRequiredVars();
 
-		const { ENV } = require("../../../src/config/env");
+		const { ENV } = require("../../../src/infrastructure/config/env");
 		expect(ENV.NODE_ENV).toBe("test");
 		expect(ENV.PORT).toBe(3000);
 		expect(ENV.LOG_LEVEL).toBe("debug");
@@ -59,7 +59,7 @@ describe("env", () => {
 
 		process.env = {};
 
-		expect(() => require("../../../src/config/env")).toThrow();
+		expect(() => require("../../../src/infrastructure/config/env")).toThrow();
 
 		consoleSpy.mockRestore();
 	});
@@ -72,7 +72,7 @@ describe("env", () => {
 		setRequiredVars();
 		delete process.env.APP_NAME;
 
-		expect(() => require("../../../src/config/env")).toThrow();
+		expect(() => require("../../../src/infrastructure/config/env")).toThrow();
 
 		consoleSpy.mockRestore();
 	});
@@ -80,23 +80,18 @@ describe("env", () => {
 	it("should set default values for scraper-specific env vars", () => {
 		setRequiredVars();
 
-		const { ENV } = require("../../../src/config/env");
+		const { ENV } = require("../../../src/infrastructure/config/env");
 		expect(ENV.BINANCE_API_KEY).toBe("");
 		expect(ENV.BINANCE_API_SECRET).toBe("");
 		expect(ENV.SYMBOLS_TO_TRACK).toEqual([]);
 		expect(ENV.SCRAPE_INTERVAL).toBe("*/1 * * * *");
-		expect(ENV.DB_USER).toBe("root");
-		expect(ENV.DB_PASSWORD).toBe("password");
-		expect(ENV.DB_NAME).toBe("financial_scraper");
-		expect(ENV.DB_HOST).toBe("localhost");
-		expect(ENV.DB_PORT).toBe(3306);
 	});
 
 	it("should parse SYMBOLS_TO_TRACK from JSON string", () => {
 		setRequiredVars();
 		process.env.SYMBOLS_TO_TRACK = '["BTCUSDT","ETHUSDT"]';
 
-		const { ENV } = require("../../../src/config/env");
+		const { ENV } = require("../../../src/infrastructure/config/env");
 		expect(ENV.SYMBOLS_TO_TRACK).toEqual(["BTCUSDT", "ETHUSDT"]);
 	});
 
@@ -104,7 +99,7 @@ describe("env", () => {
 		setRequiredVars();
 		process.env.SYMBOLS_TO_TRACK = "not-json";
 
-		const { ENV } = require("../../../src/config/env");
+		const { ENV } = require("../../../src/infrastructure/config/env");
 		expect(ENV.SYMBOLS_TO_TRACK).toEqual([]);
 	});
 
@@ -112,7 +107,7 @@ describe("env", () => {
 		setRequiredVars();
 		process.env.SYMBOLS_TO_TRACK = '{"key":"value"}';
 
-		const { ENV } = require("../../../src/config/env");
+		const { ENV } = require("../../../src/infrastructure/config/env");
 		expect(ENV.SYMBOLS_TO_TRACK).toEqual([]);
 	});
 
@@ -121,20 +116,10 @@ describe("env", () => {
 		process.env.BINANCE_API_KEY = "test-api-key";
 		process.env.BINANCE_API_SECRET = "test-api-secret";
 		process.env.SCRAPE_INTERVAL = "*/5 * * * *";
-		process.env.DB_USER = "custom_user";
-		process.env.DB_PASSWORD = "custom_pass";
-		process.env.DB_NAME = "custom_db";
-		process.env.DB_HOST = "db.example.com";
-		process.env.DB_PORT = "3307";
 
-		const { ENV } = require("../../../src/config/env");
+		const { ENV } = require("../../../src/infrastructure/config/env");
 		expect(ENV.BINANCE_API_KEY).toBe("test-api-key");
 		expect(ENV.BINANCE_API_SECRET).toBe("test-api-secret");
 		expect(ENV.SCRAPE_INTERVAL).toBe("*/5 * * * *");
-		expect(ENV.DB_USER).toBe("custom_user");
-		expect(ENV.DB_PASSWORD).toBe("custom_pass");
-		expect(ENV.DB_NAME).toBe("custom_db");
-		expect(ENV.DB_HOST).toBe("db.example.com");
-		expect(ENV.DB_PORT).toBe(3307);
 	});
 });

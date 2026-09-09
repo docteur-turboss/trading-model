@@ -5,14 +5,12 @@ const MOCK_CREATE_SECURE_SERVER = jest
 	.fn<any>()
 	.mockReturnValue({ close: jest.fn() });
 
-jest.mock("@trading-model/server-utils/server/create-secure-server", () => ({
-	createSecureServer: MOCK_CREATE_SECURE_SERVER,
-	buildTlsFromEnv: jest.fn<any>().mockReturnValue({
-		keyPath: "/etc/tls/key.pem",
-		certPath: "/etc/tls/cert.pem",
-		caPath: "/etc/tls/ca.pem",
-	}),
-}));
+jest.mock(
+	"@trading-model/server-utils/adapters/inbound/service-server-factory",
+	() => ({
+		createServiceServer: MOCK_CREATE_SECURE_SERVER,
+	})
+);
 
 jest.mock("../../../src/config/message-manager", () => ({
 	MessageManagerListenExpress: jest.fn(),
@@ -26,7 +24,7 @@ jest.mock("../../../src/clients/http/routes", () => ({
 	FINANCIAL_ROUTES: jest.fn(() => MOCK_APP),
 }));
 
-jest.mock("../../../src/config/env", () => ({
+jest.mock("../../../src/infrastructure/config/env", () => ({
 	ENV: {
 		PORT: 3000,
 		TLS_KEY_PATH: "/etc/tls/key.pem",
@@ -35,7 +33,7 @@ jest.mock("../../../src/config/env", () => ({
 	},
 }));
 
-import { createServer } from "../../../src/app/server";
+import { createServer } from "../../../src/application/server";
 
 describe("app/server", () => {
 	it("should create server", async () => {
@@ -44,15 +42,12 @@ describe("app/server", () => {
 		expect(server.close).toBeDefined();
 	});
 
-	it("should call createSecureServer with correct options", async () => {
+	it("should call createServiceServer with correct options", async () => {
 		await createServer();
 		expect(MOCK_CREATE_SECURE_SERVER).toHaveBeenCalledWith(
 			expect.objectContaining({
-				port: 3000,
-				tls: expect.objectContaining({
-					keyPath: "/etc/tls/key.pem",
-					certPath: "/etc/tls/cert.pem",
-					caPath: "/etc/tls/ca.pem",
+				env: expect.objectContaining({
+					PORT: 3000,
 				}),
 			})
 		);

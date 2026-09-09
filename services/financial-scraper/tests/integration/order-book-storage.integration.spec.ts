@@ -3,7 +3,7 @@ import {
 	TradingSymbol,
 	UnixTimestamp,
 } from "@trading-model/common/domain/primitives";
-import type { SourceType } from "@trading-model/validation/contracts/market-data.types";
+import type { SourceType } from "@trading-model/validation/shared/contracts/market-data.types";
 import {
 	insertOrderBook,
 	selectOrderBookBy,

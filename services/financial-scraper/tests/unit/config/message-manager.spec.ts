@@ -10,7 +10,7 @@ jest.mock("../../../src/config/address-manager", () => ({
 	AddressManager: {},
 }));
 
-jest.mock("../../../src/config/env", () => ({
+jest.mock("../../../src/infrastructure/config/env", () => ({
 	ENV: {
 		TLS_CERT_PATH: "/etc/tls/cert.pem",
 		INSTANCE_ID: "instance-1",
