@@ -45,7 +45,7 @@ COPY --from=build /app/services/audit-logger/dist ./services/audit-logger/dist
 EXPOSE 3000
 
 HEALTHCHECK --interval=15s --timeout=5s --retries=3 \
-  CMD curl -sk --cert /certs/server.crt --key /certs/server-key.pem https://localhost:3000/ping || exit 1
+  CMD curl -sk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem https://localhost:3000/ping || exit 1
 
 ENTRYPOINT ["/sbin/tini", "--"]
-CMD ["node", "services/audit-logger/dist/app/index.js"]
+CMD ["node", "services/audit-logger/dist/application/index.js"]

@@ -31,7 +31,7 @@ import {
 import {
 	type AuditEventDocument,
 	AuditRepository,
-} from "../../../src/persistence/audit-repository";
+} from "../../../src/adapters/outbound/persistence/audit-repository";
 
 function makeEvent(
 	overrides: Partial<AuditEventDocument> = {}

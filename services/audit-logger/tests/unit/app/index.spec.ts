@@ -13,14 +13,14 @@ jest.mock("@trading-model/common/config/logger", () => ({
 
 let capturedOptions: any;
 
-jest.mock("@trading-model/server-utils/server/bootstrap", () => ({
+jest.mock("@trading-model/server-utils/application/services/bootstrap", () => ({
 	createBootstrap: jest.fn((options: any) => {
 		capturedOptions = options;
 		return { server: null, shutdown: jest.fn() };
 	}),
 }));
 
-jest.mock("../../../src/config/env", () => ({
+jest.mock("../../../src/infrastructure/config/env", () => ({
 	ENV: {
 		MONGODB_URI: "mongodb://localhost:27017/audit-logger",
 		PORT: 3001,
@@ -64,9 +64,12 @@ const MOCK_AUDIT_REPOSITORY_INSTANCE = {
 	ensureIndexes: jest.fn<any>(),
 };
 
-jest.mock("../../../src/persistence/audit-repository", () => ({
-	AuditRepository: jest.fn(() => MOCK_AUDIT_REPOSITORY_INSTANCE),
-}));
+jest.mock(
+	"../../../src/adapters/outbound/persistence/audit-repository",
+	() => ({
+		AuditRepository: jest.fn(() => MOCK_AUDIT_REPOSITORY_INSTANCE),
+	})
+);
 
 const MOCK_SCHEDULER_INSTANCE = {
 	workers: { register: jest.fn(), get: jest.fn(), unregister: jest.fn() },
@@ -87,7 +90,7 @@ jest.mock("../../../src/worker/worker-protocol", () => ({
 }));
 
 const MOCK_HTTP_SERVER = { raw: "mock-raw-server" };
-jest.mock("../../../src/app/server", () => ({
+jest.mock("../../../src/application/server", () => ({
 	createServer: jest.fn(() => MOCK_HTTP_SERVER),
 }));
 
@@ -115,27 +118,24 @@ jest.mock("@trading-model/broker-message", () => {
 	};
 });
 
-jest.mock("@trading-model/validation/contracts/market-events", () => ({
+jest.mock("@trading-model/validation/domain/contracts/market-events", () => ({
 	MarketEvent: {},
 }));
-jest.mock("@trading-model/validation/contracts/audit-events", () => ({
+jest.mock("@trading-model/validation/domain/contracts/audit-events", () => ({
 	AuditEvent: {},
 }));
-jest.mock("@trading-model/validation/contracts/certificate-events", () => ({
-	CertificateEvent: {},
-}));
 
-import { createBootstrap } from "@trading-model/server-utils/server/bootstrap";
-import { createServer } from "../../../src/app/server";
+import { createBootstrap } from "@trading-model/server-utils/application/services/bootstrap";
+import { AuditRepository } from "../../../src/adapters/outbound/persistence/audit-repository";
+import { createServer } from "../../../src/application/server";
 import { BOOTSTRAP_ADDRESS_MANAGER } from "../../../src/config/address-manager";
-import { AuditRepository } from "../../../src/persistence/audit-repository";
 import { JobRepository } from "../../../src/persistence/job-repository";
 import { JobScheduler } from "../../../src/scheduler/job-scheduler";
 import { WorkerProtocol } from "../../../src/worker/worker-protocol";
 
 const MOCK_CREATE_BOOTSTRAP = createBootstrap as jest.Mock;
 
-import "../../../src/app/index";
+import "../../../src/application/index";
 
 jest.setTimeout(30000);
 

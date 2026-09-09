@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 
-jest.mock("../../../src/config/env", () => ({
+jest.mock("../../../src/infrastructure/config/env", () => ({
 	ENV: {
 		ACK_TIMEOUT_MS: 30000,
 		MAX_QUEUE_DEPTH: 10000,

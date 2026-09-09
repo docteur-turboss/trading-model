@@ -11,8 +11,8 @@ jest.mock("@trading-model/common/middleware/response-exception", () => {
 	return { sendResponse };
 });
 
-import type { AuditRepository } from "../../../src/persistence/audit-repository";
-import { createMessageHandler } from "../../../src/subscription/audit-subscriber";
+import { createMessageHandler } from "../../../src/adapters/inbound/subscription/audit-subscriber";
+import type { AuditRepository } from "../../../src/adapters/outbound/persistence/audit-repository";
 
 describe("AuditSubscriber", () => {
 	let mockRepo: jest.Mocked<AuditRepository>;

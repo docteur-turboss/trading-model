@@ -15,7 +15,7 @@ jest.mock("@trading-model/common/utils/errors", () => ({
 	normalizeError: (err: Error) => err,
 }));
 
-jest.mock("../../../src/config/env", () => ({
+jest.mock("../../../src/infrastructure/config/env", () => ({
 	ENV: { LOG_RETENTION_DAYS: 1827 },
 }));
 

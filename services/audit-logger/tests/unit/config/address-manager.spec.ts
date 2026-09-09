@@ -7,7 +7,7 @@ const MOCK_ADDRESS_MANAGER = {
 };
 
 jest.mock(
-	"@trading-model/address-manager/create-service-address-manager",
+	"@trading-model/address-manager/application/create-service-address-manager",
 	() => {
 		const am = MOCK_ADDRESS_MANAGER;
 		return {
@@ -21,7 +21,7 @@ jest.mock(
 	}
 );
 
-jest.mock("../../../src/config/env", () => ({
+jest.mock("../../../src/infrastructure/config/env", () => ({
 	ENV: {
 		NODE_ENV: "test",
 		PORT: 3001,

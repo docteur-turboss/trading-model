@@ -16,7 +16,7 @@ describe("env validation", () => {
 		jest.isolateModules(() => {
 			Object.assign(process.env, REQUIRED_ENV);
 
-			const { ENV } = require("../../../src/config/env") as {
+			const { ENV } = require("../../../src/infrastructure/config/env") as {
 				ENV: Record<string, unknown>;
 			};
 
@@ -37,7 +37,7 @@ describe("env validation", () => {
 			delete process.env.TLS_KEY_PATH;
 
 			expect(() => {
-				require("../../../src/config/env");
+				require("../../../src/infrastructure/config/env");
 			}).toThrow();
 		});
 	});

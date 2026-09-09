@@ -1,8 +1,8 @@
 import http from "node:http";
 import { afterEach, describe, expect, it, jest } from "@jest/globals";
-import { configureApp } from "@trading-model/server-utils/server/configure-app";
+import { configureApp } from "@trading-model/server-utils/adapters/inbound/configure-app";
 
-jest.mock("../../src/config/env", () => ({
+jest.mock("../../src/infrastructure/config/env", () => ({
 	ENV: {
 		NODE_ENV: "test",
 		PORT: 0,

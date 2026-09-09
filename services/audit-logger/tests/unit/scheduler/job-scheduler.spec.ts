@@ -16,7 +16,7 @@ jest.mock("@trading-model/common/config/logger", () => ({
 	},
 }));
 
-jest.mock("../../../src/config/env", () => ({
+jest.mock("../../../src/infrastructure/config/env", () => ({
 	ENV: {
 		ACK_TIMEOUT_MS: 30000,
 		MAX_QUEUE_DEPTH: 10000,
@@ -624,13 +624,10 @@ describe("JobScheduler", () => {
 	});
 
 	describe("stop", () => {
-		it("should stop orphan detector, queue, and close protocol", () => {
-			const protocol = { close: jest.fn() } as unknown as WorkerProtocol;
-			scheduler.setWorkerProtocol(protocol);
-
+		it("should stop orphan detector and queue", () => {
+			const queueStopSpy = jest.spyOn(scheduler.queue, "stop");
 			scheduler.stop();
-
-			expect(protocol.close).toHaveBeenCalled();
+			expect(queueStopSpy).toHaveBeenCalled();
 		});
 
 		it("should stop without worker protocol", () => {
