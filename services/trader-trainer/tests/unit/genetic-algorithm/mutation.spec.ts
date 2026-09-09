@@ -5,9 +5,9 @@ import {
 	ConnectionType,
 	InitialisationType,
 	MutationAdaptation,
-	MutationDistribution,
 	MutationScope,
 } from "../../../src/core/genetic-algorithm/genome";
+import { mutateDiscreteStepParam } from "../../../src/core/genetic-algorithm/genome-rl/mutation";
 import type {
 	LayerGenome,
 	MutationGenome,
@@ -125,6 +125,12 @@ describe("Mutation - mutateLayer", () => {
 describe("Mutation - mutateGenome", () => {
 	const rng = () => 0.5;
 
+	/** Deterministic RNG that consumes a fixed value sequence, then uses 0.5. */
+	function rngSequence(...values: number[]): () => number {
+		let index = 0;
+		return () => (index < values.length ? values[index++]! : 0.5);
+	}
+
 	test("should return a new genome instance", () => {
 		const genome = createDefaultGenome("test");
 		const mutated = mutateGenome(genome, rng);
@@ -229,39 +235,16 @@ describe("Mutation - mutateGenome", () => {
 		expect(mutated.rl.gamma).toBe(origGamma);
 	});
 
-	test("should trigger horizon nStepReturn +1 and frameSkip -1 branches", () => {
-		const genome = createDefaultGenome("test");
-		genome.mutation.mutateHyperparams = true;
-		genome.mutation.distribution = MutationDistribution.Uniform;
-		genome.mutation.rates.rate = 0;
-		genome.mutation.structural.addNeuronRate = 0;
-		genome.mutation.structural.removeNeuronRate = 0;
-		genome.mutation.structural.addLayerRate = 0;
-		genome.mutation.structural.removeLayerRate = 0;
-		const NSTEP_OUTER_CALL = 15;
-		const NSTEP_INNER_CALL = 16;
-		const FRAMESKIP_OUTER_CALL = 17;
-		const FRAMESKIP_INNER_CALL = 18;
-		let idx = 0;
-		const rng = () => {
-			idx++;
-			if (idx === NSTEP_OUTER_CALL) {
-				return 0.05;
-			}
-			if (idx === NSTEP_INNER_CALL) {
-				return 0.05;
-			}
-			if (idx === FRAMESKIP_OUTER_CALL) {
-				return 0.05;
-			}
-			if (idx === FRAMESKIP_INNER_CALL) {
-				return 0.6;
-			}
-			return 0.5;
-		};
-		const mutated = mutateGenome(genome, rng);
-		expect(mutated.rl.horizon.nStepReturn).toBeDefined();
-		expect(mutated.rl.horizon.frameSkip).toBeDefined();
+	test("should add one to a discrete step param when both rng gates pass", () => {
+		expect(mutateDiscreteStepParam(10, rngSequence(0.05, 0.05))).toBe(11);
+	});
+
+	test("should subtract one when the direction gate fails", () => {
+		expect(mutateDiscreteStepParam(10, rngSequence(0.05, 0.6))).toBe(9);
+	});
+
+	test("should leave the param unchanged when the outer gate fails", () => {
+		expect(mutateDiscreteStepParam(10, rngSequence(0.5))).toBe(10);
 	});
 
 	test("should exercise perturb function on all RL fields in mutateRL", () => {

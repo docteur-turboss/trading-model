@@ -9,6 +9,7 @@ import {
 	repairGenome,
 	validateGenome,
 } from "../../../src/core/genetic-algorithm/validation";
+import { ActivationType } from "../../../src/core/neural-network/type";
 
 describe("Validation - validateGenome", () => {
 	test("should validate a default genome as valid", () => {
@@ -184,6 +185,13 @@ describe("Validation - repairGenome", () => {
 	test("should detect invalid layer activation", () => {
 		const genome = createDefaultGenome("test");
 		genome.network.hiddenLayers[0].activation = "invalid" as any;
+		const result = validateGenome(genome);
+		expect(result.valid).toBe(false);
+	});
+
+	test("should reject softmax as a hidden-layer activation (output-layer only)", () => {
+		const genome = createDefaultGenome("test");
+		genome.network.hiddenLayers[0].activation = ActivationType.Softmax;
 		const result = validateGenome(genome);
 		expect(result.valid).toBe(false);
 	});

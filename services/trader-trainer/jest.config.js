@@ -1,6 +1,8 @@
 /** @type {import("jest").Config} **/
 module.exports = {
   testEnvironment: 'node',
+  testPathIgnorePatterns: ['/node_modules/', '/dist/'],
+  modulePathIgnorePatterns: ['/dist/'],
   moduleNameMapper: {
     '^@trading-model/crypto/(.*)$': '<rootDir>/../../packages/crypto/src/$1',
     '^@trading-model/validation/(.*)$': '<rootDir>/../../packages/validation/src/$1',

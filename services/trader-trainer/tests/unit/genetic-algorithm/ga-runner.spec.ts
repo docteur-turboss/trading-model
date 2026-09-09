@@ -2,7 +2,7 @@ import { describe, expect, it, jest } from "@jest/globals";
 import { Price } from "@trading-model/common/domain/primitives";
 import { FeatureVector } from "../../../src/core/feature-vector";
 
-jest.mock("../../../src/core/agent/trading-agent", () => {
+jest.mock("../../../src/domain/agent/trading-agent", () => {
 	const makeMockAgent = () => ({
 		forwardPass: jest.fn(() => ({ output: new Float32Array([0.5, 0.5, 0.5]) })),
 		getWeights: jest.fn(() => new Float32Array([0.1, 0.2])),
@@ -84,7 +84,7 @@ jest.mock("../../../src/core/neural-network/agent", () => ({
 	})),
 }));
 
-jest.mock("../../../src/core/neural-network/neural-network", () => ({
+jest.mock("../../../src/domain/neural-network/neural-network", () => ({
 	NeuralNetwork: jest.fn(),
 }));
 

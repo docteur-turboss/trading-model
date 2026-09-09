@@ -42,4 +42,4 @@ COPY --from=build /app/services/trader-trainer/dist ./services/trader-trainer/di
 
 EXPOSE 3000
 ENTRYPOINT ["/sbin/tini", "--"]
-CMD ["node", "services/trader-trainer/dist/app/index.js"]
+CMD ["node", "services/trader-trainer/dist/infrastructure/index.js"]

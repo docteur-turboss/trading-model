@@ -34,7 +34,7 @@ jest.mock<{
 		TRAINER_TIME_BUDGET_MS: number;
 		TRAINER_EPISODES_PER_INDIVIDUAL: number;
 	};
-}>("../../src/config/env", () => ({
+}>("../../src/infrastructure/config/env", () => ({
 	ENV: {
 		NODE_ENV: "test",
 		PORT: 0,

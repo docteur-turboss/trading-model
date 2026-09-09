@@ -1,7 +1,6 @@
 import { describe, expect, it, jest } from "@jest/globals";
 import { ACTIVATIONS } from "../../../src/core/neural-network/activation";
 import { LOSSES } from "../../../src/core/neural-network/losses";
-import { NeuralNetwork } from "../../../src/core/neural-network/neural-network";
 import {
 	ActivationType,
 	ConnectionType,
@@ -9,8 +8,9 @@ import {
 	LossFunctionType,
 	NormalisationType,
 } from "../../../src/core/neural-network/type";
+import { NeuralNetwork } from "../../../src/domain/neural-network/neural-network";
 
-jest.mock("../../../src/config/env", () => ({
+jest.mock("../../../src/infrastructure/config/env", () => ({
 	ENV: {},
 }));
 

@@ -17,11 +17,11 @@
   "license": "ISC",
   "author": "Alchimist Horus Turboss <@docteur-turboss>",
   "type": "commonjs",
-  "main": "./dist/app/index.js",
+  "main": "./dist/infrastructure/index.js",
   "scripts": {
     "build": "tsc",
     "test:coverage": "jest --coverage",
-    "dev": "ts-node src/app/index.ts",
+    "dev": "ts-node src/infrastructure/index.ts",
     "test": "jest"
   },
   "dependencies": {
@@ -29,17 +29,17 @@
     "@trading-model/broker-message": "*",
     "@trading-model/common": "*",
     "express": "^5.2.1",
-    "zod": "^4.4.3"
+    "zod": "^4.5.4"
   },
   "devDependencies": {
-    "@jest/globals": "^30.4.1",
+    "@jest/globals": "^30.5.1",
     "@types/express": "^5.0.6",
     "@types/jest": "^30.0.0",
-    "@types/node": "^25.9.2",
-    "jest": "^30.4.2",
+    "@types/node": "^26.5.0",
+    "jest": "^30.5.1",
     "standard-version": "^9.5.0",
-    "ts-jest": "^29.4.11",
+    "ts-jest": "^29.4.12",
     "ts-node": "^10.9.2",
-    "typescript": "~6.0.3"
+    "typescript": "^6.0.3"
   }
 }
