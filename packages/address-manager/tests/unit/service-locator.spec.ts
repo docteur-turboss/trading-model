@@ -8,15 +8,15 @@ import {
 	toVersion,
 	UnixTimestamp,
 } from "@trading-model/common/domain/primitives";
-import { Protocol } from "@trading-model/validation/contracts/service-registry.types";
-import type { ServiceInstance } from "../../src/client/type";
-import type { DnsResolver } from "../../src/discovery/dns-resolver";
+import { Protocol } from "@trading-model/validation/adapters/outbound/service-registry.types";
 import {
 	IpAddressLocator,
 	MappingServiceLocator,
 	MapResolver,
 	ServiceNameLocator,
-} from "../../src/discovery/service-locator";
+} from "../../src/application/discovery/service-locator";
+import type { ServiceInstance } from "../../src/domain/client/type";
+import type { DnsResolver } from "../../src/domain/discovery/dns-resolver";
 
 describe("ServiceNameLocator", () => {
 	let locator: ServiceNameLocator;

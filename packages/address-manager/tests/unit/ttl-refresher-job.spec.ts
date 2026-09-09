@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, jest, test } from "@jest/globals";
-import type { AddressManagerClient } from "../../src/client/address-manager-client";
-import { createRefreshJob } from "../../src/scheduler/refresh-job";
+import type { AddressManagerClient } from "../../src/adapters/outbound/client/address-manager-client";
+import { createRefreshJob } from "../../src/infrastructure/scheduler/refresh-job";
 
 describe("createRefreshJob<AddressManagerClient>", () => {
 	let mockClient: jest.Mocked<AddressManagerClient>;

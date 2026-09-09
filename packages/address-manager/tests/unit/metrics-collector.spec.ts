@@ -4,13 +4,13 @@ import type {
 	ServiceId,
 	UnixTimestamp,
 } from "@trading-model/common/domain/primitives";
-import { HttpMethod } from "@trading-model/validation/contracts/signed-request";
+import { HttpMethod } from "@trading-model/validation/adapters/inbound/signed-request";
 import {
 	CallStatus,
 	Endpoint,
-} from "../../src/monitoring/service-call-tracker";
+} from "../../src/infrastructure/monitoring/service-call-tracker";
 
-jest.mock("../../src/metrics", () => ({
+jest.mock("../../src/infrastructure/metrics", () => ({
 	CIRCUIT_BREAKER_INSTANCES_TOTAL: {
 		set: jest.fn<(labels: { state: string }, value: number) => void>(),
 	},
@@ -19,11 +19,11 @@ jest.mock("../../src/metrics", () => ({
 	},
 }));
 
-jest.mock("../../src/http/routes/ping.routes", () => ({
+jest.mock("../../src/adapters/inbound/routes/ping.routes", () => ({
 	PING_ROUTES: Symbol("PING_ROUTES"),
 }));
 
-jest.mock("../../src/http/routes/metrics.routes", () => ({
+jest.mock("../../src/adapters/inbound/routes/metrics.routes", () => ({
 	METRICS_ROUTES: Symbol("METRICS_ROUTES"),
 }));
 
@@ -36,16 +36,16 @@ jest.mock("prom-client", () => ({
 	},
 }));
 
-import type { DiscoveryCircuitBreaker } from "../../src/discovery/circuit-breaker";
-import type { IServiceCache } from "../../src/discovery/service-cache.interface";
-import { METRICS_ROUTES } from "../../src/http/routes/metrics.routes";
-import { PING_ROUTES } from "../../src/http/routes/ping.routes";
+import { METRICS_ROUTES } from "../../src/adapters/inbound/routes/metrics.routes";
+import { PING_ROUTES } from "../../src/adapters/inbound/routes/ping.routes";
+import type { DiscoveryCircuitBreaker } from "../../src/application/discovery/circuit-breaker";
+import type { IServiceCache } from "../../src/domain/discovery/service-cache.interface";
 import {
 	CACHE_ENTRY_COUNT,
 	CIRCUIT_BREAKER_INSTANCES_TOTAL,
-} from "../../src/metrics";
-import { MetricsCollector } from "../../src/monitoring/metrics-collector";
-import { ServiceCallTracker } from "../../src/monitoring/service-call-tracker";
+} from "../../src/infrastructure/metrics";
+import { MetricsCollector } from "../../src/infrastructure/monitoring/metrics-collector";
+import { ServiceCallTracker } from "../../src/infrastructure/monitoring/service-call-tracker";
 
 describe("MetricsCollector", () => {
 	let collector: MetricsCollector;

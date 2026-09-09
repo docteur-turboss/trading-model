@@ -8,11 +8,11 @@ import {
 	toVersion,
 	UnixTimestamp,
 } from "@trading-model/common/domain/primitives";
-import { Protocol } from "@trading-model/validation/contracts/service-registry.types";
-import type { ServiceInstance } from "../../src/client/type";
-import { CacheHealthRefresher } from "../../src/discovery/cache-health-refresher";
-import type { IServiceCache } from "../../src/discovery/service-cache.interface";
-import type { ServiceHealthChecker } from "../../src/discovery/service-health-checker";
+import { Protocol } from "@trading-model/validation/adapters/outbound/service-registry.types";
+import type { ServiceHealthChecker } from "../../src/adapters/outbound/discovery/service-health-checker";
+import { CacheHealthRefresher } from "../../src/application/discovery/cache-health-refresher";
+import type { ServiceInstance } from "../../src/domain/client/type";
+import type { IServiceCache } from "../../src/domain/discovery/service-cache.interface";
 
 function makeInstance(overrides?: Partial<ServiceInstance>): ServiceInstance {
 	return {

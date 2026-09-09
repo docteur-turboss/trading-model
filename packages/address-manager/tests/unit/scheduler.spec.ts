@@ -7,7 +7,10 @@ import {
 	test,
 } from "@jest/globals";
 import cron from "node-cron";
-import { type ScheduledJob, Scheduler } from "../../src/scheduler/scheduler";
+import {
+	type ScheduledJob,
+	Scheduler,
+} from "../../src/infrastructure/scheduler/scheduler";
 
 jest.mock("node-cron", () => ({
 	schedule: jest.fn(),

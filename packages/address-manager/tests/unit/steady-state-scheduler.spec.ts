@@ -3,10 +3,10 @@ import {
 	toInstanceId,
 	toServiceId,
 } from "@trading-model/common/domain/primitives";
-import type { IServiceCache } from "../../src/discovery/service-cache.interface";
-import type { ScheduledJob } from "../../src/scheduler/scheduler";
-import type { SteadyStateSchedulerOptions } from "../../src/scheduler/steady-state-scheduler";
-import { SteadyStateScheduler } from "../../src/scheduler/steady-state-scheduler";
+import type { SteadyStateSchedulerOptions } from "../../src/application/scheduler/steady-state-scheduler";
+import { SteadyStateScheduler } from "../../src/application/scheduler/steady-state-scheduler";
+import type { IServiceCache } from "../../src/domain/discovery/service-cache.interface";
+import type { ScheduledJob } from "../../src/infrastructure/scheduler/scheduler";
 
 const MOCK_SCHEDULER_INSTANCE = {
 	register: jest.fn<(job: unknown) => void>(),
@@ -14,7 +14,7 @@ const MOCK_SCHEDULER_INSTANCE = {
 	stop: jest.fn<() => void>(),
 };
 
-jest.mock("../../src/scheduler/scheduler", () => ({
+jest.mock("../../src/infrastructure/scheduler/scheduler", () => ({
 	Scheduler: jest.fn().mockImplementation(() => MOCK_SCHEDULER_INSTANCE),
 }));
 
@@ -75,7 +75,7 @@ describe("SteadyStateScheduler", () => {
 
 	it("should skip cache refresh when serviceCache is RedisServiceCache", () => {
 		const mod = jest.requireActual(
-			"../../src/discovery/redis-service-cache"
+			"../../src/adapters/outbound/discovery/redis-service-cache"
 		) as {
 			RedisServiceCache: new (config: { redisUrl: string }) => IServiceCache;
 		};

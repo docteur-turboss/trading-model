@@ -12,9 +12,9 @@ import {
 	toServiceId,
 	type URLString,
 } from "@trading-model/common/domain/primitives";
-import { AddressManagerClient } from "../../src/client/address-manager-client";
-import type { TokenManager } from "../../src/client/token-manager";
-import type { AddressManagerConfig } from "../../src/config/address-manager-config";
+import { AddressManagerClient } from "../../src/adapters/outbound/client/address-manager-client";
+import type { TokenManager } from "../../src/application/client/token-manager";
+import type { AddressManagerConfig } from "../../src/domain/config/address-manager-config";
 
 registerServiceName("test-service" as ServiceInstanceName);
 

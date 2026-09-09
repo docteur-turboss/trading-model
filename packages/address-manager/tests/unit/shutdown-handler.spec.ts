@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
-import { ShutdownHandler } from "../../src/shutdown-handler";
-import type { ShutdownHandlerDeps } from "../../src/types";
+import type { ShutdownHandlerDeps } from "../../src/domain/types";
+import { ShutdownHandler } from "../../src/infrastructure/shutdown-handler";
 
-jest.mock("@trading-model/server-utils/server/signal-handler", () => ({
+jest.mock("@trading-model/server-utils/infrastructure/signal-handler", () => ({
 	setupProcessHandlers:
 		jest.fn<
 			(shutdown: () => Promise<void>, hardShutdown: () => void) => void
@@ -74,7 +74,7 @@ describe("ShutdownHandler", () => {
 		handler.setupSignalHandlers(scheduler);
 		const {
 			setupProcessHandlers,
-		} = require("@trading-model/server-utils/server/signal-handler");
+		} = require("@trading-model/server-utils/infrastructure/signal-handler");
 		expect(setupProcessHandlers).toHaveBeenCalledTimes(1);
 	});
 
@@ -84,7 +84,7 @@ describe("ShutdownHandler", () => {
 		handler.setupSignalHandlers(scheduler);
 		const {
 			setupProcessHandlers,
-		} = require("@trading-model/server-utils/server/signal-handler");
+		} = require("@trading-model/server-utils/infrastructure/signal-handler");
 		expect(setupProcessHandlers).toHaveBeenCalledTimes(1);
 	});
 
@@ -93,7 +93,7 @@ describe("ShutdownHandler", () => {
 		handler.setupSignalHandlers(scheduler);
 		const {
 			setupProcessHandlers,
-		} = require("@trading-model/server-utils/server/signal-handler");
+		} = require("@trading-model/server-utils/infrastructure/signal-handler");
 		const shutdownFn = (setupProcessHandlers as jest.Mock).mock
 			.calls[0][0] as () => Promise<void>;
 		await shutdownFn();
@@ -108,7 +108,7 @@ describe("ShutdownHandler", () => {
 		handler.removeSignalHandlers();
 		const {
 			removeProcessHandlers,
-		} = require("@trading-model/server-utils/server/signal-handler");
+		} = require("@trading-model/server-utils/infrastructure/signal-handler");
 		expect(removeProcessHandlers).toHaveBeenCalledTimes(1);
 	});
 

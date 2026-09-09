@@ -16,7 +16,7 @@ jest.mock("ws", () => ({
 	default: MockWebSocket,
 }));
 
-import { WsConnection } from "../../src/client/ws-connection";
+import { WsConnection } from "../../src/infrastructure/client/ws-connection";
 
 const BASE_URL = URLString.of("ws://localhost:8080");
 
@@ -181,7 +181,7 @@ describe("WsConnection", () => {
 		expect(conn.onMessage).toHaveBeenCalledWith("some data");
 	});
 
-	test("close handler sets lastCloseCode and invokes onCloseHandler", () => {
+	test("close handler invokes onCloseHandler with the close code", () => {
 		const conn = new WsConnection(BASE_URL);
 		conn.onCloseHandler = jest.fn();
 		conn.connect();
@@ -189,8 +189,7 @@ describe("WsConnection", () => {
 			(call) => call[0] === "close"
 		)?.[1] as (...args: any[]) => void;
 		closeHandler(1006);
-		expect(conn.lastCloseCode).toBe(1006);
-		expect(conn.onCloseHandler).toHaveBeenCalled();
+		expect(conn.onCloseHandler).toHaveBeenCalledWith(1006);
 	});
 
 	test("error handler passes error to onError callback", () => {

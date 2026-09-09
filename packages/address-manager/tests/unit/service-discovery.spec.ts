@@ -12,12 +12,12 @@ import {
 	toVersion,
 	UnixTimestamp,
 } from "@trading-model/common/domain/primitives";
-import { Protocol } from "@trading-model/validation/contracts/service-registry.types";
-import type { ServiceInstance } from "../../src/client/type";
-import type { AddressManagerConfig } from "../../src/config/address-manager-config";
-import type { ServiceCache } from "../../src/discovery/service-cache";
-import { ServiceDiscovery } from "../../src/discovery/service-discovery";
-import type { ServiceHealthChecker } from "../../src/discovery/service-health-checker";
+import { Protocol } from "@trading-model/validation/adapters/outbound/service-registry.types";
+import type { ServiceCache } from "../../src/adapters/outbound/discovery/service-cache";
+import type { ServiceHealthChecker } from "../../src/adapters/outbound/discovery/service-health-checker";
+import { ServiceDiscovery } from "../../src/application/discovery/service-discovery";
+import type { ServiceInstance } from "../../src/domain/client/type";
+import type { AddressManagerConfig } from "../../src/domain/config/address-manager-config";
 
 describe("ServiceDiscovery", () => {
 	let discovery: ServiceDiscovery;

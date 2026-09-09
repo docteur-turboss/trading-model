@@ -7,12 +7,12 @@ import {
 	toServiceId,
 	UnixTimestamp,
 } from "@trading-model/common/domain/primitives";
-import { HttpMethod } from "@trading-model/validation/contracts/signed-request";
+import { HttpMethod } from "@trading-model/validation/adapters/inbound/signed-request";
 import {
 	CallStatus,
 	Endpoint,
 	ServiceCallTracker,
-} from "../../src/monitoring/service-call-tracker";
+} from "../../src/infrastructure/monitoring/service-call-tracker";
 
 describe("ServiceCallTracker", () => {
 	let tracker: ServiceCallTracker;

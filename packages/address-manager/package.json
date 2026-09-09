@@ -20,11 +20,11 @@
     "node-cron": "^4.2.1"
   },
   "devDependencies": {
-    "@jest/globals": "^30.4.1",
+    "@jest/globals": "^30.5.1",
     "@types/express": "^5.0.6",
-    "@types/node": "^25.9.4",
-    "jest": "^30.4.2",
-    "ts-jest": "^29.4.11",
+    "@types/node": "^26.5.0",
+    "jest": "^30.5.1",
+    "ts-jest": "^29.4.12",
     "typescript": "^6.0.3"
   },
   "scripts": {

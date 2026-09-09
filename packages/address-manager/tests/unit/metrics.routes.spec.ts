@@ -1,5 +1,5 @@
 import { describe, expect, it } from "@jest/globals";
-import { METRICS_ROUTES } from "../../src/http/routes/metrics.routes";
+import { METRICS_ROUTES } from "../../src/adapters/inbound/routes/metrics.routes";
 
 describe("METRICS_ROUTES", () => {
 	it("should be a router with /metrics route", () => {

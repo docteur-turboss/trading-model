@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import type { JsonObject } from "@trading-model/common/domain/primitives";
 import { toServiceId } from "@trading-model/common/domain/primitives";
-import type { DiscoveryWsMessage } from "@trading-model/validation/contracts/discovery-ws-message.types";
-import { DiscoveryWsMessageType } from "@trading-model/validation/contracts/discovery-ws-message.types";
-import { handleCacheInvalidation } from "../../src/cache-invalidation-handler";
-import type { IServiceCache } from "../../src/discovery/service-cache.interface";
+import type { DiscoveryWsMessage } from "@trading-model/validation/adapters/inbound/discovery-ws-message.types";
+import { DiscoveryWsMessageType } from "@trading-model/validation/adapters/inbound/discovery-ws-message.types";
+import { handleCacheInvalidation } from "../../src/application/cache-invalidation-handler";
+import type { IServiceCache } from "../../src/domain/discovery/service-cache.interface";
 
 describe("handleCacheInvalidation", () => {
 	let serviceCache: jest.Mocked<IServiceCache>;

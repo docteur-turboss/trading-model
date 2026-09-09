@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, jest, test } from "@jest/globals";
-import type { TokenManager } from "../../src/client/token-manager";
-import { createRefreshJob } from "../../src/scheduler/refresh-job";
+import type { TokenManager } from "../../src/application/client/token-manager";
+import { createRefreshJob } from "../../src/infrastructure/scheduler/refresh-job";
 
 describe("createRefreshJob<TokenManager>", () => {
 	let mockTokenManager: jest.Mocked<TokenManager>;

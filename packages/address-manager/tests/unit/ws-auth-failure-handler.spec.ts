@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
-import type { ServiceRegistrationResponse } from "../../src/client/type";
-import type { WsAuthFailureDeps } from "../../src/ws-auth-failure-handler";
-import { WsAuthFailureHandler } from "../../src/ws-auth-failure-handler";
+import type { WsAuthFailureDeps } from "../../src/application/ws-auth-failure-handler";
+import { WsAuthFailureHandler } from "../../src/application/ws-auth-failure-handler";
+import type { ServiceRegistrationResponse } from "../../src/domain/client/type";
 
 function createDeps(): jest.Mocked<WsAuthFailureDeps> {
 	return {

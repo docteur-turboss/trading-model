@@ -8,7 +8,7 @@ import {
 	toVersion,
 	UnixTimestamp,
 } from "@trading-model/common/domain/primitives";
-import { Protocol } from "@trading-model/validation/contracts/service-registry.types";
+import { Protocol } from "@trading-model/validation/adapters/outbound/service-registry.types";
 
 jest.mock("@trading-model/common/config/logger", () => ({
 	logger: {
@@ -18,8 +18,8 @@ jest.mock("@trading-model/common/config/logger", () => ({
 }));
 
 import { logger } from "@trading-model/common/config/logger";
-import type { ServiceInstance } from "../../src/client/type";
-import { RedisCacheScanner } from "../../src/discovery/redis-cache-scanner";
+import { RedisCacheScanner } from "../../src/adapters/outbound/discovery/redis-cache-scanner";
+import type { ServiceInstance } from "../../src/domain/client/type";
 
 const MockedLogger = jest.mocked(logger);
 

@@ -10,10 +10,10 @@ import {
 	UnixTimestamp,
 	URLString,
 } from "@trading-model/common/domain/primitives";
-import { Protocol } from "@trading-model/validation/contracts/service-registry.types";
-import type { ServiceInstance } from "../../src/client/type";
-import { ServiceHealthChecker } from "../../src/discovery/service-health-checker";
-import { IpAddressLocator } from "../../src/discovery/service-locator";
+import { Protocol } from "@trading-model/validation/adapters/outbound/service-registry.types";
+import { ServiceHealthChecker } from "../../src/adapters/outbound/discovery/service-health-checker";
+import { IpAddressLocator } from "../../src/application/discovery/service-locator";
+import type { ServiceInstance } from "../../src/domain/client/type";
 
 describe("ServiceHealthChecker", () => {
 	let httpClient: jest.Mocked<HttpClient>;

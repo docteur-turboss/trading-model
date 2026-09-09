@@ -6,6 +6,7 @@ import {
 	jest,
 	test,
 } from "@jest/globals";
+import { WS_CLOSE_CODES } from "@trading-model/common/ws/ws-close-codes";
 
 const MOCK_WEB_SOCKET_INSTANCE: Record<string, unknown> = {
 	on: jest.fn(),
@@ -41,8 +42,8 @@ import {
 	toServiceId,
 	URLString,
 } from "@trading-model/common/domain/primitives";
-import { DiscoveryWsMessageType } from "@trading-model/validation/contracts/discovery-ws-message.types";
-import { WebSocketClient } from "../../src/client/websocket-client";
+import { DiscoveryWsMessageType } from "@trading-model/validation/adapters/inbound/discovery-ws-message.types";
+import { WebSocketClient } from "../../src/adapters/outbound/client/websocket-client";
 
 describe("WebSocketClient", () => {
 	let client: WebSocketClient;
@@ -308,7 +309,7 @@ describe("WebSocketClient", () => {
 			expect(client.getReconnectAttempts()).toBe(0);
 		});
 
-		test("should call auth failure handler on close with code 4001", () => {
+		test("should call auth failure handler on close with auth-failure code", () => {
 			const authHandler = jest.fn();
 			client = new WebSocketClient({
 				url: URLString.of("ws://localhost:3000"),
@@ -321,7 +322,7 @@ describe("WebSocketClient", () => {
 				(c: unknown[]) => c[0] === "close"
 			)![1] as (code: number) => void;
 
-			closeHandler(4001);
+			closeHandler(WS_CLOSE_CODES.AUTH_FAILURE);
 			expect(authHandler).toHaveBeenCalled();
 		});
 

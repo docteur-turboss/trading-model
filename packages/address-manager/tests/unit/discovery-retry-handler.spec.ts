@@ -9,13 +9,13 @@ import {
 	toVersion,
 	UnixTimestamp,
 } from "@trading-model/common/domain/primitives";
-import { Protocol } from "@trading-model/validation/contracts/service-registry.types";
-import type { ServiceInstance } from "../../src/client/type";
-import type { DiscoveryCircuitBreaker } from "../../src/discovery/circuit-breaker";
-import type { DiscoveryContext } from "../../src/discovery/discovery-context";
-import { DiscoveryRetryHandler } from "../../src/discovery/discovery-retry-handler";
-import type { IServiceCache } from "../../src/discovery/service-cache.interface";
-import type { ServiceDiscovery } from "../../src/discovery/service-discovery";
+import { Protocol } from "@trading-model/validation/adapters/outbound/service-registry.types";
+import type { DiscoveryCircuitBreaker } from "../../src/application/discovery/circuit-breaker";
+import { DiscoveryRetryHandler } from "../../src/application/discovery/discovery-retry-handler";
+import type { ServiceDiscovery } from "../../src/application/discovery/service-discovery";
+import type { ServiceInstance } from "../../src/domain/client/type";
+import type { DiscoveryContext } from "../../src/domain/discovery/discovery-context";
+import type { IServiceCache } from "../../src/domain/discovery/service-cache.interface";
 
 jest.mock("@trading-model/common/config/logger", () => ({
 	logger: {
@@ -26,7 +26,7 @@ jest.mock("@trading-model/common/config/logger", () => ({
 jest.mock("@trading-model/common/utils/sleep", () => ({
 	sleep: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
 }));
-jest.mock("../../src/metrics", () => ({
+jest.mock("../../src/infrastructure/metrics", () => ({
 	DiscoveryResult: {
 		Success: "success",
 		Failure: "failure",
@@ -37,7 +37,7 @@ jest.mock("../../src/metrics", () => ({
 
 import { logger } from "@trading-model/common/config/logger";
 import { sleep } from "@trading-model/common/utils/sleep";
-import { recordDiscoveryMetrics } from "../../src/metrics";
+import { recordDiscoveryMetrics } from "../../src/infrastructure/metrics";
 
 describe("DiscoveryRetryHandler", () => {
 	const FixedTimestamp = 1_700_000_000_000;

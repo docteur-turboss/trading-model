@@ -12,9 +12,9 @@ import {
 	toInstanceId,
 	UnixTimestamp,
 } from "@trading-model/common/domain/primitives";
-import { DiscoveryCircuitBreaker } from "../../src/discovery/circuit-breaker";
-import type { ICircuitStateStore } from "../../src/discovery/circuit-state-store.interface";
-import type { PersistedCircuitState } from "../../src/discovery/service-cache.interface";
+import { DiscoveryCircuitBreaker } from "../../src/application/discovery/circuit-breaker";
+import type { ICircuitStateStore } from "../../src/domain/discovery/circuit-state-store.interface";
+import type { PersistedCircuitState } from "../../src/domain/discovery/service-cache.interface";
 
 function createMockStateStore(): jest.Mocked<ICircuitStateStore> {
 	return {

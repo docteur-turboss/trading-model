@@ -50,7 +50,7 @@ const MOCK_ADDRESS_MANAGER_CLIENT = (() => {
 	};
 	return impl;
 })();
-jest.mock("../../src/client/address-manager-client", () => ({
+jest.mock("../../src/adapters/outbound/client/address-manager-client", () => ({
 	AddressManagerClient: jest
 		.fn<any>()
 		.mockReturnValue(MOCK_ADDRESS_MANAGER_CLIENT),
@@ -66,11 +66,11 @@ const MOCK_TOKEN_MANAGER = (() => {
 	};
 	return impl;
 })();
-jest.mock("../../src/client/token-manager", () => ({
+jest.mock("../../src/application/client/token-manager", () => ({
 	TokenManager: jest.fn<any>().mockReturnValue(MOCK_TOKEN_MANAGER),
 }));
 
-jest.mock("../../src/discovery/redis-service-cache", () => ({
+jest.mock("../../src/adapters/outbound/discovery/redis-service-cache", () => ({
 	RedisServiceCache: jest.fn<any>().mockReturnValue({
 		get: jest.fn<any>(),
 		set: jest.fn<any>(),
@@ -79,13 +79,15 @@ jest.mock("../../src/discovery/redis-service-cache", () => ({
 		entries: jest.fn<any>().mockResolvedValue([]),
 		close: jest.fn<any>(),
 		getVersion: jest.fn<any>().mockResolvedValue(0),
-		setCircuitState: jest.fn<any>().mockResolvedValue(undefined),
-		getCircuitState: jest.fn<any>().mockResolvedValue(null),
-		deleteCircuitState: jest.fn<any>().mockResolvedValue(undefined),
+		circuitStateStore: {
+			setCircuitState: jest.fn<any>().mockResolvedValue(undefined),
+			getCircuitState: jest.fn<any>().mockResolvedValue(null),
+			deleteCircuitState: jest.fn<any>().mockResolvedValue(undefined),
+		},
 	}),
 }));
 
-jest.mock("../../src/discovery/service-cache", () => ({
+jest.mock("../../src/adapters/outbound/discovery/service-cache", () => ({
 	ServiceCache: jest.fn<any>().mockReturnValue({
 		get: jest.fn<any>(),
 		set: jest.fn<any>(),
@@ -94,13 +96,15 @@ jest.mock("../../src/discovery/service-cache", () => ({
 		entries: jest.fn<any>().mockResolvedValue([]),
 		close: jest.fn<any>(),
 		getVersion: jest.fn<any>().mockResolvedValue(0),
-		setCircuitState: jest.fn<any>().mockResolvedValue(undefined),
-		getCircuitState: jest.fn<any>().mockResolvedValue(null),
-		deleteCircuitState: jest.fn<any>().mockResolvedValue(undefined),
+		circuitStateStore: {
+			setCircuitState: jest.fn<any>().mockResolvedValue(undefined),
+			getCircuitState: jest.fn<any>().mockResolvedValue(null),
+			deleteCircuitState: jest.fn<any>().mockResolvedValue(undefined),
+		},
 	}),
 }));
 
-jest.mock("../../src/discovery/service-discovery", () => ({
+jest.mock("../../src/application/discovery/service-discovery", () => ({
 	ServiceDiscovery: jest.fn<any>().mockReturnValue({
 		findService: jest.fn<any>().mockResolvedValue({
 			host: "127.0.0.1",
@@ -121,14 +125,17 @@ jest.mock("../../src/discovery/service-discovery", () => ({
 	}),
 }));
 
-jest.mock("../../src/discovery/service-health-checker", () => ({
-	ServiceHealthChecker: jest.fn<any>().mockReturnValue({
-		isHealthy: jest.fn<any>().mockResolvedValue(true),
-		recordLatency: jest.fn<any>(),
-	}),
-}));
+jest.mock(
+	"../../src/adapters/outbound/discovery/service-health-checker",
+	() => ({
+		ServiceHealthChecker: jest.fn<any>().mockReturnValue({
+			isHealthy: jest.fn<any>().mockResolvedValue(true),
+			recordLatency: jest.fn<any>(),
+		}),
+	})
+);
 
-jest.mock("../../src/client/websocket-client", () => ({
+jest.mock("../../src/adapters/outbound/client/websocket-client", () => ({
 	WebSocketClient: jest.fn<any>().mockReturnValue({
 		connect: jest.fn<any>(),
 		disconnect: jest.fn<any>(),
@@ -149,8 +156,8 @@ import {
 	toInstanceId,
 	toServiceId,
 } from "@trading-model/common/domain/primitives";
-import AddressManager from "../../src/address-manager";
-import type { AddressManagerConfig } from "../../src/config/address-manager-config";
+import AddressManager from "../../src/application/address-manager";
+import type { AddressManagerConfig } from "../../src/domain/config/address-manager-config";
 
 function makeConfig(
 	overrides?: Partial<AddressManagerConfig>

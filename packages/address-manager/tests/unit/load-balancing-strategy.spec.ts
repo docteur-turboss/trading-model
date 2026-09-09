@@ -8,15 +8,15 @@ import {
 	toVersion,
 	UnixTimestamp,
 } from "@trading-model/common/domain/primitives";
-import { Protocol } from "@trading-model/validation/contracts/service-registry.types";
-import type { ServiceInstance } from "../../src/client/type";
+import { Protocol } from "@trading-model/validation/adapters/outbound/service-registry.types";
+import type { ServiceInstance } from "../../src/domain/client/type";
 import {
 	createLoadBalancer,
 	createRandomStrategy,
 	createRoundRobinStrategy,
 	LeastConnectionsStrategy,
 	LoadBalancingStrategyType,
-} from "../../src/discovery/load-balancing-strategy";
+} from "../../src/domain/discovery/load-balancing-strategy";
 
 const inst1 = toInstanceId("i-1");
 const inst2 = toInstanceId("i-2");

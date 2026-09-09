@@ -10,9 +10,9 @@ import {
 	toVersion,
 	UnixTimestamp,
 } from "@trading-model/common/domain/primitives";
-import { Protocol } from "@trading-model/validation/contracts/service-registry.types";
-import type { ServiceInstance } from "../../src/client/type";
-import { ServiceCache } from "../../src/discovery/service-cache";
+import { Protocol } from "@trading-model/validation/adapters/outbound/service-registry.types";
+import { ServiceCache } from "../../src/adapters/outbound/discovery/service-cache";
+import type { ServiceInstance } from "../../src/domain/client/type";
 
 function makeInstance(overrides?: Partial<ServiceInstance>): ServiceInstance {
 	return {
@@ -121,12 +121,14 @@ describe("ServiceCache", () => {
 	});
 
 	it("setCircuitState should store and return state", async () => {
-		await cache.setCircuitState(toInstanceId("i-1"), {
+		await cache.circuitStateStore.setCircuitState(toInstanceId("i-1"), {
 			failures: PositiveInt.of(3),
 			lastFailureTime: UnixTimestamp.of(1000),
 			state: CircuitStateEnum.OPEN,
 		});
-		const result = await cache.getCircuitState(toInstanceId("i-1"));
+		const result = await cache.circuitStateStore.getCircuitState(
+			toInstanceId("i-1")
+		);
 		expect(result).toEqual({
 			failures: PositiveInt.of(3),
 			lastFailureTime: UnixTimestamp.of(1000),
@@ -135,18 +137,22 @@ describe("ServiceCache", () => {
 	});
 
 	it("getCircuitState should return null for unknown instance", async () => {
-		const result = await cache.getCircuitState(toInstanceId("unknown"));
+		const result = await cache.circuitStateStore.getCircuitState(
+			toInstanceId("unknown")
+		);
 		expect(result).toBeNull();
 	});
 
 	it("deleteCircuitState should remove state", async () => {
-		await cache.setCircuitState(toInstanceId("i-1"), {
+		await cache.circuitStateStore.setCircuitState(toInstanceId("i-1"), {
 			failures: PositiveInt.of(1),
 			lastFailureTime: UnixTimestamp.of(0),
 			state: CircuitStateEnum.CLOSED,
 		});
-		await cache.deleteCircuitState(toInstanceId("i-1"));
-		const result = await cache.getCircuitState(toInstanceId("i-1"));
+		await cache.circuitStateStore.deleteCircuitState(toInstanceId("i-1"));
+		const result = await cache.circuitStateStore.getCircuitState(
+			toInstanceId("i-1")
+		);
 		expect(result).toBeNull();
 	});
 });

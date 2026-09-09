@@ -23,12 +23,12 @@ import {
 	type URLString,
 } from "@trading-model/common/domain/primitives";
 import { isAppError } from "@trading-model/common/utils/errors";
-import { Protocol } from "@trading-model/validation/contracts/service-registry.types";
-import { AddressManagerClient } from "../../src/client/address-manager-client";
-import { LocalIPDetector } from "../../src/client/local-ip-detector";
-import type { TokenManager } from "../../src/client/token-manager";
-import type { ServiceRegistrationResponse } from "../../src/client/type";
-import type { AddressManagerConfig } from "../../src/config/address-manager-config";
+import { Protocol } from "@trading-model/validation/adapters/outbound/service-registry.types";
+import { AddressManagerClient } from "../../src/adapters/outbound/client/address-manager-client";
+import type { TokenManager } from "../../src/application/client/token-manager";
+import type { ServiceRegistrationResponse } from "../../src/domain/client/type";
+import type { AddressManagerConfig } from "../../src/domain/config/address-manager-config";
+import { LocalIPDetector } from "../../src/shared/client/local-ip-detector";
 
 jest.mock("os");
 

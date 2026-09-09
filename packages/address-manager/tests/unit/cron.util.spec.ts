@@ -1,5 +1,5 @@
 import { describe, expect, it } from "@jest/globals";
-import { intervalMsToCron } from "../../src/scheduler/cron.util";
+import { intervalMsToCron } from "../../src/shared/scheduler/cron.util";
 
 describe("intervalMsToCron", () => {
 	it("should use seconds-based cron for sub-minute intervals", () => {

@@ -41,7 +41,7 @@ import {
 	toServiceId,
 	UnixTimestamp,
 } from "@trading-model/common/domain/primitives";
-import { RedisServiceCache } from "../../src/discovery/redis-service-cache";
+import { RedisServiceCache } from "../../src/adapters/outbound/discovery/redis-service-cache";
 
 describe("RedisServiceCache", () => {
 	let cache: RedisServiceCache;
@@ -161,7 +161,7 @@ describe("RedisServiceCache", () => {
 	describe("circuit state", () => {
 		it("should store circuit state with 2x TTL", async () => {
 			MOCK_REDIS_INSTANCE.setex.mockResolvedValue(REDIS_RESP.OK);
-			await cache.setCircuitState(toInstanceId("i-1"), {
+			await cache.circuitStateStore.setCircuitState(toInstanceId("i-1"), {
 				failures: PositiveInt.of(3),
 				lastFailureTime: UnixTimestamp.of(1000),
 				state: CircuitStateEnum.OPEN,
@@ -180,13 +180,15 @@ describe("RedisServiceCache", () => {
 				state: CircuitStateEnum.OPEN,
 			};
 			MOCK_REDIS_INSTANCE.get.mockResolvedValue(JSON.stringify(state));
-			const result = await cache.getCircuitState(toInstanceId("i-1"));
+			const result = await cache.circuitStateStore.getCircuitState(
+				toInstanceId("i-1")
+			);
 			expect(result).toEqual(state);
 		});
 
 		it("should delete circuit state", async () => {
 			MOCK_REDIS_INSTANCE.del.mockResolvedValue(1);
-			await cache.deleteCircuitState(toInstanceId("i-1"));
+			await cache.circuitStateStore.deleteCircuitState(toInstanceId("i-1"));
 			expect(MOCK_REDIS_INSTANCE.del).toHaveBeenCalledWith(
 				"discovery:cache:circuit:i-1"
 			);
@@ -325,7 +327,7 @@ describe("RedisServiceCache", () => {
 		it("should handle setCircuitState failure gracefully", async () => {
 			MOCK_REDIS_INSTANCE.setex.mockRejectedValue(new Error("err"));
 			await expect(
-				cache.setCircuitState(toInstanceId("i-1"), {
+				cache.circuitStateStore.setCircuitState(toInstanceId("i-1"), {
 					failures: PositiveInt.of(1),
 					lastFailureTime: UnixTimestamp.of(0),
 					state: CircuitStateEnum.OPEN,
@@ -335,20 +337,24 @@ describe("RedisServiceCache", () => {
 
 		it("should return null when getCircuitState key not found", async () => {
 			MOCK_REDIS_INSTANCE.get.mockResolvedValue(null);
-			const result = await cache.getCircuitState(toInstanceId("i-2"));
+			const result = await cache.circuitStateStore.getCircuitState(
+				toInstanceId("i-2")
+			);
 			expect(result).toBeNull();
 		});
 
 		it("should handle getCircuitState error gracefully", async () => {
 			MOCK_REDIS_INSTANCE.get.mockRejectedValue(new Error("err"));
-			const result = await cache.getCircuitState(toInstanceId("i-1"));
+			const result = await cache.circuitStateStore.getCircuitState(
+				toInstanceId("i-1")
+			);
 			expect(result).toBeNull();
 		});
 
 		it("should handle deleteCircuitState failure gracefully", async () => {
 			MOCK_REDIS_INSTANCE.del.mockRejectedValue(new Error("err"));
 			await expect(
-				cache.deleteCircuitState(toInstanceId("i-1"))
+				cache.circuitStateStore.deleteCircuitState(toInstanceId("i-1"))
 			).resolves.toBeUndefined();
 		});
 	});

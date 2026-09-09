@@ -3,7 +3,7 @@ import type { DurationMs } from "@trading-model/common/domain/primitives";
 import {
 	computeCpuPercent,
 	SystemMetrics,
-} from "../../src/monitoring/system-metrics";
+} from "../../src/infrastructure/monitoring/system-metrics";
 
 describe("computeCpuPercent", () => {
 	test("should return 0 and set previous on first call", () => {
@@ -104,7 +104,7 @@ describe("SystemMetrics", () => {
 				}));
 				const {
 					SystemMetrics: MockedMetrics,
-				} = require("../../src/monitoring/system-metrics");
+				} = require("../../src/infrastructure/monitoring/system-metrics");
 				const m = new MockedMetrics();
 				const snapshot = m.collect();
 				expect(snapshot.memory.usedPercent).toBe(0);
