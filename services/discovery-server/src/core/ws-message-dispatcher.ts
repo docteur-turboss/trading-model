@@ -6,9 +6,9 @@ import {
 	type DiscoveryWsHeartbeatMessage,
 	DiscoveryWsMessageType,
 	type DiscoveryWsSubscribeMessage,
-} from "@trading-model/validation/contracts/discovery-ws-message.types";
+} from "@trading-model/validation/adapters/inbound/discovery-ws-message.types";
 import type WebSocket from "ws";
-import type { ConnectedClient } from "./client-connection-manager";
+import type { ConnectedClient } from "../adapters/inbound/client-connection-manager";
 
 export class WsMessageDispatcher {
 	private readonly _messageHandlers: Partial<

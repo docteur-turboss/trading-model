@@ -2,7 +2,7 @@ import { Router } from "express";
 import rateLimit from "express-rate-limit";
 
 import { createRegisterController } from "../controllers/register.controller";
-import type { ServiceRegistry } from "../core/service-registry";
+import type { ServiceRegistry } from "../domain/service-registry";
 
 const REGISTER_LIMITER = rateLimit({
 	windowMs: 60_000,

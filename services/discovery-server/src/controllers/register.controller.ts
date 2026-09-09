@@ -7,11 +7,15 @@ import type { ServiceIdentity } from "@trading-model/common/domain/service-ident
 import type { HttpStatusCode } from "@trading-model/common/http-status";
 import { catchSync } from "@trading-model/common/middleware/catch-error";
 import { sendResponse } from "@trading-model/common/middleware/response-exception";
-import { isNonEmptyString } from "@trading-model/validation/validation/primitives";
+import { isNonEmptyString } from "@trading-model/validation/shared/validation/primitives";
 import type { RequestHandler } from "express";
-import type { ServiceRegistry } from "../core/service-registry";
+import type { ServiceRegistry } from "../domain/service-registry";
+import { validationErrorResponse } from "../shared/helpers";
+import {
+	parseRegisterBody,
+	REGISTER_SCHEMA,
+} from "../shared/register-validator";
 import { buildServiceInstance } from "./register-builder";
-import { parseRegisterBody, REGISTER_SCHEMA } from "./register-validator";
 
 interface RegisterController {
 	register: RequestHandler;
@@ -23,13 +27,7 @@ interface RegisterController {
 function _buildValidationError(
 	req: import("express").Request
 ): ReturnType<typeof sendResponse> {
-	return sendResponse(
-		{
-			error: "Invalid request body",
-			details: REGISTER_SCHEMA.safeParse(req.body).error!.flatten().fieldErrors,
-		},
-		400 as HttpStatusCode
-	);
+	return validationErrorResponse(REGISTER_SCHEMA, req.body);
 }
 
 function createRegisterHandler(registry: ServiceRegistry): RequestHandler {

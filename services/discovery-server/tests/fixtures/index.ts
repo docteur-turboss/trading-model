@@ -1,4 +1,4 @@
-import type { ServiceInstance } from "../../src/core/types";
+import type { ServiceInstance } from "../../src/shared/types";
 
 export const validServiceInstance = (
 	overrides?: Partial<ServiceInstance>

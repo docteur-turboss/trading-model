@@ -2,7 +2,7 @@ import type https from "node:https";
 import { logger } from "@trading-model/common/config/logger";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import type { WebSocketServer } from "ws";
-import type { ClientConnectionManager } from "./client-connection-manager";
+import type { ClientConnectionManager } from "../adapters/inbound/client-connection-manager";
 import { WsConnectionSetup } from "./ws-connection-setup";
 import { WsMessageDispatcher } from "./ws-message-dispatcher";
 

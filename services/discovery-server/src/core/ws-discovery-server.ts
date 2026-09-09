@@ -3,7 +3,7 @@ import type { ServiceInstanceName } from "@trading-model/common/config/services.
 import type { InstanceId } from "@trading-model/common/domain/primitives";
 import type { WebSocketServer as WssServerLike } from "ws";
 import { WebSocketServer } from "ws";
-import { ClientConnectionManager } from "./client-connection-manager";
+import { ClientConnectionManager } from "../adapters/inbound/client-connection-manager";
 import { WsProtocolHandler } from "./ws-protocol-handler";
 
 interface WsDiscoveryServerOptions {
@@ -11,7 +11,6 @@ interface WsDiscoveryServerOptions {
 }
 
 export class WsDiscoveryServer {
-	private _wss: WssServerLike | undefined;
 	private readonly _path: string;
 	private readonly _clientManager = new ClientConnectionManager();
 	private readonly _protocolHandler: WsProtocolHandler;
@@ -21,10 +20,11 @@ export class WsDiscoveryServer {
 		this._protocolHandler = new WsProtocolHandler(this._clientManager);
 	}
 
-	attach(rawServer: https.Server): void {
-		this._wss = new WebSocketServer({ noServer: true });
-		this._protocolHandler.setupUpgradeHandler(rawServer, this._wss, this._path);
-		this._protocolHandler.setupConnectionHandler(this._wss);
+	attach(rawServer: https.Server): WssServerLike {
+		const wss = new WebSocketServer({ noServer: true });
+		this._protocolHandler.setupUpgradeHandler(rawServer, wss, this._path);
+		this._protocolHandler.setupConnectionHandler(wss);
+		return wss;
 	}
 
 	notifyServiceChanged(serviceName: ServiceInstanceName): void {
@@ -46,8 +46,8 @@ export class WsDiscoveryServer {
 		this._clientManager.broadcast(serviceName, message);
 	}
 
-	stop(): void {
+	stop(wss: WssServerLike): void {
 		this._clientManager.clearAll();
-		this._wss?.close();
+		wss.close();
 	}
 }

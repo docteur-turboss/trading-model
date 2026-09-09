@@ -8,11 +8,11 @@ import {
 	toServiceId,
 	toVersion,
 } from "@trading-model/common/domain/primitives";
-import { Protocol } from "@trading-model/validation/contracts/service-registry.types";
+import { Protocol } from "@trading-model/validation/adapters/outbound/service-registry.types";
 import type { z } from "zod";
-import type { ServiceRegistry } from "../core/service-registry";
-import type { ServiceInstance } from "../core/types";
-import type { REGISTER_SCHEMA } from "./register-validator";
+import type { ServiceRegistry } from "../domain/service-registry";
+import type { REGISTER_SCHEMA } from "../shared/register-validator";
+import type { ServiceInstance } from "../shared/types";
 
 export function resolveInstanceId(
 	data: z.infer<typeof REGISTER_SCHEMA>,

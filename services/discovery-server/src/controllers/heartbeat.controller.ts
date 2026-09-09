@@ -10,9 +10,15 @@ import { catchSync } from "@trading-model/common/middleware/catch-error";
 import type { ResponseObject } from "@trading-model/common/middleware/response-exception";
 import { sendResponse } from "@trading-model/common/middleware/response-exception";
 import type { Request, RequestHandler, Response } from "express";
-import type { ServiceRegistry } from "../core/service-registry";
-import { HEARTBEAT_SCHEMA, ROTATE_TOKEN_SCHEMA } from "./heartbeat-validator";
-import { validateInstanceToken } from "./helpers";
+import type { ServiceRegistry } from "../domain/service-registry";
+import {
+	HEARTBEAT_SCHEMA,
+	ROTATE_TOKEN_SCHEMA,
+} from "../shared/heartbeat-validator";
+import {
+	validateInstanceToken,
+	validationErrorResponse,
+} from "../shared/helpers";
 
 interface HeartbeatController {
 	heartbeat: RequestHandler;
@@ -49,14 +55,7 @@ function _handleHeartbeat(
 ): ResponseObject | undefined {
 	const data = _parseHeartbeatBody(req);
 	if (!data) {
-		return sendResponse(
-			{
-				error: "Invalid request body",
-				details: HEARTBEAT_SCHEMA.safeParse(req.body).error!.flatten()
-					.fieldErrors,
-			},
-			400 as HttpStatusCode
-		);
+		return validationErrorResponse(HEARTBEAT_SCHEMA, req.body);
 	}
 	validateInstanceToken(
 		registry,
@@ -92,14 +91,7 @@ function _handleRotateToken(
 ): ResponseObject | undefined {
 	const instanceId = _parseRotateBody(req);
 	if (!instanceId) {
-		return sendResponse(
-			{
-				error: "Invalid request body",
-				details: ROTATE_TOKEN_SCHEMA.safeParse(req.body).error!.flatten()
-					.fieldErrors,
-			},
-			400 as HttpStatusCode
-		);
+		return validationErrorResponse(ROTATE_TOKEN_SCHEMA, req.body);
 	}
 	validateInstanceToken(
 		registry,

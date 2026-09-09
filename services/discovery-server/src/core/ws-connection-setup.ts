@@ -4,7 +4,7 @@ import type { WebSocketServer } from "ws";
 import type {
 	ClientConnectionManager,
 	ConnectedClient,
-} from "./client-connection-manager";
+} from "../adapters/inbound/client-connection-manager";
 
 export class WsConnectionSetup {
 	constructor(
