@@ -24,7 +24,12 @@ describe("createDbConfigFromEnv", () => {
 		expect(config.port).toBe(3306);
 		expect(config.user).toBe("root");
 		expect(config.password).toBe("pass");
-		expect(config.database).toBe("trading_model");
+		expect(config.database).toBe("financial_scraper");
+	});
+
+	it("should default to empty password when DB_PASSWORD is unset", () => {
+		const config = createDbConfigFromEnv();
+		expect(config.password).toBe("");
 	});
 
 	it("should apply overrides", () => {

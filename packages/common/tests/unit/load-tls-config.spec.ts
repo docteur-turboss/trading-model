@@ -1,5 +1,5 @@
 import { describe, expect, it } from "@jest/globals";
-import { loadTlsConfig } from "@trading-model/server-utils/server/load-tls-config";
+import { loadTlsConfig } from "@trading-model/server-utils/shared/load-tls-config";
 import type { FilePath } from "../../src/domain/primitives";
 
 describe("loadTlsConfig", () => {

@@ -525,8 +525,8 @@ describe("DbPassword", () => {
 		expect(toDbPassword("s3cret")).toBe("s3cret");
 		expect(fromDbPassword("s3cret" as never)).toBe("s3cret");
 	});
-	it("should throw for empty string", () => {
-		expect(() => DbPassword.of("")).toThrow(RangeError);
+	it("should allow empty password", () => {
+		expect(DbPassword.of("")).toBe("");
 	});
 });
 

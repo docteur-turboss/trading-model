@@ -22,7 +22,7 @@ jest.mock("express-rate-limit", () => ({
 	rateLimit: jest.fn(() => "rateLimitMiddleware"),
 }));
 
-import { configureApp } from "@trading-model/server-utils/server/configure-app";
+import { configureApp } from "@trading-model/server-utils/adapters/inbound/configure-app";
 import express from "express";
 import { rateLimit } from "express-rate-limit";
 import helmet from "helmet";

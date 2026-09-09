@@ -1,5 +1,5 @@
 import { describe, expect, it, jest } from "@jest/globals";
-import { metricsHandler } from "@trading-model/server-utils/server/metrics-handler";
+import { metricsHandler } from "@trading-model/server-utils/adapters/inbound/metrics-handler";
 
 describe("metricsHandler", () => {
 	it("should set content type", async () => {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "@jest/globals";
-import { makePRNG } from "@trading-model/crypto/crypto/prng";
+import { makePRNG } from "@trading-model/crypto/domain/services/prng";
 
 describe("makePRNG", () => {
 	it("should return a function", () => {

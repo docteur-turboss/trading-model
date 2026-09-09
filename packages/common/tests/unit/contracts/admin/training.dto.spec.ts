@@ -3,7 +3,7 @@ import {
 	ActivationFn,
 	LayerType,
 	Optimizer,
-} from "@trading-model/validation/contracts/admin/training.dto";
+} from "@trading-model/validation/adapters/inbound/admin/training.dto";
 
 describe("LayerType", () => {
 	it("should have correct enum values", () => {

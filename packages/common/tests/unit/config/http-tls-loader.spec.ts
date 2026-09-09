@@ -84,4 +84,14 @@ describe("buildHttpsAgentOptions", () => {
 		expect(opts!.cert).toContain("-----BEGIN CERTIFICATE-----");
 		expect(opts!.key).toContain("-----BEGIN RSA PRIVATE KEY-----");
 	});
+
+	it("should disable hostname verification when a custom trust bundle is present", () => {
+		const opts = buildHttpsAgentOptions({ caPath, certPath, keyPath });
+		expect(opts!.checkServerIdentity).toBeDefined();
+	});
+
+	it("should keep hostname verification when verifyHostname is true", () => {
+		const opts = buildHttpsAgentOptions({ caPath, certPath, keyPath }, true);
+		expect(opts!.checkServerIdentity).toBeUndefined();
+	});
 });

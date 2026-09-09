@@ -1,5 +1,5 @@
 import { describe, expect, it } from "@jest/globals";
-import * as tokenService from "@trading-model/crypto/crypto/token-service";
+import * as tokenService from "@trading-model/crypto/domain/services/token-service";
 
 describe("token-service", () => {
 	it("should re-export generateInstanceId", () => {

@@ -6,7 +6,7 @@ import { MTLSAuthorizationMiddleware } from "../../../src/middleware/mtls-author
 describe("MTLSAuthorizationMiddleware", () => {
 	it("should call next() for authorized caller with wildcard", () => {
 		const middleware = MTLSAuthorizationMiddleware(
-			ServiceId.of("certificate-authority")
+			ServiceId.of("audit-logger")
 		);
 		const req = {
 			clientIdentity: "spiffe://cluster.local/ns/default/sa/any-service",

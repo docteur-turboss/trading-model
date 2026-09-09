@@ -389,6 +389,23 @@ describe("HttpClient", () => {
 		});
 	});
 
+	describe("TLS reload", () => {
+		it("should re-read TLS files on every request so SVID rotation is picked up", async () => {
+			const tlsClient = new HttpClient({
+				caPath: "/etc/ca.pem" as FilePath,
+				certPath: "/etc/cert.pem" as FilePath,
+				keyPath: "/etc/key.pem" as FilePath,
+			});
+			(fs.readFileSync as jest.Mock).mockClear();
+
+			const promise = tlsClient.get(URLString.of("https://example.com/api"));
+			simulateResponse(200, JSON.stringify({ ok: true }), "application/json");
+			await promise;
+
+			expect(fs.readFileSync).toHaveBeenCalled();
+		});
+	});
+
 	describe("request close handling", () => {
 		it("should clean up timeout listener on request close after normal completion", async () => {
 			mockReq.removeListener = jest.fn();

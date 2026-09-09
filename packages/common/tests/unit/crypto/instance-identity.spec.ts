@@ -2,7 +2,7 @@ import { describe, expect, it } from "@jest/globals";
 import {
 	generateInstanceId,
 	verifyInstanceName,
-} from "@trading-model/crypto/crypto/instance-identity";
+} from "@trading-model/crypto/domain/services/instance-identity";
 
 describe("generateInstanceId", () => {
 	it("should generate a non-empty string", () => {

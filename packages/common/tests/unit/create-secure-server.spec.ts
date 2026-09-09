@@ -66,7 +66,7 @@ jest.mock("../../src/config/logger", () => ({
 
 import fs from "node:fs/promises";
 import https from "node:https";
-import { createSecureServer } from "@trading-model/server-utils/server/create-secure-server";
+import { createSecureServer } from "@trading-model/server-utils/adapters/inbound/create-secure-server";
 import express from "express";
 import { rateLimit } from "express-rate-limit";
 import helmet from "helmet";

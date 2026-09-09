@@ -1,6 +1,6 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { describe, expect, it, jest } from "@jest/globals";
-import { validInstanceToken } from "@trading-model/crypto/crypto/token-validator";
+import { validInstanceToken } from "@trading-model/crypto/domain/services/token-validator";
 
 describe("validInstanceToken", () => {
 	it("should return false for malformed token", () => {

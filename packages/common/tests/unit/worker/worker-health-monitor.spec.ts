@@ -1,5 +1,5 @@
 import { describe, expect, it, jest } from "@jest/globals";
-import type { WorkerRegistration } from "@trading-model/validation/contracts/worker-protocol.types";
+import type { WorkerRegistration } from "@trading-model/validation/domain/contracts/worker-protocol.types";
 import type {
 	PositiveInt,
 	WorkerStatusCode,

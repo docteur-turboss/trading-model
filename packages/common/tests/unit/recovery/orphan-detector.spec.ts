@@ -9,8 +9,8 @@ import {
 import type {
 	JOB_STATUS,
 	Job,
-} from "@trading-model/validation/contracts/recovery.types";
-import { JobPriority } from "@trading-model/validation/contracts/recovery.types";
+} from "@trading-model/validation/domain/contracts/recovery.types";
+import { JobPriority } from "@trading-model/validation/domain/contracts/recovery.types";
 import type {
 	Capability,
 	InstanceId,

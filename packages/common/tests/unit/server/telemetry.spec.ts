@@ -53,7 +53,7 @@ jest.mock("@opentelemetry/instrumentation-express", () => ({
 import {
 	initializeTelemetry,
 	shutdownTelemetry,
-} from "@trading-model/server-utils/server/telemetry";
+} from "@trading-model/server-utils/infrastructure/telemetry";
 import { logger } from "../../../src/config/logger";
 
 const testConfig = {

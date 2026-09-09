@@ -2,7 +2,7 @@ import { describe, expect, it } from "@jest/globals";
 import {
 	isNonEmptyString,
 	isObject,
-} from "@trading-model/validation/validation/primitives";
+} from "@trading-model/validation/shared/validation/primitives";
 
 describe("primitives", () => {
 	describe("isNonEmptyString", () => {

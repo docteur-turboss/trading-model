@@ -4,7 +4,7 @@
   "description": "Shared infrastructure — logger, server, middleware, validation, types",
   "license": "ISC",
   "type": "commonjs",
-	"exports": {
+  "exports": {
     "./constants": {
       "types": "./dist/constants.d.ts",
       "default": "./dist/constants.js"
@@ -21,7 +21,6 @@
       "types": "./dist/utils/*.d.ts",
       "default": "./dist/utils/*.js"
     },
-
     "./worker/*": {
       "types": "./dist/worker/*.d.ts",
       "default": "./dist/worker/*.js"
@@ -38,14 +37,14 @@
       "types": "./dist/domain/*.d.ts",
       "default": "./dist/domain/*.js"
     },
-	"./crl/*": {
-			"types": "./dist/crl/*.d.ts",
-			"default": "./dist/crl/*.js"
-		},
-		"./persistence/*": {
-			"types": "./dist/persistence/*.d.ts",
-			"default": "./dist/persistence/*.js"
-		},
+    "./crl/*": {
+      "types": "./dist/crl/*.d.ts",
+      "default": "./dist/crl/*.js"
+    },
+    "./persistence/*": {
+      "types": "./dist/persistence/*.d.ts",
+      "default": "./dist/persistence/*.js"
+    },
     "./http-headers": {
       "types": "./dist/http-headers.d.ts",
       "default": "./dist/http-headers.js"
@@ -54,18 +53,22 @@
       "types": "./dist/http-status.d.ts",
       "default": "./dist/http-status.js"
     },
-	"./ws/*": {
-			"types": "./dist/ws/*.d.ts",
-			"default": "./dist/ws/*.js"
-		},
-		"./testing": {
-			"types": "./dist/testing/index.d.ts",
-			"default": "./dist/testing/index.js"
-		},
-		"./tests/*": {
-			"types": "./tests/*.d.ts",
-			"default": "./tests/*.js"
-		}
+    "./contracts/*": {
+      "types": "./dist/contracts/*.d.ts",
+      "default": "./dist/contracts/*.js"
+    },
+    "./ws/*": {
+      "types": "./dist/ws/*.d.ts",
+      "default": "./dist/ws/*.js"
+    },
+    "./testing": {
+      "types": "./dist/testing/index.d.ts",
+      "default": "./dist/testing/index.js"
+    },
+    "./tests/*": {
+      "types": "./tests/*.d.ts",
+      "default": "./tests/*.js"
+    }
   },
   "dependencies": {
     "@trading-model/crypto": "*",
@@ -73,17 +76,17 @@
     "@trading-model/validation": "*",
     "chained-error": "^1.0.0",
     "express": "^5.2.1",
-    "ws": "^8.16.0",
-    "zod": "^4.4.3"
+    "ws": "^8.21.3",
+    "zod": "^4.5.4"
   },
   "devDependencies": {
-    "@jest/globals": "^30.4.1",
+    "@jest/globals": "^30.5.1",
     "@types/express": "^5.0.6",
     "@types/jest": "^30.0.0",
-    "@types/node": "^25.9.2",
+    "@types/node": "^26.5.0",
     "@types/ws": "^8.16.0",
-    "jest": "^30.4.2",
-    "ts-jest": "^29.4.11",
+    "jest": "^30.5.1",
+    "ts-jest": "^29.4.12",
     "typescript": "^6.0.3"
   },
   "scripts": {
@@ -93,4 +96,3 @@
     "build": "tsc"
   }
 }
-

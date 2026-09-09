@@ -1,5 +1,5 @@
 import { describe, expect, it } from "@jest/globals";
-import { CacheStatus } from "@trading-model/validation/contracts/admin/cache.dto";
+import { CacheStatus } from "@trading-model/validation/adapters/inbound/admin/cache.dto";
 
 describe("CacheStatus", () => {
 	it("should have correct enum values", () => {
