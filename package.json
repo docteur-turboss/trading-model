@@ -4,7 +4,8 @@
   "private": true,
   "workspaces": [
     "packages/*",
-    "services/*"
+    "services/*",
+    "tests/*"
   ],
   "scripts": {
     "build:common": "bun run --filter @trading-model/common build",
@@ -30,6 +31,9 @@
     "lint": "bunx @biomejs/biome check .",
     "test": "bun run --filter '*' test",
     "test:coverage": "bun run --filter '*' test --coverage",
+    "test:contract": "bun run --filter trading-model-contract-tests test:contract",
+    "test:e2e": "bun run --filter trading-model-e2e test:e2e",
+    "test:e2e:docker": "bun run --filter trading-model-e2e test:docker",
     "docs:generate": "bun scripts/generate-docs.mjs",
     "docs:generate:dry": "bun scripts/generate-docs.mjs --dry-run",
     "prepare": "husky"
@@ -37,9 +41,6 @@
   "devDependencies": {
     "@biomejs/biome": "2.5.2",
     "@commitlint/cli": "^21.0.2",
-    "@commitlint/config-conventional": "^21.0.1",
-    "conventional-commits-filter": "^5.0.0",
-    "conventional-commits-parser": "^6.4.0",
     "husky": "^9.1.7",
     "markdown-it": "^14.3.1",
     "node-html-parser": "^9.0.4",
