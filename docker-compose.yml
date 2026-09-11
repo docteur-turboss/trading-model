@@ -10,6 +10,7 @@
 x-core-env: &core-env
   NODE_ENV: ${NODE_ENV:-production}
   PORT: '3000'
+  REDIS_URL: redis://redis:6379
   # mTLS via SPIFFE SVIDs (ADR-0011) — mandatory. The spiffe-helper sidecars
   # write the SVID (key, cert, trust bundle) into /run/spire/svid before the
   # service binds, so no manual ./certs bundle is required.
@@ -43,6 +44,23 @@ services:
       - data-net
     healthcheck:
       test: echo 'db.runCommand("ping").ok' | mongosh --quiet
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ---------------------------------------------------------------------------
+  #  Redis �?" Message Manager + DLQ persistence (single node for dev/E2E)
+  # ---------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: trading-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "no"]
+    networks:
+      - backend-net
+      - data-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -256,6 +274,8 @@ services:
     depends_on:
       mongo:
         condition: service_healthy
+      redis:
+        condition: service_healthy
       discovery-server:
         condition: service_healthy
 
@@ -426,6 +446,8 @@ services:
       MONGO_DB: dlq
       MONGO_COLLECTION: dlq_entries
       MAX_ENTRIES: '100000'
+      DLQ_AUTH_HMAC_SECRET: ${DLQ_AUTH_HMAC_SECRET:-test-hmac-secret}
+      DLQ_ALLOWED_SERVICES: ${DLQ_ALLOWED_SERVICES:-message-manager,admin}
     volumes:
       - svid-dlq:/run/spire/svid
     networks:
