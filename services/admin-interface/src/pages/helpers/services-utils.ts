@@ -10,7 +10,6 @@ import {
 	toVersion,
 } from "@trading-model/common/domain/primitives";
 import { ServiceStatus } from "@trading-model/validation/adapters/inbound/admin/services.dto";
-import type { Column } from "../../components/data-table";
 
 export interface ServiceRow {
 	serviceName: ServiceId;
@@ -61,37 +60,4 @@ export function filterServices(
 				svc.serviceName.toLowerCase().includes(filter.toLowerCase())
 			)
 		: services;
-}
-
-export function createServiceColumns(
-	translate: (key: string) => string
-): Column<ServiceRow>[] {
-	return [
-		{
-			id: "name",
-			label: translate("serviceName"),
-			render: (row) => row.serviceName,
-		},
-		{
-			id: "instances",
-			label: translate("instances"),
-			render: (row) => String(row.instances),
-		},
-		{ id: "ip", label: translate("ipPort"), render: (row) => row.ipPort },
-		{
-			id: "version",
-			label: translate("version"),
-			render: (row) => row.version,
-		},
-		{
-			id: "heartbeat",
-			label: translate("heartbeat"),
-			render: (row) => row.heartbeat,
-		},
-		{
-			id: "status",
-			label: translate("status"),
-			render: (row) => row.status,
-		},
-	];
 }

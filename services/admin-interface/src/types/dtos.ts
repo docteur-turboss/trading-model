@@ -24,27 +24,18 @@ import type {
 } from "@trading-model/validation/adapters/inbound/admin";
 
 export type {
-	AdminServiceInstance,
 	AuditEvent,
 	AuditFilter,
 	CacheEntry,
-	CacheStats,
 	Candle,
 	ConfigEntry,
 	DlqMessage,
-	DlqStats,
 	JobDetail,
 	JobEntry,
-	JobStats,
 	JobTimelineEntry,
-	ServiceRegistryEntry,
 	Ticker,
-	TopologyLink,
-	TrainingGenome,
-	TrainingLayer,
 	TrainingResult,
 	WorkerEntry,
-	WorkerStats,
 } from "@trading-model/validation/adapters/inbound/admin";
 
 export interface ServiceRegistry {
@@ -60,7 +51,7 @@ export interface StatsSummary {
 	avgLatency: DurationMs;
 }
 
-export type OrderBookLevel =
+type OrderBookLevel =
 	import("@trading-model/validation/shared/contracts/market-data.types").OrderBookLevel;
 
 export interface OrderBook {
