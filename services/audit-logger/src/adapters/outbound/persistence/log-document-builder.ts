@@ -118,4 +118,4 @@ function _buildLogDocuments(
 	return docs;
 }
 
-export { _buildLogDocuments, buildLogDocument };
+export { _buildLogDocuments };

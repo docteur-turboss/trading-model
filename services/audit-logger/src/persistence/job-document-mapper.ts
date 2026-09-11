@@ -52,6 +52,6 @@ export function documentToJob(doc: JobDocument): Job {
 	};
 }
 
-export function _cloneHistory(history: JobEvent[]): JobEvent[] {
+function _cloneHistory(history: JobEvent[]): JobEvent[] {
 	return history.map((entry: JobEvent) => ({ ...entry }));
 }

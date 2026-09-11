@@ -18,7 +18,7 @@ import type {
 import type { HttpStatusCode } from "@trading-model/common/http-status";
 import type { MongoRepository } from "@trading-model/common/persistence/mongo-repository.interface";
 import { findPaginated } from "@trading-model/common/persistence/mongo-utils";
-import type { HttpMethod } from "@trading-model/validation/contracts/signed-request";
+import type { HttpMethod } from "@trading-model/validation/adapters/inbound/signed-request";
 import type { Collection, Db } from "mongodb";
 import type { DateRange } from "../types/date-range";
 
@@ -28,7 +28,7 @@ import { LogStatsBuilder } from "./log-stats-builder";
 
 export type { LogQuery } from "./log-query-builder";
 
-export interface ServiceInfo {
+interface ServiceInfo {
 	name: ServiceId;
 	instanceId: InstanceId;
 	version?: Version;

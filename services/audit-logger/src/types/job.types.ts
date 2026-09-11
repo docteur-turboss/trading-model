@@ -5,12 +5,11 @@ import type {
 } from "@trading-model/common/domain/primitives";
 import {
 	type Job,
-	type JobEvent,
 	JobPriority,
 	JobStatus,
 } from "@trading-model/validation/domain/contracts/recovery.types";
 
-export type { Job, JobEvent };
+export type { Job };
 export { JobPriority, JobStatus };
 
 /** Parameter object for submitting a new job to the scheduler. */
@@ -23,8 +22,6 @@ export interface SubmitJobParams {
 
 export enum JobState {
 	Queued = "queued",
-	Delivered = "delivered",
-	Acknowledged = "acknowledged",
 }
 
 export interface QueuedJob<TData = unknown> {
