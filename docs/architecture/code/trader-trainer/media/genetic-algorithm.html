@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html class="dark" lang="en" data-tm-processed="true"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no" name="viewport">
+<title>Genetic Algorithm Module — Implementation Reference | trader-trainer</title>
+
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+
+<script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              400: '#818cf8',
+              500: '#6366f1',
+              600: '#4f46e5',
+            },
+            surface: {
+              base: '#0B0F19',
+              card: '#111827',
+              muted: '#1E293B',
+              border: '#243046',
+            },
+            code: {
+              bg: '#0c121e',
+              keyword: '#c084fc',
+              ident: '#38bdf8',
+              type: '#34d399',
+              punct: '#94a3b8'
+            }
+          },
+          fontFamily: {
+            mono: ['JetBrains Mono', 'Fira Code', 'Menlo', 'Monaco', 'Courier New', 'monospace'],
+            sans: ['-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Inter', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+
+<style data-purpose="mobile-ux-styles">
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    .active-scale:active { transform: scale(0.97); transition: transform 0.1s ease-out; }
+    .h-safe-top { height: env(safe-area-inset-top, 0px); }
+    .pt-safe { padding-top: env(safe-area-inset-top, 0px); }
+    @supports (backdrop-filter: blur(12px)) {
+      .glass-header { backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
+    }
+    
+    .tm-prose p { margin: 0.5rem 0; }
+    .tm-prose p:first-child { margin-top: 0; }
+    .tm-prose p:last-child { margin-bottom: 0; }
+    .tm-prose a { color: #818cf8; text-decoration: underline; text-underline-offset: 2px; }
+    .tm-prose a:hover { color: #a5b4fc; }
+    .tm-prose code { font-family: 'JetBrains Mono', 'Fira Code', Menlo, Monaco, 'Courier New', monospace; font-size: 0.82em; color: #fbbf24; background: #0c121e; border: 1px solid #243046; border-radius: 0.25rem; padding: 0.05rem 0.3rem; }
+    .tm-prose pre { background: #0c121e; border: 1px solid #243046; border-radius: 0.5rem; padding: 0.75rem; overflow-x: auto; margin: 0.5rem 0; }
+    .tm-prose pre code { background: transparent; border: none; padding: 0; color: #e2e8f0; }
+    .tm-prose ul, .tm-prose ol { padding-left: 1.25rem; margin: 0.5rem 0; }
+    .tm-prose ul { list-style: disc; }
+    .tm-prose ol { list-style: decimal; }
+    .tm-prose li { margin: 0.2rem 0; }
+    .tm-prose blockquote { border-left: 3px solid #6366f1; background: rgba(17, 24, 39, 0.6); padding: 0.5rem 0.75rem; border-radius: 0 0.5rem 0.5rem 0; color: #94a3b8; margin: 0.5rem 0; }
+    .tm-prose h1, .tm-prose h2, .tm-prose h3, .tm-prose h4, .tm-prose h5 { color: #ffffff; font-weight: 700; margin: 0.75rem 0 0.25rem; }
+    .tm-prose h1 { font-size: 1.25rem; }
+    .tm-prose h2 { font-size: 1.125rem; }
+    .tm-prose h3 { font-size: 1rem; }
+    .tm-prose h4 { font-size: 0.875rem; }
+    .tm-prose table { width: 100%; border-collapse: collapse; margin: 0.5rem 0; }
+    .tm-prose th, .tm-prose td { border: 1px solid #243046; padding: 0.4rem 0.6rem; text-align: left; }
+    .tm-prose thead th { background: #0b0f19; color: #e2e8f0; font-size: 0.75rem; text-transform: uppercase; }
+    .tm-prose strong { color: #ffffff; }
+  </style>
+
+</head>
+<body class="bg-[#080C15] text-slate-200 font-sans antialiased min-h-screen pb-24 selection:bg-indigo-500/30 selection:text-indigo-200">
+
+<header class="sticky top-0 z-40 w-full glass-header bg-[#0B0F19]/90 border-b border-surface-border">
+<div class="h-safe-top pt-safe"></div>
+<div class="px-4 py-2.5 flex items-center justify-between gap-3">
+<div class="flex items-center gap-2.5 min-w-0">
+<button aria-label="Open Module Tree" class="active-scale p-2 -ml-1.5 rounded-lg text-slate-300 hover:text-white bg-slate-800/40 hover:bg-slate-800 border border-slate-700/50" data-purpose="toggle-tree-nav" id="drawerToggleBtn">
+<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<path d="M4 6h16M4 12h10M4 18h16" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</button>
+<div class="flex flex-col min-w-0">
+<div class="flex items-center gap-1.5 truncate">
+<span class="font-mono text-xs font-semibold text-indigo-400 truncate tracking-tight"><a class="text-indigo-400 hover:text-indigo-300 hover:underline" href="../index.html">trader-trainer</a></span>
+<span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-medium bg-indigo-500/10 text-indigo-300 border border-indigo-500/20">v1.4.0</span>
+</div>
+<span class="text-[10px] text-slate-400 flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> TypeDoc API Reference
+</span>
+</div>
+</div>
+<div class="flex items-center gap-1.5 flex-shrink-0">
+<button aria-label="Search API" class="active-scale flex items-center justify-center w-8 h-8 rounded-lg bg-surface-muted/70 border border-surface-border text-slate-300 hover:text-white" data-purpose="search-modal-trigger" id="searchTriggerBtn">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<path d="M21 21l-4.35-4.35m1.35-5.65a7 7 0 11-14 0 7 7 0 0114 0z" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</button>
+<button aria-label="Member Visibility Settings" class="active-scale flex items-center justify-center w-8 h-8 rounded-lg bg-surface-muted/70 border border-surface-border text-slate-300 hover:text-white" data-purpose="settings-trigger" id="settingsSheetBtn">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" stroke-linecap="round" stroke-linejoin="round"></path>
+<path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</button>
+</div>
+</div>
+</header>
+
+<main class="px-4 py-4 max-w-2xl mx-auto flex flex-col gap-6">
+
+<section class="space-y-2.5" data-purpose="breadcrumbs-and-header">
+<nav aria-label="Breadcrumb" class="flex items-center flex-wrap gap-1 text-[11px] font-mono text-slate-400">
+<a class="text-indigo-400 hover:underline" href="../index.html">trader-trainer</a><span class="text-slate-600">/</span><span class="text-slate-400">media</span><span class="text-slate-600">/</span><span class="text-slate-300 font-medium">genetic-algorithm</span>
+</nav>
+<div class="flex items-center gap-2.5 pt-1">
+<span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-mono font-medium tracking-wide uppercase bg-indigo-500/10 text-indigo-400 border-indigo-500/20">
+Documentation
+</span>
+<h1 class="text-2xl font-bold tracking-tight text-white font-sans">Genetic Algorithm Module — Implementation Reference</h1>
+</div>
+
+</section>
+
+<div class="tm-prose text-sm leading-relaxed text-slate-300 font-sans"><div>
+<blockquote>
+<p><strong>New to GA concepts?</strong> See <a href="../../docs/concepts/genetic-algorithm.html">Genetic Algorithm — Concepts</a> for an explanation of NSGA-II, Pareto fronts, selection strategies, and evolutionary operators before reading this implementation reference.</p>
+</blockquote>
+<h2>Overview</h2>
+<p>This document describes the GA module (<code>src/core/genetic-algorithm/</code>) implementation. It covers the TypeScript API, module structure, code conventions, and configuration defaults.</p>
+<hr>
+<h2>Genome Structure</h2>
+<p>A <code>LamarckGenome</code> contains everything needed to create and train a trading agent:</p>
+<pre><code>LamarckGenome {
+  id: string
+  generation: number
+  network: NetworkGenome          # Architecture
+  rl: RLGenome                    # RL hyperparameters
+  mutation: MutationGenome        # Self-adaptive mutation params
+  crossover: CrossoverGenome      # Crossover config
+  gaControl: GAControlGenome      # GA meta-parameters
+  fitness?: number                # Assigned after evaluation
+  fitnessMeta?: GenomeFitnessMeta # Detailed metrics
+  trainedWeights?: Float32Array   # Lamarckian weight snapshot
+}
+</code></pre>
+<h3>NetworkGenome</h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>inputDim</code></td>
+<td>number</td>
+<td>Input size (fixed at 32 for current feature pipeline)</td>
+</tr>
+<tr>
+<td><code>outputDim</code></td>
+<td>number</td>
+<td>Output size (3 for discrete buy/hold/sell)</td>
+</tr>
+<tr>
+<td><code>hiddenLayers</code></td>
+<td>LayerGenome[]</td>
+<td>Variable-length array of hidden layers</td>
+</tr>
+<tr>
+<td><code>normalization</code></td>
+<td>string</td>
+<td>Input normalization strategy</td>
+</tr>
+</tbody>
+</table>
+<h3>RLGenome</h3>
+<p>Controls Q-learning behavior:</p>
+<table>
+<thead>
+<tr>
+<th>Sub-module</th>
+<th>Key fields</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>rewardShaping</code></td>
+<td>clip, scale, normalize, sparse</td>
+<td>Reward preprocessing</td>
+</tr>
+<tr>
+<td><code>horizon</code></td>
+<td>maxEpisodeLength, nStepReturn, frameSkip</td>
+<td>Episode structure</td>
+</tr>
+<tr>
+<td><code>discretePolicy</code></td>
+<td>epsilonStart, epsilonMin, epsilonDecay</td>
+<td>Exploration schedule</td>
+</tr>
+<tr>
+<td><code>continuousPolicy</code></td>
+<td>noiseStd, noiseDecay</td>
+<td>Continuous action noise</td>
+</tr>
+<tr>
+<td><code>replayBuffer</code></td>
+<td>bufferSize, prioritized, alphaPER, betaPER</td>
+<td>Experience replay</td>
+</tr>
+</tbody>
+</table>
+<h3>Default Configuration</h3>
+<p>Defined in <code>factory.ts</code>. Key defaults:</p>
+<ul>
+<li>2 hidden layers: [64, 32] with ReLU activation</li>
+<li>Epsilon-greedy: start=1.0, min=0.05, decay=0.995</li>
+<li>Replay buffer: 10,000 experiences</li>
+<li>Population: 20 individuals, 50 max generations</li>
+<li>Mutation rate: 0.1, sigma: 0.05</li>
+</ul>
+<hr>
+<h2>GA Loop (Generation Cycle)</h2>
+<p>Each generation follows this sequence in <code>GeneticAlgorithmRunner.runGeneration()</code>:</p>
+<h3>1. Evaluation Phase (<code>evaluateGenomeAllWindows</code>)</h3>
+<p>For each genome in the population:</p>
+<ol>
+<li><strong>Shadow pass</strong>: Create a temporary backend, run through training data to pre-compute rewards</li>
+<li><strong>Training pass</strong>: Create a fresh backend, run Q-learning using pre-computed rewards with n-step TD targets</li>
+<li><strong>Lamarckian update</strong>: Extract trained weights, freeze them into the genome</li>
+<li><strong>Validation pass</strong>: Create a fresh backend with Lamarckian weights, evaluate on held-out validation data</li>
+<li><strong>Scoring</strong>: Compute fitness from episode returns, apply complexity penalty</li>
+</ol>
+<p>All genomes are evaluated in parallel using a bounded thread pool (<code>pooledEval</code>).</p>
+<h3>2. NSGA-II Sorting</h3>
+<p>The population is sorted using <strong>non-dominated sorting</strong> with crowding distance:</p>
+<ul>
+<li><strong>Exact O(n²)</strong> sorting for populations ≤ 300</li>
+<li><strong>Approximate O(n·k)</strong> sampling for larger populations</li>
+<li>Three objectives: avgPnl, sharpe, negFlops</li>
+</ul>
+<h3>3. Pareto Archive Update</h3>
+<p>The persistent <code>ParetoArchive</code> stores all non-dominated solutions discovered across generations. A candidate is accepted if no existing archive member dominates it. Dominated members are evicted.</p>
+<h3>4. Elitism</h3>
+<p>The top <code>elitismFraction * populationSize</code> individuals (by Pareto rank + crowding distance) survive directly to the next generation.</p>
+<h3>5. Parent Selection</h3>
+<p>Parents are selected using the configured strategy:</p>
+<ul>
+<li><strong>Tournament</strong> (default): Pick k=3 random individuals, return the fittest</li>
+<li><strong>Roulette</strong>: Fitness-proportionate selection</li>
+<li><strong>Rank</strong>: Rank-based selection</li>
+<li><strong>Truncation / SUS</strong>: Random from top fraction</li>
+</ul>
+<h3>6. Crossover</h3>
+<p>Two types of crossover applied sequentially:</p>
+<p><strong>Structural crossover</strong> (<code>crossover.ts</code>): Mixes network topology and RL hyperparameters:</p>
+<ul>
+<li>Hidden layer counts: blend or inherit from longer parent</li>
+<li>Per-layer: neuron count (scalar crossover), activation/connection/bias (uniform)</li>
+<li>RL params: scalar crossover (arithmetic, BLX-α, SBX, or uniform)</li>
+</ul>
+<p><strong>Weight-level crossover</strong> (<code>evolution-engine.ts</code>): Uniform crossover of trained weight arrays from both parents.</p>
+<h3>7. Mutation</h3>
+<p><strong>Structural mutation</strong> (<code>mutation.ts</code>): Perturbs:</p>
+<ul>
+<li>Neuron counts per layer (Gaussian noise rounded to integer)</li>
+<li>Activation functions (random swap from pool)</li>
+<li>Connection types, bias types</li>
+<li>RL hyperparameters (gamma, learningRate, epsilon*)</li>
+<li>Layer add/remove, neuron add/remove</li>
+<li>Mutation parameters themselves (self-adaptive sigma, rate)</li>
+</ul>
+<p><strong>Weight-level mutation</strong> (<code>evolution-engine.ts</code>): Gaussian perturbation of trained weights.</p>
+<h3>8. Adaptive Control</h3>
+<p><code>adaptGAControl</code> adjusts GA meta-parameters based on stagnation and improvement:</p>
+<table>
+<thead>
+<tr>
+<th>Condition</th>
+<th>Adjustment</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Stagnation &gt; 5</td>
+<td>Increase population size (up to 80)</td>
+</tr>
+<tr>
+<td>Improving</td>
+<td>Decrease population size (down to 8)</td>
+</tr>
+<tr>
+<td>Stagnation &gt; 8</td>
+<td>Increase elitism (up to 0.3)</td>
+</tr>
+<tr>
+<td>Improving</td>
+<td>Decrease elitism (down to 0.05)</td>
+</tr>
+<tr>
+<td>Stagnation &gt; 10</td>
+<td>Increase survivor fraction (up to 0.9)</td>
+</tr>
+<tr>
+<td>Stagnation &gt; 6</td>
+<td>More episodes per individual (up to 10)</td>
+</tr>
+</tbody>
+</table>
+<h3>9. Termination Check</h3>
+<p>Loop exits when any condition is met (checked each generation):</p>
+<ul>
+<li><code>rewardThreshold</code> reached</li>
+<li><code>stagnationPatience</code> exceeded</li>
+<li><code>maxGenerations</code> reached</li>
+<li><code>timeBudgetMs</code> exhausted</li>
+</ul>
+<hr>
+<h2>Genetic Operators Reference</h2>
+<h3>Mutation Distributions (<code>noise.ts</code>)</h3>
+<table>
+<thead>
+<tr>
+<th>Distribution</th>
+<th>PDF</th>
+<th>Use case</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Gaussian</strong></td>
+<td><code>N(0, σ²)</code></td>
+<td>Fine-grained local search</td>
+</tr>
+<tr>
+<td><strong>Lévy</strong></td>
+<td>Heavy-tailed α=0.5</td>
+<td>Escaping local optima</td>
+</tr>
+<tr>
+<td><strong>Cauchy</strong></td>
+<td>Heavy-tailed</td>
+<td>Rare large jumps</td>
+</tr>
+<tr>
+<td><strong>Uniform</strong></td>
+<td><code>U(−σ, σ)</code></td>
+<td>Uniform exploration</td>
+</tr>
+</tbody>
+</table>
+<h3>Sigma Adaptation (<code>mutation.ts:53-69</code>)</h3>
+<table>
+<thead>
+<tr>
+<th>Strategy</th>
+<th>Behavior</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>fixed</code></td>
+<td>Constant sigma</td>
+</tr>
+<tr>
+<td><code>sigma_adaptive</code></td>
+<td><code>sigma * (0.9 + 0.2 * random)</code></td>
+</tr>
+<tr>
+<td><code>self_adaptive</code></td>
+<td>Log-normal perturbation via 1/5-rule</td>
+</tr>
+<tr>
+<td><code>cma</code></td>
+<td>External CMA-ES step-size control</td>
+</tr>
+</tbody>
+</table>
+<h3>Crossover Types (<code>crossover.ts</code>)</h3>
+<table>
+<thead>
+<tr>
+<th>Type</th>
+<th>Formula</th>
+<th>Use case</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Uniform</strong></td>
+<td>Randomly pick from either parent</td>
+<td>Topology mixing</td>
+</tr>
+<tr>
+<td><strong>Arithmetic</strong></td>
+<td><code>lerp(a, b, α)</code></td>
+<td>Smooth blending</td>
+</tr>
+<tr>
+<td><strong>BLX-α</strong></td>
+<td><code>U(min-α·d, max+α·d)</code></td>
+<td>Extended range exploration</td>
+</tr>
+<tr>
+<td><strong>SBX</strong></td>
+<td>Simulated Binary Crossover</td>
+<td>Real-valued optimization</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2>Fitness Computation (<code>fitness.ts</code>)</h2>
+<table>
+<thead>
+<tr>
+<th>Type</th>
+<th>Formula</th>
+<th>When to use</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>total_pnl</code></td>
+<td><code>mean(rewards)</code></td>
+<td>Simple profit maximization</td>
+</tr>
+<tr>
+<td><code>sharpe</code></td>
+<td><code>mean / std</code></td>
+<td>Risk-adjusted returns</td>
+</tr>
+<tr>
+<td><code>sortino</code></td>
+<td><code>mean / downside_std</code></td>
+<td>Downside-risk focus</td>
+</tr>
+<tr>
+<td><code>calmar</code></td>
+<td><code>mean / max_drawdown</code></td>
+<td>Drawdown-averse</td>
+</tr>
+<tr>
+<td><code>composite</code></td>
+<td><code>0.4·pnl + 0.3·sharpe + 0.3·sortino</code></td>
+<td>Balanced</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Final fitness</strong> applies a complexity penalty: <code>adjusted = fitness * (1 - 0.15 * complexity_penalty)</code></p>
+<hr>
+<h2>Vector Encoding (<code>encoding.ts</code>)</h2>
+<p>Genomes can be encoded as fixed-length <code>Float32Array</code> vectors for use with CMA-ES or vectorized GA implementations:</p>
+<ul>
+<li>23 scalar fields (RL params, mutation params, input/output dims, depth)</li>
+<li>Per-layer: neuron count + one-hot activation + one-hot connection type</li>
+<li>Zero-padded to handle variable-depth architectures</li>
+<li>Total dimension: <code>23 + 12 * (1 + 8 + 3) = 167</code></li>
+</ul>
+<hr>
+<h2>Public API (<code>index.ts</code>)</h2>
+<p>The barrel export exposes:</p>
+<pre><code class="language-typescript">// Core
+import { GeneticAlgorithmRunner, makeTradingAgentBackend } from './ga-runner';
+import { createDefaultGenome } from './factory';
+
+// Operators
+import { mutateGenome } from './mutation';
+import { crossoverGenomes } from './crossover';
+import { selectParent } from './selection';
+
+// Evaluation
+import { evaluateGenomeAllWindows, pooledEval } from './evaluation-pipeline';
+
+// Fitness
+import { computeFitness, shapeReward } from './fitness';
+
+// Multi-objective
+import { ParetoArchive, dominates } from './pareto-engine';
+
+// Diversity
+import { genomicDistance, speciate, diversityMetrics } from './diversity';
+
+// Encoding
+import { encodeGenome, decodeGenome } from './encoding';
+
+// Validation
+import { validateGenome, repairGenome } from './validation';
+
+// Complexity
+import { estimateComplexity } from './complexity-estimator';
+
+// Adaptive control
+import { adaptGAControl, checkTerminationConditions } from './adaptive-control-system';
+</code></pre>
+</div></div>
+</main>
+
+<nav class="fixed bottom-3 inset-x-0 z-30 flex justify-center pointer-events-none px-4" data-purpose="mobile-bottom-quick-nav">
+<div class="glass-header bg-[#0f172a]/90 border border-slate-700/80 rounded-full shadow-2xl p-1.5 flex items-center gap-1 pointer-events-auto backdrop-blur-lg">
+<button class="active-scale flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-mono font-medium text-slate-200 hover:bg-slate-800 transition" id="quickNavTreeBtn">
+<svg class="w-3.5 h-3.5 text-indigo-400" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+<span>Hierarchy</span>
+</button>
+<div class="h-4 w-px bg-slate-700"></div>
+<button class="active-scale flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-mono font-medium text-slate-200 hover:bg-slate-800 transition" id="quickNavTopBtn">
+<svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<path d="M5 10l7-7m0 0l7 7m-7-7v18" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+<span>Top</span>
+</button>
+</div>
+</nav>
+
+
+<div class="fixed inset-0 z-50 pointer-events-none transition-all duration-300 opacity-0" data-purpose="navigation-drawer" id="treeDrawer">
+<div class="absolute inset-0 bg-black/75 backdrop-blur-sm" id="treeBackdrop"></div>
+<aside class="absolute inset-y-0 left-0 w-[84%] max-w-xs bg-[#0B0F19] border-r border-surface-border flex flex-col shadow-2xl transform -translate-x-full transition-transform duration-300 ease-out">
+<div class="p-4 border-b border-surface-border flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-indigo-500"></span>
+<span class="font-mono text-xs font-semibold text-white tracking-tight truncate">Modules &amp; Interfaces</span>
+</div>
+<button aria-label="Close Drawer" class="p-1 rounded-md text-slate-400 hover:text-white" id="closeTreeDrawerBtn">
+<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<path d="M6 18L18 6M6 6l12 12" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</button>
+</div>
+<div class="flex-1 overflow-y-auto p-3 space-y-1 font-mono text-xs">
+
+</div>
+<div class="p-3 border-t border-surface-border bg-slate-950/40 text-[11px] text-slate-400 flex justify-between items-center">
+<span><a class="text-indigo-400 hover:text-indigo-300 font-mono" href="../../index.html">← Packages &amp; services</a></span>
+<span class="text-emerald-400 font-mono">Generated</span>
+</div>
+</aside>
+</div>
+
+
+<div class="fixed inset-0 z-50 pointer-events-none transition-all duration-300 opacity-0" data-purpose="visibility-settings-modal" id="settingsSheet">
+<div class="absolute inset-0 bg-black/75 backdrop-blur-sm" id="settingsBackdrop"></div>
+<div class="absolute inset-x-0 bottom-0 max-w-md mx-auto bg-[#0F1626] border-t border-surface-border rounded-t-2xl shadow-2xl transform translate-y-full transition-transform duration-300 ease-out p-5 space-y-4">
+<div class="w-10 h-1 rounded-full bg-slate-700 mx-auto -mt-2 mb-2"></div>
+<div class="flex items-center justify-between">
+<h4 class="text-sm font-bold font-mono uppercase tracking-wider text-white">Member Visibility</h4>
+<button class="text-slate-400 hover:text-white text-xs font-mono" id="closeSettingsBtn">Done</button>
+</div>
+<div class="space-y-2.5">
+<label class="flex items-center justify-between p-2.5 rounded-lg bg-surface-card border border-surface-border text-xs">
+<span class="text-slate-200">Protected Members</span>
+<input class="rounded bg-slate-900 border-slate-700 text-indigo-600 focus:ring-0" type="checkbox">
+</label>
+<label class="flex items-center justify-between p-2.5 rounded-lg bg-surface-card border border-surface-border text-xs">
+<span class="text-slate-200">Inherited Members</span>
+<input checked="" class="rounded bg-slate-900 border-slate-700 text-indigo-600 focus:ring-0" type="checkbox">
+</label>
+<label class="flex items-center justify-between p-2.5 rounded-lg bg-surface-card border border-surface-border text-xs">
+<span class="text-slate-200">External Declarations</span>
+<input class="rounded bg-slate-900 border-slate-700 text-indigo-600 focus:ring-0" type="checkbox">
+</label>
+</div>
+<div class="pt-2">
+<div class="text-[11px] text-slate-400 flex items-center justify-between">
+<span>Current Theme Mode</span>
+<span class="font-mono text-indigo-400">Dark / Modern Deep Slate</span>
+</div>
+</div>
+</div>
+</div>
+
+
+<script data-purpose="ui-interactions">
+    document.addEventListener('DOMContentLoaded', () => {
+      const drawer = document.getElementById('treeDrawer');
+      const drawerPanel = drawer.querySelector('aside');
+      const drawerToggle = document.getElementById('drawerToggleBtn');
+      const quickNavTree = document.getElementById('quickNavTreeBtn');
+      const closeTreeDrawer = document.getElementById('closeTreeDrawerBtn');
+      const treeBackdrop = document.getElementById('treeBackdrop');
+
+      const settingsSheet = document.getElementById('settingsSheet');
+      const settingsPanel = settingsSheet.querySelector('div:nth-child(2)');
+      const settingsToggle = document.getElementById('settingsSheetBtn');
+      const closeSettings = document.getElementById('closeSettingsBtn');
+      const settingsBackdrop = document.getElementById('settingsBackdrop');
+
+      function openDrawer() {
+        drawer.classList.remove('pointer-events-none', 'opacity-0');
+        drawerPanel.classList.remove('-translate-x-full');
+        document.body.style.overflow = 'hidden';
+      }
+      function closeDrawer() {
+        drawer.classList.add('opacity-0', 'pointer-events-none');
+        drawerPanel.classList.add('-translate-x-full');
+        document.body.style.overflow = '';
+      }
+      function openSettings() {
+        settingsSheet.classList.remove('pointer-events-none', 'opacity-0');
+        settingsPanel.classList.remove('translate-y-full');
+        document.body.style.overflow = 'hidden';
+      }
+      function closeSettingsModal() {
+        settingsSheet.classList.add('opacity-0', 'pointer-events-none');
+        settingsPanel.classList.add('translate-y-full');
+        document.body.style.overflow = '';
+      }
+
+      drawerToggle?.addEventListener('click', openDrawer);
+      quickNavTree?.addEventListener('click', openDrawer);
+      closeTreeDrawer?.addEventListener('click', closeDrawer);
+      treeBackdrop?.addEventListener('click', closeDrawer);
+
+      settingsToggle?.addEventListener('click', openSettings);
+      closeSettings?.addEventListener('click', closeSettingsModal);
+      settingsBackdrop?.addEventListener('click', closeSettingsModal);
+
+      document.getElementById('quickNavTopBtn')?.addEventListener('click', () => {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      });
+
+      document.getElementById('searchTriggerBtn')?.addEventListener('click', () => {
+        openDrawer();
+      });
+
+      const copyBtn = document.getElementById('copyInterfaceBtn');
+      const copyText = document.getElementById('copyInterfaceText');
+      copyBtn?.addEventListener('click', () => {
+        const code = null;
+        navigator.clipboard.writeText(code).then(() => {
+          copyText.textContent = 'Copied!';
+          setTimeout(() => { copyText.textContent = 'Copy'; }, 2000);
+        }).catch(() => {
+          copyText.textContent = 'Copied!';
+        });
+      });
+    });
+  </script>
+
+</body>
+</html>

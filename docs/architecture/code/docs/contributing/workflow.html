@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html class="dark" lang="en" data-tm-processed="true"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no" name="viewport">
+<title>Contribute — Full Workflow from Idea to Production | trading-model</title>
+
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+
+<script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              400: '#818cf8',
+              500: '#6366f1',
+              600: '#4f46e5',
+            },
+            surface: {
+              base: '#0B0F19',
+              card: '#111827',
+              muted: '#1E293B',
+              border: '#243046',
+            },
+            code: {
+              bg: '#0c121e',
+              keyword: '#c084fc',
+              ident: '#38bdf8',
+              type: '#34d399',
+              punct: '#94a3b8'
+            }
+          },
+          fontFamily: {
+            mono: ['JetBrains Mono', 'Fira Code', 'Menlo', 'Monaco', 'Courier New', 'monospace'],
+            sans: ['-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Inter', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+
+<style data-purpose="mobile-ux-styles">
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    .active-scale:active { transform: scale(0.97); transition: transform 0.1s ease-out; }
+    .h-safe-top { height: env(safe-area-inset-top, 0px); }
+    .pt-safe { padding-top: env(safe-area-inset-top, 0px); }
+    @supports (backdrop-filter: blur(12px)) {
+      .glass-header { backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
+    }
+    
+    .tm-prose p { margin: 0.5rem 0; }
+    .tm-prose p:first-child { margin-top: 0; }
+    .tm-prose p:last-child { margin-bottom: 0; }
+    .tm-prose a { color: #818cf8; text-decoration: underline; text-underline-offset: 2px; }
+    .tm-prose a:hover { color: #a5b4fc; }
+    .tm-prose code { font-family: 'JetBrains Mono', 'Fira Code', Menlo, Monaco, 'Courier New', monospace; font-size: 0.82em; color: #fbbf24; background: #0c121e; border: 1px solid #243046; border-radius: 0.25rem; padding: 0.05rem 0.3rem; }
+    .tm-prose pre { background: #0c121e; border: 1px solid #243046; border-radius: 0.5rem; padding: 0.75rem; overflow-x: auto; margin: 0.5rem 0; }
+    .tm-prose pre code { background: transparent; border: none; padding: 0; color: #e2e8f0; }
+    .tm-prose ul, .tm-prose ol { padding-left: 1.25rem; margin: 0.5rem 0; }
+    .tm-prose ul { list-style: disc; }
+    .tm-prose ol { list-style: decimal; }
+    .tm-prose li { margin: 0.2rem 0; }
+    .tm-prose blockquote { border-left: 3px solid #6366f1; background: rgba(17, 24, 39, 0.6); padding: 0.5rem 0.75rem; border-radius: 0 0.5rem 0.5rem 0; color: #94a3b8; margin: 0.5rem 0; }
+    .tm-prose h1, .tm-prose h2, .tm-prose h3, .tm-prose h4, .tm-prose h5 { color: #ffffff; font-weight: 700; margin: 0.75rem 0 0.25rem; }
+    .tm-prose h1 { font-size: 1.25rem; }
+    .tm-prose h2 { font-size: 1.125rem; }
+    .tm-prose h3 { font-size: 1rem; }
+    .tm-prose h4 { font-size: 0.875rem; }
+    .tm-prose table { width: 100%; border-collapse: collapse; margin: 0.5rem 0; }
+    .tm-prose th, .tm-prose td { border: 1px solid #243046; padding: 0.4rem 0.6rem; text-align: left; }
+    .tm-prose thead th { background: #0b0f19; color: #e2e8f0; font-size: 0.75rem; text-transform: uppercase; }
+    .tm-prose strong { color: #ffffff; }
+  </style>
+
+</head>
+<body class="bg-[#080C15] text-slate-200 font-sans antialiased min-h-screen pb-24 selection:bg-indigo-500/30 selection:text-indigo-200">
+
+<header class="sticky top-0 z-40 w-full glass-header bg-[#0B0F19]/90 border-b border-surface-border">
+<div class="h-safe-top pt-safe"></div>
+<div class="px-4 py-2.5 flex items-center justify-between gap-3">
+<div class="flex items-center gap-2.5 min-w-0">
+
+<div class="flex flex-col min-w-0">
+<div class="flex items-center gap-1.5 truncate">
+<span class="font-mono text-xs font-semibold text-indigo-400 truncate tracking-tight"><a class="text-indigo-400 hover:text-indigo-300 hover:underline" href="../../index.html">trading-model</a></span>
+
+</div>
+<span class="text-[10px] text-slate-400 flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> TypeDoc API Reference
+</span>
+</div>
+</div>
+
+</div>
+</header>
+
+<main class="px-4 py-4 max-w-2xl mx-auto flex flex-col gap-6">
+
+<section class="space-y-2.5" data-purpose="breadcrumbs-and-header">
+<nav aria-label="Breadcrumb" class="flex items-center flex-wrap gap-1 text-[11px] font-mono text-slate-400">
+<a class="text-indigo-400 hover:underline" href="../../index.html">trading-model</a><span class="text-slate-600">/</span><span class="text-slate-300 font-medium">Contribute — Full Workflow from Idea to Production</span>
+</nav>
+<div class="flex items-center gap-2.5 pt-1">
+<span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-mono font-medium tracking-wide uppercase bg-indigo-500/10 text-indigo-400 border-indigo-500/20">
+Documentation
+</span>
+<h1 class="text-2xl font-bold tracking-tight text-white font-sans">Contribute — Full Workflow from Idea to Production</h1>
+</div>
+
+</section>
+
+<div class="tm-prose text-sm leading-relaxed text-slate-300 font-sans"><div>
+<blockquote>
+<p><strong>Quick start:</strong> See <a href="../../CONTRIBUTING.html">CONTRIBUTING.md</a> for a concise overview before diving into the full workflow.</p>
+</blockquote>
+<h2>Branch Strategy</h2>
+<pre><code>main ────────╂──────────────────╂──── (production, protected)
+              ╲                ╱
+development ───╂──────────────╂─── (integration, protected)
+                │  ┌──────┐  │
+                ├──│feature│──┤
+                ├──│  fix  │──┤
+                ├──│refact │──┤
+                └──│ docs  │──┘
+                       │
+main ──────────────────╂─── (hotfix)
+               ┌───────┘
+               │ hotfix/
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Branch</th>
+<th>Base</th>
+<th>Usage</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>main</code></td>
+<td>—</td>
+<td>Production only. Protected — no direct push</td>
+</tr>
+<tr>
+<td><code>development</code></td>
+<td>—</td>
+<td>Integration. Protected — PR required</td>
+</tr>
+<tr>
+<td><code>feature/*</code></td>
+<td><code>development</code></td>
+<td>New functionality</td>
+</tr>
+<tr>
+<td><code>fix/*</code></td>
+<td><code>development</code></td>
+<td>Bug fix</td>
+</tr>
+<tr>
+<td><code>refactor/*</code></td>
+<td><code>development</code></td>
+<td>Refactoring</td>
+</tr>
+<tr>
+<td><code>docs/*</code></td>
+<td><code>development</code></td>
+<td>Documentation</td>
+</tr>
+<tr>
+<td><code>release/*</code></td>
+<td><code>main</code></td>
+<td>Urgent hotfix (direct merge to <code>main</code>)</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2>Code Organization</h2>
+<p>The project is an bun workspaces monorepo:</p>
+<pre><code>trading-model/
+├── packages/     # 6 shared libraries (@trading-model/*)
+│   ├── common/              # Base types, schemas, utilities
+│   ├── validation/          # Zod schemas, DTOs, admin contracts
+│   ├── server-utils/        # Secure HTTPS server factory, TLS watcher
+│   ├── crypto/              # Hashing, signature, crypto primitives
+│   ├── address-manager/     # Service discovery client
+│   └── broker-message/      # Message bus protocol types
+├── services/     # 8 microservices (kebab-case directory names)
+│   ├── discovery-server/
+│   ├── message-manager/
+│   ├── financial-scraper/
+│   ├── trader-trainer/      # bun name: trader-service
+│   ├── api-gateway/
+│   ├── audit-logger/
+│   ├── dlq-service/
+│   └── admin-interface/     # React SPA (Vite + Vitest)
+├── deploy/       # K8s manifests + nginx configs
+├── docs/         # Centralized documentation
+└── scripts/      # Automation scripts
+</code></pre>
+<h2>Naming Conventions</h2>
+<table>
+<thead>
+<tr>
+<th>Element</th>
+<th>Convention</th>
+<th>Example</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Directories</td>
+<td>kebab-case</td>
+<td><code>discovery-server/</code></td>
+</tr>
+<tr>
+<td>Files</td>
+<td>kebab-case</td>
+<td><code>address-manager.ts</code></td>
+</tr>
+<tr>
+<td>Classes &amp; Types</td>
+<td>PascalCase</td>
+<td><code>class AddressManager</code></td>
+</tr>
+<tr>
+<td>Variables &amp; Functions</td>
+<td>camelCase</td>
+<td><code>const addressManager</code></td>
+</tr>
+<tr>
+<td>Constants</td>
+<td>SCREAMING_SNAKE_CASE</td>
+<td><code>DEFAULT_TIMEOUT</code></td>
+</tr>
+<tr>
+<td>Test files</td>
+<td><code>.spec.ts</code> only</td>
+<td><code>user.service.spec.ts</code></td>
+</tr>
+</tbody>
+</table>
+<p>File suffixes: <code>*.controller.ts</code>, <code>*.service.ts</code>, <code>*.repository.ts</code>, <code>*.middleware.ts</code>, <code>*.util.ts</code>, <code>*.spec.ts</code></p>
+<h2>Code Style</h2>
+<ul>
+<li><strong>Formatter</strong>: Biome with <code>printWidth: 100</code>, <code>singleQuote</code>, <code>trailingComma: &quot;es5&quot;</code>, <code>arrowParens: &quot;avoid&quot;</code></li>
+<li><strong>Linter</strong>: Biome with TypeScript strict rules</li>
+<li><strong>TypeScript</strong>: <code>strict: true</code>, target ES2020</li>
+</ul>
+<h3>Import Order</h3>
+<ol>
+<li>Node built-ins (<code>fs</code>, <code>path</code>)</li>
+<li>External deps (<code>express</code>, <code>zod</code>)</li>
+<li>Internal absolute (<code>@trading-model/*</code>)</li>
+<li>Internal relative (<code>../controllers/</code>)</li>
+<li>Side effects (<code>import './setup'</code>)</li>
+</ol>
+<h2>Testing</h2>
+<ul>
+<li><strong>Framework</strong>: Jest with <code>ts-jest</code> (most services); <strong>Vitest</strong> (admin-interface only)</li>
+<li><strong>Convention</strong>: Single <code>.spec.ts</code> or <code>.spec.tsx</code> (admin-interface) suffix</li>
+<li><strong>Coverage thresholds</strong>: 100% for common, discovery, most packages; 80-85% for trader-service, dlq-service</li>
+<li><strong>Structure</strong>: Tests mirror source under <code>tests/unit/</code>, <code>tests/integration/</code>, <code>tests/e2e/</code></li>
+</ul>
+<hr>
+<h2>Full Cycle</h2>
+<h3>1. Idea</h3>
+<p>Create a <strong>GitHub Issue</strong> with the appropriate template:</p>
+<ul>
+<li><strong>Bug</strong>: describe expected vs. observed behavior, logs, environment</li>
+<li><strong>Feature</strong>: describe the need, use case, acceptance criteria</li>
+</ul>
+<h3>2. Branch</h3>
+<pre><code class="language-bash">git checkout development &amp;&amp; git pull
+git checkout -b feature/my-feature
+</code></pre>
+<h3>3. Local development</h3>
+<pre><code class="language-bash">bun install --frozen-lockfile            # clean install from lockfile
+bun run build     # compile shared packages
+</code></pre>
+<p>Refer to code standards in <a href="../standards/README.html"><code>docs/standards/</code></a>.</p>
+<h3>4. Local validation</h3>
+<pre><code class="language-bash">bun run lint       # Biome
+bun run build      # TypeScript
+bun run test           # Jest — minimum 80% coverage
+</code></pre>
+<h3>5. Commit</h3>
+<pre><code class="language-bash">bun run commit     # interactive gitmoji tool
+</code></pre>
+<p>Conventional format:</p>
+<pre><code>:sparkles:(scraper): add new exchange client
+:bug:(broker): fix race condition on unsubscribe
+:memo:(docs): update API reference
+</code></pre>
+<p>Types: <code>sparkles</code> (feat), <code>bug</code> (fix), <code>memo</code> (docs), <code>recycle</code> (refactor), <code>zap</code> (perf), <code>white_check_mark</code> (test), <code>wrench</code> (chore), <code>construction_worker</code> (ci), <code>lock</code> (security), <code>boom</code> (breaking).</p>
+<p>See <a href="../standards/commit-standards.html"><code>docs/standards/commit-standards.md</code></a> for the full list of types.</p>
+<h3>6. Push</h3>
+<pre><code class="language-bash">git push -u origin feature/my-feature
+</code></pre>
+<p>CI runs automatically on the branch.</p>
+<h3>7. Pull Request</h3>
+<p>Create a PR on GitHub targeting <strong><code>development</code></strong>.</p>
+<p>See <a href="../standards/pr-standards.html"><code>docs/standards/pr-standards.md</code></a> for the template and guidelines.</p>
+<h3>8. Review</h3>
+<ul>
+<li>All CI checks must be green</li>
+<li>At least <strong>1 approval</strong> required</li>
+<li>All comments must be resolved before merging</li>
+</ul>
+<h3>9. Merge</h3>
+<p><strong>Squash &amp; Merge</strong> into <code>development</code>. Delete the branch after merging.</p>
+<h3>10. Release</h3>
+<ol>
+<li>Merge <code>development</code> into <code>main</code> via a pull request (or <code>git checkout main &amp;&amp; git merge development</code>).</li>
+<li>Push <code>main</code>.</li>
+<li>Run the <strong>Release</strong> workflow: GitHub Actions → <strong>Actions</strong> → <strong>Release</strong> → <strong>Run workflow</strong> (optionally pick <code>bump_type</code>).</li>
+</ol>
+<p>The workflow then:</p>
+<ol>
+<li>Quality gate (lint + build + test)</li>
+<li>Version bump + CHANGELOG generation (via <code>scripts/release.mjs</code>), committed and tagged <code>v*.*.*</code></li>
+<li>Build Docker images for all services</li>
+<li>Push to <strong>GitHub Container Registry</strong> (<code>ghcr.io/trading-model/&lt;service&gt;</code>)</li>
+<li>Generate TypeDoc and publish to GitHub Pages</li>
+<li>Create a <strong>GitHub Release</strong> with changelog + pull commands</li>
+</ol>
+<h3>11. Deploy (Production)</h3>
+<p>On the production server:</p>
+<pre><code class="language-bash">git pull --tags
+git checkout v$(node -p &quot;require('./package.json').version&quot;)
+IMAGE_TAG=$(node -p &quot;require('./package.json').version&quot;) docker compose pull
+IMAGE_TAG=$(node -p &quot;require('./package.json').version&quot;) docker compose up -d
+</code></pre>
+<hr>
+<h2>Workflow at a Glance</h2>
+<pre><code>dev  ──→ commit ──→ push ──→ PR ──→ merge ──→ beta deploy (canary)
+        bun run     git push  (auto      dev    docker compose
+        commit                 lint               pull + up -d
+                               typecheck
+                               test)         (validate)
+
+main ←── merge dev ────→ tag v* ──→ release.yml ──→ stable deploy
+              (if OK)     bun run   quality           docker compose
+                          release   docker (8 images) pull + up -d
+                                    docs (GitHub Pages)
+                                    GitHub Release
+</code></pre>
+<hr>
+<h2>Roles</h2>
+<h3>New contributor</h3>
+<ol>
+<li>Read <a href="../../CONTRIBUTING.html">CONTRIBUTING.md</a> for a quick overview</li>
+<li>Set up the machine (see <a href="../deployment/SETUP.html">SETUP.md</a>)</li>
+<li>Create an Issue or pick an existing one</li>
+<li>Create a branch and submit your first PR</li>
+<li>Request a review from a maintainer</li>
+</ol>
+<h3>General developer / Maintainer</h3>
+<p>Full cycle steps 4–11:</p>
+<ul>
+<li>Validate locally (lint, build, test)</li>
+<li>Commit with <code>bun run commit</code></li>
+<li>Push and create the PR</li>
+<li>Review others' PRs</li>
+<li>Merge into <code>development</code></li>
+<li>Prepare and push the release tag</li>
+</ul>
+<hr>
+<h2>Command summary</h2>
+<pre><code class="language-bash"># Dev
+git checkout development &amp;&amp; git pull
+git checkout -b feature/my-feature
+bun install --frozen-lockfile &amp;&amp; bun run build &amp;&amp; bun run test
+# ... code ...
+bun run commit
+git push -u origin feature/my-feature
+
+# Release (maintainer)
+git checkout main &amp;&amp; git pull
+git merge development
+# run the &quot;Release&quot; workflow: GitHub Actions → Actions → Release → Run workflow
+</code></pre>
+</div></div>
+</main>
+</body>
+</html>

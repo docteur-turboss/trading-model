@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html class="dark" lang="en" data-tm-processed="true"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no" name="viewport">
+<title>Kubernetes Deployment Guide | trading-model</title>
+
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+
+<script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              400: '#818cf8',
+              500: '#6366f1',
+              600: '#4f46e5',
+            },
+            surface: {
+              base: '#0B0F19',
+              card: '#111827',
+              muted: '#1E293B',
+              border: '#243046',
+            },
+            code: {
+              bg: '#0c121e',
+              keyword: '#c084fc',
+              ident: '#38bdf8',
+              type: '#34d399',
+              punct: '#94a3b8'
+            }
+          },
+          fontFamily: {
+            mono: ['JetBrains Mono', 'Fira Code', 'Menlo', 'Monaco', 'Courier New', 'monospace'],
+            sans: ['-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Inter', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+
+<style data-purpose="mobile-ux-styles">
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    .active-scale:active { transform: scale(0.97); transition: transform 0.1s ease-out; }
+    .h-safe-top { height: env(safe-area-inset-top, 0px); }
+    .pt-safe { padding-top: env(safe-area-inset-top, 0px); }
+    @supports (backdrop-filter: blur(12px)) {
+      .glass-header { backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
+    }
+    
+    .tm-prose p { margin: 0.5rem 0; }
+    .tm-prose p:first-child { margin-top: 0; }
+    .tm-prose p:last-child { margin-bottom: 0; }
+    .tm-prose a { color: #818cf8; text-decoration: underline; text-underline-offset: 2px; }
+    .tm-prose a:hover { color: #a5b4fc; }
+    .tm-prose code { font-family: 'JetBrains Mono', 'Fira Code', Menlo, Monaco, 'Courier New', monospace; font-size: 0.82em; color: #fbbf24; background: #0c121e; border: 1px solid #243046; border-radius: 0.25rem; padding: 0.05rem 0.3rem; }
+    .tm-prose pre { background: #0c121e; border: 1px solid #243046; border-radius: 0.5rem; padding: 0.75rem; overflow-x: auto; margin: 0.5rem 0; }
+    .tm-prose pre code { background: transparent; border: none; padding: 0; color: #e2e8f0; }
+    .tm-prose ul, .tm-prose ol { padding-left: 1.25rem; margin: 0.5rem 0; }
+    .tm-prose ul { list-style: disc; }
+    .tm-prose ol { list-style: decimal; }
+    .tm-prose li { margin: 0.2rem 0; }
+    .tm-prose blockquote { border-left: 3px solid #6366f1; background: rgba(17, 24, 39, 0.6); padding: 0.5rem 0.75rem; border-radius: 0 0.5rem 0.5rem 0; color: #94a3b8; margin: 0.5rem 0; }
+    .tm-prose h1, .tm-prose h2, .tm-prose h3, .tm-prose h4, .tm-prose h5 { color: #ffffff; font-weight: 700; margin: 0.75rem 0 0.25rem; }
+    .tm-prose h1 { font-size: 1.25rem; }
+    .tm-prose h2 { font-size: 1.125rem; }
+    .tm-prose h3 { font-size: 1rem; }
+    .tm-prose h4 { font-size: 0.875rem; }
+    .tm-prose table { width: 100%; border-collapse: collapse; margin: 0.5rem 0; }
+    .tm-prose th, .tm-prose td { border: 1px solid #243046; padding: 0.4rem 0.6rem; text-align: left; }
+    .tm-prose thead th { background: #0b0f19; color: #e2e8f0; font-size: 0.75rem; text-transform: uppercase; }
+    .tm-prose strong { color: #ffffff; }
+  </style>
+
+</head>
+<body class="bg-[#080C15] text-slate-200 font-sans antialiased min-h-screen pb-24 selection:bg-indigo-500/30 selection:text-indigo-200">
+
+<header class="sticky top-0 z-40 w-full glass-header bg-[#0B0F19]/90 border-b border-surface-border">
+<div class="h-safe-top pt-safe"></div>
+<div class="px-4 py-2.5 flex items-center justify-between gap-3">
+<div class="flex items-center gap-2.5 min-w-0">
+
+<div class="flex flex-col min-w-0">
+<div class="flex items-center gap-1.5 truncate">
+<span class="font-mono text-xs font-semibold text-indigo-400 truncate tracking-tight"><a class="text-indigo-400 hover:text-indigo-300 hover:underline" href="../../index.html">trading-model</a></span>
+
+</div>
+<span class="text-[10px] text-slate-400 flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> TypeDoc API Reference
+</span>
+</div>
+</div>
+
+</div>
+</header>
+
+<main class="px-4 py-4 max-w-2xl mx-auto flex flex-col gap-6">
+
+<section class="space-y-2.5" data-purpose="breadcrumbs-and-header">
+<nav aria-label="Breadcrumb" class="flex items-center flex-wrap gap-1 text-[11px] font-mono text-slate-400">
+<a class="text-indigo-400 hover:underline" href="../../index.html">trading-model</a><span class="text-slate-600">/</span><span class="text-slate-300 font-medium">Kubernetes Deployment Guide</span>
+</nav>
+<div class="flex items-center gap-2.5 pt-1">
+<span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-mono font-medium tracking-wide uppercase bg-indigo-500/10 text-indigo-400 border-indigo-500/20">
+Documentation
+</span>
+<h1 class="text-2xl font-bold tracking-tight text-white font-sans">Kubernetes Deployment Guide</h1>
+</div>
+
+</section>
+
+<div class="tm-prose text-sm leading-relaxed text-slate-300 font-sans"><div>
+<h2>Overview</h2>
+<p>This guide covers deploying the Trading Model platform on Kubernetes. The K8s manifests are located in <code>deploy/k8s/</code> and are designed to be applied with <code>kubectl</code> or Kustomize.</p>
+<h2>Prerequisites</h2>
+<ul>
+<li>Kubernetes cluster 1.28+ (tested with AKS, EKS, GKE, k3s)</li>
+<li><code>kubectl</code> configured with cluster access</li>
+<li>Ingress controller (nginx-ingress recommended)</li>
+<li>cert-manager for TLS certificate management</li>
+<li>Prometheus Operator (optional, for enhanced alerting)</li>
+<li>StorageClass configured for PVCs (MySQL, MongoDB, Prometheus, Grafana)</li>
+</ul>
+<h2>Directory Structure</h2>
+<pre><code>deploy/k8s/
+  base/                       # Kustomize base overlay
+    namespace.yaml            # trading-model namespace
+    kustomization.yaml        # Resource list
+  config/                     # ConfigMaps per service (+ HPA, PDB, NetworkPolicy, ServiceAccount)
+  secrets/                    # Kubernetes Secrets (placeholder values)
+  services/                   # Deployments + Services per microservice
+  infra/                      # Infrastructure: MySQL, MongoDB, Redis, OTel, Jaeger, Prometheus, Grafana
+  ingress/                    # Ingress rules for API gateway, admin, Grafana
+  monitoring/                 # PrometheusRules for alerting
+  scripts/                    # deploy-k8s.sh deployment script
+</code></pre>
+<h2>Quick Start</h2>
+<h3>1. mTLS via SPIRE (default)</h3>
+<p>mTLS identities are issued by SPIRE (ADR-0011) — mandatory and enabled by
+default in the base kustomization. Every workload runs a <code>spiffe-helper</code>
+sidecar that writes its SVID into <code>/run/spire/svid</code>
+(<code>svid.pem</code>, <code>svid_key.pem</code>, <code>bundle.pem</code>) and <code>TLS_*_PATH</code> points at those
+files. No manual certificate generation or <code>trading-model-tls</code> secret is
+required for services:</p>
+<pre><code class="language-bash"># Deploy (staging or production)
+kubectl apply -k deploy/k8s/overlays/staging
+# or
+kubectl apply -k deploy/k8s/overlays/production
+</code></pre>
+<blockquote>
+<p><strong>Ingress exception:</strong> the nginx ingress controller (installed outside this
+repo) re-encrypts to the gateway with mTLS and requires a static client
+identity. Keep the <code>trading-model-tls</code> secret for the
+<code>proxy-ssl-secret</code> annotation only, minted from the SPIRE trust domain
+(<code>bundle.pem</code> as <code>ca.crt</code> + a client SVID). All other workloads use
+<code>spiffe-helper</code> SVIDs with no manual certificates.</p>
+</blockquote>
+<h3>2. Configure secrets</h3>
+<p>Edit <code>deploy/k8s/secrets/</code> to set production values, then:</p>
+<pre><code class="language-bash"># Apply secrets (or use SealedSecrets/SOPS for production)
+kubectl apply -k deploy/k8s/secrets/
+</code></pre>
+<p>For production, use SealedSecrets or an external secrets operator:</p>
+<pre><code class="language-bash"># Example with Bitnami SealedSecrets
+kubeseal &lt; deploy/k8s/secrets/secrets.yaml &gt; deploy/k8s/secrets/sealed-secrets.yaml
+kubectl apply -f deploy/k8s/secrets/sealed-secrets.yaml
+</code></pre>
+<p>See <a href="sealed-secrets.html">Sealed Secrets guide</a> for detailed setup, key rotation, and migration instructions.</p>
+<h3>3. Deploy all resources</h3>
+<pre><code class="language-bash"># Using the deploy script
+./deploy/k8s/scripts/deploy-k8s.sh apply
+
+# Or directly with Kustomize
+kubectl apply -k deploy/k8s/
+
+# Verify deployment
+./deploy/k8s/scripts/deploy-k8s.sh status
+</code></pre>
+<h3>4. Run smoke tests</h3>
+<pre><code class="language-bash">./deploy/k8s/scripts/deploy-k8s.sh smoke-test
+</code></pre>
+<h2>Deployment Strategy</h2>
+<h3>Standard deployment</h3>
+<pre><code class="language-bash">./deploy/k8s/scripts/deploy-k8s.sh apply &lt;service-name&gt;
+</code></pre>
+<h3>Canary deployment</h3>
+<pre><code class="language-bash"># Deploy to 10% of instances first, monitor, then full rollout
+./deploy/k8s/scripts/deploy-k8s.sh canary &lt;service-name&gt; 10
+</code></pre>
+<h3>Rollback</h3>
+<pre><code class="language-bash"># Rollback to previous version
+./deploy/k8s/scripts/deploy-k8s.sh rollback &lt;service-name&gt;
+
+# Rollback to specific revision
+kubectl rollout history -n trading-model deployment/&lt;service-name&gt;
+./deploy/k8s/scripts/deploy-k8s.sh rollback &lt;service-name&gt; &lt;revision&gt;
+</code></pre>
+<h2>Scaling</h2>
+<h3>Autoscaling</h3>
+<p>HPAs are configured for all services in their respective ConfigMap manifests:</p>
+<table>
+<thead>
+<tr>
+<th>Service</th>
+<th>Min</th>
+<th>Max</th>
+<th>Metric</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>discovery-server</td>
+<td>3</td>
+<td>10</td>
+<td>CPU 70%, Memory 75%</td>
+</tr>
+<tr>
+<td>message-manager</td>
+<td>3</td>
+<td>12</td>
+<td>CPU 65%, Memory 70%, Queue depth</td>
+</tr>
+<tr>
+<td>api-gateway</td>
+<td>2</td>
+<td>8</td>
+<td>CPU 70%, Memory 75%</td>
+</tr>
+<tr>
+<td>financial-scraper</td>
+<td>2</td>
+<td>6</td>
+<td>CPU 70%</td>
+</tr>
+<tr>
+<td>trader-trainer</td>
+<td>1</td>
+<td>3</td>
+<td>CPU 80%</td>
+</tr>
+<tr>
+<td>audit-logger</td>
+<td>2</td>
+<td>5</td>
+<td>CPU 70%</td>
+</tr>
+<tr>
+<td>dlq-service</td>
+<td>2</td>
+<td>4</td>
+<td>CPU 70%</td>
+</tr>
+<tr>
+<td>admin-interface</td>
+<td>2</td>
+<td>5</td>
+<td>CPU 70%</td>
+</tr>
+</tbody>
+</table>
+<h3>Manual scaling</h3>
+<pre><code class="language-bash">kubectl scale deployment -n trading-model &lt;service-name&gt; --replicas=5
+</code></pre>
+<h2>Infrastructure Components</h2>
+<h3>MySQL</h3>
+<ul>
+<li>StatefulSet with 1 replica</li>
+<li>10Gi PVC for data persistence</li>
+<li>Initial schema loaded via ConfigMap</li>
+<li>PodDisruptionBudget: minAvailable 1</li>
+</ul>
+<h3>MongoDB (Replica Set)</h3>
+<ul>
+<li>StatefulSet with 3 replicas</li>
+<li>20Gi PVC per replica</li>
+<li>Replica set initialized via init Job</li>
+<li>Headless service for DNS-based discovery</li>
+<li>PodDisruptionBudget: minAvailable 2</li>
+</ul>
+<h3>Redis + Sentinel</h3>
+<ul>
+<li>Redis primary: StatefulSet, 1 replica, 10Gi PVC</li>
+<li>Redis sentinel: StatefulSet, 3 replicas, anti-affinity</li>
+<li>Sentinel configuration via ConfigMap</li>
+<li>Services for primary and sentinel discovery</li>
+</ul>
+<h3>Observability Stack</h3>
+<ul>
+<li><strong>OpenTelemetry Collector:</strong> 2 replicas, accepts OTLP HTTP</li>
+<li><strong>Jaeger:</strong> 1 replica, OTLP gRPC receiver</li>
+<li><strong>Prometheus:</strong> StatefulSet, 50Gi PVC, 30d retention, mTLS scrape</li>
+<li><strong>Grafana:</strong> StatefulSet, 10Gi PVC, Prometheus + Jaeger datasources</li>
+</ul>
+<h3>Workload Identity (SPIRE)</h3>
+<p>Per <a href="./ADR.md">ADR-0011</a> the platform uses SPIFFE/SPIRE instead of the former
+in-house CA:</p>
+<ul>
+<li><strong>SPIRE Server:</strong> Deployment (MySQL datastore, <code>spire</code> database), admin socket
+shared via hostPath</li>
+<li><strong>SPIRE Agent:</strong> DaemonSet with the <code>k8s_psat</code> node attestor + <code>k8s</code> workload
+attestor, Workload API socket on hostPath <code>/run/spire/agent-sockets</code></li>
+<li><strong>Registration:</strong> one-time <code>spire-entries</code> Job registers the agent node entry
+and one workload entry per service (<code>spiffe://trading-model.local/ns/.../sa/...</code>)</li>
+<li><strong>Consumption:</strong> <code>spiffe-helper</code> sidecars write <code>svid.pem</code>/<code>svid_key.pem</code>/<code>bundle.pem</code>
+consumed via the standard <code>TLS_*</code> paths (<code>/run/spire/svid</code>) — part of the base
+kustomization, applied to all workloads (services, prometheus, blackbox-exporter)</li>
+</ul>
+<h2>Security</h2>
+<h3>Network Policies</h3>
+<p>All services have NetworkPolicies that restrict ingress/egress:</p>
+<ul>
+<li>Ingress: only from <code>trading-model</code> namespace (except api-gateway and admin-interface)</li>
+<li>Egress: only to required infrastructure ports</li>
+<li>External egress: only for financial-scraper (Binance API)</li>
+</ul>
+<h3>Secrets Management</h3>
+<ul>
+<li><strong>Development:</strong> Kubernetes Secrets with generator values</li>
+<li><strong>Production:</strong> Use SealedSecrets, External Secrets Operator, or Vault</li>
+<li><strong>TLS certificates:</strong> cert-manager ClusterIssuer manages only the <strong>public ingress</strong> certs (api-gateway, admin-interface, Grafana). Inter-service mTLS is entirely SPIRE-based (ADR-0011): SVIDs issued by SPIRE Server, consumed via <code>spiffe-helper</code> sidecars — no manual TLS secrets for internal traffic.</li>
+</ul>
+<h3>Service Accounts</h3>
+<p>Each service has a dedicated ServiceAccount with <code>automountServiceAccountToken: false</code> (no pods need K8s API access).</p>
+<h2>Known Limitations (current version)</h2>
+<ol>
+<li><strong>MySQL is single-instance</strong> — no read replicas or semi-sync replication configured</li>
+<li><strong>Grafana is single-instance</strong> — dashboard provisioning but no HA</li>
+<li><strong>Jaeger is single-instance</strong> — in-memory storage (not Elasticsearch/Cassandra)</li>
+<li><strong>Redis sentinel</strong> is configured but may need tuning for production workloads</li>
+<li><strong>No PodSecurityPolicy/OpaGatekeeper</strong> — pods run restricted but no admission controller</li>
+</ol>
+</div></div>
+</main>
+</body>
+</html>

@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html class="dark" lang="en" data-tm-processed="true"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no" name="viewport">
+<title>CI/CD Standards | trading-model</title>
+
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+
+<script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              400: '#818cf8',
+              500: '#6366f1',
+              600: '#4f46e5',
+            },
+            surface: {
+              base: '#0B0F19',
+              card: '#111827',
+              muted: '#1E293B',
+              border: '#243046',
+            },
+            code: {
+              bg: '#0c121e',
+              keyword: '#c084fc',
+              ident: '#38bdf8',
+              type: '#34d399',
+              punct: '#94a3b8'
+            }
+          },
+          fontFamily: {
+            mono: ['JetBrains Mono', 'Fira Code', 'Menlo', 'Monaco', 'Courier New', 'monospace'],
+            sans: ['-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Inter', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+
+<style data-purpose="mobile-ux-styles">
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    .active-scale:active { transform: scale(0.97); transition: transform 0.1s ease-out; }
+    .h-safe-top { height: env(safe-area-inset-top, 0px); }
+    .pt-safe { padding-top: env(safe-area-inset-top, 0px); }
+    @supports (backdrop-filter: blur(12px)) {
+      .glass-header { backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
+    }
+    
+    .tm-prose p { margin: 0.5rem 0; }
+    .tm-prose p:first-child { margin-top: 0; }
+    .tm-prose p:last-child { margin-bottom: 0; }
+    .tm-prose a { color: #818cf8; text-decoration: underline; text-underline-offset: 2px; }
+    .tm-prose a:hover { color: #a5b4fc; }
+    .tm-prose code { font-family: 'JetBrains Mono', 'Fira Code', Menlo, Monaco, 'Courier New', monospace; font-size: 0.82em; color: #fbbf24; background: #0c121e; border: 1px solid #243046; border-radius: 0.25rem; padding: 0.05rem 0.3rem; }
+    .tm-prose pre { background: #0c121e; border: 1px solid #243046; border-radius: 0.5rem; padding: 0.75rem; overflow-x: auto; margin: 0.5rem 0; }
+    .tm-prose pre code { background: transparent; border: none; padding: 0; color: #e2e8f0; }
+    .tm-prose ul, .tm-prose ol { padding-left: 1.25rem; margin: 0.5rem 0; }
+    .tm-prose ul { list-style: disc; }
+    .tm-prose ol { list-style: decimal; }
+    .tm-prose li { margin: 0.2rem 0; }
+    .tm-prose blockquote { border-left: 3px solid #6366f1; background: rgba(17, 24, 39, 0.6); padding: 0.5rem 0.75rem; border-radius: 0 0.5rem 0.5rem 0; color: #94a3b8; margin: 0.5rem 0; }
+    .tm-prose h1, .tm-prose h2, .tm-prose h3, .tm-prose h4, .tm-prose h5 { color: #ffffff; font-weight: 700; margin: 0.75rem 0 0.25rem; }
+    .tm-prose h1 { font-size: 1.25rem; }
+    .tm-prose h2 { font-size: 1.125rem; }
+    .tm-prose h3 { font-size: 1rem; }
+    .tm-prose h4 { font-size: 0.875rem; }
+    .tm-prose table { width: 100%; border-collapse: collapse; margin: 0.5rem 0; }
+    .tm-prose th, .tm-prose td { border: 1px solid #243046; padding: 0.4rem 0.6rem; text-align: left; }
+    .tm-prose thead th { background: #0b0f19; color: #e2e8f0; font-size: 0.75rem; text-transform: uppercase; }
+    .tm-prose strong { color: #ffffff; }
+  </style>
+
+</head>
+<body class="bg-[#080C15] text-slate-200 font-sans antialiased min-h-screen pb-24 selection:bg-indigo-500/30 selection:text-indigo-200">
+
+<header class="sticky top-0 z-40 w-full glass-header bg-[#0B0F19]/90 border-b border-surface-border">
+<div class="h-safe-top pt-safe"></div>
+<div class="px-4 py-2.5 flex items-center justify-between gap-3">
+<div class="flex items-center gap-2.5 min-w-0">
+
+<div class="flex flex-col min-w-0">
+<div class="flex items-center gap-1.5 truncate">
+<span class="font-mono text-xs font-semibold text-indigo-400 truncate tracking-tight"><a class="text-indigo-400 hover:text-indigo-300 hover:underline" href="../../index.html">trading-model</a></span>
+
+</div>
+<span class="text-[10px] text-slate-400 flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> TypeDoc API Reference
+</span>
+</div>
+</div>
+
+</div>
+</header>
+
+<main class="px-4 py-4 max-w-2xl mx-auto flex flex-col gap-6">
+
+<section class="space-y-2.5" data-purpose="breadcrumbs-and-header">
+<nav aria-label="Breadcrumb" class="flex items-center flex-wrap gap-1 text-[11px] font-mono text-slate-400">
+<a class="text-indigo-400 hover:underline" href="../../index.html">trading-model</a><span class="text-slate-600">/</span><span class="text-slate-300 font-medium">CI/CD Standards</span>
+</nav>
+<div class="flex items-center gap-2.5 pt-1">
+<span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-mono font-medium tracking-wide uppercase bg-indigo-500/10 text-indigo-400 border-indigo-500/20">
+Documentation
+</span>
+<h1 class="text-2xl font-bold tracking-tight text-white font-sans">CI/CD Standards</h1>
+</div>
+
+</section>
+
+<div class="tm-prose text-sm leading-relaxed text-slate-300 font-sans"><div>
+<h2>Why</h2>
+<p>Continuous integration and continuous deployment automate quality controls, guarantee reproducible builds, and produce consistent releases. Every change is validated by a battery of checks before reaching production.</p>
+<h2>CI: Continuous Integration</h2>
+<h3>Workflow: <code>.github/workflows/ci.yml</code></h3>
+<p>Triggered on <strong>push</strong> and <strong>pull request</strong> to all branches.</p>
+<pre><code class="language-yaml">name: CI
+
+on: [push, pull_request]
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - run: bun run lint
+
+  typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - name: Build packages (dependency order)
+        run: bun run build
+      - name: Type-check services
+        run: |
+          bun run --filter message-manager build
+          bun run --filter discovery-server build
+          bun run --filter financial-scraper build
+          bun run --filter trader-service build
+          bun run --filter api-gateway build
+          bun run --filter admin-interface build
+          bun run --filter audit-logger build
+          bun run --filter dlq-service build
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - run: bun run build
+      - run: bun run test:coverage
+</code></pre>
+<p><strong>Jobs</strong>:</p>
+<ul>
+<li><code>lint</code> — Biome check across the entire monorepo</li>
+<li><code>typecheck</code> — Build packages + type-check all services (including admin-interface)</li>
+<li><code>test</code> — Build + tests with coverage</li>
+</ul>
+<p><strong>Permissions</strong>: <code>contents: read</code> (read-only)</p>
+<h2>CD: Continuous Deployment</h2>
+<h3>Workflow: <code>.github/workflows/release.yml</code></h3>
+<p>Triggered on <strong>tags</strong> matching <code>v*.*.*</code>.</p>
+<pre><code class="language-yaml">name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: oven-sh/setup-bun@v2
+        with: { bun-version: latest }
+      - run: bun install --frozen-lockfile
+      - run: bun run lint
+      - run: bun run build
+      - run: bun run test:coverage
+      - name: Extract version from tag
+        id: version
+        run: echo &quot;version=${GITHUB_REF_NAME#v}&quot; &gt;&gt; &quot;$GITHUB_OUTPUT&quot;
+
+  docker:
+    needs: [quality]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        service:
+          - name: discovery-server
+            context: .
+            dockerfile: services/discovery-server/Dockerfile
+          - name: message-manager
+            context: .
+            dockerfile: services/message-manager/Dockerfile
+          - name: financial-scraper
+            context: .
+            dockerfile: services/financial-scraper/Dockerfile
+          - name: trader-trainer
+            context: .
+            dockerfile: services/trader-trainer/Dockerfile
+          - name: api-gateway
+            context: .
+            dockerfile: services/api-gateway/Dockerfile
+          - name: admin-interface
+            context: .
+            dockerfile: services/admin-interface/Dockerfile
+          - name: audit-logger
+            context: .
+            dockerfile: services/audit-logger/Dockerfile
+          - name: dlq-service
+            context: .
+            dockerfile: services/dlq-service/Dockerfile
+    steps:
+      - uses: actions/checkout@v5
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GHCR_TOKEN }}
+      - uses: docker/setup-buildx-action@v3
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}/${{ matrix.service.name }}
+          tags: |
+            type=semver,pattern={{version}},value=v${{ needs.quality.outputs.version }}
+            type=semver,pattern={{major}}.{{minor}},value=v${{ needs.quality.outputs.version }}
+            type=semver,pattern={{major}},value=v${{ needs.quality.outputs.version }}
+            type=sha
+      - uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.service.context }}
+          file: ${{ matrix.service.dockerfile }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  release:
+    needs: [quality, docker]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Release ${{ needs.quality.outputs.version }}
+          generate_release_notes: true
+</code></pre>
+<p><strong>Jobs</strong> (sequential):</p>
+<ol>
+<li><code>quality</code> — Lint + Build + Tests + version extraction</li>
+<li><code>docker</code> — Build and push Docker images for each service to GHCR (GitHub Container Registry)</li>
+<li><code>release</code> — Create GitHub Release with changelog</li>
+</ol>
+<p><strong>Permissions</strong>:</p>
+<ul>
+<li>CI (<code>ci.yml</code>): <code>contents: read</code></li>
+<li>Quality (<code>release.yml</code>): <code>contents: read</code></li>
+<li>Docker (<code>release.yml</code>): <code>contents: read</code> + <code>packages: write</code></li>
+<li>Release (<code>release.yml</code>): <code>contents: write</code></li>
+</ul>
+<h3>Additional workflows</h3>
+<table>
+<thead>
+<tr>
+<th>Workflow</th>
+<th>File</th>
+<th>Trigger</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Backup Test</strong></td>
+<td><code>.github/workflows/backup-test.yml</code></td>
+<td>weekly cron</td>
+<td>Validate backup/restore scripts, dry-run restore, K8s CronJob check</td>
+</tr>
+</tbody>
+</table>
+<h3>CI/CD Pipeline Summary</h3>
+<table>
+<thead>
+<tr>
+<th>Workflow</th>
+<th>File</th>
+<th>Trigger</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>CI</strong></td>
+<td><code>.github/workflows/ci.yml</code></td>
+<td><code>push</code>, <code>pull_request</code></td>
+<td>Lint → Typecheck → Test + Codecov</td>
+</tr>
+<tr>
+<td><strong>Release</strong></td>
+<td><code>.github/workflows/release.yml</code></td>
+<td>tag <code>v*.*.*</code></td>
+<td>Quality gate → 8 Docker images → GHCR → GitHub Release → Docs</td>
+</tr>
+<tr>
+<td><strong>Backup Test</strong></td>
+<td><code>.github/workflows/backup-test.yml</code></td>
+<td>weekly cron</td>
+<td>Validate backup/restore scripts</td>
+</tr>
+</tbody>
+</table>
+<p>All workflows run on <code>ubuntu-latest</code> with Bun. Failure in any workflow blocks merging.</p>
+<p><strong>Concurrency:</strong> CI grouped by workflow + ref, cancel-in-progress on new push. Release runs single pipeline (<code>group: pages</code>).</p>
+<h3>Docker Image Tags</h3>
+<p>The release workflow generates the following tags for each image:</p>
+<pre><code class="language-yaml">tags: |
+  type=semver,pattern={{version}},value=v${{ needs.quality.outputs.version }}
+  type=semver,pattern={{major}}.{{minor}},value=v${{ needs.quality.outputs.version }}
+  type=semver,pattern={{major}},value=v${{ needs.quality.outputs.version }}
+  type=sha
+</code></pre>
+<p>Example for <code>v2.0.3</code>:</p>
+<ul>
+<li><code>ghcr.io/trading-model/discovery-server:2.0.3</code></li>
+<li><code>ghcr.io/trading-model/discovery-server:2.0</code></li>
+<li><code>ghcr.io/trading-model/discovery-server:2</code></li>
+<li><code>ghcr.io/trading-model/discovery-server:&lt;sha&gt;</code></li>
+</ul>
+<h3>Documentation Deployment</h3>
+<p>The release workflow runs <code>bun run docs:generate</code> (TypeDoc), uploads the output as a Pages artifact, and deploys to GitHub Pages. The generated docs live at <code>docs/architecture/code/</code>.</p>
+<h2>Related Documentation</h2>
+<p>Docker multi-stage build patterns, conventions, and per-service variations are documented in <a href="../deployment/DOCKER.html">Docker Standards</a>.</p>
+<p>Deployment workflows (beta, canary, stable, rollback) are documented in <a href="../deployment/DEPLOY.html">Deployment Guide</a>.</p>
+<h2>Sensitive Variables (GitHub Secrets)</h2>
+<table>
+<thead>
+<tr>
+<th>Secret</th>
+<th>Usage</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>GHCR_TOKEN</code></td>
+<td>GitHub token with <code>write:packages</code> scope for Docker push to GHCR</td>
+</tr>
+</tbody>
+</table>
+<h3>Setting up GHCR_TOKEN</h3>
+<p>The <code>release.yml</code> workflow uses <code>${{ secrets.GHCR_TOKEN }}</code> to authenticate with GitHub Container Registry.</p>
+<ol>
+<li>Create a classic <a href="https://github.com/settings/tokens">Personal Access Token</a> with the <code>write:packages</code> scope</li>
+<li>Add it as a repository secret named <code>GHCR_TOKEN</code> at: <code>https://github.com/&lt;owner&gt;/&lt;repo&gt;/settings/secrets/actions</code></li>
+</ol>
+<blockquote>
+<p><strong>Note:</strong> The <code>GITHUB_TOKEN</code> automatically available in workflows has <code>packages: write</code> permission on the <code>docker</code> job, but must be explicitly enabled via <code>permissions.packages: write</code> (already set in <code>release.yml</code>).</p>
+</blockquote>
+<h2>References</h2>
+<ul>
+<li><a href="../standards/pr-standards.html">PR Standards</a> — Required checks before merge</li>
+<li><a href="../standards/quality-gates.html">Quality Gates</a> — Quality thresholds</li>
+<li><code>.github/workflows/ci.yml</code> — CI workflow</li>
+<li><code>.github/workflows/release.yml</code> — Release workflow</li>
+<li><a href="../contributing/workflow.html">Workflow</a> — Full development workflow</li>
+</ul>
+</div></div>
+</main>
+</body>
+</html>

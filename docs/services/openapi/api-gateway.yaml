@@ -1,0 +1,529 @@
+openapi: "3.0.3"
+info:
+  title: trading-model API Gateway
+  description: |
+    Single external entry point for the trading-model platform.
+    All external requests go through this gateway, which handles
+    authentication, rate limiting, caching, and proxying to internal services.
+
+    Internal services communicate via mTLS and are not directly exposed.
+    The gateway exposes a versioned proxy pattern: `/v{major}/{service}/*`
+  version: "2.4.12-stable"
+  contact:
+    name: trading-model Team
+servers:
+  - url: https://localhost:8448
+    description: Development server
+  - url: https://api-gateway:3000
+    description: Production (internal container)
+security:
+  - ApiKeyAuth: []
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: x-api-key
+      description: Admin token for authentication. Configured via AUTH_TOKENS env var.
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Human-readable error message
+      required:
+        - error
+      example:
+        error: "Unauthorized"
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [ok]
+        service:
+          type: string
+          example: api-gateway
+      required:
+        - status
+        - service
+paths:
+  /ping:
+    get:
+      operationId: healthCheck
+      summary: Health check
+      description: Lightweight health check (no authentication required)
+      tags:
+        - System
+      security: []
+      responses:
+        "200":
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+  /v1/discovery/services:
+    get:
+      operationId: listServices
+      summary: List registered services
+      description: Proxies to discovery-server. Returns all registered service names.
+      tags:
+        - Service Discovery
+      responses:
+        "200":
+          description: List of registered services
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                    name:
+                      type: string
+                    host:
+                      type: string
+                    port:
+                      type: integer
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /v1/discovery/registry:
+    get:
+      operationId: getRegistry
+      summary: Get full service registry
+      description: Proxies to discovery-server. Returns service registry with topology.
+      tags:
+        - Service Discovery
+      responses:
+        "200":
+          description: Full registry with topology
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  services:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/ServiceRegistryEntry"
+                  topology:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/TopologyLink"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /v1/discovery/stats:
+    get:
+      operationId: getDiscoveryStats
+      summary: Get discovery stats summary
+      tags:
+        - Service Discovery
+      responses:
+        "200":
+          description: Stats summary
+  /v1/broker/message:
+    post:
+      operationId: publishMessage
+      summary: Publish a message to the bus
+      description: |
+        Proxies to message-manager. Publishes a message to a topic
+        with specified delivery mode.
+      tags:
+        - Message Bus
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                targetService:
+                  type: string
+                  example: audit-logger-service
+                payload:
+                  type: object
+                deliveryMode:
+                  type: string
+                  enum: [at-most-once, at-least-once, exactly-once]
+                metadata:
+                  type: object
+                  properties:
+                    topic:
+                      type: string
+                    eventType:
+                      type: string
+                    publisher:
+                      type: object
+                      properties:
+                        serviceName:
+                          type: string
+                        instanceId:
+                          type: string
+                    delivery:
+                      type: object
+                      properties:
+                        mode:
+                          type: string
+                        ttl:
+                          type: integer
+                        deduplicationId:
+                          type: string
+      responses:
+        "204":
+          description: Message published
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /v1/messages/dlq:
+    get:
+      operationId: listDlqMessages
+      summary: List dead letter queue messages
+      tags:
+        - DLQ
+      responses:
+        "200":
+          description: DLQ messages with stats
+    delete:
+      operationId: purgeDlq
+      summary: Purge all DLQ messages
+      tags:
+        - DLQ
+      responses:
+        "204":
+          description: DLQ purged
+  /v1/messages/dlq/{id}/retry:
+    post:
+      operationId: retryDlqMessage
+      summary: Retry a single DLQ message
+      tags:
+        - DLQ
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Message queued for retry
+  /v1/audit/events:
+    get:
+      operationId: listAuditEvents
+      summary: List audit events
+      description: Proxies to audit-logger. Paginated audit event list with optional filters.
+      tags:
+        - Audit
+      parameters:
+        - name: topic
+          in: query
+          schema:
+            type: string
+        - name: publisher
+          in: query
+          schema:
+            type: string
+        - name: correlationId
+          in: query
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+      responses:
+        "200":
+          description: Paginated audit events
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /v1/audit/events/stats:
+    get:
+      operationId: getAuditStats
+      summary: Get audit event statistics
+      tags:
+        - Audit
+      responses:
+        "200":
+          description: Aggregate audit statistics
+  /v1/scraper/candles:
+    get:
+      operationId: getCandles
+      summary: Get OHLCV candle data
+      tags:
+        - Market Data
+      parameters:
+        - name: symbol
+          in: query
+          required: true
+          schema:
+            type: string
+            example: BTCUSDT
+        - name: interval
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [1m, 5m, 15m, 30m, 1h, 4h, 1d]
+      responses:
+        "200":
+          description: Candle array
+  /v1/scraper/tickers/{symbol}:
+    get:
+      operationId: getTicker
+      summary: Get 24hr ticker
+      tags:
+        - Market Data
+      parameters:
+        - name: symbol
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Ticker data
+  /v1/scraper/orderbook/{symbol}:
+    get:
+      operationId: getOrderBook
+      summary: Get order book snapshot
+      tags:
+        - Market Data
+      parameters:
+        - name: symbol
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Order book bids and asks
+  /v1/trainer/start:
+    post:
+      operationId: startTraining
+      summary: Start training session
+      tags:
+        - Training
+      responses:
+        "204":
+          description: Training started
+  /v1/trainer/stop:
+    post:
+      operationId: stopTraining
+      summary: Stop training session
+      tags:
+        - Training
+      responses:
+        "204":
+          description: Training stopped
+  /v1/trainer/results:
+    get:
+      operationId: getTrainingResults
+      summary: Get training results
+      tags:
+        - Training
+      parameters:
+        - name: symbol
+          in: query
+          schema:
+            type: string
+        - name: generation
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Paginated training results
+  /v1/ca/certificates:
+    get:
+      operationId: listCertificates
+      summary: List all certificates
+      tags:
+        - Certificate Authority
+      responses:
+        "200":
+          description: Certificate list
+  /v1/ca/revoke:
+    post:
+      operationId: revokeCertificate
+      summary: Revoke a certificate
+      tags:
+        - Certificate Authority
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                certificateId:
+                  type: string
+      responses:
+        "204":
+          description: Certificate revoked
+  /v1/gateway/cache:
+    get:
+      operationId: getCacheEntries
+      summary: List cache entries
+      tags:
+        - Gateway
+      responses:
+        "200":
+          description: Cache entries with stats
+    delete:
+      operationId: invalidateAllCache
+      summary: Invalidate entire cache
+      tags:
+        - Gateway
+      responses:
+        "204":
+          description: Cache invalidated
+  /v1/jobs:
+    get:
+      operationId: listJobs
+      summary: List job queue
+      tags:
+        - Jobs
+      responses:
+        "200":
+          description: Job list with stats
+  /v1/jobs/{id}:
+    get:
+      operationId: getJobDetail
+      summary: Get job detail
+      tags:
+        - Jobs
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Job detail with timeline
+  /v1/jobs/{id}/status:
+    patch:
+      operationId: updateJobStatus
+      summary: Update job status (cancel)
+      tags:
+        - Jobs
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  enum: [cancelled]
+      responses:
+        "204":
+          description: Job status updated
+  /v1/jobs/workers:
+    get:
+      operationId: listWorkers
+      summary: List worker nodes
+      tags:
+        - Jobs
+      responses:
+        "200":
+          description: Worker list with stats
+  /v1/discovery/config:
+    get:
+      operationId: getConfig
+      summary: Get service configuration
+      tags:
+        - Configuration
+      parameters:
+        - name: service
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Configuration entries
+components:
+  schemas:
+    ServiceRegistryEntry:
+      type: object
+      properties:
+        serviceName:
+          type: string
+        instances:
+          type: array
+          items:
+            type: object
+            properties:
+              instanceId:
+                type: string
+              ip:
+                type: string
+              port:
+                type: integer
+              version:
+                type: string
+              health:
+                type: string
+                enum: [healthy, degraded, down]
+              lastHeartbeat:
+                type: string
+                format: date-time
+    TopologyLink:
+      type: object
+      properties:
+        source:
+          type: string
+        target:
+          type: string
+        type:
+          type: string
+        label:
+          type: string
+  responses:
+    Unauthorized:
+      description: Missing or invalid authentication
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error: "Unauthorized"
+    BadRequest:
+      description: Invalid request
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    TooManyRequests:
+      description: Rate limit exceeded
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+              retryAfter:
+                type: integer

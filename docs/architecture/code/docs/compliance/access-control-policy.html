@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html class="dark" lang="en" data-tm-processed="true"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no" name="viewport">
+<title>Access Control Policy | trading-model</title>
+
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+
+<script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              400: '#818cf8',
+              500: '#6366f1',
+              600: '#4f46e5',
+            },
+            surface: {
+              base: '#0B0F19',
+              card: '#111827',
+              muted: '#1E293B',
+              border: '#243046',
+            },
+            code: {
+              bg: '#0c121e',
+              keyword: '#c084fc',
+              ident: '#38bdf8',
+              type: '#34d399',
+              punct: '#94a3b8'
+            }
+          },
+          fontFamily: {
+            mono: ['JetBrains Mono', 'Fira Code', 'Menlo', 'Monaco', 'Courier New', 'monospace'],
+            sans: ['-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Inter', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+
+<style data-purpose="mobile-ux-styles">
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    .active-scale:active { transform: scale(0.97); transition: transform 0.1s ease-out; }
+    .h-safe-top { height: env(safe-area-inset-top, 0px); }
+    .pt-safe { padding-top: env(safe-area-inset-top, 0px); }
+    @supports (backdrop-filter: blur(12px)) {
+      .glass-header { backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
+    }
+    
+    .tm-prose p { margin: 0.5rem 0; }
+    .tm-prose p:first-child { margin-top: 0; }
+    .tm-prose p:last-child { margin-bottom: 0; }
+    .tm-prose a { color: #818cf8; text-decoration: underline; text-underline-offset: 2px; }
+    .tm-prose a:hover { color: #a5b4fc; }
+    .tm-prose code { font-family: 'JetBrains Mono', 'Fira Code', Menlo, Monaco, 'Courier New', monospace; font-size: 0.82em; color: #fbbf24; background: #0c121e; border: 1px solid #243046; border-radius: 0.25rem; padding: 0.05rem 0.3rem; }
+    .tm-prose pre { background: #0c121e; border: 1px solid #243046; border-radius: 0.5rem; padding: 0.75rem; overflow-x: auto; margin: 0.5rem 0; }
+    .tm-prose pre code { background: transparent; border: none; padding: 0; color: #e2e8f0; }
+    .tm-prose ul, .tm-prose ol { padding-left: 1.25rem; margin: 0.5rem 0; }
+    .tm-prose ul { list-style: disc; }
+    .tm-prose ol { list-style: decimal; }
+    .tm-prose li { margin: 0.2rem 0; }
+    .tm-prose blockquote { border-left: 3px solid #6366f1; background: rgba(17, 24, 39, 0.6); padding: 0.5rem 0.75rem; border-radius: 0 0.5rem 0.5rem 0; color: #94a3b8; margin: 0.5rem 0; }
+    .tm-prose h1, .tm-prose h2, .tm-prose h3, .tm-prose h4, .tm-prose h5 { color: #ffffff; font-weight: 700; margin: 0.75rem 0 0.25rem; }
+    .tm-prose h1 { font-size: 1.25rem; }
+    .tm-prose h2 { font-size: 1.125rem; }
+    .tm-prose h3 { font-size: 1rem; }
+    .tm-prose h4 { font-size: 0.875rem; }
+    .tm-prose table { width: 100%; border-collapse: collapse; margin: 0.5rem 0; }
+    .tm-prose th, .tm-prose td { border: 1px solid #243046; padding: 0.4rem 0.6rem; text-align: left; }
+    .tm-prose thead th { background: #0b0f19; color: #e2e8f0; font-size: 0.75rem; text-transform: uppercase; }
+    .tm-prose strong { color: #ffffff; }
+  </style>
+
+</head>
+<body class="bg-[#080C15] text-slate-200 font-sans antialiased min-h-screen pb-24 selection:bg-indigo-500/30 selection:text-indigo-200">
+
+<header class="sticky top-0 z-40 w-full glass-header bg-[#0B0F19]/90 border-b border-surface-border">
+<div class="h-safe-top pt-safe"></div>
+<div class="px-4 py-2.5 flex items-center justify-between gap-3">
+<div class="flex items-center gap-2.5 min-w-0">
+
+<div class="flex flex-col min-w-0">
+<div class="flex items-center gap-1.5 truncate">
+<span class="font-mono text-xs font-semibold text-indigo-400 truncate tracking-tight"><a class="text-indigo-400 hover:text-indigo-300 hover:underline" href="../../index.html">trading-model</a></span>
+
+</div>
+<span class="text-[10px] text-slate-400 flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> TypeDoc API Reference
+</span>
+</div>
+</div>
+
+</div>
+</header>
+
+<main class="px-4 py-4 max-w-2xl mx-auto flex flex-col gap-6">
+
+<section class="space-y-2.5" data-purpose="breadcrumbs-and-header">
+<nav aria-label="Breadcrumb" class="flex items-center flex-wrap gap-1 text-[11px] font-mono text-slate-400">
+<a class="text-indigo-400 hover:underline" href="../../index.html">trading-model</a><span class="text-slate-600">/</span><span class="text-slate-300 font-medium">Access Control Policy</span>
+</nav>
+<div class="flex items-center gap-2.5 pt-1">
+<span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-mono font-medium tracking-wide uppercase bg-indigo-500/10 text-indigo-400 border-indigo-500/20">
+Documentation
+</span>
+<h1 class="text-2xl font-bold tracking-tight text-white font-sans">Access Control Policy</h1>
+</div>
+
+</section>
+
+<div class="tm-prose text-sm leading-relaxed text-slate-300 font-sans"><div>
+<blockquote>
+<p><strong>Version:</strong> 1.0<br>
+<strong>Effective:</strong> 2026-06<br>
+<strong>Review:</strong> Annual<br>
+<strong>Framework alignment:</strong> ISO/IEC 27001:2022 (A.8, A.9), NIST AC</p>
+</blockquote>
+<h2>1. Policy Statement</h2>
+<p>All access to trading-model platform resources shall be authenticated, authorised, and audited. The platform enforces a <strong>zero-trust, service-identity-based access model</strong> where every inter-service call is mutually authenticated via X.509 SVIDs (SPIFFE/SPIRE, ADR-0011) and authorised via an Access Control List (ACL).</p>
+<p><strong>Principle:</strong> No service is trusted by default. Access is granted on a least-privilege, need-to-communicate basis.</p>
+<h2>2. Access Control Architecture</h2>
+<pre><code>┌──────────────────┐     mTLS (TLS 1.3)     ┌──────────────────┐
+│  Calling Service  │ ──────────────────────► │  Target Service  │
+│  (certificate in  │   Client cert + ACL     │  (verify +       │
+│   request)        │   validation            │   authorise)     │
+└──────────────────┘                         └──────────────────┘
+</code></pre>
+<h3>2.1 Authentication Layers</h3>
+<table>
+<thead>
+<tr>
+<th>Layer</th>
+<th>Mechanism</th>
+<th>Implementation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Transport</strong></td>
+<td>mTLS TLS 1.3</td>
+<td><code>@trading-model/common/server/create-secure-server.ts</code></td>
+</tr>
+<tr>
+<td><strong>Identity</strong></td>
+<td>SPIFFE ID (SAN <code>spiffe://...</code>)</td>
+<td><code>@trading-model/common/middleware/mtls-auth.ts</code></td>
+</tr>
+<tr>
+<td><strong>Bearer token</strong></td>
+<td>HMAC-SHA256 (service registration)</td>
+<td><code>discovery-server</code> → <code>address-manager</code></td>
+</tr>
+<tr>
+<td><strong>API key</strong></td>
+<td>External admin access</td>
+<td><code>api-gateway</code> — <code>AUTH_TOKENS</code> env var</td>
+</tr>
+</tbody>
+</table>
+<h3>2.2 Authorisation Layers</h3>
+<table>
+<thead>
+<tr>
+<th>Layer</th>
+<th>Mechanism</th>
+<th>Implementation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Service-level ACL</strong></td>
+<td><code>mtls-authorization.ts</code> — maps caller SPIFFE ID → permitted targets</td>
+<td><code>@trading-model/common/middleware/mtls-authorization.ts</code></td>
+</tr>
+<tr>
+<td><strong>Rate limiting</strong></td>
+<td>Per-service rate limits</td>
+<td><code>express-rate-limit</code> — configurable per route</td>
+</tr>
+<tr>
+<td><strong>Network policy</strong></td>
+<td>K8s NetworkPolicies / Docker Compose network isolation</td>
+<td><code>deploy/</code> manifests, <code>docker-compose.yml</code> networks</td>
+</tr>
+</tbody>
+</table>
+<h2>3. Service Identity Management</h2>
+<h3>3.1 SPIFFE-Based Identities</h3>
+<p>Every service instance is provisioned with an X.509 SVID issued by the SPIRE Server after workload attestation. The SVID Subject Alternative Name (SAN) carries the SPIFFE ID <code>spiffe://trading-model.local/ns/&lt;namespace&gt;/sa/&lt;service&gt;</code>.</p>
+<p>| Identity | SPIFFE ID (SAN) | Issued By | Validity |
+|---|---|---|
+| <code>discovery-server</code> | <code>spiffe://trading-model.local/ns/trading-model/sa/discovery-server</code> | SPIRE Server | 1h TTL (auto-rotated) |
+| <code>message-manager</code> | <code>spiffe://trading-model.local/ns/trading-model/sa/message-manager</code> | SPIRE Server | 1h TTL (auto-rotated) |
+| <code>financial-scraper</code> | <code>spiffe://trading-model.local/ns/trading-model/sa/financial-scraper</code> | SPIRE Server | 1h TTL (auto-rotated) |
+| <code>trader-trainer</code> | <code>spiffe://trading-model.local/ns/trading-model/sa/trader-trainer</code> | SPIRE Server | 1h TTL (auto-rotated) |
+| <code>audit-logger</code> | <code>spiffe://trading-model.local/ns/trading-model/sa/audit-logger</code> | SPIRE Server | 1h TTL (auto-rotated) |
+| <code>dlq-service</code> | <code>spiffe://trading-model.local/ns/trading-model/sa/dlq-service</code> | SPIRE Server | 1h TTL (auto-rotated) |
+| <code>api-gateway</code> | <code>spiffe://trading-model.local/ns/trading-model/sa/api-gateway</code> | SPIRE Server | 1h TTL (auto-rotated) |
+| <code>admin-interface</code> | <code>spiffe://trading-model.local/ns/trading-model/sa/admin-interface</code> | SPIRE Server | 1h TTL (auto-rotated) |</p>
+<p><strong>Enforcement:</strong> <code>@trading-model/common/middleware/mtls-auth.ts</code> extracts the client identity from the SVID's verified SPIFFE ID SAN. Requests without a valid SVID are rejected at the TLS handshake level when <code>ENFORCE_MTLS_STRICT</code> is enabled.</p>
+<h3>3.2 Service Registration Tokens</h3>
+<p>Services obtain HMAC-SHA256 tokens from the discovery-server upon registration. These tokens are used for service-to-service identity verification in non-mTLS fallback scenarios.</p>
+<table>
+<thead>
+<tr>
+<th>Lifecycle Phase</th>
+<th>Action</th>
+<th>Implementation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Registration</strong></td>
+<td>Service registers with discovery-server via mTLS</td>
+<td><code>address-manager</code></td>
+</tr>
+<tr>
+<td><strong>Token issuance</strong></td>
+<td>Discovery-server generates HMAC-SHA256 token</td>
+<td><code>discovery-server</code></td>
+</tr>
+<tr>
+<td><strong>Token refresh</strong></td>
+<td>Periodic refresh via <code>address-manager</code> scheduler</td>
+<td><code>address-manager</code> scheduler</td>
+</tr>
+<tr>
+<td><strong>Token revocation</strong></td>
+<td>On service deregistration or certificate expiry</td>
+<td><code>discovery-server</code></td>
+</tr>
+</tbody>
+</table>
+<h2>4. ACL Definition</h2>
+<h3>4.1 Default ACL</h3>
+<p>The default ACL is defined in <code>@trading-model/common/middleware/mtls-authorization.ts</code>. It maps each target service to the set of callers allowed to reach it (<code>&quot;*&quot;</code> = any platform service).</p>
+<pre><code class="language-typescript">// Simplified example of the DEFAULT_ACL mapping
+const DEFAULT_ACL: Record&lt;KnownService, readonly ServiceId[]&gt; = {
+  'discovery-server':   [ '*' ],
+  'audit-logger':       [ '*' ],
+  'message-manager':    [ 'discovery-server', 'financial-scraper', 'trader-trainer', 'api-gateway' ],
+  'financial-scraper':  [ 'api-gateway' ],
+  'trader-trainer':     [ 'api-gateway', 'financial-scraper', 'discovery-server' ],
+  'api-gateway':        [ 'admin-interface' ],
+  'dlq-service':        [ '*' ],
+};
+</code></pre>
+<p><strong>Enforcement:</strong> Every incoming request passes through <code>mtls-authorization.ts</code> middleware. If the caller's identity is not found in the target service's authorised callers, the request is rejected with HTTP 403.</p>
+<h3>4.2 ACL Change Procedure</h3>
+<ol>
+<li>Submit PR modifying the <code>DEFAULT_ACL</code> mapping in <code>mtls-authorization.ts</code></li>
+<li>PR must be reviewed by Platform Security Lead</li>
+<li>Deploy updated package to all services</li>
+<li>Rollback available via git revert</li>
+</ol>
+<h2>5. Privileged Access</h2>
+<h3>5.1 Administrator Access</h3>
+<p>| Resource | Access Method | Authentication | Authorisation |
+|---|---|---|
+| admin-interface SPA | HTTPS via browser (public ingress) | api-gateway <code>x-api-key</code> / <code>AUTH_TOKENS</code> | Token-based admin access |
+| API gateway admin endpoints | HTTPS + API key | <code>x-api-key</code> header | <code>AUTH_TOKENS</code> env var |
+| Database (MongoDB) | TLS connection | Username/password + SealedSecret | Service account RBAC |
+| Database (MySQL) | TLS connection | Username/password + SealedSecret | SQL grants |
+| Kubernetes API | kubectl + client cert | mTLS certificate | RBAC roles + SealedSecrets |</p>
+<h3>5.2 Emergency Access (Break-Glass)</h3>
+<p>In the event of SPIRE unavailability:</p>
+<ol>
+<li>Restart the <code>spire-server</code> / <code>spire-agent</code> stack and reconcile entries (spire-entries) to re-issue SVIDs</li>
+<li>Document the override in the audit-logger with reason and timestamp</li>
+<li>Rotate SVIDs once SPIRE is stable</li>
+<li>Initiate incident response procedure</li>
+</ol>
+<h2>6. Access Review</h2>
+<table>
+<thead>
+<tr>
+<th>Review Type</th>
+<th>Frequency</th>
+<th>Scope</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ACL audit</td>
+<td>Annual</td>
+<td>Verify service-to-service ACL mappings match current architecture</td>
+</tr>
+<tr>
+<td>SVID audit</td>
+<td>Continuous</td>
+<td>All SVIDs auto-rotated (1h TTL); expired SVIDs rejected</td>
+</tr>
+<tr>
+<td>Token audit</td>
+<td>Annual</td>
+<td>Verify HMAC token rotation and revocation procedures</td>
+</tr>
+<tr>
+<td>Emergency access log review</td>
+<td>Quarterly</td>
+<td>Review break-glass incidents for compliance</td>
+</tr>
+</tbody>
+</table>
+<h2>7. Enforcement &amp; Violations</h2>
+<table>
+<thead>
+<tr>
+<th>Violation</th>
+<th>Consequence</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Unauthenticated request to internal service</td>
+<td>TLS handshake rejected (connection refused)</td>
+</tr>
+<tr>
+<td>Unauthorised service-to-service call</td>
+<td>HTTP 403 Forbidden (logged with correlation ID)</td>
+</tr>
+<tr>
+<td>Expired SVID usage</td>
+<td>TLS handshake rejected (certificate validation error)</td>
+</tr>
+<tr>
+<td>ACL bypass attempt</td>
+<td>Security incident — escalated per <a href="incident-response-policy.html">Incident Response Policy</a></td>
+</tr>
+</tbody>
+</table>
+<h2>8. Cross-References</h2>
+<table>
+<thead>
+<tr>
+<th>Document</th>
+<th>Relevance</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="information-security-policy.html">Information Security Policy</a> §5</td>
+<td>Access control framework</td>
+</tr>
+<tr>
+<td><code>@trading-model/common/middleware/mtls-auth.ts</code></td>
+<td>mTLS authentication implementation</td>
+</tr>
+<tr>
+<td><code>@trading-model/common/middleware/mtls-authorization.ts</code></td>
+<td>ACL authorization implementation</td>
+</tr>
+<tr>
+<td><code>spiffe-helper</code> sidecar + SPIRE Workload API</td>
+<td>SVID provisioning and rotation (ADR-0011)</td>
+</tr>
+<tr>
+<td><a href="incident-response-policy.html">Incident Response Policy</a></td>
+<td>Security incident escalation</td>
+</tr>
+</tbody>
+</table>
+</div></div>
+</main>
+</body>
+</html>

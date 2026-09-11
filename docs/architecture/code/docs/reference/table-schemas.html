@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html class="dark" lang="en" data-tm-processed="true"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no" name="viewport">
+<title>Table Schemas — Reference | trading-model</title>
+
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+
+<script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              400: '#818cf8',
+              500: '#6366f1',
+              600: '#4f46e5',
+            },
+            surface: {
+              base: '#0B0F19',
+              card: '#111827',
+              muted: '#1E293B',
+              border: '#243046',
+            },
+            code: {
+              bg: '#0c121e',
+              keyword: '#c084fc',
+              ident: '#38bdf8',
+              type: '#34d399',
+              punct: '#94a3b8'
+            }
+          },
+          fontFamily: {
+            mono: ['JetBrains Mono', 'Fira Code', 'Menlo', 'Monaco', 'Courier New', 'monospace'],
+            sans: ['-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Inter', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+
+<style data-purpose="mobile-ux-styles">
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    .active-scale:active { transform: scale(0.97); transition: transform 0.1s ease-out; }
+    .h-safe-top { height: env(safe-area-inset-top, 0px); }
+    .pt-safe { padding-top: env(safe-area-inset-top, 0px); }
+    @supports (backdrop-filter: blur(12px)) {
+      .glass-header { backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
+    }
+    
+    .tm-prose p { margin: 0.5rem 0; }
+    .tm-prose p:first-child { margin-top: 0; }
+    .tm-prose p:last-child { margin-bottom: 0; }
+    .tm-prose a { color: #818cf8; text-decoration: underline; text-underline-offset: 2px; }
+    .tm-prose a:hover { color: #a5b4fc; }
+    .tm-prose code { font-family: 'JetBrains Mono', 'Fira Code', Menlo, Monaco, 'Courier New', monospace; font-size: 0.82em; color: #fbbf24; background: #0c121e; border: 1px solid #243046; border-radius: 0.25rem; padding: 0.05rem 0.3rem; }
+    .tm-prose pre { background: #0c121e; border: 1px solid #243046; border-radius: 0.5rem; padding: 0.75rem; overflow-x: auto; margin: 0.5rem 0; }
+    .tm-prose pre code { background: transparent; border: none; padding: 0; color: #e2e8f0; }
+    .tm-prose ul, .tm-prose ol { padding-left: 1.25rem; margin: 0.5rem 0; }
+    .tm-prose ul { list-style: disc; }
+    .tm-prose ol { list-style: decimal; }
+    .tm-prose li { margin: 0.2rem 0; }
+    .tm-prose blockquote { border-left: 3px solid #6366f1; background: rgba(17, 24, 39, 0.6); padding: 0.5rem 0.75rem; border-radius: 0 0.5rem 0.5rem 0; color: #94a3b8; margin: 0.5rem 0; }
+    .tm-prose h1, .tm-prose h2, .tm-prose h3, .tm-prose h4, .tm-prose h5 { color: #ffffff; font-weight: 700; margin: 0.75rem 0 0.25rem; }
+    .tm-prose h1 { font-size: 1.25rem; }
+    .tm-prose h2 { font-size: 1.125rem; }
+    .tm-prose h3 { font-size: 1rem; }
+    .tm-prose h4 { font-size: 0.875rem; }
+    .tm-prose table { width: 100%; border-collapse: collapse; margin: 0.5rem 0; }
+    .tm-prose th, .tm-prose td { border: 1px solid #243046; padding: 0.4rem 0.6rem; text-align: left; }
+    .tm-prose thead th { background: #0b0f19; color: #e2e8f0; font-size: 0.75rem; text-transform: uppercase; }
+    .tm-prose strong { color: #ffffff; }
+  </style>
+
+</head>
+<body class="bg-[#080C15] text-slate-200 font-sans antialiased min-h-screen pb-24 selection:bg-indigo-500/30 selection:text-indigo-200">
+
+<header class="sticky top-0 z-40 w-full glass-header bg-[#0B0F19]/90 border-b border-surface-border">
+<div class="h-safe-top pt-safe"></div>
+<div class="px-4 py-2.5 flex items-center justify-between gap-3">
+<div class="flex items-center gap-2.5 min-w-0">
+
+<div class="flex flex-col min-w-0">
+<div class="flex items-center gap-1.5 truncate">
+<span class="font-mono text-xs font-semibold text-indigo-400 truncate tracking-tight"><a class="text-indigo-400 hover:text-indigo-300 hover:underline" href="../../index.html">trading-model</a></span>
+
+</div>
+<span class="text-[10px] text-slate-400 flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> TypeDoc API Reference
+</span>
+</div>
+</div>
+
+</div>
+</header>
+
+<main class="px-4 py-4 max-w-2xl mx-auto flex flex-col gap-6">
+
+<section class="space-y-2.5" data-purpose="breadcrumbs-and-header">
+<nav aria-label="Breadcrumb" class="flex items-center flex-wrap gap-1 text-[11px] font-mono text-slate-400">
+<a class="text-indigo-400 hover:underline" href="../../index.html">trading-model</a><span class="text-slate-600">/</span><span class="text-slate-300 font-medium">Table Schemas — Reference</span>
+</nav>
+<div class="flex items-center gap-2.5 pt-1">
+<span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-mono font-medium tracking-wide uppercase bg-indigo-500/10 text-indigo-400 border-indigo-500/20">
+Documentation
+</span>
+<h1 class="text-2xl font-bold tracking-tight text-white font-sans">Table Schemas — Reference</h1>
+</div>
+
+</section>
+
+<div class="tm-prose text-sm leading-relaxed text-slate-300 font-sans"><div>
+<p>Full SQL DDL and entity type definitions for MySQL tables used by the financial-scraper service.</p>
+<blockquote>
+<p>For the architecture-level overview (which database, what for, entity relationships), see <a href="../architecture/databases.html">Database Architecture</a>.</p>
+</blockquote>
+<h2>MySQL — Financial Scraper</h2>
+<p>All tables live in the <code>financial_scraper</code> database (configurable via <code>DB_NAME</code> env var).</p>
+<h3><code>market_candles</code> — OHLCV candle data</h3>
+<table>
+<thead>
+<tr>
+<th>Column</th>
+<th>Type</th>
+<th>Constraints</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>id</code></td>
+<td><code>INT</code></td>
+<td><code>AUTO_INCREMENT</code>, <code>PK</code></td>
+<td>Surrogate key</td>
+</tr>
+<tr>
+<td><code>symbol</code></td>
+<td><code>VARCHAR(32)</code></td>
+<td><code>NOT NULL</code>, <code>PK</code></td>
+<td>Trading pair / ticker (e.g. <code>BTCUSDT</code>)</td>
+</tr>
+<tr>
+<td><code>market</code></td>
+<td><code>VARCHAR(16)</code></td>
+<td><code>NOT NULL</code>, <code>PK</code></td>
+<td>Market type (<code>crypto</code>, <code>equity</code>, <code>bond</code>, <code>etf</code>, <code>fx</code>, <code>future</code>)</td>
+</tr>
+<tr>
+<td><code>source</code></td>
+<td><code>VARCHAR(32)</code></td>
+<td><code>NOT NULL</code>, <code>PK</code></td>
+<td>Data provider (<code>binance</code>, <code>nyse</code>, <code>bloomberg</code>)</td>
+</tr>
+<tr>
+<td><code>interval_value</code></td>
+<td><code>VARCHAR(16)</code></td>
+<td><code>NOT NULL</code>, <code>PK</code></td>
+<td>Candle interval (e.g. <code>1m</code>, <code>1h</code>, <code>1d</code>)</td>
+</tr>
+<tr>
+<td><code>open</code></td>
+<td><code>DECIMAL(20,10)</code></td>
+<td><code>NOT NULL</code></td>
+<td>Open price</td>
+</tr>
+<tr>
+<td><code>high</code></td>
+<td><code>DECIMAL(20,10)</code></td>
+<td><code>NOT NULL</code></td>
+<td>High price</td>
+</tr>
+<tr>
+<td><code>low</code></td>
+<td><code>DECIMAL(20,10)</code></td>
+<td><code>NOT NULL</code></td>
+<td>Low price</td>
+</tr>
+<tr>
+<td><code>close</code></td>
+<td><code>DECIMAL(20,10)</code></td>
+<td><code>NOT NULL</code></td>
+<td>Close price</td>
+</tr>
+<tr>
+<td><code>volume</code></td>
+<td><code>DECIMAL(30,10)</code></td>
+<td><code>NOT NULL</code></td>
+<td>Volume</td>
+</tr>
+<tr>
+<td><code>trades</code></td>
+<td><code>INT</code></td>
+<td><code>NULL</code></td>
+<td>Number of trades in the interval</td>
+</tr>
+<tr>
+<td><code>timestamp</code></td>
+<td><code>DATETIME(3)</code></td>
+<td><code>NOT NULL</code>, <code>PK</code></td>
+<td>Candle open time</td>
+</tr>
+<tr>
+<td><code>close_timestamp</code></td>
+<td><code>DATETIME(3)</code></td>
+<td><code>NOT NULL</code></td>
+<td>Candle close time</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Composite PK:</strong> <code>(id, symbol, market, interval_value, timestamp, source)</code></p>
+<pre><code class="language-sql">CREATE TABLE IF NOT EXISTS `market_candles` (
+    `id`               INT NOT NULL AUTO_INCREMENT,
+    `symbol`           VARCHAR(32) NOT NULL,
+    `market`           VARCHAR(16) NOT NULL,
+    `source`           VARCHAR(32) NOT NULL,
+    `interval_value`   VARCHAR(16) NOT NULL,
+    `open`             DECIMAL(20,10) NOT NULL,
+    `high`             DECIMAL(20,10) NOT NULL,
+    `low`              DECIMAL(20,10) NOT NULL,
+    `close`            DECIMAL(20,10) NOT NULL,
+    `volume`           DECIMAL(30,10) NOT NULL,
+    `trades`           INT NULL,
+    `timestamp`        DATETIME(3) NOT NULL,
+    `close_timestamp`  DATETIME(3) NOT NULL,
+    PRIMARY KEY (`id`, `symbol`, `market`, `interval_value`, `timestamp`, `source`),
+    INDEX `idx_candles_timestamp` (`timestamp` ASC) INVISIBLE,
+    INDEX `idx_candles_symbol` (`symbol` ASC) VISIBLE
+) ENGINE = InnoDB;
+</code></pre>
+<p><strong>TS entity interface</strong> (<code>@trading-model/common</code>):</p>
+<pre><code class="language-ts">interface CandleData extends BaseMarketData {
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+  trades?: number;
+  interval: string;
+  closeTimestamp: number;
+}
+</code></pre>
+<h3><code>market_trades</code> — Individual trade data</h3>
+<table>
+<thead>
+<tr>
+<th>Column</th>
+<th>Type</th>
+<th>Constraints</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>id</code></td>
+<td><code>INT</code></td>
+<td><code>AUTO_INCREMENT</code></td>
+<td>Surrogate key</td>
+</tr>
+<tr>
+<td><code>symbol</code></td>
+<td><code>VARCHAR(32)</code></td>
+<td><code>NOT NULL</code>, <code>PK</code></td>
+<td>Trading pair / ticker</td>
+</tr>
+<tr>
+<td><code>market</code></td>
+<td><code>VARCHAR(16)</code></td>
+<td><code>NOT NULL</code>, <code>PK</code></td>
+<td>Market type</td>
+</tr>
+<tr>
+<td><code>source</code></td>
+<td><code>VARCHAR(32)</code></td>
+<td><code>NOT NULL</code>, <code>PK</code></td>
+<td>Data provider</td>
+</tr>
+<tr>
+<td><code>trade_id</code></td>
+<td><code>BIGINT</code></td>
+<td><code>NOT NULL</code>, <code>PK</code></td>
+<td>Exchange-assigned trade ID</td>
+</tr>
+<tr>
+<td><code>price</code></td>
+<td><code>DECIMAL(20,10)</code></td>
+<td><code>NOT NULL</code></td>
+<td>Execution price</td>
+</tr>
+<tr>
+<td><code>quantity</code></td>
+<td><code>DECIMAL(30,10)</code></td>
+<td><code>NOT NULL</code></td>
+<td>Executed quantity</td>
+</tr>
+<tr>
+<td><code>side</code></td>
+<td><code>ENUM('buy','sell')</code></td>
+<td><code>NOT NULL</code></td>
+<td>Trade direction</td>
+</tr>
+<tr>
+<td><code>timestamp</code></td>
+<td><code>DATETIME(3)</code></td>
+<td><code>NOT NULL</code>, <code>PK</code></td>
+<td>Trade timestamp</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Composite PK:</strong> <code>(symbol, market, source, trade_id, timestamp)</code></p>
+<pre><code class="language-sql">CREATE TABLE `market_trades` (
+    `id`          INT NOT NULL AUTO_INCREMENT,
+    `symbol`      VARCHAR(32) NOT NULL,
+    `market`      VARCHAR(16) NOT NULL,
+    `source`      VARCHAR(32) NOT NULL,
+    `trade_id`    BIGINT NOT NULL,
+    `price`       DECIMAL(20,10) NOT NULL,
+    `quantity`    DECIMAL(30,10) NOT NULL,
+    `side`        ENUM('buy', 'sell') NOT NULL,
+    `timestamp`   DATETIME(3) NOT NULL,
+    PRIMARY KEY (`symbol`, `market`, `source`, `trade_id`, `timestamp`),
+    INDEX `idx_trades_timestamp` (`timestamp` ASC) INVISIBLE,
+    INDEX `idx_trades_symbol` (`symbol` ASC) VISIBLE
+) ENGINE=InnoDB;
+</code></pre>
+<p><strong>TS entity interface</strong> (<code>@trading-model/common</code>):</p>
+<pre><code class="language-ts">interface TradeData extends BaseMarketData {
+  price: number;
+  tradeId: bigint;
+  quantity: number;
+  side: 'buy' | 'sell';
+}
+</code></pre>
+<h3><code>market_tickers</code> — 24-hour ticker statistics</h3>
+<table>
+<thead>
+<tr>
+<th>Column</th>
+<th>Type</th>
+<th>Constraints</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>id</code></td>
+<td><code>INT</code></td>
+<td><code>AUTO_INCREMENT</code>, <code>PK</code></td>
+<td>Surrogate key</td>
+</tr>
+<tr>
+<td><code>symbol</code></td>
+<td><code>VARCHAR(32)</code></td>
+<td><code>NOT NULL</code></td>
+<td>Trading pair / ticker</td>
+</tr>
+<tr>
+<td><code>market</code></td>
+<td><code>VARCHAR(16)</code></td>
+<td><code>NOT NULL</code></td>
+<td>Market type</td>
+</tr>
+<tr>
+<td><code>source</code></td>
+<td><code>VARCHAR(32)</code></td>
+<td><code>NOT NULL</code></td>
+<td>Data provider</td>
+</tr>
+<tr>
+<td><code>open</code></td>
+<td><code>DECIMAL(20,10)</code></td>
+<td><code>NOT NULL</code></td>
+<td>Open price in 24h window</td>
+</tr>
+<tr>
+<td><code>high</code></td>
+<td><code>DECIMAL(20,10)</code></td>
+<td><code>NOT NULL</code></td>
+<td>High price in 24h window</td>
+</tr>
+<tr>
+<td><code>low</code></td>
+<td><code>DECIMAL(20,10)</code></td>
+<td><code>NOT NULL</code></td>
+<td>Low price in 24h window</td>
+</tr>
+<tr>
+<td><code>last</code></td>
+<td><code>DECIMAL(20,10)</code></td>
+<td><code>NOT NULL</code></td>
+<td>Last price</td>
+</tr>
+<tr>
+<td><code>volume</code></td>
+<td><code>DECIMAL(30,10)</code></td>
+<td><code>NOT NULL</code></td>
+<td>Volume in 24h window</td>
+</tr>
+<tr>
+<td><code>timestamp</code></td>
+<td><code>DATETIME(3)</code></td>
+<td><code>NOT NULL</code></td>
+<td>Snapshot timestamp</td>
+</tr>
+<tr>
+<td><code>close_time</code></td>
+<td><code>DATETIME(3)</code></td>
+<td><code>NOT NULL</code></td>
+<td>24h window close time</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Composite PK:</strong> <code>(id, symbol, market, timestamp, source)</code></p>
+<pre><code class="language-sql">CREATE TABLE IF NOT EXISTS `market_tickers` (
+    `id`               INT NOT NULL AUTO_INCREMENT,
+    `symbol`           VARCHAR(32) NOT NULL,
+    `market`           VARCHAR(16) NOT NULL,
+    `source`           VARCHAR(32) NOT NULL,
+    `open`             DECIMAL(20,10) NOT NULL,
+    `high`             DECIMAL(20,10) NOT NULL,
+    `low`              DECIMAL(20,10) NOT NULL,
+    `last`             DECIMAL(20,10) NOT NULL,
+    `volume`           DECIMAL(30,10) NOT NULL,
+    `timestamp`        DATETIME(3) NOT NULL,
+    `close_time`       DATETIME(3) NOT NULL,
+    PRIMARY KEY (`id`, `symbol`, `market`, `timestamp`, `source`),
+    INDEX `idx_tickers_timestamp` (`timestamp` ASC) INVISIBLE,
+    INDEX `idx_tickers_symbol` (`symbol` ASC) VISIBLE
+) ENGINE = InnoDB;
+</code></pre>
+<p><strong>TS entity interface</strong> (<code>@trading-model/common</code>):</p>
+<pre><code class="language-ts">interface TickerData extends BaseMarketData {
+  low: number;
+  open: number;
+  high: number;
+  last: number;
+  volume: number;
+  closeTimestamp: number;
+}
+</code></pre>
+<h3>Shared base interface</h3>
+<pre><code class="language-ts">interface BaseMarketData {
+  symbol: string;
+  source: SourceType; // 'binance' | 'nyse' | 'bloomberg'
+  timestamp: number;
+  market: MarketType; // 'crypto' | 'equity' | 'bond' | 'etf' | 'fx' | 'future'
+}
+</code></pre>
+<h2>Index Conventions</h2>
+<ul>
+<li>All tables have an <code>INVISIBLE</code> index on <code>timestamp</code> — tracked by the optimizer but not used unless explicitly hinted</li>
+<li>All tables have a <code>VISIBLE</code> index on <code>symbol</code> — the primary query path for market data lookups</li>
+</ul>
+<h2>Entity Types Not Yet Persisted</h2>
+<p>These interfaces exist in <code>@trading-model/common</code> but have <strong>no corresponding table</strong> yet:</p>
+<ul>
+<li><code>OrderBookData</code> — order book depth snapshots (<code>bids</code> / <code>asks</code>)</li>
+<li><code>BookTickerData</code> — best bid/ask ticker (<code>bid</code>, <code>ask</code>, <code>bidQty</code>, <code>askQty</code>)</li>
+</ul>
+</div></div>
+</main>
+</body>
+</html>

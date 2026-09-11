@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html class="dark" lang="en" data-tm-processed="true"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no" name="viewport">
+<title>Genetic Algorithm — Concepts | trading-model</title>
+
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+
+<script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              400: '#818cf8',
+              500: '#6366f1',
+              600: '#4f46e5',
+            },
+            surface: {
+              base: '#0B0F19',
+              card: '#111827',
+              muted: '#1E293B',
+              border: '#243046',
+            },
+            code: {
+              bg: '#0c121e',
+              keyword: '#c084fc',
+              ident: '#38bdf8',
+              type: '#34d399',
+              punct: '#94a3b8'
+            }
+          },
+          fontFamily: {
+            mono: ['JetBrains Mono', 'Fira Code', 'Menlo', 'Monaco', 'Courier New', 'monospace'],
+            sans: ['-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Inter', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+
+<style data-purpose="mobile-ux-styles">
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    .active-scale:active { transform: scale(0.97); transition: transform 0.1s ease-out; }
+    .h-safe-top { height: env(safe-area-inset-top, 0px); }
+    .pt-safe { padding-top: env(safe-area-inset-top, 0px); }
+    @supports (backdrop-filter: blur(12px)) {
+      .glass-header { backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
+    }
+    
+    .tm-prose p { margin: 0.5rem 0; }
+    .tm-prose p:first-child { margin-top: 0; }
+    .tm-prose p:last-child { margin-bottom: 0; }
+    .tm-prose a { color: #818cf8; text-decoration: underline; text-underline-offset: 2px; }
+    .tm-prose a:hover { color: #a5b4fc; }
+    .tm-prose code { font-family: 'JetBrains Mono', 'Fira Code', Menlo, Monaco, 'Courier New', monospace; font-size: 0.82em; color: #fbbf24; background: #0c121e; border: 1px solid #243046; border-radius: 0.25rem; padding: 0.05rem 0.3rem; }
+    .tm-prose pre { background: #0c121e; border: 1px solid #243046; border-radius: 0.5rem; padding: 0.75rem; overflow-x: auto; margin: 0.5rem 0; }
+    .tm-prose pre code { background: transparent; border: none; padding: 0; color: #e2e8f0; }
+    .tm-prose ul, .tm-prose ol { padding-left: 1.25rem; margin: 0.5rem 0; }
+    .tm-prose ul { list-style: disc; }
+    .tm-prose ol { list-style: decimal; }
+    .tm-prose li { margin: 0.2rem 0; }
+    .tm-prose blockquote { border-left: 3px solid #6366f1; background: rgba(17, 24, 39, 0.6); padding: 0.5rem 0.75rem; border-radius: 0 0.5rem 0.5rem 0; color: #94a3b8; margin: 0.5rem 0; }
+    .tm-prose h1, .tm-prose h2, .tm-prose h3, .tm-prose h4, .tm-prose h5 { color: #ffffff; font-weight: 700; margin: 0.75rem 0 0.25rem; }
+    .tm-prose h1 { font-size: 1.25rem; }
+    .tm-prose h2 { font-size: 1.125rem; }
+    .tm-prose h3 { font-size: 1rem; }
+    .tm-prose h4 { font-size: 0.875rem; }
+    .tm-prose table { width: 100%; border-collapse: collapse; margin: 0.5rem 0; }
+    .tm-prose th, .tm-prose td { border: 1px solid #243046; padding: 0.4rem 0.6rem; text-align: left; }
+    .tm-prose thead th { background: #0b0f19; color: #e2e8f0; font-size: 0.75rem; text-transform: uppercase; }
+    .tm-prose strong { color: #ffffff; }
+  </style>
+
+</head>
+<body class="bg-[#080C15] text-slate-200 font-sans antialiased min-h-screen pb-24 selection:bg-indigo-500/30 selection:text-indigo-200">
+
+<header class="sticky top-0 z-40 w-full glass-header bg-[#0B0F19]/90 border-b border-surface-border">
+<div class="h-safe-top pt-safe"></div>
+<div class="px-4 py-2.5 flex items-center justify-between gap-3">
+<div class="flex items-center gap-2.5 min-w-0">
+
+<div class="flex flex-col min-w-0">
+<div class="flex items-center gap-1.5 truncate">
+<span class="font-mono text-xs font-semibold text-indigo-400 truncate tracking-tight"><a class="text-indigo-400 hover:text-indigo-300 hover:underline" href="../../index.html">trading-model</a></span>
+
+</div>
+<span class="text-[10px] text-slate-400 flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> TypeDoc API Reference
+</span>
+</div>
+</div>
+
+</div>
+</header>
+
+<main class="px-4 py-4 max-w-2xl mx-auto flex flex-col gap-6">
+
+<section class="space-y-2.5" data-purpose="breadcrumbs-and-header">
+<nav aria-label="Breadcrumb" class="flex items-center flex-wrap gap-1 text-[11px] font-mono text-slate-400">
+<a class="text-indigo-400 hover:underline" href="../../index.html">trading-model</a><span class="text-slate-600">/</span><span class="text-slate-300 font-medium">Genetic Algorithm — Concepts</span>
+</nav>
+<div class="flex items-center gap-2.5 pt-1">
+<span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-mono font-medium tracking-wide uppercase bg-indigo-500/10 text-indigo-400 border-indigo-500/20">
+Documentation
+</span>
+<h1 class="text-2xl font-bold tracking-tight text-white font-sans">Genetic Algorithm — Concepts</h1>
+</div>
+
+</section>
+
+<div class="tm-prose text-sm leading-relaxed text-slate-300 font-sans"><div>
+<h2>Overview</h2>
+<p>A <strong>Genetic Algorithm (GA)</strong> is an evolutionary optimization technique inspired by natural selection. A population of candidate solutions (genomes) evolves over generations through selection, crossover, and mutation. Each genome's quality is measured by a <strong>fitness function</strong> — the higher the fitness, the more likely it reproduces.</p>
+<p>The platform uses GA to evolve trading agents by optimizing both neural network architecture and reinforcement learning hyperparameters simultaneously.</p>
+<h2>Why a Genetic Algorithm?</h2>
+<p>Trading agent design involves many interdependent choices: network depth, layer widths, learning rate, exploration schedule, reward shaping, etc. Manual tuning is impractical because:</p>
+<ul>
+<li>The search space is large and non-convex</li>
+<li>Interactions between parameters are complex (e.g., a deeper network may need a different learning rate)</li>
+<li>The optimal configuration depends on market conditions</li>
+</ul>
+<p>GAs excel in this setting because they maintain a diverse population of solutions, explore the search space globally, and are robust to local optima.</p>
+<h2>Core Concepts</h2>
+<h3>Genome</h3>
+<p>A genome is the encoded representation of a candidate solution. In this platform, a genome encodes:</p>
+<ul>
+<li><strong>Network architecture</strong>: number and size of hidden layers, activation functions, connection types</li>
+<li><strong>RL hyperparameters</strong>: learning rate, discount factor (gamma), exploration schedule (epsilon)</li>
+<li><strong>GA meta-parameters</strong>: mutation rate, crossover strategy, selection type</li>
+<li><strong>Lamarckian weights</strong>: trained neural network weights inherited from evaluation (see below)</li>
+</ul>
+<h3>Population</h3>
+<p>A set of genomes that evolves over generations. A typical population starts with 20 individuals, generated with random parameters, and adapts its size dynamically based on stagnation.</p>
+<h3>Fitness Function</h3>
+<p>A metric evaluating how well a genome performs. The platform supports:</p>
+<table>
+<thead>
+<tr>
+<th>Type</th>
+<th>Formula</th>
+<th>Use case</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Total P&amp;L</td>
+<td><code>mean(rewards)</code></td>
+<td>Simple profit maximization</td>
+</tr>
+<tr>
+<td>Sharpe ratio</td>
+<td><code>mean / std</code></td>
+<td>Risk-adjusted returns</td>
+</tr>
+<tr>
+<td>Sortino ratio</td>
+<td><code>mean / downside_std</code></td>
+<td>Downside-risk focus</td>
+</tr>
+<tr>
+<td>Calmar ratio</td>
+<td><code>mean / max_drawdown</code></td>
+<td>Drawdown-averse</td>
+</tr>
+<tr>
+<td>Composite</td>
+<td>Weighted combination</td>
+<td>Balanced optimization</td>
+</tr>
+</tbody>
+</table>
+<p>A complexity penalty discourages overly large networks: <code>adjusted_fitness = fitness × (1 - 0.15 × complexity_penalty)</code>.</p>
+<h2>Evolutionary Operators</h2>
+<h3>Selection</h3>
+<p>Selects parents for reproduction. Strategies:</p>
+<table>
+<thead>
+<tr>
+<th>Strategy</th>
+<th>Behavior</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Tournament</strong> (default)</td>
+<td>Pick k=3 random individuals, return the fittest</td>
+</tr>
+<tr>
+<td><strong>Roulette</strong></td>
+<td>Fitness-proportionate probability</td>
+</tr>
+<tr>
+<td><strong>Rank</strong></td>
+<td>Rank-based probability</td>
+</tr>
+<tr>
+<td><strong>Truncation / SUS</strong></td>
+<td>Random from top fraction</td>
+</tr>
+</tbody>
+</table>
+<h3>Crossover</h3>
+<p>Combines two parent genomes to produce offspring. Two levels:</p>
+<ul>
+<li><strong>Structural crossover</strong>: mixes network topology (layer counts, neuron counts) and RL hyperparameters</li>
+<li><strong>Weight-level crossover</strong>: mixes trained weight arrays from both parents</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>Type</th>
+<th>Formula</th>
+<th>Use case</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Uniform</td>
+<td>Randomly pick from either parent</td>
+<td>Topology mixing</td>
+</tr>
+<tr>
+<td>Arithmetic</td>
+<td><code>lerp(a, b, α)</code></td>
+<td>Smooth blending</td>
+</tr>
+<tr>
+<td>BLX-α</td>
+<td>Extended range exploration</td>
+<td>Escaping local optima</td>
+</tr>
+<tr>
+<td>SBX</td>
+<td>Simulated Binary Crossover</td>
+<td>Real-valued optimization</td>
+</tr>
+</tbody>
+</table>
+<h3>Mutation</h3>
+<p>Random perturbations to maintain diversity. Two levels:</p>
+<ul>
+<li><strong>Structural mutation</strong>: neuron counts, activation functions, RL hyperparameters, layer add/remove</li>
+<li><strong>Weight-level mutation</strong>: Gaussian noise on trained weights</li>
+</ul>
+<p>Mutation can use different noise distributions:</p>
+<table>
+<thead>
+<tr>
+<th>Distribution</th>
+<th>Characteristics</th>
+<th>Use case</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Gaussian</td>
+<td>Fine-grained, local</td>
+<td>Fine-tuning</td>
+</tr>
+<tr>
+<td>Lévy</td>
+<td>Heavy-tailed</td>
+<td>Escaping local optima</td>
+</tr>
+<tr>
+<td>Cauchy</td>
+<td>Heavy-tailed</td>
+<td>Rare large jumps</td>
+</tr>
+<tr>
+<td>Uniform</td>
+<td>Flat exploration</td>
+<td>Broad search</td>
+</tr>
+</tbody>
+</table>
+<h3>Elitism</h3>
+<p>A fraction of the best-performing individuals survives unchanged to the next generation, preserving high-quality solutions.</p>
+<h2>Multi-Objective Optimization</h2>
+<h3>NSGA-II</h3>
+<p>The platform uses <strong>Non-dominated Sorting Genetic Algorithm II</strong> (NSGA-II) for multi-objective optimization. Instead of combining objectives into a single score, NSGA-II:</p>
+<ol>
+<li><strong>Ranks</strong> individuals by Pareto dominance (non-dominated solutions get rank 0, solutions dominated only by rank 0 get rank 1, etc.)</li>
+<li><strong>Spreads</strong> solutions within each rank using <strong>crowding distance</strong> (preferring solutions in less crowded regions)</li>
+<li>Selects based on rank first, crowding distance second</li>
+</ol>
+<p>This maintains diversity along the Pareto front — the set of solutions where no objective can be improved without degrading another.</p>
+<h3>Pareto Archive</h3>
+<p>A persistent store of all non-dominated solutions discovered across generations. A candidate is accepted if no existing archive member dominates it. Dominated members are evicted. The archive preserves the best trade-offs found during the entire evolution.</p>
+<h3>Objectives</h3>
+<p>Three competing objectives are optimized:</p>
+<table>
+<thead>
+<tr>
+<th>Objective</th>
+<th>Direction</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>avgPnl</code></td>
+<td>Maximize</td>
+<td>Average profit and loss</td>
+</tr>
+<tr>
+<td><code>sharpe</code></td>
+<td>Maximize</td>
+<td>Risk-adjusted return</td>
+</tr>
+<tr>
+<td><code>negFlops</code></td>
+<td>Maximize (negated)</td>
+<td>Negative complexity (fewer FLOPs = better)</td>
+</tr>
+</tbody>
+</table>
+<h2>Adaptive Control</h2>
+<p>GA meta-parameters adjust dynamically based on stagnation:</p>
+<table>
+<thead>
+<tr>
+<th>Condition</th>
+<th>Adjustment</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Stagnation &gt; 5 generations</td>
+<td>Increase population (up to 80)</td>
+</tr>
+<tr>
+<td>Improving</td>
+<td>Decrease population (down to 8)</td>
+</tr>
+<tr>
+<td>Stagnation &gt; 8</td>
+<td>Increase elitism (up to 0.3)</td>
+</tr>
+<tr>
+<td>Stagnation &gt; 6</td>
+<td>More episodes per evaluation</td>
+</tr>
+</tbody>
+</table>
+<h2>Lamarckian Inheritance</h2>
+<p>Unlike Darwinian evolution (where traits are inherited but learned knowledge is not), <strong>Lamarckian inheritance</strong> writes trained neural network weights back into the genome before reproduction. Offspring inherit both the genetic blueprint AND the learned knowledge of their parents.</p>
+<p>This accelerates evolution because each generation starts from the learned weights of the previous generation rather than from random initialization.</p>
+<h2>Termination</h2>
+<p>Evolution stops when any condition is met:</p>
+<ul>
+<li>A fitness threshold is reached</li>
+<li>Stagnation exceeds patience limit</li>
+<li>Maximum generations reached</li>
+<li>Time budget exhausted</li>
+</ul>
+<hr>
+<p>For implementation details — module structure, TypeScript API, code snippets — see <a href="../reference/genetic-algorithm.html">Genetic Algorithm Reference</a>.</p>
+</div></div>
+</main>
+</body>
+</html>

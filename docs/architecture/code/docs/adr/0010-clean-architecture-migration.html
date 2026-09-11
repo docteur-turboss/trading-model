@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html class="dark" lang="en" data-tm-processed="true"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no" name="viewport">
+<title>ADR-0010: Clean Architecture Migration for message-manager core/ | trading-model</title>
+
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+
+<script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              400: '#818cf8',
+              500: '#6366f1',
+              600: '#4f46e5',
+            },
+            surface: {
+              base: '#0B0F19',
+              card: '#111827',
+              muted: '#1E293B',
+              border: '#243046',
+            },
+            code: {
+              bg: '#0c121e',
+              keyword: '#c084fc',
+              ident: '#38bdf8',
+              type: '#34d399',
+              punct: '#94a3b8'
+            }
+          },
+          fontFamily: {
+            mono: ['JetBrains Mono', 'Fira Code', 'Menlo', 'Monaco', 'Courier New', 'monospace'],
+            sans: ['-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Inter', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+
+<style data-purpose="mobile-ux-styles">
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    .active-scale:active { transform: scale(0.97); transition: transform 0.1s ease-out; }
+    .h-safe-top { height: env(safe-area-inset-top, 0px); }
+    .pt-safe { padding-top: env(safe-area-inset-top, 0px); }
+    @supports (backdrop-filter: blur(12px)) {
+      .glass-header { backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
+    }
+    
+    .tm-prose p { margin: 0.5rem 0; }
+    .tm-prose p:first-child { margin-top: 0; }
+    .tm-prose p:last-child { margin-bottom: 0; }
+    .tm-prose a { color: #818cf8; text-decoration: underline; text-underline-offset: 2px; }
+    .tm-prose a:hover { color: #a5b4fc; }
+    .tm-prose code { font-family: 'JetBrains Mono', 'Fira Code', Menlo, Monaco, 'Courier New', monospace; font-size: 0.82em; color: #fbbf24; background: #0c121e; border: 1px solid #243046; border-radius: 0.25rem; padding: 0.05rem 0.3rem; }
+    .tm-prose pre { background: #0c121e; border: 1px solid #243046; border-radius: 0.5rem; padding: 0.75rem; overflow-x: auto; margin: 0.5rem 0; }
+    .tm-prose pre code { background: transparent; border: none; padding: 0; color: #e2e8f0; }
+    .tm-prose ul, .tm-prose ol { padding-left: 1.25rem; margin: 0.5rem 0; }
+    .tm-prose ul { list-style: disc; }
+    .tm-prose ol { list-style: decimal; }
+    .tm-prose li { margin: 0.2rem 0; }
+    .tm-prose blockquote { border-left: 3px solid #6366f1; background: rgba(17, 24, 39, 0.6); padding: 0.5rem 0.75rem; border-radius: 0 0.5rem 0.5rem 0; color: #94a3b8; margin: 0.5rem 0; }
+    .tm-prose h1, .tm-prose h2, .tm-prose h3, .tm-prose h4, .tm-prose h5 { color: #ffffff; font-weight: 700; margin: 0.75rem 0 0.25rem; }
+    .tm-prose h1 { font-size: 1.25rem; }
+    .tm-prose h2 { font-size: 1.125rem; }
+    .tm-prose h3 { font-size: 1rem; }
+    .tm-prose h4 { font-size: 0.875rem; }
+    .tm-prose table { width: 100%; border-collapse: collapse; margin: 0.5rem 0; }
+    .tm-prose th, .tm-prose td { border: 1px solid #243046; padding: 0.4rem 0.6rem; text-align: left; }
+    .tm-prose thead th { background: #0b0f19; color: #e2e8f0; font-size: 0.75rem; text-transform: uppercase; }
+    .tm-prose strong { color: #ffffff; }
+  </style>
+
+</head>
+<body class="bg-[#080C15] text-slate-200 font-sans antialiased min-h-screen pb-24 selection:bg-indigo-500/30 selection:text-indigo-200">
+
+<header class="sticky top-0 z-40 w-full glass-header bg-[#0B0F19]/90 border-b border-surface-border">
+<div class="h-safe-top pt-safe"></div>
+<div class="px-4 py-2.5 flex items-center justify-between gap-3">
+<div class="flex items-center gap-2.5 min-w-0">
+
+<div class="flex flex-col min-w-0">
+<div class="flex items-center gap-1.5 truncate">
+<span class="font-mono text-xs font-semibold text-indigo-400 truncate tracking-tight"><a class="text-indigo-400 hover:text-indigo-300 hover:underline" href="../../index.html">trading-model</a></span>
+
+</div>
+<span class="text-[10px] text-slate-400 flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> TypeDoc API Reference
+</span>
+</div>
+</div>
+
+</div>
+</header>
+
+<main class="px-4 py-4 max-w-2xl mx-auto flex flex-col gap-6">
+
+<section class="space-y-2.5" data-purpose="breadcrumbs-and-header">
+<nav aria-label="Breadcrumb" class="flex items-center flex-wrap gap-1 text-[11px] font-mono text-slate-400">
+<a class="text-indigo-400 hover:underline" href="../../index.html">trading-model</a><span class="text-slate-600">/</span><span class="text-slate-300 font-medium">ADR-0010: Clean Architecture Migration for message-manager core/</span>
+</nav>
+<div class="flex items-center gap-2.5 pt-1">
+<span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-mono font-medium tracking-wide uppercase bg-indigo-500/10 text-indigo-400 border-indigo-500/20">
+Documentation
+</span>
+<h1 class="text-2xl font-bold tracking-tight text-white font-sans">ADR-0010: Clean Architecture Migration for message-manager core/</h1>
+</div>
+
+</section>
+
+<div class="tm-prose text-sm leading-relaxed text-slate-300 font-sans"><div>
+<p><strong>Status:</strong> Accepted
+<strong>Date:</strong> 2026-06</p>
+<h2>Context</h2>
+<p>The <code>services/message-manager/src/messaging/core/</code> directory contains 25+ imports of infrastructure dependencies (ioredis, mongodb, node:fs, config/env, config/redis). The domain layer is entirely contaminated with infrastructure concerns. A message broker's core logic (pub/sub, delivery guarantees, deduplication) should not know about Redis Streams, MongoDB drivers, or filesystem fallbacks.</p>
+<h2>Decision</h2>
+<p>Refactor <code>messaging/core/</code> into a proper ports-and-adapters (hexagonal) architecture:</p>
+<h3>Target Structure</h3>
+<pre><code>services/message-manager/src/
+├── domain/                          # Pure domain — zero infrastructure deps
+│   ├── message.ts                   # Message, DeliveryMode, Topic types
+│   ├── subscription.ts              # Subscription management
+│   ├── dispatcher-domain.ts          # Dispatch decision (retry, DLQ routing)
+│   ├── deduplication.ts             # Deduplication logic (pure)
+│   └── delivery-guarantees.ts       # At-most-once, at-least-once, exactly-once
+│
+├── application/                     # Orchestration — ports + DTOs
+│   ├── ports/
+│   │   ├── message-store-port.ts     # Interface: store(), read(), ack()
+│   │   ├── subscription-store-port.ts # Interface: save(), load(), delete()
+│   │   └── dlq-port.ts              # Interface: routeToDlq()
+│   ├── services/
+│   │   ├── publish-service.ts        # Orchestrates publish → store + dispatch
+│   │   ├── dispatch-service.ts       # Orchestrates dispatch → delivery + retry + DLQ
+│   │   └── recovery-service.ts       # WAL recovery at startup
+│   └── dtos/
+│       └── message-dto.ts            # Message DTO (transport format)
+│
+├── infrastructure/                  # Adapters implementing ports
+│   ├── redis/
+│   │   ├── redis-stream-store.ts     # implements MessageStorePort (Redis Streams)
+│   │   ├── redis-wal-flusher.ts      # WAL flush to Redis Streams
+│   │   ├── redis-subscription-store.ts # implements SubscriptionStorePort
+│   │   └── redis-dedup.ts            # Redis-based deduplication
+│   ├── mongodb/
+│   │   ├── mongo-archive-store.ts    # MongoDB message archive
+│   │   └── mongo-subscription-store.ts
+│   ├── http/
+│   │   ├── http-message-delivery.ts  # implements DeliveryPort
+│   │   └── http-routes.ts            # Express route definitions
+│   └── fallback/
+│       └── file-fallback-store.ts    # Filesystem fallback for WAL
+│
+└── config/                          # Composition root (wire everything)
+    ├── container.ts                  # DI container: wire ports → adapters
+    └── env.ts                        # Environment config
+</code></pre>
+<h3>Migration Phases</h3>
+<table>
+<thead>
+<tr>
+<th>Phase</th>
+<th>Effort</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>1</strong> — Extract ports</td>
+<td>3d</td>
+<td>Create <code>application/ports/</code> interfaces. Existing classes implement them via <code>implements</code></td>
+</tr>
+<tr>
+<td><strong>2</strong> — Move infra</td>
+<td>5d</td>
+<td>Move Redis/MongoDB/file code to <code>infrastructure/</code> adapters. Update imports</td>
+</tr>
+<tr>
+<td><strong>3</strong> — Split domain</td>
+<td>3d</td>
+<td>Extract pure domain logic into <code>domain/</code> files</td>
+</tr>
+<tr>
+<td><strong>4</strong> — Wire container</td>
+<td>2d</td>
+<td>Create DI container in <code>config/container.ts</code>. Wire ports → adapters</td>
+</tr>
+</tbody>
+</table>
+<h2>Alternatives Considered</h2>
+<table>
+<thead>
+<tr>
+<th>Alternative</th>
+<th>Reason for Rejection</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Keep current structure</td>
+<td>Tech debt accumulates. Every config change requires touching &quot;domain&quot; code</td>
+</tr>
+<tr>
+<td>Full rewrite</td>
+<td>Too risky. Incremental migration preserves existing test coverage</td>
+</tr>
+</tbody>
+</table>
+<h2>Current State (Post-Extraction)</h2>
+<ul>
+<li><code>persistence-queue.ts</code> — extracted from dispatcher.ts (retry queue, self-contained)</li>
+<li><code>memory-wal-flusher.ts</code> — created for future integration (WAL buffer flush)</li>
+<li><code>dispatcher.ts</code> — uses <code>CircuitBreaker</code> from <code>@trading-model/common/reliability</code></li>
+</ul>
+<h2>Dependencies on This Migration</h2>
+<p>The 3 SPOFs identified in the architecture audit (message-manager, certificate-authority, discovery-server) would benefit from hexagonal refactoring to support:</p>
+<ul>
+<li>Multiple storage backends (Redis, Kafka, NATS — pluggable via ports)</li>
+<li>Graceful degradation (no-database mode via fallback adapters)</li>
+<li>Testability (domain logic testable without Redis/MongoDB)</li>
+</ul>
+</div></div>
+</main>
+</body>
+</html>

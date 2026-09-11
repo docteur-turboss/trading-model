@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html class="dark" lang="en" data-tm-processed="true"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no" name="viewport">
+<title>api-gateway — API Gateway | trading-model</title>
+
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+
+<script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              400: '#818cf8',
+              500: '#6366f1',
+              600: '#4f46e5',
+            },
+            surface: {
+              base: '#0B0F19',
+              card: '#111827',
+              muted: '#1E293B',
+              border: '#243046',
+            },
+            code: {
+              bg: '#0c121e',
+              keyword: '#c084fc',
+              ident: '#38bdf8',
+              type: '#34d399',
+              punct: '#94a3b8'
+            }
+          },
+          fontFamily: {
+            mono: ['JetBrains Mono', 'Fira Code', 'Menlo', 'Monaco', 'Courier New', 'monospace'],
+            sans: ['-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Inter', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+
+<style data-purpose="mobile-ux-styles">
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    .active-scale:active { transform: scale(0.97); transition: transform 0.1s ease-out; }
+    .h-safe-top { height: env(safe-area-inset-top, 0px); }
+    .pt-safe { padding-top: env(safe-area-inset-top, 0px); }
+    @supports (backdrop-filter: blur(12px)) {
+      .glass-header { backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
+    }
+    
+    .tm-prose p { margin: 0.5rem 0; }
+    .tm-prose p:first-child { margin-top: 0; }
+    .tm-prose p:last-child { margin-bottom: 0; }
+    .tm-prose a { color: #818cf8; text-decoration: underline; text-underline-offset: 2px; }
+    .tm-prose a:hover { color: #a5b4fc; }
+    .tm-prose code { font-family: 'JetBrains Mono', 'Fira Code', Menlo, Monaco, 'Courier New', monospace; font-size: 0.82em; color: #fbbf24; background: #0c121e; border: 1px solid #243046; border-radius: 0.25rem; padding: 0.05rem 0.3rem; }
+    .tm-prose pre { background: #0c121e; border: 1px solid #243046; border-radius: 0.5rem; padding: 0.75rem; overflow-x: auto; margin: 0.5rem 0; }
+    .tm-prose pre code { background: transparent; border: none; padding: 0; color: #e2e8f0; }
+    .tm-prose ul, .tm-prose ol { padding-left: 1.25rem; margin: 0.5rem 0; }
+    .tm-prose ul { list-style: disc; }
+    .tm-prose ol { list-style: decimal; }
+    .tm-prose li { margin: 0.2rem 0; }
+    .tm-prose blockquote { border-left: 3px solid #6366f1; background: rgba(17, 24, 39, 0.6); padding: 0.5rem 0.75rem; border-radius: 0 0.5rem 0.5rem 0; color: #94a3b8; margin: 0.5rem 0; }
+    .tm-prose h1, .tm-prose h2, .tm-prose h3, .tm-prose h4, .tm-prose h5 { color: #ffffff; font-weight: 700; margin: 0.75rem 0 0.25rem; }
+    .tm-prose h1 { font-size: 1.25rem; }
+    .tm-prose h2 { font-size: 1.125rem; }
+    .tm-prose h3 { font-size: 1rem; }
+    .tm-prose h4 { font-size: 0.875rem; }
+    .tm-prose table { width: 100%; border-collapse: collapse; margin: 0.5rem 0; }
+    .tm-prose th, .tm-prose td { border: 1px solid #243046; padding: 0.4rem 0.6rem; text-align: left; }
+    .tm-prose thead th { background: #0b0f19; color: #e2e8f0; font-size: 0.75rem; text-transform: uppercase; }
+    .tm-prose strong { color: #ffffff; }
+  </style>
+
+</head>
+<body class="bg-[#080C15] text-slate-200 font-sans antialiased min-h-screen pb-24 selection:bg-indigo-500/30 selection:text-indigo-200">
+
+<header class="sticky top-0 z-40 w-full glass-header bg-[#0B0F19]/90 border-b border-surface-border">
+<div class="h-safe-top pt-safe"></div>
+<div class="px-4 py-2.5 flex items-center justify-between gap-3">
+<div class="flex items-center gap-2.5 min-w-0">
+
+<div class="flex flex-col min-w-0">
+<div class="flex items-center gap-1.5 truncate">
+<span class="font-mono text-xs font-semibold text-indigo-400 truncate tracking-tight"><a class="text-indigo-400 hover:text-indigo-300 hover:underline" href="../../index.html">trading-model</a></span>
+
+</div>
+<span class="text-[10px] text-slate-400 flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> TypeDoc API Reference
+</span>
+</div>
+</div>
+
+</div>
+</header>
+
+<main class="px-4 py-4 max-w-2xl mx-auto flex flex-col gap-6">
+
+<section class="space-y-2.5" data-purpose="breadcrumbs-and-header">
+<nav aria-label="Breadcrumb" class="flex items-center flex-wrap gap-1 text-[11px] font-mono text-slate-400">
+<a class="text-indigo-400 hover:underline" href="../../index.html">trading-model</a><span class="text-slate-600">/</span><span class="text-slate-300 font-medium">api-gateway — API Gateway</span>
+</nav>
+<div class="flex items-center gap-2.5 pt-1">
+<span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-mono font-medium tracking-wide uppercase bg-indigo-500/10 text-indigo-400 border-indigo-500/20">
+Documentation
+</span>
+<h1 class="text-2xl font-bold tracking-tight text-white font-sans">api-gateway — API Gateway</h1>
+</div>
+
+</section>
+
+<div class="tm-prose text-sm leading-relaxed text-slate-300 font-sans"><div>
+<p>Single external entry point for the system. Routes, authenticates, rate-limits, and proxies all incoming requests to internal services.</p>
+<h2>General Information</h2>
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Service name</td>
+<td><code>api-gateway</code></td>
+</tr>
+<tr>
+<td>Port (host)</td>
+<td><code>8448</code></td>
+</tr>
+<tr>
+<td>Port (container)</td>
+<td><code>3000</code></td>
+</tr>
+<tr>
+<td>Dependencies</td>
+<td><code>@trading-model/common</code>, discovery-server</td>
+</tr>
+</tbody>
+</table>
+<h2>REST Endpoints</h2>
+<h3>Health Check</h3>
+<p><strong><code>GET /ping</code></strong></p>
+<p>Lightweight health check.</p>
+<p><strong>Response:</strong> <code>200 OK</code></p>
+<pre><code class="language-json">{
+  &quot;status&quot;: &quot;ok&quot;,
+  &quot;service&quot;: &quot;api-gateway&quot;
+}
+</code></pre>
+<h3>Proxy Routes</h3>
+<p>**<code>\* /v{version}/{serviceName}/**</code>**</p>
+<p>Proxies all HTTP methods (GET, POST, PUT, DELETE, etc.) to the target internal service. The version and service name are resolved via the Discovery Server.</p>
+<p><strong>Headers:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Header</th>
+<th>Required</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>x-api-key</code></td>
+<td>Yes*</td>
+<td>API key for authentication</td>
+</tr>
+<tr>
+<td><code>authorization</code></td>
+<td>No</td>
+<td>Fallback auth header</td>
+</tr>
+</tbody>
+</table>
+<p>*All routes except <code>/ping</code> require authentication via <code>x-api-key</code> (or <code>authorization</code> fallback). Validated against <code>AUTH_TOKENS</code>.</p>
+<p><strong>Response (success):</strong> Proxied response from target service (status code and body forwarded as-is).</p>
+<p><strong>Response (errors):</strong></p>
+<table>
+<thead>
+<tr>
+<th>Status</th>
+<th>Condition</th>
+<th>Body</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>400</code></td>
+<td>Invalid route</td>
+<td><code>{ &quot;error&quot;: &quot;Invalid route format&quot; }</code></td>
+</tr>
+<tr>
+<td><code>401</code></td>
+<td>Missing/invalid auth</td>
+<td><code>{ &quot;error&quot;: &quot;Unauthorized&quot; }</code></td>
+</tr>
+<tr>
+<td><code>429</code></td>
+<td>Rate limited</td>
+<td><code>{ &quot;error&quot;: &quot;Too many requests&quot;, &quot;retryAfter&quot;: &lt;seconds&gt; }</code></td>
+</tr>
+<tr>
+<td><code>404</code></td>
+<td>Service not found</td>
+<td><code>{ &quot;error&quot;: &quot;Service not found&quot; }</code></td>
+</tr>
+<tr>
+<td><code>503</code></td>
+<td>Service unavailable</td>
+<td><code>{ &quot;error&quot;: &quot;Service unavailable&quot; }</code></td>
+</tr>
+</tbody>
+</table>
+<h2>Rate Limiting</h2>
+<ul>
+<li><strong>Algorithm:</strong> <code>express-rate-limit</code> (sliding window)</li>
+<li><strong>Default:</strong> 100 requests per 60s window (configurable via <code>RATE_LIMIT_WINDOW_MS</code> and <code>RATE_LIMIT_MAX</code>)</li>
+<li><strong>Response:</strong> <code>429 Too Many Requests</code> with <code>retryAfter</code> in seconds</li>
+</ul>
+<h2>Caching</h2>
+<ul>
+<li>In-memory GET response cache (status 200 only)</li>
+<li>Default TTL: 30s (configurable via <code>CACHE_TTL_MS</code>)</li>
+</ul>
+<h2>Architecture</h2>
+<pre><code>Client → /v{major}/{service}/... → API Gateway → auth → rate-limit → resolve Discovery → proxy mTLS → service
+</code></pre>
+<ul>
+<li><strong>Versioned Routing:</strong> Pattern <code>/v{major}/{serviceName}/**</code> — resolved via Discovery Server, filtered by major version</li>
+<li><strong>Service Resolution:</strong> <code>ServiceResolver</code> queries Discovery Server, caches results with configurable TTL, round-robin load balancing across instances</li>
+<li><strong>Proxy:</strong> Forwards HTTPS request via <code>https.request</code>, strips sensitive headers (<code>x-api-key</code>, <code>authorization</code>, <code>host</code>, <code>connection</code>), injects <code>x-forwarded-for</code>, <code>x-forwarded-proto</code>, <code>x-request-id</code></li>
+<li><strong>Startup order:</strong> Position 6 (depends on discovery-server:healthy)</li>
+</ul>
+<h2>Environment Variables</h2>
+<table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>PORT</code></td>
+<td><code>3000</code></td>
+<td>Service listen port</td>
+</tr>
+<tr>
+<td><code>DISCOVERY_SERVICE_URL</code></td>
+<td><code>https://discovery-server:3000</code></td>
+<td>Discovery server URL</td>
+</tr>
+<tr>
+<td><code>RATE_LIMIT_WINDOW_MS</code></td>
+<td><code>60000</code></td>
+<td>Rate limit window (ms)</td>
+</tr>
+<tr>
+<td><code>RATE_LIMIT_MAX</code></td>
+<td><code>100</code></td>
+<td>Max requests per window</td>
+</tr>
+<tr>
+<td><code>CACHE_TTL_MS</code></td>
+<td><code>30000</code></td>
+<td>In-memory cache TTL (ms)</td>
+</tr>
+<tr>
+<td><code>AUTH_TOKEN_HEADER</code></td>
+<td><code>x-api-key</code></td>
+<td>Header name for auth token</td>
+</tr>
+<tr>
+<td><code>AUTH_TOKENS</code></td>
+<td><code>''</code> (empty = no auth)</td>
+<td>Comma-separated valid tokens</td>
+</tr>
+<tr>
+<td><code>PROXY_TIMEOUT_MS</code></td>
+<td><code>10000</code></td>
+<td>Proxy request timeout (ms)</td>
+</tr>
+</tbody>
+</table>
+</div></div>
+</main>
+</body>
+</html>

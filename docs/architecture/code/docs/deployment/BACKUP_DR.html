@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html class="dark" lang="en" data-tm-processed="true"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no" name="viewport">
+<title>Backup & Disaster Recovery | trading-model</title>
+
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+
+<script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              400: '#818cf8',
+              500: '#6366f1',
+              600: '#4f46e5',
+            },
+            surface: {
+              base: '#0B0F19',
+              card: '#111827',
+              muted: '#1E293B',
+              border: '#243046',
+            },
+            code: {
+              bg: '#0c121e',
+              keyword: '#c084fc',
+              ident: '#38bdf8',
+              type: '#34d399',
+              punct: '#94a3b8'
+            }
+          },
+          fontFamily: {
+            mono: ['JetBrains Mono', 'Fira Code', 'Menlo', 'Monaco', 'Courier New', 'monospace'],
+            sans: ['-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Inter', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+
+<style data-purpose="mobile-ux-styles">
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    .active-scale:active { transform: scale(0.97); transition: transform 0.1s ease-out; }
+    .h-safe-top { height: env(safe-area-inset-top, 0px); }
+    .pt-safe { padding-top: env(safe-area-inset-top, 0px); }
+    @supports (backdrop-filter: blur(12px)) {
+      .glass-header { backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
+    }
+    
+    .tm-prose p { margin: 0.5rem 0; }
+    .tm-prose p:first-child { margin-top: 0; }
+    .tm-prose p:last-child { margin-bottom: 0; }
+    .tm-prose a { color: #818cf8; text-decoration: underline; text-underline-offset: 2px; }
+    .tm-prose a:hover { color: #a5b4fc; }
+    .tm-prose code { font-family: 'JetBrains Mono', 'Fira Code', Menlo, Monaco, 'Courier New', monospace; font-size: 0.82em; color: #fbbf24; background: #0c121e; border: 1px solid #243046; border-radius: 0.25rem; padding: 0.05rem 0.3rem; }
+    .tm-prose pre { background: #0c121e; border: 1px solid #243046; border-radius: 0.5rem; padding: 0.75rem; overflow-x: auto; margin: 0.5rem 0; }
+    .tm-prose pre code { background: transparent; border: none; padding: 0; color: #e2e8f0; }
+    .tm-prose ul, .tm-prose ol { padding-left: 1.25rem; margin: 0.5rem 0; }
+    .tm-prose ul { list-style: disc; }
+    .tm-prose ol { list-style: decimal; }
+    .tm-prose li { margin: 0.2rem 0; }
+    .tm-prose blockquote { border-left: 3px solid #6366f1; background: rgba(17, 24, 39, 0.6); padding: 0.5rem 0.75rem; border-radius: 0 0.5rem 0.5rem 0; color: #94a3b8; margin: 0.5rem 0; }
+    .tm-prose h1, .tm-prose h2, .tm-prose h3, .tm-prose h4, .tm-prose h5 { color: #ffffff; font-weight: 700; margin: 0.75rem 0 0.25rem; }
+    .tm-prose h1 { font-size: 1.25rem; }
+    .tm-prose h2 { font-size: 1.125rem; }
+    .tm-prose h3 { font-size: 1rem; }
+    .tm-prose h4 { font-size: 0.875rem; }
+    .tm-prose table { width: 100%; border-collapse: collapse; margin: 0.5rem 0; }
+    .tm-prose th, .tm-prose td { border: 1px solid #243046; padding: 0.4rem 0.6rem; text-align: left; }
+    .tm-prose thead th { background: #0b0f19; color: #e2e8f0; font-size: 0.75rem; text-transform: uppercase; }
+    .tm-prose strong { color: #ffffff; }
+  </style>
+
+</head>
+<body class="bg-[#080C15] text-slate-200 font-sans antialiased min-h-screen pb-24 selection:bg-indigo-500/30 selection:text-indigo-200">
+
+<header class="sticky top-0 z-40 w-full glass-header bg-[#0B0F19]/90 border-b border-surface-border">
+<div class="h-safe-top pt-safe"></div>
+<div class="px-4 py-2.5 flex items-center justify-between gap-3">
+<div class="flex items-center gap-2.5 min-w-0">
+
+<div class="flex flex-col min-w-0">
+<div class="flex items-center gap-1.5 truncate">
+<span class="font-mono text-xs font-semibold text-indigo-400 truncate tracking-tight"><a class="text-indigo-400 hover:text-indigo-300 hover:underline" href="../../index.html">trading-model</a></span>
+
+</div>
+<span class="text-[10px] text-slate-400 flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> TypeDoc API Reference
+</span>
+</div>
+</div>
+
+</div>
+</header>
+
+<main class="px-4 py-4 max-w-2xl mx-auto flex flex-col gap-6">
+
+<section class="space-y-2.5" data-purpose="breadcrumbs-and-header">
+<nav aria-label="Breadcrumb" class="flex items-center flex-wrap gap-1 text-[11px] font-mono text-slate-400">
+<a class="text-indigo-400 hover:underline" href="../../index.html">trading-model</a><span class="text-slate-600">/</span><span class="text-slate-300 font-medium">Backup &amp; Disaster Recovery</span>
+</nav>
+<div class="flex items-center gap-2.5 pt-1">
+<span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-mono font-medium tracking-wide uppercase bg-indigo-500/10 text-indigo-400 border-indigo-500/20">
+Documentation
+</span>
+<h1 class="text-2xl font-bold tracking-tight text-white font-sans">Backup &amp; Disaster Recovery</h1>
+</div>
+
+</section>
+
+<div class="tm-prose text-sm leading-relaxed text-slate-300 font-sans"><div>
+<h2>Overview</h2>
+<p>This document defines the backup strategy, disaster recovery procedures, and
+restore verification for the trading-model platform.</p>
+<blockquote>
+<p><strong>⚠️ STATUS NOTE (June 2026):</strong> The backup system has been audited and
+remediated. All 🔴 blocking issues (P1-P6) are resolved. Backups are now
+automated, tested weekly, and stored off-site. See
+<code>scripts/backup.sh</code> / <code>scripts/restore.sh</code> (Docker) or
+<code>scripts/backup-k8s.sh</code> / <code>scripts/restore-k8s.sh</code> (Kubernetes) for
+the current tooling.</p>
+</blockquote>
+<h2>Data Classification</h2>
+<table>
+<thead>
+<tr>
+<th>Data Store</th>
+<th>Service</th>
+<th>Criticality</th>
+<th>RPO Target</th>
+<th>RTO Target</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>MongoDB</td>
+<td>audit-logger, dlq-service</td>
+<td>High</td>
+<td>1 hour</td>
+<td>4 hours</td>
+</tr>
+<tr>
+<td>MySQL</td>
+<td>financial-scraper, SPIRE Server (datastore)</td>
+<td>High</td>
+<td>1 hour</td>
+<td>4 hours</td>
+</tr>
+<tr>
+<td>Redis</td>
+<td>discovery-server, message-manager, dlq-service</td>
+<td>Medium</td>
+<td>15 min (RDB)</td>
+<td>1 hour</td>
+</tr>
+<tr>
+<td>Trained agents</td>
+<td>trader-trainer (checkpoint files)</td>
+<td>Medium</td>
+<td>1 hour</td>
+<td>1 hour</td>
+</tr>
+<tr>
+<td>SPIRE datastore</td>
+<td>SPIRE Server (MySQL <code>spire</code>)</td>
+<td>Critical</td>
+<td>24 hours</td>
+<td>4 hours</td>
+</tr>
+<tr>
+<td>Docker/K8s volumes</td>
+<td>All persisted data</td>
+<td>High</td>
+<td>N/A (covered by DB backups)</td>
+<td>N/A</td>
+</tr>
+</tbody>
+</table>
+<h2>Automated Backup System</h2>
+<h3>Docker</h3>
+<pre><code class="language-bash"># Full backup (all components)
+bash scripts/backup.sh
+
+# Selective backup
+bash scripts/backup.sh --components mongodb,mysql
+
+# Dry-run (preview without executing)
+bash scripts/backup.sh --dry-run
+
+# With S3 off-site upload
+BACKUP_S3_BUCKET=s3://my-bucket/backups bash scripts/backup.sh
+</code></pre>
+<h3>Kubernetes</h3>
+<p>A CronJob runs daily at 2:00 AM:
+<code>deploy/k8s/jobs/backup-cronjob.yaml</code></p>
+<p>Manual execution:</p>
+<pre><code class="language-bash"># Create a manual backup job
+kubectl create job --from=cronjob/db-backup db-backup-manual
+
+# Or run the script directly
+BACKUP_DIR=/backups bash scripts/backup-k8s.sh
+</code></pre>
+<h3>Components Backed Up</h3>
+<table>
+<thead>
+<tr>
+<th>Component</th>
+<th>Method</th>
+<th>Consistency</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>MongoDB (dlq-service, audit-logger)</td>
+<td><code>mongodump --gzip --oplog --archive</code></td>
+<td>Point-in-time consistent</td>
+</tr>
+<tr>
+<td>MySQL (financial-scraper + SPIRE <code>spire</code>)</td>
+<td><code>mysqldump --single-transaction --all-databases</code></td>
+<td>Transaction-consistent snapshot</td>
+</tr>
+<tr>
+<td>Redis (primary)</td>
+<td><code>redis-cli BGSAVE</code> + copy <code>dump.rdb</code></td>
+<td>Fork-consistent</td>
+</tr>
+<tr>
+<td>Trainer checkpoints (trader-trainer)</td>
+<td><code>tar czf</code> of <code>/data/checkpoints/</code></td>
+<td>Filesystem snapshot</td>
+</tr>
+</tbody>
+</table>
+<h3>Off-site Storage (Optional)</h3>
+<p>Set <code>BACKUP_S3_BUCKET</code> to enable automatic S3 upload after each backup.
+Requires <code>aws</code> or <code>rclone</code> CLI. In K8s, create the secret
+<code>trading-model-backup-s3</code> with keys:
+<code>AWS_ACCESS_KEY_ID</code>, <code>AWS_SECRET_ACCESS_KEY</code>, <code>AWS_REGION</code>,
+<code>BACKUP_S3_BUCKET</code>.</p>
+<h3>Retention</h3>
+<ul>
+<li>Daily backups: 30 days (auto-pruned by <code>prune_old</code>)</li>
+<li>Weekly/monthly retention: manual or policy-based (via cron rule)</li>
+</ul>
+<h2>Restore Procedures</h2>
+<h3>Docker — Automated</h3>
+<pre><code class="language-bash"># Restore latest backup (all components)
+bash scripts/restore.sh
+
+# Restore specific timestamp
+bash scripts/restore.sh --timestamp 2025-01-01_120000
+
+# Restore selective components
+bash scripts/restore.sh --components mongodb,mysql
+
+# Dry-run (show what would be restored)
+bash scripts/restore.sh --dry-run
+</code></pre>
+<h3>Kubernetes — Automated</h3>
+<pre><code class="language-bash"># Restore latest backup
+BACKUP_DIR=/backups bash scripts/restore-k8s.sh
+
+# Restore specific timestamp
+BACKUP_DIR=/backups RESTORE_TIMESTAMP=2025-01-01_120000 bash scripts/restore-k8s.sh
+</code></pre>
+<h3>Manual MongoDB Restore</h3>
+<pre><code class="language-bash">docker exec &lt;mongo-container&gt; mongorestore \
+  --gzip --drop --archive=/tmp/restore.archive.gz
+</code></pre>
+<p>Verify:</p>
+<pre><code class="language-bash">docker exec &lt;mongo-container&gt; mongosh \
+  --eval &quot;db.getSiblingDB('audit_logger').audit_events.countDocuments()&quot;
+</code></pre>
+<h3>Manual MySQL Restore</h3>
+<pre><code class="language-bash">gunzip &lt; /backups/mysql/financial_scraper_&lt;date&gt;.sql.gz \
+  | docker exec -i trading-mysql mysql --user=root --password=$MYSQL_ROOT_PASSWORD
+</code></pre>
+<p>Verify:</p>
+<pre><code class="language-bash">docker exec trading-mysql mysqlcheck --all-databases --user=root --password=$MYSQL_ROOT_PASSWORD
+</code></pre>
+<h3>Manual Redis Restore</h3>
+<ol>
+<li>Stop Redis primary</li>
+<li>Replace <code>dump.rdb</code> with backup copy</li>
+<li>Restart Redis primary</li>
+<li>Verify: <code>docker exec trading-redis-primary redis-cli DBSIZE</code></li>
+</ol>
+<h2>Disaster Recovery</h2>
+<h3>Failure Scenarios</h3>
+<table>
+<thead>
+<tr>
+<th>Scenario</th>
+<th>Impact</th>
+<th>Recovery Action</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Single container crash</td>
+<td>Degraded service</td>
+<td>Docker auto-restart (restart: unless-stopped)</td>
+</tr>
+<tr>
+<td>Node failure</td>
+<td>Full outage</td>
+<td>Redeploy on healthy node from Docker Compose</td>
+</tr>
+<tr>
+<td>Data corruption</td>
+<td>Data loss</td>
+<td>Restore from latest backup</td>
+</tr>
+<tr>
+<td>Full region failure</td>
+<td>Complete outage</td>
+<td>Deploy to secondary region (see MULTI_REGION.md)</td>
+</tr>
+<tr>
+<td>Secrets leak</td>
+<td>Security breach</td>
+<td>Rotate all secrets, rotate SPIRE trust bundle / SVIDs</td>
+</tr>
+</tbody>
+</table>
+<h3>Recovery Steps for Total Outage</h3>
+<ol>
+<li>Provision replacement hosts (bare metal / cloud instances)</li>
+<li>Restore Docker Compose configuration from git</li>
+<li>Restore SPIRE datastore from backup</li>
+<li>Restore databases from latest backup (MongoDB → MySQL incl. SPIRE <code>spire</code> → Redis)</li>
+<li>Start core infrastructure: Redis → MongoDB → MySQL → SPIRE Server + Agent</li>
+<li>Start services in dependency order:
+a. discovery-server
+b. message-manager
+c. api-gateway
+d. audit-logger, dlq-service
+e. financial-scraper, trader-trainer
+f. admin-interface</li>
+<li>Verify health endpoints for all services</li>
+<li>Verify service registration in discovery-server</li>
+</ol>
+<h3>Recovery Verification</h3>
+<p>After any recovery, run:</p>
+<pre><code class="language-bash"># Check all services are registered
+curl -k https://localhost:8443/services
+
+# Check core service health (mTLS via SPIRE SVIDs, run inside a service container)
+for svc in discovery-server message-manager api-gateway; do
+  docker compose exec -T &quot;$svc&quot; sh -c \
+    'curl -sk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem https://localhost:3000/ping'
+done
+</code></pre>
+<h2>Backup Verification (CI/CD)</h2>
+<p>A weekly GitHub Actions workflow tests restore readiness:
+<code>.github/workflows/backup-test.yml</code></p>
+<ul>
+<li>Runs every Sunday at 6:00 AM</li>
+<li>Validates syntax of all 4 backup/restore scripts</li>
+<li>Tests dry-run mode for <a href="http://restore.sh">restore.sh</a></li>
+<li>Validates K8s CronJob manifest</li>
+<li>Validates backup directory structure</li>
+</ul>
+<p>Results are visible in the GitHub Actions tab. On failure, the workflow
+annotates the commit with details.</p>
+<h2>Ownership</h2>
+<ul>
+<li>Backup automation: DevOps / Platform team</li>
+<li>Restore procedure validation: SRE team (quarterly)</li>
+<li>Secrets rotation: Security team (quarterly)</li>
+<li>DR drill coordination: Engineering manager (bi-annual)</li>
+<li>Backup CI/CD: GitHub Actions (<code>.github/workflows/backup-test.yml</code>)</li>
+</ul>
+</div></div>
+</main>
+</body>
+</html>
