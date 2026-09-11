@@ -64,3 +64,63 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: true
+
+  contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - run: bun run build
+      - run: bun run test:contract
+
+  e2e:
+    runs-on: ubuntu-latest
+    env:
+      MYSQL_ROOT_PASSWORD: ci-password
+      DLQ_AUTH_HMAC_SECRET: test-hmac-secret
+      DLQ_ALLOWED_SERVICES: message-manager,admin,e2e-test-runner
+    steps:
+      - uses: actions/checkout@v5
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - run: bun run build
+      - name: Boot the Docker stack
+        run: docker compose up -d
+      - name: Wait for all e2e endpoints to become healthy
+        run: |
+          endpoints=(
+            "https://localhost:8443/ping"
+            "https://localhost:8444/health/ready"
+            "https://localhost:8445/health"
+            "https://localhost:8446/ping"
+            "https://localhost:8448/ping"
+            "http://localhost:8449/ping"
+            "https://localhost:8450/ping"
+            "https://localhost:8452/health"
+          )
+          for i in $(seq 1 60); do
+            ok=0
+            for url in "${endpoints[@]}"; do
+              if curl -ks --max-time 5 "$url" >/dev/null 2>&1; then
+                ok=$((ok + 1))
+              fi
+            done
+            if [ "$ok" -eq "${#endpoints[@]}" ]; then
+              echo "All $ok e2e endpoints are up (attempt $i)"
+              exit 0
+            fi
+            echo "Waiting for endpoints ($ok/${#endpoints[@]} up, attempt $i)..."
+            sleep 10
+          done
+          echo "E2E services did not become healthy in time"
+          exit 1
+      - name: Run E2E tests
+        run: bun run test:e2e
+      - name: Tear down the Docker stack
+        if: always()
+        run: docker compose down -v
