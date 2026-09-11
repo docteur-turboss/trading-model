@@ -11,7 +11,7 @@ export const mockSubscriberIdentity = {
 	instanceId: "subscriber-1",
 };
 
-export const createMockMessageMetadata = (
+const createMockMessageMetadata = (
 	overrides?: Partial<MessageMetadata>
 ): MessageMetadata => ({
 	messageId: "msg-123",
@@ -39,23 +39,4 @@ export const mockSubscribeParams = {
 	topic: "test.topic",
 	callbackPath: "message/callback",
 	serviceIdentity: mockSubscriberIdentity,
-};
-
-export const mockUnsubscribeParams = {
-	topic: "test.topic",
-	instanceId: mockSubscriberIdentity.instanceId,
-};
-
-export const mockPublishPayload = { key: "value", number: 42 };
-
-export const mockPublishMetadata = {
-	schemaVersion: "1.0",
-	eventType: "TestEvent",
-	topic: "test.topic",
-	publisher: mockServiceIdentity,
-};
-
-export const mockAddress = {
-	host: "10.0.0.1",
-	port: 8444,
 };

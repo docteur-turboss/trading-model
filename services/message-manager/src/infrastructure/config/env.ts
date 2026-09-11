@@ -52,5 +52,3 @@ const MESSAGE_MANAGER_ENV_SCHEMA = BaseEnvSchema.extend(
 ).extend(MM_EXTRA_SHAPE);
 
 export const ENV = validateEnv(MESSAGE_MANAGER_ENV_SCHEMA);
-
-export type Env = z.infer<typeof MESSAGE_MANAGER_ENV_SCHEMA>;

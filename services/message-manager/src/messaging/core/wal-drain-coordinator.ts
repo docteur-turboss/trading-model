@@ -9,7 +9,7 @@ interface DrainDeferred {
 	resolve: () => void;
 }
 
-export enum DrainStateKind {
+enum DrainStateKind {
 	Idle = "idle",
 	Draining = "draining",
 	DrainRequested = "drain-requested",

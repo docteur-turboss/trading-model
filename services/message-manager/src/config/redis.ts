@@ -16,7 +16,7 @@ export function removeRedisReconnectedCallback(cb: () => void): void {
 	}
 }
 
-let redisClosed = false;
+const redisClosed = false;
 
 function createPool(name: string): RedisClientPool {
 	return new RedisClientPool(name, () => redisClosed, ON_RECONNECTED_CALLBACKS);
@@ -40,13 +40,6 @@ export function getStreamClient(): Promise<Redis> {
 
 export function getSubscriptionClient(): Promise<Redis> {
 	return subscriptionsPool.getOrCreate(buildClient);
-}
-
-export function closeRedis(): void {
-	redisClosed = true;
-	operationsPool.destroyAll();
-	streamsPool.destroyAll();
-	subscriptionsPool.destroyAll();
 }
 
 export async function isRedisAvailable(): Promise<boolean> {

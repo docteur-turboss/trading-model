@@ -20,9 +20,7 @@ export interface SubscriptionConfig extends TopicBinding {
 	deliveryPort: MessageDeliveryPort;
 }
 
-export function buildDispatchServices(
-	config: SubscriptionConfig
-): DispatchServices {
+function buildDispatchServices(config: SubscriptionConfig): DispatchServices {
 	const circuitBreaker = new CircuitStateMachine(
 		CircuitStateMachine.defaultConfig()
 	);

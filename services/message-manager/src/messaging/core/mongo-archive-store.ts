@@ -84,7 +84,7 @@ export class MongoArchiveStore {
 	}
 
 	private async _writeArchiveBatch(
-		messages: import("@trading-model/validation/contracts/message.types").Message[]
+		messages: import("@trading-model/validation/domain/contracts/message.types").Message[]
 	): Promise<void> {
 		const { MongoArchiveBatchWriter } = await import(
 			"./mongo-archive-batch.js"
@@ -101,5 +101,3 @@ export class MongoArchiveStore {
 		await this._clientManager.close();
 	}
 }
-
-export const mongoArchiveStore = new MongoArchiveStore();

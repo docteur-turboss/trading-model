@@ -6,7 +6,6 @@ import { getSubscriptionClient } from "../../config/redis";
 import { ENV } from "../../infrastructure/config/env";
 import { RedisKeyBuilder } from "../../infrastructure/redis/redis-key-builder";
 import { InstanceLifecycleManager } from "./instance-lifecycle-manager";
-import { LEASE_HEARTBEAT_FIELD } from "./messaging-constants";
 import type { SubscriptionParams, TopicSubscription } from "./messaging-types";
 import {
 	type SubscriptionEntry,
@@ -14,7 +13,6 @@ import {
 } from "./subscription-redis-store";
 
 export type { SubscriptionEntry };
-export { LEASE_HEARTBEAT_FIELD };
 
 export class SubscriptionStore {
 	private _redisStore: SubscriptionRedisStore;
@@ -72,5 +70,3 @@ export class SubscriptionStore {
 		}
 	}
 }
-
-export const subscriptionStore = new SubscriptionStore();

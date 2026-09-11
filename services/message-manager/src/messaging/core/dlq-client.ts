@@ -16,7 +16,7 @@ export interface DlqSendOptions {
 	maxRetries?: PositiveInt;
 }
 
-export interface IDlqServiceClient {
+interface IDlqServiceClient {
 	readonly isEnabled: boolean;
 	send(entry: DlqEntry, options?: DlqSendOptions): Promise<void>;
 	replay(topic?: Topic, limit?: Limit): Promise<DlqEntry[]>;

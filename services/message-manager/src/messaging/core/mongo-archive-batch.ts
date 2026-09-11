@@ -23,24 +23,6 @@ export interface ArchiveEntry {
 	ttl: Date;
 }
 
-export interface MongoClient {
-	db: (name: string) => {
-		collection: (name: string) => {
-			insertMany: (docs: unknown[]) => Promise<unknown>;
-			createIndex: (
-				keys: Record<string, number>,
-				opts?: Record<string, unknown>
-			) => Promise<string>;
-			countDocuments: (filter: Record<string, unknown>) => Promise<number>;
-			deleteMany: (
-				filter: Record<string, unknown>
-			) => Promise<{ deletedCount: number }>;
-			bulkWrite: (ops: unknown[]) => Promise<unknown>;
-		};
-	};
-	close: () => Promise<void>;
-}
-
 export class MongoArchiveBatchWriter {
 	private readonly _config: MongoCollectionConfig;
 	private readonly _batchWriter: MongoBatchWriter;
