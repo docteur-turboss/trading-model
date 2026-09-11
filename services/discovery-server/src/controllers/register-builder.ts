@@ -14,7 +14,7 @@ import type { ServiceRegistry } from "../domain/service-registry";
 import type { REGISTER_SCHEMA } from "../shared/register-validator";
 import type { ServiceInstance } from "../shared/types";
 
-export function resolveInstanceId(
+function resolveInstanceId(
 	data: z.infer<typeof REGISTER_SCHEMA>,
 	registry: ServiceRegistry
 ): InstanceId {

@@ -50,7 +50,3 @@ export const validRegisterPayload = {
 	ip: "192.168.1.10",
 	port: 8444,
 };
-
-export const validTokenHeader = "valid-token-value";
-
-export const mockTimestamp = 1_700_000_000_000;

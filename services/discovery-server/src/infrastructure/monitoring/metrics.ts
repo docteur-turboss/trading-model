@@ -140,5 +140,3 @@ export function incLeaseCleanupCycle(): void {
 
 export const METRICS_HANDLER: RequestHandler =
 	createMetricsHandler(METRICS_REGISTRY);
-
-export { METRICS_REGISTRY };
