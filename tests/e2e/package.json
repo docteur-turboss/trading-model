@@ -4,7 +4,7 @@
   "private": true,
   "type": "commonjs",
   "scripts": {
-    "test": "jest",
+    "test:e2e": "jest",
     "test:docker": "docker compose -f ../../docker-compose.yml up -d && sleep 30 && jest --forceExit"
   },
   "devDependencies": {

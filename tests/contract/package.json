@@ -4,7 +4,7 @@
   "private": true,
   "type": "commonjs",
   "scripts": {
-    "test": "jest"
+    "test:contract": "jest"
   },
   "devDependencies": {
     "@jest/globals": "^30.4.1",
