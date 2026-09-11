@@ -32,7 +32,6 @@
     "@trading-model/server-utils": "*",
     "@trading-model/validation": "*",
     "express": "^5.2.1",
-    "prom-client": "^15.1.3",
     "zod": "^4.5.4"
   },
   "devDependencies": {
@@ -41,7 +40,6 @@
     "@types/jest": "^30.0.0",
     "@types/node": "^26.5.0",
     "jest": "^30.5.1",
-    "standard-version": "^9.5.0",
     "ts-jest": "^29.4.12",
     "ts-node": "^10.9.2",
     "typescript": "^6.0.3"
