@@ -13,7 +13,7 @@ import {
 	OptimizerType,
 } from "./enums";
 
-export type NeuronsByLayer = PositiveInt[];
+type NeuronsByLayer = PositiveInt[];
 
 export interface NetworkArchitecture {
 	neuronsByLayer: NeuronsByLayer;
@@ -30,20 +30,20 @@ export interface LossConfig {
 	deltaHuber?: PositiveInt;
 }
 
-export interface OptimizerConfig {
+interface OptimizerConfig {
 	optimizerType?: OptimizerType;
 	optimizerHyperparams?: Partial<OptimizerHyperparams>;
 	learningRate?: Percentage;
 	gradientClipNorm?: number;
 }
 
-export interface NetworkInitConfig {
+interface NetworkInitConfig {
 	initialisationType?: InitialisationType;
 	useBias?: boolean;
 	biasInitialisationType?: InitialisationType;
 }
 
-export interface MutationConfig {
+interface MutationConfig {
 	biasMutationScale?: Percentage;
 	weightMutationScale?: Percentage;
 }

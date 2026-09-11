@@ -11,7 +11,7 @@ import {
 import type { SymbolState, TradingSymbol } from "./market-data-types";
 import { SymbolStateManager } from "./symbol-state-manager";
 
-export { DEFAULT_VALIDATION_SPLIT, MIN_TRAINING_STEPS };
+export { MIN_TRAINING_STEPS };
 
 export interface MarketDataBufferConfig {
 	maxSize?: number;

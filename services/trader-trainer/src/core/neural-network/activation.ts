@@ -85,14 +85,14 @@ const Softmax: ActivationDefinition = {
 	},
 };
 
-export const SIGMOID = Sigmoid;
-export const TANH = Tanh;
-export const RELU = Relu;
-export const LEAKY_RELU = LeakyRelu;
-export const ELU = Elu;
-export const GELU = Gelu;
-export const MISH = Mish;
-export const SOFTMAX = Softmax;
+const SIGMOID = Sigmoid;
+const TANH = Tanh;
+const RELU = Relu;
+const LEAKY_RELU = LeakyRelu;
+const ELU = Elu;
+const GELU = Gelu;
+const MISH = Mish;
+const SOFTMAX = Softmax;
 
 export const ACTIVATIONS: Record<ActivationType, ActivationDefinition> = {
 	[ActivationType.Sigmoid]: SIGMOID,

@@ -1,7 +1,7 @@
 import type { LamarckGenome, PopMember } from "./genome-types";
 import { SelectionType } from "./genome-types";
 
-export interface SelectionStrategy {
+interface SelectionStrategy {
 	readonly type: SelectionType;
 	select(
 		population: PopMember[],

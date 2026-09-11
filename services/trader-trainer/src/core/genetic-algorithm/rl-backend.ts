@@ -9,7 +9,7 @@ import type { FeatureVector } from "../feature-vector";
 import { ConnectionType, InitialisationType } from "../neural-network/type";
 import type { DeepReadonly, LamarckGenome } from "./shared-types";
 
-export interface StepInput {
+interface StepInput {
 	features: FeatureVector;
 	price: Price;
 }

@@ -29,7 +29,7 @@ export interface StepRewardContext {
 	runStats?: RunningStats;
 }
 
-export function _computeShapedReward(ctx: StepRewardContext): number {
+function _computeShapedReward(ctx: StepRewardContext): number {
 	const { backend, step, rShape, runStats } = ctx;
 	const { reward } = backend.step({
 		features: step.features,

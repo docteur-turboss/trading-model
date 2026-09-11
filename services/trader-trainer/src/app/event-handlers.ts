@@ -8,7 +8,7 @@ import { processPrice } from "./event-processors/price-processor";
 import { processTicker } from "./event-processors/ticker-processor";
 import { processTrade } from "./event-processors/trade-processor";
 
-export const EVENT_TO_HANDLER: Partial<Record<MarketEvent, DataType>> = {
+const EVENT_TO_HANDLER: Partial<Record<MarketEvent, DataType>> = {
 	[MarketEvent.FetchCandlestickSeries]: DataType.Candle,
 	[MarketEvent.FetchRecentTrades]: DataType.Trade,
 	[MarketEvent.FetchOrderBookSnapshot]: DataType.OrderBook,

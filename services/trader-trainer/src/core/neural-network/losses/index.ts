@@ -10,18 +10,16 @@ import { MeanBiasError } from "./mean-bias";
 import { MeanSquaredError } from "./mse";
 import { RootMeanSquaredError } from "./rmse";
 
-export type { LossDefinition } from "./loss-definition";
-
-export const MEAN_SQUARED_ERROR = new MeanSquaredError();
-export const MEAN_ABSOLUTE_ERROR = new MeanAbsoluteError();
-export const ROOT_MEAN_SQUARED_ERROR = new RootMeanSquaredError();
-export const MEAN_BIAS_ERROR = new MeanBiasError();
-export const HUBER_LOSS = new HuberLoss();
-export const LOG_COSH_LOSS = new LogCoshLoss();
-export const CROSS_ENTROPY = new CrossEntropyLoss();
-export const BINARY_CROSS_ENTROPY = new BinaryCrossEntropyLoss();
-export const HINGE_LOSS = new HingeLoss();
-export const KL_DIVERGENCE = new KLDivergenceLoss();
+const MEAN_SQUARED_ERROR = new MeanSquaredError();
+const MEAN_ABSOLUTE_ERROR = new MeanAbsoluteError();
+const ROOT_MEAN_SQUARED_ERROR = new RootMeanSquaredError();
+const MEAN_BIAS_ERROR = new MeanBiasError();
+const HUBER_LOSS = new HuberLoss();
+const LOG_COSH_LOSS = new LogCoshLoss();
+const CROSS_ENTROPY = new CrossEntropyLoss();
+const BINARY_CROSS_ENTROPY = new BinaryCrossEntropyLoss();
+const HINGE_LOSS = new HingeLoss();
+const KL_DIVERGENCE = new KLDivergenceLoss();
 
 export const LOSSES: Record<
 	LossFunctionType,

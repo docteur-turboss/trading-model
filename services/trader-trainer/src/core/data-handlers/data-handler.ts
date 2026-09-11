@@ -12,7 +12,7 @@ import { tradeHandler } from "./trade-handler";
 
 export { DataType };
 
-export interface MutateStateContext<TData = unknown> {
+interface MutateStateContext<TData = unknown> {
 	symbol: import("../market-data-types").TradingSymbol;
 	data: TData;
 	state: SymbolState;
@@ -39,17 +39,6 @@ export function pushWithMaxSize<TData>(
 		return array.slice(-maxSize);
 	}
 	return array;
-}
-
-export function serializeAllNorms(
-	state: SymbolState,
-	handlers?: DataHandler[]
-): Record<string, unknown> {
-	const all = (handlers ?? createDefaultHandlers()).reduce(
-		(acc, handler) => Object.assign(acc, handler.serializeNorms(state)),
-		{} as Record<string, unknown>
-	);
-	return all;
 }
 
 export function createDefaultHandlers(): DataHandler[] {

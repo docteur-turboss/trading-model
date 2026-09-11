@@ -22,7 +22,7 @@ const DISABLED_POOL: IExperiencePool = {
 	values: () => new Map().values(),
 };
 
-export class ExperiencePool implements IExperiencePool {
+class ExperiencePool implements IExperiencePool {
 	private _poolMap = new Map<number, Experience>();
 	private _poolInputToId = new WeakMap<Float32Array, number>();
 	private _nextPoolId = 0;

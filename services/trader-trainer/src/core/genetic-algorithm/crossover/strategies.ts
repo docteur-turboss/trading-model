@@ -1,7 +1,7 @@
 import type { CrossoverGenome } from "../genome-control";
 import { CrossoverType } from "../genome-control";
 
-export interface CrossoverStrategyContext {
+interface CrossoverStrategyContext {
 	left: number;
 	right: number;
 	co: CrossoverGenome;

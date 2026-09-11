@@ -1,7 +1,4 @@
-import {
-	ActivationFn,
-	Optimizer as OptimizerType,
-} from "@trading-model/validation/adapters/inbound/admin/training.dto";
+import { Optimizer as OptimizerType } from "@trading-model/validation/adapters/inbound/admin/training.dto";
 
 export { OptimizerType };
 
@@ -57,23 +54,4 @@ export enum ExperienceKind {
 	Bare = "bare",
 	QLearning = "qlearning",
 	Supervised = "supervised",
-}
-
-const ACTIVATION_FN_TO_TYPE: Record<ActivationFn, ActivationType | undefined> =
-	{
-		[ActivationFn.Relu]: ActivationType.Relu,
-		[ActivationFn.Sigmoid]: ActivationType.Sigmoid,
-		[ActivationFn.Tanh]: ActivationType.Tanh,
-		[ActivationFn.Softmax]: ActivationType.Softmax,
-		[ActivationFn.Gelu]: ActivationType.Gelu,
-		[ActivationFn.Elu]: ActivationType.Elu,
-		[ActivationFn.Mish]: ActivationType.Mish,
-		[ActivationFn.LeakyRelu]: ActivationType.LeakyReLu,
-		[ActivationFn.Linear]: undefined,
-	};
-
-export function activationFnToType(
-	fn: ActivationFn
-): ActivationType | undefined {
-	return ACTIVATION_FN_TO_TYPE[fn];
 }

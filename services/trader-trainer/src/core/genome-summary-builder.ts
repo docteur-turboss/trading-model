@@ -8,7 +8,7 @@ import type { LamarckGenome } from "./genetic-algorithm/genome-types";
 import type { DeepReadonly } from "./genetic-algorithm/shared-types";
 import type { BestAgentSummary } from "./trainer";
 
-export function buildGASummary(
+function buildGASummary(
 	genome: DeepReadonly<LamarckGenome>
 ): BestAgentSummary["gaControl"] {
 	return {
@@ -21,7 +21,7 @@ export function buildGASummary(
 	};
 }
 
-export function buildNetworkSummary(
+function buildNetworkSummary(
 	genome: DeepReadonly<LamarckGenome>
 ): BestAgentSummary["network"] {
 	return {
@@ -34,7 +34,7 @@ export function buildNetworkSummary(
 	};
 }
 
-export function buildRLSummary(
+function buildRLSummary(
 	genome: DeepReadonly<LamarckGenome>
 ): BestAgentSummary["rl"] {
 	return {

@@ -18,10 +18,9 @@ export enum MutationAdaptation {
 export enum MutationScope {
 	Global = "global",
 	PerLayer = "per_layer",
-	Correlated = "correlated",
 }
 
-export interface MutationRates {
+interface MutationRates {
 	rate: Percentage;
 	sigma: Percentage;
 	noiseStd: NoiseStd;
@@ -29,7 +28,7 @@ export interface MutationRates {
 	activationMutationRate: Percentage;
 }
 
-export interface MutationStructural {
+interface MutationStructural {
 	addNeuronRate: Percentage;
 	removeNeuronRate: Percentage;
 	addLayerRate: Percentage;

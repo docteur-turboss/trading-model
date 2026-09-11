@@ -26,11 +26,11 @@ const LeCun: WeightInitializer = {
 	},
 };
 
-export const ZEROS = Zeros;
-export const HE = He;
-export const XAVIER = Xavier;
-export const LE_CUN = LeCun;
-export const RANDOM_INIT = Random;
+const ZEROS = Zeros;
+const HE = He;
+const XAVIER = Xavier;
+const LE_CUN = LeCun;
+const RANDOM_INIT = Random;
 
 export const INITIALIZERS: Record<InitialisationType, WeightInitializer> = {
 	[InitialisationType.Zeros]: ZEROS,

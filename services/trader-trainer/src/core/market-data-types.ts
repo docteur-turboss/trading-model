@@ -19,7 +19,7 @@ import { FEATURE_DIM } from "./feature-vector-codec";
 
 export { FEATURE_DIM };
 
-export interface CandleNormalizers {
+interface CandleNormalizers {
 	close: NormalizationStats;
 	volume: NormalizationStats;
 	open: NormalizationStats;
@@ -27,18 +27,18 @@ export interface CandleNormalizers {
 	low: NormalizationStats;
 }
 
-export interface TradeNormalizers {
+interface TradeNormalizers {
 	price: NormalizationStats;
 	qty: NormalizationStats;
 }
 
-export interface BookNormalizers {
+interface BookNormalizers {
 	bid: NormalizationStats;
 	ask: NormalizationStats;
 	spread: NormalizationStats;
 }
 
-export interface TickerNormalizers {
+interface TickerNormalizers {
 	volume: NormalizationStats;
 }
 

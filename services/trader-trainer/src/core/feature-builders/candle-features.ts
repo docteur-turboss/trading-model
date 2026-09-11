@@ -7,21 +7,21 @@ import type {
 import type { CandleFeatureContext } from "../feature-context";
 import type { SymbolState } from "../market-data-types";
 
-export function candleReturnRatio(cur: CandleData, prev?: CandleData): number {
+function candleReturnRatio(cur: CandleData, prev?: CandleData): number {
 	return prev && prev.close > 0 ? (cur.close - prev.close) / prev.close : 0;
 }
 
-export function candlePositionRatio(cur: CandleData): number {
+function candlePositionRatio(cur: CandleData): number {
 	return cur.high - cur.low > 0
 		? (cur.close - cur.open) / (cur.high - cur.low)
 		: 0;
 }
 
-export function candleRangeRatio(cur: CandleData): number {
+function candleRangeRatio(cur: CandleData): number {
 	return cur.close > 0 ? (cur.high - cur.low) / cur.close : 0;
 }
 
-export function candleVolumeRatio(cur: CandleData, state: SymbolState): number {
+function candleVolumeRatio(cur: CandleData, state: SymbolState): number {
 	const volStd = state.norm.candle.volume.getStd();
 	return volStd > 1e-10 ? cur.volume / volStd : 0;
 }

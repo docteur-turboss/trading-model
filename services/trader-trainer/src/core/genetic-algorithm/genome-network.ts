@@ -1,6 +1,5 @@
 export { createNetworkGenome } from "./genome-network/create";
 export { crossoverNetwork } from "./genome-network/crossover";
-export type { MutateNetworkContext } from "./genome-network/mutation";
 export { mutateLayer, mutateNetworkStructure } from "./genome-network/mutation";
 export type {
 	ClipBounds,
@@ -12,8 +11,6 @@ export {
 	ConnectionType,
 	InitialisationType,
 	NormalisationType,
-	repairLayer,
 	repairNetwork,
-	validateLayer,
 	validateNetwork,
 } from "./genome-network/types";

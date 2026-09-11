@@ -28,7 +28,6 @@ export interface HorizonGenome {
 
 export enum DiscretePolicyType {
 	EpsilonGreedy = "epsilon_greedy",
-	Softmax = "softmax",
 }
 
 export interface DiscretePolicyGenome {
@@ -42,7 +41,6 @@ export interface DiscretePolicyGenome {
 export enum ContinuousPolicyType {
 	ActionClipping = "action_clipping",
 	TanhSquashing = "tanh_squashing",
-	ExplorationNoise = "exploration_noise",
 }
 
 export interface ContinuousPolicyGenome {

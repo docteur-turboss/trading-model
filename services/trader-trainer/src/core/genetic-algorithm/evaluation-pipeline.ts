@@ -22,13 +22,13 @@ import type { DeepReadonly } from "./shared-types";
 import { deepFreeze } from "./shared-types";
 import { trainPhase } from "./training-phase";
 
-export type { EvaluationResult, GenomeFitnessMeta };
+export type { GenomeFitnessMeta };
 
 /**
  * Evaluate a single genome on a single window set.
  * Pure function (no side effects): returns new genome + scores.
  */
-export function evaluateSingleGenomeOnWindow(
+function evaluateSingleGenomeOnWindow(
 	genome: DeepReadonly<LamarckGenome>,
 	windowSet: WindowSet,
 	backendFactory: BackendFactory

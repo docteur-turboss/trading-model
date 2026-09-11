@@ -58,10 +58,7 @@ function checkPositiveInt(ctx: ValidationContext, value: unknown): void {
 	}
 }
 
-export function validateLayer(
-	ctx: ValidationContext,
-	layer: LayerGenome
-): void {
+function validateLayer(ctx: ValidationContext, layer: LayerGenome): void {
 	checkPositiveInt({ ...ctx, path: `${ctx.path}.neurons` }, layer.neurons);
 	_validateEnumField(
 		{ ...ctx, path: `${ctx.path}.activation` },
@@ -121,7 +118,7 @@ function _createDefaultHiddenLayer(): LayerGenome {
 	};
 }
 
-export function repairLayer(layer: LayerGenome): LayerGenome {
+function repairLayer(layer: LayerGenome): LayerGenome {
 	return {
 		neurons: Math.max(1, Math.round(layer.neurons ?? 32)) as PositiveInt,
 		activation: VALID_ACTIVATIONS.has(layer.activation)

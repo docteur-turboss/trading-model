@@ -1,6 +1,6 @@
 import { MutationDistribution } from "./genome-mutation";
 
-export interface NoiseSampler {
+interface NoiseSampler {
 	readonly type: MutationDistribution;
 	sample(rng: () => number, sigma: number): number;
 }
@@ -45,10 +45,10 @@ class LevyNoiseSampler implements NoiseSampler {
 	}
 }
 
-export const GAUSSIAN_SAMPLER = new GaussianNoiseSampler();
-export const CAUCHY_SAMPLER = new CauchyNoiseSampler();
-export const UNIFORM_SAMPLER = new UniformNoiseSampler();
-export const LEVY_SAMPLER = new LevyNoiseSampler();
+const GAUSSIAN_SAMPLER = new GaussianNoiseSampler();
+const CAUCHY_SAMPLER = new CauchyNoiseSampler();
+const UNIFORM_SAMPLER = new UniformNoiseSampler();
+const LEVY_SAMPLER = new LevyNoiseSampler();
 
 const NOISE_SAMPLERS: Record<MutationDistribution, NoiseSampler> = {
 	[MutationDistribution.Gaussian]: GAUSSIAN_SAMPLER,

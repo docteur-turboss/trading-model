@@ -14,16 +14,6 @@ export type {
 	Normalizer,
 } from "./normalizer-interface";
 
-export {
-	BORDER,
-	DECIMAL_SCALING,
-	LOGARITHMIC,
-	MIN_MAX,
-	NONE_NORMALIZER,
-	ROBUST_SCALING,
-	Z_SCORE,
-};
-
 export const NORMALIZERS: Record<NormalisationType, Normalizer> = {
 	[NormalisationType.DecimalScaling]: DECIMAL_SCALING,
 	[NormalisationType.LogarithmicNormalization]: LOGARITHMIC,

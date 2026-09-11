@@ -3,9 +3,7 @@ import type { LamarckGenome } from "../genome-types";
 import { mutateSelfAdaptiveParams } from "./self-adaptive-mutation";
 import { adaptSigma } from "./sigma-adapters";
 
-export type { MutateNetworkContext } from "../genome-network";
 export { mutateLayer } from "../genome-network";
-export type { MutateRLContext } from "../genome-rl";
 
 export function mutateGenome(
 	genome: LamarckGenome,

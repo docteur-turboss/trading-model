@@ -2,8 +2,6 @@ import type { LamarckGenome } from "../genome-fitness";
 import { GENOME_SECTIONS } from "../genome-sections";
 import { crossoverMutation } from "./crossover-mutation";
 
-export { crossoverMutation } from "./crossover-mutation";
-
 export function crossoverGenomes(
 	parentA: LamarckGenome,
 	parentB: LamarckGenome,

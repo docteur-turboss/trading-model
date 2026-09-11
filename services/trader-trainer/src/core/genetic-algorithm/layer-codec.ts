@@ -44,18 +44,6 @@ const CONNECTION_TYPE_CODEC = new EnumCodec<ConnectionType>(
 	ConnectionType.DenseSkip
 );
 
-export const ACTIVATIONS: ActivationType[] = ACTIVATION_CODEC.allValues();
-export const CONNECTION_TYPES: ConnectionType[] =
-	CONNECTION_TYPE_CODEC.allValues();
-
-export function activationFromIndex(idx: number): ActivationType {
-	return ACTIVATION_CODEC.decode(idx);
-}
-
-export function connectionTypeFromIndex(idx: number): ConnectionType {
-	return CONNECTION_TYPE_CODEC.decode(idx);
-}
-
 export class EncodedLayer {
 	constructor(
 		readonly neurons: number,
@@ -88,13 +76,4 @@ export function readEncodedLayer(
 	offset: number
 ): EncodedLayer {
 	return EncodedLayer.read(arr, offset);
-}
-
-/** @deprecated Use {@link EncodedLayer.write} instead */
-export function writeEncodedLayer(
-	arr: Float32Array,
-	offset: number,
-	layer: EncodedLayer
-): void {
-	layer.write(arr, offset);
 }

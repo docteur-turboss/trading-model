@@ -15,7 +15,7 @@ export interface StateManagerConfig {
 }
 
 /** Manages epsilon-greedy exploration schedule and agent weight initialisation from genomes. */
-export class StateManager {
+class StateManager {
 	private _epsilon: number;
 	private readonly _gamma: number;
 

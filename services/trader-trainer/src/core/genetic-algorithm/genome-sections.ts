@@ -26,7 +26,7 @@ import {
 	validateRL,
 } from "./genome-rl";
 
-export interface GenomeSection<TValue> {
+interface GenomeSection<TValue> {
 	create(): TValue;
 	crossover(
 		left: TValue,
@@ -78,4 +78,3 @@ const rl: GenomeSection<RLGenome> = {
 };
 
 export const GENOME_SECTIONS = { network, rl };
-export type GenomeSectionName = keyof typeof GENOME_SECTIONS;

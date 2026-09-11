@@ -10,7 +10,7 @@ interface ExperienceBase {
 	output: Float32Array;
 }
 
-export interface BareExperience extends ExperienceBase {
+interface BareExperience extends ExperienceBase {
 	kind: ExperienceKind.Bare;
 }
 
@@ -21,7 +21,7 @@ export interface QLearningExperience extends ExperienceBase {
 	done: boolean;
 }
 
-export interface SupervisedExperience extends ExperienceBase {
+interface SupervisedExperience extends ExperienceBase {
 	kind: ExperienceKind.Supervised;
 	target: Float32Array;
 }
@@ -38,7 +38,7 @@ export interface ForwardContext {
 	layerOutputs: Float32Array[];
 }
 
-export interface LayerActivation {
+interface LayerActivation {
 	output: Float32Array;
 	preActivation: Float32Array;
 	zValues: Float32Array;
@@ -54,17 +54,17 @@ export interface LayerWeights {
 	bias: Float32Array;
 }
 
-export interface LayerDimensions {
+interface LayerDimensions {
 	fanIn: PositiveInt;
 	fanOut: PositiveInt;
 }
 
-export interface LayerActivations {
+interface LayerActivations {
 	output: Float32Array;
 	preActivation: Float32Array;
 }
 
-export interface LayerGradients {
+interface LayerGradients {
 	delta: Float32Array;
 	gradW: Float32Array;
 	gradB: Float32Array;

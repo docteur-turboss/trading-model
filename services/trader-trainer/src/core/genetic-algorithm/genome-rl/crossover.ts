@@ -18,7 +18,7 @@ import type {
 	RLScalars,
 } from "./types";
 
-export function crossoverRewardShaping(ctx: {
+function crossoverRewardShaping(ctx: {
 	left: RewardShapingGenome;
 	right: RewardShapingGenome;
 	crossoverFn: (valueA: number, valueB: number) => number;
@@ -38,7 +38,7 @@ export function crossoverRewardShaping(ctx: {
 	};
 }
 
-export function crossoverHorizon(ctx: {
+function crossoverHorizon(ctx: {
 	left: HorizonGenome;
 	right: HorizonGenome;
 	crossoverFn: (valueA: number, valueB: number) => number;
@@ -57,7 +57,7 @@ export function crossoverHorizon(ctx: {
 	};
 }
 
-export function crossoverDiscretePolicy(ctx: {
+function crossoverDiscretePolicy(ctx: {
 	left: DiscretePolicyGenome;
 	right: DiscretePolicyGenome;
 	crossoverFn: (valueA: number, valueB: number) => number;
@@ -82,7 +82,7 @@ export function crossoverDiscretePolicy(ctx: {
 	};
 }
 
-export function crossoverContinuousPolicy(ctx: {
+function crossoverContinuousPolicy(ctx: {
 	left: ContinuousPolicyGenome;
 	right: ContinuousPolicyGenome;
 	crossoverFn: (valueA: number, valueB: number) => number;
@@ -100,7 +100,7 @@ export function crossoverContinuousPolicy(ctx: {
 	};
 }
 
-export function crossoverReplayBuffer(ctx: {
+function crossoverReplayBuffer(ctx: {
 	left: ReplayBufferGenome;
 	right: ReplayBufferGenome;
 	crossoverFn: (valueA: number, valueB: number) => number;

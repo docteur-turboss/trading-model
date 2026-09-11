@@ -39,61 +39,26 @@ export enum FitnessType {
 	Composite = "composite",
 }
 
-export interface GAPopulationConfig {
+interface GAPopulationConfig {
 	size: PositiveInt;
 	elitismFraction: Probability;
 	survivorFraction: Probability;
 }
 
-export function eliteCount(config: GAPopulationConfig): number {
-	return Math.max(1, Math.round(config.size * config.elitismFraction));
-}
-
-export function survivorCount(config: GAPopulationConfig): number {
-	return Math.max(1, Math.round(config.size * config.survivorFraction));
-}
-
-export interface GATerminationConfig {
+interface GATerminationConfig {
 	rewardThreshold: Fitness;
 	stagnationPatience: PositiveInt;
 	maxGenerations: PositiveInt;
 	timeBudgetMs: DurationMs;
 }
 
-export function shouldTerminateByReward(
-	config: GATerminationConfig,
-	bestFitness: Fitness
-): boolean {
-	return bestFitness >= config.rewardThreshold;
-}
-
-export function shouldTerminateByStagnation(
-	config: GATerminationConfig,
-	stagnationGenerations: number
-): boolean {
-	return stagnationGenerations >= config.stagnationPatience;
-}
-
-export function shouldTerminateByBudget(
-	config: GATerminationConfig,
-	startTimeMs: number
-): boolean {
-	return Date.now() - startTimeMs >= config.timeBudgetMs;
-}
-
-export interface GASeedingConfig {
+interface GASeedingConfig {
 	envSeed: number;
 	mutationSeed: number;
 	networkSeed: number;
 }
 
-export function toCombinedSeed(config: GASeedingConfig): number {
-	return (
-		((config.envSeed * 31 + config.mutationSeed) * 31 + config.networkSeed) | 0
-	);
-}
-
-export interface GAEvaluationConfig {
+interface GAEvaluationConfig {
 	episodesPerIndividual: PositiveInt;
 	seedsPerEval: PositiveInt;
 }

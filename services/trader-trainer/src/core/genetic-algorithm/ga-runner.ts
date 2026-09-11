@@ -1,8 +1,7 @@
 import { checkTerminationConditions } from "./adaptive-control-system";
 import type { GARunnerConfig, GenerationContext } from "./generation-processor";
 import { GenerationProcessor } from "./generation-processor";
-import type { GenomeFitnessMeta, LamarckGenome } from "./genome-types";
-import type { ObjectiveVector } from "./nsga2";
+import type { LamarckGenome } from "./genome-types";
 import type { DeepReadonly } from "./shared-types";
 
 export type {
@@ -10,13 +9,6 @@ export type {
 	GenerationContext,
 	WindowSet,
 } from "./generation-processor";
-
-export interface ParetoFrontContext {
-	updatedPop: DeepReadonly<LamarckGenome>[];
-	objectives: ObjectiveVector[];
-	metas: GenomeFitnessMeta[];
-	rng: () => number;
-}
 
 export class GeneticAlgorithmRunner {
 	public readonly processor: GenerationProcessor;

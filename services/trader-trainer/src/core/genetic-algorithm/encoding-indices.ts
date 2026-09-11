@@ -14,7 +14,7 @@ export { readEncodedLayer } from "./layer-codec";
 
 import { clamp } from "./utils";
 
-export const MAX_DEPTH = 12;
+const MAX_DEPTH = 12;
 
 interface ScalarFieldDef<
 	TKey extends keyof DecodedScalars = keyof DecodedScalars,
@@ -27,7 +27,7 @@ interface ScalarFieldDef<
 	round?: boolean;
 }
 
-export interface DecodedScalars {
+interface DecodedScalars {
 	gamma: Probability;
 	learningRate: Percentage;
 	clipMin: number;

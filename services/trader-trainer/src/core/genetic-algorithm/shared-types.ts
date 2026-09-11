@@ -2,10 +2,8 @@ import type { Genome } from "./genome-types";
 
 export type { Experience } from "../neural-network/type";
 export type {
-	GAControlGenome,
 	Genome,
 	LamarckGenome,
-	MarketStep,
 } from "./genome-types";
 
 export type DeepReadonly<TValue> = TValue extends (infer UValue)[]

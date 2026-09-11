@@ -12,7 +12,6 @@ import {
 import { emptyTicker, type TickerFeatures } from "./features/ticker-features";
 import { emptyTrade, type TradeFeatures } from "./features/trade-features";
 
-export { FEATURE_DIM } from "./feature-vector-codec";
 export type { BookTickerFeatures } from "./features/bookticker-features";
 export type { CandleFeatures } from "./features/candle-features";
 export type { OrderBookFeatures } from "./features/orderbook-features";

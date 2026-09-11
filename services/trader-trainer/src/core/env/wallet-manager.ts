@@ -13,7 +13,7 @@ import {
 	WalletMetricsComputer,
 } from "./wallet-metrics";
 
-export type { TradeRecord, WalletConfigParams as WalletConfig, WalletMetrics };
+export type { WalletConfigParams as WalletConfig, WalletMetrics };
 
 export interface WalletAPI {
 	buy: (amount: Volume) => boolean;
@@ -29,7 +29,7 @@ export interface WalletAPI {
 	reset: () => void;
 }
 
-export class Wallet implements WalletAPI {
+class Wallet implements WalletAPI {
 	private readonly _executor: TradeExecutor;
 	private readonly _recorder: TradeRecorder;
 	private readonly _config: WalletConfig;
