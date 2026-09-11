@@ -84,9 +84,27 @@ export interface DlqSignatureInput {
 	path: string;
 }
 
+function deterministicStringify(value: unknown): string {
+	return JSON.stringify(value, (_key: string, val: unknown): unknown => {
+		if (typeof val === "object" && val !== null) {
+			if (val instanceof Date) {
+				return val.toISOString();
+			}
+			if (!Array.isArray(val)) {
+				const sorted: Record<string, unknown> = {};
+				for (const key of Object.keys(val as object).sort()) {
+					sorted[key] = (val as Record<string, unknown>)[key];
+				}
+				return sorted;
+			}
+		}
+		return val;
+	});
+}
+
 export function computeDlqSignature(input: DlqSignatureInput): string {
 	const bodyHash = createHash("sha256")
-		.update(JSON.stringify(input.body))
+		.update(deterministicStringify(input.body ?? {}))
 		.digest("hex");
 	const payload = `${input.serviceName}:${input.timestamp}:${bodyHash}:${input.method}:${input.path}`;
 	return createHmac("sha256", input.secret).update(payload).digest("hex");

@@ -1,6 +1,6 @@
 ﻿import { describe, expect, it } from "@jest/globals";
-import { AuditEvent } from "@trading-model/validation/contracts/audit-events";
-import { MarketEvent } from "@trading-model/validation/contracts/market-events";
+import { AuditEvent } from "@trading-model/validation/domain/contracts/audit-events";
+import { MarketEvent } from "@trading-model/validation/domain/contracts/market-events";
 import { z } from "zod";
 
 /**
@@ -87,7 +87,7 @@ const CONTRACTS: Contract[] = [
 	{
 		producer: "financial-scraper",
 		consumers: ["trader-trainer"],
-		topic: MarketEvent.fetchCandlestickSeries,
+		topic: MarketEvent.FetchCandlestickSeries,
 		eventType: "candle_update",
 		version: "1.0",
 		payloadSchema: CANDLE_PAYLOAD,
@@ -109,7 +109,7 @@ const CONTRACTS: Contract[] = [
 	{
 		producer: "financial-scraper",
 		consumers: ["trader-trainer"],
-		topic: MarketEvent.fetchRecentTrades,
+		topic: MarketEvent.FetchRecentTrades,
 		eventType: "trade_update",
 		version: "1.0",
 		payloadSchema: TRADE_PAYLOAD,
@@ -128,7 +128,7 @@ const CONTRACTS: Contract[] = [
 	{
 		producer: "financial-scraper",
 		consumers: ["trader-trainer"],
-		topic: MarketEvent.fetch24hrTickerStats,
+		topic: MarketEvent.Fetch24hrTickerStats,
 		eventType: "ticker_update",
 		version: "1.0",
 		payloadSchema: TICKER_PAYLOAD,
@@ -150,7 +150,7 @@ const CONTRACTS: Contract[] = [
 	{
 		producer: "audit-logger",
 		consumers: ["discovery-server", "dlq-service"],
-		topic: AuditEvent.auditHeartbeat,
+		topic: AuditEvent.AuditHeartbeat,
 		eventType: "audit_heartbeat",
 		version: "1.0",
 		payloadSchema: z.object({
