@@ -49,7 +49,7 @@ services/admin-interface/
 │   ├── pages/                # Route-level page components
 │   ├── i18n/                 # Internationalization (en, fr)
 │   └── types/
-│       └── dtos.ts           # DTO types from @trading-model/common/contracts/admin
+│       └── dtos.ts           # DTO types from @trading-model/validation/adapters/inbound/admin
 └── tests/
     ├── unit/                 # Component & hook unit tests
     ├── integration/          # Page-level integration tests
@@ -232,7 +232,8 @@ Health check: `wget -qO- http://localhost:80/ping || exit 1`
 | `react-router-dom`                     | Client-side routing (BrowserRouter)                     |
 | `recharts`                             | Charts (audit volume bar chart, market data area chart) |
 | `i18next`, `react-i18next`             | Internationalization                                    |
-| `@trading-model/common`                | Shared DTOs (`contracts/admin`)                         |
+| `@trading-model/common`                | Shared utilities/DTOs                                   |
+| `@trading-model/validation`            | Admin DTO contracts (`adapters/inbound/admin`)          |
 
 **Development:**
 
