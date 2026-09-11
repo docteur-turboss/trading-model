@@ -1,7 +1,6 @@
 export {
 	buildResponse,
 	fetchAllRawData,
-	type RawBinanceData,
 } from "./binance-data-fetcher";
 export {
 	buildAuthContext,

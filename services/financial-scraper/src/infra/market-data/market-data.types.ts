@@ -1,5 +1,4 @@
 export {
-	BaseMarketData,
 	BookTickerData,
 	CandleData,
 	MarketType,

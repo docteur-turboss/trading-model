@@ -6,7 +6,7 @@ import { MessageManager } from "../../config/message-manager";
 import { type MarketDataEntry, makeEntry } from "./binance-worker-helpers";
 import type { BinanceWorkerResult } from "./binance-worker-types";
 
-export interface MarketDataContext extends MarketDataEntry {
+interface MarketDataContext extends MarketDataEntry {
 	builder: typeof HELPER.metadataBuilder.prototype;
 }
 
@@ -55,7 +55,7 @@ export function buildMarketDataEntries(
 	);
 }
 
-export function sendMarketData({
+function sendMarketData({
 	data,
 	topic,
 	eventType,

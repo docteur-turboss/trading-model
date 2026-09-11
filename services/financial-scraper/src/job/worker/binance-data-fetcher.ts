@@ -18,13 +18,13 @@ import type {
 	BinanceWorkerResult,
 } from "./binance-worker-types";
 
-export interface FetchLimits {
+interface FetchLimits {
 	candleLimit?: Limit;
 	tradeLimit?: Limit;
 	orderBookLimit?: Limit;
 }
 
-export interface RawBinanceData {
+interface RawBinanceData {
 	orderBookRaw: Awaited<ReturnType<typeof getOrderBook>>;
 	tradesRaw: Awaited<ReturnType<typeof getRecentTrades>>;
 	candlesRaw: Awaited<ReturnType<typeof getCandlestickData>>;

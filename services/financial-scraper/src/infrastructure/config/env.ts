@@ -25,5 +25,3 @@ const FINANCIAL_SCRAPER_ENV_SCHEMA = BaseEnvSchema.extend(
 });
 
 export const ENV = validateEnv(FINANCIAL_SCRAPER_ENV_SCHEMA);
-
-export type Env = z.infer<typeof FINANCIAL_SCRAPER_ENV_SCHEMA>;

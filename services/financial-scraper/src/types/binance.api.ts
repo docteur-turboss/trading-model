@@ -24,7 +24,7 @@ export interface BinanceDepthResponse {
 	asks: BinanceDepthEntry[];
 }
 
-export interface BinanceTrade {
+interface BinanceTrade {
 	id: number;
 	price: PriceString;
 	qty: VolumeString;
@@ -39,7 +39,7 @@ export type BinanceTradeResponse = BinanceTrade[];
 export type BinanceHistoricalTrade = BinanceTrade;
 export type BinanceHistoricalTradeResponse = BinanceHistoricalTrade[];
 
-export interface BinanceAggregateTrade {
+interface BinanceAggregateTrade {
 	aggregateTradeId: number;
 	price: PriceString;
 	quantity: VolumeString;
