@@ -56,7 +56,7 @@ services/my-service/
 ## Entry Point (`src/application/index.ts`)
 
 ```typescript
-import { createBootstrap } from '@trading-model/common/server/bootstrap';
+import { createBootstrap } from '@trading-model/server-utils/application/services/bootstrap';
 import { createServer } from './server';
 import '../config/env';
 
@@ -71,8 +71,8 @@ createBootstrap({
 ## HTTPS Server (`src/application/server.ts`)
 
 ```typescript
-import { createSecureServer } from '@trading-model/common/server/create-secure-server';
-import { loadTlsConfig } from '@trading-model/common/server/load-tls-config';
+import { createSecureServer } from '@trading-model/server-utils/adapters/inbound/create-secure-server';
+import { loadTlsConfig } from '@trading-model/server-utils/shared/load-tls-config';
 import { myRoutes } from '../adapters/inbound/my.routes';
 import { env } from '../config/env';
 

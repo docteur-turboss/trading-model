@@ -6,34 +6,33 @@ Guarantee that code is production-ready, maintainable over time, and respects th
 
 ## Tools
 
-| Tool           | Usage                      | Configuration                 |
-| -------------- | -------------------------- | ----------------------------- |
-| **Biome**     | Static code analysis + formatting | `biome.json`           |
-| **Biome**      | Automatic formatting + lint | `biome.json`                  |
-| **Jest**       | Unit and integration tests | `jest.config.js` (per module) |
-| **TypeScript** | Type checking              | `tsconfig.json` (per module)  |
-| **commitlint** | Commit message validation  | `.commitlintrc`               |
-| **Husky**      | Git hooks                  | `.husky/`                     |
+| Tool           | Usage                             | Configuration                 |
+| -------------- | --------------------------------- | ----------------------------- |
+| **Biome**      | Static analysis + formatting + import sorting | `biome.json`       |
+| **Jest**       | Unit and integration tests        | `jest.config.js` (per module) |
+| **Vitest**     | Frontend tests (admin-interface)  | `vitest.config.ts`            |
+| **TypeScript** | Type checking                     | `tsconfig.json` (per module)  |
+| **commitlint** | Commit message validation         | `commitlint.config.mjs`       |
+| **Husky**      | Git hooks                         | `.husky/`                     |
 
 ## Quality Gates
 
-### Pre-commit (Husky)
+### Commit message (Husky)
 
-Triggered on every `git commit` — fast, must pass in seconds:
+There is no `pre-commit` hook. Commit format is validated on `git commit` by `commit-msg`:
 
 ```bash
-# .husky/pre-commit
-bunx lint-staged
+# .husky/commit-msg
+bunx --no -- commitlint --edit $1 --config commitlint.config.mjs
 ```
-
-`lint-staged` applies `@biomejs/biome` only to modified files.
 
 ### Pre-push (Husky)
 
-Triggered on every `git push` — more thorough:
+Triggered on every `git push` — must pass before the push completes:
 
 ```bash
 # .husky/pre-push
+bunx @biomejs/biome check .
 bun run build
 bun run test
 ```
@@ -43,9 +42,11 @@ bun run test
 Triggered on every push and PR — full validation:
 
 ```bash
-bun run lint
-bun run build
-bun run test:coverage
+bun run lint          # biome check
+bun run build         # packages + services typecheck
+bun run test:coverage # tests + coverage (Codecov)
+bun run test:contract # contract tests
+bun run test:e2e      # E2E against Docker Compose
 ```
 
 ## Linting
@@ -65,21 +66,22 @@ Configuration at root `biome.json`:
 
 ```json
 {
-  "$schema": "https://biomejs.dev/schemas/1.9.4/schema.json",
-  "organizeImports": { "enabled": true },
+  "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
+  "assist": { "enabled": true, "actions": { "source": { "recommended": true } } },
   "linter": {
     "enabled": true,
-    "rules": { "recommended": true }
+    "rules": { "preset": "recommended" }
   },
   "formatter": {
-    "indentStyle": "space",
+    "indentStyle": "tab",
     "indentWidth": 2,
-    "lineWidth": 100
+    "lineWidth": 80,
+    "lineEnding": "lf"
   }
 }
 ```
 
-Import order enforced via Biome's `organizeImports` (see `biome.json`).
+Import order is enforced via Biome's source assist actions (`assist.actions.source.organizeImports`). See `biome.json` for the full rule set.
 
 ## Test Coverage
 

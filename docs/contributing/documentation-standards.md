@@ -18,7 +18,13 @@ docs/
 │   ├── README.md                        # Index
 │   ├── genetic-algorithm.md             # GA module reference
 │   ├── neural-network.md                # NN module reference
-│   └── training-process.md              # Training pipeline reference
+│   ├── training-process.md              # Training pipeline reference
+│   └── table-schemas.md                 # Database schema reference
+├── concepts/                            # Conceptual overviews (implementation-agnostic)
+│   ├── README.md                        # Index
+│   ├── genetic-algorithm.md             # GA concepts
+│   ├── neural-network.md                # NN concepts
+│   └── training-process.md              # Training concepts
 ├── glossary/                            # Domain terms glossary
 │   └── README.md                        # Terms & definitions
 ├── architecture/                        # Architecture documentation
@@ -45,6 +51,7 @@ docs/
 │   ├── pr-standards.md                  # Pull request standards
 │   ├── testing-standards.md             # Testing standards
 │   ├── quality-gates.md                 # Quality standards
+│   ├── verification-protocol.md         # Verification protocol
 │   ├── jsdoc-standards.md               # JSDoc writing rules
 │   └── health-endpoints.md              # Health check standards
 ├── security/                            # Security documentation
@@ -100,9 +107,9 @@ docs/
 │   └── 0011-spiffe-spire-workload-identity.md
 ├── architecture/code/                   # TypeDoc-generated HTML
 │   └── ...
-└── examples/                            # Example scripts
-    └── README.md
 ```
+
+Executable example scripts live at the repo root `examples/` (not under `docs/`).
 
 ## How to Use This Documentation
 
@@ -124,7 +131,7 @@ Platform-level implementation reference docs (GA, NN, training) are in `docs/ref
 ### Code Block with Tag
 
 ```typescript
-import { createBootstrap } from '@trading-model/common/server/bootstrap';
+import { createBootstrap } from '@trading-model/server-utils/application/services/bootstrap';
 
 createBootstrap({
   name: 'Discovery',

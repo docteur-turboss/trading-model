@@ -25,7 +25,7 @@ All access to trading-model platform resources shall be authenticated, authorise
 
 | Layer | Mechanism | Implementation |
 |---|---|---|
-| **Transport** | mTLS TLS 1.3 | `@trading-model/common/server/create-secure-server.ts` |
+| **Transport** | mTLS TLS 1.3 | `@trading-model/server-utils/adapters/inbound/create-secure-server.ts` |
 | **Identity** | SPIFFE ID (SAN `spiffe://...`) | `@trading-model/common/middleware/mtls-auth.ts` |
 | **Bearer token** | HMAC-SHA256 (service registration) | `discovery-server` → `address-manager` |
 | **API key** | External admin access | `api-gateway` — `AUTH_TOKENS` env var |

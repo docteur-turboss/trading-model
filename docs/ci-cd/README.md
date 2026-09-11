@@ -62,11 +62,15 @@ jobs:
       - run: bun run test:coverage
 ```
 
+> This excerpt shows the core jobs. The full `ci.yml` also defines `contract` and `e2e` jobs (see below).
+
 **Jobs**:
 
 - `lint` — Biome check across the entire monorepo
 - `typecheck` — Build packages + type-check all services (including admin-interface)
-- `test` — Build + tests with coverage
+- `test` — Build + tests with coverage, upload to Codecov
+- `contract` — Contract tests between services
+- `e2e` — Boot the Docker Compose stack and run E2E tests
 
 **Permissions**: `contents: read` (read-only)
 
@@ -74,15 +78,20 @@ jobs:
 
 ### Workflow: `.github/workflows/release.yml`
 
-Triggered on **tags** matching `v*.*.*`.
+Triggered **manually** (`workflow_dispatch`) — Actions → Release → Run workflow (`bump_type` = auto/patch/minor/major).
 
 ```yaml
 name: Release
 
 on:
-  push:
-    tags:
-      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      bump_type:
+        description: 'Version bump type (auto = derived from commits since the last tag)'
+        required: true
+        type: choice
+        default: auto
+        options: [auto, patch, minor, major]
 
 permissions:
   contents: read
@@ -181,9 +190,11 @@ jobs:
 
 **Jobs** (sequential):
 
-1. `quality` — Lint + Build + Tests + version extraction
-2. `docker` — Build and push Docker images for each service to GHCR (GitHub Container Registry)
-3. `release` — Create GitHub Release with changelog
+1. `quality` — Lint + Build + Tests
+2. `version` — Version bump + CHANGELOG via `scripts/release.mjs`
+3. `docker` — Build and push Docker images for each service to GHCR (GitHub Container Registry)
+4. `release` — Create GitHub Release
+5. `docs` — Generate and publish TypeDoc HTML
 
 **Permissions**:
 
@@ -196,19 +207,21 @@ jobs:
 
 | Workflow      | File                                | Trigger       | What it does                                                    |
 | ------------- | ----------------------------------- | ------------- | --------------------------------------------------------------- |
+| **Deploy**    | `.github/workflows/deploy.yml`      | manual        | Deploy to staging/production (optional canary + smoke test + auto rollback) |
 | **Backup Test** | `.github/workflows/backup-test.yml` | weekly cron   | Validate backup/restore scripts, dry-run restore, K8s CronJob check |
 
 ### CI/CD Pipeline Summary
 
 | Workflow      | File                            | Trigger                | What it does                                                       |
 | ------------- | ------------------------------- | ---------------------- | ------------------------------------------------------------------ |
-| **CI**        | `.github/workflows/ci.yml`      | `push`, `pull_request` | Lint → Typecheck → Test + Codecov                                  |
-| **Release**   | `.github/workflows/release.yml` | tag `v*.*.*`           | Quality gate → 8 Docker images → GHCR → GitHub Release → Docs     |
+| **CI**        | `.github/workflows/ci.yml`      | `push`, `pull_request` | Lint → Typecheck → Test + Codecov → Contract → E2E (Docker)        |
+| **Release**   | `.github/workflows/release.yml` | manual                 | Quality gate → version + CHANGELOG → 8 Docker images → GHCR → GitHub Release → Docs |
+| **Deploy**    | `.github/workflows/deploy.yml`  | manual                 | Staging/production deploy (optional canary + auto rollback)        |
 | **Backup Test** | `.github/workflows/backup-test.yml` | weekly cron       | Validate backup/restore scripts                                    |
 
 All workflows run on `ubuntu-latest` with Bun. Failure in any workflow blocks merging.
 
-**Concurrency:** CI grouped by workflow + ref, cancel-in-progress on new push. Release runs single pipeline (`group: pages`).
+**Concurrency:** CI grouped by workflow + ref, cancel-in-progress on new push. Release runs as a single pipeline (`group: release`).
 
 ### Docker Image Tags
 

@@ -18,7 +18,7 @@ See [Quick Start Tutorial](docs/getting-started/quickstart.md) for a 10-minute h
 
 | Layer         | Technology                                                 |
 | ------------- | ---------------------------------------------------------- |
-| Runtime       | Node.js 26+                                                |
+| Runtime       | Bun 1.x (Node.js 26-compatible APIs)                       |
 | Language      | TypeScript (ES2020)                                        |
 | API           | Express 5                                                  |
 | Frontend      | React 19 + Vite + MUI 7                                    |
@@ -83,9 +83,14 @@ bun run commit               # Interactive gitmoji commit CLI
 
 ## CI/CD
 
-12+ automated jobs on every push/PR: lint, typecheck, audit, test+coverage, mutation test, K8s validate, container scan, secrets scan, SBOM, contract tests, E2E, load tests.
+GitHub Actions workflows:
 
-Pre-push git hook runs: `@biomejs/biome check` → `bun audit` → `build:ts` → `test:coverage`.
+- **ci.yml** — on every push/PR: lint → typecheck (packages + services) → test+coverage (Codecov) → contract tests → E2E (Docker stack)
+- **release.yml** — quality gates → Docker build/push (8 images) → GitHub Release → TypeDoc docs (manual `workflow_dispatch`)
+- **deploy.yml** — manual staging/production deploy with rollback
+- **backup-test.yml** — scheduled backup/restore verification
+
+Pre-push git hook runs: `@biomejs/biome check` → `build` → `test`.
 
 ## Documentation
 
@@ -96,14 +101,13 @@ Pre-push git hook runs: `@biomejs/biome check` → `bun audit` → `build:ts` �
 - [Compliance](docs/compliance/) — GDPR register, DPIA, retention policy, breach notification
 - [Operations](docs/operations/) — runbooks, SLOs, incident response, diagnostic guide
 - [Getting Started](docs/getting-started/quickstart.md) — 10-minute hands-on introduction
-- [Examples](examples/) — 5 executable bash scripts for common API workflows
+- [Examples](examples/) — executable bash scripts for common API workflows
 
 ## Security
 
-- **OWASP-hardened:** SSRF protection, anti-noSQL injection, timed-safe token comparison, triple-layer log redaction
+- **OWASP-hardened:** anti-noSQL injection, timed-safe token comparison, log redaction
 - **mTLS everywhere:** SPIFFE/SPIRE workload identity — short-lived X.509 SVIDs with automatic rotation (ADR-0011)
-- **Secrets:** SealedSecrets + HMAC-signed service-to-service requests, rotation via `scripts/rotate-secrets.sh`
-- **Key zeroing:** SecureKeyStore with buffer zeroing + heap dump protection, AES-256-GCM at rest
+- **Secrets:** SealedSecrets + HMAC-signed service-to-service requests (`@trading-model/crypto`), rotation via `scripts/rotate-secrets.sh`
 
 ## Monitoring
 

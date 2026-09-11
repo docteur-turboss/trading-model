@@ -52,7 +52,7 @@ All developers contributing to the codebase. Every architectural decision aims t
 
 | Layer        | Technology                                           |
 | ------------ | ---------------------------------------------------- |
-| Runtime      | Node.js                                              |
+| Runtime      | Bun 1.x (Node.js 26-compatible APIs)                 |
 | Language     | TypeScript (ES2020; module: node16 or commonjs)      |
 | API          | Express.js                                           |
 | Frontend SPA | React 19 + Vite + MUI 7 + Recharts + Vitest          |
@@ -65,37 +65,43 @@ All developers contributing to the codebase. Every architectural decision aims t
 
 ## Dependency Graph
 
-```
-@trading-model/common
-    ↑
-@trading-model/address-manager
-    ↑
-@trading-model/broker-message
-    ↑
-┌──────────────────────┬───────────────────┬──────────────────┬───────────────────┬───────────────────┐
-│  message-manager     │ financial-scraper │ trader-trainer   │ audit-logger      │ dlq-service       │
-│  (deps: common,      │ (deps: common,    │ (deps: common,   │ (deps: common,    │ (deps: common,    │
-│   address-manager)   │  address-manager, │  address-manager,│  address-manager, │  address-manager, │
-│                      │  broker-message)  │  broker-message) │  broker-message)  │  broker-message)  │
-└──────────────────────┴───────────────────┴──────────────────┴───────────────────┴───────────────────┘
-          ↑
-discovery-server (depends only on @trading-model/common)
+Shared packages (base → derived):
 
-admin-interface (depends only on @trading-model/common/contracts for DTOs)
-- React SPA served by nginx, not a Node.js microservice
+```
+@trading-model/common          (logger, http client, middleware, contracts, domain primitives, reliability)
+@trading-model/validation      (Zod schemas, DTOs, shared type contracts)      → common
+@trading-model/server-utils    (secure HTTPS server factory, TLS watcher, bootstrap) → common
+@trading-model/crypto          (hashing, signatures, crypto primitives)        → common, validation
+
+@trading-model/address-manager (service discovery client, health, token rotation) → common, server-utils, validation
+@trading-model/broker-message  (inter-service messaging SDK)                   → common, address-manager, validation
 ```
 
-The **discovery-server** depends only on `@trading-model/common`. All other services depend on `common`, `address-manager`, and `broker-message` as needed.
+Services and their `@trading-model/*` dependencies:
 
-The **admin-interface** is a React SPA (not a Node.js microservice). It imports DTO types from `@trading-model/common/contracts/admin` and communicates with the backend exclusively via HTTP through the **api-gateway**. It is built with Vite, tested with Vitest, and served via nginx in production.
+| Service            | Dependencies                                                                                     |
+| ------------------ | ------------------------------------------------------------------------------------------------ |
+| discovery-server   | common, crypto, server-utils, validation                                                         |
+| message-manager    | common, validation, server-utils, crypto, address-manager, broker-message                        |
+| financial-scraper  | common, validation, server-utils, crypto, address-manager, broker-message                        |
+| trader-trainer     | common, validation, server-utils, crypto, address-manager, broker-message                        |
+| audit-logger       | common, validation, server-utils, address-manager, broker-message                                |
+| dlq-service        | common, validation, server-utils, crypto, address-manager                                        |
+| api-gateway        | common, validation, server-utils, crypto                                                         |
+| admin-interface    | common, validation (DTO types only — React SPA, no Node runtime)                                 |
+
+The **admin-interface** is a React SPA (not a Node.js microservice). It imports DTO types from `@trading-model/common` and `@trading-model/validation` and communicates with the backend exclusively via HTTP through the **api-gateway**. It is built with Vite, tested with Vitest, and served via nginx in production.
 
 ### Package Dependency Details
 
-| Package                          | Purpose                                                                                                                                                                                                                                                                     | Dependencies            |
-| -------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------- |
-| `@trading-model/common`          | Logger, HTTP client, middleware (catchSync, MTLSAuthMiddleware, ResponseProtocol), server factories (createSecureServer, createBootstrap), env validation (BaseEnvSchema, validateEnv), event types, service types, delivery mode enum, error classes (`AppError` + `ErrorCodes`), crypto utilities, shared DTOs | None (only bun deps)    |
-| `@trading-model/address-manager` | Service discovery client, token manager, service cache with health checking, scheduler/jobs                                                                                                                                                                                 | common                  |
-| `@trading-model/broker-message`  | Inter-service messaging SDK: message manager client, event emitter, message controller/routes, validation schemas                                                                                                                                                           | common, address-manager |
+| Package                          | Purpose                                                                                                                                                 | Dependencies               |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------- |
+| `@trading-model/common`          | Logger, HTTP client, middleware (MTLSAuthMiddleware, ResponseProtocol, error tracking), domain primitives (branded types), contracts, circuit breakers, reliability, worker/recovery helpers | validation, server-utils, crypto |
+| `@trading-model/validation`      | Zod schemas, DTOs, event types, shared type contracts, admin contracts                                                                                  | common                     |
+| `@trading-model/server-utils`    | Secure HTTPS server factory, TLS watcher/loader, bootstrap & shutdown, signal handling, telemetry                                                         | common                     |
+| `@trading-model/crypto`          | Hashing, request signing, token generation, secure randomness                                                                                           | common, validation         |
+| `@trading-model/address-manager` | Service discovery client, token manager, service cache with health checking, scheduler/jobs, load balancing                                              | common, server-utils, validation |
+| `@trading-model/broker-message`  | Inter-service messaging SDK: message manager client, event emitter, message controller/routes, validation schemas, WSS client                            | common, address-manager, validation |
 
 ## Workload Identity & Security Model
 
@@ -122,7 +128,7 @@ Each service exposes an HTTPS server with mTLS enabled. The internal container p
 | trader-trainer    | 8446            | 3000           |               |
 | audit-logger      | 8450            | 3000           |               |
 | dlq-service       | 8452            | 3000           |               |
-| admin-interface   | 5173 (dev)      | 80             | SPA via nginx |
+| admin-interface   | 8449            | 80             | SPA via nginx (Vite dev: 5173) |
 | api-gateway       | 8448            | 3000           |               |
 
 ### Service Structure
@@ -155,7 +161,7 @@ services/<name>/
 ### Entry Point (`src/application/index.ts`)
 
 ```typescript
-import { createBootstrap } from '@trading-model/common/server/bootstrap';
+import { createBootstrap } from '@trading-model/server-utils/application/services/bootstrap';
 import { LeaseManager } from '../domain/lease-manager';
 import { createServer } from './server';
 import '../config/env';
@@ -175,8 +181,8 @@ createBootstrap({
 ### Server (`src/application/server.ts`)
 
 ```typescript
-import { createSecureServer } from '@trading-model/common/server/create-secure-server';
-import { loadTlsConfig } from '@trading-model/common/server/load-tls-config';
+import { createSecureServer } from '@trading-model/server-utils/adapters/inbound/create-secure-server';
+import { loadTlsConfig } from '@trading-model/server-utils/shared/load-tls-config';
 import { heartbeatRoutes } from '../adapters/inbound/heartbeat.routes';
 import { registryRoutes } from '../adapters/inbound/register.routes';
 import { env } from '../config/env';
@@ -204,16 +210,20 @@ Each package declares its exports via the `exports` field in `package.json`. Ent
 ```json
 {
   "exports": {
+    "./constants": { "types": "./dist/constants.d.ts", "default": "./dist/constants.js" },
     "./config/*": { "types": "./dist/config/*.d.ts", "default": "./dist/config/*.js" },
     "./middleware/*": { "types": "./dist/middleware/*.d.ts", "default": "./dist/middleware/*.js" },
     "./utils/*": { "types": "./dist/utils/*.d.ts", "default": "./dist/utils/*.js" },
-    "./server/*": { "types": "./dist/server/*.d.ts", "default": "./dist/server/*.js" },
-    "./validation/*": { "types": "./dist/validation/*.d.ts", "default": "./dist/validation/*.js" },
-    "./contracts/*": { "types": "./dist/contracts/*.d.ts", "default": "./dist/contracts/*.js" },
-    "./crypto/*": { "types": "./dist/crypto/*.d.ts", "default": "./dist/crypto/*.js" },
     "./worker/*": { "types": "./dist/worker/*.d.ts", "default": "./dist/worker/*.js" },
     "./recovery/*": { "types": "./dist/recovery/*.d.ts", "default": "./dist/recovery/*.js" },
-    "./reliability/*": { "types": "./dist/reliability/*.d.ts", "default": "./dist/reliability/*.js" }
+    "./reliability/*": { "types": "./dist/reliability/*.d.ts", "default": "./dist/reliability/*.js" },
+    "./domain/*": { "types": "./dist/domain/*.d.ts", "default": "./dist/domain/*.js" },
+    "./crl/*": { "types": "./dist/crl/*.d.ts", "default": "./dist/crl/*.js" },
+    "./persistence/*": { "types": "./dist/persistence/*.d.ts", "default": "./dist/persistence/*.js" },
+    "./http-headers": { "types": "./dist/http-headers.d.ts", "default": "./dist/http-headers.js" },
+    "./http-status": { "types": "./dist/http-status.d.ts", "default": "./dist/http-status.js" },
+    "./contracts/*": { "types": "./dist/contracts/*.d.ts", "default": "./dist/contracts/*.js" },
+    "./ws/*": { "types": "./dist/ws/*.d.ts", "default": "./dist/ws/*.js" }
   }
 }
 ```
@@ -235,5 +245,6 @@ See [How to Add a New Service](../contributing/adding-a-service.md) for a step-b
 
 ## Known Technical Debt
 
-1. **Mixed test conventions**: Both `.spec.ts` and `.test.ts` suffixes used across services.
-2. **Legacy `config/*` path alias**: Some service tsconfigs still define a `config/*` path alias (`./src/config/*`) that should be replaced with `node16` resolution.
+1. **Legacy path aliases**: Some service tsconfigs still define `paths` aliases (`config/*`, `infra/*`, `clients/*`, `job/*`, `types/*`, `utils/*`) that should be replaced with `node16` resolution.
+2. **Transitional re-export shims**: Some refactor-introduced barrel files (`export * from`) preserve old import paths while modules move to the new architectural layers.
+3. **Legacy module layouts**: A few services still mix the old `core/`/`messaging/`/`persistence/` layout with the hexagonal layers during migration.

@@ -29,22 +29,20 @@ import BrokerMessage from '@trading-model/broker-message';
 ```ts
 constructor({
   addressManagerClient,
-  keyCertificatePath,
-  rootCACertPath,
-  certificatePath,
-  callbackPath: userCallbackPath,
+  tlsPaths,
+  callbackPath,
   instanceId,
   serviceName,
 }: {
-  instanceId: string;
-  callbackPath?: string;   // default: 'message'
-  rootCACertPath: string;
-  certificatePath: string;
-  keyCertificatePath: string;
+  instanceId: InstanceId;
+  callbackPath: string;    // default: 'message'
+  tlsPaths: TlsPaths;      // { key, cert, ca } — SVID files written by spiffe-helper (ADR-0011)
   addressManagerClient: addressManagerClient;
   serviceName: ServiceInstanceName;
 })
 ```
+
+> Prefer the `createServiceMessageManager(addressManagerClient, env)` factory, which builds `tlsPaths` from the service env (`TLS_CERT_PATH`, `TLS_KEY_PATH`, `TLS_CA_PATH`) and reads `INSTANCE_ID`, `SERVICE_NAME`, `MESSAGE_CALLBACK_PATH`.
 
 ### Public Methods
 
@@ -61,7 +59,7 @@ constructor({
 const message = new BrokerMessage({...});
 
 // Direct send to a specific service
-await message.post.direct(ServiceInstanceName.TraderTrainingService, payload, metadata);
+await message.post.direct(ServiceInstanceName.TraderTrainerService, payload, metadata);
 
 // Indirect send via the broker (async pub/sub)
 await message.post.indirect(payload, metadata);
@@ -92,7 +90,7 @@ Calls made to the Message Delivery Service:
 
 Internal HTTP client communicating with the message-manager.
 
-- **Import**: `@trading-model/broker-message/client/message-manager-client`
+- **Import**: `@trading-model/broker-message/adapters/outbound/message-manager-client`
 
 ```ts
 class MessageManagerClient {
@@ -154,7 +152,7 @@ const metadata = new HELPER.metadataBuilder()
 
 ## Zod Schemas
 
-- **Import**: `@trading-model/broker-message/shared/helper/messages/message.schema`
+- **Import**: `@trading-model/broker-message/shared/barrel/message.schema`
 
 | Schema                  | Description                                    |
 | ----------------------- | ---------------------------------------------- |
@@ -167,19 +165,19 @@ Supported event validators: `exampleEvent`, `testEvent`, `fetchRecentTrades`, `f
 
 Typed EventEmitter for local broker event handling.
 
-- **Import**: `@trading-model/broker-message/client/event-manager-client`
+- **Import**: `@trading-model/broker-message/application/services/event-manager-client`
 
 ```ts
-EventManager.on(eventName, callback); // returns a cleanup function
-EventManager.off(eventName, callback);
-EventManager.emit(eventName, data);
-EventManager.removeAllListeners();
+EVENT_MANAGER.on(eventName, callback); // returns a cleanup function
+EVENT_MANAGER.off(eventName, callback);
+EVENT_MANAGER.emit(eventName, data);
+EVENT_MANAGER.removeAllListeners();
 ```
 
 ```ts
-import { EventManager } from '@trading-model/broker-message';
+import { EVENT_MANAGER } from '@trading-model/broker-message';
 
-EventManager.on('market.trade.recent.fetch', data => {
+EVENT_MANAGER.on('market.trade.recent.fetch', data => {
   console.log(data.trades);
 });
 ```
@@ -232,7 +230,7 @@ interface Message<T = unknown> {
 ## Usage Example
 
 ```typescript
-import BrokerMessage from '@trading-model/broker-message';
+import BrokerMessage, { HELPER } from '@trading-model/broker-message';
 import AddressManager from '@trading-model/address-manager';
 import express from 'express';
 
@@ -244,10 +242,12 @@ const { stop: stopAM } = am.start();
 
 const broker = new BrokerMessage({
   instanceId: 'instance-1',
-  serviceName: 'TraderTrainingService',
-  rootCACertPath: '/etc/certs/ca.pem',
-  certificatePath: '/etc/certs/cert.pem',
-  keyCertificatePath: '/etc/certs/key.pem',
+  serviceName: 'trader-trainer',
+  tlsPaths: {
+    ca: '/var/run/secrets/spiffe/bundle.pem',
+    cert: '/var/run/secrets/spiffe/svid.pem',
+    key: '/var/run/secrets/spiffe/svid_key.pem',
+  },
   addressManagerClient: am,
 });
 
@@ -261,10 +261,10 @@ const cleanup = broker.on('market.trade.recent.fetch', data => {
 const metadata = new HELPER.metadataBuilder()
   .setTopic('market.trade.executed')
   .setEventType('trade.executed')
-  .setPublisher({ serviceName: 'TraderTrainingService', instanceId: 'node-1' })
+  .setPublisher({ serviceName: 'trader-trainer', instanceId: 'node-1' })
   .toJSON();
 
-await broker.post.direct('FinancialScraperService', { symbol: 'BTCUSDT' }, metadata);
+await broker.post.direct('financial-scraper-service', { symbol: 'BTCUSDT' }, metadata);
 await broker.post.indirect({ price: 50000 }, metadata);
 
 cleanup();

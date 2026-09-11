@@ -54,7 +54,7 @@ The root script references the package name too: `bun run --filter trader-servic
 - All tests use `**/?(*.)+(spec).ts` pattern (admin-interface uses `.spec.{ts,tsx}`)
 - Jest configs use `ts-jest` preset and `moduleNameMapper` to resolve `@trading-model/*` to relative source paths — packages don't need to be pre-built to run tests
 - **Serial tests:** none currently require `maxWorkers: 1` (previously `certificate-utils` and `certificate-authority`, decommissioned per ADR-0011)
-- **Coverage thresholds:** 100% for most workspaces; `dlq-service` at 80%; `trader-service` at 80-85%
+- **Coverage thresholds:** 80% (statements/functions/lines/branches) for all workspaces; branch-only exceptions: `broker-message` 75%, `message-manager` and `dlq-service` 79%
 - E2E tests: `testTimeout: 30000`, `forceExit: true`, `detectOpenHandles: true`
 
 ## Git hooks (Husky) & commit format
@@ -85,7 +85,6 @@ The root script references the package name too: `bun run --filter trader-servic
 - **Redis** for message-manager (HA sentinel)
 - SQL migrations: `bun scripts/migrate.mjs up|down|status|create` — custom migrator at `scripts/migrate.mjs`
 - MySQL bootstrap SQL at `scripts/migrations/` (applied by the `migrate` service in Docker)
-- Knex config exists in `services/financial-scraper/knexfile.ts` but uses the same MySQL
 
 ## Docker Compose
 
@@ -97,6 +96,8 @@ The root script references the package name too: `bun run --filter trader-servic
 
 ## CI/CD
 
-- CI (`ci.yml`): lint → typecheck → audit → test+coverage → migration verify → K8s validate → container scan → secrets scan → SBOM → contract tests → E2E (Docker) → load tests
-- Release (`release.yml`): quality gates → Docker build+sign+scan (8 images matrix) → GitHub Release → TypeDoc docs → K8s manifest validate → deploy staging → deploy production (canary with rollback)
-- Codecov upload on test job
+- CI (`ci.yml`): lint → typecheck (packages + all services) → test+coverage (Codecov) → contract tests → E2E (Docker stack)
+- Release (`release.yml`): manual `workflow_dispatch` (Actions → Release) → quality gates → version bump + CHANGELOG → Docker build+push (8 images) → GitHub Release → TypeDoc docs
+- Deploy (`deploy.yml`): manual `workflow_dispatch` → staging or production (optional canary with smoke test + auto rollback)
+- Backup test (`backup-test.yml`): scheduled backup/restore verification
+- Codecov upload on the test job

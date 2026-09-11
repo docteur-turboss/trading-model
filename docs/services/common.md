@@ -11,13 +11,15 @@ The alternative — using off-the-shelf libraries directly in each service — w
 - Logging format and error handling would diverge, making debugging harder
 - Shared types (event enums, service names, delivery modes) would need synchronized copy-paste across services
 
-`@trading-model/common` centralizes these concerns into a single, tested, versioned package with zero internal dependencies.
+`@trading-model/common` centralizes these concerns into a single, tested, versioned package.
 
 ## Overview
 
-**@trading-model/common** provides: HTTP client, logger, middleware, type definitions, server factories (`createSecureServer`, `createBootstrap`), environment validation (`BaseEnvSchema`, `AddressManagerEnvSchema`), crypto utilities, shared DTOs, and a central `AppError` class with `ErrorCodes`.
+**@trading-model/common** provides: HTTP client, logger, middleware, domain primitives (branded types), contracts/shared DTOs, reliability (circuit breakers), worker/recovery helpers, and a central `AppError` class with `ErrorCodes`.
 
-This package has **zero internal dependencies** — it only depends on external bun packages (`express`, `zod`, `helmet`, `express-rate-limit`, `chained-error`).
+> **Package split (ADR-0007):** server bootstrap, the secure HTTPS server factory, and TLS loading now live in `@trading-model/server-utils`; environment validation and Zod schemas live in `@trading-model/validation`; crypto primitives live in `@trading-model/crypto`. `common` keeps a subset of re-exports for backward compatibility during migration.
+
+This package depends on `@trading-model/validation`, `@trading-model/server-utils`, and `@trading-model/crypto`, plus external packages (`express`, `zod`, `helmet`, `express-rate-limit`, `chained-error`, `ioredis`, `mongodb`, `ws`).
 
 ## Logger
 
@@ -52,11 +54,13 @@ Features:
 
 Lifecycle manager for services. Signal handling is delegated to a separate module (`signal-handler.ts`) to respect SRP.
 
-- **Import**: `@trading-model/common/server/bootstrap`
+> Moved to `@trading-model/server-utils` (ADR-0007).
+
+- **Import**: `@trading-model/server-utils/application/services/bootstrap`
 - **Function**: `createBootstrap(options)`
 
 ```ts
-import { createBootstrap } from '@trading-model/common/server/bootstrap';
+import { createBootstrap } from '@trading-model/server-utils/application/services/bootstrap';
 ```
 
 | Option         | Type               | Description              |
@@ -76,13 +80,15 @@ Features:
 
 Process signal and error handler registration, extracted from bootstrap for SRP.
 
-- **Import**: `@trading-model/common/server/signal-handler`
+> Moved to `@trading-model/server-utils` (ADR-0007).
+
+- **Import**: `@trading-model/server-utils/infrastructure/signal-handler`
 
 ```ts
 import {
   setupProcessHandlers,
   removeProcessHandlers,
-} from '@trading-model/common/server/signal-handler';
+} from '@trading-model/server-utils/infrastructure/signal-handler';
 ```
 
 | Function                | Description                                                               |
@@ -94,11 +100,13 @@ import {
 
 HTTPS server factory with mTLS, rate limiting, and Helmet.
 
-- **Import**: `@trading-model/common/server/create-secure-server`
+> Moved to `@trading-model/server-utils` (ADR-0007).
+
+- **Import**: `@trading-model/server-utils/adapters/inbound/create-secure-server`
 - **Function**: `createSecureServer(options)`
 
 ```ts
-import { createSecureServer } from '@trading-model/common/server/create-secure-server';
+import { createSecureServer } from '@trading-model/server-utils/adapters/inbound/create-secure-server';
 ```
 
 | Option        | Type              | Description                 |
@@ -135,14 +143,16 @@ This separation follows the Single Responsibility Principle — each module is i
 
 Fail-fast validation of environment variables via Zod.
 
-- **Import**: `@trading-model/common/validation/env`
+> Moved to `@trading-model/validation` (ADR-0007).
+
+- **Import**: `@trading-model/validation/infrastructure/validation/env`
 
 ```ts
 import {
   BaseEnvSchema,
   AddressManagerEnvSchema,
   validateEnv,
-} from '@trading-model/common/validation/env';
+} from '@trading-model/validation/infrastructure/validation/env';
 ```
 
 | Schema                    | Description                                                                            |
@@ -247,17 +257,20 @@ Response normalisation utilities.
 
 ## Event Types
 
-- **Import**: `@trading-model/common/config/event.types`
+> `@trading-model/common/config/event.types` is **deprecated** — import per-context types directly:
+> - Market events & market data types: `@trading-model/common/contracts/market-events` + `@trading-model/common/contracts/market-data.types`
+> - Audit events: `@trading-model/common/contracts/audit-events`
+
+The legacy module still re-exports the market-data types and builds the combined helpers from the per-context maps:
 
 | Export                                                                               | Description                                                                       |
 | ------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------- |
-| `EnumEventMessage`                                                                   | Event name constants (testEvent, fetchRecentTrades, fetchCandlestickSeries, etc.) |
-| `EventMap`                                                                           | Event → payload type mapping                                                      |
+| `EventMap`                                                                           | Event → payload type mapping (MarketEventMap ∪ AuditEventMap)                     |
 | `EventMessagesArgs<K>`                                                               | Payload type for a given event K                                                  |
-| `EventEnumMap`                                                                       | Union of all event name strings                                                   |
+| `EventEnumMap`                                                                       | Union of all valid event name strings                                             |
 | `MarketType`                                                                         | `CRYPTO`, `EQUITY`, `BOND`, `ETF`, `FX`, `FUTURE`                                 |
 | `SourceType`                                                                         | `BLOOMBERG`, `BINANCE`, `NYSE`                                                    |
-| `CandleData`, `TradeData`, `OrderBookData`, `BookTickerData`, `TickerData` | Market data entities                                                              |
+| `CandleData`, `TradeData`, `OrderBookData`, `BookTickerData`, `TickerData` | Market data entities (re-exported from `contracts/market-data.types`)             |
 
 ## Service Types
 
@@ -289,6 +302,8 @@ DeliveryMode.EXACTLY_ONCE; // 'exactly-once'
 
 ## Contracts (Shared DTOs)
 
+> Shared service contracts moved to `@trading-model/broker-message` (`domain/types/payloads`) and `@trading-model/validation` (`adapters/outbound/service-registry.types`). `common/contracts/` retains market-data types, event enums, signed-request, error-response, pagination and worker-protocol types.
+
 | Export                      | Kind      | Description                                 |
 | --------------------------- | --------- | ------------------------------------------- |
 | `SubscribesTopicsPayload`   | interface | `{ topics, callbackUrl }`                   |
@@ -297,9 +312,11 @@ DeliveryMode.EXACTLY_ONCE; // 'exactly-once'
 | `ServiceRegisterPayload`    | interface | `{ name, address, port, protocol, env? }`   |
 | `HeartbeatPayload`          | interface | `{ serviceName, instanceId, authToken }`    |
 | `ServicesQueryPayload`      | interface | `{ serviceName, services, onlyAlive }`      |
-| `ServiceInstance`           | interface | `{ ip, port, protocol, lastHeartbeat: number, registeredAt: number, serviceName, instanceId, env?, ttl, version, region? }` |
+| `ServiceInstance`           | interface | `{ ip, port, protocol, lastHeartbeat, registeredAt, serviceName, instanceId, env?, ttl, version, region? }` |
 
 ## Crypto
+
+> Moved to `@trading-model/crypto` (ADR-0007): `@trading-model/crypto/domain/services/prng` and `@trading-model/crypto/domain/services/random`.
 
 | Export              | Description                                                 |
 | ------------------- | ----------------------------------------------------------- |

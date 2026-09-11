@@ -27,7 +27,7 @@ The platform must demonstrate that algorithmic trading systems conform to specif
 
 | Test | Implementation | Evidence |
 |---|---|---|
-| **Market data integrity** — input validation and sanitisation | Zod schemas validate all incoming market data (`services/financial-scraper/src/clients/binance/`). SSRF protection (`@trading-model/common/utils/ssrf-protection.ts`) | Integration tests |
+| **Market data integrity** — input validation and sanitisation | Zod schemas validate all incoming market data (`services/financial-scraper/src/clients/binance/`) | Integration tests |
 | **Agent behaviour bounds** — max position, max order frequency | Enforced via agent environment constraints in `services/trader-trainer/src/environment/` | Unit tests |
 | **Order generation validation** — no erroneous orders | Training operates in simulation mode only; no real order execution | N/A (simulation only) |
 | **Kill functionality** — ability to halt trading | Not implemented in simulation. Production deployment requires a circuit breaker at the api-gateway level | 🟡 Planned |

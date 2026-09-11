@@ -33,57 +33,49 @@ constructor(config: AddressManagerConfig)
 
 ```ts
 interface AddressManagerConfig {
-  instanceId: string;
-  serviceName: string;
-  servicePort: number;
-  addressManagerUrl: string;
-  discoveryUrls: string[];
+  identity: ServiceIdentity;        // { serviceName, instanceId, region? }
+  servicePort: Port;                // Port the service listens on
+  addressManagerUrl: string;        // Discovery-server base URL
+  discoveryUrls: string[];          // Ordered discovery URLs for multi-region failover
   localDiscoveryUrl?: string;
-  region?: string;
-  publicIp?: string;
-  tokenRefreshIntervalMs: number;
-  ttlRefreshIntervalMs: number;
-  servicePingTimeoutMs: number;
-  discoveryTimeoutMs: number;
-  rootCACertPath: string;
-  certificatePath: string;
-  keyCertificatePath: string;
-  cacheTtlMs: number;
-  dnsNameMap?: Record<string, string>;
-  metricsIntervalMs?: number;
+  publicIp?: IPAddress;
+  tls: TlsPaths;                    // { caPath, certPath, keyPath } — SVID files (ADR-0011)
+  tokenRefreshIntervalMs: DurationMs;
+  ttlRefreshIntervalMs: DurationMs;
+  servicePingTimeoutMs: DurationMs;
+  discoveryTimeoutMs: DurationMs;
+  cacheTtlMs: DurationMs;
+  dnsNameMap?: Record<ServiceId, IPAddress>;
+  metricsIntervalMs?: DurationMs;
   wsUrl?: string;
-  wsSubscribedServices?: string[];
-  maxCallRecords?: number;
+  wsSubscribedServices?: ServiceId[];
+  maxCallRecords?: PositiveInt;
   preferredNetworkInterface?: string;
-  pems?: { ca: string; cert: string; key: string };
+  pems?: TlsPaths;                  // legacy alias
   redisCacheUrl?: string;
   redisCacheOptions?: Record<string, unknown>;
-  circuitBreakerFailureThreshold?: number;
-  circuitBreakerHalfOpenTimeoutMs?: number;
-  circuitBreakerCacheTtlMs?: number;
-  circuitBreakerLatencyWindowSize?: number;
-  circuitBreakerLatencyThresholdMs?: number;
+  circuitBreakerFailureThreshold?: PositiveInt;
+  circuitBreakerHalfOpenTimeoutMs?: DurationMs;
+  circuitBreakerCacheTtlMs?: DurationMs;
+  circuitBreakerLatencyWindowSize?: PositiveInt;
+  circuitBreakerLatencyThresholdMs?: DurationMs;
 }
 ```
 
 | Field                    | Type                     | Default | Description                                                                      |
 | ------------------------ | ------------------------ | ------- | -------------------------------------------------------------------------------- |
-| `instanceId`             | `string`                 | —       | Unique identifier for this service instance                                      |
-| `serviceName`            | `string`                 | —       | Logical service name (e.g. `financial-scraper`)                          |
-| `servicePort`            | `number`                 | —       | Port the service listens on                                                      |
+| `identity`               | `ServiceIdentity`        | —       | `{ serviceName, instanceId, region? }` — logical service identity                |
+| `servicePort`            | `Port`                   | —       | Port the service listens on                                                      |
 | `addressManagerUrl`      | `string`                 | —       | Discovery-server base URL                                                        |
-| `tokenRefreshIntervalMs` | `number`                 | `60000` | Token rotation interval                                                          |
-| `ttlRefreshIntervalMs`   | `number`                 | `15000` | TTL refresh interval                                                             |
-| `servicePingTimeoutMs`   | `number`                 | `2000`  | Health check timeout                                                             |
-| `rootCACertPath`         | `string`                 | —       | Path to root CA certificate for mTLS                                             |
-| `certificatePath`        | `string`                 | —       | Path to client certificate for mTLS                                              |
-| `keyCertificatePath`     | `string`                 | —       | Path to client private key for mTLS                                              |
-| `cacheTtlMs`             | `number`                 | `30000` | TTL for cached service instances                                                 |
-| `dnsNameMap`             | `Record<string, string>` | —       | Optional mapping from logical service names to deployment-specific DNS hostnames |
+| `tokenRefreshIntervalMs` | `DurationMs`             | `60000` | Token rotation interval                                                          |
+| `ttlRefreshIntervalMs`   | `DurationMs`             | `15000` | TTL refresh interval                                                             |
+| `servicePingTimeoutMs`   | `DurationMs`             | `2000`  | Health check timeout                                                             |
+| `tls`                    | `TlsPaths`               | —       | `{ caPath, certPath, keyPath }` — SVID files from spiffe-helper (ADR-0011)        |
+| `cacheTtlMs`             | `DurationMs`             | `30000` | TTL for cached service instances                                                 |
+| `dnsNameMap`             | `Record<ServiceId, IPAddress>` | —  | Optional mapping from logical service names to deployment-specific DNS hostnames |
 | `discoveryUrls`          | `string[]`               | —       | Ordered list of discovery URLs for multi-region failover                         |
-| `region`                 | `string`                 | —       | Deployment region / datacenter identifier                                        |
-| `publicIp`               | `string`                 | —       | Override for auto-detected public IP                                             |
-| `discoveryTimeoutMs`     | `number`                 | `5000`  | Discovery HTTP call timeout                                                      |
+| `publicIp`               | `IPAddress`              | —       | Override for auto-detected public IP                                             |
+| `discoveryTimeoutMs`     | `DurationMs`             | `5000`  | Discovery HTTP call timeout                                                      |
 
 ### Public Methods
 
@@ -174,21 +166,21 @@ In addition to the default export, the package exposes internal modules via deep
 
 | Import Path                                                       | Exports                                                                             |
 | ----------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
-| `@trading-model/address-manager/discovery/service-locator`        | `ServiceLocator`, `ServiceNameLocator`, `IpAddressLocator`, `MappingServiceLocator` |
-| `@trading-model/address-manager/discovery/service-health-checker` | `ServiceHealthChecker`                                                              |
-| `@trading-model/address-manager/discovery/service-cache`          | `ServiceCache`                                                                      |
-| `@trading-model/address-manager/discovery/service-discovery`      | `ServiceDiscovery`                                                                  |
-| `@trading-model/address-manager/client/token-manager`             | `TokenManager`                                                                      |
-| `@trading-model/address-manager/client/address-manager-client`    | `AddressManagerClient`                                                              |
-| `@trading-model/address-manager/client/type`                      | `ServiceInstance`, `RegisterServicePayload`, `ServiceRegistrationResponse`          |
-| `@trading-model/address-manager/scheduler/scheduler`              | `Scheduler`                                                                         |
-| `@trading-model/address-manager/scheduler/refresh-job`            | `RefreshJob`                                                                        |
-| `@trading-model/address-manager/scheduler/cron.util`              | `intervalMsToCron` (sub-minute cron support via 6-field seconds format)             |
-| `@trading-model/address-manager/config/address-manager-config`    | `AddressManagerConfig`                                                              |
+| `@trading-model/address-manager/application/discovery/service-locator` | `ServiceLocator`, `ServiceNameLocator`, `IpAddressLocator`, `MappingServiceLocator` |
+| `@trading-model/address-manager/adapters/outbound/discovery/service-health-checker` | `ServiceHealthChecker`                                              |
+| `@trading-model/address-manager/adapters/outbound/discovery/service-cache` | `ServiceCache`                                                              |
+| `@trading-model/address-manager/application/discovery/service-discovery` | `ServiceDiscovery`                                                           |
+| `@trading-model/address-manager/application/client/token-manager` | `TokenManager`                                                                      |
+| `@trading-model/address-manager/adapters/outbound/client/address-manager-client` | `AddressManagerClient`                                                  |
+| `@trading-model/address-manager/domain/client/type`               | `ServiceInstance`, `RegisterServicePayload`, `ServiceRegistrationResponse`          |
+| `@trading-model/address-manager/infrastructure/scheduler/scheduler` | `Scheduler`                                                                       |
+| `@trading-model/address-manager/infrastructure/scheduler/refresh-job` | `RefreshJob`                                                                    |
+| `@trading-model/address-manager/shared/scheduler/cron.util`       | `intervalMsToCron` (sub-minute cron support via 6-field seconds format)             |
+| `@trading-model/address-manager/domain/config/address-manager-config` | `AddressManagerConfig`                                                          |
 
 ## Environment Schema
 
-- **Import**: `@trading-model/common/validation/env`
+- **Import**: `@trading-model/validation/infrastructure/validation/env`
 - **Schema**: `AddressManagerEnvSchema`
 
 | Variable                          | Default     | Description                 |
@@ -299,16 +291,20 @@ import express from 'express';
 const app = express();
 
 const am = new AddressManager({
-  instanceId: process.env.INSTANCE_ID || 'instance-1',
-  serviceName: process.env.SERVICE_NAME || 'MyService',
+  identity: {
+    serviceName: process.env.SERVICE_NAME || 'my-service',
+    instanceId: process.env.INSTANCE_ID || 'instance-1',
+  },
   servicePort: Number(process.env.PORT) || 3000,
   addressManagerUrl: process.env.ADDRESS_MANAGER_URL!,
+  tls: {
+    caPath: '/run/spire/svid/bundle.pem',
+    certPath: '/run/spire/svid/svid.pem',
+    keyPath: '/run/spire/svid/svid_key.pem',
+  },
   tokenRefreshIntervalMs: 300000, // 5 min
   ttlRefreshIntervalMs: 300000, // 5 min
   servicePingTimeoutMs: 2000, // 2 sec
-  rootCACertPath: '/etc/certs/ca.pem',
-  certificatePath: '/etc/certs/cert.pem',
-  keyCertificatePath: '/etc/certs/key.pem',
   cacheTtlMs: 60000, // 1 min
 });
 

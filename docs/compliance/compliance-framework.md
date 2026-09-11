@@ -33,7 +33,7 @@ This document provides a consolidated map of all regulatory obligations applicab
 | **Art. 6(1)(f)** | Legitimate interest basis | Documented for all 5 processing activities | [Data Processing Register](data-processing-register.md) |
 | **Art. 25** | Data protection by design and by default | mTLS, encryption at rest, log redaction, append-only audit | [DPIA](dpia.md) §4 |
 | **Art. 30** | Register of processing activities | 5 activities documented with full metadata | [Data Processing Register](data-processing-register.md) |
-| **Art. 32** | Security of processing | mTLS, encryption, RBAC, circuit breakers, SSRF protection | [Information Security Policy](information-security-policy.md) |
+| **Art. 32** | Security of processing | mTLS, encryption, RBAC, circuit breakers | [Information Security Policy](information-security-policy.md) |
 | **Art. 33** | Breach notification | Incident response policy with 72h notification | [Incident Response Policy](incident-response-policy.md) |
 | **Art. 35** | DPIA requirement | Completed DPIA — no Art. 36 consultation required | [DPIA](dpia.md) |
 | **Art. 44-49** | International transfers | Binance API data transfer assessed — no personal data involved | [Third-Party DPAs](third-party-dpas.md) |
@@ -64,7 +64,7 @@ This document provides a consolidated map of all regulatory obligations applicab
 |---|---|---|
 | **Art. 5-8** | ICT risk management framework | ISMS aligned with ISO 27001 (see [Information Security Policy](information-security-policy.md)) |
 | **Art. 9-10** | ICT incident management | [Incident Response Policy](incident-response-policy.md) with classification levels |
-| **Art. 11-13** | Digital operational resilience testing | CI/CD pipeline, contract tests, E2E tests, mutation testing (Stryker) |
+| **Art. 11-13** | Digital operational resilience testing | CI/CD pipeline, contract tests, E2E tests (mutation testing via Stryker available on demand) |
 | **Art. 14-16** | Third-party ICT risk | [Third-Party DPAs](third-party-dpas.md) assessment |
 | **Art. 17-23** | Information sharing, register of information | Processing register maintained |
 | **Art. 24-26** | Oversight framework for critical third parties | Binance API assessed as non-critical data source |

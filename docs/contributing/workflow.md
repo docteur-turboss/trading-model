@@ -69,11 +69,11 @@ trading-model/
 | Constants             | SCREAMING_SNAKE_CASE | `DEFAULT_TIMEOUT`      |
 | Test files            | `.spec.ts` only      | `user.service.spec.ts` |
 
-File suffixes: `*.controller.ts`, `*.service.ts`, `*.repository.ts`, `*.middleware.ts`, `*.util.ts`, `*.spec.ts`
+File naming: `kebab-case` descriptive names; `.controller.ts`/`.service.ts`/`.repository.ts`/`.middleware.ts`/`.util.ts` are legacy suffixes (not required after the DDD migration). Tests use `*.spec.ts`.
 
 ## Code Style
 
-- **Formatter**: Biome with `printWidth: 100`, `singleQuote`, `trailingComma: "es5"`, `arrowParens: "avoid"`
+- **Formatter**: Biome with tab indentation, `lineWidth: 80`, `trailingComma: "es5"`
 - **Linter**: Biome with TypeScript strict rules
 - **TypeScript**: `strict: true`, target ES2020
 
@@ -82,14 +82,14 @@ File suffixes: `*.controller.ts`, `*.service.ts`, `*.repository.ts`, `*.middlewa
 1. Node built-ins (`fs`, `path`)
 2. External deps (`express`, `zod`)
 3. Internal absolute (`@trading-model/*`)
-4. Internal relative (`../controllers/`)
+4. Internal relative (`../domain/`, `../adapters/`)
 5. Side effects (`import './setup'`)
 
 ## Testing
 
 - **Framework**: Jest with `ts-jest` (most services); **Vitest** (admin-interface only)
 - **Convention**: Single `.spec.ts` or `.spec.tsx` (admin-interface) suffix
-- **Coverage thresholds**: 100% for common, discovery, most packages; 80-85% for trader-service, dlq-service
+- **Coverage thresholds**: 80% across all workspaces (branch-only exceptions: `broker-message` 75%, `message-manager` and `dlq-service` 79%)
 - **Structure**: Tests mirror source under `tests/unit/`, `tests/integration/`, `tests/e2e/`
 
 ---

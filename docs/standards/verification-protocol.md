@@ -12,7 +12,7 @@ Every change — from a single commit to a full release — carries risk. This p
 | 2   | No secrets or credentials in the diff | Grep for tokens, passwords, private keys                    |
 | 3   | Commit message follows COMMIT.md      | `<gitmoji>(<scope>): <subject>` format                      |
 | 4   | No debug / commented code left behind | `console.log`, `debugger`, `TODO`, `FIXME`                  |
-| 5   | Pre-commit hooks pass                 | Biome formatting + lint, commitlint (enforced by husky) |
+| 5   | Git hooks pass                        | commitlint (`commit-msg`); biome check + build + test (`pre-push`) |
 
 ## Before Every PR
 
@@ -47,18 +47,18 @@ Every change — from a single commit to a full release — carries risk. This p
 | 1   | All features are merged to `development`          | GitHub PR list                               |
 | 2   | `development` has been deployed and verified      | Beta deployment + canary check               |
 | 3   | `development` merged to `main`                    | `git checkout main && git merge development` |
-| 4   | Version bumped + CHANGELOG generated + tag pushed | Release workflow (GitHub Actions)            |
+| 4   | Version bumped + CHANGELOG generated + GitHub Release created | Release workflow (manual `workflow_dispatch`) |
 | 5   | Breaking changes documented                       | CHANGELOG footer section                     |
 
 ## Before Deploying to Production
 
 | #   | Check                                            | How                                          |
 | --- | ------------------------------------------------ | -------------------------------------------- |
-| 1   | Release tag pushed                                | Triggers `release.yml`                       |
-| 2   | Docker images built and pushed to GHCR            | Check GitHub Actions                         |
-| 3   | GitHub Release created with changelog             | Automated                                    |
-| 4   | Deployment initiated by operator                  | `docker compose pull && docker compose up -d` |
-| 5   | Smoke tests pass                                  | Health endpoints + E2E tests                 |
+| 1   | Release workflow run manually                      | Actions → Release (`release.yml`)            |
+| 2   | Docker images built and pushed to GHCR             | Check GitHub Actions                         |
+| 3   | GitHub Release created                             | Automated                                    |
+| 4   | Deployment initiated by operator                   | Actions → Deploy (`deploy.yml`, K8s) or `docker compose pull && docker compose up -d` |
+| 5   | Smoke tests pass                                   | Health endpoints + E2E tests                 |
 
 ## Quality Gates Summary
 
@@ -70,7 +70,7 @@ Every change — from a single commit to a full release — carries risk. This p
 | Unit tests         | Jest                      | CI                 | [Testing Standards](testing-standards.md)          |
 | Coverage thresholds| Jest                      | CI                 | [Testing Standards](testing-standards.md)          |
 | PR review          | GitHub protected branches | Merge              | [PR Standards](pr-standards.md)                    |
-| Security audit     | `bun audit`               | CI                 | [Security](../security/README.md)                  |
+| Security audit     | `bun audit` (local) / Dependabot (weekly) | —      | [Security](../security/README.md)                  |
 
 ## Related
 

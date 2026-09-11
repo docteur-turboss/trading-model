@@ -11,23 +11,21 @@ Configuration `biome.json` applied across the entire monorepo:
 ```json
 {
   "formatter": {
-    "indentStyle": "space",
+    "indentStyle": "tab",
     "indentWidth": 2,
-    "lineWidth": 100,
-    "lineEnding": "lf"
+    "lineWidth": 80,
+    "lineEnding": "lf",
+    "bracketSpacing": true
   },
   "javascript": {
     "formatter": {
-      "quoteStyle": "single",
-      "trailingCommas": "es5",
-      "arrowParentheses": "asNeeded",
-      "semicolons": "always"
+      "trailingCommas": "es5"
     }
   }
 }
 ```
 
-Run: `bunx @biomejs/biome format .` (CI) / `bunx @biomejs/biome format --write .` (local formatting).
+Run: `bunx @biomejs/biome check .` (CI) / `bunx @biomejs/biome check --write .` (local fix).
 
 ## Naming Conventions
 
@@ -42,12 +40,14 @@ Run: `bunx @biomejs/biome format .` (CI) / `bunx @biomejs/biome format --write .
 | Enums                  | `PascalCase`      | `export enum AuthMethod {}`            |
 | Files and directories  | `kebab-case`      | `address-manager.service.ts`           |
 | Global constants       | `SCREAMING_SNAKE` | `export const DEFAULT_TIMEOUT = 30000` |
-| Service file suffix    | `.service.ts`     | `token-manager.service.ts`             |
-| Controller file suffix | `.controller.ts`  | `wallet-manager.controller.ts`         |
-| Middleware file suffix | `.middleware.ts`  | `auth.middleware.ts`                   |
-| Repository file suffix | `.repository.ts`  | `user.repository.ts`                   |
-| Utility file suffix    | `.util.ts`        | `string.util.ts`                       |
+| Service file suffix    | `.service.ts` (legacy) | `token-manager.service.ts`         |
+| Controller file suffix | `.controller.ts` (legacy) | `wallet-manager.controller.ts`   |
+| Middleware file suffix | `.middleware.ts` (legacy) | `auth.middleware.ts`            |
+| Repository file suffix | `.repository.ts` (legacy) | `user.repository.ts`            |
+| Utility file suffix    | `.util.ts` (legacy) | `string.util.ts`                       |
 | Test file suffix       | `.spec.ts`        | `user.service.spec.ts`                 |
+
+> The `.service.ts`/`.controller.ts`/`.repository.ts`/`.util.ts` suffixes are a legacy convention. After the DDD/hexagonal migration, files use descriptive `kebab-case` names (`claim-manager.ts`, `replay-batch.ts`) placed in their architectural layer. The `.spec.ts` test suffix is enforced and required.
 
 ### Correct vs Incorrect Examples
 
@@ -92,29 +92,33 @@ services/Financial_Scrapper/       // Snake case
 
 ## Biome
 
-Configuration in `biome.json` at the monorepo root — Biome replaces both ESLint and Prettier:
+Configuration in `biome.json` at the monorepo root — Biome replaces both ESLint and Prettier (full rule set in `biome.json`, ~100 rules; highlights below):
 
 ```json
 {
-  "$schema": "https://biomejs.dev/schemas/1.9.4/schema.json",
-  "organizeImports": { "enabled": true },
+  "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
+  "assist": { "enabled": true, "actions": { "source": { "recommended": true } } },
   "linter": {
     "enabled": true,
     "rules": {
-      "recommended": true,
-      "complexity": {
-        "noBannedTypes": "error",
-        "noUselessConstructor": "error"
+      "preset": "recommended",
+      "suspicious": { "noExplicitAny": "error", "noFocusedTests": "error" },
+      "correctness": {
+        "noUnusedVariables": "error",
+        "noUnusedImports": "error",
+        "noUnusedFunctionParameters": "error"
       },
       "style": {
-        "noNonNullAssertion": "error"
+        "useNamingConvention": { "level": "error", "options": { "strictCase": false } },
+        "noNonNullAssertion": "off"
       }
     }
   },
   "formatter": {
-    "indentStyle": "space",
+    "indentStyle": "tab",
     "indentWidth": 2,
-    "lineWidth": 100
+    "lineWidth": 80,
+    "lineEnding": "lf"
   }
 }
 ```
@@ -133,20 +137,24 @@ trading-model/
 ├── services/     # Microservices (kebab-case directory names)
 │   └── <service>/
 │       ├── src/
-│       │   ├── app/           # Entry points & routes
-│       │   ├── config/        # Environment & app config
-│       │   ├── core/          # Business logic (services, repositories)
-│       │   ├── controllers/   # HTTP controllers
-│       │   ├── middleware/    # Express middleware
-│       │   └── types/         # Type definitions
+│       │   ├── application/      # Entry point (index.ts), server, use-case orchestration
+│       │   ├── domain/           # Entities, domain services, ports (interfaces)
+│       │   ├── adapters/         # Controllers, routes (inbound) and clients (outbound)
+│       │   │   ├── inbound/
+│       │   │   └── outbound/
+│       │   ├── infrastructure/   # External integrations (Redis, MongoDB, HTTP)
+│       │   ├── config/           # env.ts — Zod validation of environment variables
+│       │   └── shared/           # Shared types, constants, utils
 │       ├── tests/
 │       │   ├── unit/
 │       │   ├── integration/
-│       │   └── e2e/
+│       │   └── fixtures/
 │       └── docs/
 ├── docs/         # Centralized documentation
 └── scripts/      # Automation scripts
 ```
+
+> Legacy layouts (`app/`, `core/`, `controllers/`, `middleware/`, `types/`) may still coexist in some services during the hexagonal migration (ADR-0010). New code follows the `domain/` + `application/` + `adapters/` + `infrastructure/` layout.
 
 ## Import Order
 
@@ -164,8 +172,8 @@ import { logger } from '@trading-model/common';
 import AddressManager from '@trading-model/address-manager';
 
 // 4. Internal relative imports
-import { ServiceRegistry } from '../core/ServiceRegistry';
-import { validateToken } from '../middleware/auth.middleware';
+import { ServiceRegistry } from '../domain/service-registry';
+import { validateToken } from '../adapters/inbound/auth.middleware';
 
 // 5. Side effects
 import './setup-tests';

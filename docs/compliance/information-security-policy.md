@@ -143,15 +143,15 @@ Implementation: `@trading-model/common/config/logger.ts`
 |---|---|
 | **Design** | Architecture Decision Records (ADRs), threat modelling |
 | **Implementation** | Biome linting, TypeScript strict mode, no `any` types |
-| **Testing** | Unit tests (100% coverage threshold for most packages), contract tests, E2E tests |
+| **Testing** | Unit tests (80% coverage threshold across all workspaces), contract tests, E2E tests |
 | **Review** | PR review required, commitlint enforces semantic commits |
-| **Audit** | `bun audit` in CI, dependency scanning, secrets scanning (truffleHog) |
-| **Deployment** | Container image signing, SBOM generation, multi-stage Docker builds |
+| **Audit** | `bun audit` (local/periodic), Dependabot weekly dependency updates |
+| **Deployment** | Multi-stage Docker builds |
 
 ### 10.2 Dependency Management
 
 - `bun install --frozen-lockfile` for reproducible builds
-- Automated dependency updates via CI (audit job)
+- Automated dependency updates via Dependabot (weekly)
 - Lockfile maintained in version control
 
 ## 11. Incident Response

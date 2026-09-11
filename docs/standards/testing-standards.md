@@ -86,20 +86,26 @@ describe('MyComponent', () => {
 
 ## Coverage Thresholds
 
+All workspaces enforce an **80%** global threshold (statements, branches, functions, lines), with a few branch-only exceptions. Below the threshold, tests fail.
+
 | Package / Service              | Branches | Functions | Lines | Statements | Framework |
 | ------------------------------ | -------- | --------- | ----- | ---------- | --------- |
-| @trading-model/common          | 100%     | 100%      | 100%  | 100%       | Jest      |
-| discovery-server               | 100%     | 100%      | 100%  | 100%       | Jest      |
-| message-manager                | 100%     | 100%      | 100%  | 100%       | Jest      |
-| financial-scraper              | 100%     | 100%      | 100%  | 100%       | Jest      |
-| audit-logger                   | 100%     | 100%      | 100%  | 100%       | Jest      |
-| admin-interface                | 100%     | 100%      | 100%  | 100%       | Vitest    |
+| @trading-model/common          | 80%      | 80%       | 80%   | 80%        | Jest      |
+| @trading-model/validation      | 80%      | 80%       | 80%   | 80%        | Jest      |
+| @trading-model/server-utils    | 80%      | 80%       | 80%   | 80%        | Jest      |
+| @trading-model/crypto          | 80%      | 80%       | 80%   | 80%        | Jest      |
 | @trading-model/address-manager | 80%      | 80%       | 80%   | 80%        | Jest      |
-| @trading-model/broker-message  | 80%      | 80%       | 80%   | 80%        | Jest      |
+| @trading-model/broker-message  | 75%      | 80%       | 80%   | 80%        | Jest      |
+| discovery-server               | 80%      | 80%       | 80%   | 80%        | Jest      |
+| message-manager                | 79%      | 80%       | 80%   | 80%        | Jest      |
+| financial-scraper              | 80%      | 80%       | 80%   | 80%        | Jest      |
 | trader-trainer                 | 80%      | 80%       | 80%   | 80%        | Jest      |
-| dlq-service                    | 80%      | 80%       | 80%   | 80%        | Jest      |
+| api-gateway                    | 80%      | 80%       | 80%   | 80%        | Jest      |
+| audit-logger                   | 80%      | 80%       | 80%   | 80%        | Jest      |
+| dlq-service                    | 79%      | 80%       | 80%   | 80%        | Jest      |
+| admin-interface                | 80%      | 80%       | 80%   | 80%        | Vitest    |
 
-Coverage is checked by Jest on every test run. Below the threshold, tests fail.
+Coverage is checked by Jest/Vitest on every test run (`bun run test:coverage`).
 
 ### Generate HTML report
 

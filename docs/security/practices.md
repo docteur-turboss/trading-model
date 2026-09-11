@@ -29,7 +29,7 @@ Each SVID carries a SPIFFE URI SAN (`spiffe://trading-model.local/ns/<namespace>
 ### mTLS Configuration in the Service
 
 ```typescript
-import { createSecureServer } from '@trading-model/common/server/create-secure-server';
+import { createSecureServer } from '@trading-model/server-utils/adapters/inbound/create-secure-server';
 import { env } from '../config/env';
 
 export function createServer() {

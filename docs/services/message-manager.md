@@ -9,17 +9,18 @@ Pub/sub message brokering service with delivery guarantees and MongoDB persisten
 | Service name     | `message-manager`                                         |
 | Port (host)      | `8444`                                                             |
 | Port (container) | `3000`                                                             |
-| Dependencies     | `@trading-model/common`, `@trading-model/address-manager`, MongoDB |
-| Persistence      | MongoDB (planned — currently in-memory with Zod validation)        |
+| Dependencies     | common, validation, server-utils, crypto, address-manager, broker-message |
+| Persistence      | Redis Streams (WAL) + MongoDB archive                              |
 | Validation       | Zod (dedicated schemas)                                            |
 
 ## Messaging Model
 
-- Topic-based publish/subscribe over HTTP
-- In-memory subscription registry with instance-level deduplication
+- Topic-based publish/subscribe over HTTP and WebSocket (WSS)
+- Subscription registry with instance-level deduplication
 - Three delivery semantics: `AT_MOST_ONCE`, `AT_LEAST_ONCE`, `EXACTLY_ONCE`
-- TTL-based message expiration with Dead Letter Queue routing
+- TTL-based message expiration with Dead Letter Queue routing (via `dlq-service`)
 - Parallel dispatch to all subscribers of a topic
+- Write-ahead log (WAL) backed by Redis Streams; MongoDB archive for long-term storage
 
 ## REST Endpoints
 
@@ -113,7 +114,7 @@ Messages can include an optional `security` block within metadata, containing:
   - `tenantId` (string) — Tenant or partition identifier
 - **`signature`** (string, optional) — Message integrity signature
 
-Previously validated as `z.unknown()`, the `authContext` object is now strictly validated against this schema to align with the canonical `SecurityType` interface in `@trading-model/common/contracts/message.types`.
+Previously validated as `z.unknown()`, the `authContext` object is now strictly validated against this schema to align with the canonical `SecurityType` interface in `@trading-model/validation/domain/contracts/message.types`.
 
 ## Features
 
@@ -121,7 +122,7 @@ Previously validated as `z.unknown()`, the `authContext` object is now strictly 
 - **Retry with backoff**: `AT_LEAST_ONCE` retries up to 10 times with exponential backoff (1s base, 60s cap) and ±20% random jitter
 - **Circuit breaker**: After 5 consecutive dispatch failures, new messages are routed directly to the Dead Letter Queue to prevent cascading failures; the breaker resets on the next successful delivery
 - **Alerting**: Persistent delivery failures are logged at ERROR level with topic, service name, and attempt count
-- **Dead Letter Queue**: Undelivered messages persisted as JSON Lines (NDJSON) to `dead-letter-queue.jsonl` with failure reason, delivery attempt count, and timestamp
+- **Dead Letter Queue**: Undelivered messages are routed to the `dlq-service` over HTTP (local JSON Lines fallback to `dead-letter-queue.jsonl` when the DLQ service is unreachable)
 - **Deduplication**: Via `deduplicationId` in delivery metadata
 - **Partitioning**: Via `partitionKey` in routing metadata
 - **Priority**: Via `priority` in routing metadata
@@ -129,15 +130,18 @@ Previously validated as `z.unknown()`, the `authContext` object is now strictly 
 ## Internal Architecture
 
 ```
-HTTP Routes (http.routes.ts)
-  → Controllers (http.controller.ts)
-    → Zod Schemas (broker.schema.ts)
-      → Broker (core/broker.ts)
-        → Subscription Manager (core/subscription.ts)
-        → Message Dispatcher (core/dispatcher.ts)
-        → Dead Letter Queue (core/dlq-repository.ts)
-        → Message Store (core/message.ts + MongoDB)
+HTTP Routes (src/messaging/transport/http.routes.ts)
+  → Controllers (src/messaging/transport/http.controller.ts)
+    → Zod Schemas (src/messaging/transport/validation/broker.schema.ts)
+      → Dispatcher (src/messaging/core/dispatcher.ts)
+        → Subscription Registry (src/messaging/core/subscription-registry.ts)
+        → Delivery (src/adapters/outbound/http-message-delivery.ts)
+        → DLQ client (src/messaging/core/dlq-client.ts → dlq-service)
+        → WAL / Redis Streams (src/infrastructure/redis/*)
+        → MongoDB archive (src/messaging/core/mongo-archive-store.ts)
 ```
+
+A WSS transport (`src/messaging/transport/wss-*`) accepts broker connections over secure WebSockets (rate-limited, with broadcast to subscribers).
 
 ## Deployment
 

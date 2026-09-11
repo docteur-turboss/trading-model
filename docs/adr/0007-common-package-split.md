@@ -3,6 +3,8 @@
 **Status:** Accepted
 **Date:** 2026-06
 
+> **Outcome (2026-09):** The split was implemented with deviations from the plan below. Extracted packages: `@trading-model/validation`, `@trading-model/server-utils`, `@trading-model/crypto`. The planned `@trading-model/http` and `@trading-model/jobs` were **not** created — their domains stayed in `@trading-model/common` (`config/` + `middleware/` and `worker/` + `recovery/` respectively). `@trading-model/address-manager` and `@trading-model/broker-message` remain separate packages. Final workspace set: **6 packages** — `common`, `validation`, `server-utils`, `crypto`, `address-manager`, `broker-message`.
+
 ## Context
 
 `@trading-model/common` has grown to 69 files across 14 unrelated domains (server bootstrapping, middleware, crypto, worker protocols, recovery, validation, contracts, feature flags, circuit breakers, etc.). This God Object antipattern causes:

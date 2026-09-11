@@ -3,9 +3,11 @@
 **Status:** Accepted
 **Date:** 2026-06
 
+> **Note:** The npm→bun migration is complete — `bun.lock` is the only lockfile in the repo (`package-lock.json` has been removed).
+
 ## Context
 
-The platform consists of 5 shared libraries and 9 microservices that must be developed, tested, and deployed together. Key requirements:
+The platform consists of 6 shared libraries and 8 microservices that must be developed, tested, and deployed together. Key requirements:
 
 - Shared type definitions across all services
 - Consistent build and test tooling
