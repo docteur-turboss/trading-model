@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html class="dark" lang="en" data-tm-processed="true"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no" name="viewport">
+<title>Pull Request Standards | trading-model</title>
+
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+
+<script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              400: '#818cf8',
+              500: '#6366f1',
+              600: '#4f46e5',
+            },
+            surface: {
+              base: '#0B0F19',
+              card: '#111827',
+              muted: '#1E293B',
+              border: '#243046',
+            },
+            code: {
+              bg: '#0c121e',
+              keyword: '#c084fc',
+              ident: '#38bdf8',
+              type: '#34d399',
+              punct: '#94a3b8'
+            }
+          },
+          fontFamily: {
+            mono: ['JetBrains Mono', 'Fira Code', 'Menlo', 'Monaco', 'Courier New', 'monospace'],
+            sans: ['-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Inter', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+
+<style data-purpose="mobile-ux-styles">
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    .active-scale:active { transform: scale(0.97); transition: transform 0.1s ease-out; }
+    .h-safe-top { height: env(safe-area-inset-top, 0px); }
+    .pt-safe { padding-top: env(safe-area-inset-top, 0px); }
+    @supports (backdrop-filter: blur(12px)) {
+      .glass-header { backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
+    }
+    
+    .tm-prose p { margin: 0.5rem 0; }
+    .tm-prose p:first-child { margin-top: 0; }
+    .tm-prose p:last-child { margin-bottom: 0; }
+    .tm-prose a { color: #818cf8; text-decoration: underline; text-underline-offset: 2px; }
+    .tm-prose a:hover { color: #a5b4fc; }
+    .tm-prose code { font-family: 'JetBrains Mono', 'Fira Code', Menlo, Monaco, 'Courier New', monospace; font-size: 0.82em; color: #fbbf24; background: #0c121e; border: 1px solid #243046; border-radius: 0.25rem; padding: 0.05rem 0.3rem; }
+    .tm-prose pre { background: #0c121e; border: 1px solid #243046; border-radius: 0.5rem; padding: 0.75rem; overflow-x: auto; margin: 0.5rem 0; }
+    .tm-prose pre code { background: transparent; border: none; padding: 0; color: #e2e8f0; }
+    .tm-prose ul, .tm-prose ol { padding-left: 1.25rem; margin: 0.5rem 0; }
+    .tm-prose ul { list-style: disc; }
+    .tm-prose ol { list-style: decimal; }
+    .tm-prose li { margin: 0.2rem 0; }
+    .tm-prose blockquote { border-left: 3px solid #6366f1; background: rgba(17, 24, 39, 0.6); padding: 0.5rem 0.75rem; border-radius: 0 0.5rem 0.5rem 0; color: #94a3b8; margin: 0.5rem 0; }
+    .tm-prose h1, .tm-prose h2, .tm-prose h3, .tm-prose h4, .tm-prose h5 { color: #ffffff; font-weight: 700; margin: 0.75rem 0 0.25rem; }
+    .tm-prose h1 { font-size: 1.25rem; }
+    .tm-prose h2 { font-size: 1.125rem; }
+    .tm-prose h3 { font-size: 1rem; }
+    .tm-prose h4 { font-size: 0.875rem; }
+    .tm-prose table { width: 100%; border-collapse: collapse; margin: 0.5rem 0; }
+    .tm-prose th, .tm-prose td { border: 1px solid #243046; padding: 0.4rem 0.6rem; text-align: left; }
+    .tm-prose thead th { background: #0b0f19; color: #e2e8f0; font-size: 0.75rem; text-transform: uppercase; }
+    .tm-prose strong { color: #ffffff; }
+  </style>
+
+</head>
+<body class="bg-[#080C15] text-slate-200 font-sans antialiased min-h-screen pb-24 selection:bg-indigo-500/30 selection:text-indigo-200">
+
+<header class="sticky top-0 z-40 w-full glass-header bg-[#0B0F19]/90 border-b border-surface-border">
+<div class="h-safe-top pt-safe"></div>
+<div class="px-4 py-2.5 flex items-center justify-between gap-3">
+<div class="flex items-center gap-2.5 min-w-0">
+
+<div class="flex flex-col min-w-0">
+<div class="flex items-center gap-1.5 truncate">
+<span class="font-mono text-xs font-semibold text-indigo-400 truncate tracking-tight"><a class="text-indigo-400 hover:text-indigo-300 hover:underline" href="../../index.html">trading-model</a></span>
+
+</div>
+<span class="text-[10px] text-slate-400 flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> TypeDoc API Reference
+</span>
+</div>
+</div>
+
+</div>
+</header>
+
+<main class="px-4 py-4 max-w-2xl mx-auto flex flex-col gap-6">
+
+<section class="space-y-2.5" data-purpose="breadcrumbs-and-header">
+<nav aria-label="Breadcrumb" class="flex items-center flex-wrap gap-1 text-[11px] font-mono text-slate-400">
+<a class="text-indigo-400 hover:underline" href="../../index.html">trading-model</a><span class="text-slate-600">/</span><span class="text-slate-300 font-medium">Pull Request Standards</span>
+</nav>
+<div class="flex items-center gap-2.5 pt-1">
+<span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-mono font-medium tracking-wide uppercase bg-indigo-500/10 text-indigo-400 border-indigo-500/20">
+Documentation
+</span>
+<h1 class="text-2xl font-bold tracking-tight text-white font-sans">Pull Request Standards</h1>
+</div>
+
+</section>
+
+<div class="tm-prose text-sm leading-relaxed text-slate-300 font-sans"><div>
+<h2>Why</h2>
+<p>Pull requests are the primary quality control checkpoint of the project. A well-structured PR accelerates review, guarantees traceability of changes, and lets CI act as a safety net.</p>
+<h2>Target Branch</h2>
+<table>
+<thead>
+<tr>
+<th>Branch</th>
+<th>Usage</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>development</code></td>
+<td>Integration branch for feature branches</td>
+</tr>
+<tr>
+<td><code>main</code></td>
+<td>Release branch — merges from <code>development</code> only</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><strong>Feature branches</strong> (feature, fix, refactor, etc.) must merge into <code>development</code></li>
+<li><strong>Releases</strong> are merged from <code>development</code> to <code>main</code></li>
+<li><strong>Hotfixes</strong> may merge directly to <code>main</code> in emergencies, then be cherry-picked to <code>development</code></li>
+</ul>
+<h2>Branch Naming</h2>
+<pre><code>feature/&lt;description&gt;
+fix/&lt;description&gt;
+refactor/&lt;description&gt;
+docs/&lt;description&gt;
+chore/&lt;description&gt;
+</code></pre>
+<p>Examples:</p>
+<pre><code>feature/token-refresh-mechanism
+fix/missing-fields-scraper
+refactor/extract-validation-logic
+docs/api-endpoints-discovery
+chore/update-typescript-6
+</code></pre>
+<h2>PR Template</h2>
+<p>A PR template exists at <code>.github/PULL_REQUEST_TEMPLATE.md</code>. GitHub uses this template automatically when creating a PR.</p>
+<pre><code class="language-markdown"># Description
+
+Briefly describe what this PR does.
+
+## Type of Change
+
+- [ ] :sparkles: feat — New feature
+- [ ] :bug: fix — Bug fix
+- [ ] :memo: docs — Documentation
+- [ ] :recycle: refactor — Code restructuring
+- [ ] :white_check_mark: test — Tests
+- [ ] :wrench: chore — Configuration / tooling
+- [ ] :construction_worker: ci — CI/CD
+- [ ] :lock: security — Security
+
+## Changes
+
+### ✅ Additions
+
+- ...
+
+### :recycle: Modifications
+
+- ...
+
+### :fire: Removals
+
+- ...
+
+## Breaking Changes
+
+- [ ] Yes (describe below)
+- [ ] No
+
+If yes, describe impact and migration:
+
+## Tests
+
+- [ ] Existing tests pass
+- [ ] New tests added
+- [ ] Manual tests performed
+
+## Checklist
+
+- [ ] `bun run lint` — 0 errors
+- [ ] `bun run build` — Success
+- [ ] `bun run test` — All tests pass
+
+## Closes Issues
+
+Closes #&lt;issue_number&gt;
+
+## Additional Notes
+
+Any additional context useful for the reviewer.
+</code></pre>
+<h2>Required Checks</h2>
+<p>Before a PR can be merged, it must pass all of the following checks:</p>
+<table>
+<thead>
+<tr>
+<th>Check</th>
+<th>Command</th>
+<th>Trigger</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Lint</strong></td>
+<td><code>bun run lint</code></td>
+<td>Push / PR</td>
+</tr>
+<tr>
+<td><strong>Build</strong></td>
+<td><code>bun run build</code></td>
+<td>Push / PR</td>
+</tr>
+<tr>
+<td><strong>Test</strong></td>
+<td><code>bun run test:coverage</code></td>
+<td>Push / PR</td>
+</tr>
+</tbody>
+</table>
+<p>These checks run automatically via GitHub Actions in <code>.github/workflows/ci.yml</code>.</p>
+<h2>Review</h2>
+<ul>
+<li><strong>At least 1 approval required</strong> to merge</li>
+<li>Reviewers must verify:
+<ul>
+<li>Compliance with project standards (naming, structure, style)</li>
+<li>Test coverage</li>
+<li>No regressions</li>
+<li>Architectural relevance</li>
+</ul>
+</li>
+<li>Comments must be constructive and specific</li>
+<li>The PR author must respond to each comment (resolution or discussion)</li>
+<li>Use <strong>Squash &amp; Merge</strong> into <code>development</code>, then delete the branch</li>
+</ul>
+<h2>Labels</h2>
+<table>
+<thead>
+<tr>
+<th>Label</th>
+<th>Usage</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>enhancement</code></td>
+<td>New feature or improvement</td>
+</tr>
+<tr>
+<td><code>bug</code></td>
+<td>Bug fix</td>
+</tr>
+<tr>
+<td><code>documentation</code></td>
+<td>Documentation changes</td>
+</tr>
+<tr>
+<td><code>refactor</code></td>
+<td>Restructuring without behavior change</td>
+</tr>
+<tr>
+<td><code>dependencies</code></td>
+<td>Dependency updates</td>
+</tr>
+</tbody>
+</table>
+<h2>Example PR Description</h2>
+<pre><code class="language-markdown"># Description
+
+Centralize the `ServiceInstance` type in @trading-model/common to avoid
+duplication between discovery-server and message-manager.
+
+## Type of Change
+
+- [x] :recycle: refactor — Code restructuring
+
+## Changes
+
+### ✅ Additions
+
+- Type `ServiceId` in `packages/common/src/domain/primitives/general-ids.ts`
+- Unit tests for the new type
+
+### :recycle: Modifications
+
+- Discovery-server now imports from `@trading-model/common/domain`
+- Message-manager now imports from `@trading-model/common/domain`
+- Removed duplicate definitions in each service
+
+### :fire: Removals
+
+- `services/discovery-server/src/types/service-instance.ts`
+- `services/message-manager/src/types/service-instance.ts`
+
+## Breaking Changes
+
+No — the type is identical, only the import path changes.
+
+## Tests
+
+- [x] Existing tests pass
+- [x] New tests added for the centralized type
+- [x] Manual tests performed (verified imports)
+
+## Checklist
+
+- [x] `bun run lint` — 0 errors
+- [x] `bun run build` — Success
+- [x] `bun run test` — All tests pass
+
+## Closes Issues
+
+Closes #89
+
+## Additional Notes
+
+This PR is part of the shared type standardization initiative (#85).
+</code></pre>
+<h2>References</h2>
+<ul>
+<li><a href="commit-standards.html">Commit Standards</a> — Commit message format</li>
+<li><a href="../ci-cd/README.html">CI/CD</a> — CI/CD workflows</li>
+<li><code>.github/PULL_REQUEST_TEMPLATE.md</code> — PR template</li>
+</ul>
+</div></div>
+</main>
+</body>
+</html>

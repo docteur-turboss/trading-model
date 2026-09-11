@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html class="dark" lang="en" data-tm-processed="true"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no" name="viewport">
+<title>Incident Response | trading-model</title>
+
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+
+<script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              400: '#818cf8',
+              500: '#6366f1',
+              600: '#4f46e5',
+            },
+            surface: {
+              base: '#0B0F19',
+              card: '#111827',
+              muted: '#1E293B',
+              border: '#243046',
+            },
+            code: {
+              bg: '#0c121e',
+              keyword: '#c084fc',
+              ident: '#38bdf8',
+              type: '#34d399',
+              punct: '#94a3b8'
+            }
+          },
+          fontFamily: {
+            mono: ['JetBrains Mono', 'Fira Code', 'Menlo', 'Monaco', 'Courier New', 'monospace'],
+            sans: ['-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Inter', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+
+<style data-purpose="mobile-ux-styles">
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    .active-scale:active { transform: scale(0.97); transition: transform 0.1s ease-out; }
+    .h-safe-top { height: env(safe-area-inset-top, 0px); }
+    .pt-safe { padding-top: env(safe-area-inset-top, 0px); }
+    @supports (backdrop-filter: blur(12px)) {
+      .glass-header { backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
+    }
+    
+    .tm-prose p { margin: 0.5rem 0; }
+    .tm-prose p:first-child { margin-top: 0; }
+    .tm-prose p:last-child { margin-bottom: 0; }
+    .tm-prose a { color: #818cf8; text-decoration: underline; text-underline-offset: 2px; }
+    .tm-prose a:hover { color: #a5b4fc; }
+    .tm-prose code { font-family: 'JetBrains Mono', 'Fira Code', Menlo, Monaco, 'Courier New', monospace; font-size: 0.82em; color: #fbbf24; background: #0c121e; border: 1px solid #243046; border-radius: 0.25rem; padding: 0.05rem 0.3rem; }
+    .tm-prose pre { background: #0c121e; border: 1px solid #243046; border-radius: 0.5rem; padding: 0.75rem; overflow-x: auto; margin: 0.5rem 0; }
+    .tm-prose pre code { background: transparent; border: none; padding: 0; color: #e2e8f0; }
+    .tm-prose ul, .tm-prose ol { padding-left: 1.25rem; margin: 0.5rem 0; }
+    .tm-prose ul { list-style: disc; }
+    .tm-prose ol { list-style: decimal; }
+    .tm-prose li { margin: 0.2rem 0; }
+    .tm-prose blockquote { border-left: 3px solid #6366f1; background: rgba(17, 24, 39, 0.6); padding: 0.5rem 0.75rem; border-radius: 0 0.5rem 0.5rem 0; color: #94a3b8; margin: 0.5rem 0; }
+    .tm-prose h1, .tm-prose h2, .tm-prose h3, .tm-prose h4, .tm-prose h5 { color: #ffffff; font-weight: 700; margin: 0.75rem 0 0.25rem; }
+    .tm-prose h1 { font-size: 1.25rem; }
+    .tm-prose h2 { font-size: 1.125rem; }
+    .tm-prose h3 { font-size: 1rem; }
+    .tm-prose h4 { font-size: 0.875rem; }
+    .tm-prose table { width: 100%; border-collapse: collapse; margin: 0.5rem 0; }
+    .tm-prose th, .tm-prose td { border: 1px solid #243046; padding: 0.4rem 0.6rem; text-align: left; }
+    .tm-prose thead th { background: #0b0f19; color: #e2e8f0; font-size: 0.75rem; text-transform: uppercase; }
+    .tm-prose strong { color: #ffffff; }
+  </style>
+
+</head>
+<body class="bg-[#080C15] text-slate-200 font-sans antialiased min-h-screen pb-24 selection:bg-indigo-500/30 selection:text-indigo-200">
+
+<header class="sticky top-0 z-40 w-full glass-header bg-[#0B0F19]/90 border-b border-surface-border">
+<div class="h-safe-top pt-safe"></div>
+<div class="px-4 py-2.5 flex items-center justify-between gap-3">
+<div class="flex items-center gap-2.5 min-w-0">
+
+<div class="flex flex-col min-w-0">
+<div class="flex items-center gap-1.5 truncate">
+<span class="font-mono text-xs font-semibold text-indigo-400 truncate tracking-tight"><a class="text-indigo-400 hover:text-indigo-300 hover:underline" href="../../index.html">trading-model</a></span>
+
+</div>
+<span class="text-[10px] text-slate-400 flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> TypeDoc API Reference
+</span>
+</div>
+</div>
+
+</div>
+</header>
+
+<main class="px-4 py-4 max-w-2xl mx-auto flex flex-col gap-6">
+
+<section class="space-y-2.5" data-purpose="breadcrumbs-and-header">
+<nav aria-label="Breadcrumb" class="flex items-center flex-wrap gap-1 text-[11px] font-mono text-slate-400">
+<a class="text-indigo-400 hover:underline" href="../../index.html">trading-model</a><span class="text-slate-600">/</span><span class="text-slate-300 font-medium">Incident Response</span>
+</nav>
+<div class="flex items-center gap-2.5 pt-1">
+<span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-mono font-medium tracking-wide uppercase bg-indigo-500/10 text-indigo-400 border-indigo-500/20">
+Documentation
+</span>
+<h1 class="text-2xl font-bold tracking-tight text-white font-sans">Incident Response</h1>
+</div>
+
+</section>
+
+<div class="tm-prose text-sm leading-relaxed text-slate-300 font-sans"><div>
+<h2>Severity Levels</h2>
+<table>
+<thead>
+<tr>
+<th>Severity</th>
+<th>Definition</th>
+<th>Response Time</th>
+<th>Escalation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>SEV1</strong></td>
+<td>Complete service outage, data loss, security breach</td>
+<td>15 min</td>
+<td>Engineering Manager + CTO</td>
+</tr>
+<tr>
+<td><strong>SEV2</strong></td>
+<td>Partial outage, degraded performance, feature unavailable</td>
+<td>1 hour</td>
+<td>Engineering Manager</td>
+</tr>
+<tr>
+<td><strong>SEV3</strong></td>
+<td>Minor issue, cosmetic bug, non-critical alert</td>
+<td>8 hours</td>
+<td>On-call engineer</td>
+</tr>
+<tr>
+<td><strong>SEV4</strong></td>
+<td>Question, enhancement, low-priority</td>
+<td>Next business day</td>
+<td>Team lead</td>
+</tr>
+</tbody>
+</table>
+<h2>Incident Response Process</h2>
+<h3>1. Detection</h3>
+<ul>
+<li>Automated alert from Prometheus/Alertmanager</li>
+<li>User report through support channel</li>
+<li>Monitoring dashboard anomaly</li>
+<li>Manual observation</li>
+</ul>
+<h3>2. Triage (first 5 minutes)</h3>
+<pre><code>Who is affected?        → All users / subset / internal only
+What is the impact?     → Data loss / downtime / degraded perf
+What service is down?   → [service name]
+Is there a known cause? → Recent deploy / config change / upstream outage
+</code></pre>
+<h3>3. Mitigation (first 15 minutes)</h3>
+<ul>
+<li><strong>SEV1/SEV2:</strong> Immediately rollback if caused by recent deployment</li>
+<li><strong>SEV1:</strong> Restore from backup if data loss</li>
+<li><strong>SEV1:</strong> Isolate affected service if cascading failure</li>
+<li>Document all actions in the incident channel</li>
+</ul>
+<h3>4. Resolution</h3>
+<ul>
+<li>Apply fix or mitigation</li>
+<li>Verify service health via:
+<ul>
+<li><code>GET /ping</code> returns 200</li>
+<li><code>GET /health</code> returns healthy</li>
+<li>Prometheus alert resolves</li>
+<li>E2E smoke tests pass</li>
+</ul>
+</li>
+</ul>
+<h3>5. Post-Mortem (within 48 hours)</h3>
+<ul>
+<li>Root cause analysis</li>
+<li>Timeline of events</li>
+<li>What went well / what went wrong</li>
+<li>Action items with owners and deadlines</li>
+</ul>
+<h2>Escalation Matrix</h2>
+<table>
+<thead>
+<tr>
+<th>Role</th>
+<th>Name</th>
+<th>Contact</th>
+<th>Hours</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>On-call Engineer</td>
+<td>PagerDuty <code>trading-model-oncall</code></td>
+<td>PagerDuty / #incidents Slack</td>
+<td>24/7</td>
+</tr>
+<tr>
+<td>Engineering Manager</td>
+<td><code>@trading-model/core</code> team lead</td>
+<td>#incidents Slack / Phone</td>
+<td>Business hours + escalation</td>
+</tr>
+<tr>
+<td>Security Lead</td>
+<td><code>@trading-model/security</code></td>
+<td><a href="mailto:security@trading-model.example.com">security@trading-model.example.com</a></td>
+<td>24/7 for security incidents</td>
+</tr>
+<tr>
+<td>CTO</td>
+<td><a href="mailto:cto@trading-model.example.com">cto@trading-model.example.com</a></td>
+<td>Phone / #incidents</td>
+<td>SEV1 escalation</td>
+</tr>
+</tbody>
+</table>
+<h2>Communication Channels</h2>
+<table>
+<thead>
+<tr>
+<th>Channel</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>#incidents</td>
+<td>SEV1/SEV2 coordination</td>
+</tr>
+<tr>
+<td>#alerts</td>
+<td>Automated alert notifications</td>
+</tr>
+<tr>
+<td>#ops</td>
+<td>Operational discussions</td>
+</tr>
+<tr>
+<td>On-call Phone</td>
+<td>Twilio Flex / PagerDuty</td>
+</tr>
+</tbody>
+</table>
+<h2>Post-Incident Checklist</h2>
+<ul>
+<li>[ ] Incident documented in post-mortem</li>
+<li>[ ] Root cause identified and fixed</li>
+<li>[ ] Monitoring improved to detect recurrence</li>
+<li>[ ] Runbook updated if gaps found</li>
+<li>[ ] Action items tracked with owners</li>
+<li>[ ] Stakeholders notified</li>
+</ul>
+<h2>Regulatory Breach Notification</h2>
+<p>This section applies when a security incident involves:</p>
+<ul>
+<li>Unauthorized access to or disclosure of secrets (SPIRE CA keys, service tokens, HMAC secrets)</li>
+<li>Data integrity compromise (audit log tampering, message forgery)</li>
+<li>Any incident that could trigger regulatory notification obligations</li>
+</ul>
+<h3>GDPR — Personal Data Breach Notification (Art. 33-34)</h3>
+<p>The trading-model platform processes <strong>no personal data</strong> under normal operation.
+However, if a breach incident is confirmed to involve personal data:</p>
+<table>
+<thead>
+<tr>
+<th>Requirement</th>
+<th>Detail</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Notification deadline</strong></td>
+<td>72 hours from discovery (Art. 33 GDPR)</td>
+</tr>
+<tr>
+<td><strong>Notify</strong></td>
+<td>Competent Supervisory Authority (see below)</td>
+</tr>
+<tr>
+<td><strong>Template</strong></td>
+<td><code>docs/compliance/breach-notification-template.md</code></td>
+</tr>
+<tr>
+<td><strong>Content</strong></td>
+<td>Nature of breach, categories of data, number of records, DPO contact, likely consequences, measures taken</td>
+</tr>
+<tr>
+<td><strong>Data subject notice</strong></td>
+<td>Required if high risk to rights/freedoms (Art. 34) — &quot;without undue delay&quot;</td>
+</tr>
+</tbody>
+</table>
+<h3>Financial Regulatory Reporting</h3>
+<p>If the system processes financial transactions subject to regulation:</p>
+<table>
+<thead>
+<tr>
+<th>Regulation</th>
+<th>Authority</th>
+<th>Reporting Obligation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>MiFID II</strong> (EU)</td>
+<td>AMF (France) / BaFin (Germany) / FCA (UK)</td>
+<td>Incident reporting to competent authority</td>
+</tr>
+<tr>
+<td><strong>MAR</strong> (EU)</td>
+<td>ESMA / National authority</td>
+<td>Suspicious transaction/order reporting</td>
+</tr>
+<tr>
+<td><strong>Dodd-Frank</strong> (US)</td>
+<td>CFTC / SEC</td>
+<td>Swap data reporting, whistleblower provisions</td>
+</tr>
+</tbody>
+</table>
+<h3>Notification Authorities</h3>
+<table>
+<thead>
+<tr>
+<th>Jurisdiction</th>
+<th>Authority</th>
+<th>Contact</th>
+<th>Deadline</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>France</td>
+<td>CNIL</td>
+<td><a href="https://www.cnil.fr/fr/notifier-une-violation-de-donnees">https://www.cnil.fr/fr/notifier-une-violation-de-donnees</a></td>
+<td>72h</td>
+</tr>
+<tr>
+<td>France (financial)</td>
+<td>AMF</td>
+<td><a href="https://www.amf-france.org">https://www.amf-france.org</a></td>
+<td>Per regulation</td>
+</tr>
+<tr>
+<td>Germany</td>
+<td>BfDI</td>
+<td><a href="https://www.bfdi.bund.de">https://www.bfdi.bund.de</a></td>
+<td>72h</td>
+</tr>
+<tr>
+<td>UK</td>
+<td>ICO</td>
+<td><a href="https://ico.org.uk">https://ico.org.uk</a></td>
+<td>72h</td>
+</tr>
+<tr>
+<td>EU (financial)</td>
+<td>ESMA</td>
+<td><a href="https://www.esma.europa.eu">https://www.esma.europa.eu</a></td>
+<td>Per regulation</td>
+</tr>
+</tbody>
+</table>
+<h3>Breach Notification Workflow</h3>
+<pre><code>1. DETECTION → Security incident identified (SEV1)
+2. ASSESSMENT → Does it involve personal data or regulatory data?
+   ├─ NO → Standard incident response (no regulatory notification)
+   └─ YES → CONTINUE
+3. CONTAINMENT → Isolate affected services
+4. NOTIFICATION → Within 72 hours:
+   a. Prepare notification using template
+   b. Legal/DPO review
+   c. Submit to authority
+5. DATA SUBJECTS → Notify if high risk (Art. 34)
+6. DOCUMENTATION → Record all actions, timeline, and decisions
+7. POST-MORTEM → Complete within 48 hours of resolution
+</code></pre>
+<h3>Breach Notification Content Checklist</h3>
+<ul>
+<li>[ ] Nature of the personal data breach</li>
+<li>[ ] Categories and approximate number of data subjects</li>
+<li>[ ] Categories and approximate number of personal data records</li>
+<li>[ ] Name and contact details of DPO or contact point</li>
+<li>[ ] Likely consequences of the breach</li>
+<li>[ ] Measures taken or proposed to address the breach</li>
+<li>[ ] Measures to mitigate possible adverse effects</li>
+</ul>
+</div></div>
+</main>
+</body>
+</html>

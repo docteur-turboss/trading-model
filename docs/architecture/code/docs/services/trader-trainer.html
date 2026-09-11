@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html class="dark" lang="en" data-tm-processed="true"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no" name="viewport">
+<title>trader-trainer — Genetic Algorithm Trading Trainer | trading-model</title>
+
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+
+<script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              400: '#818cf8',
+              500: '#6366f1',
+              600: '#4f46e5',
+            },
+            surface: {
+              base: '#0B0F19',
+              card: '#111827',
+              muted: '#1E293B',
+              border: '#243046',
+            },
+            code: {
+              bg: '#0c121e',
+              keyword: '#c084fc',
+              ident: '#38bdf8',
+              type: '#34d399',
+              punct: '#94a3b8'
+            }
+          },
+          fontFamily: {
+            mono: ['JetBrains Mono', 'Fira Code', 'Menlo', 'Monaco', 'Courier New', 'monospace'],
+            sans: ['-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Inter', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+
+<style data-purpose="mobile-ux-styles">
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    .active-scale:active { transform: scale(0.97); transition: transform 0.1s ease-out; }
+    .h-safe-top { height: env(safe-area-inset-top, 0px); }
+    .pt-safe { padding-top: env(safe-area-inset-top, 0px); }
+    @supports (backdrop-filter: blur(12px)) {
+      .glass-header { backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
+    }
+    
+    .tm-prose p { margin: 0.5rem 0; }
+    .tm-prose p:first-child { margin-top: 0; }
+    .tm-prose p:last-child { margin-bottom: 0; }
+    .tm-prose a { color: #818cf8; text-decoration: underline; text-underline-offset: 2px; }
+    .tm-prose a:hover { color: #a5b4fc; }
+    .tm-prose code { font-family: 'JetBrains Mono', 'Fira Code', Menlo, Monaco, 'Courier New', monospace; font-size: 0.82em; color: #fbbf24; background: #0c121e; border: 1px solid #243046; border-radius: 0.25rem; padding: 0.05rem 0.3rem; }
+    .tm-prose pre { background: #0c121e; border: 1px solid #243046; border-radius: 0.5rem; padding: 0.75rem; overflow-x: auto; margin: 0.5rem 0; }
+    .tm-prose pre code { background: transparent; border: none; padding: 0; color: #e2e8f0; }
+    .tm-prose ul, .tm-prose ol { padding-left: 1.25rem; margin: 0.5rem 0; }
+    .tm-prose ul { list-style: disc; }
+    .tm-prose ol { list-style: decimal; }
+    .tm-prose li { margin: 0.2rem 0; }
+    .tm-prose blockquote { border-left: 3px solid #6366f1; background: rgba(17, 24, 39, 0.6); padding: 0.5rem 0.75rem; border-radius: 0 0.5rem 0.5rem 0; color: #94a3b8; margin: 0.5rem 0; }
+    .tm-prose h1, .tm-prose h2, .tm-prose h3, .tm-prose h4, .tm-prose h5 { color: #ffffff; font-weight: 700; margin: 0.75rem 0 0.25rem; }
+    .tm-prose h1 { font-size: 1.25rem; }
+    .tm-prose h2 { font-size: 1.125rem; }
+    .tm-prose h3 { font-size: 1rem; }
+    .tm-prose h4 { font-size: 0.875rem; }
+    .tm-prose table { width: 100%; border-collapse: collapse; margin: 0.5rem 0; }
+    .tm-prose th, .tm-prose td { border: 1px solid #243046; padding: 0.4rem 0.6rem; text-align: left; }
+    .tm-prose thead th { background: #0b0f19; color: #e2e8f0; font-size: 0.75rem; text-transform: uppercase; }
+    .tm-prose strong { color: #ffffff; }
+  </style>
+
+</head>
+<body class="bg-[#080C15] text-slate-200 font-sans antialiased min-h-screen pb-24 selection:bg-indigo-500/30 selection:text-indigo-200">
+
+<header class="sticky top-0 z-40 w-full glass-header bg-[#0B0F19]/90 border-b border-surface-border">
+<div class="h-safe-top pt-safe"></div>
+<div class="px-4 py-2.5 flex items-center justify-between gap-3">
+<div class="flex items-center gap-2.5 min-w-0">
+
+<div class="flex flex-col min-w-0">
+<div class="flex items-center gap-1.5 truncate">
+<span class="font-mono text-xs font-semibold text-indigo-400 truncate tracking-tight"><a class="text-indigo-400 hover:text-indigo-300 hover:underline" href="../../index.html">trading-model</a></span>
+
+</div>
+<span class="text-[10px] text-slate-400 flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> TypeDoc API Reference
+</span>
+</div>
+</div>
+
+</div>
+</header>
+
+<main class="px-4 py-4 max-w-2xl mx-auto flex flex-col gap-6">
+
+<section class="space-y-2.5" data-purpose="breadcrumbs-and-header">
+<nav aria-label="Breadcrumb" class="flex items-center flex-wrap gap-1 text-[11px] font-mono text-slate-400">
+<a class="text-indigo-400 hover:underline" href="../../index.html">trading-model</a><span class="text-slate-600">/</span><span class="text-slate-300 font-medium">trader-trainer — Genetic Algorithm Trading Trainer</span>
+</nav>
+<div class="flex items-center gap-2.5 pt-1">
+<span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-mono font-medium tracking-wide uppercase bg-indigo-500/10 text-indigo-400 border-indigo-500/20">
+Documentation
+</span>
+<h1 class="text-2xl font-bold tracking-tight text-white font-sans">trader-trainer — Genetic Algorithm Trading Trainer</h1>
+</div>
+
+</section>
+
+<div class="tm-prose text-sm leading-relaxed text-slate-300 font-sans"><div>
+<p>Training service for trading agents using genetic algorithms and neural networks.</p>
+<h2>General Information</h2>
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Service name</td>
+<td><code>trader-trainer</code></td>
+</tr>
+<tr>
+<td>Port (host)</td>
+<td><code>8446</code></td>
+</tr>
+<tr>
+<td>Port (container)</td>
+<td><code>3000</code></td>
+</tr>
+<tr>
+<td>Dependencies</td>
+<td><code>@trading-model/common</code>, <code>@trading-model/address-manager</code>, <code>@trading-model/broker-message</code></td>
+</tr>
+</tbody>
+</table>
+<h2>REST Endpoints</h2>
+<p><strong>Base URL</strong>: <code>https://&lt;service-host&gt;:&lt;PORT&gt;</code></p>
+<table>
+<thead>
+<tr>
+<th>Route</th>
+<th>Method</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>/ping</code></td>
+<td>GET</td>
+<td>Health check (built-in via <code>createSecureServer</code>)</td>
+</tr>
+<tr>
+<td><code>/training-status</code></td>
+<td>GET</td>
+<td>Current training status</td>
+</tr>
+<tr>
+<td><code>/best-agent</code></td>
+<td>GET</td>
+<td>Best trained agent</td>
+</tr>
+<tr>
+<td><code>/address-manager/*</code></td>
+<td>GET</td>
+<td>Service discovery routes (from AddressManager)</td>
+</tr>
+<tr>
+<td><code>/message</code></td>
+<td>POST</td>
+<td>Message bus callback (market data ingestion)</td>
+</tr>
+</tbody>
+</table>
+<h3><code>GET /ping</code></h3>
+<p><strong>Response</strong> <code>200 OK</code>:</p>
+<pre><code class="language-json">{
+  &quot;status&quot;: &quot;ok&quot;,
+  &quot;service&quot;: &quot;Trader Trainer&quot;,
+  &quot;timestamp&quot;: &quot;...&quot;
+}
+</code></pre>
+<h3><code>GET /training-status</code></h3>
+<p><strong>Response</strong> <code>200 OK</code>:</p>
+<pre><code class="language-json">{
+  &quot;data&quot;: {
+    &quot;training&quot;: true,
+    &quot;symbol&quot;: &quot;BTCUSDT&quot;,
+    &quot;generation&quot;: 42
+  }
+}
+</code></pre>
+<h3><code>GET /best-agent</code></h3>
+<p>Returns the best trained agent summary from the most recent generation.</p>
+<p><strong>Response</strong> <code>200 OK</code>:</p>
+<pre><code class="language-json">{
+  &quot;data&quot;: {
+    &quot;agent&quot;: {
+      &quot;id&quot;: &quot;a1b2c3d4&quot;,
+      &quot;generation&quot;: 42,
+      &quot;fitness&quot;: 1.8345,
+      &quot;sharpe&quot;: 1.92,
+      &quot;avgPnl&quot;: 145.32,
+      &quot;negFlops&quot;: -123456,
+      &quot;complexityPenalty&quot;: 0,
+      &quot;gaControl&quot;: {
+        &quot;populationSize&quot;: 20,
+        &quot;elitismFraction&quot;: 0.1,
+        &quot;survivorFraction&quot;: 0.5,
+        &quot;episodesPerIndividual&quot;: 3,
+        &quot;selectionType&quot;: &quot;tournament&quot;,
+        &quot;fitnessType&quot;: &quot;total_pnl&quot;
+      },
+      &quot;network&quot;: {
+        &quot;inputDim&quot;: 32,
+        &quot;outputDim&quot;: 3,
+        &quot;hiddenLayers&quot;: [
+          { &quot;neurons&quot;: 64, &quot;activation&quot;: &quot;ReLu&quot; },
+          { &quot;neurons&quot;: 32, &quot;activation&quot;: &quot;ReLu&quot; }
+        ]
+      },
+      &quot;rl&quot;: {
+        &quot;gamma&quot;: 0.99,
+        &quot;learningRate&quot;: 0.001,
+        &quot;epsilonStart&quot;: 1.0,
+        &quot;epsilonMin&quot;: 0.05,
+        &quot;epsilonDecay&quot;: 0.995
+      }
+    },
+    &quot;training&quot;: false,
+    &quot;symbol&quot;: &quot;BTCUSDT&quot;,
+    &quot;generation&quot;: 42
+  }
+}
+</code></pre>
+<p><strong>Response</strong> <code>404 Not Found</code>:</p>
+<pre><code class="language-json">{
+  &quot;data&quot;: {
+    &quot;status&quot;: 404,
+    &quot;message&quot;: &quot;No trained agent available at the moment.&quot;
+  }
+}
+</code></pre>
+<h3>BestAgentSummary Type</h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>id</td>
+<td>string</td>
+<td>Unique genome identifier</td>
+</tr>
+<tr>
+<td>generation</td>
+<td>number</td>
+<td>Generation when this genome was produced</td>
+</tr>
+<tr>
+<td>fitness</td>
+<td>number</td>
+<td>Scalar fitness score</td>
+</tr>
+<tr>
+<td>sharpe</td>
+<td>number</td>
+<td>Sharpe-like ratio of episode returns</td>
+</tr>
+<tr>
+<td>avgPnl</td>
+<td>number</td>
+<td>Average P&amp;L across evaluation episodes</td>
+</tr>
+<tr>
+<td>negFlops</td>
+<td>number</td>
+<td>Negative FLOPs (complexity indicator)</td>
+</tr>
+<tr>
+<td>complexityPenalty</td>
+<td>number</td>
+<td>Complexity penalty applied to fitness</td>
+</tr>
+<tr>
+<td>gaControl</td>
+<td>object</td>
+<td>GA meta-parameters used</td>
+</tr>
+<tr>
+<td>network</td>
+<td>object</td>
+<td>Neural network architecture</td>
+</tr>
+<tr>
+<td>rl</td>
+<td>object</td>
+<td>Reinforcement learning hyperparameters</td>
+</tr>
+</tbody>
+</table>
+<h2>Market Data Subscription</h2>
+<p>The service subscribes to <strong>6 topics</strong> via the message-manager:</p>
+<table>
+<thead>
+<tr>
+<th>Topic</th>
+<th>Data</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>market.candlestick.series.fetch</code></td>
+<td>OHLCV candles</td>
+</tr>
+<tr>
+<td><code>market.trade.recent.fetch</code></td>
+<td>Recent trades</td>
+</tr>
+<tr>
+<td><code>market.order-book.snapshot.fetch</code></td>
+<td>Order book snapshot</td>
+</tr>
+<tr>
+<td><code>market.order-book-ticker.snapshot.fetch</code></td>
+<td>Best bid/ask</td>
+</tr>
+<tr>
+<td><code>market.ticker.24hr-stats.fetch</code></td>
+<td>24h statistics</td>
+</tr>
+<tr>
+<td><code>market.price-ticker.snapshot.fetch</code></td>
+<td>Current price</td>
+</tr>
+</tbody>
+</table>
+<p>Data is stored in a <code>MarketDataBuffer</code> (configurable window via <code>TRAINER_DATA_WINDOW</code>).</p>
+<h2>Training Loop</h2>
+<ul>
+<li><strong>Trigger</strong>: once 50 candles are available for a symbol</li>
+<li><strong>Frequency</strong>: every 60 seconds</li>
+<li><strong>Condition</strong>: at least 10% of <code>TRAINER_DATA_WINDOW</code> available</li>
+<li><strong>Parallelism</strong>: one training session at a time (<code>trainer.isTraining()</code>)</li>
+</ul>
+<p>See <a href="../reference/training-process.html">Training Process — Reference</a> for the full pipeline description.</p>
+<h2>GA &amp; Neural Network Architecture</h2>
+<p>The trader-trainer implements a <strong>self-adaptive multi-objective genetic algorithm</strong> with configurable feedforward neural networks for Deep Q-Learning. See these docs for detailed reference:</p>
+<table>
+<thead>
+<tr>
+<th>Doc</th>
+<th>Content</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="../../services/trader-trainer/ARCHITECTURE.html">Service Architecture</a></td>
+<td>Full module breakdown, design decisions, training loop, performance metrics</td>
+</tr>
+<tr>
+<td><a href="../reference/genetic-algorithm.html">GA Reference</a></td>
+<td>Genome structure, genetic operators, NSGA-II, adaptive control</td>
+</tr>
+<tr>
+<td><a href="../reference/neural-network.html">NN Reference</a></td>
+<td>Network architecture, activation functions, optimizers, loss functions</td>
+</tr>
+</tbody>
+</table>
+<h2>Environment Variables (TRAINER_*)</h2>
+<table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>TRAINER_SYMBOLS</code></td>
+<td>Symbols to trade (comma-separated)</td>
+</tr>
+<tr>
+<td><code>TRAINER_DATA_WINDOW</code></td>
+<td>Historical data window</td>
+</tr>
+<tr>
+<td><code>TRAINER_*</code></td>
+<td>Generations, population size, time budget, etc.</td>
+</tr>
+</tbody>
+</table>
+<h2>Rate Limiting</h2>
+<ul>
+<li><strong>Window</strong>: 15 minutes</li>
+<li><strong>Limit</strong>: 100 requests per window</li>
+<li>Configured in <code>createSecureServer</code> within <code>server.ts</code></li>
+</ul>
+<h2>TLS</h2>
+<p>All connections require TLS mutual authentication:</p>
+<table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>TLS_KEY_PATH</code></td>
+<td>Server private key</td>
+</tr>
+<tr>
+<td><code>TLS_CERT_PATH</code></td>
+<td>Server certificate</td>
+</tr>
+<tr>
+<td><code>TLS_CA_PATH</code></td>
+<td>CA certificate bundle</td>
+</tr>
+</tbody>
+</table>
+<h2>Related Documentation</h2>
+<p>Detailed implementation reference:</p>
+<ul>
+<li><a href="../reference/genetic-algorithm.html">Genetic Algorithm</a></li>
+<li><a href="../reference/neural-network.html">Neural Network</a></li>
+<li><a href="../reference/training-process.html">Training Process</a></li>
+<li><a href="../../services/trader-trainer/ARCHITECTURE.html">Service Architecture</a> — full module breakdown and design decisions</li>
+</ul>
+</div></div>
+</main>
+</body>
+</html>

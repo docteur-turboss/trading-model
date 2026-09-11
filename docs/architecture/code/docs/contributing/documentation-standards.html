@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html class="dark" lang="en" data-tm-processed="true"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no" name="viewport">
+<title>Documentation Standards | trading-model</title>
+
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+
+<script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              400: '#818cf8',
+              500: '#6366f1',
+              600: '#4f46e5',
+            },
+            surface: {
+              base: '#0B0F19',
+              card: '#111827',
+              muted: '#1E293B',
+              border: '#243046',
+            },
+            code: {
+              bg: '#0c121e',
+              keyword: '#c084fc',
+              ident: '#38bdf8',
+              type: '#34d399',
+              punct: '#94a3b8'
+            }
+          },
+          fontFamily: {
+            mono: ['JetBrains Mono', 'Fira Code', 'Menlo', 'Monaco', 'Courier New', 'monospace'],
+            sans: ['-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Inter', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+
+<style data-purpose="mobile-ux-styles">
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    .active-scale:active { transform: scale(0.97); transition: transform 0.1s ease-out; }
+    .h-safe-top { height: env(safe-area-inset-top, 0px); }
+    .pt-safe { padding-top: env(safe-area-inset-top, 0px); }
+    @supports (backdrop-filter: blur(12px)) {
+      .glass-header { backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
+    }
+    
+    .tm-prose p { margin: 0.5rem 0; }
+    .tm-prose p:first-child { margin-top: 0; }
+    .tm-prose p:last-child { margin-bottom: 0; }
+    .tm-prose a { color: #818cf8; text-decoration: underline; text-underline-offset: 2px; }
+    .tm-prose a:hover { color: #a5b4fc; }
+    .tm-prose code { font-family: 'JetBrains Mono', 'Fira Code', Menlo, Monaco, 'Courier New', monospace; font-size: 0.82em; color: #fbbf24; background: #0c121e; border: 1px solid #243046; border-radius: 0.25rem; padding: 0.05rem 0.3rem; }
+    .tm-prose pre { background: #0c121e; border: 1px solid #243046; border-radius: 0.5rem; padding: 0.75rem; overflow-x: auto; margin: 0.5rem 0; }
+    .tm-prose pre code { background: transparent; border: none; padding: 0; color: #e2e8f0; }
+    .tm-prose ul, .tm-prose ol { padding-left: 1.25rem; margin: 0.5rem 0; }
+    .tm-prose ul { list-style: disc; }
+    .tm-prose ol { list-style: decimal; }
+    .tm-prose li { margin: 0.2rem 0; }
+    .tm-prose blockquote { border-left: 3px solid #6366f1; background: rgba(17, 24, 39, 0.6); padding: 0.5rem 0.75rem; border-radius: 0 0.5rem 0.5rem 0; color: #94a3b8; margin: 0.5rem 0; }
+    .tm-prose h1, .tm-prose h2, .tm-prose h3, .tm-prose h4, .tm-prose h5 { color: #ffffff; font-weight: 700; margin: 0.75rem 0 0.25rem; }
+    .tm-prose h1 { font-size: 1.25rem; }
+    .tm-prose h2 { font-size: 1.125rem; }
+    .tm-prose h3 { font-size: 1rem; }
+    .tm-prose h4 { font-size: 0.875rem; }
+    .tm-prose table { width: 100%; border-collapse: collapse; margin: 0.5rem 0; }
+    .tm-prose th, .tm-prose td { border: 1px solid #243046; padding: 0.4rem 0.6rem; text-align: left; }
+    .tm-prose thead th { background: #0b0f19; color: #e2e8f0; font-size: 0.75rem; text-transform: uppercase; }
+    .tm-prose strong { color: #ffffff; }
+  </style>
+
+</head>
+<body class="bg-[#080C15] text-slate-200 font-sans antialiased min-h-screen pb-24 selection:bg-indigo-500/30 selection:text-indigo-200">
+
+<header class="sticky top-0 z-40 w-full glass-header bg-[#0B0F19]/90 border-b border-surface-border">
+<div class="h-safe-top pt-safe"></div>
+<div class="px-4 py-2.5 flex items-center justify-between gap-3">
+<div class="flex items-center gap-2.5 min-w-0">
+
+<div class="flex flex-col min-w-0">
+<div class="flex items-center gap-1.5 truncate">
+<span class="font-mono text-xs font-semibold text-indigo-400 truncate tracking-tight"><a class="text-indigo-400 hover:text-indigo-300 hover:underline" href="../../index.html">trading-model</a></span>
+
+</div>
+<span class="text-[10px] text-slate-400 flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> TypeDoc API Reference
+</span>
+</div>
+</div>
+
+</div>
+</header>
+
+<main class="px-4 py-4 max-w-2xl mx-auto flex flex-col gap-6">
+
+<section class="space-y-2.5" data-purpose="breadcrumbs-and-header">
+<nav aria-label="Breadcrumb" class="flex items-center flex-wrap gap-1 text-[11px] font-mono text-slate-400">
+<a class="text-indigo-400 hover:underline" href="../../index.html">trading-model</a><span class="text-slate-600">/</span><span class="text-slate-300 font-medium">Documentation Standards</span>
+</nav>
+<div class="flex items-center gap-2.5 pt-1">
+<span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-mono font-medium tracking-wide uppercase bg-indigo-500/10 text-indigo-400 border-indigo-500/20">
+Documentation
+</span>
+<h1 class="text-2xl font-bold tracking-tight text-white font-sans">Documentation Standards</h1>
+</div>
+
+</section>
+
+<div class="tm-prose text-sm leading-relaxed text-slate-300 font-sans"><div>
+<h2>Why</h2>
+<p>Well-structured documentation is essential for onboarding new contributors, long-term maintainability, and knowledge transfer. It reduces interruptions, standardizes answers to frequent questions, and preserves project memory.</p>
+<h2>Where</h2>
+<p>All centralized documentation resides in the <code>docs/</code> directory at the root of the monorepo.</p>
+<pre><code>docs/
+├── README.md                            # Documentation index
+├── getting-started/                     # Getting started guides
+│   ├── README.md                        # Index
+│   └── quickstart.md                    # 10-minute hands-on tour
+├── reference/                           # Implementation reference
+│   ├── README.md                        # Index
+│   ├── genetic-algorithm.md             # GA module reference
+│   ├── neural-network.md                # NN module reference
+│   └── training-process.md              # Training pipeline reference
+├── glossary/                            # Domain terms glossary
+│   └── README.md                        # Terms &amp; definitions
+├── architecture/                        # Architecture documentation
+│   ├── bounded-contexts.md              # DDD bounded contexts
+│   └── databases.md                     # MySQL/MongoDB schemas
+├── services/                            # Per-service documentation
+│   ├── README.md                        # Index &amp; dependency graph
+│   ├── common.md                        # @trading-model/common
+│   ├── address-manager.md               # @trading-model/address-manager
+│   ├── broker-message.md                # @trading-model/broker-message
+│   ├── discovery-server.md              # Service registry
+│   ├── message-manager.md               # Message broker
+│   ├── financial-scraper.md             # Market data ingestion
+│   ├── trader-trainer.md                # GA/DQN training engine
+│   ├── api-gateway.md                   # External API gateway
+│   ├── audit-logger.md                  # Audit trail
+│   ├── dlq-service.md                   # Dead letter queue
+│   └── openapi/                         # OpenAPI specs
+├── standards/                           # Development standards
+│   ├── README.md                        # Index
+│   ├── architecture-standards.md        # Architecture standards
+│   ├── code-style.md                    # Code style
+│   ├── commit-standards.md              # Commit conventions
+│   ├── pr-standards.md                  # Pull request standards
+│   ├── testing-standards.md             # Testing standards
+│   ├── quality-gates.md                 # Quality standards
+│   ├── jsdoc-standards.md               # JSDoc writing rules
+│   └── health-endpoints.md              # Health check standards
+├── security/                            # Security documentation
+│   ├── README.md                        # Index
+│   └── practices.md                     # Security practices
+├── contributing/                        # Contribution guides
+│   ├── README.md                        # Index
+│   ├── workflow.md                      # Full contribution workflow
+│   ├── adding-a-service.md              # How to add a new service
+│   └── documentation-standards.md       # Documentation conventions
+├── ci-cd/                               # CI/CD pipeline
+│   └── README.md                        # Pipeline standards and workflows
+├── troubleshooting/                     # Troubleshooting
+│   └── README.md                        # Common issues, diagnostics, recovery
+├── deployment/                          # Deployment procedures
+│   ├── README.md                        # Index &amp; quick reference
+│   ├── DATABASE.md                      # Database deployment
+│   ├── DEPLOY.md                        # Deployment procedures
+│   ├── DOCKER.md                        # Docker norms
+│   ├── ENV.md                           # Environment variables
+│   ├── SETUP.md                         # Machine setup
+│   ├── KUBERNETES.md                    # K8s configuration
+│   ├── MULTI_REGION.md                  # Multi-region strategy
+│   ├── sealed-secrets.md               # Encrypted K8s secrets
+│   └── BACKUP_DR.md                     # Backup &amp; disaster recovery
+├── operations/                          # Operational procedures
+│   ├── README.md                        # Index
+│   ├── slo.md                           # Service Level Objectives
+│   ├── incident-response.md             # Incident management
+│   ├── on-call.md                       # On-call procedures
+│   └── runbooks/                        # Runbooks (6 files)
+│       ├── runbook-service-down.md          # Service crash recovery
+│       ├── runbook-database-failover.md     # Database failover
+│       ├── runbook-message-bus-outage.md    # Message bus outage
+│       ├── runbook-certificate-expiry.md    # Certificate expiry
+│       ├── runbook-data-corruption.md       # Data corruption
+│       └── runbook-deployment-failure.md    # Deployment rollback
+├── compliance/                          # Regulatory compliance
+│   ├── compliance-framework.md          # Master regulatory map
+│   ├── dpia.md                          # Data Protection Impact Assessment
+│   ├── data-processing-register.md      # Art. 30 GDPR register
+│   ├── data-retention-policy.md         # Retention schedules
+│   ├── algorithmic-trading-compliance.md # MiFID II / MAR
+│   ├── information-security-policy.md   # ISO 27001 ISMS
+│   ├── access-control-policy.md         # Zero-trust access
+│   ├── incident-response-policy.md      # Incident classification
+│   ├── business-continuity-policy.md    # BCP/DR
+│   └── third-party-dpas.md             # Third-party DPAs
+├── adr/                                 # Architecture Decision Records
+│   ├── README.md                        # Index
+│   ├── 0001-ga-dqn-training.md
+│   ├── ... (11 ADRs)
+│   └── 0011-spiffe-spire-workload-identity.md
+├── architecture/code/                   # TypeDoc-generated HTML
+│   └── ...
+└── examples/                            # Example scripts
+    └── README.md
+</code></pre>
+<h2>How to Use This Documentation</h2>
+<p>See <a href="../README.html">docs/README.md</a> for the central navigation index.</p>
+<p>Platform-level implementation reference docs (GA, NN, training) are in <code>docs/reference/</code>. Per-service documentation is in <code>docs/services/</code>. TypeDoc-generated code documentation is in <code>docs/architecture/code/</code>.</p>
+<h2>How</h2>
+<ul>
+<li><strong>Format</strong>: Markdown (<code>.md</code>)</li>
+<li><strong>Language</strong>: English (all documentation)</li>
+<li><strong>Code blocks</strong>: Always with a language tag (<code>typescript</code>, <code>bash</code>, <code>json</code>, <code>yaml</code>)</li>
+<li><strong>Headers</strong>: Clear hierarchy (<code>#</code> title, <code>##</code> section, <code>###</code> subsection)</li>
+<li><strong>Tables</strong>: Use Markdown tables for structured information</li>
+<li><strong>Links</strong>: Relative paths for internal project references</li>
+</ul>
+<h2>Examples</h2>
+<h3>Code Block with Tag</h3>
+<pre><code class="language-typescript">import { createBootstrap } from '@trading-model/common/server/bootstrap';
+
+createBootstrap({
+  name: 'Discovery',
+  createServer: createServer,
+});
+</code></pre>
+<pre><code class="language-bash">bun run build:common &amp;&amp; bun run build:address-manager &amp;&amp; bun run build:broker-message
+</code></pre>
+<pre><code class="language-yaml">name: CI
+on: [push, pull_request]
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - run: bun install --frozen-lockfile
+      - run: bun run lint
+</code></pre>
+<h2>References</h2>
+<ul>
+<li><a href="../standards/jsdoc-standards.html">JSDoc Standards</a> — JSDoc writing rules</li>
+<li><a href="../standards/code-style.html">Code Style</a> — Code writing standards</li>
+</ul>
+</div></div>
+</main>
+</body>
+</html>

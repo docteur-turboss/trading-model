@@ -1,0 +1,954 @@
+<!DOCTYPE html>
+<html class="dark" lang="en" data-tm-processed="true"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no" name="viewport">
+<title>Trader-Trainer Architecture | trader-trainer</title>
+
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+
+<script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              400: '#818cf8',
+              500: '#6366f1',
+              600: '#4f46e5',
+            },
+            surface: {
+              base: '#0B0F19',
+              card: '#111827',
+              muted: '#1E293B',
+              border: '#243046',
+            },
+            code: {
+              bg: '#0c121e',
+              keyword: '#c084fc',
+              ident: '#38bdf8',
+              type: '#34d399',
+              punct: '#94a3b8'
+            }
+          },
+          fontFamily: {
+            mono: ['JetBrains Mono', 'Fira Code', 'Menlo', 'Monaco', 'Courier New', 'monospace'],
+            sans: ['-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Inter', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+
+<style data-purpose="mobile-ux-styles">
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    .active-scale:active { transform: scale(0.97); transition: transform 0.1s ease-out; }
+    .h-safe-top { height: env(safe-area-inset-top, 0px); }
+    .pt-safe { padding-top: env(safe-area-inset-top, 0px); }
+    @supports (backdrop-filter: blur(12px)) {
+      .glass-header { backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
+    }
+    
+    .tm-prose p { margin: 0.5rem 0; }
+    .tm-prose p:first-child { margin-top: 0; }
+    .tm-prose p:last-child { margin-bottom: 0; }
+    .tm-prose a { color: #818cf8; text-decoration: underline; text-underline-offset: 2px; }
+    .tm-prose a:hover { color: #a5b4fc; }
+    .tm-prose code { font-family: 'JetBrains Mono', 'Fira Code', Menlo, Monaco, 'Courier New', monospace; font-size: 0.82em; color: #fbbf24; background: #0c121e; border: 1px solid #243046; border-radius: 0.25rem; padding: 0.05rem 0.3rem; }
+    .tm-prose pre { background: #0c121e; border: 1px solid #243046; border-radius: 0.5rem; padding: 0.75rem; overflow-x: auto; margin: 0.5rem 0; }
+    .tm-prose pre code { background: transparent; border: none; padding: 0; color: #e2e8f0; }
+    .tm-prose ul, .tm-prose ol { padding-left: 1.25rem; margin: 0.5rem 0; }
+    .tm-prose ul { list-style: disc; }
+    .tm-prose ol { list-style: decimal; }
+    .tm-prose li { margin: 0.2rem 0; }
+    .tm-prose blockquote { border-left: 3px solid #6366f1; background: rgba(17, 24, 39, 0.6); padding: 0.5rem 0.75rem; border-radius: 0 0.5rem 0.5rem 0; color: #94a3b8; margin: 0.5rem 0; }
+    .tm-prose h1, .tm-prose h2, .tm-prose h3, .tm-prose h4, .tm-prose h5 { color: #ffffff; font-weight: 700; margin: 0.75rem 0 0.25rem; }
+    .tm-prose h1 { font-size: 1.25rem; }
+    .tm-prose h2 { font-size: 1.125rem; }
+    .tm-prose h3 { font-size: 1rem; }
+    .tm-prose h4 { font-size: 0.875rem; }
+    .tm-prose table { width: 100%; border-collapse: collapse; margin: 0.5rem 0; }
+    .tm-prose th, .tm-prose td { border: 1px solid #243046; padding: 0.4rem 0.6rem; text-align: left; }
+    .tm-prose thead th { background: #0b0f19; color: #e2e8f0; font-size: 0.75rem; text-transform: uppercase; }
+    .tm-prose strong { color: #ffffff; }
+  </style>
+
+</head>
+<body class="bg-[#080C15] text-slate-200 font-sans antialiased min-h-screen pb-24 selection:bg-indigo-500/30 selection:text-indigo-200">
+
+<header class="sticky top-0 z-40 w-full glass-header bg-[#0B0F19]/90 border-b border-surface-border">
+<div class="h-safe-top pt-safe"></div>
+<div class="px-4 py-2.5 flex items-center justify-between gap-3">
+<div class="flex items-center gap-2.5 min-w-0">
+<button aria-label="Open Module Tree" class="active-scale p-2 -ml-1.5 rounded-lg text-slate-300 hover:text-white bg-slate-800/40 hover:bg-slate-800 border border-slate-700/50" data-purpose="toggle-tree-nav" id="drawerToggleBtn">
+<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<path d="M4 6h16M4 12h10M4 18h16" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</button>
+<div class="flex flex-col min-w-0">
+<div class="flex items-center gap-1.5 truncate">
+<span class="font-mono text-xs font-semibold text-indigo-400 truncate tracking-tight"><a class="text-indigo-400 hover:text-indigo-300 hover:underline" href="../index.html">trader-trainer</a></span>
+<span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-medium bg-indigo-500/10 text-indigo-300 border border-indigo-500/20">v1.4.0</span>
+</div>
+<span class="text-[10px] text-slate-400 flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> TypeDoc API Reference
+</span>
+</div>
+</div>
+<div class="flex items-center gap-1.5 flex-shrink-0">
+<button aria-label="Search API" class="active-scale flex items-center justify-center w-8 h-8 rounded-lg bg-surface-muted/70 border border-surface-border text-slate-300 hover:text-white" data-purpose="search-modal-trigger" id="searchTriggerBtn">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<path d="M21 21l-4.35-4.35m1.35-5.65a7 7 0 11-14 0 7 7 0 0114 0z" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</button>
+<button aria-label="Member Visibility Settings" class="active-scale flex items-center justify-center w-8 h-8 rounded-lg bg-surface-muted/70 border border-surface-border text-slate-300 hover:text-white" data-purpose="settings-trigger" id="settingsSheetBtn">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" stroke-linecap="round" stroke-linejoin="round"></path>
+<path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</button>
+</div>
+</div>
+</header>
+
+<main class="px-4 py-4 max-w-2xl mx-auto flex flex-col gap-6">
+
+<section class="space-y-2.5" data-purpose="breadcrumbs-and-header">
+<nav aria-label="Breadcrumb" class="flex items-center flex-wrap gap-1 text-[11px] font-mono text-slate-400">
+<a class="text-indigo-400 hover:underline" href="../index.html">trader-trainer</a><span class="text-slate-600">/</span><span class="text-slate-400">media</span><span class="text-slate-600">/</span><span class="text-slate-300 font-medium">ARCHITECTURE</span>
+</nav>
+<div class="flex items-center gap-2.5 pt-1">
+<span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-mono font-medium tracking-wide uppercase bg-indigo-500/10 text-indigo-400 border-indigo-500/20">
+Documentation
+</span>
+<h1 class="text-2xl font-bold tracking-tight text-white font-sans">Trader-Trainer Architecture</h1>
+</div>
+
+</section>
+
+<div class="tm-prose text-sm leading-relaxed text-slate-300 font-sans"><div>
+<h2>Overview</h2>
+<p><strong>Trader-Trainer</strong> is a microservice that autonomously trains trading AI agents using a <strong>Genetic Algorithm (GA) + Deep Q-Learning</strong> approach. It receives real market data from the <strong>Message Manager</strong> service and prepares the best-performing agent from each training session for deployment to a <strong>Trader-Executor</strong> service.</p>
+<h3>Key Responsibilities</h3>
+<ol>
+<li><strong>Agent Evolution</strong>: Continuously improve agents through genetic algorithm and Q-learning</li>
+<li><strong>Data Integration</strong>: Consume real market data from Message Manager service</li>
+<li><strong>Performance Evaluation</strong>: Calculate fitness metrics (Sharpe, Sortino, Calmar, PnL)</li>
+<li><strong>Memory Optimization</strong>: Dynamically allocate population size based on available physical memory</li>
+<li><strong>Agent Export</strong>: Deploy best agents to Trader-Executor via Message Manager library or direct HTTPS</li>
+</ol>
+<h3>Why This Approach</h3>
+<table>
+<thead>
+<tr>
+<th>Challenge</th>
+<th>Solution</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Trading is a high-dimensional sequential decision problem</td>
+<td>Deep Q-Learning handles state-action value approximation</td>
+</tr>
+<tr>
+<td>Optimal architecture (layers, neurons, activations) is unknown</td>
+<td>GA searches the topology space automatically</td>
+</tr>
+<tr>
+<td>RL hyperparameters (lr, gamma, epsilon decay) are hard to tune</td>
+<td>GA mutates/crossovers them alongside architecture</td>
+</tr>
+<tr>
+<td>Single training run may produce brittle agents</td>
+<td>Population-based evolution with Pareto archive preserves diverse solutions</td>
+</tr>
+<tr>
+<td>Overfitting to recent market conditions</td>
+<td>Walk-forward validation on held-out windows</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h3>Termination Conditions</h3>
+<p>The GA loop stops when <strong>any</strong> of these conditions is met (checked in order):</p>
+<ol>
+<li><code>bestFitness &gt;= rewardThreshold</code> — target fitness reached</li>
+<li><code>stagnation &gt;= stagnationPatience</code> — no improvement for N generations</li>
+<li><code>generation &gt;= maxGenerations</code> — max generations reached</li>
+<li><code>elapsedMs &gt;= timeBudgetMs</code> — time budget exhausted</li>
+</ol>
+<hr>
+<h3>Service Dependencies</h3>
+<p><strong>Message Manager</strong> (<code>@trading-model/broker-message</code>): Primary data source. Subscribes to market data events via callback.</p>
+<table>
+<thead>
+<tr>
+<th>Event</th>
+<th>Data</th>
+<th>Frequency</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>fetchCandlestickSeries</code></td>
+<td>OHLCV arrays</td>
+<td>Periodic</td>
+</tr>
+<tr>
+<td><code>fetchRecentTrades</code></td>
+<td>Trade arrays</td>
+<td>Real-time</td>
+</tr>
+<tr>
+<td><code>fetchOrderBookSnapshot</code></td>
+<td>Order book depth</td>
+<td>Snapshot</td>
+</tr>
+<tr>
+<td><code>fetchOrderBookTickerSnapshot</code></td>
+<td>Best bid/ask</td>
+<td>Real-time</td>
+</tr>
+<tr>
+<td><code>fetch24hrTickerStats</code></td>
+<td>24h statistics</td>
+<td>Periodic</td>
+</tr>
+<tr>
+<td><code>fetchPriceTickerSnapshot</code></td>
+<td>Current prices</td>
+<td>Real-time</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Address Manager</strong> (<code>@trading-model/address-manager</code>): Service discovery and health monitoring. Every instance registers with the address manager for dynamic endpoint resolution, health check pings, and TTL management.</p>
+<p><strong>Trader-Executor</strong> (output): The best trained agent is exposed via <code>/best-agent</code> REST endpoint for the consuming service to poll or receive.</p>
+<hr>
+<h3>Health Checks</h3>
+<ul>
+<li><strong>Service ping</strong>: Address manager pings each instance to verify liveness</li>
+<li><strong><code>/ping</code> endpoint</strong>: Returns 200 when service is alive</li>
+<li><strong><code>/training-status</code> endpoint</strong>: Shows if training is active, on which symbol, and current generation</li>
+</ul>
+<hr>
+<h2>System Architecture</h2>
+<pre><code>┌─────────────────────────────────────────────────────────┐
+│                   Trader-Trainer Service                │
+├─────────────────────────────────────────────────────────┤
+│                                                          │
+│  ┌──────────────────────────────────────────────────┐  │
+│  │          Genetic Algorithm Runner (GA)            │  │
+│  │  - Population management                          │  │
+│  │  - Selection, Mutation, Crossover                │  │
+│  │  - Adaptive control &amp; termination                │  │
+│  └──────────────────────────────────────────────────┘  │
+│              ↕                           ↕               │
+│  ┌──────────────────────┐    ┌──────────────────────┐  │
+│  │   Trading Agent      │    │   Neural Network     │  │
+│  │  - Wallet mgmt       │    │  - Forward/Backward  │  │
+│  │  - Action mapping    │    │  - Weight updates    │  │
+│  │  - Reward calc       │    │  - Batch processing  │  │
+│  └──────────────────────┘    └──────────────────────┘  │
+│         ↕                               ↕                │
+│  ┌──────────────────────┐    ┌──────────────────────┐  │
+│  │  Wallet Manager      │    │   State Manager      │  │
+│  │  - Buy/Sell trades   │    │  - Epsilon decay     │  │
+│  │  - PnL tracking      │    │  - RL hyperparams    │  │
+│  │  - Metrics calc      │    │  - Policy storage    │  │
+│  └──────────────────────┘    └──────────────────────┘  │
+│                                                          │
+└─────────────────────────────────────────────────────────┘
+            ↓ Real market data from Message Manager
+        ↓ Best agent to Trader-Executor
+</code></pre>
+<hr>
+<h2>Directory Structure</h2>
+<pre><code>services/trader-trainer/
+├── src/
+│ ├── app/
+│ │ ├── index.ts # Service entry point
+│ │ └── server.ts # Express server setup
+│ │
+│ └── core/
+│ ├── agent/
+│ │ ├── trading-agent.ts # Orchestrates NN + Wallet + StateManager
+│ │ ├── trading-agent.spec.ts # Unit tests
+│ │ ├── state-manager.ts # Q-learning state &amp; epsilon-decay
+│ │ ├── state-manager.spec.ts # Unit tests
+│ │ └── auto-env.ts # GA-compatible environment wrapper
+│ │
+│ ├── env/
+│ │ ├── wallet-manager.ts # Simulates trading account
+│ │ └── wallet-manager.spec.ts # Unit tests
+│ │
+│ ├── neural-network/
+│ │ ├── neural-network.ts # Core NN implementation
+│ │ ├── neural-network.spec.ts # Unit tests
+│ │ ├── agent.ts # NN + experience replay wrapper
+│ │ ├── type.ts # Type definitions
+│ │ ├── activation.ts # Activation functions
+│ │ ├── initializers.ts # Weight initialization strategies
+│ │ ├── optimizer.ts # Optimization algorithms (SGD, Adam, etc.)
+│ │ ├── losses.ts # Loss functions (MSE, CE, Huber)
+│ │ ├── normalize.ts # Normalization strategies
+│ │ └── utils.ts # Utilities
+│ │
+│ └── genetic-algorithm/
+│ ├── ga-runner.ts # Main GA evolution loop with NSGA-II, Lamarckian inheritance, and Pareto archiving
+│ ├── genome.ts # Full genome type definitions and validation
+│ ├── validation.ts # Re-exports validation from genome.ts (avoids Feature Envy)
+│ ├── genome-types.ts # Additional genome type aliases
+│ ├── mutation.ts # Adaptive gaussian/levy mutation
+│ ├── crossover.ts # Uniform/BLX-α/SBX crossover
+│ ├── selection.ts # Tournament, roulette, rank-based
+│ ├── evolution-engine.ts # Low-level weight evolution functions
+│ ├── fitness.ts # Sharpe, Sortino, Calmar metrics
+│ ├── evaluation-pipeline.ts # Multi-window evaluation pipeline
+│ ├── complexity-estimator.ts # Complexity penalty &amp; fitness adjustment
+│ ├── pareto-engine.ts # NSGA-II exact and approximate sorting
+│ ├── adaptive-control-system.ts # Self-adaptive GA parameter control
+│ ├── factory.ts # Default genome factory
+│ ├── encoding.ts # Genome encode/decode
+│ ├── diversity.ts # Speciation and novelty search
+│ ├── noise.ts # Noise distributions for mutation
+│ ├── prng.ts # Pseudo-random number generator
+│ ├── utils.ts # Shared utilities (clamp, generateId, etc.)
+│ ├── normalization-stats.ts # Online running mean/std for z-score normalization
+│ └── index.ts # Barrel exports
+│ │
+│ ├── Constraints &amp; Validation:
+│ │ ├── complexity.ts # Topology constraints
+│ │ ├── validation.ts # Genome validation &amp; repair
+│ │ └── adaptive_control_system.ts # Adaptive GA parameters
+│ │
+│ ├── Diversity &amp; Speciation:
+│ │ ├── diversity.ts # Speciation &amp; novelty
+│ │ └── pareto_engine.ts # Multi-objective optimization
+│ │
+│ ├── Genome &amp; Encoding:
+│ │ ├── genome.ts # Genome structure definition
+│ │ ├── genome_types.ts # Type exports
+│ │ ├── encoding.ts # Genome vectorization
+│ │ └── factory.ts # Default genome creation
+│ │
+│ └── Infrastructure:
+│ ├── prng.ts # Seeded random number generator
+│ ├── noise.ts # Gaussian, Levy, Cauchy distributions
+│ ├── utils.ts # Clamp, generateId
+│ └── index.ts # Public API barrel export
+│
+├── docs/ # Technical documentation
+│ ├── API.md
+│ ├── GENETIC_ALGORITHM.md
+│ ├── NEURAL_NETWORK.md
+│ └── TRAINING_PROCESS.md
+│
+├── package.json # Dependencies
+├── tsconfig.json # TypeScript config
+├── jest.config.js # Jest testing config
+├── eslint.config.js # ESLint rules
+├── ARCHITECTURE.md # This file
+└── README.md # User guide
+
+</code></pre>
+<hr>
+<h2>Core Modules</h2>
+<h3>1. <strong>app/</strong> - Service Entry Point</h3>
+<ul>
+<li><strong>index.ts</strong>: Initializes the service, binds to port, handles graceful shutdown</li>
+<li><strong>server.ts</strong>: Configures Express with security middleware (Helmet), health checks (/ping)</li>
+</ul>
+<p><strong>Dependencies</strong>: <code>express</code>, <code>helmet</code>, <code>cash-lib</code> (error handling)</p>
+<hr>
+<h3>2. <strong>core/agent/</strong> - Trading Agent Orchestration</h3>
+<h4>TradingAgent</h4>
+<p>Combines Neural Network, Wallet, and StateManager into a single unified interface.</p>
+<pre><code class="language-typescript">public step(input: Float32Array, price?: number, done: boolean = false): {
+  action: string,
+  reward: number,
+  metrics: any
+}
+</code></pre>
+<p><strong>Key Methods</strong>:</p>
+<ul>
+<li><code>mapOutputToAction()</code>: Converts network output [0..1] to trading action (buy/sell/hold)</li>
+<li><code>step()</code>: Executes one environment step with reward calculation</li>
+</ul>
+<p><strong>Responsibilities</strong>:</p>
+<ul>
+<li>Network inference</li>
+<li>Wallet state updates</li>
+<li>Reward shaping based on P&amp;L</li>
+<li>Action mapping (discrete or continuous)</li>
+</ul>
+<h4>StateManager</h4>
+<p>Manages Q-learning hyperparameters and exploration-exploitation trade-off.</p>
+<p><strong>Key Methods</strong>:</p>
+<ul>
+<li><code>getEpsilon()</code>, <code>decayEpsilon()</code>: Epsilon-greedy exploration</li>
+<li><code>getGamma()</code>, <code>getLearningRate()</code>: RL hyperparams</li>
+<li><code>updateFromGenome()</code>: Load RL parameters from genome</li>
+</ul>
+<p><strong>Responsibilities</strong>:</p>
+<ul>
+<li>Epsilon decay schedule</li>
+<li>Hyperparameter storage</li>
+<li>Episode lifecycle management</li>
+</ul>
+<h4>AutoEnv</h4>
+<p>Lightweight wrapper enabling GA runners to interface with TradingAgent without tight coupling.</p>
+<hr>
+<h3>3. <strong>core/env/</strong> - Trading Environment</h3>
+<h4>WalletManager</h4>
+<p>Simulates a trading account with realistic constraints:</p>
+<pre><code class="language-typescript">interface Wallet {
+  buy(amount: number): boolean; // Execute buy order
+  sell(amount: number): boolean; // Execute sell order
+  getPnL(): number; // Unrealized PnL
+  getValuation(): number; // Total account value
+  getMetrics(): WalletMetrics; // Performance metrics
+  setPrice(price: number): void; // Update market price
+}
+</code></pre>
+<p><strong>Features</strong>:</p>
+<ul>
+<li>Realistic position management</li>
+<li>Transaction fee simulation</li>
+<li>Max position limits</li>
+<li>P&amp;L calculation (realized + unrealized)</li>
+<li>Sharpe/Sortino/Calmar metrics</li>
+<li>Drawdown tracking</li>
+</ul>
+<p><strong>Trade Execution Logic</strong>:</p>
+<pre><code>Buy:  cash -= amount * price + fees; position += amount
+Sell: cash += amount * price - fees; position -= amount
+</code></pre>
+<hr>
+<h3>4. <strong>core/neural_network/</strong> - Deep Q-Learning Agent</h3>
+<h4>NeuralNetwork</h4>
+<p>Fully-connected feedforward network with configurable:</p>
+<ul>
+<li><strong>Layers</strong>: Input → Hidden Layers... → Output</li>
+<li><strong>Activations</strong>: ReLU, Tanh, Sigmoid, GELU, Softmax, ELU, Mish, LeakyReLU</li>
+<li><strong>Optimizers</strong>: SGD, Adam, RMSProp</li>
+<li><strong>Loss Functions</strong>: MSE, Cross-Entropy, Huber, Smooth L1</li>
+<li><strong>Normalizations</strong>: MinMax, Z-score, Robust, Batch Norm, Layer Norm</li>
+</ul>
+<p><strong>Forward Pass</strong>:</p>
+<pre><code>output = activation(weight @ input + bias)
+</code></pre>
+<p><strong>Backward Propagation</strong>:</p>
+<ul>
+<li>Gradient computation via chain rule</li>
+<li>Weight updates using optimizer (SGD, Adam)</li>
+<li>Support for batch training</li>
+</ul>
+<h4>Agent</h4>
+<p>Wraps NeuralNetwork with:</p>
+<ul>
+<li><strong>Experience Replay Pool</strong>: Stores (state, action, reward, next_state, done) tuples</li>
+<li><strong>Q-Learning Updates</strong>: Applies Bellman equation</li>
+<li><strong>Fast Inference</strong>: Optimized forward pass for trading</li>
+</ul>
+<p><strong>Experience Storage</strong>:</p>
+<pre><code class="language-typescript">interface Experience {
+  state: Float32Array;
+  action: number;
+  reward: number;
+  nextState: Float32Array;
+  done: boolean;
+}
+</code></pre>
+<hr>
+<h3>5. <strong>core/genetic_algorithm/</strong> - Evolution Engine</h3>
+<h4>GeneticAlgorithmRunner</h4>
+<p>Main evolution loop orchestrating:</p>
+<ol>
+<li><strong>Initialization</strong>: Create initial population of random genomes</li>
+<li><strong>Evaluation</strong>: Each genome → TradingAgent → fitness score</li>
+<li><strong>Selection</strong>: Choose parents via tournament/roulette</li>
+<li><strong>Genetic Operators</strong>:
+<ul>
+<li><strong>Mutation</strong>: Gaussian, Lévy, Cauchy, Uniform perturbations</li>
+<li><strong>Crossover</strong>: Uniform, Arithmetic, BLX-α, SBX</li>
+</ul>
+</li>
+<li><strong>Environmental Selection</strong>: Keep best + maintain diversity</li>
+<li><strong>Termination</strong>: Check convergence, generation limit, diversity</li>
+</ol>
+<p><strong>Population Dynamics</strong>:</p>
+<ul>
+<li>Size adapts to available memory</li>
+<li>Penalizes computational complexity</li>
+<li>Maintains speciation via distance metrics</li>
+<li>Archives Pareto-optimal solutions</li>
+</ul>
+<h4>Genome Structure</h4>
+<pre><code class="language-typescript">interface Genome {
+  network: {
+    inputDim: number;
+    outputDim: number;
+    hiddenLayers: Array&lt;{
+      neurons: number;
+      activation: ActivationType;
+      connectionType: ConnectionType;
+      normalization: NormalisationType;
+    }&gt;;
+  };
+  rl: {
+    discretePolicy: {
+      learningRate: number;
+      gamma: number;
+      epsilon: number;
+      epsilonDecay: number;
+    };
+    replayBuffer: {
+      bufferSize: number;
+      batchSize: number;
+    };
+  };
+  mutation: {
+    distribution: MutationDistribution;
+    sigma: number;
+    adaptiveRate: number;
+  };
+  crossover: {
+    type: CrossoverType;
+    blxAlpha: number;
+  };
+}
+</code></pre>
+<h4>Key Operators</h4>
+<p><strong>Mutation</strong>:</p>
+<ul>
+<li>Per-layer adaptive sigma adjustment</li>
+<li>Multiple distributions (Gaussian, Lévy)</li>
+<li>Hyperparameter mutation capability</li>
+<li>Complexity penalty on mutation strength</li>
+</ul>
+<p><strong>Crossover</strong>:</p>
+<ul>
+<li>Uniform: randomly blend parent alleles</li>
+<li>Arithmetic: weighted average of weights</li>
+<li>BLX-α: blend in extended range</li>
+<li>SBX: Simulated Binary Crossover</li>
+</ul>
+<p><strong>Fitness Calculation</strong>:</p>
+<pre><code>fitness = α * sharpe_ratio + β * pnl - γ * complexity_penalty
+</code></pre>
+<p><strong>Metrics</strong>:</p>
+<ul>
+<li>Total P&amp;L</li>
+<li>Sharpe Ratio</li>
+<li>Sortino Ratio (downside risk)</li>
+<li>Calmar Ratio</li>
+<li>Max Drawdown</li>
+<li>Win Rate</li>
+</ul>
+<h4>Adaptive Control</h4>
+<p>Automatically adjusts:</p>
+<ul>
+<li>Mutation rate based on population diversity</li>
+<li>Crossover rate based on convergence</li>
+<li>Population size based on available memory</li>
+<li>Termination conditions (stagnation, diversity loss)</li>
+</ul>
+<hr>
+<h2>Training Loop</h2>
+<pre><code>Initialize population P = [G₁, G₂, ..., Gₙ]
+
+for generation t = 1 to max_generations:
+
+  for each genome Gᵢ in P:
+    agent = create_agent_from(Gᵢ)
+
+    for each market window w:
+      for each price sample (price, features):
+        reward = agent.step(features, price)
+
+      evaluate agent on returns
+
+    fitness[i] = compute_fitness(returns, metrics)
+
+  # Environmental selection
+  elite = keep_best_k(P, fitness, k=0.1*n)
+
+  # Reproduction
+  offspring = []
+  while len(offspring) &lt; n - k:
+    parent1 = select(P, fitness)
+    parent2 = select(P, fitness)
+
+    child = crossover(parent1, parent2)
+    child = mutate(child)
+    child = repair_if_invalid(child)
+
+    offspring.append(child)
+
+  P = elite + offspring
+
+  # Adaptive control
+  mutation_rate = adapt_mutation(diversity)
+  crossover_rate = adapt_crossover(convergence)
+
+  if termination_condition_met(P, fitness):
+    break
+
+return best_genome_from(P)
+</code></pre>
+<hr>
+<h2>Key Design Decisions</h2>
+<h3>1. Lamarckian Evolution (Weight Inheritance)</h3>
+<p>After each evaluation window, trained neural network weights are <strong>frozen back</strong> into the genome (<code>trainedWeights</code>). Offspring inherit these weights (via crossover + mutation), so each generation builds on the knowledge of the previous one rather than starting from scratch.</p>
+<p><strong>File</strong>: <code>ga-runner.ts</code> (<code>lamarckianUpdate</code>)</p>
+<h3>2. Walk-Forward Validation</h3>
+<p>Each symbol's market data is split into <code>train</code> (80%) and <code>validation</code> (20%) windows. The agent learns on <code>train</code> data via Q-learning, but fitness is computed <strong>only on <code>validation</code> data</strong> — guaranteeing out-of-sample evaluation.</p>
+<p><strong>File</strong>: <code>ga-runner.ts</code> (<code>WindowSet</code> type)</p>
+<h3>3. NSGA-II Multi-Objective Optimization</h3>
+<p>Three competing objectives are optimized simultaneously: <strong>avgPnl</strong> (maximize), <strong>sharpe</strong> (maximize), <strong>negFlops</strong> (minimize complexity). Non-dominated sorting preserves solutions that excel in different trade-offs. A persistent <code>ParetoArchive</code> keeps the best solutions across generations.</p>
+<p><strong>File</strong>: <code>pareto-engine.ts</code></p>
+<h3>4. Self-Adaptive GA Control</h3>
+<p>GA meta-parameters (population size, elitism fraction, episodes per individual) are <strong>themselves evolved</strong> during training. The <code>adaptGAControl</code> function adjusts them based on stagnation and improvement history.</p>
+<p><strong>File</strong>: <code>adaptive-control-system.ts</code></p>
+<h3>5. Immutable Genome Architecture</h3>
+<p>All genome operations produce <strong>new frozen objects</strong> using <code>deepFreeze</code>. This eliminates mutation bugs and enables safe concurrent evaluation across the population.</p>
+<h3>6. Pooled Parallel Evaluation</h3>
+<p>Genomes are evaluated concurrently with a configurable concurrency cap (<code>evalConcurrency</code>, default 4). Each genome creates its own <code>RLBackend</code> (TradingAgent), runs Q-learning training, then evaluates on validation data.</p>
+<p><strong>File</strong>: <code>ga-runner.ts</code> (<code>pooledEval</code>)</p>
+<hr>
+<h2>Integration with Microservices</h2>
+<h3>Input: Real Market Data</h3>
+<pre><code>Message Manager Service
+    ↓
+[Market events: price, volume, indicators]
+    ↓
+Trader-Trainer (consume via cash-lib)
+    ↓
+Agent training on real data
+</code></pre>
+<h3>Output: Best Agent</h3>
+<pre><code>Trader-Trainer (best agent)
+    ↓
+Message Manager Library
+    ↓
+HTTP (secured) or Message Queue
+    ↓
+Trader-Executor Service
+    ↓
+Live trading execution
+</code></pre>
+<h4>Agent Export Format</h4>
+<p>The best agent summary (available at <code>/best-agent</code>) contains all fields needed to reconstruct and deploy:</p>
+<pre><code class="language-typescript">const agent = new TradingAgent({
+  nnConfig: {
+    neuronsByLayer: [
+      summary.network.inputDim,
+      ...summary.network.hiddenLayers.map(l =&gt; l.neurons),
+      summary.network.outputDim,
+    ],
+    activationFunctions: summary.network.hiddenLayers.map(l =&gt; l.activation),
+  },
+  wallet: { initialCash: 1000, initialPrice: 1 },
+  actionSpace: 'discrete',
+  tradeAmount: 1,
+  stateManagerCfg: {
+    epsilonStart: summary.rl.epsilonStart,
+    epsilonMin: summary.rl.epsilonMin,
+    epsilonDecay: summary.rl.epsilonDecay,
+    gamma: summary.rl.gamma,
+  },
+});
+</code></pre>
+<p>For complete agent reconstruction (with trained weights), the <code>trainedWeights</code> field would need to be exported — this is currently internal but can be added to the API response.</p>
+<h4>Adding New Market Data Sources</h4>
+<p>To consume additional market data:</p>
+<ol>
+<li>Add event type to imports in <code>app/index.ts</code></li>
+<li>Subscribe in the <code>onStart</code> handler</li>
+<li>Add to <code>MessageManager.intents()</code> array</li>
+<li>Process data in <code>MarketDataBuffer</code> (add new normalizer if needed)</li>
+<li>Add feature dimension in <code>buildFeatures()</code> if new data is used as input</li>
+</ol>
+<hr>
+<h2>Memory Management</h2>
+<p>The system dynamically allocates population size:</p>
+<pre><code class="language-typescript">function calculateMaxPopulation(): number {
+  const totalMemory = os.totalmem();
+  const freeMemory = os.freemem();
+  const availableMemory = freeMemory * 0.8; // Use 80% to be safe
+
+  const memoryPerGenome = 2.5 * 1024 * 1024; // ~2.5 MB per agent
+  const maxPopulation = Math.floor(availableMemory / memoryPerGenome);
+
+  return Math.max(10, Math.min(maxPopulation, 500)); // 10-500 agents
+}
+</code></pre>
+<hr>
+<h2>Performance Metrics</h2>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Formula</th>
+<th>Interpretation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>P&amp;L</strong></td>
+<td>Final Value - Initial Value</td>
+<td>Absolute profit/loss</td>
+</tr>
+<tr>
+<td><strong>Return</strong></td>
+<td>P&amp;L / Initial Value</td>
+<td>Percentage return</td>
+</tr>
+<tr>
+<td><strong>Sharpe Ratio</strong></td>
+<td>(Return - Rf) / σ_returns</td>
+<td>Risk-adjusted return</td>
+</tr>
+<tr>
+<td><strong>Sortino Ratio</strong></td>
+<td>Return / σ_downside</td>
+<td>Focuses on downside risk</td>
+</tr>
+<tr>
+<td><strong>Calmar Ratio</strong></td>
+<td>Return / max_drawdown</td>
+<td>Return per unit of max loss</td>
+</tr>
+<tr>
+<td><strong>Max Drawdown</strong></td>
+<td>min(drawdown%)</td>
+<td>Largest peak-to-trough decline</td>
+</tr>
+<tr>
+<td><strong>Win Rate</strong></td>
+<td>wins / total_trades</td>
+<td>Percentage of profitable trades</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2>Type System</h2>
+<pre><code class="language-typescript">// Activation functions
+type ActivationType =
+  'sigmoid' | 'tanh' | 'relu' | 'gelu' | 'softmax' | 'elu' | 'mish' | 'leakyRelu';
+
+// Connection types
+type ConnectionType = 'fully-connected' | 'dense-skip' | 'residual-connection';
+
+// Initializers
+type InitialisationType = 'zeros' | 'lecun' | 'he' | 'xavier' | 'random';
+
+// Normalizations
+type NormalisationType = 'minmax' | 'zscore' | 'robust' | 'batch' | 'layer' | 'instance' | 'none';
+
+// Optimizers
+type OptimizerType = 'sgd' | 'adam' | 'rmsprop';
+
+// Fitness metrics
+type FitnessType = 'total_pnl' | 'sharpe' | 'sortino' | 'calmar' | 'composite';
+
+// Mutation distributions
+type MutationDistribution = 'gaussian' | 'levy' | 'cauchy' | 'uniform';
+
+// Selection methods
+type SelectionType = 'tournament' | 'roulette' | 'rank' | 'sus';
+</code></pre>
+<hr>
+<h2>Dependencies</h2>
+<p><strong>Production</strong>:</p>
+<ul>
+<li><code>express@^5.2.1</code>: HTTP server</li>
+<li><code>helmet@^8.1.0</code>: Security middleware</li>
+<li><code>cash-lib</code>: Common middleware &amp; utilities</li>
+</ul>
+<p><strong>Development</strong>:</p>
+<ul>
+<li><code>typescript@~6.0.3</code>: Language</li>
+<li><code>jest@^30.4.2</code>: Testing</li>
+<li><code>ts-jest@^29.4.9</code>: TypeScript support for Jest</li>
+<li><code>eslint@^10.3.0</code>: Linting</li>
+</ul>
+<hr>
+<h2>Code Standards</h2>
+<p>See <a href="../../docs/standards/README.html">Monorepo Standards</a> for:</p>
+<ul>
+<li>Naming conventions</li>
+<li>File organization</li>
+<li>JSDoc documentation</li>
+<li>Error handling</li>
+<li>Testing requirements</li>
+<li>Performance guidelines</li>
+</ul>
+<hr>
+<h2>Future Improvements</h2>
+<ol>
+<li><strong>Distributed Training</strong>: Split population across multiple machines</li>
+<li><strong>Transfer Learning</strong>: Pre-train agents on historical data</li>
+<li><strong>Multi-Asset</strong>: Evolve agents for multiple trading pairs simultaneously</li>
+<li><strong>Ensemble Methods</strong>: Combine multiple agents for robust decisions</li>
+<li><strong>Real-time Adaptation</strong>: Update agent weights without full retraining</li>
+<li><strong>Advanced Selection</strong>: NSGA-III for many-objective optimization</li>
+</ol>
+<hr>
+<h2>References</h2>
+<ul>
+<li>Genetic Algorithms: Holland (1975), Goldberg (1989)</li>
+<li>Q-Learning: Watkins &amp; Dayan (1992)</li>
+<li>Sharpe Ratio: Sharpe (1966)</li>
+<li>Fitness Shaping: Ng &amp; Russell (1999)</li>
+</ul>
+</div></div>
+</main>
+
+<nav class="fixed bottom-3 inset-x-0 z-30 flex justify-center pointer-events-none px-4" data-purpose="mobile-bottom-quick-nav">
+<div class="glass-header bg-[#0f172a]/90 border border-slate-700/80 rounded-full shadow-2xl p-1.5 flex items-center gap-1 pointer-events-auto backdrop-blur-lg">
+<button class="active-scale flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-mono font-medium text-slate-200 hover:bg-slate-800 transition" id="quickNavTreeBtn">
+<svg class="w-3.5 h-3.5 text-indigo-400" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+<span>Hierarchy</span>
+</button>
+<div class="h-4 w-px bg-slate-700"></div>
+<button class="active-scale flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-mono font-medium text-slate-200 hover:bg-slate-800 transition" id="quickNavTopBtn">
+<svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<path d="M5 10l7-7m0 0l7 7m-7-7v18" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+<span>Top</span>
+</button>
+</div>
+</nav>
+
+
+<div class="fixed inset-0 z-50 pointer-events-none transition-all duration-300 opacity-0" data-purpose="navigation-drawer" id="treeDrawer">
+<div class="absolute inset-0 bg-black/75 backdrop-blur-sm" id="treeBackdrop"></div>
+<aside class="absolute inset-y-0 left-0 w-[84%] max-w-xs bg-[#0B0F19] border-r border-surface-border flex flex-col shadow-2xl transform -translate-x-full transition-transform duration-300 ease-out">
+<div class="p-4 border-b border-surface-border flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-indigo-500"></span>
+<span class="font-mono text-xs font-semibold text-white tracking-tight truncate">Modules &amp; Interfaces</span>
+</div>
+<button aria-label="Close Drawer" class="p-1 rounded-md text-slate-400 hover:text-white" id="closeTreeDrawerBtn">
+<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<path d="M6 18L18 6M6 6l12 12" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</button>
+</div>
+<div class="flex-1 overflow-y-auto p-3 space-y-1 font-mono text-xs">
+
+</div>
+<div class="p-3 border-t border-surface-border bg-slate-950/40 text-[11px] text-slate-400 flex justify-between items-center">
+<span><a class="text-indigo-400 hover:text-indigo-300 font-mono" href="../../index.html">← Packages &amp; services</a></span>
+<span class="text-emerald-400 font-mono">Generated</span>
+</div>
+</aside>
+</div>
+
+
+<div class="fixed inset-0 z-50 pointer-events-none transition-all duration-300 opacity-0" data-purpose="visibility-settings-modal" id="settingsSheet">
+<div class="absolute inset-0 bg-black/75 backdrop-blur-sm" id="settingsBackdrop"></div>
+<div class="absolute inset-x-0 bottom-0 max-w-md mx-auto bg-[#0F1626] border-t border-surface-border rounded-t-2xl shadow-2xl transform translate-y-full transition-transform duration-300 ease-out p-5 space-y-4">
+<div class="w-10 h-1 rounded-full bg-slate-700 mx-auto -mt-2 mb-2"></div>
+<div class="flex items-center justify-between">
+<h4 class="text-sm font-bold font-mono uppercase tracking-wider text-white">Member Visibility</h4>
+<button class="text-slate-400 hover:text-white text-xs font-mono" id="closeSettingsBtn">Done</button>
+</div>
+<div class="space-y-2.5">
+<label class="flex items-center justify-between p-2.5 rounded-lg bg-surface-card border border-surface-border text-xs">
+<span class="text-slate-200">Protected Members</span>
+<input class="rounded bg-slate-900 border-slate-700 text-indigo-600 focus:ring-0" type="checkbox">
+</label>
+<label class="flex items-center justify-between p-2.5 rounded-lg bg-surface-card border border-surface-border text-xs">
+<span class="text-slate-200">Inherited Members</span>
+<input checked="" class="rounded bg-slate-900 border-slate-700 text-indigo-600 focus:ring-0" type="checkbox">
+</label>
+<label class="flex items-center justify-between p-2.5 rounded-lg bg-surface-card border border-surface-border text-xs">
+<span class="text-slate-200">External Declarations</span>
+<input class="rounded bg-slate-900 border-slate-700 text-indigo-600 focus:ring-0" type="checkbox">
+</label>
+</div>
+<div class="pt-2">
+<div class="text-[11px] text-slate-400 flex items-center justify-between">
+<span>Current Theme Mode</span>
+<span class="font-mono text-indigo-400">Dark / Modern Deep Slate</span>
+</div>
+</div>
+</div>
+</div>
+
+
+<script data-purpose="ui-interactions">
+    document.addEventListener('DOMContentLoaded', () => {
+      const drawer = document.getElementById('treeDrawer');
+      const drawerPanel = drawer.querySelector('aside');
+      const drawerToggle = document.getElementById('drawerToggleBtn');
+      const quickNavTree = document.getElementById('quickNavTreeBtn');
+      const closeTreeDrawer = document.getElementById('closeTreeDrawerBtn');
+      const treeBackdrop = document.getElementById('treeBackdrop');
+
+      const settingsSheet = document.getElementById('settingsSheet');
+      const settingsPanel = settingsSheet.querySelector('div:nth-child(2)');
+      const settingsToggle = document.getElementById('settingsSheetBtn');
+      const closeSettings = document.getElementById('closeSettingsBtn');
+      const settingsBackdrop = document.getElementById('settingsBackdrop');
+
+      function openDrawer() {
+        drawer.classList.remove('pointer-events-none', 'opacity-0');
+        drawerPanel.classList.remove('-translate-x-full');
+        document.body.style.overflow = 'hidden';
+      }
+      function closeDrawer() {
+        drawer.classList.add('opacity-0', 'pointer-events-none');
+        drawerPanel.classList.add('-translate-x-full');
+        document.body.style.overflow = '';
+      }
+      function openSettings() {
+        settingsSheet.classList.remove('pointer-events-none', 'opacity-0');
+        settingsPanel.classList.remove('translate-y-full');
+        document.body.style.overflow = 'hidden';
+      }
+      function closeSettingsModal() {
+        settingsSheet.classList.add('opacity-0', 'pointer-events-none');
+        settingsPanel.classList.add('translate-y-full');
+        document.body.style.overflow = '';
+      }
+
+      drawerToggle?.addEventListener('click', openDrawer);
+      quickNavTree?.addEventListener('click', openDrawer);
+      closeTreeDrawer?.addEventListener('click', closeDrawer);
+      treeBackdrop?.addEventListener('click', closeDrawer);
+
+      settingsToggle?.addEventListener('click', openSettings);
+      closeSettings?.addEventListener('click', closeSettingsModal);
+      settingsBackdrop?.addEventListener('click', closeSettingsModal);
+
+      document.getElementById('quickNavTopBtn')?.addEventListener('click', () => {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      });
+
+      document.getElementById('searchTriggerBtn')?.addEventListener('click', () => {
+        openDrawer();
+      });
+
+      const copyBtn = document.getElementById('copyInterfaceBtn');
+      const copyText = document.getElementById('copyInterfaceText');
+      copyBtn?.addEventListener('click', () => {
+        const code = null;
+        navigator.clipboard.writeText(code).then(() => {
+          copyText.textContent = 'Copied!';
+          setTimeout(() => { copyText.textContent = 'Copy'; }, 2000);
+        }).catch(() => {
+          copyText.textContent = 'Copied!';
+        });
+      });
+    });
+  </script>
+
+</body>
+</html>

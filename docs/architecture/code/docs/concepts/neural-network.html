@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html class="dark" lang="en" data-tm-processed="true"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no" name="viewport">
+<title>Neural Network — Concepts | trading-model</title>
+
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+
+<script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              400: '#818cf8',
+              500: '#6366f1',
+              600: '#4f46e5',
+            },
+            surface: {
+              base: '#0B0F19',
+              card: '#111827',
+              muted: '#1E293B',
+              border: '#243046',
+            },
+            code: {
+              bg: '#0c121e',
+              keyword: '#c084fc',
+              ident: '#38bdf8',
+              type: '#34d399',
+              punct: '#94a3b8'
+            }
+          },
+          fontFamily: {
+            mono: ['JetBrains Mono', 'Fira Code', 'Menlo', 'Monaco', 'Courier New', 'monospace'],
+            sans: ['-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Inter', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+
+<style data-purpose="mobile-ux-styles">
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    .active-scale:active { transform: scale(0.97); transition: transform 0.1s ease-out; }
+    .h-safe-top { height: env(safe-area-inset-top, 0px); }
+    .pt-safe { padding-top: env(safe-area-inset-top, 0px); }
+    @supports (backdrop-filter: blur(12px)) {
+      .glass-header { backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
+    }
+    
+    .tm-prose p { margin: 0.5rem 0; }
+    .tm-prose p:first-child { margin-top: 0; }
+    .tm-prose p:last-child { margin-bottom: 0; }
+    .tm-prose a { color: #818cf8; text-decoration: underline; text-underline-offset: 2px; }
+    .tm-prose a:hover { color: #a5b4fc; }
+    .tm-prose code { font-family: 'JetBrains Mono', 'Fira Code', Menlo, Monaco, 'Courier New', monospace; font-size: 0.82em; color: #fbbf24; background: #0c121e; border: 1px solid #243046; border-radius: 0.25rem; padding: 0.05rem 0.3rem; }
+    .tm-prose pre { background: #0c121e; border: 1px solid #243046; border-radius: 0.5rem; padding: 0.75rem; overflow-x: auto; margin: 0.5rem 0; }
+    .tm-prose pre code { background: transparent; border: none; padding: 0; color: #e2e8f0; }
+    .tm-prose ul, .tm-prose ol { padding-left: 1.25rem; margin: 0.5rem 0; }
+    .tm-prose ul { list-style: disc; }
+    .tm-prose ol { list-style: decimal; }
+    .tm-prose li { margin: 0.2rem 0; }
+    .tm-prose blockquote { border-left: 3px solid #6366f1; background: rgba(17, 24, 39, 0.6); padding: 0.5rem 0.75rem; border-radius: 0 0.5rem 0.5rem 0; color: #94a3b8; margin: 0.5rem 0; }
+    .tm-prose h1, .tm-prose h2, .tm-prose h3, .tm-prose h4, .tm-prose h5 { color: #ffffff; font-weight: 700; margin: 0.75rem 0 0.25rem; }
+    .tm-prose h1 { font-size: 1.25rem; }
+    .tm-prose h2 { font-size: 1.125rem; }
+    .tm-prose h3 { font-size: 1rem; }
+    .tm-prose h4 { font-size: 0.875rem; }
+    .tm-prose table { width: 100%; border-collapse: collapse; margin: 0.5rem 0; }
+    .tm-prose th, .tm-prose td { border: 1px solid #243046; padding: 0.4rem 0.6rem; text-align: left; }
+    .tm-prose thead th { background: #0b0f19; color: #e2e8f0; font-size: 0.75rem; text-transform: uppercase; }
+    .tm-prose strong { color: #ffffff; }
+  </style>
+
+</head>
+<body class="bg-[#080C15] text-slate-200 font-sans antialiased min-h-screen pb-24 selection:bg-indigo-500/30 selection:text-indigo-200">
+
+<header class="sticky top-0 z-40 w-full glass-header bg-[#0B0F19]/90 border-b border-surface-border">
+<div class="h-safe-top pt-safe"></div>
+<div class="px-4 py-2.5 flex items-center justify-between gap-3">
+<div class="flex items-center gap-2.5 min-w-0">
+
+<div class="flex flex-col min-w-0">
+<div class="flex items-center gap-1.5 truncate">
+<span class="font-mono text-xs font-semibold text-indigo-400 truncate tracking-tight"><a class="text-indigo-400 hover:text-indigo-300 hover:underline" href="../../index.html">trading-model</a></span>
+
+</div>
+<span class="text-[10px] text-slate-400 flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> TypeDoc API Reference
+</span>
+</div>
+</div>
+
+</div>
+</header>
+
+<main class="px-4 py-4 max-w-2xl mx-auto flex flex-col gap-6">
+
+<section class="space-y-2.5" data-purpose="breadcrumbs-and-header">
+<nav aria-label="Breadcrumb" class="flex items-center flex-wrap gap-1 text-[11px] font-mono text-slate-400">
+<a class="text-indigo-400 hover:underline" href="../../index.html">trading-model</a><span class="text-slate-600">/</span><span class="text-slate-300 font-medium">Neural Network — Concepts</span>
+</nav>
+<div class="flex items-center gap-2.5 pt-1">
+<span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-mono font-medium tracking-wide uppercase bg-indigo-500/10 text-indigo-400 border-indigo-500/20">
+Documentation
+</span>
+<h1 class="text-2xl font-bold tracking-tight text-white font-sans">Neural Network — Concepts</h1>
+</div>
+
+</section>
+
+<div class="tm-prose text-sm leading-relaxed text-slate-300 font-sans"><div>
+<h2>Overview</h2>
+<p>A <strong>neural network</strong> is a computation model inspired by biological neurons. It consists of layers of interconnected nodes (neurons) that transform input data through successive non-linear transformations. The platform uses feedforward fully-connected networks for Deep Q-Learning (DQN), enabling trading agents to learn optimal actions through trial and error.</p>
+<h2>Why Neural Networks for Trading?</h2>
+<p>Financial markets are complex, non-linear, and noisy. Traditional rule-based strategies fail to capture subtle patterns or adapt to changing conditions. Neural networks excel because:</p>
+<ul>
+<li>They can approximate any continuous function (universal approximation theorem)</li>
+<li>They learn feature representations automatically from raw market data</li>
+<li>They generalize from historical patterns to unseen market conditions</li>
+<li>Combined with reinforcement learning, they can optimize sequential decision-making under uncertainty</li>
+</ul>
+<h2>Core Concepts</h2>
+<h3>Feedforward Architecture</h3>
+<p>A feedforward network processes data in one direction: <strong>Input → Hidden Layer × N → Output</strong>.</p>
+<p>Each layer computes: <code>output = activation(W × input + b)</code></p>
+<p>Where:</p>
+<ul>
+<li><strong>W</strong> is the weight matrix (learned parameters)</li>
+<li><strong>b</strong> is the bias vector (learned parameters)</li>
+<li><strong>activation</strong> is a non-linear function</li>
+</ul>
+<p>The network depth (number of hidden layers) and width (neurons per layer) define its capacity to represent complex patterns.</p>
+<h3>Activation Functions</h3>
+<p>Activations introduce non-linearity — without them, deep networks would collapse into a single linear transformation.</p>
+<table>
+<thead>
+<tr>
+<th>Function</th>
+<th>Range</th>
+<th>Characteristics</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>ReLU</strong></td>
+<td>[0, ∞)</td>
+<td>Fast, avoids vanishing gradient, default for hidden layers</td>
+</tr>
+<tr>
+<td><strong>Sigmoid</strong></td>
+<td>(0, 1)</td>
+<td>Smooth, used for binary output</td>
+</tr>
+<tr>
+<td><strong>Tanh</strong></td>
+<td>(-1, 1)</td>
+<td>Zero-centered, mitigates vanishing gradient vs sigmoid</td>
+</tr>
+<tr>
+<td><strong>GELU</strong></td>
+<td>≈(-0.5, ∞)</td>
+<td>Transformer-style, smooth ReLU variant</td>
+</tr>
+<tr>
+<td><strong>Softmax</strong></td>
+<td>(0, 1), sum=1</td>
+<td>Multi-class probability output</td>
+</tr>
+<tr>
+<td><strong>ELU</strong></td>
+<td>(-α, ∞)</td>
+<td>Smooth ReLU alternative with negative values</td>
+</tr>
+<tr>
+<td><strong>LeakyReLU</strong></td>
+<td>(-∞, ∞)</td>
+<td>Avoids dead neurons (small negative slope)</td>
+</tr>
+</tbody>
+</table>
+<h3>Loss Functions</h3>
+<p>Loss measures the error between the network's prediction and the target. The optimizer minimizes this loss.</p>
+<table>
+<thead>
+<tr>
+<th>Loss</th>
+<th>Formula</th>
+<th>Use case</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>MSE</strong></td>
+<td><code>½(ŷ - y)²</code></td>
+<td>Regression</td>
+</tr>
+<tr>
+<td><strong>Cross-Entropy</strong></td>
+<td><code>-Σ y·log(ŷ)</code></td>
+<td>Multi-class classification</td>
+</tr>
+<tr>
+<td><strong>Huber</strong></td>
+<td>Squared for small errors, linear for large</td>
+<td>Robust regression</td>
+</tr>
+<tr>
+<td><strong>Hinge</strong></td>
+<td><code>max(0, 1 - y·ŷ)</code></td>
+<td>SVM-style classification</td>
+</tr>
+</tbody>
+</table>
+<h3>Optimizers</h3>
+<p>Optimizers update network weights to minimize the loss.</p>
+<table>
+<thead>
+<tr>
+<th>Optimizer</th>
+<th>Update rule</th>
+<th>Characteristics</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>SGD</strong></td>
+<td><code>θ = θ - lr · ∇θ</code></td>
+<td>Simple, needs careful learning rate tuning</td>
+</tr>
+<tr>
+<td><strong>Adam</strong></td>
+<td>Adaptive moments + bias correction</td>
+<td>Default choice, works well across problems</td>
+</tr>
+<tr>
+<td><strong>RMSProp</strong></td>
+<td>Adaptive per-parameter learning rates</td>
+<td>Good for non-stationary objectives</td>
+</tr>
+</tbody>
+</table>
+<h3>Backpropagation</h3>
+<p>The learning algorithm that computes gradients of the loss with respect to all weights via the chain rule:</p>
+<ol>
+<li><strong>Forward pass</strong>: compute predictions</li>
+<li><strong>Loss computation</strong>: measure error</li>
+<li><strong>Backward pass</strong>: propagate error gradients from output back to input</li>
+<li><strong>Weight update</strong>: adjust weights using the optimizer</li>
+</ol>
+<h2>Deep Q-Learning (DQN)</h2>
+<p>DQN combines Q-learning with deep neural networks. The network approximates the Q-value function <code>Q(s, a)</code> — the expected cumulative reward of taking action <code>a</code> in state <code>s</code> and following the optimal policy thereafter.</p>
+<h3>Q-Learning Update</h3>
+<p>The core learning rule:</p>
+<pre><code>Q(s, a) ← r + γ · max_a' Q(s', a')   (Bellman equation)
+</code></pre>
+<p>Where:</p>
+<ul>
+<li><code>Q(s, a)</code> is the current Q-value for state s and action a</li>
+<li><code>r</code> is the reward received</li>
+<li><code>γ</code> (gamma) is the discount factor (how much future rewards matter)</li>
+<li><code>s'</code> is the next state</li>
+<li><code>max_a' Q(s', a')</code> is the maximum future Q-value</li>
+</ul>
+<h3>Experience Replay</h3>
+<p>Past experiences <code>(state, action, reward, next_state)</code> are stored in a replay buffer. Training samples are drawn randomly from this buffer, breaking temporal correlations between consecutive experiences. This:</p>
+<ul>
+<li>Reduces variance in updates</li>
+<li>Reuses rare experiences efficiently</li>
+<li>Prevents the network from overfitting to recent events</li>
+</ul>
+<h3>Epsilon-Greedy Exploration</h3>
+<p>The agent balances exploration (trying new actions) and exploitation (using known good actions):</p>
+<ul>
+<li>With probability <strong>ε</strong>, take a random action (explore)</li>
+<li>With probability <strong>1-ε</strong>, take the action with highest Q-value (exploit)</li>
+<li><strong>ε decays</strong> over time (e.g., from 1.0 to 0.05) so the agent explores less as it learns</li>
+</ul>
+<h3>Action Space</h3>
+<p>The platform uses a discrete action space with three actions:</p>
+<table>
+<thead>
+<tr>
+<th>Action</th>
+<th>Index</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Sell</strong></td>
+<td>0</td>
+<td>Sell position</td>
+</tr>
+<tr>
+<td><strong>Hold</strong></td>
+<td>1</td>
+<td>Do nothing</td>
+</tr>
+<tr>
+<td><strong>Buy</strong></td>
+<td>2</td>
+<td>Buy position</td>
+</tr>
+</tbody>
+</table>
+<h2>Weight Initialization</h2>
+<p>Proper initialization prevents vanishing or exploding gradients:</p>
+<table>
+<thead>
+<tr>
+<th>Initializer</th>
+<th>Distribution</th>
+<th>Best for</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>He</strong></td>
+<td><code>N(0, √(2/fanIn))</code></td>
+<td>ReLU activations</td>
+</tr>
+<tr>
+<td><strong>Xavier</strong></td>
+<td><code>N(0, √(1/fanIn))</code></td>
+<td>Tanh/Sigmoid activations</td>
+</tr>
+<tr>
+<td><strong>LeCun</strong></td>
+<td><code>N(0, √(1/fanIn))</code></td>
+<td>LeCun-style</td>
+</tr>
+</tbody>
+</table>
+<h2>Input Normalization</h2>
+<p>Raw market data has varying scales (prices in thousands, volumes in millions). Normalization ensures stable training:</p>
+<table>
+<thead>
+<tr>
+<th>Strategy</th>
+<th>Method</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Min-max</strong></td>
+<td><code>(x - min) / (max - min)</code></td>
+</tr>
+<tr>
+<td><strong>Z-score</strong></td>
+<td><code>(x - mean) / std</code></td>
+</tr>
+<tr>
+<td><strong>Robust</strong></td>
+<td><code>(x - median) / IQR</code></td>
+</tr>
+</tbody>
+</table>
+<hr>
+<p>For implementation details — class API, TypeScript types, configuration — see <a href="../reference/neural-network.html">Neural Network Reference</a>.</p>
+</div></div>
+</main>
+</body>
+</html>

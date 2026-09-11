@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html class="dark" lang="en" data-tm-processed="true"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no" name="viewport">
+<title>Genetic Algorithm Module — Implementation Reference | trading-model</title>
+
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+
+<script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              400: '#818cf8',
+              500: '#6366f1',
+              600: '#4f46e5',
+            },
+            surface: {
+              base: '#0B0F19',
+              card: '#111827',
+              muted: '#1E293B',
+              border: '#243046',
+            },
+            code: {
+              bg: '#0c121e',
+              keyword: '#c084fc',
+              ident: '#38bdf8',
+              type: '#34d399',
+              punct: '#94a3b8'
+            }
+          },
+          fontFamily: {
+            mono: ['JetBrains Mono', 'Fira Code', 'Menlo', 'Monaco', 'Courier New', 'monospace'],
+            sans: ['-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Inter', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+
+<style data-purpose="mobile-ux-styles">
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    .active-scale:active { transform: scale(0.97); transition: transform 0.1s ease-out; }
+    .h-safe-top { height: env(safe-area-inset-top, 0px); }
+    .pt-safe { padding-top: env(safe-area-inset-top, 0px); }
+    @supports (backdrop-filter: blur(12px)) {
+      .glass-header { backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
+    }
+    
+    .tm-prose p { margin: 0.5rem 0; }
+    .tm-prose p:first-child { margin-top: 0; }
+    .tm-prose p:last-child { margin-bottom: 0; }
+    .tm-prose a { color: #818cf8; text-decoration: underline; text-underline-offset: 2px; }
+    .tm-prose a:hover { color: #a5b4fc; }
+    .tm-prose code { font-family: 'JetBrains Mono', 'Fira Code', Menlo, Monaco, 'Courier New', monospace; font-size: 0.82em; color: #fbbf24; background: #0c121e; border: 1px solid #243046; border-radius: 0.25rem; padding: 0.05rem 0.3rem; }
+    .tm-prose pre { background: #0c121e; border: 1px solid #243046; border-radius: 0.5rem; padding: 0.75rem; overflow-x: auto; margin: 0.5rem 0; }
+    .tm-prose pre code { background: transparent; border: none; padding: 0; color: #e2e8f0; }
+    .tm-prose ul, .tm-prose ol { padding-left: 1.25rem; margin: 0.5rem 0; }
+    .tm-prose ul { list-style: disc; }
+    .tm-prose ol { list-style: decimal; }
+    .tm-prose li { margin: 0.2rem 0; }
+    .tm-prose blockquote { border-left: 3px solid #6366f1; background: rgba(17, 24, 39, 0.6); padding: 0.5rem 0.75rem; border-radius: 0 0.5rem 0.5rem 0; color: #94a3b8; margin: 0.5rem 0; }
+    .tm-prose h1, .tm-prose h2, .tm-prose h3, .tm-prose h4, .tm-prose h5 { color: #ffffff; font-weight: 700; margin: 0.75rem 0 0.25rem; }
+    .tm-prose h1 { font-size: 1.25rem; }
+    .tm-prose h2 { font-size: 1.125rem; }
+    .tm-prose h3 { font-size: 1rem; }
+    .tm-prose h4 { font-size: 0.875rem; }
+    .tm-prose table { width: 100%; border-collapse: collapse; margin: 0.5rem 0; }
+    .tm-prose th, .tm-prose td { border: 1px solid #243046; padding: 0.4rem 0.6rem; text-align: left; }
+    .tm-prose thead th { background: #0b0f19; color: #e2e8f0; font-size: 0.75rem; text-transform: uppercase; }
+    .tm-prose strong { color: #ffffff; }
+  </style>
+
+</head>
+<body class="bg-[#080C15] text-slate-200 font-sans antialiased min-h-screen pb-24 selection:bg-indigo-500/30 selection:text-indigo-200">
+
+<header class="sticky top-0 z-40 w-full glass-header bg-[#0B0F19]/90 border-b border-surface-border">
+<div class="h-safe-top pt-safe"></div>
+<div class="px-4 py-2.5 flex items-center justify-between gap-3">
+<div class="flex items-center gap-2.5 min-w-0">
+
+<div class="flex flex-col min-w-0">
+<div class="flex items-center gap-1.5 truncate">
+<span class="font-mono text-xs font-semibold text-indigo-400 truncate tracking-tight"><a class="text-indigo-400 hover:text-indigo-300 hover:underline" href="../../index.html">trading-model</a></span>
+
+</div>
+<span class="text-[10px] text-slate-400 flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> TypeDoc API Reference
+</span>
+</div>
+</div>
+
+</div>
+</header>
+
+<main class="px-4 py-4 max-w-2xl mx-auto flex flex-col gap-6">
+
+<section class="space-y-2.5" data-purpose="breadcrumbs-and-header">
+<nav aria-label="Breadcrumb" class="flex items-center flex-wrap gap-1 text-[11px] font-mono text-slate-400">
+<a class="text-indigo-400 hover:underline" href="../../index.html">trading-model</a><span class="text-slate-600">/</span><span class="text-slate-300 font-medium">Genetic Algorithm Module — Implementation Reference</span>
+</nav>
+<div class="flex items-center gap-2.5 pt-1">
+<span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-mono font-medium tracking-wide uppercase bg-indigo-500/10 text-indigo-400 border-indigo-500/20">
+Documentation
+</span>
+<h1 class="text-2xl font-bold tracking-tight text-white font-sans">Genetic Algorithm Module — Implementation Reference</h1>
+</div>
+
+</section>
+
+<div class="tm-prose text-sm leading-relaxed text-slate-300 font-sans"><div>
+<blockquote>
+<p><strong>New to GA concepts?</strong> See <a href="../concepts/genetic-algorithm.html">Genetic Algorithm — Concepts</a> for an explanation of NSGA-II, Pareto fronts, selection strategies, and evolutionary operators before reading this implementation reference.</p>
+</blockquote>
+<h2>Overview</h2>
+<p>This document describes the GA module (<code>src/core/genetic-algorithm/</code>) implementation. It covers the TypeScript API, module structure, code conventions, and configuration defaults.</p>
+<hr>
+<h2>Genome Structure</h2>
+<p>A <code>LamarckGenome</code> contains everything needed to create and train a trading agent:</p>
+<pre><code>LamarckGenome {
+  id: string
+  generation: number
+  network: NetworkGenome          # Architecture
+  rl: RLGenome                    # RL hyperparameters
+  mutation: MutationGenome        # Self-adaptive mutation params
+  crossover: CrossoverGenome      # Crossover config
+  gaControl: GAControlGenome      # GA meta-parameters
+  fitness?: number                # Assigned after evaluation
+  fitnessMeta?: GenomeFitnessMeta # Detailed metrics
+  trainedWeights?: Float32Array   # Lamarckian weight snapshot
+}
+</code></pre>
+<h3>NetworkGenome</h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>inputDim</code></td>
+<td>number</td>
+<td>Input size (fixed at 32 for current feature pipeline)</td>
+</tr>
+<tr>
+<td><code>outputDim</code></td>
+<td>number</td>
+<td>Output size (3 for discrete buy/hold/sell)</td>
+</tr>
+<tr>
+<td><code>hiddenLayers</code></td>
+<td>LayerGenome[]</td>
+<td>Variable-length array of hidden layers</td>
+</tr>
+<tr>
+<td><code>normalization</code></td>
+<td>string</td>
+<td>Input normalization strategy</td>
+</tr>
+</tbody>
+</table>
+<h3>RLGenome</h3>
+<p>Controls Q-learning behavior:</p>
+<table>
+<thead>
+<tr>
+<th>Sub-module</th>
+<th>Key fields</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>rewardShaping</code></td>
+<td>clip, scale, normalize, sparse</td>
+<td>Reward preprocessing</td>
+</tr>
+<tr>
+<td><code>horizon</code></td>
+<td>maxEpisodeLength, nStepReturn, frameSkip</td>
+<td>Episode structure</td>
+</tr>
+<tr>
+<td><code>discretePolicy</code></td>
+<td>epsilonStart, epsilonMin, epsilonDecay</td>
+<td>Exploration schedule</td>
+</tr>
+<tr>
+<td><code>continuousPolicy</code></td>
+<td>noiseStd, noiseDecay</td>
+<td>Continuous action noise</td>
+</tr>
+<tr>
+<td><code>replayBuffer</code></td>
+<td>bufferSize, prioritized, alphaPER, betaPER</td>
+<td>Experience replay</td>
+</tr>
+</tbody>
+</table>
+<h3>Default Configuration</h3>
+<p>Defined in <code>factory.ts</code>. Key defaults:</p>
+<ul>
+<li>2 hidden layers: [64, 32] with ReLU activation</li>
+<li>Epsilon-greedy: start=1.0, min=0.05, decay=0.995</li>
+<li>Replay buffer: 10,000 experiences</li>
+<li>Population: 20 individuals, 50 max generations</li>
+<li>Mutation rate: 0.1, sigma: 0.05</li>
+</ul>
+<hr>
+<h2>GA Loop (Generation Cycle)</h2>
+<p>Each generation follows this sequence in <code>GeneticAlgorithmRunner.runGeneration()</code>:</p>
+<h3>1. Evaluation Phase (<code>evaluateGenomeAllWindows</code>)</h3>
+<p>For each genome in the population:</p>
+<ol>
+<li><strong>Shadow pass</strong>: Create a temporary backend, run through training data to pre-compute rewards</li>
+<li><strong>Training pass</strong>: Create a fresh backend, run Q-learning using pre-computed rewards with n-step TD targets</li>
+<li><strong>Lamarckian update</strong>: Extract trained weights, freeze them into the genome</li>
+<li><strong>Validation pass</strong>: Create a fresh backend with Lamarckian weights, evaluate on held-out validation data</li>
+<li><strong>Scoring</strong>: Compute fitness from episode returns, apply complexity penalty</li>
+</ol>
+<p>All genomes are evaluated in parallel using a bounded thread pool (<code>pooledEval</code>).</p>
+<h3>2. NSGA-II Sorting</h3>
+<p>The population is sorted using <strong>non-dominated sorting</strong> with crowding distance:</p>
+<ul>
+<li><strong>Exact O(n²)</strong> sorting for populations ≤ 300</li>
+<li><strong>Approximate O(n·k)</strong> sampling for larger populations</li>
+<li>Three objectives: avgPnl, sharpe, negFlops</li>
+</ul>
+<h3>3. Pareto Archive Update</h3>
+<p>The persistent <code>ParetoArchive</code> stores all non-dominated solutions discovered across generations. A candidate is accepted if no existing archive member dominates it. Dominated members are evicted.</p>
+<h3>4. Elitism</h3>
+<p>The top <code>elitismFraction * populationSize</code> individuals (by Pareto rank + crowding distance) survive directly to the next generation.</p>
+<h3>5. Parent Selection</h3>
+<p>Parents are selected using the configured strategy:</p>
+<ul>
+<li><strong>Tournament</strong> (default): Pick k=3 random individuals, return the fittest</li>
+<li><strong>Roulette</strong>: Fitness-proportionate selection</li>
+<li><strong>Rank</strong>: Rank-based selection</li>
+<li><strong>Truncation / SUS</strong>: Random from top fraction</li>
+</ul>
+<h3>6. Crossover</h3>
+<p>Two types of crossover applied sequentially:</p>
+<p><strong>Structural crossover</strong> (<code>crossover.ts</code>): Mixes network topology and RL hyperparameters:</p>
+<ul>
+<li>Hidden layer counts: blend or inherit from longer parent</li>
+<li>Per-layer: neuron count (scalar crossover), activation/connection/bias (uniform)</li>
+<li>RL params: scalar crossover (arithmetic, BLX-α, SBX, or uniform)</li>
+</ul>
+<p><strong>Weight-level crossover</strong> (<code>evolution-engine.ts</code>): Uniform crossover of trained weight arrays from both parents.</p>
+<h3>7. Mutation</h3>
+<p><strong>Structural mutation</strong> (<code>mutation.ts</code>): Perturbs:</p>
+<ul>
+<li>Neuron counts per layer (Gaussian noise rounded to integer)</li>
+<li>Activation functions (random swap from pool)</li>
+<li>Connection types, bias types</li>
+<li>RL hyperparameters (gamma, learningRate, epsilon*)</li>
+<li>Layer add/remove, neuron add/remove</li>
+<li>Mutation parameters themselves (self-adaptive sigma, rate)</li>
+</ul>
+<p><strong>Weight-level mutation</strong> (<code>evolution-engine.ts</code>): Gaussian perturbation of trained weights.</p>
+<h3>8. Adaptive Control</h3>
+<p><code>adaptGAControl</code> adjusts GA meta-parameters based on stagnation and improvement:</p>
+<table>
+<thead>
+<tr>
+<th>Condition</th>
+<th>Adjustment</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Stagnation &gt; 5</td>
+<td>Increase population size (up to 80)</td>
+</tr>
+<tr>
+<td>Improving</td>
+<td>Decrease population size (down to 8)</td>
+</tr>
+<tr>
+<td>Stagnation &gt; 8</td>
+<td>Increase elitism (up to 0.3)</td>
+</tr>
+<tr>
+<td>Improving</td>
+<td>Decrease elitism (down to 0.05)</td>
+</tr>
+<tr>
+<td>Stagnation &gt; 10</td>
+<td>Increase survivor fraction (up to 0.9)</td>
+</tr>
+<tr>
+<td>Stagnation &gt; 6</td>
+<td>More episodes per individual (up to 10)</td>
+</tr>
+</tbody>
+</table>
+<h3>9. Termination Check</h3>
+<p>Loop exits when any condition is met (checked each generation):</p>
+<ul>
+<li><code>rewardThreshold</code> reached</li>
+<li><code>stagnationPatience</code> exceeded</li>
+<li><code>maxGenerations</code> reached</li>
+<li><code>timeBudgetMs</code> exhausted</li>
+</ul>
+<hr>
+<h2>Genetic Operators Reference</h2>
+<h3>Mutation Distributions (<code>noise.ts</code>)</h3>
+<table>
+<thead>
+<tr>
+<th>Distribution</th>
+<th>PDF</th>
+<th>Use case</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Gaussian</strong></td>
+<td><code>N(0, σ²)</code></td>
+<td>Fine-grained local search</td>
+</tr>
+<tr>
+<td><strong>Lévy</strong></td>
+<td>Heavy-tailed α=0.5</td>
+<td>Escaping local optima</td>
+</tr>
+<tr>
+<td><strong>Cauchy</strong></td>
+<td>Heavy-tailed</td>
+<td>Rare large jumps</td>
+</tr>
+<tr>
+<td><strong>Uniform</strong></td>
+<td><code>U(−σ, σ)</code></td>
+<td>Uniform exploration</td>
+</tr>
+</tbody>
+</table>
+<h3>Sigma Adaptation (<code>mutation.ts:53-69</code>)</h3>
+<table>
+<thead>
+<tr>
+<th>Strategy</th>
+<th>Behavior</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>fixed</code></td>
+<td>Constant sigma</td>
+</tr>
+<tr>
+<td><code>sigma_adaptive</code></td>
+<td><code>sigma * (0.9 + 0.2 * random)</code></td>
+</tr>
+<tr>
+<td><code>self_adaptive</code></td>
+<td>Log-normal perturbation via 1/5-rule</td>
+</tr>
+<tr>
+<td><code>cma</code></td>
+<td>External CMA-ES step-size control</td>
+</tr>
+</tbody>
+</table>
+<h3>Crossover Types (<code>crossover.ts</code>)</h3>
+<table>
+<thead>
+<tr>
+<th>Type</th>
+<th>Formula</th>
+<th>Use case</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Uniform</strong></td>
+<td>Randomly pick from either parent</td>
+<td>Topology mixing</td>
+</tr>
+<tr>
+<td><strong>Arithmetic</strong></td>
+<td><code>lerp(a, b, α)</code></td>
+<td>Smooth blending</td>
+</tr>
+<tr>
+<td><strong>BLX-α</strong></td>
+<td><code>U(min-α·d, max+α·d)</code></td>
+<td>Extended range exploration</td>
+</tr>
+<tr>
+<td><strong>SBX</strong></td>
+<td>Simulated Binary Crossover</td>
+<td>Real-valued optimization</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2>Fitness Computation (<code>fitness.ts</code>)</h2>
+<table>
+<thead>
+<tr>
+<th>Type</th>
+<th>Formula</th>
+<th>When to use</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>total_pnl</code></td>
+<td><code>mean(rewards)</code></td>
+<td>Simple profit maximization</td>
+</tr>
+<tr>
+<td><code>sharpe</code></td>
+<td><code>mean / std</code></td>
+<td>Risk-adjusted returns</td>
+</tr>
+<tr>
+<td><code>sortino</code></td>
+<td><code>mean / downside_std</code></td>
+<td>Downside-risk focus</td>
+</tr>
+<tr>
+<td><code>calmar</code></td>
+<td><code>mean / max_drawdown</code></td>
+<td>Drawdown-averse</td>
+</tr>
+<tr>
+<td><code>composite</code></td>
+<td><code>0.4·pnl + 0.3·sharpe + 0.3·sortino</code></td>
+<td>Balanced</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Final fitness</strong> applies a complexity penalty: <code>adjusted = fitness * (1 - 0.15 * complexity_penalty)</code></p>
+<hr>
+<h2>Vector Encoding (<code>encoding.ts</code>)</h2>
+<p>Genomes can be encoded as fixed-length <code>Float32Array</code> vectors for use with CMA-ES or vectorized GA implementations:</p>
+<ul>
+<li>23 scalar fields (RL params, mutation params, input/output dims, depth)</li>
+<li>Per-layer: neuron count + one-hot activation + one-hot connection type</li>
+<li>Zero-padded to handle variable-depth architectures</li>
+<li>Total dimension: <code>23 + 12 * (1 + 8 + 3) = 167</code></li>
+</ul>
+<hr>
+<h2>Public API (<code>index.ts</code>)</h2>
+<p>The barrel export exposes:</p>
+<pre><code class="language-typescript">// Core
+import { GeneticAlgorithmRunner, makeTradingAgentBackend } from './ga-runner';
+import { createDefaultGenome } from './factory';
+
+// Operators
+import { mutateGenome } from './mutation';
+import { crossoverGenomes } from './crossover';
+import { selectParent } from './selection';
+
+// Evaluation
+import { evaluateGenomeAllWindows, pooledEval } from './evaluation-pipeline';
+
+// Fitness
+import { computeFitness, shapeReward } from './fitness';
+
+// Multi-objective
+import { ParetoArchive, dominates } from './pareto-engine';
+
+// Diversity
+import { genomicDistance, speciate, diversityMetrics } from './diversity';
+
+// Encoding
+import { encodeGenome, decodeGenome } from './encoding';
+
+// Validation
+import { validateGenome, repairGenome } from './validation';
+
+// Complexity
+import { estimateComplexity } from './complexity-estimator';
+
+// Adaptive control
+import { adaptGAControl, checkTerminationConditions } from './adaptive-control-system';
+</code></pre>
+</div></div>
+</main>
+</body>
+</html>
