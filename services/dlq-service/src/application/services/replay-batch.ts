@@ -41,33 +41,8 @@ async function replaySingleEntry(
 	entry: DlqEntryRef,
 	ctx: ReplayContext
 ): Promise<void> {
+	await deliverEntry(entry, ctx);
 	ctx.successCount.value++;
-	try {
-		await deliverEntry(entry, ctx);
-	} catch (err) {
-		if (ctx.isTimedOut()) {
-			throw err;
-		}
-		_handleEntryFailure(entry, ctx, err);
-		throw err;
-	}
-}
-
-function _handleEntryFailure(
-	entry: DlqEntryRef,
-	ctx: ReplayContext,
-	err: unknown
-): void {
-	const httpError = (err as Error).message;
-	ctx.errors.push({
-		id: entry.id,
-		error: httpError,
-	});
-	logger.error("DLQ replay entry failed", {
-		entryId: entry.id,
-		error: httpError,
-		batchId: ctx.batchId,
-	});
 }
 
 async function runBatchLoop(
