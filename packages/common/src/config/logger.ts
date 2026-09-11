@@ -133,5 +133,3 @@ export class Logger {
 
 /** Global logger instance pre-configured based on the current environment. */
 export const logger: Logger = createLogger();
-
-export const LOGGER = Logger;
