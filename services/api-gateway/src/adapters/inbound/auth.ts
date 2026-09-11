@@ -7,7 +7,7 @@ import type { RequestHandler } from "express";
 
 import { ENV } from "../../infrastructure/config/env";
 
-export interface AuthRequest {
+interface AuthRequest {
 	clientIdentity: ClientIdentity;
 }
 
@@ -15,7 +15,7 @@ function getValidTokens(): Set<string> {
 	return new Set(parseCommaSeparated(ENV.AUTH_TOKENS));
 }
 
-export const AUTH_MIDDLEWARE: RequestHandler = catchSync((req) => {
+export const AUTH_MIDDLEWARE: RequestHandler = catchSync((req, _res, next) => {
 	const tokenHeader = ENV.AUTH_TOKEN_HEADER.toLowerCase();
 	const token = req.headers[tokenHeader] ?? req.headers.authorization;
 
@@ -37,4 +37,5 @@ export const AUTH_MIDDLEWARE: RequestHandler = catchSync((req) => {
 	(req as unknown as AuthRequest).clientIdentity = ClientIdentity.of(
 		`client:${token.slice(0, 8)}`
 	);
+	next();
 });

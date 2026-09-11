@@ -19,6 +19,4 @@ const API_GATEWAY_ENV_SHAPE = {
 
 const API_GATEWAY_ENV_SCHEMA = BaseEnvSchema.extend(API_GATEWAY_ENV_SHAPE);
 
-export type ApiGatewayEnv = z.infer<typeof API_GATEWAY_ENV_SCHEMA>;
-
 export const ENV = validateEnv(API_GATEWAY_ENV_SCHEMA);

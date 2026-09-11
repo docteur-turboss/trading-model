@@ -12,7 +12,7 @@ export interface ProxyRequestOptions {
 	timeoutMs?: number;
 }
 
-export class TlsOptionsBuilder {
+class TlsOptionsBuilder {
 	buildOptions(opts: ProxyRequestOptions): https.RequestOptions {
 		const { target, req, path, timeoutMs = ENV.PROXY_TIMEOUT_MS } = opts;
 		const url = new URL(path, `https://${HostPort.toAddress(target)}`);
