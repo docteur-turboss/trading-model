@@ -1,6 +1,6 @@
-import { logger } from "@trading-model/common/config/logger";
 import { DurationMs } from "@trading-model/common/domain/primitives";
 import { normalizeError } from "@trading-model/common/utils/errors";
+import { logger } from "@trading-model/http/infrastructure/logger";
 import type { HttpServer } from "../../adapters/inbound/create-secure-server";
 import type { BootstrapOptions } from "../../shared/bootstrap-types";
 

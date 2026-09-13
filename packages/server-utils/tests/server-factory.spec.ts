@@ -2,7 +2,7 @@ jest.mock("node:https", () => ({
 	createServer: jest.fn(),
 }));
 
-jest.mock("@trading-model/common/config/http-tls-loader", () => ({
+jest.mock("@trading-model/http/infrastructure/http-tls-loader", () => ({
 	loadTlsPemBundle: jest.fn().mockResolvedValue({
 		keyPem: "fake-key",
 		certPem: "fake-cert",
@@ -11,7 +11,7 @@ jest.mock("@trading-model/common/config/http-tls-loader", () => ({
 }));
 
 import https from "node:https";
-import { loadTlsPemBundle } from "@trading-model/common/config/http-tls-loader";
+import { loadTlsPemBundle } from "@trading-model/http/infrastructure/http-tls-loader";
 import { createAndStartHttpsServer } from "../src/adapters/inbound/server-factory";
 
 describe("createAndStartHttpsServer", () => {

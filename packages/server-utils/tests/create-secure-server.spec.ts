@@ -2,15 +2,15 @@ jest.mock("../src/adapters/inbound/configure-app", () => ({
 	configureApp: jest.fn(),
 }));
 
-jest.mock("@trading-model/common/middleware/mtls-auth", () => ({
+jest.mock("@trading-model/http/adapters/inbound/mtls-auth", () => ({
 	MTLSAuthMiddleware: jest.fn(),
 }));
 
-jest.mock("@trading-model/common/middleware/mtls-authorization", () => ({
+jest.mock("@trading-model/http/adapters/inbound/mtls-authorization", () => ({
 	MTLSAuthorizationMiddleware: jest.fn(() => "authorize-middleware"),
 }));
 
-jest.mock("@trading-model/common/middleware/response-protocol", () => ({
+jest.mock("@trading-model/http/adapters/inbound/response-protocol", () => ({
 	ResponseProtocol: jest.fn(),
 }));
 
@@ -18,9 +18,9 @@ jest.mock("../src/adapters/inbound/server-factory", () => ({
 	createAndStartHttpsServer: jest.fn(),
 }));
 
-import { MTLSAuthMiddleware } from "@trading-model/common/middleware/mtls-auth";
-import { MTLSAuthorizationMiddleware } from "@trading-model/common/middleware/mtls-authorization";
-import { ResponseProtocol } from "@trading-model/common/middleware/response-protocol";
+import { MTLSAuthMiddleware } from "@trading-model/http/adapters/inbound/mtls-auth";
+import { MTLSAuthorizationMiddleware } from "@trading-model/http/adapters/inbound/mtls-authorization";
+import { ResponseProtocol } from "@trading-model/http/adapters/inbound/response-protocol";
 import { configureApp } from "../src/adapters/inbound/configure-app";
 import { createSecureServer } from "../src/adapters/inbound/create-secure-server";
 import { createAndStartHttpsServer } from "../src/adapters/inbound/server-factory";

@@ -2,7 +2,7 @@ import type {
 	DurationMs,
 	PositiveInt,
 } from "@trading-model/common/domain/primitives";
-import { HEALTH_STATUS_OK } from "@trading-model/common/middleware/response-exception";
+import { HEALTH_STATUS_OK } from "@trading-model/http/adapters/inbound/response-exception";
 import express, { type Application } from "express";
 import { rateLimit } from "express-rate-limit";
 import helmet from "helmet";

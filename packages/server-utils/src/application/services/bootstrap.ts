@@ -1,5 +1,5 @@
-﻿import { logger } from "@trading-model/common/config/logger";
-import { normalizeError } from "@trading-model/common/utils/errors";
+﻿import { normalizeError } from "@trading-model/common/utils/errors";
+import { logger } from "@trading-model/http/infrastructure/logger";
 import type { HttpServer } from "../../adapters/inbound/create-secure-server";
 import { setupProcessHandlers } from "../../infrastructure/signal-handler";
 import type { BootstrapOptions } from "../../shared/bootstrap-types";

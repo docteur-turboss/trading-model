@@ -1,8 +1,8 @@
 import type { ServiceId } from "@trading-model/common/domain/primitives";
 import type { TlsPaths } from "@trading-model/common/domain/tls-paths";
-import { MTLSAuthMiddleware } from "@trading-model/common/middleware/mtls-auth";
-import { MTLSAuthorizationMiddleware } from "@trading-model/common/middleware/mtls-authorization";
-import { ResponseProtocol } from "@trading-model/common/middleware/response-protocol";
+import { MTLSAuthMiddleware } from "@trading-model/http/adapters/inbound/mtls-auth";
+import { MTLSAuthorizationMiddleware } from "@trading-model/http/adapters/inbound/mtls-authorization";
+import { ResponseProtocol } from "@trading-model/http/adapters/inbound/response-protocol";
 import type { Application } from "express";
 import { configureApp, RateLimitConfig } from "./configure-app";
 import {

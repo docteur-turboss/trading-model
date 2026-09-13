@@ -11,7 +11,6 @@
     }
   },
   "dependencies": {
-    "@trading-model/common": "*",
     "@opentelemetry/api": "^1.9.1",
     "@opentelemetry/exporter-trace-otlp-http": "^0.222.0",
     "@opentelemetry/instrumentation-express": "^0.70.0",
@@ -19,6 +18,8 @@
     "@opentelemetry/resources": "^2.11.0",
     "@opentelemetry/sdk-node": "^0.222.0",
     "@opentelemetry/semantic-conventions": "^1.43.0",
+    "@trading-model/common": "*",
+    "@trading-model/http": "*",
     "express": "^5.2.1",
     "express-rate-limit": "^8.7.0",
     "helmet": "^8.3.0",

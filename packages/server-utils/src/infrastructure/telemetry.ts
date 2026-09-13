@@ -5,9 +5,9 @@ import { HttpInstrumentation } from "@opentelemetry/instrumentation-http";
 import { resourceFromAttributes } from "@opentelemetry/resources";
 import { NodeSDK } from "@opentelemetry/sdk-node";
 import { SemanticResourceAttributes } from "@opentelemetry/semantic-conventions";
-import { logger } from "@trading-model/common/config/logger";
 import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import type { InstanceId } from "@trading-model/common/domain/primitives";
+import { logger } from "@trading-model/http/infrastructure/logger";
 
 let sdk: NodeSDK | null = null;
 

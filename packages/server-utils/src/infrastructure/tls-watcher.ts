@@ -2,11 +2,11 @@ import fs from "node:fs";
 import fsPromises from "node:fs/promises";
 import type https from "node:https";
 import path from "node:path";
-import { loadTlsPemBundle } from "@trading-model/common/config/http-tls-loader";
-import { logger } from "@trading-model/common/config/logger";
 import type { TlsPaths } from "@trading-model/common/domain/tls-paths";
 import { toSecureContextOptions } from "@trading-model/common/domain/tls-paths";
 import { normalizeError } from "@trading-model/common/utils/errors";
+import { loadTlsPemBundle } from "@trading-model/http/infrastructure/http-tls-loader";
+import { logger } from "@trading-model/http/infrastructure/logger";
 
 async function reloadTlsContext(
 	server: https.Server,
