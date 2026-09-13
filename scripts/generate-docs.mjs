@@ -33,10 +33,26 @@ const MODULES = [
   {
     label: '@trading-model/common',
     type: 'package',
-    description: "Package d'infrastructure partagée — logger, middleware HTTP, validation, primitives, worker, websocket",
+    description: "Package d'infrastructure partagée — primitives, contrats, reliability, persistence, utils, ws",
     entryPoints: [join(ROOT, 'packages/common/src')],
     strategy: 'expand',
     tsconfig: join(ROOT, 'packages/common/tsconfig.json'),
+  },
+  {
+    label: '@trading-model/http',
+    type: 'package',
+    description: 'Plateforme HTTP — middleware, http client, logging',
+    entryPoints: [join(ROOT, 'packages/http/src')],
+    strategy: 'expand',
+    tsconfig: join(ROOT, 'packages/http/tsconfig.json'),
+  },
+  {
+    label: '@trading-model/jobs',
+    type: 'package',
+    description: 'Protocole worker distribué et récupération des jobs orphelins',
+    entryPoints: [join(ROOT, 'packages/jobs/src')],
+    strategy: 'expand',
+    tsconfig: join(ROOT, 'packages/jobs/tsconfig.json'),
   },
   {
     label: '@trading-model/address-manager',

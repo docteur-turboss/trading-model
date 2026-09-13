@@ -63,6 +63,8 @@ const GITMOJI_MAP = {
 
 const SCOPE_TO_PACKAGE = {
   common: 'packages/common',
+  http: 'packages/http',
+  jobs: 'packages/jobs',
   'address-manager': 'packages/address-manager',
   broker: 'packages/broker-message',
   'message-manager': 'services/message-manager',
