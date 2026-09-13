@@ -1,10 +1,10 @@
-export { HttpClient } from "./config/http-client";
-export { logger } from "./config/logger";
+export { handleCoreError } from "@trading-model/http/adapters/inbound/handle-core-error";
+export { MTLSAuthMiddleware } from "@trading-model/http/adapters/inbound/mtls-auth";
+export { ResponseException } from "@trading-model/http/adapters/inbound/response-exception";
+export { validateSchema } from "@trading-model/http/adapters/inbound/validate-schema";
+export { HttpClient } from "@trading-model/http/adapters/outbound/http-client";
+export { logger } from "@trading-model/http/infrastructure/logger";
 export type { SymbolInterval } from "./domain/candlestick-query";
 export type { TradingSymbol } from "./domain/primitives";
 export type { TopicBinding } from "./domain/topic-binding";
-export { handleCoreError } from "./middleware/handle-core-error";
-export { MTLSAuthMiddleware } from "./middleware/mtls-auth";
-export { ResponseException } from "./middleware/response-exception";
-export { validateSchema } from "./middleware/validate-schema";
 export { sleep } from "./utils/sleep";

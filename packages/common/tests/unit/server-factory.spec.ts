@@ -36,7 +36,7 @@ jest.mock("node:fs/promises", () => ({
 	),
 }));
 
-jest.mock("../../src/config/logger", () => ({
+jest.mock("@trading-model/http/infrastructure/logger", () => ({
 	logger: {
 		info: jest.fn(),
 		error: jest.fn(),
@@ -48,8 +48,8 @@ jest.mock("../../src/config/logger", () => ({
 
 import fs from "node:fs";
 import fsPromises from "node:fs/promises";
+import { logger } from "@trading-model/http/infrastructure/logger";
 import { setupTlsWatcher } from "@trading-model/server-utils/adapters/inbound/server-factory";
-import { logger } from "../../src/config/logger";
 import type { FilePath } from "../../src/domain/primitives";
 
 const TLS_CONFIG = {

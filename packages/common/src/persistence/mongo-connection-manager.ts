@@ -1,5 +1,5 @@
+import { logger } from "@trading-model/http/infrastructure/logger";
 import { type Db, MongoClient } from "mongodb";
-import { logger } from "../config/logger";
 import { DurationMs, type URLString } from "../domain/primitives";
 import { ConnectionManager } from "./connection-manager";
 import { createPoolOptions, resolvePoolSize } from "./mongo-utils";

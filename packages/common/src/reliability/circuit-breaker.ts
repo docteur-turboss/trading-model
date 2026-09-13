@@ -97,7 +97,9 @@ export class CircuitBreaker implements ICircuitBreaker<string> {
 			return result;
 		} catch (error) {
 			machine.recordFailure();
-			const { logger } = await import("../config/logger");
+			const { logger } = await import(
+				"@trading-model/http/infrastructure/logger"
+			);
 			logger.warn(`Circuit breaker recorded failure for: ${key}`);
 			if (fallback) {
 				return fallback();

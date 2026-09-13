@@ -9,7 +9,7 @@ import {
 
 let mockHardShutdown: ((code: number) => void) | undefined;
 
-jest.mock("../../src/config/logger", () => ({
+jest.mock("@trading-model/http/infrastructure/logger", () => ({
 	logger: {
 		info: jest.fn(),
 		error: jest.fn(),

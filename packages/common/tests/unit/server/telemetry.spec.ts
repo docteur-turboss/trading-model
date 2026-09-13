@@ -3,7 +3,7 @@ import { describe, expect, it, jest } from "@jest/globals";
 const mockSdkShutdown = jest.fn<() => Promise<void>>();
 mockSdkShutdown.mockResolvedValue(undefined);
 
-jest.mock("../../../src/config/logger", () => {
+jest.mock("@trading-model/http/infrastructure/logger", () => {
 	const mockFn = jest.fn();
 	return {
 		logger: {
@@ -50,11 +50,11 @@ jest.mock("@opentelemetry/instrumentation-express", () => ({
 	ExpressInstrumentation: jest.fn(),
 }));
 
+import { logger } from "@trading-model/http/infrastructure/logger";
 import {
 	initializeTelemetry,
 	shutdownTelemetry,
 } from "@trading-model/server-utils/infrastructure/telemetry";
-import { logger } from "../../../src/config/logger";
 
 const testConfig = {
 	serviceName: "test-service" as never,

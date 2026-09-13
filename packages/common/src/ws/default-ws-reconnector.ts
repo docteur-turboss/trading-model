@@ -1,4 +1,4 @@
-import { logger } from "../config/logger";
+import { logger } from "@trading-model/http/infrastructure/logger";
 import { DurationMs } from "../domain/primitives";
 import {
 	type BackoffConfig,

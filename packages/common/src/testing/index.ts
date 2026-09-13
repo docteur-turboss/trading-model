@@ -7,13 +7,13 @@
  * ```typescript
  * import { mockCatchSyncModule, mockSendResponseModule } from "@trading-model/common/testing";
  *
- * jest.mock("@trading-model/common/middleware/catch-error", () => mockCatchSyncModule);
- * jest.mock("@trading-model/common/middleware/response-exception", () => mockSendResponseModule);
+ * jest.mock("@trading-model/http/adapters/inbound/catch-error", () => mockCatchSyncModule);
+ * jest.mock("@trading-model/http/adapters/inbound/response-exception", () => mockSendResponseModule);
  * ```
  */
 
+import type { ResponseObject } from "@trading-model/http/adapters/inbound/response-exception";
 import type { HttpStatusCode } from "../http-status";
-import type { ResponseObject } from "../middleware/response-exception";
 
 type AnyFn = (...args: never[]) => unknown;
 

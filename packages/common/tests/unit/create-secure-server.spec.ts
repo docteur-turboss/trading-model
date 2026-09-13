@@ -46,15 +46,15 @@ jest.mock("node:fs/promises", () => ({
 	),
 }));
 
-jest.mock("../../src/middleware/response-protocol", () => ({
+jest.mock("@trading-model/http/adapters/inbound/response-protocol", () => ({
 	ResponseProtocol: "responseProtocolMiddleware",
 }));
 
-jest.mock("../../src/middleware/mtls-auth", () => ({
+jest.mock("@trading-model/http/adapters/inbound/mtls-auth", () => ({
 	MTLSAuthMiddleware: "mtlsAuthMiddleware",
 }));
 
-jest.mock("../../src/config/logger", () => ({
+jest.mock("@trading-model/http/infrastructure/logger", () => ({
 	logger: {
 		info: jest.fn(),
 		error: jest.fn(),
@@ -66,11 +66,11 @@ jest.mock("../../src/config/logger", () => ({
 
 import fs from "node:fs/promises";
 import https from "node:https";
+import { logger } from "@trading-model/http/infrastructure/logger";
 import { createSecureServer } from "@trading-model/server-utils/adapters/inbound/create-secure-server";
 import express from "express";
 import { rateLimit } from "express-rate-limit";
 import helmet from "helmet";
-import { logger } from "../../src/config/logger";
 import type { FilePath, Port } from "../../src/domain/primitives";
 
 describe("createSecureServer", () => {

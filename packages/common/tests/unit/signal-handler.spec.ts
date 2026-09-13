@@ -7,7 +7,7 @@ import {
 	jest,
 } from "@jest/globals";
 
-jest.mock("../../src/config/logger", () => ({
+jest.mock("@trading-model/http/infrastructure/logger", () => ({
 	logger: {
 		info: jest.fn(),
 		error: jest.fn(),

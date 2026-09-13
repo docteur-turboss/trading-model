@@ -1,6 +1,6 @@
+import { logger } from "@trading-model/http/infrastructure/logger";
 import type Redis from "ioredis";
 import type { Cluster } from "ioredis";
-import { logger } from "../config/logger";
 import { normalizeError } from "../utils/errors";
 import { RedisStatus } from "./redis-constants";
 
