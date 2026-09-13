@@ -2,7 +2,7 @@ import { describe, expect, it } from "@jest/globals";
 import {
 	JobPriority,
 	JobStatus,
-} from "@trading-model/validation/domain/contracts/recovery.types";
+} from "@trading-model/common/contracts/recovery-types";
 
 describe("JobPriority", () => {
 	it("should have correct constants", () => {
