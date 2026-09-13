@@ -14,7 +14,8 @@
     "paths": {
       "*": ["./*"],
       "@trading-model/validation/*": ["../validation/src/*"],
-      "@trading-model/server-utils/*": ["../server-utils/src/*"]
+      "@trading-model/server-utils/*": ["../server-utils/src/*"],
+      "@trading-model/common/*": ["./src/*"]
     }
   },
   "include": ["src/**/*"],

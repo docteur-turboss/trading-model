@@ -9,6 +9,8 @@
   ],
   "scripts": {
     "build:common": "bun run --filter @trading-model/common build",
+    "build:http": "bun run --filter @trading-model/http build",
+    "build:jobs": "bun run --filter @trading-model/jobs build",
     "build:crypto": "bun run --filter @trading-model/crypto build",
     "build:validation": "bun run --filter @trading-model/validation build",
     "build:server-utils": "bun run --filter @trading-model/server-utils build",
@@ -20,7 +22,7 @@
     "dev:admin": "bun run --filter admin-interface dev",
     "test:admin": "bun run --filter admin-interface test",
     "lint:admin": "bun run --filter admin-interface lint",
-    "build": "bun run build:common && bun run build:validation && bun run build:server-utils && bun run build:crypto && bun run build:address-manager && bun run build:broker-message",
+    "build": "bun run build:common && bun run build:http && bun run build:validation && bun run build:server-utils && bun run build:crypto && bun run build:jobs && bun run build:address-manager && bun run build:broker-message",
     "build:ts": "bun run build && bun run --filter message-manager build && bun run --filter discovery-server build && bun run --filter financial-scraper build && bun run --filter trader-service build && bun run --filter api-gateway build && bun run --filter audit-logger build && bun run --filter dlq-service build && bun run --filter admin-interface build",
     "commit": "bun scripts/commit.mjs",
     "release": "bun scripts/release.mjs",

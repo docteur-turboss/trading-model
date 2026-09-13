@@ -19,6 +19,7 @@
       "version": "1.2.0",
       "dependencies": {
         "@trading-model/common": "*",
+        "@trading-model/http": "*",
         "@trading-model/server-utils": "*",
         "@trading-model/validation": "*",
         "express": "^5.2.1",
@@ -45,6 +46,8 @@
         "@opentelemetry/api": "^1.9.1",
         "@trading-model/address-manager": "*",
         "@trading-model/common": "*",
+        "@trading-model/http": "*",
+        "@trading-model/jobs": "*",
         "@trading-model/validation": "*",
         "express": "^5.2.1",
         "ws": "^8.21.3",
@@ -66,6 +69,7 @@
       "version": "1.2.1",
       "dependencies": {
         "@trading-model/crypto": "*",
+        "@trading-model/http": "*",
         "@trading-model/server-utils": "*",
         "@trading-model/validation": "*",
         "chained-error": "^1.0.0",
@@ -104,6 +108,44 @@
         "typescript": "^6.0.3",
       },
     },
+    "packages/http": {
+      "name": "@trading-model/http",
+      "version": "1.0.0",
+      "dependencies": {
+        "@trading-model/common": "*",
+        "chained-error": "^1.0.0",
+        "express": "^5.2.1",
+        "zod": "^4.5.4",
+      },
+      "devDependencies": {
+        "@jest/globals": "^30.5.1",
+        "@types/express": "^5.0.6",
+        "@types/express-serve-static-core": "^5.0.6",
+        "@types/jest": "^30.0.0",
+        "@types/node": "^26.5.0",
+        "jest": "^30.5.1",
+        "ts-jest": "^29.4.12",
+        "typescript": "^6.0.3",
+      },
+    },
+    "packages/jobs": {
+      "name": "@trading-model/jobs",
+      "version": "1.0.0",
+      "dependencies": {
+        "@trading-model/common": "*",
+        "@trading-model/http": "*",
+        "ws": "^8.21.3",
+      },
+      "devDependencies": {
+        "@jest/globals": "^30.5.1",
+        "@types/jest": "^30.0.0",
+        "@types/node": "^26.5.0",
+        "@types/ws": "^8.16.0",
+        "jest": "^30.5.1",
+        "ts-jest": "^29.4.12",
+        "typescript": "^6.0.3",
+      },
+    },
     "packages/server-utils": {
       "name": "@trading-model/server-utils",
       "version": "1.0.0",
@@ -116,6 +158,7 @@
         "@opentelemetry/sdk-node": "^0.222.0",
         "@opentelemetry/semantic-conventions": "^1.43.0",
         "@trading-model/common": "*",
+        "@trading-model/http": "*",
         "express": "^5.2.1",
         "express-rate-limit": "^8.7.0",
         "helmet": "^8.3.0",
@@ -134,6 +177,7 @@
       "version": "1.0.0",
       "dependencies": {
         "@trading-model/common": "*",
+        "@trading-model/http": "*",
         "zod": "^4.5.4",
       },
       "devDependencies": {
@@ -152,6 +196,7 @@
         "@mui/icons-material": "^9.4.0",
         "@mui/material": "^9.4.0",
         "@trading-model/common": "*",
+        "@trading-model/http": "*",
         "@trading-model/validation": "*",
         "i18next": "^26.4.2",
         "react": "^19.2.8",
@@ -180,6 +225,7 @@
       "dependencies": {
         "@trading-model/common": "*",
         "@trading-model/crypto": "*",
+        "@trading-model/http": "*",
         "@trading-model/server-utils": "*",
         "@trading-model/validation": "*",
         "express": "^5.2.1",
@@ -205,6 +251,8 @@
         "@trading-model/address-manager": "*",
         "@trading-model/broker-message": "*",
         "@trading-model/common": "*",
+        "@trading-model/http": "*",
+        "@trading-model/jobs": "*",
         "@trading-model/server-utils": "*",
         "@trading-model/validation": "*",
         "express": "^5.2.1",
@@ -229,6 +277,7 @@
       "dependencies": {
         "@trading-model/common": "*",
         "@trading-model/crypto": "*",
+        "@trading-model/http": "*",
         "@trading-model/server-utils": "*",
         "@trading-model/validation": "*",
         "express": "^5.2.1",
@@ -258,6 +307,7 @@
         "@trading-model/address-manager": "^1.2.0",
         "@trading-model/common": "^1.2.1",
         "@trading-model/crypto": "*",
+        "@trading-model/http": "*",
         "@trading-model/server-utils": "*",
         "@trading-model/validation": "*",
         "express": "^5.2.1",
@@ -287,6 +337,7 @@
         "@trading-model/broker-message": "*",
         "@trading-model/common": "*",
         "@trading-model/crypto": "*",
+        "@trading-model/http": "*",
         "@trading-model/server-utils": "*",
         "@trading-model/validation": "*",
         "axios": "^1.20.0",
@@ -324,6 +375,7 @@
         "@trading-model/broker-message": "*",
         "@trading-model/common": "*",
         "@trading-model/crypto": "*",
+        "@trading-model/http": "*",
         "@trading-model/server-utils": "*",
         "@trading-model/validation": "*",
         "express": "^5.2.1",
@@ -354,6 +406,7 @@
         "@trading-model/broker-message": "*",
         "@trading-model/common": "*",
         "@trading-model/crypto": "*",
+        "@trading-model/http": "*",
         "@trading-model/server-utils": "*",
         "@trading-model/validation": "*",
         "express": "^5.2.1",
@@ -854,6 +907,10 @@
     "@trading-model/common": ["@trading-model/common@workspace:packages/common"],
 
     "@trading-model/crypto": ["@trading-model/crypto@workspace:packages/crypto"],
+
+    "@trading-model/http": ["@trading-model/http@workspace:packages/http"],
+
+    "@trading-model/jobs": ["@trading-model/jobs@workspace:packages/jobs"],
 
     "@trading-model/server-utils": ["@trading-model/server-utils@workspace:packages/server-utils"],
 

@@ -1,7 +1,7 @@
 {
   "name": "@trading-model/common",
   "version": "1.2.1",
-  "description": "Shared infrastructure — logger, server, middleware, validation, types",
+  "description": "Shared infrastructure — domain primitives, contracts, reliability, persistence, utils, ws",
   "license": "ISC",
   "type": "commonjs",
   "exports": {
@@ -13,21 +13,9 @@
       "types": "./dist/config/*.d.ts",
       "default": "./dist/config/*.js"
     },
-    "./middleware/*": {
-      "types": "./dist/middleware/*.d.ts",
-      "default": "./dist/middleware/*.js"
-    },
     "./utils/*": {
       "types": "./dist/utils/*.d.ts",
       "default": "./dist/utils/*.js"
-    },
-    "./worker/*": {
-      "types": "./dist/worker/*.d.ts",
-      "default": "./dist/worker/*.js"
-    },
-    "./recovery/*": {
-      "types": "./dist/recovery/*.d.ts",
-      "default": "./dist/recovery/*.js"
     },
     "./reliability/*": {
       "types": "./dist/reliability/*.d.ts",
@@ -72,6 +60,7 @@
   },
   "dependencies": {
     "@trading-model/crypto": "*",
+    "@trading-model/http": "*",
     "@trading-model/server-utils": "*",
     "@trading-model/validation": "*",
     "chained-error": "^1.0.0",
