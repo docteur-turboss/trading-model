@@ -17,20 +17,22 @@ The alternative — using off-the-shelf libraries directly in each service — w
 
 **@trading-model/common** provides: HTTP client, logger, middleware, domain primitives (branded types), contracts/shared DTOs, reliability (circuit breakers), worker/recovery helpers, and a central `AppError` class with `ErrorCodes`.
 
-> **Package split (ADR-0007):** server bootstrap, the secure HTTPS server factory, and TLS loading now live in `@trading-model/server-utils`; environment validation and Zod schemas live in `@trading-model/validation`; crypto primitives live in `@trading-model/crypto`. `common` keeps a subset of re-exports for backward compatibility during migration.
+> **Package split (ADR-0007):** server bootstrap, the secure HTTPS server factory, and TLS loading now live in `@trading-model/server-utils`; environment validation and Zod schemas live in `@trading-model/validation`; crypto primitives live in `@trading-model/crypto`; HTTP middleware, the HTTP client and the logging system live in `@trading-model/http`; the distributed worker protocol and orphan recovery live in `@trading-model/jobs`. `common` keeps the remaining domains (primitives, contracts, reliability, persistence, utils, ws) and re-exports a small subset for backward compatibility.
 
-This package depends on `@trading-model/validation`, `@trading-model/server-utils`, and `@trading-model/crypto`, plus external packages (`express`, `zod`, `helmet`, `express-rate-limit`, `chained-error`, `ioredis`, `mongodb`, `ws`).
+This package depends on `@trading-model/http`, `@trading-model/validation`, `@trading-model/server-utils`, and `@trading-model/crypto`, plus external packages (`zod`, `ioredis`, `mongodb`, `ws`).
 
 ## Logger
 
 Structured logging system with severity levels, memory buffer, file output, and external webhook for errors.
 
-- **Import**: `@trading-model/common/config/logger`
+> Moved to `@trading-model/http` (ADR-0007).
+
+- **Import**: `@trading-model/http/infrastructure/logger`
 - **Class**: `Logger`
 - **Pre-configured instance**: `logger`
 
 ```ts
-import { logger, LogLevel } from '@trading-model/common/config/logger';
+import { logger, LogLevel } from '@trading-model/http/infrastructure/logger';
 ```
 
 | Method                                                       | Description                                        |
@@ -165,10 +167,12 @@ import {
 
 HTTP client with mTLS support for service-to-service calls.
 
-- **Import**: `@trading-model/common/config/http-client`
+> Moved to `@trading-model/http` (ADR-0007).
+
+- **Import**: `@trading-model/http/adapters/outbound/http-client`
 
 ```ts
-import { HttpClient } from '@trading-model/common/config/http-client';
+import { HttpClient } from '@trading-model/http/adapters/outbound/http-client';
 ```
 
 | Method                                     | Signature | Returns                   |
@@ -191,20 +195,20 @@ Errors: `HttpClientError` (non-2xx status), `HttpClientTimeoutError` (timeout), 
 
 ## Middleware
 
-All middlewares are imported from `@trading-model/common/middleware/`.
+All middlewares are imported from `@trading-model/http/adapters/inbound/` (ADR-0007).
 
 ### catchSync
 
 Wrapper for async Express route handlers.
 
-- **Import**: `@trading-model/common/middleware/catch-error`
+- **Import**: `@trading-model/http/adapters/inbound/catch-error`
 - **Function**: `catchSync(handler)`
 
 ### ResponseException
 
 Standardised HTTP errors with fluent status code methods.
 
-- **Import**: `@trading-model/common/middleware/response-exception`
+- **Import**: `@trading-model/http/adapters/inbound/response-exception`
 - **Function**: `ResponseException(reason)`
 
 ```ts
@@ -219,14 +223,14 @@ Available codes: `ServiceUnavailable(503)`, `UnknownError(500)`, `InvalidToken(4
 
 Global Express error normalisation middleware.
 
-- **Import**: `@trading-model/common/middleware/response-protocol`
+- **Import**: `@trading-model/http/adapters/inbound/response-protocol`
 - Logs 5xx errors with stack trace, URL, method, IP
 
 ### MTLSAuthMiddleware
 
 mTLS authentication middleware.
 
-- **Import**: `@trading-model/common/middleware/mtls-auth`
+- **Import**: `@trading-model/http/adapters/inbound/mtls-auth`
 - Checks `socket.authorized`, extracts client certificate identity
 - Identity resolution: prefers SAN (Subject Alternative Name), falls back to CN (Common Name)
 - Fails closed with **401 Unauthorized** if no SAN or CN is present on the certificate (no default identity leak)
@@ -237,7 +241,7 @@ mTLS authentication middleware.
 
 Response normalisation utilities.
 
-- **Import**: `@trading-model/common/middleware/handle-core-response`
+- **Import**: `@trading-model/http/adapters/inbound/handle-core-response`
 
 | Function                              | Description                                                |
 | ------------------------------------- | ---------------------------------------------------------- |

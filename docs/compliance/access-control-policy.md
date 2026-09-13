@@ -26,7 +26,7 @@ All access to trading-model platform resources shall be authenticated, authorise
 | Layer | Mechanism | Implementation |
 |---|---|---|
 | **Transport** | mTLS TLS 1.3 | `@trading-model/server-utils/adapters/inbound/create-secure-server.ts` |
-| **Identity** | SPIFFE ID (SAN `spiffe://...`) | `@trading-model/common/middleware/mtls-auth.ts` |
+| **Identity** | SPIFFE ID (SAN `spiffe://...`) | `@trading-model/http/adapters/inbound/mtls-auth.ts` |
 | **Bearer token** | HMAC-SHA256 (service registration) | `discovery-server` → `address-manager` |
 | **API key** | External admin access | `api-gateway` — `AUTH_TOKENS` env var |
 
@@ -34,7 +34,7 @@ All access to trading-model platform resources shall be authenticated, authorise
 
 | Layer | Mechanism | Implementation |
 |---|---|---|
-| **Service-level ACL** | `mtls-authorization.ts` — maps caller SPIFFE ID → permitted targets | `@trading-model/common/middleware/mtls-authorization.ts` |
+| **Service-level ACL** | `mtls-authorization.ts` — maps caller SPIFFE ID → permitted targets | `@trading-model/http/adapters/inbound/mtls-authorization.ts` |
 | **Rate limiting** | Per-service rate limits | `express-rate-limit` — configurable per route |
 | **Network policy** | K8s NetworkPolicies / Docker Compose network isolation | `deploy/` manifests, `docker-compose.yml` networks |
 
@@ -55,7 +55,7 @@ Every service instance is provisioned with an X.509 SVID issued by the SPIRE Ser
 | `api-gateway` | `spiffe://trading-model.local/ns/trading-model/sa/api-gateway` | SPIRE Server | 1h TTL (auto-rotated) |
 | `admin-interface` | `spiffe://trading-model.local/ns/trading-model/sa/admin-interface` | SPIRE Server | 1h TTL (auto-rotated) |
 
-**Enforcement:** `@trading-model/common/middleware/mtls-auth.ts` extracts the client identity from the SVID's verified SPIFFE ID SAN. Requests without a valid SVID are rejected at the TLS handshake level when `ENFORCE_MTLS_STRICT` is enabled.
+**Enforcement:** `@trading-model/http/adapters/inbound/mtls-auth.ts` extracts the client identity from the SVID's verified SPIFFE ID SAN. Requests without a valid SVID are rejected at the TLS handshake level when `ENFORCE_MTLS_STRICT` is enabled.
 
 ### 3.2 Service Registration Tokens
 
@@ -72,7 +72,7 @@ Services obtain HMAC-SHA256 tokens from the discovery-server upon registration. 
 
 ### 4.1 Default ACL
 
-The default ACL is defined in `@trading-model/common/middleware/mtls-authorization.ts`. It maps each target service to the set of callers allowed to reach it (`"*"` = any platform service).
+The default ACL is defined in `@trading-model/http/adapters/inbound/mtls-authorization.ts`. It maps each target service to the set of callers allowed to reach it (`"*"` = any platform service).
 
 ```typescript
 // Simplified example of the DEFAULT_ACL mapping
@@ -140,7 +140,7 @@ In the event of SPIRE unavailability:
 | Document | Relevance |
 |---|---|
 | [Information Security Policy](information-security-policy.md) §5 | Access control framework |
-| `@trading-model/common/middleware/mtls-auth.ts` | mTLS authentication implementation |
-| `@trading-model/common/middleware/mtls-authorization.ts` | ACL authorization implementation |
+| `@trading-model/http/adapters/inbound/mtls-auth.ts` | mTLS authentication implementation |
+| `@trading-model/http/adapters/inbound/mtls-authorization.ts` | ACL authorization implementation |
 | `spiffe-helper` sidecar + SPIRE Workload API | SVID provisioning and rotation (ADR-0011) |
 | [Incident Response Policy](incident-response-policy.md) | Security incident escalation |

@@ -3,7 +3,7 @@
 **Status:** Accepted
 **Date:** 2026-06
 
-> **Outcome (2026-09):** The split was implemented with deviations from the plan below. Extracted packages: `@trading-model/validation`, `@trading-model/server-utils`, `@trading-model/crypto`. The planned `@trading-model/http` and `@trading-model/jobs` were **not** created — their domains stayed in `@trading-model/common` (`config/` + `middleware/` and `worker/` + `recovery/` respectively). `@trading-model/address-manager` and `@trading-model/broker-message` remain separate packages. Final workspace set: **6 packages** — `common`, `validation`, `server-utils`, `crypto`, `address-manager`, `broker-message`.
+> **Outcome (2026-09, completed):** The full split is now implemented. Extracted packages: `@trading-model/validation`, `@trading-model/server-utils`, `@trading-model/crypto`, **`@trading-model/http`** (middleware + http client + logging) and **`@trading-model/jobs`** (worker protocol + orphan recovery). `@trading-model/address-manager` and `@trading-model/broker-message` remain separate packages. Final workspace set: **8 packages** — `common`, `http`, `jobs`, `validation`, `server-utils`, `crypto`, `address-manager`, `broker-message`. The http and jobs packages use the clean-architecture layout (`shared/domain/application/infrastructure/adapters`) established by ADR-0010; the logging cluster (`logger`, `log-dispatcher`, `console-formatter`, `session-id-generator`, …) moved to `@trading-model/http` together with the HTTP client, and `@trading-model/jobs` depends on it for `logger` + `http-client`. All consumers were hard-migrated (no re-export shims retained in `common`); `common` keeps only the remaining domains (primitives, contracts, reliability, persistence, utils, ws, config misc).
 
 ## Context
 

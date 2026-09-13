@@ -7,7 +7,7 @@ Major clean-code refactor (`refactor/clean-code-v3`): simplification and reorgan
 #### Refactor
 
 - **DDD/hexagonal restructure** — all services migrated to `domain/` + `application/` + `adapters/` + `infrastructure/` layers (ADR-0010 generalized to all services)
-- **Package split** — `@trading-model/common` split into `validation`, `server-utils`, `crypto`; final workspace set is 6 packages (ADR-0007)
+- **Package split** — `@trading-model/common` split into `validation`, `server-utils`, `crypto`, `http`, `jobs`; final workspace set is 8 packages (ADR-0007)
 - **Workload identity** — in-house certificate-authority and `certificate-*` packages removed in favour of SPIFFE/SPIRE (ADR-0011); migration from npm to bun completed (`bun.lock` is the only lockfile)
 - **Dead code removal** — deprecated services (`crypto-worker`, `job-scheduler`, `certificate-authority`) and legacy modules (checkpoint/buffer/diversity) removed
 - **Consolidation** — duplicate circuit breakers, caches and WS clients unified into shared implementations; branded domain primitives adopted repo-wide

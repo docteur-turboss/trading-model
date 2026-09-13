@@ -159,7 +159,7 @@ Event Bus (Message Manager) ──POST /message──→ Audit Logger ──→ 
 
 - **Event Ingestion:** Subscribes to all broker topics. Incoming messages are persisted as `AuditEventDocument` in MongoDB.
 - **Job Processing:** Priority-queued jobs (1-5) distributed to workers via WebSocket with ACK/fail/complete lifecycle.
-- **Recovery:** `OrphanDetector` and `ReAllocator` (shared from `@trading-model/common/recovery/`) scan for stale workers and re-queue orphaned jobs. On startup, recovers non-terminal jobs from MongoDB.
+- **Recovery:** `OrphanDetector` and `ReAllocator` (shared from `@trading-model/jobs/application/services/`) scan for stale workers and re-queue orphaned jobs. On startup, recovers non-terminal jobs from MongoDB.
 - **Back-pressure:** Configurable `MAX_QUEUE_DEPTH` and `MAX_WORKER_LOAD_RATIO` — returns 429 when at capacity.
 
 ## Environment Variables

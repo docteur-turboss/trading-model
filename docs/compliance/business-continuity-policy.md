@@ -9,7 +9,7 @@
 
 This policy defines the Business Continuity (BC) and Disaster Recovery (DR) framework for the trading-model platform. It ensures that critical platform functions can be maintained or restored within defined timeframes in the event of a disruption.
 
-**Scope:** All 8 microservices, 6 packages, databases (MongoDB, MySQL, Redis), CI/CD infrastructure, and supporting observability stack.
+**Scope:** All 8 microservices, 8 packages, databases (MongoDB, MySQL, Redis), CI/CD infrastructure, and supporting observability stack.
 
 ## 2. Business Impact Analysis (BIA)
 

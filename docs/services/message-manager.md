@@ -9,7 +9,7 @@ Pub/sub message brokering service with delivery guarantees and MongoDB persisten
 | Service name     | `message-manager`                                         |
 | Port (host)      | `8444`                                                             |
 | Port (container) | `3000`                                                             |
-| Dependencies     | common, validation, server-utils, crypto, address-manager, broker-message |
+| Dependencies     | common, validation, http, server-utils, crypto, address-manager, broker-message |
 | Persistence      | Redis Streams (WAL) + MongoDB archive                              |
 | Validation       | Zod (dedicated schemas)                                            |
 

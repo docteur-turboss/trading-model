@@ -16,7 +16,7 @@ Publish a message to a topic. The broker enriches the message with a `messageId`
     "eventType": "trade.executed",
     "topic": "market.trade.executed",
     "publisher": {
-      "serviceName": "TraderTrainingService",
+      "serviceName": "trader-trainer",
       "instanceId": "node-1"
     },
     "correlationId": "uuid",

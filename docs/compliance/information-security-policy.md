@@ -64,8 +64,8 @@ All platform assets are documented in:
 ### 5.1 Network Access Control
 
 - **mTLS mandatory:** All inter-service communication requires mutual TLS 1.3 with X.509 SVIDs issued by SPIRE after workload attestation (ADR-0011)
-- **Service identity:** Extracted from the certificate SAN (SPIFFE ID `spiffe://...`) via `@trading-model/common/middleware/mtls-auth.ts`
-- **Authorization:** ACL-based service-to-service access control via `@trading-model/common/middleware/mtls-authorization.ts`
+- **Service identity:** Extracted from the certificate SAN (SPIFFE ID `spiffe://...`) via `@trading-model/http/adapters/inbound/mtls-auth.ts`
+- **Authorization:** ACL-based service-to-service access control via `@trading-model/http/adapters/inbound/mtls-authorization.ts`
 
 ### 5.2 Authentication Methods
 
@@ -124,7 +124,7 @@ All logs pass through three layers of sensitive data redaction before persistenc
 2. **JSON stringifier regex** — 15+ patterns for credential-like strings
 3. **PEM sanitizer** — Strips certificate private keys from log output
 
-Implementation: `@trading-model/common/config/logger.ts`
+Implementation: `@trading-model/http/infrastructure/logger.ts`
 
 ## 9. Communications Security
 

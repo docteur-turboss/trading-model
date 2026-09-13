@@ -102,10 +102,12 @@ graph TD
 | Services → Security    | Request/Reply (sync) | SPIFFE/SPIRE workload attestation + Workload API |
 | External → Platform    | Proxy (sync)         | API Gateway                           |
 
-## Migration from Current State
+## Event Enum Evolution
 
-The codebase currently has `EnumEventMessage` mixing market data, certificate, and audit topics in a single enum. A future refactoring should:
+The historical single `EnumEventMessage` enum (mixing market data, certificate, and audit topics) has been split into per-context enums:
 
-1. Split `EnumEventMessage` into per-context enums (`MarketEvent`, `SecurityEvent`, `AuditEvent`)
-2. Define per-context message schemas in Zod
-3. Use context-specific topics in the message-manager subscription model
+1. `MarketEvent` — `@trading-model/common/contracts/market-events`
+2. `AuditEvent` — `@trading-model/common/contracts/audit-events`
+3. Certificate/security events were **removed** with the CA decommission (ADR-0011)
+
+Per-context Zod schemas live in `@trading-model/broker-message/domain/messages/schemas` (metadata, message payload, market events, audit events).

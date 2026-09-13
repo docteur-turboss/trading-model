@@ -68,27 +68,29 @@ All developers contributing to the codebase. Every architectural decision aims t
 Shared packages (base → derived):
 
 ```
-@trading-model/common          (logger, http client, middleware, contracts, domain primitives, reliability)
-@trading-model/validation      (Zod schemas, DTOs, shared type contracts)      → common
-@trading-model/server-utils    (secure HTTPS server factory, TLS watcher, bootstrap) → common
-@trading-model/crypto          (hashing, signatures, crypto primitives)        → common, validation
+@trading-model/common          (domain primitives, contracts, reliability, persistence, utils, ws)
+@trading-model/http            (HTTP middleware, http client, logging) → common
+@trading-model/validation      (Zod schemas, DTOs, shared type contracts) → common, http
+@trading-model/server-utils    (secure HTTPS server factory, TLS watcher, bootstrap) → common, http
+@trading-model/crypto          (hashing, signatures, crypto primitives) → common, validation
+@trading-model/jobs            (worker protocol, orphan recovery) → common, http
 
-@trading-model/address-manager (service discovery client, health, token rotation) → common, server-utils, validation
-@trading-model/broker-message  (inter-service messaging SDK)                   → common, address-manager, validation
+@trading-model/address-manager (service discovery client, health, token rotation) → common, http, server-utils, validation
+@trading-model/broker-message  (inter-service messaging SDK) → common, http, jobs, address-manager, validation
 ```
 
 Services and their `@trading-model/*` dependencies:
 
 | Service            | Dependencies                                                                                     |
 | ------------------ | ------------------------------------------------------------------------------------------------ |
-| discovery-server   | common, crypto, server-utils, validation                                                         |
-| message-manager    | common, validation, server-utils, crypto, address-manager, broker-message                        |
-| financial-scraper  | common, validation, server-utils, crypto, address-manager, broker-message                        |
-| trader-trainer     | common, validation, server-utils, crypto, address-manager, broker-message                        |
-| audit-logger       | common, validation, server-utils, address-manager, broker-message                                |
-| dlq-service        | common, validation, server-utils, crypto, address-manager                                        |
-| api-gateway        | common, validation, server-utils, crypto                                                         |
-| admin-interface    | common, validation (DTO types only — React SPA, no Node runtime)                                 |
+| discovery-server   | common, crypto, http, server-utils, validation                                                   |
+| message-manager    | common, validation, http, server-utils, crypto, address-manager, broker-message                 |
+| financial-scraper  | common, validation, http, server-utils, crypto, address-manager, broker-message                 |
+| trader-trainer     | common, validation, http, server-utils, crypto, address-manager, broker-message                 |
+| audit-logger       | common, validation, http, jobs, server-utils, address-manager, broker-message                   |
+| dlq-service        | common, validation, http, server-utils, crypto, address-manager                                  |
+| api-gateway        | common, validation, http, server-utils, crypto                                                  |
+| admin-interface    | common, validation, http (DTO types only — React SPA, no Node runtime)                          |
 
 The **admin-interface** is a React SPA (not a Node.js microservice). It imports DTO types from `@trading-model/common` and `@trading-model/validation` and communicates with the backend exclusively via HTTP through the **api-gateway**. It is built with Vite, tested with Vitest, and served via nginx in production.
 

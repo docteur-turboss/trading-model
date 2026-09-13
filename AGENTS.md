@@ -4,7 +4,7 @@
 
 ```bash
 bun install --frozen-lockfile   # Install all workspace deps from bun.lock
-bun run build                   # Build 6 shared packages in order
+bun run build                   # Build all 8 shared packages in order
 bun run build:ts                # Build everything (packages + all 8 services)
 bun run test                    # Run all workspace tests
 bun run --filter <name> test    # Run a single workspace's tests
@@ -19,7 +19,7 @@ bun run commit                  # Interactive gitmoji commit CLI
 
 ## Monorepo layout
 
-- `packages/` — 6 shared libraries under `@trading-model/*` scope (common, validation, server-utils, crypto, address-manager, broker-message)
+- `packages/` — 8 shared libraries under `@trading-model/*` scope (common, http, jobs, validation, server-utils, crypto, address-manager, broker-message)
 - `services/` — 8 microservices (flat npm names, no scope)
 - All linked via bun workspaces (`packages/*` and `services/*`)
 
@@ -28,10 +28,12 @@ bun run commit                  # Interactive gitmoji commit CLI
 Packages must be built in this order before services:
 
 1. `@trading-model/common`
-2. `@trading-model/validation` + `@trading-model/server-utils` (extracted from common, depend on it)
-3. `@trading-model/crypto` (depends on validation + common)
-4. `@trading-model/address-manager`
-5. `@trading-model/broker-message`
+2. `@trading-model/http` (depends on common; middleware, http client, logging)
+3. `@trading-model/validation` + `@trading-model/server-utils` (depend on common + http)
+4. `@trading-model/crypto` (depends on validation + common)
+5. `@trading-model/jobs` (depends on common + http; worker protocol + orphan recovery)
+6. `@trading-model/address-manager`
+7. `@trading-model/broker-message`
 
 Services can then be built in any order. The root `bun run build` builds the packages above. Use `bun run build:ts` for a full build of everything.
 

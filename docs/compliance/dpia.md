@@ -1,7 +1,7 @@
 # Data Protection Impact Assessment (DPIA)
 
 > **Performed:** 2026-06  
-> **Assessment scope:** trading-model platform (all 8 services, 6 packages)  
+> **Assessment scope:** trading-model platform (all 8 services, 8 packages)  
 > **Methodology:** CNIL PIA framework (Art. 35 GDPR)
 
 ## 1. System Overview
