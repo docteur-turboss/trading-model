@@ -1,6 +1,6 @@
-import { logger } from "@trading-model/common/config/logger";
 import type { PositiveInt } from "@trading-model/common/domain/primitives";
 import { DurationMs } from "@trading-model/common/domain/primitives";
+import { logger } from "@trading-model/http/infrastructure/logger";
 import { ENV } from "../infrastructure/config/env";
 import { createDefaultGenome } from "./genetic-algorithm/factory";
 import {

@@ -1,5 +1,5 @@
-import { catchSync } from "@trading-model/common/middleware/catch-error";
-import { ResponseException } from "@trading-model/common/middleware/response-exception";
+import { catchSync } from "@trading-model/http/adapters/inbound/catch-error";
+import { ResponseException } from "@trading-model/http/adapters/inbound/response-exception";
 import { createServiceServer } from "@trading-model/server-utils/adapters/inbound/service-server-factory";
 
 import { ADDRESS_MANAGER_ROUTES } from "../config/address-manager";

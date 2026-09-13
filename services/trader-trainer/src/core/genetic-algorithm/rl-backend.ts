@@ -1,5 +1,5 @@
-import { logger } from "@trading-model/common/config/logger";
 import { Cash, Price, Volume } from "@trading-model/common/domain/primitives";
+import { logger } from "@trading-model/http/infrastructure/logger";
 import type { Experience } from "../../core/neural-network/type";
 import TradingAgent, {
 	type TradingAgentConfig,

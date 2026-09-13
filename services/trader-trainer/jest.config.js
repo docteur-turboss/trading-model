@@ -4,6 +4,8 @@ module.exports = {
   testPathIgnorePatterns: ['/node_modules/', '/dist/'],
   modulePathIgnorePatterns: ['/dist/'],
   moduleNameMapper: {
+    '^@trading-model/http/(.*)$': '<rootDir>/../../packages/http/src/$1',
+    '^@trading-model/jobs/(.*)$': '<rootDir>/../../packages/jobs/src/$1',
     '^@trading-model/crypto/(.*)$': '<rootDir>/../../packages/crypto/src/$1',
     '^@trading-model/validation/(.*)$': '<rootDir>/../../packages/validation/src/$1',
     '^@trading-model/server-utils/(.*)$': '<rootDir>/../../packages/server-utils/src/$1',

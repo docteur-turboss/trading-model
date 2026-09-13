@@ -1,6 +1,6 @@
-import { logger } from "@trading-model/common/config/logger";
 import type { PositiveInt } from "@trading-model/common/domain/primitives";
 import { agentError } from "@trading-model/common/utils/errors";
+import { logger } from "@trading-model/http/infrastructure/logger";
 import { INITIALIZERS } from "./initializers";
 import type { LayerDims } from "./layer-dims";
 import {

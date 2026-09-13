@@ -7,8 +7,8 @@ import {
 	it,
 	jest,
 } from "@jest/globals";
-import { catchSync } from "@trading-model/common/middleware/catch-error";
-import { ResponseException } from "@trading-model/common/middleware/response-exception";
+import { catchSync } from "@trading-model/http/adapters/inbound/catch-error";
+import { ResponseException } from "@trading-model/http/adapters/inbound/response-exception";
 import express from "express";
 
 jest.mock<{

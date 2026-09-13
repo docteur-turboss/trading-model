@@ -1,8 +1,8 @@
-import { logger } from "@trading-model/common/config/logger";
 import type {
 	Fitness,
 	PositiveInt,
 } from "@trading-model/common/domain/primitives";
+import { logger } from "@trading-model/http/infrastructure/logger";
 import type { GenerationContext } from "./genetic-algorithm/ga-runner";
 import { computeSharpe } from "./genome-summary-builder";
 import type { MarketDataBuffer } from "./market-data-buffer";
