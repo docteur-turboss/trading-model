@@ -1,0 +1,122 @@
+import type { URLString } from "@trading-model/common/domain/primitives";
+import type {
+	TlsPaths,
+	TlsPemBundle,
+} from "@trading-model/common/domain/tls-paths";
+import type { z } from "zod";
+import {
+	HttpRequestExecutor,
+	type RequestContext,
+} from "../../infrastructure/http-request-executor";
+import { computeAdaptiveTimeout } from "../../infrastructure/http-retry";
+import { loadTlsPemBundleSync } from "../../infrastructure/http-tls-loader";
+import type { HttpMethod, HttpRequestOptions } from "../../shared/http-types";
+import { isServiceCircuitOpen } from "./http-circuit-breaker";
+import {
+	createHttpClientError,
+	createHttpClientTimeoutError,
+	isHttpClientError,
+	isHttpClientTimeoutError,
+	toHttpClientErrorResponse,
+} from "./http-client-errors";
+
+export class HttpClient {
+	private _tlsBundle: Partial<TlsPemBundle>;
+	private readonly _executor: HttpRequestExecutor;
+	private readonly _tlsPaths?: Partial<TlsPaths>;
+
+	constructor(tlsConfig?: Partial<TlsPaths>) {
+		this._tlsPaths = tlsConfig;
+		this._tlsBundle = loadTlsPemBundleSync(tlsConfig);
+		this._executor = new HttpRequestExecutor();
+	}
+
+	async request<TResponse = void>(
+		context: RequestContext<TResponse>
+	): Promise<TResponse | undefined> {
+		return await this._request<TResponse>(context);
+	}
+
+	async get<TResponse = void>(
+		url: URLString,
+		options?: HttpRequestOptions,
+		schema?: z.ZodType<TResponse>
+	): Promise<TResponse | undefined> {
+		return await this.request<TResponse>({
+			method: "GET" as HttpMethod,
+			urlStr: url,
+			body: undefined,
+			options,
+			schema,
+		});
+	}
+
+	async post<TResponse = void>(
+		url: URLString,
+		body?: unknown,
+		options?: HttpRequestOptions,
+		schema?: z.ZodType<TResponse>
+	): Promise<TResponse | undefined> {
+		return await this.request<TResponse>({
+			method: "POST" as HttpMethod,
+			urlStr: url,
+			body,
+			options,
+			schema,
+		});
+	}
+
+	async delete<TResponse = void>(
+		url: URLString,
+		body?: unknown,
+		options?: HttpRequestOptions,
+		schema?: z.ZodType<TResponse>
+	): Promise<TResponse | undefined> {
+		return await this.request<TResponse>({
+			method: "DELETE" as HttpMethod,
+			urlStr: url,
+			body,
+			options,
+			schema,
+		});
+	}
+
+	static createWithTls(certPaths: TlsPaths): HttpClient {
+		return new HttpClient(certPaths);
+	}
+
+	private _request<TResponse>(
+		context: RequestContext<TResponse>
+	): Promise<TResponse | undefined> {
+		const route = this._executor.checkPreconditions(
+			context.urlStr,
+			context.options
+		);
+
+		if (this._tlsPaths) {
+			// Re-read key/cert/bundle on every request so SVID rotation (SPIFFE,
+			// ADR-0011) is picked up as soon as spiffe-helper rewrites the files.
+			this._tlsBundle = loadTlsPemBundleSync(this._tlsPaths);
+		}
+
+		return this._executor.executeWithRetry(context, route, {
+			caPem: this._tlsBundle.caPem,
+			certPem: this._tlsBundle.certPem,
+			keyPem: this._tlsBundle.keyPem,
+		});
+	}
+}
+
+export type {
+	HttpClientError,
+	HttpClientTimeoutError,
+} from "./http-client-errors";
+export {
+	computeAdaptiveTimeout,
+	createHttpClientError,
+	createHttpClientTimeoutError,
+	isHttpClientError,
+	isHttpClientTimeoutError,
+	isServiceCircuitOpen,
+	toHttpClientErrorResponse,
+};
