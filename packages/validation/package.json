@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@trading-model/common": "*",
+    "@trading-model/http": "*",
     "zod": "^4.5.4"
   },
   "devDependencies": {

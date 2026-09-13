@@ -1,11 +1,11 @@
-import { LogLevel } from "@trading-model/common/config/log-types";
-import { logger } from "@trading-model/common/config/logger";
-import { NODE_ENVS } from "@trading-model/common/config/node-env";
 import { TlsEnvVarsSchema } from "@trading-model/common/domain/tls-paths";
 import {
 	configurationError,
 	normalizeError,
 } from "@trading-model/common/utils/errors";
+import { LogLevel } from "@trading-model/http/infrastructure/log-types";
+import { logger } from "@trading-model/http/infrastructure/logger";
+import { NODE_ENVS } from "@trading-model/http/shared/node-env";
 import { z } from "zod";
 
 /** Zod schema for base environment variables shared across all services. */

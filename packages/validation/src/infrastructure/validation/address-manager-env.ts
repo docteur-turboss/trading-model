@@ -1,5 +1,5 @@
-import { logger } from "@trading-model/common/config/logger";
 import { normalizeError } from "@trading-model/common/utils/errors";
+import { logger } from "@trading-model/http/infrastructure/logger";
 import { z } from "zod";
 
 export const AddressManagerEnvSchema = z.object({
