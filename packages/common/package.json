@@ -5,10 +5,6 @@
   "license": "ISC",
   "type": "commonjs",
   "exports": {
-    "./constants": {
-      "types": "./dist/constants.d.ts",
-      "default": "./dist/constants.js"
-    },
     "./config/*": {
       "types": "./dist/config/*.d.ts",
       "default": "./dist/config/*.js"
@@ -24,10 +20,6 @@
     "./domain/*": {
       "types": "./dist/domain/*.d.ts",
       "default": "./dist/domain/*.js"
-    },
-    "./crl/*": {
-      "types": "./dist/crl/*.d.ts",
-      "default": "./dist/crl/*.js"
     },
     "./persistence/*": {
       "types": "./dist/persistence/*.d.ts",
@@ -59,10 +51,7 @@
     }
   },
   "dependencies": {
-    "@trading-model/crypto": "*",
     "@trading-model/http": "*",
-    "@trading-model/server-utils": "*",
-    "@trading-model/validation": "*",
     "chained-error": "^1.0.0",
     "express": "^5.2.1",
     "ioredis": "^6.0.0",

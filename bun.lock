@@ -68,10 +68,7 @@
       "name": "@trading-model/common",
       "version": "1.2.1",
       "dependencies": {
-        "@trading-model/crypto": "*",
         "@trading-model/http": "*",
-        "@trading-model/server-utils": "*",
-        "@trading-model/validation": "*",
         "chained-error": "^1.0.0",
         "express": "^5.2.1",
         "ioredis": "^6.0.0",
