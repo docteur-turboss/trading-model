@@ -12,7 +12,7 @@ import type { HttpStatusCode } from "@trading-model/common/http-status";
 import {
 	type ResponseObject,
 	sendResponse,
-} from "@trading-model/common/middleware/response-exception";
+} from "@trading-model/http/adapters/inbound/response-exception";
 import { validateReplayQuery } from "../../adapters/inbound/dlq-replay-validator";
 import { notifyReplayAudit } from "../../adapters/outbound/audit-notifier";
 import { dlqRetryManager } from "../../adapters/outbound/retry-manager";
@@ -43,7 +43,7 @@ export async function abandonExhaustedIfNeeded(
 
 async function _claimAndReplayBatch(options: ClaimAndReplayOptions): Promise<{
 	response:
-		| import("@trading-model/common/middleware/response-exception").ResponseObject
+		| import("@trading-model/http/adapters/inbound/response-exception").ResponseObject
 		| null;
 	successCount: number;
 	errors: DlqError[];

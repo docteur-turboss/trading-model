@@ -1,11 +1,11 @@
 import { SpanStatusCode } from "@opentelemetry/api";
 import type { HttpStatusCode } from "@trading-model/common/http-status";
 import { HTTP_STATUS } from "@trading-model/common/http-status";
+import { normalizeError } from "@trading-model/common/utils/errors";
 import {
 	type ResponseObject,
 	sendResponse,
-} from "@trading-model/common/middleware/response-exception";
-import { normalizeError } from "@trading-model/common/utils/errors";
+} from "@trading-model/http/adapters/inbound/response-exception";
 import { isDlqCapacityError } from "../adapters/outbound/repository";
 import { logger } from "../config/logger";
 

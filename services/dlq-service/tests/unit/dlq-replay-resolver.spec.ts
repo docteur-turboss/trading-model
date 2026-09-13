@@ -6,7 +6,7 @@ jest.mock("../../src/dlq/shared/message-manager-resolver", () => ({
 	resolveMessageManagerUrl: MOCK_RESOLVE_MESSAGE_MANAGER_URL,
 }));
 
-jest.mock("@trading-model/common/middleware/response-exception", () => ({
+jest.mock("@trading-model/http/adapters/inbound/response-exception", () => ({
 	sendResponse: (data: unknown, status: number) => ({ data, status }),
 }));
 

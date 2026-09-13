@@ -1,4 +1,3 @@
-import { HttpClient } from "@trading-model/common/config/http-client";
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import {
 	DurationMs,
@@ -9,6 +8,7 @@ import {
 import { HostPort } from "@trading-model/common/domain/service-identity";
 import { buildTlsFromEnv } from "@trading-model/common/domain/tls-paths";
 import { CircuitStateMachine } from "@trading-model/common/reliability/circuit-state-machine";
+import { HttpClient } from "@trading-model/http/adapters/outbound/http-client";
 import type { AuditEvent } from "@trading-model/validation/adapters/inbound/admin/audit.dto";
 import { ENV } from "../infrastructure/config/env";
 import { FIND_A_SERVICE } from "./address-manager";

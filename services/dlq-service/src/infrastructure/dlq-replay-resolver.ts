@@ -4,7 +4,7 @@ import type { HttpStatusCode } from "@trading-model/common/http-status";
 import {
 	type ResponseObject,
 	sendResponse,
-} from "@trading-model/common/middleware/response-exception";
+} from "@trading-model/http/adapters/inbound/response-exception";
 import { resolveMessageManagerUrl } from "../dlq/shared/message-manager-resolver";
 
 export async function resolveMMUrlOrFail(

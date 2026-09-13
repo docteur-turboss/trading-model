@@ -9,7 +9,7 @@ const mockSpan = {
 	end: MOCK_END,
 };
 
-jest.mock("@trading-model/common/middleware/response-exception", () => ({
+jest.mock("@trading-model/http/adapters/inbound/response-exception", () => ({
 	sendResponse: (data: unknown, status: number) => ({ data, status }),
 }));
 

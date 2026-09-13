@@ -3,7 +3,7 @@ import type { HttpStatusCode } from "@trading-model/common/http-status";
 import {
 	type ResponseObject,
 	sendResponse,
-} from "@trading-model/common/middleware/response-exception";
+} from "@trading-model/http/adapters/inbound/response-exception";
 import { z } from "zod";
 
 const ReplaySchema = z.object({

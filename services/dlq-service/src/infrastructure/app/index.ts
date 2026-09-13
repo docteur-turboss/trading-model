@@ -1,7 +1,7 @@
-import { logger } from "@trading-model/common/config/logger";
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import { toInstanceId } from "@trading-model/common/domain/primitives";
 import { normalizeError } from "@trading-model/common/utils/errors";
+import { logger } from "@trading-model/http/infrastructure/logger";
 import { createBootstrap } from "@trading-model/server-utils/application/services/bootstrap";
 import {
 	initializeTelemetry,

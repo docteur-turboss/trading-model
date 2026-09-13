@@ -6,7 +6,7 @@ const MOCK_HTTP_CLIENT_INSTANCE = {
 
 let mockBuildTlsFromEnv: jest.Mock;
 
-jest.mock("@trading-model/common/config/http-client", () => ({
+jest.mock("@trading-model/http/adapters/outbound/http-client", () => ({
 	HttpClient: jest.fn(() => MOCK_HTTP_CLIENT_INSTANCE),
 }));
 

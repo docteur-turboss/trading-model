@@ -17,6 +17,7 @@
     "@trading-model/address-manager": "^1.2.0",
     "@trading-model/common": "^1.2.1",
     "@trading-model/crypto": "*",
+    "@trading-model/http": "*",
     "@trading-model/server-utils": "*",
     "@trading-model/validation": "*",
     "express": "^5.2.1",

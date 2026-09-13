@@ -1,4 +1,4 @@
-import { catchSync } from "@trading-model/common/middleware/catch-error";
+import { catchSync } from "@trading-model/http/adapters/inbound/catch-error";
 import {
 	addEntry,
 	deleteEntries,

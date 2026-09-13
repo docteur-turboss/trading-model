@@ -1,5 +1,4 @@
 import type { Span } from "@opentelemetry/api";
-import type { HttpClient } from "@trading-model/common/config/http-client";
 import type {
 	InstanceId,
 	Limit,
@@ -7,6 +6,7 @@ import type {
 	Topic,
 	URLString,
 } from "@trading-model/common/domain/primitives";
+import type { HttpClient } from "@trading-model/http/adapters/outbound/http-client";
 
 export interface BatchContext {
 	batchId: string;

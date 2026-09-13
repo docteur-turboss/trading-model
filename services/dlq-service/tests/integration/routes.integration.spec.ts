@@ -41,7 +41,7 @@ jest.mock("../../src/adapters/inbound/rate-limiter", () => ({
 	closeRedisClient: jest.fn(),
 }));
 
-jest.mock("@trading-model/common/config/http-client", () => ({
+jest.mock("@trading-model/http/adapters/outbound/http-client", () => ({
 	HttpClient: jest.fn(),
 }));
 

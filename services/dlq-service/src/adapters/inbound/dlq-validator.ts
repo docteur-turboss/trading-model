@@ -1,7 +1,7 @@
 import type { Bytes } from "@trading-model/common/domain/primitives";
 import type { HttpStatusCode } from "@trading-model/common/http-status";
-import type { ResponseObject } from "@trading-model/common/middleware/response-exception";
 import { CryptoAlg } from "@trading-model/crypto/domain/constants/crypto-constants";
+import type { ResponseObject } from "@trading-model/http/adapters/inbound/response-exception";
 import type { z } from "zod";
 import { isDbConnected } from "../../config/db";
 import { validationFail } from "../../shared/dlq-error-builder";

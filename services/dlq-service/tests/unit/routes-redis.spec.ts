@@ -15,15 +15,15 @@ jest.mock("rate-limit-redis", () => {
 	return jest.fn();
 });
 
-jest.mock("@trading-model/common/config/http-client", () => ({
+jest.mock("@trading-model/http/adapters/outbound/http-client", () => ({
 	HttpClient: jest.fn(),
 }));
 
-jest.mock("@trading-model/common/middleware/catch-error", () => ({
+jest.mock("@trading-model/http/adapters/inbound/catch-error", () => ({
 	catchSync: (fn: (...args: unknown[]) => unknown) => fn,
 }));
 
-jest.mock("@trading-model/common/middleware/response-exception", () => ({
+jest.mock("@trading-model/http/adapters/inbound/response-exception", () => ({
 	sendResponse: (data: unknown) => data,
 }));
 

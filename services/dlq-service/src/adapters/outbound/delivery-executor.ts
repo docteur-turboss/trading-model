@@ -12,13 +12,13 @@ import type { BatchContext, DlqEntryRef } from "../../shared/types";
 import { dlqRetryManager } from "./retry-manager";
 
 export interface DeliveryContext extends BatchContext {
-	client: import("@trading-model/common/config/http-client").HttpClient;
+	client: import("@trading-model/http/adapters/outbound/http-client").HttpClient;
 	messageManagerUrl: string;
 }
 
 async function _deliverMessage(
 	entry: DlqEntryRef,
-	client: import("@trading-model/common/config/http-client").HttpClient,
+	client: import("@trading-model/http/adapters/outbound/http-client").HttpClient,
 	messageManagerUrl: string
 ): Promise<void> {
 	if (isShuttingDown()) {

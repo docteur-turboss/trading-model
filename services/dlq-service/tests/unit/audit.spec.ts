@@ -19,7 +19,7 @@ jest.mock("../../src/config/address-manager", () => ({
 	FIND_A_SERVICE: MOCK_FIND_A_SERVICE,
 }));
 
-jest.mock("@trading-model/common/config/http-client", () => ({
+jest.mock("@trading-model/http/adapters/outbound/http-client", () => ({
 	HttpClient: jest.fn(() => ({
 		post: MOCK_POST,
 	})),

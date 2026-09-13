@@ -3,7 +3,7 @@ import {
 	HEALTH_STATUS_OK,
 	type ResponseObject,
 	sendResponse,
-} from "@trading-model/common/middleware/response-exception";
+} from "@trading-model/http/adapters/inbound/response-exception";
 import { getMissingCriticalIndexes, isDbConnected } from "../../config/db";
 import { dlqRedisQueue } from "../../config/redis-queue";
 import { dlqRepository } from "../outbound/repository";
