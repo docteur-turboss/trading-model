@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, jest, test } from "@jest/globals";
-import { ResponseException } from "@trading-model/common/middleware/response-exception";
+import { ResponseException } from "@trading-model/http/adapters/inbound/response-exception";
 import type { Response } from "express";
 import { pingController } from "../../src/adapters/inbound/ping.controller";
 

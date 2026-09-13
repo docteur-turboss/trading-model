@@ -17,7 +17,7 @@ import type { ServiceInstance } from "../../src/domain/client/type";
 import type { DiscoveryContext } from "../../src/domain/discovery/discovery-context";
 import type { IServiceCache } from "../../src/domain/discovery/service-cache.interface";
 
-jest.mock("@trading-model/common/config/logger", () => ({
+jest.mock("@trading-model/http/infrastructure/logger", () => ({
 	logger: {
 		warn: jest.fn(),
 		debug: jest.fn(),
@@ -35,8 +35,8 @@ jest.mock("../../src/infrastructure/metrics", () => ({
 	recordDiscoveryMetrics: jest.fn(),
 }));
 
-import { logger } from "@trading-model/common/config/logger";
 import { sleep } from "@trading-model/common/utils/sleep";
+import { logger } from "@trading-model/http/infrastructure/logger";
 import { recordDiscoveryMetrics } from "../../src/infrastructure/metrics";
 
 describe("DiscoveryRetryHandler", () => {

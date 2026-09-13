@@ -1,6 +1,6 @@
-import { logger } from "@trading-model/common/config/logger";
 import type { TlsEnvVars } from "@trading-model/common/domain/tls-paths";
 import { normalizeError } from "@trading-model/common/utils/errors";
+import { logger } from "@trading-model/http/infrastructure/logger";
 
 export interface AddressManagerEnv extends TlsEnvVars {
 	ADDRESS_MANAGER_URL: string;

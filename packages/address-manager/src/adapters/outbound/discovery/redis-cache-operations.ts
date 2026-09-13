@@ -1,6 +1,6 @@
-import { logger } from "@trading-model/common/config/logger";
 import type { ServiceId } from "@trading-model/common/domain/primitives";
 import { normalizeError } from "@trading-model/common/utils/errors";
+import { logger } from "@trading-model/http/infrastructure/logger";
 import type { ServiceInstance } from "../../../domain/client/type";
 import type { RedisStoreConfig } from "../../../domain/discovery/redis-store-config";
 import type { CacheSetEntry } from "../../../domain/discovery/service-cache.interface";

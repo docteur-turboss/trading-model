@@ -1,4 +1,3 @@
-import type { HttpClient } from "@trading-model/common/config/http-client";
 import { URLString } from "@trading-model/common/domain/primitives";
 import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
 import { HTTP_HEADERS } from "@trading-model/common/http-headers";
@@ -6,6 +5,7 @@ import {
 	addressManagerError,
 	normalizeError,
 } from "@trading-model/common/utils/errors";
+import type { HttpClient } from "@trading-model/http/adapters/outbound/http-client";
 import type { TokenManager } from "../../../application/client/token-manager";
 
 function isRejected<TValue>(

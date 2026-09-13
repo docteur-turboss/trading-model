@@ -28,7 +28,7 @@ jest.mock("ws", () => ({
 }));
 
 const MOCK_WARN = jest.fn();
-jest.mock("@trading-model/common/config/logger", () => ({
+jest.mock("@trading-model/http/infrastructure/logger", () => ({
 	logger: {
 		debug: jest.fn(),
 		info: jest.fn(),

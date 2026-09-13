@@ -1,5 +1,4 @@
 import { beforeEach, describe, expect, jest, test } from "@jest/globals";
-import type { HttpClient } from "@trading-model/common/config/http-client";
 import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import {
 	DurationMs,
@@ -12,6 +11,7 @@ import {
 	toVersion,
 	UnixTimestamp,
 } from "@trading-model/common/domain/primitives";
+import type { HttpClient } from "@trading-model/http/adapters/outbound/http-client";
 import { Protocol } from "@trading-model/validation/adapters/outbound/service-registry.types";
 import type { ServiceCache } from "../../src/adapters/outbound/discovery/service-cache";
 import type { ServiceHealthChecker } from "../../src/adapters/outbound/discovery/service-health-checker";

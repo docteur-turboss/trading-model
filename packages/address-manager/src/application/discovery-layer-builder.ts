@@ -1,4 +1,4 @@
-import type { HttpClient } from "@trading-model/common/config/http-client";
+import type { HttpClient } from "@trading-model/http/adapters/outbound/http-client";
 import { ServiceHealthChecker } from "../adapters/outbound/discovery/service-health-checker";
 import type { AddressManagerConfig } from "../domain/config/address-manager-config";
 import { MapResolver } from "../domain/discovery/dns-resolver";

@@ -1,9 +1,9 @@
-import { logger } from "@trading-model/common/config/logger";
 import type {
 	DurationMs,
 	InstanceId,
 	ServiceId,
 } from "@trading-model/common/domain/primitives";
+import { logger } from "@trading-model/http/infrastructure/logger";
 import type { AddressManagerClient } from "../adapters/outbound/client/address-manager-client";
 import type { WebSocketClient } from "../adapters/outbound/client/websocket-client";
 import type { ServiceHealthChecker } from "../adapters/outbound/discovery/service-health-checker";

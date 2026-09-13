@@ -10,14 +10,14 @@ import {
 } from "@trading-model/common/domain/primitives";
 import { Protocol } from "@trading-model/validation/adapters/outbound/service-registry.types";
 
-jest.mock("@trading-model/common/config/logger", () => ({
+jest.mock("@trading-model/http/infrastructure/logger", () => ({
 	logger: {
 		warn: jest.fn(),
 		debug: jest.fn(),
 	},
 }));
 
-import { logger } from "@trading-model/common/config/logger";
+import { logger } from "@trading-model/http/infrastructure/logger";
 import { RedisCacheScanner } from "../../src/adapters/outbound/discovery/redis-cache-scanner";
 import type { ServiceInstance } from "../../src/domain/client/type";
 

@@ -1,4 +1,3 @@
-import type { HttpClient } from "@trading-model/common/config/http-client";
 import {
 	type DurationMs,
 	type ServiceId,
@@ -10,6 +9,7 @@ import {
 	serviceNotFoundError,
 	serviceUnreachableError,
 } from "@trading-model/common/utils/errors";
+import type { HttpClient } from "@trading-model/http/adapters/outbound/http-client";
 import type { ServiceHealthChecker } from "../../adapters/outbound/discovery/service-health-checker";
 import type { ServiceInstance } from "../../domain/client/type";
 import type { AddressManagerConfig } from "../../domain/config/address-manager-config";

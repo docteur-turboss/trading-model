@@ -1,9 +1,9 @@
-import { logger } from "@trading-model/common/config/logger";
 import {
 	type ServiceId,
 	toServiceId,
 } from "@trading-model/common/domain/primitives";
 import { normalizeError } from "@trading-model/common/utils/errors";
+import { logger } from "@trading-model/http/infrastructure/logger";
 import type Redis from "ioredis";
 import type { ServiceInstance } from "../../../domain/client/type";
 

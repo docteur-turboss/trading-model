@@ -1,9 +1,9 @@
-import { logger } from "@trading-model/common/config/logger";
 import {
 	type ServiceId,
 	toServiceId,
 } from "@trading-model/common/domain/primitives";
 import { normalizeError } from "@trading-model/common/utils/errors";
+import { logger } from "@trading-model/http/infrastructure/logger";
 import type { ServiceHealthChecker } from "../../adapters/outbound/discovery/service-health-checker";
 import type { ServiceInstance } from "../../domain/client/type";
 import type { IServiceCache } from "../../domain/discovery/service-cache.interface";

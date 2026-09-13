@@ -1,6 +1,6 @@
-import { logger } from "@trading-model/common/config/logger";
 import { toServiceId } from "@trading-model/common/domain/primitives";
 import { normalizeError } from "@trading-model/common/utils/errors";
+import { logger } from "@trading-model/http/infrastructure/logger";
 import { DiscoveryWsMessageType } from "@trading-model/validation/adapters/inbound/discovery-ws-message.types";
 import type { WsMessage } from "../adapters/outbound/client/websocket-client";
 import type { IServiceCache } from "../domain/discovery/service-cache.interface";

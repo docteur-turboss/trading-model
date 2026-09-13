@@ -1,6 +1,6 @@
-import { logger } from "@trading-model/common/config/logger";
 import type { InstanceId } from "@trading-model/common/domain/primitives";
 import { normalizeError } from "@trading-model/common/utils/errors";
+import { logger } from "@trading-model/http/infrastructure/logger";
 import type { ICircuitStateStore } from "../../../domain/discovery/circuit-state-store.interface";
 import type { RedisStoreConfig } from "../../../domain/discovery/redis-store-config";
 import type { PersistedCircuitState } from "../../../domain/discovery/service-cache.interface";

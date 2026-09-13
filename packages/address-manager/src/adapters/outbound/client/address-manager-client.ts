@@ -1,5 +1,3 @@
-import type { HttpClient } from "@trading-model/common/config/http-client";
-import { logger } from "@trading-model/common/config/logger";
 import { parseServiceName } from "@trading-model/common/config/services.types";
 import { URLString } from "@trading-model/common/domain/primitives";
 import { HTTP_HEADERS } from "@trading-model/common/http-headers";
@@ -7,6 +5,8 @@ import {
 	addressManagerError,
 	normalizeError,
 } from "@trading-model/common/utils/errors";
+import type { HttpClient } from "@trading-model/http/adapters/outbound/http-client";
+import { logger } from "@trading-model/http/infrastructure/logger";
 import type { TokenManager } from "../../../application/client/token-manager";
 import type {
 	RegisterServicePayload,

@@ -7,7 +7,6 @@ import {
 	jest,
 	test,
 } from "@jest/globals";
-import type { HttpClient } from "@trading-model/common/config/http-client";
 import {
 	registerServiceName,
 	type ServiceInstanceName,
@@ -23,6 +22,7 @@ import {
 	type URLString,
 } from "@trading-model/common/domain/primitives";
 import { isAppError } from "@trading-model/common/utils/errors";
+import type { HttpClient } from "@trading-model/http/adapters/outbound/http-client";
 import { Protocol } from "@trading-model/validation/adapters/outbound/service-registry.types";
 import { AddressManagerClient } from "../../src/adapters/outbound/client/address-manager-client";
 import type { TokenManager } from "../../src/application/client/token-manager";

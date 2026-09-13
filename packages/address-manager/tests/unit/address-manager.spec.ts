@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 
 import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
 
-jest.mock("@trading-model/common/config/http-client", () => ({
+jest.mock("@trading-model/http/adapters/outbound/http-client", () => ({
 	HttpClient: {
 		createWithTls: jest.fn<any>().mockReturnValue({
 			get: jest.fn<any>(),
@@ -11,7 +11,7 @@ jest.mock("@trading-model/common/config/http-client", () => ({
 	},
 }));
 
-jest.mock("@trading-model/common/config/logger", () => ({
+jest.mock("@trading-model/http/infrastructure/logger", () => ({
 	logger: {
 		info: jest.fn<any>(),
 		warn: jest.fn<any>(),

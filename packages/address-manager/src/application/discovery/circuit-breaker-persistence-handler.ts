@@ -1,6 +1,6 @@
-import { logger } from "@trading-model/common/config/logger";
 import type { InstanceId } from "@trading-model/common/domain/primitives";
 import type { CircuitStateMachine } from "@trading-model/common/reliability/circuit-state-machine";
+import { logger } from "@trading-model/http/infrastructure/logger";
 import type { CircuitBreakerPersistence } from "../../adapters/outbound/discovery/circuit-breaker-persistence";
 import type { PersistedCircuitState } from "../../domain/discovery/service-cache.interface";
 import type { ForEachMachineFn } from "../../infrastructure/discovery/circuit-breaker-sweeper";

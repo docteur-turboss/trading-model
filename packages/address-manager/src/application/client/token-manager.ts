@@ -1,8 +1,8 @@
-import type { HttpClient } from "@trading-model/common/config/http-client";
 import {
 	authenticationError,
 	isAuthenticationError,
 } from "@trading-model/common/utils/errors";
+import type { HttpClient } from "@trading-model/http/adapters/outbound/http-client";
 import { TokenRefreshClient } from "../../adapters/outbound/client/token-refresh-client";
 import type { AddressManagerConfig } from "../../domain/config/address-manager-config";
 

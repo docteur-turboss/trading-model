@@ -16,11 +16,11 @@ jest.mock("node-cron", () => ({
 	schedule: jest.fn(),
 }));
 
-jest.mock("@trading-model/common/config/logger", () => ({
+jest.mock("@trading-model/http/infrastructure/logger", () => ({
 	logger: { error: jest.fn() },
 }));
 
-import { logger } from "@trading-model/common/config/logger";
+import { logger } from "@trading-model/http/infrastructure/logger";
 
 const MOCK_LOGGER_ERROR = jest.mocked(logger.error);
 

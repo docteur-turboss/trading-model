@@ -1,4 +1,3 @@
-import type { HttpMethod } from "@trading-model/common/config/http-types";
 import type {
 	Bytes,
 	DurationMs,
@@ -6,6 +5,7 @@ import type {
 	ServiceId,
 	UnixTimestamp,
 } from "@trading-model/common/domain/primitives";
+import type { HttpMethod } from "@trading-model/http/shared/http-types";
 import type { AggregationTotals, EndpointKey } from "./call-record-aggregator";
 import { CallRecordAggregator } from "./call-record-aggregator";
 

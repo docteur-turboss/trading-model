@@ -1,9 +1,9 @@
-import type { HttpClient } from "@trading-model/common/config/http-client";
 import {
 	type DurationMs,
 	type InstanceId,
 	URLString,
 } from "@trading-model/common/domain/primitives";
+import type { HttpClient } from "@trading-model/http/adapters/outbound/http-client";
 import { PING_PATH } from "@trading-model/server-utils/shared/constants";
 import {
 	type ServiceLocator,

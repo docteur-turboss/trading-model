@@ -1,4 +1,4 @@
-import { HttpClient } from "@trading-model/common/config/http-client";
+import { HttpClient } from "@trading-model/http/adapters/outbound/http-client";
 import { TokenManager } from "../../application/client/token-manager";
 import type { AddressManagerConfig } from "../../domain/config/address-manager-config";
 import type { IServiceCache } from "../../domain/discovery/service-cache.interface";

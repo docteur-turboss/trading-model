@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, jest, test } from "@jest/globals";
-import type { HttpClient } from "@trading-model/common/config/http-client";
 import type { URLString } from "@trading-model/common/domain/primitives";
+import type { HttpClient } from "@trading-model/http/adapters/outbound/http-client";
 import { TokenManager } from "../../src/application/client/token-manager";
 import type { AddressManagerConfig } from "../../src/domain/config/address-manager-config";
 

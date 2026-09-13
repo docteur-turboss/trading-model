@@ -1,5 +1,5 @@
-import { logger } from "@trading-model/common/config/logger";
 import { normalizeError } from "@trading-model/common/utils/errors";
+import { logger } from "@trading-model/http/infrastructure/logger";
 import type { AddressManagerClient } from "../adapters/outbound/client/address-manager-client";
 import type { WebSocketClient } from "../adapters/outbound/client/websocket-client";
 import { DiscoveryResult, REGISTRATION_TOTAL } from "../infrastructure/metrics";

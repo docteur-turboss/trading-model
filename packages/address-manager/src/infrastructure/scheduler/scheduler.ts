@@ -1,4 +1,4 @@
-import { logger } from "@trading-model/common/config/logger";
+import { logger } from "@trading-model/http/infrastructure/logger";
 import cron, { type ScheduledTask } from "node-cron";
 
 /**

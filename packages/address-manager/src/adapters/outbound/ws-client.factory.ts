@@ -1,10 +1,10 @@
-import { logger } from "@trading-model/common/config/logger";
 import {
 	type ServiceId,
 	toServiceId,
 	URLString,
 } from "@trading-model/common/domain/primitives";
 import { normalizeError } from "@trading-model/common/utils/errors";
+import { logger } from "@trading-model/http/infrastructure/logger";
 import { DiscoveryWsMessageType } from "@trading-model/validation/adapters/inbound/discovery-ws-message.types";
 import type { TokenManager } from "../../application/client/token-manager";
 import { WsAuthFailureHandler } from "../../application/ws-auth-failure-handler";
