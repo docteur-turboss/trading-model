@@ -5,8 +5,8 @@ import {
 } from "@trading-model/common/domain/primitives";
 import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
 import type { HttpStatusCode } from "@trading-model/common/http-status";
-import { catchSync } from "@trading-model/common/middleware/catch-error";
-import { sendResponse } from "@trading-model/common/middleware/response-exception";
+import { catchSync } from "@trading-model/http/adapters/inbound/catch-error";
+import { sendResponse } from "@trading-model/http/adapters/inbound/response-exception";
 import { isNonEmptyString } from "@trading-model/validation/shared/validation/primitives";
 import type { RequestHandler } from "express";
 import type { ServiceRegistry } from "../domain/service-registry";

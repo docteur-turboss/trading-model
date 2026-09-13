@@ -8,7 +8,7 @@ import {
 } from "@jest/globals";
 import type { ServiceInstance } from "../../src/shared/types";
 
-jest.mock("@trading-model/common/config/logger", () => ({
+jest.mock("@trading-model/http/infrastructure/logger", () => ({
 	logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
 
@@ -170,7 +170,7 @@ describe("LeaseManager", () => {
 			jest.advanceTimersByTime(5000);
 
 			const { logger } = jest.requireMock<{ logger: { error: jest.Mock } }>(
-				"@trading-model/common/config/logger"
+				"@trading-model/http/infrastructure/logger"
 			);
 			expect(logger.error).toHaveBeenCalledWith(
 				"Failed to remove expired instance",
@@ -196,7 +196,7 @@ describe("LeaseManager", () => {
 			jest.advanceTimersByTime(5000);
 
 			const { logger } = jest.requireMock<{ logger: { error: jest.Mock } }>(
-				"@trading-model/common/config/logger"
+				"@trading-model/http/infrastructure/logger"
 			);
 			expect(logger.error).toHaveBeenCalledWith("Cleanup error", {
 				error: new Error("unexpected error"),

@@ -1,4 +1,4 @@
-import { logger } from "@trading-model/common/config/logger";
+import { logger } from "@trading-model/http/infrastructure/logger";
 
 export class HealthStateManager {
 	private _healthy = true;

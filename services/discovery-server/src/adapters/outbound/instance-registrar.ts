@@ -1,4 +1,3 @@
-import { logger } from "@trading-model/common/config/logger";
 import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import type {
 	InstanceId,
@@ -10,6 +9,7 @@ import {
 } from "@trading-model/common/persistence/redis-constants";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import { generateInstanceToken } from "@trading-model/crypto/domain/services/token-service";
+import { logger } from "@trading-model/http/infrastructure/logger";
 import type { ServiceInstance } from "@trading-model/validation/adapters/outbound/service-registry.types";
 import type { RedisDeps } from "../../shared/redis-deps";
 import {

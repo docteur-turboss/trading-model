@@ -12,7 +12,7 @@ import { ServiceRegistry } from "../../src/domain/service-registry";
 import { HEARTBEAT_ROUTES } from "../../src/routes/heartbeat.routes";
 import { REGISTRY_ROUTES } from "../../src/routes/register.routes";
 
-jest.mock("@trading-model/common/config/logger", () => ({
+jest.mock("@trading-model/http/infrastructure/logger", () => ({
 	logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
 

@@ -8,7 +8,7 @@ import type { HttpStatusCode } from "@trading-model/common/http-status";
 import {
 	ResponseException,
 	sendResponse,
-} from "@trading-model/common/middleware/response-exception";
+} from "@trading-model/http/adapters/inbound/response-exception";
 import { isNonEmptyString } from "@trading-model/validation/shared/validation/primitives";
 import type { z } from "zod";
 

@@ -15,7 +15,7 @@ import { CacheOrchestrator } from "../../src/application/cache-orchestrator";
 import type { CacheManager } from "../../src/infrastructure/cache-manager";
 import type { RedisHealthMonitor } from "../../src/infrastructure/redis-health-monitor";
 
-jest.mock("@trading-model/common/config/logger", () => ({
+jest.mock("@trading-model/http/infrastructure/logger", () => ({
 	logger: {
 		info: jest.fn(),
 		warn: jest.fn(),
@@ -178,7 +178,7 @@ describe("CacheOrchestrator", () => {
 		});
 
 		it("should skip refresh when backend is unhealthy and fallback is inactive", async () => {
-			const { logger } = require("@trading-model/common/config/logger");
+			const { logger } = require("@trading-model/http/infrastructure/logger");
 			mockHealthMonitor.isHealthy = false;
 			mockHealthMonitor.fallbackActive = false;
 
@@ -204,7 +204,7 @@ describe("CacheOrchestrator", () => {
 		});
 
 		it("should log warning and serve stale data when backend throws", async () => {
-			const { logger } = require("@trading-model/common/config/logger");
+			const { logger } = require("@trading-model/http/infrastructure/logger");
 			mockBackend.getInstances.mockRejectedValue(new Error("Redis down"));
 
 			await orchestrator.refreshCache(A_SERVICE);

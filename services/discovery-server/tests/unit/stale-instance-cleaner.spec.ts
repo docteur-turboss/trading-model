@@ -7,7 +7,7 @@ import {
 	jest,
 } from "@jest/globals";
 
-jest.mock("@trading-model/common/config/logger", () => ({
+jest.mock("@trading-model/http/infrastructure/logger", () => ({
 	logger: {
 		info: jest.fn(),
 		warn: jest.fn(),
@@ -129,7 +129,7 @@ describe("StaleInstanceCleaner", () => {
 
 		it("should log error when cleanup throws", async () => {
 			const { logger } = jest.requireMock(
-				"@trading-model/common/config/logger"
+				"@trading-model/http/infrastructure/logger"
 			) as { logger: { error: jest.Mock } };
 
 			deps.listServiceNames.mockRejectedValue(new Error("Redis down"));

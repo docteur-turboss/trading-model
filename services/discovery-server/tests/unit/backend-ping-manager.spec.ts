@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 
-jest.mock("@trading-model/common/config/logger", () => ({
+jest.mock("@trading-model/http/infrastructure/logger", () => ({
 	logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
 
@@ -85,7 +85,7 @@ describe("BackendPingManager", () => {
 
 			const { logger } = jest.requireMock<{
 				logger: { warn: jest.Mock };
-			}>("@trading-model/common/config/logger");
+			}>("@trading-model/http/infrastructure/logger");
 			expect(logger.warn).toHaveBeenCalledWith(
 				"PubSub ping failed — cache invalidation degraded"
 			);

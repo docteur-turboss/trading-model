@@ -1,7 +1,7 @@
-import { logger } from "@trading-model/common/config/logger";
 import { DurationMs } from "@trading-model/common/domain/primitives";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import { TimerHandle } from "@trading-model/common/utils/timer-handle";
+import { logger } from "@trading-model/http/infrastructure/logger";
 import type { ServiceInstance } from "../shared/types";
 import { isAliveInstance } from "./expiration";
 import type { ServiceRegistry } from "./service-registry";

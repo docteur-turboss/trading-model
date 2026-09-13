@@ -1,5 +1,5 @@
-import { logger } from "@trading-model/common/config/logger";
 import { REDIS_STATUS } from "@trading-model/common/persistence/redis-constants";
+import { logger } from "@trading-model/http/infrastructure/logger";
 import type { RegistryBackend } from "@trading-model/validation/adapters/outbound/service-registry.types";
 import type { PubSubInvalidator } from "./pub-sub-invalidator";
 

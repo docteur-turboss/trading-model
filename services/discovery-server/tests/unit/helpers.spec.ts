@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "@jest/globals";
 
-jest.mock("@trading-model/common/middleware/response-exception", () => ({
+jest.mock("@trading-model/http/adapters/inbound/response-exception", () => ({
 	ResponseException: jest.fn((body: any) => ({
 		Unauthorized: () => ({ type: "Unauthorized" as const, error: body }),
 	})),
@@ -10,7 +10,7 @@ jest.mock("@trading-model/validation/shared/validation/primitives", () => ({
 	isNonEmptyString: (v: any) => typeof v === "string" && v.trim().length > 0,
 }));
 
-import { ResponseException } from "@trading-model/common/middleware/response-exception";
+import { ResponseException } from "@trading-model/http/adapters/inbound/response-exception";
 import { ServiceRegistry } from "../../src/domain/service-registry";
 import { validateInstanceToken } from "../../src/shared/helpers";
 

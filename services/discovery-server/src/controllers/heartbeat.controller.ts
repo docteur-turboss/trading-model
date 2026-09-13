@@ -6,9 +6,9 @@ import {
 import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
 import { HTTP_HEADERS } from "@trading-model/common/http-headers";
 import type { HttpStatusCode } from "@trading-model/common/http-status";
-import { catchSync } from "@trading-model/common/middleware/catch-error";
-import type { ResponseObject } from "@trading-model/common/middleware/response-exception";
-import { sendResponse } from "@trading-model/common/middleware/response-exception";
+import { catchSync } from "@trading-model/http/adapters/inbound/catch-error";
+import type { ResponseObject } from "@trading-model/http/adapters/inbound/response-exception";
+import { sendResponse } from "@trading-model/http/adapters/inbound/response-exception";
 import type { Request, RequestHandler, Response } from "express";
 import type { ServiceRegistry } from "../domain/service-registry";
 import {

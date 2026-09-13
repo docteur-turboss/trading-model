@@ -8,7 +8,7 @@ import {
 	jest,
 } from "@jest/globals";
 
-jest.mock("@trading-model/common/config/logger", () => ({
+jest.mock("@trading-model/http/infrastructure/logger", () => ({
 	logger: {
 		info: jest.fn(),
 		warn: jest.fn(),
@@ -180,7 +180,7 @@ describe("WsDiscoveryServer", () => {
 
 		it("should log client disconnect", () => {
 			const { ws } = makeConnection();
-			const { logger } = require("@trading-model/common/config/logger");
+			const { logger } = require("@trading-model/http/infrastructure/logger");
 			ws.handlers.close!();
 			expect(logger.info).toHaveBeenCalledWith(
 				"Discovery WS client disconnected",
@@ -189,7 +189,7 @@ describe("WsDiscoveryServer", () => {
 		});
 
 		it("should handle close without timeout in map", () => {
-			const { logger } = require("@trading-model/common/config/logger");
+			const { logger } = require("@trading-model/http/infrastructure/logger");
 			const { server, ws } = makeConnection();
 			(server as any)._clientManager.clearAll();
 			ws.handlers.close!();
@@ -200,7 +200,7 @@ describe("WsDiscoveryServer", () => {
 		});
 
 		it("should log client errors", () => {
-			const { logger } = require("@trading-model/common/config/logger");
+			const { logger } = require("@trading-model/http/infrastructure/logger");
 			const { ws } = makeConnection();
 			ws.handlers.error!(new Error("WS error"));
 			expect(logger.warn).toHaveBeenCalledWith(
@@ -210,7 +210,7 @@ describe("WsDiscoveryServer", () => {
 		});
 
 		it("should log warning on unparseable message", () => {
-			const { logger } = require("@trading-model/common/config/logger");
+			const { logger } = require("@trading-model/http/infrastructure/logger");
 			const { ws } = makeConnection();
 			ws.handlers.message!("not-json");
 			expect(logger.warn).toHaveBeenCalledWith(
@@ -222,7 +222,7 @@ describe("WsDiscoveryServer", () => {
 
 	describe("handleMessage", () => {
 		it("should subscribe with services array", () => {
-			const { logger } = require("@trading-model/common/config/logger");
+			const { logger } = require("@trading-model/http/infrastructure/logger");
 			const { ws } = makeConnection();
 			ws.handlers.message!(
 				JSON.stringify({
@@ -277,7 +277,7 @@ describe("WsDiscoveryServer", () => {
 		});
 
 		it("should log debug for unknown message type", () => {
-			const { logger } = require("@trading-model/common/config/logger");
+			const { logger } = require("@trading-model/http/infrastructure/logger");
 			const { ws } = makeConnection();
 			ws.handlers.message!(JSON.stringify({ type: "unknown-type" }));
 			expect(logger.debug).toHaveBeenCalledWith(
@@ -379,7 +379,7 @@ describe("WsDiscoveryServer", () => {
 		});
 
 		it("should log warning when send fails", () => {
-			const { logger } = require("@trading-model/common/config/logger");
+			const { logger } = require("@trading-model/http/infrastructure/logger");
 			const { server, ws } = makeConnection();
 			ws.handlers.message!(
 				JSON.stringify({ type: "subscribe", payload: { services: ["*"] } })
@@ -470,7 +470,7 @@ describe("WsDiscoveryServer", () => {
 		});
 
 		it("should clean up client timeout on close", () => {
-			const { logger } = require("@trading-model/common/config/logger");
+			const { logger } = require("@trading-model/http/infrastructure/logger");
 			const { ws } = makeConnection();
 			ws.handlers.close!();
 			jest.advanceTimersByTime(60000);

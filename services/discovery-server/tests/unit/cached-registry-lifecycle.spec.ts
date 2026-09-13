@@ -20,7 +20,7 @@ import type { CacheManager } from "../../src/infrastructure/cache-manager";
 import type { PubSubInvalidator } from "../../src/infrastructure/pub-sub-invalidator";
 import type { RedisHealthMonitor } from "../../src/infrastructure/redis-health-monitor";
 
-jest.mock("@trading-model/common/config/logger", () => ({
+jest.mock("@trading-model/http/infrastructure/logger", () => ({
 	logger: {
 		info: jest.fn(),
 		warn: jest.fn(),

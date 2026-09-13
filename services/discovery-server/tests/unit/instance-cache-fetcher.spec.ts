@@ -15,7 +15,7 @@ import { InstanceCacheFetcher } from "../../src/application/instance-cache-fetch
 import type { CacheManager } from "../../src/infrastructure/cache-manager";
 import type { RedisHealthMonitor } from "../../src/infrastructure/redis-health-monitor";
 
-jest.mock("@trading-model/common/config/logger", () => ({
+jest.mock("@trading-model/http/infrastructure/logger", () => ({
 	logger: {
 		info: jest.fn(),
 		warn: jest.fn(),
@@ -178,7 +178,7 @@ describe("InstanceCacheFetcher", () => {
 		});
 
 		it("should serve stale data when backend is unhealthy and stale exists", async () => {
-			const { logger } = require("@trading-model/common/config/logger");
+			const { logger } = require("@trading-model/http/infrastructure/logger");
 			mockHealthMonitor.isHealthy = false;
 			mockCache.cache.get.mockReturnValue(undefined);
 			const staleInstances = [MAKE_INSTANCE("i-1")];
@@ -195,7 +195,7 @@ describe("InstanceCacheFetcher", () => {
 		});
 
 		it("should return empty list when unhealthy and no stale data", async () => {
-			const { logger } = require("@trading-model/common/config/logger");
+			const { logger } = require("@trading-model/http/infrastructure/logger");
 			mockHealthMonitor.isHealthy = false;
 			mockCache.cache.get.mockReturnValue(undefined);
 			mockCache.staleData.get.mockReturnValue(undefined);

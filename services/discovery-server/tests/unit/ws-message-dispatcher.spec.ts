@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 
-jest.mock("@trading-model/common/config/logger", () => ({
+jest.mock("@trading-model/http/infrastructure/logger", () => ({
 	logger: {
 		info: jest.fn(),
 		warn: jest.fn(),
@@ -98,7 +98,7 @@ describe("WsMessageDispatcher", () => {
 
 		it("should log a warning for unparseable messages", () => {
 			const { logger } = jest.requireMock(
-				"@trading-model/common/config/logger"
+				"@trading-model/http/infrastructure/logger"
 			) as { logger: { warn: jest.Mock } };
 
 			dispatcher.handleMessage(clientId, client, "not-json" as never);

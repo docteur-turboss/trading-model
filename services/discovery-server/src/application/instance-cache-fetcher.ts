@@ -1,8 +1,8 @@
-import { logger } from "@trading-model/common/config/logger";
 import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import { parseServiceName } from "@trading-model/common/config/services.types";
 import { PaginationQuery } from "@trading-model/common/domain/pagination";
 import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
+import { logger } from "@trading-model/http/infrastructure/logger";
 import type {
 	RegistryBackend,
 	ServiceInstance,

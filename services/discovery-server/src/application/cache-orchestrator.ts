@@ -1,6 +1,6 @@
-import { logger } from "@trading-model/common/config/logger";
 import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import { parseServiceName } from "@trading-model/common/config/services.types";
+import { logger } from "@trading-model/http/infrastructure/logger";
 import type { RegistryBackend } from "@trading-model/validation/adapters/outbound/service-registry.types";
 import { HeartbeatThrottleManager } from "../domain/heartbeat-throttle-manager";
 import type { CacheManager } from "../infrastructure/cache-manager";

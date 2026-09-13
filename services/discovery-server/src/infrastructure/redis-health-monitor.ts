@@ -1,6 +1,6 @@
-import { logger } from "@trading-model/common/config/logger";
 import type { DurationMs } from "@trading-model/common/domain/primitives";
 import { TimerHandle } from "@trading-model/common/utils/timer-handle";
+import { logger } from "@trading-model/http/infrastructure/logger";
 import type { RegistryBackend } from "@trading-model/validation/adapters/outbound/service-registry.types";
 import { HealthStateManager } from "../domain/health-state-manager";
 import { FallbackManager } from "./fallback-manager";

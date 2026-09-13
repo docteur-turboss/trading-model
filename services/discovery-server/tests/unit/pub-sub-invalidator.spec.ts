@@ -4,7 +4,7 @@ import type { LruCache } from "@trading-model/common/utils/lru-cache";
 import type { ServiceInstance } from "@trading-model/validation/adapters/outbound/service-registry.types";
 import type { CacheManager } from "../../src/infrastructure/cache-manager";
 
-jest.mock("@trading-model/common/config/logger", () => ({
+jest.mock("@trading-model/http/infrastructure/logger", () => ({
 	logger: {
 		info: jest.fn(),
 		warn: jest.fn(),
@@ -114,7 +114,7 @@ describe("PubSubInvalidator", () => {
 		});
 
 		it("should log error when connection fails", async () => {
-			const { logger } = require("@trading-model/common/config/logger");
+			const { logger } = require("@trading-model/http/infrastructure/logger");
 			const pubSub = new PubSubInvalidator("redis://localhost:6379");
 			const cache = createMockCacheManager();
 			mockRedis.connect.mockRejectedValue(new Error("Connection refused"));
@@ -164,7 +164,7 @@ describe("PubSubInvalidator", () => {
 		});
 
 		it("should log warning when publish fails", async () => {
-			const { logger } = require("@trading-model/common/config/logger");
+			const { logger } = require("@trading-model/http/infrastructure/logger");
 			const pubSub = new PubSubInvalidator("redis://localhost:6379");
 			mockRedis.status = REDIS_STATUS.READY;
 			mockRedis.publish.mockRejectedValue(new Error("Publish error"));
@@ -224,7 +224,7 @@ describe("PubSubInvalidator", () => {
 		});
 
 		it("should handle errors during unsubscribe gracefully", () => {
-			const { logger } = require("@trading-model/common/config/logger");
+			const { logger } = require("@trading-model/http/infrastructure/logger");
 			const pubSub = new PubSubInvalidator("redis://localhost:6379");
 			mockRedis.unsubscribe.mockImplementation(() => {
 				throw new Error("Unsubscribe error");
@@ -238,7 +238,7 @@ describe("PubSubInvalidator", () => {
 		});
 
 		it("should handle errors during disconnect gracefully", () => {
-			const { logger } = require("@trading-model/common/config/logger");
+			const { logger } = require("@trading-model/http/infrastructure/logger");
 			const pubSub = new PubSubInvalidator("redis://localhost:6379");
 			mockRedis.disconnect.mockImplementation(() => {
 				throw new Error("Disconnect error");

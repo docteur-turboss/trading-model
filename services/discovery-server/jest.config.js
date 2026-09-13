@@ -6,6 +6,8 @@ module.exports = {
   testMatch: ['**/?(*.)+(spec).ts'],
   testPathIgnorePatterns: ['/node_modules/', '/dist/'],
   moduleNameMapper: {
+    '^@trading-model/http/(.*)$': '<rootDir>/../../packages/http/src/$1',
+    '^@trading-model/jobs/(.*)$': '<rootDir>/../../packages/jobs/src/$1',
     '^config/(.*)$': '<rootDir>/src/config/$1',
     '^@trading-model/crypto/(.*)$': '<rootDir>/../../packages/crypto/src/$1',
     '^@trading-model/validation/(.*)$': '<rootDir>/../../packages/validation/src/$1',

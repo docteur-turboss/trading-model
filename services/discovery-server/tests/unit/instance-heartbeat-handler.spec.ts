@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 
-jest.mock("@trading-model/common/config/logger", () => ({
+jest.mock("@trading-model/http/infrastructure/logger", () => ({
 	logger: {
 		info: jest.fn(),
 		warn: jest.fn(),
@@ -161,7 +161,7 @@ describe("InstanceHeartbeatHandler", () => {
 
 		it("should log a warning and return false when Redis write fails", async () => {
 			const { logger } = jest.requireMock(
-				"@trading-model/common/config/logger"
+				"@trading-model/http/infrastructure/logger"
 			) as { logger: { warn: jest.Mock } };
 
 			MOCK_REDIS.sismember.mockResolvedValue(1);

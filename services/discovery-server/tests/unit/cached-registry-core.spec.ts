@@ -12,7 +12,7 @@ import type {
 } from "@trading-model/validation/adapters/outbound/service-registry.types";
 import { CachedRegistryCore } from "../../src/application/cached-registry-core";
 
-jest.mock("@trading-model/common/config/logger", () => ({
+jest.mock("@trading-model/http/infrastructure/logger", () => ({
 	logger: {
 		info: jest.fn(),
 		warn: jest.fn(),

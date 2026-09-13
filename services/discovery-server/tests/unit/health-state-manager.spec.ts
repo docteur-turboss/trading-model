@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 
-jest.mock("@trading-model/common/config/logger", () => ({
+jest.mock("@trading-model/http/infrastructure/logger", () => ({
 	logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
 
@@ -89,7 +89,7 @@ describe("HealthStateManager", () => {
 
 			const { logger } = jest.requireMock<{
 				logger: { info: jest.Mock };
-			}>("@trading-model/common/config/logger");
+			}>("@trading-model/http/infrastructure/logger");
 			expect(logger.info).toHaveBeenCalledWith(
 				"Redis backend is healthy again — resumed normal operation"
 			);
@@ -139,7 +139,7 @@ describe("HealthStateManager", () => {
 
 			const { logger } = jest.requireMock<{
 				logger: { error: jest.Mock };
-			}>("@trading-model/common/config/logger");
+			}>("@trading-model/http/infrastructure/logger");
 			expect(logger.error).toHaveBeenCalledWith(
 				"Redis backend unhealthy — serving stale cache",
 				expect.objectContaining({ consecutiveFailures: 3 })

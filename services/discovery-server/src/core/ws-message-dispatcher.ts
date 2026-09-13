@@ -1,6 +1,6 @@
-import { logger } from "@trading-model/common/config/logger";
 import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import { normalizeError } from "@trading-model/common/utils/errors";
+import { logger } from "@trading-model/http/infrastructure/logger";
 import {
 	type DiscoveryWsClientMessage,
 	type DiscoveryWsHeartbeatMessage,
