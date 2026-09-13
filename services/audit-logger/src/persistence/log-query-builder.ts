@@ -1,9 +1,9 @@
-import type { LogLevel } from "@trading-model/common/config/log-types";
 import type { QueryEnvelope } from "@trading-model/common/domain/pagination";
 import type {
 	CorrelationId,
 	ServiceId,
 } from "@trading-model/common/domain/primitives";
+import type { LogLevel } from "@trading-model/http/infrastructure/log-types";
 import { buildDateRangeFilter } from "./date-range-filter";
 
 type MongoDoc = Record<string, unknown>;

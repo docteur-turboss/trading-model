@@ -1,8 +1,8 @@
-import type { LogLevel } from "@trading-model/common/config/log-types";
 import {
 	CorrelationId,
 	toServiceId,
 } from "@trading-model/common/domain/primitives";
+import type { LogLevel } from "@trading-model/http/infrastructure/log-types";
 import type { RequestHandler } from "express";
 import type { LogQuery, LogRepository } from "../persistence/log-repository";
 import { parseDateRange, parsePageAndLimit } from "../utils/query-params";

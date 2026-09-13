@@ -11,7 +11,7 @@ jest.mock("../../../src/infrastructure/config/env", () => ({
 	},
 }));
 
-import { ReAllocator } from "@trading-model/common/recovery/re-allocator";
+import { ReAllocator } from "@trading-model/jobs/application/services/re-allocator";
 import type { JobRepository } from "../../../src/persistence/job-repository";
 import { InternalQueue } from "../../../src/scheduler/internal-queue";
 import { createJob } from "../../fixtures/job.fixture";

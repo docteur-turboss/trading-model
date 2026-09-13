@@ -1,6 +1,6 @@
 import type { HttpStatusCode } from "@trading-model/common/http-status";
-import { catchSync } from "@trading-model/common/middleware/catch-error";
-import { sendResponse } from "@trading-model/common/middleware/response-exception";
+import { catchSync } from "@trading-model/http/adapters/inbound/catch-error";
+import { sendResponse } from "@trading-model/http/adapters/inbound/response-exception";
 import type { RequestHandler } from "express";
 import { parseEnvelope } from "../../../subscription/message-parser";
 import { buildAuditDocument } from "../../outbound/persistence/audit-document-builder";

@@ -1,12 +1,11 @@
 import { randomUUID } from "node:crypto";
-
-import { logger } from "@trading-model/common/config/logger";
 import {
 	JobId,
 	PositiveInt,
 	toJobType,
 	UnixTimestamp,
 } from "@trading-model/common/domain/primitives";
+import { logger } from "@trading-model/http/infrastructure/logger";
 import { JobStatus } from "@trading-model/validation/domain/contracts/recovery.types";
 import { ENV } from "../../infrastructure/config/env";
 import type { JobRepository } from "../../persistence/job-repository";

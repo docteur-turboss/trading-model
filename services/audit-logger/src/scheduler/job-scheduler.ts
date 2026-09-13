@@ -1,7 +1,7 @@
-import { logger } from "@trading-model/common/config/logger";
 import type { JobId } from "@trading-model/common/domain/primitives";
-import type { OrphanDetector } from "@trading-model/common/recovery/orphan-detector";
-import type { ReAllocator } from "@trading-model/common/recovery/re-allocator";
+import { logger } from "@trading-model/http/infrastructure/logger";
+import type { OrphanDetector } from "@trading-model/jobs/application/services/orphan-detector";
+import type { ReAllocator } from "@trading-model/jobs/application/services/re-allocator";
 import type { JobFailureHandler } from "../domain/scheduler/job-failure-handler";
 import { JobLifecycle } from "../domain/scheduler/job-lifecycle";
 import type { JobRepository } from "../persistence/job-repository";

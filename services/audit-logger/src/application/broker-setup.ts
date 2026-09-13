@@ -1,8 +1,8 @@
 import BrokerMessage from "@trading-model/broker-message";
-import { logger } from "@trading-model/common/config/logger";
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import { toInstanceId } from "@trading-model/common/domain/primitives";
 import { buildTlsFromEnv } from "@trading-model/common/domain/tls-paths";
+import { logger } from "@trading-model/http/infrastructure/logger";
 import { ENV } from "../infrastructure/config/env";
 
 export async function createBrokerMessage(): Promise<{

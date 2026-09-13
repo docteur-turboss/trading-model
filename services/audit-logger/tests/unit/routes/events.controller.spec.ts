@@ -3,11 +3,11 @@ import { DateRange } from "@trading-model/common/domain/date-range";
 
 import { createNext, createReq, createRes } from "../../helpers/express";
 
-jest.mock("@trading-model/common/middleware/catch-error", () => ({
+jest.mock("@trading-model/http/adapters/inbound/catch-error", () => ({
 	catchSync: (fn: any) => fn,
 }));
 
-jest.mock("@trading-model/common/middleware/response-exception", () => {
+jest.mock("@trading-model/http/adapters/inbound/response-exception", () => {
 	const sendResponse = (data: any, status: number) => ({ status, data });
 	return { sendResponse };
 });

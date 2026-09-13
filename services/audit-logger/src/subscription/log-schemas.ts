@@ -1,4 +1,4 @@
-import { LogLevel } from "@trading-model/common/config/log-types";
+import { LogLevel } from "@trading-model/http/infrastructure/log-types";
 import { z } from "zod";
 
 const LOG_ENTRY_SCHEMA = z.object({

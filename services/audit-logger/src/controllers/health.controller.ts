@@ -1,10 +1,10 @@
 import type { HttpStatusCode } from "@trading-model/common/http-status";
-import { catchSync } from "@trading-model/common/middleware/catch-error";
+import { catchSync } from "@trading-model/http/adapters/inbound/catch-error";
 import {
 	HEALTH_STATUS_OK,
 	type ResponseObject,
 	sendResponse,
-} from "@trading-model/common/middleware/response-exception";
+} from "@trading-model/http/adapters/inbound/response-exception";
 import type { RequestHandler } from "express";
 
 import type { BackPressure } from "../scheduler/back-pressure";

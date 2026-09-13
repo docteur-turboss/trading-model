@@ -1,4 +1,3 @@
-import type { LogLevel } from "@trading-model/common/config/log-types";
 import {
 	PaginationQuery,
 	type PaginationResult,
@@ -18,6 +17,7 @@ import type {
 import type { HttpStatusCode } from "@trading-model/common/http-status";
 import type { MongoRepository } from "@trading-model/common/persistence/mongo-repository.interface";
 import { findPaginated } from "@trading-model/common/persistence/mongo-utils";
+import type { LogLevel } from "@trading-model/http/infrastructure/log-types";
 import type { HttpMethod } from "@trading-model/validation/adapters/inbound/signed-request";
 import type { Collection, Db } from "mongodb";
 import type { DateRange } from "../types/date-range";

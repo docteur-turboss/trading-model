@@ -7,7 +7,7 @@ const MOCK_LOGGER = {
 	debug: jest.fn(),
 };
 
-jest.mock("@trading-model/common/config/logger", () => ({
+jest.mock("@trading-model/http/infrastructure/logger", () => ({
 	logger: MOCK_LOGGER,
 }));
 

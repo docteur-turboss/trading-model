@@ -1,6 +1,6 @@
 import type { HttpStatusCode } from "@trading-model/common/http-status";
-import { catchSync } from "@trading-model/common/middleware/catch-error";
-import { sendResponse } from "@trading-model/common/middleware/response-exception";
+import { catchSync } from "@trading-model/http/adapters/inbound/catch-error";
+import { sendResponse } from "@trading-model/http/adapters/inbound/response-exception";
 import type { Request, RequestHandler } from "express";
 
 interface QueryableRepo<TQuery, TDoc> {

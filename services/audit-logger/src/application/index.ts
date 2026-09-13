@@ -1,4 +1,4 @@
-import { logger } from "@trading-model/common/config/logger";
+import { logger } from "@trading-model/http/infrastructure/logger";
 import { createBootstrap } from "@trading-model/server-utils/application/services/bootstrap";
 import { BOOTSTRAP_ADDRESS_MANAGER } from "../config/address-manager";
 import { ENV } from "../infrastructure/config/env";

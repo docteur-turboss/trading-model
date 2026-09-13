@@ -1,6 +1,6 @@
-import { logger } from "@trading-model/common/config/logger";
 import type { JobId } from "@trading-model/common/domain/primitives";
 import { RetryPolicy } from "@trading-model/common/domain/retry-policy";
+import { logger } from "@trading-model/http/infrastructure/logger";
 import type { Job } from "@trading-model/validation/domain/contracts/recovery.types";
 import type { JobRepository } from "../../persistence/job-repository";
 import type { InternalQueue } from "../../scheduler/internal-queue";

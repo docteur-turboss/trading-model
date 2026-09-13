@@ -1,11 +1,11 @@
-import { logger } from "@trading-model/common/config/logger";
 import type { HttpStatusCode } from "@trading-model/common/http-status";
-import { catchSync } from "@trading-model/common/middleware/catch-error";
+import { normalizeError } from "@trading-model/common/utils/errors";
+import { catchSync } from "@trading-model/http/adapters/inbound/catch-error";
 import {
 	type ResponseObject,
 	sendResponse,
-} from "@trading-model/common/middleware/response-exception";
-import { normalizeError } from "@trading-model/common/utils/errors";
+} from "@trading-model/http/adapters/inbound/response-exception";
+import { logger } from "@trading-model/http/infrastructure/logger";
 import { _buildLogDocuments } from "../adapters/outbound/persistence/log-document-builder";
 import { LOGS_STORED_TOTAL } from "../config/metrics";
 import { ENV } from "../infrastructure/config/env";

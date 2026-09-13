@@ -7,7 +7,7 @@ import {
 	jest,
 } from "@jest/globals";
 
-jest.mock("@trading-model/common/config/logger", () => ({
+jest.mock("@trading-model/http/infrastructure/logger", () => ({
 	logger: {
 		info: jest.fn(),
 		warn: jest.fn(),
@@ -39,7 +39,7 @@ interface MockLogger {
 	debug: jest.Mock;
 }
 const MOCK_LOGGER = (
-	jest.requireMock("@trading-model/common/config/logger") as {
+	jest.requireMock("@trading-model/http/infrastructure/logger") as {
 		logger: MockLogger;
 	}
 ).logger;

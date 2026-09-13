@@ -1,9 +1,9 @@
-import { logger } from "@trading-model/common/config/logger";
 import {
 	type JobId,
 	PositiveInt,
 } from "@trading-model/common/domain/primitives";
-import type { ReAllocator } from "@trading-model/common/recovery/re-allocator";
+import { logger } from "@trading-model/http/infrastructure/logger";
+import type { ReAllocator } from "@trading-model/jobs/application/services/re-allocator";
 import { JobStatus } from "@trading-model/validation/domain/contracts/recovery.types";
 import { ENV } from "../../infrastructure/config/env";
 import type { JobRepository } from "../../persistence/job-repository";

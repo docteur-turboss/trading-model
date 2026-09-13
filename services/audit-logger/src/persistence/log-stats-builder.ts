@@ -1,8 +1,8 @@
-import type { LogLevel } from "@trading-model/common/config/log-types";
 import {
 	ISODateTime,
 	ServiceId,
 } from "@trading-model/common/domain/primitives";
+import type { LogLevel } from "@trading-model/http/infrastructure/log-types";
 import type { DateRange } from "../types/date-range";
 import type { LogStats } from "./log-repository";
 

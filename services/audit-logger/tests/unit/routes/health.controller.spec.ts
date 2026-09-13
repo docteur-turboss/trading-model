@@ -7,11 +7,11 @@ import {
 import { createNext, createReq, createRes } from "../../helpers/express";
 
 jest.mock(
-	"@trading-model/common/middleware/catch-error",
+	"@trading-model/http/adapters/inbound/catch-error",
 	() => mockCatchSyncModule
 );
 jest.mock(
-	"@trading-model/common/middleware/response-exception",
+	"@trading-model/http/adapters/inbound/response-exception",
 	() => mockSendResponseModule
 );
 

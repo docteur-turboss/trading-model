@@ -31,6 +31,8 @@
     "@trading-model/address-manager": "*",
     "@trading-model/broker-message": "*",
     "@trading-model/common": "*",
+    "@trading-model/http": "*",
+    "@trading-model/jobs": "*",
     "@trading-model/server-utils": "*",
     "@trading-model/validation": "*",
     "express": "^5.2.1",

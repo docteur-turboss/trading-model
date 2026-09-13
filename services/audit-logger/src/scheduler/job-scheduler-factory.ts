@@ -1,6 +1,6 @@
-import { logger } from "@trading-model/common/config/logger";
-import { OrphanDetector } from "@trading-model/common/recovery/orphan-detector";
-import { ReAllocator } from "@trading-model/common/recovery/re-allocator";
+import { logger } from "@trading-model/http/infrastructure/logger";
+import { OrphanDetector } from "@trading-model/jobs/application/services/orphan-detector";
+import { ReAllocator } from "@trading-model/jobs/application/services/re-allocator";
 import { JobStatus } from "@trading-model/validation/domain/contracts/recovery.types";
 import { JobFailureHandler } from "../domain/scheduler/job-failure-handler";
 import { ENV } from "../infrastructure/config/env";

@@ -1,4 +1,4 @@
 export {
 	type IWorkerProtocol,
 	WorkerProtocol,
-} from "@trading-model/common/worker/worker-protocol";
+} from "@trading-model/jobs/infrastructure/worker-protocol";
