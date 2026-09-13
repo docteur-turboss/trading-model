@@ -1,4 +1,3 @@
-import { logger } from "@trading-model/common/config/logger";
 import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import {
 	DurationMs,
@@ -8,6 +7,7 @@ import {
 import type { TlsPaths } from "@trading-model/common/domain/tls-paths";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import { DefaultWsReconnector } from "@trading-model/common/ws/default-ws-reconnector";
+import { logger } from "@trading-model/http/infrastructure/logger";
 import {
 	WssConnection,
 	type WssConnectionEvents,

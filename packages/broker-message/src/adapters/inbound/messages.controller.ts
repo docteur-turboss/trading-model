@@ -1,6 +1,6 @@
 import type { EventMap } from "@trading-model/common/config/event.types";
-import { catchSync } from "@trading-model/common/middleware/catch-error";
-import { ResponseException } from "@trading-model/common/middleware/response-exception";
+import { catchSync } from "@trading-model/http/adapters/inbound/catch-error";
+import { ResponseException } from "@trading-model/http/adapters/inbound/response-exception";
 
 import { EVENT_MANAGER } from "../../application/services/event-manager-client";
 import {

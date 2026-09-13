@@ -1,5 +1,4 @@
 import type { EventEnumMap } from "@trading-model/common/config/event.types";
-import type { HttpClient } from "@trading-model/common/config/http-client";
 import {
 	ServiceId,
 	toInstanceId,
@@ -11,6 +10,7 @@ import {
 	messageManagerError,
 	normalizeError,
 } from "@trading-model/common/utils/errors";
+import type { HttpClient } from "@trading-model/http/adapters/outbound/http-client";
 import type { MessageManagerConfig } from "../../domain/types/config";
 import type {
 	SubscribesTopicsPayload,

@@ -1,7 +1,7 @@
 import * as https from "node:https";
-import { buildHttpsAgentOptions } from "@trading-model/common/config/http-tls-loader";
 import type { TlsPaths } from "@trading-model/common/domain/tls-paths";
 import { BaseWsConnection } from "@trading-model/common/ws/base-ws-connection";
+import { buildHttpsAgentOptions } from "@trading-model/http/infrastructure/http-tls-loader";
 import WebSocket from "ws";
 
 export interface WssConnectionEvents {

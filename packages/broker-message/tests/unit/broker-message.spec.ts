@@ -14,7 +14,7 @@ jest.mock("../../src/adapters/outbound/message-manager-client", () => ({
 		.mockImplementation(() => MOCK_MESSAGE_MANAGER_CLIENT_INSTANCE),
 }));
 
-jest.mock("@trading-model/common/config/http-client", () => ({
+jest.mock("@trading-model/http/adapters/outbound/http-client", () => ({
 	HttpClient: Object.assign(
 		jest.fn().mockImplementation(() => ({})),
 		{ createWithTls: jest.fn(() => ({})) }

@@ -1,9 +1,9 @@
-import { logger } from "@trading-model/common/config/logger";
 import type {
 	DurationMs,
 	PositiveInt,
 } from "@trading-model/common/domain/primitives";
 import { normalizeError } from "@trading-model/common/utils/errors";
+import { logger } from "@trading-model/http/infrastructure/logger";
 import type { MessageMetadata } from "@trading-model/validation/domain/contracts/message.types";
 
 export interface PendingPublish {

@@ -4,10 +4,10 @@ import type {
 	EventMap,
 	EventMessagesArgs,
 } from "@trading-model/common/config/event.types";
-import { HttpClient } from "@trading-model/common/config/http-client";
 import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import type { InstanceId } from "@trading-model/common/domain/primitives";
 import type { TlsPaths } from "@trading-model/common/domain/tls-paths";
+import { HttpClient } from "@trading-model/http/adapters/outbound/http-client";
 import type { Application } from "express";
 import { CREATE_CALLBACK_ROUTE } from "../../adapters/inbound/messages.routes";
 import { MessageManagerClient } from "../../adapters/outbound/message-manager-client";

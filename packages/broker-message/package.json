@@ -16,8 +16,10 @@
   },
   "dependencies": {
     "@opentelemetry/api": "^1.9.1",
-    "@trading-model/common": "*",
     "@trading-model/address-manager": "*",
+    "@trading-model/common": "*",
+    "@trading-model/http": "*",
+    "@trading-model/jobs": "*",
     "@trading-model/validation": "*",
     "express": "^5.2.1",
     "ws": "^8.21.3",
