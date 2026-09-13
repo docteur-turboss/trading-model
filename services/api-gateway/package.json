@@ -34,6 +34,7 @@
   "dependencies": {
     "@trading-model/common": "*",
     "@trading-model/crypto": "*",
+    "@trading-model/http": "*",
     "@trading-model/server-utils": "*",
     "@trading-model/validation": "*",
     "express": "^5.2.1",

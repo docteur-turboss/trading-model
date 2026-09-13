@@ -1,10 +1,10 @@
 import type http from "node:http";
 import https from "node:https";
-import { logger } from "@trading-model/common/config/logger";
 import { HostPort } from "@trading-model/common/domain/service-identity";
 import type { HttpStatusCode } from "@trading-model/common/http-status";
 import { HTTP_STATUS } from "@trading-model/common/http-status";
 import { CryptoAlg } from "@trading-model/crypto/domain/constants/crypto-constants";
+import { logger } from "@trading-model/http/infrastructure/logger";
 import type { ResolvedEndpoint } from "@trading-model/validation/adapters/outbound/service-resolver.types";
 import type { Request } from "express";
 import { ENV } from "../../infrastructure/config/env";

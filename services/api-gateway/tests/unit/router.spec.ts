@@ -13,11 +13,11 @@ jest.mock("../../src/infrastructure/config/env", () => ({
 	},
 }));
 
-jest.mock("@trading-model/common/middleware/catch-error", () => ({
+jest.mock("@trading-model/http/adapters/inbound/catch-error", () => ({
 	catchSync: (fn: any) => fn,
 }));
 
-jest.mock("@trading-model/common/middleware/response-exception", () => {
+jest.mock("@trading-model/http/adapters/inbound/response-exception", () => {
 	const sendResponse = jest.fn((data: any, status: number) => ({
 		status,
 		data,
@@ -25,7 +25,7 @@ jest.mock("@trading-model/common/middleware/response-exception", () => {
 	return { sendResponse };
 });
 
-jest.mock("@trading-model/common/config/logger", () => ({
+jest.mock("@trading-model/http/infrastructure/logger", () => ({
 	logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
 

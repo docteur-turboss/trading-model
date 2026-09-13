@@ -1,4 +1,3 @@
-import { HttpClient } from "@trading-model/common/config/http-client";
 import {
 	IPAddress,
 	type ServiceId,
@@ -6,6 +5,7 @@ import {
 	URLString,
 	type Version,
 } from "@trading-model/common/domain/primitives";
+import { HttpClient } from "@trading-model/http/adapters/outbound/http-client";
 import type { ServiceInstance } from "@trading-model/validation/adapters/outbound/service-registry.types";
 import type { ResolvedEndpoint } from "@trading-model/validation/adapters/outbound/service-resolver.types";
 

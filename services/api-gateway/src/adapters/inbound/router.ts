@@ -1,14 +1,14 @@
-import { logger } from "@trading-model/common/config/logger";
 import {
 	DurationMs,
 	type ServiceId,
 } from "@trading-model/common/domain/primitives";
 import type { HttpStatusCode } from "@trading-model/common/http-status";
-import { catchSync } from "@trading-model/common/middleware/catch-error";
+import { catchSync } from "@trading-model/http/adapters/inbound/catch-error";
 import {
 	HEALTH_STATUS_OK,
 	sendResponse,
-} from "@trading-model/common/middleware/response-exception";
+} from "@trading-model/http/adapters/inbound/response-exception";
+import { logger } from "@trading-model/http/infrastructure/logger";
 import { Router } from "express";
 import {
 	proxyAndCache,

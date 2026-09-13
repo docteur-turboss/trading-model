@@ -1,4 +1,3 @@
-import { logger } from "@trading-model/common/config/logger";
 import type { ServiceId } from "@trading-model/common/domain/primitives";
 import { HostPort } from "@trading-model/common/domain/service-identity";
 import {
@@ -8,7 +7,8 @@ import {
 import {
 	type ResponseObject,
 	sendResponse,
-} from "@trading-model/common/middleware/response-exception";
+} from "@trading-model/http/adapters/inbound/response-exception";
+import { logger } from "@trading-model/http/infrastructure/logger";
 import type { ResolvedEndpoint } from "@trading-model/validation/adapters/outbound/service-resolver.types";
 import type { Request } from "express";
 import { forwardRequest } from "../adapters/outbound/proxy-handler";
