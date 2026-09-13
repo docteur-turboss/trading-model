@@ -186,7 +186,7 @@ Documentation
 <tbody>
 <tr>
 <td>Runtime</td>
-<td>Node.js</td>
+<td>Bun 1.x (Node.js 26-compatible APIs)</td>
 </tr>
 <tr>
 <td>Language</td>
@@ -227,26 +227,61 @@ Documentation
 </tbody>
 </table>
 <h2>Dependency Graph</h2>
-<pre><code>@trading-model/common
-    ↑
-@trading-model/address-manager
-    ↑
-@trading-model/broker-message
-    ↑
-┌──────────────────────┬───────────────────┬──────────────────┬───────────────────┬───────────────────┐
-│  message-manager     │ financial-scraper │ trader-trainer   │ audit-logger      │ dlq-service       │
-│  (deps: common,      │ (deps: common,    │ (deps: common,   │ (deps: common,    │ (deps: common,    │
-│   address-manager)   │  address-manager, │  address-manager,│  address-manager, │  address-manager, │
-│                      │  broker-message)  │  broker-message) │  broker-message)  │  broker-message)  │
-└──────────────────────┴───────────────────┴──────────────────┴───────────────────┴───────────────────┘
-          ↑
-discovery-server (depends only on @trading-model/common)
+<p>Shared packages (base → derived):</p>
+<pre><code>@trading-model/common          (domain primitives, contracts, reliability, persistence, utils, ws)
+@trading-model/http            (HTTP middleware, http client, logging) → common
+@trading-model/validation      (Zod schemas, DTOs, shared type contracts) → common, http
+@trading-model/server-utils    (secure HTTPS server factory, TLS watcher, bootstrap) → common, http
+@trading-model/crypto          (hashing, signatures, crypto primitives) → common, validation
+@trading-model/jobs            (worker protocol, orphan recovery) → common, http
 
-admin-interface (depends only on @trading-model/common/contracts for DTOs)
-- React SPA served by nginx, not a Node.js microservice
+@trading-model/address-manager (service discovery client, health, token rotation) → common, http, server-utils, validation
+@trading-model/broker-message  (inter-service messaging SDK) → common, http, jobs, address-manager, validation
 </code></pre>
-<p>The <strong>discovery-server</strong> depends only on <code>@trading-model/common</code>. All other services depend on <code>common</code>, <code>address-manager</code>, and <code>broker-message</code> as needed.</p>
-<p>The <strong>admin-interface</strong> is a React SPA (not a Node.js microservice). It imports DTO types from <code>@trading-model/common/contracts/admin</code> and communicates with the backend exclusively via HTTP through the <strong>api-gateway</strong>. It is built with Vite, tested with Vitest, and served via nginx in production.</p>
+<p>Services and their <code>@trading-model/*</code> dependencies:</p>
+<table>
+<thead>
+<tr>
+<th>Service</th>
+<th>Dependencies</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>discovery-server</td>
+<td>common, crypto, http, server-utils, validation</td>
+</tr>
+<tr>
+<td>message-manager</td>
+<td>common, validation, http, server-utils, crypto, address-manager, broker-message</td>
+</tr>
+<tr>
+<td>financial-scraper</td>
+<td>common, validation, http, server-utils, crypto, address-manager, broker-message</td>
+</tr>
+<tr>
+<td>trader-trainer</td>
+<td>common, validation, http, server-utils, crypto, address-manager, broker-message</td>
+</tr>
+<tr>
+<td>audit-logger</td>
+<td>common, validation, http, jobs, server-utils, address-manager, broker-message</td>
+</tr>
+<tr>
+<td>dlq-service</td>
+<td>common, validation, http, server-utils, crypto, address-manager</td>
+</tr>
+<tr>
+<td>api-gateway</td>
+<td>common, validation, http, server-utils, crypto</td>
+</tr>
+<tr>
+<td>admin-interface</td>
+<td>common, validation, http (DTO types only — React SPA, no Node runtime)</td>
+</tr>
+</tbody>
+</table>
+<p>The <strong>admin-interface</strong> is a React SPA (not a Node.js microservice). It imports DTO types from <code>@trading-model/common</code> and <code>@trading-model/validation</code> and communicates with the backend exclusively via HTTP through the <strong>api-gateway</strong>. It is built with Vite, tested with Vitest, and served via nginx in production.</p>
 <h3>Package Dependency Details</h3>
 <table>
 <thead>
@@ -259,18 +294,33 @@ admin-interface (depends only on @trading-model/common/contracts for DTOs)
 <tbody>
 <tr>
 <td><code>@trading-model/common</code></td>
-<td>Logger, HTTP client, middleware (catchSync, MTLSAuthMiddleware, ResponseProtocol), server factories (createSecureServer, createBootstrap), env validation (BaseEnvSchema, validateEnv), event types, service types, delivery mode enum, error classes (<code>AppError</code> + <code>ErrorCodes</code>), crypto utilities, shared DTOs</td>
-<td>None (only bun deps)</td>
+<td>Logger, HTTP client, middleware (MTLSAuthMiddleware, ResponseProtocol, error tracking), domain primitives (branded types), contracts, circuit breakers, reliability, worker/recovery helpers</td>
+<td>validation, server-utils, crypto</td>
 </tr>
 <tr>
-<td><code>@trading-model/address-manager</code></td>
-<td>Service discovery client, token manager, service cache with health checking, scheduler/jobs</td>
+<td><code>@trading-model/validation</code></td>
+<td>Zod schemas, DTOs, event types, shared type contracts, admin contracts</td>
 <td>common</td>
 </tr>
 <tr>
+<td><code>@trading-model/server-utils</code></td>
+<td>Secure HTTPS server factory, TLS watcher/loader, bootstrap &amp; shutdown, signal handling, telemetry</td>
+<td>common</td>
+</tr>
+<tr>
+<td><code>@trading-model/crypto</code></td>
+<td>Hashing, request signing, token generation, secure randomness</td>
+<td>common, validation</td>
+</tr>
+<tr>
+<td><code>@trading-model/address-manager</code></td>
+<td>Service discovery client, token manager, service cache with health checking, scheduler/jobs, load balancing</td>
+<td>common, server-utils, validation</td>
+</tr>
+<tr>
 <td><code>@trading-model/broker-message</code></td>
-<td>Inter-service messaging SDK: message manager client, event emitter, message controller/routes, validation schemas</td>
-<td>common, address-manager</td>
+<td>Inter-service messaging SDK: message manager client, event emitter, message controller/routes, validation schemas, WSS client</td>
+<td>common, address-manager, validation</td>
 </tr>
 </tbody>
 </table>
@@ -336,9 +386,9 @@ consumed via <code>spiffe-helper</code> sidecars. The former in-house CA and
 </tr>
 <tr>
 <td>admin-interface</td>
-<td>5173 (dev)</td>
+<td>8449</td>
 <td>80</td>
-<td>SPA via nginx</td>
+<td>SPA via nginx (Vite dev: 5173)</td>
 </tr>
 <tr>
 <td>api-gateway</td>
@@ -372,7 +422,7 @@ consumed via <code>spiffe-helper</code> sidecars. The former in-house CA and
 └── jest.config.js
 </code></pre>
 <h3>Entry Point (<code>src/application/index.ts</code>)</h3>
-<pre><code class="language-typescript">import { createBootstrap } from '@trading-model/common/server/bootstrap';
+<pre><code class="language-typescript">import { createBootstrap } from '@trading-model/server-utils/application/services/bootstrap';
 import { LeaseManager } from '../domain/lease-manager';
 import { createServer } from './server';
 import '../config/env';
@@ -389,8 +439,8 @@ createBootstrap({
 });
 </code></pre>
 <h3>Server (<code>src/application/server.ts</code>)</h3>
-<pre><code class="language-typescript">import { createSecureServer } from '@trading-model/common/server/create-secure-server';
-import { loadTlsConfig } from '@trading-model/common/server/load-tls-config';
+<pre><code class="language-typescript">import { createSecureServer } from '@trading-model/server-utils/adapters/inbound/create-secure-server';
+import { loadTlsConfig } from '@trading-model/server-utils/shared/load-tls-config';
 import { heartbeatRoutes } from '../adapters/inbound/heartbeat.routes';
 import { registryRoutes } from '../adapters/inbound/register.routes';
 import { env } from '../config/env';
@@ -412,16 +462,20 @@ export function createServer() {
 <p><strong>@trading-model/common</strong> (granular exports):</p>
 <pre><code class="language-json">{
   &quot;exports&quot;: {
+    &quot;./constants&quot;: { &quot;types&quot;: &quot;./dist/constants.d.ts&quot;, &quot;default&quot;: &quot;./dist/constants.js&quot; },
     &quot;./config/*&quot;: { &quot;types&quot;: &quot;./dist/config/*.d.ts&quot;, &quot;default&quot;: &quot;./dist/config/*.js&quot; },
     &quot;./middleware/*&quot;: { &quot;types&quot;: &quot;./dist/middleware/*.d.ts&quot;, &quot;default&quot;: &quot;./dist/middleware/*.js&quot; },
     &quot;./utils/*&quot;: { &quot;types&quot;: &quot;./dist/utils/*.d.ts&quot;, &quot;default&quot;: &quot;./dist/utils/*.js&quot; },
-    &quot;./server/*&quot;: { &quot;types&quot;: &quot;./dist/server/*.d.ts&quot;, &quot;default&quot;: &quot;./dist/server/*.js&quot; },
-    &quot;./validation/*&quot;: { &quot;types&quot;: &quot;./dist/validation/*.d.ts&quot;, &quot;default&quot;: &quot;./dist/validation/*.js&quot; },
-    &quot;./contracts/*&quot;: { &quot;types&quot;: &quot;./dist/contracts/*.d.ts&quot;, &quot;default&quot;: &quot;./dist/contracts/*.js&quot; },
-    &quot;./crypto/*&quot;: { &quot;types&quot;: &quot;./dist/crypto/*.d.ts&quot;, &quot;default&quot;: &quot;./dist/crypto/*.js&quot; },
     &quot;./worker/*&quot;: { &quot;types&quot;: &quot;./dist/worker/*.d.ts&quot;, &quot;default&quot;: &quot;./dist/worker/*.js&quot; },
     &quot;./recovery/*&quot;: { &quot;types&quot;: &quot;./dist/recovery/*.d.ts&quot;, &quot;default&quot;: &quot;./dist/recovery/*.js&quot; },
-    &quot;./reliability/*&quot;: { &quot;types&quot;: &quot;./dist/reliability/*.d.ts&quot;, &quot;default&quot;: &quot;./dist/reliability/*.js&quot; }
+    &quot;./reliability/*&quot;: { &quot;types&quot;: &quot;./dist/reliability/*.d.ts&quot;, &quot;default&quot;: &quot;./dist/reliability/*.js&quot; },
+    &quot;./domain/*&quot;: { &quot;types&quot;: &quot;./dist/domain/*.d.ts&quot;, &quot;default&quot;: &quot;./dist/domain/*.js&quot; },
+    &quot;./crl/*&quot;: { &quot;types&quot;: &quot;./dist/crl/*.d.ts&quot;, &quot;default&quot;: &quot;./dist/crl/*.js&quot; },
+    &quot;./persistence/*&quot;: { &quot;types&quot;: &quot;./dist/persistence/*.d.ts&quot;, &quot;default&quot;: &quot;./dist/persistence/*.js&quot; },
+    &quot;./http-headers&quot;: { &quot;types&quot;: &quot;./dist/http-headers.d.ts&quot;, &quot;default&quot;: &quot;./dist/http-headers.js&quot; },
+    &quot;./http-status&quot;: { &quot;types&quot;: &quot;./dist/http-status.d.ts&quot;, &quot;default&quot;: &quot;./dist/http-status.js&quot; },
+    &quot;./contracts/*&quot;: { &quot;types&quot;: &quot;./dist/contracts/*.d.ts&quot;, &quot;default&quot;: &quot;./dist/contracts/*.js&quot; },
+    &quot;./ws/*&quot;: { &quot;types&quot;: &quot;./dist/ws/*.d.ts&quot;, &quot;default&quot;: &quot;./dist/ws/*.js&quot; }
   }
 }
 </code></pre>
@@ -437,8 +491,9 @@ export function createServer() {
 <p>See <a href="../contributing/adding-a-service.html">How to Add a New Service</a> for a step-by-step guide with directory layout, entry point, Dockerfile, and registration instructions.</p>
 <h2>Known Technical Debt</h2>
 <ol>
-<li><strong>Mixed test conventions</strong>: Both <code>.spec.ts</code> and <code>.test.ts</code> suffixes used across services.</li>
-<li><strong>Legacy <code>config/*</code> path alias</strong>: Some service tsconfigs still define a <code>config/*</code> path alias (<code>./src/config/*</code>) that should be replaced with <code>node16</code> resolution.</li>
+<li><strong>Legacy path aliases</strong>: Some service tsconfigs still define <code>paths</code> aliases (<code>config/*</code>, <code>infra/*</code>, <code>clients/*</code>, <code>job/*</code>, <code>types/*</code>, <code>utils/*</code>) that should be replaced with <code>node16</code> resolution.</li>
+<li><strong>Transitional re-export shims</strong>: Some refactor-introduced barrel files (<code>export * from</code>) preserve old import paths while modules move to the new architectural layers.</li>
+<li><strong>Legacy module layouts</strong>: A few services still mix the old <code>core/</code>/<code>messaging/</code>/<code>persistence/</code> layout with the hexagonal layers during migration.</li>
 </ol>
 </div></div>
 </main>

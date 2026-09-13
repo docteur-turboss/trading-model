@@ -165,7 +165,7 @@ Documentation
 }
 </code></pre>
 <h2>Entry Point (<code>src/application/index.ts</code>)</h2>
-<pre><code class="language-typescript">import { createBootstrap } from '@trading-model/common/server/bootstrap';
+<pre><code class="language-typescript">import { createBootstrap } from '@trading-model/server-utils/application/services/bootstrap';
 import { createServer } from './server';
 import '../config/env';
 
@@ -177,8 +177,8 @@ createBootstrap({
 });
 </code></pre>
 <h2>HTTPS Server (<code>src/application/server.ts</code>)</h2>
-<pre><code class="language-typescript">import { createSecureServer } from '@trading-model/common/server/create-secure-server';
-import { loadTlsConfig } from '@trading-model/common/server/load-tls-config';
+<pre><code class="language-typescript">import { createSecureServer } from '@trading-model/server-utils/adapters/inbound/create-secure-server';
+import { loadTlsConfig } from '@trading-model/server-utils/shared/load-tls-config';
 import { myRoutes } from '../adapters/inbound/my.routes';
 import { env } from '../config/env';
 

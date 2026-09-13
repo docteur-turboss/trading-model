@@ -336,7 +336,7 @@ Documentation
 <ul>
 <li><strong>Event Ingestion:</strong> Subscribes to all broker topics. Incoming messages are persisted as <code>AuditEventDocument</code> in MongoDB.</li>
 <li><strong>Job Processing:</strong> Priority-queued jobs (1-5) distributed to workers via WebSocket with ACK/fail/complete lifecycle.</li>
-<li><strong>Recovery:</strong> <code>OrphanDetector</code> and <code>ReAllocator</code> (shared from <code>@trading-model/common/recovery/</code>) scan for stale workers and re-queue orphaned jobs. On startup, recovers non-terminal jobs from MongoDB.</li>
+<li><strong>Recovery:</strong> <code>OrphanDetector</code> and <code>ReAllocator</code> (shared from <code>@trading-model/jobs/application/services/</code>) scan for stale workers and re-queue orphaned jobs. On startup, recovers non-terminal jobs from MongoDB.</li>
 <li><strong>Back-pressure:</strong> Configurable <code>MAX_QUEUE_DEPTH</code> and <code>MAX_WORKER_LOAD_RATIO</code> — returns 429 when at capacity.</li>
 </ul>
 <h2>Environment Variables</h2>

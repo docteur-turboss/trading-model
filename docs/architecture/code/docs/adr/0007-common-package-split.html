@@ -115,6 +115,9 @@ Documentation
 <div class="tm-prose text-sm leading-relaxed text-slate-300 font-sans"><div>
 <p><strong>Status:</strong> Accepted
 <strong>Date:</strong> 2026-06</p>
+<blockquote>
+<p><strong>Outcome (2026-09, completed):</strong> The full split is now implemented. Extracted packages: <code>@trading-model/validation</code>, <code>@trading-model/server-utils</code>, <code>@trading-model/crypto</code>, <strong><code>@trading-model/http</code></strong> (middleware + http client + logging) and <strong><code>@trading-model/jobs</code></strong> (worker protocol + orphan recovery). <code>@trading-model/address-manager</code> and <code>@trading-model/broker-message</code> remain separate packages. Final workspace set: <strong>8 packages</strong> — <code>common</code>, <code>http</code>, <code>jobs</code>, <code>validation</code>, <code>server-utils</code>, <code>crypto</code>, <code>address-manager</code>, <code>broker-message</code>. The http and jobs packages use the clean-architecture layout (<code>shared/domain/application/infrastructure/adapters</code>) established by ADR-0010; the logging cluster (<code>logger</code>, <code>log-dispatcher</code>, <code>console-formatter</code>, <code>session-id-generator</code>, …) moved to <code>@trading-model/http</code> together with the HTTP client, and <code>@trading-model/jobs</code> depends on it for <code>logger</code> + <code>http-client</code>. All consumers were hard-migrated (no re-export shims retained in <code>common</code>); <code>common</code> keeps only the remaining domains (primitives, contracts, reliability, persistence, utils, ws, config misc).</p>
+</blockquote>
 <h2>Context</h2>
 <p><code>@trading-model/common</code> has grown to 69 files across 14 unrelated domains (server bootstrapping, middleware, crypto, worker protocols, recovery, validation, contracts, feature flags, circuit breakers, etc.). This God Object antipattern causes:</p>
 <ul>

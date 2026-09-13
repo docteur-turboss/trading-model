@@ -147,8 +147,8 @@ Documentation
 </tr>
 <tr>
 <td>5</td>
-<td>Pre-commit hooks pass</td>
-<td>Biome formatting + lint, commitlint (enforced by husky)</td>
+<td>Git hooks pass</td>
+<td>commitlint (<code>commit-msg</code>); biome check + build + test (<code>pre-push</code>)</td>
 </tr>
 </tbody>
 </table>
@@ -283,8 +283,8 @@ Documentation
 </tr>
 <tr>
 <td>4</td>
-<td>Version bumped + CHANGELOG generated + tag pushed</td>
-<td>Release workflow (GitHub Actions)</td>
+<td>Version bumped + CHANGELOG generated + GitHub Release created</td>
+<td>Release workflow (manual <code>workflow_dispatch</code>)</td>
 </tr>
 <tr>
 <td>5</td>
@@ -305,8 +305,8 @@ Documentation
 <tbody>
 <tr>
 <td>1</td>
-<td>Release tag pushed</td>
-<td>Triggers <code>release.yml</code></td>
+<td>Release workflow run manually</td>
+<td>Actions → Release (<code>release.yml</code>)</td>
 </tr>
 <tr>
 <td>2</td>
@@ -315,13 +315,13 @@ Documentation
 </tr>
 <tr>
 <td>3</td>
-<td>GitHub Release created with changelog</td>
+<td>GitHub Release created</td>
 <td>Automated</td>
 </tr>
 <tr>
 <td>4</td>
 <td>Deployment initiated by operator</td>
-<td><code>docker compose pull &amp;&amp; docker compose up -d</code></td>
+<td>Actions → Deploy (<code>deploy.yml</code>, K8s) or <code>docker compose pull &amp;&amp; docker compose up -d</code></td>
 </tr>
 <tr>
 <td>5</td>
@@ -379,8 +379,8 @@ Documentation
 </tr>
 <tr>
 <td>Security audit</td>
-<td><code>bun audit</code></td>
-<td>CI</td>
+<td><code>bun audit</code> (local) / Dependabot (weekly)</td>
+<td>—</td>
 <td><a href="../security/README.html">Security</a></td>
 </tr>
 </tbody>

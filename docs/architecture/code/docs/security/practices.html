@@ -134,7 +134,7 @@ required.</p>
 <li><code>trader-trainer</code></li>
 </ul>
 <h3>mTLS Configuration in the Service</h3>
-<pre><code class="language-typescript">import { createSecureServer } from '@trading-model/common/server/create-secure-server';
+<pre><code class="language-typescript">import { createSecureServer } from '@trading-model/server-utils/adapters/inbound/create-secure-server';
 import { env } from '../config/env';
 
 export function createServer() {

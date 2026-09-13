@@ -142,12 +142,12 @@ Documentation
 <tr>
 <td><strong>Transport</strong></td>
 <td>mTLS TLS 1.3</td>
-<td><code>@trading-model/common/server/create-secure-server.ts</code></td>
+<td><code>@trading-model/server-utils/adapters/inbound/create-secure-server.ts</code></td>
 </tr>
 <tr>
 <td><strong>Identity</strong></td>
 <td>SPIFFE ID (SAN <code>spiffe://...</code>)</td>
-<td><code>@trading-model/common/middleware/mtls-auth.ts</code></td>
+<td><code>@trading-model/http/adapters/inbound/mtls-auth.ts</code></td>
 </tr>
 <tr>
 <td><strong>Bearer token</strong></td>
@@ -174,7 +174,7 @@ Documentation
 <tr>
 <td><strong>Service-level ACL</strong></td>
 <td><code>mtls-authorization.ts</code> — maps caller SPIFFE ID → permitted targets</td>
-<td><code>@trading-model/common/middleware/mtls-authorization.ts</code></td>
+<td><code>@trading-model/http/adapters/inbound/mtls-authorization.ts</code></td>
 </tr>
 <tr>
 <td><strong>Rate limiting</strong></td>
@@ -201,7 +201,7 @@ Documentation
 | <code>dlq-service</code> | <code>spiffe://trading-model.local/ns/trading-model/sa/dlq-service</code> | SPIRE Server | 1h TTL (auto-rotated) |
 | <code>api-gateway</code> | <code>spiffe://trading-model.local/ns/trading-model/sa/api-gateway</code> | SPIRE Server | 1h TTL (auto-rotated) |
 | <code>admin-interface</code> | <code>spiffe://trading-model.local/ns/trading-model/sa/admin-interface</code> | SPIRE Server | 1h TTL (auto-rotated) |</p>
-<p><strong>Enforcement:</strong> <code>@trading-model/common/middleware/mtls-auth.ts</code> extracts the client identity from the SVID's verified SPIFFE ID SAN. Requests without a valid SVID are rejected at the TLS handshake level when <code>ENFORCE_MTLS_STRICT</code> is enabled.</p>
+<p><strong>Enforcement:</strong> <code>@trading-model/http/adapters/inbound/mtls-auth.ts</code> extracts the client identity from the SVID's verified SPIFFE ID SAN. Requests without a valid SVID are rejected at the TLS handshake level when <code>ENFORCE_MTLS_STRICT</code> is enabled.</p>
 <h3>3.2 Service Registration Tokens</h3>
 <p>Services obtain HMAC-SHA256 tokens from the discovery-server upon registration. These tokens are used for service-to-service identity verification in non-mTLS fallback scenarios.</p>
 <table>
@@ -237,7 +237,7 @@ Documentation
 </table>
 <h2>4. ACL Definition</h2>
 <h3>4.1 Default ACL</h3>
-<p>The default ACL is defined in <code>@trading-model/common/middleware/mtls-authorization.ts</code>. It maps each target service to the set of callers allowed to reach it (<code>&quot;*&quot;</code> = any platform service).</p>
+<p>The default ACL is defined in <code>@trading-model/http/adapters/inbound/mtls-authorization.ts</code>. It maps each target service to the set of callers allowed to reach it (<code>&quot;*&quot;</code> = any platform service).</p>
 <pre><code class="language-typescript">// Simplified example of the DEFAULT_ACL mapping
 const DEFAULT_ACL: Record&lt;KnownService, readonly ServiceId[]&gt; = {
   'discovery-server':   [ '*' ],
@@ -347,11 +347,11 @@ const DEFAULT_ACL: Record&lt;KnownService, readonly ServiceId[]&gt; = {
 <td>Access control framework</td>
 </tr>
 <tr>
-<td><code>@trading-model/common/middleware/mtls-auth.ts</code></td>
+<td><code>@trading-model/http/adapters/inbound/mtls-auth.ts</code></td>
 <td>mTLS authentication implementation</td>
 </tr>
 <tr>
-<td><code>@trading-model/common/middleware/mtls-authorization.ts</code></td>
+<td><code>@trading-model/http/adapters/inbound/mtls-authorization.ts</code></td>
 <td>ACL authorization implementation</td>
 </tr>
 <tr>

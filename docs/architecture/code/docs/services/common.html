@@ -122,18 +122,24 @@ Documentation
 <li>Logging format and error handling would diverge, making debugging harder</li>
 <li>Shared types (event enums, service names, delivery modes) would need synchronized copy-paste across services</li>
 </ul>
-<p><code>@trading-model/common</code> centralizes these concerns into a single, tested, versioned package with zero internal dependencies.</p>
+<p><code>@trading-model/common</code> centralizes these concerns into a single, tested, versioned package.</p>
 <h2>Overview</h2>
-<p><strong>@trading-model/common</strong> provides: HTTP client, logger, middleware, type definitions, server factories (<code>createSecureServer</code>, <code>createBootstrap</code>), environment validation (<code>BaseEnvSchema</code>, <code>AddressManagerEnvSchema</code>), crypto utilities, shared DTOs, and a central <code>AppError</code> class with <code>ErrorCodes</code>.</p>
-<p>This package has <strong>zero internal dependencies</strong> — it only depends on external bun packages (<code>express</code>, <code>zod</code>, <code>helmet</code>, <code>express-rate-limit</code>, <code>chained-error</code>).</p>
+<p><strong>@trading-model/common</strong> provides: HTTP client, logger, middleware, domain primitives (branded types), contracts/shared DTOs, reliability (circuit breakers), worker/recovery helpers, and a central <code>AppError</code> class with <code>ErrorCodes</code>.</p>
+<blockquote>
+<p><strong>Package split (ADR-0007):</strong> server bootstrap, the secure HTTPS server factory, and TLS loading now live in <code>@trading-model/server-utils</code>; environment validation and Zod schemas live in <code>@trading-model/validation</code>; crypto primitives live in <code>@trading-model/crypto</code>; HTTP middleware, the HTTP client and the logging system live in <code>@trading-model/http</code>; the distributed worker protocol and orphan recovery live in <code>@trading-model/jobs</code>. <code>common</code> keeps the remaining domains (primitives, contracts, reliability, persistence, utils, ws) and re-exports a small subset for backward compatibility.</p>
+</blockquote>
+<p>This package depends on <code>@trading-model/http</code>, <code>@trading-model/validation</code>, <code>@trading-model/server-utils</code>, and <code>@trading-model/crypto</code>, plus external packages (<code>zod</code>, <code>ioredis</code>, <code>mongodb</code>, <code>ws</code>).</p>
 <h2>Logger</h2>
 <p>Structured logging system with severity levels, memory buffer, file output, and external webhook for errors.</p>
+<blockquote>
+<p>Moved to <code>@trading-model/http</code> (ADR-0007).</p>
+</blockquote>
 <ul>
-<li><strong>Import</strong>: <code>@trading-model/common/config/logger</code></li>
+<li><strong>Import</strong>: <code>@trading-model/http/infrastructure/logger</code></li>
 <li><strong>Class</strong>: <code>Logger</code></li>
 <li><strong>Pre-configured instance</strong>: <code>logger</code></li>
 </ul>
-<pre><code class="language-ts">import { logger, LogLevel } from '@trading-model/common/config/logger';
+<pre><code class="language-ts">import { logger, LogLevel } from '@trading-model/http/infrastructure/logger';
 </code></pre>
 <table>
 <thead>
@@ -172,11 +178,14 @@ Documentation
 </ul>
 <h2>Bootstrap</h2>
 <p>Lifecycle manager for services. Signal handling is delegated to a separate module (<code>signal-handler.ts</code>) to respect SRP.</p>
+<blockquote>
+<p>Moved to <code>@trading-model/server-utils</code> (ADR-0007).</p>
+</blockquote>
 <ul>
-<li><strong>Import</strong>: <code>@trading-model/common/server/bootstrap</code></li>
+<li><strong>Import</strong>: <code>@trading-model/server-utils/application/services/bootstrap</code></li>
 <li><strong>Function</strong>: <code>createBootstrap(options)</code></li>
 </ul>
-<pre><code class="language-ts">import { createBootstrap } from '@trading-model/common/server/bootstrap';
+<pre><code class="language-ts">import { createBootstrap } from '@trading-model/server-utils/application/services/bootstrap';
 </code></pre>
 <table>
 <thead>
@@ -217,13 +226,16 @@ Documentation
 </ul>
 <h2>SignalHandler</h2>
 <p>Process signal and error handler registration, extracted from bootstrap for SRP.</p>
+<blockquote>
+<p>Moved to <code>@trading-model/server-utils</code> (ADR-0007).</p>
+</blockquote>
 <ul>
-<li><strong>Import</strong>: <code>@trading-model/common/server/signal-handler</code></li>
+<li><strong>Import</strong>: <code>@trading-model/server-utils/infrastructure/signal-handler</code></li>
 </ul>
 <pre><code class="language-ts">import {
   setupProcessHandlers,
   removeProcessHandlers,
-} from '@trading-model/common/server/signal-handler';
+} from '@trading-model/server-utils/infrastructure/signal-handler';
 </code></pre>
 <table>
 <thead>
@@ -245,11 +257,14 @@ Documentation
 </table>
 <h2>SecureServer</h2>
 <p>HTTPS server factory with mTLS, rate limiting, and Helmet.</p>
+<blockquote>
+<p>Moved to <code>@trading-model/server-utils</code> (ADR-0007).</p>
+</blockquote>
 <ul>
-<li><strong>Import</strong>: <code>@trading-model/common/server/create-secure-server</code></li>
+<li><strong>Import</strong>: <code>@trading-model/server-utils/adapters/inbound/create-secure-server</code></li>
 <li><strong>Function</strong>: <code>createSecureServer(options)</code></li>
 </ul>
-<pre><code class="language-ts">import { createSecureServer } from '@trading-model/common/server/create-secure-server';
+<pre><code class="language-ts">import { createSecureServer } from '@trading-model/server-utils/adapters/inbound/create-secure-server';
 </code></pre>
 <table>
 <thead>
@@ -324,14 +339,17 @@ Documentation
 <p>This separation follows the Single Responsibility Principle — each module is independently testable and changes to one concern (e.g. rate limiting) do not risk breaking others (e.g. TLS configuration).</p>
 <h2>Environment Validation</h2>
 <p>Fail-fast validation of environment variables via Zod.</p>
+<blockquote>
+<p>Moved to <code>@trading-model/validation</code> (ADR-0007).</p>
+</blockquote>
 <ul>
-<li><strong>Import</strong>: <code>@trading-model/common/validation/env</code></li>
+<li><strong>Import</strong>: <code>@trading-model/validation/infrastructure/validation/env</code></li>
 </ul>
 <pre><code class="language-ts">import {
   BaseEnvSchema,
   AddressManagerEnvSchema,
   validateEnv,
-} from '@trading-model/common/validation/env';
+} from '@trading-model/validation/infrastructure/validation/env';
 </code></pre>
 <table>
 <thead>
@@ -357,10 +375,13 @@ Documentation
 </table>
 <h2>HttpClient</h2>
 <p>HTTP client with mTLS support for service-to-service calls.</p>
+<blockquote>
+<p>Moved to <code>@trading-model/http</code> (ADR-0007).</p>
+</blockquote>
 <ul>
-<li><strong>Import</strong>: <code>@trading-model/common/config/http-client</code></li>
+<li><strong>Import</strong>: <code>@trading-model/http/adapters/outbound/http-client</code></li>
 </ul>
-<pre><code class="language-ts">import { HttpClient } from '@trading-model/common/config/http-client';
+<pre><code class="language-ts">import { HttpClient } from '@trading-model/http/adapters/outbound/http-client';
 </code></pre>
 <table>
 <thead>
@@ -398,17 +419,17 @@ Documentation
 <p>Note: Methods return <code>T \| undefined</code> because a 204 No Content response resolves without a body. Callers must handle the <code>undefined</code> case explicitly (no longer silently cast as <code>T</code>).</p>
 <p>Errors: <code>HttpClientError</code> (non-2xx status), <code>HttpClientTimeoutError</code> (timeout), <code>z.ZodError</code> (schema validation)</p>
 <h2>Middleware</h2>
-<p>All middlewares are imported from <code>@trading-model/common/middleware/</code>.</p>
+<p>All middlewares are imported from <code>@trading-model/http/adapters/inbound/</code> (ADR-0007).</p>
 <h3>catchSync</h3>
 <p>Wrapper for async Express route handlers.</p>
 <ul>
-<li><strong>Import</strong>: <code>@trading-model/common/middleware/catch-error</code></li>
+<li><strong>Import</strong>: <code>@trading-model/http/adapters/inbound/catch-error</code></li>
 <li><strong>Function</strong>: <code>catchSync(handler)</code></li>
 </ul>
 <h3>ResponseException</h3>
 <p>Standardised HTTP errors with fluent status code methods.</p>
 <ul>
-<li><strong>Import</strong>: <code>@trading-model/common/middleware/response-exception</code></li>
+<li><strong>Import</strong>: <code>@trading-model/http/adapters/inbound/response-exception</code></li>
 <li><strong>Function</strong>: <code>ResponseException(reason)</code></li>
 </ul>
 <pre><code class="language-ts">ResponseException('message').NotFound(); // { status: 404, data: 'message' }
@@ -419,13 +440,13 @@ ResponseException().NoContent(); // { status: 204, data: undefined }
 <h3>ResponseProtocol</h3>
 <p>Global Express error normalisation middleware.</p>
 <ul>
-<li><strong>Import</strong>: <code>@trading-model/common/middleware/response-protocol</code></li>
+<li><strong>Import</strong>: <code>@trading-model/http/adapters/inbound/response-protocol</code></li>
 <li>Logs 5xx errors with stack trace, URL, method, IP</li>
 </ul>
 <h3>MTLSAuthMiddleware</h3>
 <p>mTLS authentication middleware.</p>
 <ul>
-<li><strong>Import</strong>: <code>@trading-model/common/middleware/mtls-auth</code></li>
+<li><strong>Import</strong>: <code>@trading-model/http/adapters/inbound/mtls-auth</code></li>
 <li>Checks <code>socket.authorized</code>, extracts client certificate identity</li>
 <li>Identity resolution: prefers SAN (Subject Alternative Name), falls back to CN (Common Name)</li>
 <li>Fails closed with <strong>401 Unauthorized</strong> if no SAN or CN is present on the certificate (no default identity leak)</li>
@@ -435,7 +456,7 @@ ResponseException().NoContent(); // { status: 204, data: undefined }
 <h3>handleCoreResponse / handleCoreAuthResponse</h3>
 <p>Response normalisation utilities.</p>
 <ul>
-<li><strong>Import</strong>: <code>@trading-model/common/middleware/handle-core-response</code></li>
+<li><strong>Import</strong>: <code>@trading-model/http/adapters/inbound/handle-core-response</code></li>
 </ul>
 <table>
 <thead>
@@ -497,9 +518,14 @@ ResponseException().NoContent(); // { status: 204, data: undefined }
 </tbody>
 </table>
 <h2>Event Types</h2>
+<blockquote>
+<p><code>@trading-model/common/config/event.types</code> is <strong>deprecated</strong> — import per-context types directly:</p>
 <ul>
-<li><strong>Import</strong>: <code>@trading-model/common/config/event.types</code></li>
+<li>Market events &amp; market data types: <code>@trading-model/common/contracts/market-events</code> + <code>@trading-model/common/contracts/market-data.types</code></li>
+<li>Audit events: <code>@trading-model/common/contracts/audit-events</code></li>
 </ul>
+</blockquote>
+<p>The legacy module still re-exports the market-data types and builds the combined helpers from the per-context maps:</p>
 <table>
 <thead>
 <tr>
@@ -509,12 +535,8 @@ ResponseException().NoContent(); // { status: 204, data: undefined }
 </thead>
 <tbody>
 <tr>
-<td><code>EnumEventMessage</code></td>
-<td>Event name constants (testEvent, fetchRecentTrades, fetchCandlestickSeries, etc.)</td>
-</tr>
-<tr>
 <td><code>EventMap</code></td>
-<td>Event → payload type mapping</td>
+<td>Event → payload type mapping (MarketEventMap ∪ AuditEventMap)</td>
 </tr>
 <tr>
 <td><code>EventMessagesArgs&lt;K&gt;</code></td>
@@ -522,7 +544,7 @@ ResponseException().NoContent(); // { status: 204, data: undefined }
 </tr>
 <tr>
 <td><code>EventEnumMap</code></td>
-<td>Union of all event name strings</td>
+<td>Union of all valid event name strings</td>
 </tr>
 <tr>
 <td><code>MarketType</code></td>
@@ -534,7 +556,7 @@ ResponseException().NoContent(); // { status: 204, data: undefined }
 </tr>
 <tr>
 <td><code>CandleData</code>, <code>TradeData</code>, <code>OrderBookData</code>, <code>BookTickerData</code>, <code>TickerData</code></td>
-<td>Market data entities</td>
+<td>Market data entities (re-exported from <code>contracts/market-data.types</code>)</td>
 </tr>
 </tbody>
 </table>
@@ -563,6 +585,9 @@ DeliveryMode.AT_LEAST_ONCE; // 'at-least-once'
 DeliveryMode.EXACTLY_ONCE; // 'exactly-once'
 </code></pre>
 <h2>Contracts (Shared DTOs)</h2>
+<blockquote>
+<p>Shared service contracts moved to <code>@trading-model/broker-message</code> (<code>domain/types/payloads</code>) and <code>@trading-model/validation</code> (<code>adapters/outbound/service-registry.types</code>). <code>common/contracts/</code> retains market-data types, event enums, signed-request, error-response, pagination and worker-protocol types.</p>
+</blockquote>
 <table>
 <thead>
 <tr>
@@ -605,11 +630,14 @@ DeliveryMode.EXACTLY_ONCE; // 'exactly-once'
 <tr>
 <td><code>ServiceInstance</code></td>
 <td>interface</td>
-<td><code>{ ip, port, protocol, lastHeartbeat: number, registeredAt: number, serviceName, instanceId, env?, ttl, version, region? }</code></td>
+<td><code>{ ip, port, protocol, lastHeartbeat, registeredAt, serviceName, instanceId, env?, ttl, version, region? }</code></td>
 </tr>
 </tbody>
 </table>
 <h2>Crypto</h2>
+<blockquote>
+<p>Moved to <code>@trading-model/crypto</code> (ADR-0007): <code>@trading-model/crypto/domain/services/prng</code> and <code>@trading-model/crypto/domain/services/random</code>.</p>
+</blockquote>
 <table>
 <thead>
 <tr>

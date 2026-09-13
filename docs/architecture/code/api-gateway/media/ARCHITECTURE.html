@@ -141,7 +141,7 @@ Documentation
 <li><strong>mTLS Proxy</strong> : forwards the request to the target service, strips <code>x-api-key</code> from headers, configurable timeout</li>
 </ul>
 <h2>Startup order</h2>
-<p>Position 6 — after job-scheduler, port 8448. Depends only on <code>discovery-server:healthy</code>.</p>
+<p>Position 6 — after discovery-server, port 8448. Depends only on <code>discovery-server:healthy</code>.</p>
 <h2>Failure impact</h2>
 <ul>
 <li><strong>Internal services</strong>: no impact (direct mTLS communication)</li>

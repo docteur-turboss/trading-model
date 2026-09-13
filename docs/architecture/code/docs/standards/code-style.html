@@ -119,22 +119,20 @@ Documentation
 <p>Configuration <code>biome.json</code> applied across the entire monorepo:</p>
 <pre><code class="language-json">{
   &quot;formatter&quot;: {
-    &quot;indentStyle&quot;: &quot;space&quot;,
+    &quot;indentStyle&quot;: &quot;tab&quot;,
     &quot;indentWidth&quot;: 2,
-    &quot;lineWidth&quot;: 100,
-    &quot;lineEnding&quot;: &quot;lf&quot;
+    &quot;lineWidth&quot;: 80,
+    &quot;lineEnding&quot;: &quot;lf&quot;,
+    &quot;bracketSpacing&quot;: true
   },
   &quot;javascript&quot;: {
     &quot;formatter&quot;: {
-      &quot;quoteStyle&quot;: &quot;single&quot;,
-      &quot;trailingCommas&quot;: &quot;es5&quot;,
-      &quot;arrowParentheses&quot;: &quot;asNeeded&quot;,
-      &quot;semicolons&quot;: &quot;always&quot;
+      &quot;trailingCommas&quot;: &quot;es5&quot;
     }
   }
 }
 </code></pre>
-<p>Run: <code>bunx @biomejs/biome format .</code> (CI) / <code>bunx @biomejs/biome format --write .</code> (local formatting).</p>
+<p>Run: <code>bunx @biomejs/biome check .</code> (CI) / <code>bunx @biomejs/biome check --write .</code> (local fix).</p>
 <h2>Naming Conventions</h2>
 <table>
 <thead>
@@ -192,27 +190,27 @@ Documentation
 </tr>
 <tr>
 <td>Service file suffix</td>
-<td><code>.service.ts</code></td>
+<td><code>.service.ts</code> (legacy)</td>
 <td><code>token-manager.service.ts</code></td>
 </tr>
 <tr>
 <td>Controller file suffix</td>
-<td><code>.controller.ts</code></td>
+<td><code>.controller.ts</code> (legacy)</td>
 <td><code>wallet-manager.controller.ts</code></td>
 </tr>
 <tr>
 <td>Middleware file suffix</td>
-<td><code>.middleware.ts</code></td>
+<td><code>.middleware.ts</code> (legacy)</td>
 <td><code>auth.middleware.ts</code></td>
 </tr>
 <tr>
 <td>Repository file suffix</td>
-<td><code>.repository.ts</code></td>
+<td><code>.repository.ts</code> (legacy)</td>
 <td><code>user.repository.ts</code></td>
 </tr>
 <tr>
 <td>Utility file suffix</td>
-<td><code>.util.ts</code></td>
+<td><code>.util.ts</code> (legacy)</td>
 <td><code>string.util.ts</code></td>
 </tr>
 <tr>
@@ -222,6 +220,9 @@ Documentation
 </tr>
 </tbody>
 </table>
+<blockquote>
+<p>The <code>.service.ts</code>/<code>.controller.ts</code>/<code>.repository.ts</code>/<code>.util.ts</code> suffixes are a legacy convention. After the DDD/hexagonal migration, files use descriptive <code>kebab-case</code> names (<code>claim-manager.ts</code>, <code>replay-batch.ts</code>) placed in their architectural layer. The <code>.spec.ts</code> test suffix is enforced and required.</p>
+</blockquote>
 <h3>Correct vs Incorrect Examples</h3>
 <pre><code class="language-typescript">// ✓ CORRECT
 const addressManager = new AddressManager();
@@ -257,27 +258,31 @@ services/DiscoveryServer/
 services/Financial_Scrapper/       // Snake case
 </code></pre>
 <h2>Biome</h2>
-<p>Configuration in <code>biome.json</code> at the monorepo root — Biome replaces both ESLint and Prettier:</p>
+<p>Configuration in <code>biome.json</code> at the monorepo root — Biome replaces both ESLint and Prettier (full rule set in <code>biome.json</code>, ~100 rules; highlights below):</p>
 <pre><code class="language-json">{
-  &quot;$schema&quot;: &quot;https://biomejs.dev/schemas/1.9.4/schema.json&quot;,
-  &quot;organizeImports&quot;: { &quot;enabled&quot;: true },
+  &quot;$schema&quot;: &quot;./node_modules/@biomejs/biome/configuration_schema.json&quot;,
+  &quot;assist&quot;: { &quot;enabled&quot;: true, &quot;actions&quot;: { &quot;source&quot;: { &quot;recommended&quot;: true } } },
   &quot;linter&quot;: {
     &quot;enabled&quot;: true,
     &quot;rules&quot;: {
-      &quot;recommended&quot;: true,
-      &quot;complexity&quot;: {
-        &quot;noBannedTypes&quot;: &quot;error&quot;,
-        &quot;noUselessConstructor&quot;: &quot;error&quot;
+      &quot;preset&quot;: &quot;recommended&quot;,
+      &quot;suspicious&quot;: { &quot;noExplicitAny&quot;: &quot;error&quot;, &quot;noFocusedTests&quot;: &quot;error&quot; },
+      &quot;correctness&quot;: {
+        &quot;noUnusedVariables&quot;: &quot;error&quot;,
+        &quot;noUnusedImports&quot;: &quot;error&quot;,
+        &quot;noUnusedFunctionParameters&quot;: &quot;error&quot;
       },
       &quot;style&quot;: {
-        &quot;noNonNullAssertion&quot;: &quot;error&quot;
+        &quot;useNamingConvention&quot;: { &quot;level&quot;: &quot;error&quot;, &quot;options&quot;: { &quot;strictCase&quot;: false } },
+        &quot;noNonNullAssertion&quot;: &quot;off&quot;
       }
     }
   },
   &quot;formatter&quot;: {
-    &quot;indentStyle&quot;: &quot;space&quot;,
+    &quot;indentStyle&quot;: &quot;tab&quot;,
     &quot;indentWidth&quot;: 2,
-    &quot;lineWidth&quot;: 100
+    &quot;lineWidth&quot;: 80,
+    &quot;lineEnding&quot;: &quot;lf&quot;
   }
 }
 </code></pre>
@@ -293,20 +298,25 @@ services/Financial_Scrapper/       // Snake case
 ├── services/     # Microservices (kebab-case directory names)
 │   └── &lt;service&gt;/
 │       ├── src/
-│       │   ├── app/           # Entry points &amp; routes
-│       │   ├── config/        # Environment &amp; app config
-│       │   ├── core/          # Business logic (services, repositories)
-│       │   ├── controllers/   # HTTP controllers
-│       │   ├── middleware/    # Express middleware
-│       │   └── types/         # Type definitions
+│       │   ├── application/      # Entry point (index.ts), server, use-case orchestration
+│       │   ├── domain/           # Entities, domain services, ports (interfaces)
+│       │   ├── adapters/         # Controllers, routes (inbound) and clients (outbound)
+│       │   │   ├── inbound/
+│       │   │   └── outbound/
+│       │   ├── infrastructure/   # External integrations (Redis, MongoDB, HTTP)
+│       │   ├── config/           # env.ts — Zod validation of environment variables
+│       │   └── shared/           # Shared types, constants, utils
 │       ├── tests/
 │       │   ├── unit/
 │       │   ├── integration/
-│       │   └── e2e/
+│       │   └── fixtures/
 │       └── docs/
 ├── docs/         # Centralized documentation
 └── scripts/      # Automation scripts
 </code></pre>
+<blockquote>
+<p>Legacy layouts (<code>app/</code>, <code>core/</code>, <code>controllers/</code>, <code>middleware/</code>, <code>types/</code>) may still coexist in some services during the hexagonal migration (ADR-0010). New code follows the <code>domain/</code> + <code>application/</code> + <code>adapters/</code> + <code>infrastructure/</code> layout.</p>
+</blockquote>
 <h2>Import Order</h2>
 <pre><code class="language-typescript">// 1. Node built-ins
 import fs from 'fs';
@@ -321,8 +331,8 @@ import { logger } from '@trading-model/common';
 import AddressManager from '@trading-model/address-manager';
 
 // 4. Internal relative imports
-import { ServiceRegistry } from '../core/ServiceRegistry';
-import { validateToken } from '../middleware/auth.middleware';
+import { ServiceRegistry } from '../domain/service-registry';
+import { validateToken } from '../adapters/inbound/auth.middleware';
 
 // 5. Side effects
 import './setup-tests';

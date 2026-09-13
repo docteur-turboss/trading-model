@@ -168,22 +168,32 @@ jobs:
       - run: bun run build
       - run: bun run test:coverage
 </code></pre>
+<blockquote>
+<p>This excerpt shows the core jobs. The full <code>ci.yml</code> also defines <code>contract</code> and <code>e2e</code> jobs (see below).</p>
+</blockquote>
 <p><strong>Jobs</strong>:</p>
 <ul>
 <li><code>lint</code> — Biome check across the entire monorepo</li>
 <li><code>typecheck</code> — Build packages + type-check all services (including admin-interface)</li>
-<li><code>test</code> — Build + tests with coverage</li>
+<li><code>test</code> — Build + tests with coverage, upload to Codecov</li>
+<li><code>contract</code> — Contract tests between services</li>
+<li><code>e2e</code> — Boot the Docker Compose stack and run E2E tests</li>
 </ul>
 <p><strong>Permissions</strong>: <code>contents: read</code> (read-only)</p>
 <h2>CD: Continuous Deployment</h2>
 <h3>Workflow: <code>.github/workflows/release.yml</code></h3>
-<p>Triggered on <strong>tags</strong> matching <code>v*.*.*</code>.</p>
+<p>Triggered <strong>manually</strong> (<code>workflow_dispatch</code>) — Actions → Release → Run workflow (<code>bump_type</code> = auto/patch/minor/major).</p>
 <pre><code class="language-yaml">name: Release
 
 on:
-  push:
-    tags:
-      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      bump_type:
+        description: 'Version bump type (auto = derived from commits since the last tag)'
+        required: true
+        type: choice
+        default: auto
+        options: [auto, patch, minor, major]
 
 permissions:
   contents: read
@@ -281,9 +291,11 @@ jobs:
 </code></pre>
 <p><strong>Jobs</strong> (sequential):</p>
 <ol>
-<li><code>quality</code> — Lint + Build + Tests + version extraction</li>
+<li><code>quality</code> — Lint + Build + Tests</li>
+<li><code>version</code> — Version bump + CHANGELOG via <code>scripts/release.mjs</code></li>
 <li><code>docker</code> — Build and push Docker images for each service to GHCR (GitHub Container Registry)</li>
-<li><code>release</code> — Create GitHub Release with changelog</li>
+<li><code>release</code> — Create GitHub Release</li>
+<li><code>docs</code> — Generate and publish TypeDoc HTML</li>
 </ol>
 <p><strong>Permissions</strong>:</p>
 <ul>
@@ -303,6 +315,12 @@ jobs:
 </tr>
 </thead>
 <tbody>
+<tr>
+<td><strong>Deploy</strong></td>
+<td><code>.github/workflows/deploy.yml</code></td>
+<td>manual</td>
+<td>Deploy to staging/production (optional canary + smoke test + auto rollback)</td>
+</tr>
 <tr>
 <td><strong>Backup Test</strong></td>
 <td><code>.github/workflows/backup-test.yml</code></td>
@@ -326,13 +344,19 @@ jobs:
 <td><strong>CI</strong></td>
 <td><code>.github/workflows/ci.yml</code></td>
 <td><code>push</code>, <code>pull_request</code></td>
-<td>Lint → Typecheck → Test + Codecov</td>
+<td>Lint → Typecheck → Test + Codecov → Contract → E2E (Docker)</td>
 </tr>
 <tr>
 <td><strong>Release</strong></td>
 <td><code>.github/workflows/release.yml</code></td>
-<td>tag <code>v*.*.*</code></td>
-<td>Quality gate → 8 Docker images → GHCR → GitHub Release → Docs</td>
+<td>manual</td>
+<td>Quality gate → version + CHANGELOG → 8 Docker images → GHCR → GitHub Release → Docs</td>
+</tr>
+<tr>
+<td><strong>Deploy</strong></td>
+<td><code>.github/workflows/deploy.yml</code></td>
+<td>manual</td>
+<td>Staging/production deploy (optional canary + auto rollback)</td>
 </tr>
 <tr>
 <td><strong>Backup Test</strong></td>
@@ -343,7 +367,7 @@ jobs:
 </tbody>
 </table>
 <p>All workflows run on <code>ubuntu-latest</code> with Bun. Failure in any workflow blocks merging.</p>
-<p><strong>Concurrency:</strong> CI grouped by workflow + ref, cancel-in-progress on new push. Release runs single pipeline (<code>group: pages</code>).</p>
+<p><strong>Concurrency:</strong> CI grouped by workflow + ref, cancel-in-progress on new push. Release runs as a single pipeline (<code>group: release</code>).</p>
 <h3>Docker Image Tags</h3>
 <p>The release workflow generates the following tags for each image:</p>
 <pre><code class="language-yaml">tags: |

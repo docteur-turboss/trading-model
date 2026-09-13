@@ -114,9 +114,9 @@ Documentation
 
 <div class="tm-prose text-sm leading-relaxed text-slate-300 font-sans"><div>
 <blockquote>
-<p><strong>Note:</strong> Superseded by <a href="0011-spiffe-spire-workload-identity.html">ADR-0011</a> — the custom certificate/CSR format is replaced by standard X.509 SVIDs issued by SPIRE.</p>
+<p><strong>Note:</strong> Superseded by <a href="0011-spiffe-spire-workload-identity.html">ADR-0011</a> — the custom certificate/CSR format is replaced by standard X.509 SVIDs issued by SPIRE. The <code>certificate-utils</code> package itself was removed (2026-09).</p>
 </blockquote>
-<p><strong>Status:</strong> Accepted
+<p><strong>Status:</strong> Superseded by <a href="0011-spiffe-spire-workload-identity.html">ADR-0011</a>
 <strong>Date:</strong> 2026-06</p>
 <h2>Context</h2>
 <p><code>@trading-model/certificate-utils/src/</code> contains 22 TypeScript files in a single flat directory with no organizational structure. Files covering key generation, CSR creation, certificate validation, signing providers, vault integration, and worker pool management are all together.</p>

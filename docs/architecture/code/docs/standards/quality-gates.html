@@ -127,18 +127,18 @@ Documentation
 <tbody>
 <tr>
 <td><strong>Biome</strong></td>
-<td>Static code analysis + formatting</td>
-<td><code>biome.json</code></td>
-</tr>
-<tr>
-<td><strong>Biome</strong></td>
-<td>Automatic formatting + lint</td>
+<td>Static analysis + formatting + import sorting</td>
 <td><code>biome.json</code></td>
 </tr>
 <tr>
 <td><strong>Jest</strong></td>
 <td>Unit and integration tests</td>
 <td><code>jest.config.js</code> (per module)</td>
+</tr>
+<tr>
+<td><strong>Vitest</strong></td>
+<td>Frontend tests (admin-interface)</td>
+<td><code>vitest.config.ts</code></td>
 </tr>
 <tr>
 <td><strong>TypeScript</strong></td>
@@ -148,7 +148,7 @@ Documentation
 <tr>
 <td><strong>commitlint</strong></td>
 <td>Commit message validation</td>
-<td><code>.commitlintrc</code></td>
+<td><code>commitlint.config.mjs</code></td>
 </tr>
 <tr>
 <td><strong>Husky</strong></td>
@@ -158,23 +158,25 @@ Documentation
 </tbody>
 </table>
 <h2>Quality Gates</h2>
-<h3>Pre-commit (Husky)</h3>
-<p>Triggered on every <code>git commit</code> — fast, must pass in seconds:</p>
-<pre><code class="language-bash"># .husky/pre-commit
-bunx lint-staged
+<h3>Commit message (Husky)</h3>
+<p>There is no <code>pre-commit</code> hook. Commit format is validated on <code>git commit</code> by <code>commit-msg</code>:</p>
+<pre><code class="language-bash"># .husky/commit-msg
+bunx --no -- commitlint --edit $1 --config commitlint.config.mjs
 </code></pre>
-<p><code>lint-staged</code> applies <code>@biomejs/biome</code> only to modified files.</p>
 <h3>Pre-push (Husky)</h3>
-<p>Triggered on every <code>git push</code> — more thorough:</p>
+<p>Triggered on every <code>git push</code> — must pass before the push completes:</p>
 <pre><code class="language-bash"># .husky/pre-push
+bunx @biomejs/biome check .
 bun run build
 bun run test
 </code></pre>
 <h3>CI (GitHub Actions)</h3>
 <p>Triggered on every push and PR — full validation:</p>
-<pre><code class="language-bash">bun run lint
-bun run build
-bun run test:coverage
+<pre><code class="language-bash">bun run lint          # biome check
+bun run build         # packages + services typecheck
+bun run test:coverage # tests + coverage (Codecov)
+bun run test:contract # contract tests
+bun run test:e2e      # E2E against Docker Compose
 </code></pre>
 <h2>Linting</h2>
 <ul>
@@ -188,20 +190,21 @@ bun run test:coverage
 <h3>Biome Configuration</h3>
 <p>Configuration at root <code>biome.json</code>:</p>
 <pre><code class="language-json">{
-  &quot;$schema&quot;: &quot;https://biomejs.dev/schemas/1.9.4/schema.json&quot;,
-  &quot;organizeImports&quot;: { &quot;enabled&quot;: true },
+  &quot;$schema&quot;: &quot;./node_modules/@biomejs/biome/configuration_schema.json&quot;,
+  &quot;assist&quot;: { &quot;enabled&quot;: true, &quot;actions&quot;: { &quot;source&quot;: { &quot;recommended&quot;: true } } },
   &quot;linter&quot;: {
     &quot;enabled&quot;: true,
-    &quot;rules&quot;: { &quot;recommended&quot;: true }
+    &quot;rules&quot;: { &quot;preset&quot;: &quot;recommended&quot; }
   },
   &quot;formatter&quot;: {
-    &quot;indentStyle&quot;: &quot;space&quot;,
+    &quot;indentStyle&quot;: &quot;tab&quot;,
     &quot;indentWidth&quot;: 2,
-    &quot;lineWidth&quot;: 100
+    &quot;lineWidth&quot;: 80,
+    &quot;lineEnding&quot;: &quot;lf&quot;
   }
 }
 </code></pre>
-<p>Import order enforced via Biome's <code>organizeImports</code> (see <code>biome.json</code>).</p>
+<p>Import order is enforced via Biome's source assist actions (<code>assist.actions.source.organizeImports</code>). See <code>biome.json</code> for the full rule set.</p>
 <h2>Test Coverage</h2>
 <p>See <a href="testing-standards.html">Testing Standards</a> for the complete test coverage thresholds per module, configuration template, and test patterns.</p>
 <h2>TypeScript Strict</h2>

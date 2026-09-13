@@ -126,7 +126,13 @@ Documentation
 │   ├── README.md                        # Index
 │   ├── genetic-algorithm.md             # GA module reference
 │   ├── neural-network.md                # NN module reference
-│   └── training-process.md              # Training pipeline reference
+│   ├── training-process.md              # Training pipeline reference
+│   └── table-schemas.md                 # Database schema reference
+├── concepts/                            # Conceptual overviews (implementation-agnostic)
+│   ├── README.md                        # Index
+│   ├── genetic-algorithm.md             # GA concepts
+│   ├── neural-network.md                # NN concepts
+│   └── training-process.md              # Training concepts
 ├── glossary/                            # Domain terms glossary
 │   └── README.md                        # Terms &amp; definitions
 ├── architecture/                        # Architecture documentation
@@ -153,6 +159,7 @@ Documentation
 │   ├── pr-standards.md                  # Pull request standards
 │   ├── testing-standards.md             # Testing standards
 │   ├── quality-gates.md                 # Quality standards
+│   ├── verification-protocol.md         # Verification protocol
 │   ├── jsdoc-standards.md               # JSDoc writing rules
 │   └── health-endpoints.md              # Health check standards
 ├── security/                            # Security documentation
@@ -208,9 +215,8 @@ Documentation
 │   └── 0011-spiffe-spire-workload-identity.md
 ├── architecture/code/                   # TypeDoc-generated HTML
 │   └── ...
-└── examples/                            # Example scripts
-    └── README.md
 </code></pre>
+<p>Executable example scripts live at the repo root <code>examples/</code> (not under <code>docs/</code>).</p>
 <h2>How to Use This Documentation</h2>
 <p>See <a href="../README.html">docs/README.md</a> for the central navigation index.</p>
 <p>Platform-level implementation reference docs (GA, NN, training) are in <code>docs/reference/</code>. Per-service documentation is in <code>docs/services/</code>. TypeDoc-generated code documentation is in <code>docs/architecture/code/</code>.</p>
@@ -225,7 +231,7 @@ Documentation
 </ul>
 <h2>Examples</h2>
 <h3>Code Block with Tag</h3>
-<pre><code class="language-typescript">import { createBootstrap } from '@trading-model/common/server/bootstrap';
+<pre><code class="language-typescript">import { createBootstrap } from '@trading-model/server-utils/application/services/bootstrap';
 
 createBootstrap({
   name: 'Discovery',

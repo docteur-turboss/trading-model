@@ -237,13 +237,14 @@ Documentation
 </tr>
 </tbody>
 </table>
-<h2>Migration from Current State</h2>
-<p>The codebase currently has <code>EnumEventMessage</code> mixing market data, certificate, and audit topics in a single enum. A future refactoring should:</p>
+<h2>Event Enum Evolution</h2>
+<p>The historical single <code>EnumEventMessage</code> enum (mixing market data, certificate, and audit topics) has been split into per-context enums:</p>
 <ol>
-<li>Split <code>EnumEventMessage</code> into per-context enums (<code>MarketEvent</code>, <code>SecurityEvent</code>, <code>AuditEvent</code>)</li>
-<li>Define per-context message schemas in Zod</li>
-<li>Use context-specific topics in the message-manager subscription model</li>
+<li><code>MarketEvent</code> — <code>@trading-model/common/contracts/market-events</code></li>
+<li><code>AuditEvent</code> — <code>@trading-model/common/contracts/audit-events</code></li>
+<li>Certificate/security events were <strong>removed</strong> with the CA decommission (ADR-0011)</li>
 </ol>
+<p>Per-context Zod schemas live in <code>@trading-model/broker-message/domain/messages/schemas</code> (metadata, message payload, market events, audit events).</p>
 </div></div>
 </main>
 </body>

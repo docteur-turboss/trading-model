@@ -137,11 +137,11 @@ Documentation
 </tr>
 <tr>
 <td>Dependencies</td>
-<td><code>@trading-model/common</code>, <code>@trading-model/address-manager</code>, MongoDB</td>
+<td>common, validation, http, server-utils, crypto, address-manager, broker-message</td>
 </tr>
 <tr>
 <td>Persistence</td>
-<td>MongoDB (planned — currently in-memory with Zod validation)</td>
+<td>Redis Streams (WAL) + MongoDB archive</td>
 </tr>
 <tr>
 <td>Validation</td>
@@ -151,11 +151,12 @@ Documentation
 </table>
 <h2>Messaging Model</h2>
 <ul>
-<li>Topic-based publish/subscribe over HTTP</li>
-<li>In-memory subscription registry with instance-level deduplication</li>
+<li>Topic-based publish/subscribe over HTTP and WebSocket (WSS)</li>
+<li>Subscription registry with instance-level deduplication</li>
 <li>Three delivery semantics: <code>AT_MOST_ONCE</code>, <code>AT_LEAST_ONCE</code>, <code>EXACTLY_ONCE</code></li>
-<li>TTL-based message expiration with Dead Letter Queue routing</li>
+<li>TTL-based message expiration with Dead Letter Queue routing (via <code>dlq-service</code>)</li>
 <li>Parallel dispatch to all subscribers of a topic</li>
+<li>Write-ahead log (WAL) backed by Redis Streams; MongoDB archive for long-term storage</li>
 </ul>
 <h2>REST Endpoints</h2>
 <h3>Publish a Message</h3>
@@ -244,28 +245,30 @@ Documentation
 </li>
 <li><strong><code>signature</code></strong> (string, optional) — Message integrity signature</li>
 </ul>
-<p>Previously validated as <code>z.unknown()</code>, the <code>authContext</code> object is now strictly validated against this schema to align with the canonical <code>SecurityType</code> interface in <code>@trading-model/common/contracts/message.types</code>.</p>
+<p>Previously validated as <code>z.unknown()</code>, the <code>authContext</code> object is now strictly validated against this schema to align with the canonical <code>SecurityType</code> interface in <code>@trading-model/validation/domain/contracts/message.types</code>.</p>
 <h2>Features</h2>
 <ul>
 <li><strong>TTL</strong>: Message expiration based on time-to-live configured in metadata</li>
 <li><strong>Retry with backoff</strong>: <code>AT_LEAST_ONCE</code> retries up to 10 times with exponential backoff (1s base, 60s cap) and ±20% random jitter</li>
 <li><strong>Circuit breaker</strong>: After 5 consecutive dispatch failures, new messages are routed directly to the Dead Letter Queue to prevent cascading failures; the breaker resets on the next successful delivery</li>
 <li><strong>Alerting</strong>: Persistent delivery failures are logged at ERROR level with topic, service name, and attempt count</li>
-<li><strong>Dead Letter Queue</strong>: Undelivered messages persisted as JSON Lines (NDJSON) to <code>dead-letter-queue.jsonl</code> with failure reason, delivery attempt count, and timestamp</li>
+<li><strong>Dead Letter Queue</strong>: Undelivered messages are routed to the <code>dlq-service</code> over HTTP (local JSON Lines fallback to <code>dead-letter-queue.jsonl</code> when the DLQ service is unreachable)</li>
 <li><strong>Deduplication</strong>: Via <code>deduplicationId</code> in delivery metadata</li>
 <li><strong>Partitioning</strong>: Via <code>partitionKey</code> in routing metadata</li>
 <li><strong>Priority</strong>: Via <code>priority</code> in routing metadata</li>
 </ul>
 <h2>Internal Architecture</h2>
-<pre><code>HTTP Routes (http.routes.ts)
-  → Controllers (http.controller.ts)
-    → Zod Schemas (broker.schema.ts)
-      → Broker (core/broker.ts)
-        → Subscription Manager (core/subscription.ts)
-        → Message Dispatcher (core/dispatcher.ts)
-        → Dead Letter Queue (core/dlq-repository.ts)
-        → Message Store (core/message.ts + MongoDB)
+<pre><code>HTTP Routes (src/messaging/transport/http.routes.ts)
+  → Controllers (src/messaging/transport/http.controller.ts)
+    → Zod Schemas (src/messaging/transport/validation/broker.schema.ts)
+      → Dispatcher (src/messaging/core/dispatcher.ts)
+        → Subscription Registry (src/messaging/core/subscription-registry.ts)
+        → Delivery (src/adapters/outbound/http-message-delivery.ts)
+        → DLQ client (src/messaging/core/dlq-client.ts → dlq-service)
+        → WAL / Redis Streams (src/infrastructure/redis/*)
+        → MongoDB archive (src/messaging/core/mongo-archive-store.ts)
 </code></pre>
+<p>A WSS transport (<code>src/messaging/transport/wss-*</code>) accepts broker connections over secure WebSockets (rate-limited, with broadcast to subscribers).</p>
 <h2>Deployment</h2>
 <p>The service is bootstrapped via <code>createBootstrap()</code> which:</p>
 <ol>

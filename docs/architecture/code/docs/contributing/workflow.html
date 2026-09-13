@@ -242,10 +242,10 @@ main ──────────────────╂─── (hotfix)
 </tr>
 </tbody>
 </table>
-<p>File suffixes: <code>*.controller.ts</code>, <code>*.service.ts</code>, <code>*.repository.ts</code>, <code>*.middleware.ts</code>, <code>*.util.ts</code>, <code>*.spec.ts</code></p>
+<p>File naming: <code>kebab-case</code> descriptive names; <code>.controller.ts</code>/<code>.service.ts</code>/<code>.repository.ts</code>/<code>.middleware.ts</code>/<code>.util.ts</code> are legacy suffixes (not required after the DDD migration). Tests use <code>*.spec.ts</code>.</p>
 <h2>Code Style</h2>
 <ul>
-<li><strong>Formatter</strong>: Biome with <code>printWidth: 100</code>, <code>singleQuote</code>, <code>trailingComma: &quot;es5&quot;</code>, <code>arrowParens: &quot;avoid&quot;</code></li>
+<li><strong>Formatter</strong>: Biome with tab indentation, <code>lineWidth: 80</code>, <code>trailingComma: &quot;es5&quot;</code></li>
 <li><strong>Linter</strong>: Biome with TypeScript strict rules</li>
 <li><strong>TypeScript</strong>: <code>strict: true</code>, target ES2020</li>
 </ul>
@@ -254,14 +254,14 @@ main ──────────────────╂─── (hotfix)
 <li>Node built-ins (<code>fs</code>, <code>path</code>)</li>
 <li>External deps (<code>express</code>, <code>zod</code>)</li>
 <li>Internal absolute (<code>@trading-model/*</code>)</li>
-<li>Internal relative (<code>../controllers/</code>)</li>
+<li>Internal relative (<code>../domain/</code>, <code>../adapters/</code>)</li>
 <li>Side effects (<code>import './setup'</code>)</li>
 </ol>
 <h2>Testing</h2>
 <ul>
 <li><strong>Framework</strong>: Jest with <code>ts-jest</code> (most services); <strong>Vitest</strong> (admin-interface only)</li>
 <li><strong>Convention</strong>: Single <code>.spec.ts</code> or <code>.spec.tsx</code> (admin-interface) suffix</li>
-<li><strong>Coverage thresholds</strong>: 100% for common, discovery, most packages; 80-85% for trader-service, dlq-service</li>
+<li><strong>Coverage thresholds</strong>: 80% across all workspaces (branch-only exceptions: <code>broker-message</code> 75%, <code>message-manager</code> and <code>dlq-service</code> 79%)</li>
 <li><strong>Structure</strong>: Tests mirror source under <code>tests/unit/</code>, <code>tests/integration/</code>, <code>tests/e2e/</code></li>
 </ul>
 <hr>

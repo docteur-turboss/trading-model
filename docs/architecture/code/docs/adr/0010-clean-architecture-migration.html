@@ -115,6 +115,9 @@ Documentation
 <div class="tm-prose text-sm leading-relaxed text-slate-300 font-sans"><div>
 <p><strong>Status:</strong> Accepted
 <strong>Date:</strong> 2026-06</p>
+<blockquote>
+<p><strong>Outcome (2026-09):</strong> The hexagonal target structure was generalized beyond message-manager and applied to <strong>all</strong> services (see <a href="../standards/architecture-standards.html">Architecture Standards</a> — <code>domain/</code>, <code>application/</code>, <code>adapters/inbound|outbound</code>, <code>infrastructure/</code>, <code>config/</code>, <code>shared/</code>). message-manager retains a legacy <code>messaging/core/</code> + <code>messaging/transport/</code> layout alongside the new layers during the migration.</p>
+</blockquote>
 <h2>Context</h2>
 <p>The <code>services/message-manager/src/messaging/core/</code> directory contains 25+ imports of infrastructure dependencies (ioredis, mongodb, node:fs, config/env, config/redis). The domain layer is entirely contaminated with infrastructure concerns. A message broker's core logic (pub/sub, delivery guarantees, deduplication) should not know about Redis Streams, MongoDB drivers, or filesystem fallbacks.</p>
 <h2>Decision</h2>
