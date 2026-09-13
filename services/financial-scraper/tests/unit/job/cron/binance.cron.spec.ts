@@ -20,7 +20,7 @@ jest.mock("p-limit", () => {
 	return pLimit;
 });
 
-jest.mock("@trading-model/common/config/logger", () => ({
+jest.mock("@trading-model/http/infrastructure/logger", () => ({
 	logger: {
 		info: jest.fn(),
 		warn: jest.fn(),
@@ -42,7 +42,7 @@ jest.mock("../../../../src/application/market-data.controller", () => ({
 	},
 }));
 
-import { logger } from "@trading-model/common/config/logger";
+import { logger } from "@trading-model/http/infrastructure/logger";
 import { MarketDataController } from "../../../../src/application/market-data.controller";
 import { BinanceCronOrchestrator } from "../../../../src/job/cron/binance.cron";
 

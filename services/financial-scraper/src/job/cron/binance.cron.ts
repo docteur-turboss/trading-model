@@ -1,10 +1,10 @@
 import os from "node:os";
 import { CandleInterval } from "@trading-model/common/config/event.types";
-import { logger } from "@trading-model/common/config/logger";
 import {
 	PositiveInt,
 	type TradingSymbol,
 } from "@trading-model/common/domain/primitives";
+import { logger } from "@trading-model/http/infrastructure/logger";
 import cron from "node-cron";
 import { WorkerOrchestrator } from "./worker-orchestrator";
 

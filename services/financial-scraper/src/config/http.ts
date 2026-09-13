@@ -1,9 +1,9 @@
-import { isRetryableStatusPermissive } from "@trading-model/common/config/http-retry";
 import {
 	DataSource,
 	DurationMs,
 } from "@trading-model/common/domain/primitives";
 import { computeExponentialBackoff } from "@trading-model/common/utils/backoff-config";
+import { isRetryableStatusPermissive } from "@trading-model/http/infrastructure/http-retry";
 import axios, {
 	type AxiosError,
 	type AxiosInstance,

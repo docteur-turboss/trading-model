@@ -1,9 +1,9 @@
 import type { CandleInterval } from "@trading-model/common/config/event.types";
-import { logger } from "@trading-model/common/config/logger";
 import type {
 	PositiveInt,
 	TradingSymbol,
 } from "@trading-model/common/domain/primitives";
+import { logger } from "@trading-model/http/infrastructure/logger";
 import { MarketDataController } from "../../application/market-data.controller";
 import type { BinanceWorkerResult } from "../worker/binance.worker";
 
