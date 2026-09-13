@@ -1,4 +1,3 @@
-import type { HttpRequestOptions } from "@trading-model/common/config/http-types";
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import {
 	DurationMs,
@@ -6,6 +5,7 @@ import {
 } from "@trading-model/common/domain/primitives";
 import { HTTP_HEADERS } from "@trading-model/common/http-headers";
 import { signRequest } from "@trading-model/crypto/domain/services/request-signer";
+import type { HttpRequestOptions } from "@trading-model/http/shared/http-types";
 import type { HttpRoute } from "@trading-model/validation/adapters/inbound/signed-request";
 import { logger } from "../../config/logger";
 import { ENV } from "../config/env";

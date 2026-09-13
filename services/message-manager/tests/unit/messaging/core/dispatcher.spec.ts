@@ -20,7 +20,7 @@ import {
 } from "../../../fixtures/broker.fixture";
 import { createMockHttpClient } from "../../../helpers/broker.helper";
 
-jest.mock("@trading-model/common/config/logger", () => ({
+jest.mock("@trading-model/http/infrastructure/logger", () => ({
 	logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
 
@@ -162,7 +162,7 @@ describe("Dispatcher", () => {
 			await dispatcher.dispatch(message);
 
 			const { logger } = jest.requireMock(
-				"@trading-model/common/config/logger"
+				"@trading-model/http/infrastructure/logger"
 			) as {
 				logger: { info: jest.Mock; warn: jest.Mock; error: jest.Mock };
 			};

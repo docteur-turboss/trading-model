@@ -8,7 +8,7 @@ import {
 } from "../../../../src/messaging/transport/http.controller";
 import { createMockDispatcher } from "../../../helpers/broker.helper";
 
-jest.mock("@trading-model/common/middleware/catch-error", () => ({
+jest.mock("@trading-model/http/adapters/inbound/catch-error", () => ({
 	catchSync:
 		(fn: (...args: unknown[]) => Promise<unknown>) =>
 		async (...args: unknown[]): Promise<void> => {

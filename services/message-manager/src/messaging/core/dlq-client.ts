@@ -1,10 +1,10 @@
-﻿import type { HttpClient } from "@trading-model/common/config/http-client";
-import {
+﻿import {
 	type Limit,
 	PositiveInt,
 	type Topic,
 	URLString,
 } from "@trading-model/common/domain/primitives";
+import type { HttpClient } from "@trading-model/http/adapters/outbound/http-client";
 import type { DlqEntry } from "../../adapters/outbound/dlq-repository";
 import { ENV } from "../../infrastructure/config/env";
 import { DlqDeleteHandler } from "./dlq-delete-handler";

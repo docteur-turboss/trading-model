@@ -1,6 +1,6 @@
-﻿import { logger } from "@trading-model/common/config/logger";
-import { toDurationMs } from "@trading-model/common/domain/primitives";
+﻿import { toDurationMs } from "@trading-model/common/domain/primitives";
 import { TimerHandle } from "@trading-model/common/utils/timer-handle";
+import { logger } from "@trading-model/http/infrastructure/logger";
 
 interface PersistenceOp {
 	fn: () => Promise<void>;

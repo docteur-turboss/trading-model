@@ -6,9 +6,9 @@
  * subscribers.
  */
 
-import type { HttpClient } from "@trading-model/common/config/http-client";
-import { logger } from "@trading-model/common/config/logger";
 import type { InstanceId } from "@trading-model/common/domain/primitives";
+import type { HttpClient } from "@trading-model/http/adapters/outbound/http-client";
+import { logger } from "@trading-model/http/infrastructure/logger";
 import type { Message } from "@trading-model/validation/domain/contracts/message.types";
 import type { FileDlqRepository } from "../../adapters/outbound/dlq-repository";
 import { HttpMessageDelivery } from "../../adapters/outbound/http-message-delivery";

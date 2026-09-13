@@ -13,7 +13,7 @@ jest.mock("../../../src/config/address-manager", () => ({
 	BOOTSTRAP_ADDRESS_MANAGER: jest.fn(),
 }));
 
-jest.mock("@trading-model/common/config/http-client", () => {
+jest.mock("@trading-model/http/adapters/outbound/http-client", () => {
 	const mockInstance = { post: jest.fn(), get: jest.fn() };
 	const MockHttpClient = jest.fn().mockImplementation(() => mockInstance);
 	MockHttpClient.createWithTls = jest.fn(() => mockInstance);

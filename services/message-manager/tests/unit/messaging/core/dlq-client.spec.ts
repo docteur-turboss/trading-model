@@ -15,7 +15,7 @@ jest.mock("../../../../src/config/metrics", () => ({
 	MESSAGES_DLQ_ERROR_TOTAL: { inc: jest.fn() },
 }));
 
-import type { HttpClient } from "@trading-model/common/config/http-client";
+import type { HttpClient } from "@trading-model/http/adapters/outbound/http-client";
 import { DlqServiceClient } from "../../../../src/messaging/core/dlq-client";
 
 function createMockHttpClient(): jest.Mocked<HttpClient> {

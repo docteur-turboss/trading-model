@@ -2,7 +2,7 @@
  * Initializes the broker system: HTTP client, dispatcher, and Express routes.
  */
 
-import { HttpClient } from "@trading-model/common/config/http-client";
+import { HttpClient } from "@trading-model/http/adapters/outbound/http-client";
 import type { Application } from "express";
 import { FileDlqRepository } from "../adapters/outbound/dlq-repository";
 import { Dispatcher } from "../messaging/core/dispatcher";
