@@ -1,0 +1,45 @@
+import type { WorkerWsHeartbeatMessage } from "@trading-model/common/contracts/worker-protocol-types";
+import {
+	DurationMs,
+	toInstanceId,
+} from "@trading-model/common/domain/primitives";
+import { TimerHandle } from "@trading-model/common/utils/timer-handle";
+
+export class WorkerHeartbeat {
+	private readonly _heartbeatTimer = new TimerHandle();
+	private readonly _workerId: string;
+	private readonly _send: (msg: WorkerWsHeartbeatMessage) => void;
+	private readonly _intervalMs: number;
+
+	constructor(
+		workerId: string,
+		send: (msg: WorkerWsHeartbeatMessage) => void,
+		intervalMs: number
+	) {
+		this._workerId = workerId;
+		this._send = send;
+		this._intervalMs = intervalMs;
+	}
+
+	start(): void {
+		this._heartbeatTimer.startInterval(() => {
+			this._send({
+				type: "heartbeat",
+				workerId: toInstanceId(this._workerId),
+				currentLoad: 0,
+			});
+		}, DurationMs.of(this._intervalMs));
+	}
+
+	stop(): void {
+		this._heartbeatTimer.stop();
+	}
+
+	sendHeartbeat(currentLoad: number): void {
+		this._send({
+			type: "heartbeat",
+			workerId: toInstanceId(this._workerId),
+			currentLoad,
+		});
+	}
+}
