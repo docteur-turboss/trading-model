@@ -88,7 +88,7 @@ describe("useApi", () => {
 
 	it("should handle HttpClientError with status code", async () => {
 		const { createHttpClientError } = await import(
-			"@trading-model/common/config/http-client-errors"
+			"@trading-model/http/adapters/outbound/http-client-errors"
 		);
 		const fetcher = vi
 			.fn()
@@ -98,6 +98,18 @@ describe("useApi", () => {
 		await vi.advanceTimersToNextTimerAsync();
 		await waitFor(() => expect(result.current.loading).toBe(false));
 		expect(result.current.error).toBe("Forbidden");
+	});
+
+	it("should format the local HttpClientError with its status code", async () => {
+		const { HttpClientError } = await import("../../src/api/_request");
+		const fetcher = vi
+			.fn()
+			.mockRejectedValue(new HttpClientError("Forbidden", 403));
+		const { result } = renderHook(() => useApi(fetcher));
+
+		await vi.advanceTimersToNextTimerAsync();
+		await waitFor(() => expect(result.current.loading).toBe(false));
+		expect(result.current.error).toBe("Error 403: Forbidden");
 	});
 
 	it("should succeed after retry when refetch is called after error", async () => {

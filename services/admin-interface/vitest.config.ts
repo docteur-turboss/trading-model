@@ -10,6 +10,8 @@ export default defineConfig({
 				__dirname,
 				"../../packages/validation/src"
 			),
+			"@trading-model/http": path.resolve(__dirname, "../../packages/http/src"),
+			"@trading-model/jobs": path.resolve(__dirname, "../../packages/jobs/src"),
 			"@trading-model/common": path.resolve(
 				__dirname,
 				"../../packages/common/src"
@@ -25,7 +27,7 @@ export default defineConfig({
 		coverage: {
 			provider: "v8",
 			include: ["src/**/*.{ts,tsx}"],
-			exclude: ["src/vite-env.d.ts", "src/main.tsx"],
+			exclude: ["src/vite-env.d.ts", "src/infrastructure/app/main.tsx"],
 			thresholds: {
 				statements: 80,
 				branches: 80,

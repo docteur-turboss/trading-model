@@ -1,4 +1,4 @@
-import { isHttpClientError } from "@trading-model/common/config/http-client-errors";
+import { isHttpClientError } from "@trading-model/http/adapters/outbound/http-client-errors";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { API_CLIENT, setAdminToken } from "../../src/api/api-client";
 

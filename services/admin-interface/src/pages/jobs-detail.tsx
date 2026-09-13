@@ -1,6 +1,6 @@
 import { Box, Button, Chip, Typography } from "@mui/material";
 import { JobPriority } from "@trading-model/validation/adapters/inbound/admin";
-import type { ReactNode } from "react";
+import { type ReactNode, useState } from "react";
 import { DrawerPanel } from "../components/drawer-panel";
 import type { JobTimelineEntry } from "../types/dtos";
 
@@ -165,6 +165,7 @@ export function JobDetailDrawer({
 	} | null;
 	onClose: () => void;
 }) {
+	const [activeTab, setActiveTab] = useState(0);
 	return (
 		<DrawerPanel
 			open={Boolean(selectedJobId)}
@@ -172,6 +173,8 @@ export function JobDetailDrawer({
 			subtitle={`ID: ${selectedJobId ?? ""}`}
 			onClose={onClose}
 			tabs={jobDetail ? buildJobTabs(jobDetail) : []}
+			activeTab={activeTab}
+			onTabChange={setActiveTab}
 			actions={
 				<>
 					<Button variant="contained" color="primary">
