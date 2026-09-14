@@ -10,7 +10,7 @@ import {
 	toVersion,
 	UnixTimestamp,
 } from "@trading-model/common/domain/primitives";
-import { Protocol } from "@trading-model/validation/adapters/outbound/service-registry.types";
+import { Protocol } from "@trading-model/validation/domain/contracts/service-registry.types";
 import { ServiceCache } from "../../src/adapters/outbound/discovery/service-cache";
 import type { ServiceInstance } from "../../src/domain/client/type";
 

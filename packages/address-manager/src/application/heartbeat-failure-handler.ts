@@ -1,7 +1,7 @@
 import { PositiveInt } from "@trading-model/common/domain/primitives";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import { logger } from "@trading-model/http/infrastructure/logger";
-import type { ServiceClientDeps } from "../domain/types";
+import type { ServiceClientDeps } from "./types";
 
 const MAX_HEARTBEAT_FAILURES_BEFORE_RE_REGISTER = PositiveInt.of(3);
 

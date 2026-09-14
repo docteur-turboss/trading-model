@@ -9,7 +9,7 @@ import {
 	toVersion,
 	UnixTimestamp,
 } from "@trading-model/common/domain/primitives";
-import { Protocol } from "@trading-model/validation/adapters/outbound/service-registry.types";
+import { Protocol } from "@trading-model/validation/domain/contracts/service-registry.types";
 import type { DiscoveryCircuitBreaker } from "../../src/application/discovery/circuit-breaker";
 import { DiscoveryRetryHandler } from "../../src/application/discovery/discovery-retry-handler";
 import type { ServiceDiscovery } from "../../src/application/discovery/service-discovery";

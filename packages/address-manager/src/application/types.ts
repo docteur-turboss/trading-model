@@ -1,12 +1,12 @@
 import type { AddressManagerClient } from "../adapters/outbound/client/address-manager-client";
 import type { WebSocketClient } from "../adapters/outbound/client/websocket-client";
 import type { ServiceHealthChecker } from "../adapters/outbound/discovery/service-health-checker";
-import type { TokenManager } from "../application/client/token-manager";
-import type { DiscoveryCircuitBreaker } from "../application/discovery/circuit-breaker";
-import type { HeartbeatManager } from "../application/heartbeat-manager";
-import type { RegistrationAttemptHandler } from "../application/registration-attempt-handler";
-import type { AddressManagerConfig } from "./config/address-manager-config";
-import type { IServiceCache } from "./discovery/service-cache.interface";
+import type { AddressManagerConfig } from "../domain/config/address-manager-config";
+import type { IServiceCache } from "../domain/discovery/service-cache.interface";
+import type { TokenManager } from "./client/token-manager";
+import type { DiscoveryCircuitBreaker } from "./discovery/circuit-breaker";
+import type { HeartbeatManager } from "./heartbeat-manager";
+import type { RegistrationAttemptHandler } from "./registration-attempt-handler";
 
 export interface ServiceClientDeps {
 	addressManagerClient: AddressManagerClient;

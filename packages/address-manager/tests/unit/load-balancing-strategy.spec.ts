@@ -8,15 +8,13 @@ import {
 	toVersion,
 	UnixTimestamp,
 } from "@trading-model/common/domain/primitives";
-import { Protocol } from "@trading-model/validation/adapters/outbound/service-registry.types";
+import { Protocol } from "@trading-model/validation/domain/contracts/service-registry.types";
+import { createLoadBalancer } from "../../src/application/discovery/load-balancer-factory";
+import { LeastConnectionsStrategy } from "../../src/application/discovery/strategies/least-connections-strategy";
+import { createRandomStrategy } from "../../src/application/discovery/strategies/random-strategy";
+import { createRoundRobinStrategy } from "../../src/application/discovery/strategies/round-robin-strategy";
 import type { ServiceInstance } from "../../src/domain/client/type";
-import {
-	createLoadBalancer,
-	createRandomStrategy,
-	createRoundRobinStrategy,
-	LeastConnectionsStrategy,
-	LoadBalancingStrategyType,
-} from "../../src/domain/discovery/load-balancing-strategy";
+import { LoadBalancingStrategyType } from "../../src/domain/discovery/load-balancing-strategy";
 
 const inst1 = toInstanceId("i-1");
 const inst2 = toInstanceId("i-2");

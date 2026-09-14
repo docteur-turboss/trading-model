@@ -4,7 +4,7 @@ import type {
 	ServiceId,
 	UnixTimestamp,
 } from "@trading-model/common/domain/primitives";
-import { HttpMethod } from "@trading-model/validation/adapters/inbound/signed-request";
+import { HttpMethod } from "@trading-model/validation/domain/contracts/signed-request.types";
 import {
 	CallStatus,
 	Endpoint,

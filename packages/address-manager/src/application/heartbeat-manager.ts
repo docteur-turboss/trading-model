@@ -1,8 +1,8 @@
 import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
 import type { IHeartbeatSender } from "@trading-model/common/reliability/heartbeat-interfaces";
 import type { AddressManagerClient } from "../adapters/outbound/client/address-manager-client";
-import type { ServiceClientDeps } from "../domain/types";
 import { HeartbeatFailureHandler } from "./heartbeat-failure-handler";
+import type { ServiceClientDeps } from "./types";
 
 interface WsHeartbeatClient {
 	readonly isConnected: boolean;

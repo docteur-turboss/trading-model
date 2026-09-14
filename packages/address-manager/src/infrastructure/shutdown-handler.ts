@@ -3,7 +3,7 @@ import {
 	removeProcessHandlers,
 	setupProcessHandlers,
 } from "@trading-model/server-utils/infrastructure/signal-handler";
-import type { ShutdownHandlerDeps } from "../domain/types";
+import type { ShutdownHandlerDeps } from "../application/types";
 
 export class ShutdownHandler {
 	private readonly _metricsTimer = new TimerHandle();

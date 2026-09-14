@@ -1,3 +1,4 @@
+import type { TlsPaths } from "@trading-model/common/config/tls-paths";
 import type {
 	DurationMs,
 	IPAddress,
@@ -6,7 +7,6 @@ import type {
 	ServiceId,
 } from "@trading-model/common/domain/primitives";
 import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
-import type { TlsPaths } from "@trading-model/common/domain/tls-paths";
 
 /** Configuration options for the Address Manager client. */
 interface AddressManagerConfig {

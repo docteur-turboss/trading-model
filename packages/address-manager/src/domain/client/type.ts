@@ -4,7 +4,7 @@ import type {
 	IPAddress,
 	Port,
 } from "@trading-model/common/domain/primitives";
-import { ServiceInstance } from "@trading-model/validation/adapters/outbound/service-registry.types";
+import { ServiceInstance } from "@trading-model/validation/domain/contracts/service-registry.types";
 
 export { ServiceInstance };
 

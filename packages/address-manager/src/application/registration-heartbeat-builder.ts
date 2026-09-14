@@ -1,4 +1,3 @@
-import type { ServiceClientDeps } from "../domain/types";
 import {
 	DiscoveryResult,
 	HEARTBEAT_TOTAL,
@@ -6,6 +5,7 @@ import {
 } from "../infrastructure/metrics";
 import { HeartbeatManager } from "./heartbeat-manager";
 import { RegistrationAttemptHandler } from "./registration-attempt-handler";
+import type { ServiceClientDeps } from "./types";
 
 export function buildRegistrationManager(
 	deps: ServiceClientDeps

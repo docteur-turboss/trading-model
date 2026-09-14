@@ -1,3 +1,4 @@
+import { buildTlsFromEnv } from "@trading-model/common/config/tls-paths";
 import {
 	DurationMs,
 	IPAddress,
@@ -8,7 +9,6 @@ import {
 	toRegion,
 	toServiceId,
 } from "@trading-model/common/domain/primitives";
-import { buildTlsFromEnv } from "@trading-model/common/domain/tls-paths";
 import {
 	type AddressManagerEnv,
 	resolveDiscoveryUrls,

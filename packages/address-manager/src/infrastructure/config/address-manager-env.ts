@@ -1,4 +1,4 @@
-import type { TlsEnvVars } from "@trading-model/common/domain/tls-paths";
+import type { TlsEnvVars } from "@trading-model/common/config/tls-paths";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import { logger } from "@trading-model/http/infrastructure/logger";
 

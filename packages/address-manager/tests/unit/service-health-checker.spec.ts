@@ -10,7 +10,7 @@ import {
 	URLString,
 } from "@trading-model/common/domain/primitives";
 import type { HttpClient } from "@trading-model/http/adapters/outbound/http-client";
-import { Protocol } from "@trading-model/validation/adapters/outbound/service-registry.types";
+import { Protocol } from "@trading-model/validation/domain/contracts/service-registry.types";
 import { ServiceHealthChecker } from "../../src/adapters/outbound/discovery/service-health-checker";
 import { IpAddressLocator } from "../../src/application/discovery/service-locator";
 import type { ServiceInstance } from "../../src/domain/client/type";

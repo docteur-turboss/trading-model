@@ -2,8 +2,8 @@ import { DurationMs } from "@trading-model/common/domain/primitives";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import { sleep } from "@trading-model/common/utils/sleep";
 import { logger } from "@trading-model/http/infrastructure/logger";
-import type { ServiceClientDeps } from "../domain/types";
 import { RetryScheduler } from "../shared/retry-scheduler";
+import type { ServiceClientDeps } from "./types";
 
 const RETRY_CONFIG = {
 	maxRetries: 10,

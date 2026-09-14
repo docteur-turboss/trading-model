@@ -7,10 +7,10 @@ import { normalizeError } from "@trading-model/common/utils/errors";
 import { logger } from "@trading-model/http/infrastructure/logger";
 import { DiscoveryWsMessageType } from "@trading-model/validation/adapters/inbound/discovery-ws-message.types";
 import type { TokenManager } from "../../application/client/token-manager";
+import type { ServiceClientDeps } from "../../application/types";
 import { WsAuthFailureHandler } from "../../application/ws-auth-failure-handler";
 import type { AddressManagerConfig } from "../../domain/config/address-manager-config";
 import type { IServiceCache } from "../../domain/discovery/service-cache.interface";
-import type { ServiceClientDeps } from "../../domain/types";
 import type { AddressManagerClient } from "./client/address-manager-client";
 import { WebSocketClient, type WsMessage } from "./client/websocket-client";
 

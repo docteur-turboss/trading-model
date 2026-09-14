@@ -1,9 +1,9 @@
-import type { LifecycleDeps, ShutdownHandlerDeps } from "../domain/types";
 import { ShutdownHandler } from "../infrastructure/shutdown-handler";
 import {
 	LifecycleManager,
 	type LifecycleManagerOptions,
 } from "./lifecycle-manager";
+import type { LifecycleDeps, ShutdownHandlerDeps } from "./types";
 
 function buildShutdownHandler(deps: ShutdownHandlerDeps): ShutdownHandler {
 	return new ShutdownHandler(deps);
