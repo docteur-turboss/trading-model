@@ -14,7 +14,7 @@ import {
 import type { HttpStatusCode } from "@trading-model/common/http-status";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import type { Request } from "express";
-import type { HttpMethod } from "../../shared/http-types";
+import type { HttpMethod } from "../../domain/http-types";
 import type { ResolvedErrorTrackingConfig } from "./error-tracking-config";
 
 export interface ErrorReportBody {

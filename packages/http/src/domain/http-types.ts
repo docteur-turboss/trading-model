@@ -1,11 +1,10 @@
-import type https from "node:https";
+import type { TlsPemBundle } from "@trading-model/common/config/tls-paths";
 import { HttpMethod } from "@trading-model/common/contracts/signed-request";
 import type {
 	DurationMs,
 	PositiveInt,
 	ServiceId,
 } from "@trading-model/common/domain/primitives";
-import type { TlsPemBundle } from "@trading-model/common/domain/tls-paths";
 
 export type HttpHeaderValue = string & { readonly brand: "HttpHeaderValue" };
 export const HttpHeaderValue = {
@@ -28,11 +27,19 @@ export interface HttpHeaderDefaults {
 	"x-trace-id"?: HttpHeaderValue;
 }
 
+/**
+ * Abstract HTTP connection agent handle. Domain code never dereferences it;
+ * infrastructure adapters narrow it to their runtime type (e.g. `node:https` `Agent`).
+ */
+export interface HttpAgent {
+	destroy(): void;
+}
+
 interface HttpRequestOptions {
 	timeoutMs?: DurationMs;
 	headers?: HttpHeaders;
 	retryCount?: PositiveInt;
-	agent?: https.Agent;
+	agent?: HttpAgent;
 	serviceName?: ServiceId;
 	serviceInstanceCount?: PositiveInt;
 	/**

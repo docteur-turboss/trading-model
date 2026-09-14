@@ -4,7 +4,7 @@ import {
 } from "@trading-model/common/http-status";
 import { isAppError } from "@trading-model/common/utils/errors";
 import type { NextFunction, Request, Response } from "express";
-import { logger } from "../../infrastructure/logger";
+import { logger } from "../../application/services/logger";
 import type { ResponseObject } from "./response-exception";
 
 type ErrorInput = Error | ResponseObject;

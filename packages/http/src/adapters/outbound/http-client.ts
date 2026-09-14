@@ -1,16 +1,16 @@
-import type { URLString } from "@trading-model/common/domain/primitives";
 import type {
 	TlsPaths,
 	TlsPemBundle,
-} from "@trading-model/common/domain/tls-paths";
+} from "@trading-model/common/config/tls-paths";
+import type { URLString } from "@trading-model/common/domain/primitives";
 import type { z } from "zod";
+import type { HttpMethod, HttpRequestOptions } from "../../domain/http-types";
 import {
 	HttpRequestExecutor,
 	type RequestContext,
 } from "../../infrastructure/http-request-executor";
 import { computeAdaptiveTimeout } from "../../infrastructure/http-retry";
 import { loadTlsPemBundleSync } from "../../infrastructure/http-tls-loader";
-import type { HttpMethod, HttpRequestOptions } from "../../shared/http-types";
 import { isServiceCircuitOpen } from "./http-circuit-breaker";
 import {
 	createHttpClientError,

@@ -1,10 +1,10 @@
 import https from "node:https";
 import { URL } from "node:url";
+import type { TlsPemBundle } from "@trading-model/common/config/tls-paths";
 import type {
 	DurationMs,
 	URLString,
 } from "@trading-model/common/domain/primitives";
-import type { TlsPemBundle } from "@trading-model/common/domain/tls-paths";
 import { sleep } from "@trading-model/common/utils/sleep";
 import type { z } from "zod";
 import {
@@ -13,8 +13,8 @@ import {
 	type ServiceRoute,
 } from "../adapters/outbound/circuit-recorder";
 import { createHttpClientTimeoutError } from "../adapters/outbound/http-client-errors";
-import type { HttpMethod, HttpRequestOptions } from "../shared/http-types";
-import { shouldRetry } from "./http-error-classifier";
+import { shouldRetry } from "../application/services/http-error-classifier";
+import type { HttpMethod, HttpRequestOptions } from "../domain/http-types";
 import { collectResponseBody } from "./http-response";
 import { computeRetryDelay, DEFAULT_RETRY_COUNT } from "./http-retry";
 import { buildRequestOptions } from "./http-utils";

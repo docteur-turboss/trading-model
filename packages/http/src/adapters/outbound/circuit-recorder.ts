@@ -11,7 +11,7 @@ import { HTTP_STATUS } from "@trading-model/common/http-status";
 import { CircuitBreaker } from "@trading-model/common/reliability/circuit-breaker";
 import type { ICircuitBreaker } from "@trading-model/common/reliability/circuit-breaker.interface";
 import type { CircuitBreakerConfig } from "@trading-model/common/reliability/circuit-state-machine";
-import type { HttpRequestOptions } from "../../shared/http-types";
+import type { HttpRequestOptions } from "../../domain/http-types";
 import { createHttpClientError } from "./http-client-errors";
 
 export interface ServiceRoute {

@@ -1,8 +1,8 @@
+import type { TlsPaths } from "@trading-model/common/config/tls-paths";
 import {
 	type JsonObject,
 	URLString,
 } from "@trading-model/common/domain/primitives";
-import type { TlsPaths } from "@trading-model/common/domain/tls-paths";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import { HttpClient } from "./http-client";
 

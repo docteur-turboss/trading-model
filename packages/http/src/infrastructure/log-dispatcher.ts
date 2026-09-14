@@ -1,10 +1,10 @@
+import type { TlsPaths } from "@trading-model/common/config/tls-paths";
 import {
 	type SessionId,
 	UnixTimestamp,
 	type URLString,
 	type UserId,
 } from "@trading-model/common/domain/primitives";
-import type { TlsPaths } from "@trading-model/common/domain/tls-paths";
 import { AuditServiceClient } from "../adapters/outbound/audit-service-client";
 import { sendError } from "../adapters/outbound/error-service-sender";
 import { getNodeEnv } from "../shared/node-env";

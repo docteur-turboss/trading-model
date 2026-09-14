@@ -1,8 +1,8 @@
 import {
 	isHttpClientError,
 	isHttpClientTimeoutError,
-} from "../adapters/outbound/http-client-errors";
-import { isRetryableStatus } from "./http-retry";
+} from "../../adapters/outbound/http-client-errors";
+import { isRetryableStatus } from "../../infrastructure/http-retry";
 
 export function shouldRetry(error: Error): boolean {
 	if (isHttpClientTimeoutError(error)) {

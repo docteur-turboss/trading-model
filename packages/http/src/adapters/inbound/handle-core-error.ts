@@ -4,7 +4,7 @@ import {
 	type HttpStatusCode,
 } from "@trading-model/common/http-status";
 import { normalizeError } from "@trading-model/common/utils/errors";
-import { logger } from "../../infrastructure/logger";
+import { logger } from "../../application/services/logger";
 import { normalizeDbError } from "./normalize-db-error";
 import { ResponseException } from "./response-exception";
 

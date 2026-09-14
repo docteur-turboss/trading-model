@@ -6,7 +6,7 @@ import type {
 	HttpHeaders,
 	HttpMethod,
 	TlsHttpOptions,
-} from "../shared/http-types";
+} from "../domain/http-types";
 
 let sharedAgent: https.Agent | null = null;
 
@@ -54,7 +54,7 @@ function _buildTlsOptions(
 		key: options.keyPem,
 		ca: options.caPem,
 		rejectUnauthorized: true,
-		agent: options?.agent ?? getKeepAliveAgent(),
+		agent: (options?.agent as https.Agent | undefined) ?? getKeepAliveAgent(),
 	};
 	if (hasCustomTrust && !options.verifyHostname) {
 		tlsOptions.checkServerIdentity = () => undefined;

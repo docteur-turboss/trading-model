@@ -1,6 +1,6 @@
 import { normalizeError } from "@trading-model/common/utils/errors";
+import type { HttpMethod } from "../../domain/http-types";
 import type { LogEntry } from "../../infrastructure/log-types";
-import type { HttpMethod } from "../../shared/http-types";
 import { NODE_ENV } from "../../shared/node-env";
 
 function _shouldSend(env: string | undefined): boolean {

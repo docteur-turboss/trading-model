@@ -7,7 +7,7 @@ import {
 } from "@trading-model/common/http-status";
 import type { z } from "zod";
 import { createHttpClientError } from "../adapters/outbound/http-client-errors";
-import type { HttpMethod } from "../shared/http-types";
+import type { HttpMethod } from "../domain/http-types";
 
 interface ResponseCollectionContext<TResponse> {
 	res: IncomingMessage;

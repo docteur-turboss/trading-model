@@ -20,7 +20,7 @@ describe("logger singleton", () => {
 			const {
 				logger: devLogger,
 				LogLevel,
-			} = require("@trading-model/http/infrastructure/logger");
+			} = require("@trading-model/http/application/services/logger");
 			expect((devLogger as any)._logLevel).toBe(LogLevel.Debug);
 		});
 	});
@@ -31,7 +31,7 @@ describe("logger singleton", () => {
 			const {
 				logger: stagingLogger,
 				LogLevel,
-			} = require("@trading-model/http/infrastructure/logger");
+			} = require("@trading-model/http/application/services/logger");
 			expect((stagingLogger as any)._logLevel).toBe(LogLevel.Info);
 		});
 	});
@@ -42,7 +42,7 @@ describe("logger singleton", () => {
 			const {
 				logger: prodLogger,
 				LogLevel,
-			} = require("@trading-model/http/infrastructure/logger");
+			} = require("@trading-model/http/application/services/logger");
 			expect((prodLogger as any)._logLevel).toBe(LogLevel.Warn);
 		});
 	});
@@ -53,7 +53,7 @@ describe("logger singleton", () => {
 			const {
 				logger: defaultLogger,
 				LogLevel,
-			} = require("@trading-model/http/infrastructure/logger");
+			} = require("@trading-model/http/application/services/logger");
 			expect((defaultLogger as any)._logLevel).toBe(LogLevel.Debug);
 		});
 	});

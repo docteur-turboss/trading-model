@@ -13,15 +13,15 @@ const CryptoAlg = {
 	AES_256_GCM: "aes-256-gcm",
 } as const;
 
+import type {
+	TlsPaths,
+	TlsPemBundle,
+} from "@trading-model/common/config/tls-paths";
 import {
 	CaPem,
 	CertPem,
 	KeyPem,
 } from "@trading-model/common/domain/primitives";
-import type {
-	TlsPaths,
-	TlsPemBundle,
-} from "@trading-model/common/domain/tls-paths";
 import { normalizeError } from "@trading-model/common/utils/errors";
 
 function readTlsFileSync(filePath: string, label: string): string {

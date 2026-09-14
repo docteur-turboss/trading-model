@@ -7,7 +7,10 @@ import {
 	jest,
 } from "@jest/globals";
 import type { UserId } from "@trading-model/common/domain/primitives";
-import { Logger, LogLevel } from "@trading-model/http/infrastructure/logger";
+import {
+	Logger,
+	LogLevel,
+} from "@trading-model/http/application/services/logger";
 
 jest.mock("fs", () => ({
 	appendFile: jest.fn(

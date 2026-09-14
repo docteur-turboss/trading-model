@@ -5,7 +5,7 @@ import {
 } from "@trading-model/common/http-status";
 import { TimerHandle } from "@trading-model/common/utils/timer-handle";
 import type { Request, Response } from "express";
-import { logger } from "../../infrastructure/logger";
+import { logger } from "../../application/services/logger";
 import {
 	ErrorBuffer,
 	type IErrorBuffer,

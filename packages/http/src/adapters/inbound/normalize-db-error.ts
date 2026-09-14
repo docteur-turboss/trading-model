@@ -1,6 +1,6 @@
 import { normalizeError } from "@trading-model/common/utils/errors";
 import ChainedError from "chained-error";
-import { logger } from "../../infrastructure/logger";
+import { logger } from "../../application/services/logger";
 
 enum DbErrorCode {
 	NoResultReturned = "No result returned",
