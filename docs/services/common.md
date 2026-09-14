@@ -147,14 +147,14 @@ Fail-fast validation of environment variables via Zod.
 
 > Moved to `@trading-model/validation` (ADR-0007).
 
-- **Import**: `@trading-model/validation/infrastructure/validation/env`
+- **Import**: `@trading-model/validation/config/env` (+ `@trading-model/validation/config/address-manager-env`, `@trading-model/validation/application/services/validate-env`)
 
 ```ts
 import {
   BaseEnvSchema,
   AddressManagerEnvSchema,
-  validateEnv,
-} from '@trading-model/validation/infrastructure/validation/env';
+} from '@trading-model/validation/config/env';
+import { validateEnv } from '@trading-model/validation/application/services/validate-env';
 ```
 
 | Schema                    | Description                                                                            |
@@ -320,7 +320,7 @@ DeliveryMode.EXACTLY_ONCE; // 'exactly-once'
 
 ## Crypto
 
-> Moved to `@trading-model/crypto` (ADR-0007): `@trading-model/crypto/domain/services/prng` and `@trading-model/crypto/domain/services/random`.
+> Moved to `@trading-model/crypto` (ADR-0007): `@trading-model/crypto/domain/services/prng` and `@trading-model/crypto/adapters/outbound/node-random`.
 
 | Export              | Description                                                 |
 | ------------------- | ----------------------------------------------------------- |

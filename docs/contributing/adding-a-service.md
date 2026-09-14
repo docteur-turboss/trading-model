@@ -72,7 +72,7 @@ createBootstrap({
 
 ```typescript
 import { createSecureServer } from '@trading-model/server-utils/adapters/inbound/create-secure-server';
-import { loadTlsConfig } from '@trading-model/server-utils/shared/load-tls-config';
+import { loadTlsConfig } from '@trading-model/server-utils/infrastructure/load-tls-config';
 import { myRoutes } from '../adapters/inbound/my.routes';
 import { env } from '../config/env';
 

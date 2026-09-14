@@ -55,7 +55,7 @@ Every service instance is provisioned with an X.509 SVID issued by the SPIRE Ser
 | `api-gateway` | `spiffe://trading-model.local/ns/trading-model/sa/api-gateway` | SPIRE Server | 1h TTL (auto-rotated) |
 | `admin-interface` | `spiffe://trading-model.local/ns/trading-model/sa/admin-interface` | SPIRE Server | 1h TTL (auto-rotated) |
 
-**Enforcement:** `@trading-model/http/adapters/inbound/mtls-auth.ts` extracts the client identity from the SVID's verified SPIFFE ID SAN. Requests without a valid SVID are rejected at the TLS handshake level when `ENFORCE_MTLS_STRICT` is enabled.
+**Enforcement:** `@trading-model/http/adapters/inbound/mtls-auth.ts` extracts the client identity from the SVID's verified SPIFFE ID SAN. Requests without a valid SVID are rejected at the TLS handshake level (all environments). When `ENFORCE_MTLS_STRICT` is enabled (production), `mtls-authorization.ts` additionally enforces the ACL on every inbound request.
 
 ### 3.2 Service Registration Tokens
 
@@ -87,7 +87,7 @@ const DEFAULT_ACL: Record<KnownService, readonly ServiceId[]> = {
 };
 ```
 
-**Enforcement:** Every incoming request passes through `mtls-authorization.ts` middleware. If the caller's identity is not found in the target service's authorised callers, the request is rejected with HTTP 403.
+**Enforcement:** When `ENFORCE_MTLS_STRICT` is enabled, every incoming request passes through `mtls-authorization.ts` middleware. If the caller's identity is not found in the target service's authorised callers, the request is rejected with HTTP 403.
 
 ### 4.2 ACL Change Procedure
 

@@ -68,7 +68,7 @@ All developers contributing to the codebase. Every architectural decision aims t
 Shared packages (base → derived):
 
 ```
-@trading-model/common          (domain primitives, contracts, reliability, persistence, utils, ws)
+@trading-model/common          (domain primitives, contracts, reliability, persistence, utils, ws, logging registry)
 @trading-model/http            (HTTP middleware, http client, logging) → common
 @trading-model/validation      (Zod schemas, DTOs, shared type contracts) → common, http
 @trading-model/server-utils    (secure HTTPS server factory, TLS watcher, bootstrap) → common, http
@@ -78,6 +78,8 @@ Shared packages (base → derived):
 @trading-model/address-manager (service discovery client, health, token rotation) → common, http, server-utils, validation
 @trading-model/broker-message  (inter-service messaging SDK) → common, http, jobs, address-manager, validation
 ```
+
+> **Dependency direction:** `@trading-model/common` is the base layer and has **no** dependency on `@trading-model/http`. The concrete logger lives in `@trading-model/http`; `common` exposes a `LoggerPort` registry (`@trading-model/common/logging/logger-registry`) that http populates at import time — breaking what was previously a real `common ↔ http` cycle.
 
 Services and their `@trading-model/*` dependencies:
 
@@ -184,7 +186,7 @@ createBootstrap({
 
 ```typescript
 import { createSecureServer } from '@trading-model/server-utils/adapters/inbound/create-secure-server';
-import { loadTlsConfig } from '@trading-model/server-utils/shared/load-tls-config';
+import { loadTlsConfig } from '@trading-model/server-utils/infrastructure/load-tls-config';
 import { heartbeatRoutes } from '../adapters/inbound/heartbeat.routes';
 import { registryRoutes } from '../adapters/inbound/register.routes';
 import { env } from '../config/env';
@@ -248,5 +250,4 @@ See [How to Add a New Service](../contributing/adding-a-service.md) for a step-b
 ## Known Technical Debt
 
 1. **Legacy path aliases**: Some service tsconfigs still define `paths` aliases (`config/*`, `infra/*`, `clients/*`, `job/*`, `types/*`, `utils/*`) that should be replaced with `node16` resolution.
-2. **Transitional re-export shims**: Some refactor-introduced barrel files (`export * from`) preserve old import paths while modules move to the new architectural layers.
-3. **Legacy module layouts**: A few services still mix the old `core/`/`messaging/`/`persistence/` layout with the hexagonal layers during migration.
+2. **Transitional re-export shims**: Some refactor-introduced barrel files (`export * from`) preserve old import paths while modules move to the new architectural layers. This notably includes `validation/src/shared/contracts/*` (re-exporting `common/contracts/*`) and `http/src/infrastructure/logger.ts` (re-exporting the logger pipeline now living in `http/src/application/services/logger.ts` — 100+ consumers still import the legacy sub-path).

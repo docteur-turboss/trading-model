@@ -180,7 +180,7 @@ In addition to the default export, the package exposes internal modules via deep
 
 ## Environment Schema
 
-- **Import**: `@trading-model/validation/infrastructure/validation/env`
+- **Import**: `@trading-model/validation/config/address-manager-env`
 - **Schema**: `AddressManagerEnvSchema`
 
 | Variable                          | Default     | Description                 |

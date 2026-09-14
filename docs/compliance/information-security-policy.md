@@ -131,7 +131,7 @@ Implementation: `@trading-model/http/infrastructure/logger.ts`
 | Requirement | Implementation |
 |---|---|
 | **Network segmentation** | Docker Compose networks (frontend, backend, db, monitoring). K8s Network Policies |
-| **mTLS enforcement** | TLS 1.3 mandatory. `ENFORCE_MTLS_STRICT` feature flag enables mutual authentication |
+| **mTLS enforcement** | TLS 1.3 mutual authentication mandatory. `ENFORCE_MTLS_STRICT` enables ACL enforcement on attested SVID identities |
 | **Service mesh** | Not deployed; mTLS handled at application layer via Express middleware |
 | **API gateway isolation** | External traffic enters only through api-gateway (port 8448). All other ports are internal |
 
