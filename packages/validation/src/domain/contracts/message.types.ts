@@ -18,7 +18,7 @@ import type {
 	UnixTimestamp,
 } from "@trading-model/common/domain/primitives";
 import type { ServiceIdentity as DomainServiceIdentity } from "@trading-model/common/domain/service-identity";
-import type { Signature } from "../../adapters/inbound/signed-request";
+import type { Signature } from "./signed-request.types";
 
 /**
  * Identity of a service instance within the broker system.

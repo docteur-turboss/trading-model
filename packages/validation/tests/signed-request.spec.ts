@@ -1,4 +1,4 @@
-import { HttpMethod } from "../src/adapters/inbound/signed-request";
+import { HttpMethod } from "../src/domain/contracts/signed-request.types";
 
 describe("HttpMethod", () => {
 	it("has expected values", () => {

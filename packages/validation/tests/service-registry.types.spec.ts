@@ -1,4 +1,4 @@
-import { Protocol } from "../src/adapters/outbound/service-registry.types";
+import { Protocol } from "../src/domain/contracts/service-registry.types";
 
 describe("Protocol", () => {
 	it("has expected values", () => {

@@ -1,4 +1,4 @@
-﻿import { HttpMethod } from "@trading-model/common/contracts/signed-request";
+import { HttpMethod } from "@trading-model/common/contracts/signed-request";
 import type { ServiceId } from "@trading-model/common/domain/primitives";
 
 export { HttpMethod };

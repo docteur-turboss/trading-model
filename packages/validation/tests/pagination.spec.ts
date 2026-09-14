@@ -1,4 +1,4 @@
-import { toPaginatedResponse } from "../src/shared/contracts/pagination.types";
+import { toPaginatedResponse } from "@trading-model/common/contracts/pagination.types";
 
 describe("toPaginatedResponse", () => {
 	it("converts a pagination result correctly", () => {

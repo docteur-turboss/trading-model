@@ -1,3 +1,8 @@
+import {
+	getAskTotalQty,
+	getAvgBid,
+	getBidTotalQty,
+} from "@trading-model/common/contracts/market-data.types";
 import { Capability } from "@trading-model/common/domain/primitives";
 import { z } from "zod";
 import {
@@ -14,13 +19,8 @@ import {
 	LayerType,
 	Optimizer,
 } from "../src/adapters/inbound/admin/training.dto";
+import { validateEnv } from "../src/application/services/validate-env";
 import { isWorkerSuitable } from "../src/domain/contracts/worker-protocol.types";
-import { validateEnv } from "../src/infrastructure/validation/env";
-import {
-	getAskTotalQty,
-	getAvgBid,
-	getBidTotalQty,
-} from "../src/shared/contracts/market-data.types";
 
 describe("admin contracts", () => {
 	it("Severity has expected values", () => {

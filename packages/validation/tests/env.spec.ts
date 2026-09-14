@@ -1,8 +1,6 @@
-import { AddressManagerEnvSchema } from "../src/infrastructure/validation/address-manager-env";
-import {
-	BaseEnvSchema,
-	validateEnv,
-} from "../src/infrastructure/validation/env";
+import { validateEnv } from "../src/application/services/validate-env";
+import { AddressManagerEnvSchema } from "../src/config/address-manager-env";
+import { BaseEnvSchema } from "../src/config/env";
 
 describe("BaseEnvSchema", () => {
 	it("uses defaults for optional fields", () => {
@@ -60,6 +58,30 @@ describe("BaseEnvSchema", () => {
 				TLS_CA_PATH: "/ca.pem",
 			})
 		).toThrow();
+	});
+
+	it("defaults ENFORCE_MTLS_STRICT to false", () => {
+		const result = BaseEnvSchema.parse({
+			TLS_KEY_PATH: "/key.pem",
+			TLS_CERT_PATH: "/cert.pem",
+			TLS_CA_PATH: "/ca.pem",
+		});
+		expect(result.ENFORCE_MTLS_STRICT).toBe(false);
+	});
+
+	it("parses ENFORCE_MTLS_STRICT boolean-like values", () => {
+		const parse = (value: string): boolean =>
+			BaseEnvSchema.parse({
+				TLS_KEY_PATH: "/key.pem",
+				TLS_CERT_PATH: "/cert.pem",
+				TLS_CA_PATH: "/ca.pem",
+				ENFORCE_MTLS_STRICT: value,
+			}).ENFORCE_MTLS_STRICT;
+
+		expect(parse("true")).toBe(true);
+		expect(parse("1")).toBe(true);
+		expect(parse("false")).toBe(false);
+		expect(parse("0")).toBe(false);
 	});
 });
 

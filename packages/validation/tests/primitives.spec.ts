@@ -1,7 +1,7 @@
 import {
 	isNonEmptyString,
 	isObject,
-} from "../src/shared/validation/primitives";
+} from "../src/domain/validation/primitives";
 
 describe("isNonEmptyString", () => {
 	it.each([
