@@ -11,6 +11,7 @@ data:
   TLS_KEY_PATH: "/run/spire/svid/svid_key.pem"
   TLS_CERT_PATH: "/run/spire/svid/svid.pem"
   TLS_CA_PATH: "/run/spire/svid/bundle.pem"
+  ENFORCE_MTLS_STRICT: "true"
   LOG_LEVEL: "info"
   REDIS_CLEANUP_INTERVAL_MS: "10000"
   CLEANUP_SERVICE_INTERVAL_MS: "15000"

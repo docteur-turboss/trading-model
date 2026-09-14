@@ -17,6 +17,8 @@ x-core-env: &core-env
   TLS_KEY_PATH: /run/spire/svid/svid_key.pem
   TLS_CERT_PATH: /run/spire/svid/svid.pem
   TLS_CA_PATH: /run/spire/svid/bundle.pem
+  # Enforce the service-to-service ACL using attested SVID identities (ADR-0011).
+  ENFORCE_MTLS_STRICT: ${ENFORCE_MTLS_STRICT:-true}
   LOG_LEVEL: ${LOG_LEVEL:-info}
 
 x-message-env: &message-env

@@ -12,6 +12,7 @@ data:
   TLS_KEY_PATH: "/run/spire/svid/svid_key.pem"
   TLS_CERT_PATH: "/run/spire/svid/svid.pem"
   TLS_CA_PATH: "/run/spire/svid/bundle.pem"
+  ENFORCE_MTLS_STRICT: "true"
   MONGO_URI: "mongodb://mongo-dlq-0.mongo-dlq-headless:27017,mongo-dlq-1.mongo-dlq-headless:27017,mongo-dlq-2.mongo-dlq-headless:27017/dlq?replicaSet=rs0"
   MONGO_DB: "dlq"
   MONGO_COLLECTION: "dlq_entries"
