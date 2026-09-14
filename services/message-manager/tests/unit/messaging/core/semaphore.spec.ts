@@ -1,5 +1,5 @@
 import { describe, expect, it } from "@jest/globals";
-import { Semaphore } from "../../../../src/messaging/core/semaphore";
+import { Semaphore } from "../../../../src/domain/semaphore";
 
 describe("Semaphore", () => {
 	it("should acquire immediately when below max", async () => {

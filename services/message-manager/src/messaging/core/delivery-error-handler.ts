@@ -9,8 +9,8 @@ import {
 	DeliveryErrorClassifier,
 	DlqReason,
 	ErrorActionType,
-} from "./delivery-error-classifier";
-import type { DeliveryParams } from "./delivery-params";
+} from "../../domain/delivery-error-classifier";
+import type { DeliveryParams } from "../../domain/delivery-params";
 import type { MessageDeliveryPort } from "./message-delivery-port";
 
 export interface DeliveryErrorHandlerDeps {

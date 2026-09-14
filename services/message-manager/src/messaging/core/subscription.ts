@@ -7,7 +7,7 @@ import type { ServiceIdentity } from "@trading-model/common/domain/service-ident
 import type { TopicBinding } from "@trading-model/common/domain/topic-binding";
 import { CircuitStateMachine } from "@trading-model/common/reliability/circuit-state-machine";
 import type { Message } from "@trading-model/validation/domain/contracts/message.types";
-import { backoffDelay as computeBackoffDelay } from "./backoff-calculator";
+import { backoffDelay as computeBackoffDelay } from "../../domain/backoff-calculator";
 import { DeliveryAttemptHandler } from "./delivery-attempt-handler";
 import { DeliveryErrorHandler } from "./delivery-error-handler";
 import {

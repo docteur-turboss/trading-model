@@ -1,5 +1,5 @@
 import { describe, expect, it } from "@jest/globals";
-import { sanitizePayload } from "../../../../src/messaging/core/payload-sanitizer";
+import { sanitizePayload } from "../../../../src/domain/payload-sanitizer";
 
 describe("sanitizePayload", () => {
 	it("should return primitives unchanged", () => {

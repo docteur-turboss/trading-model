@@ -1,30 +1,17 @@
-import type { DateRange } from "@trading-model/common/domain/date-range";
-import type {
-	ConsumerGroupName,
-	ConsumerId,
-	Topic,
-} from "@trading-model/common/domain/primitives";
+import type { Topic } from "@trading-model/common/domain/primitives";
 import type { Message } from "@trading-model/validation/domain/contracts/message.types";
 import { logger } from "../../config/logger";
 import { getStreamClient } from "../../config/redis";
+import type {
+	AckRef,
+	GetMessagesBetweenParams,
+	MessageQuery,
+	ReadFromGroupParams,
+	StreamGroupRef,
+} from "../../domain/messaging-types";
+import { computeLag } from "../../domain/stream-lag-calculator";
 import type { RedisKeyBuilder } from "../../infrastructure/redis/redis-key-builder";
-import type { AckRef, MessageQuery, StreamGroupRef } from "./messaging-types";
-import { computeLag } from "./stream-lag-calculator";
 import { StreamMessageReader } from "./stream-message-reader";
-
-export interface ReadFromGroupParams {
-	topic: Topic;
-	groupName: ConsumerGroupName;
-	consumerId: ConsumerId;
-	count?: number;
-	blockMs?: number;
-}
-
-export interface GetMessagesBetweenParams {
-	topic: Topic;
-	timeRange: DateRange;
-	limit?: number;
-}
 
 export class StreamGroupManager {
 	private readonly _reader: StreamMessageReader;

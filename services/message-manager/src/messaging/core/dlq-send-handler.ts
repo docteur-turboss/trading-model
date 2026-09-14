@@ -1,4 +1,4 @@
-﻿import type { PositiveInt } from "@trading-model/common/domain/primitives";
+import type { PositiveInt } from "@trading-model/common/domain/primitives";
 import { DurationMs, URLString } from "@trading-model/common/domain/primitives";
 import {
 	messageManagerError,
@@ -10,7 +10,7 @@ import { HttpMethod } from "@trading-model/http/shared/http-types";
 import type { DlqEntry } from "../../adapters/outbound/dlq-repository";
 import { signedOptions } from "../../adapters/outbound/request-signer";
 import { logger } from "../../config/logger";
-import { computeDelay } from "./dlq-retry-with-backoff";
+import { computeDelay } from "../../domain/dlq-retry-with-backoff";
 
 export class DlqSendHandler {
 	constructor(

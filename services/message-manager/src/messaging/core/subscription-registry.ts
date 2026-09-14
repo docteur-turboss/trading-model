@@ -1,6 +1,9 @@
 import type { Topic } from "@trading-model/common/domain/primitives";
 import type { HttpMessageDelivery } from "../../adapters/outbound/http-message-delivery";
-import type { SubscriptionParams, TopicSubscription } from "./messaging-types";
+import type {
+	SubscriptionParams,
+	TopicSubscription,
+} from "../../domain/messaging-types";
 import { Subscription } from "./subscription";
 
 export class SubscriptionRegistry {

@@ -1,12 +1,11 @@
-﻿import type {
+import type {
 	InstanceId,
 	Topic,
 } from "@trading-model/common/domain/primitives";
 import type Redis from "ioredis";
 import { logger } from "../../config/logger";
+import type { TopicSubscription } from "../../domain/messaging-types";
 import type { RedisKeyBuilder } from "../../infrastructure/redis/redis-key-builder";
-
-import type { TopicSubscription } from "./messaging-types";
 import { RedisSubscriptionKeys } from "./redis-subscription-keys";
 
 export class SubscriptionCleanupHandler {

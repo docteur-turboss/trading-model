@@ -3,10 +3,13 @@ import type {
 	Topic,
 } from "@trading-model/common/domain/primitives";
 import { getSubscriptionClient } from "../../config/redis";
+import type {
+	SubscriptionParams,
+	TopicSubscription,
+} from "../../domain/messaging-types";
 import { ENV } from "../../infrastructure/config/env";
 import { RedisKeyBuilder } from "../../infrastructure/redis/redis-key-builder";
 import { InstanceLifecycleManager } from "./instance-lifecycle-manager";
-import type { SubscriptionParams, TopicSubscription } from "./messaging-types";
 import {
 	type SubscriptionEntry,
 	SubscriptionRedisStore,

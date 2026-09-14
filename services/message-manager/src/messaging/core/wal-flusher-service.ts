@@ -1,9 +1,9 @@
-﻿import type { Topic } from "@trading-model/common/domain/primitives";
+import type { Topic } from "@trading-model/common/domain/primitives";
 import { getStreamClient } from "../../config/redis";
+import type { MemoryWalEntry } from "../../domain/memory-wal-entry";
 import { ENV } from "../../infrastructure/config/env";
 import type { RedisKeyBuilder } from "../../infrastructure/redis/redis-key-builder";
 import type { MemoryWalBuffer } from "./memory-wal-buffer";
-import type { MemoryWalEntry } from "./memory-wal-entry";
 import { WalBatchFlusher } from "./wal-batch-flusher";
 import { WalDrainCoordinator } from "./wal-drain-coordinator";
 import { WalEntryParser } from "./wal-entry-parser";

@@ -1,3 +1,4 @@
+import type { DateRange } from "@trading-model/common/domain/date-range";
 import type {
 	ConsumerGroupName,
 	ConsumerId,
@@ -50,6 +51,22 @@ export interface PendingAckData {
 export interface DedupConfig {
 	deduplicationId: string;
 	ttlS: number;
+}
+
+/** Params for reading messages from a consumer group. */
+export interface ReadFromGroupParams {
+	topic: Topic;
+	groupName: ConsumerGroupName;
+	consumerId: ConsumerId;
+	count?: number;
+	blockMs?: number;
+}
+
+/** Params for reading messages between a date range. */
+export interface GetMessagesBetweenParams {
+	topic: Topic;
+	timeRange: DateRange;
+	limit?: number;
 }
 
 export type { SubscribesTopicsPayload as SubscriptionParams } from "@trading-model/broker-message";

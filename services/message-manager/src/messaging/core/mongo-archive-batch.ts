@@ -9,8 +9,8 @@ import { MongoBatchWriter } from "./mongo-batch-writer";
 
 const MS_PER_DAY = 86_400_000 as DurationMs;
 
+import { createMongoIndexes } from "../../domain/mongo-index-creator";
 import type { MongoCollectionConfig } from "../../shared/mongo-types";
-import { createMongoIndexes } from "./mongo-index-creator";
 
 export interface ArchiveEntry {
 	messageId: string;

@@ -1,7 +1,7 @@
 import { jest } from "@jest/globals";
 import { createMockHttpClient as createCommonMockHttpClient } from "@trading-model/common/tests/helpers/mock-common";
+import type { SubscriptionParams } from "../../src/domain/messaging-types";
 import type { Dispatcher } from "../../src/messaging/core/dispatcher";
-import type { SubscriptionParams } from "../../src/messaging/core/messaging-types";
 
 export const createMockHttpClient = createCommonMockHttpClient;
 

@@ -12,10 +12,13 @@ import { logger } from "@trading-model/http/infrastructure/logger";
 import type { Message } from "@trading-model/validation/domain/contracts/message.types";
 import type { FileDlqRepository } from "../../adapters/outbound/dlq-repository";
 import { HttpMessageDelivery } from "../../adapters/outbound/http-message-delivery";
+import { getBackpressureRatio as backpressureRatio } from "../../domain/backpressure-monitor";
+import { createMessage } from "../../domain/message-factory";
+import type {
+	SubscriptionParams,
+	TopicSubscription,
+} from "../../domain/messaging-types";
 import { handleAck as logAck, handleNack as logNack } from "./ack-handler";
-import { getBackpressureRatio as backpressureRatio } from "./backpressure-monitor";
-import { createMessage } from "./message-factory";
-import type { SubscriptionParams, TopicSubscription } from "./messaging-types";
 import { SubscriptionRegistry } from "./subscription-registry";
 
 function isRejected<TValue>(

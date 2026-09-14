@@ -16,7 +16,7 @@ export class RedisSubscriptionKeys {
 	}
 
 	subKey(
-		sub: import("../../messaging/core/messaging-types").TopicSubscription
+		sub: import("../../domain/messaging-types").TopicSubscription
 	): string {
 		return `${this.topicKey(sub.topic)}:${sub.instanceId}`;
 	}

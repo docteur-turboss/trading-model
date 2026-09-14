@@ -1,4 +1,4 @@
-﻿import {
+import {
 	type InstanceId,
 	type Topic,
 	toInstanceId,
@@ -6,9 +6,8 @@
 } from "@trading-model/common/domain/primitives";
 import type Redis from "ioredis";
 import { logger } from "../../config/logger";
+import { LEASE_HEARTBEAT_FIELD } from "../../domain/messaging-constants";
 import type { RedisKeyBuilder } from "../../infrastructure/redis/redis-key-builder";
-
-import { LEASE_HEARTBEAT_FIELD } from "./messaging-constants";
 import { RedisSubscriptionKeys } from "./redis-subscription-keys";
 
 export class StaleInstanceRemover {

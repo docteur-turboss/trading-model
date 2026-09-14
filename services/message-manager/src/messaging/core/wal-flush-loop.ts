@@ -2,8 +2,8 @@
 import { sleepWithJitter } from "@trading-model/common/utils/retry";
 import { logger } from "../../config/logger";
 import { getStreamClient } from "../../config/redis";
+import { WalErrorAction } from "../../domain/wal-error-handler";
 import type { WalBatchFlusher } from "./wal-batch-flusher";
-import { WalErrorAction } from "./wal-error-handler";
 import type { WalFlushErrorHandler } from "./wal-flush-error-handler";
 
 const WAL_BATCH_SIZE = 50;

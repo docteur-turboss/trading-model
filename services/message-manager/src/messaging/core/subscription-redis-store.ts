@@ -3,9 +3,11 @@ import type {
 	Topic,
 } from "@trading-model/common/domain/primitives";
 import type { TopicBinding } from "@trading-model/common/domain/topic-binding";
+import type {
+	SubscriptionParams,
+	TopicSubscription,
+} from "../../domain/messaging-types";
 import type { RedisKeyBuilder } from "../../infrastructure/redis/redis-key-builder";
-
-import type { SubscriptionParams, TopicSubscription } from "./messaging-types";
 import { SubscriptionRedisReader } from "./subscription-redis-reader";
 import { SubscriptionRedisWriter } from "./subscription-redis-writer";
 

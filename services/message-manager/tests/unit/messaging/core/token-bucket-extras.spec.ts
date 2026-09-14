@@ -9,7 +9,7 @@ import {
 import {
 	TokenBucket,
 	type TokenBucketConfig,
-} from "../../../../src/messaging/core/token-bucket";
+} from "../../../../src/domain/token-bucket";
 
 function createBucket(overrides: Partial<TokenBucketConfig> = {}): TokenBucket {
 	return new TokenBucket({

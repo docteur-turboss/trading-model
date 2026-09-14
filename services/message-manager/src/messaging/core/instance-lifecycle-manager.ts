@@ -1,12 +1,12 @@
-﻿import {
+import {
 	type InstanceId,
 	type Topic,
 	toInstanceId,
 	toTopic,
 } from "@trading-model/common/domain/primitives";
 import { getSubscriptionClient } from "../../config/redis";
+import { LEASE_HEARTBEAT_FIELD } from "../../domain/messaging-constants";
 import type { RedisKeyBuilder } from "../../infrastructure/redis/redis-key-builder";
-import { LEASE_HEARTBEAT_FIELD } from "./messaging-constants";
 import { RedisSubscriptionKeys } from "./redis-subscription-keys";
 import { StaleInstanceScanner } from "./stale-instance-scanner";
 

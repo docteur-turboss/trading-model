@@ -7,14 +7,14 @@ import type {
 import type { CircuitStateMachine } from "@trading-model/common/reliability/circuit-state-machine";
 import type { Message } from "@trading-model/validation/domain/contracts/message.types";
 import { logger } from "../../config/logger";
-import type { DeliveryAttemptHandler } from "./delivery-attempt-handler";
-import type { DeliveryErrorHandler } from "./delivery-error-handler";
-import type { SubscribersContext } from "./delivery-metadata-extractor";
+import type { SubscribersContext } from "../../domain/delivery-metadata-extractor";
 import {
 	buildSubscriberContext,
 	extractDeliveryParams,
-} from "./delivery-metadata-extractor";
-import type { DeliveryParams } from "./delivery-params";
+} from "../../domain/delivery-metadata-extractor";
+import type { DeliveryParams } from "../../domain/delivery-params";
+import type { DeliveryAttemptHandler } from "./delivery-attempt-handler";
+import type { DeliveryErrorHandler } from "./delivery-error-handler";
 import type { MessageDeliveryPort } from "./message-delivery-port";
 
 export interface DispatchContext {

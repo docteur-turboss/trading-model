@@ -1,8 +1,8 @@
-﻿import { FileWalFallback } from "../../adapters/outbound/file-wal-fallback";
+import { FileWalFallback } from "../../adapters/outbound/file-wal-fallback";
+import type { MemoryWalEntry } from "../../domain/memory-wal-entry";
+import type { WalFallback } from "../../domain/wal-fallback.interface";
 import type { RedisKeyBuilder } from "../../infrastructure/redis/redis-key-builder";
-import type { MemoryWalEntry } from "./memory-wal-entry";
 import { RedisWalFallback } from "./redis-wal-fallback";
-import type { WalFallback } from "./wal-fallback.interface";
 
 export class MemoryWalFallback implements WalFallback {
 	private readonly _redis: RedisWalFallback;

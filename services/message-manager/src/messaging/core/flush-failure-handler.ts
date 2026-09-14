@@ -1,5 +1,5 @@
 ﻿import { logger } from "../../config/logger";
-import type { MemoryWalEntry } from "./memory-wal-entry";
+import type { MemoryWalEntry } from "../../domain/memory-wal-entry";
 import type { RedisBackoff } from "./redis-backoff";
 
 export class FlushFailureHandler {

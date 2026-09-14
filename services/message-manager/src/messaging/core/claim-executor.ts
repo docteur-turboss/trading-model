@@ -1,4 +1,4 @@
-﻿import {
+import {
 	DurationMs,
 	type PositiveInt,
 	type Topic,
@@ -6,10 +6,10 @@
 import type Redis from "ioredis";
 import { logger } from "../../config/logger";
 import { getStreamClient } from "../../config/redis";
+import type { IClaimOps } from "../../domain/claim-ops-interface";
+import type { ClaimParams } from "../../domain/messaging-types";
 import type { RedisKeyBuilder } from "../../infrastructure/redis/redis-key-builder";
 import { ClaimLockManager } from "./claim-lock-manager";
-import type { IClaimOps } from "./claim-ops-interface";
-import type { ClaimParams } from "./messaging-types";
 import { TopicClaimScanner } from "./topic-claim-scanner";
 
 export class ClaimExecutor implements IClaimOps {

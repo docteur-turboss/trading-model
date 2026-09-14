@@ -1,13 +1,13 @@
-﻿import type {
+import type {
 	InstanceId,
 	Topic,
 } from "@trading-model/common/domain/primitives";
 import type Redis from "ioredis";
 import { logger } from "../../config/logger";
 import { getSubscriptionClient } from "../../config/redis";
+import { LEASE_HEARTBEAT_FIELD } from "../../domain/messaging-constants";
 import { ENV } from "../../infrastructure/config/env";
 import type { RedisKeyBuilder } from "../../infrastructure/redis/redis-key-builder";
-import { LEASE_HEARTBEAT_FIELD } from "./messaging-constants";
 import { StaleInstanceRemover } from "./stale-instance-remover";
 
 const HEARTBEAT_INTERVAL_MS = ENV.STALE_HEARTBEAT_INTERVAL_MS;

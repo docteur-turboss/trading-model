@@ -1,10 +1,12 @@
 import type { Message } from "@trading-model/validation/domain/contracts/message.types";
-import type { RedisKeyBuilder } from "../../infrastructure/redis/redis-key-builder";
-import type { AckRef, MessageQuery, StreamGroupRef } from "./messaging-types";
 import type {
+	AckRef,
 	GetMessagesBetweenParams,
+	MessageQuery,
 	ReadFromGroupParams,
-} from "./stream-group-manager";
+	StreamGroupRef,
+} from "../../domain/messaging-types";
+import type { RedisKeyBuilder } from "../../infrastructure/redis/redis-key-builder";
 import { StreamGroupManager } from "./stream-group-manager";
 
 export class StreamGroupFacade {

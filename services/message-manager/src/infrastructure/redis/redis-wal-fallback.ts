@@ -1,6 +1,6 @@
 import { getStreamClient } from "../../config/redis";
-import type { MemoryWalEntry } from "../../messaging/core/memory-wal-entry";
-import type { WalFallback } from "../../messaging/core/wal-fallback.interface";
+import type { MemoryWalEntry } from "../../domain/memory-wal-entry";
+import type { WalFallback } from "../../domain/wal-fallback.interface";
 import type { RedisKeyBuilder } from "./redis-key-builder";
 
 export class RedisWalFallback implements WalFallback {

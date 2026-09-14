@@ -1,7 +1,7 @@
 ﻿import { logger } from "../../config/logger";
 import { getStreamClient } from "../../config/redis";
+import { WalErrorAction } from "../../domain/wal-error-handler";
 import type { WalEntryParser } from "./wal-entry-parser";
-import { WalErrorAction } from "./wal-error-handler";
 
 export class WalFlushErrorHandler {
 	constructor(private readonly _entryParser: WalEntryParser) {}

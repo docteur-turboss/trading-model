@@ -5,13 +5,13 @@ import {
 	UnixTimestamp,
 } from "@trading-model/common/domain/primitives";
 import { logger } from "../../config/logger";
+import { ArchiveTimerScheduler } from "../../domain/archive-timer-scheduler";
+import type { IStreamGroupOps } from "../../domain/stream-group-ops-interface";
 import { ENV } from "../../infrastructure/config/env";
 import { RedisKeyBuilder } from "../../infrastructure/redis/redis-key-builder";
-import { ArchiveTimerScheduler } from "./archive-timer-scheduler";
 import { ArchiveTopicsCache } from "./archive-topics-cache";
 import { MongoClientManager } from "./mongo-client-manager";
 import { StreamGroupOperations } from "./stream-group-operations";
-import type { IStreamGroupOps } from "./stream-group-ops-interface";
 
 export class MongoArchiveStore {
 	private readonly _routing: IStreamGroupOps;

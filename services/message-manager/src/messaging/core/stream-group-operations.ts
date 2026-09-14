@@ -1,12 +1,14 @@
 import type { Message } from "@trading-model/validation/domain/contracts/message.types";
-import type { RedisKeyBuilder } from "../../infrastructure/redis/redis-key-builder";
-import type { AckRef, MessageQuery, StreamGroupRef } from "./messaging-types";
-import { StreamGroupFacade } from "./stream-group-facade";
 import type {
+	AckRef,
 	GetMessagesBetweenParams,
+	MessageQuery,
 	ReadFromGroupParams,
-} from "./stream-group-manager";
-import type { IStreamGroupOps } from "./stream-group-ops-interface";
+	StreamGroupRef,
+} from "../../domain/messaging-types";
+import type { IStreamGroupOps } from "../../domain/stream-group-ops-interface";
+import type { RedisKeyBuilder } from "../../infrastructure/redis/redis-key-builder";
+import { StreamGroupFacade } from "./stream-group-facade";
 
 export class StreamGroupOperations implements IStreamGroupOps {
 	private readonly _streamGroup: StreamGroupFacade;

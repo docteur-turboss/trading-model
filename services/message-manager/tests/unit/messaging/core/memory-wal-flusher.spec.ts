@@ -20,8 +20,8 @@ jest.mock("../../../../src/config/redis", () => ({
 }));
 
 import { getStreamClient } from "../../../../src/config/redis";
+import type { MemoryWalEntry } from "../../../../src/domain/memory-wal-entry";
 import { RedisKeyBuilder } from "../../../../src/infrastructure/redis/redis-key-builder";
-import type { MemoryWalEntry } from "../../../../src/messaging/core/memory-wal-entry";
 import { MemoryWalFlusher } from "../../../../src/messaging/core/memory-wal-flusher";
 
 function createMockRedis() {

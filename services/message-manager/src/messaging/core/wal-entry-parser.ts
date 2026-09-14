@@ -3,8 +3,8 @@ import { safeStringify } from "@trading-model/common/utils/safe-stringify";
 import type { Message } from "@trading-model/validation/domain/contracts/message.types";
 
 import { logger } from "../../config/logger";
+import type { MemoryWalEntry } from "../../domain/memory-wal-entry";
 import type { MemoryWalBuffer } from "./memory-wal-buffer";
-import type { MemoryWalEntry } from "./memory-wal-entry";
 
 export interface ParsedWalEntry {
 	topic: Topic;

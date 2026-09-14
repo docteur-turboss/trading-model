@@ -1,8 +1,8 @@
-﻿import type { Topic } from "@trading-model/common/domain/primitives";
+import type { Topic } from "@trading-model/common/domain/primitives";
 import { logger } from "../../config/logger";
 import { MESSAGES_DLQ_TOTAL } from "../../config/metrics";
+import type { MemoryWalEntry } from "../../domain/memory-wal-entry";
 import { ENV } from "../../infrastructure/config/env";
-import type { MemoryWalEntry } from "./memory-wal-entry";
 import type { WalFlusherService } from "./wal-flusher-service";
 
 export class WalFallbackHandler {

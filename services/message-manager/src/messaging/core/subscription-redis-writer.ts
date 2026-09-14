@@ -1,8 +1,11 @@
 import { randomUUID } from "node:crypto";
 import { toTopic } from "@trading-model/common/domain/primitives";
 import { getSubscriptionClient } from "../../config/redis";
+import type {
+	SubscriptionParams,
+	TopicSubscription,
+} from "../../domain/messaging-types";
 import type { RedisKeyBuilder } from "../../infrastructure/redis/redis-key-builder";
-import type { SubscriptionParams, TopicSubscription } from "./messaging-types";
 import { RedisSubscriptionKeys } from "./redis-subscription-keys";
 import { SubscriptionCleanupHandler } from "./subscription-cleanup-handler";
 import type { SubscriptionEntry } from "./subscription-redis-store";

@@ -1,10 +1,10 @@
-﻿import { toDurationMs } from "@trading-model/common/domain/primitives";
+import { toDurationMs } from "@trading-model/common/domain/primitives";
 import { TimerHandle } from "@trading-model/common/utils/timer-handle";
+import type { MemoryWalEntry } from "../../domain/memory-wal-entry";
 import { ENV } from "../../infrastructure/config/env";
 import type { RedisKeyBuilder } from "../../infrastructure/redis/redis-key-builder";
 import { FlushFailureHandler } from "./flush-failure-handler";
 import { FlushGuard } from "./flush-guard";
-import type { MemoryWalEntry } from "./memory-wal-entry";
 import { RedisBackoff } from "./redis-backoff";
 import { WalBatchFlusher } from "./wal-batch-flusher";
 

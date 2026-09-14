@@ -1,8 +1,8 @@
 ﻿import { retryFileAppend } from "@trading-model/common/utils/retry-file-append";
 import { logger } from "../../config/logger";
+import type { MemoryWalEntry } from "../../domain/memory-wal-entry";
+import type { WalFallback } from "../../domain/wal-fallback.interface";
 import { ENV } from "../../infrastructure/config/env";
-import type { MemoryWalEntry } from "../../messaging/core/memory-wal-entry";
-import type { WalFallback } from "../../messaging/core/wal-fallback.interface";
 import { FallbackFileRecovery } from "./fallback-file-recovery";
 
 export class FileWalFallback implements WalFallback {

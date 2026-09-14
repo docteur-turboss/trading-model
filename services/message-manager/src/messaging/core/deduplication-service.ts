@@ -3,9 +3,9 @@ import { REDIS_SET } from "@trading-model/common/persistence/redis-constants";
 import { LruCache } from "@trading-model/common/utils/lru-cache";
 import { logger } from "../../config/logger";
 import { getStreamClient } from "../../config/redis";
+import type { IDedupOps } from "../../domain/dedup-ops-interface";
+import type { DedupConfig } from "../../domain/messaging-types";
 import type { RedisKeyBuilder } from "../../infrastructure/redis/redis-key-builder";
-import type { IDedupOps } from "./dedup-ops-interface";
-import type { DedupConfig } from "./messaging-types";
 
 export class DeduplicationService implements IDedupOps {
 	private _localDedupCache = new LruCache<boolean>({

@@ -1,8 +1,7 @@
-﻿import type { Topic } from "@trading-model/common/domain/primitives";
+import type { Topic } from "@trading-model/common/domain/primitives";
 import type Redis from "ioredis";
+import type { ClaimParams } from "../../domain/messaging-types";
 import type { RedisKeyBuilder } from "../../infrastructure/redis/redis-key-builder";
-
-import type { ClaimParams } from "./messaging-types";
 
 export class TopicClaimScanner {
 	constructor(private readonly _keys: RedisKeyBuilder) {}
