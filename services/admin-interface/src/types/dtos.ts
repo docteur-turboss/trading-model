@@ -52,7 +52,7 @@ export interface StatsSummary {
 }
 
 type OrderBookLevel =
-	import("@trading-model/validation/shared/contracts/market-data.types").OrderBookLevel;
+	import("@trading-model/common/contracts/market-data.types").OrderBookLevel;
 
 export interface OrderBook {
 	bids: OrderBookLevel[];

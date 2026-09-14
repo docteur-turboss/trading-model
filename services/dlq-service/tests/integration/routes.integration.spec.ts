@@ -7,7 +7,7 @@ import {
 	it,
 	jest,
 } from "@jest/globals";
-import { buildSignedHeaders } from "@trading-model/crypto/domain/services/request-signer";
+import { buildSignedHeaders } from "@trading-model/crypto/application/services/request-signer";
 import express from "express";
 
 jest.setTimeout(15000);

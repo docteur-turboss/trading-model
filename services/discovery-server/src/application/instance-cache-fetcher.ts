@@ -6,7 +6,7 @@ import { logger } from "@trading-model/http/infrastructure/logger";
 import type {
 	RegistryBackend,
 	ServiceInstance,
-} from "@trading-model/validation/adapters/outbound/service-registry.types";
+} from "@trading-model/validation/domain/contracts/service-registry.types";
 import type { CacheManager } from "../infrastructure/cache-manager";
 import type { RedisHealthMonitor } from "../infrastructure/redis-health-monitor";
 

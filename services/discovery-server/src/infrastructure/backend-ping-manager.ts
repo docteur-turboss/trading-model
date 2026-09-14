@@ -1,6 +1,6 @@
 import { REDIS_STATUS } from "@trading-model/common/persistence/redis-constants";
 import { logger } from "@trading-model/http/infrastructure/logger";
-import type { RegistryBackend } from "@trading-model/validation/adapters/outbound/service-registry.types";
+import type { RegistryBackend } from "@trading-model/validation/domain/contracts/service-registry.types";
 import type { PubSubInvalidator } from "./pub-sub-invalidator";
 
 export class BackendPingManager {

@@ -169,7 +169,7 @@ describe("BinanceCronOrchestrator", () => {
 			MOCK_WORKER_RUN.mockRejectedValue("String error" as never);
 
 			await expect(cronHandler()).resolves.toBeUndefined();
-			expect(MOCK_LOGGER.error).toHaveBeenCalledWith("Batch execution failed", {
+			expect(MOCK_LOGGER.error).toHaveBeenCalledWith("Symbol fetch failed", {
 				error: "String error",
 			});
 		});

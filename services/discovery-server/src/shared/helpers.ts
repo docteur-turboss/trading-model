@@ -9,7 +9,7 @@ import {
 	ResponseException,
 	sendResponse,
 } from "@trading-model/http/adapters/inbound/response-exception";
-import { isNonEmptyString } from "@trading-model/validation/shared/validation/primitives";
+import { isNonEmptyString } from "@trading-model/validation/domain/validation/primitives";
 import type { z } from "zod";
 
 import type { ServiceRegistry } from "../domain/service-registry";

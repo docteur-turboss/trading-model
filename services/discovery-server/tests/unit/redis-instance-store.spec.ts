@@ -55,7 +55,7 @@ jest.mock("../../src/adapters/outbound/instance-cleanup-handler", () => ({
 	removeInstanceSetAndMetadata: mockRemoveInstanceSetAndMetadata,
 }));
 
-import type { ServiceInstance } from "@trading-model/validation/adapters/outbound/service-registry.types";
+import type { ServiceInstance } from "@trading-model/validation/domain/contracts/service-registry.types";
 import { RedisInstanceStore } from "../../src/adapters/outbound/redis-instance-store";
 import type { RedisDeps } from "../../src/shared/redis-deps";
 

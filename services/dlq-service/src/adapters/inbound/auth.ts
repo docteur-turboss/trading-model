@@ -3,13 +3,13 @@ import { toServiceId } from "@trading-model/common/domain/primitives";
 import { HTTP_HEADERS } from "@trading-model/common/http-headers";
 import { HTTP_STATUS } from "@trading-model/common/http-status";
 import { parseCommaSeparated } from "@trading-model/common/utils/comma-separated";
-import { isTimestampFresh } from "@trading-model/crypto/domain/services/hmac-utils";
-import { verifySignature as sharedVerifySignature } from "@trading-model/crypto/domain/services/request-signer";
+import { verifySignature as sharedVerifySignature } from "@trading-model/crypto/application/services/request-signer";
+import { isTimestampFresh } from "@trading-model/crypto/domain/services/timestamp";
 import type {
 	Signature,
 	SignedRequest,
 	Timestamp,
-} from "@trading-model/validation/adapters/inbound/signed-request";
+} from "@trading-model/validation/domain/contracts/signed-request.types";
 import type { NextFunction, Request, Response } from "express";
 import { ENV, resolveAuthHmacSecret } from "../../infrastructure/config/env";
 

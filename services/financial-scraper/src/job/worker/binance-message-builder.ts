@@ -18,7 +18,7 @@ import {
 	toTenantId,
 } from "@trading-model/common/domain/primitives";
 import { deterministicStringify } from "@trading-model/common/utils/deterministic-stringify";
-import { sha256Base64url } from "@trading-model/crypto/domain/services/hash-utils";
+import { sha256Base64url } from "@trading-model/crypto/adapters/outbound/node-hash";
 import type { AuthContext } from "@trading-model/validation/domain/contracts/message.types";
 
 import { ENV } from "../../infrastructure/config/env";

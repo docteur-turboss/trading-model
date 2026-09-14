@@ -7,7 +7,7 @@ import {
 import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import { TimerHandle } from "@trading-model/common/utils/timer-handle";
-import type { ServiceInstance } from "@trading-model/validation/adapters/outbound/service-registry.types";
+import type { ServiceInstance } from "@trading-model/validation/domain/contracts/service-registry.types";
 
 import { isAliveInstance, isExpiredInstance } from "./expiration";
 import { type LoggerPort, NoopLogger } from "./logger-port";

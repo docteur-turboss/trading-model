@@ -24,7 +24,7 @@ import type { ServiceIdentity } from "@trading-model/common/domain/service-ident
 import type {
 	ServiceInstance,
 	ServiceInstanceName,
-} from "@trading-model/validation/adapters/outbound/service-registry.types";
+} from "@trading-model/validation/domain/contracts/service-registry.types";
 import type {
 	CleanupDeps,
 	SyncCleanupDeps,

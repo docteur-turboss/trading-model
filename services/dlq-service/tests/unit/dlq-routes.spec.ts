@@ -110,9 +110,9 @@ jest.mock("../../src/config/metrics", () => ({
 	},
 }));
 
-jest.mock("@trading-model/validation/infrastructure/validation/env", () => {
+jest.mock("@trading-model/validation/application/services/validate-env", () => {
 	const actual = jest.requireActual(
-		"@trading-model/validation/infrastructure/validation/env"
+		"@trading-model/validation/application/services/validate-env"
 	);
 	return {
 		...actual,

@@ -11,7 +11,7 @@ jest.mock("@trading-model/http/infrastructure/logger", () => ({
 	logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
 
-import type { RegistryBackend } from "@trading-model/validation/adapters/outbound/service-registry.types";
+import type { RegistryBackend } from "@trading-model/validation/domain/contracts/service-registry.types";
 import { FallbackManager } from "../../src/infrastructure/fallback-manager";
 import type { HealthCheckCallbacks } from "../../src/infrastructure/redis-health-monitor";
 

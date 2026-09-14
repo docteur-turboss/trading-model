@@ -10,7 +10,7 @@ jest.mock("@trading-model/http/adapters/outbound/http-client", () => ({
 	HttpClient: jest.fn(() => MOCK_HTTP_CLIENT_INSTANCE),
 }));
 
-jest.mock("@trading-model/common/domain/tls-paths", () => {
+jest.mock("@trading-model/common/config/tls-paths", () => {
 	mockBuildTlsFromEnv = jest.fn(() => ({}));
 	return { buildTlsFromEnv: mockBuildTlsFromEnv };
 });

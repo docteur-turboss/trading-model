@@ -5,14 +5,14 @@ import {
 } from "@trading-model/common/domain/primitives";
 import type { ServiceEndpoint } from "@trading-model/common/domain/service-identity";
 import type { TokenValidation } from "@trading-model/common/domain/token-validation";
-import { generateRandomStr } from "@trading-model/crypto/domain/services/random";
+import { generateRandomStr } from "@trading-model/crypto/adapters/outbound/node-random";
 import {
 	generateInstanceId,
 	generateInstanceToken,
 	type TokenValidationInput,
 	validInstanceToken,
 	verifyInstanceName,
-} from "@trading-model/crypto/domain/services/token-service";
+} from "@trading-model/crypto/application/services/token-service";
 
 export class InstanceTokenManager {
 	private readonly _signingSecret: string;

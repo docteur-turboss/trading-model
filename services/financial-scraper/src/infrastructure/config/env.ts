@@ -1,8 +1,6 @@
-import { AddressManagerEnvSchema } from "@trading-model/validation/infrastructure/validation/address-manager-env";
-import {
-	BaseEnvSchema,
-	validateEnv,
-} from "@trading-model/validation/infrastructure/validation/env";
+import { validateEnv } from "@trading-model/validation/application/services/validate-env";
+import { AddressManagerEnvSchema } from "@trading-model/validation/config/address-manager-env";
+import { BaseEnvSchema } from "@trading-model/validation/config/env";
 import { z } from "zod";
 
 const FINANCIAL_SCRAPER_ENV_SCHEMA = BaseEnvSchema.extend(

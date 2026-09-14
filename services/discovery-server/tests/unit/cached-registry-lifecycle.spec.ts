@@ -10,7 +10,7 @@ import type { LruCache } from "@trading-model/common/utils/lru-cache";
 import type {
 	RegistryBackend,
 	ServiceInstance,
-} from "@trading-model/validation/adapters/outbound/service-registry.types";
+} from "@trading-model/validation/domain/contracts/service-registry.types";
 import {
 	CachedRegistryLifecycle,
 	type CachedRegistryLifecycleDeps,

@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it } from "@jest/globals";
+import type { SourceType } from "@trading-model/common/contracts/market-data.types";
 import {
 	TradingSymbol,
 	UnixTimestamp,
 } from "@trading-model/common/domain/primitives";
-import type { SourceType } from "@trading-model/validation/shared/contracts/market-data.types";
 import {
 	insertOrderBook,
 	selectOrderBookBy,
@@ -33,7 +33,7 @@ const BUILD_ORDER_BOOK_ALT_SOURCE = (symbol: string, ts: Date) => ({
 	timestamp: ts,
 });
 
-describe("OrderBook storage — full insert/query integration", () => {
+describe("OrderBook storage â€” full insert/query integration", () => {
 	const t1 = new Date(Date.now());
 	const t2 = new Date(t1.getTime() + 3600000);
 	const t3 = new Date(t1.getTime() + 7200000);

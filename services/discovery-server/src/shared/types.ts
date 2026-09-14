@@ -1,1 +1,1 @@
-export type { ServiceInstance } from "@trading-model/validation/adapters/outbound/service-registry.types";
+export type { ServiceInstance } from "@trading-model/validation/domain/contracts/service-registry.types";

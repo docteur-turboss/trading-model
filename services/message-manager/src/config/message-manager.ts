@@ -2,7 +2,7 @@
  * Instantiates a Broker client with TLS config and exposes its HTTP listener.
  */
 
-import { buildTlsFromEnv } from "@trading-model/common/domain/tls-paths";
+import { buildTlsFromEnv } from "@trading-model/common/config/tls-paths";
 import createBrokerModule from "../application/index";
 import { ENV } from "../infrastructure/config/env";
 

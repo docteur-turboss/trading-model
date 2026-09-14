@@ -5,7 +5,7 @@ jest.mock("@trading-model/http/infrastructure/logger", () => ({
 }));
 
 import { REDIS_STATUS } from "@trading-model/common/persistence/redis-constants";
-import type { RegistryBackend } from "@trading-model/validation/adapters/outbound/service-registry.types";
+import type { RegistryBackend } from "@trading-model/validation/domain/contracts/service-registry.types";
 import { BackendPingManager } from "../../src/infrastructure/backend-ping-manager";
 import type { PubSubInvalidator } from "../../src/infrastructure/pub-sub-invalidator";
 

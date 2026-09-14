@@ -1,4 +1,4 @@
-import type { RegistryBackend } from "@trading-model/validation/adapters/outbound/service-registry.types";
+import type { RegistryBackend } from "@trading-model/validation/domain/contracts/service-registry.types";
 import type { BackendPingManager } from "../infrastructure/backend-ping-manager";
 import type { CacheManager } from "../infrastructure/cache-manager";
 import type { PubSubInvalidator } from "../infrastructure/pub-sub-invalidator";

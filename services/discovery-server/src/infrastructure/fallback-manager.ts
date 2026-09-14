@@ -1,7 +1,7 @@
 import { DurationMs } from "@trading-model/common/domain/primitives";
 import { TimerHandle } from "@trading-model/common/utils/timer-handle";
 import { logger } from "@trading-model/http/infrastructure/logger";
-import type { RegistryBackend } from "@trading-model/validation/adapters/outbound/service-registry.types";
+import type { RegistryBackend } from "@trading-model/validation/domain/contracts/service-registry.types";
 import type { HealthCheckCallbacks } from "./redis-health-monitor";
 
 export class FallbackManager {

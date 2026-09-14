@@ -25,7 +25,7 @@ jest.mock("@trading-model/http/adapters/outbound/http-client", () => ({
 	})),
 }));
 
-jest.mock("@trading-model/common/domain/tls-paths", () => ({
+jest.mock("@trading-model/common/config/tls-paths", () => ({
 	buildTlsFromEnv: jest.fn(() => ({})),
 }));
 

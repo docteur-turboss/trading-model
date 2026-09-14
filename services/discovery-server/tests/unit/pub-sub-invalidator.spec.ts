@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { REDIS_STATUS } from "@trading-model/common/persistence/redis-constants";
 import type { LruCache } from "@trading-model/common/utils/lru-cache";
-import type { ServiceInstance } from "@trading-model/validation/adapters/outbound/service-registry.types";
+import type { ServiceInstance } from "@trading-model/validation/domain/contracts/service-registry.types";
 import type { CacheManager } from "../../src/infrastructure/cache-manager";
 
 jest.mock("@trading-model/http/infrastructure/logger", () => ({

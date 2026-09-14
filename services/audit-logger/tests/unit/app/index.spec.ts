@@ -11,6 +11,11 @@ jest.mock("@trading-model/http/infrastructure/logger", () => ({
 	logger: MOCK_LOGGER,
 }));
 
+jest.mock("@trading-model/common/logging/logger-registry", () => ({
+	getLogger: () => MOCK_LOGGER,
+	setLogger: jest.fn(),
+}));
+
 let capturedOptions: any;
 
 jest.mock("@trading-model/server-utils/application/services/bootstrap", () => ({

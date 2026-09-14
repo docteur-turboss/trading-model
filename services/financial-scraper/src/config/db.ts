@@ -1,4 +1,4 @@
-import { createDbConfigFromEnv } from "@trading-model/common/domain/db-connection-config";
+import { createDbConfigFromEnv } from "@trading-model/common/config/db-connection-config";
 import { createPool, type Pool } from "mysql2";
 import { MySqlConnection } from "ts-sql-query/connections/MySqlConnection";
 import { MySql2PoolQueryRunner } from "ts-sql-query/queryRunners/MySql2PoolQueryRunner";

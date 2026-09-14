@@ -36,7 +36,7 @@ export class InstanceHeartbeatHandler {
 
 	private async _persistHeartbeat(
 		identity: ServiceIdentity,
-		instance: import("@trading-model/validation/adapters/outbound/service-registry.types").ServiceInstance
+		instance: import("@trading-model/validation/domain/contracts/service-registry.types").ServiceInstance
 	): Promise<void> {
 		const multi = this._deps.redis.multi();
 		multi.set(

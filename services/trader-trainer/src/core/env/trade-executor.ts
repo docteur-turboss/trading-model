@@ -1,9 +1,9 @@
+import { TradeSide } from "@trading-model/common/contracts/market-data.types";
 import {
 	Cash,
 	type Price,
 	Volume,
 } from "@trading-model/common/domain/primitives";
-import { TradeSide } from "@trading-model/validation/shared/contracts/market-data.types";
 import type { PortfolioState } from "./portfolio-state";
 import type { TradeRecorder } from "./trade-recorder";
 import type { WalletConfig } from "./wallet-config";

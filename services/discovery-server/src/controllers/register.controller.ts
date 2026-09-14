@@ -7,7 +7,7 @@ import type { ServiceIdentity } from "@trading-model/common/domain/service-ident
 import type { HttpStatusCode } from "@trading-model/common/http-status";
 import { catchSync } from "@trading-model/http/adapters/inbound/catch-error";
 import { sendResponse } from "@trading-model/http/adapters/inbound/response-exception";
-import { isNonEmptyString } from "@trading-model/validation/shared/validation/primitives";
+import { isNonEmptyString } from "@trading-model/validation/domain/validation/primitives";
 import type { RequestHandler } from "express";
 import type { ServiceRegistry } from "../domain/service-registry";
 import { validationErrorResponse } from "../shared/helpers";

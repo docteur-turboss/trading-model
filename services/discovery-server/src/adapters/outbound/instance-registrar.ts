@@ -8,9 +8,9 @@ import {
 	REDIS_SET,
 } from "@trading-model/common/persistence/redis-constants";
 import { normalizeError } from "@trading-model/common/utils/errors";
-import { generateInstanceToken } from "@trading-model/crypto/domain/services/token-service";
+import { generateInstanceToken } from "@trading-model/crypto/application/services/token-service";
 import { logger } from "@trading-model/http/infrastructure/logger";
-import type { ServiceInstance } from "@trading-model/validation/adapters/outbound/service-registry.types";
+import type { ServiceInstance } from "@trading-model/validation/domain/contracts/service-registry.types";
 import type { RedisDeps } from "../../shared/redis-deps";
 import {
 	instanceMetadata,

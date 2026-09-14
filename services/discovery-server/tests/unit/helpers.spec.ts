@@ -6,7 +6,7 @@ jest.mock("@trading-model/http/adapters/inbound/response-exception", () => ({
 	})),
 }));
 
-jest.mock("@trading-model/validation/shared/validation/primitives", () => ({
+jest.mock("@trading-model/validation/domain/validation/primitives", () => ({
 	isNonEmptyString: (v: any) => typeof v === "string" && v.trim().length > 0,
 }));
 

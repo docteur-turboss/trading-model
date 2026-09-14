@@ -4,7 +4,7 @@ import type { ServiceIdentity } from "@trading-model/common/domain/service-ident
 import type {
 	RegistryBackend,
 	ServiceInstance,
-} from "@trading-model/validation/adapters/outbound/service-registry.types";
+} from "@trading-model/validation/domain/contracts/service-registry.types";
 import { BackendPingManager } from "../infrastructure/backend-ping-manager";
 import { CacheManager } from "../infrastructure/cache-manager";
 import { PubSubInvalidator } from "../infrastructure/pub-sub-invalidator";

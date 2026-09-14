@@ -1,4 +1,4 @@
-import { buildTlsFromEnv } from "@trading-model/common/domain/tls-paths";
+import { buildTlsFromEnv } from "@trading-model/common/config/tls-paths";
 import { HttpClient } from "@trading-model/http/adapters/outbound/http-client";
 import { logger } from "../../config/logger";
 import { ENV } from "../../infrastructure/config/env";

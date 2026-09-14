@@ -8,7 +8,7 @@ import {
 	toUserId,
 } from "@trading-model/common/domain/primitives";
 import type { HttpStatusCode } from "@trading-model/common/http-status";
-import type { HttpMethod } from "@trading-model/validation/adapters/inbound/signed-request";
+import type { HttpMethod } from "@trading-model/validation/domain/contracts/signed-request.types";
 import type { z } from "zod";
 
 import { LOGS_INGESTED_TOTAL } from "../../../config/metrics";

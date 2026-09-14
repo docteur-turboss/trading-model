@@ -4,9 +4,9 @@ import {
 	toServiceId,
 } from "@trading-model/common/domain/primitives";
 import { HTTP_HEADERS } from "@trading-model/common/http-headers";
-import { signRequest } from "@trading-model/crypto/domain/services/request-signer";
-import type { HttpRequestOptions } from "@trading-model/http/shared/http-types";
-import type { HttpRoute } from "@trading-model/validation/adapters/inbound/signed-request";
+import { signRequest } from "@trading-model/crypto/application/services/request-signer";
+import type { HttpRequestOptions } from "@trading-model/http/domain/http-types";
+import type { HttpRoute } from "@trading-model/validation/domain/contracts/signed-request.types";
 import { logger } from "../../config/logger";
 import { ENV } from "../config/env";
 

@@ -3,7 +3,7 @@ import type { DurationMs } from "@trading-model/common/domain/primitives";
 import type { ISyncCache } from "@trading-model/common/utils/cache";
 import type { CacheConfig } from "@trading-model/common/utils/cache-config";
 import { LruCache } from "@trading-model/common/utils/lru-cache";
-import type { ServiceInstance } from "@trading-model/validation/adapters/outbound/service-registry.types";
+import type { ServiceInstance } from "@trading-model/validation/domain/contracts/service-registry.types";
 
 export class CacheManager implements ISyncCache<ServiceInstance[]> {
 	public readonly cache: LruCache<ServiceInstance[]>;

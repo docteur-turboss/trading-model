@@ -1,7 +1,7 @@
 import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import { parseServiceName } from "@trading-model/common/config/services.types";
 import { logger } from "@trading-model/http/infrastructure/logger";
-import type { RegistryBackend } from "@trading-model/validation/adapters/outbound/service-registry.types";
+import type { RegistryBackend } from "@trading-model/validation/domain/contracts/service-registry.types";
 import { HeartbeatThrottleManager } from "../domain/heartbeat-throttle-manager";
 import type { CacheManager } from "../infrastructure/cache-manager";
 import type { RedisHealthMonitor } from "../infrastructure/redis-health-monitor";

@@ -6,7 +6,7 @@ import {
 } from "@trading-model/common/utils/errors";
 import { sleep } from "@trading-model/common/utils/sleep";
 import type { HttpClient } from "@trading-model/http/adapters/outbound/http-client";
-import { HttpMethod } from "@trading-model/http/shared/http-types";
+import { HttpMethod } from "@trading-model/http/domain/http-types";
 import type { DlqEntry } from "../../adapters/outbound/dlq-repository";
 import { signedOptions } from "../../adapters/outbound/request-signer";
 import { logger } from "../../config/logger";

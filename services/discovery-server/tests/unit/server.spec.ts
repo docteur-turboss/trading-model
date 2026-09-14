@@ -48,6 +48,7 @@ describe("createServer", () => {
 				TLS_CERT_PATH: "/certs/cert.pem",
 				TLS_CA_PATH: "/certs/ca.pem",
 			},
+			serviceId: "discovery-server",
 			routes: expect.any(Function),
 		});
 		expect(result).toBe(mockServer);
