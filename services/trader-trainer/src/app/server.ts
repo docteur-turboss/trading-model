@@ -1,3 +1,4 @@
+import { ServiceId } from "@trading-model/common/domain/primitives";
 import { catchSync } from "@trading-model/http/adapters/inbound/catch-error";
 import { ResponseException } from "@trading-model/http/adapters/inbound/response-exception";
 import { createServiceServer } from "@trading-model/server-utils/adapters/inbound/service-server-factory";
@@ -11,6 +12,7 @@ import { ENV } from "../infrastructure/config/env";
 export function createServer(trainer: Trainer) {
 	return createServiceServer({
 		env: ENV,
+		serviceId: ServiceId.of("trader-trainer"),
 		routes: (app) => {
 			app.get("/best-agent", createBestAgentHandler(trainer));
 			app.get("/training-status", createTrainingStatusHandler(trainer));
