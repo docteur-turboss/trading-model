@@ -10,8 +10,8 @@ import type {
 } from "@trading-model/common/domain/primitives";
 import type { BackoffConfig } from "@trading-model/common/utils/backoff-config";
 import type { DefaultWsReconnector } from "@trading-model/common/ws/default-ws-reconnector";
-import { wireConnectionEvents } from "../../infrastructure/connection-wire";
-import type { WorkerWsConnection } from "../../infrastructure/worker-ws-connection";
+import { wireConnectionEvents } from "../../adapters/outbound/connection-wire";
+import type { WorkerWsConnection } from "../../adapters/outbound/worker-ws-connection";
 import { TypedEventEmitter } from "./typed-event-emitter";
 import {
 	buildConnection,

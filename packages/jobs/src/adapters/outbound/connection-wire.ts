@@ -1,8 +1,8 @@
 import type { DefaultWsReconnector } from "@trading-model/common/ws/default-ws-reconnector";
-import type { TypedEventEmitter } from "../application/services/typed-event-emitter";
-import type { WorkerClientEvents } from "../application/services/worker-client";
-import type { WorkerHeartbeat } from "../application/services/worker-heartbeat";
-import type { WorkerMessageRouter } from "../application/services/worker-message-router";
+import type { TypedEventEmitter } from "../../application/services/typed-event-emitter";
+import type { WorkerClientEvents } from "../../application/services/worker-client";
+import type { WorkerHeartbeat } from "../../application/services/worker-heartbeat";
+import type { WorkerMessageRouter } from "../../application/services/worker-message-router";
 import type { WorkerWsConnection } from "./worker-ws-connection";
 
 export interface WireConnectionHandlers {

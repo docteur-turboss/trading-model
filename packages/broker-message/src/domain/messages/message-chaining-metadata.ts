@@ -2,7 +2,7 @@ import {
 	type CorrelationId,
 	toCorrelationId,
 } from "@trading-model/common/domain/primitives";
-import { IDS_METADATA_PREDICATE } from "../../shared/barrel/message.schema";
+import { IDS_METADATA_PREDICATE } from "./schemas/metadata.schema";
 
 export interface ChainingIds {
 	causationId?: CorrelationId;

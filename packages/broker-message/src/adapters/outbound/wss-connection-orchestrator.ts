@@ -1,10 +1,10 @@
 import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
+import type { TlsPaths } from "@trading-model/common/config/tls-paths";
 import {
 	DurationMs,
 	type InstanceId,
 	type Topic,
 } from "@trading-model/common/domain/primitives";
-import type { TlsPaths } from "@trading-model/common/domain/tls-paths";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import { DefaultWsReconnector } from "@trading-model/common/ws/default-ws-reconnector";
 import { logger } from "@trading-model/http/infrastructure/logger";

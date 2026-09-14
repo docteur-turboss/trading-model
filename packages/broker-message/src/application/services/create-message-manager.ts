@@ -1,11 +1,11 @@
 import type addressManagerClient from "@trading-model/address-manager";
 import { parseServiceName } from "@trading-model/common/config/services.types";
-import { toInstanceId } from "@trading-model/common/domain/primitives";
 import {
 	buildTlsFromEnv,
 	type TlsEnvVars,
 	type TlsPaths,
-} from "@trading-model/common/domain/tls-paths";
+} from "@trading-model/common/config/tls-paths";
+import { toInstanceId } from "@trading-model/common/domain/primitives";
 import type { MessageManagerConfig } from "../../domain/types/config";
 import MessageManagerClass from "../../index";
 

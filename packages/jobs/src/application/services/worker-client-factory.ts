@@ -5,7 +5,7 @@ import {
 	URLString,
 } from "@trading-model/common/domain/primitives";
 import { DefaultWsReconnector } from "@trading-model/common/ws/default-ws-reconnector";
-import { WorkerWsConnection } from "../../infrastructure/worker-ws-connection";
+import { WorkerWsConnection } from "../../adapters/outbound/worker-ws-connection";
 import type { WorkerClientConfig } from "./worker-client";
 import { WorkerHeartbeat } from "./worker-heartbeat";
 

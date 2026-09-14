@@ -6,7 +6,7 @@ import {
 	URLString,
 } from "@trading-model/common/domain/primitives";
 import type { HttpClient } from "@trading-model/http/adapters/outbound/http-client";
-import { AckTimerManager } from "../../infrastructure/ack-timer-manager";
+import { AckTimerManager } from "../../shared/ack-timer-manager";
 
 interface ActiveJob {
 	id: JobId;

@@ -1,11 +1,11 @@
 import { randomUUID } from "node:crypto";
+import type { TlsPaths } from "@trading-model/common/config/tls-paths";
 import type {
 	Capability,
 	DurationMs,
 	JobType,
 	PositiveInt,
 } from "@trading-model/common/domain/primitives";
-import type { TlsPaths } from "@trading-model/common/domain/tls-paths";
 import { HttpClient } from "@trading-model/http/adapters/outbound/http-client";
 import { JobAssignmentHandler } from "./job-assignment-handler";
 import type { JobHandler } from "./job-handler-registry";

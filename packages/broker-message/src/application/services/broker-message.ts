@@ -5,8 +5,8 @@ import type {
 	EventMessagesArgs,
 } from "@trading-model/common/config/event.types";
 import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
+import type { TlsPaths } from "@trading-model/common/config/tls-paths";
 import type { InstanceId } from "@trading-model/common/domain/primitives";
-import type { TlsPaths } from "@trading-model/common/domain/tls-paths";
 import { HttpClient } from "@trading-model/http/adapters/outbound/http-client";
 import type { Application } from "express";
 import { CREATE_CALLBACK_ROUTE } from "../../adapters/inbound/messages.routes";

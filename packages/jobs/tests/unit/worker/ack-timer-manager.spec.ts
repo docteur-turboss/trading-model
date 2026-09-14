@@ -6,7 +6,7 @@ import {
 	it,
 	jest,
 } from "@jest/globals";
-import { AckTimerManager } from "@trading-model/jobs/infrastructure/ack-timer-manager";
+import { AckTimerManager } from "@trading-model/jobs/shared/ack-timer-manager";
 
 describe("AckTimerManager", () => {
 	let manager: AckTimerManager;

@@ -6,7 +6,7 @@ import type {
 import { WorkerStatusCode } from "@trading-model/common/domain/primitives";
 import { logger } from "@trading-model/http/infrastructure/logger";
 import WebSocket from "ws";
-import type { WorkerRegistry } from "../application/services/worker-registry";
+import type { WorkerRegistry } from "../../application/services/worker-registry";
 import { WorkerWsManager } from "./worker-ws-manager";
 
 export interface IWorkerProtocol {
