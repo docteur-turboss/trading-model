@@ -1,7 +1,7 @@
 import type { InstanceId } from "@trading-model/common/domain/primitives";
-import { CryptoAlg } from "../constants/crypto-constants";
-import { createHmacSha256Formatted } from "./hmac-utils";
-import { generateRandomStr } from "./random";
+import { createHmacSha256Formatted } from "../../adapters/outbound/node-hmac";
+import { generateRandomStr } from "../../adapters/outbound/node-random";
+import { CryptoAlg } from "../../domain/constants/crypto-constants";
 
 export function generateInstanceToken(
 	instanceId: InstanceId,

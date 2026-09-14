@@ -1,8 +1,8 @@
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import { InstanceId } from "@trading-model/common/domain/primitives";
 import type { ServiceEndpoint } from "@trading-model/common/domain/service-identity";
-import { createHmacSha256Formatted } from "./hmac-utils";
-import { generateRandomStr } from "./random";
+import { createHmacSha256Formatted } from "../../adapters/outbound/node-hmac";
+import { generateRandomStr } from "../../adapters/outbound/node-random";
 
 export function generateInstanceId({
 	serviceName,

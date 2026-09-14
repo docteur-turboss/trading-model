@@ -1,4 +1,4 @@
-import { generateRandomStr } from "../src/domain/services/random";
+import { generateRandomStr } from "../src/adapters/outbound/node-random";
 
 describe("generateRandomStr", () => {
 	it("should return a non-empty string", () => {

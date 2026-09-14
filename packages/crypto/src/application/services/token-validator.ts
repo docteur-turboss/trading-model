@@ -1,6 +1,6 @@
 import type { InstanceId } from "@trading-model/common/domain/primitives";
-import { CryptoAlg } from "../constants/crypto-constants";
-import { verifyHmacSha256Formatted } from "./hmac-utils";
+import { verifyHmacSha256Formatted } from "../../adapters/outbound/node-hmac";
+import { CryptoAlg } from "../../domain/constants/crypto-constants";
 
 export interface TokenValidationOptions {
 	maxAgeMs?: number;

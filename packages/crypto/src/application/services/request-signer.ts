@@ -7,13 +7,13 @@ import type {
 	SignedRequest,
 	SignedRequestAuth,
 	Timestamp,
-} from "@trading-model/validation/adapters/inbound/signed-request";
-import { sha256Hex } from "./hash-utils";
+} from "@trading-model/validation/domain/contracts/signed-request.types";
+import { sha256Hex } from "../../adapters/outbound/node-hash";
 import {
 	createHmacSha256,
-	isTimestampFresh,
 	verifyHmacSha256,
-} from "./hmac-utils";
+} from "../../adapters/outbound/node-hmac";
+import { isTimestampFresh } from "../../domain/services/timestamp";
 
 const DEFAULT_TIMESTAMP_TOLERANCE_MS = 300_000;
 
