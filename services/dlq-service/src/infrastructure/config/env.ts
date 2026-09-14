@@ -1,10 +1,8 @@
 import { existsSync, readFileSync } from "node:fs";
 import { CryptoAlg } from "@trading-model/crypto/domain/constants/crypto-constants";
-import { AddressManagerEnvSchema } from "@trading-model/validation/infrastructure/validation/address-manager-env";
-import {
-	BaseEnvSchema,
-	validateEnv,
-} from "@trading-model/validation/infrastructure/validation/env";
+import { validateEnv } from "@trading-model/validation/application/services/validate-env";
+import { AddressManagerEnvSchema } from "@trading-model/validation/config/address-manager-env";
+import { BaseEnvSchema } from "@trading-model/validation/config/env";
 import { z } from "zod";
 import { logger } from "../../config/logger";
 
