@@ -5,9 +5,7 @@ import {
 	toJobType,
 	UnixTimestamp,
 } from "@trading-model/common/domain/primitives";
-import { logger } from "@trading-model/http/infrastructure/logger";
 import { JobStatus } from "@trading-model/validation/domain/contracts/recovery.types";
-import { ENV } from "../../infrastructure/config/env";
 import type { JobRepository } from "../../persistence/job-repository";
 import type { BackPressure } from "../../scheduler/back-pressure";
 import type { InternalQueue } from "../../scheduler/internal-queue";
@@ -19,6 +17,7 @@ import {
 } from "../../types/job.types";
 import type { JobFailureHandler } from "./job-failure-handler";
 import { JobStatusManager } from "./job-status-manager";
+import type { LoggerPort } from "./logger-port";
 
 export interface JobLifecycleDeps {
 	queue: InternalQueue;
@@ -26,13 +25,22 @@ export interface JobLifecycleDeps {
 	repository: JobRepository;
 	assignmentManager: JobAssignmentManager;
 	failureHandler: JobFailureHandler;
+	logger: LoggerPort;
+	maxRetriesPerJob: number;
+	ackTimeoutMs: number;
 }
 
 export class JobLifecycle {
 	private readonly _statusManager: JobStatusManager;
+	private readonly _logger: LoggerPort;
+	private readonly _maxRetriesPerJob: number;
+	private readonly _ackTimeoutMs: number;
 
 	constructor(private readonly _deps: JobLifecycleDeps) {
 		this._statusManager = new JobStatusManager(this._deps);
+		this._logger = _deps.logger;
+		this._maxRetriesPerJob = _deps.maxRetriesPerJob;
+		this._ackTimeoutMs = _deps.ackTimeoutMs;
 	}
 
 	private get _queue(): InternalQueue {
@@ -53,7 +61,7 @@ export class JobLifecycle {
 		const job = this._createJob(params);
 		await this._repository.insert(job);
 		this._enqueueJob(job);
-		logger.info("Job submitted", {
+		this._logger.info("Job submitted", {
 			context: { jobId: job.id, type: params.type, priority: params.priority },
 		});
 		return job.id;
@@ -61,7 +69,7 @@ export class JobLifecycle {
 
 	private _checkBackPressure(): void {
 		if (!this._backPressure.canAccept()) {
-			logger.warn("Back pressure active and rejecting job submission");
+			this._logger.warn("Back pressure active and rejecting job submission");
 			throw Object.assign(new Error("Job scheduler at capacity"), {
 				code: "BACK_PRESSURE",
 				retryAfter: this._backPressure.retryAfterSeconds(),
@@ -73,7 +81,7 @@ export class JobLifecycle {
 		const {
 			type,
 			payload,
-			maxRetries = ENV.MAX_RETRIES_PER_JOB,
+			maxRetries = this._maxRetriesPerJob,
 			priority = JobPriority.MEDIUM,
 		} = params;
 		return {
@@ -82,7 +90,7 @@ export class JobLifecycle {
 			payload,
 			priority,
 			status: JobStatus.PENDING,
-			ackDeadline: PositiveInt.of(Date.now() + ENV.ACK_TIMEOUT_MS),
+			ackDeadline: PositiveInt.of(Date.now() + this._ackTimeoutMs),
 			maxRetries: PositiveInt.of(maxRetries || 1),
 			retryCount: 0 as unknown as PositiveInt,
 			createdAt: UnixTimestamp.now(),
@@ -95,7 +103,7 @@ export class JobLifecycle {
 		this._queue.enqueue(updated);
 		this._backPressure.updateQueueDepth(this._queue.depth());
 		this._repository.updateStatus(job.id, JobStatus.QUEUED).catch((err) => {
-			logger.error("Failed to persist queued status", {
+			this._logger.error("Failed to persist queued status", {
 				context: {
 					jobId: job.id,
 					error: String(err),

@@ -4,6 +4,7 @@ import type { OrphanDetector } from "@trading-model/jobs/application/services/or
 import type { ReAllocator } from "@trading-model/jobs/application/services/re-allocator";
 import type { JobFailureHandler } from "../domain/scheduler/job-failure-handler";
 import { JobLifecycle } from "../domain/scheduler/job-lifecycle";
+import { ENV } from "../infrastructure/config/env";
 import type { JobRepository } from "../persistence/job-repository";
 import type { SubmitJobParams } from "../types/job.types";
 import type { IWorkerProtocol } from "../worker/worker-protocol";
@@ -61,6 +62,9 @@ export class JobScheduler {
 			repository,
 			assignmentManager: this._assignmentManager,
 			failureHandler: this._failureHandler,
+			logger,
+			maxRetriesPerJob: ENV.MAX_RETRIES_PER_JOB,
+			ackTimeoutMs: ENV.ACK_TIMEOUT_MS,
 		});
 		this._orphanDetector = createOrphanDetector(
 			this.workers,

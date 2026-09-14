@@ -1,6 +1,5 @@
 import type { JobId } from "@trading-model/common/domain/primitives";
 import { RetryPolicy } from "@trading-model/common/domain/retry-policy";
-import { logger } from "@trading-model/http/infrastructure/logger";
 import type { Job } from "@trading-model/validation/domain/contracts/recovery.types";
 import type { JobRepository } from "../../persistence/job-repository";
 import type { InternalQueue } from "../../scheduler/internal-queue";
@@ -8,6 +7,7 @@ import type { JobAssignmentManager } from "../../scheduler/job-assignment-manage
 import { JobStatus } from "../../types/job.types";
 import type { JobFailureHandler } from "./job-failure-handler";
 import type { JobLifecycleDeps } from "./job-lifecycle";
+import type { LoggerPort } from "./logger-port";
 
 export class JobStatusManager {
 	constructor(private readonly _deps: JobLifecycleDeps) {}
@@ -24,11 +24,14 @@ export class JobStatusManager {
 	private get _failureHandler(): JobFailureHandler {
 		return this._deps.failureHandler;
 	}
+	private get _logger(): LoggerPort {
+		return this._deps.logger;
+	}
 
 	async ack(jobId: JobId): Promise<void> {
 		this._queue.ack(jobId);
 		await this._repository.updateStatus(jobId, JobStatus.RUNNING);
-		logger.info("Job acknowledged by worker", { context: { jobId } });
+		this._logger.info("Job acknowledged by worker", { context: { jobId } });
 	}
 
 	async complete(jobId: JobId, result: unknown): Promise<void> {
@@ -37,7 +40,7 @@ export class JobStatusManager {
 			result,
 		});
 		await this._releaseWorker(jobId);
-		logger.info("Job completed", { context: { jobId } });
+		this._logger.info("Job completed", { context: { jobId } });
 		this._assignmentManager.distributeNext();
 	}
 
@@ -64,7 +67,7 @@ export class JobStatusManager {
 		this._queue.ack(jobId);
 		await this._repository.updateStatus(jobId, JobStatus.CANCELLED);
 		this._assignmentManager.decrementWorkerLoad(job.assignedWorkerId);
-		logger.info("Job cancelled", { context: { jobId } });
+		this._logger.info("Job cancelled", { context: { jobId } });
 	}
 
 	private async _releaseWorker(jobId: JobId): Promise<void> {

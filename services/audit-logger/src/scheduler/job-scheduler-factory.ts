@@ -56,6 +56,8 @@ export function createFailureHandler(
 		repository,
 		reAllocator,
 		assignmentManager,
+		logger,
+		ackTimeoutMs: ENV.ACK_TIMEOUT_MS,
 	});
 }
 
