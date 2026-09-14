@@ -29,7 +29,7 @@ export class RedisHealthMonitor {
 	private readonly _fallbackManager: FallbackManager;
 
 	constructor(config: RedisHealthMonitorConfig) {
-		this._healthState = new HealthStateManager(config.failureThreshold);
+		this._healthState = new HealthStateManager(config.failureThreshold, logger);
 		this._healthCheckIntervalMs = config.healthCheckIntervalMs;
 		this._shouldRun = config.shouldRun;
 		this._callbacks = config.callbacks;

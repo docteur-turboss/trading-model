@@ -7,14 +7,7 @@ import {
 	jest,
 } from "@jest/globals";
 
-jest.mock("@trading-model/http/infrastructure/logger", () => ({
-	logger: {
-		info: jest.fn(),
-		warn: jest.fn(),
-		error: jest.fn(),
-		debug: jest.fn(),
-	},
-}));
+import type { LoggerPort } from "../../src/domain/logger-port";
 
 const mockTimerStartInterval = jest.fn();
 const mockTimerStop = jest.fn();
@@ -37,6 +30,15 @@ import type {
 	SyncCleanupDeps,
 } from "../../src/domain/stale-instance-cleaner";
 import { StaleInstanceCleaner } from "../../src/domain/stale-instance-cleaner";
+
+function makeLogger(): LoggerPort {
+	return {
+		info: jest.fn(),
+		warn: jest.fn(),
+		error: jest.fn(),
+		debug: jest.fn(),
+	};
+}
 
 function makeInstance(overrides?: Partial<ServiceInstance>): ServiceInstance {
 	return {
@@ -66,6 +68,7 @@ describe("StaleInstanceCleaner", () => {
 			getInstances:
 				jest.fn<(name: ServiceInstanceName) => Promise<ServiceInstance[]>>(),
 			removeInstance: jest.fn<(id: ServiceIdentity) => Promise<boolean>>(),
+			logger: makeLogger(),
 		};
 
 		cleaner = new StaleInstanceCleaner(deps, intervalMs);
@@ -128,9 +131,7 @@ describe("StaleInstanceCleaner", () => {
 		});
 
 		it("should log error when cleanup throws", async () => {
-			const { logger } = jest.requireMock(
-				"@trading-model/http/infrastructure/logger"
-			) as { logger: { error: jest.Mock } };
+			const logger = deps.logger as LoggerPort;
 
 			deps.listServiceNames.mockRejectedValue(new Error("Redis down"));
 

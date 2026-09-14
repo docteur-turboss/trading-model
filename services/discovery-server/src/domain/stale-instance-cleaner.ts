@@ -7,25 +7,28 @@ import {
 import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import { TimerHandle } from "@trading-model/common/utils/timer-handle";
-import { logger } from "@trading-model/http/infrastructure/logger";
 import type { ServiceInstance } from "@trading-model/validation/adapters/outbound/service-registry.types";
 
 import { isAliveInstance, isExpiredInstance } from "./expiration";
+import { type LoggerPort, NoopLogger } from "./logger-port";
 
 export interface CleanupDeps {
 	listServiceNames(): Promise<ServiceInstanceName[]>;
 	getInstances(serviceName: ServiceInstanceName): Promise<ServiceInstance[]>;
 	removeInstance(id: ServiceIdentity): Promise<boolean>;
+	logger?: LoggerPort;
 }
 
 export interface SyncCleanupDeps {
 	listServiceNames(): ServiceInstanceName[];
 	getInstances(serviceName: ServiceInstanceName): ServiceInstance[];
 	removeInstance(id: ServiceIdentity): void;
+	logger?: LoggerPort;
 }
 
 export class StaleInstanceCleaner {
 	private readonly _handle = new TimerHandle();
+	private readonly _logger: LoggerPort;
 
 	get isRunning(): boolean {
 		return this._handle.isRunning;
@@ -34,14 +37,16 @@ export class StaleInstanceCleaner {
 	constructor(
 		private readonly _deps: CleanupDeps,
 		private readonly _intervalMs: DurationMs
-	) {}
+	) {
+		this._logger = _deps.logger ?? NoopLogger;
+	}
 
 	start(): void {
 		const initialDelay = Math.floor(Math.random() * this._intervalMs);
 		setTimeout(() => {
 			this._handle.startInterval(() => {
 				this._cleanup().catch((err) => {
-					logger.error("Redis cleanup error", {
+					this._logger.error("Redis cleanup error", {
 						error: normalizeError(err),
 					});
 				});
@@ -70,10 +75,11 @@ export class StaleInstanceCleaner {
 
 	static cleanupSync(deps: SyncCleanupDeps): void {
 		const now = Date.now();
+		const log = deps.logger ?? NoopLogger;
 		for (const serviceName of deps.listServiceNames()) {
 			for (const instance of deps.getInstances(serviceName)) {
 				if (isExpiredInstance(instance, now)) {
-					logger.warn("Expired instance removed", {
+					log.warn("Expired instance removed", {
 						serviceName,
 						instanceId: instance.instanceId,
 						heartbeatAge: now - instance.lastHeartbeat,
@@ -93,7 +99,7 @@ export class StaleInstanceCleaner {
 		instance: ServiceInstance,
 		now: number
 	): Promise<void> {
-		logger.warn("Expired instance removed", {
+		this._logger.warn("Expired instance removed", {
 			serviceName,
 			instanceId: instance.instanceId,
 			heartbeatAge: now - instance.lastHeartbeat,

@@ -1,10 +1,17 @@
-import { logger } from "@trading-model/http/infrastructure/logger";
+import type { LoggerPort } from "./logger-port";
+import { NoopLogger } from "./logger-port";
 
 export class HealthStateManager {
 	private _healthy = true;
 	private _consecutiveFailures = 0;
+	private readonly _logger: LoggerPort;
 
-	constructor(private readonly _failureThreshold: number) {}
+	constructor(
+		private readonly _failureThreshold: number,
+		logger: LoggerPort = NoopLogger
+	) {
+		this._logger = logger;
+	}
 
 	get isHealthy(): boolean {
 		return this._healthy;
@@ -23,7 +30,9 @@ export class HealthStateManager {
 		if (!this._healthy) {
 			this._healthy = true;
 			onRestored?.();
-			logger.info("Redis backend is healthy again — resumed normal operation");
+			this._logger.info(
+				"Redis backend is healthy again — resumed normal operation"
+			);
 		}
 		this._consecutiveFailures = 0;
 	}
@@ -33,7 +42,7 @@ export class HealthStateManager {
 		if (this._consecutiveFailures >= this._failureThreshold) {
 			this._healthy = false;
 			onLost?.();
-			logger.error("Redis backend unhealthy — serving stale cache", {
+			this._logger.error("Redis backend unhealthy — serving stale cache", {
 				consecutiveFailures: this._consecutiveFailures,
 			});
 		}

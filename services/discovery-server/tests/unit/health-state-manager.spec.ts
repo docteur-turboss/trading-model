@@ -1,17 +1,24 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
-
-jest.mock("@trading-model/http/infrastructure/logger", () => ({
-	logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
-}));
-
 import { HealthStateManager } from "../../src/domain/health-state-manager";
+import type { LoggerPort } from "../../src/domain/logger-port";
+
+function makeLogger(): LoggerPort {
+	return {
+		info: jest.fn(),
+		warn: jest.fn(),
+		error: jest.fn(),
+		debug: jest.fn(),
+	};
+}
 
 describe("HealthStateManager", () => {
 	let manager: HealthStateManager;
+	let logger: LoggerPort;
 
 	beforeEach(() => {
 		jest.clearAllMocks();
-		manager = new HealthStateManager(3);
+		logger = makeLogger();
+		manager = new HealthStateManager(3, logger);
 	});
 
 	describe("initial state", () => {
@@ -87,9 +94,6 @@ describe("HealthStateManager", () => {
 			manager.markUnhealthy();
 			manager.handleHealthSuccess();
 
-			const { logger } = jest.requireMock<{
-				logger: { info: jest.Mock };
-			}>("@trading-model/http/infrastructure/logger");
 			expect(logger.info).toHaveBeenCalledWith(
 				"Redis backend is healthy again — resumed normal operation"
 			);
@@ -137,9 +141,6 @@ describe("HealthStateManager", () => {
 			manager.handleHealthFailure();
 			manager.handleHealthFailure();
 
-			const { logger } = jest.requireMock<{
-				logger: { error: jest.Mock };
-			}>("@trading-model/http/infrastructure/logger");
 			expect(logger.error).toHaveBeenCalledWith(
 				"Redis backend unhealthy — serving stale cache",
 				expect.objectContaining({ consecutiveFailures: 3 })

@@ -1,3 +1,4 @@
+import { logger } from "@trading-model/http/infrastructure/logger";
 import { createBootstrap } from "@trading-model/server-utils/application/services/bootstrap";
 import { LeaseManager } from "../domain/lease-manager";
 import { ServiceRegistry } from "../domain/service-registry";
@@ -7,6 +8,7 @@ import { createServer } from "./server";
 const REGISTRY = new ServiceRegistry();
 const LEASE_MANAGER = new LeaseManager(REGISTRY, {
 	cleanupIntervalMs: ENV.CLEANUP_SERVICE_INTERVAL_MS,
+	logger,
 });
 
 createBootstrap({

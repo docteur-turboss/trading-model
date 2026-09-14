@@ -6,24 +6,32 @@ import {
 	it,
 	jest,
 } from "@jest/globals";
+import type { LoggerPort } from "../../src/domain/logger-port";
 import type { ServiceInstance } from "../../src/shared/types";
-
-jest.mock("@trading-model/http/infrastructure/logger", () => ({
-	logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
-}));
 
 jest.useFakeTimers();
 
 import { LeaseManager } from "../../src/domain/lease-manager";
 import { ServiceRegistry } from "../../src/domain/service-registry";
 
+function makeLogger(): LoggerPort {
+	return {
+		info: jest.fn(),
+		warn: jest.fn(),
+		error: jest.fn(),
+		debug: jest.fn(),
+	};
+}
+
 describe("LeaseManager", () => {
 	let leaseManager: LeaseManager;
+	let logger: LoggerPort;
 
 	beforeEach(() => {
 		jest.clearAllMocks();
 		jest.clearAllTimers();
-		leaseManager = new LeaseManager(new ServiceRegistry());
+		logger = makeLogger();
+		leaseManager = new LeaseManager(new ServiceRegistry(), { logger });
 	});
 
 	afterEach(() => {
@@ -151,7 +159,7 @@ describe("LeaseManager", () => {
 
 		it("should log error when removeInstance throws", () => {
 			const registry = new ServiceRegistry();
-			const lm = new LeaseManager(registry);
+			const lm = new LeaseManager(registry, { logger });
 
 			registry.registerInstance({
 				serviceName: "test-service",
@@ -169,9 +177,6 @@ describe("LeaseManager", () => {
 			lm.start();
 			jest.advanceTimersByTime(5000);
 
-			const { logger } = jest.requireMock<{ logger: { error: jest.Mock } }>(
-				"@trading-model/http/infrastructure/logger"
-			);
 			expect(logger.error).toHaveBeenCalledWith(
 				"Failed to remove expired instance",
 				{
@@ -184,7 +189,7 @@ describe("LeaseManager", () => {
 
 		it("should log error when listServiceNames throws in start catch", () => {
 			const registry = new ServiceRegistry();
-			const lm = new LeaseManager(registry);
+			const lm = new LeaseManager(registry, { logger });
 
 			jest
 				.spyOn(registry.instanceStore, "listServiceNames")
@@ -195,9 +200,6 @@ describe("LeaseManager", () => {
 			lm.start();
 			jest.advanceTimersByTime(5000);
 
-			const { logger } = jest.requireMock<{ logger: { error: jest.Mock } }>(
-				"@trading-model/http/infrastructure/logger"
-			);
 			expect(logger.error).toHaveBeenCalledWith("Cleanup error", {
 				error: new Error("unexpected error"),
 			});
