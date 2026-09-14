@@ -1,3 +1,4 @@
+import { ServiceId } from "@trading-model/common/domain/primitives";
 import { createServiceServer } from "@trading-model/server-utils/adapters/inbound/service-server-factory";
 import { createMessageHandler } from "../adapters/inbound/subscription/audit-subscriber";
 import type { AuditRepository } from "../adapters/outbound/persistence/audit-repository";
@@ -15,6 +16,7 @@ export function createServer(
 
 	return createServiceServer({
 		env: ENV,
+		serviceId: ServiceId.of("audit-logger"),
 		routes: (app) => {
 			_registerRoutes(app, scheduler, auditRepo, messageHandler);
 		},
