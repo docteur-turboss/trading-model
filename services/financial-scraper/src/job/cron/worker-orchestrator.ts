@@ -27,19 +27,25 @@ export class WorkerOrchestrator {
 		const { BinanceWorker } = await import("../worker/binance.worker.js");
 		const limiter = await _createLimiter(this._maxConcurrency);
 
-		const results = await Promise.all(
+		const settled = await Promise.allSettled(
 			this._symbols.map((symbol) =>
-				limiter(() => {
+				limiter(async () => {
 					const worker = new BinanceWorker({
 						symbol,
 						interval: this._candleInterval,
 					});
-					return worker.run();
+					const result = await worker.run();
+					await this._persist(result);
+					return symbol;
 				})
 			)
 		);
 
-		await Promise.all(results.map((data) => this._persist(data)));
+		for (const outcome of settled) {
+			if (outcome.status === "rejected") {
+				logger.error("Symbol fetch failed", { error: outcome.reason });
+			}
+		}
 	}
 
 	private async _persist(data: BinanceWorkerResult): Promise<void> {
