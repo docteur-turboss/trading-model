@@ -4,7 +4,7 @@ import {
 	BidAskShape,
 	OhlcvShape,
 	OhlcvTickerShape,
-} from "../../../src/domain/market-data-schema";
+} from "../../../src/shared/schemas/market-data-schema";
 
 describe("market-data-schema", () => {
 	it("should export BaseMarketDataShape", () => {

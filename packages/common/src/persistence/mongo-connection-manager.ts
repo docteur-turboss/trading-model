@@ -1,6 +1,6 @@
-import { logger } from "@trading-model/http/infrastructure/logger";
 import { type Db, MongoClient } from "mongodb";
 import { DurationMs, type URLString } from "../domain/primitives";
+import { getLogger } from "../logging/logger-registry";
 import { ConnectionManager } from "./connection-manager";
 import { createPoolOptions, resolvePoolSize } from "./mongo-utils";
 
@@ -36,7 +36,7 @@ export class MongoConnectionManager extends ConnectionManager<MongoClient> {
 					this._connected = true;
 				});
 				await client.connect();
-				logger.info("MongoDB connection established", {
+				getLogger().info("MongoDB connection established", {
 					database: config.dbName,
 					poolSize,
 				});

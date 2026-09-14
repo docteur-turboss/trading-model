@@ -12,10 +12,14 @@
  * ```
  */
 
-import type { ResponseObject } from "@trading-model/http/adapters/inbound/response-exception";
 import type { HttpStatusCode } from "../http-status";
 
 type AnyFn = (...args: never[]) => unknown;
+
+interface ResponseObject {
+	status: HttpStatusCode;
+	data: unknown;
+}
 
 export const mockCatchSyncModule = {
 	catchSync: (fn: AnyFn): AnyFn => fn,

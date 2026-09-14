@@ -1,4 +1,5 @@
 import { CircuitState } from "../domain/circuit-state";
+import { getLogger } from "../logging/logger-registry";
 import type { ICircuitBreaker } from "./circuit-breaker.interface";
 import { CircuitMachineRegistry } from "./circuit-machine-registry";
 import type {
@@ -97,10 +98,7 @@ export class CircuitBreaker implements ICircuitBreaker<string> {
 			return result;
 		} catch (error) {
 			machine.recordFailure();
-			const { logger } = await import(
-				"@trading-model/http/infrastructure/logger"
-			);
-			logger.warn(`Circuit breaker recorded failure for: ${key}`);
+			getLogger().warn(`Circuit breaker recorded failure for: ${key}`);
 			if (fallback) {
 				return fallback();
 			}

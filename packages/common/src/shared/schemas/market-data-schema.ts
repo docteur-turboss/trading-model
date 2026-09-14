@@ -6,7 +6,7 @@ import {
 	type OhlcvData,
 	type OhlcvTickerData,
 	SourceType,
-} from "../contracts/market-data.types";
+} from "../../contracts/market-data.types";
 
 import { PriceSchema, VolumeSchema } from "./primitives.schema";
 

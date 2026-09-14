@@ -2,7 +2,7 @@ import { describe, expect, it } from "@jest/globals";
 import {
 	PriceSchema,
 	VolumeSchema,
-} from "../../../src/domain/primitives.schema";
+} from "../../../src/shared/schemas/primitives.schema";
 
 describe("PriceSchema", () => {
 	it("should transform a number to a Branded price", () => {

@@ -1,5 +1,5 @@
-import { logger } from "@trading-model/http/infrastructure/logger";
 import { DurationMs } from "../domain/primitives";
+import { getLogger } from "../logging/logger-registry";
 import {
 	type BackoffConfig,
 	computeExponentialBackoffWithJitter,
@@ -124,7 +124,7 @@ export class DefaultWsReconnector implements IWsReconnector {
 			this._maxAttempts !== undefined &&
 			this._state.attempt >= this._maxAttempts
 		) {
-			logger.warn("WebSocket max reconnect attempts reached", {
+			getLogger().warn("WebSocket max reconnect attempts reached", {
 				context: { attempts: this._state.attempt },
 			});
 			this._permanentlyFellBack = true;
@@ -138,7 +138,7 @@ export class DefaultWsReconnector implements IWsReconnector {
 		this._state.attempt++;
 		const delay = this._calculateDelay(this._config, this._state.attempt);
 		this._onSchedule?.({ attempt: this._state.attempt, delay });
-		logger.info(
+		getLogger().info(
 			`WebSocket reconnecting in ${Math.round(delay)}ms (attempt ${this._state.attempt})`
 		);
 		this._state.timer = setTimeout(() => {

@@ -1,6 +1,6 @@
-import { logger } from "@trading-model/http/infrastructure/logger";
 import type Redis from "ioredis";
 import type { Cluster } from "ioredis";
+import { getLogger } from "../logging/logger-registry";
 import { normalizeError } from "../utils/errors";
 import { RedisStatus } from "./redis-constants";
 
@@ -13,7 +13,7 @@ export class RedisClientBuilder {
 
 	withErrorHandler(): this {
 		this._client.on("error", (err: Error) => {
-			logger.error("Redis connection error", {
+			getLogger().error("Redis connection error", {
 				error: normalizeError(err),
 			});
 		});

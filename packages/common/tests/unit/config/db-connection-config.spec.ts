@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "@jest/globals";
-import { createDbConfigFromEnv } from "../../../src/domain/db-connection-config";
+import { createDbConfigFromEnv } from "../../../src/config/db-connection-config";
 
 describe("createDbConfigFromEnv", () => {
 	const OLD_ENV = process.env;

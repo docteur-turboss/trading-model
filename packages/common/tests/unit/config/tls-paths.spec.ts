@@ -1,12 +1,12 @@
 import { describe, expect, it } from "@jest/globals";
-import type { TlsPaths, TlsPemBundle } from "../../../src/domain/tls-paths";
+import type { TlsPaths, TlsPemBundle } from "../../../src/config/tls-paths";
 import {
 	buildTlsFromEnv,
 	fromPemBundle,
 	resolveSecureContextOptions,
 	toSecureContextOptions,
 	toTlsConfig,
-} from "../../../src/domain/tls-paths";
+} from "../../../src/config/tls-paths";
 
 const bundle: TlsPemBundle = {
 	keyPem: "key-pem" as never,

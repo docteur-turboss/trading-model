@@ -1,4 +1,4 @@
-import type { CandleInterval } from "../config/event.types";
+import type { CandleInterval } from "../contracts/market-data.types";
 import type { Limit, TradingSymbol, UnixTimestamp } from "./primitives";
 
 export interface MarketDataQuery {

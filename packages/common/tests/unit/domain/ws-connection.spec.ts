@@ -3,7 +3,7 @@ import { WebSocket } from "ws";
 import {
 	isWsConnected,
 	requireWsConnected,
-} from "../../../src/domain/ws-connection";
+} from "../../../src/ws/ws-connection";
 
 describe("isWsConnected", () => {
 	it("should return false for null", () => {
