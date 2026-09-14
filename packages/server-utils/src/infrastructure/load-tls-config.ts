@@ -1,4 +1,4 @@
-import type { TlsPaths } from "@trading-model/common/domain/tls-paths";
+import type { TlsPaths } from "@trading-model/common/config/tls-paths";
 
 export type { TlsPaths };
 

@@ -2,7 +2,7 @@ import { DurationMs } from "@trading-model/common/domain/primitives";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import { logger } from "@trading-model/http/infrastructure/logger";
 import type { HttpServer } from "../../adapters/inbound/create-secure-server";
-import type { BootstrapOptions } from "../../shared/bootstrap-types";
+import type { BootstrapOptions } from "./bootstrap-types";
 
 function _closeServerOnShutdown(server: HttpServer | null): void {
 	if (!server) {

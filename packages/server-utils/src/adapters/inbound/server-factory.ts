@@ -1,15 +1,16 @@
 import type { ServerOptions } from "node:https";
 import https from "node:https";
-import type { Port } from "@trading-model/common/domain/primitives";
 import type {
 	TlsPaths,
 	TlsPemBundle,
-} from "@trading-model/common/domain/tls-paths";
-import { toSecureContextOptions } from "@trading-model/common/domain/tls-paths";
+} from "@trading-model/common/config/tls-paths";
+import { toSecureContextOptions } from "@trading-model/common/config/tls-paths";
+import type { Port } from "@trading-model/common/domain/primitives";
 import { loadTlsPemBundle } from "@trading-model/http/infrastructure/http-tls-loader";
 import { logger } from "@trading-model/http/infrastructure/logger";
 import type { Application } from "express";
 import { setupTlsWatcher } from "../../infrastructure/tls-watcher";
+import type { HttpServer } from "../../shared/server-types";
 
 export interface HttpsServerOptions {
 	port: Port;
@@ -17,10 +18,10 @@ export interface HttpsServerOptions {
 	watchTls?: boolean;
 }
 
-export interface HttpServer {
-	close: () => Promise<void>;
-	raw: https.Server;
-}
+/** The concrete HTTPS server handle, narrowed to the Node `https.Server` raw value. */
+export type HttpsServer = HttpServer<https.Server>;
+
+export type { HttpServer };
 
 function _buildServerOptions(tls: TlsPemBundle): ServerOptions {
 	return {
@@ -61,7 +62,7 @@ function _createCloseHandle(server: https.Server): () => Promise<void> {
 export async function createAndStartHttpsServer(
 	app: Application,
 	options: HttpsServerOptions
-): Promise<HttpServer> {
+): Promise<HttpsServer> {
 	const tlsContext = await loadTlsPemBundle(options.tls);
 	const httpsServer = https.createServer(_buildServerOptions(tlsContext), app);
 

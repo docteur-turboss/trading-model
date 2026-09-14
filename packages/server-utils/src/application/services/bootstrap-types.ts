@@ -1,9 +1,8 @@
-import type https from "node:https";
-import type { HttpServer } from "../adapters/inbound/create-secure-server";
+import type { HttpServer, RawHttpServer } from "../../shared/server-types";
 
 export interface TlsBootstrapOptions {
 	ensure: () => Promise<void>;
-	setupAutoRenew?: (server: https.Server) => void;
+	setupAutoRenew?: (server: RawHttpServer) => void;
 }
 
 export interface BootstrapOptions {

@@ -1,5 +1,5 @@
+import type { TlsPaths } from "@trading-model/common/config/tls-paths";
 import type { ServiceId } from "@trading-model/common/domain/primitives";
-import type { TlsPaths } from "@trading-model/common/domain/tls-paths";
 import { MTLSAuthMiddleware } from "@trading-model/http/adapters/inbound/mtls-auth";
 import { MTLSAuthorizationMiddleware } from "@trading-model/http/adapters/inbound/mtls-authorization";
 import { ResponseProtocol } from "@trading-model/http/adapters/inbound/response-protocol";
@@ -7,13 +7,14 @@ import type { Application } from "express";
 import { configureApp, RateLimitConfig } from "./configure-app";
 import {
 	createAndStartHttpsServer,
-	HttpServer,
+	type HttpServer,
+	type HttpsServer,
 	type HttpsServerOptions,
 } from "./server-factory";
 
-export { buildTlsFromEnv } from "@trading-model/common/domain/tls-paths";
-export type { TlsPaths };
-export { HttpServer, RateLimitConfig };
+export { buildTlsFromEnv } from "@trading-model/common/config/tls-paths";
+export type { HttpServer, HttpsServer, TlsPaths };
+export { RateLimitConfig };
 
 /** Options for enabling caller authorization (ACL) on a secure server. */
 export interface AuthorizationOptions {
@@ -46,7 +47,7 @@ export interface SecureServerOptions extends HttpsServerOptions {
  */
 export async function createSecureServer(
 	options: SecureServerOptions
-): Promise<HttpServer> {
+): Promise<HttpsServer> {
 	const app = configureApp({
 		rateLimit: options.rateLimit,
 		trustProxy: options.trustProxy,
