@@ -3,7 +3,7 @@
 **Status:** Accepted
 **Date:** 2026-06
 
-> **Outcome (2026-09):** The hexagonal target structure was generalized beyond message-manager and applied to **all** services (see [Architecture Standards](../standards/architecture-standards.md) — `domain/`, `application/`, `adapters/inbound|outbound`, `infrastructure/`, `config/`, `shared/`). message-manager retains a legacy `messaging/core/` + `messaging/transport/` layout alongside the new layers during the migration.
+> **Outcome (2026-09):** The hexagonal target structure was generalized beyond message-manager and applied to **all** services (see [Architecture Standards](../standards/architecture-standards.md) — `domain/`, `application/`, `adapters/inbound|outbound`, `infrastructure/`, `config/`, `shared/`). message-manager now has a pure `domain/` layer: 24 purely-domain modules (message/type/contract definitions, interfaces/ports, backoff, payload sanitization, dedup/DLQ retry, WAL entry model, …) were extracted from the legacy `messaging/core/`, and the core WAL/flush/claim/archive logic remains under `messaging/core/` pending full phase-2/4 completion.
 
 ## Context
 
