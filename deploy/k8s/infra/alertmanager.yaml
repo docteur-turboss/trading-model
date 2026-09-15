@@ -40,6 +40,10 @@ spec:
           args:
             - "--config.file=/etc/alertmanager/alertmanager.yml"
             - "--storage.path=/alertmanager"
+          envFrom:
+            - secretRef:
+                name: alertmanager-credentials
+                optional: true
           ports:
             - containerPort: 9093
               name: http
@@ -100,9 +104,11 @@ data:
   alertmanager.yml: |
     global:
       resolve_timeout: 5m
-      # Configure these in your environment
-      # slack_api_url: "https://hooks.slack.com/services/CHANGE_ME"
-      # pagerduty_url: "https://events.pagerduty.com/v2/enqueue"
+      # Values are env-expanded at config load. Provide a real webhook URL /
+      # routing key via the alertmanager-credentials Secret (envFrom) so alerts
+      # actually reach Slack / PagerDuty. See alertmanager-credentials.example.yaml.
+      slack_api_url: "${SLACK_WEBHOOK_URL}"
+      pagerduty_url: "${PAGERDUTY_URL}"
 
     route:
       group_by: ['alertname', 'severity', 'job']
@@ -121,31 +127,29 @@ data:
 
     receivers:
       - name: default-receiver
-        # In production, configure a real receiver:
-        # slack_configs:
-        #   - channel: '#alerts'
-        #     send_resolved: true
-        #     title: '[{{ .Status | toUpper }}] {{ .CommonLabels.alertname }}'
-        #     text: |
-        #       *Alert*: {{ .CommonAnnotations.summary }}
-        #       *Description*: {{ .CommonAnnotations.description }}
-        #       *Severity*: {{ .CommonLabels.severity }}
-        #       *Service*: {{ .CommonLabels.job }}
-        #       {{ range .Alerts }}
-        #       - {{ .Annotations.description }}
-        #       {{ end }}
+        slack_configs:
+          - channel: "${SLACK_CHANNEL}"
+            send_resolved: true
+            title: '[{{ .Status | toUpper }}] {{ .CommonLabels.alertname }}'
+            text: |
+              *Alert*: {{ .CommonAnnotations.summary }}
+              *Description*: {{ .CommonAnnotations.description }}
+              *Severity*: {{ .CommonLabels.severity }}
+              *Service*: {{ .CommonLabels.job }}
+              {{ range .Alerts }}
+              - {{ .Annotations.description }}
+              {{ end }}
 
       - name: critical-receiver
-        # PagerDuty integration (uncomment and configure):
-        # pagerduty_configs:
-        #   - routing_key: 'CHANGE_ME_PAGERDUTY_ROUTING_KEY'
-        #     severity: critical
-        #     description: '{{ .CommonAnnotations.description }}'
+        pagerduty_configs:
+          - routing_key: "${PAGERDUTY_ROUTING_KEY}"
+            severity: critical
+            description: '{{ .CommonAnnotations.description }}'
 
       - name: warning-receiver
-        # Slack integration for warnings (uncomment and configure):
-        # slack_configs:
-        #   - channel: '#alerts-warning'
+        slack_configs:
+          - channel: "${SLACK_CHANNEL_WARN}"
+            send_resolved: true
 
     inhibit_rules:
       - source_match:

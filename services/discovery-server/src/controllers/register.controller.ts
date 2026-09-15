@@ -31,7 +31,7 @@ function _buildValidationError(
 }
 
 function createRegisterHandler(registry: ServiceRegistry): RequestHandler {
-	return catchSync((req) => {
+	return catchSync(async (req) => {
 		const data = parseRegisterBody(req);
 		if (!data) {
 			return _buildValidationError(req);
@@ -48,16 +48,16 @@ function createRegisterHandler(registry: ServiceRegistry): RequestHandler {
 		}
 		const instance = buildServiceInstance(data, registry);
 		return sendResponse(
-			registry.registerInstance(instance),
+			await registry.registerInstance(instance),
 			201 as HttpStatusCode
 		);
 	});
 }
 
 function createListServicesHandler(registry: ServiceRegistry): RequestHandler {
-	return catchSync(() => {
+	return catchSync(async () => {
 		return sendResponse(
-			registry.instanceStore.listServiceNames(),
+			await registry.instanceStore.listServiceNames(),
 			200 as HttpStatusCode
 		);
 	});
@@ -76,7 +76,7 @@ function _validateServiceNameParam(
 function createGetServiceInstancesHandler(
 	registry: ServiceRegistry
 ): RequestHandler {
-	return catchSync((req) => {
+	return catchSync(async (req) => {
 		const serviceName = _validateServiceNameParam(req);
 		if (!serviceName) {
 			return sendResponse(
@@ -90,7 +90,7 @@ function createGetServiceInstancesHandler(
 			return sendResponse({ error: "Unknown service" }, 404 as HttpStatusCode);
 		}
 		return sendResponse(
-			registry.instanceStore.getInstances(parseServiceName(serviceName)),
+			await registry.instanceStore.getInstances(parseServiceName(serviceName)),
 			200 as HttpStatusCode
 		);
 	});
@@ -110,7 +110,7 @@ function _validateRouteParams(
 }
 
 function createGetInstanceHandler(registry: ServiceRegistry): RequestHandler {
-	return catchSync((req) => {
+	return catchSync(async (req) => {
 		const params = _validateRouteParams(req);
 		if (!params) {
 			return sendResponse(
@@ -118,7 +118,7 @@ function createGetInstanceHandler(registry: ServiceRegistry): RequestHandler {
 				400 as HttpStatusCode
 			);
 		}
-		const instance = registry.instanceStore.getInstance(params);
+		const instance = await registry.instanceStore.getInstance(params);
 		if (!instance) {
 			return sendResponse(
 				{ error: "Instance not found" },

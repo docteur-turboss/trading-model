@@ -20,6 +20,12 @@ jest.mock("@trading-model/common/utils/timer-handle", () => ({
 	})),
 }));
 
+jest.mock("../../src/infrastructure/monitoring/metrics", () => ({
+	incLeaseCleanupCycle: jest.fn(),
+	incOperationError: jest.fn(),
+	observeCleanupDuration: jest.fn(),
+}));
+
 import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
 import type {
 	ServiceInstance,
@@ -30,6 +36,11 @@ import type {
 	SyncCleanupDeps,
 } from "../../src/domain/stale-instance-cleaner";
 import { StaleInstanceCleaner } from "../../src/domain/stale-instance-cleaner";
+import {
+	incLeaseCleanupCycle,
+	incOperationError,
+	observeCleanupDuration,
+} from "../../src/infrastructure/monitoring/metrics";
 
 function makeLogger(): LoggerPort {
 	return {
@@ -102,6 +113,21 @@ describe("StaleInstanceCleaner", () => {
 				intervalMs
 			);
 		});
+
+		it("should count a cleanup operation error when the interval cleanup fails", async () => {
+			deps.listServiceNames.mockRejectedValue(new Error("Redis down"));
+			cleaner.start();
+			jest.advanceTimersByTime(intervalMs);
+
+			const callback = mockTimerStartInterval.mock.calls[0][0] as () => void;
+			callback();
+			await Promise.resolve();
+			await Promise.resolve();
+			await Promise.resolve();
+
+			expect(incOperationError).toHaveBeenCalledWith("cleanup");
+			expect((deps.logger as LoggerPort).error).toHaveBeenCalled();
+		});
 	});
 
 	describe("stop", () => {
@@ -128,6 +154,8 @@ describe("StaleInstanceCleaner", () => {
 
 			expect(deps.listServiceNames).toHaveBeenCalled();
 			expect(deps.removeInstance).toHaveBeenCalled();
+			expect(incLeaseCleanupCycle).toHaveBeenCalled();
+			expect(observeCleanupDuration).toHaveBeenCalledWith(expect.any(Number));
 		});
 
 		it("should log error when cleanup throws", async () => {
@@ -139,6 +167,8 @@ describe("StaleInstanceCleaner", () => {
 
 			expect(logger.error).not.toHaveBeenCalled();
 			expect(deps.listServiceNames).toHaveBeenCalled();
+			expect(incLeaseCleanupCycle).toHaveBeenCalled();
+			expect(observeCleanupDuration).toHaveBeenCalled();
 		});
 	});
 

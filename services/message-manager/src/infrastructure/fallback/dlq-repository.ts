@@ -1,6 +1,7 @@
 import { appendFile } from "node:fs/promises";
 
 import type { DlqEntry } from "@trading-model/validation/domain/contracts/dlq.types";
+import { MESSAGES_DLQ_ERROR_TOTAL } from "../../config/metrics";
 
 export type { DlqEntry };
 
@@ -21,6 +22,11 @@ export class FileDlqRepository {
 	 * @param entry - The entry to persist.
 	 */
 	async insert(entry: DlqEntry): Promise<void> {
-		await appendFile(this._filePath, `${JSON.stringify(entry)}\n`, "utf-8");
+		try {
+			await appendFile(this._filePath, `${JSON.stringify(entry)}\n`, "utf-8");
+		} catch (err) {
+			MESSAGES_DLQ_ERROR_TOTAL.inc({ target: "file" });
+			throw err;
+		}
 	}
 }

@@ -3,6 +3,7 @@
 	UnixTimestamp,
 } from "@trading-model/common/domain/primitives";
 import type { HttpClient } from "@trading-model/http/adapters/outbound/http-client";
+import { MESSAGES_DLQ_TOTAL } from "../../config/metrics";
 import type {
 	DeadLetterInput,
 	DeliverySendInput,
@@ -23,6 +24,7 @@ export class HttpMessageDelivery implements MessageDeliveryPort {
 
 	async markDeadLetter(input: DeadLetterInput): Promise<void> {
 		const { message, reason, deliveryAttempt } = input;
+		MESSAGES_DLQ_TOTAL.inc({ topic: message.metadata.topic, reason });
 		await this._dqlRepository.insert({
 			message,
 			reason,

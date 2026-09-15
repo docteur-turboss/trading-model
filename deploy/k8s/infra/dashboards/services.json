@@ -1,0 +1,99 @@
+{
+  "__inputs": [],
+  "__requires": [],
+  "title": "Trading Model — Services Overview",
+  "uid": "trading-services",
+  "panels": [
+    {
+      "title": "Service Health",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 0 },
+      "targets": [
+        {
+          "expr": "count(up{job=~\"trading-.+\"} == 1)",
+          "legendFormat": "Healthy"
+        },
+        {
+          "expr": "count(up{job=~\"trading-.+\"} == 0)",
+          "legendFormat": "Unhealthy"
+        }
+      ]
+    },
+    {
+      "title": "HTTP Request Rate by Service",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+      "targets": [
+        {
+          "expr": "sum(rate(http_requests_total[5m])) by (service)",
+          "legendFormat": "{{service}}"
+        }
+      ]
+    },
+    {
+      "title": "P99 Latency by Service",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket[5m])) by (le, service))",
+          "legendFormat": "{{service}}"
+        }
+      ]
+    },
+    {
+      "title": "Circuit Breaker State",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 4, "y": 0 },
+      "targets": [
+        {
+          "expr": "count(circuit_breaker_state == 0)",
+          "legendFormat": "Closed"
+        },
+        {
+          "expr": "count(circuit_breaker_state == 1)",
+          "legendFormat": "Open"
+        },
+        {
+          "expr": "count(circuit_breaker_state == 2)",
+          "legendFormat": "Half-Open"
+        }
+      ]
+    },
+    {
+      "title": "DLQ Queue Depth",
+      "type": "timeseries",
+      "gridPos": { "h": 6, "w": 8, "x": 0, "y": 12 },
+      "targets": [
+        {
+          "expr": "dlq_queue_depth",
+          "legendFormat": "{{queue}}"
+        }
+      ]
+    },
+    {
+      "title": "TLS Certificate Expiry",
+      "type": "table",
+      "gridPos": { "h": 6, "w": 8, "x": 8, "y": 12 },
+      "targets": [
+        {
+          "expr": "tls_cert_expiry_seconds",
+          "legendFormat": "{{cn}}"
+        }
+      ]
+    },
+    {
+      "title": "Error Rate by Service (5m)",
+      "type": "timeseries",
+      "gridPos": { "h": 6, "w": 8, "x": 16, "y": 12 },
+      "targets": [
+        {
+          "expr": "sum(rate(http_requests_total{status=~\"5..\"}[5m])) by (service) / sum(rate(http_requests_total[5m])) by (service)",
+          "legendFormat": "{{service}}"
+        }
+      ]
+    }
+  ],
+  "tags": ["trading-model", "production"],
+  "schemaVersion": 39
+}

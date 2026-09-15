@@ -114,8 +114,6 @@ data:
       prometheus:
         endpoint: 0.0.0.0:8888
         namespace: trading
-        const_labels:
-          service: message-manager
 
     service:
       pipelines:

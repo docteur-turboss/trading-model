@@ -1,0 +1,13 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+configMapGenerator:
+  - name: grafana-dashboards
+    files:
+      - dashboard-provider.yml
+      - message-manager.json
+      - services.json
+      - slo.json
+      - trader-trainer.json
+    options:
+      disableNameSuffixHash: true

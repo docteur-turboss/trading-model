@@ -42,8 +42,8 @@ describe("helpers", () => {
 			).toThrow();
 		});
 
-		it("should not throw if token is valid", () => {
-			const registered = registry.registerInstance({
+		it("should not throw if token is valid", async () => {
+			const registered = await registry.registerInstance({
 				serviceName: "financial-scraper-service",
 				instanceId: "instance-1",
 				ip: "1.1.1.1",

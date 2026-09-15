@@ -27,7 +27,8 @@
     "react-dom": "^19.2.8",
     "react-i18next": "^17.0.13",
     "react-router-dom": "^7.18.3",
-    "recharts": "^3.10.1"
+    "recharts": "^3.10.1",
+    "web-vitals": "^4.2.4"
   },
   "devDependencies": {
     "@testing-library/dom": "^10.4.0",

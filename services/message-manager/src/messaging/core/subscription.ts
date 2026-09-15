@@ -7,6 +7,7 @@ import type { ServiceIdentity } from "@trading-model/common/domain/service-ident
 import type { TopicBinding } from "@trading-model/common/domain/topic-binding";
 import { CircuitStateMachine } from "@trading-model/common/reliability/circuit-state-machine";
 import type { Message } from "@trading-model/validation/domain/contracts/message.types";
+import { SUBSCRIBER_DELIVERY_CONCURRENCY } from "../../config/metrics";
 import { backoffDelay as computeBackoffDelay } from "../../domain/backoff-calculator";
 import { DeliveryAttemptHandler } from "./delivery-attempt-handler";
 import { DeliveryErrorHandler } from "./delivery-error-handler";
@@ -62,13 +63,19 @@ export class Subscription {
 	}
 
 	async dispatch<TData>(message: Message<TData>): Promise<void> {
-		await dispatchToSubscriber(
-			message,
-			{
-				topic: this.topic,
-				serviceName: this.serviceIdentity.serviceName as ServiceInstanceName,
-			},
-			this._services
-		);
+		const subscriber = this.serviceIdentity.serviceName;
+		SUBSCRIBER_DELIVERY_CONCURRENCY.inc({ subscriber });
+		try {
+			await dispatchToSubscriber(
+				message,
+				{
+					topic: this.topic,
+					serviceName: this.serviceIdentity.serviceName as ServiceInstanceName,
+				},
+				this._services
+			);
+		} finally {
+			SUBSCRIBER_DELIVERY_CONCURRENCY.dec({ subscriber });
+		}
 	}
 }

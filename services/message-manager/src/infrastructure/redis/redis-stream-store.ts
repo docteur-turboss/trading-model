@@ -5,6 +5,7 @@ import {
 import { retryWithBackoff } from "@trading-model/common/utils/retry";
 import type Redis from "ioredis";
 import { logger } from "../../config/logger";
+import { REDIS_STREAM_SIZE } from "../../config/metrics";
 import { getStreamClient } from "../../config/redis";
 import { ENV } from "../config/env";
 import type { RedisKeyBuilder } from "./redis-key-builder";
@@ -64,6 +65,20 @@ export class RedisStreamStore {
 			serialized
 		);
 		await redis.expire(key, ENV.REDIS_MESSAGE_TTL_S);
+		await this._recordStreamSize(topic, key, redis);
 		return entryId ?? "";
+	}
+
+	private async _recordStreamSize(
+		topic: Topic,
+		key: string,
+		redis: Redis
+	): Promise<void> {
+		try {
+			const size = await redis.xlen(key);
+			REDIS_STREAM_SIZE.set({ topic }, size);
+		} catch {
+			// a failed size read must not break the publish path
+		}
 	}
 }

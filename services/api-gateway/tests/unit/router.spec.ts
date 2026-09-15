@@ -264,4 +264,71 @@ describe("router", () => {
 			});
 		});
 	});
+
+	describe("telemetry route", () => {
+		function getTelemetryHandler() {
+			const routeLayer = router.stack.find(
+				(layer: any) => layer.route?.path === "/telemetry"
+			);
+			return routeLayer.route.stack[0].handle;
+		}
+
+		function createMockRes() {
+			return {
+				status: jest.fn().mockReturnThis(),
+				json: jest.fn(),
+				end: jest.fn(),
+			};
+		}
+
+		it("should accept a valid vital payload", () => {
+			const handler = getTelemetryHandler();
+			const res = createMockRes();
+			const req = createReq({
+				method: "POST",
+				path: "/telemetry",
+				url: "/telemetry",
+				body: { type: "vital", name: "LCP", value: 250 },
+			});
+
+			handler(req, res);
+
+			expect(res.status).toHaveBeenCalledWith(204);
+			expect(res.end).toHaveBeenCalled();
+		});
+
+		it("should accept a valid error payload", () => {
+			const handler = getTelemetryHandler();
+			const res = createMockRes();
+			const req = createReq({
+				method: "POST",
+				path: "/telemetry",
+				url: "/telemetry",
+				body: { type: "error", name: "Error", message: "boom" },
+			});
+
+			handler(req, res);
+
+			expect(res.status).toHaveBeenCalledWith(204);
+			expect(res.end).toHaveBeenCalled();
+		});
+
+		it("should reject an invalid payload with 400", () => {
+			const handler = getTelemetryHandler();
+			const res = createMockRes();
+			const req = createReq({
+				method: "POST",
+				path: "/telemetry",
+				url: "/telemetry",
+				body: { type: "vital" },
+			});
+
+			handler(req, res);
+
+			expect(res.status).toHaveBeenCalledWith(400);
+			expect(res.json).toHaveBeenCalledWith({
+				error: "Invalid telemetry payload",
+			});
+		});
+	});
 });

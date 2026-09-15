@@ -19,8 +19,15 @@ jest.mock("@trading-model/http/adapters/inbound/response-exception", () => ({
 	})),
 }));
 
+jest.mock("../../../src/infrastructure/monitoring/metrics", () => ({
+	incHeartbeatsTotal: jest.fn(),
+	setRegisteredInstances: jest.fn(),
+	setRegisteredInstancesPerService: jest.fn(),
+}));
+
 import { createHeartbeatController } from "../../../src/controllers/heartbeat.controller";
 import { ServiceRegistry } from "../../../src/domain/service-registry";
+import { incHeartbeatsTotal } from "../../../src/infrastructure/monitoring/metrics";
 
 describe("Heartbeat.controller", () => {
 	let registry: ServiceRegistry;
@@ -87,7 +94,7 @@ describe("Heartbeat.controller", () => {
 		});
 
 		it("should return TTL on successful heartbeat", async () => {
-			const registered = registry.registerInstance({
+			const registered = await registry.registerInstance({
 				serviceName: "financial-scraper-service",
 				instanceId: "i1",
 				ip: "1.1.1.1",
@@ -108,10 +115,13 @@ describe("Heartbeat.controller", () => {
 				status: 200,
 				data: { ttl: 30000 },
 			});
+			expect(incHeartbeatsTotal).toHaveBeenCalledWith(
+				"financial-scraper-service"
+			);
 		});
 
 		it("should return NotFound when service does not match registered instance", async () => {
-			const registered = registry.registerInstance({
+			const registered = await registry.registerInstance({
 				serviceName: "financial-scraper-service",
 				instanceId: "i1",
 				ip: "1.1.1.1",
@@ -180,7 +190,7 @@ describe("Heartbeat.controller", () => {
 		});
 
 		it("should return new token on successful rotation", async () => {
-			const registered = registry.registerInstance({
+			const registered = await registry.registerInstance({
 				serviceName: "financial-scraper-service",
 				instanceId: "i1",
 				ip: "1.1.1.1",

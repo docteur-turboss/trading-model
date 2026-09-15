@@ -14,6 +14,7 @@ import type { MongoRepository } from "@trading-model/common/persistence/mongo-re
 import { agentError } from "@trading-model/common/utils/errors";
 import type { AuditFilter } from "@trading-model/validation/adapters/inbound/admin/audit.dto";
 import type { Collection, Db } from "mongodb";
+import { EVENTS_STORED_TOTAL } from "../../../config/metrics";
 import { AuditQuerier } from "../../../persistence/audit-querier";
 import type { DateRange } from "../../../types/date-range";
 
@@ -78,6 +79,7 @@ export class AuditRepository
 	async insert(event: AuditEventDocument): Promise<void> {
 		try {
 			await this._collection.insertOne(event);
+			EVENTS_STORED_TOTAL.inc({ status: "success" });
 		} catch (err) {
 			throw agentError("Failed to persist audit event", {
 				cause: err,
@@ -91,6 +93,7 @@ export class AuditRepository
 		}
 		try {
 			await this._collection.insertMany(events, { ordered: false });
+			EVENTS_STORED_TOTAL.inc({ status: "success" }, events.length);
 		} catch (err) {
 			throw agentError("Failed to persist audit event batch", {
 				cause: err,

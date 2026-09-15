@@ -6,8 +6,6 @@ const circuitBreakerStates = Object.values(CircuitState)
 	.map((state, index) => `${index}=${state}`)
 	.join(", ");
 
-promClient.collectDefaultMetrics({ prefix: "mm_" });
-
 export const MESSAGES_PUBLISHED_TOTAL = new promClient.Counter({
 	name: "mm_messages_published_total",
 	help: "Total number of messages published",

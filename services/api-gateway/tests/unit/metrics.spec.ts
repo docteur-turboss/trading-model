@@ -25,8 +25,6 @@ import {
 	AUTH_FAILURES_TOTAL,
 	CACHE_HIT_RATIO,
 	CACHE_SIZE,
-	HTTP_REQUEST_DURATION_SECONDS,
-	HTTP_REQUESTS_TOTAL,
 	metricsHandler,
 	PROXY_REQUEST_DURATION_SECONDS,
 	SERVICE_ERRORS_TOTAL,
@@ -35,15 +33,6 @@ import {
 describe("metrics", () => {
 	beforeEach(() => {
 		jest.clearAllMocks();
-	});
-
-	it("should export HTTP_REQUESTS_TOTAL counter", () => {
-		expect(HTTP_REQUESTS_TOTAL).toBeDefined();
-		expect(typeof HTTP_REQUESTS_TOTAL).toBe("object");
-	});
-
-	it("should export HTTP_REQUEST_DURATION_SECONDS histogram", () => {
-		expect(HTTP_REQUEST_DURATION_SECONDS).toBeDefined();
 	});
 
 	it("should export PROXY_REQUEST_DURATION_SECONDS histogram", () => {

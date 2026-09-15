@@ -30,6 +30,10 @@ COPY --from=build /app/packages ./packages
 COPY --from=build /app/services/trader-trainer/package.json ./services/trader-trainer/
 COPY --from=build /app/services/trader-trainer/dist ./services/trader-trainer/dist
 
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+RUN chown -R appuser:appgroup /app
+USER appuser
+
 EXPOSE 3000
 ENTRYPOINT ["/sbin/tini", "--"]
 CMD ["bun", "services/trader-trainer/dist/infrastructure/index.js"]

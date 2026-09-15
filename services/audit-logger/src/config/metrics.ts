@@ -1,8 +1,6 @@
 import { metricsHandler } from "@trading-model/server-utils/adapters/inbound/metrics-handler";
 import promClient from "prom-client";
 
-promClient.collectDefaultMetrics({ prefix: "audit_" });
-
 export const LOGS_INGESTED_TOTAL = new promClient.Counter({
 	name: "audit_logs_ingested_total",
 	help: "Total service logs ingested",

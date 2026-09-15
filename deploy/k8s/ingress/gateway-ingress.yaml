@@ -97,4 +97,4 @@ spec:
               service:
                 name: admin-interface
                 port:
-                  number: 80
+                  number: 8080

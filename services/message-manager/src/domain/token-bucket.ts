@@ -1,4 +1,6 @@
-﻿export interface TokenBucketConfig {
+﻿import { setBackpressureRatio } from "./backpressure-monitor";
+
+export interface TokenBucketConfig {
 	capacity: number;
 	refillRate: number;
 	refillIntervalMs: number;
@@ -21,7 +23,7 @@ export class TokenBucket {
 		this._refillIntervalMs = config.refillIntervalMs;
 		this._tokens = config.capacity;
 		this._lastRefill = Date.now();
-		this._metricCallback = metricCallback ?? null;
+		this._metricCallback = metricCallback ?? setBackpressureRatio;
 	}
 
 	private _refill(): void {

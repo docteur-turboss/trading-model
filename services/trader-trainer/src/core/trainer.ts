@@ -3,6 +3,12 @@ import type {
 	PositiveInt,
 } from "@trading-model/common/domain/primitives";
 import { logger } from "@trading-model/http/infrastructure/logger";
+import {
+	BEST_FITNESS,
+	TRAINING_DURATION_SECONDS,
+	TRAINING_SESSIONS_TOTAL,
+	TRAINING_STATUS,
+} from "../config/metrics";
 import type { GenerationContext } from "./genetic-algorithm/ga-runner";
 import { computeSharpe } from "./genome-summary-builder";
 import type { MarketDataBuffer } from "./market-data-buffer";
@@ -60,12 +66,21 @@ export class Trainer {
 		}
 
 		this._status = TrainerStatus.Training;
+		TRAINING_STATUS.set(1);
+		const start = performance.now();
 
 		try {
-			return await this._runSession(symbol, validation.windowSet);
+			const result = await this._runSession(symbol, validation.windowSet);
+			TRAINING_SESSIONS_TOTAL.inc({ result: "success" });
+			BEST_FITNESS.set({ symbol: String(symbol) }, result.bestFitness);
+			return result;
 		} catch (err) {
+			TRAINING_SESSIONS_TOTAL.inc({ result: "fail" });
 			return this._handleTrainingError(symbol, err);
 		} finally {
+			const duration = (performance.now() - start) / 1000;
+			TRAINING_DURATION_SECONDS.observe(duration);
+			TRAINING_STATUS.set(0);
 			this._status = TrainerStatus.Idle;
 		}
 	}

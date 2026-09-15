@@ -10,10 +10,12 @@ describe("formatLogEntry", () => {
 			timestamp,
 			message: "hello world",
 		});
-		expect(result).toBe("[INFO] [2024-01-15T10:30:00.000Z] hello world");
+		expect(result).toBe(
+			'{"ts":"2024-01-15T10:30:00.000Z","level":"INFO","msg":"hello world"}'
+		);
 	});
 
-	it("should format log entry with context", () => {
+	it("should format log entry with context merged into the JSON record", () => {
 		const result = formatLogEntry({
 			label: "ERROR",
 			timestamp,
@@ -21,7 +23,7 @@ describe("formatLogEntry", () => {
 			context: { error: "timeout", id: 42 },
 		});
 		expect(result).toBe(
-			'[ERROR] [2024-01-15T10:30:00.000Z] something went wrong {"error":"timeout","id":42}'
+			'{"ts":"2024-01-15T10:30:00.000Z","level":"ERROR","msg":"something went wrong","error":"timeout","id":42}'
 		);
 	});
 });

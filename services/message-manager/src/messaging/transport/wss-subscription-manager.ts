@@ -1,6 +1,7 @@
 ﻿import type { Topic } from "@trading-model/common/domain/primitives";
 import { ServiceIdentity } from "@trading-model/common/domain/service-identity";
 import type WebSocket from "ws";
+import { WSS_CONNECTION_COUNT } from "../../config/metrics";
 import { TopicSubscriptionHandler } from "./topic-subscription-handler";
 import { WssBroadcaster } from "./wss-broadcaster";
 import type { WsTransportMessage } from "./wss-message.types";
@@ -48,11 +49,13 @@ export class WssSubscriptionManager {
 		const { ws, identity, topics } = ctx;
 		const subKey = ServiceIdentity.toKey(identity);
 		this._subscriptions.set(subKey, { identity, topics, ws });
+		WSS_CONNECTION_COUNT.set(this._subscriptions.size);
 		return subKey;
 	}
 
 	remove(subKey: string): void {
 		this._subscriptions.delete(subKey);
+		WSS_CONNECTION_COUNT.set(this._subscriptions.size);
 	}
 
 	handleSubscribe(msg: WsTransportMessage, ctx: SubscriptionContext): void {
@@ -73,6 +76,7 @@ export class WssSubscriptionManager {
 
 	clear(): void {
 		this._subscriptions.clear();
+		WSS_CONNECTION_COUNT.set(0);
 	}
 
 	entries(): IterableIterator<[string, WsSubscription]> {

@@ -16,5 +16,9 @@ RUN bun run --filter admin-interface build
 FROM nginx:alpine AS runtime
 COPY --from=build /app/services/admin-interface/dist /usr/share/nginx/html
 COPY services/admin-interface/nginx.conf /etc/nginx/conf.d/default.conf
-EXPOSE 80
+RUN mkdir -p /var/cache/nginx /var/log/nginx /var/run \
+    && chown -R 101:101 /var/cache/nginx /var/log/nginx /var/run \
+    && chown -R 101:101 /usr/share/nginx/html
+USER 101
+EXPOSE 8080
 CMD ["nginx", "-g", "daemon off;"]

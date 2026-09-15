@@ -10,6 +10,10 @@ import axios, {
 	type AxiosRequestConfig,
 } from "axios";
 
+import {
+	BINANCE_REQUEST_DURATION_SECONDS,
+	BINANCE_REQUESTS_TOTAL,
+} from "./metrics";
 import { acquireToken } from "./rate-limiter";
 
 const DEFAULT_TIMEOUT = 7000;
@@ -80,6 +84,7 @@ export function createHttpClient(baseURL: string): AxiosInstance {
 
 	_attachRateLimiter(instance, baseURL);
 	_attachRetryInterceptor(instance);
+	_attachMetricsInterceptor(instance);
 
 	return instance;
 }
@@ -89,6 +94,51 @@ function _attachRateLimiter(instance: AxiosInstance, baseURL: string): void {
 		await acquireToken(baseURL, config.weight ?? 1);
 		return config;
 	});
+}
+
+function _attachMetricsInterceptor(instance: AxiosInstance): void {
+	if (process.env.NODE_ENV === "test") {
+		return;
+	}
+	const startTimes = new WeakMap<AxiosRequestConfig, number>();
+	instance.interceptors.request.use((config) => {
+		startTimes.set(config, performance.now());
+		return config;
+	});
+	instance.interceptors.response.use(
+		(response) => {
+			const start = startTimes.get(response.config);
+			if (start !== undefined) {
+				const endpoint = _extractEndpoint(response.config.url ?? "");
+				const duration = (performance.now() - start) / 1000;
+				BINANCE_REQUESTS_TOTAL.inc({
+					endpoint,
+					status: String(response.status),
+				});
+				BINANCE_REQUEST_DURATION_SECONDS.observe({ endpoint }, duration);
+			}
+			return response;
+		},
+		(error: AxiosError) => {
+			const start = error.config ? startTimes.get(error.config) : undefined;
+			if (start !== undefined) {
+				const endpoint = _extractEndpoint(error.config?.url ?? "");
+				const duration = (performance.now() - start) / 1000;
+				const status = error.response?.status ?? "network_error";
+				BINANCE_REQUESTS_TOTAL.inc({
+					endpoint,
+					status: String(status),
+				});
+				BINANCE_REQUEST_DURATION_SECONDS.observe({ endpoint }, duration);
+			}
+			throw error;
+		}
+	);
+}
+
+function _extractEndpoint(url: string): string {
+	const match = url.match(/\/api\/v3\/(\w+)/);
+	return match?.[1] ?? "unknown";
 }
 
 /** Pre-built HTTP clients for supported data sources (e.g. Binance). */

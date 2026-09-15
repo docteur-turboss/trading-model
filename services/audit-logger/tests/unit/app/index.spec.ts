@@ -25,6 +25,11 @@ jest.mock("@trading-model/server-utils/application/services/bootstrap", () => ({
 	}),
 }));
 
+jest.mock("@trading-model/server-utils/infrastructure/telemetry", () => ({
+	initializeTelemetry: jest.fn(),
+	shutdownTelemetry: jest.fn(),
+}));
+
 jest.mock("../../../src/infrastructure/config/env", () => ({
 	ENV: {
 		MONGODB_URI: "mongodb://localhost:27017/audit-logger",
@@ -184,7 +189,8 @@ describe("Audit Logger entry point (index.ts)", () => {
 					setWorkerProtocol: MOCK_SCHEDULER_INSTANCE.setWorkerProtocol,
 					start: MOCK_SCHEDULER_INSTANCE.start,
 				}),
-				MOCK_AUDIT_REPOSITORY_INSTANCE
+				MOCK_AUDIT_REPOSITORY_INSTANCE,
+				expect.anything()
 			);
 			expect(WorkerProtocol).toHaveBeenCalledWith(
 				"mock-raw-server",

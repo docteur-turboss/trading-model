@@ -45,8 +45,8 @@ describe("BROKER_ROUTES", () => {
 		expect(route).toBeDefined();
 	});
 
-	it("should have exactly 3 routes", () => {
-		expect(router.stack.length).toBe(3);
+	it("should have exactly 4 routes", () => {
+		expect(router.stack.length).toBe(4);
 	});
 
 	it("should set timeout on incoming requests", () => {

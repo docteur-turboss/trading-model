@@ -4,6 +4,7 @@ import { logger } from "@trading-model/http/infrastructure/logger";
 import type { RegistryBackend } from "@trading-model/validation/domain/contracts/service-registry.types";
 import { HeartbeatThrottleManager } from "../domain/heartbeat-throttle-manager";
 import type { CacheManager } from "../infrastructure/cache-manager";
+import { incOperationError } from "../infrastructure/monitoring/metrics";
 import type { RedisHealthMonitor } from "../infrastructure/redis-health-monitor";
 import { InstanceCacheFetcher } from "./instance-cache-fetcher";
 
@@ -32,6 +33,7 @@ export class CacheOrchestrator {
 			);
 			this._cache.set(serviceName, instances);
 		} catch {
+			incOperationError("cache-refresh");
 			logger.warn("Cache refresh failed, serving stale data", { serviceName });
 		}
 	}

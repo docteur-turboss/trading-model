@@ -15,6 +15,11 @@ jest.mock("../../src/routes/register.routes", () => ({
 	REGISTRY_ROUTES: jest.fn(),
 }));
 
+jest.mock("../../src/infrastructure/monitoring/metrics", () => ({
+	metricsHandler: jest.fn(),
+	trackRequest: jest.fn(),
+}));
+
 jest.mock("../../src/infrastructure/config/env", () => ({
 	ENV: {
 		PORT: 8443,
@@ -69,7 +74,7 @@ describe("createServer", () => {
 			REGISTRY_ROUTES: jest.Mock;
 		};
 
-		const app = { use: jest.fn() };
+		const app = { use: jest.fn(), get: jest.fn() };
 		createServiceServer.mockImplementation(((opts: {
 			routes: (app: { use: jest.Mock }) => void;
 		}) => {
@@ -86,5 +91,50 @@ describe("createServer", () => {
 
 		expect(app.use).toHaveBeenCalledWith("/", rrRouter);
 		expect(app.use).toHaveBeenCalledWith("/", hrRouter);
+	});
+
+	it("should track request metrics through the http middleware", () => {
+		const { createServiceServer } = jest.requireMock(
+			"@trading-model/server-utils/adapters/inbound/service-server-factory"
+		) as { createServiceServer: jest.Mock };
+		const { trackRequest } = jest.requireMock(
+			"../../src/infrastructure/monitoring/metrics"
+		) as {
+			trackRequest: jest.Mock;
+		};
+
+		const app = { use: jest.fn(), get: jest.fn() };
+		createServiceServer.mockImplementation(((opts: {
+			routes: (app: { use: jest.Mock; get: jest.Mock }) => void;
+		}) => {
+			opts.routes(app);
+			return { close: jest.fn() };
+		}) as unknown as (...args: unknown[]) => unknown);
+
+		void createServer({} as ServiceRegistry);
+
+		const middleware = app.use.mock.calls[0][0] as (
+			req: { method: string; path: string },
+			res: { statusCode: number; on: jest.Mock },
+			next: jest.Mock
+		) => void;
+
+		const req = { method: "GET", path: "/heartbeat" };
+		const res = { statusCode: 200, on: jest.fn() };
+		const next = jest.fn();
+
+		middleware(req, res, next);
+
+		expect(next).toHaveBeenCalled();
+
+		const finishHandler = res.on.mock.calls[0][1] as () => void;
+		finishHandler();
+
+		expect(trackRequest).toHaveBeenCalledWith({
+			method: "GET",
+			path: "/heartbeat",
+			status: 200,
+			durationMs: expect.any(Number),
+		});
 	});
 });

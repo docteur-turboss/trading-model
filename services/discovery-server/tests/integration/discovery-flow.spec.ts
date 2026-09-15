@@ -20,8 +20,8 @@ describe("Discovery Service — Full Flow Integration", () => {
 		registry = new ServiceRegistry();
 	});
 
-	it("should register an instance and find it via getInstances", () => {
-		const result = registry.registerInstance({
+	it("should register an instance and find it via getInstances", async () => {
+		const result = await registry.registerInstance({
 			serviceName: "financial-scraper-service",
 			instanceId: "node-1",
 			ip: "10.0.0.1",
@@ -43,8 +43,8 @@ describe("Discovery Service — Full Flow Integration", () => {
 		expect(instances[0].ip).toBe("10.0.0.1");
 	});
 
-	it("should register multiple instances for the same service", () => {
-		registry.registerInstance({
+	it("should register multiple instances for the same service", async () => {
+		await registry.registerInstance({
 			serviceName: "financial-scraper-service",
 			instanceId: "node-1",
 			ip: "10.0.0.1",
@@ -56,7 +56,7 @@ describe("Discovery Service — Full Flow Integration", () => {
 			lastHeartbeat: Date.now(),
 		});
 
-		registry.registerInstance({
+		await registry.registerInstance({
 			serviceName: "financial-scraper-service",
 			instanceId: "node-2",
 			ip: "10.0.0.2",
@@ -73,8 +73,8 @@ describe("Discovery Service — Full Flow Integration", () => {
 		).toHaveLength(2);
 	});
 
-	it("should validate instance tokens after registration", () => {
-		const registered = registry.registerInstance({
+	it("should validate instance tokens after registration", async () => {
+		const registered = await registry.registerInstance({
 			serviceName: "financial-scraper-service",
 			instanceId: "node-1",
 			ip: "10.0.0.1",
@@ -100,8 +100,8 @@ describe("Discovery Service — Full Flow Integration", () => {
 		).toBe(false);
 	});
 
-	it("should handle full heartbeat flow", () => {
-		const registered = registry.registerInstance({
+	it("should handle full heartbeat flow", async () => {
+		const registered = await registry.registerInstance({
 			serviceName: "financial-scraper-service",
 			instanceId: "node-1",
 			ip: "10.0.0.1",
@@ -137,8 +137,8 @@ describe("Discovery Service — Full Flow Integration", () => {
 		).toBe(false);
 	});
 
-	it("should remove instance and update token on removeInstance", () => {
-		registry.registerInstance({
+	it("should remove instance and update token on removeInstance", async () => {
+		await registry.registerInstance({
 			serviceName: "financial-scraper-service",
 			instanceId: "node-1",
 			ip: "10.0.0.1",
@@ -150,7 +150,7 @@ describe("Discovery Service — Full Flow Integration", () => {
 			lastHeartbeat: Date.now(),
 		});
 
-		registry.registerInstance({
+		await registry.registerInstance({
 			serviceName: "message-delivery-service",
 			instanceId: "msg-1",
 			ip: "10.0.0.2",
@@ -162,7 +162,7 @@ describe("Discovery Service — Full Flow Integration", () => {
 			lastHeartbeat: Date.now(),
 		});
 
-		const removed = registry.removeInstance({
+		const removed = await registry.removeInstance({
 			serviceName: "financial-scraper-service",
 			instanceId: "node-1",
 		});
@@ -181,8 +181,8 @@ describe("Discovery Service — Full Flow Integration", () => {
 		]);
 	});
 
-	it("should expose a dump of current registry state", () => {
-		registry.registerInstance({
+	it("should expose a dump of current registry state", async () => {
+		await registry.registerInstance({
 			serviceName: "financial-scraper-service",
 			instanceId: "node-1",
 			ip: "10.0.0.1",

@@ -3,6 +3,7 @@ import type { EventEnumMap } from "@trading-model/common/config/event.types";
 import { toTopic } from "@trading-model/common/domain/primitives";
 import { MarketEvent } from "@trading-model/validation/domain/contracts/market-events";
 import { MessageManager } from "../../config/message-manager";
+import { EVENTS_PUBLISHED_TOTAL } from "../../config/metrics";
 import { type MarketDataEntry, makeEntry } from "./binance-worker-helpers";
 import type { BinanceWorkerResult } from "./binance-worker-types";
 
@@ -63,6 +64,7 @@ function sendMarketData({
 }: MarketDataContext): void {
 	builder.setTopic(topic).setEventType(eventType);
 	MessageManager.post.indirect(data, builder.toJSON());
+	EVENTS_PUBLISHED_TOTAL.inc({ event_type: String(eventType) });
 }
 
 export function sendAllMarketData(

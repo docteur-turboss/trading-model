@@ -12,8 +12,8 @@ describe("Multi-Region Support", () => {
 		registry = new ServiceRegistry();
 	});
 
-	it("should register instances in different regions", () => {
-		registry.registerInstance({
+	it("should register instances in different regions", async () => {
+		await registry.registerInstance({
 			serviceName: "financial-scraper-service",
 			instanceId: "node-us",
 			ip: "10.0.0.1",
@@ -26,7 +26,7 @@ describe("Multi-Region Support", () => {
 			lastHeartbeat: Date.now(),
 		});
 
-		registry.registerInstance({
+		await registry.registerInstance({
 			serviceName: "financial-scraper-service",
 			instanceId: "node-eu",
 			ip: "10.0.1.1",
@@ -50,8 +50,8 @@ describe("Multi-Region Support", () => {
 		expect(euInstances).toHaveLength(1);
 	});
 
-	it("should handle region-unspecified instances", () => {
-		registry.registerInstance({
+	it("should handle region-unspecified instances", async () => {
+		await registry.registerInstance({
 			serviceName: "financial-scraper-service",
 			instanceId: "node-legacy",
 			ip: "10.0.0.1",
@@ -69,8 +69,8 @@ describe("Multi-Region Support", () => {
 		expect(instances[0].region).toBeUndefined();
 	});
 
-	it("should preserve region across heartbeat updates", () => {
-		registry.registerInstance({
+	it("should preserve region across heartbeat updates", async () => {
+		await registry.registerInstance({
 			serviceName: "financial-scraper-service",
 			instanceId: "node-us",
 			ip: "10.0.0.1",
@@ -83,7 +83,7 @@ describe("Multi-Region Support", () => {
 			lastHeartbeat: Date.now(),
 		});
 
-		registry.instanceStore.updateHeartbeat({
+		await registry.instanceStore.updateHeartbeat({
 			serviceName: "financial-scraper-service",
 			instanceId: "node-us",
 		});
@@ -95,8 +95,8 @@ describe("Multi-Region Support", () => {
 		expect(instance?.region).toBe("us-east-1");
 	});
 
-	it("should allow updating region on re-registration", () => {
-		registry.registerInstance({
+	it("should allow updating region on re-registration", async () => {
+		await registry.registerInstance({
 			serviceName: "financial-scraper-service",
 			instanceId: "node-1",
 			ip: "10.0.0.1",
@@ -109,7 +109,7 @@ describe("Multi-Region Support", () => {
 			lastHeartbeat: Date.now(),
 		});
 
-		registry.registerInstance({
+		await registry.registerInstance({
 			serviceName: "financial-scraper-service",
 			instanceId: "node-1",
 			ip: "10.0.0.1",

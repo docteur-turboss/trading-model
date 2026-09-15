@@ -61,6 +61,9 @@ spec:
               mountPath: /etc/grafana/provisioning/datasources
               readOnly: true
             - name: grafana-dashboards
+              mountPath: /etc/grafana/dashboards
+              readOnly: true
+            - name: grafana-dashboards
               mountPath: /etc/grafana/provisioning/dashboards
               readOnly: true
           livenessProbe:
@@ -114,24 +117,10 @@ data:
         type: jaeger
         access: proxy
         url: http://jaeger:16686
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: grafana-dashboards
-  labels:
-    app.kubernetes.io/component: grafana
-    app.kubernetes.io/part-of: trading-model
-data:
-  dashboard-provider.yml: |
-    apiVersion: 1
-    providers:
-      - name: 'trading-model'
-        type: file
-        orgId: 1
-        folder: ''
-        options:
-          path: /etc/grafana/dashboards
+      - name: Loki
+        type: loki
+        access: proxy
+        url: http://loki:3100
 ---
 apiVersion: policy/v1
 kind: PodDisruptionBudget

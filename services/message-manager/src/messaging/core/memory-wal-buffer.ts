@@ -1,5 +1,5 @@
 import { logger } from "../../config/logger";
-import { BUFFER_DROPPED_TOTAL } from "../../config/metrics";
+import { BUFFER_DROPPED_TOTAL, DLQ_BUFFER_SIZE } from "../../config/metrics";
 import type { MemoryWalEntry } from "../../domain/memory-wal-entry";
 import { ENV } from "../../infrastructure/config/env";
 import type { RedisKeyBuilder } from "../../infrastructure/redis/redis-key-builder";
@@ -34,6 +34,7 @@ export class MemoryWalBuffer {
 			await this._evictExcess();
 		}
 		this._buffer.push(entry);
+		DLQ_BUFFER_SIZE.set(this._buffer.length);
 	}
 
 	private _warnIfNearCapacity(): void {
@@ -51,8 +52,9 @@ export class MemoryWalBuffer {
 		}
 	}
 
-	drainAll(): Promise<void> {
-		return this._flusher.drainAll(this._buffer);
+	async drainAll(): Promise<void> {
+		await this._flusher.drainAll(this._buffer);
+		DLQ_BUFFER_SIZE.set(this._buffer.length);
 	}
 
 	async recoverFromFallbackFile(): Promise<number> {

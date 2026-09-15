@@ -1,0 +1,31 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - redis.yaml
+  - mysql.yaml
+  - mongodb.yaml
+  - mongo-audit.yaml
+  - spire
+  - otel-collector.yaml
+  - jaeger.yaml
+  - prometheus.yaml
+  - alertmanager.yaml
+  - blackbox-exporter.yaml
+  - grafana.yaml
+  - dashboards
+  - loki.yaml
+  - promtail.yaml
+
+# Alertmanager notification credentials. Replace the CHANGE_ME placeholders with
+# real webhook URLs / routing keys (kubectl -n trading-model edit secret
+# alertmanager-credentials). Values are expanded into alertmanager.yml at config
+# load; alertmanager keeps evaluating and routing alerts as soon as these are set.
+secretGenerator:
+  - name: alertmanager-credentials
+    literals:
+      - SLACK_WEBHOOK_URL=https://hooks.slack.com/services/CHANGE_ME
+      - SLACK_CHANNEL=#alerts
+      - SLACK_CHANNEL_WARN=#alerts-warning
+      - PAGERDUTY_URL=https://events.pagerduty.com/v2/enqueue
+      - PAGERDUTY_ROUTING_KEY=CHANGE_ME_PAGERDUTY_ROUTING_KEY

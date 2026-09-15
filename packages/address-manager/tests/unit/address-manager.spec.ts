@@ -291,7 +291,7 @@ describe("AddressManager (main)", () => {
 		};
 		am.metricsCollector.listenExpress(app as any);
 		expect(app.use).toHaveBeenCalled();
-		expect(app.get).toHaveBeenCalledWith("/prometheus", expect.any(Function));
+		expect(app.get).toHaveBeenCalledWith("/metrics", expect.any(Function));
 	});
 
 	it("should handle start already started", async () => {

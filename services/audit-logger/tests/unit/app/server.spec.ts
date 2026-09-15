@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 const MOCK_APP = {
 	use: jest.fn(),
 	post: jest.fn(),
+	get: jest.fn(),
 };
 
 const MOCK_SERVER = {
@@ -76,8 +77,9 @@ describe("createServer", () => {
 			backPressure: "back-pressure-mock",
 		} as any;
 		const auditRepo = { insert: jest.fn() } as any;
+		const mongoManager = { isConnected: jest.fn(() => true) } as any;
 
-		const server = await createServer(scheduler, auditRepo);
+		const server = await createServer(scheduler, auditRepo, mongoManager);
 
 		expect(server).toBe(MOCK_SERVER);
 		expect(createSecureServer).toHaveBeenCalledWith(

@@ -6,6 +6,7 @@ import { sendResponse } from "@trading-model/http/adapters/inbound/response-exce
 import type { RequestHandler } from "express";
 
 import { ENV } from "../../infrastructure/config/env";
+import { AUTH_FAILURES_TOTAL } from "../../infrastructure/config/metrics";
 
 interface AuthRequest {
 	clientIdentity: ClientIdentity;
@@ -20,6 +21,7 @@ export const AUTH_MIDDLEWARE: RequestHandler = catchSync((req, _res, next) => {
 	const token = req.headers[tokenHeader] ?? req.headers.authorization;
 
 	if (!token || typeof token !== "string") {
+		AUTH_FAILURES_TOTAL.inc();
 		return sendResponse(
 			{ error: "Missing authentication token" },
 			401 as HttpStatusCode
@@ -28,6 +30,7 @@ export const AUTH_MIDDLEWARE: RequestHandler = catchSync((req, _res, next) => {
 
 	const validTokens = getValidTokens();
 	if (validTokens.size > 0 && !validTokens.has(token)) {
+		AUTH_FAILURES_TOTAL.inc();
 		return sendResponse(
 			{ error: "Invalid authentication token" },
 			401 as HttpStatusCode

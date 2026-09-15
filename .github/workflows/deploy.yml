@@ -35,10 +35,10 @@ jobs:
     runs-on: ubuntu-latest
     environment: ${{ github.event.inputs.environment }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
 
       - name: Set up kubectl
-        uses: azure/setup-kubectl@v4
+        uses: azure/setup-kubectl@c0c8b32d33a5244f1e5947304550403b63930415 # v4
         with:
           version: 'stable'
 
@@ -85,6 +85,21 @@ jobs:
           kubectl apply -n "$NS" -f deploy/k8s/jobs/migration-job.yaml
           kubectl wait --for=condition=complete job/db-migrate -n "$NS" --timeout=180s
 
+      - name: Canary deployments + smoke test (if enabled)
+        if: ${{ github.event.inputs.canary == 'true' }}
+        shell: bash
+        run: |
+          NS="${{ env.NAMESPACE }}"
+          [ "${{ github.event.inputs.environment }}" = "staging" ] && NS="trading-model-staging"
+          export K8S_NAMESPACE="$NS"
+          chmod +x deploy/k8s/scripts/deploy-k8s.sh
+          TAG="${{ steps.tag.outputs.tag }}"
+          for dep in discovery-server message-manager financial-scraper trader-trainer \
+                     api-gateway audit-logger dlq-service admin-interface; do
+            ./deploy/k8s/scripts/deploy-k8s.sh canary "$dep" "$TAG" 10
+          done
+          ./deploy/k8s/scripts/deploy-k8s.sh smoke-test
+
       - name: Apply overlay and wait for rollout
         id: apply
         shell: bash
@@ -92,22 +107,63 @@ jobs:
           ENV="${{ github.event.inputs.environment }}"
           NS="${{ env.NAMESPACE }}"
           [ "$ENV" = "staging" ] && NS="trading-model-staging"
-          kubectl apply -k "deploy/k8s/overlays/$ENV"
+          TAG="${{ steps.tag.outputs.tag }}"
+          WRAPPER="deploy/k8s/overlays/.deploy-$ENV"
+          mkdir -p "$WRAPPER"
+          cat > "$WRAPPER/kustomization.yaml" <<EOF
+          apiVersion: kustomize.config.k8s.io/v1beta1
+          kind: Kustomization
+          resources:
+            - ../$ENV
+          images:
+            - name: ghcr.io/trading-model/discovery-server
+              newTag: "$TAG"
+            - name: ghcr.io/trading-model/message-manager
+              newTag: "$TAG"
+            - name: ghcr.io/trading-model/financial-scraper
+              newTag: "$TAG"
+            - name: ghcr.io/trading-model/trader-trainer
+              newTag: "$TAG"
+            - name: ghcr.io/trading-model/api-gateway
+              newTag: "$TAG"
+            - name: ghcr.io/trading-model/audit-logger
+              newTag: "$TAG"
+            - name: ghcr.io/trading-model/dlq-service
+              newTag: "$TAG"
+            - name: ghcr.io/trading-model/admin-interface
+              newTag: "$TAG"
+          EOF
+          kubectl apply -k "$WRAPPER"
+          rm -rf "$WRAPPER"
           for dep in discovery-server message-manager financial-scraper trader-trainer \
                      api-gateway audit-logger dlq-service admin-interface; do
-            kubectl rollout status "deployment/$dep" -n "$NS" --timeout=180s || true
+            kubectl rollout status "deployment/$dep" -n "$NS" --timeout=180s
           done
 
-      - name: Canary + smoke test (if enabled)
+      - name: Annotate deployments with release metadata
+        shell: bash
+        run: |
+          NS="${{ env.NAMESPACE }}"
+          [ "${{ github.event.inputs.environment }}" = "staging" ] && NS="trading-model-staging"
+          TAG="${{ steps.tag.outputs.tag }}"
+          for dep in discovery-server message-manager financial-scraper trader-trainer \
+                     api-gateway audit-logger dlq-service admin-interface; do
+            kubectl annotate deployment "$dep" -n "$NS" --overwrite \
+              trading-model.dev/git-sha="$GITHUB_SHA" \
+              trading-model.dev/image-tag="$TAG"
+          done
+
+      - name: Clean up canary deployments (if enabled)
         if: ${{ github.event.inputs.canary == 'true' }}
         shell: bash
         run: |
-          chmod +x deploy/k8s/scripts/deploy-k8s.sh
+          NS="${{ env.NAMESPACE }}"
+          [ "${{ github.event.inputs.environment }}" = "staging" ] && NS="trading-model-staging"
+          export K8S_NAMESPACE="$NS"
           for dep in discovery-server message-manager financial-scraper trader-trainer \
                      api-gateway audit-logger dlq-service admin-interface; do
-            ./deploy/k8s/scripts/deploy-k8s.sh canary "$dep" 2 || true
+            ./deploy/k8s/scripts/deploy-k8s.sh canary-cleanup "$dep"
           done
-          ./deploy/k8s/scripts/deploy-k8s.sh smoke-test
 
       - name: Rollback on failure
         if: failure()
@@ -118,5 +174,5 @@ jobs:
           [ "$ENV" = "staging" ] && NS="trading-model-staging"
           for dep in discovery-server message-manager financial-scraper trader-trainer \
                      api-gateway audit-logger dlq-service admin-interface; do
-            kubectl rollout undo "deployment/$dep" -n "$NS" 2>/dev/null || true
+            kubectl rollout undo "deployment/$dep" -n "$NS"
           done

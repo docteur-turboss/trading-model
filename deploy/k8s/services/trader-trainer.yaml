@@ -43,6 +43,13 @@ spec:
     spec:
       serviceAccountName: trader-trainer
       terminationGracePeriodSeconds: 60
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
       affinity:
         podAntiAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
@@ -54,6 +61,15 @@ spec:
         - name: trader-trainer
           image: ghcr.io/trading-model/trader-trainer:latest
           imagePullPolicy: Always
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
           ports:
             - containerPort: 3000
               name: https
@@ -77,6 +93,8 @@ spec:
           volumeMounts:
             - name: svid
               mountPath: /run/spire/svid
+            - name: tmp
+              mountPath: /tmp
             - name: trainer-checkpoints
               mountPath: /data/checkpoints
           livenessProbe:
@@ -145,12 +163,20 @@ spec:
           securityContext:
             runAsNonRoot: true
             allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
       volumes:
         - name: spire-agent-socket
           hostPath:
             path: /run/spire/agent-sockets
             type: DirectoryOrCreate
         - name: svid
+          emptyDir: {}
+        - name: tmp
           emptyDir: {}
         - name: trainer-checkpoints
           persistentVolumeClaim:
@@ -170,16 +196,3 @@ spec:
     requests:
       storage: 50Gi
   storageClassName: rwx-csi
----
-apiVersion: policy/v1
-kind: PodDisruptionBudget
-metadata:
-  name: trader-trainer-pdb
-  labels:
-    app.kubernetes.io/component: trader-trainer
-    app.kubernetes.io/part-of: trading-model
-spec:
-  minAvailable: 1
-  selector:
-    matchLabels:
-      app.kubernetes.io/component: trader-trainer

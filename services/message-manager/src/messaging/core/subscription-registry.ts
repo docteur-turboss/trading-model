@@ -1,5 +1,6 @@
 import type { Topic } from "@trading-model/common/domain/primitives";
 import type { HttpMessageDelivery } from "../../adapters/outbound/http-message-delivery";
+import { SUBSCRIPTION_COUNT } from "../../config/metrics";
 import type {
 	SubscriptionParams,
 	TopicSubscription,
@@ -34,7 +35,9 @@ export class SubscriptionRegistry {
 			deliveryPort: this._deliveryPort,
 		});
 
-		this._subscriptionsByTopic.set(topic, [...current, subscription]);
+		const subscriptions = [...current, subscription];
+		this._subscriptionsByTopic.set(topic, subscriptions);
+		SUBSCRIPTION_COUNT.set({ topic }, subscriptions.length);
 	}
 
 	unsubscribe(params: TopicSubscription): void {
@@ -53,6 +56,7 @@ export class SubscriptionRegistry {
 			this._subscriptionsByTopic.delete(topic);
 		}
 		this._subscriptionsByTopic.set(topic, remaining);
+		SUBSCRIPTION_COUNT.set({ topic }, remaining.length);
 	}
 
 	getSubscriptions(topic: Topic): readonly Subscription[] {

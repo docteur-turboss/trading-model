@@ -12,7 +12,7 @@ const MIGRATIONS_DIR = existsSync(join(SCRIPT_DIR, 'migrations'))
   : SCRIPT_DIR;
 const MIGRATIONS_TABLE = '_migrations';
 
-const [, , command] = process.argv;
+const [, , command, ...restArgs] = process.argv;
 
 if (!command || !['up', 'down', 'status', 'create'].includes(command)) {
   console.error('Usage: bun scripts/migrate.mjs <up|down|status|create> [name]');
@@ -146,28 +146,44 @@ async function run() {
     }
 
     if (command === 'down') {
-      const lastApplied = allMigrations.filter(m => applied.has(m.id)).pop();
-      if (!lastApplied) {
+      const appliedSorted = allMigrations.filter(m => applied.has(m.id));
+      if (appliedSorted.length === 0) {
         console.log('No migrations to roll back.');
         process.exit(0);
       }
 
-      if (!existsSync(lastApplied.down)) {
-        console.error(`Down migration not found: ${lastApplied.down}`);
-        process.exit(1);
-      }
+      const rawCount = restArgs[0];
+      const count =
+        rawCount === undefined || rawCount === '' || rawCount === 'all'
+          ? rawCount === 'all'
+            ? appliedSorted.length
+            : 1
+          : parseInt(rawCount, 10);
+      const limit =
+        Number.isInteger(count) && count > 0
+          ? Math.min(count, appliedSorted.length)
+          : 1;
+      const toRollback = appliedSorted.slice(-limit);
 
-      const sql = readFileSync(lastApplied.down, 'utf8');
-      console.log(`Rolling back: ${lastApplied.id}...`);
-      try {
-        await connection.query(sql);
-        await connection.execute(`DELETE FROM \`${MIGRATIONS_TABLE}\` WHERE id = ?`, [
-          lastApplied.id,
-        ]);
-        console.log('  OK');
-      } catch (err) {
-        console.error(`  FAILED: ${err.message}`);
-        process.exit(1);
+      for (const m of toRollback) {
+        if (!existsSync(m.down)) {
+          console.error(`Down migration not found: ${m.down}`);
+          process.exit(1);
+        }
+
+        const sql = readFileSync(m.down, 'utf8');
+        console.log(`Rolling back: ${m.id}...`);
+        try {
+          await connection.query(sql);
+          await connection.execute(
+            `DELETE FROM \`${MIGRATIONS_TABLE}\` WHERE id = ?`,
+            [m.id]
+          );
+          console.log('  OK');
+        } catch (err) {
+          console.error(`  FAILED: ${err.message}`);
+          process.exit(1);
+        }
       }
     }
   } finally {

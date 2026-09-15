@@ -1,10 +1,15 @@
+import { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import { ServiceId } from "@trading-model/common/domain/primitives";
 import { catchSync } from "@trading-model/http/adapters/inbound/catch-error";
 import { ResponseException } from "@trading-model/http/adapters/inbound/response-exception";
 import { createServiceServer } from "@trading-model/server-utils/adapters/inbound/service-server-factory";
 
-import { ADDRESS_MANAGER_ROUTES } from "../config/address-manager";
+import {
+	ADDRESS_MANAGER_ROUTES,
+	AddressManager,
+} from "../config/address-manager";
 import { MessageManagerListenExpress } from "../config/message-manager";
+import { metricsHandler } from "../config/metrics";
 import type { Trainer } from "../core/trainer";
 import { ENV } from "../infrastructure/config/env";
 
@@ -16,10 +21,26 @@ export function createServer(trainer: Trainer) {
 		routes: (app) => {
 			app.get("/best-agent", createBestAgentHandler(trainer));
 			app.get("/training-status", createTrainingStatusHandler(trainer));
+			app.get("/metrics", metricsHandler);
 
 			ADDRESS_MANAGER_ROUTES(app);
 			MessageManagerListenExpress(app);
 		},
+		readiness: [
+			{
+				name: "message-bus",
+				check: async () => {
+					try {
+						const target = await AddressManager.findService(
+							ServiceInstanceName.MessageDeliveryService
+						);
+						return Boolean(target);
+					} catch {
+						return false;
+					}
+				},
+			},
+		],
 	});
 }
 

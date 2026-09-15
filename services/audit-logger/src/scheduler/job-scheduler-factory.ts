@@ -2,6 +2,7 @@ import { logger } from "@trading-model/http/infrastructure/logger";
 import { OrphanDetector } from "@trading-model/jobs/application/services/orphan-detector";
 import { ReAllocator } from "@trading-model/jobs/application/services/re-allocator";
 import { JobStatus } from "@trading-model/validation/domain/contracts/recovery.types";
+import { ORPHAN_JOBS_TOTAL } from "../config/metrics";
 import { JobFailureHandler } from "../domain/scheduler/job-failure-handler";
 import { ENV } from "../infrastructure/config/env";
 import type { JobRepository } from "../persistence/job-repository";
@@ -101,14 +102,17 @@ function _buildRecoveryHandlers(
 			return Promise.resolve();
 		},
 		[JobStatus.ASSIGNED]: async (job) => {
+			ORPHAN_JOBS_TOTAL.inc();
 			await repository.updateStatus(job.id, JobStatus.ORPHANED);
 			await reAllocator.reallocate(job);
 		},
 		[JobStatus.RUNNING]: async (job) => {
+			ORPHAN_JOBS_TOTAL.inc();
 			await repository.updateStatus(job.id, JobStatus.ORPHANED);
 			await reAllocator.reallocate(job);
 		},
 		[JobStatus.ORPHANED]: async (job) => {
+			ORPHAN_JOBS_TOTAL.inc();
 			await reAllocator.reallocate(job);
 		},
 	};

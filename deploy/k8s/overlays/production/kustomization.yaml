@@ -5,6 +5,7 @@ namespace: trading-model
 
 resources:
   - ../../base
+  - ../../secrets
 
 images:
   - name: ghcr.io/trading-model/discovery-server

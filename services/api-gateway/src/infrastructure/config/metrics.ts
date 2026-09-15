@@ -1,21 +1,6 @@
 import { metricsHandler } from "@trading-model/server-utils/adapters/inbound/metrics-handler";
 import promClient from "prom-client";
 
-promClient.collectDefaultMetrics({ prefix: "gw_" });
-
-export const HTTP_REQUESTS_TOTAL = new promClient.Counter({
-	name: "gw_http_requests_total",
-	help: "Total HTTP requests by method, path, and status",
-	labelNames: ["method", "path", "status"] as const,
-});
-
-export const HTTP_REQUEST_DURATION_SECONDS = new promClient.Histogram({
-	name: "gw_http_request_duration_seconds",
-	help: "HTTP request latency in seconds",
-	labelNames: ["method", "path"] as const,
-	buckets: [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5],
-});
-
 export const PROXY_REQUEST_DURATION_SECONDS = new promClient.Histogram({
 	name: "gw_proxy_request_duration_seconds",
 	help: "Upstream proxy request latency in seconds",

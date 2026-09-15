@@ -10,6 +10,7 @@ import { HttpMethod } from "@trading-model/http/domain/http-types";
 import type { DlqEntry } from "../../adapters/outbound/dlq-repository";
 import { signedOptions } from "../../adapters/outbound/request-signer";
 import { logger } from "../../config/logger";
+import { MESSAGES_DLQ_ERROR_TOTAL } from "../../config/metrics";
 import { computeDelay } from "../../domain/dlq-retry-with-backoff";
 
 export class DlqSendHandler {
@@ -50,6 +51,7 @@ export class DlqSendHandler {
 				reason: entry.reason,
 			},
 		});
+		MESSAGES_DLQ_ERROR_TOTAL.inc({ target: "service" });
 		throw messageManagerError("Failed to send DLQ entry", { cause: err });
 	}
 

@@ -1,0 +1,65 @@
+{
+  "__inputs": [],
+  "__requires": [],
+  "title": "Trader Trainer — Model Training",
+  "uid": "trading-trader-trainer",
+  "panels": [
+    {
+      "title": "Training Jobs (Last 24h)",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 0 },
+      "targets": [
+        {
+          "expr": "sum(increase(training_jobs_total[24h]))",
+          "legendFormat": "Total"
+        }
+      ]
+    },
+    {
+      "title": "Training Duration",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+      "targets": [
+        {
+          "expr": "training_duration_seconds",
+          "legendFormat": "{{job_id}}"
+        }
+      ]
+    },
+    {
+      "title": "Model Accuracy",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+      "targets": [
+        {
+          "expr": "model_accuracy",
+          "legendFormat": "{{model_id}}"
+        }
+      ]
+    },
+    {
+      "title": "Checkpoint Age (Last Save)",
+      "type": "gauge",
+      "gridPos": { "h": 4, "w": 4, "x": 4, "y": 0 },
+      "targets": [
+        {
+          "expr": "time() - max(checkpoint_last_save_timestamp)",
+          "legendFormat": "Age (s)"
+        }
+      ]
+    },
+    {
+      "title": "Training Errors",
+      "type": "timeseries",
+      "gridPos": { "h": 6, "w": 8, "x": 0, "y": 12 },
+      "targets": [
+        {
+          "expr": "rate(training_errors_total[5m])",
+          "legendFormat": "errors/s"
+        }
+      ]
+    }
+  ],
+  "tags": ["trading-model", "trader-trainer"],
+  "schemaVersion": 39
+}

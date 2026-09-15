@@ -13,6 +13,16 @@ jest.mock("@trading-model/http/infrastructure/logger", () => ({
 	},
 }));
 
+jest.mock("../../src/infrastructure/monitoring/metrics", () => ({
+	incCacheInvalidations: jest.fn(),
+	incOperationError: jest.fn(),
+}));
+
+import {
+	incCacheInvalidations,
+	incOperationError,
+} from "../../src/infrastructure/monitoring/metrics";
+
 interface MockRedis {
 	status: string;
 	connect: jest.Mock;
@@ -147,6 +157,7 @@ describe("PubSubInvalidator", () => {
 			await pubSub.publish("some-service");
 
 			expect(mockRedis.publish).not.toHaveBeenCalled();
+			expect(incCacheInvalidations).not.toHaveBeenCalled();
 			pubSub.stop();
 		});
 
@@ -160,6 +171,7 @@ describe("PubSubInvalidator", () => {
 				"cache:invalidate",
 				"some-service"
 			);
+			expect(incCacheInvalidations).toHaveBeenCalled();
 			pubSub.stop();
 		});
 
@@ -175,6 +187,7 @@ describe("PubSubInvalidator", () => {
 				"Failed to publish cache invalidation",
 				expect.any(Object)
 			);
+			expect(incOperationError).toHaveBeenCalledWith("pubsub-publish");
 			pubSub.stop();
 		});
 	});

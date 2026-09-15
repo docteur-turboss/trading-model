@@ -8,6 +8,7 @@ const mockXadd = jest
 	.fn<(...args: unknown[]) => Promise<string>>()
 	.mockResolvedValue("1689000000000-0");
 const mockExpire = jest.fn<() => Promise<number>>().mockResolvedValue(1);
+const mockXlen = jest.fn<() => Promise<number>>().mockResolvedValue(2);
 const mockMulti = jest.fn(() => ({
 	xadd: jest.fn().mockReturnThis(),
 	expire: jest.fn().mockReturnThis(),
@@ -68,6 +69,7 @@ function createMockRedis() {
 		multi: mockMulti,
 		xadd: mockXadd,
 		expire: mockExpire,
+		xlen: mockXlen,
 		eval: mockEval,
 		llen: mockLlen,
 		lrang: mockLrang,
@@ -121,6 +123,9 @@ jest.mock("../../../../src/config/redis", () => ({
 jest.mock("../../../../src/config/metrics", () => ({
 	MESSAGES_DLQ_TOTAL: { inc: jest.fn() },
 	BUFFER_DROPPED_TOTAL: { inc: jest.fn() },
+	DLQ_BUFFER_SIZE: { set: jest.fn() },
+	REDIS_STREAM_SIZE: { set: jest.fn() },
+	REDIS_STREAM_LAG: { set: jest.fn() },
 }));
 
 import { DateRange } from "@trading-model/common/domain/date-range";
@@ -161,6 +166,64 @@ describe("MessageStore", () => {
 
 		expect(result).toBe("1689000000000-0");
 		expect(mockXadd).toHaveBeenCalled();
+	});
+
+	it("should record stream size metric after storing a message", async () => {
+		mockXadd.mockResolvedValue("1689000000000-0");
+		mockXlen.mockResolvedValue(3);
+
+		await messageStore.storage.store("test.topic", {
+			metadata: {
+				messageId: "msg-1",
+				topic: "test.topic",
+				eventType: "Test",
+				publisher: { serviceName: "test", instanceId: "i-1" },
+				emittedAt: new Date(),
+			},
+			payload: { foo: "bar" },
+		} as never);
+
+		expect(mockXlen).toHaveBeenCalledWith("mm:stream:test.topic");
+		const { REDIS_STREAM_SIZE } = require("../../../../src/config/metrics");
+		expect(REDIS_STREAM_SIZE.set).toHaveBeenCalledWith(
+			{ topic: "test.topic" },
+			3
+		);
+	});
+
+	it("should still store a message when stream size read fails", async () => {
+		mockXadd.mockResolvedValue("1689000000000-0");
+		mockXlen.mockRejectedValue(new Error("xlen failed"));
+
+		const result = await messageStore.storage.store("test.topic", {
+			metadata: {
+				messageId: "msg-1",
+				topic: "test.topic",
+				eventType: "Test",
+				publisher: { serviceName: "test", instanceId: "i-1" },
+				emittedAt: new Date(),
+			},
+			payload: { foo: "bar" },
+		} as never);
+
+		expect(result).toBe("1689000000000-0");
+	});
+
+	it("should record stream lag metric", async () => {
+		mockCall.mockResolvedValue([
+			["name", "test-group", "last-delivered-id", "1689000000000-0"],
+		]);
+
+		await messageStore.streamOps.getStreamLag({
+			topic: "test.topic",
+			groupName: "test-group",
+		});
+
+		const { REDIS_STREAM_LAG } = require("../../../../src/config/metrics");
+		expect(REDIS_STREAM_LAG.set).toHaveBeenCalledWith(
+			{ topic: "test.topic" },
+			expect.any(Number)
+		);
 	});
 
 	it("should ensure consumer group", async () => {

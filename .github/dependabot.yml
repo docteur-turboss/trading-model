@@ -5,6 +5,12 @@ updates:
     schedule:
       interval: "weekly"
 
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    versioning-strategy: increase
+
   - package-ecosystem: "docker"
     directory: "/services/discovery-server"
     schedule:
@@ -22,5 +28,25 @@ updates:
 
   - package-ecosystem: "docker"
     directory: "/services/trader-trainer"
+    schedule:
+      interval: "weekly"
+
+  - package-ecosystem: "docker"
+    directory: "/services/api-gateway"
+    schedule:
+      interval: "weekly"
+
+  - package-ecosystem: "docker"
+    directory: "/services/audit-logger"
+    schedule:
+      interval: "weekly"
+
+  - package-ecosystem: "docker"
+    directory: "/services/admin-interface"
+    schedule:
+      interval: "weekly"
+
+  - package-ecosystem: "docker"
+    directory: "/services/dlq-service"
     schedule:
       interval: "weekly"

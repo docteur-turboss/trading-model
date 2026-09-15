@@ -1,3 +1,8 @@
+import {
+	CURRENT_GENERATION,
+	POPULATION_SIZE,
+	STAGNATION_GENERATIONS,
+} from "../../config/metrics";
 import { adaptGAControl } from "./adaptive-control-system";
 import { createDefaultGenome } from "./factory";
 import { FitnessEvaluator } from "./fitness-evaluator";
@@ -62,6 +67,8 @@ export class GenerationProcessor {
 
 	async runGeneration(startTime?: number): Promise<GenerationContext> {
 		this._generation++;
+		CURRENT_GENERATION.set(this._generation);
+		POPULATION_SIZE.set(this._population.length);
 		const { ctrl, rng } = this._initRunParams();
 		const evalResult = await this._evaluator.evaluate(this._population);
 		const paretoResult = buildParetoFronts(
@@ -90,6 +97,7 @@ export class GenerationProcessor {
 			startTime,
 		});
 		this._cfg.onGeneration?.(ctx);
+		STAGNATION_GENERATIONS.set(ctx.stagnation);
 		return ctx;
 	}
 

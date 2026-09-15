@@ -142,7 +142,7 @@ describe("Register.controller", () => {
 		});
 
 		it("should return registered service names", async () => {
-			registry.registerInstance({
+			await registry.registerInstance({
 				serviceName: "financial-scraper-service",
 				instanceId: "i1",
 				ip: "1.1.1.1",
@@ -182,7 +182,7 @@ describe("Register.controller", () => {
 		});
 
 		it("should return instances for known service", async () => {
-			registry.registerInstance({
+			await registry.registerInstance({
 				serviceName: "financial-scraper-service",
 				instanceId: "i1",
 				ip: "1.1.1.1",
@@ -226,7 +226,7 @@ describe("Register.controller", () => {
 		});
 
 		it("should return instance when found", async () => {
-			registry.registerInstance({
+			await registry.registerInstance({
 				serviceName: "financial-scraper-service",
 				instanceId: "i1",
 				ip: "1.1.1.1",

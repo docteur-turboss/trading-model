@@ -9,6 +9,8 @@ const DISCOVERY_EXTRA = {
 		.positive()
 		.default(1_000 * 60 * 10),
 	ERROR_URL_WEBHOOK: z.union([z.string().url(), z.literal("")]).default(""),
+	SIGNING_SECRET: z.string().min(1).optional(),
+	REDIS_URL: z.string().optional(),
 } satisfies Record<string, z.ZodTypeAny>;
 
 const DISCOVERY_ENV_SCHEMA = BaseEnvSchema.extend(DISCOVERY_EXTRA);

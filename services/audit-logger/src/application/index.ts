@@ -1,5 +1,11 @@
+import { ServiceInstanceName } from "@trading-model/common/config/services.types";
+import { toInstanceId } from "@trading-model/common/domain/primitives";
 import { logger } from "@trading-model/http/infrastructure/logger";
 import { createBootstrap } from "@trading-model/server-utils/application/services/bootstrap";
+import {
+	initializeTelemetry,
+	shutdownTelemetry,
+} from "@trading-model/server-utils/infrastructure/telemetry";
 import { BOOTSTRAP_ADDRESS_MANAGER } from "../config/address-manager";
 import { ENV } from "../infrastructure/config/env";
 import { createRepositories } from "../infrastructure/repository-factory";
@@ -27,7 +33,7 @@ createBootstrap({
 			ENV.MONGODB_URI
 		);
 		const { scheduler, workerProtocol, server } =
-			await createSchedulerAndWorker(jobRepo, auditRepo);
+			await createSchedulerAndWorker(jobRepo, auditRepo, mongoManager);
 		const { brokerMessage } = await createBrokerMessage();
 
 		_context = {
@@ -41,6 +47,12 @@ createBootstrap({
 		return server;
 	},
 	onStart: () => {
+		initializeTelemetry({
+			serviceName: ServiceInstanceName.AuditLoggerService,
+			serviceVersion: process.env.APP_VERSION ?? "1.0.0",
+			instanceId: toInstanceId(process.env.INSTANCE_ID ?? "audit-logger-1"),
+			otlpEndpoint: process.env.OTEL_EXPORTER_OTLP_ENDPOINT,
+		});
 		if (!_context) {
 			return;
 		}
@@ -54,6 +66,7 @@ createBootstrap({
 	},
 	onStop: async () => {
 		if (!_context) {
+			await shutdownTelemetry();
 			return;
 		}
 		const {
@@ -69,5 +82,6 @@ createBootstrap({
 		addressManager.stop();
 		await mongoManager.close();
 		_context = null;
+		await shutdownTelemetry();
 	},
 });

@@ -11,6 +11,7 @@ import type { ResponseObject } from "@trading-model/http/adapters/inbound/respon
 import { sendResponse } from "@trading-model/http/adapters/inbound/response-exception";
 import type { Request, RequestHandler, Response } from "express";
 import type { ServiceRegistry } from "../domain/service-registry";
+import { incHeartbeatsTotal } from "../infrastructure/monitoring/metrics";
 import {
 	HEARTBEAT_SCHEMA,
 	ROTATE_TOKEN_SCHEMA,
@@ -48,11 +49,11 @@ function _parseHeartbeatBody(
 	};
 }
 
-function _handleHeartbeat(
+async function _handleHeartbeat(
 	req: Request,
 	_res: Response,
 	registry: ServiceRegistry
-): ResponseObject | undefined {
+): Promise<ResponseObject | undefined> {
 	const data = _parseHeartbeatBody(req);
 	if (!data) {
 		return validationErrorResponse(HEARTBEAT_SCHEMA, req.body);
@@ -62,13 +63,14 @@ function _handleHeartbeat(
 		req.headers[HTTP_HEADERS.X_INSTANCE_TOKEN],
 		data.instanceId
 	);
-	const ttl = registry.instanceStore.updateHeartbeat({
+	const ttl = await registry.instanceStore.updateHeartbeat({
 		serviceName: data.serviceName,
 		instanceId: data.instanceId,
 	});
 	if (!ttl) {
 		return sendResponse({ error: "Instance not found" }, 404 as HttpStatusCode);
 	}
+	incHeartbeatsTotal(data.serviceName);
 	return sendResponse({ ttl }, 200 as HttpStatusCode);
 }
 

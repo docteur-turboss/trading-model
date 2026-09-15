@@ -1,6 +1,9 @@
 import { describe, expect, it, jest } from "@jest/globals";
 import { HTTP_HEADERS } from "@trading-model/common/http-headers";
-import { correlationIdMiddleware } from "@trading-model/http/adapters/inbound/correlation-id";
+import {
+	correlationIdMiddleware,
+	getCorrelationId,
+} from "@trading-model/http/adapters/inbound/correlation-id";
 import type { NextFunction, Request, Response } from "express";
 
 describe("correlationIdMiddleware", () => {
@@ -47,5 +50,39 @@ describe("correlationIdMiddleware", () => {
 		correlationIdMiddleware(req, res, next);
 
 		expect(req.correlationId).toBe("req-123");
+	});
+
+	it("should expose the correlation id via async context", () => {
+		const req = {
+			headers: { [HTTP_HEADERS.CORRELATION_ID]: "ctx-456" },
+		} as unknown as Request;
+		const res = { setHeader: jest.fn() } as unknown as Response;
+		let observed: string | undefined;
+		const next = jest.fn(() => {
+			observed = getCorrelationId();
+		}) as NextFunction;
+
+		correlationIdMiddleware(req, res, next);
+
+		expect(observed).toBe("ctx-456");
+	});
+
+	it("should propagate the correlation id across async boundaries", async () => {
+		const req = {
+			headers: { [HTTP_HEADERS.CORRELATION_ID]: "ctx-async" },
+		} as unknown as Request;
+		const res = { setHeader: jest.fn() } as unknown as Response;
+		let observed: string | undefined;
+		const next = jest.fn(() => {
+			void (async () => {
+				await Promise.resolve();
+				observed = getCorrelationId();
+			})();
+		}) as NextFunction;
+
+		correlationIdMiddleware(req, res, next);
+		await new Promise<void>((resolve) => setImmediate(resolve));
+
+		expect(observed).toBe("ctx-async");
 	});
 });

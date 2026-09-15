@@ -5,6 +5,7 @@ import { MTLSAuthorizationMiddleware } from "@trading-model/http/adapters/inboun
 import { ResponseProtocol } from "@trading-model/http/adapters/inbound/response-protocol";
 import type { Application } from "express";
 import { configureApp, RateLimitConfig } from "./configure-app";
+import type { ReadinessCheck } from "./readiness";
 import {
 	createAndStartHttpsServer,
 	type HttpServer,
@@ -35,6 +36,7 @@ export interface SecureServerOptions extends HttpsServerOptions {
 	rateLimit?: RateLimitConfig;
 	trustProxy?: boolean;
 	authorize?: AuthorizationOptions;
+	readiness?: ReadinessCheck[];
 }
 
 /**
@@ -51,6 +53,7 @@ export async function createSecureServer(
 	const app = configureApp({
 		rateLimit: options.rateLimit,
 		trustProxy: options.trustProxy,
+		readiness: options.readiness,
 	});
 
 	app.use(MTLSAuthMiddleware);

@@ -13,6 +13,10 @@ import type { ResolvedEndpoint } from "@trading-model/validation/adapters/outbou
 import type { Request } from "express";
 import { forwardRequest } from "../adapters/outbound/proxy-handler";
 import type { ResponseCache } from "../infrastructure/cache";
+import {
+	ACTIVE_REQUESTS,
+	PROXY_REQUEST_DURATION_SECONDS,
+} from "../infrastructure/config/metrics";
 
 interface ProxyContext {
 	serviceName: ServiceId;
@@ -27,13 +31,28 @@ export async function proxyAndCache(
 	ctx: ProxyContext,
 	cache: ResponseCache
 ): Promise<ResponseObject> {
+	const start = performance.now();
+	ACTIVE_REQUESTS.inc();
 	try {
 		const result = await forwardRequest({ req, target, path: ctx.path });
 		tryCacheResponse(req, ctx, result, cache);
 		const parsedBody = tryParseJson(result.body);
+		PROXY_REQUEST_DURATION_SECONDS.observe(
+			{ service: ctx.serviceName, status: String(result.status) },
+			(performance.now() - start) / 1000
+		);
 		return sendResponse(parsedBody ?? result.body, result.status);
 	} catch (err: unknown) {
+		PROXY_REQUEST_DURATION_SECONDS.observe(
+			{
+				service: ctx.serviceName,
+				status: String(HTTP_STATUS.SERVICE_UNAVAILABLE),
+			},
+			(performance.now() - start) / 1000
+		);
 		return buildProxyErrorResponse(err, ctx, target);
+	} finally {
+		ACTIVE_REQUESTS.dec();
 	}
 }
 

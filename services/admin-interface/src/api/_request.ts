@@ -20,6 +20,10 @@ export function setAdminToken(token: string) {
 	adminToken = token;
 }
 
+export function getAdminToken(): string {
+	return adminToken;
+}
+
 export function toQuery(params?: Record<string, unknown>): string {
 	if (!params) {
 		return "";

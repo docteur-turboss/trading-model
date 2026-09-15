@@ -12,6 +12,11 @@ import { logger } from "@trading-model/http/infrastructure/logger";
 import type { Message } from "@trading-model/validation/domain/contracts/message.types";
 import type { FileDlqRepository } from "../../adapters/outbound/dlq-repository";
 import { HttpMessageDelivery } from "../../adapters/outbound/http-message-delivery";
+import {
+	DELIVERY_LATENCY_SECONDS,
+	IN_FLIGHT_MESSAGES,
+	MESSAGES_PUBLISHED_TOTAL,
+} from "../../config/metrics";
 import { getBackpressureRatio as backpressureRatio } from "../../domain/backpressure-monitor";
 import { createMessage } from "../../domain/message-factory";
 import type {
@@ -44,6 +49,7 @@ export class Dispatcher {
 		>
 	): Promise<string> {
 		const msg = createMessage(payload, metadata);
+		MESSAGES_PUBLISHED_TOTAL.inc({ topic: msg.metadata.topic });
 		await this.dispatch(msg);
 		return msg.metadata.messageId!;
 	}
@@ -75,15 +81,25 @@ export class Dispatcher {
 		message: Message<TData>,
 		subscriptions: readonly import("./subscription").Subscription[]
 	): Promise<void> {
-		const results = await Promise.allSettled(
-			subscriptions.map((subscription) => subscription.dispatch(message))
-		);
-		for (const result of results) {
-			if (isRejected(result)) {
-				logger.error("Message delivery failed", {
-					context: { error: result.reason },
-				});
+		const start = Date.now();
+		IN_FLIGHT_MESSAGES.inc();
+		try {
+			const results = await Promise.allSettled(
+				subscriptions.map((subscription) => subscription.dispatch(message))
+			);
+			for (const result of results) {
+				if (isRejected(result)) {
+					logger.error("Message delivery failed", {
+						context: { error: result.reason },
+					});
+				}
 			}
+		} finally {
+			IN_FLIGHT_MESSAGES.dec();
+			DELIVERY_LATENCY_SECONDS.observe(
+				{ topic: message.metadata.topic },
+				(Date.now() - start) / 1000
+			);
 		}
 	}
 

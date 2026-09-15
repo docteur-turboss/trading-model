@@ -2,22 +2,52 @@
 # =============================================================================
 #  deploy-k8s.sh — Kubernetes Deployment Script for Trading Model
 #  Usage:
-#    ./deploy-k8s.sh apply           # Apply all manifests
-#    ./deploy-k8s.sh apply <service> # Apply a single service
-#    ./deploy-k8s.sh delete          # Delete all resources
-#    ./deploy-k8s.sh status          # Show deployment status
-#    ./deploy-k8s.sh rollback <service> [revision]
-#    ./deploy-k8s.sh canary <service> <percentage>
-#    ./deploy-k8s.sh smoke-test      # Run smoke tests
+#    ./deploy-k8s.sh [-n <namespace>] apply           # Apply all manifests
+#    ./deploy-k8s.sh [-n <namespace>] apply <service> # Apply a single service
+#    ./deploy-k8s.sh [-n <namespace>] delete          # Delete all resources
+#    ./deploy-k8s.sh [-n <namespace>] status          # Show deployment status
+#    ./deploy-k8s.sh [-n <namespace>] rollback <service> [revision]
+#    ./deploy-k8s.sh [-n <namespace>] canary <service> [image-tag] [percentage]
+#    ./deploy-k8s.sh [-n <namespace>] smoke-test      # Run smoke tests
+#  Namespace: K8S_NAMESPACE env or -n/--namespace (default: trading-model)
 # =============================================================================
 
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-K8S_DIR="${SCRIPT_DIR}/k8s"
-NAMESPACE="trading-model"
+K8S_DIR="${SCRIPT_DIR}"
+NAMESPACE="${K8S_NAMESPACE:-trading-model}"
 
 log()  { echo "[$(date '+%H:%M:%S')] $*"; }
 err()  { echo "[$(date '+%H:%M:%S')] ERROR: $*" >&2; }
+
+# Feature flags: enable individual capabilities with the FEATURE_FLAGS env var
+# (comma-separated), e.g. FEATURE_FLAGS="canary-auto-cleanup". Flags are additive
+# and default to off so deploys stay predictable unless explicitly opted in.
+feature_enabled() {
+  local flag="$1"
+  [[ -n "${FEATURE_FLAGS:-}" && ",${FEATURE_FLAGS}," == *",${flag},"* ]]
+}
+
+# Resolve a container image reference (repo:tag) to an immutable @sha256 digest.
+# Uses crane when available, falling back to docker buildx imagetools inspect.
+resolve_image_digest() {
+  local repo="$1" tag="$2"
+  if command -v crane &>/dev/null; then
+    local digest
+    if digest="$(crane digest "$repo:$tag" 2>/dev/null)"; then
+      echo "$digest"
+      return 0
+    fi
+  fi
+  if command -v docker &>/dev/null; then
+    local digest
+    if digest="$(docker buildx imagetools inspect "$repo:$tag" --format '{{.Manifest.Digest}}' 2>/dev/null)"; then
+      echo "$digest"
+      return 0
+    fi
+  fi
+  return 1
+}
 
 check_prereqs() {
   if ! command -v kubectl &>/dev/null; then
@@ -113,137 +143,166 @@ cmd_rollback() {
 }
 
 cmd_canary() {
-  local service="$1"
-  local percentage="${2:-2}"
+  local service="${1:-}"
+  local image_tag="${2:-}"
+  local percentage="${3:-10}"
 
   if [[ -z "$service" ]]; then
-    err "Usage: $0 canary <service> <percentage>"
+    err "Usage: $0 canary <service> [image-tag] [percentage]"
+    exit 1
+  fi
+  if ! command -v jq &>/dev/null; then
+    err "jq is required for canary deployments. Install jq."
     exit 1
   fi
 
+  local canary_name="${service}-canary"
   local total_replicas
-  total_replicas=$(kubectl get deployment -n "$NAMESPACE" "$service" -o jsonpath='{.spec.replicas}')
+  total_replicas=$(kubectl get deployment -n "$NAMESPACE" "$service" -o jsonpath='{.spec.replicas}' 2>/dev/null || true)
+  if [[ -z "$total_replicas" || "$total_replicas" -lt 1 ]]; then
+    err "Cannot read replica count of deployment $service in namespace $NAMESPACE"
+    exit 1
+  fi
   local canary_replicas=$(( total_replicas * percentage / 100 ))
-  [[ $canary_replicas -lt 1 ]] && canary_replicas=1
+  [[ "$canary_replicas" -lt 1 ]] && canary_replicas=1
 
-  log "Deploying canary for $service: $canary_replicas of $total_replicas replicas ($percentage%)"
+  local traffic_share=$(( canary_replicas * 100 / (total_replicas + canary_replicas) ))
+  log "Creating canary $canary_name for $service ($canary_replicas replicas, ~${traffic_share}% of traffic)"
 
-  kubectl scale deployment -n "$NAMESPACE" "canary-${service}" --replicas="$canary_replicas" 2>/dev/null || \
-    log "Canary deployment not found. Create a canary deployment, or use --skip-canary flag."
+  # Prefer an immutable @sha256 digest over a mutable tag when an image is given.
+  local image_ref="${image_tag:-}"
+  if [[ -n "$image_ref" ]]; then
+    local digest
+    if digest="$(resolve_image_digest "${CANARY_IMAGE_REPO:-ghcr.io/trading-model}/${service}" "$image_ref")"; then
+      image_ref="@${digest}"
+      log "Pinned ${service} canary image to digest ${digest}"
+    else
+      log "WARNING: could not resolve a digest for ${service}:${image_tag} — falling back to tag"
+    fi
+  fi
 
-  log "Monitoring canary for 30 seconds..."
-  sleep 30
+  kubectl get deployment -n "$NAMESPACE" "$service" -o json \
+    | jq --arg name "$canary_name" --arg component "$service" \
+         --arg replicas "$canary_replicas" --arg ref "$image_ref" '
+        .metadata.name = $name |
+        .metadata.resourceVersion = null |
+        .metadata.uid = null |
+        .metadata.creationTimestamp = null |
+        del(.status) |
+        .spec.selector.matchLabels["app.kubernetes.io/component"] = $component |
+        .spec.selector.matchLabels["track"] = "canary" |
+        .spec.template.metadata.labels["app.kubernetes.io/component"] = $component |
+        .spec.template.metadata.labels["track"] = "canary" |
+        .spec.replicas = ($replicas | tonumber) |
+        .spec.strategy = { "type": "RollingUpdate", "rollingUpdate": { "maxUnavailable": 1, "maxSurge": 0 } } |
+        (if $ref != "" then
+           .spec.template.spec.containers |= map(
+             if .name == "spiffe-helper" then . else
+               .image |= (sub(":[^:]*$"; "") + (if ($ref | startswith("@")) then $ref else ":" + $ref end))
+             end
+           )
+         else . end)
+      ' \
+    | kubectl apply -n "$NAMESPACE" -f -
 
-  local error_rate
-  error_rate=$(kubectl logs -n "$NAMESPACE" -l "app.kubernetes.io/component=${service}" --tail=50 2>/dev/null | grep -c "error\|Error\|ERROR" || true)
-
-  if [[ "$error_rate" -gt 5 ]]; then
-    err "Canary error rate too high ($error_rate errors). Rolling back."
-    kubectl scale deployment -n "$NAMESPACE" "canary-${service}" --replicas=0 2>/dev/null || true
+  if ! kubectl rollout status -n "$NAMESPACE" "deployment/${canary_name}" --timeout=180s; then
+    err "Canary $canary_name failed to become ready. Cleaning up and aborting."
+    kubectl delete deployment -n "$NAMESPACE" "$canary_name" --ignore-not-found &>/dev/null || true
     exit 1
   fi
 
-  log "Canary healthy. Proceeding with full rollout..."
-  kubectl rollout restart -n "$NAMESPACE" "deployment/${service}"
-  kubectl rollout status -n "$NAMESPACE" "deployment/${service}" --timeout=120s
-  log "Full rollout of $service complete."
+  local total_reqs=0
+  local error_reqs=0
+  for _ in 1 2; do
+    local metrics
+    metrics=$(kubectl exec -n "$NAMESPACE" "deployment/${canary_name}" -- \
+      curl -sk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem \
+      https://localhost:3000/metrics 2>/dev/null || true)
+    local reqs errs
+    reqs=$(echo "$metrics" | grep -E '^http_requests_total\{' | awk -F'[ ]' '{s+=$2} END{print s+0}')
+    errs=$(echo "$metrics" | grep -E '^http_requests_total\{[^}]*status="[45]' | awk -F'[ ]' '{s+=$2} END{print s+0}')
+    total_reqs=$(( total_reqs + ${reqs:-0} ))
+    error_reqs=$(( error_reqs + ${errs:-0} ))
+    sleep 5
+  done
+
+  if [[ "$total_reqs" -gt 0 ]]; then
+    local error_pct=$(( error_reqs * 100 / total_reqs ))
+    log "Canary $canary_name error rate: ${error_pct}% (${error_reqs}/${total_reqs})"
+    if [[ "$error_pct" -gt "${CANARY_ERROR_THRESHOLD_PCT:-5}" ]]; then
+      err "Canary $canary_name error rate ${error_pct}% exceeds threshold (${CANARY_ERROR_THRESHOLD_PCT:-5}%). Rolling back."
+      kubectl delete deployment -n "$NAMESPACE" "$canary_name" --ignore-not-found &>/dev/null || true
+      exit 1
+    fi
+  else
+    log "No traffic observed on $canary_name during the gate window — skipping error check."
+  fi
+
+  log "Canary $canary_name is ready. Full rollout can proceed."
+
+  if feature_enabled "canary-auto-cleanup"; then
+    log "FEATURE_FLAGS includes canary-auto-cleanup — removing $canary_name"
+    kubectl delete deployment -n "$NAMESPACE" "$canary_name" --ignore-not-found &>/dev/null || true
+  else
+    log "Canary $canary_name kept for inspection. Remove it with: $0 canary-cleanup $service"
+  fi
 }
 
-cmd_blue_green() {
-  local service="$1"
-  local mode="${2:-deploy}"
-
+cmd_canary_cleanup() {
+  local service="${1:-}"
   if [[ -z "$service" ]]; then
-    err "Usage: $0 blue-green <service> <deploy|promote|rollback>"
+    err "Usage: $0 canary-cleanup <service>"
     exit 1
   fi
+  local canary_name="${service}-canary"
+  if kubectl get deployment -n "$NAMESPACE" "$canary_name" &>/dev/null; then
+    log "Removing canary deployment $canary_name"
+    kubectl delete deployment -n "$NAMESPACE" "$canary_name" --ignore-not-found
+  fi
+}
 
-  local GREEN_LABEL="color=green"
-  local BLUE_LABEL="color=blue"
-  local active_color
-  local inactive_color
-  local active_replicas
-
-  case "$mode" in
-    deploy)
-      active_color=$(kubectl get deployment -n "$NAMESPACE" "$service" -o jsonpath='{.spec.template.metadata.labels.color}' 2>/dev/null || echo "blue")
-      if [[ "$active_color" == "blue" ]]; then
-        inactive_color="green"
-      else
-        inactive_color="blue"
-      fi
-
-      log "Deploying $inactive_color environment for $service..."
-
-      local service_file="${K8S_DIR}/services/${service}.yaml"
-      if [[ ! -f "$service_file" ]]; then
-        err "Service manifest not found: $service_file"
-        exit 1
-      fi
-
-      kubectl apply -n "$NAMESPACE" -f "$service_file"
-      kubectl patch deployment -n "$NAMESPACE" "$service" --patch \
-        "{\"spec\":{\"template\":{\"metadata\":{\"labels\":{\"color\":\"$inactive_color\"}}}}}"
-
-      log "Waiting for $inactive_color deployment to be ready..."
-      kubectl rollout status -n "$NAMESPACE" "deployment/${service}" --timeout=180s
-
-      log "Running smoke tests against $inactive_color..."
-      cmd_smoke_test
-
-      log "$inactive_color environment for $service is ready. Promote with: $0 blue-green $service promote"
-      ;;
-
-    promote)
-      active_color=$(kubectl get deployment -n "$NAMESPACE" "$service" -o jsonpath='{.spec.template.metadata.labels.color}' 2>/dev/null || echo "blue")
-      if [[ "$active_color" == "blue" ]]; then
-        inactive_color="green"
-      else
-        inactive_color="blue"
-      fi
-
-      log "Promoting $inactive_color to active for $service..."
-      kubectl patch service -n "$NAMESPACE" "$service" --patch \
-        "{\"spec\":{\"selector\":{\"color\":\"$inactive_color\"}}}"
-      log "Traffic switched to $inactive_color. Deactivate the old environment with: $0 blue-green $service rollback"
-      ;;
-
-    rollback)
-      active_color=$(kubectl get deployment -n "$NAMESPACE" "$service" -o jsonpath='{.spec.template.metadata.labels.color}' 2>/dev/null || echo "blue")
-      if [[ "$active_color" == "blue" ]]; then
-        inactive_color="green"
-      else
-        inactive_color="blue"
-      fi
-
-      log "Rolling back: switching traffic back to $inactive_color for $service..."
-      kubectl patch service -n "$NAMESPACE" "$service" --patch \
-        "{\"spec\":{\"selector\":{\"color\":\"$inactive_color\"}}}"
-
-      log "Scaling down $active_color deployment..."
-      kubectl scale deployment -n "$NAMESPACE" "$service" --replicas=0
-      log "Rollback complete. Active environment: $inactive_color"
-      ;;
-
-    *)
-      err "Unknown blue-green mode: $mode (use deploy, promote, or rollback)"
-      exit 1
-      ;;
-  esac
+cmd_pin() {
+  log "Pinning deployed images to immutable @sha256 digests..."
+  local services=(
+    discovery-server message-manager financial-scraper trader-trainer
+    api-gateway audit-logger dlq-service admin-interface
+  )
+  local failed=0
+  for svc in "${services[@]}"; do
+    local image
+    image=$(kubectl get deployment -n "$NAMESPACE" "$svc" -o json \
+      | jq -r --arg name "$svc" '.spec.template.spec.containers[] | select(.name == $name) | .image' 2>/dev/null || true)
+    [[ -z "$image" || "$image" == *"@"* ]] && continue
+    local repo="${image%%:*}"
+    local tag="${image##*:}"
+    local digest
+    if digest="$(resolve_image_digest "$repo" "$tag")"; then
+      log "  ✓ $svc: $image → ${repo}@${digest}"
+      kubectl set image -n "$NAMESPACE" "deployment/${svc}" "${svc}=${repo}@${digest}" >/dev/null
+    else
+      err "  ✗ could not resolve digest for $svc ($image)"
+      failed=$((failed + 1))
+    fi
+  done
+  if [[ "$failed" -gt 0 ]]; then
+    err "$failed image(s) could not be pinned."
+    exit 1
+  fi
+  log "All deployed images pinned to digests."
 }
 
 cmd_smoke_test() {
   log "Running smoke tests..."
 
   local services=(
-    "discovery-server:https://discovery-server:3000/health/ready"
-    "message-manager:https://message-manager:3000/health/ready"
-    "api-gateway:https://api-gateway:3000/health/ready"
-    "audit-logger:https://audit-logger:3000/health/ready"
-    "dlq-service:https://dlq-service:3000/health/ready"
-    "financial-scraper:https://financial-scraper:3000/health/ready"
-    "trader-trainer:https://trader-trainer:3000/health/ready"
-    "admin-interface:https://admin-interface:3000/health/ready"
+    "discovery-server:https://discovery-server:3000/ping"
+    "message-manager:https://message-manager:3000/ping"
+    "api-gateway:https://api-gateway:3000/ping"
+    "audit-logger:https://audit-logger:3000/ping"
+    "dlq-service:https://dlq-service:3000/ping"
+    "financial-scraper:https://financial-scraper:3000/ping"
+    "trader-trainer:https://trader-trainer:3000/ping"
+    "admin-interface:http://admin-interface:8080/ping"
   )
 
   local failed=0
@@ -272,6 +331,22 @@ cmd_smoke_test() {
 
 check_prereqs
 
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -n|--namespace)
+      if [[ $# -lt 2 ]]; then
+        err "-n/--namespace requires a value"
+        exit 1
+      fi
+      NAMESPACE="$2"
+      shift 2
+      ;;
+    *)
+      break
+      ;;
+  esac
+done
+
 case "${1:-help}" in
   apply)
     cmd_apply "${2:-}"
@@ -286,10 +361,13 @@ case "${1:-help}" in
     cmd_rollback "${2:-}" "${3:-}"
     ;;
   canary)
-    cmd_canary "${2:-}" "${3:-2}"
+    cmd_canary "${2:-}" "${3:-}" "${4:-10}"
     ;;
-  blue-green)
-    cmd_blue_green "${2:-}" "${3:-deploy}"
+  canary-cleanup)
+    cmd_canary_cleanup "${2:-}"
+    ;;
+  pin)
+    cmd_pin
     ;;
   smoke-test)
     cmd_smoke_test
@@ -298,13 +376,16 @@ case "${1:-help}" in
     echo "Trading Model K8s Deploy Script"
     echo ""
     echo "Usage:"
-    echo "  $0 apply [service]          Apply manifests"
-    echo "  $0 delete [service]         Delete resources"
-    echo "  $0 status                   Show cluster status"
-    echo "  $0 rollback <srv> [rev]     Rollback deployment"
-    echo "  $0 canary <srv> [pct]       Canary deployment"
-    echo "  $0 blue-green <srv> <mode>  Blue/Green deploy|promote|rollback"
-    echo "  $0 smoke-test               Run smoke tests"
+    echo "  $0 [-n namespace] apply [service]       Apply manifests"
+    echo "  $0 [-n namespace] delete [service]      Delete resources"
+    echo "  $0 [-n namespace] status                Show cluster status"
+    echo "  $0 [-n namespace] rollback <srv> [rev]  Rollback deployment"
+    echo "  $0 [-n namespace] canary <srv> [tag] [pct]     Canary deployment"
+    echo "  $0 [-n namespace] canary-cleanup <srv>  Remove canary deployment"
+    echo "  $0 [-n namespace] pin                     Pin deployed images to digests"
+    echo "  $0 [-n namespace] smoke-test            Run smoke tests"
+    echo "Namespace defaults to trading-model (env: K8S_NAMESPACE)."
+    echo "Feature flags (FEATURE_FLAGS=flag1,flag2): canary-auto-cleanup"
     exit 1
     ;;
 esac

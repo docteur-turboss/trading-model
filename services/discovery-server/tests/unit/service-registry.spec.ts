@@ -6,6 +6,16 @@ import {
 	validServiceInstance,
 } from "../fixtures/index";
 
+jest.mock("../../src/infrastructure/monitoring/metrics", () => ({
+	setRegisteredInstances: jest.fn(),
+	setRegisteredInstancesPerService: jest.fn(),
+}));
+
+import {
+	setRegisteredInstances,
+	setRegisteredInstancesPerService,
+} from "../../src/infrastructure/monitoring/metrics";
+
 describe("ServiceRegistry", () => {
 	let registry: ServiceRegistry;
 
@@ -14,18 +24,23 @@ describe("ServiceRegistry", () => {
 	});
 
 	describe("registerInstance", () => {
-		it("should register a new instance and return it with a token", () => {
-			const result = registry.registerInstance(validServiceInstance());
+		it("should register a new instance and return it with a token", async () => {
+			const result = await registry.registerInstance(validServiceInstance());
 			expect(result.instanceId).toBe("test-instance-1");
 			expect(result.serviceName).toBe("financial-scraper-service");
 			expect(result.registeredAt).toBeGreaterThan(0);
 			expect(result.lastHeartbeat).toBeGreaterThan(0);
 			expect(result).toHaveProperty("token");
+			expect(setRegisteredInstances).toHaveBeenLastCalledWith(1);
+			expect(setRegisteredInstancesPerService).toHaveBeenLastCalledWith(
+				"financial-scraper-service",
+				1
+			);
 		});
 
-		it("should update an existing instance on re-registration", () => {
-			const first = registry.registerInstance(validServiceInstance());
-			const updated = registry.registerInstance(
+		it("should update an existing instance on re-registration", async () => {
+			const first = await registry.registerInstance(validServiceInstance());
+			const updated = await registry.registerInstance(
 				validServiceInstance({ port: 9999 })
 			);
 			expect(updated.instanceId).toBe("test-instance-1");
@@ -35,11 +50,11 @@ describe("ServiceRegistry", () => {
 			);
 		});
 
-		it("should update lastHeartbeat on re-registration", () => {
-			const first = registry.registerInstance(
+		it("should update lastHeartbeat on re-registration", async () => {
+			const first = await registry.registerInstance(
 				validServiceInstance({ lastHeartbeat: Date.now() - 5000 })
 			);
-			const updated = registry.registerInstance(
+			const updated = await registry.registerInstance(
 				validServiceInstance({ lastHeartbeat: Date.now() })
 			);
 			expect(updated.lastHeartbeat).toBeGreaterThanOrEqual(
@@ -49,8 +64,8 @@ describe("ServiceRegistry", () => {
 	});
 
 	describe("updateHeartbeat", () => {
-		it("should update heartbeat and return TTL", () => {
-			registry.registerInstance(validServiceInstance());
+		it("should update heartbeat and return TTL", async () => {
+			await registry.registerInstance(validServiceInstance());
 			const result = registry.instanceStore.updateHeartbeat({
 				serviceName: "financial-scraper-service",
 				instanceId: "test-instance-1",
@@ -66,8 +81,8 @@ describe("ServiceRegistry", () => {
 			expect(result).toBe(false);
 		});
 
-		it("should return false for unknown instance", () => {
-			registry.registerInstance(validServiceInstance());
+		it("should return false for unknown instance", async () => {
+			await registry.registerInstance(validServiceInstance());
 			const result = registry.instanceStore.updateHeartbeat({
 				serviceName: "financial-scraper-service",
 				instanceId: "unknown-instance",
@@ -77,15 +92,19 @@ describe("ServiceRegistry", () => {
 	});
 
 	describe("updateToken", () => {
-		it("should return a new token for a registered instance", () => {
-			const registered = registry.registerInstance(validServiceInstance());
+		it("should return a new token for a registered instance", async () => {
+			const registered = await registry.registerInstance(
+				validServiceInstance()
+			);
 			const newToken = registry.updateToken(registered.instanceId!);
 			expect(typeof newToken).toBe("string");
 			expect(newToken.length).toBeGreaterThan(0);
 		});
 
-		it("should return different tokens on successive calls", () => {
-			const registered = registry.registerInstance(validServiceInstance());
+		it("should return different tokens on successive calls", async () => {
+			const registered = await registry.registerInstance(
+				validServiceInstance()
+			);
 			const token1 = registry.updateToken(registered.instanceId!);
 			const token2 = registry.updateToken(registered.instanceId!);
 			expect(token1).not.toBe(token2);
@@ -93,9 +112,9 @@ describe("ServiceRegistry", () => {
 	});
 
 	describe("getInstances", () => {
-		it("should return all instances for a service", () => {
-			registry.registerInstance(validServiceInstance());
-			registry.registerInstance(secondServiceInstance());
+		it("should return all instances for a service", async () => {
+			await registry.registerInstance(validServiceInstance());
+			await registry.registerInstance(secondServiceInstance());
 			const instances = registry.instanceStore.getInstances(
 				"financial-scraper-service"
 			);
@@ -109,8 +128,8 @@ describe("ServiceRegistry", () => {
 	});
 
 	describe("getInstance", () => {
-		it("should return a specific instance", () => {
-			registry.registerInstance(validServiceInstance());
+		it("should return a specific instance", async () => {
+			await registry.registerInstance(validServiceInstance());
 			const instance = registry.instanceStore.getInstance({
 				serviceName: "financial-scraper-service",
 				instanceId: "test-instance-1",
@@ -127,8 +146,8 @@ describe("ServiceRegistry", () => {
 			expect(instance).toBeUndefined();
 		});
 
-		it("should return undefined for unknown instance", () => {
-			registry.registerInstance(validServiceInstance());
+		it("should return undefined for unknown instance", async () => {
+			await registry.registerInstance(validServiceInstance());
 			const instance = registry.instanceStore.getInstance({
 				serviceName: "financial-scraper-service",
 				instanceId: "unknown-instance",
@@ -138,9 +157,9 @@ describe("ServiceRegistry", () => {
 	});
 
 	describe("removeInstance", () => {
-		it("should remove an instance and return true", () => {
-			registry.registerInstance(validServiceInstance());
-			const removed = registry.removeInstance({
+		it("should remove an instance and return true", async () => {
+			await registry.registerInstance(validServiceInstance());
+			const removed = await registry.removeInstance({
 				serviceName: "financial-scraper-service",
 				instanceId: "test-instance-1",
 			});
@@ -148,11 +167,12 @@ describe("ServiceRegistry", () => {
 			expect(
 				registry.instanceStore.getInstances("financial-scraper-service")
 			).toHaveLength(0);
+			expect(setRegisteredInstances).toHaveBeenLastCalledWith(0);
 		});
 
-		it("should remove the service map when last instance is removed", () => {
-			registry.registerInstance(validServiceInstance());
-			registry.removeInstance({
+		it("should remove the service map when last instance is removed", async () => {
+			await registry.registerInstance(validServiceInstance());
+			await registry.removeInstance({
 				serviceName: "financial-scraper-service",
 				instanceId: "test-instance-1",
 			});
@@ -161,17 +181,17 @@ describe("ServiceRegistry", () => {
 			);
 		});
 
-		it("should return false for unknown service", () => {
-			const removed = registry.removeInstance({
+		it("should return false for unknown service", async () => {
+			const removed = await registry.removeInstance({
 				serviceName: "unknown-service",
 				instanceId: "test-instance-1",
 			});
 			expect(removed).toBe(false);
 		});
 
-		it("should return false for unknown instance", () => {
-			registry.registerInstance(validServiceInstance());
-			const removed = registry.removeInstance({
+		it("should return false for unknown instance", async () => {
+			await registry.registerInstance(validServiceInstance());
+			const removed = await registry.removeInstance({
 				serviceName: "financial-scraper-service",
 				instanceId: "unknown-instance",
 			});
@@ -184,10 +204,10 @@ describe("ServiceRegistry", () => {
 			expect(registry.instanceStore.listServiceNames()).toEqual([]);
 		});
 
-		it("should return all unique service names", () => {
-			registry.registerInstance(validServiceInstance());
-			registry.registerInstance(secondServiceInstance());
-			registry.registerInstance(otherServiceInstance());
+		it("should return all unique service names", async () => {
+			await registry.registerInstance(validServiceInstance());
+			await registry.registerInstance(secondServiceInstance());
+			await registry.registerInstance(otherServiceInstance());
 			const names = registry.instanceStore.listServiceNames();
 			expect(names).toContain("financial-scraper-service");
 			expect(names).toContain("message-delivery-service");
@@ -200,10 +220,10 @@ describe("ServiceRegistry", () => {
 			expect(registry.instanceStore.dump()).toEqual({});
 		});
 
-		it("should return a snapshot of all instances grouped by service", () => {
-			registry.registerInstance(validServiceInstance());
-			registry.registerInstance(secondServiceInstance());
-			registry.registerInstance(otherServiceInstance());
+		it("should return a snapshot of all instances grouped by service", async () => {
+			await registry.registerInstance(validServiceInstance());
+			await registry.registerInstance(secondServiceInstance());
+			await registry.registerInstance(otherServiceInstance());
 			const snapshot = registry.instanceStore.dump();
 			expect(Object.keys(snapshot)).toHaveLength(2);
 			expect(snapshot["financial-scraper-service"]).toHaveLength(2);
@@ -238,8 +258,10 @@ describe("ServiceRegistry", () => {
 	});
 
 	describe("validInstanceToken", () => {
-		it("should return true for a valid token", () => {
-			const registered = registry.registerInstance(validServiceInstance());
+		it("should return true for a valid token", async () => {
+			const registered = await registry.registerInstance(
+				validServiceInstance()
+			);
 			const isValid = registry.tokenManager.validInstanceToken({
 				token: registered.token as string,
 				instanceId: registered.instanceId!,
@@ -247,8 +269,8 @@ describe("ServiceRegistry", () => {
 			expect(isValid).toBe(true);
 		});
 
-		it("should return false for a token with wrong part count", () => {
-			registry.registerInstance(validServiceInstance());
+		it("should return false for a token with wrong part count", async () => {
+			await registry.registerInstance(validServiceInstance());
 			const isValid = registry.tokenManager.validInstanceToken({
 				token: "invalid-token",
 				instanceId: "test-instance-1",

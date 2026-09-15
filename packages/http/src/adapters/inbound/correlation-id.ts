@@ -1,3 +1,4 @@
+import { AsyncLocalStorage } from "node:async_hooks";
 import { randomUUID } from "node:crypto";
 import {
 	type CorrelationId,
@@ -10,6 +11,28 @@ declare module "express-serve-static-core" {
 	interface Request {
 		correlationId: CorrelationId;
 	}
+}
+
+const correlationStore = new AsyncLocalStorage<CorrelationId>();
+
+/**
+ * Returns the correlation id of the current request, when executed inside the
+ * middleware's async context. Used by outbound adapters to propagate the id
+ * to downstream services.
+ */
+export function getCorrelationId(): CorrelationId | undefined {
+	return correlationStore.getStore();
+}
+
+/**
+ * Runs `fn` inside an async context bound to `correlationId` so outbound
+ * requests spawned within it propagate the id on outgoing headers.
+ */
+export function runWithCorrelationId<TResult>(
+	correlationId: CorrelationId,
+	fn: () => TResult
+): TResult {
+	return correlationStore.run(correlationId, fn);
 }
 
 export function correlationIdMiddleware(
@@ -28,5 +51,5 @@ export function correlationIdMiddleware(
 	req.correlationId = correlationId;
 	res.setHeader(HTTP_HEADERS.CORRELATION_ID, correlationId);
 
-	next();
+	correlationStore.run(correlationId, () => next());
 }

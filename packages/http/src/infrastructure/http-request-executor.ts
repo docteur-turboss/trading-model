@@ -18,6 +18,11 @@ import type { HttpMethod, HttpRequestOptions } from "../domain/http-types";
 import { collectResponseBody } from "./http-response";
 import { computeRetryDelay, DEFAULT_RETRY_COUNT } from "./http-retry";
 import { buildRequestOptions } from "./http-utils";
+import {
+	outboundRequestDurationSeconds,
+	outboundRequestsInFlight,
+	outboundRequestsTotal,
+} from "./outbound-metrics";
 
 const DEFAULT_TIMEOUT_MS = 10_000 as DurationMs;
 
@@ -56,8 +61,22 @@ export class HttpRequestExecutor {
 		requestOptions: https.RequestOptions,
 		timeoutMs: DurationMs
 	): Promise<TResponse | undefined> {
+		const service = (requestOptions.hostname ?? "unknown").replace(
+			/\.\w+$/,
+			""
+		);
+		const method = context.method;
+
+		outboundRequestsInFlight.inc({ service });
+		const end = outboundRequestDurationSeconds.startTimer({ service, method });
+
 		return new Promise<TResponse | undefined>((resolve, reject) => {
 			const req = https.request(requestOptions, (res) => {
+				const status = String(res.statusCode ?? 0);
+				end();
+				outboundRequestsTotal.inc({ service, method, status });
+				outboundRequestsInFlight.dec({ service });
+
 				collectResponseBody({
 					res,
 					method: context.method,
@@ -66,7 +85,12 @@ export class HttpRequestExecutor {
 				}).then(resolve, reject);
 			});
 
-			req.on("error", (err) => reject(err));
+			req.on("error", (err) => {
+				end();
+				outboundRequestsTotal.inc({ service, method, status: "error" });
+				outboundRequestsInFlight.dec({ service });
+				reject(err);
+			});
 			this._registerTimeout(req, reject, timeoutMs);
 
 			if (context.body) {

@@ -4,6 +4,6 @@ import { metricsController } from "../metrics.controller";
 
 const ROUTER = Router();
 
-ROUTER.get("/metrics", metricsController);
+ROUTER.get("/status", metricsController);
 
-export const METRICS_ROUTES = ROUTER;
+export const STATUS_ROUTES = ROUTER;

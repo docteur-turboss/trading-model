@@ -44,10 +44,26 @@ spec:
     spec:
       serviceAccountName: discovery-server
       terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: discovery-server
           image: ghcr.io/trading-model/discovery-server:latest
           imagePullPolicy: Always
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
           ports:
             - containerPort: 3000
               name: https
@@ -72,6 +88,8 @@ spec:
           volumeMounts:
             - name: svid
               mountPath: /run/spire/svid
+            - name: tmp
+              mountPath: /tmp
           livenessProbe:
             exec:
               command:
@@ -138,10 +156,18 @@ spec:
           securityContext:
             runAsNonRoot: true
             allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
       volumes:
         - name: spire-agent-socket
           hostPath:
             path: /run/spire/agent-sockets
             type: DirectoryOrCreate
         - name: svid
+          emptyDir: {}
+        - name: tmp
           emptyDir: {}

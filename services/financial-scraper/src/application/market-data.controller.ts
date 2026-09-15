@@ -13,6 +13,11 @@
  * `PERSISTERS` (plus the schema method), instead of editing this class.
  */
 
+import {
+	CANDLES_PERSISTED_TOTAL,
+	TICKERS_PERSISTED_TOTAL,
+	TRADES_PERSISTED_TOTAL,
+} from "../config/metrics";
 import { MarketDataModel } from "../domain/market-data.model";
 import type {
 	CandleData,
@@ -40,11 +45,17 @@ const PERSISTERS: Persister<
 >[] = [
 	{
 		present: (payload) => payload.candles,
-		insert: (value) => MarketDataModel.insertCandles(value as CandleData[]),
+		insert: async (value) => {
+			await MarketDataModel.insertCandles(value as CandleData[]);
+			CANDLES_PERSISTED_TOTAL.inc(Array.isArray(value) ? value.length : 1);
+		},
 	},
 	{
 		present: (payload) => payload.recentTrades,
-		insert: (value) => MarketDataModel.insertTrades(value as TradeData[]),
+		insert: async (value) => {
+			await MarketDataModel.insertTrades(value as TradeData[]);
+			TRADES_PERSISTED_TOTAL.inc(Array.isArray(value) ? value.length : 1);
+		},
 	},
 	{
 		present: (payload) => payload.orderBook,
@@ -52,7 +63,10 @@ const PERSISTERS: Persister<
 	},
 	{
 		present: (payload) => payload.ticker24h,
-		insert: (value) => MarketDataModel.insertTicker(value as TickerData[]),
+		insert: async (value) => {
+			await MarketDataModel.insertTicker(value as TickerData[]);
+			TICKERS_PERSISTED_TOTAL.inc(Array.isArray(value) ? value.length : 1);
+		},
 	},
 ];
 

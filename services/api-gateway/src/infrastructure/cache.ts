@@ -1,6 +1,7 @@
 import type { DurationMs } from "@trading-model/common/domain/primitives";
 import type { HttpStatusCode } from "@trading-model/common/http-status";
 import type { ISyncCache } from "@trading-model/common/utils/cache";
+import { CACHE_HIT_RATIO, CACHE_SIZE } from "./config/metrics";
 
 export interface ResponseCacheEntry<TData = unknown> {
 	data: TData;
@@ -10,6 +11,8 @@ export interface ResponseCacheEntry<TData = unknown> {
 
 export class ResponseCache implements ISyncCache<ResponseCacheEntry> {
 	private readonly _store = new Map<string, ResponseCacheEntry>();
+	private _hits = 0;
+	private _total = 0;
 
 	private readonly _defaultTtlMs: DurationMs;
 
@@ -18,17 +21,26 @@ export class ResponseCache implements ISyncCache<ResponseCacheEntry> {
 	}
 
 	get<TData = unknown>(key: string): ResponseCacheEntry<TData> | undefined {
+		this._total++;
 		const entry = this._store.get(key);
 		if (!entry) {
+			this._recordHitRatio();
 			return;
 		}
 
 		if (Date.now() > entry.expiresAt) {
 			this._store.delete(key);
+			this._recordHitRatio();
 			return;
 		}
 
+		this._hits++;
+		this._recordHitRatio();
 		return entry as ResponseCacheEntry<TData>;
+	}
+
+	private _recordHitRatio(): void {
+		CACHE_HIT_RATIO.set(this._hits / this._total);
 	}
 
 	set<TData = unknown>(
@@ -40,10 +52,12 @@ export class ResponseCache implements ISyncCache<ResponseCacheEntry> {
 			...value,
 			expiresAt: Date.now() + (ttlMs ?? this._defaultTtlMs),
 		});
+		CACHE_SIZE.set(this._store.size);
 	}
 
 	delete(key: string): void {
 		this._store.delete(key);
+		CACHE_SIZE.set(this._store.size);
 	}
 
 	invalidate(pattern: string): void {
@@ -56,10 +70,12 @@ export class ResponseCache implements ISyncCache<ResponseCacheEntry> {
 				this._store.delete(key);
 			}
 		}
+		CACHE_SIZE.set(this._store.size);
 	}
 
 	clear(): void {
 		this._store.clear();
+		CACHE_SIZE.set(this._store.size);
 	}
 
 	has(key: string): boolean {

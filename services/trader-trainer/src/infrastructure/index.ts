@@ -1,5 +1,13 @@
-import { toSymbol } from "@trading-model/common/domain/primitives";
+import { ServiceInstanceName } from "@trading-model/common/config/services.types";
+import {
+	toInstanceId,
+	toSymbol,
+} from "@trading-model/common/domain/primitives";
 import { createBootstrap } from "@trading-model/server-utils/application/services/bootstrap";
+import {
+	initializeTelemetry,
+	shutdownTelemetry,
+} from "@trading-model/server-utils/infrastructure/telemetry";
 import { createServer } from "../app/server";
 import { BOOTSTRAP_ADDRESS_MANAGER } from "../config/address-manager";
 import { MessageManager } from "../config/message-manager";
@@ -30,6 +38,12 @@ createBootstrap({
 	name: "Trader Trainer",
 	createServer: () => createServer(trainer),
 	onStart: async () => {
+		initializeTelemetry({
+			serviceName: ServiceInstanceName.TraderTrainerService,
+			serviceVersion: process.env.APP_VERSION ?? "1.0.0",
+			instanceId: toInstanceId(process.env.INSTANCE_ID ?? "trader-trainer-1"),
+			otlpEndpoint: process.env.OTEL_EXPORTER_OTLP_ENDPOINT,
+		});
 		addressManager = BOOTSTRAP_ADDRESS_MANAGER();
 
 		MessageManager.on("fetchCandlestickSeries" as never, (data: never) =>
@@ -64,5 +78,6 @@ createBootstrap({
 		trainingLoop.stop();
 		addressManager.stop();
 		await MessageManager.stopMessageManager();
+		await shutdownTelemetry();
 	},
 });

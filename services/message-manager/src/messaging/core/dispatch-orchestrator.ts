@@ -7,6 +7,10 @@ import type {
 import type { CircuitStateMachine } from "@trading-model/common/reliability/circuit-state-machine";
 import type { Message } from "@trading-model/validation/domain/contracts/message.types";
 import { logger } from "../../config/logger";
+import {
+	CIRCUIT_BREAKER_STATE,
+	MESSAGES_DELIVERED_TOTAL,
+} from "../../config/metrics";
 import type { SubscribersContext } from "../../domain/delivery-metadata-extractor";
 import {
 	buildSubscriberContext,
@@ -37,6 +41,11 @@ export async function dispatchToSubscriber<TData>(
 	const deliveryParams = extractDeliveryParams(message);
 
 	if (services.circuitBreaker.isOpen()) {
+		CIRCUIT_BREAKER_STATE.set(
+			{ subscriber: context.serviceName },
+			circuitStateIndex(CircuitState.OPEN)
+		);
+		MESSAGES_DELIVERED_TOTAL.inc({ topic: context.topic, status: "failed" });
 		logger.warn("Circuit breaker open and rejecting dispatch", {
 			topic: context.topic,
 			service: context.serviceName,
@@ -62,8 +71,19 @@ export async function dispatchToSubscriber<TData>(
 		isAcknowledged
 	);
 	if (isAcknowledged()) {
+		MESSAGES_DELIVERED_TOTAL.inc({ topic: context.topic, status: "success" });
 		services.circuitBreaker.clear();
+		CIRCUIT_BREAKER_STATE.set(
+			{ subscriber: context.serviceName },
+			circuitStateIndex(CircuitState.CLOSED)
+		);
+	} else {
+		MESSAGES_DELIVERED_TOTAL.inc({ topic: context.topic, status: "failed" });
 	}
+}
+
+function circuitStateIndex(state: CircuitState): number {
+	return Object.values(CircuitState).indexOf(state);
 }
 
 function buildDispatchSubscriberContext(serviceName: ServiceInstanceName): {

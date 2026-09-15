@@ -1,6 +1,4 @@
 import { DurationMs } from "@trading-model/common/domain/primitives";
-import { normalizeError } from "@trading-model/common/utils/errors";
-import { TimerHandle } from "@trading-model/common/utils/timer-handle";
 import type { ServiceInstance } from "../shared/types";
 import { isAliveInstance } from "./expiration";
 import { type LoggerPort, NoopLogger } from "./logger-port";
@@ -13,52 +11,35 @@ export interface LeaseManagerOptions {
 }
 
 export class LeaseManager {
-	private _cleanupIntervalMs: number;
-	private readonly _intervalHandle = new TimerHandle();
+	private readonly _cleaner: StaleInstanceCleaner;
 	private readonly _logger: LoggerPort;
+	private _started = false;
 
-	constructor(
-		readonly _registry: ServiceRegistry,
-		options?: LeaseManagerOptions
-	) {
-		this._cleanupIntervalMs = options?.cleanupIntervalMs ?? 5000;
+	constructor(registry: ServiceRegistry, options?: LeaseManagerOptions) {
 		this._logger = options?.logger ?? NoopLogger;
+		this._cleaner = new StaleInstanceCleaner(
+			{
+				listServiceNames: async () => registry.instanceStore.listServiceNames(),
+				getInstances: async (name) => registry.instanceStore.getInstances(name),
+				removeInstance: async (id) => registry.removeInstance(id),
+				logger: this._logger,
+			},
+			DurationMs.of(options?.cleanupIntervalMs ?? 5000)
+		);
 	}
 
 	start(): void {
-		if (this._intervalHandle.isRunning) {
+		if (this._started) {
 			return;
 		}
-		this._intervalHandle.startInterval(() => {
-			try {
-				StaleInstanceCleaner.cleanupSync({
-					listServiceNames: () =>
-						this._registry.instanceStore.listServiceNames(),
-					getInstances: (name) =>
-						this._registry.instanceStore.getInstances(name),
-					removeInstance: (id) => {
-						try {
-							this._registry.removeInstance(id);
-						} catch (err) {
-							this._logger.error("Failed to remove expired instance", {
-								serviceName: id.serviceName,
-								instanceId: id.instanceId,
-								error: normalizeError(err),
-							});
-						}
-					},
-				});
-			} catch (err) {
-				this._logger.error("Cleanup error", { error: normalizeError(err) });
-			}
-		}, DurationMs.of(this._cleanupIntervalMs));
-		this._logger.info("Cleanup loop started", {
-			cleanupIntervalMs: this._cleanupIntervalMs,
-		});
+		this._started = true;
+		this._cleaner.start();
+		this._logger.info("Cleanup loop started");
 	}
 
 	stop(): void {
-		this._intervalHandle.stop();
+		this._cleaner.stop();
+		this._started = false;
 		this._logger.info("Cleanup loop stopped");
 	}
 

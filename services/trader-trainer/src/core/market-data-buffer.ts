@@ -1,4 +1,8 @@
 import type { Price } from "@trading-model/common/domain/primitives";
+import {
+	MARKET_DATA_BUFFER_SIZE,
+	MARKET_DATA_SYMBOLS,
+} from "../config/metrics";
 import { EvictionPolicy } from "./eviction-policy";
 import type { WindowSet } from "./genetic-algorithm/generation-types";
 import type { MarketStep } from "./genetic-algorithm/genome-types";
@@ -46,6 +50,11 @@ export class MarketDataBuffer {
 		data: unknown
 	): void {
 		this._stateManager.addData(dataType, symbol, data);
+		MARKET_DATA_BUFFER_SIZE.set(
+			{ symbol: String(symbol) },
+			this.getCandleCount(symbol)
+		);
+		MARKET_DATA_SYMBOLS.set(this.getSymbols().length);
 	}
 
 	setPriceSnapshot(prices: Record<TradingSymbol, Price>): void {

@@ -30,6 +30,10 @@ COPY --from=build /app/packages ./packages
 COPY --from=build /app/services/discovery-server/package.json ./services/discovery-server/
 COPY --from=build /app/services/discovery-server/dist ./services/discovery-server/dist
 
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+RUN chown -R appuser:appgroup /app
+USER appuser
+
 EXPOSE 3000
 ENTRYPOINT ["/sbin/tini", "--"]
 CMD ["bun", "services/discovery-server/dist/application/index.js"]

@@ -41,10 +41,26 @@ spec:
     spec:
       serviceAccountName: message-manager
       terminationGracePeriodSeconds: 60
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: message-manager
           image: ghcr.io/trading-model/message-manager:latest
           imagePullPolicy: Always
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
           ports:
             - containerPort: 3000
               name: https
@@ -64,6 +80,8 @@ spec:
               value: "redis://redis-primary:6379"
             - name: ERROR_URL_WEBHOOK
               value: ""
+            - name: DLQ_LOCAL_FALLBACK_PATH
+              value: "/var/lib/message-manager/dead-letter-queue.jsonl"
           resources:
             requests:
               cpu: 200m
@@ -74,6 +92,8 @@ spec:
           volumeMounts:
             - name: svid
               mountPath: /run/spire/svid
+            - name: wal-data
+              mountPath: /var/lib/message-manager
           livenessProbe:
             httpGet:
               path: /ping
@@ -125,10 +145,18 @@ spec:
           securityContext:
             runAsNonRoot: true
             allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
       volumes:
         - name: spire-agent-socket
           hostPath:
             path: /run/spire/agent-sockets
             type: DirectoryOrCreate
         - name: svid
+          emptyDir: {}
+        - name: wal-data
           emptyDir: {}

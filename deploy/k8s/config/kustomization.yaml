@@ -1,0 +1,12 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - discovery-server-configmap.yaml
+  - message-manager-configmap.yaml
+  - financial-scraper-configmap.yaml
+  - trader-trainer-configmap.yaml
+  - api-gateway-configmap.yaml
+  - audit-logger-configmap.yaml
+  - dlq-service-configmap.yaml
+  - admin-interface-configmap.yaml

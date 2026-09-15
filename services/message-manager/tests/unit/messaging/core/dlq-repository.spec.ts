@@ -2,11 +2,15 @@ import { existsSync, readFileSync } from "node:fs";
 import { unlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterAll, describe, expect, it } from "@jest/globals";
+import { afterAll, describe, expect, it, jest } from "@jest/globals";
 import {
 	type DlqEntry,
 	FileDlqRepository,
 } from "../../../../src/adapters/outbound/dlq-repository";
+
+jest.mock("../../../../src/config/metrics", () => ({
+	MESSAGES_DLQ_ERROR_TOTAL: { inc: jest.fn() },
+}));
 
 describe("FileDlqRepository", () => {
 	const testFilePath = join(tmpdir(), `dlq-test-${Date.now()}.jsonl`);
@@ -88,6 +92,33 @@ describe("FileDlqRepository", () => {
 			const parsed = JSON.parse(line);
 			expect(parsed.reason).toBeUndefined();
 			expect(parsed.message).toBe("plain string payload");
+		});
+
+		it("should increment DLQ error metric and rethrow when appendFile fails", async () => {
+			const fsPromises =
+				jest.requireActual<typeof import("node:fs/promises")>(
+					"node:fs/promises"
+				);
+			const appendSpy = jest
+				.spyOn(fsPromises, "appendFile")
+				.mockRejectedValue(new Error("disk full"));
+			const repo = new FileDlqRepository(testFilePath);
+			const { MESSAGES_DLQ_ERROR_TOTAL } = jest.requireMock<{
+				MESSAGES_DLQ_ERROR_TOTAL: { inc: jest.Mock };
+			}>("../../../../src/config/metrics");
+
+			await expect(
+				repo.insert({
+					message: { payload: "test" },
+					deliveryAttempt: 1,
+					timestamp: "2026-06-06T12:00:04.000Z",
+				})
+			).rejects.toThrow("disk full");
+
+			expect(MESSAGES_DLQ_ERROR_TOTAL.inc).toHaveBeenCalledWith({
+				target: "file",
+			});
+			appendSpy.mockRestore();
 		});
 	});
 });

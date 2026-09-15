@@ -92,8 +92,8 @@ export class Logger {
 				label,
 				timestamp: logEntry.timestamp,
 				message: logEntry.message,
-			}),
-			context || ""
+				context,
+			})
 		);
 	}
 

@@ -5,6 +5,10 @@ import type {
 } from "@trading-model/common/domain/primitives";
 import { logger } from "@trading-model/http/infrastructure/logger";
 import { MarketDataController } from "../../application/market-data.controller";
+import {
+	SYMBOLS_FAILED_TOTAL,
+	SYMBOLS_SCRAPED_TOTAL,
+} from "../../config/metrics";
 import type { BinanceWorkerResult } from "../worker/binance.worker";
 
 type LimitFunction = <TArgs extends unknown[], TResult>(
@@ -44,6 +48,9 @@ export class WorkerOrchestrator {
 		for (const outcome of settled) {
 			if (outcome.status === "rejected") {
 				logger.error("Symbol fetch failed", { error: outcome.reason });
+				SYMBOLS_FAILED_TOTAL.inc();
+			} else {
+				SYMBOLS_SCRAPED_TOTAL.inc();
 			}
 		}
 	}

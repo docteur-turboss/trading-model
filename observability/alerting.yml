@@ -5,7 +5,7 @@ groups:
 
       # ── Burn Rate Alerts (SLO-based) ─────────────────────────────
       - alert: SLOAvailabilityFastBurn
-        expr: rate(http_requests_duration_seconds_count{status=~"5.."}[5m]) / rate(http_requests_duration_seconds_count[5m]) > 0.02
+        expr: rate(http_requests_total{status=~"5.."}[5m]) / rate(http_requests_total[5m]) > 0.02
         for: 2m
         labels:
           severity: critical
@@ -15,7 +15,7 @@ groups:
           description: 'Error rate > 2% over 5m — burning through 99.9% error budget rapidly.'
 
       - alert: SLOAvailabilitySlowBurn
-        expr: rate(http_requests_duration_seconds_count{status=~"5.."}[1h]) / rate(http_requests_duration_seconds_count[1h]) > 0.005
+        expr: rate(http_requests_total{status=~"5.."}[1h]) / rate(http_requests_total[1h]) > 0.005
         for: 10m
         labels:
           severity: warning
@@ -25,7 +25,7 @@ groups:
           description: 'Error rate > 0.5% over 1h — burning through 99.9% error budget.'
 
       - alert: SLOLatencyFastBurn
-        expr: histogram_quantile(0.95, rate(http_requests_duration_seconds_bucket[5m])) > 5
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m])) > 5
         for: 2m
         labels:
           severity: critical
@@ -35,7 +35,7 @@ groups:
           description: 'P95 latency > 5s over 5m — exceeding 2s SLO target.'
 
       - alert: SLOLatencySlowBurn
-        expr: histogram_quantile(0.95, rate(http_requests_duration_seconds_bucket[1h])) > 3
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[1h])) > 3
         for: 10m
         labels:
           severity: warning
@@ -45,7 +45,7 @@ groups:
           description: 'P95 latency > 3s over 1h — approaching 2s SLO target breach.'
 
       - alert: SLOErrorRateFastBurn
-        expr: rate(http_requests_duration_seconds_count{status=~"5.."}[5m]) / rate(http_requests_duration_seconds_count[5m]) > 0.05
+        expr: rate(http_requests_total{status=~"5.."}[5m]) / rate(http_requests_total[5m]) > 0.05
         for: 2m
         labels:
           severity: critical
@@ -55,7 +55,7 @@ groups:
           description: 'Error rate > 5% over 5m — exceeding 1% SLO target.'
 
       - alert: SLOErrorRateSlowBurn
-        expr: rate(http_requests_duration_seconds_count{status=~"5.."}[1h]) / rate(http_requests_duration_seconds_count[1h]) > 0.02
+        expr: rate(http_requests_total{status=~"5.."}[1h]) / rate(http_requests_total[1h]) > 0.02
         for: 10m
         labels:
           severity: warning
@@ -74,7 +74,7 @@ groups:
           description: 'Service {{ $labels.job }} has been unreachable for over 1 minute.'
 
       - alert: HighErrorRate
-        expr: rate(http_requests_duration_seconds_count{status=~"5.."}[5m]) / rate(http_requests_duration_seconds_count[5m]) > 0.05
+        expr: rate(http_requests_total{status=~"5.."}[5m]) / rate(http_requests_total[5m]) > 0.05
         for: 2m
         labels:
           severity: warning
@@ -83,7 +83,7 @@ groups:
           description: 'Error rate is {{ $value | humanizePercentage }} for the last 5 minutes.'
 
       - alert: HighLatency
-        expr: histogram_quantile(0.95, rate(http_requests_duration_seconds_bucket[5m])) > 5
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m])) > 5
         for: 2m
         labels:
           severity: warning
@@ -101,7 +101,7 @@ groups:
           description: 'CA certificate has not been renewed in over 7 days.'
 
       - alert: CircuitBreakerOpen
-        expr: circuit_breaker_state == 1
+        expr: address_manager_circuit_breaker_state == 1
         for: 1m
         labels:
           severity: critical
@@ -110,7 +110,7 @@ groups:
           description: 'Circuit breaker for {{ $labels.service }} is in OPEN state.'
 
       - alert: BackpressureHigh
-        expr: message_manager_backpressure_ratio > 0.8
+        expr: mm_backpressure_ratio > 0.8
         for: 1m
         labels:
           severity: warning
@@ -171,3 +171,35 @@ groups:
         annotations:
           summary: 'Database backup has never succeeded'
           description: 'No successful backup has ever been recorded for {{ $labels.component }}.'
+
+      # ── Application SLI Alerts ────────────────────────────────────
+
+      - alert: MessageDeliveryLowSuccessRate
+        expr: rate(mm_messages_published_total[5m]) / (rate(mm_messages_published_total[5m]) + rate(mm_messages_dlq_total[5m])) < 0.995
+        for: 5m
+        labels:
+          severity: critical
+          slo: message_delivery
+        annotations:
+          summary: 'Message delivery success rate below 99.5%'
+          description: 'Message-manager delivery rate is {{ $value | humanizePercentage }} over 5m.'
+
+      - alert: DLQDrainRateLow
+        expr: rate(dlq_entries_replayed_total[15m]) / rate(dlq_entries_added_total[15m]) < 0.8
+        for: 15m
+        labels:
+          severity: warning
+          slo: dlq_drain
+        annotations:
+          summary: 'DLQ drain rate is critically low'
+          description: 'DLQ replay/add ratio is {{ $value | humanizePercentage }} — queue is growing.'
+
+      - alert: TrainingCompletionRateLow
+        expr: rate(tt_training_sessions_total{result="completed"}[15m]) / rate(tt_training_sessions_total[15m]) < 0.95
+        for: 15m
+        labels:
+          severity: warning
+          slo: training_completion
+        annotations:
+          summary: 'Training completion rate below 95%'
+          description: 'Trainer completion rate is {{ $value | humanizePercentage }} over 15m.'

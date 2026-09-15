@@ -1,6 +1,7 @@
 import type { Topic } from "@trading-model/common/domain/primitives";
 import type { Message } from "@trading-model/validation/domain/contracts/message.types";
 import { logger } from "../../config/logger";
+import { REDIS_STREAM_LAG } from "../../config/metrics";
 import { getStreamClient } from "../../config/redis";
 import type {
 	AckRef,
@@ -92,7 +93,9 @@ export class StreamGroupManager {
 				"GROUPS",
 				this._streamKey(ref.topic)
 			)) as unknown[];
-			return computeLag(info as unknown[][], ref.groupName);
+			const lag = computeLag(info as unknown[][], ref.groupName);
+			REDIS_STREAM_LAG.set({ topic: ref.topic }, lag);
+			return lag;
 		} catch {
 			return 0;
 		}

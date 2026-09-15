@@ -2,6 +2,7 @@ import { I18nextProvider } from "react-i18next";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 
 import { Layout } from "../../adapters/inbound/components/Layout";
+import { ErrorBoundary } from "../../components/error-boundary";
 import { i18n } from "../../i18n";
 import { AuditEvents } from "../../pages/audit-events";
 import { Cache } from "../../pages/cache";
@@ -34,10 +35,12 @@ function AppRoutes() {
 
 export function App() {
 	return (
-		<I18nextProvider i18n={i18n}>
-			<BrowserRouter>
-				<AppRoutes />
-			</BrowserRouter>
-		</I18nextProvider>
+		<ErrorBoundary>
+			<I18nextProvider i18n={i18n}>
+				<BrowserRouter>
+					<AppRoutes />
+				</BrowserRouter>
+			</I18nextProvider>
+		</ErrorBoundary>
 	);
 }

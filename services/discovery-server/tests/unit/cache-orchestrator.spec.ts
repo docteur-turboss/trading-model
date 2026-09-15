@@ -24,6 +24,12 @@ jest.mock("@trading-model/http/infrastructure/logger", () => ({
 	},
 }));
 
+jest.mock("../../src/infrastructure/monitoring/metrics", () => ({
+	incOperationError: jest.fn(),
+}));
+
+import { incOperationError } from "../../src/infrastructure/monitoring/metrics";
+
 function createMockBackend(): jest.Mocked<RegistryBackend> {
 	return {
 		registerInstance: jest.fn(),
@@ -213,6 +219,7 @@ describe("CacheOrchestrator", () => {
 				"Cache refresh failed, serving stale data",
 				expect.any(Object)
 			);
+			expect(incOperationError).toHaveBeenCalledWith("cache-refresh");
 			expect(mockCache.set).not.toHaveBeenCalled();
 		});
 	});

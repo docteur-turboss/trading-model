@@ -6,6 +6,10 @@ import {
 } from "@trading-model/common/domain/primitives";
 import { logger } from "@trading-model/http/infrastructure/logger";
 import cron from "node-cron";
+import {
+	SCRAPE_CYCLES_TOTAL,
+	SCRAPE_DURATION_SECONDS,
+} from "../../config/metrics";
 import { WorkerOrchestrator } from "./worker-orchestrator";
 
 export interface CronConfig {
@@ -41,12 +45,17 @@ export class BinanceCronOrchestrator {
 			}
 
 			isRunning = true;
+			const start = performance.now();
 
 			try {
 				await this._workerOrchestrator.executeAll();
+				SCRAPE_CYCLES_TOTAL.inc({ result: "success" });
 			} catch (err) {
 				logger.error("Batch execution failed", { error: err });
+				SCRAPE_CYCLES_TOTAL.inc({ result: "error" });
 			} finally {
+				const duration = (performance.now() - start) / 1000;
+				SCRAPE_DURATION_SECONDS.observe(duration);
 				isRunning = false;
 			}
 		});

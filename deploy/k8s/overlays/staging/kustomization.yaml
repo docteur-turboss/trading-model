@@ -6,6 +6,27 @@ namespace: trading-model-staging
 resources:
   - ../../base
 
+# Staging-only development secrets. Production must NOT use these: it is served
+# exclusively by the SealedSecret in deploy/k8s/secrets (see the production overlay).
+generatorOptions:
+  disableNameSuffixHash: true
+
+secretGenerator:
+  - name: trading-model-secrets
+    literals:
+      - AUTH_TOKENS=dev-token-change-me
+      - SIGNING_SECRET=dev-signing-change-me
+      - SERVICE_BOOTSTRAP_TOKEN=dev-bootstrap-change-me
+      - MYSQL_ROOT_PASSWORD=dev-mysql-root
+      - MYSQL_PASSWORD=dev-mysql
+      - DLQ_AUTH_HMAC_SECRET=dev-dlq-hmac
+      - ADMIN_TOKEN=dev-admin-token
+      - GRAFANA_PASSWORD=dev-grafana
+      - HMAC_SECRET=dev-hmac
+  - name: mongodb-encryption-key
+    literals:
+      - key=a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90
+
 # Staging-specific image tags (non-:latest, for reproducible deployments)
 images:
   - name: ghcr.io/trading-model/discovery-server

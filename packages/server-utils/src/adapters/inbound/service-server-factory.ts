@@ -8,6 +8,7 @@ import {
 	createSecureServer,
 	type RateLimitConfig,
 } from "./create-secure-server";
+import type { ReadinessCheck } from "./readiness";
 import type { HttpsServer } from "./server-factory";
 
 export interface ServiceServerOptions {
@@ -20,6 +21,7 @@ export interface ServiceServerOptions {
 	routes: (app: Application) => void;
 	trustProxy?: boolean;
 	rateLimit?: RateLimitConfig;
+	readiness?: ReadinessCheck[];
 }
 
 export function createServiceServer(
@@ -32,6 +34,7 @@ export function createServiceServer(
 		rateLimit: options.rateLimit,
 		authorize: _resolveAuthorization(options),
 		routes: options.routes,
+		readiness: options.readiness,
 	});
 }
 

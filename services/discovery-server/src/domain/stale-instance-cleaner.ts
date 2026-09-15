@@ -8,7 +8,11 @@ import type { ServiceIdentity } from "@trading-model/common/domain/service-ident
 import { normalizeError } from "@trading-model/common/utils/errors";
 import { TimerHandle } from "@trading-model/common/utils/timer-handle";
 import type { ServiceInstance } from "@trading-model/validation/domain/contracts/service-registry.types";
-
+import {
+	incLeaseCleanupCycle,
+	incOperationError,
+	observeCleanupDuration,
+} from "../infrastructure/monitoring/metrics";
 import { isAliveInstance, isExpiredInstance } from "./expiration";
 import { type LoggerPort, NoopLogger } from "./logger-port";
 
@@ -49,6 +53,7 @@ export class StaleInstanceCleaner {
 					this._logger.error("Redis cleanup error", {
 						error: normalizeError(err),
 					});
+					incOperationError("cleanup");
 				});
 			}, this._intervalMs);
 		}, initialDelay);
@@ -112,15 +117,21 @@ export class StaleInstanceCleaner {
 	}
 
 	private async _cleanup(): Promise<void> {
-		const now = Date.now();
-		const serviceNames = await this._deps.listServiceNames();
-		for (const serviceName of serviceNames) {
-			const instances = await this._deps.getInstances(serviceName);
-			for (const instance of instances) {
-				if (isExpiredInstance(instance, now)) {
-					await this._removeExpiredInstance(serviceName, instance, now);
+		incLeaseCleanupCycle();
+		const start = performance.now();
+		try {
+			const now = Date.now();
+			const serviceNames = await this._deps.listServiceNames();
+			for (const serviceName of serviceNames) {
+				const instances = await this._deps.getInstances(serviceName);
+				for (const instance of instances) {
+					if (isExpiredInstance(instance, now)) {
+						await this._removeExpiredInstance(serviceName, instance, now);
+					}
 				}
 			}
+		} finally {
+			observeCleanupDuration(performance.now() - start);
 		}
 	}
 }

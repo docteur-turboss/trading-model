@@ -16,6 +16,11 @@ jest.mock("@trading-model/common/utils/errors", () => ({
 		err instanceof Error ? err : new Error(String(err)),
 }));
 
+jest.mock("../../src/infrastructure/monitoring/metrics", () => ({
+	incWsDroppedMessages: jest.fn(),
+	setActiveWsConnections: jest.fn(),
+}));
+
 jest.mock("ws", () => {
 	const mockWs = {
 		OPEN: 1,
@@ -35,6 +40,10 @@ import {
 	ClientConnectionManager,
 	type ConnectedClient,
 } from "../../src/adapters/inbound/client-connection-manager";
+import {
+	incWsDroppedMessages,
+	setActiveWsConnections,
+} from "../../src/infrastructure/monitoring/metrics";
 
 function makeClient(overrides?: Partial<ConnectedClient>): ConnectedClient {
 	return {
@@ -66,6 +75,7 @@ describe("ClientConnectionManager", () => {
 			const client = makeClient();
 			manager.add("client-1", client);
 			expect(manager.get("client-1")).toBe(client);
+			expect(setActiveWsConnections).toHaveBeenLastCalledWith(1);
 		});
 	});
 
@@ -75,6 +85,7 @@ describe("ClientConnectionManager", () => {
 			manager.add("client-1", client);
 			manager.remove("client-1");
 			expect(manager.get("client-1")).toBeUndefined();
+			expect(setActiveWsConnections).toHaveBeenLastCalledWith(0);
 		});
 
 		it("should be safe to remove a non-existent client", () => {
@@ -151,6 +162,7 @@ describe("ClientConnectionManager", () => {
 			const client = makeClient({ ws: ws as any });
 			manager.sendToClient("client-1", client, "hello");
 			expect(ws.send).not.toHaveBeenCalled();
+			expect(incWsDroppedMessages).toHaveBeenCalled();
 		});
 
 		it("should log warn on send error", () => {
@@ -171,6 +183,7 @@ describe("ClientConnectionManager", () => {
 				"Failed to send message to client",
 				expect.objectContaining({ clientId: "client-1" })
 			);
+			expect(incWsDroppedMessages).toHaveBeenCalled();
 		});
 	});
 
@@ -249,6 +262,20 @@ describe("ClientConnectionManager", () => {
 			expect(ws1.close).toHaveBeenCalled();
 			expect(ws2.close).toHaveBeenCalled();
 			expect(Array.from(manager)).toHaveLength(0);
+			expect(setActiveWsConnections).toHaveBeenLastCalledWith(0);
+		});
+	});
+
+	describe("client timeout", () => {
+		it("should remove a client and update the connection gauge on timeout", () => {
+			const client = makeClient();
+			manager.add("client-1", client);
+			expect(setActiveWsConnections).toHaveBeenLastCalledWith(1);
+
+			jest.advanceTimersByTime(60_000);
+
+			expect(manager.get("client-1")).toBeUndefined();
+			expect(setActiveWsConnections).toHaveBeenLastCalledWith(0);
 		});
 	});
 });

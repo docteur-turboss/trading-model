@@ -40,9 +40,11 @@ describe("LeaseManager", () => {
 	});
 
 	describe("start", () => {
-		it("should set an interval", () => {
+		it("should start an interval after the initial delay", () => {
 			const spy = jest.spyOn(global, "setInterval");
 			leaseManager.start();
+			expect(spy).not.toHaveBeenCalled();
+			jest.advanceTimersByTime(5000);
 			expect(spy).toHaveBeenCalledTimes(1);
 			expect(spy).toHaveBeenCalledWith(expect.any(Function), 5000);
 			spy.mockRestore();
@@ -52,6 +54,7 @@ describe("LeaseManager", () => {
 			const spy = jest.spyOn(global, "setInterval");
 			leaseManager.start();
 			leaseManager.start();
+			jest.advanceTimersByTime(5000);
 			expect(spy).toHaveBeenCalledTimes(1);
 			spy.mockRestore();
 		});
@@ -61,8 +64,9 @@ describe("LeaseManager", () => {
 		it("should clear the interval", () => {
 			const spy = jest.spyOn(global, "clearInterval");
 			leaseManager.start();
+			jest.advanceTimersByTime(5000);
 			leaseManager.stop();
-			expect(spy).toHaveBeenCalledTimes(1);
+			expect(spy).toHaveBeenCalled();
 			spy.mockRestore();
 		});
 
@@ -125,10 +129,10 @@ describe("LeaseManager", () => {
 	});
 
 	describe("cleanup", () => {
-		it("should remove expired instances on interval tick", () => {
+		it("should remove expired instances on interval tick", async () => {
 			const registry = new ServiceRegistry();
 
-			registry.registerInstance({
+			await registry.registerInstance({
 				serviceName: "financial-scraper-service",
 				instanceId: "expired-id",
 				host: "1.1.1.1",
@@ -137,7 +141,7 @@ describe("LeaseManager", () => {
 				protocol: "mtls",
 			});
 
-			registry.registerInstance({
+			await registry.registerInstance({
 				serviceName: "financial-scraper-service",
 				instanceId: "alive-id",
 				ip: "1.1.1.2",
@@ -148,7 +152,7 @@ describe("LeaseManager", () => {
 
 			const lm = new LeaseManager(registry);
 			lm.start();
-			jest.advanceTimersByTime(5000);
+			await jest.advanceTimersByTimeAsync(10000);
 
 			const remaining = registry.instanceStore.getInstances(
 				"financial-scraper-service"
@@ -157,11 +161,11 @@ describe("LeaseManager", () => {
 			expect(remaining[0].instanceId).toBe("alive-id");
 		});
 
-		it("should log error when removeInstance throws", () => {
+		it("should log error when removeInstance throws", async () => {
 			const registry = new ServiceRegistry();
 			const lm = new LeaseManager(registry, { logger });
 
-			registry.registerInstance({
+			await registry.registerInstance({
 				serviceName: "test-service",
 				instanceId: "test-id",
 				host: "1.1.1.1",
@@ -175,19 +179,15 @@ describe("LeaseManager", () => {
 			});
 
 			lm.start();
-			jest.advanceTimersByTime(5000);
+			await jest.advanceTimersByTimeAsync(10000);
 
 			expect(logger.error).toHaveBeenCalledWith(
-				"Failed to remove expired instance",
-				{
-					serviceName: "test-service",
-					instanceId: "test-id",
-					error: new Error("remove failed"),
-				}
+				"Redis cleanup error",
+				expect.objectContaining({ error: expect.anything() })
 			);
 		});
 
-		it("should log error when listServiceNames throws in start catch", () => {
+		it("should log error when listServiceNames throws", async () => {
 			const registry = new ServiceRegistry();
 			const lm = new LeaseManager(registry, { logger });
 
@@ -198,11 +198,12 @@ describe("LeaseManager", () => {
 				});
 
 			lm.start();
-			jest.advanceTimersByTime(5000);
+			await jest.advanceTimersByTimeAsync(10000);
 
-			expect(logger.error).toHaveBeenCalledWith("Cleanup error", {
-				error: new Error("unexpected error"),
-			});
+			expect(logger.error).toHaveBeenCalledWith(
+				"Redis cleanup error",
+				expect.objectContaining({ error: expect.anything() })
+			);
 		});
 	});
 });

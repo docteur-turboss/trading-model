@@ -34,6 +34,19 @@ jest.mock("../../../../src/config/address-manager", () => ({
 		.mockResolvedValue({ host: "10.0.0.1", port: 8444 }),
 }));
 
+jest.mock("../../../../src/config/metrics", () => ({
+	MESSAGES_PUBLISHED_TOTAL: { inc: jest.fn() },
+	MESSAGES_DELIVERED_TOTAL: { inc: jest.fn() },
+	MESSAGES_DLQ_TOTAL: { inc: jest.fn() },
+	MESSAGES_DLQ_ERROR_TOTAL: { inc: jest.fn() },
+	DELIVERY_LATENCY_SECONDS: { observe: jest.fn() },
+	SUBSCRIPTION_COUNT: { set: jest.fn() },
+	CIRCUIT_BREAKER_STATE: { set: jest.fn() },
+	IN_FLIGHT_MESSAGES: { inc: jest.fn(), dec: jest.fn() },
+	BACKPRESSURE_RATIO: { set: jest.fn() },
+	SUBSCRIBER_DELIVERY_CONCURRENCY: { inc: jest.fn(), dec: jest.fn() },
+}));
+
 describe("Dispatcher", () => {
 	let mockHttpClient: ReturnType<typeof createMockHttpClient>;
 	let dispatcher: Dispatcher;
@@ -44,6 +57,7 @@ describe("Dispatcher", () => {
 		mockHttpClient = createMockHttpClient();
 		dqlRepository = new FileDlqRepository(dlqFilePath);
 		dispatcher = new Dispatcher(mockHttpClient as never, dqlRepository);
+		jest.clearAllMocks();
 	});
 
 	afterAll(async () => {
@@ -230,6 +244,66 @@ describe("Dispatcher", () => {
 			await dispatcher.dispatch(message);
 
 			expect(mockHttpClient.post).toHaveBeenCalledTimes(1);
+		});
+	});
+
+	describe("metrics", () => {
+		it("should count published messages per topic", async () => {
+			dispatcher.subscribe(mockSubscribeParams);
+			const { MESSAGES_PUBLISHED_TOTAL } = jest.requireMock<{
+				MESSAGES_PUBLISHED_TOTAL: { inc: jest.Mock };
+			}>("../../../../src/config/metrics");
+
+			await dispatcher.publish("hello", {
+				topic: "test.topic",
+				eventType: "TestEvent",
+				schemaVersion: "1.0.0",
+				publisher: mockSubscriberIdentity,
+			});
+
+			expect(MESSAGES_PUBLISHED_TOTAL.inc).toHaveBeenCalledWith({
+				topic: "test.topic",
+			});
+		});
+
+		it("should track subscription count on subscribe and unsubscribe", () => {
+			const { SUBSCRIPTION_COUNT } = jest.requireMock<{
+				SUBSCRIPTION_COUNT: { set: jest.Mock };
+			}>("../../../../src/config/metrics");
+
+			dispatcher.subscribe(mockSubscribeParams);
+			expect(SUBSCRIPTION_COUNT.set).toHaveBeenLastCalledWith(
+				{ topic: "test.topic" },
+				1
+			);
+
+			dispatcher.unsubscribe({
+				topic: "test.topic",
+				instanceId: mockSubscriberIdentity.instanceId,
+			});
+			expect(SUBSCRIPTION_COUNT.set).toHaveBeenLastCalledWith(
+				{ topic: "test.topic" },
+				0
+			);
+		});
+
+		it("should track delivery latency and in-flight messages on dispatch", async () => {
+			dispatcher.subscribe(mockSubscribeParams);
+			const { DELIVERY_LATENCY_SECONDS, IN_FLIGHT_MESSAGES } =
+				jest.requireMock<{
+					DELIVERY_LATENCY_SECONDS: { observe: jest.Mock };
+					IN_FLIGHT_MESSAGES: { inc: jest.Mock; dec: jest.Mock };
+				}>("../../../../src/config/metrics");
+
+			const message = createMockMessage("test");
+			await dispatcher.dispatch(message);
+
+			expect(IN_FLIGHT_MESSAGES.inc).toHaveBeenCalledTimes(1);
+			expect(IN_FLIGHT_MESSAGES.dec).toHaveBeenCalledTimes(1);
+			expect(DELIVERY_LATENCY_SECONDS.observe).toHaveBeenCalledWith(
+				{ topic: "test.topic" },
+				expect.any(Number)
+			);
 		});
 	});
 });

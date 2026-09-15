@@ -18,6 +18,10 @@ jest.mock("prom-client", () => {
 
 	return {
 		Registry: MockRegistry,
+		register: {
+			contentType: MOCK_CONTENT_TYPE,
+			metrics: MOCK_METRICS,
+		},
 		collectDefaultMetrics: jest.fn(),
 		Counter: jest.fn().mockImplementation(() => ({ inc: MOCK_INC })),
 		Histogram: jest.fn().mockImplementation(() => ({ observe: MOCK_OBSERVE })),

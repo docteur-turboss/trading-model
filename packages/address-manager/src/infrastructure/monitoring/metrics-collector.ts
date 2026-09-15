@@ -1,7 +1,7 @@
 import { CircuitState } from "@trading-model/common/domain/circuit-state";
 import type { Application } from "express";
 import promClient from "prom-client";
-import { METRICS_ROUTES } from "../../adapters/inbound/routes/metrics.routes";
+import { STATUS_ROUTES } from "../../adapters/inbound/routes/metrics.routes";
 import { PING_ROUTES } from "../../adapters/inbound/routes/ping.routes";
 import type { DiscoveryCircuitBreaker } from "../../application/discovery/circuit-breaker";
 import type { IServiceCache } from "../../domain/discovery/service-cache.interface";
@@ -26,20 +26,20 @@ export class MetricsCollector {
 		this._setupMetricsSnapshot(app);
 		this._setupPrometheusEndpoint(app);
 		app.use(PING_ROUTES);
-		app.use(METRICS_ROUTES);
+		app.use(STATUS_ROUTES);
+	}
+
+	private _setupPrometheusEndpoint(app: Application): void {
+		app.get("/metrics", async (_req, res) => {
+			res.set("Content-Type", promClient.register.contentType);
+			res.end(await promClient.register.metrics());
+		});
 	}
 
 	private _setupMetricsSnapshot(app: Application): void {
 		app.locals.metricsSnapshot = () => ({
 			...this._systemMetrics.collect(),
 			callTracker: this._serviceCallTracker.snapshot(),
-		});
-	}
-
-	private _setupPrometheusEndpoint(app: Application): void {
-		app.get("/prometheus", async (_req, res) => {
-			res.set("Content-Type", promClient.register.contentType);
-			res.end(await promClient.register.metrics());
 		});
 	}
 

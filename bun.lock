@@ -68,7 +68,6 @@
       "name": "@trading-model/common",
       "version": "1.2.1",
       "dependencies": {
-        "@trading-model/http": "*",
         "chained-error": "^1.0.0",
         "express": "^5.2.1",
         "ioredis": "^6.0.0",
@@ -109,9 +108,11 @@
       "name": "@trading-model/http",
       "version": "1.0.0",
       "dependencies": {
+        "@opentelemetry/api": "^1.9.1",
         "@trading-model/common": "*",
         "chained-error": "^1.0.0",
         "express": "^5.2.1",
+        "prom-client": "^15.1.3",
         "zod": "^4.5.4",
       },
       "devDependencies": {
@@ -201,6 +202,7 @@
         "react-i18next": "^17.0.13",
         "react-router-dom": "^7.18.3",
         "recharts": "^3.10.1",
+        "web-vitals": "^4.2.4",
       },
       "devDependencies": {
         "@testing-library/dom": "^10.4.0",
@@ -342,6 +344,7 @@
         "mysql2": "^3.24.4",
         "node-cron": "^4.2.1",
         "p-limit": "^7.3.2",
+        "prom-client": "^15.1.3",
         "ts-sql-query": "^1.67.0",
         "zod": "^4.5.4",
       },
@@ -407,6 +410,7 @@
         "@trading-model/server-utils": "*",
         "@trading-model/validation": "*",
         "express": "^5.2.1",
+        "prom-client": "^15.1.3",
         "zod": "^4.5.4",
       },
       "devDependencies": {
@@ -1966,6 +1970,8 @@
     "vitest": ["vitest@5.0.0", "", { "dependencies": { "@types/chai": "^5.2.2", "@vitest/mocker": "5.0.0", "chai": "^6.2.2", "es-module-lexer": "^2.3.2", "expect-type": "^1.4.0", "magic-string": "^1.2.3", "obug": "^2.1.4", "picomatch": "^4.0.7", "std-env": "^4.2.0", "tinybench": "6.1.4", "tinyexec": "1.3.0", "tinyglobby": "^0.2.17", "why-is-node-running": "^2.3.0" }, "peerDependencies": { "@edge-runtime/vm": "*", "@opentelemetry/api": "^1.9.0", "@types/node": "^22.0.0 || >=24.0.0", "@vitest/browser-playwright": "5.0.0", "@vitest/browser-preview": "5.0.0", "@vitest/browser-webdriverio": "^5.0.0-beta.5 || >=5.0.0", "@vitest/coverage-istanbul": "5.0.0", "@vitest/coverage-v8": "5.0.0", "@vitest/ui": "5.0.0", "happy-dom": "*", "jsdom": "*", "vite": "^6.4.0 || ^7.0.0 || ^8.0.0" }, "optionalPeers": ["@edge-runtime/vm", "@opentelemetry/api", "@types/node", "@vitest/browser-playwright", "@vitest/browser-preview", "@vitest/browser-webdriverio", "@vitest/coverage-istanbul", "@vitest/coverage-v8", "@vitest/ui", "happy-dom", "jsdom"], "bin": { "vitest": "./vitest.mjs" } }, "sha512-gpsMNoRhMjMktVxPtstOH4/PJuPyovVaMDr4oDilXaGH1EcqM2OE96SoHT2VIQ6fTGtTjqmHDrEu2X9RQiXf8Q=="],
 
     "w3c-xmlserializer": ["w3c-xmlserializer@5.0.0", "", { "dependencies": { "xml-name-validator": "^5.0.0" } }, "sha512-o8qghlI8NZHU1lLPrpi2+Uq7abh4GGPpYANlalzWxyWteJOCsr/P+oPBA49TOLu5FTZO4d3F9MnWJfiMo4BkmA=="],
+
+    "web-vitals": ["web-vitals@4.2.4", "", {}, "sha512-r4DIlprAGwJ7YM11VZp4R884m0Vmgr6EAKe3P+kO0PPj3Unqyvv59rczf6UiGcb9Z8QxZVcqKNwv/g0WNdWwsw=="],
 
     "webidl-conversions": ["webidl-conversions@8.0.1", "", {}, "sha512-BMhLD/Sw+GbJC21C/UgyaZX41nPt8bUTg+jWyDeg7e7YN4xOM05YPSIXceACnXVtqyEw/LMClUQMtMZ+PGGpqQ=="],
 

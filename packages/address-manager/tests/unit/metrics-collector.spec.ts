@@ -24,7 +24,7 @@ jest.mock("../../src/adapters/inbound/routes/ping.routes", () => ({
 }));
 
 jest.mock("../../src/adapters/inbound/routes/metrics.routes", () => ({
-	METRICS_ROUTES: Symbol("METRICS_ROUTES"),
+	STATUS_ROUTES: Symbol("STATUS_ROUTES"),
 }));
 
 jest.mock("prom-client", () => ({
@@ -36,7 +36,7 @@ jest.mock("prom-client", () => ({
 	},
 }));
 
-import { METRICS_ROUTES } from "../../src/adapters/inbound/routes/metrics.routes";
+import { STATUS_ROUTES } from "../../src/adapters/inbound/routes/metrics.routes";
 import { PING_ROUTES } from "../../src/adapters/inbound/routes/ping.routes";
 import type { DiscoveryCircuitBreaker } from "../../src/application/discovery/circuit-breaker";
 import type { IServiceCache } from "../../src/domain/discovery/service-cache.interface";
@@ -186,8 +186,8 @@ describe("MetricsCollector", () => {
 
 			expect(typeof app.locals.metricsSnapshot).toBe("function");
 			expect(app.use).toHaveBeenCalledWith(PING_ROUTES);
-			expect(app.use).toHaveBeenCalledWith(METRICS_ROUTES);
-			expect(app.get).toHaveBeenCalledWith("/prometheus", expect.any(Function));
+			expect(app.use).toHaveBeenCalledWith(STATUS_ROUTES);
+			expect(app.get).toHaveBeenCalledWith("/metrics", expect.any(Function));
 		});
 
 		test("metricsSnapshot returns combined system metrics and call tracker snapshot", () => {

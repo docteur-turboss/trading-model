@@ -2,11 +2,17 @@ import type {
 	DurationMs,
 	PositiveInt,
 } from "@trading-model/common/domain/primitives";
+import { correlationIdMiddleware } from "@trading-model/http/adapters/inbound/correlation-id";
 import { HEALTH_STATUS_OK } from "@trading-model/http/adapters/inbound/response-exception";
 import express, { type Application } from "express";
 import { rateLimit } from "express-rate-limit";
 import helmet from "helmet";
+import promClient from "prom-client";
 import { PING_PATH } from "../../shared/constants";
+import { httpMetricsMiddleware } from "./http-metrics";
+import { createReadinessHandler, type ReadinessCheck } from "./readiness";
+
+promClient.collectDefaultMetrics();
 
 /** Configuration for the rate-limiting middleware. */
 export interface RateLimitConfig {
@@ -35,16 +41,25 @@ function _addPingRoute(app: Application): void {
 
 /** Configures the Express app, body parsers, rate limiter, and ping route. */
 export function configureApp(
-	config: { rateLimit?: RateLimitConfig; trustProxy?: boolean } = {}
+	config: {
+		rateLimit?: RateLimitConfig;
+		trustProxy?: boolean;
+		readiness?: ReadinessCheck[];
+	} = {}
 ): Application {
 	const app = express();
 
 	app.use(helmet());
 	_configureTrustProxy(app, config.trustProxy);
+	app.use(correlationIdMiddleware);
+	app.use(httpMetricsMiddleware);
 	app.use(express.json({ limit: "1mb" }));
 	app.use(express.urlencoded({ extended: false }));
 	app.use(_buildRateLimiter(config));
 	_addPingRoute(app);
+	if (config.readiness !== undefined) {
+		app.get("/health/ready", createReadinessHandler(config.readiness));
+	}
 
 	return app;
 }

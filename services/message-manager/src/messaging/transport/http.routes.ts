@@ -5,6 +5,7 @@
 	Router,
 } from "express";
 import rateLimit from "express-rate-limit";
+import { metricsHandler } from "../../config/metrics";
 import type { Dispatcher } from "../core/dispatcher";
 import {
 	DELETE_A_SUBSCRIPTION,
@@ -55,6 +56,7 @@ const WITH_TIMEOUT =
 
 export const BROKER_ROUTES = (dispatcher: Dispatcher): Router => {
 	const router = Router();
+	router.get("/metrics", metricsHandler);
 	registerPublishRoute(router, dispatcher);
 	registerSubscribeRoute(router, dispatcher);
 	registerUnsubscribeRoute(router, dispatcher);

@@ -70,8 +70,7 @@ describe("Logger", () => {
 		it("should log debug messages when level is DEBUG", () => {
 			logger.debug("test debug");
 			expect(consoleDebugSpy).toHaveBeenCalledWith(
-				expect.stringContaining("[DEBUG]"),
-				expect.anything()
+				expect.stringContaining('"level":"DEBUG"')
 			);
 		});
 
@@ -86,8 +85,7 @@ describe("Logger", () => {
 		it("should log info messages", () => {
 			logger.info("test info");
 			expect(consoleInfoSpy).toHaveBeenCalledWith(
-				expect.stringContaining("[INFO]"),
-				expect.anything()
+				expect.stringContaining('"level":"INFO"')
 			);
 		});
 
@@ -102,8 +100,7 @@ describe("Logger", () => {
 		it("should log warn messages", () => {
 			logger.warn("test warn");
 			expect(consoleWarnSpy).toHaveBeenCalledWith(
-				expect.stringContaining("[WARN]"),
-				expect.anything()
+				expect.stringContaining('"level":"WARN"')
 			);
 		});
 
@@ -118,8 +115,7 @@ describe("Logger", () => {
 		it("should log error messages", () => {
 			logger.error("test error");
 			expect(consoleErrorSpy).toHaveBeenCalledWith(
-				expect.stringContaining("[ERROR]"),
-				expect.anything()
+				expect.stringContaining('"level":"ERROR"')
 			);
 		});
 

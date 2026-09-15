@@ -1,6 +1,6 @@
 import { describe, expect, it, jest } from "@jest/globals";
 
-const MOCK_APP = { use: jest.fn() };
+const MOCK_APP = { use: jest.fn(), get: jest.fn() };
 const MOCK_CREATE_SECURE_SERVER = jest
 	.fn<any>()
 	.mockReturnValue({ close: jest.fn() });

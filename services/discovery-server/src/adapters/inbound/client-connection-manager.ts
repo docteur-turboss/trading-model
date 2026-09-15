@@ -3,6 +3,10 @@ import type { InstanceId } from "@trading-model/common/domain/primitives";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import { logger } from "@trading-model/http/infrastructure/logger";
 import WebSocket from "ws";
+import {
+	incWsDroppedMessages,
+	setActiveWsConnections,
+} from "../../infrastructure/monitoring/metrics";
 
 const CLIENT_TIMEOUT_MS = 60_000;
 
@@ -22,12 +26,14 @@ export class ClientConnectionManager {
 
 	add(clientId: string, client: ConnectedClient): void {
 		this._clients.set(clientId, client);
+		setActiveWsConnections(this._clients.size);
 		this.resetTimeout(clientId, client.ws);
 	}
 	remove(clientId: string): void {
 		this._clients.delete(clientId);
 		this._clearTimeout(clientId);
 		this._clientTimeouts.delete(clientId);
+		setActiveWsConnections(this._clients.size);
 	}
 	get(clientId: string): ConnectedClient | undefined {
 		return this._clients.get(clientId);
@@ -50,11 +56,13 @@ export class ClientConnectionManager {
 		message: string
 	): void {
 		if (client.ws.readyState !== WebSocket.OPEN) {
+			incWsDroppedMessages();
 			return;
 		}
 		try {
 			client.ws.send(message);
 		} catch (error) {
+			incWsDroppedMessages();
 			logger.warn("Failed to send message to client", {
 				clientId,
 				err: normalizeError(error),
@@ -83,6 +91,7 @@ export class ClientConnectionManager {
 		}
 		this._clients.clear();
 		this._clientTimeouts.clear();
+		setActiveWsConnections(0);
 	}
 	private _clearTimeout(clientId: string): void {
 		const timeout = this._clientTimeouts.get(clientId);
@@ -95,5 +104,6 @@ export class ClientConnectionManager {
 		ws.close();
 		this._clients.delete(clientId);
 		this._clientTimeouts.delete(clientId);
+		setActiveWsConnections(this._clients.size);
 	}
 }

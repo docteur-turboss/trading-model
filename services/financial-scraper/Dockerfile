@@ -30,6 +30,10 @@ COPY --from=build /app/packages ./packages
 COPY --from=build /app/services/financial-scraper/package.json ./services/financial-scraper/
 COPY --from=build /app/services/financial-scraper/dist ./services/financial-scraper/dist
 
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+RUN chown -R appuser:appgroup /app
+USER appuser
+
 EXPOSE 3000
 ENTRYPOINT ["/sbin/tini", "--"]
 CMD ["bun", "services/financial-scraper/dist/application/index.js"]

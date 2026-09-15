@@ -30,6 +30,10 @@ COPY --from=build /app/packages ./packages
 COPY --from=build /app/services/message-manager/package.json ./services/message-manager/
 COPY --from=build /app/services/message-manager/dist ./services/message-manager/dist
 
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+RUN chown -R appuser:appgroup /app
+USER appuser
+
 EXPOSE 3000
 ENTRYPOINT ["/sbin/tini", "--"]
 CMD ["bun", "services/message-manager/dist/application/index.js"]

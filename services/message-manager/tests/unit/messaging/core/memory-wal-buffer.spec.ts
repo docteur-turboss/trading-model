@@ -38,6 +38,7 @@ jest.mock("../../../../src/infrastructure/config/env", () => ({
 
 jest.mock("../../../../src/config/metrics", () => ({
 	BUFFER_DROPPED_TOTAL: { inc: jest.fn() },
+	DLQ_BUFFER_SIZE: { set: jest.fn() },
 }));
 
 const testKeys = new RedisKeyBuilder("test:");
@@ -81,6 +82,18 @@ describe("MemoryWalBuffer", () => {
 		buffer.startFlusher();
 		buffer.stopFlusher();
 		expect(true).toBe(true);
+	});
+
+	it("should update DLQ buffer size metric on push and drain", async () => {
+		const {
+			MemoryWalBuffer,
+		} = require("../../../../src/messaging/core/memory-wal-buffer");
+		const { DLQ_BUFFER_SIZE } = require("../../../../src/config/metrics");
+		const buffer = new MemoryWalBuffer(testKeys);
+		await buffer.push({ topic: "t", serialized: "{}" } as never);
+		expect(DLQ_BUFFER_SIZE.set).toHaveBeenCalledWith(1);
+		await buffer.drainAll();
+		expect(DLQ_BUFFER_SIZE.set).toHaveBeenCalled();
 	});
 
 	it("recoverFromFallbackFile with entries", async () => {

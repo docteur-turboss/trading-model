@@ -12,6 +12,7 @@ import {
 	type FilePath,
 	URLString,
 } from "@trading-model/common/domain/primitives";
+import { HTTP_HEADERS } from "@trading-model/common/http-headers";
 import { z } from "zod";
 
 jest.mock("https");
@@ -24,6 +25,27 @@ jest.mock("fs", () => ({
 	readFileSync: jest.fn(() => "-----BEGIN CERTIFICATE-----\nmock-content"),
 }));
 
+jest.mock("@opentelemetry/api", () => {
+	const actual =
+		jest.requireActual<typeof import("@opentelemetry/api")>(
+			"@opentelemetry/api"
+		);
+	return {
+		...actual,
+		context: {
+			...actual.context,
+			active: jest.fn(() => actual.ROOT_CONTEXT),
+		},
+		propagation: {
+			...actual.propagation,
+			inject: jest.fn((_ctx: unknown, carrier: Record<string, string>) => {
+				carrier.traceparent =
+					"00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01";
+			}),
+		},
+	};
+});
+
 import fs from "node:fs";
 import https from "node:https";
 import {
@@ -34,6 +56,7 @@ import type {
 	PositiveInt,
 	ServiceId,
 } from "@trading-model/common/domain/primitives";
+import { runWithCorrelationId } from "@trading-model/http/adapters/inbound/correlation-id";
 import {
 	computeAdaptiveTimeout,
 	HttpClient,
@@ -60,10 +83,12 @@ describe("HttpClient", () => {
 	let requestCallback: ((res: any) => void) | null;
 	let mockReq: any;
 	let errorHandler: ((err: Error) => void) | null;
+	let lastRequestOptions: any;
 
 	beforeEach(() => {
 		requestCallback = null;
 		errorHandler = null;
+		lastRequestOptions = null;
 		mockReq = {
 			write: jest.fn(),
 			end: jest.fn(),
@@ -80,8 +105,9 @@ describe("HttpClient", () => {
 			destroy: jest.fn(),
 		};
 
-		(https.request as jest.Mock).mockImplementation((_opts: any, cb: any) => {
+		(https.request as jest.Mock).mockImplementation((opts: any, cb: any) => {
 			requestCallback = cb;
+			lastRequestOptions = opts;
 			return mockReq;
 		});
 
@@ -145,6 +171,47 @@ describe("HttpClient", () => {
 		});
 		return onMock;
 	}
+
+	describe("outgoing propagation", () => {
+		it("should inject x-correlation-id from the async context", async () => {
+			const promise = runWithCorrelationId("corr-123", () =>
+				client.get(URLString.of("https://example.com/api"))
+			);
+			simulateResponse(200, "{}", "application/json");
+
+			await promise;
+
+			expect(lastRequestOptions.headers[HTTP_HEADERS.CORRELATION_ID]).toBe(
+				"corr-123"
+			);
+		});
+
+		it("should prefer an explicit x-correlation-id header over the context", async () => {
+			const promise = runWithCorrelationId("ctx-id", () =>
+				client.get(URLString.of("https://example.com/api"), {
+					headers: { [HTTP_HEADERS.CORRELATION_ID]: "explicit-id" },
+				})
+			);
+			simulateResponse(200, "{}", "application/json");
+
+			await promise;
+
+			expect(lastRequestOptions.headers[HTTP_HEADERS.CORRELATION_ID]).toBe(
+				"explicit-id"
+			);
+		});
+
+		it("should inject a W3C traceparent header from the active span context", async () => {
+			const promise = client.get(URLString.of("https://example.com/api"));
+			simulateResponse(200, "{}", "application/json");
+
+			await promise;
+
+			expect(lastRequestOptions.headers.traceparent).toBe(
+				"00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01"
+			);
+		});
+	});
 
 	describe("get", () => {
 		it("should make a GET request", async () => {

@@ -4,6 +4,7 @@ import { normalizeError } from "@trading-model/common/utils/errors";
 import { logger } from "@trading-model/http/infrastructure/logger";
 import Redis from "ioredis";
 import type { CacheManager } from "./cache-manager";
+import { incCacheInvalidations, incOperationError } from "./monitoring/metrics";
 
 function createNullRedis(): Redis {
 	return {
@@ -69,7 +70,9 @@ export class PubSubInvalidator {
 		}
 		try {
 			await this._pubSub.publish("cache:invalidate", serviceName);
+			incCacheInvalidations();
 		} catch (err) {
+			incOperationError("pubsub-publish");
 			logger.warn("Failed to publish cache invalidation", {
 				serviceName,
 				error: normalizeError(err),

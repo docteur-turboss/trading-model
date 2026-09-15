@@ -638,6 +638,75 @@ services:
       api-gateway:
         condition: service_healthy
 
+  # ---------------------------------------------------------------------------
+  #  Observability Stack — Prometheus, Grafana, Loki
+  # ---------------------------------------------------------------------------
+  prometheus:
+    image: prom/prometheus:v2.55.0
+    container_name: trading-prometheus
+    restart: unless-stopped
+    ports:
+      - '${PROMETHEUS_PORT:-9090}:9090'
+    volumes:
+      - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./observability/alerting.yml:/etc/prometheus/alerting.yml:ro
+      - prometheus-data:/prometheus
+    networks:
+      - backend-net
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.retention.time=30d'
+      - '--web.enable-lifecycle'
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+
+  alertmanager:
+    image: prom/alertmanager:v0.27.0
+    container_name: trading-alertmanager
+    restart: unless-stopped
+    ports:
+      - '${ALERTMANAGER_PORT:-9093}:9093'
+    volumes:
+      - ./observability/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+    networks:
+      - backend-net
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+    depends_on:
+      prometheus:
+        condition: service_started
+
+  grafana:
+    image: grafana/grafana:11.2.0
+    container_name: trading-grafana
+    restart: unless-stopped
+    ports:
+      - '${GRAFANA_PORT:-3001}:3000'
+    volumes:
+      - ./observability/grafana-datasources.yml:/etc/grafana/provisioning/datasources/datasources.yml:ro
+      - ./observability/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    networks:
+      - backend-net
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/services.json
+
+  loki:
+    image: grafana/loki:3.1.0
+    container_name: trading-loki
+    restart: unless-stopped
+    ports:
+      - '${LOKI_PORT:-3100}:3100'
+    volumes:
+      - ./observability/loki-config.yml:/etc/loki/local-config.yaml:ro
+      - loki-data:/loki
+    networks:
+      - backend-net
+    command: -config.file=/etc/loki/local-config.yaml
+
 networks:
   data-net:
     name: trading-data-network
@@ -660,3 +729,6 @@ volumes:
   svid-gateway:
   svid-audit:
   svid-dlq:
+  prometheus-data:
+  grafana-data:
+  loki-data:

@@ -7,6 +7,7 @@ metadata:
     app.kubernetes.io/part-of: trading-model
 data:
   NODE_ENV: "production"
+  OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4318"
   PORT: "3000"
   TLS_KEY_PATH: "/run/spire/svid/svid_key.pem"
   TLS_CERT_PATH: "/run/spire/svid/svid.pem"
@@ -15,6 +16,7 @@ data:
   LOG_LEVEL: "info"
   REDIS_CLEANUP_INTERVAL_MS: "10000"
   CLEANUP_SERVICE_INTERVAL_MS: "15000"
+  REDIS_URL: "redis://redis-primary:6379"
 ---
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
