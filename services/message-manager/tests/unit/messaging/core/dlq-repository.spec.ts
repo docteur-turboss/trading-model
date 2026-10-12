@@ -6,7 +6,7 @@ import { afterAll, describe, expect, it, jest } from "@jest/globals";
 import {
 	type DlqEntry,
 	FileDlqRepository,
-} from "../../../../src/adapters/outbound/dlq-repository";
+} from "../../../../src/infrastructure/fallback/dlq-repository";
 
 jest.mock("../../../../src/config/metrics", () => ({
 	MESSAGES_DLQ_ERROR_TOTAL: { inc: jest.fn() },

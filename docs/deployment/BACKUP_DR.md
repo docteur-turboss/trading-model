@@ -64,6 +64,7 @@ BACKUP_DIR=/backups bash scripts/backup-k8s.sh
 | MySQL (financial-scraper + SPIRE `spire`) | `mysqldump --single-transaction --all-databases` | Transaction-consistent snapshot |
 | Redis (primary)                         | `redis-cli BGSAVE` + copy `dump.rdb`             | Fork-consistent                 |
 | Trainer checkpoints (trader-trainer)    | `tar czf` of `/data/checkpoints/`                | Filesystem snapshot             |
+| SPIRE CA key (`keys.json`)              | `kubectl cp` / `docker cp`                       | File copy (critical trust anchor) |
 
 ### Off-site Storage (Optional)
 
@@ -138,7 +139,25 @@ docker exec trading-mysql mysqlcheck --all-databases --user=root --password=$MYS
 1. Stop Redis primary
 2. Replace `dump.rdb` with backup copy
 3. Restart Redis primary
-4. Verify: `docker exec trading-redis-primary redis-cli DBSIZE`
+4. Verify: `docker exec trading-redis redis-cli DBSIZE`
+
+### Manual SPIRE CA Key Restore
+
+```bash
+# Docker — stop server, replace keys.json, restart
+docker stop trading-spire-server
+docker cp backups/spire/keys_<timestamp>.json trading-spire-server:/run/spire/data/keys.json
+docker start trading-spire-server
+```
+
+```bash
+# K8s — copy key, restart pod
+kubectl cp backups/spire/keys_<timestamp>.json trading-model/<spire-server-pod>:/run/spire/data/keys.json
+kubectl delete pod -n trading-model -l app.kubernetes.io/component=spire-server
+```
+
+> **Warning:** Restoring a SPIRE CA key invalidates all previously-issued SVIDs.
+> All workloads must re-fetch their SVIDs after CA restore.
 
 ## Disaster Recovery
 
@@ -156,7 +175,7 @@ docker exec trading-mysql mysqlcheck --all-databases --user=root --password=$MYS
 
 1. Provision replacement hosts (bare metal / cloud instances)
 2. Restore Docker Compose configuration from git
-3. Restore SPIRE datastore from backup
+3. Restore SPIRE CA key (`keys.json`) from backup — this is the trust anchor
 4. Restore databases from latest backup (MongoDB → MySQL incl. SPIRE `spire` → Redis)
 5. Start core infrastructure: Redis → MongoDB → MySQL → SPIRE Server + Agent
 6. Start services in dependency order:
@@ -168,6 +187,7 @@ docker exec trading-mysql mysqlcheck --all-databases --user=root --password=$MYS
    f. admin-interface
 7. Verify health endpoints for all services
 8. Verify service registration in discovery-server
+9. Re-issue all SVIDs if CA key was restored from a different generation
 
 ### Recovery Verification
 

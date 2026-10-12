@@ -29,10 +29,6 @@ describe("StateManager", () => {
 			expect(sm.getEpsilon()).toBe(1.0);
 		});
 
-		it("should have gamma at 0.99 by default", () => {
-			expect(sm.getGamma()).toBe(0.99);
-		});
-
 		it("should decay epsilon multiplicatively", () => {
 			sm.decayEpsilon();
 
@@ -84,12 +80,6 @@ describe("StateManager", () => {
 			sm.decayEpsilon();
 
 			expect(sm.getEpsilon()).toBeCloseTo(0.5, 5);
-		});
-
-		it("should use provided gamma", () => {
-			const sm = new StateManager({ gamma: 0.95 });
-
-			expect(sm.getGamma()).toBe(0.95);
 		});
 	});
 

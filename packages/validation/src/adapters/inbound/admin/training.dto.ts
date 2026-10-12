@@ -46,6 +46,48 @@ export enum Optimizer {
 	Adamw = "adamw",
 }
 
+export interface TrainingAgentSummary {
+	id: string;
+	generation: PositiveInt;
+	fitness: Fitness;
+	sharpe: SharpeRatio;
+	avgPnl: number;
+	maxDrawdown: number;
+	gaControl: {
+		populationSize: PositiveInt;
+		elitismFraction: number;
+		survivorFraction: number;
+		episodesPerIndividual: PositiveInt;
+		selectionType: string;
+		fitnessType: string;
+	};
+	network: {
+		inputDim: PositiveInt;
+		outputDim: PositiveInt;
+		hiddenLayers: { neurons: PositiveInt; activation: string }[];
+	};
+	rl: {
+		gamma: number;
+		learningRate: number;
+		epsilonStart: number;
+		epsilonMin: number;
+		epsilonDecay: number;
+	};
+}
+
+export interface TrainingAgentEntry {
+	symbol: TradingSymbol;
+	agent: TrainingAgentSummary;
+	training: boolean;
+	generation: PositiveInt;
+}
+
+export interface TrainingAgentListResponse {
+	agents: TrainingAgentEntry[];
+	training: boolean;
+	currentSymbol: TradingSymbol;
+}
+
 export interface TrainingResult {
 	id: ModelId;
 	symbol: TradingSymbol;

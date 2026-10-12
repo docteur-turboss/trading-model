@@ -1,4 +1,4 @@
-import type { CandlestickQuery } from "@trading-model/common/domain/candlestick-query";
+import type { CandlestickQuery } from "@trading-model/common/contracts/candlestick-query";
 import type {
 	BinanceFromId,
 	TradingSymbol,

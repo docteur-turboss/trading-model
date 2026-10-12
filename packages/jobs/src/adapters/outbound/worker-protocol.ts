@@ -3,6 +3,7 @@ import type {
 	SchedulerOutgoingMessage,
 	WorkerIncomingMessage,
 } from "@trading-model/common/contracts/worker-protocol-types";
+import type { ServiceId } from "@trading-model/common/domain/primitives";
 import { WorkerStatusCode } from "@trading-model/common/domain/primitives";
 import { logger } from "@trading-model/http/infrastructure/logger";
 import WebSocket from "ws";
@@ -28,12 +29,16 @@ export class WorkerProtocol implements IWorkerProtocol {
 	constructor(
 		server: https.Server,
 		private readonly _workerRegistry: WorkerRegistry,
-		private readonly _onWorkerDisconnect: (workerId: string) => void
+		private readonly _onWorkerDisconnect: (workerId: string) => void,
+		targetService?: ServiceId,
+		enforceMtlsStrict?: boolean
 	) {
 		this._wsManager = new WorkerWsManager(
 			server,
 			(msg, ws) => this._onWsMessage(msg, ws),
-			(ws) => this._onWsClose(ws)
+			(ws) => this._onWsClose(ws),
+			targetService,
+			enforceMtlsStrict
 		);
 		this._handlers = {
 			register: (msg, ws) =>

@@ -90,7 +90,7 @@ spec:
             exec:
               command:
                 - curl
-                - -sk
+                - -skf
                 - --cert
                 - /run/spire/svid/svid.pem
                 - --key
@@ -104,7 +104,7 @@ spec:
             exec:
               command:
                 - curl
-                - -sk
+                - -skf
                 - --cert
                 - /run/spire/svid/svid.pem
                 - --key
@@ -118,7 +118,7 @@ spec:
             exec:
               command:
                 - curl
-                - -sk
+                - -skf
                 - --cert
                 - /run/spire/svid/svid.pem
                 - --key

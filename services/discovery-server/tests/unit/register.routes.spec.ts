@@ -15,6 +15,15 @@ jest.mock("../../src/controllers/register.controller", () => ({
 	createRegisterController: jest.fn(),
 }));
 
+jest.mock("../../src/adapters/inbound/registration-auth", () => ({
+	REGISTRATION_AUTH: "registration-auth-handler",
+	REGISTRATION_MTLS_AUTH: "registration-mtls-auth-handler",
+}));
+
+jest.mock("../../src/adapters/inbound/registration-ip-allowlist", () => ({
+	REGISTRATION_IP_ALLOWLIST: "registration-ip-allowlist-handler",
+}));
+
 import { createRegisterController } from "../../src/controllers/register.controller";
 import { REGISTRY_ROUTES } from "../../src/routes/register.routes";
 
@@ -35,7 +44,10 @@ describe("REGISTRY_ROUTES", () => {
 		expect(MOCK_ROUTER.post).toHaveBeenCalledTimes(1);
 		expect(MOCK_ROUTER.post).toHaveBeenCalledWith(
 			"/register",
-			expect.any(Function),
+			"registration-ip-allowlist-handler",
+			"registration-mtls-auth-handler",
+			"registration-auth-handler",
+			expect.anything(),
 			"register-handler"
 		);
 		expect(MOCK_ROUTER.get).toHaveBeenCalledTimes(3);

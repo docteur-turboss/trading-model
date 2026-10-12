@@ -5,6 +5,7 @@
  */
 
 import { AuditEvent } from "../contracts/audit-events";
+import { TrainingEvent } from "../contracts/training-events";
 
 /** @deprecated Use BaseMarketData from "@trading-model/common/contracts/market-data.types" */
 /** @deprecated Use OhlcvData from "@trading-model/common/contracts/market-data.types" */
@@ -40,7 +41,7 @@ export {
 	SourceType,
 	TradeSide,
 } from "../contracts/market-data.types";
-export { AuditEvent };
+export { AuditEvent, TrainingEvent };
 
 import { MarketEvent } from "../contracts/market-events";
 
@@ -48,15 +49,22 @@ export { MarketEvent };
 
 import type { AuditEventMap } from "../contracts/audit-events";
 import type { MarketEventMap } from "../contracts/market-events";
+import type { TrainingEventMap } from "../contracts/training-events";
 
 /** Union interface combining all per-context event maps. */
-export interface EventMap extends MarketEventMap, AuditEventMap {}
+export interface EventMap
+	extends MarketEventMap,
+		AuditEventMap,
+		TrainingEventMap {}
 
 /** Union of all valid event message string values. */
-export type EventEnumMap = `${MarketEvent}` | `${AuditEvent}`;
+export type EventEnumMap =
+	| `${MarketEvent}`
+	| `${AuditEvent}`
+	| `${TrainingEvent}`;
 
 /** Extracts the payload type for a given event message. */
 export type EventMessagesArgs<TValue extends EventEnumMap> =
 	TValue extends keyof EventMap ? EventMap[TValue] : never;
 
-export type { AuditEventMap, MarketEventMap };
+export type { AuditEventMap, MarketEventMap, TrainingEventMap };

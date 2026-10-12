@@ -8,7 +8,8 @@ import { buildAuditDocument } from "../../outbound/persistence/audit-document-bu
 import type { AuditRepository } from "../../outbound/persistence/audit-repository";
 
 export function createMessageHandler(
-	auditRepo: AuditRepository
+	auditRepo: AuditRepository,
+	auditRetentionDays: number
 ): RequestHandler {
 	const handler: RequestHandler = catchSync(async (req) => {
 		const parsed = parseEnvelope(req.body as Record<string, unknown>);
@@ -20,7 +21,7 @@ export function createMessageHandler(
 		}
 
 		EVENTS_INGESTED_TOTAL.inc({ topic: parsed.topic });
-		const document = buildAuditDocument(parsed);
+		const document = buildAuditDocument(parsed, auditRetentionDays);
 		await auditRepo.insert(document);
 
 		return sendResponse({ status: "recorded" }, 200 as HttpStatusCode);

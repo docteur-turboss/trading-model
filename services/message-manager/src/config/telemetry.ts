@@ -2,7 +2,6 @@
 import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-http";
 import { ExpressInstrumentation } from "@opentelemetry/instrumentation-express";
 import { HttpInstrumentation } from "@opentelemetry/instrumentation-http";
-import { IORedisInstrumentation } from "@opentelemetry/instrumentation-ioredis";
 import { resourceFromAttributes } from "@opentelemetry/resources";
 import { NodeSDK } from "@opentelemetry/sdk-node";
 
@@ -38,11 +37,7 @@ function buildSdkOptions(): ConstructorParameters<typeof NodeSDK>[0] {
 		traceExporter: new OTLPTraceExporter({
 			url: `${ENV.OTEL_EXPORTER_OTLP_ENDPOINT}/v1/traces`,
 		}),
-		instrumentations: [
-			new HttpInstrumentation(),
-			new ExpressInstrumentation(),
-			new IORedisInstrumentation(),
-		],
+		instrumentations: [new HttpInstrumentation(), new ExpressInstrumentation()],
 	};
 }
 

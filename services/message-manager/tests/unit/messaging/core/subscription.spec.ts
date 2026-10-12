@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { DeliveryMode } from "@trading-model/common/config/delivery-mode.types";
 import { deadLetterError } from "@trading-model/common/utils/errors";
-import type { MessageDeliveryPort } from "../../../../src/messaging/core/message-delivery-port";
+import type { MessageDeliveryPort } from "../../../../src/application/ports/message-delivery-port";
 import { Subscription } from "../../../../src/messaging/core/subscription";
 import {
 	createMockMessage,

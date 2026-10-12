@@ -23,6 +23,10 @@ export interface NetworkArchitecture {
 	normalizedInputRange?: NumericRange;
 	enablePool?: boolean;
 	poolMaxSize?: PositiveInt;
+	perEnabled?: boolean;
+	perAlpha?: number;
+	perBeta?: number;
+	perBetaAnneal?: boolean;
 }
 
 export interface LossConfig {
@@ -98,5 +102,9 @@ export function mergeConfig(
 			new NumericRange(0, cfg.neuronsByLayer[0] - 1),
 		biasInitialisationType: _resolveBiasInit(cfg),
 		activationType: _resolveActivationType(cfg),
+		perEnabled: cfg.perEnabled ?? false,
+		perAlpha: cfg.perAlpha ?? 0.6,
+		perBeta: cfg.perBeta ?? 0.4,
+		perBetaAnneal: cfg.perBetaAnneal ?? false,
 	};
 }

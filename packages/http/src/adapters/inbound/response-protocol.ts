@@ -2,6 +2,7 @@ import {
 	HTTP_STATUS,
 	type HttpStatusCode,
 } from "@trading-model/common/http-status";
+import { anonymizeIp } from "@trading-model/common/utils/anonymize-ip";
 import { isAppError } from "@trading-model/common/utils/errors";
 import type { NextFunction, Request, Response } from "express";
 import { logger } from "../../application/services/logger";
@@ -31,7 +32,7 @@ function logServerError(
 			stack: originalError?.stack,
 			url: req.originalUrl,
 			method: req.method,
-			ip: req.ip,
+			ip: anonymizeIp(req.ip),
 		},
 	});
 }

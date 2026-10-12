@@ -1,4 +1,4 @@
-﻿import type { SymbolInterval } from "@trading-model/common/domain/candlestick-query";
+﻿import type { SymbolInterval } from "@trading-model/common/contracts/candlestick-query";
 import {
 	PositiveInt,
 	Price,

@@ -6,7 +6,7 @@ jest.mock("@trading-model/server-utils/application/services/bootstrap", () => ({
 	createBootstrap: MOCK_CREATE_BOOTSTRAP,
 }));
 
-jest.mock("../../../src/infrastructure/app/server", () => ({
+jest.mock("../../../src/application/server", () => ({
 	createServer: jest.fn(() => ({ close: jest.fn() })),
 }));
 
@@ -40,7 +40,7 @@ jest.mock("../../../src/infrastructure/config/env", () => ({
 	},
 }));
 
-import "../../../src/infrastructure/app/index";
+import "../../../src/application/index";
 
 describe("app/index", () => {
 	it("should call createBootstrap on load", () => {

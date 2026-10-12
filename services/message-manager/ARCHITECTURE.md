@@ -13,8 +13,8 @@ Services interact with the broker through the `@trading-model/broker-message` SD
 ```
 ┌────────────────────────────────────────────────────┐
 │                  HTTP Transport                     │
-│  POST /message  |  POST /subscription  |  DELETE   │
-│              /subscription                         │
+│  POST /message  |  POST /subscribe  |  DELETE   │
+│              /subscribe                         │
 │  ┌──────────────────────────────────────────────┐  │
 │  │        Controllers (http.controller.ts)       │  │
 │  │  Request validation (Zod) → delegate to core │  │
@@ -130,7 +130,7 @@ Zod schemas enforce payload correctness at the HTTP boundary:
 ```
 Service A                    Dispatcher                    Service B
    |                           |                              |
-   |— POST /subscription ——→   |                              |
+   |— POST /subscribe ——→   |                              |
    |  { topic, callbackPath,   |                              |
    |    consumerIdentity }     |                              |
    |                           |— registerSubscription() ——  |

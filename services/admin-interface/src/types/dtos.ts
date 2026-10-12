@@ -34,6 +34,8 @@ export type {
 	JobEntry,
 	JobTimelineEntry,
 	Ticker,
+	TrainingAgentEntry,
+	TrainingAgentListResponse,
 	TrainingResult,
 	WorkerEntry,
 } from "@trading-model/validation/adapters/inbound/admin";

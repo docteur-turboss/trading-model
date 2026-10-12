@@ -14,11 +14,6 @@ const HTTP_REQUEST_DURATION_SECONDS = new promClient.Histogram({
 	buckets: [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5],
 });
 
-const ACTIVE_CONNECTIONS = new promClient.Gauge({
-	name: "discovery_ws_active_connections",
-	help: "Number of currently connected WebSocket clients",
-});
-
 const REGISTERED_INSTANCES = new promClient.Gauge({
 	name: "discovery_registered_instances",
 	help: "Number of registered service instances",
@@ -36,20 +31,10 @@ const HEARTBEATS_TOTAL = new promClient.Counter({
 	labelNames: ["service"] as const,
 });
 
-const CACHE_INVALIDATIONS_TOTAL = new promClient.Counter({
-	name: "discovery_cache_invalidations_total",
-	help: "Total cache invalidation events broadcast",
-});
-
 const CLEANUP_DURATION_SECONDS = new promClient.Histogram({
 	name: "discovery_cleanup_duration_seconds",
 	help: "Duration of lease cleanup cycles",
 	buckets: [0.01, 0.05, 0.1, 0.5, 1, 5],
-});
-
-const WS_DROPPED_MESSAGES_TOTAL = new promClient.Counter({
-	name: "discovery_ws_dropped_messages_total",
-	help: "Total WebSocket messages dropped due to queue overflow",
 });
 
 const OPERATION_ERRORS_TOTAL = new promClient.Counter({
@@ -83,10 +68,6 @@ export function trackRequest({
 	HTTP_REQUEST_DURATION_SECONDS.observe({ method, path }, durationMs / 1000);
 }
 
-export function setActiveWsConnections(count: number): void {
-	ACTIVE_CONNECTIONS.set(count);
-}
-
 export function setRegisteredInstances(count: number): void {
 	REGISTERED_INSTANCES.set(count);
 }
@@ -102,16 +83,8 @@ export function incHeartbeatsTotal(service: string): void {
 	HEARTBEATS_TOTAL.inc({ service });
 }
 
-export function incCacheInvalidations(): void {
-	CACHE_INVALIDATIONS_TOTAL.inc();
-}
-
 export function observeCleanupDuration(durationMs: number): void {
 	CLEANUP_DURATION_SECONDS.observe(durationMs / 1000);
-}
-
-export function incWsDroppedMessages(): void {
-	WS_DROPPED_MESSAGES_TOTAL.inc();
 }
 
 export function incOperationError(operation: string): void {
@@ -123,4 +96,3 @@ export function incLeaseCleanupCycle(): void {
 }
 
 export { metricsHandler };
-export const METRICS_HANDLER: typeof metricsHandler = metricsHandler;

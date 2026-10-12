@@ -37,11 +37,13 @@ jobs:
           mkdir -p "${BACKUP_DIR}/mysql"
           mkdir -p "${BACKUP_DIR}/redis"
           mkdir -p "${BACKUP_DIR}/checkpoints"
+          mkdir -p "${BACKUP_DIR}/spire"
 
           echo '{"test": "mongodb fixture"}' > "${BACKUP_DIR}/mongodb/test-fixture/test.bson"
           echo "CREATE TABLE test (id INT);" | gzip > "${BACKUP_DIR}/mysql/financial_scraper_test-fixture.sql.gz"
           echo "REDIS001" > "${BACKUP_DIR}/redis/redis-primary_test-fixture.rdb"
           echo "checkpoint-data" | gzip > "${BACKUP_DIR}/checkpoints/checkpoints_test-fixture.tar.gz"
+          echo '{"keys": "test-spire-ca-key"}' > "${BACKUP_DIR}/spire/keys_test-fixture.json"
 
       - name: Validate backup scripts syntax
         run: |
@@ -52,12 +54,12 @@ jobs:
 
       - name: Test restore.sh dry-run
         run: |
-          bash scripts/restore.sh --dry-run --components mongodb,mysql,redis,checkpoints --timestamp test-fixture
+          bash scripts/restore.sh --dry-run --components mongodb,mysql,redis,checkpoints,spire --timestamp test-fixture
           echo "  ✓ restore.sh dry-run passed"
 
       - name: Test backup.sh dry-run
         run: |
-          bash scripts/backup.sh --dry-run --components mongodb,mysql,redis,checkpoints
+          bash scripts/backup.sh --dry-run --components mongodb,mysql,redis,checkpoints,spire
           echo "  ✓ backup.sh dry-run passed"
 
       - name: Validate backup directory structure
@@ -68,12 +70,13 @@ jobs:
           echo "    mysql/financial_scraper_test-fixture.sql.gz"
           echo "    redis/redis-primary_test-fixture.rdb"
           echo "    checkpoints/checkpoints_test-fixture.tar.gz"
+          echo "    spire/keys_test-fixture.json"
           echo ""
           find "${BACKUP_DIR}" -type f | sort
           echo ""
           FILES=$(find "${BACKUP_DIR}" -type f | wc -l)
-          if [ "$FILES" -lt 4 ]; then
-            echo "ERROR: Expected at least 4 backup files, found $FILES"
+          if [ "$FILES" -lt 5 ]; then
+            echo "ERROR: Expected at least 5 backup files, found $FILES"
             exit 1
           fi
           echo "  ✓ Backup directory structure validated"
@@ -84,6 +87,7 @@ jobs:
           bash scripts/restore.sh --dry-run --components mysql --timestamp test-fixture | grep -q "MySQL"
           bash scripts/restore.sh --dry-run --components redis --timestamp test-fixture | grep -q "Redis"
           bash scripts/restore.sh --dry-run --components checkpoints --timestamp test-fixture | grep -q "Checkpoints"
+          bash scripts/restore.sh --dry-run --components spire --timestamp test-fixture | grep -q "SPIRE"
           echo "  ✓ Component selection validated"
 
       - name: Validate restore-k8s.sh syntax
@@ -97,7 +101,7 @@ jobs:
       - name: Validate K8s CronJob manifest
         run: |
           if command -v kubectl &>/dev/null; then
-            kubectl apply --dry-run=client -f deploy/k8s/jobs/backup-cronjob.yaml 2>&1 | grep -v "dry-run" || true
+            kubectl apply --dry-run=client -f deploy/k8s/jobs/backup-cronjob.yaml
             echo "  ✓ backup-cronjob.yaml validated"
           else
             echo "  ⚠ kubectl not available — skipping manifest validation"

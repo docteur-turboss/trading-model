@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # =============================================================================
 #  Trading Model — Database Backup Script (Linux / CI)
-#  Usage:  bash scripts/backup.sh [--dry-run] [--components mongodb,mysql,redis]
+#  Usage:  bash scripts/backup.sh [--dry-run] [--components mongodb,mysql,redis,spire]
 # =============================================================================
 
 set -euo pipefail
@@ -9,9 +9,11 @@ set -euo pipefail
 BACKUP_DIR="${BACKUP_DIR:-./backups}"
 TIMESTAMP="$(date +%Y-%m-%d_%H%M%S)"
 DRY_RUN=false
-COMPONENTS="mongodb,mysql,redis,checkpoints"
+COMPONENTS="mongodb,mysql,redis,checkpoints,spire"
 RETENTION_DAYS="${RETENTION_DAYS:-30}"
 S3_BUCKET="${BACKUP_S3_BUCKET:-}"
+METRICS_FILE="${METRICS_FILE:-}"
+BACKUP_SUCCESS=0
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -26,12 +28,35 @@ ok()   { log "✓ $*"; }
 fail() { log "✗ $*"; }
 warn() { log "⚠ $*"; }
 
+write_metric() {
+  local component="$1" status="$2"
+  if [ -n "$METRICS_FILE" ]; then
+    mkdir -p "$(dirname "$METRICS_FILE")"
+    echo "backup_last_success_timestamp{component=\"${component}\"} $(date +%s)" >> "$METRICS_FILE"
+    echo "backup_last_status{component=\"${component}\"} ${status}" >> "$METRICS_FILE"
+  fi
+}
+
+wait_for_bgsave() {
+  local container="$1" max_wait="${2:-30}" elapsed=0
+  while [ "$elapsed" -lt "$max_wait" ]; do
+    local bg
+    bg=$(docker exec "${container}" redis-cli LASTSAVE 2>/dev/null || echo "")
+    if [ -n "$bg" ]; then
+      return 0
+    fi
+    sleep 1
+    elapsed=$((elapsed + 1))
+  done
+  return 1
+}
+
 backup_mongodb() {
   log "Starting MongoDB backup..."
   local dest="${BACKUP_DIR}/mongodb/${TIMESTAMP}"
   mkdir -p "$dest"
 
-  for container in trading-mongodb-primary trading-mongodb-dlq; do
+  for container in trading-mongo; do
     if ! docker ps --filter "name=${container}" --format '{{.Names}}' | grep -q .; then
       warn "Container ${container} not running, skipping"
       continue
@@ -42,13 +67,20 @@ backup_mongodb() {
       continue
     fi
 
-    docker exec "${container}" mongodump --gzip --oplog --out="/tmp/backup_${TIMESTAMP}" 2>/dev/null
-    if [ $? -eq 0 ]; then
+    local mongodump_args=(--gzip --out="/tmp/backup_${TIMESTAMP}")
+    if docker exec "${container}" mongosh --quiet --eval "rs.status().ok" 2>/dev/null | grep -q "1"; then
+      mongodump_args+=(--oplog)
+    fi
+
+    if docker exec "${container}" mongodump "${mongodump_args[@]}" 2>/dev/null; then
       docker cp "${container}:/tmp/backup_${TIMESTAMP}/." "${dest}/${container}/" 2>/dev/null
       docker exec "${container}" rm -rf "/tmp/backup_${TIMESTAMP}" 2>/dev/null
       ok "MongoDB backup complete: ${container}"
+      write_metric "mongodb" 1
+      BACKUP_SUCCESS=1
     else
       fail "MongoDB backup failed: ${container}"
+      write_metric "mongodb" 0
     fi
   done
 }
@@ -74,8 +106,11 @@ backup_mysql() {
     --all-databases --single-transaction --quick --lock-tables=false 2>/dev/null | \
     gzip > "$file"; then
     ok "MySQL backup complete: ${file}"
+    write_metric "mysql" 1
+    BACKUP_SUCCESS=1
   else
     fail "MySQL backup failed"
+    write_metric "mysql" 0
   fi
 }
 
@@ -91,12 +126,19 @@ backup_redis() {
     fi
 
     if docker exec "${container}" redis-cli BGSAVE 2>/dev/null; then
-      sleep 2
-      local file="${dest}/${container}_${TIMESTAMP}.rdb"
-      docker cp "${container}:/data/dump.rdb" "$file" 2>/dev/null
-      ok "Redis backup complete: ${container}"
+      if wait_for_bgsave "${container}" 30; then
+        local file="${dest}/${container}_${TIMESTAMP}.rdb"
+        docker cp "${container}:/data/dump.rdb" "$file" 2>/dev/null
+        ok "Redis backup complete: ${container}"
+        write_metric "redis" 1
+        BACKUP_SUCCESS=1
+      else
+        fail "Redis backup failed: BGSAVE did not complete within 30s: ${container}"
+        write_metric "redis" 0
+      fi
     else
       fail "Redis backup failed: ${container}"
+      write_metric "redis" 0
     fi
   done
 }
@@ -119,8 +161,37 @@ backup_checkpoints() {
 
   if docker exec trading-trainer tar czf - -C /data/checkpoints . 2>/dev/null > "$file"; then
     ok "Checkpoints backup complete: ${file}"
+    write_metric "checkpoints" 1
+    BACKUP_SUCCESS=1
   else
     fail "Checkpoints backup failed (directory may be empty)"
+    write_metric "checkpoints" 0
+  fi
+}
+
+backup_spire() {
+  log "Starting SPIRE CA key backup..."
+  local dest="${BACKUP_DIR}/spire"
+  mkdir -p "$dest"
+  local file="${dest}/keys_${TIMESTAMP}.json"
+
+  if ! docker ps --filter "name=trading-spire-server" --format '{{.Names}}' | grep -q .; then
+    warn "SPIRE server container not running, skipping"
+    return
+  fi
+
+  if $DRY_RUN; then
+    warn "[DRY-RUN] Would backup SPIRE CA key from trading-spire-server"
+    return
+  fi
+
+  if docker cp "trading-spire-server:/run/spire/data/keys.json" "$file" 2>/dev/null && [ -s "$file" ]; then
+    ok "SPIRE CA key backup complete: ${file}"
+    write_metric "spire" 1
+    BACKUP_SUCCESS=1
+  else
+    fail "SPIRE CA key backup failed"
+    write_metric "spire" 0
   fi
 }
 
@@ -165,12 +236,18 @@ for part in "${PARTS[@]}"; do
     mysql)       backup_mysql ;;
     redis)       backup_redis ;;
     checkpoints) backup_checkpoints ;;
+    spire)       backup_spire ;;
     *)           warn "Unknown component: ${part}" ;;
   esac
 done
 
 prune_old
 upload_to_s3
+
+if [ -n "$METRICS_FILE" ] && [ "$BACKUP_SUCCESS" -eq 1 ]; then
+  echo "backup_last_run_timestamp $(date +%s)" >> "$METRICS_FILE"
+  ok "Metrics written to ${METRICS_FILE}"
+fi
 
 echo ""
 echo "══════════════════════════════════════════════════"

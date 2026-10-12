@@ -1,5 +1,4 @@
 import { Cash, Price, Volume } from "@trading-model/common/domain/primitives";
-import { logger } from "@trading-model/http/infrastructure/logger";
 import type { Experience } from "../../core/neural-network/type";
 import TradingAgent, {
 	type TradingAgentConfig,
@@ -45,35 +44,37 @@ function _buildNNConfig(
 		biasInitialisationType:
 			genome.network.hiddenLayers[0]?.biasType ?? InitialisationType.Random,
 		normalisationType: genome.network.normalization,
+		learningRate: genome.rl.learningRate,
 		enablePool: true,
 		poolMaxSize: genome.rl.replayBuffer.bufferSize,
+		perEnabled: genome.rl.replayBuffer.prioritized,
+		perAlpha: genome.rl.replayBuffer.alphaPER,
+		perBeta: genome.rl.replayBuffer.betaPER,
+		perBetaAnneal: genome.rl.replayBuffer.betaAnneal,
 	};
 }
 
 function _buildStateManagerCfg(
-	dp: DeepReadonly<LamarckGenome["rl"]["discretePolicy"]>,
-	gamma: number
+	dp: DeepReadonly<LamarckGenome["rl"]["discretePolicy"]>
 ): TradingAgentConfig["stateManagerCfg"] {
 	return {
 		epsilonStart: dp.epsilonStart,
 		epsilonMin: dp.epsilonMin,
 		epsilonDecay: dp.epsilonDecay,
-		gamma,
+		temperature: dp.temperature,
 	};
 }
 
 function _buildAgentConfig(
 	genome: DeepReadonly<LamarckGenome>
 ): TradingAgentConfig {
+	const useContinuous = genome.rl.continuousPolicy?.type !== undefined;
 	return {
 		nnConfig: _buildNNConfig(genome),
 		wallet: { initialCash: Cash.of(1000), initialPrice: Price.of(1) },
-		actionSpace: ActionSpace.Discrete,
+		actionSpace: useContinuous ? ActionSpace.Continuous : ActionSpace.Discrete,
 		tradeAmount: Volume.of(1),
-		stateManagerCfg: _buildStateManagerCfg(
-			genome.rl.discretePolicy,
-			genome.rl.gamma
-		),
+		stateManagerCfg: _buildStateManagerCfg(genome.rl.discretePolicy),
 	};
 }
 
@@ -82,23 +83,13 @@ function _tryLamarckianInjection(
 	genome: DeepReadonly<LamarckGenome>
 ): void {
 	if (genome.trainedWeights) {
-		try {
-			agent.setWeights(new Float32Array(genome.trainedWeights));
-		} catch {
-			logger.warn(
-				"Failed to inject Lamarckian weights — architecture mismatch"
-			);
-		}
+		agent.setWeights(new Float32Array(genome.trainedWeights));
 	}
 }
 
 function _makeTrainFn(agent: TradingAgent): RLBackend["train"] {
 	return (experience, gamma) => {
-		try {
-			agent.learnQLearning(experience, gamma);
-		} catch {
-			logger.warn("Q-learning training step failed");
-		}
+		agent.learnQLearning(experience, gamma);
 	};
 }
 

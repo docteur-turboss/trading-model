@@ -11,25 +11,25 @@ export interface StateManagerConfig {
 	epsilonMin?: number;
 	/** Multiplicative decay applied per step. */
 	epsilonDecay?: number;
-	gamma?: number;
+	temperature?: number;
 }
 
 /** Manages epsilon-greedy exploration schedule and agent weight initialisation from genomes. */
 class StateManager {
 	private _epsilon: number;
-	private readonly _gamma: number;
+	private readonly _temperature: number;
 
 	constructor(private readonly _cfg: StateManagerConfig = {}) {
 		this._epsilon = Probability.of(_cfg.epsilonStart ?? 1.0);
-		this._gamma = Probability.of(_cfg.gamma ?? 0.99);
+		this._temperature = _cfg.temperature ?? 1.0;
 	}
 
 	getEpsilon(): number {
 		return this._epsilon;
 	}
 
-	getGamma(): number {
-		return this._gamma;
+	getTemperature(): number {
+		return this._temperature;
 	}
 
 	/** Decay epsilon multiplicatively towards its configured minimum. */

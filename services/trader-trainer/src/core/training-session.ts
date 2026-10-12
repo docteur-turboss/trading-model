@@ -27,10 +27,10 @@ export interface TrainingSessionResult {
 }
 
 export class TrainingSession {
-	private readonly _windowSet: WindowSet;
+	private readonly _windowSets: WindowSet[];
 
-	constructor(windowSet: WindowSet) {
-		this._windowSet = windowSet;
+	constructor(windowSets: WindowSet | WindowSet[]) {
+		this._windowSets = Array.isArray(windowSets) ? windowSets : [windowSets];
 	}
 
 	async run(): Promise<TrainingSessionResult> {
@@ -85,7 +85,7 @@ export class TrainingSession {
 		onGeneration: (ctx: GenerationContext) => void
 	): GeneticAlgorithmRunner {
 		return new GeneticAlgorithmRunner({
-			windowSets: [this._windowSet],
+			windowSets: this._windowSets,
 			backendFactory: makeTradingAgentBackend,
 			evalConcurrency: 4,
 			initialControl: this._buildInitialControl(),

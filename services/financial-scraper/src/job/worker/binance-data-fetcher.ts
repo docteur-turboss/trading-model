@@ -1,5 +1,5 @@
 ﻿import { CandleInterval } from "@trading-model/common/config/event.types";
-import type { SymbolInterval } from "@trading-model/common/domain/candlestick-query";
+import type { SymbolInterval } from "@trading-model/common/contracts/candlestick-query";
 import type {
 	Limit,
 	PositiveInt,

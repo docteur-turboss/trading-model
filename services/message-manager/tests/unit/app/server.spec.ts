@@ -29,7 +29,7 @@ jest.mock("../../../src/infrastructure/config/env", () => ({
 	},
 }));
 
-import { createServer } from "../../../src/infrastructure/app/server";
+import { createServer } from "../../../src/application/server";
 
 describe("app/server", () => {
 	it("should create server", () => {

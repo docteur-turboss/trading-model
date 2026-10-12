@@ -21,3 +21,4 @@ An ADR documents a significant architectural decision, including the context, al
 | [ADR-0009](./0009-certificate-utils-structure.md) | Certificate Utils Structure                       | Superseded | 2026-06 |
 | [ADR-0010](./0010-clean-architecture-migration.md) | Clean Architecture Migration                    | Accepted | 2026-06 |
 | [ADR-0011](./0011-spiffe-spire-workload-identity.md) | SPIFFE/SPIRE Workload Identity                 | Accepted | 2026-09 |
+| [ADR-0012](./0012-dead-code-removal-and-entrypoint-fix.md) | Dead Code Removal via Reachability Analysis and Runtime Entrypoint Fix | Accepted | 2026-10 |

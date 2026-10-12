@@ -27,7 +27,7 @@ describe("createServiceServer", () => {
 		jest.clearAllMocks();
 	});
 
-	it("does not enable authorization when ENFORCE_MTLS_STRICT is off", async () => {
+	it("does not enable authorization when ENFORCE_MTLS_STRICT is explicitly false", async () => {
 		await createServiceServer({
 			env: { ...ENV, ENFORCE_MTLS_STRICT: false },
 			serviceId: ServiceId.of("api-gateway"),
@@ -39,7 +39,21 @@ describe("createServiceServer", () => {
 		);
 	});
 
-	it("enables authorization against the service identity when strict", async () => {
+	it("enables authorization by default (when ENFORCE_MTLS_STRICT is not set)", async () => {
+		await createServiceServer({
+			env: { ...ENV },
+			serviceId: ServiceId.of("api-gateway"),
+			routes: jest.fn(),
+		});
+
+		expect(createSecureServer).toHaveBeenCalledWith(
+			expect.objectContaining({
+				authorize: { enabled: true, targetService: "api-gateway" },
+			})
+		);
+	});
+
+	it("enables authorization when ENFORCE_MTLS_STRICT is true", async () => {
 		await createServiceServer({
 			env: { ...ENV, ENFORCE_MTLS_STRICT: true },
 			serviceId: ServiceId.of("api-gateway"),
@@ -53,12 +67,12 @@ describe("createServiceServer", () => {
 		);
 	});
 
-	it("throws when strict is enabled without a serviceId", () => {
+	it("throws when authorization is enabled without a serviceId", () => {
 		expect(() =>
 			createServiceServer({
-				env: { ...ENV, ENFORCE_MTLS_STRICT: true },
+				env: { ...ENV },
 				routes: jest.fn(),
 			})
-		).toThrow(/ENFORCE_MTLS_STRICT/);
+		).toThrow(/serviceId/);
 	});
 });

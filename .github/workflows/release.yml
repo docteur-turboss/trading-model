@@ -1,271 +1,74 @@
+# =============================================================================
+#  release.yml — Build & push Docker images on version tag
+#  Triggers on push of tags matching v* (e.g. v2.0.3).
+#  Builds 8 service images, pushes each with :<version> AND :latest tags.
+# =============================================================================
+
 name: Release
 
-# Single release pipeline. Triggered manually (Actions → Release → Run workflow).
-# `scripts/release.mjs` is used as the versioning engine (bump + CHANGELOG) but is
-# driven from CI: no local release command is needed anymore.
-
 on:
-  workflow_dispatch:
-    inputs:
-      bump_type:
-        description: 'Version bump type (auto = derived from commits since the last tag)'
-        required: true
-        type: choice
-        default: auto
-        options:
-          - auto
-          - patch
-          - minor
-          - major
+  push:
+    tags:
+      - "v*"
 
-concurrency:
-  group: release
-  cancel-in-progress: false
+env:
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ghcr.io/trading-model
+
+permissions:
+  contents: read
+  packages: write
 
 jobs:
-  # ── Quality gate ───────────────────────────────────────────────────────────
-  quality:
+  build-and-push:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
-      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
-        with:
-          bun-version: latest
-
-      - run: bun install --frozen-lockfile
-      - run: bun run lint
-      - name: Build packages (dependency order)
-        run: bun run build
-      - name: Type-check services
-        run: |
-          bun run --filter message-manager build
-          bun run --filter discovery-server build
-          bun run --filter financial-scraper build
-          bun run --filter trader-service build
-          bun run --filter api-gateway build
-          bun run --filter admin-interface build
-          bun run --filter audit-logger build
-          bun run --filter dlq-service build
-      - run: bun run test:coverage
-
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@04b047e8bb82a0c002c8312c1c880fbc6a999d45 # v5
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          fail_ci_if_error: true
-
-  # ── Version bump + CHANGELOG (release.mjs engine, run in CI) ──────────────
-  version:
-    needs: [quality]
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    outputs:
-      version: ${{ steps.version.outputs.version }}
-      changed: ${{ steps.status.outputs.changed }}
-    steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
-        with:
-          ref: main
-          fetch-depth: 0
-          fetch-tags: true
-      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
-        with:
-          bun-version: latest
-
-      - name: Configure git identity
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
-      - name: Compute version and CHANGELOG
-        run: |
-          BUMP="${{ github.event.inputs.bump_type }}"
-          if [ "$BUMP" = "auto" ]; then
-            bun scripts/release.mjs
-          else
-            bun scripts/release.mjs --bump "$BUMP"
-          fi
-
-      - name: Read new version
-        id: version
-        run: echo "version=$(bun -e "console.log(require('./package.json').version)")" >> "$GITHUB_OUTPUT"
-
-      - name: Check whether files changed
-        id: status
-        run: |
-          if [ -z "$(git status --porcelain)" ]; then
-            echo "changed=false" >> "$GITHUB_OUTPUT"
-            echo "No new commits since the last tag - nothing to release."
-          else
-            echo "changed=true" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Commit version bump and CHANGELOG
-        if: steps.status.outputs.changed == 'true'
-        run: |
-          VERSION="${{ steps.version.outputs.version }}"
-          git add -A
-          git commit -m ":rocket:(release): v${VERSION}"
-
-      - name: Tag and push
-        if: steps.status.outputs.changed == 'true'
-        run: |
-          VERSION="${{ steps.version.outputs.version }}"
-          git tag -a "v${VERSION}" -m ":rocket:(release): v${VERSION}"
-          git push origin main
-          git push origin "v${VERSION}"
-
-  # ── Docker images ─────────────────────────────────────────────────────────
-  docker:
-    needs: [version]
-    if: needs.version.outputs.changed == 'true'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
     strategy:
+      fail-fast: false
       matrix:
         service:
-          - name: discovery-server
-            context: .
-            dockerfile: services/discovery-server/Dockerfile
-          - name: message-manager
-            context: .
-            dockerfile: services/message-manager/Dockerfile
-          - name: financial-scraper
-            context: .
-            dockerfile: services/financial-scraper/Dockerfile
-          - name: trader-trainer
-            context: .
-            dockerfile: services/trader-trainer/Dockerfile
-          - name: api-gateway
-            context: .
-            dockerfile: services/api-gateway/Dockerfile
-          - name: audit-logger
-            context: .
-            dockerfile: services/audit-logger/Dockerfile
-          - name: admin-interface
-            context: .
-            dockerfile: services/admin-interface/Dockerfile
-          - name: dlq-service
-            context: .
-            dockerfile: services/dlq-service/Dockerfile
-    steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+          - discovery-server
+          - message-manager
+          - financial-scraper
+          - trader-trainer
+          - api-gateway
+          - audit-logger
+          - dlq-service
+          - admin-interface
 
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GHCR_TOKEN }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+        uses: docker/setup-buildx-action@v3
 
-      - name: Extract metadata
-        id: meta
-        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
         with:
-          images: ghcr.io/${{ github.repository }}/${{ matrix.service.name }}
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract version from tag
+        id: version
+        run: echo "tag=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Docker meta (version + latest)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_PREFIX }}/${{ matrix.service }}
           tags: |
-            type=semver,pattern={{version}},value=v${{ needs.version.outputs.version }}
-            type=semver,pattern={{major}}.{{minor}},value=v${{ needs.version.outputs.version }}
-            type=semver,pattern={{major}},value=v${{ needs.version.outputs.version }}
-            type=sha
+            type=raw,value=${{ steps.version.outputs.tag }}
             type=raw,value=latest
-            type=raw,value=staging
 
       - name: Build and push
-        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        uses: docker/build-push-action@v6
         with:
-          context: ${{ matrix.service.context }}
-          file: ${{ matrix.service.dockerfile }}
+          context: .
+          file: services/${{ matrix.service }}/Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-
-  # ── GitHub Release ────────────────────────────────────────────────────────
-  release:
-    needs: [version, docker]
-    if: needs.version.outputs.changed == 'true'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
-
-      - name: Generate release notes
-        id: notes
-        run: |
-          {
-            echo 'notes<<EOF'
-            echo "## Docker Images"
-            echo ""
-            echo "| Service | Pull command |"
-            echo "|---------|--------------|"
-            echo "| Discovery Server | \`docker pull ghcr.io/${{ github.repository }}/discovery-server:${{ needs.version.outputs.version }}\` |"
-            echo "| Message Manager | \`docker pull ghcr.io/${{ github.repository }}/message-manager:${{ needs.version.outputs.version }}\` |"
-            echo "| Financial Scraper | \`docker pull ghcr.io/${{ github.repository }}/financial-scraper:${{ needs.version.outputs.version }}\` |"
-            echo "| Trader Trainer | \`docker pull ghcr.io/${{ github.repository }}/trader-trainer:${{ needs.version.outputs.version }}\` |"
-            echo "| API Gateway | \`docker pull ghcr.io/${{ github.repository }}/api-gateway:${{ needs.version.outputs.version }}\` |"
-            echo "| Audit Logger | \`docker pull ghcr.io/${{ github.repository }}/audit-logger:${{ needs.version.outputs.version }}\` |"
-            echo "| Admin Interface | \`docker pull ghcr.io/${{ github.repository }}/admin-interface:${{ needs.version.outputs.version }}\` |"
-            echo "| DLQ Service | \`docker pull ghcr.io/${{ github.repository }}/dlq-service:${{ needs.version.outputs.version }}\` |"
-            echo ""
-            echo "## Quick Start"
-            echo ""
-            echo '```bash'
-            echo "git clone https://github.com/${{ github.repository }}.git"
-            echo "cd trading-model"
-            echo "cp .env.example .env"
-            echo "# edit .env, then:"
-            echo "docker compose up -d"
-            echo '```'
-            echo 'EOF'
-          } >> "$GITHUB_OUTPUT"
-
-      - name: Create Release
-        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
-        with:
-          tag_name: v${{ needs.version.outputs.version }}
-          name: Release ${{ needs.version.outputs.version }}
-          body: ${{ steps.notes.outputs.notes }}
-          generate_release_notes: true
-
-  # ── Documentation (GitHub Pages) ──────────────────────────────────────────
-  docs:
-    needs: [version]
-    if: needs.version.outputs.changed == 'true'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      pages: write
-      id-token: write
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
-        with:
-          ref: main
-      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
-        with:
-          bun-version: latest
-
-      - run: bun install --frozen-lockfile
-      - run: bun run docs:generate
-
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3
-        with:
-          path: docs/architecture/code
-
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4

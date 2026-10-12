@@ -57,7 +57,7 @@ describe("Register.controller", () => {
 			});
 		});
 
-		it("should reject invalid service name with error", async () => {
+		it("should reject invalid service name with BadRequest", async () => {
 			const invalidPayload = {
 				...validRegisterPayload,
 				serviceName: "unknown-service",
@@ -68,7 +68,10 @@ describe("Register.controller", () => {
 					createRes(),
 					createNext
 				)
-			).rejects.toThrow("Invalid ServiceInstanceName");
+			).resolves.toMatchObject({
+				status: 400,
+				data: { error: "Invalid request body" },
+			});
 		});
 
 		it("should reject invalid IP with BadRequest", async () => {

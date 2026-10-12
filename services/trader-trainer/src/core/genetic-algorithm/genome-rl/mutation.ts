@@ -67,10 +67,14 @@ function _mutateRewardShaping(
 	return {
 		rewardShaping: {
 			...rl.rewardShaping,
-			clipBounds: new NumericRange(
-				perturb(rl.rewardShaping.clipBounds.lo, 0.1),
-				perturb(rl.rewardShaping.clipBounds.hi, 0.1)
-			),
+			clipBounds: (() => {
+				const lo = perturb(rl.rewardShaping.clipBounds.lo, 0.1);
+				const hi = perturb(rl.rewardShaping.clipBounds.hi, 0.1);
+				return new NumericRange(
+					Math.min(lo, hi - 1e-6),
+					Math.max(hi, lo + 1e-6)
+				);
+			})(),
 			scaleFactor: Math.max(
 				0.01,
 				perturb(rl.rewardShaping.scaleFactor, 0.1)

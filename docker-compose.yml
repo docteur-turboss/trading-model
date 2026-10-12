@@ -37,7 +37,7 @@ services:
   #  MongoDB — Message Manager persistence
   # ---------------------------------------------------------------------------
   mongo:
-    image: mongo:7
+    image: mongo@sha256:9854f7139445d766a9523571d6f047530c45547460ffcf8259eb2bf4264632ca
     container_name: trading-mongo
     restart: unless-stopped
     volumes:
@@ -54,7 +54,7 @@ services:
   #  Redis �?" Message Manager + DLQ persistence (single node for dev/E2E)
   # ---------------------------------------------------------------------------
   redis:
-    image: redis:7-alpine
+    image: redis@sha256:ff02b58f971e7d7d156a1267e283fcbbeee91773b6aa36c49dac28ecfe28eadf
     container_name: trading-redis
     restart: unless-stopped
     command: ["redis-server", "--appendonly", "no"]
@@ -71,7 +71,7 @@ services:
   #  MySQL — Financial Scraper persistence
   # ---------------------------------------------------------------------------
   mysql:
-    image: mysql:8
+    image: mysql@sha256:85b9bf2e29cf836ecb8c2a15a935d4ba0c606631dff1dd79531a11983c638f2a
     container_name: trading-mysql
     restart: unless-stopped
     environment:
@@ -92,7 +92,7 @@ services:
   #  Migration — apply pending SQL migrations (single source of truth for schema)
   # ---------------------------------------------------------------------------
   migrate:
-    image: oven/bun:1-alpine
+    image: oven/bun@sha256:c1cc397e0be452c54f37cbcdfaa747eff93c993723af7d91658764d0fdfe5873
     container_name: trading-migrate
     restart: "no"
     entrypoint: ["sh", "-c"]
@@ -136,7 +136,7 @@ services:
     networks:
       - backend-net
     healthcheck:
-      test: curl -sk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem https://localhost:3000/ping || exit 1
+      test: curl -skf --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem https://localhost:3000/health/ready || exit 1
       interval: 15s
       timeout: 5s
       retries: 3
@@ -145,7 +145,7 @@ services:
   #  SPIRE Server — workload identity issuance (ADR-0011)
   # ---------------------------------------------------------------------------
   spire-server:
-    image: ghcr.io/spiffe/spire-server:1.11.3
+    image: ghcr.io/spiffe/spire-server:1.11.3  # pin: digest unavailable without GHCR auth
     container_name: trading-spire-server
     restart: unless-stopped
     user: "1000:1000"
@@ -166,7 +166,7 @@ services:
   #  SPIRE Agent — attests workload containers via the Docker socket
   # ---------------------------------------------------------------------------
   spire-agent:
-    image: ghcr.io/spiffe/spire-agent:1.11.3
+    image: ghcr.io/spiffe/spire-agent:1.11.3  # pin: digest unavailable without GHCR auth
     container_name: trading-spire-agent
     restart: unless-stopped
     user: "0:0"
@@ -191,7 +191,7 @@ services:
   #  SPIRE Entries — idempotent registration of node + workload entries
   # ---------------------------------------------------------------------------
   spire-entries:
-    image: ghcr.io/spiffe/spire-server:1.11.3
+    image: ghcr.io/spiffe/spire-server:1.11.3  # pin: digest unavailable without GHCR auth
     container_name: trading-spire-entries
     restart: "no"
     user: "1000:1000"
@@ -269,7 +269,7 @@ services:
       - backend-net
       - data-net
     healthcheck:
-      test: curl -sk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem https://localhost:3000/ping || exit 1
+      test: curl -skf --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem https://localhost:3000/health/ready || exit 1
       interval: 15s
       timeout: 5s
       retries: 3
@@ -318,6 +318,11 @@ services:
         condition: service_healthy
       message-manager:
         condition: service_healthy
+    healthcheck:
+      test: curl -skf --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem https://localhost:3000/health/ready || exit 1
+      interval: 15s
+      timeout: 5s
+      retries: 3
 
   # ---------------------------------------------------------------------------
   #  Trader Trainer — GA + DQN agent evolution
@@ -348,7 +353,7 @@ services:
     networks:
       - backend-net
     healthcheck:
-      test: curl -sk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem https://localhost:3000/ping || exit 1
+      test: curl -skf --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem https://localhost:3000/health/ready || exit 1
       interval: 15s
       timeout: 5s
       retries: 3
@@ -376,6 +381,7 @@ services:
       RATE_LIMIT_MAX: '100'
       CACHE_TTL_MS: '30000'
       AUTH_TOKEN_HEADER: x-api-key
+      AUTH_STRICT: 'false'
       AUTH_TOKENS: ''
       PROXY_TIMEOUT_MS: '10000'
     volumes:
@@ -383,7 +389,7 @@ services:
     networks:
       - backend-net
     healthcheck:
-      test: curl -sk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem https://localhost:3000/ping || exit 1
+      test: curl -skf --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem https://localhost:3000/health/ready || exit 1
       interval: 15s
       timeout: 5s
       retries: 3
@@ -416,7 +422,7 @@ services:
       - backend-net
       - data-net
     healthcheck:
-      test: curl -sk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem https://localhost:3000/ping || exit 1
+      test: curl -skf --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem https://localhost:3000/health/ready || exit 1
       interval: 15s
       timeout: 5s
       retries: 3
@@ -456,7 +462,7 @@ services:
       - backend-net
       - data-net
     healthcheck:
-      test: curl -sk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem https://localhost:3000/ping || exit 1
+      test: curl -skf --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem https://localhost:3000/health/ready || exit 1
       interval: 15s
       timeout: 5s
       retries: 3
@@ -472,7 +478,7 @@ services:
   #  the main service (TLS_*_PATH point at /run/spire/svid). Mandatory.
   # ---------------------------------------------------------------------------
   spiffe-helper-discovery:
-    image: ghcr.io/spiffe/spiffe-helper:0.6.0
+    image: ghcr.io/spiffe/spiffe-helper:0.6.0  # pin: digest unavailable without GHCR auth
     container_name: trading-helper-discovery
     restart: unless-stopped
     network_mode: "service:discovery-server"
@@ -493,7 +499,7 @@ services:
         condition: service_started
 
   spiffe-helper-message:
-    image: ghcr.io/spiffe/spiffe-helper:0.6.0
+    image: ghcr.io/spiffe/spiffe-helper:0.6.0  # pin: digest unavailable without GHCR auth
     container_name: trading-helper-message
     restart: unless-stopped
     network_mode: "service:message-manager"
@@ -514,7 +520,7 @@ services:
         condition: service_started
 
   spiffe-helper-scraper:
-    image: ghcr.io/spiffe/spiffe-helper:0.6.0
+    image: ghcr.io/spiffe/spiffe-helper:0.6.0  # pin: digest unavailable without GHCR auth
     container_name: trading-helper-scraper
     restart: unless-stopped
     network_mode: "service:financial-scraper"
@@ -535,7 +541,7 @@ services:
         condition: service_started
 
   spiffe-helper-trainer:
-    image: ghcr.io/spiffe/spiffe-helper:0.6.0
+    image: ghcr.io/spiffe/spiffe-helper:0.6.0  # pin: digest unavailable without GHCR auth
     container_name: trading-helper-trainer
     restart: unless-stopped
     network_mode: "service:trader-trainer"
@@ -556,7 +562,7 @@ services:
         condition: service_started
 
   spiffe-helper-gateway:
-    image: ghcr.io/spiffe/spiffe-helper:0.6.0
+    image: ghcr.io/spiffe/spiffe-helper:0.6.0  # pin: digest unavailable without GHCR auth
     container_name: trading-helper-gateway
     restart: unless-stopped
     network_mode: "service:api-gateway"
@@ -577,7 +583,7 @@ services:
         condition: service_started
 
   spiffe-helper-audit:
-    image: ghcr.io/spiffe/spiffe-helper:0.6.0
+    image: ghcr.io/spiffe/spiffe-helper:0.6.0  # pin: digest unavailable without GHCR auth
     container_name: trading-helper-audit
     restart: unless-stopped
     network_mode: "service:audit-logger"
@@ -598,7 +604,7 @@ services:
         condition: service_started
 
   spiffe-helper-dlq:
-    image: ghcr.io/spiffe/spiffe-helper:0.6.0
+    image: ghcr.io/spiffe/spiffe-helper:0.6.0  # pin: digest unavailable without GHCR auth
     container_name: trading-helper-dlq
     restart: unless-stopped
     network_mode: "service:dlq-service"
@@ -637,12 +643,17 @@ services:
     depends_on:
       api-gateway:
         condition: service_healthy
+    healthcheck:
+      test: wget --no-check-certificate -q -O /dev/null http://localhost:8080/health/ready || exit 1
+      interval: 15s
+      timeout: 5s
+      retries: 3
 
   # ---------------------------------------------------------------------------
   #  Observability Stack — Prometheus, Grafana, Loki
   # ---------------------------------------------------------------------------
   prometheus:
-    image: prom/prometheus:v2.55.0
+    image: prom/prometheus@sha256:378f4e03703557d1c6419e6caccf922f96e6d88a530f7431d66a4c4f4b1000fe
     container_name: trading-prometheus
     restart: unless-stopped
     ports:
@@ -661,7 +672,7 @@ services:
       - 'host.docker.internal:host-gateway'
 
   alertmanager:
-    image: prom/alertmanager:v0.27.0
+    image: prom/alertmanager@sha256:e13b6ed5cb929eeaee733479dce55e10eb3bc2e9c4586c705a4e8da41e5eacf5
     container_name: trading-alertmanager
     restart: unless-stopped
     ports:
@@ -678,13 +689,14 @@ services:
         condition: service_started
 
   grafana:
-    image: grafana/grafana:11.2.0
+    image: grafana/grafana@sha256:a0f881232a6fb71a0554a47d0fe2203b6888fe77f4cefb7ea62bed7eb54e13c3
     container_name: trading-grafana
     restart: unless-stopped
     ports:
       - '${GRAFANA_PORT:-3001}:3000'
     volumes:
       - ./observability/grafana-datasources.yml:/etc/grafana/provisioning/datasources/datasources.yml:ro
+      - ./observability/grafana-dashboards-provisioning.yml:/etc/grafana/provisioning/dashboards/provider.yml:ro
       - ./observability/dashboards:/var/lib/grafana/dashboards:ro
       - grafana-data:/var/lib/grafana
     networks:
@@ -695,7 +707,7 @@ services:
       GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/services.json
 
   loki:
-    image: grafana/loki:3.1.0
+    image: grafana/loki@sha256:d947e68a84d9e44915dfa08c3bec27e2124efd5ba6c83443eb53578101ec69e3
     container_name: trading-loki
     restart: unless-stopped
     ports:

@@ -105,19 +105,19 @@ jobs:
       - name: Wait for all e2e endpoints to become healthy
         run: |
           endpoints=(
-            "https://localhost:8443/ping"
+            "https://localhost:8443/health/ready"
             "https://localhost:8444/health/ready"
-            "https://localhost:8445/health"
-            "https://localhost:8446/ping"
-            "https://localhost:8448/ping"
-            "http://localhost:8449/ping"
-            "https://localhost:8450/ping"
-            "https://localhost:8452/health"
+            "https://localhost:8445/health/ready"
+            "https://localhost:8446/health/ready"
+            "https://localhost:8448/health/ready"
+            "http://localhost:8449/health/ready"
+            "https://localhost:8450/health/ready"
+            "https://localhost:8452/health/ready"
           )
           for i in $(seq 1 60); do
             ok=0
             for url in "${endpoints[@]}"; do
-              if curl -ks --max-time 5 "$url" >/dev/null 2>&1; then
+              if curl -ksf --max-time 5 "$url" >/dev/null 2>&1; then
                 ok=$((ok + 1))
               fi
             done

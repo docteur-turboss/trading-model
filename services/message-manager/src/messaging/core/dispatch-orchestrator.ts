@@ -6,6 +6,7 @@ import type {
 } from "@trading-model/common/domain/primitives";
 import type { CircuitStateMachine } from "@trading-model/common/reliability/circuit-state-machine";
 import type { Message } from "@trading-model/validation/domain/contracts/message.types";
+import type { MessageDeliveryPort } from "../../application/ports/message-delivery-port";
 import { logger } from "../../config/logger";
 import {
 	CIRCUIT_BREAKER_STATE,
@@ -19,7 +20,6 @@ import {
 import type { DeliveryParams } from "../../domain/delivery-params";
 import type { DeliveryAttemptHandler } from "./delivery-attempt-handler";
 import type { DeliveryErrorHandler } from "./delivery-error-handler";
-import type { MessageDeliveryPort } from "./message-delivery-port";
 
 export interface DispatchContext {
 	topic: Topic;

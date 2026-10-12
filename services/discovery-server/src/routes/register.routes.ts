@@ -1,6 +1,11 @@
 import { Router } from "express";
 import rateLimit from "express-rate-limit";
 
+import {
+	REGISTRATION_AUTH,
+	REGISTRATION_MTLS_AUTH,
+} from "../adapters/inbound/registration-auth";
+import { REGISTRATION_IP_ALLOWLIST } from "../adapters/inbound/registration-ip-allowlist";
 import { createRegisterController } from "../controllers/register.controller";
 import type { ServiceRegistry } from "../domain/service-registry";
 
@@ -20,7 +25,14 @@ export const REGISTRY_ROUTES = (registry: ServiceRegistry): Router => {
 
 	const router = Router();
 
-	router.post("/register", REGISTER_LIMITER, register);
+	router.post(
+		"/register",
+		REGISTRATION_IP_ALLOWLIST,
+		REGISTRATION_MTLS_AUTH,
+		REGISTRATION_AUTH,
+		REGISTER_LIMITER,
+		register
+	);
 	router.get("/services", listServices);
 	router.get("/services/:serviceName", getServiceInstances);
 	router.get("/services/:serviceName/:instanceId", getInstance);

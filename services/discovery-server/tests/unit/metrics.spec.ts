@@ -31,14 +31,10 @@ jest.mock("prom-client", () => {
 
 import type { Request, Response } from "express";
 import {
-	incCacheInvalidations,
 	incHeartbeatsTotal,
 	incLeaseCleanupCycle,
 	incOperationError,
-	incWsDroppedMessages,
-	METRICS_HANDLER,
 	observeCleanupDuration,
-	setActiveWsConnections,
 	setRegisteredInstances,
 	setRegisteredInstancesPerService,
 	trackRequest,
@@ -87,40 +83,6 @@ describe("metrics", () => {
 		});
 	});
 
-	describe("setActiveWsConnections", () => {
-		it("should set WebSocket connection count without throwing", () => {
-			expect(() => {
-				setActiveWsConnections(5);
-			}).not.toThrow();
-			expect(MOCK_SET).toHaveBeenCalledWith(5);
-		});
-	});
-
-	describe("METRICS_HANDLER", () => {
-		it("should be a function", () => {
-			expect(typeof METRICS_HANDLER).toBe("function");
-		});
-
-		it("should return Prometheus metrics content type", async () => {
-			const req = {} as Request;
-			const res = {
-				set: jest.fn(),
-				send: jest.fn(),
-			} as unknown as Response;
-
-			METRICS_HANDLER(req, res);
-
-			expect(res.set).toHaveBeenCalledWith(
-				"Content-Type",
-				expect.stringContaining("text/plain")
-			);
-
-			await new Promise((r) => setImmediate(r));
-
-			expect(res.send).toHaveBeenCalledWith("mock_metrics 1");
-		});
-	});
-
 	describe("setRegisteredInstances", () => {
 		it("should set registered instances gauge without throwing", () => {
 			expect(() => {
@@ -150,24 +112,6 @@ describe("metrics", () => {
 			expect(MOCK_INC).toHaveBeenCalledWith({
 				service: "financial-scraper-service",
 			});
-		});
-	});
-
-	describe("incCacheInvalidations", () => {
-		it("should increment cache invalidation counter without throwing", () => {
-			expect(() => {
-				incCacheInvalidations();
-			}).not.toThrow();
-			expect(MOCK_INC).toHaveBeenCalledWith();
-		});
-	});
-
-	describe("incWsDroppedMessages", () => {
-		it("should increment WS dropped messages counter without throwing", () => {
-			expect(() => {
-				incWsDroppedMessages();
-			}).not.toThrow();
-			expect(MOCK_INC).toHaveBeenCalledWith();
 		});
 	});
 

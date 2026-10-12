@@ -121,20 +121,20 @@ and Error Budgets for the trading-model microservices platform.</p>
 <ul>
 <li><strong>Definition:</strong> Proportion of valid HTTP requests that return a successful
 response (status 2xx or 3xx) within the timeout window.</li>
-<li><strong>Measurement:</strong> Prometheus <code>http_requests_duration_seconds_count</code> with
+<li><strong>Measurement:</strong> Prometheus <code>http_request_duration_seconds_count</code> with
 <code>status !~ &quot;5..&quot;</code> over <code>status =~ &quot;.*&quot;</code>.</li>
 <li><strong>Source:</strong> All HTTP-serving services.</li>
 </ul>
 <h3>2. API Latency (P95)</h3>
 <ul>
 <li><strong>Definition:</strong> 95th percentile of HTTP request duration.</li>
-<li><strong>Measurement:</strong> Prometheus <code>histogram_quantile(0.95, rate(http_requests_duration_seconds_bucket[5m]))</code>.</li>
+<li><strong>Measurement:</strong> Prometheus <code>histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m]))</code>.</li>
 <li><strong>Source:</strong> All HTTP-serving services.</li>
 </ul>
 <h3>3. Error Rate</h3>
 <ul>
 <li><strong>Definition:</strong> Proportion of HTTP responses with status 5xx.</li>
-<li><strong>Measurement:</strong> Prometheus <code>rate(http_requests_duration_seconds_count{status=~&quot;5..&quot;}[5m]) / rate(http_requests_duration_seconds_count[5m])</code>.</li>
+<li><strong>Measurement:</strong> Prometheus <code>rate(http_request_duration_seconds_count{status=~&quot;5..&quot;}[5m]) / rate(http_request_duration_seconds_count[5m])</code>.</li>
 <li><strong>Source:</strong> All HTTP-serving services.</li>
 </ul>
 <h2>SLOs</h2>

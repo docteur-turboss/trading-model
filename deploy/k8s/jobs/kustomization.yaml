@@ -4,3 +4,10 @@ kind: Kustomization
 resources:
   - backup-cronjob.yaml
   - secret-rotation-cronjob.yaml
+
+configMapGenerator:
+  - name: backup-scripts
+    files:
+      - backup-k8s.sh=../../../scripts/backup-k8s.sh
+    options:
+      disableNameSuffixHash: true

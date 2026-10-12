@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # =============================================================================
 #  Trading Model — Database Restore Script (Kubernetes)
-#  Usage:  bash scripts/restore-k8s.sh [--dry-run] [--components mongodb,mysql,redis]
+#  Usage:  bash scripts/restore-k8s.sh [--dry-run] [--components mongodb,mysql,redis,spire]
 #          BACKUP_DIR=/backups RESTORE_TIMESTAMP=2025-01-01_120000
 # =============================================================================
 
@@ -10,7 +10,7 @@ set -euo pipefail
 BACKUP_DIR="${BACKUP_DIR:-/backups}"
 RESTORE_TIMESTAMP="${RESTORE_TIMESTAMP:-latest}"
 DRY_RUN=false
-COMPONENTS="mongodb,mysql,redis,checkpoints"
+COMPONENTS="mongodb,mysql,redis,checkpoints,spire"
 K8S_NAMESPACE="${K8S_NAMESPACE:-trading-model}"
 
 while [[ $# -gt 0 ]]; do
@@ -72,7 +72,7 @@ restore_mongodb() {
   fi
   log "Restoring from: ${src}"
 
-  for pod in $(kubectl get pods -n "${K8S_NAMESPACE}" -l app.kubernetes.io/component=mongodb -o jsonpath='{.items[*].metadata.name}' 2>/dev/null); do
+  for pod in $(kubectl get pods -n "${K8S_NAMESPACE}" -l 'app.kubernetes.io/component in (mongodb,mongodb-audit)' -o jsonpath='{.items[*].metadata.name}' 2>/dev/null); do
     local archive="${src}/${pod}.archive.gz"
     if [ ! -f "$archive" ]; then
       warn "No backup for ${pod}, skipping"
@@ -86,8 +86,7 @@ restore_mongodb() {
 
     validate_file "$archive" "${pod} backup" || continue
 
-    cat "$archive" | kubectl_exec "${pod}" -- mongorestore --gzip --drop --archive 2>/dev/null
-    if [ $? -eq 0 ]; then
+    if cat "$archive" | kubectl_exec "${pod}" -- mongorestore --gzip --drop --archive 2>/dev/null; then
       ok "MongoDB restore complete: ${pod}"
     else
       fail "MongoDB restore failed: ${pod}"
@@ -124,8 +123,15 @@ restore_mysql() {
 
   validate_file "$file" "MySQL backup" || return
 
-  gunzip < "$file" | kubectl_exec "${pod}" -- mysql --user=root 2>/dev/null
-  if [ $? -eq 0 ]; then
+  local password
+  password=$(kubectl get secret -n "${K8S_NAMESPACE}" trading-model-secrets -o jsonpath='{.data.MYSQL_ROOT_PASSWORD}' 2>/dev/null | base64 -d 2>/dev/null || echo "")
+
+  local mysql_cmd="mysql --user=root"
+  if [ -n "$password" ]; then
+    mysql_cmd="mysql --user=root --password=${password}"
+  fi
+
+  if gunzip < "$file" | kubectl_exec "${pod}" -- sh -c "${mysql_cmd}" 2>/dev/null; then
     ok "MySQL restore complete"
   else
     fail "MySQL restore failed"
@@ -198,6 +204,44 @@ restore_checkpoints() {
   ok "Checkpoints restore complete"
 }
 
+restore_spire() {
+  log "Starting SPIRE CA key restore..."
+  local file
+  if [ "$RESTORE_TIMESTAMP" = "latest" ]; then
+    file=$(find "${BACKUP_DIR}/spire" -name "keys_*.json" 2>/dev/null | sort | tail -1)
+  else
+    file="${BACKUP_DIR}/spire/keys_${RESTORE_TIMESTAMP}.json"
+  fi
+
+  if [ -z "$file" ] || [ ! -f "$file" ]; then
+    warn "No SPIRE CA key backup found, skipping"
+    return
+  fi
+  log "Restoring from: ${file}"
+
+  local pod
+  pod=$(kubectl get pods -n "${K8S_NAMESPACE}" -l app.kubernetes.io/component=spire-server -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)
+  if [ -z "$pod" ]; then
+    warn "No SPIRE server pod found, skipping"
+    return
+  fi
+
+  if $DRY_RUN; then
+    warn "[DRY-RUN] Would restore SPIRE CA key from ${file}"
+    return
+  fi
+
+  validate_file "$file" "SPIRE CA key backup" || return
+
+  kubectl cp "$file" "${K8S_NAMESPACE}/${pod}:/run/spire/data/keys.json" 2>/dev/null
+  log "Restarting SPIRE server pod to reload CA key..."
+  kubectl delete pod -n "${K8S_NAMESPACE}" "${pod}" 2>/dev/null
+
+  log "Waiting for SPIRE server pod to restart..."
+  kubectl wait --for=condition=ready pod -n "${K8S_NAMESPACE}" -l app.kubernetes.io/component=spire-server --timeout=60s 2>/dev/null || true
+  ok "SPIRE CA key restore triggered — pod replacing with restored key"
+}
+
 echo ""
 echo "══════════════════════════════════════════════════"
 echo "  Trading Model — Database Restore (K8s)"
@@ -214,6 +258,7 @@ for part in "${PARTS[@]}"; do
     mysql)       restore_mysql ;;
     redis)       restore_redis ;;
     checkpoints) restore_checkpoints ;;
+    spire)       restore_spire ;;
     *)           warn "Unknown component: ${part}" ;;
   esac
 done

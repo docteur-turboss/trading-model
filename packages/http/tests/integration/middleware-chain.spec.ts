@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { catchSync } from "@trading-model/http/adapters/inbound/catch-error";
-import { handleCoreResponse } from "@trading-model/http/adapters/inbound/handle-core-response";
 import { ResponseException } from "@trading-model/http/adapters/inbound/response-exception";
 
 describe("Middleware chain integration", () => {
@@ -16,22 +15,6 @@ describe("Middleware chain integration", () => {
 			cookie: jest.fn().mockReturnThis(),
 		};
 		next = jest.fn();
-	});
-
-	it("should handle a full success flow with catchSync + handleCoreResponse", async () => {
-		const handler = catchSync(async (_req: any, _res: any) => {
-			const coreFn: () => Promise<{ data: unknown; code: string }> =
-				async () => ({ data: "user-data", code: "success" });
-			await handleCoreResponse(coreFn, _res);
-		});
-
-		await handler(req, res, next);
-
-		expect(res.status).toHaveBeenCalledWith(200);
-		expect(res.json).toHaveBeenCalledWith(
-			expect.objectContaining({ status: 200, data: "user-data" })
-		);
-		expect(next).not.toHaveBeenCalled();
 	});
 
 	it("should handle errors through catchSync", async () => {

@@ -1,7 +1,3 @@
-import { beforeEach, describe, expect, it, jest } from "@jest/globals";
-
-import { createNext, createReq, createRes } from "../../helpers/express";
-
 jest.mock("@trading-model/http/adapters/inbound/catch-error", () => ({
 	catchSync: (fn: any) => fn,
 }));
@@ -11,8 +7,11 @@ jest.mock("@trading-model/http/adapters/inbound/response-exception", () => {
 	return { sendResponse };
 });
 
+import { beforeEach, describe, expect, it, jest } from "@jest/globals";
+
 import { createMessageHandler } from "../../../src/adapters/inbound/subscription/audit-subscriber";
 import type { AuditRepository } from "../../../src/adapters/outbound/persistence/audit-repository";
+import { createNext, createReq, createRes } from "../../helpers/express";
 
 describe("AuditSubscriber", () => {
 	let mockRepo: jest.Mocked<AuditRepository>;
@@ -28,7 +27,7 @@ describe("AuditSubscriber", () => {
 			ensureIndexes: jest.fn(),
 		} as unknown as jest.Mocked<AuditRepository>;
 
-		handler = createMessageHandler(mockRepo);
+		handler = createMessageHandler(mockRepo, 90);
 	});
 
 	describe("message handling", () => {
@@ -59,6 +58,8 @@ describe("AuditSubscriber", () => {
 
 			expect(mockRepo.insert).toHaveBeenCalledWith(
 				expect.objectContaining({
+					ttl: expect.any(Date),
+					dataHash: expect.any(String),
 					metadata: expect.objectContaining({
 						topic: "order.created" as any,
 						eventType: "OrderCreated" as any,

@@ -1,0 +1,9 @@
+apiVersion: 1
+providers:
+  - name: 'trading-model'
+    type: file
+    orgId: 1
+    folder: ''
+    allowUiUpdates: true
+    options:
+      path: /var/lib/grafana/dashboards

@@ -88,7 +88,7 @@ spec:
       terminationGracePeriodSeconds: 30
       initContainers:
         - name: spire-db-init
-          image: mysql:8
+          image: mysql@sha256:85b9bf2e29cf836ecb8c2a15a935d4ba0c606631dff1dd79531a11983c638f2a
           imagePullPolicy: IfNotPresent
           command: ["/bin/sh", "-ec"]
           args:
@@ -144,6 +144,13 @@ spec:
           securityContext:
             runAsNonRoot: true
             runAsUser: 1000
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
           livenessProbe:
             exec:
               command: ["/opt/spire/bin/spire-server", "healthcheck", "-registrationUDSPath", "/run/spire/server-sockets/public/api.sock"]
@@ -163,11 +170,26 @@ spec:
           configMap:
             name: spire-server-config
         - name: spire-data
-          emptyDir: {}
+          persistentVolumeClaim:
+            claimName: spire-server-data
         - name: spire-server-sockets
           hostPath:
             path: /run/spire/server-sockets
             type: DirectoryOrCreate
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: spire-server-data
+  labels:
+    app.kubernetes.io/component: spire-server
+    app.kubernetes.io/part-of: trading-model
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
 ---
 apiVersion: policy/v1
 kind: PodDisruptionBudget

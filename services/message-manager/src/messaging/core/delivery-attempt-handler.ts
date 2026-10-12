@@ -6,15 +6,15 @@ import type {
 } from "@trading-model/common/domain/primitives";
 import { sleep } from "@trading-model/common/utils/sleep";
 import type { Message } from "@trading-model/validation/domain/contracts/message.types";
+import type {
+	DeliverySendInput,
+	MessageDeliveryPort,
+} from "../../application/ports/message-delivery-port";
 import { backoffDelay } from "../../domain/backoff-calculator";
 import type { SubscribersContext } from "../../domain/delivery-metadata-extractor";
 import type { DeliveryParams } from "../../domain/delivery-params";
 import { resolveTarget } from "./address-resolver";
 import type { DeliveryErrorHandler } from "./delivery-error-handler";
-import type {
-	DeliverySendInput,
-	MessageDeliveryPort,
-} from "./message-delivery-port";
 
 export interface DeliveryAttemptHandlerDeps {
 	deliveryPort: MessageDeliveryPort;

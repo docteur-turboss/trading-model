@@ -64,7 +64,7 @@ See `scripts/migrations/` for the migration to create this event.
 Configure via environment variable:
 
 ```bash
-AUDIT_RETENTION_DAYS=1827  # 5 years (default: 90)
+AUDIT_RETENTION_DAYS=1827  # 5 years (default in code: 1827)
 ```
 
 The TTL index on `recordedAt` is created automatically at startup by the audit-logger.

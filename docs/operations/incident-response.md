@@ -87,7 +87,7 @@ This section applies when a security incident involves:
 
 ### GDPR — Personal Data Breach Notification (Art. 33-34)
 
-The trading-model platform processes **no personal data** under normal operation.
+The trading-model platform processes **no personal data** under normal operation. IP addresses are anonymized at source before logging and never persisted in clear text.
 However, if a breach incident is confirmed to involve personal data:
 
 | Requirement               | Detail                                                                                                    |

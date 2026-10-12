@@ -174,7 +174,7 @@ describe("HttpClient", () => {
 
 	describe("outgoing propagation", () => {
 		it("should inject x-correlation-id from the async context", async () => {
-			const promise = runWithCorrelationId("corr-123", () =>
+			const promise: Promise<void> = runWithCorrelationId("corr-123", () =>
 				client.get(URLString.of("https://example.com/api"))
 			);
 			simulateResponse(200, "{}", "application/json");
@@ -187,7 +187,7 @@ describe("HttpClient", () => {
 		});
 
 		it("should prefer an explicit x-correlation-id header over the context", async () => {
-			const promise = runWithCorrelationId("ctx-id", () =>
+			const promise: Promise<void> = runWithCorrelationId("ctx-id", () =>
 				client.get(URLString.of("https://example.com/api"), {
 					headers: { [HTTP_HEADERS.CORRELATION_ID]: "explicit-id" },
 				})

@@ -75,9 +75,16 @@ spec:
                     app.kubernetes.io/component: mysql
                 topologyKey: kubernetes.io/hostname
       terminationGracePeriodSeconds: 60
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999
+        runAsGroup: 999
+        fsGroup: 999
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: mysql
-          image: mysql:8
+          image: mysql@sha256:85b9bf2e29cf836ecb8c2a15a935d4ba0c606631dff1dd79531a11983c638f2a
           ports:
             - containerPort: 3306
               name: mysql
@@ -109,6 +116,14 @@ spec:
             limits:
               cpu: "1"
               memory: 2Gi
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
           volumeMounts:
             - name: mysql-data
               mountPath: /var/lib/mysql
@@ -212,9 +227,15 @@ spec:
   template:
     spec:
       restartPolicy: OnFailure
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999
+        runAsGroup: 999
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: mysql-init
-          image: mysql:8
+          image: mysql@sha256:85b9bf2e29cf836ecb8c2a15a935d4ba0c606631dff1dd79531a11983c638f2a
           command:
             - sh
             - -c
@@ -278,7 +299,8 @@ data:
       `trades`           INT NULL,
       `timestamp`        DATETIME(3) NOT NULL,
       `close_timestamp`  DATETIME(3) NOT NULL,
-      PRIMARY KEY (`id`, `symbol`, `market`, `interval_value`, `timestamp`, `source`),
+      PRIMARY KEY (`symbol`, `market`, `interval_value`, `timestamp`, `source`),
+      UNIQUE INDEX `uq_candles_business_key` (`symbol`, `market`, `interval_value`, `timestamp`, `source`),
       INDEX `idx_candles_timestamp` (`timestamp` ASC) INVISIBLE,
       INDEX `idx_candles_symbol` (`symbol` ASC) VISIBLE
     ) ENGINE = InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -310,7 +332,8 @@ data:
       `volume`           DECIMAL(30,10) NOT NULL,
       `timestamp`        DATETIME(3) NOT NULL,
       `close_time`       DATETIME(3) NOT NULL,
-      PRIMARY KEY (`id`, `symbol`, `market`, `timestamp`, `source`),
+      PRIMARY KEY (`symbol`, `market`, `timestamp`, `source`),
+      UNIQUE INDEX `uq_tickers_business_key` (`symbol`, `market`, `timestamp`, `source`),
       INDEX `idx_tickers_timestamp` (`timestamp` ASC) INVISIBLE,
       INDEX `idx_tickers_symbol` (`symbol` ASC) VISIBLE
     ) ENGINE = InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

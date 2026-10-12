@@ -1,10 +1,9 @@
-import { beforeEach, describe, expect, it, jest } from "@jest/globals";
-
+﻿import { beforeEach, describe, expect, it, jest } from "@jest/globals";
+import { createNext, createReq, createRes } from "../../helpers/express";
 import {
 	mockCatchSyncModule,
 	mockSendResponseModule,
-} from "@trading-model/common/testing";
-import { createNext, createReq, createRes } from "../../helpers/express";
+} from "../../helpers/middleware-mocks";
 
 jest.mock(
 	"@trading-model/http/adapters/inbound/catch-error",

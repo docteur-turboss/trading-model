@@ -58,9 +58,16 @@ spec:
                     app.kubernetes.io/component: mongodb
                 topologyKey: kubernetes.io/hostname
       terminationGracePeriodSeconds: 60
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999
+        runAsGroup: 999
+        fsGroup: 999
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: mongodb
-          image: mongo:7
+          image: mongo@sha256:9854f7139445d766a9523571d6f047530c45547460ffcf8259eb2bf4264632ca
           command:
             - mongod
           args:
@@ -83,6 +90,14 @@ spec:
             limits:
               cpu: "1"
               memory: 2Gi
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
           volumeMounts:
             - name: mongo-dlq-data
               mountPath: /data/db
@@ -114,7 +129,7 @@ spec:
           secret:
             secretName: mongodb-encryption-key
             optional: false
-            defaultMode: 0400
+            defaultMode: 0440
   volumeClaimTemplates:
     - metadata:
         name: mongo-dlq-data
@@ -139,9 +154,15 @@ spec:
   template:
     spec:
       restartPolicy: OnFailure
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999
+        runAsGroup: 999
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: mongodb-init
-          image: mongo:7
+          image: mongo@sha256:9854f7139445d766a9523571d6f047530c45547460ffcf8259eb2bf4264632ca
           command:
             - mongosh
             - --host

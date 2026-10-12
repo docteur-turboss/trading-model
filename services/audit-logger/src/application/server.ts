@@ -15,7 +15,10 @@ export function createServer(
 	auditRepo: AuditRepository,
 	mongoManager: MongoConnectionManager
 ) {
-	const messageHandler = createMessageHandler(auditRepo);
+	const messageHandler = createMessageHandler(
+		auditRepo,
+		ENV.AUDIT_RETENTION_DAYS
+	);
 
 	return createServiceServer({
 		env: ENV,

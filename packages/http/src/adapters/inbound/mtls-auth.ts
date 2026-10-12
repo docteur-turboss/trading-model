@@ -1,14 +1,12 @@
-import type { TLSSocket } from "node:tls";
-
-import { ClientIdentity } from "@trading-model/common/domain/primitives/auth-ids";
 import { catchSync } from "./catch-error";
+import { resolveMtlsIdentity } from "./mtls-identity";
 import { ResponseException } from "./response-exception";
 
 declare global {
 	namespace Express {
 		interface Request {
 			/** Logical client identity extracted from the mTLS client certificate. */
-			clientIdentity: ClientIdentity;
+			clientIdentity: import("@trading-model/common/domain/primitives/auth-ids").ClientIdentity;
 		}
 	}
 }
@@ -32,62 +30,34 @@ declare global {
  *   - Used on internal / service-to-service endpoints
  */
 export const MTLSAuthMiddleware = catchSync((req, _res, next) => {
-	const socket = req.socket as TLSSocket;
+	const result = resolveMtlsIdentity(req);
 
-	_assertTlsSocket(socket);
-	_assertAuthorized(socket);
-	const cert = _assertClientCert(socket);
-	const identity = _resolveIdentity(cert);
-
-	req.clientIdentity = identity;
-
-	next();
-});
-
-function _assertTlsSocket(socket: TLSSocket): void {
-	if (typeof socket.getPeerCertificate !== "function") {
-		throw ResponseException(
-			JSON.stringify({
-				error: "Non-TLS connection rejected",
-				reason: "mTLS authentication requires a TLS socket",
-			})
-		).forbidden();
-	}
-}
-
-function _assertAuthorized(socket: TLSSocket): void {
-	if (!socket.authorized) {
-		throw ResponseException(
-			JSON.stringify({
-				error: "mTLS authorization failed",
-				reason: socket.authorizationError,
-			})
-		).forbidden();
-	}
-}
-
-function _assertClientCert(
-	socket: TLSSocket
-): import("node:tls").PeerCertificate {
-	const cert = socket.getPeerCertificate();
-
-	if (!cert || Object.keys(cert).length === 0) {
-		throw ResponseException(
-			JSON.stringify({
-				error: "Client certificate required",
-			})
-		).unauthorized();
-	}
-
-	return cert;
-}
-
-function _resolveIdentity(
-	cert: import("node:tls").PeerCertificate
-): ClientIdentity {
-	const raw = cert.subjectaltname ?? cert.subject?.CN;
-
-	if (!raw) {
+	if (!result) {
+		const socket = req.socket as import("node:tls").TLSSocket;
+		if (typeof socket?.getPeerCertificate !== "function") {
+			throw ResponseException(
+				JSON.stringify({
+					error: "Non-TLS connection rejected",
+					reason: "mTLS authentication requires a TLS socket",
+				})
+			).forbidden();
+		}
+		if (!socket.authorized) {
+			throw ResponseException(
+				JSON.stringify({
+					error: "mTLS authorization failed",
+					reason: socket.authorizationError,
+				})
+			).forbidden();
+		}
+		const cert = socket.getPeerCertificate();
+		if (!cert || Object.keys(cert).length === 0) {
+			throw ResponseException(
+				JSON.stringify({
+					error: "Client certificate required",
+				})
+			).unauthorized();
+		}
 		throw ResponseException(
 			JSON.stringify({
 				error: "Client identity could not be resolved",
@@ -96,5 +66,6 @@ function _resolveIdentity(
 		).unauthorized();
 	}
 
-	return ClientIdentity.of(Array.isArray(raw) ? raw.join(", ") : raw);
-}
+	req.clientIdentity = result.identity;
+	next();
+});

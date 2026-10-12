@@ -1,5 +1,5 @@
 import type { Topic } from "@trading-model/common/domain/primitives";
-import type { HttpMessageDelivery } from "../../adapters/outbound/http-message-delivery";
+import type { MessageDeliveryPort } from "../../application/ports/message-delivery-port";
 import { SUBSCRIPTION_COUNT } from "../../config/metrics";
 import type {
 	SubscriptionParams,
@@ -13,7 +13,7 @@ export class SubscriptionRegistry {
 	 */
 	private _subscriptionsByTopic = new Map<Topic, readonly Subscription[]>();
 
-	constructor(private readonly _deliveryPort: HttpMessageDelivery) {}
+	constructor(private readonly _deliveryPort: MessageDeliveryPort) {}
 
 	subscribe(params: SubscriptionParams): void {
 		const { topic, serviceIdentity, callbackPath } = params;

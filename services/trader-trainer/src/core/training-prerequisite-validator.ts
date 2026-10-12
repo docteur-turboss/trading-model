@@ -11,18 +11,21 @@ export function validateTrainingPrerequisites(
 	dataBuffer: MarketDataBuffer,
 	isTraining: () => boolean,
 	symbol: TradingSymbol
-): { ok: true; windowSet: WindowSet } | { ok: false; error: TrainingFailure } {
+):
+	| { ok: true; windowSets: WindowSet[] }
+	| { ok: false; error: TrainingFailure } {
 	if (isTraining()) {
 		return {
 			ok: false,
 			error: { success: false, symbol, error: new Error("Already training") },
 		};
 	}
-	const windowSet = dataBuffer.getAllWindows(
+	const result = dataBuffer.getAllWindows(
 		symbol,
-		ENV.TRAINER_VALIDATION_SPLIT
+		ENV.TRAINER_VALIDATION_SPLIT,
+		ENV.TRAINER_WALK_FORWARD_FOLDS
 	);
-	if (!windowSet || windowSet.train.length < MIN_TRAINING_STEPS) {
+	if (!result) {
 		return {
 			ok: false,
 			error: {
@@ -34,5 +37,21 @@ export function validateTrainingPrerequisites(
 			},
 		};
 	}
-	return { ok: true, windowSet };
+	const windowSets: WindowSet[] = Array.isArray(result) ? result : [result];
+	const hasInsufficientTrain = windowSets.some(
+		(ws) => ws.train.length < MIN_TRAINING_STEPS
+	);
+	if (hasInsufficientTrain) {
+		return {
+			ok: false,
+			error: {
+				success: false,
+				symbol,
+				error: new Error(
+					`Not enough data for ${symbol}, need at least ${MIN_TRAINING_STEPS} steps per training window`
+				),
+			},
+		};
+	}
+	return { ok: true, windowSets };
 }

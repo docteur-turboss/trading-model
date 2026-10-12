@@ -11,7 +11,15 @@ import {
 import { MessageManagerListenExpress } from "../config/message-manager";
 import { metricsHandler } from "../config/metrics";
 import type { Trainer } from "../core/trainer";
+import type { BestAgentSummary } from "../core/training-state";
 import { ENV } from "../infrastructure/config/env";
+
+interface AgentResponse {
+	symbol: string;
+	agent: BestAgentSummary;
+	training: boolean;
+	generation: number;
+}
 
 /** Create and return a secure Express server with trader-trainer routes. */
 export function createServer(trainer: Trainer) {
@@ -21,6 +29,11 @@ export function createServer(trainer: Trainer) {
 		routes: (app) => {
 			app.get("/best-agent", createBestAgentHandler(trainer));
 			app.get("/training-status", createTrainingStatusHandler(trainer));
+			app.get("/training-agents", createTrainingAgentsHandler(trainer));
+			app.get(
+				"/training-agents/:symbol",
+				createTrainingAgentBySymbolHandler(trainer)
+			);
 			app.get("/metrics", metricsHandler);
 
 			ADDRESS_MANAGER_ROUTES(app);
@@ -56,6 +69,64 @@ function createBestAgentHandler(trainer: Trainer) {
 	});
 }
 
+function createTrainingAgentsHandler(trainer: Trainer) {
+	return catchSync((_req, res) => {
+		const snapshots = trainer.getAllSnapshots();
+		const agents: AgentResponse[] = [];
+
+		for (const [symbol, snapshot] of snapshots) {
+			const summary = snapshot.buildBestAgentSummary();
+			if (summary) {
+				agents.push({
+					symbol: String(symbol),
+					agent: summary,
+					training:
+						trainer.isTraining() && trainer.getCurrentSymbol() === symbol,
+					generation: snapshot.generation,
+				});
+			}
+		}
+
+		res.json({
+			data: {
+				agents,
+				training: trainer.isTraining(),
+				currentSymbol: trainer.getCurrentSymbol(),
+			},
+		});
+	});
+}
+
+function createTrainingAgentBySymbolHandler(trainer: Trainer) {
+	return catchSync((req, res) => {
+		const symbol = req.params.symbol;
+		const snapshot = trainer.getSnapshotForSymbol(symbol as never);
+		if (!snapshot) {
+			const response = ResponseException(
+				`No trained agent for symbol ${symbol}.`
+			).notFound();
+			res.status(response.status).json({ data: response.data });
+			return;
+		}
+
+		const summary = snapshot.buildBestAgentSummary();
+		if (!summary) {
+			_sendNotFound(res);
+			return;
+		}
+
+		res.json({
+			data: {
+				symbol,
+				agent: summary,
+				training: trainer.isTraining() && trainer.getCurrentSymbol() === symbol,
+				generation: snapshot.generation,
+				generationContext: snapshot.generationContext,
+			},
+		});
+	});
+}
+
 function _sendNotFound(res: import("express").Response): void {
 	const response = ResponseException(
 		"No trained agent available at the moment."
@@ -66,7 +137,7 @@ function _sendNotFound(res: import("express").Response): void {
 function _sendBestAgentResponse(
 	res: import("express").Response,
 	trainer: Trainer,
-	summary: import("../core/trainer").BestAgentSummary
+	summary: BestAgentSummary
 ): void {
 	res.json({
 		data: {

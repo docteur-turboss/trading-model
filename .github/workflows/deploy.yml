@@ -1,6 +1,37 @@
 name: Deploy
 
 on:
+  workflow_call:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        type: string
+      image_tag:
+        description: 'Image tag to deploy (e.g. latest, v1.2.3)'
+        required: true
+        type: string
+      version_number:
+        description: 'Version number for audit annotations (defaults to image_tag)'
+        required: false
+        type: string
+        default: ''
+      canary:
+        description: 'Enable canary deployment'
+        required: false
+        type: boolean
+        default: false
+      staging_namespace:
+        description: 'Kubernetes namespace for staging'
+        required: false
+        type: string
+        default: 'trading-model-staging'
+      production_namespace:
+        description: 'Kubernetes namespace for production'
+        required: false
+        type: string
+        default: 'trading-model'
+    secrets: inherit
   workflow_dispatch:
     inputs:
       environment:
@@ -11,31 +42,55 @@ on:
           - staging
           - production
       image_tag:
-        description: 'Image tag to deploy (default: staging | latest)'
+        description: 'Image tag to deploy (e.g. latest, v1.2.3)'
+        required: true
+        type: string
+      version_number:
+        description: 'Version number for audit annotations (defaults to image_tag)'
         required: false
         type: string
+        default: ''
       canary:
         description: 'Enable canary deployment (K8s canary + smoke test + auto rollback)'
         required: false
         type: boolean
         default: false
+      staging_namespace:
+        description: 'Kubernetes namespace for staging'
+        required: false
+        type: string
+        default: 'trading-model-staging'
+      production_namespace:
+        description: 'Kubernetes namespace for production'
+        required: false
+        type: string
+        default: 'trading-model'
 
 permissions:
   contents: read
 
 concurrency:
-  group: deploy-${{ github.event.inputs.environment }}
+  group: deploy-${{ inputs.environment }}
   cancel-in-progress: false
-
-env:
-  NAMESPACE: trading-model
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    environment: ${{ github.event.inputs.environment }}
+    environment: ${{ inputs.environment }}
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      - name: Resolve namespace
+        id: ns
+        shell: bash
+        run: |
+          if [ "${{ inputs.environment }}" = "staging" ]; then
+            NS="${{ inputs.staging_namespace }}"
+          else
+            NS="${{ inputs.production_namespace }}"
+          fi
+          echo "namespace=$NS" >> "$GITHUB_OUTPUT"
+          echo "Target namespace: $NS"
 
       - name: Set up kubectl
         uses: azure/setup-kubectl@c0c8b32d33a5244f1e5947304550403b63930415 # v4
@@ -45,9 +100,9 @@ jobs:
       - name: Configure kubeconfig
         shell: bash
         run: |
-          KUBECONFIG_CONTENT="${{ secrets[format('KUBECONFIG_{0}', github.event.inputs.environment)] }}"
+          KUBECONFIG_CONTENT="${{ secrets[format('KUBECONFIG_{0}', inputs.environment)] }}"
           if [ -z "$KUBECONFIG_CONTENT" ]; then
-            echo "::error::Missing secret KUBECONFIG_$(echo ${github.event.inputs.environment} | tr '[:lower:]' '[:upper:]')"
+            echo "::error::Missing secret KUBECONFIG_$(echo ${{ inputs.environment }} | tr '[:lower:]' '[:upper:]')"
             exit 1
           fi
           mkdir -p "$HOME/.kube"
@@ -59,38 +114,43 @@ jobs:
         id: tag
         shell: bash
         run: |
-          ENV="${{ github.event.inputs.environment }}"
-          TAG="${{ github.event.inputs.image_tag }}"
+          ENV="${{ inputs.environment }}"
+          TAG="${{ inputs.image_tag }}"
           if [ -z "$TAG" ]; then
-            case "$ENV" in
-              staging) TAG="staging" ;;
-              production) TAG="latest" ;;
-            esac
+            echo "::error::image_tag is required. Provide a tag (e.g. latest, v1.2.3)."
+            exit 1
+          fi
+          VERSION="${{ inputs.version_number }}"
+          if [ -z "$VERSION" ]; then
+            VERSION="$TAG"
           fi
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
-          echo "Deploying tag: $TAG to $ENV"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Deploying tag: $TAG (version: $VERSION) to $ENV"
 
       # Migrations must run before the new image rolls out.
       - name: Run database migrations
         shell: bash
         run: |
-          NS="${{ env.NAMESPACE }}"
-          if [ "${{ github.event.inputs.environment }}" = "staging" ]; then
-            NS="trading-model-staging"
-          fi
+          NS="${{ steps.ns.outputs.namespace }}"
           kubectl create configmap migration-files -n "$NS" \
             --from-file=migrate.mjs=scripts/migrate.mjs \
             --from-file=scripts/migrations \
             --dry-run=client -o yaml | kubectl apply -f -
           kubectl apply -n "$NS" -f deploy/k8s/jobs/migration-job.yaml
-          kubectl wait --for=condition=complete job/db-migrate -n "$NS" --timeout=180s
+          if ! kubectl wait --for=condition=complete job/db-migrate -n "$NS" --timeout=180s; then
+            echo "::error::Database migration job failed or timed out"
+            kubectl logs -n "$NS" job/db-migrate --tail=50
+            exit 1
+          fi
 
+      # Canary gate: test the new image on a small % of traffic BEFORE full rollout.
+      # If the canary fails, the overlay is never applied and the primary stays on the old image.
       - name: Canary deployments + smoke test (if enabled)
-        if: ${{ github.event.inputs.canary == 'true' }}
+        if: ${{ inputs.canary == 'true' }}
         shell: bash
         run: |
-          NS="${{ env.NAMESPACE }}"
-          [ "${{ github.event.inputs.environment }}" = "staging" ] && NS="trading-model-staging"
+          NS="${{ steps.ns.outputs.namespace }}"
           export K8S_NAMESPACE="$NS"
           chmod +x deploy/k8s/scripts/deploy-k8s.sh
           TAG="${{ steps.tag.outputs.tag }}"
@@ -100,13 +160,12 @@ jobs:
           done
           ./deploy/k8s/scripts/deploy-k8s.sh smoke-test
 
-      - name: Apply overlay and wait for rollout
+      - name: Apply overlay
         id: apply
         shell: bash
         run: |
-          ENV="${{ github.event.inputs.environment }}"
-          NS="${{ env.NAMESPACE }}"
-          [ "$ENV" = "staging" ] && NS="trading-model-staging"
+          ENV="${{ inputs.environment }}"
+          NS="${{ steps.ns.outputs.namespace }}"
           TAG="${{ steps.tag.outputs.tag }}"
           WRAPPER="deploy/k8s/overlays/.deploy-$ENV"
           mkdir -p "$WRAPPER"
@@ -134,31 +193,38 @@ jobs:
               newTag: "$TAG"
           EOF
           kubectl apply -k "$WRAPPER"
-          rm -rf "$WRAPPER"
+
+      - name: Wait for rollout
+        shell: bash
+        run: |
+          NS="${{ steps.ns.outputs.namespace }}"
           for dep in discovery-server message-manager financial-scraper trader-trainer \
                      api-gateway audit-logger dlq-service admin-interface; do
-            kubectl rollout status "deployment/$dep" -n "$NS" --timeout=180s
+            echo "Waiting for rollout of $dep..."
+            if ! kubectl rollout status "deployment/$dep" -n "$NS" --timeout=180s; then
+              echo "::error::Rollout of $dep failed or timed out"
+              exit 1
+            fi
           done
 
       - name: Annotate deployments with release metadata
         shell: bash
         run: |
-          NS="${{ env.NAMESPACE }}"
-          [ "${{ github.event.inputs.environment }}" = "staging" ] && NS="trading-model-staging"
-          TAG="${{ steps.tag.outputs.tag }}"
+          NS="${{ steps.ns.outputs.namespace }}"
+          VERSION="${{ steps.tag.outputs.version }}"
           for dep in discovery-server message-manager financial-scraper trader-trainer \
                      api-gateway audit-logger dlq-service admin-interface; do
             kubectl annotate deployment "$dep" -n "$NS" --overwrite \
               trading-model.dev/git-sha="$GITHUB_SHA" \
-              trading-model.dev/image-tag="$TAG"
+              trading-model.dev/release-version="$VERSION"
           done
 
+      # always() ensures orphans are cleaned up even when canary or rollout fails.
       - name: Clean up canary deployments (if enabled)
-        if: ${{ github.event.inputs.canary == 'true' }}
+        if: ${{ always() && inputs.canary == 'true' }}
         shell: bash
         run: |
-          NS="${{ env.NAMESPACE }}"
-          [ "${{ github.event.inputs.environment }}" = "staging" ] && NS="trading-model-staging"
+          NS="${{ steps.ns.outputs.namespace }}"
           export K8S_NAMESPACE="$NS"
           for dep in discovery-server message-manager financial-scraper trader-trainer \
                      api-gateway audit-logger dlq-service admin-interface; do
@@ -169,9 +235,7 @@ jobs:
         if: failure()
         shell: bash
         run: |
-          ENV="${{ github.event.inputs.environment }}"
-          NS="${{ env.NAMESPACE }}"
-          [ "$ENV" = "staging" ] && NS="trading-model-staging"
+          NS="${{ steps.ns.outputs.namespace }}"
           for dep in discovery-server message-manager financial-scraper trader-trainer \
                      api-gateway audit-logger dlq-service admin-interface; do
             kubectl rollout undo "deployment/$dep" -n "$NS"

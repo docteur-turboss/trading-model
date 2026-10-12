@@ -1,5 +1,7 @@
 import {
 	DurationMs,
+	isAllowedProxyIP,
+	parseCIDRList,
 	type ServiceId,
 } from "@trading-model/common/domain/primitives";
 import {
@@ -34,6 +36,7 @@ const RESOLVER = new ServiceResolver(
 	ENV.CACHE_TTL_MS
 );
 const CACHE = new ResponseCache(DurationMs.of(ENV.CACHE_TTL_MS));
+const ALLOWED_PROXY_RANGES = parseCIDRList(ENV.ALLOWED_PROXY_CIDRS);
 
 function _validatePath(
 	req: import("express").Request
@@ -79,6 +82,31 @@ const catchAllRoute = catchSync(async (req) => {
 				version: majorVersion,
 			},
 			404 as HttpStatusCode
+		);
+	}
+
+	if (ALLOWED_PROXY_RANGES.length === 0 && ENV.NODE_ENV === "production") {
+		logger.error(
+			"Proxy target IP validation disabled — ALLOWED_PROXY_CIDRS is empty in production"
+		);
+		SERVICE_ERRORS_TOTAL.inc({ service: serviceName });
+		return sendResponse(
+			{ error: "Service unavailable — server misconfiguration" },
+			503 as HttpStatusCode
+		);
+	}
+
+	if (
+		ALLOWED_PROXY_RANGES.length > 0 &&
+		!isAllowedProxyIP(target.host, ALLOWED_PROXY_RANGES)
+	) {
+		logger.warn("Proxy target IP not in allowed range", {
+			context: { serviceName, host: target.host },
+		});
+		SERVICE_ERRORS_TOTAL.inc({ service: serviceName });
+		return sendResponse(
+			{ error: "Service unavailable" },
+			503 as HttpStatusCode
 		);
 	}
 

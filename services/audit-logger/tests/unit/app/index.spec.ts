@@ -40,6 +40,7 @@ jest.mock("../../../src/infrastructure/config/env", () => ({
 		TLS_CERT_PATH: "/some/cert.pem",
 		TLS_CA_PATH: "/some/ca.pem",
 		INSTANCE_ID: "instance-1",
+		ENFORCE_MTLS_STRICT: true,
 	},
 }));
 
@@ -195,7 +196,9 @@ describe("Audit Logger entry point (index.ts)", () => {
 			expect(WorkerProtocol).toHaveBeenCalledWith(
 				"mock-raw-server",
 				expect.objectContaining({ register: expect.any(Function) }),
-				expect.any(Function)
+				expect.any(Function),
+				expect.anything(),
+				expect.anything()
 			);
 			expect(MOCK_SCHEDULER_INSTANCE.setWorkerProtocol).toHaveBeenCalledWith(
 				MOCK_WORKER_PROTOCOL_INSTANCE

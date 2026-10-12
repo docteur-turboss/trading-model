@@ -6,18 +6,18 @@ import {
 	fromAuthToken,
 	fromClientIdentity,
 	fromEnvironment,
+	fromProcessId,
 	fromRole,
-	fromSessionId,
 	fromSubject,
 	fromUserId,
+	ProcessId,
 	Role,
-	SessionId,
 	Subject,
 	toAuthToken,
 	toClientIdentity,
 	toEnvironment,
+	toProcessId,
 	toRole,
-	toSessionId,
 	toSubject,
 	toUserId,
 	UserId,
@@ -440,14 +440,14 @@ describe("UserId", () => {
 	});
 });
 
-describe("SessionId", () => {
+describe("ProcessId", () => {
 	it("should create and convert", () => {
-		expect(SessionId.of("sess-xyz")).toBe("sess-xyz");
-		expect(toSessionId("sess-xyz")).toBe("sess-xyz");
-		expect(fromSessionId("sess-xyz" as never)).toBe("sess-xyz");
+		expect(ProcessId.of("sess-xyz")).toBe("sess-xyz");
+		expect(toProcessId("sess-xyz")).toBe("sess-xyz");
+		expect(fromProcessId("sess-xyz" as never)).toBe("sess-xyz");
 	});
 	it("should throw for empty string", () => {
-		expect(() => SessionId.of("")).toThrow(RangeError);
+		expect(() => ProcessId.of("")).toThrow(RangeError);
 	});
 });
 

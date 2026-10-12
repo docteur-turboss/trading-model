@@ -10,7 +10,6 @@ import {
 	ActivationType,
 	ContinuousPolicyType,
 	CrossoverType,
-	DiscretePolicyType,
 	FitnessType,
 	MutationAdaptation,
 	MutationDistribution,
@@ -35,7 +34,6 @@ const MINIMAL_GENOME = {
 		gamma: 0.99,
 		learningRate: 0.001,
 		discretePolicy: {
-			type: DiscretePolicyType.EpsilonGreedy,
 			epsilonStart: 1.0,
 			epsilonMin: 0.01,
 			epsilonDecay: 0.995,

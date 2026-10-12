@@ -60,7 +60,7 @@ Body (validated by `PublishSchema`):
 
 ### Subscribe to a Topic
 
-**`POST /subscription`**
+**`POST /subscribe`**
 
 Subscribes a consumer to a topic for receiving messages.
 
@@ -81,7 +81,7 @@ Body (validated by `SubscribeSchema`):
 
 ### Unsubscribe from a Topic
 
-**`DELETE /subscription`**
+**`DELETE /subscribe`**
 
 Unsubscribes a consumer from a topic.
 

@@ -16,7 +16,7 @@ const AUDIT_LOGGER_ENV_SHAPE = {
 	WORKER_HEARTBEAT_TTL_MS: z.coerce.number().int().positive().default(30000),
 	GAP_DETECTION_INTERVAL_MS: z.coerce.number().int().positive().default(60000),
 	LOG_RETENTION_DAYS: z.coerce.number().int().positive().default(1827),
-	AUDIT_RETENTION_DAYS: z.coerce.number().int().positive().default(90),
+	AUDIT_RETENTION_DAYS: z.coerce.number().int().positive().default(1827),
 };
 
 const AUDIT_LOGGER_ENV_SCHEMA = BaseEnvSchema.extend(

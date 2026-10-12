@@ -176,5 +176,6 @@ Event Bus (Message Manager) ──POST /message──→ Audit Logger ──→ 
 | `MAX_RETRIES_PER_JOB`       | `3`                                      | Max job retry count           |
 | `ORPHAN_SCAN_INTERVAL_MS`   | `10000`                                  | Orphan job scan interval      |
 | `WORKER_HEARTBEAT_TTL_MS`   | `30000`                                  | Worker heartbeat TTL (ms)     |
-| `AUDIT_RETENTION_DAYS`      | `90`                                     | Audit event retention in days |
+| `AUDIT_RETENTION_DAYS`      | `1827`                                   | Audit event retention in days (5 years) |
+| `LOG_RETENTION_DAYS`        | `1827`                                   | Service log retention in days (5 years) |
 | `GAP_DETECTION_INTERVAL_MS` | `60000`                                  | Gap detection interval (ms)   |

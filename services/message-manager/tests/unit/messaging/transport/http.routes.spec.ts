@@ -31,16 +31,16 @@ describe("BROKER_ROUTES", () => {
 		expect(route).toBeDefined();
 	});
 
-	it("should define POST /subscription route", () => {
+	it("should define POST /subscribe route", () => {
 		const route = router.stack.find(
-			(r: { route?: { path?: string } }) => r.route?.path === "/subscription"
+			(r: { route?: { path?: string } }) => r.route?.path === "/subscribe"
 		);
 		expect(route).toBeDefined();
 	});
 
-	it("should define DELETE /subscription route", () => {
+	it("should define DELETE /subscribe route", () => {
 		const route = router.stack.find(
-			(r: { route?: { path?: string } }) => r.route?.path === "/subscription"
+			(r: { route?: { path?: string } }) => r.route?.path === "/subscribe"
 		);
 		expect(route).toBeDefined();
 	});

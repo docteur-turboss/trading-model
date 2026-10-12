@@ -13,7 +13,6 @@ export type {
 } from "./genome-rl/types";
 export {
 	ContinuousPolicyType,
-	DiscretePolicyType,
 	repairRL,
 	validateRL,
 } from "./genome-rl/types";

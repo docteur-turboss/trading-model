@@ -1,7 +1,7 @@
 import type { TlsPaths } from "@trading-model/common/config/tls-paths";
 import {
 	type JsonObject,
-	type SessionId,
+	type ProcessId,
 	type URLString,
 	UserId,
 } from "@trading-model/common/domain/primitives";
@@ -15,8 +15,8 @@ import {
 	LogLevelThreshold,
 	type LogOptions,
 } from "../../infrastructure/log-types";
+import { generateProcessId } from "../../infrastructure/process-id-generator";
 import { safeStringify } from "../../infrastructure/sensitive-data-sanitizer";
-import { generateSessionId } from "../../infrastructure/session-id-generator";
 import { getNodeEnv, NODE_ENV } from "../../shared/node-env";
 
 export type { LogEntry, LogOptions };
@@ -25,21 +25,21 @@ export { LogLevel };
 export class Logger {
 	private _logLevel: LogLevel;
 	private _userId: UserId = UserId.of("unknown");
-	private readonly _sessionId: SessionId;
+	private readonly _processId: ProcessId;
 	private readonly _buffer: CircularBuffer<LogEntry>;
 	private readonly _dispatcher: LogDispatcher;
 
 	constructor(
 		logLevel: LogLevel = LogLevel.Info,
-		sessionId?: SessionId,
+		processId?: ProcessId,
 		buffer?: CircularBuffer<LogEntry>,
 		dispatcher?: LogDispatcher
 	) {
 		this._logLevel = logLevel;
-		this._sessionId = sessionId ?? generateSessionId(logLevel);
+		this._processId = processId ?? generateProcessId(logLevel);
 		this._buffer = buffer ?? new CircularBuffer<LogEntry>(1000);
 		this._dispatcher =
-			dispatcher ?? new LogDispatcher(safeStringify, this._sessionId);
+			dispatcher ?? new LogDispatcher(safeStringify, this._processId);
 	}
 
 	private _log(level: LogLevel, message: string, context?: JsonObject): void {

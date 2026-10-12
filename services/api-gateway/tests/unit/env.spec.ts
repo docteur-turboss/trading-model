@@ -46,6 +46,7 @@ describe("env", () => {
 		expect(env.CACHE_TTL_MS).toBe(30000);
 		expect(env.AUTH_TOKEN_HEADER).toBe("x-api-key");
 		expect(env.AUTH_TOKENS).toBe("");
+		expect(env.AUTH_STRICT).toBe(true);
 		expect(env.PROXY_TIMEOUT_MS).toBe(10000);
 		expect(env.DISCOVERY_SERVICE_URL).toBe("https://discovery-server:3000");
 	});
@@ -76,6 +77,17 @@ describe("env", () => {
 		const env = loadEnv();
 
 		expect(env.AUTH_TOKENS).toBe("tok1,tok2,tok3");
+	});
+
+	it("should accept custom AUTH_STRICT", () => {
+		process.env.TLS_KEY_PATH = "/certs/key.pem";
+		process.env.TLS_CERT_PATH = "/certs/cert.pem";
+		process.env.TLS_CA_PATH = "/certs/ca.pem";
+		process.env.AUTH_STRICT = "false";
+
+		const env = loadEnv();
+
+		expect(env.AUTH_STRICT).toBe(false);
 	});
 
 	it("should accept custom DISCOVERY_SERVICE_URL", () => {

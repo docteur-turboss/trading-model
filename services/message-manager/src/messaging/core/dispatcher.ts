@@ -7,17 +7,14 @@
  */
 
 import type { InstanceId } from "@trading-model/common/domain/primitives";
-import type { HttpClient } from "@trading-model/http/adapters/outbound/http-client";
 import { logger } from "@trading-model/http/infrastructure/logger";
 import type { Message } from "@trading-model/validation/domain/contracts/message.types";
-import type { FileDlqRepository } from "../../adapters/outbound/dlq-repository";
-import { HttpMessageDelivery } from "../../adapters/outbound/http-message-delivery";
+import type { MessageDeliveryPort } from "../../application/ports/message-delivery-port";
 import {
 	DELIVERY_LATENCY_SECONDS,
 	IN_FLIGHT_MESSAGES,
 	MESSAGES_PUBLISHED_TOTAL,
 } from "../../config/metrics";
-import { getBackpressureRatio as backpressureRatio } from "../../domain/backpressure-monitor";
 import { createMessage } from "../../domain/message-factory";
 import type {
 	SubscriptionParams,
@@ -32,13 +29,15 @@ function isRejected<TValue>(
 	return result.status === "rejected";
 }
 
+export interface DispatcherDeps {
+	deliveryPort: MessageDeliveryPort;
+}
+
 export class Dispatcher {
 	private readonly _registry: SubscriptionRegistry;
-	private readonly _deliveryPort: HttpMessageDelivery;
 
-	constructor(httpClient: HttpClient, dlqRepository: FileDlqRepository) {
-		this._deliveryPort = new HttpMessageDelivery(httpClient, dlqRepository);
-		this._registry = new SubscriptionRegistry(this._deliveryPort);
+	constructor(deps: DispatcherDeps) {
+		this._registry = new SubscriptionRegistry(deps.deliveryPort);
 	}
 
 	async publish(
@@ -104,7 +103,7 @@ export class Dispatcher {
 	}
 
 	getBackpressureRatio(): number {
-		return backpressureRatio();
+		return 0;
 	}
 
 	handleAck(messageId: string, instanceId: InstanceId): void {

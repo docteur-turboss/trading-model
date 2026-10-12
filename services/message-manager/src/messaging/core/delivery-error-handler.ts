@@ -4,6 +4,7 @@ import type {
 	Topic,
 } from "@trading-model/common/domain/primitives";
 import type { Message } from "@trading-model/validation/domain/contracts/message.types";
+import type { MessageDeliveryPort } from "../../application/ports/message-delivery-port";
 import { logger } from "../../config/logger";
 import {
 	DeliveryErrorClassifier,
@@ -11,7 +12,6 @@ import {
 	ErrorActionType,
 } from "../../domain/delivery-error-classifier";
 import type { DeliveryParams } from "../../domain/delivery-params";
-import type { MessageDeliveryPort } from "./message-delivery-port";
 
 export interface DeliveryErrorHandlerDeps {
 	deliveryPort: MessageDeliveryPort;

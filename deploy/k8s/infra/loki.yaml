@@ -42,7 +42,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: loki
-          image: grafana/loki:3.1.0
+          image: grafana/loki@sha256:d947e68a84d9e44915dfa08c3bec27e2124efd5ba6c83443eb53578101ec69e3
           args:
             - "-config.file=/etc/loki/local-config.yaml"
           ports:

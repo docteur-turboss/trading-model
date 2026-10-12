@@ -3,6 +3,7 @@ import type { HttpStatusCode } from "@trading-model/common/http-status";
 import { parseCommaSeparated } from "@trading-model/common/utils/comma-separated";
 import { catchSync } from "@trading-model/http/adapters/inbound/catch-error";
 import { sendResponse } from "@trading-model/http/adapters/inbound/response-exception";
+import { logger } from "@trading-model/http/infrastructure/logger";
 import type { RequestHandler } from "express";
 
 import { ENV } from "../../infrastructure/config/env";
@@ -29,7 +30,16 @@ export const AUTH_MIDDLEWARE: RequestHandler = catchSync((req, _res, next) => {
 	}
 
 	const validTokens = getValidTokens();
-	if (validTokens.size > 0 && !validTokens.has(token)) {
+	if (validTokens.size === 0) {
+		if (ENV.AUTH_STRICT) {
+			AUTH_FAILURES_TOTAL.inc();
+			return sendResponse(
+				{ error: "Server misconfiguration: no valid tokens configured" },
+				503 as HttpStatusCode
+			);
+		}
+		logger.warn("AUTH_TOKENS is empty — accepting any token (non-strict mode)");
+	} else if (!validTokens.has(token)) {
 		AUTH_FAILURES_TOTAL.inc();
 		return sendResponse(
 			{ error: "Invalid authentication token" },

@@ -1,24 +1,23 @@
-﻿/**
- * Initializes the broker system: HTTP client, dispatcher, and Express routes.
- */
+import { createBootstrap } from "@trading-model/server-utils/application/services/bootstrap";
+import { BOOTSTRAP_ADDRESS_MANAGER } from "../config/address-manager";
+import { initializeTelemetry, shutdownTelemetry } from "../config/telemetry";
+import { createServer } from "./server";
+import "../infrastructure/config/env";
 
-import { HttpClient } from "@trading-model/http/adapters/outbound/http-client";
-import type { Application } from "express";
-import { FileDlqRepository } from "../adapters/outbound/dlq-repository";
-import { Dispatcher } from "../messaging/core/dispatcher";
-import { BROKER_ROUTES } from "../messaging/transport/http.routes";
-import type { BrokerConfig } from "../shared/broker.type";
+const NULL_ADDRESS_MANAGER = { stop() {} };
 
-export interface BrokerModule {
-	listen: (app: Application) => void;
-}
+let addressManager: ReturnType<typeof BOOTSTRAP_ADDRESS_MANAGER> =
+	NULL_ADDRESS_MANAGER as ReturnType<typeof BOOTSTRAP_ADDRESS_MANAGER>;
 
-/** @param config - Broker TLS and connection configuration. */
-export default function createBrokerModule(config: BrokerConfig): BrokerModule {
-	const httpClient = HttpClient.createWithTls(config);
-	const dqlRepository = new FileDlqRepository();
-	const dispatcher = new Dispatcher(httpClient, dqlRepository);
-	return {
-		listen: (app) => app.use(BROKER_ROUTES(dispatcher)),
-	};
-}
+createBootstrap({
+	name: "Message Manager",
+	createServer,
+	onStart: () => {
+		initializeTelemetry();
+		addressManager = BOOTSTRAP_ADDRESS_MANAGER();
+	},
+	onStop: async () => {
+		addressManager.stop();
+		await shutdownTelemetry();
+	},
+});

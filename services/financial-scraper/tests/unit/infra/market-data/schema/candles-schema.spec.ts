@@ -12,6 +12,7 @@ const MOCK_EXECUTE_INSERT = jest
 const MOCK_EXECUTE_SELECT_MANY = jest
 	.fn<() => Promise<any[]>>()
 	.mockResolvedValue([]);
+const MOCK_QUERY = jest.fn<() => Promise<any>>().mockResolvedValue(undefined);
 
 jest.mock("../../../../../src/config/db", () => {
 	const mockSelectQuery = {
@@ -33,6 +34,7 @@ jest.mock("../../../../../src/config/db", () => {
 	return {
 		DBConnection: jest.fn(() => mockDbConnection),
 		createDBConnection: jest.fn(() => mockDbConnection),
+		DATABASE: { promise: jest.fn(() => ({ query: MOCK_QUERY })) },
 	};
 });
 
@@ -66,13 +68,13 @@ describe("candles-schema", () => {
 		it("should insert candle data successfully", async () => {
 			const data: never[] = [MAKE_CANDLE() as never];
 			await insertCandles(data);
-			expect(MOCK_EXECUTE_INSERT).toHaveBeenCalled();
+			expect(MOCK_QUERY).toHaveBeenCalled();
 		});
 
 		it("should do nothing when data array is empty", async () => {
 			const data: never[] = [];
 			await insertCandles(data);
-			expect(MOCK_EXECUTE_INSERT).not.toHaveBeenCalled();
+			expect(MOCK_QUERY).not.toHaveBeenCalled();
 		});
 
 		it("should insert multiple candles", async () => {
@@ -81,19 +83,19 @@ describe("candles-schema", () => {
 				MAKE_CANDLE({ symbol: "ETHUSDT" }) as never,
 			];
 			await insertCandles(data);
-			expect(MOCK_EXECUTE_INSERT).toHaveBeenCalled();
+			expect(MOCK_QUERY).toHaveBeenCalled();
 		});
 
 		it("should do nothing when first argument is empty array and undefined trades", async () => {
 			const data: never[] = [];
 			await insertCandles(data);
-			expect(MOCK_EXECUTE_INSERT).not.toHaveBeenCalled();
+			expect(MOCK_QUERY).not.toHaveBeenCalled();
 		});
 
 		it("should handle null trades field", async () => {
 			const data: never[] = [MAKE_CANDLE({ trades: null }) as never];
 			await insertCandles(data);
-			expect(MOCK_EXECUTE_INSERT).toHaveBeenCalled();
+			expect(MOCK_QUERY).toHaveBeenCalled();
 		});
 	});
 

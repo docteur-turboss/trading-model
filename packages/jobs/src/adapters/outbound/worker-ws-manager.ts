@@ -3,6 +3,11 @@ import type {
 	SchedulerOutgoingMessage,
 	WorkerIncomingMessage,
 } from "@trading-model/common/contracts/worker-protocol-types";
+import type { ServiceId } from "@trading-model/common/domain/primitives";
+import {
+	isCallerAuthorized,
+	resolveMtlsIdentity,
+} from "@trading-model/http/adapters/inbound/mtls-identity";
 import { logger } from "@trading-model/http/infrastructure/logger";
 import WebSocket, { WebSocketServer } from "ws";
 
@@ -16,9 +21,36 @@ export class WorkerWsManager {
 			message: WorkerIncomingMessage,
 			ws: WebSocket
 		) => void,
-		private readonly _onClose: (ws: WebSocket) => void
+		private readonly _onClose: (ws: WebSocket) => void,
+		targetService?: ServiceId,
+		enforceMtlsStrict?: boolean
 	) {
-		this._wss = new WebSocketServer({ server });
+		this._wss = new WebSocketServer({
+			server,
+			verifyClient: (info, cb) => {
+				if (enforceMtlsStrict === false) {
+					cb(true);
+					return;
+				}
+				const identity = resolveMtlsIdentity(info.req);
+				if (!identity) {
+					cb(false, 401, "mTLS client certificate required");
+					return;
+				}
+				if (
+					targetService &&
+					!isCallerAuthorized(identity.serviceName, targetService)
+				) {
+					cb(
+						false,
+						403,
+						`"${identity.serviceName}" is not authorized to access "${targetService}"`
+					);
+					return;
+				}
+				cb(true);
+			},
+		});
 		this._wss.on("connection", (ws: WebSocket) => this._onConnection(ws));
 	}
 

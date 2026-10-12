@@ -10,7 +10,6 @@ import {
 	type ContinuousPolicyGenome,
 	ContinuousPolicyType,
 	type DiscretePolicyGenome,
-	DiscretePolicyType,
 	type HorizonGenome,
 	type ReplayBufferGenome,
 	type RewardShapingGenome,
@@ -37,7 +36,6 @@ export function createHorizonGenome(): HorizonGenome {
 
 export function createDiscretePolicyGenome(): DiscretePolicyGenome {
 	return {
-		type: DiscretePolicyType.EpsilonGreedy,
 		epsilonStart: Probability.of(1.0),
 		epsilonMin: Probability.of(0.05),
 		epsilonDecay: Probability.of(0.995),

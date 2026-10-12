@@ -1,6 +1,6 @@
 import type { TlsPaths } from "@trading-model/common/config/tls-paths";
 import {
-	type SessionId,
+	type ProcessId,
 	UnixTimestamp,
 	type URLString,
 	type UserId,
@@ -18,12 +18,12 @@ import {
 export class LogDispatcher {
 	private readonly _safeStringify: (value: unknown) => string;
 	private _auditClient: AuditServiceClient;
-	private readonly _sessionId: SessionId;
+	private readonly _processId: ProcessId;
 	private readonly _env: string | undefined;
 
-	constructor(safeStringify: (value: unknown) => string, sessionId: SessionId) {
+	constructor(safeStringify: (value: unknown) => string, processId: ProcessId) {
 		this._safeStringify = safeStringify;
-		this._sessionId = sessionId;
+		this._processId = processId;
 		this._env = getNodeEnv();
 		this._auditClient = new AuditServiceClient(this._safeStringify);
 	}
@@ -46,7 +46,7 @@ export class LogDispatcher {
 			level,
 			message,
 			context,
-			sessionId: this._sessionId || undefined,
+			processId: this._processId || undefined,
 			userId: userId || undefined,
 			url,
 			serviceInCharge,

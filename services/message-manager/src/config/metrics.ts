@@ -49,48 +49,15 @@ export const CIRCUIT_BREAKER_STATE = new promClient.Gauge({
 	labelNames: ["subscriber"] as const,
 });
 
-export const REDIS_STREAM_SIZE = new promClient.Gauge({
-	name: "mm_redis_stream_size",
-	help: "Size of Redis stream per topic",
-	labelNames: ["topic"] as const,
-});
-
 export const IN_FLIGHT_MESSAGES = new promClient.Gauge({
 	name: "mm_in_flight_messages",
 	help: "Number of messages currently being delivered",
-});
-
-export const BACKPRESSURE_RATIO = new promClient.Gauge({
-	name: "mm_backpressure_ratio",
-	help: "Token bucket usage ratio (0=idle, 1=full)",
-});
-
-export const WSS_CONNECTION_COUNT = new promClient.Gauge({
-	name: "mm_wss_connections",
-	help: "Number of active WSS connections",
 });
 
 export const SUBSCRIBER_DELIVERY_CONCURRENCY = new promClient.Gauge({
 	name: "mm_subscriber_delivery_concurrency",
 	help: "Current delivery concurrency per subscriber",
 	labelNames: ["subscriber"] as const,
-});
-
-export const REDIS_STREAM_LAG = new promClient.Gauge({
-	name: "mm_redis_stream_lag_ms",
-	help: "Redis stream lag in milliseconds per topic",
-	labelNames: ["topic"] as const,
-});
-
-export const DLQ_BUFFER_SIZE = new promClient.Gauge({
-	name: "mm_dlq_buffer_size",
-	help: "Current DLQ buffer size",
-});
-
-export const BUFFER_DROPPED_TOTAL = new promClient.Counter({
-	name: "mm_buffer_dropped_total",
-	help: "Total number of messages dropped due to buffer overflow",
-	labelNames: ["buffer", "reason"] as const,
 });
 
 export { metricsHandler };

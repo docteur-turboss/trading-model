@@ -50,4 +50,10 @@ export const MARKET_DATA_SYMBOLS = new promClient.Gauge({
 	help: "Number of tracked symbols in buffer",
 });
 
+export const QLEARNING_TRAIN_ERRORS = new promClient.Counter({
+	name: "tt_qlearning_train_errors_total",
+	help: "Total Q-learning training step errors",
+	labelNames: ["reason"] as const,
+});
+
 export { metricsHandler };

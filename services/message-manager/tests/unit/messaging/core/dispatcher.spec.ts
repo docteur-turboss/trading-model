@@ -10,7 +10,8 @@ import {
 	it,
 	jest,
 } from "@jest/globals";
-import { FileDlqRepository } from "../../../../src/adapters/outbound/dlq-repository";
+import { HttpMessageDelivery } from "../../../../src/adapters/outbound/http-message-delivery";
+import { FileDlqRepository } from "../../../../src/infrastructure/fallback/dlq-repository";
 import { Dispatcher } from "../../../../src/messaging/core/dispatcher";
 import { Subscription } from "../../../../src/messaging/core/subscription";
 import {
@@ -43,7 +44,6 @@ jest.mock("../../../../src/config/metrics", () => ({
 	SUBSCRIPTION_COUNT: { set: jest.fn() },
 	CIRCUIT_BREAKER_STATE: { set: jest.fn() },
 	IN_FLIGHT_MESSAGES: { inc: jest.fn(), dec: jest.fn() },
-	BACKPRESSURE_RATIO: { set: jest.fn() },
 	SUBSCRIBER_DELIVERY_CONCURRENCY: { inc: jest.fn(), dec: jest.fn() },
 }));
 
@@ -56,7 +56,12 @@ describe("Dispatcher", () => {
 	beforeEach(() => {
 		mockHttpClient = createMockHttpClient();
 		dqlRepository = new FileDlqRepository(dlqFilePath);
-		dispatcher = new Dispatcher(mockHttpClient as never, dqlRepository);
+		dispatcher = new Dispatcher({
+			deliveryPort: new HttpMessageDelivery(
+				mockHttpClient as never,
+				dqlRepository
+			),
+		});
 		jest.clearAllMocks();
 	});
 

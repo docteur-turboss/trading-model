@@ -10,7 +10,8 @@ import {
 	it,
 	jest,
 } from "@jest/globals";
-import { FileDlqRepository } from "../../src/adapters/outbound/dlq-repository";
+import { HttpMessageDelivery } from "../../src/adapters/outbound/http-message-delivery";
+import { FileDlqRepository } from "../../src/infrastructure/fallback/dlq-repository";
 import { Dispatcher } from "../../src/messaging/core/dispatcher";
 import {
 	mockServiceIdentity,
@@ -36,7 +37,11 @@ describe("Message Broker Integration", () => {
 	beforeEach(() => {
 		httpClient = createMockHttpClient();
 		const dqlRepository = new FileDlqRepository(dlqFilePath);
-		dispatcher = new Dispatcher(httpClient as never, dqlRepository);
+		const deliveryPort = new HttpMessageDelivery(
+			httpClient as never,
+			dqlRepository
+		);
+		dispatcher = new Dispatcher({ deliveryPort });
 	});
 
 	afterAll(async () => {

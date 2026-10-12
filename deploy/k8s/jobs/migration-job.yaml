@@ -21,18 +21,33 @@ spec:
     spec:
       serviceAccountName: migration-runner
       restartPolicy: Never
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: migrate
-          image: oven/bun:1-alpine
+          image: oven/bun@sha256:c1cc397e0be452c54f37cbcdfaa747eff93c993723af7d91658764d0fdfe5873
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
           command:
             - sh
             - -c
             - |
               set -euo pipefail
-              apk add --no-cache curl
-              cd /migrations
-              bun add mysql2 2>/dev/null
-              bun /migrations/migrate.mjs up
+              mkdir -p /tmp/migrate-run
+              cp -r /migrations/. /tmp/migrate-run/
+              cd /tmp/migrate-run
+              bun add mysql2
+              bun migrate.mjs up
           env:
             - name: DB_HOST
               value: mysql-primary

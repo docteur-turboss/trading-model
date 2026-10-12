@@ -27,10 +27,11 @@ function crossoverRewardShaping(ctx: {
 	const { left, right, crossoverFn, rng } = ctx;
 	return {
 		clip: rng() < 0.5 ? left.clip : right.clip,
-		clipBounds: new NumericRange(
-			crossoverFn(left.clipBounds.lo, right.clipBounds.lo),
-			crossoverFn(left.clipBounds.hi, right.clipBounds.hi)
-		),
+		clipBounds: (() => {
+			const lo = crossoverFn(left.clipBounds.lo, right.clipBounds.lo);
+			const hi = crossoverFn(left.clipBounds.hi, right.clipBounds.hi);
+			return new NumericRange(Math.min(lo, hi - 1e-6), Math.max(hi, lo + 1e-6));
+		})(),
 		scale: rng() < 0.5 ? left.scale : right.scale,
 		scaleFactor: crossoverFn(left.scaleFactor, right.scaleFactor) as Percentage,
 		normalize: rng() < 0.5 ? left.normalize : right.normalize,
@@ -61,11 +62,9 @@ function crossoverDiscretePolicy(ctx: {
 	left: DiscretePolicyGenome;
 	right: DiscretePolicyGenome;
 	crossoverFn: (valueA: number, valueB: number) => number;
-	rng: () => number;
 }): DiscretePolicyGenome {
-	const { left, right, crossoverFn, rng } = ctx;
+	const { left, right, crossoverFn } = ctx;
 	return {
-		type: rng() < 0.5 ? left.type : right.type,
 		epsilonStart: crossoverFn(
 			left.epsilonStart,
 			right.epsilonStart
@@ -91,10 +90,11 @@ function crossoverContinuousPolicy(ctx: {
 	const { left, right, crossoverFn, rng } = ctx;
 	return {
 		type: rng() < 0.5 ? left.type : right.type,
-		clipBounds: new NumericRange(
-			crossoverFn(left.clipBounds.lo, right.clipBounds.lo),
-			crossoverFn(left.clipBounds.hi, right.clipBounds.hi)
-		),
+		clipBounds: (() => {
+			const lo = crossoverFn(left.clipBounds.lo, right.clipBounds.lo);
+			const hi = crossoverFn(left.clipBounds.hi, right.clipBounds.hi);
+			return new NumericRange(Math.min(lo, hi - 1e-6), Math.max(hi, lo + 1e-6));
+		})(),
 		noiseStd: crossoverFn(left.noiseStd, right.noiseStd) as NoiseStd,
 		noiseDecay: crossoverFn(left.noiseDecay, right.noiseDecay) as Probability,
 	};

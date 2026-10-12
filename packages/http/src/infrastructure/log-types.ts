@@ -47,8 +47,8 @@ export function isLogLevelAtLeast(
 
 import type {
 	JsonObject,
+	ProcessId,
 	ServiceId,
-	SessionId,
 	UnixTimestamp,
 	URLString,
 	UserId,
@@ -66,7 +66,7 @@ export interface LogEntry {
 	message: string;
 	context?: JsonObject;
 	userId?: UserId;
-	sessionId?: SessionId;
+	processId?: ProcessId;
 	url?: URLString;
 	serviceInCharge?: ServiceId;
 }

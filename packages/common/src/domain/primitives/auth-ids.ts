@@ -28,12 +28,12 @@ export function fromUserId(value: UserId): string {
 	return value;
 }
 
-export type SessionId = BrandedString<"SessionId">;
-export const SessionId = createStringBrand("SessionId");
-export function toSessionId(value: string): SessionId {
-	return SessionId.of(value);
+export type ProcessId = BrandedString<"ProcessId">;
+export const ProcessId = createStringBrand("ProcessId");
+export function toProcessId(value: string): ProcessId {
+	return ProcessId.of(value);
 }
-export function fromSessionId(value: SessionId): string {
+export function fromProcessId(value: ProcessId): string {
 	return value;
 }
 

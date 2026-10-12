@@ -24,8 +24,9 @@ export interface AuthorizationOptions {
 	/** Explicit allowlist; falls back to {@link DEFAULT_ACL} when omitted. */
 	allowedCallers?: ServiceId[];
 	/**
-	 * Defaults to `false`. Enable once workloads present attested SVIDs
-	 * (ADR-0011) so the caller identity from the SPIFFE ID is enforceable.
+	 * Defaults to `true`. Authorization is enabled by default so that
+	 * caller identity from attested SVIDs (ADR-0011) is enforceable.
+	 * Set `ENFORCE_MTLS_STRICT=false` to disable.
 	 */
 	enabled?: boolean;
 }

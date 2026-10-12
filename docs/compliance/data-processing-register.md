@@ -8,7 +8,7 @@
 
 This register documents all data processing activities of the trading-model platform, as required by Article 30 of the General Data Protection Regulation (GDPR).
 
-**Fundamental conclusion:** The trading-model platform processes **no personal data** as defined by Art. 4(1) GDPR. All data is machine-generated (market prices, service metadata, operational logs). There are no human users, no user profiles, no registrations, no cookies, no tracking, no biometric data, no location data of individuals.
+**Fundamental conclusion:** The trading-model platform processes **no personal data** as defined by Art. 4(1) GDPR. All data is machine-generated (market prices, service metadata, operational logs). There are no human users, no user profiles, no registrations, no cookies, no tracking, no biometric data, no location data of individuals. IP addresses are transiently read for access control, anonymized (last octet/80-bit zeroed) at source before logging, and never persisted in clear text. Log context fields are sanitized of sensitive keys before MongoDB persistence.
 
 ---
 
@@ -50,7 +50,7 @@ This register documents all data processing activities of the trading-model plat
 | **Data subjects**        | None — purely operational service event metadata                                                                 |
 | **Recipients**           | Internal: admin-interface (read-only), compliance officers (via MongoDB queries)                                 |
 | **Transfers outside EU** | None                                                                                                             |
-| **Retention period**     | 90 days (current) — recommended extension to 5 years for financial regulatory compliance                         |
+| **Retention period**     | 1827 days (5 years) — MiFID II compliance                                                                         |
 | **Technical measures**   | Append-only MongoDB collection, correlation ID linking, gap detection, TTL index                                 |
 | **System**               | audit-logger → MongoDB (audit_events collection)                                                                 |
 
@@ -90,7 +90,7 @@ This register documents all data processing activities of the trading-model plat
 | --------------------- | -------------- | --------------------------- | ------------------- | ---------------------------- |
 | Market Data Ingestion | ❌ None        | Legitimate interest         | 5 years (MiFID II)  | Binance API (Cayman Islands) |
 | Message Routing       | ❌ None        | Legitimate interest         | 2h–90 days          | None                         |
-| Audit Logging         | ❌ None        | Legal obligation + Interest | 90 days → target 5y | None                         |
+| Audit Logging         | ❌ None        | Legal obligation + Interest | 5 years (1827 days) | None                         |
 | Workload Identity      | ❌ None        | Legitimate interest         | 1h–168h           | None                         |
 | ML Training           | ❌ None        | Legitimate interest         | Per-agent           | None                         |
 

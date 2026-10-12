@@ -30,6 +30,9 @@ export type {
 } from "./services.dto";
 export { ServiceStatus } from "./services.dto";
 export type {
+	TrainingAgentEntry,
+	TrainingAgentListResponse,
+	TrainingAgentSummary,
 	TrainingGenome,
 	TrainingLayer,
 	TrainingResult,

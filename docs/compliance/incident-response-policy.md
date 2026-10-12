@@ -87,7 +87,7 @@ Post-mortems are stored in `docs/operations/post-mortems/`.
 | **DORA Art. 10** | Major ICT incident | 24 hours | Competent authority (ACPR/ECB) |
 | **MiFID II Art. 72** | Record-keeping failure | Immediate internal escalation | Compliance officer |
 
-**Important:** The trading-model platform processes no personal data. GDPR Art. 33 notification is not expected to be triggered. However, the capability is documented for completeness.
+**Important:** The trading-model platform processes no personal data. IP addresses are anonymized at source before logging. GDPR Art. 33 notification is not expected to be triggered. However, the capability is documented for completeness.
 
 ### 4.1 Notification Template
 

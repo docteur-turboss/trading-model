@@ -72,10 +72,21 @@ const PERSISTERS: Persister<
 
 export const MarketDataController: MarketDataController = new (class {
 	async persist(payload: BinanceWorkerResult): Promise<void> {
-		await Promise.all(
+		const results = await Promise.allSettled(
 			PERSISTERS.filter(({ present }) => hasData(present(payload))).map(
 				({ present, insert }) => insert(present(payload) as never)
 			)
 		);
+
+		const failures = results.filter((item) => item.status === "rejected");
+		if (failures.length > 0) {
+			const errors = failures.map((item) => {
+				const rejected = item as PromiseRejectedResult;
+				return rejected.reason?.message ?? String(rejected.reason);
+			});
+			throw new Error(
+				`Market data persist failed (${failures.length} type(s)): ${errors.join("; ")}`
+			);
+		}
 	}
 })();

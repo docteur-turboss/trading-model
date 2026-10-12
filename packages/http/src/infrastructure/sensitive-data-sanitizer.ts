@@ -19,6 +19,12 @@ const SENSITIVE_KEY_PATTERNS = [
 	/^rootcacertpath$/i,
 	/\.secret$/i,
 	/\.token$/i,
+	/^ip$/i,
+	/^ip[-_]?address$/i,
+	/^remote[-_]?address$/i,
+	/^x[-_]?forwarded[-_]?for$/i,
+	/^client[-_]?ip$/i,
+	/^peer[-_]?address$/i,
 ];
 
 export function isSensitiveKey(key: string): boolean {

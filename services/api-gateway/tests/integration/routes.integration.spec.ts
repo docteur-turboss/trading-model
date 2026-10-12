@@ -26,6 +26,7 @@ jest.mock("../../src/infrastructure/config/env", () => ({
 		AUTH_TOKEN_HEADER: "x-api-key",
 		AUTH_TOKENS: "test-token,secondary-token",
 		PROXY_TIMEOUT_MS: 5000,
+		ALLOWED_PROXY_CIDRS: "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,127.0.0.0/8",
 	},
 }));
 

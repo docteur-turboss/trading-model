@@ -27,24 +27,24 @@ secretGenerator:
     literals:
       - key=a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90
 
-# Staging-specific image tags (non-:latest, for reproducible deployments)
+# Staging-specific image tags (uses latest release by default; override via deploy pipeline)
 images:
   - name: ghcr.io/trading-model/discovery-server
-    newTag: staging
+    newTag: latest
   - name: ghcr.io/trading-model/message-manager
-    newTag: staging
+    newTag: latest
   - name: ghcr.io/trading-model/financial-scraper
-    newTag: staging
+    newTag: latest
   - name: ghcr.io/trading-model/trader-trainer
-    newTag: staging
+    newTag: latest
   - name: ghcr.io/trading-model/api-gateway
-    newTag: staging
+    newTag: latest
   - name: ghcr.io/trading-model/audit-logger
-    newTag: staging
+    newTag: latest
   - name: ghcr.io/trading-model/dlq-service
-    newTag: staging
+    newTag: latest
   - name: ghcr.io/trading-model/admin-interface
-    newTag: staging
+    newTag: latest
 
 # Staging-specific resource reductions (smaller than production)
 patches:

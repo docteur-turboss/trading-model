@@ -10,6 +10,7 @@ jest.mock("../../src/infrastructure/config/env", () => ({
 		RATE_LIMIT_MAX: 1000,
 		CACHE_TTL_MS: 5000,
 		PROXY_TIMEOUT_MS: 5000,
+		ALLOWED_PROXY_CIDRS: "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,127.0.0.0/8",
 	},
 }));
 

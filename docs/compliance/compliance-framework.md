@@ -28,10 +28,10 @@ This document provides a consolidated map of all regulatory obligations applicab
 
 | GDPR Article | Requirement | Platform Control | Document Reference |
 |---|---|---|---|
-| **Art. 5(1)(c)** | Data minimisation | Zero personal data architecture — machine-generated data only | [DPIA](dpia.md) §2 |
+| **Art. 5(1)(c)** | Data minimisation | Zero personal data architecture — machine-generated data only. IP addresses anonymized at source before logging | [DPIA](dpia.md) §2 |
 | **Art. 5(1)(e)** | Storage limitation | TTL-based retention policies across all data stores | [Data Retention Policy](data-retention-policy.md) |
 | **Art. 6(1)(f)** | Legitimate interest basis | Documented for all 5 processing activities | [Data Processing Register](data-processing-register.md) |
-| **Art. 25** | Data protection by design and by default | mTLS, encryption at rest, log redaction, append-only audit | [DPIA](dpia.md) §4 |
+| **Art. 25** | Data protection by design and by default | mTLS, encryption at rest, log redaction (including context sanitization), append-only audit | [DPIA](dpia.md) §4 |
 | **Art. 30** | Register of processing activities | 5 activities documented with full metadata | [Data Processing Register](data-processing-register.md) |
 | **Art. 32** | Security of processing | mTLS, encryption, RBAC, circuit breakers | [Information Security Policy](information-security-policy.md) |
 | **Art. 33** | Breach notification | Incident response policy with 72h notification | [Incident Response Policy](incident-response-policy.md) |

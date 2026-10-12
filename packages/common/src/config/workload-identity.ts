@@ -141,3 +141,37 @@ export function serviceNameFromSpiffeId(identity: string): ServiceId | null {
 	const parsed = parseSpiffeId(identity);
 	return parsed?.serviceName ?? null;
 }
+
+/**
+ * Maps a raw client identity (from an mTLS peer certificate SAN/CN) to a
+ * logical {@link ServiceId}.
+ *
+ *  - `spiffe://...` → the canonical service name (last SPIFFE path segment)
+ *  - `client:<token-prefix>` → the API gateway (external callers)
+ *  - anything else → used verbatim (legacy CN/DNS identities)
+ */
+export function extractServiceName(clientIdentity: string): ServiceId | null {
+	if (isSpiffeId(clientIdentity)) {
+		return serviceNameFromSpiffeId(clientIdentity);
+	}
+	if (clientIdentity.startsWith("client:")) {
+		return ServiceId.of("api-gateway");
+	}
+	return clientIdentity ? ServiceId.of(clientIdentity) : null;
+}
+
+/**
+ * Like {@link extractServiceName} but normalizes legacy registration names
+ * onto their canonical SPIFFE service name.
+ */
+export function extractCanonicalServiceName(
+	clientIdentity: string
+): ServiceId | null {
+	if (isSpiffeId(clientIdentity)) {
+		return serviceNameFromSpiffeId(clientIdentity);
+	}
+	if (clientIdentity.startsWith("client:")) {
+		return ServiceId.of("api-gateway");
+	}
+	return clientIdentity ? normalizeServiceName(clientIdentity) : null;
+}

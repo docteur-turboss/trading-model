@@ -3,6 +3,8 @@
  * Handles reward shaping, n-step returns, shadow backends, and Lamarckian updates.
  */
 
+import { logger } from "@trading-model/http/infrastructure/logger";
+import { QLEARNING_TRAIN_ERRORS } from "../../config/metrics";
 import { NormalizationStats } from "../normalization-stats";
 import type {
 	EvaluationResult,
@@ -35,39 +37,52 @@ function evaluateSingleGenomeOnWindow(
 ): EvaluationResult {
 	validateGenomeInputs(genome, windowSet);
 
-	const shadowBackend = backendFactory(genome);
-	const shadowStats = new NormalizationStats();
-	const rewardBuf = precomputeRewards({
-		backend: shadowBackend,
-		data: windowSet.train,
-		genome,
-		runStats: shadowStats,
-	});
+	try {
+		const shadowBackend = backendFactory(genome);
+		const shadowStats = new NormalizationStats();
+		const rewardBuf = precomputeRewards({
+			backend: shadowBackend,
+			data: windowSet.train,
+			genome,
+			runStats: shadowStats,
+		});
 
-	const trainBackend = backendFactory(genome);
-	trainPhase({
-		backend: trainBackend,
-		trainData: windowSet.train,
-		rewardBuf,
-		genome,
-	});
+		const trainBackend = backendFactory(genome);
+		trainPhase({
+			backend: trainBackend,
+			trainData: windowSet.train,
+			rewardBuf,
+			genome,
+		});
 
-	const updatedGenome = deepFreeze(lamarckianUpdate(genome, trainBackend));
+		const updatedGenome = deepFreeze(lamarckianUpdate(genome, trainBackend));
 
-	const evalCtx: GenomeEvaluationContext = {
-		genome: updatedGenome,
-		validationData: windowSet.validation,
-		backendFactory,
-	};
-	const evalResult = evalPhase(evalCtx);
+		const evalCtx: GenomeEvaluationContext = {
+			genome: updatedGenome,
+			validationData: windowSet.validation,
+			backendFactory,
+		};
+		const evalResult = evalPhase(evalCtx);
 
-	validateEvalResult(evalResult);
+		validateEvalResult(evalResult);
 
-	return {
-		updatedGenome,
-		rawScores: evalResult.rawScores,
-		finalPnL: evalResult.finalPnL,
-	};
+		return {
+			updatedGenome,
+			rawScores: evalResult.rawScores,
+			finalPnL: evalResult.finalPnL,
+		};
+	} catch (err) {
+		const reason = err instanceof Error ? err.message : "unknown";
+		QLEARNING_TRAIN_ERRORS.inc({ reason });
+		logger.error("Genome evaluation failed", {
+			context: { reason },
+		});
+		return {
+			updatedGenome: genome,
+			rawScores: [-1e9],
+			finalPnL: -1e9,
+		};
+	}
 }
 
 /**

@@ -41,12 +41,13 @@ export function createServiceServer(
 function _resolveAuthorization(
 	options: ServiceServerOptions
 ): AuthorizationOptions | undefined {
-	if (!options.env.ENFORCE_MTLS_STRICT) {
+	if (options.env.ENFORCE_MTLS_STRICT === false) {
 		return;
 	}
 	if (!options.serviceId) {
 		throw configurationError(
-			"ENFORCE_MTLS_STRICT is enabled but createServiceServer received no serviceId"
+			"Authorization is enabled by default but createServiceServer received no serviceId. " +
+				"Set ENFORCE_MTLS_STRICT=false to disable or provide a serviceId."
 		);
 	}
 	return { enabled: true, targetService: options.serviceId };

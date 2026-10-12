@@ -16,7 +16,20 @@ jest.mock("@trading-model/http/infrastructure/logger", () => ({
 	logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
 
+jest.mock("@trading-model/http/adapters/inbound/mtls-identity", () => ({
+	resolveMtlsIdentity: jest.fn().mockReturnValue({
+		identity: "client:test-caller",
+		serviceName: { toString: () => "test-caller" },
+	}),
+}));
+
 jest.mock("../../src/infrastructure/config/env", () => ({
+	ENV: {
+		CLEANUP_SERVICE_INTERVAL_MS: 5000,
+		ERROR_URL_WEBHOOK: "https://hooks.example.com/error",
+		REGISTRATION_TOKEN: undefined,
+		ALLOWED_REGISTRATION_CIDRS: "",
+	},
 	env: {
 		CLEANUP_SERVICE_INTERVAL_MS: 5000,
 		ERROR_URL_WEBHOOK: "https://hooks.example.com/error",
@@ -163,7 +176,8 @@ describe("Discovery Lifecycle — Full HTTP Integration", () => {
 			ip: "10.0.0.1",
 			port: 8444,
 		});
-		expect(result.status).toBe(500);
+		expect(result.status).toBe(400);
+		expect(result.body).toHaveProperty("error", "Invalid request body");
 	});
 
 	it("should list registered services via GET /services", async () => {

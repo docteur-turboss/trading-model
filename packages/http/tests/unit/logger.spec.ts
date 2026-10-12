@@ -196,10 +196,10 @@ describe("Logger", () => {
 	});
 
 	describe("createLogEntry", () => {
-		it("should include sessionId in log entry", () => {
+		it("should include processId in log entry", () => {
 			logger.info("test session");
 			const logs = logger.getLogs();
-			expect(logs[0].sessionId).toBeDefined();
+			expect(logs[0].processId).toBeDefined();
 		});
 
 		it("should log appendFile error to console.error", () => {

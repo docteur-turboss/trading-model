@@ -30,7 +30,9 @@ const LEARN_STRATEGIES: LearnStrategyMap = {
 		nn.train(exp.input, exp.target);
 	},
 	[ExperienceKind.QLearning]: (nn, exp) => {
-		const target = computeQLearningTarget(nn, exp, 0.99);
+		const gamma =
+			(exp as QLearningExperience & { gamma?: number }).gamma ?? 0.99;
+		const target = computeQLearningTarget(nn, exp, gamma);
 		nn.train(exp.input, target);
 	},
 };
@@ -41,7 +43,12 @@ export class AgentExperienceHandler {
 	constructor(cfg: NetworkArchitecture) {
 		const enablePool = cfg.enablePool ?? true;
 		const poolMaxSize = cfg.poolMaxSize ?? 10_000;
-		this._pool = createExperiencePool(enablePool, poolMaxSize);
+		this._pool = createExperiencePool(enablePool, poolMaxSize, {
+			prioritized: cfg.perEnabled ?? false,
+			alpha: cfg.perAlpha ?? 0.6,
+			beta: cfg.perBeta ?? 0.4,
+			betaAnneal: cfg.perBetaAnneal ?? false,
+		});
 	}
 
 	private _buildExperience(ei: ExperienceInput): Experience {

@@ -11,7 +11,6 @@ import {
 	ConnectionType,
 	ContinuousPolicyType,
 	CrossoverType,
-	DiscretePolicyType,
 	FitnessType,
 	InitialisationType,
 	MutationAdaptation,
@@ -121,7 +120,6 @@ jest.mock("../../../src/core/genetic-algorithm/ga-runner", () => {
 					},
 					horizon: { maxEpisodeLength: 500, nStepReturn: 1, frameSkip: 1 },
 					discretePolicy: {
-						type: DiscretePolicyType.EpsilonGreedy,
 						epsilonStart: 1.0,
 						epsilonMin: 0.05,
 						epsilonDecay: 0.995,

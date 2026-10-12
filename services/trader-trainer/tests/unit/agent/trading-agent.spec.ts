@@ -31,8 +31,8 @@ function makeConfig(
 		actionSpace: ActionSpace.Discrete,
 		tradeAmount: Volume.of(1),
 		stateManagerCfg: {
-			epsilonStart: 1.0,
-			epsilonMin: 0.01,
+			epsilonStart: 0,
+			epsilonMin: 0,
 			epsilonDecay: 0.995,
 			gamma: 0.99,
 		},
@@ -85,7 +85,17 @@ describe("TradingAgent", () => {
 		});
 
 		it("should initialise epsilon from stateManagerCfg", () => {
-			expect(agent.state.getEpsilon()).toBe(1.0);
+			const epsilonAgent = new TradingAgent(
+				makeConfig({
+					stateManagerCfg: {
+						epsilonStart: 1.0,
+						epsilonMin: 0.01,
+						epsilonDecay: 0.995,
+						gamma: 0.99,
+					},
+				})
+			);
+			expect(epsilonAgent.state.getEpsilon()).toBe(1.0);
 		});
 
 		it("should use default wallet and state config when not provided", () => {
@@ -203,9 +213,19 @@ describe("TradingAgent", () => {
 		});
 
 		it("should decay epsilon after step", () => {
-			const epsilonBefore = agent.state.getEpsilon();
-			agent.step(new Float32Array([0.5, -0.3, 0.1, 0.8]), Price.of(105));
-			const epsilonAfter = agent.state.getEpsilon();
+			const epsilonAgent = new TradingAgent(
+				makeConfig({
+					stateManagerCfg: {
+						epsilonStart: 1.0,
+						epsilonMin: 0.01,
+						epsilonDecay: 0.995,
+						gamma: 0.99,
+					},
+				})
+			);
+			const epsilonBefore = epsilonAgent.state.getEpsilon();
+			epsilonAgent.step(new Float32Array([0.5, -0.3, 0.1, 0.8]), Price.of(105));
+			const epsilonAfter = epsilonAgent.state.getEpsilon();
 
 			expect(epsilonAfter).toBeLessThan(epsilonBefore);
 		});
@@ -261,7 +281,7 @@ describe("TradingAgent", () => {
 
 			agent.resetEpisode();
 
-			expect(agent.state.getEpsilon()).toBe(1.0);
+			expect(agent.state.getEpsilon()).toBe(0);
 		});
 
 		it("should clear the neural network pool", () => {

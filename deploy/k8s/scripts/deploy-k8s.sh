@@ -7,6 +7,7 @@
 #    ./deploy-k8s.sh [-n <namespace>] delete          # Delete all resources
 #    ./deploy-k8s.sh [-n <namespace>] status          # Show deployment status
 #    ./deploy-k8s.sh [-n <namespace>] rollback <service> [revision]
+#    ./deploy-k8s.sh [-n <namespace>] migrate-down [count|all]
 #    ./deploy-k8s.sh [-n <namespace>] canary <service> [image-tag] [percentage]
 #    ./deploy-k8s.sh [-n <namespace>] smoke-test      # Run smoke tests
 #  Namespace: K8S_NAMESPACE env or -n/--namespace (default: trading-model)
@@ -65,8 +66,8 @@ cmd_apply() {
 
   if [[ -n "$service" ]]; then
     log "Applying manifests for service: $service"
-    kubectl apply -n "$NAMESPACE" -f "${K8S_DIR}/config/${service}-configmap.yaml" 2>/dev/null || true
-    kubectl apply -n "$NAMESPACE" -f "${K8S_DIR}/services/${service}.yaml" 2>/dev/null || true
+    kubectl apply -n "$NAMESPACE" -f "${K8S_DIR}/config/${service}-configmap.yaml"
+    kubectl apply -n "$NAMESPACE" -f "${K8S_DIR}/services/${service}.yaml"
   else
     log "Applying all Trading Model manifests..."
     kubectl apply -k "${K8S_DIR}/"
@@ -74,14 +75,25 @@ cmd_apply() {
 
   log "Deployment applied. Waiting for rollouts..."
 
+  local rollout_failed=0
   if [[ -n "$service" ]]; then
-    kubectl rollout status -n "$NAMESPACE" "deployment/${service}" --timeout=120s
+    if ! kubectl rollout status -n "$NAMESPACE" "deployment/${service}" --timeout=120s; then
+      err "Rollout of $service failed or timed out."
+      rollout_failed=1
+    fi
   else
     for dep in discovery-server message-manager financial-scraper trader-trainer \
                api-gateway audit-logger dlq-service admin-interface; do
-      kubectl rollout status -n "$NAMESPACE" "deployment/${dep}" --timeout=120s 2>/dev/null || \
-        log "Warning: $dep rollout status check failed (may not exist)"
+      if ! kubectl rollout status -n "$NAMESPACE" "deployment/${dep}" --timeout=120s; then
+        err "Rollout of $dep failed or timed out."
+        rollout_failed=1
+      fi
     done
+  fi
+
+  if [[ "$rollout_failed" -ne 0 ]]; then
+    err "One or more deployments failed to roll out."
+    exit 1
   fi
 
   log "Deployment complete."
@@ -142,6 +154,50 @@ cmd_rollback() {
   log "Rollback of $service complete."
 }
 
+cmd_migrate_down() {
+  local count="${1:-1}"
+
+  log "Preparing database rollback (count=$count)..."
+
+  # Ensure the migration ConfigMap is up-to-date.
+  kubectl create configmap migration-files -n "$NAMESPACE" \
+    --from-file=migrate.mjs=scripts/migrate.mjs \
+    --from-file=scripts/migrations \
+    --dry-run=client -o yaml | kubectl apply -f -
+
+  # Patch ROLLBACK_COUNT into the ConfigMap.
+  if [[ "$count" == "all" ]]; then
+    kubectl create configmap migration-files -n "$NAMESPACE" \
+      --from-literal=ROLLBACK_COUNT=all \
+      --dry-run=client -o yaml | kubectl apply -f -
+  elif [[ "$count" =~ ^[0-9]+$ ]]; then
+    kubectl create configmap migration-files -n "$NAMESPACE" \
+      --from-literal=ROLLBACK_COUNT="$count" \
+      --dry-run=client -o yaml | kubectl apply -f -
+  else
+    err "Invalid rollback count: $count (use a positive integer or 'all')"
+    exit 1
+  fi
+
+  # Clean up any previous down job.
+  kubectl delete job -n "$NAMESPACE" db-migrate-down --ignore-not-found &>/dev/null || true
+
+  log "Starting migration rollback job..."
+  kubectl apply -n "$NAMESPACE" -f "${K8S_DIR}/jobs/migration-job-down.yaml"
+
+  log "Waiting for migration rollback to complete..."
+  if ! kubectl wait --for=condition=complete job/db-migrate-down -n "$NAMESPACE" --timeout=180s; then
+    err "Migration rollback job failed or timed out."
+    if ! kubectl logs -n "$NAMESPACE" job/db-migrate-down --tail=50 2>/dev/null; then
+      err "Could not retrieve logs from db-migrate-down job"
+    fi
+    exit 1
+  fi
+
+  log "Migration rollback complete."
+  kubectl logs -n "$NAMESPACE" job/db-migrate-down --tail=20 2>/dev/null
+}
+
 cmd_canary() {
   local service="${1:-}"
   local image_tag="${2:-}"
@@ -151,16 +207,12 @@ cmd_canary() {
     err "Usage: $0 canary <service> [image-tag] [percentage]"
     exit 1
   fi
-  if ! command -v jq &>/dev/null; then
-    err "jq is required for canary deployments. Install jq."
-    exit 1
-  fi
 
   local canary_name="${service}-canary"
   local total_replicas
-  total_replicas=$(kubectl get deployment -n "$NAMESPACE" "$service" -o jsonpath='{.spec.replicas}' 2>/dev/null || true)
+  total_replicas=$(kubectl get deployment -n "$NAMESPACE" "$service" -o jsonpath='{.spec.replicas}')
   if [[ -z "$total_replicas" || "$total_replicas" -lt 1 ]]; then
-    err "Cannot read replica count of deployment $service in namespace $NAMESPACE"
+    err "Primary deployment '$service' not found or has 0 replicas in namespace $NAMESPACE"
     exit 1
   fi
   local canary_replicas=$(( total_replicas * percentage / 100 ))
@@ -169,45 +221,53 @@ cmd_canary() {
   local traffic_share=$(( canary_replicas * 100 / (total_replicas + canary_replicas) ))
   log "Creating canary $canary_name for $service ($canary_replicas replicas, ~${traffic_share}% of traffic)"
 
-  # Prefer an immutable @sha256 digest over a mutable tag when an image is given.
+  # Resolve image: prefer immutable @sha256 digest over mutable tag.
   local image_ref="${image_tag:-}"
   if [[ -n "$image_ref" ]]; then
     local digest
     if digest="$(resolve_image_digest "${CANARY_IMAGE_REPO:-ghcr.io/trading-model}/${service}" "$image_ref")"; then
-      image_ref="@${digest}"
+      image_ref="${CANARY_IMAGE_REPO:-ghcr.io/trading-model}/${service}@${digest}"
       log "Pinned ${service} canary image to digest ${digest}"
     else
+      image_ref="${CANARY_IMAGE_REPO:-ghcr.io/trading-model}/${service}:${image_tag}"
       log "WARNING: could not resolve a digest for ${service}:${image_tag} — falling back to tag"
     fi
+  else
+    image_ref="${CANARY_IMAGE_REPO:-ghcr.io/trading-model}/${service}:latest"
   fi
 
+  # Create canary deployment from scratch with a unique selector.
+  # The selector uses the canary name to avoid ReplicaSet conflicts with the primary.
+  kubectl create deployment "$canary_name" \
+    -n "$NAMESPACE" \
+    --image="$image_ref" \
+    --replicas="$canary_replicas" \
+    --dry-run=client -o yaml \
+    | kubectl label --local -f - -o yaml \
+        --overwrite \
+        app.kubernetes.io/component="$canary_name" \
+        app.kubernetes.io/part-of=trading-model \
+        track=canary \
+    | kubectl apply -n "$NAMESPACE" -f -
+
+  # Copy pod spec from the primary deployment, but give the canary its own selector
+  # so its ReplicaSet does not fight with the primary's for the same pods.
   kubectl get deployment -n "$NAMESPACE" "$service" -o json \
-    | jq --arg name "$canary_name" --arg component "$service" \
-         --arg replicas "$canary_replicas" --arg ref "$image_ref" '
+    | jq --arg name "$canary_name" '
         .metadata.name = $name |
         .metadata.resourceVersion = null |
         .metadata.uid = null |
         .metadata.creationTimestamp = null |
         del(.status) |
-        .spec.selector.matchLabels["app.kubernetes.io/component"] = $component |
-        .spec.selector.matchLabels["track"] = "canary" |
-        .spec.template.metadata.labels["app.kubernetes.io/component"] = $component |
-        .spec.template.metadata.labels["track"] = "canary" |
-        .spec.replicas = ($replicas | tonumber) |
-        .spec.strategy = { "type": "RollingUpdate", "rollingUpdate": { "maxUnavailable": 1, "maxSurge": 0 } } |
-        (if $ref != "" then
-           .spec.template.spec.containers |= map(
-             if .name == "spiffe-helper" then . else
-               .image |= (sub(":[^:]*$"; "") + (if ($ref | startswith("@")) then $ref else ":" + $ref end))
-             end
-           )
-         else . end)
+        .spec.replicas = '"$canary_replicas"' |
+        .spec.selector.matchLabels["app.kubernetes.io/component"] = $name |
+        .spec.template.metadata.labels["app.kubernetes.io/component"] = $name
       ' \
     | kubectl apply -n "$NAMESPACE" -f -
 
   if ! kubectl rollout status -n "$NAMESPACE" "deployment/${canary_name}" --timeout=180s; then
     err "Canary $canary_name failed to become ready. Cleaning up and aborting."
-    kubectl delete deployment -n "$NAMESPACE" "$canary_name" --ignore-not-found &>/dev/null || true
+    kubectl delete deployment -n "$NAMESPACE" "$canary_name" --ignore-not-found
     exit 1
   fi
 
@@ -217,7 +277,13 @@ cmd_canary() {
     local metrics
     metrics=$(kubectl exec -n "$NAMESPACE" "deployment/${canary_name}" -- \
       curl -sk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem \
-      https://localhost:3000/metrics 2>/dev/null || true)
+      https://localhost:3000/metrics 2>/dev/null)
+    local curl_exit=$?
+    if [[ "$curl_exit" -ne 0 ]]; then
+      err "Canary $canary_name failed to respond to metrics request (curl exit $curl_exit)."
+      kubectl delete deployment -n "$NAMESPACE" "$canary_name" --ignore-not-found
+      exit 1
+    fi
     local reqs errs
     reqs=$(echo "$metrics" | grep -E '^http_requests_total\{' | awk -F'[ ]' '{s+=$2} END{print s+0}')
     errs=$(echo "$metrics" | grep -E '^http_requests_total\{[^}]*status="[45]' | awk -F'[ ]' '{s+=$2} END{print s+0}')
@@ -231,20 +297,24 @@ cmd_canary() {
     log "Canary $canary_name error rate: ${error_pct}% (${error_reqs}/${total_reqs})"
     if [[ "$error_pct" -gt "${CANARY_ERROR_THRESHOLD_PCT:-5}" ]]; then
       err "Canary $canary_name error rate ${error_pct}% exceeds threshold (${CANARY_ERROR_THRESHOLD_PCT:-5}%). Rolling back."
-      kubectl delete deployment -n "$NAMESPACE" "$canary_name" --ignore-not-found &>/dev/null || true
+      kubectl delete deployment -n "$NAMESPACE" "$canary_name" --ignore-not-found
       exit 1
     fi
   else
     log "No traffic observed on $canary_name during the gate window — skipping error check."
   fi
 
-  log "Canary $canary_name is ready. Full rollout can proceed."
+  # Scale canary to 0 after successful gate — no traffic drain needed.
+  log "Scaling canary $canary_name to 0 replicas."
+  kubectl scale deployment -n "$NAMESPACE" "$canary_name" --replicas=0
+
+  log "Canary $canary_name gate passed. Full rollout can proceed."
 
   if feature_enabled "canary-auto-cleanup"; then
     log "FEATURE_FLAGS includes canary-auto-cleanup — removing $canary_name"
-    kubectl delete deployment -n "$NAMESPACE" "$canary_name" --ignore-not-found &>/dev/null || true
+    kubectl delete deployment -n "$NAMESPACE" "$canary_name" --ignore-not-found
   else
-    log "Canary $canary_name kept for inspection. Remove it with: $0 canary-cleanup $service"
+    log "Canary $canary_name kept (scaled to 0). Remove it with: $0 canary-cleanup $service"
   fi
 }
 
@@ -271,7 +341,10 @@ cmd_pin() {
   for svc in "${services[@]}"; do
     local image
     image=$(kubectl get deployment -n "$NAMESPACE" "$svc" -o json \
-      | jq -r --arg name "$svc" '.spec.template.spec.containers[] | select(.name == $name) | .image' 2>/dev/null || true)
+      | jq -r --arg name "$svc" '.spec.template.spec.containers[] | select(.name == $name) | .image' 2>/dev/null) || {
+      err "Deployment '$svc' not found in namespace $NAMESPACE — skipping pin."
+      continue
+    }
     [[ -z "$image" || "$image" == *"@"* ]] && continue
     local repo="${image%%:*}"
     local tag="${image##*:}"
@@ -295,14 +368,14 @@ cmd_smoke_test() {
   log "Running smoke tests..."
 
   local services=(
-    "discovery-server:https://discovery-server:3000/ping"
-    "message-manager:https://message-manager:3000/ping"
-    "api-gateway:https://api-gateway:3000/ping"
-    "audit-logger:https://audit-logger:3000/ping"
-    "dlq-service:https://dlq-service:3000/ping"
-    "financial-scraper:https://financial-scraper:3000/ping"
-    "trader-trainer:https://trader-trainer:3000/ping"
-    "admin-interface:http://admin-interface:8080/ping"
+    "discovery-server:https://discovery-server:3000/health/ready"
+    "message-manager:https://message-manager:3000/health/ready"
+    "api-gateway:https://api-gateway:3000/health/ready"
+    "audit-logger:https://audit-logger:3000/health/ready"
+    "dlq-service:https://dlq-service:3000/health/ready"
+    "financial-scraper:https://financial-scraper:3000/health/ready"
+    "trader-trainer:https://trader-trainer:3000/health/ready"
+    "admin-interface:http://admin-interface:8080/health/ready"
   )
 
   local failed=0
@@ -360,6 +433,9 @@ case "${1:-help}" in
   rollback)
     cmd_rollback "${2:-}" "${3:-}"
     ;;
+  migrate-down)
+    cmd_migrate_down "${2:-1}"
+    ;;
   canary)
     cmd_canary "${2:-}" "${3:-}" "${4:-10}"
     ;;
@@ -380,6 +456,7 @@ case "${1:-help}" in
     echo "  $0 [-n namespace] delete [service]      Delete resources"
     echo "  $0 [-n namespace] status                Show cluster status"
     echo "  $0 [-n namespace] rollback <srv> [rev]  Rollback deployment"
+    echo "  $0 [-n namespace] migrate-down [N|all]  Rollback N DB migrations (default: 1)"
     echo "  $0 [-n namespace] canary <srv> [tag] [pct]     Canary deployment"
     echo "  $0 [-n namespace] canary-cleanup <srv>  Remove canary deployment"
     echo "  $0 [-n namespace] pin                     Pin deployed images to digests"

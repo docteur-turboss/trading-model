@@ -9,6 +9,14 @@ jest.mock("@trading-model/http/infrastructure/logger", () => ({
 	},
 }));
 
+jest.mock("@trading-model/http/adapters/inbound/mtls-identity", () => ({
+	resolveMtlsIdentity: jest.fn().mockReturnValue({
+		identity: "spiffe://cluster.local/sa/test-worker",
+		serviceName: { toString: () => "test-worker" },
+	}),
+	isCallerAuthorized: jest.fn().mockReturnValue(true),
+}));
+
 jest.mock("ws", () => {
 	const MockWebSocket = jest.fn(() => ({
 		on: jest.fn(),
@@ -115,7 +123,9 @@ describe("WorkerProtocol", () => {
 
 	describe("constructor", () => {
 		it("should create a WebSocketServer with the provided server", () => {
-			expect(MOCK_WEB_SOCKET_SERVER).toHaveBeenCalledWith({ server: {} });
+			expect(MOCK_WEB_SOCKET_SERVER).toHaveBeenCalledWith(
+				expect.objectContaining({ server: {} })
+			);
 		});
 
 		it("should register a connection handler on the WebSocketServer", () => {

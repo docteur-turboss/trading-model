@@ -20,7 +20,7 @@ The trading-model platform is a microservices-based algorithmic trading research
 
 | Question                                  | Answer | Justification                                                                                                                                                     |
 | ----------------------------------------- | ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Is personal data collected?               | **No** | All data is machine-generated (market prices, service metadata, operational logs). No names, emails, IPs of individuals, device IDs, or any Art. 4(1) identifiers |
+| Is personal data collected?               | **No** | All data is machine-generated (market prices, service metadata, operational logs). No names, emails, device IDs, or any Art. 4(1) identifiers. IP addresses are transiently read for access control and anonymized (last octet zeroed) before logging; never persisted in clear text |
 | Could the system function with less data? | N/A    | The system already operates with the minimum data necessary: trading symbols + numeric market data                                                                |
 | Are data subjects informed?               | N/A    | No data subjects exist to inform                                                                                                                                  |
 | Is consent required?                      | **No** | Art. 6(1)(f) — legitimate interest applies. No human interaction occurs                                                                                           |
@@ -35,7 +35,7 @@ The trading-model platform is a microservices-based algorithmic trading research
 | **Likelihood**  | Low — no user creation endpoints exist. Only service-to-service communication                                                                                                                                             |
 | **Impact**      | Medium — if PII accidentally entered via log messages or payloads                                                                                                                                                         |
 | **Severity**    | Acceptable                                                                                                                                                                                                                |
-| **Mitigations** | Triple-layer log redaction (Pino redact paths × 16 patterns, JSON stringifier regex × 15 patterns, PEM sanitization). Payload sanitizer anti-injection. If PII is ever introduced, these layers redact before persistence |
+| **Mitigations** | Quadruple-layer log redaction (Pino redact paths × 16 patterns, JSON stringifier regex × 21 patterns including IP/network fields, PEM sanitization, IP anonymization). Payload sanitizer anti-injection. IP addresses are anonymized at source before logging. If PII is ever introduced, these layers redact before persistence |
 
 ### Risk 2: Secret Key Exposure
 
@@ -59,21 +59,21 @@ The trading-model platform is a microservices-based algorithmic trading research
 
 | Dimension       | Assessment                                                                                                                        |
 | --------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| **Likelihood**  | Medium — current TTL is 90 days                                                                                                   |
-| **Impact**      | Medium — financial regulation may require 5-7 years                                                                               |
-| **Severity**    | Requires remediation                                                                                                              |
-| **Mitigations** | AUDIT_RETENTION_DAYS configurable. Recommended: extend to 1827 days (5 years) for regulatory compliance (see DPIA action item #1) |
+| **Likelihood**  | Low — current TTL is 1827 days (5 years)                                                                                          |
+| **Impact**      | Low — financial regulation requires 5 years, currently met                                                                        |
+| **Severity**    | Acceptable                                                                                                                        |
+| **Mitigations** | AUDIT_RETENTION_DAYS defaults to 1827 days (5 years) in code. TTL index auto-expires documents. See action item #1 (completed)   |
 
 ## 4. Data Protection by Design Measures
 
 | Measure                          | Status         | Details                                                |
 | -------------------------------- | -------------- | ------------------------------------------------------ |
-| ZERO PII architecture            | ✅ Implemented | No collection, storage, or processing of personal data |
+| ZERO PII architecture            | ✅ Implemented | No collection, storage, or processing of personal data. IP addresses anonymized at source before logging; context fields sanitized before MongoDB persistence |
 | TLS 1.3 mTLS everywhere          | ✅ Implemented | All inter-service communication encrypted              |
 | AES-256-GCM encryption at rest   | ✅ Implemented | SPIRE datastore, discovery cache, filesystem fallback          |
-| Triple-layer log redaction       | ✅ Implemented | Pino + JSON regex + PEM sanitization                   |
+| Triple-layer log redaction       | ✅ Implemented | Pino + JSON regex + PEM sanitization + IP anonymization + context key sanitization before persistence |
 | Append-only audit trail          | ✅ Implemented | MongoDB with correlation IDs + gap detection           |
-| Automatic TTL-based retention    | ✅ Implemented | MongoDB indexes (30-90 days), Redis TTL                |
+| Automatic TTL-based retention    | ✅ Implemented | MongoDB indexes (1827 days audit, 90 days logs), Redis TTL |
 | RBAC service isolation           | ✅ Implemented | K8s ServiceAccounts, Network Policies                  |
 | SecureKeyStore memory protection | ✅ Implemented | Zeroed buffers, heap dump protection                   |
 
@@ -81,7 +81,7 @@ The trading-model platform is a microservices-based algorithmic trading research
 
 | #   | Action                                                                                               | Priority     | Deadline        |
 | --- | ---------------------------------------------------------------------------------------------------- | ------------ | --------------- |
-| 1   | Extend audit trail retention from 90 days to 1827 days (5 years) for financial regulatory compliance | 🔴 High      | By next release |
+| 1   | ~~Extend audit trail retention from 90 days to 1827 days (5 years)~~ | ✅ Completed | Done (env.ts default: 1827) |
 | 2   | Add TTL to MySQL market data tables to prevent unbounded accumulation                                | 🔴 High      | By next release |
 | 3   | Configure MongoDB/MySQL encryption at rest                                                           | 🟠 Medium    | Q3 2026         |
 | 4   | Document Binance DPA or formal third-party assessment                                                | ✅ Completed | Done            |

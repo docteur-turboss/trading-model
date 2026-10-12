@@ -9,9 +9,19 @@ jest.mock("@trading-model/http/adapters/inbound/response-exception", () => ({
 	sendResponse: (data: any, status: number) => ({ status, data }),
 }));
 
+jest.mock("@trading-model/http/infrastructure/logger", () => ({
+	logger: {
+		warn: jest.fn(),
+		info: jest.fn(),
+		error: jest.fn(),
+		debug: jest.fn(),
+	},
+}));
+
 jest.mock("../../src/infrastructure/config/env", () => ({
 	ENV: {
 		AUTH_TOKEN_HEADER: "x-api-key",
+		AUTH_STRICT: true,
 		AUTH_TOKENS: "valid-token-1,valid-token-2",
 	},
 }));
@@ -59,6 +69,43 @@ describe("AUTH_MIDDLEWARE", () => {
 	it("should accept valid token from authorization header", async () => {
 		const result = await AUTH_MIDDLEWARE(
 			createReq({ headers: { authorization: "valid-token-2" } }),
+			createRes(),
+			createNext
+		);
+		expect(result).toBeUndefined();
+	});
+});
+
+describe("AUTH_MIDDLEWARE — strict mode", () => {
+	const mockEnv = jest.mocked(
+		require("../../src/infrastructure/config/env").ENV
+	);
+
+	beforeEach(() => {
+		jest.clearAllMocks();
+	});
+
+	it("should return 503 when AUTH_STRICT=true and AUTH_TOKENS is empty", async () => {
+		mockEnv.AUTH_STRICT = true;
+		mockEnv.AUTH_TOKENS = "";
+
+		const result = await AUTH_MIDDLEWARE(
+			createReq({ headers: { "x-api-key": "any-token" } }),
+			createRes(),
+			createNext
+		);
+		expect(result).toMatchObject({
+			status: 503,
+			data: { error: "Server misconfiguration: no valid tokens configured" },
+		});
+	});
+
+	it("should accept any token when AUTH_STRICT=false and AUTH_TOKENS is empty", async () => {
+		mockEnv.AUTH_STRICT = false;
+		mockEnv.AUTH_TOKENS = "";
+
+		const result = await AUTH_MIDDLEWARE(
+			createReq({ headers: { "x-api-key": "any-token" } }),
 			createRes(),
 			createNext
 		);

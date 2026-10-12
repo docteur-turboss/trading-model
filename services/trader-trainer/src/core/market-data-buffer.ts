@@ -98,12 +98,17 @@ export class MarketDataBuffer {
 
 	getAllWindows(
 		symbol: TradingSymbol,
-		validationSplit: number = DEFAULT_VALIDATION_SPLIT
-	): WindowSet | null {
+		validationSplit: number = DEFAULT_VALIDATION_SPLIT,
+		walkForwardFolds = 1
+	): WindowSet | WindowSet[] | null {
 		const ctx: MarketDataContext = {
 			symbol,
 			priceSnapshot: this._priceSnapshot,
 		};
-		return this._windowSplitter.getAllWindows(ctx, validationSplit);
+		return this._windowSplitter.getAllWindows(
+			ctx,
+			validationSplit,
+			walkForwardFolds
+		);
 	}
 }

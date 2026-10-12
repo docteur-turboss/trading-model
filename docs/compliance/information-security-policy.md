@@ -8,7 +8,7 @@
 
 ## 1. Policy Statement
 
-The trading-model platform processes machine-generated financial market data and operates a zero-personal-data architecture. This Information Security Policy defines the principles, controls, and responsibilities for protecting the confidentiality, integrity, and availability of all platform assets.
+The trading-model platform processes machine-generated financial market data and operates a zero-personal-data architecture. IP addresses are transiently read for access control and anonymized before logging; log context fields are sanitized of sensitive keys before persistence. This Information Security Policy defines the principles, controls, and responsibilities for protecting the confidentiality, integrity, and availability of all platform assets.
 
 **Scope:** All 8 microservices, 6 shared packages, infrastructure (Docker, Kubernetes, databases), CI/CD pipelines, and supporting observability stack.
 
@@ -111,10 +111,10 @@ The platform is deployed as a containerised microservice architecture. Physical 
 | Component | Tool | Retention |
 |---|---|---|
 | Structured application logs | Pino → stdout → Promtail → Loki | 30 days |
-| Audit events | MongoDB (audit-logger) | 90 days → target 5 years |
+| Audit events | MongoDB (audit-logger) | 1827 days (5 years) |
 | Service metrics | Prometheus → Grafana | 15 days |
 | Distributed traces | OpenTelemetry → Jaeger | 7 days |
-| SVID lifecycle events | SPIRE + audit-logger | 90 days |
+| SVID lifecycle events | SPIRE + audit-logger | 1827 days (5 years) |
 
 ### 8.2 Log Redaction
 
@@ -123,6 +123,7 @@ All logs pass through three layers of sensitive data redaction before persistenc
 1. **Pino redact paths** — 16+ patterns for known sensitive fields
 2. **JSON stringifier regex** — 15+ patterns for credential-like strings
 3. **PEM sanitizer** — Strips certificate private keys from log output
+4. **Context key sanitization** — Sensitive keys (IP, password, token, etc.) redacted in context objects before MongoDB write
 
 Implementation: `@trading-model/http/infrastructure/logger.ts`
 
@@ -171,7 +172,7 @@ See [Business Continuity Policy](business-continuity-policy.md) for detailed BCP
 ## 13. Compliance
 
 The platform is designed to comply with:
-- **GDPR** — Zero personal data architecture (see [DPIA](dpia.md))
+- **GDPR** — Zero personal data architecture; IP anonymization + context sanitization (see [DPIA](dpia.md))
 - **MiFID II** — Record-keeping Art. 72 (see [Algorithmic Trading Compliance](algorithmic-trading-compliance.md))
 - **MAR** — Market abuse prevention Art. 16
 - **DORA** — Digital operational resilience (see [Compliance Framework](compliance-framework.md))

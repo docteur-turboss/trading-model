@@ -16,8 +16,7 @@ const GATEWAY_URL = __ENV.GATEWAY_URL || 'https://localhost:8443';
 export default function () {
   group('health checks', () => {
     const endpoints = [
-      `${GATEWAY_URL}/ping`,
-      `${GATEWAY_URL}/v1/discovery-server/health`,
+      `${GATEWAY_URL}/v1/discovery-server/health/ready`,
       `${GATEWAY_URL}/v1/message-manager/health/ready`,
       `${GATEWAY_URL}/v1/discovery/services`,
     ];

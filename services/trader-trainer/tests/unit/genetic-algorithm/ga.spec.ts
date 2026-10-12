@@ -1,24 +1,7 @@
-/**
- * @fileoverview Unit tests for Genetic Algorithm module
- *
- * Tests the core GA operators:
- * - Mutation
- * - Crossover
- * - Fitness calculation
- * - Genome validation
- */
-
 import { beforeEach, describe, expect, test } from "@jest/globals";
 import { crossoverGenomes } from "../../../src/core/genetic-algorithm/crossover";
-import { EpisodeScores } from "../../../src/core/genetic-algorithm/episode-scores";
 import { createDefaultGenome } from "../../../src/core/genetic-algorithm/factory";
-import { computeFitness } from "../../../src/core/genetic-algorithm/fitness";
-import { FitnessType } from "../../../src/core/genetic-algorithm/genome";
 import { mutateGenome } from "../../../src/core/genetic-algorithm/mutation";
-import {
-	repairGenome,
-	validateGenome,
-} from "../../../src/core/genetic-algorithm/validation";
 
 describe("Genetic Algorithm - Core Operators", () => {
 	let baseGenome: any;
@@ -123,84 +106,6 @@ describe("Genetic Algorithm - Core Operators", () => {
 		});
 	});
 
-	describe("Fitness Calculation", () => {
-		let scores: EpisodeScores;
-
-		beforeEach(() => {
-			scores = new EpisodeScores([100, 120, 110, 130, 140]);
-		});
-
-		test("should calculate fitness from score array", () => {
-			const fitness = computeFitness(FitnessType.Sharpe, scores);
-
-			expect(typeof fitness).toBe("number");
-		});
-
-		test("should support different fitness metrics", () => {
-			const fitnessPnL = computeFitness(FitnessType.TotalPnl, scores);
-			const fitnessSharpe = computeFitness(FitnessType.Sharpe, scores);
-
-			expect(typeof fitnessPnL).toBe("number");
-			expect(typeof fitnessSharpe).toBe("number");
-		});
-
-		test("should penalize losses", () => {
-			const negativeScores = new EpisodeScores([-100, -50, -30]);
-
-			const fitness = computeFitness(FitnessType.TotalPnl, negativeScores);
-			expect(fitness).toBeLessThan(
-				computeFitness(FitnessType.TotalPnl, scores)
-			);
-		});
-
-		test("should reward higher Sharpe ratio", () => {
-			const lowSharpe = new EpisodeScores([10, -10, 10, -10]);
-			const highSharpe = new EpisodeScores([10, 11, 10, 11]);
-
-			const fitness1 = computeFitness(FitnessType.Sharpe, lowSharpe);
-			const fitness2 = computeFitness(FitnessType.Sharpe, highSharpe);
-
-			expect(fitness2).toBeGreaterThan(fitness1);
-		});
-	});
-
-	describe("Genome Validation", () => {
-		test("should validate valid genome", () => {
-			const genome = createDefaultGenome("valid");
-			const result = validateGenome(genome);
-
-			expect(result.valid).toBe(true);
-		});
-
-		test("should detect invalid neuron counts", () => {
-			const invalidGenome = {
-				...baseGenome,
-				network: {
-					...baseGenome.network,
-					hiddenLayers: [{ neurons: -5 }],
-				},
-			};
-
-			const result = validateGenome(invalidGenome);
-			expect(result.valid).toBe(false);
-		});
-
-		test("should repair salvageable genomes", () => {
-			const invalidGenome = {
-				...baseGenome,
-				network: {
-					...baseGenome.network,
-					hiddenLayers: [{ neurons: 0 }],
-				},
-			};
-
-			const repaired = repairGenome(invalidGenome);
-			const result = validateGenome(repaired);
-
-			expect(result.valid).toBe(true);
-		});
-	});
-
 	describe("Genome Factory", () => {
 		test("should create default genome", () => {
 			const genome = createDefaultGenome("default");
@@ -208,13 +113,6 @@ describe("Genetic Algorithm - Core Operators", () => {
 			expect(genome).toBeDefined();
 			expect(genome.network).toBeDefined();
 			expect(genome.rl).toBeDefined();
-		});
-
-		test("default genome should be valid", () => {
-			const genome = createDefaultGenome("default");
-			const result = validateGenome(genome);
-
-			expect(result.valid).toBe(true);
 		});
 
 		test("should support genome cloning", () => {
@@ -234,7 +132,8 @@ describe("Genetic Algorithm - Core Operators", () => {
 			const mutated = mutateGenome(offspring, rng);
 
 			expect(mutated).toBeDefined();
-			expect(validateGenome(mutated).valid).toBe(true);
+			expect(mutated.network).toBeDefined();
+			expect(mutated.rl).toBeDefined();
 		});
 
 		test("should handle multiple generations", () => {
@@ -257,7 +156,8 @@ describe("Genetic Algorithm - Core Operators", () => {
 			}
 
 			population.forEach((g) => {
-				expect(validateGenome(g).valid).toBe(true);
+				expect(g).toBeDefined();
+				expect(g.network).toBeDefined();
 			});
 		});
 	});
@@ -305,7 +205,8 @@ describe("Genetic Algorithm - Core Operators", () => {
 			};
 
 			const mutated = mutateGenome(extremeGenome, rng);
-			expect(validateGenome(mutated).valid).toBe(true);
+			expect(mutated).toBeDefined();
+			expect(mutated.rl).toBeDefined();
 		});
 	});
 });

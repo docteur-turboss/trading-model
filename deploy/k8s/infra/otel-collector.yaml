@@ -37,6 +37,13 @@ spec:
         app.kubernetes.io/component: otel-collector
         app.kubernetes.io/part-of: trading-model
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
       affinity:
         podAntiAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:
@@ -48,7 +55,16 @@ spec:
                 topologyKey: kubernetes.io/hostname
       containers:
         - name: otel-collector
-          image: otel/opentelemetry-collector-contrib:0.114.0
+          image: otel/opentelemetry-collector-contrib@sha256:37fa87091cfaaec7234a27e4e395a40c31c2bfaea97a349a4afef6d9e9681197
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
           args:
             - "--config"
             - "/etc/otel-collector.yml"

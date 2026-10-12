@@ -23,6 +23,13 @@ spec:
     spec:
       serviceAccountName: spire-entries
       restartPolicy: Never
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
       affinity:
         podAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
@@ -34,6 +41,15 @@ spec:
         - name: spire-entries
           image: ghcr.io/spiffe/spire-server:1.11.3
           imagePullPolicy: IfNotPresent
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
           command: ["/bin/sh", "-ec"]
           args:
             - |

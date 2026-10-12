@@ -38,6 +38,8 @@ function makeEvent(
 ): AuditEventDocument {
 	return {
 		receivedAt: new Date(),
+		ttl: new Date(Date.now() + 90 * 86_400_000),
+		dataHash: "abc123",
 		metadata: {
 			topic: toTopic("test-topic"),
 			eventType: "test.event" as any,
@@ -60,7 +62,7 @@ describe("AuditRepository", () => {
 			sort: jest.fn<any>().mockReturnThis(),
 			skip: jest.fn<any>().mockReturnThis(),
 			limit: jest.fn<any>().mockReturnThis(),
-			toArray: jest.fn<any>(),
+			toArray: jest.fn<any>().mockResolvedValue([]),
 		});
 		MOCK_COLLECTION.aggregate.mockReturnValue({ toArray: jest.fn<any>() });
 		repository = new AuditRepository(MOCK_DB as any);
@@ -73,12 +75,12 @@ describe("AuditRepository", () => {
 	});
 
 	describe("ensureIndexes", () => {
-		it("should create 4 indexes", async () => {
+		it("should create 7 indexes", async () => {
 			MOCK_COLLECTION.createIndex.mockResolvedValue(undefined);
 
 			await repository.ensureIndexes();
 
-			expect(MOCK_COLLECTION.createIndex).toHaveBeenCalledTimes(4);
+			expect(MOCK_COLLECTION.createIndex).toHaveBeenCalledTimes(7);
 			expect(MOCK_COLLECTION.createIndex).toHaveBeenCalledWith({
 				"metadata.correlationId": 1,
 			});
@@ -93,18 +95,33 @@ describe("AuditRepository", () => {
 			expect(MOCK_COLLECTION.createIndex).toHaveBeenCalledWith({
 				receivedAt: -1,
 			});
+			expect(MOCK_COLLECTION.createIndex).toHaveBeenCalledWith(
+				{ "metadata.messageId": 1 },
+				{ unique: true }
+			);
+			expect(MOCK_COLLECTION.createIndex).toHaveBeenCalledWith(
+				{ ttl: 1 },
+				{ expireAfterSeconds: 0 }
+			);
+			expect(MOCK_COLLECTION.createIndex).toHaveBeenCalledWith(
+				{ chainSequence: 1 },
+				{ unique: true }
+			);
 		});
 	});
 
 	describe("insert", () => {
-		it("should call insertOne with the event document", async () => {
+		it("should call insertOne with the event document and chain fields", async () => {
 			MOCK_COLLECTION.insertOne.mockResolvedValue({ insertedId: "id" });
 			const event = makeEvent();
 
 			await repository.insert(event);
 
 			expect(MOCK_COLLECTION.insertOne).toHaveBeenCalledTimes(1);
-			expect(MOCK_COLLECTION.insertOne).toHaveBeenCalledWith(event);
+			expect(event.previousHash).toBe("");
+			expect(event.chainSequence).toBe(1);
+			expect(typeof event.dataHash).toBe("string");
+			expect(event.dataHash.length).toBeGreaterThan(0);
 		});
 
 		it("should throw AppError on failure", async () => {
@@ -117,7 +134,7 @@ describe("AuditRepository", () => {
 	});
 
 	describe("insertBatch", () => {
-		it("should call insertMany with the events", async () => {
+		it("should call insertMany with chained events", async () => {
 			MOCK_COLLECTION.insertMany.mockResolvedValue({ insertedCount: 2 });
 			const events = [
 				makeEvent({
@@ -139,6 +156,10 @@ describe("AuditRepository", () => {
 			expect(MOCK_COLLECTION.insertMany).toHaveBeenCalledWith(events, {
 				ordered: false,
 			});
+			expect(events[0].previousHash).toBe("");
+			expect(events[0].chainSequence).toBe(1);
+			expect(events[1].previousHash).toBe(events[0].dataHash);
+			expect(events[1].chainSequence).toBe(2);
 		});
 
 		it("should not call insertMany for empty array", async () => {

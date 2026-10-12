@@ -3,13 +3,13 @@
 	UnixTimestamp,
 } from "@trading-model/common/domain/primitives";
 import type { HttpClient } from "@trading-model/http/adapters/outbound/http-client";
-import { MESSAGES_DLQ_TOTAL } from "../../config/metrics";
 import type {
 	DeadLetterInput,
 	DeliverySendInput,
 	MessageDeliveryPort,
-} from "../../messaging/core/message-delivery-port";
-import type { FileDlqRepository } from "./dlq-repository";
+} from "../../application/ports/message-delivery-port";
+import { MESSAGES_DLQ_TOTAL } from "../../config/metrics";
+import type { FileDlqRepository } from "../../infrastructure/fallback/dlq-repository";
 
 export class HttpMessageDelivery implements MessageDeliveryPort {
 	constructor(

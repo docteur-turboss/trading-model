@@ -11,6 +11,7 @@ const MOCK_EXECUTE_INSERT = jest
 const MOCK_EXECUTE_SELECT_MANY = jest
 	.fn<() => Promise<any[]>>()
 	.mockResolvedValue([]);
+const MOCK_QUERY = jest.fn<() => Promise<any>>().mockResolvedValue(undefined);
 
 jest.mock("../../../../../src/config/db", () => {
 	const mockSelectQuery = {
@@ -32,6 +33,7 @@ jest.mock("../../../../../src/config/db", () => {
 	return {
 		DBConnection: jest.fn(() => mockDbConnection),
 		createDBConnection: jest.fn(() => mockDbConnection),
+		DATABASE: { promise: jest.fn(() => ({ query: MOCK_QUERY })) },
 	};
 });
 
@@ -61,13 +63,13 @@ describe("trades-schema", () => {
 		it("should insert trade data successfully", async () => {
 			const data: never[] = [MAKE_TRADE() as never];
 			await insertTrades(data);
-			expect(MOCK_EXECUTE_INSERT).toHaveBeenCalled();
+			expect(MOCK_QUERY).toHaveBeenCalled();
 		});
 
 		it("should do nothing when data array is empty", async () => {
 			const data: never[] = [];
 			await insertTrades(data);
-			expect(MOCK_EXECUTE_INSERT).not.toHaveBeenCalled();
+			expect(MOCK_QUERY).not.toHaveBeenCalled();
 		});
 
 		it("should insert multiple trades", async () => {
@@ -76,7 +78,7 @@ describe("trades-schema", () => {
 				MAKE_TRADE({ tradeId: 2n }) as never,
 			];
 			await insertTrades(data);
-			expect(MOCK_EXECUTE_INSERT).toHaveBeenCalled();
+			expect(MOCK_QUERY).toHaveBeenCalled();
 		});
 	});
 

@@ -75,7 +75,7 @@ function registerPublishRoute(router: Router, dispatcher: Dispatcher): void {
 
 function registerSubscribeRoute(router: Router, dispatcher: Dispatcher): void {
 	router.post(
-		"/subscription",
+		"/subscribe",
 		WITH_TIMEOUT(SUBSCRIPTION_TIMEOUT_MS),
 		SUBSCRIBE_LIMITER,
 		VALIDATE_SCHEMA(SUBSCRIBE_SCHEMA),
@@ -88,7 +88,7 @@ function registerUnsubscribeRoute(
 	dispatcher: Dispatcher
 ): void {
 	router.delete(
-		"/subscription",
+		"/subscribe",
 		WITH_TIMEOUT(SUBSCRIPTION_TIMEOUT_MS),
 		UNSUBSCRIBE_LIMITER,
 		VALIDATE_SCHEMA(UNSUBSCRIBE_SCHEMA),

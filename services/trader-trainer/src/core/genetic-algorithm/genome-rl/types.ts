@@ -26,12 +26,7 @@ export interface HorizonGenome {
 	frameSkip: PositiveInt;
 }
 
-export enum DiscretePolicyType {
-	EpsilonGreedy = "epsilon_greedy",
-}
-
 export interface DiscretePolicyGenome {
-	type: DiscretePolicyType;
 	epsilonStart: Probability;
 	epsilonMin: Probability;
 	epsilonDecay: Probability;
@@ -100,7 +95,6 @@ function _repairHorizon(horizon: HorizonGenome): HorizonGenome {
 
 function _repairDiscretePolicy(dp: DiscretePolicyGenome): DiscretePolicyGenome {
 	return {
-		type: dp.type ?? DiscretePolicyType.EpsilonGreedy,
 		epsilonStart: clamp(dp.epsilonStart ?? 1.0, 0.1, 1.0) as Probability,
 		epsilonMin: clamp(dp.epsilonMin ?? 0.05, 0.001, 0.2) as Probability,
 		epsilonDecay: clamp(dp.epsilonDecay ?? 0.995, 0.9, 0.9999) as Probability,

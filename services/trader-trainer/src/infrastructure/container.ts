@@ -1,11 +1,13 @@
 import { TrainingLoop } from "../adapters/inbound/app/training-loop";
 import { DataEventHandler } from "../app/event-handlers";
+import { MessageManager } from "../config/message-manager";
 import { EvictionPolicy } from "../core/eviction-policy";
 import {
 	MarketDataBuffer,
 	type MarketDataBufferConfig,
 } from "../core/market-data-buffer";
 import type { TradingSymbol } from "../core/market-data-types";
+import { ModelPublisher } from "../core/model-publisher";
 import { Trainer } from "../core/trainer";
 
 export interface AppContainerConfig {
@@ -33,7 +35,12 @@ export class ApplicationContainer {
 		};
 		this.dataBuffer = new MarketDataBuffer(bufferConfig);
 		this.eventHandler = new DataEventHandler(this.dataBuffer);
-		this.trainer = new Trainer(this.dataBuffer);
+
+		const publisher = new ModelPublisher(MessageManager, {
+			trainerId: "trader-trainer",
+			instanceId: process.env.INSTANCE_ID ?? "trader-trainer-1",
+		});
+		this.trainer = new Trainer(this.dataBuffer, publisher);
 		this.trainingLoop = new TrainingLoop(this.trainer, this.dataBuffer);
 	}
 }

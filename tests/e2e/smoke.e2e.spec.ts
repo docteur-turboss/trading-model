@@ -9,14 +9,14 @@ interface HealthResult {
 }
 
 const SERVICES = [
-	{ name: "discovery-server", url: "https://localhost:8443/ping" },
+	{ name: "discovery-server", url: "https://localhost:8443/health/ready" },
 	{ name: "message-manager", url: "https://localhost:8444/health/ready" },
-	{ name: "financial-scraper", url: "https://localhost:8445/health" },
-	{ name: "trader-trainer", url: "https://localhost:8446/ping" },
-	{ name: "api-gateway", url: "https://localhost:8448/ping" },
-	{ name: "admin-interface", url: "http://localhost:8449/ping" },
-	{ name: "audit-logger", url: "https://localhost:8450/ping" },
-	{ name: "dlq-service", url: "https://localhost:8452/health" },
+	{ name: "financial-scraper", url: "https://localhost:8445/health/ready" },
+	{ name: "trader-trainer", url: "https://localhost:8446/health/ready" },
+	{ name: "api-gateway", url: "https://localhost:8448/health/ready" },
+	{ name: "admin-interface", url: "http://localhost:8449/health/ready" },
+	{ name: "audit-logger", url: "https://localhost:8450/health/ready" },
+	{ name: "dlq-service", url: "https://localhost:8452/health/ready" },
 ];
 
 function fetchUrl(
@@ -58,7 +58,7 @@ async function checkServiceHealth(service: {
 }): Promise<HealthResult> {
 	try {
 		const { status } = await fetchUrl(service.url);
-		const ok = status >= 200 && status < 500;
+		const ok = status >= 200 && status < 300;
 		return { service: service.name, url: service.url, status, ok };
 	} catch (err) {
 		return {

@@ -7,6 +7,7 @@ const TRAINER_ENV_SHAPE = {
 	TRAINER_SYMBOLS: z.string().default("BTCUSDT,ETHUSDT"),
 	TRAINER_DATA_WINDOW: z.coerce.number().int().positive().default(500),
 	TRAINER_VALIDATION_SPLIT: z.coerce.number().min(0).max(1).default(0.2),
+	TRAINER_WALK_FORWARD_FOLDS: z.coerce.number().int().min(1).max(20).default(1),
 	TRAINER_GENERATIONS: z.coerce.number().int().positive().default(50),
 	TRAINER_POPULATION_SIZE: z.coerce.number().int().positive().default(20),
 	TRAINER_TIME_BUDGET_MS: z.coerce.number().int().positive().default(300000),

@@ -137,7 +137,7 @@ describe("MarketDataController", () => {
 		};
 
 		await expect(MarketDataController.persist(payload)).rejects.toThrow(
-			"DB error"
+			/Market data persist failed.*DB error/
 		);
 	});
 });
