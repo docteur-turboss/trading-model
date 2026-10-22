@@ -8,13 +8,13 @@ import type {
 	ServiceId,
 	UnixTimestamp,
 	Version,
-} from "@trading-model/common/domain/primitives";
+} from "@trading-model/primitives/primitives";
 import type {
 	HostPort,
 	ServiceEndpoint,
 	ServiceIdentity,
-} from "@trading-model/common/domain/service-identity";
-import type { TokenValidation } from "@trading-model/common/domain/token-validation";
+} from "@trading-model/primitives/service-identity";
+import type { TokenValidation } from "@trading-model/primitives/token-validation";
 
 export enum Protocol {
 	Http = "http",

@@ -248,6 +248,113 @@ const RICH_DATA = {
 		],
 		total: 3,
 	},
+	trainingAgents: {
+		data: {
+			agents: [
+				{
+					symbol: "BTC",
+					training: false,
+					generation: 42,
+					agent: {
+						id: "tr1",
+						generation: 42,
+						fitness: 0.824,
+						sharpe: 1.8,
+						avgPnl: 0.0123,
+						maxDrawdown: 0.15,
+						gaControl: {
+							populationSize: 50,
+							elitismFraction: 0.1,
+							survivorFraction: 0.4,
+							episodesPerIndividual: 10,
+							selectionType: "tournament",
+							fitnessType: "sharpe",
+						},
+						network: {
+							inputDim: 12,
+							outputDim: 3,
+							hiddenLayers: [{ neurons: 32, activation: "relu" }],
+						},
+						rl: {
+							gamma: 0.99,
+							learningRate: 0.001,
+							epsilonStart: 1,
+							epsilonMin: 0.05,
+							epsilonDecay: 0.995,
+						},
+					},
+				},
+				{
+					symbol: "ETH",
+					training: false,
+					generation: 10,
+					agent: {
+						id: "tr2",
+						generation: 10,
+						fitness: 0.456,
+						sharpe: 1.2,
+						avgPnl: -0.0042,
+						maxDrawdown: 0.22,
+						gaControl: {
+							populationSize: 50,
+							elitismFraction: 0.1,
+							survivorFraction: 0.4,
+							episodesPerIndividual: 10,
+							selectionType: "tournament",
+							fitnessType: "sharpe",
+						},
+						network: {
+							inputDim: 12,
+							outputDim: 3,
+							hiddenLayers: [{ neurons: 32, activation: "relu" }],
+						},
+						rl: {
+							gamma: 0.99,
+							learningRate: 0.001,
+							epsilonStart: 1,
+							epsilonMin: 0.05,
+							epsilonDecay: 0.995,
+						},
+					},
+				},
+				{
+					symbol: "SOL",
+					training: false,
+					generation: 5,
+					agent: {
+						id: "tr3",
+						generation: 5,
+						fitness: 0.312,
+						sharpe: 0.8,
+						avgPnl: 0.0008,
+						maxDrawdown: 0.31,
+						gaControl: {
+							populationSize: 50,
+							elitismFraction: 0.1,
+							survivorFraction: 0.4,
+							episodesPerIndividual: 10,
+							selectionType: "tournament",
+							fitnessType: "sharpe",
+						},
+						network: {
+							inputDim: 12,
+							outputDim: 3,
+							hiddenLayers: [{ neurons: 16, activation: "tanh" }],
+						},
+						rl: {
+							gamma: 0.95,
+							learningRate: 0.002,
+							epsilonStart: 1,
+							epsilonMin: 0.1,
+							epsilonDecay: 0.99,
+						},
+					},
+				},
+			],
+			training: false,
+			currentSymbol: "BTC",
+		},
+	},
 	audit: {
 		events: [
 			{
@@ -307,6 +414,7 @@ function mockFetch(extraJobs?: boolean) {
 		["/messages/dlq", RICH_DATA.dlq],
 		["/scraper/candles", RICH_DATA.candles],
 		["/trainer/results", RICH_DATA.training],
+		["/trainer/training-agents", RICH_DATA.trainingAgents],
 		["/audit/events", RICH_DATA.audit],
 	];
 
@@ -451,14 +559,14 @@ describe("Page interactions", () => {
 		globalThis.fetch = mockFetch();
 		render(<App />);
 		fireEvent.click(screen.getByText("Training"));
-		expect(await screen.findByText("Training Results")).toBeInTheDocument();
+		expect(await screen.findByText("Training Agents")).toBeInTheDocument();
 
-		expect(screen.getByText("1.80")).toBeInTheDocument();
+		expect(screen.getAllByText("1.80").length).toBeGreaterThanOrEqual(1);
 		expect(screen.getByText("1.20")).toBeInTheDocument();
 		expect(screen.getByText("0.80")).toBeInTheDocument();
 
-		const checkboxes = screen.getAllByRole("checkbox");
-		fireEvent.click(checkboxes[1]);
+		fireEvent.click(screen.getByText("BTC"));
+		expect(await screen.findByText(/BTC Agent/)).toBeInTheDocument();
 		fireEvent.click(screen.getByTestId("CloseIcon"));
 	});
 
@@ -579,28 +687,31 @@ describe("Page interactions", () => {
 		fireEvent.click(checkboxes[0]);
 	});
 
-	it("TrainingResults: should open drawer and show genome data", async () => {
+	it("TrainingResults: should open drawer and show agent metrics", async () => {
 		globalThis.fetch = mockFetch();
 		render(<App />);
 		fireEvent.click(screen.getByText("Training"));
-		expect(await screen.findByText("Training Results")).toBeInTheDocument();
+		expect(await screen.findByText("Training Agents")).toBeInTheDocument();
 
-		const checkboxes = screen.getAllByRole("checkbox");
-		fireEvent.click(checkboxes[1]);
-		expect(await screen.findByText(/Genome Inspection/)).toBeInTheDocument();
-		expect(screen.getByText(/modelId/)).toBeInTheDocument();
+		fireEvent.click(screen.getByText("ETH"));
+		expect(await screen.findByText(/ETH Agent/)).toBeInTheDocument();
+		expect(screen.getByText("Sharpe Ratio")).toBeInTheDocument();
+		expect(screen.getByText("Max Drawdown")).toBeInTheDocument();
+		expect(screen.getByRole("tab", { name: "Metrics" })).toBeInTheDocument();
+		expect(screen.getByRole("tab", { name: "Raw JSON" })).toBeInTheDocument();
 	});
 
-	it("TrainingResults: should show no genome available for entries without genome", async () => {
+	it("TrainingResults: should show raw JSON tab for agent entry", async () => {
 		globalThis.fetch = mockFetch();
 		render(<App />);
 		fireEvent.click(screen.getByText("Training"));
-		expect(await screen.findByText("Training Results")).toBeInTheDocument();
+		expect(await screen.findByText("Training Agents")).toBeInTheDocument();
 
-		const checkboxes = screen.getAllByRole("checkbox");
-		fireEvent.click(checkboxes[2]);
-		expect(await screen.findByText(/Genome Inspection/)).toBeInTheDocument();
-		expect(screen.getByText("No genome data available.")).toBeInTheDocument();
+		fireEvent.click(screen.getByText("SOL"));
+		expect(await screen.findByText(/SOL Agent/)).toBeInTheDocument();
+
+		fireEvent.click(screen.getByRole("tab", { name: "Raw JSON" }));
+		expect(screen.getByText(/"symbol": "SOL"/)).toBeInTheDocument();
 	});
 
 	it("MarketData: should handle empty candle data gracefully", async () => {
@@ -680,7 +791,7 @@ describe("Error states", () => {
 		expect(screen.getByText("LIVE")).toBeInTheDocument();
 
 		await navigateTo("Training");
-		expect(screen.getByText("Training Results")).toBeInTheDocument();
+		expect(screen.getByText("Training Agents")).toBeInTheDocument();
 
 		await navigateTo("API Cache");
 		expect(screen.getByText("API Gateway Cache")).toBeInTheDocument();

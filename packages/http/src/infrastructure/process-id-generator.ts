@@ -1,4 +1,4 @@
-import { ProcessId } from "@trading-model/common/domain/primitives";
+import { ProcessId } from "@trading-model/primitives/primitives";
 import type { LogLevel } from "./log-types";
 
 export function generateProcessId(logLevel: LogLevel): ProcessId {

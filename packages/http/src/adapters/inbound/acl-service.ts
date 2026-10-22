@@ -1,5 +1,5 @@
-import { ServiceId } from "@trading-model/common/domain/primitives";
 import { extractCanonicalServiceName } from "@trading-model/common/utils/spiffe";
+import { ServiceId } from "@trading-model/primitives/primitives";
 import type { Request } from "express";
 import { DEFAULT_ACL } from "./acl-config";
 import { ResponseException } from "./response-exception";

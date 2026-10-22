@@ -1,6 +1,6 @@
 import http from "node:http";
 import { afterEach, describe, expect, it, jest } from "@jest/globals";
-import { HTTP_HEADERS } from "@trading-model/common/http-headers";
+import { HTTP_HEADERS } from "@trading-model/contracts/http-headers";
 import express from "express";
 
 jest.setTimeout(15000);

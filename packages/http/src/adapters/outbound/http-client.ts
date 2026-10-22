@@ -2,7 +2,7 @@ import type {
 	TlsPaths,
 	TlsPemBundle,
 } from "@trading-model/common/config/tls-paths";
-import type { URLString } from "@trading-model/common/domain/primitives";
+import type { URLString } from "@trading-model/primitives/primitives";
 import type { z } from "zod";
 import type { HttpMethod, HttpRequestOptions } from "../../domain/http-types";
 import {

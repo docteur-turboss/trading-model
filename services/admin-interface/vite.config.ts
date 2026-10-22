@@ -16,7 +16,13 @@ export default defineConfig({
 	build: {
 		outDir: "dist",
 		commonjsOptions: {
-			include: [/node_modules/, /packages\/common/, /packages\/validation/],
+			include: [
+				/node_modules/,
+				/packages\/common/,
+				/packages\/validation/,
+				/packages\/primitives/,
+				/packages\/contracts/,
+			],
 		},
 	},
 });

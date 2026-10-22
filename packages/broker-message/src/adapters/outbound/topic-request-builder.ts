@@ -1,16 +1,16 @@
-import type { EventEnumMap } from "@trading-model/common/config/event.types";
+import {
+	messageManagerError,
+	normalizeError,
+} from "@trading-model/common/utils/errors";
+import type { EventEnumMap } from "@trading-model/contracts/event-map";
+import type { HttpClient } from "@trading-model/http/adapters/outbound/http-client";
 import {
 	ServiceId,
 	toInstanceId,
 	toTopic,
 	URLString,
-} from "@trading-model/common/domain/primitives";
-import { HostPort } from "@trading-model/common/domain/service-identity";
-import {
-	messageManagerError,
-	normalizeError,
-} from "@trading-model/common/utils/errors";
-import type { HttpClient } from "@trading-model/http/adapters/outbound/http-client";
+} from "@trading-model/primitives/primitives";
+import { HostPort } from "@trading-model/primitives/service-identity";
 import type { MessageManagerConfig } from "../../domain/types/config";
 import type {
 	SubscribesTopicsPayload,

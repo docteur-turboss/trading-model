@@ -1,9 +1,9 @@
 import type { TlsPaths } from "@trading-model/common/config/tls-paths";
+import { normalizeError } from "@trading-model/common/utils/errors";
 import {
 	type JsonObject,
 	URLString,
-} from "@trading-model/common/domain/primitives";
-import { normalizeError } from "@trading-model/common/utils/errors";
+} from "@trading-model/primitives/primitives";
 import { HttpClient } from "./http-client";
 
 interface AuditTarget {

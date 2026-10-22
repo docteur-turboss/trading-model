@@ -1,5 +1,5 @@
-import { ServiceId } from "@trading-model/common/domain/primitives";
-import { HTTP_HEADERS } from "@trading-model/common/http-headers";
+import { HTTP_HEADERS } from "@trading-model/contracts/http-headers";
+import { ServiceId } from "@trading-model/primitives/primitives";
 import { HttpMethod } from "@trading-model/validation/domain/contracts/signed-request.types";
 
 const DEFAULT_TIMESTAMP_TOLERANCE_MS = 300_000;

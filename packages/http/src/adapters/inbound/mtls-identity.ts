@@ -1,12 +1,12 @@
 import type { IncomingMessage } from "node:http";
 import type { TLSSocket } from "node:tls";
-import { ServiceId } from "@trading-model/common/domain/primitives";
-import type { ClientIdentity } from "@trading-model/common/domain/primitives/auth-ids";
 import {
 	extractCanonicalServiceName,
 	isSpiffeId,
 	serviceNameFromSpiffeId,
 } from "@trading-model/common/utils/spiffe";
+import { ServiceId } from "@trading-model/primitives/primitives";
+import type { ClientIdentity } from "@trading-model/primitives/primitives/auth-ids";
 import { DEFAULT_ACL } from "./acl-config";
 
 export interface MtlsIdentityResult {

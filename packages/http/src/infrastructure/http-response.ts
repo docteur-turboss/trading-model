@@ -1,10 +1,10 @@
 import type { IncomingMessage } from "node:http";
 import { createGunzip, createInflate } from "node:zlib";
-import type { URLString } from "@trading-model/common/domain/primitives";
 import {
 	HTTP_STATUS,
 	type HttpStatusCode,
-} from "@trading-model/common/http-status";
+} from "@trading-model/contracts/http-status";
+import type { URLString } from "@trading-model/primitives/primitives";
 import type { z } from "zod";
 import { createHttpClientError } from "../adapters/outbound/http-client-errors";
 import type { HttpMethod } from "../domain/http-types";

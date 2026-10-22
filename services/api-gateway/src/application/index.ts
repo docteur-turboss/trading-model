@@ -1,5 +1,5 @@
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
-import { toInstanceId } from "@trading-model/common/domain/primitives";
+import { toInstanceId } from "@trading-model/primitives/primitives";
 import { createBootstrap } from "@trading-model/server-utils/application/services/bootstrap";
 import {
 	initializeTelemetry,

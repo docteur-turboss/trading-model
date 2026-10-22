@@ -2,13 +2,13 @@ import {
 	JobStatus as JOB_STATUS,
 	type Job,
 	type JobEvent,
-} from "@trading-model/common/contracts/recovery-types";
+} from "@trading-model/contracts/recovery-types";
+import { logger } from "@trading-model/http/infrastructure/logger";
 import {
 	PositiveInt,
 	UnixTimestamp,
-} from "@trading-model/common/domain/primitives";
-import { RetryPolicy } from "@trading-model/common/domain/retry-policy";
-import { logger } from "@trading-model/http/infrastructure/logger";
+} from "@trading-model/primitives/primitives";
+import { RetryPolicy } from "@trading-model/primitives/retry-policy";
 import type { IJobQueue } from "../../domain/contracts/job-queue.interface";
 import type { IJobRepository } from "../../domain/contracts/job-repository.interface";
 

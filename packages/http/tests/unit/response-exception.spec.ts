@@ -1,5 +1,5 @@
 import { describe, expect, it } from "@jest/globals";
-import { HTTP_STATUS } from "@trading-model/common/http-status";
+import { HTTP_STATUS } from "@trading-model/contracts/http-status";
 import {
 	HTTP_CODE,
 	ResponseCodes,

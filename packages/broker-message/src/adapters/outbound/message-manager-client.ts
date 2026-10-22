@@ -1,15 +1,15 @@
 import type addressManagerClient from "@trading-model/address-manager";
-import type { EventEnumMap } from "@trading-model/common/config/event.types";
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
-import { URLString } from "@trading-model/common/domain/primitives";
-import { HostPort } from "@trading-model/common/domain/service-identity";
 import {
 	isServiceUnreachableError,
 	messageManagerError,
 	normalizeError,
 	serviceUnreachableError,
 } from "@trading-model/common/utils/errors";
+import type { EventEnumMap } from "@trading-model/contracts/event-map";
 import type { HttpClient } from "@trading-model/http/adapters/outbound/http-client";
+import { URLString } from "@trading-model/primitives/primitives";
+import { HostPort } from "@trading-model/primitives/service-identity";
 import type { MessageMetadata } from "@trading-model/validation/domain/contracts/message.types";
 import type { IMessageClient } from "../../domain/ports/i-message-client";
 import type { MessageManagerConfig } from "../../domain/types/config";

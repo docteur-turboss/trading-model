@@ -1,10 +1,10 @@
-import type { CandleData } from "@trading-model/common/config/event.types";
+import type { CandleData } from "@trading-model/contracts/market-data.types";
 import type {
 	Percentage,
 	Price,
 	TradingSymbol,
 	Volume,
-} from "@trading-model/common/domain/primitives";
+} from "@trading-model/primitives/primitives";
 
 export type Candle = CandleData;
 

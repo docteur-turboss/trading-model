@@ -3,7 +3,7 @@ import {
 	MarketType,
 	SourceType,
 	TradeSide,
-} from "@trading-model/common/contracts/market-data.types";
+} from "@trading-model/contracts/market-data.types";
 
 describe("MarketType", () => {
 	describe("isDecentralized", () => {

@@ -5,7 +5,7 @@ import {
 	type TlsEnvVars,
 	type TlsPaths,
 } from "@trading-model/common/config/tls-paths";
-import { toInstanceId } from "@trading-model/common/domain/primitives";
+import { toInstanceId } from "@trading-model/primitives/primitives";
 import type { MessageManagerConfig } from "../../domain/types/config";
 import MessageManagerClass from "../../index";
 

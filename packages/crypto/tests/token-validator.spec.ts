@@ -1,4 +1,4 @@
-import { InstanceId } from "@trading-model/common/domain/primitives";
+import { InstanceId } from "@trading-model/primitives/primitives";
 import { createHmacSha256Formatted } from "../src/adapters/outbound/node-hmac";
 import { generateRandomStr } from "../src/adapters/outbound/node-random";
 import { generateInstanceToken } from "../src/application/services/token-generator";

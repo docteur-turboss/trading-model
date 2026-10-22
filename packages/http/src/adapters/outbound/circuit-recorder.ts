@@ -2,15 +2,12 @@ import {
 	parseServiceName,
 	type ServiceInstanceName,
 } from "@trading-model/common/config/services.types";
-import { CircuitState } from "@trading-model/common/domain/circuit-state";
-import {
-	Hostname,
-	type URLString,
-} from "@trading-model/common/domain/primitives";
-import { HTTP_STATUS } from "@trading-model/common/http-status";
-import { CircuitBreaker } from "@trading-model/common/reliability/circuit-breaker";
-import type { ICircuitBreaker } from "@trading-model/common/reliability/circuit-breaker.interface";
-import type { CircuitBreakerConfig } from "@trading-model/common/reliability/circuit-state-machine";
+import { HTTP_STATUS } from "@trading-model/contracts/http-status";
+import { CircuitState } from "@trading-model/primitives/circuit-state";
+import { Hostname, type URLString } from "@trading-model/primitives/primitives";
+import { CircuitBreaker } from "@trading-model/reliability/circuit-breaker";
+import type { ICircuitBreaker } from "@trading-model/reliability/circuit-breaker.interface";
+import type { CircuitBreakerConfig } from "@trading-model/reliability/circuit-state-machine";
 import type { HttpRequestOptions } from "../../domain/http-types";
 import { createHttpClientError } from "./http-client-errors";
 

@@ -4,8 +4,8 @@ import type {
 	ISODateTime,
 	ServiceId,
 	Version,
-} from "@trading-model/common/domain/primitives";
-import type { HostPort } from "@trading-model/common/domain/service-identity";
+} from "@trading-model/primitives/primitives";
+import type { HostPort } from "@trading-model/primitives/service-identity";
 
 export enum ServiceStatus {
 	Healthy = "healthy",

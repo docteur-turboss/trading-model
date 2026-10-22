@@ -1,9 +1,9 @@
+import { anonymizeIp } from "@trading-model/common/utils/anonymize-ip";
+import { isAppError } from "@trading-model/common/utils/errors";
 import {
 	HTTP_STATUS,
 	type HttpStatusCode,
-} from "@trading-model/common/http-status";
-import { anonymizeIp } from "@trading-model/common/utils/anonymize-ip";
-import { isAppError } from "@trading-model/common/utils/errors";
+} from "@trading-model/contracts/http-status";
 import type { NextFunction, Request, Response } from "express";
 import { logger } from "../../application/services/logger";
 import type { ResponseObject } from "./response-exception";

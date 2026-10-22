@@ -1,10 +1,10 @@
 import { describe, expect, it, jest } from "@jest/globals";
+import { WorkerHealthMonitor } from "@trading-model/jobs/application/services/worker-health-monitor";
+import type { WorkerStore } from "@trading-model/jobs/application/services/worker-store";
 import type {
 	PositiveInt,
 	WorkerStatusCode,
-} from "@trading-model/common/domain/primitives";
-import { WorkerHealthMonitor } from "@trading-model/jobs/application/services/worker-health-monitor";
-import type { WorkerStore } from "@trading-model/jobs/application/services/worker-store";
+} from "@trading-model/primitives/primitives";
 import type { WorkerRegistration } from "@trading-model/validation/domain/contracts/worker-protocol.types";
 
 function makeWorkerMap(

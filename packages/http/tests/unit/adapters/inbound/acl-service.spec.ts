@@ -1,6 +1,6 @@
 import { describe, expect, it } from "@jest/globals";
-import { ServiceId } from "@trading-model/common/domain/primitives";
 import { AclService } from "@trading-model/http/adapters/inbound/acl-service";
+import { ServiceId } from "@trading-model/primitives/primitives";
 import type { Request } from "express";
 
 function mockRequest(overrides?: Record<string, unknown>): Request {

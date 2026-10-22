@@ -4,7 +4,7 @@ import type {
 	ServiceId,
 	Topic,
 	UnixTimestamp,
-} from "@trading-model/common/domain/primitives";
+} from "@trading-model/primitives/primitives";
 
 export enum Severity {
 	Info = "INFO",

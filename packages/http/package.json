@@ -11,8 +11,11 @@
     }
   },
   "dependencies": {
+    "@trading-model/primitives": "*",
+    "@trading-model/contracts": "*",
     "@opentelemetry/api": "^1.9.1",
     "@trading-model/common": "*",
+    "@trading-model/reliability": "*",
     "chained-error": "^1.0.0",
     "express": "^5.2.1",
     "prom-client": "^15.1.3",

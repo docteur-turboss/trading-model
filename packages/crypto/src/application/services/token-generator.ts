@@ -1,4 +1,4 @@
-import type { InstanceId } from "@trading-model/common/domain/primitives";
+import type { InstanceId } from "@trading-model/primitives/primitives";
 import { createHmacSha256Formatted } from "../../adapters/outbound/node-hmac";
 import { generateRandomStr } from "../../adapters/outbound/node-random";
 import { CryptoAlg } from "../../domain/constants/crypto-constants";

@@ -23,6 +23,7 @@ const EMPTY_DATA_MAP: Record<string, unknown> = {
 	},
 	candles: [],
 	training: { results: [], total: 0 },
+	trainingAgents: { data: { agents: [], training: false, currentSymbol: "-" } },
 	audit: { events: [], total: 0, page: 0, limit: 5, volumeByTopic: [] },
 	stats: {
 		activeServices: 0,
@@ -43,6 +44,7 @@ const URL_MOCK_ROUTES: [string, unknown][] = [
 	["/messages/dlq", EMPTY_DATA_MAP.dlq],
 	["/scraper/candles", EMPTY_DATA_MAP.candles],
 	["/trainer/results", EMPTY_DATA_MAP.training],
+	["/trainer/training-agents", EMPTY_DATA_MAP.trainingAgents],
 	["/audit/events", EMPTY_DATA_MAP.audit],
 ];
 
@@ -110,7 +112,7 @@ describe("App Integration", () => {
 	it("should navigate to Training page", async () => {
 		render(<App />);
 		fireEvent.click(screen.getByText("Training"));
-		expect(await screen.findByText("Training Results")).toBeInTheDocument();
+		expect(await screen.findByText("Training Agents")).toBeInTheDocument();
 	});
 
 	it("should navigate to API Cache page", async () => {

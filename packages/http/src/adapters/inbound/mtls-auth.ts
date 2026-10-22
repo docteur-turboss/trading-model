@@ -6,7 +6,7 @@ declare global {
 	namespace Express {
 		interface Request {
 			/** Logical client identity extracted from the mTLS client certificate. */
-			clientIdentity: import("@trading-model/common/domain/primitives/auth-ids").ClientIdentity;
+			clientIdentity: import("@trading-model/primitives/primitives/auth-ids").ClientIdentity;
 		}
 	}
 }

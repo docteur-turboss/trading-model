@@ -1,6 +1,6 @@
 import { Box, Chip, MenuItem, TextField, Typography } from "@mui/material";
-import { CandleInterval } from "@trading-model/common/config/event.types";
-import type { TradingSymbol } from "@trading-model/common/domain/primitives";
+import { CandleInterval } from "@trading-model/contracts/market-data.types";
+import type { TradingSymbol } from "@trading-model/primitives/primitives";
 
 function SymbolSelect({
 	value,

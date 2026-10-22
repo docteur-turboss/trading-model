@@ -5,6 +5,9 @@ module.exports = {
   rootDir: '.',
   testMatch: ['**/?(*.)+(spec).ts'],
   moduleNameMapper: {
+    '^@trading-model/primitives/(.*)$': '<rootDir>/../primitives/src/$1',
+    '^@trading-model/contracts/(.*)$': '<rootDir>/../contracts/src/$1',
+    '^@trading-model/reliability/(.*)$': '<rootDir>/../reliability/src/$1',
     '^@trading-model/http/(.*)$': '<rootDir>/src/$1',
     '^@trading-model/jobs/(.*)$': '<rootDir>/../jobs/src/$1',
     '^@trading-model/common/(.*)$': '<rootDir>/../common/src/$1',

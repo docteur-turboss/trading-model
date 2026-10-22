@@ -1,6 +1,6 @@
-import type { ErrorResponse } from "@trading-model/common/contracts/error-response";
-import type { HttpStatusCode } from "@trading-model/common/http-status";
 import { createAppError, ErrorCode } from "@trading-model/common/utils/errors";
+import type { ErrorResponse } from "@trading-model/contracts/error-response";
+import type { HttpStatusCode } from "@trading-model/contracts/http-status";
 
 export interface HttpClientErrorData {
 	readonly name: "HttpClientError";

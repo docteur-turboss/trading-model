@@ -4,7 +4,7 @@ import {
 	UnixTimestamp,
 	type URLString,
 	type UserId,
-} from "@trading-model/common/domain/primitives";
+} from "@trading-model/primitives/primitives";
 import { AuditServiceClient } from "../adapters/outbound/audit-service-client";
 import { sendError } from "../adapters/outbound/error-service-sender";
 import { getNodeEnv } from "../shared/node-env";

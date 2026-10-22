@@ -11,6 +11,8 @@
     }
   },
   "dependencies": {
+    "@trading-model/primitives": "*",
+    "@trading-model/contracts": "*",
     "@trading-model/common": "*",
     "@trading-model/http": "*",
     "ws": "^8.21.3"

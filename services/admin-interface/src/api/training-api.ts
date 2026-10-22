@@ -2,8 +2,13 @@ import type { TrainingAgentListResponse } from "../types/dtos";
 import { request, toQuery } from "./_request";
 
 export const trainingApi = {
-	getTrainingAgents: () =>
-		request<TrainingAgentListResponse>("GET", "/trainer/training-agents"),
+	getTrainingAgents: async () => {
+		const response = await request<{ data: TrainingAgentListResponse }>(
+			"GET",
+			"/trainer/training-agents"
+		);
+		return response.data;
+	},
 
 	getTrainingAgentBySymbol: (symbol: string) =>
 		request<{

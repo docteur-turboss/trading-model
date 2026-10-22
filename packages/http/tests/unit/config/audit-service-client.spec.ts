@@ -1,8 +1,5 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
-import type {
-	FilePath,
-	URLString,
-} from "@trading-model/common/domain/primitives";
+import type { FilePath, URLString } from "@trading-model/primitives/primitives";
 
 const MOCK_POST = jest.fn<any>();
 

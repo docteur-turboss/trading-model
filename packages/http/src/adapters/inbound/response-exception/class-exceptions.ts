@@ -1,4 +1,4 @@
-import { HTTP_STATUS } from "@trading-model/common/http-status";
+import { HTTP_STATUS } from "@trading-model/contracts/http-status";
 import type { ResponseObject } from "./http-codes";
 import type { IResponseBuilder } from "./i-response-builder";
 

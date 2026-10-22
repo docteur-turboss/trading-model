@@ -1,9 +1,9 @@
+import { correlationIdMiddleware } from "@trading-model/http/adapters/inbound/correlation-id";
+import { HEALTH_STATUS_OK } from "@trading-model/http/adapters/inbound/response-exception";
 import type {
 	DurationMs,
 	PositiveInt,
-} from "@trading-model/common/domain/primitives";
-import { correlationIdMiddleware } from "@trading-model/http/adapters/inbound/correlation-id";
-import { HEALTH_STATUS_OK } from "@trading-model/http/adapters/inbound/response-exception";
+} from "@trading-model/primitives/primitives";
 import express, { type Application } from "express";
 import { rateLimit } from "express-rate-limit";
 import helmet from "helmet";

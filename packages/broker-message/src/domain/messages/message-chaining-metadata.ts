@@ -1,7 +1,7 @@
 import {
 	type CorrelationId,
 	toCorrelationId,
-} from "@trading-model/common/domain/primitives";
+} from "@trading-model/primitives/primitives";
 import { IDS_METADATA_PREDICATE } from "./schemas/metadata.schema";
 
 export interface ChainingIds {

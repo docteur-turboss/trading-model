@@ -41,16 +41,16 @@ jest.mock("ws", () => {
 	};
 });
 
+import { logger } from "@trading-model/http/infrastructure/logger";
+import { WorkerProtocol } from "@trading-model/jobs/adapters/outbound/worker-protocol";
+import type { WorkerRegistry } from "@trading-model/jobs/application/services/worker-registry";
 import type {
 	Capability,
 	InstanceId,
 	IPAddress,
 	Port,
-} from "@trading-model/common/domain/primitives";
-import { PositiveInt } from "@trading-model/common/domain/primitives";
-import { logger } from "@trading-model/http/infrastructure/logger";
-import { WorkerProtocol } from "@trading-model/jobs/adapters/outbound/worker-protocol";
-import type { WorkerRegistry } from "@trading-model/jobs/application/services/worker-registry";
+} from "@trading-model/primitives/primitives";
+import { PositiveInt } from "@trading-model/primitives/primitives";
 import { WebSocketServer } from "ws";
 
 const MOCK_WEB_SOCKET_SERVER = WebSocketServer as unknown as jest.Mock;

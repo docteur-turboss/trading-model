@@ -17,12 +17,8 @@ import type {
 	TlsPaths,
 	TlsPemBundle,
 } from "@trading-model/common/config/tls-paths";
-import {
-	CaPem,
-	CertPem,
-	KeyPem,
-} from "@trading-model/common/domain/primitives";
 import { normalizeError } from "@trading-model/common/utils/errors";
+import { CaPem, CertPem, KeyPem } from "@trading-model/primitives/primitives";
 
 function readTlsFileSync(filePath: string, label: string): string {
 	try {

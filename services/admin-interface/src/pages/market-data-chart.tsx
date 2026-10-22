@@ -1,5 +1,5 @@
 import { Box, Typography } from "@mui/material";
-import type { Price } from "@trading-model/common/domain/primitives";
+import type { Price } from "@trading-model/primitives/primitives";
 import {
 	Area,
 	AreaChart,

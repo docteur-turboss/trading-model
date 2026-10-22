@@ -1,10 +1,10 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import { randomUUID } from "node:crypto";
+import { HTTP_HEADERS } from "@trading-model/contracts/http-headers";
 import {
 	type CorrelationId,
 	toCorrelationId,
-} from "@trading-model/common/domain/primitives";
-import { HTTP_HEADERS } from "@trading-model/common/http-headers";
+} from "@trading-model/primitives/primitives";
 import type { NextFunction, Request, Response } from "express";
 
 declare module "express-serve-static-core" {

@@ -2,10 +2,10 @@ import type https from "node:https";
 import type {
 	SchedulerOutgoingMessage,
 	WorkerIncomingMessage,
-} from "@trading-model/common/contracts/worker-protocol-types";
-import type { ServiceId } from "@trading-model/common/domain/primitives";
-import { WorkerStatusCode } from "@trading-model/common/domain/primitives";
+} from "@trading-model/contracts/worker-protocol-types";
 import { logger } from "@trading-model/http/infrastructure/logger";
+import type { ServiceId } from "@trading-model/primitives/primitives";
+import { WorkerStatusCode } from "@trading-model/primitives/primitives";
 import WebSocket from "ws";
 import type { WorkerRegistry } from "../../application/services/worker-registry";
 import { WorkerWsManager } from "./worker-ws-manager";

@@ -4,7 +4,7 @@ import {
 	toRole,
 	toSubject,
 	toTenantId,
-} from "@trading-model/common/domain/primitives";
+} from "@trading-model/primitives/primitives";
 import { AuditEvent } from "@trading-model/validation/domain/contracts/audit-events";
 import { MarketEvent } from "@trading-model/validation/domain/contracts/market-events";
 import { z } from "zod";

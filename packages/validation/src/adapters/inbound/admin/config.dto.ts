@@ -1,7 +1,7 @@
 import type {
 	ServiceId,
 	UnixTimestamp,
-} from "@trading-model/common/domain/primitives";
+} from "@trading-model/primitives/primitives";
 
 export type ConfigKey = string & { readonly brand: "ConfigKey" };
 export type ConfigValue = string & { readonly brand: "ConfigValue" };

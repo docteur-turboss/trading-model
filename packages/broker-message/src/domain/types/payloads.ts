@@ -1,8 +1,5 @@
-import type {
-	InstanceId,
-	Topic,
-} from "@trading-model/common/domain/primitives";
-import type { TopicBinding } from "@trading-model/common/domain/topic-binding";
+import type { InstanceId, Topic } from "@trading-model/primitives/primitives";
+import type { TopicBinding } from "@trading-model/primitives/topic-binding";
 
 /** Payload sent when subscribing to a topic. */
 export type SubscribesTopicsPayload = TopicBinding;

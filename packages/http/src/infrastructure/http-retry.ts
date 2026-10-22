@@ -1,10 +1,10 @@
-import type { PositiveInt } from "@trading-model/common/domain/primitives";
-import { DurationMs } from "@trading-model/common/domain/primitives";
-import { HTTP_STATUS } from "@trading-model/common/http-status";
 import {
 	type BackoffConfig,
 	computeExponentialBackoffWithJitter,
 } from "@trading-model/common/utils/backoff-config";
+import { HTTP_STATUS } from "@trading-model/contracts/http-status";
+import type { PositiveInt } from "@trading-model/primitives/primitives";
+import { DurationMs } from "@trading-model/primitives/primitives";
 
 const DEFAULT_RETRY_COUNT = 3 as PositiveInt;
 

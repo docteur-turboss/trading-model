@@ -3,8 +3,8 @@ export type {
 	JobEvent,
 	JobUpdateExtras,
 	StatusTransition,
-} from "@trading-model/common/contracts/recovery-types";
+} from "@trading-model/contracts/recovery-types";
 export {
 	JobPriority,
 	JobStatus,
-} from "@trading-model/common/contracts/recovery-types";
+} from "@trading-model/contracts/recovery-types";

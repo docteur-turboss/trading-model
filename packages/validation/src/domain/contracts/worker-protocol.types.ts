@@ -10,5 +10,5 @@ export type {
 	WorkerWsDisconnectMessage,
 	WorkerWsHeartbeatMessage,
 	WorkerWsRegisterMessage,
-} from "@trading-model/common/contracts/worker-protocol-types";
-export { isWorkerSuitable } from "@trading-model/common/contracts/worker-protocol-types";
+} from "@trading-model/contracts/worker-protocol-types";
+export { isWorkerSuitable } from "@trading-model/contracts/worker-protocol-types";

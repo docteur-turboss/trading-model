@@ -2,13 +2,13 @@ import type https from "node:https";
 import type {
 	SchedulerOutgoingMessage,
 	WorkerIncomingMessage,
-} from "@trading-model/common/contracts/worker-protocol-types";
-import type { ServiceId } from "@trading-model/common/domain/primitives";
+} from "@trading-model/contracts/worker-protocol-types";
 import {
 	isCallerAuthorized,
 	resolveMtlsIdentity,
 } from "@trading-model/http/adapters/inbound/mtls-identity";
 import { logger } from "@trading-model/http/infrastructure/logger";
+import type { ServiceId } from "@trading-model/primitives/primitives";
 import WebSocket, { WebSocketServer } from "ws";
 
 export class WorkerWsManager {

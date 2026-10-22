@@ -3,7 +3,7 @@ import {
 	IPAddress,
 	Port,
 	ServiceId,
-} from "@trading-model/common/domain/primitives";
+} from "@trading-model/primitives/primitives";
 import {
 	generateInstanceId,
 	verifyInstanceName,

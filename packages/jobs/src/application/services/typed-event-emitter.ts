@@ -9,31 +9,31 @@ import { EventEmitter } from "node:events";
 export class TypedEventEmitter<TEvents extends Record<string, unknown[]>> {
 	readonly raw = new EventEmitter();
 
-	on<K extends keyof TEvents & string>(
-		eventName: K,
-		listener: (...args: TEvents[K]) => void
+	on<TEventName extends keyof TEvents & string>(
+		eventName: TEventName,
+		listener: (...args: TEvents[TEventName]) => void
 	): this {
 		this.raw.on(eventName, listener as (...args: unknown[]) => void);
 		return this;
 	}
 
-	off<K extends keyof TEvents & string>(
-		eventName: K,
-		listener: (...args: TEvents[K]) => void
+	off<TEventName extends keyof TEvents & string>(
+		eventName: TEventName,
+		listener: (...args: TEvents[TEventName]) => void
 	): this {
 		this.raw.off(eventName, listener as (...args: unknown[]) => void);
 		return this;
 	}
 
-	emit<K extends keyof TEvents & string>(
-		eventName: K,
-		...args: TEvents[K]
+	emit<TEventName extends keyof TEvents & string>(
+		eventName: TEventName,
+		...args: TEvents[TEventName]
 	): boolean {
 		return this.raw.emit(eventName, ...args);
 	}
 
-	removeAllListeners<K extends keyof TEvents & string>(
-		eventName?: K
+	removeAllListeners<TEventName extends keyof TEvents & string>(
+		eventName?: TEventName
 	): this {
 		this.raw.removeAllListeners(eventName as string | undefined);
 		return this;

@@ -1,6 +1,6 @@
 import { describe, expect, it, jest } from "@jest/globals";
-import { ServiceId } from "@trading-model/common/domain/primitives";
 import { MTLSAuthorizationMiddleware } from "@trading-model/http/adapters/inbound/mtls-authorization";
+import { ServiceId } from "@trading-model/primitives/primitives";
 import type { NextFunction, Request, Response } from "express";
 
 describe("MTLSAuthorizationMiddleware", () => {

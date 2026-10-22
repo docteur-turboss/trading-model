@@ -6,15 +6,15 @@ import {
 	it,
 	jest,
 } from "@jest/globals";
+import type { WorkerRegistry } from "@trading-model/jobs/application/services/worker-registry";
+import { createWorkerRegistry } from "@trading-model/jobs/application/services/worker-registry";
 import type {
 	Capability,
 	InstanceId,
 	IPAddress,
 	Port,
-} from "@trading-model/common/domain/primitives";
-import { PositiveInt } from "@trading-model/common/domain/primitives";
-import type { WorkerRegistry } from "@trading-model/jobs/application/services/worker-registry";
-import { createWorkerRegistry } from "@trading-model/jobs/application/services/worker-registry";
+} from "@trading-model/primitives/primitives";
+import { PositiveInt } from "@trading-model/primitives/primitives";
 
 describe("WorkerRegistry", () => {
 	let registry: WorkerRegistry;

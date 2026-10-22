@@ -1,5 +1,5 @@
-import type { WorkerRegistration } from "@trading-model/common/contracts/worker-protocol-types";
-import { WorkerStatusCode } from "@trading-model/common/domain/primitives";
+import type { WorkerRegistration } from "@trading-model/contracts/worker-protocol-types";
+import { WorkerStatusCode } from "@trading-model/primitives/primitives";
 import type { WorkerStore } from "./worker-store";
 
 export class WorkerHealthMonitor {

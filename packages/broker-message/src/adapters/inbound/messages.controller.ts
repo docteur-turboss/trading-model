@@ -1,4 +1,4 @@
-import type { EventMap } from "@trading-model/common/config/event.types";
+import type { EventMap } from "@trading-model/contracts/event-map";
 import { catchSync } from "@trading-model/http/adapters/inbound/catch-error";
 import { ResponseException } from "@trading-model/http/adapters/inbound/response-exception";
 

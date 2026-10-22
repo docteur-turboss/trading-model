@@ -12,7 +12,7 @@ import {
 import {
 	toCorrelationId,
 	toTopic,
-} from "@trading-model/common/domain/primitives/messaging-ids";
+} from "@trading-model/primitives/primitives/messaging-ids";
 import { useState } from "react";
 import {
 	Bar,

@@ -15,11 +15,11 @@ jest.mock("node:fs", () => ({
 	}),
 }));
 
-import type { FilePath } from "@trading-model/common/domain/primitives/file-path";
 import {
 	buildHttpsAgentOptions,
 	loadTlsPemBundleSync,
 } from "@trading-model/http/infrastructure/http-tls-loader";
+import type { FilePath } from "@trading-model/primitives/primitives/file-path";
 
 const caPath = "/etc/tls/ca.pem" as unknown as FilePath;
 const certPath = "/etc/tls/cert.pem" as unknown as FilePath;

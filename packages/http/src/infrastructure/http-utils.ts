@@ -1,9 +1,9 @@
 import https from "node:https";
 import type { URL } from "node:url";
 import { context, propagation } from "@opentelemetry/api";
-import { Port } from "@trading-model/common/domain/primitives";
-import { Hostname } from "@trading-model/common/domain/primitives/hostname";
-import { HTTP_HEADERS } from "@trading-model/common/http-headers";
+import { HTTP_HEADERS } from "@trading-model/contracts/http-headers";
+import { Port } from "@trading-model/primitives/primitives";
+import { Hostname } from "@trading-model/primitives/primitives/hostname";
 import { getCorrelationId } from "../adapters/inbound/correlation-id";
 import type {
 	HttpHeaders,

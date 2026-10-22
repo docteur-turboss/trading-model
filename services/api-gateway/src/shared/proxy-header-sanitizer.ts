@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
-import { HTTP_HEADERS } from "@trading-model/common/http-headers";
 import { anonymizeIp } from "@trading-model/common/utils/anonymize-ip";
+import { HTTP_HEADERS } from "@trading-model/contracts/http-headers";
 import type { Request } from "express";
 
 const BLOCKED_HEADERS = new Set([

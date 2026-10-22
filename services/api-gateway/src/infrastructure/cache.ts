@@ -1,6 +1,6 @@
-import type { DurationMs } from "@trading-model/common/domain/primitives";
-import type { HttpStatusCode } from "@trading-model/common/http-status";
 import type { ISyncCache } from "@trading-model/common/utils/cache";
+import type { HttpStatusCode } from "@trading-model/contracts/http-status";
+import type { DurationMs } from "@trading-model/primitives/primitives";
 import { CACHE_HIT_RATIO, CACHE_SIZE } from "./config/metrics";
 
 export interface ResponseCacheEntry<TData = unknown> {

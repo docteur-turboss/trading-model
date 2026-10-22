@@ -5,7 +5,7 @@ import type {
 	PositiveInt,
 	SharpeRatio,
 	TradingSymbol,
-} from "@trading-model/common/domain/primitives";
+} from "@trading-model/primitives/primitives";
 
 export enum LayerType {
 	Dense = "dense",
@@ -35,16 +35,10 @@ export enum ActivationFn {
 	Mish = "mish",
 }
 
-/**
- * Canonical optimizer enum.
- * trader-trainer now re-exports this as OptimizerType (identical values).
- */
-export enum Optimizer {
-	Adam = "adam",
-	Sgd = "sgd",
-	Rmsprop = "rmsprop",
-	Adamw = "adamw",
-}
+/** Canonical optimizer enum, owned by @trading-model/contracts (training-events). */
+import { Optimizer } from "@trading-model/contracts/training-events";
+
+export { Optimizer };
 
 export interface TrainingAgentSummary {
 	id: string;

@@ -1,12 +1,12 @@
 import type { TlsPaths } from "@trading-model/common/config/tls-paths";
+import { CircularBuffer } from "@trading-model/common/utils/circular-buffer";
+import { setLogger } from "@trading-model/contracts/logger-registry";
 import {
 	type JsonObject,
 	type ProcessId,
 	type URLString,
 	UserId,
-} from "@trading-model/common/domain/primitives";
-import { setLogger } from "@trading-model/common/logging/logger-registry";
-import { CircularBuffer } from "@trading-model/common/utils/circular-buffer";
+} from "@trading-model/primitives/primitives";
 import { formatLogEntry } from "../../infrastructure/console-formatter";
 import { LogDispatcher } from "../../infrastructure/log-dispatcher";
 import {

@@ -52,7 +52,7 @@ import type {
 	UnixTimestamp,
 	URLString,
 	UserId,
-} from "@trading-model/common/domain/primitives";
+} from "@trading-model/primitives/primitives";
 
 export interface LogOptions {
 	context?: JsonObject;

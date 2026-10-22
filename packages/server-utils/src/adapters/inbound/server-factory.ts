@@ -5,9 +5,9 @@ import type {
 	TlsPemBundle,
 } from "@trading-model/common/config/tls-paths";
 import { toSecureContextOptions } from "@trading-model/common/config/tls-paths";
-import type { Port } from "@trading-model/common/domain/primitives";
 import { loadTlsPemBundle } from "@trading-model/http/infrastructure/http-tls-loader";
 import { logger } from "@trading-model/http/infrastructure/logger";
+import type { Port } from "@trading-model/primitives/primitives";
 import type { Application } from "express";
 import { setupTlsWatcher } from "../../infrastructure/tls-watcher";
 import type { HttpServer } from "../../shared/server-types";

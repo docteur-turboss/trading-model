@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
-import { ServiceId } from "@trading-model/common/domain/primitives";
+import { ServiceId } from "@trading-model/primitives/primitives";
 
 jest.mock("../src/adapters/inbound/create-secure-server", () => ({
 	buildTlsFromEnv: jest.fn((env: Record<string, string>) => ({

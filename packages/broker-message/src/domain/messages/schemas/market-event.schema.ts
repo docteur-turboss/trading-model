@@ -1,8 +1,4 @@
 import {
-	CandleInterval,
-	TradeSide,
-} from "@trading-model/common/contracts/market-data.types";
-import {
 	BaseMarketDataShape,
 	BidAskShape,
 	OhlcvShape,
@@ -12,6 +8,10 @@ import {
 	PriceSchema,
 	VolumeSchema,
 } from "@trading-model/common/shared/schemas/primitives.schema";
+import {
+	CandleInterval,
+	TradeSide,
+} from "@trading-model/contracts/market-data.types";
 import { MarketEvent } from "@trading-model/validation/domain/contracts/market-events";
 import { z } from "zod";
 

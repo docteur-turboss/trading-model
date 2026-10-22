@@ -1,4 +1,4 @@
-import { InstanceId } from "@trading-model/common/domain/primitives";
+import { InstanceId } from "@trading-model/primitives/primitives";
 import { generateInstanceToken } from "../src/application/services/token-generator";
 
 describe("generateInstanceToken", () => {

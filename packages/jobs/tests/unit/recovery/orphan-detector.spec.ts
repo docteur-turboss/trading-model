@@ -6,6 +6,12 @@ import {
 	it,
 	jest,
 } from "@jest/globals";
+import { OrphanDetector } from "@trading-model/jobs/application/services/orphan-detector";
+import { ReAllocator } from "@trading-model/jobs/application/services/re-allocator";
+import type { WorkerRegistry } from "@trading-model/jobs/application/services/worker-registry";
+import { createWorkerRegistry } from "@trading-model/jobs/application/services/worker-registry";
+import type { IJobQueue } from "@trading-model/jobs/domain/contracts/job-queue.interface";
+import type { IJobRepository } from "@trading-model/jobs/domain/contracts/job-repository.interface";
 import type {
 	Capability,
 	InstanceId,
@@ -13,17 +19,11 @@ import type {
 	JobId,
 	JobType,
 	Port,
-} from "@trading-model/common/domain/primitives";
+} from "@trading-model/primitives/primitives";
 import {
 	PositiveInt,
 	UnixTimestamp,
-} from "@trading-model/common/domain/primitives";
-import { OrphanDetector } from "@trading-model/jobs/application/services/orphan-detector";
-import { ReAllocator } from "@trading-model/jobs/application/services/re-allocator";
-import type { WorkerRegistry } from "@trading-model/jobs/application/services/worker-registry";
-import { createWorkerRegistry } from "@trading-model/jobs/application/services/worker-registry";
-import type { IJobQueue } from "@trading-model/jobs/domain/contracts/job-queue.interface";
-import type { IJobRepository } from "@trading-model/jobs/domain/contracts/job-repository.interface";
+} from "@trading-model/primitives/primitives";
 import type {
 	JOB_STATUS,
 	Job,

@@ -7,12 +7,12 @@ import {
 	it,
 	jest,
 } from "@jest/globals";
+import { HTTP_HEADERS } from "@trading-model/contracts/http-headers";
 import {
 	DurationMs,
 	type FilePath,
 	URLString,
-} from "@trading-model/common/domain/primitives";
-import { HTTP_HEADERS } from "@trading-model/common/http-headers";
+} from "@trading-model/primitives/primitives";
 import { z } from "zod";
 
 jest.mock("https");
@@ -52,16 +52,16 @@ import {
 	registerServiceName,
 	type ServiceInstanceName,
 } from "@trading-model/common/config/services.types";
-import type {
-	PositiveInt,
-	ServiceId,
-} from "@trading-model/common/domain/primitives";
 import { runWithCorrelationId } from "@trading-model/http/adapters/inbound/correlation-id";
 import {
 	computeAdaptiveTimeout,
 	HttpClient,
 	isServiceCircuitOpen,
 } from "@trading-model/http/adapters/outbound/http-client";
+import type {
+	PositiveInt,
+	ServiceId,
+} from "@trading-model/primitives/primitives";
 
 const TEST_SERVICE_NAMES = [
 	"my-service",

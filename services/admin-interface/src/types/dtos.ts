@@ -1,7 +1,7 @@
 import type {
 	PaginationQuery,
 	PaginationResult,
-} from "@trading-model/common/domain/pagination";
+} from "@trading-model/primitives/pagination";
 import type {
 	DurationMs,
 	ISODateTime,
@@ -9,7 +9,7 @@ import type {
 	PositiveInt,
 	Topic,
 	TradingSymbol,
-} from "@trading-model/common/domain/primitives";
+} from "@trading-model/primitives/primitives";
 import type {
 	AuditEvent,
 	AuditFilter,
@@ -54,7 +54,7 @@ export interface StatsSummary {
 }
 
 type OrderBookLevel =
-	import("@trading-model/common/contracts/market-data.types").OrderBookLevel;
+	import("@trading-model/contracts/market-data.types").OrderBookLevel;
 
 export interface OrderBook {
 	bids: OrderBookLevel[];

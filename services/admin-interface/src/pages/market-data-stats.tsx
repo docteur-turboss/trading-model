@@ -4,10 +4,7 @@ import TrendingDownIcon from "@mui/icons-material/TrendingDown";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import { Grid } from "@mui/material";
-import type {
-	Percentage,
-	Price,
-} from "@trading-model/common/domain/primitives";
+import type { Percentage, Price } from "@trading-model/primitives/primitives";
 import { StatsCard } from "../components/stats-card";
 
 function LastPriceCard({

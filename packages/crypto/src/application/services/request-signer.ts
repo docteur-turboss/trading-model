@@ -1,7 +1,7 @@
-import type { ServiceId } from "@trading-model/common/domain/primitives";
-import { toServiceId } from "@trading-model/common/domain/primitives";
-import { HTTP_HEADERS } from "@trading-model/common/http-headers";
 import { deterministicStringify } from "@trading-model/common/utils/deterministic-stringify";
+import { HTTP_HEADERS } from "@trading-model/contracts/http-headers";
+import type { ServiceId } from "@trading-model/primitives/primitives";
+import { toServiceId } from "@trading-model/primitives/primitives";
 import type {
 	Signature,
 	SignedRequest,

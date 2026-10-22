@@ -1,5 +1,5 @@
-import type { SymbolInterval } from "@trading-model/common/contracts/candlestick-query";
-import type { TradingSymbol } from "@trading-model/common/domain/primitives";
+import type { SymbolInterval } from "@trading-model/contracts/candlestick-query";
+import type { TradingSymbol } from "@trading-model/primitives/primitives";
 import type { Candle, OrderBook, Ticker } from "../types/dtos";
 import { request } from "./_request";
 

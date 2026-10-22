@@ -1,4 +1,4 @@
-import type { MessageId } from "@trading-model/common/domain/primitives";
+import type { MessageId } from "@trading-model/primitives/primitives";
 import { useState } from "react";
 
 export function useDlqSelection(

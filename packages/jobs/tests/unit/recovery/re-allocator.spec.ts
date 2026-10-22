@@ -1,12 +1,12 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
-import type { JobId, JobType } from "@trading-model/common/domain/primitives";
-import {
-	type PositiveInt,
-	UnixTimestamp,
-} from "@trading-model/common/domain/primitives";
 import { ReAllocator } from "@trading-model/jobs/application/services/re-allocator";
 import type { IJobQueue } from "@trading-model/jobs/domain/contracts/job-queue.interface";
 import type { IJobRepository } from "@trading-model/jobs/domain/contracts/job-repository.interface";
+import type { JobId, JobType } from "@trading-model/primitives/primitives";
+import {
+	type PositiveInt,
+	UnixTimestamp,
+} from "@trading-model/primitives/primitives";
 import type {
 	JOB_STATUS,
 	Job,

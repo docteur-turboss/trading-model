@@ -1,8 +1,8 @@
 import {
 	isWorkerSuitable,
 	type WorkerRegistration,
-} from "@trading-model/common/contracts/worker-protocol-types";
-import { Capability } from "@trading-model/common/domain/primitives";
+} from "@trading-model/contracts/worker-protocol-types";
+import { Capability } from "@trading-model/primitives/primitives";
 import type { WorkerStore } from "./worker-store";
 
 function _pickLowerLoad(

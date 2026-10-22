@@ -1,4 +1,4 @@
-import { ServiceId } from "@trading-model/common/domain/primitives";
+import { ServiceId } from "@trading-model/primitives/primitives";
 
 const VERSION_PATH_REGEX =
 	/^\/v(?<major>\d+)\/(?<service>[^/]+)(?<path>\/.*)?$/;

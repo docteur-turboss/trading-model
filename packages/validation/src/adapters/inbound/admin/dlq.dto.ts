@@ -4,7 +4,7 @@ import type {
 	PositiveInt,
 	Topic,
 	UnixTimestamp,
-} from "@trading-model/common/domain/primitives";
+} from "@trading-model/primitives/primitives";
 
 export interface DlqMessage {
 	id: MessageId;

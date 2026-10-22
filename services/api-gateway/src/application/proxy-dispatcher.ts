@@ -1,14 +1,14 @@
-import type { ServiceId } from "@trading-model/common/domain/primitives";
-import { HostPort } from "@trading-model/common/domain/service-identity";
 import {
 	HTTP_STATUS,
 	type HttpStatusCode,
-} from "@trading-model/common/http-status";
+} from "@trading-model/contracts/http-status";
 import {
 	type ResponseObject,
 	sendResponse,
 } from "@trading-model/http/adapters/inbound/response-exception";
 import { logger } from "@trading-model/http/infrastructure/logger";
+import type { ServiceId } from "@trading-model/primitives/primitives";
+import { HostPort } from "@trading-model/primitives/service-identity";
 import type { ResolvedEndpoint } from "@trading-model/validation/adapters/outbound/service-resolver.types";
 import type { Request } from "express";
 import { forwardRequest } from "../adapters/outbound/proxy-handler";

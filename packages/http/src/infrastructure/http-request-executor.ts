@@ -1,11 +1,11 @@
 import https from "node:https";
 import { URL } from "node:url";
 import type { TlsPemBundle } from "@trading-model/common/config/tls-paths";
+import { sleep } from "@trading-model/common/utils/sleep";
 import type {
 	DurationMs,
 	URLString,
-} from "@trading-model/common/domain/primitives";
-import { sleep } from "@trading-model/common/utils/sleep";
+} from "@trading-model/primitives/primitives";
 import type { z } from "zod";
 import {
 	type CircuitRecorder,

@@ -6,6 +6,14 @@ export default defineConfig({
 	plugins: [react()],
 	resolve: {
 		alias: {
+			"@trading-model/primitives": path.resolve(
+				__dirname,
+				"../../packages/primitives/src"
+			),
+			"@trading-model/contracts": path.resolve(
+				__dirname,
+				"../../packages/contracts/src"
+			),
 			"@trading-model/validation": path.resolve(
 				__dirname,
 				"../../packages/validation/src"

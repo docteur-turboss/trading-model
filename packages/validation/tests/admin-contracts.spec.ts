@@ -2,8 +2,8 @@ import {
 	getAskTotalQty,
 	getAvgBid,
 	getBidTotalQty,
-} from "@trading-model/common/contracts/market-data.types";
-import { Capability } from "@trading-model/common/domain/primitives";
+} from "@trading-model/contracts/market-data.types";
+import { Capability } from "@trading-model/primitives/primitives";
 import { z } from "zod";
 import {
 	ConfigSource,

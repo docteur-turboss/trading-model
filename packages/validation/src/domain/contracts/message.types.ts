@@ -4,7 +4,7 @@
  */
 
 import type { DeliveryMode } from "@trading-model/common/config/delivery-mode.types";
-import type { EventEnumMap } from "@trading-model/common/config/event.types";
+import type { EventEnumMap } from "@trading-model/contracts/event-map";
 import type {
 	CorrelationId,
 	DurationMs,
@@ -16,8 +16,8 @@ import type {
 	TenantId,
 	Topic,
 	UnixTimestamp,
-} from "@trading-model/common/domain/primitives";
-import type { ServiceIdentity as DomainServiceIdentity } from "@trading-model/common/domain/service-identity";
+} from "@trading-model/primitives/primitives";
+import type { ServiceIdentity as DomainServiceIdentity } from "@trading-model/primitives/service-identity";
 import type { Signature } from "./signed-request.types";
 
 /**

@@ -1,19 +1,19 @@
 import {
-	DurationMs,
-	isAllowedProxyIP,
-	parseCIDRList,
-	type ServiceId,
-} from "@trading-model/common/domain/primitives";
-import {
 	HTTP_STATUS,
 	type HttpStatusCode,
-} from "@trading-model/common/http-status";
+} from "@trading-model/contracts/http-status";
 import { catchSync } from "@trading-model/http/adapters/inbound/catch-error";
 import {
 	HEALTH_STATUS_OK,
 	sendResponse,
 } from "@trading-model/http/adapters/inbound/response-exception";
 import { logger } from "@trading-model/http/infrastructure/logger";
+import {
+	DurationMs,
+	isAllowedProxyIP,
+	parseCIDRList,
+	type ServiceId,
+} from "@trading-model/primitives/primitives";
 import { Router } from "express";
 import { z } from "zod";
 import {

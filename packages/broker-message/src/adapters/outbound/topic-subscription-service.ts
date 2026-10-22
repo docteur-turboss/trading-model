@@ -1,7 +1,5 @@
 import type addressManagerClient from "@trading-model/address-manager";
-import type { EventEnumMap } from "@trading-model/common/config/event.types";
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
-import type { HostPort } from "@trading-model/common/domain/service-identity";
 import {
 	isMessageManagerError,
 	isServiceUnreachableError,
@@ -9,7 +7,9 @@ import {
 	normalizeError,
 	serviceUnreachableError,
 } from "@trading-model/common/utils/errors";
+import type { EventEnumMap } from "@trading-model/contracts/event-map";
 import type { HttpClient } from "@trading-model/http/adapters/outbound/http-client";
+import type { HostPort } from "@trading-model/primitives/service-identity";
 import type { MessageManagerConfig } from "../../domain/types/config";
 import { TopicRequestBuilder } from "./topic-request-builder";
 

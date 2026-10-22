@@ -1,10 +1,10 @@
 import type { TlsPemBundle } from "@trading-model/common/config/tls-paths";
-import { HttpMethod } from "@trading-model/common/contracts/signed-request";
+import { HttpMethod } from "@trading-model/contracts/signed-request";
 import type {
 	DurationMs,
 	PositiveInt,
 	ServiceId,
-} from "@trading-model/common/domain/primitives";
+} from "@trading-model/primitives/primitives";
 
 export type HttpHeaderValue = string & { readonly brand: "HttpHeaderValue" };
 export const HttpHeaderValue = {

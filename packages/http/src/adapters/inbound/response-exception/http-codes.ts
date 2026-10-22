@@ -1,7 +1,7 @@
 import {
 	HTTP_STATUS,
 	type HttpStatusCode,
-} from "@trading-model/common/http-status";
+} from "@trading-model/contracts/http-status";
 
 const HTTP_RESPONSE_DEFINITIONS = [
 	{ key: "serviceUnavailable", code: HTTP_STATUS.SERVICE_UNAVAILABLE },

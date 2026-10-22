@@ -1,6 +1,6 @@
 import type { TlsEnvVars } from "@trading-model/common/config/tls-paths";
-import { Port, type ServiceId } from "@trading-model/common/domain/primitives";
 import { configurationError } from "@trading-model/common/utils/errors";
+import { Port, type ServiceId } from "@trading-model/primitives/primitives";
 import type { Application } from "express";
 import {
 	type AuthorizationOptions,

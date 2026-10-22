@@ -1,9 +1,9 @@
-import type { EventEnumMap } from "@trading-model/common/config/event.types";
+import type { EventEnumMap } from "@trading-model/contracts/event-map";
 import {
 	type CorrelationId,
 	type Topic,
 	toTopic,
-} from "@trading-model/common/domain/primitives";
+} from "@trading-model/primitives/primitives";
 import type {
 	MessageMetadata as MetadataType,
 	SecurityType,

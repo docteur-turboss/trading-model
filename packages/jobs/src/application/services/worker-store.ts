@@ -1,11 +1,11 @@
 import type {
 	WorkerRegistration,
 	WorkerStatus,
-} from "@trading-model/common/contracts/worker-protocol-types";
+} from "@trading-model/contracts/worker-protocol-types";
 import {
 	UnixTimestamp,
 	WorkerStatusCode,
-} from "@trading-model/common/domain/primitives";
+} from "@trading-model/primitives/primitives";
 
 function _findStaleWorkers(
 	workers: Map<string, WorkerRegistration>,

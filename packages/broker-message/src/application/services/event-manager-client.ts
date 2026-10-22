@@ -1,7 +1,7 @@
 import type {
 	EventMap,
 	EventMessagesArgs,
-} from "@trading-model/common/config/event.types";
+} from "@trading-model/contracts/event-map";
 import { TypedEventEmitter } from "@trading-model/jobs/application/services/typed-event-emitter";
 
 /** Callback signature for event listeners. */

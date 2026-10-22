@@ -1,4 +1,4 @@
-import type { EventMap } from "@trading-model/common/config/event.types";
+import type { EventMap } from "@trading-model/contracts/event-map";
 import { z } from "zod";
 
 import { AUDIT_EVENT_VALIDATORS } from "./audit-event.schema";

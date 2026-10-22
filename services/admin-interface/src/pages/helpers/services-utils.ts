@@ -3,12 +3,12 @@ import type {
 	PositiveInt,
 	ServiceId,
 	Version,
-} from "@trading-model/common/domain/primitives";
+} from "@trading-model/primitives/primitives";
 import {
 	toISODateTime,
 	toServiceId,
 	toVersion,
-} from "@trading-model/common/domain/primitives";
+} from "@trading-model/primitives/primitives";
 import { ServiceStatus } from "@trading-model/validation/adapters/inbound/admin/services.dto";
 
 export interface ServiceRow {

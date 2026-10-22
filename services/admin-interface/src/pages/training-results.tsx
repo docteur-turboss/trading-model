@@ -70,7 +70,7 @@ function pnlColor(pnl: number): "success" | "error" {
 }
 
 function OverviewStats({ data }: { data: TrainingAgentListResponse }) {
-	const agents = data.agents;
+	const agents = data.agents ?? [];
 	const bestFitness =
 		agents.length > 0
 			? Math.max(...agents.map((entry) => entry.agent.fitness))
@@ -459,7 +459,7 @@ export function TrainingResults() {
 	);
 	const [selectedSymbol, setSelectedSymbol] = useState<string | null>(null);
 	const selected =
-		data?.agents.find((entry) => entry.symbol === selectedSymbol) ?? null;
+		data?.agents?.find((entry) => entry.symbol === selectedSymbol) ?? null;
 
 	useEffect(() => {
 		const interval = setInterval(refetch, 30_000);
@@ -473,16 +473,13 @@ export function TrainingResults() {
 	if (loading) {
 		return <PageLoading />;
 	}
-	if (error) {
-		return <PageError message={error} />;
-	}
-
 	return (
 		<Box>
 			<TrainingPageHeader
 				onRefresh={refetch}
 				isTraining={data?.training ?? false}
 			/>
+			{error && <PageError message={error} />}
 			{data && <OverviewStats data={data} />}
 			{data?.training && <LinearProgress sx={{ mb: 2 }} color="warning" />}
 			<AgentTable

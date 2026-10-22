@@ -1,5 +1,4 @@
 import { describe, expect, it } from "@jest/globals";
-import { DurationMs } from "@trading-model/common/domain/primitives";
 import {
 	computeAdaptiveTimeout,
 	computeRetryDelay,
@@ -8,6 +7,7 @@ import {
 	isRetryableStatus,
 	isRetryableStatusPermissive,
 } from "@trading-model/http/infrastructure/http-retry";
+import { DurationMs } from "@trading-model/primitives/primitives";
 
 describe("isRetryableStatus", () => {
 	it("should return true for 5xx status codes", () => {

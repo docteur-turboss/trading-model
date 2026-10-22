@@ -1,4 +1,4 @@
-import type { JsonObject } from "@trading-model/common/domain/primitives";
+import type { JsonObject } from "@trading-model/primitives/primitives";
 import { safeStringify } from "./sensitive-data-sanitizer";
 
 export interface FormatLogEntryParams {

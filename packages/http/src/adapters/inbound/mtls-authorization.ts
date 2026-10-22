@@ -1,4 +1,4 @@
-import type { ServiceId } from "@trading-model/common/domain/primitives";
+import type { ServiceId } from "@trading-model/primitives/primitives";
 import type { Request } from "express";
 import { AclService } from "./acl-service";
 import { catchSync } from "./catch-error";

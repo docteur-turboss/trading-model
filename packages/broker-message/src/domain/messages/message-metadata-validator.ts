@@ -1,5 +1,5 @@
-import type { EventEnumMap } from "@trading-model/common/config/event.types";
-import type { Topic } from "@trading-model/common/domain/primitives";
+import type { EventEnumMap } from "@trading-model/contracts/event-map";
+import type { Topic } from "@trading-model/primitives/primitives";
 import type { ServiceIdentity } from "@trading-model/validation/domain/contracts/message.types";
 import {
 	EVENT_TYPE_METADATA_PREDICATE,

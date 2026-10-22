@@ -1,13 +1,13 @@
 import type addressManagerClient from "@trading-model/address-manager";
+import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
+import type { TlsPaths } from "@trading-model/common/config/tls-paths";
 import type {
 	EventEnumMap,
 	EventMap,
 	EventMessagesArgs,
-} from "@trading-model/common/config/event.types";
-import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
-import type { TlsPaths } from "@trading-model/common/config/tls-paths";
-import type { InstanceId } from "@trading-model/common/domain/primitives";
+} from "@trading-model/contracts/event-map";
 import { HttpClient } from "@trading-model/http/adapters/outbound/http-client";
+import type { InstanceId } from "@trading-model/primitives/primitives";
 import type { Application } from "express";
 import { CREATE_CALLBACK_ROUTE } from "../../adapters/inbound/messages.routes";
 import { MessageManagerClient } from "../../adapters/outbound/message-manager-client";
