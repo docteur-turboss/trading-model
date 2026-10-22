@@ -4,7 +4,7 @@
 
 ```bash
 bun install --frozen-lockfile   # Install all workspace deps from bun.lock
-bun run build                   # Build all 8 shared packages in order
+bun run build                   # Build all 12 shared packages in topological order
 bun run build:ts                # Build everything (packages + all 8 services)
 bun run test                    # Run all workspace tests
 bun run --filter <name> test    # Run a single workspace's tests
@@ -19,22 +19,26 @@ bun run commit                  # Interactive gitmoji commit CLI
 
 ## Monorepo layout
 
-- `packages/` — 8 shared libraries under `@trading-model/*` scope (common, http, jobs, validation, server-utils, crypto, address-manager, broker-message)
+- `packages/` — 12 shared libraries under `@trading-model/*` scope: `common`, `primitives`, `contracts`, `reliability`, `persistence`, `http`, `jobs`, `validation`, `server-utils`, `crypto`, `address-manager`, `broker-message`
 - `services/` — 8 microservices (flat npm names, no scope)
 - All linked via bun workspaces (`packages/*` and `services/*`)
+- **No cyclic dependencies**: `primitives` (zero deps) and `contracts` are the foundations — never import `@trading-model/http` or any higher package from them
 
 ## Build order (dependency chain)
 
 Packages must be built in this order before services:
 
-1. `@trading-model/common`
-2. `@trading-model/http` (depends on common; middleware, http client, logging)
-3. `@trading-model/validation` + `@trading-model/server-utils` (depend on common + http)
-4. `@trading-model/crypto` (depends on validation + common)
-5. `@trading-model/jobs` (depends on common + http; worker protocol + orphan recovery)
-6. `@trading-model/address-manager`
-7. `@trading-model/broker-message`
-
+1. `@trading-model/primitives` (zero dependencies — branded types, domain primitives)
+2. `@trading-model/contracts` (depends on primitives; shared contracts, http-status/headers, logger-registry)
+3. `@trading-model/reliability` (depends on primitives + contracts; circuit breakers, latency tracker)
+4. `@trading-model/common` (depends on primitives + contracts; residual: config, utils, shared schemas)
+5. `@trading-model/persistence` (depends on common + primitives + contracts; Redis/Mongo stores)
+6. `@trading-model/http` (depends on common; middleware, http client, logging)
+7. `@trading-model/validation` + `@trading-model/server-utils` (depend on common + http)
+8. `@trading-model/crypto` (depends on validation + common)
+9. `@trading-model/jobs` (depends on common + http; worker protocol + orphan recovery)
+10. `@trading-model/address-manager`
+11. `@trading-model/broker-message`
 Services can then be built in any order. The root `bun run build` builds the packages above. Use `bun run build:ts` for a full build of everything.
 
 ## Naming quirk: trader-trainer ≠ trader-service
