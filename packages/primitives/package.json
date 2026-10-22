@@ -1,0 +1,26 @@
+{
+  "name": "@trading-model/primitives",
+  "version": "1.0.0",
+  "description": "Pure domain primitives (branded types, ranges, identities) extracted from @trading-model/common",
+  "license": "ISC",
+  "type": "commonjs",
+  "exports": {
+    "./*": {
+      "types": "./dist/*.d.ts",
+      "default": "./dist/*.js"
+    }
+  },
+  "devDependencies": {
+    "@jest/globals": "^30.5.1",
+    "@types/jest": "^30.0.0",
+    "@types/node": "^26.5.0",
+    "jest": "^30.5.1",
+    "ts-jest": "^29.4.12",
+    "typescript": "^6.0.3"
+  },
+  "scripts": {
+    "test": "jest",
+    "test:coverage": "jest --coverage",
+    "build": "tsc"
+  }
+}
