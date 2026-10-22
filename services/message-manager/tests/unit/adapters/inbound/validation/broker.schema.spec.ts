@@ -6,7 +6,7 @@ import {
 	PUBLISH_SCHEMA,
 	SUBSCRIBE_SCHEMA,
 	UNSUBSCRIBE_SCHEMA,
-} from "../../../../../src/messaging/transport/validation/broker.schema";
+} from "../../../../../src/adapters/inbound/validation/broker.schema";
 
 describe("Broker Schemas", () => {
 	describe("SUBSCRIBE_SCHEMA", () => {

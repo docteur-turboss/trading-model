@@ -1,8 +1,8 @@
-﻿import {
+﻿import type { HttpClient } from "@trading-model/http/adapters/outbound/http-client";
+import {
 	PositiveInt,
 	UnixTimestamp,
-} from "@trading-model/common/domain/primitives";
-import type { HttpClient } from "@trading-model/http/adapters/outbound/http-client";
+} from "@trading-model/primitives/primitives";
 import type {
 	DeadLetterInput,
 	DeliverySendInput,

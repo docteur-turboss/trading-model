@@ -1,8 +1,8 @@
-﻿import {
+﻿import { computeExponentialBackoff } from "@trading-model/common/utils/backoff-config";
+import {
 	DurationMs,
 	type SequenceNumber,
-} from "@trading-model/common/domain/primitives";
-import { computeExponentialBackoff } from "@trading-model/common/utils/backoff-config";
+} from "@trading-model/primitives/primitives";
 
 const BaseDelayMs = DurationMs.of(1000);
 const MaxDelayMs = DurationMs.of(60_000);

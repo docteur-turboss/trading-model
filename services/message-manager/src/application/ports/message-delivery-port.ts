@@ -2,7 +2,7 @@ import type {
 	ConsumerGroupName,
 	SequenceNumber,
 	URLString,
-} from "@trading-model/common/domain/primitives";
+} from "@trading-model/primitives/primitives";
 import type { Message } from "@trading-model/validation/domain/contracts/message.types";
 
 interface MessageDeliveryContext {

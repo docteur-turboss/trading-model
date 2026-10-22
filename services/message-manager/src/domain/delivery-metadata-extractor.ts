@@ -6,7 +6,7 @@ import {
 	type SequenceNumber,
 	toConsumerGroupName,
 	UnixTimestamp,
-} from "@trading-model/common/domain/primitives";
+} from "@trading-model/primitives/primitives";
 import type { Message } from "@trading-model/validation/domain/contracts/message.types";
 import type { DeliveryParams } from "./delivery-params";
 

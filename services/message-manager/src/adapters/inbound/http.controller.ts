@@ -3,13 +3,13 @@
  * Uses Zod validation and ResponseException for standardized HTTP responses.
  */
 
-import { toInstanceId, toTopic } from "@trading-model/common/domain/primitives";
-import type { HttpStatusCode } from "@trading-model/common/http-status";
+import type { HttpStatusCode } from "@trading-model/contracts/http-status";
 import { catchSync } from "@trading-model/http/adapters/inbound/catch-error";
 import { sendResponse } from "@trading-model/http/adapters/inbound/response-exception";
+import { toInstanceId, toTopic } from "@trading-model/primitives/primitives";
 import type { MessageMetadata } from "@trading-model/validation/domain/contracts/message.types";
 import type { z } from "zod";
-import type { Dispatcher } from "../core/dispatcher";
+import type { Dispatcher } from "../../application/services/dispatcher";
 import {
 	PUBLISH_SCHEMA,
 	SUBSCRIBE_SCHEMA,

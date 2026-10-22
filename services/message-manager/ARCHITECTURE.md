@@ -58,7 +58,7 @@ Services interact with the broker through the `@trading-model/broker-message` SD
 
 ## Components
 
-### Dispatcher (`messaging/core/dispatcher.ts`)
+### Dispatcher (`application/services/dispatcher.ts`)
 
 Central message router exposing the messaging API. Responsibilities:
 
@@ -69,7 +69,7 @@ Central message router exposing the messaging API. Responsibilities:
 - Deduplicates subscriptions by `instanceId` (same topic + instanceId).
 - **`dispatch(message)`** — Looks up subscriptions by message topic, deduplicates by instanceId, and dispatches to all matching subscribers in parallel via `Promise.allSettled`. Individual failures are isolated.
 
-### Subscription (`messaging/core/subscription.ts`)
+### Subscription (`application/services/subscription.ts`)
 
 Per-instance message delivery handler. Responsibilities:
 
@@ -87,7 +87,7 @@ Per-instance message delivery handler. Responsibilities:
 - **DLQ**: Placeholder implementation for routing failed or expired messages to persistent storage or an HTTP endpoint.
 - Provides a `SubscribersContext` object to the consumer with `ack()`, `nack(reason)`, and `deadLetter(reason)` controls.
 
-### Message Contracts (`messaging/core/message.ts`)
+### Message Contracts (`@trading-model/validation` - `domain/contracts/message.types`)
 
 Canonical message envelope shared across producers, broker, and consumers:
 
@@ -112,7 +112,7 @@ interface MessageMetadata {
 }
 ```
 
-### Validation (`messaging/transport/validation/broker.schema.ts`)
+### Validation (`adapters/inbound/validation/broker.schema.ts`)
 
 Zod schemas enforce payload correctness at the HTTP boundary:
 

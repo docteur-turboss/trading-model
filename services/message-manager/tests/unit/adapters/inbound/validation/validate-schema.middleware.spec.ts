@@ -1,7 +1,7 @@
 import { describe, expect, it, jest } from "@jest/globals";
 import type { Request, Response } from "express";
 import { z } from "zod";
-import { VALIDATE_SCHEMA } from "../../../../../src/messaging/transport/validation/validate-schema.middleware";
+import { VALIDATE_SCHEMA } from "../../../../../src/adapters/inbound/validation/validate-schema.middleware";
 
 describe("VALIDATE_SCHEMA", () => {
 	const testSchema = z.object({

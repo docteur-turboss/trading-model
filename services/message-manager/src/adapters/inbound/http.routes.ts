@@ -1,12 +1,12 @@
-﻿import {
+import {
 	type NextFunction,
 	type Request,
 	type Response,
 	Router,
 } from "express";
 import rateLimit from "express-rate-limit";
+import type { Dispatcher } from "../../application/services/dispatcher";
 import { metricsHandler } from "../../config/metrics";
-import type { Dispatcher } from "../core/dispatcher";
 import {
 	DELETE_A_SUBSCRIPTION,
 	PUBLISH_A_MESSAGE,

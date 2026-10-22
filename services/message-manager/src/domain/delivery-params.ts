@@ -2,7 +2,7 @@ import type { DeliveryMode } from "@trading-model/common/config/delivery-mode.ty
 import type {
 	DurationMs,
 	UnixTimestamp,
-} from "@trading-model/common/domain/primitives";
+} from "@trading-model/primitives/primitives";
 
 export interface DeliveryParams {
 	ttl: DurationMs;

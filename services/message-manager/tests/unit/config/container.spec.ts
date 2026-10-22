@@ -6,7 +6,7 @@ jest.mock("express-rate-limit", () => {
 	);
 });
 
-import createBrokerModule from "../../../src/application/broker-module";
+import createBrokerModule from "../../../src/config/container";
 
 jest.mock("../../../src/config/address-manager", () => ({
 	ADDRESS_MANAGER_ROUTES: jest.fn(),

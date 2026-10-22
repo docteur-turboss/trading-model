@@ -25,14 +25,14 @@ import {
 	ROUTING_METADATA_CONTEXT_PREDICATE,
 	SECURITY_METADATA_CONTEXT_PREDICATE,
 } from "@trading-model/broker-message/shared/barrel/message.schema";
-import type { EventEnumMap } from "@trading-model/common/config/event.types";
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
+import type { EventEnumMap } from "@trading-model/contracts/event-map";
 import {
 	toCorrelationId,
 	toInstanceId,
 	toServiceId,
 	toTopic,
-} from "@trading-model/common/domain/primitives";
+} from "@trading-model/primitives/primitives";
 import { z } from "zod";
 
 const TOPIC_SCHEMA = z.string().min(1).transform(toTopic);

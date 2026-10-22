@@ -1,10 +1,10 @@
-import type { Topic } from "@trading-model/common/domain/primitives";
-import type { MessageDeliveryPort } from "../../application/ports/message-delivery-port";
+import type { Topic } from "@trading-model/primitives/primitives";
 import { SUBSCRIPTION_COUNT } from "../../config/metrics";
 import type {
 	SubscriptionParams,
 	TopicSubscription,
 } from "../../domain/messaging-types";
+import type { MessageDeliveryPort } from "../ports/message-delivery-port";
 import { Subscription } from "./subscription";
 
 export class SubscriptionRegistry {

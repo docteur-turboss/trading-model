@@ -1,4 +1,4 @@
-import { ServiceId } from "@trading-model/common/domain/primitives";
+import { ServiceId } from "@trading-model/primitives/primitives";
 import { createServiceServer } from "@trading-model/server-utils/adapters/inbound/service-server-factory";
 import Redis from "ioredis";
 

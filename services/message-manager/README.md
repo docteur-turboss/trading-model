@@ -7,7 +7,7 @@ Internal messaging backbone for inter-service communication. Provides topic-base
 ## Prerequisites
 
 - Node.js 20+
-- MongoDB 7+ (for message persistence — planned)
+- No external database required (in-memory dispatcher; local JSONL dead-letter file)
 - Access to a running [Discovery Server](../discovery-server/README.md) (service registry)
 - mTLS automatique via SPIRE (ADR-0011) — aucun certificat manuel à générer
 
@@ -81,44 +81,39 @@ bun run test:watch
 
 | Script           | Description                           |
 | ---------------- | ------------------------------------- |
-| `bun run dev`    | Run in development mode via `ts-node` |
-| `bun run build`  | Compile TypeScript to `dist/`         |
-| `bun run test`       | Execute all tests                     |
-| `bun run eslint` | Run ESLint on source files            |
+| `bun run dev`        | Run in development mode via `ts-node`  |
+| `bun run build`      | Compile TypeScript to `dist/`          |
+| `bun run test`       | Execute all tests                      |
+| `bun run test:coverage` | Execute all tests with coverage    |
 
 ## Project Structure
 
 ```
 src/
-├── application/                # Service bootstrap & entry point
+├── application/                # Service bootstrap & orchestration
 │   ├── index.ts                # Entry point (lifecycle via createBootstrap)
-│   ├── server.ts               # Express server factory (createSecureServer)
-│   └── ports/                  # Application ports (interfaces)
-├── adapters/                   # Ports/adapters wiring (outbound delivery, DLQ, WAL)
+│   ├── server.ts               # Express HTTPS server factory (createServiceServer)
+│   ├── ports/                  # Application ports (interfaces)
+│   └── services/               # Orchestration (dispatcher, subscription registry, ack/address/delivery handling)
+├── adapters/                   # Driving (inbound) & driven (outbound) adapters
+│   ├── inbound/                # HTTP transport layer
+│   │   ├── http.controller.ts  # Request handlers (subscribe, unsubscribe, publish)
+│   │   ├── http.routes.ts      # Express route definitions
+│   │   └── validation/
+│   │       ├── broker.schema.ts          # Zod schemas for request validation
+│   │       └── validate-schema.middleware.ts  # Validation middleware
 │   └── outbound/
-│       ├── http-message-delivery.ts
-│       ├── dlq-repository.ts
-│       ├── request-signer.ts
-│       └── file-wal-fallback.ts
+│       └── http-message-delivery.ts   # HTTP delivery + JSONL dead-letter
 ├── domain/                     # Domain types & business rules
 ├── infrastructure/
-│   ├── app/index.ts            # Composition root wiring
-│   ├── redis/                  # Redis-backed stores
-│   ├── mongodb/                # Mongo-backed stores
-│   ├── fallback/               # Fallback repositories
-│   └── config/env.ts           # Zod-validated environment variables
+│   ├── config/env.ts           # Zod-validated environment variables
+│   └── fallback/
+│       └── dlq-repository.ts   # Local JSONL dead-letter store
 ├── config/
 │   ├── address-manager.ts      # Service discovery client setup
+│   ├── container.ts            # Broker composition root (HTTP client, DLQ, dispatcher, routes)
 │   └── message-manager.ts      # Broker singleton & route binder
-├── messaging/                  # Messaging domain logic
-│   ├── core/                   # Broker facade, dispatcher, DLQ, claim/dedup logic
-│   └── transport/              # HTTP/WS transport layer
-│       ├── http.controller.ts  # Request handlers (subscribe, unsubscribe, publish)
-│       ├── http.routes.ts      # Express route definitions
-│       ├── wss-*.ts            # WebSocket transport handling
-│       └── validation/
-│           └── broker.schema.ts # Zod schemas for request validation
-└── shared/                     # Shared types & helpers
+└── shared/                     # Shared types (broker.type.ts)
 
 tests/
 ├── unit/                       # Unit tests mirroring src structure

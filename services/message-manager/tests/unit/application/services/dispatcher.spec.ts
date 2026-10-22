@@ -11,9 +11,9 @@ import {
 	jest,
 } from "@jest/globals";
 import { HttpMessageDelivery } from "../../../../src/adapters/outbound/http-message-delivery";
+import { Dispatcher } from "../../../../src/application/services/dispatcher";
+import { Subscription } from "../../../../src/application/services/subscription";
 import { FileDlqRepository } from "../../../../src/infrastructure/fallback/dlq-repository";
-import { Dispatcher } from "../../../../src/messaging/core/dispatcher";
-import { Subscription } from "../../../../src/messaging/core/subscription";
 import {
 	createMockMessage,
 	mockSubscribeParams,
@@ -21,8 +21,9 @@ import {
 } from "../../../fixtures/broker.fixture";
 import { createMockHttpClient } from "../../../helpers/broker.helper";
 
-jest.mock("@trading-model/http/infrastructure/logger", () => ({
-	logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
+const mockLogger = { info: jest.fn(), warn: jest.fn(), error: jest.fn() };
+jest.mock("@trading-model/contracts/logger-registry", () => ({
+	getLogger: () => mockLogger,
 }));
 
 jest.mock("@trading-model/common/utils/sleep", () => ({
@@ -180,12 +181,7 @@ describe("Dispatcher", () => {
 			const message = createMockMessage("test");
 			await dispatcher.dispatch(message);
 
-			const { logger } = jest.requireMock(
-				"@trading-model/http/infrastructure/logger"
-			) as {
-				logger: { info: jest.Mock; warn: jest.Mock; error: jest.Mock };
-			};
-			expect(logger.error).toHaveBeenCalledWith("Message delivery failed", {
+			expect(mockLogger.error).toHaveBeenCalledWith("Message delivery failed", {
 				context: { error: new Error("Unhandled error") },
 			});
 

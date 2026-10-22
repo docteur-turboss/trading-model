@@ -5,7 +5,7 @@ import {
 	DELETE_A_SUBSCRIPTION,
 	PUBLISH_A_MESSAGE,
 	SUBSCRIPTION_TO_A_TOPIC,
-} from "../../../../src/messaging/transport/http.controller";
+} from "../../../../src/adapters/inbound/http.controller";
 import { createMockDispatcher } from "../../../helpers/broker.helper";
 
 jest.mock("@trading-model/http/adapters/inbound/catch-error", () => ({

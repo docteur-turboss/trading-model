@@ -16,6 +16,9 @@ module.exports = {
     },
   },
   moduleNameMapper: {
+    '^@trading-model/primitives/(.*)$': '<rootDir>/../../packages/primitives/src/$1',
+    '^@trading-model/contracts/(.*)$': '<rootDir>/../../packages/contracts/src/$1',
+    '^@trading-model/reliability/(.*)$': '<rootDir>/../../packages/reliability/src/$1',
     '^@trading-model/http/(.*)$': '<rootDir>/../../packages/http/src/$1',
     '^@trading-model/jobs/(.*)$': '<rootDir>/../../packages/jobs/src/$1',
     '^@trading-model/crypto/(.*)$': '<rootDir>/../../packages/crypto/src/$1',
@@ -26,8 +29,6 @@ module.exports = {
     '^@trading-model/broker-message/(.*)$': '<rootDir>/../../packages/broker-message/src/$1',
     '^@trading-model/common/tests/(.*)$': '<rootDir>/../../packages/common/tests/$1',
     '^config/(.*)$': '<rootDir>/src/config/$1',
-    '^messaging$': '<rootDir>/src/application/broker-module.ts',
-    '^messaging/(.*)$': '<rootDir>/src/messaging/$1',
   },
   transform: {
     '^.+\\.tsx?$': [

@@ -1,14 +1,14 @@
-﻿import type { InstanceId } from "@trading-model/common/domain/primitives";
-import { logger } from "../../config/logger";
+﻿import { getLogger } from "@trading-model/contracts/logger-registry";
+import type { InstanceId } from "@trading-model/primitives/primitives";
 
 export function handleAck(messageId: string, instanceId: InstanceId): void {
-	logger.info("Message acknowledged", {
+	getLogger().info("Message acknowledged", {
 		context: { messageId, instanceId },
 	});
 }
 
 export function handleNack(messageId: string, instanceId: InstanceId): void {
-	logger.warn("Message negatively acknowledged", {
+	getLogger().warn("Message negatively acknowledged", {
 		context: { messageId, instanceId },
 	});
 }

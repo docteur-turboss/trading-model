@@ -7,7 +7,7 @@ jest.mock("express-rate-limit", () => {
 	);
 });
 
-import { BROKER_ROUTES } from "../../../../src/messaging/transport/http.routes";
+import { BROKER_ROUTES } from "../../../../src/adapters/inbound/http.routes";
 import { createMockDispatcher } from "../../../helpers/broker.helper";
 
 describe("BROKER_ROUTES", () => {

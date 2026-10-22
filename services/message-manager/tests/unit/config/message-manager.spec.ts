@@ -1,6 +1,6 @@
 import { describe, expect, it, jest } from "@jest/globals";
 
-jest.mock("messaging", () => {
+jest.mock("../../../src/config/container", () => {
 	const mockListen = jest.fn();
 	const mockBrokerModule = jest.fn(() => ({ listen: mockListen }));
 	return {

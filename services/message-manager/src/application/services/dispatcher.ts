@@ -6,10 +6,9 @@
  * subscribers.
  */
 
-import type { InstanceId } from "@trading-model/common/domain/primitives";
-import { logger } from "@trading-model/http/infrastructure/logger";
+import { getLogger } from "@trading-model/contracts/logger-registry";
+import type { InstanceId } from "@trading-model/primitives/primitives";
 import type { Message } from "@trading-model/validation/domain/contracts/message.types";
-import type { MessageDeliveryPort } from "../../application/ports/message-delivery-port";
 import {
 	DELIVERY_LATENCY_SECONDS,
 	IN_FLIGHT_MESSAGES,
@@ -20,6 +19,7 @@ import type {
 	SubscriptionParams,
 	TopicSubscription,
 } from "../../domain/messaging-types";
+import type { MessageDeliveryPort } from "../ports/message-delivery-port";
 import { handleAck as logAck, handleNack as logNack } from "./ack-handler";
 import { SubscriptionRegistry } from "./subscription-registry";
 
@@ -88,7 +88,7 @@ export class Dispatcher {
 			);
 			for (const result of results) {
 				if (isRejected(result)) {
-					logger.error("Message delivery failed", {
+					getLogger().error("Message delivery failed", {
 						context: { error: result.reason },
 					});
 				}

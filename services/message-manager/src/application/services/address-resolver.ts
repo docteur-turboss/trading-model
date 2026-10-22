@@ -2,8 +2,8 @@
 import type {
 	ServiceId,
 	URLString,
-} from "@trading-model/common/domain/primitives";
-import { HostPort } from "@trading-model/common/domain/service-identity";
+} from "@trading-model/primitives/primitives";
+import { HostPort } from "@trading-model/primitives/service-identity";
 import { FIND_A_SERVICE } from "../../config/address-manager";
 
 export async function resolveTarget(

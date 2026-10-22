@@ -1,4 +1,4 @@
-import type { DateRange } from "@trading-model/common/domain/date-range";
+import type { DateRange } from "@trading-model/primitives/date-range";
 import type {
 	ConsumerGroupName,
 	ConsumerId,
@@ -10,7 +10,7 @@ import type {
 	Topic,
 	UnixTimestamp,
 	URLString,
-} from "@trading-model/common/domain/primitives";
+} from "@trading-model/primitives/primitives";
 import type { Message } from "@trading-model/validation/domain/contracts/message.types";
 
 export interface TopicSubscription {

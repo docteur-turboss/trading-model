@@ -11,8 +11,8 @@ import {
 	jest,
 } from "@jest/globals";
 import { HttpMessageDelivery } from "../../src/adapters/outbound/http-message-delivery";
+import { Dispatcher } from "../../src/application/services/dispatcher";
 import { FileDlqRepository } from "../../src/infrastructure/fallback/dlq-repository";
-import { Dispatcher } from "../../src/messaging/core/dispatcher";
 import {
 	mockServiceIdentity,
 	mockSubscriberIdentity,

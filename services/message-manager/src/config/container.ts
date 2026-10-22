@@ -4,10 +4,10 @@
 
 import { HttpClient } from "@trading-model/http/adapters/outbound/http-client";
 import type { Application } from "express";
+import { BROKER_ROUTES } from "../adapters/inbound/http.routes";
 import { HttpMessageDelivery } from "../adapters/outbound/http-message-delivery";
+import { Dispatcher } from "../application/services/dispatcher";
 import { FileDlqRepository } from "../infrastructure/fallback/dlq-repository";
-import { Dispatcher } from "../messaging/core/dispatcher";
-import { BROKER_ROUTES } from "../messaging/transport/http.routes";
 import type { BrokerConfig } from "../shared/broker.type";
 
 export interface BrokerModule {

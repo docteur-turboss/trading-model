@@ -1,4 +1,4 @@
-import { CircuitState } from "@trading-model/common/domain/circuit-state";
+import { CircuitState } from "@trading-model/primitives/circuit-state";
 import { metricsHandler } from "@trading-model/server-utils/adapters/inbound/metrics-handler";
 import promClient from "prom-client";
 

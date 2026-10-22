@@ -1,11 +1,11 @@
 import { DeliveryMode } from "@trading-model/common/config/delivery-mode.types";
+import { isDeadLetterError } from "@trading-model/common/utils/errors";
 import type {
 	DurationMs,
 	PositiveInt,
 	SequenceNumber,
 	UnixTimestamp,
-} from "@trading-model/common/domain/primitives";
-import { isDeadLetterError } from "@trading-model/common/utils/errors";
+} from "@trading-model/primitives/primitives";
 import type { DeliveryParams } from "./delivery-params";
 
 export enum DlqReason {

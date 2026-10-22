@@ -3,8 +3,8 @@
  */
 
 import { buildTlsFromEnv } from "@trading-model/common/config/tls-paths";
-import createBrokerModule from "../application/broker-module";
 import { ENV } from "../infrastructure/config/env";
+import createBrokerModule from "./container";
 
 /**
  * Broker singleton, instantiated at module load time.

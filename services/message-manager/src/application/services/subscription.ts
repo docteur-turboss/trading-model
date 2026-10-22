@@ -2,14 +2,14 @@ import type { ServiceInstanceName } from "@trading-model/common/config/services.
 import type {
 	SequenceNumber,
 	Topic,
-} from "@trading-model/common/domain/primitives";
-import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
-import type { TopicBinding } from "@trading-model/common/domain/topic-binding";
-import { CircuitStateMachine } from "@trading-model/common/reliability/circuit-state-machine";
+} from "@trading-model/primitives/primitives";
+import type { ServiceIdentity } from "@trading-model/primitives/service-identity";
+import type { TopicBinding } from "@trading-model/primitives/topic-binding";
+import { CircuitStateMachine } from "@trading-model/reliability/circuit-state-machine";
 import type { Message } from "@trading-model/validation/domain/contracts/message.types";
-import type { MessageDeliveryPort } from "../../application/ports/message-delivery-port";
 import { SUBSCRIBER_DELIVERY_CONCURRENCY } from "../../config/metrics";
 import { backoffDelay as computeBackoffDelay } from "../../domain/backoff-calculator";
+import type { MessageDeliveryPort } from "../ports/message-delivery-port";
 import { DeliveryAttemptHandler } from "./delivery-attempt-handler";
 import { DeliveryErrorHandler } from "./delivery-error-handler";
 import {
