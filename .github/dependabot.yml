@@ -9,7 +9,6 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
-    versioning-strategy: increase
 
   - package-ecosystem: "docker"
     directory: "/services/discovery-server"
