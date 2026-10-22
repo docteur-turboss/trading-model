@@ -11,7 +11,7 @@ jest.mock("@trading-model/http/infrastructure/logger", () => ({
 	logger: MOCK_LOGGER,
 }));
 
-jest.mock("@trading-model/common/logging/logger-registry", () => ({
+jest.mock("@trading-model/contracts/logger-registry", () => ({
 	getLogger: () => MOCK_LOGGER,
 	setLogger: jest.fn(),
 }));
@@ -62,7 +62,7 @@ const MOCK_JOB_REPOSITORY_INSTANCE = {
 	findByStatus: jest.fn<any>(),
 };
 
-jest.mock("../../../src/persistence/job-repository", () => ({
+jest.mock("../../../src/adapters/outbound/persistence/job-repository", () => ({
 	JobRepository: jest.fn(() => MOCK_JOB_REPOSITORY_INSTANCE),
 }));
 
@@ -90,13 +90,13 @@ const MOCK_SCHEDULER_INSTANCE = {
 	onWorkerDisconnect: jest.fn(),
 };
 
-jest.mock("../../../src/scheduler/job-scheduler", () => ({
+jest.mock("../../../src/application/scheduler/job-scheduler", () => ({
 	JobScheduler: jest.fn(() => MOCK_SCHEDULER_INSTANCE),
 }));
 
 const MOCK_WORKER_PROTOCOL_INSTANCE = { close: jest.fn() };
 
-jest.mock("../../../src/worker/worker-protocol", () => ({
+jest.mock("../../../src/adapters/outbound/worker/worker-protocol", () => ({
 	WorkerProtocol: jest.fn(() => MOCK_WORKER_PROTOCOL_INSTANCE),
 }));
 
@@ -138,11 +138,11 @@ jest.mock("@trading-model/validation/domain/contracts/audit-events", () => ({
 
 import { createBootstrap } from "@trading-model/server-utils/application/services/bootstrap";
 import { AuditRepository } from "../../../src/adapters/outbound/persistence/audit-repository";
+import { JobRepository } from "../../../src/adapters/outbound/persistence/job-repository";
+import { WorkerProtocol } from "../../../src/adapters/outbound/worker/worker-protocol";
+import { JobScheduler } from "../../../src/application/scheduler/job-scheduler";
 import { createServer } from "../../../src/application/server";
 import { BOOTSTRAP_ADDRESS_MANAGER } from "../../../src/config/address-manager";
-import { JobRepository } from "../../../src/persistence/job-repository";
-import { JobScheduler } from "../../../src/scheduler/job-scheduler";
-import { WorkerProtocol } from "../../../src/worker/worker-protocol";
 
 const MOCK_CREATE_BOOTSTRAP = createBootstrap as jest.Mock;
 
@@ -183,7 +183,9 @@ describe("Audit Logger entry point (index.ts)", () => {
 			expect(
 				MOCK_AUDIT_REPOSITORY_INSTANCE.ensureIndexes
 			).toHaveBeenCalledTimes(1);
-			expect(JobScheduler).toHaveBeenCalledWith(MOCK_JOB_REPOSITORY_INSTANCE);
+			expect(JobScheduler).toHaveBeenCalledWith(
+				expect.objectContaining({ repository: MOCK_JOB_REPOSITORY_INSTANCE })
+			);
 			expect(createServer).toHaveBeenCalledWith(
 				expect.objectContaining({
 					workers: MOCK_SCHEDULER_INSTANCE.workers,

@@ -28,9 +28,12 @@
     "dev": "ts-node src/application/index.ts"
   },
   "dependencies": {
+    "@trading-model/primitives": "*",
+    "@trading-model/contracts": "*",
     "@trading-model/address-manager": "*",
     "@trading-model/broker-message": "*",
     "@trading-model/common": "*",
+    "@trading-model/persistence": "*",
     "@trading-model/http": "*",
     "@trading-model/jobs": "*",
     "@trading-model/server-utils": "*",

@@ -41,11 +41,11 @@ jest.mock("../../../src/infrastructure/config/env", () => ({
 	},
 }));
 
-jest.mock("../../../src/routes/health.routes", () => ({
+jest.mock("../../../src/adapters/inbound/http/health.routes", () => ({
 	healthRoutes: jest.fn(() => MOCK_HEALTH_ROUTES),
 }));
 
-jest.mock("../../../src/routes/events.routes", () => ({
+jest.mock("../../../src/adapters/inbound/http/events.routes", () => ({
 	eventsRoutes: jest.fn(() => MOCK_EVENTS_ROUTES),
 }));
 
@@ -61,9 +61,9 @@ jest.mock(
 );
 
 import { createSecureServer } from "@trading-model/server-utils/adapters/inbound/create-secure-server";
+import { eventsRoutes } from "../../../src/adapters/inbound/http/events.routes";
+import { healthRoutes } from "../../../src/adapters/inbound/http/health.routes";
 import { createServer } from "../../../src/application/server";
-import { eventsRoutes } from "../../../src/routes/events.routes";
-import { healthRoutes } from "../../../src/routes/health.routes";
 
 describe("createServer", () => {
 	beforeEach(() => {

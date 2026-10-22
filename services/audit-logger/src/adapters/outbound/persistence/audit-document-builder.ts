@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import type { EventEnumMap } from "@trading-model/common/config/event.types";
+import type { EventEnumMap } from "@trading-model/contracts/event-map";
 import {
 	type CorrelationId,
 	type Topic,
@@ -8,8 +8,8 @@ import {
 	toMessageId,
 	toServiceId,
 	toTopic,
-} from "@trading-model/common/domain/primitives";
-import type { ParsedEnvelope } from "../../../subscription/message-parser";
+} from "@trading-model/primitives/primitives";
+import type { ParsedEnvelope } from "../../inbound/subscription/message-parser";
 import type { AuditEventDocument } from "./audit-repository";
 
 const MS_PER_DAY = 86_400_000;

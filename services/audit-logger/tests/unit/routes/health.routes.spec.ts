@@ -9,7 +9,7 @@ jest.mock("express", () => ({
 	Router: jest.fn(() => MOCK_ROUTER),
 }));
 
-jest.mock("../../../src/controllers/health.controller", () => ({
+jest.mock("../../../src/adapters/inbound/http/health.controller", () => ({
 	createHealthController: jest.fn(() => MOCK_CONTROLLER),
 }));
 
@@ -19,12 +19,12 @@ jest.mock("../../../src/config/metrics", () => ({
 	WORKER_COUNT: { set: jest.fn() },
 }));
 
+import { healthRoutes } from "../../../src/adapters/inbound/http/health.routes";
 import {
 	BACKPRESSURE_RATIO,
 	JOB_COUNT,
 	WORKER_COUNT,
 } from "../../../src/config/metrics";
-import { healthRoutes } from "../../../src/routes/health.routes";
 
 interface SchedulerMocks {
 	queue: { depth: ReturnType<typeof jest.fn> };

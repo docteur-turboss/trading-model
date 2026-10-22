@@ -1,23 +1,23 @@
-import type { EventEnumMap } from "@trading-model/common/config/event.types";
+import { agentError } from "@trading-model/common/utils/errors";
+import type { EventEnumMap } from "@trading-model/contracts/event-map";
+import type { MongoRepository } from "@trading-model/persistence/mongo-repository.interface";
 import type {
 	PaginationResult,
 	QueryEnvelope,
-} from "@trading-model/common/domain/pagination";
+} from "@trading-model/primitives/pagination";
 import type {
 	CorrelationId,
 	InstanceId,
 	MessageId,
 	ServiceId,
 	Topic,
-} from "@trading-model/common/domain/primitives";
-import type { MongoRepository } from "@trading-model/common/persistence/mongo-repository.interface";
-import { agentError } from "@trading-model/common/utils/errors";
+} from "@trading-model/primitives/primitives";
 import type { AuditFilter } from "@trading-model/validation/adapters/inbound/admin/audit.dto";
 import type { Collection, Db } from "mongodb";
 import { EVENTS_STORED_TOTAL } from "../../../config/metrics";
-import { AuditQuerier } from "../../../persistence/audit-querier";
-import type { DateRange } from "../../../types/date-range";
+import type { DateRange } from "../../../domain/date-range";
 import { computeAuditHash } from "./audit-document-builder";
+import { AuditQuerier } from "./audit-querier";
 
 export interface AuditEventDocument {
 	receivedAt: Date;

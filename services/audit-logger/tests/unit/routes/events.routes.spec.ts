@@ -13,7 +13,7 @@ jest.mock("express", () => ({
 	Router: jest.fn(() => MOCK_ROUTER),
 }));
 
-jest.mock("../../../src/controllers/events.controller", () => ({
+jest.mock("../../../src/adapters/inbound/http/events.controller", () => ({
 	createEventsController: jest.fn(() => MOCK_CONTROLLER),
 }));
 
@@ -21,8 +21,8 @@ jest.mock("../../../src/config/metrics", () => ({
 	EVENTS_QUERY_DURATION_SECONDS: { observe: jest.fn() },
 }));
 
+import { eventsRoutes } from "../../../src/adapters/inbound/http/events.routes";
 import { EVENTS_QUERY_DURATION_SECONDS } from "../../../src/config/metrics";
-import { eventsRoutes } from "../../../src/routes/events.routes";
 
 describe("eventsRoutes", () => {
 	beforeEach(() => {

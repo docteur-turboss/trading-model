@@ -7,30 +7,21 @@ import {
 	jest,
 } from "@jest/globals";
 
-jest.mock("@trading-model/http/infrastructure/logger", () => ({
-	logger: {
+jest.mock("@trading-model/contracts/logger-registry", () => {
+	const logger = {
 		info: jest.fn(),
 		warn: jest.fn(),
 		error: jest.fn(),
 		debug: jest.fn(),
-	},
-}));
+	};
+	return { getLogger: () => logger, setLogger: () => {} };
+});
 
-jest.mock("../../../src/infrastructure/config/env", () => ({
-	ENV: {
-		ACK_TIMEOUT_MS: 30000,
-		MAX_QUEUE_DEPTH: 10000,
-		MAX_WORKER_LOAD_RATIO: 0.85,
-		MAX_RETRIES_PER_JOB: 3,
-		ORPHAN_SCAN_INTERVAL_MS: 10000,
-		WORKER_HEARTBEAT_TTL_MS: 30000,
-	},
-}));
-
-import { PositiveInt } from "@trading-model/common/domain/primitives";
-import type { JobRepository } from "../../../src/persistence/job-repository";
-import { JobScheduler } from "../../../src/scheduler/job-scheduler";
-import type { WorkerProtocol } from "../../../src/worker/worker-protocol";
+import { PositiveInt } from "@trading-model/primitives/primitives";
+import type { JobRepository } from "../../../src/adapters/outbound/persistence/job-repository";
+import type { WorkerProtocol } from "../../../src/adapters/outbound/worker/worker-protocol";
+import { JobScheduler } from "../../../src/application/scheduler/job-scheduler";
+import type { SchedulerConfig } from "../../../src/application/scheduler/scheduler-config";
 
 interface MockLogger {
 	info: jest.Mock;
@@ -39,10 +30,19 @@ interface MockLogger {
 	debug: jest.Mock;
 }
 const MOCK_LOGGER = (
-	jest.requireMock("@trading-model/http/infrastructure/logger") as {
-		logger: MockLogger;
+	jest.requireMock("@trading-model/contracts/logger-registry") as {
+		getLogger: () => MockLogger;
 	}
-).logger;
+).getLogger();
+
+const SCHEDULER_CONFIG: SchedulerConfig = {
+	ackTimeoutMs: 30000,
+	maxQueueDepth: 10000,
+	maxWorkerLoadRatio: 0.85,
+	maxRetriesPerJob: 3,
+	orphanScanIntervalMs: 10000,
+	workerHeartbeatTtlMs: 30000,
+};
 
 describe("JobScheduler", () => {
 	let scheduler: JobScheduler;
@@ -63,7 +63,10 @@ describe("JobScheduler", () => {
 			ensureIndexes: jest.fn(),
 		} as unknown as jest.Mocked<JobRepository>;
 
-		scheduler = new JobScheduler(mockRepository);
+		scheduler = new JobScheduler({
+			repository: mockRepository,
+			config: SCHEDULER_CONFIG,
+		});
 	});
 
 	afterEach(() => {

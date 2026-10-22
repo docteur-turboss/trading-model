@@ -17,8 +17,8 @@ jest.mock("mongodb", () => ({
 	Collection: jest.fn(),
 }));
 
-import { JobRepository } from "../../../src/persistence/job-repository";
-import type { Job } from "../../../src/types/job.types";
+import { JobRepository } from "../../../src/adapters/outbound/persistence/job-repository";
+import type { Job } from "../../../src/domain/job.types";
 
 function makeJob(overrides: Partial<Job> = {}): Job {
 	return {

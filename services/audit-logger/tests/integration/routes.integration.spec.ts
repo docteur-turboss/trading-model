@@ -39,10 +39,10 @@ jest.mock("../../src/config/address-manager", () => ({
 	AddressManager: { getAddress: (): null => null },
 }));
 
-import { healthRoutes } from "../../src/routes/health.routes";
-import { BackPressure } from "../../src/scheduler/back-pressure";
-import { InternalQueue } from "../../src/scheduler/internal-queue";
-import { createWorkerRegistry } from "../../src/worker/worker-registry";
+import { healthRoutes } from "../../src/adapters/inbound/http/health.routes";
+import { createWorkerRegistry } from "../../src/application/scheduler/worker-registry";
+import { BackPressure } from "../../src/domain/scheduler/back-pressure";
+import { InternalQueue } from "../../src/domain/scheduler/internal-queue";
 
 function createApp() {
 	const app = configureApp();

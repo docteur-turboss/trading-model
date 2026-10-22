@@ -1,16 +1,16 @@
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
-import { toInstanceId } from "@trading-model/common/domain/primitives";
 import { logger } from "@trading-model/http/infrastructure/logger";
+import { toInstanceId } from "@trading-model/primitives/primitives";
 import { createBootstrap } from "@trading-model/server-utils/application/services/bootstrap";
 import {
 	initializeTelemetry,
 	shutdownTelemetry,
 } from "@trading-model/server-utils/infrastructure/telemetry";
 import { BOOTSTRAP_ADDRESS_MANAGER } from "../config/address-manager";
+import { createBrokerMessage } from "../config/broker-setup";
+import { createSchedulerAndWorker } from "../config/container";
 import { ENV } from "../infrastructure/config/env";
 import { createRepositories } from "../infrastructure/repository-factory";
-import { createBrokerMessage } from "./broker-setup";
-import { createSchedulerAndWorker } from "./scheduler-factory";
 
 interface CleanupContext {
 	mongoManager: Awaited<ReturnType<typeof createRepositories>>["mongoManager"];

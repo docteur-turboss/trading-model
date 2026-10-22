@@ -1,11 +1,11 @@
-import type { HttpStatusCode } from "@trading-model/common/http-status";
+import type { HttpStatusCode } from "@trading-model/contracts/http-status";
 import { catchSync } from "@trading-model/http/adapters/inbound/catch-error";
 import { sendResponse } from "@trading-model/http/adapters/inbound/response-exception";
 import type { RequestHandler } from "express";
 import { EVENTS_INGESTED_TOTAL } from "../../../config/metrics";
-import { parseEnvelope } from "../../../subscription/message-parser";
 import { buildAuditDocument } from "../../outbound/persistence/audit-document-builder";
 import type { AuditRepository } from "../../outbound/persistence/audit-repository";
+import { parseEnvelope } from "./message-parser";
 
 export function createMessageHandler(
 	auditRepo: AuditRepository,

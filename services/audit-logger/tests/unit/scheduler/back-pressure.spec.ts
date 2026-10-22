@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "@jest/globals";
 
-import { BackPressure } from "../../../src/scheduler/back-pressure";
+import { BackPressure } from "../../../src/domain/scheduler/back-pressure";
 
 describe("BackPressure", () => {
 	let backPressure: BackPressure;

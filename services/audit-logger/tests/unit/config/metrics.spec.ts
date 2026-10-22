@@ -21,22 +21,12 @@ import {
 	EVENTS_QUERY_DURATION_SECONDS,
 	EVENTS_STORED_TOTAL,
 	JOB_COUNT,
-	LOGS_INGESTED_TOTAL,
-	LOGS_STORED_TOTAL,
 	metricsHandler,
 	ORPHAN_JOBS_TOTAL,
 	WORKER_COUNT,
 } from "../../../src/config/metrics";
 
 describe("metrics", () => {
-	it("should export LOGS_INGESTED_TOTAL counter", () => {
-		expect(LOGS_INGESTED_TOTAL).toBeDefined();
-	});
-
-	it("should export LOGS_STORED_TOTAL counter", () => {
-		expect(LOGS_STORED_TOTAL).toBeDefined();
-	});
-
 	it("should export EVENTS_INGESTED_TOTAL counter", () => {
 		expect(EVENTS_INGESTED_TOTAL).toBeDefined();
 	});

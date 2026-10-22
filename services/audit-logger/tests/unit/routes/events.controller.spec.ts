@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
-import { DateRange } from "@trading-model/common/domain/date-range";
+import { DateRange } from "@trading-model/primitives/date-range";
 
 import { createNext, createReq, createRes } from "../../helpers/express";
 
@@ -12,8 +12,8 @@ jest.mock("@trading-model/http/adapters/inbound/response-exception", () => {
 	return { sendResponse };
 });
 
+import { createEventsController } from "../../../src/adapters/inbound/http/events.controller";
 import type { AuditRepository } from "../../../src/adapters/outbound/persistence/audit-repository";
-import { createEventsController } from "../../../src/controllers/events.controller";
 
 describe("EventsController", () => {
 	let mockRepo: jest.Mocked<AuditRepository>;

@@ -1,14 +1,14 @@
-import { ServiceId } from "@trading-model/common/domain/primitives";
-import type { MongoConnectionManager } from "@trading-model/common/persistence/mongo-connection-manager";
+import type { MongoConnectionManager } from "@trading-model/persistence/mongo-connection-manager";
+import { ServiceId } from "@trading-model/primitives/primitives";
 import { createServiceServer } from "@trading-model/server-utils/adapters/inbound/service-server-factory";
+import { eventsRoutes } from "../adapters/inbound/http/events.routes";
+import { healthRoutes } from "../adapters/inbound/http/health.routes";
 import { createMessageHandler } from "../adapters/inbound/subscription/audit-subscriber";
 import type { AuditRepository } from "../adapters/outbound/persistence/audit-repository";
 import { ADDRESS_MANAGER_ROUTES } from "../config/address-manager";
 import { metricsHandler } from "../config/metrics";
 import { ENV } from "../infrastructure/config/env";
-import { eventsRoutes } from "../routes/events.routes";
-import { healthRoutes } from "../routes/health.routes";
-import type { JobScheduler } from "../scheduler/job-scheduler";
+import type { JobScheduler } from "./scheduler/job-scheduler";
 
 export function createServer(
 	scheduler: JobScheduler,

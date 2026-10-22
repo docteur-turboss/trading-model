@@ -14,11 +14,11 @@ jest.mock(
 	() => mockSendResponseModule
 );
 
-import { createHealthController } from "../../../src/controllers/health.controller";
-import { BackPressure } from "../../../src/scheduler/back-pressure";
-import { InternalQueue } from "../../../src/scheduler/internal-queue";
-import type { WorkerRegistry } from "../../../src/worker/worker-registry";
-import { createWorkerRegistry } from "../../../src/worker/worker-registry";
+import { createHealthController } from "../../../src/adapters/inbound/http/health.controller";
+import type { WorkerRegistry } from "../../../src/application/scheduler/worker-registry";
+import { createWorkerRegistry } from "../../../src/application/scheduler/worker-registry";
+import { BackPressure } from "../../../src/domain/scheduler/back-pressure";
+import { InternalQueue } from "../../../src/domain/scheduler/internal-queue";
 
 describe("HealthController", () => {
 	let queue: InternalQueue;

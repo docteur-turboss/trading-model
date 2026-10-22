@@ -1,18 +1,6 @@
 import { metricsHandler } from "@trading-model/server-utils/adapters/inbound/metrics-handler";
 import promClient from "prom-client";
 
-export const LOGS_INGESTED_TOTAL = new promClient.Counter({
-	name: "audit_logs_ingested_total",
-	help: "Total service logs ingested",
-	labelNames: ["level", "service_name"] as const,
-});
-
-export const LOGS_STORED_TOTAL = new promClient.Counter({
-	name: "audit_logs_stored_total",
-	help: "Total service logs persisted to MongoDB",
-	labelNames: ["status"] as const,
-});
-
 export const EVENTS_INGESTED_TOTAL = new promClient.Counter({
 	name: "audit_events_ingested_total",
 	help: "Total audit events ingested",

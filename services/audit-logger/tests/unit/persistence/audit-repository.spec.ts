@@ -20,14 +20,14 @@ jest.mock("mongodb", () => ({
 	Collection: jest.fn(),
 }));
 
-import { DateRange } from "@trading-model/common/domain/date-range";
+import { DateRange } from "@trading-model/primitives/date-range";
 import {
 	toCorrelationId,
 	toInstanceId,
 	toMessageId,
 	toServiceId,
 	toTopic,
-} from "@trading-model/common/domain/primitives";
+} from "@trading-model/primitives/primitives";
 import {
 	type AuditEventDocument,
 	AuditRepository,

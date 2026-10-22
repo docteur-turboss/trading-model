@@ -1,0 +1,41 @@
+import type { HttpStatusCode } from "@trading-model/contracts/http-status";
+import { catchSync } from "@trading-model/http/adapters/inbound/catch-error";
+import {
+	HEALTH_STATUS_OK,
+	type ResponseObject,
+	sendResponse,
+} from "@trading-model/http/adapters/inbound/response-exception";
+import type { RequestHandler } from "express";
+import type { WorkerRegistry } from "../../../application/scheduler/worker-registry";
+import type { BackPressure } from "../../../domain/scheduler/back-pressure";
+import type { InternalQueue } from "../../../domain/scheduler/internal-queue";
+
+function _healthResponse(
+	queue: InternalQueue,
+	backPressure: BackPressure,
+	workers: WorkerRegistry
+): ResponseObject {
+	return sendResponse(
+		{
+			status: HEALTH_STATUS_OK,
+			queueDepth: queue.depth(),
+			canAccept: backPressure.canAccept(),
+			workerCount: workers.store.size(),
+			averageLoad: workers.healthMonitor.averageLoad(),
+			timestamp: new Date().toISOString(),
+		},
+		200 as HttpStatusCode
+	);
+}
+
+export function createHealthController(
+	queue: InternalQueue,
+	backPressure: BackPressure,
+	workers: WorkerRegistry
+): { health: RequestHandler } {
+	const health: RequestHandler = catchSync(() =>
+		_healthResponse(queue, backPressure, workers)
+	);
+
+	return { health };
+}

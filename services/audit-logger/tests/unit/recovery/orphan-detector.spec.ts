@@ -18,13 +18,13 @@ jest.mock("../../../src/infrastructure/config/env", () => ({
 	},
 }));
 
-import { PositiveInt } from "@trading-model/common/domain/primitives";
 import { OrphanDetector } from "@trading-model/jobs/application/services/orphan-detector";
 import { ReAllocator } from "@trading-model/jobs/application/services/re-allocator";
-import type { JobRepository } from "../../../src/persistence/job-repository";
-import { InternalQueue } from "../../../src/scheduler/internal-queue";
-import type { WorkerRegistry } from "../../../src/worker/worker-registry";
-import { createWorkerRegistry } from "../../../src/worker/worker-registry";
+import { PositiveInt } from "@trading-model/primitives/primitives";
+import type { JobRepository } from "../../../src/adapters/outbound/persistence/job-repository";
+import type { WorkerRegistry } from "../../../src/application/scheduler/worker-registry";
+import { createWorkerRegistry } from "../../../src/application/scheduler/worker-registry";
+import { InternalQueue } from "../../../src/domain/scheduler/internal-queue";
 import { createJob } from "../../fixtures/job.fixture";
 
 describe("OrphanDetector", () => {

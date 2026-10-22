@@ -1,4 +1,4 @@
-import type { Job } from "../../src/types/job.types";
+import type { Job } from "../../src/domain/job.types";
 
 export const createJob = (overrides?: Partial<Job>): Job =>
 	({

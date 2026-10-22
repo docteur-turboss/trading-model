@@ -7,7 +7,7 @@ import {
 	jest,
 } from "@jest/globals";
 
-import { InternalQueue } from "../../../src/scheduler/internal-queue";
+import { InternalQueue } from "../../../src/domain/scheduler/internal-queue";
 import { createJob } from "../../fixtures/job.fixture";
 
 describe("InternalQueue", () => {
