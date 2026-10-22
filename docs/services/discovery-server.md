@@ -9,7 +9,7 @@ Centralised service instance registry with TTL-based lease management and HMAC-S
 | Service name     | `discovery-server`                     |
 | Port (host)      | `8443`                                  |
 | Port (container) | `3000`                                  |
-| Dependencies     | `@trading-model/common` only            |
+| Dependencies     | `@trading-model/primitives`, `@trading-model/contracts`, `@trading-model/common`, `@trading-model/persistence`, `@trading-model/crypto`, `@trading-model/http`, `@trading-model/server-utils`, `@trading-model/validation` |
 | TLS              | mTLS required (client certificate)      |
 | Storage          | In-memory with TTL-based lease eviction |
 
@@ -177,8 +177,8 @@ The discovery-server follows a dependency injection pattern. No singletons are u
 
 | Class / Factory                        | Instantiator   | Notes                                            |
 | -------------------------------------- | -------------- | ------------------------------------------------ |
-| `new ServiceRegistry()`                | `src/application/index.ts` | Central in-memory registry (no singleton export) |
-| `new LeaseManager(registry, options?)` | `src/application/index.ts` | Accepts `ServiceRegistry` in constructor         |
+| `createServiceRegistry(options?)`      | `src/config/container.ts`  | Wires `ServiceRegistry` with store, crypto and metrics adapters (no singleton export) |
+| `new LeaseManager(registry, options?)` | `src/application/index.ts` | Accepts `ServiceRegistry` + optional `logger`/`metrics` ports |
 | `createServer(registry)`               | `src/application/index.ts` | HTTPS server factory                             |
 
 ### Controller & Route Factories
@@ -195,9 +195,14 @@ All controllers and routes receive their dependencies via factory parameters:
 ### Composition Root (`src/application/index.ts`)
 
 ```ts
-const registry = new ServiceRegistry();
+const registry = createServiceRegistry({
+  signingSecret: ENV.SIGNING_SECRET,
+  instanceStore: buildInstanceStore(),
+});
 const leaseManager = new LeaseManager(registry, {
-  cleanupIntervalMs: env.CLEANUP_SERVICE_INTERVAL_MS,
+  cleanupIntervalMs: ENV.CLEANUP_SERVICE_INTERVAL_MS,
+  logger,
+  metrics: prometheusDiscoveryMetrics,
 });
 createBootstrap({
   createServer: () => createServer(registry),
@@ -229,9 +234,9 @@ Controllers are created via factories that accept a `ServiceRegistry` instance.
 
 | File                         | Factory                     | Routes                                                                              |
 | ---------------------------- | --------------------------- | ----------------------------------------------------------------------------------- |
-| `routes/register.routes.ts`  | `registryRoutes(registry)`  | `POST /register`, `GET /services`, `GET /services/:name`, `GET /services/:name/:id` |
-| `routes/heartbeat.routes.ts` | `heartbeatRoutes(registry)` | `POST /heartbeat`, `POST /token/rotate`                                             |
+| `adapters/inbound/http/register.routes.ts`  | `registryRoutes(registry)`  | `POST /register`, `GET /services`, `GET /services/:name`, `GET /services/:name/:id` |
+| `adapters/inbound/http/heartbeat.routes.ts` | `heartbeatRoutes(registry)` | `POST /heartbeat`, `POST /token/rotate`                                             |
 
 ## Deployment
 
-The service is bootstrapped via `createBootstrap()` which attaches `SIGTERM`/`SIGINT` handlers. The composition root (`src/application/index.ts`) creates a `new ServiceRegistry()` and `new LeaseManager(registry)`, then passes the registry to `createServer(registry)`. The `LeaseManager` is started in `onStart` and stopped in `onStop`.
+The service is bootstrapped via `createBootstrap()` which attaches `SIGTERM`/`SIGINT` handlers. The composition root (`src/application/index.ts`) builds the registry via `createServiceRegistry()` (`src/config/container.ts`) and a `new LeaseManager(registry)`, then passes the registry to `createServer(registry)`. The `LeaseManager` is started in `onStart` and stopped in `onStop`.

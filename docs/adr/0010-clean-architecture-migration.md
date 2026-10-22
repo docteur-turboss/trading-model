@@ -1,9 +1,13 @@
 # ADR-0010: Clean Architecture Migration for message-manager core/
 
-**Status:** Accepted
+**Status:** Implemented
 **Date:** 2026-06
 
 > **Outcome (2026-09):** The hexagonal target structure was generalized beyond message-manager and applied to **all** services (see [Architecture Standards](../standards/architecture-standards.md) — `domain/`, `application/`, `adapters/inbound|outbound`, `infrastructure/`, `config/`, `shared/`). message-manager now has a pure `domain/` layer: 24 purely-domain modules (message/type/contract definitions, interfaces/ports, backoff, payload sanitization, dedup/DLQ retry, WAL entry model, …) were extracted from the legacy `messaging/core/`, and the core WAL/flush/claim/archive logic remains under `messaging/core/` pending full phase-2/4 completion.
+>
+> **Outcome (2026-10):** message-manager phases 2–4 are **complete** — the legacy `src/messaging/` directory is gone and its jest alias (`^messaging$`) removed. The 12 former `messaging/core/` files (dispatcher, dispatch-orchestrator, subscription, subscription-registry, ack-handler, delivery-attempt-handler, delivery-error-handler, address-resolver) now live in `application/services/`; the former `messaging/transport/` files (http.controller, http.routes, validation/broker.schema, validate-schema.middleware) moved to `adapters/inbound/`. `domain/` remains pure (7 files) and its purity is enforced by the architecture gate. No re-export shims were retained (hard migration).
+>
+> **Outcome (2026-10-22, closed):** Every backend service now uses the hexagonal layout only — no legacy top-level directory remains (`core/`, `app/`, `controllers/`, `routes/`, `persistence/`, `scheduler/`, `clients/`, `infra/`, `job/`, `dlq/` … all migrated): audit-logger, financial-scraper, dlq-service, trader-trainer and discovery-server joined message-manager. Domain layers are free of IO/framework imports and application layers depend on ports; concrete adapters are wired in `config/container.ts` (the composition root this ADR prescribed), entry points live in `application/index.ts`. Details, ports introduced and the remaining open point (composition-root exemption) are recorded in [ADR-0015](./0015-hexagonal-layering-completion.md).
 
 ## Context
 

@@ -41,13 +41,19 @@ bun install --frozen-lockfile
 bun run build
 ```
 
-Compiles the monorepo packages in this order:
+Compiles the monorepo packages in this order (topological dependency chain):
 
-1. `common` (`packages/common`)
-2. `validation` (`packages/validation`) + `server-utils` (`packages/server-utils`)
-3. `crypto` (`packages/crypto`)
-4. `address-manager` (`packages/address-manager`)
-5. `broker-message` (`packages/broker-message`)
+1. `primitives` (`packages/primitives`)
+2. `contracts` (`packages/contracts`)
+3. `reliability` (`packages/reliability`)
+4. `common` (`packages/common`)
+5. `persistence` (`packages/persistence`)
+6. `http` (`packages/http`)
+7. `validation` (`packages/validation`) + `server-utils` (`packages/server-utils`)
+8. `crypto` (`packages/crypto`)
+9. `jobs` (`packages/jobs`)
+10. `address-manager` (`packages/address-manager`)
+11. `broker-message` (`packages/broker-message`)
 
 Packages are used by the microservices as `@trading-model/*` workspace dependencies.
 

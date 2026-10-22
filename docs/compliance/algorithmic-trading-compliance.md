@@ -14,9 +14,9 @@ The trading-model platform trains autonomous trading agents using Genetic Algori
 
 | Requirement | Platform Implementation | Status |
 |---|---|---|
-| **Art. 1(1)** — Clearly describe system design and operation | Architecture documented in `docs/architecture/`, ADRs in `docs/adr/`, agent topology defined in `services/trader-trainer/src/neural-network/` | ✅ Documented |
+| **Art. 1(1)** — Clearly describe system design and operation | Architecture documented in `docs/architecture/`, ADRs in `docs/adr/`, agent topology defined in `services/trader-trainer/src/domain/neural-network/` | ✅ Documented |
 | **Art. 1(2)** — Identify trading algorithms, logic, constraints | GA population evolution + DQN policy network. Constraints: position sizing, market data window (500 candles default), train/validation split (80/20) | ✅ Implemented |
-| **Art. 1(3)** — Risk management controls pre-deployment | Circuit breakers (`@trading-model/common/reliability/circuit-breaker.ts`), rate limiting, position limits validated in env schema | ✅ Implemented |
+| **Art. 1(3)** — Risk management controls pre-deployment | Circuit breakers (`@trading-model/reliability/circuit-breaker.ts`), rate limiting, position limits validated in env schema | ✅ Implemented |
 | **Art. 1(4)** — Business continuity arrangements | Docker Compose health checks, K8s HPA + PDB, database failover runbooks (`docs/operations/runbooks/runbook-database-failover.md`) | ✅ Documented |
 
 ## 3. Governance & Testing Requirements (RTS 6 Art. 3-5)
@@ -27,8 +27,8 @@ The platform must demonstrate that algorithmic trading systems conform to specif
 
 | Test | Implementation | Evidence |
 |---|---|---|
-| **Market data integrity** — input validation and sanitisation | Zod schemas validate all incoming market data (`services/financial-scraper/src/clients/binance/`) | Integration tests |
-| **Agent behaviour bounds** — max position, max order frequency | Enforced via agent environment constraints in `services/trader-trainer/src/environment/` | Unit tests |
+| **Market data integrity** — input validation and sanitisation | Zod schemas validate all incoming market data (`services/financial-scraper/src/adapters/outbound/binance/`) | Integration tests |
+| **Agent behaviour bounds** — max position, max order frequency | Enforced via agent environment constraints in `services/trader-trainer/src/domain/env/` | Unit tests |
 | **Order generation validation** — no erroneous orders | Training operates in simulation mode only; no real order execution | N/A (simulation only) |
 | **Kill functionality** — ability to halt trading | Not implemented in simulation. Production deployment requires a circuit breaker at the api-gateway level | 🟡 Planned |
 
@@ -54,7 +54,7 @@ The platform should undergo an annual review covering:
 
 | Control | Implementation |
 |---|---|
-| **Max order volume/ value** | Enforced in agent action space definition (`services/trader-trainer/src/environment/`) |
+| **Max order volume/ value** | Enforced in agent action space definition (`services/trader-trainer/src/domain/env/`) |
 | **Max order frequency** | Configurable via `MAX_ORDERS_PER_EPISODE` env var |
 | **Dual-channel price validation** | Not implemented — simulation only. For production: requires independent price feed comparison |
 | **Pre-trade risk checks** | Not implemented — simulation only. For production: requires integration with market gateway |

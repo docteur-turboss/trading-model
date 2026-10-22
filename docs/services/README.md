@@ -8,10 +8,16 @@ This directory documents every package and service in the **trading-model** mono
 
 | Package                          | Path                        | Documentation                              |
 | -------------------------------- | --------------------------- | ------------------------------------------ |
+| `@trading-model/primitives`      | `packages/primitives/`      | —                                          |
+| `@trading-model/contracts`       | `packages/contracts/`       | —                                          |
+| `@trading-model/reliability`     | `packages/reliability/`     | —                                          |
 | `@trading-model/common`          | `packages/common/`          | [common.md](./common.md)                   |
+| `@trading-model/persistence`     | `packages/persistence/`     | —                                          |
+| `@trading-model/http`            | `packages/http/`            | —                                          |
 | `@trading-model/validation`      | `packages/validation/`      | —                                          |
 | `@trading-model/server-utils`    | `packages/server-utils/`    | —                                          |
 | `@trading-model/crypto`          | `packages/crypto/`          | —                                          |
+| `@trading-model/jobs`            | `packages/jobs/`            | —                                          |
 | `@trading-model/address-manager` | `packages/address-manager/` | [address-manager.md](./address-manager.md) |
 | `@trading-model/broker-message`  | `packages/broker-message/`  | [broker-message.md](./broker-message.md)   |
 

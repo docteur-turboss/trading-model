@@ -49,7 +49,7 @@ A formal Data Processing Agreement with Binance is **not required** because:
 
 - Binance API Terms of Service: https://www.binance.com/en/terms
 - Binance Privacy Policy: https://www.binance.com/en/privacy
-- Integration code: `services/financial-scraper/src/clients/binance/`
+- Integration code: `services/financial-scraper/src/adapters/outbound/binance/`
 
 ## Other Third Parties
 

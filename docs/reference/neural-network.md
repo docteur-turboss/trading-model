@@ -4,7 +4,7 @@
 
 ## Overview
 
-This document describes the neural network module (`src/core/neural-network/`) implementation. It covers the class API, TypeScript types, configuration, and training modes.
+This document describes the neural network module (`src/domain/neural-network/`) implementation. It covers the class API, TypeScript types, configuration, and training modes.
 
 ---
 

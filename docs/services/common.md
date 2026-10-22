@@ -1,331 +1,84 @@
-# @trading-model/common — Shared Infrastructure Package
+# @trading-model/common — Shared Infrastructure Package (Residual)
 
-Central utility package consumed by all other packages and services in the monorepo.
+Residual shared package consumed by other packages and services in the monorepo. After the ADR-0007 split (extended 2026-10), `common` is deliberately small: it keeps only residual config, cross-cutting utilities and shared Zod schemas. The bulk of the former god-package now lives in dedicated packages — see [Package Map Post-Split](#package-map-post-split).
 
 ## Why This Package Exists
 
-Every microservice needs the same cross-cutting concerns: HTTPS server setup, mTLS, logging, error handling, environment validation. Without a shared library, each service would duplicate these concerns — leading to inconsistencies, drift, and maintenance overhead.
-
-The alternative — using off-the-shelf libraries directly in each service — was rejected because:
-- Services would need independent mTLS configuration, risking security gaps
-- Logging format and error handling would diverge, making debugging harder
-- Shared types (event enums, service names, delivery modes) would need synchronized copy-paste across services
-
-`@trading-model/common` centralizes these concerns into a single, tested, versioned package.
-
-## Overview
-
-**@trading-model/common** provides: HTTP client, logger, middleware, domain primitives (branded types), contracts/shared DTOs, reliability (circuit breakers), worker/recovery helpers, and a central `AppError` class with `ErrorCodes`.
-
-> **Package split (ADR-0007):** server bootstrap, the secure HTTPS server factory, and TLS loading now live in `@trading-model/server-utils`; environment validation and Zod schemas live in `@trading-model/validation`; crypto primitives live in `@trading-model/crypto`; HTTP middleware, the HTTP client and the logging system live in `@trading-model/http`; the distributed worker protocol and orphan recovery live in `@trading-model/jobs`. `common` keeps the remaining domains (primitives, contracts, reliability, persistence, utils, ws) and re-exports a small subset for backward compatibility.
-
-This package depends on `@trading-model/http`, `@trading-model/validation`, `@trading-model/server-utils`, and `@trading-model/crypto`, plus external packages (`zod`, `ioredis`, `mongodb`, `ws`).
-
-## Logger
-
-Structured logging system with severity levels, memory buffer, file output, and external webhook for errors.
-
-> Moved to `@trading-model/http` (ADR-0007).
-
-- **Import**: `@trading-model/http/infrastructure/logger`
-- **Class**: `Logger`
-- **Pre-configured instance**: `logger`
-
-```ts
-import { logger, LogLevel } from '@trading-model/http/infrastructure/logger';
-```
-
-| Method                                                       | Description                                        |
-| ------------------------------------------------------------ | -------------------------------------------------- |
-| `logger.debug(message, context?, url?, serviceInCharge?)`    | Log at DEBUG level                                 |
-| `logger.info(message, context?, url?, serviceInCharge?)`     | Log at INFO level                                  |
-| `logger.warn(message, context?, url?, serviceInCharge?)`     | Log at WARN level                                  |
-| `logger.error(message, context?, url?, serviceInCharge?)`    | Log at ERROR level + sends webhook in prod/staging |
-
-**LogLevel**: `DEBUG = 0`, `INFO = 1`, `WARN = 2`, `ERROR = 3`
-
-Features:
-
-- File output to `./log/<date>-<level>.log`
-- ERROR webhook via `ERROR_URL_WEBHOOK` or `setErrorHandlerService(url)`
-- FIFO buffer (1000 entries max)
-- Unique session ID per instance
-- Circular reference detection
-
-## Bootstrap
-
-Lifecycle manager for services. Signal handling is delegated to a separate module (`signal-handler.ts`) to respect SRP.
-
-> Moved to `@trading-model/server-utils` (ADR-0007).
-
-- **Import**: `@trading-model/server-utils/application/services/bootstrap`
-- **Function**: `createBootstrap(options)`
-
-```ts
-import { createBootstrap } from '@trading-model/server-utils/application/services/bootstrap';
-```
-
-| Option         | Type               | Description              |
-| -------------- | ------------------ | ------------------------ |
-| `name`         | `string`           | Service name             |
-| `createServer` | `() => HttpServer` | HTTPS server factory     |
-| `onStart?`     | `() => void`       | Callback after startup   |
-| `onStop?`      | `() => void`       | Callback before shutdown |
-
-Features:
-
-- Delegates `SIGTERM`, `SIGINT`, `uncaughtException`, and `unhandledRejection` handling to `setupProcessHandlers()`
-- `onStart` and `onStop` callbacks wrapped in try/catch — failures are logged and do not crash the process
-- Graceful shutdown on fatal error: closes HTTP server and calls `onStop` before exit
-
-## SignalHandler
-
-Process signal and error handler registration, extracted from bootstrap for SRP.
-
-> Moved to `@trading-model/server-utils` (ADR-0007).
-
-- **Import**: `@trading-model/server-utils/infrastructure/signal-handler`
-
-```ts
-import {
-  setupProcessHandlers,
-  removeProcessHandlers,
-} from '@trading-model/server-utils/infrastructure/signal-handler';
-```
-
-| Function                | Description                                                               |
-| ----------------------- | ------------------------------------------------------------------------- |
-| `setupProcessHandlers`  | Registers SIGTERM, SIGINT, uncaughtException, unhandledRejection handlers |
-| `removeProcessHandlers` | Removes all registered handlers (test cleanup)                            |
-
-## SecureServer
-
-HTTPS server factory with mTLS, rate limiting, and Helmet.
-
-> Moved to `@trading-model/server-utils` (ADR-0007).
-
-- **Import**: `@trading-model/server-utils/adapters/inbound/create-secure-server`
-- **Function**: `createSecureServer(options)`
-
-```ts
-import { createSecureServer } from '@trading-model/server-utils/adapters/inbound/create-secure-server';
-```
-
-| Option        | Type              | Description                 |
-| ------------- | ----------------- | --------------------------- |
-| `port`        | `number`          | Listening port              |
-| `tls`         | `TlsPaths`        | key/cert/ca paths           |
-| `routes`      | `(app) => void`   | Route mounting              |
-| `rateLimit?`  | `RateLimitConfig` | Rate limiting configuration |
-| `trustProxy?` | `boolean`         | Trust proxy (default: true) |
-
-Features:
-
-- mTLS (TLSv1.3, `requestCert: true`, `rejectUnauthorized: true`)
-- Rate limiting via `express-rate-limit` (100 req/15min by default)
-- Helmet security headers
-- `GET /ping` endpoint (constant `PING_PATH`)
-- `MTLSAuthMiddleware` injected automatically
-- `ResponseProtocol` as last middleware
-- `server.close()` returns a promise that resolves only after all in-flight connections have drained (uses Node.js callback form)
-
-### Internal Architecture
-
-`createSecureServer` delegates each concern to a focused sub-module:
-
-| Module                    | Responsibility                                                                    |
-| ------------------------- | --------------------------------------------------------------------------------- |
-| `configure-app.ts`        | Express app setup: Helmet, trust proxy, body parsers, rate limiter, `/ping` route |
-| `server-factory.ts`       | HTTPS server creation with mTLS (TLSv1.3) and `listen()`                          |
-| `create-secure-server.ts` | Orchestrator: composes app, mTLS middleware, user routes, error middleware        |
-
-This separation follows the Single Responsibility Principle — each module is independently testable and changes to one concern (e.g. rate limiting) do not risk breaking others (e.g. TLS configuration).
-
-## Environment Validation
-
-Fail-fast validation of environment variables via Zod.
-
-> Moved to `@trading-model/validation` (ADR-0007).
-
-- **Import**: `@trading-model/validation/config/env` (+ `@trading-model/validation/config/address-manager-env`, `@trading-model/validation/application/services/validate-env`)
-
-```ts
-import {
-  BaseEnvSchema,
-  AddressManagerEnvSchema,
-} from '@trading-model/validation/config/env';
-import { validateEnv } from '@trading-model/validation/application/services/validate-env';
-```
-
-| Schema                    | Description                                                                            |
-| ------------------------- | -------------------------------------------------------------------------------------- |
-| `BaseEnvSchema`           | `NODE_ENV`, `PORT`, `TLS_KEY_PATH`, `TLS_CERT_PATH`, `TLS_CA_PATH`, `LOG_LEVEL` |
-| `AddressManagerEnvSchema` | `APP_NAME`, `SERVICE_NAME`, `INSTANCE_ID`, `CACHE_TTL_MS`, `ADDRESS_MANAGER_URL`, etc. |
-| `validateEnv(schema)`     | Parses `process.env` and throws `ConfigurationError` on failure                        |
-
-## HttpClient
-
-HTTP client with mTLS support for service-to-service calls.
-
-> Moved to `@trading-model/http` (ADR-0007).
-
-- **Import**: `@trading-model/http/adapters/outbound/http-client`
-
-```ts
-import { HttpClient } from '@trading-model/http/adapters/outbound/http-client';
-```
-
-| Method                                     | Signature | Returns                   |
-| ------------------------------------------ | --------- | ------------------------- |
-| `get<T>(url, options?, schema?)`           | `GET`     | `Promise<T \| undefined>` |
-| `post<T>(url, body?, options?, schema?)`   | `POST`    | `Promise<T \| undefined>` |
-| `delete<T>(url, body?, options?, schema?)` | `DELETE`  | `Promise<T \| undefined>` |
-
-Options: `timeoutMs`, `headers`
-
-Schema validation (optional `z.ZodType<T>`):
-
-- When a Zod schema is provided, the response is validated at runtime against it
-- If validation fails, a `z.ZodError` is thrown
-- Without a schema, the response is cast as `T` (no runtime check)
-
-Note: Methods return `T \| undefined` because a 204 No Content response resolves without a body. Callers must handle the `undefined` case explicitly (no longer silently cast as `T`).
-
-Errors: `HttpClientError` (non-2xx status), `HttpClientTimeoutError` (timeout), `z.ZodError` (schema validation)
-
-## Middleware
-
-All middlewares are imported from `@trading-model/http/adapters/inbound/` (ADR-0007).
-
-### catchSync
-
-Wrapper for async Express route handlers.
-
-- **Import**: `@trading-model/http/adapters/inbound/catch-error`
-- **Function**: `catchSync(handler)`
-
-### ResponseException
-
-Standardised HTTP errors with fluent status code methods.
-
-- **Import**: `@trading-model/http/adapters/inbound/response-exception`
-- **Function**: `ResponseException(reason)`
-
-```ts
-ResponseException('message').NotFound(); // { status: 404, data: 'message' }
-ResponseException('msg').BadRequest(); // { status: 400, data: 'msg' }
-ResponseException().NoContent(); // { status: 204, data: undefined }
-```
-
-Available codes: `ServiceUnavailable(503)`, `UnknownError(500)`, `InvalidToken(498)`, `TooManyRequests(429)`, `IMATeapot(418)`, `PayloadTooLarge(413)`, `Gone(410)`, `Conflict(409)`, `MethodNotAllowed(405)`, `NotFound(404)`, `Forbidden(403)`, `PaymentRequired(402)`, `Unauthorized(401)`, `BadRequest(400)`, `NoContent(204)`, `OK(201)`, `Success(200)`
-
-### ResponseProtocol
-
-Global Express error normalisation middleware.
-
-- **Import**: `@trading-model/http/adapters/inbound/response-protocol`
-- Logs 5xx errors with stack trace, URL, method, IP
-
-### MTLSAuthMiddleware
-
-mTLS authentication middleware.
-
-- **Import**: `@trading-model/http/adapters/inbound/mtls-auth`
-- Checks `socket.authorized`, extracts client certificate identity
-- Identity resolution: prefers SAN (Subject Alternative Name), falls back to CN (Common Name)
-- Fails closed with **401 Unauthorized** if no SAN or CN is present on the certificate (no default identity leak)
-- Attaches `clientIdentity` to the request (declared via global Express `Request` augmentation — `declare global { namespace Express { interface Request { clientIdentity: string } } }`)
-- Rejects non-TLS connections (e.g. plain HTTP) with a Forbidden error to prevent unauthenticated access
-
-### handleCoreResponse / handleCoreAuthResponse
-
-Response normalisation utilities.
-
-- **Import**: `@trading-model/http/adapters/inbound/handle-core-response`
-
-| Function                              | Description                                                |
-| ------------------------------------- | ---------------------------------------------------------- |
-| `handleCoreResponse(coreFn, res)`     | Executes a core function and sends a standardised response |
-| `handleCoreAuthResponse(coreFn, res)` | Same + sets an HTTP-only `token` cookie                    |
-| `ensureAtLeastOneField(fields)`       | Ensures at least one field is truthy                       |
-
-## HTTP Error Reference
-
-| Status Code | Error                 | Description              |
-| ----------- | --------------------- | ------------------------ |
-| 400         | Bad Request           | Invalid input            |
-| 401         | Unauthorized          | Missing or invalid auth  |
-| 403         | Forbidden             | Insufficient permissions |
-| 404         | Not Found             | Resource not found       |
-| 500         | Internal Server Error | Unexpected error         |
-
-## Event Types
-
-> `@trading-model/common/config/event.types` is **deprecated** — import per-context types directly:
-> - Market events & market data types: `@trading-model/common/contracts/market-events` + `@trading-model/common/contracts/market-data.types`
-> - Audit events: `@trading-model/common/contracts/audit-events`
-
-The legacy module still re-exports the market-data types and builds the combined helpers from the per-context maps:
-
-| Export                                                                               | Description                                                                       |
-| ------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------- |
-| `EventMap`                                                                           | Event → payload type mapping (MarketEventMap ∪ AuditEventMap)                     |
-| `EventMessagesArgs<K>`                                                               | Payload type for a given event K                                                  |
-| `EventEnumMap`                                                                       | Union of all valid event name strings                                             |
-| `MarketType`                                                                         | `CRYPTO`, `EQUITY`, `BOND`, `ETF`, `FX`, `FUTURE`                                 |
-| `SourceType`                                                                         | `BLOOMBERG`, `BINANCE`, `NYSE`                                                    |
-| `CandleData`, `TradeData`, `OrderBookData`, `BookTickerData`, `TickerData` | Market data entities (re-exported from `contracts/market-data.types`)             |
-
-## Service Types
-
-- **Import**: `@trading-model/common/config/services.types`
-
-```ts
-export enum ServiceInstanceName {
-	AdminInterface = "admin-interface",
-	ApiGatewayService = "api-gateway",
-	AuditLoggerService = "audit-logger-service",
-	DiscoveryService = "discovery-service",
-	DlqService = "dlq-service",
-	FinancialScraperService = "financial-scraper-service",
-	MessageDeliveryService = "message-delivery-service",
-	MessageManagerService = "message-manager",
-	TraderTrainerService = "trader-trainer",
-}
-```
-
-## Delivery Types
-
-- **Import**: `@trading-model/common/config/delivery-mode.types`
-
-```ts
-DeliveryMode.AT_MOST_ONCE; // 'at-most-once'
-DeliveryMode.AT_LEAST_ONCE; // 'at-least-once'
-DeliveryMode.EXACTLY_ONCE; // 'exactly-once'
-```
-
-## Contracts (Shared DTOs)
-
-> Shared service contracts moved to `@trading-model/broker-message` (`domain/types/payloads`) and `@trading-model/validation` (`adapters/outbound/service-registry.types`). `common/contracts/` retains market-data types, event enums, signed-request, error-response, pagination and worker-protocol types.
-
-| Export                      | Kind      | Description                                 |
-| --------------------------- | --------- | ------------------------------------------- |
-| `SubscribesTopicsPayload`   | interface | `{ topics, callbackUrl }`                   |
-| `UnSubscribesTopicsPayload` | interface | `{ topics }`                                |
-| `BrokerConfig`              | interface | `{ serviceName, callbackPath, instanceId }` |
-| `ServiceRegisterPayload`    | interface | `{ name, address, port, protocol, env? }`   |
-| `HeartbeatPayload`          | interface | `{ serviceName, instanceId, authToken }`    |
-| `ServicesQueryPayload`      | interface | `{ serviceName, services, onlyAlive }`      |
-| `ServiceInstance`           | interface | `{ ip, port, protocol, lastHeartbeat, registeredAt, serviceName, instanceId, env?, ttl, version, region? }` |
-
-## Crypto
-
-> Moved to `@trading-model/crypto` (ADR-0007): `@trading-model/crypto/domain/services/prng` and `@trading-model/crypto/adapters/outbound/node-random`.
-
-| Export              | Description                                                 |
-| ------------------- | ----------------------------------------------------------- |
-| `makePRNG`          | Seeded PRNG (mulberry32) → `(seed: number) => () => number` |
-| `generateRandomStr` | Cryptographically random base64url string                   |
+Some concerns are genuinely cross-cutting and have no single owning domain: the `AppError` base class and `ErrorCodes`, retry/backoff helpers, SPIFFE identity parsing, TLS path config, cache abstractions, and log sanitization. Keeping them in one small, tested, versioned package avoids duplication without recreating a god-object.
+
+> **Package split (ADR-0007, extended 2026-10):** `common` went from 135 → **30 source files**. Hard migration — **no re-export shims**. Moved out to dedicated packages:
+> - Domain primitives (branded types, pagination, circuit-state, service-identity, retry-policy, topic-binding…) → `@trading-model/primitives`
+> - Contracts (event types, market-data, http-status, http-headers, LoggerPort registry) → `@trading-model/contracts`
+> - Reliability (circuit-breaker, circuit-state-machine, latency-tracker, heartbeat interfaces) → `@trading-model/reliability`
+> - Persistence (Redis/Mongo connection managers, store adapters, key builders) → `@trading-model/persistence`
+> - Server bootstrap / secure HTTPS factory → `@trading-model/server-utils`
+> - Environment validation & Zod schemas → `@trading-model/validation`
+> - Crypto primitives → `@trading-model/crypto`
+> - HTTP middleware, HTTP client, logging system → `@trading-model/http`
+> - Distributed worker protocol & orphan recovery → `@trading-model/jobs`
+
+`common` depends on `@trading-model/primitives` and `@trading-model/contracts` (plus external `zod`, `express`, `chained-error`). It has **no** dependency on `http`, `validation`, `server-utils` or `crypto`.
+
+## Package Map Post-Split
+
+The monorepo has **12 shared packages** under the `@trading-model/*` scope. Build order is topological (base → derived); there are **no cyclic dependencies**. `primitives` and `contracts` are the foundations and must never import higher-layer packages such as `http`.
+
+| # | Package | Role | Dependencies |
+|---|---------|------|--------------|
+| 1 | `@trading-model/primitives` | Pure domain primitives: branded types, pagination, circuit-state, service-identity, retry-policy, topic-binding. **Zero deps.** | — |
+| 2 | `@trading-model/contracts` | Shared contracts: event/market-data types, http-status, http-headers, `LoggerPort` registry (setLogger/getLogger) | primitives |
+| 3 | `@trading-model/reliability` | Circuit-breaker, circuit-state-machine, latency-tracker, heartbeat interfaces | primitives, contracts |
+| 4 | `@trading-model/common` | Residual shared infra: `AppError`/`ErrorCodes`, retry/backoff, SPIFFE, TLS config, cache, sanitize, shared schemas | primitives, contracts |
+| 5 | `@trading-model/persistence` | Redis/Mongo connection managers, store adapters, key builders (absorbed `redis-config`) | common, primitives, contracts (+ ioredis, mongodb) |
+| 6 | `@trading-model/http` | HTTP middleware, HTTP client, concrete logging pipeline | primitives, contracts, common, reliability |
+| 7 | `@trading-model/validation` | Environment validation, Zod schemas, DTOs, shared type contracts | primitives, contracts, common, http |
+| 8 | `@trading-model/server-utils` | Secure HTTPS server factory, TLS watcher/loader, bootstrap & shutdown, signal handling, telemetry | primitives, contracts, common, http |
+| 9 | `@trading-model/crypto` | Hashing, request signing, token generation, secure randomness | primitives, contracts, common, validation |
+| 10 | `@trading-model/jobs` | Distributed worker protocol, orphan recovery | primitives, contracts, common, http |
+| 11 | `@trading-model/address-manager` | Service discovery client, token manager, service cache with health checking, load balancing | primitives, contracts, common, persistence, http, reliability, server-utils, validation |
+| 12 | `@trading-model/broker-message` | Inter-service messaging SDK: message-manager client, event emitter, controller/routes, WSS client | primitives, contracts, address-manager, common, http, jobs, validation |
+
+## What Remains in `common`
+
+### `config/`
+
+| File | Purpose |
+|------|---------|
+| `services.types.ts` | Re-exports `ServiceInstanceName`, `ALL_SERVICE_NAMES`, `parseServiceName`, `registerServiceName` (canonical definitions live in `@trading-model/primitives/service-instance-name`) |
+| `delivery-mode.types.ts` | `DeliveryMode` enum: `AtMostOnce`, `AtLeastOnce`, `ExactlyOnce` |
+| `event.types.ts` | **Deprecated** facade — re-exports per-context types from `@trading-model/contracts`. Import directly from `contracts` for new code (see [Event Types](#event-types)) |
+| `db-connection-config.ts` | `createDbConfigFromEnv()` — builds `DbConnectionConfig` from `DB_HOST`/`DB_PORT`/`DB_USER`/`DB_PASSWORD`/`DB_NAME` |
+| `tls-paths.ts` | `TlsPaths`, `TlsEnvVars`, `TlsConfig`, `TlsPemBundle`, Zod `TlsEnvVarsSchema`, and helpers (`buildTlsFromEnv`, `resolveSecureContextOptions`, …) |
+| `workload-identity.ts` | SPIFFE workload-identity primitives (ADR-0011): trust domain, SPIFFE ID scheme, canonical service identities, `parseSpiffeId`, `buildSpiffeId`, `extractServiceName` |
+
+> Note: `redis-config` was absorbed into `@trading-model/persistence` — it is **not** in `common`.
+
+### `utils/`
+
+| File | Purpose |
+|------|---------|
+| `errors.ts` + `errors/` | `AppError`, `ErrorCodes`, `normalizeError`. The `errors/` sub-directory holds per-domain error-code groups: `base`, `general`, `auth`, `agent`, `messaging`, `address-manager`, `service-discovery` |
+| `retry.ts` | `retry(fn, options)` — retry loop with exponential backoff, `maxRetries`, `timeoutMs`, optional `shouldRetry` guard |
+| `backoff-config.ts` | `BackoffConfig`, `computeExponentialBackoff()` — shared backoff math used by `retry` |
+| `sleep.ts` | `sleep(ms): Promise<void>` |
+| `cache.ts` | `ICache<T>`, `ISyncCache<T>` — cache abstractions (get/set/delete/clear/has/invalidate with TTL) |
+| `ttl-cache-base.ts` | Base class for TTL-based cache implementations |
+| `circular-buffer.ts` | Fixed-capacity circular buffer |
+| `sanitize.ts` | `sanitizeForLog()` — strips PEM blocks and secrets before logging |
+| `safe-stringify.ts` | Cycle-safe JSON stringification |
+| `deterministic-stringify.ts` | Deterministic JSON serialization for cryptographic signing (recursively sorts object keys) |
+| `anonymize-ip.ts` | IP anonymization for privacy-safe logging |
+| `comma-separated.ts` | Parse comma-separated env strings into arrays |
+| `delay-range.ts` | Compute a random delay within a range (jitter) |
+| `timer-handle.ts` | Timer handle abstraction (clear-safe timers) |
+| `spiffe.ts` | Re-export facade of the SPIFFE helpers defined in `config/workload-identity.ts` |
+
+### `shared/schemas/`
+
+| File | Purpose |
+|------|---------|
+| `primitives.schema.ts` | Zod schemas for branded primitives: `PriceSchema`, `VolumeSchema` |
+| `market-data-schema.ts` | Shared market-data Zod schema |
 
 ## Error Handling
 
@@ -334,36 +87,87 @@ The project uses a single error class with a discriminant code property.
 - **Import**: `@trading-model/common/utils/errors`
 
 ```ts
-import { AppError, ErrorCodes } from '@trading-model/common/utils/errors';
+import { AppError, ErrorCodes, normalizeError } from '@trading-model/common/utils/errors';
 ```
 
-| Export       | Description                                              |
-| ------------ | -------------------------------------------------------- |
-| `AppError`   | Single application error class with `code` and `cause`   |
+| Export | Description |
+| ------ | ----------- |
+| `AppError` | Single application error class with `code` and `cause` |
 | `ErrorCodes` | Enum of error codes (`SERVICE_NOT_FOUND`, `MESSAGE_MANAGER_ERROR`, `AGENT_ERROR`, etc.) |
-| `normalizeError(err)` | Normalizes any unknown error into a proper `Error`  |
+| `normalizeError(err)` | Normalizes any unknown error into a proper `Error` |
+
+## Retry & Backoff
+
+- **Import**: `@trading-model/common/utils/retry`
+
+```ts
+import { retry } from '@trading-model/common/utils/retry';
+```
+
+`RetryOptions` extends `BackoffConfig` with `maxRetries`, optional `timeoutMs`, and an optional `shouldRetry()` guard that aborts the loop when it returns `false`. Backoff math lives in `@trading-model/common/utils/backoff-config` (`computeExponentialBackoff`).
+
+## Event Types
+
+Event types are owned by `@trading-model/contracts` (the former `@trading-model/common/config/event.types` facade was removed, see ADR-0015):
+- Market events & market data types: `@trading-model/contracts/market-events` + `@trading-model/contracts/market-data.types`
+- Audit events: `@trading-model/contracts/audit-events`
+- Training events (and the canonical `Optimizer` enum): `@trading-model/contracts/training-events`
+
+The combined helpers live in `@trading-model/contracts/event-map`:
+
+| Export | Description |
+| ------ | ----------- |
+| `EventMap` | Event → payload type mapping (MarketEventMap ∪ AuditEventMap ∪ TrainingEventMap) |
+| `EventMessagesArgs<K>` | Payload type for a given event K |
+| `EventEnumMap` | Union of all valid event name strings |
+
+## Service Types & Delivery Modes
+
+- **Service names**: `@trading-model/common/config/services.types` (re-exports `ServiceInstanceName` from `@trading-model/primitives/service-instance-name`)
+- **Delivery modes**: `@trading-model/common/config/delivery-mode.types` — `DeliveryMode.AT_MOST_ONCE | AT_LEAST_ONCE | EXACTLY_ONCE`
+
+## SPIFFE Workload Identity
+
+- **Import**: `@trading-model/common/config/workload-identity` (or the `utils/spiffe` facade)
+
+Provides the platform's SPIFFE trust domain, ID scheme, canonical service identities (ADR-0011): `buildSpiffeId`, `parseSpiffeId`, `isSpiffeId`, `extractServiceName`, `extractCanonicalServiceName`, `normalizeServiceName`, `PLATFORM_SERVICES`.
+
+## TLS Configuration
+
+- **Import**: `@trading-model/common/config/tls-paths`
+
+`TlsPaths` (canonical TLS file-path triple), `TlsEnvVars` + `TlsEnvVarsSchema` (Zod validation of `TLS_KEY_PATH`/`TLS_CERT_PATH`/`TLS_CA_PATH`), `TlsConfig` (paths or in-memory PEMs), and helpers `buildTlsFromEnv`, `resolveSecureContextOptions`, `toSecureContextOptions`.
 
 ## Utils
 
-- **Import**: `@trading-model/common/utils/sleep`
-
 ```ts
-sleep(ms: number): Promise<void>
+import { sleep } from '@trading-model/common/utils/sleep';
+import { deterministicStringify } from '@trading-model/common/utils/deterministic-stringify';
+import { sanitizeForLog } from '@trading-model/common/utils/sanitize';
 ```
 
-- **Import**: `@trading-model/common/utils/deterministic-stringify`
+`deterministicStringify` produces deterministic JSON for cryptographic signing (recursively sorts object keys; preserves array order; handles primitives, nulls, nested objects). `sanitizeForLog` strips PEM blocks and secrets before logging.
 
-```ts
-deterministicStringify(value: unknown): string
-```
+## Moved-Out Modules (Where They Are Now)
 
-Deterministic JSON serialisation for cryptographic signing. Recursively sorts object keys in lexicographic order so the same logical value always produces the same string, regardless of insertion order. Preserves array order, handles primitives, nulls, and nested objects.
+| Former `common` concern | Now lives in |
+| ----------------------- | ------------|
+| Logger / logging pipeline | `@trading-model/http` (concrete `Logger`); `LoggerPort` registry in `@trading-model/contracts/logger-registry` |
+| Contracts (events, market-data, http-status, http-headers) | `@trading-model/contracts` |
+| Domain primitives (branded types, pagination, identities) | `@trading-model/primitives` |
+| Circuit breakers, latency tracker, heartbeats | `@trading-model/reliability` |
+| Redis/Mongo stores, connection managers, `redis-config` | `@trading-model/persistence` |
+| Server bootstrap, secure HTTPS factory, TLS loading | `@trading-model/server-utils` |
+| Environment validation (Zod) | `@trading-model/validation` |
+| Crypto primitives (PRNG, random string) | `@trading-model/crypto` |
+| HTTP middleware, HTTP client | `@trading-model/http` |
+| Worker protocol, orphan recovery | `@trading-model/jobs` |
 
 ## Deployment
 
-This package is **not deployed independently**. It is built as a workspace dependency and consumed at build time by other packages and services. The compiled output goes to `dist/` via `bun run build` (tsc, CommonJS output).
+This package is **not deployed independently**. It is built as a workspace dependency and consumed at build time. Compiled output goes to `dist/` via `bun run build` (tsc, CommonJS).
 
-All other packages reference it as:
+Consumers reference it as:
 
 ```json
 "dependencies": { "@trading-model/common": "*" }

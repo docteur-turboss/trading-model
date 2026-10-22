@@ -28,4 +28,4 @@ MongoDB 7 is used by several services via the native `mongodb` driver (no Mongoo
 
 ## Schema Validation
 
-The message broker uses **Zod validation schemas** at `services/message-manager/src/messaging/transport/validation/broker.schema.ts` to enforce message shapes, subscriptions, and metadata.
+The message broker uses **Zod validation schemas** at `services/message-manager/src/adapters/inbound/validation/broker.schema.ts` to enforce message shapes, subscriptions, and metadata.

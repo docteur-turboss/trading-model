@@ -4,7 +4,7 @@
 
 ## Overview
 
-This document describes the GA module (`src/core/genetic-algorithm/`) implementation. It covers the TypeScript API, module structure, code conventions, and configuration defaults.
+This document describes the GA module (`src/domain/genetic-algorithm/`) implementation. It covers the TypeScript API, module structure, code conventions, and configuration defaults.
 
 ---
 

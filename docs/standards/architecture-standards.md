@@ -11,10 +11,16 @@ The project follows a monorepo structure with **bun workspaces**. All shared com
 ```
 trading-model/
 ├── packages/           # Shared libraries (bun workspace)
+│   ├── primitives/          # @trading-model/primitives
+│   ├── contracts/           # @trading-model/contracts
+│   ├── reliability/         # @trading-model/reliability
 │   ├── common/              # @trading-model/common
+│   ├── persistence/         # @trading-model/persistence
+│   ├── http/                # @trading-model/http
 │   ├── validation/          # @trading-model/validation
 │   ├── server-utils/        # @trading-model/server-utils
 │   ├── crypto/              # @trading-model/crypto
+│   ├── jobs/                # @trading-model/jobs
 │   ├── address-manager/     # @trading-model/address-manager
 │   └── broker-message/      # @trading-model/broker-message
 ├── services/           # Microservices
@@ -68,18 +74,22 @@ All developers contributing to the codebase. Every architectural decision aims t
 Shared packages (base → derived):
 
 ```
-@trading-model/common          (domain primitives, contracts, reliability, persistence, utils, ws, logging registry)
-@trading-model/http            (HTTP middleware, http client, logging) → common
-@trading-model/validation      (Zod schemas, DTOs, shared type contracts) → common, http
-@trading-model/server-utils    (secure HTTPS server factory, TLS watcher, bootstrap) → common, http
-@trading-model/crypto          (hashing, signatures, crypto primitives) → common, validation
-@trading-model/jobs            (worker protocol, orphan recovery) → common, http
+@trading-model/primitives       (branded types, pagination, identities — zero deps)
+@trading-model/contracts        (events, market-data, http constants, LoggerPort registry) → primitives
+@trading-model/reliability      (circuit breaker, latency tracker, heartbeats) → primitives, contracts
+@trading-model/common           (residual config, utils, shared schemas, AppError) → primitives, contracts
+@trading-model/persistence      (Redis/Mongo connection managers, store adapters) → common, primitives, contracts
+@trading-model/http             (HTTP middleware, http client, logging) → primitives, contracts, common, reliability
+@trading-model/validation       (Zod schemas, DTOs, shared type contracts) → primitives, contracts, common, http
+@trading-model/server-utils     (secure HTTPS server factory, TLS watcher, bootstrap) → primitives, contracts, common, http
+@trading-model/crypto           (hashing, signatures, crypto primitives) → primitives, contracts, common, validation
+@trading-model/jobs             (worker protocol, orphan recovery) → primitives, contracts, common, http
 
-@trading-model/address-manager (service discovery client, health, token rotation) → common, http, server-utils, validation
-@trading-model/broker-message  (inter-service messaging SDK) → common, http, jobs, address-manager, validation
+@trading-model/address-manager  (service discovery client, health, token rotation) → primitives, contracts, common, persistence, http, reliability, server-utils, validation
+@trading-model/broker-message   (inter-service messaging SDK) → primitives, contracts, address-manager, common, http, jobs, validation
 ```
 
-> **Dependency direction:** `@trading-model/common` is the base layer and has **no** dependency on `@trading-model/http`. The concrete logger lives in `@trading-model/http`; `common` exposes a `LoggerPort` registry (`@trading-model/common/logging/logger-registry`) that http populates at import time — breaking what was previously a real `common ↔ http` cycle.
+> **Dependency direction:** `@trading-model/primitives` and `@trading-model/contracts` are the foundation layers and depend on nothing higher in the chain — they must never import `http` or any upper-layer package. `@trading-model/common` sits just above them and has **no** dependency on `@trading-model/http`. The concrete logger lives in `@trading-model/http`; `@trading-model/contracts` exposes a `LoggerPort` registry (`@trading-model/contracts/logger-registry`) that http populates at import time — breaking what was previously a real `common ↔ http` cycle.
 
 Services and their `@trading-model/*` dependencies:
 
@@ -94,18 +104,24 @@ Services and their `@trading-model/*` dependencies:
 | api-gateway        | common, validation, http, server-utils, crypto                                                  |
 | admin-interface    | common, validation, http (DTO types only — React SPA, no Node runtime)                          |
 
-The **admin-interface** is a React SPA (not a Node.js microservice). It imports DTO types from `@trading-model/common` and `@trading-model/validation` and communicates with the backend exclusively via HTTP through the **api-gateway**. It is built with Vite, tested with Vitest, and served via nginx in production.
+The **admin-interface** is a React SPA (not a Node.js microservice). It imports DTO types from `@trading-model/contracts` and `@trading-model/validation` and communicates with the backend exclusively via HTTP through the **api-gateway**. It is built with Vite, tested with Vitest, and served via nginx in production.
 
 ### Package Dependency Details
 
 | Package                          | Purpose                                                                                                                                                 | Dependencies               |
 | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------- |
-| `@trading-model/common`          | Logger, HTTP client, middleware (MTLSAuthMiddleware, ResponseProtocol, error tracking), domain primitives (branded types), contracts, circuit breakers, reliability, worker/recovery helpers | validation, server-utils, crypto |
-| `@trading-model/validation`      | Zod schemas, DTOs, event types, shared type contracts, admin contracts                                                                                  | common                     |
-| `@trading-model/server-utils`    | Secure HTTPS server factory, TLS watcher/loader, bootstrap & shutdown, signal handling, telemetry                                                         | common                     |
-| `@trading-model/crypto`          | Hashing, request signing, token generation, secure randomness                                                                                           | common, validation         |
-| `@trading-model/address-manager` | Service discovery client, token manager, service cache with health checking, scheduler/jobs, load balancing                                              | common, server-utils, validation |
-| `@trading-model/broker-message`  | Inter-service messaging SDK: message manager client, event emitter, message controller/routes, validation schemas, WSS client                            | common, address-manager, validation |
+| `@trading-model/primitives`      | Pure domain primitives: branded types, pagination, circuit-state, service-identity, retry-policy, topic-binding. Zero dependencies.                       | —                          |
+| `@trading-model/contracts`       | Shared contracts: event/market-data types, `http-status`, `http-headers`, `LoggerPort` registry (setLogger/getLogger)                                     | primitives                 |
+| `@trading-model/reliability`     | Circuit-breaker, circuit-state-machine, latency-tracker, heartbeat interfaces                                                                            | primitives, contracts      |
+| `@trading-model/common`          | Residual shared infra: `AppError`/`ErrorCodes`, retry/backoff, SPIFFE identity, TLS path config, cache abstractions, log sanitization, shared Zod schemas  | primitives, contracts      |
+| `@trading-model/persistence`     | Redis/Mongo connection managers, store adapters, key builders (absorbed `redis-config`)                                                                   | common, primitives, contracts |
+| `@trading-model/http`            | HTTP middleware (MTLSAuthMiddleware, ResponseProtocol, error tracking), HTTP client, concrete logging pipeline                                              | primitives, contracts, common, reliability |
+| `@trading-model/validation`      | Zod schemas, DTOs, event types, shared type contracts, admin contracts                                                                                  | primitives, contracts, common, http |
+| `@trading-model/server-utils`    | Secure HTTPS server factory, TLS watcher/loader, bootstrap & shutdown, signal handling, telemetry                                                         | primitives, contracts, common, http |
+| `@trading-model/crypto`          | Hashing, request signing, token generation, secure randomness                                                                                           | primitives, contracts, common, validation |
+| `@trading-model/jobs`            | Distributed worker protocol, orphan recovery                                                                                                             | primitives, contracts, common, http |
+| `@trading-model/address-manager` | Service discovery client, token manager, service cache with health checking, scheduler/jobs, load balancing                                              | primitives, contracts, common, persistence, http, reliability, server-utils, validation |
+| `@trading-model/broker-message`  | Inter-service messaging SDK: message manager client, event emitter, message controller/routes, validation schemas, WSS client                            | primitives, contracts, address-manager, common, http, jobs, validation |
 
 ## Workload Identity & Security Model
 
@@ -137,7 +153,7 @@ Each service exposes an HTTPS server with mTLS enabled. The internal container p
 
 ### Service Structure
 
-Services follow a hexagonal architecture (ADR-0010): business logic is isolated in `domain/` + `application/`, driven by `adapters/` (controllers, routes) and backed by `infrastructure/` (Redis, Mongo, HTTP clients). Legacy module layouts (`core/`, `messaging/`, `persistence/`) may still coexist in some services during migration.
+Services follow a hexagonal architecture (ADR-0010): business logic is isolated in `domain/` + `application/`, driven by `adapters/` (controllers, routes) and backed by `infrastructure/` (Redis, Mongo, HTTP clients). All services use this layout; no legacy module layout (`core/`, `messaging/`, `persistence/`, `controllers/` …) remains (ADR-0015).
 
 ```
 services/<name>/
@@ -209,28 +225,20 @@ export function createServer() {
 
 Each package declares its exports via the `exports` field in `package.json`. Entry points are organized by sub-path.
 
-**@trading-model/common** (granular exports):
+**@trading-model/common** (granular exports — residual `config/`, `utils/`, `shared/` after the ADR-0007 split):
 
 ```json
 {
   "exports": {
-    "./constants": { "types": "./dist/constants.d.ts", "default": "./dist/constants.js" },
     "./config/*": { "types": "./dist/config/*.d.ts", "default": "./dist/config/*.js" },
-    "./middleware/*": { "types": "./dist/middleware/*.d.ts", "default": "./dist/middleware/*.js" },
     "./utils/*": { "types": "./dist/utils/*.d.ts", "default": "./dist/utils/*.js" },
-    "./worker/*": { "types": "./dist/worker/*.d.ts", "default": "./dist/worker/*.js" },
-    "./recovery/*": { "types": "./dist/recovery/*.d.ts", "default": "./dist/recovery/*.js" },
-    "./reliability/*": { "types": "./dist/reliability/*.d.ts", "default": "./dist/reliability/*.js" },
-    "./domain/*": { "types": "./dist/domain/*.d.ts", "default": "./dist/domain/*.js" },
-    "./crl/*": { "types": "./dist/crl/*.d.ts", "default": "./dist/crl/*.js" },
-    "./persistence/*": { "types": "./dist/persistence/*.d.ts", "default": "./dist/persistence/*.js" },
-    "./http-headers": { "types": "./dist/http-headers.d.ts", "default": "./dist/http-headers.js" },
-    "./http-status": { "types": "./dist/http-status.d.ts", "default": "./dist/http-status.js" },
-    "./contracts/*": { "types": "./dist/contracts/*.d.ts", "default": "./dist/contracts/*.js" },
-    "./ws/*": { "types": "./dist/ws/*.d.ts", "default": "./dist/ws/*.js" }
+    "./shared/*": { "types": "./dist/shared/*.d.ts", "default": "./dist/shared/*.js" },
+    "./tests/*": { "types": "./tests/*.d.ts", "default": "./tests/*.js" }
   }
 }
 ```
+
+> Post-split (2026-10), `common` no longer exports `middleware/`, `worker/`, `recovery/`, `reliability/`, `domain/`, `crl/`, `persistence/`, `http-headers`, `http-status` or `contracts/`. Those live in `@trading-model/primitives`, `@trading-model/contracts`, `@trading-model/reliability`, `@trading-model/persistence`, `@trading-model/http`, `@trading-model/server-utils` and `@trading-model/jobs` respectively. See the [package map](../services/common.md#package-map-post-split).
 
 **@trading-model/validation**, **@trading-model/server-utils**, **@trading-model/crypto**, **@trading-model/address-manager** and **@trading-model/broker-message** (simplified exports):
 
@@ -250,4 +258,4 @@ See [How to Add a New Service](../contributing/adding-a-service.md) for a step-b
 ## Known Technical Debt
 
 1. **Legacy path aliases**: Some service tsconfigs still define `paths` aliases (`config/*`, `infra/*`, `clients/*`, `job/*`, `types/*`, `utils/*`) that should be replaced with `node16` resolution.
-2. **Transitional re-export shims**: Some refactor-introduced barrel files (`export * from`) preserve old import paths while modules move to the new architectural layers. This notably includes `validation/src/shared/contracts/*` (re-exporting `common/contracts/*`) and `http/src/infrastructure/logger.ts` (re-exporting the logger pipeline now living in `http/src/application/services/logger.ts` — 100+ consumers still import the legacy sub-path).
+2. **Transitional re-export shims**: Some refactor-introduced barrel files (`export * from`) preserve old import paths while modules move to the new architectural layers. This notably includes `http/src/infrastructure/logger.ts` (re-exporting the logger pipeline now living in `http/src/application/services/logger.ts` — 100+ consumers still import the legacy sub-path). The `common` split (ADR-0007, extended 2026-10) used **hard migration** — no re-export shims were retained in `common`.

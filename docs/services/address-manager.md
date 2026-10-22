@@ -10,7 +10,12 @@ Every microservice in the platform uses this package to register itself, discove
 
 ## Dependencies
 
-- `@trading-model/common` — HttpClient, middleware, error types
+- `@trading-model/http` — HttpClient, logger
+- `@trading-model/common` — error handling (`normalizeError`), retry/backoff, TTL cache utilities
+- `@trading-model/primitives` — branded domain types (service identity, IDs)
+- `@trading-model/persistence` — store adapters (memory / Redis service cache)
+- `@trading-model/reliability` — heartbeat interfaces
+- `@trading-model/server-utils` — signal handling, `PING_PATH` constant
 - `express` — Express `Router`, `Application` types
 - `node-cron` — Scheduled job execution
 
@@ -47,8 +52,6 @@ interface AddressManagerConfig {
   cacheTtlMs: DurationMs;
   dnsNameMap?: Record<ServiceId, IPAddress>;
   metricsIntervalMs?: DurationMs;
-  wsUrl?: string;
-  wsSubscribedServices?: ServiceId[];
   maxCallRecords?: PositiveInt;
   preferredNetworkInterface?: string;
   pems?: TlsPaths;                  // legacy alias

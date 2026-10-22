@@ -136,7 +136,7 @@ These checks run automatically via GitHub Actions in `.github/workflows/ci.yml`.
 ```markdown
 # Description
 
-Centralize the `ServiceInstance` type in @trading-model/common to avoid
+Centralize the `ServiceInstance` type in @trading-model/primitives to avoid
 duplication between discovery-server and message-manager.
 
 ## Type of Change
@@ -147,13 +147,13 @@ duplication between discovery-server and message-manager.
 
 ### ✅ Additions
 
-- Type `ServiceId` in `packages/common/src/domain/primitives/general-ids.ts`
+- Type `ServiceId` in `packages/primitives/src/primitives/general-ids.ts`
 - Unit tests for the new type
 
 ### :recycle: Modifications
 
-- Discovery-server now imports from `@trading-model/common/domain`
-- Message-manager now imports from `@trading-model/common/domain`
+- Discovery-server now imports from `@trading-model/primitives`
+- Message-manager now imports from `@trading-model/primitives`
 - Removed duplicate definitions in each service
 
 ### :fire: Removals

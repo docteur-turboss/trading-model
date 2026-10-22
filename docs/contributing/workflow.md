@@ -37,13 +37,19 @@ The project is an bun workspaces monorepo:
 
 ```
 trading-model/
-├── packages/     # 6 shared libraries (@trading-model/*)
-│   ├── common/              # Base types, schemas, utilities
-│   ├── validation/          # Zod schemas, DTOs, admin contracts
-│   ├── server-utils/        # Secure HTTPS server factory, TLS watcher
-│   ├── crypto/              # Hashing, signature, crypto primitives
-│   ├── address-manager/     # Service discovery client
-│   └── broker-message/      # Message bus protocol types
+├── packages/     # 12 shared libraries (@trading-model/*)
+│   ├── primitives/           # Branded types, domain primitives (zero dependencies)
+│   ├── contracts/            # Shared contracts, http-status/headers, logger-registry
+│   ├── reliability/          # Circuit breakers, latency tracker
+│   ├── common/               # Residual config, cross-cutting utilities, shared schemas
+│   ├── persistence/          # Redis/Mongo stores
+│   ├── http/                 # Middleware, HTTP client, logger
+│   ├── validation/           # Zod schemas, DTOs, env validation
+│   ├── server-utils/         # Bootstrap, secure HTTPS server factory, TLS watcher
+│   ├── crypto/               # Hashing, signature, crypto primitives
+│   ├── jobs/                 # Worker protocol, orphan recovery
+│   ├── address-manager/      # Service discovery client
+│   └── broker-message/       # Message bus protocol types
 ├── services/     # 8 microservices (kebab-case directory names)
 │   ├── discovery-server/
 │   ├── message-manager/

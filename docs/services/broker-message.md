@@ -10,7 +10,10 @@ Every microservice uses this package to send and receive typed, validated messag
 
 ## Dependencies
 
-- `@trading-model/common` — HttpClient, event types, service types, error classes
+- `@trading-model/http` — HttpClient, middleware (`catchSync`, `ResponseException`)
+- `@trading-model/primitives` — branded messaging/service types
+- `@trading-model/validation` — message envelope contracts (`message.types`)
+- `@trading-model/common` — error classes, config re-exports (`event.types`, `services.types`, `tls-paths`)
 - `@trading-model/address-manager` — Service discovery (finds Message Delivery Service)
 - `express` — Express `Router`, `Application` types
 - `zod` — Runtime schema validation for metadata and payloads

@@ -20,7 +20,7 @@ Service abbreviation legend:
 
 ## Common — all services (except admin-interface)
 
-Defined in `@trading-model/common` (`BaseEnvSchema`).
+Defined in `@trading-model/validation` (`config/env` — `BaseEnvSchema`), validated at startup via `application/services/validate-env`.
 
 | Variable        | Type                                           | Default                 | Required | Description                   | Services |
 | --------------- | ---------------------------------------------- | ----------------------- | -------- | ----------------------------- | -------- |
@@ -37,7 +37,7 @@ Defined in `@trading-model/common` (`BaseEnvSchema`).
 
 Used by services that register with the discovery-server.
 
-Defined in `@trading-model/common` (`AddressManagerEnvSchema`).
+Defined in `@trading-model/validation` (`config/address-manager-env` — `AddressManagerEnvSchema`), validated at startup via `application/services/validate-env`.
 
 | Variable                          | Type   | Default                         | Required | Description                                      | Services       |
 | --------------------------------- | ------ | ------------------------------- | -------- | ------------------------------------------------ | -------------- |

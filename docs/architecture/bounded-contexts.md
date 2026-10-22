@@ -106,8 +106,8 @@ graph TD
 
 The historical single `EnumEventMessage` enum (mixing market data, certificate, and audit topics) has been split into per-context enums:
 
-1. `MarketEvent` — `@trading-model/common/contracts/market-events`
-2. `AuditEvent` — `@trading-model/common/contracts/audit-events`
+1. `MarketEvent` — `@trading-model/contracts/market-events`
+2. `AuditEvent` — `@trading-model/contracts/audit-events`
 3. Certificate/security events were **removed** with the CA decommission (ADR-0011)
 
 Per-context Zod schemas live in `@trading-model/broker-message/domain/messages/schemas` (metadata, message payload, market events, audit events).

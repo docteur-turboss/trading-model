@@ -69,6 +69,7 @@ jobs:
 - `lint` — Biome check across the entire monorepo
 - `typecheck` — Build packages + type-check all services (including admin-interface)
 - `test` — Build + tests with coverage, upload to Codecov
+- `observability` — Observability gate (metrics, propagation, readiness)
 - `contract` — Contract tests between services
 - `e2e` — Boot the Docker Compose stack and run E2E tests
 
@@ -214,7 +215,7 @@ jobs:
 
 | Workflow      | File                            | Trigger                | What it does                                                       |
 | ------------- | ------------------------------- | ---------------------- | ------------------------------------------------------------------ |
-| **CI**        | `.github/workflows/ci.yml`      | `push`, `pull_request` | Lint → Typecheck → Test + Codecov → Contract → E2E (Docker)        |
+| **CI**        | `.github/workflows/ci.yml`      | `push`, `pull_request` | Lint → Typecheck → Test + Codecov → Observability → Contract → E2E (Docker) |
 | **Release**   | `.github/workflows/release.yml` | manual                 | Quality gate → version + CHANGELOG → 8 Docker images → GHCR → GitHub Release → Docs |
 | **Deploy**    | `.github/workflows/deploy.yml`  | manual                 | Staging/production deploy (optional canary + auto rollback)        |
 | **Backup Test** | `.github/workflows/backup-test.yml` | weekly cron       | Validate backup/restore scripts                                    |

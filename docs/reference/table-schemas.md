@@ -49,7 +49,7 @@ CREATE TABLE IF NOT EXISTS `market_candles` (
 ) ENGINE = InnoDB;
 ```
 
-**TS entity interface** (`@trading-model/common`):
+**TS entity interface** (`@trading-model/contracts` — `contracts/market-data.types`, re-exporting `contracts/market-data/candle.types`):
 
 ```ts
 interface CandleData extends BaseMarketData {
@@ -97,7 +97,7 @@ CREATE TABLE `market_trades` (
 ) ENGINE=InnoDB;
 ```
 
-**TS entity interface** (`@trading-model/common`):
+**TS entity interface** (`@trading-model/contracts` — `contracts/market-data.types`, re-exporting `contracts/market-data/trade.types`):
 
 ```ts
 interface TradeData extends BaseMarketData {
@@ -145,7 +145,7 @@ CREATE TABLE IF NOT EXISTS `market_tickers` (
 ) ENGINE = InnoDB;
 ```
 
-**TS entity interface** (`@trading-model/common`):
+**TS entity interface** (`@trading-model/contracts` — `contracts/market-data.types`, re-exporting `contracts/market-data/ticker.types`):
 
 ```ts
 interface TickerData extends BaseMarketData {
@@ -176,7 +176,7 @@ interface BaseMarketData {
 
 ## Entity Types Not Yet Persisted
 
-These interfaces exist in `@trading-model/common` but have **no corresponding table** yet:
+These interfaces exist in `@trading-model/contracts` (`contracts/market-data/orderbook.types`) but have **no corresponding table** yet:
 
 - `OrderBookData` — order book depth snapshots (`bids` / `asks`)
 - `BookTickerData` — best bid/ask ticker (`bid`, `ask`, `bidQty`, `askQty`)
