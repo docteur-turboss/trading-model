@@ -2,13 +2,13 @@ import { describe, expect, it, jest } from "@jest/globals";
 import {
 	crossoverGenomes,
 	crossoverScalar,
-} from "../../../src/core/genetic-algorithm/crossover";
-import { createDefaultGenome } from "../../../src/core/genetic-algorithm/factory";
-import { CrossoverType } from "../../../src/core/genetic-algorithm/genome";
+} from "../../../src/domain/genetic-algorithm/crossover";
+import { createDefaultGenome } from "../../../src/domain/genetic-algorithm/factory";
+import { CrossoverType } from "../../../src/domain/genetic-algorithm/genome";
 import type {
 	CrossoverGenome,
 	LamarckGenome,
-} from "../../../src/core/genetic-algorithm/genome-types";
+} from "../../../src/domain/genetic-algorithm/genome-types";
 
 describe("GA Regression — Crossover", () => {
 	describe("crossoverScalar", () => {

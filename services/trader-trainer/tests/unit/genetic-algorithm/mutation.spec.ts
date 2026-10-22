@@ -1,22 +1,22 @@
 import { describe, expect, test } from "@jest/globals";
-import { createDefaultGenome } from "../../../src/core/genetic-algorithm/factory";
+import { createDefaultGenome } from "../../../src/domain/genetic-algorithm/factory";
 import {
 	ActivationType,
 	ConnectionType,
 	InitialisationType,
 	MutationAdaptation,
 	MutationScope,
-} from "../../../src/core/genetic-algorithm/genome";
-import { mutateDiscreteStepParam } from "../../../src/core/genetic-algorithm/genome-rl/mutation";
+} from "../../../src/domain/genetic-algorithm/genome";
+import { mutateDiscreteStepParam } from "../../../src/domain/genetic-algorithm/genome-rl/mutation";
 import type {
 	LayerGenome,
 	MutationGenome,
-} from "../../../src/core/genetic-algorithm/genome-types";
+} from "../../../src/domain/genetic-algorithm/genome-types";
 import {
 	adaptSigma,
 	mutateGenome,
 	mutateLayer,
-} from "../../../src/core/genetic-algorithm/mutation";
+} from "../../../src/domain/genetic-algorithm/mutation";
 
 describe("Mutation - adaptSigma", () => {
 	const rng = () => 0.5;

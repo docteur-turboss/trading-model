@@ -2,14 +2,14 @@ import { describe, expect, test } from "@jest/globals";
 import {
 	crossoverGenomes,
 	crossoverScalar,
-} from "../../../src/core/genetic-algorithm/crossover";
-import { createDefaultGenome } from "../../../src/core/genetic-algorithm/factory";
+} from "../../../src/domain/genetic-algorithm/crossover";
+import { createDefaultGenome } from "../../../src/domain/genetic-algorithm/factory";
 import {
 	ActivationType,
 	ConnectionType,
 	CrossoverType,
 	InitialisationType,
-} from "../../../src/core/genetic-algorithm/genome";
+} from "../../../src/domain/genetic-algorithm/genome";
 
 describe("Crossover - crossoverScalar", () => {
 	const rng = () => 0.5;

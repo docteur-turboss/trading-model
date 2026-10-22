@@ -1,15 +1,15 @@
 import { beforeEach, describe, expect, it } from "@jest/globals";
-import { Agent } from "../../../src/core/neural-network/agent";
+import { Agent } from "../../../src/domain/neural-network/agent";
 import type {
 	Experience,
 	NetworkArchitecture,
-} from "../../../src/core/neural-network/type";
+} from "../../../src/domain/neural-network/type";
 import {
 	ActivationType,
 	ConnectionType,
 	ExperienceKind,
 	NormalisationType,
-} from "../../../src/core/neural-network/type";
+} from "../../../src/domain/neural-network/type";
 
 function makeConfig(
 	overrides?: Partial<NetworkArchitecture>

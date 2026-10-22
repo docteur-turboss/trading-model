@@ -1,13 +1,13 @@
 import { describe, expect, it } from "@jest/globals";
-import type { NeuralNetworkConfig } from "../../../src/core/neural-network/type";
+import { NeuralNetwork } from "../../../src/domain/neural-network/neural-network";
+import type { NeuralNetworkConfig } from "../../../src/domain/neural-network/type";
 import {
 	ActivationType,
 	ConnectionType,
 	InitialisationType,
 	LossFunctionType,
 	NormalisationType,
-} from "../../../src/core/neural-network/type";
-import { NeuralNetwork } from "../../../src/domain/neural-network/neural-network";
+} from "../../../src/domain/neural-network/type";
 
 function makeConfig(
 	overrides?: Partial<NeuralNetworkConfig>

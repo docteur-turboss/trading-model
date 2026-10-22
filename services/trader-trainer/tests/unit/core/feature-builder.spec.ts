@@ -5,22 +5,22 @@ import type {
 	OrderBookData,
 	TickerData,
 	TradeData,
-} from "@trading-model/common/config/event.types";
+} from "@trading-model/contracts/market-data.types";
 import {
 	CandleInterval,
 	MarketType,
 	SourceType,
 	TradeSide,
-} from "@trading-model/common/config/event.types";
+} from "@trading-model/contracts/market-data.types";
 import {
 	Price,
 	toSymbol,
 	UnixTimestamp,
 	Volume,
-} from "@trading-model/common/domain/primitives";
-import { buildFeatures } from "../../../src/core/feature-builder";
-import { FEATURE_DIM } from "../../../src/core/market-data-types";
-import { NormalizationStats } from "../../../src/core/normalization-stats";
+} from "@trading-model/primitives/primitives";
+import { buildFeatures } from "../../../src/domain/feature-builder";
+import { FEATURE_DIM } from "../../../src/domain/market-data-types";
+import { NormalizationStats } from "../../../src/domain/normalization-stats";
 
 function baseCandle(overrides?: Partial<CandleData>): CandleData {
 	return {

@@ -38,4 +38,4 @@ EXPOSE 3000
 HEALTHCHECK --interval=15s --timeout=5s --retries=3 \
   CMD curl -skf --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem https://localhost:3000/health/ready || exit 1
 ENTRYPOINT ["/sbin/tini", "--"]
-CMD ["bun", "services/trader-trainer/dist/infrastructure/index.js"]
+CMD ["bun", "services/trader-trainer/dist/application/index.js"]

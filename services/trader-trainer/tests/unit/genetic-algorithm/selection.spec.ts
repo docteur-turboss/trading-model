@@ -1,10 +1,10 @@
 import { describe, expect, test } from "@jest/globals";
-import { DurationMs } from "@trading-model/common/domain/primitives";
-import { EpisodeScores } from "../../../src/core/genetic-algorithm/episode-scores";
-import { createDefaultGenome } from "../../../src/core/genetic-algorithm/factory";
-import { SelectionType } from "../../../src/core/genetic-algorithm/genome";
-import type { PopMember } from "../../../src/core/genetic-algorithm/genome-types";
-import { selectParent } from "../../../src/core/genetic-algorithm/selection";
+import { DurationMs } from "@trading-model/primitives/primitives";
+import { EpisodeScores } from "../../../src/domain/genetic-algorithm/episode-scores";
+import { createDefaultGenome } from "../../../src/domain/genetic-algorithm/factory";
+import { SelectionType } from "../../../src/domain/genetic-algorithm/genome";
+import type { PopMember } from "../../../src/domain/genetic-algorithm/genome-types";
+import { selectParent } from "../../../src/domain/genetic-algorithm/selection";
 
 function makePopulation(): PopMember[] {
 	const fitnesses = [0.1, 0.5, 0.8, 0.3, 0.6];

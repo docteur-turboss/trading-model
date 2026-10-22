@@ -1,11 +1,11 @@
 import { describe, expect, test } from "@jest/globals";
-import { createDefaultGenome } from "../../../src/core/genetic-algorithm/factory";
-import type { ObjectiveVector } from "../../../src/core/genetic-algorithm/pareto";
+import { createDefaultGenome } from "../../../src/domain/genetic-algorithm/factory";
+import type { ObjectiveVector } from "../../../src/domain/genetic-algorithm/pareto";
 import {
 	buildPopulationMeta,
 	dominates,
 	ParetoArchive,
-} from "../../../src/core/genetic-algorithm/pareto";
+} from "../../../src/domain/genetic-algorithm/pareto";
 
 describe("dominates", () => {
 	test("returns true when a strictly dominates b in all objectives", () => {

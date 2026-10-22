@@ -4,7 +4,7 @@ import {
 	DEFAULT_HYPERPARAMS,
 	OPTIMIZERS,
 	type RmspropState,
-} from "../../../src/core/neural-network/optimizer";
+} from "../../../src/domain/neural-network/optimizer";
 
 describe("Optimizers", () => {
 	describe("SGD", () => {

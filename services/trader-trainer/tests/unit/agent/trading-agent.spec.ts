@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it } from "@jest/globals";
-import { Cash, Price, Volume } from "@trading-model/common/domain/primitives";
-import { ActionSpace } from "../../../src/core/agent/action-types";
+import { Cash, Price, Volume } from "@trading-model/primitives/primitives";
+import { ActionSpace } from "../../../src/domain/agent/action-types";
+import type { TradingAgentConfig } from "../../../src/domain/agent/trading-agent";
+import { TradingAgent } from "../../../src/domain/agent/trading-agent";
 import {
 	ActivationType,
 	ConnectionType,
@@ -8,9 +10,7 @@ import {
 	InitialisationType,
 	LossFunctionType,
 	NormalisationType,
-} from "../../../src/core/neural-network/type";
-import type { TradingAgentConfig } from "../../../src/domain/agent/trading-agent";
-import { TradingAgent } from "../../../src/domain/agent/trading-agent";
+} from "../../../src/domain/neural-network/type";
 
 function makeConfig(
 	overrides?: Partial<TradingAgentConfig>

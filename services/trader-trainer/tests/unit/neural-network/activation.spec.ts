@@ -1,5 +1,5 @@
 import { describe, expect, test } from "@jest/globals";
-import { ACTIVATIONS } from "../../../src/core/neural-network/activation";
+import { ACTIVATIONS } from "../../../src/domain/neural-network/activation";
 
 describe("Activation Functions", () => {
 	describe("sigmoid", () => {

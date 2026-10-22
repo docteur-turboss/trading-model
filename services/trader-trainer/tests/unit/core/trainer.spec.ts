@@ -1,11 +1,12 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
-import { NumericRange } from "@trading-model/common/domain/numeric-range";
+import { NumericRange } from "@trading-model/primitives/numeric-range";
 import {
 	DurationMs,
 	TradingSymbol,
-} from "@trading-model/common/domain/primitives";
-import { EpisodeScores } from "../../../src/core/genetic-algorithm/episode-scores";
-import { createDefaultGenome } from "../../../src/core/genetic-algorithm/factory";
+} from "@trading-model/primitives/primitives";
+import { Trainer } from "../../../src/application/trainer";
+import { EpisodeScores } from "../../../src/domain/genetic-algorithm/episode-scores";
+import { createDefaultGenome } from "../../../src/domain/genetic-algorithm/factory";
 import {
 	ActivationType,
 	ConnectionType,
@@ -18,12 +19,12 @@ import {
 	MutationScope,
 	NormalisationType,
 	SelectionType,
-} from "../../../src/core/genetic-algorithm/genome";
-import type { LamarckGenome } from "../../../src/core/genetic-algorithm/genome-types";
-import type { DeepReadonly } from "../../../src/core/genetic-algorithm/shared-types";
-import { MarketDataBuffer } from "../../../src/core/market-data-buffer";
-import { Trainer } from "../../../src/core/trainer";
-import { LastTrainingInfo } from "../../../src/core/training-state";
+} from "../../../src/domain/genetic-algorithm/genome";
+import type { LamarckGenome } from "../../../src/domain/genetic-algorithm/genome-types";
+import type { DeepReadonly } from "../../../src/domain/genetic-algorithm/shared-types";
+import { MarketDataBuffer } from "../../../src/domain/market-data-buffer";
+import type { TrainingSettings } from "../../../src/domain/training-settings";
+import { LastTrainingInfo } from "../../../src/domain/training-state";
 import {
 	makeBestGenomeNoMeta,
 	makeMinimalBestGenome,
@@ -43,12 +44,22 @@ jest.mock<{ ENV: any }>("../../../src/infrastructure/config/env", () => ({
 	},
 }));
 
+/** Mirrors the TRAINER_* values of the mocked ENV above. */
+const TEST_TRAINING_SETTINGS: TrainingSettings = {
+	validationSplit: 0.2,
+	walkForwardFolds: 1,
+	generations: 10,
+	populationSize: 5,
+	timeBudgetMs: 60000,
+	episodesPerIndividual: 2,
+};
+
 let capturedOnGeneration: ((ctx: any) => void) | null = null;
 let capturedOnArchiveUpdate: ((archive: any[]) => void) | null = null;
 let mockRunImpl: (() => Promise<any>) | null = null;
 let mockArchiveData: any[] = [{ id: "best-archived" }];
 
-jest.mock("../../../src/core/genetic-algorithm/ga-runner", () => {
+jest.mock("../../../src/domain/genetic-algorithm/ga-runner", () => {
 	const mockRunner = {
 		run: jest.fn<() => Promise<any>>().mockImplementation(() => {
 			if (capturedOnGeneration) {
@@ -190,7 +201,9 @@ describe("Trainer", () => {
 
 	describe("initial state", () => {
 		it("should return null from getBestAgentSummary before training", () => {
-			const trainer = new Trainer(dataBuffer);
+			const trainer = new Trainer(dataBuffer, {
+				settings: TEST_TRAINING_SETTINGS,
+			});
 
 			const summary = trainer.getBestAgentSummary();
 
@@ -198,25 +211,33 @@ describe("Trainer", () => {
 		});
 
 		it("should return false from isTraining before training", () => {
-			const trainer = new Trainer(dataBuffer);
+			const trainer = new Trainer(dataBuffer, {
+				settings: TEST_TRAINING_SETTINGS,
+			});
 
 			expect(trainer.isTraining()).toBe(false);
 		});
 
 		it("should return 0 from getGeneration before training", () => {
-			const trainer = new Trainer(dataBuffer);
+			const trainer = new Trainer(dataBuffer, {
+				settings: TEST_TRAINING_SETTINGS,
+			});
 
 			expect(trainer.getGeneration()).toBe(0);
 		});
 
 		it("should return empty string from getCurrentSymbol before training", () => {
-			const trainer = new Trainer(dataBuffer);
+			const trainer = new Trainer(dataBuffer, {
+				settings: TEST_TRAINING_SETTINGS,
+			});
 
 			expect(trainer.getCurrentSymbol()).toBe("");
 		});
 
 		it("should return null from getGenerationContext before training", () => {
-			const trainer = new Trainer(dataBuffer);
+			const trainer = new Trainer(dataBuffer, {
+				settings: TEST_TRAINING_SETTINGS,
+			});
 
 			expect(trainer.getGenerationContext()).toBeNull();
 		});
@@ -224,7 +245,9 @@ describe("Trainer", () => {
 
 	describe("train with insufficient data", () => {
 		it("should return failure result with fewer than 10 steps", async () => {
-			const trainer = new Trainer(dataBuffer);
+			const trainer = new Trainer(dataBuffer, {
+				settings: TEST_TRAINING_SETTINGS,
+			});
 			feedCandles(dataBuffer, "BTCUSDT", 5);
 
 			const result = await trainer.train(TradingSymbol.of("BTCUSDT"));
@@ -235,7 +258,9 @@ describe("Trainer", () => {
 		});
 
 		it("should not start training when train split has fewer than 10 steps after validation split", async () => {
-			const trainer = new Trainer(dataBuffer);
+			const trainer = new Trainer(dataBuffer, {
+				settings: TEST_TRAINING_SETTINGS,
+			});
 			feedCandles(dataBuffer, "BTCUSDT", 11);
 
 			const result = await trainer.train(TradingSymbol.of("BTCUSDT"));
@@ -246,7 +271,9 @@ describe("Trainer", () => {
 		});
 
 		it("should return failure result if already training", async () => {
-			const trainer = new Trainer(dataBuffer);
+			const trainer = new Trainer(dataBuffer, {
+				settings: TEST_TRAINING_SETTINGS,
+			});
 			feedCandles(dataBuffer, "BTCUSDT", 100);
 
 			(trainer as any)._status = "training";
@@ -260,7 +287,9 @@ describe("Trainer", () => {
 
 	describe("train with sufficient data", () => {
 		it("should return success result with enough data", async () => {
-			const trainer = new Trainer(dataBuffer);
+			const trainer = new Trainer(dataBuffer, {
+				settings: TEST_TRAINING_SETTINGS,
+			});
 			feedCandles(dataBuffer, "BTCUSDT", 100);
 
 			const result = await trainer.train(TradingSymbol.of("BTCUSDT"));
@@ -274,7 +303,9 @@ describe("Trainer", () => {
 		});
 
 		it("should set currentSymbol after training", async () => {
-			const trainer = new Trainer(dataBuffer);
+			const trainer = new Trainer(dataBuffer, {
+				settings: TEST_TRAINING_SETTINGS,
+			});
 			feedCandles(dataBuffer, "BTCUSDT", 100);
 
 			await trainer.train(TradingSymbol.of("BTCUSDT"));
@@ -283,7 +314,9 @@ describe("Trainer", () => {
 		});
 
 		it("should update getGeneration from runner", async () => {
-			const trainer = new Trainer(dataBuffer);
+			const trainer = new Trainer(dataBuffer, {
+				settings: TEST_TRAINING_SETTINGS,
+			});
 			feedCandles(dataBuffer, "BTCUSDT", 100);
 
 			await trainer.train(TradingSymbol.of("BTCUSDT"));
@@ -292,7 +325,9 @@ describe("Trainer", () => {
 		});
 
 		it("should update bestGenome after successful training", async () => {
-			const trainer = new Trainer(dataBuffer);
+			const trainer = new Trainer(dataBuffer, {
+				settings: TEST_TRAINING_SETTINGS,
+			});
 			feedCandles(dataBuffer, "BTCUSDT", 100);
 
 			const result = await trainer.train(TradingSymbol.of("BTCUSDT"));
@@ -307,7 +342,9 @@ describe("Trainer", () => {
 			mockRunImpl = () => {
 				return Promise.reject(new Error("training error"));
 			};
-			const trainer = new Trainer(dataBuffer);
+			const trainer = new Trainer(dataBuffer, {
+				settings: TEST_TRAINING_SETTINGS,
+			});
 			feedCandles(dataBuffer, "BTCUSDT", 100);
 
 			const result = await trainer.train(TradingSymbol.of("BTCUSDT"));
@@ -324,7 +361,9 @@ describe("Trainer", () => {
 			mockRunImpl = () => {
 				return Promise.reject(new Error("string error"));
 			};
-			const trainer = new Trainer(dataBuffer);
+			const trainer = new Trainer(dataBuffer, {
+				settings: TEST_TRAINING_SETTINGS,
+			});
 			feedCandles(dataBuffer, "BTCUSDT", 100);
 
 			const result = await trainer.train(TradingSymbol.of("BTCUSDT"));
@@ -339,7 +378,9 @@ describe("Trainer", () => {
 
 		it("should handle null fitness in training result", async () => {
 			mockRunImpl = async () => ({ id: "no-fitness" });
-			const trainer = new Trainer(dataBuffer);
+			const trainer = new Trainer(dataBuffer, {
+				settings: TEST_TRAINING_SETTINGS,
+			});
 			feedCandles(dataBuffer, "BTCUSDT", 100);
 
 			const result = await trainer.train(TradingSymbol.of("BTCUSDT"));
@@ -385,7 +426,9 @@ describe("Trainer", () => {
 
 	describe("getGenerationContext", () => {
 		it("should return null when no training has occurred", () => {
-			const trainer = new Trainer(dataBuffer);
+			const trainer = new Trainer(dataBuffer, {
+				settings: TEST_TRAINING_SETTINGS,
+			});
 
 			expect(trainer.getGenerationContext()).toBeNull();
 		});
@@ -393,13 +436,17 @@ describe("Trainer", () => {
 
 	describe("getBestAgentSummary with genome", () => {
 		it("should return null when bestGenome is null", () => {
-			const trainer = new Trainer(dataBuffer);
+			const trainer = new Trainer(dataBuffer, {
+				settings: TEST_TRAINING_SETTINGS,
+			});
 
 			expect(trainer.getBestAgentSummary()).toBeNull();
 		});
 
 		it("should return correct summary when bestGenome has fitnessMeta", () => {
-			const trainer = new Trainer(dataBuffer);
+			const trainer = new Trainer(dataBuffer, {
+				settings: TEST_TRAINING_SETTINGS,
+			});
 			const bestGenome = makeMinimalBestGenome() as DeepReadonly<LamarckGenome>;
 			(trainer as any)._lastInfo = new LastTrainingInfo({
 				symbol: "BTCUSDT" as never,
@@ -425,7 +472,9 @@ describe("Trainer", () => {
 		});
 
 		it("should return summary with zero sharpe and avgPnl when no fitnessMeta", () => {
-			const trainer = new Trainer(dataBuffer);
+			const trainer = new Trainer(dataBuffer, {
+				settings: TEST_TRAINING_SETTINGS,
+			});
 			const bestGenome = makeBestGenomeNoMeta() as DeepReadonly<LamarckGenome>;
 			(trainer as any)._lastInfo = new LastTrainingInfo({
 				symbol: "BTCUSDT" as never,
@@ -444,7 +493,9 @@ describe("Trainer", () => {
 		});
 
 		it("should handle genome with fitnessMeta containing rawScores", () => {
-			const trainer = new Trainer(dataBuffer);
+			const trainer = new Trainer(dataBuffer, {
+				settings: TEST_TRAINING_SETTINGS,
+			});
 			const g = createDefaultGenome("test", 3) as DeepReadonly<LamarckGenome>;
 			(trainer as any)._lastInfo = new LastTrainingInfo({
 				symbol: "BTCUSDT" as never,
@@ -468,7 +519,9 @@ describe("Trainer", () => {
 		});
 
 		it("should return fitness as 0 when bestGenome fitness is null", () => {
-			const trainer = new Trainer(dataBuffer);
+			const trainer = new Trainer(dataBuffer, {
+				settings: TEST_TRAINING_SETTINGS,
+			});
 			const g = createDefaultGenome("test", 3) as DeepReadonly<LamarckGenome>;
 			(trainer as any)._lastInfo = new LastTrainingInfo({
 				symbol: "BTCUSDT" as never,
@@ -487,7 +540,9 @@ describe("Trainer", () => {
 
 	describe("callbacks", () => {
 		it("should store generation context after training with onGeneration", async () => {
-			const trainer = new Trainer(dataBuffer);
+			const trainer = new Trainer(dataBuffer, {
+				settings: TEST_TRAINING_SETTINGS,
+			});
 			feedCandles(dataBuffer, "BTCUSDT", 100);
 
 			await trainer.train(TradingSymbol.of("BTCUSDT"));
@@ -499,7 +554,9 @@ describe("Trainer", () => {
 		});
 
 		it("should set best genome to final result after training", async () => {
-			const trainer = new Trainer(dataBuffer);
+			const trainer = new Trainer(dataBuffer, {
+				settings: TEST_TRAINING_SETTINGS,
+			});
 			feedCandles(dataBuffer, "BTCUSDT", 100);
 
 			await trainer.train(TradingSymbol.of("BTCUSDT"));
@@ -511,7 +568,9 @@ describe("Trainer", () => {
 
 		it("should skip updating bestGenome when archive is empty", async () => {
 			mockArchiveData = [];
-			const trainer = new Trainer(dataBuffer);
+			const trainer = new Trainer(dataBuffer, {
+				settings: TEST_TRAINING_SETTINGS,
+			});
 			feedCandles(dataBuffer, "BTCUSDT", 100);
 
 			await trainer.train(TradingSymbol.of("BTCUSDT"));
@@ -519,5 +578,87 @@ describe("Trainer", () => {
 			const ctx = trainer.getGenerationContext();
 			expect(ctx).not.toBeNull();
 		});
+	});
+});
+
+describe("Trainer — model publication", () => {
+	let dataBuffer: MarketDataBuffer;
+
+	beforeEach(() => {
+		dataBuffer = new MarketDataBuffer({ maxSize: 500 });
+		capturedOnGeneration = null;
+		capturedOnArchiveUpdate = null;
+		mockRunImpl = null;
+		mockArchiveData = [{ id: "best-archived" }];
+		feedCandles(dataBuffer, "BTCUSDT", 100);
+	});
+
+	it("should publish the best agent after a successful training", async () => {
+		const publisher = { publish: jest.fn<any>().mockResolvedValue(undefined) };
+		const trainer = new Trainer(dataBuffer, {
+			settings: TEST_TRAINING_SETTINGS,
+			publisher,
+		});
+
+		const result = await trainer.train(TradingSymbol.of("BTCUSDT"));
+
+		expect(result.success).toBe(true);
+		expect(publisher.publish).toHaveBeenCalledWith(
+			"BTCUSDT",
+			expect.objectContaining({ id: expect.any(String) })
+		);
+	});
+
+	it("should keep the training successful when publication fails", async () => {
+		const publisher = {
+			publish: jest.fn<any>().mockRejectedValue(new Error("bus down")),
+		};
+		const trainer = new Trainer(dataBuffer, {
+			settings: TEST_TRAINING_SETTINGS,
+			publisher,
+		});
+
+		const result = await trainer.train(TradingSymbol.of("BTCUSDT"));
+
+		expect(result.success).toBe(true);
+		expect(publisher.publish).toHaveBeenCalled();
+	});
+
+	it("should tolerate a non-Error publication failure", async () => {
+		const publisher = { publish: jest.fn<any>().mockRejectedValue("nope") };
+		const trainer = new Trainer(dataBuffer, {
+			settings: TEST_TRAINING_SETTINGS,
+			publisher,
+		});
+
+		await expect(
+			trainer.train(TradingSymbol.of("BTCUSDT"))
+		).resolves.toMatchObject({ success: true });
+	});
+
+	it("should hand the GA telemetry and the settings to the training session", async () => {
+		const telemetry = {
+			generationStarted: jest.fn(),
+			stagnationUpdated: jest.fn(),
+			evaluationFailed: jest.fn(),
+		};
+		const trainer = new Trainer(dataBuffer, {
+			settings: TEST_TRAINING_SETTINGS,
+			telemetry,
+		});
+
+		await trainer.train(TradingSymbol.of("BTCUSDT"));
+
+		const { GeneticAlgorithmRunner } = jest.requireMock(
+			"../../../src/domain/genetic-algorithm/ga-runner"
+		) as { GeneticAlgorithmRunner: jest.Mock };
+		const opts = GeneticAlgorithmRunner.mock.calls.at(-1)?.[0] as {
+			telemetry: unknown;
+			initialControl: { population: { size: number } };
+		};
+		expect(opts.telemetry).toBe(telemetry);
+		expect(opts.initialControl.population.size).toBe(
+			TEST_TRAINING_SETTINGS.populationSize
+		);
 	});
 });

@@ -102,98 +102,40 @@ The GA loop stops when **any** of these conditions is met (checked in order):
 ```
 services/trader-trainer/
 ├── src/
-│ ├── app/
-│ │ ├── index.ts # Service entry point
-│ │ └── server.ts # Express server setup
-│ │
-│ └── core/
-│ ├── agent/
-│ │ ├── trading-agent.ts # Orchestrates NN + Wallet + StateManager
-│ │ ├── trading-agent.spec.ts # Unit tests
-│ │ ├── state-manager.ts # Q-learning state & epsilon-decay
-│ │ ├── state-manager.spec.ts # Unit tests
-│ │ └── auto-env.ts # GA-compatible environment wrapper
-│ │
-│ ├── env/
-│ │ ├── wallet-manager.ts # Simulates trading account
-│ │ └── wallet-manager.spec.ts # Unit tests
-│ │
-│ ├── neural-network/
-│ │ ├── neural-network.ts # Core NN implementation
-│ │ ├── neural-network.spec.ts # Unit tests
-│ │ ├── agent.ts # NN + experience replay wrapper
-│ │ ├── type.ts # Type definitions
-│ │ ├── activation.ts # Activation functions
-│ │ ├── initializers.ts # Weight initialization strategies
-│ │ ├── optimizer.ts # Optimization algorithms (SGD, Adam, etc.)
-│ │ ├── losses.ts # Loss functions (MSE, CE, Huber)
-│ │ ├── normalize.ts # Normalization strategies
-│ │ └── utils.ts # Utilities
-│ │
-│ └── genetic-algorithm/
-│ ├── ga-runner.ts # Main GA evolution loop with NSGA-II, Lamarckian inheritance, and Pareto archiving
-│ ├── genome.ts # Full genome type definitions and validation
-│ ├── validation.ts # Re-exports validation from genome.ts (avoids Feature Envy)
-│ ├── genome-types.ts # Additional genome type aliases
-│ ├── mutation.ts # Adaptive gaussian/levy mutation
-│ ├── crossover.ts # Uniform/BLX-α/SBX crossover
-│ ├── selection.ts # Tournament, roulette, rank-based
-│ ├── evolution-engine.ts # Low-level weight evolution functions
-│ ├── fitness.ts # Sharpe, Sortino, Calmar metrics
-│ ├── evaluation-pipeline.ts # Multi-window evaluation pipeline
-│ ├── complexity-estimator.ts # Complexity penalty & fitness adjustment
-│ ├── pareto-engine.ts # NSGA-II exact and approximate sorting
-│ ├── adaptive-control-system.ts # Self-adaptive GA parameter control
-│ ├── factory.ts # Default genome factory
-│ ├── encoding.ts # Genome encode/decode
-│ ├── diversity.ts # Speciation and novelty search
-│ ├── noise.ts # Noise distributions for mutation
-│ ├── prng.ts # Pseudo-random number generator
-│ ├── utils.ts # Shared utilities (clamp, generateId, etc.)
-│ ├── normalization-stats.ts # Online running mean/std for z-score normalization
-│ └── index.ts # Barrel exports
-│ │
-│ ├── Constraints & Validation:
-│ │ ├── complexity.ts # Topology constraints
-│ │ ├── validation.ts # Genome validation & repair
-│ │ └── adaptive_control_system.ts # Adaptive GA parameters
-│ │
-│ ├── Diversity & Speciation:
-│ │ ├── diversity.ts # Speciation & novelty
-│ │ └── pareto_engine.ts # Multi-objective optimization
-│ │
-│ ├── Genome & Encoding:
-│ │ ├── genome.ts # Genome structure definition
-│ │ ├── genome_types.ts # Type exports
-│ │ ├── encoding.ts # Genome vectorization
-│ │ └── factory.ts # Default genome creation
-│ │
-│ └── Infrastructure:
-│ ├── prng.ts # Seeded random number generator
-│ ├── noise.ts # Gaussian, Levy, Cauchy distributions
-│ ├── utils.ts # Clamp, generateId
-│ └── index.ts # Public API barrel export
-│
-├── docs/ # Technical documentation
-│ ├── API.md
-│ ├── GENETIC_ALGORITHM.md
-│ ├── NEURAL_NETWORK.md
-│ └── TRAINING_PROCESS.md
-│
-├── package.json # Dependencies
-├── tsconfig.json # TypeScript config
-├── jest.config.js # Jest testing config
-├── eslint.config.js # ESLint rules
-├── ARCHITECTURE.md # This file
-└── README.md # User guide
-
-````
+│   ├── domain/                        # Pure computation (no IO, no metrics library)
+│   │   ├── agent/                     # TradingAgent, state manager, action mapping
+│   │   ├── env/                       # Simulated wallet, portfolio valuation, trade execution
+│   │   ├── neural-network/            # NN engine, optimizers, losses, experience replay
+│   │   ├── genetic-algorithm/         # GA engine: ga-runner, generation processor, evaluation
+│   │   │                              # pipeline, evolution engine, NSGA-II, genome operators,
+│   │   │                              # ga-telemetry (observability port)
+│   │   ├── feature-builders/, features/, data-handlers/, market-data/
+│   │   ├── market-data-buffer.ts      # Per-symbol rolling windows (onDataAdded hook)
+│   │   ├── training-settings.ts       # Hyper-parameters resolved by the composition root
+│   │   └── ports/model-publisher.port.ts
+│   ├── application/
+│   │   ├── index.ts                   # Entry point: bootstrap, bus subscriptions, training loop
+│   │   ├── server.ts                  # Express server + admin training routes
+│   │   ├── trainer.ts                 # Training lifecycle per symbol, publication, metrics
+│   │   └── training-session.ts        # One GA run with the injected settings and telemetry
+│   ├── adapters/
+│   │   ├── inbound/events/            # Market-data bus event handlers and processors
+│   │   ├── inbound/scheduler/         # Periodic training loop
+│   │   └── outbound/model-publisher.ts # Publishes trained models on the message bus
+│   ├── infrastructure/config/env.ts   # Zod-validated environment
+│   └── config/
+│       ├── container.ts               # Composition root: buffer, trainer, publisher, Prometheus hooks
+│       ├── metrics.ts, message-manager.ts, address-manager.ts
+├── tests/
+├── Dockerfile
+└── package.json
+```
 
 ---
 
 ## Core Modules
 
-### 1. **app/** - Service Entry Point
+### 1. **application/** - Service Entry Point & Orchestration
 
 - **index.ts**: Initializes the service, binds to port, handles graceful shutdown
 - **server.ts**: Configures Express with security middleware (Helmet), health checks (/ping)
@@ -202,7 +144,7 @@ services/trader-trainer/
 
 ---
 
-### 2. **core/agent/** - Trading Agent Orchestration
+### 2. **domain/agent/** - Trading Agent Orchestration
 
 #### TradingAgent
 
@@ -250,7 +192,7 @@ Lightweight wrapper enabling GA runners to interface with TradingAgent without t
 
 ---
 
-### 3. **core/env/** - Trading Environment
+### 3. **domain/env/** - Trading Environment
 
 #### WalletManager
 
@@ -285,7 +227,7 @@ Sell: cash += amount * price - fees; position -= amount
 
 ---
 
-### 4. **core/neural_network/** - Deep Q-Learning Agent
+### 4. **domain/neural-network/** - Deep Q-Learning Agent
 
 #### NeuralNetwork
 
@@ -331,7 +273,7 @@ interface Experience {
 
 ---
 
-### 5. **core/genetic_algorithm/** - Evolution Engine
+### 5. **domain/genetic-algorithm/** - Evolution Engine
 
 #### GeneticAlgorithmRunner
 
@@ -578,7 +520,7 @@ For complete agent reconstruction (with trained weights), the `trainedWeights` f
 
 To consume additional market data:
 
-1. Add event type to imports in `app/index.ts`
+1. Add event type to imports in `application/index.ts`
 2. Subscribe in the `onStart` handler
 3. Add to `MessageManager.intents()` array
 4. Process data in `MarketDataBuffer` (add new normalizer if needed)

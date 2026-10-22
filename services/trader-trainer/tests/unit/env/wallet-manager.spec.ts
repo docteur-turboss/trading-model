@@ -4,8 +4,8 @@ import {
 	Percentage,
 	Price,
 	Volume,
-} from "@trading-model/common/domain/primitives";
-import { createWallet } from "../../../src/core/env/wallet-manager";
+} from "@trading-model/primitives/primitives";
+import { createWallet } from "../../../src/domain/env/wallet-manager";
 
 describe("Wallet module", () => {
 	describe("Initialization", () => {

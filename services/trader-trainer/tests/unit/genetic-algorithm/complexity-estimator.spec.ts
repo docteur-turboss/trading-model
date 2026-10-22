@@ -1,9 +1,9 @@
 import { describe, expect, it } from "@jest/globals";
-import { NumericRange } from "@trading-model/common/domain/numeric-range";
+import { NumericRange } from "@trading-model/primitives/numeric-range";
 import {
 	computeAdjustedFitness,
 	estimateComplexity,
-} from "../../../src/core/genetic-algorithm/complexity-estimator";
+} from "../../../src/domain/genetic-algorithm/complexity-estimator";
 import {
 	ActivationType,
 	ContinuousPolicyType,
@@ -14,7 +14,7 @@ import {
 	MutationScope,
 	NormalisationType,
 	SelectionType,
-} from "../../../src/core/genetic-algorithm/genome";
+} from "../../../src/domain/genetic-algorithm/genome";
 
 describe("estimateComplexity", () => {
 	const baseGenome = {

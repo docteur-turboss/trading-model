@@ -76,8 +76,19 @@ jest.mock("../../src/config/message-manager", () => ({
 	MessageManagerListenExpress: (): void => {},
 }));
 
-import { MarketDataBuffer } from "../../src/core/market-data-buffer";
-import { Trainer } from "../../src/core/trainer";
+import { Trainer } from "../../src/application/trainer";
+import { MarketDataBuffer } from "../../src/domain/market-data-buffer";
+import type { TrainingSettings } from "../../src/domain/training-settings";
+
+/** Mirrors the TRAINER_* values of the mocked ENV above. */
+const TEST_TRAINING_SETTINGS: TrainingSettings = {
+	validationSplit: 0.2,
+	walkForwardFolds: 1,
+	generations: 10,
+	populationSize: 5,
+	timeBudgetMs: 60000,
+	episodesPerIndividual: 2,
+};
 
 function createRoutes(app: express.Application, trainer: Trainer): void {
 	app.get(
@@ -151,7 +162,7 @@ describe("Server routes", () => {
 
 	beforeEach(() => {
 		dataBuffer = new MarketDataBuffer({ maxSize: 500 });
-		trainer = new Trainer(dataBuffer);
+		trainer = new Trainer(dataBuffer, { settings: TEST_TRAINING_SETTINGS });
 		const app = express();
 		createRoutes(app, trainer);
 		return new Promise<void>((resolve) => {

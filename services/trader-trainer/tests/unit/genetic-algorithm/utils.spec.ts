@@ -1,7 +1,7 @@
 import { describe, expect, test } from "@jest/globals";
-import { EpisodeScores } from "../../../src/core/genetic-algorithm/episode-scores";
-import { clamp, generateId } from "../../../src/core/genetic-algorithm/utils";
-import { NormalizationStats } from "../../../src/core/normalization-stats";
+import { EpisodeScores } from "../../../src/domain/genetic-algorithm/episode-scores";
+import { clamp, generateId } from "../../../src/domain/genetic-algorithm/utils";
+import { NormalizationStats } from "../../../src/domain/normalization-stats";
 
 describe("Utils - clamp", () => {
 	test("should clamp value within range", () => {

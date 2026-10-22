@@ -1,20 +1,15 @@
-import { Cash, Price, Volume } from "@trading-model/common/domain/primitives";
-import { ActionMapper } from "../../core/agent/action-mapper";
-import { type ActionSpace, TradeAction } from "../../core/agent/action-types";
-import StateManager, {
-	type StateManagerConfig,
-} from "../../core/agent/state-manager";
+import { Cash, Price, Volume } from "@trading-model/primitives/primitives";
 import {
 	createWallet,
 	type WalletAPI,
 	type WalletConfig,
 	type WalletMetrics,
-} from "../../core/env/wallet-manager";
-import { Agent } from "../../core/neural-network/agent";
-import type {
-	Experience,
-	NeuralNetworkConfig,
-} from "../../core/neural-network/type";
+} from "../env/wallet-manager";
+import { Agent } from "../neural-network/agent";
+import type { Experience, NeuralNetworkConfig } from "../neural-network/type";
+import { ActionMapper } from "./action-mapper";
+import { type ActionSpace, TradeAction } from "./action-types";
+import StateManager, { type StateManagerConfig } from "./state-manager";
 
 export interface TradingAgentConfig {
 	nnConfig: NeuralNetworkConfig;

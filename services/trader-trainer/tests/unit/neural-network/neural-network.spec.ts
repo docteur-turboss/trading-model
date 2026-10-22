@@ -1,13 +1,14 @@
-import { beforeEach, describe, expect, it } from "@jest/globals";
-import type { NeuralNetworkConfig } from "../../../src/core/neural-network/type";
+import { beforeEach, describe, expect, it, jest } from "@jest/globals";
+import { setLogger } from "@trading-model/contracts/logger-registry";
+import { NeuralNetwork } from "../../../src/domain/neural-network/neural-network";
+import type { NeuralNetworkConfig } from "../../../src/domain/neural-network/type";
 import {
 	ActivationType,
 	ConnectionType,
 	InitialisationType,
 	LossFunctionType,
 	NormalisationType,
-} from "../../../src/core/neural-network/type";
-import { NeuralNetwork } from "../../../src/domain/neural-network/neural-network";
+} from "../../../src/domain/neural-network/type";
 
 function makeConfig(
 	overrides?: Partial<NeuralNetworkConfig>
@@ -78,7 +79,8 @@ describe("NeuralNetwork", () => {
 		});
 
 		it("should warn when sigmoid output is not paired with binary cross-entropy", () => {
-			const warnSpy = jest.spyOn(console, "warn").mockImplementation(() => {});
+			const warn = jest.fn();
+			setLogger({ debug: jest.fn(), info: jest.fn(), warn, error: jest.fn() });
 			new NeuralNetwork(
 				makeConfig({
 					activationType: [ActivationType.Relu, ActivationType.Sigmoid],
@@ -86,8 +88,9 @@ describe("NeuralNetwork", () => {
 				})
 			);
 
-			expect(warnSpy).toHaveBeenCalled();
-			warnSpy.mockRestore();
+			expect(warn).toHaveBeenCalledWith(
+				"Sigmoid output is usually paired with binary-cross-entropy"
+			);
 		});
 
 		it("should use default values when optional fields are omitted", () => {

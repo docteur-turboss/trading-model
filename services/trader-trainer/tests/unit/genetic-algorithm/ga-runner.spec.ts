@@ -1,6 +1,6 @@
 import { describe, expect, it, jest } from "@jest/globals";
-import { Price } from "@trading-model/common/domain/primitives";
-import { FeatureVector } from "../../../src/core/feature-vector";
+import { Price } from "@trading-model/primitives/primitives";
+import { FeatureVector } from "../../../src/domain/feature-vector";
 
 jest.mock("../../../src/domain/agent/trading-agent", () => {
 	const makeMockAgent = () => ({
@@ -22,7 +22,7 @@ jest.mock("../../../src/domain/agent/trading-agent", () => {
 	};
 });
 
-jest.mock("../../../src/core/env/wallet-manager", () => ({
+jest.mock("../../../src/domain/env/wallet-manager", () => ({
 	createWallet: jest.fn(() => ({
 		buy: jest.fn(() => true),
 		sell: jest.fn(() => true),
@@ -45,7 +45,7 @@ jest.mock("../../../src/core/env/wallet-manager", () => ({
 	})),
 }));
 
-jest.mock("../../../src/core/agent/state-manager", () => ({
+jest.mock("../../../src/domain/agent/state-manager", () => ({
 	StateManager: jest.fn().mockImplementation(() => ({
 		initialiseFromGenome: jest.fn(),
 		decayEpsilon: jest.fn(),
@@ -55,7 +55,7 @@ jest.mock("../../../src/core/agent/state-manager", () => ({
 	default: jest.fn(),
 }));
 
-jest.mock("../../../src/core/neural-network/agent", () => ({
+jest.mock("../../../src/domain/neural-network/agent", () => ({
 	Agent: jest.fn().mockImplementation(() => ({
 		nn: {
 			forward: jest.fn(() => ({ output: new Float32Array([0.5, 0.5, 0.5]) })),
@@ -88,7 +88,7 @@ jest.mock("../../../src/domain/neural-network/neural-network", () => ({
 	NeuralNetwork: jest.fn(),
 }));
 
-import { GeneticAlgorithmRunner } from "../../../src/core/genetic-algorithm/ga-runner";
+import { GeneticAlgorithmRunner } from "../../../src/domain/genetic-algorithm/ga-runner";
 import {
 	ActivationType,
 	ConnectionType,
@@ -99,8 +99,8 @@ import {
 	MutationScope,
 	NormalisationType,
 	SelectionType,
-} from "../../../src/core/genetic-algorithm/genome";
-import { makeTradingAgentBackend } from "../../../src/core/genetic-algorithm/rl-backend";
+} from "../../../src/domain/genetic-algorithm/genome";
+import { makeTradingAgentBackend } from "../../../src/domain/genetic-algorithm/rl-backend";
 
 describe("makeTradingAgentBackend", () => {
 	it("should create an RLBackend from a genome", () => {

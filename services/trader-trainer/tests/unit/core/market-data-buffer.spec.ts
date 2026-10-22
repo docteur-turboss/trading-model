@@ -1,22 +1,22 @@
-import { beforeEach, describe, expect, it } from "@jest/globals";
+import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import {
 	MarketType,
 	SourceType,
 	TradeSide,
-} from "@trading-model/common/config/event.types";
+} from "@trading-model/contracts/market-data.types";
 import {
 	Price,
 	TradingSymbol,
 	UnixTimestamp,
 	Volume,
-} from "@trading-model/common/domain/primitives";
-import { DataType } from "../../../src/core/data-handlers/data-types";
-import { EvictionPolicy } from "../../../src/core/eviction-policy";
-import { MarketDataBuffer } from "../../../src/core/market-data-buffer";
+} from "@trading-model/primitives/primitives";
+import { DataType } from "../../../src/domain/data-handlers/data-types";
+import { EvictionPolicy } from "../../../src/domain/eviction-policy";
+import { MarketDataBuffer } from "../../../src/domain/market-data-buffer";
 import {
 	fromSymbol,
 	NormalizationStats,
-} from "../../../src/core/market-data-types";
+} from "../../../src/domain/market-data-types";
 import {
 	feedCandles,
 	makeBookTicker,
@@ -625,5 +625,19 @@ describe("NormalizationStats", () => {
 		norm.update(100);
 
 		expect(norm.normalize(100)).toBe(0);
+	});
+});
+
+describe("MarketDataBuffer — observability hook", () => {
+	it("should report the candle count and symbol count after each insertion", () => {
+		const onDataAdded = jest.fn();
+		const buffer = new MarketDataBuffer({ maxSize: 50, onDataAdded });
+
+		feedCandles(buffer, "BTCUSDT", 3);
+		feedCandles(buffer, "ETHUSDT", 1);
+
+		expect(onDataAdded).toHaveBeenCalledTimes(4);
+		expect(onDataAdded).toHaveBeenNthCalledWith(3, "BTCUSDT", 3, 1);
+		expect(onDataAdded).toHaveBeenLastCalledWith("ETHUSDT", 1, 2);
 	});
 });

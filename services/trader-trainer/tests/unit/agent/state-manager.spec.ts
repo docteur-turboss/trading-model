@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it } from "@jest/globals";
-import StateManager from "../../../src/core/agent/state-manager";
-import { Agent } from "../../../src/core/neural-network/agent";
+import StateManager from "../../../src/domain/agent/state-manager";
+import { Agent } from "../../../src/domain/neural-network/agent";
 import {
 	ActivationType,
 	ConnectionType,
 	NormalisationType,
-} from "../../../src/core/neural-network/type";
+} from "../../../src/domain/neural-network/type";
 
 function makeAgent(): Agent {
 	return new Agent({

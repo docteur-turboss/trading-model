@@ -4,19 +4,19 @@ import type {
 	OrderBookData,
 	TickerData,
 	TradeData,
-} from "@trading-model/common/config/event.types";
+} from "@trading-model/contracts/market-data.types";
 import {
 	CandleInterval,
 	MarketType,
 	SourceType,
 	TradeSide,
-} from "@trading-model/common/config/event.types";
+} from "@trading-model/contracts/market-data.types";
 import {
 	Price,
 	TradingSymbol,
 	UnixTimestamp,
 	Volume,
-} from "@trading-model/common/domain/primitives";
+} from "@trading-model/primitives/primitives";
 
 let seq = 0;
 

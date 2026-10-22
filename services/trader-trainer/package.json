@@ -17,14 +17,16 @@
   "license": "ISC",
   "author": "Alchimist Horus Turboss <@docteur-turboss>",
   "type": "commonjs",
-  "main": "./dist/infrastructure/index.js",
+  "main": "./dist/application/index.js",
   "scripts": {
     "build": "tsc",
     "test:coverage": "jest --coverage",
-    "dev": "ts-node src/infrastructure/index.ts",
+    "dev": "ts-node src/application/index.ts",
     "test": "jest"
   },
   "dependencies": {
+    "@trading-model/primitives": "*",
+    "@trading-model/contracts": "*",
     "@trading-model/address-manager": "*",
     "@trading-model/broker-message": "*",
     "@trading-model/common": "*",

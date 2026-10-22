@@ -1,11 +1,11 @@
-import { DurationMs } from "@trading-model/common/domain/primitives";
-import { EpisodeScores } from "../../src/core/genetic-algorithm/episode-scores";
-import { createDefaultGenome } from "../../src/core/genetic-algorithm/factory";
+import { DurationMs } from "@trading-model/primitives/primitives";
+import { EpisodeScores } from "../../src/domain/genetic-algorithm/episode-scores";
+import { createDefaultGenome } from "../../src/domain/genetic-algorithm/factory";
 import type {
 	GenomeFitnessMeta,
 	LamarckGenome,
-} from "../../src/core/genetic-algorithm/genome-types";
-import type { DeepReadonly } from "../../src/core/genetic-algorithm/shared-types";
+} from "../../src/domain/genetic-algorithm/genome-types";
+import type { DeepReadonly } from "../../src/domain/genetic-algorithm/shared-types";
 
 export function makeMinimalBestGenome(): DeepReadonly<LamarckGenome> {
 	return createDefaultGenome("test-best", 5) as DeepReadonly<LamarckGenome>;

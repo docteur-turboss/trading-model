@@ -1,5 +1,5 @@
 import { describe, expect, test } from "@jest/globals";
-import { INITIALIZERS } from "../../../src/core/neural-network/initializers";
+import { INITIALIZERS } from "../../../src/domain/neural-network/initializers";
 
 describe("Initializers", () => {
 	test("zeros should return 0", () => {

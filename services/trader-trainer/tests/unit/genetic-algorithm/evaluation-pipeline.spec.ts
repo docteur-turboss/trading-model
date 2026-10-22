@@ -1,11 +1,11 @@
 import { describe, expect, it, jest } from "@jest/globals";
-import { NumericRange } from "@trading-model/common/domain/numeric-range";
-import { Cash, Price } from "@trading-model/common/domain/primitives";
-import { FeatureVector } from "../../../src/core/feature-vector";
+import { NumericRange } from "@trading-model/primitives/numeric-range";
+import { Cash, Price } from "@trading-model/primitives/primitives";
+import { FeatureVector } from "../../../src/domain/feature-vector";
 import {
 	evaluateGenomeAllWindows,
 	pooledEval,
-} from "../../../src/core/genetic-algorithm/evaluation-pipeline";
+} from "../../../src/domain/genetic-algorithm/evaluation-pipeline";
 import {
 	ActivationType,
 	ContinuousPolicyType,
@@ -16,10 +16,10 @@ import {
 	MutationScope,
 	NormalisationType,
 	SelectionType,
-} from "../../../src/core/genetic-algorithm/genome";
-import type { RLBackend } from "../../../src/core/genetic-algorithm/rl-backend";
-import type { Experience } from "../../../src/core/genetic-algorithm/shared-types";
-import { ExperienceKind } from "../../../src/core/neural-network/type";
+} from "../../../src/domain/genetic-algorithm/genome";
+import type { RLBackend } from "../../../src/domain/genetic-algorithm/rl-backend";
+import type { Experience } from "../../../src/domain/genetic-algorithm/shared-types";
+import { ExperienceKind } from "../../../src/domain/neural-network/type";
 
 const MINIMAL_GENOME = {
 	id: "test",
@@ -364,5 +364,51 @@ describe("pooledEval", () => {
 		const results = await pooledEval([1, 2], 10, fn);
 		expect(results).toEqual([1, 2]);
 		expect(fn).toHaveBeenCalledTimes(2);
+	});
+});
+
+describe("evaluateGenomeAllWindows — failure reporting", () => {
+	const windowSets = [
+		{
+			id: "w1",
+			train: [makeStep([0.1, 0.2, 0.3]), makeStep([0.4, 0.5, 0.6])],
+			validation: [makeStep([0.7, 0.8, 0.9])],
+		},
+	];
+
+	it("should report a failed evaluation to the telemetry and penalise the genome", async () => {
+		const telemetry = {
+			generationStarted: jest.fn(),
+			stagnationUpdated: jest.fn(),
+			evaluationFailed: jest.fn(),
+		};
+		const backendFactory = jest.fn(() => {
+			throw new Error("backend exploded");
+		});
+
+		const result = await evaluateGenomeAllWindows(
+			MINIMAL_GENOME as any,
+			windowSets,
+			backendFactory as any,
+			telemetry
+		);
+
+		expect(telemetry.evaluationFailed).toHaveBeenCalledWith("backend exploded");
+		expect(result.objectives.avgPnl).toBeLessThan(-1e8);
+	});
+
+	it("should tolerate a failure without telemetry and a non-Error throw", async () => {
+		const nonError: unknown = "not an error";
+		const backendFactory = jest.fn(() => {
+			throw nonError;
+		});
+
+		const result = await evaluateGenomeAllWindows(
+			MINIMAL_GENOME as any,
+			windowSets,
+			backendFactory as any
+		);
+
+		expect(result.objectives.avgPnl).toBeLessThan(-1e8);
 	});
 });

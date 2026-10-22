@@ -1,7 +1,7 @@
 import { describe, expect, test } from "@jest/globals";
-import { NumericRange } from "@trading-model/common/domain/numeric-range";
-import { LOSSES } from "../../../src/core/neural-network/losses";
-import type { NeuralNetworkConfig } from "../../../src/core/neural-network/type";
+import { NumericRange } from "@trading-model/primitives/numeric-range";
+import { LOSSES } from "../../../src/domain/neural-network/losses";
+import type { NeuralNetworkConfig } from "../../../src/domain/neural-network/type";
 import {
 	ActivationType,
 	ConnectionType,
@@ -9,7 +9,7 @@ import {
 	LossFunctionType,
 	NormalisationType,
 	OptimizerType,
-} from "../../../src/core/neural-network/type";
+} from "../../../src/domain/neural-network/type";
 
 function makeConfig(
 	_overrides?: Partial<NeuralNetworkConfig>
