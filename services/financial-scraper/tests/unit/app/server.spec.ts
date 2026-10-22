@@ -20,7 +20,7 @@ jest.mock("../../../src/config/address-manager", () => ({
 	ADDRESS_MANAGER_ROUTES: jest.fn((app: any) => app),
 }));
 
-jest.mock("../../../src/clients/http/routes", () => ({
+jest.mock("../../../src/adapters/inbound/http/routes", () => ({
 	FINANCIAL_ROUTES: jest.fn(() => MOCK_APP),
 }));
 

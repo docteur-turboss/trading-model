@@ -10,6 +10,8 @@ module.exports = {
   testMatch: ['**/?(*.)+(spec).ts'],
   testPathIgnorePatterns: ['/node_modules/', '/dist/'],
   moduleNameMapper: {
+    '^@trading-model/primitives/(.*)$': '<rootDir>/../../packages/primitives/src/$1',
+    '^@trading-model/contracts/(.*)$': '<rootDir>/../../packages/contracts/src/$1',
     '^@trading-model/http/(.*)$': '<rootDir>/../../packages/http/src/$1',
     '^@trading-model/jobs/(.*)$': '<rootDir>/../../packages/jobs/src/$1',
     '^(\\.{1,2}/.*)\\.js$': '$1',
@@ -17,12 +19,7 @@ module.exports = {
     '^@trading-model/validation/(.*)$': '<rootDir>/../../packages/validation/src/$1',
     '^@trading-model/server-utils/(.*)$': '<rootDir>/../../packages/server-utils/src/$1',
     '^@trading-model/common/(.*)$': '<rootDir>/../../packages/common/src/$1',
-    '^infra/(.*)$': '<rootDir>/src/infra/$1',
     '^config/(.*)$': '<rootDir>/src/config/$1',
-    '^clients/(.*)$': '<rootDir>/src/clients/$1',
-    '^job/(.*)$': '<rootDir>/src/job/$1',
-    '^types/(.*)$': '<rootDir>/src/types/$1',
-    '^utils/(.*)$': '<rootDir>/src/utils/$1',
   },
   collectCoverageFrom: ['src/**/*.ts', '!src/**/*.d.ts'],
   coverageThreshold: {

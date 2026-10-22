@@ -13,11 +13,6 @@
     "types": ["node"],
     "paths": {
       "config/*": ["./src/config/*"],
-      "infra/*": ["./src/infra/*"],
-      "clients/*": ["./src/clients/*"],
-      "job/*": ["./src/job/*"],
-      "types/*": ["./src/types/*"],
-      "utils/*": ["./src/utils/*"]
     },
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,

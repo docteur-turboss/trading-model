@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
-import { CandleInterval } from "@trading-model/common/config/event.types";
+import { CandleInterval } from "@trading-model/contracts/market-data.types";
 import {
 	BinanceFromId,
 	Limit,
 	toSymbol,
-} from "@trading-model/common/domain/primitives";
+} from "@trading-model/primitives/primitives";
 
 jest.mock("../../../../src/config/http", () => ({
 	httpClients: {
@@ -14,7 +14,7 @@ jest.mock("../../../../src/config/http", () => ({
 	},
 }));
 
-jest.mock("../../../../src/clients/binance/endpoints", () => ({
+jest.mock("../../../../src/adapters/outbound/binance/endpoints", () => ({
 	BINANCE_ENDPOINTS: {
 		depth: jest.fn(() => "/api/v3/depth"),
 		trades: jest.fn(() => "/api/v3/trades"),
@@ -28,7 +28,7 @@ jest.mock("../../../../src/clients/binance/endpoints", () => ({
 	},
 }));
 
-jest.mock("../../../../src/clients/binance/weights", () => ({
+jest.mock("../../../../src/adapters/outbound/binance/weights", () => ({
 	BINANCE_WEIGHTS: {
 		depth: jest.fn(() => 5),
 		trades: jest.fn(() => 25),
@@ -52,7 +52,7 @@ import {
 	getRecentTrades,
 	getSymbolPriceTicker,
 	getTradingDayTicker,
-} from "../../../../src/clients/binance/binance.client";
+} from "../../../../src/adapters/outbound/binance/binance.client";
 import { httpClients } from "../../../../src/config/http";
 
 const BTC = toSymbol("BTCUSDT");

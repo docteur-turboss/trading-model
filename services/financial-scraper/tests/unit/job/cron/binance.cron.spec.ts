@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
-import { CandleInterval } from "@trading-model/common/config/event.types";
+import { CandleInterval } from "@trading-model/contracts/market-data.types";
 import {
 	PositiveInt,
 	TradingSymbol,
-} from "@trading-model/common/domain/primitives";
+} from "@trading-model/primitives/primitives";
 
 jest.mock("os", () => ({
 	cpus: jest.fn(() => new Array(4).fill({})),
@@ -30,24 +30,35 @@ jest.mock("@trading-model/http/infrastructure/logger", () => ({
 }));
 
 const MOCK_WORKER_RUN = jest.fn<any>();
-jest.mock("../../../../src/job/worker/binance.worker", () => ({
-	BinanceWorker: jest.fn(() => ({
-		run: MOCK_WORKER_RUN,
-	})),
+jest.mock(
+	"../../../../src/adapters/outbound/binance-worker/binance.worker",
+	() => ({
+		BinanceWorker: jest.fn(() => ({
+			run: MOCK_WORKER_RUN,
+		})),
+	})
+);
+
+const MOCK_PERSIST_FN = jest.fn<any>();
+jest.mock("../../../../src/application/market-data.controller", () => ({
+	createMarketDataController: () => ({ persist: MOCK_PERSIST_FN }),
 }));
 
-jest.mock("../../../../src/application/market-data.controller", () => ({
-	MarketDataController: {
-		persist: jest.fn<any>(),
-	},
+jest.mock("@trading-model/contracts/logger-registry", () => ({
+	getLogger: () =>
+		(
+			jest.requireMock("@trading-model/http/infrastructure/logger") as {
+				logger: unknown;
+			}
+		).logger,
+	setLogger: () => {},
 }));
 
 import { logger } from "@trading-model/http/infrastructure/logger";
-import { MarketDataController } from "../../../../src/application/market-data.controller";
-import { BinanceCronOrchestrator } from "../../../../src/job/cron/binance.cron";
+import { BinanceCronOrchestrator } from "../../../../src/adapters/inbound/cron/binance.cron";
 
 const MOCK_LOGGER = jest.mocked(logger);
-const MOCK_PERSIST = jest.mocked(MarketDataController.persist);
+const MOCK_PERSIST = MOCK_PERSIST_FN;
 
 const GET_CRON_HANDLER = (): ((...args: unknown[]) => Promise<unknown>) =>
 	MOCK_CRON_SCHEDULE.mock.calls[0][1] as (
@@ -195,7 +206,9 @@ describe("BinanceCronOrchestrator", () => {
 
 			const cronHandler = GET_CRON_HANDLER();
 			const BinanceWorker = (
-				jest.requireMock("../../../../src/job/worker/binance.worker") as any
+				jest.requireMock(
+					"../../../../src/adapters/outbound/binance-worker/binance.worker"
+				) as any
 			).BinanceWorker;
 
 			MOCK_WORKER_RUN.mockResolvedValue({ fetchedAt: Date.now() });
@@ -217,7 +230,9 @@ describe("BinanceCronOrchestrator", () => {
 
 			const cronHandler = GET_CRON_HANDLER();
 			const BinanceWorker = (
-				jest.requireMock("../../../../src/job/worker/binance.worker") as any
+				jest.requireMock(
+					"../../../../src/adapters/outbound/binance-worker/binance.worker"
+				) as any
 			).BinanceWorker;
 
 			MOCK_WORKER_RUN.mockResolvedValue({ fetchedAt: Date.now() });

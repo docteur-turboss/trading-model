@@ -9,7 +9,7 @@ import type {
 	BinanceSymbolPriceTicker,
 	BinanceTradeResponse,
 	BinanceTradingDayTicker,
-} from "../../src/types/binance.api";
+} from "../../src/adapters/outbound/binance/binance.api";
 
 export const mockDepthResponse: BinanceDepthResponse = {
 	lastUpdateId: 1027024,

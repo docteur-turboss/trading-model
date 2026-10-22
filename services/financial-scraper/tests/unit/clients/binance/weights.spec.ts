@@ -1,5 +1,5 @@
 import { describe, expect, it } from "@jest/globals";
-import { BINANCE_WEIGHTS } from "../../../../src/clients/binance/weights";
+import { BINANCE_WEIGHTS } from "../../../../src/adapters/outbound/binance/weights";
 
 describe("BINANCE_WEIGHTS", () => {
 	describe("depth", () => {

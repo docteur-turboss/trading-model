@@ -2,9 +2,9 @@ import { describe, expect, it } from "@jest/globals";
 import {
 	CandleInterval,
 	TradeSide,
-} from "@trading-model/common/config/event.types";
-import { toSymbol } from "@trading-model/common/domain/primitives";
-import { BinanceNormalizer } from "../../../../src/clients/binance/normalizer";
+} from "@trading-model/contracts/market-data.types";
+import { toSymbol } from "@trading-model/primitives/primitives";
+import { BinanceNormalizer } from "../../../../src/adapters/outbound/binance/normalizer";
 import {
 	mock24hrTickerResponse,
 	mockAggregateTradeResponse,
@@ -90,7 +90,7 @@ describe("BinanceNormalizer", () => {
 					quantity: "10.0",
 					firstTradeId: 1,
 					lastTradeId: 2,
-					time: 1499865549591 as unknown as import("@trading-model/common/domain/primitives").UnixTimestamp,
+					time: 1499865549591 as unknown as import("@trading-model/primitives/primitives").UnixTimestamp,
 					isBuyerMaker: false,
 					isBestMatch: true,
 				},

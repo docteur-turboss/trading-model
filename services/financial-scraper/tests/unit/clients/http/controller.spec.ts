@@ -48,21 +48,33 @@ const MOCK_SELECT_CANDLES_BY = {
 	},
 };
 
-jest.mock("infra/market-data/schema/trades.schema", () => ({
-	selectTradesBy: MOCK_SELECT_TRADES_BY,
-}));
+jest.mock(
+	"../../../../src/adapters/outbound/persistence/schema/trades.schema",
+	() => ({
+		selectTradesBy: MOCK_SELECT_TRADES_BY,
+	})
+);
 
-jest.mock("infra/market-data/schema/ticker24h.schema", () => ({
-	selectTickerBy: MOCK_SELECT_TICKER_BY,
-}));
+jest.mock(
+	"../../../../src/adapters/outbound/persistence/schema/ticker24h.schema",
+	() => ({
+		selectTickerBy: MOCK_SELECT_TICKER_BY,
+	})
+);
 
-jest.mock("infra/market-data/schema/order-book.schema", () => ({
-	selectOrderBookBy: MOCK_SELECT_ORDER_BOOK_BY,
-}));
+jest.mock(
+	"../../../../src/adapters/outbound/persistence/schema/order-book.schema",
+	() => ({
+		selectOrderBookBy: MOCK_SELECT_ORDER_BOOK_BY,
+	})
+);
 
-jest.mock("infra/market-data/schema/candles-schema", () => ({
-	selectCandlesBy: MOCK_SELECT_CANDLES_BY,
-}));
+jest.mock(
+	"../../../../src/adapters/outbound/persistence/schema/candles-schema",
+	() => ({
+		selectCandlesBy: MOCK_SELECT_CANDLES_BY,
+	})
+);
 
 import {
 	GET_CANDLES_BY_SOURCE_CONTROLLER,
@@ -78,7 +90,7 @@ import {
 	GET_TRADE_BY_SOURCE_CONTROLLER,
 	GET_TRADE_BY_SYMBOL_CONTROLLER,
 	GET_TRADE_BY_TIMESTAMP_CONTROLLER,
-} from "../../../../src/clients/http/controller";
+} from "../../../../src/adapters/inbound/http/controller";
 
 describe("HTTP Controllers", () => {
 	const mockReq = (params: Record<string, any>) => ({ params }) as any;

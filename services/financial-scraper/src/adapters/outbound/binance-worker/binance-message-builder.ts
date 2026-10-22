@@ -1,0 +1,80 @@
+import { randomUUID } from "node:crypto";
+import { DeliveryMode } from "@trading-model/common/config/delivery-mode.types";
+import { deterministicStringify } from "@trading-model/common/utils/deterministic-stringify";
+import type { EventEnumMap } from "@trading-model/contracts/event-map";
+import { sha256Base64url } from "@trading-model/crypto/adapters/outbound/node-hash";
+import type {
+	CorrelationId,
+	InstanceId,
+	MessageId,
+	ServiceId,
+	Topic,
+} from "@trading-model/primitives/primitives";
+import {
+	toCorrelationId,
+	toInstanceId,
+	toMessageId,
+	toRole,
+	toServiceId,
+	toSubject,
+	toTenantId,
+} from "@trading-model/primitives/primitives";
+import type { AuthContext } from "@trading-model/validation/domain/contracts/message.types";
+
+import { ENV } from "../../../infrastructure/config/env";
+
+export interface MarketDataEntry {
+	data: unknown;
+	topic: Topic;
+	eventType: EventEnumMap;
+}
+
+export function makeEntry(
+	data: unknown,
+	topic: Topic,
+	eventType: EventEnumMap
+): MarketDataEntry {
+	return { data, topic, eventType };
+}
+
+export function buildAuthContext(): AuthContext {
+	return {
+		roles: ["Data", "Financial", "Scraper"].map(toRole),
+		subject: toSubject(ENV.SERVICE_NAME),
+		tenantId: toTenantId(ENV.INSTANCE_ID),
+	};
+}
+
+export function computeSignature(authContext: unknown): string {
+	return sha256Base64url(deterministicStringify(authContext));
+}
+
+export function buildDeliveryConfig(deliveryMode?: DeliveryMode): {
+	mode: DeliveryMode;
+	deduplicationId: MessageId;
+} {
+	return {
+		mode: deliveryMode ?? DeliveryMode.AtLeastOnce,
+		deduplicationId: toMessageId(randomUUID()),
+	};
+}
+
+export function buildIds(): {
+	causationId: CorrelationId;
+	correlationId: CorrelationId;
+} {
+	return {
+		causationId: toCorrelationId(randomUUID()),
+		correlationId: toCorrelationId(randomUUID()),
+	};
+}
+
+export function buildPublisher(): {
+	instanceId: InstanceId;
+	serviceName: ServiceId;
+} {
+	return {
+		instanceId: toInstanceId(ENV.INSTANCE_ID),
+		serviceName: toServiceId(ENV.SERVICE_NAME),
+	};
+}

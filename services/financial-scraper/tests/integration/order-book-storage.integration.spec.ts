@@ -1,13 +1,13 @@
 import { beforeEach, describe, expect, it } from "@jest/globals";
-import type { SourceType } from "@trading-model/common/contracts/market-data.types";
+import type { SourceType } from "@trading-model/contracts/market-data.types";
 import {
 	TradingSymbol,
 	UnixTimestamp,
-} from "@trading-model/common/domain/primitives";
+} from "@trading-model/primitives/primitives";
 import {
 	insertOrderBook,
 	selectOrderBookBy,
-} from "../../src/infra/market-data/schema/order-book.schema";
+} from "../../src/adapters/outbound/persistence/schema/order-book.schema";
 
 const BUILD_ORDER_BOOK = (symbol: string, ts: Date) => ({
 	symbol,

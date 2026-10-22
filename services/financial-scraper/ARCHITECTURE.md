@@ -57,7 +57,7 @@ A configurable Axios instance factory (`createHttpClient`) that provides:
 
 - **Token-bucket rate limiter** — per-baseURL bucket with configurable capacity (default: 1200 tokens) and refill rate (20 tokens/sec). The `weight` property on each request config determines how many tokens are consumed, mirroring Binance's documented API weight system.
 - **Exponential backoff retry** — up to 5 retries with 300ms base delay, max 10s. Triggers on network errors, 5xx, 403, 408, 429, and 418 status codes.
-- **Type augmentation** — `AxiosRequestConfig` is augmented to accept a `weight?: number` field via declaration merging (`src/types/axios.d.ts`).
+- **Type augmentation** — `AxiosRequestConfig` is augmented to accept a `weight?: number` field via declaration merging (`src/infrastructure/http/axios.d.ts`).
 
 ```typescript
 const binance = httpClients.binance;
@@ -65,7 +65,7 @@ const binance = httpClients.binance;
 const response = await binance.get(url, { weight: 5 });
 ```
 
-### 2. Binance Client (`src/clients/binance/`)
+### 2. Binance Client (`src/adapters/outbound/binance/`)
 
 | Module              | Responsibility                                                                                                                                                   |
 | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -74,7 +74,7 @@ const response = await binance.get(url, { weight: 5 });
 | `binance.client.ts` | 9 async functions (`getOrderBook`, `getRecentTrades`, `getCandlestickData`, etc.) each calling the Axios instance with the correct weight                        |
 | `normalizer.ts`     | `BinanceNormalizer` class (static methods) converting raw API shapes to internal entity types (`OrderBookEntity`, `TradeEntity`, `CandleEntity`, `TickerEntity`) |
 
-### 3. Worker & Cron (`src/job/`)
+### 3. Worker & Cron (`src/adapters/inbound/cron/`, `src/application/worker-orchestrator.ts`, `src/adapters/outbound/binance-worker/`)
 
 | Component                 | File                       | Role                                                                                                          |
 | ------------------------- | -------------------------- | ------------------------------------------------------------------------------------------------------------- |
@@ -90,9 +90,9 @@ The worker publishes 6 events to the message bus for each symbol:
 - `FetchPriceTicker` → `fetchPriceTickerSnapshot`
 - `FetchRecentTrades` → `fetchRecentTrades`
 
-### 4. Persistence Layer (`src/infra/market-data/`)
+### 4. Persistence Layer (`src/adapters/outbound/persistence/`)
 
-The `src/infra/market-data/` directory only contains the storage schemas and type definitions. The persistence orchestration controller has migrated to `src/application/market-data.controller.ts`, and the `MarketDataModel` facade now lives in `src/domain/market-data.model.ts`.
+Storage schemas live in `src/adapters/outbound/persistence/schema/`; market data types in `src/domain/market-data.types.ts`. The persistence use case `createMarketDataController()` (`src/application/market-data.controller.ts`) depends on `MarketDataRepositoryPort` (`src/domain/ports/`); `src/config/container.ts` wires it to the MySQL `MarketDataModel` and exports the `MarketDataController` instance plus the scrape-cycle dependencies of `WorkerOrchestrator`.
 
 | Component                    | Storage                           | Tables/Structures                                                                        |
 | ---------------------------- | --------------------------------- | ---------------------------------------------------------------------------------------- |
@@ -101,9 +101,9 @@ The `src/infra/market-data/` directory only contains the storage schemas and typ
 | `schema/ticker24h.schema.ts` | MySQL                             | `market_tickers` — id, symbol, market, source, OHLC, volume, timestamps                  |
 | `schema/orderBook.schema.ts` | In-memory (`Map`)                 | Indexed by symbol, source, market, timestamp with reverse lookup maps                    |
 
-The `MarketDataModel` class (in `src/domain/market-data.model.ts`) provides a unified facade over all schema modules. `MarketDataController.persist()` (in `src/application/market-data.controller.ts`) conditionally delegates to it.
+The `MarketDataModel` class (in `src/adapters/outbound/persistence/market-data.model.ts`) provides a unified facade over all schema modules. `MarketDataController.persist()` (built in `src/config/container.ts`) conditionally delegates to it.
 
-### 5. REST API (`src/clients/http/`)
+### 5. REST API (`src/adapters/inbound/http/`)
 
 | Method | Path                                     | Description                  |
 | ------ | ---------------------------------------- | ---------------------------- |
@@ -133,7 +133,7 @@ All routes use Zod-validated parameters and return standardized error responses 
 | **Separate worker per symbol**       | Avoids one slow symbol blocking others; `p-limit` caps total concurrency                                                                             |
 | **Message bus publishing**           | Decouples ingestion from consumption; other services (trainer, signal generator) consume normalized data without depending on the scraper's database |
 | **Zod-validated env vars**           | Fail-fast on misconfiguration; clear error messages at startup                                                                                       |
-| **Path aliases**                     | `config/*`, `infra/*`, `clients/*`, `job/*`, `types/*`, `utils/*` map to `src/` subdirectories for clean imports                                     |
+| **Path aliases**                     | `config/*` maps to `src/config/` (the other legacy aliases were removed with the hexagonal layout)                                     |
 
 ## Dependencies
 

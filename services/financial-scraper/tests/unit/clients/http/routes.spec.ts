@@ -14,7 +14,7 @@ const MOCK_GET_CANDLES_BY_TIMESTAMP_CONTROLLER = jest.fn();
 const MOCK_GET_ORDER_BOOK_BY_TIMESTAMP_AFTER_CONTROLLER = jest.fn();
 const MOCK_GET_ORDER_BOOK_BY_TIMESTAMP_BEFORE_CONTROLLER = jest.fn();
 
-jest.mock("../../../../src/clients/http/controller", () => ({
+jest.mock("../../../../src/adapters/inbound/http/controller", () => ({
 	GET_TRADE_BY_SOURCE_CONTROLLER: MOCK_GET_TRADE_BY_SOURCE_CONTROLLER,
 	GET_TRADE_BY_SYMBOL_CONTROLLER: MOCK_GET_TRADE_BY_SYMBOL_CONTROLLER,
 	GET_TICKER_BY_SOURCE_CONTROLLER: MOCK_GET_TICKER_BY_SOURCE_CONTROLLER,
@@ -32,7 +32,7 @@ jest.mock("../../../../src/clients/http/controller", () => ({
 		MOCK_GET_ORDER_BOOK_BY_TIMESTAMP_BEFORE_CONTROLLER,
 }));
 
-import { FINANCIAL_ROUTES } from "../../../../src/clients/http/routes";
+import { FINANCIAL_ROUTES } from "../../../../src/adapters/inbound/http/routes";
 
 describe("FINANCIAL_ROUTES", () => {
 	let router: any;

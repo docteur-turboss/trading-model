@@ -1,22 +1,34 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 
-jest.mock("../../../../src/infra/market-data/schema/trades.schema", () => ({
-	insertTrades: jest.fn(),
-}));
+jest.mock(
+	"../../../../src/adapters/outbound/persistence/schema/trades.schema",
+	() => ({
+		insertTrades: jest.fn(),
+	})
+);
 
-jest.mock("../../../../src/infra/market-data/schema/ticker24h.schema", () => ({
-	insertTicker: jest.fn(),
-}));
+jest.mock(
+	"../../../../src/adapters/outbound/persistence/schema/ticker24h.schema",
+	() => ({
+		insertTicker: jest.fn(),
+	})
+);
 
-jest.mock("../../../../src/infra/market-data/schema/candles-schema", () => ({
-	insertCandles: jest.fn(),
-}));
+jest.mock(
+	"../../../../src/adapters/outbound/persistence/schema/candles-schema",
+	() => ({
+		insertCandles: jest.fn(),
+	})
+);
 
-jest.mock("../../../../src/infra/market-data/schema/order-book.schema", () => ({
-	insertOrderBook: jest.fn(),
-}));
+jest.mock(
+	"../../../../src/adapters/outbound/persistence/schema/order-book.schema",
+	() => ({
+		insertOrderBook: jest.fn(),
+	})
+);
 
-import { MarketDataModel } from "../../../../src/domain/market-data.model";
+import { MarketDataModel } from "../../../../src/adapters/outbound/persistence/market-data.model";
 
 describe("MarketDataModel", () => {
 	beforeEach(() => {
@@ -28,7 +40,7 @@ describe("MarketDataModel", () => {
 		await MarketDataModel.insertCandles(data);
 		const {
 			insertCandles,
-		} = require("../../../../src/infra/market-data/schema/candles-schema");
+		} = require("../../../../src/adapters/outbound/persistence/schema/candles-schema");
 		expect(insertCandles).toHaveBeenCalledWith(data);
 	});
 
@@ -37,7 +49,7 @@ describe("MarketDataModel", () => {
 		await MarketDataModel.insertTrades(data);
 		const {
 			insertTrades,
-		} = require("../../../../src/infra/market-data/schema/trades.schema");
+		} = require("../../../../src/adapters/outbound/persistence/schema/trades.schema");
 		expect(insertTrades).toHaveBeenCalledWith(data);
 	});
 
@@ -46,7 +58,7 @@ describe("MarketDataModel", () => {
 		await MarketDataModel.insertOrderBook(data);
 		const {
 			insertOrderBook,
-		} = require("../../../../src/infra/market-data/schema/order-book.schema");
+		} = require("../../../../src/adapters/outbound/persistence/schema/order-book.schema");
 		expect(insertOrderBook).toHaveBeenCalledWith([data]);
 	});
 
@@ -55,7 +67,7 @@ describe("MarketDataModel", () => {
 		await MarketDataModel.insertTicker(data);
 		const {
 			insertTicker,
-		} = require("../../../../src/infra/market-data/schema/ticker24h.schema");
+		} = require("../../../../src/adapters/outbound/persistence/schema/ticker24h.schema");
 		expect(insertTicker).toHaveBeenCalledWith(data);
 	});
 });

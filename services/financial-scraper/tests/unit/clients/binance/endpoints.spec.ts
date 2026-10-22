@@ -1,10 +1,7 @@
 import { describe, expect, it } from "@jest/globals";
-import { CandleInterval } from "@trading-model/common/config/event.types";
-import {
-	BinanceFromId,
-	toSymbol,
-} from "@trading-model/common/domain/primitives";
-import { BINANCE_ENDPOINTS } from "../../../../src/clients/binance/endpoints";
+import { CandleInterval } from "@trading-model/contracts/market-data.types";
+import { BinanceFromId, toSymbol } from "@trading-model/primitives/primitives";
+import { BINANCE_ENDPOINTS } from "../../../../src/adapters/outbound/binance/endpoints";
 
 const BTC = toSymbol("BTCUSDT");
 const ETH = toSymbol("ETHUSDT");
@@ -58,7 +55,7 @@ describe("BINANCE_ENDPOINTS", () => {
 				symbol: BTC,
 				interval: CandleInterval.Min1,
 				startTime:
-					1620000000000 as unknown as import("@trading-model/common/domain/primitives").UnixTimestamp,
+					1620000000000 as unknown as import("@trading-model/primitives/primitives").UnixTimestamp,
 				limit: 100,
 			});
 			expect(url).toBe(

@@ -1,10 +1,12 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
-import { CandleInterval } from "@trading-model/common/config/event.types";
-import { SourceType } from "@trading-model/common/contracts/market-data.types";
+import {
+	CandleInterval,
+	SourceType,
+} from "@trading-model/contracts/market-data.types";
 import {
 	TradingSymbol,
 	UnixTimestamp,
-} from "@trading-model/common/domain/primitives";
+} from "@trading-model/primitives/primitives";
 
 const MOCK_EXECUTE_INSERT = jest
 	.fn<() => Promise<void>>()
@@ -41,7 +43,7 @@ jest.mock("../../../../../src/config/db", () => {
 import {
 	insertCandles,
 	selectCandlesBy,
-} from "../../../../../src/infra/market-data/schema/candles-schema";
+} from "../../../../../src/adapters/outbound/persistence/schema/candles-schema";
 
 const MAKE_CANDLE = (overrides: Record<string, unknown> = {}) => ({
 	symbol: "BTCUSDT",

@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
-import { SourceType } from "@trading-model/common/contracts/market-data.types";
+import { SourceType } from "@trading-model/contracts/market-data.types";
 import {
 	TradingSymbol,
 	UnixTimestamp,
-} from "@trading-model/common/domain/primitives";
+} from "@trading-model/primitives/primitives";
 
 const MOCK_EXECUTE_INSERT = jest
 	.fn<() => Promise<void>>()
@@ -40,7 +40,7 @@ jest.mock("../../../../../src/config/db", () => {
 import {
 	insertTicker,
 	selectTickerBy,
-} from "../../../../../src/infra/market-data/schema/ticker24h.schema";
+} from "../../../../../src/adapters/outbound/persistence/schema/ticker24h.schema";
 
 const MAKE_TICKER = (overrides: Record<string, unknown> = {}) => ({
 	symbol: "BTCUSDT",

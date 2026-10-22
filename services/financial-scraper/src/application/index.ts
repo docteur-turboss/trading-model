@@ -2,7 +2,7 @@ import { ServiceInstanceName } from "@trading-model/common/config/services.types
 import {
 	TradingSymbol,
 	toInstanceId,
-} from "@trading-model/common/domain/primitives";
+} from "@trading-model/primitives/primitives";
 import { createBootstrap } from "@trading-model/server-utils/application/services/bootstrap";
 import {
 	initializeTelemetry,
@@ -34,7 +34,7 @@ createBootstrap({
 		const symbols = ENV.SYMBOLS_TO_TRACK.map(TradingSymbol.of);
 		if (symbols.length > 0) {
 			const { BinanceCronOrchestrator } = await import(
-				"../job/cron/binance.cron.js"
+				"../adapters/inbound/cron/binance.cron.js"
 			);
 			const orchestrator = new BinanceCronOrchestrator({
 				schedule: ENV.SCRAPE_INTERVAL,

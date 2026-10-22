@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
-import { CandleInterval } from "@trading-model/common/config/event.types";
-import { Limit, toSymbol } from "@trading-model/common/domain/primitives";
+import { CandleInterval } from "@trading-model/contracts/market-data.types";
+import { Limit, toSymbol } from "@trading-model/primitives/primitives";
 
-jest.mock("../../../../src/clients/binance/binance.client", () => ({
+jest.mock("../../../../src/adapters/outbound/binance/binance.client", () => ({
 	getOrderBook: jest.fn(),
 	getCandlestickData: jest.fn(),
 	getRecentTrades: jest.fn(),
@@ -11,7 +11,7 @@ jest.mock("../../../../src/clients/binance/binance.client", () => ({
 	getSymbolPriceTicker: jest.fn(),
 }));
 
-jest.mock("../../../../src/clients/binance/normalizer", () => ({
+jest.mock("../../../../src/adapters/outbound/binance/normalizer", () => ({
 	BinanceNormalizer: {
 		orderBook: jest.fn(),
 		trades: jest.fn(),
@@ -53,10 +53,10 @@ jest.mock("../../../../src/infrastructure/config/env", () => ({
 	},
 }));
 
-import * as binanceClient from "../../../../src/clients/binance/binance.client";
-import { BinanceNormalizer } from "../../../../src/clients/binance/normalizer";
+import * as binanceClient from "../../../../src/adapters/outbound/binance/binance.client";
+import { BinanceNormalizer } from "../../../../src/adapters/outbound/binance/normalizer";
+import { BinanceWorker } from "../../../../src/adapters/outbound/binance-worker/binance.worker";
 import { MessageManager } from "../../../../src/config/message-manager";
-import { BinanceWorker } from "../../../../src/job/worker/binance.worker";
 
 const BTC = toSymbol("BTCUSDT");
 const ETH = toSymbol("ETHUSDT");
