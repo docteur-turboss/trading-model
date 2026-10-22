@@ -1,12 +1,12 @@
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
-import { toInstanceId, toSymbol } from "@trading-model/primitives/primitives";
+import { toInstanceId } from "@trading-model/primitives/primitives";
 import { createBootstrap } from "@trading-model/server-utils/application/services/bootstrap";
 import {
 	initializeTelemetry,
 	shutdownTelemetry,
 } from "@trading-model/server-utils/infrastructure/telemetry";
 import { BOOTSTRAP_ADDRESS_MANAGER } from "../config/address-manager";
-import { ApplicationContainer } from "../config/container";
+import { createTraderTrainerContainer } from "../config/container";
 import { MessageManager } from "../config/message-manager";
 import { DataType } from "../domain/data-handlers/data-types";
 import { ENV } from "../infrastructure/config/env";
@@ -17,20 +17,9 @@ const NULL_ADDRESS_MANAGER = { stop() {} };
 let addressManager: ReturnType<typeof BOOTSTRAP_ADDRESS_MANAGER> =
 	NULL_ADDRESS_MANAGER as ReturnType<typeof BOOTSTRAP_ADDRESS_MANAGER>;
 
-const CONTAINER = new ApplicationContainer({
-	bufferSize: ENV.TRAINER_DATA_WINDOW,
-	symbols: ENV.TRAINER_SYMBOLS.split(",").map((symbol) =>
-		toSymbol(symbol.trim())
-	),
-	validationSplit: ENV.TRAINER_VALIDATION_SPLIT,
-	walkForwardFolds: ENV.TRAINER_WALK_FORWARD_FOLDS,
-	generations: ENV.TRAINER_GENERATIONS,
-	populationSize: ENV.TRAINER_POPULATION_SIZE,
-	timeBudgetMs: ENV.TRAINER_TIME_BUDGET_MS,
-	episodesPerIndividual: ENV.TRAINER_EPISODES_PER_INDIVIDUAL,
-});
+const CONTAINER = createTraderTrainerContainer(ENV);
 
-const { trainer, eventHandler, trainingLoop } = CONTAINER;
+const { trainer, eventHandler, trainingLoop, symbols } = CONTAINER;
 
 createBootstrap({
 	name: "Trader Trainer",
@@ -66,9 +55,7 @@ createBootstrap({
 		await MessageManager.intents(eventHandler.getSubscribedIntents());
 
 		trainingLoop.start({
-			symbols: ENV.TRAINER_SYMBOLS.split(",").map((symbol) =>
-				toSymbol(symbol.trim())
-			),
+			symbols,
 			intervalMs: 60_000,
 		});
 	},

@@ -1,3 +1,4 @@
+import { toSymbol } from "@trading-model/primitives/primitives";
 import { DataEventHandler } from "../adapters/inbound/events/event-handlers";
 import { TrainingLoop } from "../adapters/inbound/scheduler/training-loop";
 import { ModelPublisher } from "../adapters/outbound/model-publisher";
@@ -46,12 +47,14 @@ export interface AppContainerConfig {
 }
 
 export class ApplicationContainer {
+	public readonly symbols: TradingSymbol[];
 	public readonly dataBuffer: MarketDataBuffer;
 	public readonly eventHandler: DataEventHandler;
 	public readonly trainer: Trainer;
 	public readonly trainingLoop: TrainingLoop;
 
 	constructor(config: AppContainerConfig) {
+		this.symbols = config.symbols;
 		const bufferConfig: MarketDataBufferConfig = {
 			maxSize: config.bufferSize,
 			maxMemoryBytes: (config.bufferMemoryLimitMb ?? 512) * 1024 * 1024,
@@ -82,4 +85,34 @@ export class ApplicationContainer {
 		});
 		this.trainingLoop = new TrainingLoop(this.trainer, this.dataBuffer);
 	}
+}
+
+export interface TraderTrainerSettings {
+	TRAINER_DATA_WINDOW: number;
+	/** Comma-separated symbols, e.g. "BTCUSDT,ETHUSDT". */
+	TRAINER_SYMBOLS: string;
+	TRAINER_VALIDATION_SPLIT: number;
+	TRAINER_WALK_FORWARD_FOLDS: number;
+	TRAINER_GENERATIONS: number;
+	TRAINER_POPULATION_SIZE: number;
+	TRAINER_TIME_BUDGET_MS: number;
+	TRAINER_EPISODES_PER_INDIVIDUAL: number;
+}
+
+/** Builds the service container from the environment settings. */
+export function createTraderTrainerContainer(
+	settings: TraderTrainerSettings
+): ApplicationContainer {
+	return new ApplicationContainer({
+		bufferSize: settings.TRAINER_DATA_WINDOW,
+		symbols: settings.TRAINER_SYMBOLS.split(",").map((symbol) =>
+			toSymbol(symbol.trim())
+		),
+		validationSplit: settings.TRAINER_VALIDATION_SPLIT,
+		walkForwardFolds: settings.TRAINER_WALK_FORWARD_FOLDS,
+		generations: settings.TRAINER_GENERATIONS,
+		populationSize: settings.TRAINER_POPULATION_SIZE,
+		timeBudgetMs: settings.TRAINER_TIME_BUDGET_MS,
+		episodesPerIndividual: settings.TRAINER_EPISODES_PER_INDIVIDUAL,
+	});
 }
