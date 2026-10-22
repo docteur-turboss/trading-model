@@ -35,10 +35,10 @@ services/audit-logger/
 │   │       ├── persistence/      # MongoDB repositories (audit events, jobs), filters, stats
 │   │       └── worker/           # WebSocket worker protocol (@trading-model/jobs)
 │   ├── infrastructure/
-│   │   ├── config/env.ts         # Zod-validated environment
-│   │   └── repository-factory.ts
+│   │   └── config/env.ts         # Zod-validated environment
 │   └── config/
-│       ├── container.ts          # Scheduler + worker protocol composition root (ENV → SchedulerConfig)
+│       ├── container.ts          # Composition root: Mongo repositories, scheduler (ENV → SchedulerConfig),
+│       │                         # worker protocol, message handler, server — createAuditLoggerApp()
 │       ├── broker-setup.ts       # Message bus subscription wiring
 │       ├── metrics.ts            # Prometheus collectors
 │       └── address-manager.ts

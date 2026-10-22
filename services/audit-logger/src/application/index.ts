@@ -7,42 +7,20 @@ import {
 	shutdownTelemetry,
 } from "@trading-model/server-utils/infrastructure/telemetry";
 import { BOOTSTRAP_ADDRESS_MANAGER } from "../config/address-manager";
-import { createBrokerMessage } from "../config/broker-setup";
-import { createSchedulerAndWorker } from "../config/container";
+import { type AuditLoggerApp, createAuditLoggerApp } from "../config/container";
 import { ENV } from "../infrastructure/config/env";
-import { createRepositories } from "../infrastructure/repository-factory";
 
-interface CleanupContext {
-	mongoManager: Awaited<ReturnType<typeof createRepositories>>["mongoManager"];
-	scheduler: Awaited<ReturnType<typeof createSchedulerAndWorker>>["scheduler"];
-	workerProtocol: Awaited<
-		ReturnType<typeof createSchedulerAndWorker>
-	>["workerProtocol"];
-	brokerMessage: Awaited<
-		ReturnType<typeof createBrokerMessage>
-	>["brokerMessage"];
+type CleanupContext = Omit<AuditLoggerApp, "server"> & {
 	addressManager: ReturnType<typeof BOOTSTRAP_ADDRESS_MANAGER>;
-}
+};
 
 let _context: CleanupContext | null = null;
 
 createBootstrap({
 	name: "Audit Logger",
 	createServer: async () => {
-		const { mongoManager, jobRepo, auditRepo } = await createRepositories(
-			ENV.MONGODB_URI
-		);
-		const { scheduler, workerProtocol, server } =
-			await createSchedulerAndWorker(jobRepo, auditRepo, mongoManager);
-		const { brokerMessage } = await createBrokerMessage();
-
-		_context = {
-			mongoManager,
-			scheduler,
-			workerProtocol,
-			brokerMessage,
-			addressManager: null!,
-		};
+		const { server, ...resources } = await createAuditLoggerApp();
+		_context = { ...resources, addressManager: null! };
 
 		return server;
 	},

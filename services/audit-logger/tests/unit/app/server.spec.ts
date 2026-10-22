@@ -79,7 +79,12 @@ describe("createServer", () => {
 		const auditRepo = { insert: jest.fn() } as any;
 		const mongoManager = { isConnected: jest.fn(() => true) } as any;
 
-		const server = await createServer(scheduler, auditRepo, mongoManager);
+		const server = await createServer(
+			scheduler,
+			auditRepo,
+			mongoManager,
+			MOCK_MESSAGE_HANDLER as never
+		);
 
 		expect(server).toBe(MOCK_SERVER);
 		expect(createSecureServer).toHaveBeenCalledWith(

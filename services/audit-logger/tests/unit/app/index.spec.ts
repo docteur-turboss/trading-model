@@ -193,7 +193,8 @@ describe("Audit Logger entry point (index.ts)", () => {
 					start: MOCK_SCHEDULER_INSTANCE.start,
 				}),
 				MOCK_AUDIT_REPOSITORY_INSTANCE,
-				expect.anything()
+				expect.anything(),
+				expect.any(Function)
 			);
 			expect(WorkerProtocol).toHaveBeenCalledWith(
 				"mock-raw-server",

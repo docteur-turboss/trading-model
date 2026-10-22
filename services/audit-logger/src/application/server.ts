@@ -3,7 +3,6 @@ import { ServiceId } from "@trading-model/primitives/primitives";
 import { createServiceServer } from "@trading-model/server-utils/adapters/inbound/service-server-factory";
 import { eventsRoutes } from "../adapters/inbound/http/events.routes";
 import { healthRoutes } from "../adapters/inbound/http/health.routes";
-import { createMessageHandler } from "../adapters/inbound/subscription/audit-subscriber";
 import type { AuditRepository } from "../adapters/outbound/persistence/audit-repository";
 import { ADDRESS_MANAGER_ROUTES } from "../config/address-manager";
 import { metricsHandler } from "../config/metrics";
@@ -13,13 +12,9 @@ import type { JobScheduler } from "./scheduler/job-scheduler";
 export function createServer(
 	scheduler: JobScheduler,
 	auditRepo: AuditRepository,
-	mongoManager: MongoConnectionManager
+	mongoManager: MongoConnectionManager,
+	messageHandler: import("express").RequestHandler
 ) {
-	const messageHandler = createMessageHandler(
-		auditRepo,
-		ENV.AUDIT_RETENTION_DAYS
-	);
-
 	return createServiceServer({
 		env: ENV,
 		serviceId: ServiceId.of("audit-logger"),
