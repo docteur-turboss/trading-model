@@ -49,7 +49,7 @@ describe("add-entry-pipeline", () => {
 		MOCK_INSERT.mockResolvedValue("entry-id-123");
 
 		const { addEntry } = jest.requireActual(
-			"../../src/application/services/add-entry-pipeline"
+			"../../src/adapters/inbound/add-entry-pipeline"
 		) as { addEntry: (req: { body: unknown }) => Promise<unknown> };
 
 		const result = await addEntry({ body: {} });
@@ -64,7 +64,7 @@ describe("add-entry-pipeline", () => {
 		});
 
 		const { addEntry } = jest.requireActual(
-			"../../src/application/services/add-entry-pipeline"
+			"../../src/adapters/inbound/add-entry-pipeline"
 		) as { addEntry: (req: { body: unknown }) => Promise<unknown> };
 
 		const result = await addEntry({ body: {} });
@@ -81,7 +81,7 @@ describe("add-entry-pipeline", () => {
 		MOCK_INSERT.mockRejectedValue(new Error("db error"));
 
 		const { addEntry } = jest.requireActual(
-			"../../src/application/services/add-entry-pipeline"
+			"../../src/adapters/inbound/add-entry-pipeline"
 		) as { addEntry: (req: { body: unknown }) => Promise<unknown> };
 
 		const result = await addEntry({ body: {} });

@@ -1,23 +1,23 @@
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
-import { toInstanceId } from "@trading-model/common/domain/primitives";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import { logger } from "@trading-model/http/infrastructure/logger";
+import { toInstanceId } from "@trading-model/primitives/primitives";
 import { createBootstrap } from "@trading-model/server-utils/application/services/bootstrap";
 import {
 	initializeTelemetry,
 	shutdownTelemetry,
 } from "@trading-model/server-utils/infrastructure/telemetry";
-import { closeRedisClient } from "../../adapters/inbound/routes";
-import { ensureRedisQueue } from "../../app/redis-init";
-import { AddressManager } from "../../config/address-manager";
-import { closeDb, getDb, resetDbState } from "../../config/db";
+import { closeRedisClient } from "../adapters/inbound/routes";
+import { AddressManager } from "../config/address-manager";
+import { closeDb, getDb, resetDbState } from "../config/db";
+import { ENV } from "../infrastructure/config/env";
+import { ensureRedisQueue } from "../infrastructure/redis-init";
 import {
 	releaseStaleClaims,
 	shutdownSchedulers,
 	startAutoRetry,
 	startPeriodicPrune,
-} from "../../shared/controller-reexports";
-import { ENV } from "../config/env";
+} from "../shared/controller-reexports";
 import { createServer } from "./server";
 
 createBootstrap({

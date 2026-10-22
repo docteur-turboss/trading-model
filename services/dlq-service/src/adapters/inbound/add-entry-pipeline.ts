@@ -1,20 +1,17 @@
 import { type Span, SpanStatusCode, trace } from "@opentelemetry/api";
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
-import { toTopic } from "@trading-model/common/domain/primitives";
-import type { HttpStatusCode } from "@trading-model/common/http-status";
+import type { HttpStatusCode } from "@trading-model/contracts/http-status";
 import type { ResponseObject } from "@trading-model/http/adapters/inbound/response-exception";
 import { sendResponse } from "@trading-model/http/adapters/inbound/response-exception";
+import { toTopic } from "@trading-model/primitives/primitives";
 import type { z } from "zod";
-import { validateAddEntryBody } from "../../adapters/inbound/dlq-validator";
-import { notifyAddAudit } from "../../adapters/outbound/audit-notifier";
-import { pushToRedisQueue } from "../../adapters/outbound/dlq-redis-pusher";
-import {
-	type DlqEntry,
-	dlqRepository,
-} from "../../adapters/outbound/repository";
 import { metrics } from "../../config/metrics";
 import { handleAddEntryError } from "../../shared/dlq-error-builder";
 import type { DlqEntrySchema } from "../../shared/dlq-schemas";
+import { notifyAddAudit } from "../outbound/audit-notifier";
+import { pushToRedisQueue } from "../outbound/dlq-redis-pusher";
+import { type DlqEntry, dlqRepository } from "../outbound/repository";
+import { validateAddEntryBody } from "./dlq-validator";
 
 type ValidatedData = z.infer<typeof DlqEntrySchema>;
 type PostInsertStep = (id: string, data: ValidatedData) => Promise<void>;

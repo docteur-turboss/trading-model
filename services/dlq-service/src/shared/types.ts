@@ -5,8 +5,7 @@ import type {
 	MessageId,
 	Topic,
 	URLString,
-} from "@trading-model/common/domain/primitives";
-import type { HttpClient } from "@trading-model/http/adapters/outbound/http-client";
+} from "@trading-model/primitives/primitives";
 
 export interface BatchContext {
 	batchId: string;
@@ -24,7 +23,6 @@ export interface DlqError {
 }
 
 export interface BatchReplayContext extends BatchContext {
-	client: HttpClient;
 	messageManagerUrl: URLString;
 }
 

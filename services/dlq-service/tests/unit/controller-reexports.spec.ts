@@ -15,23 +15,16 @@ jest.mock("../../src/infrastructure/auto-retry-scheduler", () => ({
 	stopAutoRetry: jest.fn(),
 }));
 
-jest.mock("../../src/dlq/shared/http-client-manager", () => ({
+jest.mock("../../src/adapters/outbound/http-client-manager", () => ({
 	reloadHttpClientTls: jest.fn(),
 }));
 
-jest.mock("../../src/dlq/shared/shutdown-flag", () => ({
+jest.mock("../../src/shared/shutdown-flag", () => ({
 	setShuttingDown: jest.fn(),
 }));
 
 jest.mock("../../src/config/redis-queue", () => ({
 	dlqRedisQueue: { close: jest.fn() },
-}));
-
-jest.mock("../../src/application/services/claim-release-service", () => ({
-	ClaimReleaseService: jest.fn(() => ({
-		releaseStale: jest.fn(),
-		releaseAndRequeue: jest.fn(),
-	})),
 }));
 
 jest.mock("../../src/infrastructure/dlq-pruner", () => ({
@@ -42,10 +35,12 @@ jest.mock("../../src/infrastructure/dlq-pruner", () => ({
 	})),
 }));
 
-jest.mock("../../src/application/services/replay-drain-service", () => ({
-	ReplayDrainService: jest.fn(() => ({
-		drain: jest.fn(),
-	})),
+jest.mock("../../src/config/container", () => ({
+	claimReleaseService: {
+		releaseStale: jest.fn(),
+		releaseAndRequeue: jest.fn(),
+	},
+	replayDrainService: { drain: jest.fn() },
 }));
 
 describe("controller-reexports", () => {

@@ -1,5 +1,5 @@
 import { SpanStatusCode } from "@opentelemetry/api";
-import type { HttpStatusCode } from "@trading-model/common/http-status";
+import type { HttpStatusCode } from "@trading-model/contracts/http-status";
 import {
 	type ResponseObject,
 	sendResponse,

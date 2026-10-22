@@ -36,4 +36,4 @@ EXPOSE 3000
 HEALTHCHECK --interval=15s --timeout=5s --retries=3 \
   CMD curl -skf --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem https://localhost:3000/health/ready || exit 1
 ENTRYPOINT ["/sbin/tini", "--"]
-CMD ["bun", "services/dlq-service/dist/infrastructure/app/index.js"]
+CMD ["bun", "services/dlq-service/dist/application/index.js"]

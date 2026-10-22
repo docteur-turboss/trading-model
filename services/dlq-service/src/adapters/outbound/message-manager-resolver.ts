@@ -1,6 +1,6 @@
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
-import { URLString } from "@trading-model/common/domain/primitives";
-import { HostPort } from "@trading-model/common/domain/service-identity";
+import { URLString } from "@trading-model/primitives/primitives";
+import { HostPort } from "@trading-model/primitives/service-identity";
 import { FIND_A_SERVICE } from "../../config/address-manager";
 import { logger } from "../../config/logger";
 import { ENV } from "../../infrastructure/config/env";

@@ -35,7 +35,7 @@ jest.mock("../../src/config/redis-queue", () => ({
 	},
 }));
 
-jest.mock("../../src/application/services/claim-manager", () => ({
+jest.mock("../../src/adapters/outbound/claim-manager", () => ({
 	dlqClaimManager: {
 		claimEntriesByIds: MOCK_CLAIM_ENTRIES_BY_IDS,
 	},
@@ -44,21 +44,30 @@ jest.mock("../../src/application/services/claim-manager", () => ({
 	},
 }));
 
-jest.mock("../../src/shared/replay-pipeline", () => ({
-	doReplayBatch: MOCK_DO_REPLAY_BATCH,
-}));
-
-jest.mock("../../src/dlq/shared/shutdown-flag", () => ({
+jest.mock("../../src/shared/shutdown-flag", () => ({
 	isShuttingDown: MOCK_IS_SHUTTING_DOWN,
 }));
 
-jest.mock("../../src/dlq/shared/message-manager-resolver", () => ({
+jest.mock("../../src/adapters/outbound/message-manager-resolver", () => ({
 	resolveMessageManagerUrl: MOCK_RESOLVE_MM_URL,
 }));
 
-jest.mock("../../src/shared/auto-retry", () => ({
-	handleAbandonedEntries: MOCK_HANDLE_ABANDONED,
-}));
+jest.mock("../../src/config/container", () => {
+	const { ClaimReplayOrchestrator } = jest.requireActual(
+		"../../src/application/services/redis-claim-replay-orchestrator"
+	) as {
+		ClaimReplayOrchestrator: new (deps: unknown) => unknown;
+	};
+	return {
+		claimReplayOrchestrator: new ClaimReplayOrchestrator({
+			claims: { claimEntriesByIds: MOCK_CLAIM_ENTRIES_BY_IDS },
+			queue: { push: jest.fn(), isAvailable: MOCK_IS_AVAILABLE },
+			replayBatch: MOCK_DO_REPLAY_BATCH,
+			handleAbandonedEntries: MOCK_HANDLE_ABANDONED,
+			settings: { instanceId: "test-instance" },
+		}),
+	};
+});
 
 describe("redis-queue-processor", () => {
 	beforeEach(() => {
@@ -70,7 +79,7 @@ describe("redis-queue-processor", () => {
 
 	it("should start and stop redis worker loop", () => {
 		const { startRedisWorkerLoop, stopRedisWorkerTimer } = jest.requireActual(
-			"../../src/application/services/redis-queue-processor"
+			"../../src/adapters/inbound/redis-queue-processor"
 		) as {
 			startRedisWorkerLoop: () => void;
 			stopRedisWorkerTimer: () => void;
@@ -84,7 +93,7 @@ describe("redis-queue-processor", () => {
 		MOCK_IS_SHUTTING_DOWN.mockReturnValue(true);
 
 		const { processRedisQueue } = jest.requireActual(
-			"../../src/application/services/redis-queue-processor"
+			"../../src/adapters/inbound/redis-queue-processor"
 		) as { processRedisQueue: () => Promise<void> };
 
 		await processRedisQueue();
@@ -96,7 +105,7 @@ describe("redis-queue-processor", () => {
 		MOCK_IS_AVAILABLE.mockReturnValue(false);
 
 		const { processRedisQueue } = jest.requireActual(
-			"../../src/application/services/redis-queue-processor"
+			"../../src/adapters/inbound/redis-queue-processor"
 		) as { processRedisQueue: () => Promise<void> };
 
 		await processRedisQueue();
@@ -108,7 +117,7 @@ describe("redis-queue-processor", () => {
 		MOCK_RESOLVE_MM_URL.mockResolvedValue(null);
 
 		const { processRedisQueue } = jest.requireActual(
-			"../../src/application/services/redis-queue-processor"
+			"../../src/adapters/inbound/redis-queue-processor"
 		) as { processRedisQueue: () => Promise<void> };
 
 		await processRedisQueue();
@@ -120,7 +129,7 @@ describe("redis-queue-processor", () => {
 		MOCK_POP.mockResolvedValue(null);
 
 		const { processRedisQueue } = jest.requireActual(
-			"../../src/application/services/redis-queue-processor"
+			"../../src/adapters/inbound/redis-queue-processor"
 		) as { processRedisQueue: () => Promise<void> };
 
 		await processRedisQueue();
@@ -139,7 +148,7 @@ describe("redis-queue-processor", () => {
 		MOCK_DO_REPLAY_BATCH.mockResolvedValue({ success: 1, errors: [] });
 
 		const { processRedisQueue } = jest.requireActual(
-			"../../src/application/services/redis-queue-processor"
+			"../../src/adapters/inbound/redis-queue-processor"
 		) as { processRedisQueue: () => Promise<void> };
 
 		await processRedisQueue();
@@ -162,7 +171,7 @@ describe("redis-queue-processor", () => {
 		});
 
 		const { processRedisQueue } = jest.requireActual(
-			"../../src/application/services/redis-queue-processor"
+			"../../src/adapters/inbound/redis-queue-processor"
 		) as { processRedisQueue: () => Promise<void> };
 
 		await processRedisQueue();

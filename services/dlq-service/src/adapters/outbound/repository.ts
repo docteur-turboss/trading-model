@@ -1,14 +1,14 @@
+import { type AppError, isAppError } from "@trading-model/common/utils/errors";
 import {
 	SequenceNumber,
 	Topic,
 	type UnixTimestamp,
-} from "@trading-model/common/domain/primitives";
-import { type AppError, isAppError } from "@trading-model/common/utils/errors";
+} from "@trading-model/primitives/primitives";
 import type { DlqEntry } from "@trading-model/validation/domain/contracts/dlq.types";
 import type { Document, WithId } from "mongodb";
 import { getCollection } from "../../config/db";
-import { pruneEntries } from "../../domain/dlq-eviction-policy";
 import { DlqEntryWriter, dlqCapacityError } from "./dlq-entry-writer";
+import { pruneEntries } from "./dlq-eviction-policy";
 import { type DlqListOptions, DlqQueryBuilder } from "./dlq-query-builder";
 import { DlqQueueRepository } from "./dlq-queue-repository";
 

@@ -1,7 +1,7 @@
 import { SpanStatusCode } from "@opentelemetry/api";
-import type { HttpStatusCode } from "@trading-model/common/http-status";
-import { HTTP_STATUS } from "@trading-model/common/http-status";
 import { normalizeError } from "@trading-model/common/utils/errors";
+import type { HttpStatusCode } from "@trading-model/contracts/http-status";
+import { HTTP_STATUS } from "@trading-model/contracts/http-status";
 import {
 	type ResponseObject,
 	sendResponse,

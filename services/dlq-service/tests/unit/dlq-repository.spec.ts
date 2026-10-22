@@ -331,9 +331,7 @@ describe("DlqClaimManager", () => {
 	};
 
 	beforeAll(() => {
-		const mod = jest.requireActual(
-			"../../src/application/services/claim-manager"
-		);
+		const mod = jest.requireActual("../../src/adapters/outbound/claim-manager");
 		DlqClaimManagerClass = mod.DlqClaimManager;
 	});
 

@@ -31,7 +31,7 @@ jest.mock("@trading-model/common/config/tls-paths", () => ({
 
 let mockCircuitState: { isOpen: boolean };
 
-jest.mock("@trading-model/common/reliability/circuit-state-machine", () => ({
+jest.mock("@trading-model/reliability/circuit-state-machine", () => ({
 	CircuitStateMachine: jest.fn(() => {
 		let failures = 0;
 		return {

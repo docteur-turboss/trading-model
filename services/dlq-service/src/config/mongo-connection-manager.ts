@@ -1,5 +1,5 @@
-import { URLString } from "@trading-model/common/domain/primitives";
-import { MongoConnectionManager as CommonMongoConnectionManager } from "@trading-model/common/persistence/mongo-connection-manager";
+import { MongoConnectionManager as CommonMongoConnectionManager } from "@trading-model/persistence/mongo-connection-manager";
+import { URLString } from "@trading-model/primitives/primitives";
 import type { Collection } from "mongodb";
 import { ENV } from "../infrastructure/config/env";
 import { IndexManager } from "./index-manager";

@@ -1,6 +1,6 @@
-import type { DurationMs } from "@trading-model/common/domain/primitives";
+import type { DurationMs } from "@trading-model/primitives/primitives";
 import { logger } from "../config/logger";
-import { isShuttingDown } from "../dlq/shared/shutdown-flag";
+import { isShuttingDown } from "../shared/shutdown-flag";
 
 const RedisWorkerIntervalMs = 1000 as DurationMs;
 

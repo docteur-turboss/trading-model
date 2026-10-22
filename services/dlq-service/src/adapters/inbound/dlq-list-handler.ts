@@ -1,13 +1,13 @@
-import type {
-	CursorPagination,
-	OffsetPagination,
-} from "@trading-model/common/domain/pagination";
-import { type Topic, toTopic } from "@trading-model/common/domain/primitives";
-import type { HttpStatusCode } from "@trading-model/common/http-status";
+import type { HttpStatusCode } from "@trading-model/contracts/http-status";
 import {
 	type ResponseObject,
 	sendResponse,
 } from "@trading-model/http/adapters/inbound/response-exception";
+import type {
+	CursorPagination,
+	OffsetPagination,
+} from "@trading-model/primitives/pagination";
+import { type Topic, toTopic } from "@trading-model/primitives/primitives";
 import { dlqRepository } from "../outbound/repository";
 
 export interface DlqPaginationQuery {

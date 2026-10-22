@@ -2,13 +2,13 @@ import type {
 	InstanceId,
 	Limit,
 	Topic,
-} from "@trading-model/common/domain/primitives";
-import { ClaimQueryExecutor } from "../../adapters/outbound/claim-query-executor";
-import { DlqQueryBuilder } from "../../adapters/outbound/dlq-query-builder";
-import type { StoredDlqEntry } from "../../adapters/outbound/repository";
-import { toStoredDlqEntry } from "../../adapters/outbound/repository";
+} from "@trading-model/primitives/primitives";
 import { getCollection } from "../../config/db";
 import { CLAIM_PROJECTION } from "../../domain/dlq-constants";
+import { ClaimQueryExecutor } from "./claim-query-executor";
+import { DlqQueryBuilder } from "./dlq-query-builder";
+import type { StoredDlqEntry } from "./repository";
+import { toStoredDlqEntry } from "./repository";
 
 export interface ClaimEntriesOptions {
 	limit: Limit;
@@ -101,4 +101,4 @@ export class DlqClaimManager {
 }
 
 export const dlqClaimManager = new DlqClaimManager();
-export { claimReleaseManager } from "../../adapters/outbound/claim-release-manager";
+export { claimReleaseManager } from "./claim-release-manager";

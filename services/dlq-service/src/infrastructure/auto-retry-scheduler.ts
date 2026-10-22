@@ -1,12 +1,12 @@
-import { DurationMs } from "@trading-model/common/domain/primitives";
 import { TimerHandle } from "@trading-model/common/utils/timer-handle";
+import { DurationMs } from "@trading-model/primitives/primitives";
 import {
 	startRedisWorkerLoop,
 	stopRedisWorkerTimer,
-} from "../application/services/redis-queue-processor";
+} from "../adapters/inbound/redis-queue-processor";
 import { logger } from "../config/logger";
-import { isShuttingDown } from "../dlq/shared/shutdown-flag";
 import { autoRetryTick } from "../shared/auto-retry";
+import { isShuttingDown } from "../shared/shutdown-flag";
 import { ENV } from "./config/env";
 
 const autoRetryTimer = new TimerHandle();

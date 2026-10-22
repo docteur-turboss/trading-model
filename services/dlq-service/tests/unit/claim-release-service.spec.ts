@@ -6,7 +6,7 @@ const MOCK_LIST_QUEUABLE = jest.fn();
 const MOCK_PUSH = jest.fn();
 const MOCK_IS_AVAILABLE = jest.fn();
 
-jest.mock("../../src/application/services/claim-manager", () => ({
+jest.mock("../../src/adapters/outbound/claim-manager", () => ({
 	dlqClaimManager: {},
 	claimReleaseManager: {
 		releaseClaimsByInstance: MOCK_RELEASE_CLAIMS,
@@ -47,6 +47,20 @@ jest.mock("../../src/config/logger", () => ({
 	logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
 
+/** Ports wired to the module-level mocks above. */
+function makeDeps() {
+	return {
+		claimRelease: {
+			releaseClaimsByInstance: MOCK_RELEASE_CLAIMS,
+			releaseStaleClaims: MOCK_RELEASE_STALE,
+			releaseAllActiveClaims: jest.fn(),
+		},
+		entries: { listQueuable: MOCK_LIST_QUEUABLE },
+		queue: { push: MOCK_PUSH, isAvailable: MOCK_IS_AVAILABLE },
+		settings: { instanceId: "test-instance" },
+	};
+}
+
 describe("ClaimReleaseService", () => {
 	beforeEach(() => {
 		jest.clearAllMocks();
@@ -62,12 +76,14 @@ describe("ClaimReleaseService", () => {
 			const { ClaimReleaseService } = jest.requireActual(
 				"../../src/application/services/claim-release-service"
 			) as {
-				ClaimReleaseService: new () => {
+				ClaimReleaseService: new (
+					deps: unknown
+				) => {
 					releaseAndRequeue: () => Promise<void>;
 					releaseStale: (ms?: number) => Promise<void>;
 				};
 			};
-			const svc = new ClaimReleaseService();
+			const svc = new ClaimReleaseService(makeDeps());
 			await svc.releaseAndRequeue();
 
 			expect(MOCK_RELEASE_CLAIMS).toHaveBeenCalledWith(
@@ -83,12 +99,14 @@ describe("ClaimReleaseService", () => {
 			const { ClaimReleaseService } = jest.requireActual(
 				"../../src/application/services/claim-release-service"
 			) as {
-				ClaimReleaseService: new () => {
+				ClaimReleaseService: new (
+					deps: unknown
+				) => {
 					releaseAndRequeue: () => Promise<void>;
 					releaseStale: (ms?: number) => Promise<void>;
 				};
 			};
-			const svc = new ClaimReleaseService();
+			const svc = new ClaimReleaseService(makeDeps());
 			await svc.releaseAndRequeue();
 
 			expect(MOCK_PUSH).not.toHaveBeenCalled();
@@ -100,12 +118,14 @@ describe("ClaimReleaseService", () => {
 			const { ClaimReleaseService } = jest.requireActual(
 				"../../src/application/services/claim-release-service"
 			) as {
-				ClaimReleaseService: new () => {
+				ClaimReleaseService: new (
+					deps: unknown
+				) => {
 					releaseAndRequeue: () => Promise<void>;
 					releaseStale: (ms?: number) => Promise<void>;
 				};
 			};
-			const svc = new ClaimReleaseService();
+			const svc = new ClaimReleaseService(makeDeps());
 			await svc.releaseAndRequeue();
 
 			expect(MOCK_PUSH).not.toHaveBeenCalled();
@@ -119,12 +139,14 @@ describe("ClaimReleaseService", () => {
 			const { ClaimReleaseService } = jest.requireActual(
 				"../../src/application/services/claim-release-service"
 			) as {
-				ClaimReleaseService: new () => {
+				ClaimReleaseService: new (
+					deps: unknown
+				) => {
 					releaseAndRequeue: () => Promise<void>;
 					releaseStale: (ms?: number) => Promise<void>;
 				};
 			};
-			const svc = new ClaimReleaseService();
+			const svc = new ClaimReleaseService(makeDeps());
 			await svc.releaseStale(30000);
 
 			expect(MOCK_RELEASE_STALE).toHaveBeenCalledWith(30000);
@@ -136,12 +158,14 @@ describe("ClaimReleaseService", () => {
 			const { ClaimReleaseService } = jest.requireActual(
 				"../../src/application/services/claim-release-service"
 			) as {
-				ClaimReleaseService: new () => {
+				ClaimReleaseService: new (
+					deps: unknown
+				) => {
 					releaseAndRequeue: () => Promise<void>;
 					releaseStale: (ms?: number) => Promise<void>;
 				};
 			};
-			const svc = new ClaimReleaseService();
+			const svc = new ClaimReleaseService(makeDeps());
 			await svc.releaseStale();
 
 			expect(MOCK_RELEASE_STALE).toHaveBeenCalled();

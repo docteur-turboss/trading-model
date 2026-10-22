@@ -1,4 +1,4 @@
-import { createRedisClient } from "@trading-model/common/persistence/redis-connection-manager";
+import { createRedisClient } from "@trading-model/persistence/redis-connection-manager";
 import type { Redis } from "ioredis";
 import { ENV } from "./config/env";
 

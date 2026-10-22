@@ -1,5 +1,5 @@
 import { describe, expect, it } from "@jest/globals";
-import { ActiveReplayCounter } from "../../src/dlq/shared/active-replay-counter";
+import { ActiveReplayCounter } from "../../src/shared/active-replay-counter";
 
 describe("ActiveReplayCounter", () => {
 	it("should start at 0", () => {
@@ -31,7 +31,7 @@ describe("ActiveReplayCounter", () => {
 
 	it("activeReplays singleton should work", () => {
 		const mod = jest.requireActual(
-			"../../src/dlq/shared/active-replay-counter"
+			"../../src/shared/active-replay-counter"
 		) as {
 			ActiveReplayCounter: typeof ActiveReplayCounter;
 			activeReplays: ActiveReplayCounter;

@@ -1,13 +1,12 @@
 export {
-	type DlqEntryRef,
-	type DlqError,
-	doReplayBatch,
-	type ProcessBatchResultsOptions,
-	type ReplayBatchOptions,
-	type ReplayContext,
-} from "../application/services/replay-batch";
-
-export {
 	abandonExhaustedIfNeeded,
 	executeReplayPipeline,
-} from "../application/services/replay-orchestrator";
+} from "../adapters/inbound/replay-orchestrator";
+export type {
+	DlqEntryRef,
+	DlqError,
+	ProcessBatchResultsOptions,
+	ReplayBatchOptions,
+	ReplayContext,
+} from "../application/services/replay-batch";
+export { doReplayBatch } from "../config/container";

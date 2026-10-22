@@ -1,4 +1,4 @@
-import { getCollection } from "../config/db";
+import { getCollection } from "../../config/db";
 
 export async function pruneEntries(maxEntries: number): Promise<number> {
 	const col = await getCollection();

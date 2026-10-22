@@ -23,7 +23,7 @@ const mockReleaseStaleClaims = jest.fn();
 const mockClaimEntry = jest.fn();
 const mockIncrementRetryCount = jest.fn();
 
-jest.mock("../../src/application/services/claim-manager", () => ({
+jest.mock("../../src/adapters/outbound/claim-manager", () => ({
 	dlqClaimManager: {
 		claimEntriesForRetry: mockClaimEntriesForRetry,
 		releaseStaleClaims: mockReleaseStaleClaims,

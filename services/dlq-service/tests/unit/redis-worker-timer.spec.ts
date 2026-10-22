@@ -7,7 +7,7 @@ jest.mock("../../src/config/logger", () => ({
 	logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
 
-jest.mock("../../src/dlq/shared/shutdown-flag", () => ({
+jest.mock("../../src/shared/shutdown-flag", () => ({
 	isShuttingDown: MOCK_IS_SHUTTING_DOWN,
 }));
 

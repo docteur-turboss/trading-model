@@ -6,7 +6,7 @@ import {
 	listEntries,
 	readyCheck,
 	replayEntries,
-} from "../../application/services/dlq-service";
+} from "./dlq-service";
 
 export const AddEntry = catchSync((req) => addEntry(req));
 

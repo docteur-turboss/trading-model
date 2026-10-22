@@ -91,7 +91,7 @@ jest.mock("../../src/adapters/outbound/repository", () => ({
 	},
 }));
 
-jest.mock("../../src/application/services/claim-manager", () => ({
+jest.mock("../../src/adapters/outbound/claim-manager", () => ({
 	dlqClaimManager: {
 		claimEntriesForRetry: jest.fn(),
 		releaseStaleClaims: jest.fn(),

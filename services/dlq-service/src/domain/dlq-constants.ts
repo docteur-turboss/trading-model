@@ -1,4 +1,4 @@
-import { PositiveInt } from "@trading-model/common/domain/primitives";
+import { PositiveInt } from "@trading-model/primitives/primitives";
 
 /** Maximum consecutive errors before an entry is abandoned. */
 export const DLQ_MAX_CONSECUTIVE_ERRORS = PositiveInt.of(3);

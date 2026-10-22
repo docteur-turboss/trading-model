@@ -1,8 +1,5 @@
-﻿import type { OffsetPagination } from "@trading-model/common/domain/pagination";
-import type {
-	InstanceId,
-	Topic,
-} from "@trading-model/common/domain/primitives";
+﻿import type { OffsetPagination } from "@trading-model/primitives/pagination";
+import type { InstanceId, Topic } from "@trading-model/primitives/primitives";
 import type { AnyBulkWriteOperation, Document, Filter } from "mongodb";
 import { ObjectId } from "mongodb";
 import { DLQ_MAX_CONSECUTIVE_ERRORS } from "../../domain/dlq-constants";

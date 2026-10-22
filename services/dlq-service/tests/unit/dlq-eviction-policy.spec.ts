@@ -21,7 +21,7 @@ describe("dlq-eviction-policy", () => {
 		mockToArray.mockResolvedValue([]);
 
 		const { pruneEntries } = jest.requireActual(
-			"../../src/domain/dlq-eviction-policy"
+			"../../src/adapters/outbound/dlq-eviction-policy"
 		) as { pruneEntries: (max: number) => Promise<number> };
 		const result = await pruneEntries(100);
 		expect(result).toBe(0);
@@ -33,7 +33,7 @@ describe("dlq-eviction-policy", () => {
 		mockDeleteMany.mockResolvedValue({ deletedCount: 50 });
 
 		const { pruneEntries } = jest.requireActual(
-			"../../src/domain/dlq-eviction-policy"
+			"../../src/adapters/outbound/dlq-eviction-policy"
 		) as { pruneEntries: (max: number) => Promise<number> };
 		const result = await pruneEntries(100);
 		expect(result).toBe(50);

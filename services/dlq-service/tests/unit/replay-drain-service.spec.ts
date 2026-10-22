@@ -7,14 +7,7 @@ jest.mock("../../src/config/logger", () => ({
 	logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
 
-jest.mock("../../src/application/services/claim-manager", () => ({
-	dlqClaimManager: {},
-	claimReleaseManager: {
-		releaseAllActiveClaims: MOCK_RELEASE_ALL_ACTIVE,
-	},
-}));
-
-jest.mock("../../src/dlq/shared/active-replay-counter", () => ({
+jest.mock("../../src/shared/active-replay-counter", () => ({
 	activeReplays: {
 		get count() {
 			return mockActiveReplaysCount;
@@ -22,8 +15,16 @@ jest.mock("../../src/dlq/shared/active-replay-counter", () => ({
 	},
 }));
 
+const CLAIM_RELEASE = {
+	releaseStaleClaims: jest.fn(),
+	releaseClaimsByInstance: jest.fn(),
+	releaseAllActiveClaims: MOCK_RELEASE_ALL_ACTIVE,
+};
+
 describe("ReplayDrainService", () => {
-	let ReplayDrainServiceClass: new () => {
+	let ReplayDrainServiceClass: new (
+		claimRelease: unknown
+	) => {
 		drain: () => Promise<void>;
 	};
 
@@ -42,7 +43,7 @@ describe("ReplayDrainService", () => {
 	});
 
 	it("should return immediately when no active replays", async () => {
-		const service = new ReplayDrainServiceClass();
+		const service = new ReplayDrainServiceClass(CLAIM_RELEASE);
 		await service.drain();
 		expect(MOCK_RELEASE_ALL_ACTIVE).not.toHaveBeenCalled();
 	});
@@ -51,7 +52,7 @@ describe("ReplayDrainService", () => {
 		mockActiveReplaysCount = 2;
 		MOCK_RELEASE_ALL_ACTIVE.mockResolvedValue(undefined);
 
-		const service = new ReplayDrainServiceClass();
+		const service = new ReplayDrainServiceClass(CLAIM_RELEASE);
 		await service.drain();
 
 		expect(MOCK_RELEASE_ALL_ACTIVE).toHaveBeenCalledTimes(2);

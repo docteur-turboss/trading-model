@@ -1,27 +1,9 @@
-import { describe, expect, it, jest } from "@jest/globals";
+import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 
-const MOCK_CLAIM_ENTRIES_FOR_RETRY = jest.fn();
-const MOCK_RELEASE_STALE = jest.fn();
-const MOCK_ABANDON_EXHAUSTED = jest.fn();
-const MOCK_DO_REPLAY_BATCH = jest.fn();
-const MOCK_NOTIFY_AUDIT = jest.fn();
-const MOCK_IS_SHUTTING_DOWN = jest.fn();
-
-jest.mock("../../src/infrastructure/config/env", () => ({
-	ENV: {
-		DLQ_AUTO_RETRY_ENABLED: true,
-		DLQ_AUTO_RETRY_LIMIT: 50,
-		INSTANCE_ID: "test-instance",
-		MESSAGE_MANAGER_URL: "",
-	},
-}));
+const MOCK_IS_SHUTTING_DOWN = jest.fn<() => boolean>();
 
 jest.mock("../../src/config/logger", () => ({
 	logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
-}));
-
-jest.mock("../../src/config/audit", () => ({
-	notifyAudit: MOCK_NOTIFY_AUDIT,
 }));
 
 jest.mock("../../src/config/metrics", () => ({
@@ -31,150 +13,140 @@ jest.mock("../../src/config/metrics", () => ({
 	},
 }));
 
-jest.mock("../../src/application/services/claim-manager", () => ({
-	dlqClaimManager: {
-		claimEntriesForRetry: MOCK_CLAIM_ENTRIES_FOR_RETRY,
-	},
-}));
-
-jest.mock("../../src/application/services/claim-manager", () => ({
-	dlqClaimManager: {
-		claimEntriesForRetry: MOCK_CLAIM_ENTRIES_FOR_RETRY,
-	},
-	claimReleaseManager: {
-		releaseStaleClaims: MOCK_RELEASE_STALE,
-	},
-}));
-
-jest.mock("../../src/adapters/outbound/retry-manager", () => ({
-	dlqRetryManager: {
-		abandonExhaustedEntries: MOCK_ABANDON_EXHAUSTED,
-	},
-}));
-
-jest.mock("../../src/shared/replay-pipeline", () => ({
-	doReplayBatch: MOCK_DO_REPLAY_BATCH,
-}));
-
-jest.mock("../../src/config/address-manager", () => ({
-	FIND_A_SERVICE: jest.fn(),
-}));
-
-jest.mock("../../src/dlq/shared/shutdown-flag", () => ({
+jest.mock("../../src/shared/shutdown-flag", () => ({
 	isShuttingDown: MOCK_IS_SHUTTING_DOWN,
 }));
 
-describe("auto-retry-cycle", () => {
-	function getAddressManagerMock() {
-		return jest.requireMock("../../src/config/address-manager") as {
-			FIND_A_SERVICE: jest.Mock;
-		};
-	}
+import { Limit, toInstanceId } from "@trading-model/primitives/primitives";
+import {
+	type AutoRetryCycleDeps,
+	createAutoRetryCycle,
+} from "../../src/application/services/auto-retry-cycle";
 
+function makeDeps(overrides?: { autoRetryEnabled?: boolean }) {
+	const deps = {
+		claims: {
+			claimEntriesForRetry: jest.fn<any>(),
+			claimEntriesByIds: jest.fn<any>(),
+		},
+		claimRelease: {
+			releaseStaleClaims: jest.fn<any>().mockResolvedValue(0),
+			releaseClaimsByInstance: jest.fn<any>(),
+			releaseAllActiveClaims: jest.fn<any>(),
+		},
+		retryLedger: {
+			abandonExhaustedEntries: jest.fn<any>().mockResolvedValue(0),
+		},
+		messageManager: {
+			resolve: jest.fn<any>().mockResolvedValue("https://10.0.0.5:3000"),
+		},
+		audit: { notifyReplay: jest.fn() },
+		replayBatch: jest.fn<any>(),
+		settings: {
+			instanceId: toInstanceId("test-instance"),
+			autoRetryEnabled: overrides?.autoRetryEnabled ?? true,
+			autoRetryLimit: Limit.of(50, 100),
+		},
+	};
+	return deps;
+}
+
+describe("auto-retry-cycle", () => {
 	beforeEach(() => {
 		jest.clearAllMocks();
-		jest.resetModules();
 		MOCK_IS_SHUTTING_DOWN.mockReturnValue(false);
-		getAddressManagerMock().FIND_A_SERVICE.mockResolvedValue({
-			host: "10.0.0.5",
-			port: 3000,
-		});
 	});
 
-	it("should autoRetryTick and skip when disabled", async () => {
-		const envMock = jest.requireMock("../../src/infrastructure/config/env") as {
-			ENV: { DLQ_AUTO_RETRY_ENABLED: boolean };
-		};
-		envMock.ENV.DLQ_AUTO_RETRY_ENABLED = false;
+	it("should skip the tick when auto-retry is disabled", async () => {
+		const deps = makeDeps({ autoRetryEnabled: false });
+		await createAutoRetryCycle(deps as unknown as AutoRetryCycleDeps).tick();
 
-		const { autoRetryTick } = jest.requireActual(
-			"../../src/application/services/auto-retry-cycle"
-		) as { autoRetryTick: () => Promise<void> };
-
-		await autoRetryTick();
-
-		expect(MOCK_DO_REPLAY_BATCH).not.toHaveBeenCalled();
+		expect(deps.messageManager.resolve).not.toHaveBeenCalled();
+		expect(deps.replayBatch).not.toHaveBeenCalled();
 	});
 
 	it("should skip when shutting down", async () => {
 		MOCK_IS_SHUTTING_DOWN.mockReturnValue(true);
+		const deps = makeDeps();
+		await createAutoRetryCycle(deps as unknown as AutoRetryCycleDeps).tick();
 
-		const { autoRetryTick } = jest.requireActual(
-			"../../src/application/services/auto-retry-cycle"
-		) as { autoRetryTick: () => Promise<void> };
-
-		await autoRetryTick();
-
-		expect(MOCK_DO_REPLAY_BATCH).not.toHaveBeenCalled();
+		expect(deps.replayBatch).not.toHaveBeenCalled();
 	});
 
-	it("should skip when MM URL is not available", async () => {
-		getAddressManagerMock().FIND_A_SERVICE.mockResolvedValue(null);
+	it("should skip when the message-manager URL is not available", async () => {
+		const deps = makeDeps();
+		deps.messageManager.resolve.mockResolvedValue(null);
+		await createAutoRetryCycle(deps as unknown as AutoRetryCycleDeps).tick();
 
-		const { autoRetryTick } = jest.requireActual(
-			"../../src/application/services/auto-retry-cycle"
-		) as { autoRetryTick: () => Promise<void> };
-
-		await autoRetryTick();
-
-		expect(MOCK_DO_REPLAY_BATCH).not.toHaveBeenCalled();
+		expect(deps.claimRelease.releaseStaleClaims).not.toHaveBeenCalled();
+		expect(deps.replayBatch).not.toHaveBeenCalled();
 	});
 
-	it("should handle full retry cycle with entries", async () => {
-		MOCK_RELEASE_STALE.mockResolvedValue(undefined);
-		MOCK_CLAIM_ENTRIES_FOR_RETRY.mockResolvedValue([
+	it("should run a full retry cycle with entries", async () => {
+		const deps = makeDeps();
+		deps.claims.claimEntriesForRetry.mockResolvedValue([
 			{ id: "507f1f77bcf86cd799439011", message: { text: "test" } },
 		]);
-		MOCK_DO_REPLAY_BATCH.mockResolvedValue({
-			success: 1,
-			errors: [],
-		});
-		MOCK_ABANDON_EXHAUSTED.mockResolvedValue(5);
+		deps.replayBatch.mockResolvedValue({ success: 1, errors: [] });
 
-		const { autoRetryTick } = jest.requireActual(
-			"../../src/application/services/auto-retry-cycle"
-		) as { autoRetryTick: () => Promise<void> };
+		await createAutoRetryCycle(deps as unknown as AutoRetryCycleDeps).tick();
 
-		await autoRetryTick();
-
-		expect(MOCK_RELEASE_STALE).toHaveBeenCalled();
-		expect(MOCK_CLAIM_ENTRIES_FOR_RETRY).toHaveBeenCalled();
-		expect(MOCK_DO_REPLAY_BATCH).toHaveBeenCalled();
-		expect(MOCK_NOTIFY_AUDIT).toHaveBeenCalled();
+		expect(deps.claimRelease.releaseStaleClaims).toHaveBeenCalled();
+		expect(deps.claims.claimEntriesForRetry).toHaveBeenCalledWith(
+			expect.objectContaining({ limit: 50, instanceId: "test-instance" })
+		);
+		expect(deps.replayBatch).toHaveBeenCalledWith(
+			expect.objectContaining({
+				messageManagerUrl: "https://10.0.0.5:3000",
+				instanceId: "test-instance",
+				entries: [
+					{ id: "507f1f77bcf86cd799439011", message: { text: "test" } },
+				],
+			})
+		);
+		expect(deps.audit.notifyReplay).toHaveBeenCalledWith(
+			expect.objectContaining({ topic: "dlq-service", success: 1, failed: 0 })
+		);
+		expect(deps.retryLedger.abandonExhaustedEntries).not.toHaveBeenCalled();
 	});
 
-	it("should handle retry cycle with errors", async () => {
-		MOCK_RELEASE_STALE.mockResolvedValue(undefined);
-		MOCK_CLAIM_ENTRIES_FOR_RETRY.mockResolvedValue([
+	it("should abandon exhausted entries when the replay has errors", async () => {
+		const deps = makeDeps();
+		deps.claims.claimEntriesForRetry.mockResolvedValue([
 			{ id: "507f1f77bcf86cd799439011", message: { text: "test" } },
 		]);
-		MOCK_DO_REPLAY_BATCH.mockResolvedValue({
+		deps.replayBatch.mockResolvedValue({
 			success: 0,
 			errors: [{ id: "1", error: "timeout" }],
 		});
+		deps.retryLedger.abandonExhaustedEntries.mockResolvedValue(5);
 
-		const { autoRetryTick } = jest.requireActual(
-			"../../src/application/services/auto-retry-cycle"
-		) as { autoRetryTick: () => Promise<void> };
+		await createAutoRetryCycle(deps as unknown as AutoRetryCycleDeps).tick();
 
-		await autoRetryTick();
-
-		expect(MOCK_DO_REPLAY_BATCH).toHaveBeenCalled();
-		expect(MOCK_ABANDON_EXHAUSTED).toHaveBeenCalled();
-		expect(MOCK_NOTIFY_AUDIT).toHaveBeenCalled();
+		expect(deps.retryLedger.abandonExhaustedEntries).toHaveBeenCalled();
+		expect(deps.audit.notifyReplay).toHaveBeenCalledWith(
+			expect.objectContaining({ success: 0, failed: 1 })
+		);
 	});
 
-	it("should handle empty entries and call abandon", async () => {
-		MOCK_RELEASE_STALE.mockResolvedValue(undefined);
-		MOCK_CLAIM_ENTRIES_FOR_RETRY.mockResolvedValue([]);
+	it("should abandon exhausted entries when nothing is claimable", async () => {
+		const deps = makeDeps();
+		deps.claims.claimEntriesForRetry.mockResolvedValue([]);
 
-		const { autoRetryTick } = jest.requireActual(
-			"../../src/application/services/auto-retry-cycle"
-		) as { autoRetryTick: () => Promise<void> };
+		await createAutoRetryCycle(deps as unknown as AutoRetryCycleDeps).tick();
 
-		await autoRetryTick();
+		expect(deps.retryLedger.abandonExhaustedEntries).toHaveBeenCalled();
+		expect(deps.replayBatch).not.toHaveBeenCalled();
+	});
 
-		expect(MOCK_ABANDON_EXHAUSTED).toHaveBeenCalled();
-		expect(MOCK_DO_REPLAY_BATCH).not.toHaveBeenCalled();
+	it("should expose handleAbandonedEntries for other replay paths", async () => {
+		const deps = makeDeps();
+		deps.retryLedger.abandonExhaustedEntries.mockResolvedValue(2);
+
+		await createAutoRetryCycle(
+			deps as unknown as AutoRetryCycleDeps
+		).handleAbandonedEntries("DLQ Redis queue");
+
+		expect(deps.retryLedger.abandonExhaustedEntries).toHaveBeenCalledTimes(1);
 	});
 });

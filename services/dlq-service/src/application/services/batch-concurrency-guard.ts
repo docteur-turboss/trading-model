@@ -1,6 +1,6 @@
-import type { PositiveInt } from "@trading-model/common/domain/primitives";
-import { CircuitStateMachine } from "@trading-model/common/reliability/circuit-state-machine";
-import type { DlqEntryRef, DlqError } from "../shared/types";
+import type { PositiveInt } from "@trading-model/primitives/primitives";
+import { CircuitStateMachine } from "@trading-model/reliability/circuit-state-machine";
+import type { DlqEntryRef, DlqError } from "../../shared/types";
 
 const MmCircuitBreaker = new CircuitStateMachine(
 	CircuitStateMachine.defaultConfig()

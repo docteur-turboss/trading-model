@@ -1,14 +1,13 @@
-import { dlqRedisQueue } from "../config/redis-queue";
-import { closeHttpClient } from "../dlq/shared/http-client-manager";
-import { setShuttingDown } from "../dlq/shared/shutdown-flag";
+import { closeHttpClient } from "../adapters/outbound/http-client-manager";
 import { stopAutoRetry } from "../infrastructure/auto-retry-scheduler";
 import { DlqPruner } from "../infrastructure/dlq-pruner";
-import { ClaimReleaseService } from "./services/claim-release-service";
-import { ReplayDrainService } from "./services/replay-drain-service";
+import { setShuttingDown } from "../shared/shutdown-flag";
+import { claimReleaseService, replayDrainService } from "./container";
+import { dlqRedisQueue } from "./redis-queue";
 
 const pruner = new DlqPruner();
-const replayDrain = new ReplayDrainService();
-const claimRelease = new ClaimReleaseService();
+const replayDrain = replayDrainService;
+const claimRelease = claimReleaseService;
 
 function startPeriodicPrune(): void {
 	pruner.start();

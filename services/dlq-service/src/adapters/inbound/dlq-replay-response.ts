@@ -1,10 +1,10 @@
-import type { HttpStatusCode } from "@trading-model/common/http-status";
+import type { HttpStatusCode } from "@trading-model/contracts/http-status";
 import {
 	type ResponseObject,
 	sendResponse,
 } from "@trading-model/http/adapters/inbound/response-exception";
+import type { DlqError } from "../../application/services/replay-batch";
 import { metrics } from "../../config/metrics";
-import type { DlqError } from "./replay-batch";
 
 export function buildReplayResponse(
 	batchId: string,

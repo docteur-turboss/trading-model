@@ -1,6 +1,6 @@
 import { dlqRedisQueue } from "../../config/redis-queue";
-import { isShuttingDown } from "../../dlq/shared/shutdown-flag";
 import { ENV } from "../../infrastructure/config/env";
+import { isShuttingDown } from "../../shared/shutdown-flag";
 
 export class QueuePopService {
 	async popEntries(): Promise<string[]> {

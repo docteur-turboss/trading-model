@@ -1,16 +1,6 @@
-import {
-	PositiveInt,
-	toMessageId,
-} from "@trading-model/common/domain/primitives";
-import { deliverEntry } from "../../adapters/outbound/delivery-executor";
+import { PositiveInt, toMessageId } from "@trading-model/primitives/primitives";
 import { logger } from "../../config/logger";
-import { getHttpClient } from "../../dlq/shared/http-client-manager";
-import {
-	checkBatchRejection,
-	decrementActiveBatches,
-	incrementActiveBatches,
-	recordBatchResult,
-} from "../../infrastructure/batch-concurrency-guard";
+import type { EntryDeliveryPort } from "../../domain/ports/replay.ports";
 import type {
 	BatchReplayContext,
 	BatchResults,
@@ -18,6 +8,12 @@ import type {
 	DlqError,
 	ReplayBatchOptions,
 } from "../../shared/types";
+import {
+	checkBatchRejection,
+	decrementActiveBatches,
+	incrementActiveBatches,
+	recordBatchResult,
+} from "./batch-concurrency-guard";
 
 function isRejected<TValue>(
 	result: PromiseSettledResult<TValue>
@@ -26,6 +22,7 @@ function isRejected<TValue>(
 }
 
 export interface ReplayContext extends BatchReplayContext {
+	delivery: EntryDeliveryPort;
 	isTimedOut: () => boolean;
 	successCount: { value: number };
 	errors: DlqError[];
@@ -41,7 +38,11 @@ async function replaySingleEntry(
 	entry: DlqEntryRef,
 	ctx: ReplayContext
 ): Promise<void> {
-	await deliverEntry(entry, ctx);
+	await ctx.delivery.deliver(entry, {
+		batchId: ctx.batchId,
+		instanceId: ctx.instanceId,
+		messageManagerUrl: ctx.messageManagerUrl,
+	});
 	ctx.successCount.value++;
 }
 
@@ -107,12 +108,13 @@ function waitForBatchTimeout(
 
 async function _runBatchWithTimeout(
 	entries: DlqEntryRef[],
-	ctxBase: BatchReplayContext
+	ctxBase: BatchReplayContext,
+	delivery: EntryDeliveryPort
 ): Promise<BatchResults> {
 	const ReplayConcurrency = PositiveInt.of(10);
 	const ReplayBatchTimeoutMs = 120_000;
 
-	const { ctx, setTimedOut } = _createReplayContext(ctxBase);
+	const { ctx, setTimedOut } = _createReplayContext(ctxBase, delivery);
 
 	const batchLoop = runBatchLoop(entries, ctx, ReplayConcurrency);
 	const timeoutPromise = waitForBatchTimeout(
@@ -130,7 +132,10 @@ async function _runBatchWithTimeout(
 	return { success: ctx.successCount.value, errors: ctx.errors };
 }
 
-function _createReplayContext(ctxBase: BatchReplayContext): {
+function _createReplayContext(
+	ctxBase: BatchReplayContext,
+	delivery: EntryDeliveryPort
+): {
 	ctx: ReplayContext;
 	setTimedOut: () => void;
 } {
@@ -140,6 +145,7 @@ function _createReplayContext(ctxBase: BatchReplayContext): {
 	return {
 		ctx: {
 			...ctxBase,
+			delivery,
 			isTimedOut: () => batchTimedOut,
 			successCount,
 			errors,
@@ -165,8 +171,16 @@ export type {
 	ReplayBatchOptions,
 } from "../../shared/types";
 
-export async function doReplayBatch(
-	options: ReplayBatchOptions
+/** Builds the batch replay use case on top of an entry delivery port. */
+export function createReplayBatch(
+	delivery: EntryDeliveryPort
+): (options: ReplayBatchOptions) => Promise<BatchResults> {
+	return (options) => _replayBatch(options, delivery);
+}
+
+async function _replayBatch(
+	options: ReplayBatchOptions,
+	delivery: EntryDeliveryPort
 ): Promise<BatchResults> {
 	const rejection = checkBatchRejection(options.entries, options.batchId);
 	if (rejection) {
@@ -175,22 +189,25 @@ export async function doReplayBatch(
 
 	incrementActiveBatches();
 	try {
-		return await _executeBatch(options);
+		return await _executeBatch(options, delivery);
 	} finally {
 		decrementActiveBatches();
 	}
 }
 
 async function _executeBatch(
-	options: ReplayBatchOptions
+	options: ReplayBatchOptions,
+	delivery: EntryDeliveryPort
 ): Promise<BatchResults> {
-	const client = await getHttpClient();
-	const { success, errors } = await _runBatchWithTimeout(options.entries, {
-		client,
-		messageManagerUrl: options.messageManagerUrl,
-		batchId: options.batchId,
-		instanceId: options.instanceId,
-	});
+	const { success, errors } = await _runBatchWithTimeout(
+		options.entries,
+		{
+			messageManagerUrl: options.messageManagerUrl,
+			batchId: options.batchId,
+			instanceId: options.instanceId,
+		},
+		delivery
+	);
 	recordBatchResult(success);
 	return { success, errors };
 }

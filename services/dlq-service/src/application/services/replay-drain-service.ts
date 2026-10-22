@@ -1,6 +1,6 @@
 import { logger } from "../../config/logger";
-import { activeReplays } from "../../dlq/shared/active-replay-counter";
-import { claimReleaseManager } from "./claim-manager";
+import type { ClaimReleasePort } from "../../domain/ports/replay.ports";
+import { activeReplays } from "../../shared/active-replay-counter";
 
 function _sleep(ms: number): Promise<void> {
 	return new Promise<void>((resolve) => {
@@ -10,6 +10,8 @@ function _sleep(ms: number): Promise<void> {
 }
 
 export class ReplayDrainService {
+	constructor(private readonly _claimRelease: ClaimReleasePort) {}
+
 	async drain(): Promise<void> {
 		if (activeReplays.count === 0) {
 			return;
@@ -39,8 +41,8 @@ export class ReplayDrainService {
 		logger.warn(
 			`${activeReplays.count} replays did not complete within drain timeout — releasing their claims`
 		);
-		await claimReleaseManager.releaseAllActiveClaims();
+		await this._claimRelease.releaseAllActiveClaims();
 		await _sleep(500);
-		await claimReleaseManager.releaseAllActiveClaims();
+		await this._claimRelease.releaseAllActiveClaims();
 	}
 }

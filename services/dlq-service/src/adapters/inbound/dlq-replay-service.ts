@@ -1,5 +1,9 @@
 import { randomUUID } from "node:crypto";
-
+import type { HttpStatusCode } from "@trading-model/contracts/http-status";
+import {
+	type ResponseObject,
+	sendResponse,
+} from "@trading-model/http/adapters/inbound/response-exception";
 import {
 	type Limit,
 	type Topic,
@@ -7,25 +11,24 @@ import {
 	toMessageId,
 	toTopic,
 	type URLString,
-} from "@trading-model/common/domain/primitives";
-import type { HttpStatusCode } from "@trading-model/common/http-status";
-import {
-	type ResponseObject,
-	sendResponse,
-} from "@trading-model/http/adapters/inbound/response-exception";
-import { validateReplayQuery } from "../../adapters/inbound/dlq-replay-validator";
-import { notifyReplayAudit } from "../../adapters/outbound/audit-notifier";
-import { dlqRetryManager } from "../../adapters/outbound/retry-manager";
+} from "@trading-model/primitives/primitives";
+import type {
+	DlqEntryRef,
+	DlqError,
+} from "../../application/services/replay-batch";
+import { doReplayBatch } from "../../config/container";
 import { logger } from "../../config/logger";
 import { ENV } from "../../infrastructure/config/env";
-import {
-	mmResolveError,
-	resolveMMUrlOrFail,
-} from "../../infrastructure/dlq-replay-resolver";
 import type { ClaimAndReplayOptions } from "../../shared/types";
-import { claimReleaseManager, dlqClaimManager } from "./claim-manager";
+import { notifyReplayAudit } from "../outbound/audit-notifier";
+import {
+	claimReleaseManager,
+	dlqClaimManager,
+} from "../outbound/claim-manager";
+import { dlqRetryManager } from "../outbound/retry-manager";
+import { mmResolveError, resolveMMUrlOrFail } from "./dlq-replay-resolver";
 import { buildReplayResponse, noEntriesResponse } from "./dlq-replay-response";
-import { type DlqEntryRef, type DlqError, doReplayBatch } from "./replay-batch";
+import { validateReplayQuery } from "./dlq-replay-validator";
 
 export async function abandonExhaustedIfNeeded(
 	errors: DlqError[]

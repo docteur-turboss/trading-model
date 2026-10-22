@@ -4,11 +4,11 @@ import {
 	PositiveInt,
 	toServiceId,
 	URLString,
-} from "@trading-model/common/domain/primitives";
-import { claimReleaseManager } from "../../application/services/claim-manager";
+} from "@trading-model/primitives/primitives";
 import { logger } from "../../config/logger";
-import { isShuttingDown } from "../../dlq/shared/shutdown-flag";
+import { isShuttingDown } from "../../shared/shutdown-flag";
 import type { BatchContext, DlqEntryRef } from "../../shared/types";
+import { claimReleaseManager } from "./claim-manager";
 import { dlqRetryManager } from "./retry-manager";
 
 export interface DeliveryContext extends BatchContext {

@@ -21,21 +21,25 @@ graph LR
 ```
 services/dlq-service/
 ├── src/
-│   ├── app/
+│   ├── domain/
+│   │   ├── dlq-status.ts, dlq-constants.ts
+│   │   └── ports/replay.ports.ts   # Claim, release, retry ledger, queue, delivery, audit ports + settings
+│   ├── application/
 │   │   ├── index.ts      # Bootstrap: MongoDB connect, Redis queue, periodic prune
-│   │   └── server.ts     # Express server factory
+│   │   ├── server.ts     # Express server factory
+│   │   └── services/     # Replay use cases: auto-retry cycle, batch replay, Redis claim replay,
+│   │                     # queue rebuild, claim release, replay drain, batch concurrency guard
+│   ├── adapters/
+│   │   ├── inbound/      # HTTP handlers (add, list, delete, replay, health), routes, auth,
+│   │   │                 # rate limiting, Redis queue processor (timer-driven consumer)
+│   │   └── outbound/     # MongoDB repository & claim managers, retry manager, delivery executor,
+│   │                     # HTTP client, message-manager resolver, audit notifier, Redis pusher
+│   ├── infrastructure/   # env, auto-retry scheduler, pruner, Redis init/worker timer, rate-limiter store
 │   ├── config/
-│   │   ├── env.ts        # Zod-validated environment
-│   │   ├── address-manager.ts  # Service discovery client
-│   │   ├── db.ts         # MongoDB connection manager
-│   │   ├── redis-queue.ts      # Redis queue for DLQ operations
-│   │   ├── metrics.ts    # Prometheus metrics
-│   │   ├── audit.ts      # Audit logging
-│   │   └── logger.ts     # Logger setup
-│   └── dlq/
-│       ├── controller.ts # Business logic: store, replay, retry, prune
-│       ├── repository.ts # MongoDB CRUD for DLQ entries
-│       └── routes.ts     # Express route definitions
+│   │   ├── container.ts  # Composition root: wires the replay use cases to their adapters
+│   │   ├── shutdown-manager.ts # Graceful shutdown: drain replays, release claims, close resources
+│   │   ├── address-manager.ts, db.ts, redis-queue.ts, metrics.ts, audit.ts, logger.ts
+│   └── shared/           # Types, schemas, shutdown flag, active replay counter, re-export facades
 ├── tests/
 ├── Dockerfile
 ├── package.json

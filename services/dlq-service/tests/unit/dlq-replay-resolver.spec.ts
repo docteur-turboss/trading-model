@@ -2,7 +2,7 @@ import { describe, expect, it, jest } from "@jest/globals";
 
 const MOCK_RESOLVE_MESSAGE_MANAGER_URL = jest.fn();
 
-jest.mock("../../src/dlq/shared/message-manager-resolver", () => ({
+jest.mock("../../src/adapters/outbound/message-manager-resolver", () => ({
 	resolveMessageManagerUrl: MOCK_RESOLVE_MESSAGE_MANAGER_URL,
 }));
 
@@ -24,7 +24,7 @@ describe("dlq-replay-resolver", () => {
 		MOCK_RESOLVE_MESSAGE_MANAGER_URL.mockResolvedValue("https://mm:3000");
 
 		const { resolveMMUrlOrFail } = jest.requireActual(
-			"../../src/infrastructure/dlq-replay-resolver"
+			"../../src/adapters/inbound/dlq-replay-resolver"
 		) as { resolveMMUrlOrFail: (span: typeof mockSpan) => Promise<unknown> };
 
 		const result = await resolveMMUrlOrFail(mockSpan as never);
@@ -37,7 +37,7 @@ describe("dlq-replay-resolver", () => {
 		MOCK_RESOLVE_MESSAGE_MANAGER_URL.mockResolvedValue(null);
 
 		const { resolveMMUrlOrFail } = jest.requireActual(
-			"../../src/infrastructure/dlq-replay-resolver"
+			"../../src/adapters/inbound/dlq-replay-resolver"
 		) as { resolveMMUrlOrFail: (span: typeof mockSpan) => Promise<unknown> };
 
 		const result = await resolveMMUrlOrFail(mockSpan as never);
@@ -52,7 +52,7 @@ describe("dlq-replay-resolver", () => {
 
 	it("should return error response from mmResolveError", () => {
 		const { mmResolveError } = jest.requireActual(
-			"../../src/infrastructure/dlq-replay-resolver"
+			"../../src/adapters/inbound/dlq-replay-resolver"
 		) as { mmResolveError: () => { data: unknown; status: number } };
 
 		const result = mmResolveError();

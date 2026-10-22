@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from "@jest/globals";
 import {
 	isShuttingDown,
 	setShuttingDown,
-} from "../../src/dlq/shared/shutdown-flag";
+} from "../../src/shared/shutdown-flag";
 
 describe("shutdown-flag", () => {
 	beforeEach(() => {

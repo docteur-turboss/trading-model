@@ -25,7 +25,7 @@ jest.mock("../../src/config/index-manager", () => ({
 	})),
 }));
 
-jest.mock("@trading-model/common/persistence/mongo-connection-manager", () => {
+jest.mock("@trading-model/persistence/mongo-connection-manager", () => {
 	class MockCommonMongoConnectionManager {
 		getDb() {
 			return MOCK_GET_DB();

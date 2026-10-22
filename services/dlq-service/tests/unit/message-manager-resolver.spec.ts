@@ -21,7 +21,7 @@ describe("message-manager-resolver", () => {
 
 	it("should return URL from ENV when MESSAGE_MANAGER_URL is set", async () => {
 		const { resolveMessageManagerUrl } = jest.requireActual(
-			"../../src/dlq/shared/message-manager-resolver"
+			"../../src/adapters/outbound/message-manager-resolver"
 		) as { resolveMessageManagerUrl: () => Promise<unknown> };
 
 		const result = await resolveMessageManagerUrl();
@@ -38,7 +38,7 @@ describe("message-manager-resolver", () => {
 		});
 
 		const { resolveMessageManagerUrl } = jest.requireActual(
-			"../../src/dlq/shared/message-manager-resolver"
+			"../../src/adapters/outbound/message-manager-resolver"
 		) as { resolveMessageManagerUrl: () => Promise<unknown> };
 
 		const result = await resolveMessageManagerUrl();
@@ -51,7 +51,7 @@ describe("message-manager-resolver", () => {
 		MOCK_FIND_A_SERVICE.mockResolvedValue(null);
 
 		const { resolveMessageManagerUrl } = jest.requireActual(
-			"../../src/dlq/shared/message-manager-resolver"
+			"../../src/adapters/outbound/message-manager-resolver"
 		) as { resolveMessageManagerUrl: () => Promise<unknown> };
 
 		const result = await resolveMessageManagerUrl();
@@ -64,7 +64,7 @@ describe("message-manager-resolver", () => {
 		MOCK_FIND_A_SERVICE.mockRejectedValue(new Error("network error"));
 
 		const { resolveMessageManagerUrl } = jest.requireActual(
-			"../../src/dlq/shared/message-manager-resolver"
+			"../../src/adapters/outbound/message-manager-resolver"
 		) as { resolveMessageManagerUrl: () => Promise<unknown> };
 
 		const result = await resolveMessageManagerUrl();

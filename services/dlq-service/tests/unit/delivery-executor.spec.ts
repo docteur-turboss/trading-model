@@ -9,7 +9,7 @@ jest.mock("../../src/config/logger", () => ({
 	logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
 
-jest.mock("../../src/application/services/claim-manager", () => ({
+jest.mock("../../src/adapters/outbound/claim-manager", () => ({
 	dlqClaimManager: {},
 	claimReleaseManager: {
 		incrementRetryCount: MOCK_INCREMENT_RETRY,
@@ -23,7 +23,7 @@ jest.mock("../../src/adapters/outbound/retry-manager", () => ({
 	},
 }));
 
-jest.mock("../../src/dlq/shared/shutdown-flag", () => ({
+jest.mock("../../src/shared/shutdown-flag", () => ({
 	isShuttingDown: MOCK_IS_SHUTTING_DOWN,
 }));
 

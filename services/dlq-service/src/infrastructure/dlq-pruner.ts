@@ -1,5 +1,5 @@
-import { DurationMs } from "@trading-model/common/domain/primitives";
 import { TimerHandle } from "@trading-model/common/utils/timer-handle";
+import { DurationMs } from "@trading-model/primitives/primitives";
 import { dlqRepository } from "../adapters/outbound/repository";
 import { logger } from "../config/logger";
 import { metrics } from "../config/metrics";

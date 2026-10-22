@@ -51,7 +51,7 @@ describe("DlqClaimManager", () => {
 
 	beforeAll(() => {
 		const mod = jest.requireActual(
-			"../../src/application/services/claim-manager"
+			"../../src/adapters/outbound/claim-manager"
 		) as {
 			DlqClaimManager: typeof DlqClaimManagerClass;
 		};

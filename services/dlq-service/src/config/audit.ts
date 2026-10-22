@@ -1,14 +1,14 @@
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import { buildTlsFromEnv } from "@trading-model/common/config/tls-paths";
+import { HttpClient } from "@trading-model/http/adapters/outbound/http-client";
 import {
 	DurationMs,
 	PositiveInt,
 	toServiceId,
 	URLString,
-} from "@trading-model/common/domain/primitives";
-import { HostPort } from "@trading-model/common/domain/service-identity";
-import { CircuitStateMachine } from "@trading-model/common/reliability/circuit-state-machine";
-import { HttpClient } from "@trading-model/http/adapters/outbound/http-client";
+} from "@trading-model/primitives/primitives";
+import { HostPort } from "@trading-model/primitives/service-identity";
+import { CircuitStateMachine } from "@trading-model/reliability/circuit-state-machine";
 import type { AuditEvent } from "@trading-model/validation/adapters/inbound/admin/audit.dto";
 import { ENV } from "../infrastructure/config/env";
 import { FIND_A_SERVICE } from "./address-manager";

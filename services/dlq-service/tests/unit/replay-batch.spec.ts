@@ -9,19 +9,11 @@ import {
 
 const MOCK_DELIVER_ENTRY = jest.fn<() => Promise<void>>();
 
-jest.mock("../../src/adapters/outbound/delivery-executor", () => ({
-	deliverEntry: MOCK_DELIVER_ENTRY,
-}));
-
-jest.mock("../../src/dlq/shared/http-client-manager", () => ({
-	getHttpClient: async () => ({}),
-}));
-
 jest.mock("../../src/config/logger", () => ({
 	logger: { debug: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
 
-jest.mock("../../src/infrastructure/batch-concurrency-guard", () => ({
+jest.mock("../../src/application/services/batch-concurrency-guard", () => ({
 	checkBatchRejection: () => null,
 	incrementActiveBatches: jest.fn(),
 	decrementActiveBatches: jest.fn(),
@@ -42,10 +34,12 @@ describe("replay-batch", () => {
 		MOCK_DELIVER_ENTRY.mockImplementation((entry: { id: string }) =>
 			deliver(entry.id)
 		);
-		const { doReplayBatch } = jest.requireActual(
+		const { createReplayBatch } = jest.requireActual(
 			"../../src/application/services/replay-batch"
 		) as {
-			doReplayBatch: (options: {
+			createReplayBatch: (delivery: {
+				deliver: typeof MOCK_DELIVER_ENTRY;
+			}) => (options: {
 				batchId: string;
 				instanceId: string;
 				messageManagerUrl: string;
@@ -55,6 +49,7 @@ describe("replay-batch", () => {
 				errors: { id: string; error: string }[];
 			}>;
 		};
+		const doReplayBatch = createReplayBatch({ deliver: MOCK_DELIVER_ENTRY });
 		return doReplayBatch({
 			batchId: "batch-1",
 			instanceId: "instance-1",

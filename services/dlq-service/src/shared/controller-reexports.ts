@@ -1,11 +1,11 @@
+export { reloadHttpClientTls } from "../adapters/outbound/http-client-manager";
 export {
 	pruneOldEntries,
 	releaseStaleClaims,
 	shutdownSchedulers,
 	startPeriodicPrune,
 	stopPeriodicPrune,
-} from "../application/shutdown-manager";
-export { reloadHttpClientTls } from "../dlq/shared/http-client-manager";
+} from "../config/shutdown-manager";
 export {
 	startAutoRetry,
 	stopAutoRetry,

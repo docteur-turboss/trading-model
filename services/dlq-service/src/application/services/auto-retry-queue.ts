@@ -1,27 +1,31 @@
-import { dlqRepository } from "../../adapters/outbound/repository";
 import { logger } from "../../config/logger";
-import { dlqRedisQueue } from "../../config/redis-queue";
+import type {
+	QueuableEntriesPort,
+	ReplayQueuePort,
+} from "../../domain/ports/replay.ports";
 
-export async function rebuildQueueFromMongo(): Promise<void> {
-	try {
-		const entries = await dlqRepository.listQueuable();
-		_pushAllToRedis(entries);
-		logger.info("Redis queue rebuilt from MongoDB", {
-			pushedCount: entries.length,
-		});
-	} catch (err) {
-		_logRebuildError(err);
-	}
+export interface QueueRebuilderDeps {
+	entries: QueuableEntriesPort;
+	queue: ReplayQueuePort;
 }
 
-function _pushAllToRedis(entries: string[]): void {
-	for (const entryId of entries) {
-		void dlqRedisQueue.push(entryId);
-	}
-}
-
-function _logRebuildError(err: unknown): void {
-	logger.warn("Failed to rebuild Redis queue from MongoDB", {
-		error: (err as Error)?.message,
-	});
+/** Re-seeds the Redis replay queue from the queuable entries stored in MongoDB. */
+export function createQueueRebuilder(
+	deps: QueueRebuilderDeps
+): () => Promise<void> {
+	return async () => {
+		try {
+			const entries = await deps.entries.listQueuable();
+			for (const entryId of entries) {
+				void deps.queue.push(entryId);
+			}
+			logger.info("Redis queue rebuilt from MongoDB", {
+				pushedCount: entries.length,
+			});
+		} catch (err) {
+			logger.warn("Failed to rebuild Redis queue from MongoDB", {
+				error: (err as Error)?.message,
+			});
+		}
+	};
 }

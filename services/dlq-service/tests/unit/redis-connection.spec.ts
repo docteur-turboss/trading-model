@@ -7,7 +7,7 @@ const MOCK_CLIENT_DISCONNECT = jest.fn();
 const MOCK_CLIENT_ON = jest.fn();
 const MOCK_CLIENT_REMOVE_ALL_LISTENERS = jest.fn();
 
-jest.mock("@trading-model/common/persistence/redis-connection-manager", () => ({
+jest.mock("@trading-model/persistence/redis-connection-manager", () => ({
 	createRedisClient: MOCK_CREATE_REDIS_CLIENT,
 }));
 

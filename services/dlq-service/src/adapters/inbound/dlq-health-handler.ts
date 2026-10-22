@@ -1,4 +1,4 @@
-import type { HttpStatusCode } from "@trading-model/common/http-status";
+import type { HttpStatusCode } from "@trading-model/contracts/http-status";
 import {
 	HEALTH_STATUS_OK,
 	type ResponseObject,

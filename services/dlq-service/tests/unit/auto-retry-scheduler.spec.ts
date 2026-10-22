@@ -20,12 +20,12 @@ jest.mock("../../src/shared/auto-retry", () => ({
 	autoRetryTick: MOCK_AUTO_RETRY_TICK,
 }));
 
-jest.mock("../../src/application/services/redis-queue-processor", () => ({
+jest.mock("../../src/adapters/inbound/redis-queue-processor", () => ({
 	startRedisWorkerLoop: MOCK_START_REDIS_WORKER,
 	stopRedisWorkerTimer: MOCK_STOP_REDIS_WORKER,
 }));
 
-jest.mock("../../src/dlq/shared/shutdown-flag", () => ({
+jest.mock("../../src/shared/shutdown-flag", () => ({
 	isShuttingDown: MOCK_IS_SHUTTING_DOWN,
 }));
 

@@ -35,7 +35,7 @@ describe("http-client-manager", () => {
 
 	it("should create HttpClient on first get", async () => {
 		const { getHttpClient } = jest.requireActual(
-			"../../src/dlq/shared/http-client-manager"
+			"../../src/adapters/outbound/http-client-manager"
 		) as { getHttpClient: () => Promise<unknown> };
 		const client = await getHttpClient();
 		expect(client).toBe(MOCK_HTTP_CLIENT_INSTANCE);
@@ -43,7 +43,7 @@ describe("http-client-manager", () => {
 
 	it("should return cached client on subsequent get", async () => {
 		const mod = jest.requireActual(
-			"../../src/dlq/shared/http-client-manager"
+			"../../src/adapters/outbound/http-client-manager"
 		) as {
 			getHttpClient: () => Promise<unknown>;
 		};
@@ -54,7 +54,7 @@ describe("http-client-manager", () => {
 
 	it("should reload TLS certificates", async () => {
 		const mod = jest.requireActual(
-			"../../src/dlq/shared/http-client-manager"
+			"../../src/adapters/outbound/http-client-manager"
 		) as {
 			getHttpClient: () => Promise<unknown>;
 			reloadHttpClientTls: () => Promise<void>;
@@ -71,7 +71,7 @@ describe("http-client-manager", () => {
 
 	it("should handle reload TLS error gracefully", async () => {
 		const mod = jest.requireActual(
-			"../../src/dlq/shared/http-client-manager"
+			"../../src/adapters/outbound/http-client-manager"
 		) as {
 			getHttpClient: () => Promise<unknown>;
 			reloadHttpClientTls: () => Promise<void>;
@@ -95,14 +95,14 @@ describe("http-client-manager", () => {
 
 	it("should close HTTP client", async () => {
 		const { closeHttpClient } = jest.requireActual(
-			"../../src/dlq/shared/http-client-manager"
+			"../../src/adapters/outbound/http-client-manager"
 		) as { closeHttpClient: () => void };
 		closeHttpClient();
 	});
 
 	it("should not reload TLS when no client exists", async () => {
 		const { reloadHttpClientTls } = jest.requireActual(
-			"../../src/dlq/shared/http-client-manager"
+			"../../src/adapters/outbound/http-client-manager"
 		) as { reloadHttpClientTls: () => Promise<void> };
 		await reloadHttpClientTls();
 		expect(MOCK_HTTP_CLIENT_INSTANCE.reloadTlsPaths).not.toHaveBeenCalled();

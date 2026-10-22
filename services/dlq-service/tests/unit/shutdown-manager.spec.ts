@@ -19,13 +19,6 @@ jest.mock("../../src/infrastructure/auto-retry-scheduler", () => ({
 	stopAutoRetry: MOCK_STOP_AUTO_RETRY,
 }));
 
-jest.mock("../../src/application/services/claim-release-service", () => ({
-	ClaimReleaseService: jest.fn(() => ({
-		releaseStale: MOCK_RELEASE_STALE,
-		releaseAndRequeue: MOCK_RELEASE_AND_REQUEUE,
-	})),
-}));
-
 jest.mock("../../src/infrastructure/dlq-pruner", () => ({
 	DlqPruner: jest.fn(() => ({
 		prune: MOCK_PRUNE,
@@ -34,17 +27,19 @@ jest.mock("../../src/infrastructure/dlq-pruner", () => ({
 	})),
 }));
 
-jest.mock("../../src/application/services/replay-drain-service", () => ({
-	ReplayDrainService: jest.fn(() => ({
-		drain: MOCK_DRAIN,
-	})),
+jest.mock("../../src/config/container", () => ({
+	claimReleaseService: {
+		releaseStale: MOCK_RELEASE_STALE,
+		releaseAndRequeue: MOCK_RELEASE_AND_REQUEUE,
+	},
+	replayDrainService: { drain: MOCK_DRAIN },
 }));
 
-jest.mock("../../src/dlq/shared/http-client-manager", () => ({
+jest.mock("../../src/adapters/outbound/http-client-manager", () => ({
 	closeHttpClient: MOCK_CLOSE_HTTP_CLIENT,
 }));
 
-jest.mock("../../src/dlq/shared/shutdown-flag", () => ({
+jest.mock("../../src/shared/shutdown-flag", () => ({
 	setShuttingDown: MOCK_SET_SHUTTING_DOWN,
 }));
 
@@ -56,7 +51,7 @@ describe("shutdown-manager", () => {
 	it("should prune old entries", async () => {
 		MOCK_PRUNE.mockResolvedValue(5);
 		const { pruneOldEntries } = jest.requireActual(
-			"../../src/application/shutdown-manager"
+			"../../src/config/shutdown-manager"
 		) as { pruneOldEntries: () => Promise<number> };
 		const result = await pruneOldEntries();
 		expect(result).toBe(5);
@@ -65,7 +60,7 @@ describe("shutdown-manager", () => {
 	it("should release stale claims", async () => {
 		MOCK_RELEASE_STALE.mockResolvedValue(undefined);
 		const { releaseStaleClaims } = jest.requireActual(
-			"../../src/application/shutdown-manager"
+			"../../src/config/shutdown-manager"
 		) as { releaseStaleClaims: (ms?: number) => Promise<void> };
 		await releaseStaleClaims(60000);
 		expect(MOCK_RELEASE_STALE).toHaveBeenCalledWith(60000);
@@ -78,7 +73,7 @@ describe("shutdown-manager", () => {
 		MOCK_RELEASE_AND_REQUEUE.mockResolvedValue(undefined);
 
 		const { shutdownSchedulers } = jest.requireActual(
-			"../../src/application/shutdown-manager"
+			"../../src/config/shutdown-manager"
 		) as { shutdownSchedulers: () => Promise<void> };
 		await shutdownSchedulers();
 
@@ -93,7 +88,7 @@ describe("shutdown-manager", () => {
 
 	it("should start and stop periodic prune", async () => {
 		const { startPeriodicPrune, stopPeriodicPrune } = jest.requireActual(
-			"../../src/application/shutdown-manager"
+			"../../src/config/shutdown-manager"
 		) as {
 			startPeriodicPrune: () => void;
 			stopPeriodicPrune: () => void;
@@ -112,7 +107,7 @@ describe("shutdown-manager", () => {
 		MOCK_RELEASE_AND_REQUEUE.mockResolvedValue(undefined);
 
 		const { shutdown } = jest.requireActual(
-			"../../src/application/shutdown-manager"
+			"../../src/config/shutdown-manager"
 		) as { shutdown: () => Promise<void> };
 		await shutdown();
 
