@@ -31,7 +31,6 @@ on:
         required: false
         type: string
         default: 'trading-model'
-    secrets: inherit
   workflow_dispatch:
     inputs:
       environment:
@@ -147,7 +146,7 @@ jobs:
       # Canary gate: test the new image on a small % of traffic BEFORE full rollout.
       # If the canary fails, the overlay is never applied and the primary stays on the old image.
       - name: Canary deployments + smoke test (if enabled)
-        if: ${{ inputs.canary == 'true' }}
+        if: ${{ inputs.canary }}
         shell: bash
         run: |
           NS="${{ steps.ns.outputs.namespace }}"
@@ -221,7 +220,7 @@ jobs:
 
       # always() ensures orphans are cleaned up even when canary or rollout fails.
       - name: Clean up canary deployments (if enabled)
-        if: ${{ always() && inputs.canary == 'true' }}
+        if: ${{ always() && inputs.canary }}
         shell: bash
         run: |
           NS="${{ steps.ns.outputs.namespace }}"
