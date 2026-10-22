@@ -1,4 +1,4 @@
-import type { ServiceIdentity } from "../domain/service-identity";
+import type { ServiceIdentity } from "@trading-model/primitives/service-identity";
 
 export interface IHeartbeatSender {
 	sendHeartbeat(identity: ServiceIdentity): Promise<void>;

@@ -1,5 +1,8 @@
-import { CircuitState } from "../domain/circuit-state";
-import { DurationMs, UnixTimestamp } from "../domain/primitives";
+import { CircuitState } from "@trading-model/primitives/circuit-state";
+import {
+	DurationMs,
+	UnixTimestamp,
+} from "@trading-model/primitives/primitives";
 import type { IUnkeyedCircuitBreaker } from "./circuit-breaker.interface";
 
 export interface CircuitBreakerConfig {

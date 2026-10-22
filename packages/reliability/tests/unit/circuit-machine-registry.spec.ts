@@ -1,7 +1,7 @@
 import { describe, expect, it, jest } from "@jest/globals";
-import { CircuitState } from "../../../src/domain/circuit-state";
-import { DurationMs } from "../../../src/domain/primitives";
-import { CircuitMachineRegistry } from "../../../src/reliability/circuit-machine-registry";
+import { CircuitState } from "@trading-model/primitives/circuit-state";
+import { DurationMs } from "@trading-model/primitives/primitives";
+import { CircuitMachineRegistry } from "@trading-model/reliability/circuit-machine-registry";
 
 describe("CircuitMachineRegistry", () => {
 	it("should create and reuse machines per key", () => {

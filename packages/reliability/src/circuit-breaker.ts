@@ -1,5 +1,5 @@
-import { CircuitState } from "../domain/circuit-state";
-import { getLogger } from "../logging/logger-registry";
+import { getLogger } from "@trading-model/contracts/logger-registry";
+import { CircuitState } from "@trading-model/primitives/circuit-state";
 import type { ICircuitBreaker } from "./circuit-breaker.interface";
 import { CircuitMachineRegistry } from "./circuit-machine-registry";
 import type {

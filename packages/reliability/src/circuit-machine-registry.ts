@@ -1,4 +1,4 @@
-import { CircuitState } from "../domain/circuit-state";
+import { CircuitState } from "@trading-model/primitives/circuit-state";
 import type { CircuitBreakerConfig } from "./circuit-state-machine";
 import { CircuitStateMachine } from "./circuit-state-machine";
 

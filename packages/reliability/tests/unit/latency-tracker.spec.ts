@@ -1,5 +1,5 @@
 import { describe, expect, it } from "@jest/globals";
-import { LatencyTracker } from "../../../src/reliability/latency-tracker";
+import { LatencyTracker } from "@trading-model/reliability/latency-tracker";
 
 describe("LatencyTracker", () => {
 	it("should expose windowSize", () => {

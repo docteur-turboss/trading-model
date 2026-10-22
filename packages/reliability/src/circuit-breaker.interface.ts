@@ -1,4 +1,4 @@
-import type { CircuitState } from "../domain/circuit-state";
+import type { CircuitState } from "@trading-model/primitives/circuit-state";
 
 /** Circuit breaker for single-instance tracking (no key parameter). */
 export interface IUnkeyedCircuitBreaker {

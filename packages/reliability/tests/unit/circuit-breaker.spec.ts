@@ -6,9 +6,9 @@ import {
 	it,
 	jest,
 } from "@jest/globals";
-import type { DurationMs } from "../../src/domain/primitives";
+import type { DurationMs } from "@trading-model/primitives/primitives";
 
-import { CircuitBreaker } from "../../src/reliability/circuit-breaker";
+import { CircuitBreaker } from "@trading-model/reliability/circuit-breaker";
 
 beforeEach(() => {
 	jest.useFakeTimers();

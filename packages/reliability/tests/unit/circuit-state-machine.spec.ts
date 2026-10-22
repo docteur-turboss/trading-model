@@ -1,9 +1,9 @@
 import { describe, expect, it, jest } from "@jest/globals";
-import { CircuitState } from "../../../src/domain/circuit-state";
+import { CircuitState } from "@trading-model/primitives/circuit-state";
 import {
 	CircuitStateMachine,
 	DEFAULT_CIRCUIT_CONFIG,
-} from "../../../src/reliability/circuit-state-machine";
+} from "@trading-model/reliability/circuit-state-machine";
 
 describe("CircuitStateMachine", () => {
 	it("should start closed", () => {
