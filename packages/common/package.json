@@ -1,7 +1,7 @@
 {
   "name": "@trading-model/common",
   "version": "1.2.1",
-  "description": "Shared infrastructure — domain primitives, contracts, reliability, persistence, utils, ws",
+  "description": "Shared infrastructure (config, utils, shared schemas) extracted from the former god-package",
   "license": "ISC",
   "type": "commonjs",
   "exports": {
@@ -13,41 +13,9 @@
       "types": "./dist/utils/*.d.ts",
       "default": "./dist/utils/*.js"
     },
-    "./reliability/*": {
-      "types": "./dist/reliability/*.d.ts",
-      "default": "./dist/reliability/*.js"
-    },
-    "./domain/*": {
-      "types": "./dist/domain/*.d.ts",
-      "default": "./dist/domain/*.js"
-    },
-    "./logging/*": {
-      "types": "./dist/logging/*.d.ts",
-      "default": "./dist/logging/*.js"
-    },
-    "./persistence/*": {
-      "types": "./dist/persistence/*.d.ts",
-      "default": "./dist/persistence/*.js"
-    },
-    "./http-headers": {
-      "types": "./dist/http-headers.d.ts",
-      "default": "./dist/http-headers.js"
-    },
-    "./http-status": {
-      "types": "./dist/http-status.d.ts",
-      "default": "./dist/http-status.js"
-    },
-    "./contracts/*": {
-      "types": "./dist/contracts/*.d.ts",
-      "default": "./dist/contracts/*.js"
-    },
     "./shared/*": {
       "types": "./dist/shared/*.d.ts",
       "default": "./dist/shared/*.js"
-    },
-    "./ws/*": {
-      "types": "./dist/ws/*.d.ts",
-      "default": "./dist/ws/*.js"
     },
     "./tests/*": {
       "types": "./tests/*.d.ts",
@@ -55,11 +23,10 @@
     }
   },
   "dependencies": {
+    "@trading-model/contracts": "*",
+    "@trading-model/primitives": "*",
     "chained-error": "^1.0.0",
     "express": "^5.2.1",
-    "ioredis": "^6.0.0",
-    "mongodb": "^7.6.0",
-    "ws": "^8.21.3",
     "zod": "^4.5.4"
   },
   "devDependencies": {
@@ -69,7 +36,6 @@
     "@types/express": "^5.0.6",
     "@types/jest": "^30.0.0",
     "@types/node": "^26.5.0",
-    "@types/ws": "^8.16.0",
     "express-rate-limit": "^8.7.0",
     "helmet": "^8.3.0",
     "jest": "^30.5.1",

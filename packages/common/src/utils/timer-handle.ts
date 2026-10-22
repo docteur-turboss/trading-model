@@ -1,4 +1,4 @@
-import type { DurationMs } from "../domain/primitives";
+import type { DurationMs } from "@trading-model/primitives/primitives";
 
 export class TimerHandle {
 	private _handle: ReturnType<typeof setInterval> | null = null;

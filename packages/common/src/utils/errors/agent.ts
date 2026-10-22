@@ -1,4 +1,4 @@
-import { HTTP_STATUS } from "../../http-status";
+import { HTTP_STATUS } from "@trading-model/contracts/http-status";
 import { ErrorCode, makeErrorCode, makeGuard } from "./base";
 
 export const agentError = makeErrorCode(

@@ -1,11 +1,11 @@
-import type { DbConnectionConfig } from "../domain/db-connection-config";
+import type { DbConnectionConfig } from "@trading-model/primitives/db-connection-config";
 import {
 	DbName,
 	DbPassword,
 	DbUser,
 	Hostname,
 	Port,
-} from "../domain/primitives";
+} from "@trading-model/primitives/primitives";
 
 /**
  * Builds a {@link DbConnectionConfig} from `process.env` (`DB_HOST`, `DB_PORT`,

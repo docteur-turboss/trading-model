@@ -1,5 +1,5 @@
 import { describe, expect, it } from "@jest/globals";
-import { DurationMs } from "../../../src/domain/primitives/time-ids";
+import { DurationMs } from "@trading-model/primitives/primitives/time-ids";
 import {
 	computeExponentialBackoff,
 	computeExponentialBackoffWithJitter,

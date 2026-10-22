@@ -11,6 +11,7 @@
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
     "ignoreDeprecations": "6.0",
+    "types": ["node"],
     "paths": {
       "*": ["./*"],
       "@trading-model/common/*": ["./src/*"]

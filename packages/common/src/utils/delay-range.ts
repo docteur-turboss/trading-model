@@ -1,5 +1,8 @@
-import { NumericRange } from "../domain/numeric-range";
-import { type DurationMs, toDurationMs } from "../domain/primitives/time-ids";
+import { NumericRange } from "@trading-model/primitives/numeric-range";
+import {
+	type DurationMs,
+	toDurationMs,
+} from "@trading-model/primitives/primitives/time-ids";
 
 export class DelayRange {
 	readonly range: NumericRange;

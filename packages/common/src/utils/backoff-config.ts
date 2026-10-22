@@ -1,4 +1,4 @@
-import { DurationMs } from "../domain/primitives/time-ids";
+import { DurationMs } from "@trading-model/primitives/primitives/time-ids";
 import { DelayRange } from "./delay-range";
 
 export interface BackoffConfig {

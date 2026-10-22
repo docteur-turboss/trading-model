@@ -1,4 +1,4 @@
-import { HTTP_STATUS } from "../../http-status";
+import { HTTP_STATUS } from "@trading-model/contracts/http-status";
 
 export function normalizeError(err: unknown): Error {
 	if (err instanceof Error) {

@@ -12,19 +12,21 @@ module.exports = {
     ],
   },
   testMatch: ['**/?(*.)+(spec).ts'],
-moduleNameMapper: {
+  moduleNameMapper: {
+    '^@trading-model/primitives/(.*)$': '<rootDir>/../primitives/src/$1',
+    '^@trading-model/contracts/(.*)$': '<rootDir>/../contracts/src/$1',
     '^@trading-model/http/(.*)$': '<rootDir>/../http/src/$1',
     '^@trading-model/common/(.*)$': '<rootDir>/src/$1',
   },
   testPathIgnorePatterns: ['/node_modules/', '/dist/'],
   collectCoverageFrom: ['src/**/*.ts', '!src/**/*.d.ts'],
   maxWorkers: 10,
-	coverageThreshold: {
-		global: {
-			branches: 80,
-			functions: 80,
-			lines: 80,
-			statements: 80,
-		},
-	},
+  coverageThreshold: {
+    global: {
+      branches: 80,
+      functions: 80,
+      lines: 80,
+      statements: 80,
+    },
+  },
 };

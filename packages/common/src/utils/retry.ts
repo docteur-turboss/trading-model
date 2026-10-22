@@ -1,4 +1,4 @@
-﻿import { DurationMs } from "../domain/primitives";
+﻿import { DurationMs } from "@trading-model/primitives/primitives";
 import {
 	type BackoffConfig,
 	computeExponentialBackoff,

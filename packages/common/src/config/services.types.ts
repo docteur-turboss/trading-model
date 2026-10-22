@@ -3,4 +3,4 @@ export {
 	parseServiceName,
 	registerServiceName,
 	ServiceInstanceName,
-} from "../domain/service-instance-name";
+} from "@trading-model/primitives/service-instance-name";

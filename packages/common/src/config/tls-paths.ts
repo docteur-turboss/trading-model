@@ -1,11 +1,11 @@
 import type { SecureContextOptions } from "node:tls";
-import { z } from "zod";
 import {
 	type CaPem,
 	type CertPem,
 	FilePath,
 	type KeyPem,
-} from "../domain/primitives";
+} from "@trading-model/primitives/primitives";
+import { z } from "zod";
 
 /** Canonical type for TLS file paths used across all services. */
 export interface TlsPaths {

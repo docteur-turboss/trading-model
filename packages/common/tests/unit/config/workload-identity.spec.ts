@@ -1,4 +1,5 @@
 import { describe, expect, it } from "@jest/globals";
+import { ServiceId } from "@trading-model/primitives/primitives/general-ids";
 import {
 	buildSpiffeId,
 	DEFAULT_NAMESPACE,
@@ -10,7 +11,6 @@ import {
 	serviceNameFromSpiffeId,
 	TRUST_DOMAIN,
 } from "../../../src/config/workload-identity";
-import { ServiceId } from "../../../src/domain/primitives/general-ids";
 
 describe("workload-identity", () => {
 	describe("buildSpiffeId", () => {

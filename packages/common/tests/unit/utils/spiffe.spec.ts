@@ -1,5 +1,5 @@
 import { describe, expect, it } from "@jest/globals";
-import { ServiceId } from "../../../src/domain/primitives";
+import { ServiceId } from "@trading-model/primitives/primitives";
 import {
 	buildSpiffeId,
 	extractCanonicalServiceName,

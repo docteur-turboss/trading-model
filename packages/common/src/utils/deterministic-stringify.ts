@@ -1,4 +1,4 @@
-import type { JsonObject } from "../domain/primitives";
+import type { JsonObject } from "@trading-model/primitives/primitives";
 
 /**
  * Deterministic JSON serialization for cryptographic signing.

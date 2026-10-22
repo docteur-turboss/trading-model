@@ -1,4 +1,4 @@
-import type { JsonObject } from "../domain/primitives";
+import type { JsonObject } from "@trading-model/primitives/primitives";
 
 const PEM_LINE_PATTERN = /-----BEGIN[^-]+-----[\s\S]*?-----END[^-]+-----/g;
 const Visited = new WeakSet<object>();

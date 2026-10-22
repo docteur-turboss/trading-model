@@ -6,7 +6,7 @@ import {
 	it,
 	jest,
 } from "@jest/globals";
-import { DurationMs } from "../../../src/domain/primitives";
+import { DurationMs } from "@trading-model/primitives/primitives";
 import {
 	retryWithBackoff,
 	sleepWithJitter,

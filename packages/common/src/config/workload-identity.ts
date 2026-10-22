@@ -1,4 +1,4 @@
-import { ServiceId } from "../domain/primitives/general-ids";
+import { ServiceId } from "@trading-model/primitives/primitives/general-ids";
 
 /**
  * SPIFFE workload identity primitives (ADR-0011).
