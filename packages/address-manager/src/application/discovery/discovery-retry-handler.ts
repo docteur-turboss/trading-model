@@ -1,12 +1,9 @@
 import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
-import type { UnixTimestamp } from "@trading-model/common/domain/primitives";
-import {
-	DurationMs,
-	toServiceId,
-} from "@trading-model/common/domain/primitives";
 import { computeExponentialBackoff } from "@trading-model/common/utils/backoff-config";
 import { sleep } from "@trading-model/common/utils/sleep";
 import { logger } from "@trading-model/http/infrastructure/logger";
+import type { UnixTimestamp } from "@trading-model/primitives/primitives";
+import { DurationMs, toServiceId } from "@trading-model/primitives/primitives";
 
 import type { ServiceInstance } from "../../domain/client/type";
 import type { DiscoveryContext } from "../../domain/discovery/discovery-context";

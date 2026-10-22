@@ -1,13 +1,15 @@
 import type { HttpClient } from "@trading-model/http/adapters/outbound/http-client";
 import { ServiceHealthChecker } from "../adapters/outbound/discovery/service-health-checker";
 import type { AddressManagerConfig } from "../domain/config/address-manager-config";
-import { MapResolver } from "../domain/discovery/dns-resolver";
 import type { IServiceCache } from "../domain/discovery/service-cache.interface";
 import { MetricsCollector } from "../infrastructure/monitoring/metrics-collector";
 import { DiscoveryCircuitBreaker } from "./discovery/circuit-breaker";
 import { DiscoveryOrchestrator } from "./discovery/discovery-orchestrator";
 import { ServiceDiscovery } from "./discovery/service-discovery";
-import { MappingServiceLocator } from "./discovery/service-locator";
+import {
+	MappingServiceLocator,
+	MapResolver,
+} from "./discovery/service-locator";
 export interface DiscoveryLayer {
 	circuitBreaker: DiscoveryCircuitBreaker;
 	healthChecker: ServiceHealthChecker;

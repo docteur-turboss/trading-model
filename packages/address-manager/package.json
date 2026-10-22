@@ -15,8 +15,12 @@
     }
   },
   "dependencies": {
+    "@trading-model/primitives": "*",
+    "@trading-model/contracts": "*",
     "@trading-model/common": "*",
+    "@trading-model/persistence": "*",
     "@trading-model/http": "*",
+    "@trading-model/reliability": "*",
     "@trading-model/server-utils": "*",
     "@trading-model/validation": "*",
     "express": "^5.2.1",

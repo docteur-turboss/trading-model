@@ -1,4 +1,4 @@
-import { CircuitState } from "@trading-model/common/domain/circuit-state";
+import { CircuitState } from "@trading-model/primitives/circuit-state";
 import type { Application } from "express";
 import promClient from "prom-client";
 import { STATUS_ROUTES } from "../../adapters/inbound/routes/metrics.routes";

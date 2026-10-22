@@ -1,7 +1,4 @@
-import {
-	DurationMs,
-	PositiveInt,
-} from "@trading-model/common/domain/primitives";
+import { DurationMs, PositiveInt } from "@trading-model/primitives/primitives";
 
 export const DEFAULT_LATENCY_WINDOW_SIZE = PositiveInt.of(100);
 export const DEFAULT_LATENCY_P99_THRESHOLD_MS = DurationMs.of(5000);

@@ -1,9 +1,9 @@
 ﻿import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
+import type { HttpClient } from "@trading-model/http/adapters/outbound/http-client";
 import {
 	type InstanceId,
 	toServiceId,
-} from "@trading-model/common/domain/primitives";
-import type { HttpClient } from "@trading-model/http/adapters/outbound/http-client";
+} from "@trading-model/primitives/primitives";
 import type { ServiceHealthChecker } from "../../adapters/outbound/discovery/service-health-checker";
 import type { ServiceInstance } from "../../domain/client/type";
 import type { AddressManagerConfig } from "../../domain/config/address-manager-config";

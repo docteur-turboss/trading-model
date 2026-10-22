@@ -1,4 +1,4 @@
-import type { InstanceId } from "@trading-model/common/domain/primitives";
+import type { InstanceId } from "@trading-model/primitives/primitives";
 
 export class ConnectionTracker {
 	private readonly _connections = new Map<InstanceId, number>();

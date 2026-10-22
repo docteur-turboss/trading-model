@@ -1,4 +1,3 @@
-import { DurationMs } from "@trading-model/common/domain/primitives";
 import {
 	type BackoffConfig,
 	computeExponentialBackoffWithJitter,
@@ -8,6 +7,7 @@ import {
 	type RetryOptions,
 	type RetryResult,
 } from "@trading-model/common/utils/retry";
+import { DurationMs } from "@trading-model/primitives/primitives";
 
 export interface RetryConfig extends BackoffConfig {
 	maxRetries: number;

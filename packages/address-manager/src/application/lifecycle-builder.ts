@@ -15,7 +15,6 @@ function buildLifecycleOptions(
 		registrationManager: LifecycleDeps["registrationManager"];
 		heartbeatManager: LifecycleDeps["heartbeatManager"];
 		shutdownHandler: ShutdownHandler;
-		wsClient: LifecycleDeps["wsClient"];
 		serviceCache: LifecycleDeps["serviceCache"];
 		tokenManager: LifecycleDeps["tokenManager"];
 		addressManagerClient: LifecycleDeps["addressManagerClient"];
@@ -26,7 +25,6 @@ function buildLifecycleOptions(
 		registrationManager: deps.registrationManager,
 		heartbeatManager: deps.heartbeatManager,
 		shutdownHandler: deps.shutdownHandler,
-		wsClient: deps.wsClient,
 		serviceCache: deps.serviceCache,
 		serviceName: config.identity.serviceName,
 		instanceId: config.identity.instanceId,
@@ -42,7 +40,6 @@ function buildLifecycleOptions(
 export function buildLifecycleManager(deps: LifecycleDeps): LifecycleManager {
 	const shutdownHandler = buildShutdownHandler({
 		registrationManager: deps.registrationManager,
-		wsClient: deps.wsClient,
 		addressManagerClient: deps.addressManagerClient,
 		serviceCache: deps.serviceCache,
 		circuitBreaker: deps.circuitBreaker,
@@ -53,7 +50,6 @@ export function buildLifecycleManager(deps: LifecycleDeps): LifecycleManager {
 			registrationManager: deps.registrationManager,
 			heartbeatManager: deps.heartbeatManager,
 			shutdownHandler,
-			wsClient: deps.wsClient,
 			serviceCache: deps.serviceCache,
 			tokenManager: deps.tokenManager,
 			addressManagerClient: deps.addressManagerClient,

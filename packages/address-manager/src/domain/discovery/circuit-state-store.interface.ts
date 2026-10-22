@@ -1,4 +1,4 @@
-import type { InstanceId } from "@trading-model/common/domain/primitives";
+import type { InstanceId } from "@trading-model/primitives/primitives";
 import type { PersistedCircuitState } from "./service-cache.interface";
 
 export interface ICircuitStateStore {

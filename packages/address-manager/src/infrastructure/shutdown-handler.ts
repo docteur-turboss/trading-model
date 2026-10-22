@@ -17,15 +17,10 @@ export class ShutdownHandler {
 
 	async fullStop(): Promise<void> {
 		this.shutdown();
-		this._disconnectWs();
 		await this._tryUnregisterService();
 		this._deps.serviceCache.close();
 		this._deps.circuitBreaker.clear();
 		this._metricsTimer.stop();
-	}
-
-	private _disconnectWs(): void {
-		this._deps.wsClient?.disconnect();
 	}
 
 	private async _tryUnregisterService(): Promise<void> {

@@ -4,15 +4,14 @@ import {
 	IPAddress,
 	Port,
 	PositiveInt,
-	ServiceId,
+	type ServiceId,
 	toInstanceId,
 	toRegion,
 	toServiceId,
-} from "@trading-model/common/domain/primitives";
+} from "@trading-model/primitives/primitives";
 import {
 	type AddressManagerEnv,
 	resolveDiscoveryUrls,
-	resolveWsSubscribedServices,
 } from "../infrastructure/config/address-manager-env";
 import AddressManager from "./address-manager";
 
@@ -23,24 +22,18 @@ export function createAddressManager(env: AddressManagerEnv) {
 		env.ADDRESS_MANAGER_URL,
 		env.ADDRESS_MANAGER_URLS
 	);
-	const wsSubscribedServices = resolveWsSubscribedServices(
-		env.WS_SUBSCRIBED_SERVICES
-	);
-	return new AddressManager(
-		_buildAddressManagerConfig(env, discoveryUrls, wsSubscribedServices)
-	);
+	return new AddressManager(_buildAddressManagerConfig(env, discoveryUrls));
 }
 
 function _buildAddressManagerConfig(
 	env: AddressManagerEnv,
-	discoveryUrls: string[],
-	wsSubscribedServices: string[] | undefined
+	discoveryUrls: string[]
 ) {
 	return {
 		..._buildCoreConfig(env, discoveryUrls),
 		identity: _buildIdentity(env),
 		tls: _buildTls(env),
-		..._buildOptionalConfig(env, wsSubscribedServices),
+		..._buildOptionalConfig(env),
 	};
 }
 
@@ -60,10 +53,7 @@ function _buildCoreConfig(env: AddressManagerEnv, discoveryUrls: string[]) {
 	};
 }
 
-function _buildOptionalConfig(
-	env: AddressManagerEnv,
-	wsSubscribedServices: string[] | undefined
-) {
+function _buildOptionalConfig(env: AddressManagerEnv) {
 	return {
 		dnsNameMap: env.DNS_NAME_MAP as unknown as
 			| Record<ServiceId, IPAddress>
@@ -71,8 +61,6 @@ function _buildOptionalConfig(
 		metricsIntervalMs: env.METRICS_INTERVAL_MS
 			? DurationMs.of(env.METRICS_INTERVAL_MS)
 			: undefined,
-		wsUrl: env.WS_URL,
-		wsSubscribedServices: wsSubscribedServices?.map(ServiceId.of),
 		maxCallRecords: env.MAX_CALL_RECORDS
 			? PositiveInt.of(env.MAX_CALL_RECORDS)
 			: undefined,

@@ -1,9 +1,9 @@
+import { TtlCacheBase } from "@trading-model/common/utils/ttl-cache-base";
+import { MemoryStoreAdapter } from "@trading-model/persistence/index";
 import type {
 	DurationMs,
 	ServiceId,
-} from "@trading-model/common/domain/primitives";
-import { MemoryStoreAdapter } from "@trading-model/common/persistence/index";
-import { TtlCacheBase } from "@trading-model/common/utils/ttl-cache-base";
+} from "@trading-model/primitives/primitives";
 import type { ServiceInstance } from "../../../domain/client/type";
 import type { ICircuitStateStore } from "../../../domain/discovery/circuit-state-store.interface";
 import type {

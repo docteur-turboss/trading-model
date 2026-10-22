@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
-import { CircuitState as CircuitStateEnum } from "@trading-model/common/domain/circuit-state";
+import { CircuitState as CircuitStateEnum } from "@trading-model/primitives/circuit-state";
 import {
 	DurationMs,
 	IPAddress,
@@ -9,7 +9,7 @@ import {
 	toServiceId,
 	toVersion,
 	UnixTimestamp,
-} from "@trading-model/common/domain/primitives";
+} from "@trading-model/primitives/primitives";
 import { Protocol } from "@trading-model/validation/domain/contracts/service-registry.types";
 import { ServiceCache } from "../../src/adapters/outbound/discovery/service-cache";
 import type { ServiceInstance } from "../../src/domain/client/type";

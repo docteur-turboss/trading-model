@@ -1,12 +1,12 @@
 import { parseServiceName } from "@trading-model/common/config/services.types";
-import { URLString } from "@trading-model/common/domain/primitives";
-import { HTTP_HEADERS } from "@trading-model/common/http-headers";
 import {
 	addressManagerError,
 	normalizeError,
 } from "@trading-model/common/utils/errors";
+import { HTTP_HEADERS } from "@trading-model/contracts/http-headers";
 import type { HttpClient } from "@trading-model/http/adapters/outbound/http-client";
 import { logger } from "@trading-model/http/infrastructure/logger";
+import { URLString } from "@trading-model/primitives/primitives";
 import type { TokenManager } from "../../../application/client/token-manager";
 import type {
 	RegisterServicePayload,
@@ -39,7 +39,7 @@ export class AddressManagerClient {
 		return {
 			serviceName: parseServiceName(this._config.identity.serviceName),
 			port: this._config.servicePort,
-			ip: LocalIPDetector.getIP() as import("@trading-model/common/domain/primitives").IPAddress,
+			ip: LocalIPDetector.getIP() as import("@trading-model/primitives/primitives").IPAddress,
 		};
 	}
 

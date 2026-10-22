@@ -1,8 +1,8 @@
-import { CircuitState } from "@trading-model/common/domain/circuit-state";
+import { CircuitState } from "@trading-model/primitives/circuit-state";
 import type {
 	ServiceId,
 	UnixTimestamp,
-} from "@trading-model/common/domain/primitives";
+} from "@trading-model/primitives/primitives";
 import promClient from "prom-client";
 
 const circuitBreakerStates = Object.values(CircuitState)

@@ -6,12 +6,12 @@ import {
 	it,
 	jest,
 } from "@jest/globals";
-import { CircuitState as CircuitStateEnum } from "@trading-model/common/domain/circuit-state";
+import { CircuitState as CircuitStateEnum } from "@trading-model/primitives/circuit-state";
 import {
 	PositiveInt,
 	toInstanceId,
 	UnixTimestamp,
-} from "@trading-model/common/domain/primitives";
+} from "@trading-model/primitives/primitives";
 import { DiscoveryCircuitBreaker } from "../../src/application/discovery/circuit-breaker";
 import type { ICircuitStateStore } from "../../src/domain/discovery/circuit-state-store.interface";
 import type { PersistedCircuitState } from "../../src/domain/discovery/service-cache.interface";

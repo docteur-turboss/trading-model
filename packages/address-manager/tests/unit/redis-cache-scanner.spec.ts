@@ -7,7 +7,7 @@ import {
 	toServiceId,
 	toVersion,
 	UnixTimestamp,
-} from "@trading-model/common/domain/primitives";
+} from "@trading-model/primitives/primitives";
 import { Protocol } from "@trading-model/validation/domain/contracts/service-registry.types";
 
 jest.mock("@trading-model/http/infrastructure/logger", () => ({

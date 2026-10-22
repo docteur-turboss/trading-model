@@ -1,11 +1,11 @@
+import { normalizeError } from "@trading-model/common/utils/errors";
+import { logger } from "@trading-model/http/infrastructure/logger";
 import {
 	type InstanceId,
 	PositiveInt,
 	UnixTimestamp,
-} from "@trading-model/common/domain/primitives";
-import type { CircuitStateMachine } from "@trading-model/common/reliability/circuit-state-machine";
-import { normalizeError } from "@trading-model/common/utils/errors";
-import { logger } from "@trading-model/http/infrastructure/logger";
+} from "@trading-model/primitives/primitives";
+import type { CircuitStateMachine } from "@trading-model/reliability/circuit-state-machine";
 import type { ICircuitStateStore } from "../../../domain/discovery/circuit-state-store.interface";
 import type { PersistedCircuitState } from "../../../domain/discovery/service-cache.interface";
 

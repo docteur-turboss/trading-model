@@ -1,5 +1,4 @@
 import type { AddressManagerClient } from "../adapters/outbound/client/address-manager-client";
-import type { WebSocketClient } from "../adapters/outbound/client/websocket-client";
 import type { ServiceHealthChecker } from "../adapters/outbound/discovery/service-health-checker";
 import type { AddressManagerConfig } from "../domain/config/address-manager-config";
 import type { IServiceCache } from "../domain/discovery/service-cache.interface";
@@ -11,14 +10,12 @@ import type { RegistrationAttemptHandler } from "./registration-attempt-handler"
 export interface ServiceClientDeps {
 	addressManagerClient: AddressManagerClient;
 	tokenManager: TokenManager;
-	wsClient?: WebSocketClient;
 	onSuccess?: () => void;
 	onFailure?: () => void;
 }
 
 export interface ShutdownHandlerDeps {
 	registrationManager: { stopRetrying: () => void };
-	wsClient: WebSocketClient | undefined;
 	addressManagerClient: AddressManagerClient;
 	serviceCache: IServiceCache;
 	circuitBreaker: DiscoveryCircuitBreaker;
@@ -29,7 +26,6 @@ export interface LifecycleDeps {
 	circuitBreaker: DiscoveryCircuitBreaker;
 	registrationManager: RegistrationAttemptHandler;
 	heartbeatManager: HeartbeatManager;
-	wsClient?: WebSocketClient;
 	serviceCache: IServiceCache;
 	tokenManager: TokenManager;
 	addressManagerClient: AddressManagerClient;

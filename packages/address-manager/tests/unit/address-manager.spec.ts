@@ -135,19 +135,6 @@ jest.mock(
 	})
 );
 
-jest.mock("../../src/adapters/outbound/client/websocket-client", () => ({
-	WebSocketClient: jest.fn<any>().mockReturnValue({
-		connect: jest.fn<any>(),
-		disconnect: jest.fn<any>(),
-		onMessage: jest.fn<any>(),
-		setHttpFallback: jest.fn<any>(),
-		onAuthFailure: jest.fn<any>(),
-		isConnected: jest.fn<any>().mockReturnValue(false),
-		sendHeartbeat: jest.fn<any>().mockReturnValue(false),
-		updateToken: jest.fn<any>(),
-	}),
-}));
-
 import {
 	DurationMs,
 	FilePath,
@@ -155,7 +142,7 @@ import {
 	Port,
 	toInstanceId,
 	toServiceId,
-} from "@trading-model/common/domain/primitives";
+} from "@trading-model/primitives/primitives";
 import AddressManager from "../../src/application/address-manager";
 import type { AddressManagerConfig } from "../../src/domain/config/address-manager-config";
 
@@ -204,13 +191,6 @@ describe("AddressManager (main)", () => {
 	it("should create instance with Redis cache", () => {
 		const am = new AddressManager(
 			makeConfig({ redisCacheUrl: "redis://localhost:6379" })
-		);
-		expect(am).toBeInstanceOf(AddressManager);
-	});
-
-	it("should create instance with WebSocket URL", () => {
-		const am = new AddressManager(
-			makeConfig({ wsUrl: "wss://localhost:3000/ws" })
 		);
 		expect(am).toBeInstanceOf(AddressManager);
 	});

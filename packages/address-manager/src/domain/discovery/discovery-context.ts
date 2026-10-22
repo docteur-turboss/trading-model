@@ -1,5 +1,5 @@
 import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
-import type { UnixTimestamp } from "@trading-model/common/domain/primitives";
+import type { UnixTimestamp } from "@trading-model/primitives/primitives";
 import type { ServiceInstance } from "../client/type";
 
 export interface DiscoveryContext {

@@ -2,12 +2,12 @@ import type {
 	DurationMs,
 	InstanceId,
 	ServiceId,
-} from "@trading-model/common/domain/primitives";
+} from "@trading-model/primitives/primitives";
 import {
 	toInstanceId,
 	toServiceId,
-} from "@trading-model/common/domain/primitives";
-import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
+} from "@trading-model/primitives/primitives";
+import type { ServiceIdentity } from "@trading-model/primitives/service-identity";
 import type { AddressManagerClient } from "../../adapters/outbound/client/address-manager-client";
 import { RedisServiceCache } from "../../adapters/outbound/discovery/redis-service-cache";
 import type { ServiceHealthChecker } from "../../adapters/outbound/discovery/service-health-checker";

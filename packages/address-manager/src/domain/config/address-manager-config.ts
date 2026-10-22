@@ -5,8 +5,8 @@ import type {
 	Port,
 	PositiveInt,
 	ServiceId,
-} from "@trading-model/common/domain/primitives";
-import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
+} from "@trading-model/primitives/primitives";
+import type { ServiceIdentity } from "@trading-model/primitives/service-identity";
 
 /** Configuration options for the Address Manager client. */
 interface AddressManagerConfig {
@@ -30,8 +30,6 @@ interface AddressManagerConfig {
 	dnsNameMap?: Record<ServiceId, IPAddress>;
 	metricsIntervalMs?: DurationMs;
 
-	wsUrl?: string;
-	wsSubscribedServices?: ServiceId[];
 	maxCallRecords?: PositiveInt;
 	preferredNetworkInterface?: string;
 

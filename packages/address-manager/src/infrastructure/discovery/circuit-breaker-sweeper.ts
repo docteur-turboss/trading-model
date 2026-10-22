@@ -1,7 +1,7 @@
-import { CircuitState } from "@trading-model/common/domain/circuit-state";
-import { toDurationMs } from "@trading-model/common/domain/primitives";
-import type { CircuitStateMachine } from "@trading-model/common/reliability/circuit-state-machine";
 import { TimerHandle } from "@trading-model/common/utils/timer-handle";
+import { CircuitState } from "@trading-model/primitives/circuit-state";
+import { toDurationMs } from "@trading-model/primitives/primitives";
+import type { CircuitStateMachine } from "@trading-model/reliability/circuit-state-machine";
 
 export const SWEEP_INTERVAL_MS = toDurationMs(60_000);
 

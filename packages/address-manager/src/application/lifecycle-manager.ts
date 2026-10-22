@@ -1,11 +1,10 @@
+import { logger } from "@trading-model/http/infrastructure/logger";
 import type {
 	DurationMs,
 	InstanceId,
 	ServiceId,
-} from "@trading-model/common/domain/primitives";
-import { logger } from "@trading-model/http/infrastructure/logger";
+} from "@trading-model/primitives/primitives";
 import type { AddressManagerClient } from "../adapters/outbound/client/address-manager-client";
-import type { WebSocketClient } from "../adapters/outbound/client/websocket-client";
 import type { ServiceHealthChecker } from "../adapters/outbound/discovery/service-health-checker";
 import type { IServiceCache } from "../domain/discovery/service-cache.interface";
 import type { ShutdownHandler } from "../infrastructure/shutdown-handler";
@@ -17,7 +16,6 @@ export interface LifecycleManagerOptions {
 	registrationManager: { tryStickyRegistration(): Promise<void> };
 	heartbeatManager: HeartbeatManager;
 	shutdownHandler: ShutdownHandler;
-	wsClient?: WebSocketClient;
 	serviceCache: IServiceCache;
 	serviceName: ServiceId;
 	instanceId: InstanceId;
@@ -94,7 +92,6 @@ export class LifecycleManager {
 			if (!this._started) {
 				return;
 			}
-			this._options.wsClient?.connect();
 			steadyState.start();
 		});
 	}

@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, jest, test } from "@jest/globals";
+import type { HttpClient } from "@trading-model/http/adapters/outbound/http-client";
 import {
 	DurationMs,
 	IPAddress,
@@ -8,8 +9,7 @@ import {
 	toVersion,
 	UnixTimestamp,
 	URLString,
-} from "@trading-model/common/domain/primitives";
-import type { HttpClient } from "@trading-model/http/adapters/outbound/http-client";
+} from "@trading-model/primitives/primitives";
 import { Protocol } from "@trading-model/validation/domain/contracts/service-registry.types";
 import { ServiceHealthChecker } from "../../src/adapters/outbound/discovery/service-health-checker";
 import { IpAddressLocator } from "../../src/application/discovery/service-locator";

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, jest, test } from "@jest/globals";
-import type { DurationMs } from "@trading-model/common/domain/primitives";
+import type { DurationMs } from "@trading-model/primitives/primitives";
 import {
 	computeCpuPercent,
 	SystemMetrics,

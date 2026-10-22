@@ -1,9 +1,9 @@
 import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
-import type { InstanceId } from "@trading-model/common/domain/primitives";
+import type { InstanceId } from "@trading-model/primitives/primitives";
 import {
 	toServiceId,
 	UnixTimestamp,
-} from "@trading-model/common/domain/primitives";
+} from "@trading-model/primitives/primitives";
 import type { ServiceHealthChecker } from "../../adapters/outbound/discovery/service-health-checker";
 import type { DiscoveryContext } from "../../domain/discovery/discovery-context";
 import type { IServiceCache } from "../../domain/discovery/service-cache.interface";

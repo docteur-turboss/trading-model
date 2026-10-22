@@ -60,34 +60,6 @@ describe("createAddressManager", () => {
 		});
 	});
 
-	it("should parse WS_SUBSCRIBED_SERVICES when provided as valid JSON", () => {
-		createAddressManager({
-			...MINIMAL_ENV,
-			WS_SUBSCRIBED_SERVICES: '["service-a","service-b"]',
-		});
-	});
-
-	it("should handle invalid WS_SUBSCRIBED_SERVICES JSON gracefully", () => {
-		createAddressManager({
-			...MINIMAL_ENV,
-			WS_SUBSCRIBED_SERVICES: "not-json",
-		});
-	});
-
-	it("should handle empty WS_SUBSCRIBED_SERVICES array", () => {
-		createAddressManager({
-			...MINIMAL_ENV,
-			WS_SUBSCRIBED_SERVICES: "[]",
-		});
-	});
-
-	it("should handle WS_SUBSCRIBED_SERVICES with non-array JSON", () => {
-		createAddressManager({
-			...MINIMAL_ENV,
-			WS_SUBSCRIBED_SERVICES: '{"key": "value"}',
-		});
-	});
-
 	it("should fall back to single URL when ADDRESS_MANAGER_URLS is empty array", () => {
 		createAddressManager({
 			...MINIMAL_ENV,

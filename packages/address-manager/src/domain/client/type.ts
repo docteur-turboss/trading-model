@@ -3,7 +3,7 @@ import type {
 	InstanceId,
 	IPAddress,
 	Port,
-} from "@trading-model/common/domain/primitives";
+} from "@trading-model/primitives/primitives";
 import { ServiceInstance } from "@trading-model/validation/domain/contracts/service-registry.types";
 
 export { ServiceInstance };

@@ -1,11 +1,11 @@
-import { CircuitState } from "@trading-model/common/domain/circuit-state";
+import { MemoryStoreAdapter } from "@trading-model/persistence/index";
+import { CircuitState } from "@trading-model/primitives/circuit-state";
 import type {
 	DurationMs,
 	InstanceId,
-} from "@trading-model/common/domain/primitives";
-import { MemoryStoreAdapter } from "@trading-model/common/persistence/index";
-import { CircuitBreaker } from "@trading-model/common/reliability/circuit-breaker";
-import type { CircuitBreakerConfig } from "@trading-model/common/reliability/circuit-state-machine";
+} from "@trading-model/primitives/primitives";
+import { CircuitBreaker } from "@trading-model/reliability/circuit-breaker";
+import type { CircuitBreakerConfig } from "@trading-model/reliability/circuit-state-machine";
 import { CircuitBreakerPersistence } from "../../adapters/outbound/discovery/circuit-breaker-persistence";
 import {
 	DEFAULT_LATENCY_P99_THRESHOLD_MS,

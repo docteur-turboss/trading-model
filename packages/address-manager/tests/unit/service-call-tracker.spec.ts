@@ -1,12 +1,9 @@
 import { beforeEach, describe, expect, test } from "@jest/globals";
-import type {
-	Bytes,
-	DurationMs,
-} from "@trading-model/common/domain/primitives";
+import type { Bytes, DurationMs } from "@trading-model/primitives/primitives";
 import {
 	toServiceId,
 	UnixTimestamp,
-} from "@trading-model/common/domain/primitives";
+} from "@trading-model/primitives/primitives";
 import { HttpMethod } from "@trading-model/validation/domain/contracts/signed-request.types";
 import {
 	CallStatus,

@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import {
 	toInstanceId,
 	toServiceId,
-} from "@trading-model/common/domain/primitives";
+} from "@trading-model/primitives/primitives";
 import type { SteadyStateSchedulerOptions } from "../../src/application/scheduler/steady-state-scheduler";
 import { SteadyStateScheduler } from "../../src/application/scheduler/steady-state-scheduler";
 import type { IServiceCache } from "../../src/domain/discovery/service-cache.interface";

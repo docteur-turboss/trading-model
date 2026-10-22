@@ -1,7 +1,5 @@
-import type { ServiceId } from "@trading-model/common/domain/primitives";
+import type { ServiceId } from "@trading-model/primitives/primitives";
 
 export interface DnsResolver {
 	resolve(serviceId: ServiceId): string;
 }
-
-export { MapResolver } from "../../application/discovery/service-locator";

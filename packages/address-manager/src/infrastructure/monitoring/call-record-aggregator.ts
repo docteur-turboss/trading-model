@@ -2,7 +2,7 @@ import type {
 	Bytes,
 	DurationMs,
 	ServiceId,
-} from "@trading-model/common/domain/primitives";
+} from "@trading-model/primitives/primitives";
 import {
 	aggregateRecord,
 	aggregateTotals,

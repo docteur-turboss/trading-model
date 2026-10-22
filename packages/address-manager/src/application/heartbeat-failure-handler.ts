@@ -1,6 +1,6 @@
-import { PositiveInt } from "@trading-model/common/domain/primitives";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import { logger } from "@trading-model/http/infrastructure/logger";
+import { PositiveInt } from "@trading-model/primitives/primitives";
 import type { ServiceClientDeps } from "./types";
 
 const MAX_HEARTBEAT_FAILURES_BEFORE_RE_REGISTER = PositiveInt.of(3);
@@ -54,7 +54,6 @@ export class HeartbeatFailureHandler {
 			if (res?.token) {
 				onSuccess?.();
 				this._deps.tokenManager.setToken(res.token);
-				this._deps.wsClient?.updateToken(res.token);
 			}
 		} catch (err) {
 			logger.error("Re-registration failed", { error: normalizeError(err) });

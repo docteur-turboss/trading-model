@@ -1,4 +1,4 @@
-import type { IStoreAdapter } from "@trading-model/common/persistence/store-adapter.interface";
+import type { IStoreAdapter } from "@trading-model/persistence/store-adapter.interface";
 
 interface RedisLike {
 	get(key: string): Promise<string | null>;

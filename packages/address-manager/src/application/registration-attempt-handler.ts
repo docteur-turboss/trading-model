@@ -1,7 +1,7 @@
-import { DurationMs } from "@trading-model/common/domain/primitives";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import { sleep } from "@trading-model/common/utils/sleep";
 import { logger } from "@trading-model/http/infrastructure/logger";
+import { DurationMs } from "@trading-model/primitives/primitives";
 import { RetryScheduler } from "../shared/retry-scheduler";
 import type { ServiceClientDeps } from "./types";
 
@@ -107,7 +107,6 @@ export class RegistrationAttemptHandler {
 	private _handleSuccess(res: { token: string }): void {
 		this._deps.onSuccess?.();
 		this._deps.tokenManager.setToken(res.token);
-		this._deps.wsClient?.updateToken(res.token);
 	}
 
 	start(): { stop: () => void } {

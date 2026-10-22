@@ -1,7 +1,7 @@
 import {
 	type ServiceId,
 	toServiceId,
-} from "@trading-model/common/domain/primitives";
+} from "@trading-model/primitives/primitives";
 import type { ServiceInstance } from "../../domain/client/type";
 import type { DnsResolver } from "../../domain/discovery/dns-resolver";
 

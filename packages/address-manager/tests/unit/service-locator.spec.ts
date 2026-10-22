@@ -7,7 +7,7 @@ import {
 	toServiceId,
 	toVersion,
 	UnixTimestamp,
-} from "@trading-model/common/domain/primitives";
+} from "@trading-model/primitives/primitives";
 import { Protocol } from "@trading-model/validation/domain/contracts/service-registry.types";
 import {
 	IpAddressLocator,
@@ -99,7 +99,7 @@ describe("MapResolver", () => {
 		const locator = new MapResolver({
 			"my-service": "my-service.prod.svc.cluster.local",
 		} as Record<
-			import("@trading-model/common/domain/primitives").ServiceId,
+			import("@trading-model/primitives/primitives").ServiceId,
 			string
 		>);
 		const result = locator.locate(instance);
@@ -116,7 +116,7 @@ describe("MapResolver", () => {
 		const locator = new MapResolver({
 			"api-service": "api.example.com",
 		} as Record<
-			import("@trading-model/common/domain/primitives").ServiceId,
+			import("@trading-model/primitives/primitives").ServiceId,
 			string
 		>);
 		const result = locator.resolve(toServiceId("api-service"));

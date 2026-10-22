@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
-import { REDIS_RESP } from "@trading-model/common/persistence/redis-constants";
+import { REDIS_RESP } from "@trading-model/persistence/redis-constants";
 
 const MOCK_REDIS_INSTANCE = {
 	connect: jest.fn<(...args: any[]) => Promise<void>>().mockResolvedValue(),
@@ -33,14 +33,14 @@ jest.mock("ioredis", () => {
 	};
 });
 
-import { CircuitState as CircuitStateEnum } from "@trading-model/common/domain/circuit-state";
+import { CircuitState as CircuitStateEnum } from "@trading-model/primitives/circuit-state";
 import {
 	PositiveInt,
 	Region,
 	toInstanceId,
 	toServiceId,
 	UnixTimestamp,
-} from "@trading-model/common/domain/primitives";
+} from "@trading-model/primitives/primitives";
 import { RedisServiceCache } from "../../src/adapters/outbound/discovery/redis-service-cache";
 
 describe("RedisServiceCache", () => {

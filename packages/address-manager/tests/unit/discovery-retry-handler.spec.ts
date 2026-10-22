@@ -8,7 +8,7 @@ import {
 	toServiceId,
 	toVersion,
 	UnixTimestamp,
-} from "@trading-model/common/domain/primitives";
+} from "@trading-model/primitives/primitives";
 import { Protocol } from "@trading-model/validation/domain/contracts/service-registry.types";
 import type { DiscoveryCircuitBreaker } from "../../src/application/discovery/circuit-breaker";
 import { DiscoveryRetryHandler } from "../../src/application/discovery/discovery-retry-handler";

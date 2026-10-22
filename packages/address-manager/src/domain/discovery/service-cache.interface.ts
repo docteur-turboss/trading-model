@@ -1,11 +1,11 @@
-import type { CircuitState as CircuitStateEnum } from "@trading-model/common/domain/circuit-state";
+import type { CircuitState as CircuitStateEnum } from "@trading-model/primitives/circuit-state";
 import type {
 	PositiveInt,
 	Region,
 	ServiceId,
 	UnixTimestamp,
 	Version,
-} from "@trading-model/common/domain/primitives";
+} from "@trading-model/primitives/primitives";
 import type { ServiceInstance } from "../client/type";
 import type { ICircuitStateStore } from "./circuit-state-store.interface";
 

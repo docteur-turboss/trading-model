@@ -1,8 +1,8 @@
-import { URLString } from "@trading-model/common/domain/primitives";
-import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
-import { HTTP_HEADERS } from "@trading-model/common/http-headers";
 import { authenticationError } from "@trading-model/common/utils/errors";
+import { HTTP_HEADERS } from "@trading-model/contracts/http-headers";
 import type { HttpClient } from "@trading-model/http/adapters/outbound/http-client";
+import { URLString } from "@trading-model/primitives/primitives";
+import type { ServiceIdentity } from "@trading-model/primitives/service-identity";
 
 import type { AddressManagerConfig } from "../../../domain/config/address-manager-config";
 

@@ -18,8 +18,6 @@ export interface AddressManagerEnv extends TlsEnvVars {
 	LOCAL_DISCOVERY_URL?: string;
 	DNS_NAME_MAP?: Record<string, string>;
 	METRICS_INTERVAL_MS?: number;
-	WS_URL?: string;
-	WS_SUBSCRIBED_SERVICES?: string;
 	MAX_CALL_RECORDS?: number;
 	PREFERRED_NETWORK_INTERFACE?: string;
 }
@@ -44,25 +42,4 @@ export function resolveDiscoveryUrls(
 		}
 	}
 	return [singleUrl];
-}
-
-export function resolveWsSubscribedServices(
-	raw?: string
-): string[] | undefined {
-	if (!raw) {
-		return;
-	}
-	try {
-		const parsed = JSON.parse(raw);
-		if (Array.isArray(parsed) && parsed.length > 0) {
-			return parsed.map(String);
-		}
-	} catch (err) {
-		logger.warn(
-			"Failed to parse WS_SUBSCRIBED_SERVICES, subscribing to all services",
-			{
-				err: normalizeError(err),
-			}
-		);
-	}
 }

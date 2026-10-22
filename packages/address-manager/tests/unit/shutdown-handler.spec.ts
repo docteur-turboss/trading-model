@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
-import type { ShutdownHandlerDeps } from "../../src/domain/types";
+import type { ShutdownHandlerDeps } from "../../src/application/types";
 import { ShutdownHandler } from "../../src/infrastructure/shutdown-handler";
 
 jest.mock("@trading-model/server-utils/infrastructure/signal-handler", () => ({
@@ -15,9 +15,6 @@ function createMockDeps(): jest.Mocked<ShutdownHandlerDeps> {
 		registrationManager: {
 			stopRetrying: jest.fn<() => void>(),
 		},
-		wsClient: {
-			disconnect: jest.fn<() => void>(),
-		} as never,
 		addressManagerClient: {
 			unregisterService: jest
 				.fn<() => Promise<void>>()
@@ -47,9 +44,8 @@ describe("ShutdownHandler", () => {
 		expect(deps.registrationManager.stopRetrying).toHaveBeenCalled();
 	});
 
-	it("fullStop() should disconnect, unregister, close cache, clear circuit breaker", async () => {
+	it("fullStop() should unregister, close cache and clear circuit breaker", async () => {
 		await handler.fullStop();
-		expect(deps.wsClient!.disconnect).toHaveBeenCalledTimes(1);
 		expect(deps.addressManagerClient.unregisterService).toHaveBeenCalledTimes(
 			1
 		);
@@ -61,11 +57,6 @@ describe("ShutdownHandler", () => {
 		deps.addressManagerClient.unregisterService.mockRejectedValue(
 			new Error("unregister error")
 		);
-		await expect(handler.fullStop()).resolves.toBeUndefined();
-	});
-
-	it("fullStop() should not throw when wsClient is undefined", async () => {
-		deps.wsClient = undefined as never;
 		await expect(handler.fullStop()).resolves.toBeUndefined();
 	});
 
@@ -98,7 +89,6 @@ describe("ShutdownHandler", () => {
 			.calls[0][0] as () => Promise<void>;
 		await shutdownFn();
 		expect(scheduler.stop).toHaveBeenCalled();
-		expect(deps.wsClient!.disconnect).toHaveBeenCalled();
 		expect(deps.addressManagerClient.unregisterService).toHaveBeenCalled();
 	});
 
