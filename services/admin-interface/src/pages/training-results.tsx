@@ -190,6 +190,8 @@ function AgentDetailDrawer({
 	agent: TrainingAgentEntry | null;
 	onClose: () => void;
 }) {
+	const [activeTab, setActiveTab] = useState(0);
+
 	if (!agent) {
 		return null;
 	}
@@ -202,6 +204,8 @@ function AgentDetailDrawer({
 			title={`${symbol} Agent`}
 			subtitle={`Generation #${String(generation)} | ${training ? "Training" : "Idle"}`}
 			onClose={onClose}
+			activeTab={activeTab}
+			onTabChange={setActiveTab}
 			tabs={[
 				{
 					label: "Metrics",
