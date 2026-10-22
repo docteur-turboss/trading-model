@@ -1,4 +1,7 @@
-import type { Price, TradingSymbol } from "../domain/primitives";
+import type {
+	Price,
+	TradingSymbol,
+} from "@trading-model/primitives/primitives";
 import type {
 	BookTickerData,
 	CandleData,

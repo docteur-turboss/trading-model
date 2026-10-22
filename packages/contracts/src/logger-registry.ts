@@ -1,4 +1,4 @@
-import type { JsonObject } from "../domain/primitives";
+import type { JsonObject } from "@trading-model/primitives/primitives";
 
 /**
  * Minimal logging contract used across `@trading-model/common`.

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "@jest/globals";
-import { AuditEvent } from "../../../src/contracts/audit-events";
+import { AuditEvent } from "../../src/audit-events";
 
 describe("AuditEvent", () => {
 	it("should have correct values", () => {

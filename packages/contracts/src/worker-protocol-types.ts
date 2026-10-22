@@ -7,8 +7,8 @@ import {
 	type UnixTimestamp,
 	type WorkerStatus,
 	WorkerStatusCode,
-} from "../domain/primitives";
-import type { HostPort } from "../domain/service-identity";
+} from "@trading-model/primitives/primitives";
+import type { HostPort } from "@trading-model/primitives/service-identity";
 
 export type { WorkerStatus };
 

@@ -4,8 +4,8 @@ import type {
 	JobType,
 	PositiveInt,
 	UnixTimestamp,
-} from "../domain/primitives";
-import type { RetryPolicy } from "../domain/retry-policy";
+} from "@trading-model/primitives/primitives";
+import type { RetryPolicy } from "@trading-model/primitives/retry-policy";
 import { createEnumValues } from "./enum-utils";
 
 export enum JobPriority {

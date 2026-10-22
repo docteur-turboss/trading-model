@@ -1,4 +1,4 @@
-import { Cash, Price, Volume } from "../../domain/primitives";
+import { Cash, Price, Volume } from "@trading-model/primitives/primitives";
 import type { BaseMarketData } from "./base.types";
 
 export interface OrderBookLevel {

@@ -1,4 +1,4 @@
-import type { DurationMs } from "../../domain/primitives";
+import type { DurationMs } from "@trading-model/primitives/primitives";
 import { createEnumValues } from "../enum-utils";
 
 export enum MarketType {

@@ -1,4 +1,8 @@
-import type { Limit, TradingSymbol, UnixTimestamp } from "../domain/primitives";
+import type {
+	Limit,
+	TradingSymbol,
+	UnixTimestamp,
+} from "@trading-model/primitives/primitives";
 import type { CandleInterval } from "./market-data.types";
 
 export interface MarketDataQuery {

@@ -1,4 +1,4 @@
-import type { Price, Volume } from "../../domain/primitives";
+import type { Price, Volume } from "@trading-model/primitives/primitives";
 
 export interface OhlcvFields<TPrice, TVolume> {
 	open: TPrice;

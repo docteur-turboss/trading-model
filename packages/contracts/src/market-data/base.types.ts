@@ -1,4 +1,7 @@
-import type { TradingSymbol, UnixTimestamp } from "../../domain/primitives";
+import type {
+	TradingSymbol,
+	UnixTimestamp,
+} from "@trading-model/primitives/primitives";
 import type { MarketType, SourceType } from "./enums";
 
 export interface BaseMarketData {

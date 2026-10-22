@@ -1,4 +1,4 @@
-import type { HttpStatusCode } from "../http-status";
+import type { HttpStatusCode } from "./http-status";
 
 export interface ErrorResponse {
 	code: string;

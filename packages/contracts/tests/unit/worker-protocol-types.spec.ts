@@ -1,7 +1,7 @@
 import { describe, expect, it } from "@jest/globals";
-import type { WorkerRegistration } from "../../../src/contracts/worker-protocol-types";
-import { isWorkerSuitable } from "../../../src/contracts/worker-protocol-types";
-import { WorkerStatusCode } from "../../../src/domain/primitives";
+import { WorkerStatusCode } from "@trading-model/primitives/primitives";
+import type { WorkerRegistration } from "../../src/worker-protocol-types";
+import { isWorkerSuitable } from "../../src/worker-protocol-types";
 
 function worker(
 	overrides: Partial<WorkerRegistration> = {}

@@ -1,4 +1,8 @@
-import type { Price, UnixTimestamp, Volume } from "../../domain/primitives";
+import type {
+	Price,
+	UnixTimestamp,
+	Volume,
+} from "@trading-model/primitives/primitives";
 import type { BaseMarketData } from "./base.types";
 import type { OhlcvFields } from "./ohlcv.types";
 

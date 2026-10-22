@@ -1,4 +1,7 @@
-import type { PositiveInt, UnixTimestamp } from "../../domain/primitives";
+import type {
+	PositiveInt,
+	UnixTimestamp,
+} from "@trading-model/primitives/primitives";
 import type { BaseMarketData } from "./base.types";
 import type { CandleInterval } from "./enums";
 import type { OhlcvData } from "./ohlcv.types";

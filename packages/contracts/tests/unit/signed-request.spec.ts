@@ -1,5 +1,5 @@
 import { describe, expect, it } from "@jest/globals";
-import { HttpMethod } from "../../../src/contracts/signed-request";
+import { HttpMethod } from "../../src/signed-request";
 
 describe("HttpMethod", () => {
 	it("should have correct values", () => {

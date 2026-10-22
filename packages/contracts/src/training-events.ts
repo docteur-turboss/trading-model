@@ -1,4 +1,12 @@
-import type { TradingSymbol } from "../domain/primitives";
+import type { TradingSymbol } from "@trading-model/primitives/primitives";
+
+/** Canonical optimizer identifiers shared by the trainer and the admin API. */
+export enum Optimizer {
+	Adam = "adam",
+	Sgd = "sgd",
+	Rmsprop = "rmsprop",
+	Adamw = "adamw",
+}
 
 export enum TrainingEvent {
 	ModelPublished = "training.model.published",
