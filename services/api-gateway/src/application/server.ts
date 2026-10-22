@@ -1,10 +1,8 @@
-import { HttpClient } from "@trading-model/http/adapters/outbound/http-client";
 import { ServiceId, URLString } from "@trading-model/primitives/primitives";
 import { createServiceServer } from "@trading-model/server-utils/adapters/inbound/service-server-factory";
 import { createRouter } from "../adapters/inbound/router";
+import { discoveryClient } from "../config/container";
 import { ENV } from "../infrastructure/config/env";
-
-const discoveryClient = new HttpClient();
 
 function _mountGatewayRoutes(app: import("express").Application): void {
 	app.use("/", createRouter());
