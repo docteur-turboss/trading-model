@@ -31,7 +31,7 @@ services/discovery-server/
 │   │   ├── expiration.ts
 │   │   └── ports/                 # instance-store, discovery-metrics, token-crypto
 │   ├── config/
-│   │   └── container.ts           # createServiceRegistry(): wires store, crypto and metrics adapters
+│   │   └── container.ts           # createDiscoveryApp(ENV), createServiceRegistry(): store, crypto, metrics, lease manager
 │   ├── infrastructure/
 │   │   ├── config/env.ts          # Zod schema extended from BaseEnvSchema
 │   │   └── monitoring/metrics.ts  # Prometheus collectors + prometheusDiscoveryMetrics port adapter
@@ -56,7 +56,7 @@ services/discovery-server/
 | **domain/**      | `service-registry.ts`, `lease-manager.ts`, `instance-token-manager.ts`, `ports/` | Domain logic: registry CRUD, lease management, tokens, ports/interfaces                |
 | **infrastructure/** | `config/env.ts`, `monitoring/metrics.ts`                          | Env config, Prometheus metrics                                                          |
 | **adapters/inbound/http/** | `register.controller.ts`, `heartbeat.controller.ts`, `register-builder.ts`, `*.routes.ts` | HTTP request handling, input validation, auth token verification; thin Express routers |
-| **config/**      | `container.ts`                                                    | Composition root: `createServiceRegistry()` wires store, crypto and metrics adapters    |
+| **config/**      | `container.ts`                                                    | Composition root: `createDiscoveryApp(ENV)` (store, registry, lease manager) and `createServiceRegistry()` |
 
 ## Data Flow
 

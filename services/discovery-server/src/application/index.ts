@@ -1,48 +1,21 @@
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import { logger } from "@trading-model/http/infrastructure/logger";
-import { createRedisClient } from "@trading-model/persistence/redis-connection-manager";
 import { toInstanceId } from "@trading-model/primitives/primitives";
 import { createBootstrap } from "@trading-model/server-utils/application/services/bootstrap";
 import {
 	initializeTelemetry,
 	shutdownTelemetry,
 } from "@trading-model/server-utils/infrastructure/telemetry";
-import type Redis from "ioredis";
-import { InstanceStore } from "../adapters/outbound/instance-store";
-import { RedisInstanceStore } from "../adapters/outbound/redis-instance-store";
-import { createServiceRegistry } from "../config/container";
-import { LeaseManager } from "../domain/lease-manager";
-import type { IInstanceStore } from "../domain/ports/instance-store.interface";
+import { createDiscoveryApp } from "../config/container";
 import { ENV } from "../infrastructure/config/env";
-import { prometheusDiscoveryMetrics } from "../infrastructure/monitoring/metrics";
 import { createServer } from "./server";
 
-let redisClient: Redis | undefined;
-
-function buildInstanceStore(): IInstanceStore {
-	if (!ENV.REDIS_URL) {
-		logger.info("Redis registry disabled — using in-memory InstanceStore");
-		return new InstanceStore();
-	}
-	redisClient = createRedisClient(ENV.REDIS_URL) as Redis;
-	logger.info("Redis registry enabled", { url: ENV.REDIS_URL });
-	return new RedisInstanceStore({
-		redis: redisClient,
-		keyPrefix: "trading-model:discovery",
-		signingSecret: ENV.SIGNING_SECRET ?? "",
-	});
-}
-
-const REGISTRY = createServiceRegistry({
-	signingSecret: ENV.SIGNING_SECRET,
-	instanceStore: buildInstanceStore(),
-});
-const LEASE_MANAGER = new LeaseManager(REGISTRY, {
-	cleanupIntervalMs: ENV.CLEANUP_SERVICE_INTERVAL_MS,
-	logger,
-	metrics: prometheusDiscoveryMetrics,
-});
+const {
+	registry: REGISTRY,
+	leaseManager: LEASE_MANAGER,
+	redisClient,
+} = createDiscoveryApp(ENV);
 
 createBootstrap({
 	name: "Discovery",
