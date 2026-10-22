@@ -1,14 +1,12 @@
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
-import {
-	TradingSymbol,
-	toInstanceId,
-} from "@trading-model/primitives/primitives";
+import { toInstanceId } from "@trading-model/primitives/primitives";
 import { createBootstrap } from "@trading-model/server-utils/application/services/bootstrap";
 import {
 	initializeTelemetry,
 	shutdownTelemetry,
 } from "@trading-model/server-utils/infrastructure/telemetry";
 import { BOOTSTRAP_ADDRESS_MANAGER } from "../config/address-manager";
+import { createScrapeScheduler } from "../config/container";
 import { ENV } from "../infrastructure/config/env";
 import { createServer } from "./server";
 
@@ -31,17 +29,8 @@ createBootstrap({
 		});
 		addressManager = BOOTSTRAP_ADDRESS_MANAGER();
 
-		const symbols = ENV.SYMBOLS_TO_TRACK.map(TradingSymbol.of);
-		if (symbols.length > 0) {
-			const { BinanceCronOrchestrator } = await import(
-				"../adapters/inbound/cron/binance.cron.js"
-			);
-			const orchestrator = new BinanceCronOrchestrator({
-				schedule: ENV.SCRAPE_INTERVAL,
-				symbols,
-			});
-			orchestrator.start();
-		}
+		const scrapeScheduler = await createScrapeScheduler(ENV);
+		scrapeScheduler?.start();
 	},
 	onStop: async () => {
 		addressManager.stop();
