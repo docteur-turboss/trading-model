@@ -1,6 +1,6 @@
 import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
-import { InstanceId } from "@trading-model/common/domain/primitives";
-import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
+import { InstanceId } from "@trading-model/primitives/primitives";
+import type { ServiceIdentity } from "@trading-model/primitives/service-identity";
 import type { ServiceInstance } from "@trading-model/validation/domain/contracts/service-registry.types";
 import type { IInstanceStore } from "../../domain/ports/instance-store.interface";
 import type { RedisDeps } from "../../shared/redis-deps";

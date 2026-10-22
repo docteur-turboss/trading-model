@@ -1,6 +1,6 @@
 import { describe, expect, it, jest } from "@jest/globals";
 
-import { ServiceRegistry } from "../../src/domain/service-registry";
+import { createServiceRegistry } from "../../src/config/container";
 
 const MOCK_ROUTER = {
 	post: jest.fn(),
@@ -11,16 +11,16 @@ jest.mock("express", () => ({
 	Router: () => MOCK_ROUTER,
 }));
 
-jest.mock("../../src/controllers/heartbeat.controller", () => ({
+jest.mock("../../src/adapters/inbound/http/heartbeat.controller", () => ({
 	createHeartbeatController: jest.fn(),
 }));
 
-import { createHeartbeatController } from "../../src/controllers/heartbeat.controller";
-import { HEARTBEAT_ROUTES } from "../../src/routes/heartbeat.routes";
+import { createHeartbeatController } from "../../src/adapters/inbound/http/heartbeat.controller";
+import { HEARTBEAT_ROUTES } from "../../src/adapters/inbound/http/heartbeat.routes";
 
 describe("HEARTBEAT_ROUTES", () => {
 	it("should return a router and register all routes", () => {
-		const registry = new ServiceRegistry();
+		const registry = createServiceRegistry();
 		const mockController = {
 			heartbeat: "heartbeat-handler",
 			rotateToken: "rotate-token-handler",

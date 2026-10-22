@@ -1,13 +1,15 @@
-import { DurationMs } from "@trading-model/common/domain/primitives";
+import { DurationMs } from "@trading-model/primitives/primitives";
 import type { ServiceInstance } from "../shared/types";
 import { isAliveInstance } from "./expiration";
 import { type LoggerPort, NoopLogger } from "./logger-port";
+import type { CleanupMetricsPort } from "./ports/discovery-metrics.port";
 import type { ServiceRegistry } from "./service-registry";
 import { StaleInstanceCleaner } from "./stale-instance-cleaner";
 
 export interface LeaseManagerOptions {
 	cleanupIntervalMs?: number;
 	logger?: LoggerPort;
+	metrics?: CleanupMetricsPort;
 }
 
 export class LeaseManager {
@@ -23,6 +25,7 @@ export class LeaseManager {
 				getInstances: async (name) => registry.instanceStore.getInstances(name),
 				removeInstance: async (id) => registry.removeInstance(id),
 				logger: this._logger,
+				metrics: options?.metrics,
 			},
 			DurationMs.of(options?.cleanupIntervalMs ?? 5000)
 		);

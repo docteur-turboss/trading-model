@@ -48,8 +48,9 @@ const LEASE_CLEANUP_CYCLES_TOTAL = new promClient.Counter({
 	help: "Total lease cleanup cycles executed",
 });
 
-import type { HttpStatusCode } from "@trading-model/common/http-status";
+import type { HttpStatusCode } from "@trading-model/contracts/http-status";
 import type { HttpMethod } from "@trading-model/validation/domain/contracts/signed-request.types";
+import type { DiscoveryMetricsPort } from "../../domain/ports/discovery-metrics.port";
 
 export interface RequestTrack {
 	method: HttpMethod;
@@ -94,5 +95,14 @@ export function incOperationError(operation: string): void {
 export function incLeaseCleanupCycle(): void {
 	LEASE_CLEANUP_CYCLES_TOTAL.inc();
 }
+
+/** DiscoveryMetricsPort backed by the Prometheus collectors above. */
+export const prometheusDiscoveryMetrics: DiscoveryMetricsPort = {
+	setRegisteredInstances,
+	setRegisteredInstancesPerService,
+	incLeaseCleanupCycle,
+	observeCleanupDuration,
+	incOperationError,
+};
 
 export { metricsHandler };

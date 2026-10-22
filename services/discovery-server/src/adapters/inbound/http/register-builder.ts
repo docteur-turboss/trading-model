@@ -1,4 +1,4 @@
-import type { UnixTimestamp } from "@trading-model/common/domain/primitives";
+import type { UnixTimestamp } from "@trading-model/primitives/primitives";
 import {
 	DurationMs,
 	type InstanceId,
@@ -7,12 +7,12 @@ import {
 	toInstanceId,
 	toServiceId,
 	toVersion,
-} from "@trading-model/common/domain/primitives";
+} from "@trading-model/primitives/primitives";
 import { Protocol } from "@trading-model/validation/domain/contracts/service-registry.types";
 import type { z } from "zod";
-import type { ServiceRegistry } from "../domain/service-registry";
-import type { REGISTER_SCHEMA } from "../shared/register-validator";
-import type { ServiceInstance } from "../shared/types";
+import type { ServiceRegistry } from "../../../domain/service-registry";
+import type { REGISTER_SCHEMA } from "../../../shared/register-validator";
+import type { ServiceInstance } from "../../../shared/types";
 
 function resolveInstanceId(
 	data: z.infer<typeof REGISTER_SCHEMA>,

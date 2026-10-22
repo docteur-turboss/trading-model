@@ -1,8 +1,7 @@
 import { Router } from "express";
 import rateLimit from "express-rate-limit";
-
-import { createHeartbeatController } from "../controllers/heartbeat.controller";
-import type { ServiceRegistry } from "../domain/service-registry";
+import type { ServiceRegistry } from "../../../domain/service-registry";
+import { createHeartbeatController } from "./heartbeat.controller";
 
 const HEARTBEAT_LIMITER = rateLimit({
 	windowMs: 60_000,

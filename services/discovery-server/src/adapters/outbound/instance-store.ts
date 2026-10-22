@@ -2,8 +2,8 @@ import type { ServiceInstanceName } from "@trading-model/common/config/services.
 import {
 	type InstanceId,
 	UnixTimestamp,
-} from "@trading-model/common/domain/primitives";
-import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
+} from "@trading-model/primitives/primitives";
+import type { ServiceIdentity } from "@trading-model/primitives/service-identity";
 import type { IInstanceStore } from "../../domain/ports/instance-store.interface";
 import type { ServiceInstance } from "../../shared/types";
 

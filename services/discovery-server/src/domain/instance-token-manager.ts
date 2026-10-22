@@ -2,32 +2,25 @@ import type { ServiceInstanceName } from "@trading-model/common/config/services.
 import {
 	type AuthToken,
 	InstanceId,
-} from "@trading-model/common/domain/primitives";
-import type { ServiceEndpoint } from "@trading-model/common/domain/service-identity";
-import type { TokenValidation } from "@trading-model/common/domain/token-validation";
-import { generateRandomStr } from "@trading-model/crypto/adapters/outbound/node-random";
-import {
-	generateInstanceId,
-	generateInstanceToken,
-	type TokenValidationInput,
-	validInstanceToken,
-	verifyInstanceName,
-} from "@trading-model/crypto/application/services/token-service";
+} from "@trading-model/primitives/primitives";
+import type { ServiceEndpoint } from "@trading-model/primitives/service-identity";
+import type { TokenValidation } from "@trading-model/primitives/token-validation";
+import type { TokenCryptoPort } from "./ports/token-crypto.port";
 
 export class InstanceTokenManager {
-	private readonly _signingSecret: string;
 	private readonly _tokens = new Map<InstanceId, AuthToken>();
 
-	constructor(signingSecret?: string) {
-		this._signingSecret = signingSecret ?? generateRandomStr();
-	}
+	constructor(
+		private readonly _crypto: TokenCryptoPort,
+		private readonly _signingSecret: string
+	) {}
 
 	generateInstanceId(endpoint: ServiceEndpoint): string {
-		return generateInstanceId(endpoint);
+		return this._crypto.generateInstanceId(endpoint);
 	}
 
 	generateToken(instanceId: InstanceId): string {
-		return generateInstanceToken(instanceId, this._signingSecret);
+		return this._crypto.generateInstanceToken(instanceId, this._signingSecret);
 	}
 
 	setToken(instanceId: InstanceId, token: AuthToken): void {
@@ -39,17 +32,15 @@ export class InstanceTokenManager {
 	}
 
 	validInstanceToken({ token, instanceId }: TokenValidation): boolean {
-		const storedToken = this._tokens.get(instanceId);
-		const input: TokenValidationInput = {
+		return this._crypto.validInstanceToken({
 			token,
 			instanceId: InstanceId.of(instanceId),
 			signingSecret: this._signingSecret,
-			storedToken,
-		};
-		return validInstanceToken(input);
+			storedToken: this._tokens.get(instanceId),
+		});
 	}
 
 	verifyInstanceName(serviceName: ServiceInstanceName): boolean {
-		return verifyInstanceName(serviceName as never);
+		return this._crypto.verifyInstanceName(serviceName);
 	}
 }

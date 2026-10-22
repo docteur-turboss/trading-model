@@ -39,7 +39,7 @@ const mockRedisClient = {
 	disconnect: jest.fn(),
 };
 
-jest.mock("@trading-model/common/persistence/redis-connection-manager", () => ({
+jest.mock("@trading-model/persistence/redis-connection-manager", () => ({
 	createRedisClient: jest.fn(() => mockRedisClient),
 }));
 

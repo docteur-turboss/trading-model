@@ -29,7 +29,6 @@ jest.mock("prom-client", () => {
 	};
 });
 
-import type { Request, Response } from "express";
 import {
 	incHeartbeatsTotal,
 	incLeaseCleanupCycle,

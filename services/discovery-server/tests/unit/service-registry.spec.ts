@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from "@jest/globals";
-import { ServiceRegistry } from "../../src/domain/service-registry";
+import { createServiceRegistry } from "../../src/config/container";
+import type { ServiceRegistry } from "../../src/domain/service-registry";
 import {
 	otherServiceInstance,
 	secondServiceInstance,
@@ -20,7 +21,9 @@ describe("ServiceRegistry", () => {
 	let registry: ServiceRegistry;
 
 	beforeEach(() => {
-		registry = new ServiceRegistry();
+		registry = createServiceRegistry({
+			metrics: { setRegisteredInstances, setRegisteredInstancesPerService },
+		});
 	});
 
 	describe("registerInstance", () => {

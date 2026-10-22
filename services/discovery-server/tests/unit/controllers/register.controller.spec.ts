@@ -21,8 +21,9 @@ jest.mock("@trading-model/http/adapters/inbound/response-exception", () => {
 	return { sendResponse, ResponseException };
 });
 
-import { createRegisterController } from "../../../src/controllers/register.controller";
-import { ServiceRegistry } from "../../../src/domain/service-registry";
+import { createRegisterController } from "../../../src/adapters/inbound/http/register.controller";
+import { createServiceRegistry } from "../../../src/config/container";
+import type { ServiceRegistry } from "../../../src/domain/service-registry";
 
 describe("Register.controller", () => {
 	let registry: ServiceRegistry;
@@ -30,7 +31,7 @@ describe("Register.controller", () => {
 
 	beforeEach(() => {
 		jest.clearAllMocks();
-		registry = new ServiceRegistry();
+		registry = createServiceRegistry();
 		controller = createRegisterController(registry);
 	});
 

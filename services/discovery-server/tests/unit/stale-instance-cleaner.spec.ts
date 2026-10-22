@@ -26,7 +26,7 @@ jest.mock("../../src/infrastructure/monitoring/metrics", () => ({
 	observeCleanupDuration: jest.fn(),
 }));
 
-import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
+import type { ServiceIdentity } from "@trading-model/primitives/service-identity";
 import type {
 	ServiceInstance,
 	ServiceInstanceName,
@@ -80,6 +80,11 @@ describe("StaleInstanceCleaner", () => {
 				jest.fn<(name: ServiceInstanceName) => Promise<ServiceInstance[]>>(),
 			removeInstance: jest.fn<(id: ServiceIdentity) => Promise<boolean>>(),
 			logger: makeLogger(),
+			metrics: {
+				incLeaseCleanupCycle,
+				incOperationError,
+				observeCleanupDuration,
+			},
 		};
 
 		cleaner = new StaleInstanceCleaner(deps, intervalMs);
@@ -127,6 +132,22 @@ describe("StaleInstanceCleaner", () => {
 
 			expect(incOperationError).toHaveBeenCalledWith("cleanup");
 			expect((deps.logger as LoggerPort).error).toHaveBeenCalled();
+		});
+
+		it("should not start the interval when stopped during the initial delay", () => {
+			cleaner.start();
+			cleaner.stop();
+			jest.advanceTimersByTime(intervalMs);
+
+			expect(mockTimerStartInterval).not.toHaveBeenCalled();
+		});
+
+		it("should schedule a single start when started twice", () => {
+			cleaner.start();
+			cleaner.start();
+			jest.advanceTimersByTime(intervalMs);
+
+			expect(mockTimerStartInterval).toHaveBeenCalledTimes(1);
 		});
 	});
 

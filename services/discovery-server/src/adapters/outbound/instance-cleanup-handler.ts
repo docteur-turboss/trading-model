@@ -1,5 +1,5 @@
 import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
-import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
+import type { ServiceIdentity } from "@trading-model/primitives/service-identity";
 import type { RedisDepsWithoutToken } from "../../shared/redis-deps";
 import {
 	instanceMetadata,

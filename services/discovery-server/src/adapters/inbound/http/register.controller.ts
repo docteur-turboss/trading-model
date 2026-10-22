@@ -1,20 +1,20 @@
 import { parseServiceName } from "@trading-model/common/config/services.types";
+import type { HttpStatusCode } from "@trading-model/contracts/http-status";
+import { catchSync } from "@trading-model/http/adapters/inbound/catch-error";
+import { sendResponse } from "@trading-model/http/adapters/inbound/response-exception";
 import {
 	toInstanceId,
 	toServiceId,
-} from "@trading-model/common/domain/primitives";
-import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
-import type { HttpStatusCode } from "@trading-model/common/http-status";
-import { catchSync } from "@trading-model/http/adapters/inbound/catch-error";
-import { sendResponse } from "@trading-model/http/adapters/inbound/response-exception";
+} from "@trading-model/primitives/primitives";
+import type { ServiceIdentity } from "@trading-model/primitives/service-identity";
 import { isNonEmptyString } from "@trading-model/validation/domain/validation/primitives";
 import type { RequestHandler } from "express";
-import type { ServiceRegistry } from "../domain/service-registry";
-import { validationErrorResponse } from "../shared/helpers";
+import type { ServiceRegistry } from "../../../domain/service-registry";
+import { validationErrorResponse } from "../../../shared/helpers";
 import {
 	parseRegisterBody,
 	REGISTER_SCHEMA,
-} from "../shared/register-validator";
+} from "../../../shared/register-validator";
 import { buildServiceInstance } from "./register-builder";
 
 interface RegisterController {

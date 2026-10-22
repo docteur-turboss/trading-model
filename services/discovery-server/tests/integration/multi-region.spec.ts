@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
-import { ServiceRegistry } from "../../src/domain/service-registry";
+import { createServiceRegistry } from "../../src/config/container";
+import type { ServiceRegistry } from "../../src/domain/service-registry";
 
 jest.mock("@trading-model/http/infrastructure/logger", () => ({
 	logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
@@ -9,7 +10,7 @@ describe("Multi-Region Support", () => {
 	let registry: ServiceRegistry;
 
 	beforeEach(() => {
-		registry = new ServiceRegistry();
+		registry = createServiceRegistry();
 	});
 
 	it("should register instances in different regions", async () => {

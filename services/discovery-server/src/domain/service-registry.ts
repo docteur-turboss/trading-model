@@ -1,24 +1,31 @@
 import type {
 	AuthToken,
 	InstanceId,
-} from "@trading-model/common/domain/primitives";
-import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
-import { InstanceStore } from "../adapters/outbound/instance-store";
-import {
-	setRegisteredInstances,
-	setRegisteredInstancesPerService,
-} from "../infrastructure/monitoring/metrics";
+} from "@trading-model/primitives/primitives";
+import type { ServiceIdentity } from "@trading-model/primitives/service-identity";
 import type { ServiceInstance } from "../shared/types";
-import { InstanceTokenManager } from "./instance-token-manager";
+import type { InstanceTokenManager } from "./instance-token-manager";
+import {
+	NoopDiscoveryMetrics,
+	type RegistryMetricsPort,
+} from "./ports/discovery-metrics.port";
 import type { IInstanceStore } from "./ports/instance-store.interface";
+
+export interface ServiceRegistryDeps {
+	instanceStore: IInstanceStore;
+	tokenManager: InstanceTokenManager;
+	metrics?: RegistryMetricsPort;
+}
 
 export class ServiceRegistry {
 	public readonly tokenManager: InstanceTokenManager;
 	public readonly instanceStore: IInstanceStore;
+	private readonly _metrics: RegistryMetricsPort;
 
-	constructor(signingSecret?: string, instanceStore?: IInstanceStore) {
-		this.tokenManager = new InstanceTokenManager(signingSecret);
-		this.instanceStore = instanceStore ?? new InstanceStore();
+	constructor(deps: ServiceRegistryDeps) {
+		this.tokenManager = deps.tokenManager;
+		this.instanceStore = deps.instanceStore;
+		this._metrics = deps.metrics ?? NoopDiscoveryMetrics;
 	}
 
 	async registerInstance(instance: ServiceInstance) {
@@ -54,9 +61,12 @@ export class ServiceRegistry {
 		let total = 0;
 		for (const serviceName of serviceNames) {
 			const instances = await this.instanceStore.getInstances(serviceName);
-			setRegisteredInstancesPerService(serviceName, instances.length);
+			this._metrics.setRegisteredInstancesPerService(
+				serviceName,
+				instances.length
+			);
 			total += instances.length;
 		}
-		setRegisteredInstances(total);
+		this._metrics.setRegisteredInstances(total);
 	}
 }

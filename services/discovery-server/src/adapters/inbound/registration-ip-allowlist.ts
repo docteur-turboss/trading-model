@@ -1,9 +1,9 @@
+import { anonymizeIp } from "@trading-model/common/utils/anonymize-ip";
+import { logger } from "@trading-model/http/infrastructure/logger";
 import {
 	isAllowedProxyIP,
 	parseCIDRList,
-} from "@trading-model/common/domain/primitives";
-import { anonymizeIp } from "@trading-model/common/utils/anonymize-ip";
-import { logger } from "@trading-model/http/infrastructure/logger";
+} from "@trading-model/primitives/primitives";
 import type { RequestHandler } from "express";
 import { ENV } from "../../infrastructure/config/env";
 

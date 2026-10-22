@@ -7,11 +7,11 @@ jest.mock(
 	})
 );
 
-jest.mock("../../src/routes/heartbeat.routes", () => ({
+jest.mock("../../src/adapters/inbound/http/heartbeat.routes", () => ({
 	HEARTBEAT_ROUTES: jest.fn(),
 }));
 
-jest.mock("../../src/routes/register.routes", () => ({
+jest.mock("../../src/adapters/inbound/http/register.routes", () => ({
 	REGISTRY_ROUTES: jest.fn(),
 }));
 
@@ -64,12 +64,12 @@ describe("createServer", () => {
 			"@trading-model/server-utils/adapters/inbound/service-server-factory"
 		) as { createServiceServer: jest.Mock };
 		const { HEARTBEAT_ROUTES } = jest.requireMock(
-			"../../src/routes/heartbeat.routes"
+			"../../src/adapters/inbound/http/heartbeat.routes"
 		) as {
 			HEARTBEAT_ROUTES: jest.Mock;
 		};
 		const { REGISTRY_ROUTES } = jest.requireMock(
-			"../../src/routes/register.routes"
+			"../../src/adapters/inbound/http/register.routes"
 		) as {
 			REGISTRY_ROUTES: jest.Mock;
 		};

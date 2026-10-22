@@ -1,8 +1,8 @@
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
-import { toInstanceId } from "@trading-model/common/domain/primitives";
-import { createRedisClient } from "@trading-model/common/persistence/redis-connection-manager";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import { logger } from "@trading-model/http/infrastructure/logger";
+import { createRedisClient } from "@trading-model/persistence/redis-connection-manager";
+import { toInstanceId } from "@trading-model/primitives/primitives";
 import { createBootstrap } from "@trading-model/server-utils/application/services/bootstrap";
 import {
 	initializeTelemetry,
@@ -11,10 +11,11 @@ import {
 import type Redis from "ioredis";
 import { InstanceStore } from "../adapters/outbound/instance-store";
 import { RedisInstanceStore } from "../adapters/outbound/redis-instance-store";
+import { createServiceRegistry } from "../config/container";
 import { LeaseManager } from "../domain/lease-manager";
 import type { IInstanceStore } from "../domain/ports/instance-store.interface";
-import { ServiceRegistry } from "../domain/service-registry";
 import { ENV } from "../infrastructure/config/env";
+import { prometheusDiscoveryMetrics } from "../infrastructure/monitoring/metrics";
 import { createServer } from "./server";
 
 let redisClient: Redis | undefined;
@@ -33,10 +34,14 @@ function buildInstanceStore(): IInstanceStore {
 	});
 }
 
-const REGISTRY = new ServiceRegistry(ENV.SIGNING_SECRET, buildInstanceStore());
+const REGISTRY = createServiceRegistry({
+	signingSecret: ENV.SIGNING_SECRET,
+	instanceStore: buildInstanceStore(),
+});
 const LEASE_MANAGER = new LeaseManager(REGISTRY, {
 	cleanupIntervalMs: ENV.CLEANUP_SERVICE_INTERVAL_MS,
 	logger,
+	metrics: prometheusDiscoveryMetrics,
 });
 
 createBootstrap({

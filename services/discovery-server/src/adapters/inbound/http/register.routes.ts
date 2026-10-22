@@ -1,13 +1,12 @@
 import { Router } from "express";
 import rateLimit from "express-rate-limit";
-
+import type { ServiceRegistry } from "../../../domain/service-registry";
 import {
 	REGISTRATION_AUTH,
 	REGISTRATION_MTLS_AUTH,
-} from "../adapters/inbound/registration-auth";
-import { REGISTRATION_IP_ALLOWLIST } from "../adapters/inbound/registration-ip-allowlist";
-import { createRegisterController } from "../controllers/register.controller";
-import type { ServiceRegistry } from "../domain/service-registry";
+} from "../registration-auth";
+import { REGISTRATION_IP_ALLOWLIST } from "../registration-ip-allowlist";
+import { createRegisterController } from "./register.controller";
 
 const REGISTER_LIMITER = rateLimit({
 	windowMs: 60_000,

@@ -2,7 +2,7 @@ import { parseServiceName } from "@trading-model/common/config/services.types";
 import {
 	isAllowedProxyIP,
 	parseCIDRList,
-} from "@trading-model/common/domain/primitives";
+} from "@trading-model/primitives/primitives";
 import { z } from "zod";
 
 const IPV4_REGEX = /^(\d{1,3}\.){3}\d{1,3}$/;

@@ -8,9 +8,10 @@ import {
 	jest,
 } from "@jest/globals";
 import express from "express";
-import { ServiceRegistry } from "../../src/domain/service-registry";
-import { HEARTBEAT_ROUTES } from "../../src/routes/heartbeat.routes";
-import { REGISTRY_ROUTES } from "../../src/routes/register.routes";
+import { HEARTBEAT_ROUTES } from "../../src/adapters/inbound/http/heartbeat.routes";
+import { REGISTRY_ROUTES } from "../../src/adapters/inbound/http/register.routes";
+import { createServiceRegistry } from "../../src/config/container";
+import type { ServiceRegistry } from "../../src/domain/service-registry";
 
 jest.mock("@trading-model/http/infrastructure/logger", () => ({
 	logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
@@ -116,7 +117,7 @@ describe("Discovery Lifecycle — Full HTTP Integration", () => {
 
 	beforeEach(() => {
 		jest.clearAllMocks();
-		registry = new ServiceRegistry();
+		registry = createServiceRegistry();
 		const app = express();
 		app.use(express.json());
 		app.use("/", REGISTRY_ROUTES(registry));

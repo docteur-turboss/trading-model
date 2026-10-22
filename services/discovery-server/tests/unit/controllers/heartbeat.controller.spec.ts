@@ -25,8 +25,9 @@ jest.mock("../../../src/infrastructure/monitoring/metrics", () => ({
 	setRegisteredInstancesPerService: jest.fn(),
 }));
 
-import { createHeartbeatController } from "../../../src/controllers/heartbeat.controller";
-import { ServiceRegistry } from "../../../src/domain/service-registry";
+import { createHeartbeatController } from "../../../src/adapters/inbound/http/heartbeat.controller";
+import { createServiceRegistry } from "../../../src/config/container";
+import type { ServiceRegistry } from "../../../src/domain/service-registry";
 import { incHeartbeatsTotal } from "../../../src/infrastructure/monitoring/metrics";
 
 describe("Heartbeat.controller", () => {
@@ -35,7 +36,7 @@ describe("Heartbeat.controller", () => {
 
 	beforeEach(() => {
 		jest.clearAllMocks();
-		registry = new ServiceRegistry();
+		registry = createServiceRegistry();
 		controller = createHeartbeatController(registry);
 	});
 

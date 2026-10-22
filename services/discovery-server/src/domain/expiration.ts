@@ -1,4 +1,4 @@
-import { DurationMs } from "@trading-model/common/domain/primitives";
+import { DurationMs } from "@trading-model/primitives/primitives";
 import type { ServiceInstance } from "@trading-model/validation/domain/contracts/service-registry.types";
 
 const CLOCK_SKEW_TOLERANCE_MS = DurationMs.of(2000);

@@ -1,6 +1,6 @@
 import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
-import type { InstanceId } from "@trading-model/common/domain/primitives";
-import { buildRedisKey } from "@trading-model/common/persistence/redis-key-builder";
+import { buildRedisKey } from "@trading-model/persistence/redis-key-builder";
+import type { InstanceId } from "@trading-model/primitives/primitives";
 
 export function serviceInstancesSet(
 	prefix: string,

@@ -11,7 +11,8 @@ jest.mock("@trading-model/validation/domain/validation/primitives", () => ({
 }));
 
 import { ResponseException } from "@trading-model/http/adapters/inbound/response-exception";
-import { ServiceRegistry } from "../../src/domain/service-registry";
+import { createServiceRegistry } from "../../src/config/container";
+import type { ServiceRegistry } from "../../src/domain/service-registry";
 import { validateInstanceToken } from "../../src/shared/helpers";
 
 describe("helpers", () => {
@@ -19,7 +20,7 @@ describe("helpers", () => {
 
 	beforeEach(() => {
 		jest.clearAllMocks();
-		registry = new ServiceRegistry();
+		registry = createServiceRegistry();
 	});
 
 	describe("validateInstanceToken", () => {

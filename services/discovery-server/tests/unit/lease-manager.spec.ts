@@ -11,8 +11,8 @@ import type { ServiceInstance } from "../../src/shared/types";
 
 jest.useFakeTimers();
 
+import { createServiceRegistry } from "../../src/config/container";
 import { LeaseManager } from "../../src/domain/lease-manager";
-import { ServiceRegistry } from "../../src/domain/service-registry";
 
 function makeLogger(): LoggerPort {
 	return {
@@ -31,7 +31,7 @@ describe("LeaseManager", () => {
 		jest.clearAllMocks();
 		jest.clearAllTimers();
 		logger = makeLogger();
-		leaseManager = new LeaseManager(new ServiceRegistry(), { logger });
+		leaseManager = new LeaseManager(createServiceRegistry(), { logger });
 	});
 
 	afterEach(() => {
@@ -77,7 +77,7 @@ describe("LeaseManager", () => {
 
 	describe("isAlive", () => {
 		it("should return true for recent heartbeat", () => {
-			const registry = new ServiceRegistry();
+			const registry = createServiceRegistry();
 			const lm = new LeaseManager(registry);
 			const instance: ServiceInstance = {
 				serviceName: "test",
@@ -94,7 +94,7 @@ describe("LeaseManager", () => {
 		});
 
 		it("should return false for expired heartbeat", () => {
-			const registry = new ServiceRegistry();
+			const registry = createServiceRegistry();
 			const lm = new LeaseManager(registry);
 			const instance: ServiceInstance = {
 				serviceName: "test",
@@ -111,7 +111,7 @@ describe("LeaseManager", () => {
 		});
 
 		it("should return true at TTL boundary", () => {
-			const registry = new ServiceRegistry();
+			const registry = createServiceRegistry();
 			const lm = new LeaseManager(registry);
 			const instance: ServiceInstance = {
 				serviceName: "test",
@@ -130,7 +130,7 @@ describe("LeaseManager", () => {
 
 	describe("cleanup", () => {
 		it("should remove expired instances on interval tick", async () => {
-			const registry = new ServiceRegistry();
+			const registry = createServiceRegistry();
 
 			await registry.registerInstance({
 				serviceName: "financial-scraper-service",
@@ -162,7 +162,7 @@ describe("LeaseManager", () => {
 		});
 
 		it("should log error when removeInstance throws", async () => {
-			const registry = new ServiceRegistry();
+			const registry = createServiceRegistry();
 			const lm = new LeaseManager(registry, { logger });
 
 			await registry.registerInstance({
@@ -188,7 +188,7 @@ describe("LeaseManager", () => {
 		});
 
 		it("should log error when listServiceNames throws", async () => {
-			const registry = new ServiceRegistry();
+			const registry = createServiceRegistry();
 			const lm = new LeaseManager(registry, { logger });
 
 			jest

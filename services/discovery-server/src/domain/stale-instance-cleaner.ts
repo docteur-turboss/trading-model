@@ -1,26 +1,26 @@
 import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
-import type { DurationMs } from "@trading-model/common/domain/primitives";
+import { normalizeError } from "@trading-model/common/utils/errors";
+import { TimerHandle } from "@trading-model/common/utils/timer-handle";
+import type { DurationMs } from "@trading-model/primitives/primitives";
 import {
 	toInstanceId,
 	toServiceId,
-} from "@trading-model/common/domain/primitives";
-import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
-import { normalizeError } from "@trading-model/common/utils/errors";
-import { TimerHandle } from "@trading-model/common/utils/timer-handle";
+} from "@trading-model/primitives/primitives";
+import type { ServiceIdentity } from "@trading-model/primitives/service-identity";
 import type { ServiceInstance } from "@trading-model/validation/domain/contracts/service-registry.types";
-import {
-	incLeaseCleanupCycle,
-	incOperationError,
-	observeCleanupDuration,
-} from "../infrastructure/monitoring/metrics";
 import { isAliveInstance, isExpiredInstance } from "./expiration";
 import { type LoggerPort, NoopLogger } from "./logger-port";
+import {
+	type CleanupMetricsPort,
+	NoopDiscoveryMetrics,
+} from "./ports/discovery-metrics.port";
 
 export interface CleanupDeps {
 	listServiceNames(): Promise<ServiceInstanceName[]>;
 	getInstances(serviceName: ServiceInstanceName): Promise<ServiceInstance[]>;
 	removeInstance(id: ServiceIdentity): Promise<boolean>;
 	logger?: LoggerPort;
+	metrics?: CleanupMetricsPort;
 }
 
 export interface SyncCleanupDeps {
@@ -32,7 +32,10 @@ export interface SyncCleanupDeps {
 
 export class StaleInstanceCleaner {
 	private readonly _handle = new TimerHandle();
+	/** Random jitter before the first cycle; cancelled by stop(). */
+	private _startDelay: ReturnType<typeof setTimeout> | null = null;
 	private readonly _logger: LoggerPort;
+	private readonly _metrics: CleanupMetricsPort;
 
 	get isRunning(): boolean {
 		return this._handle.isRunning;
@@ -43,24 +46,36 @@ export class StaleInstanceCleaner {
 		private readonly _intervalMs: DurationMs
 	) {
 		this._logger = _deps.logger ?? NoopLogger;
+		this._metrics = _deps.metrics ?? NoopDiscoveryMetrics;
 	}
 
 	start(): void {
+		this._clearStartDelay();
 		const initialDelay = Math.floor(Math.random() * this._intervalMs);
-		setTimeout(() => {
+		this._startDelay = setTimeout(() => {
+			this._startDelay = null;
 			this._handle.startInterval(() => {
 				this._cleanup().catch((err) => {
 					this._logger.error("Redis cleanup error", {
 						error: normalizeError(err),
 					});
-					incOperationError("cleanup");
+					this._metrics.incOperationError("cleanup");
 				});
 			}, this._intervalMs);
 		}, initialDelay);
+		this._startDelay.unref();
 	}
 
 	stop(): void {
+		this._clearStartDelay();
 		this._handle.stop();
+	}
+
+	private _clearStartDelay(): void {
+		if (this._startDelay !== null) {
+			clearTimeout(this._startDelay);
+			this._startDelay = null;
+		}
 	}
 
 	async cleanupNow(): Promise<void> {
@@ -117,7 +132,7 @@ export class StaleInstanceCleaner {
 	}
 
 	private async _cleanup(): Promise<void> {
-		incLeaseCleanupCycle();
+		this._metrics.incLeaseCleanupCycle();
 		const start = performance.now();
 		try {
 			const now = Date.now();
@@ -131,7 +146,7 @@ export class StaleInstanceCleaner {
 				}
 			}
 		} finally {
-			observeCleanupDuration(performance.now() - start);
+			this._metrics.observeCleanupDuration(performance.now() - start);
 		}
 	}
 }

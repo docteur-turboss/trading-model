@@ -1,15 +1,15 @@
 import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
-import type {
-	InstanceId,
-	UnixTimestamp,
-} from "@trading-model/common/domain/primitives";
-import {
-	REDIS_RESP,
-	REDIS_SET,
-} from "@trading-model/common/persistence/redis-constants";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import { generateInstanceToken } from "@trading-model/crypto/application/services/token-service";
 import { logger } from "@trading-model/http/infrastructure/logger";
+import {
+	REDIS_RESP,
+	REDIS_SET,
+} from "@trading-model/persistence/redis-constants";
+import type {
+	InstanceId,
+	UnixTimestamp,
+} from "@trading-model/primitives/primitives";
 import type { ServiceInstance } from "@trading-model/validation/domain/contracts/service-registry.types";
 import type { RedisDeps } from "../../shared/redis-deps";
 import {

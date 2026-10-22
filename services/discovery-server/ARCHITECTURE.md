@@ -8,17 +8,17 @@ Central service registry providing dynamic service registration, TTL-based heart
 services/discovery-server/
 ├── src/
 │   ├── application/
-│   │   ├── index.ts              # Entry point: bootstrap + cache orchestrator + lifecycle
-│   │   ├── server.ts             # Express HTTPS server via createSecureServer
-│   │   ├── cached-registry-core.ts
-│   │   ├── cached-registry-lifecycle.ts
-│   │   ├── cache-orchestrator.ts
-│   │   └── instance-cache-fetcher.ts
+│   │   ├── index.ts              # Entry point: bootstrap + lifecycle (createBootstrap)
+│   │   └── server.ts             # Express HTTPS server via createServiceServer
 │   ├── adapters/
 │   │   ├── inbound/
-│   │   │   └── client-connection-manager.ts
+│   │   │   ├── http/                         # Controllers, routes (POST /register, GET /services[/:name[/:id]],
+│   │   │   │                                 # POST /heartbeat, POST /token/rotate), register-builder
+│   │   │   ├── registration-auth.ts          # mTLS + instance-token auth for registration
+│   │   │   └── registration-ip-allowlist.ts  # IP allowlist for registration
 │   │   └── outbound/
-│   │       ├── redis-instance-store.ts
+│   │       ├── instance-store.ts             # In-memory instance store
+│   │       ├── redis-instance-store.ts       # Redis-backed instance store
 │   │       ├── instance-registrar.ts
 │   │       ├── instance-metadata-reader.ts
 │   │       ├── instance-heartbeat-handler.ts
@@ -27,38 +27,23 @@ services/discovery-server/
 │   │   ├── service-registry.ts    # In-memory registry (Map<serviceName, Map<instanceId, Instance>>)
 │   │   ├── lease-manager.ts       # Periodic cleanup of expired instances
 │   │   ├── stale-instance-cleaner.ts
-│   │   ├── heartbeat-throttle-manager.ts
-│   │   ├── health-state-manager.ts
-│   │   ├── instance-token-manager.ts
+│   │   ├── instance-token-manager.ts         # HMAC instance tokens
 │   │   ├── expiration.ts
-│   │   └── ports/
-│   │       └── instance-store.interface.ts
-│   ├── core/                      # WebSocket server wiring (ws-discovery-server, ws-message-dispatcher, ...)
+│   │   └── ports/                 # instance-store, discovery-metrics, token-crypto
+│   ├── config/
+│   │   └── container.ts           # createServiceRegistry(): wires store, crypto and metrics adapters
 │   ├── infrastructure/
 │   │   ├── config/env.ts          # Zod schema extended from BaseEnvSchema
-│   │   ├── redis-client-factory.ts
-│   │   ├── redis-health-monitor.ts
-│   │   ├── redis-backend-lifecycle.ts
-│   │   ├── cache-manager.ts
-│   │   ├── pub-sub-invalidator.ts
-│   │   └── monitoring/metrics.ts
-│   ├── controllers/
-│   │   ├── register.controller.ts
-│   │   ├── heartbeat.controller.ts
-│   │   └── register-builder.ts
-│   ├── routes/
-│   │   ├── register.routes.ts     # POST /register, GET /services, GET /services/:name, GET /services/:name/:id
-│   │   └── heartbeat.routes.ts    # POST /heartbeat, POST /token/rotate
-│   └── shared/                    # helpers, validators, token-service, redis-deps, types
+│   │   └── monitoring/metrics.ts  # Prometheus collectors + prometheusDiscoveryMetrics port adapter
+│   └── shared/                    # helpers, validators, redis-deps, redis-key-builder, types
 ├── tests/
 │   ├── fixtures/                  # Reusable test data
 │   ├── helpers/                   # Test utilities
 │   ├── unit/                      # Isolated unit tests
-│   │   └── controllers/
 │   └── integration/               # Integration tests
 ├── package.json
 ├── tsconfig.json
-├── jest.config.ts
+├── jest.config.js
 └── README.md
 ```
 
@@ -66,13 +51,12 @@ services/discovery-server/
 
 | Layer            | Files                                                             | Responsibility                                                                            |
 | ---------------- | ----------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| **application/** | `index.ts`, `server.ts`, `cache-orchestrator.ts`, ...              | Entry point, HTTPS server creation via `createBootstrap` / `createSecureServer`, cache orchestration |
-| **adapters/**    | `inbound/client-connection-manager.ts`, `outbound/redis-instance-store.ts`, ... | Ports/adapters wiring inbound WS clients and outbound Redis persistence |
-| **domain/**      | `service-registry.ts`, `lease-manager.ts`, `ports/`               | Domain logic: registry CRUD, lease management, ports/interfaces                          |
-| **core/**        | `ws-discovery-server.ts`, `ws-message-dispatcher.ts`, ...         | WebSocket protocol handling and connection setup                                         |
-| **infrastructure/** | `config/env.ts`, `redis-client-factory.ts`, `cache-manager.ts`, ... | Env config, Redis clients, health monitoring, caching                                   |
-| **controllers/** | `register.controller.ts`, `heartbeat.controller.ts`, `register-builder.ts` | HTTP request handling, input validation, auth token verification                          |
-| **routes/**      | `register.routes.ts`, `heartbeat.routes.ts`                       | Thin Express Router definitions binding paths to controllers                              |
+| **application/** | `index.ts`, `server.ts`                                           | Entry point, HTTPS server creation via `createBootstrap` / `createServiceServer`             |
+| **adapters/**    | `inbound/registration-auth.ts`, `outbound/instance-store.ts`, `outbound/redis-instance-store.ts`, ... | Ports/adapters wiring: registration auth and instance persistence (in-memory / Redis) |
+| **domain/**      | `service-registry.ts`, `lease-manager.ts`, `instance-token-manager.ts`, `ports/` | Domain logic: registry CRUD, lease management, tokens, ports/interfaces                |
+| **infrastructure/** | `config/env.ts`, `monitoring/metrics.ts`                          | Env config, Prometheus metrics                                                          |
+| **adapters/inbound/http/** | `register.controller.ts`, `heartbeat.controller.ts`, `register-builder.ts`, `*.routes.ts` | HTTP request handling, input validation, auth token verification; thin Express routers |
+| **config/**      | `container.ts`                                                    | Composition root: `createServiceRegistry()` wires store, crypto and metrics adapters    |
 
 ## Data Flow
 

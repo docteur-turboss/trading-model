@@ -1,16 +1,16 @@
-import { ServiceId } from "@trading-model/common/domain/primitives";
-import type { HttpStatusCode } from "@trading-model/common/http-status";
+import type { HttpStatusCode } from "@trading-model/contracts/http-status";
+import { ServiceId } from "@trading-model/primitives/primitives";
 import type { ReadinessCheck } from "@trading-model/server-utils/adapters/inbound/readiness";
 import { createServiceServer } from "@trading-model/server-utils/adapters/inbound/service-server-factory";
 import type { HttpMethod } from "@trading-model/validation/domain/contracts/signed-request.types";
+import { HEARTBEAT_ROUTES } from "../adapters/inbound/http/heartbeat.routes";
+import { REGISTRY_ROUTES } from "../adapters/inbound/http/register.routes";
 import type { ServiceRegistry } from "../domain/service-registry";
 import { ENV } from "../infrastructure/config/env";
 import {
 	metricsHandler,
 	trackRequest,
 } from "../infrastructure/monitoring/metrics";
-import { HEARTBEAT_ROUTES } from "../routes/heartbeat.routes";
-import { REGISTRY_ROUTES } from "../routes/register.routes";
 
 function _normalizePath(path: string): string {
 	return path.replace(/\/\d+/g, "/:id");

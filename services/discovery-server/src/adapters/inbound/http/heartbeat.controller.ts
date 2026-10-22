@@ -1,25 +1,25 @@
-import type { InstanceId } from "@trading-model/common/domain/primitives";
-import {
-	toInstanceId,
-	toServiceId,
-} from "@trading-model/common/domain/primitives";
-import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
-import { HTTP_HEADERS } from "@trading-model/common/http-headers";
-import type { HttpStatusCode } from "@trading-model/common/http-status";
+import { HTTP_HEADERS } from "@trading-model/contracts/http-headers";
+import type { HttpStatusCode } from "@trading-model/contracts/http-status";
 import { catchSync } from "@trading-model/http/adapters/inbound/catch-error";
 import type { ResponseObject } from "@trading-model/http/adapters/inbound/response-exception";
 import { sendResponse } from "@trading-model/http/adapters/inbound/response-exception";
+import type { InstanceId } from "@trading-model/primitives/primitives";
+import {
+	toInstanceId,
+	toServiceId,
+} from "@trading-model/primitives/primitives";
+import type { ServiceIdentity } from "@trading-model/primitives/service-identity";
 import type { Request, RequestHandler, Response } from "express";
-import type { ServiceRegistry } from "../domain/service-registry";
-import { incHeartbeatsTotal } from "../infrastructure/monitoring/metrics";
+import type { ServiceRegistry } from "../../../domain/service-registry";
+import { incHeartbeatsTotal } from "../../../infrastructure/monitoring/metrics";
 import {
 	HEARTBEAT_SCHEMA,
 	ROTATE_TOKEN_SCHEMA,
-} from "../shared/heartbeat-validator";
+} from "../../../shared/heartbeat-validator";
 import {
 	validateInstanceToken,
 	validationErrorResponse,
-} from "../shared/helpers";
+} from "../../../shared/helpers";
 
 interface HeartbeatController {
 	heartbeat: RequestHandler;

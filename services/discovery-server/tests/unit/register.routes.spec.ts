@@ -1,6 +1,6 @@
 import { describe, expect, it, jest } from "@jest/globals";
 
-import { ServiceRegistry } from "../../src/domain/service-registry";
+import { createServiceRegistry } from "../../src/config/container";
 
 const MOCK_ROUTER = {
 	post: jest.fn(),
@@ -11,7 +11,7 @@ jest.mock("express", () => ({
 	Router: () => MOCK_ROUTER,
 }));
 
-jest.mock("../../src/controllers/register.controller", () => ({
+jest.mock("../../src/adapters/inbound/http/register.controller", () => ({
 	createRegisterController: jest.fn(),
 }));
 
@@ -24,12 +24,12 @@ jest.mock("../../src/adapters/inbound/registration-ip-allowlist", () => ({
 	REGISTRATION_IP_ALLOWLIST: "registration-ip-allowlist-handler",
 }));
 
-import { createRegisterController } from "../../src/controllers/register.controller";
-import { REGISTRY_ROUTES } from "../../src/routes/register.routes";
+import { createRegisterController } from "../../src/adapters/inbound/http/register.controller";
+import { REGISTRY_ROUTES } from "../../src/adapters/inbound/http/register.routes";
 
 describe("REGISTRY_ROUTES", () => {
 	it("should return a router and register all routes", () => {
-		const registry = new ServiceRegistry();
+		const registry = createServiceRegistry();
 		const mockController = {
 			register: "register-handler",
 			listServices: "list-services-handler",
