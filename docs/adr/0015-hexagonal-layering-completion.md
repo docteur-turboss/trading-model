@@ -1,6 +1,6 @@
 # ADR-0015: Hexagonal Layering Completion Across Services
 
-**Status:** Accepted (one open point, see [Open Point](#open-point-composition-root-exemption))
+**Status:** Accepted
 **Date:** 2026-10
 **Related:** [ADR-0010](./0010-clean-architecture-migration.md) (target layout, now Implemented), [ADR-0007](./0007-common-package-split.md) (common split, now Implemented), [ADR-0012](./0012-dead-code-removal-and-entrypoint-fix.md) (hard-migration convention)
 
@@ -72,14 +72,27 @@ The 74 remaining application-isolation findings are all in **shared packages and
 
 - No compatibility shims were added; every importer was migrated in the same change, so the old paths fail fast.
 
-## Open Point: Composition-Root Exemption
+## Composition Root and Startup (decided 2026-10-22)
 
-Two conventions coexist and must be settled:
+Two conventions coexisted: `src/application/{index,server,container}.ts` as exempt composition roots (previous standard), and ADR-0010's "wiring belongs in `src/config/container.ts`".
 
-1. **Current standard**: `src/application/{index,server,container}.ts` are composition roots and may wire concrete adapters (exempt from application isolation).
-2. **ADR-0010**: wiring belongs in `src/config/container.ts`; `application/` stays port-only.
+**Decision:** split the two responsibilities.
 
-This migration put **all new wiring in `config/container.ts`**, which is compatible with both options. Entry points (`application/index.ts`, `application/server.ts`) still perform bootstrap-level wiring (Express server, bus subscriptions, Redis/Mongo clients). **Recommendation:** adopt option 2 for dependency wiring and keep `index.ts`/`server.ts` as the only exempt bootstrap files. Leave the exemption list at those two names (drop `container.ts` under `application/`, which no service uses anymore).
+- **Dependency wiring** (instantiating adapters, binding them to ports, building use cases) lives **only** in `src/config/container.ts`.
+- **Startup** (bootstrap, telemetry, mounting routes, readiness checks, bus subscriptions, opening/closing connections, starting/stopping loops) lives **only** in `src/application/index.ts` and `src/application/server.ts`, the only `application/` files allowed to touch adapters/infrastructure. They get their collaborators from the container. `application/container.ts` is no longer a recognised exception (no service had one).
+- Containers receive environment values as parameters instead of importing `ENV`, so tests can import them without environment validation.
+
+Applied the same day:
+
+| Service | Wiring moved from the entry point to `config/container.ts` |
+| ------- | ---------------------------------------------------------- |
+| discovery-server | instance store selection (in-memory / Redis), Redis client, registry, lease manager → `createDiscoveryApp(ENV)` |
+| audit-logger | MongoDB repositories (`infrastructure/repository-factory.ts` removed), subscriber message handler (was built in `server.ts`), whole assembly → `createAuditLoggerApp()` |
+| financial-scraper | Binance cron orchestrator → `createScrapeScheduler(ENV)` |
+| trader-trainer | ENV → container configuration → `createTraderTrainerContainer(ENV)` (also exposes the parsed symbols for the training loop) |
+| api-gateway | readiness HTTP client (was `new HttpClient()` in `server.ts`) → `config/container.ts` |
+
+dlq-service and message-manager entry points already did startup only (connection open/close, schedulers, readiness probes) and were left unchanged. No automated rule enforces this convention; see [Enforcement](#enforcement).
 
 ## Enforcement
 

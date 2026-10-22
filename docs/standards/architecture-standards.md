@@ -158,13 +158,13 @@ Services follow a hexagonal architecture (ADR-0010): business logic is isolated 
 ```
 services/<name>/
 ├── src/
-│   ├── application/        # Entry point (index.ts), server, use-case orchestration
+│   ├── application/        # Startup (index.ts, server.ts) + use-case orchestration over ports
 │   ├── domain/             # Entities, domain services, ports (interfaces)
 │   ├── adapters/           # Driven/driving adapters (HTTP controllers, routes, clients)
 │   │   ├── inbound/        # Express controllers, route definitions
 │   │   └── outbound/       # HTTP/WS clients to other services
-│   ├── infrastructure/     # External integrations (Redis, MongoDB, HTTP)
-│   ├── config/             # env.ts — Zod validation of environment variables
+│   ├── infrastructure/     # External integrations (Redis, MongoDB, HTTP), config/env.ts
+│   ├── config/             # container.ts (composition root), metrics, service clients
 │   └── shared/             # Shared types, constants, utils
 ├── tests/
 │   ├── unit/
@@ -178,22 +178,41 @@ services/<name>/
 └── jest.config.js
 ```
 
+### Composition Root vs. Startup (ADR-0015)
+
+Two distinct responsibilities, two places:
+
+| Responsibility | Where | Examples |
+| -------------- | ----- | -------- |
+| **Dependency wiring**: instantiate adapters and bind them to ports, build use cases | `src/config/container.ts` only | `new RedisInstanceStore(...)`, `createServiceRegistry()`, `new JobScheduler({ repository, config })`, repositories, publishers, Prometheus hooks |
+| **Startup**: run the process | `src/application/index.ts` and `src/application/server.ts` only | `createBootstrap`, telemetry, mounting routes, readiness checks, bus subscriptions, opening/closing connections, starting/stopping loops |
+
+Rules:
+
+- `index.ts` and `server.ts` are the **only** files of `application/` allowed to touch adapters/infrastructure, and only for startup concerns. They obtain their collaborators from `config/container.ts` and never `new` an adapter themselves.
+- Every other file of `application/` depends on ports only.
+- Containers take environment values **as parameters** (`createDiscoveryApp(ENV)`, `createScrapeScheduler(ENV)`) rather than importing `ENV`, so they can be imported by tests without environment validation.
+
 ### Entry Point (`src/application/index.ts`)
 
 ```typescript
 import { createBootstrap } from '@trading-model/server-utils/application/services/bootstrap';
-import { LeaseManager } from '../domain/lease-manager';
+import { createDiscoveryApp } from '../config/container';
+import { ENV } from '../infrastructure/config/env';
 import { createServer } from './server';
-import '../config/env';
+
+const { registry, leaseManager, redisClient } = createDiscoveryApp(ENV);
 
 createBootstrap({
   name: 'Discovery',
-  createServer,
-  onStart: () => {
-    LeaseManager.start();
+  createServer: () => createServer(registry),
+  onStart: async () => {
+    await redisClient?.connect();
+    leaseManager.start();
   },
   onStop: () => {
-    LeaseManager.stop();
+    leaseManager.stop();
+    redisClient?.disconnect();
   },
 });
 ```

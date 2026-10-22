@@ -192,22 +192,22 @@ All controllers and routes receive their dependencies via factory parameters:
 | `registryRoutes(registry)`            | `Router`                                                       |
 | `heartbeatRoutes(registry)`           | `Router`                                                       |
 
-### Composition Root (`src/application/index.ts`)
+### Composition Root (`src/config/container.ts`) and Startup (`src/application/index.ts`)
+
+`createDiscoveryApp(ENV)` selects the instance store (Redis when `REDIS_URL` is set, in-memory otherwise), builds the registry and the lease manager. The entry point only starts things:
 
 ```ts
-const registry = createServiceRegistry({
-  signingSecret: ENV.SIGNING_SECRET,
-  instanceStore: buildInstanceStore(),
-});
-const leaseManager = new LeaseManager(registry, {
-  cleanupIntervalMs: ENV.CLEANUP_SERVICE_INTERVAL_MS,
-  logger,
-  metrics: prometheusDiscoveryMetrics,
-});
+const { registry, leaseManager, redisClient } = createDiscoveryApp(ENV);
 createBootstrap({
-  createServer: () => createServer(registry),
-  onStart: () => leaseManager.start(),
-  onStop: () => leaseManager.stop(),
+  createServer: () => createServer(registry, { readiness: [/* redis ping */] }),
+  onStart: async () => {
+    await redisClient?.connect();
+    leaseManager.start();
+  },
+  onStop: () => {
+    leaseManager.stop();
+    redisClient?.disconnect();
+  },
 });
 ```
 
@@ -239,4 +239,4 @@ Controllers are created via factories that accept a `ServiceRegistry` instance.
 
 ## Deployment
 
-The service is bootstrapped via `createBootstrap()` which attaches `SIGTERM`/`SIGINT` handlers. The composition root (`src/application/index.ts`) builds the registry via `createServiceRegistry()` (`src/config/container.ts`) and a `new LeaseManager(registry)`, then passes the registry to `createServer(registry)`. The `LeaseManager` is started in `onStart` and stopped in `onStop`.
+The service is bootstrapped via `createBootstrap()` which attaches `SIGTERM`/`SIGINT` handlers. The entry point (`src/application/index.ts`) obtains the registry and the lease manager from `createDiscoveryApp(ENV)` (`src/config/container.ts`), then passes the registry to `createServer(registry)`. The `LeaseManager` is started in `onStart` and stopped in `onStop`.
