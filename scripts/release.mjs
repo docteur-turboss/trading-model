@@ -31,6 +31,8 @@ const GITMOJI_MAP = {
   '👕': 'style',
   ':recycle:': 'refactor',
   '♻️': 'refactor',
+  ':art:': 'refactor',
+  '🎨': 'refactor',
   ':wastebasket:': 'refactor',
   '🗑️': 'refactor',
   ':zap:': 'perf',

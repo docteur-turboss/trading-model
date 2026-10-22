@@ -18,6 +18,7 @@ const GITMOJIS = [
   { emoji: ':lipstick:', code: '💄', name: 'style', desc: 'UI/formatting' },
   { emoji: ':shirt:', code: '👕', name: 'style-lint', desc: 'Lint fix' },
   { emoji: ':recycle:', code: '♻️', name: 'refactor', desc: 'Code restructuring' },
+  { emoji: ':art:', code: '🎨', name: 'refactor-format', desc: 'Improve structure/format' },
   { emoji: ':wastebasket:', code: '🗑️', name: 'refactor-depr', desc: 'Deprecate code' },
   { emoji: ':zap:', code: '⚡', name: 'perf', desc: 'Performance' },
   { emoji: ':rocket:', code: '🚀', name: 'perf-deploy', desc: 'Deploy / perf' },
@@ -39,12 +40,12 @@ const CATEGORIES = [
   { title: '🐛 Fixes', icon: '🐛', start: 3, end: 6 },
   { title: '📝 Documentation', icon: '📝', start: 7, end: 8 },
   { title: '💄 Style', icon: '💄', start: 9, end: 10 },
-  { title: '♻️  Refactor', icon: '♻️', start: 11, end: 12 },
-  { title: '⚡ Performance', icon: '⚡', start: 13, end: 14 },
-  { title: '✅ Tests', icon: '✅', start: 15, end: 17 },
-  { title: '🔧 Chore', icon: '🔧', start: 18, end: 21 },
-  { title: '👷 CI', icon: '👷', start: 22, end: 23 },
-  { title: '🔒 Security', icon: '🔒', start: 24, end: 25 },
+  { title: '♻️  Refactor', icon: '♻️', start: 11, end: 13 },
+  { title: '⚡ Performance', icon: '⚡', start: 14, end: 15 },
+  { title: '✅ Tests', icon: '✅', start: 16, end: 18 },
+  { title: '🔧 Chore', icon: '🔧', start: 19, end: 22 },
+  { title: '👷 CI', icon: '👷', start: 23, end: 24 },
+  { title: '🔒 Security', icon: '🔒', start: 25, end: 26 },
 ];
 
 const stdin = process.stdin;
