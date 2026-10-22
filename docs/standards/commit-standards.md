@@ -64,9 +64,13 @@ For the full list including variants (🏷️ feat-types, 🎉 feat-init, 🚑 f
 | `trainer`           | Trader-trainer service                 |
 | `router`            | Express routing                        |
 | `common`            | @trading-model/common package          |
+| `contracts`         | @trading-model/contracts package       |
 | `config`            | Configuration                          |
 | `database`          | Database                               |
 | `middleware`        | Express middleware                     |
+| `persistence`       | @trading-model/persistence package     |
+| `primitives`        | @trading-model/primitives package      |
+| `reliability`       | @trading-model/reliability package     |
 | `utils`             | Utilities                              |
 | `types`             | TypeScript types                       |
 | `address-manager`   | @trading-model/address-manager package |
@@ -169,7 +173,7 @@ Fixes #142
 ```
 :recycle:(common): centralize ServiceInstance type
 
-Extract ServiceInstance type to @trading-model/common/contracts
+Extract ServiceInstance type to @trading-model/primitives
 to avoid duplication between discovery-server and message-manager.
 ```
 
