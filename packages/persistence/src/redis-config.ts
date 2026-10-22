@@ -1,5 +1,5 @@
-import type { URLString } from "../domain/primitives";
-import type { HostPort } from "../domain/service-identity";
+import type { URLString } from "@trading-model/primitives/primitives";
+import type { HostPort } from "@trading-model/primitives/service-identity";
 
 export interface RedisSentinelConfig {
 	sentinels: HostPort[];

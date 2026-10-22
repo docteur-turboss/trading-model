@@ -1,0 +1,33 @@
+{
+  "name": "@trading-model/persistence",
+  "version": "1.0.0",
+  "description": "Persistence adapters (Redis/Mongo connection managers, store adapters, key builders) extracted from @trading-model/common",
+  "license": "ISC",
+  "type": "commonjs",
+  "exports": {
+    "./*": {
+      "types": "./dist/*.d.ts",
+      "default": "./dist/*.js"
+    }
+  },
+  "dependencies": {
+    "@trading-model/common": "*",
+    "@trading-model/primitives": "*",
+    "@trading-model/contracts": "*",
+    "ioredis": "^6.0.0",
+    "mongodb": "^7.6.0"
+  },
+  "devDependencies": {
+    "@jest/globals": "^30.5.1",
+    "@types/jest": "^30.0.0",
+    "@types/node": "^26.5.0",
+    "jest": "^30.5.1",
+    "ts-jest": "^29.4.12",
+    "typescript": "^6.0.3"
+  },
+  "scripts": {
+    "test": "jest",
+    "test:coverage": "jest --coverage",
+    "build": "tsc"
+  }
+}

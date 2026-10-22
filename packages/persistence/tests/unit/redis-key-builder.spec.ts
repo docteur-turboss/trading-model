@@ -3,7 +3,7 @@ import {
 	buildRedisKey,
 	extendRedisKey,
 	RedisKeyBuilder,
-} from "../../../src/persistence/redis-key-builder";
+} from "../../src/redis-key-builder";
 
 describe("buildRedisKey", () => {
 	it("should join prefix and segments with colons", () => {

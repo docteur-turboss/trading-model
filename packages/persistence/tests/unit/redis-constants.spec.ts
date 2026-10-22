@@ -4,7 +4,7 @@ import {
 	RedisResp,
 	RedisSet,
 	RedisStatus,
-} from "../../../src/persistence/redis-constants";
+} from "../../src/redis-constants";
 
 describe("RedisStatus", () => {
 	it("should have correct values", () => {

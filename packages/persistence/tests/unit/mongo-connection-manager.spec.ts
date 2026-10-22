@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
+import { URLString } from "@trading-model/primitives/primitives";
 import { MongoClient } from "mongodb";
-import { URLString } from "../../../src/domain/primitives";
-import { MongoConnectionManager } from "../../../src/persistence/mongo-connection-manager";
+import { MongoConnectionManager } from "../../src/mongo-connection-manager";
 
 interface MockClient {
 	connect: jest.Mock<() => Promise<void>>;
@@ -131,5 +131,47 @@ describe("MongoConnectionManager", () => {
 
 		const db2 = await mgr.getDb();
 		expect(db1).not.toBe(db2);
+	});
+});
+
+describe("MongoConnectionManager reconnect and collection name", () => {
+	it("tryReconnect should return true after a successful reconnect", async () => {
+		const mgr = new MongoConnectionManager({
+			uri: URLString.of("mongodb://localhost:27017"),
+			dbName: "test",
+		});
+		await mgr.getConnection();
+
+		const reconnected = await mgr.tryReconnect();
+
+		expect(reconnected).toBe(true);
+		expect(mgr.isConnected()).toBe(true);
+	});
+
+	it("should expose the configured collectionName to subclasses", () => {
+		class TestStore extends MongoConnectionManager {
+			collection(): string | undefined {
+				return this.collectionName;
+			}
+		}
+		const mgr = new TestStore({
+			uri: URLString.of("mongodb://localhost:27017"),
+			dbName: "test",
+			collectionName: "audit_entries",
+		});
+		expect(mgr.collection()).toBe("audit_entries");
+	});
+
+	it("should expose an undefined collectionName when not configured", () => {
+		class TestStore extends MongoConnectionManager {
+			collection(): string | undefined {
+				return this.collectionName;
+			}
+		}
+		const mgr = new TestStore({
+			uri: URLString.of("mongodb://localhost:27017"),
+			dbName: "test",
+		});
+		expect(mgr.collection()).toBeUndefined();
 	});
 });

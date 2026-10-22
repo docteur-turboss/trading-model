@@ -2,7 +2,7 @@ import { describe, expect, it, jest } from "@jest/globals";
 import {
 	ConnectionManager,
 	DEFAULT_CONNECTION_OPTIONS,
-} from "../../../src/persistence/connection-manager";
+} from "../../src/connection-manager";
 
 describe("ConnectionManager", () => {
 	it("should have default options", () => {

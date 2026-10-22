@@ -1,4 +1,4 @@
-import type { PaginationResult } from "../domain/pagination";
+import type { PaginationResult } from "@trading-model/primitives/pagination";
 
 export interface MongoRepository<TDoc, TQuery = Record<string, unknown>> {
 	insert(doc: TDoc): Promise<void>;

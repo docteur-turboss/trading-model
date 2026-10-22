@@ -1,12 +1,12 @@
+import { DurationMs } from "@trading-model/primitives/primitives";
 import type Redis from "ioredis";
 import type { Cluster, RedisOptions } from "ioredis";
-import type { RedisConnectionConfig } from "../config/redis-config";
-import { DurationMs } from "../domain/primitives";
 import { ConnectionManager } from "./connection-manager";
 import { RedisClientBuilder } from "./redis-client-builder";
 import { buildFromConfig, createFromUrl } from "./redis-client-factories";
+import type { RedisConnectionConfig } from "./redis-config";
 
-export type { RedisConnectionConfig } from "../config/redis-config";
+export type { RedisConnectionConfig } from "./redis-config";
 
 export function createRedisClient(
 	configOrUrl: string | RedisConnectionConfig,
@@ -14,7 +14,7 @@ export function createRedisClient(
 ): Redis | Cluster {
 	return typeof configOrUrl === "string"
 		? createFromUrl(
-				configOrUrl as import("../domain/primitives").URLString,
+				configOrUrl as import("@trading-model/primitives/primitives").URLString,
 				extraOptions
 			)
 		: buildFromConfig(configOrUrl, extraOptions);

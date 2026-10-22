@@ -1,6 +1,9 @@
+import { getLogger } from "@trading-model/contracts/logger-registry";
+import {
+	DurationMs,
+	type URLString,
+} from "@trading-model/primitives/primitives";
 import { type Db, MongoClient } from "mongodb";
-import { DurationMs, type URLString } from "../domain/primitives";
-import { getLogger } from "../logging/logger-registry";
 import { ConnectionManager } from "./connection-manager";
 import { createPoolOptions, resolvePoolSize } from "./mongo-utils";
 

@@ -1,6 +1,6 @@
 import { describe, expect, it, jest } from "@jest/globals";
 import type { Collection } from "mongodb";
-import { MongoStoreBase } from "../../../src/persistence/mongo-store-base";
+import { MongoStoreBase } from "../../src/mongo-store-base";
 
 interface TestDoc {
 	id: number;

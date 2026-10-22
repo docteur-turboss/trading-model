@@ -3,7 +3,7 @@ import Redis from "ioredis";
 import {
 	createRedisClient,
 	createRedisConnectionManager,
-} from "../../../src/persistence/redis-connection-manager";
+} from "../../src/redis-connection-manager";
 
 jest.mock("ioredis", () => {
 	class MockRedis {

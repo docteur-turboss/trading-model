@@ -1,5 +1,5 @@
 import { describe, expect, it, jest } from "@jest/globals";
-import { MemoryStoreAdapter } from "../../../src/persistence/memory-store-adapter";
+import { MemoryStoreAdapter } from "../../src/memory-store-adapter";
 
 describe("MemoryStoreAdapter", () => {
 	it("should return null for missing keys", async () => {

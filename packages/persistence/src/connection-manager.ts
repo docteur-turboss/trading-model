@@ -1,6 +1,9 @@
-﻿import { DurationMs } from "../domain/primitives";
-import type { BackoffConfig } from "../utils/backoff-config";
-import { type RetryResult, retryWithBackoff } from "../utils/retry";
+import type { BackoffConfig } from "@trading-model/common/utils/backoff-config";
+import {
+	type RetryResult,
+	retryWithBackoff,
+} from "@trading-model/common/utils/retry";
+import { DurationMs } from "@trading-model/primitives/primitives";
 
 export interface ConnectionFactory<_TConnection> {
 	connect(): Promise<_TConnection>;

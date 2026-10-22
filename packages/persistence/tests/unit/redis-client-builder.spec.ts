@@ -1,6 +1,6 @@
 import { describe, expect, it, jest } from "@jest/globals";
-import { RedisClientBuilder } from "../../../src/persistence/redis-client-builder";
-import { RedisStatus } from "../../../src/persistence/redis-constants";
+import { RedisClientBuilder } from "../../src/redis-client-builder";
+import { RedisStatus } from "../../src/redis-constants";
 
 class MockRedisClient {
 	status = "connecting";

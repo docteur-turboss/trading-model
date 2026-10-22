@@ -1,7 +1,7 @@
+import { normalizeError } from "@trading-model/common/utils/errors";
+import { getLogger } from "@trading-model/contracts/logger-registry";
 import type Redis from "ioredis";
 import type { Cluster } from "ioredis";
-import { getLogger } from "../logging/logger-registry";
-import { normalizeError } from "../utils/errors";
 import { RedisStatus } from "./redis-constants";
 
 export class RedisClientBuilder {

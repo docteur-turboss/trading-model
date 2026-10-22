@@ -1,12 +1,12 @@
+import type { URLString } from "@trading-model/primitives/primitives";
+import type { HostPort } from "@trading-model/primitives/service-identity";
 import Redis, { Cluster, type RedisOptions } from "ioredis";
+import { RedisClientBuilder } from "./redis-client-builder";
 import type {
 	RedisClusterNodesConfig,
 	RedisConnectionConfig,
 	RedisSentinelConfig,
-} from "../config/redis-config";
-import type { URLString } from "../domain/primitives";
-import type { HostPort } from "../domain/service-identity";
-import { RedisClientBuilder } from "./redis-client-builder";
+} from "./redis-config";
 import { RedisMode } from "./redis-constants";
 
 export const BASE_RETRY_STRATEGY = (times: number): number | null => {

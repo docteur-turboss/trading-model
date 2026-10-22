@@ -7,16 +7,28 @@ import {
 	createClusterClient,
 	createFromUrl,
 	createSentinel,
-} from "../../../src/persistence/redis-client-factories";
+} from "../../src/redis-client-factories";
 
 jest.mock("ioredis", () => {
 	class MockRedis {
+		static lastOptions: Record<string, unknown> | undefined;
+
+		constructor(options?: Record<string, unknown>) {
+			MockRedis.lastOptions = options;
+		}
+
 		on(): this {
 			return this;
 		}
 	}
 
 	class MockCluster {
+		static lastOptions: Record<string, unknown> | undefined;
+
+		constructor(_nodes?: unknown, options?: Record<string, unknown>) {
+			MockCluster.lastOptions = options;
+		}
+
 		on(): this {
 			return this;
 		}
@@ -118,5 +130,30 @@ describe("buildFromConfig", () => {
 		expect(() =>
 			buildFromConfig({ mode: "bogus", url: "redis://localhost:6379" } as never)
 		).toThrow("Unknown Redis mode");
+	});
+});
+
+describe("createClusterClient option wiring", () => {
+	it("should wire redisOptions and clusterRetryStrategy into the Cluster options", () => {
+		createClusterClient(
+			[{ host: "127.0.0.1" as never, port: 7000 as never }],
+			"secret"
+		);
+
+		const options = (
+			Cluster as unknown as { lastOptions: Record<string, unknown> }
+		).lastOptions;
+		const strategy = options.clusterRetryStrategy as (
+			times: number
+		) => number | null;
+
+		expect(strategy(1)).toBe(200);
+		expect(strategy(25)).toBe(5000);
+		expect((options.redisOptions as { password: string }).password).toBe(
+			"secret"
+		);
+		expect((options.redisOptions as { lazyConnect: boolean }).lazyConnect).toBe(
+			true
+		);
 	});
 });

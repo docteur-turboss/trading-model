@@ -1,4 +1,3 @@
-export type { RedisConnectionConfig } from "../config/redis-config";
 export type {
 	ConnectionFactory,
 	ConnectionManagerOptions,
@@ -20,6 +19,7 @@ export {
 	resolvePoolSize,
 } from "./mongo-utils";
 export { RedisClientBuilder } from "./redis-client-builder";
+export type { RedisConnectionConfig } from "./redis-config";
 export {
 	createRedisClient,
 	createRedisConnectionManager,
