@@ -1,3 +1,4 @@
 bunx @biomejs/biome check .
+bun run deps:check
 bun run build
 bun run test
