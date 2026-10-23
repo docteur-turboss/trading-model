@@ -1,3 +1,4 @@
+const { DB_SPEC_IGNORE } = require('../../scripts/jest-db-config.cjs');
 const { workspaceModuleNameMapper } = require('../../scripts/jest-workspace-mapper.cjs');
 
 /** @type {import('ts-jest').JestConfigWithTsJest} */
@@ -17,7 +18,7 @@ module.exports = {
       },
     ],
   },
-  testPathIgnorePatterns: ['/node_modules/', '/dist/'],
+  testPathIgnorePatterns: ['/node_modules/', '/dist/', DB_SPEC_IGNORE],
   collectCoverageFrom: ['src/**/*.ts', '!src/**/*.d.ts'],
   passWithNoTests: true,
   maxWorkers: 10,

@@ -11,6 +11,7 @@ bun run --filter <name> test    # Run a single workspace's tests
 bun run lint                    # Biome check across the whole monorepo
 bun run deps:check              # Verify @trading-model/* imports match package.json manifests (ADR-0016)
 bun run test:coverage           # All tests with coverage
+bun run test:db                 # Specs against real Mongo/Redis/MySQL (Testcontainers, needs Docker)
 bun run docs:generate           # TypeDoc HTML into docs/architecture/code/
 bun run commit                  # Interactive gitmoji commit CLI
 # Release: run the "Release" workflow in GitHub Actions (Actions → Release).
@@ -63,6 +64,7 @@ The root script references the package name too: `bun run --filter trader-servic
 - **Serial tests:** none currently require `maxWorkers: 1` (previously `certificate-utils` and `certificate-authority`, decommissioned per ADR-0011)
 - **Coverage thresholds:** 80% (statements/functions/lines/branches) for all workspaces; branch-only exceptions: `broker-message` 75%, `message-manager` and `dlq-service` 79%
 - E2E tests: `testTimeout: 30000`, `forceExit: true`, `detectOpenHandles: true`
+- DB tests: `tests/db/**/*.db.spec.ts` run against real databases started by Testcontainers (images read from `docker-compose.yml`). Opt a workspace in with a `jest.db.config.js` built by `scripts/jest-db-config.cjs` (`dbJestConfig(base, { databases })`), add `DB_SPEC_IGNORE` to its default `testPathIgnorePatterns`, and a `test:db` script with `NODE_OPTIONS=--experimental-vm-modules` (the mongodb driver needs it under Jest). Connection strings: `TEST_MONGO_URI` (replica set), `TEST_REDIS_URL`, `TEST_MYSQL_URI`. Not part of `bun run test` / pre-push
 
 ## Git hooks (Husky) & commit format
 
@@ -103,7 +105,7 @@ The root script references the package name too: `bun run --filter trader-servic
 
 ## CI/CD
 
-- CI (`ci.yml`): lint → typecheck (packages + all services) → test+coverage (Codecov) → contract tests → E2E (Docker stack)
+- CI (`ci.yml`): lint → typecheck (packages + all services) → test+coverage (Codecov) → DB integration (Testcontainers) → contract tests → E2E (Docker stack)
 - Release (`release.yml`): manual `workflow_dispatch` (Actions → Release) → quality gates → version bump + CHANGELOG → Docker build+push (8 images) → GitHub Release → TypeDoc docs
 - Deploy (`deploy.yml`): manual `workflow_dispatch` → staging or production (optional canary with smoke test + auto rollback)
 - Backup test (`backup-test.yml`): scheduled backup/restore verification

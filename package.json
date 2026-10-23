@@ -38,6 +38,7 @@
     "deps:check": "node scripts/check-deps.mjs",
     "test": "bun run --filter '*' test",
     "test:coverage": "bun run --filter '*' test --coverage",
+    "test:db": "bun run --filter '*' test:db",
     "test:contract": "bun run --filter trading-model-contract-tests test:contract",
     "test:e2e": "bun run --filter trading-model-e2e test:e2e",
     "test:e2e:docker": "bun run --filter trading-model-e2e test:docker",
@@ -48,10 +49,14 @@
   "devDependencies": {
     "@biomejs/biome": "2.5.2",
     "@commitlint/cli": "^21.0.2",
+    "@testcontainers/mongodb": "^12.2.1",
+    "@testcontainers/mysql": "^12.2.1",
+    "@testcontainers/redis": "^12.2.1",
     "husky": "^9.1.7",
     "jest-environment-node": "^30.5.1",
     "markdown-it": "^14.3.1",
     "node-html-parser": "^9.0.4",
+    "testcontainers": "^12.2.1",
     "typedoc": "^0.28.19",
     "typescript": "^6.0.3"
   }
