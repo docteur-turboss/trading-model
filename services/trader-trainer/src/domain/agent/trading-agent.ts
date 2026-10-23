@@ -42,7 +42,7 @@ export class TradingAgent {
 			cfg.wallet ?? { initialCash: Cash.of(1000), initialPrice: Price.of(1) }
 		);
 		this.state = new StateManager(cfg.stateManagerCfg ?? {});
-		this._actionMapper = new ActionMapper(cfg);
+		this._actionMapper = new ActionMapper({ ...cfg, rng: cfg.nnConfig.rng });
 	}
 
 	public mapOutputToAction(
@@ -50,7 +50,7 @@ export class TradingAgent {
 		cfg?: TradingAgentConfig
 	): { action: TradeAction; amount: Volume } {
 		if (cfg) {
-			const mapper = new ActionMapper(cfg);
+			const mapper = new ActionMapper({ ...cfg, rng: cfg.nnConfig.rng });
 			return mapper.map(output);
 		}
 		return this._actionMapper.map(output);

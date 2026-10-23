@@ -11,11 +11,14 @@ export interface ActionMap {
 export interface ActionMapperConfig {
 	actionSpace?: ActionSpace;
 	tradeAmount?: Volume;
+	/** Uniform [0, 1) source for exploration; seed it to replay a run. */
+	rng?: () => number;
 }
 
 type ActionSpaceStrategy = (
 	output: Float32Array,
 	amount: Volume,
+	rng: () => number,
 	epsilon?: number,
 	temperature?: number
 ) => ActionMap;
@@ -36,12 +39,16 @@ function _greedyDiscreteAction(output: Float32Array): number {
 	return idx;
 }
 
-function _softmaxSample(output: Float32Array, temperature: number): number {
+function _softmaxSample(
+	output: Float32Array,
+	temperature: number,
+	rng: () => number
+): number {
 	const scaled = output.map((val) => val / temperature);
 	const maxVal = Math.max(...scaled);
 	const exponentials = scaled.map((val) => Math.exp(val - maxVal));
 	const total = exponentials.reduce((acc, val) => acc + val, 0);
-	let roll = Math.random() * total;
+	let roll = rng() * total;
 	for (let idx = 0; idx < exponentials.length; idx++) {
 		roll -= exponentials[idx];
 		if (roll <= 0) {
@@ -57,11 +64,12 @@ const CONTINUOUS_OUTPUT_INDEX = 0;
 function _continuousAction(
 	output: Float32Array,
 	amount: Volume,
+	rng: () => number,
 	epsilon?: number
 ): Omit<ActionMap, "outputIndex"> {
 	const val = output[CONTINUOUS_OUTPUT_INDEX] ?? 0;
-	if (epsilon !== undefined && Math.random() < epsilon) {
-		const roll = Math.random();
+	if (epsilon !== undefined && rng() < epsilon) {
+		const roll = rng();
 		if (roll < 0.33) {
 			return {
 				action: TradeAction.Buy,
@@ -96,21 +104,22 @@ function _continuousAction(
 }
 
 const ACTION_SPACE_STRATEGIES: Record<ActionSpace, ActionSpaceStrategy> = {
-	[ActionSpace.Continuous]: (output, amount, epsilon) => ({
-		..._continuousAction(output, amount, epsilon),
+	[ActionSpace.Continuous]: (output, amount, rng, epsilon) => ({
+		..._continuousAction(output, amount, rng, epsilon),
 		outputIndex: CONTINUOUS_OUTPUT_INDEX,
 	}),
 	[ActionSpace.Discrete]: (
 		output: Float32Array,
 		amount: Volume,
+		rng: () => number,
 		epsilon?: number,
 		temperature?: number
 	): ActionMap => {
 		let idx: number;
-		if (epsilon !== undefined && Math.random() < epsilon) {
-			idx = Math.floor(Math.random() * output.length);
+		if (epsilon !== undefined && rng() < epsilon) {
+			idx = Math.floor(rng() * output.length);
 		} else if (temperature !== undefined && temperature !== 1.0) {
-			idx = _softmaxSample(output, temperature);
+			idx = _softmaxSample(output, temperature, rng);
 		} else {
 			idx = _greedyDiscreteAction(output);
 		}
@@ -142,6 +151,7 @@ export class ActionMapper {
 		const strategy =
 			ACTION_SPACE_STRATEGIES[space] ??
 			ACTION_SPACE_STRATEGIES[ActionSpace.Discrete];
-		return strategy(output, amount, epsilon, temperature);
+		const rng = this._config.rng ?? Math.random;
+		return strategy(output, amount, rng, epsilon, temperature);
 	}
 }
