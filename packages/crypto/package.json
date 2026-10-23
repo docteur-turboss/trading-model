@@ -13,8 +13,7 @@
   "dependencies": {
     "@trading-model/primitives": "*",
     "@trading-model/contracts": "*",
-    "@trading-model/common": "*",
-    "@trading-model/validation": "*"
+    "@trading-model/common": "*"
   },
   "devDependencies": {
     "@types/node": "^26.5.0",

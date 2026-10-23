@@ -22,7 +22,6 @@
     "@trading-model/http": "*",
     "@trading-model/reliability": "*",
     "@trading-model/server-utils": "*",
-    "@trading-model/validation": "*",
     "express": "^5.2.1",
     "ioredis": "^6.0.0",
     "node-cron": "^4.2.1",

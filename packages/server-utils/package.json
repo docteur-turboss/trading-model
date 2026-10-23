@@ -12,7 +12,6 @@
   },
   "dependencies": {
     "@trading-model/primitives": "*",
-    "@trading-model/contracts": "*",
     "@opentelemetry/api": "^1.9.1",
     "@opentelemetry/exporter-trace-otlp-http": "^0.222.0",
     "@opentelemetry/instrumentation-express": "^0.70.0",
