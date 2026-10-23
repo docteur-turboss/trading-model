@@ -8,6 +8,7 @@
   "scripts": {
     "test": "jest",
     "test:coverage": "jest --coverage",
+    "test:db": "NODE_OPTIONS=--experimental-vm-modules jest -c jest.db.config.js",
     "dev": "ts-node src/application/index.ts",
     "build": "tsc",
     "stryker": "stryker run"

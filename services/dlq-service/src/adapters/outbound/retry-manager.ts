@@ -50,7 +50,7 @@ export class DlqRetryManager {
 			await this._markAsCompleted(id, instanceId, batchId);
 			return;
 		}
-		await this._markAsFailed(id, errorMsg);
+		await this._markAsFailed(id, instanceId, errorMsg);
 	}
 
 	async abandonExhaustedEntries(): Promise<number> {
@@ -76,10 +76,15 @@ export class DlqRetryManager {
 		await _updateEntryCompleted(col, id, instanceId, batchId);
 	}
 
-	private async _markAsFailed(id: string, errorMsg?: string): Promise<void> {
+	private async _markAsFailed(
+		id: string,
+		instanceId: InstanceId,
+		errorMsg?: string
+	): Promise<void> {
 		const col = await getCollection();
 		const failFilter: Record<string, unknown> = {
 			_id: new ObjectId(id),
+			processingInstance: instanceId,
 			retryCount: { $lt: ENV.DLQ_RETRY_MAX_ATTEMPTS },
 		};
 		const updated = await col.findOneAndUpdate(
@@ -90,7 +95,7 @@ export class DlqRetryManager {
 
 		if (!updated) {
 			await col.updateOne(
-				{ _id: new ObjectId(id) },
+				{ _id: new ObjectId(id), processingInstance: instanceId },
 				{ $unset: { processingAt: "", processingInstance: "" } }
 			);
 		}

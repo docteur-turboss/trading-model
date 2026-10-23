@@ -21,7 +21,7 @@ export class ClaimReleaseManager {
 				retryCount: { $lt: ENV.DLQ_RETRY_MAX_ATTEMPTS },
 				processingAt: { $exists: false },
 				status: { $nin: [DlqStatus.Completed, DlqStatus.Abandoned] },
-				consecutiveErrors: { $lt: DLQ_MAX_CONSECUTIVE_ERRORS },
+				consecutiveErrors: { $not: { $gte: DLQ_MAX_CONSECUTIVE_ERRORS } },
 			},
 			{
 				$set: {

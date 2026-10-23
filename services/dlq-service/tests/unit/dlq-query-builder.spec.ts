@@ -81,7 +81,7 @@ describe("DlqQueryBuilder", () => {
 				retryCount: { $lt: 3 },
 				processingAt: { $exists: false },
 				status: { $nin: ["completed", "abandoned"] },
-				consecutiveErrors: { $lt: 3 },
+				consecutiveErrors: { $not: { $gte: 3 } },
 			});
 		});
 
@@ -94,7 +94,7 @@ describe("DlqQueryBuilder", () => {
 				retryCount: { $lt: 3 },
 				processingAt: { $exists: false },
 				status: { $nin: ["completed", "abandoned"] },
-				consecutiveErrors: { $lt: 3 },
+				consecutiveErrors: { $not: { $gte: 3 } },
 				topic: "test.topic",
 			});
 		});
@@ -146,7 +146,7 @@ describe("DlqQueryBuilder", () => {
 						retryCount: { $lt: 3 },
 						processingAt: { $exists: false },
 						status: { $nin: ["completed", "abandoned"] },
-						consecutiveErrors: { $lt: 3 },
+						consecutiveErrors: { $not: { $gte: 3 } },
 					},
 					update: {
 						$set: {

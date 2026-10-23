@@ -383,7 +383,7 @@ describe("DlqClaimManager", () => {
 							retryCount: { $lt: 3 },
 							processingAt: { $exists: false },
 							status: { $nin: ["completed", "abandoned"] },
-							consecutiveErrors: { $lt: 3 },
+							consecutiveErrors: { $not: { $gte: 3 } },
 						},
 						expect.objectContaining({ sort: { createdAt: -1 }, limit: 10 })
 					);
@@ -536,7 +536,11 @@ describe("DlqRetryManager", () => {
 				})
 				.then(() => {
 					expect(mockFindOneAndUpdate).toHaveBeenCalledWith(
-						{ _id: expect.any(Object), retryCount: { $lt: 3 } },
+						{
+							_id: expect.any(Object),
+							processingInstance: "instance-1",
+							retryCount: { $lt: 3 },
+						},
 						expect.arrayContaining([
 							expect.objectContaining({
 								$set: expect.objectContaining({
@@ -583,7 +587,7 @@ describe("DlqRetryManager", () => {
 				.then(() => {
 					expect(mockFindOneAndUpdate).toHaveBeenCalledTimes(1);
 					expect(mockUpdateOne).toHaveBeenCalledWith(
-						{ _id: expect.any(Object) },
+						{ _id: expect.any(Object), processingInstance: "instance-1" },
 						{ $unset: { processingAt: "", processingInstance: "" } }
 					);
 				});
