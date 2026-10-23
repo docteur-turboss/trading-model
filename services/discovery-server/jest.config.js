@@ -1,3 +1,5 @@
+const { workspaceModuleNameMapper } = require('../../scripts/jest-workspace-mapper.cjs');
+
 /** @type {import('ts-jest').JestConfigWithTsJest} */
 module.exports = {
   preset: 'ts-jest',
@@ -6,16 +8,8 @@ module.exports = {
   testMatch: ['**/?(*.)+(spec).ts'],
   testPathIgnorePatterns: ['/node_modules/', '/dist/'],
   moduleNameMapper: {
-    '^@trading-model/primitives/(.*)$': '<rootDir>/../../packages/primitives/src/$1',
-    '^@trading-model/contracts/(.*)$': '<rootDir>/../../packages/contracts/src/$1',
-    '^@trading-model/http/(.*)$': '<rootDir>/../../packages/http/src/$1',
-    '^@trading-model/jobs/(.*)$': '<rootDir>/../../packages/jobs/src/$1',
+    ...workspaceModuleNameMapper(__dirname),
     '^config/(.*)$': '<rootDir>/src/config/$1',
-    '^@trading-model/crypto/(.*)$': '<rootDir>/../../packages/crypto/src/$1',
-    '^@trading-model/validation/(.*)$': '<rootDir>/../../packages/validation/src/$1',
-    '^@trading-model/server-utils/(.*)$': '<rootDir>/../../packages/server-utils/src/$1',
-    '^@trading-model/common/(.*)$': '<rootDir>/../../packages/common/src/$1',
-    '^@trading-model/persistence/(.*)$': '<rootDir>/../../packages/persistence/src/$1',
   },
   transform: {
     '^.+\\.tsx?$': [
