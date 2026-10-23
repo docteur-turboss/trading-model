@@ -1,6 +1,9 @@
 import { describe, expect, test } from "@jest/globals";
 import { EpisodeScores } from "../../../src/domain/genetic-algorithm/episode-scores";
-import { clamp, generateId } from "../../../src/domain/genetic-algorithm/utils";
+import {
+	clamp,
+	makeGenomeId,
+} from "../../../src/domain/genetic-algorithm/utils";
 import { NormalizationStats } from "../../../src/domain/normalization-stats";
 
 describe("Utils - clamp", () => {
@@ -22,17 +25,22 @@ describe("Utils - clamp", () => {
 	});
 });
 
-describe("Utils - generateId", () => {
-	test("should return a non-empty string", () => {
-		const id = generateId();
-		expect(typeof id).toBe("string");
-		expect(id.length).toBeGreaterThan(0);
+describe("Utils - makeGenomeId", () => {
+	test("should encode the generation and the index", () => {
+		expect(makeGenomeId(3, 7)).toBe("g3_7");
 	});
 
-	test("should return different ids on successive calls", () => {
-		const id1 = generateId();
-		const id2 = generateId();
-		expect(id1).not.toBe(id2);
+	test("should be stable for the same inputs", () => {
+		expect(makeGenomeId(1, 2)).toBe(makeGenomeId(1, 2));
+	});
+
+	test("should differ across generations and indices", () => {
+		const ids = new Set([
+			makeGenomeId(1, 0),
+			makeGenomeId(1, 1),
+			makeGenomeId(2, 0),
+		]);
+		expect(ids.size).toBe(3);
 	});
 });
 

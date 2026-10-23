@@ -3,13 +3,14 @@ import { createDefaultGenome } from "./factory";
 import type { GAControlGenome, LamarckGenome } from "./genome-types";
 import { createOffspring, type OffspringContext } from "./offspring-factory";
 import { type DeepReadonly, deepFreeze } from "./shared-types";
+import { makeGenomeId } from "./utils";
 
 export function createInitialPopulation(
 	ctrl: DeepReadonly<GAControlGenome>
 ): DeepReadonly<LamarckGenome>[] {
 	return Array.from({ length: ctrl.population.size }, (_unused, index) => {
 		const baseGenome = createDefaultGenome(
-			`g0_${index}`,
+			makeGenomeId(0, index),
 			0 as PositiveInt
 		) as LamarckGenome;
 		return deepFreeze({

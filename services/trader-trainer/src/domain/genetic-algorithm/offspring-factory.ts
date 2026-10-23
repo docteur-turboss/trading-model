@@ -9,7 +9,7 @@ import { mutateGenome } from "./mutation";
 import { makePRNG } from "./prng";
 import { selectParent } from "./selection";
 import { type DeepReadonly, deepFreeze, withGenome } from "./shared-types";
-import { generateId } from "./utils";
+import { makeGenomeId } from "./utils";
 
 export function selectElites(
 	ranked: PopMember[],
@@ -33,6 +33,7 @@ interface ProduceOneOffspringParams {
 	mutRng: () => number;
 	rng: () => number;
 	generation: number;
+	index: number;
 }
 
 interface CrossoverAndMutateWeightsParams {
@@ -67,11 +68,12 @@ function _buildOffspringGenome(
 	childStruct: LamarckGenome,
 	newCtrl: DeepReadonly<GAControlGenome>,
 	generation: number,
+	index: number,
 	childWeights: Float32Array | undefined
 ): DeepReadonly<LamarckGenome> {
 	return deepFreeze({
 		...childStruct,
-		id: generateId(),
+		id: makeGenomeId(generation + 1, index),
 		generation: generation + 1,
 		gaControl: newCtrl,
 		trainedWeights: childWeights,
@@ -81,7 +83,7 @@ function _buildOffspringGenome(
 function produceOneOffspring(
 	params: ProduceOneOffspringParams
 ): DeepReadonly<LamarckGenome> {
-	const { ranked, newCtrl, coRng, mutRng, rng, generation } = params;
+	const { ranked, newCtrl, coRng, mutRng, rng, generation, index } = params;
 	const pA = selectParent(ranked, newCtrl.selectionType, rng);
 	const pB = selectParent(ranked, newCtrl.selectionType, rng);
 
@@ -94,7 +96,13 @@ function produceOneOffspring(
 		mutRng,
 	});
 
-	return _buildOffspringGenome(childStruct, newCtrl, generation, childWeights);
+	return _buildOffspringGenome(
+		childStruct,
+		newCtrl,
+		generation,
+		index,
+		childWeights
+	);
 }
 
 export interface OffspringContext {
@@ -132,7 +140,7 @@ export function createOffspring(
 	const nOffspring = _computeOffspringCount(newCtrl);
 	const { mutRng, coRng } = _makeOffspringRngs(ctrl, generation);
 
-	return Array.from({ length: nOffspring }, () =>
+	return Array.from({ length: nOffspring }, (_unused, index) =>
 		produceOneOffspring({
 			ranked,
 			newCtrl,
@@ -140,6 +148,7 @@ export function createOffspring(
 			mutRng,
 			rng,
 			generation,
+			index,
 		})
 	);
 }

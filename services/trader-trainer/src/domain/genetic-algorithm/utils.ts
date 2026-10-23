@@ -5,9 +5,12 @@ export function clamp(value: number, lo: number, hi: number): number {
 
 import type { GenomeId } from "@trading-model/primitives/primitives";
 
-/** Generate a short random alphanumeric identifier. */
-export function generateId(): GenomeId {
-	return Math.random().toString(36).slice(2, 10) as GenomeId;
+/**
+ * Deterministic genome id: unique within a run because each generation
+ * numbers its genomes from 0, and a seeded run replays the same ids.
+ */
+export function makeGenomeId(generation: number, index: number): GenomeId {
+	return `g${generation}_${index}` as GenomeId;
 }
 
 import type { NormalizationStats } from "../normalization-stats";
