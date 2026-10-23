@@ -35,6 +35,7 @@
     "release:version": "bun scripts/release.mjs --version",
     "release:publish": "bun scripts/release.mjs --publish",
     "lint": "bunx @biomejs/biome check .",
+    "deps:check": "node scripts/check-deps.mjs",
     "test": "bun run --filter '*' test",
     "test:coverage": "bun run --filter '*' test --coverage",
     "test:contract": "bun run --filter trading-model-contract-tests test:contract",
