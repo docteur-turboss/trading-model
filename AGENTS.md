@@ -9,6 +9,7 @@ bun run build:ts                # Build everything (packages + all 8 services)
 bun run test                    # Run all workspace tests
 bun run --filter <name> test    # Run a single workspace's tests
 bun run lint                    # Biome check across the whole monorepo
+bun run deps:check              # Verify @trading-model/* imports match package.json manifests (ADR-0016)
 bun run test:coverage           # All tests with coverage
 bun run docs:generate           # TypeDoc HTML into docs/architecture/code/
 bun run commit                  # Interactive gitmoji commit CLI
@@ -29,7 +30,7 @@ bun run commit                  # Interactive gitmoji commit CLI
 Packages must be built in this order before services:
 
 1. `@trading-model/primitives` (zero dependencies — branded types, domain primitives)
-2. `@trading-model/contracts` (depends on primitives; shared contracts, http-status/headers, logger-registry)
+2. `@trading-model/contracts` (depends on primitives; owner of every shared runtime-free contract — events, message envelope, service registry, signed request, DLQ, recovery/worker protocol — plus http-status/headers, logger-registry; see ADR-0016)
 3. `@trading-model/reliability` (depends on primitives + contracts; circuit breakers, latency tracker)
 4. `@trading-model/common` (depends on primitives + contracts; residual: config, utils, shared schemas)
 5. `@trading-model/persistence` (depends on common + primitives + contracts; Redis/Mongo stores)
@@ -58,7 +59,7 @@ The root script references the package name too: `bun run --filter trader-servic
 ## Testing conventions
 
 - All tests use `**/?(*.)+(spec).ts` pattern (admin-interface uses `.spec.{ts,tsx}`)
-- Jest configs use `ts-jest` preset and `moduleNameMapper` to resolve `@trading-model/*` to relative source paths — packages don't need to be pre-built to run tests
+- Jest configs use `ts-jest` preset; their `@trading-model/*` `moduleNameMapper` is generated from the workspace manifest by `scripts/jest-workspace-mapper.cjs` (declared deps + transitive runtime deps → package `src`) — packages don't need to be pre-built, and undeclared internal packages don't resolve
 - **Serial tests:** none currently require `maxWorkers: 1` (previously `certificate-utils` and `certificate-authority`, decommissioned per ADR-0011)
 - **Coverage thresholds:** 80% (statements/functions/lines/branches) for all workspaces; branch-only exceptions: `broker-message` 75%, `message-manager` and `dlq-service` 79%
 - E2E tests: `testTimeout: 30000`, `forceExit: true`, `detectOpenHandles: true`

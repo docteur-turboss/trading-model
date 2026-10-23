@@ -24,3 +24,4 @@ An ADR documents a significant architectural decision, including the context, al
 | [ADR-0012](./0012-dead-code-removal-and-entrypoint-fix.md) | Dead Code Removal via Reachability Analysis and Runtime Entrypoint Fix | Accepted | 2026-10 |
 | [ADR-0013](./0013-config-gated-dead-code-removal.md) | Removal of Configuration-Gated Dead Code Missed by Import Reachability (address-manager Discovery WebSocket Client) | Accepted | 2026-10 |
 | [ADR-0015](./0015-hexagonal-layering-completion.md) | Hexagonal Layering Completion Across Services | Accepted | 2026-10 |
+| [ADR-0016](./0016-shared-contracts-ownership.md) | Shared Contracts Owned by `@trading-model/contracts` and Manifest-Checked Dependencies | Accepted | 2026-10 |
