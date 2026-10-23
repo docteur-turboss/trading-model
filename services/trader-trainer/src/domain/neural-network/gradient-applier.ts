@@ -48,6 +48,9 @@ export class GradientApplier {
 		layerInput: Float32Array
 	): void {
 		const { fanIn, fanOut, gradW, gradB } = layer;
+		// computeWeightGradient adds into the buffer: start each sample from zero
+		// so an immediate step never re-applies earlier samples' gradients.
+		gradW.fill(0);
 		for (let j = 0; j < fanOut; j++) {
 			const rowOffset = j * fanIn;
 			const deltaJ = delta[j];
