@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, jest } from "@jest/globals";
+import { makePRNG } from "../../../src/domain/genetic-algorithm/prng";
 import { createExperiencePool } from "../../../src/domain/neural-network/experience-pool";
 import {
 	type Experience,
@@ -131,6 +132,42 @@ describe("createExperiencePool", () => {
 			pool.clearPool();
 			expect(pool.getPoolSize()).toBe(0);
 			expect(pool.samplePool(1)).toEqual([]);
+		});
+	});
+
+	describe("seeded rng", () => {
+		function sampleRewards(
+			perConfig: typeof PER | undefined,
+			seed: number
+		): unknown[][] {
+			const pool = createExperiencePool(true, 10, perConfig, makePRNG(seed));
+			for (let i = 0; i < 6; i++) {
+				pool.add(makeExperience(i));
+			}
+			return Array.from({ length: 5 }, () =>
+				pool.samplePool(3).map((exp) => (exp as { reward: number }).reward)
+			);
+		}
+
+		it("should replay the same uniform samples for the same seed", () => {
+			expect(sampleRewards(undefined, 42)).toEqual(
+				sampleRewards(undefined, 42)
+			);
+			expect(sampleRewards(undefined, 42)).not.toEqual(
+				sampleRewards(undefined, 43)
+			);
+		});
+
+		it("should replay the same prioritized samples for the same seed", () => {
+			expect(sampleRewards(PER, 42)).toEqual(sampleRewards(PER, 42));
+		});
+
+		it("should draw from the injected rng instead of Math.random", () => {
+			const spy = jest.spyOn(Math, "random");
+			sampleRewards(undefined, 42);
+			sampleRewards(PER, 42);
+
+			expect(spy).not.toHaveBeenCalled();
 		});
 	});
 });

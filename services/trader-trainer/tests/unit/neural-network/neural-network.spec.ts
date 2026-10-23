@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { setLogger } from "@trading-model/contracts/logger-registry";
+import { makePRNG } from "../../../src/domain/genetic-algorithm/prng";
 import { NeuralNetwork } from "../../../src/domain/neural-network/neural-network";
 import type { NeuralNetworkConfig } from "../../../src/domain/neural-network/type";
 import {
@@ -430,6 +431,25 @@ describe("NeuralNetwork", () => {
 			const result = nn.forward(input);
 
 			expect(result.output.length).toBe(4);
+		});
+	});
+
+	describe("seeded rng", () => {
+		const seeded = (seed: number) =>
+			new NeuralNetwork(
+				makeConfig({
+					initialisationType: InitialisationType.Xavier,
+					biasInitialisationType: InitialisationType.Random,
+					rng: makePRNG(seed),
+				})
+			).getWeights();
+
+		it("should initialise identical weights for the same seed", () => {
+			expect(seeded(7)).toEqual(seeded(7));
+		});
+
+		it("should initialise different weights for different seeds", () => {
+			expect(seeded(7)).not.toEqual(seeded(8));
 		});
 	});
 });

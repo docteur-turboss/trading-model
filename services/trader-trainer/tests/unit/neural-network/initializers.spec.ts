@@ -1,4 +1,5 @@
 import { describe, expect, test } from "@jest/globals";
+import { makePRNG } from "../../../src/domain/genetic-algorithm/prng";
 import { INITIALIZERS } from "../../../src/domain/neural-network/initializers";
 
 describe("Initializers", () => {
@@ -30,5 +31,22 @@ describe("Initializers", () => {
 			expect(result).toBeGreaterThanOrEqual(-1);
 			expect(result).toBeLessThanOrEqual(1);
 		}
+	});
+
+	test.each([
+		"random",
+		"xavier",
+		"he",
+		"leCun",
+	] as const)("%s should be reproducible with a seeded rng", (type) => {
+		const draw = (seed: number) => {
+			const rng = makePRNG(seed);
+			return Array.from({ length: 10 }, () =>
+				INITIALIZERS[type].initialize({ fanIn: 10, fanOut: 5 }, rng)
+			);
+		};
+
+		expect(draw(7)).toEqual(draw(7));
+		expect(draw(7)).not.toEqual(draw(8));
 	});
 });

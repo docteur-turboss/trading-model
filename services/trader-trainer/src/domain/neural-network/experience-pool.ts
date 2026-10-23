@@ -27,9 +27,11 @@ class ExperiencePool implements IExperiencePool {
 	private _poolInputToId = new WeakMap<Float32Array, number>();
 	protected _nextPoolId = 0;
 	private readonly _poolMaxSize: number;
+	protected readonly _rng: () => number;
 
-	constructor(poolMaxSize: number) {
+	constructor(poolMaxSize: number, rng: () => number) {
 		this._poolMaxSize = poolMaxSize;
+		this._rng = rng;
 	}
 
 	private _evictOldest(): void {
@@ -79,7 +81,7 @@ class ExperiencePool implements IExperiencePool {
 
 	private _shuffleEntries(entries: Experience[]): void {
 		for (let i = entries.length - 1; i > 0; i--) {
-			const j = Math.floor(Math.random() * (i + 1));
+			const j = Math.floor(this._rng() * (i + 1));
 			[entries[i], entries[j]] = [entries[j], entries[i]];
 		}
 	}
@@ -137,9 +139,10 @@ class PrioritizedExperiencePool extends ExperiencePool {
 		poolMaxSize: number,
 		alpha: number,
 		beta: number,
-		betaAnneal: boolean
+		betaAnneal: boolean,
+		rng: () => number
 	) {
-		super(poolMaxSize);
+		super(poolMaxSize, rng);
 		this._alpha = alpha;
 		this._beta = beta;
 		this._betaAnneal = betaAnneal;
@@ -207,7 +210,7 @@ class PrioritizedExperiencePool extends ExperiencePool {
 		const used = new Set<number>();
 
 		for (let batchIdx = 0; batchIdx < batchSize; batchIdx++) {
-			const roll = Math.random();
+			const roll = this._rng();
 			let cumulative = 0;
 			const probs = indices.map(
 				(_entryId, entryIdx) => weights[entryIdx] / (weights.length || 1)
@@ -254,7 +257,8 @@ export function createExperiencePool(
 		alpha: number;
 		beta: number;
 		betaAnneal: boolean;
-	}
+	},
+	rng: () => number = Math.random
 ): IExperiencePool {
 	if (!enablePool) {
 		return DISABLED_POOL;
@@ -264,8 +268,9 @@ export function createExperiencePool(
 			poolMaxSize,
 			perConfig.alpha,
 			perConfig.beta,
-			perConfig.betaAnneal
+			perConfig.betaAnneal,
+			rng
 		);
 	}
-	return new ExperiencePool(poolMaxSize);
+	return new ExperiencePool(poolMaxSize, rng);
 }

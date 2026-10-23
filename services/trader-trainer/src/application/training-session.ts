@@ -13,7 +13,7 @@ import type {
 	GenomeFitnessMeta,
 	LamarckGenome,
 } from "../domain/genetic-algorithm/genome-types";
-import { makeTradingAgentBackend } from "../domain/genetic-algorithm/rl-backend";
+import { makeSeededBackendFactory } from "../domain/genetic-algorithm/rl-backend";
 import type { DeepReadonly } from "../domain/genetic-algorithm/shared-types";
 import type { TrainingSettings } from "../domain/training-settings";
 
@@ -65,7 +65,7 @@ export class TrainingSession {
 		};
 	}
 
-	private _buildInitialControl(): Partial<GAControlGenome> {
+	private _buildInitialControl(): GAControlGenome {
 		const defaultControl = createDefaultGenome("ctrl").gaControl;
 		return {
 			...defaultControl,
@@ -89,11 +89,14 @@ export class TrainingSession {
 	private _createRunner(
 		onGeneration: (ctx: GenerationContext) => void
 	): GeneticAlgorithmRunner {
+		const initialControl = this._buildInitialControl();
 		return new GeneticAlgorithmRunner({
 			windowSets: this._windowSets,
-			backendFactory: makeTradingAgentBackend,
+			backendFactory: makeSeededBackendFactory(
+				initialControl.seeding.networkSeed
+			),
 			evalConcurrency: 4,
-			initialControl: this._buildInitialControl(),
+			initialControl,
 			onGeneration,
 			telemetry: this._telemetry,
 		});

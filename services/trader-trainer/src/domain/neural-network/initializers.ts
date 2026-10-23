@@ -1,28 +1,30 @@
+import { sampleGaussian } from "../genetic-algorithm/noise";
 import type { WeightInitializer } from "./initializers/weight-initializer";
 import type { LayerDims } from "./layer-dims";
 import { InitialisationType } from "./type";
-import { GAUSSIAN_NOISE } from "./utils";
 
 export type { WeightInitializer } from "./initializers/weight-initializer";
 
 const Zeros: WeightInitializer = { initialize: () => 0 };
-const Random: WeightInitializer = { initialize: () => Math.random() * 2 - 1 };
+const Random: WeightInitializer = {
+	initialize: (_dims, rng = Math.random) => rng() * 2 - 1,
+};
 const He: WeightInitializer = {
-	initialize: (dims: LayerDims) => {
+	initialize: (dims: LayerDims, rng = Math.random) => {
 		const scale = Math.sqrt(2 / dims.fanIn);
-		return GAUSSIAN_NOISE(scale);
+		return sampleGaussian(rng, scale);
 	},
 };
 const Xavier: WeightInitializer = {
-	initialize: (dims: LayerDims) => {
+	initialize: (dims: LayerDims, rng = Math.random) => {
 		const limit = Math.sqrt(6 / (dims.fanIn + dims.fanOut));
-		return (Math.random() * 2 - 1) * limit;
+		return (rng() * 2 - 1) * limit;
 	},
 };
 const LeCun: WeightInitializer = {
-	initialize: (dims: LayerDims) => {
+	initialize: (dims: LayerDims, rng = Math.random) => {
 		const scale = Math.sqrt(1 / dims.fanIn);
-		return GAUSSIAN_NOISE(scale);
+		return sampleGaussian(rng, scale);
 	},
 };
 

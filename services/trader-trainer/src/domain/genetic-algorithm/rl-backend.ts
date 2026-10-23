@@ -4,6 +4,7 @@ import TradingAgent, { type TradingAgentConfig } from "../agent/trading-agent";
 import type { FeatureVector } from "../feature-vector";
 import type { Experience } from "../neural-network/type";
 import { ConnectionType, InitialisationType } from "../neural-network/type";
+import { makePRNG } from "./prng";
 import type { DeepReadonly, LamarckGenome } from "./shared-types";
 
 interface StepInput {
@@ -25,7 +26,8 @@ export interface RLBackend {
 export type BackendFactory = (genome: DeepReadonly<LamarckGenome>) => RLBackend;
 
 function _buildNNConfig(
-	genome: DeepReadonly<LamarckGenome>
+	genome: DeepReadonly<LamarckGenome>,
+	rng: () => number
 ): TradingAgentConfig["nnConfig"] {
 	return {
 		neuronsByLayer: [
@@ -49,6 +51,7 @@ function _buildNNConfig(
 		perAlpha: genome.rl.replayBuffer.alphaPER,
 		perBeta: genome.rl.replayBuffer.betaPER,
 		perBetaAnneal: genome.rl.replayBuffer.betaAnneal,
+		rng,
 	};
 }
 
@@ -64,11 +67,12 @@ function _buildStateManagerCfg(
 }
 
 function _buildAgentConfig(
-	genome: DeepReadonly<LamarckGenome>
+	genome: DeepReadonly<LamarckGenome>,
+	rng: () => number
 ): TradingAgentConfig {
 	const useContinuous = genome.rl.continuousPolicy?.type !== undefined;
 	return {
-		nnConfig: _buildNNConfig(genome),
+		nnConfig: _buildNNConfig(genome, rng),
 		wallet: { initialCash: Cash.of(1000), initialPrice: Price.of(1) },
 		actionSpace: useContinuous ? ActionSpace.Continuous : ActionSpace.Discrete,
 		tradeAmount: Volume.of(1),
@@ -92,9 +96,10 @@ function _makeTrainFn(agent: TradingAgent): RLBackend["train"] {
 }
 
 export function makeTradingAgentBackend(
-	genome: DeepReadonly<LamarckGenome>
+	genome: DeepReadonly<LamarckGenome>,
+	rng: () => number = Math.random
 ): RLBackend {
-	const cfg = _buildAgentConfig(genome);
+	const cfg = _buildAgentConfig(genome, rng);
 	const agent = new TradingAgent(cfg);
 	_tryLamarckianInjection(agent, genome);
 
@@ -109,4 +114,19 @@ export function makeTradingAgentBackend(
 		resetEpisode: () => agent.resetEpisode(),
 		getExperiencePool: () => agent.getExperiencePool(),
 	};
+}
+
+/**
+ * Builds a {@link BackendFactory} whose backends are replayable: each backend
+ * gets its own PRNG, seeded from a stream derived from `networkSeed`, so the
+ * same seed and the same construction order reproduce the same weights and
+ * replay samples.
+ */
+export function makeSeededBackendFactory(networkSeed: number): BackendFactory {
+	const seedStream = makePRNG(networkSeed);
+	return (genome) =>
+		makeTradingAgentBackend(
+			genome,
+			makePRNG(Math.floor(seedStream() * 4_294_967_296))
+		);
 }

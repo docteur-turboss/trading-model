@@ -43,12 +43,17 @@ export class AgentExperienceHandler {
 	constructor(cfg: NetworkArchitecture) {
 		const enablePool = cfg.enablePool ?? true;
 		const poolMaxSize = cfg.poolMaxSize ?? 10_000;
-		this._pool = createExperiencePool(enablePool, poolMaxSize, {
-			prioritized: cfg.perEnabled ?? false,
-			alpha: cfg.perAlpha ?? 0.6,
-			beta: cfg.perBeta ?? 0.4,
-			betaAnneal: cfg.perBetaAnneal ?? false,
-		});
+		this._pool = createExperiencePool(
+			enablePool,
+			poolMaxSize,
+			{
+				prioritized: cfg.perEnabled ?? false,
+				alpha: cfg.perAlpha ?? 0.6,
+				beta: cfg.perBeta ?? 0.4,
+				betaAnneal: cfg.perBetaAnneal ?? false,
+			},
+			cfg.rng
+		);
 	}
 
 	private _buildExperience(ei: ExperienceInput): Experience {

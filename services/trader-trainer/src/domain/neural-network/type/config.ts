@@ -27,6 +27,8 @@ export interface NetworkArchitecture {
 	perAlpha?: number;
 	perBeta?: number;
 	perBetaAnneal?: boolean;
+	/** Uniform [0, 1) source for weight init and replay sampling; seed it to replay a run. */
+	rng?: () => number;
 }
 
 export interface LossConfig {
@@ -106,5 +108,6 @@ export function mergeConfig(
 		perAlpha: cfg.perAlpha ?? 0.6,
 		perBeta: cfg.perBeta ?? 0.4,
 		perBetaAnneal: cfg.perBetaAnneal ?? false,
+		rng: cfg.rng ?? Math.random,
 	};
 }

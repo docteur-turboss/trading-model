@@ -19,7 +19,10 @@ function _initializeWeights(
 ): Float32Array {
 	const weights = new Float32Array(dims.fanIn * dims.fanOut);
 	for (let i = 0; i < weights.length; i++) {
-		weights[i] = INITIALIZERS[config.initialisationType].initialize(dims);
+		weights[i] = INITIALIZERS[config.initialisationType].initialize(
+			dims,
+			config.rng
+		);
 	}
 	return weights;
 }
@@ -30,7 +33,10 @@ function _initializeBiases(
 ): Float32Array {
 	const bias = new Float32Array(dims.fanOut);
 	for (let i = 0; i < bias.length; i++) {
-		bias[i] = INITIALIZERS[config.biasInitialisationType].initialize(dims);
+		bias[i] = INITIALIZERS[config.biasInitialisationType].initialize(
+			dims,
+			config.rng
+		);
 	}
 	return bias;
 }
