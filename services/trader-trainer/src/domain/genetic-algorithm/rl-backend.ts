@@ -3,7 +3,11 @@ import { ActionSpace } from "../agent/action-types";
 import TradingAgent, { type TradingAgentConfig } from "../agent/trading-agent";
 import type { FeatureVector } from "../feature-vector";
 import type { Experience } from "../neural-network/type";
-import { ConnectionType, InitialisationType } from "../neural-network/type";
+import {
+	ActivationType,
+	ConnectionType,
+	InitialisationType,
+} from "../neural-network/type";
 import { makePRNG } from "./prng";
 import type { DeepReadonly, LamarckGenome } from "./shared-types";
 
@@ -35,9 +39,11 @@ function _buildNNConfig(
 			...genome.network.hiddenLayers.map((layer) => layer.neurons),
 			genome.network.outputDim,
 		],
-		activationType: genome.network.hiddenLayers.map(
-			(layer) => layer.activation
-		),
+		// Q-values are unbounded, so the output layer stays linear.
+		activationType: [
+			...genome.network.hiddenLayers.map((layer) => layer.activation),
+			ActivationType.Linear,
+		],
 		connectionType:
 			genome.network.hiddenLayers[0]?.connectionType ??
 			ConnectionType.FullyConnected,

@@ -70,6 +70,11 @@ const Mish: ActivationDefinition = {
 	},
 };
 
+const Linear: ActivationDefinition = {
+	fn: (input) => input,
+	derivative: () => 1,
+};
+
 const Softmax: ActivationDefinition = {
 	fn: () => {
 		throw new Error(
@@ -92,6 +97,7 @@ const LEAKY_RELU = LeakyRelu;
 const ELU = Elu;
 const GELU = Gelu;
 const MISH = Mish;
+const LINEAR = Linear;
 const SOFTMAX = Softmax;
 
 export const ACTIVATIONS: Record<ActivationType, ActivationDefinition> = {
@@ -102,5 +108,6 @@ export const ACTIVATIONS: Record<ActivationType, ActivationDefinition> = {
 	[ActivationType.Elu]: ELU,
 	[ActivationType.Gelu]: GELU,
 	[ActivationType.Mish]: MISH,
+	[ActivationType.Linear]: LINEAR,
 	[ActivationType.Softmax]: SOFTMAX,
 };

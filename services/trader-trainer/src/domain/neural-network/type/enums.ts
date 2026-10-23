@@ -34,6 +34,7 @@ export enum ActivationType {
 	Softmax = "softmax",
 	Elu = "elu",
 	Mish = "mish",
+	Linear = "linear",
 }
 
 export enum ConnectionType {

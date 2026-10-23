@@ -20,6 +20,17 @@ describe("Activation Functions", () => {
 		});
 	});
 
+	describe("linear", () => {
+		test("fn should be the identity", () => {
+			expect(ACTIVATIONS.linear.fn(-3.5)).toBe(-3.5);
+			expect(ACTIVATIONS.linear.fn(42)).toBe(42);
+		});
+
+		test("derivative should be 1", () => {
+			expect(ACTIVATIONS.linear.derivative(7, -2)).toBe(1);
+		});
+	});
+
 	describe("tanh", () => {
 		test("fn should return 0 for input 0", () => {
 			expect(ACTIVATIONS.tanh.fn(0)).toBe(0);

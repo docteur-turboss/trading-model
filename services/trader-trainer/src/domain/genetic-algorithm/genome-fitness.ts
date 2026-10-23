@@ -68,7 +68,7 @@ export interface ValidationContext {
 const FlopSoftCapMacs = 5_000_000;
 const MemSoftCapMb = 200_000_000;
 
-type ActivationName = ActivationType | "linear" | "swish";
+type ActivationName = ActivationType | "swish";
 
 const ACT_COST: Record<ActivationName, number> = {
 	[ActivationType.Relu]: 1,
@@ -79,8 +79,8 @@ const ACT_COST: Record<ActivationName, number> = {
 	[ActivationType.Softmax]: 10,
 	[ActivationType.Elu]: 3,
 	[ActivationType.Mish]: 8,
+	[ActivationType.Linear]: 1,
 	swish: 6,
-	linear: 1,
 };
 
 export interface ComplexityProfile {
@@ -97,7 +97,7 @@ function _computeLayerFlopsAndParams(
 	for (let i = 1; i < dims.length; i++) {
 		const weightCount = dims[i - 1] * dims[i];
 		const biasCount = dims[i];
-		const act = hiddenLayers[i - 1]?.activation ?? "linear";
+		const act = hiddenLayers[i - 1]?.activation ?? ActivationType.Linear;
 		flops += 2 * weightCount + biasCount * (ACT_COST[act] ?? 2);
 		params += weightCount + biasCount;
 	}
