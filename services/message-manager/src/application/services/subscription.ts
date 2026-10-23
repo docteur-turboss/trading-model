@@ -1,4 +1,5 @@
 import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
+import type { Message } from "@trading-model/contracts/message-types";
 import type {
 	SequenceNumber,
 	Topic,
@@ -6,7 +7,6 @@ import type {
 import type { ServiceIdentity } from "@trading-model/primitives/service-identity";
 import type { TopicBinding } from "@trading-model/primitives/topic-binding";
 import { CircuitStateMachine } from "@trading-model/reliability/circuit-state-machine";
-import type { Message } from "@trading-model/validation/domain/contracts/message.types";
 import { SUBSCRIBER_DELIVERY_CONCURRENCY } from "../../config/metrics";
 import { backoffDelay as computeBackoffDelay } from "../../domain/backoff-calculator";
 import type { MessageDeliveryPort } from "../ports/message-delivery-port";

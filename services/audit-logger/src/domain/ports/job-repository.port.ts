@@ -1,8 +1,8 @@
-import type { InstanceId, JobId } from "@trading-model/primitives/primitives";
 import type {
 	JobStatus,
 	JobUpdateExtras,
-} from "@trading-model/validation/domain/contracts/recovery.types";
+} from "@trading-model/contracts/recovery-types";
+import type { InstanceId, JobId } from "@trading-model/primitives/primitives";
 import type { Job } from "../job.types";
 
 /** Job persistence the scheduler depends on (implemented by the Mongo JobRepository). */

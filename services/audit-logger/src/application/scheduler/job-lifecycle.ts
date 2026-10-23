@@ -1,11 +1,11 @@
 import { randomUUID } from "node:crypto";
+import { JobStatus } from "@trading-model/contracts/recovery-types";
 import {
 	JobId,
 	PositiveInt,
 	toJobType,
 	UnixTimestamp,
 } from "@trading-model/primitives/primitives";
-import { JobStatus } from "@trading-model/validation/domain/contracts/recovery.types";
 import {
 	type Job,
 	JobPriority,

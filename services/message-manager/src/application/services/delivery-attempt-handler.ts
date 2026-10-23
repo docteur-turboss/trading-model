@@ -1,11 +1,11 @@
-import { DeliveryMode } from "@trading-model/common/config/delivery-mode.types";
 import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import { sleep } from "@trading-model/common/utils/sleep";
+import { DeliveryMode } from "@trading-model/contracts/delivery-mode";
+import type { Message } from "@trading-model/contracts/message-types";
 import type {
 	SequenceNumber,
 	ServiceId,
 } from "@trading-model/primitives/primitives";
-import type { Message } from "@trading-model/validation/domain/contracts/message.types";
 import { backoffDelay } from "../../domain/backoff-calculator";
 import type { SubscribersContext } from "../../domain/delivery-metadata-extractor";
 import type { DeliveryParams } from "../../domain/delivery-params";

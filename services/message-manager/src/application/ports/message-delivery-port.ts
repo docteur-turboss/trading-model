@@ -1,9 +1,9 @@
+import type { Message } from "@trading-model/contracts/message-types";
 import type {
 	ConsumerGroupName,
 	SequenceNumber,
 	URLString,
 } from "@trading-model/primitives/primitives";
-import type { Message } from "@trading-model/validation/domain/contracts/message.types";
 
 interface MessageDeliveryContext {
 	deliveryAttempt: SequenceNumber;

@@ -6,6 +6,8 @@ import {
 	it,
 	jest,
 } from "@jest/globals";
+import type { JOB_STATUS, Job } from "@trading-model/contracts/recovery-types";
+import { JobPriority } from "@trading-model/contracts/recovery-types";
 import { OrphanDetector } from "@trading-model/jobs/application/services/orphan-detector";
 import { ReAllocator } from "@trading-model/jobs/application/services/re-allocator";
 import type { WorkerRegistry } from "@trading-model/jobs/application/services/worker-registry";
@@ -24,11 +26,6 @@ import {
 	PositiveInt,
 	UnixTimestamp,
 } from "@trading-model/primitives/primitives";
-import type {
-	JOB_STATUS,
-	Job,
-} from "@trading-model/validation/domain/contracts/recovery.types";
-import { JobPriority } from "@trading-model/validation/domain/contracts/recovery.types";
 
 function createJob(overrides?: Partial<Job>): Job {
 	return {

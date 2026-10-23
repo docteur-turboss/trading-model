@@ -3,8 +3,6 @@
  * messaging types shared across all services. No runtime logic.
  */
 
-import type { DeliveryMode } from "@trading-model/common/config/delivery-mode.types";
-import type { EventEnumMap } from "@trading-model/contracts/event-map";
 import type {
 	CorrelationId,
 	DurationMs,
@@ -18,7 +16,9 @@ import type {
 	UnixTimestamp,
 } from "@trading-model/primitives/primitives";
 import type { ServiceIdentity as DomainServiceIdentity } from "@trading-model/primitives/service-identity";
-import type { Signature } from "./signed-request.types";
+import type { DeliveryMode } from "./delivery-mode";
+import type { EventEnumMap } from "./event-map";
+import type { Signature } from "./signed-request";
 
 /**
  * Identity of a service instance within the broker system.

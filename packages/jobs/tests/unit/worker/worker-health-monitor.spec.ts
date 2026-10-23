@@ -1,11 +1,11 @@
 import { describe, expect, it, jest } from "@jest/globals";
+import type { WorkerRegistration } from "@trading-model/contracts/worker-protocol-types";
 import { WorkerHealthMonitor } from "@trading-model/jobs/application/services/worker-health-monitor";
 import type { WorkerStore } from "@trading-model/jobs/application/services/worker-store";
 import type {
 	PositiveInt,
 	WorkerStatusCode,
 } from "@trading-model/primitives/primitives";
-import type { WorkerRegistration } from "@trading-model/validation/domain/contracts/worker-protocol.types";
 
 function makeWorkerMap(
 	workers: Record<string, Partial<WorkerRegistration>>

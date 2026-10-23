@@ -1,9 +1,9 @@
-import { UnixTimestamp } from "@trading-model/primitives/primitives";
 import {
 	type JobEvent,
 	JobStatus,
 	type JobUpdateExtras,
-} from "@trading-model/validation/domain/contracts/recovery.types";
+} from "@trading-model/contracts/recovery-types";
+import { UnixTimestamp } from "@trading-model/primitives/primitives";
 
 export function buildUpdateSet(
 	status: JobStatus,

@@ -1,10 +1,10 @@
 import { type AppError, isAppError } from "@trading-model/common/utils/errors";
+import type { DlqEntry } from "@trading-model/contracts/dlq-types";
 import {
 	SequenceNumber,
 	Topic,
 	type UnixTimestamp,
 } from "@trading-model/primitives/primitives";
-import type { DlqEntry } from "@trading-model/validation/domain/contracts/dlq.types";
 import type { Document, WithId } from "mongodb";
 import { getCollection } from "../../config/db";
 import { DlqEntryWriter, dlqCapacityError } from "./dlq-entry-writer";

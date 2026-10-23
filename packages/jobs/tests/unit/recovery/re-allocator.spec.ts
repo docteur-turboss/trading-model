@@ -1,4 +1,6 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
+import type { JOB_STATUS, Job } from "@trading-model/contracts/recovery-types";
+import { JobPriority } from "@trading-model/contracts/recovery-types";
 import { ReAllocator } from "@trading-model/jobs/application/services/re-allocator";
 import type { IJobQueue } from "@trading-model/jobs/domain/contracts/job-queue.interface";
 import type { IJobRepository } from "@trading-model/jobs/domain/contracts/job-repository.interface";
@@ -7,11 +9,6 @@ import {
 	type PositiveInt,
 	UnixTimestamp,
 } from "@trading-model/primitives/primitives";
-import type {
-	JOB_STATUS,
-	Job,
-} from "@trading-model/validation/domain/contracts/recovery.types";
-import { JobPriority } from "@trading-model/validation/domain/contracts/recovery.types";
 
 function createJob(overrides?: Partial<Job>): Job {
 	return {

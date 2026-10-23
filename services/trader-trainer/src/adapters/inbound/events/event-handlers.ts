@@ -1,4 +1,4 @@
-import { MarketEvent } from "@trading-model/validation/domain/contracts/market-events";
+import { MarketEvent } from "@trading-model/contracts/market-events";
 import { DataType } from "../../../domain/data-handlers/data-types";
 import type { MarketDataBuffer } from "../../../domain/market-data-buffer";
 import { processBookTicker } from "./event-processors/book-ticker-processor";

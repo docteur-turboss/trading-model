@@ -1,12 +1,12 @@
-import { DeliveryMode } from "@trading-model/common/config/delivery-mode.types";
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
+import { AuditEvent } from "@trading-model/contracts/audit-events";
+import { DeliveryMode } from "@trading-model/contracts/delivery-mode";
+import { MarketEvent } from "@trading-model/contracts/market-events";
 import {
 	toRole,
 	toSubject,
 	toTenantId,
 } from "@trading-model/primitives/primitives";
-import { AuditEvent } from "@trading-model/validation/domain/contracts/audit-events";
-import { MarketEvent } from "@trading-model/validation/domain/contracts/market-events";
 import { z } from "zod";
 
 export const SECURITY_METADATA_CONTEXT_PREDICATE = z

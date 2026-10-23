@@ -1,13 +1,13 @@
+import {
+	type Job,
+	JobPriority,
+	JobStatus,
+} from "@trading-model/contracts/recovery-types";
 import type {
 	JobType,
 	PositiveInt,
 	UnixTimestamp,
 } from "@trading-model/primitives/primitives";
-import {
-	type Job,
-	JobPriority,
-	JobStatus,
-} from "@trading-model/validation/domain/contracts/recovery.types";
 
 export type { Job };
 export { JobPriority, JobStatus };

@@ -1,6 +1,6 @@
+import type { Job } from "@trading-model/contracts/recovery-types";
 import type { JobId } from "@trading-model/primitives/primitives";
 import { RetryPolicy } from "@trading-model/primitives/retry-policy";
-import type { Job } from "@trading-model/validation/domain/contracts/recovery.types";
 import { JobStatus } from "../../domain/job.types";
 import type { JobRepositoryPort } from "../../domain/ports/job-repository.port";
 import type { LoggerPort } from "../../domain/ports/logger-port";

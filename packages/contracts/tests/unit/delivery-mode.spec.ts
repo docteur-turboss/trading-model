@@ -1,5 +1,5 @@
 import { describe, expect, it } from "@jest/globals";
-import { DeliveryMode } from "../../../src/config/delivery-mode.types";
+import { DeliveryMode } from "../../src/delivery-mode";
 
 describe("DeliveryMode", () => {
 	it("should have AtMostOnce with value at-most-once", () => {

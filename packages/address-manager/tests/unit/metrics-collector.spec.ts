@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, jest, test } from "@jest/globals";
+import { HttpMethod } from "@trading-model/contracts/signed-request";
 import { CircuitState } from "@trading-model/primitives/circuit-state";
 import type {
 	ServiceId,
 	UnixTimestamp,
 } from "@trading-model/primitives/primitives";
-import { HttpMethod } from "@trading-model/validation/domain/contracts/signed-request.types";
 import {
 	CallStatus,
 	Endpoint,

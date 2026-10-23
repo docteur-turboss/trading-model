@@ -12,6 +12,7 @@ import {
 	type ServiceInstanceName,
 } from "@trading-model/common/config/services.types";
 import { isAppError } from "@trading-model/common/utils/errors";
+import { Protocol } from "@trading-model/contracts/service-registry-types";
 import type { HttpClient } from "@trading-model/http/adapters/outbound/http-client";
 import {
 	IPAddress,
@@ -23,7 +24,6 @@ import {
 	UnixTimestamp,
 	type URLString,
 } from "@trading-model/primitives/primitives";
-import { Protocol } from "@trading-model/validation/domain/contracts/service-registry.types";
 import { AddressManagerClient } from "../../src/adapters/outbound/client/address-manager-client";
 import type { TokenManager } from "../../src/application/client/token-manager";
 import type { ServiceRegistrationResponse } from "../../src/domain/client/type";

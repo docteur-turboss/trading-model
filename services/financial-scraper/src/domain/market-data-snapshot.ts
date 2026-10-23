@@ -1,4 +1,4 @@
-import type { DeliveryMode } from "@trading-model/common/config/delivery-mode.types";
+import type { DeliveryMode } from "@trading-model/contracts/delivery-mode";
 import type { CandleInterval } from "@trading-model/contracts/market-data.types";
 import type {
 	Limit,

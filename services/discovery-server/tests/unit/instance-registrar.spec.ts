@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
-import type { ServiceInstance } from "@trading-model/validation/domain/contracts/service-registry.types";
+import type { ServiceInstance } from "@trading-model/contracts/service-registry-types";
 
 jest.mock("@trading-model/http/infrastructure/logger", () => ({
 	logger: {

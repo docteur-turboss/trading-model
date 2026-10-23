@@ -1,6 +1,6 @@
 import { describe, expect, it } from "@jest/globals";
-import { DeliveryMode } from "@trading-model/common/config/delivery-mode.types";
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
+import { DeliveryMode } from "@trading-model/contracts/delivery-mode";
 import {
 	PUBLISH_METADATA_SCHEMA,
 	PUBLISH_SCHEMA,

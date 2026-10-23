@@ -1,5 +1,6 @@
-import { DeliveryMode } from "@trading-model/common/config/delivery-mode.types";
 import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
+import { DeliveryMode } from "@trading-model/contracts/delivery-mode";
+import type { Message } from "@trading-model/contracts/message-types";
 import {
 	type ConsumerGroupName,
 	DurationMs,
@@ -7,7 +8,6 @@ import {
 	toConsumerGroupName,
 	UnixTimestamp,
 } from "@trading-model/primitives/primitives";
-import type { Message } from "@trading-model/validation/domain/contracts/message.types";
 import type { DeliveryParams } from "./delivery-params";
 
 interface SubscribersContext {

@@ -12,7 +12,7 @@ import {
 	CandleInterval,
 	TradeSide,
 } from "@trading-model/contracts/market-data.types";
-import { MarketEvent } from "@trading-model/validation/domain/contracts/market-events";
+import { MarketEvent } from "@trading-model/contracts/market-events";
 import { z } from "zod";
 
 const SET_OBJECT = z.object({

@@ -1,12 +1,12 @@
 import { randomUUID } from "node:crypto";
+import type {
+	Message,
+	MessageMetadata,
+} from "@trading-model/contracts/message-types";
 import {
 	toMessageId,
 	UnixTimestamp,
 } from "@trading-model/primitives/primitives";
-import type {
-	Message,
-	MessageMetadata,
-} from "@trading-model/validation/domain/contracts/message.types";
 import { sanitizePayload } from "./payload-sanitizer";
 
 export function createMessage(

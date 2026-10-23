@@ -1,14 +1,14 @@
 import type {
+	JobEvent,
+	JobPriority,
+	JobStatus,
+} from "@trading-model/contracts/recovery-types";
+import type {
 	InstanceId,
 	JobId,
 	JobType,
 } from "@trading-model/primitives/primitives";
 import type { RetryPolicy } from "@trading-model/primitives/retry-policy";
-import type {
-	JobEvent,
-	JobPriority,
-	JobStatus,
-} from "@trading-model/validation/domain/contracts/recovery.types";
 
 export interface JobDocument extends RetryPolicy {
 	jobId: JobId;

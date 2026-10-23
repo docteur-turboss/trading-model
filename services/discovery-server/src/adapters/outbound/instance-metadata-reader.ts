@@ -1,8 +1,8 @@
 import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import { normalizeError } from "@trading-model/common/utils/errors";
+import type { ServiceInstance } from "@trading-model/contracts/service-registry-types";
 import { logger } from "@trading-model/http/infrastructure/logger";
 import type { InstanceId } from "@trading-model/primitives/primitives";
-import type { ServiceInstance } from "@trading-model/validation/domain/contracts/service-registry.types";
 import type { RedisDepsWithoutToken } from "../../shared/redis-deps";
 import {
 	instanceMetadata,

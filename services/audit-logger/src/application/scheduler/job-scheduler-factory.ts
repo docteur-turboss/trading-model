@@ -1,7 +1,7 @@
 import { getLogger } from "@trading-model/contracts/logger-registry";
+import { JobStatus } from "@trading-model/contracts/recovery-types";
 import { OrphanDetector } from "@trading-model/jobs/application/services/orphan-detector";
 import { ReAllocator } from "@trading-model/jobs/application/services/re-allocator";
-import { JobStatus } from "@trading-model/validation/domain/contracts/recovery.types";
 import type { Job } from "../../domain/job.types";
 import type { JobRepositoryPort } from "../../domain/ports/job-repository.port";
 import { BackPressure } from "../../domain/scheduler/back-pressure";

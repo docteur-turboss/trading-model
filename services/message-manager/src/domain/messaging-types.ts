@@ -1,3 +1,4 @@
+import type { Message } from "@trading-model/contracts/message-types";
 import type { DateRange } from "@trading-model/primitives/date-range";
 import type {
 	ConsumerGroupName,
@@ -11,7 +12,6 @@ import type {
 	UnixTimestamp,
 	URLString,
 } from "@trading-model/primitives/primitives";
-import type { Message } from "@trading-model/validation/domain/contracts/message.types";
 
 export interface TopicSubscription {
 	topic: Topic;

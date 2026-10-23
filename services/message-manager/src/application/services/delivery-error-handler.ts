@@ -1,10 +1,10 @@
 import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import { getLogger } from "@trading-model/contracts/logger-registry";
+import type { Message } from "@trading-model/contracts/message-types";
 import type {
 	SequenceNumber,
 	Topic,
 } from "@trading-model/primitives/primitives";
-import type { Message } from "@trading-model/validation/domain/contracts/message.types";
 import {
 	DeliveryErrorClassifier,
 	DlqReason,

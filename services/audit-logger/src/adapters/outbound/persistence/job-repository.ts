@@ -1,3 +1,4 @@
+import { type Job, JobStatus } from "@trading-model/contracts/recovery-types";
 import type { MongoRepository } from "@trading-model/persistence/mongo-repository.interface";
 import { findPaginated } from "@trading-model/persistence/mongo-utils";
 import {
@@ -5,10 +6,6 @@ import {
 	type PaginationResult,
 } from "@trading-model/primitives/pagination";
 import type { InstanceId, JobId } from "@trading-model/primitives/primitives";
-import {
-	type Job,
-	JobStatus,
-} from "@trading-model/validation/domain/contracts/recovery.types";
 import type { Collection, Db } from "mongodb";
 import type { JobDocument } from "./job-document";
 import { documentToJob, jobToDocument } from "./job-document-mapper";
@@ -72,7 +69,7 @@ export class JobRepository implements MongoRepository<Job> {
 	async updateStatus(
 		jobId: JobId,
 		status: JobStatus,
-		extras?: import("@trading-model/validation/domain/contracts/recovery.types").JobUpdateExtras
+		extras?: import("@trading-model/contracts/recovery-types").JobUpdateExtras
 	): Promise<void> {
 		const current = await this._collection.findOne({ jobId });
 		if (!current) {

@@ -1,5 +1,6 @@
 import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import { normalizeError } from "@trading-model/common/utils/errors";
+import type { ServiceInstance } from "@trading-model/contracts/service-registry-types";
 import { generateInstanceToken } from "@trading-model/crypto/application/services/token-service";
 import { logger } from "@trading-model/http/infrastructure/logger";
 import {
@@ -10,7 +11,6 @@ import type {
 	InstanceId,
 	UnixTimestamp,
 } from "@trading-model/primitives/primitives";
-import type { ServiceInstance } from "@trading-model/validation/domain/contracts/service-registry.types";
 import type { RedisDeps } from "../../shared/redis-deps";
 import {
 	instanceMetadata,

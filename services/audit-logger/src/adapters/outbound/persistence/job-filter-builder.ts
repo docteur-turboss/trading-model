@@ -1,6 +1,6 @@
+import type { JobStatus } from "@trading-model/contracts/recovery-types";
 import type { QueryEnvelope } from "@trading-model/primitives/pagination";
 import type { InstanceId, JobType } from "@trading-model/primitives/primitives";
-import type { JobStatus } from "@trading-model/validation/domain/contracts/recovery.types";
 
 type MongoDoc = Record<string, unknown>;
 

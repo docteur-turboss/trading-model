@@ -1,13 +1,13 @@
 import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import { TimerHandle } from "@trading-model/common/utils/timer-handle";
+import type { ServiceInstance } from "@trading-model/contracts/service-registry-types";
 import type { DurationMs } from "@trading-model/primitives/primitives";
 import {
 	toInstanceId,
 	toServiceId,
 } from "@trading-model/primitives/primitives";
 import type { ServiceIdentity } from "@trading-model/primitives/service-identity";
-import type { ServiceInstance } from "@trading-model/validation/domain/contracts/service-registry.types";
 import { isAliveInstance, isExpiredInstance } from "./expiration";
 import { type LoggerPort, NoopLogger } from "./logger-port";
 import {

@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { HELPER } from "@trading-model/broker-message";
+import type { MessageMetadata } from "@trading-model/contracts/message-types";
 import { TrainingEvent } from "@trading-model/contracts/training-events";
 import {
 	toCorrelationId,
@@ -8,7 +9,6 @@ import {
 	toServiceId,
 	toTopic,
 } from "@trading-model/primitives/primitives";
-import type { MessageMetadata } from "@trading-model/validation/domain/contracts/message.types";
 import type { MessageManager } from "../../config/message-manager";
 import type { TradingSymbol } from "../../domain/market-data-types";
 import type { ModelPublisherPort } from "../../domain/ports/model-publisher.port";

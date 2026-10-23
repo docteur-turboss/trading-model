@@ -7,10 +7,10 @@ import {
 	serviceUnreachableError,
 } from "@trading-model/common/utils/errors";
 import type { EventEnumMap } from "@trading-model/contracts/event-map";
+import type { MessageMetadata } from "@trading-model/contracts/message-types";
 import type { HttpClient } from "@trading-model/http/adapters/outbound/http-client";
 import { URLString } from "@trading-model/primitives/primitives";
 import { HostPort } from "@trading-model/primitives/service-identity";
-import type { MessageMetadata } from "@trading-model/validation/domain/contracts/message.types";
 import type { IMessageClient } from "../../domain/ports/i-message-client";
 import type { MessageManagerConfig } from "../../domain/types/config";
 import { TopicSubscriptionService } from "./topic-subscription-service";

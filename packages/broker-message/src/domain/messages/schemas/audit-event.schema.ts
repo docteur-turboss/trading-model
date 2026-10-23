@@ -1,5 +1,5 @@
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
-import { AuditEvent } from "@trading-model/validation/domain/contracts/audit-events";
+import { AuditEvent } from "@trading-model/contracts/audit-events";
 import { z } from "zod";
 
 export const AUDIT_EVENT_VALIDATORS = {

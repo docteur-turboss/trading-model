@@ -1,4 +1,3 @@
-import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import type {
 	AuthToken,
 	DurationMs,
@@ -14,6 +13,7 @@ import type {
 	ServiceEndpoint,
 	ServiceIdentity,
 } from "@trading-model/primitives/service-identity";
+import type { ServiceInstanceName } from "@trading-model/primitives/service-instance-name";
 import type { TokenValidation } from "@trading-model/primitives/token-validation";
 
 export enum Protocol {

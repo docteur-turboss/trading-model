@@ -1,7 +1,8 @@
 import { randomUUID } from "node:crypto";
-import { DeliveryMode } from "@trading-model/common/config/delivery-mode.types";
 import { deterministicStringify } from "@trading-model/common/utils/deterministic-stringify";
+import { DeliveryMode } from "@trading-model/contracts/delivery-mode";
 import type { EventEnumMap } from "@trading-model/contracts/event-map";
+import type { AuthContext } from "@trading-model/contracts/message-types";
 import { sha256Base64url } from "@trading-model/crypto/adapters/outbound/node-hash";
 import type {
 	CorrelationId,
@@ -19,7 +20,6 @@ import {
 	toSubject,
 	toTenantId,
 } from "@trading-model/primitives/primitives";
-import type { AuthContext } from "@trading-model/validation/domain/contracts/message.types";
 
 import { ENV } from "../../../infrastructure/config/env";
 

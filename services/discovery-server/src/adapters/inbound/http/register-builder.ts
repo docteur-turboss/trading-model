@@ -1,3 +1,4 @@
+import { Protocol } from "@trading-model/contracts/service-registry-types";
 import type { UnixTimestamp } from "@trading-model/primitives/primitives";
 import {
 	DurationMs,
@@ -8,7 +9,6 @@ import {
 	toServiceId,
 	toVersion,
 } from "@trading-model/primitives/primitives";
-import { Protocol } from "@trading-model/validation/domain/contracts/service-registry.types";
 import type { z } from "zod";
 import type { ServiceRegistry } from "../../../domain/service-registry";
 import type { REGISTER_SCHEMA } from "../../../shared/register-validator";

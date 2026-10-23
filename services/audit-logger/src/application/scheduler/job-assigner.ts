@@ -1,12 +1,12 @@
 import { getLogger } from "@trading-model/contracts/logger-registry";
+import { JobStatus } from "@trading-model/contracts/recovery-types";
+import type { WorkerRegistration } from "@trading-model/contracts/worker-protocol-types";
 import {
 	type InstanceId,
 	type JobId,
 	PositiveInt,
 	toInstanceId,
 } from "@trading-model/primitives/primitives";
-import { JobStatus } from "@trading-model/validation/domain/contracts/recovery.types";
-import type { WorkerRegistration } from "@trading-model/validation/domain/contracts/worker-protocol.types";
 import type { Job } from "../../domain/job.types";
 import type { JobRepositoryPort } from "../../domain/ports/job-repository.port";
 import type { WorkerProtocolPort } from "../../domain/ports/worker-protocol.port";

@@ -1,8 +1,8 @@
 import type { HttpStatusCode } from "@trading-model/contracts/http-status";
+import type { HttpMethod } from "@trading-model/contracts/signed-request";
 import { ServiceId } from "@trading-model/primitives/primitives";
 import type { ReadinessCheck } from "@trading-model/server-utils/adapters/inbound/readiness";
 import { createServiceServer } from "@trading-model/server-utils/adapters/inbound/service-server-factory";
-import type { HttpMethod } from "@trading-model/validation/domain/contracts/signed-request.types";
 import { HEARTBEAT_ROUTES } from "../adapters/inbound/http/heartbeat.routes";
 import { REGISTRY_ROUTES } from "../adapters/inbound/http/register.routes";
 import type { ServiceRegistry } from "../domain/service-registry";

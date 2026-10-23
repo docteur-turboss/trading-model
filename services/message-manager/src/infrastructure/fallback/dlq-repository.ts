@@ -1,6 +1,6 @@
 import { appendFile } from "node:fs/promises";
 
-import type { DlqEntry } from "@trading-model/validation/domain/contracts/dlq.types";
+import type { DlqEntry } from "@trading-model/contracts/dlq-types";
 import { MESSAGES_DLQ_ERROR_TOTAL } from "../../config/metrics";
 
 export type { DlqEntry };

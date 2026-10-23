@@ -2,14 +2,14 @@ import type { ServiceInstanceName } from "@trading-model/common/config/services.
 import { parseCommaSeparated } from "@trading-model/common/utils/comma-separated";
 import { HTTP_HEADERS } from "@trading-model/contracts/http-headers";
 import { HTTP_STATUS } from "@trading-model/contracts/http-status";
-import { verifySignature as sharedVerifySignature } from "@trading-model/crypto/application/services/request-signer";
-import { isTimestampFresh } from "@trading-model/crypto/domain/services/timestamp";
-import { toServiceId } from "@trading-model/primitives/primitives";
 import type {
 	Signature,
 	SignedRequest,
 	Timestamp,
-} from "@trading-model/validation/domain/contracts/signed-request.types";
+} from "@trading-model/contracts/signed-request";
+import { verifySignature as sharedVerifySignature } from "@trading-model/crypto/application/services/request-signer";
+import { isTimestampFresh } from "@trading-model/crypto/domain/services/timestamp";
+import { toServiceId } from "@trading-model/primitives/primitives";
 import type { NextFunction, Request, Response } from "express";
 import { ENV, resolveAuthHmacSecret } from "../../infrastructure/config/env";
 

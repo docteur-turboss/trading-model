@@ -1,5 +1,5 @@
+import { JobStatus } from "@trading-model/contracts/recovery-types";
 import { type JobId, PositiveInt } from "@trading-model/primitives/primitives";
-import { JobStatus } from "@trading-model/validation/domain/contracts/recovery.types";
 import type { Job } from "../../domain/job.types";
 import type { JobRepositoryPort } from "../../domain/ports/job-repository.port";
 import type { LoggerPort } from "../../domain/ports/logger-port";

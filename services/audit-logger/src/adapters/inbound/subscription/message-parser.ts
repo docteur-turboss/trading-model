@@ -1,4 +1,4 @@
-import type { DeliveryMode } from "@trading-model/common/config/delivery-mode.types";
+import type { DeliveryMode } from "@trading-model/contracts/delivery-mode";
 import type { EventEnumMap } from "@trading-model/contracts/event-map";
 import type {
 	CorrelationId,

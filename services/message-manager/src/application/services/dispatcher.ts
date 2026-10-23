@@ -7,8 +7,8 @@
  */
 
 import { getLogger } from "@trading-model/contracts/logger-registry";
+import type { Message } from "@trading-model/contracts/message-types";
 import type { InstanceId } from "@trading-model/primitives/primitives";
-import type { Message } from "@trading-model/validation/domain/contracts/message.types";
 import {
 	DELIVERY_LATENCY_SECONDS,
 	IN_FLIGHT_MESSAGES,
@@ -43,7 +43,7 @@ export class Dispatcher {
 	async publish(
 		payload: unknown,
 		metadata: Omit<
-			import("@trading-model/validation/domain/contracts/message.types").MessageMetadata,
+			import("@trading-model/contracts/message-types").MessageMetadata,
 			"emittedAt" | "messageId"
 		>
 	): Promise<string> {

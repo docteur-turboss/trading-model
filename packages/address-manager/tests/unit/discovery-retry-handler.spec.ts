@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, jest, test } from "@jest/globals";
 import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
+import { Protocol } from "@trading-model/contracts/service-registry-types";
 import {
 	IPAddress,
 	Port,
@@ -9,7 +10,6 @@ import {
 	toVersion,
 	UnixTimestamp,
 } from "@trading-model/primitives/primitives";
-import { Protocol } from "@trading-model/validation/domain/contracts/service-registry.types";
 import type { DiscoveryCircuitBreaker } from "../../src/application/discovery/circuit-breaker";
 import { DiscoveryRetryHandler } from "../../src/application/discovery/discovery-retry-handler";
 import type { ServiceDiscovery } from "../../src/application/discovery/service-discovery";

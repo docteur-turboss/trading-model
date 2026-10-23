@@ -1,13 +1,13 @@
 import { deterministicStringify } from "@trading-model/common/utils/deterministic-stringify";
 import { HTTP_HEADERS } from "@trading-model/contracts/http-headers";
-import type { ServiceId } from "@trading-model/primitives/primitives";
-import { toServiceId } from "@trading-model/primitives/primitives";
 import type {
 	Signature,
 	SignedRequest,
 	SignedRequestAuth,
 	Timestamp,
-} from "@trading-model/validation/domain/contracts/signed-request.types";
+} from "@trading-model/contracts/signed-request";
+import type { ServiceId } from "@trading-model/primitives/primitives";
+import { toServiceId } from "@trading-model/primitives/primitives";
 import { sha256Hex } from "../../adapters/outbound/node-hash";
 import {
 	createHmacSha256,

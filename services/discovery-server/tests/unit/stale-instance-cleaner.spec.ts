@@ -26,11 +26,11 @@ jest.mock("../../src/infrastructure/monitoring/metrics", () => ({
 	observeCleanupDuration: jest.fn(),
 }));
 
-import type { ServiceIdentity } from "@trading-model/primitives/service-identity";
 import type {
 	ServiceInstance,
 	ServiceInstanceName,
-} from "@trading-model/validation/domain/contracts/service-registry.types";
+} from "@trading-model/contracts/service-registry-types";
+import type { ServiceIdentity } from "@trading-model/primitives/service-identity";
 import type {
 	CleanupDeps,
 	SyncCleanupDeps,

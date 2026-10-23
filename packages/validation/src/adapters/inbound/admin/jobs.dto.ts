@@ -1,4 +1,8 @@
 import type {
+	JobPriority,
+	JobStatus,
+} from "@trading-model/contracts/recovery-types";
+import type {
 	InstanceId,
 	JobId,
 	JobType,
@@ -6,10 +10,6 @@ import type {
 	PositiveInt,
 	UnixTimestamp,
 } from "@trading-model/primitives/primitives";
-import type {
-	JobPriority,
-	JobStatus,
-} from "@trading-model/validation/domain/contracts/recovery.types";
 
 export enum JobTimelineEvent {
 	Created = "created",

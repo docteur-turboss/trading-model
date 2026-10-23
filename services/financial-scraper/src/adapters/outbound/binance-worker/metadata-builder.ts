@@ -1,8 +1,8 @@
 import type { HELPER } from "@trading-model/broker-message";
-import type { DeliveryMode } from "@trading-model/common/config/delivery-mode.types";
+import type { DeliveryMode } from "@trading-model/contracts/delivery-mode";
+import { MarketEvent } from "@trading-model/contracts/market-events";
+import type { Signature } from "@trading-model/contracts/signed-request";
 import { toTopic } from "@trading-model/primitives/primitives";
-import { MarketEvent } from "@trading-model/validation/domain/contracts/market-events";
-import type { Signature } from "@trading-model/validation/domain/contracts/signed-request.types";
 import {
 	buildAuthContext,
 	buildDeliveryConfig,

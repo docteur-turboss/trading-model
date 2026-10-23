@@ -47,8 +47,8 @@ jest.mock("ioredis", () => ({
 	Redis: jest.fn(() => MOCK_REDIS),
 }));
 
+import type { ServiceInstance } from "@trading-model/contracts/service-registry-types";
 import type { ServiceIdentity } from "@trading-model/primitives/service-identity";
-import type { ServiceInstance } from "@trading-model/validation/domain/contracts/service-registry.types";
 import { InstanceHeartbeatHandler } from "../../src/adapters/outbound/instance-heartbeat-handler";
 import type { InstanceMetadataReader } from "../../src/adapters/outbound/instance-metadata-reader";
 

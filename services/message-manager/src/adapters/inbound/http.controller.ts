@@ -4,10 +4,10 @@
  */
 
 import type { HttpStatusCode } from "@trading-model/contracts/http-status";
+import type { MessageMetadata } from "@trading-model/contracts/message-types";
 import { catchSync } from "@trading-model/http/adapters/inbound/catch-error";
 import { sendResponse } from "@trading-model/http/adapters/inbound/response-exception";
 import { toInstanceId, toTopic } from "@trading-model/primitives/primitives";
-import type { MessageMetadata } from "@trading-model/validation/domain/contracts/message.types";
 import type { z } from "zod";
 import type { Dispatcher } from "../../application/services/dispatcher";
 import {

@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, jest, test } from "@jest/globals";
+import { Protocol } from "@trading-model/contracts/service-registry-types";
 import type { HttpClient } from "@trading-model/http/adapters/outbound/http-client";
 import {
 	DurationMs,
@@ -10,7 +11,6 @@ import {
 	UnixTimestamp,
 	URLString,
 } from "@trading-model/primitives/primitives";
-import { Protocol } from "@trading-model/validation/domain/contracts/service-registry.types";
 import { ServiceHealthChecker } from "../../src/adapters/outbound/discovery/service-health-checker";
 import { IpAddressLocator } from "../../src/application/discovery/service-locator";
 import type { ServiceInstance } from "../../src/domain/client/type";

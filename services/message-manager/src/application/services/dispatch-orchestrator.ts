@@ -1,12 +1,12 @@
 import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import { getLogger } from "@trading-model/contracts/logger-registry";
+import type { Message } from "@trading-model/contracts/message-types";
 import { CircuitState } from "@trading-model/primitives/circuit-state";
 import type {
 	SequenceNumber,
 	Topic,
 } from "@trading-model/primitives/primitives";
 import type { CircuitStateMachine } from "@trading-model/reliability/circuit-state-machine";
-import type { Message } from "@trading-model/validation/domain/contracts/message.types";
 import {
 	CIRCUIT_BREAKER_STATE,
 	MESSAGES_DELIVERED_TOTAL,

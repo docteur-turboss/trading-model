@@ -1,14 +1,14 @@
 import type { EventEnumMap } from "@trading-model/contracts/event-map";
+import type {
+	MessageMetadata as MetadataType,
+	SecurityType,
+	ServiceIdentity,
+} from "@trading-model/contracts/message-types";
 import {
 	type CorrelationId,
 	type Topic,
 	toTopic,
 } from "@trading-model/primitives/primitives";
-import type {
-	MessageMetadata as MetadataType,
-	SecurityType,
-	ServiceIdentity,
-} from "@trading-model/validation/domain/contracts/message.types";
 import {
 	type ChainingIds,
 	type ChainingMetadata,
@@ -66,16 +66,14 @@ export class MessageMetadataBuilder {
 	}
 	public setDelivery(
 		context:
-			| import("@trading-model/validation/domain/contracts/message.types").DeliveryType
+			| import("@trading-model/contracts/message-types").DeliveryType
 			| null
 	): this {
 		this._context = this._context.withDelivery(context);
 		return this;
 	}
 	public setRouting(
-		context:
-			| import("@trading-model/validation/domain/contracts/message.types").RoutingType
-			| null
+		context: import("@trading-model/contracts/message-types").RoutingType | null
 	): this {
 		this._context = this._context.withRouting(context);
 		return this;

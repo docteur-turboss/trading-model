@@ -49,7 +49,7 @@ const LEASE_CLEANUP_CYCLES_TOTAL = new promClient.Counter({
 });
 
 import type { HttpStatusCode } from "@trading-model/contracts/http-status";
-import type { HttpMethod } from "@trading-model/validation/domain/contracts/signed-request.types";
+import type { HttpMethod } from "@trading-model/contracts/signed-request";
 import type { DiscoveryMetricsPort } from "../../domain/ports/discovery-metrics.port";
 
 export interface RequestTrack {

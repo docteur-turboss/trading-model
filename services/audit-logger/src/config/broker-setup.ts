@@ -23,8 +23,8 @@ async function subscribeToAllTopics(
 	brokerMessage: BrokerMessage
 ): Promise<void> {
 	const [{ MarketEvent }, { AuditEvent }] = await Promise.all([
-		import("@trading-model/validation/domain/contracts/market-events"),
-		import("@trading-model/validation/domain/contracts/audit-events"),
+		import("@trading-model/contracts/market-events"),
+		import("@trading-model/contracts/audit-events"),
 	]);
 	const allTopics = [
 		...Object.values(MarketEvent),

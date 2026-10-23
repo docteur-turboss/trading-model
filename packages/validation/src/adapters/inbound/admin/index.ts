@@ -1,7 +1,7 @@
 export {
 	JobPriority,
 	JobStatus,
-} from "../../../domain/contracts/recovery.types";
+} from "@trading-model/contracts/recovery-types";
 export type { AuditEvent, AuditFilter } from "./audit.dto";
 export { Severity } from "./audit.dto";
 export type {

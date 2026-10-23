@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
+import { Protocol } from "@trading-model/contracts/service-registry-types";
 import { CircuitState as CircuitStateEnum } from "@trading-model/primitives/circuit-state";
 import {
 	DurationMs,
@@ -10,7 +11,6 @@ import {
 	toVersion,
 	UnixTimestamp,
 } from "@trading-model/primitives/primitives";
-import { Protocol } from "@trading-model/validation/domain/contracts/service-registry.types";
 import { ServiceCache } from "../../src/adapters/outbound/discovery/service-cache";
 import type { ServiceInstance } from "../../src/domain/client/type";
 
