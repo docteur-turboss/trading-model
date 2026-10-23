@@ -65,14 +65,19 @@ export class TradingAgent {
 		}
 		const currentPnL = this.wallet.getPnL();
 
-		const output = this._agent.fastForward({ input });
+		const { output } = this._agent.nn.forward(input);
 		const epsilon = this.state.getEpsilon();
 		const temperature = this.state.getTemperature();
-		const { action, amount } = this._actionMapper.map(
+		const { action, amount, outputIndex } = this._actionMapper.map(
 			output,
 			epsilon,
 			temperature
 		);
+		this._agent.experience.recordExperience({
+			input,
+			output,
+			action: outputIndex,
+		});
 		const executor = ACTION_EXECUTORS[action];
 		const executed = executor(this.wallet, amount);
 

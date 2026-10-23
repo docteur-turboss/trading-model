@@ -14,6 +14,7 @@ function makeExperience(value: number): Experience {
 		reward: value,
 		nextState: new Float32Array([value]),
 		done: false,
+		action: 0,
 	} as Experience;
 }
 

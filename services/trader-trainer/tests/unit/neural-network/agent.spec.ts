@@ -133,6 +133,7 @@ describe("Agent", () => {
 				reward: 1.5,
 				nextState: new Float32Array([0.1, 0.2, 0.3]),
 				done: false,
+				action: 1,
 			});
 
 			const pool = agent.experience.getPool();
@@ -141,6 +142,7 @@ describe("Agent", () => {
 			if (exp.kind === ExperienceKind.QLearning) {
 				expect(exp.reward).toBe(1.5);
 				expect(exp.done).toBe(false);
+				expect(exp.action).toBe(1);
 			} else {
 				throw new Error("Expected qlearning experience");
 			}
@@ -309,6 +311,7 @@ describe("Agent", () => {
 				reward: 1.0,
 				nextState: new Float32Array([0.1, 0.2, 0.3, 0.9]),
 				done: false,
+				action: 0,
 			});
 
 			const pool = agent.experience.getPool();
@@ -325,6 +328,7 @@ describe("Agent", () => {
 				reward: 1.0,
 				nextState: new Float32Array([0.1, 0.2, 0.3, 0.9]),
 				done: true,
+				action: 2,
 			});
 
 			const pool = agent.experience.getPool();
@@ -333,6 +337,19 @@ describe("Agent", () => {
 			expect(() =>
 				agent.experience.learnExperience(agent.nn, exp)
 			).not.toThrow();
+		});
+
+		it("should keep a transition without played action out of Q-learning", () => {
+			agent.fastForward({
+				input: new Float32Array([0.5, -0.3, 0.1, 0.8]),
+				reward: 1.0,
+				nextState: new Float32Array([0.1, 0.2, 0.3, 0.9]),
+			});
+
+			const exp = agent.experience.getPool()[0];
+
+			expect(exp.kind).toBe(ExperienceKind.Bare);
+			expect(() => agent.experience.learnExperience(agent.nn, exp)).toThrow();
 		});
 	});
 });

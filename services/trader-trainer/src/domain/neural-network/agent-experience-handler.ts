@@ -16,6 +16,7 @@ export interface ExperienceInput {
 	reward?: number;
 	nextState?: Float32Array;
 	done?: boolean;
+	action?: number;
 }
 
 type LearnStrategyMap = {
@@ -57,8 +58,10 @@ export class AgentExperienceHandler {
 	}
 
 	private _buildExperience(ei: ExperienceInput): Experience {
-		const { input, output, reward, nextState, done } = ei;
-		return reward !== undefined && nextState !== undefined
+		const { input, output, reward, nextState, done, action } = ei;
+		return reward !== undefined &&
+			nextState !== undefined &&
+			action !== undefined
 			? {
 					kind: ExperienceKind.QLearning,
 					input,
@@ -66,8 +69,9 @@ export class AgentExperienceHandler {
 					reward: reward as unknown as Reward,
 					nextState,
 					done: done ?? false,
+					action,
 				}
-			: { kind: ExperienceKind.Bare, input, output: output.slice() };
+			: { kind: ExperienceKind.Bare, input, output: output.slice(), action };
 	}
 
 	recordExperience(ei: ExperienceInput): void {

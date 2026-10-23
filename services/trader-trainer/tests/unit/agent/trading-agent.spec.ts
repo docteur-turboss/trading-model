@@ -1,4 +1,11 @@
-import { beforeEach, describe, expect, it } from "@jest/globals";
+import {
+	afterEach,
+	beforeEach,
+	describe,
+	expect,
+	it,
+	jest,
+} from "@jest/globals";
 import { Cash, Price, Volume } from "@trading-model/primitives/primitives";
 import { ActionSpace } from "../../../src/domain/agent/action-types";
 import type { TradingAgentConfig } from "../../../src/domain/agent/trading-agent";
@@ -75,6 +82,7 @@ describe("TradingAgent", () => {
 				reward: 1,
 				nextState: new Float32Array([0.1, 0.2, 0.3, 0.9]),
 				done: false,
+				action: 0,
 			};
 			expect(() => agent.learnQLearning(exp, 0.99)).not.toThrow();
 		});
@@ -113,6 +121,7 @@ describe("TradingAgent", () => {
 			const result = agent.mapOutputToAction(output);
 
 			expect(result.action).toBe("sell");
+			expect(result.outputIndex).toBe(0);
 		});
 
 		it("should map index 1 to hold", () => {
@@ -129,6 +138,7 @@ describe("TradingAgent", () => {
 			const result = agent.mapOutputToAction(output);
 
 			expect(result.action).toBe("buy");
+			expect(result.outputIndex).toBe(2);
 		});
 
 		it("should use tradeAmount from config for discrete actions", () => {
@@ -156,6 +166,7 @@ describe("TradingAgent", () => {
 
 			expect(result.action).toBe("buy");
 			expect(result.amount).toBe(1);
+			expect(result.outputIndex).toBe(0);
 		});
 
 		it("should return hold for near-zero continuous output", () => {
@@ -195,6 +206,36 @@ describe("TradingAgent", () => {
 	});
 
 	describe("step", () => {
+		afterEach(() => {
+			jest.restoreAllMocks();
+		});
+
+		it("should record the explored action, not the greedy one", () => {
+			const explorer = new TradingAgent(
+				makeConfig({
+					stateManagerCfg: { epsilonStart: 1, epsilonMin: 1, epsilonDecay: 1 },
+				})
+			);
+			// Zero weights give equal Q-values, so the greedy pick is index 0;
+			// the rolls force exploration onto index 2 instead.
+			jest
+				.spyOn(Math, "random")
+				.mockReturnValueOnce(0)
+				.mockReturnValueOnce(0.9);
+
+			explorer.step(new Float32Array([0.5, -0.3, 0.1, 0.8]), Price.of(105));
+
+			const [recorded] = explorer.getExperiencePool();
+			expect(recorded).toMatchObject({ kind: ExperienceKind.Bare, action: 2 });
+		});
+
+		it("should record the greedy action when not exploring", () => {
+			agent.step(new Float32Array([0.5, -0.3, 0.1, 0.8]), Price.of(105));
+
+			const [recorded] = agent.getExperiencePool();
+			expect(recorded).toMatchObject({ action: 0 });
+		});
+
 		it("should update wallet price when price is provided", () => {
 			agent.step(new Float32Array([0.5, -0.3, 0.1, 0.8]), Price.of(105));
 

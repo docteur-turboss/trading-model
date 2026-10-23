@@ -9,6 +9,8 @@ interface ExperienceBase {
 
 interface BareExperience extends ExperienceBase {
 	kind: ExperienceKind.Bare;
+	/** Index of the output unit the policy acted on, once known. */
+	action?: number;
 }
 
 export interface QLearningExperience extends ExperienceBase {
@@ -16,6 +18,8 @@ export interface QLearningExperience extends ExperienceBase {
 	reward: Reward;
 	nextState: Float32Array;
 	done: boolean;
+	/** Index of the output unit the policy acted on (not necessarily the argmax). */
+	action: number;
 }
 
 interface SupervisedExperience extends ExperienceBase {

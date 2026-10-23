@@ -24,6 +24,7 @@ export interface FastForwardInput {
 	reward?: number;
 	nextState?: Float32Array;
 	done?: boolean;
+	action?: number;
 }
 
 export class Agent {
@@ -52,7 +53,7 @@ export class Agent {
 	 * experience in the replay pool if reward/nextState are provided.
 	 */
 	public fastForward(ff: FastForwardInput): Float32Array {
-		const { input, reward, nextState, done } = ff;
+		const { input, reward, nextState, done, action } = ff;
 		const { output } = this.nn.forward(input);
 		this.experience.recordExperience({
 			input,
@@ -60,6 +61,7 @@ export class Agent {
 			reward,
 			nextState,
 			done,
+			action,
 		});
 		return output;
 	}

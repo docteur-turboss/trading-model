@@ -1,3 +1,4 @@
+import { agentError } from "@trading-model/common/utils/errors";
 import type { Reward } from "@trading-model/primitives/primitives";
 import type { Experience } from "../neural-network/type";
 import { ExperienceKind } from "../neural-network/type";
@@ -32,8 +33,15 @@ function _canTrain(pool: Experience[]): boolean {
 
 function _buildTrainExperience(ctx: ExperienceContext): Experience {
 	const { prev, index, rewardBuf, genome, trainData, maxT } = ctx;
+	const action = "action" in prev ? prev.action : undefined;
+	if (action === undefined) {
+		throw agentError(
+			"Cannot build a Q-learning transition without the played action."
+		);
+	}
 	return {
 		...prev,
+		action,
 		kind: ExperienceKind.QLearning,
 		reward: nStepReturn(rewardBuf, index, genome) as unknown as Reward,
 		nextState: trainData[index].features.toFloat32Array(),

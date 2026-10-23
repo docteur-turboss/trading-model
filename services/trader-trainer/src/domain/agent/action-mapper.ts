@@ -4,6 +4,8 @@ import { ActionSpace, TradeAction } from "./action-types";
 export interface ActionMap {
 	action: TradeAction;
 	amount: Volume;
+	/** Output unit that drove the decision; the one Q-learning updates. */
+	outputIndex: number;
 }
 
 export interface ActionMapperConfig {
@@ -49,48 +51,55 @@ function _softmaxSample(output: Float32Array, temperature: number): number {
 	return exponentials.length - 1;
 }
 
-const ACTION_SPACE_STRATEGIES: Record<ActionSpace, ActionSpaceStrategy> = {
-	[ActionSpace.Continuous]: (
-		output: Float32Array,
-		amount: Volume,
-		epsilon?: number,
-		_temperature?: number
-	): ActionMap => {
-		const val = output[0] ?? 0;
-		if (epsilon !== undefined && Math.random() < epsilon) {
-			const roll = Math.random();
-			if (roll < 0.33) {
-				return {
-					action: TradeAction.Buy,
-					amount: Volume.of(
-						Math.max(1, Math.round(Math.abs(roll) * Number(amount)))
-					),
-				};
-			}
-			if (roll > 0.66) {
-				return {
-					action: TradeAction.Sell,
-					amount: Volume.of(
-						Math.max(1, Math.round(Math.abs(roll) * Number(amount)))
-					),
-				};
-			}
-			return { action: TradeAction.Hold, amount: Volume.zero() };
-		}
-		if (val > 0.25) {
+/** The continuous policy reads its decision from the first output unit only. */
+const CONTINUOUS_OUTPUT_INDEX = 0;
+
+function _continuousAction(
+	output: Float32Array,
+	amount: Volume,
+	epsilon?: number
+): Omit<ActionMap, "outputIndex"> {
+	const val = output[CONTINUOUS_OUTPUT_INDEX] ?? 0;
+	if (epsilon !== undefined && Math.random() < epsilon) {
+		const roll = Math.random();
+		if (roll < 0.33) {
 			return {
 				action: TradeAction.Buy,
-				amount: Volume.of(Math.max(1, Math.round(val * Number(amount)))),
+				amount: Volume.of(
+					Math.max(1, Math.round(Math.abs(roll) * Number(amount)))
+				),
 			};
 		}
-		if (val < -0.25) {
+		if (roll > 0.66) {
 			return {
 				action: TradeAction.Sell,
-				amount: Volume.of(Math.max(1, Math.round(-val * Number(amount)))),
+				amount: Volume.of(
+					Math.max(1, Math.round(Math.abs(roll) * Number(amount)))
+				),
 			};
 		}
 		return { action: TradeAction.Hold, amount: Volume.zero() };
-	},
+	}
+	if (val > 0.25) {
+		return {
+			action: TradeAction.Buy,
+			amount: Volume.of(Math.max(1, Math.round(val * Number(amount)))),
+		};
+	}
+	if (val < -0.25) {
+		return {
+			action: TradeAction.Sell,
+			amount: Volume.of(Math.max(1, Math.round(-val * Number(amount)))),
+		};
+	}
+	return { action: TradeAction.Hold, amount: Volume.zero() };
+}
+
+const ACTION_SPACE_STRATEGIES: Record<ActionSpace, ActionSpaceStrategy> = {
+	[ActionSpace.Continuous]: (output, amount, epsilon) => ({
+		..._continuousAction(output, amount, epsilon),
+		outputIndex: CONTINUOUS_OUTPUT_INDEX,
+	}),
 	[ActionSpace.Discrete]: (
 		output: Float32Array,
 		amount: Volume,
@@ -111,6 +120,7 @@ const ACTION_SPACE_STRATEGIES: Record<ActionSpace, ActionSpaceStrategy> = {
 				DISCRETE_ACTIONS.get(idx) === TradeAction.Hold
 					? Volume.zero()
 					: Volume.of(amount),
+			outputIndex: idx,
 		};
 	},
 };

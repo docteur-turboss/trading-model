@@ -121,6 +121,7 @@ function makeMockBackend(poolSize: number): RLBackend {
 			reward: 1,
 			nextState: new Float32Array([0.1, 0.2, 0.3]),
 			done: false,
+			action: 0,
 		});
 	}
 	return {

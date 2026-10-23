@@ -607,12 +607,14 @@ describe("full GA loop", () => {
 					output: new Float32Array([0.1, 0.2, 0.3]),
 					reward: 1,
 					nextState: new Float32Array([0.1, 0.2, 0.3]),
+					action: 0,
 				},
 				{
 					input: new Float32Array([0.4, 0.5, 0.6]),
 					output: new Float32Array([0.4, 0.5, 0.6]),
 					reward: 1,
 					nextState: new Float32Array([0.4, 0.5, 0.6]),
+					action: 2,
 				},
 			]),
 			forwardPass: jest.fn(
@@ -870,12 +872,14 @@ describe("full GA loop", () => {
 					output: new Float32Array([0.1, 0.2, 0.3]),
 					reward: 1,
 					nextState: new Float32Array([0.1, 0.2, 0.3]),
+					action: 0,
 				},
 				{
 					input: new Float32Array([0.4, 0.5, 0.6]),
 					output: new Float32Array([0.4, 0.5, 0.6]),
 					reward: 1,
 					nextState: new Float32Array([0.4, 0.5, 0.6]),
+					action: 2,
 				},
 			]),
 			forwardPass: jest.fn(
