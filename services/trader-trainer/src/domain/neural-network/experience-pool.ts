@@ -12,6 +12,32 @@ export interface IExperiencePool {
 	values(): MapIterator<Experience>;
 }
 
+export interface PrioritizedSample {
+	experiences: Experience[];
+	/** Pool ids of the sampled experiences, to feed back into `updatePriorities`. */
+	ids: number[];
+	/** Importance-sampling weights, aligned with `experiences`. */
+	weights: Float32Array;
+}
+
+export interface IPrioritizedExperiencePool extends IExperiencePool {
+	/** Draws `batchSize` experiences with replacement, proportionally to P(i). */
+	sampleWithWeights(batchSize: number): PrioritizedSample;
+	/** Sets p_i = |δ_i| + ε for each sampled id; unknown ids are ignored. */
+	updatePriorities(ids: readonly number[], tdErrors: readonly number[]): void;
+}
+
+export interface PerConfig {
+	alpha: number;
+	beta: number;
+	betaAnneal: boolean;
+	/** Linear increment applied to beta after each sample. @default 1e-4 */
+	betaAnnealRate?: number;
+}
+
+const PRIORITY_EPSILON = 1e-6;
+const DEFAULT_BETA_ANNEAL_RATE = 1e-4;
+
 const DISABLED_POOL: IExperiencePool = {
 	add: () => {},
 	getPool: () => [],
@@ -34,11 +60,15 @@ class ExperiencePool implements IExperiencePool {
 		this._rng = rng;
 	}
 
+	/** Hook for subclasses keeping per-experience state keyed by pool id. */
+	protected _onRemoved(_id: number): void {}
+
 	private _evictOldest(): void {
 		const firstKey = this._firstMapKey();
 		const oldest = this._poolMap.get(firstKey);
 		this._poolMap.delete(firstKey);
 		this._poolInputToId.delete(oldest!.input);
+		this._onRemoved(firstKey);
 	}
 
 	private _firstMapKey(): number {
@@ -103,6 +133,7 @@ class ExperiencePool implements IExperiencePool {
 		if (id !== undefined) {
 			this._poolMap.delete(id);
 			this._poolInputToId.delete(input);
+			this._onRemoved(id);
 		}
 	}
 
@@ -112,130 +143,92 @@ class ExperiencePool implements IExperiencePool {
 }
 
 /**
- * Prioritized Experience Replay pool.
+ * Proportional Prioritized Experience Replay (Schaul et al., 2016).
  *
- * Uses proportional prioritization: probability of sampling experience i is
- * proportional to priority_i^alpha. Priorities are based on recency — newer
- * experiences are more likely to be sampled, reflecting that recent transitions
- * carry more relevant signal for on-policy-like updates.
- *
- * After sampling, importance sampling (IS) weights are computed as:
- *   w_i = (N * P(i))^(-beta)
- * where P(i) = priority_i^alpha / sum(priority_j^alpha) and N is pool size.
- * The weights are normalized by max(w) to reduce variance.
- *
- * When betaAnneal is true, beta is annealed from its initial value towards 1.0
- * over the lifetime of the pool (progressive correction).
+ * - Experience i is drawn, with replacement, with probability
+ *   P(i) = p_i^α / Σ_j p_j^α.
+ * - New experiences get the highest priority seen so far, so each one is
+ *   likely to be replayed at least once before its TD error is known.
+ * - `updatePriorities` sets p_i = |δ_i| + ε from the TD errors of a batch.
+ * - Each draw carries an importance-sampling weight
+ *   w_i = (N · P(i))^-β / max_j w_j, the maximum taken over the whole pool
+ *   (i.e. at the least likely experience), so weights lie in (0, 1].
+ * - With `betaAnneal`, beta grows linearly by `betaAnnealRate` after each
+ *   sample, capped at 1 (full bias correction).
  */
-class PrioritizedExperiencePool extends ExperiencePool {
-	private _priorities = new Map<number, number>();
+class PrioritizedExperiencePool
+	extends ExperiencePool
+	implements IPrioritizedExperiencePool
+{
+	private readonly _priorities = new Map<number, number>();
 	private _maxPriority = 1.0;
-	private readonly _alpha: number;
 	private _beta: number;
-	private readonly _betaAnneal: boolean;
-	private _stepCount = 0;
 
 	constructor(
 		poolMaxSize: number,
-		alpha: number,
-		beta: number,
-		betaAnneal: boolean,
+		private readonly _per: PerConfig,
 		rng: () => number
 	) {
 		super(poolMaxSize, rng);
-		this._alpha = alpha;
-		this._beta = beta;
-		this._betaAnneal = betaAnneal;
+		this._beta = _per.beta;
 	}
 
 	public add(experience: Experience): void {
 		super.add(experience);
-		const id = this._nextPoolId - 1;
-		this._priorities.set(id, this._maxPriority);
+		this._priorities.set(this._nextPoolId - 1, this._maxPriority);
 	}
 
-	private _computeSamplingWeights(): {
-		indices: number[];
-		weights: Float32Array;
-	} {
-		const poolMap = this.getPoolMap();
-		const entries = [...poolMap.entries()];
-		if (entries.length === 0) {
-			return { indices: [], weights: new Float32Array(0) };
+	public updatePriorities(
+		ids: readonly number[],
+		tdErrors: readonly number[]
+	): void {
+		if (ids.length !== tdErrors.length) {
+			throw agentError(
+				`Got ${tdErrors.length} TD errors for ${ids.length} experiences.`
+			);
+		}
+		ids.forEach((id, idx) => {
+			if (!this._priorities.has(id)) {
+				return;
+			}
+			const priority = Math.abs(tdErrors[idx]) + PRIORITY_EPSILON;
+			this._priorities.set(id, priority);
+			this._maxPriority = Math.max(this._maxPriority, priority);
+		});
+	}
+
+	public sampleWithWeights(batchSize: number): PrioritizedSample {
+		const entries = [...this.getPoolMap().entries()];
+		if (entries.length === 0 || batchSize <= 0) {
+			return { experiences: [], ids: [], weights: new Float32Array(0) };
 		}
 
-		const priorities = entries.map(([id]) => {
-			return this._priorities.get(id) ?? 1.0;
-		});
-
-		const powered = priorities.map((priority) => priority ** this._alpha);
-		const sumPowered = powered.reduce((acc, val) => acc + val, 0);
-		const probs = powered.map((power) => power / sumPowered);
-
-		const entryCount = entries.length;
-		const isWeights = probs.map((prob) => (entryCount * prob) ** -this._beta);
-		const maxWeight = Math.max(...isWeights);
-		const normalizedWeights = new Float32Array(
-			isWeights.map((weight) => weight / maxWeight)
+		const scaled = entries.map(
+			([id]) =>
+				(this._priorities.get(id) ?? this._maxPriority) ** this._per.alpha
 		);
+		const total = scaled.reduce((acc, val) => acc + val, 0);
+		const count = entries.length;
+		const minScaled = scaled.reduce((acc, val) => Math.min(acc, val));
+		const maxWeight = ((count * minScaled) / total) ** -this._beta;
 
-		return {
-			indices: entries.map(([id]) => id),
-			weights: normalizedWeights,
+		const picks = Array.from({ length: batchSize }, () =>
+			this._pickIndex(scaled, total)
+		);
+		const sample: PrioritizedSample = {
+			experiences: picks.map((idx) => entries[idx][1]),
+			ids: picks.map((idx) => entries[idx][0]),
+			weights: Float32Array.from(
+				picks,
+				(idx) => ((count * scaled[idx]) / total) ** -this._beta / maxWeight
+			),
 		};
+		this._advanceBeta();
+		return sample;
 	}
 
 	public samplePool(batchSize: number): Experience[] {
-		const poolMap = this.getPoolMap();
-		const size = poolMap.size;
-		if (size === 0) {
-			return [];
-		}
-		if (batchSize >= size) {
-			return [...poolMap.values()];
-		}
-
-		this._stepCount++;
-		if (this._betaAnneal) {
-			const annealRate = 0.0001;
-			this._beta = Math.min(1.0, this._beta + annealRate * this._stepCount);
-		}
-
-		const { indices, weights } = this._computeSamplingWeights();
-		if (indices.length === 0) {
-			return [];
-		}
-
-		const sampled: Experience[] = [];
-		const used = new Set<number>();
-
-		for (let batchIdx = 0; batchIdx < batchSize; batchIdx++) {
-			const roll = this._rng();
-			let cumulative = 0;
-			const probs = indices.map(
-				(_entryId, entryIdx) => weights[entryIdx] / (weights.length || 1)
-			);
-			const probSum = probs.reduce((acc, val) => acc + val, 0);
-			const normalized = probs.map((prob) => prob / probSum);
-
-			for (let j = 0; j < normalized.length; j++) {
-				cumulative += normalized[j];
-				if (roll <= cumulative && !used.has(indices[j])) {
-					used.add(indices[j]);
-					const exp = poolMap.get(indices[j]);
-					if (exp) {
-						sampled.push(exp);
-						this._maxPriority = Math.max(
-							this._maxPriority,
-							this._priorities.get(indices[j]) ?? 1.0
-						);
-					}
-					break;
-				}
-			}
-		}
-
-		return sampled;
+		return this.sampleWithWeights(batchSize).experiences;
 	}
 
 	public clearPool(): void {
@@ -244,33 +237,51 @@ class PrioritizedExperiencePool extends ExperiencePool {
 		this._maxPriority = 1.0;
 	}
 
-	public remove(input: Float32Array): void {
-		super.remove(input);
+	protected _onRemoved(id: number): void {
+		this._priorities.delete(id);
 	}
+
+	private _pickIndex(scaled: number[], total: number): number {
+		const roll = this._rng() * total;
+		let cumulative = 0;
+		for (let idx = 0; idx < scaled.length; idx++) {
+			cumulative += scaled[idx];
+			if (roll < cumulative) {
+				return idx;
+			}
+		}
+		// Floating-point rounding can leave roll just above the last bound.
+		return scaled.length - 1;
+	}
+
+	private _advanceBeta(): void {
+		if (!this._per.betaAnneal) {
+			return;
+		}
+		const rate = this._per.betaAnnealRate ?? DEFAULT_BETA_ANNEAL_RATE;
+		this._beta = Math.min(1, this._beta + rate);
+	}
+}
+
+export function createPrioritizedExperiencePool(
+	poolMaxSize: number,
+	perConfig: PerConfig,
+	rng: () => number = Math.random
+): IPrioritizedExperiencePool {
+	return new PrioritizedExperiencePool(poolMaxSize, perConfig, rng);
 }
 
 export function createExperiencePool(
 	enablePool: boolean,
 	poolMaxSize: number,
-	perConfig?: {
-		prioritized: boolean;
-		alpha: number;
-		beta: number;
-		betaAnneal: boolean;
-	},
+	perConfig?: PerConfig & { prioritized: boolean },
 	rng: () => number = Math.random
 ): IExperiencePool {
 	if (!enablePool) {
 		return DISABLED_POOL;
 	}
 	if (perConfig?.prioritized) {
-		return new PrioritizedExperiencePool(
-			poolMaxSize,
-			perConfig.alpha,
-			perConfig.beta,
-			perConfig.betaAnneal,
-			rng
-		);
+		return createPrioritizedExperiencePool(poolMaxSize, perConfig, rng);
 	}
 	return new ExperiencePool(poolMaxSize, rng);
 }
