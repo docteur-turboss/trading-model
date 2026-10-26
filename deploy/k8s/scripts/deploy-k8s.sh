@@ -82,7 +82,7 @@ cmd_apply() {
       rollout_failed=1
     fi
   else
-    for dep in discovery-server message-manager financial-scraper trader-trainer \
+    for dep in discovery-server message-manager financial-scraper financial-scraper-collector trader-trainer \
                api-gateway audit-logger dlq-service admin-interface; do
       if ! kubectl rollout status -n "$NAMESPACE" "deployment/${dep}" --timeout=120s; then
         err "Rollout of $dep failed or timed out."
@@ -334,7 +334,7 @@ cmd_canary_cleanup() {
 cmd_pin() {
   log "Pinning deployed images to immutable @sha256 digests..."
   local services=(
-    discovery-server message-manager financial-scraper trader-trainer
+    discovery-server message-manager financial-scraper financial-scraper-collector trader-trainer
     api-gateway audit-logger dlq-service admin-interface
   )
   local failed=0

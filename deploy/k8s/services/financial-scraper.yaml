@@ -176,3 +176,187 @@ spec:
           emptyDir: {}
         - name: tmp
           emptyDir: {}
+---
+# Single scrape-cron instance (SCRAPE_SCHEDULER_ENABLED=true). It shares the
+# financial-scraper ServiceAccount (same SPIFFE ID) but not its Service: API
+# traffic stays on the HPA-scaled replicas. This Service only exposes /metrics.
+apiVersion: v1
+kind: Service
+metadata:
+  name: financial-scraper-collector
+  labels:
+    app.kubernetes.io/component: financial-scraper-collector
+    app.kubernetes.io/part-of: trading-model
+spec:
+  ports:
+    - port: 3000
+      targetPort: 3000
+      name: https
+  selector:
+    app.kubernetes.io/component: financial-scraper-collector
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: financial-scraper-collector
+  labels:
+    app.kubernetes.io/component: financial-scraper-collector
+    app.kubernetes.io/part-of: trading-model
+spec:
+  # Exactly one collector: Recreate never runs two crons side by side.
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: financial-scraper-collector
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: financial-scraper-collector
+        app.kubernetes.io/part-of: trading-model
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "3000"
+        prometheus.io/scheme: "https"
+    spec:
+      serviceAccountName: financial-scraper
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: financial-scraper-collector
+          image: ghcr.io/trading-model/financial-scraper:latest
+          imagePullPolicy: Always
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
+          ports:
+            - containerPort: 3000
+              name: https
+          envFrom:
+            - configMapRef:
+                name: financial-scraper-config
+          env:
+            - name: SCRAPE_SCHEDULER_ENABLED
+              value: "true"
+            - name: INSTANCE_ID
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: trading-model-secrets
+                  key: MYSQL_PASSWORD
+            - name: MYSQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: trading-model-secrets
+                  key: MYSQL_PASSWORD
+            - name: ERROR_URL_WEBHOOK
+              value: ""
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          volumeMounts:
+            - name: svid
+              mountPath: /run/spire/svid
+            - name: tmp
+              mountPath: /tmp
+          livenessProbe:
+            exec:
+              command:
+                - curl
+                - -skf
+                - --cert
+                - /run/spire/svid/svid.pem
+                - --key
+                - /run/spire/svid/svid_key.pem
+                - https://localhost:3000/ping
+            initialDelaySeconds: 20
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            exec:
+              command:
+                - curl
+                - -skf
+                - --cert
+                - /run/spire/svid/svid.pem
+                - --key
+                - /run/spire/svid/svid_key.pem
+                - https://localhost:3000/health/ready
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 3
+            successThreshold: 1
+          startupProbe:
+            exec:
+              command:
+                - curl
+                - -skf
+                - --cert
+                - /run/spire/svid/svid.pem
+                - --key
+                - /run/spire/svid/svid_key.pem
+                - https://localhost:3000/ping
+            initialDelaySeconds: 30
+            periodSeconds: 5
+            failureThreshold: 12
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - /bin/sh
+                  - -c
+                  - sleep 10
+        - name: spiffe-helper
+          image: ghcr.io/spiffe/spiffe-helper:0.6.0
+          imagePullPolicy: IfNotPresent
+          args:
+            - -socketPath=/run/spire/agent-sockets/public/api.sock
+            - -certDir=/run/spire/svid
+            - -svidFileName=svid.pem
+            - -svidKeyFileName=svid_key.pem
+            - -svidBundleFileName=bundle.pem
+            - -renewSignal=SIGHUP
+          volumeMounts:
+            - name: spire-agent-socket
+              mountPath: /run/spire/agent-sockets
+            - name: svid
+              mountPath: /run/spire/svid
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
+      volumes:
+        - name: spire-agent-socket
+          hostPath:
+            path: /run/spire/agent-sockets
+            type: DirectoryOrCreate
+        - name: svid
+          emptyDir: {}
+        - name: tmp
+          emptyDir: {}

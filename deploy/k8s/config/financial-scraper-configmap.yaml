@@ -29,6 +29,13 @@ data:
   DB_NAME: "financial_scraper"
   DB_HOST: "mysql-primary"
   DB_PORT: "3306"
+  # Same symbols as TRAINER_SYMBOLS: the trainer consumes what the scraper publishes.
+  SYMBOLS_TO_TRACK: "BTCUSDT,ETHUSDT"
+  SCRAPE_INTERVAL: "*/1 * * * *"
+  BINANCE_BASE_URL: "https://api.binance.com"
+  # HPA-scaled HTTP replicas never scrape: the single financial-scraper-collector
+  # pod overrides this to "true", so each market event is published once.
+  SCRAPE_SCHEDULER_ENABLED: "false"
 ---
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
@@ -85,8 +92,12 @@ metadata:
     app.kubernetes.io/part-of: trading-model
 spec:
   podSelector:
-    matchLabels:
-      app.kubernetes.io/component: financial-scraper
+    matchExpressions:
+      - key: app.kubernetes.io/component
+        operator: In
+        values:
+          - financial-scraper
+          - financial-scraper-collector
   policyTypes:
     - Ingress
     - Egress

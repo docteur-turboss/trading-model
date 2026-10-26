@@ -197,7 +197,7 @@ jobs:
         shell: bash
         run: |
           NS="${{ steps.ns.outputs.namespace }}"
-          for dep in discovery-server message-manager financial-scraper trader-trainer \
+          for dep in discovery-server message-manager financial-scraper financial-scraper-collector trader-trainer \
                      api-gateway audit-logger dlq-service admin-interface; do
             echo "Waiting for rollout of $dep..."
             if ! kubectl rollout status "deployment/$dep" -n "$NS" --timeout=180s; then
@@ -211,7 +211,7 @@ jobs:
         run: |
           NS="${{ steps.ns.outputs.namespace }}"
           VERSION="${{ steps.tag.outputs.version }}"
-          for dep in discovery-server message-manager financial-scraper trader-trainer \
+          for dep in discovery-server message-manager financial-scraper financial-scraper-collector trader-trainer \
                      api-gateway audit-logger dlq-service admin-interface; do
             kubectl annotate deployment "$dep" -n "$NS" --overwrite \
               trading-model.dev/git-sha="$GITHUB_SHA" \
@@ -235,7 +235,7 @@ jobs:
         shell: bash
         run: |
           NS="${{ steps.ns.outputs.namespace }}"
-          for dep in discovery-server message-manager financial-scraper trader-trainer \
+          for dep in discovery-server message-manager financial-scraper financial-scraper-collector trader-trainer \
                      api-gateway audit-logger dlq-service admin-interface; do
             kubectl rollout undo "deployment/$dep" -n "$NS"
           done

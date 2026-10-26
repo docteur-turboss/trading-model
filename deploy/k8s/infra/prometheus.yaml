@@ -218,6 +218,18 @@ data:
         static_configs:
           - targets: ['financial-scraper:3000']
 
+      # The scrape cron (fs_events_published_total, fs_scrape_*) runs only here.
+      - job_name: 'financial-scraper-collector'
+        scheme: https
+        tls_config:
+          ca_file: /run/spire/svid/bundle.pem
+          cert_file: /run/spire/svid/svid.pem
+          key_file: /run/spire/svid/svid_key.pem
+          # The SVID carries the ServiceAccount DNS name, shared with financial-scraper.
+          server_name: financial-scraper
+        static_configs:
+          - targets: ['financial-scraper-collector:3000']
+
       - job_name: 'trader-trainer'
         scheme: https
         tls_config:
