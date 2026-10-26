@@ -25,6 +25,10 @@ jest.mock("axios", () => {
 	};
 });
 
+jest.mock("../../../src/infrastructure/config/env", () => ({
+	ENV: { BINANCE_BASE_URL: "http://binance-stub:8080" },
+}));
+
 import { createHttpClient, httpClients } from "../../../src/config/http";
 
 describe("createHttpClient", () => {
@@ -177,5 +181,13 @@ describe("createHttpClient", () => {
 
 	it("should expose pre-built binance http client", () => {
 		expect(httpClients.binance).toBeDefined();
+	});
+
+	it("should build the binance http client on BINANCE_BASE_URL", () => {
+		const axiosMock = jest.requireMock("axios") as { create: jest.Mock };
+		expect(axiosMock.create).toHaveBeenCalledWith({
+			baseURL: "http://binance-stub:8080",
+			timeout: 7000,
+		});
 	});
 });

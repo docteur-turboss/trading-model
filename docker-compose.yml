@@ -298,6 +298,10 @@ services:
       APP_VERSION: ${APP_VERSION:-1.3.0}
       SERVICE_NAME: financial-scrapper-service
       INSTANCE_ID: ${INSTANCE_ID:-financial-scraper-1}
+      # Same symbols as TRAINER_SYMBOLS: the trainer consumes what the scraper publishes.
+      SYMBOLS_TO_TRACK: ${SYMBOLS_TO_TRACK:-BTCUSDT,ETHUSDT}
+      SCRAPE_INTERVAL: ${SCRAPE_INTERVAL:-*/1 * * * *}
+      BINANCE_BASE_URL: ${BINANCE_BASE_URL:-https://api.binance.com}
       ERROR_URL_WEBHOOK: ${ERROR_URL_WEBHOOK:-}
       DB_USER: ${MYSQL_USER:-root}
       DB_PASSWORD: ${MYSQL_ROOT_PASSWORD}

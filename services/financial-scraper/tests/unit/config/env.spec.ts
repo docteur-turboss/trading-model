@@ -95,20 +95,72 @@ describe("env", () => {
 		expect(ENV.SYMBOLS_TO_TRACK).toEqual(["BTCUSDT", "ETHUSDT"]);
 	});
 
-	it("should return empty array for invalid SYMBOLS_TO_TRACK JSON", () => {
+	it("should parse SYMBOLS_TO_TRACK from a CSV list", () => {
 		setRequiredVars();
-		process.env.SYMBOLS_TO_TRACK = "not-json";
+		process.env.SYMBOLS_TO_TRACK = "BTCUSDT, ETHUSDT";
+
+		const { ENV } = require("../../../src/infrastructure/config/env");
+		expect(ENV.SYMBOLS_TO_TRACK).toEqual(["BTCUSDT", "ETHUSDT"]);
+	});
+
+	it("should return an empty array for an empty SYMBOLS_TO_TRACK", () => {
+		setRequiredVars();
+		process.env.SYMBOLS_TO_TRACK = "";
 
 		const { ENV } = require("../../../src/infrastructure/config/env");
 		expect(ENV.SYMBOLS_TO_TRACK).toEqual([]);
 	});
 
-	it("should return empty array when SYMBOLS_TO_TRACK is valid JSON but not an array", () => {
+	it.each([
+		["invalid JSON", '["BTCUSDT"'],
+		["a JSON object", '{"key":"value"}'],
+		["a non-string element", '["BTCUSDT",42]'],
+		["a lowercase symbol", "btcusdt"],
+		["an empty CSV item", "BTCUSDT,,ETHUSDT"],
+	])("should throw when SYMBOLS_TO_TRACK is %s", (_label, value) => {
+		const consoleSpy = jest
+			.spyOn(console, "error")
+			.mockImplementation(() => {});
 		setRequiredVars();
-		process.env.SYMBOLS_TO_TRACK = '{"key":"value"}';
+		process.env.SYMBOLS_TO_TRACK = value;
+
+		expect(() => require("../../../src/infrastructure/config/env")).toThrow();
+
+		consoleSpy.mockRestore();
+	});
+
+	it("should enable the scrape scheduler by default", () => {
+		setRequiredVars();
 
 		const { ENV } = require("../../../src/infrastructure/config/env");
-		expect(ENV.SYMBOLS_TO_TRACK).toEqual([]);
+		expect(ENV.SCRAPE_SCHEDULER_ENABLED).toBe(true);
+	});
+
+	it("should disable the scrape scheduler when SCRAPE_SCHEDULER_ENABLED=false", () => {
+		setRequiredVars();
+		process.env.SCRAPE_SCHEDULER_ENABLED = "false";
+
+		const { ENV } = require("../../../src/infrastructure/config/env");
+		expect(ENV.SCRAPE_SCHEDULER_ENABLED).toBe(false);
+	});
+
+	it("should default BINANCE_BASE_URL to the public Binance API", () => {
+		setRequiredVars();
+
+		const { ENV } = require("../../../src/infrastructure/config/env");
+		expect(ENV.BINANCE_BASE_URL).toBe("https://api.binance.com");
+	});
+
+	it("should throw when BINANCE_BASE_URL is not a URL", () => {
+		const consoleSpy = jest
+			.spyOn(console, "error")
+			.mockImplementation(() => {});
+		setRequiredVars();
+		process.env.BINANCE_BASE_URL = "not-a-url";
+
+		expect(() => require("../../../src/infrastructure/config/env")).toThrow();
+
+		consoleSpy.mockRestore();
 	});
 
 	it("should use provided scraper-specific env vars", () => {
@@ -116,10 +168,12 @@ describe("env", () => {
 		process.env.BINANCE_API_KEY = "test-api-key";
 		process.env.BINANCE_API_SECRET = "test-api-secret";
 		process.env.SCRAPE_INTERVAL = "*/5 * * * *";
+		process.env.BINANCE_BASE_URL = "http://binance-stub:8080";
 
 		const { ENV } = require("../../../src/infrastructure/config/env");
 		expect(ENV.BINANCE_API_KEY).toBe("test-api-key");
 		expect(ENV.BINANCE_API_SECRET).toBe("test-api-secret");
 		expect(ENV.SCRAPE_INTERVAL).toBe("*/5 * * * *");
+		expect(ENV.BINANCE_BASE_URL).toBe("http://binance-stub:8080");
 	});
 });

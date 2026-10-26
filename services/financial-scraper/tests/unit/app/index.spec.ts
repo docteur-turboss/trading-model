@@ -33,6 +33,7 @@ jest.mock("../../../src/infrastructure/config/env", () => ({
 		MESSAGE_CALLBACK_PATH: "message",
 		SYMBOLS_TO_TRACK: [],
 		SCRAPE_INTERVAL: "*/1 * * * *",
+		SCRAPE_SCHEDULER_ENABLED: true,
 	},
 }));
 

@@ -7,6 +7,7 @@ import axios, {
 	type AxiosRequestConfig,
 } from "axios";
 
+import { ENV } from "../infrastructure/config/env";
 import {
 	BINANCE_REQUEST_DURATION_SECONDS,
 	BINANCE_REQUESTS_TOTAL,
@@ -140,5 +141,5 @@ function _extractEndpoint(url: string): string {
 
 /** Pre-built HTTP clients for supported data sources (e.g. Binance). */
 export const httpClients: Record<DataSource, AxiosInstance> = {
-	[DataSource.Binance]: createHttpClient("https://api.binance.com"),
+	[DataSource.Binance]: createHttpClient(ENV.BINANCE_BASE_URL),
 };
