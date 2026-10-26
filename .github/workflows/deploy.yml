@@ -143,11 +143,17 @@ jobs:
             exit 1
           fi
 
-      # Canary gate: test the new image on a small % of traffic BEFORE full rollout.
+      # Canary gate: test the new image on a share of live traffic BEFORE full rollout.
       # If the canary fails, the overlay is never applied and the primary stays on the old image.
-      - name: Canary deployments + smoke test (if enabled)
+      # Gate tuning per environment through GitHub variables; seeing too little
+      # traffic fails the gate (no signal is not a pass).
+      - name: Canary deployments (if enabled)
         if: ${{ inputs.canary }}
         shell: bash
+        env:
+          CANARY_GATE_SECONDS: ${{ vars.CANARY_GATE_SECONDS || '120' }}
+          CANARY_MIN_REQUESTS: ${{ vars.CANARY_MIN_REQUESTS || '20' }}
+          CANARY_ERROR_THRESHOLD_PCT: ${{ vars.CANARY_ERROR_THRESHOLD_PCT || '5' }}
         run: |
           NS="${{ steps.ns.outputs.namespace }}"
           export K8S_NAMESPACE="$NS"
@@ -157,7 +163,6 @@ jobs:
                      api-gateway audit-logger dlq-service admin-interface; do
             ./deploy/k8s/scripts/deploy-k8s.sh canary "$dep" "$TAG" 10
           done
-          ./deploy/k8s/scripts/deploy-k8s.sh smoke-test
 
       - name: Apply overlay
         id: apply
@@ -191,7 +196,9 @@ jobs:
             - name: ghcr.io/trading-model/admin-interface
               newTag: "$TAG"
           EOF
-          kubectl apply -k "$WRAPPER"
+          # jobs/ packages scripts/backup-k8s.sh from outside its directory: the default
+          # load restrictor rejects it and kubectl apply -k cannot relax it.
+          kubectl kustomize --load-restrictor LoadRestrictionsNone "$WRAPPER" | kubectl apply -f -
 
       - name: Wait for rollout
         shell: bash
@@ -205,6 +212,13 @@ jobs:
               exit 1
             fi
           done
+
+      # Runs on the new version, after the rollout; a failure triggers the rollback below.
+      - name: Smoke test
+        shell: bash
+        run: |
+          export K8S_NAMESPACE="${{ steps.ns.outputs.namespace }}"
+          bash deploy/k8s/scripts/deploy-k8s.sh smoke-test
 
       - name: Annotate deployments with release metadata
         shell: bash
@@ -230,8 +244,11 @@ jobs:
             ./deploy/k8s/scripts/deploy-k8s.sh canary-cleanup "$dep"
           done
 
+      # Only once the overlay was (even partially) applied: after a failed canary or
+      # migration the primaries still run the current release, and undo would
+      # roll them back to the one before it.
       - name: Rollback on failure
-        if: failure()
+        if: ${{ failure() && steps.apply.outcome != 'skipped' }}
         shell: bash
         run: |
           NS="${{ steps.ns.outputs.namespace }}"

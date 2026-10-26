@@ -50,6 +50,12 @@ resolve_image_digest() {
   return 1
 }
 
+# jobs/ packages scripts/backup-k8s.sh from outside its directory, which the
+# default kustomize load restrictor rejects (kubectl apply -k cannot relax it).
+kustomize_build() {
+  kubectl kustomize --load-restrictor LoadRestrictionsNone "$1"
+}
+
 check_prereqs() {
   if ! command -v kubectl &>/dev/null; then
     err "kubectl is required. Install: https://kubernetes.io/docs/tasks/tools/"
@@ -70,7 +76,7 @@ cmd_apply() {
     kubectl apply -n "$NAMESPACE" -f "${K8S_DIR}/services/${service}.yaml"
   else
     log "Applying all Trading Model manifests..."
-    kubectl apply -k "${K8S_DIR}/"
+    kustomize_build "${K8S_DIR}/" | kubectl apply -f -
   fi
 
   log "Deployment applied. Waiting for rollouts..."
@@ -107,7 +113,7 @@ cmd_delete() {
     kubectl delete -n "$NAMESPACE" "service/${service}" --ignore-not-found
   else
     log "Deleting all Trading Model resources..."
-    kubectl delete -k "${K8S_DIR}/" --ignore-not-found
+    kustomize_build "${K8S_DIR}/" | kubectl delete -f - --ignore-not-found
   fi
   log "Deletion complete."
 }
@@ -198,10 +204,38 @@ cmd_migrate_down() {
   kubectl logs -n "$NAMESPACE" job/db-migrate-down --tail=20 2>/dev/null
 }
 
+# Services without request metrics: their canary gate can only check readiness.
+# Declared here (comma-separated) so the exemption is explicit and logged.
+CANARY_READINESS_ONLY="${CANARY_READINESS_ONLY:-admin-interface}"
+
+# Sums http_requests_total from a /metrics payload on stdin and prints
+# "<total> <errors>" (4xx/5xx). Kubelet probes and Prometheus scrapes are
+# excluded: only real traffic counts.
+canary_request_counts() {
+  awk '
+    /^http_requests_total\{/ {
+      if ($0 ~ /path="\/(health[^"]*|ping|metrics)"/) next
+      total += $NF
+      if ($0 ~ /status="[45]/) errors += $NF
+    }
+    END { printf "%d %d\n", total, errors }'
+}
+
+abort_canary() {
+  local canary_name="$1"
+  shift
+  err "$*"
+  kubectl delete deployment -n "$NAMESPACE" "$canary_name" --ignore-not-found
+  exit 1
+}
+
 cmd_canary() {
   local service="${1:-}"
   local image_tag="${2:-}"
   local percentage="${3:-10}"
+  local gate_seconds="${CANARY_GATE_SECONDS:-120}"
+  local min_requests="${CANARY_MIN_REQUESTS:-20}"
+  local error_threshold="${CANARY_ERROR_THRESHOLD_PCT:-5}"
 
   if [[ -z "$service" ]]; then
     err "Usage: $0 canary <service> [image-tag] [percentage]"
@@ -218,9 +252,6 @@ cmd_canary() {
   local canary_replicas=$(( total_replicas * percentage / 100 ))
   [[ "$canary_replicas" -lt 1 ]] && canary_replicas=1
 
-  local traffic_share=$(( canary_replicas * 100 / (total_replicas + canary_replicas) ))
-  log "Creating canary $canary_name for $service ($canary_replicas replicas, ~${traffic_share}% of traffic)"
-
   # Resolve image: prefer immutable @sha256 digest over mutable tag.
   local image_ref="${image_tag:-}"
   if [[ -n "$image_ref" ]]; then
@@ -236,72 +267,79 @@ cmd_canary() {
     image_ref="${CANARY_IMAGE_REPO:-ghcr.io/trading-model}/${service}:latest"
   fi
 
-  # Create canary deployment from scratch with a unique selector.
-  # The selector uses the canary name to avoid ReplicaSet conflicts with the primary.
-  kubectl create deployment "$canary_name" \
-    -n "$NAMESPACE" \
-    --image="$image_ref" \
-    --replicas="$canary_replicas" \
-    --dry-run=client -o yaml \
-    | kubectl label --local -f - -o yaml \
-        --overwrite \
-        app.kubernetes.io/component="$canary_name" \
-        app.kubernetes.io/part-of=trading-model \
-        track=canary \
-    | kubectl apply -n "$NAMESPACE" -f -
+  # A canary left by an earlier run may carry another (immutable) selector.
+  kubectl delete deployment -n "$NAMESPACE" "$canary_name" --ignore-not-found --wait=true
 
-  # Copy pod spec from the primary deployment, but give the canary its own selector
-  # so its ReplicaSet does not fight with the primary's for the same pods.
-  kubectl get deployment -n "$NAMESPACE" "$service" -o json \
-    | jq --arg name "$canary_name" '
-        .metadata.name = $name |
-        .metadata.resourceVersion = null |
-        .metadata.uid = null |
-        .metadata.creationTimestamp = null |
-        del(.status) |
-        .spec.replicas = '"$canary_replicas"' |
-        .spec.selector.matchLabels["app.kubernetes.io/component"] = $name |
-        .spec.template.metadata.labels["app.kubernetes.io/component"] = $name
-      ' \
-    | kubectl apply -n "$NAMESPACE" -f -
+  # Built in one pass from the primary: same pod spec, the NEW image, fresh
+  # metadata (no last-applied-configuration, revision or uid). Pods keep the
+  # component label the Service selects, so the canary takes its share of live
+  # traffic; track=canary keeps its ReplicaSet apart from the primary's.
+  log "Creating canary $canary_name for $service ($canary_replicas replicas, image $image_ref)"
+  # Explicit check: errexit is ignored when the caller tests cmd_canary.
+  local manifest
+  if ! manifest=$(kubectl get deployment -n "$NAMESPACE" "$service" -o json \
+    | jq --arg name "$canary_name" --arg svc "$service" --arg image "$image_ref" \
+         --argjson replicas "$canary_replicas" '
+        if any(.spec.template.spec.containers[]; .name == $svc) then . else
+          error("deployment \($svc) has no container named \($svc)") end
+        | .metadata = {name: $name, labels: ((.metadata.labels // {}) + {track: "canary"})}
+        | del(.status)
+        | .spec.replicas = $replicas
+        | .spec.selector.matchLabels.track = "canary"
+        | .spec.template.metadata.labels.track = "canary"
+        | .spec.template.spec.containers |= map(if .name == $svc then .image = $image else . end)
+      '); then
+    abort_canary "$canary_name" "Could not build the $canary_name manifest from deployment/$service."
+  fi
+  echo "$manifest" | kubectl apply -n "$NAMESPACE" -f -
 
   if ! kubectl rollout status -n "$NAMESPACE" "deployment/${canary_name}" --timeout=180s; then
-    err "Canary $canary_name failed to become ready. Cleaning up and aborting."
-    kubectl delete deployment -n "$NAMESPACE" "$canary_name" --ignore-not-found
-    exit 1
+    abort_canary "$canary_name" "Canary $canary_name failed to become ready. Cleaning up and aborting."
   fi
 
-  local total_reqs=0
-  local error_reqs=0
-  for _ in 1 2; do
-    local metrics
-    metrics=$(kubectl exec -n "$NAMESPACE" "deployment/${canary_name}" -- \
-      curl -sk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem \
-      https://localhost:3000/metrics 2>/dev/null)
-    local curl_exit=$?
-    if [[ "$curl_exit" -ne 0 ]]; then
-      err "Canary $canary_name failed to respond to metrics request (curl exit $curl_exit)."
-      kubectl delete deployment -n "$NAMESPACE" "$canary_name" --ignore-not-found
-      exit 1
-    fi
-    local reqs errs
-    reqs=$(echo "$metrics" | grep -E '^http_requests_total\{' | awk -F'[ ]' '{s+=$2} END{print s+0}')
-    errs=$(echo "$metrics" | grep -E '^http_requests_total\{[^}]*status="[45]' | awk -F'[ ]' '{s+=$2} END{print s+0}')
-    total_reqs=$(( total_reqs + ${reqs:-0} ))
-    error_reqs=$(( error_reqs + ${errs:-0} ))
+  # The traffic share is only claimed once the Service actually routes to the canary.
+  local routed=0 ready=0
+  for _ in 1 2 3 4 5 6; do
+    read -r routed ready < <(kubectl get endpointslices -n "$NAMESPACE" \
+        -l "kubernetes.io/service-name=${service}" -o json \
+      | jq -r --arg prefix "${canary_name}-" '
+          [.items[].endpoints[]? | select(.conditions.ready != false)]
+          | "\(map(select((.targetRef.name // "") | startswith($prefix))) | length) \(length)"')
+    [[ "$routed" -gt 0 ]] && break
     sleep 5
   done
+  if [[ "$routed" -eq 0 ]]; then
+    abort_canary "$canary_name" "Service $service does not route to $canary_name: the canary would receive no traffic."
+  fi
+  log "Service $service routes to $canary_name: ${routed}/${ready} ready endpoints (~$(( routed * 100 / ready ))% of traffic)"
 
-  if [[ "$total_reqs" -gt 0 ]]; then
-    local error_pct=$(( error_reqs * 100 / total_reqs ))
-    log "Canary $canary_name error rate: ${error_pct}% (${error_reqs}/${total_reqs})"
-    if [[ "$error_pct" -gt "${CANARY_ERROR_THRESHOLD_PCT:-5}" ]]; then
-      err "Canary $canary_name error rate ${error_pct}% exceeds threshold (${CANARY_ERROR_THRESHOLD_PCT:-5}%). Rolling back."
-      kubectl delete deployment -n "$NAMESPACE" "$canary_name" --ignore-not-found
-      exit 1
-    fi
+  if [[ ",${CANARY_READINESS_ONLY}," == *",${service},"* ]]; then
+    log "WARNING: $service exposes no request metrics — readiness-only gate (declared in CANARY_READINESS_ONLY), no error-rate check."
   else
-    log "No traffic observed on $canary_name during the gate window — skipping error check."
+    log "Observing $canary_name for ${gate_seconds}s (min ${min_requests} requests, max ${error_threshold}% errors)..."
+    sleep "$gate_seconds"
+
+    local total_reqs=0 error_reqs=0 pod metrics reqs errs
+    for pod in $(kubectl get pods -n "$NAMESPACE" -l "app.kubernetes.io/component=${service},track=canary" -o name); do
+      if ! metrics=$(kubectl exec -n "$NAMESPACE" "$pod" -c "$service" -- \
+          curl -sfk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem \
+          https://localhost:3000/metrics 2>/dev/null); then
+        abort_canary "$canary_name" "Canary pod ${pod#pod/} did not serve /metrics."
+      fi
+      read -r reqs errs < <(canary_request_counts <<<"$metrics")
+      total_reqs=$(( total_reqs + reqs ))
+      error_reqs=$(( error_reqs + errs ))
+    done
+
+    log "Canary $canary_name served ${total_reqs} requests, ${error_reqs} errors (probes and scrapes excluded)."
+    # No signal is a failure: a gate that saw no traffic has verified nothing.
+    if [[ "$total_reqs" -lt "$min_requests" || "$total_reqs" -eq 0 ]]; then
+      abort_canary "$canary_name" "Canary $canary_name saw ${total_reqs} requests in ${gate_seconds}s (CANARY_MIN_REQUESTS=${min_requests}): nothing was verified. Send traffic during the gate, or tune CANARY_MIN_REQUESTS / CANARY_GATE_SECONDS for this environment."
+    fi
+    local error_pct=$(( error_reqs * 100 / total_reqs ))
+    if [[ "$error_pct" -gt "$error_threshold" ]]; then
+      abort_canary "$canary_name" "Canary $canary_name error rate ${error_pct}% exceeds threshold (${error_threshold}%). Rolling back."
+    fi
   fi
 
   # Scale canary to 0 after successful gate — no traffic drain needed.
@@ -374,6 +412,7 @@ cmd_smoke_test() {
     "audit-logger:https://audit-logger:3000/health/ready"
     "dlq-service:https://dlq-service:3000/health/ready"
     "financial-scraper:https://financial-scraper:3000/health/ready"
+    "financial-scraper-collector:https://financial-scraper-collector:3000/health/ready"
     "trader-trainer:https://trader-trainer:3000/health/ready"
     "admin-interface:http://admin-interface:8080/health/ready"
   )
