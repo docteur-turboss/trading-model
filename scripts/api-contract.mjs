@@ -22,6 +22,13 @@
 //       listed entry that now works or no longer exists (the list can only
 //       shrink).
 //
+//    3. Every service-to-service route has a caller (CALLERS): the call is
+//       searched in the caller's sources, so a route nobody calls, or whose
+//       caller stopped calling it, fails. A route kept without a caller on
+//       purpose is listed in AWAITING_CALLER with its reason. No workspace
+//       may open a WebSocket server: the last one (audit-logger's worker
+//       protocol) had no client and was removed (ADR-0029).
+//
 //  There is no frontend consumer to check (admin-interface removed, ADR-0018).
 //
 //  Runs under bun: the registries are TypeScript, loaded from the workspace
@@ -60,11 +67,37 @@ const INFRASTRUCTURE_PATHS = new Set(["/metrics", "/health", "/health/ready", "/
 const SERVICE_TO_SERVICE = {
 	"discovery-server": ["POST /register", "POST /heartbeat", "POST /token/rotate", "POST /unregister"],
 	"audit-logger": ["POST /message"],
-	"financial-scraper": ["POST /message"],
 	"message-manager": ["POST /message", "POST /subscribe", "DELETE /subscribe"],
 	// Model weights: never through the gateway (ADR-0022).
 	"trader-trainer": ["POST /message", "GET /models/:symbol/:version/weights"],
 };
+
+/**
+ * Who calls each service-to-service route, and the call that proves it: a
+ * pattern searched in the caller's non-test sources. A broker callback
+ * (`POST /message`) is called by message-manager for the services that
+ * subscribe, so its proof is the owner's subscription (`intents(`).
+ */
+const CALLERS = {
+	"discovery-server POST /register": { caller: "packages/address-manager", call: /_url\("\/register"\)/ },
+	"discovery-server POST /heartbeat": { caller: "packages/address-manager", call: /\/heartbeat`/ },
+	"discovery-server POST /token/rotate": { caller: "packages/address-manager", call: /\/token\/rotate`/ },
+	"discovery-server POST /unregister": { caller: "packages/address-manager", call: /_url\("\/unregister"\)/ },
+	"message-manager POST /message": { caller: "packages/broker-message", call: /\}\/message`/ },
+	"message-manager POST /subscribe": { caller: "packages/broker-message", call: /\}\/subscribe`/ },
+	"message-manager DELETE /subscribe": { caller: "packages/broker-message", call: /\}\/subscribe`/ },
+	"audit-logger POST /message": { caller: "services/audit-logger", call: /\.intents\(/ },
+	"trader-trainer POST /message": { caller: "services/trader-trainer", call: /\.intents\(/ },
+};
+
+/** Service-to-service routes kept without a caller, each with its reason. */
+const AWAITING_CALLER = {
+	"trader-trainer GET /models/:symbol/:version/weights":
+		"closed (MODEL_DOWNLOAD_CALLERS empty) until an executor consumes the models (ADR-0022)",
+};
+
+/** A WebSocket server needs a client in the repository; none exists (ADR-0029). */
+const WEBSOCKET_SERVER = /new\s+WebSocketServer\(|\.on\(\s*["']upgrade["']|handleUpgrade\(/;
 
 /**
  * Routes a service gets from a package, when its source calls the mounting
@@ -388,6 +421,49 @@ function checkRouteClassification(routesByService, publicByService) {
 					`${service} ${key} (${route.file}) is neither in PUBLIC_ROUTES (${rel(PUBLIC_ROUTES_PATH)}) ` +
 						"nor in SERVICE_TO_SERVICE: classify it"
 				);
+			}
+		}
+	}
+}
+
+function checkCallers() {
+	const sources = new Map();
+	const sourceOf = (workspace) => {
+		if (!sources.has(workspace)) {
+			sources.set(
+				workspace,
+				walk(join(ROOT, workspace, "src")).map((file) => readFileSync(file, "utf8")).join("\n")
+			);
+		}
+		return sources.get(workspace);
+	};
+	for (const [service, keys] of Object.entries(SERVICE_TO_SERVICE)) {
+		for (const key of keys) {
+			const route = `${service} ${key}`;
+			const caller = CALLERS[route];
+			if (caller && AWAITING_CALLER[route]) {
+				errors.push(`${route} is in CALLERS and AWAITING_CALLER: drop the exception`);
+			} else if (caller) {
+				if (!caller.call.test(sourceOf(caller.caller))) {
+					errors.push(`${route}: ${caller.caller} no longer calls it (${caller.call}); wire a caller or remove the route`);
+				}
+			} else if (!AWAITING_CALLER[route]) {
+				errors.push(`${route} has no caller (CALLERS): a server nobody calls; wire a caller or remove the route (ADR-0029)`);
+			}
+		}
+	}
+	const listed = new Set(Object.entries(SERVICE_TO_SERVICE).flatMap(([service, keys]) => keys.map((key) => `${service} ${key}`)));
+	for (const route of [...Object.keys(CALLERS), ...Object.keys(AWAITING_CALLER)]) {
+		if (!listed.has(route)) errors.push(`CALLERS/AWAITING_CALLER lists "${route}", which is not a service-to-service route`);
+	}
+	for (const group of ["packages", "services"]) {
+		for (const workspace of readdirSync(join(ROOT, group))) {
+			const src = join(ROOT, group, workspace, "src");
+			if (!existsSync(src)) continue;
+			for (const file of walk(src)) {
+				if (WEBSOCKET_SERVER.test(readFileSync(file, "utf8"))) {
+					errors.push(`${rel(file)} opens a WebSocket server: no client in the repository uses one (ADR-0029)`);
+				}
 			}
 		}
 	}
@@ -907,6 +983,7 @@ const routesByService = Object.fromEntries(
 	["api-gateway", ...PROXIED_SERVICES].map((service) => [service, extractServiceRoutes(service)])
 );
 checkServiceToServiceList(routesByService);
+checkCallers();
 const publicByService = readPublicRoutes();
 checkRouteClassification(routesByService, publicByService);
 
