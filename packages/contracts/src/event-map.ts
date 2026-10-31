@@ -1,4 +1,5 @@
 import type { AuditEvent, AuditEventMap } from "./audit-events";
+import type { DlqEvent, DlqEventMap } from "./dlq-events";
 import type { MarketEvent, MarketEventMap } from "./market-events";
 import type { TrainingEvent, TrainingEventMap } from "./training-events";
 
@@ -6,13 +7,15 @@ import type { TrainingEvent, TrainingEventMap } from "./training-events";
 export interface EventMap
 	extends MarketEventMap,
 		AuditEventMap,
-		TrainingEventMap {}
+		TrainingEventMap,
+		DlqEventMap {}
 
 /** Union of all valid event message string values. */
 export type EventEnumMap =
 	| `${MarketEvent}`
 	| `${AuditEvent}`
-	| `${TrainingEvent}`;
+	| `${TrainingEvent}`
+	| `${DlqEvent}`;
 
 /** Extracts the payload type for a given event message. */
 export type EventMessagesArgs<TValue extends EventEnumMap> =

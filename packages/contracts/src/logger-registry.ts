@@ -17,10 +17,18 @@ export interface LoggerPort {
 
 /** No-op logger used before the concrete logger is registered. */
 const NoopLogger: LoggerPort = {
-	debug: () => {},
-	info: () => {},
-	warn: () => {},
-	error: () => {},
+	debug: () => {
+		// Intentional no-op.
+	},
+	info: () => {
+		// Intentional no-op.
+	},
+	warn: () => {
+		// Intentional no-op.
+	},
+	error: () => {
+		// Intentional no-op.
+	},
 };
 
 let _logger: LoggerPort = NoopLogger;
