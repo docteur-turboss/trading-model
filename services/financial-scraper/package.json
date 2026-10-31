@@ -21,6 +21,7 @@
   "scripts": {
     "test": "jest",
     "test:coverage": "jest --coverage",
+    "test:db": "jest -c jest.db.config.js",
     "build": "tsc",
     "dev": "ts-node src/application/index.ts"
   },
