@@ -125,7 +125,13 @@ Interface
 </span>
 <h1 class="text-2xl font-bold tracking-tight text-white font-sans">LogEntry</h1>
 </div>
-
+<div class="flex items-center gap-1.5 text-[11px] text-slate-400 font-mono pt-0.5" id="source-info">
+<svg class="w-3.5 h-3.5 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<path d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+<span class="text-slate-400">Defined in</span>
+<a class="text-indigo-400 hover:text-indigo-300 underline underline-offset-2 break-all" href="https://github.com/docteur-turboss/trading-model/blob/04cdcbf82df6c1b576ba3e01ff435d5e07f33a56/packages/http/src/infrastructure/log-types.ts#L63">http/src/infrastructure/log-types.ts:63</a>
+</div>
 </section>
 
 
@@ -147,7 +153,7 @@ Interface
 </button>
 </div>
 <div class="p-3.5 overflow-x-auto text-[13px] font-mono leading-relaxed select-text">
-<pre class="text-slate-300"><code><span class="text-purple-400 font-semibold">interface</span> <span class="text-sky-300 font-medium">LogEntry</span> <span class="text-slate-400">{</span><br>    <a class="text-indigo-300" href="#context">context</a><span class="text-slate-400">?:</span> <span class="text-emerald-400">JsonObject</span><span class="text-slate-400">;</span><br>    <a class="text-indigo-300" href="#level">level</a><span class="text-slate-400">:</span> <a class="text-emerald-400 underline decoration-emerald-500/40 underline-offset-2 hover:text-emerald-300" href="../enums/infrastructure_log-types.LogLevel.html">LogLevel</a><span class="text-slate-400">;</span><br>    <a class="text-indigo-300" href="#message">message</a><span class="text-slate-400">:</span> <span class="text-amber-300">string</span><span class="text-slate-400">;</span><br>    <a class="text-indigo-300" href="#serviceincharge">serviceInCharge</a><span class="text-slate-400">?:</span> <span class="text-emerald-400">ServiceId</span><span class="text-slate-400">;</span><br>    <a class="text-indigo-300" href="#sessionid">sessionId</a><span class="text-slate-400">?:</span> <span class="text-emerald-400">SessionId</span><span class="text-slate-400">;</span><br>    <a class="text-indigo-300" href="#timestamp">timestamp</a><span class="text-slate-400">:</span> <span class="text-emerald-400">UnixTimestamp</span><span class="text-slate-400">;</span><br>    <a class="text-indigo-300" href="#url">url</a><span class="text-slate-400">?:</span> <span class="text-emerald-400">URLString</span><span class="text-slate-400">;</span><br>    <a class="text-indigo-300" href="#userid">userId</a><span class="text-slate-400">?:</span> <span class="text-emerald-400">UserId</span><span class="text-slate-400">;</span><br><span class="text-slate-400">}</span></code></pre>
+<pre class="text-slate-300"><code><span class="text-purple-400 font-semibold">interface</span> <span class="text-sky-300 font-medium">LogEntry</span> <span class="text-slate-400">{</span><br>    <a class="text-indigo-300" href="#context">context</a><span class="text-slate-400">?:</span> <span class="text-emerald-400">JsonObject</span><span class="text-slate-400">;</span><br>    <a class="text-indigo-300" href="#level">level</a><span class="text-slate-400">:</span> <a class="text-emerald-400 underline decoration-emerald-500/40 underline-offset-2 hover:text-emerald-300" href="../enums/infrastructure_log-types.LogLevel.html">LogLevel</a><span class="text-slate-400">;</span><br>    <a class="text-indigo-300" href="#message">message</a><span class="text-slate-400">:</span> <span class="text-amber-300">string</span><span class="text-slate-400">;</span><br>    <a class="text-indigo-300" href="#processid">processId</a><span class="text-slate-400">?:</span> <span class="text-emerald-400">ProcessId</span><span class="text-slate-400">;</span><br>    <a class="text-indigo-300" href="#serviceincharge">serviceInCharge</a><span class="text-slate-400">?:</span> <span class="text-emerald-400">ServiceId</span><span class="text-slate-400">;</span><br>    <a class="text-indigo-300" href="#timestamp">timestamp</a><span class="text-slate-400">:</span> <span class="text-emerald-400">UnixTimestamp</span><span class="text-slate-400">;</span><br>    <a class="text-indigo-300" href="#url">url</a><span class="text-slate-400">?:</span> <span class="text-emerald-400">URLString</span><span class="text-slate-400">;</span><br>    <a class="text-indigo-300" href="#userid">userId</a><span class="text-slate-400">?:</span> <span class="text-emerald-400">UserId</span><span class="text-slate-400">;</span><br><span class="text-slate-400">}</span></code></pre>
 </div>
 </section>
 
@@ -175,13 +181,13 @@ Member Index
 <span class="w-4 h-4 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-[9px] font-bold">P</span>
 <span>message</span>
 </a>
+<a class="active-scale flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-card border border-surface-border text-slate-300 hover:border-indigo-500/50 hover:text-white transition-all text-xs font-mono" href="#processid">
+<span class="w-4 h-4 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-[9px] font-bold">P</span>
+<span>processId?</span>
+</a>
 <a class="active-scale flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-card border border-surface-border text-slate-300 hover:border-indigo-500/50 hover:text-white transition-all text-xs font-mono" href="#serviceincharge">
 <span class="w-4 h-4 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-[9px] font-bold">P</span>
 <span>serviceInCharge?</span>
-</a>
-<a class="active-scale flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-card border border-surface-border text-slate-300 hover:border-indigo-500/50 hover:text-white transition-all text-xs font-mono" href="#sessionid">
-<span class="w-4 h-4 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-[9px] font-bold">P</span>
-<span>sessionId?</span>
 </a>
 <a class="active-scale flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-card border border-surface-border text-slate-300 hover:border-indigo-500/50 hover:text-white transition-all text-xs font-mono" href="#timestamp">
 <span class="w-4 h-4 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-[9px] font-bold">P</span>
@@ -195,7 +201,7 @@ Member Index
 <span class="w-4 h-4 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-[9px] font-bold">P</span>
 <span>userId?</span>
 </a>
-
+<a class="active-scale flex-shrink-0 inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-surface-card/60 border border-surface-border text-slate-400 hover:text-slate-200 text-xs font-mono" href="#source-info"><span>Source</span></a>
 </div>
 </section>
 
@@ -216,7 +222,15 @@ Member Index
 <div class="p-3.5 space-y-3">
 <div class="rounded-lg bg-[#0a0e17] border border-surface-border/80 p-2.5 font-mono text-xs text-slate-300 overflow-x-auto"><span class="text-indigo-300">context</span><span class="text-slate-400">?:</span> <span class="text-emerald-400">JsonObject</span></div>
 
-
+<div class="pt-2 border-t border-surface-border/40 flex items-center justify-between text-[11px] font-mono text-slate-400">
+<span class="flex items-center gap-1 truncate text-slate-400">
+<svg class="w-3 h-3 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<path d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+<span>http/src/infrastructure/log-types.ts:67</span>
+</span>
+<a class="text-indigo-400 hover:text-indigo-300 flex items-center gap-0.5 text-[11px]" href="https://github.com/docteur-turboss/trading-model/blob/04cdcbf82df6c1b576ba3e01ff435d5e07f33a56/packages/http/src/infrastructure/log-types.ts#L67">view source →</a>
+</div>
 </div>
 </article>
 <article class="scroll-mt-20 rounded-xl bg-surface-card border border-surface-border overflow-hidden transition-all duration-200" id="level">
@@ -230,7 +244,15 @@ Member Index
 <div class="p-3.5 space-y-3">
 <div class="rounded-lg bg-[#0a0e17] border border-surface-border/80 p-2.5 font-mono text-xs text-slate-300 overflow-x-auto"><span class="text-indigo-300">level</span><span class="text-slate-400">:</span> <a class="text-emerald-400 underline decoration-emerald-500/40 underline-offset-2 hover:text-emerald-300" href="../enums/infrastructure_log-types.LogLevel.html">LogLevel</a></div>
 
-
+<div class="pt-2 border-t border-surface-border/40 flex items-center justify-between text-[11px] font-mono text-slate-400">
+<span class="flex items-center gap-1 truncate text-slate-400">
+<svg class="w-3 h-3 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<path d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+<span>http/src/infrastructure/log-types.ts:65</span>
+</span>
+<a class="text-indigo-400 hover:text-indigo-300 flex items-center gap-0.5 text-[11px]" href="https://github.com/docteur-turboss/trading-model/blob/04cdcbf82df6c1b576ba3e01ff435d5e07f33a56/packages/http/src/infrastructure/log-types.ts#L65">view source →</a>
+</div>
 </div>
 </article>
 <article class="scroll-mt-20 rounded-xl bg-surface-card border border-surface-border overflow-hidden transition-all duration-200" id="message">
@@ -244,7 +266,37 @@ Member Index
 <div class="p-3.5 space-y-3">
 <div class="rounded-lg bg-[#0a0e17] border border-surface-border/80 p-2.5 font-mono text-xs text-slate-300 overflow-x-auto"><span class="text-indigo-300">message</span><span class="text-slate-400">:</span> <span class="text-amber-300">string</span></div>
 
+<div class="pt-2 border-t border-surface-border/40 flex items-center justify-between text-[11px] font-mono text-slate-400">
+<span class="flex items-center gap-1 truncate text-slate-400">
+<svg class="w-3 h-3 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<path d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+<span>http/src/infrastructure/log-types.ts:66</span>
+</span>
+<a class="text-indigo-400 hover:text-indigo-300 flex items-center gap-0.5 text-[11px]" href="https://github.com/docteur-turboss/trading-model/blob/04cdcbf82df6c1b576ba3e01ff435d5e07f33a56/packages/http/src/infrastructure/log-types.ts#L66">view source →</a>
+</div>
+</div>
+</article>
+<article class="scroll-mt-20 rounded-xl bg-surface-card border border-surface-border overflow-hidden transition-all duration-200" id="processid">
+<div class="p-3.5 pb-2.5 flex items-start justify-between gap-2 border-b border-surface-border/50 bg-slate-900/40">
+<div class="flex items-center gap-2">
+<span class="w-5 h-5 rounded-md bg-indigo-500/20 border-indigo-500/40 text-indigo-300 flex items-center justify-center text-[10px] font-mono font-bold flex-shrink-0">P</span>
+<h3 class="text-base font-bold font-mono text-white tracking-tight">OptionalprocessId</h3>
+</div>
+<div class="flex items-center gap-1.5 flex-wrap"><span class="px-1.5 py-0.5 rounded text-[10px] font-mono font-medium bg-slate-800 text-slate-300 border-slate-700">public</span></div>
+</div>
+<div class="p-3.5 space-y-3">
+<div class="rounded-lg bg-[#0a0e17] border border-surface-border/80 p-2.5 font-mono text-xs text-slate-300 overflow-x-auto"><span class="text-indigo-300">processId</span><span class="text-slate-400">?:</span> <span class="text-emerald-400">ProcessId</span></div>
 
+<div class="pt-2 border-t border-surface-border/40 flex items-center justify-between text-[11px] font-mono text-slate-400">
+<span class="flex items-center gap-1 truncate text-slate-400">
+<svg class="w-3 h-3 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<path d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+<span>http/src/infrastructure/log-types.ts:69</span>
+</span>
+<a class="text-indigo-400 hover:text-indigo-300 flex items-center gap-0.5 text-[11px]" href="https://github.com/docteur-turboss/trading-model/blob/04cdcbf82df6c1b576ba3e01ff435d5e07f33a56/packages/http/src/infrastructure/log-types.ts#L69">view source →</a>
+</div>
 </div>
 </article>
 <article class="scroll-mt-20 rounded-xl bg-surface-card border border-surface-border overflow-hidden transition-all duration-200" id="serviceincharge">
@@ -258,21 +310,15 @@ Member Index
 <div class="p-3.5 space-y-3">
 <div class="rounded-lg bg-[#0a0e17] border border-surface-border/80 p-2.5 font-mono text-xs text-slate-300 overflow-x-auto"><span class="text-indigo-300">serviceInCharge</span><span class="text-slate-400">?:</span> <span class="text-emerald-400">ServiceId</span></div>
 
-
+<div class="pt-2 border-t border-surface-border/40 flex items-center justify-between text-[11px] font-mono text-slate-400">
+<span class="flex items-center gap-1 truncate text-slate-400">
+<svg class="w-3 h-3 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<path d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+<span>http/src/infrastructure/log-types.ts:71</span>
+</span>
+<a class="text-indigo-400 hover:text-indigo-300 flex items-center gap-0.5 text-[11px]" href="https://github.com/docteur-turboss/trading-model/blob/04cdcbf82df6c1b576ba3e01ff435d5e07f33a56/packages/http/src/infrastructure/log-types.ts#L71">view source →</a>
 </div>
-</article>
-<article class="scroll-mt-20 rounded-xl bg-surface-card border border-surface-border overflow-hidden transition-all duration-200" id="sessionid">
-<div class="p-3.5 pb-2.5 flex items-start justify-between gap-2 border-b border-surface-border/50 bg-slate-900/40">
-<div class="flex items-center gap-2">
-<span class="w-5 h-5 rounded-md bg-indigo-500/20 border-indigo-500/40 text-indigo-300 flex items-center justify-center text-[10px] font-mono font-bold flex-shrink-0">P</span>
-<h3 class="text-base font-bold font-mono text-white tracking-tight">OptionalsessionId</h3>
-</div>
-<div class="flex items-center gap-1.5 flex-wrap"><span class="px-1.5 py-0.5 rounded text-[10px] font-mono font-medium bg-slate-800 text-slate-300 border-slate-700">public</span></div>
-</div>
-<div class="p-3.5 space-y-3">
-<div class="rounded-lg bg-[#0a0e17] border border-surface-border/80 p-2.5 font-mono text-xs text-slate-300 overflow-x-auto"><span class="text-indigo-300">sessionId</span><span class="text-slate-400">?:</span> <span class="text-emerald-400">SessionId</span></div>
-
-
 </div>
 </article>
 <article class="scroll-mt-20 rounded-xl bg-surface-card border border-surface-border overflow-hidden transition-all duration-200" id="timestamp">
@@ -286,7 +332,15 @@ Member Index
 <div class="p-3.5 space-y-3">
 <div class="rounded-lg bg-[#0a0e17] border border-surface-border/80 p-2.5 font-mono text-xs text-slate-300 overflow-x-auto"><span class="text-indigo-300">timestamp</span><span class="text-slate-400">:</span> <span class="text-emerald-400">UnixTimestamp</span></div>
 
-
+<div class="pt-2 border-t border-surface-border/40 flex items-center justify-between text-[11px] font-mono text-slate-400">
+<span class="flex items-center gap-1 truncate text-slate-400">
+<svg class="w-3 h-3 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<path d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+<span>http/src/infrastructure/log-types.ts:64</span>
+</span>
+<a class="text-indigo-400 hover:text-indigo-300 flex items-center gap-0.5 text-[11px]" href="https://github.com/docteur-turboss/trading-model/blob/04cdcbf82df6c1b576ba3e01ff435d5e07f33a56/packages/http/src/infrastructure/log-types.ts#L64">view source →</a>
+</div>
 </div>
 </article>
 <article class="scroll-mt-20 rounded-xl bg-surface-card border border-surface-border overflow-hidden transition-all duration-200" id="url">
@@ -300,7 +354,15 @@ Member Index
 <div class="p-3.5 space-y-3">
 <div class="rounded-lg bg-[#0a0e17] border border-surface-border/80 p-2.5 font-mono text-xs text-slate-300 overflow-x-auto"><span class="text-indigo-300">url</span><span class="text-slate-400">?:</span> <span class="text-emerald-400">URLString</span></div>
 
-
+<div class="pt-2 border-t border-surface-border/40 flex items-center justify-between text-[11px] font-mono text-slate-400">
+<span class="flex items-center gap-1 truncate text-slate-400">
+<svg class="w-3 h-3 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<path d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+<span>http/src/infrastructure/log-types.ts:70</span>
+</span>
+<a class="text-indigo-400 hover:text-indigo-300 flex items-center gap-0.5 text-[11px]" href="https://github.com/docteur-turboss/trading-model/blob/04cdcbf82df6c1b576ba3e01ff435d5e07f33a56/packages/http/src/infrastructure/log-types.ts#L70">view source →</a>
+</div>
 </div>
 </article>
 <article class="scroll-mt-20 rounded-xl bg-surface-card border border-surface-border overflow-hidden transition-all duration-200" id="userid">
@@ -314,7 +376,15 @@ Member Index
 <div class="p-3.5 space-y-3">
 <div class="rounded-lg bg-[#0a0e17] border border-surface-border/80 p-2.5 font-mono text-xs text-slate-300 overflow-x-auto"><span class="text-indigo-300">userId</span><span class="text-slate-400">?:</span> <span class="text-emerald-400">UserId</span></div>
 
-
+<div class="pt-2 border-t border-surface-border/40 flex items-center justify-between text-[11px] font-mono text-slate-400">
+<span class="flex items-center gap-1 truncate text-slate-400">
+<svg class="w-3 h-3 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<path d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+<span>http/src/infrastructure/log-types.ts:68</span>
+</span>
+<a class="text-indigo-400 hover:text-indigo-300 flex items-center gap-0.5 text-[11px]" href="https://github.com/docteur-turboss/trading-model/blob/04cdcbf82df6c1b576ba3e01ff435d5e07f33a56/packages/http/src/infrastructure/log-types.ts#L68">view source →</a>
+</div>
 </div>
 </article>
 </section>
@@ -378,34 +448,6 @@ Member Index
 <span class="w-3.5 h-3.5 rounded bg-indigo-500/20 text-indigo-400 text-[9px] flex items-center justify-center font-bold">M</span>
 <span class="truncate">correlation-id</span>
 </a></div>
-<div class="pl-4 space-y-0.5 border-l border-surface-border/60 ml-2 mt-1"><a class="flex items-center gap-1.5 px-2 py-1 text-slate-400 hover:text-slate-200" href="../modules/adapters_inbound_error-buffer.html">
-<span class="w-3.5 h-3.5 rounded bg-indigo-500/20 text-indigo-400 text-[9px] flex items-center justify-center font-bold">M</span>
-<span class="truncate">error-buffer</span>
-</a></div>
-<div class="pl-4 space-y-0.5 border-l border-surface-border/60 ml-2 mt-1"><a class="flex items-center gap-1.5 px-2 py-1 text-slate-400 hover:text-slate-200" href="../modules/adapters_inbound_error-report-builder.html">
-<span class="w-3.5 h-3.5 rounded bg-indigo-500/20 text-indigo-400 text-[9px] flex items-center justify-center font-bold">M</span>
-<span class="truncate">error-report-builder</span>
-</a></div>
-<div class="pl-4 space-y-0.5 border-l border-surface-border/60 ml-2 mt-1"><a class="flex items-center gap-1.5 px-2 py-1 text-slate-400 hover:text-slate-200" href="../modules/adapters_inbound_error-tracker.html">
-<span class="w-3.5 h-3.5 rounded bg-indigo-500/20 text-indigo-400 text-[9px] flex items-center justify-center font-bold">M</span>
-<span class="truncate">error-tracker</span>
-</a></div>
-<div class="pl-4 space-y-0.5 border-l border-surface-border/60 ml-2 mt-1"><a class="flex items-center gap-1.5 px-2 py-1 text-slate-400 hover:text-slate-200" href="../modules/adapters_inbound_error-tracking-config.html">
-<span class="w-3.5 h-3.5 rounded bg-indigo-500/20 text-indigo-400 text-[9px] flex items-center justify-center font-bold">M</span>
-<span class="truncate">error-tracking-config</span>
-</a></div>
-<div class="pl-4 space-y-0.5 border-l border-surface-border/60 ml-2 mt-1"><a class="flex items-center gap-1.5 px-2 py-1 text-slate-400 hover:text-slate-200" href="../modules/adapters_inbound_error-tracking.html">
-<span class="w-3.5 h-3.5 rounded bg-indigo-500/20 text-indigo-400 text-[9px] flex items-center justify-center font-bold">M</span>
-<span class="truncate">error-tracking</span>
-</a></div>
-<div class="pl-4 space-y-0.5 border-l border-surface-border/60 ml-2 mt-1"><a class="flex items-center gap-1.5 px-2 py-1 text-slate-400 hover:text-slate-200" href="../modules/adapters_inbound_handle-core-error.html">
-<span class="w-3.5 h-3.5 rounded bg-indigo-500/20 text-indigo-400 text-[9px] flex items-center justify-center font-bold">M</span>
-<span class="truncate">handle-core-error</span>
-</a></div>
-<div class="pl-4 space-y-0.5 border-l border-surface-border/60 ml-2 mt-1"><a class="flex items-center gap-1.5 px-2 py-1 text-slate-400 hover:text-slate-200" href="../modules/adapters_inbound_handle-core-response.html">
-<span class="w-3.5 h-3.5 rounded bg-indigo-500/20 text-indigo-400 text-[9px] flex items-center justify-center font-bold">M</span>
-<span class="truncate">handle-core-response</span>
-</a></div>
 <div class="pl-4 space-y-0.5 border-l border-surface-border/60 ml-2 mt-1"><a class="flex items-center gap-1.5 px-2 py-1 text-slate-400 hover:text-slate-200" href="../modules/adapters_inbound_mtls-auth.html">
 <span class="w-3.5 h-3.5 rounded bg-indigo-500/20 text-indigo-400 text-[9px] flex items-center justify-center font-bold">M</span>
 <span class="truncate">mtls-auth</span>
@@ -414,9 +456,9 @@ Member Index
 <span class="w-3.5 h-3.5 rounded bg-indigo-500/20 text-indigo-400 text-[9px] flex items-center justify-center font-bold">M</span>
 <span class="truncate">mtls-authorization</span>
 </a></div>
-<div class="pl-4 space-y-0.5 border-l border-surface-border/60 ml-2 mt-1"><a class="flex items-center gap-1.5 px-2 py-1 text-slate-400 hover:text-slate-200" href="../modules/adapters_inbound_normalize-db-error.html">
+<div class="pl-4 space-y-0.5 border-l border-surface-border/60 ml-2 mt-1"><a class="flex items-center gap-1.5 px-2 py-1 text-slate-400 hover:text-slate-200" href="../modules/adapters_inbound_mtls-identity.html">
 <span class="w-3.5 h-3.5 rounded bg-indigo-500/20 text-indigo-400 text-[9px] flex items-center justify-center font-bold">M</span>
-<span class="truncate">normalize-db-error</span>
+<span class="truncate">mtls-identity</span>
 </a></div>
 <div class="pl-4 space-y-0.5 border-l border-surface-border/60 ml-2 mt-1"><a class="flex items-center gap-1.5 px-2 py-1 text-slate-400 hover:text-slate-200" href="../modules/adapters_inbound_response-exception.html">
 <span class="w-3.5 h-3.5 rounded bg-indigo-500/20 text-indigo-400 text-[9px] flex items-center justify-center font-bold">M</span>
@@ -426,9 +468,21 @@ Member Index
 <span class="w-3.5 h-3.5 rounded bg-indigo-500/20 text-indigo-400 text-[9px] flex items-center justify-center font-bold">M</span>
 <span class="truncate">response-protocol</span>
 </a></div>
-<div class="pl-4 space-y-0.5 border-l border-surface-border/60 ml-2 mt-1"><a class="flex items-center gap-1.5 px-2 py-1 text-slate-400 hover:text-slate-200" href="../modules/adapters_inbound_validate-schema.html">
+</div>
+<div class="space-y-1">
+<a class="flex items-center gap-1.5 px-2 py-1 text-slate-400 hover:text-slate-200" href="../categories/adapters_inbound_api-route.html">
+<svg class="w-3.5 h-3.5 text-slate-400 flex-shrink-0" fill="currentColor" viewbox="0 0 20 20">
+<path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z"></path>
+</svg>
+<span class="truncate">adapters/inbound/api-route</span>
+</a>
+<div class="pl-4 space-y-0.5 border-l border-surface-border/60 ml-2 mt-1"><a class="flex items-center gap-1.5 px-2 py-1 text-slate-400 hover:text-slate-200" href="../modules/adapters_inbound_api-route_api-route.html">
 <span class="w-3.5 h-3.5 rounded bg-indigo-500/20 text-indigo-400 text-[9px] flex items-center justify-center font-bold">M</span>
-<span class="truncate">validate-schema</span>
+<span class="truncate">api-route</span>
+</a></div>
+<div class="pl-4 space-y-0.5 border-l border-surface-border/60 ml-2 mt-1"><a class="flex items-center gap-1.5 px-2 py-1 text-slate-400 hover:text-slate-200" href="../modules/adapters_inbound_api-route_mount-route.html">
+<span class="w-3.5 h-3.5 rounded bg-indigo-500/20 text-indigo-400 text-[9px] flex items-center justify-center font-bold">M</span>
+<span class="truncate">mount-route</span>
 </a></div>
 </div>
 <div class="space-y-1">
@@ -466,10 +520,6 @@ Member Index
 </svg>
 <span class="truncate">adapters/outbound</span>
 </a>
-<div class="pl-4 space-y-0.5 border-l border-surface-border/60 ml-2 mt-1"><a class="flex items-center gap-1.5 px-2 py-1 text-slate-400 hover:text-slate-200" href="../modules/adapters_outbound_audit-service-client.html">
-<span class="w-3.5 h-3.5 rounded bg-indigo-500/20 text-indigo-400 text-[9px] flex items-center justify-center font-bold">M</span>
-<span class="truncate">audit-service-client</span>
-</a></div>
 <div class="pl-4 space-y-0.5 border-l border-surface-border/60 ml-2 mt-1"><a class="flex items-center gap-1.5 px-2 py-1 text-slate-400 hover:text-slate-200" href="../modules/adapters_outbound_circuit-recorder.html">
 <span class="w-3.5 h-3.5 rounded bg-indigo-500/20 text-indigo-400 text-[9px] flex items-center justify-center font-bold">M</span>
 <span class="truncate">circuit-recorder</span>
@@ -492,6 +542,34 @@ Member Index
 </a></div>
 </div>
 <div class="space-y-1">
+<a class="flex items-center gap-1.5 px-2 py-1 text-slate-400 hover:text-slate-200" href="../categories/application_services.html">
+<svg class="w-3.5 h-3.5 text-slate-400 flex-shrink-0" fill="currentColor" viewbox="0 0 20 20">
+<path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z"></path>
+</svg>
+<span class="truncate">application/services</span>
+</a>
+<div class="pl-4 space-y-0.5 border-l border-surface-border/60 ml-2 mt-1"><a class="flex items-center gap-1.5 px-2 py-1 text-slate-400 hover:text-slate-200" href="../modules/application_services_http-error-classifier.html">
+<span class="w-3.5 h-3.5 rounded bg-indigo-500/20 text-indigo-400 text-[9px] flex items-center justify-center font-bold">M</span>
+<span class="truncate">http-error-classifier</span>
+</a></div>
+<div class="pl-4 space-y-0.5 border-l border-surface-border/60 ml-2 mt-1"><a class="flex items-center gap-1.5 px-2 py-1 text-slate-400 hover:text-slate-200" href="../modules/application_services_logger.html">
+<span class="w-3.5 h-3.5 rounded bg-indigo-500/20 text-indigo-400 text-[9px] flex items-center justify-center font-bold">M</span>
+<span class="truncate">logger</span>
+</a></div>
+</div>
+<div class="space-y-1">
+<a class="flex items-center gap-1.5 px-2 py-1 text-slate-400 hover:text-slate-200" href="../categories/domain.html">
+<svg class="w-3.5 h-3.5 text-slate-400 flex-shrink-0" fill="currentColor" viewbox="0 0 20 20">
+<path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z"></path>
+</svg>
+<span class="truncate">domain</span>
+</a>
+<div class="pl-4 space-y-0.5 border-l border-surface-border/60 ml-2 mt-1"><a class="flex items-center gap-1.5 px-2 py-1 text-slate-400 hover:text-slate-200" href="../modules/domain_http-types.html">
+<span class="w-3.5 h-3.5 rounded bg-indigo-500/20 text-indigo-400 text-[9px] flex items-center justify-center font-bold">M</span>
+<span class="truncate">http-types</span>
+</a></div>
+</div>
+<div class="space-y-1">
 <a class="flex items-center gap-1.5 px-2 py-1 text-slate-400 hover:text-slate-200" href="../categories/infrastructure.html">
 <svg class="w-3.5 h-3.5 text-slate-400 flex-shrink-0" fill="currentColor" viewbox="0 0 20 20">
 <path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z"></path>
@@ -501,14 +579,6 @@ Member Index
 <div class="pl-4 space-y-0.5 border-l border-surface-border/60 ml-2 mt-1"><a class="flex items-center gap-1.5 px-2 py-1 text-slate-400 hover:text-slate-200" href="../modules/infrastructure_console-formatter.html">
 <span class="w-3.5 h-3.5 rounded bg-indigo-500/20 text-indigo-400 text-[9px] flex items-center justify-center font-bold">M</span>
 <span class="truncate">console-formatter</span>
-</a></div>
-<div class="pl-4 space-y-0.5 border-l border-surface-border/60 ml-2 mt-1"><a class="flex items-center gap-1.5 px-2 py-1 text-slate-400 hover:text-slate-200" href="../modules/infrastructure_create-logger.html">
-<span class="w-3.5 h-3.5 rounded bg-indigo-500/20 text-indigo-400 text-[9px] flex items-center justify-center font-bold">M</span>
-<span class="truncate">create-logger</span>
-</a></div>
-<div class="pl-4 space-y-0.5 border-l border-surface-border/60 ml-2 mt-1"><a class="flex items-center gap-1.5 px-2 py-1 text-slate-400 hover:text-slate-200" href="../modules/infrastructure_http-error-classifier.html">
-<span class="w-3.5 h-3.5 rounded bg-indigo-500/20 text-indigo-400 text-[9px] flex items-center justify-center font-bold">M</span>
-<span class="truncate">http-error-classifier</span>
 </a></div>
 <div class="pl-4 space-y-0.5 border-l border-surface-border/60 ml-2 mt-1"><a class="flex items-center gap-1.5 px-2 py-1 text-slate-400 hover:text-slate-200" href="../modules/infrastructure_http-request-executor.html">
 <span class="w-3.5 h-3.5 rounded bg-indigo-500/20 text-indigo-400 text-[9px] flex items-center justify-center font-bold">M</span>
@@ -529,6 +599,10 @@ Member Index
 <div class="pl-4 space-y-0.5 border-l border-surface-border/60 ml-2 mt-1"><a class="flex items-center gap-1.5 px-2 py-1 text-slate-400 hover:text-slate-200" href="../modules/infrastructure_http-utils.html">
 <span class="w-3.5 h-3.5 rounded bg-indigo-500/20 text-indigo-400 text-[9px] flex items-center justify-center font-bold">M</span>
 <span class="truncate">http-utils</span>
+</a></div>
+<div class="pl-4 space-y-0.5 border-l border-surface-border/60 ml-2 mt-1"><a class="flex items-center gap-1.5 px-2 py-1 text-slate-400 hover:text-slate-200" href="../modules/infrastructure_json-wire.html">
+<span class="w-3.5 h-3.5 rounded bg-indigo-500/20 text-indigo-400 text-[9px] flex items-center justify-center font-bold">M</span>
+<span class="truncate">json-wire</span>
 </a></div>
 <div class="pl-4 space-y-0.5 border-l border-surface-border/60 ml-2 mt-1"><a class="flex items-center gap-1.5 px-2 py-1 text-slate-400 hover:text-slate-200" href="../modules/infrastructure_log-dispatcher.html">
 <span class="w-3.5 h-3.5 rounded bg-indigo-500/20 text-indigo-400 text-[9px] flex items-center justify-center font-bold">M</span>
@@ -552,13 +626,17 @@ Member Index
 <span class="w-3.5 h-3.5 rounded bg-indigo-500/20 text-indigo-400 text-[9px] flex items-center justify-center font-bold">M</span>
 <span class="truncate">logger</span>
 </a></div>
+<div class="pl-4 space-y-0.5 border-l border-surface-border/60 ml-2 mt-1"><a class="flex items-center gap-1.5 px-2 py-1 text-slate-400 hover:text-slate-200" href="../modules/infrastructure_outbound-metrics.html">
+<span class="w-3.5 h-3.5 rounded bg-indigo-500/20 text-indigo-400 text-[9px] flex items-center justify-center font-bold">M</span>
+<span class="truncate">outbound-metrics</span>
+</a></div>
+<div class="pl-4 space-y-0.5 border-l border-surface-border/60 ml-2 mt-1"><a class="flex items-center gap-1.5 px-2 py-1 text-slate-400 hover:text-slate-200" href="../modules/infrastructure_process-id-generator.html">
+<span class="w-3.5 h-3.5 rounded bg-indigo-500/20 text-indigo-400 text-[9px] flex items-center justify-center font-bold">M</span>
+<span class="truncate">process-id-generator</span>
+</a></div>
 <div class="pl-4 space-y-0.5 border-l border-surface-border/60 ml-2 mt-1"><a class="flex items-center gap-1.5 px-2 py-1 text-slate-400 hover:text-slate-200" href="../modules/infrastructure_sensitive-data-sanitizer.html">
 <span class="w-3.5 h-3.5 rounded bg-indigo-500/20 text-indigo-400 text-[9px] flex items-center justify-center font-bold">M</span>
 <span class="truncate">sensitive-data-sanitizer</span>
-</a></div>
-<div class="pl-4 space-y-0.5 border-l border-surface-border/60 ml-2 mt-1"><a class="flex items-center gap-1.5 px-2 py-1 text-slate-400 hover:text-slate-200" href="../modules/infrastructure_session-id-generator.html">
-<span class="w-3.5 h-3.5 rounded bg-indigo-500/20 text-indigo-400 text-[9px] flex items-center justify-center font-bold">M</span>
-<span class="truncate">session-id-generator</span>
 </a></div>
 </div>
 <div class="space-y-1">
@@ -568,10 +646,6 @@ Member Index
 </svg>
 <span class="truncate">shared</span>
 </a>
-<div class="pl-4 space-y-0.5 border-l border-surface-border/60 ml-2 mt-1"><a class="flex items-center gap-1.5 px-2 py-1 text-slate-400 hover:text-slate-200" href="../modules/shared_http-types.html">
-<span class="w-3.5 h-3.5 rounded bg-indigo-500/20 text-indigo-400 text-[9px] flex items-center justify-center font-bold">M</span>
-<span class="truncate">http-types</span>
-</a></div>
 <div class="pl-4 space-y-0.5 border-l border-surface-border/60 ml-2 mt-1"><a class="flex items-center gap-1.5 px-2 py-1 text-slate-400 hover:text-slate-200" href="../modules/shared_node-env.html">
 <span class="w-3.5 h-3.5 rounded bg-indigo-500/20 text-indigo-400 text-[9px] flex items-center justify-center font-bold">M</span>
 <span class="truncate">node-env</span>
@@ -674,7 +748,7 @@ Member Index
       const copyBtn = document.getElementById('copyInterfaceBtn');
       const copyText = document.getElementById('copyInterfaceText');
       copyBtn?.addEventListener('click', () => {
-        const code = "interface LogEntry {\n  context?: JsonObject;\n  level: LogLevel;\n  message: string;\n  serviceInCharge?: ServiceId;\n  sessionId?: SessionId;\n  timestamp: UnixTimestamp;\n  url?: URLString;\n  userId?: UserId;\n}";
+        const code = "interface LogEntry {\n  context?: JsonObject;\n  level: LogLevel;\n  message: string;\n  processId?: ProcessId;\n  serviceInCharge?: ServiceId;\n  timestamp: UnixTimestamp;\n  url?: URLString;\n  userId?: UserId;\n}";
         navigator.clipboard.writeText(code).then(() => {
           copyText.textContent = 'Copied!';
           setTimeout(() => { copyText.textContent = 'Copy'; }, 2000);

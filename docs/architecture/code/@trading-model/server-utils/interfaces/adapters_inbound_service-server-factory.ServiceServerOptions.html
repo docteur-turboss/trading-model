@@ -130,7 +130,7 @@ Interface
 <path d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" stroke-linecap="round" stroke-linejoin="round"></path>
 </svg>
 <span class="text-slate-400">Defined in</span>
-<a class="text-indigo-400 hover:text-indigo-300 underline underline-offset-2 break-all" href="https://github.com/docteur-turboss/trading-model/blob/0a1492accbfc5c3a69fbe4d881ed7a5809cadf8d/packages/server-utils/src/adapters/inbound/service-server-factory.ts#L11">server-utils/src/adapters/inbound/service-server-factory.ts:11</a>
+<a class="text-indigo-400 hover:text-indigo-300 underline underline-offset-2 break-all" href="https://github.com/docteur-turboss/trading-model/blob/04cdcbf82df6c1b576ba3e01ff435d5e07f33a56/packages/server-utils/src/adapters/inbound/service-server-factory.ts#L14">server-utils/src/adapters/inbound/service-server-factory.ts:14</a>
 </div>
 </section>
 
@@ -153,7 +153,7 @@ Interface
 </button>
 </div>
 <div class="p-3.5 overflow-x-auto text-[13px] font-mono leading-relaxed select-text">
-<pre class="text-slate-300"><code><span class="text-purple-400 font-semibold">interface</span> <span class="text-sky-300 font-medium">ServiceServerOptions</span> <span class="text-slate-400">{</span><br>    <a class="text-indigo-300" href="#env">env</a><span class="text-slate-400">:</span> <span class="text-emerald-400">TlsEnvVars</span> <span class="text-slate-400">&amp;</span> <span class="text-slate-400">{</span> <span class="text-indigo-300">PORT</span><span class="text-slate-400">:</span> <span class="text-amber-300">number</span> <span class="text-slate-400">}</span><span class="text-slate-400">;</span><br>    <a class="text-indigo-300" href="#ratelimit">rateLimit</a><span class="text-slate-400">?:</span> <a class="text-emerald-400 underline decoration-emerald-500/40 underline-offset-2 hover:text-emerald-300" href="adapters_inbound_configure-app.RateLimitConfig.html">RateLimitConfig</a><span class="text-slate-400">;</span><br>    <a class="text-indigo-300" href="#routes">routes</a><span class="text-slate-400">:</span> <span class="text-slate-400">(</span><span class="text-indigo-300">app</span><span class="text-slate-400">:</span> <span class="text-emerald-400">Application</span><span class="text-slate-400">)</span> <span class="text-slate-400">=&gt;</span> <span class="text-amber-300">void</span><span class="text-slate-400">;</span><br>    <a class="text-indigo-300" href="#trustproxy">trustProxy</a><span class="text-slate-400">?:</span> <span class="text-amber-300">boolean</span><span class="text-slate-400">;</span><br><span class="text-slate-400">}</span></code></pre>
+<pre class="text-slate-300"><code><span class="text-purple-400 font-semibold">interface</span> <span class="text-sky-300 font-medium">ServiceServerOptions</span> <span class="text-slate-400">{</span><br>    <a class="text-indigo-300" href="#env">env</a><span class="text-slate-400">:</span> <span class="text-emerald-400">TlsEnvVars</span> <span class="text-slate-400">&amp;</span> <span class="text-slate-400">{</span> <span class="text-indigo-300">ENFORCE_MTLS_STRICT</span><span class="text-slate-400">?:</span> <span class="text-amber-300">boolean</span><span class="text-slate-400">;</span> <span class="text-indigo-300">PORT</span><span class="text-slate-400">:</span> <span class="text-amber-300">number</span> <span class="text-slate-400">}</span><span class="text-slate-400">;</span><br>    <a class="text-indigo-300" href="#ratelimit">rateLimit</a><span class="text-slate-400">?:</span> <a class="text-emerald-400 underline decoration-emerald-500/40 underline-offset-2 hover:text-emerald-300" href="adapters_inbound_configure-app.RateLimitConfig.html">RateLimitConfig</a><span class="text-slate-400">;</span><br>    <a class="text-indigo-300" href="#readiness">readiness</a><span class="text-slate-400">?:</span> <a class="text-emerald-400 underline decoration-emerald-500/40 underline-offset-2 hover:text-emerald-300" href="adapters_inbound_readiness.ReadinessCheck.html">ReadinessCheck</a><span class="text-slate-400">[]</span><span class="text-slate-400">;</span><br>    <a class="text-indigo-300" href="#routes">routes</a><span class="text-slate-400">:</span> <span class="text-slate-400">(</span><span class="text-indigo-300">app</span><span class="text-slate-400">:</span> <span class="text-emerald-400">Application</span><span class="text-slate-400">)</span> <span class="text-slate-400">=&gt;</span> <span class="text-amber-300">void</span><span class="text-slate-400">;</span><br>    <a class="text-indigo-300" href="#serviceid">serviceId</a><span class="text-slate-400">?:</span> <span class="text-emerald-400">ServiceId</span><span class="text-slate-400">;</span><br>    <a class="text-indigo-300" href="#trustproxy">trustProxy</a><span class="text-slate-400">?:</span> <span class="text-amber-300">boolean</span><span class="text-slate-400">;</span><br><span class="text-slate-400">}</span></code></pre>
 </div>
 </section>
 
@@ -166,7 +166,7 @@ Interface
 </svg>
 Member Index
 </span>
-<span class="text-[11px] lowercase text-slate-400">4 properties</span>
+<span class="text-[11px] lowercase text-slate-400">6 properties</span>
 </div>
 <div class="flex items-center gap-2 overflow-x-auto no-scrollbar py-1 -mx-4 px-4">
 <a class="active-scale flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-card border border-surface-border text-slate-300 hover:border-indigo-500/50 hover:text-white transition-all text-xs font-mono" href="#env">
@@ -177,9 +177,17 @@ Member Index
 <span class="w-4 h-4 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-[9px] font-bold">P</span>
 <span>rateLimit?</span>
 </a>
+<a class="active-scale flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-card border border-surface-border text-slate-300 hover:border-indigo-500/50 hover:text-white transition-all text-xs font-mono" href="#readiness">
+<span class="w-4 h-4 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-[9px] font-bold">P</span>
+<span>readiness?</span>
+</a>
 <a class="active-scale flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-card border border-surface-border text-slate-300 hover:border-indigo-500/50 hover:text-white transition-all text-xs font-mono" href="#routes">
 <span class="w-4 h-4 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-[9px] font-bold">P</span>
 <span>routes</span>
+</a>
+<a class="active-scale flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-card border border-surface-border text-slate-300 hover:border-indigo-500/50 hover:text-white transition-all text-xs font-mono" href="#serviceid">
+<span class="w-4 h-4 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-[9px] font-bold">P</span>
+<span>serviceId?</span>
 </a>
 <a class="active-scale flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-card border border-surface-border text-slate-300 hover:border-indigo-500/50 hover:text-white transition-all text-xs font-mono" href="#trustproxy">
 <span class="w-4 h-4 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-[9px] font-bold">P</span>
@@ -193,7 +201,7 @@ Member Index
 <section class="space-y-4 pt-1" data-purpose="detailed-members-breakdown">
 <div class="flex items-center justify-between border-b border-surface-border/70 pb-2">
 <h2 class="text-lg font-bold text-white tracking-tight flex items-center gap-2">Properties</h2>
-<span class="text-xs font-mono text-slate-400 bg-surface-muted px-2 py-0.5 rounded">4 members</span>
+<span class="text-xs font-mono text-slate-400 bg-surface-muted px-2 py-0.5 rounded">6 members</span>
 </div>
 <article class="scroll-mt-20 rounded-xl bg-surface-card border border-surface-border overflow-hidden transition-all duration-200" id="env">
 <div class="p-3.5 pb-2.5 flex items-start justify-between gap-2 border-b border-surface-border/50 bg-slate-900/40">
@@ -204,16 +212,16 @@ Member Index
 <div class="flex items-center gap-1.5 flex-wrap"><span class="px-1.5 py-0.5 rounded text-[10px] font-mono font-medium bg-slate-800 text-slate-300 border-slate-700">public</span></div>
 </div>
 <div class="p-3.5 space-y-3">
-<div class="rounded-lg bg-[#0a0e17] border border-surface-border/80 p-2.5 font-mono text-xs text-slate-300 overflow-x-auto"><span class="text-indigo-300">env</span><span class="text-slate-400">:</span> <span class="text-emerald-400">TlsEnvVars</span> <span class="text-slate-400">&amp;</span> <span class="text-slate-400">{</span> <span class="text-indigo-300">PORT</span><span class="text-slate-400">:</span> <span class="text-amber-300">number</span> <span class="text-slate-400">}</span></div>
+<div class="rounded-lg bg-[#0a0e17] border border-surface-border/80 p-2.5 font-mono text-xs text-slate-300 overflow-x-auto"><span class="text-indigo-300">env</span><span class="text-slate-400">:</span> <span class="text-emerald-400">TlsEnvVars</span> <span class="text-slate-400">&amp;</span> <span class="text-slate-400">{</span> <span class="text-indigo-300">ENFORCE_MTLS_STRICT</span><span class="text-slate-400">?:</span> <span class="text-amber-300">boolean</span><span class="text-slate-400">;</span> <span class="text-indigo-300">PORT</span><span class="text-slate-400">:</span> <span class="text-amber-300">number</span> <span class="text-slate-400">}</span></div>
 
 <div class="pt-2 border-t border-surface-border/40 flex items-center justify-between text-[11px] font-mono text-slate-400">
 <span class="flex items-center gap-1 truncate text-slate-400">
 <svg class="w-3 h-3 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
 <path d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" stroke-linecap="round" stroke-linejoin="round"></path>
 </svg>
-<span>server-utils/src/adapters/inbound/service-server-factory.ts:12</span>
+<span>server-utils/src/adapters/inbound/service-server-factory.ts:15</span>
 </span>
-<a class="text-indigo-400 hover:text-indigo-300 flex items-center gap-0.5 text-[11px]" href="https://github.com/docteur-turboss/trading-model/blob/0a1492accbfc5c3a69fbe4d881ed7a5809cadf8d/packages/server-utils/src/adapters/inbound/service-server-factory.ts#L12">view source →</a>
+<a class="text-indigo-400 hover:text-indigo-300 flex items-center gap-0.5 text-[11px]" href="https://github.com/docteur-turboss/trading-model/blob/04cdcbf82df6c1b576ba3e01ff435d5e07f33a56/packages/server-utils/src/adapters/inbound/service-server-factory.ts#L15">view source →</a>
 </div>
 </div>
 </article>
@@ -233,9 +241,31 @@ Member Index
 <svg class="w-3 h-3 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
 <path d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" stroke-linecap="round" stroke-linejoin="round"></path>
 </svg>
-<span>server-utils/src/adapters/inbound/service-server-factory.ts:15</span>
+<span>server-utils/src/adapters/inbound/service-server-factory.ts:23</span>
 </span>
-<a class="text-indigo-400 hover:text-indigo-300 flex items-center gap-0.5 text-[11px]" href="https://github.com/docteur-turboss/trading-model/blob/0a1492accbfc5c3a69fbe4d881ed7a5809cadf8d/packages/server-utils/src/adapters/inbound/service-server-factory.ts#L15">view source →</a>
+<a class="text-indigo-400 hover:text-indigo-300 flex items-center gap-0.5 text-[11px]" href="https://github.com/docteur-turboss/trading-model/blob/04cdcbf82df6c1b576ba3e01ff435d5e07f33a56/packages/server-utils/src/adapters/inbound/service-server-factory.ts#L23">view source →</a>
+</div>
+</div>
+</article>
+<article class="scroll-mt-20 rounded-xl bg-surface-card border border-surface-border overflow-hidden transition-all duration-200" id="readiness">
+<div class="p-3.5 pb-2.5 flex items-start justify-between gap-2 border-b border-surface-border/50 bg-slate-900/40">
+<div class="flex items-center gap-2">
+<span class="w-5 h-5 rounded-md bg-indigo-500/20 border-indigo-500/40 text-indigo-300 flex items-center justify-center text-[10px] font-mono font-bold flex-shrink-0">P</span>
+<h3 class="text-base font-bold font-mono text-white tracking-tight">Optionalreadiness</h3>
+</div>
+<div class="flex items-center gap-1.5 flex-wrap"><span class="px-1.5 py-0.5 rounded text-[10px] font-mono font-medium bg-slate-800 text-slate-300 border-slate-700">public</span></div>
+</div>
+<div class="p-3.5 space-y-3">
+<div class="rounded-lg bg-[#0a0e17] border border-surface-border/80 p-2.5 font-mono text-xs text-slate-300 overflow-x-auto"><span class="text-indigo-300">readiness</span><span class="text-slate-400">?:</span> <a class="text-emerald-400 underline decoration-emerald-500/40 underline-offset-2 hover:text-emerald-300" href="adapters_inbound_readiness.ReadinessCheck.html">ReadinessCheck</a><span class="text-slate-400">[]</span></div>
+
+<div class="pt-2 border-t border-surface-border/40 flex items-center justify-between text-[11px] font-mono text-slate-400">
+<span class="flex items-center gap-1 truncate text-slate-400">
+<svg class="w-3 h-3 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<path d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+<span>server-utils/src/adapters/inbound/service-server-factory.ts:24</span>
+</span>
+<a class="text-indigo-400 hover:text-indigo-300 flex items-center gap-0.5 text-[11px]" href="https://github.com/docteur-turboss/trading-model/blob/04cdcbf82df6c1b576ba3e01ff435d5e07f33a56/packages/server-utils/src/adapters/inbound/service-server-factory.ts#L24">view source →</a>
 </div>
 </div>
 </article>
@@ -255,9 +285,33 @@ Member Index
 <svg class="w-3 h-3 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
 <path d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" stroke-linecap="round" stroke-linejoin="round"></path>
 </svg>
-<span>server-utils/src/adapters/inbound/service-server-factory.ts:13</span>
+<span>server-utils/src/adapters/inbound/service-server-factory.ts:21</span>
 </span>
-<a class="text-indigo-400 hover:text-indigo-300 flex items-center gap-0.5 text-[11px]" href="https://github.com/docteur-turboss/trading-model/blob/0a1492accbfc5c3a69fbe4d881ed7a5809cadf8d/packages/server-utils/src/adapters/inbound/service-server-factory.ts#L13">view source →</a>
+<a class="text-indigo-400 hover:text-indigo-300 flex items-center gap-0.5 text-[11px]" href="https://github.com/docteur-turboss/trading-model/blob/04cdcbf82df6c1b576ba3e01ff435d5e07f33a56/packages/server-utils/src/adapters/inbound/service-server-factory.ts#L21">view source →</a>
+</div>
+</div>
+</article>
+<article class="scroll-mt-20 rounded-xl bg-surface-card border border-surface-border overflow-hidden transition-all duration-200" id="serviceid">
+<div class="p-3.5 pb-2.5 flex items-start justify-between gap-2 border-b border-surface-border/50 bg-slate-900/40">
+<div class="flex items-center gap-2">
+<span class="w-5 h-5 rounded-md bg-indigo-500/20 border-indigo-500/40 text-indigo-300 flex items-center justify-center text-[10px] font-mono font-bold flex-shrink-0">P</span>
+<h3 class="text-base font-bold font-mono text-white tracking-tight">OptionalserviceId</h3>
+</div>
+<div class="flex items-center gap-1.5 flex-wrap"><span class="px-1.5 py-0.5 rounded text-[10px] font-mono font-medium bg-slate-800 text-slate-300 border-slate-700">public</span></div>
+</div>
+<div class="p-3.5 space-y-3">
+<div class="rounded-lg bg-[#0a0e17] border border-surface-border/80 p-2.5 font-mono text-xs text-slate-300 overflow-x-auto"><span class="text-indigo-300">serviceId</span><span class="text-slate-400">?:</span> <span class="text-emerald-400">ServiceId</span></div>
+<div class="tm-prose text-xs leading-relaxed text-slate-300 font-sans"><p>Canonical SPIFFE service identity used as the ACL target for inbound
+authorization (ADR-0011). Required when <code>ENFORCE_MTLS_STRICT</code> is enabled.</p>
+</div>
+<div class="pt-2 border-t border-surface-border/40 flex items-center justify-between text-[11px] font-mono text-slate-400">
+<span class="flex items-center gap-1 truncate text-slate-400">
+<svg class="w-3 h-3 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<path d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+<span>server-utils/src/adapters/inbound/service-server-factory.ts:20</span>
+</span>
+<a class="text-indigo-400 hover:text-indigo-300 flex items-center gap-0.5 text-[11px]" href="https://github.com/docteur-turboss/trading-model/blob/04cdcbf82df6c1b576ba3e01ff435d5e07f33a56/packages/server-utils/src/adapters/inbound/service-server-factory.ts#L20">view source →</a>
 </div>
 </div>
 </article>
@@ -277,9 +331,9 @@ Member Index
 <svg class="w-3 h-3 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
 <path d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" stroke-linecap="round" stroke-linejoin="round"></path>
 </svg>
-<span>server-utils/src/adapters/inbound/service-server-factory.ts:14</span>
+<span>server-utils/src/adapters/inbound/service-server-factory.ts:22</span>
 </span>
-<a class="text-indigo-400 hover:text-indigo-300 flex items-center gap-0.5 text-[11px]" href="https://github.com/docteur-turboss/trading-model/blob/0a1492accbfc5c3a69fbe4d881ed7a5809cadf8d/packages/server-utils/src/adapters/inbound/service-server-factory.ts#L14">view source →</a>
+<a class="text-indigo-400 hover:text-indigo-300 flex items-center gap-0.5 text-[11px]" href="https://github.com/docteur-turboss/trading-model/blob/04cdcbf82df6c1b576ba3e01ff435d5e07f33a56/packages/server-utils/src/adapters/inbound/service-server-factory.ts#L22">view source →</a>
 </div>
 </div>
 </article>
@@ -336,9 +390,17 @@ Member Index
 <span class="w-3.5 h-3.5 rounded bg-indigo-500/20 text-indigo-400 text-[9px] flex items-center justify-center font-bold">M</span>
 <span class="truncate">create-secure-server</span>
 </a></div>
+<div class="pl-4 space-y-0.5 border-l border-surface-border/60 ml-2 mt-1"><a class="flex items-center gap-1.5 px-2 py-1 text-slate-400 hover:text-slate-200" href="../modules/adapters_inbound_http-metrics.html">
+<span class="w-3.5 h-3.5 rounded bg-indigo-500/20 text-indigo-400 text-[9px] flex items-center justify-center font-bold">M</span>
+<span class="truncate">http-metrics</span>
+</a></div>
 <div class="pl-4 space-y-0.5 border-l border-surface-border/60 ml-2 mt-1"><a class="flex items-center gap-1.5 px-2 py-1 text-slate-400 hover:text-slate-200" href="../modules/adapters_inbound_metrics-handler.html">
 <span class="w-3.5 h-3.5 rounded bg-indigo-500/20 text-indigo-400 text-[9px] flex items-center justify-center font-bold">M</span>
 <span class="truncate">metrics-handler</span>
+</a></div>
+<div class="pl-4 space-y-0.5 border-l border-surface-border/60 ml-2 mt-1"><a class="flex items-center gap-1.5 px-2 py-1 text-slate-400 hover:text-slate-200" href="../modules/adapters_inbound_readiness.html">
+<span class="w-3.5 h-3.5 rounded bg-indigo-500/20 text-indigo-400 text-[9px] flex items-center justify-center font-bold">M</span>
+<span class="truncate">readiness</span>
 </a></div>
 <div class="pl-4 space-y-0.5 border-l border-surface-border/60 ml-2 mt-1"><a class="flex items-center gap-1.5 px-2 py-1 text-slate-400 hover:text-slate-200" href="../modules/adapters_inbound_server-factory.html">
 <span class="w-3.5 h-3.5 rounded bg-indigo-500/20 text-indigo-400 text-[9px] flex items-center justify-center font-bold">M</span>
@@ -362,6 +424,10 @@ Member Index
 <div class="pl-4 space-y-0.5 border-l border-surface-border/60 ml-2 mt-1"><a class="flex items-center gap-1.5 px-2 py-1 text-slate-400 hover:text-slate-200" href="../modules/application_services_bootstrap-shutdown.html">
 <span class="w-3.5 h-3.5 rounded bg-indigo-500/20 text-indigo-400 text-[9px] flex items-center justify-center font-bold">M</span>
 <span class="truncate">bootstrap-shutdown</span>
+</a></div>
+<div class="pl-4 space-y-0.5 border-l border-surface-border/60 ml-2 mt-1"><a class="flex items-center gap-1.5 px-2 py-1 text-slate-400 hover:text-slate-200" href="../modules/application_services_bootstrap-types.html">
+<span class="w-3.5 h-3.5 rounded bg-indigo-500/20 text-indigo-400 text-[9px] flex items-center justify-center font-bold">M</span>
+<span class="truncate">bootstrap-types</span>
 </a></div>
 <div class="pl-4 space-y-0.5 border-l border-surface-border/60 ml-2 mt-1"><a class="flex items-center gap-1.5 px-2 py-1 text-slate-400 hover:text-slate-200" href="../modules/application_services_bootstrap.html">
 <span class="w-3.5 h-3.5 rounded bg-indigo-500/20 text-indigo-400 text-[9px] flex items-center justify-center font-bold">M</span>
@@ -395,17 +461,13 @@ Member Index
 </svg>
 <span class="truncate">shared</span>
 </a>
-<div class="pl-4 space-y-0.5 border-l border-surface-border/60 ml-2 mt-1"><a class="flex items-center gap-1.5 px-2 py-1 text-slate-400 hover:text-slate-200" href="../modules/shared_bootstrap-types.html">
-<span class="w-3.5 h-3.5 rounded bg-indigo-500/20 text-indigo-400 text-[9px] flex items-center justify-center font-bold">M</span>
-<span class="truncate">bootstrap-types</span>
-</a></div>
 <div class="pl-4 space-y-0.5 border-l border-surface-border/60 ml-2 mt-1"><a class="flex items-center gap-1.5 px-2 py-1 text-slate-400 hover:text-slate-200" href="../modules/shared_constants.html">
 <span class="w-3.5 h-3.5 rounded bg-indigo-500/20 text-indigo-400 text-[9px] flex items-center justify-center font-bold">M</span>
 <span class="truncate">constants</span>
 </a></div>
-<div class="pl-4 space-y-0.5 border-l border-surface-border/60 ml-2 mt-1"><a class="flex items-center gap-1.5 px-2 py-1 text-slate-400 hover:text-slate-200" href="../modules/shared_load-tls-config.html">
+<div class="pl-4 space-y-0.5 border-l border-surface-border/60 ml-2 mt-1"><a class="flex items-center gap-1.5 px-2 py-1 text-slate-400 hover:text-slate-200" href="../modules/shared_server-types.html">
 <span class="w-3.5 h-3.5 rounded bg-indigo-500/20 text-indigo-400 text-[9px] flex items-center justify-center font-bold">M</span>
-<span class="truncate">load-tls-config</span>
+<span class="truncate">server-types</span>
 </a></div>
 </div>
 </div>
@@ -505,7 +567,7 @@ Member Index
       const copyBtn = document.getElementById('copyInterfaceBtn');
       const copyText = document.getElementById('copyInterfaceText');
       copyBtn?.addEventListener('click', () => {
-        const code = "interface ServiceServerOptions {\n  env: TlsEnvVars & { PORT: number };\n  rateLimit?: RateLimitConfig;\n  routes: (app: Application) => void;\n  trustProxy?: boolean;\n}";
+        const code = "interface ServiceServerOptions {\n  env: TlsEnvVars & { ENFORCE_MTLS_STRICT?: boolean; PORT: number };\n  rateLimit?: RateLimitConfig;\n  readiness?: ReadinessCheck[];\n  routes: (app: Application) => void;\n  serviceId?: ServiceId;\n  trustProxy?: boolean;\n}";
         navigator.clipboard.writeText(code).then(() => {
           copyText.textContent = 'Copied!';
           setTimeout(() => { copyText.textContent = 'Copy'; }, 2000);

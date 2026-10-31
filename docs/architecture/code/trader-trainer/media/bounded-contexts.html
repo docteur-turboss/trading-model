@@ -256,8 +256,10 @@ Documentation
 <h2>Event Enum Evolution</h2>
 <p>The historical single <code>EnumEventMessage</code> enum (mixing market data, certificate, and audit topics) has been split into per-context enums:</p>
 <ol>
-<li><code>MarketEvent</code> — <code>@trading-model/common/contracts/market-events</code></li>
-<li><code>AuditEvent</code> — <code>@trading-model/common/contracts/audit-events</code></li>
+<li><code>MarketEvent</code> — <code>@trading-model/contracts/market-events</code></li>
+<li><code>AuditEvent</code> — <code>@trading-model/contracts/audit-events</code></li>
+<li><code>TrainingEvent</code> — <code>@trading-model/contracts/training-events</code></li>
+<li><code>DlqEvent</code> — <code>@trading-model/contracts/dlq-events</code>: dlq-service publishes <code>dlq.entry.added</code>, <code>dlq.replay.completed</code> and <code>dlq.entries.deleted</code> so the audit trail records what happens to undelivered messages</li>
 <li>Certificate/security events were <strong>removed</strong> with the CA decommission (ADR-0011)</li>
 </ol>
 <p>Per-context Zod schemas live in <code>@trading-model/broker-message/domain/messages/schemas</code> (metadata, message payload, market events, audit events).</p>

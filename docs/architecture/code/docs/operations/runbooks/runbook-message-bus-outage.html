@@ -113,107 +113,100 @@ Documentation
 </section>
 
 <div class="tm-prose text-sm leading-relaxed text-slate-300 font-sans"><div>
-<p><strong>Alert:</strong> <code>ServiceDown</code> on <code>message-manager</code>, <code>BackpressureHigh</code>, <code>DLQSizeGrowing</code><br>
+<p><strong>Alerts:</strong> <code>ServiceDown</code> on <code>message-manager</code>, <code>MessageDeliveryLowSuccessRate</code>, <code>MessagesDeadLettered</code>, <code>DeadLettersNotForwarded</code>, <code>DeadLettersRejected</code>, <code>MessagesLost</code>, <code>MessagesUnrouted</code><br>
 <strong>Severity:</strong> SEV1</p>
 <h2>Architecture Context</h2>
-<p>The message bus (message-manager) is the central event backbone. All services depend on it for inter-service communication. An outage affects:</p>
+<p>message-manager is a synchronous HTTP pub/sub broker (<a href="../../adr/0019-message-broker-as-built.html">ADR-0019</a>). Know its limits before acting:</p>
+<ul>
+<li><strong>It keeps subscriptions, not messages.</strong> There is no stream, no WAL and no archive: nothing can be replayed. A graceful stop (SIGTERM) leaves discovery, serves 30 s more and lets in-flight publishes finish (up to 5 min, <code>terminationGracePeriodSeconds: 360</code>); a crash or a forced kill loses them.</li>
+<li><strong>Subscriptions live in Redis</strong> (one hash per topic, <code>REDIS_SENTINELS</code>), expire 60 s after their last renewal, and subscribers renew every 15 s. Without Redis, message-manager cannot route anything.</li>
+<li><strong>A message published with no subscriber is dropped</strong> and counted (<code>mm_messages_unrouted_total</code>).</li>
+<li><strong>Dead letters go to dlq-service</strong> (signed <code>POST /dlq</code>). While it cannot take them they wait in a local file (<code>DLQ_LOCAL_FALLBACK_PATH</code>, an <code>emptyDir</code> in K8s), sent again every minute and at shutdown: a pod deleted without a graceful stop loses them.</li>
+</ul>
+<p>An outage affects:</p>
 <ul>
 <li>financial-scraper (cannot publish market data)</li>
-<li>trader-trainer (cannot receive market data)</li>
-<li>audit-logger (cannot ingest events)</li>
-<li>dlq-service (cannot receive DLQ entries from message-manager)</li>
+<li>trader-trainer (receives no market data)</li>
+<li>audit-logger (receives no events: gap in the audit trail)</li>
 </ul>
 <h2>Detection</h2>
 <ul>
-<li>Prometheus alerts: <code>ServiceDown</code>, <code>BackpressureHigh</code>, <code>DLQSizeGrowing</code></li>
-<li>Grafana: message-manager dashboard showing queue depth, consumer lag</li>
-<li>Services report connection refused or timeout to message-manager</li>
+<li><code>ServiceDown</code>: message-manager not scraped.</li>
+<li><code>MessageDeliveryLowSuccessRate</code>: more than 0.5 % of messages dead-lettered over 5 min.</li>
+<li><code>MessagesDeadLettered</code>: messages given up, now in dlq-service.</li>
+<li><code>DeadLettersNotForwarded</code> / <code>DeadLettersRejected</code> / <code>MessagesLost</code>: dead letters stuck in a pod, refused by dlq-service, or gone.</li>
+<li><code>MessagesUnrouted</code>: a topic has had no subscriber for 10 min.</li>
+<li>Publishers log timeouts or connection errors to message-manager.</li>
+<li><code>MarketDataUnpublished</code>: candles persisted by the scraper have waited 15 min for the bus (see 5).</li>
 </ul>
 <h2>Initial Triage</h2>
-<pre><code class="language-bash"># 1. Check message-manager pods
+<pre><code class="language-bash"># 1. Pods
 kubectl get pods -n trading-model -l app.kubernetes.io/component=message-manager
 
-# 2. Check Redis connectivity (message-manager depends on Redis)
-kubectl exec -n trading-model redis-primary-0 -- redis-cli ping
+# 2. Redis (subscriptions). Any pod of the HA group can be master: find it
+REDIS_MASTER=$(for p in redis-0 redis-1 redis-2; do
+  [ &quot;$(kubectl exec -n trading-model &quot;$p&quot; -- redis-cli --raw ROLE | head -n 1)&quot; = master ] &amp;&amp; echo &quot;$p&quot;
+done)
+kubectl exec -n trading-model &quot;$REDIS_MASTER&quot; -- redis-cli ping
 
-# 3. Check message-manager logs
+# 3. Logs
 kubectl logs -n trading-model deployment/message-manager --tail=50
 
-# 4. Check health endpoint
-kubectl exec -n trading-model deployment/message-manager -- \
-  curl -sk https://localhost:3000/health/ready
+# 4. Readiness (the server demands a client certificate: use the SVID)
+kubectl exec -n trading-model deployment/message-manager -c message-manager -- \
+  curl -skf --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem \
+  https://localhost:3000/health/ready
 </code></pre>
 <h2>Common Causes</h2>
-<h3>1. Redis Down</h3>
-<p><strong>Symptoms:</strong> message-manager cannot connect to Redis, all delivery stops<br>
+<h3>1. Redis down</h3>
+<p><strong>Symptoms:</strong> readiness fails on <code>redis</code>, subscriptions are not saved or read, <code>MessagesUnrouted</code> fires.<br>
 <strong>Fix:</strong></p>
-<pre><code class="language-bash"># Restart Redis primary
-kubectl delete pod -n trading-model redis-primary-0
-
-# If sentinel is active, it will auto-failover to replica
-# Check sentinel status
+<pre><code class="language-bash"># Sentinel status: is a master elected?
 kubectl exec -n trading-model redis-sentinel-0 -- redis-cli -p 26379 sentinel master mymaster
+# If the master is stuck, delete it: sentinel promotes a replica
+kubectl delete pod -n trading-model &quot;$REDIS_MASTER&quot;
 </code></pre>
-<h3>2. Backpressure from slow subscribers</h3>
-<p><strong>Symptoms:</strong> <code>BackpressureHigh</code> alert, high queue depth<br>
+<p>Subscriptions come back on their own within 15 s once Redis answers (subscribers renew). Messages published meanwhile are lost.</p>
+<h3>2. Slow or failing subscriber</h3>
+<p><strong>Symptoms:</strong> <code>MessageDeliveryLowSuccessRate</code>, <code>MessagesDeadLettered</code> on one topic, publishers slow (they wait for the retries: up to 10 attempts, 20 s cap, ~4.3 min at worst; the publish times out after 5 min).<br>
 <strong>Check:</strong></p>
-<pre><code class="language-bash"># Check subscriber delivery concurrency
-kubectl exec -n trading-model deployment/message-manager -- \
-  curl -sk https://localhost:3000/metrics | grep subscriber_delivery_concurrency
-
-# Check which topics have the most backlog
-kubectl exec -n trading-model deployment/message-manager -- \
-  curl -sk https://localhost:3000/metrics | grep redis_stream_size
+<pre><code class="language-bash">kubectl exec -n trading-model deployment/message-manager -c message-manager -- \
+  curl -sk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem \
+  https://localhost:3000/metrics | grep -E 'mm_subscriber_delivery_concurrency|mm_circuit_breaker_state|mm_messages_dlq_total'
 </code></pre>
-<p><strong>Fix:</strong></p>
-<pre><code class="language-bash"># Scale up message-manager
-kubectl scale deployment -n trading-model message-manager --replicas=5
-
-# OR increase delivery concurrency (env var)
-kubectl set env deployment -n trading-model message-manager MAX_CONCURRENT_DELIVERIES=1000
+<p><strong>Fix:</strong> restore the subscriber named by the metrics (its own runbook). While its circuit breaker is open, its messages go straight to the dead-letter file.</p>
+<h3>3. No subscriber on a topic</h3>
+<p><strong>Symptoms:</strong> <code>MessagesUnrouted</code> on a topic.<br>
+<strong>Fix:</strong> check that the subscribing service is up and that its logs show no subscription error (403 from the message-manager ACL, Redis errors). audit-logger subscribes to every topic: if every topic is unrouted, look at audit-logger and at Redis first.</p>
+<h3>4. Dead letters stuck, refused or lost</h3>
+<p><strong>Symptoms:</strong> <code>MessagesDeadLettered</code> (warning: they are in dlq-service, list them with <code>GET /v1/dlq-service/dlq</code> and replay with <code>/dlq/replay</code> through the edge-proxy), <code>DeadLettersNotForwarded</code> (warning), <code>DeadLettersRejected</code> (warning) or <code>MessagesLost</code> (critical: neither dlq-service nor the file took them).</p>
+<p><strong><code>DeadLettersNotForwarded</code>:</strong> message-manager logs <code>dlq-service unavailable: dead letter kept locally</code> with the cause. Check that dlq-service is up and ready (<code>MongoDB</code>), that message-manager reaches it, and that both read the same <code>DLQ_AUTH_HMAC_SECRET</code> (<code>trading-model-secrets</code>): a 401 means the secrets differ, a 403 that <code>message-manager</code> is missing from <code>DLQ_ALLOWED_SERVICES</code>. Once fixed, the next forward (1 min) empties the file and the alert resolves. <strong>Do not delete the pod before that</strong>, or copy the file first:</p>
+<pre><code class="language-bash">POD=$(kubectl get pods -n trading-model -l app.kubernetes.io/component=message-manager -o name | head -n 1)
+kubectl cp -n trading-model -c message-manager \
+  &quot;${POD#pod/}:/var/lib/message-manager/dead-letter-queue.jsonl&quot; ./dead-letter-queue.jsonl
 </code></pre>
-<h3>3. DLQ Service Down</h3>
-<p><strong>Symptoms:</strong> Messages failing delivery, DLQ buffer filling up<br>
-<strong>Check:</strong></p>
-<pre><code class="language-bash">kubectl get pods -n trading-model -l app.kubernetes.io/component=dlq-service
-</code></pre>
-<p><strong>Fix:</strong> Restore DLQ service first, then message-manager will drain DLQ buffer.</p>
-<h3>4. WAL Corruption</h3>
-<p><strong>Symptoms:</strong> message-manager crash loop with WAL errors<br>
-<strong>Fix:</strong></p>
-<pre><code class="language-bash"># Scale down to stop writes
-kubectl scale deployment -n trading-model message-manager --replicas=0
-
-# Check Redis stream health
-kubectl exec -n trading-model redis-primary-0 -- redis-cli XLEN mm:stream:0
-
-# Clear WAL state (if safe to lose in-flight messages)
-kubectl exec -n trading-model redis-primary-0 -- redis-cli DEL mm:wal
-
-# Scale up
-kubectl scale deployment -n trading-model message-manager --replicas=3
-</code></pre>
+<p><strong><code>DeadLettersRejected</code>:</strong> dlq-service refused entries for good (invalid, or a message too large). They are in <code>/var/lib/message-manager/dead-letter-queue.jsonl.rejected</code> (copy it the same way) and logged with their topic. Each line is a <code>DlqEntry</code>: fix it and submit it with <code>POST /v1/dlq-service/dlq</code>.</p>
+<h3>5. Scraper publish backlog</h3>
+<p><strong>Symptoms:</strong> <code>fs_unpublished_candles</code> grows on the collector, <code>fs_publishes_skipped_total</code> grows (a publish held up to <code>PUBLISH_TIMEOUT_MS</code>), the scraper logs <code>Previous publish still in flight: skipped</code> or <code>Market data publish failed</code>. MySQL is still fed: the scraper persists before publishing and does not wait for the bus.</p>
+<p>Nothing is lost: the candles persisted while the bus is down stay in MySQL past the series publish cursor (<code>market_publish_cursors</code>, migration 005) and go out oldest first, 100 per cycle, once message-manager answers again, even after a collector restart. Fix the bus and <code>fs_unpublished_candles</code> falls back to 0; until then the trainer lags (<code>TrainerMarketDataStale</code> once it has received nothing for 15 min). To skip a backlog on purpose (e.g. after a very long outage, if old candles are not wanted), move the cursor: <code>UPDATE market_publish_cursors SET published_until = NOW(3) WHERE symbol = '&lt;SYMBOL&gt;'</code> (UTC session); the skipped candles stay in MySQL only.</p>
 <h2>Recovery Verification</h2>
-<pre><code class="language-bash"># 1. Health check
-kubectl exec -n trading-model deployment/message-manager -- \
-  curl -sk https://localhost:3000/health/ready
+<pre><code class="language-bash"># 1. Readiness
+kubectl exec -n trading-model deployment/message-manager -c message-manager -- \
+  curl -skf --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem \
+  https://localhost:3000/health/ready
 
-# 2. Publish test message
-kubectl exec -n trading-model deployment/message-manager -- \
-  curl -sk -X POST https://localhost:3000/publish \
-  -H 'Content-Type: application/json' \
-  -d '{&quot;topic&quot;:&quot;example.show.create&quot;,&quot;payload&quot;:{&quot;debug&quot;:true}}'
+# 2. Subscriptions are back (one hash per topic)
+kubectl exec -n trading-model &quot;$REDIS_MASTER&quot; -- redis-cli --scan --pattern 'trading-model:message-manager:subscriptions:*'
 
-# 3. Check metrics recover
-# 4. Verify dependent services reconnected
-# 5. Check DLQ is draining
+# 3. Metrics: mm_messages_delivered_total{status=&quot;success&quot;} grows again,
+#    mm_messages_unrouted_total stops growing
+# 4. Market data reaches the trainer: TrainerMarketDataStale resolves
 </code></pre>
 <h2>Prevention</h2>
 <ul>
-<li>Configure HPA to scale message-manager before backpressure builds</li>
-<li>Set <code>MAX_CONCURRENT_DELIVERIES</code> proportional to expected subscriber count</li>
-<li>Monitor Redis stream lag as leading indicator</li>
-<li>Ensure DLQ service is independently HA (2+ replicas)</li>
+<li>Run 2+ message-manager replicas with Redis (subscriptions are shared, see ADR-0019).</li>
+<li>Remember that a restart loses in-flight messages: drain (scale down one replica at a time) rather than delete every pod at once.</li>
+<li>Sending dead letters to dlq-service instead of a local file is an open follow-up of ADR-0019.</li>
 </ul>
 </div></div>
 </main>

@@ -135,37 +135,35 @@ Documentation
 <pre><code class="language-mermaid">graph LR
     MM[&quot;Message Manager&quot;] --&gt;|POST /message&lt;br/&gt;all topics| AL[&quot;Audit Logger&quot;]
     AL --&gt;|Write| MDB[(&quot;MongoDB&lt;br/&gt;audit_events&quot;)]
-    AL --&gt;|WebSocket| W[&quot;Workers&quot;]
+    AL --&gt;|Anchors| S3[(&quot;S3 Object Lock&quot;)]
     API[&quot;Client&quot;] --&gt;|GET /events| AL
     AL --&gt; DS[&quot;Discovery Server&quot;]
 </code></pre>
 <h2>Project Structure</h2>
 <pre><code>services/audit-logger/
 ├── src/
+│   ├── domain/                   # Pure: audit chain, date range
+│   │   └── ports/                # Audit chain ports
 │   ├── application/
-│   │   ├── index.ts      # Entry point: bootstrap, MongoDB connect, broker subscription
-│   │   ├── server.ts     # Express + WebSocket server factory
-│   │   ├── broker-setup.ts       # Message bus subscription wiring
-│   │   └── scheduler-factory.ts  # Scheduler composition root
+│   │   ├── index.ts              # Entry point: bootstrap, MongoDB connect, broker subscription
+│   │   ├── server.ts             # Express server factory
+│   │   ├── chain-cli.ts          # Operator CLI (package.json bin &quot;audit-chain&quot;, ADR-0027)
+│   │   └── audit-chain/          # Chain verification + anchoring scheduler
 │   ├── adapters/
 │   │   ├── inbound/
-│   │   │   └── subscription/audit-subscriber.ts  # Bus → repository ingestion
+│   │   │   ├── http/             # Controllers, routes, query-param parsing
+│   │   │   └── subscription/     # Bus → repository ingestion, message parsing
 │   │   └── outbound/
-│   │       └── persistence/      # Audit/log repository adapters
-│   ├── domain/
-│   │   └── scheduler/            # Job lifecycle, status &amp; failure domain logic
+│   │       ├── persistence/      # MongoDB repositories (audit events, chain state), filters, stats
+│   │       └── anchor/           # S3 anchor store
 │   ├── infrastructure/
-│   │   ├── config/env.ts         # Zod-validated environment
-│   │   └── repository-factory.ts
-│   ├── persistence/              # MongoDB CRUD (audit-repository, job-repository, ...)
-│   ├── scheduler/                # Priority-queue job scheduling
-│   ├── worker/                   # WebSocket protocol for external workers
-│   ├── controllers/              # HTTP request handlers
-│   ├── routes/                   # Express route definitions
-│   ├── subscription/             # Message parsing &amp; log schemas
-│   ├── config/                   # metrics, address-manager
-│   ├── utils/                    # Query parameter helpers
-│   └── types/                    # Worker &amp; job type definitions
+│   │   └── config/env.ts         # Zod-validated environment
+│   └── config/
+│       ├── container.ts          # Composition root: Mongo repositories, chain audit, message handler,
+│       │                         # server — createAuditLoggerApp()
+│       ├── broker-setup.ts       # Message bus subscription wiring
+│       ├── metrics.ts            # Prometheus collectors
+│       └── address-manager.ts
 ├── tests/
 ├── Dockerfile
 ├── package.json
@@ -183,23 +181,12 @@ AuditRepository ──→ MongoDB (audit_events collection)
     ▼
 REST API (GET /events, GET /events/stats, GET /events/:id)
 </code></pre>
-<h3>Job Processing</h3>
-<pre><code>JobScheduler ──→ Internal Queue (priority 1-5)
-    │
-    ▼
-WorkerProtocol (WebSocket) ──→ External Workers
-    │                         ACK / fail / complete
-    ▼
-JobRepository ──→ MongoDB (jobs collection)
-</code></pre>
 <h2>Key Design Decisions</h2>
 <ul>
 <li><strong>Subscribes to ALL bus topics</strong> — ensures no event is missed for audit purposes</li>
 <li><strong>MongoDB time-series friendly</strong> — <code>audit_events</code> collection uses date-based indexing</li>
-<li><strong>Priority queue</strong> — jobs are processed with priority levels 1-5</li>
-<li><strong>Worker protocol</strong> — WebSocket-based for real-time job distribution with ACK/fail lifecycle</li>
 <li><strong>Retention</strong> — configurable via <code>AUDIT_RETENTION_DAYS</code> (default 90 days)</li>
-<li><strong>Back-pressure</strong> — returns 429 when <code>MAX_QUEUE_DEPTH</code> or <code>MAX_WORKER_LOAD_RATIO</code> exceeded</li>
+<li><strong>No job scheduler</strong> — the job queue and WebSocket worker protocol had no producer and no worker; removed by ADR-0029</li>
 </ul>
 </div></div>
 </main>

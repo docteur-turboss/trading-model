@@ -151,6 +151,10 @@ Documentation
 </tr>
 </tbody>
 </table>
+<p>The scraper also calls <code>historicalTrades</code>, <code>aggTrades</code> and <code>ticker/tradingDay</code>, all public. No request is signed and no Binance account exists: <code>BINANCE_API_KEY</code> / <code>BINANCE_API_SECRET</code> are read by no code.</p>
+<h3>Regulatory Status (MiCA)</h3>
+<p>Binance holds no MiCA authorisation. Since 1 July 2026 it no longer accepts sign-ups, deposits or new spot orders from EEA residents and plans to apply in France (AMF). This concerns account holders; the platform has none. On 2026-10-30 every endpoint above answered from France without a key, on <code>api.binance.com</code> and <code>data-api.binance.vision</code>. Consuming public market data is not receiving a crypto-asset service under MiCA.</p>
+<p>The residual risk is a geo-block of the public API (HTTP 451). It is alerted (<code>BinanceRestrictedLocation</code>), and the fallbacks and re-examination triggers are set in <a href="../adr/0026-binance-public-market-data-kept.html">ADR-0026</a>.</p>
 <h3>Data Classification</h3>
 <table>
 <thead>
@@ -214,7 +218,7 @@ Documentation
 <ul>
 <li>Binance API Terms of Service: <a href="https://www.binance.com/en/terms">https://www.binance.com/en/terms</a></li>
 <li>Binance Privacy Policy: <a href="https://www.binance.com/en/privacy">https://www.binance.com/en/privacy</a></li>
-<li>Integration code: <code>services/financial-scraper/src/clients/binance/</code></li>
+<li>Integration code: <code>services/financial-scraper/src/adapters/outbound/binance/</code></li>
 </ul>
 <h2>Other Third Parties</h2>
 <table>

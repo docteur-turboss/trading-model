@@ -210,7 +210,7 @@ Documentation
 </tr>
 </tbody>
 </table>
-<p><strong>Composite PK:</strong> <code>(id, symbol, market, interval_value, timestamp, source)</code></p>
+<p><strong>Primary key:</strong> <code>(symbol, market, interval_value, timestamp, source)</code>, the business key the upserts (<code>INSERT ... ON DUPLICATE KEY UPDATE</code>) rely on; <code>id</code> keeps its own index (<code>idx_candles_id</code>). Migration 004 replaced the original <code>(id, ...)</code> key, which let every scrape insert the same candles again (the DDL below is the baseline 0000 migration).</p>
 <pre><code class="language-sql">CREATE TABLE IF NOT EXISTS `market_candles` (
     `id`               INT NOT NULL AUTO_INCREMENT,
     `symbol`           VARCHAR(32) NOT NULL,
@@ -230,7 +230,7 @@ Documentation
     INDEX `idx_candles_symbol` (`symbol` ASC) VISIBLE
 ) ENGINE = InnoDB;
 </code></pre>
-<p><strong>TS entity interface</strong> (<code>@trading-model/common</code>):</p>
+<p><strong>TS entity interface</strong> (<code>@trading-model/contracts</code> — <code>contracts/market-data.types</code>, re-exporting <code>contracts/market-data/candle.types</code>):</p>
 <pre><code class="language-ts">interface CandleData extends BaseMarketData {
   open: number;
   high: number;
@@ -325,7 +325,7 @@ Documentation
     INDEX `idx_trades_symbol` (`symbol` ASC) VISIBLE
 ) ENGINE=InnoDB;
 </code></pre>
-<p><strong>TS entity interface</strong> (<code>@trading-model/common</code>):</p>
+<p><strong>TS entity interface</strong> (<code>@trading-model/contracts</code> — <code>contracts/market-data.types</code>, re-exporting <code>contracts/market-data/trade.types</code>):</p>
 <pre><code class="language-ts">interface TradeData extends BaseMarketData {
   price: number;
   tradeId: bigint;
@@ -412,7 +412,7 @@ Documentation
 </tr>
 </tbody>
 </table>
-<p><strong>Composite PK:</strong> <code>(id, symbol, market, timestamp, source)</code></p>
+<p><strong>Primary key:</strong> <code>(symbol, market, timestamp, source)</code> since migration 004 (was <code>(id, ...)</code>, see <code>market_candles</code>); <code>id</code> keeps <code>idx_tickers_id</code>. The DDL below is the baseline 0000 migration.</p>
 <pre><code class="language-sql">CREATE TABLE IF NOT EXISTS `market_tickers` (
     `id`               INT NOT NULL AUTO_INCREMENT,
     `symbol`           VARCHAR(32) NOT NULL,
@@ -430,7 +430,7 @@ Documentation
     INDEX `idx_tickers_symbol` (`symbol` ASC) VISIBLE
 ) ENGINE = InnoDB;
 </code></pre>
-<p><strong>TS entity interface</strong> (<code>@trading-model/common</code>):</p>
+<p><strong>TS entity interface</strong> (<code>@trading-model/contracts</code> — <code>contracts/market-data.types</code>, re-exporting <code>contracts/market-data/ticker.types</code>):</p>
 <pre><code class="language-ts">interface TickerData extends BaseMarketData {
   low: number;
   open: number;
@@ -440,6 +440,57 @@ Documentation
   closeTimestamp: number;
 }
 </code></pre>
+<h3><code>market_publish_cursors</code> — how far each candle series is published</h3>
+<p>Migration 005. The scraper persists candles before publishing them; the candles of a series opened at or after <code>published_until</code> are persisted but not yet on the bus. Each cycle publishes the next 100 of them from <code>market_candles</code> and moves the cursor once message-manager took them, so a bus outage or a scraper restart loses none.</p>
+<table>
+<thead>
+<tr>
+<th>Column</th>
+<th>Type</th>
+<th>Constraints</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>source</code></td>
+<td><code>VARCHAR(32)</code></td>
+<td><code>NOT NULL</code>, <code>PK</code></td>
+<td>Data provider</td>
+</tr>
+<tr>
+<td><code>symbol</code></td>
+<td><code>VARCHAR(32)</code></td>
+<td><code>NOT NULL</code>, <code>PK</code></td>
+<td>Trading pair / ticker</td>
+</tr>
+<tr>
+<td><code>interval_value</code></td>
+<td><code>VARCHAR(16)</code></td>
+<td><code>NOT NULL</code>, <code>PK</code></td>
+<td>Candle interval</td>
+</tr>
+<tr>
+<td><code>market</code></td>
+<td><code>VARCHAR(16)</code></td>
+<td><code>NOT NULL</code></td>
+<td>Market type of the series</td>
+</tr>
+<tr>
+<td><code>published_until</code></td>
+<td><code>DATETIME(3)</code></td>
+<td><code>NOT NULL</code></td>
+<td>Open time of the next candle to publish</td>
+</tr>
+<tr>
+<td><code>updated_at</code></td>
+<td><code>DATETIME(3)</code></td>
+<td><code>NOT NULL</code>, auto</td>
+<td>Last move</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Primary key:</strong> <code>(source, symbol, interval_value)</code>. A series without a row starts at the first candle the scraper persists, not at the history. Skipping a backlog on purpose: see <code>runbook-message-bus-outage</code>.</p>
 <h3>Shared base interface</h3>
 <pre><code class="language-ts">interface BaseMarketData {
   symbol: string;
@@ -454,7 +505,7 @@ Documentation
 <li>All tables have a <code>VISIBLE</code> index on <code>symbol</code> — the primary query path for market data lookups</li>
 </ul>
 <h2>Entity Types Not Yet Persisted</h2>
-<p>These interfaces exist in <code>@trading-model/common</code> but have <strong>no corresponding table</strong> yet:</p>
+<p>These interfaces exist in <code>@trading-model/contracts</code> (<code>contracts/market-data/orderbook.types</code>) but have <strong>no corresponding table</strong> yet:</p>
 <ul>
 <li><code>OrderBookData</code> — order book depth snapshots (<code>bids</code> / <code>asks</code>)</li>
 <li><code>BookTickerData</code> — best bid/ask ticker (<code>bid</code>, <code>ask</code>, <code>bidQty</code>, <code>askQty</code>)</li>

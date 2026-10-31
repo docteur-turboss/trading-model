@@ -331,7 +331,7 @@ Documentation
 <tbody>
 <tr>
 <td><strong>Health</strong></td>
-<td><code>GET /health</code> → <code>{&quot;status&quot;:&quot;ok&quot;,&quot;queueDepth&quot;:N,&quot;canAccept&quot;:true}</code></td>
+<td><code>GET /health</code> → <code>{&quot;status&quot;:&quot;ok&quot;,&quot;timestamp&quot;:&quot;...&quot;}</code></td>
 </tr>
 <tr>
 <td><strong>Port</strong></td>
@@ -351,7 +351,7 @@ Documentation
 </tr>
 <tr>
 <td><strong>Common failures</strong></td>
-<td>MongoDB connection loss → events not persisted. Queue full → 429 responses. Check <code>MONGODB_URI</code> and <code>MAX_QUEUE_DEPTH</code>.</td>
+<td>MongoDB connection loss → events not persisted (<code>/health/ready</code> 503). Check <code>MONGODB_URI</code>.</td>
 </tr>
 </tbody>
 </table>
@@ -390,45 +390,15 @@ Documentation
 </tr>
 </tbody>
 </table>
-<h2>9. Admin Interface</h2>
-<table>
-<thead>
-<tr>
-<th>Aspect</th>
-<th>Details</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><strong>Health</strong></td>
-<td>nginx health: <code>wget -qO- http://localhost:80/ping</code></td>
-</tr>
-<tr>
-<td><strong>Port</strong></td>
-<td>5173 (dev) / 80 (prod container) / 8449 (host mapped)</td>
-</tr>
-<tr>
-<td><strong>Key logs</strong></td>
-<td>Vite dev server output, or nginx access/error logs in production</td>
-</tr>
-<tr>
-<td><strong>Metrics</strong></td>
-<td>nginx metrics (if configured), otherwise no application-level metrics</td>
-</tr>
-<tr>
-<td><strong>Debug endpoints</strong></td>
-<td>SPA only — uses browser DevTools (Network tab, Console) for debugging API calls</td>
-</tr>
-<tr>
-<td><strong>Common failures</strong></td>
-<td>API calls fail with 401 → check <code>VITE_ADMIN_TOKEN</code>. Proxy errors → check api-gateway health. Blank screen → check browser console for JS errors.</td>
-</tr>
-</tbody>
-</table>
 <h2>Quick Commands</h2>
 <pre><code class="language-bash"># Check all service health endpoints
-for port in 8443 8444 8445 8446 8448 8450 8452; do
-  echo &quot;Port $port: $(curl -sk https://localhost:$port/ping 2&gt;/dev/null || echo 'UNREACHABLE')&quot;
+# Services only accept SPIFFE mTLS clients (ADR-0011): probe them from inside
+# their container, with its SVID (what the compose healthcheck does)
+for c in trading-discovery trading-message trading-scraper trading-trainer \
+         trading-gateway trading-audit trading-dlq; do
+  printf '%s: ' &quot;$c&quot;
+  docker exec &quot;$c&quot; curl -sk --cert /run/spire/svid/svid.pem \
+    --key /run/spire/svid/svid_key.pem https://localhost:3000/ping; echo
 done
 
 # Tail logs for a specific service

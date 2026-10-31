@@ -114,16 +114,17 @@ Documentation
 
 <div class="tm-prose text-sm leading-relaxed text-slate-300 font-sans"><div>
 <p><strong>Status:</strong> Accepted
-<strong>Date:</strong> 2026-06</p>
+<strong>Date:</strong> 2026-06
+<strong>Verified by:</strong> <code>services/trader-trainer/tests/unit/genetic-algorithm/evolution-engine.spec.ts</code>, <code>services/trader-trainer/tests/unit/genetic-algorithm/crossover.spec.ts</code>, <code>services/trader-trainer/tests/unit/agent/trading-agent.spec.ts</code></p>
 <h2>Context</h2>
-<p>The platform needs to train autonomous trading agents that can adapt to changing market conditions. The agents must balance exploration (finding new strategies) with exploitation (using known profitable strategies) across a continuous action space (buy, sell, hold with varying quantities).</p>
+<p>The platform needs to train autonomous trading agents that can adapt to changing market conditions. The agents must balance exploration (finding new strategies) with exploitation (using known profitable strategies) across an action space of buy, sell and hold (discrete since <a href="0025-ga-fitness-wired-to-fitness-type.html">ADR-0025</a>: Q-learning cannot learn a continuous policy).</p>
 <h2>Decision</h2>
 <p>Use a hybrid approach combining <strong>Genetic Algorithms (GA)</strong> for population-level evolution with <strong>Deep Q-Learning (DQN)</strong> for individual agent optimization.</p>
 <h3>Architecture</h3>
 <ul>
 <li><strong>GA layer</strong>: Maintains a population of agent genomes. Each genome encodes neural network architecture parameters (layer sizes, activation functions, learning rates) and initial weights.</li>
 <li><strong>DQN layer</strong>: Each agent wraps a neural network trained via Q-learning with experience replay. The GA evolves the hyperparameters and initial weights; DQN fine-tunes weights during each agent's lifetime.</li>
-<li><strong>Fitness function</strong>: Composite of Sharpe ratio, Sortino ratio, Calmar ratio, and total P&amp;L, with complexity penalty.</li>
+<li><strong>Fitness function</strong>: Composite of Sharpe ratio, Sortino ratio, Calmar ratio, and total P&amp;L, with complexity penalty. <em>Amended by <a href="0025-ga-fitness-wired-to-fitness-type.html">ADR-0025</a>: one metric per run (<code>TRAINER_FITNESS_TYPE</code>), computed on the wallet PnL.</em></li>
 <li><strong>Selection</strong>: Tournament selection with elitism (top 10% preserved).</li>
 <li><strong>Crossover</strong>: BLX-alpha crossover for real-valued genome blending.</li>
 <li><strong>Mutation</strong>: Adaptive Gaussian mutation with diversity-based rate adjustment.</li>

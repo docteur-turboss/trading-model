@@ -133,7 +133,7 @@ Documentation
 <tbody>
 <tr>
 <td><strong>Art. 1(1)</strong> — Clearly describe system design and operation</td>
-<td>Architecture documented in <code>docs/architecture/</code>, ADRs in <code>docs/adr/</code>, agent topology defined in <code>services/trader-trainer/src/neural-network/</code></td>
+<td>Architecture documented in <code>docs/architecture/</code>, ADRs in <code>docs/adr/</code>, agent topology defined in <code>services/trader-trainer/src/domain/neural-network/</code></td>
 <td>✅ Documented</td>
 </tr>
 <tr>
@@ -143,7 +143,7 @@ Documentation
 </tr>
 <tr>
 <td><strong>Art. 1(3)</strong> — Risk management controls pre-deployment</td>
-<td>Circuit breakers (<code>@trading-model/common/reliability/circuit-breaker.ts</code>), rate limiting, position limits validated in env schema</td>
+<td>Circuit breakers (<code>@trading-model/reliability/circuit-breaker.ts</code>), rate limiting, position limits validated in env schema</td>
 <td>✅ Implemented</td>
 </tr>
 <tr>
@@ -167,12 +167,12 @@ Documentation
 <tbody>
 <tr>
 <td><strong>Market data integrity</strong> — input validation and sanitisation</td>
-<td>Zod schemas validate all incoming market data (<code>services/financial-scraper/src/clients/binance/</code>)</td>
+<td>Zod schemas validate all incoming market data (<code>services/financial-scraper/src/adapters/outbound/binance/</code>)</td>
 <td>Integration tests</td>
 </tr>
 <tr>
 <td><strong>Agent behaviour bounds</strong> — max position, max order frequency</td>
-<td>Enforced via agent environment constraints in <code>services/trader-trainer/src/environment/</code></td>
+<td>Enforced via agent environment constraints in <code>services/trader-trainer/src/domain/env/</code></td>
 <td>Unit tests</td>
 </tr>
 <tr>
@@ -197,16 +197,16 @@ Documentation
 </thead>
 <tbody>
 <tr>
-<td><strong>Market data feed loss</strong> — Binance API unavailable</td>
-<td><code>circuit-breaker.ts</code> opens after configurable failure threshold. <code>dlq-service</code> captures failed messages. Agent pauses training and awaits data recovery</td>
+<td><strong>Market data feed loss</strong> — Binance API unavailable or geo-blocked (<a href="../adr/0026-binance-public-market-data-kept.html">ADR-0026</a>)</td>
+<td>No circuit breaker on the Binance client: 5xx, 429, 408 and network errors are retried with exponential backoff (5 attempts); 403 (WAF), 418 (IP ban) and 451 (restricted location) are not. A failed cycle persists and publishes nothing, so no message reaches <code>dlq-service</code>. Detected by <code>BinanceRestrictedLocation</code> (451), <code>ScrapeCyclesFailing</code> and <code>MarketDataStale</code>; fallbacks in <a href="../operations/runbooks/runbook-market-data-stale.html">runbook-market-data-stale</a>. The trainer stops training a symbol whose newest candle is older than <code>TRAINER_MAX_DATA_AGE_MS</code> (15 min) and resumes when fresh data arrives</td>
 </tr>
 <tr>
 <td><strong>Extreme volatility</strong> — rapid price movements</td>
 <td>Agent uses normalised feature vectors; outlier detection in <code>feature-builder.ts</code>. No live execution risk in simulation</td>
 </tr>
 <tr>
-<td><strong>High message volume</strong> — Redis Streams backpressure</td>
-<td>Stream MAXLEN ~500000, DLQ with adaptive backoff, audit-logger with back-pressure management via job queue</td>
+<td><strong>High message volume</strong> — synchronous HTTP broker, no message buffer (<a href="../adr/0019-message-broker-as-built.html">ADR-0019</a>)</td>
+<td>Per-subscriber circuit breaker, exponential backoff (10 attempts), dead letters counted and alerted (<code>MessagesDeadLettered</code>, <code>MessagesLost</code>), audit-logger with back-pressure management via job queue. Messages are not persisted: a broker restart loses in-flight messages</td>
 </tr>
 </tbody>
 </table>
@@ -230,7 +230,7 @@ Documentation
 <tbody>
 <tr>
 <td><strong>Max order volume/ value</strong></td>
-<td>Enforced in agent action space definition (<code>services/trader-trainer/src/environment/</code>)</td>
+<td>Enforced in agent action space definition (<code>services/trader-trainer/src/domain/env/</code>)</td>
 </tr>
 <tr>
 <td><strong>Max order frequency</strong></td>

@@ -141,11 +141,13 @@ binance.client.ts  ─── Axios instance (rate-limited, retry-capable)
 BinanceNormalizer  ─── Raw → Normalized entity conversion
      │
      ▼
-BinanceWorker.run() ─── Per-symbol orchestration
-     │                       │
-     │                       ▼
-     │              MessageManager.post.indirect()
-     │              (6 events published to message bus)
+BinanceMarketDataSource ─── MarketDataSourcePort (domain): snapshot per symbol
+     │
+     ▼
+WorkerOrchestrator ─── fetch → publish → persist, per symbol
+     │
+     ├── BrokerMarketDataPublisher ─── MarketDataPublisherPort (domain)
+     │        MessageManager.post.indirect() (6 events on the message bus)
      │
      ▼
 MarketDataController.persist()
@@ -159,30 +161,29 @@ MarketDataController.persist()
 <pre><code>node-cron
     │
     ▼
-BinanceCronOrchestrator
+ScrapeCronOrchestrator (deps built by config/container.ts)
     │
     ├── p-limit (concurrency = min(cpus × 2, symbols.length))
     │
-    └── For each symbol:
-         └── BinanceWorker.run()
-              ├── binance.client.*()    (6 parallel API calls)
-              ├── BinanceNormalizer.*() (6 parallel normalizations)
-              ├── MessageManager.post   (6 event publications)
-              └── MarketDataController.persist()
+    └── WorkerOrchestrator, for each symbol:
+         ├── source.fetchSnapshot()   BinanceMarketDataSource:
+         │                            6 parallel API calls + normalization
+         ├── publisher.publish()      6 event publications (never throws)
+         └── persist()                MarketDataController.persist()
 </code></pre>
 <h2>Component Breakdown</h2>
 <h3>1. HTTP Client Layer (<code>src/config/http.ts</code>)</h3>
 <p>A configurable Axios instance factory (<code>createHttpClient</code>) that provides:</p>
 <ul>
 <li><strong>Token-bucket rate limiter</strong> — per-baseURL bucket with configurable capacity (default: 1200 tokens) and refill rate (20 tokens/sec). The <code>weight</code> property on each request config determines how many tokens are consumed, mirroring Binance's documented API weight system.</li>
-<li><strong>Exponential backoff retry</strong> — up to 5 retries with 300ms base delay, max 10s. Triggers on network errors, 5xx, 403, 408, 429, and 418 status codes.</li>
-<li><strong>Type augmentation</strong> — <code>AxiosRequestConfig</code> is augmented to accept a <code>weight?: number</code> field via declaration merging (<code>src/types/axios.d.ts</code>).</li>
+<li><strong>Exponential backoff retry</strong> — up to 5 retries with 300ms base delay, max 10s. Triggers on network errors, 5xx, 408 and 429. Never on 403 (Binance WAF), 418 (IP ban) or 451 (restricted location): see ADR-0026.</li>
+<li><strong>Type augmentation</strong> — <code>AxiosRequestConfig</code> is augmented to accept a <code>weight?: number</code> field via declaration merging (<code>src/infrastructure/http/axios.d.ts</code>).</li>
 </ul>
 <pre><code class="language-typescript">const binance = httpClients.binance;
 // weight is consumed by the rate limiter before the request is sent
 const response = await binance.get(url, { weight: 5 });
 </code></pre>
-<h3>2. Binance Client (<code>src/clients/binance/</code>)</h3>
+<h3>2. Binance Client (<code>src/adapters/outbound/binance/</code>)</h3>
 <table>
 <thead>
 <tr>
@@ -209,7 +210,7 @@ const response = await binance.get(url, { weight: 5 });
 </tr>
 </tbody>
 </table>
-<h3>3. Worker &amp; Cron (<code>src/job/</code>)</h3>
+<h3>3. Scrape cycle (<code>src/adapters/inbound/cron/</code>, <code>src/application/worker-orchestrator.ts</code>, <code>src/domain/ports/</code>)</h3>
 <table>
 <thead>
 <tr>
@@ -220,18 +221,39 @@ const response = await binance.get(url, { weight: 5 });
 </thead>
 <tbody>
 <tr>
-<td><code>BinanceWorker</code></td>
-<td><code>worker/binance.worker.ts</code></td>
-<td>Per-symbol worker: fetches all 6 data types in parallel, normalizes, publishes to message bus, returns result</td>
+<td><code>MarketDataSourcePort</code></td>
+<td><code>domain/ports/market-data-source.port.ts</code></td>
+<td>A market data provider: <code>fetchSnapshot(request)</code> returns a normalized <code>MarketDataSnapshot</code></td>
 </tr>
 <tr>
-<td><code>BinanceCronOrchestrator</code></td>
-<td><code>cron/binance.cron.ts</code></td>
-<td>Schedules workers on a cron expression, manages concurrency with <code>p-limit</code>, prevents overlapping runs</td>
+<td><code>MarketDataPublisherPort</code></td>
+<td><code>domain/ports/market-data-publisher.port.ts</code></td>
+<td>Publishes a snapshot to the subscribers; never rejects, returns the parts that failed</td>
+</tr>
+<tr>
+<td><code>BinanceMarketDataSource</code></td>
+<td><code>adapters/outbound/binance/binance-market-data-source.ts</code></td>
+<td>The only source today (ADR-0026): 6 parallel public API calls, a failed one leaves its part out</td>
+</tr>
+<tr>
+<td><code>BrokerMarketDataPublisher</code></td>
+<td><code>adapters/outbound/broker/broker-market-data.publisher.ts</code></td>
+<td>One event per part present through message-manager, fresh metadata per snapshot</td>
+</tr>
+<tr>
+<td><code>WorkerOrchestrator</code></td>
+<td><code>application/worker-orchestrator.ts</code></td>
+<td>Per symbol: fetch → persist → publish (not awaited) of the next persisted candles from the MySQL publish cursor</td>
+</tr>
+<tr>
+<td><code>ScrapeCronOrchestrator</code></td>
+<td><code>adapters/inbound/cron/scrape.cron.ts</code></td>
+<td>Runs the cycle on a cron expression with <code>p-limit</code>, prevents overlapping runs</td>
 </tr>
 </tbody>
 </table>
-<p>The worker publishes 6 events to the message bus for each symbol:</p>
+<p>Adding a source means an adapter implementing <code>MarketDataSourcePort</code> and a value of <code>DataSource</code>; the cycle does not change.</p>
+<p>The publisher sends 6 events to the message bus for each symbol:</p>
 <ul>
 <li><code>FetchCandlestick</code> → <code>fetchCandlestickSeries</code></li>
 <li><code>FetchOrderbook</code> → <code>fetchOrderBookSnapshot</code></li>
@@ -240,8 +262,8 @@ const response = await binance.get(url, { weight: 5 });
 <li><code>FetchPriceTicker</code> → <code>fetchPriceTickerSnapshot</code></li>
 <li><code>FetchRecentTrades</code> → <code>fetchRecentTrades</code></li>
 </ul>
-<h3>4. Persistence Layer (<code>src/infra/market-data/</code>)</h3>
-<p>The <code>src/infra/market-data/</code> directory only contains the storage schemas and type definitions. The persistence orchestration controller has migrated to <code>src/application/market-data.controller.ts</code>, and the <code>MarketDataModel</code> facade now lives in <code>src/domain/market-data.model.ts</code>.</p>
+<h3>4. Persistence Layer (<code>src/adapters/outbound/persistence/</code>)</h3>
+<p>Storage schemas live in <code>src/adapters/outbound/persistence/schema/</code>; market data types in <code>src/domain/market-data.types.ts</code>. The persistence use case <code>createMarketDataController()</code> (<code>src/application/market-data.controller.ts</code>) depends on <code>MarketDataRepositoryPort</code> (<code>src/domain/ports/</code>); <code>src/config/container.ts</code> wires it to the MySQL <code>MarketDataModel</code> and exports the <code>MarketDataController</code> instance plus the scrape-cycle dependencies of <code>WorkerOrchestrator</code>.</p>
 <table>
 <thead>
 <tr>
@@ -273,8 +295,8 @@ const response = await binance.get(url, { weight: 5 });
 </tr>
 </tbody>
 </table>
-<p>The <code>MarketDataModel</code> class (in <code>src/domain/market-data.model.ts</code>) provides a unified facade over all schema modules. <code>MarketDataController.persist()</code> (in <code>src/application/market-data.controller.ts</code>) conditionally delegates to it.</p>
-<h3>5. REST API (<code>src/clients/http/</code>)</h3>
+<p>The <code>MarketDataModel</code> class (in <code>src/adapters/outbound/persistence/market-data.model.ts</code>) provides a unified facade over all schema modules. <code>MarketDataController.persist()</code> (built in <code>src/config/container.ts</code>) conditionally delegates to it.</p>
+<h3>5. REST API (<code>src/adapters/inbound/http/</code>)</h3>
 <table>
 <thead>
 <tr>
@@ -387,7 +409,7 @@ const response = await binance.get(url, { weight: 5 });
 </tr>
 <tr>
 <td><strong>Path aliases</strong></td>
-<td><code>config/*</code>, <code>infra/*</code>, <code>clients/*</code>, <code>job/*</code>, <code>types/*</code>, <code>utils/*</code> map to <code>src/</code> subdirectories for clean imports</td>
+<td><code>config/*</code> maps to <code>src/config/</code> (the other legacy aliases were removed with the hexagonal layout)</td>
 </tr>
 </tbody>
 </table>
@@ -472,8 +494,8 @@ const response = await binance.get(url, { weight: 5 });
 <li><strong>mTLS via SPIRE</strong> — all inter-service communication uses mutual TLS, automatic via SPIRE SVIDs (ADR-0011); no manual certificates</li>
 <li><strong>MySQL connection</strong> — user, password, host, port, database name</li>
 <li><strong>Discovery Server URL</strong> — for service registration and heartbeat</li>
-<li><strong>Cron schedule</strong> — defined in <code>BinanceCronOrchestrator</code> configuration</li>
-<li><strong>Tracked symbols</strong> — defined in <code>src/config/follows.ts</code> (~2500+ Binance pairs)</li>
+<li><strong>Cron schedule</strong> — <code>SCRAPE_INTERVAL</code> (cron expression, default every minute)</li>
+<li><strong>Tracked symbols</strong> — <code>SYMBOLS_TO_TRACK</code> (JSON array or CSV list)</li>
 </ul>
 <h2>Error Handling</h2>
 <ul>

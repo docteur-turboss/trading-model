@@ -4,7 +4,7 @@
 
 ## Overview
 
-This document describes the neural network module (`src/core/neural-network/`) implementation. It covers the class API, TypeScript types, configuration, and training modes.
+This document describes the neural network module (`src/domain/neural-network/`) implementation. It covers the class API, TypeScript types, configuration, and training modes.
 
 ---
 
@@ -110,18 +110,20 @@ Orchestrates NeuralNetwork + Wallet + StateManager for the training loop:
 ```
 step(features, price):
   1. wallet.setPrice(price)
-  2. output = agent.fastForward(features)  # inference + pool push
-  3. action = mapOutputToAction(output)     # discrete: argmax, continuous: threshold
-  4. wallet.buy/sell(amount)
-  5. reward = wallet.getPnL() - previousPnL
+  2. reward = PnL now - PnL just before the previous decision's trade
+     # the previous decision's reward: its trading cost + the price move it was exposed to
+  3. state = [features..., exposure]       # market features + agent state (agent-state.ts)
+     output = nn.forward(state)
+  4. action = epsilon-greedy over output     # 0=sell, 1=hold, 2=buy
+  5. wallet.buy/sell(amount)
   6. state.decayEpsilon()
-  7. return { action, reward, metrics }
+  7. return { state, action, actionIndex, reward, metrics }
+
+remember(transition)          # replay buffer
+replay(batchSize, discount)   # minibatch Q-learning update (PER weights when prioritized)
 ```
 
-**Action mapping** (`mapOutputToAction`):
-
-- Discrete (3 neurons): `0=sell, 1=hold, 2=buy` (argmax)
-- Continuous (1 neuron): `>0.25=buy, <-0.25=sell, else hold`
+**Action mapping**: one Q-value per action, `0=sell, 1=hold, 2=buy`; a random action with probability epsilon, the argmax otherwise.
 
 ---
 

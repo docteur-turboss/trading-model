@@ -180,22 +180,27 @@ main ──────────────────╂─── (hotfix)
 <h2>Code Organization</h2>
 <p>The project is an bun workspaces monorepo:</p>
 <pre><code>trading-model/
-├── packages/     # 6 shared libraries (@trading-model/*)
-│   ├── common/              # Base types, schemas, utilities
-│   ├── validation/          # Zod schemas, DTOs, admin contracts
-│   ├── server-utils/        # Secure HTTPS server factory, TLS watcher
-│   ├── crypto/              # Hashing, signature, crypto primitives
-│   ├── address-manager/     # Service discovery client
-│   └── broker-message/      # Message bus protocol types
-├── services/     # 8 microservices (kebab-case directory names)
+├── packages/     # 12 shared libraries (@trading-model/*)
+│   ├── primitives/           # Branded types, domain primitives (zero dependencies)
+│   ├── contracts/            # Shared contracts, http-status/headers, logger-registry
+│   ├── reliability/          # Circuit breakers, latency tracker
+│   ├── common/               # Residual config, cross-cutting utilities, shared schemas
+│   ├── persistence/          # Redis/Mongo stores
+│   ├── http/                 # Middleware, HTTP client, logger
+│   ├── validation/           # Zod schemas, DTOs, env validation
+│   ├── server-utils/         # Bootstrap, secure HTTPS server factory, TLS watcher
+│   ├── crypto/               # Hashing, signature, crypto primitives
+│   ├── jobs/                 # Worker protocol, orphan recovery
+│   ├── address-manager/      # Service discovery client
+│   └── broker-message/       # Message bus protocol types
+├── services/     # 7 microservices (kebab-case directory names)
 │   ├── discovery-server/
 │   ├── message-manager/
 │   ├── financial-scraper/
 │   ├── trader-trainer/      # bun name: trader-service
 │   ├── api-gateway/
 │   ├── audit-logger/
-│   ├── dlq-service/
-│   └── admin-interface/     # React SPA (Vite + Vitest)
+│   └── dlq-service/
 ├── deploy/       # K8s manifests + nginx configs
 ├── docs/         # Centralized documentation
 └── scripts/      # Automation scripts
@@ -259,8 +264,8 @@ main ──────────────────╂─── (hotfix)
 </ol>
 <h2>Testing</h2>
 <ul>
-<li><strong>Framework</strong>: Jest with <code>ts-jest</code> (most services); <strong>Vitest</strong> (admin-interface only)</li>
-<li><strong>Convention</strong>: Single <code>.spec.ts</code> or <code>.spec.tsx</code> (admin-interface) suffix</li>
+<li><strong>Framework</strong>: Jest with <code>ts-jest</code> (every workspace)</li>
+<li><strong>Convention</strong>: Single <code>.spec.ts</code> suffix</li>
 <li><strong>Coverage thresholds</strong>: 80% across all workspaces (branch-only exceptions: <code>broker-message</code> 75%, <code>message-manager</code> and <code>dlq-service</code> 79%)</li>
 <li><strong>Structure</strong>: Tests mirror source under <code>tests/unit/</code>, <code>tests/integration/</code>, <code>tests/e2e/</code></li>
 </ul>
@@ -343,7 +348,7 @@ IMAGE_TAG=$(node -p &quot;require('./package.json').version&quot;) docker compos
 
 main ←── merge dev ────→ tag v* ──→ release.yml ──→ stable deploy
               (if OK)     bun run   quality           docker compose
-                          release   docker (8 images) pull + up -d
+                          release   docker (7 images) pull + up -d
                                     docs (GitHub Pages)
                                     GitHub Release
 </code></pre>

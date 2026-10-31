@@ -249,6 +249,7 @@ Any additional context useful for the reviewer.
 <li>Test coverage</li>
 <li>No regressions</li>
 <li>Architectural relevance</li>
+<li><strong>No swallowed errors</strong> (<a href="error-handling.html">Error Handling</a>): every <code>catch</code> propagates, logs/records a metric or delegates; no infrastructure failure returned as <code>[]</code>/<code>0</code>/<code>null</code>/<code>false</code>; no success log that ignores a failed result; each <code>biome-ignore lint/plugin</code> has a valid reason</li>
 </ul>
 </li>
 <li>Comments must be constructive and specific</li>
@@ -289,7 +290,7 @@ Any additional context useful for the reviewer.
 <h2>Example PR Description</h2>
 <pre><code class="language-markdown"># Description
 
-Centralize the `ServiceInstance` type in @trading-model/common to avoid
+Centralize the `ServiceInstance` type in @trading-model/primitives to avoid
 duplication between discovery-server and message-manager.
 
 ## Type of Change
@@ -300,13 +301,13 @@ duplication between discovery-server and message-manager.
 
 ### ✅ Additions
 
-- Type `ServiceId` in `packages/common/src/domain/primitives/general-ids.ts`
+- Type `ServiceId` in `packages/primitives/src/primitives/general-ids.ts`
 - Unit tests for the new type
 
 ### :recycle: Modifications
 
-- Discovery-server now imports from `@trading-model/common/domain`
-- Message-manager now imports from `@trading-model/common/domain`
+- Discovery-server now imports from `@trading-model/primitives`
+- Message-manager now imports from `@trading-model/primitives`
 - Removed duplicate definitions in each service
 
 ### :fire: Removals

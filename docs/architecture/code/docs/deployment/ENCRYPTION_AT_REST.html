@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html class="dark" lang="en" data-tm-processed="true"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no" name="viewport">
+<title>Encryption at Rest | trading-model</title>
+
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+
+<script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              400: '#818cf8',
+              500: '#6366f1',
+              600: '#4f46e5',
+            },
+            surface: {
+              base: '#0B0F19',
+              card: '#111827',
+              muted: '#1E293B',
+              border: '#243046',
+            },
+            code: {
+              bg: '#0c121e',
+              keyword: '#c084fc',
+              ident: '#38bdf8',
+              type: '#34d399',
+              punct: '#94a3b8'
+            }
+          },
+          fontFamily: {
+            mono: ['JetBrains Mono', 'Fira Code', 'Menlo', 'Monaco', 'Courier New', 'monospace'],
+            sans: ['-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Inter', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+
+<style data-purpose="mobile-ux-styles">
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    .active-scale:active { transform: scale(0.97); transition: transform 0.1s ease-out; }
+    .h-safe-top { height: env(safe-area-inset-top, 0px); }
+    .pt-safe { padding-top: env(safe-area-inset-top, 0px); }
+    @supports (backdrop-filter: blur(12px)) {
+      .glass-header { backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
+    }
+    
+    .tm-prose p { margin: 0.5rem 0; }
+    .tm-prose p:first-child { margin-top: 0; }
+    .tm-prose p:last-child { margin-bottom: 0; }
+    .tm-prose a { color: #818cf8; text-decoration: underline; text-underline-offset: 2px; }
+    .tm-prose a:hover { color: #a5b4fc; }
+    .tm-prose code { font-family: 'JetBrains Mono', 'Fira Code', Menlo, Monaco, 'Courier New', monospace; font-size: 0.82em; color: #fbbf24; background: #0c121e; border: 1px solid #243046; border-radius: 0.25rem; padding: 0.05rem 0.3rem; }
+    .tm-prose pre { background: #0c121e; border: 1px solid #243046; border-radius: 0.5rem; padding: 0.75rem; overflow-x: auto; margin: 0.5rem 0; }
+    .tm-prose pre code { background: transparent; border: none; padding: 0; color: #e2e8f0; }
+    .tm-prose ul, .tm-prose ol { padding-left: 1.25rem; margin: 0.5rem 0; }
+    .tm-prose ul { list-style: disc; }
+    .tm-prose ol { list-style: decimal; }
+    .tm-prose li { margin: 0.2rem 0; }
+    .tm-prose blockquote { border-left: 3px solid #6366f1; background: rgba(17, 24, 39, 0.6); padding: 0.5rem 0.75rem; border-radius: 0 0.5rem 0.5rem 0; color: #94a3b8; margin: 0.5rem 0; }
+    .tm-prose h1, .tm-prose h2, .tm-prose h3, .tm-prose h4, .tm-prose h5 { color: #ffffff; font-weight: 700; margin: 0.75rem 0 0.25rem; }
+    .tm-prose h1 { font-size: 1.25rem; }
+    .tm-prose h2 { font-size: 1.125rem; }
+    .tm-prose h3 { font-size: 1rem; }
+    .tm-prose h4 { font-size: 0.875rem; }
+    .tm-prose table { width: 100%; border-collapse: collapse; margin: 0.5rem 0; }
+    .tm-prose th, .tm-prose td { border: 1px solid #243046; padding: 0.4rem 0.6rem; text-align: left; }
+    .tm-prose thead th { background: #0b0f19; color: #e2e8f0; font-size: 0.75rem; text-transform: uppercase; }
+    .tm-prose strong { color: #ffffff; }
+  </style>
+
+</head>
+<body class="bg-[#080C15] text-slate-200 font-sans antialiased min-h-screen pb-24 selection:bg-indigo-500/30 selection:text-indigo-200">
+
+<header class="sticky top-0 z-40 w-full glass-header bg-[#0B0F19]/90 border-b border-surface-border">
+<div class="h-safe-top pt-safe"></div>
+<div class="px-4 py-2.5 flex items-center justify-between gap-3">
+<div class="flex items-center gap-2.5 min-w-0">
+
+<div class="flex flex-col min-w-0">
+<div class="flex items-center gap-1.5 truncate">
+<span class="font-mono text-xs font-semibold text-indigo-400 truncate tracking-tight"><a class="text-indigo-400 hover:text-indigo-300 hover:underline" href="../../index.html">trading-model</a></span>
+
+</div>
+<span class="text-[10px] text-slate-400 flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> TypeDoc API Reference
+</span>
+</div>
+</div>
+
+</div>
+</header>
+
+<main class="px-4 py-4 max-w-2xl mx-auto flex flex-col gap-6">
+
+<section class="space-y-2.5" data-purpose="breadcrumbs-and-header">
+<nav aria-label="Breadcrumb" class="flex items-center flex-wrap gap-1 text-[11px] font-mono text-slate-400">
+<a class="text-indigo-400 hover:underline" href="../../index.html">trading-model</a><span class="text-slate-600">/</span><span class="text-slate-300 font-medium">Encryption at Rest</span>
+</nav>
+<div class="flex items-center gap-2.5 pt-1">
+<span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-mono font-medium tracking-wide uppercase bg-indigo-500/10 text-indigo-400 border-indigo-500/20">
+Documentation
+</span>
+<h1 class="text-2xl font-bold tracking-tight text-white font-sans">Encryption at Rest</h1>
+</div>
+
+</section>
+
+<div class="tm-prose text-sm leading-relaxed text-slate-300 font-sans"><div>
+<p>The platform runs on self-hosted machines (VPS, home PCs) with community
+editions only: no MySQL Enterprise TDE, no MongoDB Enterprise. Data at rest is
+protected at two levels:</p>
+<table>
+<thead>
+<tr>
+<th>Layer</th>
+<th>Covers</th>
+<th>Tooling</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Data disk</strong> (LUKS2 + Clevis/Tang)</td>
+<td>Everything a host stores: MySQL, MongoDB, Redis, Loki, Prometheus, SPIRE keys and datastore, K8s Secrets (k3s datastore), the in-cluster backup volume</td>
+<td><code>deploy/host/</code></td>
+</tr>
+<tr>
+<td><strong>Backups</strong> (age)</td>
+<td>Every dump, from the moment it is written: in the cluster and off-site</td>
+<td><code>scripts/backup-lib.sh</code>, image <code>backup-tools</code></td>
+</tr>
+</tbody>
+</table>
+<h2>Threat model</h2>
+<table>
+<thead>
+<tr>
+<th>Threat</th>
+<th>Protected</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Disk or machine stolen, disk resold or recycled</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td>Hosting provider reading a disk image or a snapshot</td>
+<td>Yes (the key is never on the disk)</td>
+</tr>
+<tr>
+<td>Backup bucket leaked or provider compromised</td>
+<td>Yes (age: only the private key, kept off the cluster, decrypts)</td>
+</tr>
+<tr>
+<td>Attacker with root on a running host</td>
+<td><strong>No</strong>: the volume is open, as with any at-rest encryption</td>
+</tr>
+<tr>
+<td>Memory dump of a running VPS by the provider</td>
+<td><strong>No</strong>: a provider controlling the hypervisor can read RAM</td>
+</tr>
+</tbody>
+</table>
+<h2>1. Data disks: LUKS2 + Clevis/Tang</h2>
+<p>Each data host keeps the stack's data on a dedicated disk (or partition)
+encrypted with LUKS2 (AES-XTS 512, argon2id). A passphrase typed at each
+reboot is impractical for VPS, so <strong>Clevis</strong> unlocks the disk automatically
+when one of these is available:</p>
+<ul>
+<li>a <strong>Tang</strong> server: a tiny stateless HTTP service (under 64 MB of RAM) that
+holds no client secret. The disk unlocks only when the host can reach it, so
+a disk image taken out of the network stays sealed;</li>
+<li>the host's <strong>TPM2</strong> chip (home PCs): the disk unlocks only in that machine.</li>
+</ul>
+<p>Placement on the available resources:</p>
+<pre><code> VPS A (k3s / compose)  ──┐                  ┌── Tang server: the cheapest VPS,
+ VPS B (k3s agent)      ──┼─ WireGuard/fw ───┤   a Raspberry Pi or a home PC
+ Home PC (TPM2 + Tang)  ──┘                  └── (2 Tang servers = no single point)
+</code></pre>
+<p>Rules:</p>
+<ul>
+<li><strong>Never put Tang on the host it unlocks</strong>: whoever takes that disk would also
+hold the key.</li>
+<li>Two Tang servers on two different machines (<code>--tang</code> twice, threshold 1)
+avoid losing every reboot to one Tang outage.</li>
+<li>With <code>--tpm2 --tang URL --threshold 2</code>, a home PC unlocks only when it is
+both the same machine and on the expected network.</li>
+<li>Expose Tang only to the data hosts (firewall or WireGuard): it is not a
+secret store, but there is no reason to publish it.</li>
+</ul>
+<h3>Install a Tang server</h3>
+<p>On the Tang machine (Debian, Ubuntu, Raspberry Pi OS):</p>
+<pre><code class="language-bash">sudo deploy/host/tang-server.sh --port 7500
+# Tang listens on :7500
+# thumbprint: QVXB2tF7DqHC4DgeQG1Cwd9O8fcD5OtU9JhGzQ3SJKo
+</code></pre>
+<p>Note the thumbprint: data hosts pin it so they never trust another key.</p>
+<h3>Encrypt a data host's disk</h3>
+<p>On each data host, with a <strong>dedicated empty disk</strong> (an extra VPS block volume,
+a second SSD). <code>--device</code> is erased:</p>
+<pre><code class="language-bash">sudo apt-get install cryptsetup clevis clevis-luks clevis-systemd clevis-tpm2 curl jose rsync
+
+# k3s: PVs (local-path), the datastore with the Secrets, images
+sudo deploy/host/encrypt-data-disk.sh --device /dev/sdb --mount /var/lib/rancher \
+  --tang 'http://10.8.0.1:7500#QVXB2tF7DqHC4DgeQG1Cwd9O8fcD5OtU9JhGzQ3SJKo' \
+  --tang 'http://10.8.0.2:7500#&lt;thumbprint 2&gt;' \
+  --service k3s --migrate --wipe
+
+# compose: named volumes
+sudo deploy/host/encrypt-data-disk.sh --device /dev/sdb --mount /var/lib/docker \
+  --tang 'http://10.8.0.1:7500#&lt;thumbprint&gt;' --service docker --migrate --wipe
+</code></pre>
+<p>The script:</p>
+<ol>
+<li>checks everything before touching the disk: Tang reachable and its
+thumbprint valid, mount point not on the target disk, <code>--wipe</code> given;</li>
+<li>formats the disk with LUKS2 and a random <strong>recovery passphrase</strong>
+(<code>/root/luks-recovery-tmdata.key</code>);</li>
+<li>binds Clevis (<code>sss</code> policy: the Tang servers and/or the TPM2, threshold);</li>
+<li><strong>proves the boot path</strong>: opens the volume through Clevis alone (no
+passphrase) before creating the filesystem;</li>
+<li>with <code>--migrate</code>, stops the services and copies the existing data onto the
+encrypted disk, keeping the original as <code>&lt;mount&gt;.pre-encryption-&lt;date&gt;</code>;</li>
+<li>writes <code>/etc/crypttab</code> (<code>luks,_netdev</code>: unlocked once the network is up)
+and <code>/etc/fstab</code> (<code>nofail</code>: a failed unlock does not block the boot, SSH
+stays reachable), enables <code>clevis-luks-askpass.path</code>, and adds
+<code>RequiresMountsFor=</code> to each <code>--service</code>: k3s or docker never starts on an
+empty directory.</li>
+</ol>
+<p>Afterwards:</p>
+<ul>
+<li><strong>Move the recovery passphrase off the machine</strong> (password manager, paper)
+and delete it from <code>/root</code>. It is the only way in if every Tang server is
+lost.</li>
+<li>Delete <code>&lt;mount&gt;.pre-encryption-&lt;date&gt;</code> once the services run: that copy is
+<strong>in clear</strong>. On an SSD, the blocks it freed may survive deletion: when the
+previous data was sensitive, prefer a fresh install with the encrypted disk
+from the start.</li>
+<li>Disable swap, or put it on the encrypted disk (<code>swapoff -a</code>, remove it from
+<code>/etc/fstab</code>): k3s/kubelet expects no swap anyway.</li>
+<li>For k3s, also enable Secrets encryption in its datastore:
+<code>--secrets-encryption</code> at install (free, built into k3s).</li>
+</ul>
+<h3>Check</h3>
+<pre><code class="language-bash">sudo deploy/host/check-encryption.sh            # /var/lib/rancher, /var/lib/docker
+OK        /var/lib/rancher on /dev/mapper/tmdata
+          clevis 1: sss '{&quot;t&quot;:1,&quot;pins&quot;:{&quot;tang&quot;:[{&quot;url&quot;:&quot;http://10.8.0.1:7500&quot;}]}}'
+</code></pre>
+<p>Exit status 1 when a data directory or the swap is in clear: usable as a
+periodic check.</p>
+<h3>Operations</h3>
+<table>
+<thead>
+<tr>
+<th>Task</th>
+<th>Command</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Rotate Tang keys (yearly)</td>
+<td>on Tang: <code>/usr/libexec/tangd-rotate-keys -d /var/lib/tang</code>; on each host: <code>clevis luks regen -d /dev/sdb -s 1</code>; then remove the old keys (renamed <code>.*.jwk</code>) from Tang</td>
+</tr>
+<tr>
+<td>Add a Tang server</td>
+<td><code>clevis luks bind -d /dev/sdb sss '&lt;new policy&gt;'</code>, then <code>clevis luks unbind -d /dev/sdb -s &lt;old slot&gt;</code></td>
+</tr>
+<tr>
+<td>Unlock by hand (every Tang down)</td>
+<td><code>cryptsetup open /dev/sdb tmdata</code> with the recovery passphrase, <code>mount /var/lib/rancher</code>, start the services</td>
+</tr>
+<tr>
+<td>Inspect bindings</td>
+<td><code>clevis luks list -d /dev/sdb</code></td>
+</tr>
+</tbody>
+</table>
+<p>Tested: the scripts were run against a Tang server and a loop device in a
+privileged container (wrong thumbprint refused before erasing, migration,
+Clevis-only unlock after closing, unlock refused when Tang is down, recovery
+passphrase). The boot integration (<code>crypttab</code>, <code>clevis-luks-askpass</code>) needs a
+real host: reboot once after setting it up and check that the services start.</p>
+<h3>Alternative: Longhorn (multi-node k3s)</h3>
+<p>On a k3s cluster of 3+ nodes, Longhorn's encrypted StorageClass (LUKS per
+volume, key in a K8s Secret) replaces the per-host disk and adds replication
+between nodes, at about 0.5–1 vCPU and 1–2 GB RAM per node. The Tang setup
+above remains the lighter choice for one or two hosts.</p>
+<h2>2. Backups: age</h2>
+<p>Every backup file is piped through <a href="https://age-encryption.org">age</a> while it
+is written (<code>scripts/backup-lib.sh</code>): no plaintext dump ever reaches a disk,
+neither the in-cluster <code>backup-data</code> volume nor the off-site bucket. Files get
+the <code>.age</code> suffix. Only the <strong>public</strong> key is configured; the private key
+never enters the cluster.</p>
+<h3>Keys</h3>
+<pre><code class="language-bash">age-keygen -o backup-key.txt     # private key: password manager / offline
+# Public key: age1...            # goes to the cluster
+</code></pre>
+<p>Several recipients are allowed (space separated), e.g. an operator key plus a
+key kept in a safe: either decrypts.</p>
+<h3>Kubernetes</h3>
+<ul>
+<li>Set the GitHub environment variable <code>BACKUP_AGE_RECIPIENTS</code> (Settings →
+Environments → staging/production → Variables). <code>deploy.yml</code> writes it into
+the <code>backup-encryption</code> ConfigMap.</li>
+<li>The <code>db-backup</code> CronJob runs <code>ghcr.io/trading-model/backup-tools</code>
+(<code>deploy/backup</code>: kubectl, age, rclone) with
+<code>BACKUP_REQUIRE_ENCRYPTION=true</code>: without a recipient it writes nothing,
+exits 1 and exports <code>backup_last_status{component=&quot;encryption&quot;} 0</code>
+(alert <code>BackupUnencrypted</code>).</li>
+<li>Off-site copy (mandatory, <code>BACKUP_REQUIRE_OFFSITE=true</code>: the job fails
+without it): secret <code>trading-model-backup-s3</code> (<code>BACKUP_S3_BUCKET</code>,
+<code>AWS_ACCESS_KEY_ID</code>, <code>AWS_SECRET_ACCESS_KEY</code>, <code>AWS_REGION</code>, optional
+<code>S3_ENDPOINT</code> and <code>S3_PROVIDER</code> for a non-AWS store: MinIO on another VPS,
+Backblaze B2, Scaleway, OVH...), written by <code>deploy.yml</code> from the GitHub
+environment (see <a href="BACKUP_DR.html#off-site-storage-mandatory-in-kubernetes">BACKUP_DR.md</a>)
+or created by hand. Only <code>.age</code> files are sent; the scripts refuse to copy
+anything when encryption is off. Retention off-site is the bucket's
+lifecycle rule.</li>
+</ul>
+<pre><code class="language-bash">kubectl -n trading-model create secret generic trading-model-backup-s3 \
+  --from-literal=BACKUP_S3_BUCKET=s3://backups/trading-model \
+  --from-literal=AWS_ACCESS_KEY_ID=... --from-literal=AWS_SECRET_ACCESS_KEY=... \
+  --from-literal=AWS_REGION=us-east-1 \
+  --from-literal=S3_ENDPOINT=https://minio.example.net --from-literal=S3_PROVIDER=Minio
+</code></pre>
+<h3>Docker Compose</h3>
+<pre><code class="language-bash">BACKUP_AGE_RECIPIENTS=age1... BACKUP_REQUIRE_ENCRYPTION=true bash scripts/backup.sh
+</code></pre>
+<p>Without <code>BACKUP_AGE_RECIPIENTS</code> the compose script still writes plaintext
+backups (local development) and warns.</p>
+<h3>Restore</h3>
+<pre><code class="language-bash">BACKUP_AGE_IDENTITY=~/backup-key.txt bash scripts/restore.sh --timestamp 2026-10-27_020000
+BACKUP_AGE_IDENTITY=~/backup-key.txt BACKUP_DIR=./backups bash scripts/restore-k8s.sh
+</code></pre>
+<p>The restore scripts accept encrypted and plaintext files alike and stream the
+decrypted data into the database (the plaintext only touches a temporary
+file, mode 600, for Redis and the SPIRE files, which need a file copy). Manual decryption:</p>
+<pre><code class="language-bash">age -d -i backup-key.txt financial_scraper_&lt;date&gt;.sql.gz.age | gunzip | less
+</code></pre>
+<h3>Monitoring</h3>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>backup_encrypted</code></td>
+<td>1 when the last run encrypted its files</td>
+</tr>
+<tr>
+<td><code>backup_last_status{component=&quot;encryption&quot;}</code></td>
+<td>0: no valid recipient, nothing was written</td>
+</tr>
+<tr>
+<td><code>backup_last_status{component=&quot;offsite&quot;}</code></td>
+<td>off-site copy result</td>
+</tr>
+</tbody>
+</table>
+<p>Alerts: <code>BackupUnencrypted</code> and <code>BackupOffsiteCopyFailed</code> (critical), plus
+the staleness and coverage alerts listed in <a href="BACKUP_DR.html#monitoring">BACKUP_DR.md</a>.</p>
+<h3>Tests</h3>
+<ul>
+<li><code>tests/backup/backup-encryption.test.sh</code> (<code>backup-test.yml</code>): age round
+trip, refusal without recipient, invalid key, no off-site copy in clear or
+missing, GTID filtering, metrics, restore scripts finding <code>.age</code> files.</li>
+<li>Restore drills, with a key generated for the run: <code>backup-test.yml</code>
+(<code>tests/backup/compose-restore-drill.sh</code>) and the CI <code>k8s</code> job
+(<code>tests/k8s/run-kind.sh verify_backup</code>): no backup file in clear, encrypted
+copies off-site, and the decrypted backups restored for real.</li>
+</ul>
+<h2>Why not database-native encryption</h2>
+<ul>
+<li><strong>MySQL 8.4 Community</strong> has <code>component_keyring_file</code> (InnoDB tablespace,
+redo/undo, binlog encryption), but the keyring file must sit on a different
+volume from the data, or it protects nothing; on one host, the encrypted disk
+already covers it.</li>
+<li><strong>MongoDB Community</strong> has no encryption at rest; Percona Server for MongoDB
+(free, drop-in) restores <code>--enableEncryption --encryptionKeyFile</code> if a
+compliance requirement asks for database-level encryption (its key file
+holds 32 random bytes in base64: a new Secret to create then, no Mongo key
+is provisioned today).</li>
+</ul>
+<p>Both stay possible as an extra layer; the disk + backup layers above cover the
+threats of a self-hosted deployment without changing database editions.</p>
+</div></div>
+</main>
+</body>
+</html>

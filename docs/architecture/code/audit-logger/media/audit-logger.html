@@ -168,20 +168,16 @@ Documentation
 }
 </code></pre>
 <p><strong><code>GET /health</code></strong></p>
-<p>Full health status including queue and worker metrics.</p>
+<p>Liveness for admin/debug. Readiness (MongoDB ping) is <code>GET /health/ready</code>.</p>
 <p><strong>Response:</strong> <code>200 OK</code></p>
 <pre><code class="language-json">{
   &quot;status&quot;: &quot;ok&quot;,
-  &quot;queueDepth&quot;: 42,
-  &quot;canAccept&quot;: true,
-  &quot;workerCount&quot;: 3,
-  &quot;averageLoad&quot;: 0.45,
   &quot;timestamp&quot;: &quot;2025-01-15T10:30:00Z&quot;
 }
 </code></pre>
 <h3>Audit Events</h3>
 <p><strong><code>GET /events</code></strong></p>
-<p>List and filter audit events.</p>
+<p>List and filter audit events, newest first. Parameters and responses are declared in <code>src/adapters/inbound/http/api-routes.ts</code> (<code>AUDIT_API</code>, ADR-0021) and published in the <a href="openapi/api-gateway.yaml">OpenAPI</a>. Invalid input answers 400 <code>{ &quot;error&quot;: &quot;Validation failed&quot;, &quot;details&quot;: [...] }</code>.</p>
 <p><strong>Query Parameters:</strong></p>
 <table>
 <thead>
@@ -195,7 +191,7 @@ Documentation
 <tr>
 <td><code>topic</code></td>
 <td>string</td>
-<td>Filter by event topic</td>
+<td>Filter by event topic (empty: no filter)</td>
 </tr>
 <tr>
 <td><code>publisher</code></td>
@@ -209,45 +205,50 @@ Documentation
 </tr>
 <tr>
 <td><code>startDate</code></td>
-<td>ISO date</td>
-<td>Start of date range</td>
+<td>ISO date or date-time</td>
+<td><code>receivedAt</code> at or after</td>
 </tr>
 <tr>
 <td><code>endDate</code></td>
-<td>ISO date</td>
-<td>End of date range</td>
+<td>ISO date or date-time</td>
+<td><code>receivedAt</code> at or before</td>
 </tr>
 <tr>
 <td><code>page</code></td>
-<td>number</td>
+<td>integer ≥ 1</td>
 <td>Page number (default: 1)</td>
 </tr>
 <tr>
 <td><code>limit</code></td>
-<td>number</td>
-<td>Results per page (max: 1000)</td>
+<td>integer ≥ 1</td>
+<td>Results per page (default: 100, capped at 1000)</td>
 </tr>
 </tbody>
 </table>
 <p><strong>Response:</strong> <code>200 OK</code></p>
 <pre><code class="language-json">{
-  &quot;data&quot;: [
+  &quot;docs&quot;: [
     {
-      &quot;messageId&quot;: &quot;msg-uuid-123&quot;,
-      &quot;topic&quot;: &quot;market.trade.recent.fetch&quot;,
-      &quot;eventType&quot;: &quot;market.trade.recent.fetch&quot;,
-      &quot;publisher&quot;: &quot;financial-scraper&quot;,
-      &quot;correlationId&quot;: &quot;corr-uuid-456&quot;,
-      &quot;payload&quot;: { &quot;symbol&quot;: &quot;BTCUSDT&quot;, &quot;price&quot;: 50000.0 },
-      &quot;recordedAt&quot;: &quot;2025-01-15T10:30:00Z&quot;
+      &quot;_id&quot;: &quot;6720f0aa0000000000000001&quot;,
+      &quot;receivedAt&quot;: &quot;2025-01-15T10:30:00.000Z&quot;,
+      &quot;ttl&quot;: &quot;2026-01-15T10:30:00.000Z&quot;,
+      &quot;dataHash&quot;: &quot;9f2c…&quot;,
+      &quot;previousHash&quot;: &quot;41ab…&quot;,
+      &quot;chainSequence&quot;: 1234,
+      &quot;metadata&quot;: {
+        &quot;topic&quot;: &quot;market.trade.recent.fetch&quot;,
+        &quot;eventType&quot;: &quot;market.trade.recent.fetch&quot;,
+        &quot;publisher&quot;: &quot;financial-scraper-service&quot;,
+        &quot;instanceId&quot;: &quot;financial-scraper-1&quot;,
+        &quot;messageId&quot;: &quot;msg-uuid-123&quot;,
+        &quot;correlationId&quot;: &quot;corr-uuid-456&quot;
+      },
+      &quot;payload&quot;: { &quot;symbol&quot;: &quot;BTCUSDT&quot;, &quot;price&quot;: 50000.0 }
     }
   ],
-  &quot;pagination&quot;: {
-    &quot;page&quot;: 1,
-    &quot;limit&quot;: 50,
-    &quot;total&quot;: 1234,
-    &quot;totalPages&quot;: 25
-  }
+  &quot;total&quot;: 1234,
+  &quot;page&quot;: 1,
+  &quot;limit&quot;: 100
 }
 </code></pre>
 <p><strong><code>GET /events/stats</code></strong></p>
@@ -260,7 +261,7 @@ Documentation
     &quot;market.candlestick.series.fetch&quot;: 12000
   },
   &quot;eventsByPublisher&quot;: {
-    &quot;financial-scraper&quot;: 30000
+    &quot;financial-scraper-service&quot;: 30000
   },
   &quot;dateRange&quot;: {
     &quot;earliest&quot;: &quot;2025-01-01T00:00:00Z&quot;,
@@ -270,7 +271,7 @@ Documentation
 </code></pre>
 <p><strong><code>GET /events/:messageId</code></strong></p>
 <p>Get a single audit event by its message ID.</p>
-<p><strong>Response:</strong> <code>200 OK</code> (full <code>AuditEventDocument</code>) or <code>404</code></p>
+<p><strong>Response:</strong> <code>200 OK</code> (the event, same shape as in <code>docs</code>) or <code>404</code> <code>{ &quot;error&quot;: &quot;Event not found&quot; }</code></p>
 <h3>Message Ingestion</h3>
 <p><strong><code>POST /message</code></strong></p>
 <p>Receive an event bus message for audit logging (called internally by the message-manager).</p>
@@ -279,65 +280,16 @@ Documentation
   &quot;status&quot;: &quot;recorded&quot;
 }
 </code></pre>
-<h2>WebSocket Protocol</h2>
-<p>The service exposes a WebSocket upgrade path on the same HTTPS server for worker communication.</p>
-<table>
-<thead>
-<tr>
-<th>Message Type</th>
-<th>Direction</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>register</code></td>
-<td>Worker → Server</td>
-<td>Register as a worker</td>
-</tr>
-<tr>
-<td><code>heartbeat</code></td>
-<td>Worker → Server</td>
-<td>Worker heartbeat</td>
-</tr>
-<tr>
-<td><code>disconnect</code></td>
-<td>Worker → Server</td>
-<td>Worker disconnecting</td>
-</tr>
-<tr>
-<td><code>job.assigned</code></td>
-<td>Server → Worker</td>
-<td>Assign a job to a worker</td>
-</tr>
-<tr>
-<td><code>heartbeat.ack</code></td>
-<td>Server → Worker</td>
-<td>Heartbeat acknowledgment</td>
-</tr>
-<tr>
-<td><code>drain</code></td>
-<td>Server → Worker</td>
-<td>Signal worker to drain pending jobs</td>
-</tr>
-</tbody>
-</table>
+<p>Every event is appended to a hash chain (<code>chainSequence</code>, <code>previousHash</code>, <code>dataHash</code>; <code>chainSequence</code> and <code>metadata.messageId</code> are unique indexes). Messages arrive concurrently, so an instance writes its inserts one at a time. If another replica takes the same sequence first, the insert retries on the new tail (up to 5 attempts). A redelivered message (same <code>messageId</code>) is recorded once (<code>audit_events_stored_total{status=&quot;duplicate&quot;}</code>).</p>
+<p>audit-logger subscribes to every topic at startup through message-manager's subscribe route, which the message-manager ACL must allow.</p>
 <h2>Architecture</h2>
 <pre><code>Event Bus (Message Manager) ──POST /message──→ Audit Logger ──→ MongoDB (audit_events)
                                                         │
-                                                   Job Scheduler
-                                                        │
-                                                   Internal Queue (priority 1-5)
-                                                        │
-                                              Worker Protocol (WebSocket Server)
-                                                        │
-                                              External Workers
+                                          chain verification + S3 anchors (ADR-0027)
 </code></pre>
 <ul>
 <li><strong>Event Ingestion:</strong> Subscribes to all broker topics. Incoming messages are persisted as <code>AuditEventDocument</code> in MongoDB.</li>
-<li><strong>Job Processing:</strong> Priority-queued jobs (1-5) distributed to workers via WebSocket with ACK/fail/complete lifecycle.</li>
-<li><strong>Recovery:</strong> <code>OrphanDetector</code> and <code>ReAllocator</code> (shared from <code>@trading-model/jobs/application/services/</code>) scan for stale workers and re-queue orphaned jobs. On startup, recovers non-terminal jobs from MongoDB.</li>
-<li><strong>Back-pressure:</strong> Configurable <code>MAX_QUEUE_DEPTH</code> and <code>MAX_WORKER_LOAD_RATIO</code> — returns 429 when at capacity.</li>
+<li><strong>No job scheduler:</strong> the job queue and WebSocket worker protocol it used to carry had no producer and no worker; they were removed by <a href="../../docs/adr/0029-orphan-subsystems-retired-and-reachability-gate.html">ADR-0029</a>.</li>
 </ul>
 <h2>Environment Variables</h2>
 <table>
@@ -370,44 +322,9 @@ Documentation
 <td>Discovery server URL</td>
 </tr>
 <tr>
-<td><code>MAX_QUEUE_DEPTH</code></td>
-<td><code>10000</code></td>
-<td>Max internal queue depth</td>
-</tr>
-<tr>
-<td><code>MAX_WORKER_LOAD_RATIO</code></td>
-<td><code>0.85</code></td>
-<td>Back-pressure threshold</td>
-</tr>
-<tr>
-<td><code>ACK_TIMEOUT_MS</code></td>
-<td><code>30000</code></td>
-<td>Worker ACK deadline (ms)</td>
-</tr>
-<tr>
-<td><code>MAX_RETRIES_PER_JOB</code></td>
-<td><code>3</code></td>
-<td>Max job retry count</td>
-</tr>
-<tr>
-<td><code>ORPHAN_SCAN_INTERVAL_MS</code></td>
-<td><code>10000</code></td>
-<td>Orphan job scan interval</td>
-</tr>
-<tr>
-<td><code>WORKER_HEARTBEAT_TTL_MS</code></td>
-<td><code>30000</code></td>
-<td>Worker heartbeat TTL (ms)</td>
-</tr>
-<tr>
 <td><code>AUDIT_RETENTION_DAYS</code></td>
-<td><code>90</code></td>
-<td>Audit event retention in days</td>
-</tr>
-<tr>
-<td><code>GAP_DETECTION_INTERVAL_MS</code></td>
-<td><code>60000</code></td>
-<td>Gap detection interval (ms)</td>
+<td><code>1827</code></td>
+<td>Audit event retention in days (5 years)</td>
 </tr>
 </tbody>
 </table>

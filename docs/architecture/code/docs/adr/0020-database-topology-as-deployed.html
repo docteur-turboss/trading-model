@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html class="dark" lang="en" data-tm-processed="true"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no" name="viewport">
+<title>ADR-0020: Database Topology As Deployed — MySQL and MongoDB | trading-model</title>
+
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+
+<script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              400: '#818cf8',
+              500: '#6366f1',
+              600: '#4f46e5',
+            },
+            surface: {
+              base: '#0B0F19',
+              card: '#111827',
+              muted: '#1E293B',
+              border: '#243046',
+            },
+            code: {
+              bg: '#0c121e',
+              keyword: '#c084fc',
+              ident: '#38bdf8',
+              type: '#34d399',
+              punct: '#94a3b8'
+            }
+          },
+          fontFamily: {
+            mono: ['JetBrains Mono', 'Fira Code', 'Menlo', 'Monaco', 'Courier New', 'monospace'],
+            sans: ['-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Inter', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+
+<style data-purpose="mobile-ux-styles">
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    .active-scale:active { transform: scale(0.97); transition: transform 0.1s ease-out; }
+    .h-safe-top { height: env(safe-area-inset-top, 0px); }
+    .pt-safe { padding-top: env(safe-area-inset-top, 0px); }
+    @supports (backdrop-filter: blur(12px)) {
+      .glass-header { backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
+    }
+    
+    .tm-prose p { margin: 0.5rem 0; }
+    .tm-prose p:first-child { margin-top: 0; }
+    .tm-prose p:last-child { margin-bottom: 0; }
+    .tm-prose a { color: #818cf8; text-decoration: underline; text-underline-offset: 2px; }
+    .tm-prose a:hover { color: #a5b4fc; }
+    .tm-prose code { font-family: 'JetBrains Mono', 'Fira Code', Menlo, Monaco, 'Courier New', monospace; font-size: 0.82em; color: #fbbf24; background: #0c121e; border: 1px solid #243046; border-radius: 0.25rem; padding: 0.05rem 0.3rem; }
+    .tm-prose pre { background: #0c121e; border: 1px solid #243046; border-radius: 0.5rem; padding: 0.75rem; overflow-x: auto; margin: 0.5rem 0; }
+    .tm-prose pre code { background: transparent; border: none; padding: 0; color: #e2e8f0; }
+    .tm-prose ul, .tm-prose ol { padding-left: 1.25rem; margin: 0.5rem 0; }
+    .tm-prose ul { list-style: disc; }
+    .tm-prose ol { list-style: decimal; }
+    .tm-prose li { margin: 0.2rem 0; }
+    .tm-prose blockquote { border-left: 3px solid #6366f1; background: rgba(17, 24, 39, 0.6); padding: 0.5rem 0.75rem; border-radius: 0 0.5rem 0.5rem 0; color: #94a3b8; margin: 0.5rem 0; }
+    .tm-prose h1, .tm-prose h2, .tm-prose h3, .tm-prose h4, .tm-prose h5 { color: #ffffff; font-weight: 700; margin: 0.75rem 0 0.25rem; }
+    .tm-prose h1 { font-size: 1.25rem; }
+    .tm-prose h2 { font-size: 1.125rem; }
+    .tm-prose h3 { font-size: 1rem; }
+    .tm-prose h4 { font-size: 0.875rem; }
+    .tm-prose table { width: 100%; border-collapse: collapse; margin: 0.5rem 0; }
+    .tm-prose th, .tm-prose td { border: 1px solid #243046; padding: 0.4rem 0.6rem; text-align: left; }
+    .tm-prose thead th { background: #0b0f19; color: #e2e8f0; font-size: 0.75rem; text-transform: uppercase; }
+    .tm-prose strong { color: #ffffff; }
+  </style>
+
+</head>
+<body class="bg-[#080C15] text-slate-200 font-sans antialiased min-h-screen pb-24 selection:bg-indigo-500/30 selection:text-indigo-200">
+
+<header class="sticky top-0 z-40 w-full glass-header bg-[#0B0F19]/90 border-b border-surface-border">
+<div class="h-safe-top pt-safe"></div>
+<div class="px-4 py-2.5 flex items-center justify-between gap-3">
+<div class="flex items-center gap-2.5 min-w-0">
+
+<div class="flex flex-col min-w-0">
+<div class="flex items-center gap-1.5 truncate">
+<span class="font-mono text-xs font-semibold text-indigo-400 truncate tracking-tight"><a class="text-indigo-400 hover:text-indigo-300 hover:underline" href="../../index.html">trading-model</a></span>
+
+</div>
+<span class="text-[10px] text-slate-400 flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> TypeDoc API Reference
+</span>
+</div>
+</div>
+
+</div>
+</header>
+
+<main class="px-4 py-4 max-w-2xl mx-auto flex flex-col gap-6">
+
+<section class="space-y-2.5" data-purpose="breadcrumbs-and-header">
+<nav aria-label="Breadcrumb" class="flex items-center flex-wrap gap-1 text-[11px] font-mono text-slate-400">
+<a class="text-indigo-400 hover:underline" href="../../index.html">trading-model</a><span class="text-slate-600">/</span><span class="text-slate-300 font-medium">ADR-0020: Database Topology As Deployed — MySQL and MongoDB</span>
+</nav>
+<div class="flex items-center gap-2.5 pt-1">
+<span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-mono font-medium tracking-wide uppercase bg-indigo-500/10 text-indigo-400 border-indigo-500/20">
+Documentation
+</span>
+<h1 class="text-2xl font-bold tracking-tight text-white font-sans">ADR-0020: Database Topology As Deployed — MySQL and MongoDB</h1>
+</div>
+
+</section>
+
+<div class="tm-prose text-sm leading-relaxed text-slate-300 font-sans"><div>
+<p><strong>Status:</strong> Accepted
+<strong>Date:</strong> 2026-10
+<strong>Supersedes:</strong> <a href="0003-mongodb-persistence.html">ADR-0003</a>, <a href="0004-mysql-group-replication.html">ADR-0004</a>
+<strong>Related:</strong> <a href="0011-spiffe-spire-workload-identity.html">ADR-0011</a> (SPIRE datastore in MySQL), <a href="0019-message-broker-as-built.html">ADR-0019</a>
+<strong>Verified by:</strong> manual review 2026-10-28 (<code>deploy/k8s/infra/mysql.yaml</code>, <code>deploy/k8s/infra/mongodb.yaml</code>, <code>deploy/k8s/infra/mongo-audit.yaml</code>, <code>docker-compose.yml</code>); <code>tests/k8s/run-kind.sh</code> and <code>bun run test:db</code> exercise single-node instances only</p>
+<h2>Context</h2>
+<p>Checking the 13.09 audit finding on ADR/runtime drift (2026-10-28) showed that the two database ADRs no longer describe what is deployed.</p>
+<p><strong>ADR-0004 (MySQL)</strong> says: MySQL 8, Group Replication in <strong>multi-primary</strong> mode, &quot;automatic failover with multi-primary writes&quot;. The manifests say:</p>
+<ul>
+<li><code>group_replication_single_primary_mode=on</code> (<code>deploy/k8s/infra/mysql.yaml</code>): single primary, not multi-primary.</li>
+<li><code>group_replication_start_on_boot=off</code>, and the <code>mysql-cluster-init</code> Job bootstraps the group on <code>mysql-0</code> <strong>only</strong>. Nothing runs <code>START GROUP_REPLICATION</code> on <code>mysql-1</code> and <code>mysql-2</code>: in production (3 replicas) they are standalone servers that receive no data. The group has one member.</li>
+<li>Every client (financial-scraper, SPIRE server, migration Jobs) connects through the <code>mysql-primary</code> Service, whose selector is pinned to the pod <code>mysql-0</code>. Even with a healthy group, a primary election would not move the Service.</li>
+<li>Staging and the kind smoke test run 1 replica; compose runs one MySQL without Group Replication.</li>
+</ul>
+<p>So there is <strong>no automatic failover</strong>: losing <code>mysql-0</code> stops market data ingestion and the SPIRE server (its datastore), until the pod comes back with its volume.</p>
+<p><strong>ADR-0003 (MongoDB)</strong> says: one shared MongoDB replica set, one database per service, and rejects &quot;separate MongoDB per service&quot; as too much overhead. K8s runs exactly the rejected option: two StatefulSets, <code>mongo-dlq</code> (<code>rs0</code>) and <code>mongo-audit</code> (<code>rs0-audit</code>), 3 members each, initiated by their own init Jobs. Compose runs one standalone <code>mongo</code> (no replica set) shared by audit-logger and dlq-service. ADR-0003 also still carried a <code>certificate-authority</code> scope, already superseded by ADR-0011.</p>
+<p>Both ADRs stayed <code>Accepted</code> because no check ties an ADR to the runtime.</p>
+<h2>Decision</h2>
+<p>Record the topology as deployed, including what it does not provide.</p>
+<h3>MySQL (market data, SPIRE datastore)</h3>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Compose / staging / kind</th>
+<th>Production</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Servers</td>
+<td>1</td>
+<td>StatefulSet of 3 (<code>mysql-0..2</code>), Group Replication plugin loaded, single-primary</td>
+</tr>
+<tr>
+<td>Members of the group</td>
+<td>—</td>
+<td><code>mysql-0</code> only (bootstrapped by <code>mysql-cluster-init</code>)</td>
+</tr>
+<tr>
+<td>Write endpoint</td>
+<td><code>mysql</code> (compose) / <code>mysql-primary</code></td>
+<td><code>mysql-primary</code> → pod <code>mysql-0</code></td>
+</tr>
+<tr>
+<td>Failover</td>
+<td>none</td>
+<td><strong>none</strong></td>
+</tr>
+<tr>
+<td>Protection against data loss</td>
+<td>encrypted daily backups (<code>scripts/backup-lib.sh</code>), restore drills</td>
+<td>same</td>
+</tr>
+</tbody>
+</table>
+<p>Schema, keys and query patterns (composite primary keys, <code>ts-sql-query</code>, migrations by <code>scripts/migrate.mjs</code>) are unchanged from ADR-0004.</p>
+<h3>MongoDB (audit-logger, dlq-service)</h3>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Compose</th>
+<th>K8s (staging 1 member, production 3)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>audit-logger</td>
+<td><code>mongo</code> (standalone, shared), database <code>audit-logger</code>, collections <code>audit_events</code>, <code>audit_jobs</code></td>
+<td><code>mongo-audit</code> replica set <code>rs0-audit</code>, database <code>audit</code></td>
+</tr>
+<tr>
+<td>dlq-service</td>
+<td>same <code>mongo</code>, database <code>dlq</code>, collection <code>dlq_entries</code></td>
+<td><code>mongo-dlq</code> replica set <code>rs0</code>, database <code>dlq</code></td>
+</tr>
+</tbody>
+</table>
+<p>The K8s split is kept: the audit trail (hash-chained, compliance) and the DLQ have different retention and backup needs, and a DLQ storm must not slow the audit writes. The compose sharing is a dev simplification only.</p>
+<h3>Making MySQL highly available</h3>
+<p>Real HA is a separate decision, not taken here. The options are known: either finish Group Replication (join <code>mysql-1/2</code> with <code>START GROUP_REPLICATION</code>, restart the group on boot, and route writes to the elected primary through MySQL Router or a readiness probe on <code>group_replication_primary_member</code>), or drop to one MySQL replica and rely on backups and restore time. Until one is chosen, the production StatefulSet spends two pods and two 20 Gi volumes that hold no data.</p>
+<h2>Alternatives Considered</h2>
+<table>
+<thead>
+<tr>
+<th>Alternative</th>
+<th>Reason</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Edit ADR-0003 / ADR-0004 in place</td>
+<td>ADRs are immutable once accepted; a superseding ADR records when and why the description changed</td>
+</tr>
+<tr>
+<td>Fix MySQL HA in the same change</td>
+<td>It changes the failure behaviour of ingestion and of SPIRE, and needs its own failover test (kill <code>mysql-0</code> on kind). Documenting the real state first removes the false sense of safety now</td>
+</tr>
+</tbody>
+</table>
+<h2>Consequences</h2>
+<h3>Positive</h3>
+<ul>
+<li>Runbooks and incident response can rely on the ADR: <code>mysql-0</code> is a single point of failure, MongoDB is two replica sets in K8s.</li>
+<li>The wasted <code>mysql-1/2</code> capacity is visible.</li>
+</ul>
+<h3>Negative</h3>
+<ul>
+<li>The platform still has no MySQL failover. RTO for a lost <code>mysql-0</code> node is the time to reschedule the pod with its volume, or to restore the last backup.</li>
+</ul>
+<h3>Follow-up</h3>
+<ul>
+<li>Decide MySQL HA (one of the two options above) in a new ADR, with a kind failover test.</li>
+<li>An automated check of this topology (e.g. a render test over the production overlay) would let this ADR point to a test instead of a manual review.</li>
+</ul>
+</div></div>
+</main>
+</body>
+</html>

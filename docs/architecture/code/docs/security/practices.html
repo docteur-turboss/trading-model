@@ -122,13 +122,13 @@ Documentation
 service's SVID and write it to <code>/run/spire/svid</code> (<code>svid.pem</code>, <code>svid_key.pem</code>,
 <code>bundle.pem</code>), consumed via <code>TLS_*_PATH</code>. No manual certificate generation is
 required.</p>
-<p>Each SVID carries a SPIFFE URI SAN (<code>spiffe://trading-model.local/ns/&lt;namespace&gt;/sa/&lt;service&gt;</code>) — one identity per service (8 services):</p>
+<p>Each SVID carries a SPIFFE URI SAN (<code>spiffe://trading-model.local/ns/&lt;namespace&gt;/sa/&lt;service&gt;</code>) — one identity per workload (the 7 services and the <code>edge-proxy</code>, plus <code>prometheus</code>, and <code>blackbox-exporter</code> in K8s, for monitoring):</p>
 <ul>
-<li><code>admin-interface</code></li>
 <li><code>api-gateway</code></li>
 <li><code>audit-logger</code></li>
 <li><code>discovery-server</code></li>
 <li><code>dlq-service</code></li>
+<li><code>edge-proxy</code></li>
 <li><code>financial-scraper</code></li>
 <li><code>message-manager</code></li>
 <li><code>trader-trainer</code></li>
@@ -200,7 +200,7 @@ export const config = envSchema.parse(process.env);
 </tr>
 <tr>
 <td><strong>GitHub Secrets</strong> for CI/CD</td>
-<td><code>GHCR_TOKEN</code> for Docker push</td>
+<td><code>GITHUB_TOKEN</code> (no PAT) for GHCR</td>
 </tr>
 <tr>
 <td><strong>Sensitive variables</strong></td>

@@ -254,17 +254,18 @@ Documentation
 <p>Each genome is evaluated on <strong>all window sets</strong>:</p>
 <pre><code>evaluateGenomeAllWindows(genome, windowSets, factory):
   for each window set:
-    1. Create shadow backend → precompute rewards on training data
-    2. Create training backend → run Q-learning training
-    3. Extract Lamarckian weights → freeze into genome
-    4. Create eval backend → run on validation data
-    5. Collect episode returns
+    1. Create training backend → play the training data, store each decision
+       with its own n-step return, replay a minibatch after each store
+    2. Extract Lamarckian weights → freeze into genome
+    3. Create eval backend → run on the whole validation window (epsilon 0.05)
+    5. Collect wallet PnL: per episode and per bar (not the shaped reward)
 
-  Compute:
-  - Fitness from episode returns (total_pnl / sharpe / sortino / composite)
+  Compute (ADR-0025):
+  - Fitness of TRAINER_FITNESS_TYPE: total_pnl (mean episode PnL) or
+    sharpe / sortino / calmar / composite (bar PnL curve)
   - Complexity penalty (FLOPs + memory)
-  - Adjusted fitness = fitness * (1 - 0.15 * complexity)
-  - Objectives: avgPnl, sharpe, negFlops
+  - Adjusted fitness = fitness - |fitness| * 0.15 * complexity
+  - Objectives: avgPnl (episode PnL), sharpe (bar curve), negFlops
 </code></pre>
 <h2>6. Generation Loop</h2>
 <p>Repeated until termination:</p>
@@ -307,14 +308,15 @@ Documentation
 <li><strong>Metrics</strong>: PnL, return %, peak valuation, drawdown, fee tracking</li>
 </ul>
 <h3>Reward Calculation</h3>
-<p>Per-step reward = <code>PnL_after_trade - PnL_before_trade</code></p>
+<p>Reward of a decision = PnL at the next decision's price − PnL just before its trade: its trading cost plus the price move on the position it left. It is only known at the next step, so the last decision of the training window is never stored. The window end is a truncation: stored transitions keep their bootstrap (ADR-0025).</p>
 <p>Reward shaping (configured in genome):</p>
 <ul>
 <li><code>scale</code>: Multiply by scaleFactor</li>
 <li><code>clip</code>: Clamp to [clipMin, clipMax]</li>
 <li><code>normalize</code>: Z-score normalization on the fly</li>
-<li><code>sparse</code>: Only reward at episode end (use final PnL)</li>
+<li><code>sparse</code>: Only reward at episode end (the episode total on the last step)</li>
 </ul>
+<p>Reward shaping only changes what the agent learns from; fitness never reads it (ADR-0025).</p>
 <h3>Episode Reset</h3>
 <p>Between episodes, wallet resets to initial state, experience pool clears, epsilon resets.</p>
 <hr>
@@ -325,6 +327,12 @@ Documentation
 <li><code>mutationSeed</code> — mutation RNG stream (offset by generation)</li>
 <li>Separate RNG instances for mutation and crossover per generation</li>
 </ul>
+<h2>Walk-forward validation on real candles (MT4)</h2>
+<pre><code class="language-bash">cd services/trader-trainer
+bun scripts/fetch-klines.ts BTCUSDT 1h 2000 /tmp/btc-1h.json
+bun scripts/mt4-walk-forward.ts --data /tmp/btc-1h.json --out /tmp/results.json   --segments 15 --population 20 --generations 30 [--fitness sharpe] [--variants shown,hidden]
+</code></pre>
+<p>For each segment the real GA trains on <code>--window</code> candles (500), then the genome it would publish is evaluated on the next <code>--test</code> candles (100), which training never saw. It prints one JSON line per segment and variant (return, annualised Sharpe and Sortino, drawdown, buy and hold) and a paired summary. Results of the first run: ADR-0025.</p>
 </div></div>
 </main>
 

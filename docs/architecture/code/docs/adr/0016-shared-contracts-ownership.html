@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html class="dark" lang="en" data-tm-processed="true"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no" name="viewport">
+<title>ADR-0016: Shared Contracts Owned by @trading-model/contracts and Manifest-Checked Dependencies | trading-model</title>
+
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+
+<script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              400: '#818cf8',
+              500: '#6366f1',
+              600: '#4f46e5',
+            },
+            surface: {
+              base: '#0B0F19',
+              card: '#111827',
+              muted: '#1E293B',
+              border: '#243046',
+            },
+            code: {
+              bg: '#0c121e',
+              keyword: '#c084fc',
+              ident: '#38bdf8',
+              type: '#34d399',
+              punct: '#94a3b8'
+            }
+          },
+          fontFamily: {
+            mono: ['JetBrains Mono', 'Fira Code', 'Menlo', 'Monaco', 'Courier New', 'monospace'],
+            sans: ['-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Inter', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+
+<style data-purpose="mobile-ux-styles">
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    .active-scale:active { transform: scale(0.97); transition: transform 0.1s ease-out; }
+    .h-safe-top { height: env(safe-area-inset-top, 0px); }
+    .pt-safe { padding-top: env(safe-area-inset-top, 0px); }
+    @supports (backdrop-filter: blur(12px)) {
+      .glass-header { backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
+    }
+    
+    .tm-prose p { margin: 0.5rem 0; }
+    .tm-prose p:first-child { margin-top: 0; }
+    .tm-prose p:last-child { margin-bottom: 0; }
+    .tm-prose a { color: #818cf8; text-decoration: underline; text-underline-offset: 2px; }
+    .tm-prose a:hover { color: #a5b4fc; }
+    .tm-prose code { font-family: 'JetBrains Mono', 'Fira Code', Menlo, Monaco, 'Courier New', monospace; font-size: 0.82em; color: #fbbf24; background: #0c121e; border: 1px solid #243046; border-radius: 0.25rem; padding: 0.05rem 0.3rem; }
+    .tm-prose pre { background: #0c121e; border: 1px solid #243046; border-radius: 0.5rem; padding: 0.75rem; overflow-x: auto; margin: 0.5rem 0; }
+    .tm-prose pre code { background: transparent; border: none; padding: 0; color: #e2e8f0; }
+    .tm-prose ul, .tm-prose ol { padding-left: 1.25rem; margin: 0.5rem 0; }
+    .tm-prose ul { list-style: disc; }
+    .tm-prose ol { list-style: decimal; }
+    .tm-prose li { margin: 0.2rem 0; }
+    .tm-prose blockquote { border-left: 3px solid #6366f1; background: rgba(17, 24, 39, 0.6); padding: 0.5rem 0.75rem; border-radius: 0 0.5rem 0.5rem 0; color: #94a3b8; margin: 0.5rem 0; }
+    .tm-prose h1, .tm-prose h2, .tm-prose h3, .tm-prose h4, .tm-prose h5 { color: #ffffff; font-weight: 700; margin: 0.75rem 0 0.25rem; }
+    .tm-prose h1 { font-size: 1.25rem; }
+    .tm-prose h2 { font-size: 1.125rem; }
+    .tm-prose h3 { font-size: 1rem; }
+    .tm-prose h4 { font-size: 0.875rem; }
+    .tm-prose table { width: 100%; border-collapse: collapse; margin: 0.5rem 0; }
+    .tm-prose th, .tm-prose td { border: 1px solid #243046; padding: 0.4rem 0.6rem; text-align: left; }
+    .tm-prose thead th { background: #0b0f19; color: #e2e8f0; font-size: 0.75rem; text-transform: uppercase; }
+    .tm-prose strong { color: #ffffff; }
+  </style>
+
+</head>
+<body class="bg-[#080C15] text-slate-200 font-sans antialiased min-h-screen pb-24 selection:bg-indigo-500/30 selection:text-indigo-200">
+
+<header class="sticky top-0 z-40 w-full glass-header bg-[#0B0F19]/90 border-b border-surface-border">
+<div class="h-safe-top pt-safe"></div>
+<div class="px-4 py-2.5 flex items-center justify-between gap-3">
+<div class="flex items-center gap-2.5 min-w-0">
+
+<div class="flex flex-col min-w-0">
+<div class="flex items-center gap-1.5 truncate">
+<span class="font-mono text-xs font-semibold text-indigo-400 truncate tracking-tight"><a class="text-indigo-400 hover:text-indigo-300 hover:underline" href="../../index.html">trading-model</a></span>
+
+</div>
+<span class="text-[10px] text-slate-400 flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> TypeDoc API Reference
+</span>
+</div>
+</div>
+
+</div>
+</header>
+
+<main class="px-4 py-4 max-w-2xl mx-auto flex flex-col gap-6">
+
+<section class="space-y-2.5" data-purpose="breadcrumbs-and-header">
+<nav aria-label="Breadcrumb" class="flex items-center flex-wrap gap-1 text-[11px] font-mono text-slate-400">
+<a class="text-indigo-400 hover:underline" href="../../index.html">trading-model</a><span class="text-slate-600">/</span><span class="text-slate-300 font-medium">ADR-0016: Shared Contracts Owned by @trading-model/contracts and Manifest-Checked Dependencies</span>
+</nav>
+<div class="flex items-center gap-2.5 pt-1">
+<span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-mono font-medium tracking-wide uppercase bg-indigo-500/10 text-indigo-400 border-indigo-500/20">
+Documentation
+</span>
+<h1 class="text-2xl font-bold tracking-tight text-white font-sans">ADR-0016: Shared Contracts Owned by @trading-model/contracts and Manifest-Checked Dependencies</h1>
+</div>
+
+</section>
+
+<div class="tm-prose text-sm leading-relaxed text-slate-300 font-sans"><div>
+<p><strong>Status:</strong> Accepted
+<strong>Date:</strong> 2026-10
+<strong>Related:</strong> <a href="0007-common-package-split.html">ADR-0007</a> (common split), <a href="0010-clean-architecture-migration.html">ADR-0010</a> (DDD layout), <a href="0015-hexagonal-layering-completion.html">ADR-0015</a> (hard-migration convention)
+<strong>Verified by:</strong> <code>bun run deps:check</code></p>
+<h2>Context</h2>
+<p>The architecture audit of 2026-09-13 reported that <code>@trading-model/common</code> declared <code>crypto</code>, <code>server-utils</code> and <code>validation</code> as runtime dependencies although those packages depend on <code>common</code>, the imports coming only from orphan tests. Re-verified on 2026-10-23, that finding is closed (<code>common</code> now depends only on <code>primitives</code> and <code>contracts</code>), but the ADR-0007/0010 splits had moved the same pattern elsewhere:</p>
+<ul>
+<li><code>validation/src/domain/contracts/</code> mixed <strong>four pure re-export shims</strong> of <code>@trading-model/contracts</code> (<code>recovery.types</code>, <code>worker-protocol.types</code>, <code>market-events</code>, <code>audit-events</code>) with <strong>four shared contracts that have nothing to do with validation</strong> (<code>message.types</code>, <code>service-registry.types</code>, <code>signed-request.types</code>, <code>dlq.types</code>). Packages that need only types (<code>address-manager</code>, <code>broker-message</code>, <code>crypto</code>, <code>jobs</code>) and most services had to depend on <code>validation</code> to get them.</li>
+<li><code>jobs</code> tests imported <code>validation</code> without declaring it, and <code>validation</code> imported its own shim through its package name.</li>
+<li><code>common/tests/helpers/mock-common.ts</code> imported <code>@trading-model/http</code> (which depends on <code>common</code>); its only consumer was message-manager, via a dedicated Jest mapping.</li>
+<li>Every Jest <code>moduleNameMapper</code> listed nearly all packages, so <code>primitives</code> tests could resolve <code>broker-message</code>: an undeclared or inverted import passed silently.</li>
+<li>Several manifests declared internal dependencies that were never imported.</li>
+</ul>
+<h2>Decision</h2>
+<ol>
+<li>
+<p><strong><code>@trading-model/contracts</code> owns every shared, runtime-free contract.</strong> Types and enums used by more than one package live there, not in <code>validation</code> or <code>common</code>:</p>
+<table>
+<thead>
+<tr>
+<th>Moved to <code>contracts</code></th>
+<th>From</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>message-types</code></td>
+<td><code>validation/domain/contracts/message.types</code></td>
+</tr>
+<tr>
+<td><code>service-registry-types</code></td>
+<td><code>validation/domain/contracts/service-registry.types</code></td>
+</tr>
+<tr>
+<td><code>dlq-types</code></td>
+<td><code>validation/domain/contracts/dlq.types</code></td>
+</tr>
+<tr>
+<td><code>signed-request</code> (merged: <code>HttpRoute</code>, <code>SignedRequest</code>, <code>Signature</code>, <code>Timestamp</code>, <code>SignedRequestAuth</code>)</td>
+<td><code>validation/domain/contracts/signed-request.types</code></td>
+</tr>
+<tr>
+<td><code>delivery-mode</code></td>
+<td><code>common/config/delivery-mode.types</code> (needed by <code>message-types</code>; <code>contracts</code> cannot depend on <code>common</code>)</td>
+</tr>
+</tbody>
+</table>
+<p>The four shims are deleted; consumers import the owning <code>contracts</code> module directly. <code>validation</code> keeps Zod schemas, env validation and DTOs only. <code>validation/src/domain/contracts/</code> no longer exists.</p>
+</li>
+<li>
+<p><strong>Hard migration, no shims</strong> (same convention as ADR-0007/0015): 83 files across 12 workspaces were re-routed; the tests covering the shims were dropped (already covered in <code>contracts/tests/unit</code>), the others moved with their subject.</p>
+</li>
+<li>
+<p><strong>Test helpers live with their consumer.</strong> <code>mock-common.ts</code> was inlined into <code>message-manager/tests/helpers/broker.helper.ts</code>; a package never exposes its <code>tests/</code> to another workspace.</p>
+</li>
+<li>
+<p><strong>Manifests are the single source of truth for internal dependencies</strong>, enforced by:</p>
+<ul>
+<li><code>scripts/check-deps.mjs</code> (<code>bun run deps:check</code>, run in the CI <code>lint</code> job and the <code>pre-push</code> hook): src imports must be in <code>dependencies</code>, test imports in <code>dependencies</code> or <code>devDependencies</code>, no self-import by package name in src, no declared-but-unused internal dependency, no cycle in the <code>dependencies</code> graph.</li>
+<li><code>scripts/jest-workspace-mapper.cjs</code>: every Jest config builds its <code>@trading-model/*</code> mapping from its own manifest (own package + declared deps + their transitive runtime deps), so an undeclared package no longer resolves in tests.</li>
+</ul>
+<p>Unused declarations removed: <code>validation</code> from <code>address-manager</code>, <code>broker-message</code> and <code>crypto</code>; <code>contracts</code> from <code>server-utils</code>; <code>crypto</code> from <code>message-manager</code>; <code>common</code> from <code>admin-interface</code> (and <code>http</code> moved to its <code>devDependencies</code>).</p>
+</li>
+</ol>
+<h2>Consequences</h2>
+<h3>Positive</h3>
+<ul>
+<li>One owner per contract; type-only consumers depend on <code>contracts</code> (zero-IO, built second) instead of <code>validation</code>.</li>
+<li>Build order is no longer implicitly constrained by test-only imports; violations fail fast in CI and on push.</li>
+<li>Jest configs shrink to one line for internal packages and stay in sync with manifests.</li>
+</ul>
+<h3>Negative</h3>
+<ul>
+<li>Breaking import paths for any out-of-tree consumer of <code>@trading-model/validation/domain/contracts/*</code> or <code>@trading-model/common/config/delivery-mode.types</code>.</li>
+<li><code>admin-interface</code> (Vitest/Vite aliases) is checked by <code>deps:check</code> but its aliases are not generated from the manifest.</li>
+</ul>
+<h3>Out of scope</h3>
+<p><code>common/config/services.types</code> is still a re-export of <code>primitives/service-instance-name</code> (71 importers). It should be removed the same way in a follow-up.</p>
+</div></div>
+</main>
+</body>
+</html>

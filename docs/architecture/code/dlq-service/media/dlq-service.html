@@ -174,82 +174,73 @@ Documentation
 <tr>
 <td><code>POST</code></td>
 <td><code>/dlq</code></td>
-<td>Store a new dead letter entry</td>
+<td>Store a new dead letter entry (<code>DlqEntryWire</code>, <code>@trading-model/validation/wire/dlq-entry</code>)</td>
 </tr>
 <tr>
 <td><code>GET</code></td>
 <td><code>/dlq</code></td>
-<td>List dead letter entries (paginated)</td>
+<td>List dead letter entries (query <code>topic</code>, <code>limit</code> 1–1000, <code>offset</code> or <code>cursor</code>)</td>
 </tr>
 <tr>
-<td><code>GET</code></td>
-<td><code>/dlq/:id</code></td>
-<td>Get a single dead letter entry</td>
-</tr>
-<tr>
-<td><code>POST</code></td>
-<td><code>/dlq/:id/replay</code></td>
-<td>Replay a single dead letter entry</td>
+<td><code>DELETE</code></td>
+<td><code>/dlq</code></td>
+<td>Delete entries by id (body <code>{ &quot;ids&quot;: [...] }</code>, 1 to 1000 ids)</td>
 </tr>
 <tr>
 <td><code>POST</code></td>
 <td><code>/dlq/replay</code></td>
-<td>Replay multiple entries by filter</td>
-</tr>
-<tr>
-<td><code>DELETE</code></td>
-<td><code>/dlq/:id</code></td>
-<td>Delete a dead letter entry</td>
+<td>Replay entries to message-manager (query <code>topic</code>, <code>limit</code>, <code>batchId</code>)</td>
 </tr>
 <tr>
 <td><code>GET</code></td>
 <td><code>/health</code></td>
 <td>Health check</td>
 </tr>
+<tr>
+<td><code>GET</code></td>
+<td><code>/health/ready</code></td>
+<td>Readiness (dependencies)</td>
+</tr>
 </tbody>
 </table>
-<p>See source code at <code>services/dlq-service/src/shared/</code> (<code>dlq-schemas.ts</code>) for detailed request/response schemas.</p>
+<p>The <code>/dlq</code> routes also require a signed request: <code>x-service-name</code> (one of
+<code>DLQ_ALLOWED_SERVICES</code>), <code>x-timestamp</code> (ms, at most 5 minutes old) and
+<code>x-signature</code> (HMAC with <code>DLQ_AUTH_HMAC_SECRET</code>, see
+<code>@trading-model/crypto</code> <code>request-signer</code>). The gateway API key alone is not
+enough.</p>
+<p>The request and response schemas of the <code>/dlq</code> routes are declared in
+<code>src/adapters/inbound/api-routes.ts</code> (<code>DLQ_API</code>, ADR-0021) and published in the
+<a href="openapi/api-gateway.yaml">OpenAPI</a>. Invalid input gets a 400
+<code>{ &quot;error&quot;: &quot;Validation failed&quot;, &quot;details&quot;: [{ &quot;field&quot;: &quot;body.timestamp&quot;, &quot;message&quot;: &quot;...&quot; }] }</code>.
+<code>timestamp</code> is epoch milliseconds; ISO dates and epoch strings are still accepted.</p>
 <h2>Examples</h2>
 <blockquote>
 <p>mTLS uses the service SVID (SPIRE). Run these inside the service container,
 e.g. <code>docker compose exec -T dlq-service sh -c 'curl ...'</code>.</p>
 </blockquote>
-<pre><code class="language-bash"># List dead letter entries
-curl -sk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem \
-  https://localhost:3000/dlq
+<pre><code class="language-bash"># Health check (no signature needed)
+curl -sk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem   https://localhost:3000/health
 
-# Get a single entry
-curl -sk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem \
-  https://localhost:3000/dlq/entry-uuid-123
+# Signed routes: SIGNED_HEADERS holds the x-service-name, x-timestamp and
+# x-signature headers computed for this method and path.
+curl -sk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem   $SIGNED_HEADERS https://localhost:3000/dlq
 
-# Replay a single entry (re-inject to message bus)
-curl -sk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem \
-  https://localhost:3000/dlq/entry-uuid-123/replay -X POST
+# Replay up to 50 entries of one topic
+curl -sk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem   $SIGNED_HEADERS -X POST   'https://localhost:3000/dlq/replay?topic=market.trade.recent.fetch&amp;limit=50'
 
-# Replay all entries matching a filter
-curl -sk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem \
-  https://localhost:3000/dlq/replay -X POST \
-  -H 'Content-Type: application/json' \
-  -d '{&quot;topic&quot;:&quot;market.trade.recent.fetch&quot;}'
-
-# Delete a single entry
-curl -sk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem \
-  https://localhost:3000/dlq/entry-uuid-123 -X DELETE
-
-# Health check
-curl -sk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem \
-  https://localhost:3000/health
-
-# Purge all DLQ entries (via API gateway with admin token)
-curl -sk https://localhost:8448/v1/messages/dlq -X DELETE \
-  -H 'x-api-key: &lt;admin-token&gt;'
+# Delete entries by id
+curl -sk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem   $SIGNED_HEADERS -X DELETE https://localhost:3000/dlq   -H 'Content-Type: application/json'   -d '{&quot;ids&quot;:[&quot;entry-uuid-123&quot;]}'
 </code></pre>
 <h2>Environment Variables</h2>
 <p>See <a href="../../deployment/ENV.md#dlq-service">Environment Variables</a>.</p>
+<h2>Audit trail</h2>
+<p>dlq-service publishes each step on the bus, where audit-logger records it like every topic: <code>dlq.entry.added</code> (<code>entryId</code>, <code>topic</code>, <code>reason</code>), <code>dlq.replay.completed</code> (<code>batchId</code>, <code>topic</code>, <code>replayed</code>, <code>failed</code>) and <code>dlq.entries.deleted</code> (<code>ids</code>, <code>deleted</code>). It does not wait for these publishes (message-manager answers once audit-logger took the event or gave up) and only logs a warning when one fails. A dead letter of a <code>dlq.*</code> event publishes nothing: while audit-logger is down each would dead-letter the next.</p>
+<p>Until 2026-10-30 these notifications were a <code>POST</code> to an <code>/audit</code> route audit-logger never had: none was ever recorded.</p>
 <h2>Limitations</h2>
 <ul>
 <li>Maximum stored entries is configurable via <code>MAX_ENTRIES</code> (default: 100,000)</li>
-<li>Replay delivers back to message-manager with original payload headers intact</li>
+<li>Replay delivers back to message-manager with original payload headers intact. message-manager stamps a new <code>messageId</code> on each publish, so a replay is never re-sent once it left: it waits for message-manager's answer (<code>PUBLISH_TIMEOUT_MS</code> + 5 s), and a claim is released as stale only after <code>STALE_CLAIM_MS</code> (about 8 min, see ADR-0019). At shutdown, claims of replays still in flight stay until then</li>
+<li>A <code>POST /dlq/replay</code> lasts as long as message-manager takes to deliver the batch (up to the 2 min batch timeout plus one delivery): a caller with a shorter timeout gets an error while the replay goes on</li>
 </ul>
 </div></div>
 </main>

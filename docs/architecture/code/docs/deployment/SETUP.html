@@ -158,9 +158,14 @@ cd trading-model
 <h3>3. Build shared packages</h3>
 <pre><code class="language-bash">bun run build
 </code></pre>
-<p>Compiles the monorepo packages in this order:</p>
+<p>Compiles the monorepo packages in this order (topological dependency chain):</p>
 <ol>
+<li><code>primitives</code> (<code>packages/primitives</code>)</li>
+<li><code>contracts</code> (<code>packages/contracts</code>)</li>
+<li><code>reliability</code> (<code>packages/reliability</code>)</li>
 <li><code>common</code> (<code>packages/common</code>)</li>
+<li><code>persistence</code> (<code>packages/persistence</code>)</li>
+<li><code>http</code> (<code>packages/http</code>)</li>
 <li><code>validation</code> (<code>packages/validation</code>) + <code>server-utils</code> (<code>packages/server-utils</code>)</li>
 <li><code>crypto</code> (<code>packages/crypto</code>)</li>
 <li><code>address-manager</code> (<code>packages/address-manager</code>)</li>
@@ -203,21 +208,21 @@ trading-scraper    Up (healthy)
 trading-trainer    Up (healthy)
 trading-gateway    Up (healthy)
 trading-audit      Up (healthy)
-trading-admin      Up (healthy)
+trading-edge       Up (healthy)
 </code></pre>
-<pre><code class="language-bash"># Verify core services
-curl -sk https://localhost:8443/ping     # discovery-server
-curl -sk https://localhost:8444/ping     # message-manager
-curl -sk https://localhost:8445/ping     # financial-scraper
-curl -sk https://localhost:8446/ping     # trader-trainer
-curl -sk https://localhost:8448/ping     # api-gateway
-curl -sk https://localhost:8450/ping     # audit-logger
+<pre><code class="language-bash"># Services only accept SPIFFE mTLS clients (ADR-0011): probe them from inside
+# their container, with its SVID (what the compose healthcheck does)
+for c in trading-discovery trading-message trading-scraper trading-trainer \
+         trading-gateway trading-audit trading-dlq; do
+  printf '%s: ' &quot;$c&quot;
+  docker exec &quot;$c&quot; curl -sk --cert /run/spire/svid/svid.pem \
+    --key /run/spire/svid/svid_key.pem https://localhost:3000/ping; echo
+done
+curl -s http://localhost:8449/ping       # edge-proxy (HTTP entry to the gateway under /v1)
 
-# Admin interface (HTTP)
-curl http://localhost:8449/
-
-# List registered services
-curl -sk https://localhost:8443/services | jq .
+# List registered services (through edge-proxy → gateway)
+curl -s http://localhost:8449/v1/discovery-server/services \
+  -H &quot;x-api-key: &lt;AUTH_TOKENS value&gt;&quot; | jq .
 
 # Real-time logs
 docker compose logs -f
@@ -468,19 +473,22 @@ trading-scraper    ghcr.io/trading-model/financial-scraper:latest          Up (h
 trading-trainer    ghcr.io/trading-model/trader-trainer:latest             Up (healthy)
 trading-gateway    ghcr.io/trading-model/api-gateway:latest                Up (healthy)
 trading-audit      ghcr.io/trading-model/audit-logger:latest               Up (healthy)
-trading-admin      ghcr.io/trading-model/admin-interface:latest            Up (healthy)
+trading-edge       nginx@sha256:814a8e88df97…                              Up (healthy)
 </code></pre>
 <p>Individual health checks:</p>
-<pre><code class="language-bash">curl -sk https://localhost:8443/ping    # Discovery Server
-curl -sk https://localhost:8444/ping    # Message Manager
-curl -sk https://localhost:8445/ping    # Financial Scraper
-curl -sk https://localhost:8446/ping    # Trader Trainer
-curl -sk https://localhost:8448/ping    # API Gateway
-curl -sk https://localhost:8450/ping    # Audit Logger
-curl http://localhost:8449/             # Admin Interface (HTTP)
+<pre><code class="language-bash"># Services only accept SPIFFE mTLS clients (ADR-0011): probe them from inside
+# their container, with its SVID (what the compose healthcheck does)
+for c in trading-discovery trading-message trading-scraper trading-trainer \
+         trading-gateway trading-audit trading-dlq; do
+  printf '%s: ' &quot;$c&quot;
+  docker exec &quot;$c&quot; curl -sk --cert /run/spire/svid/svid.pem \
+    --key /run/spire/svid/svid_key.pem https://localhost:3000/ping; echo
+done
+curl -s http://localhost:8449/ping      # Edge proxy (HTTP)
 </code></pre>
-<p>List registered services:</p>
-<pre><code class="language-bash">curl -sk https://localhost:8443/services | jq .
+<p>List registered services (through edge-proxy → gateway):</p>
+<pre><code class="language-bash">curl -s http://localhost:8449/v1/discovery-server/services \
+  -H &quot;x-api-key: &lt;AUTH_TOKENS value&gt;&quot; | jq .
 </code></pre>
 <hr>
 <h2>Quick Command Reference (checklist)</h2>
@@ -505,8 +513,8 @@ cp .env.example .env
 # ── Startup ───────────────────────────────────────────
 docker compose pull
 docker compose up -d
-docker compose ps
-curl -sk https://localhost:8443/ping
+docker compose ps                  # every container (healthy)
+curl -s http://localhost:8449/ping  # edge-proxy
 </code></pre>
 <hr>
 <h2>Fleet machine (beta / production)</h2>

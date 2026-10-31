@@ -119,7 +119,12 @@ Documentation
 <p>Every microservice in the platform uses this package to register itself, discover peers, and maintain its lease.</p>
 <h2>Dependencies</h2>
 <ul>
-<li><code>@trading-model/common</code> — HttpClient, middleware, error types</li>
+<li><code>@trading-model/http</code> — HttpClient, logger</li>
+<li><code>@trading-model/common</code> — error handling (<code>normalizeError</code>), retry/backoff, TTL cache utilities</li>
+<li><code>@trading-model/primitives</code> — branded domain types (service identity, IDs)</li>
+<li><code>@trading-model/persistence</code> — store adapters (memory / Redis service cache)</li>
+<li><code>@trading-model/reliability</code> — heartbeat interfaces</li>
+<li><code>@trading-model/server-utils</code> — signal handling, <code>PING_PATH</code> constant</li>
 <li><code>express</code> — Express <code>Router</code>, <code>Application</code> types</li>
 <li><code>node-cron</code> — Scheduled job execution</li>
 </ul>
@@ -149,8 +154,6 @@ Documentation
   cacheTtlMs: DurationMs;
   dnsNameMap?: Record&lt;ServiceId, IPAddress&gt;;
   metricsIntervalMs?: DurationMs;
-  wsUrl?: string;
-  wsSubscribedServices?: ServiceId[];
   maxCallRecords?: PositiveInt;
   preferredNetworkInterface?: string;
   pems?: TlsPaths;                  // legacy alias
@@ -450,7 +453,7 @@ Documentation
 </table>
 <h2>Environment Schema</h2>
 <ul>
-<li><strong>Import</strong>: <code>@trading-model/validation/infrastructure/validation/env</code></li>
+<li><strong>Import</strong>: <code>@trading-model/validation/config/address-manager-env</code></li>
 <li><strong>Schema</strong>: <code>AddressManagerEnvSchema</code></li>
 </ul>
 <table>
@@ -521,11 +524,6 @@ Documentation
 <td><code>ADDRESS_MANAGER_URLS</code></td>
 <td>—</td>
 <td>Optional JSON array of discovery URLs for multi-region failover</td>
-</tr>
-<tr>
-<td><code>REGION</code></td>
-<td>—</td>
-<td>Deployment region identifier</td>
 </tr>
 <tr>
 <td><code>ERROR_URL_WEBHOOK</code></td>

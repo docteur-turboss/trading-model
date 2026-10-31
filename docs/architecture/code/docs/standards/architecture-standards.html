@@ -119,7 +119,12 @@ Documentation
 <p>The project follows a monorepo structure with <strong>bun workspaces</strong>. All shared components live in <code>packages/</code> and all microservices in <code>services/</code>.</p>
 <pre><code>trading-model/
 ├── packages/           # Shared libraries (bun workspace)
+│   ├── primitives/          # @trading-model/primitives
+│   ├── contracts/           # @trading-model/contracts
+│   ├── reliability/         # @trading-model/reliability
 │   ├── common/              # @trading-model/common
+│   ├── persistence/         # @trading-model/persistence
+│   ├── http/                # @trading-model/http
 │   ├── validation/          # @trading-model/validation
 │   ├── server-utils/        # @trading-model/server-utils
 │   ├── crypto/              # @trading-model/crypto
@@ -132,8 +137,7 @@ Documentation
 │   ├── trader-trainer/
 │   ├── api-gateway/
 │   ├── audit-logger/
-│   ├── dlq-service/
-│   └── admin-interface/ # React SPA (Vite, MUI, Vitest)
+│   └── dlq-service/
 ├── .github/workflows/  # CI/CD
 ├── docs/               # Centralized documentation
 ├── scripts/            # Utilities (commit, release, migrations)
@@ -197,8 +201,8 @@ Documentation
 <td>Express.js</td>
 </tr>
 <tr>
-<td>Frontend SPA</td>
-<td>React 19 + Vite + MUI 7 + Recharts + Vitest</td>
+<td>Frontend</td>
+<td>None for now (ADR-0018)</td>
 </tr>
 <tr>
 <td>Security</td>
@@ -228,16 +232,22 @@ Documentation
 </table>
 <h2>Dependency Graph</h2>
 <p>Shared packages (base → derived):</p>
-<pre><code>@trading-model/common          (domain primitives, contracts, reliability, persistence, utils, ws)
-@trading-model/http            (HTTP middleware, http client, logging) → common
-@trading-model/validation      (Zod schemas, DTOs, shared type contracts) → common, http
-@trading-model/server-utils    (secure HTTPS server factory, TLS watcher, bootstrap) → common, http
-@trading-model/crypto          (hashing, signatures, crypto primitives) → common, validation
-@trading-model/jobs            (worker protocol, orphan recovery) → common, http
+<pre><code>@trading-model/primitives       (branded types, pagination, identities — zero deps)
+@trading-model/contracts        (events, market-data, http constants, LoggerPort registry) → primitives
+@trading-model/reliability      (circuit breaker, latency tracker, heartbeats) → primitives, contracts
+@trading-model/common           (residual config, utils, shared schemas, AppError) → primitives, contracts
+@trading-model/persistence      (Redis/Mongo connection managers, store adapters) → common, primitives, contracts
+@trading-model/http             (HTTP middleware, http client, logging) → primitives, contracts, common, reliability
+@trading-model/validation       (Zod schemas, DTOs, shared type contracts) → primitives, contracts, common, http
+@trading-model/server-utils     (secure HTTPS server factory, TLS watcher, bootstrap) → primitives, contracts, common, http
+@trading-model/crypto           (hashing, signatures, crypto primitives) → primitives, contracts, common, validation
 
-@trading-model/address-manager (service discovery client, health, token rotation) → common, http, server-utils, validation
-@trading-model/broker-message  (inter-service messaging SDK) → common, http, jobs, address-manager, validation
+@trading-model/address-manager  (service discovery client, health, token rotation) → primitives, contracts, common, persistence, http, reliability, server-utils, validation
+@trading-model/broker-message   (inter-service messaging SDK) → primitives, contracts, address-manager, common, http, validation
 </code></pre>
+<blockquote>
+<p><strong>Dependency direction:</strong> <code>@trading-model/primitives</code> and <code>@trading-model/contracts</code> are the foundation layers and depend on nothing higher in the chain — they must never import <code>http</code> or any upper-layer package. <code>@trading-model/common</code> sits just above them and has <strong>no</strong> dependency on <code>@trading-model/http</code>. The concrete logger lives in <code>@trading-model/http</code>; <code>@trading-model/contracts</code> exposes a <code>LoggerPort</code> registry (<code>@trading-model/contracts/logger-registry</code>) that http populates at import time — breaking what was previously a real <code>common ↔ http</code> cycle.</p>
+</blockquote>
 <p>Services and their <code>@trading-model/*</code> dependencies:</p>
 <table>
 <thead>
@@ -265,7 +275,7 @@ Documentation
 </tr>
 <tr>
 <td>audit-logger</td>
-<td>common, validation, http, jobs, server-utils, address-manager, broker-message</td>
+<td>common, validation, http, server-utils, address-manager, broker-message</td>
 </tr>
 <tr>
 <td>dlq-service</td>
@@ -275,13 +285,9 @@ Documentation
 <td>api-gateway</td>
 <td>common, validation, http, server-utils, crypto</td>
 </tr>
-<tr>
-<td>admin-interface</td>
-<td>common, validation, http (DTO types only — React SPA, no Node runtime)</td>
-</tr>
 </tbody>
 </table>
-<p>The <strong>admin-interface</strong> is a React SPA (not a Node.js microservice). It imports DTO types from <code>@trading-model/common</code> and <code>@trading-model/validation</code> and communicates with the backend exclusively via HTTP through the <strong>api-gateway</strong>. It is built with Vite, tested with Vitest, and served via nginx in production.</p>
+<p>There is no frontend workspace: <code>admin-interface</code> was removed until a new one is specified (<a href="../adr/0018-temporary-frontend-removal.html">ADR-0018</a>). A future frontend talks to the backend only through the <strong>api-gateway</strong>.</p>
 <h3>Package Dependency Details</h3>
 <table>
 <thead>
@@ -293,34 +299,59 @@ Documentation
 </thead>
 <tbody>
 <tr>
+<td><code>@trading-model/primitives</code></td>
+<td>Pure domain primitives: branded types, pagination, circuit-state, service-identity, retry-policy, topic-binding. Zero dependencies.</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>@trading-model/contracts</code></td>
+<td>Shared contracts: event/market-data types, <code>http-status</code>, <code>http-headers</code>, <code>LoggerPort</code> registry (setLogger/getLogger)</td>
+<td>primitives</td>
+</tr>
+<tr>
+<td><code>@trading-model/reliability</code></td>
+<td>Circuit-breaker, circuit-state-machine, latency-tracker, heartbeat interfaces</td>
+<td>primitives, contracts</td>
+</tr>
+<tr>
 <td><code>@trading-model/common</code></td>
-<td>Logger, HTTP client, middleware (MTLSAuthMiddleware, ResponseProtocol, error tracking), domain primitives (branded types), contracts, circuit breakers, reliability, worker/recovery helpers</td>
-<td>validation, server-utils, crypto</td>
+<td>Residual shared infra: <code>AppError</code>/<code>ErrorCodes</code>, retry/backoff, SPIFFE identity, TLS path config, cache abstractions, log sanitization, shared Zod schemas</td>
+<td>primitives, contracts</td>
+</tr>
+<tr>
+<td><code>@trading-model/persistence</code></td>
+<td>Redis/Mongo connection managers, store adapters, key builders (absorbed <code>redis-config</code>)</td>
+<td>common, primitives, contracts</td>
+</tr>
+<tr>
+<td><code>@trading-model/http</code></td>
+<td>HTTP middleware (MTLSAuthMiddleware, ResponseProtocol, error tracking), HTTP client, concrete logging pipeline</td>
+<td>primitives, contracts, common, reliability</td>
 </tr>
 <tr>
 <td><code>@trading-model/validation</code></td>
 <td>Zod schemas, DTOs, event types, shared type contracts, admin contracts</td>
-<td>common</td>
+<td>primitives, contracts, common, http</td>
 </tr>
 <tr>
 <td><code>@trading-model/server-utils</code></td>
 <td>Secure HTTPS server factory, TLS watcher/loader, bootstrap &amp; shutdown, signal handling, telemetry</td>
-<td>common</td>
+<td>primitives, contracts, common, http</td>
 </tr>
 <tr>
 <td><code>@trading-model/crypto</code></td>
 <td>Hashing, request signing, token generation, secure randomness</td>
-<td>common, validation</td>
+<td>primitives, contracts, common, validation</td>
 </tr>
 <tr>
 <td><code>@trading-model/address-manager</code></td>
-<td>Service discovery client, token manager, service cache with health checking, scheduler/jobs, load balancing</td>
-<td>common, server-utils, validation</td>
+<td>Service discovery client, token manager, service cache with health checking, load balancing</td>
+<td>primitives, contracts, common, persistence, http, reliability, server-utils, validation</td>
 </tr>
 <tr>
 <td><code>@trading-model/broker-message</code></td>
-<td>Inter-service messaging SDK: message manager client, event emitter, message controller/routes, validation schemas, WSS client</td>
-<td>common, address-manager, validation</td>
+<td>Inter-service messaging SDK: message manager client, event emitter, message controller/routes, validation schemas</td>
+<td>primitives, contracts, address-manager, common, http, validation</td>
 </tr>
 </tbody>
 </table>
@@ -385,12 +416,6 @@ consumed via <code>spiffe-helper</code> sidecars. The former in-house CA and
 <td></td>
 </tr>
 <tr>
-<td>admin-interface</td>
-<td>8449</td>
-<td>80</td>
-<td>SPA via nginx (Vite dev: 5173)</td>
-</tr>
-<tr>
 <td>api-gateway</td>
 <td>8448</td>
 <td>3000</td>
@@ -399,16 +424,16 @@ consumed via <code>spiffe-helper</code> sidecars. The former in-house CA and
 </tbody>
 </table>
 <h3>Service Structure</h3>
-<p>Services follow a hexagonal architecture (ADR-0010): business logic is isolated in <code>domain/</code> + <code>application/</code>, driven by <code>adapters/</code> (controllers, routes) and backed by <code>infrastructure/</code> (Redis, Mongo, HTTP clients). Legacy module layouts (<code>core/</code>, <code>messaging/</code>, <code>persistence/</code>) may still coexist in some services during migration.</p>
+<p>Services follow a hexagonal architecture (ADR-0010): business logic is isolated in <code>domain/</code> + <code>application/</code>, driven by <code>adapters/</code> (controllers, routes) and backed by <code>infrastructure/</code> (Redis, Mongo, HTTP clients). All services use this layout; no legacy module layout (<code>core/</code>, <code>messaging/</code>, <code>persistence/</code>, <code>controllers/</code> …) remains (ADR-0015).</p>
 <pre><code>services/&lt;name&gt;/
 ├── src/
-│   ├── application/        # Entry point (index.ts), server, use-case orchestration
+│   ├── application/        # Startup (index.ts, server.ts) + use-case orchestration over ports
 │   ├── domain/             # Entities, domain services, ports (interfaces)
 │   ├── adapters/           # Driven/driving adapters (HTTP controllers, routes, clients)
 │   │   ├── inbound/        # Express controllers, route definitions
 │   │   └── outbound/       # HTTP/WS clients to other services
-│   ├── infrastructure/     # External integrations (Redis, MongoDB, HTTP)
-│   ├── config/             # env.ts — Zod validation of environment variables
+│   ├── infrastructure/     # External integrations (Redis, MongoDB, HTTP), config/env.ts
+│   ├── config/             # container.ts (composition root), metrics, service clients
 │   └── shared/             # Shared types, constants, utils
 ├── tests/
 │   ├── unit/
@@ -421,26 +446,59 @@ consumed via <code>spiffe-helper</code> sidecars. The former in-house CA and
 ├── tsconfig.json
 └── jest.config.js
 </code></pre>
+<h3>Composition Root vs. Startup (ADR-0015)</h3>
+<p>Two distinct responsibilities, two places:</p>
+<table>
+<thead>
+<tr>
+<th>Responsibility</th>
+<th>Where</th>
+<th>Examples</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Dependency wiring</strong>: instantiate adapters and bind them to ports, build use cases</td>
+<td><code>src/config/container.ts</code> only</td>
+<td><code>new RedisInstanceStore(...)</code>, <code>createServiceRegistry()</code>, <code>new JobScheduler({ repository, config })</code>, repositories, publishers, Prometheus hooks</td>
+</tr>
+<tr>
+<td><strong>Startup</strong>: run the process</td>
+<td><code>src/application/index.ts</code> and <code>src/application/server.ts</code> only</td>
+<td><code>createBootstrap</code>, telemetry, mounting routes, readiness checks, bus subscriptions, opening/closing connections, starting/stopping loops</td>
+</tr>
+</tbody>
+</table>
+<p>Rules:</p>
+<ul>
+<li><code>index.ts</code> and <code>server.ts</code> are the <strong>only</strong> files of <code>application/</code> allowed to touch adapters/infrastructure, and only for startup concerns. They obtain their collaborators from <code>config/container.ts</code> and never <code>new</code> an adapter themselves.</li>
+<li>Every other file of <code>application/</code> depends on ports only.</li>
+<li>Containers take environment values <strong>as parameters</strong> (<code>createDiscoveryApp(ENV)</code>, <code>createScrapeScheduler(ENV)</code>) rather than importing <code>ENV</code>, so they can be imported by tests without environment validation.</li>
+</ul>
 <h3>Entry Point (<code>src/application/index.ts</code>)</h3>
 <pre><code class="language-typescript">import { createBootstrap } from '@trading-model/server-utils/application/services/bootstrap';
-import { LeaseManager } from '../domain/lease-manager';
+import { createDiscoveryApp } from '../config/container';
+import { ENV } from '../infrastructure/config/env';
 import { createServer } from './server';
-import '../config/env';
+
+const { registry, leaseManager, redisClient } = createDiscoveryApp(ENV);
 
 createBootstrap({
   name: 'Discovery',
-  createServer,
-  onStart: () =&gt; {
-    LeaseManager.start();
+  createServer: () =&gt; createServer(registry),
+  onStart: async () =&gt; {
+    await redisClient?.connect();
+    leaseManager.start();
   },
   onStop: () =&gt; {
-    LeaseManager.stop();
+    leaseManager.stop();
+    redisClient?.disconnect();
   },
 });
 </code></pre>
 <h3>Server (<code>src/application/server.ts</code>)</h3>
 <pre><code class="language-typescript">import { createSecureServer } from '@trading-model/server-utils/adapters/inbound/create-secure-server';
-import { loadTlsConfig } from '@trading-model/server-utils/shared/load-tls-config';
+import { loadTlsConfig } from '@trading-model/server-utils/infrastructure/load-tls-config';
 import { heartbeatRoutes } from '../adapters/inbound/heartbeat.routes';
 import { registryRoutes } from '../adapters/inbound/register.routes';
 import { env } from '../config/env';
@@ -459,26 +517,19 @@ export function createServer() {
 <h2>Package Conventions</h2>
 <h3>Sub-path Exports</h3>
 <p>Each package declares its exports via the <code>exports</code> field in <code>package.json</code>. Entry points are organized by sub-path.</p>
-<p><strong>@trading-model/common</strong> (granular exports):</p>
+<p><strong>@trading-model/common</strong> (granular exports — residual <code>config/</code>, <code>utils/</code>, <code>shared/</code> after the ADR-0007 split):</p>
 <pre><code class="language-json">{
   &quot;exports&quot;: {
-    &quot;./constants&quot;: { &quot;types&quot;: &quot;./dist/constants.d.ts&quot;, &quot;default&quot;: &quot;./dist/constants.js&quot; },
     &quot;./config/*&quot;: { &quot;types&quot;: &quot;./dist/config/*.d.ts&quot;, &quot;default&quot;: &quot;./dist/config/*.js&quot; },
-    &quot;./middleware/*&quot;: { &quot;types&quot;: &quot;./dist/middleware/*.d.ts&quot;, &quot;default&quot;: &quot;./dist/middleware/*.js&quot; },
     &quot;./utils/*&quot;: { &quot;types&quot;: &quot;./dist/utils/*.d.ts&quot;, &quot;default&quot;: &quot;./dist/utils/*.js&quot; },
-    &quot;./worker/*&quot;: { &quot;types&quot;: &quot;./dist/worker/*.d.ts&quot;, &quot;default&quot;: &quot;./dist/worker/*.js&quot; },
-    &quot;./recovery/*&quot;: { &quot;types&quot;: &quot;./dist/recovery/*.d.ts&quot;, &quot;default&quot;: &quot;./dist/recovery/*.js&quot; },
-    &quot;./reliability/*&quot;: { &quot;types&quot;: &quot;./dist/reliability/*.d.ts&quot;, &quot;default&quot;: &quot;./dist/reliability/*.js&quot; },
-    &quot;./domain/*&quot;: { &quot;types&quot;: &quot;./dist/domain/*.d.ts&quot;, &quot;default&quot;: &quot;./dist/domain/*.js&quot; },
-    &quot;./crl/*&quot;: { &quot;types&quot;: &quot;./dist/crl/*.d.ts&quot;, &quot;default&quot;: &quot;./dist/crl/*.js&quot; },
-    &quot;./persistence/*&quot;: { &quot;types&quot;: &quot;./dist/persistence/*.d.ts&quot;, &quot;default&quot;: &quot;./dist/persistence/*.js&quot; },
-    &quot;./http-headers&quot;: { &quot;types&quot;: &quot;./dist/http-headers.d.ts&quot;, &quot;default&quot;: &quot;./dist/http-headers.js&quot; },
-    &quot;./http-status&quot;: { &quot;types&quot;: &quot;./dist/http-status.d.ts&quot;, &quot;default&quot;: &quot;./dist/http-status.js&quot; },
-    &quot;./contracts/*&quot;: { &quot;types&quot;: &quot;./dist/contracts/*.d.ts&quot;, &quot;default&quot;: &quot;./dist/contracts/*.js&quot; },
-    &quot;./ws/*&quot;: { &quot;types&quot;: &quot;./dist/ws/*.d.ts&quot;, &quot;default&quot;: &quot;./dist/ws/*.js&quot; }
+    &quot;./shared/*&quot;: { &quot;types&quot;: &quot;./dist/shared/*.d.ts&quot;, &quot;default&quot;: &quot;./dist/shared/*.js&quot; },
+    &quot;./tests/*&quot;: { &quot;types&quot;: &quot;./tests/*.d.ts&quot;, &quot;default&quot;: &quot;./tests/*.js&quot; }
   }
 }
 </code></pre>
+<blockquote>
+<p>Post-split (2026-10), <code>common</code> no longer exports <code>middleware/</code>, <code>worker/</code>, <code>recovery/</code>, <code>reliability/</code>, <code>domain/</code>, <code>crl/</code>, <code>persistence/</code>, <code>http-headers</code>, <code>http-status</code> or <code>contracts/</code>. Those live in <code>@trading-model/primitives</code>, <code>@trading-model/contracts</code>, <code>@trading-model/reliability</code>, <code>@trading-model/persistence</code>, <code>@trading-model/http</code> and <code>@trading-model/server-utils</code> respectively (<code>worker/</code> and <code>recovery/</code> went to <code>@trading-model/jobs</code>, removed by ADR-0029). See the <a href="../services/common.html#package-map-post-split">package map</a>.</p>
+</blockquote>
 <p><strong>@trading-model/validation</strong>, <strong>@trading-model/server-utils</strong>, <strong>@trading-model/crypto</strong>, <strong>@trading-model/address-manager</strong> and <strong>@trading-model/broker-message</strong> (simplified exports):</p>
 <pre><code class="language-json">{
   &quot;exports&quot;: {
@@ -492,8 +543,7 @@ export function createServer() {
 <h2>Known Technical Debt</h2>
 <ol>
 <li><strong>Legacy path aliases</strong>: Some service tsconfigs still define <code>paths</code> aliases (<code>config/*</code>, <code>infra/*</code>, <code>clients/*</code>, <code>job/*</code>, <code>types/*</code>, <code>utils/*</code>) that should be replaced with <code>node16</code> resolution.</li>
-<li><strong>Transitional re-export shims</strong>: Some refactor-introduced barrel files (<code>export * from</code>) preserve old import paths while modules move to the new architectural layers.</li>
-<li><strong>Legacy module layouts</strong>: A few services still mix the old <code>core/</code>/<code>messaging/</code>/<code>persistence/</code> layout with the hexagonal layers during migration.</li>
+<li><strong>Transitional re-export shims</strong>: Some refactor-introduced barrel files (<code>export * from</code>) preserve old import paths while modules move to the new architectural layers. This notably includes <code>http/src/infrastructure/logger.ts</code> (re-exporting the logger pipeline now living in <code>http/src/application/services/logger.ts</code> — 100+ consumers still import the legacy sub-path). The <code>common</code> split (ADR-0007, extended 2026-10) used <strong>hard migration</strong> — no re-export shims were retained in <code>common</code>.</li>
 </ol>
 </div></div>
 </main>

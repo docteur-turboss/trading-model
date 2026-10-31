@@ -8,7 +8,12 @@ This directory documents every package and service in the **trading-model** mono
 
 | Package                          | Path                        | Documentation                              |
 | -------------------------------- | --------------------------- | ------------------------------------------ |
+| `@trading-model/primitives`      | `packages/primitives/`      | —                                          |
+| `@trading-model/contracts`       | `packages/contracts/`       | —                                          |
+| `@trading-model/reliability`     | `packages/reliability/`     | —                                          |
 | `@trading-model/common`          | `packages/common/`          | [common.md](./common.md)                   |
+| `@trading-model/persistence`     | `packages/persistence/`     | —                                          |
+| `@trading-model/http`            | `packages/http/`            | —                                          |
 | `@trading-model/validation`      | `packages/validation/`      | —                                          |
 | `@trading-model/server-utils`    | `packages/server-utils/`    | —                                          |
 | `@trading-model/crypto`          | `packages/crypto/`          | —                                          |
@@ -26,7 +31,8 @@ This directory documents every package and service in the **trading-model** mono
 | api-gateway           | `services/api-gateway/`           | [api-gateway.md](./api-gateway.md)                 |
 | audit-logger          | `services/audit-logger/`          | [audit-logger.md](./audit-logger.md)               |
 | dlq-service           | `services/dlq-service/`           | [dlq-service.md](./dlq-service.md)                 |
-| admin-interface       | `services/admin-interface/`       | _(React SPA, no API docs)_                         |
+
+No frontend for now: `admin-interface` was removed ([ADR-0018](../adr/0018-temporary-frontend-removal.md)).
 
 To add a new service, see [How to Add a New Service](../contributing/adding-a-service.md).
 

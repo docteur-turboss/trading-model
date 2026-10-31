@@ -131,7 +131,7 @@ Category
 <section class="space-y-4 pt-1" data-purpose="category-modules">
 <div class="flex items-center justify-between border-b border-surface-border/70 pb-2">
 <h2 class="text-lg font-bold text-white tracking-tight">Modules</h2>
-<span class="text-xs font-mono text-slate-400 bg-surface-muted px-2 py-0.5 rounded">5</span>
+<span class="text-xs font-mono text-slate-400 bg-surface-muted px-2 py-0.5 rounded">7</span>
 </div>
 <div class="space-y-2"><a class="text-[11px] uppercase tracking-wider text-indigo-400 font-mono font-semibold hover:underline" href="adapters_inbound.html">adapters/inbound</a><div class="grid grid-cols-1 gap-2"><div class="rounded-xl bg-surface-card border border-surface-border p-3 space-y-2 transition-all hover:border-indigo-500/40">
 <a class="flex items-center gap-2 font-mono text-sm font-semibold text-white hover:text-indigo-300" href="../modules/adapters_inbound_configure-app.html">
@@ -172,13 +172,31 @@ Category
 <span class="w-3 h-3 rounded-full bg-amber-500/20 text-amber-400 text-[8px] flex items-center justify-center font-bold">F</span>
 <span>createSecureServer</span>
 </a>
-<a class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-surface-muted border border-surface-border text-[10px] font-mono text-slate-300 hover:border-indigo-500/50 hover:text-white transition-all" href="../interfaces/adapters_inbound_server-factory.HttpServer.html">
+<a class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-surface-muted border border-surface-border text-[10px] font-mono text-slate-300 hover:border-indigo-500/50 hover:text-white transition-all" href="../interfaces/shared_server-types.HttpServer.html">
 <span class="w-3 h-3 rounded-full bg-emerald-500/20 text-emerald-400 text-[8px] flex items-center justify-center font-bold">I</span>
 <span>HttpServer</span>
+</a>
+<a class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-surface-muted border border-surface-border text-[10px] font-mono text-slate-300 hover:border-indigo-500/50 hover:text-white transition-all" href="../types/adapters_inbound_server-factory.HttpsServer.html">
+<span class="w-3 h-3 rounded-full bg-purple-500/20 text-purple-400 text-[8px] flex items-center justify-center font-bold">T</span>
+<span>HttpsServer</span>
 </a>
 <a class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-surface-muted border border-surface-border text-[10px] font-mono text-slate-300 hover:border-indigo-500/50 hover:text-white transition-all" href="../interfaces/adapters_inbound_configure-app.RateLimitConfig.html">
 <span class="w-3 h-3 rounded-full bg-emerald-500/20 text-emerald-400 text-[8px] flex items-center justify-center font-bold">I</span>
 <span>RateLimitConfig</span>
+</a></div>
+</div>
+<div class="rounded-xl bg-surface-card border border-surface-border p-3 space-y-2 transition-all hover:border-indigo-500/40">
+<a class="flex items-center gap-2 font-mono text-sm font-semibold text-white hover:text-indigo-300" href="../modules/adapters_inbound_http-metrics.html">
+<span class="w-5 h-5 rounded-md bg-indigo-500/20 border-indigo-500/40 text-indigo-300 flex items-center justify-center text-[10px] font-mono font-bold flex-shrink-0">M</span>
+<span class="truncate">http-metrics</span>
+</a>
+<div class="flex flex-wrap gap-1.5"><a class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-surface-muted border border-surface-border text-[10px] font-mono text-slate-300 hover:border-indigo-500/50 hover:text-white transition-all" href="../variables/adapters_inbound_http-metrics.UNMATCHED_ROUTE.html">
+<span class="w-3 h-3 rounded-full bg-indigo-500/20 text-indigo-400 text-[8px] flex items-center justify-center font-bold">V</span>
+<span>UNMATCHED_ROUTE</span>
+</a>
+<a class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-surface-muted border border-surface-border text-[10px] font-mono text-slate-300 hover:border-indigo-500/50 hover:text-white transition-all" href="../functions/adapters_inbound_http-metrics.httpMetricsMiddleware.html">
+<span class="w-3 h-3 rounded-full bg-amber-500/20 text-amber-400 text-[8px] flex items-center justify-center font-bold">F</span>
+<span>httpMetricsMiddleware</span>
 </a></div>
 </div>
 <div class="rounded-xl bg-surface-card border border-surface-border p-3 space-y-2 transition-all hover:border-indigo-500/40">
@@ -196,21 +214,39 @@ Category
 </a></div>
 </div>
 <div class="rounded-xl bg-surface-card border border-surface-border p-3 space-y-2 transition-all hover:border-indigo-500/40">
+<a class="flex items-center gap-2 font-mono text-sm font-semibold text-white hover:text-indigo-300" href="../modules/adapters_inbound_readiness.html">
+<span class="w-5 h-5 rounded-md bg-indigo-500/20 border-indigo-500/40 text-indigo-300 flex items-center justify-center text-[10px] font-mono font-bold flex-shrink-0">M</span>
+<span class="truncate">readiness</span>
+</a>
+<div class="flex flex-wrap gap-1.5"><a class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-surface-muted border border-surface-border text-[10px] font-mono text-slate-300 hover:border-indigo-500/50 hover:text-white transition-all" href="../interfaces/adapters_inbound_readiness.ReadinessCheck.html">
+<span class="w-3 h-3 rounded-full bg-emerald-500/20 text-emerald-400 text-[8px] flex items-center justify-center font-bold">I</span>
+<span>ReadinessCheck</span>
+</a>
+<a class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-surface-muted border border-surface-border text-[10px] font-mono text-slate-300 hover:border-indigo-500/50 hover:text-white transition-all" href="../functions/adapters_inbound_readiness.createReadinessHandler.html">
+<span class="w-3 h-3 rounded-full bg-amber-500/20 text-amber-400 text-[8px] flex items-center justify-center font-bold">F</span>
+<span>createReadinessHandler</span>
+</a></div>
+</div>
+<div class="rounded-xl bg-surface-card border border-surface-border p-3 space-y-2 transition-all hover:border-indigo-500/40">
 <a class="flex items-center gap-2 font-mono text-sm font-semibold text-white hover:text-indigo-300" href="../modules/adapters_inbound_server-factory.html">
 <span class="w-5 h-5 rounded-md bg-indigo-500/20 border-indigo-500/40 text-indigo-300 flex items-center justify-center text-[10px] font-mono font-bold flex-shrink-0">M</span>
 <span class="truncate">server-factory</span>
 </a>
-<div class="flex flex-wrap gap-1.5"><a class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-surface-muted border border-surface-border text-[10px] font-mono text-slate-300 hover:border-indigo-500/50 hover:text-white transition-all" href="../interfaces/adapters_inbound_server-factory.HttpServer.html">
-<span class="w-3 h-3 rounded-full bg-emerald-500/20 text-emerald-400 text-[8px] flex items-center justify-center font-bold">I</span>
-<span>HttpServer</span>
-</a>
-<a class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-surface-muted border border-surface-border text-[10px] font-mono text-slate-300 hover:border-indigo-500/50 hover:text-white transition-all" href="../interfaces/adapters_inbound_server-factory.HttpsServerOptions.html">
+<div class="flex flex-wrap gap-1.5"><a class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-surface-muted border border-surface-border text-[10px] font-mono text-slate-300 hover:border-indigo-500/50 hover:text-white transition-all" href="../interfaces/adapters_inbound_server-factory.HttpsServerOptions.html">
 <span class="w-3 h-3 rounded-full bg-emerald-500/20 text-emerald-400 text-[8px] flex items-center justify-center font-bold">I</span>
 <span>HttpsServerOptions</span>
+</a>
+<a class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-surface-muted border border-surface-border text-[10px] font-mono text-slate-300 hover:border-indigo-500/50 hover:text-white transition-all" href="../types/adapters_inbound_server-factory.HttpsServer.html">
+<span class="w-3 h-3 rounded-full bg-purple-500/20 text-purple-400 text-[8px] flex items-center justify-center font-bold">T</span>
+<span>HttpsServer</span>
 </a>
 <a class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-surface-muted border border-surface-border text-[10px] font-mono text-slate-300 hover:border-indigo-500/50 hover:text-white transition-all" href="../functions/adapters_inbound_server-factory.createAndStartHttpsServer.html">
 <span class="w-3 h-3 rounded-full bg-amber-500/20 text-amber-400 text-[8px] flex items-center justify-center font-bold">F</span>
 <span>createAndStartHttpsServer</span>
+</a>
+<a class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-surface-muted border border-surface-border text-[10px] font-mono text-slate-300 hover:border-indigo-500/50 hover:text-white transition-all" href="../interfaces/shared_server-types.HttpServer.html">
+<span class="w-3 h-3 rounded-full bg-emerald-500/20 text-emerald-400 text-[8px] flex items-center justify-center font-bold">I</span>
+<span>HttpServer</span>
 </a>
 <a class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-surface-muted border border-surface-border text-[10px] font-mono text-slate-300 hover:border-indigo-500/50 hover:text-white transition-all" href="../functions/infrastructure_tls-watcher.setupTlsWatcher.html">
 <span class="w-3 h-3 rounded-full bg-amber-500/20 text-amber-400 text-[8px] flex items-center justify-center font-bold">F</span>
@@ -283,9 +319,17 @@ Category
 <span class="w-3.5 h-3.5 rounded bg-indigo-500/20 text-indigo-400 text-[9px] flex items-center justify-center font-bold">M</span>
 <span class="truncate">create-secure-server</span>
 </a></div>
+<div class="pl-4 space-y-0.5 border-l border-surface-border/60 ml-2 mt-1"><a class="flex items-center gap-1.5 px-2 py-1 text-slate-400 hover:text-slate-200" href="../modules/adapters_inbound_http-metrics.html">
+<span class="w-3.5 h-3.5 rounded bg-indigo-500/20 text-indigo-400 text-[9px] flex items-center justify-center font-bold">M</span>
+<span class="truncate">http-metrics</span>
+</a></div>
 <div class="pl-4 space-y-0.5 border-l border-surface-border/60 ml-2 mt-1"><a class="flex items-center gap-1.5 px-2 py-1 text-slate-400 hover:text-slate-200" href="../modules/adapters_inbound_metrics-handler.html">
 <span class="w-3.5 h-3.5 rounded bg-indigo-500/20 text-indigo-400 text-[9px] flex items-center justify-center font-bold">M</span>
 <span class="truncate">metrics-handler</span>
+</a></div>
+<div class="pl-4 space-y-0.5 border-l border-surface-border/60 ml-2 mt-1"><a class="flex items-center gap-1.5 px-2 py-1 text-slate-400 hover:text-slate-200" href="../modules/adapters_inbound_readiness.html">
+<span class="w-3.5 h-3.5 rounded bg-indigo-500/20 text-indigo-400 text-[9px] flex items-center justify-center font-bold">M</span>
+<span class="truncate">readiness</span>
 </a></div>
 <div class="pl-4 space-y-0.5 border-l border-surface-border/60 ml-2 mt-1"><a class="flex items-center gap-1.5 px-2 py-1 text-slate-400 hover:text-slate-200" href="../modules/adapters_inbound_server-factory.html">
 <span class="w-3.5 h-3.5 rounded bg-indigo-500/20 text-indigo-400 text-[9px] flex items-center justify-center font-bold">M</span>
@@ -306,6 +350,10 @@ Category
 <div class="pl-4 space-y-0.5 border-l border-surface-border/60 ml-2 mt-1"><a class="flex items-center gap-1.5 px-2 py-1 text-slate-400 hover:text-slate-200" href="../modules/application_services_bootstrap-shutdown.html">
 <span class="w-3.5 h-3.5 rounded bg-indigo-500/20 text-indigo-400 text-[9px] flex items-center justify-center font-bold">M</span>
 <span class="truncate">bootstrap-shutdown</span>
+</a></div>
+<div class="pl-4 space-y-0.5 border-l border-surface-border/60 ml-2 mt-1"><a class="flex items-center gap-1.5 px-2 py-1 text-slate-400 hover:text-slate-200" href="../modules/application_services_bootstrap-types.html">
+<span class="w-3.5 h-3.5 rounded bg-indigo-500/20 text-indigo-400 text-[9px] flex items-center justify-center font-bold">M</span>
+<span class="truncate">bootstrap-types</span>
 </a></div>
 <div class="pl-4 space-y-0.5 border-l border-surface-border/60 ml-2 mt-1"><a class="flex items-center gap-1.5 px-2 py-1 text-slate-400 hover:text-slate-200" href="../modules/application_services_bootstrap.html">
 <span class="w-3.5 h-3.5 rounded bg-indigo-500/20 text-indigo-400 text-[9px] flex items-center justify-center font-bold">M</span>
@@ -339,17 +387,13 @@ Category
 </svg>
 <span class="truncate">shared</span>
 </a>
-<div class="pl-4 space-y-0.5 border-l border-surface-border/60 ml-2 mt-1"><a class="flex items-center gap-1.5 px-2 py-1 text-slate-400 hover:text-slate-200" href="../modules/shared_bootstrap-types.html">
-<span class="w-3.5 h-3.5 rounded bg-indigo-500/20 text-indigo-400 text-[9px] flex items-center justify-center font-bold">M</span>
-<span class="truncate">bootstrap-types</span>
-</a></div>
 <div class="pl-4 space-y-0.5 border-l border-surface-border/60 ml-2 mt-1"><a class="flex items-center gap-1.5 px-2 py-1 text-slate-400 hover:text-slate-200" href="../modules/shared_constants.html">
 <span class="w-3.5 h-3.5 rounded bg-indigo-500/20 text-indigo-400 text-[9px] flex items-center justify-center font-bold">M</span>
 <span class="truncate">constants</span>
 </a></div>
-<div class="pl-4 space-y-0.5 border-l border-surface-border/60 ml-2 mt-1"><a class="flex items-center gap-1.5 px-2 py-1 text-slate-400 hover:text-slate-200" href="../modules/shared_load-tls-config.html">
+<div class="pl-4 space-y-0.5 border-l border-surface-border/60 ml-2 mt-1"><a class="flex items-center gap-1.5 px-2 py-1 text-slate-400 hover:text-slate-200" href="../modules/shared_server-types.html">
 <span class="w-3.5 h-3.5 rounded bg-indigo-500/20 text-indigo-400 text-[9px] flex items-center justify-center font-bold">M</span>
-<span class="truncate">load-tls-config</span>
+<span class="truncate">server-types</span>
 </a></div>
 </div>
 </div>

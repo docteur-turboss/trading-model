@@ -200,8 +200,8 @@ Documentation
 | <code>audit-logger</code> | <code>spiffe://trading-model.local/ns/trading-model/sa/audit-logger</code> | SPIRE Server | 1h TTL (auto-rotated) |
 | <code>dlq-service</code> | <code>spiffe://trading-model.local/ns/trading-model/sa/dlq-service</code> | SPIRE Server | 1h TTL (auto-rotated) |
 | <code>api-gateway</code> | <code>spiffe://trading-model.local/ns/trading-model/sa/api-gateway</code> | SPIRE Server | 1h TTL (auto-rotated) |
-| <code>admin-interface</code> | <code>spiffe://trading-model.local/ns/trading-model/sa/admin-interface</code> | SPIRE Server | 1h TTL (auto-rotated) |</p>
-<p><strong>Enforcement:</strong> <code>@trading-model/http/adapters/inbound/mtls-auth.ts</code> extracts the client identity from the SVID's verified SPIFFE ID SAN. Requests without a valid SVID are rejected at the TLS handshake level when <code>ENFORCE_MTLS_STRICT</code> is enabled.</p>
+| <code>edge-proxy</code> | <code>spiffe://trading-model.local/ns/trading-model/sa/edge-proxy</code> | SPIRE Server | 1h TTL (auto-rotated) |</p>
+<p><strong>Enforcement:</strong> <code>@trading-model/http/adapters/inbound/mtls-auth.ts</code> extracts the client identity from the SVID's verified SPIFFE ID SAN. Requests without a valid SVID are rejected at the TLS handshake level (all environments). When <code>ENFORCE_MTLS_STRICT</code> is enabled (production), <code>mtls-authorization.ts</code> additionally enforces the ACL on every inbound request.</p>
 <h3>3.2 Service Registration Tokens</h3>
 <p>Services obtain HMAC-SHA256 tokens from the discovery-server upon registration. These tokens are used for service-to-service identity verification in non-mTLS fallback scenarios.</p>
 <table>
@@ -242,14 +242,14 @@ Documentation
 const DEFAULT_ACL: Record&lt;KnownService, readonly ServiceId[]&gt; = {
   'discovery-server':   [ '*' ],
   'audit-logger':       [ '*' ],
-  'message-manager':    [ 'discovery-server', 'financial-scraper', 'trader-trainer', 'api-gateway' ],
+  'message-manager':    [ 'discovery-server', 'financial-scraper', 'trader-trainer', 'audit-logger', 'dlq-service' ],
   'financial-scraper':  [ 'api-gateway' ],
   'trader-trainer':     [ 'api-gateway', 'financial-scraper', 'discovery-server' ],
-  'api-gateway':        [ 'admin-interface' ],
+  'api-gateway':        [ 'edge-proxy' ],   // external entry point (ADR-0018)
   'dlq-service':        [ '*' ],
 };
 </code></pre>
-<p><strong>Enforcement:</strong> Every incoming request passes through <code>mtls-authorization.ts</code> middleware. If the caller's identity is not found in the target service's authorised callers, the request is rejected with HTTP 403.</p>
+<p><strong>Enforcement:</strong> When <code>ENFORCE_MTLS_STRICT</code> is enabled, every incoming request passes through <code>mtls-authorization.ts</code> middleware. If the caller's identity is not found in the target service's authorised callers, the request is rejected with HTTP 403.</p>
 <h3>4.2 ACL Change Procedure</h3>
 <ol>
 <li>Submit PR modifying the <code>DEFAULT_ACL</code> mapping in <code>mtls-authorization.ts</code></li>
@@ -261,7 +261,6 @@ const DEFAULT_ACL: Record&lt;KnownService, readonly ServiceId[]&gt; = {
 <h3>5.1 Administrator Access</h3>
 <p>| Resource | Access Method | Authentication | Authorisation |
 |---|---|---|
-| admin-interface SPA | HTTPS via browser (public ingress) | api-gateway <code>x-api-key</code> / <code>AUTH_TOKENS</code> | Token-based admin access |
 | API gateway admin endpoints | HTTPS + API key | <code>x-api-key</code> header | <code>AUTH_TOKENS</code> env var |
 | Database (MongoDB) | TLS connection | Username/password + SealedSecret | Service account RBAC |
 | Database (MySQL) | TLS connection | Username/password + SealedSecret | SQL grants |
@@ -269,7 +268,7 @@ const DEFAULT_ACL: Record&lt;KnownService, readonly ServiceId[]&gt; = {
 <h3>5.2 Emergency Access (Break-Glass)</h3>
 <p>In the event of SPIRE unavailability:</p>
 <ol>
-<li>Restart the <code>spire-server</code> / <code>spire-agent</code> stack and reconcile entries (spire-entries) to re-issue SVIDs</li>
+<li>Restart the <code>spire-server</code> / <code>spire-agent</code> stack and let the <code>spire-entries</code> sidecar of the server pod reconcile the entries to re-issue SVIDs</li>
 <li>Document the override in the audit-logger with reason and timestamp</li>
 <li>Rotate SVIDs once SPIRE is stable</li>
 <li>Initiate incident response procedure</li>

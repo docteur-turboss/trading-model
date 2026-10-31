@@ -69,7 +69,7 @@ Note: A 204 response means the message was accepted by the broker. Delivery to s
 
 ---
 
-## POST /subscription
+## POST /subscribe
 
 Register a service instance as a subscriber to a topic. Duplicate subscriptions from the same `instanceId` are silently ignored.
 
@@ -104,7 +104,7 @@ Register a service instance as a subscriber to a topic. Duplicate subscriptions 
 
 ---
 
-## DELETE /subscription
+## DELETE /subscribe
 
 Unregister a service instance from a topic.
 

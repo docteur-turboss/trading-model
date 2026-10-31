@@ -285,7 +285,7 @@ Documentation
 </table>
 <p>Note: A 204 response means the message was accepted by the broker. Delivery to subscribers is asynchronous — individual failures are isolated and do not affect the publish response.</p>
 <hr>
-<h2>POST /subscription</h2>
+<h2>POST /subscribe</h2>
 <p>Register a service instance as a subscriber to a topic. Duplicate subscriptions from the same <code>instanceId</code> are silently ignored.</p>
 <h3>Request Body</h3>
 <pre><code class="language-json">{
@@ -354,7 +354,7 @@ Documentation
 </tbody>
 </table>
 <hr>
-<h2>DELETE /subscription</h2>
+<h2>DELETE /subscribe</h2>
 <p>Unregister a service instance from a topic.</p>
 <h3>Request Body</h3>
 <pre><code class="language-json">{
@@ -443,18 +443,7 @@ Documentation
 </button>
 </div>
 <div class="flex-1 overflow-y-auto p-3 space-y-1 font-mono text-xs">
-<div class="space-y-1">
-<a class="flex items-center gap-1.5 px-2 py-1 text-slate-400 hover:text-slate-200" href="../categories/message-manager.html">
-<svg class="w-3.5 h-3.5 text-slate-400 flex-shrink-0" fill="currentColor" viewbox="0 0 20 20">
-<path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z"></path>
-</svg>
-<span class="truncate">message-manager</span>
-</a>
-<div class="pl-4 space-y-0.5 border-l border-surface-border/60 ml-2 mt-1"><a class="flex items-center gap-1.5 px-2 py-1 text-slate-400 hover:text-slate-200" href="../modules.html">
-<span class="w-3.5 h-3.5 rounded bg-indigo-500/20 text-indigo-400 text-[9px] flex items-center justify-center font-bold">M</span>
-<span class="truncate">message-manager</span>
-</a></div>
-</div>
+
 </div>
 <div class="p-3 border-t border-surface-border bg-slate-950/40 text-[11px] text-slate-400 flex justify-between items-center">
 <span><a class="text-indigo-400 hover:text-indigo-300 font-mono" href="../../index.html">← Packages &amp; services</a></span>

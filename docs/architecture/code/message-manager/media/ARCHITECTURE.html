@@ -136,8 +136,8 @@ Documentation
 <h2>Layer Architecture</h2>
 <pre><code>┌────────────────────────────────────────────────────┐
 │                  HTTP Transport                     │
-│  POST /message  |  POST /subscription  |  DELETE   │
-│              /subscription                         │
+│  POST /message  |  POST /subscribe  |  DELETE   │
+│              /subscribe                         │
 │  ┌──────────────────────────────────────────────┐  │
 │  │        Controllers (http.controller.ts)       │  │
 │  │  Request validation (Zod) → delegate to core │  │
@@ -159,8 +159,10 @@ Documentation
 │  │   Dispatcher (dispatcher.ts)                  │  │
 │  │   publish / subscribe / unsubscribe          │  │
 │  │   Enriches messageId + emittedAt              │  │
-│  │   In-memory topic → [Subscription] map       │  │
-│  │   Deduplicates by instanceId                 │  │
+│  │   Topic → subscriptions, read from the       │  │
+│  │   shared store (Redis, 60s lease)            │  │
+│  │   Counts messages with no subscriber         │  │
+│  │   One subscription per instanceId            │  │
 │  │   Parallel dispatch via Promise.allSettled   │  │
 │  └──────────────────────────────────────────────┘  │
 │  ┌──────────────────────────────────────────────┐  │
@@ -178,7 +180,7 @@ Documentation
 </code></pre>
 <hr>
 <h2>Components</h2>
-<h3>Dispatcher (<code>messaging/core/dispatcher.ts</code>)</h3>
+<h3>Dispatcher (<code>application/services/dispatcher.ts</code>)</h3>
 <p>Central message router exposing the messaging API. Responsibilities:</p>
 <ul>
 <li><strong><code>publish(payload, metadata)</code></strong> — Creates a <code>message</code> envelope with auto-generated <code>messageId</code> (UUID) and <code>emittedAt</code> timestamp, then dispatches to subscribers.</li>
@@ -188,7 +190,7 @@ Documentation
 <li>Deduplicates subscriptions by <code>instanceId</code> (same topic + instanceId).</li>
 <li><strong><code>dispatch(message)</code></strong> — Looks up subscriptions by message topic, deduplicates by instanceId, and dispatches to all matching subscribers in parallel via <code>Promise.allSettled</code>. Individual failures are isolated.</li>
 </ul>
-<h3>Subscription (<code>messaging/core/subscription.ts</code>)</h3>
+<h3>Subscription (<code>application/services/subscription.ts</code>)</h3>
 <p>Per-instance message delivery handler. Responsibilities:</p>
 <ul>
 <li>Resolves the target service address via the Address Manager (service discovery).</li>
@@ -205,24 +207,24 @@ Documentation
 <tbody>
 <tr>
 <td><code>at-most-once</code></td>
-<td>No retry on NACK. Single attempt, fire-and-forget.</td>
+<td>Single attempt; a failure is dropped (fire-and-forget).</td>
 </tr>
 <tr>
 <td><code>at-least-once</code></td>
-<td>Retries indefinitely until ACK or TTL expiry.</td>
+<td>Up to 10 attempts (backoff 1s → 20s cap), then dead letter.</td>
 </tr>
 <tr>
 <td><code>exactly-once</code></td>
-<td>Stops after first delivery (idempotent consumer assumed).</td>
+<td>Single attempt, no broker retry (no duplicate); a failure is dead-lettered (<code>SINGLE_ATTEMPT_FAILED</code>).</td>
 </tr>
 </tbody>
 </table>
 <ul>
 <li><strong>TTL expiration</strong>: If <code>emittedAt + ttl &lt; now</code>, the message is routed to the Dead Letter Queue.</li>
-<li><strong>DLQ</strong>: Placeholder implementation for routing failed or expired messages to persistent storage or an HTTP endpoint.</li>
-<li>Provides a <code>SubscribersContext</code> object to the consumer with <code>ack()</code>, <code>nack(reason)</code>, and <code>deadLetter(reason)</code> controls.</li>
+<li><strong>DLQ</strong>: dead letters go to dlq-service (signed <code>POST /dlq</code>); while it cannot take them they wait in <code>DLQ_LOCAL_FALLBACK_PATH</code> and are forwarded every minute and at shutdown (ADR-0019).</li>
+<li>The whole policy (DLQ, drop or retry) is decided in the domain by <code>DeliveryErrorClassifier</code> (<code>domain/delivery-error-classifier.ts</code>); the application layer only carries it out. A subscriber answer saying the message itself is wrong (400 — payload refused by its topic schema —, 413, 415, 422) is dead-lettered at once (<code>REJECTED_BY_SUBSCRIBER</code>) instead of after 10 attempts; auth, routing, throttling and server errors keep the retries.</li>
 </ul>
-<h3>Message Contracts (<code>messaging/core/message.ts</code>)</h3>
+<h3>Message Contracts (<code>@trading-model/contracts/message-types</code>)</h3>
 <p>Canonical message envelope shared across producers, broker, and consumers:</p>
 <pre><code class="language-typescript">interface Message&lt;T = unknown&gt; {
   metadata: MessageMetadata;
@@ -243,7 +245,7 @@ interface MessageMetadata {
   security?: { authContext?; signature? };
 }
 </code></pre>
-<h3>Validation (<code>messaging/transport/validation/broker.schema.ts</code>)</h3>
+<h3>Validation (<code>adapters/inbound/validation/broker.schema.ts</code>)</h3>
 <p>Zod schemas enforce payload correctness at the HTTP boundary:</p>
 <ul>
 <li><strong><code>SubscribeSchema</code></strong>: <code>{ topic, callbackPath, consumerIdentity: { serviceName, instanceId } }</code></li>
@@ -256,7 +258,7 @@ interface MessageMetadata {
 <h3>Subscribe → Publish → Deliver</h3>
 <pre><code>Service A                    Dispatcher                    Service B
    |                           |                              |
-   |— POST /subscription ——→   |                              |
+   |— POST /subscribe ——→   |                              |
    |  { topic, callbackPath,   |                              |
    |    consumerIdentity }     |                              |
    |                           |— registerSubscription() ——  |
@@ -293,7 +295,7 @@ interface MessageMetadata {
                  │ error
                  ▼
          ┌──────────────────┐
-         │ is DeadLetterErr?│──yes──→ sendToDLQ() ──→ return
+         │ 400/413/415/422? │──yes──→ sendToDLQ(&quot;REJECTED_BY_SUBSCRIBER&quot;) ──→ return
          └───────┬──────────┘
                  │ no
                  ▼
@@ -302,14 +304,24 @@ interface MessageMetadata {
          └───────┬──────────┘
                  │ no
                  ▼
-         ┌──────────────────────────┐
-         │ is AT_MOST_ONCE + NACK? │──yes──→ return
-         └───────┬──────────────────┘
+         ┌──────────────────┐
+         │ AT_MOST_ONCE?    │──yes──→ drop ──→ return
+         └───────┬──────────┘
+                 │ no
+                 ▼
+         ┌──────────────────┐
+         │ EXACTLY_ONCE?    │──yes──→ sendToDLQ(&quot;SINGLE_ATTEMPT_FAILED&quot;) ──→ return
+         └───────┬──────────┘
                  │ no (AT_LEAST_ONCE)
                  ▼
-              ┌────────┐
-              │ retry  │─────────→ back to POST
-              └────────┘
+         ┌──────────────────┐
+         │ 10 attempts done?│──yes──→ sendToDLQ(&quot;MAX_RETRIES_EXCEEDED&quot;) ──→ return
+         └───────┬──────────┘
+                 │ no
+                 ▼
+          ┌──────────────┐
+          │ backoff+retry│─────────→ back to POST
+          └──────────────┘
 </code></pre>
 <hr>
 <h2>Dependencies</h2>
@@ -367,24 +379,20 @@ interface MessageMetadata {
 </thead>
 <tbody>
 <tr>
-<td><strong>In-memory subscription registry</strong></td>
-<td>Simplifies deployment for the current scale; no external dependency for runtime state. Subscriptions do not survive restarts — services re-subscribe on startup via the <code>@trading-model/broker-message</code> SDK.</td>
+<td><strong>Shared subscription registry (Redis)</strong></td>
+<td>Every replica reads the same subscriptions (<code>RedisSubscriptionStore</code>, one hash per topic): a subscription made on one replica routes the messages published on any other, and survives a restart. Subscribers renew theirs every 15s (<code>@trading-model/broker-message</code>); a subscription not renewed for 60s expires. Without Redis, <code>InMemorySubscriptionStore</code> (single replica only). A message whose topic has no subscriber is dropped and counted (<code>mm_messages_unrouted_total</code>, alert <code>MessagesUnrouted</code>).</td>
 </tr>
 <tr>
 <td><strong>Parallel dispatch (Promise.allSettled)</strong></td>
 <td>Ensures one slow or failing subscriber does not block delivery to others.</td>
 </tr>
 <tr>
-<td><strong>No automatic retry backoff</strong></td>
-<td>The initial implementation retries immediately; future work should add exponential backoff and jitter.</td>
+<td><strong>Bounded retry backoff</strong></td>
+<td>Exponential backoff (1s base, 20s cap, ±20% jitter), 10 attempts of at most 10s: the worst case (~4.3 min) fits in <code>PUBLISH_TIMEOUT_MS</code> (5 min), checked by <code>backoff-calculator.spec.ts</code>.</td>
 </tr>
 <tr>
-<td><strong>DLQ is a placeholder</strong></td>
-<td>Currently a no-op. Intended to route failed messages to persistent storage (MongoDB) or a dedicated DLQ HTTP endpoint.</td>
-</tr>
-<tr>
-<td><strong>MongoDB dependency declared but unused</strong></td>
-<td>The <code>mongodb</code> package is listed as a dependency for planned message persistence features (message store, DLQ persistence).</td>
+<td><strong>Dead letters in dlq-service</strong></td>
+<td><code>ForwardingDeadLetterStore</code> sends them to dlq-service and keeps a local JSONL file only while it is unreachable; no database in message-manager itself.</td>
 </tr>
 </tbody>
 </table>
@@ -425,18 +433,7 @@ interface MessageMetadata {
 </button>
 </div>
 <div class="flex-1 overflow-y-auto p-3 space-y-1 font-mono text-xs">
-<div class="space-y-1">
-<a class="flex items-center gap-1.5 px-2 py-1 text-slate-400 hover:text-slate-200" href="../categories/message-manager.html">
-<svg class="w-3.5 h-3.5 text-slate-400 flex-shrink-0" fill="currentColor" viewbox="0 0 20 20">
-<path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z"></path>
-</svg>
-<span class="truncate">message-manager</span>
-</a>
-<div class="pl-4 space-y-0.5 border-l border-surface-border/60 ml-2 mt-1"><a class="flex items-center gap-1.5 px-2 py-1 text-slate-400 hover:text-slate-200" href="../modules.html">
-<span class="w-3.5 h-3.5 rounded bg-indigo-500/20 text-indigo-400 text-[9px] flex items-center justify-center font-bold">M</span>
-<span class="truncate">message-manager</span>
-</a></div>
-</div>
+
 </div>
 <div class="p-3 border-t border-surface-border bg-slate-950/40 text-[11px] text-slate-400 flex justify-between items-center">
 <span><a class="text-indigo-400 hover:text-indigo-300 font-mono" href="../../index.html">← Packages &amp; services</a></span>

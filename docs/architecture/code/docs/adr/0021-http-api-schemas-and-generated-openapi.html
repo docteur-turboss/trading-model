@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html class="dark" lang="en" data-tm-processed="true"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no" name="viewport">
+<title>ADR-0021: HTTP API Schemas Owned by Services, OpenAPI Generated From Zod | trading-model</title>
+
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+
+<script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              400: '#818cf8',
+              500: '#6366f1',
+              600: '#4f46e5',
+            },
+            surface: {
+              base: '#0B0F19',
+              card: '#111827',
+              muted: '#1E293B',
+              border: '#243046',
+            },
+            code: {
+              bg: '#0c121e',
+              keyword: '#c084fc',
+              ident: '#38bdf8',
+              type: '#34d399',
+              punct: '#94a3b8'
+            }
+          },
+          fontFamily: {
+            mono: ['JetBrains Mono', 'Fira Code', 'Menlo', 'Monaco', 'Courier New', 'monospace'],
+            sans: ['-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Inter', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+
+<style data-purpose="mobile-ux-styles">
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    .active-scale:active { transform: scale(0.97); transition: transform 0.1s ease-out; }
+    .h-safe-top { height: env(safe-area-inset-top, 0px); }
+    .pt-safe { padding-top: env(safe-area-inset-top, 0px); }
+    @supports (backdrop-filter: blur(12px)) {
+      .glass-header { backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
+    }
+    
+    .tm-prose p { margin: 0.5rem 0; }
+    .tm-prose p:first-child { margin-top: 0; }
+    .tm-prose p:last-child { margin-bottom: 0; }
+    .tm-prose a { color: #818cf8; text-decoration: underline; text-underline-offset: 2px; }
+    .tm-prose a:hover { color: #a5b4fc; }
+    .tm-prose code { font-family: 'JetBrains Mono', 'Fira Code', Menlo, Monaco, 'Courier New', monospace; font-size: 0.82em; color: #fbbf24; background: #0c121e; border: 1px solid #243046; border-radius: 0.25rem; padding: 0.05rem 0.3rem; }
+    .tm-prose pre { background: #0c121e; border: 1px solid #243046; border-radius: 0.5rem; padding: 0.75rem; overflow-x: auto; margin: 0.5rem 0; }
+    .tm-prose pre code { background: transparent; border: none; padding: 0; color: #e2e8f0; }
+    .tm-prose ul, .tm-prose ol { padding-left: 1.25rem; margin: 0.5rem 0; }
+    .tm-prose ul { list-style: disc; }
+    .tm-prose ol { list-style: decimal; }
+    .tm-prose li { margin: 0.2rem 0; }
+    .tm-prose blockquote { border-left: 3px solid #6366f1; background: rgba(17, 24, 39, 0.6); padding: 0.5rem 0.75rem; border-radius: 0 0.5rem 0.5rem 0; color: #94a3b8; margin: 0.5rem 0; }
+    .tm-prose h1, .tm-prose h2, .tm-prose h3, .tm-prose h4, .tm-prose h5 { color: #ffffff; font-weight: 700; margin: 0.75rem 0 0.25rem; }
+    .tm-prose h1 { font-size: 1.25rem; }
+    .tm-prose h2 { font-size: 1.125rem; }
+    .tm-prose h3 { font-size: 1rem; }
+    .tm-prose h4 { font-size: 0.875rem; }
+    .tm-prose table { width: 100%; border-collapse: collapse; margin: 0.5rem 0; }
+    .tm-prose th, .tm-prose td { border: 1px solid #243046; padding: 0.4rem 0.6rem; text-align: left; }
+    .tm-prose thead th { background: #0b0f19; color: #e2e8f0; font-size: 0.75rem; text-transform: uppercase; }
+    .tm-prose strong { color: #ffffff; }
+  </style>
+
+</head>
+<body class="bg-[#080C15] text-slate-200 font-sans antialiased min-h-screen pb-24 selection:bg-indigo-500/30 selection:text-indigo-200">
+
+<header class="sticky top-0 z-40 w-full glass-header bg-[#0B0F19]/90 border-b border-surface-border">
+<div class="h-safe-top pt-safe"></div>
+<div class="px-4 py-2.5 flex items-center justify-between gap-3">
+<div class="flex items-center gap-2.5 min-w-0">
+
+<div class="flex flex-col min-w-0">
+<div class="flex items-center gap-1.5 truncate">
+<span class="font-mono text-xs font-semibold text-indigo-400 truncate tracking-tight"><a class="text-indigo-400 hover:text-indigo-300 hover:underline" href="../../index.html">trading-model</a></span>
+
+</div>
+<span class="text-[10px] text-slate-400 flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> TypeDoc API Reference
+</span>
+</div>
+</div>
+
+</div>
+</header>
+
+<main class="px-4 py-4 max-w-2xl mx-auto flex flex-col gap-6">
+
+<section class="space-y-2.5" data-purpose="breadcrumbs-and-header">
+<nav aria-label="Breadcrumb" class="flex items-center flex-wrap gap-1 text-[11px] font-mono text-slate-400">
+<a class="text-indigo-400 hover:underline" href="../../index.html">trading-model</a><span class="text-slate-600">/</span><span class="text-slate-300 font-medium">ADR-0021: HTTP API Schemas Owned by Services, OpenAPI Generated From Zod</span>
+</nav>
+<div class="flex items-center gap-2.5 pt-1">
+<span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-mono font-medium tracking-wide uppercase bg-indigo-500/10 text-indigo-400 border-indigo-500/20">
+Documentation
+</span>
+<h1 class="text-2xl font-bold tracking-tight text-white font-sans">ADR-0021: HTTP API Schemas Owned by Services, OpenAPI Generated From Zod</h1>
+</div>
+
+</section>
+
+<div class="tm-prose text-sm leading-relaxed text-slate-300 font-sans"><div>
+<p><strong>Status:</strong> Accepted
+<strong>Date:</strong> 2026-10
+<strong>Verified by:</strong> <code>bun run api:check</code> (27/27 public routes and every service-to-service route from registry entries, empty schemas ratchet), <code>packages/http/tests/unit/adapters/inbound/api-route.spec.ts</code>, <code>tests/contract/dead-letter.spec.ts</code>, <code>tests/contract/discovery-routes.spec.ts</code>
+<strong>Related:</strong> <a href="0016-shared-contracts-ownership.html">ADR-0016</a> (runtime-free <code>contracts</code>), <a href="0015-hexagonal-layering-completion.html">ADR-0015</a> (layer rules), <a href="0018-temporary-frontend-removal.html">ADR-0018</a> (<code>api:check</code>), <a href="0019-message-broker-as-built.html">ADR-0019</a></p>
+<h2>Context</h2>
+<p>The 13.09 audit recommends generating the OpenAPI from Zod to stop the drift between the documented API and the runtime. Part of that drift is already guarded: <code>scripts/api-contract.mjs</code> (<code>bun run api:check</code>) generates <code>docs/services/openapi/api-gateway.yaml</code> from the Express routes, so a documented <strong>path</strong> cannot point to a route that does not exist. Nothing guards the <strong>shapes</strong>: the spec has no request body, no query schema and no response schema. State on 2026-10-28, over the 27 routes of <code>PUBLIC_ROUTES</code>:</p>
+<table>
+<thead>
+<tr>
+<th>Service</th>
+<th>Public routes</th>
+<th>Input validated by Zod</th>
+<th>Response schema</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>financial-scraper</td>
+<td>13</td>
+<td>path params (<code>controller-utils.ts</code>)</td>
+<td>none</td>
+</tr>
+<tr>
+<td>dlq-service</td>
+<td>4</td>
+<td>POST and DELETE bodies; list and replay queries parsed by hand</td>
+<td>none</td>
+</tr>
+<tr>
+<td>audit-logger</td>
+<td>3</td>
+<td>none (query parsed by hand, <code>query-params.ts</code>)</td>
+<td>none</td>
+</tr>
+<tr>
+<td>discovery-server</td>
+<td>3</td>
+<td>none (path params used as is)</td>
+<td>none</td>
+</tr>
+<tr>
+<td>trader-trainer</td>
+<td>4</td>
+<td>none</td>
+<td>none</td>
+</tr>
+</tbody>
+</table>
+<p>Three facts constrain where the schemas can live and how they are checked:</p>
+<ol>
+<li><strong>Shared types cannot carry Zod.</strong> <code>@trading-model/contracts</code> owns every shared type and is runtime-free by design (ADR-0016): <code>primitives</code> and <code>contracts</code> are the foundations, nothing heavier goes in. The shapes that cross a service boundary are therefore typed in <code>contracts</code> and validated, separately, by whoever receives them. The two already disagree: message-manager writes <code>DlqEntry.timestamp</code> as a <code>UnixTimestamp</code> (epoch milliseconds, a number), while dlq-service's <code>DlqEntrySchema</code> requires <code>z.string()</code>. A dead letter cannot be submitted to dlq-service as written. No check compares the two.</li>
+<li><strong>Hand-written DTOs already drifted once.</strong> <code>@trading-model/validation/adapters/inbound/admin/*.dto.ts</code> are TypeScript interfaces written for the admin frontend. All 24 of its calls hit non-existent routes (ADR-0018). Interfaces next to the code they describe, with nothing that executes them, do not stay true.</li>
+<li><strong>Tests do not type-check.</strong> Every Jest config sets ts-jest <code>diagnostics: false</code>. A compile-time assertion placed in a spec never fails. Only <code>src</code>, compiled by <code>tsc</code> (<code>bun run build</code>, CI typecheck job, pre-push), can host one.</li>
+</ol>
+<p>Zod 4.5.4 is installed in every workspace and exports JSON Schema natively (<code>z.toJSONSchema</code>, with <code>target: &quot;openapi-3.0&quot;</code>). Probed on 2026-10-28:</p>
+<table>
+<thead>
+<tr>
+<th>Zod construct</th>
+<th><code>io: &quot;input&quot;</code> (requests)</th>
+<th><code>io: &quot;output&quot;</code> (responses)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>z.iso.datetime()</code></td>
+<td><code>string</code>, <code>format: date-time</code></td>
+<td>same</td>
+</tr>
+<tr>
+<td><code>z.coerce.number().int()</code></td>
+<td><code>integer</code></td>
+<td><code>integer</code></td>
+</tr>
+<tr>
+<td><code>z.coerce.date()</code></td>
+<td><code>{}</code> (anything: the schema says nothing)</td>
+<td><code>{}</code></td>
+</tr>
+<tr>
+<td><code>.transform(...)</code></td>
+<td>input side exported</td>
+<td><strong>throws</strong> &quot;Transforms cannot be represented&quot;</td>
+</tr>
+<tr>
+<td><code>.brand&lt;&quot;Topic&quot;&gt;()</code></td>
+<td>plain <code>string</code></td>
+<td>plain <code>string</code>, typed as Zod's brand, not <code>primitives</code>'</td>
+</tr>
+</tbody>
+</table>
+<h2>Decision</h2>
+<h3>1. Who owns which schema</h3>
+<ul>
+<li><strong>A route's schemas belong to the service that serves it.</strong> Each service declares its HTTP routes, public and service-to-service alike, in one registry module in its inbound HTTP adapter: <code>src/adapters/inbound/http/api-routes.ts</code> (or <code>src/adapters/inbound/api-routes.ts</code> where the service has no <code>http/</code> folder). An entry gives the method, the path, and the Zod schemas of the path params, query, body and of each response status. Zod belongs in an inbound adapter (ADR-0015); domain and application code receive parsed values.</li>
+<li><strong>A payload exchanged between workspaces</strong> (today <code>DlqEntry</code>; next the message envelope checked by message-manager's <code>PUBLISH_SCHEMA</code>) keeps its type in <code>contracts</code> and gets <strong>one</strong> Zod schema in <code>@trading-model/validation</code>, under <code>src/wire/</code>, used by both the producer and the consumer. The schema file asserts at compile time (<code>validation/src/wire/contract-shape.ts</code>) that the schema <strong>accepts</strong> the contract (the contract's JSON shape, brands removed, is assignable to the schema's input) and <strong>yields</strong> it (the schema's output, brands applied by <code>.transform(X.of)</code>, is the contract type). A drift becomes a <code>tsc</code> error in <code>bun run build</code>. A contract test (<code>tests/contract</code>) runs the real producer against the real consumer's validation, so the runtime path is covered too.</li>
+<li><strong>The gateway does not know the schemas.</strong> <code>PUBLIC_ROUTES</code> stays the allowlist of what the gateway proxies. The OpenAPI joins the allowlist with the services' registries.</li>
+</ul>
+<h3>2. One declaration per route</h3>
+<p>The registry entry is what mounts the route: a helper in <code>@trading-model/http</code> (<code>mountRoute(router, entry, handler)</code>) registers the Express route from the entry's method and path, parses params, query and body with its schemas, answers 400 with the standard error body on failure, and gives the handler the parsed values. A route cannot exist without its entry, and an entry cannot describe a route that is not mounted. The existing <code>validateSchema</code> middleware is folded into it.</p>
+<h3>3. Rules for API schemas</h3>
+<ul>
+<li><strong>Describe the wire, not the domain.</strong> A schema describes the JSON as it travels. Instants are either epoch milliseconds (<code>z.number().int()</code>, matching <code>UnixTimestamp</code>) or ISO strings (<code>z.iso.datetime()</code>); never <code>z.coerce.date()</code>, which exports as an empty schema.</li>
+<li><strong>Requests may transform, responses may not.</strong> Request schemas are exported with <code>io: &quot;input&quot;</code>, so a <code>.transform</code> or a coercion is documented by its input. Response schemas are exported with <code>io: &quot;output&quot;</code> and must be plain descriptions; the generator fails on a transform.</li>
+<li><strong>Path and query values are strings on the wire.</strong> Use <code>z.coerce.number()</code> for numeric ones; it exports as <code>integer</code>.</li>
+<li><strong>No Zod brands.</strong> <code>.brand()</code> does not produce the <code>primitives</code> brands. A request or wire schema applies them with <code>.transform(X.of)</code> (which also enforces the primitive's invariants); a response schema stays plain.</li>
+<li><strong>One error body.</strong> All errors use <code>ErrorResponse = { error: string; details?: { field: string; message: string }[] }</code>, defined once in <code>@trading-model/http</code>. Services that answer otherwise (<code>{ message }</code>, the Zod error message as text) are aligned when their routes move to the registry.</li>
+<li><strong>Where a contract and a schema disagree, the contract type is the reference</strong> for cross-workspace payloads. A receiver that already accepted another form keeps accepting it (a union) until its producers are migrated, so a fix never breaks a running caller.</li>
+</ul>
+<h3>4. Generated OpenAPI</h3>
+<p><code>scripts/api-contract.mjs</code> keeps its AST checks and runs under bun, which imports the TypeScript registries directly (tooling only, not a runtime dependency between workspaces). For each route of <code>PUBLIC_ROUTES</code> it emits the parameters, request body and responses from the registry entry, as named <code>components/schemas</code>, OpenAPI 3.0.3 (<code>target: &quot;openapi-3.0&quot;</code>). The signed-request headers required by dlq-service's <code>POST /dlq</code> are declared as a security scheme. <code>bun run api:check</code> fails when the spec is stale and when a public route has no registry entry; during the migration, routes still without one are listed in <code>scripts/api-contract-known-gaps.json</code>, which may only shrink. Service-to-service routes have entries too; they are published per service in <code>docs/services/openapi/internal/&lt;service&gt;.yaml</code>, never in the gateway spec.</p>
+<h3>5. Responses are verified in tests, not in production</h3>
+<p>Parsing every response costs CPU on every request for a failure that only a code change can cause. Response schemas are checked where code changes are: a test helper parses each handler's response against the entry in the services' controller specs, and the E2E suite parses responses from the real stack. Production only validates input.</p>
+<h3>6. Out of scope</h3>
+<ul>
+<li>AsyncAPI for the message topics: message payloads follow rule 1 (one schema in <code>validation/src/wire/</code>, compile-time match with <code>contracts</code>), without a published spec.</li>
+<li>The admin DTOs of <code>validation</code>: the ones still imported (<code>audit.dto.ts</code>) are replaced by the registry schemas of audit-logger as its routes migrate; the others are removed.</li>
+</ul>
+<h2>Migration</h2>
+<p>One service at a time, each step leaving <code>api:check</code>, <code>build</code> and the test suites green:</p>
+<ol>
+<li><strong>Done 2026-10-28.</strong> Shared pieces: <code>ErrorResponse</code>, <code>defineRoute</code>, <code>parseRequest</code>, <code>mountRoute</code> and the response check <code>responseIssues</code> in <code>@trading-model/http/adapters/inbound/api-route/</code>; <code>validation/src/wire/</code> with the accept/yield assertions; <code>DlqEntryWire</code>, now used by dlq-service <code>POST /dlq</code> (the <code>as unknown as DlqEntry</code> cast that hid the drift is gone), checked by <code>tests/contract/dead-letter.spec.ts</code>. <code>timestamp</code> takes epoch milliseconds, and still ISO dates and epoch strings (E2E, older callers); <code>deliveryAttempt</code> must be ≥ 1 as the contract says.</li>
+<li>Services, one at a time: registry, <code>mountRoute</code>, input schemas for the hand-parsed routes, response schemas checked in the route specs.
+<ul>
+<li><strong>dlq-service, done 2026-10-29.</strong> <code>DLQ_API</code> (<code>src/adapters/inbound/api-routes.ts</code>), mounted after <code>serviceAuth</code> and the rate limiters (the signature covers the raw body). The list query is now validated (a non-numeric <code>limit</code> is a 400 instead of silently becoming 100; above 1000 it is still capped), invalid input answers the standard <code>ErrorResponse</code>, and every response of the routes integration spec is checked against the registry. Typing the responses exposed <code>StoredDlqEntry.createdAt</code>, an ISO string cast to <code>UnixTimestamp</code>: now typed as a string.</li>
+<li><strong>financial-scraper, audit-logger, discovery-server, trader-trainer, done 2026-10-29.</strong> Typing and checking the responses exposed bugs no test caught, all fixed with a regression test on a real Express app:
+<ul>
+<li><code>GET /trade/*</code> answered 500 as soon as a trade existed: <code>trade_id</code> is a BIGINT that ts-sql-query returns as a <code>bigint</code>, and <code>JSON.stringify</code> throws on it. Rows now go through <code>toJsonWire</code> (decimal string).</li>
+<li><code>GET /orderbook/*</code> sent every level as <code>{}</code>: bids and asks are Sets. Same fix (arrays); an unknown key now answers <code>[]</code> instead of <code>null</code>.</li>
+<li><code>GET /services/&lt;unknown&gt;</code> answered 500 (<code>parseServiceName</code> throws) where 404 was meant; <code>GET /services/:name/:id</code> returned an instance of another service, or an expired lease.</li>
+<li>audit-logger <code>page=abc</code> became a NaN skip sent to MongoDB; financial-scraper took any string as a source and a negative order book timestamp threw (500).</li>
+<li>Specs that pinned the old behaviour (<code>expect(status).toBe(500)</code>, a trainer spec re-implementing the routes it claimed to test) were rewritten against the real routes.</li>
+</ul>
+</li>
+<li>Also: <code>brand(X.of)</code> (a rejected brand is a 400, not a thrown 500) and <code>responseIssues</code> now reports fields a response sends but its schema does not declare.</li>
+<li><strong>Service-to-service routes, done 2026-10-29.</strong> discovery <code>/register</code>, <code>/heartbeat</code>, <code>/token/rotate</code>, <code>/unregister</code> (<code>DISCOVERY_API</code>, credential <code>InstanceToken</code>), message-manager <code>/message</code> and <code>/subscribe</code> (<code>BROKER_API</code>, the <code>VALIDATE_SCHEMA</code> middleware and the controller's second parse removed), the broker callback mounted by every subscriber (<code>BROKER_CALLBACK_API</code> in <code>broker-message</code>, resolved by the generator through its route provider) and audit-logger's own <code>/message</code> (a permissive envelope: any topic, unknown fields kept, the old nested format still accepted). <code>ApiRoute.security</code> replaces <code>signedRequest</code> (<code>SignedRequest</code>, <code>InstanceToken</code>). The contract tests now deliver through the route schema, then the handler; a callback schema the producer does not satisfy fails them. Found on the way: the register schema reported an unknown service at <code>serviceName.serviceName</code>, and a callback without <code>payload</code> (a void event, dropped by JSON) would have been refused (Zod 4 makes <code>z.unknown()</code> keys required).</li>
+<li><strong>Error bodies.</strong> The platform error handler (<code>ResponseProtocol</code>) sent a thrown reason with <code>type(&quot;json&quot;).send(&lt;string&gt;)</code>: not JSON, under a JSON content type. And an unexpected error answered 500 with its raw message (driver errors, hosts). It now answers <code>{ &quot;error&quot;: ... }</code> (<code>reason</code> kept for mTLS and ACL refusals), and <code>&quot;Internal server error&quot;</code> for an error that is not an <code>AppError</code>, the message staying in the logs. <code>ResponseException</code> keeps an object reason as the body instead of stringifying it.</li>
+</ul>
+</li>
+<li><strong>Generator, done 2026-10-29.</strong> <code>api-contract.mjs</code> runs under bun, resolves <code>mountRoute(router, REGISTRY.key, ...)</code> calls (AST) to their entry, fails on an entry declared but not mounted, and emits parameters, request body, responses, the <code>ErrorResponse</code> component and the signed-request security schemes. Public routes without an entry are listed under <code>schemas</code> in <code>scripts/api-contract-known-gaps.json</code> (23 left), which may only shrink. Registries are loaded from the workspace sources (tsconfig <code>paths</code> of <code>scripts/api-contract.tsconfig.json</code>, passed with <code>--tsconfig-override</code>): they must stay free of side effects. The first version relied on a <code>Bun.plugin</code> resolver that bun never called: the registries silently loaded the packages' <code>dist/</code>, stale before a build and absent in CI's lint job. The script now refuses to run unless <code>@trading-model/*</code> resolves to the sources, and <code>api:check</code> was verified with every <code>dist/</code> removed. Health and metrics routes stay outside the registries, like the other infrastructure routes.</li>
+<li><strong>Accepted 2026-10-29</strong>: the <code>schemas</code> ratchet is empty, <code>bun run api:check</code> keeps it so.</li>
+</ol>
+<h2>Alternatives Considered</h2>
+<table>
+<thead>
+<tr>
+<th>Alternative</th>
+<th>Reason</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Zod schemas in <code>contracts</code>, types inferred from them</td>
+<td>Breaks ADR-0016: <code>contracts</code> would carry a runtime dependency into every package, including the foundations</td>
+</tr>
+<tr>
+<td>Generate Zod from a hand-written OpenAPI (spec first)</td>
+<td>Makes the YAML the source and the code a copy; the repository already went code-first (<code>api:write</code>), and code-first keeps one declaration per route</td>
+</tr>
+<tr>
+<td><code>@asteasolutions/zod-to-openapi</code> or similar</td>
+<td>Zod 4 exports JSON Schema natively with an OpenAPI 3.0 target; a library adds a dependency for registry helpers that are a few lines here</td>
+</tr>
+<tr>
+<td>Consumer-driven contract tests (Pact) for the HTTP API</td>
+<td>No external consumer since ADR-0018, and producers and consumers share the monorepo: <code>tests/contract</code> already runs real producer code against real consumer code</td>
+</tr>
+<tr>
+<td>Validate responses in production</td>
+<td>Cost on every request for a failure only a code change can cause; tests and E2E catch it before release</td>
+</tr>
+</tbody>
+</table>
+<h2>Consequences</h2>
+<h3>Positive</h3>
+<ul>
+<li>A route, its validation, its types and its documentation come from one declaration; the OpenAPI cannot lag behind.</li>
+<li>Shapes shared across services are checked by the compiler on both sides.</li>
+<li>Hand-parsed inputs (audit-logger, dlq-service queries, discovery, trainer) get real validation.</li>
+</ul>
+<h3>Negative</h3>
+<ul>
+<li>Response schemas for 27 routes are the bulk of the work, and they must be kept in step with handlers (enforced by the controller specs).</li>
+<li><code>api-contract.mjs</code> needs bun, like <code>observability-gate.mjs</code>, and its source mapping (<code>scripts/api-contract.tsconfig.json</code>) must list every package (checked).</li>
+<li>Until the ratchet is empty, the OpenAPI is complete for some services only.</li>
+</ul>
+</div></div>
+</main>
+</body>
+</html>

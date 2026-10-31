@@ -137,7 +137,7 @@ Documentation
 </tr>
 <tr>
 <td>Dependencies</td>
-<td><code>@trading-model/common</code> only</td>
+<td><code>@trading-model/primitives</code>, <code>@trading-model/contracts</code>, <code>@trading-model/common</code>, <code>@trading-model/persistence</code>, <code>@trading-model/crypto</code>, <code>@trading-model/http</code>, <code>@trading-model/server-utils</code>, <code>@trading-model/validation</code></td>
 </tr>
 <tr>
 <td>TLS</td>
@@ -208,44 +208,45 @@ Documentation
 </code></pre>
 <h3>Get All Services</h3>
 <p><strong><code>GET /services</code></strong></p>
-<p>Lists all registered service names.</p>
+<p>Names of the services with registered instances. Parameters and responses are declared in <code>src/adapters/inbound/http/api-routes.ts</code> (<code>DISCOVERY_API</code>, ADR-0021) and published in the <a href="openapi/api-gateway.yaml">OpenAPI</a>. Invalid input answers 400 <code>{ &quot;error&quot;: &quot;Validation failed&quot;, &quot;details&quot;: [...] }</code>.</p>
 <p><strong>Response:</strong> <code>200 OK</code></p>
 <pre><code class="language-json">[
-  &quot;financial-scraper&quot;,
+  &quot;financial-scraper-service&quot;,
   &quot;trader-trainer&quot;
 ]
 </code></pre>
 <h3>Get Services by Name</h3>
 <p><strong><code>GET /services/:serviceName</code></strong></p>
-<p>Lists all instances of a given service.</p>
+<p>Live instances of a service: expired leases are left out. An unknown service answers <code>404</code> <code>{ &quot;error&quot;: &quot;Unknown service&quot; }</code>. Timestamps are epoch milliseconds; the instance token is never returned.</p>
 <p><strong>Response:</strong> <code>200 OK</code></p>
 <pre><code class="language-json">[
   {
-    &quot;serviceName&quot;: &quot;financial-scraper&quot;,
-    &quot;instanceId&quot;: &quot;uuid-instance-id&quot;,
-    &quot;ip&quot;: &quot;192.168.1.10&quot;,
+    &quot;serviceName&quot;: &quot;financial-scraper-service&quot;,
+    &quot;instanceId&quot;: &quot;financial-scraper-1&quot;,
+    &quot;host&quot;: &quot;10.0.0.7&quot;,
     &quot;port&quot;: 3000,
-    &quot;protocol&quot;: &quot;https&quot;,
-    &quot;lastHeartbeat&quot;: &quot;2025-01-15T10:30:00Z&quot;,
-    &quot;registeredAt&quot;: &quot;2025-01-15T10:00:00Z&quot;,
-    &quot;ttl&quot;: 15000
+    &quot;version&quot;: &quot;1.0.0&quot;,
+    &quot;protocol&quot;: &quot;mtls&quot;,
+    &quot;ttl&quot;: 30000,
+    &quot;registeredAt&quot;: 1736935200000,
+    &quot;lastHeartbeat&quot;: 1736937000000
   }
 ]
 </code></pre>
 <h3>Get Instance Details</h3>
 <p><strong><code>GET /services/:serviceName/:instanceId</code></strong></p>
-<p>Returns detailed metadata for a specific service instance.</p>
+<p>One live instance of the service. <code>404</code> <code>{ &quot;error&quot;: &quot;Instance not found&quot; }</code> when the id is unknown, belongs to another service, or its lease has expired.</p>
 <p><strong>Response:</strong> <code>200 OK</code></p>
 <pre><code class="language-json">{
-  &quot;serviceName&quot;: &quot;financial-scraper&quot;,
-  &quot;instanceId&quot;: &quot;uuid-instance-id&quot;,
-  &quot;ip&quot;: &quot;192.168.1.10&quot;,
+  &quot;serviceName&quot;: &quot;financial-scraper-service&quot;,
+  &quot;instanceId&quot;: &quot;financial-scraper-1&quot;,
+  &quot;host&quot;: &quot;10.0.0.7&quot;,
   &quot;port&quot;: 3000,
-  &quot;protocol&quot;: &quot;https&quot;,
-  &quot;lastHeartbeat&quot;: &quot;2025-01-15T10:30:00Z&quot;,
-  &quot;registeredAt&quot;: &quot;2025-01-15T10:00:00Z&quot;,
-  &quot;ttl&quot;: 15000,
-  &quot;env&quot;: &quot;production&quot;
+  &quot;version&quot;: &quot;1.0.0&quot;,
+  &quot;protocol&quot;: &quot;mtls&quot;,
+  &quot;ttl&quot;: 30000,
+  &quot;registeredAt&quot;: 1736935200000,
+  &quot;lastHeartbeat&quot;: 1736937000000
 }
 </code></pre>
 <h3>Health Check</h3>
@@ -269,14 +270,14 @@ Documentation
 </thead>
 <tbody>
 <tr>
-<td><code>new ServiceRegistry()</code></td>
-<td><code>src/application/index.ts</code></td>
-<td>Central in-memory registry (no singleton export)</td>
+<td><code>createServiceRegistry(options?)</code></td>
+<td><code>src/config/container.ts</code></td>
+<td>Wires <code>ServiceRegistry</code> with store, crypto and metrics adapters (no singleton export)</td>
 </tr>
 <tr>
 <td><code>new LeaseManager(registry, options?)</code></td>
 <td><code>src/application/index.ts</code></td>
-<td>Accepts <code>ServiceRegistry</code> in constructor</td>
+<td>Accepts <code>ServiceRegistry</code> + optional <code>logger</code>/<code>metrics</code> ports</td>
 </tr>
 <tr>
 <td><code>createServer(registry)</code></td>
@@ -313,15 +314,19 @@ Documentation
 </tr>
 </tbody>
 </table>
-<h3>Composition Root (<code>src/application/index.ts</code>)</h3>
-<pre><code class="language-ts">const registry = new ServiceRegistry();
-const leaseManager = new LeaseManager(registry, {
-  cleanupIntervalMs: env.CLEANUP_SERVICE_INTERVAL_MS,
-});
+<h3>Composition Root (<code>src/config/container.ts</code>) and Startup (<code>src/application/index.ts</code>)</h3>
+<p><code>createDiscoveryApp(ENV)</code> selects the instance store (Redis when <code>REDIS_URL</code> is set, in-memory otherwise), builds the registry and the lease manager. The entry point only starts things:</p>
+<pre><code class="language-ts">const { registry, leaseManager, redisClient } = createDiscoveryApp(ENV);
 createBootstrap({
-  createServer: () =&gt; createServer(registry),
-  onStart: () =&gt; leaseManager.start(),
-  onStop: () =&gt; leaseManager.stop(),
+  createServer: () =&gt; createServer(registry, { readiness: [/* redis ping */] }),
+  onStart: async () =&gt; {
+    await redisClient?.connect();
+    leaseManager.start();
+  },
+  onStop: () =&gt; {
+    leaseManager.stop();
+    redisClient?.disconnect();
+  },
 });
 </code></pre>
 <h2>LeaseManager</h2>
@@ -366,19 +371,19 @@ createBootstrap({
 </thead>
 <tbody>
 <tr>
-<td><code>routes/register.routes.ts</code></td>
+<td><code>adapters/inbound/http/register.routes.ts</code></td>
 <td><code>registryRoutes(registry)</code></td>
 <td><code>POST /register</code>, <code>GET /services</code>, <code>GET /services/:name</code>, <code>GET /services/:name/:id</code></td>
 </tr>
 <tr>
-<td><code>routes/heartbeat.routes.ts</code></td>
+<td><code>adapters/inbound/http/heartbeat.routes.ts</code></td>
 <td><code>heartbeatRoutes(registry)</code></td>
 <td><code>POST /heartbeat</code>, <code>POST /token/rotate</code></td>
 </tr>
 </tbody>
 </table>
 <h2>Deployment</h2>
-<p>The service is bootstrapped via <code>createBootstrap()</code> which attaches <code>SIGTERM</code>/<code>SIGINT</code> handlers. The composition root (<code>src/application/index.ts</code>) creates a <code>new ServiceRegistry()</code> and <code>new LeaseManager(registry)</code>, then passes the registry to <code>createServer(registry)</code>. The <code>LeaseManager</code> is started in <code>onStart</code> and stopped in <code>onStop</code>.</p>
+<p>The service is bootstrapped via <code>createBootstrap()</code> which attaches <code>SIGTERM</code>/<code>SIGINT</code> handlers. The entry point (<code>src/application/index.ts</code>) obtains the registry and the lease manager from <code>createDiscoveryApp(ENV)</code> (<code>src/config/container.ts</code>), then passes the registry to <code>createServer(registry)</code>. The <code>LeaseManager</code> is started in <code>onStart</code> and stopped in <code>onStop</code>.</p>
 </div></div>
 </main>
 </body>

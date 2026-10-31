@@ -146,7 +146,7 @@ Documentation
 </tr>
 <tr>
 <td><code>image_tag</code></td>
-<td>Image tag to deploy (defaults to <code>staging</code> / <code>latest</code>)</td>
+<td>Required: release to deploy, <code>v1.2.3</code> or <code>1.2.3</code>, or <code>latest</code> (the highest stable release). Resolved to image digests before anything is applied</td>
 </tr>
 <tr>
 <td><code>canary</code></td>
@@ -176,12 +176,16 @@ Documentation
 </table>
 <h3>Deployment phases</h3>
 <pre><code>1. Configure kubectl (kubeconfig from secret)
-2. Run database migrations (migration-job.yaml) before rollout
-3. Apply overlay (deploy/k8s/overlays/&lt;env&gt;)
-4. Wait for rollout of all services
-5. Canary + smoke test (if enabled) → rollback on failure
+2. Resolve every image tag to a digest (fails if the release was not published)
+3. Check sealed secrets (production: controller CRD present, no placeholder)
+4. Apply SPIFFE node components, run database migrations
+5. Canary gate on live traffic (if enabled)
+6. Apply overlay (deploy/k8s/overlays/&lt;env&gt;, images pinned by digest)
+7. Wait for rollout of all services, smoke test
 </code></pre>
-<p>Rollback on failure is automatic: the workflow undoes the deployment rollouts.</p>
+<p>Rollback on failure is automatic: the workflow undoes the deployment rollouts.
+The overlay is applied by digest, so <code>rollout undo</code> returns to the previous
+image even when both deploys used <code>latest</code>.</p>
 <hr>
 <h2>Using pre-built images (production)</h2>
 <p>Instead of building locally, pull published images from GHCR:</p>
@@ -192,12 +196,12 @@ echo $GITHUB_TOKEN | docker login ghcr.io -u &lt;USERNAME&gt; --password-stdin
 IMAGE_TAG=2.0.3 docker compose pull
 
 # Or pull a specific service
-docker pull ghcr.io/trading-model/discovery-server:2.0.3
+docker pull ghcr.io/&lt;owner&gt;/discovery-server:2.0.3
 </code></pre>
 <h2>Production deployment</h2>
 <ol>
-<li>A tag <code>v*.*.*</code> is pushed on <code>main</code></li>
-<li><code>release.yml</code> builds and publishes 8 images to <code>ghcr.io</code></li>
+<li><code>bun run release</code> (on <code>main</code>) bumps the versions, writes the CHANGELOG and pushes the tag <code>vX.Y.Z</code></li>
+<li><code>release.yml</code> runs the whole CI on the tag, then publishes the 9 images to <code>ghcr.io/&lt;owner&gt;</code> as <code>X.Y.Z</code>, and as <code>latest</code> when it is the highest stable release</li>
 <li>The <code>Deploy</code> workflow is run against the <code>production</code> environment (canary enabled for staged rollout)</li>
 </ol>
 <hr>

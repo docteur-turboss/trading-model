@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html class="dark" lang="en" data-tm-processed="true"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no" name="viewport">
+<title>Runbook: Audit Chain Broken or Not Verified | trading-model</title>
+
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+
+<script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              400: '#818cf8',
+              500: '#6366f1',
+              600: '#4f46e5',
+            },
+            surface: {
+              base: '#0B0F19',
+              card: '#111827',
+              muted: '#1E293B',
+              border: '#243046',
+            },
+            code: {
+              bg: '#0c121e',
+              keyword: '#c084fc',
+              ident: '#38bdf8',
+              type: '#34d399',
+              punct: '#94a3b8'
+            }
+          },
+          fontFamily: {
+            mono: ['JetBrains Mono', 'Fira Code', 'Menlo', 'Monaco', 'Courier New', 'monospace'],
+            sans: ['-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Inter', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+
+<style data-purpose="mobile-ux-styles">
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    .active-scale:active { transform: scale(0.97); transition: transform 0.1s ease-out; }
+    .h-safe-top { height: env(safe-area-inset-top, 0px); }
+    .pt-safe { padding-top: env(safe-area-inset-top, 0px); }
+    @supports (backdrop-filter: blur(12px)) {
+      .glass-header { backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
+    }
+    
+    .tm-prose p { margin: 0.5rem 0; }
+    .tm-prose p:first-child { margin-top: 0; }
+    .tm-prose p:last-child { margin-bottom: 0; }
+    .tm-prose a { color: #818cf8; text-decoration: underline; text-underline-offset: 2px; }
+    .tm-prose a:hover { color: #a5b4fc; }
+    .tm-prose code { font-family: 'JetBrains Mono', 'Fira Code', Menlo, Monaco, 'Courier New', monospace; font-size: 0.82em; color: #fbbf24; background: #0c121e; border: 1px solid #243046; border-radius: 0.25rem; padding: 0.05rem 0.3rem; }
+    .tm-prose pre { background: #0c121e; border: 1px solid #243046; border-radius: 0.5rem; padding: 0.75rem; overflow-x: auto; margin: 0.5rem 0; }
+    .tm-prose pre code { background: transparent; border: none; padding: 0; color: #e2e8f0; }
+    .tm-prose ul, .tm-prose ol { padding-left: 1.25rem; margin: 0.5rem 0; }
+    .tm-prose ul { list-style: disc; }
+    .tm-prose ol { list-style: decimal; }
+    .tm-prose li { margin: 0.2rem 0; }
+    .tm-prose blockquote { border-left: 3px solid #6366f1; background: rgba(17, 24, 39, 0.6); padding: 0.5rem 0.75rem; border-radius: 0 0.5rem 0.5rem 0; color: #94a3b8; margin: 0.5rem 0; }
+    .tm-prose h1, .tm-prose h2, .tm-prose h3, .tm-prose h4, .tm-prose h5 { color: #ffffff; font-weight: 700; margin: 0.75rem 0 0.25rem; }
+    .tm-prose h1 { font-size: 1.25rem; }
+    .tm-prose h2 { font-size: 1.125rem; }
+    .tm-prose h3 { font-size: 1rem; }
+    .tm-prose h4 { font-size: 0.875rem; }
+    .tm-prose table { width: 100%; border-collapse: collapse; margin: 0.5rem 0; }
+    .tm-prose th, .tm-prose td { border: 1px solid #243046; padding: 0.4rem 0.6rem; text-align: left; }
+    .tm-prose thead th { background: #0b0f19; color: #e2e8f0; font-size: 0.75rem; text-transform: uppercase; }
+    .tm-prose strong { color: #ffffff; }
+  </style>
+
+</head>
+<body class="bg-[#080C15] text-slate-200 font-sans antialiased min-h-screen pb-24 selection:bg-indigo-500/30 selection:text-indigo-200">
+
+<header class="sticky top-0 z-40 w-full glass-header bg-[#0B0F19]/90 border-b border-surface-border">
+<div class="h-safe-top pt-safe"></div>
+<div class="px-4 py-2.5 flex items-center justify-between gap-3">
+<div class="flex items-center gap-2.5 min-w-0">
+
+<div class="flex flex-col min-w-0">
+<div class="flex items-center gap-1.5 truncate">
+<span class="font-mono text-xs font-semibold text-indigo-400 truncate tracking-tight"><a class="text-indigo-400 hover:text-indigo-300 hover:underline" href="../../../index.html">trading-model</a></span>
+
+</div>
+<span class="text-[10px] text-slate-400 flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> TypeDoc API Reference
+</span>
+</div>
+</div>
+
+</div>
+</header>
+
+<main class="px-4 py-4 max-w-2xl mx-auto flex flex-col gap-6">
+
+<section class="space-y-2.5" data-purpose="breadcrumbs-and-header">
+<nav aria-label="Breadcrumb" class="flex items-center flex-wrap gap-1 text-[11px] font-mono text-slate-400">
+<a class="text-indigo-400 hover:underline" href="../../../index.html">trading-model</a><span class="text-slate-600">/</span><span class="text-slate-300 font-medium">Runbook: Audit Chain Broken or Not Verified</span>
+</nav>
+<div class="flex items-center gap-2.5 pt-1">
+<span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-mono font-medium tracking-wide uppercase bg-indigo-500/10 text-indigo-400 border-indigo-500/20">
+Documentation
+</span>
+<h1 class="text-2xl font-bold tracking-tight text-white font-sans">Runbook: Audit Chain Broken or Not Verified</h1>
+</div>
+
+</section>
+
+<div class="tm-prose text-sm leading-relaxed text-slate-300 font-sans"><div>
+<p><strong>Severity:</strong> SEV1 (<code>AuditChainBroken</code>), SEV2 (<code>AuditChainVerificationStale</code>, <code>AuditChainAnchoringStale</code>), SEV3 (<code>AuditChainNotAnchored</code>)
+<strong>Alerts:</strong> <code>AuditChainBroken</code>, <code>AuditChainVerificationStale</code>, <code>AuditChainAnchoringStale</code>, <code>AuditChainNotAnchored</code>
+<strong>Decision:</strong> <a href="../../adr/0027-audit-chain-verification-and-anchoring.html">ADR-0027</a></p>
+<p>The audit trail kept for MiFID II is a hash chain. Every 15 minutes
+(<code>AUDIT_CHAIN_INTERVAL_MS</code>) audit-logger verifies the events written since the
+last check and writes the verified head to the anchor store: an S3 bucket in
+Object Lock compliance mode that nobody can rewrite. A broken chain is a
+possible tampering or data loss: <strong>preserve the evidence before changing
+anything</strong>.</p>
+<h2>Get the report</h2>
+<pre><code class="language-bash">POD=$(kubectl get pods -n trading-model -l app.kubernetes.io/component=audit-logger -o jsonpath='{.items[0].metadata.name}')
+kubectl exec -n trading-model &quot;$POD&quot; -c audit-logger -- \
+  node services/audit-logger/dist/application/chain-cli.js report &gt; chain-report.json
+</code></pre>
+<p><code>verification.broken</code> names the first fault; exit code 1 when the chain is
+broken. The same report is what auditors receive, on request.</p>
+<h2>AuditChainBroken</h2>
+<table>
+<thead>
+<tr>
+<th><code>broken</code> says</th>
+<th>Meaning</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>dataHash does not match the stored content</code></td>
+<td>an event was changed in MongoDB</td>
+<td>incident: compare with the latest backup, find who wrote to <code>audit_events</code> (MongoDB logs, access)</td>
+</tr>
+<tr>
+<td><code>chainSequence N missing</code> / <code>previousHash is not the dataHash of N</code></td>
+<td>an event was deleted or the chain was rewritten in the middle</td>
+<td>incident, as above</td>
+</tr>
+<tr>
+<td><code>differs from the anchor of …</code></td>
+<td>the chain was rewritten and rehashed after that anchor</td>
+<td>incident: the anchor proves the original hash</td>
+</tr>
+<tr>
+<td><code>lies beyond the last event</code> / <code>the trail ends at …</code></td>
+<td>events after a sequence are gone</td>
+<td>a restore from an older backup (expected, see below) or a deletion (incident)</td>
+</tr>
+<tr>
+<td><code>too recent to have expired</code></td>
+<td>old events removed before their retention ended</td>
+<td>incident</td>
+</tr>
+</tbody>
+</table>
+<ol>
+<li>Take a forensic dump of the audit database and keep <code>chain-report.json</code>
+(<a href="runbook-data-corruption.html">runbook-data-corruption</a>, step 2).</li>
+<li>Do not edit <code>audit_events</code> or <code>audit_chain_state</code> to make the alert go away.</li>
+<li>Escalate to compliance: a broken audit trail may have to be reported.</li>
+</ol>
+<h3>After a restore from an older backup</h3>
+<p>The anchors written after the backup now lie beyond the restored trail: the
+alert is expected and the lost events are a real loss. Once the restore is
+explained, record it (immutable, listed in every later report):</p>
+<pre><code class="language-bash">kubectl exec -n trading-model &quot;$POD&quot; -c audit-logger -- \
+  node services/audit-logger/dist/application/chain-cli.js acknowledge-loss &lt;first lost sequence&gt; &quot;restore of &lt;date&gt;, incident &lt;id&gt;&quot;
+</code></pre>
+<p>The first lost sequence is the restored head + 1 (<code>head.chainSequence</code> in the
+report). The next cycle verifies again; new events extend the restored chain.</p>
+<h2>AuditChainVerificationStale</h2>
+<p>No verification completed for 45 minutes: audit-logger logs
+<code>Audit chain cycle failed</code> with the cause (MongoDB unreachable most of the
+time). Fix the cause; the next cycle resumes from the last verified point.</p>
+<h2>AuditChainAnchoringStale</h2>
+<p>Verification runs but no anchor was written for 45 minutes: the bucket refuses
+the writes. Check the <code>audit-anchor-s3</code> Secret (credentials, bucket, region,
+endpoint), that the bucket has Object Lock enabled, and the egress to the
+store (port 443).</p>
+<h2>AuditChainNotAnchored</h2>
+<p><code>AUDIT_ANCHOR_BUCKET</code> is not set: the chain is verified but a rewrite of the
+whole chain would go unnoticed. Expected in compose and staging without a
+bucket; production refuses to deploy without one. Set the GitHub environment
+variables <code>AUDIT_ANCHOR_BUCKET</code>, <code>AUDIT_ANCHOR_REGION</code>, <code>AUDIT_ANCHOR_ENDPOINT</code>
+(non-AWS) and the secrets <code>AUDIT_ANCHOR_ACCESS_KEY_ID</code>,
+<code>AUDIT_ANCHOR_SECRET_ACCESS_KEY</code>, then redeploy.</p>
+<h2>The anchor bucket</h2>
+<ul>
+<li>Created with Object Lock enabled (it cannot be enabled later on most
+providers); compliance mode, retention set per object by audit-logger to
+<code>AUDIT_RETENTION_DAYS</code>.</li>
+<li>Its own credentials, allowed <code>s3:PutObject</code>, <code>s3:ListBucket</code>,
+<code>s3:GetObject</code> only: no delete, no lifecycle or bucket policy change. Not
+the backup bucket's credentials.</li>
+<li>Layout: <code>audit-chain/anchors/&lt;sequence&gt;-&lt;hash&gt;.json</code> (date = object
+LastModified, set by S3) and <code>audit-chain/acknowledgements/&lt;sequence&gt;-&lt;date&gt;.json</code>.</li>
+</ul>
+</div></div>
+</main>
+</body>
+</html>

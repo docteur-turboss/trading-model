@@ -244,7 +244,7 @@ Documentation
 </tbody>
 </table>
 <hr>
-<h2>Admin Interface</h2>
+<h2>Edge proxy</h2>
 <table>
 <thead>
 <tr>
@@ -255,24 +255,24 @@ Documentation
 </thead>
 <tbody>
 <tr>
-<td>Admin page shows blank / white screen</td>
-<td>Vite build error or missing assets</td>
-<td>Check <code>docker compose logs admin-interface</code> for build errors</td>
+<td><code>502 Bad Gateway</code> on <code>/v1/...</code></td>
+<td>api-gateway down, or no SVID in <code>svid-edge</code></td>
+<td><code>docker compose logs edge-proxy spiffe-helper-edge</code>; check <code>api-gateway</code> health</td>
 </tr>
 <tr>
-<td><code>VITE_API_GATEWAY_URL</code> not working</td>
-<td>Wrong API gateway URL</td>
-<td>Ensure <code>api-gateway</code> is healthy and URL in <code>.env</code> is correct</td>
+<td><code>403</code> from the gateway</td>
+<td>Caller identity not in the gateway ACL</td>
+<td>The ACL allows only <code>edge-proxy</code> (<code>acl-config.ts</code>); check the SPIRE entry <code>spiffe-helper-edge</code></td>
 </tr>
 <tr>
-<td>Admin can't reach API</td>
-<td>Network isolation</td>
-<td>admin-interface is on <code>backend-net</code>; API gateway is reachable</td>
+<td><code>401</code> on <code>/v1/...</code></td>
+<td>Missing or unknown <code>x-api-key</code></td>
+<td>Use a value of the gateway's <code>AUTH_TOKENS</code></td>
 </tr>
 <tr>
-<td>CORS errors in browser console</td>
-<td>Gateway CORS config</td>
-<td>API gateway does not set CORS headers — use nginx reverse proxy</td>
+<td><code>404</code> on any path but <code>/v1</code>, <code>/ping</code></td>
+<td>Expected: no UI is served (ADR-0018)</td>
+<td>—</td>
 </tr>
 </tbody>
 </table>
@@ -310,7 +310,7 @@ Documentation
 <tr>
 <td>SVID renewal failed</td>
 <td>SPIRE agent attestation problem</td>
-<td>Check <code>docker compose logs spire-agent</code>; reconcile entries (spire-entries)</td>
+<td>Check <code>docker compose logs spire-agent</code>; rerun <code>docker compose up spire-bootstrap</code> to reconcile entries</td>
 </tr>
 </tbody>
 </table>
@@ -421,8 +421,8 @@ Documentation
 </tr>
 <tr>
 <td><code>curl -k https://localhost:8443/ping</code> fails</td>
-<td>Discovery server not ready</td>
-<td>Wait for health check. Check <code>docker compose logs discovery-server</code></td>
+<td>Expected: no client SVID</td>
+<td>Services only accept SPIFFE mTLS clients. Use <code>docker exec trading-discovery curl -sk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem https://localhost:3000/ping</code>, or the gateway through <code>http://localhost:8449/v1/...</code></td>
 </tr>
 <tr>
 <td>Connection refused on all ports</td>

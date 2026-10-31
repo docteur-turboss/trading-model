@@ -119,7 +119,10 @@ Documentation
 <p>Every microservice uses this package to send and receive typed, validated messages through the Message Delivery Service.</p>
 <h2>Dependencies</h2>
 <ul>
-<li><code>@trading-model/common</code> — HttpClient, event types, service types, error classes</li>
+<li><code>@trading-model/http</code> — HttpClient, middleware (<code>catchSync</code>, <code>ResponseException</code>)</li>
+<li><code>@trading-model/primitives</code> — branded messaging/service types</li>
+<li><code>@trading-model/validation</code> — message envelope contracts (<code>message.types</code>)</li>
+<li><code>@trading-model/common</code> — error classes, config re-exports (<code>event.types</code>, <code>services.types</code>, <code>tls-paths</code>)</li>
 <li><code>@trading-model/address-manager</code> — Service discovery (finds Message Delivery Service)</li>
 <li><code>express</code> — Express <code>Router</code>, <code>Application</code> types</li>
 <li><code>zod</code> — Runtime schema validation for metadata and payloads</li>

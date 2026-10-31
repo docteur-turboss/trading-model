@@ -114,7 +114,7 @@ Documentation
 
 <div class="tm-prose text-sm leading-relaxed text-slate-300 font-sans"><div>
 <blockquote>
-<p><strong>Goal:</strong> Go from zero to publishing a message and viewing audit events in 10 minutes.</p>
+<p><strong>Goal:</strong> Go from zero to market data flowing through the bus and viewing its audit events in 10 minutes.</p>
 </blockquote>
 <h2>Prerequisites</h2>
 <ul>
@@ -138,70 +138,48 @@ docker compose up -d redis mysql mongo
 docker compose up -d discovery-server message-manager
 
 # Verify they're healthy
-curl -sk https://localhost:8443/ping
-# → {&quot;status&quot;:&quot;ok&quot;}
+# Services only accept mTLS clients with a SPIRE identity: check the
+# container health (its healthcheck pings with the container's SVID)
+docker inspect --format '{{.State.Health.Status}}' trading-discovery
+# → healthy
 </code></pre>
 <h2>Step 2: Start the API Gateway</h2>
-<p>The gateway is the single entry point for all external requests:</p>
-<pre><code class="language-bash">docker compose up -d api-gateway
+<p>The gateway is the single entry point for all external requests. It only accepts mTLS clients with a SPIRE identity, so the host reaches it through the <code>edge-proxy</code> (plain HTTP on port 8449, <code>/v1</code> forwarded to the gateway):</p>
+<pre><code class="language-bash">docker compose up -d api-gateway edge-proxy
 
 # Verify
-curl -sk https://localhost:8448/ping
-# → {&quot;status&quot;:&quot;ok&quot;,&quot;service&quot;:&quot;api-gateway&quot;}
+curl -s http://localhost:8449/ping
+# → {&quot;status&quot;:&quot;ok&quot;}
 </code></pre>
 <h2>Step 3: See the Service Registry</h2>
-<p>Set your admin token (from <code>.env</code> file — look for <code>AUTH_TOKENS</code> or <code>ADMIN_TOKEN</code>):</p>
-<pre><code class="language-bash">export ADMIN_TOKEN=&quot;change-me-in-production&quot;  # Use your .env value
+<p>Set your admin token (one of the <code>GATEWAY_AUTH_TOKENS</code> values in your <code>.env</code> file):</p>
+<pre><code class="language-bash">export ADMIN_TOKEN=&quot;change-me-to-a-long-random-key&quot;  # Use your .env value
 </code></pre>
 <pre><code class="language-bash"># List registered services (via gateway proxy)
-curl -sk https://localhost:8448/v1/discovery/services \
+curl -s http://localhost:8449/v1/discovery-server/services \
   -H &quot;x-api-key: $ADMIN_TOKEN&quot;
 </code></pre>
 <p>You should see <code>discovery-server</code> and <code>message-manager</code> listed.</p>
-<h2>Step 4: Publish a Message</h2>
-<pre><code class="language-bash"># Publish a market data event
-curl -sk https://localhost:8448/v1/broker/message \
-  -H &quot;x-api-key: $ADMIN_TOKEN&quot; \
-  -H 'Content-Type: application/json' \
-  -d '{
-    &quot;targetService&quot;: &quot;audit-logger&quot;,
-    &quot;payload&quot;: {
-      &quot;symbol&quot;: &quot;BTCUSDT&quot;,
-      &quot;price&quot;: 50000.0,
-      &quot;volume&quot;: 12.5
-    },
-    &quot;deliveryMode&quot;: &quot;at-most-once&quot;,
-    &quot;metadata&quot;: {
-      &quot;topic&quot;: &quot;market.trade.recent.fetch&quot;,
-      &quot;eventType&quot;: &quot;market.trade.recent.fetch&quot;,
-      &quot;schemaVersion&quot;: &quot;1.0.0&quot;,
-      &quot;publisher&quot;: {
-        &quot;serviceName&quot;: &quot;quickstart-demo&quot;,
-        &quot;instanceId&quot;: &quot;demo-001&quot;
-      },
-      &quot;delivery&quot;: {
-        &quot;mode&quot;: &quot;at-most-once&quot;,
-        &quot;ttl&quot;: 60000
-      }
-    }
-  }'
-
-# → 204 No Content
+<h2>Step 4: Let the Scraper Publish Market Data</h2>
+<p>Messages are published by the services themselves: the gateway only exposes the
+public API (<code>docs/services/openapi/api-gateway.yaml</code>), not service-to-service
+routes such as message-manager <code>POST /message</code>. Start the scraper, which
+publishes the market data it collects every <code>SCRAPE_INTERVAL</code> (one minute by
+default):</p>
+<pre><code class="language-bash">docker compose up -d financial-scraper
 </code></pre>
 <h2>Step 5: View Audit Events</h2>
 <p>Start the audit-logger:</p>
 <pre><code class="language-bash">docker compose up -d audit-logger
 </code></pre>
 <p>Then query the events:</p>
-<pre><code class="language-bash">curl -sk https://localhost:8448/v1/audit/events?limit=5 \
+<pre><code class="language-bash">curl -s http://localhost:8449/v1/audit-logger/events?limit=5 \
   -H &quot;x-api-key: $ADMIN_TOKEN&quot;
 </code></pre>
-<p>You should see your published message recorded as an audit event.</p>
-<h2>Step 6: Start the Admin Dashboard</h2>
-<pre><code class="language-bash"># Start the React SPA
-bun run --filter admin-interface dev
-</code></pre>
-<p>Open <code>http://localhost:5173</code> in your browser. Navigate to <strong>Services</strong> to see the service registry, or <strong>Audit Events</strong> to see your published message.</p>
+<p>You should see the scraper's market data events recorded in the audit trail.</p>
+<blockquote>
+<p>There is no admin dashboard for now (<a href="../adr/0018-temporary-frontend-removal.html">ADR-0018</a>): the gateway API above is how you inspect the registry, audit events and the DLQ.</p>
+</blockquote>
 <h2>Next Steps</h2>
 <table>
 <thead>

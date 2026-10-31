@@ -230,7 +230,7 @@ Documentation
 </ul>
 <h2>Complexity Penalty</h2>
 <p>Larger neural networks are more computationally expensive and prone to overfitting. A complexity penalty encourages simpler architectures:</p>
-<pre><code>adjusted_fitness = raw_fitness × (1 - 0.15 × complexity_penalty)
+<pre><code>adjusted_fitness = raw_fitness - |raw_fitness| × 0.15 × complexity_penalty
 </code></pre>
 <p>Complexity is estimated from FLOPs (floating-point operations) and memory usage.</p>
 <h2>Reproducibility</h2>

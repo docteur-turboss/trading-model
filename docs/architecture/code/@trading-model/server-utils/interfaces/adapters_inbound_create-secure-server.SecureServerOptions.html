@@ -130,7 +130,7 @@ Interface
 <path d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" stroke-linecap="round" stroke-linejoin="round"></path>
 </svg>
 <span class="text-slate-400">Defined in</span>
-<a class="text-indigo-400 hover:text-indigo-300 underline underline-offset-2 break-all" href="https://github.com/docteur-turboss/trading-model/blob/0a1492accbfc5c3a69fbe4d881ed7a5809cadf8d/packages/server-utils/src/adapters/inbound/create-secure-server.ts#L32">server-utils/src/adapters/inbound/create-secure-server.ts:32</a>
+<a class="text-indigo-400 hover:text-indigo-300 underline underline-offset-2 break-all" href="https://github.com/docteur-turboss/trading-model/blob/04cdcbf82df6c1b576ba3e01ff435d5e07f33a56/packages/server-utils/src/adapters/inbound/create-secure-server.ts#L35">server-utils/src/adapters/inbound/create-secure-server.ts:35</a>
 </div>
 </section>
 
@@ -153,7 +153,7 @@ Interface
 </button>
 </div>
 <div class="p-3.5 overflow-x-auto text-[13px] font-mono leading-relaxed select-text">
-<pre class="text-slate-300"><code><span class="text-purple-400 font-semibold">interface</span> <span class="text-sky-300 font-medium">SecureServerOptions</span> <span class="text-slate-400">{</span><br>    <a class="text-indigo-300" href="#authorize">authorize</a><span class="text-slate-400">?:</span> <a class="text-emerald-400 underline decoration-emerald-500/40 underline-offset-2 hover:text-emerald-300" href="adapters_inbound_create-secure-server.AuthorizationOptions.html">AuthorizationOptions</a><span class="text-slate-400">;</span><br>    <a class="text-indigo-300" href="#port">port</a><span class="text-slate-400">:</span> <span class="text-emerald-400">Port</span><span class="text-slate-400">;</span><br>    <a class="text-indigo-300" href="#ratelimit">rateLimit</a><span class="text-slate-400">?:</span> <a class="text-emerald-400 underline decoration-emerald-500/40 underline-offset-2 hover:text-emerald-300" href="adapters_inbound_configure-app.RateLimitConfig.html">RateLimitConfig</a><span class="text-slate-400">;</span><br>    <a class="text-indigo-300" href="#routes">routes</a><span class="text-slate-400">:</span> <span class="text-slate-400">(</span><span class="text-indigo-300">app</span><span class="text-slate-400">:</span> <span class="text-emerald-400">Application</span><span class="text-slate-400">)</span> <span class="text-slate-400">=&gt;</span> <span class="text-amber-300">void</span><span class="text-slate-400">;</span><br>    <a class="text-indigo-300" href="#tls">tls</a><span class="text-slate-400">:</span> <a class="text-emerald-400 underline decoration-emerald-500/40 underline-offset-2 hover:text-emerald-300" href="adapters_inbound_create-secure-server.TlsPaths.html">TlsPaths</a><span class="text-slate-400">;</span><br>    <a class="text-indigo-300" href="#trustproxy">trustProxy</a><span class="text-slate-400">?:</span> <span class="text-amber-300">boolean</span><span class="text-slate-400">;</span><br>    <a class="text-indigo-300" href="#watchtls">watchTls</a><span class="text-slate-400">?:</span> <span class="text-amber-300">boolean</span><span class="text-slate-400">;</span><br><span class="text-slate-400">}</span></code></pre>
+<pre class="text-slate-300"><code><span class="text-purple-400 font-semibold">interface</span> <span class="text-sky-300 font-medium">SecureServerOptions</span> <span class="text-slate-400">{</span><br>    <a class="text-indigo-300" href="#authorize">authorize</a><span class="text-slate-400">?:</span> <a class="text-emerald-400 underline decoration-emerald-500/40 underline-offset-2 hover:text-emerald-300" href="adapters_inbound_create-secure-server.AuthorizationOptions.html">AuthorizationOptions</a><span class="text-slate-400">;</span><br>    <a class="text-indigo-300" href="#port">port</a><span class="text-slate-400">:</span> <span class="text-emerald-400">Port</span><span class="text-slate-400">;</span><br>    <a class="text-indigo-300" href="#ratelimit">rateLimit</a><span class="text-slate-400">?:</span> <a class="text-emerald-400 underline decoration-emerald-500/40 underline-offset-2 hover:text-emerald-300" href="adapters_inbound_configure-app.RateLimitConfig.html">RateLimitConfig</a><span class="text-slate-400">;</span><br>    <a class="text-indigo-300" href="#readiness">readiness</a><span class="text-slate-400">?:</span> <a class="text-emerald-400 underline decoration-emerald-500/40 underline-offset-2 hover:text-emerald-300" href="adapters_inbound_readiness.ReadinessCheck.html">ReadinessCheck</a><span class="text-slate-400">[]</span><span class="text-slate-400">;</span><br>    <a class="text-indigo-300" href="#routes">routes</a><span class="text-slate-400">:</span> <span class="text-slate-400">(</span><span class="text-indigo-300">app</span><span class="text-slate-400">:</span> <span class="text-emerald-400">Application</span><span class="text-slate-400">)</span> <span class="text-slate-400">=&gt;</span> <span class="text-amber-300">void</span><span class="text-slate-400">;</span><br>    <a class="text-indigo-300" href="#tls">tls</a><span class="text-slate-400">:</span> <a class="text-emerald-400 underline decoration-emerald-500/40 underline-offset-2 hover:text-emerald-300" href="adapters_inbound_create-secure-server.TlsPaths.html">TlsPaths</a><span class="text-slate-400">;</span><br>    <a class="text-indigo-300" href="#trustproxy">trustProxy</a><span class="text-slate-400">?:</span> <span class="text-amber-300">boolean</span><span class="text-slate-400">;</span><br>    <a class="text-indigo-300" href="#watchtls">watchTls</a><span class="text-slate-400">?:</span> <span class="text-amber-300">boolean</span><span class="text-slate-400">;</span><br><span class="text-slate-400">}</span></code></pre>
 </div>
 </section>
 
@@ -168,7 +168,7 @@ Interface
 </svg>
 Member Index
 </span>
-<span class="text-[11px] lowercase text-slate-400">7 properties</span>
+<span class="text-[11px] lowercase text-slate-400">8 properties</span>
 </div>
 <div class="flex items-center gap-2 overflow-x-auto no-scrollbar py-1 -mx-4 px-4">
 <a class="active-scale flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-card border border-surface-border text-slate-300 hover:border-indigo-500/50 hover:text-white transition-all text-xs font-mono" href="#authorize">
@@ -182,6 +182,10 @@ Member Index
 <a class="active-scale flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-card border border-surface-border text-slate-300 hover:border-indigo-500/50 hover:text-white transition-all text-xs font-mono" href="#ratelimit">
 <span class="w-4 h-4 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-[9px] font-bold">P</span>
 <span>rateLimit?</span>
+</a>
+<a class="active-scale flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-card border border-surface-border text-slate-300 hover:border-indigo-500/50 hover:text-white transition-all text-xs font-mono" href="#readiness">
+<span class="w-4 h-4 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-[9px] font-bold">P</span>
+<span>readiness?</span>
 </a>
 <a class="active-scale flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-card border border-surface-border text-slate-300 hover:border-indigo-500/50 hover:text-white transition-all text-xs font-mono" href="#routes">
 <span class="w-4 h-4 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-[9px] font-bold">P</span>
@@ -207,7 +211,7 @@ Member Index
 <section class="space-y-4 pt-1" data-purpose="detailed-members-breakdown">
 <div class="flex items-center justify-between border-b border-surface-border/70 pb-2">
 <h2 class="text-lg font-bold text-white tracking-tight flex items-center gap-2">Properties</h2>
-<span class="text-xs font-mono text-slate-400 bg-surface-muted px-2 py-0.5 rounded">7 members</span>
+<span class="text-xs font-mono text-slate-400 bg-surface-muted px-2 py-0.5 rounded">8 members</span>
 </div>
 <article class="scroll-mt-20 rounded-xl bg-surface-card border border-surface-border overflow-hidden transition-all duration-200" id="authorize">
 <div class="p-3.5 pb-2.5 flex items-start justify-between gap-2 border-b border-surface-border/50 bg-slate-900/40">
@@ -225,9 +229,9 @@ Member Index
 <svg class="w-3 h-3 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
 <path d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" stroke-linecap="round" stroke-linejoin="round"></path>
 </svg>
-<span>server-utils/src/adapters/inbound/create-secure-server.ts:36</span>
+<span>server-utils/src/adapters/inbound/create-secure-server.ts:39</span>
 </span>
-<a class="text-indigo-400 hover:text-indigo-300 flex items-center gap-0.5 text-[11px]" href="https://github.com/docteur-turboss/trading-model/blob/0a1492accbfc5c3a69fbe4d881ed7a5809cadf8d/packages/server-utils/src/adapters/inbound/create-secure-server.ts#L36">view source →</a>
+<a class="text-indigo-400 hover:text-indigo-300 flex items-center gap-0.5 text-[11px]" href="https://github.com/docteur-turboss/trading-model/blob/04cdcbf82df6c1b576ba3e01ff435d5e07f33a56/packages/server-utils/src/adapters/inbound/create-secure-server.ts#L39">view source →</a>
 </div>
 </div>
 </article>
@@ -269,9 +273,31 @@ Member Index
 <svg class="w-3 h-3 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
 <path d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" stroke-linecap="round" stroke-linejoin="round"></path>
 </svg>
-<span>server-utils/src/adapters/inbound/create-secure-server.ts:34</span>
+<span>server-utils/src/adapters/inbound/create-secure-server.ts:37</span>
 </span>
-<a class="text-indigo-400 hover:text-indigo-300 flex items-center gap-0.5 text-[11px]" href="https://github.com/docteur-turboss/trading-model/blob/0a1492accbfc5c3a69fbe4d881ed7a5809cadf8d/packages/server-utils/src/adapters/inbound/create-secure-server.ts#L34">view source →</a>
+<a class="text-indigo-400 hover:text-indigo-300 flex items-center gap-0.5 text-[11px]" href="https://github.com/docteur-turboss/trading-model/blob/04cdcbf82df6c1b576ba3e01ff435d5e07f33a56/packages/server-utils/src/adapters/inbound/create-secure-server.ts#L37">view source →</a>
+</div>
+</div>
+</article>
+<article class="scroll-mt-20 rounded-xl bg-surface-card border border-surface-border overflow-hidden transition-all duration-200" id="readiness">
+<div class="p-3.5 pb-2.5 flex items-start justify-between gap-2 border-b border-surface-border/50 bg-slate-900/40">
+<div class="flex items-center gap-2">
+<span class="w-5 h-5 rounded-md bg-indigo-500/20 border-indigo-500/40 text-indigo-300 flex items-center justify-center text-[10px] font-mono font-bold flex-shrink-0">P</span>
+<h3 class="text-base font-bold font-mono text-white tracking-tight">Optionalreadiness</h3>
+</div>
+<div class="flex items-center gap-1.5 flex-wrap"><span class="px-1.5 py-0.5 rounded text-[10px] font-mono font-medium bg-slate-800 text-slate-300 border-slate-700">public</span></div>
+</div>
+<div class="p-3.5 space-y-3">
+<div class="rounded-lg bg-[#0a0e17] border border-surface-border/80 p-2.5 font-mono text-xs text-slate-300 overflow-x-auto"><span class="text-indigo-300">readiness</span><span class="text-slate-400">?:</span> <a class="text-emerald-400 underline decoration-emerald-500/40 underline-offset-2 hover:text-emerald-300" href="adapters_inbound_readiness.ReadinessCheck.html">ReadinessCheck</a><span class="text-slate-400">[]</span></div>
+
+<div class="pt-2 border-t border-surface-border/40 flex items-center justify-between text-[11px] font-mono text-slate-400">
+<span class="flex items-center gap-1 truncate text-slate-400">
+<svg class="w-3 h-3 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<path d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+<span>server-utils/src/adapters/inbound/create-secure-server.ts:40</span>
+</span>
+<a class="text-indigo-400 hover:text-indigo-300 flex items-center gap-0.5 text-[11px]" href="https://github.com/docteur-turboss/trading-model/blob/04cdcbf82df6c1b576ba3e01ff435d5e07f33a56/packages/server-utils/src/adapters/inbound/create-secure-server.ts#L40">view source →</a>
 </div>
 </div>
 </article>
@@ -291,9 +317,9 @@ Member Index
 <svg class="w-3 h-3 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
 <path d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" stroke-linecap="round" stroke-linejoin="round"></path>
 </svg>
-<span>server-utils/src/adapters/inbound/create-secure-server.ts:33</span>
+<span>server-utils/src/adapters/inbound/create-secure-server.ts:36</span>
 </span>
-<a class="text-indigo-400 hover:text-indigo-300 flex items-center gap-0.5 text-[11px]" href="https://github.com/docteur-turboss/trading-model/blob/0a1492accbfc5c3a69fbe4d881ed7a5809cadf8d/packages/server-utils/src/adapters/inbound/create-secure-server.ts#L33">view source →</a>
+<a class="text-indigo-400 hover:text-indigo-300 flex items-center gap-0.5 text-[11px]" href="https://github.com/docteur-turboss/trading-model/blob/04cdcbf82df6c1b576ba3e01ff435d5e07f33a56/packages/server-utils/src/adapters/inbound/create-secure-server.ts#L36">view source →</a>
 </div>
 </div>
 </article>
@@ -335,9 +361,9 @@ Member Index
 <svg class="w-3 h-3 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
 <path d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" stroke-linecap="round" stroke-linejoin="round"></path>
 </svg>
-<span>server-utils/src/adapters/inbound/create-secure-server.ts:35</span>
+<span>server-utils/src/adapters/inbound/create-secure-server.ts:38</span>
 </span>
-<a class="text-indigo-400 hover:text-indigo-300 flex items-center gap-0.5 text-[11px]" href="https://github.com/docteur-turboss/trading-model/blob/0a1492accbfc5c3a69fbe4d881ed7a5809cadf8d/packages/server-utils/src/adapters/inbound/create-secure-server.ts#L35">view source →</a>
+<a class="text-indigo-400 hover:text-indigo-300 flex items-center gap-0.5 text-[11px]" href="https://github.com/docteur-turboss/trading-model/blob/04cdcbf82df6c1b576ba3e01ff435d5e07f33a56/packages/server-utils/src/adapters/inbound/create-secure-server.ts#L38">view source →</a>
 </div>
 </div>
 </article>
@@ -421,12 +447,21 @@ Member Index
 <a class="flex items-center gap-1.5 px-2 py-1 text-slate-400 hover:text-slate-200" href="adapters_inbound_create-secure-server.TlsPaths.html"><span class="w-3.5 h-3.5 rounded bg-emerald-500/20 text-emerald-400 text-[9px] flex items-center justify-center font-bold">I</span><span class="truncate">TlsPaths</span></a>
 <a class="flex items-center gap-1.5 px-2 py-1 text-slate-400 hover:text-slate-200" href="../functions/adapters_inbound_create-secure-server.buildTlsFromEnv.html"><span class="w-3.5 h-3.5 rounded bg-amber-500/20 text-amber-400 text-[9px] flex items-center justify-center font-bold">F</span><span class="truncate">buildTlsFromEnv</span></a>
 <a class="flex items-center gap-1.5 px-2 py-1 text-slate-400 hover:text-slate-200" href="../functions/adapters_inbound_create-secure-server.createSecureServer.html"><span class="w-3.5 h-3.5 rounded bg-amber-500/20 text-amber-400 text-[9px] flex items-center justify-center font-bold">F</span><span class="truncate">createSecureServer</span></a>
-<a class="flex items-center gap-1.5 px-2 py-1 text-slate-400 hover:text-slate-200" href="adapters_inbound_server-factory.HttpServer.html"><span class="w-3.5 h-3.5 rounded bg-emerald-500/20 text-emerald-400 text-[9px] flex items-center justify-center font-bold">I</span><span class="truncate">HttpServer</span></a>
+<a class="flex items-center gap-1.5 px-2 py-1 text-slate-400 hover:text-slate-200" href="shared_server-types.HttpServer.html"><span class="w-3.5 h-3.5 rounded bg-emerald-500/20 text-emerald-400 text-[9px] flex items-center justify-center font-bold">I</span><span class="truncate">HttpServer</span></a>
+<a class="flex items-center gap-1.5 px-2 py-1 text-slate-400 hover:text-slate-200" href="../types/adapters_inbound_server-factory.HttpsServer.html"><span class="w-3.5 h-3.5 rounded bg-purple-500/20 text-purple-400 text-[9px] flex items-center justify-center font-bold">T</span><span class="truncate">HttpsServer</span></a>
 <a class="flex items-center gap-1.5 px-2 py-1 text-slate-400 hover:text-slate-200" href="adapters_inbound_configure-app.RateLimitConfig.html"><span class="w-3.5 h-3.5 rounded bg-emerald-500/20 text-emerald-400 text-[9px] flex items-center justify-center font-bold">I</span><span class="truncate">RateLimitConfig</span></a>
 </div></div>
+<div class="pl-4 space-y-0.5 border-l border-surface-border/60 ml-2 mt-1"><a class="flex items-center gap-1.5 px-2 py-1 text-slate-400 hover:text-slate-200" href="../modules/adapters_inbound_http-metrics.html">
+<span class="w-3.5 h-3.5 rounded bg-indigo-500/20 text-indigo-400 text-[9px] flex items-center justify-center font-bold">M</span>
+<span class="truncate">http-metrics</span>
+</a></div>
 <div class="pl-4 space-y-0.5 border-l border-surface-border/60 ml-2 mt-1"><a class="flex items-center gap-1.5 px-2 py-1 text-slate-400 hover:text-slate-200" href="../modules/adapters_inbound_metrics-handler.html">
 <span class="w-3.5 h-3.5 rounded bg-indigo-500/20 text-indigo-400 text-[9px] flex items-center justify-center font-bold">M</span>
 <span class="truncate">metrics-handler</span>
+</a></div>
+<div class="pl-4 space-y-0.5 border-l border-surface-border/60 ml-2 mt-1"><a class="flex items-center gap-1.5 px-2 py-1 text-slate-400 hover:text-slate-200" href="../modules/adapters_inbound_readiness.html">
+<span class="w-3.5 h-3.5 rounded bg-indigo-500/20 text-indigo-400 text-[9px] flex items-center justify-center font-bold">M</span>
+<span class="truncate">readiness</span>
 </a></div>
 <div class="pl-4 space-y-0.5 border-l border-surface-border/60 ml-2 mt-1"><a class="flex items-center gap-1.5 px-2 py-1 text-slate-400 hover:text-slate-200" href="../modules/adapters_inbound_server-factory.html">
 <span class="w-3.5 h-3.5 rounded bg-indigo-500/20 text-indigo-400 text-[9px] flex items-center justify-center font-bold">M</span>
@@ -447,6 +482,10 @@ Member Index
 <div class="pl-4 space-y-0.5 border-l border-surface-border/60 ml-2 mt-1"><a class="flex items-center gap-1.5 px-2 py-1 text-slate-400 hover:text-slate-200" href="../modules/application_services_bootstrap-shutdown.html">
 <span class="w-3.5 h-3.5 rounded bg-indigo-500/20 text-indigo-400 text-[9px] flex items-center justify-center font-bold">M</span>
 <span class="truncate">bootstrap-shutdown</span>
+</a></div>
+<div class="pl-4 space-y-0.5 border-l border-surface-border/60 ml-2 mt-1"><a class="flex items-center gap-1.5 px-2 py-1 text-slate-400 hover:text-slate-200" href="../modules/application_services_bootstrap-types.html">
+<span class="w-3.5 h-3.5 rounded bg-indigo-500/20 text-indigo-400 text-[9px] flex items-center justify-center font-bold">M</span>
+<span class="truncate">bootstrap-types</span>
 </a></div>
 <div class="pl-4 space-y-0.5 border-l border-surface-border/60 ml-2 mt-1"><a class="flex items-center gap-1.5 px-2 py-1 text-slate-400 hover:text-slate-200" href="../modules/application_services_bootstrap.html">
 <span class="w-3.5 h-3.5 rounded bg-indigo-500/20 text-indigo-400 text-[9px] flex items-center justify-center font-bold">M</span>
@@ -480,17 +519,13 @@ Member Index
 </svg>
 <span class="truncate">shared</span>
 </a>
-<div class="pl-4 space-y-0.5 border-l border-surface-border/60 ml-2 mt-1"><a class="flex items-center gap-1.5 px-2 py-1 text-slate-400 hover:text-slate-200" href="../modules/shared_bootstrap-types.html">
-<span class="w-3.5 h-3.5 rounded bg-indigo-500/20 text-indigo-400 text-[9px] flex items-center justify-center font-bold">M</span>
-<span class="truncate">bootstrap-types</span>
-</a></div>
 <div class="pl-4 space-y-0.5 border-l border-surface-border/60 ml-2 mt-1"><a class="flex items-center gap-1.5 px-2 py-1 text-slate-400 hover:text-slate-200" href="../modules/shared_constants.html">
 <span class="w-3.5 h-3.5 rounded bg-indigo-500/20 text-indigo-400 text-[9px] flex items-center justify-center font-bold">M</span>
 <span class="truncate">constants</span>
 </a></div>
-<div class="pl-4 space-y-0.5 border-l border-surface-border/60 ml-2 mt-1"><a class="flex items-center gap-1.5 px-2 py-1 text-slate-400 hover:text-slate-200" href="../modules/shared_load-tls-config.html">
+<div class="pl-4 space-y-0.5 border-l border-surface-border/60 ml-2 mt-1"><a class="flex items-center gap-1.5 px-2 py-1 text-slate-400 hover:text-slate-200" href="../modules/shared_server-types.html">
 <span class="w-3.5 h-3.5 rounded bg-indigo-500/20 text-indigo-400 text-[9px] flex items-center justify-center font-bold">M</span>
-<span class="truncate">load-tls-config</span>
+<span class="truncate">server-types</span>
 </a></div>
 </div>
 </div>
@@ -590,7 +625,7 @@ Member Index
       const copyBtn = document.getElementById('copyInterfaceBtn');
       const copyText = document.getElementById('copyInterfaceText');
       copyBtn?.addEventListener('click', () => {
-        const code = "interface SecureServerOptions {\n  authorize?: AuthorizationOptions;\n  port: Port;\n  rateLimit?: RateLimitConfig;\n  routes: (app: Application) => void;\n  tls: TlsPaths;\n  trustProxy?: boolean;\n  watchTls?: boolean;\n}";
+        const code = "interface SecureServerOptions {\n  authorize?: AuthorizationOptions;\n  port: Port;\n  rateLimit?: RateLimitConfig;\n  readiness?: ReadinessCheck[];\n  routes: (app: Application) => void;\n  tls: TlsPaths;\n  trustProxy?: boolean;\n  watchTls?: boolean;\n}";
         navigator.clipboard.writeText(code).then(() => {
           copyText.textContent = 'Copied!';
           setTimeout(() => { copyText.textContent = 'Copy'; }, 2000);

@@ -116,8 +116,7 @@ Documentation
 <h2>Why</h2>
 <p>Tests are the guarantee of code reliability and regression prevention. Strict coverage thresholds ensure that critical paths are systematically tested.</p>
 <h2>Framework</h2>
-<p><strong>Jest with ts-jest</strong> — configuration per package/service (Node.js backend services).</p>
-<p><strong>Vitest</strong> — configuration per <code>vitest.config.ts</code> (frontend SPA: admin-interface). Vitest uses a Vite-compatible config with jsdom environment for React component testing. See <code>services/admin-interface/vitest.config.ts</code>.</p>
+<p><strong>Jest with ts-jest</strong> — configuration per package/service. Every workspace uses it (the Vitest frontend was removed, ADR-0018).</p>
 <pre><code class="language-javascript">// jest.config.js — PER PACKAGE/SERVICE
 export default {
   preset: 'ts-jest',
@@ -334,17 +333,9 @@ export default {
 <td>80%</td>
 <td>Jest</td>
 </tr>
-<tr>
-<td>admin-interface</td>
-<td>80%</td>
-<td>80%</td>
-<td>80%</td>
-<td>80%</td>
-<td>Vitest</td>
-</tr>
 </tbody>
 </table>
-<p>Coverage is checked by Jest/Vitest on every test run (<code>bun run test:coverage</code>).</p>
+<p>Coverage is checked by Jest on every test run (<code>bun run test:coverage</code>).</p>
 <h3>Generate HTML report</h3>
 <pre><code class="language-bash">bun run test --coverage --coverageReporters=html
 # Open coverage/index.html

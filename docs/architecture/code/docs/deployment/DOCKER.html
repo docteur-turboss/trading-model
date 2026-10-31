@@ -114,7 +114,7 @@ Documentation
 
 <div class="tm-prose text-sm leading-relaxed text-slate-300 font-sans"><div>
 <h2>Docker Compose Services</h2>
-<p>The platform runs <strong>8 microservices</strong> plus infrastructure containers (MongoDB, MySQL, Redis, SPIRE):</p>
+<p>The platform runs <strong>7 microservices</strong> (no frontend, see <a href="../adr/0018-temporary-frontend-removal.html">ADR-0018</a>) plus infrastructure containers (MongoDB, MySQL, Redis, SPIRE):</p>
 <table>
 <thead>
 <tr>
@@ -183,18 +183,18 @@ Documentation
 <td><code>backend-net</code>, <code>data-net</code></td>
 </tr>
 <tr>
-<td><code>admin-interface</code></td>
-<td>Build local</td>
-<td><code>trading-admin</code></td>
-<td><code>${ADMIN_PORT:-8449}</code> → 80</td>
-<td><code>backend-net</code></td>
-</tr>
-<tr>
 <td><code>dlq-service</code></td>
 <td>Build local</td>
 <td><code>trading-dlq</code></td>
 <td><code>${DLQ_PORT:-8452}</code> → 3000</td>
 <td><code>backend-net</code>, <code>data-net</code></td>
+</tr>
+<tr>
+<td><code>edge-proxy</code></td>
+<td><code>nginx</code> (digest-pinned)</td>
+<td><code>trading-edge</code></td>
+<td><code>${EDGE_PORT:-8449}</code> → 8080</td>
+<td><code>backend-net</code></td>
 </tr>
 </tbody>
 </table>
@@ -268,7 +268,11 @@ CMD [&quot;bun&quot;, &quot;services/discovery-server/dist/application/index.js&
 </tbody>
 </table>
 <p>The <code>--production</code> flag in the <code>deps</code> stage omits all <code>devDependencies</code>, so the runtime image only contains what is needed to serve traffic. <code>node_modules</code> comes entirely from the <code>deps</code> stage; the <code>build</code> stage only produces <code>dist/</code> artifacts.</p>
-<p>The admin-interface is a <strong>React SPA</strong> built with Vite, served by nginx on port 80 (no TLS — expected behind a gateway).</p>
+<hr>
+<h2>Edge proxy</h2>
+<p>The gateway only accepts SPIFFE mTLS clients, so nothing outside the mesh can call it directly. <code>edge-proxy</code> is the external entry point (<a href="../adr/0018-temporary-frontend-removal.html">ADR-0018</a>): the official nginx image with <code>deploy/edge-proxy/default.conf</code> mounted, run as uid 101 on a read-only filesystem. It answers <code>/ping</code> and <code>/health/ready</code> itself and forwards <code>/v1/*</code> to <code>https://api-gateway:3000</code> with its own SVID (<code>spiffe-helper-edge</code>, volume <code>svid-edge</code>), read on each handshake so the hourly rotation needs no reload.</p>
+<pre><code class="language-bash">curl -s http://localhost:8449/v1/discovery-server/services -H &quot;x-api-key: &lt;AUTH_TOKENS value&gt;&quot;
+</code></pre>
 <hr>
 <h2>Images and registry</h2>
 <p>Images are published to <strong>GitHub Container Registry</strong> (<code>ghcr.io</code>) with multiple tags:</p>
@@ -277,7 +281,7 @@ ghcr.io/&lt;owner&gt;/trading-model/&lt;service&gt;:&lt;major&gt;.&lt;minor&gt;
 ghcr.io/&lt;owner&gt;/trading-model/&lt;service&gt;:&lt;major&gt;
 ghcr.io/&lt;owner&gt;/trading-model/&lt;service&gt;:&lt;sha-commit&gt;
 </code></pre>
-<p>All <strong>8 microservices</strong> are built and published by the release workflow:</p>
+<p>All <strong>7 microservices</strong> are built and published by the release workflow:</p>
 <table>
 <thead>
 <tr>
@@ -311,10 +315,6 @@ ghcr.io/&lt;owner&gt;/trading-model/&lt;service&gt;:&lt;sha-commit&gt;
 <td><code>ghcr.io/trading-model/audit-logger</code></td>
 </tr>
 <tr>
-<td>admin-interface</td>
-<td><code>ghcr.io/trading-model/admin-interface</code></td>
-</tr>
-<tr>
 <td>dlq-service</td>
 <td><code>ghcr.io/trading-model/dlq-service</code></td>
 </tr>
@@ -337,23 +337,20 @@ write each service SVID into <code>/run/spire/svid</code>. No host certificates 
 <tr>
 <td><code>TLS_KEY_PATH</code></td>
 <td><code>/run/spire/svid/svid_key.pem</code></td>
-<td>All services (except admin-interface)</td>
+<td>All services</td>
 </tr>
 <tr>
 <td><code>TLS_CERT_PATH</code></td>
 <td><code>/run/spire/svid/svid.pem</code></td>
-<td>All services (except admin-interface)</td>
+<td>All services</td>
 </tr>
 <tr>
 <td><code>TLS_CA_PATH</code></td>
 <td><code>/run/spire/svid/bundle.pem</code></td>
-<td>All services (except admin-interface)</td>
+<td>All services</td>
 </tr>
 </tbody>
 </table>
-<blockquote>
-<p>The admin-interface is served over plain HTTP (port 80) — TLS is terminated at the ingress/gateway.</p>
-</blockquote>
 <hr>
 <h2>Port mapping</h2>
 <table>
@@ -391,11 +388,6 @@ write each service SVID into <code>/run/spire/svid</code>. No host certificates 
 <td>api-gateway</td>
 </tr>
 <tr>
-<td><code>ADMIN_PORT</code></td>
-<td><code>8449</code></td>
-<td>admin-interface</td>
-</tr>
-<tr>
 <td><code>AUDIT_PORT</code></td>
 <td><code>8450</code></td>
 <td>audit-logger</td>
@@ -404,6 +396,11 @@ write each service SVID into <code>/run/spire/svid</code>. No host certificates 
 <td><code>DLQ_PORT</code></td>
 <td><code>8452</code></td>
 <td>dlq-service</td>
+</tr>
+<tr>
+<td><code>EDGE_PORT</code></td>
+<td><code>8449</code></td>
+<td>edge-proxy (HTTP)</td>
 </tr>
 </tbody>
 </table>
@@ -424,8 +421,8 @@ write each service SVID into <code>/run/spire/svid</code>. No host certificates 
            │                          ├── discovery-server ──┬── financial-scraper
 mysql ─────┘                          │                     ├── trader-trainer
                                       │                     ├── api-gateway
-                                      │                     ├── admin-interface
-                                      │                     └── dlq-service
+                                      │                     ├── dlq-service
+                                      │                     └── edge-proxy (after api-gateway)
 </code></pre>
 <h3>Health checks</h3>
 <table>
@@ -449,8 +446,8 @@ mysql ─────┘                          │                     ├─
 <td><code>curl -sk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem https://localhost:3000/ping || exit 1</code></td>
 </tr>
 <tr>
-<td><code>admin-interface</code></td>
-<td><em>(none — served by nginx, health determined by upstream dependency)</em></td>
+<td><code>edge-proxy</code></td>
+<td><code>wget -q -O /dev/null http://127.0.0.1:8080/health/ready</code></td>
 </tr>
 </tbody>
 </table>

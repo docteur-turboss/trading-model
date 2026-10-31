@@ -171,7 +171,12 @@ Documentation
 <tr>
 <td><code>/ping</code></td>
 <td>GET</td>
-<td>Health check (built-in via <code>createSecureServer</code>)</td>
+<td>Health check (built-in via <code>createServiceServer</code>)</td>
+</tr>
+<tr>
+<td><code>/health/ready</code></td>
+<td>GET</td>
+<td>Readiness (message bus)</td>
 </tr>
 <tr>
 <td><code>/training-status</code></td>
@@ -184,9 +189,39 @@ Documentation
 <td>Best trained agent</td>
 </tr>
 <tr>
-<td><code>/address-manager/*</code></td>
+<td><code>/training-agents</code></td>
 <td>GET</td>
-<td>Service discovery routes (from AddressManager)</td>
+<td>Trained agents of every symbol</td>
+</tr>
+<tr>
+<td><code>/training-agents/:symbol</code></td>
+<td>GET</td>
+<td>Trained agent of one symbol, with its latest model</td>
+</tr>
+<tr>
+<td><code>/models/:symbol</code></td>
+<td>GET</td>
+<td>Stored model versions of a symbol, newest first</td>
+</tr>
+<tr>
+<td><code>/models/:symbol/:version</code></td>
+<td>GET</td>
+<td>Manifest of a model version (no weights)</td>
+</tr>
+<tr>
+<td><code>/models/:symbol/:version/weights</code></td>
+<td>GET</td>
+<td>Weights: service-to-service only, <code>MODEL_DOWNLOAD_CALLERS</code></td>
+</tr>
+<tr>
+<td><code>/status</code></td>
+<td>GET</td>
+<td>Address-manager metrics snapshot</td>
+</tr>
+<tr>
+<td><code>/metrics</code></td>
+<td>GET</td>
+<td>Prometheus metrics</td>
 </tr>
 <tr>
 <td><code>/message</code></td>
@@ -224,18 +259,17 @@ Documentation
       &quot;fitness&quot;: 1.8345,
       &quot;sharpe&quot;: 1.92,
       &quot;avgPnl&quot;: 145.32,
-      &quot;negFlops&quot;: -123456,
-      &quot;complexityPenalty&quot;: 0,
+      &quot;maxDrawdown&quot;: 38.5,
       &quot;gaControl&quot;: {
         &quot;populationSize&quot;: 20,
         &quot;elitismFraction&quot;: 0.1,
         &quot;survivorFraction&quot;: 0.5,
-        &quot;episodesPerIndividual&quot;: 3,
+        &quot;episodesPerIndividual&quot;: 10,
         &quot;selectionType&quot;: &quot;tournament&quot;,
         &quot;fitnessType&quot;: &quot;total_pnl&quot;
       },
       &quot;network&quot;: {
-        &quot;inputDim&quot;: 32,
+        &quot;inputDim&quot;: 33,
         &quot;outputDim&quot;: 3,
         &quot;hiddenLayers&quot;: [
           { &quot;neurons&quot;: 64, &quot;activation&quot;: &quot;ReLu&quot; },
@@ -243,7 +277,7 @@ Documentation
         ]
       },
       &quot;rl&quot;: {
-        &quot;gamma&quot;: 0.99,
+        &quot;gamma&quot;: 0.9,
         &quot;learningRate&quot;: 0.001,
         &quot;epsilonStart&quot;: 1.0,
         &quot;epsilonMin&quot;: 0.05,
@@ -257,13 +291,16 @@ Documentation
 }
 </code></pre>
 <p><strong>Response</strong> <code>404 Not Found</code>:</p>
-<pre><code class="language-json">{
-  &quot;data&quot;: {
-    &quot;status&quot;: 404,
-    &quot;message&quot;: &quot;No trained agent available at the moment.&quot;
-  }
-}
+<pre><code class="language-json">{ &quot;error&quot;: &quot;No trained agent available at the moment.&quot; }
 </code></pre>
+<p>Successful responses are wrapped in <code>{ &quot;data&quot;: ... }</code>; errors are not. Parameters and responses are declared in <code>src/adapters/inbound/http/api-routes.ts</code> (<code>TRAINER_API</code>, ADR-0021) and published in the <a href="openapi/api-gateway.yaml">OpenAPI</a>. Invalid input answers 400 <code>{ &quot;error&quot;: &quot;Validation failed&quot;, &quot;details&quot;: [...] }</code>. <code>GET /training-agents/:symbol</code> sends the agent and <code>model</code>, the latest stored artifact of the symbol (version, sha256, metrics), never the population or weights.</p>
+<h3>Model artifacts (ADR-0022)</h3>
+<p>After each successful training, the best agent is stored as an immutable version under <code>TRAINER_MODEL_DIR</code> (<code>/data/checkpoints/models</code>, the checkpoint volume shared by the replicas and backed up encrypted):</p>
+<pre><code>&lt;SYMBOL&gt;/&lt;yyyymmddThhmmssZ&gt;-&lt;sha12&gt;/manifest.json   genome without weights, feature layout, normalization, metrics
+&lt;SYMBOL&gt;/&lt;yyyymmddThhmmssZ&gt;-&lt;sha12&gt;/weights.f32     float32 little-endian, sha256 in the manifest
+</code></pre>
+<p>The <code>TRAINER_MODEL_RETENTION</code> newest versions are kept per symbol (default 20). A failed write is logged and counted (<code>tt_model_artifacts_total{result}</code>: <code>stored</code>, <code>skipped</code> when the best genome has no trained weights, <code>error</code>); the training result is kept either way.</p>
+<p><code>GET /models/:symbol</code> and <code>GET /models/:symbol/:version</code> are public. The weights (<code>GET /models/:symbol/:version/weights</code>) are not proxied by the gateway: a service calls the trainer over mTLS, and its SPIFFE identity must be listed in <code>MODEL_DOWNLOAD_CALLERS</code> (empty by default: 403 for everybody). The response is <code>application/octet-stream</code> with the sha256 in <code>x-model-sha256</code>; check it against the manifest.</p>
 <h3>BestAgentSummary Type</h3>
 <table>
 <thead>
@@ -287,12 +324,12 @@ Documentation
 <tr>
 <td>fitness</td>
 <td>number</td>
-<td>Scalar fitness score</td>
+<td>Scalar fitness of <code>gaControl.fitnessType</code> (ADR-0025)</td>
 </tr>
 <tr>
 <td>sharpe</td>
 <td>number</td>
-<td>Sharpe-like ratio of episode returns</td>
+<td>Sharpe ratio of the bar-by-bar PnL curve of the evaluation, annualised from the bar spacing (ADR-0025)</td>
 </tr>
 <tr>
 <td>avgPnl</td>
@@ -300,14 +337,9 @@ Documentation
 <td>Average P&amp;L across evaluation episodes</td>
 </tr>
 <tr>
-<td>negFlops</td>
+<td>maxDrawdown</td>
 <td>number</td>
-<td>Negative FLOPs (complexity indicator)</td>
-</tr>
-<tr>
-<td>complexityPenalty</td>
-<td>number</td>
-<td>Complexity penalty applied to fitness</td>
+<td>Largest fall of the cumulative bar-by-bar P&amp;L of the evaluation, from its peak (&gt;= 0)</td>
 </tr>
 <tr>
 <td>gaControl</td>
@@ -363,6 +395,7 @@ Documentation
 </tbody>
 </table>
 <p>Data is stored in a <code>MarketDataBuffer</code> (configurable window via <code>TRAINER_DATA_WINDOW</code>).</p>
+<p>Candles are kept strictly increasing in time per symbol: a candle with the timestamp of the last one replaces it, an older one is dropped, and neither is counted again by the normalizers. A training refuses to start on a series with duplicated or out-of-order timestamps, since a repeated candle would sit in both a training and a validation window.</p>
 <h2>Training Loop</h2>
 <ul>
 <li><strong>Trigger</strong>: once 50 candles are available for a symbol</li>
@@ -415,6 +448,18 @@ Documentation
 <tr>
 <td><code>TRAINER_*</code></td>
 <td>Generations, population size, time budget, etc.</td>
+</tr>
+<tr>
+<td><code>TRAINER_MODEL_DIR</code></td>
+<td>Model artifacts directory (<code>/data/checkpoints/models</code>)</td>
+</tr>
+<tr>
+<td><code>TRAINER_MODEL_RETENTION</code></td>
+<td>Versions kept per symbol (default 20)</td>
+</tr>
+<tr>
+<td><code>MODEL_DOWNLOAD_CALLERS</code></td>
+<td>Services allowed to download weights (comma-separated, empty: nobody)</td>
 </tr>
 </tbody>
 </table>

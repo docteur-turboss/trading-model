@@ -270,6 +270,10 @@ Documentation
 <td>@trading-model/common package</td>
 </tr>
 <tr>
+<td><code>contracts</code></td>
+<td>@trading-model/contracts package</td>
+</tr>
+<tr>
 <td><code>config</code></td>
 <td>Configuration</td>
 </tr>
@@ -280,6 +284,18 @@ Documentation
 <tr>
 <td><code>middleware</code></td>
 <td>Express middleware</td>
+</tr>
+<tr>
+<td><code>persistence</code></td>
+<td>@trading-model/persistence package</td>
+</tr>
+<tr>
+<td><code>primitives</code></td>
+<td>@trading-model/primitives package</td>
+</tr>
+<tr>
+<td><code>reliability</code></td>
+<td>@trading-model/reliability package</td>
 </tr>
 <tr>
 <td><code>utils</code></td>
@@ -339,7 +355,7 @@ Documentation
 </tr>
 <tr>
 <td><code>admin-interface</code></td>
-<td>Admin interface SPA</td>
+<td>Admin frontend (removed, ADR-0018; kept for history and its return)</td>
 </tr>
 </tbody>
 </table>
@@ -410,7 +426,7 @@ Fixes #142
 </code></pre>
 <pre><code>:recycle:(common): centralize ServiceInstance type
 
-Extract ServiceInstance type to @trading-model/common/contracts
+Extract ServiceInstance type to @trading-model/primitives
 to avoid duplication between discovery-server and message-manager.
 </code></pre>
 <pre><code>:memo:(api): document discovery registration endpoints

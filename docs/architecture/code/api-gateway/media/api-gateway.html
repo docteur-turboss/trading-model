@@ -168,8 +168,8 @@ Documentation
 }
 </code></pre>
 <h3>Proxy Routes</h3>
-<p>**<code>\* /v{version}/{serviceName}/**</code>**</p>
-<p>Proxies all HTTP methods (GET, POST, PUT, DELETE, etc.) to the target internal service. The version and service name are resolved via the Discovery Server.</p>
+<p><strong><code>/v{version}/{serviceName}/{path}</code></strong></p>
+<p>Proxies the public routes listed in <code>PUBLIC_ROUTES</code> (<code>services/api-gateway/src/shared/public-routes.ts</code>, published as <code>docs/services/openapi/api-gateway.yaml</code>) to the target internal service, resolved via the Discovery Server. Any other route answers <code>404</code> before resolution: the gateway calls services with its own SVID, so proxying service-to-service routes (discovery <code>/register</code> or <code>/heartbeat</code>, message-manager <code>/message</code> or <code>/subscribe</code>...) would lend its identity to every API client. A path that URL normalization would change (<code>..</code>, <code>%2e</code>, <code>\</code>) is refused too.</p>
 <p><strong>Headers:</strong></p>
 <table>
 <thead>
@@ -221,13 +221,18 @@ Documentation
 </tr>
 <tr>
 <td><code>404</code></td>
+<td>Not a public route</td>
+<td><code>{ &quot;error&quot;: &quot;Route not found&quot; }</code></td>
+</tr>
+<tr>
+<td><code>404</code></td>
 <td>Service not found</td>
 <td><code>{ &quot;error&quot;: &quot;Service not found&quot; }</code></td>
 </tr>
 <tr>
 <td><code>503</code></td>
 <td>Service unavailable</td>
-<td><code>{ &quot;error&quot;: &quot;Service unavailable&quot; }</code></td>
+<td><code>{ &quot;error&quot;: &quot;Service unavailable&quot; }</code> (cause in the log only)</td>
 </tr>
 </tbody>
 </table>
@@ -236,6 +241,7 @@ Documentation
 <li><strong>Algorithm:</strong> <code>express-rate-limit</code> (sliding window)</li>
 <li><strong>Default:</strong> 100 requests per 60s window (configurable via <code>RATE_LIMIT_WINDOW_MS</code> and <code>RATE_LIMIT_MAX</code>)</li>
 <li><strong>Response:</strong> <code>429 Too Many Requests</code> with <code>retryAfter</code> in seconds</li>
+<li><strong>Key:</strong> the authenticated API client (<code>clientIdentity</code> from the token), falling back to the remote address. External requests all arrive from the <code>edge-proxy</code>, so a per-address limit would put every client in one bucket</li>
 </ul>
 <h2>Caching</h2>
 <ul>
@@ -243,7 +249,7 @@ Documentation
 <li>Default TTL: 30s (configurable via <code>CACHE_TTL_MS</code>)</li>
 </ul>
 <h2>Architecture</h2>
-<pre><code>Client → /v{major}/{service}/... → API Gateway → auth → rate-limit → resolve Discovery → proxy mTLS → service
+<pre><code>Client → edge-proxy (HTTP, /v1) → mTLS → API Gateway → auth → rate-limit → resolve Discovery → proxy mTLS → service
 </code></pre>
 <ul>
 <li><strong>Versioned Routing:</strong> Pattern <code>/v{major}/{serviceName}/**</code> — resolved via Discovery Server, filtered by major version</li>
@@ -292,9 +298,14 @@ Documentation
 <td>Header name for auth token</td>
 </tr>
 <tr>
+<td><code>AUTH_STRICT</code></td>
+<td><code>true</code></td>
+<td><code>false</code> accepts any key when <code>AUTH_TOKENS</code> is empty; refused in production</td>
+</tr>
+<tr>
 <td><code>AUTH_TOKENS</code></td>
-<td><code>''</code> (empty = no auth)</td>
-<td>Comma-separated valid tokens</td>
+<td><code>''</code></td>
+<td>Comma-separated valid tokens; required in production (the gateway refuses to start)</td>
 </tr>
 <tr>
 <td><code>PROXY_TIMEOUT_MS</code></td>

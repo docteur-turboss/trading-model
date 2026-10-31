@@ -140,6 +140,11 @@ Documentation
 <td>24-hour ticker statistics</td>
 <td>symbol, open/high/low/last, volume, timestamp</td>
 </tr>
+<tr>
+<td><code>market_publish_cursors</code></td>
+<td>Per candle series, open time of the next candle to publish to the bus (the persisted candles from it wait for message-manager)</td>
+<td>source, symbol, interval, market, published_until</td>
+</tr>
 </tbody>
 </table>
 <p>Full DDL, column specs, and TypeScript interfaces: <a href="../reference/table-schemas.html">Table Schemas Reference</a>.</p>
@@ -171,7 +176,7 @@ Documentation
 <p>SPIRE Server (ADR-0011) uses MySQL for its datastore (<code>spire</code> database).</p>
 </blockquote>
 <h2>Schema Validation</h2>
-<p>The message broker uses <strong>Zod validation schemas</strong> at <code>services/message-manager/src/messaging/transport/validation/broker.schema.ts</code> to enforce message shapes, subscriptions, and metadata.</p>
+<p>The message broker uses <strong>Zod validation schemas</strong> at <code>services/message-manager/src/adapters/inbound/validation/broker.schema.ts</code> to enforce message shapes, subscriptions, and metadata.</p>
 </div></div>
 </main>
 </body>

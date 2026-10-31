@@ -289,6 +289,7 @@ services/Financial_Scrapper/       // Snake case
 <ul>
 <li><strong>TypeScript strict</strong> enabled</li>
 <li><strong>0 Biome errors allowed</strong> in CI</li>
+<li><strong>No swallowed errors</strong>: <code>noEmptyBlockStatements</code> and the GritQL plugin <code>biome-plugins/no-swallowed-errors.grit</code> reject handlers that neither rethrow, log nor delegate — see <a href="error-handling.html">Error Handling</a></li>
 <li>Run: <code>bunx @biomejs/biome check .</code> (CI) / <code>bunx @biomejs/biome check --write .</code> (local fix)</li>
 </ul>
 <h2>Code Organization</h2>
@@ -327,7 +328,7 @@ import express, { Request, Response } from 'express';
 import { z } from 'zod';
 
 // 3. Workspace packages (sub-path exports)
-import { logger } from '@trading-model/common';
+import { logger } from '@trading-model/http/infrastructure/logger';
 import AddressManager from '@trading-model/address-manager';
 
 // 4. Internal relative imports

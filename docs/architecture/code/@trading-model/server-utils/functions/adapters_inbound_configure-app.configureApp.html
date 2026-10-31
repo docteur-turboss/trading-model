@@ -130,7 +130,7 @@ Function
 <path d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" stroke-linecap="round" stroke-linejoin="round"></path>
 </svg>
 <span class="text-slate-400">Defined in</span>
-<a class="text-indigo-400 hover:text-indigo-300 underline underline-offset-2 break-all" href="https://github.com/docteur-turboss/trading-model/blob/0a1492accbfc5c3a69fbe4d881ed7a5809cadf8d/packages/server-utils/src/adapters/inbound/configure-app.ts#L37">server-utils/src/adapters/inbound/configure-app.ts:37</a>
+<a class="text-indigo-400 hover:text-indigo-300 underline underline-offset-2 break-all" href="https://github.com/docteur-turboss/trading-model/blob/04cdcbf82df6c1b576ba3e01ff435d5e07f33a56/packages/server-utils/src/adapters/inbound/configure-app.ts#L58">server-utils/src/adapters/inbound/configure-app.ts:58</a>
 </div>
 </section>
 
@@ -153,13 +153,13 @@ Function
 </button>
 </div>
 <div class="p-3.5 overflow-x-auto text-[13px] font-mono leading-relaxed select-text">
-<pre class="text-slate-300"><code><span class="text-sky-300 font-medium">configureApp</span><span class="text-slate-400">(</span><br>    <span class="text-indigo-300">config</span><span class="text-slate-400">?:</span> <span class="text-slate-400">{</span> <span class="text-indigo-300">rateLimit</span><span class="text-slate-400">?:</span> <a class="text-emerald-400 underline decoration-emerald-500/40 underline-offset-2 hover:text-emerald-300" href="../interfaces/adapters_inbound_configure-app.RateLimitConfig.html">RateLimitConfig</a><span class="text-slate-400">;</span> <span class="text-indigo-300">trustProxy</span><span class="text-slate-400">?:</span> <span class="text-amber-300">boolean</span> <span class="text-slate-400">}</span><span class="text-slate-400">,</span><br><span class="text-slate-400">)</span><span class="text-slate-400">:</span> <span class="text-emerald-400">Application</span></code></pre>
+<pre class="text-slate-300"><code><span class="text-sky-300 font-medium">configureApp</span><span class="text-slate-400">(</span><br>    <span class="text-indigo-300">config</span><span class="text-slate-400">?:</span> <span class="text-slate-400">{</span><br>        <span class="text-indigo-300">rateLimit</span><span class="text-slate-400">?:</span> <a class="text-emerald-400 underline decoration-emerald-500/40 underline-offset-2 hover:text-emerald-300" href="../interfaces/adapters_inbound_configure-app.RateLimitConfig.html">RateLimitConfig</a><span class="text-slate-400">;</span><br>        <span class="text-indigo-300">readiness</span><span class="text-slate-400">?:</span> <a class="text-emerald-400 underline decoration-emerald-500/40 underline-offset-2 hover:text-emerald-300" href="../interfaces/adapters_inbound_readiness.ReadinessCheck.html">ReadinessCheck</a><span class="text-slate-400">[]</span><span class="text-slate-400">;</span><br>        <span class="text-indigo-300">trustProxy</span><span class="text-slate-400">?:</span> <span class="text-amber-300">boolean</span><span class="text-slate-400">;</span><br>    <span class="text-slate-400">}</span><span class="text-slate-400">,</span><br><span class="text-slate-400">)</span><span class="text-slate-400">:</span> <span class="text-emerald-400">Application</span></code></pre>
 </div>
 </section>
 
 <section class="space-y-3 pt-1" data-purpose="signature-details"><div class="rounded-lg bg-[#0a0e17] border border-surface-border/80 p-2.5 font-mono text-xs text-slate-300 space-y-1.5">
 <div class="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Parameters</div>
-<ul class="space-y-1.5"><li class="flex items-start gap-1.5 flex-wrap"><span class="text-indigo-300">config</span>: <span class="text-slate-400">{</span> <span class="text-indigo-300">rateLimit</span><span class="text-slate-400">?:</span> <a class="text-emerald-400 underline decoration-emerald-500/40 underline-offset-2 hover:text-emerald-300" href="../interfaces/adapters_inbound_configure-app.RateLimitConfig.html">RateLimitConfig</a><span class="text-slate-400">;</span> <span class="text-indigo-300">trustProxy</span><span class="text-slate-400">?:</span> <span class="text-amber-300">boolean</span> <span class="text-slate-400">}</span><span class="text-slate-400"> = {}</span></li></ul>
+<ul class="space-y-1.5"><li class="flex items-start gap-1.5 flex-wrap"><span class="text-indigo-300">config</span>: <span class="text-slate-400">{</span><br>    <span class="text-indigo-300">rateLimit</span><span class="text-slate-400">?:</span> <a class="text-emerald-400 underline decoration-emerald-500/40 underline-offset-2 hover:text-emerald-300" href="../interfaces/adapters_inbound_configure-app.RateLimitConfig.html">RateLimitConfig</a><span class="text-slate-400">;</span><br>    <span class="text-indigo-300">readiness</span><span class="text-slate-400">?:</span> <a class="text-emerald-400 underline decoration-emerald-500/40 underline-offset-2 hover:text-emerald-300" href="../interfaces/adapters_inbound_readiness.ReadinessCheck.html">ReadinessCheck</a><span class="text-slate-400">[]</span><span class="text-slate-400">;</span><br>    <span class="text-indigo-300">trustProxy</span><span class="text-slate-400">?:</span> <span class="text-amber-300">boolean</span><span class="text-slate-400">;</span><br><span class="text-slate-400">}</span><span class="text-slate-400"> = {}</span></li></ul>
 </div>
 <div class="rounded-lg bg-[#0a0e17] border border-surface-border/80 p-2.5 font-mono text-xs text-slate-300">
 <span class="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Returns</span>
@@ -219,9 +219,17 @@ Function
 <span class="w-3.5 h-3.5 rounded bg-indigo-500/20 text-indigo-400 text-[9px] flex items-center justify-center font-bold">M</span>
 <span class="truncate">create-secure-server</span>
 </a></div>
+<div class="pl-4 space-y-0.5 border-l border-surface-border/60 ml-2 mt-1"><a class="flex items-center gap-1.5 px-2 py-1 text-slate-400 hover:text-slate-200" href="../modules/adapters_inbound_http-metrics.html">
+<span class="w-3.5 h-3.5 rounded bg-indigo-500/20 text-indigo-400 text-[9px] flex items-center justify-center font-bold">M</span>
+<span class="truncate">http-metrics</span>
+</a></div>
 <div class="pl-4 space-y-0.5 border-l border-surface-border/60 ml-2 mt-1"><a class="flex items-center gap-1.5 px-2 py-1 text-slate-400 hover:text-slate-200" href="../modules/adapters_inbound_metrics-handler.html">
 <span class="w-3.5 h-3.5 rounded bg-indigo-500/20 text-indigo-400 text-[9px] flex items-center justify-center font-bold">M</span>
 <span class="truncate">metrics-handler</span>
+</a></div>
+<div class="pl-4 space-y-0.5 border-l border-surface-border/60 ml-2 mt-1"><a class="flex items-center gap-1.5 px-2 py-1 text-slate-400 hover:text-slate-200" href="../modules/adapters_inbound_readiness.html">
+<span class="w-3.5 h-3.5 rounded bg-indigo-500/20 text-indigo-400 text-[9px] flex items-center justify-center font-bold">M</span>
+<span class="truncate">readiness</span>
 </a></div>
 <div class="pl-4 space-y-0.5 border-l border-surface-border/60 ml-2 mt-1"><a class="flex items-center gap-1.5 px-2 py-1 text-slate-400 hover:text-slate-200" href="../modules/adapters_inbound_server-factory.html">
 <span class="w-3.5 h-3.5 rounded bg-indigo-500/20 text-indigo-400 text-[9px] flex items-center justify-center font-bold">M</span>
@@ -242,6 +250,10 @@ Function
 <div class="pl-4 space-y-0.5 border-l border-surface-border/60 ml-2 mt-1"><a class="flex items-center gap-1.5 px-2 py-1 text-slate-400 hover:text-slate-200" href="../modules/application_services_bootstrap-shutdown.html">
 <span class="w-3.5 h-3.5 rounded bg-indigo-500/20 text-indigo-400 text-[9px] flex items-center justify-center font-bold">M</span>
 <span class="truncate">bootstrap-shutdown</span>
+</a></div>
+<div class="pl-4 space-y-0.5 border-l border-surface-border/60 ml-2 mt-1"><a class="flex items-center gap-1.5 px-2 py-1 text-slate-400 hover:text-slate-200" href="../modules/application_services_bootstrap-types.html">
+<span class="w-3.5 h-3.5 rounded bg-indigo-500/20 text-indigo-400 text-[9px] flex items-center justify-center font-bold">M</span>
+<span class="truncate">bootstrap-types</span>
 </a></div>
 <div class="pl-4 space-y-0.5 border-l border-surface-border/60 ml-2 mt-1"><a class="flex items-center gap-1.5 px-2 py-1 text-slate-400 hover:text-slate-200" href="../modules/application_services_bootstrap.html">
 <span class="w-3.5 h-3.5 rounded bg-indigo-500/20 text-indigo-400 text-[9px] flex items-center justify-center font-bold">M</span>
@@ -275,17 +287,13 @@ Function
 </svg>
 <span class="truncate">shared</span>
 </a>
-<div class="pl-4 space-y-0.5 border-l border-surface-border/60 ml-2 mt-1"><a class="flex items-center gap-1.5 px-2 py-1 text-slate-400 hover:text-slate-200" href="../modules/shared_bootstrap-types.html">
-<span class="w-3.5 h-3.5 rounded bg-indigo-500/20 text-indigo-400 text-[9px] flex items-center justify-center font-bold">M</span>
-<span class="truncate">bootstrap-types</span>
-</a></div>
 <div class="pl-4 space-y-0.5 border-l border-surface-border/60 ml-2 mt-1"><a class="flex items-center gap-1.5 px-2 py-1 text-slate-400 hover:text-slate-200" href="../modules/shared_constants.html">
 <span class="w-3.5 h-3.5 rounded bg-indigo-500/20 text-indigo-400 text-[9px] flex items-center justify-center font-bold">M</span>
 <span class="truncate">constants</span>
 </a></div>
-<div class="pl-4 space-y-0.5 border-l border-surface-border/60 ml-2 mt-1"><a class="flex items-center gap-1.5 px-2 py-1 text-slate-400 hover:text-slate-200" href="../modules/shared_load-tls-config.html">
+<div class="pl-4 space-y-0.5 border-l border-surface-border/60 ml-2 mt-1"><a class="flex items-center gap-1.5 px-2 py-1 text-slate-400 hover:text-slate-200" href="../modules/shared_server-types.html">
 <span class="w-3.5 h-3.5 rounded bg-indigo-500/20 text-indigo-400 text-[9px] flex items-center justify-center font-bold">M</span>
-<span class="truncate">load-tls-config</span>
+<span class="truncate">server-types</span>
 </a></div>
 </div>
 </div>
@@ -385,7 +393,7 @@ Function
       const copyBtn = document.getElementById('copyInterfaceBtn');
       const copyText = document.getElementById('copyInterfaceText');
       copyBtn?.addEventListener('click', () => {
-        const code = "configureApp(\n  config?: { rateLimit?: RateLimitConfig; trustProxy?: boolean },\n): Application";
+        const code = "configureApp(\n  config?: {\n    rateLimit?: RateLimitConfig;\n    readiness?: ReadinessCheck[];\n    trustProxy?: boolean;\n  },\n): Application";
         navigator.clipboard.writeText(code).then(() => {
           copyText.textContent = 'Copied!';
           setTimeout(() => { copyText.textContent = 'Copy'; }, 2000);

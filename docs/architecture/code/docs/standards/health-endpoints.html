@@ -183,7 +183,7 @@ Documentation
 <tr>
 <td>Audit Logger</td>
 <td><code>GET /health</code></td>
-<td><code>{&quot;status&quot;:&quot;ok&quot;,&quot;queueDepth&quot;:N,...}</code></td>
+<td><code>{&quot;status&quot;:&quot;ok&quot;,&quot;timestamp&quot;:&quot;...&quot;}</code></td>
 </tr>
 <tr>
 <td>discovery-server</td>
@@ -193,7 +193,7 @@ Documentation
 </tbody>
 </table>
 <h2>Implementation</h2>
-<p>Services use <code>createSecureServer</code> from <code>@trading-model/common</code> which automatically mounts <code>GET /ping</code>.</p>
+<p>Services use <code>createSecureServer</code> from <code>@trading-model/server-utils</code> (<code>adapters/inbound/create-secure-server</code>) which automatically mounts <code>GET /ping</code> (path constant <code>PING_PATH</code> in <code>server-utils/shared/constants</code>).</p>
 <p>For custom health endpoints, mount additional routes:</p>
 <pre><code class="language-typescript">app.get('/health', (req, res) =&gt; {
   res.json({

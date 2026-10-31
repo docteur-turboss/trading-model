@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html class="dark" lang="en" data-tm-processed="true"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no" name="viewport">
+<title>ADR-0023: Discovery Registry Shared Through Redis | trading-model</title>
+
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+
+<script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              400: '#818cf8',
+              500: '#6366f1',
+              600: '#4f46e5',
+            },
+            surface: {
+              base: '#0B0F19',
+              card: '#111827',
+              muted: '#1E293B',
+              border: '#243046',
+            },
+            code: {
+              bg: '#0c121e',
+              keyword: '#c084fc',
+              ident: '#38bdf8',
+              type: '#34d399',
+              punct: '#94a3b8'
+            }
+          },
+          fontFamily: {
+            mono: ['JetBrains Mono', 'Fira Code', 'Menlo', 'Monaco', 'Courier New', 'monospace'],
+            sans: ['-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Inter', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+
+<style data-purpose="mobile-ux-styles">
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    .active-scale:active { transform: scale(0.97); transition: transform 0.1s ease-out; }
+    .h-safe-top { height: env(safe-area-inset-top, 0px); }
+    .pt-safe { padding-top: env(safe-area-inset-top, 0px); }
+    @supports (backdrop-filter: blur(12px)) {
+      .glass-header { backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
+    }
+    
+    .tm-prose p { margin: 0.5rem 0; }
+    .tm-prose p:first-child { margin-top: 0; }
+    .tm-prose p:last-child { margin-bottom: 0; }
+    .tm-prose a { color: #818cf8; text-decoration: underline; text-underline-offset: 2px; }
+    .tm-prose a:hover { color: #a5b4fc; }
+    .tm-prose code { font-family: 'JetBrains Mono', 'Fira Code', Menlo, Monaco, 'Courier New', monospace; font-size: 0.82em; color: #fbbf24; background: #0c121e; border: 1px solid #243046; border-radius: 0.25rem; padding: 0.05rem 0.3rem; }
+    .tm-prose pre { background: #0c121e; border: 1px solid #243046; border-radius: 0.5rem; padding: 0.75rem; overflow-x: auto; margin: 0.5rem 0; }
+    .tm-prose pre code { background: transparent; border: none; padding: 0; color: #e2e8f0; }
+    .tm-prose ul, .tm-prose ol { padding-left: 1.25rem; margin: 0.5rem 0; }
+    .tm-prose ul { list-style: disc; }
+    .tm-prose ol { list-style: decimal; }
+    .tm-prose li { margin: 0.2rem 0; }
+    .tm-prose blockquote { border-left: 3px solid #6366f1; background: rgba(17, 24, 39, 0.6); padding: 0.5rem 0.75rem; border-radius: 0 0.5rem 0.5rem 0; color: #94a3b8; margin: 0.5rem 0; }
+    .tm-prose h1, .tm-prose h2, .tm-prose h3, .tm-prose h4, .tm-prose h5 { color: #ffffff; font-weight: 700; margin: 0.75rem 0 0.25rem; }
+    .tm-prose h1 { font-size: 1.25rem; }
+    .tm-prose h2 { font-size: 1.125rem; }
+    .tm-prose h3 { font-size: 1rem; }
+    .tm-prose h4 { font-size: 0.875rem; }
+    .tm-prose table { width: 100%; border-collapse: collapse; margin: 0.5rem 0; }
+    .tm-prose th, .tm-prose td { border: 1px solid #243046; padding: 0.4rem 0.6rem; text-align: left; }
+    .tm-prose thead th { background: #0b0f19; color: #e2e8f0; font-size: 0.75rem; text-transform: uppercase; }
+    .tm-prose strong { color: #ffffff; }
+  </style>
+
+</head>
+<body class="bg-[#080C15] text-slate-200 font-sans antialiased min-h-screen pb-24 selection:bg-indigo-500/30 selection:text-indigo-200">
+
+<header class="sticky top-0 z-40 w-full glass-header bg-[#0B0F19]/90 border-b border-surface-border">
+<div class="h-safe-top pt-safe"></div>
+<div class="px-4 py-2.5 flex items-center justify-between gap-3">
+<div class="flex items-center gap-2.5 min-w-0">
+
+<div class="flex flex-col min-w-0">
+<div class="flex items-center gap-1.5 truncate">
+<span class="font-mono text-xs font-semibold text-indigo-400 truncate tracking-tight"><a class="text-indigo-400 hover:text-indigo-300 hover:underline" href="../../index.html">trading-model</a></span>
+
+</div>
+<span class="text-[10px] text-slate-400 flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> TypeDoc API Reference
+</span>
+</div>
+</div>
+
+</div>
+</header>
+
+<main class="px-4 py-4 max-w-2xl mx-auto flex flex-col gap-6">
+
+<section class="space-y-2.5" data-purpose="breadcrumbs-and-header">
+<nav aria-label="Breadcrumb" class="flex items-center flex-wrap gap-1 text-[11px] font-mono text-slate-400">
+<a class="text-indigo-400 hover:underline" href="../../index.html">trading-model</a><span class="text-slate-600">/</span><span class="text-slate-300 font-medium">ADR-0023: Discovery Registry Shared Through Redis</span>
+</nav>
+<div class="flex items-center gap-2.5 pt-1">
+<span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-mono font-medium tracking-wide uppercase bg-indigo-500/10 text-indigo-400 border-indigo-500/20">
+Documentation
+</span>
+<h1 class="text-2xl font-bold tracking-tight text-white font-sans">ADR-0023: Discovery Registry Shared Through Redis</h1>
+</div>
+
+</section>
+
+<div class="tm-prose text-sm leading-relaxed text-slate-300 font-sans"><div>
+<p><strong>Status:</strong> Accepted
+<strong>Date:</strong> 2026-10
+<strong>Related:</strong> <a href="0012-dead-code-removal-and-entrypoint-fix.html">ADR-0012</a> (removed the never-wired Redis &quot;cached registry&quot;), <a href="0019-message-broker-as-built.html">ADR-0019</a> (message-manager subscriptions in Redis), <a href="0020-database-topology-as-deployed.html">ADR-0020</a>
+<strong>Verified by:</strong> <code>services/discovery-server/tests/unit/discovery-app.spec.ts</code>, <code>services/discovery-server/tests/db/redis-instance-store.db.spec.ts</code>, <code>services/discovery-server/tests/unit/redis-token-store.spec.ts</code>, <code>services/discovery-server/tests/unit/instance-metadata-reader.spec.ts</code>, <code>services/discovery-server/tests/unit/service-registry.spec.ts</code></p>
+<h2>Context</h2>
+<p>The 13.09 audit asked (Décision 2) whether the discovery registry stays in memory, as it then ran, or moves to Redis, as documented but not wired. The answer chosen: wire Redis, so that discovery survives restarts and runs as several replicas (production: 3, HPA 3–10).</p>
+<p>What the code did, in order:</p>
+<table>
+<thead>
+<tr>
+<th>Date</th>
+<th>Commit</th>
+<th>Registry</th>
+<th>Instance tokens</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2026-09-13 (audit)</td>
+<td><code>9348ffe4</code></td>
+<td>in memory (<code>new ServiceRegistry()</code>); <code>RedisInstanceStore</code> and the &quot;cached registry&quot; unused</td>
+<td>in memory, random secret</td>
+</tr>
+<tr>
+<td>2026-09-15</td>
+<td><code>1f0990ec</code></td>
+<td><code>RedisInstanceStore</code> when <code>REDIS_URL</code> is set</td>
+<td>still a <code>Map</code> per process</td>
+</tr>
+<tr>
+<td>2026-10-12</td>
+<td><code>728fe448</code> (ADR-0012)</td>
+<td>cached registry, cache orchestrator, pub/sub invalidator deleted</td>
+<td>unchanged</td>
+</tr>
+<tr>
+<td>2026-10-22 →</td>
+<td><code>031a53bb</code>, <code>69fdd599</code>, then this ADR</td>
+<td><code>createDiscoveryApp</code>, Sentinel or <code>REDIS_URL</code></td>
+<td><code>RedisTokenStore</code>; <code>SIGNING_SECRET</code> mandatory in production</td>
+</tr>
+</tbody>
+</table>
+<p>Between 09-15 and the token store, a heartbeat that reached another replica than the one that registered the instance was rejected (401) and the instance re-registered: several replicas did not work.</p>
+<p>The audit finding A6 (<code>KEYS</code> on the keyspace, full cache refresh on every heartbeat) targeted the cached registry, which never ran and is gone. <code>KEYS</code> remained in <code>listServiceNames</code> (lease cleanup cycle, registration, <code>GET /services</code>).</p>
+<h2>Decision</h2>
+<ol>
+<li><strong>The registry is in Redis whenever Redis is configured</strong> (<code>REDIS_SENTINELS</code>, else <code>REDIS_URL</code>, parsed by <code>redisConnectionFromEnv</code>): instance set per service, metadata and token per instance under <code>trading-model:discovery:*</code>. Every replica reads and writes the same state; any replica accepts any heartbeat. Without Redis, the in-memory store is used: a single replica only (local development, tests).</li>
+<li><strong>Tokens are signed with a shared <code>SIGNING_SECRET</code></strong>; discovery refuses to start in production without it.</li>
+<li><strong>No keyspace scan.</strong> Service names form a closed set (<code>ALL_SERVICE_NAMES</code>): <code>listServiceNames</code> reads one <code>SCARD</code> per known name.</li>
+<li><strong>Heartbeat cost</strong>: token <code>GET</code>, <code>SISMEMBER</code>, metadata <code>GET</code>, one Lua script that writes only while the instance is still registered (so a heartbeat racing the cleaner cannot resurrect it). No cache refresh.</li>
+<li><strong>Gauges are recomputed by every replica</strong> at the end of each lease cleanup cycle (<code>syncRegisteredInstanceMetrics</code>), for every known service, 0 included. A replica that only counted the registrations it handled would keep a stale value and hide a drop from <code>InstanceCountLow</code> (<code>max by (service)</code>).</li>
+<li><strong>Redis persistence per environment</strong>: K8s staging and production run the <code>redis</code> StatefulSet with AOF and snapshots (<code>deploy/k8s/infra/redis.yaml</code>); compose keeps snapshots and an AOF switch, <code>REDIS_APPENDONLY</code> (default <code>no</code> for development, <code>yes</code> on a compose host that runs staging or production). <code>scripts/restore.sh</code> rebuilds the AOF from the restored snapshot when it is on. Redis content stays derived state (BACKUP_DR): instances register again after a 401.</li>
+</ol>
+<h2>Consequences</h2>
+<h3>Positive</h3>
+<ul>
+<li>A discovery restart, rolling update or scale-out keeps every registration and token.</li>
+<li>The registry survives a Redis master failover (Sentinel), within AOF durability.</li>
+<li>No <code>KEYS</code>: the cost does not grow with the rest of the keyspace (message-manager subscriptions, dlq-service queue share the same Redis).</li>
+</ul>
+<h3>Negative</h3>
+<ul>
+<li>Discovery depends on Redis HA: while Redis is unreachable, registrations and heartbeats fail (readiness reports it).</li>
+<li>A new service name must be added to <code>ServiceInstanceName</code>; names added only with <code>registerServiceName</code> (tests) are not listed.</li>
+</ul>
+<h3>Open</h3>
+<ul>
+<li>Several replicas are never exercised in CI: staging and kind force 1 replica; <code>verify_replicas</code> in <code>tests/k8s/run-kind.sh</code> is written but has not run green.</li>
+<li>No pod anti-affinity on <code>discovery-server</code> (audit A16): the 3 replicas may share a node.</li>
+</ul>
+</div></div>
+</main>
+</body>
+</html>

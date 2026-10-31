@@ -115,7 +115,8 @@ Documentation
 <div class="tm-prose text-sm leading-relaxed text-slate-300 font-sans"><div>
 <p><strong>Status:</strong> Accepted
 <strong>Date:</strong> 2026-09
-<strong>Supersedes:</strong> <a href="0005-mtls-security.html">ADR-0005</a> (issuance &amp; identity model), <a href="0009-certificate-utils-structure.html">ADR-0009</a> (custom certificate format)</p>
+<strong>Supersedes:</strong> <a href="0005-mtls-security.html">ADR-0005</a> (issuance &amp; identity model), <a href="0009-certificate-utils-structure.html">ADR-0009</a> (custom certificate format)
+<strong>Verified by:</strong> <code>tests/e2e/security.e2e.spec.ts</code>, <code>tests/k8s/run-kind.sh</code></p>
 <h2>Context</h2>
 <p>ADR-0005 established mutual TLS backed by an in-house <code>certificate-authority</code> service. In practice the model drifted from the intent:</p>
 <ul>

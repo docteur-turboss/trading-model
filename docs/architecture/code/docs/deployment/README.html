@@ -115,7 +115,7 @@ Documentation
 <div class="tm-prose text-sm leading-relaxed text-slate-300 font-sans"><div>
 <blockquote>
 <p>Table of contents for all deployment procedures, standards, and configurations
-related to the trading-model monorepo (8 microservices + infrastructure).</p>
+related to the trading-model monorepo (7 microservices + infrastructure).</p>
 </blockquote>
 <hr>
 <h2>Table of Contents</h2>
@@ -160,6 +160,10 @@ related to the trading-model monorepo (8 microservices + infrastructure).</p>
 <td>Automated backups (MongoDB, MySQL, Redis, CA keys), restore, DR plan, verification CI</td>
 </tr>
 <tr>
+<td><a href="ENCRYPTION_AT_REST.html">Encryption at Rest</a></td>
+<td>LUKS2 data disks unlocked by Clevis/Tang or TPM2 (self-hosted), age-encrypted backups</td>
+</tr>
+<tr>
 <td><a href="MULTI_REGION.html">Multi-Region Deployment</a></td>
 <td>Redis-backed distributed registry, region-aware routing, cross-region failover</td>
 </tr>
@@ -188,7 +192,7 @@ related to the trading-model monorepo (8 microservices + infrastructure).</p>
                          ▼
               ┌──────────────────────────────────────┐
               │  CD (release.yml)                    │
-              │  quality → docker (8 images)          │
+              │  quality → docker (7 images)          │
               │  → docs (GitHub Pages)               │
               │  → GitHub Release                    │
               └──────────┬───────────────────────────┘

@@ -166,7 +166,7 @@ Documentation
 <td><strong>CCPA</strong> (California)</td>
 <td>Consumer privacy</td>
 <td>❌ No</td>
-<td>No California residents' data processed. Zero personal data architecture</td>
+<td>No consumer data processed; only truncated caller IPs in API access logs</td>
 </tr>
 <tr>
 <td><strong>LGPD</strong> (Brazil)</td>
@@ -197,13 +197,13 @@ Documentation
 <tr>
 <td><strong>Art. 5(1)(c)</strong></td>
 <td>Data minimisation</td>
-<td>Zero personal data architecture — machine-generated data only</td>
+<td>Machine-generated data only, except caller IPs truncated by the edge-proxy before logging (31 days)</td>
 <td><a href="dpia.html">DPIA</a> §2</td>
 </tr>
 <tr>
 <td><strong>Art. 5(1)(e)</strong></td>
 <td>Storage limitation</td>
-<td>TTL-based retention policies across all data stores</td>
+<td>TTL-based retention on MongoDB, Loki, Prometheus and backups; MySQL market data not bounded yet (DPIA action #2)</td>
 <td><a href="data-retention-policy.html">Data Retention Policy</a></td>
 </tr>
 <tr>
@@ -215,13 +215,13 @@ Documentation
 <tr>
 <td><strong>Art. 25</strong></td>
 <td>Data protection by design and by default</td>
-<td>mTLS, encryption at rest, log redaction, append-only audit</td>
+<td>mTLS, encryption at rest, log redaction (including context sanitization), append-only audit</td>
 <td><a href="dpia.html">DPIA</a> §4</td>
 </tr>
 <tr>
 <td><strong>Art. 30</strong></td>
 <td>Register of processing activities</td>
-<td>5 activities documented with full metadata</td>
+<td>Controller section + 7 activities (one with personal data: API access logs)</td>
 <td><a href="data-processing-register.html">Data Processing Register</a></td>
 </tr>
 <tr>
@@ -374,7 +374,7 @@ Documentation
 <tr>
 <td><strong>Art. 24-26</strong></td>
 <td>Oversight framework for critical third parties</td>
-<td>Binance API assessed as non-critical data source</td>
+<td>Binance API assessed as non-critical data source; its availability from the EU after Binance's MiCA exit is tracked in <a href="../adr/0026-binance-public-market-data-kept.html">ADR-0026</a></td>
 </tr>
 </tbody>
 </table>
@@ -404,7 +404,7 @@ Documentation
 <tr>
 <td>Data Retention Policy</td>
 <td><code>docs/compliance/data-retention-policy.md</code></td>
-<td>GDPR Art. 5, MiFID II 72</td>
+<td>GDPR Art. 5, MiFID II Art. 16(6) / Del. Reg. 2017/565 Art. 72</td>
 <td>Platform Security Lead</td>
 </tr>
 <tr>

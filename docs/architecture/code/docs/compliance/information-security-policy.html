@@ -121,8 +121,8 @@ Documentation
 <strong>Framework alignment:</strong> ISO/IEC 27001:2022, NIST CSF</p>
 </blockquote>
 <h2>1. Policy Statement</h2>
-<p>The trading-model platform processes machine-generated financial market data and operates a zero-personal-data architecture. This Information Security Policy defines the principles, controls, and responsibilities for protecting the confidentiality, integrity, and availability of all platform assets.</p>
-<p><strong>Scope:</strong> All 8 microservices, 6 shared packages, infrastructure (Docker, Kubernetes, databases), CI/CD pipelines, and supporting observability stack.</p>
+<p>The trading-model platform processes machine-generated financial market data and operates a zero-personal-data architecture. IP addresses are transiently read for access control and anonymized before logging; log context fields are sanitized of sensitive keys before persistence. This Information Security Policy defines the principles, controls, and responsibilities for protecting the confidentiality, integrity, and availability of all platform assets.</p>
+<p><strong>Scope:</strong> All 7 microservices, 12 shared packages, infrastructure (Docker, Kubernetes, databases), CI/CD pipelines, and supporting observability stack.</p>
 <h2>2. Information Security Objectives</h2>
 <table>
 <thead>
@@ -218,7 +218,7 @@ Documentation
 <tr>
 <td><strong>High</strong></td>
 <td>Compromise would impact service availability or data integrity</td>
-<td>SVIDs / trust bundle, Redis Stream data, MongoDB audit logs</td>
+<td>SVIDs / trust bundle, Redis subscription data, MongoDB audit logs</td>
 </tr>
 <tr>
 <td><strong>Medium</strong></td>
@@ -294,7 +294,7 @@ Documentation
 <p>The platform is deployed as a containerised microservice architecture. Physical security is the responsibility of the hosting provider (cloud / bare-metal). The platform ensures:</p>
 <ul>
 <li>No sensitive data written to persistent host volumes (except the SPIRE datastore)</li>
-<li>All database data encrypted at rest via storage-layer encryption</li>
+<li>All database data encrypted at rest via storage-layer encryption: LUKS2 data disks unlocked by Clevis/Tang (<code>deploy/host/</code>), backups encrypted with age (see <a href="../deployment/ENCRYPTION_AT_REST.html">Encryption at Rest</a>)</li>
 <li>Secrets never exposed in environment variables in plaintext (SealedSecrets)</li>
 </ul>
 <h2>8. Operations Security</h2>
@@ -316,7 +316,7 @@ Documentation
 <tr>
 <td>Audit events</td>
 <td>MongoDB (audit-logger)</td>
-<td>90 days → target 5 years</td>
+<td>1827 days (5 years)</td>
 </tr>
 <tr>
 <td>Service metrics</td>
@@ -331,7 +331,7 @@ Documentation
 <tr>
 <td>SVID lifecycle events</td>
 <td>SPIRE + audit-logger</td>
-<td>90 days</td>
+<td>1827 days (5 years)</td>
 </tr>
 </tbody>
 </table>
@@ -341,6 +341,7 @@ Documentation
 <li><strong>Pino redact paths</strong> — 16+ patterns for known sensitive fields</li>
 <li><strong>JSON stringifier regex</strong> — 15+ patterns for credential-like strings</li>
 <li><strong>PEM sanitizer</strong> — Strips certificate private keys from log output</li>
+<li><strong>Context key sanitization</strong> — Sensitive keys (IP, password, token, etc.) redacted in context objects before MongoDB write</li>
 </ol>
 <p>Implementation: <code>@trading-model/http/infrastructure/logger.ts</code></p>
 <h2>9. Communications Security</h2>
@@ -354,11 +355,11 @@ Documentation
 <tbody>
 <tr>
 <td><strong>Network segmentation</strong></td>
-<td>Docker Compose networks (frontend, backend, db, monitoring). K8s Network Policies</td>
+<td>Docker Compose networks (<code>backend-net</code>, internal <code>data-net</code>). K8s Network Policies</td>
 </tr>
 <tr>
 <td><strong>mTLS enforcement</strong></td>
-<td>TLS 1.3 mandatory. <code>ENFORCE_MTLS_STRICT</code> feature flag enables mutual authentication</td>
+<td>TLS 1.3 mutual authentication mandatory. <code>ENFORCE_MTLS_STRICT</code> enables ACL enforcement on attested SVID identities</td>
 </tr>
 <tr>
 <td><strong>Service mesh</strong></td>
@@ -426,7 +427,7 @@ Documentation
 <h2>13. Compliance</h2>
 <p>The platform is designed to comply with:</p>
 <ul>
-<li><strong>GDPR</strong> — Zero personal data architecture (see <a href="dpia.html">DPIA</a>)</li>
+<li><strong>GDPR</strong> — Zero personal data architecture; IP anonymization + context sanitization (see <a href="dpia.html">DPIA</a>)</li>
 <li><strong>MiFID II</strong> — Record-keeping Art. 72 (see <a href="algorithmic-trading-compliance.html">Algorithmic Trading Compliance</a>)</li>
 <li><strong>MAR</strong> — Market abuse prevention Art. 16</li>
 <li><strong>DORA</strong> — Digital operational resilience (see <a href="compliance-framework.html">Compliance Framework</a>)</li>

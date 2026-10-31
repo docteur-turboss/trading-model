@@ -183,8 +183,11 @@ kubectl exec -n trading-model mongo-dlq-0 -- mongosh --quiet --eval &quot;rs.add
 <p><strong>Alert:</strong> Multiple services showing degraded performance<br>
 <strong>Severity:</strong> SEV1-SEV2</p>
 <h3>Symptom Check</h3>
-<pre><code class="language-bash"># Check Redis primary
-kubectl exec -n trading-model redis-primary-0 -- redis-cli ping
+<pre><code class="language-bash"># Any pod of the Redis HA group can be master: find the current one
+REDIS_MASTER=$(for p in redis-0 redis-1 redis-2; do
+  [ &quot;$(kubectl exec -n trading-model &quot;$p&quot; -- redis-cli --raw ROLE | head -n 1)&quot; = master ] &amp;&amp; echo &quot;$p&quot;
+done)
+kubectl exec -n trading-model &quot;$REDIS_MASTER&quot; -- redis-cli ping
 
 # Check sentinel status
 kubectl exec -n trading-model redis-sentinel-0 -- redis-cli -p 26379 sentinel masters
@@ -197,7 +200,7 @@ kubectl exec -n trading-model redis-sentinel-0 -- redis-cli -p 26379 sentinel fa
 <h3>Full Redis data loss</h3>
 <p>Redis will rebuild from AOF/RDB on restart. If persistence is corrupted:</p>
 <ol>
-<li>Clear Redis data:<pre><code class="language-bash">kubectl exec -n trading-model redis-primary-0 -- redis-cli FLUSHALL
+<li>Clear Redis data:<pre><code class="language-bash">kubectl exec -n trading-model &quot;$REDIS_MASTER&quot; -- redis-cli FLUSHALL
 </code></pre>
 </li>
 <li>Services will reconnect and rebuild cache</li>

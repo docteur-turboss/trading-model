@@ -133,7 +133,7 @@ Documentation
 <p><strong>New to GA concepts?</strong> See <a href="../../docs/concepts/genetic-algorithm.html">Genetic Algorithm — Concepts</a> for an explanation of NSGA-II, Pareto fronts, selection strategies, and evolutionary operators before reading this implementation reference.</p>
 </blockquote>
 <h2>Overview</h2>
-<p>This document describes the GA module (<code>src/core/genetic-algorithm/</code>) implementation. It covers the TypeScript API, module structure, code conventions, and configuration defaults.</p>
+<p>This document describes the GA module (<code>src/domain/genetic-algorithm/</code>) implementation. It covers the TypeScript API, module structure, code conventions, and configuration defaults.</p>
 <hr>
 <h2>Genome Structure</h2>
 <p>A <code>LamarckGenome</code> contains everything needed to create and train a trading agent:</p>
@@ -183,7 +183,7 @@ Documentation
 </tbody>
 </table>
 <h3>RLGenome</h3>
-<p>Controls Q-learning behavior:</p>
+<p>Controls Q-learning behavior. Every field is evolved by the GA (mutation when <code>mutation.mutateHyperparams</code>, crossover always; switches flip with a 5 % chance per mutation) and every field changes what the agent learns (<code>dqn-learning.spec.ts</code>, ADR-0025):</p>
 <table>
 <thead>
 <tr>
@@ -194,38 +194,41 @@ Documentation
 </thead>
 <tbody>
 <tr>
+<td>(scalars)</td>
+<td>gamma, learningRate</td>
+<td>Discount, network learning rate</td>
+</tr>
+<tr>
 <td><code>rewardShaping</code></td>
 <td>clip, scale, normalize, sparse</td>
-<td>Reward preprocessing</td>
+<td>What the agent learns from its wallet PnL</td>
 </tr>
 <tr>
 <td><code>horizon</code></td>
 <td>maxEpisodeLength, nStepReturn, frameSkip</td>
-<td>Episode structure</td>
+<td>Training horizon, n-step return, decision period</td>
 </tr>
 <tr>
 <td><code>discretePolicy</code></td>
 <td>epsilonStart, epsilonMin, epsilonDecay</td>
-<td>Exploration schedule</td>
-</tr>
-<tr>
-<td><code>continuousPolicy</code></td>
-<td>noiseStd, noiseDecay</td>
-<td>Continuous action noise</td>
+<td>Epsilon-greedy exploration (training only)</td>
 </tr>
 <tr>
 <td><code>replayBuffer</code></td>
-<td>bufferSize, prioritized, alphaPER, betaPER</td>
-<td>Experience replay</td>
+<td>bufferSize, batchSize, prioritized, alphaPER, betaPER, betaAnneal</td>
+<td>Experience replay (minibatch, PER)</td>
 </tr>
 </tbody>
 </table>
+<p>The agent picks among three discrete actions (sell / hold / buy): Q-learning cannot learn a continuous policy, so the genome has no continuous-policy genes.</p>
 <h3>Default Configuration</h3>
 <p>Defined in <code>factory.ts</code>. Key defaults:</p>
 <ul>
 <li>2 hidden layers: [64, 32] with ReLU activation</li>
+<li>Input: 33 = 32 market features + the agent's exposure (<code>NETWORK_INPUT_LAYOUT</code>)</li>
+<li>Q-learning: gamma=0.9, learning rate 1e-3, 1-step return</li>
 <li>Epsilon-greedy: start=1.0, min=0.05, decay=0.995</li>
-<li>Replay buffer: 10,000 experiences</li>
+<li>Replay buffer: 10,000 experiences, minibatch of 8</li>
 <li>Population: 20 individuals, 50 max generations</li>
 <li>Mutation rate: 0.1, sigma: 0.05</li>
 </ul>
@@ -235,11 +238,10 @@ Documentation
 <h3>1. Evaluation Phase (<code>evaluateGenomeAllWindows</code>)</h3>
 <p>For each genome in the population:</p>
 <ol>
-<li><strong>Shadow pass</strong>: Create a temporary backend, run through training data to pre-compute rewards</li>
-<li><strong>Training pass</strong>: Create a fresh backend, run Q-learning using pre-computed rewards with n-step TD targets</li>
+<li><strong>Training pass</strong>: Create a backend, play the training data once; each decision is stored with the wallet PnL it earned until the next decision (n-step return, shaped by the genome) and a minibatch is replayed after each store</li>
 <li><strong>Lamarckian update</strong>: Extract trained weights, freeze them into the genome</li>
-<li><strong>Validation pass</strong>: Create a fresh backend with Lamarckian weights, evaluate on held-out validation data</li>
-<li><strong>Scoring</strong>: Compute fitness from episode returns, apply complexity penalty</li>
+<li><strong>Validation pass</strong>: Create a fresh backend with Lamarckian weights, evaluate on held-out validation data at a fixed epsilon of 0.05</li>
+<li><strong>Scoring</strong>: Compute fitness from the wallet PnL (<code>TRAINER_FITNESS_TYPE</code>), apply complexity penalty</li>
 </ol>
 <p>All genomes are evaluated in parallel using a bounded thread pool (<code>pooledEval</code>).</p>
 <h3>2. NSGA-II Sorting</h3>
@@ -419,44 +421,46 @@ Documentation
 </tbody>
 </table>
 <hr>
-<h2>Fitness Computation (<code>fitness.ts</code>)</h2>
+<h2>Fitness Computation (<code>evaluation-utils.ts</code>, ADR-0025)</h2>
+<p>Fitness reads the <strong>wallet PnL</strong> of the validation pass, never the shaped reward. <code>computeFitness(type, pnl)</code> takes the final PnL of each episode and the PnL change of every validation bar (the curve). The type is the run setting <code>TRAINER_FITNESS_TYPE</code> (default <code>total_pnl</code>), copied into every genome's <code>gaControl.fitnessType</code> and never mutated.</p>
 <table>
 <thead>
 <tr>
 <th>Type</th>
-<th>Formula</th>
+<th>Formula (on)</th>
 <th>When to use</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td><code>total_pnl</code></td>
-<td><code>mean(rewards)</code></td>
+<td><code>mean(episode PnL)</code></td>
 <td>Simple profit maximization</td>
 </tr>
 <tr>
 <td><code>sharpe</code></td>
-<td><code>mean / std</code></td>
+<td><code>mean / std</code> (bar curve)</td>
 <td>Risk-adjusted returns</td>
 </tr>
 <tr>
 <td><code>sortino</code></td>
-<td><code>mean / downside_std</code></td>
+<td><code>mean / downside deviation</code> (bar curve)</td>
 <td>Downside-risk focus</td>
 </tr>
 <tr>
 <td><code>calmar</code></td>
-<td><code>mean / max_drawdown</code></td>
+<td><code>mean / max drawdown</code> (bar curve)</td>
 <td>Drawdown-averse</td>
 </tr>
 <tr>
 <td><code>composite</code></td>
-<td><code>0.4·pnl + 0.3·sharpe + 0.3·sortino</code></td>
+<td><code>0.4·mean + 0.3·sharpe + 0.3·sortino</code> (curve)</td>
 <td>Balanced</td>
 </tr>
 </tbody>
 </table>
-<p><strong>Final fitness</strong> applies a complexity penalty: <code>adjusted = fitness * (1 - 0.15 * complexity_penalty)</code></p>
+<p><strong>Final fitness</strong> applies a complexity penalty: <code>adjusted = fitness - |fitness| * 0.15 * complexity_penalty</code> (lower whatever the sign). A failed evaluation scores <code>-1e9</code>.</p>
+<p>The scalar fitness drives parent selection, stagnation, the reward threshold and the published genome: the Pareto-front member with the highest fitness (<code>ParetoArchive.best()</code>). NSGA-II keeps ranking on the objectives <code>avgPnl</code> (mean episode PnL), <code>sharpe</code> (bar curve) and <code>negFlops</code>.</p>
 <hr>
 <h2>Vector Encoding (<code>encoding.ts</code>)</h2>
 <p>Genomes can be encoded as fixed-length <code>Float32Array</code> vectors for use with CMA-ES or vectorized GA implementations:</p>
@@ -481,8 +485,10 @@ import { selectParent } from './selection';
 // Evaluation
 import { evaluateGenomeAllWindows, pooledEval } from './evaluation-pipeline';
 
-// Fitness
-import { computeFitness, shapeReward } from './fitness';
+// Fitness and reward shaping
+import { computeFitness } from './evaluation-utils';
+import { RewardShaper } from './reward-shaping';
+import { trainPhase } from './training-phase';
 
 // Multi-objective
 import { ParetoArchive, dominates } from './pareto-engine';

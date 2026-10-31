@@ -1,6 +1,6 @@
 # Quick Start — Your First Trading Platform Interaction
 
-> **Goal:** Go from zero to publishing a message and viewing audit events in 10 minutes.
+> **Goal:** Go from zero to market data flowing through the bus and viewing its audit events in 10 minutes.
 
 ## Prerequisites
 
@@ -27,69 +27,50 @@ docker compose up -d redis mysql mongo
 docker compose up -d discovery-server message-manager
 
 # Verify they're healthy
-curl -sk https://localhost:8443/ping
-# → {"status":"ok"}
+# Services only accept mTLS clients with a SPIRE identity: check the
+# container health (its healthcheck pings with the container's SVID)
+docker inspect --format '{{.State.Health.Status}}' trading-discovery
+# → healthy
 ```
 
 ## Step 2: Start the API Gateway
 
-The gateway is the single entry point for all external requests:
+The gateway is the single entry point for all external requests. It only accepts mTLS clients with a SPIRE identity, so the host reaches it through the `edge-proxy` (plain HTTP on port 8449, `/v1` forwarded to the gateway):
 
 ```bash
-docker compose up -d api-gateway
+docker compose up -d api-gateway edge-proxy
 
 # Verify
-curl -sk https://localhost:8448/ping
-# → {"status":"ok","service":"api-gateway"}
+curl -s http://localhost:8449/ping
+# → {"status":"ok"}
 ```
 
 ## Step 3: See the Service Registry
 
-Set your admin token (from `.env` file — look for `AUTH_TOKENS` or `ADMIN_TOKEN`):
+Set your admin token (one of the `GATEWAY_AUTH_TOKENS` values in your `.env` file):
 
 ```bash
-export ADMIN_TOKEN="change-me-in-production"  # Use your .env value
+export ADMIN_TOKEN="change-me-to-a-long-random-key"  # Use your .env value
 ```
 
 ```bash
 # List registered services (via gateway proxy)
-curl -sk https://localhost:8448/v1/discovery/services \
+curl -s http://localhost:8449/v1/discovery-server/services \
   -H "x-api-key: $ADMIN_TOKEN"
 ```
 
 You should see `discovery-server` and `message-manager` listed.
 
-## Step 4: Publish a Message
+## Step 4: Let the Scraper Publish Market Data
+
+Messages are published by the services themselves: the gateway only exposes the
+public API (`docs/services/openapi/api-gateway.yaml`), not service-to-service
+routes such as message-manager `POST /message`. Start the scraper, which
+publishes the market data it collects every `SCRAPE_INTERVAL` (one minute by
+default):
 
 ```bash
-# Publish a market data event
-curl -sk https://localhost:8448/v1/broker/message \
-  -H "x-api-key: $ADMIN_TOKEN" \
-  -H 'Content-Type: application/json' \
-  -d '{
-    "targetService": "audit-logger",
-    "payload": {
-      "symbol": "BTCUSDT",
-      "price": 50000.0,
-      "volume": 12.5
-    },
-    "deliveryMode": "at-most-once",
-    "metadata": {
-      "topic": "market.trade.recent.fetch",
-      "eventType": "market.trade.recent.fetch",
-      "schemaVersion": "1.0.0",
-      "publisher": {
-        "serviceName": "quickstart-demo",
-        "instanceId": "demo-001"
-      },
-      "delivery": {
-        "mode": "at-most-once",
-        "ttl": 60000
-      }
-    }
-  }'
-
-# → 204 No Content
+docker compose up -d financial-scraper
 ```
 
 ## Step 5: View Audit Events
@@ -103,20 +84,13 @@ docker compose up -d audit-logger
 Then query the events:
 
 ```bash
-curl -sk https://localhost:8448/v1/audit/events?limit=5 \
+curl -s http://localhost:8449/v1/audit-logger/events?limit=5 \
   -H "x-api-key: $ADMIN_TOKEN"
 ```
 
-You should see your published message recorded as an audit event.
+You should see the scraper's market data events recorded in the audit trail.
 
-## Step 6: Start the Admin Dashboard
-
-```bash
-# Start the React SPA
-bun run --filter admin-interface dev
-```
-
-Open `http://localhost:5173` in your browser. Navigate to **Services** to see the service registry, or **Audit Events** to see your published message.
+> There is no admin dashboard for now ([ADR-0018](../adr/0018-temporary-frontend-removal.md)): the gateway API above is how you inspect the registry, audit events and the DLQ.
 
 ## Next Steps
 

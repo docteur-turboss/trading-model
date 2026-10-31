@@ -148,7 +148,7 @@ kubectl rollout status -n trading-model deployment/&lt;service-name&gt;
 <p>If multiple services were deployed together:</p>
 <pre><code class="language-bash"># Revert to previous known-good image tags
 for service in discovery-server message-manager financial-scraper trader-trainer \
-               api-gateway audit-logger dlq-service admin-interface; do
+               api-gateway audit-logger dlq-service; do
   kubectl set image -n trading-model deployment/$service $service=ghcr.io/trading-model/$service:&lt;previous-stable-tag&gt;
 done
 

@@ -114,19 +114,18 @@ Documentation
 
 <div class="tm-prose text-sm leading-relaxed text-slate-300 font-sans"><div>
 <blockquote>
-<p><strong>Performed:</strong> 2026-06<br>
-<strong>Assessment scope:</strong> trading-model platform (all 8 services, 8 packages)<br>
+<p><strong>Performed:</strong> 2026-06 (revised 2026-10 after audit 13.09)<br>
+<strong>Assessment scope:</strong> trading-model platform (all 7 services, 12 packages)<br>
 <strong>Methodology:</strong> CNIL PIA framework (Art. 35 GDPR)</p>
 </blockquote>
 <h2>1. System Overview</h2>
-<p>The trading-model platform is a microservices-based algorithmic trading research infrastructure. It ingests market data from Binance, trains machine learning trading agents via genetic algorithms and deep Q-learning, and routes inter-service messages through an internal message bus. It has no human users, no authentication for individuals, and no collection of personal data.</p>
+<p>The trading-model platform is a microservices-based algorithmic trading research infrastructure. It ingests market data from Binance, trains machine learning trading agents via genetic algorithms and deep Q-learning, and routes inter-service messages through an internal message bus. It has no user accounts and no authentication for individuals; its only personal data is the truncated IP of external API callers in the edge-proxy access logs (31 days).</p>
 <p><strong>Key characteristics:</strong></p>
 <ul>
-<li>8 backend microservices (Node.js/TypeScript/Express)</li>
-<li>Event-driven architecture (message-manager on Redis Streams)</li>
+<li>7 backend microservices (Node.js/TypeScript/Express)</li>
+<li>Event-driven architecture (message-manager: HTTP push broker, in-memory dispatch, ADR-0012)</li>
 <li>mTLS via SPIFFE/SPIRE workload identity (ADR-0011)</li>
 <li>Self-hosted databases (MongoDB, MySQL, Redis)</li>
-<li>React SPA admin dashboard (admin-interface)</li>
 </ul>
 <h2>2. Necessity and Proportionality Assessment</h2>
 <table>
@@ -140,8 +139,8 @@ Documentation
 <tbody>
 <tr>
 <td>Is personal data collected?</td>
-<td><strong>No</strong></td>
-<td>All data is machine-generated (market prices, service metadata, operational logs). No names, emails, IPs of individuals, device IDs, or any Art. 4(1) identifiers</td>
+<td><strong>Minimal</strong></td>
+<td>Only the caller IP of the public API, truncated by the edge-proxy (IPv4 /24, IPv6 /48) before it is logged or forwarded, kept 31 days in Loki (register activity 6). All other data is machine-generated. No names, emails or device IDs</td>
 </tr>
 <tr>
 <td>Could the system function with less data?</td>
@@ -150,8 +149,8 @@ Documentation
 </tr>
 <tr>
 <td>Are data subjects informed?</td>
-<td>N/A</td>
-<td>No data subjects exist to inform</td>
+<td>Partly</td>
+<td>API callers are operators of the platform; the access-log processing is documented in the register (activity 6)</td>
 </tr>
 <tr>
 <td>Is consent required?</td>
@@ -189,7 +188,7 @@ Documentation
 </tr>
 <tr>
 <td><strong>Mitigations</strong></td>
-<td>Triple-layer log redaction (Pino redact paths × 16 patterns, JSON stringifier regex × 15 patterns, PEM sanitization). Payload sanitizer anti-injection. If PII is ever introduced, these layers redact before persistence</td>
+<td>Edge-proxy access log truncates the caller IP and omits query string, User-Agent and X-Forwarded-For; the gateway drops <code>X-Real-IP</code>. Quadruple-layer log redaction (Pino redact paths × 16 patterns, JSON stringifier regex × 21 patterns including IP/network fields, PEM sanitization, IP anonymization). Payload sanitizer anti-injection. IP addresses are anonymized at source before logging. If PII is ever introduced, these layers redact before persistence</td>
 </tr>
 </tbody>
 </table>
@@ -258,19 +257,19 @@ Documentation
 <tbody>
 <tr>
 <td><strong>Likelihood</strong></td>
-<td>Medium — current TTL is 90 days</td>
+<td>Low — current TTL is 1827 days (5 years)</td>
 </tr>
 <tr>
 <td><strong>Impact</strong></td>
-<td>Medium — financial regulation may require 5-7 years</td>
+<td>Low — financial regulation requires 5 years, currently met</td>
 </tr>
 <tr>
 <td><strong>Severity</strong></td>
-<td>Requires remediation</td>
+<td>Acceptable</td>
 </tr>
 <tr>
 <td><strong>Mitigations</strong></td>
-<td>AUDIT_RETENTION_DAYS configurable. Recommended: extend to 1827 days (5 years) for regulatory compliance (see DPIA action item #1)</td>
+<td>AUDIT_RETENTION_DAYS defaults to 1827 days (5 years) in code. TTL index auto-expires documents. See action item #1 (completed)</td>
 </tr>
 </tbody>
 </table>
@@ -285,9 +284,9 @@ Documentation
 </thead>
 <tbody>
 <tr>
-<td>ZERO PII architecture</td>
+<td>Minimal PII architecture</td>
 <td>✅ Implemented</td>
-<td>No collection, storage, or processing of personal data</td>
+<td>No accounts or profiles. Caller IPs truncated by the edge-proxy before logging and forwarding; application logs truncate IPs; context fields sanitized before MongoDB persistence</td>
 </tr>
 <tr>
 <td>TLS 1.3 mTLS everywhere</td>
@@ -300,9 +299,14 @@ Documentation
 <td>SPIRE datastore, discovery cache, filesystem fallback</td>
 </tr>
 <tr>
+<td>Storage &amp; backup encryption</td>
+<td>✅ Implemented</td>
+<td>LUKS2 data disks unlocked by Clevis/Tang (<code>deploy/host/</code>); every backup age-encrypted before it is written or copied off-site</td>
+</tr>
+<tr>
 <td>Triple-layer log redaction</td>
 <td>✅ Implemented</td>
-<td>Pino + JSON regex + PEM sanitization</td>
+<td>Pino + JSON regex + PEM sanitization + IP anonymization + context key sanitization before persistence</td>
 </tr>
 <tr>
 <td>Append-only audit trail</td>
@@ -311,8 +315,8 @@ Documentation
 </tr>
 <tr>
 <td>Automatic TTL-based retention</td>
-<td>✅ Implemented</td>
-<td>MongoDB indexes (30-90 days), Redis TTL</td>
+<td>⚠️ Partial</td>
+<td>MongoDB TTL indexes (1827 days audit, 30 days DLQ), Loki 31 days, Prometheus 30 days, backups 30 days. MySQL market data not bounded (action #2)</td>
 </tr>
 <tr>
 <td>RBAC service isolation</td>
@@ -339,9 +343,9 @@ Documentation
 <tbody>
 <tr>
 <td>1</td>
-<td>Extend audit trail retention from 90 days to 1827 days (5 years) for financial regulatory compliance</td>
-<td>🔴 High</td>
-<td>By next release</td>
+<td><s>Extend audit trail retention from 90 days to 1827 days (5 years)</s></td>
+<td>✅ Completed</td>
+<td>Done (env.ts default: 1827)</td>
 </tr>
 <tr>
 <td>2</td>
@@ -351,9 +355,9 @@ Documentation
 </tr>
 <tr>
 <td>3</td>
-<td>Configure MongoDB/MySQL encryption at rest</td>
-<td>🟠 Medium</td>
-<td>Q3 2026</td>
+<td><s>Configure MongoDB/MySQL encryption at rest</s> (storage layer: LUKS2 + Clevis/Tang data disks, age-encrypted backups, <a href="../deployment/ENCRYPTION_AT_REST.html">Encryption at Rest</a>)</td>
+<td>✅ Completed</td>
+<td>Done</td>
 </tr>
 <tr>
 <td>4</td>
@@ -366,12 +370,12 @@ Documentation
 <h2>6. Conclusion</h2>
 <p><strong>The trading-model platform does not require prior consultation with a supervisory authority under Art. 36 GDPR</strong>, because:</p>
 <ol>
-<li>No personal data is processed — the system operates in a pure machine-to-machine domain</li>
+<li>The only personal data is a truncated caller IP kept 31 days for security — no large-scale processing, no profiling, no special categories</li>
 <li>The residual risks (secret exposure, data transfer) are mitigated by encryption, rotation, and procedural safeguards</li>
 <li>The DPIA confirms that data protection by design and by default is effectively implemented</li>
 <li>The identified action items (audit retention, MySQL TTL) are operational improvements, not GDPR compliance gaps</li>
 </ol>
-<p><strong>Overall DPIA status:</strong> Compliant — no personal data processing detected, residual risks managed.</p>
+<p><strong>Overall DPIA status:</strong> Compliant — personal data limited to truncated caller IPs (31 days); open item: MySQL market data retention (action #2, not a GDPR item: no personal data).</p>
 </div></div>
 </main>
 </body>

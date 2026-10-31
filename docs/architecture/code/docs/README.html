@@ -221,11 +221,6 @@ Documentation
 <td>External entry point: auth, rate-limit, cache, proxy</td>
 </tr>
 <tr>
-<td><code>admin-interface</code></td>
-<td>8449</td>
-<td>React SPA dashboard</td>
-</tr>
-<tr>
 <td><code>audit-logger</code></td>
 <td>8450</td>
 <td>Immutable event traceability</td>
@@ -235,8 +230,14 @@ Documentation
 <td>8452</td>
 <td>Dead letter queue with auto-retry + replay</td>
 </tr>
+<tr>
+<td><code>edge-proxy</code></td>
+<td>8449</td>
+<td>nginx: external HTTP entry, <code>/v1</code> → api-gateway over mTLS</td>
+</tr>
 </tbody>
 </table>
+<p>There is no frontend for now: the admin SPA was removed until a new one is specified (<a href="adr/0018-temporary-frontend-removal.html">ADR-0018</a>). The platform is operated through the api-gateway API (via <code>edge-proxy</code>), Grafana and <code>kubectl</code> / <code>docker compose</code>.</p>
 <h2>Deployment &amp; Operations</h2>
 <table>
 <thead>
@@ -287,7 +288,7 @@ Documentation
 </tr>
 <tr>
 <td><a href="standards/testing-standards.html">Testing Standards</a></td>
-<td>Jest/Vitest, coverage thresholds, patterns</td>
+<td>Jest, coverage thresholds, patterns</td>
 </tr>
 <tr>
 <td><a href="standards/code-style.html">Code Style</a></td>

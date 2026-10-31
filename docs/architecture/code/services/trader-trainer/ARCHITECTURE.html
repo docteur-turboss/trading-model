@@ -251,102 +251,44 @@ Documentation
 <h2>Directory Structure</h2>
 <pre><code>services/trader-trainer/
 ├── src/
-│ ├── app/
-│ │ ├── index.ts # Service entry point
-│ │ └── server.ts # Express server setup
-│ │
-│ └── core/
-│ ├── agent/
-│ │ ├── trading-agent.ts # Orchestrates NN + Wallet + StateManager
-│ │ ├── trading-agent.spec.ts # Unit tests
-│ │ ├── state-manager.ts # Q-learning state &amp; epsilon-decay
-│ │ ├── state-manager.spec.ts # Unit tests
-│ │ └── auto-env.ts # GA-compatible environment wrapper
-│ │
-│ ├── env/
-│ │ ├── wallet-manager.ts # Simulates trading account
-│ │ └── wallet-manager.spec.ts # Unit tests
-│ │
-│ ├── neural-network/
-│ │ ├── neural-network.ts # Core NN implementation
-│ │ ├── neural-network.spec.ts # Unit tests
-│ │ ├── agent.ts # NN + experience replay wrapper
-│ │ ├── type.ts # Type definitions
-│ │ ├── activation.ts # Activation functions
-│ │ ├── initializers.ts # Weight initialization strategies
-│ │ ├── optimizer.ts # Optimization algorithms (SGD, Adam, etc.)
-│ │ ├── losses.ts # Loss functions (MSE, CE, Huber)
-│ │ ├── normalize.ts # Normalization strategies
-│ │ └── utils.ts # Utilities
-│ │
-│ └── genetic-algorithm/
-│ ├── ga-runner.ts # Main GA evolution loop with NSGA-II, Lamarckian inheritance, and Pareto archiving
-│ ├── genome.ts # Full genome type definitions and validation
-│ ├── validation.ts # Re-exports validation from genome.ts (avoids Feature Envy)
-│ ├── genome-types.ts # Additional genome type aliases
-│ ├── mutation.ts # Adaptive gaussian/levy mutation
-│ ├── crossover.ts # Uniform/BLX-α/SBX crossover
-│ ├── selection.ts # Tournament, roulette, rank-based
-│ ├── evolution-engine.ts # Low-level weight evolution functions
-│ ├── fitness.ts # Sharpe, Sortino, Calmar metrics
-│ ├── evaluation-pipeline.ts # Multi-window evaluation pipeline
-│ ├── complexity-estimator.ts # Complexity penalty &amp; fitness adjustment
-│ ├── pareto-engine.ts # NSGA-II exact and approximate sorting
-│ ├── adaptive-control-system.ts # Self-adaptive GA parameter control
-│ ├── factory.ts # Default genome factory
-│ ├── encoding.ts # Genome encode/decode
-│ ├── diversity.ts # Speciation and novelty search
-│ ├── noise.ts # Noise distributions for mutation
-│ ├── prng.ts # Pseudo-random number generator
-│ ├── utils.ts # Shared utilities (clamp, generateId, etc.)
-│ ├── normalization-stats.ts # Online running mean/std for z-score normalization
-│ └── index.ts # Barrel exports
-│ │
-│ ├── Constraints &amp; Validation:
-│ │ ├── complexity.ts # Topology constraints
-│ │ ├── validation.ts # Genome validation &amp; repair
-│ │ └── adaptive_control_system.ts # Adaptive GA parameters
-│ │
-│ ├── Diversity &amp; Speciation:
-│ │ ├── diversity.ts # Speciation &amp; novelty
-│ │ └── pareto_engine.ts # Multi-objective optimization
-│ │
-│ ├── Genome &amp; Encoding:
-│ │ ├── genome.ts # Genome structure definition
-│ │ ├── genome_types.ts # Type exports
-│ │ ├── encoding.ts # Genome vectorization
-│ │ └── factory.ts # Default genome creation
-│ │
-│ └── Infrastructure:
-│ ├── prng.ts # Seeded random number generator
-│ ├── noise.ts # Gaussian, Levy, Cauchy distributions
-│ ├── utils.ts # Clamp, generateId
-│ └── index.ts # Public API barrel export
-│
-├── docs/ # Technical documentation
-│ ├── API.md
-│ ├── GENETIC_ALGORITHM.md
-│ ├── NEURAL_NETWORK.md
-│ └── TRAINING_PROCESS.md
-│
-├── package.json # Dependencies
-├── tsconfig.json # TypeScript config
-├── jest.config.js # Jest testing config
-├── eslint.config.js # ESLint rules
-├── ARCHITECTURE.md # This file
-└── README.md # User guide
-
+│   ├── domain/                        # Pure computation (no IO, no metrics library)
+│   │   ├── agent/                     # TradingAgent, state manager, action mapping
+│   │   ├── env/                       # Simulated wallet, portfolio valuation, trade execution
+│   │   ├── neural-network/            # NN engine, optimizers, losses, experience replay
+│   │   ├── genetic-algorithm/         # GA engine: ga-runner, generation processor, evaluation
+│   │   │                              # pipeline, evolution engine, NSGA-II, genome operators,
+│   │   │                              # ga-telemetry (observability port)
+│   │   ├── feature-builders/, features/, data-handlers/, market-data/
+│   │   ├── market-data-buffer.ts      # Per-symbol rolling windows (onDataAdded hook)
+│   │   ├── training-settings.ts       # Hyper-parameters resolved by the composition root
+│   │   └── ports/model-publisher.port.ts
+│   ├── application/
+│   │   ├── index.ts                   # Entry point: bootstrap, bus subscriptions, training loop
+│   │   ├── server.ts                  # Express server + admin training routes
+│   │   ├── trainer.ts                 # Training lifecycle per symbol, publication, metrics
+│   │   └── training-session.ts        # One GA run with the injected settings and telemetry
+│   ├── adapters/
+│   │   ├── inbound/events/            # Market-data bus event handlers and processors
+│   │   ├── inbound/scheduler/         # Periodic training loop
+│   │   └── outbound/model-publisher.ts # Publishes trained models on the message bus
+│   ├── infrastructure/config/env.ts   # Zod-validated environment
+│   └── config/
+│       ├── container.ts               # Composition root: buffer, trainer, publisher, Prometheus hooks
+│       ├── metrics.ts, message-manager.ts, address-manager.ts
+├── tests/
+├── Dockerfile
+└── package.json
 </code></pre>
 <hr>
 <h2>Core Modules</h2>
-<h3>1. <strong>app/</strong> - Service Entry Point</h3>
+<h3>1. <strong>application/</strong> - Service Entry Point &amp; Orchestration</h3>
 <ul>
 <li><strong>index.ts</strong>: Initializes the service, binds to port, handles graceful shutdown</li>
 <li><strong>server.ts</strong>: Configures Express with security middleware (Helmet), health checks (/ping)</li>
 </ul>
 <p><strong>Dependencies</strong>: <code>express</code>, <code>helmet</code>, <code>cash-lib</code> (error handling)</p>
 <hr>
-<h3>2. <strong>core/agent/</strong> - Trading Agent Orchestration</h3>
+<h3>2. <strong>domain/agent/</strong> - Trading Agent Orchestration</h3>
 <h4>TradingAgent</h4>
 <p>Combines Neural Network, Wallet, and StateManager into a single unified interface.</p>
 <pre><code class="language-typescript">public step(input: Float32Array, price?: number, done: boolean = false): {
@@ -365,7 +307,8 @@ Documentation
 <li>Network inference</li>
 <li>Wallet state updates</li>
 <li>Reward shaping based on P&amp;L</li>
-<li>Action mapping (discrete or continuous)</li>
+<li>Action mapping (epsilon-greedy over sell / hold / buy)</li>
+<li>Replay buffer and minibatch Q-learning updates (<code>remember</code>, <code>replay</code>)</li>
 </ul>
 <h4>StateManager</h4>
 <p>Manages Q-learning hyperparameters and exploration-exploitation trade-off.</p>
@@ -384,7 +327,7 @@ Documentation
 <h4>AutoEnv</h4>
 <p>Lightweight wrapper enabling GA runners to interface with TradingAgent without tight coupling.</p>
 <hr>
-<h3>3. <strong>core/env/</strong> - Trading Environment</h3>
+<h3>3. <strong>domain/env/</strong> - Trading Environment</h3>
 <h4>WalletManager</h4>
 <p>Simulates a trading account with realistic constraints:</p>
 <pre><code class="language-typescript">interface Wallet {
@@ -410,7 +353,7 @@ Documentation
 Sell: cash += amount * price - fees; position -= amount
 </code></pre>
 <hr>
-<h3>4. <strong>core/neural_network/</strong> - Deep Q-Learning Agent</h3>
+<h3>4. <strong>domain/neural-network/</strong> - Deep Q-Learning Agent</h3>
 <h4>NeuralNetwork</h4>
 <p>Fully-connected feedforward network with configurable:</p>
 <ul>
@@ -446,7 +389,7 @@ Sell: cash += amount * price - fees; position -= amount
 }
 </code></pre>
 <hr>
-<h3>5. <strong>core/genetic_algorithm/</strong> - Evolution Engine</h3>
+<h3>5. <strong>domain/genetic-algorithm/</strong> - Evolution Engine</h3>
 <h4>GeneticAlgorithmRunner</h4>
 <p>Main evolution loop orchestrating:</p>
 <ol>
@@ -520,7 +463,8 @@ Sell: cash += amount * price - fees; position -= amount
 <li>SBX: Simulated Binary Crossover</li>
 </ul>
 <p><strong>Fitness Calculation</strong>:</p>
-<pre><code>fitness = α * sharpe_ratio + β * pnl - γ * complexity_penalty
+<p>Fitness of the run's <code>TRAINER_FITNESS_TYPE</code> on the wallet PnL of the validation window (ADR-0025):</p>
+<pre><code>fitness = metric(episode PnL | bar PnL curve) - |metric| * 0.15 * complexity_penalty
 </code></pre>
 <p><strong>Metrics</strong>:</p>
 <ul>
@@ -594,7 +538,7 @@ return best_genome_from(P)
 <p>Three competing objectives are optimized simultaneously: <strong>avgPnl</strong> (maximize), <strong>sharpe</strong> (maximize), <strong>negFlops</strong> (minimize complexity). Non-dominated sorting preserves solutions that excel in different trade-offs. A persistent <code>ParetoArchive</code> keeps the best solutions across generations.</p>
 <p><strong>File</strong>: <code>pareto-engine.ts</code></p>
 <h3>4. Self-Adaptive GA Control</h3>
-<p>GA meta-parameters (population size, elitism fraction, episodes per individual) are <strong>themselves evolved</strong> during training. The <code>adaptGAControl</code> function adjusts them based on stagnation and improvement history.</p>
+<p>GA meta-parameters (population size, elitism fraction, episodes per individual, kept within 10–30) are <strong>themselves evolved</strong> during training. The <code>adaptGAControl</code> function adjusts them based on stagnation and improvement history.</p>
 <p><strong>File</strong>: <code>adaptive-control-system.ts</code></p>
 <h3>5. Immutable Genome Architecture</h3>
 <p>All genome operations produce <strong>new frozen objects</strong> using <code>deepFreeze</code>. This eliminates mutation bugs and enables safe concurrent evaluation across the population.</p>
@@ -649,7 +593,7 @@ Live trading execution
 <h4>Adding New Market Data Sources</h4>
 <p>To consume additional market data:</p>
 <ol>
-<li>Add event type to imports in <code>app/index.ts</code></li>
+<li>Add event type to imports in <code>application/index.ts</code></li>
 <li>Subscribe in the <code>onStart</code> handler</li>
 <li>Add to <code>MessageManager.intents()</code> array</li>
 <li>Process data in <code>MarketDataBuffer</code> (add new normalizer if needed)</li>

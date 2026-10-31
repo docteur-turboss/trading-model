@@ -133,7 +133,7 @@ Documentation
 <p><strong>New to NN concepts?</strong> See <a href="../../docs/concepts/neural-network.html">Neural Network — Concepts</a> for explanations of feedforward architecture, activation functions, DQN, and experience replay before reading this implementation reference.</p>
 </blockquote>
 <h2>Overview</h2>
-<p>This document describes the neural network module (<code>src/core/neural-network/</code>) implementation. It covers the class API, TypeScript types, configuration, and training modes.</p>
+<p>This document describes the neural network module (<code>src/domain/neural-network/</code>) implementation. It covers the class API, TypeScript types, configuration, and training modes.</p>
 <hr>
 <h2>Architecture</h2>
 <h3>Module Files</h3>
@@ -272,18 +272,19 @@ target[a] = r                            (terminal)
 <p>Orchestrates NeuralNetwork + Wallet + StateManager for the training loop:</p>
 <pre><code>step(features, price):
   1. wallet.setPrice(price)
-  2. output = agent.fastForward(features)  # inference + pool push
-  3. action = mapOutputToAction(output)     # discrete: argmax, continuous: threshold
-  4. wallet.buy/sell(amount)
-  5. reward = wallet.getPnL() - previousPnL
+  2. reward = PnL now - PnL just before the previous decision's trade
+     # the previous decision's reward: its trading cost + the price move it was exposed to
+  3. state = [features..., exposure]       # market features + agent state (agent-state.ts)
+     output = nn.forward(state)
+  4. action = epsilon-greedy over output     # 0=sell, 1=hold, 2=buy
+  5. wallet.buy/sell(amount)
   6. state.decayEpsilon()
-  7. return { action, reward, metrics }
+  7. return { state, action, actionIndex, reward, metrics }
+
+remember(transition)          # replay buffer
+replay(batchSize, discount)   # minibatch Q-learning update (PER weights when prioritized)
 </code></pre>
-<p><strong>Action mapping</strong> (<code>mapOutputToAction</code>):</p>
-<ul>
-<li>Discrete (3 neurons): <code>0=sell, 1=hold, 2=buy</code> (argmax)</li>
-<li>Continuous (1 neuron): <code>&gt;0.25=buy, &lt;-0.25=sell, else hold</code></li>
-</ul>
+<p><strong>Action mapping</strong>: one Q-value per action, <code>0=sell, 1=hold, 2=buy</code>; a random action with probability epsilon, the argmax otherwise.</p>
 <hr>
 <h3>Activation Functions (<code>activation.ts</code>)</h3>
 <table>

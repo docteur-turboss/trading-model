@@ -121,7 +121,7 @@ Documentation
 </blockquote>
 <h2>1. Policy Statement</h2>
 <p>This policy defines the Business Continuity (BC) and Disaster Recovery (DR) framework for the trading-model platform. It ensures that critical platform functions can be maintained or restored within defined timeframes in the event of a disruption.</p>
-<p><strong>Scope:</strong> All 8 microservices, 8 packages, databases (MongoDB, MySQL, Redis), CI/CD infrastructure, and supporting observability stack.</p>
+<p><strong>Scope:</strong> All 7 microservices, 12 packages, databases (MongoDB, MySQL, Redis), CI/CD infrastructure, and supporting observability stack.</p>
 <h2>2. Business Impact Analysis (BIA)</h2>
 <h3>2.1 Service Criticality Classification</h3>
 <table>
@@ -155,7 +155,7 @@ Documentation
 <tr>
 <td><strong>T4 — Low</strong></td>
 <td>Non-critical; loss has minimal operational impact</td>
-<td>admin-interface, monitoring stack</td>
+<td>monitoring stack</td>
 <td>24 hours</td>
 </tr>
 </tbody>
@@ -261,7 +261,7 @@ Documentation
 <li><strong>Detection:</strong> Prometheus alert — MongoDB replica set state change</li>
 <li><strong>Response:</strong> Automatic failover to secondary replica (MongoDB replica set, ≤ 5s)</li>
 <li><strong>Recovery:</strong> Failed node re-joins as secondary after repair</li>
-<li><strong>Backup:</strong> Daily MongoDB dump (or Atlas snapshot). Point-in-time recovery available.</li>
+<li><strong>Backup:</strong> Daily <code>mongodump --oplog</code> of each replica set (dlq, audit). Restores to the end of the last dump: no point-in-time recovery between dumps (RPO 24 h).</li>
 <li><strong>Verification:</strong> Replica set status: <code>rs.status().ok === 1</code></li>
 </ol>
 <h4>3.2.3 SPIRE Server Outage</h4>
@@ -271,12 +271,12 @@ Documentation
 <li><strong>Response:</strong>
 <ul>
 <li>Diagnose SPIRE server (spire-server) and agent health</li>
-<li>Reconcile workload entries (spire-entries job)</li>
+<li>Reconcile workload entries (<code>spire-entries</code> sidecar in K8s, <code>spire-bootstrap</code> in compose)</li>
 <li>Restart <code>spiffe-helper</code> sidecars to re-fetch SVIDs</li>
 </ul>
 </li>
-<li><strong>Escalation:</strong> If unrecoverable within 4 hours, restore the SPIRE datastore from backup (CronJob daily)</li>
-<li><strong>Recovery:</strong> Full SPIRE datastore restore or re-bootstrap with re-enrolment of all workloads</li>
+<li><strong>Escalation:</strong> If unrecoverable within 4 hours, restore the SPIRE datastore (MySQL <code>spire</code>) and then the CA keys (<code>keys.json</code>) from the daily backup: <code>restore-k8s.sh --components mysql,spire</code></li>
+<li><strong>Recovery:</strong> With both restored the trust bundle is unchanged and workloads keep their SVIDs; re-bootstrap with re-enrolment of all workloads only if no backup is usable</li>
 </ol>
 <h4>3.2.4 Full Platform Outage</h4>
 <ol>
@@ -285,8 +285,8 @@ Documentation
 <li><strong>Recovery:</strong>
 <ul>
 <li>Infrastructure rebuild via <code>docker-compose up -d</code> or <code>kubectl apply -f deploy/</code></li>
-<li>Database restoration from backup (MongoDB: latest dump, MySQL: binlog + dump)</li>
-<li>SPIRE datastore restore or re-bootstrap (SVID re-enrolment of all workloads)</li>
+<li>Database restoration from backup (MongoDB and MySQL: latest daily dump; binlogs are not archived)</li>
+<li>SPIRE restore (datastore in MySQL, then CA keys) or re-bootstrap (SVID re-enrolment of all workloads)</li>
 <li>Service restart in dependency order</li>
 </ul>
 </li>
@@ -308,51 +308,48 @@ Documentation
 <td>SPIRE datastore (MySQL <code>spire</code>)</td>
 <td>Dump</td>
 <td>Daily (CronJob)</td>
-<td>30 days</td>
-<td>Off-site / different K8s cluster</td>
+<td>30 days local, bucket lifecycle off-site</td>
+<td><code>backup-data</code> volume + S3-compatible store (mandatory)</td>
 </tr>
 <tr>
-<td>MongoDB (audit, cert, dlq)</td>
-<td>Dump</td>
+<td>SPIRE CA keys (<code>keys.json</code>)</td>
+<td>File copy</td>
+<td>Daily (CronJob)</td>
+<td>30 days local, bucket lifecycle off-site</td>
+<td><code>backup-data</code> volume + S3-compatible store (mandatory)</td>
+</tr>
+<tr>
+<td>MongoDB (dlq, audit)</td>
+<td><code>mongodump --oplog</code></td>
 <td>Daily</td>
-<td>30 days</td>
-<td>Object storage (S3-compatible)</td>
+<td>30 days local, bucket lifecycle off-site</td>
+<td><code>backup-data</code> volume + S3-compatible store (mandatory)</td>
 </tr>
 <tr>
 <td>MySQL (market data)</td>
 <td>Dump</td>
 <td>Daily</td>
-<td>30 days</td>
-<td>Object storage (S3-compatible)</td>
+<td>30 days local, bucket lifecycle off-site</td>
+<td><code>backup-data</code> volume + S3-compatible store (mandatory)</td>
 </tr>
 <tr>
-<td>Redis (streams, cache)</td>
-<td>RDB / AOF</td>
-<td>Continuous AOF</td>
-<td>7 days</td>
-<td>Persistent volume</td>
-</tr>
-<tr>
-<td>K8s manifests</td>
-<td>Git</td>
-<td>Every commit</td>
-<td>Full history</td>
-<td>GitHub</td>
-</tr>
-<tr>
-<td>Docker images</td>
-<td>Registry</td>
-<td>Every build</td>
-<td>Tagged versions</td>
-<td>Docker Hub / GHCR</td>
+<td>Redis (discovery registrations, DLQ retry queue)</td>
+<td>Not backed up</td>
+<td>—</td>
+<td>—</td>
+<td>Derived state: rebuilt by the services (DLQ queue from MongoDB)</td>
 </tr>
 </tbody>
 </table>
+<p>Every dump is age-encrypted before it is written; the off-site copy only sends encrypted files.
+| K8s manifests | Git | Every commit | Full history | GitHub |
+| Docker images | Registry | Every build | Tagged versions | Docker Hub / GHCR |</p>
 <h3>4.2 Backup Verification</h3>
 <ul>
-<li>Weekly automated restoration test for MongoDB and MySQL (CI pipeline)</li>
-<li>Monthly full recovery drill for SPIRE datastore</li>
-<li>Backup integrity verified via checksum after each backup job</li>
+<li>Restore drill on every CI run (<code>k8s</code> job, <code>tests/k8s/run-kind.sh</code>): the CronJob backs up, the drill stops the MongoDB writers, drops data (the real <code>audit</code> and <code>dlq</code> databases, markers, <code>market_candles</code>, the SPIRE server volume) and <code>restore-k8s.sh</code> restores MongoDB (dlq + audit), MySQL and the SPIRE CA; it passes only if every recorded audit event comes back with the same hashes and a verified hash chain, the data and the trust bundle come back and mTLS still works</li>
+<li>Weekly restore drill of the Docker scripts (<code>backup-test.yml</code>, <code>tests/backup/compose-restore-drill.sh</code>): containers and volumes deleted, then restored</li>
+<li>Integrity: age authenticates every encrypted file (a corrupted or truncated file fails to decrypt); no separate checksum</li>
+<li>Monitoring: alerts on a failed, stale, missing or unencrypted backup and on a failed off-site copy (<code>observability/alerting.yml</code>)</li>
 </ul>
 <h2>5. Dependency Order for Recovery</h2>
 <pre><code>SPIRE Server ────────────────────┐
@@ -413,8 +410,8 @@ Monitoring Stack ───────────────┘
 <tbody>
 <tr>
 <td><strong>Backup restoration test</strong></td>
-<td>Weekly</td>
-<td>Full database restore + query validation</td>
+<td>Every CI run (K8s) + weekly (Docker)</td>
+<td>Restored data and SPIRE trust bundle identical to the backed-up state</td>
 </tr>
 <tr>
 <td><strong>Certificate expiry simulation</strong></td>

@@ -136,7 +136,7 @@ Documentation
 <h3>Population</h3>
 <p>A set of genomes that evolves over generations. A typical population starts with 20 individuals, generated with random parameters, and adapts its size dynamically based on stagnation.</p>
 <h3>Fitness Function</h3>
-<p>A metric evaluating how well a genome performs. The platform supports:</p>
+<p>A metric evaluating how well a genome performs, computed on the wallet PnL of the validation window (not on the shaped training reward). One type is chosen per run with <code>TRAINER_FITNESS_TYPE</code> (ADR-0025):</p>
 <table>
 <thead>
 <tr>
@@ -148,32 +148,33 @@ Documentation
 <tbody>
 <tr>
 <td>Total P&amp;L</td>
-<td><code>mean(rewards)</code></td>
+<td><code>mean(episode PnL)</code></td>
 <td>Simple profit maximization</td>
 </tr>
 <tr>
 <td>Sharpe ratio</td>
-<td><code>mean / std</code></td>
+<td><code>mean / std</code> of the bar PnL curve</td>
 <td>Risk-adjusted returns</td>
 </tr>
 <tr>
 <td>Sortino ratio</td>
-<td><code>mean / downside_std</code></td>
+<td><code>mean / downside deviation</code> of the bar PnL curve</td>
 <td>Downside-risk focus</td>
 </tr>
 <tr>
 <td>Calmar ratio</td>
-<td><code>mean / max_drawdown</code></td>
+<td><code>mean / max drawdown</code> of the bar PnL curve</td>
 <td>Drawdown-averse</td>
 </tr>
 <tr>
 <td>Composite</td>
-<td>Weighted combination</td>
+<td><code>0.4·mean + 0.3·sharpe + 0.3·sortino</code> of the curve</td>
 <td>Balanced optimization</td>
 </tr>
 </tbody>
 </table>
-<p>A complexity penalty discourages overly large networks: <code>adjusted_fitness = fitness × (1 - 0.15 × complexity_penalty)</code>.</p>
+<p>The fitness drives parent selection, stagnation and the choice of the published genome among the Pareto front; the front itself is ranked on several objectives (mean PnL, Sharpe, FLOPs), so it keeps every trade-off.</p>
+<p>A complexity penalty discourages overly large networks: <code>adjusted_fitness = fitness - |fitness| × 0.15 × complexity_penalty</code>.</p>
 <h2>Evolutionary Operators</h2>
 <h3>Selection</h3>
 <p>Selects parents for reproduction. Strategies:</p>

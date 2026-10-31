@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html class="dark" lang="en" data-tm-processed="true"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no" name="viewport">
+<title>ADR-0026: Binance Kept as the Market Data Source While Its Public API Answers From the EU | trading-model</title>
+
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+
+<script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              400: '#818cf8',
+              500: '#6366f1',
+              600: '#4f46e5',
+            },
+            surface: {
+              base: '#0B0F19',
+              card: '#111827',
+              muted: '#1E293B',
+              border: '#243046',
+            },
+            code: {
+              bg: '#0c121e',
+              keyword: '#c084fc',
+              ident: '#38bdf8',
+              type: '#34d399',
+              punct: '#94a3b8'
+            }
+          },
+          fontFamily: {
+            mono: ['JetBrains Mono', 'Fira Code', 'Menlo', 'Monaco', 'Courier New', 'monospace'],
+            sans: ['-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Inter', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+
+<style data-purpose="mobile-ux-styles">
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    .active-scale:active { transform: scale(0.97); transition: transform 0.1s ease-out; }
+    .h-safe-top { height: env(safe-area-inset-top, 0px); }
+    .pt-safe { padding-top: env(safe-area-inset-top, 0px); }
+    @supports (backdrop-filter: blur(12px)) {
+      .glass-header { backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
+    }
+    
+    .tm-prose p { margin: 0.5rem 0; }
+    .tm-prose p:first-child { margin-top: 0; }
+    .tm-prose p:last-child { margin-bottom: 0; }
+    .tm-prose a { color: #818cf8; text-decoration: underline; text-underline-offset: 2px; }
+    .tm-prose a:hover { color: #a5b4fc; }
+    .tm-prose code { font-family: 'JetBrains Mono', 'Fira Code', Menlo, Monaco, 'Courier New', monospace; font-size: 0.82em; color: #fbbf24; background: #0c121e; border: 1px solid #243046; border-radius: 0.25rem; padding: 0.05rem 0.3rem; }
+    .tm-prose pre { background: #0c121e; border: 1px solid #243046; border-radius: 0.5rem; padding: 0.75rem; overflow-x: auto; margin: 0.5rem 0; }
+    .tm-prose pre code { background: transparent; border: none; padding: 0; color: #e2e8f0; }
+    .tm-prose ul, .tm-prose ol { padding-left: 1.25rem; margin: 0.5rem 0; }
+    .tm-prose ul { list-style: disc; }
+    .tm-prose ol { list-style: decimal; }
+    .tm-prose li { margin: 0.2rem 0; }
+    .tm-prose blockquote { border-left: 3px solid #6366f1; background: rgba(17, 24, 39, 0.6); padding: 0.5rem 0.75rem; border-radius: 0 0.5rem 0.5rem 0; color: #94a3b8; margin: 0.5rem 0; }
+    .tm-prose h1, .tm-prose h2, .tm-prose h3, .tm-prose h4, .tm-prose h5 { color: #ffffff; font-weight: 700; margin: 0.75rem 0 0.25rem; }
+    .tm-prose h1 { font-size: 1.25rem; }
+    .tm-prose h2 { font-size: 1.125rem; }
+    .tm-prose h3 { font-size: 1rem; }
+    .tm-prose h4 { font-size: 0.875rem; }
+    .tm-prose table { width: 100%; border-collapse: collapse; margin: 0.5rem 0; }
+    .tm-prose th, .tm-prose td { border: 1px solid #243046; padding: 0.4rem 0.6rem; text-align: left; }
+    .tm-prose thead th { background: #0b0f19; color: #e2e8f0; font-size: 0.75rem; text-transform: uppercase; }
+    .tm-prose strong { color: #ffffff; }
+  </style>
+
+</head>
+<body class="bg-[#080C15] text-slate-200 font-sans antialiased min-h-screen pb-24 selection:bg-indigo-500/30 selection:text-indigo-200">
+
+<header class="sticky top-0 z-40 w-full glass-header bg-[#0B0F19]/90 border-b border-surface-border">
+<div class="h-safe-top pt-safe"></div>
+<div class="px-4 py-2.5 flex items-center justify-between gap-3">
+<div class="flex items-center gap-2.5 min-w-0">
+
+<div class="flex flex-col min-w-0">
+<div class="flex items-center gap-1.5 truncate">
+<span class="font-mono text-xs font-semibold text-indigo-400 truncate tracking-tight"><a class="text-indigo-400 hover:text-indigo-300 hover:underline" href="../../index.html">trading-model</a></span>
+
+</div>
+<span class="text-[10px] text-slate-400 flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> TypeDoc API Reference
+</span>
+</div>
+</div>
+
+</div>
+</header>
+
+<main class="px-4 py-4 max-w-2xl mx-auto flex flex-col gap-6">
+
+<section class="space-y-2.5" data-purpose="breadcrumbs-and-header">
+<nav aria-label="Breadcrumb" class="flex items-center flex-wrap gap-1 text-[11px] font-mono text-slate-400">
+<a class="text-indigo-400 hover:underline" href="../../index.html">trading-model</a><span class="text-slate-600">/</span><span class="text-slate-300 font-medium">ADR-0026: Binance Kept as the Market Data Source While Its Public API Answers From the EU</span>
+</nav>
+<div class="flex items-center gap-2.5 pt-1">
+<span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-mono font-medium tracking-wide uppercase bg-indigo-500/10 text-indigo-400 border-indigo-500/20">
+Documentation
+</span>
+<h1 class="text-2xl font-bold tracking-tight text-white font-sans">ADR-0026: Binance Kept as the Market Data Source While Its Public API Answers From the EU</h1>
+</div>
+
+</section>
+
+<div class="tm-prose text-sm leading-relaxed text-slate-300 font-sans"><div>
+<p><strong>Status:</strong> Accepted
+<strong>Date:</strong> 2026-10
+<strong>Verified by:</strong> <code>tests/alerts/alerting.test.yml</code>, <code>packages/http/tests/unit/config/http-retry.spec.ts</code>, <code>services/financial-scraper/tests/unit/config/http.spec.ts</code>, <code>services/financial-scraper/tests/unit/job/worker/worker-orchestrator.spec.ts</code>, <code>services/trader-trainer/tests/unit/adapters/scheduler/training-loop.spec.ts</code></p>
+<h2>Context</h2>
+<p>The 13.09 audit (Décision 6) relayed a draft mentioning the closure of Binance in Europe, offered two options (migrate to a replacement broker named in the draft, Alpaca or Interactive Brokers, or check that Binance access remains available and postpone the migration) and found no source to decide. The decision taken was to check availability. Checked on 2026-10-30:</p>
+<ul>
+<li><strong>The closure is real but concerns accounts.</strong> Binance holds no MiCA licence. Since 2026-07-01 it has stopped new sign-ups, deposits, new spot orders and Earn/staking for EEA residents; withdrawals remain open. It withdrew its application in Greece and plans to apply in France (AMF). Nothing announced concerns the public market data API.</li>
+<li><strong>The platform uses no Binance account.</strong> financial-scraper only calls unsigned public endpoints: <code>klines</code>, <code>depth</code>, <code>trades</code>, <code>historicalTrades</code>, <code>aggTrades</code>, <code>ticker/24hr</code>, <code>ticker/price</code>, <code>ticker/bookTicker</code>, <code>ticker/tradingDay</code>. <code>BINANCE_API_KEY</code> and <code>BINANCE_API_SECRET</code> are declared but read by no code.</li>
+<li><strong>The public API answers from France.</strong> On 2026-10-30, from a French IP, each of those endpoints answered HTTP 200 without any key on <code>api.binance.com</code> and on <code>data-api.binance.vision</code> (Binance's market-data-only host).</li>
+<li><strong>Binance already geo-blocks some regions</strong> (HTTP 451 &quot;restricted location&quot;, e.g. from the United States). That is the realistic failure mode, not an account closure.</li>
+<li><strong>The draft's replacements are brokers, not data sources.</strong> Alpaca and Interactive Brokers both require an account (IBKR also needs market data subscriptions and a TWS/Gateway session) and do not provide a crypto order book and trade flow comparable to Binance's. MiCA-licensed exchanges (Kraken: Central Bank of Ireland, June 2025; Bitstamp: CSSF Luxembourg) publish the same kind of data through public APIs without an account.</li>
+<li><strong>Nothing tested the real source.</strong> CI, E2E and the kind smoke test run against a Binance stub (<code>tests/e2e/binance-stub</code>, <code>tests/k8s/binance-stub.yaml</code>). A geo-block would only surface through <code>MarketDataStale</code> / <code>ScrapeCyclesFailing</code>, which do not name the cause.</li>
+<li><strong>The HTTP client retried 403 and 418.</strong> Binance answers 403 on a WAF violation and 418 on an automatic IP ban that follows ignored 429s; retrying either extends the ban.</li>
+</ul>
+<h2>Decision</h2>
+<ol>
+<li>
+<p><strong>Binance stays the market data source</strong>, through its public API only. No Binance account, no API key, no non-EU entity: an account is not needed to read public data, and routing through a foreign entity would only add legal exposure.</p>
+</li>
+<li>
+<p><strong>A geo-block alerts by itself</strong>: <code>BinanceRestrictedLocation</code> (critical) fires on the first 451 (<code>fs_binance_requests_total{status=&quot;451&quot;}</code>), separately from the generic staleness alerts.</p>
+</li>
+<li>
+<p><strong>The scraper never retries 403 or 418</strong> (<code>isRetryableStatusPermissive</code>, <code>@trading-model/http</code>). 451 was already not retried. 5xx, 429, 408 and network errors are still retried with exponential backoff.</p>
+</li>
+<li>
+<p><strong>Ranked fallbacks</strong>, applied in this order when the decision is re-examined:</p>
+<ol>
+<li><code>BINANCE_BASE_URL=https://data-api.binance.vision</code>: same API and payloads, configuration change only. The scraper NetworkPolicy already allows egress to any public address on 443.</li>
+<li>A MiCA-licensed exchange public API (Kraken, then Bitstamp): a second adapter implementing <code>MarketDataSourcePort</code> (Decision 6).</li>
+</ol>
+</li>
+<li>
+<p><strong>The decision is re-examined</strong> on the first of:</p>
+<ul>
+<li><code>BinanceRestrictedLocation</code> firing, or 451s reported from any deployment region;</li>
+<li>a decision on Binance's MiCA application in France (granted: re-check, nothing to do; refused: re-test the public API from every deployment region);</li>
+<li>a change of Binance's terms or API documentation restricting market data use from the EEA;</li>
+<li>in any case, a manual re-test of the endpoints above before 2027-04-30.</li>
+</ul>
+</li>
+<li>
+<p><strong>The scrape cycle depends on a source port, not on Binance</strong> (done 2026-10-30, prerequisite of the multi-asset scraper, project A). The domain owns <code>MarketDataSourcePort</code> (<code>fetchSnapshot(SnapshotRequest): MarketDataSnapshot</code>) and <code>MarketDataPublisherPort</code>; <code>WorkerOrchestrator</code> fetches, publishes, then persists through them (since 2026-10-31: persists, then publishes without awaiting, see <code>docs/services/financial-scraper.md</code>). Binance is one adapter (<code>BinanceMarketDataSource</code>), publishing another (<code>BrokerMarketDataPublisher</code>), and the cron is <code>ScrapeCronOrchestrator</code>. <code>BinanceWorkerOptions</code> / <code>BinanceWorkerResult</code> became <code>SnapshotRequest</code> / <code>MarketDataSnapshot</code>. A second source is an adapter plus a <code>DataSource</code> value.</p>
+</li>
+<li>
+<p><strong>The per-source read routes stay</strong> (<code>/trade</code>, <code>/ticker</code>, <code>/candles</code>, <code>/orderbook</code> <code>…/sources/:source</code>). They were migrated to schema-described routes (ADR-0021), not removed: their old controllers were. <code>source</code> is validated against <code>SourceType</code>. They are the read side a second source needs.</p>
+</li>
+<li>
+<p><strong>No Binance credentials in the configuration</strong>: <code>BINANCE_API_KEY</code> / <code>BINANCE_API_SECRET</code>, read by no code, are removed. A source that needs a key adds its own setting.</p>
+</li>
+<li>
+<p><strong>The trainer does not train on stale data.</strong> A symbol whose newest buffered candle closed more than <code>TRAINER_MAX_DATA_AGE_MS</code> ago (default 15 minutes, the <code>MarketDataStale</code> window) is skipped. The trainer logs one warning when a symbol goes stale and one line when it is fresh again. A symbol whose buffer is still filling is not judged.</p>
+</li>
+</ol>
+<h2>Alternatives Considered</h2>
+<table>
+<thead>
+<tr>
+<th>Alternative</th>
+<th>Reason for Rejection</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Migrate now to Alpaca or Interactive Brokers</td>
+<td>Brokers requiring an account and subscriptions, without equivalent crypto depth and trade data; a significant connector project for a risk that has not materialised</td>
+</tr>
+<tr>
+<td>Access Binance through a non-EU entity</td>
+<td>Not needed for public data; would look like circumventing MiCA</td>
+</tr>
+<tr>
+<td>Probe the real Binance API from CI</td>
+<td>Rejected for now (decision of 2026-10-30): CI runners do not run from the deployment region, so a green probe would prove nothing about production; the 451 alert watches the actual deployment</td>
+</tr>
+<tr>
+<td>Migrate now to Kraken or Bitstamp</td>
+<td>Same project size as any second source; deferred until a trigger in Decision 5 fires</td>
+</tr>
+</tbody>
+</table>
+<h2>Consequences</h2>
+<h3>Positive</h3>
+<ul>
+<li>The platform keeps its reference source without a connector project.</li>
+<li>A geo-block is named within minutes by its own alert instead of being inferred from stale data.</li>
+<li>The scraper no longer turns a WAF violation or an IP ban into a longer ban.</li>
+</ul>
+<h3>Negative</h3>
+<ul>
+<li>The continuity risk remains: if Binance geo-blocks the EEA for public data too, collection stops until a fallback is applied. Fallback 1 is minutes of work but probably shares the same block; fallback 2 is an adapter to write (another exchange's payloads, symbols and rate limits), no longer a refactoring of the cycle.</li>
+<li>The snapshot keeps Binance's shape (6 data types, Binance symbols such as <code>BTCUSDT</code>): another exchange's adapter has to map its symbols and may leave some data types empty.</li>
+<li>During an outage the trainer stops training: no model is published until fresh candles arrive.</li>
+</ul>
+</div></div>
+</main>
+</body>
+</html>

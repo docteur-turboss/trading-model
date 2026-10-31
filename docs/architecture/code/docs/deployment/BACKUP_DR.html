@@ -117,12 +117,23 @@ Documentation
 <p>This document defines the backup strategy, disaster recovery procedures, and
 restore verification for the trading-model platform.</p>
 <blockquote>
-<p><strong>⚠️ STATUS NOTE (June 2026):</strong> The backup system has been audited and
-remediated. All 🔴 blocking issues (P1-P6) are resolved. Backups are now
-automated, tested weekly, and stored off-site. See
-<code>scripts/backup.sh</code> / <code>scripts/restore.sh</code> (Docker) or
-<code>scripts/backup-k8s.sh</code> / <code>scripts/restore-k8s.sh</code> (Kubernetes) for
-the current tooling.</p>
+<p><strong>Status (2026-10-28):</strong> a backup counts only once it has been restored.
+Both sets of scripts are restored for real by CI:</p>
+<ul>
+<li>Kubernetes: every run of the CI <code>k8s</code> job backs up with the <code>db-backup</code>
+CronJob, stops the MongoDB writers, destroys data (the real <code>audit</code> and
+<code>dlq</code> databases, drill markers, the <code>market_candles</code> table, the SPIRE
+server volume) and restores it with <code>scripts/restore-k8s.sh</code>
+(<code>tests/k8s/run-kind.sh</code>, <code>verify_backup</code>). The audit trail written by
+audit-logger from the live flow must come back whole: same events, same
+hashes, hash chain verified (<code>tests/backup/audit-chain.js</code>), then extended
+by audit-logger after the restore.</li>
+<li>Docker: <code>backup-test.yml</code> (weekly and on changes to the scripts) deletes
+the containers and their volumes and restores them with
+<code>scripts/restore.sh</code> (<code>tests/backup/compose-restore-drill.sh</code>). Last run
+passed on 2026-10-28.</li>
+</ul>
+<p>Known limits are listed at the end of this document.</p>
 </blockquote>
 <h2>Data Classification</h2>
 <table>
@@ -131,56 +142,78 @@ the current tooling.</p>
 <th>Data Store</th>
 <th>Service</th>
 <th>Criticality</th>
-<th>RPO Target</th>
+<th>RPO (actual)</th>
 <th>RTO Target</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>MongoDB</td>
-<td>audit-logger, dlq-service</td>
-<td>High</td>
-<td>1 hour</td>
+<td>MongoDB <code>mongo-audit</code></td>
+<td>audit-logger</td>
+<td>Critical</td>
+<td>24 h (daily dump)</td>
 <td>4 hours</td>
 </tr>
 <tr>
-<td>MySQL</td>
-<td>financial-scraper, SPIRE Server (datastore)</td>
+<td>MongoDB <code>mongo-dlq</code></td>
+<td>dlq-service</td>
 <td>High</td>
-<td>1 hour</td>
+<td>24 h (daily dump)</td>
 <td>4 hours</td>
 </tr>
 <tr>
-<td>Redis</td>
-<td>discovery-server, message-manager, dlq-service</td>
-<td>Medium</td>
-<td>15 min (RDB)</td>
-<td>1 hour</td>
+<td>MySQL <code>financial_scraper</code></td>
+<td>financial-scraper</td>
+<td>High</td>
+<td>24 h (daily dump)</td>
+<td>4 hours</td>
+</tr>
+<tr>
+<td>MySQL <code>spire</code> + <code>keys.json</code></td>
+<td>SPIRE Server (datastore + CA private keys)</td>
+<td>Critical</td>
+<td>24 h (daily backup)</td>
+<td>4 hours</td>
 </tr>
 <tr>
 <td>Trained agents</td>
 <td>trader-trainer (checkpoint files)</td>
 <td>Medium</td>
-<td>1 hour</td>
+<td>24 h (daily tar)</td>
 <td>1 hour</td>
 </tr>
 <tr>
-<td>SPIRE datastore</td>
-<td>SPIRE Server (MySQL <code>spire</code>)</td>
-<td>Critical</td>
-<td>24 hours</td>
-<td>4 hours</td>
-</tr>
-<tr>
-<td>Docker/K8s volumes</td>
-<td>All persisted data</td>
-<td>High</td>
-<td>N/A (covered by DB backups)</td>
-<td>N/A</td>
+<td>Redis</td>
+<td>discovery-server, dlq-service, readiness</td>
+<td>Low</td>
+<td>Not backed up</td>
+<td>Rebuilt</td>
 </tr>
 </tbody>
 </table>
+<p>Redis only holds derived state: instance registrations and tokens (services
+register again), the DLQ retry queue (rebuilt from MongoDB by dlq-service)
+and readiness keys. A day-old snapshot would restore stale tokens and queue
+entries, so Redis is not backed up in Kubernetes. The Docker scripts still
+dump it (single node). With <code>REDIS_APPENDONLY=yes</code> Redis starts from its
+append-only file and would ignore a restored <code>dump.rdb</code>: <code>scripts/restore.sh</code>
+loads the snapshot in a throwaway server on the same volume and rewrites the
+AOF from it before starting Redis again.</p>
 <h2>Automated Backup System</h2>
+<h3>Kubernetes</h3>
+<p>The CronJob <code>db-backup</code> (<code>deploy/k8s/jobs/backup-cronjob.yaml</code>) runs daily at
+2:00 AM with the <code>backup-tools</code> image (<code>deploy/backup</code>: kubectl, age, rclone)
+and the scripts from the <code>backup-scripts</code> ConfigMap.</p>
+<pre><code class="language-bash"># Manual run
+kubectl create job --from=cronjob/db-backup db-backup-manual
+</code></pre>
+<p>The job fails (and its alerts fire) when:</p>
+<ul>
+<li>no age recipient is configured (<code>BACKUP_REQUIRE_ENCRYPTION=true</code>);</li>
+<li>no off-site store is configured, or the copy fails (<code>BACKUP_REQUIRE_OFFSITE=true</code>):
+a single volume is not a backup;</li>
+<li>any component cannot be found or dumped (missing pod, no MongoDB primary...).</li>
+</ul>
 <h3>Docker</h3>
 <pre><code class="language-bash"># Full backup (all components)
 bash scripts/backup.sh
@@ -191,19 +224,14 @@ bash scripts/backup.sh --components mongodb,mysql
 # Dry-run (preview without executing)
 bash scripts/backup.sh --dry-run
 
-# With S3 off-site upload
-BACKUP_S3_BUCKET=s3://my-bucket/backups bash scripts/backup.sh
-</code></pre>
-<h3>Kubernetes</h3>
-<p>A CronJob runs daily at 2:00 AM:
-<code>deploy/k8s/jobs/backup-cronjob.yaml</code></p>
-<p>Manual execution:</p>
-<pre><code class="language-bash"># Create a manual backup job
-kubectl create job --from=cronjob/db-backup db-backup-manual
+# Encrypted (age public key; refuse to run without it)
+BACKUP_AGE_RECIPIENTS=age1... BACKUP_REQUIRE_ENCRYPTION=true bash scripts/backup.sh
 
-# Or run the script directly
-BACKUP_DIR=/backups bash scripts/backup-k8s.sh
+# With off-site upload (encrypted files only)
+BACKUP_AGE_RECIPIENTS=age1... BACKUP_S3_BUCKET=s3://my-bucket/backups bash scripts/backup.sh
 </code></pre>
+<p>Docker has no scheduler: schedule <code>backup.sh</code> with the host's cron if a compose
+stack holds data that matters.</p>
 <h3>Components Backed Up</h3>
 <table>
 <thead>
@@ -215,81 +243,167 @@ BACKUP_DIR=/backups bash scripts/backup-k8s.sh
 </thead>
 <tbody>
 <tr>
-<td>MongoDB (dlq-service, audit-logger)</td>
+<td>MongoDB dlq and audit (one dump per replica set, from its primary)</td>
 <td><code>mongodump --gzip --oplog --archive</code></td>
-<td>Point-in-time consistent</td>
+<td>Point-in-time (end of the dump)</td>
 </tr>
 <tr>
-<td>MySQL (financial-scraper + SPIRE <code>spire</code>)</td>
-<td><code>mysqldump --single-transaction --all-databases</code></td>
+<td>MongoDB (Docker: message-manager, audit-logger, dlq)</td>
+<td><code>mongodump --gzip --archive</code> (standalone)</td>
+<td>Per collection</td>
+</tr>
+<tr>
+<td>MySQL, every non-system database (<code>financial_scraper</code>, <code>spire</code>)</td>
+<td><code>mysqldump --databases … --single-transaction --set-gtid-purged=OFF</code></td>
 <td>Transaction-consistent snapshot</td>
 </tr>
 <tr>
-<td>Redis (primary)</td>
-<td><code>redis-cli BGSAVE</code> + copy <code>dump.rdb</code></td>
-<td>Fork-consistent</td>
-</tr>
-<tr>
-<td>Trainer checkpoints (trader-trainer)</td>
+<td>Trainer checkpoints</td>
 <td><code>tar czf</code> of <code>/data/checkpoints/</code></td>
 <td>Filesystem snapshot</td>
 </tr>
+<tr>
+<td>SPIRE CA keys, K8s (<code>keys.json</code>)</td>
+<td>read through the <code>spire-entries</code> sidecar (read-only mount)</td>
+<td>File copy; datastore is in MySQL</td>
+</tr>
+<tr>
+<td>SPIRE server, Docker (<code>/run/spire/data</code>)</td>
+<td><code>docker cp</code> of the whole directory, server paused</td>
+<td>keys.json + SQLite datastore together</td>
+</tr>
+<tr>
+<td>Redis (Docker only)</td>
+<td><code>BGSAVE</code>, wait for <code>LASTSAVE</code>, stream <code>dump.rdb</code></td>
+<td>Fork-consistent</td>
+</tr>
 </tbody>
 </table>
-<h3>Off-site Storage (Optional)</h3>
-<p>Set <code>BACKUP_S3_BUCKET</code> to enable automatic S3 upload after each backup.
-Requires <code>aws</code> or <code>rclone</code> CLI. In K8s, create the secret
-<code>trading-model-backup-s3</code> with keys:
-<code>AWS_ACCESS_KEY_ID</code>, <code>AWS_SECRET_ACCESS_KEY</code>, <code>AWS_REGION</code>,
-<code>BACKUP_S3_BUCKET</code>.</p>
+<p>The <code>mysql</code> system schema is not dumped (it cannot be restored over a running
+server); users come from the deployment (<code>MYSQL_ROOT_PASSWORD</code>, <code>MYSQL_USER</code>).
+Dumps carry no GTID statement, so a restore goes through the binlog to the
+replicas. Older dumps taken with GTID statements (before 2026-10-28) are
+filtered at restore time (<code>strip_gtid</code> in <code>scripts/backup-lib.sh</code>); without
+the filter they fail with <code>ERROR 3546 GTID_PURGED</code>.</p>
+<p>Every dump is streamed through <code>age</code> before it touches a disk (files suffixed
+<code>.age</code>). Keys, restore and monitoring:
+<a href="ENCRYPTION_AT_REST.html#2-backups-age">Encryption at Rest</a>.</p>
+<h3>Off-site Storage (mandatory in Kubernetes)</h3>
+<p><code>BACKUP_S3_BUCKET</code> copies each run's encrypted files to any S3-compatible store
+(rclone, or the <code>aws</code> CLI as fallback). Only encrypted files leave: without
+<code>BACKUP_AGE_RECIPIENTS</code> the copy is refused.</p>
+<p>In Kubernetes the Secret <code>trading-model-backup-s3</code> holds <code>BACKUP_S3_BUCKET</code>,
+<code>AWS_ACCESS_KEY_ID</code>, <code>AWS_SECRET_ACCESS_KEY</code>, <code>AWS_REGION</code>, and for a non-AWS
+store (MinIO on another VPS, Backblaze B2, Scaleway, OVH...) <code>S3_ENDPOINT</code> and
+<code>S3_PROVIDER</code>. <code>deploy.yml</code> writes it from the GitHub environment: variables
+<code>BACKUP_S3_BUCKET</code>, <code>BACKUP_S3_REGION</code>, <code>BACKUP_S3_ENDPOINT</code>,
+<code>BACKUP_S3_PROVIDER</code>, secrets <code>BACKUP_S3_ACCESS_KEY_ID</code>,
+<code>BACKUP_S3_SECRET_ACCESS_KEY</code>. Without them, an existing Secret (e.g. a
+SealedSecret) is kept. Enable versioning or object lock on the bucket: the
+job only adds files, retention off-site is the bucket's lifecycle rule.</p>
 <h3>Retention</h3>
 <ul>
-<li>Daily backups: 30 days (auto-pruned by <code>prune_old</code>)</li>
-<li>Weekly/monthly retention: manual or policy-based (via cron rule)</li>
+<li><code>backup-data</code> volume: 30 days (<code>RETENTION_DAYS</code>, files pruned by <code>prune_old</code>)</li>
+<li>Off-site: the bucket's lifecycle rule</li>
 </ul>
+<h2>Monitoring</h2>
+<p><code>backup-k8s.sh</code> writes <code>/backups/metrics/backup.prom</code>, served by
+<code>backup-metrics-exporter</code> and scraped by Prometheus (job <code>backup-metrics</code>).</p>
+<table>
+<thead>
+<tr>
+<th>Alert</th>
+<th>Fires when</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>BackupFailed</code></td>
+<td>a component's last success is older than 25 h</td>
+</tr>
+<tr>
+<td><code>BackupNotRunning</code></td>
+<td>a component never succeeded</td>
+</tr>
+<tr>
+<td><code>BackupComponentMissing</code></td>
+<td>a component (mongodb, mongodb-audit, mysql, spire, checkpoints) reports nothing</td>
+</tr>
+<tr>
+<td><code>BackupJobStale</code></td>
+<td>the job has not run for 26 h</td>
+</tr>
+<tr>
+<td><code>BackupMetricsAbsent</code></td>
+<td>no backup metric at all (job never ran, exporter down)</td>
+</tr>
+<tr>
+<td><code>BackupUnencrypted</code></td>
+<td>no age recipient</td>
+</tr>
+<tr>
+<td><code>BackupOffsiteCopyFailed</code></td>
+<td>the off-site copy failed or is not configured</td>
+</tr>
+</tbody>
+</table>
 <h2>Restore Procedures</h2>
-<h3>Docker — Automated</h3>
-<pre><code class="language-bash"># Restore latest backup (all components)
-bash scripts/restore.sh
-
-# Restore specific timestamp
+<p>Encrypted backups (<code>*.age</code>) need the age private key:
+<code>BACKUP_AGE_IDENTITY=~/backup-key.txt</code> in front of any restore command below.
+Manual decryption: <code>age -d -i backup-key.txt &lt;file&gt;.age</code>.</p>
+<p>Both restore scripts exit 1 if any step fails. Stop the writers first
+(<code>kubectl scale deployment --replicas=0</code> for financial-scraper,
+financial-scraper-collector, dlq-service, audit-logger, message-manager) when
+restoring after data corruption: a restore running next to live writers can
+collide with their inserts.</p>
+<p>After a restore of the audit database, <code>AuditChainBroken</code> fires when anchors
+were written after the backup (ADR-0027): those events are lost. Once the
+restore is explained, acknowledge the loss
+(<a href="../operations/runbooks/runbook-audit-chain-broken.html#after-a-restore-from-an-older-backup">runbook-audit-chain-broken</a>).</p>
+<h3>Kubernetes</h3>
+<p><code>restore-k8s.sh</code> needs namespace admin rights: exec into the databases, stop
+and start the SPIRE server, create a helper pod. Order matters: MySQL (which
+holds the SPIRE datastore) before SPIRE.</p>
+<p>From a workstation, with the backup files copied locally:</p>
+<pre><code class="language-bash">BACKUP_DIR=./backups K8S_NAMESPACE=trading-model BACKUP_AGE_IDENTITY=~/backup-key.txt \
+  bash scripts/restore-k8s.sh                      # mongodb,mysql,checkpoints,spire
+bash scripts/restore-k8s.sh --timestamp 2026-10-01_020000 --components mongodb
+</code></pre>
+<p>Or inside the cluster, next to the <code>backup-data</code> volume: a pod running
+<code>backup-tools</code> with the <code>backup-scripts</code> ConfigMap at <code>/scripts</code> and
+<code>backup-data</code> at <code>/backups</code> (as <code>tests/k8s/restore-runner.yaml</code> does), the
+private key passed on stdin:</p>
+<pre><code class="language-bash">kubectl exec -i -n trading-model restore-runner -- sh -c \
+  'umask 077 &amp;&amp; cat &gt; /tmp/id &amp;&amp; BACKUP_AGE_IDENTITY=/tmp/id K8S_NAMESPACE=trading-model \
+   bash /scripts/restore-k8s.sh; rc=$?; rm -f /tmp/id; exit $rc' &lt; ~/backup-key.txt
+</code></pre>
+<p>What it does:</p>
+<ul>
+<li><strong>MongoDB</strong>: finds the writable primary of each replica set and runs
+<code>mongorestore --drop --oplogReplay</code> there (secondaries follow).</li>
+<li><strong>MySQL</strong>: pipes the dump (GTID statements filtered) into the pod behind
+<code>mysql-primary</code>, with the container's own root password.</li>
+<li><strong>SPIRE</strong>: scales <code>spire-server</code> to 0, writes <code>keys.json</code> into its volume
+from a helper pod (<code>RESTORE_HELPER_IMAGE</code>, default <code>backup-tools</code>) running as
+the server's user, scales it back and checks <code>spire-server healthcheck</code>.</li>
+</ul>
+<h3>Docker</h3>
+<pre><code class="language-bash">bash scripts/restore.sh                                   # latest, all components
 bash scripts/restore.sh --timestamp 2025-01-01_120000
-
-# Restore selective components
 bash scripts/restore.sh --components mongodb,mysql
-
-# Dry-run (show what would be restored)
 bash scripts/restore.sh --dry-run
 </code></pre>
-<h3>Kubernetes — Automated</h3>
-<pre><code class="language-bash"># Restore latest backup
-BACKUP_DIR=/backups bash scripts/restore-k8s.sh
-
-# Restore specific timestamp
-BACKUP_DIR=/backups RESTORE_TIMESTAMP=2025-01-01_120000 bash scripts/restore-k8s.sh
-</code></pre>
-<h3>Manual MongoDB Restore</h3>
-<pre><code class="language-bash">docker exec &lt;mongo-container&gt; mongorestore \
-  --gzip --drop --archive=/tmp/restore.archive.gz
-</code></pre>
-<p>Verify:</p>
-<pre><code class="language-bash">docker exec &lt;mongo-container&gt; mongosh \
-  --eval &quot;db.getSiblingDB('audit_logger').audit_events.countDocuments()&quot;
-</code></pre>
-<h3>Manual MySQL Restore</h3>
-<pre><code class="language-bash">gunzip &lt; /backups/mysql/financial_scraper_&lt;date&gt;.sql.gz \
-  | docker exec -i trading-mysql mysql --user=root --password=$MYSQL_ROOT_PASSWORD
-</code></pre>
-<p>Verify:</p>
-<pre><code class="language-bash">docker exec trading-mysql mysqlcheck --all-databases --user=root --password=$MYSQL_ROOT_PASSWORD
-</code></pre>
-<h3>Manual Redis Restore</h3>
-<ol>
-<li>Stop Redis primary</li>
-<li>Replace <code>dump.rdb</code> with backup copy</li>
-<li>Restart Redis primary</li>
-<li>Verify: <code>docker exec trading-redis-primary redis-cli DBSIZE</code></li>
-</ol>
+<p>SPIRE: the server is stopped and its whole data directory (<code>data_*.tar</code>: CA
+keys + SQLite datastore) is written back; backups taken before 2026-10-28 only
+hold <code>keys_*.json</code> and restore the keys alone.</p>
+<h3>SPIRE CA restore and SVIDs</h3>
+<p>Restoring the CA keys together with the datastore of the same backup brings
+back the trust bundle unchanged: SVIDs issued before the incident stay valid.
+SVIDs issued by a CA generated after the loss (between the incident and the
+restore) are signed by a key no longer in the bundle: restart the
+<code>spiffe-helper</code> sidecars, or wait for their rotation, if a workload rejects
+peers after the restore. The CI drill checks that Prometheus scrapes every
+target over mTLS after the restore.</p>
 <h2>Disaster Recovery</h2>
 <h3>Failure Scenarios</h3>
 <table>
@@ -304,22 +418,22 @@ BACKUP_DIR=/backups RESTORE_TIMESTAMP=2025-01-01_120000 bash scripts/restore-k8s
 <tr>
 <td>Single container crash</td>
 <td>Degraded service</td>
-<td>Docker auto-restart (restart: unless-stopped)</td>
+<td>Docker auto-restart / Kubernetes restart</td>
 </tr>
 <tr>
 <td>Node failure</td>
-<td>Full outage</td>
-<td>Redeploy on healthy node from Docker Compose</td>
+<td>Degraded / outage</td>
+<td>Replica sets and StatefulSets reschedule; restore if a volume is lost</td>
 </tr>
 <tr>
 <td>Data corruption</td>
 <td>Data loss</td>
-<td>Restore from latest backup</td>
+<td>Stop the writers, restore from the latest backup</td>
 </tr>
 <tr>
 <td>Full region failure</td>
 <td>Complete outage</td>
-<td>Deploy to secondary region (see MULTI_REGION.md)</td>
+<td>Deploy to secondary region (see MULTI_REGION.md), restore from the off-site copy</td>
 </tr>
 <tr>
 <td>Secrets leak</td>
@@ -330,25 +444,17 @@ BACKUP_DIR=/backups RESTORE_TIMESTAMP=2025-01-01_120000 bash scripts/restore-k8s
 </table>
 <h3>Recovery Steps for Total Outage</h3>
 <ol>
-<li>Provision replacement hosts (bare metal / cloud instances)</li>
-<li>Restore Docker Compose configuration from git</li>
-<li>Restore SPIRE datastore from backup</li>
-<li>Restore databases from latest backup (MongoDB → MySQL incl. SPIRE <code>spire</code> → Redis)</li>
-<li>Start core infrastructure: Redis → MongoDB → MySQL → SPIRE Server + Agent</li>
-<li>Start services in dependency order:
-a. discovery-server
-b. message-manager
-c. api-gateway
-d. audit-logger, dlq-service
-e. financial-scraper, trader-trainer
-f. admin-interface</li>
-<li>Verify health endpoints for all services</li>
-<li>Verify service registration in discovery-server</li>
+<li>Provision replacement hosts, deploy the manifests from git (<code>deploy.yml</code>)</li>
+<li>Fetch the latest encrypted backups from the off-site bucket</li>
+<li>Restore the databases: MongoDB → MySQL (incl. SPIRE <code>spire</code>)</li>
+<li>Restore the SPIRE CA keys (<code>keys.json</code>), which restarts the SPIRE server</li>
+<li>Restore the trainer checkpoints</li>
+<li>Verify health endpoints, service registration in discovery-server and the
+Prometheus targets (all <code>up</code> means mTLS works)</li>
 </ol>
 <h3>Recovery Verification</h3>
-<p>After any recovery, run:</p>
-<pre><code class="language-bash"># Check all services are registered
-curl -k https://localhost:8443/services
+<pre><code class="language-bash"># Check all services are registered (through edge-proxy → gateway)
+curl -s http://localhost:8449/v1/discovery-server/services -H &quot;x-api-key: &lt;AUTH_TOKENS value&gt;&quot;
 
 # Check core service health (mTLS via SPIRE SVIDs, run inside a service container)
 for svc in discovery-server message-manager api-gateway; do
@@ -357,24 +463,43 @@ for svc in discovery-server message-manager api-gateway; do
 done
 </code></pre>
 <h2>Backup Verification (CI/CD)</h2>
-<p>A weekly GitHub Actions workflow tests restore readiness:
-<code>.github/workflows/backup-test.yml</code></p>
+<table>
+<thead>
+<tr>
+<th>Where</th>
+<th>What</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ci.yml</code>, job <code>k8s</code> (every push to main/development and every PR)</td>
+<td>Staging overlay on kind: drill markers seeded, real audit chain recorded, a dead letter stored the way message-manager stores them (<code>tests/k8s/dlq-seed.cjs</code>: signed <code>POST /dlq</code> over mTLS), <code>db-backup</code> run (age key generated for the run, off-site copy to an in-cluster S3), audit-logger and dlq-service stopped, data destroyed (<code>audit</code> and <code>dlq</code> databases, markers, <code>market_candles</code>, SPIRE server volume), <code>restore-k8s.sh</code>, checks: every recorded audit event back with the same hashes and the chain verified (<code>tests/backup/audit-chain.js</code>), every recorded dead letter back, markers in both MongoDB replica sets and MySQL, <code>market_candles</code> back, SPIRE trust bundle identical, audit-logger extends the restored chain once restarted, every Prometheus target up over mTLS</td>
+</tr>
+<tr>
+<td><code>backup-test.yml</code> (weekly, on changes to the scripts)</td>
+<td>Library tests (<code>tests/backup/backup-encryption.test.sh</code>), then the Docker drill: an audit trail written by the audit-logger image code (<code>tests/backup/seed-audit-chain.cjs</code>, events in the pre-2026-10-31 format, then current ones), MongoDB (3 databases), MySQL, Redis and the SPIRE server backed up, containers and volumes deleted, restored, checked (same audit events and hashes, chain verified, SPIRE trust bundle identical)</td>
+</tr>
+</tbody>
+</table>
+<h2>Known Limits</h2>
 <ul>
-<li>Runs every Sunday at 6:00 AM</li>
-<li>Validates syntax of all 4 backup/restore scripts</li>
-<li>Tests dry-run mode for <a href="http://restore.sh">restore.sh</a></li>
-<li>Validates K8s CronJob manifest</li>
-<li>Validates backup directory structure</li>
+<li><strong>No point-in-time recovery between dumps</strong>: binlogs are not archived, the
+MongoDB oplog is only captured during the dump. RPO is 24 h.</li>
+<li><strong>Docker stack</strong>: no scheduler, no backup metrics scraped, Redis without
+persistence (derived state only). Compose is a development stack.</li>
+<li><strong>No business-level validation after a restore</strong> beyond the CI drill: check
+the latest <code>market_candles</code> by hand after a real restore. The audit trail
+can be checked: <code>mongosh --eval &quot;const AUDIT_DB = 'audit'; $(cat tests/backup/audit-chain.js)&quot;</code>
+on the audit primary (<code>broken</code> must be <code>null</code>). Events stored before
+2026-10-31 hold <code>correlationId: null</code> where their hash saw no field; the
+verifier drops that null (audit-logger never hashes one), so they verify too.</li>
 </ul>
-<p>Results are visible in the GitHub Actions tab. On failure, the workflow
-annotates the commit with details.</p>
 <h2>Ownership</h2>
 <ul>
 <li>Backup automation: DevOps / Platform team</li>
-<li>Restore procedure validation: SRE team (quarterly)</li>
+<li>Restore procedure validation: CI (every run) + SRE review (quarterly)</li>
 <li>Secrets rotation: Security team (quarterly)</li>
 <li>DR drill coordination: Engineering manager (bi-annual)</li>
-<li>Backup CI/CD: GitHub Actions (<code>.github/workflows/backup-test.yml</code>)</li>
 </ul>
 </div></div>
 </main>

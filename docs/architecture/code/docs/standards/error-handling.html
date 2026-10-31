@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html class="dark" lang="en" data-tm-processed="true"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no" name="viewport">
+<title>Error Handling Standards | trading-model</title>
+
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+
+<script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              400: '#818cf8',
+              500: '#6366f1',
+              600: '#4f46e5',
+            },
+            surface: {
+              base: '#0B0F19',
+              card: '#111827',
+              muted: '#1E293B',
+              border: '#243046',
+            },
+            code: {
+              bg: '#0c121e',
+              keyword: '#c084fc',
+              ident: '#38bdf8',
+              type: '#34d399',
+              punct: '#94a3b8'
+            }
+          },
+          fontFamily: {
+            mono: ['JetBrains Mono', 'Fira Code', 'Menlo', 'Monaco', 'Courier New', 'monospace'],
+            sans: ['-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Inter', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+
+<style data-purpose="mobile-ux-styles">
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    .active-scale:active { transform: scale(0.97); transition: transform 0.1s ease-out; }
+    .h-safe-top { height: env(safe-area-inset-top, 0px); }
+    .pt-safe { padding-top: env(safe-area-inset-top, 0px); }
+    @supports (backdrop-filter: blur(12px)) {
+      .glass-header { backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
+    }
+    
+    .tm-prose p { margin: 0.5rem 0; }
+    .tm-prose p:first-child { margin-top: 0; }
+    .tm-prose p:last-child { margin-bottom: 0; }
+    .tm-prose a { color: #818cf8; text-decoration: underline; text-underline-offset: 2px; }
+    .tm-prose a:hover { color: #a5b4fc; }
+    .tm-prose code { font-family: 'JetBrains Mono', 'Fira Code', Menlo, Monaco, 'Courier New', monospace; font-size: 0.82em; color: #fbbf24; background: #0c121e; border: 1px solid #243046; border-radius: 0.25rem; padding: 0.05rem 0.3rem; }
+    .tm-prose pre { background: #0c121e; border: 1px solid #243046; border-radius: 0.5rem; padding: 0.75rem; overflow-x: auto; margin: 0.5rem 0; }
+    .tm-prose pre code { background: transparent; border: none; padding: 0; color: #e2e8f0; }
+    .tm-prose ul, .tm-prose ol { padding-left: 1.25rem; margin: 0.5rem 0; }
+    .tm-prose ul { list-style: disc; }
+    .tm-prose ol { list-style: decimal; }
+    .tm-prose li { margin: 0.2rem 0; }
+    .tm-prose blockquote { border-left: 3px solid #6366f1; background: rgba(17, 24, 39, 0.6); padding: 0.5rem 0.75rem; border-radius: 0 0.5rem 0.5rem 0; color: #94a3b8; margin: 0.5rem 0; }
+    .tm-prose h1, .tm-prose h2, .tm-prose h3, .tm-prose h4, .tm-prose h5 { color: #ffffff; font-weight: 700; margin: 0.75rem 0 0.25rem; }
+    .tm-prose h1 { font-size: 1.25rem; }
+    .tm-prose h2 { font-size: 1.125rem; }
+    .tm-prose h3 { font-size: 1rem; }
+    .tm-prose h4 { font-size: 0.875rem; }
+    .tm-prose table { width: 100%; border-collapse: collapse; margin: 0.5rem 0; }
+    .tm-prose th, .tm-prose td { border: 1px solid #243046; padding: 0.4rem 0.6rem; text-align: left; }
+    .tm-prose thead th { background: #0b0f19; color: #e2e8f0; font-size: 0.75rem; text-transform: uppercase; }
+    .tm-prose strong { color: #ffffff; }
+  </style>
+
+</head>
+<body class="bg-[#080C15] text-slate-200 font-sans antialiased min-h-screen pb-24 selection:bg-indigo-500/30 selection:text-indigo-200">
+
+<header class="sticky top-0 z-40 w-full glass-header bg-[#0B0F19]/90 border-b border-surface-border">
+<div class="h-safe-top pt-safe"></div>
+<div class="px-4 py-2.5 flex items-center justify-between gap-3">
+<div class="flex items-center gap-2.5 min-w-0">
+
+<div class="flex flex-col min-w-0">
+<div class="flex items-center gap-1.5 truncate">
+<span class="font-mono text-xs font-semibold text-indigo-400 truncate tracking-tight"><a class="text-indigo-400 hover:text-indigo-300 hover:underline" href="../../index.html">trading-model</a></span>
+
+</div>
+<span class="text-[10px] text-slate-400 flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> TypeDoc API Reference
+</span>
+</div>
+</div>
+
+</div>
+</header>
+
+<main class="px-4 py-4 max-w-2xl mx-auto flex flex-col gap-6">
+
+<section class="space-y-2.5" data-purpose="breadcrumbs-and-header">
+<nav aria-label="Breadcrumb" class="flex items-center flex-wrap gap-1 text-[11px] font-mono text-slate-400">
+<a class="text-indigo-400 hover:underline" href="../../index.html">trading-model</a><span class="text-slate-600">/</span><span class="text-slate-300 font-medium">Error Handling Standards</span>
+</nav>
+<div class="flex items-center gap-2.5 pt-1">
+<span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-mono font-medium tracking-wide uppercase bg-indigo-500/10 text-indigo-400 border-indigo-500/20">
+Documentation
+</span>
+<h1 class="text-2xl font-bold tracking-tight text-white font-sans">Error Handling Standards</h1>
+</div>
+
+</section>
+
+<div class="tm-prose text-sm leading-relaxed text-slate-300 font-sans"><div>
+<h2>Why</h2>
+<p>The audit of 2026-09-13 traced several broken subsystems that raised no alert and no crash to one habit: errors caught and dropped. A subscription that failed, a Redis queue that refused every push, and a circuit state that never loaded all looked like success. A system that fails silently cannot be operated, so every caught error must leave a trace or reach a caller that decides. See <a href="../adr/0017-no-swallowed-errors.html">ADR-0017</a>.</p>
+<h2>Rules</h2>
+<p>A <code>catch</code> block, a <code>.catch(handler)</code> or a <code>.then(_, handler)</code> must do at least one of:</p>
+<ol>
+<li><strong>Propagate</strong>: rethrow, possibly wrapped with <code>cause</code> (<code>throw messageManagerError(&quot;…&quot;, { cause: normalizeError(err) })</code>).</li>
+<li><strong>Report</strong>: log it (<code>logger.warn</code>/<code>logger.error</code>) or record a metric, with enough context to find the failing resource.</li>
+<li><strong>Delegate</strong>: hand it to a handler whose job is error handling (<code>this._handleDeliveryError(err, …)</code>).</li>
+</ol>
+<h3>Do not turn an infrastructure failure into a domain value</h3>
+<p>An adapter must not answer <code>[]</code>, <code>0</code>, <code>null</code> or <code>false</code> for &quot;the dependency is down&quot; when the same value means a normal result. &quot;Redis is unreachable&quot; is not &quot;the queue is empty&quot;, and &quot;the registry did not answer&quot; is not &quot;no instance is registered&quot;.</p>
+<ul>
+<li>Prefer propagating, so the caller decides.</li>
+<li>If the port's contract is &quot;never throws&quot; (fire-and-forget queues, best-effort shutdown), the adapter <strong>logs</strong> before returning the fallback, and callers <strong>check the result</strong> rather than reporting success unconditionally (<code>Re-queued 1/2 entries</code>, not <code>Re-queued 2 entries</code>).</li>
+<li>A typed <code>Result</code> (<code>{ ok: false, error }</code>) is fine: the error travels with the value.</li>
+</ul>
+<h3>Best-effort is explicit</h3>
+<p>Some failures really must not stop the flow, such as shutdown cleanup, telemetry or closing a connection that is already broken. They are still logged (usually <code>warn</code>), and a comment explains why execution continues.</p>
+<h3>Fire-and-forget</h3>
+<p><code>void promise()</code> disables <code>noFloatingPromises</code>. Use it only when the callee never rejects (it catches and logs internally) or a process-level handler is the intended reporter. Do not put <code>.catch(() =&gt; {})</code> on it.</p>
+<h2>Legitimate conversions</h2>
+<p>A few <code>catch</code> blocks convert an exception into a value <strong>by design</strong>. Each must carry a suppression that states why:</p>
+<pre><code class="language-ts">// biome-ignore lint/plugin: readiness probe: failure is the negative signal
+try {
+	await client.ping();
+	return true;
+} catch {
+	return false;
+}
+</code></pre>
+<p>Accepted reasons: readiness/health probes, validation predicates (<code>isValidX</code>), parse helpers whose <code>null</code> means &quot;not that format&quot;, fallback loops that rethrow the last error, <code>Result</code> adapters.</p>
+<h2>Enforcement</h2>
+<table>
+<thead>
+<tr>
+<th>Mechanism</th>
+<th>Catches</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>suspicious/noEmptyBlockStatements</code> (<code>biome.json</code>, <code>src</code> only)</td>
+<td><code>catch {}</code>, <code>.catch(() =&gt; {})</code>, any empty function body. Intentional no-op stubs carry a <code>// Intentional no-op.</code> comment</td>
+</tr>
+<tr>
+<td><code>biome-plugins/no-swallowed-errors.grit</code> (<code>**/src/**</code>)</td>
+<td>Any <code>catch</code>/<code>.catch</code>/<code>.then(_, h)</code> handler that neither throws nor calls anything: <code>return null</code>, <code>() =&gt; undefined</code>, an assignment…</td>
+</tr>
+<tr>
+<td>Code review (<a href="pr-standards.html#review">PR Standards</a>)</td>
+<td>What a linter cannot judge: a handler that calls something unrelated, a misleading success log, a fallback value that hides an outage</td>
+</tr>
+</tbody>
+</table>
+<p>The plugin is a heuristic. A handler that calls <em>any</em> function passes, so the review criterion is not optional.</p>
+<p>Tests are excluded from both rules: they deliberately silence errors when tearing down fixtures.</p>
+</div></div>
+</main>
+</body>
+</html>

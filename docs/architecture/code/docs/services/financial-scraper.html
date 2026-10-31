@@ -142,188 +142,120 @@ Documentation
 </tbody>
 </table>
 <h2>REST Endpoints</h2>
-<p>All endpoints are <strong>GET</strong> and return the requested financial data.</p>
-<h3>Trades</h3>
+<p>All endpoints are <strong>GET</strong>, return a JSON <strong>array</strong> (possibly empty), and answer
+400 with <code>{ &quot;error&quot;: &quot;Validation failed&quot;, &quot;details&quot;: [...] }</code> on an invalid
+parameter. Their parameters and responses are declared in
+<code>src/adapters/inbound/http/api-routes.ts</code> (<code>SCRAPER_API</code>, ADR-0021) and
+published in the <a href="openapi/api-gateway.yaml">OpenAPI</a>; through the gateway they
+are reached under the service prefix <code>financial-scraper</code> of the gateway API (v1).</p>
 <table>
 <thead>
 <tr>
 <th>Route</th>
+<th>Returns</th>
 <th>Parameter</th>
-<th>Example</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td><code>/trade/sources/:source</code></td>
-<td>Source (e.g. <code>binance</code>)</td>
-<td><code>/trade/sources/binance</code></td>
+<td>trades of a source</td>
+<td><code>binance</code>, <code>bloomberg</code> or <code>nyse</code></td>
 </tr>
 <tr>
 <td><code>/trade/symbols/:symbol</code></td>
-<td>Symbol (e.g. <code>BTCUSDT</code>)</td>
-<td><code>/trade/symbols/BTCUSDT</code></td>
+<td>trades of a symbol</td>
+<td>e.g. <code>BTCUSDT</code></td>
 </tr>
 <tr>
 <td><code>/trade/timestamp/:timestamp</code></td>
-<td>Unix timestamp</td>
-<td><code>/trade/timestamp/1705315200</code></td>
+<td>trades at <strong>exactly</strong> this instant</td>
+<td>ISO date or date-time</td>
 </tr>
-</tbody>
-</table>
-<p><strong>Response:</strong></p>
-<pre><code class="language-json">{
-  &quot;data&quot;: [
-    {
-      &quot;symbol&quot;: &quot;BTCUSDT&quot;,
-      &quot;market&quot;: &quot;crypto&quot;,
-      &quot;source&quot;: &quot;binance&quot;,
-      &quot;tradeId&quot;: 123456789,
-      &quot;price&quot;: 50000.0,
-      &quot;quantity&quot;: 0.5,
-      &quot;side&quot;: &quot;buy&quot;,
-      &quot;timestamp&quot;: 1705315200000
-    }
-  ]
-}
-</code></pre>
-<h3>Tickers</h3>
-<table>
-<thead>
-<tr>
-<th>Route</th>
-<th>Parameter</th>
-</tr>
-</thead>
-<tbody>
 <tr>
 <td><code>/ticker/sources/:source</code></td>
-<td>Source</td>
+<td>24h tickers of a source</td>
+<td>source</td>
 </tr>
 <tr>
 <td><code>/ticker/symbols/:symbol</code></td>
-<td>Symbol</td>
+<td>24h tickers of a symbol</td>
+<td>symbol</td>
 </tr>
 <tr>
 <td><code>/ticker/timestamp/:timestamp</code></td>
-<td>Unix timestamp</td>
+<td>24h tickers opened at <strong>exactly</strong> this instant</td>
+<td>ISO date or date-time</td>
 </tr>
-</tbody>
-</table>
-<p><strong>Response:</strong></p>
-<pre><code class="language-json">{
-  &quot;data&quot;: [
-    {
-      &quot;symbol&quot;: &quot;BTCUSDT&quot;,
-      &quot;market&quot;: &quot;crypto&quot;,
-      &quot;source&quot;: &quot;binance&quot;,
-      &quot;open&quot;: 49000.0,
-      &quot;high&quot;: 51000.0,
-      &quot;low&quot;: 48500.0,
-      &quot;last&quot;: 50000.0,
-      &quot;volume&quot;: 12500.5,
-      &quot;closeTimestamp&quot;: 1705315200000
-    }
-  ]
-}
-</code></pre>
-<h3>Candles (OHLCV)</h3>
-<table>
-<thead>
-<tr>
-<th>Route</th>
-<th>Parameter</th>
-</tr>
-</thead>
-<tbody>
 <tr>
 <td><code>/candles/sources/:source</code></td>
-<td>Source</td>
+<td>candles of a source</td>
+<td>source</td>
 </tr>
 <tr>
 <td><code>/candles/symbols/:symbol</code></td>
-<td>Symbol</td>
+<td>candles of a symbol</td>
+<td>symbol</td>
 </tr>
 <tr>
 <td><code>/candles/timestamp/:timestamp</code></td>
-<td>Unix timestamp</td>
+<td>candles opened <strong>after</strong> this instant</td>
+<td>ISO date or date-time</td>
 </tr>
-</tbody>
-</table>
-<p><strong>Response:</strong></p>
-<pre><code class="language-json">{
-  &quot;data&quot;: [
-    {
-      &quot;symbol&quot;: &quot;BTCUSDT&quot;,
-      &quot;market&quot;: &quot;crypto&quot;,
-      &quot;source&quot;: &quot;binance&quot;,
-      &quot;interval&quot;: &quot;1h&quot;,
-      &quot;open&quot;: 50000.0,
-      &quot;high&quot;: 50100.0,
-      &quot;low&quot;: 49900.0,
-      &quot;close&quot;: 50050.0,
-      &quot;volume&quot;: 1250.5,
-      &quot;trades&quot;: 342,
-      &quot;timestamp&quot;: 1705315200000,
-      &quot;closeTimestamp&quot;: 1705318800000
-    }
-  ]
-}
-</code></pre>
-<h3>Order Book</h3>
-<table>
-<thead>
-<tr>
-<th>Route</th>
-<th>Parameter</th>
-</tr>
-</thead>
-<tbody>
 <tr>
 <td><code>/orderbook/sources/:source</code></td>
-<td>Source</td>
+<td>order book snapshots of a source</td>
+<td>source</td>
 </tr>
 <tr>
 <td><code>/orderbook/symbols/:symbol</code></td>
-<td>Symbol</td>
+<td>order book snapshots of a symbol</td>
+<td>symbol</td>
 </tr>
 <tr>
 <td><code>/orderbook/after/timestamp/:timestamp</code></td>
-<td>Timestamp (after)</td>
+<td>snapshots after this instant</td>
+<td>epoch milliseconds</td>
+</tr>
+<tr>
+<td><code>/orderbook/before/timestamp/:timestamp</code></td>
+<td>snapshots before this instant</td>
+<td>epoch milliseconds</td>
 </tr>
 </tbody>
 </table>
-<p><strong>Response:</strong></p>
-<pre><code class="language-json">{
-  &quot;data&quot;: {
+<p>Queries are not paginated: a symbol or source query returns every stored row.</p>
+<p>Trades, tickers and candles come from MySQL: their instants are ISO date-times
+and <code>tradeId</code> (BIGINT) is a decimal string, exact past 2^53:</p>
+<pre><code class="language-json">[
+  {
     &quot;symbol&quot;: &quot;BTCUSDT&quot;,
+    &quot;market&quot;: &quot;crypto&quot;,
+    &quot;source&quot;: &quot;binance&quot;,
+    &quot;side&quot;: &quot;buy&quot;,
+    &quot;price&quot;: 50000.0,
+    &quot;quantity&quot;: 0.5,
+    &quot;tradeId&quot;: &quot;9007199254740993&quot;,
+    &quot;timestamp&quot;: &quot;2024-01-15T10:40:00.000Z&quot;
+  }
+]
+</code></pre>
+<p>Tickers carry <code>open</code>, <code>high</code>, <code>low</code>, <code>last</code>, <code>volume</code>, <code>timestamp</code> and
+<code>closeTimestamp</code>; candles carry <code>interval</code>, <code>open</code>, <code>high</code>, <code>low</code>, <code>close</code>,
+<code>volume</code>, <code>trades</code> (absent when unknown), <code>timestamp</code> and <code>closeTimestamp</code>.</p>
+<p>Order books are in-memory snapshots (lost on restart), timestamped in epoch
+milliseconds:</p>
+<pre><code class="language-json">[
+  {
+    &quot;symbol&quot;: &quot;BTCUSDT&quot;,
+    &quot;market&quot;: &quot;crypto&quot;,
     &quot;source&quot;: &quot;binance&quot;,
     &quot;timestamp&quot;: 1705315200000,
-    &quot;bids&quot;: [
-      [&quot;50000.00&quot;, &quot;1.5&quot;],
-      [&quot;49990.00&quot;, &quot;2.3&quot;]
-    ],
-    &quot;asks&quot;: [
-      [&quot;50010.00&quot;, &quot;0.8&quot;],
-      [&quot;50020.00&quot;, &quot;1.1&quot;]
-    ]
+    &quot;bids&quot;: [{ &quot;price&quot;: 50000.0, &quot;quantity&quot;: 1.5 }],
+    &quot;asks&quot;: [{ &quot;price&quot;: 50010.0, &quot;quantity&quot;: 0.8 }]
   }
-}
+]
 </code></pre>
-<h3>Heartbeat</h3>
-<table>
-<thead>
-<tr>
-<th>Route</th>
-<th>Parameter</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>/heartbeat/before/timestamp/:timestamp</code></td>
-<td>Timestamp (before)</td>
-</tr>
-</tbody>
-</table>
 <h2>MySQL Tables</h2>
 <p>All tables live in the <code>financial_scraper</code> database (configurable via <code>DB_NAME</code> env var). The ORM is <code>ts-sql-query</code> with a custom <code>DBConnection</code> wrapper.</p>
 <p>Three tables store market data:</p>
@@ -351,7 +283,7 @@ Documentation
 </table>
 <p>See <a href="../architecture/databases.html#mysql--financial-scraper-financial-scraper"><code>docs/architecture/databases.md</code></a> for the full column definitions, SQL DDL, composite primary keys, index conventions, and TypeScript interfaces.</p>
 <h2>Background Jobs (Scheduled Tasks)</h2>
-<p><strong>BinanceWorker</strong> instances are created per symbol via <code>node-cron</code> to periodically fetch 6 data types:</p>
+<p>A <code>node-cron</code> cycle (<code>ScrapeCronOrchestrator</code>) asks the market data source (<code>MarketDataSourcePort</code>, Binance today: <code>BinanceMarketDataSource</code>, ADR-0026) for a snapshot of each symbol, persists it, then publishes it. A snapshot holds 6 data types:</p>
 <ol>
 <li><strong>Candlesticks</strong> (OHLCV candles)</li>
 <li><strong>Recent Trades</strong> (recent trades)</li>
@@ -361,8 +293,12 @@ Documentation
 <li><strong>Price Ticker</strong> (current price)</li>
 </ol>
 <ul>
-<li><code>node-cron</code> orchestrates per-symbol workers with concurrency control via <code>p-limit</code></li>
-<li>Each worker fetches all 6 data types in parallel, normalizes responses, and publishes events to the message bus</li>
+<li><code>node-cron</code> runs the cycle with concurrency control via <code>p-limit</code></li>
+<li>The Binance source fetches all 6 data types in parallel and normalizes them; <code>BrokerMarketDataPublisher</code> publishes them to the message bus</li>
+<li>Failures stay where they happen: a symbol that fails does not stop the others (<code>fs_symbols_failed_total</code>), and an endpoint that fails only leaves its data type out of the snapshot (<code>fs_snapshot_parts_failed_total{part}</code>): an order book error does not cost the candles. The symbol fails only when all 6 endpoints fail</li>
+<li>MySQL does not wait for the bus: the cycle persists, then starts the publish without awaiting it (a hung message-manager may hold a publish for <code>PUBLISH_TIMEOUT_MS</code>). While a symbol's publish is in flight, the next cycles persist only (<code>fs_publishes_skipped_total</code>; their trades, tickers and order book are not published, they are snapshots)</li>
+<li>The candles to publish are read back from MySQL: each series has a publish cursor (<code>market_publish_cursors</code>, migration 005, open time of the next candle to publish) that moves only once a publish of its candles succeeded. Each cycle sends the next 100 persisted candles from the cursor, so a bus outage or a collector restart loses none (<code>fs_unpublished_candles{symbol}</code> counts those waiting, alert <code>MarketDataUnpublished</code>). A series without a cursor starts at the first candle the process persists, not at the history. If the backlog cannot be read (MySQL down) the other data types still go out. On shutdown the scraper stops the cron and waits for the running cycle and the publishes in flight (collector grace period 360 s)</li>
+<li>Candles are fetched from a per-symbol cursor (<code>startTime</code> = close of the last persisted candle + 1 ms), so each cycle publishes only the candles closed since the previous one and catches up after an outage. The still-open candle is never published. The cursor lives in memory: after a restart the first cycle sends the latest window again, which the upserts and the trainer absorb</li>
 </ul>
 <h3>Rate Limiting</h3>
 <ul>
@@ -377,10 +313,10 @@ Documentation
   └── MessageManager routes (callback)
 
 Background
-  └── BinanceWorker (per symbol)
-        ├── Binance API fetch
-        ├── Token Bucket (rate limiting)
-        └── MySQL write + Bus publication
+  └── WorkerOrchestrator (per symbol)
+        ├── MarketDataSourcePort → Binance public API (token bucket)
+        ├── MarketDataPublisherPort → message bus
+        └── MySQL write
 
 Dependencies
   ├── MySQL (persistence)
