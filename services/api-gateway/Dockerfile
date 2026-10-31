@@ -9,7 +9,8 @@ WORKDIR /app
 COPY package.json bun.lock ./
 COPY packages/ packages/
 COPY services/ services/
-RUN bun install --frozen-lockfile --production
+# --ignore-scripts: the root "prepare" script runs husky, a dev dependency absent here.
+RUN bun install --frozen-lockfile --production --ignore-scripts
 
 # ── Stage 2: Build shared packages + service ────────────────────────────────
 FROM oven/bun@sha256:c1cc397e0be452c54f37cbcdfaa747eff93c993723af7d91658764d0fdfe5873 AS build
@@ -23,21 +24,26 @@ WORKDIR /app/services/api-gateway
 RUN bun run build
 
 # ── Stage 3: Runtime image ──────────────────────────────────────────────────
-FROM oven/bun@sha256:c1cc397e0be452c54f37cbcdfaa747eff93c993723af7d91658764d0fdfe5873 AS runtime
+# Node runtime: Bun exposes neither the peer certificate on HTTPS request
+# sockets nor server.setSecureContext, which SPIFFE mTLS (ADR-0011) relies on
+# for caller identity and SVID rotation.
+FROM node@sha256:0a7108bf6c7bf5de370ffb1a3ed6be93d405b43ff159f681a8d18c0e2bc2e402 AS runtime
 WORKDIR /app
 RUN apk add --no-cache tini curl
 
-COPY --from=deps /app/node_modules ./node_modules
-COPY --from=build /app/packages ./packages
-COPY --from=build /app/services/api-gateway/package.json ./services/api-gateway/
-COPY --from=build /app/services/api-gateway/dist ./services/api-gateway/dist
-
+# Owned by appuser at copy time: a `chown -R /app` afterwards rewrites every
+# file of node_modules into a second layer (twice the size, and a step slow
+# enough to stall the build).
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
-RUN chown -R appuser:appgroup /app
+COPY --chown=appuser:appgroup --from=deps /app/node_modules ./node_modules
+COPY --chown=appuser:appgroup --from=build /app/packages ./packages
+COPY --chown=appuser:appgroup --from=build /app/services/api-gateway/package.json ./services/api-gateway/
+COPY --chown=appuser:appgroup --from=build /app/services/api-gateway/dist ./services/api-gateway/dist
+RUN chown appuser:appgroup /app
 USER appuser
 
 EXPOSE 3000
 HEALTHCHECK --interval=15s --timeout=5s --retries=3 \
   CMD curl -skf --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem https://localhost:3000/health/ready || exit 1
 ENTRYPOINT ["/sbin/tini", "--"]
-CMD ["bun", "services/api-gateway/dist/application/index.js"]
+CMD ["node", "services/api-gateway/dist/application/index.js"]

@@ -8,7 +8,8 @@ WORKDIR /app
 COPY package.json bun.lock ./
 COPY packages/ packages/
 COPY services/ services/
-RUN bun install --frozen-lockfile --production
+# --ignore-scripts: the root "prepare" script runs husky, a dev dependency absent here.
+RUN bun install --frozen-lockfile --production --ignore-scripts
 
 FROM oven/bun@sha256:c1cc397e0be452c54f37cbcdfaa747eff93c993723af7d91658764d0fdfe5873 AS build
 WORKDIR /app
@@ -20,7 +21,10 @@ RUN bun run build
 WORKDIR /app/services/dlq-service
 RUN bun run build
 
-FROM oven/bun@sha256:c1cc397e0be452c54f37cbcdfaa747eff93c993723af7d91658764d0fdfe5873 AS runtime
+# Node runtime: Bun exposes neither the peer certificate on HTTPS request
+# sockets nor server.setSecureContext, which SPIFFE mTLS (ADR-0011) relies on
+# for caller identity and SVID rotation.
+FROM node@sha256:0a7108bf6c7bf5de370ffb1a3ed6be93d405b43ff159f681a8d18c0e2bc2e402 AS runtime
 WORKDIR /app
 RUN apk add --no-cache tini curl
 
@@ -36,4 +40,4 @@ EXPOSE 3000
 HEALTHCHECK --interval=15s --timeout=5s --retries=3 \
   CMD curl -skf --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem https://localhost:3000/health/ready || exit 1
 ENTRYPOINT ["/sbin/tini", "--"]
-CMD ["bun", "services/dlq-service/dist/application/index.js"]
+CMD ["node", "services/dlq-service/dist/application/index.js"]
