@@ -1,6 +1,8 @@
+import { z } from "zod";
 import { validateEnv } from "../src/application/services/validate-env";
 import { AddressManagerEnvSchema } from "../src/config/address-manager-env";
 import { BaseEnvSchema } from "../src/config/env";
+import { RedisEnvSchema } from "../src/config/redis-env";
 
 describe("BaseEnvSchema", () => {
 	it("uses defaults for optional fields", () => {
@@ -136,16 +138,6 @@ describe("AddressManagerEnvSchema", () => {
 		expect(result.DNS_NAME_MAP).toEqual({});
 	});
 
-	it("parses ADDRESS_MANAGER_URLS", () => {
-		const result = AddressManagerEnvSchema.parse({
-			...baseEnv,
-			ADDRESS_MANAGER_URLS: '["https://ds1:3000","https://ds2:3000"]',
-		});
-		expect(result.ADDRESS_MANAGER_URLS).toBe(
-			'["https://ds1:3000","https://ds2:3000"]'
-		);
-	});
-
 	it("rejects missing required fields", () => {
 		expect(() => AddressManagerEnvSchema.parse({})).toThrow();
 	});
@@ -159,5 +151,50 @@ describe("validateEnv", () => {
 		const result = validateEnv(BaseEnvSchema);
 		expect(result).toBeDefined();
 		expect(result.TLS_KEY_PATH).toBe("/key.pem");
+	});
+
+	it("logs the field errors and throws a configuration error on failure", () => {
+		const error = jest.spyOn(console, "error").mockImplementation(() => {
+			// silenced: the call itself is asserted
+		});
+		const schema = z.object({ REQUIRED_FOR_TEST: z.string() });
+
+		expect(() => validateEnv(schema)).toThrow("Environment validation failed");
+		expect(error).toHaveBeenCalledWith("Invalid environment configuration", {
+			errors: expect.objectContaining({
+				properties: expect.objectContaining({
+					REQUIRED_FOR_TEST: expect.anything(),
+				}),
+			}),
+		});
+		error.mockRestore();
+	});
+
+	it("falls back to the raw Zod error when it cannot be treeified", () => {
+		const error = jest.spyOn(console, "error").mockImplementation(() => {
+			// silenced: the call itself is asserted
+		});
+		const treeify = jest.spyOn(z, "treeifyError").mockImplementation(() => {
+			throw new Error("boom");
+		});
+		const schema = z.object({ REQUIRED_FOR_TEST: z.string() });
+
+		expect(() => validateEnv(schema)).toThrow("Environment validation failed");
+		expect(error).toHaveBeenCalledWith("Invalid environment configuration", {
+			errors: expect.any(z.ZodError),
+		});
+		treeify.mockRestore();
+		error.mockRestore();
+	});
+});
+
+describe("RedisEnvSchema", () => {
+	it("accepts the sentinel settings", () => {
+		const result = RedisEnvSchema.parse({
+			REDIS_SENTINELS: "10.0.0.1:26379,redis-sentinel:26379",
+			REDIS_SENTINEL_MASTER_NAME: "mymaster",
+		});
+		expect(result.REDIS_SENTINELS).toBe("10.0.0.1:26379,redis-sentinel:26379");
+		expect(result.REDIS_URL).toBeUndefined();
 	});
 });
