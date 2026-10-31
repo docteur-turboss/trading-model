@@ -16,8 +16,16 @@ export interface LoggerPort {
 
 /** No-op logger used as default when the composition root provides none. */
 export const NoopLogger: LoggerPort = {
-	debug: () => {},
-	info: () => {},
-	warn: () => {},
-	error: () => {},
+	debug: () => {
+		// Intentional no-op.
+	},
+	info: () => {
+		// Intentional no-op.
+	},
+	warn: () => {
+		// Intentional no-op.
+	},
+	error: () => {
+		// Intentional no-op.
+	},
 };

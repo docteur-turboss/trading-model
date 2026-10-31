@@ -24,6 +24,7 @@ export class LeaseManager {
 				listServiceNames: async () => registry.instanceStore.listServiceNames(),
 				getInstances: async (name) => registry.instanceStore.getInstances(name),
 				removeInstance: async (id) => registry.removeInstance(id),
+				afterCleanup: () => registry.syncRegisteredInstanceMetrics(),
 				logger: this._logger,
 				metrics: options?.metrics,
 			},

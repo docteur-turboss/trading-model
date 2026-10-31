@@ -19,6 +19,8 @@ export interface CleanupDeps {
 	listServiceNames(): Promise<ServiceInstanceName[]>;
 	getInstances(serviceName: ServiceInstanceName): Promise<ServiceInstance[]>;
 	removeInstance(id: ServiceIdentity): Promise<boolean>;
+	/** Runs at the end of every cycle, once expired instances are gone. */
+	afterCleanup?(): Promise<void>;
 	logger?: LoggerPort;
 	metrics?: CleanupMetricsPort;
 }
@@ -145,6 +147,7 @@ export class StaleInstanceCleaner {
 					}
 				}
 			}
+			await this._deps.afterCleanup?.();
 		} finally {
 			this._metrics.observeCleanupDuration(performance.now() - start);
 		}

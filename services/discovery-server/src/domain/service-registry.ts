@@ -3,6 +3,7 @@ import type {
 	InstanceId,
 } from "@trading-model/primitives/primitives";
 import type { ServiceIdentity } from "@trading-model/primitives/service-identity";
+import { ALL_SERVICE_NAMES } from "@trading-model/primitives/service-instance-name";
 import type { ServiceInstance } from "../shared/types";
 import type { InstanceTokenManager } from "./instance-token-manager";
 import {
@@ -32,34 +33,43 @@ export class ServiceRegistry {
 		const { instanceId } = instance;
 		const token = this.tokenManager.generateToken(instanceId);
 		await this.instanceStore.registerInstance(instance);
-		this.tokenManager.setToken(instanceId, token as unknown as AuthToken);
+		await this.tokenManager.setToken(instanceId, token as unknown as AuthToken);
 		const stored = await this.instanceStore.getInstance({
 			serviceName: instance.serviceName,
 			instanceId,
 		});
-		await this._syncRegisteredInstanceMetrics();
+		await this.syncRegisteredInstanceMetrics();
 		return { ...stored!, token };
 	}
 
-	updateToken(instanceId: InstanceId): string {
+	async updateToken(instanceId: InstanceId): Promise<string> {
 		const newToken = this.tokenManager.generateToken(instanceId);
-		this.tokenManager.setToken(instanceId, newToken as unknown as AuthToken);
+		await this.tokenManager.setToken(
+			instanceId,
+			newToken as unknown as AuthToken
+		);
 		return newToken;
 	}
 
 	async removeInstance(identity: ServiceIdentity): Promise<boolean> {
 		const result = await this.instanceStore.removeInstance(identity);
-		this.tokenManager.deleteToken(identity.instanceId);
+		await this.tokenManager.deleteToken(identity.instanceId);
 		if (result) {
-			await this._syncRegisteredInstanceMetrics();
+			await this.syncRegisteredInstanceMetrics();
 		}
 		return result;
 	}
 
-	private async _syncRegisteredInstanceMetrics(): Promise<void> {
-		const serviceNames = await this.instanceStore.listServiceNames();
+	/**
+	 * Sets the instance gauges from the shared store. Every replica exports
+	 * them, so each one must re-read the store (the lease cleanup cycle calls
+	 * this): a replica that only counted its own registrations would keep a
+	 * stale count and hide a drop from `max by (service)`. Known services
+	 * without instances are set to 0 rather than left at their last value.
+	 */
+	async syncRegisteredInstanceMetrics(): Promise<void> {
 		let total = 0;
-		for (const serviceName of serviceNames) {
+		for (const serviceName of ALL_SERVICE_NAMES) {
 			const instances = await this.instanceStore.getInstances(serviceName);
 			this._metrics.setRegisteredInstancesPerService(
 				serviceName,

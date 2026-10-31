@@ -3,12 +3,14 @@ import { normalizeError } from "@trading-model/common/utils/errors";
 import type { ServiceInstance } from "@trading-model/contracts/service-registry-types";
 import { logger } from "@trading-model/http/infrastructure/logger";
 import type { InstanceId } from "@trading-model/primitives/primitives";
+import {
+	ALL_SERVICE_NAMES,
+	type ServiceInstanceName as KnownServiceName,
+} from "@trading-model/primitives/service-instance-name";
 import type { RedisDepsWithoutToken } from "../../shared/redis-deps";
 import {
 	instanceMetadata,
-	parseServiceName,
 	serviceInstancesSet,
-	servicePattern,
 } from "../../shared/redis-key-builder";
 
 export class InstanceMetadataReader {
@@ -56,12 +58,23 @@ export class InstanceMetadataReader {
 		return instances;
 	}
 
-	async listServiceNames(): Promise<string[]> {
-		const keys = await this._deps.redis.keys(
-			servicePattern(this._deps.keyPrefix)
+	/**
+	 * Services with at least one registered instance. Service names form a
+	 * closed set: one SCARD per known name instead of a KEYS scan, which
+	 * blocks Redis for the whole keyspace.
+	 */
+	async listServiceNames(): Promise<KnownServiceName[]> {
+		const names = [...ALL_SERVICE_NAMES];
+		const sizes = await Promise.all(
+			names.map((name) =>
+				this._deps.redis.scard(
+					serviceInstancesSet(
+						this._deps.keyPrefix,
+						name as unknown as ServiceInstanceName
+					)
+				)
+			)
 		);
-		return keys
-			.map((key) => parseServiceName(this._deps.keyPrefix, key))
-			.filter((name): name is string => name !== null);
+		return names.filter((_name, index) => sizes[index] > 0);
 	}
 }

@@ -19,9 +19,19 @@ export type DiscoveryMetricsPort = RegistryMetricsPort & CleanupMetricsPort;
 
 /** No-op recorder used as default when the composition root provides none. */
 export const NoopDiscoveryMetrics: DiscoveryMetricsPort = {
-	setRegisteredInstances: () => {},
-	setRegisteredInstancesPerService: () => {},
-	incLeaseCleanupCycle: () => {},
-	observeCleanupDuration: () => {},
-	incOperationError: () => {},
+	setRegisteredInstances: () => {
+		// Intentional no-op.
+	},
+	setRegisteredInstancesPerService: () => {
+		// Intentional no-op.
+	},
+	incLeaseCleanupCycle: () => {
+		// Intentional no-op.
+	},
+	observeCleanupDuration: () => {
+		// Intentional no-op.
+	},
+	incOperationError: () => {
+		// Intentional no-op.
+	},
 };

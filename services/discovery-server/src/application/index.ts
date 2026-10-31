@@ -28,6 +28,7 @@ createBootstrap({
 						if (!redisClient) {
 							return true;
 						}
+						// biome-ignore lint/plugin: readiness probe: failure is the negative signal
 						try {
 							return (await redisClient.ping()) === "PONG";
 						} catch {
