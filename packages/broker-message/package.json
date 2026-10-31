@@ -21,7 +21,6 @@
     "@trading-model/address-manager": "*",
     "@trading-model/common": "*",
     "@trading-model/http": "*",
-    "@trading-model/jobs": "*",
     "express": "^5.2.1",
     "ws": "^8.21.3",
     "zod": "^4.5.4"
