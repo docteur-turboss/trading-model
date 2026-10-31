@@ -47,6 +47,27 @@ spec:
         fsGroup: 10001
         seccompProfile:
           type: RuntimeDefault
+      # Even spread (ADR-0024): at most one pod more on a node than on the
+      # emptiest one; the zone is best effort (nodes without the label qualify).
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: DoNotSchedule
+          nodeTaintsPolicy: Honor
+          matchLabelKeys:
+            - pod-template-hash
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/component: financial-scraper
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: ScheduleAnyway
+          nodeTaintsPolicy: Honor
+          matchLabelKeys:
+            - pod-template-hash
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/component: financial-scraper
       containers:
         - name: financial-scraper
           image: ghcr.io/trading-model/financial-scraper:latest
@@ -144,16 +165,15 @@ spec:
                   - -c
                   - sleep 10
         - name: spiffe-helper
-          image: ghcr.io/spiffe/spiffe-helper:0.6.0
+          image: ghcr.io/spiffe/spiffe-helper:0.10.1
           imagePullPolicy: IfNotPresent
           args:
-            - -socketPath=/run/spire/agent-sockets/public/api.sock
-            - -certDir=/run/spire/svid
-            - -svidFileName=svid.pem
-            - -svidKeyFileName=svid_key.pem
-            - -svidBundleFileName=bundle.pem
-            - -renewSignal=SIGHUP
+            - -config
+            - /etc/spiffe-helper/helper.conf
           volumeMounts:
+            - name: spiffe-helper-config
+              mountPath: /etc/spiffe-helper
+              readOnly: true
             - name: spire-agent-socket
               mountPath: /run/spire/agent-sockets
             - name: svid
@@ -168,10 +188,15 @@ spec:
             seccompProfile:
               type: RuntimeDefault
       volumes:
+        - name: spiffe-helper-config
+          configMap:
+            name: spiffe-helper-config
+        # Workload API socket from the SPIFFE CSI driver (node-agents): the
+        # restricted Pod Security profile forbids a hostPath.
         - name: spire-agent-socket
-          hostPath:
-            path: /run/spire/agent-sockets
-            type: DirectoryOrCreate
+          csi:
+            driver: csi.spiffe.io
+            readOnly: true
         - name: svid
           emptyDir: {}
         - name: tmp
@@ -221,7 +246,9 @@ spec:
         prometheus.io/scheme: "https"
     spec:
       serviceAccountName: financial-scraper
-      terminationGracePeriodSeconds: 30
+      # On stop the collector waits for its publishes in flight, each bounded by
+      # PUBLISH_TIMEOUT_MS (300s + 5s): same grace as message-manager.
+      terminationGracePeriodSeconds: 360
       securityContext:
         runAsNonRoot: true
         runAsUser: 10001
@@ -328,16 +355,15 @@ spec:
                   - -c
                   - sleep 10
         - name: spiffe-helper
-          image: ghcr.io/spiffe/spiffe-helper:0.6.0
+          image: ghcr.io/spiffe/spiffe-helper:0.10.1
           imagePullPolicy: IfNotPresent
           args:
-            - -socketPath=/run/spire/agent-sockets/public/api.sock
-            - -certDir=/run/spire/svid
-            - -svidFileName=svid.pem
-            - -svidKeyFileName=svid_key.pem
-            - -svidBundleFileName=bundle.pem
-            - -renewSignal=SIGHUP
+            - -config
+            - /etc/spiffe-helper/helper.conf
           volumeMounts:
+            - name: spiffe-helper-config
+              mountPath: /etc/spiffe-helper
+              readOnly: true
             - name: spire-agent-socket
               mountPath: /run/spire/agent-sockets
             - name: svid
@@ -352,10 +378,15 @@ spec:
             seccompProfile:
               type: RuntimeDefault
       volumes:
+        - name: spiffe-helper-config
+          configMap:
+            name: spiffe-helper-config
+        # Workload API socket from the SPIFFE CSI driver (node-agents): the
+        # restricted Pod Security profile forbids a hostPath.
         - name: spire-agent-socket
-          hostPath:
-            path: /run/spire/agent-sockets
-            type: DirectoryOrCreate
+          csi:
+            driver: csi.spiffe.io
+            readOnly: true
         - name: svid
           emptyDir: {}
         - name: tmp

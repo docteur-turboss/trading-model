@@ -2,11 +2,20 @@
 #  backup-cronjob.yaml — Daily Database Backup CronJob
 #  Runs backup-k8s.sh at 2:00 AM daily inside the K8s cluster.
 #
-#  Required secrets:
-#    - trading-model-secrets (for MYSQL_ROOT_PASSWORD etc.)
+#  Required:
+#    - ConfigMap backup-encryption, key BACKUP_AGE_RECIPIENTS: the age public
+#      key(s) every dump is encrypted for (created by deploy.yml from the
+#      BACKUP_AGE_RECIPIENTS environment variable). Without it the job writes
+#      nothing and fails (backup_last_status{component="encryption"} 0)
+#    - Secret trading-model-backup-s3 (keys: BACKUP_S3_BUCKET,
+#      AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION, S3_ENDPOINT,
+#      S3_PROVIDER): off-site copy of the encrypted files, any S3-compatible
+#      store. Without it the dumps are still written to backup-data but the
+#      job fails (backup_last_status{component="offsite"} 0): a single volume
+#      is not a backup.
 #
-#  Optional (S3 off-site):
-#    - trading-model-backup-s3 (with keys: AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY)
+#  MySQL is dumped with the password of the mysql container itself: the job
+#  reads no Secret. Redis is not backed up (derived state, see BACKUP_DR.md).
 # =============================================================================
 apiVersion: batch/v1
 kind: CronJob
@@ -16,7 +25,7 @@ metadata:
     app.kubernetes.io/component: backup
     app.kubernetes.io/part-of: trading-model
   annotations:
-    description: "Daily backup of MongoDB, MySQL, Redis, CA keys, and checkpoints"
+    description: "Daily backup of MongoDB (dlq + audit), MySQL (incl. SPIRE datastore), SPIRE CA keys and checkpoints"
 spec:
   schedule: "0 2 * * *"
   concurrencyPolicy: Forbid
@@ -40,33 +49,13 @@ spec:
                       matchLabels:
                         app.kubernetes.io/component: backup
                     topologyKey: kubernetes.io/hostname
-          initContainers:
-            - name: install-tools
-              image: debian:bookworm-slim
-              securityContext:
-                runAsNonRoot: false
-                allowPrivilegeEscalation: false
-                capabilities:
-                  drop:
-                    - ALL
-                seccompProfile:
-                  type: RuntimeDefault
-              command:
-                - sh
-                - -c
-                - |
-                  apt-get update -qq && apt-get install -y --no-install-recommends \
-                    default-mysql-client redis-tools awscli && \
-                    rm -rf /var/lib/apt/lists/*
-                  cp /usr/bin/mysql /tools/
-                  cp /usr/bin/redis-cli /tools/
-                  cp /usr/bin/aws /tools/
-              volumeMounts:
-                - name: tools
-                  mountPath: /tools
+          # backup-k8s.sh dumps through `kubectl exec` into the database pods,
+          # encrypts with age and copies off-site with rclone: backup-tools
+          # (deploy/backup) ships the three.
           containers:
             - name: backup
-              image: bitnami/kubectl@sha256:b29d8c1665b70817259ceecaea16ab27aab6368b48daf485d19436c809067492
+              image: ghcr.io/trading-model/backup-tools:latest
+              imagePullPolicy: Always
               securityContext:
                 runAsNonRoot: true
                 allowPrivilegeEscalation: false
@@ -80,10 +69,8 @@ spec:
                 - -c
                 - |
                   set -euo pipefail
-                  cp /tools/* /usr/local/bin/
-                  chmod +x /usr/local/bin/aws /usr/local/bin/mysql /usr/local/bin/redis-cli
                   /scripts/backup-k8s.sh \
-                    --components mongodb,mysql,redis,checkpoints,spire
+                    --components mongodb,mysql,checkpoints,spire
               env:
                 - name: BACKUP_DIR
                   value: /backups
@@ -95,6 +82,18 @@ spec:
                   valueFrom:
                     fieldRef:
                       fieldPath: metadata.namespace
+                # No unencrypted dump: backups and their off-site copies are
+                # readable only with the age private key, kept off the cluster.
+                - name: BACKUP_REQUIRE_ENCRYPTION
+                  value: "true"
+                - name: BACKUP_REQUIRE_OFFSITE
+                  value: "true"
+                - name: BACKUP_AGE_RECIPIENTS
+                  valueFrom:
+                    configMapKeyRef:
+                      name: backup-encryption
+                      key: BACKUP_AGE_RECIPIENTS
+                      optional: true
                 - name: BACKUP_S3_BUCKET
                   valueFrom:
                     secretKeyRef:
@@ -125,12 +124,22 @@ spec:
                       name: trading-model-backup-s3
                       key: AWS_REGION
                       optional: true
+                # Non-AWS stores (MinIO, Backblaze B2, Scaleway, OVH...).
+                - name: RCLONE_S3_ENDPOINT
+                  valueFrom:
+                    secretKeyRef:
+                      name: trading-model-backup-s3
+                      key: S3_ENDPOINT
+                      optional: true
+                - name: RCLONE_S3_PROVIDER
+                  valueFrom:
+                    secretKeyRef:
+                      name: trading-model-backup-s3
+                      key: S3_PROVIDER
+                      optional: true
               volumeMounts:
                 - name: scripts
                   mountPath: /scripts
-                  readOnly: true
-                - name: tools
-                  mountPath: /tools
                   readOnly: true
                 - name: backup-data
                   mountPath: /backups
@@ -146,8 +155,6 @@ spec:
               configMap:
                 name: backup-scripts
                 defaultMode: 0555
-            - name: tools
-              emptyDir: {}
             - name: backup-data
               persistentVolumeClaim:
                 claimName: backup-data
@@ -195,10 +202,6 @@ rules:
     resources: ["pods/exec"]
     verbs: ["create"]
   - apiGroups: [""]
-    resources: ["secrets"]
-    resourceNames: ["trading-model-secrets", "trading-model-backup-s3"]
-    verbs: ["get"]
-  - apiGroups: [""]
     resources: ["pods/log"]
     verbs: ["get"]
 ---
@@ -242,10 +245,12 @@ spec:
         seccompProfile:
           type: RuntimeDefault
       containers:
+        # busybox ships httpd: nothing to install, so it runs as non-root
+        # (restricted Pod Security profile) without network access.
         - name: exporter
-          image: alpine@sha256:48b0309ca019d89d40f670aa1bc06e426dc0931948452e8491e3d65087abc07d
+          image: busybox@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e
           securityContext:
-            runAsNonRoot: false
+            runAsNonRoot: true
             allowPrivilegeEscalation: false
             capabilities:
               drop:
@@ -256,14 +261,14 @@ spec:
             - sh
             - -c
             - |
-              apk add --no-cache busybox-extras
+              # Served as /metrics, the path Prometheus scrapes.
               mkdir -p /tmp/metrics
-              echo '# No backup metrics yet' > /tmp/metrics/index.html
+              echo '# No backup metrics yet' > /tmp/metrics/metrics
               httpd -f -p 9118 -h /tmp/metrics &
               HTTPD_PID=$!
               while true; do
                 if [ -f /metrics/backup.prom ]; then
-                  cp /metrics/backup.prom /tmp/metrics/index.html
+                  cp /metrics/backup.prom /tmp/metrics/metrics
                 fi
                 sleep 5
               done

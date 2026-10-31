@@ -9,4 +9,6 @@ resources:
   - api-gateway-configmap.yaml
   - audit-logger-configmap.yaml
   - dlq-service-configmap.yaml
-  - admin-interface-configmap.yaml
+  - edge-proxy-configmap.yaml
+  - ../../edge-proxy
+  - spiffe-helper-configmap.yaml

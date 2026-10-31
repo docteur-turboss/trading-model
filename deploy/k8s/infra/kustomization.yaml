@@ -15,17 +15,13 @@ resources:
   - grafana.yaml
   - dashboards
   - loki.yaml
-  - promtail.yaml
 
-# Alertmanager notification credentials. Replace the CHANGE_ME placeholders with
-# real webhook URLs / routing keys (kubectl -n trading-model edit secret
-# alertmanager-credentials). Values are expanded into alertmanager.yml at config
-# load; alertmanager keeps evaluating and routing alerts as soon as these are set.
-secretGenerator:
-  - name: alertmanager-credentials
-    literals:
-      - SLACK_WEBHOOK_URL=https://hooks.slack.com/services/CHANGE_ME
-      - SLACK_CHANNEL=#alerts
-      - SLACK_CHANNEL_WARN=#alerts-warning
-      - PAGERDUTY_URL=https://events.pagerduty.com/v2/enqueue
-      - PAGERDUTY_ROUTING_KEY=CHANGE_ME_PAGERDUTY_ROUTING_KEY
+# Start script of the Redis HA StatefulSets (redis.yaml).
+configMapGenerator:
+  - name: redis-ha-scripts
+    files:
+      - redis-ha.sh
+
+# Alertmanager notification credentials: Secret alertmanager-credentials,
+# written by deploy.yml from the GitHub environment, not generated here (a
+# generated placeholder silently sent every alert to CHANGE_ME).

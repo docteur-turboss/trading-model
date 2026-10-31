@@ -75,6 +75,10 @@ cmd_apply() {
     kubectl apply -n "$NAMESPACE" -f "${K8S_DIR}/config/${service}-configmap.yaml"
     kubectl apply -n "$NAMESPACE" -f "${K8S_DIR}/services/${service}.yaml"
   else
+    # Node agents first (SPIRE agent, SPIFFE CSI driver, promtail): the
+    # workloads mount the agent socket through the CSI driver.
+    log "Applying node agents (trading-model-node)..."
+    kustomize_build "${K8S_DIR}/node-agents" | kubectl apply -f -
     log "Applying all Trading Model manifests..."
     kustomize_build "${K8S_DIR}/" | kubectl apply -f -
   fi
@@ -89,7 +93,7 @@ cmd_apply() {
     fi
   else
     for dep in discovery-server message-manager financial-scraper financial-scraper-collector trader-trainer \
-               api-gateway audit-logger dlq-service admin-interface; do
+               api-gateway audit-logger dlq-service edge-proxy; do
       if ! kubectl rollout status -n "$NAMESPACE" "deployment/${dep}" --timeout=120s; then
         err "Rollout of $dep failed or timed out."
         rollout_failed=1
@@ -206,7 +210,8 @@ cmd_migrate_down() {
 
 # Services without request metrics: their canary gate can only check readiness.
 # Declared here (comma-separated) so the exemption is explicit and logged.
-CANARY_READINESS_ONLY="${CANARY_READINESS_ONLY:-admin-interface}"
+# None today: every released service exposes request metrics.
+CANARY_READINESS_ONLY="${CANARY_READINESS_ONLY:-}"
 
 # Sums http_requests_total from a /metrics payload on stdin and prints
 # "<total> <errors>" (4xx/5xx). Kubelet probes and Prometheus scrapes are
@@ -373,7 +378,7 @@ cmd_pin() {
   log "Pinning deployed images to immutable @sha256 digests..."
   local services=(
     discovery-server message-manager financial-scraper financial-scraper-collector trader-trainer
-    api-gateway audit-logger dlq-service admin-interface
+    api-gateway audit-logger dlq-service
   )
   local failed=0
   for svc in "${services[@]}"; do
@@ -414,7 +419,7 @@ cmd_smoke_test() {
     "financial-scraper:https://financial-scraper:3000/health/ready"
     "financial-scraper-collector:https://financial-scraper-collector:3000/health/ready"
     "trader-trainer:https://trader-trainer:3000/health/ready"
-    "admin-interface:http://admin-interface:8080/health/ready"
+    "edge-proxy:http://edge-proxy:8080/health/ready"
   )
 
   local failed=0
@@ -422,7 +427,7 @@ cmd_smoke_test() {
     local name="${entry%%:*}"
     local url="${entry#*:}"
 
-    if kubectl exec -n "$NAMESPACE" deployment/discovery-server -- \
+    if kubectl exec -n "$NAMESPACE" deployment/discovery-server -c discovery-server -- \
          curl -sk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem "$url" -o /dev/null -w '%{http_code}' 2>/dev/null | grep -q "200"; then
       log "  ✓ $name is healthy"
     else

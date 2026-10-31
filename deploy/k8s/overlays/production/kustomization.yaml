@@ -6,3 +6,14 @@ namespace: trading-model
 resources:
   - ../../base
   - ../../secrets
+
+patches:
+  # The audit chain must be anchored in production (ADR-0027): audit-logger
+  # refuses to start without AUDIT_ANCHOR_BUCKET (Secret audit-anchor-s3).
+  - target:
+      kind: ConfigMap
+      name: audit-logger-config
+    patch: |-
+      - op: add
+        path: /data/AUDIT_ANCHOR_REQUIRED
+        value: "true"

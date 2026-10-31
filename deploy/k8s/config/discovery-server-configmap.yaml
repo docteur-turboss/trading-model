@@ -14,9 +14,9 @@ data:
   TLS_CA_PATH: "/run/spire/svid/bundle.pem"
   ENFORCE_MTLS_STRICT: "true"
   LOG_LEVEL: "info"
-  REDIS_CLEANUP_INTERVAL_MS: "10000"
   CLEANUP_SERVICE_INTERVAL_MS: "15000"
-  REDIS_URL: "redis://redis-primary:6379"
+  REDIS_SENTINELS: "redis-sentinel-0.redis-sentinel-headless:26379,redis-sentinel-1.redis-sentinel-headless:26379,redis-sentinel-2.redis-sentinel-headless:26379"
+  REDIS_SENTINEL_MASTER_NAME: "mymaster"
 ---
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
@@ -88,21 +88,31 @@ spec:
     - Egress
   ingress:
     - from:
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: trading-model
+        # Same namespace as the policy, whatever the overlay's namespace.
+        - podSelector: {}
       ports:
         - port: 3000
           protocol: TCP
   egress:
     - to:
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: trading-model
+        # Same namespace as the policy, whatever the overlay's namespace.
+        - podSelector: {}
       ports:
         - port: 6379
           protocol: TCP
+        # Sentinels (REDIS_SENTINELS).
+        - port: 26379
+          protocol: TCP
         - port: 3000
+          protocol: TCP
+    # The deploy smoke test (deploy-k8s.sh smoke-test) runs from this pod and
+    # checks the edge-proxy readiness on its plain HTTP port.
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: edge-proxy
+      ports:
+        - port: 8080
           protocol: TCP
 ---
 apiVersion: v1

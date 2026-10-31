@@ -9,7 +9,6 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: db-migrate
-  namespace: trading-model
   annotations:
     description: "Runs pending MySQL schema migrations"
     app.kubernetes.io/part-of: trading-model
@@ -46,7 +45,8 @@ spec:
               mkdir -p /tmp/migrate-run
               cp -r /migrations/. /tmp/migrate-run/
               cd /tmp/migrate-run
-              bun add mysql2
+              # Same pinned version as the compose migrate image.
+              bun add mysql2@3.24.4
               bun migrate.mjs up
           env:
             - name: DB_HOST
@@ -81,7 +81,6 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: migration-runner
-  namespace: trading-model
   annotations:
     app.kubernetes.io/part-of: trading-model
 automountServiceAccountToken: false
