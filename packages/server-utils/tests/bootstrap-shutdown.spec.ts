@@ -125,11 +125,94 @@ describe("gracefulShutdown", () => {
 
 		const promise = gracefulShutdown("SIGTERM", server, options);
 
-		jest.advanceTimersByTime(10000);
+		await jest.advanceTimersByTimeAsync(10000);
 
 		await promise;
 
 		expect(process.exitCode).toBe(1);
 		jest.useRealTimers();
+	});
+
+	it("should run beforeClose while the server still serves, then close, then onStop", async () => {
+		const calls: string[] = [];
+		const server = {
+			close: jest.fn(async () => {
+				calls.push("close");
+			}),
+			raw: {} as http.Server,
+		};
+		const options = createOptions({
+			shutdown: {
+				beforeClose: async () => {
+					calls.push("beforeClose");
+				},
+			},
+			onStop: async () => {
+				calls.push("onStop");
+			},
+		});
+
+		await gracefulShutdown("SIGTERM", server, options);
+
+		expect(calls).toEqual(["beforeClose", "close", "onStop"]);
+	});
+
+	it("should go on closing when beforeClose fails", async () => {
+		const server = createMockServer();
+		const options = createOptions({
+			shutdown: { beforeClose: jest.fn().mockRejectedValue(new Error("x")) },
+		});
+
+		await gracefulShutdown("SIGTERM", server, options);
+
+		expect(server.close).toHaveBeenCalled();
+		expect(process.exitCode).toBe(originalExitCode);
+	});
+
+	it("should wait closeTimeoutMs for in-flight requests", async () => {
+		jest.useFakeTimers();
+		let finish: () => void = () => undefined;
+		const server = {
+			close: jest.fn(
+				() =>
+					new Promise<void>((resolve) => {
+						finish = resolve;
+					})
+			),
+			raw: {} as http.Server,
+		};
+		const options = createOptions({ shutdown: { closeTimeoutMs: 60_000 } });
+
+		const promise = gracefulShutdown("SIGTERM", server, options);
+		await jest.advanceTimersByTimeAsync(30_000);
+		finish();
+		await promise;
+
+		expect(process.exitCode).toBe(originalExitCode);
+		jest.useRealTimers();
+	});
+
+	it("should wait for an async onStop", async () => {
+		let stopped = false;
+		const options = createOptions({
+			onStop: async () => {
+				await new Promise((resolve) => setTimeout(resolve, 10));
+				stopped = true;
+			},
+		});
+
+		await gracefulShutdown("SIGTERM", null, options);
+
+		expect(stopped).toBe(true);
+	});
+
+	it("should log, not fail, when onStop rejects", async () => {
+		const options = createOptions({
+			onStop: jest.fn().mockRejectedValue(new Error("stop failed")),
+		});
+
+		await gracefulShutdown("SIGTERM", null, options);
+
+		expect(process.exitCode).toBe(originalExitCode);
 	});
 });
