@@ -18,6 +18,7 @@
     "@trading-model/contracts": "*",
     "@opentelemetry/api": "^1.9.1",
     "@trading-model/address-manager": "^1.2.0",
+    "@trading-model/broker-message": "*",
     "@trading-model/common": "^1.2.1",
     "@trading-model/persistence": "*",
     "@trading-model/crypto": "*",
