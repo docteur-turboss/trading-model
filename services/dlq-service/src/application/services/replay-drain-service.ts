@@ -1,6 +1,8 @@
 import { logger } from "../../config/logger";
-import type { ClaimReleasePort } from "../../domain/ports/replay.ports";
+import { STALE_CLAIM_MS } from "../../domain/dlq-constants";
 import { activeReplays } from "../../shared/active-replay-counter";
+
+const DRAIN_TIMEOUT_MS = 10_000;
 
 function _sleep(ms: number): Promise<void> {
 	return new Promise<void>((resolve) => {
@@ -10,39 +12,30 @@ function _sleep(ms: number): Promise<void> {
 }
 
 export class ReplayDrainService {
-	constructor(private readonly _claimRelease: ClaimReleasePort) {}
-
-	async drain(): Promise<void> {
+	/**
+	 * Waits for the replay batches in flight. False when some still run: their
+	 * claims must then stay, since message-manager may still be publishing
+	 * those entries; they are released as stale once `STALE_CLAIM_MS` passed.
+	 */
+	async drain(): Promise<boolean> {
 		if (activeReplays.count === 0) {
-			return;
+			return true;
 		}
 
 		logger.info(
 			`Waiting for ${activeReplays.count} in-flight replays to complete`
 		);
-		await this._waitForReplays();
-
-		if (activeReplays.count === 0) {
-			return;
-		}
-
-		await this._forceReleaseClaims();
-	}
-
-	private async _waitForReplays(): Promise<void> {
-		const drainTimeout = 10_000;
-		const deadline = Date.now() + drainTimeout;
+		const deadline = Date.now() + DRAIN_TIMEOUT_MS;
 		while (activeReplays.count > 0 && Date.now() < deadline) {
 			await _sleep(100);
 		}
-	}
+		if (activeReplays.count === 0) {
+			return true;
+		}
 
-	private async _forceReleaseClaims(): Promise<void> {
 		logger.warn(
-			`${activeReplays.count} replays did not complete within drain timeout — releasing their claims`
+			`${activeReplays.count} replays did not complete within drain timeout — their claims are released as stale after ${STALE_CLAIM_MS} ms`
 		);
-		await this._claimRelease.releaseAllActiveClaims();
-		await _sleep(500);
-		await this._claimRelease.releaseAllActiveClaims();
+		return false;
 	}
 }

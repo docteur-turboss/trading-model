@@ -79,4 +79,4 @@ export const claimReleaseService = new ClaimReleaseService({
 	settings,
 });
 
-export const replayDrainService = new ReplayDrainService(claimReleaseManager);
+export const replayDrainService = new ReplayDrainService();

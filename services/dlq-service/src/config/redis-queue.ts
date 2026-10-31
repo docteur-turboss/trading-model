@@ -13,6 +13,16 @@ export class DlqRedisQueue {
     end
     return entries
   `;
+	// Checks the size and pushes in one step, so concurrent pushes cannot
+	// overshoot the limit. Returns { accepted (0|1), size before the push }.
+	private static readonly _BOUNDED_PUSH_SCRIPT = `
+    local size = redis.call('LLEN', KEYS[1])
+    if size >= tonumber(ARGV[2]) then
+      return {0, size}
+    end
+    redis.call('LPUSH', KEYS[1], ARGV[1])
+    return {1, size}
+  `;
 
 	constructor(queueKey = "dlq:queue") {
 		this._queueKey = queueKey;
@@ -30,7 +40,14 @@ export class DlqRedisQueue {
 		}
 		try {
 			return await this._tryPush(client, entryId, maxQueueSize);
-		} catch {
+		} catch (err) {
+			// Never throws: callers treat `false` as "not queued"; the entry stays
+			// queuable in MongoDB and is re-seeded by the next queue rebuild.
+			logger.error("Redis queue push failed", {
+				queueKey: this._queueKey,
+				entryId,
+				error: (err as Error)?.message,
+			});
 			return false;
 		}
 	}
@@ -44,7 +61,11 @@ export class DlqRedisQueue {
 			const scriptHash = await this._getPopScriptHash(client);
 			const result = await client.evalsha(scriptHash, 1, this._queueKey);
 			return this._extractFirstEntry(result as string[]);
-		} catch {
+		} catch (err) {
+			logger.error("Redis queue pop failed", {
+				queueKey: this._queueKey,
+				error: (err as Error)?.message,
+			});
 			return null;
 		}
 	}
@@ -62,8 +83,14 @@ export class DlqRedisQueue {
 		entryId: string,
 		maxQueueSize: number
 	): Promise<boolean> {
-		const size = await client.llen(this._queueKey);
-		if (size >= maxQueueSize) {
+		const [accepted, size] = (await client.eval(
+			DlqRedisQueue._BOUNDED_PUSH_SCRIPT,
+			1,
+			this._queueKey,
+			entryId,
+			maxQueueSize
+		)) as [number, number];
+		if (accepted === 0) {
 			logger.warn("Redis queue size limit reached — dropping push", {
 				queueKey: this._queueKey,
 				size,
@@ -71,7 +98,6 @@ export class DlqRedisQueue {
 			});
 			return false;
 		}
-		await client.lpush(this._queueKey, entryId);
 		return true;
 	}
 

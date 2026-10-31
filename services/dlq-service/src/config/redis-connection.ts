@@ -1,4 +1,5 @@
 import { createRedisClient } from "@trading-model/persistence/redis-connection-manager";
+import { redisConnectionFromEnv } from "@trading-model/persistence/redis-env";
 import type Redis from "ioredis";
 import { ENV } from "../infrastructure/config/env";
 import { logger } from "./logger";
@@ -13,10 +14,16 @@ enum ConnectionState {
 export class RedisConnection {
 	private _client: Redis | null = null;
 	private _state: ConnectionState = ConnectionState.Idle;
-	private _onReconnect: () => void = () => {};
+	private _onReconnect: () => void = () => {
+		// Intentional no-op.
+	};
 
 	async connect(onReconnect?: () => void): Promise<boolean> {
-		this._onReconnect = onReconnect ?? (() => {});
+		this._onReconnect =
+			onReconnect ??
+			(() => {
+				// Intentional no-op.
+			});
 		if (this._isConnected()) {
 			return true;
 		}
@@ -48,12 +55,12 @@ export class RedisConnection {
 	}
 
 	private async _tryConnect(): Promise<boolean> {
-		const url = ENV.REDIS_URL;
-		if (!url) {
-			logger.info("No REDIS_URL configured — Redis queue unavailable");
+		const connection = redisConnectionFromEnv(ENV);
+		if (!connection) {
+			logger.info("No Redis configured — Redis queue unavailable");
 			return false;
 		}
-		const client = createRedisClient(url) as Redis;
+		const client = createRedisClient(connection) as Redis;
 		await client.connect();
 		this._attachEventHandlers(client);
 		this._client = client;

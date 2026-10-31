@@ -1,5 +1,8 @@
+import type { RedisConnectionConfig } from "@trading-model/persistence/redis-config";
 import { createRedisClient } from "@trading-model/persistence/redis-connection-manager";
+import { redisConnectionFromEnv } from "@trading-model/persistence/redis-env";
 import type { Redis } from "ioredis";
+import { logger } from "../config/logger";
 import { ENV } from "./config/env";
 
 export class RedisClientManager {
@@ -15,10 +18,11 @@ export class RedisClientManager {
 		}
 		this._initializing = true;
 
-		if (!ENV.REDIS_URL) {
+		const connection = redisConnectionFromEnv(ENV);
+		if (!connection) {
 			return null;
 		}
-		return this._create();
+		return this._create(connection);
 	}
 
 	async close(): Promise<void> {
@@ -33,21 +37,23 @@ export class RedisClientManager {
 		this._initializing = false;
 	}
 
-	private _create(): Redis | null {
+	private _create(connection: RedisConnectionConfig): Redis | null {
 		try {
-			this._client = this._newClient();
-			this._client.connect().catch(() => {
+			this._client = createRedisClient(connection) as Redis;
+			this._client.connect().catch((err) => {
+				logger.warn("Rate limiter Redis connection failed", {
+					error: (err as Error)?.message,
+				});
 				this._client = null;
 				this._initializing = false;
 			});
 			return this._client;
-		} catch {
+		} catch (err) {
+			logger.warn("Rate limiter Redis client creation failed", {
+				error: (err as Error)?.message,
+			});
 			return null;
 		}
-	}
-
-	private _newClient(): Redis {
-		return createRedisClient(ENV.REDIS_URL!) as Redis;
 	}
 }
 

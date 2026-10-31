@@ -1,6 +1,8 @@
 import { PositiveInt, toMessageId } from "@trading-model/primitives/primitives";
 import { logger } from "../../config/logger";
+import { REPLAY_BATCH_TIMEOUT_MS } from "../../domain/dlq-constants";
 import type { EntryDeliveryPort } from "../../domain/ports/replay.ports";
+import { activeReplays } from "../../shared/active-replay-counter";
 import type {
 	BatchReplayContext,
 	BatchResults,
@@ -112,14 +114,13 @@ async function _runBatchWithTimeout(
 	delivery: EntryDeliveryPort
 ): Promise<BatchResults> {
 	const ReplayConcurrency = PositiveInt.of(10);
-	const ReplayBatchTimeoutMs = 120_000;
 
 	const { ctx, setTimedOut } = _createReplayContext(ctxBase, delivery);
 
 	const batchLoop = runBatchLoop(entries, ctx, ReplayConcurrency);
 	const timeoutPromise = waitForBatchTimeout(
 		ctxBase.batchId,
-		ReplayBatchTimeoutMs,
+		REPLAY_BATCH_TIMEOUT_MS,
 		setTimedOut
 	);
 
@@ -188,9 +189,11 @@ async function _replayBatch(
 	}
 
 	incrementActiveBatches();
+	activeReplays.increment();
 	try {
 		return await _executeBatch(options, delivery);
 	} finally {
+		activeReplays.decrement();
 		decrementActiveBatches();
 	}
 }

@@ -9,7 +9,6 @@ import {
 	type Topic,
 	toInstanceId,
 	toMessageId,
-	toTopic,
 	type URLString,
 } from "@trading-model/primitives/primitives";
 import type {
@@ -26,9 +25,9 @@ import {
 	dlqClaimManager,
 } from "../outbound/claim-manager";
 import { dlqRetryManager } from "../outbound/retry-manager";
+import type { ReplayEntriesQuery } from "./api-routes";
 import { mmResolveError, resolveMMUrlOrFail } from "./dlq-replay-resolver";
 import { buildReplayResponse, noEntriesResponse } from "./dlq-replay-response";
-import { validateReplayQuery } from "./dlq-replay-validator";
 
 export async function abandonExhaustedIfNeeded(
 	errors: DlqError[]
@@ -118,27 +117,25 @@ function _toEntryRefs(
 }
 
 export async function executeReplayPipeline(
-	query: unknown,
+	query: ReplayEntriesQuery,
 	span: import("@opentelemetry/api").Span
 ): Promise<ResponseObject> {
-	const validation = validateReplayQuery(query, span);
-	if (!validation.valid) {
-		return validation.response;
-	}
+	span.setAttribute("topic", query.topic ?? "all");
+	span.setAttribute("limit", query.limit);
 
 	const messageManagerUrl = await resolveMMUrlOrFail(span);
 	if (!messageManagerUrl) {
 		return mmResolveError();
 	}
 
-	const batchId = validation.data.batchId || randomUUID();
+	const batchId = query.batchId || randomUUID();
 	span.setAttribute("batchId", batchId);
 
 	const result = await _claimAndReplayBatch({
 		messageManagerUrl,
-		limit: validation.data.limit as Limit,
+		limit: query.limit as Limit,
 		batchId,
-		topic: validation.data.topic ? toTopic(validation.data.topic) : undefined,
+		topic: query.topic,
 		span,
 	});
 	if (result.response) {
@@ -147,7 +144,7 @@ export async function executeReplayPipeline(
 
 	return _buildSuccessResponse(
 		batchId,
-		validation.data.topic ? toTopic(validation.data.topic) : undefined,
+		query.topic,
 		result.successCount,
 		result.errors
 	);

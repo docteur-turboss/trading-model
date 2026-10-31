@@ -1,10 +1,6 @@
 import { type AppError, isAppError } from "@trading-model/common/utils/errors";
 import type { DlqEntry } from "@trading-model/contracts/dlq-types";
-import {
-	SequenceNumber,
-	Topic,
-	type UnixTimestamp,
-} from "@trading-model/primitives/primitives";
+import { SequenceNumber, Topic } from "@trading-model/primitives/primitives";
 import type { Document, WithId } from "mongodb";
 import { getCollection } from "../../config/db";
 import { DlqEntryWriter, dlqCapacityError } from "./dlq-entry-writer";
@@ -30,7 +26,8 @@ export interface StoredDlqEntry {
 	message: unknown;
 	reason: string | null;
 	deliveryAttempt: SequenceNumber;
-	createdAt: UnixTimestamp;
+	/** ISO 8601, as listed by `GET /dlq`. */
+	createdAt: string;
 }
 
 export function toStoredDlqEntry(doc: WithId<Document>): StoredDlqEntry {
@@ -40,8 +37,9 @@ export function toStoredDlqEntry(doc: WithId<Document>): StoredDlqEntry {
 		message: doc.message,
 		reason: (doc.reason as string | null) ?? null,
 		deliveryAttempt: SequenceNumber.of(doc.deliveryAttempt as number),
-		createdAt: ((doc.createdAt as Date | undefined)?.toISOString() ??
-			new Date().toISOString()) as unknown as UnixTimestamp,
+		createdAt: (
+			(doc.createdAt as Date | undefined) ?? new Date()
+		).toISOString(),
 	};
 }
 

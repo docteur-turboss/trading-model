@@ -1,30 +1,21 @@
-import { ServiceInstanceName } from "@trading-model/common/config/services.types";
-import {
-	AuditSummary,
-	type Topic,
-	toCorrelationId,
-	toServiceId,
-	toTopic,
-	UnixTimestamp,
-} from "@trading-model/primitives/primitives";
-import {
-	type AuditEvent,
-	Severity,
-} from "@trading-model/validation/adapters/inbound/admin/audit.dto";
-import { notifyAudit } from "../../config/audit";
+import { DlqEvent, isDlqEventTopic } from "@trading-model/contracts/dlq-events";
+import type { Topic } from "@trading-model/primitives/primitives";
+import { publishDlqEvent } from "../../config/audit";
 
 export function notifyAddAudit(
 	id: string,
 	topic: Topic | undefined,
 	reason: string | undefined
 ): void {
-	void notifyAudit({
-		timestamp: UnixTimestamp.now(),
-		topic: toTopic(topic ?? "unknown"),
-		publisher: toServiceId(ServiceInstanceName.DlqService),
-		correlationId: toCorrelationId(id),
-		summary: AuditSummary.of(`DLQ entry added: ${reason ?? "no reason"}`),
-		severity: Severity.Warning,
+	// Its own event, dead-lettered: publishing another would loop while
+	// audit-logger cannot take them.
+	if (isDlqEventTopic(topic)) {
+		return;
+	}
+	publishDlqEvent(DlqEvent.EntryAdded, {
+		entryId: id,
+		topic: topic ?? null,
+		reason: reason ?? null,
 	});
 }
 
@@ -40,37 +31,17 @@ export function notifyReplayAudit(result: ReplayAuditResult): void {
 	if (success === 0 && failed === 0) {
 		return;
 	}
-	void notifyAudit(_buildReplayAuditEvent(batchId, topic, success, failed));
-}
-
-function _buildReplayAuditEvent(
-	batchId: string,
-	topic: Topic | undefined,
-	success: number,
-	failed: number
-): AuditEvent {
-	return {
-		timestamp: UnixTimestamp.now(),
-		topic: toTopic(topic ?? "unknown"),
-		publisher: toServiceId(ServiceInstanceName.DlqService),
-		correlationId: toCorrelationId(batchId),
-		summary: AuditSummary.of(
-			`DLQ replay: ${success} succeeded, ${failed} failed`
-		),
-		severity: failed > 0 ? Severity.Error : Severity.Info,
-	};
+	publishDlqEvent(DlqEvent.ReplayCompleted, {
+		batchId,
+		topic: topic ?? null,
+		replayed: success,
+		failed,
+	});
 }
 
 export function notifyDeleteAudit(ids: string[], deleted: number): void {
 	if (deleted === 0) {
 		return;
 	}
-	void notifyAudit({
-		timestamp: UnixTimestamp.now(),
-		topic: toTopic("dlq-service"),
-		publisher: toServiceId(ServiceInstanceName.DlqService),
-		correlationId: toCorrelationId(ids[0]),
-		summary: AuditSummary.of(`${deleted} DLQ entries deleted`),
-		severity: Severity.Info,
-	});
+	publishDlqEvent(DlqEvent.EntriesDeleted, { ids, deleted });
 }

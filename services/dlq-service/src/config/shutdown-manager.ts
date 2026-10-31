@@ -29,8 +29,10 @@ async function shutdownSchedulers(): Promise<void> {
 	setShuttingDown(true);
 	pruner.stop();
 	stopAutoRetry();
-	await replayDrain.drain();
-	await claimRelease.releaseAndRequeue();
+	// Releasing the claims of a replay still in flight would publish it twice.
+	if (await replayDrain.drain()) {
+		await claimRelease.releaseAndRequeue();
+	}
 	await _closeResources();
 }
 

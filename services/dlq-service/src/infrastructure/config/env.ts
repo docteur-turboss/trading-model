@@ -1,13 +1,12 @@
-import { existsSync, readFileSync } from "node:fs";
-import { CryptoAlg } from "@trading-model/crypto/domain/constants/crypto-constants";
 import { validateEnv } from "@trading-model/validation/application/services/validate-env";
 import { AddressManagerEnvSchema } from "@trading-model/validation/config/address-manager-env";
 import { BaseEnvSchema } from "@trading-model/validation/config/env";
+import { RedisEnvSchema } from "@trading-model/validation/config/redis-env";
 import { z } from "zod";
-import { logger } from "../../config/logger";
 
-const DlqEnvSchema = BaseEnvSchema.extend(AddressManagerEnvSchema.shape).extend(
-	{
+const DlqEnvSchema = BaseEnvSchema.extend(AddressManagerEnvSchema.shape)
+	.extend(RedisEnvSchema.shape)
+	.extend({
 		MONGO_URI: z.string().default("mongodb://localhost:27017"),
 		MONGO_DB: z.string().default("dlq"),
 		MONGO_COLLECTION: z.string().default("dlq_entries"),
@@ -18,7 +17,6 @@ const DlqEnvSchema = BaseEnvSchema.extend(AddressManagerEnvSchema.shape).extend(
 			.string()
 			.min(16, "DLQ_AUTH_HMAC_SECRET must be at least 16 characters")
 			.optional(),
-		DLQ_AUTH_HMAC_SECRET_PATH: z.string().optional(),
 		DLQ_ALLOWED_SERVICES: z.string().default("message-manager,admin"),
 		DLQ_PRUNE_INTERVAL_MS: z.coerce.number().int().positive().default(60_000),
 		DLQ_AUTO_RETRY_ENABLED: z
@@ -36,9 +34,7 @@ const DlqEnvSchema = BaseEnvSchema.extend(AddressManagerEnvSchema.shape).extend(
 			.positive()
 			.max(100)
 			.default(50),
-		REDIS_URL: z.string().optional(),
-	}
-);
+	});
 
 export const ENV = validateEnv(DlqEnvSchema);
 export type Env = z.infer<typeof DlqEnvSchema>;
@@ -49,39 +45,9 @@ export function resolveAuthHmacSecret(): string {
 	if (secretCache.value) {
 		return secretCache.value;
 	}
-
-	const fromPath = _readSecretFromPath();
-	if (fromPath) {
-		return fromPath;
-	}
-
 	if (ENV.DLQ_AUTH_HMAC_SECRET) {
 		secretCache.value = ENV.DLQ_AUTH_HMAC_SECRET;
 		return ENV.DLQ_AUTH_HMAC_SECRET;
 	}
-
-	throw new Error(
-		"DLQ_AUTH_HMAC_SECRET is required (set env var or DLQ_AUTH_HMAC_SECRET_PATH)"
-	);
-}
-
-function _readSecretFromPath(): string | null {
-	const path = ENV.DLQ_AUTH_HMAC_SECRET_PATH;
-	if (!path) {
-		return null;
-	}
-	try {
-		if (existsSync(path)) {
-			const value = readFileSync(path, CryptoAlg.UTF8).trim();
-			if (value.length >= 16) {
-				secretCache.value = value;
-				return value;
-			}
-		}
-	} catch (err) {
-		logger.warn("Failed to read DLQ_AUTH_HMAC_SECRET_PATH", {
-			err: (err as Error).message,
-		});
-	}
-	return null;
+	throw new Error("DLQ_AUTH_HMAC_SECRET is required");
 }

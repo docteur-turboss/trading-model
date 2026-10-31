@@ -4,6 +4,7 @@ import { getCollection } from "../../config/db";
 import {
 	CLAIM_PROJECTION,
 	DLQ_MAX_CONSECUTIVE_ERRORS,
+	STALE_CLAIM_MS,
 } from "../../domain/dlq-constants";
 import { DlqStatus } from "../../domain/dlq-status";
 import { ENV } from "../../infrastructure/config/env";
@@ -41,20 +42,11 @@ export class ClaimReleaseManager {
 		return toStoredDlqEntry(result);
 	}
 
-	async releaseStaleClaims(staleThresholdMs = 60_000): Promise<number> {
+	async releaseStaleClaims(staleThresholdMs = STALE_CLAIM_MS): Promise<number> {
 		const col = await getCollection();
 		const staleThreshold = new Date(Date.now() - staleThresholdMs);
 		const result = await col.updateMany(
 			{ processingAt: { $lt: staleThreshold } },
-			{ $unset: { processingAt: "", processingInstance: "" } }
-		);
-		return result.modifiedCount;
-	}
-
-	async releaseAllActiveClaims(): Promise<number> {
-		const col = await getCollection();
-		const result = await col.updateMany(
-			{ processingAt: { $exists: true } },
 			{ $unset: { processingAt: "", processingInstance: "" } }
 		);
 		return result.modifiedCount;

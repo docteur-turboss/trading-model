@@ -83,18 +83,10 @@ export class IndexManager {
 			{ key: { processingAt: 1 }, options: { sparse: true } },
 			{ key: { processingInstance: 1 } },
 			{ key: { status: 1, retryCount: 1 } },
-			{
-				key: { retryCount: 1, createdAt: -1 },
-				options: {
-					partialFilterExpression: { processingAt: { $exists: false } },
-				},
-			},
-			{
-				key: { retryCount: 1, status: 1, createdAt: -1 },
-				options: {
-					partialFilterExpression: { processingAt: { $exists: false } },
-				},
-			},
+			// Not partial on `processingAt: { $exists: false }`: MongoDB rejects
+			// negated predicates in partialFilterExpression, so the index was never built.
+			{ key: { retryCount: 1, createdAt: -1 } },
+			{ key: { retryCount: 1, status: 1, createdAt: -1 } },
 			{ key: { contentHash: 1, status: 1 }, options: { sparse: true } },
 		];
 	}

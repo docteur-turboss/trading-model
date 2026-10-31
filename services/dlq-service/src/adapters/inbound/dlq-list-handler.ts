@@ -7,27 +7,21 @@ import type {
 	CursorPagination,
 	OffsetPagination,
 } from "@trading-model/primitives/pagination";
-import { type Topic, toTopic } from "@trading-model/primitives/primitives";
+import type { Topic } from "@trading-model/primitives/primitives";
 import { dlqRepository } from "../outbound/repository";
+import type { ListEntriesQuery } from "./api-routes";
 
 export interface DlqPaginationQuery {
 	topic: Topic | undefined;
 	pagination: OffsetPagination & Partial<CursorPagination>;
 }
 
-function _buildPaginationQuery(
-	query: Record<string, unknown>
-): DlqPaginationQuery {
-	const cursor = query.cursor as string | undefined;
-	const rawTopic = query.topic as string | undefined;
-	const topic = rawTopic ? toTopic(rawTopic) : undefined;
-	const limit = Math.min(
-		Number.parseInt(String(query.limit ?? "10"), 10) || 100,
-		1000
-	);
-	const offset = cursor
-		? 0
-		: Math.max(Number.parseInt((query.offset as string) ?? "0", 10) || 0, 0);
+function _buildPaginationQuery({
+	topic,
+	limit,
+	offset,
+	cursor,
+}: ListEntriesQuery): DlqPaginationQuery {
 	return {
 		topic,
 		pagination: (cursor
@@ -58,10 +52,10 @@ function _buildListResponse(params: DlqListResponse): Record<string, unknown> {
 	return response;
 }
 
-export async function listEntries(req: {
-	query: Record<string, unknown>;
-}): Promise<ResponseObject> {
-	const { topic, pagination } = _buildPaginationQuery(req.query);
+export async function listEntries(
+	query: ListEntriesQuery
+): Promise<ResponseObject> {
+	const { topic, pagination } = _buildPaginationQuery(query);
 	const { limit } = pagination;
 	const offset = "offset" in pagination ? pagination.offset : 0;
 	const cursor = "cursor" in pagination ? pagination.cursor : undefined;

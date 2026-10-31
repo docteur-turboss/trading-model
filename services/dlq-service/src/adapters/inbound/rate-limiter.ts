@@ -12,7 +12,11 @@ export function closeRateLimiters(): void {
 	activeRateLimiters.length = 0;
 }
 
-function createDlqRateLimiter(opts: {
+function createDlqRateLimiter({
+	name,
+	...opts
+}: {
+	name: string;
 	windowMs: number;
 	max: number;
 	message: { error: string };
@@ -21,7 +25,7 @@ function createDlqRateLimiter(opts: {
 		...opts,
 		standardHeaders: true,
 		legacyHeaders: false,
-		store: createRedisStore(),
+		store: createRedisStore(`rl:dlq:${name}:`),
 	});
 	_trackLimiter(limiter);
 	return limiter;
@@ -37,6 +41,7 @@ function _trackLimiter(limiter: ReturnType<typeof rateLimit>): void {
 
 function _createReplayLimiter(): ReturnType<typeof rateLimit> {
 	return createDlqRateLimiter({
+		name: "replay",
 		windowMs: 60_000,
 		max: 10,
 		message: { error: "Too many replay requests, try again later" },
@@ -45,6 +50,7 @@ function _createReplayLimiter(): ReturnType<typeof rateLimit> {
 
 function _createWriteLimiter(): ReturnType<typeof rateLimit> {
 	return createDlqRateLimiter({
+		name: "write",
 		windowMs: 1000,
 		max: 100,
 		message: { error: "Too many DLQ write requests, try again later" },
@@ -53,6 +59,7 @@ function _createWriteLimiter(): ReturnType<typeof rateLimit> {
 
 function _createHealthLimiter(): ReturnType<typeof rateLimit> {
 	return createDlqRateLimiter({
+		name: "health",
 		windowMs: 60_000,
 		max: 60,
 		message: { error: "Too many health check requests" },

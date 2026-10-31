@@ -1,11 +1,11 @@
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import {
 	DurationMs,
-	PositiveInt,
 	toServiceId,
 	URLString,
 } from "@trading-model/primitives/primitives";
 import { logger } from "../../config/logger";
+import { REPLAY_DELIVERY_TIMEOUT_MS } from "../../domain/dlq-constants";
 import { isShuttingDown } from "../../shared/shutdown-flag";
 import type { BatchContext, DlqEntryRef } from "../../shared/types";
 import { claimReleaseManager } from "./claim-manager";
@@ -28,9 +28,11 @@ async function _deliverMessage(
 		URLString.of(`${messageManagerUrl}/message`),
 		entry.message,
 		{
-			timeoutMs: DurationMs.of(10_000),
+			timeoutMs: DurationMs.of(REPLAY_DELIVERY_TIMEOUT_MS),
 			serviceName: toServiceId(ServiceInstanceName.MessageManagerService),
-			retryCount: PositiveInt.of(3),
+			// A replay that left may have been published: only a refused
+			// connection is sent again.
+			retryUnsentOnly: true,
 		}
 	);
 }

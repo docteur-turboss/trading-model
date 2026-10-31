@@ -1,5 +1,4 @@
 import { MongoConnectionManager as CommonMongoConnectionManager } from "@trading-model/persistence/mongo-connection-manager";
-import { URLString } from "@trading-model/primitives/primitives";
 import type { Collection } from "mongodb";
 import { ENV } from "../infrastructure/config/env";
 import { IndexManager } from "./index-manager";
@@ -13,7 +12,7 @@ export class MongoConnectionManager extends CommonMongoConnectionManager {
 
 	constructor() {
 		super({
-			uri: URLString.of(ENV.MONGO_URI),
+			uri: ENV.MONGO_URI,
 			dbName: ENV.MONGO_DB,
 			collectionName: ENV.MONGO_COLLECTION,
 			minPoolSize: 2,

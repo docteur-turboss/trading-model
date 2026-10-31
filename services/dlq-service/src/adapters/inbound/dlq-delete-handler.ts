@@ -4,20 +4,15 @@ import {
 	sendResponse,
 } from "@trading-model/http/adapters/inbound/response-exception";
 import { metrics } from "../../config/metrics";
-import { DeleteSchema } from "../../shared/dlq-schemas";
 import { notifyDeleteAudit } from "../outbound/audit-notifier";
 import { dlqRepository } from "../outbound/repository";
+import type { DeleteEntriesBody } from "./api-routes";
 
-export async function deleteEntries(req: {
-	body: unknown;
-}): Promise<ResponseObject> {
-	const parsed = DeleteSchema.safeParse(req.body);
-	if (!parsed.success) {
-		return sendResponse({ error: parsed.error.message }, 400 as HttpStatusCode);
-	}
-
-	const deleted = await dlqRepository.delete(parsed.data.ids);
+export async function deleteEntries({
+	ids,
+}: DeleteEntriesBody): Promise<ResponseObject> {
+	const deleted = await dlqRepository.delete(ids);
 	metrics.entriesDeleted.inc(deleted);
-	notifyDeleteAudit(parsed.data.ids, deleted);
+	notifyDeleteAudit(ids, deleted);
 	return sendResponse({ deleted }, 200 as HttpStatusCode);
 }

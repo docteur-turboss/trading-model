@@ -29,7 +29,6 @@ export interface EntryClaimPort {
 export interface ClaimReleasePort {
 	releaseStaleClaims(staleThresholdMs?: number): Promise<number>;
 	releaseClaimsByInstance(instanceId: InstanceId): Promise<number>;
-	releaseAllActiveClaims(): Promise<number>;
 }
 
 /** Retry bookkeeping: moves entries past the max retry count to ABANDONED. */

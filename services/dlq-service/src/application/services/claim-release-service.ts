@@ -35,10 +35,16 @@ export class ClaimReleaseService {
 
 	private async _requeueReleased(releasedCount: number): Promise<void> {
 		const toPush = await this._computeBatch(releasedCount);
-		for (const id of toPush) {
-			this._deps.queue.push(id).catch(() => {});
+		const results = await Promise.all(
+			toPush.map((id) => this._deps.queue.push(id))
+		);
+		const queued = results.filter(Boolean).length;
+		logger.info(`Re-queued ${queued}/${toPush.length} entries after shutdown`);
+		if (queued < toPush.length) {
+			logger.warn(
+				`${toPush.length - queued} released entries were not re-queued; they stay queuable in MongoDB until the next queue rebuild`
+			);
 		}
-		logger.info(`Re-queued up to ${toPush.length} entries after shutdown`);
 	}
 
 	private async _computeBatch(releasedCount: number): Promise<string[]> {
