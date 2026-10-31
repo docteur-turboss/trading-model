@@ -130,19 +130,19 @@ describe("ClassResponseExceptions", () => {
 			expect(result.status).toBe(503);
 		});
 
-		it("should serialize non-string reasons to JSON", () => {
+		it("should keep an object reason as the JSON body", () => {
 			const result = ResponseException({ code: "ERR" }).badRequest();
-			expect(result.data).toBe('{"code":"ERR"}');
+			expect(result.data).toEqual({ code: "ERR" });
 		});
 
-		it("should handle null reason", () => {
+		it("should keep a null reason", () => {
 			const result = ResponseException(null).badRequest();
-			expect(result.data).toBe("null");
+			expect(result.data).toBeNull();
 		});
 
-		it("should handle numeric reason", () => {
+		it("should keep a numeric reason", () => {
 			const result = ResponseException(42).success();
-			expect(result.data).toBe("42");
+			expect(result.data).toBe(42);
 		});
 	});
 

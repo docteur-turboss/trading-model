@@ -15,6 +15,32 @@ describe("DEFAULT_ACL", () => {
 		expect(DEFAULT_ACL[KnownService.DlqService]).toBeDefined();
 	});
 
+	it("should let message-manager deliver to every message subscriber", () => {
+		for (const subscriber of [
+			KnownService.FinancialScraper,
+			KnownService.TraderTrainer,
+		]) {
+			expect(DEFAULT_ACL[subscriber]).toContain("message-manager");
+		}
+	});
+
+	it("should let the message-manager clients reach it", () => {
+		// audit-logger subscribes to every topic; dlq-service republishes replays.
+		for (const client of ["audit-logger", "dlq-service"]) {
+			expect(DEFAULT_ACL[KnownService.MessageManager]).toContain(client);
+		}
+	});
+
+	it("should not let the gateway publish or subscribe on clients' behalf", () => {
+		expect(DEFAULT_ACL[KnownService.MessageManager]).not.toContain(
+			"api-gateway"
+		);
+	});
+
+	it("should only let the edge proxy reach the gateway", () => {
+		expect(DEFAULT_ACL[KnownService.ApiGateway]).toEqual(["edge-proxy"]);
+	});
+
 	it("should have at least one ServiceId per service", () => {
 		for (const entry of Object.values(DEFAULT_ACL)) {
 			expect(entry.length).toBeGreaterThan(0);

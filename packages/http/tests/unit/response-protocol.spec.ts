@@ -48,10 +48,16 @@ describe("ResponseProtocol", () => {
 		expect(res.status).toHaveBeenCalledWith(503);
 	});
 
-	it("should map unknown errors to 500", () => {
-		const err = new Error("Unknown");
+	it("should map unknown errors to 500 without exposing their message", () => {
+		const err = new Error("connect ECONNREFUSED 10.0.0.5:27017");
 		ResponseProtocol(err, req, res, next);
 		expect(res.status).toHaveBeenCalledWith(500);
+		expect(res.json).toHaveBeenCalledWith({ error: "Internal server error" });
+	});
+
+	it("should send the message of an anticipated error as an ErrorResponse", () => {
+		ResponseProtocol(serviceNotFoundError("Service not found"), req, res, next);
+		expect(res.json).toHaveBeenCalledWith({ error: "Service not found" });
 	});
 
 	it("should map ConfigurationError to 500", () => {
@@ -64,7 +70,13 @@ describe("ResponseProtocol", () => {
 		const err = { status: 418, data: "teapot" };
 		ResponseProtocol(err as any, req, res, next);
 		expect(res.status).toHaveBeenCalledWith(418);
-		expect(res.send).toHaveBeenCalledWith("teapot");
+		expect(res.json).toHaveBeenCalledWith({ error: "teapot" });
+	});
+
+	it("should keep a pre-formatted object body", () => {
+		const err = { status: 401, data: { error: "Missing token" } };
+		ResponseProtocol(err as any, req, res, next);
+		expect(res.json).toHaveBeenCalledWith({ error: "Missing token" });
 	});
 
 	it("should log server error for pre-formatted 500 response", () => {
@@ -76,7 +88,7 @@ describe("ResponseProtocol", () => {
 	it("should send response without calling next", () => {
 		const err = new Error("test");
 		ResponseProtocol(err, req, res, next);
-		expect(res.send).toHaveBeenCalled();
+		expect(res.json).toHaveBeenCalled();
 		expect(next).not.toHaveBeenCalled();
 	});
 });

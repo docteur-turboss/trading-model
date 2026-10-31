@@ -40,10 +40,17 @@ describe("isRetryableStatusPermissive", () => {
 		expect(isRetryableStatusPermissive(429)).toBe(true);
 	});
 
-	it("should return true for 403, 408, 418", () => {
-		expect(isRetryableStatusPermissive(403)).toBe(true);
+	it("should return true for 408", () => {
 		expect(isRetryableStatusPermissive(408)).toBe(true);
-		expect(isRetryableStatusPermissive(418)).toBe(true);
+	});
+
+	it("should return false for 403 and 418 (Binance WAF violation and IP ban)", () => {
+		expect(isRetryableStatusPermissive(403)).toBe(false);
+		expect(isRetryableStatusPermissive(418)).toBe(false);
+	});
+
+	it("should return false for 451 (restricted location)", () => {
+		expect(isRetryableStatusPermissive(451)).toBe(false);
 	});
 
 	it("should return false for other 4xx", () => {

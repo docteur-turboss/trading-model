@@ -57,6 +57,7 @@ describe("catchSync", () => {
 	it("should send response object via res when handler returns ResponseObject", async () => {
 		const mockRes = {
 			status: jest.fn().mockReturnThis(),
+			set: jest.fn().mockReturnThis(),
 			type: jest.fn().mockReturnThis(),
 			json: jest.fn().mockReturnThis(),
 			send: jest.fn().mockReturnThis(),
@@ -68,6 +69,8 @@ describe("catchSync", () => {
 
 		expect(mockRes.status).toHaveBeenCalledWith(201);
 		expect(mockRes.send).toHaveBeenCalledWith({ id: "abc" });
+		expect(mockRes.type).toHaveBeenCalledWith("json");
+		expect(mockRes.set).toHaveBeenCalledWith({});
 		expect(next).not.toHaveBeenCalled();
 	});
 });

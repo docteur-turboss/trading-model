@@ -29,4 +29,28 @@ describe("MTLSAuthorizationMiddleware", () => {
 		void middleware(req, res, next);
 		expect(next).toHaveBeenCalled();
 	});
+
+	describe("metrics scrape", () => {
+		const PROMETHEUS =
+			"spiffe://trading-model.local/ns/trading-model/sa/prometheus";
+
+		function run(method: string, path: string): NextFunction {
+			const middleware = MTLSAuthorizationMiddleware(
+				ServiceId.of("trader-trainer")
+			);
+			const req = { clientIdentity: PROMETHEUS, method, path } as Request;
+			const next = jest.fn() as NextFunction;
+			void middleware(req, {} as Response, next);
+			return next;
+		}
+
+		it("lets prometheus read GET /metrics on any service", () => {
+			expect(run("GET", "/metrics")).toHaveBeenCalledWith();
+		});
+
+		it("still denies prometheus every other route", () => {
+			const next = run("GET", "/training-status");
+			expect(next).toHaveBeenCalledWith(expect.anything());
+		});
+	});
 });

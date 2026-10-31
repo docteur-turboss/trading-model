@@ -302,6 +302,19 @@ describe("HttpClient", () => {
 			);
 		});
 
+		it("should send bigint values as decimal strings and Sets as arrays", async () => {
+			const promise = client.post(URLString.of("https://example.com/api"), {
+				tradeId: 9007199254740993n,
+				bids: new Set([{ price: 1 }]),
+			});
+			simulateResponse(204, "", "text/plain");
+
+			await promise;
+			expect(mockReq.write).toHaveBeenCalledWith(
+				'{"tradeId":"9007199254740993","bids":[{"price":1}]}'
+			);
+		});
+
 		it("should handle 204 No Content", async () => {
 			const promise = client.post(URLString.of("https://example.com/api"));
 			simulateResponse(204, "", "text/plain");
@@ -890,6 +903,48 @@ describe("HttpClient", () => {
 			simulateResponse(200, JSON.stringify({ ok: true }), "application/json");
 			const result = await promise;
 			expect(result).toEqual({ ok: true });
+		});
+	});
+
+	describe("retryUnsentOnly", () => {
+		beforeEach(() => (https.request as jest.Mock).mockClear());
+
+		it("should not re-send a request that timed out", async () => {
+			const promise = client.post(
+				URLString.of("https://example.com/api"),
+				{},
+				{ retryCount: 1, retryUnsentOnly: true, timeoutMs: 100 as DurationMs }
+			);
+			mockReq._timeoutCb();
+			await expect(promise).rejects.toThrow("timed out");
+			expect(https.request).toHaveBeenCalledTimes(1);
+		});
+
+		it("should retry a refused connection: the request never left", async () => {
+			const promise = client.post(
+				URLString.of("https://example.com/api"),
+				{},
+				{ retryCount: 1, retryUnsentOnly: true, timeoutMs: 100 as DurationMs }
+			);
+			errorHandler!(new Error("connect ECONNREFUSED 10.0.0.1:3000"));
+			await new Promise((resolve) => setTimeout(resolve, 300));
+			simulateResponse(200, JSON.stringify({ ok: true }), "application/json");
+			await expect(promise).resolves.toEqual({ ok: true });
+			expect(https.request).toHaveBeenCalledTimes(2);
+		});
+	});
+
+	describe("retryCount 0", () => {
+		beforeEach(() => (https.request as jest.Mock).mockClear());
+
+		it("should send the request once", async () => {
+			const promise = client.get(URLString.of("https://example.com/api"), {
+				retryCount: 0,
+				timeoutMs: 100 as DurationMs,
+			});
+			errorHandler!(new Error("read ECONNRESET"));
+			await expect(promise).rejects.toThrow("ECONNRESET");
+			expect(https.request).toHaveBeenCalledTimes(1);
 		});
 	});
 
