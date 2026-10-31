@@ -1,55 +1,76 @@
+import { HTTP_STATUS } from "@trading-model/contracts/http-status";
+import { mountRoute } from "@trading-model/http/adapters/inbound/api-route/mount-route";
+import { sendResponse } from "@trading-model/http/adapters/inbound/response-exception";
+import { toJsonWire } from "@trading-model/http/infrastructure/json-wire";
 import { Router } from "express";
+import { selectCandlesBy } from "../../outbound/persistence/schema/candles-schema";
+import { selectOrderBookBy } from "../../outbound/persistence/schema/order-book.schema";
+import { selectTickerBy } from "../../outbound/persistence/schema/ticker24h.schema";
+import { selectTradesBy } from "../../outbound/persistence/schema/trades.schema";
+import { SCRAPER_API } from "./api-routes";
 
-import {
-	GET_CANDLES_BY_SOURCE_CONTROLLER,
-	GET_CANDLES_BY_SYMBOL_CONTROLLER,
-	GET_CANDLES_BY_TIMESTAMP_CONTROLLER,
-	GET_ORDER_BOOK_BY_SOURCE_CONTROLLER,
-	GET_ORDER_BOOK_BY_SYMBOL_CONTROLLER,
-	GET_ORDER_BOOK_BY_TIMESTAMP_AFTER_CONTROLLER,
-	GET_ORDER_BOOK_BY_TIMESTAMP_BEFORE_CONTROLLER,
-	GET_TICKER_BY_SOURCE_CONTROLLER,
-	GET_TICKER_BY_SYMBOL_CONTROLLER,
-	GET_TICKER_BY_TIMESTAMP_CONTROLLER,
-	GET_TRADE_BY_SOURCE_CONTROLLER,
-	GET_TRADE_BY_SYMBOL_CONTROLLER,
-	GET_TRADE_BY_TIMESTAMP_CONTROLLER,
-} from "./controller";
+/**
+ * 200 with the rows as JSON. `toJsonWire` sends BIGINT trade ids as decimal
+ * strings (plain JSON.stringify throws on a bigint) and order book levels
+ * (Sets) as arrays (plain JSON.stringify turns them into `{}`).
+ */
+async function rows(query: Promise<unknown>) {
+	return sendResponse(JSON.stringify(await query, toJsonWire), HTTP_STATUS.OK);
+}
+
+/** Order book lookups answer `null` for an unknown key and may hold gaps. */
+function orderBooks(query: Promise<readonly unknown[] | null>) {
+	return rows(query.then((books) => (books ?? []).filter(Boolean)));
+}
 
 function _registerTradeRoutes(router: Router): void {
-	router.get("/trade/sources/:source", GET_TRADE_BY_SOURCE_CONTROLLER);
-	router.get("/trade/symbols/:symbol", GET_TRADE_BY_SYMBOL_CONTROLLER);
-	router.get("/trade/timestamp/:timestamp", GET_TRADE_BY_TIMESTAMP_CONTROLLER);
+	mountRoute(router, SCRAPER_API.tradesBySource, ({ params }) =>
+		rows(selectTradesBy.source(params.source))
+	);
+	mountRoute(router, SCRAPER_API.tradesBySymbol, ({ params }) =>
+		rows(selectTradesBy.symbol(params.symbol))
+	);
+	mountRoute(router, SCRAPER_API.tradesAt, ({ params }) =>
+		rows(selectTradesBy.timestamp(params.timestamp))
+	);
 }
 
 function _registerTickerRoutes(router: Router): void {
-	router.get("/ticker/sources/:source", GET_TICKER_BY_SOURCE_CONTROLLER);
-	router.get("/ticker/symbols/:symbol", GET_TICKER_BY_SYMBOL_CONTROLLER);
-	router.get(
-		"/ticker/timestamp/:timestamp",
-		GET_TICKER_BY_TIMESTAMP_CONTROLLER
+	mountRoute(router, SCRAPER_API.tickersBySource, ({ params }) =>
+		rows(selectTickerBy.source(params.source))
+	);
+	mountRoute(router, SCRAPER_API.tickersBySymbol, ({ params }) =>
+		rows(selectTickerBy.symbol(params.symbol))
+	);
+	mountRoute(router, SCRAPER_API.tickersAt, ({ params }) =>
+		rows(selectTickerBy.timestamp(params.timestamp))
 	);
 }
 
 function _registerCandleRoutes(router: Router): void {
-	router.get("/candles/sources/:source", GET_CANDLES_BY_SOURCE_CONTROLLER);
-	router.get("/candles/symbols/:symbol", GET_CANDLES_BY_SYMBOL_CONTROLLER);
-	router.get(
-		"/candles/timestamp/:timestamp",
-		GET_CANDLES_BY_TIMESTAMP_CONTROLLER
+	mountRoute(router, SCRAPER_API.candlesBySource, ({ params }) =>
+		rows(selectCandlesBy.source(params.source))
+	);
+	mountRoute(router, SCRAPER_API.candlesBySymbol, ({ params }) =>
+		rows(selectCandlesBy.symbol(params.symbol))
+	);
+	mountRoute(router, SCRAPER_API.candlesSince, ({ params }) =>
+		rows(selectCandlesBy.timestamp.after(params.timestamp))
 	);
 }
 
 function _registerOrderBookRoutes(router: Router): void {
-	router.get("/orderbook/sources/:source", GET_ORDER_BOOK_BY_SOURCE_CONTROLLER);
-	router.get("/orderbook/symbols/:symbol", GET_ORDER_BOOK_BY_SYMBOL_CONTROLLER);
-	router.get(
-		"/orderbook/after/timestamp/:timestamp",
-		GET_ORDER_BOOK_BY_TIMESTAMP_AFTER_CONTROLLER
+	mountRoute(router, SCRAPER_API.orderBooksBySource, ({ params }) =>
+		orderBooks(selectOrderBookBy.source(params.source))
 	);
-	router.get(
-		"/heartbeat/before/timestamp/:timestamp",
-		GET_ORDER_BOOK_BY_TIMESTAMP_BEFORE_CONTROLLER
+	mountRoute(router, SCRAPER_API.orderBooksBySymbol, ({ params }) =>
+		orderBooks(selectOrderBookBy.symbol(params.symbol))
+	);
+	mountRoute(router, SCRAPER_API.orderBooksAfter, ({ params }) =>
+		orderBooks(selectOrderBookBy.timestamp.after(params.timestamp))
+	);
+	mountRoute(router, SCRAPER_API.orderBooksBefore, ({ params }) =>
+		orderBooks(selectOrderBookBy.timestamp.before(params.timestamp))
 	);
 }
 

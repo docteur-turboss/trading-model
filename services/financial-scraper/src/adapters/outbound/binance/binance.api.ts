@@ -12,11 +12,8 @@ type PriceChangePercentString = string & {
 	readonly brand: "PriceChangePercentString";
 };
 
-/** A single depth entry with branded types. */
-export interface BinanceDepthEntry {
-	price: PriceString;
-	qty: VolumeString;
-}
+/** A single depth level as sent by Binance: a `[price, quantity]` tuple. */
+export type BinanceDepthEntry = [price: PriceString, qty: VolumeString];
 
 export interface BinanceDepthResponse {
 	lastUpdateId: number;

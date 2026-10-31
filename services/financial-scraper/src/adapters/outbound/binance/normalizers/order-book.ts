@@ -14,9 +14,9 @@ import type { SymbolQuery } from "./query-types";
 
 function parseOrderBookSide(entries: BinanceDepthEntry[]): Set<OrderBookLevel> {
 	return new Set(
-		entries.map((entry) => ({
-			price: Price.of(Number(entry.price)),
-			quantity: Volume.of(Number(entry.qty)),
+		entries.map(([price, qty]) => ({
+			price: Price.of(Number(price)),
+			quantity: Volume.of(Number(qty)),
 		}))
 	);
 }
