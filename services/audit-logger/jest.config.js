@@ -1,3 +1,4 @@
+const { DB_SPEC_IGNORE } = require('../../scripts/jest-db-config.cjs');
 const { workspaceModuleNameMapper } = require('../../scripts/jest-workspace-mapper.cjs');
 
 /** @type {import('ts-jest').JestConfigWithTsJest} */
@@ -13,7 +14,7 @@ module.exports = {
   },
   rootDir: '.',
   testMatch: ['**/?(*.)+(spec).ts'],
-  testPathIgnorePatterns: ['/node_modules/', '/dist/'],
+  testPathIgnorePatterns: ['/node_modules/', '/dist/', DB_SPEC_IGNORE],
   moduleNameMapper: {
     ...workspaceModuleNameMapper(__dirname),
     '^(\\.{1,2}/.*)\\.js$': '$1',

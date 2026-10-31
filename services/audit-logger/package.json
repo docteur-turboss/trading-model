@@ -20,22 +20,26 @@
   "author": "Alchimist Horus Turboss <@docteur-turboss>",
   "type": "commonjs",
   "main": "./dist/application/index.js",
+  "bin": {
+    "audit-chain": "./dist/application/chain-cli.js"
+  },
   "scripts": {
     "test": "jest",
     "test:detectOpenHandles": "jest --detectOpenHandles",
     "test:coverage": "jest --coverage",
+    "test:db": "NODE_OPTIONS=--experimental-vm-modules jest -c jest.db.config.js",
     "build": "tsc",
     "dev": "ts-node src/application/index.ts"
   },
   "dependencies": {
-    "@trading-model/primitives": "*",
-    "@trading-model/contracts": "*",
+    "@aws-sdk/client-s3": "^3.1161.0",
     "@trading-model/address-manager": "*",
     "@trading-model/broker-message": "*",
     "@trading-model/common": "*",
-    "@trading-model/persistence": "*",
+    "@trading-model/contracts": "*",
     "@trading-model/http": "*",
-    "@trading-model/jobs": "*",
+    "@trading-model/persistence": "*",
+    "@trading-model/primitives": "*",
     "@trading-model/server-utils": "*",
     "@trading-model/validation": "*",
     "express": "^5.2.1",
