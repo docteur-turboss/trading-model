@@ -1,92 +1,41 @@
 /**
- * Express-compatible route handlers for the broker module (subscribe, unsubscribe, publish).
- * Uses Zod validation and ResponseException for standardized HTTP responses.
+ * Handlers of the broker routes (BROKER_API): the body is parsed by the route.
  */
 
 import type { HttpStatusCode } from "@trading-model/contracts/http-status";
 import type { MessageMetadata } from "@trading-model/contracts/message-types";
-import { catchSync } from "@trading-model/http/adapters/inbound/catch-error";
+import type { ApiRouteHandler } from "@trading-model/http/adapters/inbound/api-route/mount-route";
 import { sendResponse } from "@trading-model/http/adapters/inbound/response-exception";
-import { toInstanceId, toTopic } from "@trading-model/primitives/primitives";
-import type { z } from "zod";
 import type { Dispatcher } from "../../application/services/dispatcher";
-import {
-	PUBLISH_SCHEMA,
-	SUBSCRIBE_SCHEMA,
-	UNSUBSCRIBE_SCHEMA,
-} from "./validation/broker.schema";
+import type { BROKER_API } from "./api-routes";
 
-/**
- * Parses the request body against the given Zod schema. On success returns the parsed
- * data; on failure returns the 400 {@link ResponseObject} the handler must return.
- */
-function _parseBody<TData>(
-	schema: z.ZodType,
-	body: unknown
-): TData | ReturnType<typeof sendResponse> {
-	const parsed = schema.safeParse(body);
-	if (!parsed.success) {
-		return sendResponse({ error: parsed.error.message }, 400 as HttpStatusCode);
-	}
-	return parsed.data as TData;
-}
+type Api = typeof BROKER_API;
 
-/**
- * Validates subscription request and forwards to Dispatcher. Returns 204 on success.
- */
-export const SUBSCRIPTION_TO_A_TOPIC = (dispatcher: Dispatcher) =>
-	catchSync((req) => {
-		const data = _parseBody<Parameters<Dispatcher["subscribe"]>[0]>(
-			SUBSCRIBE_SCHEMA,
-			req.body
-		);
-		if ("status" in data) {
-			return data;
-		}
+const NO_CONTENT = () => sendResponse(undefined, 204 as HttpStatusCode);
 
-		dispatcher.subscribe(data);
+/** Forwards a subscription to the dispatcher. */
+export const SUBSCRIPTION_TO_A_TOPIC =
+	(dispatcher: Dispatcher): ApiRouteHandler<Api["subscribe"]> =>
+	async ({ body }) => {
+		await dispatcher.subscribe(body);
+		return NO_CONTENT();
+	};
 
-		return sendResponse(undefined, 204 as HttpStatusCode);
-	});
+/** Forwards an unsubscription to the dispatcher. */
+export const DELETE_A_SUBSCRIPTION =
+	(dispatcher: Dispatcher): ApiRouteHandler<Api["unsubscribe"]> =>
+	async ({ body }) => {
+		await dispatcher.unsubscribe(body);
+		return NO_CONTENT();
+	};
 
-/**
- * Validates unsubscription request and forwards to Dispatcher. Returns 204 on success.
- */
-export const DELETE_A_SUBSCRIPTION = (dispatcher: Dispatcher) =>
-	catchSync((req) => {
-		const data = _parseBody<{
-			topic: string;
-			instanceId: string;
-		}>(UNSUBSCRIBE_SCHEMA, req.body);
-		if ("status" in data) {
-			return data;
-		}
-
-		dispatcher.unsubscribe({
-			topic: toTopic(data.topic),
-			instanceId: toInstanceId(data.instanceId),
-		});
-
-		return sendResponse(undefined, 204 as HttpStatusCode);
-	});
-
-/**
- * Validates publish request and forwards payload + metadata to Dispatcher. Returns 204 on success.
- */
-export const PUBLISH_A_MESSAGE = (dispatcher: Dispatcher) =>
-	catchSync(async (req) => {
-		const data = _parseBody<{
-			payload: unknown;
-			metadata: unknown;
-		}>(PUBLISH_SCHEMA, req.body);
-		if ("status" in data) {
-			return data;
-		}
-
+/** Forwards payload and metadata to the dispatcher, which stamps id and emission time. */
+export const PUBLISH_A_MESSAGE =
+	(dispatcher: Dispatcher): ApiRouteHandler<Api["publish"]> =>
+	async ({ body }) => {
 		await dispatcher.publish(
-			data.payload,
-			data.metadata as Omit<MessageMetadata, "emittedAt" | "messageId">
+			body.payload,
+			body.metadata as Omit<MessageMetadata, "emittedAt" | "messageId">
 		);
-
-		return sendResponse(undefined, 204 as HttpStatusCode);
-	});
+		return NO_CONTENT();
+	};
