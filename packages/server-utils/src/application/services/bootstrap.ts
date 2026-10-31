@@ -7,6 +7,7 @@ import type { BootstrapOptions } from "./bootstrap-types";
 
 export type {
 	BootstrapOptions,
+	GracefulShutdownOptions,
 	TlsBootstrapOptions,
 } from "./bootstrap-types";
 

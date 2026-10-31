@@ -18,6 +18,7 @@ export function createReadinessHandler(
 		const results: Record<string, "ok" | "error"> = {};
 		let healthy = true;
 		for (const check of checks) {
+			// biome-ignore lint/plugin: a throwing check is reported as "error" in the readiness response
 			try {
 				const ok = await check.check();
 				results[check.name] = ok ? "ok" : "error";

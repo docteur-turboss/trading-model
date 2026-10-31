@@ -1,3 +1,4 @@
+import { getHeapStatistics } from "node:v8";
 import { correlationIdMiddleware } from "@trading-model/http/adapters/inbound/correlation-id";
 import { HEALTH_STATUS_OK } from "@trading-model/http/adapters/inbound/response-exception";
 import type {
@@ -14,6 +15,17 @@ import { createReadinessHandler, type ReadinessCheck } from "./readiness";
 
 promClient.collectDefaultMetrics();
 
+// The heap ceiling V8 enforces (from --max-old-space-size or the container
+// memory): used/limit is the OOM distance. used/total is not, V8 keeps the
+// allocated heap close to the used one.
+new promClient.Gauge({
+	name: "nodejs_heap_size_limit_bytes",
+	help: "V8 heap size limit in bytes",
+	collect() {
+		this.set(getHeapStatistics().heap_size_limit);
+	},
+});
+
 /** Configuration for the rate-limiting middleware. */
 export interface RateLimitConfig {
 	windowMs: DurationMs;
@@ -24,9 +36,12 @@ export interface RateLimitConfig {
 function _buildRateLimiter(config: {
 	rateLimit?: RateLimitConfig;
 }): ReturnType<typeof rateLimit> {
+	// Coarse per-IP guard for an mTLS-only mesh: it must fit normal service
+	// traffic (heartbeats, token refresh, lookups, publishes). The former
+	// 100 per 15 min was exhausted by one service's heartbeats alone.
 	return rateLimit({
-		windowMs: config.rateLimit?.windowMs ?? 15 * 60 * 1000,
-		limit: config.rateLimit?.limit ?? 100,
+		windowMs: config.rateLimit?.windowMs ?? 60 * 1000,
+		limit: config.rateLimit?.limit ?? 1000,
 		message:
 			config.rateLimit?.message ??
 			"Too many requests from this IP, please try again later.",

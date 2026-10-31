@@ -20,7 +20,11 @@ function _runOnStop(options: BootstrapOptions): void {
 		return;
 	}
 	try {
-		options.onStop();
+		Promise.resolve(options.onStop()).catch((err) =>
+			logger.warn("onStop callback failed during forced shutdown", {
+				context: { err: normalizeError(err) },
+			})
+		);
 	} catch (err) {
 		logger.warn("onStop callback failed during forced shutdown", {
 			context: { err: normalizeError(err) },
@@ -38,12 +42,40 @@ function _createCloseTimeoutPromise(timeoutMs: DurationMs): Promise<never> {
 	});
 }
 
-async function _closeServerWithTimeout(server: HttpServer): Promise<void> {
-	const closeTimeout = DurationMs.of(10000);
+const DEFAULT_CLOSE_TIMEOUT_MS = DurationMs.of(10000);
+
+async function _closeServerWithTimeout(
+	server: HttpServer,
+	closeTimeout: DurationMs
+): Promise<void> {
 	await Promise.race([
 		server.close(),
 		_createCloseTimeoutPromise(closeTimeout),
 	]);
+}
+
+async function _runBeforeClose(options: BootstrapOptions): Promise<void> {
+	const beforeClose = options.shutdown?.beforeClose;
+	if (!beforeClose) {
+		return;
+	}
+	try {
+		await beforeClose();
+	} catch (err) {
+		logger.warn("beforeClose callback failed during graceful shutdown", {
+			context: { err: normalizeError(err) },
+		});
+	}
+}
+
+async function _awaitOnStop(options: BootstrapOptions): Promise<void> {
+	try {
+		await options.onStop?.();
+	} catch (err) {
+		logger.warn("onStop callback failed during graceful shutdown", {
+			context: { err: normalizeError(err) },
+		});
+	}
 }
 
 export function hardShutdown(
@@ -64,11 +96,15 @@ export async function gracefulShutdown(
 ): Promise<void> {
 	logger.warn("Shutdown signal received", { context: { signal } });
 	try {
+		await _runBeforeClose(options);
 		if (server) {
-			await _closeServerWithTimeout(server);
+			await _closeServerWithTimeout(
+				server,
+				options.shutdown?.closeTimeoutMs ?? DEFAULT_CLOSE_TIMEOUT_MS
+			);
 			logger.info("HTTP server closed");
 		}
-		_runOnStop(options);
+		await _awaitOnStop(options);
 		logger.info("Shutdown completed gracefully");
 	} catch (error) {
 		logger.error("Error during graceful shutdown", {
