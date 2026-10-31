@@ -74,7 +74,7 @@ docs/
 │   ├── ENV.md                           # Environment variables
 │   ├── SETUP.md                         # Machine setup
 │   ├── KUBERNETES.md                    # K8s configuration
-│   ├── MULTI_REGION.md                  # Multi-region strategy
+│   ├── MULTI_REGION.md                  # Multi-region: not supported, prerequisites
 │   ├── sealed-secrets.md               # Encrypted K8s secrets
 │   └── BACKUP_DR.md                     # Backup & disaster recovery
 ├── operations/                          # Operational procedures

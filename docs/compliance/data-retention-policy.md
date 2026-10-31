@@ -1,6 +1,6 @@
 # Data Retention Policy
 
-> **Effective:** 2026-06  
+> **Effective:** 2026-06 (revised 2026-10 after audit 13.09)  
 > **Review:** Annual
 
 ## Policy Statement
@@ -11,22 +11,24 @@ Data shall be retained only as long as necessary for the purposes for which it i
 
 | Data Type                                  | System                    | Retention Period                      | Legal Basis                                                            | Deletion Mechanism                                      |
 | ------------------------------------------ | ------------------------- | ------------------------------------- | ---------------------------------------------------------------------- | ------------------------------------------------------- |
-| **Market data** (candles, trades, tickers) | MySQL `financial_scraper` | **5 years**                           | MiFID II Art. 72 (record-keeping of transactions)                      | MySQL event `purge_old_market_data` (migration 003, daily, cutoff 1827 days) |
-| **Audit events**                           | MongoDB `audit_events`    | **5 years**                           | MiFID II (record-keeping), GDPR Art. 30 (processing register evidence) | TTL index on `recordedAt` field                         |
-| **Service messages** (transit)             | Redis Streams             | **2 hours**                           | Operational necessity only — transient routing                         | Stream MAXLEN ~500000 entries                           |
-| **Message archive**                        | MongoDB `message_archive` | **90 days**                           | Operational debugging                                                  | TTL index (disabled by default; enable via config)      |
-| **Dead letter entries**                    | MongoDB `dlq_entries`     | **30 days**                           | Operational — messages not delivered after retries                     | Prune cron (daily) + `ENTRY_TTL_MS`                     |
+| **Market data** (candles, trades, tickers) | MySQL `financial_scraper` | **5 years** (target)                  | Record-keeping (Delegated Reg. (EU) 2017/565 Art. 72, if operated by an investment firm) | **None yet** — purge event removed from migration 003 (audit A9); out-of-schema retention job open (DPIA action #2) |
+| **Audit events**                           | MongoDB `audit_events`    | **5 years**                           | Record-keeping, traceability                                           | TTL index on the `ttl` field (`AUDIT_RETENTION_DAYS`, default 1827) |
+| **Messages in transit**                    | message-manager memory    | **Delivery only**                     | Operational necessity — routing                                        | Not persisted                                           |
+| **Dead letter entries**                    | MongoDB `dlq_entries`     | **30 days**                           | Operational — messages not delivered after retries                     | TTL index on `createdAt` + prune every minute above `MAX_ENTRIES` |
 | **SVIDs**                                  | `/run/spire/svid` (spiffe-helper) | **1h TTL** (auto-rotated)            | Security best practice                                                 | SPIRE Server SVID rotation                              |
 | **SPIRE trust bundle**                     | SPIRE datastore (MySQL `spire`) | **168h** (ca_ttl)                    | Security best practice                                                 | SPIRE CA manager                                       |
 | **Service tokens**                         | K8s Secrets               | **Until rotated** (weekly)            | Security                                                               | Manual rotation via `scripts/rotate-secrets.sh`         |
-| **Operational logs**                       | stdout / Promtail → Loki  | **30 days**                           | Operational debugging                                                  | Loki retention: `744h` (configurable)                   |
-| **Prometheus metrics**                     | Prometheus TSDB           | **15 days**                           | Operational monitoring                                                 | `--storage.tsdb.retention.time=15d`                     |
+| **API access logs** (truncated caller IP)  | edge-proxy → Loki         | **31 days**                           | GDPR Art. 6(1)(f) — security of the service                            | Loki retention `744h`                                   |
+| **Operational logs**                       | stdout / Promtail → Loki  | **31 days**                           | Operational debugging                                                  | Loki retention `744h`                                   |
+| **Prometheus metrics**                     | Prometheus TSDB           | **30 days**                           | Operational monitoring                                                 | `--storage.tsdb.retention.time=30d`                     |
+| **Traces**                                 | Jaeger (in memory)        | **Until restart**                     | Operational debugging                                                  | In-memory storage                                       |
+| **Backups** (age-encrypted dumps)          | Local backup dir / off-site S3 | **30 days**                      | Disaster recovery                                                      | `prune_old` (`RETENTION_DAYS`); off-site: bucket lifecycle rule, set to the same value |
 
 ## Financial Regulatory Justification
 
 ### MiFID II (Markets in Financial Instruments Directive)
 
-- **Art. 72 — Record-keeping of transactions:** Investment firms must retain records of all transactions in financial instruments for at least **5 years**
+- **Art. 16(6) MiFID II and Art. 72 of Delegated Regulation (EU) 2017/565 — Record-keeping:** investment firms must retain their records for at least **5 years** (a minimum, not a maximum)
 - **Application:** If the trading-model platform is used by an investment firm for algorithmic trading decisions, all market data inputs, training records, and agent decision logs must be retained for 5 years
 
 ### MAR (Market Abuse Regulation)
@@ -37,27 +39,13 @@ Data shall be retained only as long as necessary for the purposes for which it i
 ### GDPR
 
 - **Art. 5(1)(e) — Storage limitation:** "kept in a form which permits identification of data subjects for no longer than is necessary"
-- **Application:** Since no personal data is processed, this principle is satisfied by default. The 5-year financial retention takes precedence over GDPR minimization
+- **Application:** the only personal data is the truncated caller IP in API access logs, kept 31 days. The 5-year retentions above concern data without personal data, so they do not conflict with storage limitation
 
 ## Implementation
 
 ### MySQL Market Data Retention
 
-```sql
--- Enable event scheduler
-SET GLOBAL event_scheduler = ON;
-
--- Daily purge of data older than 1827 days (5 years) — see migration 003
-CREATE EVENT IF NOT EXISTS purge_old_market_data
-ON SCHEDULE EVERY 1 DAY
-STARTS CURRENT_TIMESTAMP
-DO
-  DELETE FROM market_candles WHERE close_timestamp < DATE_SUB(NOW(), INTERVAL 1827 DAY);
-  DELETE FROM market_trades WHERE timestamp < DATE_SUB(NOW(), INTERVAL 1827 DAY);
-  DELETE FROM market_tickers WHERE close_time < DATE_SUB(NOW(), INTERVAL 1827 DAY);
-```
-
-See `scripts/migrations/` for the migration to create this event.
+Not implemented. Migration 003 used to create a daily MySQL `EVENT` deleting rows older than 1827 days; per deployment audit A9, destructive `DELETE`s no longer live in schema migrations, so the migration is now empty. Until a dedicated retention job exists (DPIA action #2), market data accumulates without bound.
 
 ### MongoDB Audit Retention
 
@@ -67,7 +55,11 @@ Configure via environment variable:
 AUDIT_RETENTION_DAYS=1827  # 5 years (default in code: 1827)
 ```
 
-The TTL index on `recordedAt` is created automatically at startup by the audit-logger.
+Each event stores its expiry date in the `ttl` field at insert; the TTL index on it (`expireAfterSeconds: 0`) is created at startup by the audit-logger. Changing `AUDIT_RETENTION_DAYS` only applies to new events.
+
+### API Access Logs
+
+The edge-proxy writes its access log with `log_format anonymized` (`deploy/edge-proxy/default.conf`): the caller IP is truncated (IPv4 /24, IPv6 /48) before the line is written; the query string, User-Agent and X-Forwarded-For are not logged. Loki drops the lines after 744h.
 
 ### Exceptions
 

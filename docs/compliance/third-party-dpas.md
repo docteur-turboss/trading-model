@@ -17,6 +17,14 @@ The financial-scraper service fetches **market data only** from Binance's public
 | `GET /api/v3/ticker/price`      | Current price ticker                           |
 | `GET /api/v3/ticker/bookTicker` | Best bid/ask                                   |
 
+The scraper also calls `historicalTrades`, `aggTrades` and `ticker/tradingDay`, all public. No request is signed and no Binance account exists: `BINANCE_API_KEY` / `BINANCE_API_SECRET` are read by no code.
+
+### Regulatory Status (MiCA)
+
+Binance holds no MiCA authorisation. Since 1 July 2026 it no longer accepts sign-ups, deposits or new spot orders from EEA residents and plans to apply in France (AMF). This concerns account holders; the platform has none. On 2026-10-30 every endpoint above answered from France without a key, on `api.binance.com` and `data-api.binance.vision`. Consuming public market data is not receiving a crypto-asset service under MiCA.
+
+The residual risk is a geo-block of the public API (HTTP 451). It is alerted (`BinanceRestrictedLocation`), and the fallbacks and re-examination triggers are set in [ADR-0026](../adr/0026-binance-public-market-data-kept.md).
+
 ### Data Classification
 
 | Category                        | Contains PII? | Justification                   |

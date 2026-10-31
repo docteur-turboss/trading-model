@@ -41,9 +41,9 @@ message-manager:        curl -sk https://message-manager:3000/health/ready
 api-gateway:            curl -sk https://api-gateway:3000/ping
 audit-logger:           curl -sk https://audit-logger:3000/ping
 dlq-service:            curl -sk https://dlq-service:3000/health
+edge-proxy:             curl -s http://edge-proxy:8080/ping
 financial-scraper:      curl -sk https://financial-scraper:3000/health
 trader-trainer:         curl -sk https://trader-trainer:3000/ping
-admin-interface:        curl -s http://admin-interface:80/ping
 ```
 
 ### Key dashboards

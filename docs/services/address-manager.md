@@ -40,10 +40,7 @@ constructor(config: AddressManagerConfig)
 interface AddressManagerConfig {
   identity: ServiceIdentity;        // { serviceName, instanceId, region? }
   servicePort: Port;                // Port the service listens on
-  addressManagerUrl: string;        // Discovery-server base URL
-  discoveryUrls: string[];          // Ordered discovery URLs for multi-region failover
-  localDiscoveryUrl?: string;
-  publicIp?: IPAddress;
+  addressManagerUrl: string;        // Discovery Service URL (load-balances every replica)
   tls: TlsPaths;                    // { caPath, certPath, keyPath } — SVID files (ADR-0011)
   tokenRefreshIntervalMs: DurationMs;
   ttlRefreshIntervalMs: DurationMs;
@@ -51,12 +48,7 @@ interface AddressManagerConfig {
   discoveryTimeoutMs: DurationMs;
   cacheTtlMs: DurationMs;
   dnsNameMap?: Record<ServiceId, IPAddress>;
-  metricsIntervalMs?: DurationMs;
-  maxCallRecords?: PositiveInt;
-  preferredNetworkInterface?: string;
-  pems?: TlsPaths;                  // legacy alias
-  redisCacheUrl?: string;
-  redisCacheOptions?: Record<string, unknown>;
+  redisCache?: RedisConnectionConfig; // REDIS_SENTINELS / REDIS_URL: cache shared by replicas; unset: in memory
   circuitBreakerFailureThreshold?: PositiveInt;
   circuitBreakerHalfOpenTimeoutMs?: DurationMs;
   circuitBreakerCacheTtlMs?: DurationMs;
@@ -76,8 +68,7 @@ interface AddressManagerConfig {
 | `tls`                    | `TlsPaths`               | —       | `{ caPath, certPath, keyPath }` — SVID files from spiffe-helper (ADR-0011)        |
 | `cacheTtlMs`             | `DurationMs`             | `30000` | TTL for cached service instances                                                 |
 | `dnsNameMap`             | `Record<ServiceId, IPAddress>` | —  | Optional mapping from logical service names to deployment-specific DNS hostnames |
-| `discoveryUrls`          | `string[]`               | —       | Ordered list of discovery URLs for multi-region failover                         |
-| `publicIp`               | `IPAddress`              | —       | Override for auto-detected public IP                                             |
+| `redisCache`             | `RedisConnectionConfig`  | —       | Shared cache of addresses and circuit state (from `REDIS_SENTINELS` / `REDIS_URL`) |
 | `discoveryTimeoutMs`     | `DurationMs`             | `5000`  | Discovery HTTP call timeout                                                      |
 
 ### Public Methods
@@ -199,8 +190,7 @@ In addition to the default export, the package exposes internal modules via deep
 | `TTL_REFRESH_INTERVAL_MS`         | `15000`     | TTL refresh interval        |
 | `ADDRESS_MANAGER_URL`             | —           | Discovery-server URL        |
 | `DNS_NAME_MAP`                    | `'{}'`      | Custom DNS mapping (JSON)   |
-| `ADDRESS_MANAGER_URLS`            | —           | Optional JSON array of discovery URLs for multi-region failover |
-| `REGION`                          | —           | Deployment region identifier |
+| `REDIS_SENTINELS` / `REDIS_URL`   | —           | Shared address + circuit-state cache (services whose schema includes `RedisEnvSchema`: dlq-service, message-manager); otherwise in memory |
 | `ERROR_URL_WEBHOOK`               | `''`        | Error webhook               |
 | `MESSAGE_BUS_INIT_TIMEOUT_MS`     | `2000`      | Bus init timeout            |
 | `MESSAGE_BUS_SHUTDOWN_TIMEOUT_MS` | `2000`      | Bus shutdown timeout        |

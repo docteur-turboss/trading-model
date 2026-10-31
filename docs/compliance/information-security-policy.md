@@ -10,7 +10,7 @@
 
 The trading-model platform processes machine-generated financial market data and operates a zero-personal-data architecture. IP addresses are transiently read for access control and anonymized before logging; log context fields are sanitized of sensitive keys before persistence. This Information Security Policy defines the principles, controls, and responsibilities for protecting the confidentiality, integrity, and availability of all platform assets.
 
-**Scope:** All 8 microservices, 6 shared packages, infrastructure (Docker, Kubernetes, databases), CI/CD pipelines, and supporting observability stack.
+**Scope:** All 7 microservices, 12 shared packages, infrastructure (Docker, Kubernetes, databases), CI/CD pipelines, and supporting observability stack.
 
 ## 2. Information Security Objectives
 
@@ -47,7 +47,7 @@ The trading-model platform processes machine-generated financial market data and
 | Classification | Definition | Examples |
 |---|---|---|
 | **Critical** | Compromise would severely impact platform operations | SPIRE CA keys, HMAC master secrets, database credentials |
-| **High** | Compromise would impact service availability or data integrity | SVIDs / trust bundle, Redis Stream data, MongoDB audit logs |
+| **High** | Compromise would impact service availability or data integrity | SVIDs / trust bundle, Redis subscription data, MongoDB audit logs |
 | **Medium** | Compromise would cause limited operational impact | Market data (candles, trades, tickers), training checkpoints |
 | **Low** | Compromise has negligible impact | Public documentation, TypeDoc output, example configurations |
 
@@ -101,7 +101,7 @@ All platform assets are documented in:
 The platform is deployed as a containerised microservice architecture. Physical security is the responsibility of the hosting provider (cloud / bare-metal). The platform ensures:
 
 - No sensitive data written to persistent host volumes (except the SPIRE datastore)
-- All database data encrypted at rest via storage-layer encryption
+- All database data encrypted at rest via storage-layer encryption: LUKS2 data disks unlocked by Clevis/Tang (`deploy/host/`), backups encrypted with age (see [Encryption at Rest](../deployment/ENCRYPTION_AT_REST.md))
 - Secrets never exposed in environment variables in plaintext (SealedSecrets)
 
 ## 8. Operations Security
@@ -131,7 +131,7 @@ Implementation: `@trading-model/http/infrastructure/logger.ts`
 
 | Requirement | Implementation |
 |---|---|
-| **Network segmentation** | Docker Compose networks (frontend, backend, db, monitoring). K8s Network Policies |
+| **Network segmentation** | Docker Compose networks (`backend-net`, internal `data-net`). K8s Network Policies |
 | **mTLS enforcement** | TLS 1.3 mutual authentication mandatory. `ENFORCE_MTLS_STRICT` enables ACL enforcement on attested SVID identities |
 | **Service mesh** | Not deployed; mTLS handled at application layer via Express middleware |
 | **API gateway isolation** | External traffic enters only through api-gateway (port 8448). All other ports are internal |

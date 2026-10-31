@@ -36,6 +36,7 @@ For each symbol, `getAllWindows()`:
 
 1. Calls `buildMarketSteps()` to convert raw market data into `MarketStep[]`
    - Each step contains: `price`, `features` (32-dim Float32Array), `timestamp`
+   - **Point in time** (ADR-0030): a candle's features read only what was known at its close: the latest order book, book ticker and price ticker received by then (stamped at reception), the latest 24h ticker closed by then, the trades of the minute ending at the close, and normalisation statistics of that data only. Later data never changes an earlier step. Trades received twice (same `tradeId`) count once
 2. Splits into train/validation sets using `TRAINER_VALIDATION_SPLIT`
 
 **Feature vector** (32 dimensions):
@@ -75,17 +76,18 @@ Each genome is evaluated on **all window sets**:
 ```
 evaluateGenomeAllWindows(genome, windowSets, factory):
   for each window set:
-    1. Create shadow backend → precompute rewards on training data
-    2. Create training backend → run Q-learning training
-    3. Extract Lamarckian weights → freeze into genome
-    4. Create eval backend → run on validation data
-    5. Collect episode returns
+    1. Create training backend → play the training data, store each decision
+       with its own n-step return, replay a minibatch after each store
+    2. Extract Lamarckian weights → freeze into genome
+    3. Create eval backend → run on the whole validation window (epsilon 0.05)
+    5. Collect wallet PnL: per episode and per bar (not the shaped reward)
 
-  Compute:
-  - Fitness from episode returns (total_pnl / sharpe / sortino / composite)
+  Compute (ADR-0025):
+  - Fitness of TRAINER_FITNESS_TYPE: total_pnl (mean episode PnL) or
+    sharpe / sortino / calmar / composite (bar PnL curve)
   - Complexity penalty (FLOPs + memory)
-  - Adjusted fitness = fitness * (1 - 0.15 * complexity)
-  - Objectives: avgPnl, sharpe, negFlops
+  - Adjusted fitness = fitness - |fitness| * 0.15 * complexity
+  - Objectives: avgPnl (episode PnL), sharpe (bar curve), negFlops
 ```
 
 ## 6. Generation Loop
@@ -137,14 +139,16 @@ Each evaluation creates a `WalletManager` simulating a trading account:
 
 ### Reward Calculation
 
-Per-step reward = `PnL_after_trade - PnL_before_trade`
+Reward of a decision = PnL at the next decision's price − PnL just before its trade: its trading cost plus the price move on the position it left. It is only known at the next step, so the last decision of the training window is never stored. The window end is a truncation: stored transitions keep their bootstrap (ADR-0025).
 
 Reward shaping (configured in genome):
 
 - `scale`: Multiply by scaleFactor
 - `clip`: Clamp to [clipMin, clipMax]
 - `normalize`: Z-score normalization on the fly
-- `sparse`: Only reward at episode end (use final PnL)
+- `sparse`: Only reward at episode end (the episode total on the last step)
+
+Reward shaping only changes what the agent learns from; fitness never reads it (ADR-0025).
 
 ### Episode Reset
 
@@ -159,3 +163,14 @@ Reproducibility via seeded PRNG (mulberry32 algorithm):
 - `networkSeed` — initial population generation
 - `mutationSeed` — mutation RNG stream (offset by generation)
 - Separate RNG instances for mutation and crossover per generation
+
+## Walk-forward validation on real candles (MT4)
+
+```bash
+cd services/trader-trainer
+bun scripts/fetch-klines.ts BTCUSDT 1h 2100 /tmp/btc-1h.json
+bun scripts/mt4-walk-forward.ts --data /tmp/btc-1h.json,/tmp/eth-1h.json --out /tmp/results.json   --segments 15 --seeds 3 --fitness total_pnl,sharpe,composite [--variants shown,hidden] [--features klines]
+bun scripts/mt4-walk-forward.ts --merge /tmp/a.json,/tmp/b.json   # summary of parallel runs (--seed-base)
+```
+
+For each segment the real GA trains on `--window` candles (500), then the genome it would publish is evaluated on the next `--test` candles (100), which training never saw. The test segments of a symbol, chained, are its out-of-sample track record: the summary gives per symbol and seed the annualised Sharpe, Sortino, return, maximum drawdown and Calmar (return / drawdown), next to buy and hold, then PASS / FAIL against each success criterion of ADR-0030. `--features klines` (default) also feeds the 24h ticker and the trades rebuilt from the candle files; the order book inputs stay 0 (no public history). `--seed-base` lets several processes share the seeds. Results: ADR-0025 (first run), ADR-0030.

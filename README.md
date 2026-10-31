@@ -21,11 +21,11 @@ See [Quick Start Tutorial](docs/getting-started/quickstart.md) for a 10-minute h
 | Runtime       | Bun 1.x (Node.js 26-compatible APIs)                       |
 | Language      | TypeScript (ES2020)                                        |
 | API           | Express 5                                                  |
-| Frontend      | React 19 + Vite + MUI 7                                    |
+| Frontend      | None for now — removed, see ADR-0018                       |
 | Security      | mTLS everywhere (TLS 1.3)                                  |
 | Databases     | MongoDB 7, MySQL 8 (Group Replication), Redis 7 (Sentinel) |
 | Validation    | Zod                                                        |
-| Testing       | Jest + Vitest + Stryker (mutation)                         |
+| Testing       | Jest + Stryker (mutation)                                  |
 | Observability | Prometheus + Grafana + Jaeger + Loki                       |
 
 ### Services
@@ -37,9 +37,9 @@ See [Quick Start Tutorial](docs/getting-started/quickstart.md) for a 10-minute h
 | `financial-scraper`     | 8445 | Binance market data ingestion (candles, trades, order books)   |
 | `trader-trainer`        | 8446 | GA + DQN agent evolution engine                                |
 | `api-gateway`           | 8448 | Single external entry point: auth, rate-limit, cache, proxy    |
-| `admin-interface`       | 8449 | React SPA dashboard (SPA via nginx)                            |
 | `audit-logger`          | 8450 | Immutable event traceability + centralized log aggregation     |
 | `dlq-service`           | 8452 | Dead letter queue storage with auto-retry + replay             |
+| `edge-proxy`            | 8449 | nginx: external HTTP entry, `/v1` → api-gateway over mTLS      |
 
 ### Shared Packages
 
@@ -60,12 +60,13 @@ See [Quick Start Tutorial](docs/getting-started/quickstart.md) for a 10-minute h
 
 ```bash
 bun install --frozen-lockfile                       # Install all workspace dependencies
-bun run build                # Build 6 shared packages in dependency order
-bun run build:ts             # Full build (packages + 8 services)
+bun run build                # Build the shared packages in dependency order
+bun run build:ts             # Full build (packages + 7 services)
 bun run lint                 # Biome check across the monorepo
 bun run test        # All workspace tests
 bun run test:coverage        # All tests with coverage
-bun run test:contract        # Contract tests
+bun run test:contract        # Cross-service contracts (real producer/client code → real consumer/server code)
+bun run api:check            # OpenAPI and documented routes vs the real routes
 bun run test:e2e             # E2E tests (requires Docker Compose up)
 bun run docs:generate        # TypeDoc HTML
 bun run commit               # Interactive gitmoji commit CLI
@@ -76,7 +77,7 @@ bun run commit               # Interactive gitmoji commit CLI
 
 - **Docker Compose:** `docker compose up -d` (all 20+ containers with health-check ordering)
 - **Kubernetes:** `kubectl apply -k deploy/k8s/overlays/production` (HPA, PDBs, NetworkPolicies, SealedSecrets)
-- **Backup:** Daily CronJob → MongoDB + MySQL + Redis + S3 off-site
+- **Backup:** Daily CronJob → MongoDB (dlq + audit) + MySQL (incl. SPIRE datastore) + SPIRE CA keys + checkpoints, age-encrypted, mandatory S3 off-site copy; restore drill in CI
 - **Secrets:** SealedSecrets (SealedSecret → controller decrypts → standard Secret)
 - **Probes:** `startupProbe` (90s window) + `livenessProbe` + `readinessProbe` on all services
 - **Identity/mTLS:** SPIRE Server + Agent (K8s PSAT / Docker attestor) issuing SVIDs to `spiffe-helper` sidecars (ADR-0011)
@@ -86,9 +87,9 @@ bun run commit               # Interactive gitmoji commit CLI
 GitHub Actions workflows:
 
 - **ci.yml** — on every push/PR: lint → typecheck (packages + services) → test+coverage (Codecov) → contract tests → E2E (Docker stack)
-- **release.yml** — quality gates → Docker build/push (8 images) → GitHub Release → TypeDoc docs (manual `workflow_dispatch`)
+- **release.yml** — quality gates → Docker build/push (7 images) → GitHub Release → TypeDoc docs (manual `workflow_dispatch`)
 - **deploy.yml** — manual staging/production deploy with rollback
-- **backup-test.yml** — scheduled backup/restore verification
+- **backup-test.yml** — weekly restore drill of the Docker backup scripts
 
 Pre-push git hook runs: `@biomejs/biome check` → `build` → `test`.
 
@@ -96,7 +97,7 @@ Pre-push git hook runs: `@biomejs/biome check` → `build` → `test`.
 
 - [Documentation Index](docs/README.md) — central entry point to all docs
 - [Architecture Standards](docs/standards/architecture-standards.md) — C4 diagrams, dependency graph, service conventions
-- [OpenAPI 3.0](docs/services/openapi/api-gateway.yaml) — 18 external-facing endpoints
+- [OpenAPI 3.0](docs/services/openapi/api-gateway.yaml) — generated from the services' routes (`bun run api:write`, checked by `bun run api:check`)
 - [ADR Index](docs/adr/README.md) — 11 architecture decision records
 - [Compliance](docs/compliance/) — GDPR register, DPIA, retention policy, breach notification
 - [Operations](docs/operations/) — runbooks, SLOs, incident response, diagnostic guide
@@ -112,8 +113,8 @@ Pre-push git hook runs: `@biomejs/biome check` → `build` → `test`.
 ## Monitoring
 
 - **Dashboards:** 4 Grafana dashboards (SLO, services, message-manager, trader-trainer)
-- **Alerts:** 17 Prometheus rules (6 SLO burn rates + 11 operational) → Alertmanager → Slack/PagerDuty
-- **Traces:** OpenTelemetry → OTLP Collector → Jaeger (all 8 services instrumented)
+- **Alerts:** Prometheus rules in `observability/alerting.yml` (SLO burn rates + operational), mirrored in the K8s Prometheus ConfigMap and checked by `scripts/observability-gate.mjs` and unit-tested with promtool (`tests/alerts`) → Alertmanager → Slack/PagerDuty, with a `Watchdog` dead man's switch ([Alerting](docs/operations/ALERTING.md))
+- **Traces:** OpenTelemetry → OTLP Collector → Jaeger (all 7 services instrumented)
 - **Logs:** Pino structured JSON → Promtail → Loki + centralized log aggregation to audit-logger
 
 ## Status

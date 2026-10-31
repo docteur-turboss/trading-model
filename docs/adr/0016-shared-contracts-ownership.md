@@ -3,6 +3,7 @@
 **Status:** Accepted
 **Date:** 2026-10
 **Related:** [ADR-0007](./0007-common-package-split.md) (common split), [ADR-0010](./0010-clean-architecture-migration.md) (DDD layout), [ADR-0015](./0015-hexagonal-layering-completion.md) (hard-migration convention)
+**Verified by:** `bun run deps:check`
 
 ## Context
 

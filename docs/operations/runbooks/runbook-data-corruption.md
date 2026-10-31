@@ -33,7 +33,11 @@ kubectl exec -n trading-model mongo-dlq-0 -- \
   mongodump --db dlq --out /tmp/dump_$(date +%Y%m%d_%H%M%S)
 
 # Redis dump (RDB snapshot)
-kubectl exec -n trading-model redis-primary-0 -- redis-cli SAVE
+# Any pod of the Redis HA group can be master: find the current one
+REDIS_MASTER=$(for p in redis-0 redis-1 redis-2; do
+  [ "$(kubectl exec -n trading-model "$p" -- redis-cli --raw ROLE | head -n 1)" = master ] && echo "$p"
+done)
+kubectl exec -n trading-model "$REDIS_MASTER" -- redis-cli SAVE
 ```
 
 ### 3. Restore from backup
@@ -72,7 +76,7 @@ kubectl exec -n trading-model deployment/dlq-service -- \
 Redis data is ephemeral and can be rebuilt. If corruption is detected:
 
 ```bash
-kubectl exec -n trading-model redis-primary-0 -- redis-cli FLUSHALL
+kubectl exec -n trading-model "$REDIS_MASTER" -- redis-cli FLUSHALL
 # Services will repopulate cache from source data
 ```
 

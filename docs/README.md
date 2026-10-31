@@ -39,9 +39,11 @@ Per-service and per-package documentation ([full index](services/README.md)):
 | `financial-scraper` | 8445 | Binance market data ingestion |
 | `trader-trainer` | 8446 | GA + DQN agent evolution engine |
 | `api-gateway` | 8448 | External entry point: auth, rate-limit, cache, proxy |
-| `admin-interface` | 8449 | React SPA dashboard |
 | `audit-logger` | 8450 | Immutable event traceability |
 | `dlq-service` | 8452 | Dead letter queue with auto-retry + replay |
+| `edge-proxy` | 8449 | nginx: external HTTP entry, `/v1` → api-gateway over mTLS |
+
+There is no frontend for now: the admin SPA was removed until a new one is specified ([ADR-0018](adr/0018-temporary-frontend-removal.md)). The platform is operated through the api-gateway API (via `edge-proxy`), Grafana and `kubectl` / `docker compose`.
 
 ## Deployment & Operations
 
@@ -59,7 +61,7 @@ Per-service and per-package documentation ([full index](services/README.md)):
 | -------- | ----------- |
 | [Commit Standards](standards/commit-standards.md) | Gitmoji format, scopes, body/footer |
 | [PR Standards](standards/pr-standards.md) | Review process, labels, template |
-| [Testing Standards](standards/testing-standards.md) | Jest/Vitest, coverage thresholds, patterns |
+| [Testing Standards](standards/testing-standards.md) | Jest, coverage thresholds, patterns |
 | [Code Style](standards/code-style.md) | Naming, Biome, import order |
 | [JSDoc Standard](standards/jsdoc-standards.md) | JSDoc formatting rules |
 | [Verification Protocol](standards/verification-protocol.md) | Quality gates before commit, PR, release |

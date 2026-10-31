@@ -15,17 +15,17 @@ Some concerns are genuinely cross-cutting and have no single owning domain: the 
 > - Environment validation & Zod schemas → `@trading-model/validation`
 > - Crypto primitives → `@trading-model/crypto`
 > - HTTP middleware, HTTP client, logging system → `@trading-model/http`
-> - Distributed worker protocol & orphan recovery → `@trading-model/jobs`
+> - Distributed worker protocol & orphan recovery → `@trading-model/jobs` (removed by ADR-0029: no producer, no worker)
 
 `common` depends on `@trading-model/primitives` and `@trading-model/contracts` (plus external `zod`, `express`, `chained-error`). It has **no** dependency on `http`, `validation`, `server-utils` or `crypto`.
 
 ## Package Map Post-Split
 
-The monorepo has **12 shared packages** under the `@trading-model/*` scope. Build order is topological (base → derived); there are **no cyclic dependencies**. `primitives` and `contracts` are the foundations and must never import higher-layer packages such as `http`.
+The monorepo has **11 shared packages** under the `@trading-model/*` scope. Build order is topological (base → derived); there are **no cyclic dependencies**. `primitives` and `contracts` are the foundations and must never import higher-layer packages such as `http`.
 
 | # | Package | Role | Dependencies |
 |---|---------|------|--------------|
-| 1 | `@trading-model/primitives` | Pure domain primitives: branded types, pagination, circuit-state, service-identity, retry-policy, topic-binding. **Zero deps.** | — |
+| 1 | `@trading-model/primitives` | Pure domain primitives: branded types, pagination, circuit-state, service-identity, topic-binding. **Zero deps.** | — |
 | 2 | `@trading-model/contracts` | Shared contracts: event/market-data types, http-status, http-headers, `LoggerPort` registry (setLogger/getLogger) | primitives |
 | 3 | `@trading-model/reliability` | Circuit-breaker, circuit-state-machine, latency-tracker, heartbeat interfaces | primitives, contracts |
 | 4 | `@trading-model/common` | Residual shared infra: `AppError`/`ErrorCodes`, retry/backoff, SPIFFE, TLS config, cache, sanitize, shared schemas | primitives, contracts |
@@ -34,9 +34,8 @@ The monorepo has **12 shared packages** under the `@trading-model/*` scope. Buil
 | 7 | `@trading-model/validation` | Environment validation, Zod schemas, DTOs, shared type contracts | primitives, contracts, common, http |
 | 8 | `@trading-model/server-utils` | Secure HTTPS server factory, TLS watcher/loader, bootstrap & shutdown, signal handling, telemetry | primitives, contracts, common, http |
 | 9 | `@trading-model/crypto` | Hashing, request signing, token generation, secure randomness | primitives, contracts, common, validation |
-| 10 | `@trading-model/jobs` | Distributed worker protocol, orphan recovery | primitives, contracts, common, http |
-| 11 | `@trading-model/address-manager` | Service discovery client, token manager, service cache with health checking, load balancing | primitives, contracts, common, persistence, http, reliability, server-utils, validation |
-| 12 | `@trading-model/broker-message` | Inter-service messaging SDK: message-manager client, event emitter, controller/routes, WSS client | primitives, contracts, address-manager, common, http, jobs, validation |
+| 10 | `@trading-model/address-manager` | Service discovery client, token manager, service cache with health checking, load balancing | primitives, contracts, common, persistence, http, reliability, server-utils, validation |
+| 11 | `@trading-model/broker-message` | Inter-service messaging SDK: message-manager client, event emitter, controller/routes | primitives, contracts, address-manager, common, http, validation |
 
 ## What Remains in `common`
 
@@ -161,7 +160,7 @@ import { sanitizeForLog } from '@trading-model/common/utils/sanitize';
 | Environment validation (Zod) | `@trading-model/validation` |
 | Crypto primitives (PRNG, random string) | `@trading-model/crypto` |
 | HTTP middleware, HTTP client | `@trading-model/http` |
-| Worker protocol, orphan recovery | `@trading-model/jobs` |
+| Worker protocol, orphan recovery | removed (ADR-0029) |
 
 ## Deployment
 

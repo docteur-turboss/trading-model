@@ -1,6 +1,6 @@
 # ADR-0002: Redis Streams for Inter-Service Messaging
 
-**Status:** Accepted
+**Status:** Superseded by [ADR-0019](./0019-message-broker-as-built.md)
 **Date:** 2026-06
 
 ## Context

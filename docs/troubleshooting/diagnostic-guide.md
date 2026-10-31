@@ -71,12 +71,12 @@ Quick-reference for debugging each service: key logs, metrics, health endpoints,
 
 | Aspect              | Details                                                                                                                |
 | ------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| **Health**          | `GET /health` → `{"status":"ok","queueDepth":N,"canAccept":true}`                                                      |
+| **Health**          | `GET /health` → `{"status":"ok","timestamp":"..."}`                                                                     |
 | **Port**            | 8450 (host) / 3000 (container)                                                                                         |
 | **Key logs**        | `Recorded audit event`, `Queue depth`, `Worker ACK timeout`, `Back-pressure active`                                    |
 | **Metrics**         | `audit_events_total`, `audit_queue_depth`, `audit_worker_count`, `audit_backpressure`                                  |
 | **Debug endpoints** | `GET /events/stats` — aggregate stats, `GET /events?limit=10` — recent events                                          |
-| **Common failures** | MongoDB connection loss → events not persisted. Queue full → 429 responses. Check `MONGODB_URI` and `MAX_QUEUE_DEPTH`. |
+| **Common failures** | MongoDB connection loss → events not persisted (`/health/ready` 503). Check `MONGODB_URI`.                                |
 
 ## 8. DLQ Service
 
@@ -89,23 +89,17 @@ Quick-reference for debugging each service: key logs, metrics, health endpoints,
 | **Debug endpoints** | `GET /dlq` — list entries, `GET /dlq/:id` — single entry                                                                 |
 | **Common failures** | MongoDB unavailable → entries rejected. Redis unavailable → degraded mode (no queue). Check `MONGO_URI` and `REDIS_URL`. |
 
-## 9. Admin Interface
-
-| Aspect              | Details                                                                                                                                          |
-| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Health**          | nginx health: `wget -qO- http://localhost:80/ping`                                                                                               |
-| **Port**            | 5173 (dev) / 80 (prod container) / 8449 (host mapped)                                                                                            |
-| **Key logs**        | Vite dev server output, or nginx access/error logs in production                                                                                 |
-| **Metrics**         | nginx metrics (if configured), otherwise no application-level metrics                                                                            |
-| **Debug endpoints** | SPA only — uses browser DevTools (Network tab, Console) for debugging API calls                                                                  |
-| **Common failures** | API calls fail with 401 → check `VITE_ADMIN_TOKEN`. Proxy errors → check api-gateway health. Blank screen → check browser console for JS errors. |
-
 ## Quick Commands
 
 ```bash
 # Check all service health endpoints
-for port in 8443 8444 8445 8446 8448 8450 8452; do
-  echo "Port $port: $(curl -sk https://localhost:$port/ping 2>/dev/null || echo 'UNREACHABLE')"
+# Services only accept SPIFFE mTLS clients (ADR-0011): probe them from inside
+# their container, with its SVID (what the compose healthcheck does)
+for c in trading-discovery trading-message trading-scraper trading-trainer \
+         trading-gateway trading-audit trading-dlq; do
+  printf '%s: ' "$c"
+  docker exec "$c" curl -sk --cert /run/spire/svid/svid.pem \
+    --key /run/spire/svid/svid_key.pem https://localhost:3000/ping; echo
 done
 
 # Tail logs for a specific service

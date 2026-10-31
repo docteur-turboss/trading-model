@@ -37,7 +37,7 @@ Services with additional health endpoints:
 
 | Service               | Endpoint       | Returns                                          |
 | --------------------- | -------------- | ------------------------------------------------ |
-| Audit Logger          | `GET /health`  | `{"status":"ok","queueDepth":N,...}`              |
+| Audit Logger          | `GET /health`  | `{"status":"ok","timestamp":"..."}`               |
 | discovery-server      | `GET /ping`    | `{"status":"ok"}` (no /health)                    |
 
 ## Implementation

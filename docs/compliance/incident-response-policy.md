@@ -87,7 +87,7 @@ Post-mortems are stored in `docs/operations/post-mortems/`.
 | **DORA Art. 10** | Major ICT incident | 24 hours | Competent authority (ACPR/ECB) |
 | **MiFID II Art. 72** | Record-keeping failure | Immediate internal escalation | Compliance officer |
 
-**Important:** The trading-model platform processes no personal data. IP addresses are anonymized at source before logging. GDPR Art. 33 notification is not expected to be triggered. However, the capability is documented for completeness.
+**Important:** The only personal data is the truncated caller IP in the edge-proxy access logs (31 days, register activity 6). A breach of those logs is unlikely to result in a risk to individuals (Art. 33(1)): record it in the internal breach log (Art. 33(5)); notify the CNIL only if the assessment concludes otherwise.
 
 ### 4.1 Notification Template
 

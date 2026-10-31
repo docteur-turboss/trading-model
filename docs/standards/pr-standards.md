@@ -117,6 +117,7 @@ These checks run automatically via GitHub Actions in `.github/workflows/ci.yml`.
   - Test coverage
   - No regressions
   - Architectural relevance
+  - **No swallowed errors** ([Error Handling](./error-handling.md)): every `catch` propagates, logs/records a metric or delegates; no infrastructure failure returned as `[]`/`0`/`null`/`false`; no success log that ignores a failed result; each `biome-ignore lint/plugin` has a valid reason
 - Comments must be constructive and specific
 - The PR author must respond to each comment (resolution or discussion)
 - Use **Squash & Merge** into `development`, then delete the branch

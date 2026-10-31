@@ -20,7 +20,6 @@ trading-model/
 │   ├── validation/          # @trading-model/validation
 │   ├── server-utils/        # @trading-model/server-utils
 │   ├── crypto/              # @trading-model/crypto
-│   ├── jobs/                # @trading-model/jobs
 │   ├── address-manager/     # @trading-model/address-manager
 │   └── broker-message/      # @trading-model/broker-message
 ├── services/           # Microservices
@@ -30,8 +29,7 @@ trading-model/
 │   ├── trader-trainer/
 │   ├── api-gateway/
 │   ├── audit-logger/
-│   ├── dlq-service/
-│   └── admin-interface/ # React SPA (Vite, MUI, Vitest)
+│   └── dlq-service/
 ├── .github/workflows/  # CI/CD
 ├── docs/               # Centralized documentation
 ├── scripts/            # Utilities (commit, release, migrations)
@@ -61,7 +59,7 @@ All developers contributing to the codebase. Every architectural decision aims t
 | Runtime      | Bun 1.x (Node.js 26-compatible APIs)                 |
 | Language     | TypeScript (ES2020; module: node16 or commonjs)      |
 | API          | Express.js                                           |
-| Frontend SPA | React 19 + Vite + MUI 7 + Recharts + Vitest          |
+| Frontend     | None for now (ADR-0018)                              |
 | Security     | mTLS (all services)                                  |
 | Database     | MongoDB (message-manager), MySQL (financial-scraper) |
 | Validation   | Zod                                                  |
@@ -83,10 +81,9 @@ Shared packages (base → derived):
 @trading-model/validation       (Zod schemas, DTOs, shared type contracts) → primitives, contracts, common, http
 @trading-model/server-utils     (secure HTTPS server factory, TLS watcher, bootstrap) → primitives, contracts, common, http
 @trading-model/crypto           (hashing, signatures, crypto primitives) → primitives, contracts, common, validation
-@trading-model/jobs             (worker protocol, orphan recovery) → primitives, contracts, common, http
 
 @trading-model/address-manager  (service discovery client, health, token rotation) → primitives, contracts, common, persistence, http, reliability, server-utils, validation
-@trading-model/broker-message   (inter-service messaging SDK) → primitives, contracts, address-manager, common, http, jobs, validation
+@trading-model/broker-message   (inter-service messaging SDK) → primitives, contracts, address-manager, common, http, validation
 ```
 
 > **Dependency direction:** `@trading-model/primitives` and `@trading-model/contracts` are the foundation layers and depend on nothing higher in the chain — they must never import `http` or any upper-layer package. `@trading-model/common` sits just above them and has **no** dependency on `@trading-model/http`. The concrete logger lives in `@trading-model/http`; `@trading-model/contracts` exposes a `LoggerPort` registry (`@trading-model/contracts/logger-registry`) that http populates at import time — breaking what was previously a real `common ↔ http` cycle.
@@ -99,12 +96,11 @@ Services and their `@trading-model/*` dependencies:
 | message-manager    | common, validation, http, server-utils, crypto, address-manager, broker-message                 |
 | financial-scraper  | common, validation, http, server-utils, crypto, address-manager, broker-message                 |
 | trader-trainer     | common, validation, http, server-utils, crypto, address-manager, broker-message                 |
-| audit-logger       | common, validation, http, jobs, server-utils, address-manager, broker-message                   |
+| audit-logger       | common, validation, http, server-utils, address-manager, broker-message                   |
 | dlq-service        | common, validation, http, server-utils, crypto, address-manager                                  |
 | api-gateway        | common, validation, http, server-utils, crypto                                                  |
-| admin-interface    | common, validation, http (DTO types only — React SPA, no Node runtime)                          |
 
-The **admin-interface** is a React SPA (not a Node.js microservice). It imports DTO types from `@trading-model/contracts` and `@trading-model/validation` and communicates with the backend exclusively via HTTP through the **api-gateway**. It is built with Vite, tested with Vitest, and served via nginx in production.
+There is no frontend workspace: `admin-interface` was removed until a new one is specified ([ADR-0018](../adr/0018-temporary-frontend-removal.md)). A future frontend talks to the backend only through the **api-gateway**.
 
 ### Package Dependency Details
 
@@ -119,9 +115,8 @@ The **admin-interface** is a React SPA (not a Node.js microservice). It imports 
 | `@trading-model/validation`      | Zod schemas, DTOs, event types, shared type contracts, admin contracts                                                                                  | primitives, contracts, common, http |
 | `@trading-model/server-utils`    | Secure HTTPS server factory, TLS watcher/loader, bootstrap & shutdown, signal handling, telemetry                                                         | primitives, contracts, common, http |
 | `@trading-model/crypto`          | Hashing, request signing, token generation, secure randomness                                                                                           | primitives, contracts, common, validation |
-| `@trading-model/jobs`            | Distributed worker protocol, orphan recovery                                                                                                             | primitives, contracts, common, http |
-| `@trading-model/address-manager` | Service discovery client, token manager, service cache with health checking, scheduler/jobs, load balancing                                              | primitives, contracts, common, persistence, http, reliability, server-utils, validation |
-| `@trading-model/broker-message`  | Inter-service messaging SDK: message manager client, event emitter, message controller/routes, validation schemas, WSS client                            | primitives, contracts, address-manager, common, http, jobs, validation |
+| `@trading-model/address-manager` | Service discovery client, token manager, service cache with health checking, load balancing                                              | primitives, contracts, common, persistence, http, reliability, server-utils, validation |
+| `@trading-model/broker-message`  | Inter-service messaging SDK: message manager client, event emitter, message controller/routes, validation schemas                                        | primitives, contracts, address-manager, common, http, validation |
 
 ## Workload Identity & Security Model
 
@@ -148,7 +143,6 @@ Each service exposes an HTTPS server with mTLS enabled. The internal container p
 | trader-trainer    | 8446            | 3000           |               |
 | audit-logger      | 8450            | 3000           |               |
 | dlq-service       | 8452            | 3000           |               |
-| admin-interface   | 8449            | 80             | SPA via nginx (Vite dev: 5173) |
 | api-gateway       | 8448            | 3000           |               |
 
 ### Service Structure
@@ -257,7 +251,7 @@ Each package declares its exports via the `exports` field in `package.json`. Ent
 }
 ```
 
-> Post-split (2026-10), `common` no longer exports `middleware/`, `worker/`, `recovery/`, `reliability/`, `domain/`, `crl/`, `persistence/`, `http-headers`, `http-status` or `contracts/`. Those live in `@trading-model/primitives`, `@trading-model/contracts`, `@trading-model/reliability`, `@trading-model/persistence`, `@trading-model/http`, `@trading-model/server-utils` and `@trading-model/jobs` respectively. See the [package map](../services/common.md#package-map-post-split).
+> Post-split (2026-10), `common` no longer exports `middleware/`, `worker/`, `recovery/`, `reliability/`, `domain/`, `crl/`, `persistence/`, `http-headers`, `http-status` or `contracts/`. Those live in `@trading-model/primitives`, `@trading-model/contracts`, `@trading-model/reliability`, `@trading-model/persistence`, `@trading-model/http` and `@trading-model/server-utils` respectively (`worker/` and `recovery/` went to `@trading-model/jobs`, removed by ADR-0029). See the [package map](../services/common.md#package-map-post-split).
 
 **@trading-model/validation**, **@trading-model/server-utils**, **@trading-model/crypto**, **@trading-model/address-manager** and **@trading-model/broker-message** (simplified exports):
 

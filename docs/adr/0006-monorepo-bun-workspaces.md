@@ -2,6 +2,7 @@
 
 **Status:** Accepted
 **Date:** 2026-06
+**Verified by:** `bun run deps:check`, `bun run build:ts`
 
 > **Note:** The npm→bun migration is complete — `bun.lock` is the only lockfile in the repo (`package-lock.json` has been removed).
 

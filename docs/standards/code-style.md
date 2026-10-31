@@ -125,6 +125,7 @@ Configuration in `biome.json` at the monorepo root — Biome replaces both ESLin
 
 - **TypeScript strict** enabled
 - **0 Biome errors allowed** in CI
+- **No swallowed errors**: `noEmptyBlockStatements` and the GritQL plugin `biome-plugins/no-swallowed-errors.grit` reject handlers that neither rethrow, log nor delegate — see [Error Handling](./error-handling.md)
 - Run: `bunx @biomejs/biome check .` (CI) / `bunx @biomejs/biome check --write .` (local fix)
 
 ## Code Organization

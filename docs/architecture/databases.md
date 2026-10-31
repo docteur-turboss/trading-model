@@ -11,6 +11,7 @@ Used by `financial-scraper` to persist market data. All tables live in the `fina
 | `market_candles` | OHLCV candle data | symbol, market, source, interval, open/high/low/close, volume, timestamp |
 | `market_trades` | Individual trade data | symbol, trade_id, price, quantity, side, timestamp |
 | `market_tickers` | 24-hour ticker statistics | symbol, open/high/low/last, volume, timestamp |
+| `market_publish_cursors` | Per candle series, open time of the next candle to publish to the bus (the persisted candles from it wait for message-manager) | source, symbol, interval, market, published_until |
 
 Full DDL, column specs, and TypeScript interfaces: [Table Schemas Reference](../reference/table-schemas.md).
 

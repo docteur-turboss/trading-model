@@ -3,6 +3,7 @@
 **Status:** Accepted
 **Date:** 2026-10
 **Related:** [ADR-0010](./0010-clean-architecture-migration.md) (layering conventions relied on by the cleanup), [ADR-0002](./0002-redis-pub-sub.md), [ADR-0003](./0003-mongodb-persistence.md), [ADR-0008](./0008-message-broker-choice.md) (decisions whose never-wired implementations are removed here)
+**Verified by:** `bun run reach:check`, `services/message-manager/tests/unit/app/index.spec.ts`
 
 ## Context
 
@@ -50,6 +51,8 @@ Remove all code proven unreachable from the runtime entrypoints, and fix the `me
 | **admin-interface** — `components/filter-bar.tsx` | Remove | Unreferenced component. |
 
 > **Clarification (2026-10-15):** the jobs row above was initially worded as if all worker communication ran over HTTP. Only the worker *client* stack was removed; the WebSocket *server* side of the worker protocol (`WorkerProtocol` → `WorkerWsManager` in `@trading-model/jobs`) is instantiated and used at runtime by `audit-logger` (`scheduler-factory.ts`) and remains operational.
+
+> **Correction (2026-10-31, [ADR-0029](./0029-orphan-subsystems-retired-and-reachability-gate.md)):** the server side was instantiated, not operational: no service submitted a job and no worker ever connected. ADR-0029 removed it with the whole `@trading-model/jobs` package.
 
 ### Entrypoint fix (message-manager)
 

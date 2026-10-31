@@ -37,7 +37,7 @@ Raw market data (prices, volumes, order book) is transformed into a 32-dimension
 | History | 7 | Last 8 closes sliding window |
 | Bias | 1 | Constant 1.0 (bias term) |
 
-Normalization (z-score or min-max) is applied per-symbol with running statistics, ensuring the network receives stable inputs despite changing market prices.
+Normalization (z-score) is applied per-symbol with running statistics, ensuring the network receives stable inputs despite changing market prices. Each step only sees the data known at its candle's close, statistics included (ADR-0030): no future value leaks into training or validation.
 
 ## Training Loop
 
@@ -87,7 +87,7 @@ Each evaluation creates a virtual trading account:
 Larger neural networks are more computationally expensive and prone to overfitting. A complexity penalty encourages simpler architectures:
 
 ```
-adjusted_fitness = raw_fitness × (1 - 0.15 × complexity_penalty)
+adjusted_fitness = raw_fitness - |raw_fitness| × 0.15 × complexity_penalty
 ```
 
 Complexity is estimated from FLOPs (floating-point operations) and memory usage.

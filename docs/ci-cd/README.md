@@ -46,7 +46,6 @@ jobs:
           bun run --filter financial-scraper build
           bun run --filter trader-service build
           bun run --filter api-gateway build
-          bun run --filter admin-interface build
           bun run --filter audit-logger build
           bun run --filter dlq-service build
 
@@ -67,9 +66,10 @@ jobs:
 **Jobs**:
 
 - `lint` — Biome check across the entire monorepo
-- `typecheck` — Build packages + type-check all services (including admin-interface)
+- `typecheck` — Build packages + type-check all services
 - `test` — Build + tests with coverage, upload to Codecov
 - `observability` — Observability gate (metrics, propagation, readiness)
+- `k8s-overlays` — Renders the staging and production overlays (`tests/k8s/check-overlays.mjs`): every first-party image is released and rewritten by `deploy.yml`, production secrets come from SealedSecrets only
 - `contract` — Contract tests between services
 - `e2e` — Boot the Docker Compose stack and run E2E tests
 
@@ -79,130 +79,40 @@ jobs:
 
 ### Workflow: `.github/workflows/release.yml`
 
-Triggered **manually** (`workflow_dispatch`) — Actions → Release → Run workflow (`bump_type` = auto/patch/minor/major).
+Triggered by pushing a `vX.Y.Z` tag (`vX.Y.Z-rc.1` for a prerelease). The tag
+is created locally by `bun run release` (`scripts/release.mjs`: version bump,
+CHANGELOG, annotated tag, `git push --follow-tags`).
 
-```yaml
-name: Release
+**Jobs:**
 
-on:
-  workflow_dispatch:
-    inputs:
-      bump_type:
-        description: 'Version bump type (auto = derived from commits since the last tag)'
-        required: true
-        type: choice
-        default: auto
-        options: [auto, patch, minor, major]
+1. `version` — checks the tag format, computes the image tag (`X.Y.Z`, no
+   leading `v`) and whether this release becomes `latest`
+2. `ci` — the whole CI (`ci.yml`, called as a reusable workflow) on the tagged
+   commit: no image is pushed unless every gate passes
+3. `build-and-push` — the 7 service images
+4. `build-tools` — `spire-tools` (K8s SPIRE entry reconciler) and `backup-tools`
+   (db-backup CronJob)
 
-permissions:
-  contents: read
+Actions are pinned by commit SHA (Dependabot `github-actions` keeps them up to date).
 
-jobs:
-  quality:
-    runs-on: ubuntu-latest
-    outputs:
-      version: ${{ steps.version.outputs.version }}
-    steps:
-      - uses: actions/checkout@v5
-      - uses: oven-sh/setup-bun@v2
-        with: { bun-version: latest }
-      - run: bun install --frozen-lockfile
-      - run: bun run lint
-      - run: bun run build
-      - run: bun run test:coverage
-      - name: Extract version from tag
-        id: version
-        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+**Permissions:** `contents: read`; the two image jobs add `packages: write`.
 
-  docker:
-    needs: [quality]
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-    strategy:
-      matrix:
-        service:
-          - name: discovery-server
-            context: .
-            dockerfile: services/discovery-server/Dockerfile
-          - name: message-manager
-            context: .
-            dockerfile: services/message-manager/Dockerfile
-          - name: financial-scraper
-            context: .
-            dockerfile: services/financial-scraper/Dockerfile
-          - name: trader-trainer
-            context: .
-            dockerfile: services/trader-trainer/Dockerfile
-          - name: api-gateway
-            context: .
-            dockerfile: services/api-gateway/Dockerfile
-          - name: admin-interface
-            context: .
-            dockerfile: services/admin-interface/Dockerfile
-          - name: audit-logger
-            context: .
-            dockerfile: services/audit-logger/Dockerfile
-          - name: dlq-service
-            context: .
-            dockerfile: services/dlq-service/Dockerfile
-    steps:
-      - uses: actions/checkout@v5
-      - uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GHCR_TOKEN }}
-      - uses: docker/setup-buildx-action@v3
-      - id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ghcr.io/${{ github.repository }}/${{ matrix.service.name }}
-          tags: |
-            type=semver,pattern={{version}},value=v${{ needs.quality.outputs.version }}
-            type=semver,pattern={{major}}.{{minor}},value=v${{ needs.quality.outputs.version }}
-            type=semver,pattern={{major}},value=v${{ needs.quality.outputs.version }}
-            type=sha
-      - uses: docker/build-push-action@v6
-        with:
-          context: ${{ matrix.service.context }}
-          file: ${{ matrix.service.dockerfile }}
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+### Docker Image Tags
 
-  release:
-    needs: [quality, docker]
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@v5
-      - name: Create Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ github.ref_name }}
-          name: Release ${{ needs.quality.outputs.version }}
-          generate_release_notes: true
-```
+Each image is pushed as `:X.Y.Z`. `:latest` moves to the release only when it is
+the highest stable version among the repository tags: a backport patch
+(`v1.4.2` after `v2.0.0`) or a prerelease never takes it.
 
-**Jobs** (sequential):
+Registry: repository variable `IMAGE_REGISTRY`, default `ghcr.io/<owner>` (the
+only GHCR namespace `GITHUB_TOKEN` can push to). Manifests keep the logical name
+`ghcr.io/trading-model/<image>`; `deploy.yml` rewrites it to the registry.
 
-1. `quality` — Lint + Build + Tests
-2. `version` — Version bump + CHANGELOG via `scripts/release.mjs`
-3. `docker` — Build and push Docker images for each service to GHCR (GitHub Container Registry)
-4. `release` — Create GitHub Release
-5. `docs` — Generate and publish TypeDoc HTML
+Example for `v2.0.3` (highest release), owner `docteur-turboss`:
+- `ghcr.io/docteur-turboss/discovery-server:2.0.3`
+- `ghcr.io/docteur-turboss/discovery-server:latest`
 
-**Permissions**:
-
-- CI (`ci.yml`): `contents: read`
-- Quality (`release.yml`): `contents: read`
-- Docker (`release.yml`): `contents: read` + `packages: write`
-- Release (`release.yml`): `contents: write`
+The cluster pulls the images itself: make the GHCR packages public, or give the
+nodes pull credentials for the registry.
 
 ### Additional workflows
 
@@ -215,36 +125,14 @@ jobs:
 
 | Workflow      | File                            | Trigger                | What it does                                                       |
 | ------------- | ------------------------------- | ---------------------- | ------------------------------------------------------------------ |
-| **CI**        | `.github/workflows/ci.yml`      | `push`, `pull_request` | Lint → Typecheck → Test + Codecov → Observability → Contract → E2E (Docker) |
-| **Release**   | `.github/workflows/release.yml` | manual                 | Quality gate → version + CHANGELOG → 8 Docker images → GHCR → GitHub Release → Docs |
-| **Deploy**    | `.github/workflows/deploy.yml`  | manual                 | Staging/production deploy (optional canary + auto rollback)        |
+| **CI**        | `.github/workflows/ci.yml`      | `push`, `pull_request`, called by Release | Lint → Typecheck → Test + Codecov → Observability → Overlay checks → Contract → E2E (Docker) → K8s (kind) |
+| **Release**   | `.github/workflows/release.yml` | `v*` tag push          | CI → 9 Docker images (`X.Y.Z`, `latest` if highest) → GHCR        |
+| **Deploy**    | `.github/workflows/deploy.yml`  | manual                 | Staging/production deploy by digest (optional canary + auto rollback) |
 | **Backup Test** | `.github/workflows/backup-test.yml` | weekly cron       | Validate backup/restore scripts                                    |
 
 All workflows run on `ubuntu-latest` with Bun. Failure in any workflow blocks merging.
 
-**Concurrency:** CI grouped by workflow + ref, cancel-in-progress on new push. Release runs as a single pipeline (`group: release`).
-
-### Docker Image Tags
-
-The release workflow generates the following tags for each image:
-
-```yaml
-tags: |
-  type=semver,pattern={{version}},value=v${{ needs.quality.outputs.version }}
-  type=semver,pattern={{major}}.{{minor}},value=v${{ needs.quality.outputs.version }}
-  type=semver,pattern={{major}},value=v${{ needs.quality.outputs.version }}
-  type=sha
-```
-
-Example for `v2.0.3`:
-- `ghcr.io/trading-model/discovery-server:2.0.3`
-- `ghcr.io/trading-model/discovery-server:2.0`
-- `ghcr.io/trading-model/discovery-server:2`
-- `ghcr.io/trading-model/discovery-server:<sha>`
-
-### Documentation Deployment
-
-The release workflow runs `bun run docs:generate` (TypeDoc), uploads the output as a Pages artifact, and deploys to GitHub Pages. The generated docs live at `docs/architecture/code/`.
+**Concurrency:** CI grouped by workflow + ref, cancel-in-progress on new push.
 
 ## Related Documentation
 
@@ -252,20 +140,12 @@ Docker multi-stage build patterns, conventions, and per-service variations are d
 
 Deployment workflows (beta, canary, stable, rollback) are documented in [Deployment Guide](../deployment/DEPLOY.md).
 
-## Sensitive Variables (GitHub Secrets)
+## Registry credentials
 
-| Secret       | Usage                                                            |
-| ------------ | ---------------------------------------------------------------- |
-| `GHCR_TOKEN` | GitHub token with `write:packages` scope for Docker push to GHCR |
-
-### Setting up GHCR_TOKEN
-
-The `release.yml` workflow uses `${{ secrets.GHCR_TOKEN }}` to authenticate with GitHub Container Registry.
-
-1. Create a classic [Personal Access Token](https://github.com/settings/tokens) with the `write:packages` scope
-2. Add it as a repository secret named `GHCR_TOKEN` at: `https://github.com/<owner>/<repo>/settings/secrets/actions`
-
-> **Note:** The `GITHUB_TOKEN` automatically available in workflows has `packages: write` permission on the `docker` job, but must be explicitly enabled via `permissions.packages: write` (already set in `release.yml`).
+`release.yml` pushes with the workflow's `GITHUB_TOKEN` (`packages: write` on the
+image jobs); `deploy.yml` reads the digests with it (`packages: read`). No
+personal access token is needed. Set the repository variable `IMAGE_REGISTRY`
+only to push somewhere else than `ghcr.io/<owner>`.
 
 ## References
 

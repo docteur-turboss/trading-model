@@ -38,23 +38,27 @@ LamarckGenome {
 
 ### RLGenome
 
-Controls Q-learning behavior:
+Controls Q-learning behavior. Every field is evolved by the GA (mutation when `mutation.mutateHyperparams`, crossover always; switches flip with a 5 % chance per mutation) and every field changes what the agent learns (`dqn-learning.spec.ts`, ADR-0025):
 
-| Sub-module         | Key fields                                 | Purpose                 |
-| ------------------ | ------------------------------------------ | ----------------------- |
-| `rewardShaping`    | clip, scale, normalize, sparse             | Reward preprocessing    |
-| `horizon`          | maxEpisodeLength, nStepReturn, frameSkip   | Episode structure       |
-| `discretePolicy`   | epsilonStart, epsilonMin, epsilonDecay     | Exploration schedule    |
-| `continuousPolicy` | noiseStd, noiseDecay                       | Continuous action noise |
-| `replayBuffer`     | bufferSize, prioritized, alphaPER, betaPER | Experience replay       |
+| Sub-module       | Key fields                                                | Purpose                                    |
+| ---------------- | --------------------------------------------------------- | ------------------------------------------ |
+| (scalars)        | gamma, learningRate                                       | Discount, network learning rate            |
+| `rewardShaping`  | clip, scale, normalize, sparse                            | What the agent learns from its wallet PnL  |
+| `horizon`        | maxEpisodeLength, nStepReturn, frameSkip                  | Training horizon, n-step return, decision period |
+| `discretePolicy` | epsilonStart, epsilonMin, epsilonDecay                    | Epsilon-greedy exploration (training only) |
+| `replayBuffer`   | bufferSize, batchSize, prioritized, alphaPER, betaPER, betaAnneal | Experience replay (minibatch, PER)  |
+
+The agent picks among three discrete actions (sell / hold / buy): Q-learning cannot learn a continuous policy, so the genome has no continuous-policy genes.
 
 ### Default Configuration
 
 Defined in `factory.ts`. Key defaults:
 
 - 2 hidden layers: [64, 32] with ReLU activation
+- Input: 33 = 32 market features + the agent's exposure (`NETWORK_INPUT_LAYOUT`)
+- Q-learning: gamma=0.9, learning rate 1e-3, 1-step return
 - Epsilon-greedy: start=1.0, min=0.05, decay=0.995
-- Replay buffer: 10,000 experiences
+- Replay buffer: 10,000 experiences, minibatch of 8
 - Population: 20 individuals, 50 max generations
 - Mutation rate: 0.1, sigma: 0.05
 
@@ -68,11 +72,10 @@ Each generation follows this sequence in `GeneticAlgorithmRunner.runGeneration()
 
 For each genome in the population:
 
-1. **Shadow pass**: Create a temporary backend, run through training data to pre-compute rewards
-2. **Training pass**: Create a fresh backend, run Q-learning using pre-computed rewards with n-step TD targets
-3. **Lamarckian update**: Extract trained weights, freeze them into the genome
-4. **Validation pass**: Create a fresh backend with Lamarckian weights, evaluate on held-out validation data
-5. **Scoring**: Compute fitness from episode returns, apply complexity penalty
+1. **Training pass**: Create a backend, play the training data once; each decision is stored with the wallet PnL it earned until the next decision (n-step return, shaped by the genome) and a minibatch is replayed after each store
+2. **Lamarckian update**: Extract trained weights, freeze them into the genome
+3. **Validation pass**: Create a fresh backend with Lamarckian weights, evaluate on held-out validation data at a fixed epsilon of 0.05
+4. **Scoring**: Compute fitness from the wallet PnL (`TRAINER_FITNESS_TYPE`), apply complexity penalty
 
 All genomes are evaluated in parallel using a bounded thread pool (`pooledEval`).
 
@@ -181,17 +184,21 @@ Loop exits when any condition is met (checked each generation):
 
 ---
 
-## Fitness Computation (`fitness.ts`)
+## Fitness Computation (`evaluation-utils.ts`, ADR-0025)
 
-| Type        | Formula                              | When to use                |
-| ----------- | ------------------------------------ | -------------------------- |
-| `total_pnl` | `mean(rewards)`                      | Simple profit maximization |
-| `sharpe`    | `mean / std`                         | Risk-adjusted returns      |
-| `sortino`   | `mean / downside_std`                | Downside-risk focus        |
-| `calmar`    | `mean / max_drawdown`                | Drawdown-averse            |
-| `composite` | `0.4·pnl + 0.3·sharpe + 0.3·sortino` | Balanced                   |
+Fitness reads the **wallet PnL** of the validation pass, never the shaped reward. `computeFitness(type, pnl)` takes the final PnL of each episode and the PnL change of every validation bar (the curve). The type is the run setting `TRAINER_FITNESS_TYPE` (default `total_pnl`), copied into every genome's `gaControl.fitnessType` and never mutated.
 
-**Final fitness** applies a complexity penalty: `adjusted = fitness * (1 - 0.15 * complexity_penalty)`
+| Type        | Formula (on)                                  | When to use                |
+| ----------- | --------------------------------------------- | -------------------------- |
+| `total_pnl` | `mean(episode PnL)`                           | Simple profit maximization |
+| `sharpe`    | `mean / std` (bar curve)                      | Risk-adjusted returns      |
+| `sortino`   | `mean / downside deviation` (bar curve)       | Downside-risk focus        |
+| `calmar`    | `mean / max drawdown` (bar curve)             | Drawdown-averse            |
+| `composite` | `0.4·mean + 0.3·sharpe + 0.3·sortino` (curve) | Balanced                   |
+
+**Final fitness** applies a complexity penalty: `adjusted = fitness - |fitness| * 0.15 * complexity_penalty` (lower whatever the sign). A failed evaluation scores `-1e9`.
+
+The scalar fitness drives parent selection, stagnation, the reward threshold and the published genome: the Pareto-front member with the highest fitness (`ParetoArchive.best()`). NSGA-II keeps ranking on the objectives `avgPnl` (mean episode PnL), `sharpe` (bar curve) and `negFlops`.
 
 ---
 
@@ -223,8 +230,10 @@ import { selectParent } from './selection';
 // Evaluation
 import { evaluateGenomeAllWindows, pooledEval } from './evaluation-pipeline';
 
-// Fitness
-import { computeFitness, shapeReward } from './fitness';
+// Fitness and reward shaping
+import { computeFitness } from './evaluation-utils';
+import { RewardShaper } from './reward-shaping';
+import { trainPhase } from './training-phase';
 
 // Multi-objective
 import { ParetoArchive, dominates } from './pareto-engine';

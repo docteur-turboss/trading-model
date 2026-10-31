@@ -46,7 +46,7 @@ If multiple services were deployed together:
 ```bash
 # Revert to previous known-good image tags
 for service in discovery-server message-manager financial-scraper trader-trainer \
-               api-gateway audit-logger dlq-service admin-interface; do
+               api-gateway audit-logger dlq-service; do
   kubectl set image -n trading-model deployment/$service $service=ghcr.io/trading-model/$service:<previous-stable-tag>
 done
 

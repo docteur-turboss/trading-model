@@ -85,7 +85,7 @@ For the full list including variants (🏷️ feat-types, 🎉 feat-init, 🚑 f
 | `audit-logger`      | Audit-logger service                   |
 | `dlq-service`       | DLQ service                            |
 | `api-gateway`       | API gateway service                    |
-| `admin-interface`   | Admin interface SPA                    |
+| `admin-interface`   | Admin frontend (removed, ADR-0018; kept for history and its return) |
 
 ## Body and Footer (Optional)
 

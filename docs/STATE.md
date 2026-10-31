@@ -1,7 +1,7 @@
 ---
 type: etat
 domaine: monorepo
-maj: 2026-10-13
+maj: 2026-10-28
 tags: [state, memory, architecture, verification]
 statut: actif
 ---
@@ -15,10 +15,10 @@ statut: actif
 ## Ce que c'est
 
 `trading-model` est un monorepo de trading algorithmique : 12 packages partagés
-(scopés `@trading-model/*`) + 8 microservices, liés par bun workspaces.
+(scopés `@trading-model/*`) + 7 microservices, liés par bun workspaces.
 
 - **Packages** : primitives, contracts, reliability, common, persistence, http, validation, server-utils, crypto, jobs, address-manager, broker-message
-- **Services** : message-manager, discovery-server, financial-scraper, trader-trainer (nom de package : `trader-service`), api-gateway, audit-logger, dlq-service, admin-interface (SPA React/Vitest)
+- **Services** : message-manager, discovery-server, financial-scraper, trader-trainer (nom de package : `trader-service`), api-gateway, audit-logger, dlq-service. Pas de frontend : `admin-interface` retiré temporairement (ADR-0018)
 - **Données** : MySQL (financial-scraper, datastore SPIRE), MongoDB (audit-logger, dlq-service), Redis (message-manager)
 - **Identité/mTLS** : SPIRE/SPIFFE (ADR-0011) — obligatoire en Docker et K8s
 - **Version courant** : `2.0.3` — release via GitHub Actions (workflow `Release`)
@@ -35,7 +35,7 @@ statut: actif
 
 Ordre de lecture imposé — ne jamais tout lire d'un coup :
 
-1. `AGENTS.md` — commandes, layout, pièges (trader-trainer ≠ trader-service, admin-interface ≠ Jest).
+1. `AGENTS.md` — commandes, layout, pièges (trader-trainer ≠ trader-service).
 2. **Ce fichier** (`docs/STATE.md`) — la carte.
 3. Uniquement ensuite : `docs/standards/*`, la doc du service concerné (`docs/services/*`), les ADRs (`docs/adr/`), les specs (`docs/spec/SPEC-*.md`).
 4. Les tests comme mémoire exécutable : casser un test doit être une découverte, pas une surprise.

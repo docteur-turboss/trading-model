@@ -11,6 +11,7 @@ Welcome to the **trading-model** standards directory. This folder contains the c
 | [Quality Gates](./quality-gates.md) | Quality gates, pre-commit/push hooks, TypeScript strict, dependency audit |
 | [Testing Standards](./testing-standards.md) | Testing standards (Jest, coverage, structure, AAA pattern) |
 | [Code Style](./code-style.md) | Code style, naming conventions, Biome config, import order |
+| [Error Handling](./error-handling.md) | No swallowed errors: propagate, report or delegate; lint plugin and review criterion |
 
 ## Related Sections
 

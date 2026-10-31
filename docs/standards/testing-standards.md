@@ -6,9 +6,7 @@ Tests are the guarantee of code reliability and regression prevention. Strict co
 
 ## Framework
 
-**Jest with ts-jest** — configuration per package/service (Node.js backend services).
-
-**Vitest** — configuration per `vitest.config.ts` (frontend SPA: admin-interface). Vitest uses a Vite-compatible config with jsdom environment for React component testing. See `services/admin-interface/vitest.config.ts`.
+**Jest with ts-jest** — configuration per package/service. Every workspace uses it (the Vitest frontend was removed, ADR-0018).
 
 ```javascript
 // jest.config.js — PER PACKAGE/SERVICE
@@ -103,9 +101,8 @@ All workspaces enforce an **80%** global threshold (statements, branches, functi
 | api-gateway                    | 80%      | 80%       | 80%   | 80%        | Jest      |
 | audit-logger                   | 80%      | 80%       | 80%   | 80%        | Jest      |
 | dlq-service                    | 79%      | 80%       | 80%   | 80%        | Jest      |
-| admin-interface                | 80%      | 80%       | 80%   | 80%        | Vitest    |
 
-Coverage is checked by Jest/Vitest on every test run (`bun run test:coverage`).
+Coverage is checked by Jest on every test run (`bun run test:coverage`).
 
 ### Generate HTML report
 

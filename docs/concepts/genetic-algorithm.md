@@ -33,17 +33,19 @@ A set of genomes that evolves over generations. A typical population starts with
 
 ### Fitness Function
 
-A metric evaluating how well a genome performs. The platform supports:
+A metric evaluating how well a genome performs, computed on the wallet PnL of the validation window (not on the shaped training reward). One type is chosen per run with `TRAINER_FITNESS_TYPE` (ADR-0025):
 
 | Type | Formula | Use case |
 | ---- | ------- | -------- |
-| Total P&L | `mean(rewards)` | Simple profit maximization |
-| Sharpe ratio | `mean / std` | Risk-adjusted returns |
-| Sortino ratio | `mean / downside_std` | Downside-risk focus |
-| Calmar ratio | `mean / max_drawdown` | Drawdown-averse |
-| Composite | Weighted combination | Balanced optimization |
+| Total P&L | `mean(episode PnL)` | Simple profit maximization |
+| Sharpe ratio | `mean / std` of the bar PnL curve | Risk-adjusted returns |
+| Sortino ratio | `mean / downside deviation` of the bar PnL curve | Downside-risk focus |
+| Calmar ratio | `mean / max drawdown` of the bar PnL curve | Drawdown-averse |
+| Composite | `0.4·mean + 0.3·sharpe + 0.3·sortino` of the curve | Balanced optimization |
 
-A complexity penalty discourages overly large networks: `adjusted_fitness = fitness × (1 - 0.15 × complexity_penalty)`.
+The fitness drives parent selection, stagnation and the choice of the published genome among the Pareto front; the front itself is ranked on several objectives (mean PnL, Sharpe, FLOPs), so it keeps every trade-off.
+
+A complexity penalty discourages overly large networks: `adjusted_fitness = fitness - |fitness| × 0.15 × complexity_penalty`.
 
 ## Evolutionary Operators
 

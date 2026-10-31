@@ -3,6 +3,7 @@
 **Status:** Accepted
 **Date:** 2026-10
 **Related:** [ADR-0012](./0012-dead-code-removal-and-entrypoint-fix.md) (reachability analysis whose limitation this ADR addresses, and which removed the matching discovery WebSocket **server**), [ADR-0010](./0010-clean-architecture-migration.md) (layering conventions relied on by the removal)
+**Verified by:** `bun run reach:check`, `bun run config:check`
 
 ## Context
 
@@ -101,3 +102,5 @@ Any reintroduction must wire the client into a **runtime entrypoint** and be cov
 ## Recommendation: Value-Aware Detection in CI
 
 The ADR-0012 reachability gate operates on the **import graph** and cannot detect code that is imported but never activated. This ADR shows that class is real and non-empty. To close the gap, a **value-aware** check should complement the import analysis: for every configuration flag read by the code (e.g. `WS_URL`), assert that the flag is either (a) defined in at least one deployment profile (`.env.example` / `docker-compose.yml` / k8s manifests) or (b) acknowledged as intentionally optional. Flags with **no definition anywhere** are candidates for removal — the same signal used to identify the discovery WS client here. This guard should be added alongside, not instead of, the existing reachability analysis.
+
+> **Implemented (2026-10-31, [ADR-0029](./0029-orphan-subsystems-retired-and-reachability-gate.md)):** `bun run config:check` (`scripts/config-flags-check.mjs`, pre-push and CI) is this guard. It also fails on two cases this ADR did not name: a switch whose default is `false` that no profile turns on, and a variable read from a parsed env (`env.X`) that no Zod schema declares, which is always undefined since Zod drops unknown keys.

@@ -50,15 +50,14 @@ trading-model/
 │   ├── jobs/                 # Worker protocol, orphan recovery
 │   ├── address-manager/      # Service discovery client
 │   └── broker-message/       # Message bus protocol types
-├── services/     # 8 microservices (kebab-case directory names)
+├── services/     # 7 microservices (kebab-case directory names)
 │   ├── discovery-server/
 │   ├── message-manager/
 │   ├── financial-scraper/
 │   ├── trader-trainer/      # bun name: trader-service
 │   ├── api-gateway/
 │   ├── audit-logger/
-│   ├── dlq-service/
-│   └── admin-interface/     # React SPA (Vite + Vitest)
+│   └── dlq-service/
 ├── deploy/       # K8s manifests + nginx configs
 ├── docs/         # Centralized documentation
 └── scripts/      # Automation scripts
@@ -93,8 +92,8 @@ File naming: `kebab-case` descriptive names; `.controller.ts`/`.service.ts`/`.re
 
 ## Testing
 
-- **Framework**: Jest with `ts-jest` (most services); **Vitest** (admin-interface only)
-- **Convention**: Single `.spec.ts` or `.spec.tsx` (admin-interface) suffix
+- **Framework**: Jest with `ts-jest` (every workspace)
+- **Convention**: Single `.spec.ts` suffix
 - **Coverage thresholds**: 80% across all workspaces (branch-only exceptions: `broker-message` 75%, `message-manager` and `dlq-service` 79%)
 - **Structure**: Tests mirror source under `tests/unit/`, `tests/integration/`, `tests/e2e/`
 
@@ -214,7 +213,7 @@ dev  ──→ commit ──→ push ──→ PR ──→ merge ──→ beta
 
 main ←── merge dev ────→ tag v* ──→ release.yml ──→ stable deploy
               (if OK)     bun run   quality           docker compose
-                          release   docker (8 images) pull + up -d
+                          release   docker (7 images) pull + up -d
                                     docs (GitHub Pages)
                                     GitHub Release
 ```

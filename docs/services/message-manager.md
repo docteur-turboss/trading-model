@@ -10,7 +10,7 @@ Pub/sub message brokering service with configurable delivery guarantees.
 | Port (host)      | `8444`                                                             |
 | Port (container) | `3000`                                                             |
 | Dependencies     | common, validation, http, server-utils, crypto, address-manager, broker-message |
-| Persistence      | None (in-memory dispatcher; local JSONL dead-letter file)             |
+| Persistence      | None (in-memory dispatcher; dead letters in dlq-service)              |
 | Validation       | Zod (dedicated schemas)                                            |
 
 ## Messaging Model
@@ -18,9 +18,9 @@ Pub/sub message brokering service with configurable delivery guarantees.
 - Topic-based publish/subscribe over HTTP
 - Subscription registry with instance-level deduplication
 - Three delivery semantics: `AT_MOST_ONCE`, `AT_LEAST_ONCE`, `EXACTLY_ONCE`
-- TTL-based message expiration with Dead Letter Queue routing (local JSONL file)
+- TTL-based message expiration with Dead Letter Queue routing (dlq-service)
 - Parallel dispatch to all subscribers of a topic
-- No write-ahead log or archive: messages are dispatched in memory; undeliverable messages are written to a local JSONL dead-letter file
+- No write-ahead log or archive: messages are dispatched in memory; undeliverable messages are sent to dlq-service (local JSONL file while it is unreachable)
 
 ## REST Endpoints
 
@@ -119,10 +119,11 @@ Previously validated as `z.unknown()`, the `authContext` object is now strictly 
 ## Features
 
 - **TTL**: Message expiration based on time-to-live configured in metadata
-- **Retry with backoff**: `AT_LEAST_ONCE` retries up to 10 times with exponential backoff (1s base, 60s cap) and ±20% random jitter
+- **Retry with backoff**: `AT_LEAST_ONCE` retries up to 10 times (10s per attempt, no HTTP-client retry underneath) with exponential backoff (1s base, 20s cap) and ±20% random jitter; the worst case (~4.3 min) must fit in `PUBLISH_TIMEOUT_MS` (5 min)
 - **Circuit breaker**: After 5 consecutive dispatch failures, new messages are routed directly to the Dead Letter Queue to prevent cascading failures; the breaker resets on the next successful delivery
 - **Alerting**: Persistent delivery failures are logged at ERROR level with topic, service name, and attempt count
-- **Dead Letter Queue**: Undelivered messages are written to a local JSON Lines file (`dead-letter-queue.jsonl` via `FileDlqRepository`)
+- **Dead Letter Queue**: Undelivered messages are sent to dlq-service (a `POST` to its `/dlq` route, signed with `DLQ_AUTH_HMAC_SECRET`). While it cannot take them they are kept in `DLQ_LOCAL_FALLBACK_PATH` and sent again every `DLQ_FORWARD_INTERVAL_MS`, at startup and at shutdown; entries refused for good (400, 413) go to `DLQ_LOCAL_FALLBACK_PATH.rejected`
+- **Graceful shutdown**: on SIGTERM the instance leaves discovery, keeps serving for `CACHE_TTL_MS`, waits up to `PUBLISH_TIMEOUT_MS` for in-flight publishes, then forwards its local dead letters (K8s `terminationGracePeriodSeconds: 360`, compose `stop_grace_period: 6m`)
 - **Deduplication**: Via `deduplicationId` in delivery metadata
 - **Partitioning**: Via `partitionKey` in routing metadata
 - **Priority**: Via `priority` in routing metadata
@@ -136,7 +137,9 @@ HTTP Routes (src/adapters/inbound/http.routes.ts)
       → Dispatcher (src/application/services/dispatcher.ts)
         → Subscription Registry (src/application/services/subscription-registry.ts)
         → Delivery over HTTP (src/adapters/outbound/http-message-delivery.ts → POST to subscriber callback URLs)
-        → Dead Letter (src/infrastructure/fallback/dlq-repository.ts → local JSONL file)
+        → Dead Letter (src/adapters/outbound/forwarding-dead-letter-store.ts
+            → dlq-service: http-dead-letter-store.ts, signed POST /dlq
+            → fallback: src/infrastructure/fallback/dlq-repository.ts, local JSONL file)
 ```
 
 HTTP is the only transport: there is no WebSocket endpoint.

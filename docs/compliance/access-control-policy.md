@@ -53,7 +53,7 @@ Every service instance is provisioned with an X.509 SVID issued by the SPIRE Ser
 | `audit-logger` | `spiffe://trading-model.local/ns/trading-model/sa/audit-logger` | SPIRE Server | 1h TTL (auto-rotated) |
 | `dlq-service` | `spiffe://trading-model.local/ns/trading-model/sa/dlq-service` | SPIRE Server | 1h TTL (auto-rotated) |
 | `api-gateway` | `spiffe://trading-model.local/ns/trading-model/sa/api-gateway` | SPIRE Server | 1h TTL (auto-rotated) |
-| `admin-interface` | `spiffe://trading-model.local/ns/trading-model/sa/admin-interface` | SPIRE Server | 1h TTL (auto-rotated) |
+| `edge-proxy` | `spiffe://trading-model.local/ns/trading-model/sa/edge-proxy` | SPIRE Server | 1h TTL (auto-rotated) |
 
 **Enforcement:** `@trading-model/http/adapters/inbound/mtls-auth.ts` extracts the client identity from the SVID's verified SPIFFE ID SAN. Requests without a valid SVID are rejected at the TLS handshake level (all environments). When `ENFORCE_MTLS_STRICT` is enabled (production), `mtls-authorization.ts` additionally enforces the ACL on every inbound request.
 
@@ -79,10 +79,10 @@ The default ACL is defined in `@trading-model/http/adapters/inbound/mtls-authori
 const DEFAULT_ACL: Record<KnownService, readonly ServiceId[]> = {
   'discovery-server':   [ '*' ],
   'audit-logger':       [ '*' ],
-  'message-manager':    [ 'discovery-server', 'financial-scraper', 'trader-trainer', 'api-gateway' ],
+  'message-manager':    [ 'discovery-server', 'financial-scraper', 'trader-trainer', 'audit-logger', 'dlq-service' ],
   'financial-scraper':  [ 'api-gateway' ],
   'trader-trainer':     [ 'api-gateway', 'financial-scraper', 'discovery-server' ],
-  'api-gateway':        [ 'admin-interface' ],
+  'api-gateway':        [ 'edge-proxy' ],   // external entry point (ADR-0018)
   'dlq-service':        [ '*' ],
 };
 ```
@@ -102,7 +102,6 @@ const DEFAULT_ACL: Record<KnownService, readonly ServiceId[]> = {
 
 | Resource | Access Method | Authentication | Authorisation |
 |---|---|---|
-| admin-interface SPA | HTTPS via browser (public ingress) | api-gateway `x-api-key` / `AUTH_TOKENS` | Token-based admin access |
 | API gateway admin endpoints | HTTPS + API key | `x-api-key` header | `AUTH_TOKENS` env var |
 | Database (MongoDB) | TLS connection | Username/password + SealedSecret | Service account RBAC |
 | Database (MySQL) | TLS connection | Username/password + SealedSecret | SQL grants |
@@ -112,7 +111,7 @@ const DEFAULT_ACL: Record<KnownService, readonly ServiceId[]> = {
 
 In the event of SPIRE unavailability:
 
-1. Restart the `spire-server` / `spire-agent` stack and reconcile entries (spire-entries) to re-issue SVIDs
+1. Restart the `spire-server` / `spire-agent` stack and let the `spire-entries` sidecar of the server pod reconcile the entries to re-issue SVIDs
 2. Document the override in the audit-logger with reason and timestamp
 3. Rotate SVIDs once SPIRE is stable
 4. Initiate incident response procedure

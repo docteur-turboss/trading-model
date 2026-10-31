@@ -10,7 +10,6 @@ Guarantee that code is production-ready, maintainable over time, and respects th
 | -------------- | --------------------------------- | ----------------------------- |
 | **Biome**      | Static analysis + formatting + import sorting | `biome.json`       |
 | **Jest**       | Unit and integration tests        | `jest.config.js` (per module) |
-| **Vitest**     | Frontend tests (admin-interface)  | `vitest.config.ts`            |
 | **TypeScript** | Type checking                     | `tsconfig.json` (per module)  |
 | **commitlint** | Commit message validation         | `commitlint.config.mjs`       |
 | **Husky**      | Git hooks                         | `.husky/`                     |

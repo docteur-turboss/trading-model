@@ -99,13 +99,13 @@ Rotates the HMAC-SHA256 authentication token for a service instance. Requires mT
 
 **`GET /services`**
 
-Lists all registered service names.
+Names of the services with registered instances. Parameters and responses are declared in `src/adapters/inbound/http/api-routes.ts` (`DISCOVERY_API`, ADR-0021) and published in the [OpenAPI](openapi/api-gateway.yaml). Invalid input answers 400 `{ "error": "Validation failed", "details": [...] }`.
 
 **Response:** `200 OK`
 
 ```json
 [
-  "financial-scraper",
+  "financial-scraper-service",
   "trader-trainer"
 ]
 ```
@@ -114,21 +114,22 @@ Lists all registered service names.
 
 **`GET /services/:serviceName`**
 
-Lists all instances of a given service.
+Live instances of a service: expired leases are left out. An unknown service answers `404` `{ "error": "Unknown service" }`. Timestamps are epoch milliseconds; the instance token is never returned.
 
 **Response:** `200 OK`
 
 ```json
 [
   {
-    "serviceName": "financial-scraper",
-    "instanceId": "uuid-instance-id",
-    "ip": "192.168.1.10",
+    "serviceName": "financial-scraper-service",
+    "instanceId": "financial-scraper-1",
+    "host": "10.0.0.7",
     "port": 3000,
-    "protocol": "https",
-    "lastHeartbeat": "2025-01-15T10:30:00Z",
-    "registeredAt": "2025-01-15T10:00:00Z",
-    "ttl": 15000
+    "version": "1.0.0",
+    "protocol": "mtls",
+    "ttl": 30000,
+    "registeredAt": 1736935200000,
+    "lastHeartbeat": 1736937000000
   }
 ]
 ```
@@ -137,21 +138,21 @@ Lists all instances of a given service.
 
 **`GET /services/:serviceName/:instanceId`**
 
-Returns detailed metadata for a specific service instance.
+One live instance of the service. `404` `{ "error": "Instance not found" }` when the id is unknown, belongs to another service, or its lease has expired.
 
 **Response:** `200 OK`
 
 ```json
 {
-  "serviceName": "financial-scraper",
-  "instanceId": "uuid-instance-id",
-  "ip": "192.168.1.10",
+  "serviceName": "financial-scraper-service",
+  "instanceId": "financial-scraper-1",
+  "host": "10.0.0.7",
   "port": 3000,
-  "protocol": "https",
-  "lastHeartbeat": "2025-01-15T10:30:00Z",
-  "registeredAt": "2025-01-15T10:00:00Z",
-  "ttl": 15000,
-  "env": "production"
+  "version": "1.0.0",
+  "protocol": "mtls",
+  "ttl": 30000,
+  "registeredAt": 1736935200000,
+  "lastHeartbeat": 1736937000000
 }
 ```
 

@@ -40,7 +40,7 @@ Open the **Actions** tab → **Deploy** → **Run workflow**, then select:
 | Input | Description |
 |-------|-------------|
 | `environment` | `staging` or `production` |
-| `image_tag` | Image tag to deploy (defaults to `staging` / `latest`) |
+| `image_tag` | Required: release to deploy, `v1.2.3` or `1.2.3`, or `latest` (the highest stable release). Resolved to image digests before anything is applied |
 | `canary` | Run canary + smoke test with automatic rollback on failure |
 
 ### Prerequisites (secrets)
@@ -56,13 +56,17 @@ Add the cluster kubeconfigs as base64-encoded repository secrets:
 
 ```
 1. Configure kubectl (kubeconfig from secret)
-2. Run database migrations (migration-job.yaml) before rollout
-3. Apply overlay (deploy/k8s/overlays/<env>)
-4. Wait for rollout of all services
-5. Canary + smoke test (if enabled) → rollback on failure
+2. Resolve every image tag to a digest (fails if the release was not published)
+3. Check sealed secrets (production: controller CRD present, no placeholder)
+4. Apply SPIFFE node components, run database migrations
+5. Canary gate on live traffic (if enabled)
+6. Apply overlay (deploy/k8s/overlays/<env>, images pinned by digest)
+7. Wait for rollout of all services, smoke test
 ```
 
 Rollback on failure is automatic: the workflow undoes the deployment rollouts.
+The overlay is applied by digest, so `rollout undo` returns to the previous
+image even when both deploys used `latest`.
 
 ---
 
@@ -78,13 +82,13 @@ echo $GITHUB_TOKEN | docker login ghcr.io -u <USERNAME> --password-stdin
 IMAGE_TAG=2.0.3 docker compose pull
 
 # Or pull a specific service
-docker pull ghcr.io/trading-model/discovery-server:2.0.3
+docker pull ghcr.io/<owner>/discovery-server:2.0.3
 ```
 
 ## Production deployment
 
-1. A tag `v*.*.*` is pushed on `main`
-2. `release.yml` builds and publishes 8 images to `ghcr.io`
+1. `bun run release` (on `main`) bumps the versions, writes the CHANGELOG and pushes the tag `vX.Y.Z`
+2. `release.yml` runs the whole CI on the tag, then publishes the 9 images to `ghcr.io/<owner>` as `X.Y.Z`, and as `latest` when it is the highest stable release
 3. The `Deploy` workflow is run against the `production` environment (canary enabled for staged rollout)
 
 ---

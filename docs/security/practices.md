@@ -15,13 +15,13 @@ service's SVID and write it to `/run/spire/svid` (`svid.pem`, `svid_key.pem`,
 `bundle.pem`), consumed via `TLS_*_PATH`. No manual certificate generation is
 required.
 
-Each SVID carries a SPIFFE URI SAN (`spiffe://trading-model.local/ns/<namespace>/sa/<service>`) — one identity per service (8 services):
+Each SVID carries a SPIFFE URI SAN (`spiffe://trading-model.local/ns/<namespace>/sa/<service>`) — one identity per workload (the 7 services and the `edge-proxy`, plus `prometheus`, and `blackbox-exporter` in K8s, for monitoring):
 
-- `admin-interface`
 - `api-gateway`
 - `audit-logger`
 - `discovery-server`
 - `dlq-service`
+- `edge-proxy`
 - `financial-scraper`
 - `message-manager`
 - `trader-trainer`
@@ -90,7 +90,7 @@ export const config = envSchema.parse(process.env);
 | ---------------------------- | --------------------------------------- |
 | **Never commit secrets**     | .env, _.key, _.pem in .gitignore        |
 | **.env files excluded**      | `.env`, `.env.local`, `.env.*.local`    |
-| **GitHub Secrets** for CI/CD | `GHCR_TOKEN` for Docker push            |
+| **GitHub Secrets** for CI/CD | `GITHUB_TOKEN` (no PAT) for GHCR        |
 | **Sensitive variables**      | API keys, certificates, tokens, DB URLs |
 
 ### .env Files Excluded (all in .gitignore)

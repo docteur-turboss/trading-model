@@ -4,7 +4,7 @@
 > [ADR-0011](./0011-spiffe-spire-workload-identity.md) — the CA was
 > decommissioned in favour of SPIRE.
 
-**Status:** Accepted
+**Status:** Superseded by [ADR-0020](./0020-database-topology-as-deployed.md)
 **Date:** 2026-06
 
 ## Context

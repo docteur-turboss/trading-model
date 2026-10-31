@@ -26,7 +26,7 @@ All tables live in the `financial_scraper` database (configurable via `DB_NAME` 
 | `timestamp` | `DATETIME(3)` | `NOT NULL`, `PK` | Candle open time |
 | `close_timestamp` | `DATETIME(3)` | `NOT NULL` | Candle close time |
 
-**Composite PK:** `(id, symbol, market, interval_value, timestamp, source)`
+**Primary key:** `(symbol, market, interval_value, timestamp, source)`, the business key the upserts (`INSERT ... ON DUPLICATE KEY UPDATE`) rely on; `id` keeps its own index (`idx_candles_id`). Migration 004 replaced the original `(id, ...)` key, which let every scrape insert the same candles again (the DDL below is the baseline 0000 migration).
 
 ```sql
 CREATE TABLE IF NOT EXISTS `market_candles` (
@@ -124,7 +124,7 @@ interface TradeData extends BaseMarketData {
 | `timestamp` | `DATETIME(3)` | `NOT NULL` | Snapshot timestamp |
 | `close_time` | `DATETIME(3)` | `NOT NULL` | 24h window close time |
 
-**Composite PK:** `(id, symbol, market, timestamp, source)`
+**Primary key:** `(symbol, market, timestamp, source)` since migration 004 (was `(id, ...)`, see `market_candles`); `id` keeps `idx_tickers_id`. The DDL below is the baseline 0000 migration.
 
 ```sql
 CREATE TABLE IF NOT EXISTS `market_tickers` (
@@ -157,6 +157,21 @@ interface TickerData extends BaseMarketData {
   closeTimestamp: number;
 }
 ```
+
+### `market_publish_cursors` — how far each candle series is published
+
+Migration 005. The scraper persists candles before publishing them; the candles of a series opened at or after `published_until` are persisted but not yet on the bus. Each cycle publishes the next 100 of them from `market_candles` and moves the cursor once message-manager took them, so a bus outage or a scraper restart loses none.
+
+| Column | Type | Constraints | Description |
+| ------ | ---- | ----------- | ----------- |
+| `source` | `VARCHAR(32)` | `NOT NULL`, `PK` | Data provider |
+| `symbol` | `VARCHAR(32)` | `NOT NULL`, `PK` | Trading pair / ticker |
+| `interval_value` | `VARCHAR(16)` | `NOT NULL`, `PK` | Candle interval |
+| `market` | `VARCHAR(16)` | `NOT NULL` | Market type of the series |
+| `published_until` | `DATETIME(3)` | `NOT NULL` | Open time of the next candle to publish |
+| `updated_at` | `DATETIME(3)` | `NOT NULL`, auto | Last move |
+
+**Primary key:** `(source, symbol, interval_value)`. A series without a row starts at the first candle the scraper persists, not at the history. Skipping a backlog on purpose: see `runbook-message-bus-outage`.
 
 ### Shared base interface
 

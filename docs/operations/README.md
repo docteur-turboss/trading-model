@@ -19,4 +19,5 @@ This directory contains operational procedures, policies, and runbooks for the T
 | [Message Bus Outage](runbooks/runbook-message-bus-outage.md) | Message-manager outage recovery                |
 | [Certificate Expiry](runbooks/runbook-certificate-expiry.md) | mTLS certificate expiry prevention             |
 | [Data Corruption](runbooks/runbook-data-corruption.md) | Data corruption detection and recovery               |
+| [Audit Chain Broken](runbooks/runbook-audit-chain-broken.md) | Audit trail integrity: broken, unverified or unanchored chain (ADR-0027) |
 | [Deployment Failure](runbooks/runbook-deployment-failure.md) | Failed deployment rollback procedure            |

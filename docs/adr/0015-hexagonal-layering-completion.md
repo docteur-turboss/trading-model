@@ -3,6 +3,7 @@
 **Status:** Accepted
 **Date:** 2026-10
 **Related:** [ADR-0010](./0010-clean-architecture-migration.md) (target layout, now Implemented), [ADR-0007](./0007-common-package-split.md) (common split, now Implemented), [ADR-0012](./0012-dead-code-removal-and-entrypoint-fix.md) (hard-migration convention)
+**Verified by:** manual review 2026-10-22 (all phases validated by lint, typecheck and workspace tests; no automated layering check yet)
 
 ## Context
 
