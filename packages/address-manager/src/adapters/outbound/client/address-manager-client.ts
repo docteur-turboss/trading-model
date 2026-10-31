@@ -38,72 +38,53 @@ export class AddressManagerClient {
 	private _buildRegistrationPayload(): RegisterServicePayload {
 		return {
 			serviceName: parseServiceName(this._config.identity.serviceName),
+			// Heartbeats and token rotation send this identity: without it discovery
+			// generates another instanceId and every later call is rejected (401).
+			instanceId: this._config.identity.instanceId,
 			port: this._config.servicePort,
 			ip: LocalIPDetector.getIP() as import("@trading-model/primitives/primitives").IPAddress,
 		};
 	}
 
-	private _getUrls(): URLString[] {
-		return this._config.discoveryUrls?.length
-			? this._config.discoveryUrls.map(URLString.of)
-			: [URLString.of(this._config.addressManagerUrl)];
+	private _url(path: string): URLString {
+		return URLString.of(`${this._config.addressManagerUrl}${path}`);
 	}
 
-	registerService(): Promise<ServiceRegistrationResponse | undefined> {
-		const payload = this._buildRegistrationPayload();
-		const urls = this._getUrls();
-		return this._tryRegisterUrls(payload, urls);
-	}
-
-	private async _tryRegisterUrls(
-		payload: RegisterServicePayload,
-		urls: URLString[]
-	): Promise<ServiceRegistrationResponse | undefined> {
-		let lastError: unknown;
-		for (const url of urls) {
-			try {
-				return await this._httpClient.post<ServiceRegistrationResponse>(
-					URLString.of(`${url}/register`),
-					payload
-				);
-			} catch (error) {
-				lastError = error;
-			}
+	async registerService(): Promise<ServiceRegistrationResponse | undefined> {
+		try {
+			return await this._httpClient.post<ServiceRegistrationResponse>(
+				this._url("/register"),
+				this._buildRegistrationPayload()
+			);
+		} catch (error) {
+			throw addressManagerError(
+				"Failed to register service to Address Manager",
+				{ cause: normalizeError(error) }
+			);
 		}
-		throw addressManagerError("Failed to register service to Address Manager", {
-			cause: normalizeError(lastError),
-		});
 	}
 
 	async refreshTTL(): Promise<void> {
-		const urls = this._getUrls();
-		await this._heartbeatRefresher.refresh(urls);
+		await this._heartbeatRefresher.refresh(
+			URLString.of(this._config.addressManagerUrl)
+		);
 	}
 
 	async unregisterService(): Promise<void> {
 		const token = this._tokenManager.getToken();
-		const urls = this._getUrls();
-		await this._tryUnregisterUrls(token, urls);
-	}
-
-	private async _tryUnregisterUrls(
-		token: string,
-		urls: URLString[]
-	): Promise<void> {
-		for (const url of urls) {
-			try {
-				await this._httpClient.post(
-					URLString.of(`${url}/unregister`),
-					this._config.identity,
-					{ headers: { [HTTP_HEADERS.X_INSTANCE_TOKEN]: token } }
-				);
-				return;
-			} catch (err) {
-				logger.warn("Failed to unregister from URL", {
-					url,
-					err: (err as Error).message,
-				});
-			}
+		try {
+			await this._httpClient.post(
+				this._url("/unregister"),
+				this._config.identity,
+				{
+					headers: { [HTTP_HEADERS.X_INSTANCE_TOKEN]: token },
+				}
+			);
+		} catch (err) {
+			logger.warn("Failed to unregister from Address Manager", {
+				url: this._config.addressManagerUrl,
+				err: (err as Error).message,
+			});
 		}
 	}
 

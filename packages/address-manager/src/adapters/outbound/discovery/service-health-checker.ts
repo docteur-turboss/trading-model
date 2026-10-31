@@ -73,6 +73,7 @@ export class ServiceHealthChecker {
 			return false;
 		}
 
+		// biome-ignore lint/plugin: a failed ping is the negative health signal, not an error
 		try {
 			await this._httpClient.get(url, {
 				timeoutMs: this._timeoutMs,
@@ -103,7 +104,14 @@ export class ServiceHealthChecker {
 		_instanceId: InstanceId,
 		_durationMs: number,
 		_success: boolean
-	): void {}
+	): void {
+		// Intentional no-op.
+	}
+
+	/** The address callers must use for this instance: the one the ping checks. */
+	locate(instance: ServiceInstance): string {
+		return this._serviceLocator.locate(instance);
+	}
 
 	private _buildPingUrl(instance: ServiceInstance): URLString | null {
 		const hostname = this._serviceLocator.locate(instance);

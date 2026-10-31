@@ -43,31 +43,23 @@ export class ServiceResolver {
 
 	async findService(serviceName: ServiceId): Promise<ServiceInstance> {
 		const instances = await this._fetchService(serviceName);
-		const instance = this._extractFirstInstance(instances, serviceName);
+		const instance = this._addressed(
+			this._extractFirstInstance(instances, serviceName)
+		);
 		await this._validateAndCache(instance, serviceName);
 		return instance;
 	}
 
-	async findServiceInRegion(
-		serviceName: ServiceId,
-		region: string
-	): Promise<ServiceInstance> {
-		let instances: unknown;
-		try {
-			instances = await this._httpClient.get<unknown>(
-				URLString.of(
-					`${this._config.addressManagerUrl}/services/${serviceName}/region/${region}`
-				),
-				{ timeoutMs: this._discoveryTimeoutMs }
-			);
-		} catch {
-			return this.findService(serviceName);
-		}
-		const found = await this._findHealthyInstance(instances, serviceName);
-		if (found) {
-			return found;
-		}
-		return this.findService(serviceName);
+	/**
+	 * Targets the instance through the address its health check uses (its DNS
+	 * name by default). The registered IP is the first interface the instance
+	 * saw, which on a multi-network host may be unreachable from the caller.
+	 */
+	private _addressed(instance: ServiceInstance): ServiceInstance {
+		return {
+			...instance,
+			host: this._healthChecker.locate(instance) as ServiceInstance["host"],
+		};
 	}
 
 	private async _fetchService(serviceName: ServiceId): Promise<unknown> {
@@ -115,28 +107,6 @@ export class ServiceResolver {
 		});
 	}
 
-	private async _findHealthyInstance(
-		instances: unknown,
-		serviceName: ServiceId
-	): Promise<ServiceInstance | null> {
-		const list = Array.isArray(instances)
-			? (instances as ServiceInstance[])
-			: [instances as ServiceInstance];
-		for (const instance of list) {
-			if (instance) {
-				const isHealthy = await this._healthChecker.isHealthy(instance);
-				if (isHealthy) {
-					await this._serviceCache.set({
-						serviceName: toServiceId(serviceName),
-						instance,
-					});
-					return instance;
-				}
-			}
-		}
-		return null;
-	}
-
 	async findAllServices(serviceName: ServiceId): Promise<ServiceInstance[]> {
 		try {
 			const instances = await this._httpClient.get<ServiceInstance[]>(
@@ -146,8 +116,11 @@ export class ServiceResolver {
 				{ timeoutMs: this._discoveryTimeoutMs }
 			);
 			return instances ?? [];
-		} catch {
-			return [];
+		} catch (error) {
+			throw serviceUnreachableError(
+				`Unable to list instances of "${serviceName}"`,
+				{ cause: normalizeError(error) }
+			);
 		}
 	}
 }

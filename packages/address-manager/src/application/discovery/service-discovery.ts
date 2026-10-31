@@ -20,14 +20,12 @@ export interface ServiceDiscoveryDeps {
 
 export class ServiceDiscovery {
 	private readonly _serviceCache: IServiceCache;
-	private readonly _config: AddressManagerConfig;
 	private readonly _healthChecker: ServiceHealthChecker;
 	private readonly _resolver: ServiceResolver;
 	private readonly _connectionTracker: ConnectionTracker;
 
 	constructor(deps: ServiceDiscoveryDeps) {
 		this._serviceCache = deps.serviceCache;
-		this._config = deps.config;
 		this._healthChecker = deps.healthChecker;
 		this._resolver = new ServiceResolver(deps);
 		this._connectionTracker = new ConnectionTracker();
@@ -50,34 +48,14 @@ export class ServiceDiscovery {
 		return null;
 	}
 
-	private async _findFromCacheOrResolve(
-		serviceName: ServiceInstanceName,
-		region?: string
+	async findService(
+		serviceName: ServiceInstanceName
 	): Promise<ServiceInstance> {
 		const cached = await this._getHealthyCachedInstance(serviceName);
 		if (cached) {
 			return cached;
 		}
-		return region
-			? this._resolver.findServiceInRegion(toServiceId(serviceName), region)
-			: this._resolver.findService(toServiceId(serviceName));
-	}
-
-	findService(serviceName: ServiceInstanceName): Promise<ServiceInstance> {
-		if (this._config.identity.region) {
-			return this.findServiceInRegion(
-				serviceName,
-				this._config.identity.region
-			);
-		}
-		return this._findFromCacheOrResolve(serviceName);
-	}
-
-	findServiceInRegion(
-		serviceName: ServiceInstanceName,
-		region: string
-	): Promise<ServiceInstance> {
-		return this._findFromCacheOrResolve(serviceName, region);
+		return this._resolver.findService(toServiceId(serviceName));
 	}
 
 	acquireConnection(instanceId: InstanceId): void {

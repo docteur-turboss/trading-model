@@ -8,12 +8,6 @@ import { URLString } from "@trading-model/primitives/primitives";
 import type { ServiceIdentity } from "@trading-model/primitives/service-identity";
 import type { TokenManager } from "../../../application/client/token-manager";
 
-function isRejected<TValue>(
-	result: PromiseSettledResult<TValue>
-): result is PromiseRejectedResult {
-	return result.status === "rejected";
-}
-
 export class HeartbeatRefresher {
 	constructor(
 		private readonly _httpClient: HttpClient,
@@ -21,48 +15,25 @@ export class HeartbeatRefresher {
 		private readonly _identity: ServiceIdentity
 	) {}
 
-	async refresh(urls: URLString[]): Promise<void> {
-		if (urls.length === 1) {
-			await this._refreshSingleUrl(urls[0]);
-		} else {
-			await this._refreshMultipleUrls(urls);
-		}
-	}
-
-	private _buildHeartbeatPayload(): ServiceIdentity {
-		return this._identity;
+	/** Never concurrent with a token rotation (TokenManager.exclusive). */
+	refresh(url: URLString): Promise<void> {
+		return this._tokenManager.exclusive(() => this._sendHeartbeat(url));
 	}
 
 	private async _sendHeartbeat(url: URLString): Promise<void> {
-		await this._httpClient.post(
-			URLString.of(`${url}/heartbeat`),
-			this._buildHeartbeatPayload(),
-			{
-				headers: {
-					[HTTP_HEADERS.X_INSTANCE_TOKEN]: this._tokenManager.getToken(),
-				},
-			}
-		);
-	}
-
-	private async _refreshSingleUrl(url: URLString): Promise<void> {
 		try {
-			await this._sendHeartbeat(url);
+			await this._httpClient.post(
+				URLString.of(`${url}/heartbeat`),
+				this._identity,
+				{
+					headers: {
+						[HTTP_HEADERS.X_INSTANCE_TOKEN]: this._tokenManager.getToken(),
+					},
+				}
+			);
 		} catch (error) {
 			throw addressManagerError("Failed to refresh service TTL", {
 				cause: normalizeError(error),
-			});
-		}
-	}
-
-	private async _refreshMultipleUrls(urls: URLString[]): Promise<void> {
-		const results = await Promise.allSettled(
-			urls.map((url) => this._sendHeartbeat(url))
-		);
-		const failures = results.filter(isRejected);
-		if (failures.length === results.length) {
-			throw addressManagerError("Failed to refresh service TTL", {
-				cause: normalizeError((failures[0] as PromiseRejectedResult).reason),
 			});
 		}
 	}

@@ -38,22 +38,6 @@ export class RedisCacheOperations {
 		}
 	}
 
-	async getVersion(serviceName: ServiceId, region?: string): Promise<number> {
-		try {
-			const raw = await this._redis.get(this._cacheKey(serviceName, region));
-			if (!raw) {
-				return 0;
-			}
-			const parsed = JSON.parse(raw);
-			if (parsed && typeof parsed.version === "number") {
-				return parsed.version;
-			}
-			return 0;
-		} catch {
-			return 0;
-		}
-	}
-
 	async delete(serviceName: ServiceId, region?: string): Promise<void> {
 		try {
 			await this._redis.del(this._cacheKey(serviceName, region));
@@ -78,7 +62,10 @@ export class RedisCacheOperations {
 	private _parseCacheEntry(raw: string): ServiceInstance | null {
 		try {
 			return JSON.parse(raw) as ServiceInstance;
-		} catch {
+		} catch (err) {
+			logger.warn("Discarding corrupt service cache entry", {
+				error: normalizeError(err),
+			});
 			return null;
 		}
 	}

@@ -1,3 +1,4 @@
+import { normalizeServiceName } from "@trading-model/common/utils/spiffe";
 import {
 	type ServiceId,
 	toServiceId,
@@ -8,12 +9,17 @@ import type { DnsResolver } from "../../domain/discovery/dns-resolver";
 export class MapResolver implements ServiceLocator {
 	constructor(private readonly _dnsMap: Record<ServiceId, string>) {}
 
+	// Unmapped names fall back to the canonical service name, which is the DNS
+	// name in compose and K8s (e.g. message-delivery-service → message-manager).
 	locate(instance: ServiceInstance): string {
-		return this._dnsMap[instance.serviceName] ?? instance.serviceName;
+		return (
+			this._dnsMap[instance.serviceName] ??
+			normalizeServiceName(instance.serviceName)
+		);
 	}
 
 	resolve(serviceName: ServiceId): string {
-		return this._dnsMap[serviceName] ?? serviceName;
+		return this._dnsMap[serviceName] ?? normalizeServiceName(serviceName);
 	}
 }
 
@@ -45,11 +51,11 @@ export interface ServiceLocator {
  */
 export class ServiceNameLocator implements ServiceLocator {
 	locate(instance: ServiceInstance): string {
-		return instance.serviceName;
+		return normalizeServiceName(instance.serviceName);
 	}
 
 	resolve(serviceName: ServiceId): string {
-		return serviceName;
+		return normalizeServiceName(serviceName);
 	}
 }
 

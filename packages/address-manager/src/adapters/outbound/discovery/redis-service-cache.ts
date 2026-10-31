@@ -1,5 +1,10 @@
+import { normalizeError } from "@trading-model/common/utils/errors";
+import { logger } from "@trading-model/http/infrastructure/logger";
 import type { ConnectionManager } from "@trading-model/persistence/connection-manager";
-import { createRedisConnectionManager } from "@trading-model/persistence/redis-connection-manager";
+import {
+	createRedisConnectionManager,
+	type RedisConnectionConfig,
+} from "@trading-model/persistence/redis-connection-manager";
 import {
 	DurationMs,
 	type ServiceId,
@@ -19,7 +24,8 @@ import { RedisCircuitStateStore } from "./redis-circuit-state-store";
 export interface RedisServiceCacheOptions extends Partial<RedisOptions> {}
 
 export interface RedisCacheConfig {
-	redisUrl: string;
+	/** A URL, or the sentinel configuration of `redisConnectionFromEnv`. */
+	connection: string | RedisConnectionConfig;
 	prefix?: string;
 	ttlMs?: DurationMs;
 	cacheOptions?: RedisServiceCacheOptions;
@@ -33,7 +39,7 @@ export class RedisServiceCache implements IServiceCache {
 
 	constructor(config: RedisCacheConfig) {
 		const {
-			redisUrl,
+			connection,
 			prefix = "discovery:cache:",
 			ttlMs = DurationMs.of(5000),
 			cacheOptions,
@@ -43,7 +49,7 @@ export class RedisServiceCache implements IServiceCache {
 			ttlSec: Math.max(1, Math.ceil(ttlMs / 1000)),
 		};
 		this._connectionManager = createRedisConnectionManager(
-			redisUrl,
+			connection,
 			cacheOptions
 		);
 	}
@@ -71,11 +77,6 @@ export class RedisServiceCache implements IServiceCache {
 	): Promise<ServiceInstance | null> {
 		await this._ensureReady();
 		return this._cacheOps!.get(serviceName, region);
-	}
-
-	async getVersion(serviceName: ServiceId, region?: string): Promise<number> {
-		await this._ensureReady();
-		return this._cacheOps!.getVersion(serviceName, region);
 	}
 
 	async set(entry: CacheSetEntry): Promise<void> {
@@ -126,6 +127,10 @@ export class RedisServiceCache implements IServiceCache {
 	}
 
 	close(): void {
-		this._connectionManager.close().catch(() => {});
+		this._connectionManager.close().catch((err) => {
+			logger.warn("Failed to close service cache Redis connection", {
+				error: normalizeError(err),
+			});
+		});
 	}
 }

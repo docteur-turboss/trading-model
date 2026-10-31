@@ -4,6 +4,21 @@ import { PositiveInt } from "@trading-model/primitives/primitives";
 import type { ServiceClientDeps } from "./types";
 
 const MAX_HEARTBEAT_FAILURES_BEFORE_RE_REGISTER = PositiveInt.of(3);
+const HTTP_UNAUTHORIZED = 401;
+
+/** True when the error, or one of its causes, is an HTTP 401 response. */
+function _isRejectedToken(err: unknown): boolean {
+	let current: unknown = err;
+	for (let depth = 0; current && depth < 5; depth++) {
+		if (
+			(current as { statusCode?: unknown }).statusCode === HTTP_UNAUTHORIZED
+		) {
+			return true;
+		}
+		current = (current as { cause?: unknown }).cause;
+	}
+	return false;
+}
 
 export class HeartbeatFailureHandler {
 	private _consecutiveHeartbeatFailures = 0;
@@ -21,9 +36,12 @@ export class HeartbeatFailureHandler {
 			consecutiveFailures: this._consecutiveHeartbeatFailures,
 			error: normalizeError(err),
 		});
+		// 401: discovery no longer knows our token (it restarted and lost its
+		// in-memory tokens). Retrying the heartbeat cannot succeed: re-register now.
 		if (
+			_isRejectedToken(err) ||
 			this._consecutiveHeartbeatFailures >=
-			MAX_HEARTBEAT_FAILURES_BEFORE_RE_REGISTER
+				MAX_HEARTBEAT_FAILURES_BEFORE_RE_REGISTER
 		) {
 			this._consecutiveHeartbeatFailures = 0;
 			await this._forceReRegistration(onSuccess);

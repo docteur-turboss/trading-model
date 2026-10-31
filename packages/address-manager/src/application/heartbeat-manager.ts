@@ -11,7 +11,11 @@ export class HeartbeatManager implements IHeartbeatSender {
 
 	constructor(deps: ServiceClientDeps) {
 		this._addressManagerClient = deps.addressManagerClient;
-		this._onSuccess = deps.onSuccess ?? (() => {});
+		this._onSuccess =
+			deps.onSuccess ??
+			(() => {
+				// Intentional no-op.
+			});
 		this._failureHandler = new HeartbeatFailureHandler(deps);
 	}
 

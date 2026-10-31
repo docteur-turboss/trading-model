@@ -84,5 +84,7 @@ export class CircuitBreakerPersistence {
 		}
 	}
 
-	clear(): void {}
+	clear(): void {
+		// Intentional no-op.
+	}
 }

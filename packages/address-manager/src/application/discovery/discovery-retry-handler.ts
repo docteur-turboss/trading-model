@@ -79,7 +79,7 @@ export class DiscoveryRetryHandler {
 		attempt: number;
 	}): Promise<ServiceInstance | null> {
 		const { instance, serviceName, startTime, attempt } = params;
-		this.circuitBreaker.loadFromStore(instance.instanceId).catch(() => {});
+		await this._syncCircuitState(instance);
 
 		if (!this.circuitBreaker.isOpen(instance.instanceId)) {
 			this._serviceDiscovery.acquireConnection(instance.instanceId);
@@ -95,6 +95,22 @@ export class DiscoveryRetryHandler {
 			await sleep(this._backoffDelay(attempt));
 		}
 		return null;
+	}
+
+	/**
+	 * Pulls the shared circuit state before `isOpen` is consulted, so an
+	 * instance tripped by another replica is not handed out. A store outage
+	 * degrades to the local state rather than blocking discovery.
+	 */
+	private async _syncCircuitState(instance: ServiceInstance): Promise<void> {
+		try {
+			await this.circuitBreaker.loadFromStore(instance.instanceId);
+		} catch (err) {
+			logger.warn("Circuit state store unavailable — using local state", {
+				instanceId: instance.instanceId,
+				error: this._captureError(err).message,
+			});
+		}
 	}
 
 	async fallbackToStaleCache(

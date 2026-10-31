@@ -27,12 +27,22 @@ export interface LifecycleManagerOptions {
 	healthChecker: ServiceHealthChecker;
 }
 
+export interface LifecycleHandle {
+	ready: Promise<void>;
+	stop: () => void;
+	/**
+	 * Stops heartbeats and unregisters, without closing the service cache:
+	 * other services can still be found. `stop` remains needed afterwards.
+	 */
+	leave: () => Promise<void>;
+}
+
 export class LifecycleManager {
 	private _started = false;
 
 	constructor(private readonly _options: LifecycleManagerOptions) {}
 
-	start(): { stop: () => void; ready: Promise<void> } {
+	start(): LifecycleHandle {
 		if (this._started) {
 			return this._returnExistingHandle();
 		}
@@ -47,6 +57,10 @@ export class LifecycleManager {
 		return {
 			ready: registrationPromise,
 			stop: this._createStopHandler(steadyState),
+			leave: async () => {
+				steadyState.stop();
+				await this._options.shutdownHandler.leaveRegistry();
+			},
 		};
 	}
 
@@ -77,13 +91,14 @@ export class LifecycleManager {
 		});
 	}
 
-	private _returnExistingHandle(): { stop: () => void; ready: Promise<void> } {
+	private _returnExistingHandle(): LifecycleHandle {
 		logger.warn("AddressManager already started — returning existing handle");
 		return {
 			ready: Promise.resolve(),
 			stop: () => {
 				this._options.shutdownHandler.shutdown();
 			},
+			leave: () => this._options.shutdownHandler.leaveRegistry(),
 		};
 	}
 
