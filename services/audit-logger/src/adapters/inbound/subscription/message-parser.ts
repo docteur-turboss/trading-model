@@ -24,7 +24,7 @@ interface MessageMetadata {
 
 interface INcomingEnvelope {
 	message?: { metadata: MessageMetadata; payload: unknown };
-	context?: { deliveryAttempt: SequenceNumber; consumerGroup: string };
+	context?: { deliveryAttempt: SequenceNumber };
 	metadata?: MessageMetadata;
 	payload?: unknown;
 }
