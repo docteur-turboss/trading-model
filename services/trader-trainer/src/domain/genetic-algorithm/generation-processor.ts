@@ -5,6 +5,7 @@ import { type GaTelemetry, NoopGaTelemetry } from "./ga-telemetry";
 import type { GARunnerConfig, GenerationContext } from "./generation-types";
 import type { GAControlGenome, LamarckGenome, PopMember } from "./genome-types";
 import { selectElites } from "./offspring-factory";
+import type { ArchiveBest } from "./pareto";
 import { buildParetoFronts, sortPopulation } from "./pareto-processor";
 import {
 	buildNextPopulation,
@@ -44,8 +45,12 @@ export class GenerationProcessor {
 	getArchiveMembers(): DeepReadonly<LamarckGenome>[] {
 		return this._evaluator.getArchiveMembers();
 	}
+	/** Front member with the highest fitness: the genome a run publishes. */
+	get archiveBest(): ArchiveBest | undefined {
+		return this._evaluator.getArchiveBest();
+	}
 	get lastBestGenome(): DeepReadonly<LamarckGenome> | undefined {
-		return this.getArchiveMembers()[0];
+		return this.archiveBest?.genome;
 	}
 	get bestFitness(): number {
 		return this._evaluator.getBestFitness();

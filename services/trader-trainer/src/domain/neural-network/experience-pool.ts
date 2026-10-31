@@ -39,12 +39,18 @@ const PRIORITY_EPSILON = 1e-6;
 const DEFAULT_BETA_ANNEAL_RATE = 1e-4;
 
 const DISABLED_POOL: IExperiencePool = {
-	add: () => {},
+	add: () => {
+		// Intentional no-op.
+	},
 	getPool: () => [],
 	getPoolSize: () => 0,
 	samplePool: () => [],
-	clearPool: () => {},
-	remove: () => {},
+	clearPool: () => {
+		// Intentional no-op.
+	},
+	remove: () => {
+		// Intentional no-op.
+	},
 	values: () => new Map().values(),
 };
 
@@ -61,7 +67,9 @@ class ExperiencePool implements IExperiencePool {
 	}
 
 	/** Hook for subclasses keeping per-experience state keyed by pool id. */
-	protected _onRemoved(_id: number): void {}
+	protected _onRemoved(_id: number): void {
+		// Intentional no-op.
+	}
 
 	private _evictOldest(): void {
 		const firstKey = this._firstMapKey();

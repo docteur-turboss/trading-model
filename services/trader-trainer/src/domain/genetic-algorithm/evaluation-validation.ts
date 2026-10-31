@@ -1,3 +1,4 @@
+import type { EvaluationPnl } from "./evaluation-phase";
 import type { WindowSet } from "./generation-types";
 import type { LamarckGenome } from "./genome-types";
 import type { DeepReadonly } from "./shared-types";
@@ -27,15 +28,11 @@ export function validateGenomeInputs(
 	);
 }
 
-export function validateEvalResult(result: {
-	rawScores: number[];
-	finalPnL: number;
-}): void {
-	invariant(
-		Number.isFinite(result.finalPnL),
-		`finalPnL must be finite, got ${result.finalPnL}`
-	);
-	for (const score of result.rawScores) {
-		invariant(Number.isFinite(score), `rawScore must be finite, got ${score}`);
+export function validateEvalResult(result: EvaluationPnl): void {
+	for (const pnl of result.episodePnl) {
+		invariant(Number.isFinite(pnl), `episode PnL must be finite, got ${pnl}`);
+	}
+	for (const delta of result.pnlCurve) {
+		invariant(Number.isFinite(delta), `bar PnL must be finite, got ${delta}`);
 	}
 }

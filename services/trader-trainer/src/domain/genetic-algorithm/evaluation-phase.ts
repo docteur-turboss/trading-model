@@ -1,6 +1,4 @@
-import { NormalizationStats } from "../normalization-stats";
 import type { LamarckGenome, MarketStep } from "./genome-types";
-import { _stepAndShapeReward, type StepRewardContext } from "./reward-shaping";
 import type { BackendFactory, RLBackend } from "./rl-backend";
 import type { DeepReadonly } from "./shared-types";
 
@@ -10,64 +8,91 @@ export interface GenomeEvaluationContext {
 	backendFactory: BackendFactory;
 }
 
-function _runEvalEpisode(ctx: GenomeEvaluationContext): number {
+/**
+ * PnL of an evaluation, read from the wallet, never from the shaped reward:
+ * the reward-shaping genes would otherwise let a genome rescale its own score.
+ */
+export interface EvaluationPnl {
+	/** Final PnL of each evaluation episode. */
+	episodePnl: number[];
+	/**
+	 * PnL change of every validation bar, episodes one after the other. A bar
+	 * skipped by frameSkip counts 0: its price move lands on the next decision.
+	 */
+	pnlCurve: number[];
+}
+
+export interface EvaluationResult extends EvaluationPnl {
+	updatedGenome: DeepReadonly<LamarckGenome>;
+}
+
+/**
+ * Exploration while evaluating: a small fixed epsilon (the usual DQN
+ * evaluation protocol), not the training schedule, which starts at
+ * `epsilonStart` (1.0 by default) and would score mostly random trades. It
+ * stays above 0 so the episodes differ and measure how robust the policy is.
+ */
+export const EVAL_EPSILON = 0.05;
+
+/** The genome as evaluated: same weights and policy, evaluation exploration. */
+export function evaluationGenome(
+	genome: DeepReadonly<LamarckGenome>
+): DeepReadonly<LamarckGenome> {
+	return {
+		...genome,
+		rl: {
+			...genome.rl,
+			discretePolicy: {
+				...genome.rl.discretePolicy,
+				epsilonStart: EVAL_EPSILON,
+				epsilonMin: EVAL_EPSILON,
+			},
+		},
+	} as DeepReadonly<LamarckGenome>;
+}
+
+/**
+ * One episode over the whole validation window, whatever the genome's
+ * maxEpisodeLength (a training horizon): every genome is judged on the same
+ * bars.
+ */
+function _runEvalEpisode(
+	ctx: GenomeEvaluationContext,
+	pnlCurve: number[]
+): number {
 	const { genome, validationData, backendFactory } = ctx;
-	const backend = backendFactory(genome);
-	const rShape = genome.rl.rewardShaping;
-	const horizon = genome.rl.horizon;
-	const runStats = new NormalizationStats();
-	let epReward = 0;
+	const backend = backendFactory(evaluationGenome(genome));
+	const frameSkip = genome.rl.horizon.frameSkip;
+	const startPnl = Number(backend.getPnL());
+	let lastPnl = startPnl;
 
-	const maxT = Math.min(validationData.length, horizon.maxEpisodeLength);
-
-	for (let index = 0; index < maxT; index++) {
-		if (index % horizon.frameSkip !== 0) {
+	for (let index = 0; index < validationData.length; index++) {
+		if (index % frameSkip !== 0) {
+			pnlCurve.push(0);
 			continue;
 		}
-		const stepCtx: StepRewardContext = {
-			backend,
-			step: validationData[index],
-			rShape,
-			runStats,
-		};
-		epReward += _stepAndShapeReward(stepCtx);
+		_step(backend, validationData[index]);
+		const pnl = Number(backend.getPnL());
+		pnlCurve.push(pnl - lastPnl);
+		lastPnl = pnl;
 	}
 
-	return _finalizeEpisodeReward(backend, rShape, epReward);
-}
-
-function _finalizeEpisodeReward(
-	backend: RLBackend,
-	rShape: DeepReadonly<LamarckGenome["rl"]["rewardShaping"]>,
-	epReward: number
-): number {
-	if (rShape.sparse) {
-		epReward = Number(backend.getPnL());
-	}
 	backend.resetEpisode();
-	return epReward;
+	return lastPnl - startPnl;
 }
 
-export interface EvaluationResult {
-	updatedGenome: DeepReadonly<LamarckGenome>;
-	rawScores: number[];
-	finalPnL: number;
+function _step(backend: RLBackend, step: MarketStep): void {
+	backend.step({ features: step.features, price: step.price });
 }
 
-export function evalPhase(ctx: GenomeEvaluationContext): {
-	rawScores: number[];
-	finalPnL: number;
-} {
+export function evalPhase(ctx: GenomeEvaluationContext): EvaluationPnl {
 	const numEpisodes = ctx.genome.gaControl.evaluation.episodesPerIndividual;
-	const rawScores: number[] = [];
+	const episodePnl: number[] = [];
+	const pnlCurve: number[] = [];
 
 	for (let ep = 0; ep < numEpisodes; ep++) {
-		rawScores.push(_runEvalEpisode(ctx));
+		episodePnl.push(_runEvalEpisode(ctx, pnlCurve));
 	}
 
-	return {
-		rawScores,
-		finalPnL:
-			rawScores.reduce((sum, value) => sum + value, 0) / rawScores.length,
-	};
+	return { episodePnl, pnlCurve };
 }

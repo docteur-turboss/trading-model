@@ -42,8 +42,6 @@ export class GeneticAlgorithmRunner {
 	}
 
 	private _bestGenome(): DeepReadonly<LamarckGenome> {
-		return (
-			this.processor.getArchiveMembers()[0] ?? this.processor.population[0]
-		);
+		return this.processor.lastBestGenome ?? this.processor.population[0];
 	}
 }

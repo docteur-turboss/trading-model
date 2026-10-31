@@ -4,12 +4,9 @@ import type {
 	PositiveInt,
 	Probability,
 } from "@trading-model/primitives/primitives";
-import type { NoiseStd } from "@trading-model/primitives/primitives/noise-std";
-import type { Temperature } from "@trading-model/primitives/primitives/temperature";
 import { crossoverScalar } from "../crossover/strategies";
 import type { CrossoverGenome } from "../genome-control";
 import type {
-	ContinuousPolicyGenome,
 	DiscretePolicyGenome,
 	HorizonGenome,
 	ReplayBufferGenome,
@@ -74,29 +71,6 @@ function crossoverDiscretePolicy(ctx: {
 			left.epsilonDecay,
 			right.epsilonDecay
 		) as Probability,
-		temperature: crossoverFn(
-			left.temperature,
-			right.temperature
-		) as Temperature,
-	};
-}
-
-function crossoverContinuousPolicy(ctx: {
-	left: ContinuousPolicyGenome;
-	right: ContinuousPolicyGenome;
-	crossoverFn: (valueA: number, valueB: number) => number;
-	rng: () => number;
-}): ContinuousPolicyGenome {
-	const { left, right, crossoverFn, rng } = ctx;
-	return {
-		type: rng() < 0.5 ? left.type : right.type,
-		clipBounds: (() => {
-			const lo = crossoverFn(left.clipBounds.lo, right.clipBounds.lo);
-			const hi = crossoverFn(left.clipBounds.hi, right.clipBounds.hi);
-			return new NumericRange(Math.min(lo, hi - 1e-6), Math.max(hi, lo + 1e-6));
-		})(),
-		noiseStd: crossoverFn(left.noiseStd, right.noiseStd) as NoiseStd,
-		noiseDecay: crossoverFn(left.noiseDecay, right.noiseDecay) as Probability,
 	};
 }
 
@@ -115,6 +89,9 @@ function crossoverReplayBuffer(ctx: {
 		alphaPER: crossoverFn(left.alphaPER, right.alphaPER) as Probability,
 		betaPER: crossoverFn(left.betaPER, right.betaPER) as Probability,
 		betaAnneal: rng() < 0.5 ? left.betaAnneal : right.betaAnneal,
+		batchSize: Math.round(
+			crossoverFn(left.batchSize, right.batchSize)
+		) as PositiveInt,
 	};
 }
 
@@ -156,9 +133,6 @@ export function crossoverRL(ctx: {
 		horizon: crossoverHorizon(section(left.horizon, right.horizon)),
 		discretePolicy: crossoverDiscretePolicy(
 			section(left.discretePolicy, right.discretePolicy)
-		),
-		continuousPolicy: crossoverContinuousPolicy(
-			section(left.continuousPolicy, right.continuousPolicy)
 		),
 		replayBuffer: crossoverReplayBuffer(
 			section(left.replayBuffer, right.replayBuffer)

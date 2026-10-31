@@ -11,7 +11,13 @@ export interface GaTelemetry {
 }
 
 export const NoopGaTelemetry: GaTelemetry = {
-	generationStarted: () => {},
-	stagnationUpdated: () => {},
-	evaluationFailed: () => {},
+	generationStarted: () => {
+		// Intentional no-op.
+	},
+	stagnationUpdated: () => {
+		// Intentional no-op.
+	},
+	evaluationFailed: () => {
+		// Intentional no-op.
+	},
 };

@@ -1,15 +1,23 @@
 import { NumericRange } from "@trading-model/primitives/numeric-range";
 import type {
-	NoiseStd,
 	Percentage,
 	PositiveInt,
 	Probability,
-	Temperature,
 } from "@trading-model/primitives/primitives";
 import type { MutationGenome } from "../genome-mutation";
 import { sampleGaussian, sampleNoise } from "../noise";
 import { clamp } from "../utils";
-import type { RLGenome, RLScalars } from "./types";
+import { MaxBatchSize, type RLGenome, type RLScalars } from "./types";
+
+/**
+ * Chance that a mutation flips a boolean gene: without it the switches keep
+ * their default forever (crossover only swaps values the parents share).
+ */
+const BooleanFlipRate = 0.05;
+
+function _maybeFlip(value: boolean, rng: () => number): boolean {
+	return rng() < BooleanFlipRate ? !value : value;
+}
 
 export interface MutateRLContext {
 	rl: RLGenome;
@@ -79,6 +87,10 @@ function _mutateRewardShaping(
 				0.01,
 				perturb(rl.rewardShaping.scaleFactor, 0.1)
 			) as Percentage,
+			clip: _maybeFlip(rl.rewardShaping.clip, rng),
+			scale: _maybeFlip(rl.rewardShaping.scale, rng),
+			normalize: _maybeFlip(rl.rewardShaping.normalize, rng),
+			sparse: _maybeFlip(rl.rewardShaping.sparse, rng),
 		},
 	};
 }
@@ -148,32 +160,6 @@ function _mutateDiscretePolicy(
 				0.9,
 				0.9999
 			) as Probability,
-			temperature: Math.max(
-				0.01,
-				perturb(rl.discretePolicy.temperature, 0.1)
-			) as unknown as Temperature,
-		},
-	};
-}
-
-function _mutateContinuousPolicy(
-	rl: RLGenome,
-	mutation: MutationGenome,
-	rng: () => number
-): Pick<RLGenome, "continuousPolicy"> {
-	const perturb = _perturbFn(mutation, rng);
-	return {
-		continuousPolicy: {
-			...rl.continuousPolicy,
-			noiseStd: Math.max(
-				0.001,
-				perturb(rl.continuousPolicy.noiseStd, 0.02)
-			) as unknown as NoiseStd,
-			noiseDecay: clamp(
-				perturb(rl.continuousPolicy.noiseDecay, 0.001),
-				0.9,
-				0.9999
-			) as Probability,
 		},
 	};
 }
@@ -208,6 +194,15 @@ function _mutateReplayBuffer(
 				0,
 				1
 			) as Probability,
+			prioritized: _maybeFlip(rl.replayBuffer.prioritized, rng),
+			betaAnneal: _maybeFlip(rl.replayBuffer.betaAnneal, rng),
+			batchSize: Math.round(
+				clamp(
+					rl.replayBuffer.batchSize * Math.exp(sampleGaussian(rng, 0.3)),
+					1,
+					MaxBatchSize
+				)
+			) as PositiveInt,
 		},
 	};
 }
@@ -219,7 +214,6 @@ export function mutateRL(ctx: MutateRLContext): RLGenome {
 		..._mutateRewardShaping(rl, mutation, rng),
 		..._mutateHorizon(rl, mutation, rng),
 		..._mutateDiscretePolicy(rl, mutation, rng),
-		..._mutateContinuousPolicy(rl, mutation, rng),
 		..._mutateReplayBuffer(rl, mutation, rng),
 	};
 }

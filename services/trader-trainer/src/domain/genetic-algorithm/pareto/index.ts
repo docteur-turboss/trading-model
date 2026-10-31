@@ -1,3 +1,4 @@
+export type { ArchiveBest, ArchiveScore } from "./archive";
 export { ParetoArchive } from "./archive";
 export type { ObjectiveVector } from "./domination";
 export { dominates } from "./domination";

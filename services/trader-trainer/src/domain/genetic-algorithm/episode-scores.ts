@@ -58,28 +58,28 @@ export class EpisodeScores {
 		return std < 1e-10 ? mean : mean / std;
 	}
 
+	/**
+	 * Mean over downside deviation, the deviation taken over every score (a
+	 * gain counts 0). Without any loss it falls back to the mean, like
+	 * {@link sharpe} without variance, instead of dividing by ~0.
+	 */
 	sortino(): number {
 		if (this._scores.length < 2) {
 			return 0;
 		}
 		const mean = this.mean();
-		const negReturns = this._scores.filter((value) => value < 0);
-		const downDev =
-			negReturns.length === 0
-				? 1e-10
-				: Math.sqrt(
-						negReturns
-							.map((value) => value ** 2)
-							.reduce((sum, value) => sum + value, 0) / negReturns.length
-					);
-		return mean / downDev;
+		const downDev = Math.sqrt(
+			this._scores.reduce((sum, value) => sum + Math.min(0, value) ** 2, 0) /
+				this._scores.length
+		);
+		return downDev < 1e-10 ? mean : mean / downDev;
 	}
 
-	calmar(): number {
-		if (this._scores.length === 0) {
-			return 0;
-		}
-		const mean = this.mean();
+	/**
+	 * Largest fall of the cumulative score from its previous peak, in score
+	 * units (episode PnL), counted from the first episode. 0 without a fall.
+	 */
+	maxDrawdown(): number {
 		let maxDD = 0;
 		let peak = Number.NEGATIVE_INFINITY;
 		let running = 0;
@@ -93,6 +93,15 @@ export class EpisodeScores {
 				maxDD = dd;
 			}
 		}
+		return maxDD;
+	}
+
+	calmar(): number {
+		if (this._scores.length === 0) {
+			return 0;
+		}
+		const mean = this.mean();
+		const maxDD = this.maxDrawdown();
 		return maxDD < 1e-10 ? mean : mean / maxDD;
 	}
 

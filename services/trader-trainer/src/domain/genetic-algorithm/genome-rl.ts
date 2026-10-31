@@ -1,5 +1,4 @@
 export {
-	createContinuousPolicyGenome,
 	createDiscretePolicyGenome,
 	createHorizonGenome,
 	createReplayBufferGenome,
@@ -11,8 +10,4 @@ export type {
 	RewardShapingGenome,
 	RLGenome,
 } from "./genome-rl/types";
-export {
-	ContinuousPolicyType,
-	repairRL,
-	validateRL,
-} from "./genome-rl/types";
+export { repairRL, validateRL } from "./genome-rl/types";

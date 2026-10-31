@@ -12,7 +12,6 @@ import {
 } from "./genome-network";
 import type { RLGenome } from "./genome-rl";
 import {
-	createContinuousPolicyGenome,
 	createDiscretePolicyGenome,
 	createHorizonGenome,
 	createReplayBufferGenome,
@@ -43,12 +42,13 @@ interface GenomeSection<TValue> {
 
 function createRLGenome(): RLGenome {
 	return {
-		gamma: Probability.of(0.99),
+		// 0.9: over 24 seeded markets, 0.99 learned in 14 of them, 0.9 in 19
+		// (ADR-0025); the GA still evolves it within [0.8, 0.9999].
+		gamma: Probability.of(0.9),
 		learningRate: Percentage.of(1e-3),
 		rewardShaping: createRewardShapingGenome(),
 		horizon: createHorizonGenome(),
 		discretePolicy: createDiscretePolicyGenome(),
-		continuousPolicy: createContinuousPolicyGenome(),
 		replayBuffer: createReplayBufferGenome(),
 	};
 }

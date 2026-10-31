@@ -3,16 +3,20 @@ import {
 	PositiveInt,
 	Ratio,
 } from "@trading-model/primitives/primitives";
-import { computeAvgPnl } from "../genome-summary-builder";
 import {
 	computeAdjustedFitness,
 	estimateComplexity,
 } from "./complexity-estimator";
 import { EpisodeScores } from "./episode-scores";
+import type { EvaluationPnl } from "./evaluation-phase";
 import type { GenomeFitnessMeta } from "./genome";
-import type { LamarckGenome } from "./genome-types";
+import { FitnessType } from "./genome-control";
+import type { LamarckGenome, MarketStep } from "./genome-types";
 import type { RLBackend } from "./rl-backend";
 import type { DeepReadonly } from "./shared-types";
+
+/** Fitness of a genome whose evaluation threw: below any real score. */
+export const FAILED_FITNESS = -1e9;
 
 export function lamarckianUpdate(
 	genome: DeepReadonly<LamarckGenome>,
@@ -25,15 +29,59 @@ export function lamarckianUpdate(
 	} as DeepReadonly<LamarckGenome>;
 }
 
-function computeFitness(scores: number[]): number {
-	return computeAvgPnl(scores);
+type FitnessFn = (episodes: EpisodeScores, curve: EpisodeScores) => number;
+
+/**
+ * Total PnL averages the episodes; the risk ratios read the bar-by-bar PnL
+ * curve, which has one point per validation bar instead of one per episode.
+ */
+const FITNESS_STRATEGIES: Record<FitnessType, FitnessFn> = {
+	[FitnessType.TotalPnl]: (episodes) => episodes.mean(),
+	[FitnessType.Sharpe]: (_episodes, curve) => curve.sharpe(),
+	[FitnessType.Sortino]: (_episodes, curve) => curve.sortino(),
+	[FitnessType.Calmar]: (_episodes, curve) => curve.calmar(),
+	[FitnessType.Composite]: (_episodes, curve) => curve.composite(),
+};
+
+/** Scalar fitness of an evaluation under the run's fitness type. */
+export function computeFitness(type: FitnessType, pnl: EvaluationPnl): number {
+	if (pnl.episodePnl.length === 0) {
+		return 0;
+	}
+	return FITNESS_STRATEGIES[type](
+		new EpisodeScores(pnl.episodePnl),
+		new EpisodeScores(pnl.pnlCurve)
+	);
 }
 
-export interface ComputeAllResultsContext {
-	genome: DeepReadonly<LamarckGenome>;
+const MS_PER_YEAR = 365.25 * 24 * 3_600_000;
+
+/**
+ * Bars per year of the evaluated market data, from the median spacing of the
+ * validation timestamps; undefined without at least two timestamped bars.
+ */
+export function barsPerYear(steps: readonly MarketStep[]): number | undefined {
+	const gaps: number[] = [];
+	for (let idx = 1; idx < steps.length; idx++) {
+		const prev = steps[idx - 1].timestamp;
+		const curr = steps[idx].timestamp;
+		if (prev !== undefined && curr !== undefined && curr > prev) {
+			gaps.push(curr - prev);
+		}
+	}
+	if (gaps.length === 0) {
+		return;
+	}
+	gaps.sort((left, right) => left - right);
+	return MS_PER_YEAR / gaps[Math.floor(gaps.length / 2)];
+}
+
+export interface ComputeAllResultsContext extends EvaluationPnl {
 	currentGenome: DeepReadonly<LamarckGenome>;
-	allRaw: number[];
-	allPnL: number[];
+	/** Annualises the published ratios; fitness itself stays per bar. */
+	barsPerYear?: number;
+	/** An evaluation threw: the genome gets {@link FAILED_FITNESS}. */
+	failed: boolean;
 	t0: number;
 }
 
@@ -42,55 +90,48 @@ export function computeAllResults(ctx: ComputeAllResultsContext): {
 	meta: GenomeFitnessMeta;
 	objectives: { avgPnl: number; sharpe: number; negFlops: number };
 } {
-	const { genome, currentGenome, allRaw, allPnL, t0 } = ctx;
+	const { currentGenome, failed, t0 } = ctx;
 	const complexity = estimateComplexity(currentGenome);
-	const adjFitness = _computeAdjustedFitnessForGenome(
-		genome,
-		currentGenome,
-		allRaw,
-		complexity
-	);
+	const adjFitness = failed
+		? FAILED_FITNESS
+		: computeAdjustedFitness(
+				computeFitness(currentGenome.gaControl.fitnessType, ctx),
+				complexity,
+				0.15
+			);
 
 	return {
 		updatedGenome: currentGenome,
-		meta: _buildFitnessMeta(allRaw, adjFitness, t0),
-		objectives: _buildObjectives(allPnL, allRaw, complexity),
+		meta: _buildFitnessMeta(ctx, adjFitness, t0),
+		objectives: _buildObjectives(ctx, failed, complexity),
 	};
 }
 
-function _computeAdjustedFitnessForGenome(
-	_genome: DeepReadonly<LamarckGenome>,
-	_currentGenome: DeepReadonly<LamarckGenome>,
-	allRaw: number[],
-	complexity: ReturnType<typeof estimateComplexity>
-): number {
-	const fitness = computeFitness(allRaw);
-	return computeAdjustedFitness(fitness, complexity, 0.15);
-}
-
 function _buildFitnessMeta(
-	allRaw: number[],
+	pnl: ComputeAllResultsContext,
 	adjFitness: number,
 	t0: number
 ): GenomeFitnessMeta {
-	const scores = new EpisodeScores(allRaw);
+	const scores = new EpisodeScores(pnl.episodePnl);
 	return {
 		episodesRun: PositiveInt.of(Math.max(1, scores.length)),
 		computeMs: DurationMs.of(Date.now() - t0),
 		efficiencyScore: Ratio.of(Number.isFinite(adjFitness) ? adjFitness : 0),
 		variance: scores.variance(),
 		rawScores: scores,
+		pnlCurve: new EpisodeScores(pnl.pnlCurve),
+		...(pnl.barsPerYear === undefined ? {} : { barsPerYear: pnl.barsPerYear }),
 	};
 }
 
 function _buildObjectives(
-	allPnL: number[],
-	allRaw: number[],
+	pnl: EvaluationPnl,
+	failed: boolean,
 	complexity: { inferenceFLOPs: number }
 ): { avgPnl: number; sharpe: number; negFlops: number } {
 	return {
-		avgPnl: allPnL.reduce((sum, value) => sum + value, 0) / allPnL.length,
-		sharpe: new EpisodeScores(allRaw).sharpe(),
+		avgPnl: failed ? FAILED_FITNESS : new EpisodeScores(pnl.episodePnl).mean(),
+		sharpe: failed ? FAILED_FITNESS : new EpisodeScores(pnl.pnlCurve).sharpe(),
 		negFlops: -complexity.inferenceFLOPs,
 	};
 }

@@ -34,4 +34,3 @@ export type {
 	RewardShapingGenome,
 	RLGenome,
 } from "./genome-rl";
-export { ContinuousPolicyType } from "./genome-rl";

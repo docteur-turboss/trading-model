@@ -20,7 +20,12 @@ export interface GenomeFitnessMeta {
 	computeMs: DurationMs;
 	efficiencyScore: Ratio;
 	variance: number;
+	/** Final PnL of each evaluation episode. */
 	rawScores: EpisodeScores;
+	/** PnL change of every evaluation bar (risk ratios, drawdown). */
+	pnlCurve?: EpisodeScores;
+	/** Bars per year of the evaluated data: annualises the published ratios. */
+	barsPerYear?: number;
 }
 
 export interface Genome {
@@ -144,10 +149,17 @@ export function estimateComplexity(
 	};
 }
 
+/**
+ * Lowers the fitness by a share of its magnitude, so a costlier network ranks
+ * lower whatever the sign: scaling a negative fitness by (1 - penalty) would
+ * raise it and reward complexity.
+ */
 export function computeAdjustedFitness(
 	baseFitness: number,
 	complexity: ComplexityProfile,
 	lambdaPenalty = 0.15
 ): number {
-	return baseFitness * (1 - lambdaPenalty * complexity.penalty);
+	return (
+		baseFitness - Math.abs(baseFitness) * lambdaPenalty * complexity.penalty
+	);
 }

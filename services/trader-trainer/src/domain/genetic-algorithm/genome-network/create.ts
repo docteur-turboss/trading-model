@@ -1,4 +1,5 @@
 import { PositiveInt } from "@trading-model/primitives/primitives";
+import { NETWORK_INPUT_LAYOUT } from "../../agent/agent-state";
 import {
 	ActivationType,
 	ConnectionType,
@@ -26,7 +27,7 @@ function _createDefaultHiddenLayers(): NetworkGenome["hiddenLayers"] {
 
 export function createNetworkGenome(): NetworkGenome {
 	return {
-		inputDim: PositiveInt.of(32),
+		inputDim: PositiveInt.of(NETWORK_INPUT_LAYOUT.dim),
 		outputDim: PositiveInt.of(3),
 		hiddenLayers: _createDefaultHiddenLayers(),
 		normalization: NormalisationType.None,

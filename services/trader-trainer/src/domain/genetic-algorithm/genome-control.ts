@@ -39,6 +39,14 @@ export enum FitnessType {
 	Composite = "composite",
 }
 
+/**
+ * Episodes per evaluation stay within [MinAdaptiveEpisodes, MaxAdaptiveEpisodes]
+ * once adapted: fewer points make Sortino, Calmar and the drawdown unstable.
+ * A configured count below the floor is never lowered further.
+ */
+const MinAdaptiveEpisodes = 10;
+const MaxAdaptiveEpisodes = 30;
+
 interface GAPopulationConfig {
 	size: PositiveInt;
 	elitismFraction: Probability;
@@ -102,7 +110,7 @@ export function createGAControlGenome(): GAControlGenome {
 			networkSeed: 7,
 		},
 		evaluation: {
-			episodesPerIndividual: PositiveInt.of(3),
+			episodesPerIndividual: PositiveInt.of(MinAdaptiveEpisodes),
 			seedsPerEval: PositiveInt.of(2),
 		},
 		selectionType: SelectionType.Tournament,
@@ -152,10 +160,10 @@ function adjustEpisodes(
 	stagnation: number,
 	isImproving: boolean
 ): number {
-	if (stagnation > 6 && eps < 10) {
+	if (stagnation > 6 && eps < MaxAdaptiveEpisodes) {
 		return eps + 1;
 	}
-	if (isImproving && eps > 2) {
+	if (isImproving && eps > MinAdaptiveEpisodes) {
 		return eps - 1;
 	}
 	return eps;

@@ -1,80 +1,119 @@
-import { agentError } from "@trading-model/common/utils/errors";
-import type { Reward } from "@trading-model/primitives/primitives";
-import type { Experience } from "../neural-network/type";
-import { ExperienceKind } from "../neural-network/type";
+import { NormalizationStats } from "../normalization-stats";
 import type { LamarckGenome, MarketStep } from "./genome-types";
-import { nStepReturn } from "./reward-shaping";
-import type { RLBackend } from "./rl-backend";
+import { RewardShaper } from "./reward-shaping";
+import type { RLBackend, Transition } from "./rl-backend";
 import type { DeepReadonly } from "./shared-types";
 
 export interface TrainPhaseContext {
 	backend: RLBackend;
 	trainData: MarketStep[];
-	rewardBuf: Float32Array;
 	genome: DeepReadonly<LamarckGenome>;
 }
 
-interface TrainStepContext extends TrainPhaseContext {
-	index: number;
-	maxT: number;
+/** A decision waiting for its n-step return. */
+interface PendingDecision {
+	state: Float32Array;
+	action: number;
+	/** Shaped reward, known once the next decision's price came. */
+	reward?: number;
 }
 
-interface ExperienceContext extends TrainStepContext {
-	prev: Experience;
-}
-
-function _shouldSkipFrame(index: number, frameSkip: number): boolean {
-	return index % frameSkip !== 0;
-}
-
-function _canTrain(pool: Experience[]): boolean {
-	return pool.length >= 2;
-}
-
-function _buildTrainExperience(ctx: ExperienceContext): Experience {
-	const { prev, index, rewardBuf, genome, trainData, maxT } = ctx;
-	const action = "action" in prev ? prev.action : undefined;
-	if (action === undefined) {
-		throw agentError(
-			"Cannot build a Q-learning transition without the played action."
-		);
-	}
-	return {
-		...prev,
-		action,
-		kind: ExperienceKind.QLearning,
-		reward: nStepReturn(rewardBuf, index, genome) as unknown as Reward,
-		nextState: trainData[index].features.toFloat32Array(),
-		done: index === maxT - 1,
-	};
-}
-
-function _trainStep(ctx: TrainStepContext): void {
-	const { index, backend, trainData, genome } = ctx;
-	if (_shouldSkipFrame(index, genome.rl.horizon.frameSkip)) {
-		return;
-	}
-	backend.step({
-		features: trainData[index].features,
-		price: trainData[index].price,
-	});
-	const pool = backend.getExperiencePool();
-	if (!_canTrain(pool)) {
-		return;
-	}
-	backend.train(
-		_buildTrainExperience({
-			...ctx,
-			prev: pool[pool.length - 2],
-		}),
-		genome.rl.gamma
+/** Σ γ^i · r_i over the settled rewards of `decisions`, oldest first. */
+function _nStepReturn(decisions: PendingDecision[], gamma: number): number {
+	return decisions.reduce(
+		(sum, decision, idx) => sum + gamma ** idx * (decision.reward ?? 0),
+		0
 	);
 }
 
-export function trainPhase(ctx: TrainPhaseContext): void {
-	const { backend, trainData, rewardBuf, genome } = ctx;
-	const maxT = Math.min(trainData.length, genome.rl.horizon.maxEpisodeLength);
-	for (let index = 0; index < maxT; index++) {
-		_trainStep({ index, backend, trainData, rewardBuf, genome, maxT });
+/**
+ * Stores transitions one behind, so the last one of the episode can still
+ * take a sparse genome's episode reward, and replays after each store.
+ */
+class TransitionWriter {
+	private _held: Transition | null = null;
+	private readonly _batchSize: number;
+	private readonly _discount: number;
+
+	constructor(
+		private readonly _backend: RLBackend,
+		genome: DeepReadonly<LamarckGenome>
+	) {
+		this._batchSize = genome.rl.replayBuffer.batchSize;
+		this._discount = genome.rl.gamma ** genome.rl.horizon.nStepReturn;
 	}
+
+	write(transition: Transition): void {
+		this._flushHeld();
+		this._held = transition;
+	}
+
+	/**
+	 * Ends the episode. The end of the training window truncates the market,
+	 * it does not end it: transitions keep their bootstrap, except for a
+	 * sparse genome, whose last transition takes the episode reward as a
+	 * terminal one.
+	 */
+	close(sparseBonus: number | null): void {
+		if (this._held && sparseBonus !== null) {
+			this._held = {
+				...this._held,
+				reward: this._held.reward + sparseBonus,
+				done: true,
+			};
+		}
+		this._flushHeld();
+	}
+
+	private _flushHeld(): void {
+		if (this._held) {
+			this._backend.remember(this._held);
+			this._backend.replay(this._batchSize, this._discount);
+		}
+		this._held = null;
+	}
+}
+
+/**
+ * One training episode of DQN on the agent's own experience: each decision
+ * is stored with its n-step return (discount γ^n on the bootstrapped value),
+ * and every stored transition triggers a minibatch replay.
+ *
+ * The reward of a decision is the wallet PnL it earned until the next
+ * decision (frameSkip bars later). Only complete n-step transitions are
+ * stored: the last n decisions of the window, whose return the window cuts
+ * short, are not.
+ */
+export function trainPhase(ctx: TrainPhaseContext): void {
+	const { backend, trainData, genome } = ctx;
+	const { horizon, gamma } = genome.rl;
+	const shaper = new RewardShaper(
+		genome.rl.rewardShaping,
+		new NormalizationStats()
+	);
+	const writer = new TransitionWriter(backend, genome);
+	const maxT = Math.min(trainData.length, horizon.maxEpisodeLength);
+	const pending: PendingDecision[] = [];
+
+	for (let index = 0; index < maxT; index += horizon.frameSkip) {
+		const { features, price } = trainData[index];
+		const { reward, action, state } = backend.step({ features, price });
+		const last = pending[pending.length - 1];
+		if (last) {
+			last.reward = shaper.shape(reward);
+		}
+		if (pending.length === horizon.nStepReturn) {
+			const head = pending.shift() as PendingDecision;
+			writer.write({
+				state: head.state,
+				action: head.action,
+				reward: _nStepReturn([head, ...pending], gamma),
+				nextState: state,
+				done: false,
+			});
+		}
+		pending.push({ state, action });
+	}
+
+	writer.close(genome.rl.rewardShaping.sparse ? shaper.episodeBonus() : null);
 }

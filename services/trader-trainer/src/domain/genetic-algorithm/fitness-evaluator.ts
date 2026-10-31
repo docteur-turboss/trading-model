@@ -7,7 +7,7 @@ import type {
 	PopMember,
 } from "./genome-types";
 import type { ObjectiveVector } from "./nsga2";
-import { ParetoArchive } from "./pareto";
+import { type ArchiveBest, ParetoArchive } from "./pareto";
 import type { BackendFactory } from "./rl-backend";
 import type { DeepReadonly } from "./shared-types";
 import { StagnationTracker, type TrackResult } from "./stagnation-tracker";
@@ -36,6 +36,11 @@ export class FitnessEvaluator {
 
 	getArchiveMembers(): DeepReadonly<LamarckGenome>[] {
 		return this._archive.members;
+	}
+
+	/** Front member with the highest fitness under the run's fitness type. */
+	getArchiveBest(): ArchiveBest | undefined {
+		return this._archive.best();
 	}
 
 	getArchiveSize(): number {
@@ -91,7 +96,11 @@ export class FitnessEvaluator {
 		if (
 			this._archive.update(
 				frontIdx.map((idx) => popWithMeta[idx].genome),
-				frontIdx.map((idx) => objectives[idx])
+				frontIdx.map((idx) => objectives[idx]),
+				frontIdx.map((idx) => ({
+					fitness: popWithMeta[idx].fitness,
+					meta: popWithMeta[idx].fitnessMeta,
+				}))
 			)
 		) {
 			onArchiveUpdate?.(this._archive.members);

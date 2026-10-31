@@ -1,16 +1,21 @@
 /**
  * EvaluationPipeline: Orchestrates RL training and evaluation phases.
- * Handles reward shaping, n-step returns, shadow backends, and Lamarckian updates.
+ * Trains each genome on its own experience (training-phase), keeps the
+ * trained weights (Lamarckian update), then scores it on the wallet PnL of the
+ * validation data (evaluation-phase).
  */
 
 import { getLogger } from "@trading-model/contracts/logger-registry";
-import { NormalizationStats } from "../normalization-stats";
 import type {
 	EvaluationResult,
 	GenomeEvaluationContext,
 } from "./evaluation-phase";
 import { evalPhase } from "./evaluation-phase";
-import { computeAllResults, lamarckianUpdate } from "./evaluation-utils";
+import {
+	barsPerYear,
+	computeAllResults,
+	lamarckianUpdate,
+} from "./evaluation-utils";
 import {
 	validateEvalResult,
 	validateGenomeInputs,
@@ -18,7 +23,6 @@ import {
 import type { GaTelemetry } from "./ga-telemetry";
 import type { WindowSet } from "./generation-types";
 import type { GenomeFitnessMeta, LamarckGenome } from "./genome-types";
-import { precomputeRewards } from "./reward-shaping";
 import type { BackendFactory } from "./rl-backend";
 import type { DeepReadonly } from "./shared-types";
 import { deepFreeze } from "./shared-types";
@@ -35,26 +39,12 @@ function evaluateSingleGenomeOnWindow(
 	windowSet: WindowSet,
 	backendFactory: BackendFactory,
 	telemetry?: GaTelemetry
-): EvaluationResult {
+): EvaluationResult & { failed: boolean } {
 	validateGenomeInputs(genome, windowSet);
 
 	try {
-		const shadowBackend = backendFactory(genome);
-		const shadowStats = new NormalizationStats();
-		const rewardBuf = precomputeRewards({
-			backend: shadowBackend,
-			data: windowSet.train,
-			genome,
-			runStats: shadowStats,
-		});
-
 		const trainBackend = backendFactory(genome);
-		trainPhase({
-			backend: trainBackend,
-			trainData: windowSet.train,
-			rewardBuf,
-			genome,
-		});
+		trainPhase({ backend: trainBackend, trainData: windowSet.train, genome });
 
 		const updatedGenome = deepFreeze(lamarckianUpdate(genome, trainBackend));
 
@@ -67,11 +57,7 @@ function evaluateSingleGenomeOnWindow(
 
 		validateEvalResult(evalResult);
 
-		return {
-			updatedGenome,
-			rawScores: evalResult.rawScores,
-			finalPnL: evalResult.finalPnL,
-		};
+		return { updatedGenome, ...evalResult, failed: false };
 	} catch (err) {
 		const reason = err instanceof Error ? err.message : "unknown";
 		telemetry?.evaluationFailed(reason);
@@ -80,8 +66,9 @@ function evaluateSingleGenomeOnWindow(
 		});
 		return {
 			updatedGenome: genome,
-			rawScores: [-1e9],
-			finalPnL: -1e9,
+			episodePnl: [],
+			pnlCurve: [],
+			failed: true,
 		};
 	}
 }
@@ -89,7 +76,7 @@ function evaluateSingleGenomeOnWindow(
 /**
  * Evaluate a single genome across all window sets:
  * - Train phase on each window's training data
- * - Eval phase on each window's validation data
+ * - Eval phase on each window's validation data (wallet PnL, not shaped reward)
  * - Lamarckian weight persistence across windows
  * - Returns updated genome + fitness meta + objectives
  */
@@ -104,8 +91,9 @@ export function evaluateGenomeAllWindows(
 	objectives: { avgPnl: number; sharpe: number; negFlops: number };
 }> {
 	const t0 = Date.now();
-	const allRaw: number[] = [];
-	const allPnL: number[] = [];
+	const episodePnl: number[] = [];
+	const pnlCurve: number[] = [];
+	let failed = false;
 
 	let currentGenome = genome;
 
@@ -117,17 +105,19 @@ export function evaluateGenomeAllWindows(
 			telemetry
 		);
 		currentGenome = result.updatedGenome;
-		allRaw.push(...result.rawScores);
-		allPnL.push(result.finalPnL);
+		episodePnl.push(...result.episodePnl);
+		pnlCurve.push(...result.pnlCurve);
+		failed ||= result.failed;
 	}
 
 	return Promise.resolve(
 		computeAllResults({
-			genome,
 			currentGenome,
-			allRaw,
-			allPnL,
+			episodePnl,
+			pnlCurve,
+			failed,
 			t0,
+			barsPerYear: barsPerYear(windowSets.flatMap((ws) => ws.validation)),
 		})
 	);
 }

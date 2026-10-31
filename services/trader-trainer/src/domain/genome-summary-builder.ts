@@ -46,29 +46,36 @@ function buildRLSummary(
 	};
 }
 
+/**
+ * Sharpe of the bar curve times sqrt(bars per year), comparable across
+ * timeframes; per bar when the data carried no timestamps.
+ */
+function annualisedSharpe(
+	curve: EpisodeScores,
+	fitnessMeta: GenomeFitnessMeta | undefined
+): number {
+	const perYear = fitnessMeta?.pnlCurve ? fitnessMeta.barsPerYear : undefined;
+	return curve.sharpe() * Math.sqrt(perYear ?? 1);
+}
+
 export function buildSummary(
 	genome: DeepReadonly<LamarckGenome>,
 	fitness: Fitness,
 	fitnessMeta?: GenomeFitnessMeta
 ): BestAgentSummary {
+	// Bar-by-bar PnL when the evaluation recorded it, else the episode PnLs.
+	const curve = fitnessMeta?.pnlCurve ?? fitnessMeta?.rawScores;
 	return {
 		id: String(genome.id),
 		generation: genome.generation,
 		fitness,
-		sharpe: SharpeRatio.of(
-			fitnessMeta?.rawScores ? fitnessMeta.rawScores.sharpe() : 0
-		),
+		sharpe: SharpeRatio.of(curve ? annualisedSharpe(curve, fitnessMeta) : 0),
 		avgPnl: fitnessMeta?.rawScores ? fitnessMeta.rawScores.mean() : 0,
-		negFlops: 0,
-		complexityPenalty: 0,
+		maxDrawdown: curve ? curve.maxDrawdown() : 0,
 		gaControl: buildGASummary(genome),
 		network: buildNetworkSummary(genome),
 		rl: buildRLSummary(genome),
 	};
-}
-
-export function computeAvgPnl(rawScores: readonly number[]): number {
-	return new EpisodeScores([...rawScores]).mean();
 }
 
 export function computeSharpe(scores: readonly number[]): number {
