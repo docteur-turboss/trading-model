@@ -7,8 +7,8 @@ interface MockClient {
 	connect: jest.Mock<() => Promise<void>>;
 	close: jest.Mock<() => Promise<void>>;
 	db: jest.Mock<(name: string) => object>;
-	on: jest.Mock<(event: string, handler: () => void) => void>;
-	triggerEvent(event: string): void;
+	on: jest.Mock<(event: string, handler: (arg: unknown) => void) => void>;
+	triggerEvent(event: string, arg?: unknown): void;
 }
 
 jest.mock("mongodb", () => ({
@@ -20,18 +20,18 @@ const MockMongoClient = MongoClient as unknown as jest.Mock;
 let mockClient: MockClient;
 
 function createMockClient(): MockClient {
-	const eventHandlers: Record<string, () => void> = {};
+	const eventHandlers: Record<string, (arg: unknown) => void> = {};
 	return {
 		connect: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
 		close: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
 		db: jest.fn<(name: string) => object>().mockImplementation(() => ({})),
 		on: jest
-			.fn<(event: string, handler: () => void) => void>()
+			.fn<(event: string, handler: (arg: unknown) => void) => void>()
 			.mockImplementation((event, handler) => {
 				eventHandlers[event] = handler;
 			}),
-		triggerEvent(event: string) {
-			eventHandlers[event]?.();
+		triggerEvent(event: string, arg?: unknown) {
+			eventHandlers[event]?.(arg);
 		},
 	};
 }
@@ -52,44 +52,23 @@ describe("MongoConnectionManager", () => {
 		expect(mgr.poolSize).toBe(10);
 	});
 
-	it("should register close and reconnect event handlers on the client", async () => {
+	// The real driver behaviour is in tests/db/mongo-outage.db.spec.ts.
+	it("should follow the data-bearing servers of the monitored topology", async () => {
 		const mgr = new MongoConnectionManager({
 			uri: URLString.of("mongodb://localhost:27017"),
 			dbName: "test",
 		});
 		await mgr.getConnection();
-
-		expect(mockClient.on).toHaveBeenCalledWith("close", expect.any(Function));
-		expect(mockClient.on).toHaveBeenCalledWith(
-			"reconnect",
-			expect.any(Function)
-		);
-	});
-
-	it("should set _connected to false when close event fires", async () => {
-		const mgr = new MongoConnectionManager({
-			uri: URLString.of("mongodb://localhost:27017"),
-			dbName: "test",
-		});
-		await mgr.getConnection();
-
 		expect(mgr.isConnected()).toBe(true);
 
-		mockClient.triggerEvent("close");
-		expect(mgr.isConnected()).toBe(false);
-	});
-
-	it("should set _connected to true when reconnect event fires", async () => {
-		const mgr = new MongoConnectionManager({
-			uri: URLString.of("mongodb://localhost:27017"),
-			dbName: "test",
+		mockClient.triggerEvent("topologyDescriptionChanged", {
+			newDescription: { hasDataBearingServers: false },
 		});
-		await mgr.getConnection();
-
-		mockClient.triggerEvent("close");
 		expect(mgr.isConnected()).toBe(false);
 
-		mockClient.triggerEvent("reconnect");
+		mockClient.triggerEvent("topologyDescriptionChanged", {
+			newDescription: { hasDataBearingServers: true },
+		});
 		expect(mgr.isConnected()).toBe(true);
 	});
 
