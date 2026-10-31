@@ -1,14 +1,24 @@
-import type { URLString } from "@trading-model/primitives/primitives";
-import type { HostPort } from "@trading-model/primitives/service-identity";
+import type {
+	Hostname,
+	IPAddress,
+	Port,
+	URLString,
+} from "@trading-model/primitives/primitives";
+
+/** A Redis or Sentinel node, reached by IP address or DNS name. */
+export interface RedisNodeAddress {
+	host: IPAddress | Hostname;
+	port: Port;
+}
 
 export interface RedisSentinelConfig {
-	sentinels: HostPort[];
+	sentinels: RedisNodeAddress[];
 	name: string;
 	password?: string;
 }
 
 export interface RedisClusterNodesConfig {
-	nodes: HostPort[];
+	nodes: RedisNodeAddress[];
 	password?: string;
 }
 

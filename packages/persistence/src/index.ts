@@ -19,11 +19,17 @@ export {
 	resolvePoolSize,
 } from "./mongo-utils";
 export { RedisClientBuilder } from "./redis-client-builder";
-export type { RedisConnectionConfig } from "./redis-config";
+export type {
+	RedisConnectionConfig,
+	RedisNodeAddress,
+	RedisSentinelConfig,
+} from "./redis-config";
 export {
 	createRedisClient,
 	createRedisConnectionManager,
 } from "./redis-connection-manager";
+export type { RedisEnv } from "./redis-env";
+export { parseRedisNodes, redisConnectionFromEnv } from "./redis-env";
 export {
 	buildRedisKey,
 	extendRedisKey,

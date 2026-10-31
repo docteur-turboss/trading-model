@@ -1,10 +1,10 @@
 import type { URLString } from "@trading-model/primitives/primitives";
-import type { HostPort } from "@trading-model/primitives/service-identity";
 import Redis, { Cluster, type RedisOptions } from "ioredis";
 import { RedisClientBuilder } from "./redis-client-builder";
 import type {
 	RedisClusterNodesConfig,
 	RedisConnectionConfig,
+	RedisNodeAddress,
 	RedisSentinelConfig,
 } from "./redis-config";
 import { RedisMode } from "./redis-constants";
@@ -43,13 +43,16 @@ export function createSentinel(
 		password: config.password,
 		...BASE_REDIS_OPTIONS,
 		maxRetriesPerRequest: null,
+		// Follow +switch-master: without it a client left on a frozen or
+		// half-dead master keeps waiting on it after Sentinel has failed over.
+		failoverDetector: true,
 		...extraOptions,
 	} as never);
 	return new RedisClientBuilder(client).withErrorHandler().build() as Redis;
 }
 
 export function createClusterClient(
-	nodes: HostPort[],
+	nodes: RedisNodeAddress[],
 	password?: string
 ): Cluster {
 	const client = new Cluster(nodes, {

@@ -3,6 +3,7 @@ import {
 	type RetryResult,
 	retryWithBackoff,
 } from "@trading-model/common/utils/retry";
+import { getLogger } from "@trading-model/contracts/logger-registry";
 import { DurationMs } from "@trading-model/primitives/primitives";
 
 export interface ConnectionFactory<_TConnection> {
@@ -88,19 +89,26 @@ export class ConnectionManager<_TConnection> {
 
 	async resetState(): Promise<void> {
 		if (this._connection) {
-			try {
-				await this._disconnectFn(this._connection);
-			} catch {}
+			await this._tryDisconnect(this._connection);
 		}
 		this._clearState();
 	}
 
 	async close(): Promise<void> {
 		if (this._connection) {
-			try {
-				await this._disconnectFn(this._connection);
-			} catch {}
+			await this._tryDisconnect(this._connection);
 			this._clearState();
+		}
+	}
+
+	/** The connection is dropped either way; a failed disconnect may leak a socket. */
+	private async _tryDisconnect(connection: _TConnection): Promise<void> {
+		try {
+			await this._disconnectFn(connection);
+		} catch (err) {
+			getLogger().warn("Disconnect failed, dropping the connection", {
+				error: (err as Error)?.message ?? String(err),
+			});
 		}
 	}
 

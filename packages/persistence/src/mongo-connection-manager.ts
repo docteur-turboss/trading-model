@@ -1,14 +1,15 @@
 import { getLogger } from "@trading-model/contracts/logger-registry";
-import {
-	DurationMs,
-	type URLString,
-} from "@trading-model/primitives/primitives";
+import { DurationMs } from "@trading-model/primitives/primitives";
 import { type Db, MongoClient } from "mongodb";
 import { ConnectionManager } from "./connection-manager";
 import { createPoolOptions, resolvePoolSize } from "./mongo-utils";
 
 export interface MongoConnectionConfig {
-	uri: URLString;
+	/**
+	 * MongoDB connection string. Not a URLString: a replica set lists several
+	 * hosts (`mongodb://a:27017,b:27017/db`), which is no WHATWG URL.
+	 */
+	uri: string;
 	dbName: string;
 	collectionName?: string;
 	poolSize?: number;
@@ -20,7 +21,7 @@ export interface MongoConnectionConfig {
 export class MongoConnectionManager extends ConnectionManager<MongoClient> {
 	private _db: Db | null = null;
 	private _dbName: string;
-	private readonly _uri: URLString;
+	private readonly _uri: string;
 	private readonly _poolSize: number;
 	private readonly _collectionName?: string;
 
@@ -32,11 +33,10 @@ export class MongoConnectionManager extends ConnectionManager<MongoClient> {
 					config.uri,
 					createPoolOptions(poolSize, config.minPoolSize)
 				);
-				client.on("close", () => {
-					this._connected = false;
-				});
-				client.on("reconnect", () => {
-					this._connected = true;
+				// The driver reconnects on its own and emits no "reconnect": follow
+				// the topology it monitors instead.
+				client.on("topologyDescriptionChanged", (event) => {
+					this._connected = event.newDescription.hasDataBearingServers;
 				});
 				await client.connect();
 				getLogger().info("MongoDB connection established", {
@@ -60,7 +60,7 @@ export class MongoConnectionManager extends ConnectionManager<MongoClient> {
 		this._collectionName = config.collectionName;
 	}
 
-	get uri(): URLString {
+	get uri(): string {
 		return this._uri;
 	}
 
@@ -82,6 +82,7 @@ export class MongoConnectionManager extends ConnectionManager<MongoClient> {
 
 	async tryReconnect(): Promise<boolean> {
 		await this.resetState();
+		// biome-ignore lint/plugin: callers react to the boolean; getConnection already logs the cause
 		try {
 			await this.getConnection();
 			return true;
