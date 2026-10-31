@@ -2,38 +2,27 @@ import type { HttpStatusCode } from "@trading-model/contracts/http-status";
 import { CryptoAlg } from "@trading-model/crypto/domain/constants/crypto-constants";
 import type { ResponseObject } from "@trading-model/http/adapters/inbound/response-exception";
 import type { Bytes } from "@trading-model/primitives/primitives";
-import type { z } from "zod";
 import { isDbConnected } from "../../config/db";
 import { validationFail } from "../../shared/dlq-error-builder";
-import { DlqEntrySchema } from "../../shared/dlq-schemas";
+import type { DlqEntry } from "../outbound/repository";
 
 const MAX_MESSAGE_BYTES = (5 * 1024 * 1024) as Bytes;
 
-export function validateAddEntryBody(
-	body: unknown,
+/**
+ * What the route schema cannot check: the 5 MB payload limit and a storage
+ * able to take the entry. The entry itself is parsed by the route (DLQ_API).
+ */
+export function checkEntryAcceptable(
+	entry: DlqEntry,
 	span: import("@opentelemetry/api").Span
-):
-	| { valid: false; response: ResponseObject }
-	| { valid: true; data: z.infer<typeof DlqEntrySchema> } {
-	const parsed = DlqEntrySchema.safeParse(body);
-	if (!parsed.success) {
-		return validationFail(span, parsed.error.message, 400 as HttpStatusCode);
-	}
+): { valid: false; response: ResponseObject } | { valid: true } {
+	span.setAttribute("topic", entry.topic ?? "");
+	span.setAttribute("reason", entry.reason ?? "");
 
-	span.setAttribute("topic", parsed.data.topic ?? "");
-	span.setAttribute("reason", parsed.data.reason ?? "");
-
-	const sizeFail = _checkMessageSize(parsed.data.message, span);
-	if (sizeFail) {
-		return sizeFail;
-	}
-
-	const dbFail = _checkDbAvailable(span);
-	if (dbFail) {
-		return dbFail;
-	}
-
-	return { valid: true, data: parsed.data };
+	return (
+		_checkMessageSize(entry.message, span) ??
+		_checkDbAvailable(span) ?? { valid: true }
+	);
 }
 
 function _checkMessageSize(

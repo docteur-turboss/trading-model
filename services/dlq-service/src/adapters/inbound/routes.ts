@@ -1,15 +1,16 @@
+import { mountRoute } from "@trading-model/http/adapters/inbound/api-route/mount-route";
 import { Router } from "express";
 import type rateLimit from "express-rate-limit";
 import { metricsHandler } from "../../config/metrics";
+import { DLQ_API } from "./api-routes";
 import { serviceAuth } from "./auth";
+import { HealthCheck, ReadyCheck } from "./controller";
 import {
-	AddEntry,
-	DeleteEntries,
-	HealthCheck,
-	ListEntries,
-	ReadyCheck,
-	ReplayEntries,
-} from "./controller";
+	addEntry,
+	deleteEntries,
+	listEntries,
+	replayEntries,
+} from "./dlq-service";
 import {
 	_createHealthLimiter,
 	_createReplayLimiter,
@@ -24,10 +25,22 @@ function _registerDlqRoutes(
 	writeLimiter: ReturnType<typeof rateLimit>,
 	healthLimiter: ReturnType<typeof rateLimit>
 ): void {
-	router.post("/dlq", serviceAuth, writeLimiter, AddEntry);
-	router.get("/dlq", serviceAuth, ListEntries);
-	router.delete("/dlq", serviceAuth, writeLimiter, DeleteEntries);
-	router.post("/dlq/replay", serviceAuth, replayLimiter, ReplayEntries);
+	// The signature covers the raw body: serviceAuth runs before validation.
+	mountRoute(router, DLQ_API.addEntry, ({ body }) => addEntry(body), {
+		middlewares: [serviceAuth, writeLimiter],
+	});
+	mountRoute(router, DLQ_API.listEntries, ({ query }) => listEntries(query), {
+		middlewares: [serviceAuth],
+	});
+	mountRoute(router, DLQ_API.deleteEntries, ({ body }) => deleteEntries(body), {
+		middlewares: [serviceAuth, writeLimiter],
+	});
+	mountRoute(
+		router,
+		DLQ_API.replayEntries,
+		({ query }) => replayEntries(query),
+		{ middlewares: [serviceAuth, replayLimiter] }
+	);
 	router.get("/health", healthLimiter, HealthCheck);
 	router.get("/health/ready", healthLimiter, ReadyCheck);
 	router.get("/metrics", metricsHandler);

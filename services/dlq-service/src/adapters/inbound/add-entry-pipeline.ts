@@ -3,18 +3,14 @@ import { ServiceInstanceName } from "@trading-model/common/config/services.types
 import type { HttpStatusCode } from "@trading-model/contracts/http-status";
 import type { ResponseObject } from "@trading-model/http/adapters/inbound/response-exception";
 import { sendResponse } from "@trading-model/http/adapters/inbound/response-exception";
-import { toTopic } from "@trading-model/primitives/primitives";
-import type { z } from "zod";
 import { metrics } from "../../config/metrics";
 import { handleAddEntryError } from "../../shared/dlq-error-builder";
-import type { DlqEntrySchema } from "../../shared/dlq-schemas";
 import { notifyAddAudit } from "../outbound/audit-notifier";
 import { pushToRedisQueue } from "../outbound/dlq-redis-pusher";
 import { type DlqEntry, dlqRepository } from "../outbound/repository";
-import { validateAddEntryBody } from "./dlq-validator";
+import { checkEntryAcceptable } from "./dlq-validator";
 
-type ValidatedData = z.infer<typeof DlqEntrySchema>;
-type PostInsertStep = (id: string, data: ValidatedData) => Promise<void>;
+type PostInsertStep = (id: string, data: DlqEntry) => Promise<void>;
 
 const tracer = trace.getTracer(ServiceInstanceName.DlqService);
 
@@ -27,18 +23,14 @@ const postInsertSteps: PostInsertStep[] = [
 		await pushToRedisQueue(id);
 	},
 	(id, data) => {
-		notifyAddAudit(
-			id,
-			data.topic ? toTopic(data.topic) : undefined,
-			data.reason
-		);
+		notifyAddAudit(id, data.topic, data.reason);
 		return Promise.resolve();
 	},
 ];
 
 async function runPostInsertSteps(
 	id: string,
-	data: ValidatedData,
+	data: DlqEntry,
 	span: Span
 ): Promise<void> {
 	span.setAttribute("entryId", id);
@@ -47,18 +39,16 @@ async function runPostInsertSteps(
 	}
 }
 
-export function addEntry(req: { body: unknown }): Promise<ResponseObject> {
+export function addEntry(entry: DlqEntry): Promise<ResponseObject> {
 	return tracer.startActiveSpan("dlq-add-entry", async (span) => {
 		try {
-			const validation = validateAddEntryBody(req.body, span);
-			if (!validation.valid) {
-				return validation.response;
+			const check = checkEntryAcceptable(entry, span);
+			if (!check.valid) {
+				return check.response;
 			}
 
-			const id = await dlqRepository.insert(
-				validation.data as unknown as DlqEntry
-			);
-			await runPostInsertSteps(id, validation.data, span);
+			const id = await dlqRepository.insert(entry);
+			await runPostInsertSteps(id, entry, span);
 
 			span.setStatus({ code: SpanStatusCode.OK });
 			span.end();
