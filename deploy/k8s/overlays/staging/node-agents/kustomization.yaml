@@ -1,0 +1,34 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Node agents for the staging cluster, pointed at trading-model-staging: the
+# SPIRE agent trusts its SPIRE server (which publishes the bundle into
+# trading-model-node) and promtail ships its pod logs to its Loki.
+resources:
+  - ../../../node-agents
+
+patches:
+  - target:
+      kind: DaemonSet
+      name: spire-agent
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/env/1/value
+        value: spire-server.trading-model-staging.svc
+  - target:
+      kind: RoleBinding
+      name: spire-server-bundle
+    patch: |-
+      - op: replace
+        path: /subjects/0/namespace
+        value: trading-model-staging
+  - target:
+      kind: DaemonSet
+      name: promtail
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/env/1/value
+        value: trading-model-staging
+      - op: replace
+        path: /spec/template/spec/containers/0/env/2/value
+        value: http://loki.trading-model-staging.svc:3100/loki/api/v1/push
