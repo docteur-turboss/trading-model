@@ -240,13 +240,20 @@ describe("FileDlqRepository", () => {
 			const repo = new FileDlqRepository(file);
 			await repo.insert(entry(1));
 			let release: () => void = () => undefined;
+			// Wait for the first drain to reach its sender, not for a delay: under
+			// load the file read can take longer and `release` would stay a no-op.
+			let reached: () => void = () => undefined;
+			const firstInSender = new Promise<void>((resolve) => {
+				reached = resolve;
+			});
 			const first = repo.drain(
 				() =>
 					new Promise((resolve) => {
 						release = () => resolve(DrainOutcome.Sent);
+						reached();
 					})
 			);
-			await new Promise((resolve) => setTimeout(resolve, 10));
+			await firstInSender;
 
 			await expect(repo.drain(async () => DrainOutcome.Sent)).resolves.toEqual({
 				sent: 0,
