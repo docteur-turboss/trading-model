@@ -11,6 +11,7 @@ import {
 	jest,
 } from "@jest/globals";
 import { HttpMessageDelivery } from "../../src/adapters/outbound/http-message-delivery";
+import { InMemorySubscriptionStore } from "../../src/adapters/outbound/in-memory-subscription-store";
 import { Dispatcher } from "../../src/application/services/dispatcher";
 import { FileDlqRepository } from "../../src/infrastructure/fallback/dlq-repository";
 import {
@@ -41,7 +42,10 @@ describe("Message Broker Integration", () => {
 			httpClient as never,
 			dqlRepository
 		);
-		dispatcher = new Dispatcher({ deliveryPort });
+		dispatcher = new Dispatcher({
+			deliveryPort,
+			subscriptionStore: new InMemorySubscriptionStore(),
+		});
 	});
 
 	afterAll(async () => {
@@ -53,7 +57,7 @@ describe("Message Broker Integration", () => {
 	it("should deliver a published message to a subscribed service", async () => {
 		httpClient.post.mockResolvedValue(undefined);
 
-		dispatcher.subscribe({
+		await dispatcher.subscribe({
 			topic: "market.data",
 			callbackPath: "message/receive",
 			serviceIdentity: mockSubscriberIdentity,
@@ -73,25 +77,26 @@ describe("Message Broker Integration", () => {
 
 		const [targetUrl, body] = httpClient.post.mock.calls[0] as [
 			string,
-			{ message: { payload: { price: number; symbol: string } } },
+			{ payload: { price: number; symbol: string } },
 		];
 
 		expect(targetUrl).toContain("10.0.0.1");
 		expect(targetUrl).toContain("8444");
 		expect(targetUrl).toContain("message/receive");
-		expect(body.message.payload).toEqual({ price: 50000, symbol: "BTCUSDT" });
+		// Flat body: the subscriber controller reads metadata/payload at the top level.
+		expect(body.payload).toEqual({ price: 50000, symbol: "BTCUSDT" });
 	});
 
 	it("should deliver to multiple subscribers of the same topic", async () => {
 		httpClient.post.mockResolvedValue(undefined);
 
-		dispatcher.subscribe({
+		await dispatcher.subscribe({
 			topic: "market.data",
 			callbackPath: "msg/recv",
 			serviceIdentity: { ...mockSubscriberIdentity, instanceId: "sub-1" },
 		});
 
-		dispatcher.subscribe({
+		await dispatcher.subscribe({
 			topic: "market.data",
 			callbackPath: "msg/recv",
 			serviceIdentity: { ...mockSubscriberIdentity, instanceId: "sub-2" },
@@ -113,13 +118,13 @@ describe("Message Broker Integration", () => {
 	it("should not deliver to unsubscribed services", async () => {
 		httpClient.post.mockResolvedValue(undefined);
 
-		dispatcher.subscribe({
+		await dispatcher.subscribe({
 			topic: "market.data",
 			callbackPath: "msg/recv",
 			serviceIdentity: mockSubscriberIdentity,
 		});
 
-		dispatcher.unsubscribe({
+		await dispatcher.unsubscribe({
 			topic: "market.data",
 			instanceId: mockSubscriberIdentity.instanceId,
 		});
@@ -140,7 +145,7 @@ describe("Message Broker Integration", () => {
 	it("should not deliver to services subscribed to a different topic", async () => {
 		httpClient.post.mockResolvedValue(undefined);
 
-		dispatcher.subscribe({
+		await dispatcher.subscribe({
 			topic: "other.topic",
 			callbackPath: "msg/recv",
 			serviceIdentity: mockSubscriberIdentity,
@@ -164,13 +169,13 @@ describe("Message Broker Integration", () => {
 			.mockRejectedValueOnce(new Error("Subscriber 1 failed"))
 			.mockResolvedValueOnce(undefined);
 
-		dispatcher.subscribe({
+		await dispatcher.subscribe({
 			topic: "market.data",
 			callbackPath: "msg/recv",
 			serviceIdentity: { ...mockSubscriberIdentity, instanceId: "sub-1" },
 		});
 
-		dispatcher.subscribe({
+		await dispatcher.subscribe({
 			topic: "market.data",
 			callbackPath: "msg/recv",
 			serviceIdentity: { ...mockSubscriberIdentity, instanceId: "sub-2" },
@@ -192,7 +197,7 @@ describe("Message Broker Integration", () => {
 	it("should generate unique message IDs for each publish", async () => {
 		httpClient.post.mockResolvedValue(undefined);
 
-		dispatcher.subscribe({
+		await dispatcher.subscribe({
 			topic: "test",
 			callbackPath: "msg",
 			serviceIdentity: mockSubscriberIdentity,
@@ -220,14 +225,14 @@ describe("Message Broker Integration", () => {
 
 		const id1 = (
 			httpClient.post.mock.calls[0][1] as {
-				message: { metadata: { messageId: string } };
+				metadata: { messageId: string };
 			}
-		).message.metadata.messageId;
+		).metadata.messageId;
 		const id2 = (
 			httpClient.post.mock.calls[1][1] as {
-				message: { metadata: { messageId: string } };
+				metadata: { messageId: string };
 			}
-		).message.metadata.messageId;
+		).metadata.messageId;
 
 		expect(id1).not.toBe(id2);
 	});

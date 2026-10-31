@@ -42,6 +42,32 @@ describe("createBrokerModule", () => {
 		expect(typeof module.listen).toBe("function");
 	});
 
+	it("should keep dead letters in the file without a dlq-service secret", async () => {
+		const module = createBrokerModule(
+			{
+				caPath: "/certs/ca.pem",
+				certPath: "/certs/cert.pem",
+				keyPath: "/certs/key.pem",
+			},
+			{ filePath: "/tmp/never-written.jsonl" }
+		);
+
+		await expect(module.forwardDeadLetters()).resolves.toBeUndefined();
+	});
+
+	it("should refuse a dlq-service secret shorter than 16 characters", () => {
+		expect(() =>
+			createBrokerModule(
+				{
+					caPath: "/certs/ca.pem",
+					certPath: "/certs/cert.pem",
+					keyPath: "/certs/key.pem",
+				},
+				{ dlqSecret: "short" }
+			)
+		).toThrow("at least 16 characters");
+	});
+
 	it("should accept an Express app in listen method", () => {
 		const module = createBrokerModule({
 			caPath: "/certs/ca.pem",

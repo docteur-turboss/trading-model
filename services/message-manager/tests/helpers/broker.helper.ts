@@ -20,11 +20,14 @@ export function createMockDispatcher(
 		publish: jest
 			.fn<(payload: unknown, metadata: unknown) => Promise<void>>()
 			.mockResolvedValue(undefined),
-		subscribe: jest.fn<(params: SubscriptionParams) => void>(),
+		subscribe: jest
+			.fn<(params: SubscriptionParams) => Promise<void>>()
+			.mockResolvedValue(undefined),
 		dispatch: jest
 			.fn<(message: unknown) => Promise<void>>()
 			.mockResolvedValue(undefined),
-		unsubscribe:
-			jest.fn<(params: { topic: string; instanceId: string }) => void>(),
+		unsubscribe: jest
+			.fn<(params: { topic: string; instanceId: string }) => Promise<void>>()
+			.mockResolvedValue(undefined),
 	} as unknown as jest.Mocked<Dispatcher>;
 }

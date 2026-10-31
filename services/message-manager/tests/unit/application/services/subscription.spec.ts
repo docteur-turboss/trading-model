@@ -46,7 +46,7 @@ describe("Subscription", () => {
 			const sendArg = mockDeliveryPort.send.mock.calls[0][0] as {
 				url: string;
 				message: unknown;
-				context: { deliveryAttempt: number; consumerGroup: string };
+				context: { deliveryAttempt: number };
 			};
 
 			expect(sendArg.url).toContain("10.0.0.1");
@@ -144,7 +144,7 @@ describe("Subscription", () => {
 			});
 		});
 
-		it("should stop after first attempt with EXACTLY_ONCE mode", async () => {
+		it("should dead-letter after a single failed attempt with EXACTLY_ONCE mode", async () => {
 			mockDeliveryPort.send.mockRejectedValue(new Error("Transient error"));
 
 			const message = createMockMessage("payload", {
@@ -153,6 +153,11 @@ describe("Subscription", () => {
 			await subscription.dispatch(message);
 
 			expect(mockDeliveryPort.send).toHaveBeenCalledTimes(1);
+			expect(mockDeliveryPort.markDeadLetter).toHaveBeenCalledWith({
+				message,
+				reason: "SINGLE_ATTEMPT_FAILED",
+				deliveryAttempt: 1,
+			});
 		});
 
 		it("should route to DLQ when max retries exceeded", async () => {
@@ -244,7 +249,7 @@ describe("Subscription", () => {
 			const sendArg = mockDeliveryPort.send.mock.calls[0][0] as {
 				url: string;
 				message: unknown;
-				context: { deliveryAttempt: number; consumerGroup: string };
+				context: { deliveryAttempt: number };
 			};
 
 			expect(sendArg.context).toBeDefined();
