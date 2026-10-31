@@ -30,6 +30,7 @@
 - [ ] Tests added/updated and all pass (`bun run test`)
 - [ ] Lint passes (`bun run lint`)
 - [ ] Build passes (`bun run build`)
+- [ ] No swallowed errors: each new `catch` rethrows, logs or delegates ([error handling](../docs/standards/error-handling.md))
 - [ ] JSDoc updated for public APIs
 - [ ] Docs updated if needed (standards, deployment, architecture)
 - [ ] Commit messages follow [gitmoji convention](../docs/standards/commit-standards.md)
