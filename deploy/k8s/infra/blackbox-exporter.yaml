@@ -90,16 +90,15 @@ spec:
             initialDelaySeconds: 5
             periodSeconds: 10
         - name: spiffe-helper
-          image: ghcr.io/spiffe/spiffe-helper:0.6.0
+          image: ghcr.io/spiffe/spiffe-helper:0.10.1
           imagePullPolicy: IfNotPresent
           args:
-            - -socketPath=/run/spire/agent-sockets/public/api.sock
-            - -certDir=/run/spire/svid
-            - -svidFileName=svid.pem
-            - -svidKeyFileName=svid_key.pem
-            - -svidBundleFileName=bundle.pem
-            - -renewSignal=SIGHUP
+            - -config
+            - /etc/spiffe-helper/helper.conf
           volumeMounts:
+            - name: spiffe-helper-config
+              mountPath: /etc/spiffe-helper
+              readOnly: true
             - name: spire-agent-socket
               mountPath: /run/spire/agent-sockets
             - name: svid
@@ -114,13 +113,18 @@ spec:
             seccompProfile:
               type: RuntimeDefault
       volumes:
+        - name: spiffe-helper-config
+          configMap:
+            name: spiffe-helper-config
         - name: config
           configMap:
             name: blackbox-exporter-config
+        # Workload API socket from the SPIFFE CSI driver (node-agents): the
+        # restricted Pod Security profile forbids a hostPath.
         - name: spire-agent-socket
-          hostPath:
-            path: /run/spire/agent-sockets
-            type: DirectoryOrCreate
+          csi:
+            driver: csi.spiffe.io
+            readOnly: true
         - name: svid
           emptyDir: {}
 ---
@@ -174,9 +178,8 @@ spec:
     - Ingress
   ingress:
     - from:
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: trading-model
+        # Same namespace as the policy, whatever the overlay's namespace.
+        - podSelector: {}
       ports:
         - port: 9115
           protocol: TCP

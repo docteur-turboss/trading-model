@@ -1,6 +1,22 @@
+# Same file in K8s (deploy/k8s/infra/alertmanager.yaml, ConfigMap
+# alertmanager-config): checked by scripts/observability-gate.mjs.
+#
+# Alertmanager expands no environment variable: credentials are files under
+# /etc/alertmanager-credentials, read at send time (a missing file fails that
+# notification, not the start):
+#   SLACK_WEBHOOK_URL      Slack incoming webhook (#alerts, #alerts-warning)
+#   PAGERDUTY_ROUTING_KEY  PagerDuty Events v2 routing key (critical alerts)
+#   DEADMAN_URL            dead man's switch (healthchecks.io, Dead Man's
+#                          Snitch, Better Stack heartbeat...): receives the
+#                          always-firing Watchdog every minute and pages
+#                          when it stops — the only alert that still works
+#                          when Prometheus, Alertmanager or Slack is down
+# K8s: Secret alertmanager-credentials, written by deploy.yml. Compose:
+# ALERTMANAGER_CREDENTIALS_DIR (default observability/alertmanager-credentials,
+# git-ignored), one file per key.
 global:
   resolve_timeout: 5m
-  slack_api_url: "https://hooks.slack.com/services/CHANGE_ME"
+  slack_api_url_file: /etc/alertmanager-credentials/SLACK_WEBHOOK_URL
 
 route:
   group_by: ['alertname', 'severity', 'job']
@@ -9,12 +25,19 @@ route:
   repeat_interval: 4h
   receiver: default-receiver
   routes:
-    - match:
-        severity: critical
+    - matchers: ['alertname="Watchdog"']
+      receiver: deadman-receiver
+      group_wait: 0s
+      group_interval: 1m
+      repeat_interval: 1m
+    # Critical: paged, and posted to #alerts as well (continue), so a missing
+    # PagerDuty key never swallows them.
+    - matchers: ['severity="critical"']
       receiver: critical-receiver
       continue: true
-    - match:
-        severity: warning
+    - matchers: ['severity="critical"']
+      receiver: default-receiver
+    - matchers: ['severity="warning"']
       receiver: warning-receiver
 
 receivers:
@@ -34,7 +57,7 @@ receivers:
 
   - name: critical-receiver
     pagerduty_configs:
-      - routing_key: 'CHANGE_ME_PAGERDUTY_ROUTING_KEY'
+      - routing_key_file: /etc/alertmanager-credentials/PAGERDUTY_ROUTING_KEY
         severity: critical
         description: '{{ .CommonAnnotations.description }}'
 
@@ -43,9 +66,12 @@ receivers:
       - channel: '#alerts-warning'
         send_resolved: true
 
+  - name: deadman-receiver
+    webhook_configs:
+      - url_file: /etc/alertmanager-credentials/DEADMAN_URL
+        send_resolved: false
+
 inhibit_rules:
-  - source_match:
-      severity: critical
-    target_match:
-      severity: warning
+  - source_matchers: ['severity="critical"']
+    target_matchers: ['severity="warning"']
     equal: ['alertname']

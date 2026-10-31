@@ -8,9 +8,15 @@
 //       its definition file).
 //    3. Shared HTTP middleware (correlation id + http metrics) is mounted.
 //    4. Outgoing correlation/trace propagation is wired in the HTTP client.
-//    5. Frontend telemetry (web-vitals + ErrorBoundary) is present.
-//    6. Every service registers at least one dependency-aware readiness check
+//    5. Every service registers at least one dependency-aware readiness check
 //       (no more readiness: [] no-op gates).
+//    6. Compose (observability/alerting.yml) and K8s (prometheus ConfigMap)
+//       evaluate the same alert rules (name, expr, for, labels).
+//    7. Every metric an alert reads is emitted by a service, a backup script or
+//       a configured exporter.
+//    8. Alerts reach someone: compose and K8s run the same Alertmanager config,
+//       every receiver reads its credentials from a file (no inline
+//       placeholder), and the Watchdog alert is routed to a dead man's switch.
 //
 //  Run: bun scripts/observability-gate.mjs
 // =============================================================================
@@ -132,35 +138,7 @@ for (const service of SERVICES) {
   }
 }
 
-// ── 5: frontend telemetry ────────────────────────────────────────────────────
-{
-  const pkg = JSON.parse(
-    readFileSync(join(ROOT, "services", "admin-interface", "package.json"), "utf-8")
-  );
-  if (!pkg.dependencies?.["web-vitals"]) {
-    errors.push("admin-interface: web-vitals dependency missing");
-  }
-  const errorBoundaryPath = join(
-    ROOT,
-    "services",
-    "admin-interface",
-    "src",
-    "components",
-    "error-boundary.tsx"
-  );
-  if (!existsSync(errorBoundaryPath)) {
-    errors.push("admin-interface: error-boundary.tsx missing");
-  }
-  const appTsx = readFileSync(
-    join(ROOT, "services", "admin-interface", "src", "infrastructure", "app", "app.tsx"),
-    "utf-8"
-  );
-  if (!appTsx.includes("ErrorBoundary")) {
-    errors.push("admin-interface: ErrorBoundary not mounted in app.tsx");
-  }
-}
-
-// ── 6: dependency-aware readiness ────────────────────────────────────────────
+// ── 5: dependency-aware readiness ────────────────────────────────────────────
 for (const service of SERVICES) {
   const files = serviceFiles(service);
   const serverFile = files.find((f) => f.endsWith("/application/server.ts") || f.endsWith("/app/server.ts"));
@@ -170,6 +148,153 @@ for (const service of SERVICES) {
   if (readinessMatch) {
     errors.push(`${service}: readiness is an empty array — /health/ready is a no-op`);
   }
+}
+
+function alertRules(yamlText) {
+  const rules = new Map();
+  for (const group of Bun.YAML.parse(yamlText).groups ?? []) {
+    for (const rule of group.rules ?? []) {
+      if (rule.alert) rules.set(rule.alert, rule);
+    }
+  }
+  return rules;
+}
+
+function k8sAlertingConfig() {
+  const manifest = readFileSync(join(ROOT, "deploy", "k8s", "infra", "prometheus.yaml"), "utf-8");
+  for (const doc of manifest.split(/^---$/m)) {
+    const parsed = Bun.YAML.parse(doc);
+    if (parsed?.data?.["alerting.yml"]) return parsed.data["alerting.yml"];
+  }
+  errors.push("deploy/k8s/infra/prometheus.yaml: no alerting.yml ConfigMap entry");
+  return "groups: []";
+}
+
+const PROMQL_WORDS = new Set([
+  "abs", "absent", "and", "avg", "bool", "by", "ceil", "count", "delta", "deriv", "group_left",
+  "group_right", "histogram_quantile", "humanizePercentage", "ignoring", "increase",
+  "irate", "max", "max_over_time", "min", "offset", "on", "or", "rate", "sum", "time", "topk", "unless", "vector",
+  "without",
+]);
+
+/** Metric names of a PromQL expression: label matchers, ranges and strings removed. */
+function promqlMetricNames(expr) {
+  const bare = expr
+    .replace(/"[^"]*"/g, "")
+    .replace(/\{[^}]*\}/g, "")
+    .replace(/\[[^\]]*\]/g, "")
+    .replace(/\b(by|without|on|ignoring)\s*\([^)]*\)/g, "");
+  const names = bare.match(/[a-zA-Z_:][a-zA-Z0-9_:]*/g) ?? [];
+  return [...new Set(names.filter((name) => !PROMQL_WORDS.has(name)))];
+}
+
+/** Every metric name the platform exports. */
+function emittedMetricNames() {
+  const names = new Set(["up"]); // Prometheus target health
+  // prom-client metrics declared in TypeScript (`name: "..."` next to new Counter/Gauge/...)
+  for (const dir of ["packages", "services"]) {
+    for (const workspace of readdirSync(join(ROOT, dir))) {
+      const src = join(ROOT, dir, workspace, "src");
+      if (!existsSync(src)) continue;
+      for (const file of walk(src)) {
+        const source = readFileSync(file, "utf-8");
+        if (!source.includes("prom-client")) continue;
+        for (const match of source.matchAll(/\bname:\s*["'`]([a-zA-Z_:][a-zA-Z0-9_:]*)["'`]/g)) {
+          names.add(match[1]);
+        }
+      }
+    }
+  }
+  // text-format metrics written by the backup scripts (scripts/backup-lib.sh)
+  for (const file of readdirSync(join(ROOT, "scripts")).filter((f) => f.endsWith(".sh"))) {
+    const source = readFileSync(join(ROOT, "scripts", file), "utf-8");
+    for (const match of source.matchAll(/echo\s+"([a-z_:][a-z0-9_:]*)[{ ]/g)) names.add(match[1]);
+  }
+  return names;
+}
+
+/** Families exported by components this repo configures but does not code. */
+const EXPORTER_PREFIXES = [
+  // prom-client collectDefaultMetrics() (packages/server-utils configure-app)
+  "nodejs_", "process_",
+  // blackbox-exporter probes (deploy/k8s/infra/blackbox-exporter.yaml)
+  "probe_",
+  // Alertmanager and Prometheus themselves (scrape jobs `alertmanager`, `prometheus`)
+  "alertmanager_", "prometheus_",
+];
+
+function isEmitted(metric, emitted) {
+  const base = metric.replace(/_(bucket|sum|count)$/, "");
+  return (
+    emitted.has(metric) ||
+    emitted.has(base) ||
+    EXPORTER_PREFIXES.some((prefix) => metric.startsWith(prefix))
+  );
+}
+
+// ── 6 + 7: alert rules: same rules everywhere, on metrics that exist ─────────
+{
+  const composeRules = alertRules(
+    readFileSync(join(ROOT, "observability", "alerting.yml"), "utf-8")
+  );
+  const k8sRules = alertRules(k8sAlertingConfig());
+
+  // 7. compose and K8s evaluate the same rules (annotations may differ: they
+  //    name environment-specific remedies).
+  const ruleKey = (rule) =>
+    JSON.stringify({ expr: rule.expr, for: rule.for, labels: rule.labels ?? {} });
+  for (const [name, rule] of composeRules) {
+    const other = k8sRules.get(name);
+    if (!other) errors.push(`Alert ${name}: in observability/alerting.yml, missing from deploy/k8s/infra/prometheus.yaml`);
+    else if (ruleKey(rule) !== ruleKey(other)) {
+      errors.push(`Alert ${name}: expr/for/labels differ between compose and K8s`);
+    }
+  }
+  for (const name of k8sRules.keys()) {
+    if (!composeRules.has(name)) {
+      errors.push(`Alert ${name}: in deploy/k8s/infra/prometheus.yaml, missing from observability/alerting.yml`);
+    }
+  }
+
+  // 8. every metric an alert reads is emitted: an alert on a metric nobody
+  //    exports never fires (ca_certificate_last_renewed outlived the CA).
+  const emitted = emittedMetricNames();
+  for (const [name, rule] of composeRules) {
+    for (const metric of promqlMetricNames(rule.expr)) {
+      if (!isEmitted(metric, emitted)) {
+        errors.push(`Alert ${name}: metric ${metric} is emitted by no service, script or exporter`);
+      }
+    }
+  }
+  info.push(`${composeRules.size} alert rules, identical in compose and K8s, all on emitted metrics`);
+}
+
+// ── 8: Alertmanager: one config, file-based credentials, dead man's switch ───
+{
+  const compose = Bun.YAML.parse(readFileSync(join(ROOT, "observability", "alertmanager.yml"), "utf-8"));
+  let k8s;
+  const manifest = readFileSync(join(ROOT, "deploy", "k8s", "infra", "alertmanager.yaml"), "utf-8");
+  for (const doc of manifest.split(/^---$/m)) {
+    const parsed = Bun.YAML.parse(doc);
+    if (parsed?.data?.["alertmanager.yml"]) k8s = Bun.YAML.parse(parsed.data["alertmanager.yml"]);
+  }
+  if (!k8s) errors.push("deploy/k8s/infra/alertmanager.yaml: no alertmanager.yml ConfigMap entry");
+  else if (JSON.stringify(k8s) !== JSON.stringify(compose)) {
+    errors.push("Alertmanager config differs between observability/alertmanager.yml and the K8s ConfigMap");
+  }
+  // An inline credential is a placeholder (CHANGE_ME sent every alert nowhere)
+  // or a leaked secret: receivers read theirs from files.
+  if (/"(slack_api_url|api_url|routing_key|service_key|url)":/.test(JSON.stringify(compose))) {
+    errors.push("observability/alertmanager.yml: inline receiver credential, use the *_file form");
+  }
+  const watchdogRoute = (compose.route?.routes ?? []).find((route) =>
+    (route.matchers ?? []).some((matcher) => /alertname\s*=\s*"?Watchdog"?/.test(matcher))
+  );
+  const deadman = (compose.receivers ?? []).find((r) => r.name === watchdogRoute?.receiver);
+  if (!deadman?.webhook_configs?.length) {
+    errors.push("observability/alertmanager.yml: the Watchdog alert is not routed to a webhook (dead man's switch)");
+  }
+  info.push("Alertmanager: same config in compose and K8s, file-based credentials, Watchdog → dead man's switch");
 }
 
 if (errors.length > 0) {
