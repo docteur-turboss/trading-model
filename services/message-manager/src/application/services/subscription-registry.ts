@@ -1,65 +1,72 @@
 import type { Topic } from "@trading-model/primitives/primitives";
+import type { TopicBinding } from "@trading-model/primitives/topic-binding";
 import { SUBSCRIPTION_COUNT } from "../../config/metrics";
 import type {
 	SubscriptionParams,
 	TopicSubscription,
 } from "../../domain/messaging-types";
 import type { MessageDeliveryPort } from "../ports/message-delivery-port";
+import type { SubscriptionStorePort } from "../ports/subscription-store-port";
 import { Subscription } from "./subscription";
+
+function localKey(topic: Topic, binding: TopicBinding): string {
+	return `${topic}|${binding.serviceIdentity.instanceId}`;
+}
 
 export class SubscriptionRegistry {
 	/**
-	 * In-memory mapping of topics to subscriptions.
+	 * Delivery state (circuit breaker) of each subscription, kept per replica.
+	 * Which subscriptions exist is read from the shared store.
 	 */
-	private _subscriptionsByTopic = new Map<Topic, readonly Subscription[]>();
+	private readonly _local = new Map<string, Subscription>();
 
-	constructor(private readonly _deliveryPort: MessageDeliveryPort) {}
+	constructor(
+		private readonly _deliveryPort: MessageDeliveryPort,
+		private readonly _store: SubscriptionStorePort
+	) {}
 
-	subscribe(params: SubscriptionParams): void {
-		const { topic, serviceIdentity, callbackPath } = params;
+	/** Creates or renews a subscription (subscribers renew theirs periodically). */
+	async subscribe(params: SubscriptionParams): Promise<void> {
+		await this._store.save(params);
+		await this.getSubscriptions(params.topic);
+	}
 
-		const current = this._subscriptionsByTopic.get(topic) ?? [];
+	async unsubscribe(params: TopicSubscription): Promise<void> {
+		await this._store.remove(params.topic, params.instanceId);
+		await this.getSubscriptions(params.topic);
+	}
 
-		if (
-			current.some(
-				(sub) => sub.serviceIdentity.instanceId === serviceIdentity.instanceId
-			)
-		) {
-			return;
+	async getSubscriptions(topic: Topic): Promise<readonly Subscription[]> {
+		const bindings = await this._store.list(topic);
+		const live = new Set<string>();
+		const subscriptions = bindings.map((binding) => {
+			const key = localKey(topic, binding);
+			live.add(key);
+			return this._localSubscription(key, binding);
+		});
+		this._forgetOthers(topic, live);
+		SUBSCRIPTION_COUNT.set({ topic }, subscriptions.length);
+		return subscriptions;
+	}
+
+	private _localSubscription(key: string, binding: TopicBinding): Subscription {
+		const existing = this._local.get(key);
+		if (existing && existing.callbackPath === binding.callbackPath) {
+			return existing;
 		}
-
 		const subscription = new Subscription({
-			topic,
-			callbackPath,
-			serviceIdentity,
+			...binding,
 			deliveryPort: this._deliveryPort,
 		});
-
-		const subscriptions = [...current, subscription];
-		this._subscriptionsByTopic.set(topic, subscriptions);
-		SUBSCRIPTION_COUNT.set({ topic }, subscriptions.length);
+		this._local.set(key, subscription);
+		return subscription;
 	}
 
-	unsubscribe(params: TopicSubscription): void {
-		const { topic, instanceId } = params;
-
-		const current = this._subscriptionsByTopic.get(topic);
-		if (!current) {
-			return;
+	private _forgetOthers(topic: Topic, live: Set<string>): void {
+		for (const [key, subscription] of this._local) {
+			if (subscription.topic === topic && !live.has(key)) {
+				this._local.delete(key);
+			}
 		}
-
-		const remaining = current.filter(
-			(sub) => sub.serviceIdentity.instanceId !== instanceId
-		);
-
-		if (remaining.length === 0) {
-			this._subscriptionsByTopic.delete(topic);
-		}
-		this._subscriptionsByTopic.set(topic, remaining);
-		SUBSCRIPTION_COUNT.set({ topic }, remaining.length);
-	}
-
-	getSubscriptions(topic: Topic): readonly Subscription[] {
-		return this._subscriptionsByTopic.get(topic) ?? [];
 	}
 }
