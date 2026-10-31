@@ -42,6 +42,7 @@
     "test": "jest",
     "test:detectOpenHandles": "jest --detectOpenHandles",
     "test:coverage": "jest --coverage",
+    "test:db": "jest -c jest.db.config.js",
     "build": "tsc -p tsconfig.build.json"
   }
 }
