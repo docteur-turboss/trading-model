@@ -67,21 +67,18 @@ main() {
   # Resolve values: env override or random.
   local AUTH_TOKENS SIGNING_SECRET SERVICE_BOOTSTRAP_TOKEN
   local MYSQL_ROOT_PASSWORD MYSQL_PASSWORD DLQ_AUTH_HMAC_SECRET
-  local ADMIN_TOKEN GRAFANA_PASSWORD HMAC_SECRET MONGO_ENC_KEY
+  local GRAFANA_PASSWORD HMAC_SECRET
   AUTH_TOKENS="${AUTH_TOKENS:-$(rand_hex 24)}"
   SIGNING_SECRET="${SIGNING_SECRET:-$(rand_hex 32)}"
   SERVICE_BOOTSTRAP_TOKEN="${SERVICE_BOOTSTRAP_TOKEN:-$(rand_hex 24)}"
   MYSQL_ROOT_PASSWORD="${MYSQL_ROOT_PASSWORD:-$(rand_hex 16)}"
   MYSQL_PASSWORD="${MYSQL_PASSWORD:-$(rand_hex 16)}"
   DLQ_AUTH_HMAC_SECRET="${DLQ_AUTH_HMAC_SECRET:-$(rand_hex 32)}"
-  ADMIN_TOKEN="${ADMIN_TOKEN:-$(rand_hex 24)}"
   GRAFANA_PASSWORD="${GRAFANA_PASSWORD:-$(rand_hex 16)}"
   HMAC_SECRET="${HMAC_SECRET:-$(rand_hex 32)}"
-  MONGO_ENC_KEY="${MONGO_ENC_KEY:-$(rand_hex 32)}" # 64-char hex AES key (required by Mongo)
 
   if ! $DRY_RUN; then
     local plaintext_app="/tmp/trading-model-secrets-plaintext.yaml"
-    local plaintext_mongo="/tmp/mongodb-encryption-key-plaintext.yaml"
     cat > "$plaintext_app" <<EOF
 apiVersion: v1
 kind: Secret
@@ -98,32 +95,17 @@ stringData:
   MYSQL_ROOT_PASSWORD: "${MYSQL_ROOT_PASSWORD}"
   MYSQL_PASSWORD: "${MYSQL_PASSWORD}"
   DLQ_AUTH_HMAC_SECRET: "${DLQ_AUTH_HMAC_SECRET}"
-  ADMIN_TOKEN: "${ADMIN_TOKEN}"
   GRAFANA_PASSWORD: "${GRAFANA_PASSWORD}"
   HMAC_SECRET: "${HMAC_SECRET}"
 EOF
-    cat > "$plaintext_mongo" <<EOF
-apiVersion: v1
-kind: Secret
-metadata:
-  name: mongodb-encryption-key
-  namespace: ${NAMESPACE}
-  labels:
-    app.kubernetes.io/part-of: trading-model
-type: Opaque
-stringData:
-  key: "${MONGO_ENC_KEY}"
-EOF
     seal "$plaintext_app" "$secrets_dir/trading-model-sealed-secrets.yaml"
-    seal "$plaintext_mongo" "$secrets_dir/mongodb-encryption-key-sealed.yaml"
-    rm -f "$plaintext_app" "$plaintext_mongo"
+    rm -f "$plaintext_app"
   fi
 
   if $APPLY && ! $DRY_RUN; then
     log "Applying sealed secrets to namespace ${NAMESPACE}..."
     kubectl apply -f "$secrets_dir/trading-model-sealed-secrets.yaml"
-    kubectl apply -f "$secrets_dir/mongodb-encryption-key-sealed.yaml"
-    log "Applied — the sealed-secrets controller will decrypt them into Secrets."
+    log "Applied — the sealed-secrets controller will decrypt it into the Secret."
   else
     log "Done. Inspect deploy/k8s/secrets/*-sealed.yaml and apply with: kubectl apply -k deploy/k8s/secrets"
   fi
