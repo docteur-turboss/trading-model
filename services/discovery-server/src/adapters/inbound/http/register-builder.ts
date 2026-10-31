@@ -29,15 +29,21 @@ function resolveInstanceId(
 	);
 }
 
+/**
+ * @param observedIp - the caller's address as seen by discovery. Preferred over
+ *   the declared `ip`: a multi-homed instance declares its first interface,
+ *   which may sit on a network its callers cannot reach.
+ */
 export function buildServiceInstance(
 	data: z.infer<typeof REGISTER_SCHEMA>,
-	registry: ServiceRegistry
+	registry: ServiceRegistry,
+	observedIp?: string
 ): ServiceInstance {
 	const { serviceName, ip, port, version } = data;
 	return {
 		instanceId: resolveInstanceId(data, registry),
 		serviceName: toServiceId(serviceName),
-		host: IPAddress.of(ip),
+		host: IPAddress.of(observedIp ?? ip),
 		port: Port.of(port),
 		version: toVersion(version ?? "1.0.0"),
 		ttl: DurationMs.of(30_000),

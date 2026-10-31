@@ -26,14 +26,3 @@ export function instanceUpdatedBy(
 ): string {
 	return buildRedisKey(prefix, "instance", instanceId, "updatedBy");
 }
-
-export function servicePattern(prefix: string): string {
-	return buildRedisKey(prefix, "service:*:instances");
-}
-
-export function parseServiceName(prefix: string, key: string): string | null {
-	const match = key.match(
-		new RegExp(`^${buildRedisKey(prefix, "service:(.+):instances")}$`)
-	);
-	return match ? match[1] : null;
-}

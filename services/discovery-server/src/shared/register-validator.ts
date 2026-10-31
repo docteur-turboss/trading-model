@@ -19,6 +19,7 @@ function _getAllowedRanges() {
 }
 
 function _isValidServiceName(value: string): boolean {
+	// biome-ignore lint/plugin: validation predicate: a parse failure means invalid
 	try {
 		parseServiceName(value);
 		return true;
@@ -34,7 +35,6 @@ export const REGISTER_SCHEMA = z
 			.min(1, "serviceName is required")
 			.refine(_isValidServiceName, {
 				message: "Invalid serviceName — must be a known platform service",
-				path: ["serviceName"],
 			}),
 		instanceId: z.string().min(1).optional(),
 		ip: z.string().regex(IPV4_REGEX, "Invalid IP address"),
@@ -48,10 +48,3 @@ export const REGISTER_SCHEMA = z
 		},
 		{ message: "IP address is not in an allowed range", path: ["ip"] }
 	);
-
-export function parseRegisterBody(
-	req: import("express").Request
-): z.infer<typeof REGISTER_SCHEMA> | null {
-	const parsed = REGISTER_SCHEMA.safeParse(req.body);
-	return parsed.success ? parsed.data : null;
-}

@@ -1,6 +1,8 @@
+import { mountRoute } from "@trading-model/http/adapters/inbound/api-route/mount-route";
 import { Router } from "express";
 import rateLimit from "express-rate-limit";
 import type { ServiceRegistry } from "../../../domain/service-registry";
+import { DISCOVERY_API } from "./api-routes";
 import { createHeartbeatController } from "./heartbeat.controller";
 
 const HEARTBEAT_LIMITER = rateLimit({
@@ -12,12 +14,15 @@ const HEARTBEAT_LIMITER = rateLimit({
 });
 
 export const HEARTBEAT_ROUTES = (registry: ServiceRegistry): Router => {
-	const { heartbeat, rotateToken } = createHeartbeatController(registry);
+	const { heartbeat, rotateToken, unregister } =
+		createHeartbeatController(registry);
 
 	const router = Router();
 
-	router.post("/heartbeat", HEARTBEAT_LIMITER, heartbeat);
-	router.post("/token/rotate", HEARTBEAT_LIMITER, rotateToken);
+	const limited = { middlewares: [HEARTBEAT_LIMITER] };
+	mountRoute(router, DISCOVERY_API.heartbeat, heartbeat, limited);
+	mountRoute(router, DISCOVERY_API.rotateToken, rotateToken, limited);
+	mountRoute(router, DISCOVERY_API.unregister, unregister, limited);
 
 	return router;
 };

@@ -1,141 +1,40 @@
 import { parseServiceName } from "@trading-model/common/config/services.types";
 import type { HttpStatusCode } from "@trading-model/contracts/http-status";
-import { catchSync } from "@trading-model/http/adapters/inbound/catch-error";
+import type { ApiRouteHandler } from "@trading-model/http/adapters/inbound/api-route/mount-route";
 import { sendResponse } from "@trading-model/http/adapters/inbound/response-exception";
-import {
-	toInstanceId,
-	toServiceId,
-} from "@trading-model/primitives/primitives";
-import type { ServiceIdentity } from "@trading-model/primitives/service-identity";
-import { isNonEmptyString } from "@trading-model/validation/domain/validation/primitives";
-import type { RequestHandler } from "express";
 import type { ServiceRegistry } from "../../../domain/service-registry";
-import { validationErrorResponse } from "../../../shared/helpers";
-import {
-	parseRegisterBody,
-	REGISTER_SCHEMA,
-} from "../../../shared/register-validator";
+import type { DISCOVERY_API } from "./api-routes";
 import { buildServiceInstance } from "./register-builder";
 
-interface RegisterController {
-	register: RequestHandler;
-	listServices: RequestHandler;
-	getServiceInstances: RequestHandler;
-	getInstance: RequestHandler;
+/** The caller's IPv4 address on the connection (IPv4-mapped IPv6 unwrapped). */
+function _observedIPv4(req: import("express").Request): string | undefined {
+	const address = req.socket?.remoteAddress?.replace(/^::ffff:/, "");
+	return address && /^\d{1,3}(\.\d{1,3}){3}$/.test(address)
+		? address
+		: undefined;
 }
 
-function _buildValidationError(
-	req: import("express").Request
-): ReturnType<typeof sendResponse> {
-	return validationErrorResponse(REGISTER_SCHEMA, req.body);
-}
-
-function createRegisterHandler(registry: ServiceRegistry): RequestHandler {
-	return catchSync(async (req) => {
-		const data = parseRegisterBody(req);
-		if (!data) {
-			return _buildValidationError(req);
-		}
-		if (
-			!registry.tokenManager.verifyInstanceName(
-				parseServiceName(data.serviceName)
-			)
-		) {
-			return sendResponse(
-				{ error: "Invalid service name" },
-				400 as HttpStatusCode
-			);
-		}
-		const instance = buildServiceInstance(data, registry);
-		return sendResponse(
-			await registry.registerInstance(instance),
-			201 as HttpStatusCode
-		);
-	});
-}
-
-function createListServicesHandler(registry: ServiceRegistry): RequestHandler {
-	return catchSync(async () => {
-		return sendResponse(
-			await registry.instanceStore.listServiceNames(),
-			200 as HttpStatusCode
-		);
-	});
-}
-
-function _validateServiceNameParam(
-	req: import("express").Request
-): string | null {
-	const { serviceName } = req.params;
-	if (!isNonEmptyString(serviceName)) {
-		return null;
-	}
-	return serviceName;
-}
-
-function createGetServiceInstancesHandler(
-	registry: ServiceRegistry
-): RequestHandler {
-	return catchSync(async (req) => {
-		const serviceName = _validateServiceNameParam(req);
-		if (!serviceName) {
-			return sendResponse(
-				{ error: "serviceName is required" },
-				400 as HttpStatusCode
-			);
-		}
-		if (
-			!registry.tokenManager.verifyInstanceName(parseServiceName(serviceName))
-		) {
-			return sendResponse({ error: "Unknown service" }, 404 as HttpStatusCode);
-		}
-		return sendResponse(
-			await registry.instanceStore.getInstances(parseServiceName(serviceName)),
-			200 as HttpStatusCode
-		);
-	});
-}
-
-function _validateRouteParams(
-	req: import("express").Request
-): ServiceIdentity | null {
-	const { serviceName, instanceId } = req.params;
-	if (!(isNonEmptyString(serviceName) && isNonEmptyString(instanceId))) {
-		return null;
-	}
+/** `POST /register`, body parsed by the route (DISCOVERY_API.register). */
+export function createRegisterController(registry: ServiceRegistry): {
+	register: ApiRouteHandler<(typeof DISCOVERY_API)["register"]>;
+} {
 	return {
-		serviceName: toServiceId(serviceName),
-		instanceId: toInstanceId(instanceId),
-	};
-}
-
-function createGetInstanceHandler(registry: ServiceRegistry): RequestHandler {
-	return catchSync(async (req) => {
-		const params = _validateRouteParams(req);
-		if (!params) {
+		register: async ({ body }, req) => {
+			if (
+				!registry.tokenManager.verifyInstanceName(
+					parseServiceName(body.serviceName)
+				)
+			) {
+				return sendResponse(
+					{ error: "Invalid service name" },
+					400 as HttpStatusCode
+				);
+			}
+			const instance = buildServiceInstance(body, registry, _observedIPv4(req));
 			return sendResponse(
-				{ error: "Invalid route parameters" },
-				400 as HttpStatusCode
+				await registry.registerInstance(instance),
+				201 as HttpStatusCode
 			);
-		}
-		const instance = await registry.instanceStore.getInstance(params);
-		if (!instance) {
-			return sendResponse(
-				{ error: "Instance not found" },
-				404 as HttpStatusCode
-			);
-		}
-		return sendResponse(instance, 200 as HttpStatusCode);
-	});
-}
-
-export function createRegisterController(
-	registry: ServiceRegistry
-): RegisterController {
-	return {
-		register: createRegisterHandler(registry),
-		listServices: createListServicesHandler(registry),
-		getServiceInstances: createGetServiceInstancesHandler(registry),
-		getInstance: createGetInstanceHandler(registry),
+		},
 	};
 }
