@@ -1,6 +1,5 @@
 /** Well-known service instance identifiers used across the system. */
 export enum ServiceInstanceName {
-	AdminInterface = "admin-interface",
 	ApiGatewayService = "api-gateway",
 	AuditLoggerService = "audit-logger-service",
 	DiscoveryService = "discovery-service",

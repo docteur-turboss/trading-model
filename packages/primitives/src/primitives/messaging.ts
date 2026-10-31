@@ -4,11 +4,7 @@ export {
 	toAuditSummary,
 } from "./audit-summary";
 export {
-	ConsumerGroupName,
-	ConsumerId,
 	CorrelationId,
-	fromConsumerGroupName,
-	fromConsumerId,
 	fromCorrelationId,
 	fromMessageId,
 	fromMessagePriority,
@@ -16,8 +12,6 @@ export {
 	MessageId,
 	MessagePriority,
 	Topic,
-	toConsumerGroupName,
-	toConsumerId,
 	toCorrelationId,
 	toMessageId,
 	toMessagePriority,
