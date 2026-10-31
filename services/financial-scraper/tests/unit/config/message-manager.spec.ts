@@ -21,17 +21,10 @@ jest.mock("../../../src/infrastructure/config/env", () => ({
 	},
 }));
 
-import {
-	MessageManager,
-	MessageManagerListenExpress,
-} from "../../../src/config/message-manager";
+import { MessageManager } from "../../../src/config/message-manager";
 
 describe("config/message-manager", () => {
 	it("should export MessageManager", () => {
 		expect(MessageManager).toBeDefined();
-	});
-
-	it("should export MessageManagerListenExpress", () => {
-		expect(MessageManagerListenExpress).toBeDefined();
 	});
 });

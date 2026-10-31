@@ -12,10 +12,6 @@ jest.mock(
 	})
 );
 
-jest.mock("../../../src/config/message-manager", () => ({
-	MessageManagerListenExpress: jest.fn(),
-}));
-
 jest.mock("../../../src/config/address-manager", () => ({
 	ADDRESS_MANAGER_ROUTES: jest.fn((app: any) => app),
 }));
