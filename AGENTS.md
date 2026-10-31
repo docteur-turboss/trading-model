@@ -10,7 +10,7 @@ bun run test                    # Run all workspace tests
 bun run --filter <name> test    # Run a single workspace's tests
 bun run lint                    # Biome check across the whole monorepo
 bun run deps:check              # Verify @trading-model/* imports match package.json manifests (ADR-0016)
-bun run api:check               # OpenAPI up to date + documented routes reach real routes
+bun run api:check               # OpenAPI up to date + documented routes reach real routes + every service-to-service route has a caller, no WebSocket server (ADR-0029)
 bun run api:write               # Regenerate docs/services/openapi/api-gateway.yaml from the routes
 bun run adr:check               # Every live ADR names its check; supersession + index consistent
 bun run test:contract           # Cross-service contracts, real code on both sides: messages (scraper/trainer → message-manager → trainer/audit-logger), dead letters, discovery (address-manager + gateway → discovery-server)

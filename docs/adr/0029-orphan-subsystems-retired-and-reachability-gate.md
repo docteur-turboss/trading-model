@@ -3,7 +3,7 @@
 **Status:** Accepted
 **Date:** 2026-10
 **Related:** [ADR-0012](./0012-dead-code-removal-and-entrypoint-fix.md) (import-reachability removal; its jobs row is corrected here), [ADR-0013](./0013-config-gated-dead-code-removal.md) (dead code that import reachability cannot see), [ADR-0018](./0018-temporary-frontend-removal.md) (frontend removal that orphaned the admin DTOs), [ADR-0027](./0027-audit-chain-verification-and-anchoring.md) (the audit-logger CLI rooted here)
-**Verified by:** `bun run reach:check`, `bun run config:check`, `packages/address-manager/tests/unit/create-address-manager.spec.ts`, `packages/address-manager/tests/db/redis-service-cache.db.spec.ts`, `services/audit-logger/tests/unit/persistence/retired-collections.spec.ts`, `services/audit-logger/tests/db/retired-collections.db.spec.ts`, `services/audit-logger/tests/unit/app/index.spec.ts`, `services/audit-logger/tests/unit/app/server.spec.ts`
+**Verified by:** `bun run reach:check`, `bun run config:check`, `bun run api:check`, `services/dlq-service/tests/db/auto-retry.db.spec.ts`, `packages/address-manager/tests/unit/create-address-manager.spec.ts`, `packages/address-manager/tests/db/redis-service-cache.db.spec.ts`, `services/audit-logger/tests/unit/persistence/retired-collections.spec.ts`, `services/audit-logger/tests/db/retired-collections.db.spec.ts`, `services/audit-logger/tests/unit/app/index.spec.ts`, `services/audit-logger/tests/unit/app/server.spec.ts`
 
 ## Context
 
@@ -96,9 +96,20 @@ Its first run found nine variables. Reviewing them found two address-manager con
 | `PUBLIC_IP`, `LOCAL_DISCOVERY_URL`, `PREFERRED_NETWORK_INTERFACE`, `METRICS_INTERVAL_MS`, `MAX_CALL_RECORDS` | address-manager options read from the env but declared by no schema, so always undefined; four of them were read by nothing | Removed |
 | `DLQ_AUTH_HMAC_SECRET_PATH` | Reading the DLQ HMAC secret from a file | Removed: the secret comes from `DLQ_AUTH_HMAC_SECRET` (Secret in K8s) |
 | `LOG_DIR` | Writing logs to files | Removed: services log to stdout (compose `x-logging`, promtail). The redaction specs now assert on stdout, the path that runs |
-| `DLQ_AUTO_RETRY_ENABLED` | Automatic replay of dead letters and the Redis worker loop that also releases stale claims | **Wired**: `true` in compose and the K8s ConfigMap. The E2E overlay sets it to `false`, because its suites replay by hand |
-| `redisCacheUrl` (config, no variable) | `RedisServiceCache`: addresses and circuit state shared by the replicas | **Wired**: filled from `REDIS_SENTINELS` / `REDIS_URL` via `redisConnectionFromEnv`, in the services that have Redis (dlq-service, message-manager). The other services keep the in-memory cache |
+| `DLQ_AUTO_RETRY_ENABLED` | Automatic replay of dead letters and the Redis worker loop that also releases stale claims | **Wired**: `true` in compose and the K8s ConfigMap. The E2E overlay sets it to `false`, because its suites replay by hand; `services/dlq-service/tests/db/auto-retry.db.spec.ts` covers the cycle (tick, Redis queue, worker, abandon after the max attempts) against real MongoDB and Redis |
+| `redisCacheUrl` (config, no variable) | `RedisServiceCache`: addresses and circuit state shared by the replicas | **Wired**: filled from `REDIS_SENTINELS` / `REDIS_URL` via `redisConnectionFromEnv`, in every service that uses address-manager: audit-logger, financial-scraper and trader-trainer got `RedisEnvSchema`, the sentinels in their ConfigMap and egress 6379/26379 |
 | `pems` (config, no variable) | An alias of `tls` | Removed |
+
+### 6. A route nobody calls fails `api:check`
+
+`bun run api:check` maps each service-to-service route to its caller (`CALLERS` in `scripts/api-contract.mjs`) and finds the call in the caller's sources: a route without a caller, or whose caller stopped calling it, fails. A broker callback (`POST /message`) is proven by the owner's subscription (`intents(`), since message-manager only delivers to subscribers. No workspace may open a WebSocket server (`WebSocketServer`, `upgrade` handler), the shape of point 1. Exceptions go in `AWAITING_CALLER` with their reason.
+
+Its first run found two routes without a client:
+
+| Route | Decision |
+| ----- | -------- |
+| financial-scraper `POST /message` | Removed: the scraper publishes and subscribes to nothing, so message-manager never delivered to it. It no longer mounts the broker callback |
+| trader-trainer `GET /models/:symbol/:version/weights` | Kept in `AWAITING_CALLER`: closed (`MODEL_DOWNLOAD_CALLERS` empty) until an executor consumes the models, as ADR-0022 decided |
 
 ## Alternatives Considered
 
@@ -121,7 +132,7 @@ Its first run found nine variables. Reviewing them found two address-manager con
 ### Negative
 
 - Reintroducing a job system is a rewrite (git history: `git show 73e9f877:packages/jobs`).
-- Both gates are static. `config:check` covers settings that no deployment turns on, but a server that no client calls (point 1) is still only caught by review and by the E2E data-flow tests.
+- The gates are static. `api:check` proves that a caller's code contains the call, not that the call happens at runtime; the E2E data-flow tests and the DB specs cover that.
 - `config:check` matches variable names in the profile text. A profile that names a variable without setting it to a useful value passes, except for `false`-default switches, whose value is checked.
 - A file reached only through a computed path (`require(variable)`) fails the gate; it must be declared as an entry point or loaded through a literal path.
 

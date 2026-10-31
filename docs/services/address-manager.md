@@ -190,7 +190,7 @@ In addition to the default export, the package exposes internal modules via deep
 | `TTL_REFRESH_INTERVAL_MS`         | `15000`     | TTL refresh interval        |
 | `ADDRESS_MANAGER_URL`             | —           | Discovery-server URL        |
 | `DNS_NAME_MAP`                    | `'{}'`      | Custom DNS mapping (JSON)   |
-| `REDIS_SENTINELS` / `REDIS_URL`   | —           | Shared address + circuit-state cache (services whose schema includes `RedisEnvSchema`: dlq-service, message-manager); otherwise in memory |
+| `REDIS_SENTINELS` / `REDIS_URL`   | —           | Shared address + circuit-state cache, set in every service that uses address-manager (compose `REDIS_URL`, K8s sentinels); unset: in memory |
 | `ERROR_URL_WEBHOOK`               | `''`        | Error webhook               |
 | `MESSAGE_BUS_INIT_TIMEOUT_MS`     | `2000`      | Bus init timeout            |
 | `MESSAGE_BUS_SHUTDOWN_TIMEOUT_MS` | `2000`      | Bus shutdown timeout        |
