@@ -3,3 +3,6 @@
 
 # Husky hooks must stay LF on Windows too (Git Bash needs them)
 .husky/** text eol=lf
+
+# Shell scripts run inside Linux containers (ConfigMaps, images)
+*.sh text eol=lf

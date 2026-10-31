@@ -1,6 +1,12 @@
 {
 	"$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
 	"root": true,
+	"plugins": [
+		{
+			"path": "./biome-plugins/no-swallowed-errors.grit",
+			"includes": ["**/src/**"]
+		}
+	],
 	"assist": {
 		"enabled": true,
 		"actions": {
@@ -32,6 +38,7 @@
 				"noConfusingVoidType": "error",
 				"noConsole": "off",
 				"noEmptyInterface": "error",
+				"noEmptyBlockStatements": "error",
 				"noExportsInTest": "error",
 				"noFocusedTests": "error",
 				"noGlobalIsFinite": "error",
@@ -307,6 +314,7 @@
 				"rules": {
 					"suspicious": {
 						"noExplicitAny": "off",
+						"noEmptyBlockStatements": "off",
 						"useAwait": "off"
 					},
 					"style": {
