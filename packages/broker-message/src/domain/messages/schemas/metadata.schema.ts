@@ -1,7 +1,9 @@
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import { AuditEvent } from "@trading-model/contracts/audit-events";
 import { DeliveryMode } from "@trading-model/contracts/delivery-mode";
+import { DlqEvent } from "@trading-model/contracts/dlq-events";
 import { MarketEvent } from "@trading-model/contracts/market-events";
+import { TrainingEvent } from "@trading-model/contracts/training-events";
 import {
 	toRole,
 	toSubject,
@@ -81,9 +83,12 @@ export const PUBLISHER_METADATA_CONTEXT_PREDICATE = z.object({
 		Object.values(ServiceInstanceName) as [string, ...string[]],
 		`publisher.serviceName value is invalid. Expected one of: ${Object.values(ServiceInstanceName).join(", ")}.`
 	),
-	instanceId: z.uuid(
-		"publisher.instanceId must be a string as a UUID identifying the service instance"
-	),
+	// Same contract as the INSTANCE_ID env var: a pod name in K8s, `<service>-<n>` in compose.
+	instanceId: z
+		.string(
+			"publisher.instanceId must be a non-empty string identifying the service instance"
+		)
+		.min(1, "publisher.instanceId must not be empty"),
 });
 
 export const IDS_METADATA_PREDICATE = z
@@ -100,16 +105,22 @@ export const SCHEMA_METADATA_VERSION_PREDICATE = z
 	})
 	.optional();
 
+const TOPIC_FORMAT_MESSAGE =
+	"Invalid topic format. Expected at least '<bounded-context>.<aggregate>.<action>': dot-separated lowercase segments of letters, digits and hyphens (e.g. 'billing.invoice.created', 'market.order-book.snapshot.fetch').";
+
+/** Accepts every topic the contracts define (MarketEvent: 4 segments, hyphens, digits). */
 export const TOPIC_METADATA_PREDICATE = z
-	.string(
-		"Invalid topic format. Expected pattern '<bounded-context>.<aggregate>.<action>' in lowercase (e.g. 'billing.invoice.created')."
-	)
+	.string(TOPIC_FORMAT_MESSAGE)
 	.toLowerCase()
-	.regex(/^[a-z]+\.[a-z]+\.[a-z]+$/);
+	.regex(/^[a-z0-9]+(?:-[a-z0-9]+)*(?:\.[a-z0-9]+(?:-[a-z0-9]+)*){2,}$/, {
+		error: TOPIC_FORMAT_MESSAGE,
+	});
 
 const ALL_EVENT_TYPES = [
 	...Object.values(MarketEvent),
 	...Object.values(AuditEvent),
+	...Object.values(TrainingEvent),
+	...Object.values(DlqEvent),
 ] as const;
 
 export const EVENT_TYPE_METADATA_PREDICATE = z.enum(

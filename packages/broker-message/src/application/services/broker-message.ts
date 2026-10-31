@@ -1,12 +1,14 @@
 import type addressManagerClient from "@trading-model/address-manager";
 import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import type { TlsPaths } from "@trading-model/common/config/tls-paths";
+import { normalizeError } from "@trading-model/common/utils/errors";
 import type {
 	EventEnumMap,
 	EventMap,
 	EventMessagesArgs,
 } from "@trading-model/contracts/event-map";
 import { HttpClient } from "@trading-model/http/adapters/outbound/http-client";
+import { logger } from "@trading-model/http/infrastructure/logger";
 import type { InstanceId } from "@trading-model/primitives/primitives";
 import type { Application } from "express";
 import { CREATE_CALLBACK_ROUTE } from "../../adapters/inbound/messages.routes";
@@ -15,13 +17,20 @@ import { MessageMetadataBuilder } from "../../domain/messages/message-metadata-b
 import type { Listener } from "./event-manager-client";
 import { EVENT_MANAGER } from "./event-manager-client";
 
+/** Renewal period of topic subscriptions (also the retry delay after a failure). */
+export const SUBSCRIPTION_REFRESH_MS = 15_000;
+
+/** Callback path a subscriber mounts when it names none (audit-logger). */
+export const DEFAULT_CALLBACK_PATH = "message";
+
 export default class BrokerMessage {
 	private _messageManagerClient: MessageManagerClient;
 
-	private _callbackPath = "message";
+	private _callbackPath = DEFAULT_CALLBACK_PATH;
 	private _httpClient: HttpClient;
 
 	private _topics: EventEnumMap[] = [];
+	private _refreshTimer?: ReturnType<typeof setInterval>;
 	private _eventCleanups: (() => void)[] = [];
 
 	constructor({
@@ -48,16 +57,51 @@ export default class BrokerMessage {
 		);
 	}
 
-	/** Subscribes to the specified event topics. */
-	intents(
+	/**
+	 * Subscribes to the specified event topics and keeps the subscriptions alive.
+	 *
+	 * Never rejects: a failed attempt is logged and retried. Subscriptions are
+	 * then renewed every `SUBSCRIPTION_REFRESH_MS` (idempotent on the
+	 * message-manager side): message-manager expires a subscription not renewed
+	 * for 60s, and the renewal restores the ones its store lost.
+	 */
+	async intents(
 		topics: Parameters<MessageManagerClient["subscribe"]>[0]
 	): Promise<void> {
 		this._topics = topics as EventEnumMap[];
-		return this._messageManagerClient.subscribe(topics);
+		this._stopRefresh();
+		await this._subscribeOnce();
+		this._refreshTimer = setInterval(
+			() => void this._subscribeOnce(),
+			SUBSCRIPTION_REFRESH_MS
+		);
+		this._refreshTimer.unref();
+	}
+
+	private async _subscribeOnce(): Promise<void> {
+		try {
+			await this._messageManagerClient.subscribe(this._topics);
+		} catch (error) {
+			logger.warn("Topic subscription failed, retrying", {
+				context: {
+					topics: this._topics,
+					retryInMs: SUBSCRIPTION_REFRESH_MS,
+					error: normalizeError(error).message,
+				},
+			});
+		}
+	}
+
+	private _stopRefresh(): void {
+		if (this._refreshTimer) {
+			clearInterval(this._refreshTimer);
+			this._refreshTimer = undefined;
+		}
 	}
 
 	/** Unsubscribes from all topics and cleans up event listeners. */
 	async stopMessageManager(): Promise<void> {
+		this._stopRefresh();
 		await this._messageManagerClient.unsubscribe(this._topics);
 		this._topics = [];
 		for (const fn of this._eventCleanups) {

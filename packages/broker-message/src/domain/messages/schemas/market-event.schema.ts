@@ -29,7 +29,11 @@ export const MARKET_EVENT_VALIDATORS = {
 		trades: z.array(
 			z.object({
 				price: PriceSchema,
-				tradeId: z.bigint("TradeId is required and must be a bigint"),
+				// JSON carries the 64-bit id as a decimal string (HttpClient wire format).
+				tradeId: z.union(
+					[z.bigint(), z.string().regex(/^\d+$/)],
+					"TradeId is required and must be a bigint or a decimal string"
+				),
 				quantity: VolumeSchema,
 				side: z.enum(
 					TradeSide.values() as [TradeSide, ...TradeSide[]],
@@ -72,8 +76,9 @@ export const MARKET_EVENT_VALIDATORS = {
 	[MarketEvent.FetchOrderBookSnapshot]: z.object({
 		orderBook: z.array(
 			z.object({
-				bids: z.set(SET_OBJECT),
-				asks: z.set(SET_OBJECT),
+				// Sets travel as arrays over JSON.
+				bids: z.union([z.set(SET_OBJECT), z.array(SET_OBJECT)]),
+				asks: z.union([z.set(SET_OBJECT), z.array(SET_OBJECT)]),
 				...BaseMarketDataShape,
 			}),
 			"OrderBook is required and must be a array of object"

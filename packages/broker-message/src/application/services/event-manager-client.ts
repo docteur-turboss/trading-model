@@ -2,7 +2,7 @@ import type {
 	EventMap,
 	EventMessagesArgs,
 } from "@trading-model/contracts/event-map";
-import { TypedEventEmitter } from "@trading-model/jobs/application/services/typed-event-emitter";
+import { TypedEventEmitter } from "./typed-event-emitter";
 
 /** Callback signature for event listeners. */
 export type Listener<TData> = (data: TData) => void;

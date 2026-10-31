@@ -65,7 +65,9 @@ export type NullMessageChainingMetadata = typeof NULL_MESSAGE_CHAINING_METADATA;
 export const NULL_MESSAGE_CHAINING_METADATA: ChainingMetadata = {
 	causationId: undefined,
 	correlationId: undefined,
-	setIds(): void {},
+	setIds(): void {
+		// Intentional no-op.
+	},
 	toJSON() {
 		return {};
 	},

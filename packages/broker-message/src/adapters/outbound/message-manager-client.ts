@@ -8,12 +8,24 @@ import {
 } from "@trading-model/common/utils/errors";
 import type { EventEnumMap } from "@trading-model/contracts/event-map";
 import type { MessageMetadata } from "@trading-model/contracts/message-types";
+import { PUBLISH_TIMEOUT_MS } from "@trading-model/contracts/publish-timeout";
 import type { HttpClient } from "@trading-model/http/adapters/outbound/http-client";
-import { URLString } from "@trading-model/primitives/primitives";
+import { DurationMs, URLString } from "@trading-model/primitives/primitives";
 import { HostPort } from "@trading-model/primitives/service-identity";
 import type { IMessageClient } from "../../domain/ports/i-message-client";
 import type { MessageManagerConfig } from "../../domain/types/config";
 import { TopicSubscriptionService } from "./topic-subscription-service";
+
+/**
+ * message-manager answers once it has delivered (or given up) the message:
+ * wait for its answer rather than time out first. A publish is never sent
+ * twice once it left: the broker stamps a new messageId on each copy, so
+ * subscribers could not tell the duplicates apart.
+ */
+const PUBLISH_OPTIONS = {
+	timeoutMs: DurationMs.of(PUBLISH_TIMEOUT_MS + 5_000),
+	retryUnsentOnly: true,
+};
 
 /** Client for interacting with the Message Delivery Service via HTTP. */
 export class MessageManagerClient implements IMessageClient {
@@ -56,7 +68,8 @@ export class MessageManagerClient implements IMessageClient {
 	): Promise<void> {
 		return await this._httpClient.post(
 			URLString.of(`https://${HostPort.toAddress(target)}/message`),
-			{ payload, metadata }
+			{ payload, metadata },
+			PUBLISH_OPTIONS
 		);
 	}
 
