@@ -3,17 +3,97 @@
  */
 
 import { buildTlsFromEnv } from "@trading-model/common/config/tls-paths";
+import { normalizeError } from "@trading-model/common/utils/errors";
+import { logger } from "@trading-model/http/infrastructure/logger";
+import { createRedisClient } from "@trading-model/persistence/redis-connection-manager";
+import { redisConnectionFromEnv } from "@trading-model/persistence/redis-env";
+import type Redis from "ioredis";
+import { RedisSubscriptionStore } from "../adapters/outbound/redis-subscription-store";
 import { ENV } from "../infrastructure/config/env";
 import createBrokerModule from "./container";
+
+const SUBSCRIPTION_KEY_PREFIX = "trading-model:message-manager";
+
+const REDIS_CONNECTION = redisConnectionFromEnv(ENV);
+
+/**
+ * Holds the subscriptions shared by the replicas. Lazy: connects on the first
+ * command. Absent without Redis (single replica, subscriptions in memory).
+ */
+const SUBSCRIPTION_REDIS = REDIS_CONNECTION
+	? (createRedisClient(REDIS_CONNECTION) as Redis)
+	: undefined;
+
+if (!SUBSCRIPTION_REDIS) {
+	logger.warn(
+		"Redis not configured — subscriptions kept in memory (single replica only)"
+	);
+}
 
 /**
  * Broker singleton, instantiated at module load time.
  */
-const BROKER = createBrokerModule(buildTlsFromEnv(ENV));
+const BROKER = createBrokerModule(
+	buildTlsFromEnv(ENV),
+	{
+		filePath: ENV.DLQ_LOCAL_FALLBACK_PATH,
+		dlqSecret: ENV.DLQ_AUTH_HMAC_SECRET,
+	},
+	SUBSCRIPTION_REDIS
+		? new RedisSubscriptionStore({
+				redis: SUBSCRIPTION_REDIS,
+				keyPrefix: SUBSCRIPTION_KEY_PREFIX,
+			})
+		: undefined
+);
 
 /**
  * HTTP route binder to be mounted on an Express app instance.
  */
 const MESSAGE_MANAGER_ROUTES = BROKER.listen;
 
-export { MESSAGE_MANAGER_ROUTES };
+if (!ENV.DLQ_AUTH_HMAC_SECRET) {
+	logger.warn(
+		"DLQ_AUTH_HMAC_SECRET not set — dead letters stay in DLQ_LOCAL_FALLBACK_PATH, not in dlq-service"
+	);
+}
+
+let forwardTimer: NodeJS.Timeout | undefined;
+
+function forwardDeadLetters(): Promise<void> {
+	return BROKER.forwardDeadLetters().catch((err: unknown) => {
+		logger.error("Forwarding the local dead letters failed", {
+			error: normalizeError(err),
+		});
+	});
+}
+
+/**
+ * Sends the dead letters kept in the local file to dlq-service, now (left
+ * by a previous run) and every DLQ_FORWARD_INTERVAL_MS.
+ */
+function startDeadLetterForwarding(): void {
+	void forwardDeadLetters();
+	forwardTimer = setInterval(
+		() => void forwardDeadLetters(),
+		ENV.DLQ_FORWARD_INTERVAL_MS
+	);
+	forwardTimer.unref();
+}
+
+/**
+ * On shutdown, once no delivery is in flight: closes the subscription store
+ * and sends the dead letters still in the local file, whose volume does not
+ * outlive the pod.
+ */
+async function closeMessageManager(): Promise<void> {
+	clearInterval(forwardTimer);
+	SUBSCRIPTION_REDIS?.disconnect();
+	await forwardDeadLetters();
+}
+
+export {
+	closeMessageManager,
+	MESSAGE_MANAGER_ROUTES,
+	startDeadLetterForwarding,
+};

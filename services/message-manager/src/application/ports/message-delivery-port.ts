@@ -1,13 +1,11 @@
 import type { Message } from "@trading-model/contracts/message-types";
 import type {
-	ConsumerGroupName,
 	SequenceNumber,
 	URLString,
 } from "@trading-model/primitives/primitives";
 
 interface MessageDeliveryContext {
 	deliveryAttempt: SequenceNumber;
-	consumerGroup: ConsumerGroupName;
 }
 
 export interface DeliverySendInput {

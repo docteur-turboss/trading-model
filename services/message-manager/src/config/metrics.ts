@@ -18,6 +18,12 @@ export const MESSAGES_DELIVERED_TOTAL = new promClient.Counter({
 	labelNames: ["topic", "status"] as const,
 });
 
+export const MESSAGES_UNROUTED_TOTAL = new promClient.Counter({
+	name: "mm_messages_unrouted_total",
+	help: "Total number of published messages dropped because their topic had no subscriber",
+	labelNames: ["topic"] as const,
+});
+
 export const MESSAGES_DLQ_TOTAL = new promClient.Counter({
 	name: "mm_messages_dlq_total",
 	help: "Total number of messages sent to DLQ",
@@ -28,6 +34,21 @@ export const MESSAGES_DLQ_ERROR_TOTAL = new promClient.Counter({
 	name: "mm_messages_dlq_error_total",
 	help: "Total number of DLQ storage errors (file or service)",
 	labelNames: ["target"] as const,
+});
+
+export const DLQ_FORWARD_FAILURES_TOTAL = new promClient.Counter({
+	name: "mm_dlq_forward_failures_total",
+	help: "Dead letters dlq-service could not take, kept in the local file",
+});
+
+export const DLQ_REJECTED_TOTAL = new promClient.Counter({
+	name: "mm_dlq_rejected_total",
+	help: "Dead letters dlq-service refused for good (invalid or too large)",
+});
+
+export const DLQ_FALLBACK_PENDING = new promClient.Gauge({
+	name: "mm_dlq_fallback_pending",
+	help: "Dead letters waiting in the local file for dlq-service (lost if the pod is deleted)",
 });
 
 export const DELIVERY_LATENCY_SECONDS = new promClient.Histogram({

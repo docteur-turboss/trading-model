@@ -60,9 +60,8 @@ export async function dispatchToSubscriber<TData>(
 		return;
 	}
 
-	const { subscriberContext, isAcknowledged } = buildDispatchSubscriberContext(
-		context.serviceName
-	);
+	const { subscriberContext, isAcknowledged } =
+		buildDispatchSubscriberContext();
 	await deliverUntilAcknowledged(
 		message,
 		subscriberContext,
@@ -86,12 +85,12 @@ function circuitStateIndex(state: CircuitState): number {
 	return Object.values(CircuitState).indexOf(state);
 }
 
-function buildDispatchSubscriberContext(serviceName: ServiceInstanceName): {
+function buildDispatchSubscriberContext(): {
 	subscriberContext: SubscribersContext;
 	isAcknowledged: () => boolean;
 } {
 	let acknowledged = false;
-	const subscriberContext = buildSubscriberContext(serviceName, () => {
+	const subscriberContext = buildSubscriberContext(() => {
 		acknowledged = true;
 	});
 	return { subscriberContext, isAcknowledged: () => acknowledged };

@@ -12,6 +12,17 @@ export enum DlqReason {
 	NoReason = "NO_REASON",
 	TtlExpired = "TTL_EXPIRED",
 	MaxRetriesExceeded = "MAX_RETRIES_EXCEEDED",
+	SingleAttemptFailed = "SINGLE_ATTEMPT_FAILED",
+	/** The subscriber refused the message itself: no retry can succeed. */
+	RejectedBySubscriber = "REJECTED_BY_SUBSCRIBER",
+}
+
+/** Reasons meaning the subscriber failed every delivery attempt it was allowed. */
+export function isDeliveryExhausted(reason: string): boolean {
+	return (
+		reason === DlqReason.MaxRetriesExceeded ||
+		reason === DlqReason.SingleAttemptFailed
+	);
 }
 
 export enum ErrorActionType {
@@ -44,6 +55,14 @@ export class DeliveryErrorClassifier {
 			return { action: ErrorActionType.SWALLOW };
 		}
 
+		// No broker retry, so no duplicate; the failed message stays replayable.
+		if (deliveryMode === DeliveryMode.ExactlyOnce) {
+			return {
+				action: ErrorActionType.DLQ,
+				reason: DlqReason.SingleAttemptFailed,
+			};
+		}
+
 		if (deliveryAttempt >= MAX_RETRIES) {
 			return {
 				action: ErrorActionType.DLQ,
@@ -62,4 +81,5 @@ export class DeliveryErrorClassifier {
 	}
 }
 
-const MAX_RETRIES = 10 as PositiveInt;
+/** Delivery attempts of an at-least-once message before it is dead-lettered. */
+export const MAX_RETRIES = 10 as PositiveInt;

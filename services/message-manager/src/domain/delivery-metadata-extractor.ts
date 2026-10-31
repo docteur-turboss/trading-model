@@ -1,17 +1,13 @@
-import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import { DeliveryMode } from "@trading-model/contracts/delivery-mode";
 import type { Message } from "@trading-model/contracts/message-types";
 import {
-	type ConsumerGroupName,
 	DurationMs,
 	type SequenceNumber,
-	toConsumerGroupName,
 	UnixTimestamp,
 } from "@trading-model/primitives/primitives";
 import type { DeliveryParams } from "./delivery-params";
 
 interface SubscribersContext {
-	consumerGroup: ConsumerGroupName;
 	deliveryAttempt: SequenceNumber;
 	ack(): Promise<void>;
 }
@@ -30,12 +26,8 @@ export function extractDeliveryParams<TData>(
 	return { ttl, deliveryMode, emittedAt };
 }
 
-export function buildSubscriberContext(
-	serviceName: ServiceInstanceName,
-	onAck: () => void
-): SubscribersContext {
+export function buildSubscriberContext(onAck: () => void): SubscribersContext {
 	return {
-		consumerGroup: toConsumerGroupName(serviceName),
 		deliveryAttempt: 0 as SequenceNumber,
 		ack: () => {
 			onAck();

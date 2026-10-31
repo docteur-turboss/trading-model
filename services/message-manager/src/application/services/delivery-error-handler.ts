@@ -7,8 +7,8 @@ import type {
 } from "@trading-model/primitives/primitives";
 import {
 	DeliveryErrorClassifier,
-	DlqReason,
 	ErrorActionType,
+	isDeliveryExhausted,
 } from "../../domain/delivery-error-classifier";
 import type { DeliveryParams } from "../../domain/delivery-params";
 import type { MessageDeliveryPort } from "../ports/message-delivery-port";
@@ -72,11 +72,12 @@ export class DeliveryErrorHandler {
 	> = {
 		[ErrorActionType.DLQ]: async (message, context, classification) => {
 			if (classification.action === ErrorActionType.DLQ) {
-				if (classification.reason === DlqReason.MaxRetriesExceeded) {
+				if (isDeliveryExhausted(classification.reason)) {
 					this._recordFailure();
-					getLogger().error("Max retries exceeded and routing to DLQ", {
+					getLogger().error("Delivery attempts exhausted, routing to DLQ", {
 						topic: this._topic,
 						service: this._serviceName,
+						reason: classification.reason,
 						deliveryAttempt: context.deliveryAttempt,
 					});
 				}

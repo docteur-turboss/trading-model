@@ -1,9 +1,8 @@
 /**
  * Message dispatch coordinator.
  *
- * Maintains an in-memory registry of subscriptions per topic
- * and is responsible for dispatching published messages to all matching
- * subscribers.
+ * Reads the subscriptions of each topic from the shared subscription store
+ * and dispatches published messages to all matching subscribers.
  */
 
 import { getLogger } from "@trading-model/contracts/logger-registry";
@@ -13,6 +12,7 @@ import {
 	DELIVERY_LATENCY_SECONDS,
 	IN_FLIGHT_MESSAGES,
 	MESSAGES_PUBLISHED_TOTAL,
+	MESSAGES_UNROUTED_TOTAL,
 } from "../../config/metrics";
 import { createMessage } from "../../domain/message-factory";
 import type {
@@ -20,6 +20,7 @@ import type {
 	TopicSubscription,
 } from "../../domain/messaging-types";
 import type { MessageDeliveryPort } from "../ports/message-delivery-port";
+import type { SubscriptionStorePort } from "../ports/subscription-store-port";
 import { handleAck as logAck, handleNack as logNack } from "./ack-handler";
 import { SubscriptionRegistry } from "./subscription-registry";
 
@@ -31,13 +32,17 @@ function isRejected<TValue>(
 
 export interface DispatcherDeps {
 	deliveryPort: MessageDeliveryPort;
+	subscriptionStore: SubscriptionStorePort;
 }
 
 export class Dispatcher {
 	private readonly _registry: SubscriptionRegistry;
 
 	constructor(deps: DispatcherDeps) {
-		this._registry = new SubscriptionRegistry(deps.deliveryPort);
+		this._registry = new SubscriptionRegistry(
+			deps.deliveryPort,
+			deps.subscriptionStore
+		);
 	}
 
 	async publish(
@@ -53,27 +58,23 @@ export class Dispatcher {
 		return msg.metadata.messageId!;
 	}
 
-	subscribe(params: SubscriptionParams): void {
-		this._registry.subscribe(params);
+	subscribe(params: SubscriptionParams): Promise<void> {
+		return this._registry.subscribe(params);
 	}
 
 	async dispatch<TData>(message: Message<TData>) {
-		const subscriptions = this._getSubscriptionsForMessage(message);
-		if (!subscriptions) {
+		const { topic, messageId } = message.metadata;
+		const subscriptions = await this._registry.getSubscriptions(topic);
+		if (subscriptions.length === 0) {
+			// Nobody to deliver to: the message is dropped. Counted so that a
+			// subscriber that stopped subscribing does not go unnoticed.
+			MESSAGES_UNROUTED_TOTAL.inc({ topic });
+			getLogger().warn("Message dropped: no subscriber for its topic", {
+				context: { topic, messageId },
+			});
 			return;
 		}
 		await this._deliverToAll(message, subscriptions);
-	}
-
-	private _getSubscriptionsForMessage<TData>(
-		message: Message<TData>
-	): readonly import("./subscription").Subscription[] | undefined {
-		const { topic } = message.metadata;
-		const subscriptions = this._registry.getSubscriptions(topic);
-		if (!subscriptions?.length) {
-			return;
-		}
-		return subscriptions;
 	}
 
 	private async _deliverToAll<TData>(
@@ -114,7 +115,7 @@ export class Dispatcher {
 		logNack(messageId, instanceId);
 	}
 
-	unsubscribe(params: TopicSubscription): void {
-		this._registry.unsubscribe(params);
+	unsubscribe(params: TopicSubscription): Promise<void> {
+		return this._registry.unsubscribe(params);
 	}
 }

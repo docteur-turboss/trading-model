@@ -1,6 +1,8 @@
+import { createRedisClient } from "@trading-model/persistence/redis-connection-manager";
+import { redisConnectionFromEnv } from "@trading-model/persistence/redis-env";
 import { ServiceId } from "@trading-model/primitives/primitives";
 import { createServiceServer } from "@trading-model/server-utils/adapters/inbound/service-server-factory";
-import Redis from "ioredis";
+import type Redis from "ioredis";
 
 import { ADDRESS_MANAGER_ROUTES } from "../config/address-manager";
 import { MESSAGE_MANAGER_ROUTES } from "../config/message-manager";
@@ -22,14 +24,18 @@ export function createServer() {
 			{
 				name: "redis",
 				check: async () => {
-					if (!process.env.REDIS_URL) {
+					const connection = redisConnectionFromEnv(ENV);
+					if (!connection) {
 						return true;
 					}
-					const client = new Redis(process.env.REDIS_URL, {
-						lazyConnect: true,
+					// One attempt per check: the next probe retries.
+					const client = createRedisClient(connection, {
 						maxRetriesPerRequest: 1,
 						connectTimeout: 2000,
-					});
+						retryStrategy: () => null,
+						sentinelRetryStrategy: () => null,
+					}) as Redis;
+					// biome-ignore lint/plugin: readiness probe: failure is the negative signal
 					try {
 						await client.connect();
 						return (await client.ping()) === "PONG";

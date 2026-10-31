@@ -1,6 +1,5 @@
 import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import { sleep } from "@trading-model/common/utils/sleep";
-import { DeliveryMode } from "@trading-model/contracts/delivery-mode";
 import type { Message } from "@trading-model/contracts/message-types";
 import type {
 	SequenceNumber,
@@ -67,7 +66,7 @@ export class DeliveryAttemptHandler {
 		}
 
 		await sleep(backoffDelay(context.deliveryAttempt));
-		return this._shouldRetry(deliveryParams.deliveryMode);
+		return true;
 	}
 
 	private async _tryDeliver<TData>(
@@ -82,24 +81,11 @@ export class DeliveryAttemptHandler {
 		const sendInput: DeliverySendInput = {
 			url: target,
 			message,
-			context: {
-				deliveryAttempt: context.deliveryAttempt,
-				consumerGroup: context.consumerGroup,
-			},
+			context: { deliveryAttempt: context.deliveryAttempt },
 		};
 		await this._deliveryPort.send(sendInput);
 
 		await context.ack();
 		return false;
-	}
-
-	private _shouldRetry(deliveryMode: DeliveryMode): boolean {
-		if (
-			deliveryMode === DeliveryMode.ExactlyOnce ||
-			deliveryMode === DeliveryMode.AtMostOnce
-		) {
-			return false;
-		}
-		return true;
 	}
 }
