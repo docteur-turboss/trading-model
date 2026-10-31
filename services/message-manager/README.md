@@ -2,12 +2,12 @@
 
 ## Overview
 
-Internal messaging backbone for inter-service communication. Provides topic-based publish/subscribe over HTTP with in-memory subscription management, configurable delivery semantics (at-most-once, at-least-once, exactly-once), TTL expiration, and Dead Letter Queue routing. Used by all microservices via the `@trading-model/broker-message` SDK.
+Internal messaging backbone for inter-service communication. Provides topic-based publish/subscribe over HTTP with subscriptions shared by the replicas through Redis, configurable delivery semantics (at-most-once, at-least-once, exactly-once), TTL expiration, and Dead Letter Queue routing. Used by all microservices via the `@trading-model/broker-message` SDK.
 
 ## Prerequisites
 
 - Node.js 20+
-- No external database required (in-memory dispatcher; local JSONL dead-letter file)
+- No external database required (in-memory dispatcher; dead letters sent to dlq-service, local JSONL file while it is unreachable)
 - Access to a running [Discovery Server](../discovery-server/README.md) (service registry)
 - mTLS automatique via SPIRE (ADR-0011) — aucun certificat manuel à générer
 
@@ -103,12 +103,14 @@ src/
 │   │       ├── broker.schema.ts          # Zod schemas for request validation
 │   │       └── validate-schema.middleware.ts  # Validation middleware
 │   └── outbound/
-│       └── http-message-delivery.ts   # HTTP delivery + JSONL dead-letter
+│       ├── http-message-delivery.ts   # HTTP delivery to subscribers
+│       ├── http-dead-letter-store.ts  # Signed POST /dlq to dlq-service
+│       └── forwarding-dead-letter-store.ts  # dlq-service first, local file as fallback
 ├── domain/                     # Domain types & business rules
 ├── infrastructure/
 │   ├── config/env.ts           # Zod-validated environment variables
 │   └── fallback/
-│       └── dlq-repository.ts   # Local JSONL dead-letter store
+│       └── dlq-repository.ts   # Local JSONL fallback for dead letters (drained to dlq-service)
 ├── config/
 │   ├── address-manager.ts      # Service discovery client setup
 │   ├── container.ts            # Broker composition root (HTTP client, DLQ, dispatcher, routes)
