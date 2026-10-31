@@ -17,18 +17,18 @@ jest.mock("@trading-model/http/infrastructure/logger", () => ({
 	logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
 
+// The caller's SVID always names the service it registers (identity binding).
 jest.mock("@trading-model/http/adapters/inbound/mtls-identity", () => ({
-	resolveMtlsIdentity: jest.fn().mockReturnValue({
-		identity: "client:test-caller",
-		serviceName: { toString: () => "test-caller" },
-	}),
+	resolveMtlsIdentity: jest.fn((req: { body?: { serviceName?: string } }) => ({
+		identity: `client:${req.body?.serviceName}`,
+		serviceName: req.body?.serviceName ?? "test-caller",
+	})),
 }));
 
 jest.mock("../../src/infrastructure/config/env", () => ({
 	ENV: {
 		CLEANUP_SERVICE_INTERVAL_MS: 5000,
 		ERROR_URL_WEBHOOK: "https://hooks.example.com/error",
-		REGISTRATION_TOKEN: undefined,
 		ALLOWED_REGISTRATION_CIDRS: "",
 	},
 	env: {
@@ -54,7 +54,7 @@ describe("Discovery Lifecycle — Full HTTP Integration", () => {
 			}
 			const data = JSON.stringify(body);
 			const options: http.RequestOptions = {
-				hostname: "localhost",
+				hostname: "127.0.0.1",
 				port: addr.port,
 				path,
 				method: "POST",
@@ -149,6 +149,8 @@ describe("Discovery Lifecycle — Full HTTP Integration", () => {
 		expect(result.status).toBe(201);
 		expect(result.body).toHaveProperty("instanceId", "node-1");
 		expect(result.body).toHaveProperty("token");
+		// Registered at the address the caller connected from, not the declared one.
+		expect(result.body).toHaveProperty("host", "127.0.0.1");
 	});
 
 	it("should reject registration with missing required fields", async () => {
@@ -156,7 +158,7 @@ describe("Discovery Lifecycle — Full HTTP Integration", () => {
 			serviceName: "financial-scraper-service",
 		});
 		expect(result.status).toBe(400);
-		expect(result.body).toHaveProperty("error", "Invalid request body");
+		expect(result.body).toHaveProperty("error", "Validation failed");
 	});
 
 	it("should reject registration with invalid IP", async () => {
@@ -167,7 +169,7 @@ describe("Discovery Lifecycle — Full HTTP Integration", () => {
 			port: 8444,
 		});
 		expect(result.status).toBe(400);
-		expect(result.body).toHaveProperty("error", "Invalid request body");
+		expect(result.body).toHaveProperty("error", "Validation failed");
 	});
 
 	it("should reject registration with invalid service name", async () => {
@@ -178,7 +180,7 @@ describe("Discovery Lifecycle — Full HTTP Integration", () => {
 			port: 8444,
 		});
 		expect(result.status).toBe(400);
-		expect(result.body).toHaveProperty("error", "Invalid request body");
+		expect(result.body).toHaveProperty("error", "Validation failed");
 	});
 
 	it("should list registered services via GET /services", async () => {
@@ -253,6 +255,28 @@ describe("Discovery Lifecycle — Full HTTP Integration", () => {
 		expect(result.status).toBe(401);
 	});
 
+	it("should unregister an instance with its own token", async () => {
+		const registered = await postJson("/register", {
+			serviceName: "financial-scraper-service",
+			instanceId: "node-1",
+			ip: "10.0.0.1",
+			port: 8444,
+		});
+		const { token } = registered.body as { token: string };
+		const identity = {
+			serviceName: "financial-scraper-service",
+			instanceId: "node-1",
+		};
+
+		expect((await postJson("/unregister", identity, "bad-token")).status).toBe(
+			401
+		);
+		expect((await postJson("/unregister", identity, token)).status).toBe(204);
+		expect(
+			(await getJson("/services/financial-scraper-service/node-1")).status
+		).toBe(404);
+	});
+
 	it("should get all instances for a service via GET /services/:name", async () => {
 		const instances = [
 			{
@@ -278,9 +302,26 @@ describe("Discovery Lifecycle — Full HTTP Integration", () => {
 		expect((result.body as unknown[]).length).toBe(2);
 	});
 
-	it("should return error for unknown service on GET /services/:name", async () => {
+	it("should not return expired instances on GET /services/:name", async () => {
+		await postJson("/register", {
+			serviceName: "financial-scraper-service",
+			instanceId: "node-1",
+			ip: "10.0.0.1",
+			port: 8444,
+		});
+		const now = Date.now();
+		const clock = jest.spyOn(Date, "now").mockReturnValue(now + 60_000);
+
+		const result = await getJson("/services/financial-scraper-service");
+
+		clock.mockRestore();
+		expect(result.status).toBe(200);
+		expect(result.body).toEqual([]);
+	});
+
+	it("should return 404 for unknown service on GET /services/:name", async () => {
 		const result = await getJson("/services/unknown-service");
-		expect(result.status).toBe(500);
+		expect(result.status).toBe(404);
 	});
 
 	it("should return 404 for unknown instance on GET /services/:name/:id", async () => {

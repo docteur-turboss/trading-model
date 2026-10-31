@@ -88,13 +88,13 @@ describe("Discovery Service — Full Flow Integration", () => {
 		});
 
 		expect(
-			registry.tokenManager.validInstanceToken({
+			await registry.tokenManager.validInstanceToken({
 				token: registered.token as string,
 				instanceId: "node-1",
 			})
 		).toBe(true);
 		expect(
-			registry.tokenManager.validInstanceToken({
+			await registry.tokenManager.validInstanceToken({
 				token: "wrong-token",
 				instanceId: "node-1",
 			})
@@ -116,7 +116,10 @@ describe("Discovery Service — Full Flow Integration", () => {
 
 		const token = registered.token as string;
 		expect(
-			registry.tokenManager.validInstanceToken({ token, instanceId: "node-1" })
+			await registry.tokenManager.validInstanceToken({
+				token,
+				instanceId: "node-1",
+			})
 		).toBe(true);
 
 		const ttl = registry.instanceStore.updateHeartbeat({
@@ -125,16 +128,19 @@ describe("Discovery Service — Full Flow Integration", () => {
 		});
 		expect(ttl).toBe(30_000);
 
-		const newToken = registry.updateToken("node-1");
+		const newToken = await registry.updateToken("node-1");
 		expect(newToken).not.toBe(token);
 		expect(
-			registry.tokenManager.validInstanceToken({
+			await registry.tokenManager.validInstanceToken({
 				token: newToken,
 				instanceId: "node-1",
 			})
 		).toBe(true);
 		expect(
-			registry.tokenManager.validInstanceToken({ token, instanceId: "node-1" })
+			await registry.tokenManager.validInstanceToken({
+				token,
+				instanceId: "node-1",
+			})
 		).toBe(false);
 	});
 
@@ -172,7 +178,7 @@ describe("Discovery Service — Full Flow Integration", () => {
 			registry.instanceStore.getInstances("financial-scraper-service")
 		).toHaveLength(0);
 		expect(
-			registry.tokenManager.validInstanceToken({
+			await registry.tokenManager.validInstanceToken({
 				token: "any-token",
 				instanceId: "node-1",
 			})
@@ -200,7 +206,7 @@ describe("Discovery Service — Full Flow Integration", () => {
 		expect(snapshot["financial-scraper-service"]).toHaveLength(1);
 	});
 
-	it("should verify instance names against known services", () => {
+	it("should verify instance names against known services", async () => {
 		expect(
 			registry.tokenManager.verifyInstanceName("financial-scraper-service")
 		).toBe(true);

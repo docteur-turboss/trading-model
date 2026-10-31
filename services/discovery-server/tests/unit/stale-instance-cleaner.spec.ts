@@ -179,6 +179,27 @@ describe("StaleInstanceCleaner", () => {
 			expect(observeCleanupDuration).toHaveBeenCalledWith(expect.any(Number));
 		});
 
+		it("should run afterCleanup once expired instances are removed", async () => {
+			const order: string[] = [];
+			deps.listServiceNames.mockResolvedValue([
+				"financial-scraper-service" as ServiceInstanceName,
+			]);
+			deps.getInstances.mockResolvedValue([
+				makeInstance({ lastHeartbeat: Date.now() - 100000, ttl: 5000 }),
+			]);
+			deps.removeInstance.mockImplementation(async () => {
+				order.push("remove");
+				return true;
+			});
+			deps.afterCleanup = jest.fn(async () => {
+				order.push("after");
+			});
+
+			await cleaner.cleanupNow();
+
+			expect(order).toEqual(["remove", "after"]);
+		});
+
 		it("should log error when cleanup throws", async () => {
 			const logger = deps.logger as LoggerPort;
 

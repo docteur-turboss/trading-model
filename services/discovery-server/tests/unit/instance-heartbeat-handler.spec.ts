@@ -23,6 +23,7 @@ interface MockRedisInstance {
 	get: jest.Mock;
 	sismember: jest.Mock;
 	multi: jest.Mock;
+	eval: jest.Mock;
 }
 
 const MOCK_MULTI: MockMulti = {
@@ -39,6 +40,7 @@ const MOCK_REDIS = Object.assign(jest.fn().mockReturnThis(), {
 	get: jest.fn().mockResolvedValue(null),
 	sismember: jest.fn().mockResolvedValue(1),
 	multi: jest.fn().mockReturnValue(MOCK_MULTI),
+	eval: jest.fn().mockResolvedValue(1),
 }) as unknown as jest.Mock & MockRedisInstance;
 
 jest.mock("ioredis", () => ({
@@ -129,16 +131,26 @@ describe("InstanceHeartbeatHandler", () => {
 			const result = await handler.updateHeartbeat(identity);
 
 			expect(result).toBe(30000);
-			expect(MOCK_MULTI.set).toHaveBeenCalledTimes(2);
-			expect(MOCK_MULTI.set).toHaveBeenCalledWith(
+			expect(MOCK_REDIS.eval).toHaveBeenCalledWith(
+				expect.stringContaining("SISMEMBER"),
+				3,
+				"service:financial-scraper-service:instances",
 				"instance:i1:metadata",
-				expect.any(String)
-			);
-			expect(MOCK_MULTI.set).toHaveBeenCalledWith(
 				"instance:i1:updatedBy",
+				"i1",
+				expect.any(String),
 				expect.any(String)
 			);
-			expect(MOCK_MULTI.exec).toHaveBeenCalled();
+		});
+
+		it("should return false when the instance was removed before the write", async () => {
+			MOCK_REDIS.sismember.mockResolvedValue(1);
+			mockReader.getMetadata.mockResolvedValue(mockInstance);
+			MOCK_REDIS.eval.mockResolvedValueOnce(0);
+
+			const result = await handler.updateHeartbeat(identity);
+
+			expect(result).toBe(false);
 		});
 
 		it("should use Math.max to preserve the later heartbeat time", async () => {
@@ -152,10 +164,7 @@ describe("InstanceHeartbeatHandler", () => {
 
 			await handler.updateHeartbeat(identity);
 
-			const metadataSetCall = MOCK_MULTI.set.mock.calls.find(
-				(c: string[]) => c[0] === "instance:i1:metadata"
-			);
-			const stored = JSON.parse(metadataSetCall![1]);
+			const stored = JSON.parse(MOCK_REDIS.eval.mock.calls[0][6] as string);
 			expect(stored.lastHeartbeat).toBe(futureTime);
 		});
 
@@ -166,7 +175,7 @@ describe("InstanceHeartbeatHandler", () => {
 
 			MOCK_REDIS.sismember.mockResolvedValue(1);
 			mockReader.getMetadata.mockResolvedValue(mockInstance);
-			MOCK_MULTI.exec.mockRejectedValue(new Error("Redis write error"));
+			MOCK_REDIS.eval.mockRejectedValueOnce(new Error("Redis write error"));
 
 			const result = await handler.updateHeartbeat(identity);
 

@@ -12,15 +12,16 @@ jest.mock("@trading-model/http/infrastructure/logger", () => ({
 const mockGet = jest.fn();
 const mockSmembers = jest.fn();
 const mockMget = jest.fn();
-const mockKeys = jest.fn();
+const mockScard = jest.fn<(key: string) => Promise<number>>();
 
 const MOCK_REDIS = {
 	get: mockGet,
 	smembers: mockSmembers,
 	mget: mockMget,
-	keys: mockKeys,
+	scard: mockScard,
 } as never;
 
+import { ALL_SERVICE_NAMES } from "@trading-model/primitives/service-instance-name";
 import { InstanceMetadataReader } from "../../src/adapters/outbound/instance-metadata-reader";
 import type { RedisDepsWithoutToken } from "../../src/shared/redis-deps";
 
@@ -89,13 +90,18 @@ describe("InstanceMetadataReader", () => {
 	});
 
 	describe("listServiceNames", () => {
-		it("should parse service names from keys", async () => {
-			mockKeys.mockResolvedValue([
-				"test:service:financial-scraper-service:instances",
-				"test:service:unrelated-key",
-			]);
+		it("should list the known services that have registered instances", async () => {
+			mockScard.mockImplementation(async (key) =>
+				key === "test:service:financial-scraper-service:instances" ? 2 : 0
+			);
 			const names = await reader.listServiceNames();
 			expect(names).toEqual(["financial-scraper-service"]);
+		});
+
+		it("should read one set per known service instead of scanning keys", async () => {
+			mockScard.mockResolvedValue(0);
+			await expect(reader.listServiceNames()).resolves.toEqual([]);
+			expect(mockScard).toHaveBeenCalledTimes(ALL_SERVICE_NAMES.size);
 		});
 	});
 });

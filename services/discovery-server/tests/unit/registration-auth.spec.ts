@@ -15,17 +15,7 @@ jest.mock("@trading-model/http/adapters/inbound/mtls-identity", () => ({
 	resolveMtlsIdentity: mockResolveMtlsIdentity,
 }));
 
-jest.mock("../../src/infrastructure/config/env", () => ({
-	ENV: {
-		NODE_ENV: "development",
-		REGISTRATION_TOKEN: undefined,
-	},
-}));
-
-import {
-	REGISTRATION_AUTH,
-	REGISTRATION_MTLS_AUTH,
-} from "../../src/adapters/inbound/registration-auth";
+import { REGISTRATION_MTLS_AUTH } from "../../src/adapters/inbound/registration-auth";
 
 function mockResponse(): Response {
 	const res = {
@@ -35,92 +25,73 @@ function mockResponse(): Response {
 	return res;
 }
 
-describe("registration-auth", () => {
+function callerIs(serviceName: string): void {
+	mockResolveMtlsIdentity.mockReturnValue({
+		serviceName,
+		identity: `spiffe://trading-model.local/ns/trading-model/sa/${serviceName}`,
+	});
+}
+
+function register(body: unknown): { res: Response; next: jest.Mock } {
+	const req = { ip: "10.0.0.1", body } as Request;
+	const res = mockResponse();
+	const next = jest.fn();
+	REGISTRATION_MTLS_AUTH(req, res, next);
+	return { res, next };
+}
+
+describe("REGISTRATION_MTLS_AUTH", () => {
 	beforeEach(() => {
 		jest.clearAllMocks();
 	});
 
-	describe("REGISTRATION_MTLS_AUTH", () => {
-		it("should reject when mTLS identity is missing", () => {
-			mockResolveMtlsIdentity.mockReturnValue(null);
-			const req = { ip: "10.0.0.1" } as Request;
-			const res = mockResponse();
-			const next = jest.fn();
+	it("rejects a caller without an mTLS identity", () => {
+		mockResolveMtlsIdentity.mockReturnValue(null);
 
-			REGISTRATION_MTLS_AUTH(req, res, next);
+		const { res, next } = register({ serviceName: "financial-scraper" });
 
-			expect(res.status).toHaveBeenCalledWith(401);
-			expect(res.json).toHaveBeenCalledWith({
-				error: "Client certificate required for registration",
-			});
-			expect(next).not.toHaveBeenCalled();
+		expect(res.status).toHaveBeenCalledWith(401);
+		expect(res.json).toHaveBeenCalledWith({
+			error: "Client certificate required for registration",
 		});
-
-		it("should call next when mTLS identity is verified", () => {
-			mockResolveMtlsIdentity.mockReturnValue({
-				serviceName: { toString: () => "test-service" },
-				identity: "spiffe://test",
-			});
-			const req = { ip: "10.0.0.1" } as Request;
-			const res = mockResponse();
-			const next = jest.fn();
-
-			REGISTRATION_MTLS_AUTH(req, res, next);
-
-			expect(next).toHaveBeenCalled();
-		});
+		expect(next).not.toHaveBeenCalled();
 	});
 
-	describe("REGISTRATION_AUTH", () => {
-		it("should pass through when no token configured in non-production", () => {
-			const req = { headers: {} } as Request;
-			const res = mockResponse();
-			const next = jest.fn();
+	it("accepts a caller registering its own service", () => {
+		callerIs("financial-scraper");
 
-			REGISTRATION_AUTH(req, res, next);
+		const { res, next } = register({ serviceName: "financial-scraper" });
 
-			expect(next).toHaveBeenCalled();
-			expect(res.status).not.toHaveBeenCalled();
+		expect(next).toHaveBeenCalled();
+		expect(res.status).not.toHaveBeenCalled();
+	});
+
+	it("accepts a legacy alias of the caller's service name", () => {
+		callerIs("financial-scraper");
+
+		const { next } = register({ serviceName: "financial-scrapper-service" });
+
+		expect(next).toHaveBeenCalled();
+	});
+
+	it("rejects a caller registering another service", () => {
+		callerIs("financial-scraper");
+
+		const { res, next } = register({ serviceName: "trader-trainer" });
+
+		expect(res.status).toHaveBeenCalledWith(403);
+		expect(res.json).toHaveBeenCalledWith({
+			error: "Caller identity does not match the registered serviceName",
 		});
+		expect(next).not.toHaveBeenCalled();
+	});
 
-		it("should reject invalid token", () => {
-			const env = jest.requireMock("../../src/infrastructure/config/env") as {
-				ENV: { REGISTRATION_TOKEN?: string; NODE_ENV: string };
-			};
-			env.ENV.REGISTRATION_TOKEN = "secret-token";
+	it("rejects a body without a serviceName", () => {
+		callerIs("financial-scraper");
 
-			const req = {
-				headers: { "x-registration-token": "wrong" },
-				ip: "10.0.0.1",
-			} as unknown as Request;
-			const res = mockResponse();
-			const next = jest.fn();
+		const { res, next } = register(undefined);
 
-			REGISTRATION_AUTH(req, res, next);
-
-			expect(res.status).toHaveBeenCalledWith(401);
-			expect(res.json).toHaveBeenCalledWith({
-				error: "Invalid registration token",
-			});
-			expect(next).not.toHaveBeenCalled();
-		});
-
-		it("should accept valid token", () => {
-			const env = jest.requireMock("../../src/infrastructure/config/env") as {
-				ENV: { REGISTRATION_TOKEN?: string; NODE_ENV: string };
-			};
-			env.ENV.REGISTRATION_TOKEN = "secret-token";
-
-			const req = {
-				headers: { "x-registration-token": "secret-token" },
-				ip: "10.0.0.1",
-			} as unknown as Request;
-			const res = mockResponse();
-			const next = jest.fn();
-
-			REGISTRATION_AUTH(req, res, next);
-
-			expect(next).toHaveBeenCalled();
-		});
+		expect(res.status).toHaveBeenCalledWith(403);
+		expect(next).not.toHaveBeenCalled();
 	});
 });

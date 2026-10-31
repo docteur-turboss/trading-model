@@ -11,8 +11,10 @@ import type { ServiceInstance } from "../../src/shared/types";
 
 jest.useFakeTimers();
 
+import { InstanceStore } from "../../src/adapters/outbound/instance-store";
 import { createServiceRegistry } from "../../src/config/container";
 import { LeaseManager } from "../../src/domain/lease-manager";
+import { validServiceInstance } from "../fixtures/index";
 
 function makeLogger(): LoggerPort {
 	return {
@@ -37,6 +39,40 @@ describe("LeaseManager", () => {
 	afterEach(() => {
 		jest.clearAllMocks();
 		leaseManager.stop();
+	});
+
+	describe("instance gauges", () => {
+		it("should report an instance removed by another replica after one cycle", async () => {
+			const instanceStore = new InstanceStore();
+			const setRegisteredInstancesPerService = jest.fn();
+			const replicaA = createServiceRegistry({
+				instanceStore,
+				metrics: {
+					setRegisteredInstances: jest.fn(),
+					setRegisteredInstancesPerService,
+				},
+			});
+			const replicaB = createServiceRegistry({ instanceStore });
+			await replicaA.registerInstance(validServiceInstance());
+			await replicaB.removeInstance({
+				serviceName: "financial-scraper-service",
+				instanceId: "test-instance-1",
+			} as never);
+			setRegisteredInstancesPerService.mockClear();
+			const manager = new LeaseManager(replicaA, {
+				logger,
+				cleanupIntervalMs: 1000,
+			});
+
+			manager.start();
+			await jest.advanceTimersByTimeAsync(2000);
+			manager.stop();
+
+			expect(setRegisteredInstancesPerService).toHaveBeenCalledWith(
+				"financial-scraper-service",
+				0
+			);
+		});
 	});
 
 	describe("start", () => {
