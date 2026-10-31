@@ -9,6 +9,7 @@ export function computeHmacSha256(input: HmacSha256Input): string {
 }
 
 export function safeEqual(left: string, right: string): boolean {
+	// biome-ignore lint/plugin: malformed input means the signatures do not match
 	try {
 		return (
 			left.length === right.length &&
