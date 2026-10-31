@@ -53,7 +53,7 @@ import {
 } from "@trading-model/primitives/primitives";
 import { ObjectId } from "mongodb";
 
-type Modules = {
+interface Modules {
 	dlqRepository: typeof import("../../src/adapters/outbound/repository").dlqRepository;
 	DlqStatus: typeof import("../../src/adapters/outbound/repository").DlqStatus;
 	getCollection: typeof import("../../src/config/db").getCollection;
@@ -62,7 +62,7 @@ type Modules = {
 	autoRetryTick: typeof import("../../src/shared/auto-retry").autoRetryTick;
 	rebuildQueueFromMongo: typeof import("../../src/shared/auto-retry").rebuildQueueFromMongo;
 	processRedisQueue: typeof import("../../src/shared/auto-retry").processRedisQueue;
-};
+}
 let m: Modules;
 
 function seed(orderId: string): Promise<string> {
