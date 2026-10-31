@@ -5,6 +5,11 @@ import express from "express";
 
 jest.setTimeout(15000);
 
+// The mTLS discovery client loads the SVID files at construction.
+jest.mock("../../src/config/container", () => ({
+	discoveryClient: { get: jest.fn() },
+}));
+
 jest.mock("../../src/infrastructure/config/env", () => ({
 	ENV: {
 		NODE_ENV: "test",
@@ -17,7 +22,7 @@ jest.mock("../../src/infrastructure/config/env", () => ({
 		RATE_LIMIT_MAX: 2,
 		CACHE_TTL_MS: 30000,
 		AUTH_TOKEN_HEADER: "x-api-key",
-		AUTH_TOKENS: "test-token",
+		AUTH_TOKENS: "test-token,other-token",
 		PROXY_TIMEOUT_MS: 5000,
 		ALLOWED_PROXY_CIDRS: "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,127.0.0.0/8",
 	},
@@ -56,7 +61,8 @@ function createApp(): express.Application {
 
 function request(
 	server: http.Server,
-	path: string
+	path: string,
+	apiKey = "test-token"
 ): Promise<{ status: number; body: unknown }> {
 	return new Promise((resolve, reject) => {
 		const addr = server.address();
@@ -70,7 +76,7 @@ function request(
 				port: addr.port,
 				path,
 				headers: {
-					[HTTP_HEADERS.X_API_KEY]: "test-token",
+					[HTTP_HEADERS.X_API_KEY]: apiKey,
 					Connection: "close",
 				},
 			},
@@ -124,6 +130,20 @@ describe("API Gateway — Rate Limiting Integration", () => {
 		const third = await request(server, path);
 		expect(third.status).toBe(429);
 		expect(third.body).toMatchObject({ error: "Too many requests" });
+	});
+
+	it("should count each API client separately (all share the edge proxy address)", async () => {
+		const app = createApp();
+		await new Promise<void>((resolve) => {
+			server = app.listen(0, () => resolve());
+		});
+		const path = "/v1/discovery-server/services";
+
+		await request(server, path);
+		await request(server, path);
+		expect((await request(server, path)).status).toBe(429);
+
+		expect((await request(server, path, "other-token")).status).toBe(200);
 	});
 
 	it("should not rate-limit the unauthenticated ping endpoint", async () => {

@@ -90,6 +90,43 @@ describe("env", () => {
 		expect(env.AUTH_STRICT).toBe(false);
 	});
 
+	describe("in production", () => {
+		beforeEach(() => {
+			process.env.TLS_KEY_PATH = "/certs/key.pem";
+			process.env.TLS_CERT_PATH = "/certs/cert.pem";
+			process.env.TLS_CA_PATH = "/certs/ca.pem";
+			process.env.NODE_ENV = "production";
+			process.env.AUTH_TOKENS = "tok1";
+			delete process.env.AUTH_STRICT;
+		});
+
+		/** The validation issues logged by a refused start. */
+		function refusal(): string {
+			const logged = jest.spyOn(console, "error").mockImplementation(() => {});
+			expect(loadEnv).toThrow("Environment validation failed");
+			const issues = JSON.stringify(logged.mock.calls);
+			logged.mockRestore();
+			return issues;
+		}
+
+		it("should accept configured API keys", () => {
+			expect(loadEnv().AUTH_TOKENS).toBe("tok1");
+		});
+
+		it.each([
+			"",
+			" , ",
+		])("should refuse to start with AUTH_TOKENS=%j", (tokens) => {
+			process.env.AUTH_TOKENS = tokens;
+			expect(refusal()).toContain("AUTH_TOKENS cannot be empty in production");
+		});
+
+		it("should refuse to start with AUTH_STRICT=false", () => {
+			process.env.AUTH_STRICT = "false";
+			expect(refusal()).toContain("AUTH_STRICT cannot be false in production");
+		});
+	});
+
 	it("should accept custom DISCOVERY_SERVICE_URL", () => {
 		process.env.TLS_KEY_PATH = "/certs/key.pem";
 		process.env.TLS_CERT_PATH = "/certs/cert.pem";

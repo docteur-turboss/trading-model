@@ -1,6 +1,11 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { createReq } from "../helpers/express";
 
+// The mTLS discovery client loads the SVID files at construction.
+jest.mock("../../src/config/container", () => ({
+	discoveryClient: { get: jest.fn() },
+}));
+
 jest.mock("../../src/infrastructure/config/env", () => ({
 	ENV: {
 		DISCOVERY_SERVICE_URL: "https://discovery:3000",
@@ -33,7 +38,8 @@ jest.mock("@trading-model/http/infrastructure/logger", () => ({
 jest.mock("../../src/adapters/outbound/service-resolver", () => ({
 	ServiceResolver: jest.fn().mockImplementation(() => ({
 		resolve: jest.fn().mockImplementation((name: string) => {
-			if (name === "unknown-service") {
+			// No trader-trainer instance is registered.
+			if (name === "trader-trainer") {
 				return Promise.resolve(null);
 			}
 			return Promise.resolve({
@@ -136,20 +142,36 @@ describe("router", () => {
 			});
 		});
 
-		it("should return 404 when service not found", async () => {
-			const handler = getHandler();
-			const result = await handler(
-				createReq({
-					method: "GET",
-					path: "/v1/unknown-service/path",
-					url: "/v1/unknown-service/path",
-				})
-			);
-			expect(result).toEqual({
+		function get(path: string, method = "GET") {
+			return getHandler()(createReq({ method, path, url: path }));
+		}
+
+		it("should return 404 for a route the gateway does not expose", async () => {
+			const {
+				forwardRequest,
+			} = require("../../src/adapters/outbound/proxy-handler");
+			for (const [method, path] of [
+				["GET", "/v1/unknown-service/path"],
+				["POST", "/v1/discovery-server/register"],
+				["POST", "/v1/discovery-server/heartbeat"],
+				["POST", "/v1/message-manager/message"],
+				["DELETE", "/v1/message-manager/subscribe"],
+				["POST", "/v1/financial-scraper/candles/symbols/BTCUSDT"],
+			]) {
+				expect(await get(path, method)).toEqual({
+					status: 404,
+					data: { error: "Route not found" },
+				});
+			}
+			expect(forwardRequest).not.toHaveBeenCalled();
+		});
+
+		it("should return 404 when no instance of the service is registered", async () => {
+			expect(await get("/v1/trader-trainer/training-status")).toEqual({
 				status: 404,
 				data: {
 					error: "Service not found",
-					service: "unknown-service",
+					service: "trader-trainer",
 					version: 1,
 				},
 			});
@@ -157,52 +179,38 @@ describe("router", () => {
 
 		it("should cache and return cached response on subsequent GET", async () => {
 			mockForwardSuccess({ data: "ok" });
+			const path = "/v1/audit-logger/events/cached-test";
 
-			const handler = getHandler();
-			const req = createReq({
-				method: "GET",
-				path: "/v1/sector-allocator/cached-test",
-				url: "/v1/sector-allocator/cached-test",
-			});
-
-			const first = await handler(req);
+			const first = await get(path);
 			expect(first).toEqual({ status: 200, data: { data: "ok" } });
 
 			mockForwardSuccess({ data: "should-not-reach" });
 
-			const second = await handler(req);
+			const second = await get(path);
 			expect(second).toEqual({ status: 200, data: { data: "ok" } });
 		});
 
-		it("should return 503 on proxy error", async () => {
+		it("should return 503 on proxy error without the cause", async () => {
 			const {
 				forwardRequest,
 			} = require("../../src/adapters/outbound/proxy-handler");
 			forwardRequest.mockReset();
-			forwardRequest.mockRejectedValue(new Error("Connection timeout"));
+			forwardRequest.mockRejectedValue(new Error("connect ECONNREFUSED"));
 
-			const handler = getHandler();
-			const req = createReq({
-				method: "GET",
-				path: "/v1/sector-allocator/error-path",
-				url: "/v1/sector-allocator/error-path",
-			});
-			const result = await handler(req);
-			expect(result).toEqual({
+			expect(await get("/v1/audit-logger/events/error-path")).toEqual({
 				status: 503,
-				data: { error: "Service unavailable", details: "Connection timeout" },
+				data: { error: "Service unavailable" },
 			});
 		});
 
 		it("should handle POST requests (no cache)", async () => {
 			mockForwardSuccess({ saved: true });
 
-			const handler = getHandler();
-			const result = await handler(
+			const result = await getHandler()(
 				createReq({
 					method: "POST",
-					path: "/v1/sector-allocator/create",
-					url: "/v1/sector-allocator/create",
+					path: "/v1/dlq-service/dlq",
+					url: "/v1/dlq-service/dlq",
 					body: { name: "test" },
 				})
 			);
@@ -220,29 +228,17 @@ describe("router", () => {
 				headers: { "content-type": "text/plain" },
 			});
 
-			const handler = getHandler();
-			const result = await handler(
-				createReq({
-					method: "GET",
-					path: "/v1/sector-allocator/data",
-					url: "/v1/sector-allocator/data",
-				})
-			);
-			expect(result).toEqual({ status: 200, data: "plain text response" });
+			expect(await get("/v1/audit-logger/events/plain-text")).toEqual({
+				status: 200,
+				data: "plain text response",
+			});
 		});
 
-		it("should handle route with no trailing path (match[3] undefined)", async () => {
-			mockForwardSuccess({ ok: true });
-
-			const handler = getHandler();
-			const result = await handler(
-				createReq({
-					method: "GET",
-					path: "/v1/sector-allocator",
-					url: "/v1/sector-allocator",
-				})
-			);
-			expect(result).toEqual({ status: 200, data: { ok: true } });
+		it("should refuse a service path with no route (match[3] undefined)", async () => {
+			expect(await get("/v1/audit-logger")).toEqual({
+				status: 404,
+				data: { error: "Route not found" },
+			});
 		});
 
 		it("should handle non-Error proxy exception", async () => {
@@ -252,83 +248,9 @@ describe("router", () => {
 			forwardRequest.mockReset();
 			forwardRequest.mockRejectedValue("string error");
 
-			const handler = getHandler();
-			const req = createReq({
-				method: "GET",
-				path: "/v1/sector-allocator/bad",
-				url: "/v1/sector-allocator/bad",
-			});
-			const result = await handler(req);
-			expect(result).toEqual({
+			expect(await get("/v1/audit-logger/events/bad")).toEqual({
 				status: 503,
-				data: { error: "Service unavailable", details: "Unknown error" },
-			});
-		});
-	});
-
-	describe("telemetry route", () => {
-		function getTelemetryHandler() {
-			const routeLayer = router.stack.find(
-				(layer: any) => layer.route?.path === "/telemetry"
-			);
-			return routeLayer.route.stack[0].handle;
-		}
-
-		function createMockRes() {
-			return {
-				status: jest.fn().mockReturnThis(),
-				json: jest.fn(),
-				end: jest.fn(),
-			};
-		}
-
-		it("should accept a valid vital payload", () => {
-			const handler = getTelemetryHandler();
-			const res = createMockRes();
-			const req = createReq({
-				method: "POST",
-				path: "/telemetry",
-				url: "/telemetry",
-				body: { type: "vital", name: "LCP", value: 250 },
-			});
-
-			handler(req, res);
-
-			expect(res.status).toHaveBeenCalledWith(204);
-			expect(res.end).toHaveBeenCalled();
-		});
-
-		it("should accept a valid error payload", () => {
-			const handler = getTelemetryHandler();
-			const res = createMockRes();
-			const req = createReq({
-				method: "POST",
-				path: "/telemetry",
-				url: "/telemetry",
-				body: { type: "error", name: "Error", message: "boom" },
-			});
-
-			handler(req, res);
-
-			expect(res.status).toHaveBeenCalledWith(204);
-			expect(res.end).toHaveBeenCalled();
-		});
-
-		it("should reject an invalid payload with 400", () => {
-			const handler = getTelemetryHandler();
-			const res = createMockRes();
-			const req = createReq({
-				method: "POST",
-				path: "/telemetry",
-				url: "/telemetry",
-				body: { type: "vital" },
-			});
-
-			handler(req, res);
-
-			expect(res.status).toHaveBeenCalledWith(400);
-			expect(res.json).toHaveBeenCalledWith({
-				error: "Invalid telemetry payload",
+				data: { error: "Service unavailable" },
 			});
 		});
 	});

@@ -419,4 +419,71 @@ describe("proxy-handler", () => {
 			JSON.stringify({ name: "test" })
 		);
 	});
+
+	it("should declare the length of the re-serialized body, not the client's", async () => {
+		const { mockRes, mockReq, events } = createMockResponse(200, "{}");
+		let sentHeaders: Record<string, string> = {};
+		const https = require("node:https");
+		https.request = createMockHttps(
+			(opts: any, callback: (res: any) => void) => {
+				sentHeaders = opts.headers;
+				callback(mockRes);
+				for (const h of events.data ?? []) {
+					h(Buffer.from("{}"));
+				}
+				for (const h of events.end ?? []) {
+					h();
+				}
+				return mockReq;
+			}
+		);
+
+		const { forwardRequest: forward } = await Promise.resolve(
+			require("../../src/adapters/outbound/proxy-handler")
+		);
+		// Formatted JSON from the client: 28 bytes, re-serialized as 15.
+		const req = createReq({
+			method: "POST",
+			body: { name: "test" },
+			headers: {
+				"content-type": "application/json",
+				"content-length": "28",
+			},
+		});
+		await forward({ req, target: MOCK_TARGET, path: "/v1/api/create" });
+
+		expect(sentHeaders["content-length"]).toBe("15");
+	});
+
+	it("should not declare a body length when there is no body", async () => {
+		const { mockRes, mockReq, events } = createMockResponse(200, "{}");
+		let sentHeaders: Record<string, string> = {};
+		const https = require("node:https");
+		https.request = createMockHttps(
+			(opts: any, callback: (res: any) => void) => {
+				sentHeaders = opts.headers;
+				callback(mockRes);
+				for (const h of events.data ?? []) {
+					h(Buffer.from("{}"));
+				}
+				for (const h of events.end ?? []) {
+					h();
+				}
+				return mockReq;
+			}
+		);
+
+		const { forwardRequest: forward } = await Promise.resolve(
+			require("../../src/adapters/outbound/proxy-handler")
+		);
+		const req = createReq({
+			method: "POST",
+			body: {},
+			headers: { "content-length": "2" },
+		});
+		await forward({ req, target: MOCK_TARGET, path: "/v1/api/create" });
+
+		expect(sentHeaders["content-length"]).toBeUndefined();
+		expect(mockReq.write).not.toHaveBeenCalled();
+	});
 });

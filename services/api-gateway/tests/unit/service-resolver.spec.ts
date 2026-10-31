@@ -6,6 +6,11 @@ import {
 	it,
 	jest,
 } from "@jest/globals";
+
+jest.mock("node:dns/promises", () => ({
+	lookup: jest.fn(async () => ({ address: "172.25.0.2", family: 4 })),
+}));
+
 import { ServiceResolver } from "../../src/adapters/outbound/service-resolver";
 
 const makeInstance = (host: string, port: number, version: string) => ({
@@ -67,6 +72,28 @@ describe("ServiceResolver", () => {
 	it("should return null when no instances match the version", async () => {
 		const target = await resolver.resolve("sector-allocator", 3);
 		expect(target).toBeNull();
+	});
+
+	it("should find a service registered under its legacy name", async () => {
+		mockHttpClient.get.mockImplementation(async (url: unknown) => {
+			if (String(url).endsWith("/financial-scraper")) {
+				throw new Error("404 Unknown service");
+			}
+			return String(url).endsWith("/financial-scraper-service")
+				? [makeInstance("10.0.3.1", 3000, "1.0.0")]
+				: [];
+		});
+
+		const target = await resolver.resolve("financial-scraper" as never, 1);
+
+		expect(target?.host).toBe("10.0.3.1");
+	});
+
+	it("should reach discovery at its configured URL (it never registers)", async () => {
+		const target = await resolver.resolve("discovery-server" as never, 1);
+
+		expect(target).toMatchObject({ host: "172.25.0.2", port: 3000 });
+		expect(mockHttpClient.get).not.toHaveBeenCalled();
 	});
 
 	it("should return null for unknown service", async () => {

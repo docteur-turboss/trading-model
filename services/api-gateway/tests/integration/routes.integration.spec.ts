@@ -12,6 +12,11 @@ import express from "express";
 
 jest.setTimeout(15000);
 
+// The mTLS discovery client loads the SVID files at construction.
+jest.mock("../../src/config/container", () => ({
+	discoveryClient: { get: jest.fn() },
+}));
+
 jest.mock("../../src/infrastructure/config/env", () => ({
 	ENV: {
 		NODE_ENV: "test",
@@ -37,7 +42,8 @@ jest.mock("@trading-model/http/infrastructure/logger", () => ({
 jest.mock("../../src/adapters/outbound/service-resolver", () => ({
 	ServiceResolver: jest.fn().mockImplementation(() => ({
 		resolve: jest.fn().mockImplementation((serviceName: string) => {
-			if (serviceName === "nonexistent-service") {
+			// No trader-trainer instance is registered.
+			if (serviceName === "trader-trainer") {
 				return Promise.resolve(null);
 			}
 			return Promise.resolve({
@@ -200,11 +206,11 @@ describe("API Gateway — Routes Integration", () => {
 		await new Promise<void>((resolve) => {
 			server = app.listen(0, () => resolve());
 		});
-		await request(server, "/v1/discovery-server/health", {
+		await request(server, "/v1/audit-logger/events/stats", {
 			headers: AUTH_HEADERS,
 		});
 		const call = (forwardRequest as jest.Mock).mock.calls[0][0];
-		expect(call).toMatchObject({ path: "/health" });
+		expect(call).toMatchObject({ path: "/events/stats" });
 	});
 
 	it("should return 404 when the service is not registered", async () => {
@@ -212,13 +218,13 @@ describe("API Gateway — Routes Integration", () => {
 		await new Promise<void>((resolve) => {
 			server = app.listen(0, () => resolve());
 		});
-		const result = await request(server, "/v1/nonexistent-service/ping", {
+		const result = await request(server, "/v1/trader-trainer/training-status", {
 			headers: AUTH_HEADERS,
 		});
 		expect(result.status).toBe(404);
 		expect(result.body).toMatchObject({
 			error: "Service not found",
-			service: "nonexistent-service",
+			service: "trader-trainer",
 			version: 1,
 		});
 		expect(forwardRequest).not.toHaveBeenCalled();
@@ -275,14 +281,12 @@ describe("API Gateway — Routes Integration", () => {
 		await new Promise<void>((resolve) => {
 			server = app.listen(0, () => resolve());
 		});
-		const result = await request(server, "/v1/discovery-server/error-path", {
+		const result = await request(server, "/v1/audit-logger/events/error-path", {
 			headers: AUTH_HEADERS,
 		});
 		expect(result.status).toBe(503);
-		expect(result.body).toMatchObject({
-			error: "Service unavailable",
-			details: "Connection timeout",
-		});
+		// The cause is logged, never returned: it would map the internal network.
+		expect(result.body).toEqual({ error: "Service unavailable" });
 	});
 
 	it("should proxy a POST request with a JSON body", async () => {
@@ -292,13 +296,40 @@ describe("API Gateway — Routes Integration", () => {
 		await new Promise<void>((resolve) => {
 			server = app.listen(0, () => resolve());
 		});
-		const result = await request(server, "/v1/discovery-server/register", {
+		const result = await request(server, "/v1/dlq-service/dlq/replay", {
 			method: "POST",
 			headers: AUTH_HEADERS,
-			body: { serviceName: "test-service" },
+			body: { ids: ["a"] },
 		});
 		expect(result.status).toBe(200);
 		expect(result.body).toEqual({ saved: true });
 		expect(forwardRequest).toHaveBeenCalledTimes(1);
+	});
+
+	it.each([
+		["POST", "/v1/discovery-server/register"],
+		["POST", "/v1/discovery-server/heartbeat"],
+		["POST", "/v1/discovery-server/unregister"],
+		["POST", "/v1/message-manager/message"],
+		["POST", "/v1/message-manager/subscribe"],
+		["GET", "/v1/financial-scraper/metrics"],
+		["GET", "/v1/nonexistent-service/ping"],
+		// URL normalization would forward these to POST /register.
+		["POST", "/v1/discovery-server/services/../register"],
+		["POST", "/v1/discovery-server/services/%2e%2e/register"],
+		["POST", "/v1/discovery-server/services\\..\\register"],
+	])("should not proxy %s %s, which is not a public route", async (method, path) => {
+		const app = createApp();
+		await new Promise<void>((resolve) => {
+			server = app.listen(0, () => resolve());
+		});
+		const result = await request(server, path, {
+			method,
+			headers: AUTH_HEADERS,
+			body: { serviceName: "api-gateway", ip: "10.0.0.9", port: 22 },
+		});
+		expect(result.status).toBe(404);
+		expect(result.body).toEqual({ error: "Route not found" });
+		expect(forwardRequest).not.toHaveBeenCalled();
 	});
 });
