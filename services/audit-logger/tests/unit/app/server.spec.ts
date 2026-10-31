@@ -71,16 +71,10 @@ describe("createServer", () => {
 	});
 
 	it("should create a secure server and register all routes", async () => {
-		const scheduler = {
-			workers: "workers-mock",
-			queue: "queue-mock",
-			backPressure: "back-pressure-mock",
-		} as any;
 		const auditRepo = { insert: jest.fn() } as any;
 		const mongoManager = { isConnected: jest.fn(() => true) } as any;
 
 		const server = await createServer(
-			scheduler,
 			auditRepo,
 			mongoManager,
 			MOCK_MESSAGE_HANDLER as never
@@ -99,18 +93,15 @@ describe("createServer", () => {
 
 		secureServerOptions.routes(MOCK_APP);
 
-		expect(healthRoutes).toHaveBeenCalledWith(
-			scheduler.queue,
-			scheduler.backPressure,
-			scheduler.workers
-		);
+		expect(healthRoutes).toHaveBeenCalledWith();
 		expect(eventsRoutes).toHaveBeenCalledWith(auditRepo);
 
 		expect(MOCK_APP.use).toHaveBeenCalledWith("/", MOCK_HEALTH_ROUTES);
 		expect(MOCK_APP.use).toHaveBeenCalledWith("/", MOCK_EVENTS_ROUTES);
-		expect(MOCK_APP.post).toHaveBeenCalledWith(
-			"/message",
-			MOCK_MESSAGE_HANDLER
-		);
+		// POST /message is mounted from AUDIT_API.receive on its own router.
+		const brokerRouter = MOCK_APP.use.mock.calls
+			.map((call) => call[0] as { stack?: Array<{ route?: { path: string } }> })
+			.find((arg) => typeof arg === "function" && arg.stack);
+		expect(brokerRouter?.stack?.[0]?.route?.path).toBe("/message");
 	});
 });

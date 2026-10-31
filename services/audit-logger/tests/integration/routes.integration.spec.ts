@@ -40,16 +40,10 @@ jest.mock("../../src/config/address-manager", () => ({
 }));
 
 import { healthRoutes } from "../../src/adapters/inbound/http/health.routes";
-import { createWorkerRegistry } from "../../src/application/scheduler/worker-registry";
-import { BackPressure } from "../../src/domain/scheduler/back-pressure";
-import { InternalQueue } from "../../src/domain/scheduler/internal-queue";
 
 function createApp() {
 	const app = configureApp();
-	const queue = new InternalQueue(30000);
-	const backPressure = new BackPressure(1000, 0.8);
-	const workers = createWorkerRegistry(30000);
-	app.use("/", healthRoutes(queue, backPressure, workers));
+	app.use("/", healthRoutes());
 	return app;
 }
 
@@ -113,7 +107,6 @@ describe("Audit Logger — Routes Integration", () => {
 		const result = await fetchJson(server, "/health");
 		expect(result.status).toBe(200);
 		expect(result.body).toHaveProperty("status", "ok");
-		expect(result.body).toHaveProperty("queueDepth");
-		expect(result.body).toHaveProperty("canAccept");
+		expect(result.body).toHaveProperty("timestamp");
 	});
 });

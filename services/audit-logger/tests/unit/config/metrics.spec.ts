@@ -16,14 +16,10 @@ jest.mock("prom-client", () => ({
 }));
 
 import {
-	BACKPRESSURE_RATIO,
 	EVENTS_INGESTED_TOTAL,
 	EVENTS_QUERY_DURATION_SECONDS,
 	EVENTS_STORED_TOTAL,
-	JOB_COUNT,
 	metricsHandler,
-	ORPHAN_JOBS_TOTAL,
-	WORKER_COUNT,
 } from "../../../src/config/metrics";
 
 describe("metrics", () => {
@@ -37,22 +33,6 @@ describe("metrics", () => {
 
 	it("should export EVENTS_QUERY_DURATION_SECONDS histogram", () => {
 		expect(EVENTS_QUERY_DURATION_SECONDS).toBeDefined();
-	});
-
-	it("should export JOB_COUNT gauge", () => {
-		expect(JOB_COUNT).toBeDefined();
-	});
-
-	it("should export BACKPRESSURE_RATIO gauge", () => {
-		expect(BACKPRESSURE_RATIO).toBeDefined();
-	});
-
-	it("should export WORKER_COUNT gauge", () => {
-		expect(WORKER_COUNT).toBeDefined();
-	});
-
-	it("should export ORPHAN_JOBS_TOTAL counter", () => {
-		expect(ORPHAN_JOBS_TOTAL).toBeDefined();
 	});
 
 	it("metricsHandler should set content type and return metrics", () => {
