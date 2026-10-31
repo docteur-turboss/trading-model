@@ -160,3 +160,5 @@ id_rsa*
 .stryker.gate.json
 .stryker-gate-report.json
 reports/
+# Alertmanager notification credentials (docker-compose.yml)
+observability/alertmanager-credentials/
