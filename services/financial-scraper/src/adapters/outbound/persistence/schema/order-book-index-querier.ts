@@ -26,9 +26,10 @@ const TABLE_DEF = zod.object({
 		MarketType.Future,
 	]),
 	source: zod.string(),
-	bids: zod.array(ASKS_BIDS_DEF),
-	asks: zod.array(ASKS_BIDS_DEF),
-	timestamp: zod.date(),
+	// Shape of the OrderBookData contract produced by the Binance normalizer.
+	bids: zod.set(ASKS_BIDS_DEF),
+	asks: zod.set(ASKS_BIDS_DEF),
+	timestamp: zod.number(),
 });
 
 export interface OrderBookIndexSnapshot {

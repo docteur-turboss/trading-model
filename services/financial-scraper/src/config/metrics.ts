@@ -23,6 +23,23 @@ export const SYMBOLS_FAILED_TOTAL = new promClient.Counter({
 	help: "Total symbols that failed scraping",
 });
 
+export const SNAPSHOT_PARTS_FAILED_TOTAL = new promClient.Counter({
+	name: "fs_snapshot_parts_failed_total",
+	help: "Market data parts (order book, candles...) a symbol scrape failed to fetch; the other parts are kept",
+	labelNames: ["part"] as const,
+});
+
+export const UNPUBLISHED_CANDLES = new promClient.Gauge({
+	name: "fs_unpublished_candles",
+	help: "Candles persisted to MySQL but not yet published to the bus, per symbol (sent from MySQL, oldest first)",
+	labelNames: ["symbol"] as const,
+});
+
+export const PUBLISHES_SKIPPED_TOTAL = new promClient.Counter({
+	name: "fs_publishes_skipped_total",
+	help: "Symbol publishes skipped because the previous one is still in flight (candles stay in the backlog)",
+});
+
 export const BINANCE_REQUESTS_TOTAL = new promClient.Counter({
 	name: "fs_binance_requests_total",
 	help: "Total Binance API requests",

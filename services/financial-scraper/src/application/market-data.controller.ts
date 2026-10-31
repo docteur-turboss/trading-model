@@ -24,15 +24,15 @@ import type {
 	TickerData,
 	TradeData,
 } from "../domain/market-data.types";
-import type { BinanceWorkerResult } from "../domain/market-data-snapshot";
+import type { MarketDataSnapshot } from "../domain/market-data-snapshot";
 import type { MarketDataRepositoryPort } from "../domain/ports/market-data-repository.port";
 
 export interface MarketDataController {
-	persist(payload: BinanceWorkerResult): Promise<void>;
+	persist(payload: MarketDataSnapshot): Promise<void>;
 }
 
 interface Persister<TData> {
-	present: (payload: BinanceWorkerResult) => TData[] | TData | undefined;
+	present: (payload: MarketDataSnapshot) => TData[] | TData | undefined;
 	insert: (data: TData[] | TData) => Promise<void>;
 }
 
@@ -78,7 +78,7 @@ export function createMarketDataController(
 ): MarketDataController {
 	const persisters = buildPersisters(repository);
 	return {
-		async persist(payload: BinanceWorkerResult): Promise<void> {
+		async persist(payload: MarketDataSnapshot): Promise<void> {
 			const results = await Promise.allSettled(
 				persisters
 					.filter(({ present }) => hasData(present(payload)))

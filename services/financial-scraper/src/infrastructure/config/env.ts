@@ -17,6 +17,7 @@ function _parseSymbols(value: string): string[] | string {
 	}
 	let symbols: unknown;
 	if (trimmed.startsWith("[")) {
+		// biome-ignore lint/plugin: the parse error is returned as the validation message
 		try {
 			symbols = JSON.parse(trimmed);
 		} catch {
@@ -38,8 +39,7 @@ function _parseSymbols(value: string): string[] | string {
 const FINANCIAL_SCRAPER_ENV_SCHEMA = BaseEnvSchema.extend(
 	AddressManagerEnvSchema.shape
 ).extend({
-	BINANCE_API_KEY: z.string().default(""),
-	BINANCE_API_SECRET: z.string().default(""),
+	/** Public market data only: no Binance account or API key (ADR-0026). */
 	BINANCE_BASE_URL: z.url().default("https://api.binance.com"),
 	SYMBOLS_TO_TRACK: z
 		.string()
