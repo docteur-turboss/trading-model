@@ -21,6 +21,7 @@
   "scripts": {
     "test": "jest",
     "test:coverage": "jest --coverage",
+    "test:db": "jest -c jest.db.config.js",
     "dev": "ts-node src/application/index.ts",
     "build": "tsc"
   },
@@ -36,7 +37,9 @@
     "@trading-model/address-manager": "*",
     "@trading-model/broker-message": "*",
     "@trading-model/common": "*",
+    "@trading-model/crypto": "*",
     "@trading-model/http": "*",
+    "@trading-model/persistence": "*",
     "@trading-model/reliability": "*",
     "@trading-model/server-utils": "*",
     "@trading-model/validation": "*",
