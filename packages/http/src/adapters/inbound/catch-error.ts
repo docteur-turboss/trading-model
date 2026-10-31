@@ -35,10 +35,12 @@ export const catchSync =
 		try {
 			const result = await errorFunction(req, res, next);
 			if (result && typeof result === "object" && "status" in result) {
+				const response = result as ResponseObject;
 				res
-					.status(result.status)
-					.type("json")
-					.send((result as ResponseObject).data);
+					.status(response.status)
+					.set(response.headers ?? {})
+					.type(response.contentType ?? "json")
+					.send(response.data);
 			}
 		} catch (err) {
 			next(err);

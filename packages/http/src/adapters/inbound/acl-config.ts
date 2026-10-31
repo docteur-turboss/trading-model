@@ -17,18 +17,29 @@ function toServiceId(serviceName: string): ServiceId {
 export const DEFAULT_ACL: Record<KnownService, readonly ServiceId[]> = {
 	[KnownService.DiscoveryServer]: [toServiceId("*")],
 	[KnownService.AuditLogger]: [toServiceId("*")],
+	// Publishers, plus the subscribers: audit-logger subscribes to every topic
+	// and dlq-service republishes replayed entries. Not api-gateway: it would
+	// lend its identity to API clients (it proxies with its own SVID).
 	[KnownService.MessageManager]: [
 		toServiceId("discovery-server"),
 		toServiceId("financial-scraper"),
 		toServiceId("trader-trainer"),
-		toServiceId("api-gateway"),
+		toServiceId("audit-logger"),
+		toServiceId("dlq-service"),
 	],
-	[KnownService.FinancialScraper]: [toServiceId("api-gateway")],
+	// message-manager delivers subscribed topics to services that mount
+	// MessageManagerListenExpress (POST /<MESSAGE_CALLBACK_PATH>).
+	[KnownService.FinancialScraper]: [
+		toServiceId("api-gateway"),
+		toServiceId("message-manager"),
+	],
 	[KnownService.TraderTrainer]: [
 		toServiceId("api-gateway"),
 		toServiceId("financial-scraper"),
 		toServiceId("discovery-server"),
+		toServiceId("message-manager"),
 	],
-	[KnownService.ApiGateway]: [toServiceId("admin-interface")],
+	// External traffic enters through the edge proxy (ADR-0018).
+	[KnownService.ApiGateway]: [toServiceId("edge-proxy")],
 	[KnownService.DlqService]: [toServiceId("*")],
 };

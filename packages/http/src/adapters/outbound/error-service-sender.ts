@@ -12,11 +12,14 @@ export async function sendError(
 	entry: LogEntry,
 	env: string | undefined
 ): Promise<void> {
-	if (!_shouldSend(env)) {
+	// No webhook configured (the default, ""): nothing to send. Posting to "/"
+	// failed on every error log and printed "Failed to parse URL".
+	const url = process.env.ERROR_URL_WEBHOOK;
+	if (!(_shouldSend(env) && url)) {
 		return;
 	}
 	try {
-		await fetch(process.env.ERROR_URL_WEBHOOK ?? "/", {
+		await fetch(url, {
 			method: "POST" as HttpMethod,
 			headers: { "Content-Type": "application/json" },
 			body: safeStringify(entry),

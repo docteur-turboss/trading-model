@@ -1,23 +1,13 @@
-import type { TlsPaths } from "@trading-model/common/config/tls-paths";
 import {
 	type ProcessId,
 	UnixTimestamp,
-	type URLString,
 	type UserId,
 } from "@trading-model/primitives/primitives";
-import { AuditServiceClient } from "../adapters/outbound/audit-service-client";
 import { sendError } from "../adapters/outbound/error-service-sender";
 import { getNodeEnv } from "../shared/node-env";
-import { writeLogFile } from "./log-file-writer";
-import {
-	type LogEntry,
-	LogLevel,
-	LogLevelThreshold,
-	type LogOptions,
-} from "./log-types";
+import type { LogEntry, LogLevel, LogOptions } from "./log-types";
 export class LogDispatcher {
 	private readonly _safeStringify: (value: unknown) => string;
-	private _auditClient: AuditServiceClient;
 	private readonly _processId: ProcessId;
 	private readonly _env: string | undefined;
 
@@ -25,13 +15,6 @@ export class LogDispatcher {
 		this._safeStringify = safeStringify;
 		this._processId = processId;
 		this._env = getNodeEnv();
-		this._auditClient = new AuditServiceClient(this._safeStringify);
-	}
-
-	private _maybeSendToAudit(data: LogEntry, level: LogLevel): void {
-		if (LogLevelThreshold.isAtLeast(level, LogLevel.Info)) {
-			void this._auditClient.send(data as unknown as Record<string, unknown>);
-		}
 	}
 
 	createLogEntry(
@@ -52,19 +35,7 @@ export class LogDispatcher {
 			serviceInCharge,
 		};
 
-		writeLogFile(data, level, this._safeStringify);
-		this._maybeSendToAudit(data, level);
-
 		return data;
-	}
-
-	setAuditResolver(
-		resolver: () => Promise<{
-			url: URLString;
-			tls: TlsPaths;
-		} | null>
-	): void {
-		this._auditClient = new AuditServiceClient(this._safeStringify, resolver);
 	}
 
 	sendError(logEntry: LogEntry): void {

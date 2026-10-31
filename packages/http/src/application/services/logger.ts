@@ -1,10 +1,8 @@
-import type { TlsPaths } from "@trading-model/common/config/tls-paths";
 import { CircularBuffer } from "@trading-model/common/utils/circular-buffer";
 import { setLogger } from "@trading-model/contracts/logger-registry";
 import {
 	type JsonObject,
 	type ProcessId,
-	type URLString,
 	UserId,
 } from "@trading-model/primitives/primitives";
 import { formatLogEntry } from "../../infrastructure/console-formatter";
@@ -119,15 +117,6 @@ export class Logger {
 
 	getLogs() {
 		return this._buffer.getAll();
-	}
-
-	setAuditResolver(
-		resolver: () => Promise<{
-			url: URLString;
-			tls: TlsPaths;
-		} | null>
-	): void {
-		this._dispatcher.setAuditResolver(resolver);
 	}
 }
 

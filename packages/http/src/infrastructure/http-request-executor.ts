@@ -13,11 +13,15 @@ import {
 	type ServiceRoute,
 } from "../adapters/outbound/circuit-recorder";
 import { createHttpClientTimeoutError } from "../adapters/outbound/http-client-errors";
-import { shouldRetry } from "../application/services/http-error-classifier";
+import {
+	isConnectionRefused,
+	shouldRetry,
+} from "../application/services/http-error-classifier";
 import type { HttpMethod, HttpRequestOptions } from "../domain/http-types";
 import { collectResponseBody } from "./http-response";
 import { computeRetryDelay, DEFAULT_RETRY_COUNT } from "./http-retry";
 import { buildRequestOptions } from "./http-utils";
+import { toJsonWire } from "./json-wire";
 import {
 	outboundRequestDurationSeconds,
 	outboundRequestsInFlight,
@@ -94,7 +98,7 @@ export class HttpRequestExecutor {
 			this._registerTimeout(req, reject, timeoutMs);
 
 			if (context.body) {
-				req.write(JSON.stringify(context.body));
+				req.write(JSON.stringify(context.body, toJsonWire));
 			}
 
 			req.end();
@@ -140,7 +144,10 @@ export class HttpRequestExecutor {
 			} catch (error) {
 				lastError = error instanceof Error ? error : new Error(String(error));
 
-				if (attempt < retryCount && shouldRetry(lastError)) {
+				const retryable = context.options?.retryUnsentOnly
+					? isConnectionRefused(lastError)
+					: shouldRetry(lastError);
+				if (attempt < retryCount && retryable) {
 					await sleep(computeRetryDelay(attempt));
 					continue;
 				}

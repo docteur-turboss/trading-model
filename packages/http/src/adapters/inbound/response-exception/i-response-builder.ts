@@ -2,7 +2,7 @@ import type { ResponseObject } from "./http-codes";
 
 /** Operations for building standardized HTTP response objects. */
 export interface IResponseBuilder {
-	readonly reason: string;
+	readonly reason: unknown;
 	serviceUnavailable(): ResponseObject;
 	unknownError(): ResponseObject;
 	invalidToken(): ResponseObject;

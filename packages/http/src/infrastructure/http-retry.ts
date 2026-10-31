@@ -15,16 +15,13 @@ function isRetryableStatus(code: number): boolean {
 	);
 }
 
-/** More permissive check — also retries 403, 408, and 418 (used by financial-scraper). */
+/**
+ * More permissive check — also retries 408 (used by financial-scraper).
+ * Never 403 or 418: Binance answers 403 on a WAF violation and 418 on an IP
+ * ban, and retrying either one extends the ban (ADR-0026).
+ */
 function isRetryableStatusPermissive(code: number): boolean {
-	return (
-		isRetryableStatus(code) ||
-		[
-			HTTP_STATUS.FORBIDDEN,
-			HTTP_STATUS.REQUEST_TIMEOUT,
-			HTTP_STATUS.IM_A_TEAPOT,
-		].some((status) => status === code)
-	);
+	return isRetryableStatus(code) || code === HTTP_STATUS.REQUEST_TIMEOUT;
 }
 
 /** Checks if a delivery status should NOT be retried (used by message-manager delivery-decision). */

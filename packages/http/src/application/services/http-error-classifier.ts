@@ -17,6 +17,11 @@ export function shouldRetry(error: Error): boolean {
 	return false;
 }
 
+/** The connection was refused: the request was never sent. */
+export function isConnectionRefused(error: Error): boolean {
+	return error.message.includes("ECONNREFUSED");
+}
+
 function _isSocketError(error: Error): boolean {
 	return (
 		error.message.includes("ECONNRESET") ||

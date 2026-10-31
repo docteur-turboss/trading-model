@@ -48,12 +48,10 @@ export class AclService {
 	}
 
 	private _throwUnauthorized(message: string): never {
-		throw ResponseException(JSON.stringify({ error: message })).unauthorized();
+		throw ResponseException({ error: message }).unauthorized();
 	}
 
 	private _throwForbidden(reason: string): never {
-		throw ResponseException(
-			JSON.stringify({ error: "Forbidden", reason })
-		).forbidden();
+		throw ResponseException({ error: "Forbidden", reason }).forbidden();
 	}
 }

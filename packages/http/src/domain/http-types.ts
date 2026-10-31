@@ -38,7 +38,14 @@ export interface HttpAgent {
 interface HttpRequestOptions {
 	timeoutMs?: DurationMs;
 	headers?: HttpHeaders;
-	retryCount?: PositiveInt;
+	/** Retries after the first attempt (default 3); 0 sends the request once. */
+	retryCount?: number;
+	/**
+	 * Retry only when the connection was refused, i.e. the request never left.
+	 * For requests that must not be repeated once sent: a timeout or a reset
+	 * may come after the server acted on them.
+	 */
+	retryUnsentOnly?: boolean;
 	agent?: HttpAgent;
 	serviceName?: ServiceId;
 	serviceInstanceCount?: PositiveInt;

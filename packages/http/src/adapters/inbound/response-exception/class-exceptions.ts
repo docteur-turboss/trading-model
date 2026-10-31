@@ -3,10 +3,14 @@ import type { ResponseObject } from "./http-codes";
 import type { IResponseBuilder } from "./i-response-builder";
 
 export class ClassResponseExceptions implements IResponseBuilder {
-	readonly reason: string;
+	/**
+	 * Response body: a string is sent as `{ "error": reason }`, an object as is
+	 * (ResponseProtocol, ADR-0021).
+	 */
+	readonly reason: unknown;
 
 	constructor(reason: unknown) {
-		this.reason = typeof reason === "string" ? reason : JSON.stringify(reason);
+		this.reason = reason;
 	}
 
 	serviceUnavailable(): ResponseObject {
