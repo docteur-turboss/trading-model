@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
+import { PUBLISH_TIMEOUT_MS } from "@trading-model/contracts/publish-timeout";
+import { logger } from "@trading-model/http/infrastructure/logger";
 import { MessageManagerClient } from "../../src/adapters/outbound/message-manager-client";
 
 describe("MessageManagerClient", () => {
@@ -67,12 +69,13 @@ describe("MessageManagerClient", () => {
 			);
 		});
 
-		it("should swallow MessageManagerError on subscription failure", async () => {
+		it("should propagate MessageManagerError on subscription failure", async () => {
 			addressManagerClient.findService.mockResolvedValue(mockServiceInstance);
 			httpClient.post.mockRejectedValue(new Error("Network error"));
 
-			const result = await client.subscribe(["example.debug.create"]);
-			expect(result).toBeUndefined();
+			await expect(client.subscribe(["example.debug.create"])).rejects.toThrow(
+				"Failed to subscribe topic to Message Manager"
+			);
 		});
 
 		it("should throw MessageManagerError on generic error in subscribe", async () => {
@@ -96,30 +99,41 @@ describe("MessageManagerClient", () => {
 			expect(httpClient.delete).toHaveBeenCalled();
 		});
 
-		it("should rethrow ServiceUnreachableError when service not found", async () => {
-			addressManagerClient.findService.mockResolvedValue(null);
+		it.each([
+			[
+				"the service is not found",
+				() => addressManagerClient.findService.mockResolvedValue(null),
+			],
+			[
+				"the request fails",
+				() => {
+					addressManagerClient.findService.mockResolvedValue(
+						mockServiceInstance
+					);
+					httpClient.delete.mockRejectedValue(new Error("Network error"));
+				},
+			],
+			[
+				"the lookup throws",
+				() =>
+					addressManagerClient.findService.mockRejectedValue(
+						new Error("Generic error")
+					),
+			],
+		])("should log and resolve when %s (best-effort shutdown)", async (_case, arrange) => {
+			arrange();
+			const warn = jest
+				.spyOn(logger, "warn")
+				.mockImplementation(() => undefined);
 
 			await expect(
 				client.unsubscribe(["example.debug.create"])
-			).rejects.toThrow(Error);
-		});
-
-		it("should swallow MessageManagerError on unsubscribe failure", async () => {
-			addressManagerClient.findService.mockResolvedValue(mockServiceInstance);
-			httpClient.delete.mockRejectedValue(new Error("Network error"));
-
-			const result = await client.unsubscribe(["example.debug.create"]);
-			expect(result).toBeUndefined();
-		});
-
-		it("should throw MessageManagerError on generic error in unsubscribe", async () => {
-			addressManagerClient.findService.mockRejectedValue(
-				new Error("Generic error")
+			).resolves.toBeUndefined();
+			expect(warn).toHaveBeenCalledWith(
+				"Failed to unsubscribe topics from Message Manager",
+				expect.anything()
 			);
-
-			await expect(
-				client.unsubscribe(["example.debug.create"])
-			).rejects.toThrow(Error);
+			warn.mockRestore();
 		});
 	});
 
@@ -141,7 +155,9 @@ describe("MessageManagerClient", () => {
 				{
 					payload: { hello: "world" },
 					metadata,
-				}
+				},
+				// Outlasts the broker's own timeout; never re-sent once it left.
+				{ timeoutMs: PUBLISH_TIMEOUT_MS + 5_000, retryUnsentOnly: true }
 			);
 		});
 

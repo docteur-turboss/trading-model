@@ -1,4 +1,11 @@
-import { beforeEach, describe, expect, it, jest } from "@jest/globals";
+import {
+	afterEach,
+	beforeEach,
+	describe,
+	expect,
+	it,
+	jest,
+} from "@jest/globals";
 import { EVENT_MANAGER } from "../../src/application/services/event-manager-client";
 
 const MOCK_MESSAGE_MANAGER_CLIENT_INSTANCE = {
@@ -27,6 +34,7 @@ jest.mock("../../src/adapters/inbound/messages.routes", () => ({
 	CREATE_CALLBACK_ROUTE: jest.fn(() => MOCK_CREATE_CALLBACK_ROUTE),
 }));
 
+import { SUBSCRIPTION_REFRESH_MS } from "../../src/application/services/broker-message";
 import BrokerMessage from "../../src/index";
 
 describe("BrokerMessage", () => {
@@ -80,12 +88,38 @@ describe("BrokerMessage", () => {
 	});
 
 	describe("intents", () => {
+		afterEach(async () => {
+			await broker.stopMessageManager();
+			jest.useRealTimers();
+		});
+
 		it("should call subscribe with topics", async () => {
 			const topics = ["example.debug.create"];
 			await broker.intents(topics);
 			expect(
 				MOCK_MESSAGE_MANAGER_CLIENT_INSTANCE.subscribe
 			).toHaveBeenCalledWith(topics);
+		});
+
+		it("should not reject when the first subscription fails", async () => {
+			MOCK_MESSAGE_MANAGER_CLIENT_INSTANCE.subscribe.mockRejectedValueOnce(
+				new Error("message-manager unreachable") as never
+			);
+			await expect(
+				broker.intents(["example.debug.create"])
+			).resolves.toBeUndefined();
+		});
+
+		it("should renew the subscriptions periodically (message-manager keeps them in memory)", async () => {
+			jest.useFakeTimers();
+			await broker.intents(["example.debug.create"]);
+			MOCK_MESSAGE_MANAGER_CLIENT_INSTANCE.subscribe.mockClear();
+
+			await jest.advanceTimersByTimeAsync(SUBSCRIPTION_REFRESH_MS * 2);
+
+			expect(
+				MOCK_MESSAGE_MANAGER_CLIENT_INSTANCE.subscribe
+			).toHaveBeenCalledTimes(2);
 		});
 	});
 

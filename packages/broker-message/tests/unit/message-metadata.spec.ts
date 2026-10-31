@@ -1,5 +1,7 @@
 import { describe, expect, it } from "@jest/globals";
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
+import { MarketEvent } from "@trading-model/contracts/market-events";
+import { TrainingEvent } from "@trading-model/contracts/training-events";
 import { MessageMetadataBuilder } from "../../src/domain/messages/message-metadata-builder";
 
 const TEST_TOPIC = "test.event.created";
@@ -35,6 +37,15 @@ describe("MessageMetadataBuilder", () => {
 			).toThrow();
 		});
 
+		it("should accept the trainer's model-published event", () => {
+			const m = new MessageMetadataBuilder(
+				TrainingEvent.ModelPublished,
+				TrainingEvent.ModelPublished,
+				TEST_PUBLISHER
+			);
+			expect(m.toJSON().eventType).toBe(TrainingEvent.ModelPublished);
+		});
+
 		it("should accept optional context data", () => {
 			const withData = new MessageMetadataBuilder(
 				TEST_TOPIC,
@@ -60,6 +71,17 @@ describe("MessageMetadataBuilder", () => {
 			const m = buildMinimalMetadata();
 			expect(() => m.setTopic("")).toThrow();
 			expect(() => m.setTopic("no-dots")).toThrow();
+			expect(() => m.setTopic("two.segments")).toThrow();
+			expect(() => m.setTopic("market..fetch")).toThrow();
+			expect(() => m.setTopic("market.-trade.fetch")).toThrow();
+		});
+
+		it.each(
+			Object.values(MarketEvent)
+		)("should accept the %s market event as a topic", (event) => {
+			const m = buildMinimalMetadata();
+			m.setTopic(event);
+			expect(m.toJSON().topic).toBe(event);
 		});
 	});
 
