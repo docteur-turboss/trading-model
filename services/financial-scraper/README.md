@@ -44,8 +44,7 @@ See [.env.example](./.env.example) for all available variables.
 | `SERVICE_NAME`        | Service identity for registry       | `financial-scraper`        |
 | `INSTANCE_ID`         | Unique instance identifier          | —                           |
 | `ADDRESS_MANAGER_URL` | Discovery server URL                | —                           |
-| `BINANCE_API_KEY`     | Binance API key (optional)          | `''`                        |
-| `BINANCE_API_SECRET`  | Binance API secret (optional)       | `''`                        |
+| `BINANCE_BASE_URL`    | Binance public API (ADR-0026)       | `https://api.binance.com`   |
 | `SYMBOLS_TO_TRACK`    | JSON array of symbols to fetch      | `[]`                        |
 | `SCRAPE_INTERVAL`     | Cron expression for scrape schedule | `*/1 * * * *`               |
 | `DB_USER`             | MySQL user                          | `root`                      |
@@ -124,8 +123,8 @@ src/
 │       ├── ticker24h.schema.ts # Ticker MySQL table & queries
 │       └── trades.schema.ts    # Trades MySQL table & queries
 ├── job/
-│   ├── cron/binance.cron.ts    # Cron orchestrator (schedules workers)
-│   └── worker/binance.worker.ts # Per-symbol data fetch & persist worker
+│   ├── cron/scrape.cron.ts     # Cron orchestrator (adapters/inbound/cron)
+│   └── worker-orchestrator.ts  # Per symbol: source → publish → persist (application)
 ├── types/
 │   ├── axios.d.ts              # Axios module augmentation (weight property)
 │   └── binance.api.ts          # Binance API response type definitions

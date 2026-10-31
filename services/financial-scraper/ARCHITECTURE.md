@@ -16,11 +16,13 @@ binance.client.ts  ─── Axios instance (rate-limited, retry-capable)
 BinanceNormalizer  ─── Raw → Normalized entity conversion
      │
      ▼
-BinanceWorker.run() ─── Per-symbol orchestration
-     │                       │
-     │                       ▼
-     │              MessageManager.post.indirect()
-     │              (6 events published to message bus)
+BinanceMarketDataSource ─── MarketDataSourcePort (domain): snapshot per symbol
+     │
+     ▼
+WorkerOrchestrator ─── fetch → publish → persist, per symbol
+     │
+     ├── BrokerMarketDataPublisher ─── MarketDataPublisherPort (domain)
+     │        MessageManager.post.indirect() (6 events on the message bus)
      │
      ▼
 MarketDataController.persist()
@@ -37,16 +39,15 @@ MarketDataController.persist()
 node-cron
     │
     ▼
-BinanceCronOrchestrator
+ScrapeCronOrchestrator (deps built by config/container.ts)
     │
     ├── p-limit (concurrency = min(cpus × 2, symbols.length))
     │
-    └── For each symbol:
-         └── BinanceWorker.run()
-              ├── binance.client.*()    (6 parallel API calls)
-              ├── BinanceNormalizer.*() (6 parallel normalizations)
-              ├── MessageManager.post   (6 event publications)
-              └── MarketDataController.persist()
+    └── WorkerOrchestrator, for each symbol:
+         ├── source.fetchSnapshot()   BinanceMarketDataSource:
+         │                            6 parallel API calls + normalization
+         ├── publisher.publish()      6 event publications (never throws)
+         └── persist()                MarketDataController.persist()
 ```
 
 ## Component Breakdown
@@ -56,7 +57,7 @@ BinanceCronOrchestrator
 A configurable Axios instance factory (`createHttpClient`) that provides:
 
 - **Token-bucket rate limiter** — per-baseURL bucket with configurable capacity (default: 1200 tokens) and refill rate (20 tokens/sec). The `weight` property on each request config determines how many tokens are consumed, mirroring Binance's documented API weight system.
-- **Exponential backoff retry** — up to 5 retries with 300ms base delay, max 10s. Triggers on network errors, 5xx, 403, 408, 429, and 418 status codes.
+- **Exponential backoff retry** — up to 5 retries with 300ms base delay, max 10s. Triggers on network errors, 5xx, 408 and 429. Never on 403 (Binance WAF), 418 (IP ban) or 451 (restricted location): see ADR-0026.
 - **Type augmentation** — `AxiosRequestConfig` is augmented to accept a `weight?: number` field via declaration merging (`src/infrastructure/http/axios.d.ts`).
 
 ```typescript
@@ -74,14 +75,20 @@ const response = await binance.get(url, { weight: 5 });
 | `binance.client.ts` | 9 async functions (`getOrderBook`, `getRecentTrades`, `getCandlestickData`, etc.) each calling the Axios instance with the correct weight                        |
 | `normalizer.ts`     | `BinanceNormalizer` class (static methods) converting raw API shapes to internal entity types (`OrderBookEntity`, `TradeEntity`, `CandleEntity`, `TickerEntity`) |
 
-### 3. Worker & Cron (`src/adapters/inbound/cron/`, `src/application/worker-orchestrator.ts`, `src/adapters/outbound/binance-worker/`)
+### 3. Scrape cycle (`src/adapters/inbound/cron/`, `src/application/worker-orchestrator.ts`, `src/domain/ports/`)
 
-| Component                 | File                       | Role                                                                                                          |
-| ------------------------- | -------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| `BinanceWorker`           | `worker/binance.worker.ts` | Per-symbol worker: fetches all 6 data types in parallel, normalizes, publishes to message bus, returns result |
-| `BinanceCronOrchestrator` | `cron/binance.cron.ts`     | Schedules workers on a cron expression, manages concurrency with `p-limit`, prevents overlapping runs         |
+| Component                   | File                                                      | Role                                                                                                 |
+| --------------------------- | --------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `MarketDataSourcePort`      | `domain/ports/market-data-source.port.ts`                 | A market data provider: `fetchSnapshot(request)` returns a normalized `MarketDataSnapshot`            |
+| `MarketDataPublisherPort`   | `domain/ports/market-data-publisher.port.ts`              | Publishes a snapshot to the subscribers; never rejects, returns the parts that failed               |
+| `BinanceMarketDataSource`   | `adapters/outbound/binance/binance-market-data-source.ts` | The only source today (ADR-0026): 6 parallel public API calls, a failed one leaves its part out     |
+| `BrokerMarketDataPublisher` | `adapters/outbound/broker/broker-market-data.publisher.ts` | One event per part present through message-manager, fresh metadata per snapshot                     |
+| `WorkerOrchestrator`        | `application/worker-orchestrator.ts`                      | Per symbol: fetch → persist → publish (not awaited) of the next persisted candles from the MySQL publish cursor |
+| `ScrapeCronOrchestrator`    | `adapters/inbound/cron/scrape.cron.ts`                    | Runs the cycle on a cron expression with `p-limit`, prevents overlapping runs                        |
 
-The worker publishes 6 events to the message bus for each symbol:
+Adding a source means an adapter implementing `MarketDataSourcePort` and a value of `DataSource`; the cycle does not change.
+
+The publisher sends 6 events to the message bus for each symbol:
 
 - `FetchCandlestick` → `fetchCandlestickSeries`
 - `FetchOrderbook` → `fetchOrderBookSnapshot`
@@ -167,8 +174,8 @@ All configuration is validated at startup via Zod schemas from `@trading-model/c
 - **mTLS via SPIRE** — all inter-service communication uses mutual TLS, automatic via SPIRE SVIDs (ADR-0011); no manual certificates
 - **MySQL connection** — user, password, host, port, database name
 - **Discovery Server URL** — for service registration and heartbeat
-- **Cron schedule** — defined in `BinanceCronOrchestrator` configuration
-- **Tracked symbols** — defined in `src/config/follows.ts` (~2500+ Binance pairs)
+- **Cron schedule** — `SCRAPE_INTERVAL` (cron expression, default every minute)
+- **Tracked symbols** — `SYMBOLS_TO_TRACK` (JSON array or CSV list)
 
 ## Error Handling
 
