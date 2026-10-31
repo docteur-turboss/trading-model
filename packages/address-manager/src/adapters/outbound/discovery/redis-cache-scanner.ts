@@ -6,6 +6,7 @@ import {
 } from "@trading-model/primitives/primitives";
 import type Redis from "ioredis";
 import type { ServiceInstance } from "../../../domain/client/type";
+import { CIRCUIT_KEY_PREFIX } from "./redis-circuit-state-store";
 
 export class RedisCacheScanner {
 	constructor(
@@ -15,7 +16,12 @@ export class RedisCacheScanner {
 
 	async clear(): Promise<void> {
 		try {
-			await this._deleteKeys(await this._scanAllKeys());
+			// Circuit states share the prefix but outlive the cached addresses.
+			const circuitPrefix = `${this._prefix}${CIRCUIT_KEY_PREFIX}`;
+			const keys = await this._scanAllKeys();
+			await this._deleteKeys(
+				keys.filter((key) => !key.startsWith(circuitPrefix))
+			);
 		} catch (err) {
 			logger.warn("Redis cache clear failed", { error: normalizeError(err) });
 		}
@@ -60,8 +66,7 @@ export class RedisCacheScanner {
 		region?: string;
 	} | null {
 		try {
-			const parsed = JSON.parse(raw);
-			const instance = parsed?.instance ?? parsed;
+			const instance = JSON.parse(raw);
 			if (!instance?.serviceName) {
 				return null;
 			}

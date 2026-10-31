@@ -78,9 +78,6 @@ export class ServiceCache implements IServiceCache {
 			}))
 		);
 	}
-	getVersion(_serviceName: ServiceId, _region?: string): Promise<number> {
-		return Promise.resolve(0);
-	}
 	close(): void {
 		this._cacheStore.close();
 	}

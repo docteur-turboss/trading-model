@@ -1,4 +1,5 @@
 import type { TlsPaths } from "@trading-model/common/config/tls-paths";
+import type { RedisConnectionConfig } from "@trading-model/persistence/redis-connection-manager";
 import type {
 	DurationMs,
 	IPAddress,
@@ -12,13 +13,8 @@ import type { ServiceIdentity } from "@trading-model/primitives/service-identity
 interface AddressManagerConfig {
 	identity: ServiceIdentity;
 	servicePort: Port;
-	/** Single discovery URL (backwards compatible). */
+	/** Discovery URL (a Service / load balancer in front of every replica). */
 	addressManagerUrl: string;
-	/** Ordered list of discovery URLs for multi-region failover. */
-	discoveryUrls: string[];
-
-	localDiscoveryUrl?: string;
-	publicIp?: IPAddress;
 
 	tls: TlsPaths;
 	tokenRefreshIntervalMs: DurationMs;
@@ -28,15 +24,12 @@ interface AddressManagerConfig {
 
 	cacheTtlMs: DurationMs;
 	dnsNameMap?: Record<ServiceId, IPAddress>;
-	metricsIntervalMs?: DurationMs;
 
-	maxCallRecords?: PositiveInt;
-	preferredNetworkInterface?: string;
-
-	pems?: TlsPaths;
-
-	redisCacheUrl?: string;
-	redisCacheOptions?: Record<string, unknown>;
+	/**
+	 * Redis shared by the replicas for resolved addresses and circuit state
+	 * (`REDIS_SENTINELS` / `REDIS_URL`); unset: an in-memory cache per process.
+	 */
+	redisCache?: RedisConnectionConfig;
 
 	circuitBreakerFailureThreshold?: PositiveInt;
 	circuitBreakerHalfOpenTimeoutMs?: DurationMs;

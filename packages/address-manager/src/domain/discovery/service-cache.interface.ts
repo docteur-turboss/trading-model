@@ -4,7 +4,6 @@ import type {
 	Region,
 	ServiceId,
 	UnixTimestamp,
-	Version,
 } from "@trading-model/primitives/primitives";
 import type { ServiceInstance } from "../client/type";
 import type { ICircuitStateStore } from "./circuit-state-store.interface";
@@ -19,7 +18,6 @@ export interface CacheSetEntry {
 	serviceName: ServiceId;
 	instance: ServiceInstance;
 	region?: Region;
-	version?: Version;
 }
 
 export interface IServiceCache {
@@ -37,7 +35,5 @@ export interface IServiceCache {
 			region?: string;
 		}>
 	>;
-	/** Return the cached version for a service, or 0 if not cached / stale. */
-	getVersion(serviceName: ServiceId, region?: string): Promise<number>;
 	close(): void;
 }

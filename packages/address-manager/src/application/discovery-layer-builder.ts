@@ -79,11 +79,7 @@ export function buildDiscoveryLayer(
 		circuitBreaker,
 		healthChecker,
 	});
-	const metricsCollector = new MetricsCollector(
-		circuitBreaker,
-		serviceCache,
-		config.maxCallRecords
-	);
+	const metricsCollector = new MetricsCollector(circuitBreaker, serviceCache);
 	return {
 		circuitBreaker,
 		healthChecker,

@@ -6,6 +6,9 @@ import type { PersistedCircuitState } from "../../../domain/discovery/service-ca
 import type { RedisStoreConfig } from "../../../infrastructure/discovery/redis-store-config";
 import { RedisStoreAdapter } from "./redis-store-adapter";
 
+/** Circuit states live under the cache prefix, next to the cached instances. */
+export const CIRCUIT_KEY_PREFIX = "circuit:";
+
 export class RedisCircuitStateStore implements ICircuitStateStore {
 	private readonly _adapter: RedisStoreAdapter<PersistedCircuitState>;
 	private readonly _ttlMs: number;
@@ -62,6 +65,6 @@ export class RedisCircuitStateStore implements ICircuitStateStore {
 	}
 
 	private _circuitKey(instanceId: InstanceId): string {
-		return `circuit:${instanceId}`;
+		return `${CIRCUIT_KEY_PREFIX}${instanceId}`;
 	}
 }
