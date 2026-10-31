@@ -8,9 +8,18 @@
   },
   "devDependencies": {
     "@jest/globals": "^30.4.1",
+    "@trading-model/broker-message": "*",
+    "@trading-model/contracts": "*",
+    "@trading-model/crypto": "*",
+    "@trading-model/http": "*",
+    "@trading-model/persistence": "*",
+    "@trading-model/primitives": "*",
+    "@trading-model/reliability": "*",
+    "@trading-model/server-utils": "*",
+    "@trading-model/validation": "*",
+    "express": "^5.2.1",
     "jest": "^30.4.2",
     "ts-jest": "^29.4.11",
-    "typescript": "^6.0.3",
-    "zod": "^4.4.3"
+    "typescript": "^6.0.3"
   }
 }
