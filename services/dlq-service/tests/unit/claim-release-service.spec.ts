@@ -47,13 +47,16 @@ jest.mock("../../src/config/logger", () => ({
 	logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
 
+const { logger: MOCK_LOGGER } = jest.requireMock("../../src/config/logger") as {
+	logger: { info: jest.Mock; warn: jest.Mock };
+};
+
 /** Ports wired to the module-level mocks above. */
 function makeDeps() {
 	return {
 		claimRelease: {
 			releaseClaimsByInstance: MOCK_RELEASE_CLAIMS,
 			releaseStaleClaims: MOCK_RELEASE_STALE,
-			releaseAllActiveClaims: jest.fn(),
 		},
 		entries: { listQueuable: MOCK_LIST_QUEUABLE },
 		queue: { push: MOCK_PUSH, isAvailable: MOCK_IS_AVAILABLE },
@@ -90,6 +93,30 @@ describe("ClaimReleaseService", () => {
 				expect.stringContaining("test-instance")
 			);
 			expect(MOCK_PUSH).toHaveBeenCalledTimes(2);
+			expect(MOCK_LOGGER.warn).not.toHaveBeenCalled();
+		});
+
+		it("should report entries that could not be re-queued", async () => {
+			MOCK_RELEASE_CLAIMS.mockResolvedValue(2);
+			MOCK_IS_AVAILABLE.mockReturnValue(true);
+			MOCK_LIST_QUEUABLE.mockResolvedValue(["id1", "id2"]);
+			MOCK_PUSH.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
+
+			const { ClaimReleaseService } = jest.requireActual(
+				"../../src/application/services/claim-release-service"
+			) as {
+				ClaimReleaseService: new (
+					deps: unknown
+				) => { releaseAndRequeue: () => Promise<void> };
+			};
+			await new ClaimReleaseService(makeDeps()).releaseAndRequeue();
+
+			expect(MOCK_LOGGER.info).toHaveBeenCalledWith(
+				"Re-queued 1/2 entries after shutdown"
+			);
+			expect(MOCK_LOGGER.warn).toHaveBeenCalledWith(
+				expect.stringContaining("1 released entries were not re-queued")
+			);
 		});
 
 		it("should not requeue when queue is unavailable", async () => {

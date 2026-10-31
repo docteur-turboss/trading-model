@@ -8,7 +8,7 @@ jest.mock("../../src/adapters/outbound/repository", () => ({
 }));
 
 jest.mock("../../src/adapters/inbound/dlq-validator", () => ({
-	validateAddEntryBody: MOCK_VALIDATE,
+	checkEntryAcceptable: MOCK_VALIDATE,
 }));
 
 jest.mock("../../src/config/metrics", () => ({
@@ -42,22 +42,19 @@ describe("add-entry-pipeline", () => {
 	});
 
 	it("should add entry successfully", async () => {
-		MOCK_VALIDATE.mockReturnValue({
-			valid: true,
-			data: { topic: "test", reason: "testing" },
-		});
+		MOCK_VALIDATE.mockReturnValue({ valid: true });
 		MOCK_INSERT.mockResolvedValue("entry-id-123");
 
 		const { addEntry } = jest.requireActual(
 			"../../src/adapters/inbound/add-entry-pipeline"
-		) as { addEntry: (req: { body: unknown }) => Promise<unknown> };
+		) as { addEntry: (entry: unknown) => Promise<unknown> };
 
-		const result = await addEntry({ body: {} });
+		const result = await addEntry({ topic: "test", reason: "testing" });
 
 		expect(result).toEqual({ data: { id: "entry-id-123" }, status: 201 });
 	});
 
-	it("should handle validation error", async () => {
+	it("should return the rejection of the size or storage check", async () => {
 		MOCK_VALIDATE.mockReturnValue({
 			valid: false,
 			response: { data: { error: "invalid" }, status: 400 },
@@ -65,26 +62,23 @@ describe("add-entry-pipeline", () => {
 
 		const { addEntry } = jest.requireActual(
 			"../../src/adapters/inbound/add-entry-pipeline"
-		) as { addEntry: (req: { body: unknown }) => Promise<unknown> };
+		) as { addEntry: (entry: unknown) => Promise<unknown> };
 
-		const result = await addEntry({ body: {} });
+		const result = await addEntry({ topic: "test", reason: "testing" });
 
 		expect(result).toEqual({ data: { error: "invalid" }, status: 400 });
 		expect(MOCK_INSERT).not.toHaveBeenCalled();
 	});
 
 	it("should handle insert error", async () => {
-		MOCK_VALIDATE.mockReturnValue({
-			valid: true,
-			data: { topic: "test", reason: "testing" },
-		});
+		MOCK_VALIDATE.mockReturnValue({ valid: true });
 		MOCK_INSERT.mockRejectedValue(new Error("db error"));
 
 		const { addEntry } = jest.requireActual(
 			"../../src/adapters/inbound/add-entry-pipeline"
-		) as { addEntry: (req: { body: unknown }) => Promise<unknown> };
+		) as { addEntry: (entry: unknown) => Promise<unknown> };
 
-		const result = await addEntry({ body: {} });
+		const result = await addEntry({ topic: "test", reason: "testing" });
 
 		expect(result).toEqual({ data: { error: "db error" }, status: 500 });
 	});

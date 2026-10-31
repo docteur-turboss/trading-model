@@ -1,123 +1,90 @@
 import { describe, expect, it, jest } from "@jest/globals";
 
-const MOCK_FIND_A_SERVICE = jest.fn();
-const MOCK_POST = jest.fn();
+const MOCK_INDIRECT = jest.fn<(...args: unknown[]) => Promise<void>>();
+const MOCK_CREATE = jest.fn(() => ({
+	messageManager: { post: { indirect: MOCK_INDIRECT } },
+}));
+const MOCK_WARN = jest.fn();
 
 jest.mock("../../src/config/logger", () => ({
-	logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
+	logger: { info: jest.fn(), warn: MOCK_WARN, error: jest.fn() },
 }));
 
 jest.mock("../../src/infrastructure/config/env", () => ({
-	ENV: {
-		TLS_CA_PATH: "",
-		TLS_CERT_PATH: "",
-		TLS_KEY_PATH: "",
-	},
+	ENV: { INSTANCE_ID: "dlq-service-1" },
 }));
 
 jest.mock("../../src/config/address-manager", () => ({
-	FIND_A_SERVICE: MOCK_FIND_A_SERVICE,
+	AddressManager: {},
 }));
 
-jest.mock("@trading-model/http/adapters/outbound/http-client", () => ({
-	HttpClient: jest.fn(() => ({
-		post: MOCK_POST,
-	})),
-}));
+jest.mock(
+	"@trading-model/broker-message/application/services/create-message-manager",
+	() => ({ createServiceMessageManager: MOCK_CREATE })
+);
 
-jest.mock("@trading-model/common/config/tls-paths", () => ({
-	buildTlsFromEnv: jest.fn(() => ({})),
-}));
+function load(): typeof import("../../src/config/audit") {
+	return jest.requireActual("../../src/config/audit");
+}
 
-let mockCircuitState: { isOpen: boolean };
-
-jest.mock("@trading-model/reliability/circuit-state-machine", () => ({
-	CircuitStateMachine: jest.fn(() => {
-		let failures = 0;
-		return {
-			isOpen: () => mockCircuitState.isOpen,
-			recordSuccess: () => {
-				failures = 0;
-			},
-			recordFailure: () => {
-				failures++;
-			},
-			getState: () => ({
-				previousState: "closed",
-				failures,
-				halfOpenAttempts: 0,
-			}),
-		};
-	}),
-}));
-
-describe("audit", () => {
+describe("publishDlqEvent", () => {
 	beforeEach(() => {
 		jest.clearAllMocks();
-		mockCircuitState = { isOpen: false };
 		jest.resetModules();
 	});
 
-	it("should skip sending when circuit breaker is open", async () => {
-		mockCircuitState = { isOpen: true };
+	it("publishes the event on its topic as dlq-service, at least once", () => {
+		MOCK_INDIRECT.mockResolvedValue(undefined);
 
-		const { notifyAudit } = jest.requireActual("../../src/config/audit") as {
-			notifyAudit: (event: { topic: string }) => Promise<void>;
-		};
+		load().publishDlqEvent(
+			"dlq.entry.added" as never,
+			{
+				entryId: "e1",
+				topic: "market.candlestick.series.fetch",
+				reason: "TTL_EXPIRED",
+			} as never
+		);
 
-		await notifyAudit({ topic: "test" });
-
-		expect(MOCK_POST).not.toHaveBeenCalled();
+		expect(MOCK_INDIRECT).toHaveBeenCalledWith(
+			{
+				entryId: "e1",
+				topic: "market.candlestick.series.fetch",
+				reason: "TTL_EXPIRED",
+			},
+			expect.objectContaining({
+				topic: "dlq.entry.added",
+				eventType: "dlq.entry.added",
+				publisher: {
+					serviceName: "dlq-service",
+					instanceId: "dlq-service-1",
+				},
+				delivery: expect.objectContaining({ mode: "at-least-once" }),
+			})
+		);
 	});
 
-	it("should resolve URL via FIND_A_SERVICE and send event", async () => {
-		MOCK_FIND_A_SERVICE.mockResolvedValue({ host: "10.0.0.1", port: 3000 });
-		MOCK_POST.mockResolvedValue(undefined);
+	it("builds the broker client once, on first use", () => {
+		MOCK_INDIRECT.mockResolvedValue(undefined);
+		const { publishDlqEvent } = load();
+		expect(MOCK_CREATE).not.toHaveBeenCalled();
 
-		const { notifyAudit } = jest.requireActual("../../src/config/audit") as {
-			notifyAudit: (event: { topic: string }) => Promise<void>;
-		};
+		publishDlqEvent("dlq.entry.added" as never, {} as never);
+		publishDlqEvent("dlq.entry.added" as never, {} as never);
 
-		await notifyAudit({ topic: "test-topic" });
-
-		expect(MOCK_FIND_A_SERVICE).toHaveBeenCalled();
-		expect(MOCK_POST).toHaveBeenCalled();
+		expect(MOCK_CREATE).toHaveBeenCalledTimes(1);
 	});
 
-	it("should skip sending when URL resolution returns null", async () => {
-		MOCK_FIND_A_SERVICE.mockResolvedValue(null);
+	it("logs a publish failure instead of throwing", async () => {
+		MOCK_INDIRECT.mockRejectedValue(new Error("message-manager down"));
 
-		const { notifyAudit } = jest.requireActual("../../src/config/audit") as {
-			notifyAudit: (event: { topic: string }) => Promise<void>;
-		};
+		expect(() =>
+			load().publishDlqEvent("dlq.replay.completed" as never, {} as never)
+		).not.toThrow();
+		await new Promise((resolve) => setImmediate(resolve));
 
-		await notifyAudit({ topic: "test-topic" });
-
-		expect(MOCK_POST).not.toHaveBeenCalled();
-	});
-
-	it("should handle URL resolution error gracefully", async () => {
-		MOCK_FIND_A_SERVICE.mockRejectedValue(new Error("resolution failed"));
-
-		const { notifyAudit } = jest.requireActual("../../src/config/audit") as {
-			notifyAudit: (event: { topic: string }) => Promise<void>;
-		};
-
-		await notifyAudit({ topic: "test-topic" });
-
-		expect(MOCK_POST).not.toHaveBeenCalled();
-	});
-
-	it("should record failure on send error", async () => {
-		MOCK_FIND_A_SERVICE.mockResolvedValue({ host: "10.0.0.1", port: 3000 });
-		MOCK_POST.mockRejectedValue(new Error("send failed"));
-
-		const { notifyAudit } = jest.requireActual("../../src/config/audit") as {
-			notifyAudit: (event: { topic: string }) => Promise<void>;
-		};
-
-		await notifyAudit({ topic: "test-topic" });
-
-		expect(MOCK_POST).toHaveBeenCalled();
+		expect(MOCK_WARN).toHaveBeenCalledWith(
+			"DLQ event not published: the audit trail misses it",
+			expect.objectContaining({ topic: "dlq.replay.completed" })
+		);
 	});
 });

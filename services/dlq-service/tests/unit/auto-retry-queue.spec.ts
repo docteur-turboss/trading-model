@@ -7,6 +7,10 @@ jest.mock("../../src/config/logger", () => ({
 	logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
 
+const { logger: MOCK_LOGGER } = jest.requireMock("../../src/config/logger") as {
+	logger: { info: jest.Mock; warn: jest.Mock };
+};
+
 import { createQueueRebuilder } from "../../src/application/services/auto-retry-queue";
 
 const rebuildQueueFromMongo = createQueueRebuilder({
@@ -28,6 +32,21 @@ describe("auto-retry-queue", () => {
 		expect(MOCK_PUSH).toHaveBeenCalledTimes(2);
 		expect(MOCK_PUSH).toHaveBeenCalledWith("id1");
 		expect(MOCK_PUSH).toHaveBeenCalledWith("id2");
+	});
+
+	it("should report only the entries actually pushed", async () => {
+		MOCK_LIST_QUEUABLE.mockResolvedValue(["id1", "id2", "id3"]);
+		MOCK_PUSH.mockResolvedValueOnce(true)
+			.mockResolvedValueOnce(false)
+			.mockResolvedValueOnce(true);
+
+		await rebuildQueueFromMongo();
+
+		expect(MOCK_LOGGER.info).not.toHaveBeenCalled();
+		expect(MOCK_LOGGER.warn).toHaveBeenCalledWith(
+			"Redis queue partially rebuilt from MongoDB",
+			{ pushedCount: 2, queuableCount: 3 }
+		);
 	});
 
 	it("should handle errors gracefully", async () => {

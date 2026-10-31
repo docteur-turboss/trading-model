@@ -41,24 +41,24 @@ describe("dlq-validator", () => {
 		mockIsDbConnected.mockReturnValue(true);
 	});
 
-	it("should validate a correct entry body", () => {
-		const { validateAddEntryBody } = jest.requireActual(
+	it("should accept an entry within limits with storage up", () => {
+		const { checkEntryAcceptable } = jest.requireActual(
 			"../../src/adapters/inbound/dlq-validator"
 		) as {
-			validateAddEntryBody: (...args: unknown[]) => {
+			checkEntryAcceptable: (...args: unknown[]) => {
 				valid: boolean;
 				data?: Record<string, unknown>;
 				response?: Record<string, unknown>;
 			};
 		};
 		const span = createMockSpan();
-		const result = validateAddEntryBody(
+		const result = checkEntryAcceptable(
 			{
 				topic: "test.topic",
 				message: { foo: "bar" },
 				reason: "timeout",
 				deliveryAttempt: 1,
-				timestamp: "2024-01-01T00:00:00.000Z",
+				timestamp: 1704067200000,
 			},
 			span
 		);
@@ -66,44 +66,22 @@ describe("dlq-validator", () => {
 		expect(result.valid).toBe(true);
 	});
 
-	it("should reject an invalid entry body (missing deliveryAttempt)", () => {
-		const { validateAddEntryBody } = jest.requireActual(
-			"../../src/adapters/inbound/dlq-validator"
-		) as {
-			validateAddEntryBody: (...args: unknown[]) => {
-				valid: boolean;
-				response?: Record<string, unknown>;
-			};
-		};
-		const span = createMockSpan();
-		const result = validateAddEntryBody(
-			{
-				message: "test",
-				timestamp: "2024-01-01T00:00:00.000Z",
-			},
-			span
-		);
-
-		expect(result.valid).toBe(false);
-		expect((result.response as Record<string, unknown>).status).toBe(400);
-	});
-
 	it("should reject message exceeding 5MB", () => {
-		const { validateAddEntryBody } = jest.requireActual(
+		const { checkEntryAcceptable } = jest.requireActual(
 			"../../src/adapters/inbound/dlq-validator"
 		) as {
-			validateAddEntryBody: (...args: unknown[]) => {
+			checkEntryAcceptable: (...args: unknown[]) => {
 				valid: boolean;
 				response?: Record<string, unknown>;
 			};
 		};
 		const span = createMockSpan();
 		const largeMessage = "x".repeat(6 * 1024 * 1024);
-		const result = validateAddEntryBody(
+		const result = checkEntryAcceptable(
 			{
 				message: largeMessage,
 				deliveryAttempt: 1,
-				timestamp: "2024-01-01T00:00:00.000Z",
+				timestamp: 1704067200000,
 			},
 			span
 		);
@@ -114,20 +92,20 @@ describe("dlq-validator", () => {
 
 	it("should return 503 when db is not connected", () => {
 		mockIsDbConnected.mockReturnValue(false);
-		const { validateAddEntryBody } = jest.requireActual(
+		const { checkEntryAcceptable } = jest.requireActual(
 			"../../src/adapters/inbound/dlq-validator"
 		) as {
-			validateAddEntryBody: (...args: unknown[]) => {
+			checkEntryAcceptable: (...args: unknown[]) => {
 				valid: boolean;
 				response?: Record<string, unknown>;
 			};
 		};
 		const span = createMockSpan();
-		const result = validateAddEntryBody(
+		const result = checkEntryAcceptable(
 			{
 				message: "test",
 				deliveryAttempt: 1,
-				timestamp: "2024-01-01T00:00:00.000Z",
+				timestamp: 1704067200000,
 			},
 			span
 		);

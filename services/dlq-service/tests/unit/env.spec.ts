@@ -75,25 +75,5 @@ describe("env", () => {
 			const second = resolveAuthHmacSecret();
 			expect(first).toBe(second);
 		});
-
-		it("should read from file path when env var is missing", () => {
-			delete process.env.DLQ_AUTH_HMAC_SECRET;
-
-			const filePath = "C:\\Users\\doc\\AppData\\Local\\Temp\\hmac-test.txt";
-			require("node:fs").writeFileSync(filePath, "file-based-secret-16!!");
-			process.env.DLQ_AUTH_HMAC_SECRET_PATH = filePath;
-
-			jest.resetModules();
-			setBaseEnv();
-			delete process.env.DLQ_AUTH_HMAC_SECRET;
-			process.env.DLQ_AUTH_HMAC_SECRET_PATH = filePath;
-
-			const {
-				resolveAuthHmacSecret,
-			} = require("../../src/infrastructure/config/env");
-			const secret = resolveAuthHmacSecret();
-			expect(secret).toBe("file-based-secret-16!!");
-			require("node:fs").unlinkSync(filePath);
-		});
 	});
 });

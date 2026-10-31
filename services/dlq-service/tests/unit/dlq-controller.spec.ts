@@ -30,7 +30,6 @@ jest.mock("../../src/adapters/outbound/claim-manager", () => ({
 		claimEntry: mockClaimEntry,
 		incrementRetryCount: mockIncrementRetryCount,
 		releaseClaimWithoutCount: jest.fn(),
-		releaseAllActiveClaims: jest.fn(),
 		releaseClaimsByInstance: jest.fn(),
 	},
 }));
@@ -75,7 +74,7 @@ jest.mock("../../src/config/logger", () => ({
 }));
 
 jest.mock("../../src/config/audit", () => ({
-	notifyAudit: jest.fn(() => Promise.resolve()),
+	publishDlqEvent: jest.fn(),
 }));
 
 jest.mock("../../src/config/redis-queue", () => ({
@@ -141,7 +140,20 @@ describe("DLQ Controller", () => {
 	};
 
 	beforeAll(() => {
-		controller = jest.requireActual("../../src/adapters/inbound/controller");
+		const handlers = jest.requireActual(
+			"../../src/adapters/inbound/dlq-service"
+		) as Record<string, (input: unknown) => Promise<never>>;
+		// The API routes hand their parsed input to the handlers (DLQ_API):
+		// invalid input never reaches them (see api-routes and the routes
+		// integration spec).
+		controller = {
+			...(jest.requireActual(
+				"../../src/adapters/inbound/controller"
+			) as typeof controller),
+			AddEntry: (req) => handlers.addEntry(req.body),
+			ListEntries: (req) => handlers.listEntries(req.query),
+			DeleteEntries: (req) => handlers.deleteEntries(req.body),
+		};
 	});
 
 	afterAll(() => {
@@ -157,7 +169,7 @@ describe("DLQ Controller", () => {
 					topic: "test.event",
 					message: { data: 1 },
 					deliveryAttempt: 1,
-					timestamp: new Date().toISOString(),
+					timestamp: Date.now(),
 				},
 			};
 			return controller
@@ -167,22 +179,13 @@ describe("DLQ Controller", () => {
 					expect(result.data).toEqual({ id: "entry-1" });
 				});
 		});
-
-		it("should return 400 on invalid entry", () => {
-			const req = { body: { message: "invalid" } };
-			return controller
-				.AddEntry(req as MockReq)
-				.then((result: { statusCode: number }) => {
-					expect(result.statusCode).toBe(400);
-				});
-		});
 	});
 
 	describe("ListEntries", () => {
 		it("should return paginated entries with offset", () => {
 			mockQuery.mockResolvedValueOnce([{ id: "1", topic: "t1" }]);
 
-			const req = { query: { limit: "10", offset: "0" } };
+			const req = { query: { limit: 10, offset: 0 } };
 			return controller
 				.ListEntries(req as unknown as MockReq)
 				.then(
@@ -204,7 +207,7 @@ describe("DLQ Controller", () => {
 				{ id: "4", topic: "t1" },
 			]);
 
-			const req = { query: { limit: "2", cursor: "abc" } };
+			const req = { query: { limit: 2, offset: 0, cursor: "abc" } };
 			return controller
 				.ListEntries(req as unknown as MockReq)
 				.then(
@@ -231,15 +234,6 @@ describe("DLQ Controller", () => {
 				.then((result: { statusCode: number; data: { deleted: number } }) => {
 					expect(result.statusCode).toBe(200);
 					expect(result.data.deleted).toBe(2);
-				});
-		});
-
-		it("should return 400 on empty ids", () => {
-			const req = { body: { ids: [] } };
-			return controller
-				.DeleteEntries(req as MockReq)
-				.then((result: { statusCode: number }) => {
-					expect(result.statusCode).toBe(400);
 				});
 		});
 	});

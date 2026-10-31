@@ -32,7 +32,6 @@ function makeDeps(overrides?: { autoRetryEnabled?: boolean }) {
 		claimRelease: {
 			releaseStaleClaims: jest.fn<any>().mockResolvedValue(0),
 			releaseClaimsByInstance: jest.fn<any>(),
-			releaseAllActiveClaims: jest.fn<any>(),
 		},
 		retryLedger: {
 			abandonExhaustedEntries: jest.fn<any>().mockResolvedValue(0),

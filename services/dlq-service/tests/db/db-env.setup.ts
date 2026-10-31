@@ -8,3 +8,4 @@ process.env.PORT = "3000";
 process.env.TLS_KEY_PATH = "/unused/tls.key";
 process.env.TLS_CERT_PATH = "/unused/tls.crt";
 process.env.TLS_CA_PATH = "/unused/ca.crt";
+process.env.REDIS_URL = process.env.TEST_REDIS_URL;

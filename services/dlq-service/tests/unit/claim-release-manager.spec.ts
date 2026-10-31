@@ -25,7 +25,6 @@ jest.mock("../../src/config/db", () => ({
 describe("ClaimReleaseManager", () => {
 	let ClaimReleaseManagerClass: new () => {
 		releaseStaleClaims: (ms?: number) => Promise<number>;
-		releaseAllActiveClaims: () => Promise<number>;
 		releaseClaimsByInstance: (id: string) => Promise<number>;
 		releaseClaimWithoutCount: (id: string) => Promise<void>;
 		incrementRetryCount: (id: string) => Promise<boolean>;
@@ -54,14 +53,6 @@ describe("ClaimReleaseManager", () => {
 		const manager = new ClaimReleaseManagerClass();
 		const result = await manager.releaseStaleClaims(30000);
 		expect(result).toBe(5);
-		expect(MOCK_UPDATE_MANY).toHaveBeenCalledTimes(1);
-	});
-
-	it("should release all active claims", async () => {
-		MOCK_UPDATE_MANY.mockResolvedValue({ modifiedCount: 3 });
-		const manager = new ClaimReleaseManagerClass();
-		const result = await manager.releaseAllActiveClaims();
-		expect(result).toBe(3);
 		expect(MOCK_UPDATE_MANY).toHaveBeenCalledTimes(1);
 	});
 

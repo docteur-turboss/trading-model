@@ -86,4 +86,19 @@ describe("replay-batch", () => {
 		expect(result.errors).toHaveLength(3);
 		expect(new Set(result.errors.map((err) => err.id)).size).toBe(3);
 	});
+
+	it("counts the batch as in flight until its deliveries end (shutdown drain)", async () => {
+		const { activeReplays } = jest.requireActual(
+			"../../src/shared/active-replay-counter"
+		) as { activeReplays: { count: number } };
+		const during: number[] = [];
+
+		await runReplay(() => {
+			during.push(activeReplays.count);
+			return Promise.resolve();
+		});
+
+		expect(during).toEqual([1, 1, 1]);
+		expect(activeReplays.count).toBe(0);
+	});
 });

@@ -11,7 +11,6 @@ const MOCK_LIST_QUEUABLE = jest.fn();
 const MOCK_MARK_RETRIED = jest.fn();
 const MOCK_ABANDON_EXHAUSTED = jest.fn();
 const MOCK_RELEASE_CLAIM_WITHOUT_COUNT = jest.fn();
-const MOCK_RELEASE_ALL_CLAIMS = jest.fn();
 const MOCK_RELEASE_CLAIMS_BY_INSTANCE = jest.fn();
 
 jest.mock("../../src/adapters/outbound/repository", () => ({
@@ -32,7 +31,6 @@ jest.mock("../../src/adapters/outbound/claim-manager", () => ({
 	claimReleaseManager: {
 		releaseStaleClaims: MOCK_RELEASE_STALE_CLAIMS,
 		releaseClaimWithoutCount: MOCK_RELEASE_CLAIM_WITHOUT_COUNT,
-		releaseAllActiveClaims: MOCK_RELEASE_ALL_CLAIMS,
 		releaseClaimsByInstance: MOCK_RELEASE_CLAIMS_BY_INSTANCE,
 	},
 }));
@@ -77,7 +75,7 @@ jest.mock("../../src/config/logger", () => ({
 }));
 
 jest.mock("../../src/config/audit", () => ({
-	notifyAudit: jest.fn(() => Promise.resolve()),
+	publishDlqEvent: jest.fn(),
 }));
 
 jest.mock("../../src/config/redis-queue", () => ({

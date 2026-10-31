@@ -111,6 +111,30 @@ describe("RedisConnection", () => {
 		envMock.ENV.REDIS_URL = "redis://localhost:6379";
 	});
 
+	it("should connect through the sentinels when they are configured", async () => {
+		const envMock = jest.requireMock("../../src/infrastructure/config/env") as {
+			ENV: { REDIS_SENTINELS?: string };
+		};
+		envMock.ENV.REDIS_SENTINELS =
+			"redis-sentinel-0.redis-sentinel-headless:26379";
+		MOCK_CREATE_REDIS_CLIENT.mockReturnValue(makeMockClient());
+		MOCK_CLIENT_CONNECT.mockResolvedValue(undefined as never);
+
+		try {
+			await expect(new RedisConnectionClass().connect()).resolves.toBe(true);
+			expect(MOCK_CREATE_REDIS_CLIENT).toHaveBeenLastCalledWith({
+				mode: "sentinel",
+				config: expect.objectContaining({
+					sentinels: [
+						{ host: "redis-sentinel-0.redis-sentinel-headless", port: 26379 },
+					],
+				}),
+			});
+		} finally {
+			delete envMock.ENV.REDIS_SENTINELS;
+		}
+	});
+
 	it("should handle connect error for first connection", async () => {
 		MOCK_CREATE_REDIS_CLIENT.mockImplementation(() => {
 			throw new Error("connection refused");

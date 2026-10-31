@@ -1,7 +1,7 @@
 import { describe, expect, it, jest } from "@jest/globals";
 
 jest.mock("../../src/config/audit", () => ({
-	notifyAudit: jest.fn(() => Promise.resolve()),
+	publishDlqEvent: jest.fn(),
 }));
 
 jest.mock("../../src/config/metrics", () => ({

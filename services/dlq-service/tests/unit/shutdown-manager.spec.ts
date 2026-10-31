@@ -69,7 +69,7 @@ describe("shutdown-manager", () => {
 	it("should shutdown schedulers in order", async () => {
 		MOCK_CLOSE_REDIS_QUEUE.mockResolvedValue(undefined);
 		MOCK_CLOSE_HTTP_CLIENT.mockResolvedValue(undefined);
-		MOCK_DRAIN.mockResolvedValue(undefined);
+		MOCK_DRAIN.mockResolvedValue(true);
 		MOCK_RELEASE_AND_REQUEUE.mockResolvedValue(undefined);
 
 		const { shutdownSchedulers } = jest.requireActual(
@@ -83,6 +83,18 @@ describe("shutdown-manager", () => {
 		expect(MOCK_DRAIN).toHaveBeenCalled();
 		expect(MOCK_RELEASE_AND_REQUEUE).toHaveBeenCalled();
 		expect(MOCK_CLOSE_REDIS_QUEUE).toHaveBeenCalled();
+		expect(MOCK_CLOSE_HTTP_CLIENT).toHaveBeenCalled();
+	});
+
+	it("keeps the claims of replays still in flight", async () => {
+		MOCK_DRAIN.mockResolvedValue(false);
+
+		const { shutdownSchedulers } = jest.requireActual(
+			"../../src/config/shutdown-manager"
+		) as { shutdownSchedulers: () => Promise<void> };
+		await shutdownSchedulers();
+
+		expect(MOCK_RELEASE_AND_REQUEUE).not.toHaveBeenCalled();
 		expect(MOCK_CLOSE_HTTP_CLIENT).toHaveBeenCalled();
 	});
 
@@ -103,7 +115,7 @@ describe("shutdown-manager", () => {
 	it("should alias shutdown to shutdownSchedulers", async () => {
 		MOCK_CLOSE_REDIS_QUEUE.mockResolvedValue(undefined);
 		MOCK_CLOSE_HTTP_CLIENT.mockResolvedValue(undefined);
-		MOCK_DRAIN.mockResolvedValue(undefined);
+		MOCK_DRAIN.mockResolvedValue(true);
 		MOCK_RELEASE_AND_REQUEUE.mockResolvedValue(undefined);
 
 		const { shutdown } = jest.requireActual(

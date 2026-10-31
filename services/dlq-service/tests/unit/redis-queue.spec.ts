@@ -24,6 +24,10 @@ jest.mock("../../src/config/redis-connection", () => ({
 	})),
 }));
 
+const { logger: MOCK_LOGGER } = jest.requireMock("../../src/config/logger") as {
+	logger: { error: jest.Mock };
+};
+
 describe("DlqRedisQueue", () => {
 	let DlqRedisQueueClass: new (
 		queueKey?: string
@@ -73,8 +77,7 @@ describe("DlqRedisQueue", () => {
 
 		it("should push entry to redis queue", async () => {
 			const mockClient = {
-				llen: jest.fn().mockResolvedValue(10),
-				lpush: jest.fn().mockResolvedValue(1),
+				eval: jest.fn().mockResolvedValue([1, 10]),
 			};
 			MOCK_GET_CLIENT.mockReturnValue(mockClient);
 			MOCK_IS_AVAILABLE.mockReturnValue(true);
@@ -83,14 +86,18 @@ describe("DlqRedisQueue", () => {
 			const result = await queue.push("entry-1");
 
 			expect(result).toBe(true);
-			expect(mockClient.llen).toHaveBeenCalledWith("dlq:queue");
-			expect(mockClient.lpush).toHaveBeenCalledWith("dlq:queue", "entry-1");
+			expect(mockClient.eval).toHaveBeenCalledWith(
+				expect.stringContaining("LPUSH"),
+				1,
+				"dlq:queue",
+				"entry-1",
+				50_000
+			);
 		});
 
 		it("should return false when queue size limit is reached", async () => {
 			const mockClient = {
-				llen: jest.fn().mockResolvedValue(50000),
-				lpush: jest.fn(),
+				eval: jest.fn().mockResolvedValue([0, 50_000]),
 			};
 			MOCK_GET_CLIENT.mockReturnValue(mockClient);
 			MOCK_IS_AVAILABLE.mockReturnValue(true);
@@ -99,13 +106,11 @@ describe("DlqRedisQueue", () => {
 			const result = await queue.push("entry-1");
 
 			expect(result).toBe(false);
-			expect(mockClient.lpush).not.toHaveBeenCalled();
 		});
 
 		it("should handle redis error gracefully", async () => {
 			const mockClient = {
-				llen: jest.fn().mockRejectedValue(new Error("redis down")),
-				lpush: jest.fn(),
+				eval: jest.fn().mockRejectedValue(new Error("redis down")),
 			};
 			MOCK_GET_CLIENT.mockReturnValue(mockClient);
 			MOCK_IS_AVAILABLE.mockReturnValue(true);
@@ -114,6 +119,10 @@ describe("DlqRedisQueue", () => {
 			const result = await queue.push("entry-1");
 
 			expect(result).toBe(false);
+			expect(MOCK_LOGGER.error).toHaveBeenCalledWith(
+				"Redis queue push failed",
+				expect.objectContaining({ entryId: "entry-1", error: "redis down" })
+			);
 		});
 	});
 
@@ -175,6 +184,10 @@ describe("DlqRedisQueue", () => {
 			const result = await queue.pop();
 
 			expect(result).toBeNull();
+			expect(MOCK_LOGGER.error).toHaveBeenCalledWith(
+				"Redis queue pop failed",
+				expect.objectContaining({ error: "script error" })
+			);
 		});
 	});
 

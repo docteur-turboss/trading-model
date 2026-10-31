@@ -1,6 +1,5 @@
 import { describe, expect, it, jest } from "@jest/globals";
 
-const MOCK_RELEASE_ALL_ACTIVE = jest.fn();
 let mockActiveReplaysCount = 0;
 
 jest.mock("../../src/config/logger", () => ({
@@ -15,17 +14,9 @@ jest.mock("../../src/shared/active-replay-counter", () => ({
 	},
 }));
 
-const CLAIM_RELEASE = {
-	releaseStaleClaims: jest.fn(),
-	releaseClaimsByInstance: jest.fn(),
-	releaseAllActiveClaims: MOCK_RELEASE_ALL_ACTIVE,
-};
-
 describe("ReplayDrainService", () => {
-	let ReplayDrainServiceClass: new (
-		claimRelease: unknown
-	) => {
-		drain: () => Promise<void>;
+	let ReplayDrainServiceClass: new () => {
+		drain: () => Promise<boolean>;
 	};
 
 	beforeAll(() => {
@@ -38,23 +29,25 @@ describe("ReplayDrainService", () => {
 	});
 
 	beforeEach(() => {
-		jest.clearAllMocks();
 		mockActiveReplaysCount = 0;
 	});
 
-	it("should return immediately when no active replays", async () => {
-		const service = new ReplayDrainServiceClass(CLAIM_RELEASE);
-		await service.drain();
-		expect(MOCK_RELEASE_ALL_ACTIVE).not.toHaveBeenCalled();
+	it("is drained when no replay is in flight", async () => {
+		await expect(new ReplayDrainServiceClass().drain()).resolves.toBe(true);
 	});
 
-	it("should wait for replays and force release if they don't complete", async () => {
+	it("is drained once the replays in flight complete", async () => {
+		mockActiveReplaysCount = 1;
+		setTimeout(() => {
+			mockActiveReplaysCount = 0;
+		}, 200);
+
+		await expect(new ReplayDrainServiceClass().drain()).resolves.toBe(true);
+	});
+
+	it("is not drained while replays are still in flight at the deadline", async () => {
 		mockActiveReplaysCount = 2;
-		MOCK_RELEASE_ALL_ACTIVE.mockResolvedValue(undefined);
 
-		const service = new ReplayDrainServiceClass(CLAIM_RELEASE);
-		await service.drain();
-
-		expect(MOCK_RELEASE_ALL_ACTIVE).toHaveBeenCalledTimes(2);
+		await expect(new ReplayDrainServiceClass().drain()).resolves.toBe(false);
 	}, 15000);
 });

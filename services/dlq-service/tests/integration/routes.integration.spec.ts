@@ -8,6 +8,10 @@ import {
 	jest,
 } from "@jest/globals";
 import { buildSignedHeaders } from "@trading-model/crypto/application/services/request-signer";
+import {
+	type ApiRoute,
+	responseIssues,
+} from "@trading-model/http/adapters/inbound/api-route/api-route";
 import express from "express";
 
 jest.setTimeout(15000);
@@ -50,7 +54,7 @@ jest.mock("../../src/config/logger", () => ({
 }));
 
 jest.mock("../../src/config/audit", () => ({
-	notifyAudit: jest.fn(() => Promise.resolve()),
+	publishDlqEvent: jest.fn(),
 }));
 
 jest.mock("../../src/config/db", () => ({
@@ -97,9 +101,9 @@ jest.mock("../../src/adapters/outbound/claim-manager", () => ({
 		releaseStaleClaims: jest.fn(),
 		releaseClaimWithoutCount: jest.fn(),
 		incrementRetryCount: jest.fn(),
-		releaseAllActiveClaims: jest.fn(),
 		releaseClaimsByInstance: jest.fn(),
 	},
+	claimReleaseManager: { releaseStaleClaims: jest.fn() },
 }));
 
 jest.mock("../../src/adapters/outbound/retry-manager", () => ({
@@ -132,12 +136,23 @@ jest.mock("../../src/infrastructure/config/env", () => ({
 		DLQ_AUTO_RETRY_ENABLED: false,
 		DLQ_AUTO_RETRY_INTERVAL_MS: 30000,
 		DLQ_AUTO_RETRY_LIMIT: 50,
+		INSTANCE_ID: "dlq-service-test-1",
 	},
 	resolveAuthHmacSecret: () => "test-secret-16-chars",
 }));
 
+import { DLQ_API } from "../../src/adapters/inbound/api-routes";
 import { DlqRoutes } from "../../src/adapters/inbound/routes";
+import { dlqClaimManager } from "../../src/adapters/outbound/claim-manager";
 import { dlqRepository } from "../../src/adapters/outbound/repository";
+
+/** Every API response must match its registry entry (ADR-0021). */
+function expectDocumented(
+	route: ApiRoute,
+	result: { status: number; body: unknown }
+): void {
+	expect(responseIssues(route, result.status, result.body)).toEqual([]);
+}
 
 const validEntry = {
 	topic: "test.topic",
@@ -281,6 +296,7 @@ describe("DLQ Service — Routes Integration", () => {
 		});
 		expect(result.status).toBe(403);
 		expect(result.body).toEqual({ error: "Unauthorized service" });
+		expectDocumented(DLQ_API.addEntry, result);
 		expect(dlqRepository.insert).not.toHaveBeenCalled();
 	});
 
@@ -307,6 +323,7 @@ describe("DLQ Service — Routes Integration", () => {
 		});
 		expect(result.status).toBe(401);
 		expect(result.body).toEqual({ error: "Invalid or expired signature" });
+		expectDocumented(DLQ_API.addEntry, result);
 		expect(dlqRepository.insert).not.toHaveBeenCalled();
 	});
 
@@ -319,6 +336,7 @@ describe("DLQ Service — Routes Integration", () => {
 		});
 		expect(result.status).toBe(201);
 		expect(result.body).toEqual({ id: "entry-1" });
+		expectDocumented(DLQ_API.addEntry, result);
 		expect(dlqRepository.insert).toHaveBeenCalledTimes(1);
 	});
 
@@ -331,7 +349,29 @@ describe("DLQ Service — Routes Integration", () => {
 			headers: signHeaders(invalidBody, "POST", "/dlq"),
 		});
 		expect(result.status).toBe(400);
+		expect(result.body).toEqual({
+			error: "Validation failed",
+			details: expect.arrayContaining([
+				expect.objectContaining({ field: "body.deliveryAttempt" }),
+				expect.objectContaining({ field: "body.timestamp" }),
+			]),
+		});
+		expectDocumented(DLQ_API.addEntry, result);
 		expect(dlqRepository.insert).not.toHaveBeenCalled();
+	});
+
+	it("POST /dlq should accept the contract format (epoch milliseconds)", async () => {
+		await start();
+		const entry = { ...validEntry, timestamp: Date.now() };
+		const result = await request(server, "/dlq", {
+			method: "POST",
+			body: entry,
+			headers: signHeaders(entry, "POST", "/dlq"),
+		});
+		expect(result.status).toBe(201);
+		expect(dlqRepository.insert).toHaveBeenCalledWith(
+			expect.objectContaining({ timestamp: entry.timestamp })
+		);
 	});
 
 	it("GET /dlq should list entries for an allowed service", async () => {
@@ -352,6 +392,70 @@ describe("DLQ Service — Routes Integration", () => {
 		expect(result.status).toBe(200);
 		expect(result.body).toMatchObject({ count: 1, hasMore: false });
 		expect((result.body as { entries: unknown[] }).entries).toHaveLength(1);
+		expectDocumented(DLQ_API.listEntries, result);
+	});
+
+	it("GET /dlq should reject an invalid query with 400", async () => {
+		await start();
+		const result = await request(server, "/dlq?limit=abc", {
+			headers: signHeaders(null, "GET", "/dlq"),
+		});
+		expect(result.status).toBe(400);
+		expectDocumented(DLQ_API.listEntries, result);
+		expect(dlqRepository.query).not.toHaveBeenCalled();
+	});
+
+	it("DELETE /dlq should delete the given ids", async () => {
+		(dlqRepository.delete as jest.Mock).mockResolvedValue(2);
+		await start();
+		const body = { ids: ["a", "b"] };
+		const result = await request(server, "/dlq", {
+			method: "DELETE",
+			body,
+			headers: signHeaders(body, "DELETE", "/dlq"),
+		});
+		expect(result.status).toBe(200);
+		expect(result.body).toEqual({ deleted: 2 });
+		expectDocumented(DLQ_API.deleteEntries, result);
+	});
+
+	it("DELETE /dlq should reject an empty id list with 400", async () => {
+		await start();
+		const body = { ids: [] };
+		const result = await request(server, "/dlq", {
+			method: "DELETE",
+			body,
+			headers: signHeaders(body, "DELETE", "/dlq"),
+		});
+		expect(result.status).toBe(400);
+		expectDocumented(DLQ_API.deleteEntries, result);
+		expect(dlqRepository.delete).not.toHaveBeenCalled();
+	});
+
+	it("POST /dlq/replay should answer when nothing is waiting", async () => {
+		(dlqClaimManager.claimEntriesForRetry as jest.Mock).mockResolvedValue([]);
+		await start();
+		const result = await request(server, "/dlq/replay?limit=10", {
+			method: "POST",
+			headers: signHeaders(null, "POST", "/dlq/replay"),
+		});
+		expect(result.status).toBe(200);
+		expect(result.body).toEqual({
+			replayed: 0,
+			message: "No entries available for retry",
+		});
+		expectDocumented(DLQ_API.replayEntries, result);
+	});
+
+	it("POST /dlq/replay should reject a limit above 100", async () => {
+		await start();
+		const result = await request(server, "/dlq/replay?limit=500", {
+			method: "POST",
+			headers: signHeaders(null, "POST", "/dlq/replay"),
+		});
+		expect(result.status).toBe(400);
+		expectDocumented(DLQ_API.replayEntries, result);
+		expect(dlqClaimManager.claimEntriesForRetry).not.toHaveBeenCalled();
 	});
 
 	it("GET /dlq should reject an unsigned request", async () => {

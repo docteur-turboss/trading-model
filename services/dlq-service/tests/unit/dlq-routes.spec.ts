@@ -32,7 +32,7 @@ jest.mock("../../src/config/logger", () => ({
 }));
 
 jest.mock("../../src/config/audit", () => ({
-	notifyAudit: jest.fn(() => Promise.resolve()),
+	publishDlqEvent: jest.fn(),
 }));
 
 jest.mock("../../src/config/db", () => ({
@@ -58,7 +58,6 @@ jest.mock("../../src/adapters/outbound/claim-manager", () => ({
 		releaseStaleClaims: jest.fn(),
 		releaseClaimWithoutCount: jest.fn(),
 		incrementRetryCount: jest.fn(),
-		releaseAllActiveClaims: jest.fn(),
 		releaseClaimsByInstance: jest.fn(),
 	},
 }));
