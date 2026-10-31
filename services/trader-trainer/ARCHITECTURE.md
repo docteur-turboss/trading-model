@@ -168,7 +168,8 @@ public step(input: Float32Array, price?: number, done: boolean = false): {
 - Network inference
 - Wallet state updates
 - Reward shaping based on P&L
-- Action mapping (discrete or continuous)
+- Action mapping (epsilon-greedy over sell / hold / buy)
+- Replay buffer and minibatch Q-learning updates (`remember`, `replay`)
 
 #### StateManager
 
@@ -351,8 +352,10 @@ interface Genome {
 
 **Fitness Calculation**:
 
+Fitness of the run's `TRAINER_FITNESS_TYPE` on the wallet PnL of the validation window (ADR-0025):
+
 ```
-fitness = α * sharpe_ratio + β * pnl - γ * complexity_penalty
+fitness = metric(episode PnL | bar PnL curve) - |metric| * 0.15 * complexity_penalty
 ```
 
 **Metrics**:
@@ -444,7 +447,7 @@ Three competing objectives are optimized simultaneously: **avgPnl** (maximize), 
 
 ### 4. Self-Adaptive GA Control
 
-GA meta-parameters (population size, elitism fraction, episodes per individual) are **themselves evolved** during training. The `adaptGAControl` function adjusts them based on stagnation and improvement history.
+GA meta-parameters (population size, elitism fraction, episodes per individual, kept within 10–30) are **themselves evolved** during training. The `adaptGAControl` function adjusts them based on stagnation and improvement history.
 
 **File**: `adaptive-control-system.ts`
 
