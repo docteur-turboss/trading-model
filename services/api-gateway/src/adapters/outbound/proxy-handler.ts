@@ -77,12 +77,18 @@ interface ProxyExecutionContext {
 
 function _executeProxyRequest(ctx: ProxyExecutionContext): void {
 	const { options, req, resolve, reject, target, path, timeoutMs } = ctx;
-	const proxyReq = https.request(options, (proxyRes) => {
-		void handleProxyResponse(proxyRes).then(resolve);
-	});
+	const payload = _serializeBody(req.body);
+	const proxyReq = https.request(
+		_withBodyLength(options, payload),
+		(proxyRes) => {
+			void handleProxyResponse(proxyRes).then(resolve);
+		}
+	);
 	proxyReq.on("error", _onProxyError(target, path, reject));
 	proxyReq.on("timeout", () => _onProxyTimeout(timeoutMs, proxyReq, reject));
-	_writeRequestBody(proxyReq, req.body);
+	if (payload) {
+		proxyReq.write(payload);
+	}
 	proxyReq.end();
 }
 
@@ -109,12 +115,31 @@ export function forwardRequest(
 	});
 }
 
-function _writeRequestBody(proxyReq: http.ClientRequest, body: unknown): void {
+/** The parsed body, re-serialized: what is actually sent downstream. */
+function _serializeBody(body: unknown): string | undefined {
 	if (
 		body &&
 		typeof body === "object" &&
 		Object.keys(body as object).length > 0
 	) {
-		proxyReq.write(JSON.stringify(body));
+		return JSON.stringify(body);
 	}
+}
+
+/**
+ * The client's Content-Length describes its own bytes, not the re-serialized
+ * body (formatted JSON is longer): forwarding it makes the service wait for
+ * bytes that never come. Declare the length of what is sent instead.
+ */
+function _withBodyLength(
+	options: https.RequestOptions,
+	payload: string | undefined
+): https.RequestOptions {
+	const headers = { ...(options.headers as Record<string, string>) };
+	delete headers["content-length"];
+	delete headers["transfer-encoding"];
+	if (payload) {
+		headers["content-length"] = String(Buffer.byteLength(payload));
+	}
+	return { ...options, headers };
 }

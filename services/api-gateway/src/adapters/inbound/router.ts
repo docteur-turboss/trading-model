@@ -15,11 +15,11 @@ import {
 	type ServiceId,
 } from "@trading-model/primitives/primitives";
 import { Router } from "express";
-import { z } from "zod";
 import {
 	proxyAndCache,
 	tryServeFromCache,
 } from "../../application/proxy-dispatcher";
+import { discoveryClient } from "../../config/container";
 import { ResponseCache } from "../../infrastructure/cache";
 import { ENV } from "../../infrastructure/config/env";
 import {
@@ -27,13 +27,15 @@ import {
 	SERVICE_ERRORS_TOTAL,
 } from "../../infrastructure/config/metrics";
 import { parseRequestPath } from "../../shared/path-parser";
+import { isPublicRoute } from "../../shared/public-routes";
 import { ServiceResolver } from "../outbound/service-resolver";
 import { AUTH_MIDDLEWARE } from "./auth";
 import { DEFAULT_LIMITER } from "./rate-limiter";
 
 const RESOLVER = new ServiceResolver(
 	ENV.DISCOVERY_SERVICE_URL,
-	ENV.CACHE_TTL_MS
+	ENV.CACHE_TTL_MS,
+	discoveryClient
 );
 const CACHE = new ResponseCache(DurationMs.of(ENV.CACHE_TTL_MS));
 const ALLOWED_PROXY_RANGES = parseCIDRList(ENV.ALLOWED_PROXY_CIDRS);
@@ -68,6 +70,10 @@ const catchAllRoute = catchSync(async (req) => {
 	}
 
 	const { majorVersion, serviceName, path } = parsed;
+
+	if (!isPublicRoute(req.method, serviceName, path)) {
+		return sendResponse({ error: "Route not found" }, 404 as HttpStatusCode);
+	}
 
 	const target = await RESOLVER.resolve(serviceName, majorVersion);
 	if (!target) {
@@ -135,41 +141,12 @@ function pingHandler(
 	res.json({ status: HEALTH_STATUS_OK });
 }
 
-const TELEMETRY_SCHEMA = z.discriminatedUnion("type", [
-	z.object({
-		type: z.literal("vital"),
-		name: z.string(),
-		value: z.number(),
-		rating: z.string().optional(),
-	}),
-	z.object({
-		type: z.literal("error"),
-		name: z.string(),
-		message: z.string().optional(),
-		stack: z.string().optional(),
-	}),
-]);
-
-function telemetryHandler(
-	req: import("express").Request,
-	res: import("express").Response
-): void {
-	const parsed = TELEMETRY_SCHEMA.safeParse(req.body);
-	if (!parsed.success) {
-		res.status(400).json({ error: "Invalid telemetry payload" });
-		return;
-	}
-	logger.info("Frontend telemetry received", { context: parsed.data });
-	res.status(204).end();
-}
-
 export function createRouter(): Router {
 	const router = Router();
 	router.get("/ping", pingHandler);
 	router.get("/metrics", metricsHandler);
 	router.use(AUTH_MIDDLEWARE);
 	router.use(DEFAULT_LIMITER);
-	router.post("/telemetry", telemetryHandler);
 	router.use(catchAllRoute);
 	return router;
 }

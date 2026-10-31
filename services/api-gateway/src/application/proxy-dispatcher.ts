@@ -87,13 +87,13 @@ function buildProxyErrorResponse(
 			error: message,
 		},
 	});
-	return sendResponse(
-		{ error: "Service unavailable", details: message },
-		503 as HttpStatusCode
-	);
+	// The cause stays in the log: returned to the client, connection errors
+	// would map the internal network.
+	return sendResponse({ error: "Service unavailable" }, 503 as HttpStatusCode);
 }
 
 function tryParseJson(raw: string): unknown | null {
+	// biome-ignore lint/plugin: parse helper: null means not JSON
 	try {
 		return JSON.parse(raw) as unknown;
 	} catch {

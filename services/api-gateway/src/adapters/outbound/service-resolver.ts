@@ -1,3 +1,8 @@
+import { lookup } from "node:dns/promises";
+import {
+	normalizeServiceName,
+	registryNamesFor,
+} from "@trading-model/common/utils/spiffe";
 import type { ServiceInstance } from "@trading-model/contracts/service-registry-types";
 import { HttpClient } from "@trading-model/http/adapters/outbound/http-client";
 import {
@@ -8,6 +13,8 @@ import {
 	type Version,
 } from "@trading-model/primitives/primitives";
 import type { ResolvedEndpoint } from "@trading-model/validation/adapters/outbound/service-resolver.types";
+
+const DISCOVERY_SERVICE = "discovery-server";
 
 interface CachedService {
 	instances: ResolvedEndpoint[];
@@ -54,12 +61,7 @@ export class ServiceResolver {
 		majorVersion: number,
 		cacheKey: string
 	): Promise<ResolvedEndpoint | null> {
-		const response = await this._httpClient.get<{ data: ServiceInstance[] }>(
-			URLString.of(`${this._discoveryUrl}/services/${serviceName}`)
-		);
-		const instances = Array.isArray(response)
-			? response
-			: (response as { data: ServiceInstance[] }).data;
+		const instances = await this._fetchInstances(serviceName);
 		if (!Array.isArray(instances)) {
 			return this._handleFallback(cacheKey);
 		}
@@ -80,6 +82,58 @@ export class ServiceResolver {
 		};
 		this._cache.set(cacheKey, cachedService);
 		return matching.length === 0 ? null : this._selectInstance(cachedService);
+	}
+
+	/**
+	 * Instances registered under any name of the service: routes use canonical
+	 * names (`financial-scraper`) while services register legacy ones
+	 * (`financial-scraper-service`). Discovery does not register itself, so it
+	 * is reached at its configured URL.
+	 */
+	private async _fetchInstances(
+		serviceName: ServiceId
+	): Promise<ServiceInstance[] | undefined> {
+		if (String(normalizeServiceName(serviceName)) === DISCOVERY_SERVICE) {
+			return [await this._discoveryInstance()];
+		}
+		let lastError: unknown;
+		let answered = false;
+		for (const name of registryNamesFor(serviceName)) {
+			// biome-ignore lint/plugin: an unknown alias is expected, the next one is tried
+			try {
+				const response = await this._httpClient.get<{
+					data: ServiceInstance[];
+				}>(URLString.of(`${this._discoveryUrl}/services/${name}`));
+				const instances = Array.isArray(response)
+					? response
+					: (response as { data: ServiceInstance[] }).data;
+				if (!Array.isArray(instances)) {
+					return;
+				}
+				answered = true;
+				if (instances.length > 0) {
+					return instances;
+				}
+			} catch (error) {
+				lastError = error;
+			}
+		}
+		if (!answered) {
+			throw lastError;
+		}
+		return [];
+	}
+
+	private async _discoveryInstance(): Promise<ServiceInstance> {
+		const url = new URL(this._discoveryUrl);
+		// The proxy only targets IPs in ALLOWED_PROXY_CIDRS: resolve the hostname.
+		const { address } = await lookup(url.hostname, { family: 4 });
+		return {
+			serviceName: DISCOVERY_SERVICE,
+			host: address,
+			port: Number(url.port || 443),
+			version: "1.0.0",
+		} as unknown as ServiceInstance;
 	}
 
 	private _handleFallback(cacheKey: string): ResolvedEndpoint | null {

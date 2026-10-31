@@ -33,6 +33,24 @@ const API_GATEWAY_ENV_SCHEMA = BaseEnvSchema.extend(
 			path: ["ALLOWED_PROXY_CIDRS"],
 		});
 	}
+	if (data.NODE_ENV !== "production") {
+		return;
+	}
+	// Non-strict mode with no token accepts any API key: never in production.
+	if (!data.AUTH_STRICT) {
+		ctx.addIssue({
+			code: z.ZodIssueCode.custom,
+			message: "AUTH_STRICT cannot be false in production",
+			path: ["AUTH_STRICT"],
+		});
+	}
+	if (data.AUTH_TOKENS.split(",").every((token) => token.trim() === "")) {
+		ctx.addIssue({
+			code: z.ZodIssueCode.custom,
+			message: "AUTH_TOKENS cannot be empty in production",
+			path: ["AUTH_TOKENS"],
+		});
+	}
 });
 
 export const ENV = validateEnv(API_GATEWAY_ENV_SCHEMA);

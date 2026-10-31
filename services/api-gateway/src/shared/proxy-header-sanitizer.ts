@@ -3,12 +3,15 @@ import { anonymizeIp } from "@trading-model/common/utils/anonymize-ip";
 import { HTTP_HEADERS } from "@trading-model/contracts/http-headers";
 import type { Request } from "express";
 
+// x-real-ip carries the caller's address: only the anonymized
+// X-Forwarded-For set below reaches the services.
 const BLOCKED_HEADERS = new Set([
 	"x-api-key",
 	"authorization",
 	"host",
 	"connection",
 	"keep-alive",
+	"x-real-ip",
 ]);
 
 function serializeHeaderValue(value: string | string[]): string {
