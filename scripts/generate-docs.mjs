@@ -47,14 +47,6 @@ const MODULES = [
     tsconfig: join(ROOT, 'packages/http/tsconfig.json'),
   },
   {
-    label: '@trading-model/jobs',
-    type: 'package',
-    description: 'Protocole worker distribué et récupération des jobs orphelins',
-    entryPoints: [join(ROOT, 'packages/jobs/src')],
-    strategy: 'expand',
-    tsconfig: join(ROOT, 'packages/jobs/tsconfig.json'),
-  },
-  {
     label: '@trading-model/address-manager',
     type: 'package',
     description: 'Gestionnaire d\'adresses et découverte de services',
@@ -149,14 +141,6 @@ const MODULES = [
     entryPoints: [join(ROOT, 'services/trader-trainer/src/application/index.ts')],
     strategy: 'resolve',
     tsconfig: join(ROOT, 'services/trader-trainer/tsconfig.json'),
-  },
-  {
-    label: 'admin-interface',
-    type: 'service',
-    description: 'Interface d\'administration React — audit, DLQ, market data, jobs, workers',
-    entryPoints: [join(ROOT, 'services/admin-interface/src')],
-    strategy: 'expand',
-    tsconfig: join(ROOT, 'services/admin-interface/tsconfig.app.json'),
   },
 ];
 

@@ -56,7 +56,6 @@ rotate_admin_tokens() {
   kubectl create secret generic trading-model-secrets \
     --namespace "$NAMESPACE" \
     --from-literal=AUTH_TOKENS="$new_token" \
-    --from-literal=ADMIN_TOKEN="$new_token" \
     --dry-run=client -o yaml | \
     kubeseal --namespace "$NAMESPACE" \
       --controller-namespace kube-system \

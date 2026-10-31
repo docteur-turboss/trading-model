@@ -41,11 +41,6 @@ updates:
       interval: "weekly"
 
   - package-ecosystem: "docker"
-    directory: "/services/admin-interface"
-    schedule:
-      interval: "weekly"
-
-  - package-ecosystem: "docker"
     directory: "/services/dlq-service"
     schedule:
       interval: "weekly"
