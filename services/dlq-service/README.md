@@ -23,7 +23,7 @@ Requires MongoDB 7+ and Redis 7+.
 | `MONGO_DB`               | `dlq-service`               | MongoDB database name        |
 | `REDIS_URL`              | `redis://localhost:6379`    | Redis connection             |
 | `MAX_ENTRIES`            | `100000`                    | Max stored DLQ entries       |
-| `DLQ_AUTO_RETRY_ENABLED` | `false`                     | Enable automatic retry       |
+| `DLQ_AUTO_RETRY_ENABLED` | `false` (`true` in compose and K8s) | Replay eligible entries automatically |
 | `PRUNE_INTERVAL_MS`      | `86400000`                  | Prune check interval (24h)   |
 | `ENTRY_TTL_MS`           | `2592000000`                | Entry TTL before prune (30d) |
 | `ADDRESS_MANAGER_URL`    | `https://localhost:8443`    | Discovery server URL         |
