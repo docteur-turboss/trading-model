@@ -16,6 +16,7 @@ export {
 	PLATFORM_SERVICES,
 	parseSpiffeId,
 	parseSpiffeId as parseSpiffeIdentity,
+	registryNamesFor,
 	SPIFFE_PATH_SEGMENT_NAMESPACE,
 	SPIFFE_PATH_SEGMENT_SERVICE_ACCOUNT,
 	SPIFFE_URI_SCHEME,

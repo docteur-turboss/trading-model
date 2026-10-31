@@ -27,7 +27,6 @@ export enum ErrorCode {
 	Backpressure = "BackpressureError",
 	Configuration = "ConfigurationError",
 	DlqCapacity = "DlqCapacityError",
-	JobStatus = "JobStatusError",
 	AppError = "AppErrorError",
 	HttpClient = "HttpClientError",
 	HttpClientTimeout = "HttpClientTimeoutError",

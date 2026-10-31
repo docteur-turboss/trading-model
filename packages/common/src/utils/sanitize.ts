@@ -4,10 +4,16 @@ const PEM_LINE_PATTERN = /-----BEGIN[^-]+-----[\s\S]*?-----END[^-]+-----/g;
 const Visited = new WeakSet<object>();
 
 function _sanitizeError(err: Error): JsonObject {
+	const { code, cause } = err as { code?: unknown; cause?: unknown };
 	return {
 		name: err.name,
 		message: err.message,
+		...(typeof code === "string" || typeof code === "number" ? { code } : {}),
 		...(err.stack ? { stack: sanitizeForLog(err.stack) } : {}),
+		// Wrapped errors (createAppError({ cause })) carry the root cause here.
+		...(cause === undefined
+			? {}
+			: { cause: sanitizeForLog(cause) as JsonObject }),
 	};
 }
 

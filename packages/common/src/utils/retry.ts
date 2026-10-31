@@ -32,6 +32,7 @@ function _hasTimedOut(start: number, timeoutMs: DurationMs): boolean {
 async function _attemptOnce<TResult>(
 	fn: () => Promise<TResult>
 ): Promise<{ ok: true; result: TResult } | { ok: false; error: Error }> {
+	// biome-ignore lint/plugin: converts the rejection into a Result the retry loop inspects
 	try {
 		return { ok: true, result: await fn() };
 	} catch (err) {

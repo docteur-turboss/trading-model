@@ -21,11 +21,11 @@ export const SPIFFE_PATH_SEGMENT_SERVICE_ACCOUNT = "sa" as const;
 
 /** Canonical, SPIFFE-issued service identities (last SPIFFE path segment). */
 export const PLATFORM_SERVICES = [
-	"admin-interface",
 	"api-gateway",
 	"audit-logger",
 	"discovery-server",
 	"dlq-service",
+	"edge-proxy",
 	"financial-scraper",
 	"message-manager",
 	"trader-trainer",
@@ -58,6 +58,19 @@ export const LEGACY_SERVICE_NAME_ALIASES: Readonly<Record<string, string>> = {
 export function normalizeServiceName(service: string | ServiceId): ServiceId {
 	const raw = String(service);
 	return ServiceId.of(LEGACY_SERVICE_NAME_ALIASES[raw] ?? raw);
+}
+
+/**
+ * Every name a service may be registered under in discovery: the requested
+ * name, its canonical name and the legacy aliases of that canonical name
+ * (e.g. `financial-scraper` → also `financial-scraper-service`).
+ */
+export function registryNamesFor(service: string | ServiceId): string[] {
+	const canonical = String(normalizeServiceName(service));
+	const aliases = Object.entries(LEGACY_SERVICE_NAME_ALIASES)
+		.filter(([, target]) => target === canonical)
+		.map(([alias]) => alias);
+	return [...new Set([String(service), canonical, ...aliases])];
 }
 
 export function isPlatformService(service: string | ServiceId): boolean {
@@ -146,13 +159,15 @@ export function serviceNameFromSpiffeId(identity: string): ServiceId | null {
  * Maps a raw client identity (from an mTLS peer certificate SAN/CN) to a
  * logical {@link ServiceId}.
  *
- *  - `spiffe://...` → the canonical service name (last SPIFFE path segment)
+ *  - `spiffe://...`, alone or inside a SAN list (`DNS:x, URI:spiffe://...`,
+ *    as Node reports `subjectaltname`) → the canonical service name
  *  - `client:<token-prefix>` → the API gateway (external callers)
  *  - anything else → used verbatim (legacy CN/DNS identities)
  */
 export function extractServiceName(clientIdentity: string): ServiceId | null {
-	if (isSpiffeId(clientIdentity)) {
-		return serviceNameFromSpiffeId(clientIdentity);
+	const spiffeId = _findSpiffeId(clientIdentity);
+	if (spiffeId) {
+		return serviceNameFromSpiffeId(spiffeId);
 	}
 	if (clientIdentity.startsWith("client:")) {
 		return ServiceId.of("api-gateway");
@@ -167,11 +182,21 @@ export function extractServiceName(clientIdentity: string): ServiceId | null {
 export function extractCanonicalServiceName(
 	clientIdentity: string
 ): ServiceId | null {
-	if (isSpiffeId(clientIdentity)) {
-		return serviceNameFromSpiffeId(clientIdentity);
+	const spiffeId = _findSpiffeId(clientIdentity);
+	if (spiffeId) {
+		return serviceNameFromSpiffeId(spiffeId);
 	}
 	if (clientIdentity.startsWith("client:")) {
 		return ServiceId.of("api-gateway");
 	}
 	return clientIdentity ? normalizeServiceName(clientIdentity) : null;
+}
+
+/** The SPIFFE ID in a raw identity: the identity itself, or the URI entry of a SAN list. */
+function _findSpiffeId(clientIdentity: string): string | null {
+	if (isSpiffeId(clientIdentity)) {
+		return clientIdentity;
+	}
+	const candidate = clientIdentity.match(/spiffe:\/\/[^\s,]+/)?.[0];
+	return candidate && isSpiffeId(candidate) ? candidate : null;
 }
