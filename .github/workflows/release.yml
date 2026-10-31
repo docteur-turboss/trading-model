@@ -1,7 +1,15 @@
 # =============================================================================
 #  release.yml — Build & push Docker images on version tag
-#  Triggers on push of tags matching v* (e.g. v2.0.3).
-#  Builds 8 service images, pushes each with :<version> AND :latest tags.
+#  Triggers on push of tags vX.Y.Z (e.g. v2.0.3, or v2.1.0-rc.1).
+#  Runs the whole CI first (ci.yml) on the tagged commit: no image is pushed
+#  unless every gate passes. Then builds the 7 service images + the tooling
+#  images (spire-tools, the K8s SPIRE entry reconciler; backup-tools, the
+#  db-backup CronJob) and pushes each as :X.Y.Z (no leading v).
+#  :latest moves to the release only when it is the highest stable version:
+#  a backport patch (v1.4.2 after v2.0.0) or a prerelease never takes it.
+#  Registry: repository variable IMAGE_REGISTRY, default ghcr.io/<owner> (the
+#  only GHCR namespace GITHUB_TOKEN can push to). Manifests keep the logical
+#  name ghcr.io/trading-model/*: deploy.yml rewrites it to the registry.
 # =============================================================================
 
 name: Release
@@ -11,17 +19,59 @@ on:
     tags:
       - "v*"
 
-env:
-  REGISTRY: ghcr.io
-  IMAGE_PREFIX: ghcr.io/trading-model
-
 permissions:
   contents: read
-  packages: write
 
 jobs:
-  build-and-push:
+  version:
     runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
+      latest: ${{ steps.version.outputs.latest }}
+      registry: ${{ steps.version.outputs.registry }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      - name: Resolve version and latest
+        id: version
+        shell: bash
+        env:
+          IMAGE_REGISTRY: ${{ vars.IMAGE_REGISTRY }}
+          OWNER: ${{ github.repository_owner }}
+        run: |
+          semver='^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$'
+          if ! [[ "$GITHUB_REF_NAME" =~ $semver ]]; then
+            echo "::error::Tag $GITHUB_REF_NAME is not vX.Y.Z[-prerelease]"
+            exit 1
+          fi
+          version="${GITHUB_REF_NAME#v}"
+          latest=false
+          if [[ "$version" != *-* ]]; then
+            highest=$(git ls-remote --tags --refs origin 'v*' \
+              | sed 's#.*refs/tags/v##' \
+              | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' \
+              | sort -V | tail -n 1)
+            [ "$version" = "$highest" ] && latest=true
+          fi
+          registry="${IMAGE_REGISTRY:-ghcr.io/$OWNER}"
+          {
+            echo "tag=$version"
+            echo "latest=$latest"
+            echo "registry=${registry,,}"
+          } >> "$GITHUB_OUTPUT"
+          echo "Release $version to ${registry,,} (latest: $latest)"
+
+  ci:
+    uses: ./.github/workflows/ci.yml
+    secrets: inherit
+
+  build-and-push:
+    needs: [version, ci]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     strategy:
       fail-fast: false
       matrix:
@@ -33,37 +83,33 @@ jobs:
           - api-gateway
           - audit-logger
           - dlq-service
-          - admin-interface
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
 
       - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
         with:
-          registry: ${{ env.REGISTRY }}
+          registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract version from tag
-        id: version
-        run: echo "tag=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
-
       - name: Docker meta (version + latest)
         id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5.10.0
         with:
-          images: ${{ env.IMAGE_PREFIX }}/${{ matrix.service }}
+          images: ${{ needs.version.outputs.registry }}/${{ matrix.service }}
+          flavor: latest=false
           tags: |
-            type=raw,value=${{ steps.version.outputs.tag }}
-            type=raw,value=latest
+            type=raw,value=${{ needs.version.outputs.tag }}
+            type=raw,value=latest,enable=${{ needs.version.outputs.latest }}
 
       - name: Build and push
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
         with:
           context: .
           file: services/${{ matrix.service }}/Dockerfile
@@ -72,3 +118,54 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  # spire-tools (deploy/spire): spire-server binary + registration scripts (the
+  # official SPIRE images have no shell), used by the spire-entries sidecar.
+  # backup-tools (deploy/backup): kubectl + age + rclone for the db-backup CronJob.
+  build-tools:
+    needs: [version, ci]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        include:
+          - image: spire-tools
+            context: deploy/spire
+            target: bootstrap
+          - image: backup-tools
+            context: deploy/backup
+            target: ""
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Docker meta (version + latest)
+        id: meta
+        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5.10.0
+        with:
+          images: ${{ needs.version.outputs.registry }}/${{ matrix.image }}
+          flavor: latest=false
+          tags: |
+            type=raw,value=${{ needs.version.outputs.tag }}
+            type=raw,value=latest,enable=${{ needs.version.outputs.latest }}
+
+      - name: Build and push
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
+        with:
+          context: ${{ matrix.context }}
+          target: ${{ matrix.target }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}

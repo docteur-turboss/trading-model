@@ -67,6 +67,16 @@ on:
 
 permissions:
   contents: read
+  # Resolving the release tag to image digests reads the registry.
+  packages: read
+
+# First-party images, published by release.yml. The manifests name them
+# ghcr.io/trading-model/<image>: the overlay is rewritten to IMAGE_REGISTRY.
+# tests/k8s/check-overlays.mjs fails when an overlay uses an image missing here.
+env:
+  IMAGES: >-
+    discovery-server message-manager financial-scraper trader-trainer
+    api-gateway audit-logger dlq-service spire-tools backup-tools
 
 concurrency:
   group: deploy-${{ inputs.environment }}
@@ -91,6 +101,27 @@ jobs:
           echo "namespace=$NS" >> "$GITHUB_OUTPUT"
           echo "Target namespace: $NS"
 
+      # An alert nobody receives is no alert: production needs a real Slack
+      # webhook and a dead man's switch before anything is deployed.
+      - name: Check alert notification secrets
+        shell: bash
+        env:
+          SLACK: ${{ secrets.ALERTMANAGER_SLACK_WEBHOOK_URL }}
+          DEADMAN: ${{ secrets.ALERTMANAGER_DEADMAN_URL }}
+          PAGERDUTY: ${{ secrets.ALERTMANAGER_PAGERDUTY_ROUTING_KEY }}
+        run: |
+          missing=""
+          [ -n "$SLACK" ] || missing="$missing ALERTMANAGER_SLACK_WEBHOOK_URL"
+          [ -n "$DEADMAN" ] || missing="$missing ALERTMANAGER_DEADMAN_URL"
+          [ -n "$PAGERDUTY" ] || echo "::warning::ALERTMANAGER_PAGERDUTY_ROUTING_KEY is not set: critical alerts go to Slack only"
+          if [ -n "$missing" ]; then
+            if [ "${{ inputs.environment }}" = "production" ]; then
+              echo "::error::Missing GitHub environment secrets:${missing}. Alerts would reach nobody (observability/alertmanager.yml)."
+              exit 1
+            fi
+            echo "::warning::Missing GitHub environment secrets:${missing}: alerts of ${{ inputs.environment }} reach nobody"
+          fi
+
       - name: Set up kubectl
         uses: azure/setup-kubectl@c0c8b32d33a5244f1e5947304550403b63930415 # v4
         with:
@@ -109,9 +140,13 @@ jobs:
           chmod 600 "$HOME/.kube/config"
           kubectl cluster-info
 
+      # release.yml pushes v1.2.3 as :1.2.3; the git tag form is accepted too.
       - name: Resolve image tag
         id: tag
         shell: bash
+        env:
+          IMAGE_REGISTRY: ${{ vars.IMAGE_REGISTRY }}
+          OWNER: ${{ github.repository_owner }}
         run: |
           ENV="${{ inputs.environment }}"
           TAG="${{ inputs.image_tag }}"
@@ -119,29 +154,131 @@ jobs:
             echo "::error::image_tag is required. Provide a tag (e.g. latest, v1.2.3)."
             exit 1
           fi
+          if [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+ ]]; then
+            TAG="${TAG#v}"
+          fi
           VERSION="${{ inputs.version_number }}"
           if [ -z "$VERSION" ]; then
             VERSION="$TAG"
           fi
-          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "Deploying tag: $TAG (version: $VERSION) to $ENV"
+          REGISTRY="${IMAGE_REGISTRY:-ghcr.io/$OWNER}"
+          {
+            echo "tag=$TAG"
+            echo "version=$VERSION"
+            echo "registry=${REGISTRY,,}"
+          } >> "$GITHUB_OUTPUT"
+          echo "Deploying tag: $TAG (version: $VERSION) from ${REGISTRY,,} to $ENV"
 
-      # Migrations must run before the new image rolls out.
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # The overlay is deployed by digest, never by tag: a missing image stops
+      # the deploy before anything changes, and `rollout undo` goes back to the
+      # previous image even when both deploys were :latest.
+      - name: Resolve image digests
+        id: digests
+        shell: bash
+        run: |
+          REGISTRY="${{ steps.tag.outputs.registry }}"
+          TAG="${{ steps.tag.outputs.tag }}"
+          missing=""
+          : > "$RUNNER_TEMP/image-digests"
+          for img in $IMAGES; do
+            if ! digest=$(docker buildx imagetools inspect "$REGISTRY/$img:$TAG" --format '{{.Manifest.Digest}}'); then
+              missing="$missing $img"
+              continue
+            fi
+            echo "$img $digest" >> "$RUNNER_TEMP/image-digests"
+            echo "$img:$TAG -> $digest"
+          done
+          if [ -n "$missing" ]; then
+            echo "::error::No $REGISTRY image tagged $TAG for:$missing (was the release published?)"
+            exit 1
+          fi
+
+      # Production reads its secrets from SealedSecrets: without the controller
+      # the apply stops half way (unknown kind), and a placeholder never
+      # decrypts, so every pod waits on a missing Secret. Checked before
+      # anything is applied.
+      - name: Check sealed secrets
+        shell: bash
+        run: |
+          ENV="${{ inputs.environment }}"
+          rendered=$(kubectl kustomize --load-restrictor LoadRestrictionsNone "deploy/k8s/overlays/$ENV")
+          if ! grep -q '^kind: SealedSecret$' <<<"$rendered"; then
+            echo "$ENV uses no SealedSecret"
+            exit 0
+          fi
+          if ! kubectl get crd sealedsecrets.bitnami.com >/dev/null 2>&1; then
+            echo "::error::The cluster has no SealedSecret CRD: install the Sealed Secrets controller (docs/deployment/sealed-secrets.md)"
+            exit 1
+          fi
+          if grep -q 'AgCHANGE_ME' <<<"$rendered"; then
+            echo "::error::$ENV still has placeholder SealedSecrets: run bash scripts/init-sealed-secrets.sh and commit deploy/k8s/secrets"
+            exit 1
+          fi
+
+      # Anchor store of the audit chain (ADR-0027): an S3 bucket with Object
+      # Lock (compliance mode), its own write-only credentials, not the backup
+      # ones. Bucket, region and endpoint are variables of the GitHub
+      # environment, the credentials secrets. Production refuses to start
+      # audit-logger without it (AUDIT_ANCHOR_REQUIRED): checked here, before
+      # anything is applied. Unset elsewhere: the chain is verified only.
+      - name: Configure audit chain anchor store
+        shell: bash
+        env:
+          AUDIT_ANCHOR_BUCKET: ${{ vars.AUDIT_ANCHOR_BUCKET }}
+          AUDIT_ANCHOR_REGION: ${{ vars.AUDIT_ANCHOR_REGION }}
+          AUDIT_ANCHOR_ENDPOINT: ${{ vars.AUDIT_ANCHOR_ENDPOINT }}
+          AUDIT_ANCHOR_ACCESS_KEY_ID: ${{ secrets.AUDIT_ANCHOR_ACCESS_KEY_ID }}
+          AUDIT_ANCHOR_SECRET_ACCESS_KEY: ${{ secrets.AUDIT_ANCHOR_SECRET_ACCESS_KEY }}
+        run: |
+          NS="${{ steps.ns.outputs.namespace }}"
+          if [ -z "$AUDIT_ANCHOR_BUCKET" ]; then
+            if kubectl -n "$NS" get secret audit-anchor-s3 >/dev/null 2>&1; then
+              exit 0
+            fi
+            if [ "${{ inputs.environment }}" = "production" ]; then
+              echo "::error::AUDIT_ANCHOR_BUCKET is not set for production: audit-logger refuses to start without an anchor store (ADR-0027)"
+              exit 1
+            fi
+            echo "::warning::AUDIT_ANCHOR_BUCKET is not set for ${{ inputs.environment }}: the audit chain is verified but not anchored"
+            exit 0
+          fi
+          if [ -z "$AUDIT_ANCHOR_ACCESS_KEY_ID" ] || [ -z "$AUDIT_ANCHOR_SECRET_ACCESS_KEY" ]; then
+            echo "::error::AUDIT_ANCHOR_BUCKET is set but AUDIT_ANCHOR_ACCESS_KEY_ID / AUDIT_ANCHOR_SECRET_ACCESS_KEY are not"
+            exit 1
+          fi
+          kubectl get namespace "$NS" >/dev/null 2>&1 || kubectl create namespace "$NS"
+          # An empty endpoint would override the SDK default (AWS): left out.
+          endpoint=()
+          [ -z "$AUDIT_ANCHOR_ENDPOINT" ] || endpoint=(--from-literal=AUDIT_ANCHOR_ENDPOINT="$AUDIT_ANCHOR_ENDPOINT")
+          kubectl -n "$NS" create secret generic audit-anchor-s3             --from-literal=AUDIT_ANCHOR_BUCKET="$AUDIT_ANCHOR_BUCKET"             --from-literal=AUDIT_ANCHOR_REGION="${AUDIT_ANCHOR_REGION:-us-east-1}"             --from-literal=AWS_ACCESS_KEY_ID="$AUDIT_ANCHOR_ACCESS_KEY_ID"             --from-literal=AWS_SECRET_ACCESS_KEY="$AUDIT_ANCHOR_SECRET_ACCESS_KEY"             "${endpoint[@]}"             --dry-run=client -o yaml | kubectl apply -f -
+
+      # SPIRE agent + SPIFFE CSI driver, in the privileged trading-model-node
+      # namespace: the application namespace (restricted) cannot host them.
+      - name: Apply SPIFFE node components
+        shell: bash
+        run: |
+          kubectl kustomize "deploy/k8s/overlays/${{ inputs.environment }}/node-agents" | kubectl apply -f -
+
+      # Migrations must run before the new image rolls out. On a first deploy
+      # MySQL does not exist yet: they run right after the overlay instead.
       - name: Run database migrations
+        id: migrate
         shell: bash
         run: |
           NS="${{ steps.ns.outputs.namespace }}"
-          kubectl create configmap migration-files -n "$NS" \
-            --from-file=migrate.mjs=scripts/migrate.mjs \
-            --from-file=scripts/migrations \
-            --dry-run=client -o yaml | kubectl apply -f -
-          kubectl apply -n "$NS" -f deploy/k8s/jobs/migration-job.yaml
-          if ! kubectl wait --for=condition=complete job/db-migrate -n "$NS" --timeout=180s; then
-            echo "::error::Database migration job failed or timed out"
-            kubectl logs -n "$NS" job/db-migrate --tail=50
-            exit 1
+          if ! kubectl get statefulset mysql -n "$NS" >/dev/null 2>&1; then
+            echo "First deploy: MySQL not there yet, migrations run after the overlay"
+            echo "deferred=true" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
+          bash deploy/k8s/scripts/run-migrations.sh "$NS"
 
       # Canary gate: test the new image on a share of live traffic BEFORE full rollout.
       # If the canary fails, the overlay is never applied and the primary stays on the old image.
@@ -157,10 +294,11 @@ jobs:
         run: |
           NS="${{ steps.ns.outputs.namespace }}"
           export K8S_NAMESPACE="$NS"
+          export CANARY_IMAGE_REPO="${{ steps.tag.outputs.registry }}"
           chmod +x deploy/k8s/scripts/deploy-k8s.sh
           TAG="${{ steps.tag.outputs.tag }}"
           for dep in discovery-server message-manager financial-scraper trader-trainer \
-                     api-gateway audit-logger dlq-service admin-interface; do
+                     api-gateway audit-logger dlq-service; do
             ./deploy/k8s/scripts/deploy-k8s.sh canary "$dep" "$TAG" 10
           done
 
@@ -169,43 +307,110 @@ jobs:
         shell: bash
         run: |
           ENV="${{ inputs.environment }}"
-          NS="${{ steps.ns.outputs.namespace }}"
-          TAG="${{ steps.tag.outputs.tag }}"
+          REGISTRY="${{ steps.tag.outputs.registry }}"
           WRAPPER="deploy/k8s/overlays/.deploy-$ENV"
           mkdir -p "$WRAPPER"
-          cat > "$WRAPPER/kustomization.yaml" <<EOF
-          apiVersion: kustomize.config.k8s.io/v1beta1
-          kind: Kustomization
-          resources:
-            - ../$ENV
-          images:
-            - name: ghcr.io/trading-model/discovery-server
-              newTag: "$TAG"
-            - name: ghcr.io/trading-model/message-manager
-              newTag: "$TAG"
-            - name: ghcr.io/trading-model/financial-scraper
-              newTag: "$TAG"
-            - name: ghcr.io/trading-model/trader-trainer
-              newTag: "$TAG"
-            - name: ghcr.io/trading-model/api-gateway
-              newTag: "$TAG"
-            - name: ghcr.io/trading-model/audit-logger
-              newTag: "$TAG"
-            - name: ghcr.io/trading-model/dlq-service
-              newTag: "$TAG"
-            - name: ghcr.io/trading-model/admin-interface
-              newTag: "$TAG"
-          EOF
+          {
+            echo "apiVersion: kustomize.config.k8s.io/v1beta1"
+            echo "kind: Kustomization"
+            echo "resources:"
+            echo "  - ../$ENV"
+            echo "images:"
+            while read -r img digest; do
+              echo "  - name: ghcr.io/trading-model/$img"
+              echo "    newName: $REGISTRY/$img"
+              echo "    digest: $digest"
+            done < "$RUNNER_TEMP/image-digests"
+          } > "$WRAPPER/kustomization.yaml"
           # jobs/ packages scripts/backup-k8s.sh from outside its directory: the default
           # load restrictor rejects it and kubectl apply -k cannot relax it.
           kubectl kustomize --load-restrictor LoadRestrictionsNone "$WRAPPER" | kubectl apply -f -
+
+      # Public age key(s) the db-backup CronJob encrypts every dump for (the
+      # private key never enters the cluster). Environment variable of the
+      # GitHub environment; without it the backup job refuses to run.
+      - name: Configure backup encryption
+        shell: bash
+        env:
+          BACKUP_AGE_RECIPIENTS: ${{ vars.BACKUP_AGE_RECIPIENTS }}
+        run: |
+          NS="${{ steps.ns.outputs.namespace }}"
+          if [ -z "$BACKUP_AGE_RECIPIENTS" ]; then
+            echo "::warning::BACKUP_AGE_RECIPIENTS is not set for ${{ inputs.environment }}: backups are disabled until it is"
+            exit 0
+          fi
+          kubectl -n "$NS" create configmap backup-encryption \
+            --from-literal=BACKUP_AGE_RECIPIENTS="$BACKUP_AGE_RECIPIENTS" \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      # Off-site copy of the encrypted dumps (any S3-compatible store): the
+      # db-backup job fails without it (BACKUP_REQUIRE_OFFSITE). Bucket,
+      # region, endpoint and provider are variables of the GitHub environment,
+      # the credentials are secrets. Unset: an existing trading-model-backup-s3
+      # Secret (e.g. a SealedSecret) is left as it is.
+      - name: Configure off-site backup copy
+        shell: bash
+        env:
+          BACKUP_S3_BUCKET: ${{ vars.BACKUP_S3_BUCKET }}
+          BACKUP_S3_REGION: ${{ vars.BACKUP_S3_REGION }}
+          BACKUP_S3_ENDPOINT: ${{ vars.BACKUP_S3_ENDPOINT }}
+          BACKUP_S3_PROVIDER: ${{ vars.BACKUP_S3_PROVIDER }}
+          BACKUP_S3_ACCESS_KEY_ID: ${{ secrets.BACKUP_S3_ACCESS_KEY_ID }}
+          BACKUP_S3_SECRET_ACCESS_KEY: ${{ secrets.BACKUP_S3_SECRET_ACCESS_KEY }}
+        run: |
+          NS="${{ steps.ns.outputs.namespace }}"
+          if [ -z "$BACKUP_S3_BUCKET" ]; then
+            if ! kubectl -n "$NS" get secret trading-model-backup-s3 >/dev/null 2>&1; then
+              echo "::warning::BACKUP_S3_BUCKET is not set for ${{ inputs.environment }}: the backup job fails until an off-site copy is configured"
+            fi
+            exit 0
+          fi
+          # An empty endpoint would override rclone's default (AWS): left out.
+          endpoint=()
+          [ -z "$BACKUP_S3_ENDPOINT" ] || endpoint=(--from-literal=S3_ENDPOINT="$BACKUP_S3_ENDPOINT")
+          kubectl -n "$NS" create secret generic trading-model-backup-s3 \
+            --from-literal=BACKUP_S3_BUCKET="$BACKUP_S3_BUCKET" \
+            --from-literal=AWS_REGION="${BACKUP_S3_REGION:-us-east-1}" \
+            --from-literal=S3_PROVIDER="${BACKUP_S3_PROVIDER:-AWS}" \
+            --from-literal=AWS_ACCESS_KEY_ID="$BACKUP_S3_ACCESS_KEY_ID" \
+            --from-literal=AWS_SECRET_ACCESS_KEY="$BACKUP_S3_SECRET_ACCESS_KEY" \
+            "${endpoint[@]}" \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      # Notification credentials, mounted as files by Alertmanager and read at
+      # send time (no restart needed). Keys left unset are left out.
+      - name: Configure alert notifications
+        shell: bash
+        env:
+          SLACK: ${{ secrets.ALERTMANAGER_SLACK_WEBHOOK_URL }}
+          DEADMAN: ${{ secrets.ALERTMANAGER_DEADMAN_URL }}
+          PAGERDUTY: ${{ secrets.ALERTMANAGER_PAGERDUTY_ROUTING_KEY }}
+        run: |
+          NS="${{ steps.ns.outputs.namespace }}"
+          keys=()
+          [ -z "$SLACK" ] || keys+=(--from-literal=SLACK_WEBHOOK_URL="$SLACK")
+          [ -z "$DEADMAN" ] || keys+=(--from-literal=DEADMAN_URL="$DEADMAN")
+          [ -z "$PAGERDUTY" ] || keys+=(--from-literal=PAGERDUTY_ROUTING_KEY="$PAGERDUTY")
+          if [ "${#keys[@]}" -eq 0 ]; then
+            echo "::warning::No alert notification secret set: alertmanager-credentials left as it is"
+            exit 0
+          fi
+          kubectl -n "$NS" create secret generic alertmanager-credentials "${keys[@]}"             --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Run first-deploy database migrations
+        if: ${{ steps.migrate.outputs.deferred == 'true' }}
+        shell: bash
+        run: |
+          NS="${{ steps.ns.outputs.namespace }}"
+          kubectl rollout status statefulset/mysql -n "$NS" --timeout=300s
+          bash deploy/k8s/scripts/run-migrations.sh "$NS"
 
       - name: Wait for rollout
         shell: bash
         run: |
           NS="${{ steps.ns.outputs.namespace }}"
           for dep in discovery-server message-manager financial-scraper financial-scraper-collector trader-trainer \
-                     api-gateway audit-logger dlq-service admin-interface; do
+                     api-gateway audit-logger dlq-service edge-proxy; do
             echo "Waiting for rollout of $dep..."
             if ! kubectl rollout status "deployment/$dep" -n "$NS" --timeout=180s; then
               echo "::error::Rollout of $dep failed or timed out"
@@ -226,7 +431,7 @@ jobs:
           NS="${{ steps.ns.outputs.namespace }}"
           VERSION="${{ steps.tag.outputs.version }}"
           for dep in discovery-server message-manager financial-scraper financial-scraper-collector trader-trainer \
-                     api-gateway audit-logger dlq-service admin-interface; do
+                     api-gateway audit-logger dlq-service edge-proxy; do
             kubectl annotate deployment "$dep" -n "$NS" --overwrite \
               trading-model.dev/git-sha="$GITHUB_SHA" \
               trading-model.dev/release-version="$VERSION"
@@ -240,7 +445,7 @@ jobs:
           NS="${{ steps.ns.outputs.namespace }}"
           export K8S_NAMESPACE="$NS"
           for dep in discovery-server message-manager financial-scraper trader-trainer \
-                     api-gateway audit-logger dlq-service admin-interface; do
+                     api-gateway audit-logger dlq-service; do
             ./deploy/k8s/scripts/deploy-k8s.sh canary-cleanup "$dep"
           done
 
@@ -252,7 +457,14 @@ jobs:
         shell: bash
         run: |
           NS="${{ steps.ns.outputs.namespace }}"
+          # Every deployment is tried: one without a previous revision (first
+          # deploy) must not leave the others on the failed release.
+          failed=0
           for dep in discovery-server message-manager financial-scraper financial-scraper-collector trader-trainer \
-                     api-gateway audit-logger dlq-service admin-interface; do
-            kubectl rollout undo "deployment/$dep" -n "$NS"
+                     api-gateway audit-logger dlq-service edge-proxy; do
+            if ! kubectl rollout undo "deployment/$dep" -n "$NS"; then
+              echo "::error::Could not roll back $dep (no previous revision on a first deploy?)"
+              failed=1
+            fi
           done
+          exit "$failed"
