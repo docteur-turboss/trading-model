@@ -7,6 +7,9 @@ metadata:
     app.kubernetes.io/part-of: trading-model
 data:
   NODE_ENV: "production"
+  # Address-manager cache shared by the replicas (ADR-0029).
+  REDIS_SENTINELS: "redis-sentinel-0.redis-sentinel-headless:26379,redis-sentinel-1.redis-sentinel-headless:26379,redis-sentinel-2.redis-sentinel-headless:26379"
+  REDIS_SENTINEL_MASTER_NAME: "mymaster"
   OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4318"
   PORT: "3000"
   TLS_KEY_PATH: "/run/spire/svid/svid_key.pem"
@@ -110,6 +113,11 @@ spec:
         - podSelector: {}
       ports:
         - port: 3000
+          protocol: TCP
+        # Redis and its sentinels (REDIS_SENTINELS).
+        - port: 6379
+          protocol: TCP
+        - port: 26379
           protocol: TCP
 ---
 apiVersion: v1
