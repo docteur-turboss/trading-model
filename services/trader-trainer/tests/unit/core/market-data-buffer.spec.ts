@@ -114,6 +114,32 @@ describe("MarketDataBuffer", () => {
 			expect(buffer.getSymbols()).toEqual(["BTCUSDT"]);
 		});
 
+		it("should expose the close time of the newest candle", () => {
+			const BTC = TradingSymbol.of("BTCUSDT");
+			expect(buffer.getLastCandleCloseTime(BTC)).toBeUndefined();
+
+			buffer.addData(
+				DataType.Candle,
+				BTC,
+				makeCandle({
+					symbol: BTC,
+					timestamp: UnixTimestamp.of(0),
+					closeTimestamp: UnixTimestamp.of(59_999),
+				})
+			);
+			buffer.addData(
+				DataType.Candle,
+				BTC,
+				makeCandle({
+					symbol: BTC,
+					timestamp: UnixTimestamp.of(60_000),
+					closeTimestamp: UnixTimestamp.of(119_999),
+				})
+			);
+
+			expect(buffer.getLastCandleCloseTime(BTC)).toBe(119_999);
+		});
+
 		it("should track multiple symbols independently", () => {
 			feedCandles(buffer, "BTCUSDT", 3);
 			feedCandles(buffer, "ETHUSDT", 4);
@@ -133,6 +159,53 @@ describe("MarketDataBuffer", () => {
 			feedCandles(small, "BTCUSDT", 10);
 
 			expect(small.getCandleCount(TradingSymbol.of("BTCUSDT"))).toBe(5);
+		});
+
+		describe("re-sent candles", () => {
+			const BTC = TradingSymbol.of("BTCUSDT");
+			const candleAt = (minute: number, close = 100) =>
+				makeCandle({
+					symbol: BTC,
+					close: Price.of(close),
+					timestamp: UnixTimestamp.of(minute * 60000),
+					closeTimestamp: UnixTimestamp.of((minute + 1) * 60000 - 1),
+				});
+			const closeCount = () =>
+				buffer.getSymbolState(BTC)?.norm.candle.close.toJSON().count;
+
+			it("should keep one candle per timestamp across overlapping batches", () => {
+				for (const minute of [1, 2, 3]) {
+					buffer.addData(DataType.Candle, BTC, candleAt(minute));
+				}
+				for (const minute of [2, 3, 4]) {
+					buffer.addData(DataType.Candle, BTC, candleAt(minute));
+				}
+
+				const timestamps = buffer
+					.getSymbolState(BTC)
+					?.candles.map((candle) => candle.timestamp);
+				expect(timestamps).toEqual([60000, 120000, 180000, 240000]);
+				expect(closeCount()).toBe(4);
+			});
+
+			it("should replace the last candle with a later version of it", () => {
+				buffer.addData(DataType.Candle, BTC, candleAt(1, 100));
+				buffer.addData(DataType.Candle, BTC, candleAt(2, 100));
+				buffer.addData(DataType.Candle, BTC, candleAt(2, 110));
+
+				const candles = buffer.getSymbolState(BTC)?.candles ?? [];
+				expect(candles).toHaveLength(2);
+				expect(candles[1].close).toBe(110);
+				expect(closeCount()).toBe(2);
+			});
+
+			it("should drop a candle older than the last one", () => {
+				buffer.addData(DataType.Candle, BTC, candleAt(5));
+				buffer.addData(DataType.Candle, BTC, candleAt(3));
+
+				expect(buffer.getCandleCount(BTC)).toBe(1);
+				expect(closeCount()).toBe(1);
+			});
 		});
 
 		it("should handle empty candle arrays without adding symbol entries", () => {
@@ -314,6 +387,7 @@ describe("MarketDataBuffer", () => {
 					symbol: TradingSymbol.of("BTCUSDT"),
 					close: Price.of(0),
 					timestamp: UnixTimestamp.of(1),
+					closeTimestamp: UnixTimestamp.of(20_000),
 				})
 			);
 			buffer.addData(
@@ -325,6 +399,7 @@ describe("MarketDataBuffer", () => {
 					low: Price.of(60),
 					close: Price.of(0),
 					timestamp: UnixTimestamp.of(2),
+					closeTimestamp: UnixTimestamp.of(30_000),
 				})
 			);
 
@@ -342,6 +417,7 @@ describe("MarketDataBuffer", () => {
 			buffer.addData(DataType.Ticker, TradingSymbol.of("BTCUSDT"), {
 				...makeTicker24h("BTCUSDT"),
 				open: Price.of(0),
+				closeTimestamp: UnixTimestamp.of(30_000),
 			});
 
 			const steps = buffer.buildMarketSteps(TradingSymbol.of("BTCUSDT"));

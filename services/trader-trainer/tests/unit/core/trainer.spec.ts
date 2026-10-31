@@ -10,7 +10,6 @@ import { createDefaultGenome } from "../../../src/domain/genetic-algorithm/facto
 import {
 	ActivationType,
 	ConnectionType,
-	ContinuousPolicyType,
 	CrossoverType,
 	FitnessType,
 	InitialisationType,
@@ -41,6 +40,7 @@ jest.mock<{ ENV: any }>("../../../src/infrastructure/config/env", () => ({
 		TRAINER_POPULATION_SIZE: 5,
 		TRAINER_TIME_BUDGET_MS: 60000,
 		TRAINER_EPISODES_PER_INDIVIDUAL: 2,
+		TRAINER_FITNESS_TYPE: "total_pnl",
 	},
 }));
 
@@ -52,6 +52,7 @@ const TEST_TRAINING_SETTINGS: TrainingSettings = {
 	populationSize: 5,
 	timeBudgetMs: 60000,
 	episodesPerIndividual: 2,
+	fitnessType: FitnessType.TotalPnl,
 };
 
 let capturedOnGeneration: ((ctx: any) => void) | null = null;
@@ -134,13 +135,6 @@ jest.mock("../../../src/domain/genetic-algorithm/ga-runner", () => {
 						epsilonStart: 1.0,
 						epsilonMin: 0.05,
 						epsilonDecay: 0.995,
-						temperature: 1.0,
-					},
-					continuousPolicy: {
-						type: ContinuousPolicyType.TanhSquashing,
-						clipBounds: new NumericRange(-1, 1),
-						noiseStd: 0.1,
-						noiseDecay: 0.999,
 					},
 					replayBuffer: {
 						bufferSize: 10000,
@@ -466,7 +460,7 @@ describe("Trainer", () => {
 			expect(summary!.sharpe).toBeGreaterThan(0);
 			expect(summary!.avgPnl).toBeGreaterThan(0);
 			expect(summary!.gaControl.populationSize).toBe(20);
-			expect(summary!.network.inputDim).toBe(32);
+			expect(summary!.network.inputDim).toBe(33);
 			expect(summary!.network.outputDim).toBe(3);
 			expect(summary!.network.hiddenLayers.length).toBe(2);
 		});
@@ -660,5 +654,97 @@ describe("Trainer — model publication", () => {
 		expect(opts.initialControl.population.size).toBe(
 			TEST_TRAINING_SETTINGS.populationSize
 		);
+	});
+
+	describe("model artifacts (ADR-0022)", () => {
+		/** The best genome of a default run, with trained weights added. */
+		async function trainedGenome(): Promise<any> {
+			const probe = new Trainer(new MarketDataBuffer({ maxSize: 500 }), {
+				settings: TEST_TRAINING_SETTINGS,
+			});
+			feedCandles((probe as any)._dataBuffer, "BTCUSDT", 100);
+			const result = await probe.train(TradingSymbol.of("BTCUSDT"));
+			if (!result.success) {
+				throw new Error("probe training failed");
+			}
+			return {
+				...result.bestGenome,
+				trainedWeights: new Float32Array([0.5, -0.25, 1]),
+			};
+		}
+
+		function fakeStore() {
+			return {
+				save: jest.fn<(artifact: any) => Promise<any>>().mockResolvedValue({
+					version: "20261029T101530Z-0123456789ab",
+				}),
+				list: jest.fn(),
+				manifest: jest.fn(),
+				weights: jest.fn(),
+			};
+		}
+
+		it("stores the best agent with its weights, feature layout and normalization", async () => {
+			const genome = await trainedGenome();
+			mockRunImpl = () => Promise.resolve(genome);
+			const models = fakeStore();
+			const trainer = new Trainer(dataBuffer, {
+				settings: TEST_TRAINING_SETTINGS,
+				models,
+				instanceId: "trader-trainer-2",
+			});
+			feedCandles(dataBuffer, "BTCUSDT", 100);
+
+			const result = await trainer.train(TradingSymbol.of("BTCUSDT"));
+
+			expect(result.success).toBe(true);
+			expect(models.save).toHaveBeenCalledTimes(1);
+			const artifact = models.save.mock.calls[0][0];
+			expect(artifact).toMatchObject({
+				symbol: "BTCUSDT",
+				instanceId: "trader-trainer-2",
+				features: {
+					dim: 33,
+					fields: expect.arrayContaining(["CandleClose", "AgentExposure"]),
+				},
+				summary: { id: genome.id },
+			});
+			expect([...artifact.weights]).toEqual([0.5, -0.25, 1]);
+			expect(artifact.normalization).toMatchObject({
+				candle: { close: { count: expect.any(Number) } },
+			});
+			expect(artifact.normalization.candle.close.count).toBeGreaterThan(0);
+		});
+
+		it("does not store a best genome without trained weights", async () => {
+			const models = fakeStore();
+			const trainer = new Trainer(dataBuffer, {
+				settings: TEST_TRAINING_SETTINGS,
+				models,
+			});
+			feedCandles(dataBuffer, "BTCUSDT", 100);
+
+			const result = await trainer.train(TradingSymbol.of("BTCUSDT"));
+
+			expect(result.success).toBe(true);
+			expect(models.save).not.toHaveBeenCalled();
+		});
+
+		it("keeps the training successful when the artifact cannot be written", async () => {
+			const genome = await trainedGenome();
+			mockRunImpl = () => Promise.resolve(genome);
+			const models = fakeStore();
+			models.save.mockRejectedValue(new Error("EACCES: permission denied"));
+			const trainer = new Trainer(dataBuffer, {
+				settings: TEST_TRAINING_SETTINGS,
+				models,
+			});
+			feedCandles(dataBuffer, "BTCUSDT", 100);
+
+			const result = await trainer.train(TradingSymbol.of("BTCUSDT"));
+
+			expect(result.success).toBe(true);
+			expect(trainer.getBestAgentSummary()).not.toBeNull();
+		});
 	});
 });

@@ -8,8 +8,9 @@ jest.mock("../../../src/domain/agent/trading-agent", () => {
 		getWeights: jest.fn(() => new Float32Array([0.1, 0.2])),
 		setWeights: jest.fn(),
 		getExperiencePool: jest.fn(() => []),
-		learnQLearning: jest.fn(),
-		step: jest.fn(() => ({ reward: 1 })),
+		remember: jest.fn(),
+		replay: jest.fn(() => 0),
+		step: jest.fn(() => ({ reward: 1, actionIndex: 0 })),
 		resetEpisode: jest.fn(),
 		wallet: {
 			getPnL: jest.fn(() => 50),
@@ -264,17 +265,22 @@ describe("makeTradingAgentBackend", () => {
 		expect(result.reward).toBe(1);
 	});
 
-	it("should call train without throwing", () => {
+	it("should store and replay a transition without throwing", () => {
 		const genome = getMinimalGenome();
 		const backend = makeTradingAgentBackend(genome as any);
-		const experience = {
-			input: new Float32Array([0.5, 0.5, 0.5]),
-			output: new Float32Array([0.1, 0.2, 0.3]),
-			reward: 1,
-			nextState: new Float32Array([0.6, 0.6, 0.6]),
-			done: false,
-		};
-		expect(() => backend.train(experience as any, 0.99)).not.toThrow();
+		const features = FeatureVector.fromFloat32Array(
+			new Float32Array([0.5, 0.5, 0.5])
+		);
+		expect(() => {
+			backend.remember({
+				state: features,
+				action: 1,
+				reward: 1,
+				nextState: features,
+				done: false,
+			});
+			backend.replay(1, 0.99);
+		}).not.toThrow();
 	});
 
 	it("should get and set weights", () => {
@@ -295,13 +301,6 @@ describe("makeTradingAgentBackend", () => {
 		const genome = getMinimalGenome();
 		const backend = makeTradingAgentBackend(genome as any);
 		expect(() => backend.resetEpisode()).not.toThrow();
-	});
-
-	it("should get experience pool", () => {
-		const genome = getMinimalGenome();
-		const backend = makeTradingAgentBackend(genome as any);
-		const pool = backend.getExperiencePool();
-		expect(Array.isArray(pool)).toBe(true);
 	});
 });
 
@@ -375,8 +374,9 @@ describe("GeneticAlgorithmRunner", () => {
 		forwardPass: jest.fn(
 			(_f: Float32Array) => new Float32Array([0.5, 0.5, 0.5])
 		),
-		step: jest.fn(() => ({ reward: 1 })),
-		train: jest.fn(),
+		step: jest.fn(() => ({ reward: 1, action: 0 })),
+		remember: jest.fn(),
+		replay: jest.fn(),
 		getWeights: jest.fn(() => new Float32Array([0.1, 0.2])),
 		setWeights: jest.fn(),
 		getPnL: jest.fn(() => 50),
@@ -595,8 +595,9 @@ describe("GeneticAlgorithmRunner", () => {
 describe("full GA loop", () => {
 	it("should run full GA loop successfully", async () => {
 		const mockBackendFactory = () => ({
-			step: jest.fn(() => ({ reward: 1 })),
-			train: jest.fn(),
+			step: jest.fn(() => ({ reward: 1, action: 0 })),
+			remember: jest.fn(),
+			replay: jest.fn(),
 			getWeights: jest.fn(() => new Float32Array([0.1, 0.2])),
 			setWeights: jest.fn(),
 			getPnL: jest.fn(() => 50),
@@ -663,8 +664,9 @@ describe("full GA loop", () => {
 		const mockBackendFactory = () => {
 			const id = factoryCallCount++;
 			return {
-				step: jest.fn(() => ({ reward: 1 })),
-				train: jest.fn(),
+				step: jest.fn(() => ({ reward: 1, action: 0 })),
+				remember: jest.fn(),
+				replay: jest.fn(),
 				getWeights: jest.fn(() => new Float32Array([0.1, 0.2, 0.3])),
 				setWeights: jest.fn(),
 				getPnL: jest.fn(() => 50 + id * 10),
@@ -748,8 +750,9 @@ describe("full GA loop", () => {
 				},
 			],
 			backendFactory: (() => ({
-				step: jest.fn(() => ({ reward: 1 })),
-				train: jest.fn(),
+				step: jest.fn(() => ({ reward: 1, action: 0 })),
+				remember: jest.fn(),
+				replay: jest.fn(),
 				getWeights: jest.fn(() => new Float32Array([0.1, 0.2])),
 				setWeights: jest.fn(),
 				getPnL: jest.fn(() => 50),
@@ -791,8 +794,9 @@ describe("full GA loop", () => {
 				},
 			],
 			backendFactory: (() => ({
-				step: jest.fn(() => ({ reward: 1 })),
-				train: jest.fn(),
+				step: jest.fn(() => ({ reward: 1, action: 0 })),
+				remember: jest.fn(),
+				replay: jest.fn(),
 				getWeights: jest.fn(() => new Float32Array([0.1, 0.2])),
 				setWeights: jest.fn(),
 				getPnL: jest.fn(() => 50),
@@ -834,8 +838,9 @@ describe("full GA loop", () => {
 				},
 			],
 			backendFactory: (() => ({
-				step: jest.fn(() => ({ reward: 1 })),
-				train: jest.fn(),
+				step: jest.fn(() => ({ reward: 1, action: 0 })),
+				remember: jest.fn(),
+				replay: jest.fn(),
 				getWeights: jest.fn(() => new Float32Array([0.1, 0.2])),
 				setWeights: jest.fn(),
 				getPnL: jest.fn(() => 50),
@@ -857,11 +862,12 @@ describe("full GA loop", () => {
 		expect(result).toBeDefined();
 	});
 
-	it("should call backend.train when pool has entries", async () => {
+	it("should replay transitions while training", async () => {
 		const trainMock = jest.fn();
 		const mockBackendFactory = () => ({
-			step: jest.fn(() => ({ reward: 1 })),
-			train: trainMock,
+			step: jest.fn(() => ({ reward: 1, action: 0 })),
+			remember: jest.fn(),
+			replay: trainMock,
 			getWeights: jest.fn(() => new Float32Array([0.1, 0.2])),
 			setWeights: jest.fn(),
 			getPnL: jest.fn(() => 50),

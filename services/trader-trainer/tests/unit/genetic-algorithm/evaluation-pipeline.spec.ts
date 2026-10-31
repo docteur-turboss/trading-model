@@ -8,7 +8,6 @@ import {
 } from "../../../src/domain/genetic-algorithm/evaluation-pipeline";
 import {
 	ActivationType,
-	ContinuousPolicyType,
 	CrossoverType,
 	FitnessType,
 	MutationAdaptation,
@@ -37,13 +36,6 @@ const MINIMAL_GENOME = {
 			epsilonStart: 1.0,
 			epsilonMin: 0.01,
 			epsilonDecay: 0.995,
-			temperature: 1.0,
-		},
-		continuousPolicy: {
-			type: ContinuousPolicyType.ActionClipping,
-			clipBounds: new NumericRange(-1, 1),
-			noiseStd: 0.1,
-			noiseDecay: 0.995,
 		},
 		replayBuffer: {
 			bufferSize: 128,
@@ -128,29 +120,32 @@ function makeMockBackend(poolSize: number): RLBackend {
 		forwardPass: jest.fn(
 			(_f: FeatureVector) => new Float32Array([0.5, 0.5, 0.5])
 		),
-		step: jest.fn(() => ({ reward: 1 })),
-		train: jest.fn(),
+		step: jest.fn(() => ({ reward: 1, action: 0 })),
+		remember: jest.fn(),
+		replay: jest.fn(),
 		getWeights: jest.fn(() => new Float32Array([0.1, 0.2])),
 		setWeights: jest.fn(),
 		getPnL: jest.fn(() => Cash.of(50)),
 		resetEpisode: jest.fn(),
-		getExperiencePool: jest.fn(() => pool),
 	};
 }
 
 describe("evaluateGenomeAllWindows", () => {
-	it("should call backend.train when pool has >= 2 entries", async () => {
+	it("should replay transitions while training", async () => {
+		// nStepReturn is 3: the first transition needs 3 rewards, so 5 bars
 		const windowSets = [
 			{
 				id: "w1",
-				train: [makeStep([0.1, 0.2, 0.3]), makeStep([0.4, 0.5, 0.6])],
+				train: Array.from({ length: 5 }, (_u, i) =>
+					makeStep([i * 0.1, 0.2, 0.3])
+				),
 				validation: [makeStep([0.7, 0.8, 0.9])],
 			},
 		];
 		const trainMock = jest.fn();
 		const backendFactory = jest.fn(() => ({
 			...makeMockBackend(2),
-			train: trainMock,
+			replay: trainMock,
 		}));
 		await evaluateGenomeAllWindows(
 			MINIMAL_GENOME as any,
@@ -261,18 +256,18 @@ describe("evaluateGenomeAllWindows", () => {
 		expect(result.objectives.negFlops).toBeLessThan(0);
 	});
 
-	it("should skip training when pool has fewer than 2 entries", async () => {
+	it("should store nothing from a single training bar (no price follows it)", async () => {
 		const windowSets = [
 			{
 				id: "w1",
-				train: [makeStep([0.1, 0.2, 0.3]), makeStep([0.4, 0.5, 0.6])],
+				train: [makeStep([0.1, 0.2, 0.3])],
 				validation: [makeStep([0.7, 0.8, 0.9])],
 			},
 		];
 		const trainMock = jest.fn();
 		const backendFactory = jest.fn(() => ({
 			...makeMockBackend(1),
-			train: trainMock,
+			replay: trainMock,
 		}));
 		const result = await evaluateGenomeAllWindows(
 			MINIMAL_GENOME as any,

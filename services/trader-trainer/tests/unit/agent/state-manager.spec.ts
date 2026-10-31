@@ -172,14 +172,15 @@ describe("StateManager", () => {
 			}
 		});
 
-		it("should fallback to distributeAroundWeights when genome length mismatches", () => {
+		it("should reject a genome whose length does not match the network", () => {
 			const sm = new StateManager();
 			const agent = makeAgent();
-			const wrongGenome = new Float32Array(5);
+			const weightsBefore = agent.nn.getWeights();
 
-			sm.initialiseFromGenome(agent, wrongGenome);
-
-			expect(agent.nn.parameterCount()).toBeGreaterThan(0);
+			expect(() => sm.initialiseFromGenome(agent, new Float32Array(5))).toThrow(
+				"Buffer length mismatch"
+			);
+			expect(agent.nn.getWeights()).toEqual(weightsBefore);
 		});
 	});
 });

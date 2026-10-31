@@ -1,21 +1,19 @@
 import { afterEach, describe, expect, it, jest } from "@jest/globals";
-import { Price, type Reward } from "@trading-model/primitives/primitives";
+import { Price } from "@trading-model/primitives/primitives";
 import { FeatureVector } from "../../../src/domain/feature-vector";
+import { FEATURE_DIM } from "../../../src/domain/feature-vector-codec";
 import type { MarketStep } from "../../../src/domain/genetic-algorithm/genome-types";
 import { makePRNG } from "../../../src/domain/genetic-algorithm/prng";
 import {
 	makeSeededBackendFactory,
 	makeTradingAgentBackend,
 	type RLBackend,
+	type Transition,
 } from "../../../src/domain/genetic-algorithm/rl-backend";
 import { trainPhase } from "../../../src/domain/genetic-algorithm/training-phase";
-import {
-	ExperienceKind,
-	type QLearningExperience,
-} from "../../../src/domain/neural-network/type";
 import { makeMinimalBestGenome } from "../../fixtures/genome.fixture";
 
-const INPUT_DIM = 32;
+const INPUT_DIM = FEATURE_DIM;
 
 function makeFeatures(seed: number): FeatureVector {
 	const rng = makePRNG(seed);
@@ -75,32 +73,39 @@ describe("makeTradingAgentBackend", () => {
 		const GAMMA = 0.9;
 		const ACTION = 1;
 
-		function makeTransition(
-			backend: RLBackend,
-			done: boolean
-		): QLearningExperience {
-			const state = makeFeatures(1);
+		const STATE = makeFeatures(1);
+		const NEXT = makeFeatures(2);
+
+		/** Network input of a flat agent (no position: exposure -1). */
+		function flatInput(features: FeatureVector): Float32Array {
+			return Float32Array.of(...features.toFloat32Array(), -1);
+		}
+
+		function makeTransition(done: boolean): Transition {
 			return {
-				kind: ExperienceKind.QLearning,
-				input: state.toFloat32Array(),
-				output: backend.forwardPass(state).slice(),
-				reward: 2 as unknown as Reward,
-				nextState: makeFeatures(2).toFloat32Array(),
-				done,
+				state: flatInput(STATE),
 				action: ACTION,
+				reward: 2,
+				nextState: flatInput(NEXT),
+				done,
 			};
 		}
 
-		/** |r + γ·max Q(s′) − Q(s, a)|, with the bootstrap dropped when done. */
-		function tdError(backend: RLBackend, exp: QLearningExperience): number {
-			const qState = backend.forwardPass(
-				FeatureVector.fromFloat32Array(exp.input)
-			);
-			const qNext = backend.forwardPass(
-				FeatureVector.fromFloat32Array(exp.nextState)
-			);
+		/**
+		 * |r + γ·max Q(s′) − Q(s, a)|, with the bootstrap dropped when done
+		 * (the backend never trades here, so it stays flat).
+		 */
+		function tdError(backend: RLBackend, exp: Transition): number {
+			const qState = backend.forwardPass(STATE);
+			const qNext = backend.forwardPass(NEXT);
 			const bootstrap = exp.done ? 0 : GAMMA * Math.max(...qNext);
 			return Math.abs(exp.reward + bootstrap - qState[exp.action]);
+		}
+
+		/** Stores the transition and replays it alone. */
+		function learn(backend: RLBackend, exp: Transition): void {
+			backend.remember(exp);
+			backend.replay(1, GAMMA);
 		}
 
 		it.each([
@@ -108,11 +113,11 @@ describe("makeTradingAgentBackend", () => {
 			false,
 		])("should change the weights and shrink the TD error (done=%p)", (done) => {
 			const backend = makeTradingAgentBackend(genome, makePRNG(21));
-			const exp = makeTransition(backend, done);
+			const exp = makeTransition(done);
 			const weightsBefore = backend.getWeights().slice();
 			const errorBefore = tdError(backend, exp);
 
-			backend.train(exp, GAMMA);
+			learn(backend, exp);
 
 			expect(backend.getWeights()).not.toEqual(weightsBefore);
 			expect(tdError(backend, exp)).toBeLessThan(errorBefore);
@@ -120,11 +125,11 @@ describe("makeTradingAgentBackend", () => {
 
 		it("should only move Q(s, ·) on the played action", () => {
 			const backend = makeTradingAgentBackend(genome, makePRNG(21));
-			const exp = makeTransition(backend, true);
-			const state = FeatureVector.fromFloat32Array(exp.input);
+			const exp = makeTransition(true);
+			const state = STATE;
 			const before = backend.forwardPass(state).slice();
 
-			backend.train(exp, GAMMA);
+			learn(backend, exp);
 
 			const after = backend.forwardPass(state);
 			const moved = [...after].map((q, idx) => Math.abs(q - before[idx]));
@@ -159,61 +164,45 @@ describe("makeTradingAgentBackend", () => {
 
 			expect(heir.getWeights()).toEqual(trainedWeights);
 		});
+
+		it("keeps its own initialisation when the trained weights fit another topology", () => {
+			const fresh = makeTradingAgentBackend(genome, makePRNG(7));
+			// A parent whose network had other layer sizes (mutation, crossover).
+			const parentWeights = Array.from(
+				{ length: fresh.getWeights().length + 13 },
+				() => 0.5
+			);
+
+			const child = makeTradingAgentBackend(
+				{ ...genome, trainedWeights: parentWeights },
+				makePRNG(7)
+			);
+
+			expect(child.getWeights()).toEqual(fresh.getWeights());
+		});
 	});
 
-	describe("replay", () => {
+	describe("training replay", () => {
 		const MARKET = makeMarket(40);
-		const REWARDS = Float32Array.from(MARKET, (_, idx) => Math.cos(idx) / 2);
 
-		// Without a continuous policy type the backend explores a discrete
-		// action space, where ε-greedy picks decide which Q-value is trained.
-		const DISCRETE_GENOME = {
-			...genome,
-			rl: {
-				...genome.rl,
-				continuousPolicy: { ...genome.rl.continuousPolicy, type: undefined },
-			},
-		} as unknown as typeof genome;
-
-		function trainedWeightsHash(
-			seed: number,
-			trainedGenome: typeof genome = genome
-		): string {
-			const backend = makeTradingAgentBackend(trainedGenome, makePRNG(seed));
-			trainPhase({
-				backend,
-				trainData: MARKET,
-				rewardBuf: REWARDS,
-				genome: trainedGenome,
-			});
+		function trainedWeightsHash(seed: number): string {
+			const backend = makeTradingAgentBackend(genome, makePRNG(seed));
+			trainPhase({ backend, trainData: MARKET, genome });
 			return hashWeights(backend.getWeights());
 		}
 
-		it.each([
-			["continuous", genome],
-			["discrete", DISCRETE_GENOME],
-		])("%s: should reach the same weights after K training steps with the same seed", (_space, trainedGenome) => {
-			expect(trainedWeightsHash(13, trainedGenome)).toBe(
-				trainedWeightsHash(13, trainedGenome)
-			);
+		it("should reach the same weights after K training steps with the same seed", () => {
+			expect(trainedWeightsHash(13)).toBe(trainedWeightsHash(13));
 		});
 
-		it.each([
-			["continuous", genome],
-			["discrete", DISCRETE_GENOME],
-		])("%s: should reach different weights with a different seed", (_space, trainedGenome) => {
-			expect(trainedWeightsHash(13, trainedGenome)).not.toBe(
-				trainedWeightsHash(14, trainedGenome)
-			);
+		it("should reach different weights with a different seed", () => {
+			expect(trainedWeightsHash(13)).not.toBe(trainedWeightsHash(14));
 		});
 
-		it.each([
-			["continuous", genome],
-			["discrete", DISCRETE_GENOME],
-		])("%s: should not draw from Math.random while training a seeded backend", (_space, trainedGenome) => {
+		it("should not draw from Math.random while training a seeded backend", () => {
 			const spy = jest.spyOn(Math, "random");
 
-			trainedWeightsHash(13, trainedGenome);
+			trainedWeightsHash(13);
 
 			expect(spy).not.toHaveBeenCalled();
 		});

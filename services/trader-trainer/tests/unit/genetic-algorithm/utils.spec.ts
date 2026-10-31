@@ -112,3 +112,32 @@ describe("EpisodeScores - sharpe", () => {
 		expect(scores.sharpe()).toBeGreaterThan(0);
 	});
 });
+
+describe("EpisodeScores - maxDrawdown", () => {
+	test("should be 0 without episodes or without a fall", () => {
+		expect(new EpisodeScores([]).maxDrawdown()).toBe(0);
+		expect(new EpisodeScores([1, 2, 0, 3]).maxDrawdown()).toBe(0);
+	});
+
+	test("should be the largest fall of the cumulative score from its peak", () => {
+		// cumulative: 3, -2, 0, -4, 6 -> peak 3, trough -4
+		expect(new EpisodeScores([3, -5, 2, -4, 10]).maxDrawdown()).toBe(7);
+	});
+
+	test("should count from the first episode, not from zero", () => {
+		expect(new EpisodeScores([-5]).maxDrawdown()).toBe(0);
+		expect(new EpisodeScores([-5, -2]).maxDrawdown()).toBe(2);
+	});
+});
+
+describe("EpisodeScores - calmar", () => {
+	test("should divide the mean by the max drawdown", () => {
+		const scores = new EpisodeScores([3, -5, 2, -4, 10]);
+		expect(scores.calmar()).toBeCloseTo(scores.mean() / 7);
+	});
+
+	test("should return the mean without a drawdown", () => {
+		expect(new EpisodeScores([1, 2, 3]).calmar()).toBe(2);
+		expect(new EpisodeScores([]).calmar()).toBe(0);
+	});
+});

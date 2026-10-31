@@ -269,10 +269,8 @@ describe("Mutation - mutateGenome", () => {
 		expect(mutated.rl.discretePolicy.epsilonMin).toBeLessThanOrEqual(0.2);
 		expect(mutated.rl.discretePolicy.epsilonDecay).toBeGreaterThanOrEqual(0.9);
 		expect(mutated.rl.discretePolicy.epsilonDecay).toBeLessThanOrEqual(0.9999);
-		expect(mutated.rl.discretePolicy.temperature).toBeGreaterThanOrEqual(0.01);
-		expect(mutated.rl.continuousPolicy.noiseStd).toBeGreaterThanOrEqual(0.001);
-		expect(mutated.rl.continuousPolicy.noiseDecay).toBeGreaterThanOrEqual(0.9);
-		expect(mutated.rl.continuousPolicy.noiseDecay).toBeLessThanOrEqual(0.9999);
+		expect(mutated.rl.replayBuffer.batchSize).toBeGreaterThanOrEqual(1);
+		expect(mutated.rl.replayBuffer.batchSize).toBeLessThanOrEqual(64);
 		expect(mutated.rl.replayBuffer.alphaPER).toBeGreaterThanOrEqual(0);
 		expect(mutated.rl.replayBuffer.alphaPER).toBeLessThanOrEqual(1);
 		expect(mutated.rl.replayBuffer.betaPER).toBeGreaterThanOrEqual(0);

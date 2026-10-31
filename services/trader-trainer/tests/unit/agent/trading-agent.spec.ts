@@ -7,7 +7,6 @@ import {
 	jest,
 } from "@jest/globals";
 import { Cash, Price, Volume } from "@trading-model/primitives/primitives";
-import { ActionSpace } from "../../../src/domain/agent/action-types";
 import type { TradingAgentConfig } from "../../../src/domain/agent/trading-agent";
 import { TradingAgent } from "../../../src/domain/agent/trading-agent";
 import {
@@ -24,7 +23,8 @@ function makeConfig(
 ): TradingAgentConfig {
 	return {
 		nnConfig: {
-			neuronsByLayer: [4, 6, 3],
+			// 4 market features + the agent state (exposure)
+			neuronsByLayer: [5, 6, 3],
 			activationType: [ActivationType.Relu, ActivationType.Sigmoid],
 			initialisationType: InitialisationType.Zeros,
 			lossFunctionType: LossFunctionType.MeanSquaredError,
@@ -35,7 +35,6 @@ function makeConfig(
 			poolMaxSize: 100,
 		},
 		wallet: { initialCash: Cash.of(1000), initialPrice: Price.of(100) },
-		actionSpace: ActionSpace.Discrete,
 		tradeAmount: Volume.of(1),
 		stateManagerCfg: {
 			epsilonStart: 0,
@@ -44,6 +43,18 @@ function makeConfig(
 			gamma: 0.99,
 		},
 		...overrides,
+	};
+}
+
+function transition() {
+	return {
+		kind: ExperienceKind.QLearning as const,
+		input: new Float32Array([0.5, -0.3, 0.1, 0.8, -1]),
+		output: new Float32Array(0),
+		reward: 1 as never,
+		nextState: new Float32Array([0.1, 0.2, 0.3, 0.9, -1]),
+		done: false,
+		action: 2,
 	};
 }
 
@@ -72,19 +83,6 @@ describe("TradingAgent", () => {
 			expect(result).toHaveProperty("output");
 			expect(result.output).toBeInstanceOf(Float32Array);
 			expect(result.output.length).toBe(3);
-		});
-
-		it("should delegate learnQLearning to underlying agent", () => {
-			const exp = {
-				kind: ExperienceKind.QLearning as const,
-				input: new Float32Array([0.5, -0.3, 0.1, 0.8]),
-				output: new Float32Array([0.1, 0.2, 0.3]),
-				reward: 1,
-				nextState: new Float32Array([0.1, 0.2, 0.3, 0.9]),
-				done: false,
-				action: 0,
-			};
-			expect(() => agent.learnQLearning(exp, 0.99)).not.toThrow();
 		});
 
 		it("should initialise wallet with given cash and price", () => {
@@ -148,60 +146,11 @@ describe("TradingAgent", () => {
 			const output = new Float32Array([0.0, 0.0, 1.0]);
 
 			const result = agentWithAmount.mapOutputToAction(output, {
-				nnConfig: { neuronsByLayer: [4, 6, 3] },
+				nnConfig: { neuronsByLayer: [5, 6, 3] },
 				tradeAmount: Volume.of(5),
 			});
 
 			expect(result.amount).toBe(5);
-		});
-
-		it("should return buy for positive continuous output", () => {
-			const output = new Float32Array([0.5]);
-
-			const result = agent.mapOutputToAction(output, {
-				nnConfig: { neuronsByLayer: [4, 6, 3] },
-				actionSpace: ActionSpace.Continuous,
-				tradeAmount: Volume.of(2),
-			});
-
-			expect(result.action).toBe("buy");
-			expect(result.amount).toBe(1);
-			expect(result.outputIndex).toBe(0);
-		});
-
-		it("should return hold for near-zero continuous output", () => {
-			const output = new Float32Array([0.0]);
-
-			const result = agent.mapOutputToAction(output, {
-				nnConfig: { neuronsByLayer: [4, 6, 3] },
-				actionSpace: ActionSpace.Continuous,
-				tradeAmount: Volume.of(1),
-			});
-
-			expect(result.action).toBe("hold");
-		});
-
-		it("should return sell for negative continuous output", () => {
-			const output = new Float32Array([-0.5]);
-
-			const result = agent.mapOutputToAction(output, {
-				nnConfig: { neuronsByLayer: [4, 6, 3] },
-				actionSpace: ActionSpace.Continuous,
-				tradeAmount: Volume.of(2),
-			});
-
-			expect(result.action).toBe("sell");
-		});
-
-		it("should handle empty output array in continuous action space", () => {
-			const output = new Float32Array([]);
-
-			const result = agent.mapOutputToAction(output, {
-				nnConfig: { neuronsByLayer: [4, 6, 3] },
-				actionSpace: ActionSpace.Continuous,
-			});
-
-			expect(result.action).toBe("hold");
 		});
 	});
 
@@ -223,17 +172,38 @@ describe("TradingAgent", () => {
 				.mockReturnValueOnce(0)
 				.mockReturnValueOnce(0.9);
 
-			explorer.step(new Float32Array([0.5, -0.3, 0.1, 0.8]), Price.of(105));
+			const result = explorer.step(
+				new Float32Array([0.5, -0.3, 0.1, 0.8]),
+				Price.of(105)
+			);
 
-			const [recorded] = explorer.getExperiencePool();
-			expect(recorded).toMatchObject({ kind: ExperienceKind.Bare, action: 2 });
+			expect(result.actionIndex).toBe(2);
 		});
 
-		it("should record the greedy action when not exploring", () => {
-			agent.step(new Float32Array([0.5, -0.3, 0.1, 0.8]), Price.of(105));
+		it("should return the greedy action when not exploring", () => {
+			const result = agent.step(
+				new Float32Array([0.5, -0.3, 0.1, 0.8]),
+				Price.of(105)
+			);
 
-			const [recorded] = agent.getExperiencePool();
-			expect(recorded).toMatchObject({ action: 0 });
+			expect(result.actionIndex).toBe(0);
+		});
+
+		it("should pay a decision with the price move that follows it", () => {
+			const input = new Float32Array([0.5, -0.3, 0.1, 0.8]);
+			const buyer = new TradingAgent(makeConfig());
+			jest
+				.spyOn((buyer as any)._agent.nn, "forward")
+				.mockReturnValue({ output: new Float32Array([0, 0, 1]) });
+
+			const first = buyer.step(input, Price.of(100));
+			const second = buyer.step(input, Price.of(110));
+
+			// nothing was decided before the first step
+			expect(first.reward).toBe(0);
+			// the unit bought at 100 gained 10, less what buying it cost
+			expect(second.reward).toBeGreaterThan(9);
+			expect(second.reward).toBeLessThanOrEqual(10);
 		});
 
 		it("should update wallet price when price is provided", () => {
@@ -286,15 +256,14 @@ describe("TradingAgent", () => {
 
 		it("should execute a buy action when discrete output has highest value at index 2", () => {
 			const buf = new Float32Array(agent.parameterCount());
-			buf[24] = 1;
-			buf[25] = 1;
-			buf[26] = 1;
-			buf[27] = 1;
-			buf[28] = 1;
-			buf[29] = 1;
-			buf[48] = -5;
-			buf[49] = -5;
-			buf[50] = 5;
+			// 5 inputs x 6 hidden weights, then the 6 hidden biases
+			for (let idx = 30; idx < 36; idx++) {
+				buf[idx] = 1;
+			}
+			// then 6 x 3 output weights, then the 3 output biases
+			buf[54] = -5;
+			buf[55] = -5;
+			buf[56] = 5;
 			agent.setWeights(buf);
 
 			const result = agent.step(
@@ -325,12 +294,105 @@ describe("TradingAgent", () => {
 			expect(agent.state.getEpsilon()).toBe(0);
 		});
 
-		it("should clear the neural network pool", () => {
-			agent.step(new Float32Array([0.5, -0.3, 0.1, 0.8]), Price.of(105));
+		it("should clear the replay buffer", () => {
+			agent.remember(transition());
 
 			agent.resetEpisode();
 
 			expect(agent.getExperiencePool().length).toBe(0);
+		});
+
+		it("should not carry the last decision's reward into the next episode", () => {
+			const input = new Float32Array([0.5, -0.3, 0.1, 0.8]);
+			agent.step(input, Price.of(105));
+
+			agent.resetEpisode();
+
+			expect(agent.step(input, Price.of(150)).reward).toBe(0);
+		});
+	});
+
+	describe("trade size", () => {
+		function trader(output: number[]) {
+			const agent = new TradingAgent(makeConfig({ tradeFraction: 0.1 }));
+			jest
+				.spyOn((agent as any)._agent.nn, "forward")
+				.mockReturnValue({ output: new Float32Array(output) });
+			return agent;
+		}
+		const input = new Float32Array([0.5, -0.3, 0.1, 0.8]);
+
+		it("buys a tenth of the initial cash even when one unit costs more than the cash", () => {
+			const agent = trader([0, 0, 1]);
+
+			agent.step(input, Price.of(77_000));
+
+			expect(Number(agent.wallet.getPosition())).toBeCloseTo(100 / 77_000, 8);
+		});
+
+		it("never sells more than the position", () => {
+			const agent = trader([0, 0, 1]);
+			agent.step(input, Price.of(100));
+			jest
+				.spyOn((agent as any)._agent.nn, "forward")
+				.mockReturnValue({ output: new Float32Array([1, 0, 0]) });
+
+			// one unit was bought at 100; at 50 a tenth of the cash is 2 units
+			const sale = agent.step(input, Price.of(50));
+
+			expect(sale.action).toBe("sell");
+			expect(Number(agent.wallet.getPosition())).toBe(0);
+		});
+	});
+
+	describe("agent state", () => {
+		it("shows the network its exposure, -1 flat and higher once invested", () => {
+			const input = new Float32Array([0.5, -0.3, 0.1, 0.8]);
+			const buyer = new TradingAgent(makeConfig());
+			jest
+				.spyOn((buyer as any)._agent.nn, "forward")
+				.mockReturnValue({ output: new Float32Array([0, 0, 1]) });
+
+			const flat = buyer.step(input, Price.of(100));
+			const invested = buyer.step(input, Price.of(100));
+
+			expect(Array.from(flat.state.slice(0, 4))).toEqual(Array.from(input));
+			expect(flat.state[4]).toBe(-1);
+			// one unit of 100 out of 1000: exposure 0.1, centred to -0.8
+			expect(invested.state[4]).toBeCloseTo(-0.8, 2);
+		});
+
+		it("feeds a constant instead when the position is hidden", () => {
+			const input = new Float32Array([0.5, -0.3, 0.1, 0.8]);
+			const buyer = new TradingAgent(makeConfig({ observePosition: false }));
+			jest
+				.spyOn((buyer as any)._agent.nn, "forward")
+				.mockReturnValue({ output: new Float32Array([0, 0, 1]) });
+
+			buyer.step(input, Price.of(100));
+			const invested = buyer.step(input, Price.of(100));
+
+			expect(Number(buyer.wallet.getPosition())).toBeGreaterThan(0);
+			expect(invested.state[4]).toBe(-1);
+		});
+	});
+
+	describe("replay", () => {
+		it("should not train before the buffer holds a full batch", () => {
+			const before = agent.getWeights().slice();
+			agent.remember(transition());
+
+			expect(agent.replay(2, 0.99)).toBe(0);
+			expect(agent.getWeights()).toEqual(before);
+		});
+
+		it("should train on a sampled batch once the buffer holds one", () => {
+			const before = agent.getWeights().slice();
+			agent.remember(transition());
+			agent.remember(transition());
+
+			expect(agent.replay(2, 0.99)).toBe(2);
+			expect(agent.getWeights()).not.toEqual(before);
 		});
 	});
 });

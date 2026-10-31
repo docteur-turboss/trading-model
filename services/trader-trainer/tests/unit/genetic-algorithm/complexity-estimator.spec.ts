@@ -6,7 +6,6 @@ import {
 } from "../../../src/domain/genetic-algorithm/complexity-estimator";
 import {
 	ActivationType,
-	ContinuousPolicyType,
 	CrossoverType,
 	FitnessType,
 	MutationAdaptation,
@@ -33,13 +32,6 @@ describe("estimateComplexity", () => {
 				epsilonStart: 1.0,
 				epsilonMin: 0.01,
 				epsilonDecay: 0.995,
-				temperature: 1.0,
-			},
-			continuousPolicy: {
-				type: ContinuousPolicyType.ActionClipping,
-				clipBounds: new NumericRange(-1, 1),
-				noiseStd: 0.1,
-				noiseDecay: 0.995,
 			},
 			replayBuffer: {
 				bufferSize: 128,
@@ -183,6 +175,12 @@ describe("computeAdjustedFitness", () => {
 		const complexity = { inferenceFLOPs: 1000, penalty: 0.1 };
 		const adjusted = computeAdjustedFitness(fitness, complexity);
 		expect(adjusted).toBe(100 * (1 - 0.15 * 0.1));
+	});
+
+	it("should lower a negative fitness instead of raising it", () => {
+		const complexity = { inferenceFLOPs: 1000, penalty: 0.5 };
+		const adjusted = computeAdjustedFitness(-100, complexity, 0.2);
+		expect(adjusted).toBe(-110);
 	});
 
 	it("should return same fitness when penalty is zero", () => {
