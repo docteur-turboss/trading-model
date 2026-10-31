@@ -86,14 +86,6 @@ import {
 	Version,
 } from "../../../src/primitives/general-ids";
 import {
-	fromJobId,
-	fromJobType,
-	JobId,
-	JobType,
-	toJobId,
-	toJobType,
-} from "../../../src/primitives/job-ids";
-import {
 	CorrelationId,
 	fromCorrelationId,
 	fromMessageId,
@@ -330,17 +322,6 @@ describe("MessageId", () => {
 	});
 });
 
-describe("JobId", () => {
-	it("should create and convert", () => {
-		expect(JobId.of("job-001")).toBe("job-001");
-		expect(toJobId("job-001")).toBe("job-001");
-		expect(fromJobId("job-001" as never)).toBe("job-001");
-	});
-	it("should throw for empty string", () => {
-		expect(() => JobId.of("")).toThrow(RangeError);
-	});
-});
-
 describe("SerialNumber", () => {
 	it("should create and convert", () => {
 		expect(SerialNumber.of("SN-12345")).toBe("SN-12345");
@@ -371,17 +352,6 @@ describe("Version", () => {
 	});
 	it("should throw for empty string", () => {
 		expect(() => Version.of("")).toThrow(RangeError);
-	});
-});
-
-describe("JobType", () => {
-	it("should create and convert", () => {
-		expect(JobType.of("training")).toBe("training");
-		expect(toJobType("training")).toBe("training");
-		expect(fromJobType("training" as never)).toBe("training");
-	});
-	it("should throw for empty string", () => {
-		expect(() => JobType.of("")).toThrow(RangeError);
 	});
 });
 
