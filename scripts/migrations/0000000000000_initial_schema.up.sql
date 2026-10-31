@@ -32,6 +32,7 @@ CREATE TABLE IF NOT EXISTS `market_trades` (
     `side`        ENUM('buy', 'sell') NOT NULL,
     `timestamp`   DATETIME(3) NOT NULL,
     PRIMARY KEY (`symbol`, `market`, `source`, `trade_id`, `timestamp`),
+    INDEX `idx_trades_id` (`id`),
     INDEX `idx_trades_timestamp` (`timestamp` ASC) INVISIBLE,
     INDEX `idx_trades_symbol` (`symbol` ASC) VISIBLE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
