@@ -1,6 +1,7 @@
 import { validateEnv } from "@trading-model/validation/application/services/validate-env";
 import { AddressManagerEnvSchema } from "@trading-model/validation/config/address-manager-env";
 import { BaseEnvSchema } from "@trading-model/validation/config/env";
+import { RedisEnvSchema } from "@trading-model/validation/config/redis-env";
 import { z } from "zod";
 import { MongoUriSchema } from "./mongo-uri";
 
@@ -22,12 +23,16 @@ const AUDIT_LOGGER_ENV_SHAPE = {
 		.transform((value) => value === "true" || value === "1"),
 };
 
+/** Redis: the address-manager cache shared by the replicas (ADR-0029). */
 const AUDIT_LOGGER_ENV_SCHEMA = BaseEnvSchema.extend(
 	AddressManagerEnvSchema.shape
-).extend(AUDIT_LOGGER_ENV_SHAPE);
+)
+	.extend(RedisEnvSchema.shape)
+	.extend(AUDIT_LOGGER_ENV_SHAPE);
 
 export type Env = z.infer<typeof BaseEnvSchema> &
 	z.infer<typeof AddressManagerEnvSchema> &
+	z.infer<typeof RedisEnvSchema> &
 	z.infer<z.ZodObject<typeof AUDIT_LOGGER_ENV_SHAPE>>;
 
 export const ENV = validateEnv(AUDIT_LOGGER_ENV_SCHEMA) as unknown as Env;
