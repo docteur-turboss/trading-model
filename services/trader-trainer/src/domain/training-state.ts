@@ -24,8 +24,8 @@ export interface BestAgentSummary {
 	fitness: Fitness;
 	sharpe: SharpeRatio;
 	avgPnl: number;
-	negFlops: number;
-	complexityPenalty: number;
+	/** Largest fall of the cumulative evaluation PnL (`EpisodeScores.maxDrawdown`). */
+	maxDrawdown: number;
 	gaControl: {
 		populationSize: PositiveInt;
 		elitismFraction: Probability;

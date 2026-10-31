@@ -5,6 +5,7 @@ import type {
 	TickerData,
 	TradeData,
 } from "@trading-model/contracts/market-data.types";
+import type { Price } from "@trading-model/primitives/primitives";
 
 import { NormalizationStats } from "./normalization-stats";
 
@@ -49,14 +50,42 @@ export interface SymbolNormalizers {
 	ticker: TickerNormalizers;
 }
 
+/** A price ticker of one symbol, stamped when the trainer received it. */
+export interface PriceSnapshotData {
+	price: Price;
+	timestamp: number;
+}
+
+/**
+ * Everything received for a symbol, oldest first. Snapshots are kept as a
+ * history, not only the latest: a candle's features may only read what was
+ * known at its close (ADR-0030).
+ */
 export interface BaseSymbolState {
 	candles: CandleData[];
+	trades: TradeData[];
+	/** Reduced to one level per side: the features only read the averages. */
+	orderBooks: OrderBookData[];
+	bookTickers: BookTickerData[];
+	tickers24h: TickerData[];
+	prices: PriceSnapshotData[];
+}
+
+export interface SymbolState extends BaseSymbolState {
+	norm: SymbolNormalizers;
+}
+
+/**
+ * What a candle's features read: the data known at its close, normalised with
+ * statistics of that data only (ADR-0030).
+ */
+export interface FeatureState {
+	candles: CandleData[];
+	/** Trades of the lookback window ending at the candle close. */
 	trades: TradeData[];
 	orderBook?: OrderBookData;
 	bookTicker?: BookTickerData;
 	ticker24h?: TickerData;
-}
-
-export interface SymbolState extends BaseSymbolState {
+	price?: Price;
 	norm: SymbolNormalizers;
 }

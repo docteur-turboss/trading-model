@@ -4,8 +4,3 @@ export enum TradeAction {
 	Hold = "hold",
 	None = "none",
 }
-
-export enum ActionSpace {
-	Discrete = "discrete",
-	Continuous = "continuous",
-}

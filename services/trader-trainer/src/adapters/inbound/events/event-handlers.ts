@@ -8,13 +8,21 @@ import { processPrice } from "./event-processors/price-processor";
 import { processTicker } from "./event-processors/ticker-processor";
 import { processTrade } from "./event-processors/trade-processor";
 
-const EVENT_TO_HANDLER: Partial<Record<MarketEvent, DataType>> = {
+/**
+ * Single source of the topics the trainer consumes: the bootstrap registers one
+ * listener per entry and subscribes to exactly these topics, so a listener can
+ * no longer exist without its subscription (the price snapshot never arrived).
+ */
+const EVENT_TO_HANDLER = {
 	[MarketEvent.FetchCandlestickSeries]: DataType.Candle,
 	[MarketEvent.FetchRecentTrades]: DataType.Trade,
 	[MarketEvent.FetchOrderBookSnapshot]: DataType.OrderBook,
 	[MarketEvent.FetchOrderBookTickerSnapshot]: DataType.BookTicker,
 	[MarketEvent.Fetch24hrTickerStats]: DataType.Ticker,
-};
+	[MarketEvent.FetchPriceTickerSnapshot]: DataType.Price,
+} as const satisfies Partial<Record<MarketEvent, DataType>>;
+
+export type SubscribedMarketEvent = keyof typeof EVENT_TO_HANDLER;
 
 type EventProcessor = (buffer: MarketDataBuffer, data: unknown) => void;
 
@@ -38,7 +46,12 @@ export class DataEventHandler {
 		EVENT_PROCESSORS[dataType]?.(this._dataBuffer, data);
 	}
 
-	getSubscribedIntents(): MarketEvent[] {
-		return Object.keys(EVENT_TO_HANDLER) as MarketEvent[];
+	/** Handles a broker message received under one of the subscribed topics. */
+	handleEvent(event: SubscribedMarketEvent, data: unknown): void {
+		this.handle(EVENT_TO_HANDLER[event], data);
+	}
+
+	getSubscribedIntents(): SubscribedMarketEvent[] {
+		return Object.keys(EVENT_TO_HANDLER) as SubscribedMarketEvent[];
 	}
 }

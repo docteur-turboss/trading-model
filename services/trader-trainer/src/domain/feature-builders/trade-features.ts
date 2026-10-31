@@ -6,12 +6,14 @@ import type {
 	Volume,
 } from "@trading-model/primitives/primitives";
 import type { FeatureContext } from "../feature-context";
+import { candleKnownAt, TRADE_LOOKBACK_MS } from "../market-data/point-in-time";
 
-function filterRecentTrades(
-	trades: TradeData[],
-	sinceTimestamp: number
-): TradeData[] {
-	return trades.filter((trade) => trade.timestamp >= sinceTimestamp);
+/** Trades of the lookback window ending at the candle close (ADR-0030). */
+function filterRecentTrades(trades: TradeData[], close: number): TradeData[] {
+	return trades.filter(
+		(trade) =>
+			trade.timestamp > close - TRADE_LOOKBACK_MS && trade.timestamp <= close
+	);
 }
 
 function setTradeFeatures(
@@ -33,8 +35,10 @@ function setTradeFeatures(
 
 export function buildTradeFeatures(ctx: FeatureContext): void {
 	const { state, idx } = ctx;
-	const cur = state.candles[idx];
-	const recentTrades = filterRecentTrades(state.trades, cur.timestamp - 60000);
+	const recentTrades = filterRecentTrades(
+		state.trades,
+		candleKnownAt(state.candles[idx])
+	);
 	if (recentTrades.length > 0) {
 		setTradeFeatures(ctx, recentTrades);
 	}

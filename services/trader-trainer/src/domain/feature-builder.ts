@@ -8,10 +8,10 @@ import { buildTickerFeatures } from "./feature-builders/ticker-features";
 import { buildTradeFeatures } from "./feature-builders/trade-features";
 import type { FeatureBuilderContext } from "./feature-context";
 import { FeatureVector } from "./feature-vector";
-import type { SymbolState } from "./market-data-types";
+import type { FeatureState } from "./market-data-types";
 
 function initFeatures(
-	state: SymbolState,
+	state: FeatureState,
 	idx: number
 ): { features: FeatureVector; prev: CandleData | undefined } {
 	return {
@@ -21,7 +21,7 @@ function initFeatures(
 }
 
 export function buildFeatures(ctx: FeatureBuilderContext): FeatureVector {
-	const { state, idx, priceSnapshot } = ctx;
+	const { state, idx } = ctx;
 	const { features, prev } = initFeatures(state, idx);
 
 	buildCandleFeatures({ features, state, idx, prev });
@@ -29,7 +29,7 @@ export function buildFeatures(ctx: FeatureBuilderContext): FeatureVector {
 	buildBookTickerFeatures({ features, state, idx });
 	buildTradeFeatures({ features, state, idx });
 	buildTickerFeatures({ features, state, idx });
-	buildPriceSnapshotFeature({ features, state, idx, priceSnapshot });
+	buildPriceSnapshotFeature({ features, state, idx });
 	buildSlidingWindowFeatures({ features, state, idx });
 
 	features.bias = 1.0;

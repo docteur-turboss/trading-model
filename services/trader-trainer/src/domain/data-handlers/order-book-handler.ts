@@ -1,16 +1,19 @@
 import {
+	getAskTotalQty,
 	getAvgAsk,
 	getAvgBid,
+	getBidTotalQty,
 	type OrderBookData,
 } from "@trading-model/contracts/market-data.types";
+import type { SymbolState } from "../market-data-types";
 import { NormalizationStats } from "../normalization-stats";
-import type { DataHandler } from "./data-handler";
+import { type DataHandler, lastOf, pushWithMaxSize } from "./data-handler";
 import { DataType } from "./data-types";
 
 export const orderBookHandler: DataHandler<OrderBookData> = {
 	dataType: DataType.OrderBook,
 	createState() {
-		return { orderBook: undefined };
+		return { orderBooks: [] };
 	},
 	createNorms() {
 		return {
@@ -34,11 +37,20 @@ export const orderBookHandler: DataHandler<OrderBookData> = {
 			state.norm.book.spread.update(avgAsk - avgBid);
 		}
 	},
-	mutateState({ data, state }) {
-		state.orderBook = data;
+	isNew(state, orderBook) {
+		return isNewOrderBook(state, orderBook);
+	},
+	mutateState({ data, state, maxSize }) {
+		if (isNewOrderBook(state, data)) {
+			state.orderBooks = pushWithMaxSize(
+				state.orderBooks,
+				compactOrderBook(data),
+				maxSize
+			);
+		}
 	},
 	estimateMemoryBytes(state) {
-		return state.orderBook ? 5000 : 0;
+		return state.orderBooks.length * 160;
 	},
 	serializeNorms(state) {
 		return {
@@ -50,3 +62,28 @@ export const orderBookHandler: DataHandler<OrderBookData> = {
 		};
 	},
 };
+
+/**
+ * One level per side at the side's average price and total quantity: the
+ * averages and quantities the features read are unchanged, and a history of
+ * a few thousand snapshots stays small.
+ */
+export function compactOrderBook(orderBook: OrderBookData): OrderBookData {
+	return {
+		...orderBook,
+		bids: new Set([
+			{ price: getAvgBid(orderBook), quantity: getBidTotalQty(orderBook) },
+		]),
+		asks: new Set([
+			{ price: getAvgAsk(orderBook), quantity: getAskTotalQty(orderBook) },
+		]),
+	};
+}
+
+function isNewOrderBook(
+	state: Pick<SymbolState, "orderBooks">,
+	orderBook: OrderBookData
+): boolean {
+	const last = lastOf(state.orderBooks);
+	return last === undefined || orderBook.timestamp > last.timestamp;
+}

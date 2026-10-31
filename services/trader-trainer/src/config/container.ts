@@ -1,19 +1,23 @@
 import { toSymbol } from "@trading-model/primitives/primitives";
 import { DataEventHandler } from "../adapters/inbound/events/event-handlers";
 import { TrainingLoop } from "../adapters/inbound/scheduler/training-loop";
+import { FileModelArtifactStore } from "../adapters/outbound/file-model-artifact-store";
 import { ModelPublisher } from "../adapters/outbound/model-publisher";
 import { Trainer } from "../application/trainer";
 import { EvictionPolicy } from "../domain/eviction-policy";
 import type { GaTelemetry } from "../domain/genetic-algorithm/ga-telemetry";
+import type { FitnessType } from "../domain/genetic-algorithm/genome-control";
 import {
 	MarketDataBuffer,
 	type MarketDataBufferConfig,
 } from "../domain/market-data-buffer";
 import type { TradingSymbol } from "../domain/market-data-types";
+import type { ModelArtifactStorePort } from "../domain/ports/model-artifact-store.port";
 import { MessageManager } from "./message-manager";
 import {
 	CURRENT_GENERATION,
 	MARKET_DATA_BUFFER_SIZE,
+	MARKET_DATA_RECEIVED_TOTAL,
 	MARKET_DATA_SYMBOLS,
 	POPULATION_SIZE,
 	QLEARNING_TRAIN_ERRORS,
@@ -43,7 +47,11 @@ export interface AppContainerConfig {
 	populationSize: number;
 	timeBudgetMs: number;
 	episodesPerIndividual: number;
+	fitnessType: FitnessType;
+	observePosition: boolean;
 	bufferMemoryLimitMb?: number;
+	modelDir: string;
+	modelRetention: number;
 }
 
 export class ApplicationContainer {
@@ -51,6 +59,7 @@ export class ApplicationContainer {
 	public readonly dataBuffer: MarketDataBuffer;
 	public readonly eventHandler: DataEventHandler;
 	public readonly trainer: Trainer;
+	public readonly models: ModelArtifactStorePort;
 	public readonly trainingLoop: TrainingLoop;
 
 	constructor(config: AppContainerConfig) {
@@ -62,14 +71,20 @@ export class ApplicationContainer {
 			onDataAdded: (symbol, candleCount, symbolCount) => {
 				MARKET_DATA_BUFFER_SIZE.set({ symbol: String(symbol) }, candleCount);
 				MARKET_DATA_SYMBOLS.set(symbolCount);
+				MARKET_DATA_RECEIVED_TOTAL.inc();
 			},
 		};
 		this.dataBuffer = new MarketDataBuffer(bufferConfig);
 		this.eventHandler = new DataEventHandler(this.dataBuffer);
 
+		const instanceId = process.env.INSTANCE_ID ?? "trader-trainer-1";
 		const publisher = new ModelPublisher(MessageManager, {
 			trainerId: "trader-trainer",
-			instanceId: process.env.INSTANCE_ID ?? "trader-trainer-1",
+			instanceId,
+		});
+		this.models = new FileModelArtifactStore({
+			root: config.modelDir,
+			retention: config.modelRetention,
 		});
 		this.trainer = new Trainer(this.dataBuffer, {
 			settings: {
@@ -79,9 +94,13 @@ export class ApplicationContainer {
 				populationSize: config.populationSize,
 				timeBudgetMs: config.timeBudgetMs,
 				episodesPerIndividual: config.episodesPerIndividual,
+				fitnessType: config.fitnessType,
+				observePosition: config.observePosition,
 			},
 			publisher,
 			telemetry: PROMETHEUS_GA_TELEMETRY,
+			models: this.models,
+			instanceId,
 		});
 		this.trainingLoop = new TrainingLoop(this.trainer, this.dataBuffer);
 	}
@@ -97,6 +116,10 @@ export interface TraderTrainerSettings {
 	TRAINER_POPULATION_SIZE: number;
 	TRAINER_TIME_BUDGET_MS: number;
 	TRAINER_EPISODES_PER_INDIVIDUAL: number;
+	TRAINER_FITNESS_TYPE: FitnessType;
+	TRAINER_OBSERVE_POSITION?: boolean;
+	TRAINER_MODEL_DIR: string;
+	TRAINER_MODEL_RETENTION: number;
 }
 
 /** Builds the service container from the environment settings. */
@@ -114,5 +137,9 @@ export function createTraderTrainerContainer(
 		populationSize: settings.TRAINER_POPULATION_SIZE,
 		timeBudgetMs: settings.TRAINER_TIME_BUDGET_MS,
 		episodesPerIndividual: settings.TRAINER_EPISODES_PER_INDIVIDUAL,
+		fitnessType: settings.TRAINER_FITNESS_TYPE,
+		observePosition: settings.TRAINER_OBSERVE_POSITION ?? true,
+		modelDir: settings.TRAINER_MODEL_DIR,
+		modelRetention: settings.TRAINER_MODEL_RETENTION,
 	});
 }

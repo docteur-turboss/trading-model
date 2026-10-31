@@ -56,10 +56,14 @@ export class TrainingSession {
 		});
 
 		const bestGenome = await runner.run();
+		// Fitness and metrics of the published genome itself, not of the best
+		// scalar seen during the run (which may sit off the Pareto front).
+		const published = runner.processor.archiveBest;
+		const ctx = lastCtx as GenerationContext | null;
 		return {
 			bestGenome,
-			bestFitness: (lastCtx as GenerationContext | null)?.bestFitness ?? 0,
-			bestFitnessMeta: (lastCtx as GenerationContext | null)?.bestFitnessMeta,
+			bestFitness: published?.fitness ?? ctx?.bestFitness ?? 0,
+			bestFitnessMeta: published?.meta ?? ctx?.bestFitnessMeta,
 			generation: runner.processor.generation,
 			generationContext: lastCtx,
 		};
@@ -67,8 +71,14 @@ export class TrainingSession {
 
 	private _buildInitialControl(): GAControlGenome {
 		const defaultControl = createDefaultGenome("ctrl").gaControl;
+		const offset = this._settings.seedOffset ?? 0;
 		return {
 			...defaultControl,
+			seeding: {
+				envSeed: defaultControl.seeding.envSeed + offset,
+				mutationSeed: defaultControl.seeding.mutationSeed + offset,
+				networkSeed: defaultControl.seeding.networkSeed + offset,
+			},
 			population: {
 				...defaultControl.population,
 				size: this._settings.populationSize as PositiveInt,
@@ -83,6 +93,7 @@ export class TrainingSession {
 				episodesPerIndividual: this._settings
 					.episodesPerIndividual as PositiveInt,
 			},
+			fitnessType: this._settings.fitnessType,
 		};
 	}
 
@@ -93,7 +104,8 @@ export class TrainingSession {
 		return new GeneticAlgorithmRunner({
 			windowSets: this._windowSets,
 			backendFactory: makeSeededBackendFactory(
-				initialControl.seeding.networkSeed
+				initialControl.seeding.networkSeed,
+				{ observePosition: this._settings.observePosition ?? true }
 			),
 			evalConcurrency: 4,
 			initialControl,

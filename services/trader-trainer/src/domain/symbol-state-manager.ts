@@ -76,8 +76,11 @@ export class SymbolStateManager {
 		if (!handler) {
 			return;
 		}
+		const isNew = handler.isNew?.(state, data) ?? true;
 		handler.mutateState({ symbol, data, state, maxSize });
-		this._normManager.updateNorms(dataType, state, data);
+		if (isNew) {
+			this._normManager.updateNorms(dataType, state, data);
+		}
 		this._evictIfNeeded();
 	}
 
@@ -114,6 +117,17 @@ export class SymbolStateManager {
 
 	getSymbols(): TradingSymbol[] {
 		return Array.from(this.states.keys());
+	}
+
+	/** Normalization statistics of a symbol, as every handler serializes them. */
+	serializeNorms(symbol: TradingSymbol): Record<string, unknown> {
+		const state = this.getSymbolState(symbol);
+		return state
+			? Object.assign(
+					{},
+					...this._handlers.map((handler) => handler.serializeNorms(state))
+				)
+			: {};
 	}
 
 	getSymbolState(symbol: TradingSymbol): SymbolState | undefined {

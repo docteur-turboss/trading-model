@@ -42,6 +42,29 @@ interface FeatureFieldDef {
 	readonly write: (fv: FeatureVector, value: number) => void;
 }
 
+const NAMED_FIELDS = Object.entries(FeatureIndex)
+	.filter(([, index]) => typeof index === "number")
+	.sort(([, left], [, right]) => (left as number) - (right as number))
+	.map(([name]) => name);
+
+/**
+ * Meaning of each market input, by index (model artifacts, ADR-0022): the
+ * named fields, the normalized closes of the previous candles (oldest first,
+ * 0 before the first one), then the bias. A model trained on one layout
+ * cannot run on another.
+ */
+export const FEATURE_LAYOUT: { dim: number; fields: string[] } = {
+	dim: FEATURE_DIM,
+	fields: [
+		...NAMED_FIELDS,
+		...Array.from(
+			{ length: SlidingWindowSize },
+			(_unused, idx) => `SlidingWindowClose${idx}`
+		),
+		"Bias",
+	],
+};
+
 const FEATURE_FIELDS: FeatureFieldDef[] = [
 	{
 		index: FeatureIndex.CandleClose,

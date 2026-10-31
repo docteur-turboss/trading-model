@@ -5,15 +5,18 @@ import type {
 } from "@trading-model/primitives/primitives";
 import {
 	BEST_FITNESS,
+	MODEL_ARTIFACTS_TOTAL,
 	TRAINING_DURATION_SECONDS,
 	TRAINING_SESSIONS_TOTAL,
 	TRAINING_STATUS,
 } from "../config/metrics";
+import { NETWORK_INPUT_LAYOUT } from "../domain/agent/agent-state";
 import type { GenerationContext } from "../domain/genetic-algorithm/ga-runner";
 import type { GaTelemetry } from "../domain/genetic-algorithm/ga-telemetry";
 import { computeSharpe } from "../domain/genome-summary-builder";
 import type { MarketDataBuffer } from "../domain/market-data-buffer";
 import type { TradingSymbol } from "../domain/market-data-types";
+import type { ModelArtifactStorePort } from "../domain/ports/model-artifact-store.port";
 import type { ModelPublisherPort } from "../domain/ports/model-publisher.port";
 import { validateTrainingPrerequisites } from "../domain/training-prerequisite-validator";
 import type { TrainingSettings } from "../domain/training-settings";
@@ -39,6 +42,10 @@ export interface TrainerDeps {
 	settings: TrainingSettings;
 	publisher?: ModelPublisherPort;
 	telemetry?: GaTelemetry;
+	/** Keeps the best agent of each training as a versioned artifact (ADR-0022). */
+	models?: ModelArtifactStorePort;
+	/** Instance written in the artifacts it produces. */
+	instanceId?: string;
 }
 
 enum TrainerStatus {
@@ -103,6 +110,7 @@ export class Trainer {
 			const result = await this._runSession(symbol, validation.windowSets);
 			TRAINING_SESSIONS_TOTAL.inc({ result: "success" });
 			BEST_FITNESS.set({ symbol: String(symbol) }, result.bestFitness);
+			await this._storeModel(result);
 			await this._publishModel(symbol);
 			return result;
 		} catch (err) {
@@ -148,6 +156,52 @@ export class Trainer {
 			generation: result.generation as unknown as PositiveInt,
 			generationContext: result.generationContext,
 		};
+	}
+
+	/**
+	 * Writes the best agent as a versioned artifact. A failed write is logged
+	 * and counted: the training itself succeeded, its result stays usable.
+	 */
+	private async _storeModel(result: TrainingSuccess): Promise<void> {
+		const models = this._deps.models;
+		if (!models) {
+			return;
+		}
+		const summary = this._lastInfo.buildBestAgentSummary();
+		const weights = result.bestGenome.trainedWeights;
+		if (!(summary && weights)) {
+			MODEL_ARTIFACTS_TOTAL.inc({ result: "skipped" });
+			getLogger().warn(
+				"Model not stored: the best genome has no trained weights",
+				{
+					context: { symbol: result.symbol },
+				}
+			);
+			return;
+		}
+		try {
+			const stored = await models.save({
+				symbol: String(result.symbol),
+				instanceId: this._deps.instanceId ?? "trader-trainer",
+				bestGenome: result.bestGenome,
+				weights: new Float32Array(weights),
+				features: NETWORK_INPUT_LAYOUT,
+				normalization: this._dataBuffer.snapshotNormalization(result.symbol),
+				summary,
+			});
+			MODEL_ARTIFACTS_TOTAL.inc({ result: "stored" });
+			getLogger().info("Model stored", {
+				context: { symbol: result.symbol, version: stored.version },
+			});
+		} catch (err) {
+			MODEL_ARTIFACTS_TOTAL.inc({ result: "error" });
+			getLogger().error("Failed to store model artifact", {
+				context: {
+					symbol: result.symbol,
+					err: err instanceof Error ? err.message : String(err),
+				},
+			});
+		}
 	}
 
 	private async _publishModel(symbol: TradingSymbol): Promise<void> {

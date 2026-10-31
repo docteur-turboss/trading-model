@@ -23,7 +23,11 @@ export class NormalizationManager {
 		) as SymbolNormalizers;
 	}
 
-	updateNorms(dataType: DataType, state: SymbolState, data: unknown): void {
+	updateNorms(
+		dataType: DataType,
+		state: Pick<SymbolState, "norm">,
+		data: unknown
+	): void {
 		this._handlerMap[dataType]?.updateNorms(state, data);
 	}
 }

@@ -1,4 +1,5 @@
 import type { Price } from "@trading-model/primitives/primitives";
+import { DataType } from "./data-handlers/data-types";
 import { EvictionPolicy } from "./eviction-policy";
 import type { WindowSet } from "./genetic-algorithm/generation-types";
 import type { MarketStep } from "./genetic-algorithm/genome-types";
@@ -61,8 +62,26 @@ export class MarketDataBuffer {
 		);
 	}
 
-	setPriceSnapshot(prices: Record<TradingSymbol, Price>): void {
+	/**
+	 * Latest prices, stamped `at` reception: a candle's features read the
+	 * latest one known at its close (ADR-0030). Kept for tracked symbols only.
+	 */
+	setPriceSnapshot(
+		prices: Record<TradingSymbol, Price>,
+		at: number = Date.now()
+	): void {
 		this._priceSnapshot = { ...this._priceSnapshot, ...prices };
+		for (const [symbol, price] of Object.entries(prices) as [
+			TradingSymbol,
+			Price,
+		][]) {
+			if (this._stateManager.states.has(symbol)) {
+				this._stateManager.addData(DataType.Price, symbol, {
+					price,
+					timestamp: at,
+				});
+			}
+		}
 	}
 
 	getPriceSnapshot(): Record<TradingSymbol, Price> {
@@ -77,6 +96,11 @@ export class MarketDataBuffer {
 		return this._stateManager.getSymbolState(symbol);
 	}
 
+	/** Normalization statistics of a symbol (stored with its model, ADR-0022). */
+	snapshotNormalization(symbol: TradingSymbol): Record<string, unknown> {
+		return this._stateManager.serializeNorms(symbol);
+	}
+
 	restoreSymbolState(symbol: TradingSymbol, state: SymbolState): void {
 		this._stateManager.restoreSymbolState(symbol, state);
 	}
@@ -85,11 +109,14 @@ export class MarketDataBuffer {
 		return this._stateManager.getCandleCount(symbol);
 	}
 
+	/** Close time of the newest buffered candle, undefined without candles. */
+	getLastCandleCloseTime(symbol: TradingSymbol): number | undefined {
+		const candles = this._stateManager.getSymbolState(symbol)?.candles ?? [];
+		return candles[candles.length - 1]?.closeTimestamp;
+	}
+
 	buildMarketSteps(symbol: TradingSymbol): MarketStep[] {
-		const ctx: MarketDataContext = {
-			symbol,
-			priceSnapshot: this._priceSnapshot,
-		};
+		const ctx: MarketDataContext = { symbol };
 		return this._windowSplitter.buildMarketSteps(ctx);
 	}
 
@@ -105,10 +132,7 @@ export class MarketDataBuffer {
 		validationSplit: number = DEFAULT_VALIDATION_SPLIT,
 		walkForwardFolds = 1
 	): WindowSet | WindowSet[] | null {
-		const ctx: MarketDataContext = {
-			symbol,
-			priceSnapshot: this._priceSnapshot,
-		};
+		const ctx: MarketDataContext = { symbol };
 		return this._windowSplitter.getAllWindows(
 			ctx,
 			validationSplit,

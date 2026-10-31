@@ -7,7 +7,7 @@ import {
 } from "@trading-model/contracts/market-data.types";
 import type { Price, Ratio } from "@trading-model/primitives/primitives";
 import type { FeatureContext } from "../feature-context";
-import type { SymbolState } from "../market-data-types";
+import type { FeatureState } from "../market-data-types";
 import type { OrderBookAverages } from "../order-book-averages";
 
 function computeOrderBookAverages(ob: OrderBookData): OrderBookAverages {
@@ -19,7 +19,7 @@ function computeOrderBookAverages(ob: OrderBookData): OrderBookAverages {
 	};
 }
 
-function orderBookAverages(state: SymbolState): OrderBookAverages | null {
+function orderBookAverages(state: FeatureState): OrderBookAverages | null {
 	if (!state.orderBook) {
 		return null;
 	}

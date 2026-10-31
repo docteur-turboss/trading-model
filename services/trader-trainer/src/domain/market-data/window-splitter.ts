@@ -1,13 +1,11 @@
-import {
-	Percentage,
-	PositiveInt,
-	type Price,
-} from "@trading-model/primitives/primitives";
+import { Percentage, PositiveInt } from "@trading-model/primitives/primitives";
 import { buildFeatures as buildFeaturesFn } from "../feature-builder";
 import type { WindowSet } from "../genetic-algorithm/generation-types";
 import type { MarketStep } from "../genetic-algorithm/genome-types";
 import type { SymbolState, TradingSymbol } from "../market-data-types";
+import { NormalizationManager } from "../normalization-manager";
 import type { MarketDataContext } from "./market-data-context";
+import { forEachPointInTime } from "./point-in-time";
 
 /** Minimum number of market steps required before training can start. */
 export const MIN_TRAINING_STEPS = PositiveInt.of(10);
@@ -20,41 +18,28 @@ export const DEFAULT_WALK_FORWARD_FOLDS = 1;
 
 /** Handles building market steps and train/validation window splitting. */
 export class WindowSplitter {
-	constructor(private readonly _states: Map<TradingSymbol, SymbolState>) {}
+	constructor(
+		private readonly _states: Map<TradingSymbol, SymbolState>,
+		private readonly _normManager = new NormalizationManager()
+	) {}
 
+	/** One step per candle after the first, built from what its close knew. */
 	buildMarketSteps(ctx: MarketDataContext): MarketStep[] {
 		const state = this._states.get(ctx.symbol);
 		if (!state || state.candles.length < 2) {
 			return [];
 		}
-		return this._buildStepsFromState(state, ctx.priceSnapshot);
-	}
-
-	private _buildStepsFromState(
-		state: SymbolState,
-		priceSnapshot: Record<TradingSymbol, Price>
-	): MarketStep[] {
 		const steps: MarketStep[] = [];
-		for (let i = 1; i < state.candles.length; i++) {
-			steps.push(this._buildSingleStep(state, i, priceSnapshot));
-		}
+		forEachPointInTime(state, this._normManager, (view, idx) => {
+			if (idx > 0) {
+				steps.push({
+					price: view.candles[idx].close,
+					features: buildFeaturesFn({ state: view, idx }),
+					timestamp: view.candles[idx].timestamp,
+				});
+			}
+		});
 		return steps;
-	}
-
-	private _buildSingleStep(
-		state: SymbolState,
-		idx: number,
-		priceSnapshot: Record<TradingSymbol, Price>
-	): MarketStep {
-		return {
-			price: state.candles[idx].close,
-			features: buildFeaturesFn({
-				state,
-				idx,
-				priceSnapshot,
-			}),
-			timestamp: state.candles[idx].timestamp,
-		};
 	}
 
 	private static _nextId = 0;

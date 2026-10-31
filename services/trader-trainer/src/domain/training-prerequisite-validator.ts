@@ -1,3 +1,4 @@
+import type { CandleData } from "@trading-model/contracts/market-data.types";
 import type { WindowSet } from "./genetic-algorithm/ga-runner";
 import {
 	type MarketDataBuffer,
@@ -23,6 +24,21 @@ export function validateTrainingPrerequisites(
 		return {
 			ok: false,
 			error: { success: false, symbol, error: new Error("Already training") },
+		};
+	}
+	const candles = dataBuffer.getSymbolState(symbol)?.candles ?? [];
+	if (!isStrictlyIncreasing(candles)) {
+		// A repeated candle would sit in both a training and a validation window
+		// and inflate the out-of-sample metrics: refuse rather than train on it.
+		return {
+			ok: false,
+			error: {
+				success: false,
+				symbol,
+				error: new Error(
+					`Candle series for ${symbol} has duplicated or out-of-order timestamps`
+				),
+			},
 		};
 	}
 	const result = dataBuffer.getAllWindows(
@@ -59,4 +75,10 @@ export function validateTrainingPrerequisites(
 		};
 	}
 	return { ok: true, windowSets };
+}
+
+function isStrictlyIncreasing(candles: CandleData[]): boolean {
+	return candles.every(
+		(candle, idx) => idx === 0 || candle.timestamp > candles[idx - 1].timestamp
+	);
 }

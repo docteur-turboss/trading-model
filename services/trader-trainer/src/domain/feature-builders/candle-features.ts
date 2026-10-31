@@ -5,7 +5,7 @@ import type {
 	Volume,
 } from "@trading-model/primitives/primitives";
 import type { CandleFeatureContext } from "../feature-context";
-import type { SymbolState } from "../market-data-types";
+import type { FeatureState } from "../market-data-types";
 
 function candleReturnRatio(cur: CandleData, prev?: CandleData): number {
 	return prev && prev.close > 0 ? (cur.close - prev.close) / prev.close : 0;
@@ -21,7 +21,7 @@ function candleRangeRatio(cur: CandleData): number {
 	return cur.close > 0 ? (cur.high - cur.low) / cur.close : 0;
 }
 
-function candleVolumeRatio(cur: CandleData, state: SymbolState): number {
+function candleVolumeRatio(cur: CandleData, state: FeatureState): number {
 	const volStd = state.norm.candle.volume.getStd();
 	return volStd > 1e-10 ? cur.volume / volStd : 0;
 }

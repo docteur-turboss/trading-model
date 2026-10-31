@@ -1,11 +1,12 @@
 import type { BookTickerData } from "@trading-model/contracts/market-data.types";
-import type { DataHandler } from "./data-handler";
+import type { SymbolState } from "../market-data-types";
+import { type DataHandler, lastOf, pushWithMaxSize } from "./data-handler";
 import { DataType } from "./data-types";
 
 export const bookTickerHandler: DataHandler<BookTickerData> = {
 	dataType: DataType.BookTicker,
 	createState() {
-		return { bookTicker: undefined };
+		return { bookTickers: [] };
 	},
 	createNorms() {
 		return {};
@@ -21,13 +22,26 @@ export const bookTickerHandler: DataHandler<BookTickerData> = {
 			state.norm.book.spread.update(bt.ask - bt.bid);
 		}
 	},
-	mutateState({ data, state }) {
-		state.bookTicker = data;
+	isNew(state, bt) {
+		return isNewBookTicker(state, bt);
+	},
+	mutateState({ data, state, maxSize }) {
+		if (isNewBookTicker(state, data)) {
+			state.bookTickers = pushWithMaxSize(state.bookTickers, data, maxSize);
+		}
 	},
 	estimateMemoryBytes(state) {
-		return state.bookTicker ? 128 : 0;
+		return state.bookTickers.length * 128;
 	},
 	serializeNorms(_state) {
 		return {};
 	},
 };
+
+function isNewBookTicker(
+	state: Pick<SymbolState, "bookTickers">,
+	bt: BookTickerData
+): boolean {
+	const last = lastOf(state.bookTickers);
+	return last === undefined || bt.timestamp > last.timestamp;
+}

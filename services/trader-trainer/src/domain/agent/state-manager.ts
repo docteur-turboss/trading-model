@@ -11,25 +11,18 @@ export interface StateManagerConfig {
 	epsilonMin?: number;
 	/** Multiplicative decay applied per step. */
 	epsilonDecay?: number;
-	temperature?: number;
 }
 
 /** Manages epsilon-greedy exploration schedule and agent weight initialisation from genomes. */
 class StateManager {
 	private _epsilon: number;
-	private readonly _temperature: number;
 
 	constructor(private readonly _cfg: StateManagerConfig = {}) {
 		this._epsilon = Probability.of(_cfg.epsilonStart ?? 1.0);
-		this._temperature = _cfg.temperature ?? 1.0;
 	}
 
 	getEpsilon(): number {
 		return this._epsilon;
-	}
-
-	getTemperature(): number {
-		return this._temperature;
 	}
 
 	/** Decay epsilon multiplicatively towards its configured minimum. */
@@ -44,7 +37,12 @@ class StateManager {
 		this._epsilon = this._cfg.epsilonStart ?? 1.0;
 	}
 
-	/** Initialise agent weights from a flat genome buffer or broadcast a scalar with noise. */
+	/**
+	 * Initialise agent weights from a flat genome buffer or broadcast a scalar with noise.
+	 *
+	 * @throws AgentError when the genome length does not match the network — a
+	 * mismatched genome is a topology bug, never silently replaced by noise.
+	 */
 	public initialiseFromGenome(
 		agent: GenomeTarget,
 		genome: Float32Array | number
@@ -52,11 +50,7 @@ class StateManager {
 		if (typeof genome === "number") {
 			agent.nn.distributeAroundWeights(genome, 0.1);
 		} else {
-			try {
-				agent.nn.setWeights(genome);
-			} catch {
-				agent.nn.distributeAroundWeights(0, 0.01);
-			}
+			agent.nn.setWeights(genome);
 		}
 	}
 }

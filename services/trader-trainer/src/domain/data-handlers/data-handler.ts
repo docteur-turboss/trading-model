@@ -7,6 +7,7 @@ import { bookTickerHandler } from "./book-ticker-handler";
 import { candleHandler } from "./candle-handler";
 import { DataType } from "./data-types";
 import { orderBookHandler } from "./order-book-handler";
+import { priceHandler } from "./price-handler";
 import { tickerHandler } from "./ticker-handler";
 import { tradeHandler } from "./trade-handler";
 
@@ -21,7 +22,14 @@ interface MutateStateContext<TData = unknown> {
 
 export interface DataHandler<TData = unknown> {
 	readonly dataType: DataType;
-	updateNorms(state: SymbolState, data: TData): void;
+	/** Also replays history into fresh statistics (point in time, ADR-0030). */
+	updateNorms(state: Pick<SymbolState, "norm">, data: TData): void;
+	/**
+	 * False when `data` repeats something the state already holds: the state
+	 * may still be updated, but the normalizers must not count it twice.
+	 * Absent means every item is new.
+	 */
+	isNew?(state: SymbolState, data: TData): boolean;
 	mutateState(ctx: MutateStateContext<TData>): void;
 	serializeNorms(state: SymbolState): Record<string, unknown>;
 	estimateMemoryBytes(state: SymbolState): number;
@@ -41,6 +49,11 @@ export function pushWithMaxSize<TData>(
 	return array;
 }
 
+/** Last item of a series kept in time order. */
+export function lastOf<TData>(array: readonly TData[]): TData | undefined {
+	return array[array.length - 1];
+}
+
 export function createDefaultHandlers(): DataHandler[] {
 	return [
 		candleHandler,
@@ -48,5 +61,6 @@ export function createDefaultHandlers(): DataHandler[] {
 		orderBookHandler,
 		bookTickerHandler,
 		tickerHandler,
+		priceHandler,
 	];
 }
