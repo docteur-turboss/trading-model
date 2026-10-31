@@ -1,461 +1,416 @@
-﻿import { describe, expect, it } from "@jest/globals";
-import { AuditEvent } from "@trading-model/validation/domain/contracts/audit-events";
-import { MarketEvent } from "@trading-model/validation/domain/contracts/market-events";
-import { z } from "zod";
+﻿import { afterAll, beforeAll, describe, expect, it, jest } from "@jest/globals";
+import { AuditEvent } from "@trading-model/contracts/audit-events";
+import { DlqEvent } from "@trading-model/contracts/dlq-events";
+import { CandleInterval } from "@trading-model/contracts/market-data.types";
+import { MarketEvent } from "@trading-model/contracts/market-events";
+import { TrainingEvent } from "@trading-model/contracts/training-events";
+import { toSymbol } from "@trading-model/primitives/primitives";
+import {
+	createRecordingBrokerClient,
+	type PublishedRequest,
+	relayThroughMessageManager,
+} from "./support/broker-pipeline";
+import { deadLetterAndReplay } from "./support/dead-letter-replay";
+import {
+	createAuditSubscriber,
+	createTrainerSubscriber,
+} from "./support/subscribers";
 
 /**
- * Consumer-Driven Contract Tests
+ * Cross-service message contracts, checked on the real code of both ends.
  *
- * These tests verify that each service publishes and consumes messages
- * that conform to the shared contract schemas defined in
- * @trading-model/broker-message.
+ * Producers run their actual publishing code (financial-scraper scrape cycle,
+ * trader-trainer model publisher) through the real broker client; the request
+ * goes through message-manager's real validation, message factory and
+ * delivery; the delivered body reaches the subscribers' real inbound adapters
+ * (broker-message callback controller + trainer handler, audit-logger
+ * `/message`). Only the network and the metrics are stubbed.
  *
- * Each contract documents:
- *   - Producer: the service that emits the event
- *   - Consumer(s): services that subscribe to the event
- *   - Schema: Zod schema the payload must satisfy
- *   - Version: current contract version (MAJOR.minor)
+ * Dead letters close the loop: message-manager dead-letters each delivered
+ * message, dlq-service takes and stores it, and its replay must be accepted
+ * by message-manager and reach the subscribers again.
  *
- * A contract is broken when a producer change causes a consumer
- * validation failure. These tests prevent that by codifying the
- * expected shape at each interface boundary.
+ * Nothing here restates a schema: a contract breaks when one side changes
+ * and the other does not, and the topic catalogue below is checked against
+ * what the code publishes and subscribes to.
  */
 
-const TOPIC_PATTERN = /^[a-z][a-z0-9-]*(\.[a-z0-9-]+)+$/;
+const mockScraperBroker = createRecordingBrokerClient(
+	"financial-scraper-service"
+);
+const mockTrainerBroker = createRecordingBrokerClient("trader-trainer");
+const mockDlqBroker = createRecordingBrokerClient("dlq-service");
 
-const VALID_SERVICE_NAMES = [
-	"financial-scraper",
-	"trader-trainer",
-	"audit-logger",
-	"message-manager",
-	"api-gateway",
-	"discovery-server",
-	"dlq-service",
-	"admin-interface",
-] as const;
+jest.mock(
+	"../../services/financial-scraper/src/infrastructure/config/env",
+	() => ({
+		ENV: {
+			SERVICE_NAME: "financial-scraper-service",
+			INSTANCE_ID: "financial-scraper-1",
+		},
+	})
+);
+jest.mock(
+	"../../services/financial-scraper/src/config/message-manager",
+	() => ({
+		MessageManager: {
+			post: {
+				indirect: (payload: unknown, metadata: never) =>
+					mockScraperBroker.client.publish(payload, metadata),
+			},
+		},
+	})
+);
+jest.mock("../../services/financial-scraper/src/config/metrics", () => ({
+	EVENTS_PUBLISHED_TOTAL: { inc: () => undefined },
+}));
+jest.mock("../../services/message-manager/src/config/metrics", () => ({
+	MESSAGES_DLQ_TOTAL: { inc: () => undefined },
+}));
+jest.mock("../../services/audit-logger/src/config/metrics", () => ({
+	EVENTS_INGESTED_TOTAL: { inc: () => undefined },
+}));
+// dlq-service publishes its events through the real broker client.
+jest.mock(
+	"@trading-model/broker-message/application/services/create-message-manager",
+	() => ({
+		createServiceMessageManager: () => ({
+			messageManager: {
+				post: {
+					indirect: (payload: unknown, metadata: never) =>
+						mockDlqBroker.client.publish(payload, metadata),
+				},
+			},
+		}),
+	})
+);
+jest.mock("../../services/dlq-service/src/infrastructure/config/env", () => ({
+	ENV: { INSTANCE_ID: "dlq-service-1" },
+}));
+jest.mock("../../services/dlq-service/src/config/address-manager", () => ({
+	AddressManager: {},
+}));
+// dlq-service's claim and retry bookkeeping (MongoDB) around a replay.
+jest.mock(
+	"../../services/dlq-service/src/adapters/outbound/claim-manager",
+	() => ({
+		claimReleaseManager: {},
+	})
+);
+jest.mock(
+	"../../services/dlq-service/src/adapters/outbound/retry-manager",
+	() => ({
+		dlqRetryManager: { markRetried: async () => undefined },
+	})
+);
 
-interface Contract {
-	producer: string;
-	consumers: string[];
-	topic: string;
-	eventType: string;
-	version: string;
-	payloadSchema: z.ZodType<unknown>;
-	samplePayload: () => unknown;
-}
-
-const MARKET_DATA_PAYLOAD = z.object({
-	symbol: z.string(),
-	market: z.string(),
-	source: z.string(),
-	timestamp: z.number(),
-});
-
-const TICKER_PAYLOAD = MARKET_DATA_PAYLOAD.extend({
-	open: z.number(),
-	high: z.number(),
-	low: z.number(),
-	last: z.number(),
-	volume: z.number(),
-	closeTimestamp: z.number(),
-});
-
-const CANDLE_PAYLOAD = MARKET_DATA_PAYLOAD.extend({
-	open: z.number(),
-	high: z.number(),
-	low: z.number(),
-	close: z.number(),
-	volume: z.number(),
-	interval: z.string(),
-	closeTimestamp: z.number(),
-	trades: z.number().optional(),
-});
-
-const TRADE_PAYLOAD = MARKET_DATA_PAYLOAD.extend({
-	price: z.number(),
-	quantity: z.number(),
-	tradeId: z.union([z.number(), z.bigint()]),
-	side: z.enum(["buy", "sell"]),
-});
+import {
+	notifyAddAudit,
+	notifyDeleteAudit,
+	notifyReplayAudit,
+} from "../../services/dlq-service/src/adapters/outbound/audit-notifier";
+import { buildResponse } from "../../services/financial-scraper/src/adapters/outbound/binance/binance-data-fetcher";
+import {
+	buildMarketDataEntries,
+	sendAllMarketData,
+} from "../../services/financial-scraper/src/adapters/outbound/broker/market-data-sender";
+import { createMarketDataMetadata } from "../../services/financial-scraper/src/adapters/outbound/broker/metadata-builder";
+import {
+	mock24hrTickerResponse,
+	mockBookTickerResponse,
+	mockCandlestickResponse,
+	mockDepthResponse,
+	mockPriceTickerResponse,
+	mockTradeResponse,
+} from "../../services/financial-scraper/tests/fixtures/binance.fixture";
+import { ModelPublisher } from "../../services/trader-trainer/src/adapters/outbound/model-publisher";
 
 /**
- * Registered contracts between services.
- * Each entry documents a producer-consumer agreement.
+ * Topics declared in the contracts package that no service publishes yet.
+ * Listing one here is a decision, not a default: the catalogue test fails
+ * when a topic is neither published nor listed, and when a listed topic
+ * starts being published.
  */
-const CONTRACTS: Contract[] = [
-	// financial-scraper â†’ trader-trainer
-	{
-		producer: "financial-scraper",
-		consumers: ["trader-trainer"],
-		topic: MarketEvent.FetchCandlestickSeries,
-		eventType: "candle_update",
-		version: "1.0",
-		payloadSchema: CANDLE_PAYLOAD,
-		samplePayload: () => ({
-			symbol: "BTCUSDT",
-			market: "crypto",
-			source: "binance",
-			timestamp: Date.now(),
-			open: 50000.0,
-			high: 51000.0,
-			low: 49000.0,
-			close: 50500.0,
-			volume: 1234.56,
-			interval: "1m",
-			closeTimestamp: Date.now() + 60000,
-		}),
-	},
+const UNPUBLISHED_TOPICS: Record<string, string> = {
+	[MarketEvent.TestEvent]: "debug topic, no producer",
+	[MarketEvent.ExampleEvent]: "example topic, no producer",
+	[AuditEvent.AuditHeartbeat]: "reserved for audit heartbeats, no producer",
+	[AuditEvent.AuditGapDetected]: "reserved for audit gap reports, no producer",
+};
 
-	{
-		producer: "financial-scraper",
-		consumers: ["trader-trainer"],
-		topic: MarketEvent.FetchRecentTrades,
-		eventType: "trade_update",
-		version: "1.0",
-		payloadSchema: TRADE_PAYLOAD,
-		samplePayload: () => ({
-			symbol: "BTCUSDT",
-			market: "crypto",
-			source: "binance",
-			timestamp: Date.now(),
-			price: 50500.0,
-			quantity: 0.5,
-			tradeId: 123456789n,
-			side: "buy" as const,
-		}),
-	},
-
-	{
-		producer: "financial-scraper",
-		consumers: ["trader-trainer"],
-		topic: MarketEvent.Fetch24hrTickerStats,
-		eventType: "ticker_update",
-		version: "1.0",
-		payloadSchema: TICKER_PAYLOAD,
-		samplePayload: () => ({
-			symbol: "BTCUSDT",
-			market: "crypto",
-			source: "binance",
-			timestamp: Date.now(),
-			open: 50000.0,
-			high: 51000.0,
-			low: 49000.0,
-			last: 50500.0,
-			volume: 12345.67,
-			closeTimestamp: Date.now() + 86400000,
-		}),
-	},
-
-	// audit-logger contracts â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-	{
-		producer: "audit-logger",
-		consumers: ["discovery-server", "dlq-service"],
-		topic: AuditEvent.AuditHeartbeat,
-		eventType: "audit_heartbeat",
-		version: "1.0",
-		payloadSchema: z.object({
-			serviceName: z.string(),
-			instanceId: z.string(),
-			timestamp: z.number(),
-		}),
-		samplePayload: () => ({
-			serviceName: "audit-logger",
-			instanceId: "550e8400-e29b-41d4-a716-446655440000",
-			timestamp: Date.now(),
-		}),
-	},
-
-	{
-		producer: "audit-logger",
-		consumers: ["discovery-server"],
-		topic: "audit.gap.detected",
-		eventType: "audit_gap",
-		version: "1.0",
-		payloadSchema: z.object({
-			from: z.number(),
-			to: z.number(),
-			lostCount: z.number().int().positive(),
-		}),
-		samplePayload: () => ({
-			from: Date.now() - 3600000,
-			to: Date.now(),
-			lostCount: 42,
-		}),
-	},
-
-	// message-manager contracts â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-	{
-		producer: "message-manager",
-		consumers: ["dlq-service"],
-		topic: "message.dlq.entry",
-		eventType: "dlq_entry",
-		version: "1.0",
-		payloadSchema: z.object({
-			originalMessageId: z.string(),
-			originalTopic: z.string(),
-			failureReason: z.string(),
-			failedDeliveryCount: z.number().int().positive(),
-			payload: z.unknown(),
-			enqueuedAt: z.number(),
-		}),
-		samplePayload: () => ({
-			originalMessageId: "msg_abc123",
-			originalTopic: "market.data.candle",
-			failureReason: "delivery_timeout",
-			failedDeliveryCount: 3,
-			payload: { symbol: "BTCUSDT" },
-			enqueuedAt: Date.now(),
-		}),
-	},
-
-	// trader-trainer contracts â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-	{
-		producer: "trader-trainer",
-		consumers: ["admin-interface"],
-		topic: "training.status.update",
-		eventType: "training_progress",
-		version: "1.0",
-		payloadSchema: z.object({
-			generation: z.number().int().nonnegative(),
-			populationSize: z.number().int().positive(),
-			bestFitness: z.number(),
-			avgFitness: z.number().optional(),
-			elapsedMs: z.number().int().nonnegative(),
-			status: z.enum(["running", "completed", "failed"]),
-		}),
-		samplePayload: () => ({
-			generation: 25,
-			populationSize: 20,
-			bestFitness: 0.87,
-			avgFitness: 0.62,
-			elapsedMs: 45000,
-			status: "running" as const,
-		}),
-	},
-
-	// api-gateway contracts â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-	{
-		producer: "api-gateway",
-		consumers: ["admin-interface"],
-		topic: "gateway.ratelimit.exceeded",
-		eventType: "rate_limit_exceeded",
-		version: "1.0",
-		payloadSchema: z.object({
-			clientIdentity: z.string(),
-			path: z.string(),
-			retryAfterMs: z.number().int().positive(),
-			timestamp: z.number(),
-		}),
-		samplePayload: () => ({
-			clientIdentity: "client:abc12345",
-			path: "/v1/market-data/candles",
-			retryAfterMs: 60000,
-			timestamp: Date.now(),
-		}),
-	},
-
-	// discovery-server contracts â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-	{
-		producer: "discovery-server",
-		consumers: ["message-manager", "api-gateway", "dlq-service"],
-		topic: "discovery.service.registered",
-		eventType: "service_registered",
-		version: "1.0",
-		payloadSchema: z.object({
-			serviceName: z.string(),
-			instanceId: z.string(),
-			host: z.string(),
-			port: z.number().int().positive(),
-			ttl: z.number().int().positive(),
-			tags: z.array(z.string()).optional(),
-			registeredAt: z.number(),
-		}),
-		samplePayload: () => ({
-			serviceName: "financial-scraper",
-			instanceId: "550e8400-e29b-41d4-a716-446655440000",
-			host: "financial-scraper.trading-model.svc",
-			port: 3000,
-			ttl: 60,
-			tags: ["market-data"],
-			registeredAt: Date.now(),
-		}),
-	},
-
-	{
-		producer: "discovery-server",
-		consumers: ["message-manager", "api-gateway", "dlq-service"],
-		topic: "discovery.service.deregistered",
-		eventType: "service_deregistered",
-		version: "1.0",
-		payloadSchema: z.object({
-			serviceName: z.string(),
-			instanceId: z.string(),
-			reason: z.enum(["shutdown", "expired", "evicted"]),
-			deregisteredAt: z.number(),
-		}),
-		samplePayload: () => ({
-			serviceName: "financial-scraper",
-			instanceId: "550e8400-e29b-41d4-a716-446655440000",
-			reason: "shutdown" as const,
-			deregisteredAt: Date.now(),
-		}),
-	},
-
-	// message-manager bilateral â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-	{
-		producer: "message-manager",
-		consumers: [
-			"financial-scraper",
-			"trader-trainer",
-			"api-gateway",
-			"audit-logger",
-		],
-		topic: "message.broker.healthy",
-		eventType: "broker_heartbeat",
-		version: "1.0",
-		payloadSchema: z.object({
-			brokerId: z.string(),
-			partitions: z.number().int().nonnegative(),
-			connectedConsumers: z.number().int().nonnegative(),
-			totalMessages: z.number().int().nonnegative(),
-			timestamp: z.number(),
-		}),
-		samplePayload: () => ({
-			brokerId: "broker-1",
-			partitions: 3,
-			connectedConsumers: 5,
-			totalMessages: 1024,
-			timestamp: Date.now(),
-		}),
-	},
-
-	// dlq-service resolution events â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-	{
-		producer: "dlq-service",
-		consumers: ["audit-logger", "admin-interface"],
-		topic: "dlq.message.resolved",
-		eventType: "dlq_resolved",
-		version: "1.0",
-		payloadSchema: z.object({
-			originalMessageId: z.string(),
-			originalTopic: z.string(),
-			resolution: z.enum(["retried", "discarded", "forwarded"]),
-			attempts: z.number().int().nonnegative(),
-			resolvedAt: z.number(),
-		}),
-		samplePayload: () => ({
-			originalMessageId: "msg_abc123",
-			originalTopic: "market.data.candle",
-			resolution: "retried" as const,
-			attempts: 3,
-			resolvedAt: Date.now(),
-		}),
-	},
-
-	// trader-trainer model events â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-	{
-		producer: "trader-trainer",
-		consumers: ["admin-interface", "api-gateway"],
-		topic: "training.model.published",
-		eventType: "model_published",
-		version: "1.0",
-		payloadSchema: z.object({
-			modelId: z.string(),
-			generation: z.number().int().nonnegative(),
-			fitness: z.number(),
-			artifactUrl: z.string().url(),
-			publishedAt: z.number(),
-		}),
-		samplePayload: () => ({
-			modelId: "model_gen_25_abc",
-			generation: 25,
-			fitness: 0.87,
-			artifactUrl: "s3://models/trader-trainer/gen_25/model.pt",
-			publishedAt: Date.now(),
-		}),
-	},
+const ALL_TOPICS: string[] = [
+	...Object.values(MarketEvent),
+	...Object.values(AuditEvent),
+	...Object.values(TrainingEvent),
+	...Object.values(DlqEvent),
 ];
 
-// â”€â”€ Contract validation tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+interface Publication {
+	producer: string;
+	topic: string;
+	request: PublishedRequest;
+}
 
-describe("Service Contracts", () => {
-	for (const contract of CONTRACTS) {
-		describe(`${contract.producer} â†’ ${contract.consumers.join(", ")}`, () => {
-			it(`[${contract.version}] topic "${contract.topic}" should match pattern`, () => {
-				expect(contract.topic).toMatch(TOPIC_PATTERN);
-			});
+function topicOf(request: PublishedRequest): string {
+	return (request.body as { metadata: { topic: string } }).metadata.topic;
+}
 
-			it(`[${contract.version}] event type "${contract.eventType}" should be non-empty`, () => {
-				expect(contract.eventType.length).toBeGreaterThan(0);
-			});
+async function publishScrapeCycle(): Promise<Publication[]> {
+	const response = buildResponse(
+		{ symbol: toSymbol("BTCUSDT"), interval: CandleInterval.Min1 },
+		{
+			orderBookRaw: mockDepthResponse,
+			tradesRaw: mockTradeResponse,
+			candlesRaw: mockCandlestickResponse,
+			ticker24hRaw: mock24hrTickerResponse,
+			priceTickerRaw: mockPriceTickerResponse,
+			bookTickerRaw: mockBookTickerResponse,
+		}
+	);
+	await sendAllMarketData(
+		buildMarketDataEntries(response),
+		createMarketDataMetadata()
+	);
+	return mockScraperBroker.requests.map((request) => ({
+		producer: "financial-scraper",
+		topic: topicOf(request),
+		request,
+	}));
+}
 
-			it(`[${contract.version}] sample payload should conform to schema`, () => {
-				const payload = contract.samplePayload();
-				const result = contract.payloadSchema.safeParse(payload);
-				if (!result.success) {
-					console.error(
-						`Schema validation failed for ${contract.producer} â†’ ${contract.consumers.join(", ")}`,
-						result.error.issues
-					);
-				}
-				expect(result.success).toBe(true);
-			});
+async function publishDlqEvents(): Promise<Publication[]> {
+	notifyAddAudit("entry-1", "market.trade.recent.fetch" as never, "OPEN");
+	notifyReplayAudit({ batchId: "batch-1", success: 3, failed: 1 });
+	notifyDeleteAudit(["entry-1"], 1);
+	// dlq-service does not wait for its publishes.
+	await new Promise((resolve) => setImmediate(resolve));
+	return mockDlqBroker.requests.map((request) => ({
+		producer: "dlq-service",
+		topic: topicOf(request),
+		request,
+	}));
+}
 
-			it(`[${contract.version}] schema should accept minimal valid payload`, () => {
-				const result = contract.payloadSchema.safeParse(
-					contract.samplePayload()
-				);
-				expect(result.success).toBe(true);
-			});
+async function publishTrainedModel(): Promise<Publication[]> {
+	const publisher = new ModelPublisher(
+		{
+			post: {
+				indirect: (payload: unknown, metadata: never) =>
+					mockTrainerBroker.client.publish(payload, metadata),
+			},
+		} as never,
+		{ trainerId: "trader-trainer", instanceId: "trader-trainer-1" }
+	);
+	await publisher.publish(
+		toSymbol("BTCUSDT") as never,
+		{
+			id: "agent-1",
+			generation: 3,
+			fitness: 1.2,
+			sharpe: 0.8,
+			avgPnl: 12.5,
+			maxDrawdown: 4.25,
+			gaControl: {
+				populationSize: 20,
+				elitismFraction: 0.1,
+				survivorFraction: 0.5,
+				episodesPerIndividual: 2,
+				selectionType: "tournament",
+				fitnessType: "sharpe",
+			},
+			network: {
+				inputDim: 16,
+				outputDim: 3,
+				hiddenLayers: [{ neurons: 32, activation: "relu" }],
+			},
+			rl: {
+				gamma: 0.99,
+				learningRate: 0.001,
+				epsilonStart: 1,
+				epsilonMin: 0.05,
+				epsilonDecay: 0.995,
+			},
+		} as never
+	);
+	return mockTrainerBroker.requests.map((request) => ({
+		producer: "trader-trainer",
+		topic: topicOf(request),
+		request,
+	}));
+}
 
-			it(`[${contract.version}] schema should reject null payload`, () => {
-				const result = contract.payloadSchema.safeParse(null);
-				expect(result.success).toBe(false);
-			});
+describe("service message contracts", () => {
+	let publications: Publication[] = [];
+	const trainer = createTrainerSubscriber();
+	const audit = createAuditSubscriber();
+	const subscribers = [
+		{ name: "trader-trainer", topics: trainer.topics as string[] },
+		{ name: "audit-logger", topics: audit.topics },
+	];
 
-			it(`[${contract.version}] schema should reject undefined payload`, () => {
-				const result = contract.payloadSchema.safeParse(undefined);
-				expect(result.success).toBe(false);
-			});
+	beforeAll(async () => {
+		publications = [
+			...(await publishScrapeCycle()),
+			...(await publishTrainedModel()),
+			...(await publishDlqEvents()),
+		];
+	});
+
+	afterAll(() => trainer.dispose());
+
+	describe("topic catalogue", () => {
+		it("every declared topic is published, or listed as unpublished", () => {
+			const published = new Set(publications.map((p) => p.topic));
+			const orphans = ALL_TOPICS.filter(
+				(topic) => !(published.has(topic) || topic in UNPUBLISHED_TOPICS)
+			);
+
+			expect(orphans).toEqual([]);
 		});
-	}
-});
 
-// â”€â”€ Backward compatibility tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+		it("no topic listed as unpublished is actually published", () => {
+			const stale = publications
+				.map((p) => p.topic)
+				.filter((topic) => topic in UNPUBLISHED_TOPICS);
 
-describe("Contract Backward Compatibility", () => {
-	it("all contracts have unique topic + eventType combinations", () => {
-		const seen = new Set<string>();
-		for (const c of CONTRACTS) {
-			const key = `${c.topic}:${c.eventType}`;
-			expect(seen.has(key)).toBe(false);
-			seen.add(key);
-		}
+			expect(stale).toEqual([]);
+		});
+
+		it("producers only publish declared topics", () => {
+			const undeclared = publications
+				.map((p) => p.topic)
+				.filter((topic) => !ALL_TOPICS.includes(topic));
+
+			expect(undeclared).toEqual([]);
+		});
+
+		it("every published topic has at least one subscriber", () => {
+			const unconsumed = publications
+				.map((p) => p.topic)
+				.filter((topic) => !subscribers.some((s) => s.topics.includes(topic)));
+
+			expect(unconsumed).toEqual([]);
+		});
+
+		it("subscribers only subscribe to declared topics", () => {
+			const undeclared = subscribers.flatMap((s) =>
+				s.topics
+					.filter((topic) => !ALL_TOPICS.includes(topic))
+					.map((t) => `${s.name}: ${t}`)
+			);
+
+			expect(undeclared).toEqual([]);
+		});
+
+		it("every topic trader-trainer depends on is published by someone", () => {
+			const published = new Set(publications.map((p) => p.topic));
+
+			expect(trainer.topics.filter((topic) => !published.has(topic))).toEqual(
+				[]
+			);
+		});
 	});
 
-	it("all producers are valid service names", () => {
-		for (const c of CONTRACTS) {
-			expect(VALID_SERVICE_NAMES).toContain(c.producer);
-		}
-	});
+	describe("message-manager accepts what producers publish", () => {
+		it.each(
+			ALL_TOPICS.filter((t) => !(t in UNPUBLISHED_TOPICS))
+		)("%s", async (topic) => {
+			const forTopic = publications.filter((p) => p.topic === topic);
+			expect(forTopic.length).toBeGreaterThan(0);
 
-	it("all consumers are valid service names", () => {
-		for (const c of CONTRACTS) {
-			for (const consumer of c.consumers) {
-				expect(VALID_SERVICE_NAMES).toContain(consumer);
+			for (const publication of forTopic) {
+				const relayed = await relayThroughMessageManager(publication.request);
+				expect(relayed).toMatchObject({ accepted: true });
 			}
-		}
+		});
 	});
 
-	it("no producer is also listed as its own consumer", () => {
-		for (const c of CONTRACTS) {
-			expect(c.consumers).not.toContain(c.producer);
+	describe("subscribers accept and use what message-manager delivers", () => {
+		async function deliveredBodies(topic: string): Promise<unknown[]> {
+			const bodies: unknown[] = [];
+			for (const publication of publications.filter((p) => p.topic === topic)) {
+				const relayed = await relayThroughMessageManager(publication.request);
+				if (relayed.accepted) {
+					bodies.push(relayed.delivered);
+				}
+			}
+			return bodies;
 		}
+
+		it.each(
+			trainer.topics as string[]
+		)("trader-trainer: %s is validated and reaches the market data buffer", async (topic) => {
+			const before = JSON.stringify({
+				states: trainer.buffer
+					.getSymbols()
+					.map((s) => trainer.buffer.getSymbolState(s)),
+				prices: trainer.buffer.getPriceSnapshot(),
+			});
+
+			for (const body of await deliveredBodies(topic)) {
+				const reception = await trainer.receive(body);
+				expect(reception).toEqual({ status: 200 });
+			}
+
+			const after = JSON.stringify({
+				states: trainer.buffer
+					.getSymbols()
+					.map((s) => trainer.buffer.getSymbolState(s)),
+				prices: trainer.buffer.getPriceSnapshot(),
+			});
+			expect(after).not.toEqual(before);
+		});
+
+		it.each(
+			audit.topics.filter((t) => !(t in UNPUBLISHED_TOPICS))
+		)("audit-logger: %s is recorded with its payload", async (topic) => {
+			for (const body of await deliveredBodies(topic)) {
+				const reception = await audit.receive(body);
+				expect(reception.status).toBe(200);
+				const document = audit.documents.at(-1);
+				expect(document).toMatchObject({
+					metadata: { topic },
+					payload: (body as { payload: unknown }).payload,
+				});
+				expect(Number.isNaN(document?.receivedAt.getTime())).toBe(false);
+				expect(document?.metadata.messageId).toEqual(expect.any(String));
+				expect(document?.metadata.publisher).toEqual(expect.any(String));
+			}
+		});
 	});
 
-	it("every contract has at least one consumer", () => {
-		for (const c of CONTRACTS) {
-			expect(c.consumers.length).toBeGreaterThan(0);
-		}
+	describe("dead letters replayed by dlq-service reach the subscribers again", () => {
+		const receivers = [
+			{ topics: trainer.topics as string[], receive: trainer.receive },
+			{ topics: audit.topics, receive: audit.receive },
+		];
+
+		it.each(
+			ALL_TOPICS.filter((t) => !(t in UNPUBLISHED_TOPICS))
+		)("%s", async (topic) => {
+			for (const publication of publications.filter((p) => p.topic === topic)) {
+				const first = await relayThroughMessageManager(publication.request);
+				if (!first.accepted) {
+					throw new Error(first.error);
+				}
+
+				const { stored, replay } = await deadLetterAndReplay(first.message);
+				expect(stored.topic).toBe(topic);
+
+				const replayed = await relayThroughMessageManager(replay);
+				expect(replayed).toMatchObject({ accepted: true });
+				if (!replayed.accepted) {
+					continue;
+				}
+				expect((replayed.delivered as { payload: unknown }).payload).toEqual(
+					(first.delivered as { payload: unknown }).payload
+				);
+				for (const receiver of receivers.filter((r) =>
+					r.topics.includes(topic)
+				)) {
+					expect((await receiver.receive(replayed.delivered)).status).toBe(200);
+				}
+			}
+		});
 	});
 });

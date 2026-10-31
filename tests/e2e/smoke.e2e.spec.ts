@@ -1,115 +1,61 @@
-import https from "node:https";
+import { describe, expect, it, jest } from "@jest/globals";
+import {
+	CALLER,
+	containerHealth,
+	e2eTestTimeout,
+	externalRequest,
+	GATEWAY_API_KEY,
+	meshRequest,
+	SERVICE_CONTAINERS,
+} from "./helpers";
 
-interface HealthResult {
-	service: string;
-	url: string;
-	status: number;
-	ok: boolean;
-	error?: string;
-}
+jest.setTimeout(e2eTestTimeout);
 
-const SERVICES = [
-	{ name: "discovery-server", url: "https://localhost:8443/health/ready" },
-	{ name: "message-manager", url: "https://localhost:8444/health/ready" },
-	{ name: "financial-scraper", url: "https://localhost:8445/health/ready" },
-	{ name: "trader-trainer", url: "https://localhost:8446/health/ready" },
-	{ name: "api-gateway", url: "https://localhost:8448/health/ready" },
-	{ name: "admin-interface", url: "http://localhost:8449/health/ready" },
-	{ name: "audit-logger", url: "https://localhost:8450/health/ready" },
-	{ name: "dlq-service", url: "https://localhost:8452/health/ready" },
+/** In-mesh hostnames of the services that answer /health/ready over mTLS. */
+const MESH_SERVICES = [
+	"discovery-server",
+	"message-manager",
+	"financial-scraper",
+	"trader-trainer",
+	"api-gateway",
+	"audit-logger",
+	"dlq-service",
 ];
 
-function fetchUrl(
-	url: string,
-	timeout = 10000
-): Promise<{ status: number; body: string }> {
-	return new Promise((resolve, reject) => {
-		const isHttps = url.startsWith("https");
-		const lib = isHttps ? https : require("node:http");
-
-		const req = lib.get(
-			url,
-			{
-				rejectUnauthorized: false,
-				timeout,
-			},
-			(res: any) => {
-				let data = "";
-				res.on("data", (chunk: string) => {
-					data += chunk;
-				});
-				res.on("end", () =>
-					resolve({ status: res.statusCode ?? 0, body: data })
-				);
-			}
-		);
-
-		req.on("error", (err: Error) => reject(err));
-		req.on("timeout", () => {
-			req.destroy();
-			reject(new Error(`Request timeout after ${timeout}ms`));
-		});
-	});
-}
-
-async function checkServiceHealth(service: {
-	name: string;
-	url: string;
-}): Promise<HealthResult> {
-	try {
-		const { status } = await fetchUrl(service.url);
-		const ok = status >= 200 && status < 300;
-		return { service: service.name, url: service.url, status, ok };
-	} catch (err) {
-		return {
-			service: service.name,
-			url: service.url,
-			status: 0,
-			ok: false,
-			error: err instanceof Error ? err.message : String(err),
-		};
-	}
-}
-
-describe("Production Smoke Tests", () => {
-	jest.setTimeout(60000);
-
-	test("all services respond to health checks", async () => {
-		const results = await Promise.all(SERVICES.map(checkServiceHealth));
-		const failed = results.filter((r) => !r.ok);
-
-		console.log("\nService Health Results:");
-		for (const r of results) {
-			const icon = r.ok ? "✓" : "✗";
-			console.log(
-				`  ${icon} ${r.service.padEnd(25)} ${r.status || "ERR"}  ${r.error || ""}`
-			);
-		}
-
-		if (failed.length > 0) {
-			console.error(`\n${failed.length}/${SERVICES.length} services unhealthy`);
-			for (const f of failed) {
-				console.error(
-					`  ✗ ${f.service} (${f.url}): ${f.error || `status ${f.status}`}`
-				);
-			}
-		}
-
-		expect(failed.length).toBe(0);
-	}, 60000);
-
-	test("discovery-server lists registered services", async () => {
-		const { status, body } = await fetchUrl("https://localhost:8443/services");
-		expect(status).toBe(200);
-		const parsed = JSON.parse(body);
-		expect(typeof parsed).toBe("object");
-		console.log(
-			`  Discovery registry contains ${Object.keys(parsed).length} service types`
-		);
+describe("Smoke", () => {
+	it.each([...SERVICE_CONTAINERS])("%s is healthy", (container) => {
+		expect(containerHealth(container)).toBe("healthy");
 	});
 
-	test("message-manager accepts new messages", async () => {
-		const { status } = await fetchUrl("https://localhost:8444/health/ready");
+	it.each(MESH_SERVICES)("%s answers /health/ready over mTLS", (service) => {
+		const { status, body } = meshRequest(
+			CALLER.scraper,
+			`https://${service}:3000/health/ready`
+		);
 		expect(status).toBe(200);
+		expect(["ok", "ready"]).toContain(JSON.parse(body).status);
+	});
+
+	it("refuses a client without a certificate at the TLS handshake", () => {
+		const { status } = meshRequest(
+			CALLER.scraper,
+			"https://discovery-server:3000/services",
+			{ withoutCert: true }
+		);
+		expect(status).toBe(0);
+	});
+
+	it("serves the edge proxy from the host", async () => {
+		const { status } = await externalRequest("/health/ready");
+		expect(status).toBe(200);
+	});
+
+	it("reaches a service through edge -> gateway -> service", async () => {
+		const { status, body } = await externalRequest(
+			"/v1/trader-trainer/training-status",
+			{ headers: { "x-api-key": GATEWAY_API_KEY } }
+		);
+		expect(status).toBe(200);
+		expect(JSON.parse(body)).toHaveProperty("data.training");
 	});
 });

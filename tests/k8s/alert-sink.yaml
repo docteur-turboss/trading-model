@@ -1,0 +1,88 @@
+# Notification target of Alertmanager in the kind test (tests/k8s/run-kind.sh,
+# verify_alerts): stands for Slack, PagerDuty and the dead man's switch, and
+# lists what it received on GET /received. CI only.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: alert-sink
+data:
+  server.mjs: |
+    const received = [];
+    Bun.serve({
+      port: 8080,
+      async fetch(req) {
+        const path = new URL(req.url).pathname;
+        if (req.method === "GET" && path === "/received") return Response.json(received);
+        const body = await req.text();
+        let alerts = [];
+        try {
+          const payload = JSON.parse(body);
+          // Alertmanager webhook: {alerts: [...]}; Slack: attachments titles.
+          alerts = (payload.alerts ?? []).map((a) => a.labels?.alertname);
+          if (alerts.length === 0 && payload.attachments) alerts = payload.attachments.map((a) => a.title);
+        } catch {}
+        received.push({ path, alerts, at: new Date().toISOString() });
+        return new Response("ok");
+      },
+    });
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: alert-sink
+spec:
+  selector:
+    app.kubernetes.io/component: alert-sink
+  ports:
+    - port: 8080
+      targetPort: 8080
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: alert-sink
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: alert-sink
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: alert-sink
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: sink
+          image: oven/bun@sha256:c1cc397e0be452c54f37cbcdfaa747eff93c993723af7d91658764d0fdfe5873
+          command: ["bun", "/sink/server.mjs"]
+          ports:
+            - containerPort: 8080
+          readinessProbe:
+            tcpSocket:
+              port: 8080
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: sink
+              mountPath: /sink
+              readOnly: true
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+      volumes:
+        - name: sink
+          configMap:
+            name: alert-sink
