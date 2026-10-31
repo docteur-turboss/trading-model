@@ -14,7 +14,7 @@ export interface HttpLayer {
 }
 
 export function buildHttpLayer(config: AddressManagerConfig): HttpLayer {
-	const httpClient = HttpClient.createWithTls(config.pems ?? config.tls);
+	const httpClient = HttpClient.createWithTls(config.tls);
 	const tokenManager = new TokenManager(httpClient, config);
 	const addressManagerClient = new AddressManagerClient(
 		httpClient,
@@ -26,12 +26,11 @@ export function buildHttpLayer(config: AddressManagerConfig): HttpLayer {
 }
 
 function createServiceCache(config: AddressManagerConfig): IServiceCache {
-	return config.redisCacheUrl
+	return config.redisCache
 		? new RedisServiceCache({
-				redisUrl: config.redisCacheUrl,
+				connection: config.redisCache,
 				prefix: "discovery:cache:",
 				ttlMs: config.cacheTtlMs,
-				cacheOptions: config.redisCacheOptions,
 			})
 		: new ServiceCache(config.cacheTtlMs);
 }
