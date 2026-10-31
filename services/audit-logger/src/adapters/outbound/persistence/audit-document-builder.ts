@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto";
 import type { EventEnumMap } from "@trading-model/contracts/event-map";
 import {
 	type CorrelationId,
@@ -56,20 +55,4 @@ function buildAuditMetadata(
 			? toCorrelationId(metadata.correlationId)
 			: undefined,
 	};
-}
-
-export function computeAuditHash(data: {
-	receivedAt: Date;
-	metadata: AuditEventDocument["metadata"];
-	payload: unknown;
-	previousHash: string;
-	chainSequence: number;
-}): string {
-	return createHash("sha256")
-		.update(
-			JSON.stringify(data, (_key, value) =>
-				typeof value === "bigint" ? value.toString() : value
-			)
-		)
-		.digest("hex");
 }

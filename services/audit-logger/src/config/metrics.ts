@@ -19,26 +19,34 @@ export const EVENTS_QUERY_DURATION_SECONDS = new promClient.Histogram({
 	buckets: [0.01, 0.05, 0.1, 0.5, 1, 2, 5],
 });
 
-export const JOB_COUNT = new promClient.Gauge({
-	name: "audit_job_count",
-	help: "Number of active jobs",
-	labelNames: ["status"] as const,
+export const CHAIN_BROKEN = new promClient.Gauge({
+	name: "audit_chain_broken",
+	help: "1 when the last verification found the audit chain broken (ADR-0027)",
 });
 
-export const BACKPRESSURE_RATIO = new promClient.Gauge({
-	name: "audit_backpressure_ratio",
-	help: "Backpressure ratio (0=idle, 1=full)",
+export const CHAIN_VERIFIED_SEQUENCE = new promClient.Gauge({
+	name: "audit_chain_verified_sequence",
+	help: "Last audit chain sequence verified",
 });
 
-export const WORKER_COUNT = new promClient.Gauge({
-	name: "audit_worker_count",
-	help: "Number of registered workers",
-	labelNames: ["status"] as const,
+export const CHAIN_LAST_VERIFICATION_TIMESTAMP = new promClient.Gauge({
+	name: "audit_chain_last_verification_timestamp",
+	help: "Unix time of the last completed audit chain verification",
 });
 
-export const ORPHAN_JOBS_TOTAL = new promClient.Counter({
-	name: "audit_orphan_jobs_total",
-	help: "Total orphan jobs detected and recovered",
+export const CHAIN_ANCHORED_SEQUENCE = new promClient.Gauge({
+	name: "audit_chain_anchored_sequence",
+	help: "Last audit chain sequence anchored in the anchor store",
+});
+
+export const CHAIN_LAST_ANCHOR_TIMESTAMP = new promClient.Gauge({
+	name: "audit_chain_last_anchor_timestamp",
+	help: "Unix time of the last successful anchoring pass",
+});
+
+export const CHAIN_ANCHORING_ENABLED = new promClient.Gauge({
+	name: "audit_chain_anchoring_enabled",
+	help: "1 when an anchor store is configured (AUDIT_ANCHOR_BUCKET)",
 });
 
 export { metricsHandler };

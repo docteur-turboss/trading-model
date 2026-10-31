@@ -35,6 +35,7 @@ createBootstrap({
 			return;
 		}
 		_context.addressManager = BOOTSTRAP_ADDRESS_MANAGER();
+		_context.chainAuditScheduler.start();
 		logger.info("Audit Logger fully operational", {
 			context: {
 				port: ENV.PORT,
@@ -47,16 +48,10 @@ createBootstrap({
 			await shutdownTelemetry();
 			return;
 		}
-		const {
-			brokerMessage,
-			scheduler,
-			workerProtocol,
-			addressManager,
-			mongoManager,
-		} = _context;
+		const { brokerMessage, addressManager, mongoManager, chainAuditScheduler } =
+			_context;
+		chainAuditScheduler.stop();
 		await brokerMessage.stopMessageManager();
-		scheduler.stop();
-		workerProtocol.close();
 		addressManager.stop();
 		await mongoManager.close();
 		_context = null;

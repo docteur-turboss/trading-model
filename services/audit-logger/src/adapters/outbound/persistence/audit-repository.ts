@@ -12,11 +12,10 @@ import type {
 	ServiceId,
 	Topic,
 } from "@trading-model/primitives/primitives";
-import type { AuditFilter } from "@trading-model/validation/adapters/inbound/admin/audit.dto";
 import type { Collection, Db } from "mongodb";
 import { EVENTS_STORED_TOTAL } from "../../../config/metrics";
+import { computeAuditHash } from "../../../domain/audit-chain";
 import type { DateRange } from "../../../domain/date-range";
-import { computeAuditHash } from "./audit-document-builder";
 import { AuditQuerier } from "./audit-querier";
 
 export interface AuditEventDocument {
@@ -48,6 +47,13 @@ export const METADATA_FIELDS: {
 	messageId: "metadata.messageId",
 };
 
+/** Filters of `GET /events`; an absent field does not filter. */
+export interface AuditFilter {
+	topic?: Topic;
+	publisher?: ServiceId;
+	correlationId?: CorrelationId;
+}
+
 export interface AuditEventQuery extends QueryEnvelope, AuditFilter {}
 
 export interface AuditStats {
@@ -59,11 +65,32 @@ export interface AuditStats {
 
 const COLLECTION = "audit_events";
 
+/** Attempts when another writer takes the next chain sequence first. */
+const MAX_CHAIN_ATTEMPTS = 5;
+const DUPLICATE_KEY = 11000;
+/**
+ * Stores the event exactly as computeAuditHash saw it: JSON.stringify skips
+ * undefined fields, the driver would store them as null and the dataHash of
+ * the stored event could never be verified again (tests/backup/audit-chain.js).
+ */
+const STORE_AS_HASHED = { ignoreUndefined: true } as const;
+
+/** The unique index a duplicate-key error hit, if it is one. */
+function duplicateKeyOf(err: unknown): string | undefined {
+	const error = err as { code?: number; keyPattern?: Record<string, unknown> };
+	if (error?.code !== DUPLICATE_KEY) {
+		return;
+	}
+	return Object.keys(error.keyPattern ?? {})[0] ?? "";
+}
+
 export class AuditRepository
 	implements MongoRepository<AuditEventDocument, AuditEventQuery>
 {
 	private readonly _collection: Collection<AuditEventDocument>;
 	private readonly _querier: AuditQuerier;
+	/** Inserts of this instance run one at a time: each extends the chain tail. */
+	private _writes: Promise<unknown> = Promise.resolve();
 
 	constructor(db: Db) {
 		this._collection = db.collection<AuditEventDocument>(COLLECTION);
@@ -109,24 +136,49 @@ export class AuditRepository
 		};
 	}
 
-	async insert(event: AuditEventDocument): Promise<void> {
-		try {
-			const tail = await this.findLastHash();
-			event.previousHash = tail?.previousHash ?? "";
-			event.chainSequence = (tail?.chainSequence ?? 0) + 1;
-			event.dataHash = computeAuditHash({
-				receivedAt: event.receivedAt,
-				metadata: event.metadata,
-				payload: event.payload,
-				previousHash: event.previousHash,
-				chainSequence: event.chainSequence,
-			});
-			await this._collection.insertOne(event);
-			EVENTS_STORED_TOTAL.inc({ status: "success" });
-		} catch (err) {
-			throw agentError("Failed to persist audit event", {
-				cause: err,
-			});
+	/**
+	 * Appends the event to the hash chain. Messages arrive concurrently, so the
+	 * inserts of this instance are queued; another replica can still take the
+	 * same sequence first (unique index), and the insert then retries on the new
+	 * tail. A message already recorded (redelivery, same messageId) is not
+	 * recorded twice.
+	 */
+	insert(event: AuditEventDocument): Promise<void> {
+		const write = this._writes.then(() => this._appendToChain(event));
+		// biome-ignore lint/plugin: the caller gets the rejection through `write`; the queue must go on
+		this._writes = write.catch(() => undefined);
+		return write;
+	}
+
+	private async _appendToChain(event: AuditEventDocument): Promise<void> {
+		for (let attempt = 1; ; attempt++) {
+			try {
+				const tail = await this.findLastHash();
+				event.previousHash = tail?.previousHash ?? "";
+				event.chainSequence = (tail?.chainSequence ?? 0) + 1;
+				event.dataHash = computeAuditHash({
+					receivedAt: event.receivedAt,
+					metadata: event.metadata,
+					payload: event.payload,
+					previousHash: event.previousHash,
+					chainSequence: event.chainSequence,
+				});
+				await this._collection.insertOne(event, STORE_AS_HASHED);
+				EVENTS_STORED_TOTAL.inc({ status: "success" });
+				return;
+			} catch (err) {
+				const key = duplicateKeyOf(err);
+				if (key === METADATA_FIELDS.messageId) {
+					EVENTS_STORED_TOTAL.inc({ status: "duplicate" });
+					return;
+				}
+				if (key === "chainSequence" && attempt < MAX_CHAIN_ATTEMPTS) {
+					continue;
+				}
+				throw agentError("Failed to persist audit event", {
+					cause: err,
+				});
+			}
 		}
 	}
 
@@ -151,7 +203,10 @@ export class AuditRepository
 					chainSequence: event.chainSequence,
 				};
 			}
-			await this._collection.insertMany(events, { ordered: false });
+			await this._collection.insertMany(events, {
+				...STORE_AS_HASHED,
+				ordered: false,
+			});
 			EVENTS_STORED_TOTAL.inc({ status: "success" }, events.length);
 		} catch (err) {
 			throw agentError("Failed to persist audit event batch", {

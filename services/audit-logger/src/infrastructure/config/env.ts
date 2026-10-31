@@ -2,21 +2,24 @@ import { validateEnv } from "@trading-model/validation/application/services/vali
 import { AddressManagerEnvSchema } from "@trading-model/validation/config/address-manager-env";
 import { BaseEnvSchema } from "@trading-model/validation/config/env";
 import { z } from "zod";
+import { MongoUriSchema } from "./mongo-uri";
 
 const AUDIT_LOGGER_ENV_SHAPE = {
-	MONGODB_URI: z
-		.string()
-		.url()
-		.default("mongodb://localhost:27017/audit-logger"),
-	MAX_QUEUE_DEPTH: z.coerce.number().int().positive().default(10000),
-	MAX_WORKER_LOAD_RATIO: z.coerce.number().min(0).max(1).default(0.85),
-	ACK_TIMEOUT_MS: z.coerce.number().int().positive().default(30000),
-	MAX_RETRIES_PER_JOB: z.coerce.number().int().min(0).default(3),
-	ORPHAN_SCAN_INTERVAL_MS: z.coerce.number().int().positive().default(10000),
-	WORKER_HEARTBEAT_TTL_MS: z.coerce.number().int().positive().default(30000),
-	GAP_DETECTION_INTERVAL_MS: z.coerce.number().int().positive().default(60000),
-	LOG_RETENTION_DAYS: z.coerce.number().int().positive().default(1827),
+	MONGODB_URI: MongoUriSchema.default("mongodb://localhost:27017/audit-logger"),
 	AUDIT_RETENTION_DAYS: z.coerce.number().int().positive().default(1827),
+	/** Verification + anchoring cycle of the audit chain (ADR-0027). */
+	AUDIT_CHAIN_INTERVAL_MS: z.coerce.number().int().positive().default(900_000),
+	/** S3 bucket with Object Lock holding the chain anchors; unset: no anchors. */
+	AUDIT_ANCHOR_BUCKET: z.string().min(1).optional(),
+	AUDIT_ANCHOR_PREFIX: z.string().default("audit-chain/"),
+	AUDIT_ANCHOR_REGION: z.string().default("us-east-1"),
+	/** S3-compatible endpoint (MinIO, Scaleway...); unset: AWS. */
+	AUDIT_ANCHOR_ENDPOINT: z.url().optional(),
+	/** Refuse to start without an anchor store (production). */
+	AUDIT_ANCHOR_REQUIRED: z
+		.string()
+		.default("false")
+		.transform((value) => value === "true" || value === "1"),
 };
 
 const AUDIT_LOGGER_ENV_SCHEMA = BaseEnvSchema.extend(
