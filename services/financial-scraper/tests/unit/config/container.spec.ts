@@ -14,14 +14,35 @@ jest.mock("@trading-model/http/infrastructure/logger", () => ({
 	logger: MOCK_LOGGER,
 }));
 
-jest.mock("../../../src/adapters/inbound/cron/binance.cron", () => ({
-	BinanceCronOrchestrator: MOCK_CRON_CONSTRUCTOR,
+jest.mock("../../../src/adapters/inbound/cron/scrape.cron", () => ({
+	ScrapeCronOrchestrator: MOCK_CRON_CONSTRUCTOR,
 }));
+
+// The real adapters would load the HTTP client and the broker client.
+jest.mock(
+	"../../../src/adapters/outbound/binance/binance-market-data-source",
+	() => ({
+		BinanceMarketDataSource: jest.fn(() => ({ id: "binance" })),
+	})
+);
+jest.mock(
+	"../../../src/adapters/outbound/broker/broker-market-data.publisher",
+	() => ({
+		BrokerMarketDataPublisher: jest.fn(() => ({ publish: jest.fn() })),
+	})
+);
 
 jest.mock(
 	"../../../src/adapters/outbound/persistence/market-data.model",
 	() => ({
 		MarketDataModel: {},
+	})
+);
+
+jest.mock(
+	"../../../src/adapters/outbound/persistence/candle-publish-backlog",
+	() => ({
+		MySqlCandlePublishBacklog: { kind: "mysql-backlog" },
 	})
 );
 
@@ -61,7 +82,7 @@ describe("config/container — createScrapeScheduler", () => {
 		);
 	});
 
-	it("should build the Binance cron with the schedule and the tracked symbols", async () => {
+	it("should build the cron with the schedule, the tracked symbols and the Binance source", async () => {
 		const scheduler = await createScrapeScheduler({
 			SCRAPE_INTERVAL: "*/5 * * * *",
 			SYMBOLS_TO_TRACK: ["BTCUSDT", "ETHUSDT"],
@@ -72,6 +93,12 @@ describe("config/container — createScrapeScheduler", () => {
 		expect(MOCK_CRON_CONSTRUCTOR).toHaveBeenCalledWith({
 			schedule: "*/5 * * * *",
 			symbols: ["BTCUSDT", "ETHUSDT"],
+			deps: {
+				source: { id: "binance" },
+				publisher: { publish: expect.any(Function) },
+				persist: expect.any(Function),
+				backlog: { kind: "mysql-backlog" },
+			},
 		});
 		expect(MOCK_LOGGER.info).toHaveBeenCalledWith(
 			"Market data collection enabled",

@@ -81,8 +81,9 @@ describe("env", () => {
 		setRequiredVars();
 
 		const { ENV } = require("../../../src/infrastructure/config/env");
-		expect(ENV.BINANCE_API_KEY).toBe("");
-		expect(ENV.BINANCE_API_SECRET).toBe("");
+		expect(ENV.BINANCE_BASE_URL).toBe("https://api.binance.com");
+		expect(ENV).not.toHaveProperty("BINANCE_API_KEY");
+		expect(ENV).not.toHaveProperty("BINANCE_API_SECRET");
 		expect(ENV.SYMBOLS_TO_TRACK).toEqual([]);
 		expect(ENV.SCRAPE_INTERVAL).toBe("*/1 * * * *");
 	});
@@ -165,14 +166,10 @@ describe("env", () => {
 
 	it("should use provided scraper-specific env vars", () => {
 		setRequiredVars();
-		process.env.BINANCE_API_KEY = "test-api-key";
-		process.env.BINANCE_API_SECRET = "test-api-secret";
 		process.env.SCRAPE_INTERVAL = "*/5 * * * *";
 		process.env.BINANCE_BASE_URL = "http://binance-stub:8080";
 
 		const { ENV } = require("../../../src/infrastructure/config/env");
-		expect(ENV.BINANCE_API_KEY).toBe("test-api-key");
-		expect(ENV.BINANCE_API_SECRET).toBe("test-api-secret");
 		expect(ENV.SCRAPE_INTERVAL).toBe("*/5 * * * *");
 		expect(ENV.BINANCE_BASE_URL).toBe("http://binance-stub:8080");
 	});

@@ -13,13 +13,14 @@ import {
 	selectOrderBookBy,
 } from "../../../../../src/adapters/outbound/persistence/schema/order-book.schema";
 
+// OrderBookData as produced by the Binance normalizer: Set levels, Unix timestamp.
 const MAKE_BOOK = (overrides: Record<string, unknown> = {}) => ({
 	symbol: "BTCUSDT",
 	source: "binance",
 	market: "crypto" as const,
-	bids: [{ price: 50000, quantity: 0.5 }],
-	asks: [{ price: 50010, quantity: 1.0 }],
-	timestamp: new Date(),
+	bids: new Set([{ price: 50000, quantity: 0.5 }]),
+	asks: new Set([{ price: 50010, quantity: 1.0 }]),
+	timestamp: Date.now(),
 	...overrides,
 });
 
@@ -62,7 +63,7 @@ describe("MarkerOrderBooks (in-memory storage)", () => {
 	});
 
 	describe("timestamp range queries", () => {
-		const baseTime = new Date();
+		const baseTime = Date.now();
 
 		beforeEach(async () => {
 			await insertOrderBook([MAKE_BOOK({ timestamp: baseTime }) as never]);
@@ -70,7 +71,7 @@ describe("MarkerOrderBooks (in-memory storage)", () => {
 
 		it("should find order books after a given timestamp", async () => {
 			const results = await selectOrderBookBy.timestamp.after(
-				UnixTimestamp.of(baseTime.getTime() - 3600000)
+				UnixTimestamp.of(baseTime - 3600000)
 			);
 			expect(results).not.toBeNull();
 			expect(results!.length).toBeGreaterThanOrEqual(1);
@@ -78,7 +79,7 @@ describe("MarkerOrderBooks (in-memory storage)", () => {
 
 		it("should find order books before a given timestamp", async () => {
 			const results = await selectOrderBookBy.timestamp.before(
-				UnixTimestamp.of(baseTime.getTime() + 3600000)
+				UnixTimestamp.of(baseTime + 3600000)
 			);
 			expect(results).not.toBeNull();
 			expect(results!.length).toBeGreaterThanOrEqual(1);
@@ -89,6 +90,11 @@ describe("MarkerOrderBooks (in-memory storage)", () => {
 		it("should throw on invalid data", async () => {
 			const invalid = MAKE_BOOK({ market: "invalid" as never });
 			await expect(insertOrderBook([invalid as never])).rejects.toThrow();
+		});
+
+		it("should reject levels sent as arrays instead of Sets", async () => {
+			const arrays = MAKE_BOOK({ bids: [{ price: 50000, quantity: 0.5 }] });
+			await expect(insertOrderBook([arrays as never])).rejects.toThrow();
 		});
 	});
 

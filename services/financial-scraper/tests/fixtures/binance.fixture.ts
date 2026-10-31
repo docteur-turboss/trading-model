@@ -11,16 +11,17 @@ import type {
 	BinanceTradingDayTicker,
 } from "../../src/adapters/outbound/binance/binance.api";
 
+// Wire format of GET /api/v3/depth: levels are [price, quantity] string tuples.
 export const mockDepthResponse: BinanceDepthResponse = {
 	lastUpdateId: 1027024,
 	bids: [
-		{ price: "0.0024" as any, qty: "10.0" as any },
-		{ price: "0.0023" as any, qty: "5.0" as any },
-	] as BinanceDepthEntry[],
+		["0.0024", "10.0"],
+		["0.0023", "5.0"],
+	] as unknown as BinanceDepthEntry[],
 	asks: [
-		{ price: "0.0026" as any, qty: "8.0" as any },
-		{ price: "0.0027" as any, qty: "3.0" as any },
-	] as BinanceDepthEntry[],
+		["0.0026", "8.0"],
+		["0.0027", "3.0"],
+	] as unknown as BinanceDepthEntry[],
 };
 
 export const mockTradeResponse: BinanceTradeResponse = [

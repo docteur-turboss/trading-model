@@ -33,7 +33,22 @@ jest.mock("../../../src/infrastructure/config/env", () => ({
 	},
 }));
 
+// Mirrors mysql2: query() on the pool is callback-based, only promise() awaits.
+const MOCK_PROMISE_QUERY = jest.fn<any>().mockResolvedValue([[{ 1: 1 }]]);
+jest.mock("../../../src/config/db", () => ({
+	DATABASE: {
+		query: jest.fn(),
+		promise: () => ({ query: MOCK_PROMISE_QUERY }),
+	},
+}));
+
 import { createServer } from "../../../src/application/server";
+
+function mysqlReadiness(): () => Promise<boolean> {
+	void createServer();
+	const options: any = MOCK_CREATE_SECURE_SERVER.mock.calls.at(-1)?.[0];
+	return options.readiness.find((check: any) => check.name === "mysql").check;
+}
 
 describe("app/server", () => {
 	it("should create server", async () => {
@@ -58,5 +73,15 @@ describe("app/server", () => {
 		const options: any = MOCK_CREATE_SECURE_SERVER.mock.calls[0][0];
 		expect(typeof options.routes).toBe("function");
 		expect(() => options.routes(MOCK_APP)).not.toThrow();
+	});
+
+	it("reports MySQL ready when the promise query succeeds", async () => {
+		await expect(mysqlReadiness()()).resolves.toBe(true);
+		expect(MOCK_PROMISE_QUERY).toHaveBeenCalledWith("SELECT 1");
+	});
+
+	it("reports MySQL down when the query fails", async () => {
+		MOCK_PROMISE_QUERY.mockRejectedValueOnce(new Error("ECONNREFUSED"));
+		await expect(mysqlReadiness()()).resolves.toBe(false);
 	});
 });

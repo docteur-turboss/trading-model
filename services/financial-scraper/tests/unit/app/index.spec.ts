@@ -43,6 +43,11 @@ jest.mock("../../../src/config/address-manager", () => ({
 	})),
 }));
 
+const MOCK_CLOSE_DATABASE = jest.fn(async () => undefined);
+jest.mock("../../../src/config/db", () => ({
+	closeDatabase: MOCK_CLOSE_DATABASE,
+}));
+
 import "../../../src/application/index";
 
 describe("app/index", () => {
@@ -71,5 +76,14 @@ describe("app/index", () => {
 		const opts: any = MOCK_CREATE_BOOTSTRAP.mock.calls[0][0];
 		opts.onStart();
 		expect(() => opts.onStop()).not.toThrow();
+	});
+
+	// Idle pool connections kept the process alive until SIGKILL.
+	it("onStop should close the MySQL pool so the process can exit", async () => {
+		const opts: any = MOCK_CREATE_BOOTSTRAP.mock.calls[0][0];
+
+		await opts.onStop();
+
+		expect(MOCK_CLOSE_DATABASE).toHaveBeenCalled();
 	});
 });
