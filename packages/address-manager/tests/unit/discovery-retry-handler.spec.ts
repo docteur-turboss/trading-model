@@ -71,7 +71,6 @@ describe("DiscoveryRetryHandler", () => {
 				jest.fn<(name: ServiceInstanceName) => Promise<ServiceInstance>>(),
 			acquireConnection: jest.fn<(id: typeof instance.instanceId) => void>(),
 			releaseConnection: jest.fn(),
-			findServiceInRegion: jest.fn(),
 			findAllServices: jest.fn(),
 		} as unknown as jest.Mocked<ServiceDiscovery>;
 	}
@@ -85,7 +84,6 @@ describe("DiscoveryRetryHandler", () => {
 			delete: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
 			clear: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
 			entries: jest.fn<() => Promise<unknown[]>>().mockResolvedValue([]),
-			getVersion: jest.fn<() => Promise<number>>().mockResolvedValue(0),
 			setCircuitState: jest
 				.fn<() => Promise<void>>()
 				.mockResolvedValue(undefined),
@@ -316,7 +314,24 @@ describe("DiscoveryRetryHandler", () => {
 			);
 		});
 
-		test("loadFromStore rejection is silently caught", async () => {
+		test("consults isOpen only after the shared state is loaded", async () => {
+			mockDiscovery.findService.mockResolvedValue(instance);
+			const order: string[] = [];
+			mockCircuitBreaker.loadFromStore.mockImplementation(async () => {
+				await Promise.resolve();
+				order.push("load");
+			});
+			mockCircuitBreaker.isOpen.mockImplementation(() => {
+				order.push("isOpen");
+				return false;
+			});
+
+			await handler.attemptDiscovery(discoveryCtx);
+
+			expect(order).toEqual(["load", "isOpen"]);
+		});
+
+		test("loadFromStore rejection falls back to local state and is logged", async () => {
 			mockDiscovery.findService.mockResolvedValue(instance);
 			mockCircuitBreaker.loadFromStore.mockRejectedValue(
 				new Error("store error")
@@ -328,6 +343,10 @@ describe("DiscoveryRetryHandler", () => {
 			expect(result).toBe(instance);
 			expect(mockCircuitBreaker.loadFromStore).toHaveBeenCalledWith(
 				instance.instanceId
+			);
+			expect(jest.mocked(logger.warn)).toHaveBeenCalledWith(
+				"Circuit state store unavailable — using local state",
+				{ instanceId: instance.instanceId, error: "store error" }
 			);
 		});
 	});

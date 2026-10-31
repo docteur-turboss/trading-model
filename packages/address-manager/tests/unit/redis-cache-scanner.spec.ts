@@ -187,19 +187,6 @@ describe("RedisCacheScanner", () => {
 			expect(results).toHaveLength(0);
 		});
 
-		test("skips entry when instance property wrapper has no serviceName", async () => {
-			redis.scan.mockResolvedValueOnce(["0", [`${prefix}user-service`]]);
-			redis.get.mockResolvedValueOnce(
-				JSON.stringify({
-					instance: { host: "127.0.0.1", port: 8080 },
-				})
-			);
-
-			const results = await scanner.entries();
-
-			expect(results).toHaveLength(0);
-		});
-
 		test("extracts region from key with :: separator", async () => {
 			redis.scan.mockResolvedValueOnce([
 				"0",
@@ -223,21 +210,6 @@ describe("RedisCacheScanner", () => {
 			expect(results).toHaveLength(1);
 			expect(results[0].serviceName).toBe(toServiceId("user-service"));
 			expect(results[0].region).toBeUndefined();
-		});
-
-		test("supports nested instance wrapper in parsed value", async () => {
-			redis.scan.mockResolvedValueOnce(["0", [`${prefix}user-service`]]);
-			redis.get.mockResolvedValueOnce(
-				JSON.stringify({
-					instance: serviceInstance(),
-					extra: "meta",
-				})
-			);
-
-			const results = await scanner.entries();
-
-			expect(results).toHaveLength(1);
-			expect(results[0].serviceName).toBe(toServiceId("user-service"));
 		});
 
 		test("returns empty array when scan fails", async () => {

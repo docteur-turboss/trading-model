@@ -57,6 +57,7 @@ describe("AddressManagerClient", () => {
 		} as unknown as jest.Mocked<HttpClient>;
 		tokenManager = {
 			getToken: jest.fn(),
+			exclusive: (operation: () => Promise<unknown>) => operation(),
 		} as unknown as jest.Mocked<TokenManager>;
 		tokenManager.getToken.mockReturnValue("mock-token");
 
@@ -76,7 +77,6 @@ describe("AddressManagerClient", () => {
 				certPath: "/path/to/cert.pem",
 				keyPath: "/path/to/key.pem",
 			},
-			discoveryUrls: ["http://localhost:8443"],
 			discoveryTimeoutMs: 5000,
 		} as AddressManagerConfig;
 
@@ -97,36 +97,8 @@ describe("AddressManagerClient", () => {
 			);
 		});
 
-		test("should try next URL when first unregister fails", async () => {
-			config = {
-				...config,
-				discoveryUrls: ["https://ds1:3000", "https://ds2:3000"],
-			} as AddressManagerConfig;
-			client = new AddressManagerClient(httpClient, tokenManager, config);
-
-			httpClient.post
-				.mockRejectedValueOnce(new Error("DS1 down"))
-				.mockResolvedValueOnce(undefined);
-
-			await client.unregisterService();
-
-			expect(httpClient.post).toHaveBeenCalledWith(
-				"https://ds2:3000/unregister" as URLString,
-				expect.any(Object),
-				expect.any(Object)
-			);
-		});
-
-		test("should not throw when all unregister URLs fail", async () => {
-			config = {
-				...config,
-				discoveryUrls: ["https://ds1:3000", "https://ds2:3000"],
-			} as AddressManagerConfig;
-			client = new AddressManagerClient(httpClient, tokenManager, config);
-
-			httpClient.post
-				.mockRejectedValueOnce(new Error("DS1 down"))
-				.mockRejectedValueOnce(new Error("DS2 down"));
+		test("should not throw when unregister fails", async () => {
+			httpClient.post.mockRejectedValueOnce(new Error("discovery down"));
 
 			await expect(client.unregisterService()).resolves.toBeUndefined();
 		});
@@ -146,6 +118,19 @@ describe("AddressManagerClient", () => {
 			await client.registerService();
 
 			expect(networkInterfaces).not.toHaveBeenCalled();
+		});
+
+		test("should register under the instanceId used by heartbeats", async () => {
+			httpClient.post.mockResolvedValueOnce({} as ServiceRegistrationResponse);
+
+			await client.registerService();
+
+			expect(httpClient.post).toHaveBeenCalledWith(
+				expect.stringMatching(/\/register$/),
+				expect.objectContaining({
+					instanceId: config.identity.instanceId,
+				})
+			);
 		});
 
 		test("should handle undefined network interface entries gracefully", async () => {
@@ -188,6 +173,7 @@ describe("AddressManagerClient", () => {
 
 			expect(httpClient.post).toHaveBeenCalledWith(expect.any(String), {
 				serviceName: config.identity.serviceName,
+				instanceId: config.identity.instanceId,
 				port: config.servicePort,
 				ip: expect.any(String),
 			});
@@ -216,6 +202,7 @@ describe("AddressManagerClient", () => {
 				`${config.addressManagerUrl}/register` as URLString,
 				{
 					serviceName: config.identity.serviceName,
+					instanceId: config.identity.instanceId,
 					port: config.servicePort,
 					ip: "192.168.1.100",
 				}
@@ -255,98 +242,6 @@ describe("AddressManagerClient", () => {
 			const err = await client.refreshTTL().catch((e) => e);
 			expect(isAppError(err)).toBe(true);
 			expect(err).toHaveProperty("cause", error);
-		});
-
-		test("should use discoveryUrls for concurrent TTL refresh when multiple URLs configured", async () => {
-			config = {
-				...config,
-				discoveryUrls: ["https://ds1:3000", "https://ds2:3000"],
-			} as AddressManagerConfig;
-			client = new AddressManagerClient(httpClient, tokenManager, config);
-			httpClient.post.mockResolvedValue(undefined);
-
-			await client.refreshTTL();
-
-			expect(httpClient.post).toHaveBeenCalledWith(
-				"https://ds1:3000/heartbeat" as URLString,
-				expect.any(Object),
-				expect.any(Object)
-			);
-			expect(httpClient.post).toHaveBeenCalledWith(
-				"https://ds2:3000/heartbeat" as URLString,
-				expect.any(Object),
-				expect.any(Object)
-			);
-		});
-
-		test("should throw when all concurrent TTL refresh URLs fail", async () => {
-			config = {
-				...config,
-				discoveryUrls: ["https://ds1:3000", "https://ds2:3000"],
-			} as AddressManagerConfig;
-			client = new AddressManagerClient(httpClient, tokenManager, config);
-
-			httpClient.post
-				.mockRejectedValueOnce(new Error("DS1 down"))
-				.mockRejectedValueOnce(new Error("DS2 down"));
-
-			await expect(client.refreshTTL()).rejects.toThrow(Error);
-		});
-
-		test("should succeed when at least one concurrent TTL refresh URL succeeds", async () => {
-			config = {
-				...config,
-				discoveryUrls: ["https://ds1:3000", "https://ds2:3000"],
-			} as AddressManagerConfig;
-			client = new AddressManagerClient(httpClient, tokenManager, config);
-
-			httpClient.post
-				.mockRejectedValueOnce(new Error("DS1 down"))
-				.mockResolvedValueOnce(undefined);
-
-			await expect(client.refreshTTL()).resolves.toBeUndefined();
-		});
-	});
-
-	describe("registerService with fallback URL", () => {
-		test("should fall back to addressManagerUrl when discoveryUrls is undefined", async () => {
-			const configWithoutUrls: AddressManagerConfig = {
-				...config,
-				discoveryUrls: undefined as unknown as string[],
-			};
-			const fallbackClient = new AddressManagerClient(
-				httpClient,
-				tokenManager,
-				configWithoutUrls
-			);
-			httpClient.post.mockResolvedValueOnce({} as ServiceRegistrationResponse);
-
-			await fallbackClient.registerService();
-
-			expect(httpClient.post).toHaveBeenCalledWith(
-				"http://localhost:8443/register" as URLString,
-				expect.any(Object)
-			);
-		});
-
-		test("should fall back to addressManagerUrl when discoveryUrls is empty array", async () => {
-			const configEmptyUrls: AddressManagerConfig = {
-				...config,
-				discoveryUrls: [],
-			};
-			const emptyClient = new AddressManagerClient(
-				httpClient,
-				tokenManager,
-				configEmptyUrls
-			);
-			httpClient.post.mockResolvedValueOnce({} as ServiceRegistrationResponse);
-
-			await emptyClient.registerService();
-
-			expect(httpClient.post).toHaveBeenCalledWith(
-				"http://localhost:8443/register" as URLString,
-				expect.any(Object)
-			);
 		});
 	});
 

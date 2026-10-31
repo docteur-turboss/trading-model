@@ -25,11 +25,36 @@ describe("TokenManager", () => {
 				certPath: "/path/to/cert.pem",
 				keyPath: "/path/to/key.pem",
 			},
-			discoveryUrls: ["http://localhost:8443"],
 			discoveryTimeoutMs: 5000,
 		} as AddressManagerConfig;
 
 		manager = new TokenManager(httpClient, config);
+	});
+
+	describe("exclusive", () => {
+		test("a token use queued during a rotation sees the new token", async () => {
+			manager.setToken("old");
+			let finishRotation: (value: { token: string }) => void = () => {};
+			httpClient.post.mockReturnValueOnce(
+				new Promise((resolve) => {
+					finishRotation = resolve;
+				})
+			);
+
+			const rotation = manager.refreshToken();
+			const heartbeat = manager.exclusive(async () => manager.getToken());
+			finishRotation({ token: "new" });
+
+			await rotation;
+			expect(await heartbeat).toBe("new");
+		});
+
+		test("a failed operation does not block the next one", async () => {
+			await expect(
+				manager.exclusive(() => Promise.reject(new Error("boom")))
+			).rejects.toThrow("boom");
+			await expect(manager.exclusive(async () => "next")).resolves.toBe("next");
+		});
 	});
 
 	describe("getToken", () => {

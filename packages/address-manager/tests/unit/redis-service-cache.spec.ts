@@ -49,7 +49,7 @@ describe("RedisServiceCache", () => {
 	beforeEach(() => {
 		jest.clearAllMocks();
 		cache = new RedisServiceCache({
-			redisUrl: "redis://localhost:6379",
+			connection: "redis://localhost:6379",
 			prefix: "discovery:cache:",
 			ttlMs: 5000 as never,
 		});
@@ -205,28 +205,28 @@ describe("RedisServiceCache", () => {
 	describe("constructor", () => {
 		it("should compute ttlSec as Math.max(1, ceil(ttlMs/1000))", () => {
 			const c = new RedisServiceCache({
-				redisUrl: "redis://localhost:6379",
+				connection: "redis://localhost:6379",
 				prefix: "p:",
 				ttlMs: 1 as never,
 			});
 			expect((c as any)._storeOptions.ttlSec).toBe(1);
 
 			const c2 = new RedisServiceCache({
-				redisUrl: "redis://localhost:6379",
+				connection: "redis://localhost:6379",
 				prefix: "p:",
 				ttlMs: 999 as never,
 			});
 			expect((c2 as any)._storeOptions.ttlSec).toBe(1);
 
 			const c3 = new RedisServiceCache({
-				redisUrl: "redis://localhost:6379",
+				connection: "redis://localhost:6379",
 				prefix: "p:",
 				ttlMs: 1000 as never,
 			});
 			expect((c3 as any)._storeOptions.ttlSec).toBe(1);
 
 			const c4 = new RedisServiceCache({
-				redisUrl: "redis://localhost:6379",
+				connection: "redis://localhost:6379",
 				prefix: "p:",
 				ttlMs: 1500 as never,
 			});
@@ -234,38 +234,8 @@ describe("RedisServiceCache", () => {
 		});
 	});
 
-	describe("getVersion", () => {
-		it("should return version from stored data", async () => {
-			MOCK_REDIS_INSTANCE.get.mockResolvedValue(
-				JSON.stringify({ version: 42, instance: { serviceName: "svc" } })
-			);
-			const v = await cache.getVersion(toServiceId("svc"));
-			expect(v).toBe(42);
-		});
-
-		it("should return 0 when key not found", async () => {
-			MOCK_REDIS_INSTANCE.get.mockResolvedValue(null);
-			const v = await cache.getVersion(toServiceId("svc"));
-			expect(v).toBe(0);
-		});
-
-		it("should return 0 when version field missing", async () => {
-			MOCK_REDIS_INSTANCE.get.mockResolvedValue(
-				JSON.stringify({ instance: { serviceName: "svc" } })
-			);
-			const v = await cache.getVersion(toServiceId("svc"));
-			expect(v).toBe(0);
-		});
-
-		it("should return 0 on Redis error", async () => {
-			MOCK_REDIS_INSTANCE.get.mockRejectedValue(new Error("err"));
-			const v = await cache.getVersion(toServiceId("svc"));
-			expect(v).toBe(0);
-		});
-	});
-
-	describe("get with version-parsed data", () => {
-		it("should parse version-tagged entry", async () => {
+	describe("get", () => {
+		it("should parse the stored instance", async () => {
 			const instance = { serviceName: "svc", instanceId: toInstanceId("i-1") };
 			MOCK_REDIS_INSTANCE.get.mockResolvedValue(JSON.stringify(instance));
 			const result = await cache.get(toServiceId("svc"));

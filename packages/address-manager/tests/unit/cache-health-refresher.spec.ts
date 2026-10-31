@@ -38,7 +38,6 @@ describe("CacheHealthRefresher", () => {
 		serviceCache = {
 			get: jest.fn(),
 			set: jest.fn(),
-			getVersion: jest.fn(),
 			delete: jest.fn(),
 			clear: jest.fn(),
 			entries: jest.fn(),

@@ -105,11 +105,6 @@ describe("ServiceCache", () => {
 		jest.useRealTimers();
 	});
 
-	it("getVersion should return 0", async () => {
-		const v = await cache.getVersion(toServiceId("svc"));
-		expect(v).toBe(0);
-	});
-
 	it("close should clear cache", async () => {
 		await cache.set({
 			serviceName: toServiceId("svc"),

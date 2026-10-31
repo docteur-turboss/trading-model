@@ -128,6 +128,18 @@ describe("MapResolver", () => {
 		const result = locator.resolve(toServiceId("unknown-service"));
 		expect(result).toBe("unknown-service");
 	});
+
+	test("unmapped registered names fall back to their canonical DNS name", () => {
+		const locator = new MapResolver({});
+		const registered = {
+			...instance,
+			serviceName: toServiceId("message-delivery-service"),
+		};
+		expect(locator.locate(registered)).toBe("message-manager");
+		expect(locator.resolve(toServiceId("audit-logger-service"))).toBe(
+			"audit-logger"
+		);
+	});
 });
 
 describe("MappingServiceLocator", () => {

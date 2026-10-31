@@ -77,12 +77,12 @@ describe("SteadyStateScheduler", () => {
 		const mod = jest.requireActual(
 			"../../src/adapters/outbound/discovery/redis-service-cache"
 		) as {
-			RedisServiceCache: new (config: { redisUrl: string }) => IServiceCache;
+			RedisServiceCache: new (config: { connection: string }) => IServiceCache;
 		};
 		const redisScheduler = new SteadyStateScheduler({
 			...options,
 			serviceCache: new mod.RedisServiceCache({
-				redisUrl: "redis://localhost:6379",
+				connection: "redis://localhost:6379",
 			}),
 		});
 		redisScheduler.setup();

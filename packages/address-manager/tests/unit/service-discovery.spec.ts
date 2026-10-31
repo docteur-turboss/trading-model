@@ -66,6 +66,7 @@ describe("ServiceDiscovery", () => {
 			isHealthy: jest
 				.fn<(instance: ServiceInstance) => Promise<boolean>>()
 				.mockResolvedValue(true),
+			locate: jest.fn((instance: ServiceInstance) => String(instance.host)),
 		} as unknown as jest.Mocked<ServiceHealthChecker>;
 	}
 
@@ -85,7 +86,6 @@ describe("ServiceDiscovery", () => {
 				ttlRefreshIntervalMs: DurationMs.of(0),
 				servicePingTimeoutMs: DurationMs.of(0),
 				cacheTtlMs: DurationMs.of(0),
-				discoveryUrls: ["http://localhost:8443"],
 				identity: {
 					serviceName: toServiceId("test-service"),
 					instanceId: toInstanceId("test-instance"),
@@ -112,18 +112,15 @@ describe("ServiceDiscovery", () => {
 		expect(cache.delete).not.toHaveBeenCalled();
 	});
 
-	test("findServiceInRegion returns cached instance if healthy", async () => {
-		cache.get.mockResolvedValue(instance);
-		healthChecker.isHealthy.mockResolvedValue(true);
+	test("targets the instance through the located address, not its registered IP", async () => {
+		cache.get.mockResolvedValue(null);
+		httpClient.get.mockResolvedValueOnce(instance);
+		healthChecker.locate.mockReturnValueOnce("message-manager");
 
-		const result = await discovery.findServiceInRegion(
-			svcInstanceName,
-			"us-east-1"
-		);
+		const result = await discovery.findService(svcInstanceName);
 
-		expect(result).toEqual(instance);
-		expect(cache.get).toHaveBeenCalledWith(serviceName);
-		expect(cache.delete).not.toHaveBeenCalled();
+		expect(result.host).toBe("message-manager");
+		expect(result.port).toBe(instance.port);
 	});
 
 	test("fetches from AddressManager if cache is empty", async () => {
@@ -217,66 +214,6 @@ describe("ServiceDiscovery", () => {
 		await discovery.findService(svcInstanceName);
 
 		expect(cache.set).toHaveBeenCalledWith({ serviceName, instance });
-	});
-
-	test("findServiceInRegion invalidates cache when cached instance is unhealthy", async () => {
-		cache.get.mockResolvedValue(instance);
-		healthChecker.isHealthy.mockResolvedValueOnce(false);
-		httpClient.get.mockResolvedValueOnce(instance);
-		healthChecker.isHealthy.mockResolvedValueOnce(true);
-
-		const result = await discovery.findServiceInRegion(
-			svcInstanceName,
-			"us-east-1"
-		);
-
-		expect(cache.delete).toHaveBeenCalledWith(serviceName);
-		expect(result).toEqual(instance);
-	});
-
-	test("findServiceInRegion falls back to non-region lookup when region HTTP fails", async () => {
-		cache.get.mockResolvedValue(null);
-		httpClient.get.mockRejectedValueOnce(new Error("region unavailable"));
-		httpClient.get.mockResolvedValueOnce(instance);
-		healthChecker.isHealthy.mockResolvedValue(true);
-
-		const result = await discovery.findServiceInRegion(
-			svcInstanceName,
-			"us-east-1"
-		);
-
-		expect(result).toEqual(instance);
-		expect(httpClient.get).toHaveBeenCalledTimes(2);
-	});
-
-	test("findServiceInRegion falls back when all region instances are unhealthy", async () => {
-		cache.get.mockResolvedValue(null);
-		httpClient.get.mockResolvedValueOnce([instance]);
-		healthChecker.isHealthy.mockResolvedValueOnce(false);
-		httpClient.get.mockResolvedValueOnce(instance);
-		healthChecker.isHealthy.mockResolvedValueOnce(true);
-
-		const result = await discovery.findServiceInRegion(
-			svcInstanceName,
-			"us-east-1"
-		);
-
-		expect(result).toEqual(instance);
-		expect(httpClient.get).toHaveBeenCalledTimes(2);
-	});
-
-	test("findServiceInRegion skips null entries in region instance list", async () => {
-		cache.get.mockResolvedValue(null);
-		httpClient.get.mockResolvedValueOnce([null, instance]);
-		healthChecker.isHealthy.mockResolvedValueOnce(true);
-
-		const result = await discovery.findServiceInRegion(
-			svcInstanceName,
-			"us-east-1"
-		);
-
-		expect(result).toEqual(instance);
-		expect(healthChecker.isHealthy).toHaveBeenCalledTimes(1);
 	});
 
 	test("acquireConnection increments connection count for new instance", () => {

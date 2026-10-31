@@ -53,6 +53,25 @@ describe("ShutdownHandler", () => {
 		expect(deps.circuitBreaker.clear).toHaveBeenCalledTimes(1);
 	});
 
+	// The service still resolves its targets while it finishes in-flight work.
+	it("leaveRegistry() should unregister but keep the service cache", async () => {
+		await handler.leaveRegistry();
+		expect(deps.registrationManager.stopRetrying).toHaveBeenCalled();
+		expect(deps.addressManagerClient.unregisterService).toHaveBeenCalledTimes(
+			1
+		);
+		expect(deps.serviceCache.close).not.toHaveBeenCalled();
+	});
+
+	it("fullStop() after leaveRegistry() should not unregister twice", async () => {
+		await handler.leaveRegistry();
+		await handler.fullStop();
+		expect(deps.addressManagerClient.unregisterService).toHaveBeenCalledTimes(
+			1
+		);
+		expect(deps.serviceCache.close).toHaveBeenCalledTimes(1);
+	});
+
 	it("fullStop() should handle unregisterService error gracefully", async () => {
 		deps.addressManagerClient.unregisterService.mockRejectedValue(
 			new Error("unregister error")

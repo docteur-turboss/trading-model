@@ -78,7 +78,6 @@ jest.mock("../../src/adapters/outbound/discovery/redis-service-cache", () => ({
 		clear: jest.fn<any>(),
 		entries: jest.fn<any>().mockResolvedValue([]),
 		close: jest.fn<any>(),
-		getVersion: jest.fn<any>().mockResolvedValue(0),
 		circuitStateStore: {
 			setCircuitState: jest.fn<any>().mockResolvedValue(undefined),
 			getCircuitState: jest.fn<any>().mockResolvedValue(null),
@@ -95,7 +94,6 @@ jest.mock("../../src/adapters/outbound/discovery/service-cache", () => ({
 		clear: jest.fn<any>(),
 		entries: jest.fn<any>().mockResolvedValue([]),
 		close: jest.fn<any>(),
-		getVersion: jest.fn<any>().mockResolvedValue(0),
 		circuitStateStore: {
 			setCircuitState: jest.fn<any>().mockResolvedValue(undefined),
 			getCircuitState: jest.fn<any>().mockResolvedValue(null),
@@ -130,6 +128,7 @@ jest.mock(
 	() => ({
 		ServiceHealthChecker: jest.fn<any>().mockReturnValue({
 			isHealthy: jest.fn<any>().mockResolvedValue(true),
+			locate: jest.fn((instance: { host: string }) => instance.host),
 			recordLatency: jest.fn<any>(),
 		}),
 	})
@@ -152,7 +151,6 @@ function makeConfig(
 	return {
 		servicePort: Port.of(8080),
 		addressManagerUrl: "https://discovery:3000",
-		discoveryUrls: ["https://discovery:3000"],
 		cacheTtlMs: DurationMs.of(30000),
 		servicePingTimeoutMs: DurationMs.of(2000),
 		discoveryTimeoutMs: DurationMs.of(5000),
@@ -190,7 +188,9 @@ describe("AddressManager (main)", () => {
 
 	it("should create instance with Redis cache", () => {
 		const am = new AddressManager(
-			makeConfig({ redisCacheUrl: "redis://localhost:6379" })
+			makeConfig({
+				redisCache: { mode: "single", url: "redis://localhost:6379" as never },
+			})
 		);
 		expect(am).toBeInstanceOf(AddressManager);
 	});
@@ -280,6 +280,17 @@ describe("AddressManager (main)", () => {
 		const handle2 = am.lifecycleManager.start();
 		handle1.stop();
 		handle2.stop();
+	});
+
+	it("should leave the registry, then stop", async () => {
+		const am = new AddressManager(makeConfig());
+		const handle = am.lifecycleManager.start();
+		await handle.ready;
+		await handle.leave();
+		expect(MOCK_ADDRESS_MANAGER_CLIENT.unregisterService).toHaveBeenCalledTimes(
+			1
+		);
+		handle.stop();
 	});
 
 	it("should complete registration before stopping", async () => {
