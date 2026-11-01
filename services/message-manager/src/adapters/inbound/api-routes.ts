@@ -21,9 +21,9 @@ export const BROKER_API = {
 		method: "POST",
 		path: "/message",
 		summary:
-			"Publish a message: answered once every subscriber acknowledged, dead-lettered or gave up (ADR-0019)",
+			"Publish a message: answered once every subscriber acknowledged, dead-lettered or gave up (ADR-0019); 503 when the topic has no subscriber and delivery.requireSubscriber is set",
 		body: PUBLISH_SCHEMA,
-		responses: { 204: null, ...REJECTED },
+		responses: { 204: null, ...REJECTED, 503: ErrorResponse },
 	}),
 	subscribe: defineRoute({
 		method: "POST",

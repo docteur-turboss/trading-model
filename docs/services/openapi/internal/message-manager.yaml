@@ -46,7 +46,7 @@ paths:
       operationId: "postMessage"
       tags:
         - "message-manager"
-      summary: "Publish a message: answered once every subscriber acknowledged, dead-lettered or gave up (ADR-0019)"
+      summary: "Publish a message: answered once every subscriber acknowledged, dead-lettered or gave up (ADR-0019); 503 when the topic has no subscriber and delivery.requireSubscriber is set"
       x-registry-entry: "publish"
       requestBody:
         required: true
@@ -114,6 +114,8 @@ paths:
                           exclusiveMinimum: true
                         deduplicationId:
                           type: "string"
+                        requireSubscriber:
+                          type: "boolean"
                       required:
                         - "mode"
                     security:
@@ -155,6 +157,12 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
         "429":
           description: "Too many requests"
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "503":
+          description: "Service unavailable"
           content:
             "application/json":
               schema:

@@ -53,7 +53,7 @@ Publisher ──POST /message──▶ message-manager ──POST /message (call
 | A message survives a graceful message-manager restart (rolling deploy, SIGTERM) during delivery | Yes: in-flight deliveries finish first |
 | A message survives a message-manager crash or kill during delivery | **No** (memory only) |
 | A dead letter reaches the DLQ API | Yes, once dlq-service is reachable; lost if the pod is deleted before that |
-| A message published with no subscriber is kept | **No** (dropped, counted) |
+| A message published with no subscriber is kept | **No** (dropped, counted), unless it sets `delivery.requireSubscriber`: then the publish is refused (503) and the publisher sends it again (scraper candles, publish cursor) |
 | Messages can be replayed | **No** |
 | Ordering | Not guaranteed across publishes (concurrent HTTP requests) |
 | Subscriptions survive a restart / are shared between replicas | Yes with Redis, no without |

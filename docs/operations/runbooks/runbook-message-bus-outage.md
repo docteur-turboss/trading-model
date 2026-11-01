@@ -9,7 +9,7 @@ message-manager is a synchronous HTTP pub/sub broker ([ADR-0019](../../adr/0019-
 
 - **It keeps subscriptions, not messages.** There is no stream, no WAL and no archive: nothing can be replayed. A graceful stop (SIGTERM) leaves discovery, serves 30 s more and lets in-flight publishes finish (up to 5 min, `terminationGracePeriodSeconds: 360`); a crash or a forced kill loses them.
 - **Subscriptions live in Redis** (one hash per topic, `REDIS_SENTINELS`), expire 60 s after their last renewal, and subscribers renew every 15 s. Without Redis, message-manager cannot route anything.
-- **A message published with no subscriber is dropped** and counted (`mm_messages_unrouted_total`).
+- **A message published with no subscriber is dropped** and counted (`mm_messages_unrouted_total`), except when it sets `delivery.requireSubscriber`: the publish is refused (503) and the publisher keeps it. The scraper candles do (publish cursor): after an outage longer than 60 s the subscriptions have expired, and the candle backlog waits in MySQL until the trainer renews its subscription (15 s) instead of being lost.
 - **Dead letters go to dlq-service** (signed `POST /dlq`). While it cannot take them they wait in a local file (`DLQ_LOCAL_FALLBACK_PATH`, an `emptyDir` in K8s), sent again every minute and at shutdown: a pod deleted without a graceful stop loses them.
 
 An outage affects:

@@ -10,6 +10,7 @@ import {
 	it,
 	jest,
 } from "@jest/globals";
+import { DeliveryMode } from "@trading-model/contracts/delivery-mode";
 import { HttpMessageDelivery } from "../../../../src/adapters/outbound/http-message-delivery";
 import { InMemorySubscriptionStore } from "../../../../src/adapters/outbound/in-memory-subscription-store";
 import { Dispatcher } from "../../../../src/application/services/dispatcher";
@@ -146,6 +147,44 @@ describe("Dispatcher", () => {
 				"Message dropped: no subscriber for its topic",
 				{ context: { topic: "test.topic", messageId: "msg-123" } }
 			);
+		});
+
+		it("should refuse, not drop, an unrouted message that requires a subscriber", async () => {
+			const { MESSAGES_UNROUTED_TOTAL } = jest.requireMock<{
+				MESSAGES_UNROUTED_TOTAL: { inc: jest.Mock };
+			}>("../../../../src/config/metrics");
+			const message = createMockMessage("test", {
+				delivery: {
+					mode: DeliveryMode.AtLeastOnce,
+					requireSubscriber: true,
+				},
+			});
+
+			await expect(dispatcher.dispatch(message)).rejects.toMatchObject({
+				httpStatus: 503,
+			});
+
+			expect(mockHttpClient.post).not.toHaveBeenCalled();
+			expect(MESSAGES_UNROUTED_TOTAL.inc).toHaveBeenCalledWith({
+				topic: "test.topic",
+			});
+			expect(mockLogger.warn).toHaveBeenCalledWith(
+				"Message refused: no subscriber for its topic",
+				{ context: { topic: "test.topic", messageId: "msg-123" } }
+			);
+		});
+
+		it("should deliver a message that requires a subscriber when one exists", async () => {
+			await dispatcher.subscribe(mockSubscribeParams);
+			const message = createMockMessage("test", {
+				delivery: {
+					mode: DeliveryMode.AtLeastOnce,
+					requireSubscriber: true,
+				},
+			});
+
+			await expect(dispatcher.dispatch(message)).resolves.toBeUndefined();
+			expect(mockHttpClient.post).toHaveBeenCalled();
 		});
 
 		it("should route a message published on another replica sharing the store", async () => {

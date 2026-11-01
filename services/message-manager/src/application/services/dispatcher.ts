@@ -5,6 +5,7 @@
  * and dispatches published messages to all matching subscribers.
  */
 
+import { messageManagerError } from "@trading-model/common/utils/errors";
 import { getLogger } from "@trading-model/contracts/logger-registry";
 import type { Message } from "@trading-model/contracts/message-types";
 import type { InstanceId } from "@trading-model/primitives/primitives";
@@ -69,6 +70,16 @@ export class Dispatcher {
 			// Nobody to deliver to: the message is dropped. Counted so that a
 			// subscriber that stopped subscribing does not go unnoticed.
 			MESSAGES_UNROUTED_TOTAL.inc({ topic });
+			if (message.metadata.delivery?.requireSubscriber) {
+				// The publisher sends it again: after an outage of ours, its
+				// backlog must not reach us before the subscribers renewed.
+				getLogger().warn("Message refused: no subscriber for its topic", {
+					context: { topic, messageId },
+				});
+				throw messageManagerError(
+					`No subscriber for topic ${topic}: publish refused, send it again`
+				);
+			}
 			getLogger().warn("Message dropped: no subscriber for its topic", {
 				context: { topic, messageId },
 			});

@@ -125,7 +125,7 @@ trainer_received() {
 mm_dropped() {
 	$K -n "$NS" logs -l app.kubernetes.io/component=message-manager \
 		-c message-manager --tail=-1 --since-time="$1" --prefix 2>/dev/null |
-		grep -c "no subscriber for its topic" || true
+		grep -c "Message dropped: no subscriber for its topic" || true
 }
 
 prometheus_targets_down() {

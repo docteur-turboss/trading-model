@@ -101,6 +101,8 @@ paths:
                           exclusiveMinimum: true
                         deduplicationId:
                           type: "string"
+                        requireSubscriber:
+                          type: "boolean"
                       required:
                         - "mode"
                     routing:

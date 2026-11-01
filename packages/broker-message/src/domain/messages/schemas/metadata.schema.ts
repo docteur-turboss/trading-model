@@ -61,6 +61,11 @@ export const DELIVERY_METADATA_MODE_PREDICATE = z
 				"delivery.deduplicationId must be a string used to prevent duplicate message processing."
 			)
 			.optional(),
+		requireSubscriber: z
+			.boolean(
+				"delivery.requireSubscriber must be a boolean: refuse the publish when the topic has no subscriber."
+			)
+			.optional(),
 	})
 	.optional();
 
