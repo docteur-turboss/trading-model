@@ -21,10 +21,6 @@ jest.mock("@opentelemetry/instrumentation-http", () => ({
 	HttpInstrumentation: jest.fn(),
 }));
 
-jest.mock("@opentelemetry/instrumentation-ioredis", () => ({
-	IORedisInstrumentation: jest.fn(),
-}));
-
 jest.mock("@opentelemetry/resources", () => ({
 	resourceFromAttributes: jest.fn(() => ({})),
 }));
