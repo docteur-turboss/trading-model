@@ -570,15 +570,17 @@ mysql_diagnostics() {
 		grep -E "^(Seccomp|NoNewPrivs|Cap)" /proc/self/status
 		uname -r
 	' 2>&1 || true
-	# Same image and user, outside the pod: seccomp RuntimeDefault vs Unconfined.
+	# Same image as root, outside the pod: which file syscalls of mysqld fail
+	# (seccomp Unconfined already reads nothing either).
 	local image
 	image="$($K -n "$NS" get pod mysql-0 -o jsonpath='{.spec.containers[0].image}')"
-	for seccomp in RuntimeDefault Unconfined; do
-		echo "===== mysqld --print-defaults, uid 999, seccomp $seccomp"
-		$K -n default run "mysqld-probe-${seccomp,,}" --rm -i --restart=Never --image="$image" --command \
-			--overrides="{\"spec\":{\"securityContext\":{\"runAsUser\":999,\"runAsGroup\":999,\"seccompProfile\":{\"type\":\"$seccomp\"}}}}" \
-			-- sh -c 'mysqld --print-defaults; echo "rc=$?"; mysqld --verbose --help 2>&1 | grep -E "^(basedir|socket|lc-messages-dir) "' 2>&1 || true
-	done
+	echo "===== strace mysqld --print-defaults (root)"
+	$K -n default run mysqld-strace --rm -i --restart=Never --image="$image" --command -- sh -c '
+		microdnf install -y strace >/dev/null 2>&1 || echo "strace install failed"
+		echo "--- my_print_defaults"; strace -f -e trace=%file my_print_defaults mysqld 2>&1 | grep -E "my.cnf|conf.d" | head -20
+		echo "--- mysqld"; strace -f -e trace=%file,%desc mysqld --print-defaults 2>&1 | grep -vE "ENOENT.*\.so|/lib64|/usr/lib|ld.so" | head -80
+		echo "--- mysqld errmsg"; strace -f -e trace=%file mysqld --verbose --help 2>&1 | grep -E "errmsg|my.cnf" | head -10
+	' 2>&1 || true
 }
 
 case "${1:-all}" in
