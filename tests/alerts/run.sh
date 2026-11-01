@@ -10,6 +10,8 @@ WORK="$(mktemp -d)"
 # Git Bash: a C:/... path works for bash and the native bun/docker alike.
 if command -v cygpath >/dev/null; then WORK="$(cygpath -m "$WORK")"; fi
 trap 'rm -rf "$WORK"' EXIT
+# mktemp -d is 0700: the Prometheus image runs promtool as nobody.
+chmod 755 "$WORK"
 
 # The K8s rules, as Prometheus reads them from the ConfigMap.
 bun -e '
