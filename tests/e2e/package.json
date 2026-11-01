@@ -8,9 +8,9 @@
     "test:docker": "docker compose -f ../../docker-compose.yml up -d && sleep 30 && jest --forceExit"
   },
   "devDependencies": {
-    "@jest/globals": "^30.4.1",
-    "@types/node": "^25.9.4",
-    "jest": "^30.4.2",
-    "ts-jest": "^29.4.11"
+    "@jest/globals": "^30.5.2",
+    "@types/node": "^25.9.9",
+    "jest": "^30.5.2",
+    "ts-jest": "^29.4.15"
   }
 }
