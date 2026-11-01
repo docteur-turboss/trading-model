@@ -28,12 +28,19 @@ const METRICS_PATH = "/metrics";
 /**
  * Prometheus scrapes `GET /metrics` on every service with its own SVID: it is
  * not a caller of their APIs, so it gets this route only, not an ACL entry.
+ * A service also reads its own metrics (the canary gate of deploy-k8s.sh
+ * curls them from inside the canary pod, with the pod's SVID).
  */
-function isMetricsScrape(req: Request, callerName: ServiceId): boolean {
+function isMetricsScrape(
+	req: Request,
+	callerName: ServiceId,
+	targetService: ServiceId
+): boolean {
 	return (
 		req.method === "GET" &&
 		req.path === METRICS_PATH &&
-		METRICS_SCRAPERS.includes(String(callerName))
+		(METRICS_SCRAPERS.includes(String(callerName)) ||
+			String(callerName) === String(targetService))
 	);
 }
 
@@ -44,7 +51,7 @@ export function MTLSAuthorizationMiddleware(
 	const acl = new AclService();
 	return catchSync((req: Request, _res, next) => {
 		const callerName = acl.resolveCallerName(req);
-		if (!isMetricsScrape(req, callerName)) {
+		if (!isMetricsScrape(req, callerName, targetService)) {
 			acl.authorizeCaller(callerName, targetService, allowedCallers);
 		}
 		next();

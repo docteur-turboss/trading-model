@@ -34,11 +34,21 @@ describe("MTLSAuthorizationMiddleware", () => {
 		const PROMETHEUS =
 			"spiffe://trading-model.local/ns/trading-model/sa/prometheus";
 
-		function run(method: string, path: string): NextFunction {
+		const SELF =
+			"spiffe://trading-model.local/ns/trading-model/sa/trader-trainer";
+		const OTHER =
+			"spiffe://trading-model.local/ns/trading-model/sa/financial-scraper";
+
+		function run(
+			method: string,
+			path: string,
+			clientIdentity = PROMETHEUS
+		): NextFunction {
 			const middleware = MTLSAuthorizationMiddleware(
-				ServiceId.of("trader-trainer")
+				ServiceId.of("trader-trainer"),
+				[ServiceId.of("message-manager")]
 			);
-			const req = { clientIdentity: PROMETHEUS, method, path } as Request;
+			const req = { clientIdentity, method, path } as Request;
 			const next = jest.fn() as NextFunction;
 			void middleware(req, {} as Response, next);
 			return next;
@@ -50,6 +60,20 @@ describe("MTLSAuthorizationMiddleware", () => {
 
 		it("still denies prometheus every other route", () => {
 			const next = run("GET", "/training-status");
+			expect(next).toHaveBeenCalledWith(expect.anything());
+		});
+
+		it("lets a service read its own GET /metrics (canary gate)", () => {
+			expect(run("GET", "/metrics", SELF)).toHaveBeenCalledWith();
+		});
+
+		it("denies a service every other route of itself it is not allowed", () => {
+			const next = run("GET", "/training-status", SELF);
+			expect(next).toHaveBeenCalledWith(expect.anything());
+		});
+
+		it("denies another service the metrics", () => {
+			const next = run("GET", "/metrics", OTHER);
 			expect(next).toHaveBeenCalledWith(expect.anything());
 		});
 	});
