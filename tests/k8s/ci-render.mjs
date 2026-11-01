@@ -25,14 +25,23 @@ function adapt(manifest) {
 			/(requests:\n\s+)cpu: "?(\d+(?:\.\d+)?)(m?)"?/g,
 			(match, head, value, unit) => _quarterCpu(match, head, value, unit)
 		)
+		// kustomize drops the quotes of the ConfigMap value.
 		.replace(
-			/BINANCE_BASE_URL: "https:\/\/api\.binance\.com"/,
+			/BINANCE_BASE_URL: "?https:\/\/api\.binance\.com"?/g,
 			'BINANCE_BASE_URL: "http://binance-stub:3000"'
 		);
 }
+
+// A silent miss sends the scraper to the real Binance (HTTP 451 from CI).
+const STUB_URL = 'BINANCE_BASE_URL: "http://binance-stub:3000"';
 
 const documents = readFileSync(0, "utf8")
 	.split(/^---$/m)
 	.filter((doc) => !DROPPED_KINDS.test(doc))
 	.map((doc) => (/^kind: CronJob$/m.test(doc) ? doc.replace(/^spec:\n/m, "spec:\n  suspend: true\n") : doc));
-process.stdout.write(adapt(documents.join("---")));
+const rendered = adapt(documents.join("---"));
+if (!rendered.includes(STUB_URL) || /BINANCE_BASE_URL: "?https:/.test(rendered)) {
+	process.stderr.write("ci-render: BINANCE_BASE_URL not pointed at the stub\n");
+	process.exit(1);
+}
+process.stdout.write(rendered);
