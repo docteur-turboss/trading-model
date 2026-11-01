@@ -119,9 +119,12 @@ trainer_received() {
 		awk '/^tt_market_data_received_total/ {print int($2)}'
 }
 
-# Messages message-manager dropped for lack of a subscriber, over its pods.
+# Messages message-manager dropped for lack of a subscriber, over its pods,
+# logged since $1 (RFC 3339): drops before a subscriber's first subscription
+# are expected at startup.
 mm_dropped() {
-	$K -n "$NS" logs -l app.kubernetes.io/component=message-manager 		-c message-manager --tail=-1 --prefix 2>/dev/null |
+	$K -n "$NS" logs -l app.kubernetes.io/component=message-manager \
+		-c message-manager --tail=-1 --since-time="$1" --prefix 2>/dev/null |
 		grep -c "no subscriber for its topic" || true
 }
 
@@ -182,6 +185,8 @@ verify_replicas() {
 	wait_for 180 '[ "$(trainer_received)" -gt "'"${before:-0}"'" ]'
 	log "  3 replicas: the trainer receives market data ($(trainer_received) messages)"
 
+	local restarted_at
+	restarted_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 	# shellcheck disable=SC2086
 	$K -n "$NS" rollout restart $deployments
 	for d in $deployments; do $K -n "$NS" rollout status "$d" --timeout=300s; done
@@ -191,7 +196,7 @@ verify_replicas() {
 		return 1
 	}
 	local dropped
-	dropped="$(mm_dropped)"
+	dropped="$(mm_dropped "$restarted_at")"
 	[ "${dropped:-0}" -eq 0 ] || {
 		log "the restarted message-manager pods dropped $dropped message(s): no subscriber"
 		return 1
