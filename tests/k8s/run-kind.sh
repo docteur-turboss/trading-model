@@ -560,6 +560,13 @@ dump() {
 		echo "===== deployment/$workload"
 		$K -n "$NS" logs "deployment/$workload" --all-containers --tail=80 2>&1 | grep -v 'x509 context' || true
 	done
+	echo "===== message-manager drops and trainer subscription renewals (every pod)"
+	$K -n "$NS" get pods -l app.kubernetes.io/component=message-manager \
+		-o custom-columns=NAME:.metadata.name,STARTED:.status.startTime,READY:.status.conditions[?\(@.type==\"Ready\"\)].lastTransitionTime || true
+	$K -n "$NS" logs -l app.kubernetes.io/component=message-manager -c message-manager --tail=-1 --prefix 2>/dev/null |
+		grep -E "no subscriber|Subscri|Shutting|drain|listening" | cut -c1-400 || true
+	$K -n "$NS" logs deployment/trader-trainer -c trader-trainer --tail=-1 2>/dev/null |
+		grep -iE "subscri" | cut -c1-400 | tail -40 || true
 	echo "===== market data in MySQL"
 	mysql_root "SELECT 'candles', COUNT(*) FROM financial_scraper.market_candles UNION ALL SELECT 'trades', COUNT(*) FROM financial_scraper.market_trades" 2>&1 || true
 	mysql_diagnostics
