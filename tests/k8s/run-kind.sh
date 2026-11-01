@@ -570,17 +570,9 @@ mysql_diagnostics() {
 		grep -E "^(Seccomp|NoNewPrivs|Cap)" /proc/self/status
 		uname -r
 	' 2>&1 || true
-	# Same image as root, outside the pod: which file syscalls of mysqld fail
-	# (seccomp Unconfined already reads nothing either).
-	local image
-	image="$($K -n "$NS" get pod mysql-0 -o jsonpath='{.spec.containers[0].image}')"
-	echo "===== strace mysqld --print-defaults (root)"
-	$K -n default run mysqld-strace --rm -i --restart=Never --image="$image" --command -- sh -c '
-		microdnf install -y strace >/dev/null 2>&1 || echo "strace install failed"
-		echo "--- my_print_defaults"; strace -f -e trace=%file my_print_defaults mysqld 2>&1 | grep -E "my.cnf|conf.d" | head -20
-		echo "--- mysqld"; strace -f -e trace=%file,%desc mysqld --print-defaults 2>&1 | grep -vE "ENOENT.*\.so|/lib64|/usr/lib|ld.so" | head -80
-		echo "--- mysqld errmsg"; strace -f -e trace=%file mysqld --verbose --help 2>&1 | grep -E "errmsg|my.cnf" | head -10
-	' 2>&1 || true
+	# A host AppArmor profile attached by path (usr.sbin.mysqld on the GitHub
+	# runner) confines the pod's mysqld: it shows here.
+	$K -n "$NS" exec mysql-0 -c mysql -- cat /proc/1/attr/current 2>&1 || true
 }
 
 case "${1:-all}" in

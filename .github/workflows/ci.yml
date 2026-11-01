@@ -172,6 +172,15 @@ jobs:
           curl -fsSLo kind "https://github.com/kubernetes-sigs/kind/releases/download/${KIND_VERSION}/kind-linux-amd64"
           echo "${KIND_SHA256}  kind" | sha256sum -c -
           chmod +x kind
+      # The runner ships MySQL with the AppArmor profile usr.sbin.mysqld, which
+      # attaches by path: in the privileged kind node it confines the pod's
+      # /usr/sbin/mysqld too, which then gets EACCES on /etc/my.cnf and its
+      # errmsg.sys (no config: wrong socket, startup probe never passes).
+      - name: Unload the runner's mysqld AppArmor profile
+        run: |
+          if [ -f /etc/apparmor.d/usr.sbin.mysqld ]; then
+            sudo apparmor_parser -R /etc/apparmor.d/usr.sbin.mysqld || true
+          fi
       - name: Create the cluster
         run: bash tests/k8s/run-kind.sh cluster
       - name: Build and load the images
