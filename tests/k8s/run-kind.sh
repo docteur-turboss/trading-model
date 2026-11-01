@@ -545,6 +545,27 @@ dump() {
 		$K -n "$NS" logs "$pod" --all-containers --tail=60 || true
 	done
 	$K -n trading-model-node logs daemonset/spire-agent --tail=40 || true
+	mysql_diagnostics
+}
+
+# What mysqld sees in the pod: which option files it can read, and why not.
+mysql_diagnostics() {
+	[ "$($K -n "$NS" get pod mysql-0 -o jsonpath='{.status.containerStatuses[?(@.name=="mysql")].ready}' 2>/dev/null)" = "true" ] && return 0
+	echo "===== mysql-0 diagnostics"
+	$K -n "$NS" get pod mysql-0 -o jsonpath='{.spec.securityContext}{"\n"}{.spec.containers[0].securityContext}{"\n"}{.status.containerStatuses[0].imageID}{"\n"}' || true
+	$K -n "$NS" exec mysql-0 -c mysql -- sh -c '
+		set -x
+		id
+		ls -la /etc/my.cnf /etc/mysql /etc/mysql/conf.d/ /usr/share/mysql-8.4/english/errmsg.sys
+		cat /etc/my.cnf | grep -v "^#"
+		cat /proc/1/cmdline | tr "\0" " "; echo
+		env | grep -E "^(HOME|MYSQL_HOME|MYSQL_TEST|USER)=" || true
+		mysqld --print-defaults
+		my_print_defaults mysqld client
+		mysqladmin --print-defaults
+		ls -la /var/run/mysqld /var/lib/mysql/mysql.sock
+		grep -E " /etc| /usr| / " /proc/mounts
+	' 2>&1 || true
 }
 
 case "${1:-all}" in
