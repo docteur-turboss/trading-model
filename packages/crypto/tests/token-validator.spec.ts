@@ -24,6 +24,11 @@ function createLegacyToken(
 	return `${encodedId}.${timestampB64}.${nonce}.${hmac}`;
 }
 
+/** Always changes the first character: the random nonce makes it unpredictable. */
+function tamper(part: string): string {
+	return (part[0] === "X" ? "Y" : "X") + part.slice(1);
+}
+
 const instanceIdStr = "token-validation-test-instance";
 const instanceId = InstanceId.of(instanceIdStr);
 const signingSecret = "test-signing-secret-123456";
@@ -121,7 +126,7 @@ describe("validInstanceToken", () => {
 		it("should return false when the HMAC signature is tampered", () => {
 			const opts = validOptions();
 			const parts = opts.token.split(".");
-			parts[2] = parts[2].replace(/[a-zA-Z0-9]/, "X");
+			parts[2] = tamper(parts[2]);
 			const result = validInstanceToken({
 				...opts,
 				token: parts.join("."),
@@ -172,7 +177,7 @@ describe("validInstanceToken", () => {
 			const token = generateInstanceToken(instanceId, signingSecret);
 			const storedToken = generateInstanceToken(instanceId, signingSecret);
 			const storedParts = storedToken.split(".");
-			storedParts[2] = `X${storedParts[2].slice(1)}`;
+			storedParts[2] = tamper(storedParts[2]);
 			const invalidStored = storedParts.join(".");
 			const result = validInstanceToken({
 				token,
