@@ -174,16 +174,23 @@ describe("validateEnv", () => {
 		const error = jest.spyOn(console, "error").mockImplementation(() => {
 			// silenced: the call itself is asserted
 		});
-		const treeify = jest.spyOn(z, "treeifyError").mockImplementation(() => {
-			throw new Error("boom");
-		});
-		const schema = z.object({ REQUIRED_FOR_TEST: z.string() });
+		// zod's exports are read-only (no spyOn): hand over an error whose
+		// issues cannot be read, so treeifyError itself throws.
+		const unreadable = Object.create(z.ZodError.prototype, {
+			issues: {
+				get() {
+					throw new Error("boom");
+				},
+			},
+		}) as z.ZodError;
+		const schema = {
+			safeParse: () => ({ success: false, error: unreadable }),
+		} as unknown as z.ZodType;
 
 		expect(() => validateEnv(schema)).toThrow("Environment validation failed");
 		expect(error).toHaveBeenCalledWith("Invalid environment configuration", {
-			errors: expect.any(z.ZodError),
+			errors: unreadable,
 		});
-		treeify.mockRestore();
 		error.mockRestore();
 	});
 });
