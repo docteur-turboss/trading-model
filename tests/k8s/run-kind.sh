@@ -82,6 +82,10 @@ deploy() {
 	$K kustomize "$ROOT/deploy/k8s/overlays/staging/node-agents" | $K apply -f -
 	$K apply -f "$ROOT/tests/k8s/kind-fixtures.yaml"
 
+	# As deploy.yml: the receivers exist before Alertmanager starts, or its
+	# failed notifications fire AlertmanagerNotificationsFailing.
+	alert_credentials
+
 	log "staging overlay"
 	$K kustomize --load-restrictor LoadRestrictionsNone "$ROOT/deploy/k8s/overlays/staging" |
 		node "$ROOT/tests/k8s/ci-render.mjs" | $K apply -f -
@@ -240,17 +244,23 @@ verify_canary() {
 	log "  canary gate: passes with traffic, fails without"
 }
 
+# Alertmanager receivers pointed at the in-cluster sink (tests/k8s/alert-sink.yaml).
+alert_credentials() {
+	$K get namespace "$NS" >/dev/null 2>&1 || $K create namespace "$NS"
+	$K -n "$NS" apply -f "$ROOT/tests/k8s/alert-sink.yaml"
+	$K -n "$NS" create secret generic alertmanager-credentials \
+		--from-literal=SLACK_WEBHOOK_URL=http://alert-sink:8080/slack \
+		--from-literal=DEADMAN_URL=http://alert-sink:8080/deadman \
+		--dry-run=client -o yaml | $K apply -f -
+}
+
 # Alerting end to end: Alertmanager credentials point at an in-cluster sink,
 # the always-firing Watchdog must reach the dead man's switch URL, and the
 # healthy stack must have no critical alert firing.
 verify_alerts() {
 	log "alerting: Prometheus → Alertmanager → receivers (Watchdog, no critical alert)"
-	$K -n "$NS" apply -f "$ROOT/tests/k8s/alert-sink.yaml"
 	$K -n "$NS" rollout status deployment/alert-sink --timeout=180s
-	$K -n "$NS" create secret generic alertmanager-credentials \
-		--from-literal=SLACK_WEBHOOK_URL=http://alert-sink:8080/slack \
-		--from-literal=DEADMAN_URL=http://alert-sink:8080/deadman \
-		--dry-run=client -o yaml | $K apply -f -
+	alert_credentials
 	# The optional Secret volume is filled by the kubelet's next sync.
 	wait_for 300 "$K -n $NS exec deployment/alert-sink -- bun -e 'const r = await (await fetch(\"http://localhost:8080/received\")).json(); process.exit(r.some((x) => x.path === \"/deadman\" && x.alerts.includes(\"Watchdog\")) ? 0 : 1)'"
 	log "  Watchdog delivered to the dead man's switch"

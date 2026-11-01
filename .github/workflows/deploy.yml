@@ -259,6 +259,29 @@ jobs:
           [ -z "$AUDIT_ANCHOR_ENDPOINT" ] || endpoint=(--from-literal=AUDIT_ANCHOR_ENDPOINT="$AUDIT_ANCHOR_ENDPOINT")
           kubectl -n "$NS" create secret generic audit-anchor-s3             --from-literal=AUDIT_ANCHOR_BUCKET="$AUDIT_ANCHOR_BUCKET"             --from-literal=AUDIT_ANCHOR_REGION="${AUDIT_ANCHOR_REGION:-us-east-1}"             --from-literal=AWS_ACCESS_KEY_ID="$AUDIT_ANCHOR_ACCESS_KEY_ID"             --from-literal=AWS_SECRET_ACCESS_KEY="$AUDIT_ANCHOR_SECRET_ACCESS_KEY"             "${endpoint[@]}"             --dry-run=client -o yaml | kubectl apply -f -
 
+      # Notification credentials, mounted as files by Alertmanager and read at
+      # send time (no restart needed). Keys left unset are left out.
+      - name: Configure alert notifications
+        shell: bash
+        env:
+          SLACK: ${{ secrets.ALERTMANAGER_SLACK_WEBHOOK_URL }}
+          DEADMAN: ${{ secrets.ALERTMANAGER_DEADMAN_URL }}
+          PAGERDUTY: ${{ secrets.ALERTMANAGER_PAGERDUTY_ROUTING_KEY }}
+        run: |
+          NS="${{ steps.ns.outputs.namespace }}"
+          keys=()
+          [ -z "$SLACK" ] || keys+=(--from-literal=SLACK_WEBHOOK_URL="$SLACK")
+          [ -z "$DEADMAN" ] || keys+=(--from-literal=DEADMAN_URL="$DEADMAN")
+          [ -z "$PAGERDUTY" ] || keys+=(--from-literal=PAGERDUTY_ROUTING_KEY="$PAGERDUTY")
+          if [ "${#keys[@]}" -eq 0 ]; then
+            echo "::warning::No alert notification secret set: alertmanager-credentials left as it is"
+            exit 0
+          fi
+          # Before the overlay: an Alertmanager started without them counts
+          # failed notifications, and AlertmanagerNotificationsFailing fires.
+          kubectl get namespace "$NS" >/dev/null 2>&1 || kubectl create namespace "$NS"
+          kubectl -n "$NS" create secret generic alertmanager-credentials "${keys[@]}"             --dry-run=client -o yaml | kubectl apply -f -
+
       # SPIRE agent + SPIFFE CSI driver, in the privileged trading-model-node
       # namespace: the application namespace (restricted) cannot host them.
       - name: Apply SPIFFE node components
@@ -376,26 +399,6 @@ jobs:
             --from-literal=AWS_SECRET_ACCESS_KEY="$BACKUP_S3_SECRET_ACCESS_KEY" \
             "${endpoint[@]}" \
             --dry-run=client -o yaml | kubectl apply -f -
-
-      # Notification credentials, mounted as files by Alertmanager and read at
-      # send time (no restart needed). Keys left unset are left out.
-      - name: Configure alert notifications
-        shell: bash
-        env:
-          SLACK: ${{ secrets.ALERTMANAGER_SLACK_WEBHOOK_URL }}
-          DEADMAN: ${{ secrets.ALERTMANAGER_DEADMAN_URL }}
-          PAGERDUTY: ${{ secrets.ALERTMANAGER_PAGERDUTY_ROUTING_KEY }}
-        run: |
-          NS="${{ steps.ns.outputs.namespace }}"
-          keys=()
-          [ -z "$SLACK" ] || keys+=(--from-literal=SLACK_WEBHOOK_URL="$SLACK")
-          [ -z "$DEADMAN" ] || keys+=(--from-literal=DEADMAN_URL="$DEADMAN")
-          [ -z "$PAGERDUTY" ] || keys+=(--from-literal=PAGERDUTY_ROUTING_KEY="$PAGERDUTY")
-          if [ "${#keys[@]}" -eq 0 ]; then
-            echo "::warning::No alert notification secret set: alertmanager-credentials left as it is"
-            exit 0
-          fi
-          kubectl -n "$NS" create secret generic alertmanager-credentials "${keys[@]}"             --dry-run=client -o yaml | kubectl apply -f -
 
       - name: Run first-deploy database migrations
         if: ${{ steps.migrate.outputs.deferred == 'true' }}
