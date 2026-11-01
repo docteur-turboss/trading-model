@@ -545,6 +545,13 @@ dump() {
 		$K -n "$NS" logs "$pod" --all-containers --tail=60 || true
 	done
 	$K -n trading-model-node logs daemonset/spire-agent --tail=40 || true
+	# The market data path, even when its pods look healthy (verify checks it).
+	for workload in binance-stub financial-scraper-collector financial-scraper message-manager; do
+		echo "===== deployment/$workload"
+		$K -n "$NS" logs "deployment/$workload" --all-containers --tail=80 2>&1 | grep -v 'x509 context' || true
+	done
+	echo "===== market data in MySQL"
+	mysql_root "SELECT 'candles', COUNT(*) FROM financial_scraper.market_candles UNION ALL SELECT 'trades', COUNT(*) FROM financial_scraper.market_trades" 2>&1 || true
 	mysql_diagnostics
 }
 
