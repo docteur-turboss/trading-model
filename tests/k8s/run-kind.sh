@@ -259,8 +259,8 @@ alert_credentials() {
 # healthy stack must have no critical alert firing.
 verify_alerts() {
 	log "alerting: Prometheus → Alertmanager → receivers (Watchdog, no critical alert)"
-	$K -n "$NS" rollout status deployment/alert-sink --timeout=180s
 	alert_credentials
+	$K -n "$NS" rollout status deployment/alert-sink --timeout=180s
 	# The optional Secret volume is filled by the kubelet's next sync.
 	wait_for 300 "$K -n $NS exec deployment/alert-sink -- bun -e 'const r = await (await fetch(\"http://localhost:8080/received\")).json(); process.exit(r.some((x) => x.path === \"/deadman\" && x.alerts.includes(\"Watchdog\")) ? 0 : 1)'"
 	log "  Watchdog delivered to the dead man's switch"
