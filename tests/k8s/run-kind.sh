@@ -565,7 +565,20 @@ mysql_diagnostics() {
 		mysqladmin --print-defaults
 		ls -la /var/run/mysqld /var/lib/mysql/mysql.sock
 		grep -E " /etc| /usr| / " /proc/mounts
+		mysqld --print-defaults; echo "rc=$?"
+		mysqld --verbose --help 2>&1 | grep -E "^(basedir|datadir|socket|lc-messages-dir|character-sets-dir) "
+		grep -E "^(Seccomp|NoNewPrivs|Cap)" /proc/self/status
+		uname -r
 	' 2>&1 || true
+	# Same image and user, outside the pod: seccomp RuntimeDefault vs Unconfined.
+	local image
+	image="$($K -n "$NS" get pod mysql-0 -o jsonpath='{.spec.containers[0].image}')"
+	for seccomp in RuntimeDefault Unconfined; do
+		echo "===== mysqld --print-defaults, uid 999, seccomp $seccomp"
+		$K -n default run "mysqld-probe-${seccomp,,}" --rm -i --restart=Never --image="$image" --command \
+			--overrides="{\"spec\":{\"securityContext\":{\"runAsUser\":999,\"runAsGroup\":999,\"seccompProfile\":{\"type\":\"$seccomp\"}}}}" \
+			-- sh -c 'mysqld --print-defaults; echo "rc=$?"; mysqld --verbose --help 2>&1 | grep -E "^(basedir|socket|lc-messages-dir) "' 2>&1 || true
+	done
 }
 
 case "${1:-all}" in
