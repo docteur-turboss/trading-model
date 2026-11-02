@@ -127,12 +127,29 @@ jobs:
         with:
           version: 'stable'
 
-      - name: Configure kubeconfig
+      - name: Configure kubeconfig (staging)
+        if: inputs.environment == 'staging'
         shell: bash
+        env:
+          KUBECONFIG_CONTENT: ${{ secrets.KUBECONFIG_STAGING }}
         run: |
-          KUBECONFIG_CONTENT="${{ secrets[format('KUBECONFIG_{0}', inputs.environment)] }}"
           if [ -z "$KUBECONFIG_CONTENT" ]; then
-            echo "::error::Missing secret KUBECONFIG_$(echo ${{ inputs.environment }} | tr '[:lower:]' '[:upper:]')"
+            echo "::error::Missing secret KUBECONFIG_STAGING"
+            exit 1
+          fi
+          mkdir -p "$HOME/.kube"
+          echo "$KUBECONFIG_CONTENT" | base64 -d > "$HOME/.kube/config"
+          chmod 600 "$HOME/.kube/config"
+          kubectl cluster-info
+
+      - name: Configure kubeconfig (production)
+        if: inputs.environment == 'production'
+        shell: bash
+        env:
+          KUBECONFIG_CONTENT: ${{ secrets.KUBECONFIG_PRODUCTION }}
+        run: |
+          if [ -z "$KUBECONFIG_CONTENT" ]; then
+            echo "::error::Missing secret KUBECONFIG_PRODUCTION"
             exit 1
           fi
           mkdir -p "$HOME/.kube"
