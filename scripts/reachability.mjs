@@ -69,7 +69,7 @@ function exportTarget(exportsField, subpath) {
       if (!subpath.startsWith(prefix) || !subpath.endsWith(suffix)) continue;
       const star = subpath.slice(prefix.length, subpath.length - suffix.length);
       const condition = typeof value === 'string' ? value : value.types || value.require || value.default;
-      target = condition.replace('*', star);
+      target = condition.replace(/\*/g, star);
     }
   }
   return target && typeof target === 'object' ? target.types || target.require || target.default : target;
