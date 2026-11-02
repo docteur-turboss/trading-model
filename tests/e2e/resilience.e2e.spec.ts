@@ -14,9 +14,10 @@ jest.setTimeout(RECOVERY_TIMEOUT_MS + 60_000);
 
 async function eventually<T>(
 	description: string,
-	probe: () => T | undefined
+	probe: () => T | undefined,
+	timeoutMs = RECOVERY_TIMEOUT_MS
 ): Promise<T> {
-	const deadline = Date.now() + RECOVERY_TIMEOUT_MS;
+	const deadline = Date.now() + timeoutMs;
 	while (Date.now() < deadline) {
 		try {
 			const value = probe();
@@ -124,10 +125,29 @@ describe("Resilience E2E", () => {
 				);
 			}
 
-			const caughtUp = await eventually("trainer caught up with MySQL", () => {
-				const persisted = persistedCandles("BTCUSDT");
-				return trainerCandles() === persisted ? persisted : undefined;
-			});
+			// The trainer must renew its subscriptions before message-manager
+			// accepts the waiting candles: until then they are refused and stay
+			// in MySQL.
+			await eventually("trainer resubscribed", () =>
+				metric(
+					"https://message-manager:3000/metrics",
+					/^mm_subscription_count\{topic="market\.candlestick\.series\.fetch"\} (\S+)$/m
+				) > 0
+					? true
+					: undefined
+			);
+
+			// Fixed target: the stub keeps closing a candle a minute, so comparing
+			// with the live MySQL count races the next candle.
+			const target = persistedCandles("BTCUSDT");
+			const caughtUp = await eventually(
+				"trainer caught up with MySQL",
+				() => {
+					const received = trainerCandles();
+					return received >= target ? received : undefined;
+				},
+				2 * RECOVERY_TIMEOUT_MS
+			);
 			expect(caughtUp).toBeGreaterThan(before);
 		},
 		6 * RECOVERY_TIMEOUT_MS

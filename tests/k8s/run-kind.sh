@@ -510,6 +510,16 @@ verify_backup() {
 	}
 	log "  audit trail restored: $(echo "$audit_restored" | json_field count) events, same hashes, chain verified"
 
+	# The SPIRE server came back with the restored CA: the agents still hold
+	# SVIDs from the CA of the wiped volume and crash-loop until they re-attest.
+	# Restart them and wait for the CSI driver, or the writers cannot mount the
+	# Workload API socket and never become ready.
+	log "restore drill: SPIRE agents re-attested against the restored CA"
+	$K -n trading-model-node rollout restart daemonset/spire-agent
+	for workload in $($K -n trading-model-node get daemonset -o name); do
+		$K -n trading-model-node rollout status "$workload" --timeout=300s
+	done
+
 	log "restore drill: MongoDB writers restarted"
 	for writer in $MONGO_WRITERS; do
 		$K -n "$NS" scale deployment "$writer" --replicas="${replicas[$writer]}"
