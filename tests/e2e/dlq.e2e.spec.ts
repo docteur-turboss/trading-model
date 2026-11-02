@@ -1,40 +1,40 @@
 import { describe, expect, it, jest } from "@jest/globals";
 import {
+	CALLER,
 	computeDlqSignature,
 	e2eTestTimeout,
-	fetchUrl,
-	PORTS,
+	meshRequest,
 } from "./helpers";
 
 jest.setTimeout(e2eTestTimeout);
 
-const BASE = `https://localhost:${PORTS.dlq}`;
-const HMAC_SECRET = process.env.HMAC_SECRET || "test-hmac-secret";
+const DLQ = "https://dlq-service:3000";
+const HMAC_SECRET = process.env.DLQ_AUTH_HMAC_SECRET ?? "test-hmac-secret";
+/** Listed in DLQ_ALLOWED_SERVICES by the E2E overlay. */
 const SERVICE_NAME = "e2e-test-runner";
 
-function dlqHeaders(
+function signedHeaders(
 	body: unknown,
 	method: string,
 	path: string
 ): Record<string, string> {
 	const timestamp = Date.now().toString();
-	const signature = computeDlqSignature(
-		SERVICE_NAME,
-		HMAC_SECRET,
-		body,
-		timestamp,
-		method,
-		path
-	);
 	return {
 		"x-service-name": SERVICE_NAME,
-		"x-signature": signature,
 		"x-timestamp": timestamp,
+		"x-signature": computeDlqSignature({
+			serviceName: SERVICE_NAME,
+			secret: HMAC_SECRET,
+			body,
+			timestamp,
+			method,
+			path,
+		}),
 	};
 }
 
-describe("DLQ Service E2E", () => {
-	const testEntry = {
+describe("DLQ E2E", () => {
+	const entry = {
 		topic: "e2e.test.topic",
 		message: { key: "value", sequence: 1 },
 		reason: "E2E test - simulated failure",
@@ -42,36 +42,58 @@ describe("DLQ Service E2E", () => {
 		timestamp: new Date().toISOString(),
 	};
 
-	it("should respond to health check", async () => {
-		const { status } = await fetchUrl(`${BASE}/health`);
-		expect(status).toBe(200);
+	it("reports MongoDB ready", () => {
+		expect(meshRequest(CALLER.scraper, `${DLQ}/health/ready`).status).toBe(200);
 	});
 
-	it("should store a dead letter entry", async () => {
-		const { status, body } = await fetchUrl(`${BASE}/dlq`, {
+	let storedId = "";
+
+	it("stores a signed dead letter entry", () => {
+		const { status, body } = meshRequest(CALLER.message, `${DLQ}/dlq`, {
 			method: "POST",
-			body: testEntry,
-			headers: { ...dlqHeaders(testEntry, "POST", "/dlq") },
+			body: entry,
+			headers: signedHeaders(entry, "POST", "/dlq"),
 		});
 		expect(status).toBe(201);
-		const parsed = JSON.parse(body);
-		expect(parsed).toHaveProperty("id");
-		expect(parsed).toHaveProperty("acknowledged", true);
+		storedId = JSON.parse(body).id;
+		expect(storedId).toEqual(expect.any(String));
 	});
 
-	it("should list stored dead letter entries", async () => {
-		const { status, body } = await fetchUrl(`${BASE}/dlq`, {
-			headers: { ...dlqHeaders(null, "GET", "/dlq") },
+	it("lists the stored entry", () => {
+		const { status, body } = meshRequest(CALLER.message, `${DLQ}/dlq`, {
+			headers: signedHeaders(undefined, "GET", "/dlq"),
 		});
 		expect(status).toBe(200);
 		const parsed = JSON.parse(body);
-		expect(Array.isArray(parsed.entries || parsed)).toBe(true);
+		const entries = parsed.entries ?? parsed.data?.entries ?? parsed;
+		expect(JSON.stringify(entries)).toContain(storedId);
 	});
 
-	it("should reject unauthenticated requests", async () => {
-		const { status } = await fetchUrl(`${BASE}/dlq`, {
+	it("rejects an unsigned request", () => {
+		const { status } = meshRequest(CALLER.message, `${DLQ}/dlq`, {
 			method: "POST",
-			body: testEntry,
+			body: entry,
+		});
+		expect([401, 403]).toContain(status);
+	});
+
+	it("rejects a request signed with another secret", () => {
+		const timestamp = Date.now().toString();
+		const { status } = meshRequest(CALLER.message, `${DLQ}/dlq`, {
+			method: "POST",
+			body: entry,
+			headers: {
+				"x-service-name": SERVICE_NAME,
+				"x-timestamp": timestamp,
+				"x-signature": computeDlqSignature({
+					serviceName: SERVICE_NAME,
+					secret: "not-the-secret",
+					body: entry,
+					timestamp,
+					method: "POST",
+					path: "/dlq",
+				}),
+			},
 		});
 		expect(status).toBe(401);
 	});

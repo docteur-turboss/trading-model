@@ -2,24 +2,24 @@
 
 ## Overview
 
-Internal messaging backbone for inter-service communication. Provides topic-based publish/subscribe over HTTP with in-memory subscription management, configurable delivery semantics (at-most-once, at-least-once, exactly-once), TTL expiration, and Dead Letter Queue routing. Used by all microservices via the `@trading-model/broker-message` SDK.
+Internal messaging backbone for inter-service communication. Provides topic-based publish/subscribe over HTTP with subscriptions shared by the replicas through Redis, configurable delivery semantics (at-most-once, at-least-once, exactly-once), TTL expiration, and Dead Letter Queue routing. Used by all microservices via the `@trading-model/broker-message` SDK.
 
 ## Prerequisites
 
 - Node.js 20+
-- MongoDB 7+ (for message persistence — planned)
+- No external database required (in-memory dispatcher; dead letters sent to dlq-service, local JSONL file while it is unreachable)
 - Access to a running [Discovery Server](../discovery-server/README.md) (service registry)
-- TLS certificates for mTLS communication
+- mTLS automatique via SPIRE (ADR-0011) — aucun certificat manuel à générer
 
 ## Installation
 
 ```bash
 # From the monorepo root
-npm install
+bun install
 
 # Or from this directory
 cd services/message-manager
-npm install
+bun install
 ```
 
 ## Configuration
@@ -41,7 +41,7 @@ See [.env.example](./.env.example) for all available variables.
 | `TLS_KEY_PATH`                    | Path to TLS private key       | —                          |
 | `TLS_CERT_PATH`                   | Path to TLS certificate       | —                          |
 | `TLS_CA_PATH`                     | Path to CA certificate        | —                          |
-| `SERVICE_NAME`                    | Service identity for registry | `message-delivery-service` |
+| `SERVICE_NAME`                    | Service identity for registry | `message-manager`          |
 | `INSTANCE_ID`                     | Unique instance identifier    | —                          |
 | `ADDRESS_MANAGER_URL`             | Discovery server URL          | —                          |
 | `CACHE_TTL_MS`                    | Service cache TTL             | `84000000`                 |
@@ -57,59 +57,65 @@ See [.env.example](./.env.example) for all available variables.
 
 ```bash
 # Development (with ts-node)
-npm run dev
+bun run dev
 
 # Production build
-npm run build
-node dist/src/app/index.js
+bun run build
+node dist/application/index.js
 ```
 
 ## Testing
 
 ```bash
 # All tests
-npm test
+bun run test
 
 # With coverage
-npm run test:coverage
+bun run test:coverage
 
 # Watch mode
-npm run test:watch
+bun run test:watch
 ```
 
 ## Scripts
 
 | Script           | Description                           |
 | ---------------- | ------------------------------------- |
-| `npm run dev`    | Run in development mode via `ts-node` |
-| `npm run build`  | Compile TypeScript to `dist/`         |
-| `npm test`       | Execute all tests                     |
-| `npm run eslint` | Run ESLint on source files            |
+| `bun run dev`        | Run in development mode via `ts-node`  |
+| `bun run build`      | Compile TypeScript to `dist/`          |
+| `bun run test`       | Execute all tests                      |
+| `bun run test:coverage` | Execute all tests with coverage    |
 
 ## Project Structure
 
 ```
 src/
-├── app/                        # Service bootstrap & HTTP server
+├── application/                # Service bootstrap & orchestration
 │   ├── index.ts                # Entry point (lifecycle via createBootstrap)
-│   └── server.ts               # Express server factory (createSecureServer)
+│   ├── server.ts               # Express HTTPS server factory (createServiceServer)
+│   ├── ports/                  # Application ports (interfaces)
+│   └── services/               # Orchestration (dispatcher, subscription registry, ack/address/delivery handling)
+├── adapters/                   # Driving (inbound) & driven (outbound) adapters
+│   ├── inbound/                # HTTP transport layer
+│   │   ├── http.controller.ts  # Request handlers (subscribe, unsubscribe, publish)
+│   │   ├── http.routes.ts      # Express route definitions
+│   │   └── validation/
+│   │       ├── broker.schema.ts          # Zod schemas for request validation
+│   │       └── validate-schema.middleware.ts  # Validation middleware
+│   └── outbound/
+│       ├── http-message-delivery.ts   # HTTP delivery to subscribers
+│       ├── http-dead-letter-store.ts  # Signed POST /dlq to dlq-service
+│       └── forwarding-dead-letter-store.ts  # dlq-service first, local file as fallback
+├── domain/                     # Domain types & business rules
+├── infrastructure/
+│   ├── config/env.ts           # Zod-validated environment variables
+│   └── fallback/
+│       └── dlq-repository.ts   # Local JSONL fallback for dead letters (drained to dlq-service)
 ├── config/
-│   ├── env.ts                  # Zod-validated environment variables
 │   ├── address-manager.ts      # Service discovery client setup
+│   ├── container.ts            # Broker composition root (HTTP client, DLQ, dispatcher, routes)
 │   └── message-manager.ts      # Broker singleton & route binder
-├── messaging/
-│   ├── index.ts                # BrokerModule entry point (composition root)
-│   ├── broker.type.ts          # IdentifyType, BrokerConfig type definitions
-│   ├── core/                   # Messaging domain logic
-│   │   ├── broker.ts           # Broker facade (publish, subscribe, unsubscribe)
-│   │   ├── dispatcher.ts       # In-memory subscription registry & message routing
-│   │   ├── message.ts          # Message envelope & metadata interfaces
-│   │   └── subscription.ts     # Per-subscriber delivery (retry, TTL, DLQ)
-│   └── transport/              # HTTP transport layer
-│       ├── http.controller.ts  # Request handlers (subscribe, unsubscribe, publish)
-│       ├── http.routes.ts      # Express route definitions
-│       └── validation/
-│           └── broker.schema.ts # Zod schemas for request validation
+└── shared/                     # Shared types (broker.type.ts)
 
 tests/
 ├── unit/                       # Unit tests mirroring src structure
@@ -120,8 +126,8 @@ tests/
 
 ## Architecture
 
-See [docs/architecture.md](./docs/architecture.md) for the detailed architecture documentation.
+See [ARCHITECTURE.md](./ARCHITECTURE.md) for the detailed architecture documentation.
 
 ## API Endpoints
 
-See [docs/api.md](./docs/api.md) for the REST API reference.
+See [API.md](./API.md) for the REST API reference.

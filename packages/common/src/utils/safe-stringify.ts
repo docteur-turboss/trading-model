@@ -1,19 +1,26 @@
-export function safeStringify(value: unknown, space?: number): string {
+type ReplacerFn = (key: string, val: unknown) => unknown;
+
+function _createReplacer(customReplacer?: ReplacerFn): ReplacerFn {
 	const seen = new WeakSet<object>();
-	return JSON.stringify(
-		value,
-		(_key, val) => {
-			if (typeof val === "bigint") {
-				return val.toString();
+	return (key: string, val: unknown) => {
+		const transformed = customReplacer ? customReplacer(key, val) : val;
+		if (typeof transformed === "bigint") {
+			return transformed.toString();
+		}
+		if (typeof transformed === "object" && transformed !== null) {
+			if (seen.has(transformed)) {
+				return "[Circular]";
 			}
-			if (typeof val === "object" && val !== null) {
-				if (seen.has(val)) {
-					return "[Circular]";
-				}
-				seen.add(val);
-			}
-			return val;
-		},
-		space
-	);
+			seen.add(transformed);
+		}
+		return transformed;
+	};
+}
+
+export function safeStringify(
+	value: unknown,
+	space?: number,
+	customReplacer?: ReplacerFn
+): string {
+	return JSON.stringify(value, _createReplacer(customReplacer), space);
 }

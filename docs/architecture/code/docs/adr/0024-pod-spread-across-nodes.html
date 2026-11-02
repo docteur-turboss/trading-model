@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html class="dark" lang="en" data-tm-processed="true"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no" name="viewport">
+<title>ADR-0024: Replicas Spread Evenly Across Nodes | trading-model</title>
+
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+
+<script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              400: '#818cf8',
+              500: '#6366f1',
+              600: '#4f46e5',
+            },
+            surface: {
+              base: '#0B0F19',
+              card: '#111827',
+              muted: '#1E293B',
+              border: '#243046',
+            },
+            code: {
+              bg: '#0c121e',
+              keyword: '#c084fc',
+              ident: '#38bdf8',
+              type: '#34d399',
+              punct: '#94a3b8'
+            }
+          },
+          fontFamily: {
+            mono: ['JetBrains Mono', 'Fira Code', 'Menlo', 'Monaco', 'Courier New', 'monospace'],
+            sans: ['-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Inter', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+
+<style data-purpose="mobile-ux-styles">
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    .active-scale:active { transform: scale(0.97); transition: transform 0.1s ease-out; }
+    .h-safe-top { height: env(safe-area-inset-top, 0px); }
+    .pt-safe { padding-top: env(safe-area-inset-top, 0px); }
+    @supports (backdrop-filter: blur(12px)) {
+      .glass-header { backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
+    }
+    
+    .tm-prose p { margin: 0.5rem 0; }
+    .tm-prose p:first-child { margin-top: 0; }
+    .tm-prose p:last-child { margin-bottom: 0; }
+    .tm-prose a { color: #818cf8; text-decoration: underline; text-underline-offset: 2px; }
+    .tm-prose a:hover { color: #a5b4fc; }
+    .tm-prose code { font-family: 'JetBrains Mono', 'Fira Code', Menlo, Monaco, 'Courier New', monospace; font-size: 0.82em; color: #fbbf24; background: #0c121e; border: 1px solid #243046; border-radius: 0.25rem; padding: 0.05rem 0.3rem; }
+    .tm-prose pre { background: #0c121e; border: 1px solid #243046; border-radius: 0.5rem; padding: 0.75rem; overflow-x: auto; margin: 0.5rem 0; }
+    .tm-prose pre code { background: transparent; border: none; padding: 0; color: #e2e8f0; }
+    .tm-prose ul, .tm-prose ol { padding-left: 1.25rem; margin: 0.5rem 0; }
+    .tm-prose ul { list-style: disc; }
+    .tm-prose ol { list-style: decimal; }
+    .tm-prose li { margin: 0.2rem 0; }
+    .tm-prose blockquote { border-left: 3px solid #6366f1; background: rgba(17, 24, 39, 0.6); padding: 0.5rem 0.75rem; border-radius: 0 0.5rem 0.5rem 0; color: #94a3b8; margin: 0.5rem 0; }
+    .tm-prose h1, .tm-prose h2, .tm-prose h3, .tm-prose h4, .tm-prose h5 { color: #ffffff; font-weight: 700; margin: 0.75rem 0 0.25rem; }
+    .tm-prose h1 { font-size: 1.25rem; }
+    .tm-prose h2 { font-size: 1.125rem; }
+    .tm-prose h3 { font-size: 1rem; }
+    .tm-prose h4 { font-size: 0.875rem; }
+    .tm-prose table { width: 100%; border-collapse: collapse; margin: 0.5rem 0; }
+    .tm-prose th, .tm-prose td { border: 1px solid #243046; padding: 0.4rem 0.6rem; text-align: left; }
+    .tm-prose thead th { background: #0b0f19; color: #e2e8f0; font-size: 0.75rem; text-transform: uppercase; }
+    .tm-prose strong { color: #ffffff; }
+  </style>
+
+</head>
+<body class="bg-[#080C15] text-slate-200 font-sans antialiased min-h-screen pb-24 selection:bg-indigo-500/30 selection:text-indigo-200">
+
+<header class="sticky top-0 z-40 w-full glass-header bg-[#0B0F19]/90 border-b border-surface-border">
+<div class="h-safe-top pt-safe"></div>
+<div class="px-4 py-2.5 flex items-center justify-between gap-3">
+<div class="flex items-center gap-2.5 min-w-0">
+
+<div class="flex flex-col min-w-0">
+<div class="flex items-center gap-1.5 truncate">
+<span class="font-mono text-xs font-semibold text-indigo-400 truncate tracking-tight"><a class="text-indigo-400 hover:text-indigo-300 hover:underline" href="../../index.html">trading-model</a></span>
+
+</div>
+<span class="text-[10px] text-slate-400 flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> TypeDoc API Reference
+</span>
+</div>
+</div>
+
+</div>
+</header>
+
+<main class="px-4 py-4 max-w-2xl mx-auto flex flex-col gap-6">
+
+<section class="space-y-2.5" data-purpose="breadcrumbs-and-header">
+<nav aria-label="Breadcrumb" class="flex items-center flex-wrap gap-1 text-[11px] font-mono text-slate-400">
+<a class="text-indigo-400 hover:underline" href="../../index.html">trading-model</a><span class="text-slate-600">/</span><span class="text-slate-300 font-medium">ADR-0024: Replicas Spread Evenly Across Nodes</span>
+</nav>
+<div class="flex items-center gap-2.5 pt-1">
+<span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-mono font-medium tracking-wide uppercase bg-indigo-500/10 text-indigo-400 border-indigo-500/20">
+Documentation
+</span>
+<h1 class="text-2xl font-bold tracking-tight text-white font-sans">ADR-0024: Replicas Spread Evenly Across Nodes</h1>
+</div>
+
+</section>
+
+<div class="tm-prose text-sm leading-relaxed text-slate-300 font-sans"><div>
+<p><strong>Status:</strong> Accepted
+<strong>Date:</strong> 2026-10
+<strong>Related:</strong> <a href="0023-discovery-registry-in-redis.html">ADR-0023</a> (discovery replicas now share their registry), <a href="0019-message-broker-as-built.html">ADR-0019</a>
+<strong>Verified by:</strong> <code>tests/k8s/check-overlays.mjs</code></p>
+<h2>Context</h2>
+<p>The 13.09 operations audit (A16) noted that HPA and anti-affinity were missing. HPAs and PDBs exist, but no application Deployment constrained where its pods land, except <code>trader-trainer</code> (required anti-affinity) and <code>otel-collector</code> (preferred anti-affinity):</p>
+<table>
+<thead>
+<tr>
+<th>Deployment</th>
+<th>Replicas (prod)</th>
+<th>HPA max</th>
+<th>Placement before</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>discovery-server</td>
+<td>3</td>
+<td>10</td>
+<td>none</td>
+</tr>
+<tr>
+<td>message-manager</td>
+<td>3</td>
+<td>12</td>
+<td>none</td>
+</tr>
+<tr>
+<td>api-gateway</td>
+<td>2</td>
+<td>8</td>
+<td>none</td>
+</tr>
+<tr>
+<td>audit-logger, edge-proxy</td>
+<td>2</td>
+<td>5</td>
+<td>none</td>
+</tr>
+<tr>
+<td>dlq-service</td>
+<td>2</td>
+<td>4</td>
+<td>none</td>
+</tr>
+<tr>
+<td>financial-scraper</td>
+<td>2</td>
+<td>6</td>
+<td>none</td>
+</tr>
+<tr>
+<td>trader-trainer</td>
+<td>2</td>
+<td>3</td>
+<td>required anti-affinity</td>
+</tr>
+<tr>
+<td>otel-collector</td>
+<td>2</td>
+<td>—</td>
+<td>preferred anti-affinity</td>
+</tr>
+</tbody>
+</table>
+<p>The scheduler's default spreading is a scoring preference: under resource pressure, after a drain or over successive rollouts, every replica of a service can end up on one node, whose loss then stops the service. PDBs (<code>minAvailable</code>) only cover voluntary disruptions, not a node crash.</p>
+<p>Three mechanisms were compared:</p>
+<ul>
+<li><strong>Required anti-affinity</strong> (one pod per node): an HPA can never exceed the node count. With 3 nodes, discovery (max 10) or message-manager (max 12) would leave pods <code>Pending</code>; trader-trainer (max 3) needed 3 nodes to scale.</li>
+<li><strong>Preferred anti-affinity</strong>: no guarantee, the situation above.</li>
+<li><strong>Topology spread constraints</strong>: a hard bound on imbalance that still lets replicas outnumber nodes.</li>
+</ul>
+<h2>Decision</h2>
+<p>Every Deployment that can run more than one pod (its <code>replicas</code> or its HPA <code>maxReplicas</code>) declares:</p>
+<pre><code class="language-yaml">topologySpreadConstraints:
+  - maxSkew: 1
+    topologyKey: kubernetes.io/hostname
+    whenUnsatisfiable: DoNotSchedule
+    nodeTaintsPolicy: Honor
+    matchLabelKeys: [pod-template-hash]
+    labelSelector: { matchLabels: { app.kubernetes.io/component: &lt;component&gt; } }
+  - maxSkew: 1
+    topologyKey: topology.kubernetes.io/zone
+    whenUnsatisfiable: ScheduleAnyway
+    nodeTaintsPolicy: Honor
+    matchLabelKeys: [pod-template-hash]
+    labelSelector: { matchLabels: { app.kubernetes.io/component: &lt;component&gt; } }
+</code></pre>
+<ul>
+<li><strong>Node, hard</strong>: no node holds more than one pod above the emptiest eligible node (3 pods on 3 nodes: 1/1/1; 10 on 3: 4/3/3).</li>
+<li><strong>Zone, soft</strong>: spread across zones when nodes carry the label; nodes without it (kind, single-zone clusters) still qualify, which a hard zone constraint would not allow.</li>
+<li><strong><code>nodeTaintsPolicy: Honor</code></strong>: tainted or cordoned nodes (control plane, drained node) do not count as empty domains, which would otherwise cap one pod per remaining node.</li>
+<li><strong><code>matchLabelKeys: pod-template-hash</code></strong>: the skew is computed per ReplicaSet, so a rollout spreads the new pods without being blocked by the old ones.</li>
+</ul>
+<p>The required anti-affinity of <code>trader-trainer</code> and the preferred one of <code>otel-collector</code> are replaced by the same constraints. Single-replica Deployments (<code>financial-scraper-collector</code>) and StatefulSets (databases, Redis, keep their own anti-affinity) are out of scope.</p>
+<p><code>tests/k8s/check-overlays.mjs</code> (CI <code>k8s-overlays</code>) renders staging and production and fails when a Deployment that may run several pods lacks the node constraint.</p>
+<h2>Consequences</h2>
+<h3>Positive</h3>
+<ul>
+<li>Losing one node takes at most <code>ceil(replicas / nodes)</code> pods of a service, never all of them.</li>
+<li>HPAs keep scaling past the node count.</li>
+<li>A new multi-replica Deployment without the constraint fails CI.</li>
+</ul>
+<h3>Negative</h3>
+<ul>
+<li><code>DoNotSchedule</code> can leave a pod <code>Pending</code> when the only nodes it may use without exceeding the skew are full; HPA scale-up then waits for capacity. The fix is capacity, not loosening the constraint.</li>
+<li>Two <code>trader-trainer</code> pods may now share a node when nodes are fewer than pods (previously the extra pod stayed <code>Pending</code>).</li>
+<li>Needs Kubernetes 1.27+ (<code>matchLabelKeys</code>, <code>nodeTaintsPolicy</code> on by default).</li>
+</ul>
+</div></div>
+</main>
+</body>
+</html>

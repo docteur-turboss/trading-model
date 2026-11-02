@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
-import { ServiceRegistry } from "../../src/core/service-registry";
+import { createServiceRegistry } from "../../src/config/container";
+import type { ServiceRegistry } from "../../src/domain/service-registry";
 
-jest.mock("@trading-model/common/config/logger", () => ({
+jest.mock("@trading-model/http/infrastructure/logger", () => ({
 	logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
 
@@ -9,11 +10,11 @@ describe("Multi-Region Support", () => {
 	let registry: ServiceRegistry;
 
 	beforeEach(() => {
-		registry = new ServiceRegistry();
+		registry = createServiceRegistry();
 	});
 
-	it("should register instances in different regions", () => {
-		registry.registerInstance({
+	it("should register instances in different regions", async () => {
+		await registry.registerInstance({
 			serviceName: "financial-scraper-service",
 			instanceId: "node-us",
 			ip: "10.0.0.1",
@@ -26,7 +27,7 @@ describe("Multi-Region Support", () => {
 			lastHeartbeat: Date.now(),
 		});
 
-		registry.registerInstance({
+		await registry.registerInstance({
 			serviceName: "financial-scraper-service",
 			instanceId: "node-eu",
 			ip: "10.0.1.1",
@@ -39,7 +40,9 @@ describe("Multi-Region Support", () => {
 			lastHeartbeat: Date.now(),
 		});
 
-		const allInstances = registry.getInstances("financial-scraper-service");
+		const allInstances = registry.instanceStore.getInstances(
+			"financial-scraper-service"
+		);
 		expect(allInstances).toHaveLength(2);
 
 		const usInstances = allInstances.filter((i) => i.region === "us-east-1");
@@ -48,8 +51,8 @@ describe("Multi-Region Support", () => {
 		expect(euInstances).toHaveLength(1);
 	});
 
-	it("should handle region-unspecified instances", () => {
-		registry.registerInstance({
+	it("should handle region-unspecified instances", async () => {
+		await registry.registerInstance({
 			serviceName: "financial-scraper-service",
 			instanceId: "node-legacy",
 			ip: "10.0.0.1",
@@ -61,12 +64,14 @@ describe("Multi-Region Support", () => {
 			lastHeartbeat: Date.now(),
 		});
 
-		const instances = registry.getInstances("financial-scraper-service");
+		const instances = registry.instanceStore.getInstances(
+			"financial-scraper-service"
+		);
 		expect(instances[0].region).toBeUndefined();
 	});
 
-	it("should preserve region across heartbeat updates", () => {
-		registry.registerInstance({
+	it("should preserve region across heartbeat updates", async () => {
+		await registry.registerInstance({
 			serviceName: "financial-scraper-service",
 			instanceId: "node-us",
 			ip: "10.0.0.1",
@@ -79,17 +84,20 @@ describe("Multi-Region Support", () => {
 			lastHeartbeat: Date.now(),
 		});
 
-		registry.updateHeartbeat("financial-scraper-service", "node-us");
+		await registry.instanceStore.updateHeartbeat({
+			serviceName: "financial-scraper-service",
+			instanceId: "node-us",
+		});
 
-		const instance = registry.getInstance(
-			"financial-scraper-service",
-			"node-us"
-		);
+		const instance = registry.instanceStore.getInstance({
+			serviceName: "financial-scraper-service",
+			instanceId: "node-us",
+		});
 		expect(instance?.region).toBe("us-east-1");
 	});
 
-	it("should allow updating region on re-registration", () => {
-		registry.registerInstance({
+	it("should allow updating region on re-registration", async () => {
+		await registry.registerInstance({
 			serviceName: "financial-scraper-service",
 			instanceId: "node-1",
 			ip: "10.0.0.1",
@@ -102,7 +110,7 @@ describe("Multi-Region Support", () => {
 			lastHeartbeat: Date.now(),
 		});
 
-		registry.registerInstance({
+		await registry.registerInstance({
 			serviceName: "financial-scraper-service",
 			instanceId: "node-1",
 			ip: "10.0.0.1",
@@ -115,10 +123,10 @@ describe("Multi-Region Support", () => {
 			lastHeartbeat: Date.now(),
 		});
 
-		const instance = registry.getInstance(
-			"financial-scraper-service",
-			"node-1"
-		);
+		const instance = registry.instanceStore.getInstance({
+			serviceName: "financial-scraper-service",
+			instanceId: "node-1",
+		});
 		expect(instance?.region).toBe("eu-west-1");
 	});
 });

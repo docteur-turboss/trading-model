@@ -37,6 +37,7 @@ scrape_configs:
             service: service
             url: url
             sessionId: sessionId
+            processId: processId
             userId: userId
       - labels:
           level: ''

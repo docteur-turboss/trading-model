@@ -1,7 +1,7 @@
 {
   "name": "@trading-model/common",
   "version": "1.2.1",
-  "description": "Shared infrastructure — logger, server, middleware, validation, types",
+  "description": "Shared infrastructure (config, utils, shared schemas) extracted from the former god-package",
   "license": "ISC",
   "type": "commonjs",
   "exports": {
@@ -9,49 +9,13 @@
       "types": "./dist/config/*.d.ts",
       "default": "./dist/config/*.js"
     },
-    "./middleware/*": {
-      "types": "./dist/middleware/*.d.ts",
-      "default": "./dist/middleware/*.js"
-    },
     "./utils/*": {
       "types": "./dist/utils/*.d.ts",
       "default": "./dist/utils/*.js"
     },
-    "./server/*": {
-      "types": "./dist/server/*.d.ts",
-      "default": "./dist/server/*.js"
-    },
-    "./validation/*": {
-      "types": "./dist/validation/*.d.ts",
-      "default": "./dist/validation/*.js"
-    },
-    "./contracts/admin": {
-      "types": "./dist/contracts/admin/index.d.ts",
-      "default": "./dist/contracts/admin/index.js"
-    },
-    "./contracts/*": {
-      "types": "./dist/contracts/*.d.ts",
-      "default": "./dist/contracts/*.js"
-    },
-    "./worker/*": {
-      "types": "./dist/worker/*.d.ts",
-      "default": "./dist/worker/*.js"
-    },
-    "./recovery/*": {
-      "types": "./dist/recovery/*.d.ts",
-      "default": "./dist/recovery/*.js"
-    },
-    "./reliability/*": {
-      "types": "./dist/reliability/*.d.ts",
-      "default": "./dist/reliability/*.js"
-    },
-    "./ca/*": {
-      "types": "./dist/ca/*.d.ts",
-      "default": "./dist/ca/*.js"
-    },
-    "./crypto/*": {
-      "types": "./dist/crypto/*.d.ts",
-      "default": "./dist/crypto/*.js"
+    "./shared/*": {
+      "types": "./dist/shared/*.d.ts",
+      "default": "./dist/shared/*.js"
     },
     "./tests/*": {
       "types": "./tests/*.d.ts",
@@ -59,33 +23,18 @@
     }
   },
   "dependencies": {
-    "@opentelemetry/api": "^1.9.1",
-    "@opentelemetry/exporter-trace-otlp-http": "^0.219.0",
-    "@opentelemetry/instrumentation-express": "^0.67.0",
-    "@opentelemetry/instrumentation-http": "^0.219.0",
-    "@opentelemetry/resources": "^2.8.0",
-    "@opentelemetry/sdk-node": "^0.219.0",
-    "@opentelemetry/semantic-conventions": "^1.41.1",
+    "@trading-model/contracts": "*",
+    "@trading-model/primitives": "*",
     "chained-error": "^1.0.0",
-    "express": "^5.2.1",
-    "express-rate-limit": "^8.5.1",
-    "helmet": "^8.2.0",
-    "ws": "^8.16.0",
-    "zod": "^4.4.3"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
-    "@eslint/js": "^10.0.1",
-    "@jest/globals": "^30.4.1",
-    "@types/express": "^5.0.6",
+    "@jest/globals": "^30.5.2",
     "@types/jest": "^30.0.0",
-    "@types/node": "^25.9.2",
-    "@types/ws": "^8.16.0",
-    "eslint": "^10.4.1",
-    "globals": "^17.6.0",
-    "jest": "^30.4.2",
-    "ts-jest": "^29.4.11",
-    "typescript": "^6.0.3",
-    "typescript-eslint": "^8.59.2"
+    "@types/node": "^26.6.6",
+    "jest": "^30.5.2",
+    "ts-jest": "^29.4.15",
+    "typescript": "^6.0.3"
   },
   "scripts": {
     "test": "jest",

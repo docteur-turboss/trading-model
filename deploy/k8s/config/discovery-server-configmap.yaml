@@ -1,4 +1,4 @@
-apiVersion: v1
+﻿apiVersion: v1
 kind: ConfigMap
 metadata:
   name: discovery-server-config
@@ -7,19 +7,16 @@ metadata:
     app.kubernetes.io/part-of: trading-model
 data:
   NODE_ENV: "production"
+  OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4318"
   PORT: "3000"
-  TLS_KEY_PATH: "/etc/tls/key.pem"
-  TLS_CERT_PATH: "/etc/tls/cert.pem"
-  TLS_CA_PATH: "/etc/tls/ca.pem"
+  TLS_KEY_PATH: "/run/spire/svid/svid_key.pem"
+  TLS_CERT_PATH: "/run/spire/svid/svid.pem"
+  TLS_CA_PATH: "/run/spire/svid/bundle.pem"
+  ENFORCE_MTLS_STRICT: "true"
   LOG_LEVEL: "info"
-  REDIS_CLEANUP_INTERVAL_MS: "10000"
   CLEANUP_SERVICE_INTERVAL_MS: "15000"
-  CERT_CLIENT_CA_URL: "https://certificate-authority:3000"
-  CERT_CLIENT_SERVICE_ID: "discovery-server"
-  CERT_CLIENT_SANS: "discovery-server,localhost"
-  CA_CLIENT_TLS_KEY: "/certs/server-key.pem"
-  CA_CLIENT_TLS_CERT: "/certs/server.crt"
-  CA_CLIENT_TLS_CA: "/certs/ca.crt"
+  REDIS_SENTINELS: "redis-sentinel-0.redis-sentinel-headless:26379,redis-sentinel-1.redis-sentinel-headless:26379,redis-sentinel-2.redis-sentinel-headless:26379"
+  REDIS_SENTINEL_MASTER_NAME: "mymaster"
 ---
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
@@ -91,21 +88,31 @@ spec:
     - Egress
   ingress:
     - from:
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: trading-model
+        # Same namespace as the policy, whatever the overlay's namespace.
+        - podSelector: {}
       ports:
         - port: 3000
           protocol: TCP
   egress:
     - to:
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: trading-model
+        # Same namespace as the policy, whatever the overlay's namespace.
+        - podSelector: {}
       ports:
         - port: 6379
           protocol: TCP
+        # Sentinels (REDIS_SENTINELS).
+        - port: 26379
+          protocol: TCP
         - port: 3000
+          protocol: TCP
+    # The deploy smoke test (deploy-k8s.sh smoke-test) runs from this pod and
+    # checks the edge-proxy readiness on its plain HTTP port.
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: edge-proxy
+      ports:
+        - port: 8080
           protocol: TCP
 ---
 apiVersion: v1

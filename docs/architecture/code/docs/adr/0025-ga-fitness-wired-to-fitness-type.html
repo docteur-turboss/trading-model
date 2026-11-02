@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html class="dark" lang="en" data-tm-processed="true"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no" name="viewport">
+<title>ADR-0025: GA Fitness Computed on Wallet PnL and Selected by fitnessType; DQN Learning From Its Own Experience | trading-model</title>
+
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+
+<script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              400: '#818cf8',
+              500: '#6366f1',
+              600: '#4f46e5',
+            },
+            surface: {
+              base: '#0B0F19',
+              card: '#111827',
+              muted: '#1E293B',
+              border: '#243046',
+            },
+            code: {
+              bg: '#0c121e',
+              keyword: '#c084fc',
+              ident: '#38bdf8',
+              type: '#34d399',
+              punct: '#94a3b8'
+            }
+          },
+          fontFamily: {
+            mono: ['JetBrains Mono', 'Fira Code', 'Menlo', 'Monaco', 'Courier New', 'monospace'],
+            sans: ['-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Inter', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+
+<style data-purpose="mobile-ux-styles">
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    .active-scale:active { transform: scale(0.97); transition: transform 0.1s ease-out; }
+    .h-safe-top { height: env(safe-area-inset-top, 0px); }
+    .pt-safe { padding-top: env(safe-area-inset-top, 0px); }
+    @supports (backdrop-filter: blur(12px)) {
+      .glass-header { backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
+    }
+    
+    .tm-prose p { margin: 0.5rem 0; }
+    .tm-prose p:first-child { margin-top: 0; }
+    .tm-prose p:last-child { margin-bottom: 0; }
+    .tm-prose a { color: #818cf8; text-decoration: underline; text-underline-offset: 2px; }
+    .tm-prose a:hover { color: #a5b4fc; }
+    .tm-prose code { font-family: 'JetBrains Mono', 'Fira Code', Menlo, Monaco, 'Courier New', monospace; font-size: 0.82em; color: #fbbf24; background: #0c121e; border: 1px solid #243046; border-radius: 0.25rem; padding: 0.05rem 0.3rem; }
+    .tm-prose pre { background: #0c121e; border: 1px solid #243046; border-radius: 0.5rem; padding: 0.75rem; overflow-x: auto; margin: 0.5rem 0; }
+    .tm-prose pre code { background: transparent; border: none; padding: 0; color: #e2e8f0; }
+    .tm-prose ul, .tm-prose ol { padding-left: 1.25rem; margin: 0.5rem 0; }
+    .tm-prose ul { list-style: disc; }
+    .tm-prose ol { list-style: decimal; }
+    .tm-prose li { margin: 0.2rem 0; }
+    .tm-prose blockquote { border-left: 3px solid #6366f1; background: rgba(17, 24, 39, 0.6); padding: 0.5rem 0.75rem; border-radius: 0 0.5rem 0.5rem 0; color: #94a3b8; margin: 0.5rem 0; }
+    .tm-prose h1, .tm-prose h2, .tm-prose h3, .tm-prose h4, .tm-prose h5 { color: #ffffff; font-weight: 700; margin: 0.75rem 0 0.25rem; }
+    .tm-prose h1 { font-size: 1.25rem; }
+    .tm-prose h2 { font-size: 1.125rem; }
+    .tm-prose h3 { font-size: 1rem; }
+    .tm-prose h4 { font-size: 0.875rem; }
+    .tm-prose table { width: 100%; border-collapse: collapse; margin: 0.5rem 0; }
+    .tm-prose th, .tm-prose td { border: 1px solid #243046; padding: 0.4rem 0.6rem; text-align: left; }
+    .tm-prose thead th { background: #0b0f19; color: #e2e8f0; font-size: 0.75rem; text-transform: uppercase; }
+    .tm-prose strong { color: #ffffff; }
+  </style>
+
+</head>
+<body class="bg-[#080C15] text-slate-200 font-sans antialiased min-h-screen pb-24 selection:bg-indigo-500/30 selection:text-indigo-200">
+
+<header class="sticky top-0 z-40 w-full glass-header bg-[#0B0F19]/90 border-b border-surface-border">
+<div class="h-safe-top pt-safe"></div>
+<div class="px-4 py-2.5 flex items-center justify-between gap-3">
+<div class="flex items-center gap-2.5 min-w-0">
+
+<div class="flex flex-col min-w-0">
+<div class="flex items-center gap-1.5 truncate">
+<span class="font-mono text-xs font-semibold text-indigo-400 truncate tracking-tight"><a class="text-indigo-400 hover:text-indigo-300 hover:underline" href="../../index.html">trading-model</a></span>
+
+</div>
+<span class="text-[10px] text-slate-400 flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> TypeDoc API Reference
+</span>
+</div>
+</div>
+
+</div>
+</header>
+
+<main class="px-4 py-4 max-w-2xl mx-auto flex flex-col gap-6">
+
+<section class="space-y-2.5" data-purpose="breadcrumbs-and-header">
+<nav aria-label="Breadcrumb" class="flex items-center flex-wrap gap-1 text-[11px] font-mono text-slate-400">
+<a class="text-indigo-400 hover:underline" href="../../index.html">trading-model</a><span class="text-slate-600">/</span><span class="text-slate-300 font-medium">ADR-0025: GA Fitness Computed on Wallet PnL and Selected by fitnessType; DQN Learning From Its Own Experience</span>
+</nav>
+<div class="flex items-center gap-2.5 pt-1">
+<span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-mono font-medium tracking-wide uppercase bg-indigo-500/10 text-indigo-400 border-indigo-500/20">
+Documentation
+</span>
+<h1 class="text-2xl font-bold tracking-tight text-white font-sans">ADR-0025: GA Fitness Computed on Wallet PnL and Selected by fitnessType; DQN Learning From Its Own Experience</h1>
+</div>
+
+</section>
+
+<div class="tm-prose text-sm leading-relaxed text-slate-300 font-sans"><div>
+<p><strong>Status:</strong> Accepted
+<strong>Date:</strong> 2026-10
+<strong>Amends:</strong> <a href="0001-ga-dqn-training.html">ADR-0001</a> (its &quot;Fitness function&quot; bullet only; the GA + DQN architecture stands)
+<strong>Verified by:</strong> <code>services/trader-trainer/tests/unit/genetic-algorithm/fitness-type.spec.ts</code>, <code>services/trader-trainer/tests/unit/genetic-algorithm/reward-shaping.spec.ts</code>, <code>services/trader-trainer/tests/unit/genetic-algorithm/dqn-learning.spec.ts</code>, <code>services/trader-trainer/tests/unit/genetic-algorithm/training-phase.spec.ts</code>, <code>services/trader-trainer/tests/unit/agent/trading-agent.spec.ts</code></p>
+<h2>Context</h2>
+<p>The 13.09 audit (Décision 4, CT3) found three competing pieces of fitness code and a <code>fitnessType</code> gene with no effect. The decision taken was to wire <code>fitnessType</code> to the implementation actually used while keeping the diversity of the Pareto front. Checked against the code on 2026-10-30:</p>
+<ul>
+<li><code>fitness.ts</code>, the only code that mapped <code>FitnessType</code> to a metric (<code>total</code>, <code>sharpe</code>, <code>sortino</code>, <code>calmar</code>, <code>composite</code>), had been deleted as unused code on 2026-10-12 (<code>728fe448</code>). The fitness in use was <code>evaluation-utils.ts</code>: the mean of the episode scores times a complexity penalty. <code>reward-shaping.ts</code> shapes the training reward; it is not a fitness, but it had lost the <code>scaleFactor</code> that <code>fitness.ts</code> applied.</li>
+<li><code>fitnessType</code> was always <code>total_pnl</code>: no setting reached it and it is never mutated. It was nevertheless published in every model summary, artifact and <code>training.model.published</code> event.</li>
+<li>The episode scores were the sum of the <strong>shaped</strong> reward. Clipping, scaling and z-score normalisation are genes of the genome being judged, so a genome could rescale its own score (normalised rewards average to about 0 whatever the strategy). Both NSGA-II objectives <code>avgPnl</code> and <code>sharpe</code> were read from those scores.</li>
+<li>The GA actually runs three selections: NSGA-II ranking on (<code>avgPnl</code>, <code>sharpe</code>, <code>negFlops</code>), a scalar score (<code>efficiencyScore</code>) for tournament/roulette/rank selection, stagnation and the reward threshold, and the published genome, which was <code>archive.members[0]</code>, an arbitrary member of the front.</li>
+<li>Each evaluation episode replays the same validation window. Episodes only differ by exploration noise, so a ratio computed across 3 episodes measured that noise, not a market return.</li>
+<li>The complexity penalty multiplied the fitness by <code>1 - λ·p</code>, which raises a negative fitness: a costlier losing network ranked higher.</li>
+</ul>
+<h2>Decision</h2>
+<ol>
+<li><strong>Fitness reads the wallet PnL, never the shaped reward.</strong> The evaluation records the final PnL of each episode and the PnL change of every validation bar (a bar skipped by <code>frameSkip</code> counts 0; its move lands on the next decision). Every genome is evaluated on the whole validation window, whatever its <code>maxEpisodeLength</code> (a training horizon). Reward shaping only changes how a genome learns.</li>
+<li><strong>One implementation:</strong> <code>computeFitness(type, pnl)</code> in <code>evaluation-utils.ts</code>. <code>total_pnl</code> is the mean episode PnL; <code>sharpe</code>, <code>sortino</code>, <code>calmar</code> and <code>composite</code> read the bar-by-bar PnL curve, which has one point per bar instead of one per episode. The NSGA-II objectives are the mean episode PnL and the Sharpe of that curve.</li>
+<li><strong><code>fitnessType</code> is a run setting, <code>TRAINER_FITNESS_TYPE</code></strong> (default <code>total_pnl</code>), not an evolved gene: genomes judged by different metrics could not be compared. It drives the scalar score: parent selection, stagnation, the reward threshold, and <strong>the published genome, the front member with the highest fitness</strong> (<code>ParetoArchive.best()</code>). The NSGA-II objectives stay multi-objective, so the front keeps every trade-off.</li>
+<li>A failed evaluation scores <code>-1e9</code> on the fitness and on both PnL objectives. The complexity penalty subtracts <code>λ·p·|fitness|</code>.</li>
+<li>The reward-shaping genes all act on training: <code>scaleFactor</code> is applied before clipping again, and a <code>sparse</code> genome learns from the episode total given on its last step.</li>
+<li><strong>Evaluation explores at a fixed <code>EVAL_EPSILON</code> = 0.05</strong> (the usual DQN evaluation protocol), not with the training schedule: that one starts at <code>epsilonStart</code> (1.0 by default) and decays by 0.995 per step, so over a 100-bar validation window about 80 % of the scored trades were random. Epsilon stays above 0 so the episodes differ and measure how robust the policy is.</li>
+<li><strong>Published ratios are annualised</strong>: the model's <code>sharpe</code> is the Sharpe of the bar curve times √(bars per year), the bars per year coming from the median spacing of the validation timestamps. The fitness stays per bar (the scale is the same for every genome of a run). Model manifests carry <code>metrics.metricsVersion: 2</code>; a manifest without it holds metrics computed on the shaped reward, not comparable.</li>
+<li>At least 10 evaluation episodes (<code>TRAINER_EPISODES_PER_INDIVIDUAL</code>, default 10, was 3); the adaptive control keeps them within 10–30 instead of 2–10. Sortino without any loss and Calmar without any drawdown fall back to the mean, like Sharpe without variance, instead of dividing by about 0.</li>
+</ol>
+<h2>Alternatives Considered</h2>
+<table>
+<thead>
+<tr>
+<th>Alternative</th>
+<th>Reason for Rejection</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Keep only the mean (delete <code>fitnessType</code>)</td>
+<td>Simpler, but drops the risk-adjusted metrics the MT4 validation needs and leaves a published field that lies</td>
+</tr>
+<tr>
+<td><code>fitnessType</code> replaces the NSGA-II objectives</td>
+<td>A single objective collapses the Pareto front, the diversity the decision wanted to keep</td>
+</tr>
+<tr>
+<td><code>fitnessType</code> as an evolved gene</td>
+<td>Each genome would be judged by its own metric: scores no longer comparable</td>
+</tr>
+<tr>
+<td>Ratios across episodes</td>
+<td>Episodes replay the same window; the ratios would measure exploration noise</td>
+</tr>
+</tbody>
+</table>
+<h2>Consequences</h2>
+<h3>Positive</h3>
+<ul>
+<li>Changing <code>TRAINER_FITNESS_TYPE</code> changes which genome is published and every scalar decision of the GA (CT3 end criterion, <code>fitness-type.spec.ts</code>).</li>
+<li>Published <code>sharpe</code> and <code>maxDrawdown</code> describe the PnL curve of the evaluation, <code>avgPnl</code> the mean episode PnL.</li>
+<li>Reward shaping can no longer inflate a genome's score.</li>
+</ul>
+<h3>Negative</h3>
+<ul>
+<li>Fitness values are not comparable with models published before this change (<code>metricsVersion</code> tells them apart).</li>
+<li>The fitness is per bar: <code>fitness</code> values of runs on different timeframes are not comparable, only the published <code>sharpe</code> is.</li>
+</ul>
+<h3>Learning fixed while verifying CT3 (2026-10-30)</h3>
+<p>Measured with the real <code>TradingAgent</code>, the DQN learned no market signal, so the RL genes had no meaningful effect:</p>
+<ul>
+<li>the step reward was the trade's own cost, never the price move (<code>TradingAgent.step</code> updated the price before reading the reference PnL): 0 on every step while the PnL went from 0 to 23.5;</li>
+<li>the training rewards came from another agent (a &quot;shadow&quot; backend in <code>precomputeRewards</code>);</li>
+<li>every agent ran the continuous action space (<code>useContinuous</code> tested <code>continuousPolicy.type !== undefined</code>, which every genome has): the recorded action was always 0, and changing the epsilon gene left the trained weights identical;</li>
+<li>the replay buffer was never replayed (each transition trained once, then removed), and the prioritized pool was never used;</li>
+<li>the switches (<code>clip</code>, <code>scale</code>, <code>normalize</code>, <code>sparse</code>, <code>prioritized</code>, <code>betaAnneal</code>) were never mutated, so they kept their default for ever.</li>
+</ul>
+<p>Decided and done:</p>
+<ol start="9">
+<li>
+<p><strong>A decision's reward is the wallet PnL it earned</strong>: from just before its trade (its cost) to the next decision's price (the move on the position it left). <code>TradingAgent.step</code> returns it for the previous decision.</p>
+</li>
+<li>
+<p><strong>The agent learns from its own experience</strong>: no shadow backend. Each decision is stored with its n-step return (shaped by the genome, discount γ^n on the bootstrap); only complete transitions are stored, the end of the training window being a truncation, not a terminal state (except for a sparse genome, whose last transition takes the episode reward as terminal).</p>
+</li>
+<li>
+<p><strong>Experience replay</strong>: after each stored transition, a minibatch of <code>replayBuffer.batchSize</code> (new gene, default 8, 1–64) is replayed, with the prioritized pool and its importance-sampling weights when <code>prioritized</code>. The target starts from the network's current Q-values, not the stale ones stored with the transition.</p>
+</li>
+<li>
+<p><strong>Discrete actions only</strong> (sell / hold / buy, epsilon-greedy): the <code>continuousPolicy</code> genes and the <code>temperature</code> gene (Boltzmann sampling, greedy at exactly 1.0 and sampling at 0.99) are removed.</p>
+</li>
+<li>
+<p><strong>Every RL hyper-parameter is under GA control</strong>: the switches flip with a 5 % chance per mutation, <code>batchSize</code> mutates log-normally. <code>dqn-learning.spec.ts</code> checks that each gene changes the trained weights and that a trained genome beats the untrained one on a market it can learn.</p>
+</li>
+<li>
+<p><strong>The agent observes its position</strong> (decided 2026-10-31): a decision's reward depends on the units already held, so the network input is the market features followed by the agent state <code>AgentExposure</code> (position value / valuation, centred to [-1, 1]). Transitions store that full input. The model manifest's <code>features</code> lists all 33 inputs (<code>NETWORK_INPUT_LAYOUT</code>); it used to declare 32 inputs but name only 23 of them (the sliding-window closes and the bias were unnamed).</p>
+</li>
+<li>
+<p><strong>Default <code>gamma</code> 0.9</strong> (was 0.99); the GA still evolves it within [0.8, 0.9999].</p>
+</li>
+</ol>
+<p>Measured before deciding, 24 seeded balanced markets where feature 0 announces the next move, 800 training bars, one pass, genomes whose validation PnL improved after training (mean gain):</p>
+<table>
+<thead>
+<tr>
+<th>Agent input</th>
+<th>γ = 0.99</th>
+<th>γ = 0.9</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Position hidden</td>
+<td>15/24 (+26)</td>
+<td>23/24 (+139)</td>
+</tr>
+<tr>
+<td>Exposure in [0, 1]</td>
+<td>9/24 (+21)</td>
+<td>18/24 (+77)</td>
+</tr>
+<tr>
+<td>Exposure centred to [-1, 1] (kept)</td>
+<td>14/24 (+50)</td>
+<td>19/24 (+95)</td>
+</tr>
+</tbody>
+</table>
+<p>On this market the right action does not depend on the position, so showing it adds a dimension to learn without helping; it is kept because on real data the position bounds what a decision can earn (cash, maximum position). To check against hiding it during MT4. The dominant factor measured is γ.</p>
+<ol start="16">
+<li><strong>Trades are sized on the cash, not in units</strong> (found running on real candles, 2026-10-31): the training wallet held 1,000 of cash and traded 1 unit, so it could never buy BTC (~77,000) or ETH; every real training scored 0. Each trade now moves 10 % of the initial cash at the current price (a sale never exceeds the position), and pays the Binance spot taker fee of 0.1 %, which the wallet left at 0.</li>
+<li><strong><code>TRAINER_OBSERVE_POSITION</code></strong> (default <code>true</code>): <code>false</code> feeds a constant instead of the exposure (same input size), to measure what seeing the position is worth.</li>
+</ol>
+<h3>First MT4 walk-forward run (2026-10-31)</h3>
+<p><code>scripts/fetch-klines.ts</code> downloads Binance candles, <code>scripts/mt4-walk-forward.ts</code> runs the real GA (<code>TrainingSession</code>, population 20, 30 generations, 10 evaluation episodes) on 500 candles, then evaluates the genome it would publish on the next 100 candles, unseen by training, segment after segment. BTCUSDT and ETHUSDT 1h, 2026-08-08 → 2026-10-30, 15 segments each, fitness <code>total_pnl</code>, both variants on the same segments and seeds. Only candle features (order book, trades and ticker inputs at 0).</p>
+<table>
+<thead>
+<tr>
+<th>Per 100-hour test segment</th>
+<th>Position shown</th>
+<th>Position hidden</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Mean return (% of cash)</td>
+<td>−0.37</td>
+<td>−0.19</td>
+</tr>
+<tr>
+<td>Mean annualised Sharpe</td>
+<td>−1.83</td>
+<td>−1.72</td>
+</tr>
+<tr>
+<td>Mean max drawdown (% of cash)</td>
+<td>1.99</td>
+<td>1.67</td>
+</tr>
+<tr>
+<td>Segments with a gain</td>
+<td>13/30</td>
+<td>13/30</td>
+</tr>
+<tr>
+<td>Correlation of returns with buy and hold</td>
+<td>0.78</td>
+<td>0.68</td>
+</tr>
+</tbody>
+</table>
+<p>Buy and hold earned −0.15 % on the same segments.</p>
+<ul>
+<li><strong>Position shown vs hidden: no measurable difference.</strong> Shown does better on 18 of 30 paired segments but loses 0.18 points of return on average (standard deviation 1.46, t = −0.67): noise. The default stays <code>true</code> (decision of 2026-10-31).</li>
+<li><strong>The engine shows no out-of-sample edge yet</strong>: both variants lose a little after fees, below buy and hold, and their returns mostly follow the market (correlation 0.7–0.8): the published agents are long-biased rather than predictive. MT4's success criteria are not met.</li>
+</ul>
+<h3>Still open</h3>
+<ul>
+<li><strong>MT4 on fuller data</strong>: the order book, trade and ticker features the scraper collects (zero in this run), longer history, several seeds per segment, and the paper-trading vs backtest gap.</li>
+<li><strong>Fitness choice</strong>: the run used <code>total_pnl</code>; <code>sharpe</code> or <code>composite</code> against the same segments is the next comparison (<code>--fitness</code>).</li>
+<li><strong>Training costs about one minibatch per bar</strong>: ~250 ms per genome and 400-bar window with the default batch of 8, so the 5-minute time budget ends a 20-genome run after about 60 generations of one window.</li>
+</ul>
+</div></div>
+</main>
+</body>
+</html>

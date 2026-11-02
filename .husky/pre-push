@@ -1,3 +1,10 @@
-npx @biomejs/biome check .
-npm run build
-npm test
+bunx @biomejs/biome check .
+bun run deps:check
+bun run api:check
+bun run adr:check
+bun run reach:check
+bun run config:check
+bun scripts/observability-gate.mjs
+bun run build
+bun run test
+bun run test:contract

@@ -1,0 +1,15 @@
+# Node-level agents (SPIRE agent, SPIFFE CSI driver, promtail). They need the
+# host (hostPID, hostNetwork, hostPath, a privileged CSI plugin, root to read
+# the node's pod logs), which the restricted profile of the application
+# namespace forbids, so they live apart. The application pods only receive
+# the Workload API socket through the csi.spiffe.io ephemeral volume, which
+# restricted allows.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: trading-model-node
+  labels:
+    name: trading-model-node
+    pod-security.kubernetes.io/enforce: privileged
+    pod-security.kubernetes.io/audit: privileged
+    pod-security.kubernetes.io/warn: privileged

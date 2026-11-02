@@ -20,6 +20,22 @@ describe("sanitizeForLog", () => {
 		expect(result).toHaveProperty("stack");
 	});
 
+	it("should keep the cause chain and error code of wrapped errors", () => {
+		const root = Object.assign(new Error("connect ECONNREFUSED"), {
+			code: "ECONNREFUSED",
+		});
+		const wrapped = Object.assign(new Error("Failed to publish"), {
+			cause: root,
+		});
+
+		const result = sanitizeForLog(wrapped) as Record<string, unknown>;
+
+		expect(result.cause).toMatchObject({
+			message: "connect ECONNREFUSED",
+			code: "ECONNREFUSED",
+		});
+	});
+
 	it("should handle Error instances without a stack property", () => {
 		const err = new Error("test");
 		Object.defineProperty(err, "stack", { value: undefined });

@@ -37,18 +37,46 @@ spec:
         app.kubernetes.io/component: otel-collector
         app.kubernetes.io/part-of: trading-model
     spec:
-      affinity:
-        podAntiAffinity:
-          preferredDuringSchedulingIgnoredDuringExecution:
-            - weight: 100
-              podAffinityTerm:
-                labelSelector:
-                  matchLabels:
-                    app.kubernetes.io/component: otel-collector
-                topologyKey: kubernetes.io/hostname
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      # Even spread (ADR-0024): at most one pod more on a node than on the
+      # emptiest one; the zone is best effort (nodes without the label qualify).
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: DoNotSchedule
+          nodeTaintsPolicy: Honor
+          matchLabelKeys:
+            - pod-template-hash
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/component: otel-collector
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: ScheduleAnyway
+          nodeTaintsPolicy: Honor
+          matchLabelKeys:
+            - pod-template-hash
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/component: otel-collector
       containers:
         - name: otel-collector
-          image: otel/opentelemetry-collector-contrib:0.114.0
+          image: otel/opentelemetry-collector-contrib@sha256:37fa87091cfaaec7234a27e4e395a40c31c2bfaea97a349a4afef6d9e9681197
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
           args:
             - "--config"
             - "/etc/otel-collector.yml"
@@ -69,16 +97,17 @@ spec:
               mountPath: /etc/otel-collector.yml
               subPath: otel-collector.yml
               readOnly: true
+          # health_check extension.
           livenessProbe:
             httpGet:
               path: /
-              port: 8888
+              port: 13133
             initialDelaySeconds: 10
             periodSeconds: 15
           readinessProbe:
             httpGet:
               path: /
-              port: 8888
+              port: 13133
             initialDelaySeconds: 5
             periodSeconds: 10
       volumes:
@@ -114,10 +143,18 @@ data:
       prometheus:
         endpoint: 0.0.0.0:8888
         namespace: trading
-        const_labels:
-          service: message-manager
+
+    extensions:
+      health_check:
+        endpoint: 0.0.0.0:13133
 
     service:
+      extensions: [health_check]
+      # The collector's own metrics default to :8888, the port of the
+      # prometheus exporter above: two listeners on one port crash the pod.
+      telemetry:
+        metrics:
+          level: none
       pipelines:
         traces:
           receivers: [otlp]
@@ -156,9 +193,8 @@ spec:
     - Ingress
   ingress:
     - from:
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: trading-model
+        # Same namespace as the policy, whatever the overlay's namespace.
+        - podSelector: {}
       ports:
         - port: 4318
           protocol: TCP

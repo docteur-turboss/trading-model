@@ -1,4 +1,10 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
+import { CandleInterval } from "@trading-model/contracts/market-data.types";
+import {
+	BinanceFromId,
+	Limit,
+	toSymbol,
+} from "@trading-model/primitives/primitives";
 
 jest.mock("../../../../src/config/http", () => ({
 	httpClients: {
@@ -8,7 +14,7 @@ jest.mock("../../../../src/config/http", () => ({
 	},
 }));
 
-jest.mock("../../../../src/clients/binance/endpoints", () => ({
+jest.mock("../../../../src/adapters/outbound/binance/endpoints", () => ({
 	BINANCE_ENDPOINTS: {
 		depth: jest.fn(() => "/api/v3/depth"),
 		trades: jest.fn(() => "/api/v3/trades"),
@@ -22,7 +28,7 @@ jest.mock("../../../../src/clients/binance/endpoints", () => ({
 	},
 }));
 
-jest.mock("../../../../src/clients/binance/weights", () => ({
+jest.mock("../../../../src/adapters/outbound/binance/weights", () => ({
 	BINANCE_WEIGHTS: {
 		depth: jest.fn(() => 5),
 		trades: jest.fn(() => 25),
@@ -46,96 +52,123 @@ import {
 	getRecentTrades,
 	getSymbolPriceTicker,
 	getTradingDayTicker,
-} from "../../../../src/clients/binance/binance.client";
+} from "../../../../src/adapters/outbound/binance/binance.client";
 import { httpClients } from "../../../../src/config/http";
 
+const BTC = toSymbol("BTCUSDT");
 const MOCK_GET = jest.mocked(httpClients.binance.get);
+
+const LIMIT_100 = Limit.of(100, 5000);
+const LIMIT_500 = Limit.of(500, 5000);
 
 describe("BinanceClient", () => {
 	beforeEach(() => {
 		jest.clearAllMocks();
-		MOCK_GET.mockResolvedValue({ data: {} });
+		MOCK_GET.mockResolvedValue({ data: [] });
 	});
 
 	it("getOrderBook should call depth endpoint with weight", async () => {
-		await getOrderBook("BTCUSDT", 100);
+		await getOrderBook({ symbol: BTC, limit: LIMIT_100 });
 		expect(MOCK_GET).toHaveBeenCalledWith("/api/v3/depth", {
 			weight: 5,
 		} as never);
 	});
 
 	it("getOrderBook should use default limit", async () => {
-		await getOrderBook("BTCUSDT");
+		await getOrderBook({ symbol: BTC });
 		expect(MOCK_GET).toHaveBeenCalledWith("/api/v3/depth", {
 			weight: 5,
 		} as never);
 	});
 
 	it("getRecentTrades should call trades endpoint with weight", async () => {
-		await getRecentTrades("BTCUSDT", 100);
+		await getRecentTrades({ symbol: BTC, limit: LIMIT_100 });
 		expect(MOCK_GET).toHaveBeenCalledWith("/api/v3/trades", {
 			weight: 25,
 		} as never);
 	});
 
 	it("getRecentTrades should use default limit", async () => {
-		await getRecentTrades("BTCUSDT");
+		await getRecentTrades({ symbol: BTC });
 		expect(MOCK_GET).toHaveBeenCalledWith("/api/v3/trades", {
 			weight: 25,
 		} as never);
 	});
 
 	it("getHistoricalTrades should call historicalTrades endpoint with weight", async () => {
-		await getHistoricalTrades("BTCUSDT", 100, 12345);
+		await getHistoricalTrades({
+			symbol: BTC,
+			limit: LIMIT_100,
+			fromId: BinanceFromId.of("12345"),
+		});
 		expect(MOCK_GET).toHaveBeenCalledWith("/api/v3/historicalTrades", {
 			weight: 25,
 		} as never);
 	});
 
 	it("getHistoricalTrades should use default limit", async () => {
-		await getHistoricalTrades("BTCUSDT", 500, 12345);
+		await getHistoricalTrades({
+			symbol: BTC,
+			limit: LIMIT_500,
+			fromId: BinanceFromId.of("12345"),
+		});
 		expect(MOCK_GET).toHaveBeenCalledWith("/api/v3/historicalTrades", {
 			weight: 25,
 		} as never);
 	});
 
 	it("getCandlestickData should call candlesticks endpoint with weight", async () => {
-		await getCandlestickData("BTCUSDT", 100, "1m", 1620000000000);
+		await getCandlestickData({
+			symbol: BTC,
+			limit: LIMIT_100,
+			interval: CandleInterval.Min1,
+		});
 		expect(MOCK_GET).toHaveBeenCalledWith("/api/v3/klines", {
 			weight: 2,
 		} as never);
 	});
 
 	it("getCandlestickData should use default limit", async () => {
-		await getCandlestickData("BTCUSDT", 500, "1m", 1620000000000);
+		await getCandlestickData({
+			symbol: BTC,
+			limit: LIMIT_500,
+			interval: CandleInterval.Min1,
+		});
 		expect(MOCK_GET).toHaveBeenCalledWith("/api/v3/klines", {
 			weight: 2,
 		} as never);
 	});
 
 	it("getCompressedAggregateTrades should call aggTrades endpoint with weight", async () => {
-		await getCompressedAggregateTrades("BTCUSDT", 12345, 100);
+		await getCompressedAggregateTrades({
+			symbol: BTC,
+			fromId: BinanceFromId.of("12345"),
+			limit: LIMIT_100,
+		});
 		expect(MOCK_GET).toHaveBeenCalledWith("/api/v3/aggTrades", {
 			weight: 4,
 		} as never);
 	});
 
 	it("getCompressedAggregateTrades should use default limit", async () => {
-		await getCompressedAggregateTrades("BTCUSDT", 12345);
+		await getCompressedAggregateTrades({
+			symbol: BTC,
+			fromId: BinanceFromId.of("12345"),
+		});
 		expect(MOCK_GET).toHaveBeenCalledWith("/api/v3/aggTrades", {
 			weight: 4,
 		} as never);
 	});
 
 	it("getTradingDayTicker should call tradingDay endpoint with weight", async () => {
-		await getTradingDayTicker(["BTCUSDT"]);
+		await getTradingDayTicker([BTC]);
 		expect(MOCK_GET).toHaveBeenCalledWith("/api/v3/ticker/tradingDay", {
 			weight: 4,
 		} as never);
 	});
 
 	it("get24hrTickerStats should call 24hr endpoint with weight", async () => {
-		await get24hrTickerStats(["BTCUSDT"]);
+		await get24hrTickerStats([BTC]);
 		expect(MOCK_GET).toHaveBeenCalledWith("/api/v3/ticker/24hr", {
 			weight: 2,
 		} as never);
@@ -149,7 +182,7 @@ describe("BinanceClient", () => {
 	});
 
 	it("getSymbolPriceTicker should call price endpoint with weight", async () => {
-		await getSymbolPriceTicker(["BTCUSDT"]);
+		await getSymbolPriceTicker([BTC]);
 		expect(MOCK_GET).toHaveBeenCalledWith("/api/v3/ticker/price", {
 			weight: 4,
 		} as never);
@@ -163,7 +196,7 @@ describe("BinanceClient", () => {
 	});
 
 	it("getOrderBookTicker should call bookTicker endpoint with weight", async () => {
-		await getOrderBookTicker(["BTCUSDT"]);
+		await getOrderBookTicker([BTC]);
 		expect(MOCK_GET).toHaveBeenCalledWith("/api/v3/ticker/bookTicker", {
 			weight: 4,
 		} as never);
@@ -174,67 +207,5 @@ describe("BinanceClient", () => {
 		expect(MOCK_GET).toHaveBeenCalledWith("/api/v3/ticker/bookTicker", {
 			weight: 4,
 		} as never);
-	});
-
-	describe("symbol validation", () => {
-		it("getOrderBook throws on empty symbol", async () => {
-			await expect(getOrderBook("")).rejects.toThrow(
-				"getOrderBook: symbol must be a non-empty string"
-			);
-		});
-
-		it("getOrderBook throws on blank symbol", async () => {
-			await expect(getOrderBook("   ")).rejects.toThrow(
-				"getOrderBook: symbol must be a non-empty string"
-			);
-		});
-
-		it("getRecentTrades throws on empty symbol", async () => {
-			await expect(getRecentTrades("")).rejects.toThrow(
-				"getRecentTrades: symbol must be a non-empty string"
-			);
-		});
-
-		it("getHistoricalTrades throws on empty symbol", async () => {
-			await expect(getHistoricalTrades("", 500, 1)).rejects.toThrow(
-				"getHistoricalTrades: symbol must be a non-empty string"
-			);
-		});
-
-		it("getCandlestickData throws on empty symbol", async () => {
-			await expect(getCandlestickData("", 100, "1m")).rejects.toThrow(
-				"getCandlestickData: symbol must be a non-empty string"
-			);
-		});
-
-		it("getCompressedAggregateTrades throws on empty symbol", async () => {
-			await expect(getCompressedAggregateTrades("", 1)).rejects.toThrow(
-				"getCompressedAggregateTrades: symbol must be a non-empty string"
-			);
-		});
-
-		it("getTradingDayTicker throws on empty symbol in array", async () => {
-			await expect(getTradingDayTicker([""])).rejects.toThrow(
-				"getTradingDayTicker: symbol must be a non-empty string"
-			);
-		});
-
-		it("get24hrTickerStats throws on empty symbol in array", async () => {
-			await expect(get24hrTickerStats([""])).rejects.toThrow(
-				"get24hrTickerStats: symbol must be a non-empty string"
-			);
-		});
-
-		it("getSymbolPriceTicker throws on empty symbol in array", async () => {
-			await expect(getSymbolPriceTicker([""])).rejects.toThrow(
-				"getSymbolPriceTicker: symbol must be a non-empty string"
-			);
-		});
-
-		it("getOrderBookTicker throws on empty symbol in array", async () => {
-			await expect(getOrderBookTicker([""])).rejects.toThrow(
-				"getOrderBookTicker: symbol must be a non-empty string"
-			);
-		});
 	});
 });

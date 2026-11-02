@@ -1,8 +1,10 @@
 import { describe, expect, test } from "@jest/globals";
 import {
+	type AdamState,
 	DEFAULT_HYPERPARAMS,
 	OPTIMIZERS,
-} from "../../../src/core/neural-network/optimizer";
+	type RmspropState,
+} from "../../../src/domain/neural-network/optimizer";
 
 describe("Optimizers", () => {
 	describe("SGD", () => {
@@ -16,7 +18,13 @@ describe("Optimizers", () => {
 			const grads = new Float32Array([0.1, 0.2, 0.3]);
 			const state = OPTIMIZERS.sgd.initState(3);
 
-			OPTIMIZERS.sgd.step(params, grads, state, 0.1, DEFAULT_HYPERPARAMS);
+			OPTIMIZERS.sgd.step({
+				params,
+				grads,
+				state,
+				lr: 0.1,
+				hp: DEFAULT_HYPERPARAMS,
+			});
 
 			expect(state.stepCount).toBe(1);
 			expect(params[0]).toBeCloseTo(0.99, 5);
@@ -27,10 +35,10 @@ describe("Optimizers", () => {
 
 	describe("Adam", () => {
 		test("initState should return moment1 and moment2 arrays", () => {
-			const state = OPTIMIZERS.adam.initState(5);
+			const state = OPTIMIZERS.adam.initState(5) as AdamState;
 			expect(state.stepCount).toBe(0);
-			expect((state.moment1 as Float32Array).length).toBe(5);
-			expect((state.moment2 as Float32Array).length).toBe(5);
+			expect(state.moment1.length).toBe(5);
+			expect(state.moment2.length).toBe(5);
 		});
 
 		test("step should update params", () => {
@@ -38,7 +46,13 @@ describe("Optimizers", () => {
 			const grads = new Float32Array([0.5, -0.5]);
 			const state = OPTIMIZERS.adam.initState(2);
 
-			OPTIMIZERS.adam.step(params, grads, state, 0.001, DEFAULT_HYPERPARAMS);
+			OPTIMIZERS.adam.step({
+				params,
+				grads,
+				state,
+				lr: 0.001,
+				hp: DEFAULT_HYPERPARAMS,
+			});
 
 			expect(state.stepCount).toBe(1);
 			expect(params[0]).not.toBe(1);
@@ -51,7 +65,13 @@ describe("Optimizers", () => {
 
 			for (let i = 0; i < 10; i++) {
 				const grads = new Float32Array([0.1, -0.2, 0.3]);
-				OPTIMIZERS.adam.step(params, grads, state, 0.01, DEFAULT_HYPERPARAMS);
+				OPTIMIZERS.adam.step({
+					params,
+					grads,
+					state,
+					lr: 0.01,
+					hp: DEFAULT_HYPERPARAMS,
+				});
 			}
 
 			for (const p of params) {
@@ -62,9 +82,9 @@ describe("Optimizers", () => {
 
 	describe("RMSProp", () => {
 		test("initState should return moment2 array", () => {
-			const state = OPTIMIZERS.rmsprop.initState(5);
+			const state = OPTIMIZERS.rmsprop.initState(5) as RmspropState;
 			expect(state.stepCount).toBe(0);
-			expect((state.moment2 as Float32Array).length).toBe(5);
+			expect(state.moment2.length).toBe(5);
 		});
 
 		test("step should update params", () => {
@@ -72,7 +92,13 @@ describe("Optimizers", () => {
 			const grads = new Float32Array([0.5, -0.5]);
 			const state = OPTIMIZERS.rmsprop.initState(2);
 
-			OPTIMIZERS.rmsprop.step(params, grads, state, 0.01, DEFAULT_HYPERPARAMS);
+			OPTIMIZERS.rmsprop.step({
+				params,
+				grads,
+				state,
+				lr: 0.01,
+				hp: DEFAULT_HYPERPARAMS,
+			});
 
 			expect(state.stepCount).toBe(1);
 			expect(params[0]).toBeLessThan(1);
@@ -85,13 +111,13 @@ describe("Optimizers", () => {
 
 			for (let i = 0; i < 10; i++) {
 				const grads = new Float32Array([0.1, -0.2]);
-				OPTIMIZERS.rmsprop.step(
+				OPTIMIZERS.rmsprop.step({
 					params,
 					grads,
 					state,
-					0.01,
-					DEFAULT_HYPERPARAMS
-				);
+					lr: 0.01,
+					hp: DEFAULT_HYPERPARAMS,
+				});
 			}
 
 			for (const p of params) {

@@ -1,6 +1,8 @@
-node_modules
-dist
-coverage
+# Workspace-level dirs too: local installs (bun isolated linker symlinks) and
+# builds must never leak into the images.
+**/node_modules
+**/dist
+**/coverage
 .git
 .gitattributes
 .gitignore
@@ -10,4 +12,4 @@ coverage
 eslint.config.mjs
 commitlint.config.mjs
 scripts
-.nyc_output
+**/.nyc_output

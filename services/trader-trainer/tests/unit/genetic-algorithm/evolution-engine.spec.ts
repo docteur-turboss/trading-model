@@ -1,12 +1,16 @@
 import { beforeEach, describe, expect, it } from "@jest/globals";
+import { DurationMs } from "@trading-model/primitives/primitives";
+import { EpisodeScores } from "../../../src/domain/genetic-algorithm/episode-scores";
 import {
 	crossoverGenomes,
 	crossoverWeights,
 	mutateGenome,
 	mutateWeights,
-	selectParent,
-} from "../../../src/core/genetic-algorithm/evolution-engine";
-import { createDefaultGenome } from "../../../src/core/genetic-algorithm/factory";
+} from "../../../src/domain/genetic-algorithm/evolution-engine";
+import { createDefaultGenome } from "../../../src/domain/genetic-algorithm/factory";
+import { SelectionType } from "../../../src/domain/genetic-algorithm/genome";
+import type { PopMember } from "../../../src/domain/genetic-algorithm/genome-types";
+import { selectParent } from "../../../src/domain/genetic-algorithm/selection";
 
 describe("EvolutionEngine", () => {
 	let rng: () => number;
@@ -68,13 +72,13 @@ describe("EvolutionEngine", () => {
 	describe("mutateWeights", () => {
 		it("should return an array of same length", () => {
 			const w = new Float32Array([0.1, 0.2, 0.3]);
-			const result = mutateWeights(w, 0.5, 0.1, rng);
+			const result = mutateWeights({ weights: w, rate: 0.5, std: 0.1, rng });
 			expect(result.length).toBe(3);
 		});
 
 		it("should not mutate when rate is 0", () => {
 			const w = new Float32Array([0.1, 0.2, 0.3]);
-			const result = mutateWeights(w, 0, 0.1, rng);
+			const result = mutateWeights({ weights: w, rate: 0, std: 0.1, rng });
 			expect(result[0]).toBeCloseTo(0.1);
 			expect(result[1]).toBeCloseTo(0.2);
 			expect(result[2]).toBeCloseTo(0.3);
@@ -82,13 +86,18 @@ describe("EvolutionEngine", () => {
 
 		it("should return a new array (not same reference)", () => {
 			const w = new Float32Array([0.1, 0.2, 0.3]);
-			const result = mutateWeights(w, 0, 0.1, rng);
+			const result = mutateWeights({ weights: w, rate: 0, std: 0.1, rng });
 			expect(result).not.toBe(w);
 		});
 
 		it("should mutate weights when rng < rate", () => {
 			const w = new Float32Array([1, 1, 1]);
-			const result = mutateWeights(w, 0.6, 0.05, () => 0.3);
+			const result = mutateWeights({
+				weights: w,
+				rate: 0.6,
+				std: 0.05,
+				rng: () => 0.3,
+			});
 			const allMutated = result[0] !== 1 || result[1] !== 1 || result[2] !== 1;
 			expect(allMutated).toBe(true);
 		});
@@ -115,80 +124,95 @@ describe("EvolutionEngine", () => {
 	});
 
 	describe("selectParent", () => {
-		it("should select a parent from population", () => {
-			const population = [
-				createDefaultGenome("p1"),
-				createDefaultGenome("p2"),
-				createDefaultGenome("p3"),
-			];
-			population[0].fitness = 10;
-			population[1].fitness = 20;
-			population[2].fitness = 30;
+		function makePop(fitnesses: number[]): PopMember[] {
+			return fitnesses.map((fitness, i) => ({
+				genome: createDefaultGenome(`g${i}`, 1),
+				fitness,
+				fitnessMeta: {
+					episodesRun: 3,
+					computeMs: DurationMs.of(100),
+					efficiencyScore: fitness,
+					variance: 0.1,
+					rawScores: new EpisodeScores([fitness]),
+				},
+			}));
+		}
 
-			const parent = selectParent(population, "tournament", rng);
+		it("should select a parent from population", () => {
+			const population = makePop([10, 20, 30]);
+			const parent = selectParent(population, SelectionType.Tournament, rng);
 			expect(parent).toBeDefined();
 		});
 
 		it("should return a member of the population", () => {
-			const population = [createDefaultGenome("p1")];
-			const parent = selectParent(population, "tournament", rng);
-			expect(parent).toBe(population[0]);
+			const population = makePop([10]);
+			const parent = selectParent(population, SelectionType.Tournament, rng);
+			expect(parent).toBe(population[0].genome);
 		});
 
 		it("should work with random selection type", () => {
-			const population = [createDefaultGenome("p1"), createDefaultGenome("p2")];
-			const parent = selectParent(population, "unknown-type", rng);
-			expect(population).toContain(parent);
+			const population = makePop([10, 20]);
+			const parent = selectParent(
+				population,
+				"unknown-type" as SelectionType,
+				rng
+			);
+			expect(population.map((m) => m.genome)).toContain(parent);
 		});
 
 		it("should pick a candidate with higher fitness over a lower one", () => {
 			const population = [
-				createDefaultGenome("low"),
-				createDefaultGenome("high"),
-				createDefaultGenome("mid"),
+				{
+					genome: createDefaultGenome("low"),
+					fitness: -100,
+					fitnessMeta: {
+						episodesRun: 3,
+						computeMs: DurationMs.of(100),
+						efficiencyScore: -100,
+						variance: 0,
+						rawScores: new EpisodeScores([-100]),
+					},
+				},
+				{
+					genome: createDefaultGenome("high"),
+					fitness: 100,
+					fitnessMeta: {
+						episodesRun: 3,
+						computeMs: DurationMs.of(100),
+						efficiencyScore: 100,
+						variance: 0,
+						rawScores: new EpisodeScores([100]),
+					},
+				},
+				{
+					genome: createDefaultGenome("mid"),
+					fitness: 0,
+					fitnessMeta: {
+						episodesRun: 3,
+						computeMs: DurationMs.of(100),
+						efficiencyScore: 0,
+						variance: 0,
+						rawScores: new EpisodeScores([0]),
+					},
+				},
 			];
-			population[0].fitness = -100;
-			population[1].fitness = 100;
-			population[2].fitness = 0;
 			let callCount = 0;
 			const controlledRng = () => {
 				callCount++;
 				if (callCount === 1) {
-					return 0; // best = index 0 (fitness -100)
+					return 0;
 				}
 				if (callCount === 2) {
-					return 0.3334; // cand = index 1 (fitness 100)
+					return 0.3334;
 				}
 				return 0;
 			};
-			const parent = selectParent(population, "tournament", controlledRng);
+			const parent = selectParent(
+				population,
+				SelectionType.Tournament,
+				controlledRng
+			);
 			expect(parent.id).toBe("high");
-		});
-
-		it("should handle all undefined fitnesses", () => {
-			const population = [
-				createDefaultGenome("a"),
-				createDefaultGenome("b"),
-				createDefaultGenome("c"),
-			];
-			// All fitnesses are undefined — ?? -Infinity makes every comparison false,
-			// so the first selected candidate always wins.
-			let callCount = 0;
-			const controlledRng = () => {
-				callCount++;
-				if (callCount === 1) {
-					return 0.0; // best = index 0 (id='a')
-				}
-				if (callCount === 2) {
-					return 0.5; // cand = index 1 (id='b'), but -Inf > -Inf is false
-				}
-				if (callCount === 3) {
-					return 0.99; // cand = index 2 (id='c'), same
-				}
-				return 0;
-			};
-			const parent = selectParent(population, "tournament", controlledRng);
-			expect(parent.id).toBe("a");
 		});
 	});
 });

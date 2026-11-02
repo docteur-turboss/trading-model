@@ -1,8 +1,19 @@
 import { describe, expect, it } from "@jest/globals";
+import { NumericRange } from "@trading-model/primitives/numeric-range";
 import {
 	computeAdjustedFitness,
 	estimateComplexity,
-} from "../../../src/core/genetic-algorithm/complexity-estimator";
+} from "../../../src/domain/genetic-algorithm/complexity-estimator";
+import {
+	ActivationType,
+	CrossoverType,
+	FitnessType,
+	MutationAdaptation,
+	MutationDistribution,
+	MutationScope,
+	NormalisationType,
+	SelectionType,
+} from "../../../src/domain/genetic-algorithm/genome";
 
 describe("estimateComplexity", () => {
 	const baseGenome = {
@@ -11,25 +22,16 @@ describe("estimateComplexity", () => {
 		network: {
 			inputDim: 10,
 			outputDim: 5,
-			hiddenLayers: [{ neurons: 20, activation: "relu" }],
-			normalization: "none" as const,
+			hiddenLayers: [{ neurons: 20, activation: ActivationType.Relu }],
+			normalization: NormalisationType.None,
 		},
 		rl: {
 			gamma: 0.99,
 			learningRate: 0.001,
 			discretePolicy: {
-				type: "epsilon_greedy" as const,
 				epsilonStart: 1.0,
 				epsilonMin: 0.01,
 				epsilonDecay: 0.995,
-				temperature: 1.0,
-			},
-			continuousPolicy: {
-				type: "action_clipping" as const,
-				clipMin: -1,
-				clipMax: 1,
-				noiseStd: 0.1,
-				noiseDecay: 0.995,
 			},
 			replayBuffer: {
 				bufferSize: 128,
@@ -41,8 +43,7 @@ describe("estimateComplexity", () => {
 			horizon: { maxEpisodeLength: 100, frameSkip: 1, nStepReturn: 3 },
 			rewardShaping: {
 				clip: false,
-				clipMin: -1,
-				clipMax: 1,
+				clipBounds: new NumericRange(-1, 1),
 				scale: false,
 				scaleFactor: 1,
 				normalize: false,
@@ -53,9 +54,9 @@ describe("estimateComplexity", () => {
 			rate: 0.1,
 			sigma: 0.5,
 			noiseStd: 0.1,
-			distribution: "gaussian" as const,
-			adaptation: "fixed" as const,
-			scope: "global" as const,
+			distribution: MutationDistribution.Gaussian,
+			adaptation: MutationAdaptation.Fixed,
+			scope: MutationScope.Global,
 			selfSigma: 0.5,
 			mutateActivations: false,
 			activationMutationRate: 0.1,
@@ -68,7 +69,7 @@ describe("estimateComplexity", () => {
 			removeConnectionRate: 0.1,
 		},
 		crossover: {
-			type: "uniform" as const,
+			type: CrossoverType.Uniform,
 			probability: 0.5,
 			blendAlpha: 0.5,
 			sbxEta: 15,
@@ -77,8 +78,8 @@ describe("estimateComplexity", () => {
 			populationSize: 20,
 			elitismFraction: 0.1,
 			survivorFraction: 0.5,
-			selectionType: "tournament" as const,
-			fitnessType: "total_pnl" as const,
+			selectionType: SelectionType.Tournament,
+			fitnessType: FitnessType.TotalPnl,
 			episodesPerIndividual: 2,
 			seedsPerEval: 1,
 			rewardThreshold: Number.POSITIVE_INFINITY,
@@ -130,7 +131,7 @@ describe("estimateComplexity", () => {
 			...baseGenome,
 			network: {
 				...baseGenome.network,
-				hiddenLayers: [{ neurons: 4, activation: "relu" }],
+				hiddenLayers: [{ neurons: 4, activation: ActivationType.Relu }],
 			},
 		};
 		const largeGenome = {
@@ -138,7 +139,7 @@ describe("estimateComplexity", () => {
 			network: {
 				...baseGenome.network,
 				hiddenLayers: [
-					{ neurons: 512, activation: "gelu" },
+					{ neurons: 512, activation: ActivationType.Gelu },
 					{ neurons: 256, activation: "swish" },
 				],
 			},
@@ -174,6 +175,12 @@ describe("computeAdjustedFitness", () => {
 		const complexity = { inferenceFLOPs: 1000, penalty: 0.1 };
 		const adjusted = computeAdjustedFitness(fitness, complexity);
 		expect(adjusted).toBe(100 * (1 - 0.15 * 0.1));
+	});
+
+	it("should lower a negative fitness instead of raising it", () => {
+		const complexity = { inferenceFLOPs: 1000, penalty: 0.5 };
+		const adjusted = computeAdjustedFitness(-100, complexity, 0.2);
+		expect(adjusted).toBe(-110);
 	});
 
 	it("should return same fitness when penalty is zero", () => {

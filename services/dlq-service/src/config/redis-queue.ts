@@ -1,17 +1,11 @@
-import Redis from "ioredis";
+import type Redis from "ioredis";
 
-import { env } from "./env";
 import { logger } from "./logger";
+import { RedisConnection } from "./redis-connection";
 
 export class DlqRedisQueue {
-	private _client: Redis | null = null;
-	private _connecting = false;
-	private _connected = false;
+	private readonly _connection: RedisConnection;
 	private readonly _queueKey: string;
-	private _popScriptHash: string | null = null;
-	private _onReconnectCb: (() => void) | null = null;
-	private _wasEverConnected = false;
-
 	private static readonly _POP_SCRIPT = `
     local entries = redis.call('LRANGE', KEYS[1], -1, -1)
     if #entries > 0 then
@@ -19,137 +13,100 @@ export class DlqRedisQueue {
     end
     return entries
   `;
+	// Checks the size and pushes in one step, so concurrent pushes cannot
+	// overshoot the limit. Returns { accepted (0|1), size before the push }.
+	private static readonly _BOUNDED_PUSH_SCRIPT = `
+    local size = redis.call('LLEN', KEYS[1])
+    if size >= tonumber(ARGV[2]) then
+      return {0, size}
+    end
+    redis.call('LPUSH', KEYS[1], ARGV[1])
+    return {1, size}
+  `;
 
 	constructor(queueKey = "dlq:queue") {
 		this._queueKey = queueKey;
+		this._connection = new RedisConnection();
 	}
 
-	async connect(): Promise<boolean> {
-		if (this._client && this._connected) {
-			return true;
-		}
-		if (this._connecting) {
-			return false;
-		}
-
-		if (this._client && !this._connected) {
-			await this.close();
-		}
-
-		this._connecting = true;
-		try {
-			const url = env.REDIS_URL;
-			if (!url) {
-				logger.info("No REDIS_URL configured — Redis queue unavailable");
-				this._connected = false;
-				return false;
-			}
-			this._client = new Redis(url, {
-				lazyConnect: true,
-				retryStrategy: (times) => {
-					const delay = Math.min(times * 200, 5_000);
-					return delay;
-				},
-			});
-			this._client.on("connect", () => {
-				this._connected = true;
-				if (this._wasEverConnected) {
-					logger.info("Redis queue reconnected — triggering queue rebuild");
-					this._onReconnectCb?.();
-				}
-				this._wasEverConnected = true;
-			});
-			this._client.on("close", () => {
-				this._connected = false;
-			});
-			this._client.on("error", (err) => {
-				logger.error("Redis queue client error", { error: err.message });
-				this._connected = false;
-			});
-			await this._client.connect();
-			this._connected = true;
-			this._wasEverConnected = true;
-			return true;
-		} catch (err) {
-			logger.warn("Redis queue unavailable — falling back to MongoDB polling", {
-				error: (err as Error).message,
-			});
-			this._client = null;
-			this._connected = false;
-			return false;
-		} finally {
-			this._connecting = false;
-		}
+	connect(onReconnect?: () => void): Promise<boolean> {
+		return this._connection.connect(onReconnect);
 	}
 
 	async push(entryId: string, maxQueueSize = 50_000): Promise<boolean> {
-		if (!(this._client && this._connected)) {
+		const client = this._connection.getClient();
+		if (!(client && this._connection.isAvailable())) {
 			return false;
 		}
 		try {
-			const size = await this._client.llen(this._queueKey);
-			if (size >= maxQueueSize) {
-				logger.warn("Redis queue size limit reached — dropping push", {
-					queueKey: this._queueKey,
-					size,
-					maxSize: maxQueueSize,
-				});
-				return false;
-			}
-			await this._client.lpush(this._queueKey, entryId);
-			return true;
-		} catch {
+			return await this._tryPush(client, entryId, maxQueueSize);
+		} catch (err) {
+			// Never throws: callers treat `false` as "not queued"; the entry stays
+			// queuable in MongoDB and is re-seeded by the next queue rebuild.
+			logger.error("Redis queue push failed", {
+				queueKey: this._queueKey,
+				entryId,
+				error: (err as Error)?.message,
+			});
 			return false;
 		}
 	}
 
 	async pop(): Promise<string | null> {
-		if (!(this._client && this._connected)) {
+		const client = this._connection.getClient();
+		if (!(client && this._connection.isAvailable())) {
 			return null;
 		}
 		try {
-			if (!this._popScriptHash) {
-				this._popScriptHash = (await this._client.script(
-					"LOAD",
-					DlqRedisQueue._POP_SCRIPT
-				)) as string;
-			}
-			const result = await this._client.evalsha(
-				this._popScriptHash!,
-				1,
-				this._queueKey
-			);
-			const entries = result as string[];
-			return entries.length > 0 ? (entries[0] ?? null) : null;
-		} catch {
+			const scriptHash = await this._getPopScriptHash(client);
+			const result = await client.evalsha(scriptHash, 1, this._queueKey);
+			return this._extractFirstEntry(result as string[]);
+		} catch (err) {
+			logger.error("Redis queue pop failed", {
+				queueKey: this._queueKey,
+				error: (err as Error)?.message,
+			});
 			return null;
 		}
 	}
 
-	setOnReconnect(cb: () => void): void {
-		this._onReconnectCb = cb;
-	}
-
 	isAvailable(): boolean {
-		return this._connected;
+		return this._connection.isAvailable();
 	}
 
 	async close(): Promise<void> {
-		if (this._client) {
-			try {
-				if (this._client.status === "ready") {
-					await this._client.quit();
-				} else {
-					this._client.disconnect();
-				}
-			} catch {
-				this._client.disconnect();
-			}
-			this._client.removeAllListeners();
-			this._client = null;
+		await this._connection.close();
+	}
+
+	private async _tryPush(
+		client: Redis,
+		entryId: string,
+		maxQueueSize: number
+	): Promise<boolean> {
+		const [accepted, size] = (await client.eval(
+			DlqRedisQueue._BOUNDED_PUSH_SCRIPT,
+			1,
+			this._queueKey,
+			entryId,
+			maxQueueSize
+		)) as [number, number];
+		if (accepted === 0) {
+			logger.warn("Redis queue size limit reached — dropping push", {
+				queueKey: this._queueKey,
+				size,
+				maxSize: maxQueueSize,
+			});
+			return false;
 		}
-		this._connected = false;
-		this._popScriptHash = null;
+		return true;
+	}
+
+	private _getPopScriptHash(client: Redis): Promise<string> {
+		return client.script("LOAD", DlqRedisQueue._POP_SCRIPT) as Promise<string>;
+	}
+
+	private _extractFirstEntry(entries: string[]): string | null {
+		return entries.length > 0 ? (entries[0] ?? null) : null;
 	}
 }
 

@@ -1,0 +1,238 @@
+# SPIRE Agent — DaemonSet attesting nodes with k8s_psat and workloads with the
+# k8s workload attestor (ADR-0011). Its Workload API socket reaches the pods
+# through the SPIFFE CSI driver (spiffe-csi-driver.yaml), never a hostPath.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: spire-agent
+  labels:
+    app.kubernetes.io/component: spire-agent
+    app.kubernetes.io/part-of: trading-model
+---
+# Filled and kept current by the SPIRE server's k8sbundle notifier.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: spire-bundle
+  labels:
+    app.kubernetes.io/component: spire-agent
+    app.kubernetes.io/part-of: trading-model
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: spire-agent-config
+  labels:
+    app.kubernetes.io/component: spire-agent
+    app.kubernetes.io/part-of: trading-model
+data:
+  # Rendered with -expandEnv: ${SPIRE_SERVER_ADDRESS} names the server of the
+  # application namespace (set per environment by overlays/<env>/node-agents).
+  agent.conf: |
+    agent {
+      trust_domain = "trading-model.local"
+      data_dir = "/run/spire/agent-data"
+      log_level = "INFO"
+      server_address = "${SPIRE_SERVER_ADDRESS}"
+      server_port = "8081"
+      socket_path = "/run/spire/agent-sockets/api.sock"
+      trust_bundle_path = "/run/spire/bundle/bundle.crt"
+    }
+
+    plugins {
+      NodeAttestor "k8s_psat" {
+        plugin_data {
+          cluster = "trading-model"
+          # Projected token with the spire-server audience (see the volume).
+          token_path = "/var/run/secrets/tokens/spire-agent"
+        }
+      }
+      KeyManager "disk" {
+        plugin_data {
+          directory = "/run/spire/agent-data"
+        }
+      }
+      WorkloadAttestor "k8s" {
+        plugin_data {
+          # DEV: set skip_kubelet_verification to false and provide
+          # kubelet_ca_path in production (ADR-0011 follow-up).
+          skip_kubelet_verification = true
+          node_name_env = "MY_NODE_NAME"
+        }
+      }
+    }
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: spire-agent
+  labels:
+    app.kubernetes.io/component: spire-agent
+    app.kubernetes.io/part-of: trading-model
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: spire-agent
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: spire-agent
+        app.kubernetes.io/part-of: trading-model
+    spec:
+      serviceAccountName: spire-agent
+      # The k8s workload attestor maps a caller PID to its pod (hostPID) and
+      # queries the node's kubelet on localhost (hostNetwork).
+      hostPID: true
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: spire-agent
+          image: ghcr.io/spiffe/spire-agent:1.11.3
+          imagePullPolicy: IfNotPresent
+          # The image entrypoint is `spire-agent run`.
+          args: ["-config", "/etc/spire/agent.conf", "-expandEnv"]
+          env:
+            - name: MY_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: SPIRE_SERVER_ADDRESS
+              value: spire-server.trading-model.svc
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          volumeMounts:
+            - name: spire-config
+              mountPath: /etc/spire
+              readOnly: true
+            - name: spire-bundle
+              mountPath: /run/spire/bundle
+              readOnly: true
+            - name: spire-token
+              mountPath: /var/run/secrets/tokens
+              readOnly: true
+            - name: spire-agent-sockets
+              mountPath: /run/spire/agent-sockets
+            - name: spire-agent-data
+              mountPath: /run/spire/agent-data
+          # Root: it writes the socket and its keys into host directories.
+          securityContext:
+            runAsUser: 0
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
+          livenessProbe:
+            exec:
+              command: ["/opt/spire/bin/spire-agent", "healthcheck", "-socketPath", "/run/spire/agent-sockets/api.sock"]
+            initialDelaySeconds: 15
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            exec:
+              command: ["/opt/spire/bin/spire-agent", "healthcheck", "-socketPath", "/run/spire/agent-sockets/api.sock"]
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            successThreshold: 1
+      volumes:
+        - name: spire-config
+          configMap:
+            name: spire-agent-config
+        - name: spire-bundle
+          configMap:
+            name: spire-bundle
+        - name: spire-token
+          projected:
+            sources:
+              - serviceAccountToken:
+                  path: spire-agent
+                  expirationSeconds: 7200
+                  audience: spire-server
+        # Shared with the SPIFFE CSI driver, which exposes it to pods.
+        - name: spire-agent-sockets
+          hostPath:
+            path: /run/spire/agent-sockets
+            type: DirectoryOrCreate
+        - name: spire-agent-data
+          hostPath:
+            path: /run/spire/agent-data
+            type: DirectoryOrCreate
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: spire-agent
+  labels:
+    app.kubernetes.io/component: spire-agent
+    app.kubernetes.io/part-of: trading-model
+rules:
+  - apiGroups: [""]
+    resources: ["namespaces"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["get", "list", "watch"]
+  # k8s workload attestor: kubelet pod listing on the secure port.
+  - apiGroups: [""]
+    resources: ["nodes/proxy"]
+    verbs: ["get"]
+  - apiGroups: [""]
+    resources: ["pods", "serviceaccounts"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: spire-agent
+  labels:
+    app.kubernetes.io/component: spire-agent
+    app.kubernetes.io/part-of: trading-model
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: spire-agent
+subjects:
+  - kind: ServiceAccount
+    name: spire-agent
+    namespace: trading-model-node
+---
+# The SPIRE server (application namespace) publishes the bundle here.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: spire-server-bundle
+  labels:
+    app.kubernetes.io/component: spire-agent
+    app.kubernetes.io/part-of: trading-model
+rules:
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    resourceNames: ["spire-bundle"]
+    verbs: ["get", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: spire-server-bundle
+  labels:
+    app.kubernetes.io/component: spire-agent
+    app.kubernetes.io/part-of: trading-model
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: spire-server-bundle
+subjects:
+  # Overridden per environment (overlays/<env>/node-agents).
+  - kind: ServiceAccount
+    name: spire-server
+    namespace: trading-model

@@ -18,7 +18,7 @@ This document provides a consolidated map of all regulatory obligations applicab
 | **MAR** Regulation (EU) 596/2014 | Market abuse prevention | ✅ Yes | Algorithmic trading agents could potentially generate manipulative patterns |
 | **DORA** Regulation (EU) 2022/2554 | Digital operational resilience | ✅ Yes | ICT risk management, incident reporting, resilience testing for financial sector |
 | **PCI-DSS** | Payment card data | ❌ No | No payment card data processed |
-| **CCPA** (California) | Consumer privacy | ❌ No | No California residents' data processed. Zero personal data architecture |
+| **CCPA** (California) | Consumer privacy | ❌ No | No consumer data processed; only truncated caller IPs in API access logs |
 | **LGPD** (Brazil) | Data protection | ❌ No | No Brazilian personal data. GDPR equivalence sufficient |
 | **SOX** (US) | Financial reporting | ❌ No | Not a publicly traded company |
 
@@ -28,12 +28,12 @@ This document provides a consolidated map of all regulatory obligations applicab
 
 | GDPR Article | Requirement | Platform Control | Document Reference |
 |---|---|---|---|
-| **Art. 5(1)(c)** | Data minimisation | Zero personal data architecture — machine-generated data only | [DPIA](dpia.md) §2 |
-| **Art. 5(1)(e)** | Storage limitation | TTL-based retention policies across all data stores | [Data Retention Policy](data-retention-policy.md) |
+| **Art. 5(1)(c)** | Data minimisation | Machine-generated data only, except caller IPs truncated by the edge-proxy before logging (31 days) | [DPIA](dpia.md) §2 |
+| **Art. 5(1)(e)** | Storage limitation | TTL-based retention on MongoDB, Loki, Prometheus and backups; MySQL market data not bounded yet (DPIA action #2) | [Data Retention Policy](data-retention-policy.md) |
 | **Art. 6(1)(f)** | Legitimate interest basis | Documented for all 5 processing activities | [Data Processing Register](data-processing-register.md) |
-| **Art. 25** | Data protection by design and by default | mTLS, encryption at rest, log redaction, append-only audit | [DPIA](dpia.md) §4 |
-| **Art. 30** | Register of processing activities | 5 activities documented with full metadata | [Data Processing Register](data-processing-register.md) |
-| **Art. 32** | Security of processing | mTLS, encryption, RBAC, circuit breakers, SSRF protection | [Information Security Policy](information-security-policy.md) |
+| **Art. 25** | Data protection by design and by default | mTLS, encryption at rest, log redaction (including context sanitization), append-only audit | [DPIA](dpia.md) §4 |
+| **Art. 30** | Register of processing activities | Controller section + 7 activities (one with personal data: API access logs) | [Data Processing Register](data-processing-register.md) |
+| **Art. 32** | Security of processing | mTLS, encryption, RBAC, circuit breakers | [Information Security Policy](information-security-policy.md) |
 | **Art. 33** | Breach notification | Incident response policy with 72h notification | [Incident Response Policy](incident-response-policy.md) |
 | **Art. 35** | DPIA requirement | Completed DPIA — no Art. 36 consultation required | [DPIA](dpia.md) |
 | **Art. 44-49** | International transfers | Binance API data transfer assessed — no personal data involved | [Third-Party DPAs](third-party-dpas.md) |
@@ -64,10 +64,10 @@ This document provides a consolidated map of all regulatory obligations applicab
 |---|---|---|
 | **Art. 5-8** | ICT risk management framework | ISMS aligned with ISO 27001 (see [Information Security Policy](information-security-policy.md)) |
 | **Art. 9-10** | ICT incident management | [Incident Response Policy](incident-response-policy.md) with classification levels |
-| **Art. 11-13** | Digital operational resilience testing | CI/CD pipeline, contract tests, E2E tests, mutation testing (Stryker) |
+| **Art. 11-13** | Digital operational resilience testing | CI/CD pipeline, contract tests, E2E tests (mutation testing via Stryker available on demand) |
 | **Art. 14-16** | Third-party ICT risk | [Third-Party DPAs](third-party-dpas.md) assessment |
 | **Art. 17-23** | Information sharing, register of information | Processing register maintained |
-| **Art. 24-26** | Oversight framework for critical third parties | Binance API assessed as non-critical data source |
+| **Art. 24-26** | Oversight framework for critical third parties | Binance API assessed as non-critical data source; its availability from the EU after Binance's MiCA exit is tracked in [ADR-0026](../adr/0026-binance-public-market-data-kept.md) |
 
 ## 4. Compliance Artifact Inventory
 
@@ -75,7 +75,7 @@ This document provides a consolidated map of all regulatory obligations applicab
 |---|---|---|---|
 | DPIA (Data Protection Impact Assessment) | `docs/compliance/dpia.md` | GDPR Art. 35 | Platform Security Lead |
 | Data Processing Register | `docs/compliance/data-processing-register.md` | GDPR Art. 30 | Platform Security Lead |
-| Data Retention Policy | `docs/compliance/data-retention-policy.md` | GDPR Art. 5, MiFID II 72 | Platform Security Lead |
+| Data Retention Policy | `docs/compliance/data-retention-policy.md` | GDPR Art. 5, MiFID II Art. 16(6) / Del. Reg. 2017/565 Art. 72 | Platform Security Lead |
 | Third-Party DPA Assessment | `docs/compliance/third-party-dpas.md` | GDPR Art. 28, DORA Art. 14-16 | Platform Security Lead |
 | Algorithmic Trading Compliance | `docs/compliance/algorithmic-trading-compliance.md` | MiFID II Art. 17, RTS 6, MAR | Lead Developer |
 | Information Security Policy | `docs/compliance/information-security-policy.md` | ISO 27001, DORA Art. 5-8 | Platform Security Lead |

@@ -4,42 +4,44 @@
 #  docker build -t trading-model/financial-scraper -f services/financial-scraper/Dockerfile .
 # =============================================================================
 
-FROM node:26-alpine AS deps
+FROM oven/bun@sha256:c1cc397e0be452c54f37cbcdfaa747eff93c993723af7d91658764d0fdfe5873 AS deps
 WORKDIR /app
-COPY package.json package-lock.json ./
+COPY package.json bun.lock ./
 COPY packages/ packages/
-COPY services/financial-scraper/package.json services/financial-scraper/
-RUN npm ci --omit=dev --ignore-scripts && npm cache clean --force
+COPY services/ services/
+# --ignore-scripts: the root "prepare" script runs husky, a dev dependency absent here.
+RUN bun install --frozen-lockfile --production --ignore-scripts
 
-FROM node:26-alpine AS build
+FROM oven/bun@sha256:c1cc397e0be452c54f37cbcdfaa747eff93c993723af7d91658764d0fdfe5873 AS build
 WORKDIR /app
-COPY package.json package-lock.json ./
+COPY package.json bun.lock ./
 COPY packages/ packages/
-COPY services/financial-scraper/ services/financial-scraper/
-RUN npm ci
-RUN npm run build:common
-RUN npm run build:address-manager
-RUN npm run build:broker-message
+COPY services/ services/
+RUN bun install --frozen-lockfile
+RUN bun run build
 WORKDIR /app/services/financial-scraper
-RUN npm run build
+RUN bun run build
 
-FROM node:26-alpine AS runtime
+# Node runtime: Bun exposes neither the peer certificate on HTTPS request
+# sockets nor server.setSecureContext, which SPIFFE mTLS (ADR-0011) relies on
+# for caller identity and SVID rotation.
+FROM node@sha256:0a7108bf6c7bf5de370ffb1a3ed6be93d405b43ff159f681a8d18c0e2bc2e402 AS runtime
 WORKDIR /app
 RUN apk add --no-cache tini curl
 
-COPY --from=deps /app/package.json /app/package-lock.json ./
-COPY --from=deps /app/node_modules ./node_modules
-COPY --from=deps /app/services/financial-scraper/package.json ./services/financial-scraper/
-
-COPY --from=build /app/packages/common/package.json ./packages/common/
-COPY --from=build /app/packages/common/dist ./packages/common/dist
-COPY --from=build /app/packages/address-manager/package.json ./packages/address-manager/
-COPY --from=build /app/packages/address-manager/dist ./packages/address-manager/dist
-COPY --from=build /app/packages/broker-message/package.json ./packages/broker-message/
-COPY --from=build /app/packages/broker-message/dist ./packages/broker-message/dist
-
-COPY --from=build /app/services/financial-scraper/dist ./services/financial-scraper/dist
+# Owned by appuser at copy time: a `chown -R /app` afterwards rewrites every
+# file of node_modules into a second layer (twice the size, and a step slow
+# enough to stall the build).
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+COPY --chown=appuser:appgroup --from=deps /app/node_modules ./node_modules
+COPY --chown=appuser:appgroup --from=build /app/packages ./packages
+COPY --chown=appuser:appgroup --from=build /app/services/financial-scraper/package.json ./services/financial-scraper/
+COPY --chown=appuser:appgroup --from=build /app/services/financial-scraper/dist ./services/financial-scraper/dist
+RUN chown appuser:appgroup /app
+USER appuser
 
 EXPOSE 3000
+HEALTHCHECK --interval=15s --timeout=5s --retries=3 \
+  CMD curl -skf --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem https://localhost:3000/health/ready || exit 1
 ENTRYPOINT ["/sbin/tini", "--"]
-CMD ["node", "services/financial-scraper/dist/app/index.js"]
+CMD ["node", "services/financial-scraper/dist/application/index.js"]

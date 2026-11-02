@@ -1,6 +1,6 @@
 # ADR-0008: Custom Message Broker vs Standard Alternatives
 
-**Status:** Accepted (review for re-evaluation)
+**Status:** Superseded by [ADR-0019](./0019-message-broker-as-built.md)
 **Date:** 2026-06
 
 ## Context

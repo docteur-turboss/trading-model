@@ -26,7 +26,7 @@ describe("env configuration", () => {
 		process.env.TLS_CA_PATH = "/certs/ca.pem";
 		process.env.ERROR_URL_WEBHOOK = "https://hooks.example.com/error";
 
-		const { ENV } = require("../../src/config/env") as {
+		const { ENV } = require("../../src/infrastructure/config/env") as {
 			ENV: Record<string, unknown>;
 		};
 		expect(ENV.PORT).toBe(3000);
@@ -42,7 +42,7 @@ describe("env configuration", () => {
 		process.env.TLS_CA_PATH = "/certs/ca.pem";
 		process.env.ERROR_URL_WEBHOOK = "https://hooks.example.com/error";
 
-		const { ENV } = require("../../src/config/env") as {
+		const { ENV } = require("../../src/infrastructure/config/env") as {
 			ENV: Record<string, unknown>;
 		};
 		expect(ENV.PORT).toBe(8443);
@@ -55,10 +55,54 @@ describe("env configuration", () => {
 		process.env.TLS_CA_PATH = "/certs/ca.pem";
 		process.env.ERROR_URL_WEBHOOK = "https://hooks.example.com/error";
 
-		const { ENV } = require("../../src/config/env") as {
+		const { ENV } = require("../../src/infrastructure/config/env") as {
 			ENV: Record<string, unknown>;
 		};
 		expect(ENV.CLEANUP_SERVICE_INTERVAL_MS).toBe(10000);
+	});
+
+	it("should accept production env with registration CIDRs set", () => {
+		process.env.NODE_ENV = "production";
+		process.env.TLS_KEY_PATH = "/certs/key.pem";
+		process.env.TLS_CERT_PATH = "/certs/cert.pem";
+		process.env.TLS_CA_PATH = "/certs/ca.pem";
+		process.env.ERROR_URL_WEBHOOK = "https://hooks.example.com/error";
+		process.env.ALLOWED_REGISTRATION_CIDRS = "10.0.0.0/8";
+		process.env.SIGNING_SECRET = "a-long-random-secret";
+
+		const { ENV } = require("../../src/infrastructure/config/env") as {
+			ENV: Record<string, unknown>;
+		};
+		expect(ENV.NODE_ENV).toBe("production");
+		expect(ENV.ALLOWED_REGISTRATION_CIDRS).toBe("10.0.0.0/8");
+		expect(ENV.SIGNING_SECRET).toBe("a-long-random-secret");
+	});
+
+	it("should refuse to start in production without SIGNING_SECRET", () => {
+		const errorSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+		process.env.NODE_ENV = "production";
+		process.env.TLS_KEY_PATH = "/certs/key.pem";
+		process.env.TLS_CERT_PATH = "/certs/cert.pem";
+		process.env.TLS_CA_PATH = "/certs/ca.pem";
+		process.env.SIGNING_SECRET = "";
+
+		expect(() => require("../../src/infrastructure/config/env")).toThrow(
+			"Environment validation failed"
+		);
+		errorSpy.mockRestore();
+	});
+
+	it("should treat an empty SIGNING_SECRET as unset outside production", () => {
+		process.env.NODE_ENV = "development";
+		process.env.TLS_KEY_PATH = "/certs/key.pem";
+		process.env.TLS_CERT_PATH = "/certs/cert.pem";
+		process.env.TLS_CA_PATH = "/certs/ca.pem";
+		process.env.SIGNING_SECRET = "";
+
+		const { ENV } = require("../../src/infrastructure/config/env") as {
+			ENV: Record<string, unknown>;
+		};
+		expect(ENV.SIGNING_SECRET).toBeUndefined();
 	});
 
 	it("should throw ConfigurationError on invalid env", () => {
@@ -70,7 +114,7 @@ describe("env configuration", () => {
 		process.env.ERROR_URL_WEBHOOK = "not-a-url";
 
 		jest.isolateModules(() => {
-			expect(() => require("../../src/config/env")).toThrow(
+			expect(() => require("../../src/infrastructure/config/env")).toThrow(
 				"Environment validation failed"
 			);
 		});

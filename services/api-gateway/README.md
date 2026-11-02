@@ -9,7 +9,7 @@ Routes, authenticates, rate-limits, caches, and proxies all incoming HTTP reques
 ## Quick Start
 
 ```bash
-npm run -w api-gateway dev
+bun run --filter api-gateway dev
 ```
 
 ## Configuration
@@ -28,7 +28,7 @@ npm run -w api-gateway dev
 
 All routes: `https://host:8448/v{major}/{serviceName}/**`
 
-See [API doc](../../docs/architecture/api/api-gateway.md) for full endpoint reference.
+See [API doc](../../docs/services/api-gateway.md) for full endpoint reference.
 
 ## Architecture
 
@@ -37,6 +37,6 @@ See [ARCHITECTURE.md](./ARCHITECTURE.md).
 ## Testing
 
 ```bash
-npm test
-npm run test:coverage
+bun run test
+bun run test:coverage
 ```

@@ -12,7 +12,7 @@
         "gridPos": { "h": 10, "w": 12, "x": 0, "y": 0 },
         "targets": [
           {
-            "expr": "sum(rate(http_requests_duration_seconds_count{status!~\"5..\"}[28d])) / sum(rate(http_requests_duration_seconds_count[28d])) * 100",
+            "expr": "sum(rate(http_requests_total{status!~\"5..\"}[28d])) / sum(rate(http_requests_total[28d])) * 100",
             "legendFormat": "Availability"
           }
         ],
@@ -38,7 +38,7 @@
         "gridPos": { "h": 10, "w": 12, "x": 12, "y": 0 },
         "targets": [
           {
-            "expr": "histogram_quantile(0.95, sum(rate(http_requests_duration_seconds_bucket[5m])) by (le))",
+            "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))",
             "legendFormat": "P95 Latency"
           }
         ],
@@ -65,7 +65,7 @@
         "gridPos": { "h": 8, "w": 8, "x": 0, "y": 10 },
         "targets": [
           {
-            "expr": "rate(http_requests_duration_seconds_count{status=~\"5..\"}[5m]) / rate(http_requests_duration_seconds_count[5m])",
+            "expr": "rate(http_requests_total{status=~\"5..\"}[5m]) / rate(http_requests_total[5m])",
             "legendFormat": "Error Rate (5m)"
           }
         ],
@@ -85,7 +85,7 @@
         "gridPos": { "h": 8, "w": 8, "x": 8, "y": 10 },
         "targets": [
           {
-            "expr": "rate(http_requests_duration_seconds_count{status=~\"5..\"}[1h]) / rate(http_requests_duration_seconds_count[1h])",
+            "expr": "rate(http_requests_total{status=~\"5..\"}[1h]) / rate(http_requests_total[1h])",
             "legendFormat": "Error Rate (1h)"
           }
         ],
@@ -105,7 +105,7 @@
         "gridPos": { "h": 8, "w": 8, "x": 16, "y": 10 },
         "targets": [
           {
-            "expr": "(1 - sum(rate(http_requests_duration_seconds_count{status=~\"5..\"}[28d])) / sum(rate(http_requests_duration_seconds_count[28d]))) / 0.001 * 100",
+            "expr": "(1 - sum(rate(http_requests_total{status=~\"5..\"}[28d])) / sum(rate(http_requests_total[28d]))) / 0.001 * 100",
             "legendFormat": "Budget %"
           }
         ],
@@ -161,7 +161,7 @@
         "gridPos": { "h": 6, "w": 10, "x": 6, "y": 18 },
         "targets": [
           {
-            "expr": "histogram_quantile(0.95, sum(rate(http_requests_duration_seconds_bucket[5m])) by (le, job))",
+            "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le, job))",
             "format": "table",
             "instant": true
           }
@@ -184,7 +184,7 @@
         "gridPos": { "h": 6, "w": 8, "x": 16, "y": 18 },
         "targets": [
           {
-            "expr": "circuit_breaker_state",
+            "expr": "address_manager_circuit_breaker_state",
             "legendFormat": "{{service}}"
           }
         ],
@@ -209,7 +209,7 @@
         "gridPos": { "h": 6, "w": 12, "x": 0, "y": 24 },
         "targets": [
           {
-            "expr": "message_manager_backpressure_ratio",
+            "expr": "mm_backpressure_ratio",
             "legendFormat": "Backpressure"
           }
         ],
@@ -246,6 +246,84 @@
         "fieldConfig": {
           "defaults": {
             "unit": "rps"
+          }
+        }
+      },
+      {
+        "title": "Message Delivery Success Rate",
+        "type": "bargauge",
+        "gridPos": { "h": 6, "w": 8, "x": 0, "y": 30 },
+        "targets": [
+          {
+            "expr": "rate(mm_messages_published_total[5m]) / (rate(mm_messages_published_total[5m]) + rate(mm_messages_dlq_total[5m])) * 100",
+            "legendFormat": "Delivery Rate"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "min": 95,
+            "max": 100,
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                { "color": "red", "value": null },
+                { "color": "orange", "value": 99.5 },
+                { "color": "green", "value": 99.95 }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "title": "DLQ Drain Ratio",
+        "type": "timeseries",
+        "gridPos": { "h": 6, "w": 8, "x": 8, "y": 30 },
+        "targets": [
+          {
+            "expr": "rate(dlq_entries_replayed_total[15m]) / rate(dlq_entries_added_total[15m])",
+            "legendFormat": "Drain Ratio"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percentunit",
+            "min": 0,
+            "max": 2,
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                { "color": "red", "value": null },
+                { "color": "orange", "value": 0.8 },
+                { "color": "green", "value": 1 }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "title": "Training Completion Rate",
+        "type": "bargauge",
+        "gridPos": { "h": 6, "w": 8, "x": 16, "y": 30 },
+        "targets": [
+          {
+            "expr": "rate(tt_training_sessions_total{result=\"completed\"}[15m]) / rate(tt_training_sessions_total[15m]) * 100",
+            "legendFormat": "Completion Rate"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "min": 90,
+            "max": 100,
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                { "color": "red", "value": null },
+                { "color": "orange", "value": 95 },
+                { "color": "green", "value": 99 }
+              ]
+            }
           }
         }
       }

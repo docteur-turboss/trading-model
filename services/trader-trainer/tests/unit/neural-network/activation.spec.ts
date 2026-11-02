@@ -1,5 +1,5 @@
 import { describe, expect, test } from "@jest/globals";
-import { ACTIVATIONS } from "../../../src/core/neural-network/activation";
+import { ACTIVATIONS } from "../../../src/domain/neural-network/activation";
 
 describe("Activation Functions", () => {
 	describe("sigmoid", () => {
@@ -17,6 +17,17 @@ describe("Activation Functions", () => {
 
 		test("derivative should be a*(1-a)", () => {
 			expect(ACTIVATIONS.sigmoid.derivative(0.5, 0)).toBeCloseTo(0.25, 5);
+		});
+	});
+
+	describe("linear", () => {
+		test("fn should be the identity", () => {
+			expect(ACTIVATIONS.linear.fn(-3.5)).toBe(-3.5);
+			expect(ACTIVATIONS.linear.fn(42)).toBe(42);
+		});
+
+		test("derivative should be 1", () => {
+			expect(ACTIVATIONS.linear.derivative(7, -2)).toBe(1);
 		});
 	});
 
@@ -123,12 +134,12 @@ describe("Activation Functions", () => {
 	});
 
 	describe("softmax", () => {
-		test("fn should return input unchanged", () => {
-			expect(ACTIVATIONS.softmax.fn(5)).toBe(5);
+		test("fn should throw when called directly (use ActivationComputer.applySoftmax instead)", () => {
+			expect(() => ACTIVATIONS.softmax.fn(5)).toThrow();
 		});
 
-		test("derivative should return 1", () => {
-			expect(ACTIVATIONS.softmax.derivative(0, 0)).toBe(1);
+		test("derivative should throw when called directly (use OutputDeltaComputer instead)", () => {
+			expect(() => ACTIVATIONS.softmax.derivative(0, 0)).toThrow();
 		});
 	});
 });

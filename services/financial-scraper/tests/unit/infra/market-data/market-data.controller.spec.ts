@@ -1,16 +1,20 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
+import { CandleInterval } from "@trading-model/contracts/market-data.types";
 
-jest.mock("../../../../src/infra/market-data/market-data.model", () => ({
-	MarketDataModel: {
-		insertCandles: jest.fn<any>(),
-		insertTrades: jest.fn<any>(),
-		insertOrderBook: jest.fn<any>(),
-		insertTicker: jest.fn<any>(),
-	},
-}));
+jest.mock(
+	"../../../../src/adapters/outbound/persistence/market-data.model",
+	() => ({
+		MarketDataModel: {
+			insertCandles: jest.fn<any>(),
+			insertTrades: jest.fn<any>(),
+			insertOrderBook: jest.fn<any>(),
+			insertTicker: jest.fn<any>(),
+		},
+	})
+);
 
-import { MarketDataController } from "../../../../src/infra/market-data/market-data.controller";
-import { MarketDataModel } from "../../../../src/infra/market-data/market-data.model";
+import { MarketDataModel } from "../../../../src/adapters/outbound/persistence/market-data.model";
+import { MarketDataController } from "../../../../src/config/container";
 
 const MOCK_MODEL = jest.mocked(MarketDataModel);
 
@@ -21,7 +25,7 @@ describe("MarketDataController", () => {
 
 	it("should persist candles when payload has candles", async () => {
 		const payload: any = {
-			candles: [{ symbol: "BTCUSDT", interval: "1m" }],
+			candles: [{ symbol: "BTCUSDT", interval: CandleInterval.Min1 }],
 			recentTrades: [],
 			orderBook: undefined,
 			ticker24h: [],
@@ -89,7 +93,7 @@ describe("MarketDataController", () => {
 
 	it("should persist all data types when payload has everything", async () => {
 		const payload: any = {
-			candles: [{ symbol: "BTCUSDT", interval: "1m" }],
+			candles: [{ symbol: "BTCUSDT", interval: CandleInterval.Min1 }],
 			recentTrades: [{ tradeId: 1n }],
 			orderBook: { symbol: "BTCUSDT" },
 			ticker24h: [{ symbol: "BTCUSDT" }],
@@ -128,7 +132,7 @@ describe("MarketDataController", () => {
 		MOCK_MODEL.insertTicker.mockResolvedValue(undefined);
 
 		const payload: any = {
-			candles: [{ symbol: "BTCUSDT", interval: "1m" }],
+			candles: [{ symbol: "BTCUSDT", interval: CandleInterval.Min1 }],
 			recentTrades: [{ tradeId: 1n }],
 			orderBook: { symbol: "BTCUSDT" },
 			ticker24h: [{ symbol: "BTCUSDT" }],
@@ -136,7 +140,7 @@ describe("MarketDataController", () => {
 		};
 
 		await expect(MarketDataController.persist(payload)).rejects.toThrow(
-			"DB error"
+			/Market data persist failed.*DB error/
 		);
 	});
 });

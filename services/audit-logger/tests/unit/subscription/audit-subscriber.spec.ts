@@ -1,18 +1,19 @@
-import { beforeEach, describe, expect, it, jest } from "@jest/globals";
-
-import { createNext, createReq, createRes } from "../../helpers/express";
-
-jest.mock("@trading-model/common/middleware/catch-error", () => ({
+jest.mock("@trading-model/http/adapters/inbound/catch-error", () => ({
 	catchSync: (fn: any) => fn,
 }));
 
-jest.mock("@trading-model/common/middleware/response-exception", () => {
+jest.mock("@trading-model/http/adapters/inbound/response-exception", () => {
 	const sendResponse = (data: any, status: number) => ({ status, data });
 	return { sendResponse };
 });
 
-import type { AuditRepository } from "../../../src/persistence/audit-repository";
-import { createMessageHandler } from "../../../src/subscription/audit-subscriber";
+import { beforeEach, describe, expect, it, jest } from "@jest/globals";
+
+import { parseRequest } from "@trading-model/http/adapters/inbound/api-route/api-route";
+import { AUDIT_API } from "../../../src/adapters/inbound/http/api-routes";
+import { createMessageHandler } from "../../../src/adapters/inbound/subscription/audit-subscriber";
+import type { AuditRepository } from "../../../src/adapters/outbound/persistence/audit-repository";
+import { createNext, createReq, createRes } from "../../helpers/express";
 
 describe("AuditSubscriber", () => {
 	let mockRepo: jest.Mocked<AuditRepository>;
@@ -28,7 +29,7 @@ describe("AuditSubscriber", () => {
 			ensureIndexes: jest.fn(),
 		} as unknown as jest.Mocked<AuditRepository>;
 
-		handler = createMessageHandler(mockRepo);
+		handler = createMessageHandler(mockRepo, 90);
 	});
 
 	describe("message handling", () => {
@@ -51,7 +52,7 @@ describe("AuditSubscriber", () => {
 						},
 						payload: { orderId: "ord-1" },
 					},
-					context: { deliveryAttempt: 1, consumerGroup: "audit-group" },
+					context: { deliveryAttempt: 1 },
 				},
 			});
 
@@ -59,13 +60,15 @@ describe("AuditSubscriber", () => {
 
 			expect(mockRepo.insert).toHaveBeenCalledWith(
 				expect.objectContaining({
+					ttl: expect.any(Date),
+					dataHash: expect.any(String),
 					metadata: expect.objectContaining({
-						topic: "order.created",
-						eventType: "OrderCreated",
-						publisher: "order-service",
-						instanceId: "instance-1",
-						messageId: "msg-123",
-						correlationId: "corr-456",
+						topic: "order.created" as any,
+						eventType: "OrderCreated" as any,
+						publisher: "order-service" as any,
+						instanceId: "instance-1" as any,
+						messageId: "msg-123" as any,
+						correlationId: "corr-456" as any,
 					}),
 					payload: { orderId: "ord-1" },
 				})
@@ -97,9 +100,9 @@ describe("AuditSubscriber", () => {
 			expect(mockRepo.insert).toHaveBeenCalledWith(
 				expect.objectContaining({
 					metadata: expect.objectContaining({
-						topic: "trade.executed",
-						publisher: "trade-service",
-						instanceId: "instance-2",
+						topic: "trade.executed" as any,
+						publisher: "trade-service" as any,
+						instanceId: "instance-2" as any,
 					}),
 					payload: { tradeId: "t-1" },
 				})
@@ -107,31 +110,22 @@ describe("AuditSubscriber", () => {
 			expect(result).toMatchObject({ status: 200 });
 		});
 
-		it("should return 400 when no topic is present", async () => {
-			const req = createReq({
-				body: { message: { metadata: {}, payload: {} } },
-			});
-
-			const result = await handler(req, createRes(), createNext);
-
-			expect(mockRepo.insert).not.toHaveBeenCalled();
-			expect(result).toMatchObject({
-				status: 400,
-				data: { error: "Invalid message format: no topic" },
-			});
+		// The route rejects these before the handler (AUDIT_API.receive).
+		it.each([
+			["no topic", { message: { metadata: {}, payload: {} } }],
+			["neither message nor metadata", { random: "data" }],
+		])("rejects an envelope with %s", (_label, body) => {
+			expect(parseRequest(AUDIT_API.receive, { body }).success).toBe(false);
 		});
 
-		it("should return 400 when body has no message and no metadata", async () => {
-			const req = createReq({
-				body: { random: "data" },
+		it("keeps the metadata fields it does not know", () => {
+			const parsed = parseRequest(AUDIT_API.receive, {
+				body: { metadata: { topic: "t", custom: 1 }, payload: null },
 			});
 
-			const result = await handler(req, createRes(), createNext);
-
-			expect(mockRepo.insert).not.toHaveBeenCalled();
-			expect(result).toMatchObject({
-				status: 400,
-				data: { error: "Invalid message format: no topic" },
+			expect(parsed).toMatchObject({
+				success: true,
+				input: { body: { metadata: { topic: "t", custom: 1 } } },
 			});
 		});
 
@@ -152,8 +146,8 @@ describe("AuditSubscriber", () => {
 			expect(mockRepo.insert).toHaveBeenCalledWith(
 				expect.objectContaining({
 					metadata: expect.objectContaining({
-						publisher: "unknown",
-						instanceId: "unknown",
+						publisher: "unknown" as any,
+						instanceId: "unknown" as any,
 					}),
 				})
 			);

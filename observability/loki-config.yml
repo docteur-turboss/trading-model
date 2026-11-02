@@ -1,5 +1,7 @@
 # Loki Configuration — log aggregation for trading-model
-# Single-binary mode (no microservices) for Docker Compose.
+# Single-binary mode (no microservices) for Docker Compose. Loki 3.x: TSDB
+# index (schema v13), as in deploy/k8s/infra/loki.yaml; boltdb-shipper's
+# shared_store and the table manager no longer exist.
 
 auth_enabled: false
 
@@ -7,38 +9,32 @@ server:
   http_listen_port: 3100
   grpc_listen_port: 9095
 
-ingester:
-  lifecycler:
-    address: 127.0.0.1
-    ring:
-      kvstore:
-        store: inmemory
-      replication_factor: 1
-  chunk_idle_period: 5m
-  chunk_retain_period: 30s
-  max_chunk_age: 1h
+common:
+  path_prefix: /loki
+  storage:
+    filesystem:
+      chunks_directory: /loki/chunks
+      rules_directory: /loki/rules
+  replication_factor: 1
+  ring:
+    instance_addr: 127.0.0.1
+    kvstore:
+      store: inmemory
 
 schema_config:
   configs:
     - from: 2024-01-01
-      store: boltdb-shipper
+      store: tsdb
       object_store: filesystem
-      schema: v11
+      schema: v13
       index:
         prefix: index_
         period: 24h
 
-storage_config:
-  boltdb_shipper:
-    active_index_directory: /loki/index
-    cache_location: /loki/cache
-    shared_store: filesystem
-  filesystem:
-    directory: /loki/chunks
-
 compactor:
   working_directory: /loki/compactor
-  shared_store: filesystem
+  retention_enabled: true
+  delete_request_store: filesystem
 
 limits_config:
   reject_old_samples: true
@@ -46,7 +42,4 @@ limits_config:
   max_query_series: 500
   ingestion_rate_mb: 10
   ingestion_burst_size_mb: 20
-
-table_manager:
-  retention_deletes_enabled: true
   retention_period: 744h

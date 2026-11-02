@@ -1,115 +1,62 @@
-import { HttpClient } from "@trading-model/common/config/http-client";
-import { ServiceInstanceName } from "@trading-model/common/config/services.types";
-
-import { findAService } from "./address-manager";
-import { env } from "./env";
+import { randomUUID } from "node:crypto";
+import { HELPER } from "@trading-model/broker-message";
+import { createServiceMessageManager } from "@trading-model/broker-message/application/services/create-message-manager";
+import { normalizeError } from "@trading-model/common/utils/errors";
+import { DeliveryMode } from "@trading-model/contracts/delivery-mode";
+import type {
+	DlqEvent,
+	DlqEventMap,
+} from "@trading-model/contracts/dlq-events";
+import {
+	toInstanceId,
+	toMessageId,
+	toServiceId,
+	toTopic,
+} from "@trading-model/primitives/primitives";
+import { ServiceInstanceName } from "@trading-model/primitives/service-instance-name";
+import { ENV } from "../infrastructure/config/env";
+import { AddressManager } from "./address-manager";
 import { logger } from "./logger";
 
-export interface AuditEvent {
-	timestamp: string;
-	topic: string;
-	publisher: string;
-	correlationId: string;
-	summary: string;
-	severity: "INFO" | "WARNING" | "ERROR" | "CRITICAL";
+type MessageManager = ReturnType<
+	typeof createServiceMessageManager
+>["messageManager"];
+
+let messageManager: MessageManager | undefined;
+
+/** Built on first use: the broker client loads the SVID. */
+function _messageManager(): MessageManager {
+	messageManager ??= createServiceMessageManager(
+		AddressManager,
+		ENV
+	).messageManager;
+	return messageManager;
 }
 
-let httpClient: HttpClient | null = null;
-let httpClientPromise: Promise<HttpClient> | null = null;
-
-async function getAuditHttpClient(): Promise<HttpClient> {
-	if (httpClient) {
-		return httpClient;
-	}
-	const existingClient =
-		httpClientPromise === null ? null : await httpClientPromise;
-	if (existingClient) {
-		return existingClient;
-	}
-
-	httpClientPromise = (() => {
-		const client = new HttpClient({
-			ca: env.TLS_CA_PATH,
-			cert: env.TLS_CERT_PATH,
-			key: env.TLS_KEY_PATH,
-		});
-		httpClient = client;
-		return Promise.resolve(client);
-	})();
-
-	return httpClientPromise;
-}
-
-let auditLoggerUrl: string | null | undefined;
-let auditUrlPromise: Promise<string | null> | null = null;
-
-async function resolveAuditLoggerUrl(): Promise<string | null> {
-	if (auditLoggerUrl !== undefined) {
-		return auditLoggerUrl;
-	}
-	if (await auditUrlPromise) {
-		return auditUrlPromise;
-	}
-
-	auditUrlPromise = (async () => {
-		try {
-			const target = await findAService(ServiceInstanceName.AuditLoggerService);
-			if (target) {
-				auditLoggerUrl = `https://${target.ip}:${target.port}`;
-				return auditLoggerUrl;
-			}
-		} catch {
-			logger.warn("Cannot resolve audit-logger URL via address-manager");
-		}
-		auditLoggerUrl = null;
-		return null;
-	})();
-
-	return auditUrlPromise;
-}
-
-let auditCircuitFailures = 0;
-let auditCircuitOpenUntil = 0;
-const AUDIT_CIRCUIT_THRESHOLD = 10;
-const AUDIT_CIRCUIT_RESET_MS = 60_000;
-
-export async function notifyAudit(event: AuditEvent): Promise<void> {
-	if (auditCircuitOpenUntil > Date.now()) {
-		return;
-	}
-
-	try {
-		const url = await resolveAuditLoggerUrl();
-		if (!url) {
-			return;
-		}
-
-		const client = await getAuditHttpClient();
-		await client.post(`${url}/audit`, event, {
-			timeoutMs: 5000,
-			serviceName: ServiceInstanceName.AuditLoggerService,
-			retryCount: 2,
-		});
-		if (auditCircuitFailures > 0) {
-			auditCircuitFailures = 0;
-		}
-		auditCircuitOpenUntil = 0;
-	} catch (err) {
-		auditCircuitFailures++;
-		if (auditCircuitFailures >= AUDIT_CIRCUIT_THRESHOLD) {
-			auditCircuitOpenUntil = Date.now() + AUDIT_CIRCUIT_RESET_MS;
-			logger.warn(
-				"Audit-logger circuit breaker opened — suppressing notifications",
-				{
-					failures: auditCircuitFailures,
-					resetMs: AUDIT_CIRCUIT_RESET_MS,
-				}
-			);
-		} else {
-			logger.warn("Audit notification failed (non-fatal)", {
-				error: (err as Error)?.message,
-				topic: event.topic,
+/**
+ * Publishes a DLQ event on the bus, where audit-logger records it like every
+ * topic. Does not wait: message-manager answers once audit-logger took it or
+ * gave up (up to PUBLISH_TIMEOUT_MS), which must not hold the DLQ request.
+ */
+export function publishDlqEvent<TEvent extends DlqEvent>(
+	event: TEvent,
+	payload: DlqEventMap[TEvent]
+): void {
+	const metadata = new HELPER.metadataBuilder(toTopic(event), event, {
+		instanceId: toInstanceId(ENV.INSTANCE_ID),
+		serviceName: toServiceId(ServiceInstanceName.DlqService),
+	})
+		.setDelivery({
+			mode: DeliveryMode.AtLeastOnce,
+			deduplicationId: toMessageId(randomUUID()),
+		})
+		.toJSON();
+	_messageManager()
+		.post.indirect(payload, metadata)
+		.catch((err: unknown) => {
+			logger.warn("DLQ event not published: the audit trail misses it", {
+				topic: event,
+				error: normalizeError(err),
 			});
-		}
-	}
+		});
 }

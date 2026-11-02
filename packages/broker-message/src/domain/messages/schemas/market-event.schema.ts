@@ -1,0 +1,103 @@
+import {
+	BaseMarketDataShape,
+	BidAskShape,
+	OhlcvShape,
+	OhlcvTickerShape,
+} from "@trading-model/common/shared/schemas/market-data-schema";
+import {
+	PriceSchema,
+	VolumeSchema,
+} from "@trading-model/common/shared/schemas/primitives.schema";
+import {
+	CandleInterval,
+	TradeSide,
+} from "@trading-model/contracts/market-data.types";
+import { MarketEvent } from "@trading-model/contracts/market-events";
+import { z } from "zod";
+
+const SET_OBJECT = z.object({
+	price: PriceSchema,
+	quantity: VolumeSchema,
+});
+
+export const MARKET_EVENT_VALIDATORS = {
+	[MarketEvent.ExampleEvent]: z.void(),
+	[MarketEvent.TestEvent]: z.object({
+		debug: z.boolean("Debug must be a boolean and is required"),
+	}),
+	[MarketEvent.FetchRecentTrades]: z.object({
+		trades: z.array(
+			z.object({
+				price: PriceSchema,
+				// JSON carries the 64-bit id as a decimal string (HttpClient wire format).
+				tradeId: z.union(
+					[z.bigint(), z.string().regex(/^\d+$/)],
+					"TradeId is required and must be a bigint or a decimal string"
+				),
+				quantity: VolumeSchema,
+				side: z.enum(
+					TradeSide.values() as [TradeSide, ...TradeSide[]],
+					"Side is required and must be `buy` or `sell`"
+				),
+				...BaseMarketDataShape,
+			}),
+			"Trades is required and must be a array of object"
+		),
+	}),
+	[MarketEvent.Fetch24hrTickerStats]: z.object({
+		ticker: z.array(
+			z.object({
+				...OhlcvTickerShape,
+				closeTimestamp: z.number(
+					"CloseTimestamp is required and must be a number"
+				),
+				...BaseMarketDataShape,
+			}),
+			"Ticker is required and must be a array of object"
+		),
+	}),
+	[MarketEvent.FetchCandlestickSeries]: z.object({
+		candle: z.array(
+			z.object({
+				...OhlcvShape,
+				trades: z.number("Trades must be a number").optional(),
+				interval: z.enum(
+					CandleInterval.values() as [CandleInterval, ...CandleInterval[]],
+					"Interval is required and must be a valid candlestick interval"
+				),
+				closeTimestamp: z.number(
+					"CloseTimestamp is required and must be a number"
+				),
+				...BaseMarketDataShape,
+			}),
+			"Candle is required and must be a array of object"
+		),
+	}),
+	[MarketEvent.FetchOrderBookSnapshot]: z.object({
+		orderBook: z.array(
+			z.object({
+				// Sets travel as arrays over JSON.
+				bids: z.union([z.set(SET_OBJECT), z.array(SET_OBJECT)]),
+				asks: z.union([z.set(SET_OBJECT), z.array(SET_OBJECT)]),
+				...BaseMarketDataShape,
+			}),
+			"OrderBook is required and must be a array of object"
+		),
+	}),
+	[MarketEvent.FetchPriceTickerSnapshot]: z.object({
+		price: z.record(
+			z.string("Symbol value must be string"),
+			PriceSchema,
+			"Price param is required and must be a record<string, number>"
+		),
+	}),
+	[MarketEvent.FetchOrderBookTickerSnapshot]: z.object({
+		bookTicker: z.array(
+			z.object({
+				...BidAskShape,
+				...BaseMarketDataShape,
+			}),
+			"BookTicker is required and must be a array of object"
+		),
+	}),
+};

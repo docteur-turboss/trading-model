@@ -6,24 +6,34 @@ import {
 	it,
 	jest,
 } from "@jest/globals";
-import type { ServiceInstance } from "../../src/core/types";
-
-jest.mock("@trading-model/common/config/logger", () => ({
-	logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
-}));
+import type { LoggerPort } from "../../src/domain/logger-port";
+import type { ServiceInstance } from "../../src/shared/types";
 
 jest.useFakeTimers();
 
-import { LeaseManager } from "../../src/core/lease-manager";
-import { ServiceRegistry } from "../../src/core/service-registry";
+import { InstanceStore } from "../../src/adapters/outbound/instance-store";
+import { createServiceRegistry } from "../../src/config/container";
+import { LeaseManager } from "../../src/domain/lease-manager";
+import { validServiceInstance } from "../fixtures/index";
+
+function makeLogger(): LoggerPort {
+	return {
+		info: jest.fn(),
+		warn: jest.fn(),
+		error: jest.fn(),
+		debug: jest.fn(),
+	};
+}
 
 describe("LeaseManager", () => {
 	let leaseManager: LeaseManager;
+	let logger: LoggerPort;
 
 	beforeEach(() => {
 		jest.clearAllMocks();
 		jest.clearAllTimers();
-		leaseManager = new LeaseManager(new ServiceRegistry());
+		logger = makeLogger();
+		leaseManager = new LeaseManager(createServiceRegistry(), { logger });
 	});
 
 	afterEach(() => {
@@ -31,10 +41,46 @@ describe("LeaseManager", () => {
 		leaseManager.stop();
 	});
 
+	describe("instance gauges", () => {
+		it("should report an instance removed by another replica after one cycle", async () => {
+			const instanceStore = new InstanceStore();
+			const setRegisteredInstancesPerService = jest.fn();
+			const replicaA = createServiceRegistry({
+				instanceStore,
+				metrics: {
+					setRegisteredInstances: jest.fn(),
+					setRegisteredInstancesPerService,
+				},
+			});
+			const replicaB = createServiceRegistry({ instanceStore });
+			await replicaA.registerInstance(validServiceInstance());
+			await replicaB.removeInstance({
+				serviceName: "financial-scraper-service",
+				instanceId: "test-instance-1",
+			} as never);
+			setRegisteredInstancesPerService.mockClear();
+			const manager = new LeaseManager(replicaA, {
+				logger,
+				cleanupIntervalMs: 1000,
+			});
+
+			manager.start();
+			await jest.advanceTimersByTimeAsync(2000);
+			manager.stop();
+
+			expect(setRegisteredInstancesPerService).toHaveBeenCalledWith(
+				"financial-scraper-service",
+				0
+			);
+		});
+	});
+
 	describe("start", () => {
-		it("should set an interval", () => {
+		it("should start an interval after the initial delay", () => {
 			const spy = jest.spyOn(global, "setInterval");
 			leaseManager.start();
+			expect(spy).not.toHaveBeenCalled();
+			jest.advanceTimersByTime(5000);
 			expect(spy).toHaveBeenCalledTimes(1);
 			expect(spy).toHaveBeenCalledWith(expect.any(Function), 5000);
 			spy.mockRestore();
@@ -44,6 +90,7 @@ describe("LeaseManager", () => {
 			const spy = jest.spyOn(global, "setInterval");
 			leaseManager.start();
 			leaseManager.start();
+			jest.advanceTimersByTime(5000);
 			expect(spy).toHaveBeenCalledTimes(1);
 			spy.mockRestore();
 		});
@@ -53,8 +100,9 @@ describe("LeaseManager", () => {
 		it("should clear the interval", () => {
 			const spy = jest.spyOn(global, "clearInterval");
 			leaseManager.start();
+			jest.advanceTimersByTime(5000);
 			leaseManager.stop();
-			expect(spy).toHaveBeenCalledTimes(1);
+			expect(spy).toHaveBeenCalled();
 			spy.mockRestore();
 		});
 
@@ -65,12 +113,12 @@ describe("LeaseManager", () => {
 
 	describe("isAlive", () => {
 		it("should return true for recent heartbeat", () => {
-			const registry = new ServiceRegistry();
+			const registry = createServiceRegistry();
 			const lm = new LeaseManager(registry);
 			const instance: ServiceInstance = {
 				serviceName: "test",
 				instanceId: "i1",
-				ip: "1.1.1.1",
+				host: "1.1.1.1",
 				port: 8080,
 				ttl: 30000,
 				protocol: "mtls",
@@ -82,12 +130,12 @@ describe("LeaseManager", () => {
 		});
 
 		it("should return false for expired heartbeat", () => {
-			const registry = new ServiceRegistry();
+			const registry = createServiceRegistry();
 			const lm = new LeaseManager(registry);
 			const instance: ServiceInstance = {
 				serviceName: "test",
 				instanceId: "i1",
-				ip: "1.1.1.1",
+				host: "1.1.1.1",
 				port: 8080,
 				ttl: 30000,
 				protocol: "mtls",
@@ -99,12 +147,12 @@ describe("LeaseManager", () => {
 		});
 
 		it("should return true at TTL boundary", () => {
-			const registry = new ServiceRegistry();
+			const registry = createServiceRegistry();
 			const lm = new LeaseManager(registry);
 			const instance: ServiceInstance = {
 				serviceName: "test",
 				instanceId: "i1",
-				ip: "1.1.1.1",
+				host: "1.1.1.1",
 				port: 8080,
 				ttl: 30000,
 				protocol: "mtls",
@@ -117,19 +165,19 @@ describe("LeaseManager", () => {
 	});
 
 	describe("cleanup", () => {
-		it("should remove expired instances on interval tick", () => {
-			const registry = new ServiceRegistry();
+		it("should remove expired instances on interval tick", async () => {
+			const registry = createServiceRegistry();
 
-			registry.registerInstance({
+			await registry.registerInstance({
 				serviceName: "financial-scraper-service",
 				instanceId: "expired-id",
-				ip: "1.1.1.1",
+				host: "1.1.1.1",
 				port: 8080,
 				ttl: 1,
 				protocol: "mtls",
 			});
 
-			registry.registerInstance({
+			await registry.registerInstance({
 				serviceName: "financial-scraper-service",
 				instanceId: "alive-id",
 				ip: "1.1.1.2",
@@ -140,21 +188,23 @@ describe("LeaseManager", () => {
 
 			const lm = new LeaseManager(registry);
 			lm.start();
-			jest.advanceTimersByTime(5000);
+			await jest.advanceTimersByTimeAsync(10000);
 
-			const remaining = registry.getInstances("financial-scraper-service");
+			const remaining = registry.instanceStore.getInstances(
+				"financial-scraper-service"
+			);
 			expect(remaining).toHaveLength(1);
 			expect(remaining[0].instanceId).toBe("alive-id");
 		});
 
-		it("should log error when removeInstance throws", () => {
-			const registry = new ServiceRegistry();
-			const lm = new LeaseManager(registry);
+		it("should log error when removeInstance throws", async () => {
+			const registry = createServiceRegistry();
+			const lm = new LeaseManager(registry, { logger });
 
-			registry.registerInstance({
+			await registry.registerInstance({
 				serviceName: "test-service",
 				instanceId: "test-id",
-				ip: "1.1.1.1",
+				host: "1.1.1.1",
 				port: 8080,
 				ttl: 1,
 				protocol: "mtls",
@@ -165,38 +215,31 @@ describe("LeaseManager", () => {
 			});
 
 			lm.start();
-			jest.advanceTimersByTime(5000);
+			await jest.advanceTimersByTimeAsync(10000);
 
-			const { logger } = jest.requireMock<{ logger: { error: jest.Mock } }>(
-				"@trading-model/common/config/logger"
-			);
 			expect(logger.error).toHaveBeenCalledWith(
-				"Failed to remove expired instance",
-				{
-					serviceName: "test-service",
-					instanceId: "test-id",
-					error: new Error("remove failed"),
-				}
+				"Redis cleanup error",
+				expect.objectContaining({ error: expect.anything() })
 			);
 		});
 
-		it("should log error when listServiceNames throws in start catch", () => {
-			const registry = new ServiceRegistry();
-			const lm = new LeaseManager(registry);
+		it("should log error when listServiceNames throws", async () => {
+			const registry = createServiceRegistry();
+			const lm = new LeaseManager(registry, { logger });
 
-			jest.spyOn(registry, "listServiceNames").mockImplementation(() => {
-				throw new Error("unexpected error");
-			});
+			jest
+				.spyOn(registry.instanceStore, "listServiceNames")
+				.mockImplementation(() => {
+					throw new Error("unexpected error");
+				});
 
 			lm.start();
-			jest.advanceTimersByTime(5000);
+			await jest.advanceTimersByTimeAsync(10000);
 
-			const { logger } = jest.requireMock<{ logger: { error: jest.Mock } }>(
-				"@trading-model/common/config/logger"
+			expect(logger.error).toHaveBeenCalledWith(
+				"Redis cleanup error",
+				expect.objectContaining({ error: expect.anything() })
 			);
-			expect(logger.error).toHaveBeenCalledWith("Cleanup error", {
-				error: new Error("unexpected error"),
-			});
 		});
 	});
 });

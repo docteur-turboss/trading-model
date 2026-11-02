@@ -153,7 +153,12 @@ id_rsa*
 
 # Customs
 **/.vscode/*
-**/obsidian/*
 
-# Compiled JS test artifacts (source is .ts)
-packages/certificate-utils/tests/*.js
+# Stryker mutation testing (kept out of VCS)
+**/stryker-tmp/
+**/.stryker-tmp/
+.stryker.gate.json
+.stryker-gate-report.json
+reports/
+# Alertmanager notification credentials (docker-compose.yml)
+observability/alertmanager-credentials/

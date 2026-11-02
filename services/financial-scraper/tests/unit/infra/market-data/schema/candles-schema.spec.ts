@@ -1,4 +1,12 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
+import {
+	CandleInterval,
+	SourceType,
+} from "@trading-model/contracts/market-data.types";
+import {
+	TradingSymbol,
+	UnixTimestamp,
+} from "@trading-model/primitives/primitives";
 
 const MOCK_EXECUTE_INSERT = jest
 	.fn<() => Promise<void>>()
@@ -6,6 +14,7 @@ const MOCK_EXECUTE_INSERT = jest
 const MOCK_EXECUTE_SELECT_MANY = jest
 	.fn<() => Promise<any[]>>()
 	.mockResolvedValue([]);
+const MOCK_QUERY = jest.fn<() => Promise<any>>().mockResolvedValue(undefined);
 
 jest.mock("../../../../../src/config/db", () => {
 	const mockSelectQuery = {
@@ -19,24 +28,28 @@ jest.mock("../../../../../src/config/db", () => {
 		executeInsert: MOCK_EXECUTE_INSERT,
 	};
 
+	const mockDbConnection = {
+		insertInto: jest.fn(() => mockInsertQuery),
+		selectFrom: jest.fn(() => mockSelectQuery),
+	};
+
 	return {
-		DBConnection: jest.fn(() => ({
-			insertInto: jest.fn(() => mockInsertQuery),
-			selectFrom: jest.fn(() => mockSelectQuery),
-		})),
+		DBConnection: jest.fn(() => mockDbConnection),
+		createDBConnection: jest.fn(() => mockDbConnection),
+		DATABASE: { promise: jest.fn(() => ({ query: MOCK_QUERY })) },
 	};
 });
 
 import {
 	insertCandles,
 	selectCandlesBy,
-} from "../../../../../src/infra/market-data/schema/candles-schema";
+} from "../../../../../src/adapters/outbound/persistence/schema/candles-schema";
 
 const MAKE_CANDLE = (overrides: Record<string, unknown> = {}) => ({
 	symbol: "BTCUSDT",
 	market: "crypto",
 	source: "binance",
-	interval: "1m",
+	interval: CandleInterval.Min1,
 	low: 50000,
 	open: 50100,
 	high: 50200,
@@ -57,13 +70,13 @@ describe("candles-schema", () => {
 		it("should insert candle data successfully", async () => {
 			const data: never[] = [MAKE_CANDLE() as never];
 			await insertCandles(data);
-			expect(MOCK_EXECUTE_INSERT).toHaveBeenCalled();
+			expect(MOCK_QUERY).toHaveBeenCalled();
 		});
 
 		it("should do nothing when data array is empty", async () => {
 			const data: never[] = [];
 			await insertCandles(data);
-			expect(MOCK_EXECUTE_INSERT).not.toHaveBeenCalled();
+			expect(MOCK_QUERY).not.toHaveBeenCalled();
 		});
 
 		it("should insert multiple candles", async () => {
@@ -72,33 +85,33 @@ describe("candles-schema", () => {
 				MAKE_CANDLE({ symbol: "ETHUSDT" }) as never,
 			];
 			await insertCandles(data);
-			expect(MOCK_EXECUTE_INSERT).toHaveBeenCalled();
+			expect(MOCK_QUERY).toHaveBeenCalled();
 		});
 
 		it("should do nothing when first argument is empty array and undefined trades", async () => {
 			const data: never[] = [];
 			await insertCandles(data);
-			expect(MOCK_EXECUTE_INSERT).not.toHaveBeenCalled();
+			expect(MOCK_QUERY).not.toHaveBeenCalled();
 		});
 
 		it("should handle null trades field", async () => {
 			const data: never[] = [MAKE_CANDLE({ trades: null }) as never];
 			await insertCandles(data);
-			expect(MOCK_EXECUTE_INSERT).toHaveBeenCalled();
+			expect(MOCK_QUERY).toHaveBeenCalled();
 		});
 	});
 
 	describe("selectCandlesBy", () => {
 		it("should select candles by symbol", async () => {
 			MOCK_EXECUTE_SELECT_MANY.mockResolvedValue([MAKE_CANDLE()] as never[]);
-			const results = await selectCandlesBy.symbol("BTCUSDT");
+			const results = await selectCandlesBy.symbol(TradingSymbol.of("BTCUSDT"));
 			expect(results).toHaveLength(1);
 			expect(MOCK_EXECUTE_SELECT_MANY).toHaveBeenCalled();
 		});
 
 		it("should select candles by source", async () => {
 			MOCK_EXECUTE_SELECT_MANY.mockResolvedValue([MAKE_CANDLE()] as never[]);
-			const results = await selectCandlesBy.source("binance");
+			const results = await selectCandlesBy.source(SourceType.Binance);
 			expect(results).toHaveLength(1);
 			expect(MOCK_EXECUTE_SELECT_MANY).toHaveBeenCalled();
 		});
@@ -106,7 +119,7 @@ describe("candles-schema", () => {
 		it("should select candles by timestamp after", async () => {
 			MOCK_EXECUTE_SELECT_MANY.mockResolvedValue([MAKE_CANDLE()] as never[]);
 			const results = await selectCandlesBy.timestamp.after(
-				new Date("2024-01-01")
+				UnixTimestamp.of(new Date("2024-01-01").getTime())
 			);
 			expect(results).toHaveLength(1);
 			expect(MOCK_EXECUTE_SELECT_MANY).toHaveBeenCalled();
@@ -115,7 +128,7 @@ describe("candles-schema", () => {
 		it("should select candles by timestamp before", async () => {
 			MOCK_EXECUTE_SELECT_MANY.mockResolvedValue([] as never[]);
 			const results = await selectCandlesBy.timestamp.before(
-				new Date("2024-01-02")
+				UnixTimestamp.of(new Date("2024-01-02").getTime())
 			);
 			expect(results).toHaveLength(0);
 			expect(MOCK_EXECUTE_SELECT_MANY).toHaveBeenCalled();
@@ -123,7 +136,7 @@ describe("candles-schema", () => {
 
 		it("should return empty array when no candles found", async () => {
 			MOCK_EXECUTE_SELECT_MANY.mockResolvedValue([] as never[]);
-			const results = await selectCandlesBy.symbol("UNKNOWN");
+			const results = await selectCandlesBy.symbol(TradingSymbol.of("UNKNOWN"));
 			expect(results).toEqual([]);
 		});
 	});

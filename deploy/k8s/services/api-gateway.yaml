@@ -1,4 +1,4 @@
-apiVersion: v1
+﻿apiVersion: v1
 kind: Service
 metadata:
   name: api-gateway
@@ -40,10 +40,47 @@ spec:
     spec:
       serviceAccountName: api-gateway
       terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      # Even spread (ADR-0024): at most one pod more on a node than on the
+      # emptiest one; the zone is best effort (nodes without the label qualify).
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: DoNotSchedule
+          nodeTaintsPolicy: Honor
+          matchLabelKeys:
+            - pod-template-hash
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/component: api-gateway
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: ScheduleAnyway
+          nodeTaintsPolicy: Honor
+          matchLabelKeys:
+            - pod-template-hash
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/component: api-gateway
       containers:
         - name: api-gateway
           image: ghcr.io/trading-model/api-gateway:latest
           imagePullPolicy: Always
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
           ports:
             - containerPort: 3000
               name: https
@@ -56,11 +93,6 @@ spec:
                 secretKeyRef:
                   name: trading-model-secrets
                   key: AUTH_TOKENS
-            - name: CERT_CLIENT_BOOTSTRAP_TOKEN
-              valueFrom:
-                secretKeyRef:
-                  name: trading-model-secrets
-                  key: SERVICE_BOOTSTRAP_TOKEN
             - name: HMAC_SECRET
               valueFrom:
                 secretKeyRef:
@@ -74,21 +106,19 @@ spec:
               cpu: 500m
               memory: 256Mi
           volumeMounts:
-            - name: tls-certs
-              mountPath: /etc/tls
-              readOnly: true
-            - name: tls-certs
-              mountPath: /certs
-              readOnly: true
+            - name: svid
+              mountPath: /run/spire/svid
+            - name: tmp
+              mountPath: /tmp
           livenessProbe:
             exec:
               command:
                 - curl
-                - -sk
+                - -skf
                 - --cert
-                - /certs/server.crt
+                - /run/spire/svid/svid.pem
                 - --key
-                - /certs/server-key.pem
+                - /run/spire/svid/svid_key.pem
                 - https://localhost:3000/ping
             initialDelaySeconds: 15
             periodSeconds: 15
@@ -105,11 +135,11 @@ spec:
             exec:
               command:
                 - curl
-                - -sk
+                - -skf
                 - --cert
-                - /certs/server.crt
+                - /run/spire/svid/svid.pem
                 - --key
-                - /certs/server-key.pem
+                - /run/spire/svid/svid_key.pem
                 - https://localhost:3000/health/ready
             initialDelaySeconds: 5
             periodSeconds: 10
@@ -119,17 +149,49 @@ spec:
             exec:
               command:
                 - curl
-                - -sk
+                - -skf
                 - --cert
-                - /certs/server.crt
+                - /run/spire/svid/svid.pem
                 - --key
-                - /certs/server-key.pem
+                - /run/spire/svid/svid_key.pem
                 - https://localhost:3000/ping
             initialDelaySeconds: 30
             periodSeconds: 5
             failureThreshold: 12
+        - name: spiffe-helper
+          image: ghcr.io/spiffe/spiffe-helper:0.10.1
+          imagePullPolicy: IfNotPresent
+          args:
+            - -config
+            - /etc/spiffe-helper/helper.conf
+          volumeMounts:
+            - name: spiffe-helper-config
+              mountPath: /etc/spiffe-helper
+              readOnly: true
+            - name: spire-agent-socket
+              mountPath: /run/spire/agent-sockets
+            - name: svid
+              mountPath: /run/spire/svid
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
       volumes:
-        - name: tls-certs
-          secret:
-            secretName: trading-model-tls
-            optional: false
+        - name: spiffe-helper-config
+          configMap:
+            name: spiffe-helper-config
+        # Workload API socket from the SPIFFE CSI driver (node-agents): the
+        # restricted Pod Security profile forbids a hostPath.
+        - name: spire-agent-socket
+          csi:
+            driver: csi.spiffe.io
+            readOnly: true
+        - name: svid
+          emptyDir: {}
+        - name: tmp
+          emptyDir: {}

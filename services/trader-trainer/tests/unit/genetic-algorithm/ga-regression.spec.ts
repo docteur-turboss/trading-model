@@ -2,24 +2,25 @@ import { describe, expect, it, jest } from "@jest/globals";
 import {
 	crossoverGenomes,
 	crossoverScalar,
-} from "../../../src/core/genetic-algorithm/crossover";
-import { createDefaultGenome } from "../../../src/core/genetic-algorithm/factory";
+} from "../../../src/domain/genetic-algorithm/crossover";
+import { createDefaultGenome } from "../../../src/domain/genetic-algorithm/factory";
+import { CrossoverType } from "../../../src/domain/genetic-algorithm/genome";
 import type {
 	CrossoverGenome,
 	LamarckGenome,
-} from "../../../src/core/genetic-algorithm/genome-types";
+} from "../../../src/domain/genetic-algorithm/genome-types";
 
 describe("GA Regression — Crossover", () => {
 	describe("crossoverScalar", () => {
 		it("arithmetic crossover with known alpha produces deterministic blend", () => {
 			const co: CrossoverGenome = {
-				type: "arithmetic",
+				type: CrossoverType.Arithmetic,
 				probability: 0.5,
 				blendAlpha: 0.3,
 				sbxEta: 0,
 			};
 			const rng = jest.fn<() => number>();
-			const result = crossoverScalar(10, 20, co, rng);
+			const result = crossoverScalar({ left: 10, right: 20, co, rng });
 			expect(result).toBe(10 + (20 - 10) * 0.3);
 			expect(result).toBe(13);
 			expect(rng).not.toHaveBeenCalled();
@@ -27,28 +28,28 @@ describe("GA Regression — Crossover", () => {
 
 		it("uniform crossover picks parent based on rng threshold", () => {
 			const co: CrossoverGenome = {
-				type: "uniform",
+				type: CrossoverType.Uniform,
 				probability: 0.5,
 				blendAlpha: 0,
 				sbxEta: 0,
 			};
 			const rng = jest.fn<() => number>();
 			rng.mockReturnValueOnce(0.2);
-			expect(crossoverScalar(5, 15, co, rng)).toBe(5);
+			expect(crossoverScalar({ left: 5, right: 15, co, rng })).toBe(5);
 			rng.mockReturnValueOnce(0.7);
-			expect(crossoverScalar(5, 15, co, rng)).toBe(15);
+			expect(crossoverScalar({ left: 5, right: 15, co, rng })).toBe(15);
 		});
 
 		it("blend crossover output is bounded within expected range", () => {
 			const co: CrossoverGenome = {
-				type: "blend",
+				type: CrossoverType.Blend,
 				probability: 0.5,
 				blendAlpha: 0.5,
 				sbxEta: 0,
 			};
 			const rng = jest.fn<() => number>();
 			rng.mockReturnValue(0.5);
-			const result = crossoverScalar(10, 20, co, rng);
+			const result = crossoverScalar({ left: 10, right: 20, co, rng });
 			const d = 20 - 10;
 			const expectedLo = 10 - 0.5 * d;
 			const expectedHi = 20 + 2 * 0.5 * d;
@@ -58,14 +59,14 @@ describe("GA Regression — Crossover", () => {
 
 		it("sbx crossover produces symmetric offspring for symmetric parents", () => {
 			const co: CrossoverGenome = {
-				type: "sbx",
+				type: CrossoverType.Sbx,
 				probability: 0.5,
 				blendAlpha: 0,
 				sbxEta: 2,
 			};
 			const rng = jest.fn<() => number>();
 			rng.mockReturnValue(0.5);
-			const result = crossoverScalar(10, 10, co, rng);
+			const result = crossoverScalar({ left: 10, right: 10, co, rng });
 			expect(result).toBe(10);
 		});
 	});

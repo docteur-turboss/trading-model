@@ -1,0 +1,54 @@
+import type { TlsEnvVars } from "@trading-model/common/config/tls-paths";
+import { configurationError } from "@trading-model/common/utils/errors";
+import { Port, type ServiceId } from "@trading-model/primitives/primitives";
+import type { Application } from "express";
+import {
+	type AuthorizationOptions,
+	buildTlsFromEnv,
+	createSecureServer,
+	type RateLimitConfig,
+} from "./create-secure-server";
+import type { ReadinessCheck } from "./readiness";
+import type { HttpsServer } from "./server-factory";
+
+export interface ServiceServerOptions {
+	env: TlsEnvVars & { PORT: number; ENFORCE_MTLS_STRICT?: boolean };
+	/**
+	 * Canonical SPIFFE service identity used as the ACL target for inbound
+	 * authorization (ADR-0011). Required when `ENFORCE_MTLS_STRICT` is enabled.
+	 */
+	serviceId?: ServiceId;
+	routes: (app: Application) => void;
+	trustProxy?: boolean;
+	rateLimit?: RateLimitConfig;
+	readiness?: ReadinessCheck[];
+}
+
+export function createServiceServer(
+	options: ServiceServerOptions
+): Promise<HttpsServer> {
+	return createSecureServer({
+		port: Port.of(options.env.PORT),
+		tls: buildTlsFromEnv(options.env),
+		trustProxy: options.trustProxy,
+		rateLimit: options.rateLimit,
+		authorize: _resolveAuthorization(options),
+		routes: options.routes,
+		readiness: options.readiness,
+	});
+}
+
+function _resolveAuthorization(
+	options: ServiceServerOptions
+): AuthorizationOptions | undefined {
+	if (options.env.ENFORCE_MTLS_STRICT === false) {
+		return;
+	}
+	if (!options.serviceId) {
+		throw configurationError(
+			"Authorization is enabled by default but createServiceServer received no serviceId. " +
+				"Set ENFORCE_MTLS_STRICT=false to disable or provide a serviceId."
+		);
+	}
+	return { enabled: true, targetService: options.serviceId };
+}

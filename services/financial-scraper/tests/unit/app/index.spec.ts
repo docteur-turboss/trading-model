@@ -2,16 +2,16 @@ import { describe, expect, it, jest } from "@jest/globals";
 
 const MOCK_CREATE_BOOTSTRAP = jest.fn<any>();
 
-jest.mock("@trading-model/common/server/bootstrap", () => ({
+jest.mock("@trading-model/server-utils/application/services/bootstrap", () => ({
 	createBootstrap: MOCK_CREATE_BOOTSTRAP,
 }));
 
-jest.mock("../../../src/app/server", () => ({
+jest.mock("../../../src/application/server", () => ({
 	createServer: jest.fn(() => ({ close: jest.fn() })),
 }));
 
-jest.mock("config/env", () => ({
-	env: {
+jest.mock("../../../src/infrastructure/config/env", () => ({
+	ENV: {
 		NODE_ENV: "test",
 		PORT: 3000,
 		TLS_KEY_PATH: "/etc/tls/key.pem",
@@ -31,6 +31,9 @@ jest.mock("config/env", () => ({
 		MESSAGE_BUS_INIT_TIMEOUT_MS: "2000",
 		MESSAGE_BUS_SHUTDOWN_TIMEOUT_MS: "2000",
 		MESSAGE_CALLBACK_PATH: "message",
+		SYMBOLS_TO_TRACK: [],
+		SCRAPE_INTERVAL: "*/1 * * * *",
+		SCRAPE_SCHEDULER_ENABLED: true,
 	},
 }));
 
@@ -40,7 +43,12 @@ jest.mock("../../../src/config/address-manager", () => ({
 	})),
 }));
 
-import "../../../src/app/index";
+const MOCK_CLOSE_DATABASE = jest.fn(async () => undefined);
+jest.mock("../../../src/config/db", () => ({
+	closeDatabase: MOCK_CLOSE_DATABASE,
+}));
+
+import "../../../src/application/index";
 
 describe("app/index", () => {
 	it("should call createBootstrap on load", () => {
@@ -68,5 +76,14 @@ describe("app/index", () => {
 		const opts: any = MOCK_CREATE_BOOTSTRAP.mock.calls[0][0];
 		opts.onStart();
 		expect(() => opts.onStop()).not.toThrow();
+	});
+
+	// Idle pool connections kept the process alive until SIGKILL.
+	it("onStop should close the MySQL pool so the process can exit", async () => {
+		const opts: any = MOCK_CREATE_BOOTSTRAP.mock.calls[0][0];
+
+		await opts.onStop();
+
+		expect(MOCK_CLOSE_DATABASE).toHaveBeenCalled();
 	});
 });

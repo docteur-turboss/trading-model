@@ -1,16 +1,19 @@
 import { describe, expect, it } from "@jest/globals";
 
-import { MESSAGE_PAYLOAD_SCHEMA } from "../../src/shared/helper/messages/message.schema";
+import { MESSAGE_PAYLOAD_SCHEMA } from "../../src/shared/barrel/message.schema";
 
 describe("MESSAGE_PAYLOAD_SCHEMA", () => {
 	describe("auditHeartbeat", () => {
 		it("should accept valid heartbeat payload", () => {
 			const result = MESSAGE_PAYLOAD_SCHEMA.parse({
 				type: "audit.heartbeat" as const,
-				data: { serviceName: "audit-logger", instanceId: "inst-1" },
+				data: {
+					serviceName: "audit-logger-service" as any,
+					instanceId: "inst-1",
+				},
 			});
 			expect(result).toBeDefined();
-			expect((result.data as any).serviceName).toBe("audit-logger");
+			expect((result.data as any).serviceName).toBe("audit-logger-service");
 		});
 
 		it("should reject heartbeat without instanceId", () => {

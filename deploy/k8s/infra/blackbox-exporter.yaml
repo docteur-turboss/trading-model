@@ -1,4 +1,12 @@
 apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: blackbox-exporter
+  labels:
+    app.kubernetes.io/component: blackbox-exporter
+    app.kubernetes.io/part-of: trading-model
+---
+apiVersion: v1
 kind: Service
 metadata:
   name: blackbox-exporter
@@ -31,11 +39,28 @@ spec:
         app.kubernetes.io/component: blackbox-exporter
         app.kubernetes.io/part-of: trading-model
     spec:
+      serviceAccountName: blackbox-exporter
       automountServiceAccountToken: false
       terminationGracePeriodSeconds: 10
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        runAsGroup: 65534
+        fsGroup: 65534
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: blackbox-exporter
-          image: prom/blackbox-exporter:v0.25.0
+          image: prom/blackbox-exporter@sha256:b04a9fef4fa086a02fc7fcd8dcdbc4b7b35cc30cdee860fdc6a19dd8b208d63e
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
           args:
             - "--config.file=/etc/blackbox-exporter/config.yml"
           ports:
@@ -64,10 +89,44 @@ spec:
               port: 9115
             initialDelaySeconds: 5
             periodSeconds: 10
+        - name: spiffe-helper
+          image: ghcr.io/spiffe/spiffe-helper:0.10.1
+          imagePullPolicy: IfNotPresent
+          args:
+            - -config
+            - /etc/spiffe-helper/helper.conf
+          volumeMounts:
+            - name: spiffe-helper-config
+              mountPath: /etc/spiffe-helper
+              readOnly: true
+            - name: spire-agent-socket
+              mountPath: /run/spire/agent-sockets
+            - name: svid
+              mountPath: /run/spire/svid
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
       volumes:
+        - name: spiffe-helper-config
+          configMap:
+            name: spiffe-helper-config
         - name: config
           configMap:
             name: blackbox-exporter-config
+        # Workload API socket from the SPIFFE CSI driver (node-agents): the
+        # restricted Pod Security profile forbids a hostPath.
+        - name: spire-agent-socket
+          csi:
+            driver: csi.spiffe.io
+            readOnly: true
+        - name: svid
+          emptyDir: {}
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -88,6 +147,9 @@ data:
           fail_if_not_ssl: true
           tls_config:
             insecure_skip_verify: false
+            ca_file: /run/spire/svid/bundle.pem
+            cert_file: /run/spire/svid/svid.pem
+            key_file: /run/spire/svid/svid_key.pem
       http_2xx_no_tls:
         prober: http
         timeout: 5s
@@ -116,9 +178,8 @@ spec:
     - Ingress
   ingress:
     - from:
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: trading-model
+        # Same namespace as the policy, whatever the overlay's namespace.
+        - podSelector: {}
       ports:
         - port: 9115
           protocol: TCP

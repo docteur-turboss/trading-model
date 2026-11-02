@@ -2,61 +2,66 @@ import { describe, expect, test } from "@jest/globals";
 import {
 	crossoverGenomes,
 	crossoverScalar,
-} from "../../../src/core/genetic-algorithm/crossover";
-import { createDefaultGenome } from "../../../src/core/genetic-algorithm/factory";
+} from "../../../src/domain/genetic-algorithm/crossover";
+import { createDefaultGenome } from "../../../src/domain/genetic-algorithm/factory";
+import {
+	ActivationType,
+	ConnectionType,
+	CrossoverType,
+	InitialisationType,
+} from "../../../src/domain/genetic-algorithm/genome";
 
 describe("Crossover - crossoverScalar", () => {
 	const rng = () => 0.5;
-	const co = {
-		type: "arithmetic" as const,
+	const baseCo = {
+		type: CrossoverType.Arithmetic,
 		probability: 1,
 		blendAlpha: 0.5,
 		sbxEta: 2,
 	};
 
 	test("arithmetic crossover should interpolate", () => {
-		const result = crossoverScalar(10, 20, co, rng);
+		const result = crossoverScalar({ left: 10, right: 20, co: baseCo, rng });
 		expect(result).toBe(15);
 	});
 
 	test("blend crossover should return value within range", () => {
-		const result = crossoverScalar(10, 20, { ...co, type: "blend" }, rng);
+		const co = { ...baseCo, type: CrossoverType.Blend };
+		const result = crossoverScalar({ left: 10, right: 20, co, rng });
 		expect(result).toBeGreaterThanOrEqual(5);
 		expect(result).toBeLessThanOrEqual(25);
 	});
 
 	test("sbx crossover should return valid value", () => {
-		const result = crossoverScalar(10, 20, { ...co, type: "sbx" }, rng);
+		const co = { ...baseCo, type: CrossoverType.Sbx };
+		const result = crossoverScalar({ left: 10, right: 20, co, rng });
 		expect(Number.isFinite(result)).toBe(true);
 	});
 
 	test("uniform crossover should pick one of the parents", () => {
-		const result = crossoverScalar(10, 20, { ...co, type: "uniform" }, rng);
+		const co = { ...baseCo, type: CrossoverType.Uniform };
+		const result = crossoverScalar({ left: 10, right: 20, co, rng });
 		expect([10, 20]).toContain(result);
 	});
 
 	test("uniform crossover with rng < 0.5 picks first parent", () => {
-		const result = crossoverScalar(
-			10,
-			20,
-			{ ...co, type: "uniform" },
-			() => 0.3
-		);
+		const co = { ...baseCo, type: CrossoverType.Uniform };
+		const rngLow = () => 0.3;
+		const result = crossoverScalar({ left: 10, right: 20, co, rng: rngLow });
 		expect(result).toBe(10);
 	});
 
 	test("uniform crossover with rng >= 0.5 picks second parent", () => {
-		const result = crossoverScalar(
-			10,
-			20,
-			{ ...co, type: "uniform" },
-			() => 0.7
-		);
+		const co = { ...baseCo, type: CrossoverType.Uniform };
+		const rngHigh = () => 0.7;
+		const result = crossoverScalar({ left: 10, right: 20, co, rng: rngHigh });
 		expect(result).toBe(20);
 	});
 
 	test("sbx crossover with u < 0.5 should use first beta branch", () => {
-		const result = crossoverScalar(10, 20, { ...co, type: "sbx" }, () => 0.3);
+		const co = { ...baseCo, type: CrossoverType.Sbx };
+		const rngLow = () => 0.3;
+		const result = crossoverScalar({ left: 10, right: 20, co, rng: rngLow });
 		expect(Number.isFinite(result)).toBe(true);
 	});
 });
@@ -110,9 +115,9 @@ describe("Crossover - crossoverGenomes", () => {
 		parentB.network.hiddenLayers = [
 			{
 				neurons: 128,
-				activation: "relu",
-				connectionType: "dense-skip",
-				biasType: "zeros",
+				activation: ActivationType.Relu,
+				connectionType: ConnectionType.DenseSkip,
+				biasType: InitialisationType.Zeros,
 			},
 		];
 		const offspring = crossoverGenomes(parentA, parentB, () => 0.2);
@@ -125,9 +130,9 @@ describe("Crossover - crossoverGenomes", () => {
 		parentB.network.hiddenLayers = [
 			{
 				neurons: 128,
-				activation: "relu",
-				connectionType: "dense-skip",
-				biasType: "zeros",
+				activation: ActivationType.Relu,
+				connectionType: ConnectionType.DenseSkip,
+				biasType: InitialisationType.Zeros,
 			},
 		];
 		const offspring = crossoverGenomes(parentA, parentB, () => 0.6);
@@ -140,9 +145,9 @@ describe("Crossover - crossoverGenomes", () => {
 		parentA.network.hiddenLayers = [
 			{
 				neurons: 32,
-				activation: "relu",
-				connectionType: "dense-skip",
-				biasType: "zeros",
+				activation: ActivationType.Relu,
+				connectionType: ConnectionType.DenseSkip,
+				biasType: InitialisationType.Zeros,
 			},
 		];
 		const offspring = crossoverGenomes(parentA, parentB, () => 0.3);
@@ -155,9 +160,9 @@ describe("Crossover - crossoverGenomes", () => {
 		parentB.network.hiddenLayers = [
 			{
 				neurons: 128,
-				activation: "relu",
-				connectionType: "dense-skip",
-				biasType: "zeros",
+				activation: ActivationType.Relu,
+				connectionType: ConnectionType.DenseSkip,
+				biasType: InitialisationType.Zeros,
 			},
 		];
 		const offspring = crossoverGenomes(parentA, parentB, () => 0.3);
@@ -167,8 +172,8 @@ describe("Crossover - crossoverGenomes", () => {
 	test("should crossover with arithmetic type", () => {
 		const parentA = createDefaultGenome("a");
 		const parentB = createDefaultGenome("b");
-		parentA.crossover.type = "arithmetic";
-		parentB.crossover.type = "arithmetic";
+		parentA.crossover.type = CrossoverType.Arithmetic;
+		parentB.crossover.type = CrossoverType.Arithmetic;
 		const offspring = crossoverGenomes(parentA, parentB, rng);
 		expect(offspring).toBeDefined();
 	});
@@ -176,8 +181,8 @@ describe("Crossover - crossoverGenomes", () => {
 	test("should crossover with blend type", () => {
 		const parentA = createDefaultGenome("a");
 		const parentB = createDefaultGenome("b");
-		parentA.crossover.type = "blend";
-		parentB.crossover.type = "blend";
+		parentA.crossover.type = CrossoverType.Blend;
+		parentB.crossover.type = CrossoverType.Blend;
 		const offspring = crossoverGenomes(parentA, parentB, rng);
 		expect(offspring).toBeDefined();
 	});
@@ -185,8 +190,8 @@ describe("Crossover - crossoverGenomes", () => {
 	test("should crossover with sbx type", () => {
 		const parentA = createDefaultGenome("a");
 		const parentB = createDefaultGenome("b");
-		parentA.crossover.type = "sbx";
-		parentB.crossover.type = "sbx";
+		parentA.crossover.type = CrossoverType.Sbx;
+		parentB.crossover.type = CrossoverType.Sbx;
 		const offspring = crossoverGenomes(parentA, parentB, rng);
 		expect(offspring).toBeDefined();
 	});

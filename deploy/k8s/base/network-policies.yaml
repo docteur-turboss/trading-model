@@ -1,0 +1,46 @@
+# Egress shared by the workloads whose own policy restricts egress.
+# NetworkPolicies are additive: each component's policy adds its service ports
+# on top of these. Select only those components: selecting a pod with an
+# Egress policy isolates its egress, so `podSelector: {}` would cut every
+# other pod (Redis peers, Mongo, Grafana, Prometheus...) down to DNS + OTLP.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-dns-and-telemetry-egress
+  labels:
+    app.kubernetes.io/part-of: trading-model
+spec:
+  podSelector:
+    matchExpressions:
+      - key: app.kubernetes.io/component
+        operator: In
+        values:
+          - api-gateway
+          - audit-logger
+          - discovery-server
+          - dlq-service
+          - edge-proxy
+          - financial-scraper
+          - financial-scraper-collector
+          - message-manager
+          - mongodb-audit
+          - mysql
+          - spire-server
+          - trader-trainer
+  policyTypes:
+    - Egress
+  egress:
+    # Cluster DNS: without it no service name resolves.
+    - ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+    # OTLP export to the in-namespace collector (OTEL_EXPORTER_OTLP_ENDPOINT).
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: otel-collector
+      ports:
+        - port: 4318
+          protocol: TCP

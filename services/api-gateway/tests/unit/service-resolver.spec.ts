@@ -1,6 +1,35 @@
-import { beforeEach, describe, expect, it, jest } from "@jest/globals";
-import { ServiceResolver } from "../../src/core/service-resolver";
-import { mockDiscoveryResponse } from "../fixtures/index";
+import {
+	afterEach,
+	beforeEach,
+	describe,
+	expect,
+	it,
+	jest,
+} from "@jest/globals";
+
+jest.mock("node:dns/promises", () => ({
+	lookup: jest.fn(async () => ({ address: "172.25.0.2", family: 4 })),
+}));
+
+import { ServiceResolver } from "../../src/adapters/outbound/service-resolver";
+
+const makeInstance = (host: string, port: number, version: string) => ({
+	serviceName: "sector-allocator",
+	instanceId: `inst-${host}`,
+	host,
+	port,
+	version,
+	ttl: 30_000,
+	protocol: "mtls",
+	registeredAt: 1000,
+	lastHeartbeat: 1500,
+});
+
+const MOCK_RESPONSE = [
+	makeInstance("10.0.1.5", 3000, "1.2.0"),
+	makeInstance("10.0.1.6", 3000, "1.3.0"),
+	makeInstance("10.0.2.1", 3000, "2.0.0"),
+];
 
 describe("ServiceResolver", () => {
 	let resolver: ServiceResolver;
@@ -9,7 +38,7 @@ describe("ServiceResolver", () => {
 	beforeEach(() => {
 		jest.useFakeTimers();
 		mockHttpClient = {
-			get: jest.fn().mockResolvedValue(mockDiscoveryResponse),
+			get: jest.fn().mockImplementation(async () => [...MOCK_RESPONSE]),
 		};
 		resolver = new ServiceResolver(
 			"https://discovery:3000",
@@ -45,8 +74,30 @@ describe("ServiceResolver", () => {
 		expect(target).toBeNull();
 	});
 
+	it("should find a service registered under its legacy name", async () => {
+		mockHttpClient.get.mockImplementation(async (url: unknown) => {
+			if (String(url).endsWith("/financial-scraper")) {
+				throw new Error("404 Unknown service");
+			}
+			return String(url).endsWith("/financial-scraper-service")
+				? [makeInstance("10.0.3.1", 3000, "1.0.0")]
+				: [];
+		});
+
+		const target = await resolver.resolve("financial-scraper" as never, 1);
+
+		expect(target?.host).toBe("10.0.3.1");
+	});
+
+	it("should reach discovery at its configured URL (it never registers)", async () => {
+		const target = await resolver.resolve("discovery-server" as never, 1);
+
+		expect(target).toMatchObject({ host: "172.25.0.2", port: 3000 });
+		expect(mockHttpClient.get).not.toHaveBeenCalled();
+	});
+
 	it("should return null for unknown service", async () => {
-		mockHttpClient.get.mockResolvedValue([]);
+		mockHttpClient.get.mockImplementation(async () => []);
 		const target = await resolver.resolve("unknown-service", 1);
 		expect(target).toBeNull();
 	});
@@ -68,9 +119,9 @@ describe("ServiceResolver", () => {
 	});
 
 	it("should round-robin through instances", async () => {
-		mockHttpClient.get.mockResolvedValue([
-			{ ...mockDiscoveryResponse[0], version: "1.0.0" },
-			{ ...mockDiscoveryResponse[1], version: "1.0.0" },
+		mockHttpClient.get.mockImplementation(async () => [
+			makeInstance("10.0.1.5", 3000, "1.0.0"),
+			makeInstance("10.0.1.6", 3000, "1.0.0"),
 		]);
 
 		const first = await resolver.resolve("sector-allocator", 1);
@@ -116,7 +167,7 @@ describe("ServiceResolver", () => {
 	});
 
 	it("should handle non-array discovery response", async () => {
-		mockHttpClient.get.mockResolvedValue({ data: null });
+		mockHttpClient.get.mockImplementation(async () => ({ data: null }));
 
 		const target = await resolver.resolve("sector-allocator", 1);
 		expect(target).toBeNull();
@@ -127,14 +178,14 @@ describe("ServiceResolver", () => {
 
 		jest.advanceTimersByTime(6000);
 
-		mockHttpClient.get.mockResolvedValue([]);
+		mockHttpClient.get.mockImplementation(async () => []);
 
 		const target = await resolver.resolve("sector-allocator", 1);
 		expect(target).toBeNull();
 	});
 
 	it("should handle empty cached instances expiry correctly", async () => {
-		mockHttpClient.get.mockResolvedValue([]);
+		mockHttpClient.get.mockImplementation(async () => []);
 
 		const first = await resolver.resolve("new-service", 1);
 		expect(first).toBeNull();
@@ -146,7 +197,7 @@ describe("ServiceResolver", () => {
 	});
 
 	it("should return null from cache when cached instances are empty within TTL", async () => {
-		mockHttpClient.get.mockResolvedValue([]);
+		mockHttpClient.get.mockImplementation(async () => []);
 
 		const first = await resolver.resolve("cache-empty-service", 1);
 		expect(first).toBeNull();

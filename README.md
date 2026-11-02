@@ -6,25 +6,26 @@ Microservices-based AI trading platform. Ingests market data, trains autonomous 
 
 ```bash
 git clone <repo-url> && cd trading-model
-npm ci
-bash scripts/generate-certs.sh
+bun install --frozen-lockfile
 docker compose up -d
 ```
 
-See [Quick Start Tutorial](docs/tutorials/QUICKSTART.md) for a 10-minute hands-on walkthrough.
+mTLS is automatic via SPIRE (ADR-0011) — no manual certificate generation.
+
+See [Quick Start Tutorial](docs/getting-started/quickstart.md) for a 10-minute hands-on walkthrough.
 
 ## Architecture
 
 | Layer         | Technology                                                 |
 | ------------- | ---------------------------------------------------------- |
-| Runtime       | Node.js 26+                                                |
+| Runtime       | Bun 1.x (Node.js 26-compatible APIs)                       |
 | Language      | TypeScript (ES2020)                                        |
 | API           | Express 5                                                  |
-| Frontend      | React 19 + Vite + MUI 7                                    |
+| Frontend      | None for now — removed, see ADR-0018                       |
 | Security      | mTLS everywhere (TLS 1.3)                                  |
 | Databases     | MongoDB 7, MySQL 8 (Group Replication), Redis 7 (Sentinel) |
 | Validation    | Zod                                                        |
-| Testing       | Jest + Vitest + Stryker (mutation)                         |
+| Testing       | Jest + Stryker (mutation)                                  |
 | Observability | Prometheus + Grafana + Jaeger + Loki                       |
 
 ### Services
@@ -35,82 +36,98 @@ See [Quick Start Tutorial](docs/tutorials/QUICKSTART.md) for a 10-minute hands-o
 | `message-manager`       | 8444 | Topic-based pub/sub broker with DLQ routing                    |
 | `financial-scraper`     | 8445 | Binance market data ingestion (candles, trades, order books)   |
 | `trader-trainer`        | 8446 | GA + DQN agent evolution engine                                |
-| `certificate-authority` | 8447 | X.509 certificate lifecycle: signing, rotation, CRL            |
 | `api-gateway`           | 8448 | Single external entry point: auth, rate-limit, cache, proxy    |
-| `admin-interface`       | 8449 | React SPA dashboard (SPA via nginx)                            |
 | `audit-logger`          | 8450 | Immutable event traceability + centralized log aggregation     |
 | `dlq-service`           | 8452 | Dead letter queue storage with auto-retry + replay             |
+| `edge-proxy`            | 8449 | nginx: external HTTP entry, `/v1` → api-gateway over mTLS      |
 
 ### Shared Packages
 
 | Package                             | Purpose                                                                                             |
 | ----------------------------------- | --------------------------------------------------------------------------------------------------- |
 | `@trading-model/common`             | HTTP client, logger, middleware, server factories, env validation, circuit breaker, SSRF protection |
+| `@trading-model/validation`         | Zod schemas, DTOs, event enums, admin contracts                                                     |
+| `@trading-model/server-utils`       | Secure HTTPS server factory, TLS watcher, response protocol                                         |
+| `@trading-model/crypto`             | Hashing, signature, and crypto primitives                                                           |
 | `@trading-model/address-manager`    | Service discovery client with health-checking and token rotation                                    |
 | `@trading-model/broker-message`     | Inter-service messaging SDK with typed event subscriptions                                          |
-| `@trading-model/certificate-utils`  | X.509 certificate generation, signing, validation, CRL management                                   |
-| `@trading-model/certificate-client` | Automatic mTLS certificate provisioning and renewal                                                 |
+
+### Workload identity
+
+- **SPIFFE/SPIRE (ADR-0011):** per-service X.509 SVIDs issued by a SPIRE Server after workload attestation, consumed via `spiffe-helper` sidecars. Replaces the in-house certificate-authority (decommissioned).
 
 ## Commands
 
 ```bash
-npm ci                       # Install all workspace dependencies
-npm run build                # Build 4 shared packages in dependency order
-npm run build:ts             # Full build (packages + 9 services)
-npm run lint                 # Biome check across the monorepo
-npm test --workspaces        # All workspace tests
-npm run test:coverage        # All tests with coverage
-npm run test:contract        # Contract tests
-npm run test:e2e             # E2E tests (requires Docker Compose up)
-npm run docs:generate        # TypeDoc HTML
-npm run commit               # Interactive gitmoji commit CLI
-npm run release              # Version bump + changelog + tag + push
+bun install --frozen-lockfile                       # Install all workspace dependencies
+bun run build                # Build the shared packages in dependency order
+bun run build:ts             # Full build (packages + 7 services)
+bun run lint                 # Biome check across the monorepo
+bun run test        # All workspace tests
+bun run test:coverage        # All tests with coverage
+bun run test:contract        # Cross-service contracts (real producer/client code → real consumer/server code)
+bun run api:check            # OpenAPI and documented routes vs the real routes
+bun run test:e2e             # E2E tests (requires Docker Compose up)
+bun run docs:generate        # TypeDoc HTML
+bun run commit               # Interactive gitmoji commit CLI
+# Release: GitHub Actions → "Release" workflow (version bump + images + GitHub Release + docs)
 ```
 
 ## Deployment
 
 - **Docker Compose:** `docker compose up -d` (all 20+ containers with health-check ordering)
 - **Kubernetes:** `kubectl apply -k deploy/k8s/overlays/production` (HPA, PDBs, NetworkPolicies, SealedSecrets)
-- **Backup:** Daily CronJob → MongoDB + MySQL + Redis + CA keys + S3 off-site
+- **Backup:** Daily CronJob → MongoDB (dlq + audit) + MySQL (incl. SPIRE datastore) + SPIRE CA keys + checkpoints, age-encrypted, mandatory S3 off-site copy; restore drill in CI
 - **Secrets:** SealedSecrets (SealedSecret → controller decrypts → standard Secret)
 - **Probes:** `startupProbe` (90s window) + `livenessProbe` + `readinessProbe` on all services
+- **Identity/mTLS:** SPIRE Server + Agent (K8s PSAT / Docker attestor) issuing SVIDs to `spiffe-helper` sidecars (ADR-0011)
 
 ## CI/CD
 
-12+ automated jobs on every push/PR: lint, typecheck, audit, test+coverage, mutation test, K8s validate, container scan, secrets scan, SBOM, contract tests, E2E, load tests.
+GitHub Actions workflows:
 
-Pre-push git hook runs: `@biomejs/biome check` → `npm audit` → `build:ts` → `test:coverage`.
+- **ci.yml** — on every push/PR: lint → typecheck (packages + services) → test+coverage (Codecov) → contract tests → E2E (Docker stack)
+- **release.yml** — quality gates → Docker build/push (7 images) → GitHub Release → TypeDoc docs (manual `workflow_dispatch`)
+- **deploy.yml** — manual staging/production deploy with rollback
+- **backup-test.yml** — weekly restore drill of the Docker backup scripts
+
+Pre-push git hook runs: `@biomejs/biome check` → `build` → `test`.
 
 ## Documentation
 
-- [Documentation Index](docs/README.md) — 90+ markdown files across 7 sections
-- [Architecture Standards](docs/standards/ARCHITECTURE.md) — C4 diagrams, dependency graph, service conventions
-- [OpenAPI 3.0](docs/architecture/api/openapi/api-gateway.yaml) — 18 external-facing endpoints
-- [ADR Index](docs/adr/README.md) — 10 architecture decision records
+- [Documentation Index](docs/README.md) — central entry point to all docs
+- [Architecture Standards](docs/standards/architecture-standards.md) — C4 diagrams, dependency graph, service conventions
+- [OpenAPI 3.0](docs/services/openapi/api-gateway.yaml) — generated from the services' routes (`bun run api:write`, checked by `bun run api:check`)
+- [ADR Index](docs/adr/README.md) — 11 architecture decision records
 - [Compliance](docs/compliance/) — GDPR register, DPIA, retention policy, breach notification
-- [Operations](docs/operations/) — 9 runbooks + diagnostic guide + incident response
-- [Tutorials](docs/tutorials/QUICKSTART.md) — 10-minute hands-on introduction
-- [Examples](examples/) — 5 executable bash scripts for common API workflows
+- [Operations](docs/operations/) — runbooks, SLOs, incident response, diagnostic guide
+- [Getting Started](docs/getting-started/quickstart.md) — 10-minute hands-on introduction
+- [Examples](examples/) — executable bash scripts for common API workflows
 
 ## Security
 
-- **OWASP-hardened:** SSRF protection, anti-noSQL injection, timed-safe token comparison, triple-layer log redaction
-- **mTLS everywhere:** certificate-authority manages full X.509 lifecycle with automatic rotation
-- **Secrets:** SealedSecrets + Vault Transit for CA key signing, git-secret-cleanup script
-- **Key zeroing:** SecureKeyStore with buffer zeroing + heap dump protection, AES-256-GCM at rest
+- **OWASP-hardened:** anti-noSQL injection, timed-safe token comparison, log redaction
+- **mTLS everywhere:** SPIFFE/SPIRE workload identity — short-lived X.509 SVIDs with automatic rotation (ADR-0011)
+- **Secrets:** SealedSecrets + HMAC-signed service-to-service requests (`@trading-model/crypto`), rotation via `scripts/rotate-secrets.sh`
 
 ## Monitoring
 
 - **Dashboards:** 4 Grafana dashboards (SLO, services, message-manager, trader-trainer)
-- **Alerts:** 17 Prometheus rules (6 SLO burn rates + 11 operational) → Alertmanager → Slack/PagerDuty
-- **Traces:** OpenTelemetry → OTLP Collector → Jaeger (8/9 services instrumented)
+- **Alerts:** Prometheus rules in `observability/alerting.yml` (SLO burn rates + operational), mirrored in the K8s Prometheus ConfigMap and checked by `scripts/observability-gate.mjs` and unit-tested with promtool (`tests/alerts`) → Alertmanager → Slack/PagerDuty, with a `Watchdog` dead man's switch ([Alerting](docs/operations/ALERTING.md))
+- **Traces:** OpenTelemetry → OTLP Collector → Jaeger (all 7 services instrumented)
 - **Logs:** Pino structured JSON → Promtail → Loki + centralized log aggregation to audit-logger
 
 ## Status
 
-**Production-ready with ongoing improvements.** Audited across 19 dimensions:
+**Pre-production — improvements needed before production use.** While the architecture and core services are functional, several areas require hardening before this is ready for production workloads:
 
-- Architecture, Backup/DR, CI/CD, Clean Architecture, Code Smells, Compliance, Concurrency, Documentation, Error Handling, Operations, Performance, Security (OWASP), SOLID, Testing.
+- [ ] Full audit of error handling and retry logic across all services
+- [ ] Load testing under realistic market conditions
+- [ ] Comprehensive disaster recovery validation
+- [ ] Security review of all inter-service communication paths
+- [ ] Documentation gaps in operations runbooks and incident response
+- [ ] End-to-end monitoring and alerting coverage validation
+- [ ] Performance benchmarking and resource profiling
 
 See [CHANGELOG.md](CHANGELOG.md) for version history.
 

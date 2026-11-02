@@ -1,0 +1,14 @@
+# ConfigMap of the edge proxy nginx config, generated from the same file that
+# docker-compose mounts (ADR-0018). Included by deploy/k8s/config.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+configMapGenerator:
+  - name: edge-proxy-nginx
+    files:
+      - default.conf
+      - gateway.inc=gateway.k8s.inc
+    options:
+      labels:
+        app.kubernetes.io/component: edge-proxy
+        app.kubernetes.io/part-of: trading-model

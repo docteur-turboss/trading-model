@@ -6,26 +6,44 @@ namespace: trading-model-staging
 resources:
   - ../../base
 
-# Staging-specific image tags (non-:latest, for reproducible deployments)
+# Staging-only development secrets. Production must NOT use these: it is served
+# exclusively by the SealedSecret in deploy/k8s/secrets (see the production overlay).
+generatorOptions:
+  disableNameSuffixHash: true
+
+secretGenerator:
+  - name: trading-model-secrets
+    literals:
+      - AUTH_TOKENS=dev-token-change-me
+      - SIGNING_SECRET=dev-signing-change-me
+      - SERVICE_BOOTSTRAP_TOKEN=dev-bootstrap-change-me
+      - MYSQL_ROOT_PASSWORD=dev-mysql-root
+      - MYSQL_PASSWORD=dev-mysql
+      # dlq-service requires at least 16 characters.
+      - DLQ_AUTH_HMAC_SECRET=dev-dlq-hmac-change-me
+      - GRAFANA_PASSWORD=dev-grafana
+      - HMAC_SECRET=dev-hmac
+
+# Staging-specific image tags (uses latest release by default; override via deploy pipeline)
 images:
   - name: ghcr.io/trading-model/discovery-server
-    newTag: staging
+    newTag: latest
   - name: ghcr.io/trading-model/message-manager
-    newTag: staging
+    newTag: latest
   - name: ghcr.io/trading-model/financial-scraper
-    newTag: staging
+    newTag: latest
   - name: ghcr.io/trading-model/trader-trainer
-    newTag: staging
-  - name: ghcr.io/trading-model/certificate-authority
-    newTag: staging
+    newTag: latest
   - name: ghcr.io/trading-model/api-gateway
-    newTag: staging
+    newTag: latest
   - name: ghcr.io/trading-model/audit-logger
-    newTag: staging
+    newTag: latest
   - name: ghcr.io/trading-model/dlq-service
-    newTag: staging
-  - name: ghcr.io/trading-model/admin-interface
-    newTag: staging
+    newTag: latest
+  - name: ghcr.io/trading-model/spire-tools
+    newTag: latest
+  - name: ghcr.io/trading-model/backup-tools
+    newTag: latest
 
 # Staging-specific resource reductions (smaller than production)
 patches:
@@ -38,7 +56,7 @@ patches:
 
   - target:
       kind: StatefulSet
-      name: "^(mysql|redis-primary|redis-sentinel|mongo-dlq|mongo-audit)$"
+      name: "^(mysql|redis|redis-sentinel|mongo-dlq|mongo-audit)$"
     patch: |-
       - op: replace
         path: /spec/replicas

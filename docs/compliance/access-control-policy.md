@@ -7,7 +7,7 @@
 
 ## 1. Policy Statement
 
-All access to trading-model platform resources shall be authenticated, authorised, and audited. The platform enforces a **zero-trust, service-identity-based access model** where every inter-service call is mutually authenticated via X.509 certificates and authorised via an Access Control List (ACL).
+All access to trading-model platform resources shall be authenticated, authorised, and audited. The platform enforces a **zero-trust, service-identity-based access model** where every inter-service call is mutually authenticated via X.509 SVIDs (SPIFFE/SPIRE, ADR-0011) and authorised via an Access Control List (ACL).
 
 **Principle:** No service is trusted by default. Access is granted on a least-privilege, need-to-communicate basis.
 
@@ -25,8 +25,8 @@ All access to trading-model platform resources shall be authenticated, authorise
 
 | Layer | Mechanism | Implementation |
 |---|---|---|
-| **Transport** | mTLS TLS 1.3 | `@trading-model/common/server/create-secure-server.ts` |
-| **Identity** | X.509 certificate (SAN/CN) | `@trading-model/common/middleware/mtls-auth.ts` |
+| **Transport** | mTLS TLS 1.3 | `@trading-model/server-utils/adapters/inbound/create-secure-server.ts` |
+| **Identity** | SPIFFE ID (SAN `spiffe://...`) | `@trading-model/http/adapters/inbound/mtls-auth.ts` |
 | **Bearer token** | HMAC-SHA256 (service registration) | `discovery-server` → `address-manager` |
 | **API key** | External admin access | `api-gateway` — `AUTH_TOKENS` env var |
 
@@ -34,29 +34,28 @@ All access to trading-model platform resources shall be authenticated, authorise
 
 | Layer | Mechanism | Implementation |
 |---|---|---|
-| **Service-level ACL** | `mtls-authorization.ts` — maps service CN → permitted targets | `@trading-model/common/middleware/mtls-authorization.ts` |
+| **Service-level ACL** | `mtls-authorization.ts` — maps caller SPIFFE ID → permitted targets | `@trading-model/http/adapters/inbound/mtls-authorization.ts` |
 | **Rate limiting** | Per-service rate limits | `express-rate-limit` — configurable per route |
 | **Network policy** | K8s NetworkPolicies / Docker Compose network isolation | `deploy/` manifests, `docker-compose.yml` networks |
 
 ## 3. Service Identity Management
 
-### 3.1 Certificate-Based Identities
+### 3.1 SPIFFE-Based Identities
 
-Every service instance is provisioned with an X.509 certificate by the certificate-authority. The certificate Subject Alternative Name (SAN) carries the service identity.
+Every service instance is provisioned with an X.509 SVID issued by the SPIRE Server after workload attestation. The SVID Subject Alternative Name (SAN) carries the SPIFFE ID `spiffe://trading-model.local/ns/<namespace>/sa/<service>`.
 
-| Identity | Certificate SAN | Issued By | Validity |
-|---|---|---|---|
-| `discovery-server` | `CN=discovery-server` | CA | 7 days (auto-renewed) |
-| `message-manager` | `CN=message-manager` | CA | 7 days (auto-renewed) |
-| `financial-scraper` | `CN=financial-scraper` | CA | 7 days (auto-renewed) |
-| `trader-trainer` | `CN=trader-trainer` | CA | 7 days (auto-renewed) |
-| `certificate-authority` | `CN=certificate-authority` | CA (self-signed root) | 7 days (auto-renewed) |
-| `audit-logger` | `CN=audit-logger` | CA | 7 days (auto-renewed) |
-| `dlq-service` | `CN=dlq-service` | CA | 7 days (auto-renewed) |
-| `api-gateway` | `CN=api-gateway` | CA | 7 days (auto-renewed) |
-| `admin-interface` | `CN=admin-interface` | CA | 7 days (auto-renewed) |
+| Identity | SPIFFE ID (SAN) | Issued By | Validity |
+|---|---|---|
+| `discovery-server` | `spiffe://trading-model.local/ns/trading-model/sa/discovery-server` | SPIRE Server | 1h TTL (auto-rotated) |
+| `message-manager` | `spiffe://trading-model.local/ns/trading-model/sa/message-manager` | SPIRE Server | 1h TTL (auto-rotated) |
+| `financial-scraper` | `spiffe://trading-model.local/ns/trading-model/sa/financial-scraper` | SPIRE Server | 1h TTL (auto-rotated) |
+| `trader-trainer` | `spiffe://trading-model.local/ns/trading-model/sa/trader-trainer` | SPIRE Server | 1h TTL (auto-rotated) |
+| `audit-logger` | `spiffe://trading-model.local/ns/trading-model/sa/audit-logger` | SPIRE Server | 1h TTL (auto-rotated) |
+| `dlq-service` | `spiffe://trading-model.local/ns/trading-model/sa/dlq-service` | SPIRE Server | 1h TTL (auto-rotated) |
+| `api-gateway` | `spiffe://trading-model.local/ns/trading-model/sa/api-gateway` | SPIRE Server | 1h TTL (auto-rotated) |
+| `edge-proxy` | `spiffe://trading-model.local/ns/trading-model/sa/edge-proxy` | SPIRE Server | 1h TTL (auto-rotated) |
 
-**Enforcement:** `@trading-model/common/middleware/mtls-auth.ts` extracts the client identity from the certificate's verified CN/SAN. Requests without a valid certificate are rejected at the TLS handshake level when `ENFORCE_MTLS_STRICT` is enabled.
+**Enforcement:** `@trading-model/http/adapters/inbound/mtls-auth.ts` extracts the client identity from the SVID's verified SPIFFE ID SAN. Requests without a valid SVID are rejected at the TLS handshake level (all environments). When `ENFORCE_MTLS_STRICT` is enabled (production), `mtls-authorization.ts` additionally enforces the ACL on every inbound request.
 
 ### 3.2 Service Registration Tokens
 
@@ -73,24 +72,22 @@ Services obtain HMAC-SHA256 tokens from the discovery-server upon registration. 
 
 ### 4.1 Default ACL
 
-The default ACL is defined in `@trading-model/common/middleware/mtls-authorization.ts`. It maps each calling service to the set of targets it may call.
+The default ACL is defined in `@trading-model/http/adapters/inbound/mtls-authorization.ts`. It maps each target service to the set of callers allowed to reach it (`"*"` = any platform service).
 
 ```typescript
 // Simplified example of the DEFAULT_ACL mapping
-const DEFAULT_ACL: Record<string, Set<string>> = {
-  'api-gateway':         { 'discovery-server', 'message-manager', 'financial-scraper', 'trader-trainer', 'audit-logger', 'dlq-service', 'certificate-authority', 'admin-interface' },
-  'discovery-server':    { 'message-manager', 'certificate-authority' },
-  'message-manager':     { 'audit-logger', 'dlq-service' },
-  'financial-scraper':   { 'message-manager', 'discovery-server' },
-  'trader-trainer':      { 'message-manager', 'discovery-server' },
-  'certificate-authority': { 'audit-logger', 'message-manager' },
-  'admin-interface':     { 'api-gateway', 'discovery-server', 'certificate-authority', 'message-manager', 'audit-logger' },
-  'audit-logger':        {},
-  'dlq-service':         { 'message-manager', 'audit-logger' },
+const DEFAULT_ACL: Record<KnownService, readonly ServiceId[]> = {
+  'discovery-server':   [ '*' ],
+  'audit-logger':       [ '*' ],
+  'message-manager':    [ 'discovery-server', 'financial-scraper', 'trader-trainer', 'audit-logger', 'dlq-service' ],
+  'financial-scraper':  [ 'api-gateway' ],
+  'trader-trainer':     [ 'api-gateway', 'financial-scraper', 'discovery-server' ],
+  'api-gateway':        [ 'edge-proxy' ],   // external entry point (ADR-0018)
+  'dlq-service':        [ '*' ],
 };
 ```
 
-**Enforcement:** Every incoming request passes through `mtls-authorization.ts` middleware. If the caller's identity is not found in the target service's authorised callers, the request is rejected with HTTP 403.
+**Enforcement:** When `ENFORCE_MTLS_STRICT` is enabled, every incoming request passes through `mtls-authorization.ts` middleware. If the caller's identity is not found in the target service's authorised callers, the request is rejected with HTTP 403.
 
 ### 4.2 ACL Change Procedure
 
@@ -104,20 +101,19 @@ const DEFAULT_ACL: Record<string, Set<string>> = {
 ### 5.1 Administrator Access
 
 | Resource | Access Method | Authentication | Authorisation |
-|---|---|---|---|
-| admin-interface SPA | HTTPS via browser | mTLS client certificate | CN-based ACL |
+|---|---|---|
 | API gateway admin endpoints | HTTPS + API key | `x-api-key` header | `AUTH_TOKENS` env var |
-| Database (MongoDB) | mTLS connection | Client certificate | Service account RBAC |
+| Database (MongoDB) | TLS connection | Username/password + SealedSecret | Service account RBAC |
 | Database (MySQL) | TLS connection | Username/password + SealedSecret | SQL grants |
 | Kubernetes API | kubectl + client cert | mTLS certificate | RBAC roles + SealedSecrets |
 
 ### 5.2 Emergency Access (Break-Glass)
 
-In the event of certificate-authority unavailability:
+In the event of SPIRE unavailability:
 
-1. Use `scripts/generate-certs.sh` to generate temporary self-signed certificates
+1. Restart the `spire-server` / `spire-agent` stack and let the `spire-entries` sidecar of the server pod reconcile the entries to re-issue SVIDs
 2. Document the override in the audit-logger with reason and timestamp
-3. Revoke temporary certificates within 24 hours
+3. Rotate SVIDs once SPIRE is stable
 4. Initiate incident response procedure
 
 ## 6. Access Review
@@ -125,7 +121,7 @@ In the event of certificate-authority unavailability:
 | Review Type | Frequency | Scope |
 |---|---|---|
 | ACL audit | Annual | Verify service-to-service ACL mappings match current architecture |
-| Certificate audit | Continuous | All certificates auto-renewed every 7 days; expired certs rejected |
+| SVID audit | Continuous | All SVIDs auto-rotated (1h TTL); expired SVIDs rejected |
 | Token audit | Annual | Verify HMAC token rotation and revocation procedures |
 | Emergency access log review | Quarterly | Review break-glass incidents for compliance |
 
@@ -135,7 +131,7 @@ In the event of certificate-authority unavailability:
 |---|---|
 | Unauthenticated request to internal service | TLS handshake rejected (connection refused) |
 | Unauthorised service-to-service call | HTTP 403 Forbidden (logged with correlation ID) |
-| Expired certificate usage | TLS handshake rejected (certificate validation error) |
+| Expired SVID usage | TLS handshake rejected (certificate validation error) |
 | ACL bypass attempt | Security incident — escalated per [Incident Response Policy](incident-response-policy.md) |
 
 ## 8. Cross-References
@@ -143,7 +139,7 @@ In the event of certificate-authority unavailability:
 | Document | Relevance |
 |---|---|
 | [Information Security Policy](information-security-policy.md) §5 | Access control framework |
-| `@trading-model/common/middleware/mtls-auth.ts` | mTLS authentication implementation |
-| `@trading-model/common/middleware/mtls-authorization.ts` | ACL authorization implementation |
-| `@trading-model/certificate-client` | Certificate provisioning and renewal |
+| `@trading-model/http/adapters/inbound/mtls-auth.ts` | mTLS authentication implementation |
+| `@trading-model/http/adapters/inbound/mtls-authorization.ts` | ACL authorization implementation |
+| `spiffe-helper` sidecar + SPIRE Workload API | SVID provisioning and rotation (ADR-0011) |
 | [Incident Response Policy](incident-response-policy.md) | Security incident escalation |

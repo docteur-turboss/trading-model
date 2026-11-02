@@ -1,0 +1,5 @@
+{
+  "$comment": "Known gaps checked by scripts/api-contract.mjs. docs: documented routes that reach no route through the gateway. schemas: public routes not yet mounted from a registry entry (ADR-0021). The lists may only shrink: fix the doc or migrate the route, then remove its entry.",
+  "docs": {},
+  "schemas": {}
+}

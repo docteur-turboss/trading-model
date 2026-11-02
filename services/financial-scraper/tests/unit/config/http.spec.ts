@@ -25,6 +25,10 @@ jest.mock("axios", () => {
 	};
 });
 
+jest.mock("../../../src/infrastructure/config/env", () => ({
+	ENV: { BINANCE_BASE_URL: "http://binance-stub:8080" },
+}));
+
 import { createHttpClient, httpClients } from "../../../src/config/http";
 
 describe("createHttpClient", () => {
@@ -101,16 +105,23 @@ describe("createHttpClient", () => {
 		jest.useRealTimers();
 	});
 
-	it("response rejected interceptor should retry on 403", async () => {
+	it.each([
+		403, 418, 451,
+	])("response rejected interceptor should not retry on %i (Binance WAF, IP ban, restricted location)", async (status) => {
 		createHttpClient("https://api.example.com");
-		jest.useFakeTimers();
+		const axiosMock = jest.requireMock("axios") as { create: jest.Mock };
+		const instance = axiosMock.create.mock.results.at(-1)?.value as jest.Mock;
+		instance.mockClear();
 
-		const error = { config: { retryCount: 0 }, response: { status: 403 } };
-		const promise = mockResponseRejectedHandler!(error).catch((e: any) => e);
-		jest.advanceTimersByTime(20000);
-		await promise;
-
-		jest.useRealTimers();
+		const error = { config: { retryCount: 0 }, response: { status } };
+		let thrown: unknown;
+		try {
+			await mockResponseRejectedHandler!(error);
+		} catch (e) {
+			thrown = e;
+		}
+		expect(thrown).toBe(error);
+		expect(instance).not.toHaveBeenCalled();
 	});
 
 	it("response rejected interceptor should stop retrying after max retries", async () => {
@@ -177,5 +188,13 @@ describe("createHttpClient", () => {
 
 	it("should expose pre-built binance http client", () => {
 		expect(httpClients.binance).toBeDefined();
+	});
+
+	it("should build the binance http client on BINANCE_BASE_URL", () => {
+		const axiosMock = jest.requireMock("axios") as { create: jest.Mock };
+		expect(axiosMock.create).toHaveBeenCalledWith({
+			baseURL: "http://binance-stub:8080",
+			timeout: 7000,
+		});
 	});
 });

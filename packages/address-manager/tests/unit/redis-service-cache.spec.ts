@@ -1,60 +1,82 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
+import { REDIS_RESP } from "@trading-model/persistence/redis-constants";
 
-const MOCK_REDIS_INSTANCE: Record<
-	string,
-	jest.Mock<(...args: any[]) => any>
-> = {
+const MOCK_REDIS_INSTANCE = {
 	connect: jest.fn<(...args: any[]) => Promise<void>>().mockResolvedValue(),
 	disconnect: jest.fn<(...args: any[]) => void>(),
 	get: jest
 		.fn<(...args: any[]) => Promise<string | null>>()
 		.mockResolvedValue(null),
-	setex: jest.fn<(...args: any[]) => Promise<string>>().mockResolvedValue("OK"),
+	setex: jest
+		.fn<(...args: any[]) => Promise<string>>()
+		.mockResolvedValue(REDIS_RESP.OK),
 	del: jest.fn<(...args: any[]) => Promise<number>>().mockResolvedValue(1),
 	scan: jest
 		.fn<(...args: any[]) => Promise<[string, string[]]>>()
 		.mockResolvedValue(["0", []]),
 	pipeline: jest.fn<(...args: any[]) => any>(),
-	set: jest.fn<(...args: any[]) => Promise<string>>().mockResolvedValue("OK"),
+	set: jest
+		.fn<(...args: any[]) => Promise<string>>()
+		.mockResolvedValue(REDIS_RESP.OK),
+	on: jest.fn<(...args: any[]) => any>(),
+	status: "ready",
+	quit: jest.fn<(...args: any[]) => Promise<"OK">>().mockResolvedValue("OK"),
 };
 
 jest.mock("ioredis", () => {
-	return jest.fn(() => MOCK_REDIS_INSTANCE);
+	const redisMock = jest.fn(() => MOCK_REDIS_INSTANCE);
+	return {
+		__esModule: true,
+		default: redisMock,
+		Redis: redisMock,
+		Cluster: jest.fn(() => MOCK_REDIS_INSTANCE),
+	};
 });
 
-import { RedisServiceCache } from "../../src/discovery/redis-service-cache";
+import { CircuitState as CircuitStateEnum } from "@trading-model/primitives/circuit-state";
+import {
+	PositiveInt,
+	Region,
+	toInstanceId,
+	toServiceId,
+	UnixTimestamp,
+} from "@trading-model/primitives/primitives";
+import { RedisServiceCache } from "../../src/adapters/outbound/discovery/redis-service-cache";
 
 describe("RedisServiceCache", () => {
 	let cache: RedisServiceCache;
 
 	beforeEach(() => {
 		jest.clearAllMocks();
-		cache = new RedisServiceCache(
-			"redis://localhost:6379",
-			"discovery:cache:",
-			5000
-		);
+		cache = new RedisServiceCache({
+			connection: "redis://localhost:6379",
+			prefix: "discovery:cache:",
+			ttlMs: 5000 as never,
+		});
 	});
 
 	describe("set / get", () => {
 		it("should store instance with TTL in seconds", async () => {
-			MOCK_REDIS_INSTANCE.setex.mockResolvedValue("OK");
+			MOCK_REDIS_INSTANCE.setex.mockResolvedValue(REDIS_RESP.OK);
 			MOCK_REDIS_INSTANCE.get.mockResolvedValue(
 				JSON.stringify({
 					serviceName: "svc",
-					instanceId: "i-1",
-					ip: "127.0.0.1",
+					instanceId: toInstanceId("i-1"),
+					host: "127.0.0.1",
 					port: 8080,
 				})
 			);
 
-			await cache.set("svc", {
-				serviceName: "svc",
-				instanceId: "i-1",
-				ip: "127.0.0.1",
-				port: 8080,
-			} as any);
-			const result = await cache.get("svc");
+			await cache.set({
+				serviceName: toServiceId("svc"),
+				instance: {
+					serviceName: "svc",
+					instanceId: toInstanceId("i-1"),
+					host: "127.0.0.1",
+					port: 8080,
+				} as any,
+			});
+			const result = await cache.get(toServiceId("svc"));
 
 			expect(MOCK_REDIS_INSTANCE.setex).toHaveBeenCalledWith(
 				"discovery:cache:svc",
@@ -66,13 +88,17 @@ describe("RedisServiceCache", () => {
 
 		it("should return null when key not found", async () => {
 			MOCK_REDIS_INSTANCE.get.mockResolvedValue(null);
-			const result = await cache.get("nonexistent");
+			const result = await cache.get(toServiceId("nonexistent"));
 			expect(result).toBeNull();
 		});
 
 		it("should use region-prefixed keys when region provided", async () => {
-			MOCK_REDIS_INSTANCE.setex.mockResolvedValue("OK");
-			await cache.set("svc", { serviceName: "svc" } as any, "us-east");
+			MOCK_REDIS_INSTANCE.setex.mockResolvedValue(REDIS_RESP.OK);
+			await cache.set({
+				serviceName: toServiceId("svc"),
+				instance: { serviceName: "svc" } as any,
+				region: Region.of("us-east"),
+			});
 			expect(MOCK_REDIS_INSTANCE.setex).toHaveBeenCalledWith(
 				"discovery:cache:svc::us-east",
 				expect.any(Number),
@@ -82,15 +108,15 @@ describe("RedisServiceCache", () => {
 
 		it("should return null on Redis error", async () => {
 			MOCK_REDIS_INSTANCE.get.mockRejectedValue(new Error("Connection lost"));
-			const result = await cache.get("svc");
+			const result = await cache.get(toServiceId("svc"));
 			expect(result).toBeNull();
 		});
 	});
 
-	describe("invalidate", () => {
+	describe("delete", () => {
 		it("should delete key from Redis", async () => {
 			MOCK_REDIS_INSTANCE.del.mockResolvedValue(1);
-			await cache.invalidate("svc");
+			await cache.delete(toServiceId("svc"));
 			expect(MOCK_REDIS_INSTANCE.del).toHaveBeenCalledWith(
 				"discovery:cache:svc"
 			);
@@ -98,7 +124,7 @@ describe("RedisServiceCache", () => {
 
 		it("should handle errors gracefully", async () => {
 			MOCK_REDIS_INSTANCE.del.mockRejectedValue(new Error("error"));
-			await expect(cache.invalidate("svc")).resolves.toBeUndefined();
+			await expect(cache.delete(toServiceId("svc"))).resolves.toBeUndefined();
 		});
 	});
 
@@ -134,11 +160,11 @@ describe("RedisServiceCache", () => {
 
 	describe("circuit state", () => {
 		it("should store circuit state with 2x TTL", async () => {
-			MOCK_REDIS_INSTANCE.setex.mockResolvedValue("OK");
-			await cache.setCircuitState("i-1", {
-				failures: 3,
-				lastFailureTime: 1000,
-				state: "open",
+			MOCK_REDIS_INSTANCE.setex.mockResolvedValue(REDIS_RESP.OK);
+			await cache.circuitStateStore.setCircuitState(toInstanceId("i-1"), {
+				failures: PositiveInt.of(3),
+				lastFailureTime: UnixTimestamp.of(1000),
+				state: CircuitStateEnum.OPEN,
 			});
 			expect(MOCK_REDIS_INSTANCE.setex).toHaveBeenCalledWith(
 				"discovery:cache:circuit:i-1",
@@ -149,18 +175,20 @@ describe("RedisServiceCache", () => {
 
 		it("should retrieve circuit state", async () => {
 			const state = {
-				failures: 3,
-				lastFailureTime: 1000,
-				state: "open" as const,
+				failures: PositiveInt.of(3),
+				lastFailureTime: UnixTimestamp.of(1000),
+				state: CircuitStateEnum.OPEN,
 			};
 			MOCK_REDIS_INSTANCE.get.mockResolvedValue(JSON.stringify(state));
-			const result = await cache.getCircuitState("i-1");
+			const result = await cache.circuitStateStore.getCircuitState(
+				toInstanceId("i-1")
+			);
 			expect(result).toEqual(state);
 		});
 
 		it("should delete circuit state", async () => {
 			MOCK_REDIS_INSTANCE.del.mockResolvedValue(1);
-			await cache.deleteCircuitState("i-1");
+			await cache.circuitStateStore.deleteCircuitState(toInstanceId("i-1"));
 			expect(MOCK_REDIS_INSTANCE.del).toHaveBeenCalledWith(
 				"discovery:cache:circuit:i-1"
 			);
@@ -176,60 +204,42 @@ describe("RedisServiceCache", () => {
 
 	describe("constructor", () => {
 		it("should compute ttlSec as Math.max(1, ceil(ttlMs/1000))", () => {
-			const c = new RedisServiceCache("redis://localhost:6379", "p:", 1);
-			expect((c as any)._ttlSec).toBe(1);
+			const c = new RedisServiceCache({
+				connection: "redis://localhost:6379",
+				prefix: "p:",
+				ttlMs: 1 as never,
+			});
+			expect((c as any)._storeOptions.ttlSec).toBe(1);
 
-			const c2 = new RedisServiceCache("redis://localhost:6379", "p:", 999);
-			expect((c2 as any)._ttlSec).toBe(1);
+			const c2 = new RedisServiceCache({
+				connection: "redis://localhost:6379",
+				prefix: "p:",
+				ttlMs: 999 as never,
+			});
+			expect((c2 as any)._storeOptions.ttlSec).toBe(1);
 
-			const c3 = new RedisServiceCache("redis://localhost:6379", "p:", 1000);
-			expect((c3 as any)._ttlSec).toBe(1);
+			const c3 = new RedisServiceCache({
+				connection: "redis://localhost:6379",
+				prefix: "p:",
+				ttlMs: 1000 as never,
+			});
+			expect((c3 as any)._storeOptions.ttlSec).toBe(1);
 
-			const c4 = new RedisServiceCache("redis://localhost:6379", "p:", 1500);
-			expect((c4 as any)._ttlSec).toBe(2);
+			const c4 = new RedisServiceCache({
+				connection: "redis://localhost:6379",
+				prefix: "p:",
+				ttlMs: 1500 as never,
+			});
+			expect((c4 as any)._storeOptions.ttlSec).toBe(2);
 		});
 	});
 
-	describe("getVersion", () => {
-		it("should return version from stored data", async () => {
-			MOCK_REDIS_INSTANCE.get.mockResolvedValue(
-				JSON.stringify({ version: 42, instance: { serviceName: "svc" } })
-			);
-			const v = await cache.getVersion("svc");
-			expect(v).toBe(42);
-		});
-
-		it("should return 0 when key not found", async () => {
-			MOCK_REDIS_INSTANCE.get.mockResolvedValue(null);
-			const v = await cache.getVersion("svc");
-			expect(v).toBe(0);
-		});
-
-		it("should return 0 when version field missing", async () => {
-			MOCK_REDIS_INSTANCE.get.mockResolvedValue(
-				JSON.stringify({ instance: { serviceName: "svc" } })
-			);
-			const v = await cache.getVersion("svc");
-			expect(v).toBe(0);
-		});
-
-		it("should return 0 on Redis error", async () => {
-			MOCK_REDIS_INSTANCE.get.mockRejectedValue(new Error("err"));
-			const v = await cache.getVersion("svc");
-			expect(v).toBe(0);
-		});
-	});
-
-	describe("get with version-parsed data", () => {
-		it("should parse version-tagged entry", async () => {
-			MOCK_REDIS_INSTANCE.get.mockResolvedValue(
-				JSON.stringify({
-					version: 1,
-					instance: { serviceName: "svc", instanceId: "i-1" },
-				})
-			);
-			const result = await cache.get("svc");
-			expect(result).toEqual({ serviceName: "svc", instanceId: "i-1" });
+	describe("get", () => {
+		it("should parse the stored instance", async () => {
+			const instance = { serviceName: "svc", instanceId: toInstanceId("i-1") };
+			MOCK_REDIS_INSTANCE.get.mockResolvedValue(JSON.stringify(instance));
+			const result = await cache.get(toServiceId("svc"));
+			expect(result).toEqual(instance);
 		});
 	});
 
@@ -237,7 +247,10 @@ describe("RedisServiceCache", () => {
 		it("should handle set failure gracefully", async () => {
 			MOCK_REDIS_INSTANCE.setex.mockRejectedValue(new Error("write error"));
 			await expect(
-				cache.set("svc", { serviceName: "svc" } as any)
+				cache.set({
+					serviceName: toServiceId("svc"),
+					instance: { serviceName: "svc" } as any,
+				})
 			).resolves.toBeUndefined();
 		});
 	});
@@ -256,7 +269,7 @@ describe("RedisServiceCache", () => {
 				["discovery:cache:svc"],
 			]);
 			MOCK_REDIS_INSTANCE.get.mockResolvedValue(
-				JSON.stringify({ serviceName: "svc", instanceId: "i-1" })
+				JSON.stringify({ serviceName: "svc", instanceId: toInstanceId("i-1") })
 			);
 			const result = await cache.entries();
 			expect(result).toHaveLength(1);
@@ -284,36 +297,43 @@ describe("RedisServiceCache", () => {
 		it("should handle setCircuitState failure gracefully", async () => {
 			MOCK_REDIS_INSTANCE.setex.mockRejectedValue(new Error("err"));
 			await expect(
-				cache.setCircuitState("i-1", {
-					failures: 1,
-					lastFailureTime: 0,
-					state: "open",
+				cache.circuitStateStore.setCircuitState(toInstanceId("i-1"), {
+					failures: PositiveInt.of(1),
+					lastFailureTime: UnixTimestamp.of(0),
+					state: CircuitStateEnum.OPEN,
 				})
 			).resolves.toBeUndefined();
 		});
 
 		it("should return null when getCircuitState key not found", async () => {
 			MOCK_REDIS_INSTANCE.get.mockResolvedValue(null);
-			const result = await cache.getCircuitState("i-2");
+			const result = await cache.circuitStateStore.getCircuitState(
+				toInstanceId("i-2")
+			);
 			expect(result).toBeNull();
 		});
 
 		it("should handle getCircuitState error gracefully", async () => {
 			MOCK_REDIS_INSTANCE.get.mockRejectedValue(new Error("err"));
-			const result = await cache.getCircuitState("i-1");
+			const result = await cache.circuitStateStore.getCircuitState(
+				toInstanceId("i-1")
+			);
 			expect(result).toBeNull();
 		});
 
 		it("should handle deleteCircuitState failure gracefully", async () => {
 			MOCK_REDIS_INSTANCE.del.mockRejectedValue(new Error("err"));
-			await expect(cache.deleteCircuitState("i-1")).resolves.toBeUndefined();
+			await expect(
+				cache.circuitStateStore.deleteCircuitState(toInstanceId("i-1"))
+			).resolves.toBeUndefined();
 		});
 	});
 
-	describe("stop", () => {
-		it("should disconnect", () => {
-			cache.stop();
-			expect(MOCK_REDIS_INSTANCE.disconnect).toHaveBeenCalled();
+	describe("close", () => {
+		it("should disconnect", async () => {
+			await cache.get(toServiceId("svc"));
+			cache.close();
+			expect(MOCK_REDIS_INSTANCE.quit).toHaveBeenCalled();
 		});
 	});
 });

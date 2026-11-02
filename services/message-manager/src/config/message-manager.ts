@@ -1,63 +1,99 @@
 /**
- * @file message-manager.ts
- *
- * @description
- * Composition module for the Message Broker HTTP interface.
- *
- * This file instantiates a Broker client from the `messaging` package
- * using TLS configuration provided via environment variables, then
- * exposes its HTTP listener to be mounted by the application server.
- *
- * This module does not start the broker by itself and does not perform
- * any message processing logic.
- *
- * @responsability
- * - Instantiate the Broker with TLS configuration
- * - Expose the Broker HTTP listener
- * - Provide a single shared Broker instance for the process
- *
- * @restrictions
- * - Must not contain message handling or business logic
- * - Must not reconfigure the Broker after instantiation
- * - Must not start or stop the Broker lifecycle explicitly
- *
- * @architecture
- * Infrastructure / integration layer.
- * This module wires the messaging broker into the HTTP server.
+ * Instantiates a Broker client with TLS config and exposes its HTTP listener.
  */
 
-import BrokerModule from "../messaging/index";
-import { ENV } from "./env";
+import { buildTlsFromEnv } from "@trading-model/common/config/tls-paths";
+import { normalizeError } from "@trading-model/common/utils/errors";
+import { logger } from "@trading-model/http/infrastructure/logger";
+import { createRedisClient } from "@trading-model/persistence/redis-connection-manager";
+import { redisConnectionFromEnv } from "@trading-model/persistence/redis-env";
+import type Redis from "ioredis";
+import { RedisSubscriptionStore } from "../adapters/outbound/redis-subscription-store";
+import { ENV } from "../infrastructure/config/env";
+import createBrokerModule from "./container";
+
+const SUBSCRIPTION_KEY_PREFIX = "trading-model:message-manager";
+
+const REDIS_CONNECTION = redisConnectionFromEnv(ENV);
 
 /**
- * Broker singleton instance.
- *
- * @description
- * Instantiated once at module load time using TLS configuration
- * provided by the runtime environment.
- *
- * This instance is shared across the entire application lifecycle.
+ * Holds the subscriptions shared by the replicas. Lazy: connects on the first
+ * command. Absent without Redis (single replica, subscriptions in memory).
  */
-const BROKER = new BrokerModule({
-	certificatePath: ENV.TLS_CERT_PATH,
-	keyCertificatePath: ENV.TLS_KEY_PATH,
-	rootCACertPath: ENV.TLS_CA_PATH,
-});
+const SUBSCRIPTION_REDIS = REDIS_CONNECTION
+	? (createRedisClient(REDIS_CONNECTION) as Redis)
+	: undefined;
+
+if (!SUBSCRIPTION_REDIS) {
+	logger.warn(
+		"Redis not configured — subscriptions kept in memory (single replica only)"
+	);
+}
 
 /**
- * Message broker HTTP route binder.
- *
- * @description
- * Exposes HTTP endpoints required by the messaging broker.
- *
- * This function is intended to be mounted directly on an Express
- * (or compatible) application instance.
- *
- * @returns {void}
- *
- * @lifecycle
- * Must be registered during HTTP server initialization.
+ * Broker singleton, instantiated at module load time.
+ */
+const BROKER = createBrokerModule(
+	buildTlsFromEnv(ENV),
+	{
+		filePath: ENV.DLQ_LOCAL_FALLBACK_PATH,
+		dlqSecret: ENV.DLQ_AUTH_HMAC_SECRET,
+	},
+	SUBSCRIPTION_REDIS
+		? new RedisSubscriptionStore({
+				redis: SUBSCRIPTION_REDIS,
+				keyPrefix: SUBSCRIPTION_KEY_PREFIX,
+			})
+		: undefined
+);
+
+/**
+ * HTTP route binder to be mounted on an Express app instance.
  */
 const MESSAGE_MANAGER_ROUTES = BROKER.listen;
 
-export { MESSAGE_MANAGER_ROUTES };
+if (!ENV.DLQ_AUTH_HMAC_SECRET) {
+	logger.warn(
+		"DLQ_AUTH_HMAC_SECRET not set — dead letters stay in DLQ_LOCAL_FALLBACK_PATH, not in dlq-service"
+	);
+}
+
+let forwardTimer: NodeJS.Timeout | undefined;
+
+function forwardDeadLetters(): Promise<void> {
+	return BROKER.forwardDeadLetters().catch((err: unknown) => {
+		logger.error("Forwarding the local dead letters failed", {
+			error: normalizeError(err),
+		});
+	});
+}
+
+/**
+ * Sends the dead letters kept in the local file to dlq-service, now (left
+ * by a previous run) and every DLQ_FORWARD_INTERVAL_MS.
+ */
+function startDeadLetterForwarding(): void {
+	void forwardDeadLetters();
+	forwardTimer = setInterval(
+		() => void forwardDeadLetters(),
+		ENV.DLQ_FORWARD_INTERVAL_MS
+	);
+	forwardTimer.unref();
+}
+
+/**
+ * On shutdown, once no delivery is in flight: closes the subscription store
+ * and sends the dead letters still in the local file, whose volume does not
+ * outlive the pod.
+ */
+async function closeMessageManager(): Promise<void> {
+	clearInterval(forwardTimer);
+	SUBSCRIPTION_REDIS?.disconnect();
+	await forwardDeadLetters();
+}
+
+export {
+	closeMessageManager,
+	MESSAGE_MANAGER_ROUTES,
+	startDeadLetterForwarding,
+};

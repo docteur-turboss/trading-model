@@ -16,7 +16,7 @@ Client → /v1/{service}/... → API Gateway → auth → rate-limit → resolve
 
 ## Startup order
 
-Position 6 — after job-scheduler, port 8448. Depends only on `discovery-server:healthy`.
+Position 6 — after discovery-server, port 8448. Depends only on `discovery-server:healthy`.
 
 ## Failure impact
 

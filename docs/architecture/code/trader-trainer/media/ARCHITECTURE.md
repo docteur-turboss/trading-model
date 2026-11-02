@@ -12,6 +12,54 @@
 4. **Memory Optimization**: Dynamically allocate population size based on available physical memory
 5. **Agent Export**: Deploy best agents to Trader-Executor via Message Manager library or direct HTTPS
 
+### Why This Approach
+
+| Challenge | Solution |
+| --------- | -------- |
+| Trading is a high-dimensional sequential decision problem | Deep Q-Learning handles state-action value approximation |
+| Optimal architecture (layers, neurons, activations) is unknown | GA searches the topology space automatically |
+| RL hyperparameters (lr, gamma, epsilon decay) are hard to tune | GA mutates/crossovers them alongside architecture |
+| Single training run may produce brittle agents | Population-based evolution with Pareto archive preserves diverse solutions |
+| Overfitting to recent market conditions | Walk-forward validation on held-out windows |
+
+---
+
+### Termination Conditions
+
+The GA loop stops when **any** of these conditions is met (checked in order):
+
+1. `bestFitness >= rewardThreshold` — target fitness reached
+2. `stagnation >= stagnationPatience` — no improvement for N generations
+3. `generation >= maxGenerations` — max generations reached
+4. `elapsedMs >= timeBudgetMs` — time budget exhausted
+
+---
+
+### Service Dependencies
+
+**Message Manager** (`@trading-model/broker-message`): Primary data source. Subscribes to market data events via callback.
+
+| Event | Data | Frequency |
+| ----- | ---- | --------- |
+| `fetchCandlestickSeries` | OHLCV arrays | Periodic |
+| `fetchRecentTrades` | Trade arrays | Real-time |
+| `fetchOrderBookSnapshot` | Order book depth | Snapshot |
+| `fetchOrderBookTickerSnapshot` | Best bid/ask | Real-time |
+| `fetch24hrTickerStats` | 24h statistics | Periodic |
+| `fetchPriceTickerSnapshot` | Current prices | Real-time |
+
+**Address Manager** (`@trading-model/address-manager`): Service discovery and health monitoring. Every instance registers with the address manager for dynamic endpoint resolution, health check pings, and TTL management.
+
+**Trader-Executor** (output): The best trained agent is exposed via `/best-agent` REST endpoint for the consuming service to poll or receive.
+
+---
+
+### Health Checks
+
+- **Service ping**: Address manager pings each instance to verify liveness
+- **`/ping` endpoint**: Returns 200 when service is alive
+- **`/training-status` endpoint**: Shows if training is active, on which symbol, and current generation
+
 ---
 
 ## System Architecture
@@ -52,93 +100,42 @@
 ## Directory Structure
 
 ```
-services/Trader-Trainer/
+services/trader-trainer/
 ├── src/
-│   ├── app/
-│   │   ├── index.ts              # Service entry point
-│   │   └── server.ts             # Express server setup
-│   │
-│   └── core/
-│       ├── agent/
-│       │   ├── trading_agent.ts       # Orchestrates NN + Wallet + StateManager
-│       │   ├── trading_agent.spec.ts  # Unit tests
-│       │   ├── state_manager.ts       # Q-learning state & epsilon-decay
-│       │   ├── state_manager.spec.ts  # Unit tests
-│       │   └── auto_env.ts            # GA-compatible environment wrapper
-│       │
-│       ├── env/
-│       │   ├── wallet-manager.ts      # Simulates trading account
-│       │   └── wallet-manager.test.ts # Unit tests
-│       │
-│       ├── neural_network/
-│       │   ├── neural-network.ts      # Core NN implementation
-│       │   ├── neural-network.spec.ts # Unit tests
-│       │   ├── agent.ts               # NN + experience replay wrapper
-│       │   ├── type.ts                # Type definitions
-│       │   ├── activation.ts          # Activation functions
-│       │   ├── initializers.ts        # Weight initialization strategies
-│       │   ├── optimizer.ts           # Optimization algorithms (SGD, Adam, etc.)
-│       │   ├── losses.ts              # Loss functions (MSE, CE, Huber)
-│       │   ├── normalize.ts           # Normalization strategies
-│       │   └── utils.ts               # Utilities
-│       │
-│       └── genetic_algorithm/
-│           ├── ga_runner.ts           # Main GA evolution loop
-│           ├── ga_runner_refactored.ts # Modular GA runner
-│           ├── ga.spec.ts             # Unit tests (mutation, crossover, fitness)
-│           │
-│           ├── Core Operators:
-│           │   ├── mutation.ts        # Adaptive gaussian/levy mutation
-│           │   ├── crossover.ts       # Uniform/BLX-α/SBX crossover
-│           │   ├── selection.ts       # Tournament, roulette, rank-based
-│           │   └── evolution_engine.ts # Low-level evolution functions
-│           │
-│           ├── Evaluation & Fitness:
-│           │   ├── fitness.ts         # Sharpe, Sortino, Calmar metrics
-│           │   ├── evaluation_pipeline.ts # Multi-window evaluation
-│           │   └── complexity_estimator.ts # Complexity penalty & fitness adjustment
-│           │
-│           ├── Constraints & Validation:
-│           │   ├── complexity.ts      # Topology constraints
-│           │   ├── validation.ts      # Genome validation & repair
-│           │   └── adaptive_control_system.ts # Adaptive GA parameters
-│           │
-│           ├── Diversity & Speciation:
-│           │   ├── diversity.ts       # Speciation & novelty
-│           │   └── pareto_engine.ts   # Multi-objective optimization
-│           │
-│           ├── Genome & Encoding:
-│           │   ├── genome.ts          # Genome structure definition
-│           │   ├── genome_types.ts    # Type exports
-│           │   ├── encoding.ts        # Genome vectorization
-│           │   └── factory.ts         # Default genome creation
-│           │
-│           └── Infrastructure:
-│               ├── prng.ts            # Seeded random number generator
-│               ├── noise.ts           # Gaussian, Levy, Cauchy distributions
-│               ├── utils.ts           # Clamp, generateId
-│               └── index.ts           # Public API barrel export
-│
-├── docs/                 # Technical documentation
-│   ├── GENETIC_ALGORITHM.md
-│   ├── NEURAL_NETWORK.md
-│   ├── TRAINING_PROCESS.md
-│   ├── API.md
-│   └── INTEGRATION.md
-│
-├── package.json          # Dependencies
-├── tsconfig.json         # TypeScript config
-├── jest.config.js        # Jest testing config
-├── biome.json            # Biome config
-├── ARCHITECTURE.md       # This file
-└── README.md             # User guide
+│   ├── domain/                        # Pure computation (no IO, no metrics library)
+│   │   ├── agent/                     # TradingAgent, state manager, action mapping
+│   │   ├── env/                       # Simulated wallet, portfolio valuation, trade execution
+│   │   ├── neural-network/            # NN engine, optimizers, losses, experience replay
+│   │   ├── genetic-algorithm/         # GA engine: ga-runner, generation processor, evaluation
+│   │   │                              # pipeline, evolution engine, NSGA-II, genome operators,
+│   │   │                              # ga-telemetry (observability port)
+│   │   ├── feature-builders/, features/, data-handlers/, market-data/
+│   │   ├── market-data-buffer.ts      # Per-symbol rolling windows (onDataAdded hook)
+│   │   ├── training-settings.ts       # Hyper-parameters resolved by the composition root
+│   │   └── ports/model-publisher.port.ts
+│   ├── application/
+│   │   ├── index.ts                   # Entry point: bootstrap, bus subscriptions, training loop
+│   │   ├── server.ts                  # Express server + admin training routes
+│   │   ├── trainer.ts                 # Training lifecycle per symbol, publication, metrics
+│   │   └── training-session.ts        # One GA run with the injected settings and telemetry
+│   ├── adapters/
+│   │   ├── inbound/events/            # Market-data bus event handlers and processors
+│   │   ├── inbound/scheduler/         # Periodic training loop
+│   │   └── outbound/model-publisher.ts # Publishes trained models on the message bus
+│   ├── infrastructure/config/env.ts   # Zod-validated environment
+│   └── config/
+│       ├── container.ts               # Composition root: buffer, trainer, publisher, Prometheus hooks
+│       ├── metrics.ts, message-manager.ts, address-manager.ts
+├── tests/
+├── Dockerfile
+└── package.json
 ```
 
 ---
 
 ## Core Modules
 
-### 1. **app/** - Service Entry Point
+### 1. **application/** - Service Entry Point & Orchestration
 
 - **index.ts**: Initializes the service, binds to port, handles graceful shutdown
 - **server.ts**: Configures Express with security middleware (Helmet), health checks (/ping)
@@ -147,7 +144,7 @@ services/Trader-Trainer/
 
 ---
 
-### 2. **core/agent/** - Trading Agent Orchestration
+### 2. **domain/agent/** - Trading Agent Orchestration
 
 #### TradingAgent
 
@@ -159,7 +156,7 @@ public step(input: Float32Array, price?: number, done: boolean = false): {
   reward: number,
   metrics: any
 }
-```
+````
 
 **Key Methods**:
 
@@ -171,7 +168,8 @@ public step(input: Float32Array, price?: number, done: boolean = false): {
 - Network inference
 - Wallet state updates
 - Reward shaping based on P&L
-- Action mapping (discrete or continuous)
+- Action mapping (epsilon-greedy over sell / hold / buy)
+- Replay buffer and minibatch Q-learning updates (`remember`, `replay`)
 
 #### StateManager
 
@@ -195,7 +193,7 @@ Lightweight wrapper enabling GA runners to interface with TradingAgent without t
 
 ---
 
-### 3. **core/env/** - Trading Environment
+### 3. **domain/env/** - Trading Environment
 
 #### WalletManager
 
@@ -230,7 +228,7 @@ Sell: cash += amount * price - fees; position -= amount
 
 ---
 
-### 4. **core/neural_network/** - Deep Q-Learning Agent
+### 4. **domain/neural-network/** - Deep Q-Learning Agent
 
 #### NeuralNetwork
 
@@ -276,7 +274,7 @@ interface Experience {
 
 ---
 
-### 5. **core/genetic_algorithm/** - Evolution Engine
+### 5. **domain/genetic-algorithm/** - Evolution Engine
 
 #### GeneticAlgorithmRunner
 
@@ -354,8 +352,10 @@ interface Genome {
 
 **Fitness Calculation**:
 
+Fitness of the run's `TRAINER_FITNESS_TYPE` on the wallet PnL of the validation window (ADR-0025):
+
 ```
-fitness = α * sharpe_ratio + β * pnl - γ * complexity_penalty
+fitness = metric(episode PnL | bar PnL curve) - |metric| * 0.15 * complexity_penalty
 ```
 
 **Metrics**:
@@ -425,6 +425,44 @@ return best_genome_from(P)
 
 ---
 
+## Key Design Decisions
+
+### 1. Lamarckian Evolution (Weight Inheritance)
+
+After each evaluation window, trained neural network weights are **frozen back** into the genome (`trainedWeights`). Offspring inherit these weights (via crossover + mutation), so each generation builds on the knowledge of the previous one rather than starting from scratch.
+
+**File**: `ga-runner.ts` (`lamarckianUpdate`)
+
+### 2. Walk-Forward Validation
+
+Each symbol's market data is split into `train` (80%) and `validation` (20%) windows. The agent learns on `train` data via Q-learning, but fitness is computed **only on `validation` data** — guaranteeing out-of-sample evaluation.
+
+**File**: `ga-runner.ts` (`WindowSet` type)
+
+### 3. NSGA-II Multi-Objective Optimization
+
+Three competing objectives are optimized simultaneously: **avgPnl** (maximize), **sharpe** (maximize), **negFlops** (minimize complexity). Non-dominated sorting preserves solutions that excel in different trade-offs. A persistent `ParetoArchive` keeps the best solutions across generations.
+
+**File**: `pareto-engine.ts`
+
+### 4. Self-Adaptive GA Control
+
+GA meta-parameters (population size, elitism fraction, episodes per individual, kept within 10–30) are **themselves evolved** during training. The `adaptGAControl` function adjusts them based on stagnation and improvement history.
+
+**File**: `adaptive-control-system.ts`
+
+### 5. Immutable Genome Architecture
+
+All genome operations produce **new frozen objects** using `deepFreeze`. This eliminates mutation bugs and enables safe concurrent evaluation across the population.
+
+### 6. Pooled Parallel Evaluation
+
+Genomes are evaluated concurrently with a configurable concurrency cap (`evalConcurrency`, default 4). Each genome creates its own `RLBackend` (TradingAgent), runs Q-learning training, then evaluates on validation data.
+
+**File**: `ga-runner.ts` (`pooledEval`)
+
+---
+
 ## Integration with Microservices
 
 ### Input: Real Market Data
@@ -452,6 +490,44 @@ Trader-Executor Service
     ↓
 Live trading execution
 ```
+
+#### Agent Export Format
+
+The best agent summary (available at `/best-agent`) contains all fields needed to reconstruct and deploy:
+
+```typescript
+const agent = new TradingAgent({
+  nnConfig: {
+    neuronsByLayer: [
+      summary.network.inputDim,
+      ...summary.network.hiddenLayers.map(l => l.neurons),
+      summary.network.outputDim,
+    ],
+    activationFunctions: summary.network.hiddenLayers.map(l => l.activation),
+  },
+  wallet: { initialCash: 1000, initialPrice: 1 },
+  actionSpace: 'discrete',
+  tradeAmount: 1,
+  stateManagerCfg: {
+    epsilonStart: summary.rl.epsilonStart,
+    epsilonMin: summary.rl.epsilonMin,
+    epsilonDecay: summary.rl.epsilonDecay,
+    gamma: summary.rl.gamma,
+  },
+});
+```
+
+For complete agent reconstruction (with trained weights), the `trainedWeights` field would need to be exported — this is currently internal but can be added to the API response.
+
+#### Adding New Market Data Sources
+
+To consume additional market data:
+
+1. Add event type to imports in `application/index.ts`
+2. Subscribe in the `onStart` handler
+3. Add to `MessageManager.intents()` array
+4. Process data in `MarketDataBuffer` (add new normalizer if needed)
+5. Add feature dimension in `buildFeatures()` if new data is used as input
 
 ---
 
@@ -532,13 +608,13 @@ type SelectionType = 'tournament' | 'roulette' | 'rank' | 'sus';
 - `typescript@~6.0.3`: Language
 - `jest@^30.4.2`: Testing
 - `ts-jest@^29.4.9`: TypeScript support for Jest
-- `@biomejs/biome`: Linting + formatting
+- `eslint@^10.3.0`: Linting
 
 ---
 
 ## Code Standards
 
-See [CODE_OF_CONDUCT.md](../../docs/CODE_OF_CONDUCT.md) for:
+See [Monorepo Standards](../../docs/standards/README.md) for:
 
 - Naming conventions
 - File organization

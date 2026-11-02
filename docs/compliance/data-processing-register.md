@@ -1,14 +1,22 @@
 # Data Processing Register — Art. 30 GDPR
 
-> **Registered as of:** 2026-06  
-> **Data Protection Officer:** Not required (<250 employees, no sensitive data at scale)  
-> **Review cadence:** Quarterly
+> **Registered as of:** 2026-10 (revised after audit 13.09)  
+> **Review cadence:** Quarterly, and on every change to a data store, a retention setting or the external entry point
+
+## Controller (Art. 30(1)(a))
+
+| Field                       | Value                                                                                       |
+| --------------------------- | ------------------------------------------------------------------------------------------- |
+| **Controller**              | _To be filled by the operating entity: legal name, address, registration number_            |
+| **Contact**                 | _To be filled: privacy contact address_                                                     |
+| **Representative (Art. 27)**| Not applicable when the controller is established in the EU                                 |
+| **Data Protection Officer** | Not designated. Art. 37 requires one only for public bodies, or when the core activity is large-scale regular monitoring of individuals or large-scale processing of special categories; neither applies. (The 250-employee threshold of Art. 30(5) concerns the register, not the DPO: this register is kept regardless) |
 
 ## Overview
 
-This register documents all data processing activities of the trading-model platform, as required by Article 30 of the General Data Protection Regulation (GDPR).
+This register documents the processing activities of the trading-model platform, as required by Article 30 GDPR.
 
-**Fundamental conclusion:** The trading-model platform processes **no personal data** as defined by Art. 4(1) GDPR. All data is machine-generated (market prices, service metadata, operational logs). There are no human users, no user profiles, no registrations, no cookies, no tracking, no biometric data, no location data of individuals.
+**Personal data in scope:** the platform has no user accounts, profiles, cookies or tracking. Its only personal data is the **IP address of external callers** of the API (activity 6): truncated by the edge-proxy before it is logged or forwarded, and kept 31 days in Loki. A truncated address (IPv4 /24, IPv6 /48) is pseudonymized, not anonymous, so the activity is registered. Every other activity processes machine-generated data only (market data, service identities, service events). Inside the platform, the remaining IPs are pod and container addresses; application logs truncate any IP they record (`anonymizeIp`), and log context fields are redacted before persistence.
 
 ---
 
@@ -18,55 +26,51 @@ This register documents all data processing activities of the trading-model plat
 | ------------------------ | --------------------------------------------------------------------------------------------------------------------------------- |
 | **Purpose**              | Ingest financial market data (OHLCV candles, trades, order books, tickers) for algorithmic trading agent training and backtesting |
 | **Data categories**      | Trading symbols (e.g., BTCUSDT), numeric price/volume data, timestamps, market identifiers                                        |
-| **Legal basis**          | Legitimate interest (Art. 6(1)(f)) — necessary for the core business purpose of algorithmic trading research                      |
-| **Data subjects**        | None — machine-generated data only                                                                                                |
+| **Personal data**        | None                                                                                                                              |
 | **Recipients**           | Internal: trader-trainer, audit-logger, message-manager                                                                           |
-| **Transfers outside EU** | Market data originates from **Binance API** (Cayman Islands). See third-party DPA assessment                                      |
-| **Retention period**     | 5 years (financial regulatory requirement — MiFID II Art. 72 for trading records)                                                 |
-| **Technical measures**   | mTLS encryption in transit (TLS 1.3), MySQL at rest, access via RBAC service accounts                                             |
+| **Transfers outside EU** | None. Market data is **received** from the Binance public API (Cayman Islands); nothing is sent to it. See third-party assessment |
+| **Retention period**     | **Not bounded yet.** Target 5 years (record-keeping, see [Data Retention Policy](data-retention-policy.md)); the former MySQL purge event was removed from migration 003 (audit A9) and its out-of-schema replacement is open (DPIA action #2) |
+| **Technical measures**   | mTLS (SPIFFE SVIDs), LUKS2 data disks, age-encrypted backups, RBAC service accounts                                               |
 | **System**               | financial-scraper → MySQL (market_candles, market_trades, market_tickers)                                                         |
 
 ## Processing Activity 2: Message Routing
 
-| Field                    | Value                                                                                                         |
-| ------------------------ | ------------------------------------------------------------------------------------------------------------- |
-| **Purpose**              | Inter-service message routing, topic-based publish/subscribe with delivery guarantees and dead-letter queuing |
-| **Data categories**      | Message payloads (JSON), metadata (topic, publisher identity, timestamps, correlation IDs), delivery status   |
-| **Legal basis**          | Legitimate interest (Art. 6(1)(f)) — necessary for system operation                                           |
-| **Data subjects**        | None — inter-service operational data                                                                         |
-| **Recipients**           | All 9 platform services (internal only)                                                                       |
-| **Transfers outside EU** | None — all services are self-hosted                                                                           |
-| **Retention period**     | Redis Streams: 2h TTL. MongoDB archive: 90 days. DLQ: 30 days                                                 |
-| **Technical measures**   | mTLS everywhere, message payload sanitization, HMAC integrity, deduplication                                  |
-| **System**               | message-manager → Redis Streams + MongoDB                                                                     |
+| Field                    | Value                                                                                                     |
+| ------------------------ | --------------------------------------------------------------------------------------------------------- |
+| **Purpose**              | Inter-service publish/subscribe with delivery retries; undeliverable messages go to the dead-letter queue |
+| **Data categories**      | Message payloads (JSON), metadata (topic, publisher identity, timestamps, correlation IDs), delivery status |
+| **Personal data**        | None                                                                                                      |
+| **Recipients**           | Internal platform services only                                                                           |
+| **Transfers outside EU** | None — all services are self-hosted                                                                       |
+| **Retention period**     | message-manager: in memory for the delivery only (Redis is used for readiness, not for messages). DLQ: 30 days (TTL index on `createdAt`), capped at `MAX_ENTRIES` (100 000) |
+| **Technical measures**   | mTLS everywhere, payload sanitization, deduplication                                                      |
+| **System**               | message-manager (HTTP push) → dlq-service → MongoDB (`dlq_entries`)                                       |
 
 ## Processing Activity 3: Audit Logging
 
 | Field                    | Value                                                                                                            |
 | ------------------------ | ---------------------------------------------------------------------------------------------------------------- |
-| **Purpose**              | Immutable audit trail of all service events, decisions, transactions, and errors for traceability and compliance |
+| **Purpose**              | Hash-chained audit trail of service events, decisions and errors, for traceability                               |
 | **Data categories**      | Service event metadata (publisher identity, message ID, topic, correlation ID, timestamp), payload snapshots     |
-| **Legal basis**          | Legal obligation (financial regulation — MiFID II record-keeping) + Legitimate interest (security monitoring)    |
-| **Data subjects**        | None — purely operational service event metadata                                                                 |
-| **Recipients**           | Internal: admin-interface (read-only), compliance officers (via MongoDB queries)                                 |
+| **Personal data**        | None                                                                                                             |
+| **Recipients**           | Internal: operators (read-only, via api-gateway), compliance (MongoDB queries)                                   |
 | **Transfers outside EU** | None                                                                                                             |
-| **Retention period**     | 90 days (current) — recommended extension to 5 years for financial regulatory compliance                         |
-| **Technical measures**   | Append-only MongoDB collection, correlation ID linking, gap detection, TTL index                                 |
-| **System**               | audit-logger → MongoDB (audit_events collection)                                                                 |
+| **Retention period**     | 1827 days (5 years): `AUDIT_RETENTION_DAYS`, TTL index on the `ttl` field set at insert                          |
+| **Technical measures**   | Append-only hash chain, gap detection, LUKS2 data disks, age-encrypted backups                                   |
+| **System**               | audit-logger → MongoDB (`audit_events`)                                                                          |
 
-## Processing Activity 4: Certificate Management
+## Processing Activity 4: Workload Identity (SPIRE SVIDs)
 
 | Field                    | Value                                                                                                                          |
 | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------ |
-| **Purpose**              | X.509 certificate lifecycle management for mTLS mutual authentication between all platform services                            |
-| **Data categories**      | Service identities (service names, instance IDs), RSA public keys, X.509 certificates, certificate serial numbers, CRL entries |
-| **Legal basis**          | Legitimate interest (Art. 6(1)(f)) — necessary for platform security                                                           |
-| **Data subjects**        | None — service identities only, no human identities                                                                            |
-| **Recipients**           | All 9 platform services (certificate distribution via certificate-client)                                                      |
+| **Purpose**              | SPIFFE/SPIRE workload identity (SVID issuance/rotation) for mTLS between all platform services                                 |
+| **Data categories**      | Service identities (service names, namespaces, service accounts), short-lived X.509 SVIDs, trust bundle                       |
+| **Personal data**        | None — service identities only                                                                                                 |
+| **Recipients**           | All platform services (SVID distribution via `spiffe-helper` sidecars)                                                        |
 | **Transfers outside EU** | None                                                                                                                           |
-| **Retention period**     | Active certificates: 7 days (auto-rotation). Expired/revoked: 90 days. CA keys: 3 versions retained                            |
-| **Technical measures**   | AES-256-GCM encryption at rest for CA keys, SecureKeyStore for in-memory keys, mTLS distribution                               |
-| **System**               | certificate-authority → MongoDB + filesystem (AES-256 encrypted)                                                               |
+| **Retention period**     | SVIDs: 1h TTL (auto-rotated). Trust bundle: 168h (ca_ttl). SPIRE datastore entries: workload lifecycle                         |
+| **Technical measures**   | Workload attestation (docker / k8s_psat), short-lived SVIDs, automatic rotation                                               |
+| **System**               | SPIRE Server → SPIRE Agent → spiffe-helper (datastore: MySQL `spire`)                                                           |
 
 ## Processing Activity 5: ML Training Data
 
@@ -74,24 +78,52 @@ This register documents all data processing activities of the trading-model plat
 | ------------------------ | ------------------------------------------------------------------------------------------------------------------ |
 | **Purpose**              | Training of genetic algorithm + deep Q-learning trading agents on historical market data                           |
 | **Data categories**      | Market data features (normalized arrays), agent genome parameters, fitness scores, training checkpoints            |
-| **Legal basis**          | Legitimate interest (Art. 6(1)(f)) — necessary for core research activity                                          |
-| **Data subjects**        | None — derived numeric features from machine data                                                                  |
-| **Recipients**           | Internal: trader-trainer internal state, checkpoint files on shared volume                                         |
+| **Personal data**        | None                                                                                                               |
+| **Recipients**           | Internal: trader-trainer, checkpoint files on shared volume                                                        |
 | **Transfers outside EU** | None                                                                                                               |
-| **Retention period**     | Best agent checkpoint: retained. Intermediate: discarded per auto-pruning. Training metrics: alongside audit trail |
-| **Technical measures**   | Shared volume with restricted RBAC, Lamarckian weight snapshots are machine-encoded arrays                         |
+| **Retention period**     | Best agent checkpoint: retained. Intermediate: discarded by auto-pruning                                           |
+| **Technical measures**   | Shared volume with restricted RBAC                                                                                 |
 | **System**               | trader-trainer → memory + shared volume (trainer-checkpoints-pvc)                                                  |
+
+## Processing Activity 6: API Access Logs (edge-proxy)
+
+| Field                    | Value                                                                                                              |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------ |
+| **Purpose**              | Security monitoring and troubleshooting of external calls to the API                                               |
+| **Data categories**      | Truncated caller IP (IPv4 /24, IPv6 /48), timestamp, method, path without query string, status, size, duration. No User-Agent, no X-Forwarded-For, no credentials |
+| **Data subjects**        | Operators and tools calling the public API                                                                         |
+| **Legal basis**          | Legitimate interest (Art. 6(1)(f)) — security of the service (recital 49)                                          |
+| **Recipients**           | Internal: operators (Grafana/Loki)                                                                                 |
+| **Transfers outside EU** | None — Loki is self-hosted                                                                                         |
+| **Retention period**     | 31 days (Loki `retention_period: 744h`)                                                                            |
+| **Technical measures**   | Truncation in nginx before the log line is written (`log_format anonymized`, `deploy/edge-proxy/default.conf`); the gateway forwards only an anonymized `X-Forwarded-For` and drops `X-Real-IP` |
+| **System**               | edge-proxy (stdout) → Promtail → Loki                                                                              |
+
+## Processing Activity 7: Operational Telemetry and Backups
+
+| Field                    | Value                                                                                                              |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------ |
+| **Purpose**              | Monitoring, tracing, alerting; disaster recovery                                                                   |
+| **Data categories**      | Service logs, metrics, traces (pod addresses, service names); database dumps of activities 1–4                     |
+| **Personal data**        | None (application logs truncate IPs and redact sensitive keys). Backups contain no personal data since activities 1–4 hold none |
+| **Recipients**           | Internal: operators. Alerts: Slack (alert names and labels only). Backups: off-site S3 store, age-encrypted before upload |
+| **Transfers outside EU** | Depends on the region of the off-site S3 store and of Slack — to be recorded by the operating entity               |
+| **Retention period**     | Loki: 31 days. Prometheus: 30 days. Jaeger: in memory until restart. Backups: 30 days locally (`RETENTION_DAYS`); off-site: bucket lifecycle rule, to be set to the same value |
+| **Technical measures**   | LUKS2 data disks, age encryption of every dump before it is written, only `.age` files copied off-site             |
+| **System**               | Promtail → Loki, Prometheus, Jaeger, Alertmanager; `db-backup` CronJob / `scripts/backup*.sh`                      |
 
 ---
 
 ## Summary
 
-| Activity              | Personal Data? | Legal Basis                 | Retention           | Transfers                    |
-| --------------------- | -------------- | --------------------------- | ------------------- | ---------------------------- |
-| Market Data Ingestion | ❌ None        | Legitimate interest         | 5 years (MiFID II)  | Binance API (Cayman Islands) |
-| Message Routing       | ❌ None        | Legitimate interest         | 2h–90 days          | None                         |
-| Audit Logging         | ❌ None        | Legal obligation + Interest | 90 days → target 5y | None                         |
-| Certificate Mgmt      | ❌ None        | Legitimate interest         | 7 days–90 days      | None                         |
-| ML Training           | ❌ None        | Legitimate interest         | Per-agent           | None                         |
+| Activity                 | Personal Data?      | Legal Basis         | Retention                    | Transfers                    |
+| ------------------------ | ------------------- | ------------------- | ---------------------------- | ---------------------------- |
+| Market Data Ingestion    | ❌ None             | —                   | Not bounded yet (target 5 y) | Received from Binance        |
+| Message Routing          | ❌ None             | —                   | In memory; DLQ 30 days       | None                         |
+| Audit Logging            | ❌ None             | —                   | 5 years (1827 days)          | None                         |
+| Workload Identity        | ❌ None             | —                   | 1h–168h                      | None                         |
+| ML Training              | ❌ None             | —                   | Per-agent                    | None                         |
+| API Access Logs          | ✅ Truncated IP     | Legitimate interest | 31 days                      | None                         |
+| Telemetry and Backups    | ❌ None             | —                   | 30–31 days                   | Off-site store / Slack (TBD) |
 
-**Conclusion:** All 5 processing activities operate on machine-generated data without any personal data (Art. 4(1) GDPR). No data subject rights (access, rectification, erasure, portability) are triggered. No consent is required. No Data Protection Officer appointment is mandatory.
+**Conclusion:** one activity processes personal data, limited to a truncated IP kept 31 days for security. Data subject rights apply to it in principle; since a truncated address cannot be linked to a requester, Art. 11 applies (no additional data collected to identify them).

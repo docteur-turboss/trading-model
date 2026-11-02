@@ -1,23 +1,30 @@
 import { describe, expect, it, jest } from "@jest/globals";
-import { ACTIVATIONS } from "../../../src/core/neural-network/activation";
-import { LOSSES } from "../../../src/core/neural-network/losses";
-import { NeuralNetwork } from "../../../src/core/neural-network/neural-network";
+import { ACTIVATIONS } from "../../../src/domain/neural-network/activation";
+import { LOSSES } from "../../../src/domain/neural-network/losses";
+import { NeuralNetwork } from "../../../src/domain/neural-network/neural-network";
+import {
+	ActivationType,
+	ConnectionType,
+	InitialisationType,
+	LossFunctionType,
+	NormalisationType,
+} from "../../../src/domain/neural-network/type";
 
-jest.mock("../../../src/config/env", () => ({
-	env: {},
+jest.mock("../../../src/infrastructure/config/env", () => ({
+	ENV: {},
 }));
 
 describe("NN Regression — Forward Pass", () => {
 	it("forward pass with known weights produces deterministic output", () => {
 		const nn = new NeuralNetwork({
 			neuronsByLayer: [2, 1],
-			activationType: ["relu"],
-			initialisationType: "zeros",
-			biasInitialisationType: "zeros",
+			activationType: [ActivationType.Relu],
+			initialisationType: InitialisationType.Zeros,
+			biasInitialisationType: InitialisationType.Zeros,
 			useBias: true,
-			normalisationType: "none",
-			connectionType: "fully-connected",
-			lossFunctionType: "mean-squared-error",
+			normalisationType: NormalisationType.None,
+			connectionType: ConnectionType.FullyConnected,
+			lossFunctionType: LossFunctionType.MeanSquaredError,
 		});
 
 		const weights = new Float32Array([0.5, 0.3]);
@@ -37,11 +44,11 @@ describe("NN Regression — Forward Pass", () => {
 	it("forward pass with different weights produces different output", () => {
 		const nn = new NeuralNetwork({
 			neuronsByLayer: [2, 1],
-			activationType: ["relu"],
-			initialisationType: "zeros",
-			biasInitialisationType: "zeros",
+			activationType: [ActivationType.Relu],
+			initialisationType: InitialisationType.Zeros,
+			biasInitialisationType: InitialisationType.Zeros,
 			useBias: true,
-			normalisationType: "none",
+			normalisationType: NormalisationType.None,
 		});
 
 		const params = new Float32Array([0.8, 0.2, 0]);
@@ -55,11 +62,11 @@ describe("NN Regression — Forward Pass", () => {
 	it("forward pass with negative weights produces negative ReLu output (clamps to zero)", () => {
 		const nn = new NeuralNetwork({
 			neuronsByLayer: [1, 1],
-			activationType: ["relu"],
-			initialisationType: "zeros",
-			biasInitialisationType: "zeros",
+			activationType: [ActivationType.Relu],
+			initialisationType: InitialisationType.Zeros,
+			biasInitialisationType: InitialisationType.Zeros,
 			useBias: true,
-			normalisationType: "none",
+			normalisationType: NormalisationType.None,
 		});
 
 		const params = new Float32Array([-2.0, 0]);
@@ -72,26 +79,34 @@ describe("NN Regression — Forward Pass", () => {
 
 describe("NN Regression — Loss Functions", () => {
 	const config = {
-		lossFunctionType: "mean-squared-error" as const,
+		lossFunctionType: LossFunctionType.MeanSquaredError,
 		deltaHuber: 1,
 		neuronsByLayer: [2, 1],
 		useBias: true,
-		normalisationType: "none" as const,
-		connectionType: "fully-connected" as const,
-		initialisationType: "zeros" as const,
+		normalisationType: NormalisationType.None,
+		connectionType: ConnectionType.FullyConnected,
+		initialisationType: InitialisationType.Zeros,
 	};
 
 	it("MSE of identical vectors is zero", () => {
 		const output = new Float32Array([0.5, 0.3]);
 		const target = new Float32Array([0.5, 0.3]);
-		const loss = LOSSES["mean-squared-error"].loss(output, target, config);
+		const loss = LOSSES[LossFunctionType.MeanSquaredError].loss(
+			output,
+			target,
+			config
+		);
 		expect(loss).toBe(0);
 	});
 
 	it("MSE of known vectors computes correct value", () => {
 		const output = new Float32Array([0.5, 0.3]);
 		const target = new Float32Array([0.7, 0.1]);
-		const loss = LOSSES["mean-squared-error"].loss(output, target, config);
+		const loss = LOSSES[LossFunctionType.MeanSquaredError].loss(
+			output,
+			target,
+			config
+		);
 		const expected = ((0.5 - 0.7) ** 2 + (0.3 - 0.1) ** 2) / 2;
 		expect(loss).toBeCloseTo(expected, 5);
 		expect(loss).toBeCloseTo(0.04, 5);
@@ -100,7 +115,11 @@ describe("NN Regression — Loss Functions", () => {
 	it("MAE of known vectors computes correct value", () => {
 		const output = new Float32Array([10, 20]);
 		const target = new Float32Array([12, 18]);
-		const loss = LOSSES["mean-absolute-error"].loss(output, target, config);
+		const loss = LOSSES[LossFunctionType.MeanAbsoluteError].loss(
+			output,
+			target,
+			config
+		);
 		const expected = (Math.abs(10 - 12) + Math.abs(20 - 18)) / 2;
 		expect(loss).toBeCloseTo(expected, 5);
 		expect(loss).toBe(2);
@@ -109,7 +128,11 @@ describe("NN Regression — Loss Functions", () => {
 	it("cross-entropy loss is finite for valid probabilities", () => {
 		const output = new Float32Array([0.7, 0.3]);
 		const target = new Float32Array([1, 0]);
-		const loss = LOSSES["cross-entropy"].loss(output, target, config);
+		const loss = LOSSES[LossFunctionType.CrossEntropy].loss(
+			output,
+			target,
+			config
+		);
 		expect(loss).toBeGreaterThan(0);
 		expect(Number.isFinite(loss)).toBe(true);
 	});
@@ -117,7 +140,11 @@ describe("NN Regression — Loss Functions", () => {
 	it("binary-cross-entropy loss is zero for perfect prediction", () => {
 		const output = new Float32Array([1]);
 		const target = new Float32Array([1]);
-		const loss = LOSSES["binary-cross-entropy"].loss(output, target, config);
+		const loss = LOSSES[LossFunctionType.BinaryCrossEntropy].loss(
+			output,
+			target,
+			config
+		);
 		expect(loss).toBeCloseTo(0, 5);
 	});
 });

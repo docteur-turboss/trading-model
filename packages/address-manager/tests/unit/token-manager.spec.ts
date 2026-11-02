@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, jest, test } from "@jest/globals";
-import type { HttpClient } from "@trading-model/common/config/http-client";
-import { AppError } from "@trading-model/common/utils/errors";
-import { TokenManager } from "../../src/client/token-manager";
-import type { AddressManagerConfig } from "../../src/config/address-manager-config";
+import type { HttpClient } from "@trading-model/http/adapters/outbound/http-client";
+import type { URLString } from "@trading-model/primitives/primitives";
+import { TokenManager } from "../../src/application/client/token-manager";
+import type { AddressManagerConfig } from "../../src/domain/config/address-manager-config";
 
 describe("TokenManager", () => {
 	let httpClient: jest.Mocked<HttpClient>;
@@ -14,21 +14,52 @@ describe("TokenManager", () => {
 
 		config = {
 			addressManagerUrl: "http://localhost:8443",
-			instanceId: "instance-1",
-			serviceName: "test-service",
 			servicePort: 8080,
 			tokenRefreshIntervalMs: 300_000,
 			ttlRefreshIntervalMs: 300_000,
 			servicePingTimeoutMs: 2000,
 			cacheTtlMs: 60_000,
+			identity: { serviceName: "test-service", instanceId: "instance-1" },
+			tls: {
+				caPath: "/path/to/ca.pem",
+				certPath: "/path/to/cert.pem",
+				keyPath: "/path/to/key.pem",
+			},
+			discoveryTimeoutMs: 5000,
 		} as AddressManagerConfig;
 
 		manager = new TokenManager(httpClient, config);
 	});
 
+	describe("exclusive", () => {
+		test("a token use queued during a rotation sees the new token", async () => {
+			manager.setToken("old");
+			let finishRotation: (value: { token: string }) => void = () => {};
+			httpClient.post.mockReturnValueOnce(
+				new Promise((resolve) => {
+					finishRotation = resolve;
+				})
+			);
+
+			const rotation = manager.refreshToken();
+			const heartbeat = manager.exclusive(async () => manager.getToken());
+			finishRotation({ token: "new" });
+
+			await rotation;
+			expect(await heartbeat).toBe("new");
+		});
+
+		test("a failed operation does not block the next one", async () => {
+			await expect(
+				manager.exclusive(() => Promise.reject(new Error("boom")))
+			).rejects.toThrow("boom");
+			await expect(manager.exclusive(async () => "next")).resolves.toBe("next");
+		});
+	});
+
 	describe("getToken", () => {
 		test("should throw AuthenticationError if token is not available", () => {
-			expect(() => manager.getToken()).toThrow(AppError);
+			expect(() => manager.getToken()).toThrow(Error);
 			expect(() => manager.getToken()).toThrow(
 				"Token is not available. Did you call refreshToken()?"
 			);
@@ -57,7 +88,7 @@ describe("TokenManager", () => {
 		test("should clear the stored token", () => {
 			manager.setToken("some-token");
 			manager.clearToken();
-			expect(() => manager.getToken()).toThrow(AppError);
+			expect(manager.getTokenOrUndefined()).toBeUndefined();
 		});
 	});
 
@@ -70,10 +101,10 @@ describe("TokenManager", () => {
 			await manager.refreshToken();
 
 			expect(httpClient.post).toHaveBeenCalledWith(
-				`${config.addressManagerUrl}/token/rotate`,
+				`${config.addressManagerUrl}/token/rotate` as URLString,
 				{
-					instanceId: config.instanceId,
-					serviceName: config.serviceName,
+					instanceId: config.identity.instanceId,
+					serviceName: config.identity.serviceName,
 				},
 				{
 					headers: { "x-instance-token": "initial-token" },
@@ -90,10 +121,10 @@ describe("TokenManager", () => {
 			await manager.refreshToken();
 
 			expect(httpClient.post).toHaveBeenCalledWith(
-				`${config.addressManagerUrl}/token/rotate`,
+				`${config.addressManagerUrl}/token/rotate` as URLString,
 				{
-					instanceId: config.instanceId,
-					serviceName: config.serviceName,
+					instanceId: config.identity.instanceId,
+					serviceName: config.identity.serviceName,
 				},
 				{ headers: {} }
 			);
@@ -104,7 +135,7 @@ describe("TokenManager", () => {
 			httpClient.post.mockResolvedValueOnce({});
 			manager.setToken("initial-token");
 
-			await expect(manager.refreshToken()).rejects.toThrow(AppError);
+			await expect(manager.refreshToken()).rejects.toThrow(Error);
 			await expect(manager.refreshToken()).rejects.toThrow(
 				"Invalid token response from Address Manager"
 			);
@@ -114,7 +145,7 @@ describe("TokenManager", () => {
 			const error = new Error("Network failure");
 			httpClient.post.mockRejectedValueOnce(error);
 			manager.setToken("initial-token");
-			await expect(manager.refreshToken()).rejects.toThrow(AppError);
+			await expect(manager.refreshToken()).rejects.toThrow(Error);
 
 			httpClient.post.mockRejectedValueOnce(error);
 			manager.setToken("initial-token");

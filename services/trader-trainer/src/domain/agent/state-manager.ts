@@ -1,0 +1,58 @@
+import { Probability } from "@trading-model/primitives/primitives";
+import type { NeuralNetwork } from "../neural-network/neural-network";
+
+interface GenomeTarget {
+	nn: Pick<NeuralNetwork, "setWeights" | "distributeAroundWeights">;
+}
+
+/** Configuration for epsilon-greedy exploration decay and discount factor. */
+export interface StateManagerConfig {
+	epsilonStart?: number;
+	epsilonMin?: number;
+	/** Multiplicative decay applied per step. */
+	epsilonDecay?: number;
+}
+
+/** Manages epsilon-greedy exploration schedule and agent weight initialisation from genomes. */
+class StateManager {
+	private _epsilon: number;
+
+	constructor(private readonly _cfg: StateManagerConfig = {}) {
+		this._epsilon = Probability.of(_cfg.epsilonStart ?? 1.0);
+	}
+
+	getEpsilon(): number {
+		return this._epsilon;
+	}
+
+	/** Decay epsilon multiplicatively towards its configured minimum. */
+	decayEpsilon(): void {
+		const decay = this._cfg.epsilonDecay ?? 0.995;
+		const minV = this._cfg.epsilonMin ?? 0.01;
+		this._epsilon = Math.max(minV, this._epsilon * decay);
+	}
+
+	/** Reset epsilon to its configured starting value (e.g. at episode start). */
+	resetEpsilon(): void {
+		this._epsilon = this._cfg.epsilonStart ?? 1.0;
+	}
+
+	/**
+	 * Initialise agent weights from a flat genome buffer or broadcast a scalar with noise.
+	 *
+	 * @throws AgentError when the genome length does not match the network — a
+	 * mismatched genome is a topology bug, never silently replaced by noise.
+	 */
+	public initialiseFromGenome(
+		agent: GenomeTarget,
+		genome: Float32Array | number
+	): void {
+		if (typeof genome === "number") {
+			agent.nn.distributeAroundWeights(genome, 0.1);
+		} else {
+			agent.nn.setWeights(genome);
+		}
+	}
+}
+
+export default StateManager;

@@ -14,10 +14,10 @@ The trading-model platform trains autonomous trading agents using Genetic Algori
 
 | Requirement | Platform Implementation | Status |
 |---|---|---|
-| **Art. 1(1)** — Clearly describe system design and operation | Architecture documented in `docs/architecture/`, ADRs in `docs/adr/`, agent topology defined in `services/trader-trainer/src/neural-network/` | ✅ Documented |
+| **Art. 1(1)** — Clearly describe system design and operation | Architecture documented in `docs/architecture/`, ADRs in `docs/adr/`, agent topology defined in `services/trader-trainer/src/domain/neural-network/` | ✅ Documented |
 | **Art. 1(2)** — Identify trading algorithms, logic, constraints | GA population evolution + DQN policy network. Constraints: position sizing, market data window (500 candles default), train/validation split (80/20) | ✅ Implemented |
-| **Art. 1(3)** — Risk management controls pre-deployment | Circuit breakers (`@trading-model/common/reliability/circuit-breaker.ts`), rate limiting, position limits validated in env schema | ✅ Implemented |
-| **Art. 1(4)** — Business continuity arrangements | Docker Compose health checks, K8s HPA + PDB, database failover runbooks (`docs/operations/runbook-database-failover.md`) | ✅ Documented |
+| **Art. 1(3)** — Risk management controls pre-deployment | Circuit breakers (`@trading-model/reliability/circuit-breaker.ts`), rate limiting, position limits validated in env schema | ✅ Implemented |
+| **Art. 1(4)** — Business continuity arrangements | Docker Compose health checks, K8s HPA + PDB, database failover runbooks (`docs/operations/runbooks/runbook-database-failover.md`) | ✅ Documented |
 
 ## 3. Governance & Testing Requirements (RTS 6 Art. 3-5)
 
@@ -27,8 +27,8 @@ The platform must demonstrate that algorithmic trading systems conform to specif
 
 | Test | Implementation | Evidence |
 |---|---|---|
-| **Market data integrity** — input validation and sanitisation | Zod schemas validate all incoming market data (`services/financial-scraper/src/clients/binance/`). SSRF protection (`@trading-model/common/utils/ssrf-protection.ts`) | Integration tests |
-| **Agent behaviour bounds** — max position, max order frequency | Enforced via agent environment constraints in `services/trader-trainer/src/environment/` | Unit tests |
+| **Market data integrity** — input validation and sanitisation | Zod schemas validate all incoming market data (`services/financial-scraper/src/adapters/outbound/binance/`) | Integration tests |
+| **Agent behaviour bounds** — max position, max order frequency | Enforced via agent environment constraints in `services/trader-trainer/src/domain/env/` | Unit tests |
 | **Order generation validation** — no erroneous orders | Training operates in simulation mode only; no real order execution | N/A (simulation only) |
 | **Kill functionality** — ability to halt trading | Not implemented in simulation. Production deployment requires a circuit breaker at the api-gateway level | 🟡 Planned |
 
@@ -36,9 +36,9 @@ The platform must demonstrate that algorithmic trading systems conform to specif
 
 | Scenario | Platform Response |
 |---|---|
-| **Market data feed loss** — Binance API unavailable | `circuit-breaker.ts` opens after configurable failure threshold. `dlq-service` captures failed messages. Agent pauses training and awaits data recovery |
+| **Market data feed loss** — Binance API unavailable or geo-blocked ([ADR-0026](../adr/0026-binance-public-market-data-kept.md)) | No circuit breaker on the Binance client: 5xx, 429, 408 and network errors are retried with exponential backoff (5 attempts); 403 (WAF), 418 (IP ban) and 451 (restricted location) are not. A failed cycle persists and publishes nothing, so no message reaches `dlq-service`. Detected by `BinanceRestrictedLocation` (451), `ScrapeCyclesFailing` and `MarketDataStale`; fallbacks in [runbook-market-data-stale](../operations/runbooks/runbook-market-data-stale.md). The trainer stops training a symbol whose newest candle is older than `TRAINER_MAX_DATA_AGE_MS` (15 min) and resumes when fresh data arrives |
 | **Extreme volatility** — rapid price movements | Agent uses normalised feature vectors; outlier detection in `feature-builder.ts`. No live execution risk in simulation |
-| **High message volume** — Redis Streams backpressure | Stream MAXLEN ~500000, DLQ with adaptive backoff, audit-logger with back-pressure management via job queue |
+| **High message volume** — synchronous HTTP broker, no message buffer ([ADR-0019](../adr/0019-message-broker-as-built.md)) | Per-subscriber circuit breaker, exponential backoff (10 attempts), dead letters counted and alerted (`MessagesDeadLettered`, `MessagesLost`), audit-logger with back-pressure management via job queue. Messages are not persisted: a broker restart loses in-flight messages |
 
 ### 3.3 Annual Self-Assessment (Art. 6)
 
@@ -54,7 +54,7 @@ The platform should undergo an annual review covering:
 
 | Control | Implementation |
 |---|---|
-| **Max order volume/ value** | Enforced in agent action space definition (`services/trader-trainer/src/environment/`) |
+| **Max order volume/ value** | Enforced in agent action space definition (`services/trader-trainer/src/domain/env/`) |
 | **Max order frequency** | Configurable via `MAX_ORDERS_PER_EPISODE` env var |
 | **Dual-channel price validation** | Not implemented — simulation only. For production: requires independent price feed comparison |
 | **Pre-trade risk checks** | Not implemented — simulation only. For production: requires integration with market gateway |
@@ -105,4 +105,4 @@ When transitioning from research/simulation to production algorithmic trading, t
 | [Data Processing Register](data-processing-register.md) — Activity 5 | ML training data processing classification |
 | `services/trader-trainer/src/` | Agent training source code |
 | `docs/adr/0001-ga-dqn-training.md` | Architecture decision for GA/DQN approach |
-| `docs/operations/runbook-service-down.md` | Service recovery procedures |
+| `docs/operations/runbooks/runbook-service-down.md` | Service recovery procedures |

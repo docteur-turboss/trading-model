@@ -1,14 +1,14 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 
-jest.mock("@trading-model/common/server/bootstrap", () => ({
+jest.mock("@trading-model/server-utils/application/services/bootstrap", () => ({
 	createBootstrap: jest.fn(),
 }));
 
-jest.mock("../../src/app/server", () => ({
+jest.mock("../../src/application/server", () => ({
 	createServer: jest.fn(),
 }));
 
-jest.mock("../../src/config/env", () => ({
+jest.mock("../../src/infrastructure/config/env", () => ({
 	ENV: {
 		PORT: 3000,
 		TLS_KEY_PATH: "/key",
@@ -16,15 +16,38 @@ jest.mock("../../src/config/env", () => ({
 		TLS_CA_PATH: "/ca",
 		CLEANUP_SERVICE_INTERVAL_MS: 5000,
 		ERROR_URL_WEBHOOK: "https://hooks.example.com/error",
+		REDIS_URL: "redis://localhost:6379",
+		SIGNING_SECRET: "signing-secret",
 	},
 }));
 
-jest.mock("../../src/core/service-registry", () => {
+jest.mock("../../src/domain/service-registry", () => {
 	const { ServiceRegistry } = jest.requireActual(
-		"../../src/core/service-registry"
+		"../../src/domain/service-registry"
 	);
 	return { ServiceRegistry };
 });
+
+jest.mock("../../src/domain/lease-manager", () => {
+	const { LeaseManager } = jest.requireActual("../../src/domain/lease-manager");
+	return { LeaseManager };
+});
+
+const mockRedisClient = {
+	connect: jest.fn().mockResolvedValue(undefined),
+	ping: jest.fn().mockResolvedValue("PONG"),
+	disconnect: jest.fn(),
+};
+
+jest.mock("@trading-model/persistence/redis-connection-manager", () => ({
+	createRedisClient: jest.fn(() => mockRedisClient),
+}));
+
+jest.mock("../../src/adapters/outbound/redis-instance-store", () => ({
+	RedisInstanceStore: jest.fn().mockImplementation(() => ({
+		deps: { redis: mockRedisClient, keyPrefix: "trading-model:discovery" },
+	})),
+}));
 
 describe("app/index", () => {
 	beforeEach(() => {
@@ -33,15 +56,17 @@ describe("app/index", () => {
 
 	it("should call createBootstrap with correct options on load", () => {
 		const { createBootstrap } = jest.requireMock(
-			"@trading-model/common/server/bootstrap"
+			"@trading-model/server-utils/application/services/bootstrap"
 		) as {
 			createBootstrap: jest.Mock;
 		};
-		const { createServer } = jest.requireMock("../../src/app/server") as {
+		const { createServer } = jest.requireMock(
+			"../../src/application/server"
+		) as {
 			createServer: jest.Mock;
 		};
 
-		require("../../src/app/index");
+		require("../../src/application/index");
 
 		expect(createBootstrap).toHaveBeenCalledTimes(1);
 		expect(createBootstrap).toHaveBeenCalledWith({
@@ -62,6 +87,28 @@ describe("app/index", () => {
 
 		opts.onStart();
 
+		opts.onStop();
+	});
+
+	it("should use RedisInstanceStore when REDIS_URL is set", () => {
+		jest.resetModules();
+
+		require("../../src/application/index");
+
+		const { createBootstrap } = jest.requireMock(
+			"@trading-model/server-utils/application/services/bootstrap"
+		) as {
+			createBootstrap: jest.Mock;
+		};
+
+		const opts = createBootstrap.mock.calls.at(-1)![0] as {
+			createServer: () => void;
+			onStart: () => void;
+			onStop: () => void;
+		};
+
+		opts.createServer();
+		opts.onStart();
 		opts.onStop();
 	});
 });

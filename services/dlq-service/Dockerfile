@@ -1,39 +1,43 @@
-FROM node:26-alpine AS deps
-WORKDIR /app
-COPY package.json package-lock.json ./
-COPY packages/ packages/
-COPY services/dlq-service/package.json services/dlq-service/
-RUN npm ci --omit=dev --ignore-scripts && npm cache clean --force
+# =============================================================================
+#  Dockerfile — dlq-service
+#  Multi-stage: deps → build → runtime
+# =============================================================================
 
-FROM node:26-alpine AS build
+FROM oven/bun@sha256:c1cc397e0be452c54f37cbcdfaa747eff93c993723af7d91658764d0fdfe5873 AS deps
 WORKDIR /app
-COPY package.json package-lock.json ./
+COPY package.json bun.lock ./
 COPY packages/ packages/
-COPY services/dlq-service/ services/dlq-service/
-RUN npm ci
-RUN npm run build:common
-RUN npm run build:certificate-utils
+COPY services/ services/
+# --ignore-scripts: the root "prepare" script runs husky, a dev dependency absent here.
+RUN bun install --frozen-lockfile --production --ignore-scripts
+
+FROM oven/bun@sha256:c1cc397e0be452c54f37cbcdfaa747eff93c993723af7d91658764d0fdfe5873 AS build
+WORKDIR /app
+COPY package.json bun.lock ./
+COPY packages/ packages/
+COPY services/ services/
+RUN bun install --frozen-lockfile
+RUN bun run build
 WORKDIR /app/services/dlq-service
-RUN npm run build
+RUN bun run build
 
-FROM node:26-alpine AS runtime
+# Node runtime: Bun exposes neither the peer certificate on HTTPS request
+# sockets nor server.setSecureContext, which SPIFFE mTLS (ADR-0011) relies on
+# for caller identity and SVID rotation.
+FROM node@sha256:0a7108bf6c7bf5de370ffb1a3ed6be93d405b43ff159f681a8d18c0e2bc2e402 AS runtime
 WORKDIR /app
 RUN apk add --no-cache tini curl
-COPY --from=deps /app/package.json /app/package-lock.json ./
+
 COPY --from=deps /app/node_modules ./node_modules
-COPY --from=deps /app/services/dlq-service/package.json ./services/dlq-service/
-COPY --from=build /app/packages/common/package.json ./packages/common/
-COPY --from=build /app/packages/common/dist ./packages/common/dist
-COPY --from=build /app/packages/certificate-client/package.json ./packages/certificate-client/
-COPY --from=build /app/packages/certificate-client/dist ./packages/certificate-client/dist
+COPY --from=build /app/packages ./packages
+COPY --from=build /app/services/dlq-service/package.json ./services/dlq-service/
 COPY --from=build /app/services/dlq-service/dist ./services/dlq-service/dist
-EXPOSE 3000
 
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 USER appuser
 
+EXPOSE 3000
 HEALTHCHECK --interval=15s --timeout=5s --retries=3 \
-  CMD curl -sk --cert /certs/server.crt --key /certs/server-key.pem https://localhost:3000/health || exit 1
-
+  CMD curl -skf --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem https://localhost:3000/health/ready || exit 1
 ENTRYPOINT ["/sbin/tini", "--"]
-CMD ["node", "--max-old-space-size=192", "services/dlq-service/dist/app/index.js"]
+CMD ["node", "services/dlq-service/dist/application/index.js"]

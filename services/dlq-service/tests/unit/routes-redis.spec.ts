@@ -15,15 +15,15 @@ jest.mock("rate-limit-redis", () => {
 	return jest.fn();
 });
 
-jest.mock("@trading-model/common/config/http-client", () => ({
+jest.mock("@trading-model/http/adapters/outbound/http-client", () => ({
 	HttpClient: jest.fn(),
 }));
 
-jest.mock("@trading-model/common/middleware/catch-error", () => ({
+jest.mock("@trading-model/http/adapters/inbound/catch-error", () => ({
 	catchSync: (fn: (...args: unknown[]) => unknown) => fn,
 }));
 
-jest.mock("@trading-model/common/middleware/response-exception", () => ({
+jest.mock("@trading-model/http/adapters/inbound/response-exception", () => ({
 	sendResponse: (data: unknown) => data,
 }));
 
@@ -32,7 +32,7 @@ jest.mock("../../src/config/logger", () => ({
 }));
 
 jest.mock("../../src/config/audit", () => ({
-	notifyAudit: jest.fn(() => Promise.resolve()),
+	publishDlqEvent: jest.fn(),
 }));
 
 jest.mock("../../src/config/db", () => ({
@@ -41,29 +41,41 @@ jest.mock("../../src/config/db", () => ({
 	getMissingCriticalIndexes: () => [],
 }));
 
-jest.mock("../../src/dlq/repository", () => ({
-	DlqCapacityError: class DlqCapacityError extends Error {},
+jest.mock("../../src/adapters/outbound/repository", () => ({
 	dlqRepository: {
-		add: jest.fn(),
-		list: jest.fn(),
+		insert: jest.fn(),
+		query: jest.fn(),
 		delete: jest.fn(),
 		count: jest.fn(),
 		prune: jest.fn(),
-		markRetried: jest.fn(),
-		abandonExhaustedEntries: jest.fn(),
-		releaseClaimWithoutCount: jest.fn(),
-		incrementRetryCount: jest.fn(),
 		listQueuable: jest.fn(),
 	},
 }));
 
+jest.mock("../../src/adapters/outbound/claim-manager", () => ({
+	dlqClaimManager: {
+		claimEntriesForRetry: jest.fn(),
+		releaseStaleClaims: jest.fn(),
+		releaseClaimWithoutCount: jest.fn(),
+		incrementRetryCount: jest.fn(),
+		releaseClaimsByInstance: jest.fn(),
+	},
+}));
+
+jest.mock("../../src/adapters/outbound/retry-manager", () => ({
+	dlqRetryManager: {
+		markRetried: jest.fn(),
+		abandonExhaustedEntries: jest.fn(),
+	},
+}));
+
 jest.mock("../../src/config/address-manager", () => ({
-	findAService: jest.fn(),
+	FIND_A_SERVICE: jest.fn(),
 	AddressManager: { start: jest.fn() },
 }));
 
-jest.mock("../../src/config/env", () => ({
-	env: {
+jest.mock("../../src/infrastructure/config/env", () => ({
+	ENV: {
 		DLQ_AUTH_HMAC_SECRET: "test-secret-16-chars",
 		DLQ_ALLOWED_SERVICES: "message-manager,admin",
 		MAX_ENTRIES: 100,
@@ -97,8 +109,10 @@ jest.mock("../../src/config/metrics", () => ({
 	},
 }));
 
-jest.mock("@trading-model/common/validation/env", () => {
-	const actual = jest.requireActual("@trading-model/common/validation/env");
+jest.mock("@trading-model/validation/application/services/validate-env", () => {
+	const actual = jest.requireActual(
+		"@trading-model/validation/application/services/validate-env"
+	);
 	return {
 		...actual,
 		validateEnv: (schema: unknown) => {
@@ -155,7 +169,9 @@ describe("DLQ Routes — Redis", () => {
 	};
 
 	beforeAll(() => {
-		routes = jest.requireActual("../../src/dlq/routes") as typeof routes;
+		routes = jest.requireActual(
+			"../../src/adapters/inbound/routes"
+		) as typeof routes;
 	});
 
 	afterAll(() => {

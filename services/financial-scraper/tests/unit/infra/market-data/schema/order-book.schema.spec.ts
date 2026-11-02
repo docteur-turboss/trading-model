@@ -1,21 +1,31 @@
 import { beforeEach, describe, expect, it } from "@jest/globals";
+import {
+	MarketType,
+	SourceType,
+} from "@trading-model/contracts/market-data.types";
+import {
+	TradingSymbol,
+	UnixTimestamp,
+} from "@trading-model/primitives/primitives";
 
 import {
 	insertOrderBook,
 	selectOrderBookBy,
-} from "../../../../../src/infra/market-data/schema/order-book.schema";
+} from "../../../../../src/adapters/outbound/persistence/schema/order-book.schema";
 
-// The Zod schema in the source validates against arrays + Date,
-// not the OrderBookData TS type (Set + number).
+// OrderBookData as produced by the Binance normalizer: Set levels, Unix timestamp.
 const MAKE_BOOK = (overrides: Record<string, unknown> = {}) => ({
 	symbol: "BTCUSDT",
 	source: "binance",
 	market: "crypto" as const,
-	bids: [{ price: 50000, quantity: 0.5 }],
-	asks: [{ price: 50010, quantity: 1.0 }],
-	timestamp: new Date(),
+	bids: new Set([{ price: 50000, quantity: 0.5 }]),
+	asks: new Set([{ price: 50010, quantity: 1.0 }]),
+	timestamp: Date.now(),
 	...overrides,
 });
+
+const BTC = TradingSymbol.of("BTCUSDT");
+const DOGE = TradingSymbol.of("DOGEUSDT");
 
 describe("MarkerOrderBooks (in-memory storage)", () => {
 	describe("insert and query by symbol", () => {
@@ -24,13 +34,13 @@ describe("MarkerOrderBooks (in-memory storage)", () => {
 		});
 
 		it("should insert an order book and retrieve it via symbol", async () => {
-			const results = await selectOrderBookBy.symbol("BTCUSDT");
+			const results = await selectOrderBookBy.symbol(BTC);
 			expect(results).not.toBeNull();
 			expect(results!.length).toBe(1);
 		});
 
 		it("should return null for unknown symbol", async () => {
-			const results = await selectOrderBookBy.symbol("DOGEUSDT");
+			const results = await selectOrderBookBy.symbol(DOGE);
 			expect(results).toBeNull();
 		});
 	});
@@ -41,19 +51,19 @@ describe("MarkerOrderBooks (in-memory storage)", () => {
 		});
 
 		it("should find order books by source", async () => {
-			const results = await selectOrderBookBy.source("binance");
+			const results = await selectOrderBookBy.source(SourceType.Binance);
 			expect(results).not.toBeNull();
 			expect(results!.length).toBeGreaterThanOrEqual(1);
 		});
 
 		it("should return null for unknown source", async () => {
-			const results = await selectOrderBookBy.source("kraken");
+			const results = await selectOrderBookBy.source("kraken" as SourceType);
 			expect(results).toBeNull();
 		});
 	});
 
 	describe("timestamp range queries", () => {
-		const baseTime = new Date();
+		const baseTime = Date.now();
 
 		beforeEach(async () => {
 			await insertOrderBook([MAKE_BOOK({ timestamp: baseTime }) as never]);
@@ -61,7 +71,7 @@ describe("MarkerOrderBooks (in-memory storage)", () => {
 
 		it("should find order books after a given timestamp", async () => {
 			const results = await selectOrderBookBy.timestamp.after(
-				baseTime.getTime() - 3600000
+				UnixTimestamp.of(baseTime - 3600000)
 			);
 			expect(results).not.toBeNull();
 			expect(results!.length).toBeGreaterThanOrEqual(1);
@@ -69,7 +79,7 @@ describe("MarkerOrderBooks (in-memory storage)", () => {
 
 		it("should find order books before a given timestamp", async () => {
 			const results = await selectOrderBookBy.timestamp.before(
-				baseTime.getTime() + 3600000
+				UnixTimestamp.of(baseTime + 3600000)
 			);
 			expect(results).not.toBeNull();
 			expect(results!.length).toBeGreaterThanOrEqual(1);
@@ -78,8 +88,13 @@ describe("MarkerOrderBooks (in-memory storage)", () => {
 
 	describe("validation failure", () => {
 		it("should throw on invalid data", async () => {
-			const invalid = MAKE_BOOK({ market: "invalid" });
+			const invalid = MAKE_BOOK({ market: "invalid" as never });
 			await expect(insertOrderBook([invalid as never])).rejects.toThrow();
+		});
+
+		it("should reject levels sent as arrays instead of Sets", async () => {
+			const arrays = MAKE_BOOK({ bids: [{ price: 50000, quantity: 0.5 }] });
+			await expect(insertOrderBook([arrays as never])).rejects.toThrow();
 		});
 	});
 
@@ -91,7 +106,7 @@ describe("MarkerOrderBooks (in-memory storage)", () => {
 		});
 
 		it("should retrieve by id", async () => {
-			const marketData = await selectOrderBookBy.market("crypto");
+			const marketData = await selectOrderBookBy.market(MarketType.Crypto);
 			expect(marketData).not.toBeNull();
 
 			let found = false;
@@ -111,13 +126,13 @@ describe("MarkerOrderBooks (in-memory storage)", () => {
 		});
 
 		it("should retrieve by market", async () => {
-			const results = await selectOrderBookBy.market("crypto");
+			const results = await selectOrderBookBy.market(MarketType.Crypto);
 			expect(results).not.toBeNull();
 			expect(results!.length).toBeGreaterThanOrEqual(1);
 		});
 
 		it("should return null for unknown market", async () => {
-			const results = await selectOrderBookBy.market("fx");
+			const results = await selectOrderBookBy.market(MarketType.Fx);
 			expect(results).toBeNull();
 		});
 	});

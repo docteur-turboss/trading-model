@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 
-jest.mock("@trading-model/common/config/logger", () => ({
+jest.mock("@trading-model/http/infrastructure/logger", () => ({
 	logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
 
@@ -18,6 +18,10 @@ jest.mock("prom-client", () => {
 
 	return {
 		Registry: MockRegistry,
+		register: {
+			contentType: MOCK_CONTENT_TYPE,
+			metrics: MOCK_METRICS,
+		},
 		collectDefaultMetrics: jest.fn(),
 		Counter: jest.fn().mockImplementation(() => ({ inc: MOCK_INC })),
 		Histogram: jest.fn().mockImplementation(() => ({ observe: MOCK_OBSERVE })),
@@ -25,13 +29,15 @@ jest.mock("prom-client", () => {
 	};
 });
 
-import type { Request, Response } from "express";
 import {
-	METRICS_HANDLER,
+	incHeartbeatsTotal,
+	incLeaseCleanupCycle,
+	incOperationError,
 	observeCleanupDuration,
-	setActiveWsConnections,
+	setRegisteredInstances,
+	setRegisteredInstancesPerService,
 	trackRequest,
-} from "../../src/monitoring/metrics";
+} from "../../src/infrastructure/monitoring/metrics";
 
 describe("metrics", () => {
 	beforeEach(() => {
@@ -41,7 +47,12 @@ describe("metrics", () => {
 	describe("trackRequest", () => {
 		it("should track request metrics without throwing", () => {
 			expect(() => {
-				trackRequest("GET", "/test", 200, 10);
+				trackRequest({
+					method: "GET",
+					path: "/test",
+					status: 200,
+					durationMs: 10,
+				});
 			}).not.toThrow();
 			expect(MOCK_INC).toHaveBeenCalledWith({
 				method: "GET",
@@ -52,7 +63,12 @@ describe("metrics", () => {
 
 		it("should handle error status codes", () => {
 			expect(() => {
-				trackRequest("POST", "/register", 500, 50);
+				trackRequest({
+					method: "POST",
+					path: "/register",
+					status: 500,
+					durationMs: 50,
+				});
 			}).not.toThrow();
 		});
 	});
@@ -66,34 +82,53 @@ describe("metrics", () => {
 		});
 	});
 
-	describe("setActiveWsConnections", () => {
-		it("should set WebSocket connection count without throwing", () => {
+	describe("setRegisteredInstances", () => {
+		it("should set registered instances gauge without throwing", () => {
 			expect(() => {
-				setActiveWsConnections(5);
+				setRegisteredInstances(10);
 			}).not.toThrow();
-			expect(MOCK_SET).toHaveBeenCalledWith(5);
+			expect(MOCK_SET).toHaveBeenCalledWith(10);
 		});
 	});
 
-	describe("METRICS_HANDLER", () => {
-		it("should be a function", () => {
-			expect(typeof METRICS_HANDLER).toBe("function");
-		});
-
-		it("should return Prometheus metrics content type", async () => {
-			const req = {} as Request;
-			const res = {
-				setHeader: jest.fn(),
-				end: jest.fn(),
-			} as unknown as Response;
-
-			await METRICS_HANDLER(req, res);
-
-			expect(res.setHeader).toHaveBeenCalledWith(
-				"Content-Type",
-				expect.stringContaining("text/plain")
+	describe("setRegisteredInstancesPerService", () => {
+		it("should set per-service gauge without throwing", () => {
+			expect(() => {
+				setRegisteredInstancesPerService("financial-scraper-service", 5);
+			}).not.toThrow();
+			expect(MOCK_SET).toHaveBeenCalledWith(
+				{ service: "financial-scraper-service" },
+				5
 			);
-			expect(res.end).toHaveBeenCalledWith("mock_metrics 1");
+		});
+	});
+
+	describe("incHeartbeatsTotal", () => {
+		it("should increment heartbeat counter without throwing", () => {
+			expect(() => {
+				incHeartbeatsTotal("financial-scraper-service");
+			}).not.toThrow();
+			expect(MOCK_INC).toHaveBeenCalledWith({
+				service: "financial-scraper-service",
+			});
+		});
+	});
+
+	describe("incOperationError", () => {
+		it("should increment operation error counter without throwing", () => {
+			expect(() => {
+				incOperationError("register");
+			}).not.toThrow();
+			expect(MOCK_INC).toHaveBeenCalledWith({ operation: "register" });
+		});
+	});
+
+	describe("incLeaseCleanupCycle", () => {
+		it("should increment lease cleanup cycle counter without throwing", () => {
+			expect(() => {
+				incLeaseCleanupCycle();
+			}).not.toThrow();
+			expect(MOCK_INC).toHaveBeenCalledWith();
 		});
 	});
 });

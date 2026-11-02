@@ -1,34 +1,48 @@
 import { describe, expect, it, jest } from "@jest/globals";
 
-const mockAdd = jest.fn();
-const mockList = jest.fn();
+const mockInsert = jest.fn();
+const mockQuery = jest.fn();
 const mockDelete = jest.fn();
 const mockCount = jest.fn();
 const mockPrune = jest.fn();
+const mockQueryQueuable = jest.fn();
+
+jest.mock("../../src/adapters/outbound/repository", () => ({
+	dlqRepository: {
+		insert: mockInsert,
+		query: mockQuery,
+		delete: mockDelete,
+		count: mockCount,
+		prune: mockPrune,
+		listQueuable: mockQueryQueuable,
+	},
+}));
+
 const mockClaimEntriesForRetry = jest.fn();
 const mockReleaseStaleClaims = jest.fn();
 const mockClaimEntry = jest.fn();
 const mockIncrementRetryCount = jest.fn();
-const mockListQueuable = jest.fn();
 
-jest.mock("../../src/dlq/repository", () => ({
-	DlqCapacityError: class DlqCapacityError extends Error {},
-	dlqRepository: {
-		add: mockAdd,
-		list: mockList,
-		delete: mockDelete,
-		count: mockCount,
-		prune: mockPrune,
+jest.mock("../../src/adapters/outbound/claim-manager", () => ({
+	dlqClaimManager: {
 		claimEntriesForRetry: mockClaimEntriesForRetry,
 		releaseStaleClaims: mockReleaseStaleClaims,
 		claimEntry: mockClaimEntry,
 		incrementRetryCount: mockIncrementRetryCount,
-		listQueuable: mockListQueuable,
+		releaseClaimWithoutCount: jest.fn(),
+		releaseClaimsByInstance: jest.fn(),
 	},
 }));
 
-jest.mock("../../src/config/env", () => ({
-	env: {
+jest.mock("../../src/adapters/outbound/retry-manager", () => ({
+	dlqRetryManager: {
+		markRetried: jest.fn(),
+		abandonExhaustedEntries: jest.fn(),
+	},
+}));
+
+jest.mock("../../src/infrastructure/config/env", () => ({
+	ENV: {
 		MAX_ENTRIES: 100,
 		MESSAGE_MANAGER_URL: "https://message-manager:3000",
 		DLQ_RETRY_MAX_ATTEMPTS: 3,
@@ -52,7 +66,7 @@ jest.mock("../../src/config/db", () => ({
 }));
 
 jest.mock("../../src/config/address-manager", () => ({
-	findAService: jest.fn(),
+	FIND_A_SERVICE: jest.fn(),
 }));
 
 jest.mock("../../src/config/logger", () => ({
@@ -60,7 +74,7 @@ jest.mock("../../src/config/logger", () => ({
 }));
 
 jest.mock("../../src/config/audit", () => ({
-	notifyAudit: jest.fn(() => Promise.resolve()),
+	publishDlqEvent: jest.fn(),
 }));
 
 jest.mock("../../src/config/redis-queue", () => ({
@@ -86,15 +100,16 @@ jest.mock("../../src/config/metrics", () => ({
 	},
 }));
 
-jest.mock("@trading-model/common/middleware/catch-error", () => ({
+jest.mock("@trading-model/http/adapters/inbound/catch-error", () => ({
 	catchSync: (fn: (...args: never[]) => unknown) => fn,
 }));
 
-jest.mock("@trading-model/common/middleware/response-exception", () => ({
+jest.mock("@trading-model/http/adapters/inbound/response-exception", () => ({
 	sendResponse: (data: unknown, statusCode: number) => ({ data, statusCode }),
+	HEALTH_STATUS_OK: "ok",
 }));
 
-jest.mock("@trading-model/common/config/http-client", () => ({
+jest.mock("@trading-model/http/adapters/outbound/http-client", () => ({
 	HttpClient: jest.fn().mockImplementation(() => ({
 		post: jest.fn(),
 	})),
@@ -125,7 +140,20 @@ describe("DLQ Controller", () => {
 	};
 
 	beforeAll(() => {
-		controller = jest.requireActual("../../src/dlq/controller");
+		const handlers = jest.requireActual(
+			"../../src/adapters/inbound/dlq-service"
+		) as Record<string, (input: unknown) => Promise<never>>;
+		// The API routes hand their parsed input to the handlers (DLQ_API):
+		// invalid input never reaches them (see api-routes and the routes
+		// integration spec).
+		controller = {
+			...(jest.requireActual(
+				"../../src/adapters/inbound/controller"
+			) as typeof controller),
+			AddEntry: (req) => handlers.addEntry(req.body),
+			ListEntries: (req) => handlers.listEntries(req.query),
+			DeleteEntries: (req) => handlers.deleteEntries(req.body),
+		};
 	});
 
 	afterAll(() => {
@@ -134,14 +162,14 @@ describe("DLQ Controller", () => {
 
 	describe("AddEntry", () => {
 		it("should return 201 with id on valid entry", () => {
-			mockAdd.mockResolvedValueOnce("entry-1");
+			mockInsert.mockResolvedValueOnce("entry-1");
 
 			const req = {
 				body: {
 					topic: "test.event",
 					message: { data: 1 },
 					deliveryAttempt: 1,
-					timestamp: new Date().toISOString(),
+					timestamp: Date.now(),
 				},
 			};
 			return controller
@@ -151,22 +179,13 @@ describe("DLQ Controller", () => {
 					expect(result.data).toEqual({ id: "entry-1" });
 				});
 		});
-
-		it("should return 400 on invalid entry", () => {
-			const req = { body: { message: "invalid" } };
-			return controller
-				.AddEntry(req as MockReq)
-				.then((result: { statusCode: number }) => {
-					expect(result.statusCode).toBe(400);
-				});
-		});
 	});
 
 	describe("ListEntries", () => {
 		it("should return paginated entries with offset", () => {
-			mockList.mockResolvedValueOnce([{ id: "1", topic: "t1" }]);
+			mockQuery.mockResolvedValueOnce([{ id: "1", topic: "t1" }]);
 
-			const req = { query: { limit: "10", offset: "0" } };
+			const req = { query: { limit: 10, offset: 0 } };
 			return controller
 				.ListEntries(req as unknown as MockReq)
 				.then(
@@ -183,12 +202,12 @@ describe("DLQ Controller", () => {
 		});
 
 		it("should support cursor-based pagination", () => {
-			mockList.mockResolvedValueOnce([
+			mockQuery.mockResolvedValueOnce([
 				{ id: "5", topic: "t1" },
 				{ id: "4", topic: "t1" },
 			]);
 
-			const req = { query: { limit: "2", cursor: "abc" } };
+			const req = { query: { limit: 2, offset: 0, cursor: "abc" } };
 			return controller
 				.ListEntries(req as unknown as MockReq)
 				.then(
@@ -215,15 +234,6 @@ describe("DLQ Controller", () => {
 				.then((result: { statusCode: number; data: { deleted: number } }) => {
 					expect(result.statusCode).toBe(200);
 					expect(result.data.deleted).toBe(2);
-				});
-		});
-
-		it("should return 400 on empty ids", () => {
-			const req = { body: { ids: [] } };
-			return controller
-				.DeleteEntries(req as MockReq)
-				.then((result: { statusCode: number }) => {
-					expect(result.statusCode).toBe(400);
 				});
 		});
 	});

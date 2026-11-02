@@ -13,15 +13,17 @@ jest.mock("../../src/index", () => ({
 
 jest.mock("@trading-model/address-manager", () => ({}));
 
-import { createMessageManager } from "../../src/shared/helper/create-message-manager";
+import { createMessageManager } from "../../src/application/services/create-message-manager";
 
 describe("createMessageManager", () => {
 	const options = {
 		addressManagerClient: {} as any,
-		certificatePath: "/path/to/cert.pem",
+		tlsPaths: {
+			certPath: "/path/to/cert.pem",
+			keyPath: "/path/to/key.pem",
+			caPath: "/path/to/ca.pem",
+		},
 		instanceId: "550e8400-e29b-41d4-a716-446655440000",
-		keyCertificatePath: "/path/to/key.pem",
-		rootCACertPath: "/path/to/ca.pem",
 		serviceName: ServiceInstanceName.MessageDeliveryService,
 		callbackPath: "/callback",
 	};
@@ -37,10 +39,8 @@ describe("createMessageManager", () => {
 
 		expect(MessageManagerClass).toHaveBeenCalledWith({
 			addressManagerClient: options.addressManagerClient,
-			certificatePath: options.certificatePath,
+			tlsPaths: options.tlsPaths,
 			instanceId: options.instanceId,
-			keyCertificatePath: options.keyCertificatePath,
-			rootCACertPath: options.rootCACertPath,
 			serviceName: options.serviceName,
 			callbackPath: options.callbackPath,
 		});

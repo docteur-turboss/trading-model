@@ -1,22 +1,21 @@
+const { DB_SPEC_IGNORE } = require('../../scripts/jest-db-config.cjs');
+const { workspaceModuleNameMapper } = require('../../scripts/jest-workspace-mapper.cjs');
+
 /** @type {import('ts-jest').JestConfigWithTsJest} */
 module.exports = {
   testEnvironment: 'node',
   transform: {
     '^.+\\.tsx?$': ['ts-jest', {
-      diagnostics: { ignoreCodes: [151002] },
+      diagnostics: false,
     }],
   },
   rootDir: '.',
   testMatch: ['**/?(*.)+(spec).ts'],
-  testPathIgnorePatterns: ['/node_modules/', '/dist/'],
+  testPathIgnorePatterns: ['/node_modules/', '/dist/', DB_SPEC_IGNORE],
   moduleNameMapper: {
-    '^@trading-model/common/(.*)$': '<rootDir>/../../packages/common/src/$1',
-    '^infra/(.*)$': '<rootDir>/src/infra/$1',
+    ...workspaceModuleNameMapper(__dirname),
+    '^(\\.{1,2}/.*)\\.js$': '$1',
     '^config/(.*)$': '<rootDir>/src/config/$1',
-    '^clients/(.*)$': '<rootDir>/src/clients/$1',
-    '^job/(.*)$': '<rootDir>/src/job/$1',
-    '^types/(.*)$': '<rootDir>/src/types/$1',
-    '^utils/(.*)$': '<rootDir>/src/utils/$1',
   },
   collectCoverageFrom: ['src/**/*.ts', '!src/**/*.d.ts'],
   coverageThreshold: {

@@ -1,204 +1,171 @@
+# =============================================================================
+#  release.yml — Build & push Docker images on version tag
+#  Triggers on push of tags vX.Y.Z (e.g. v2.0.3, or v2.1.0-rc.1).
+#  Runs the whole CI first (ci.yml) on the tagged commit: no image is pushed
+#  unless every gate passes. Then builds the 7 service images + the tooling
+#  images (spire-tools, the K8s SPIRE entry reconciler; backup-tools, the
+#  db-backup CronJob) and pushes each as :X.Y.Z (no leading v).
+#  :latest moves to the release only when it is the highest stable version:
+#  a backport patch (v1.4.2 after v2.0.0) or a prerelease never takes it.
+#  Registry: repository variable IMAGE_REGISTRY, default ghcr.io/<owner> (the
+#  only GHCR namespace GITHUB_TOKEN can push to). Manifests keep the logical
+#  name ghcr.io/trading-model/*: deploy.yml rewrites it to the registry.
+# =============================================================================
+
 name: Release
 
 on:
   push:
     tags:
-      - 'v*.*.*'
+      - "v*"
 
 permissions:
   contents: read
 
-concurrency:
-  group: pages
-  cancel-in-progress: false
-
 jobs:
-  # ── Quality gate ───────────────────────────────────────────────────────────
-  quality:
+  version:
     runs-on: ubuntu-latest
     outputs:
-      version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.version.outputs.tag }}
+      latest: ${{ steps.version.outputs.latest }}
+      registry: ${{ steps.version.outputs.registry }}
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
-        with:
-          node-version: 'lts/*'
-          cache: 'npm'
+      - name: Checkout repository
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
 
-      - run: npm ci
-      - run: npm run lint
-      - name: Build packages (dependency order)
-        run: npm run build
-      - name: Type-check services
-        run: |
-          npm run -w services/message-manager build
-          npm run -w services/discovery-server build
-          npm run -w services/financial-scraper build
-          npm run -w services/trader-trainer build
-          npm run -w services/certificate-authority build
-          npm run -w services/api-gateway build
-          npm run -w services/admin-interface build
-          npm run -w services/audit-logger build
-          npm run -w services/dlq-service build
-          npm run -w packages/certificate-utils build
-      - run: npm run test:coverage
-
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v5
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          fail_ci_if_error: true
-
-      - name: Extract version from tag
+      - name: Resolve version and latest
         id: version
-        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+        shell: bash
+        env:
+          IMAGE_REGISTRY: ${{ vars.IMAGE_REGISTRY }}
+          OWNER: ${{ github.repository_owner }}
+        run: |
+          semver='^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$'
+          if ! [[ "$GITHUB_REF_NAME" =~ $semver ]]; then
+            echo "::error::Tag $GITHUB_REF_NAME is not vX.Y.Z[-prerelease]"
+            exit 1
+          fi
+          version="${GITHUB_REF_NAME#v}"
+          latest=false
+          if [[ "$version" != *-* ]]; then
+            highest=$(git ls-remote --tags --refs origin 'v*' \
+              | sed 's#.*refs/tags/v##' \
+              | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' \
+              | sort -V | tail -n 1)
+            [ "$version" = "$highest" ] && latest=true
+          fi
+          registry="${IMAGE_REGISTRY:-ghcr.io/$OWNER}"
+          {
+            echo "tag=$version"
+            echo "latest=$latest"
+            echo "registry=${registry,,}"
+          } >> "$GITHUB_OUTPUT"
+          echo "Release $version to ${registry,,} (latest: $latest)"
 
-  # ── Docker images ─────────────────────────────────────────────────────────
-  docker:
-    needs: [quality]
+  ci:
+    uses: ./.github/workflows/ci.yml
+    secrets: inherit
+
+  build-and-push:
+    needs: [version, ci]
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
     strategy:
+      fail-fast: false
       matrix:
         service:
-          - name: discovery-server
-            context: .
-            dockerfile: services/discovery-server/Dockerfile
-          - name: message-manager
-            context: .
-            dockerfile: services/message-manager/Dockerfile
-          - name: financial-scraper
-            context: .
-            dockerfile: services/financial-scraper/Dockerfile
-          - name: trader-trainer
-            context: .
-            dockerfile: services/trader-trainer/Dockerfile
-          - name: certificate-authority
-            context: .
-            dockerfile: services/certificate-authority/Dockerfile
-          - name: api-gateway
-            context: .
-            dockerfile: services/api-gateway/Dockerfile
-          - name: audit-logger
-            context: .
-            dockerfile: services/audit-logger/Dockerfile
-          - name: admin-interface
-            context: .
-            dockerfile: services/admin-interface/Dockerfile
-          - name: dlq-service
-            context: .
-            dockerfile: services/dlq-service/Dockerfile
+          - discovery-server
+          - message-manager
+          - financial-scraper
+          - trader-trainer
+          - api-gateway
+          - audit-logger
+          - dlq-service
+
     steps:
-      - uses: actions/checkout@v5
+      - name: Checkout repository
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
 
       - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
-          password: ${{ secrets.GHCR_TOKEN }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Extract metadata
+      - name: Docker meta (version + latest)
         id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5.10.0
         with:
-          images: ghcr.io/${{ github.repository }}/${{ matrix.service.name }}
+          images: ${{ needs.version.outputs.registry }}/${{ matrix.service }}
+          flavor: latest=false
           tags: |
-            type=semver,pattern={{version}},value=v${{ needs.quality.outputs.version }}
-            type=semver,pattern={{major}}.{{minor}},value=v${{ needs.quality.outputs.version }}
-            type=semver,pattern={{major}},value=v${{ needs.quality.outputs.version }}
-            type=sha
+            type=raw,value=${{ needs.version.outputs.tag }}
+            type=raw,value=latest,enable=${{ needs.version.outputs.latest }}
 
       - name: Build and push
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
         with:
-          context: ${{ matrix.service.context }}
-          file: ${{ matrix.service.dockerfile }}
+          context: .
+          file: services/${{ matrix.service }}/Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  # ── GitHub Release ────────────────────────────────────────────────────────
-  release:
-    needs: [quality, docker]
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@v5
-
-      - name: Generate release notes
-        id: notes
-        run: |
-          {
-            echo 'notes<<EOF'
-            echo "## Docker Images"
-            echo ""
-            echo "| Service | Pull command |"
-            echo "|---------|--------------|"
-            echo "| Discovery Server | \`docker pull ghcr.io/${{ github.repository }}/discovery-server:${{ needs.quality.outputs.version }}\` |"
-            echo "| Message Manager | \`docker pull ghcr.io/${{ github.repository }}/message-manager:${{ needs.quality.outputs.version }}\` |"
-            echo "| Financial Scraper | \`docker pull ghcr.io/${{ github.repository }}/financial-scraper:${{ needs.quality.outputs.version }}\` |"
-            echo "| Trader Trainer | \`docker pull ghcr.io/${{ github.repository }}/trader-trainer:${{ needs.quality.outputs.version }}\` |"
-            echo "| Certificate Authority | \`docker pull ghcr.io/${{ github.repository }}/certificate-authority:${{ needs.quality.outputs.version }}\` |"
-            echo "| API Gateway | \`docker pull ghcr.io/${{ github.repository }}/api-gateway:${{ needs.quality.outputs.version }}\` |"
-            echo "| Audit Logger | \`docker pull ghcr.io/${{ github.repository }}/audit-logger:${{ needs.quality.outputs.version }}\` |"
-            echo "| Admin Interface | \`docker pull ghcr.io/${{ github.repository }}/admin-interface:${{ needs.quality.outputs.version }}\` |"
-            echo "| DLQ Service | \`docker pull ghcr.io/${{ github.repository }}/dlq-service:${{ needs.quality.outputs.version }}\` |"
-            echo ""
-            echo "## Quick Start"
-            echo ""
-            echo '```bash'
-            echo "git clone https://github.com/${{ github.repository }}.git"
-            echo "cd trading-model"
-            echo "cp .env.example .env"
-            echo "# edit .env, generate TLS certs, then:"
-            echo "docker compose up -d"
-            echo '```'
-            echo 'EOF'
-          } >> "$GITHUB_OUTPUT"
-
-      - name: Create Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ github.ref_name }}
-          name: Release ${{ needs.quality.outputs.version }}
-          body: ${{ steps.notes.outputs.notes }}
-          generate_release_notes: true
-
-  # ── Documentation (GitHub Pages) ──────────────────────────────────────────
-  docs:
-    needs: [quality]
+  # spire-tools (deploy/spire): spire-server binary + registration scripts (the
+  # official SPIRE images have no shell), used by the spire-entries sidecar.
+  # backup-tools (deploy/backup): kubectl + age + rclone for the db-backup CronJob.
+  build-tools:
+    needs: [version, ci]
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      pages: write
-      id-token: write
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+      packages: write
+    strategy:
+      matrix:
+        include:
+          - image: spire-tools
+            context: deploy/spire
+            target: bootstrap
+          - image: backup-tools
+            context: deploy/backup
+            target: ""
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
+      - name: Checkout repository
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
         with:
-          node-version: 'lts/*'
-          cache: 'npm'
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      - run: npm ci
-      - run: npm run docs:generate
-
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
+      - name: Docker meta (version + latest)
+        id: meta
+        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5.10.0
         with:
-          path: docs/architecture/code
+          images: ${{ needs.version.outputs.registry }}/${{ matrix.image }}
+          flavor: latest=false
+          tags: |
+            type=raw,value=${{ needs.version.outputs.tag }}
+            type=raw,value=latest,enable=${{ needs.version.outputs.latest }}
 
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+      - name: Build and push
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
+        with:
+          context: ${{ matrix.context }}
+          target: ${{ matrix.target }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}

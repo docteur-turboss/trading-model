@@ -1,6 +1,8 @@
 # ADR-0009: Reorganize certificate-utils with Domain Sub-directories
 
-**Status:** Proposed
+> **Note:** Superseded by [ADR-0011](./0011-spiffe-spire-workload-identity.md) — the custom certificate/CSR format is replaced by standard X.509 SVIDs issued by SPIRE. The `certificate-utils` package itself was removed (2026-09).
+
+**Status:** Superseded by [ADR-0011](./0011-spiffe-spire-workload-identity.md)
 **Date:** 2026-06
 
 ## Context

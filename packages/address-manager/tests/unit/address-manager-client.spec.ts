@@ -7,14 +7,32 @@ import {
 	jest,
 	test,
 } from "@jest/globals";
-import type { HttpClient } from "@trading-model/common/config/http-client";
-import { AppError } from "@trading-model/common/utils/errors";
-import { AddressManagerClient } from "../../src/client/address-manager-client";
-import type { TokenManager } from "../../src/client/token-manager";
-import type { ServiceRegistrationResponse } from "../../src/client/type";
-import type { AddressManagerConfig } from "../../src/config/address-manager-config";
+import {
+	registerServiceName,
+	type ServiceInstanceName,
+} from "@trading-model/common/config/services.types";
+import { isAppError } from "@trading-model/common/utils/errors";
+import { Protocol } from "@trading-model/contracts/service-registry-types";
+import type { HttpClient } from "@trading-model/http/adapters/outbound/http-client";
+import {
+	IPAddress,
+	Port,
+	toDurationMs,
+	toInstanceId,
+	toServiceId,
+	toVersion,
+	UnixTimestamp,
+	type URLString,
+} from "@trading-model/primitives/primitives";
+import { AddressManagerClient } from "../../src/adapters/outbound/client/address-manager-client";
+import type { TokenManager } from "../../src/application/client/token-manager";
+import type { ServiceRegistrationResponse } from "../../src/domain/client/type";
+import type { AddressManagerConfig } from "../../src/domain/config/address-manager-config";
+import { LocalIPDetector } from "../../src/shared/client/local-ip-detector";
 
 jest.mock("os");
+
+registerServiceName("test-service" as ServiceInstanceName);
 
 describe("AddressManagerClient", () => {
 	let httpClient: jest.Mocked<HttpClient>;
@@ -31,8 +49,7 @@ describe("AddressManagerClient", () => {
 		(networkInterfaces as jest.Mock).mockReturnValue({
 			eth0: [{ family: "IPv4", internal: false, address: "192.168.1.100" }],
 		});
-		// Reset hasIpChanged internal cache
-		(AddressManagerClient as any)._cachedLocalIP = null;
+		LocalIPDetector.reset();
 
 		httpClient = {
 			get: jest.fn(),
@@ -40,18 +57,27 @@ describe("AddressManagerClient", () => {
 		} as unknown as jest.Mocked<HttpClient>;
 		tokenManager = {
 			getToken: jest.fn(),
+			exclusive: (operation: () => Promise<unknown>) => operation(),
 		} as unknown as jest.Mocked<TokenManager>;
 		tokenManager.getToken.mockReturnValue("mock-token");
 
 		config = {
 			addressManagerUrl: "http://localhost:8443",
-			serviceName: "test-service",
-			servicePort: 8080,
-			instanceId: "test-instance",
+			servicePort: Port.of(8080),
 			tokenRefreshIntervalMs: 300_000,
 			ttlRefreshIntervalMs: 300_000,
 			servicePingTimeoutMs: 2000,
 			cacheTtlMs: 60_000,
+			identity: {
+				serviceName: toServiceId("test-service"),
+				instanceId: toInstanceId("test-instance"),
+			},
+			tls: {
+				caPath: "/path/to/ca.pem",
+				certPath: "/path/to/cert.pem",
+				keyPath: "/path/to/key.pem",
+			},
+			discoveryTimeoutMs: 5000,
 		} as AddressManagerConfig;
 
 		client = new AddressManagerClient(httpClient, tokenManager, config);
@@ -62,45 +88,17 @@ describe("AddressManagerClient", () => {
 			httpClient.post.mockResolvedValueOnce(undefined);
 			await client.unregisterService();
 			expect(httpClient.post).toHaveBeenCalledWith(
-				`${config.addressManagerUrl}/unregister`,
+				`${config.addressManagerUrl}/unregister` as URLString,
 				{
-					serviceName: config.serviceName,
-					instanceId: config.instanceId,
+					serviceName: config.identity.serviceName,
+					instanceId: config.identity.instanceId,
 				},
 				{ headers: { "x-instance-token": "mock-token" } }
 			);
 		});
 
-		test("should try next URL when first unregister fails", async () => {
-			config = {
-				...config,
-				discoveryUrls: ["https://ds1:3000", "https://ds2:3000"],
-			} as AddressManagerConfig;
-			client = new AddressManagerClient(httpClient, tokenManager, config);
-
-			httpClient.post
-				.mockRejectedValueOnce(new Error("DS1 down"))
-				.mockResolvedValueOnce(undefined);
-
-			await client.unregisterService();
-
-			expect(httpClient.post).toHaveBeenCalledWith(
-				"https://ds2:3000/unregister",
-				expect.any(Object),
-				expect.any(Object)
-			);
-		});
-
-		test("should not throw when all unregister URLs fail", async () => {
-			config = {
-				...config,
-				discoveryUrls: ["https://ds1:3000", "https://ds2:3000"],
-			} as AddressManagerConfig;
-			client = new AddressManagerClient(httpClient, tokenManager, config);
-
-			httpClient.post
-				.mockRejectedValueOnce(new Error("DS1 down"))
-				.mockRejectedValueOnce(new Error("DS2 down"));
+		test("should not throw when unregister fails", async () => {
+			httpClient.post.mockRejectedValueOnce(new Error("discovery down"));
 
 			await expect(client.unregisterService()).resolves.toBeUndefined();
 		});
@@ -120,6 +118,19 @@ describe("AddressManagerClient", () => {
 			await client.registerService();
 
 			expect(networkInterfaces).not.toHaveBeenCalled();
+		});
+
+		test("should register under the instanceId used by heartbeats", async () => {
+			httpClient.post.mockResolvedValueOnce({} as ServiceRegistrationResponse);
+
+			await client.registerService();
+
+			expect(httpClient.post).toHaveBeenCalledWith(
+				expect.stringMatching(/\/register$/),
+				expect.objectContaining({
+					instanceId: config.identity.instanceId,
+				})
+			);
 		});
 
 		test("should handle undefined network interface entries gracefully", async () => {
@@ -145,23 +156,24 @@ describe("AddressManagerClient", () => {
 			});
 
 			const response: ServiceRegistrationResponse = {
-				ip: "127.0.0.1",
-				port: 8080,
-				instanceId: "instance-1",
-				lastHeartbeat: Date.now(),
-				protocol: "http",
-				registeredAt: Date.now(),
-				serviceName: "abc-service",
+				host: IPAddress.of("127.0.0.1"),
+				port: Port.of(8080),
+				instanceId: toInstanceId("instance-1"),
+				lastHeartbeat: UnixTimestamp.now(),
+				protocol: Protocol.Http,
+				registeredAt: UnixTimestamp.now(),
+				serviceName: toServiceId("abc-service"),
 				token: "service-token",
-				ttl: 30000,
-				version: "1.0.0",
+				ttl: toDurationMs(30000),
+				version: toVersion("1.0.0"),
 			};
 			httpClient.post.mockResolvedValueOnce(response);
 
 			const result = await client.registerService();
 
 			expect(httpClient.post).toHaveBeenCalledWith(expect.any(String), {
-				serviceName: config.serviceName,
+				serviceName: config.identity.serviceName,
+				instanceId: config.identity.instanceId,
 				port: config.servicePort,
 				ip: expect.any(String),
 			});
@@ -170,16 +182,16 @@ describe("AddressManagerClient", () => {
 
 		test("should call HttpClient.post with correct URL, payload, and headers", async () => {
 			const response: ServiceRegistrationResponse = {
-				ip: "192.168.1.100",
-				port: 8080,
-				instanceId: "instance-1",
-				lastHeartbeat: Date.now(),
-				protocol: "http",
-				registeredAt: Date.now(),
-				serviceName: "abc-service",
+				host: IPAddress.of("192.168.1.100"),
+				port: Port.of(8080),
+				instanceId: toInstanceId("instance-1"),
+				lastHeartbeat: UnixTimestamp.now(),
+				protocol: Protocol.Http,
+				registeredAt: UnixTimestamp.now(),
+				serviceName: toServiceId("abc-service"),
 				token: "service-token",
-				ttl: 30000,
-				version: "1.0.0",
+				ttl: toDurationMs(30000),
+				version: toVersion("1.0.0"),
 			};
 			httpClient.post.mockResolvedValueOnce(response);
 
@@ -187,9 +199,10 @@ describe("AddressManagerClient", () => {
 
 			expect(result).toEqual(response);
 			expect(httpClient.post).toHaveBeenCalledWith(
-				`${config.addressManagerUrl}/register`,
+				`${config.addressManagerUrl}/register` as URLString,
 				{
-					serviceName: config.serviceName,
+					serviceName: config.identity.serviceName,
+					instanceId: config.identity.instanceId,
 					port: config.servicePort,
 					ip: "192.168.1.100",
 				}
@@ -201,8 +214,8 @@ describe("AddressManagerClient", () => {
 
 			httpClient.post.mockRejectedValueOnce(error);
 			const err = await client.registerService().catch((e) => e);
-			expect(err).toBeInstanceOf(AppError);
-			expect((err as AppError).cause).toBe(error);
+			expect(isAppError(err)).toBe(true);
+			expect(err).toHaveProperty("cause", error);
 		});
 	});
 
@@ -213,8 +226,11 @@ describe("AddressManagerClient", () => {
 			await client.refreshTTL();
 
 			expect(httpClient.post).toHaveBeenCalledWith(
-				`${config.addressManagerUrl}/heartbeat`,
-				{ serviceName: config.serviceName, instanceId: config.instanceId },
+				`${config.addressManagerUrl}/heartbeat` as URLString,
+				{
+					serviceName: config.identity.serviceName,
+					instanceId: config.identity.instanceId,
+				},
 				{ headers: { "x-instance-token": "mock-token" } }
 			);
 		});
@@ -224,58 +240,8 @@ describe("AddressManagerClient", () => {
 
 			httpClient.post.mockRejectedValueOnce(error);
 			const err = await client.refreshTTL().catch((e) => e);
-			expect(err).toBeInstanceOf(AppError);
-			expect((err as AppError).cause).toBe(error);
-		});
-
-		test("should use discoveryUrls for concurrent TTL refresh when multiple URLs configured", async () => {
-			config = {
-				...config,
-				discoveryUrls: ["https://ds1:3000", "https://ds2:3000"],
-			} as AddressManagerConfig;
-			client = new AddressManagerClient(httpClient, tokenManager, config);
-			httpClient.post.mockResolvedValue(undefined);
-
-			await client.refreshTTL();
-
-			expect(httpClient.post).toHaveBeenCalledWith(
-				"https://ds1:3000/heartbeat",
-				expect.any(Object),
-				expect.any(Object)
-			);
-			expect(httpClient.post).toHaveBeenCalledWith(
-				"https://ds2:3000/heartbeat",
-				expect.any(Object),
-				expect.any(Object)
-			);
-		});
-
-		test("should throw when all concurrent TTL refresh URLs fail", async () => {
-			config = {
-				...config,
-				discoveryUrls: ["https://ds1:3000", "https://ds2:3000"],
-			} as AddressManagerConfig;
-			client = new AddressManagerClient(httpClient, tokenManager, config);
-
-			httpClient.post
-				.mockRejectedValueOnce(new Error("DS1 down"))
-				.mockRejectedValueOnce(new Error("DS2 down"));
-
-			await expect(client.refreshTTL()).rejects.toThrow(AppError);
-		});
-
-		test("should succeed when at least one concurrent TTL refresh URL succeeds", async () => {
-			config = {
-				...config,
-				discoveryUrls: ["https://ds1:3000", "https://ds2:3000"],
-			} as AddressManagerConfig;
-			client = new AddressManagerClient(httpClient, tokenManager, config);
-
-			httpClient.post
-				.mockRejectedValueOnce(new Error("DS1 down"))
-				.mockResolvedValueOnce(undefined);
-
-			await expect(client.refreshTTL()).resolves.toBeUndefined();
+			expect(isAppError(err)).toBe(true);
+			expect(err).toHaveProperty("cause", error);
 		});
 	});
 

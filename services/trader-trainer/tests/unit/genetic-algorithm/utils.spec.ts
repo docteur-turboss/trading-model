@@ -1,11 +1,10 @@
 import { describe, expect, test } from "@jest/globals";
+import { EpisodeScores } from "../../../src/domain/genetic-algorithm/episode-scores";
 import {
 	clamp,
-	computeSharpe,
-	computeVariance,
-	generateId,
-} from "../../../src/core/genetic-algorithm/utils";
-import { NormalizationStats } from "../../../src/core/normalization-stats";
+	makeGenomeId,
+} from "../../../src/domain/genetic-algorithm/utils";
+import { NormalizationStats } from "../../../src/domain/normalization-stats";
 
 describe("Utils - clamp", () => {
 	test("should clamp value within range", () => {
@@ -26,17 +25,22 @@ describe("Utils - clamp", () => {
 	});
 });
 
-describe("Utils - generateId", () => {
-	test("should return a non-empty string", () => {
-		const id = generateId();
-		expect(typeof id).toBe("string");
-		expect(id.length).toBeGreaterThan(0);
+describe("Utils - makeGenomeId", () => {
+	test("should encode the generation and the index", () => {
+		expect(makeGenomeId(3, 7)).toBe("g3_7");
 	});
 
-	test("should return different ids on successive calls", () => {
-		const id1 = generateId();
-		const id2 = generateId();
-		expect(id1).not.toBe(id2);
+	test("should be stable for the same inputs", () => {
+		expect(makeGenomeId(1, 2)).toBe(makeGenomeId(1, 2));
+	});
+
+	test("should differ across generations and indices", () => {
+		const ids = new Set([
+			makeGenomeId(1, 0),
+			makeGenomeId(1, 1),
+			makeGenomeId(2, 0),
+		]);
+		expect(ids.size).toBe(3);
 	});
 });
 
@@ -75,34 +79,65 @@ describe("Utils - NormalizationStats", () => {
 	});
 });
 
-describe("Utils - computeVariance", () => {
+describe("EpisodeScores - variance", () => {
 	test("should return 0 for fewer than 2 elements", () => {
-		expect(computeVariance([1])).toBe(0);
-		expect(computeVariance([])).toBe(0);
+		expect(new EpisodeScores([1]).variance()).toBe(0);
+		expect(new EpisodeScores([]).variance()).toBe(0);
 	});
 
 	test("should compute variance correctly", () => {
-		const variance = computeVariance([1, 2, 3, 4, 5]);
-		expect(variance).toBe(2.5);
+		const scores = new EpisodeScores([1, 2, 3, 4, 5]);
+		expect(scores.variance()).toBe(2.5);
 	});
 
 	test("should return 0 for constant array", () => {
-		expect(computeVariance([5, 5, 5])).toBe(0);
+		const scores = new EpisodeScores([5, 5, 5]);
+		expect(scores.variance()).toBe(0);
 	});
 });
 
-describe("Utils - computeSharpe", () => {
+describe("EpisodeScores - sharpe", () => {
 	test("should return 0 for fewer than 2 elements", () => {
-		expect(computeSharpe([1])).toBe(0);
-		expect(computeSharpe([])).toBe(0);
+		expect(new EpisodeScores([1]).sharpe()).toBe(0);
+		expect(new EpisodeScores([]).sharpe()).toBe(0);
 	});
 
-	test("should return 0 for zero standard deviation", () => {
-		expect(computeSharpe([5, 5, 5])).toBe(0);
+	test("should return mean for zero standard deviation", () => {
+		const scores = new EpisodeScores([5, 5, 5]);
+		expect(scores.sharpe()).toBe(5);
 	});
 
 	test("should compute positive sharpe for positive mean", () => {
-		const sharpe = computeSharpe([1, 2, 3]);
-		expect(sharpe).toBeGreaterThan(0);
+		const scores = new EpisodeScores([1, 2, 3]);
+		expect(scores.sharpe()).toBeGreaterThan(0);
+	});
+});
+
+describe("EpisodeScores - maxDrawdown", () => {
+	test("should be 0 without episodes or without a fall", () => {
+		expect(new EpisodeScores([]).maxDrawdown()).toBe(0);
+		expect(new EpisodeScores([1, 2, 0, 3]).maxDrawdown()).toBe(0);
+	});
+
+	test("should be the largest fall of the cumulative score from its peak", () => {
+		// cumulative: 3, -2, 0, -4, 6 -> peak 3, trough -4
+		expect(new EpisodeScores([3, -5, 2, -4, 10]).maxDrawdown()).toBe(7);
+	});
+
+	test("should count from the first episode, not from zero", () => {
+		expect(new EpisodeScores([-5]).maxDrawdown()).toBe(0);
+		expect(new EpisodeScores([-5, -2]).maxDrawdown()).toBe(2);
+	});
+});
+
+describe("EpisodeScores - calmar", () => {
+	test("should divide the mean by the max drawdown", () => {
+		const scores = new EpisodeScores([3, -5, 2, -4, 10]);
+		expect(scores.calmar()).toBeCloseTo(scores.mean() / 7);
+	});
+
+	test("should return the mean without a drawdown", () => {
+		expect(new EpisodeScores([1, 2, 3]).calmar()).toBe(2);
+		expect(new EpisodeScores([]).calmar()).toBe(0);
 	});
 });

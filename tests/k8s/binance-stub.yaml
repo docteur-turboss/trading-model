@@ -1,0 +1,67 @@
+# Binance stub for the kind smoke test (tests/k8s/run-kind.sh): CI runners
+# cannot reach api.binance.com (HTTP 451 from US regions). Same server as the
+# compose E2E stub, served on 3000: the scraper's NetworkPolicy allows
+# in-namespace egress to that port. The ConfigMap `binance-stub` (server.mjs)
+# is created by run-kind.sh.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: binance-stub
+  labels:
+    app.kubernetes.io/component: binance-stub
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: binance-stub
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: binance-stub
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: stub
+          image: oven/bun@sha256:c1cc397e0be452c54f37cbcdfaa747eff93c993723af7d91658764d0fdfe5873
+          command: ["bun", "/stub/server.mjs"]
+          env:
+            - name: PORT
+              value: "3000"
+          ports:
+            - containerPort: 3000
+          readinessProbe:
+            httpGet:
+              path: /api/v3/ping
+              port: 3000
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: stub
+              mountPath: /stub
+              readOnly: true
+      volumes:
+        - name: stub
+          configMap:
+            name: binance-stub
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: binance-stub
+  labels:
+    app.kubernetes.io/component: binance-stub
+spec:
+  selector:
+    app.kubernetes.io/component: binance-stub
+  ports:
+    - port: 3000
+      targetPort: 3000

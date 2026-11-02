@@ -1,972 +1,331 @@
-<!doctype html>
-<html class="default" lang="en" data-base="./">
-  <head>
-    <meta charset="utf-8" />
-    <meta http-equiv="x-ua-compatible" content="IE=edge" />
-    <title>trader-trainer - v1.2.0</title>
-    <meta name="description" content="Documentation for trader-trainer" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <link rel="stylesheet" href="assets/style.css" />
-    <link rel="stylesheet" href="assets/highlight.css" />
-    <script defer src="assets/main.js"></script>
-    <script async src="assets/icons.js" id="tsd-icons-script"></script>
-    <script async src="assets/search.js" id="tsd-search-script"></script>
-    <script async src="assets/navigation.js" id="tsd-nav-script"></script>
-  </head>
-  <body>
-    <script>
-      document.documentElement.dataset.theme = localStorage.getItem('tsd-theme') || 'os';
-      document.body.style.display = 'none';
-      setTimeout(
-        () => (window.app ? app.showPage() : document.body.style.removeProperty('display')),
-        500
-      );
-    </script>
-    <header class="tsd-page-toolbar">
-      <div class="tsd-toolbar-contents container">
-        <a href="index.html" class="title">trader-trainer - v1.2.0</a>
-        <div id="tsd-toolbar-links"></div>
-        <button id="tsd-search-trigger" class="tsd-widget" aria-label="Search">
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-            <use href="assets/icons.svg#icon-search"></use>
-          </svg>
-        </button>
-        <dialog id="tsd-search" aria-label="Search">
-          <input
-            role="combobox"
-            id="tsd-search-input"
-            aria-controls="tsd-search-results"
-            aria-autocomplete="list"
-            aria-expanded="true"
-            autocapitalize="off"
-            autocomplete="off"
-            placeholder="Search the docs"
-            maxlength="100"
-          />
-          <ul role="listbox" id="tsd-search-results"></ul>
-          <div id="tsd-search-status" aria-live="polite" aria-atomic="true">
-            <div>Preparing search index...</div>
-          </div>
-        </dialog>
-        <a
-          href="#"
-          class="tsd-widget menu"
-          id="tsd-toolbar-menu-trigger"
-          data-toggle="menu"
-          aria-label="Menu"
-          ><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-            <use href="assets/icons.svg#icon-menu"></use></svg
-        ></a>
-      </div>
-    </header>
-    <div class="container container-main">
-      <div class="col-content">
-        <div class="tsd-page-title"><h1>trader-trainer - v1.2.0</h1></div>
-        <div class="tsd-panel tsd-typography">
-          <h1 id="trader-trainer-service" class="tsd-anchor-link">
-            Trader-Trainer Service<a
-              href="#trader-trainer-service"
-              aria-label="Permalink"
-              class="tsd-anchor-icon"
-              ><svg viewBox="0 0 24 24" aria-hidden="true">
-                <use href="assets/icons.svg#icon-anchor"></use></svg
-            ></a>
-          </h1>
-          <blockquote>
-            <p>
-              Autonomous trading AI agents trained via
-              <strong>Genetic Algorithm + Deep Q-Learning</strong>
-            </p>
-          </blockquote>
-          <h2 id="overview" class="tsd-anchor-link">
-            Overview<a href="#overview" aria-label="Permalink" class="tsd-anchor-icon"
-              ><svg viewBox="0 0 24 24" aria-hidden="true">
-                <use href="assets/icons.svg#icon-anchor"></use></svg
-            ></a>
-          </h2>
-          <p>
-            Trader-Trainer is a microservice that evolves a population of neural network-based
-            trading agents using genetic algorithms and deep reinforcement learning. It consumes
-            real market data from the <strong>Message Manager</strong> service and produces
-            optimized trading agents ready for deployment to <strong>Trader-Executor</strong>.
-          </p>
-          <p><strong>Key Features</strong>:</p>
-          <ul>
-            <li>
-              🧬 <strong>Genetic Algorithm Evolution</strong>: Self-improving population of agents
-            </li>
-            <li>
-              🤖 <strong>Deep Q-Learning</strong>: Neural network agents with experience replay
-            </li>
-            <li>
-              📊 <strong>Real Market Data</strong>: Trains on actual price feeds from Message
-              Manager
-            </li>
-            <li>
-              💾 <strong>Memory-Aware</strong>: Dynamically scales population based on available
-              memory
-            </li>
-            <li>
-              ⚡ <strong>Adaptive Control</strong>: Automatically adjusts mutation/crossover rates
-            </li>
-            <li>
-              🏆 <strong>Multi-Objective</strong>: Optimizes for Sharpe, Sortino, Calmar, and
-              P&amp;L simultaneously
-            </li>
-            <li>
-              🔒 <strong>Secure Export</strong>: Sends best agents to Trader-Executor via secured
-              channels
-            </li>
-          </ul>
-          <h2 id="quick-start" class="tsd-anchor-link">
-            Quick Start<a href="#quick-start" aria-label="Permalink" class="tsd-anchor-icon"
-              ><svg viewBox="0 0 24 24" aria-hidden="true">
-                <use href="assets/icons.svg#icon-anchor"></use></svg
-            ></a>
-          </h2>
-          <h3 id="installation" class="tsd-anchor-link">
-            Installation<a href="#installation" aria-label="Permalink" class="tsd-anchor-icon"
-              ><svg viewBox="0 0 24 24" aria-hidden="true">
-                <use href="assets/icons.svg#icon-anchor"></use></svg
-            ></a>
-          </h3>
-          <pre><code class="bash"><span class="hl-0">cd</span><span class="hl-1"> </span><span class="hl-2">services/Trader-Trainer</span><br/><span class="hl-0">npm</span><span class="hl-1"> </span><span class="hl-2">install</span>
+<!DOCTYPE html>
+<html class="dark" lang="en" data-tm-processed="true"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no" name="viewport">
+<title>trader-trainer — API Reference</title>
+
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+
+<script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              400: '#818cf8',
+              500: '#6366f1',
+              600: '#4f46e5',
+            },
+            surface: {
+              base: '#0B0F19',
+              card: '#111827',
+              muted: '#1E293B',
+              border: '#243046',
+            },
+            code: {
+              bg: '#0c121e',
+              keyword: '#c084fc',
+              ident: '#38bdf8',
+              type: '#34d399',
+              punct: '#94a3b8'
+            }
+          },
+          fontFamily: {
+            mono: ['JetBrains Mono', 'Fira Code', 'Menlo', 'Monaco', 'Courier New', 'monospace'],
+            sans: ['-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Inter', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+
+<style data-purpose="mobile-ux-styles">
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    .active-scale:active { transform: scale(0.97); transition: transform 0.1s ease-out; }
+    .h-safe-top { height: env(safe-area-inset-top, 0px); }
+    .pt-safe { padding-top: env(safe-area-inset-top, 0px); }
+    @supports (backdrop-filter: blur(12px)) {
+      .glass-header { backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
+    }
+    
+    .tm-prose p { margin: 0.5rem 0; }
+    .tm-prose p:first-child { margin-top: 0; }
+    .tm-prose p:last-child { margin-bottom: 0; }
+    .tm-prose a { color: #818cf8; text-decoration: underline; text-underline-offset: 2px; }
+    .tm-prose a:hover { color: #a5b4fc; }
+    .tm-prose code { font-family: 'JetBrains Mono', 'Fira Code', Menlo, Monaco, 'Courier New', monospace; font-size: 0.82em; color: #fbbf24; background: #0c121e; border: 1px solid #243046; border-radius: 0.25rem; padding: 0.05rem 0.3rem; }
+    .tm-prose pre { background: #0c121e; border: 1px solid #243046; border-radius: 0.5rem; padding: 0.75rem; overflow-x: auto; margin: 0.5rem 0; }
+    .tm-prose pre code { background: transparent; border: none; padding: 0; color: #e2e8f0; }
+    .tm-prose ul, .tm-prose ol { padding-left: 1.25rem; margin: 0.5rem 0; }
+    .tm-prose ul { list-style: disc; }
+    .tm-prose ol { list-style: decimal; }
+    .tm-prose li { margin: 0.2rem 0; }
+    .tm-prose blockquote { border-left: 3px solid #6366f1; background: rgba(17, 24, 39, 0.6); padding: 0.5rem 0.75rem; border-radius: 0 0.5rem 0.5rem 0; color: #94a3b8; margin: 0.5rem 0; }
+    .tm-prose h1, .tm-prose h2, .tm-prose h3, .tm-prose h4, .tm-prose h5 { color: #ffffff; font-weight: 700; margin: 0.75rem 0 0.25rem; }
+    .tm-prose h1 { font-size: 1.25rem; }
+    .tm-prose h2 { font-size: 1.125rem; }
+    .tm-prose h3 { font-size: 1rem; }
+    .tm-prose h4 { font-size: 0.875rem; }
+    .tm-prose table { width: 100%; border-collapse: collapse; margin: 0.5rem 0; }
+    .tm-prose th, .tm-prose td { border: 1px solid #243046; padding: 0.4rem 0.6rem; text-align: left; }
+    .tm-prose thead th { background: #0b0f19; color: #e2e8f0; font-size: 0.75rem; text-transform: uppercase; }
+    .tm-prose strong { color: #ffffff; }
+  </style>
+
+</head>
+<body class="bg-[#080C15] text-slate-200 font-sans antialiased min-h-screen pb-24 selection:bg-indigo-500/30 selection:text-indigo-200">
+
+<header class="sticky top-0 z-40 w-full glass-header bg-[#0B0F19]/90 border-b border-surface-border">
+<div class="h-safe-top pt-safe"></div>
+<div class="px-4 py-2.5 flex items-center justify-between gap-3">
+<div class="flex items-center gap-2.5 min-w-0">
+<button aria-label="Open Module Tree" class="active-scale p-2 -ml-1.5 rounded-lg text-slate-300 hover:text-white bg-slate-800/40 hover:bg-slate-800 border border-slate-700/50" data-purpose="toggle-tree-nav" id="drawerToggleBtn">
+<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<path d="M4 6h16M4 12h10M4 18h16" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</button>
+<div class="flex flex-col min-w-0">
+<div class="flex items-center gap-1.5 truncate">
+<span class="font-mono text-xs font-semibold text-indigo-400 truncate tracking-tight"><a class="text-indigo-400 hover:text-indigo-300 hover:underline" href="index.html">trader-trainer</a></span>
+<span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-medium bg-indigo-500/10 text-indigo-300 border border-indigo-500/20">v1.4.0</span>
+</div>
+<span class="text-[10px] text-slate-400 flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> TypeDoc API Reference
+</span>
+</div>
+</div>
+<div class="flex items-center gap-1.5 flex-shrink-0">
+<button aria-label="Search API" class="active-scale flex items-center justify-center w-8 h-8 rounded-lg bg-surface-muted/70 border border-surface-border text-slate-300 hover:text-white" data-purpose="search-modal-trigger" id="searchTriggerBtn">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<path d="M21 21l-4.35-4.35m1.35-5.65a7 7 0 11-14 0 7 7 0 0114 0z" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</button>
+<button aria-label="Member Visibility Settings" class="active-scale flex items-center justify-center w-8 h-8 rounded-lg bg-surface-muted/70 border border-surface-border text-slate-300 hover:text-white" data-purpose="settings-trigger" id="settingsSheetBtn">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" stroke-linecap="round" stroke-linejoin="round"></path>
+<path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</button>
+</div>
+</div>
+</header>
+
+<main class="px-4 py-4 max-w-2xl mx-auto flex flex-col gap-6">
+
+<section class="space-y-2.5" data-purpose="breadcrumbs-and-header">
+<nav aria-label="Breadcrumb" class="flex items-center flex-wrap gap-1 text-[11px] font-mono text-slate-400">
+<span class="text-slate-300 font-medium">trader-trainer</span>
+</nav>
+<div class="flex items-center gap-2.5 pt-1">
+<span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-mono font-medium tracking-wide uppercase bg-indigo-500/10 text-indigo-400 border-indigo-500/20">
+Module Index
+</span>
+<h1 class="text-2xl font-bold tracking-tight text-white font-sans">trader-trainer</h1>
+</div>
+
+</section>
+
+<div class="tm-prose text-xs leading-relaxed text-slate-300 font-sans"><h1 id="trader-trainer-service" class="tsd-anchor-link">Trader-Trainer Service</h1>
+<blockquote>
+<p>Autonomous trading AI agents trained via <strong>Genetic Algorithm + Deep Q-Learning</strong></p>
+</blockquote>
+<h2 id="overview" class="tsd-anchor-link">Overview</h2>
+<p>Trader-Trainer is a microservice that evolves a population of neural network-based trading agents using genetic algorithms and deep reinforcement learning. It consumes real market data from the <strong>Message Manager</strong> service and produces optimized trading agents ready for deployment to <strong>Trader-Executor</strong>.</p>
+<p>Key features: GA evolution, Deep Q-Learning, memory-aware scaling, adaptive control, multi-objective optimization (Sharpe, Sortino, Calmar, P&amp;L).</p>
+<h2 id="quick-start" class="tsd-anchor-link">Quick Start</h2>
+<pre><code class="bash"><span class="hl-0">cd</span><span class="hl-1"> </span><span class="hl-2">services/trader-trainer</span><br/><span class="hl-0">bun</span><span class="hl-1"> </span><span class="hl-2">install</span><br/><span class="hl-0">bun</span><span class="hl-1"> </span><span class="hl-2">run</span><span class="hl-1"> </span><span class="hl-2">dev</span><span class="hl-1">           </span><span class="hl-3"># Development server</span><br/><span class="hl-0">bun</span><span class="hl-1"> </span><span class="hl-2">run</span><span class="hl-1"> </span><span class="hl-2">test</span><span class="hl-1">              </span><span class="hl-3"># Run tests</span><br/><span class="hl-0">bun</span><span class="hl-1"> </span><span class="hl-2">run</span><span class="hl-1"> </span><span class="hl-2">build</span><span class="hl-1">         </span><span class="hl-3"># Production build</span>
 </code><button type="button">Copy</button></pre>
 
-          <h3 id="development" class="tsd-anchor-link">
-            Development<a href="#development" aria-label="Permalink" class="tsd-anchor-icon"
-              ><svg viewBox="0 0 24 24" aria-hidden="true">
-                <use href="assets/icons.svg#icon-anchor"></use></svg
-            ></a>
-          </h3>
-          <pre><code class="bash"><span class="hl-3"># Start development server</span><br/><span class="hl-0">npm</span><span class="hl-1"> </span><span class="hl-2">run</span><span class="hl-1"> </span><span class="hl-2">dev</span><br/><br/><span class="hl-3"># Run tests</span><br/><span class="hl-0">npm</span><span class="hl-1"> </span><span class="hl-2">test</span><br/><br/><span class="hl-3"># Run linting</span><br/><span class="hl-0">npm</span><span class="hl-1"> </span><span class="hl-2">run</span><span class="hl-1"> </span><span class="hl-2">lint</span><br/><br/><span class="hl-3"># Build</span><br/><span class="hl-0">npm</span><span class="hl-1"> </span><span class="hl-2">run</span><span class="hl-1"> </span><span class="hl-2">build</span>
-</code><button type="button">Copy</button></pre>
-
-          <h3 id="environment-variables" class="tsd-anchor-link">
-            Environment Variables<a
-              href="#environment-variables"
-              aria-label="Permalink"
-              class="tsd-anchor-icon"
-              ><svg viewBox="0 0 24 24" aria-hidden="true">
-                <use href="assets/icons.svg#icon-anchor"></use></svg
-            ></a>
-          </h3>
-          <pre><code class="env">PORT=3001                    # Service port (default: 3000)
-LOG_LEVEL=info              # Logging level
-MESSAGE_MANAGER_URL=...     # Message Manager service URL
-TRADER_EXECUTOR_URL=...     # Trader-Executor service URL
-</code><button type="button">Copy</button></pre>
-
-          <h2 id="architecture" class="tsd-anchor-link">
-            Architecture<a href="#architecture" aria-label="Permalink" class="tsd-anchor-icon"
-              ><svg viewBox="0 0 24 24" aria-hidden="true">
-                <use href="assets/icons.svg#icon-anchor"></use></svg
-            ></a>
-          </h2>
-          <p>
-            See <a href="media/ARCHITECTURE.md">ARCHITECTURE.md</a> for detailed architecture,
-            module breakdown, and integration patterns.
-          </p>
-          <h3 id="high-level-flow" class="tsd-anchor-link">
-            High-Level Flow<a href="#high-level-flow" aria-label="Permalink" class="tsd-anchor-icon"
-              ><svg viewBox="0 0 24 24" aria-hidden="true">
-                <use href="assets/icons.svg#icon-anchor"></use></svg
-            ></a>
-          </h3>
-          <pre><code><span class="hl-4">Real</span><span class="hl-1"> </span><span class="hl-4">Market</span><span class="hl-1"> </span><span class="hl-0">Data</span><span class="hl-1"> (</span><span class="hl-4">Price</span><span class="hl-1">, </span><span class="hl-4">Volume</span><span class="hl-1">, </span><span class="hl-4">Indicators</span><span class="hl-1">)</span><br/><span class="hl-1">            ↓</span><br/><span class="hl-1">[</span><span class="hl-4">Trader</span><span class="hl-1">-</span><span class="hl-4">Trainer</span><span class="hl-1"> </span><span class="hl-4">Microservice</span><span class="hl-1">]</span><br/><span class="hl-1">    ├─ </span><span class="hl-4">Genetic</span><span class="hl-1"> </span><span class="hl-0">Algorithm</span><span class="hl-1"> (</span><span class="hl-4">Population</span><span class="hl-1"> </span><span class="hl-4">Evolution</span><span class="hl-1">)</span><br/><span class="hl-1">    ├─ </span><span class="hl-4">Neural</span><span class="hl-1"> </span><span class="hl-4">Network</span><span class="hl-1"> </span><span class="hl-0">Agents</span><span class="hl-1"> (</span><span class="hl-5">Q</span><span class="hl-1">-</span><span class="hl-4">Learning</span><span class="hl-1">)</span><br/><span class="hl-1">    ├─ </span><span class="hl-4">Trading</span><span class="hl-1"> </span><span class="hl-4">Wallet</span><span class="hl-1"> </span><span class="hl-4">Simulation</span><br/><span class="hl-1">    └─ </span><span class="hl-4">Fitness</span><span class="hl-1"> </span><span class="hl-0">Evaluation</span><span class="hl-1"> (</span><span class="hl-4">Sharpe</span><span class="hl-1">, </span><span class="hl-4">Sortino</span><span class="hl-1">, </span><span class="hl-4">etc</span><span class="hl-1">.)</span><br/><span class="hl-1">            ↓</span><br/><span class="hl-4">Best</span><span class="hl-1"> </span><span class="hl-0">Agent</span><span class="hl-1"> (</span><span class="hl-4">with</span><span class="hl-1"> </span><span class="hl-4">Risk</span><span class="hl-1"> </span><span class="hl-4">Score</span><span class="hl-1">)</span><br/><span class="hl-1">            ↓</span><br/><span class="hl-4">Trader</span><span class="hl-1">-</span><span class="hl-4">Executor</span><span class="hl-1"> </span><span class="hl-0">Service</span><span class="hl-1"> (</span><span class="hl-4">Live</span><span class="hl-1"> </span><span class="hl-4">Trading</span><span class="hl-1">)</span>
+<p>See <a href="media/quickstart.html">Quick Start</a> for a full platform walkthrough.</p>
+<h2 id="architecture" class="tsd-anchor-link">Architecture</h2>
+<pre><code><span class="hl-4">Real</span><span class="hl-1"> </span><span class="hl-4">Market</span><span class="hl-1"> </span><span class="hl-4">Data</span><span class="hl-1"> → [</span><span class="hl-4">Trader</span><span class="hl-1">-</span><span class="hl-4">Trainer</span><span class="hl-1">] → </span><span class="hl-4">Best</span><span class="hl-1"> </span><span class="hl-4">Agent</span><span class="hl-1"> → </span><span class="hl-4">Trader</span><span class="hl-1">-</span><span class="hl-4">Executor</span><br/><span class="hl-1">                    ├─ </span><span class="hl-4">Genetic</span><span class="hl-1"> </span><span class="hl-0">Algorithm</span><span class="hl-1"> (</span><span class="hl-4">population</span><span class="hl-1"> </span><span class="hl-4">evolution</span><span class="hl-1">)</span><br/><span class="hl-1">                    ├─ </span><span class="hl-4">Neural</span><span class="hl-1"> </span><span class="hl-4">Network</span><span class="hl-1"> </span><span class="hl-0">Agents</span><span class="hl-1"> (</span><span class="hl-5">Q</span><span class="hl-1">-</span><span class="hl-4">Learning</span><span class="hl-1">)</span><br/><span class="hl-1">                    ├─ </span><span class="hl-4">Trading</span><span class="hl-1"> </span><span class="hl-4">Wallet</span><span class="hl-1"> </span><span class="hl-4">Simulation</span><br/><span class="hl-1">                    └─ </span><span class="hl-4">Fitness</span><span class="hl-1"> </span><span class="hl-0">Evaluation</span><span class="hl-1"> (</span><span class="hl-4">Sharpe</span><span class="hl-1">, </span><span class="hl-4">Sortino</span><span class="hl-1">, </span><span class="hl-4">etc</span><span class="hl-1">.)</span>
 </code><button>Copy</button></pre>
 
-          <h2 id="project-structure" class="tsd-anchor-link">
-            Project Structure<a
-              href="#project-structure"
-              aria-label="Permalink"
-              class="tsd-anchor-icon"
-              ><svg viewBox="0 0 24 24" aria-hidden="true">
-                <use href="assets/icons.svg#icon-anchor"></use></svg
-            ></a>
-          </h2>
-          <pre><code><span class="hl-4">src</span><span class="hl-1">/</span><br/><span class="hl-1">├── </span><span class="hl-4">app</span><span class="hl-1">/                              # </span><span class="hl-4">Service</span><span class="hl-1"> </span><span class="hl-4">entry</span><span class="hl-1"> </span><span class="hl-4">point</span><br/><span class="hl-1">│   ├── </span><span class="hl-4">index</span><span class="hl-1">.</span><span class="hl-4">ts</span><span class="hl-1">                     # </span><span class="hl-4">Initialization</span><span class="hl-1"> &amp; </span><span class="hl-4">shutdown</span><br/><span class="hl-1">│   └── </span><span class="hl-4">server</span><span class="hl-1">.</span><span class="hl-4">ts</span><span class="hl-1">                    # </span><span class="hl-4">Express</span><span class="hl-1"> </span><span class="hl-4">configuration</span><br/><span class="hl-1">│</span><br/><span class="hl-1">└── </span><span class="hl-4">core</span><span class="hl-1">/</span><br/><span class="hl-1">    ├── </span><span class="hl-4">agent</span><span class="hl-1">/                       # </span><span class="hl-4">Trading</span><span class="hl-1"> </span><span class="hl-4">agent</span><span class="hl-1"> </span><span class="hl-4">orchestration</span><br/><span class="hl-1">    │   ├── </span><span class="hl-4">trading_agent</span><span class="hl-1">.</span><span class="hl-4">ts</span><br/><span class="hl-1">    │   ├── </span><span class="hl-4">state_manager</span><span class="hl-1">.</span><span class="hl-4">ts</span><br/><span class="hl-1">    │   └── </span><span class="hl-4">auto_env</span><span class="hl-1">.</span><span class="hl-4">ts</span><br/><span class="hl-1">    │</span><br/><span class="hl-1">    ├── </span><span class="hl-4">env</span><span class="hl-1">/                         # </span><span class="hl-4">Trading</span><span class="hl-1"> </span><span class="hl-4">environment</span><br/><span class="hl-1">    │   └── </span><span class="hl-4">wallet</span><span class="hl-1">-</span><span class="hl-4">manager</span><span class="hl-1">.</span><span class="hl-4">ts</span><span class="hl-1">        # </span><span class="hl-4">Account</span><span class="hl-1"> </span><span class="hl-4">simulation</span><br/><span class="hl-1">    │</span><br/><span class="hl-1">    ├── </span><span class="hl-4">neural_network</span><span class="hl-1">/              # </span><span class="hl-4">Deep</span><span class="hl-1"> </span><span class="hl-5">Q</span><span class="hl-1">-</span><span class="hl-4">Learning</span><span class="hl-1"> </span><span class="hl-4">agent</span><br/><span class="hl-1">    │   ├── </span><span class="hl-4">neural</span><span class="hl-1">-</span><span class="hl-4">network</span><span class="hl-1">.</span><span class="hl-4">ts</span><br/><span class="hl-1">    │   ├── </span><span class="hl-4">agent</span><span class="hl-1">.</span><span class="hl-4">ts</span><span class="hl-1">                 # </span><span class="hl-5">NN</span><span class="hl-1"> + </span><span class="hl-4">experience</span><span class="hl-1"> </span><span class="hl-4">replay</span><br/><span class="hl-1">    │   ├── </span><span class="hl-4">activation</span><span class="hl-1">.</span><span class="hl-4">ts</span><br/><span class="hl-1">    │   ├── </span><span class="hl-4">optimizer</span><span class="hl-1">.</span><span class="hl-4">ts</span><br/><span class="hl-1">    │   └── ...</span><br/><span class="hl-1">    │</span><br/><span class="hl-1">    └── </span><span class="hl-4">genetic_algorithm</span><span class="hl-1">/           # </span><span class="hl-4">Evolution</span><span class="hl-1"> </span><span class="hl-4">engine</span><br/><span class="hl-1">        ├── </span><span class="hl-4">ga_runner</span><span class="hl-1">.</span><span class="hl-4">ts</span><span class="hl-1">             # </span><span class="hl-4">Main</span><span class="hl-1"> </span><span class="hl-5">GA</span><span class="hl-1"> </span><span class="hl-4">loop</span><br/><span class="hl-1">        ├── </span><span class="hl-4">mutation</span><span class="hl-1">.</span><span class="hl-4">ts</span><span class="hl-1">              # </span><span class="hl-4">Adaptive</span><span class="hl-1"> </span><span class="hl-4">mutation</span><br/><span class="hl-1">        ├── </span><span class="hl-4">crossover</span><span class="hl-1">.</span><span class="hl-4">ts</span><span class="hl-1">             # </span><span class="hl-4">Genome</span><span class="hl-1"> </span><span class="hl-4">crossover</span><br/><span class="hl-1">        ├── </span><span class="hl-4">fitness</span><span class="hl-1">.</span><span class="hl-4">ts</span><span class="hl-1">               # </span><span class="hl-4">Fitness</span><span class="hl-1"> </span><span class="hl-4">calculation</span><br/><span class="hl-1">        ├── </span><span class="hl-4">validation</span><span class="hl-1">.</span><span class="hl-4">ts</span><span class="hl-1">            # </span><span class="hl-4">Genome</span><span class="hl-1"> </span><span class="hl-4">validation</span><br/><span class="hl-1">        └── ...</span>
-</code><button>Copy</button></pre>
+<p>See <a href="media/ARCHITECTURE.html">ARCHITECTURE.md</a> for detailed module breakdown and integration.</p>
+<h2 id="documentation" class="tsd-anchor-link">Documentation</h2>
+<table>
+<thead>
+<tr>
+<th>Document</th>
+<th>Content</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="media/ARCHITECTURE.html">ARCHITECTURE.md</a></td>
+<td>System architecture, core modules, design decisions</td>
+</tr>
+<tr>
+<td><a href="media/trader-trainer.html">Centralized Service Doc</a></td>
+<td>REST API, config, dependency overview</td>
+</tr>
+<tr>
+<td><a href="media/genetic-algorithm.html">GA Reference</a></td>
+<td>Genome structure, operators, NSGA-II</td>
+</tr>
+<tr>
+<td><a href="media/neural-network.html">NN Reference</a></td>
+<td>Network architecture, activations, optimizers</td>
+</tr>
+<tr>
+<td><a href="media/training-process.html">Training Process</a></td>
+<td>End-to-end training flow, data preparation</td>
+</tr>
+</tbody>
+</table>
+<h2 id="related" class="tsd-anchor-link">Related</h2>
+<ul>
+<li><a href="media/bounded-contexts.html">Bounded Contexts</a> — DDD context map</li>
+<li><a href="media/README.html">Service Documentation Index</a> — All platform services</li>
+</ul>
+</div>
+</main>
 
-          <h2 id="usage" class="tsd-anchor-link">
-            Usage<a href="#usage" aria-label="Permalink" class="tsd-anchor-icon"
-              ><svg viewBox="0 0 24 24" aria-hidden="true">
-                <use href="assets/icons.svg#icon-anchor"></use></svg
-            ></a>
-          </h2>
-          <h3 id="creating-and-training-agents" class="tsd-anchor-link">
-            Creating and Training Agents<a
-              href="#creating-and-training-agents"
-              aria-label="Permalink"
-              class="tsd-anchor-icon"
-              ><svg viewBox="0 0 24 24" aria-hidden="true">
-                <use href="assets/icons.svg#icon-anchor"></use></svg
-            ></a>
-          </h3>
-          <pre><code class="typescript"><span class="hl-6">import</span><span class="hl-1"> </span><span class="hl-4">GeneticAlgorithmRunner</span><span class="hl-1"> </span><span class="hl-6">from</span><span class="hl-1"> </span><span class="hl-2">&#39;./core/genetic_algorithm/ga_runner&#39;</span><span class="hl-1">;</span><br/><br/><span class="hl-3">// Initialize GA runner</span><br/><span class="hl-7">const</span><span class="hl-1"> </span><span class="hl-5">gaRunner</span><span class="hl-1"> = </span><span class="hl-7">new</span><span class="hl-1"> </span><span class="hl-0">GeneticAlgorithmRunner</span><span class="hl-1">({</span><br/><span class="hl-1">  </span><span class="hl-4">populationSize:</span><span class="hl-1"> </span><span class="hl-8">50</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-4">generations:</span><span class="hl-1"> </span><span class="hl-8">100</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-4">mutationRate:</span><span class="hl-1"> </span><span class="hl-8">0.2</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-4">crossoverRate:</span><span class="hl-1"> </span><span class="hl-8">0.8</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-4">elitismRate:</span><span class="hl-1"> </span><span class="hl-8">0.1</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-4">timeWindowSize:</span><span class="hl-1"> </span><span class="hl-8">100</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-4">marketData:</span><span class="hl-1"> </span><span class="hl-4">priceHistoryArray</span><span class="hl-1">,</span><br/><span class="hl-1">});</span><br/><br/><span class="hl-3">// Run evolution</span><br/><span class="hl-7">const</span><span class="hl-1"> </span><span class="hl-5">bestAgent</span><span class="hl-1"> = </span><span class="hl-6">await</span><span class="hl-1"> </span><span class="hl-4">gaRunner</span><span class="hl-1">.</span><span class="hl-0">run</span><span class="hl-1">();</span><br/><br/><span class="hl-3">// Export for deployment</span><br/><span class="hl-7">const</span><span class="hl-1"> </span><span class="hl-5">agentJson</span><span class="hl-1"> = </span><span class="hl-4">bestAgent</span><span class="hl-1">.</span><span class="hl-0">toJSON</span><span class="hl-1">();</span><br/><span class="hl-0">sendToTraderExecutor</span><span class="hl-1">(</span><span class="hl-4">agentJson</span><span class="hl-1">);</span>
-</code><button type="button">Copy</button></pre>
+<nav class="fixed bottom-3 inset-x-0 z-30 flex justify-center pointer-events-none px-4" data-purpose="mobile-bottom-quick-nav">
+<div class="glass-header bg-[#0f172a]/90 border border-slate-700/80 rounded-full shadow-2xl p-1.5 flex items-center gap-1 pointer-events-auto backdrop-blur-lg">
+<button class="active-scale flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-mono font-medium text-slate-200 hover:bg-slate-800 transition" id="quickNavTreeBtn">
+<svg class="w-3.5 h-3.5 text-indigo-400" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+<span>Hierarchy</span>
+</button>
+<div class="h-4 w-px bg-slate-700"></div>
+<button class="active-scale flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-mono font-medium text-slate-200 hover:bg-slate-800 transition" id="quickNavTopBtn">
+<svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<path d="M5 10l7-7m0 0l7 7m-7-7v18" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+<span>Top</span>
+</button>
+</div>
+</nav>
 
-          <h3 id="trading-agent-inference" class="tsd-anchor-link">
-            Trading Agent Inference<a
-              href="#trading-agent-inference"
-              aria-label="Permalink"
-              class="tsd-anchor-icon"
-              ><svg viewBox="0 0 24 24" aria-hidden="true">
-                <use href="assets/icons.svg#icon-anchor"></use></svg
-            ></a>
-          </h3>
-          <pre><code class="typescript"><span class="hl-6">import</span><span class="hl-1"> </span><span class="hl-4">TradingAgent</span><span class="hl-1"> </span><span class="hl-6">from</span><span class="hl-1"> </span><span class="hl-2">&#39;./core/agent/trading_agent&#39;</span><span class="hl-1">;</span><br/><br/><span class="hl-7">const</span><span class="hl-1"> </span><span class="hl-5">agent</span><span class="hl-1"> = </span><span class="hl-7">new</span><span class="hl-1"> </span><span class="hl-0">TradingAgent</span><span class="hl-1">({</span><br/><span class="hl-1">  </span><span class="hl-4">nnConfig:</span><span class="hl-1"> {</span><br/><span class="hl-1">    </span><span class="hl-4">neuronsByLayer:</span><span class="hl-1"> [</span><span class="hl-8">10</span><span class="hl-1">, </span><span class="hl-8">32</span><span class="hl-1">, </span><span class="hl-8">16</span><span class="hl-1">, </span><span class="hl-8">3</span><span class="hl-1">],</span><br/><span class="hl-1">    </span><span class="hl-4">activationFunctions:</span><span class="hl-1"> [</span><span class="hl-2">&#39;relu&#39;</span><span class="hl-1">, </span><span class="hl-2">&#39;relu&#39;</span><span class="hl-1">],</span><br/><span class="hl-1">    </span><span class="hl-4">optimizationType:</span><span class="hl-1"> </span><span class="hl-2">&#39;adam&#39;</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-4">learningRate:</span><span class="hl-1"> </span><span class="hl-8">0.001</span><span class="hl-1">,</span><br/><span class="hl-1">  },</span><br/><span class="hl-1">  </span><span class="hl-4">wallet:</span><span class="hl-1"> { </span><span class="hl-4">initialCash:</span><span class="hl-1"> </span><span class="hl-8">10000</span><span class="hl-1">, </span><span class="hl-4">initialPrice:</span><span class="hl-1"> </span><span class="hl-8">100</span><span class="hl-1"> },</span><br/><span class="hl-1">  </span><span class="hl-4">actionSpace:</span><span class="hl-1"> </span><span class="hl-2">&#39;discrete&#39;</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-4">tradeAmount:</span><span class="hl-1"> </span><span class="hl-8">1</span><span class="hl-1">,</span><br/><span class="hl-1">});</span><br/><br/><span class="hl-3">// Execute one trading step</span><br/><span class="hl-7">const</span><span class="hl-1"> { </span><span class="hl-5">action</span><span class="hl-1">, </span><span class="hl-5">reward</span><span class="hl-1">, </span><span class="hl-5">metrics</span><span class="hl-1"> } = </span><span class="hl-4">agent</span><span class="hl-1">.</span><span class="hl-0">step</span><span class="hl-1">(</span><br/><span class="hl-1">  </span><span class="hl-4">marketFeatures</span><span class="hl-1">, </span><span class="hl-3">// Float32Array of normalized indicators</span><br/><span class="hl-1">  </span><span class="hl-4">currentPrice</span><span class="hl-1">, </span><span class="hl-3">// Current market price</span><br/><span class="hl-1">  </span><span class="hl-4">isEpisodeDone</span><span class="hl-1"> </span><span class="hl-3">// Episode termination flag</span><br/><span class="hl-1">);</span><br/><br/><span class="hl-3">// Actions: &#39;buy&#39; | &#39;sell&#39; | &#39;hold&#39;</span>
-</code><button type="button">Copy</button></pre>
 
-          <h3 id="manual-agent-evaluation" class="tsd-anchor-link">
-            Manual Agent Evaluation<a
-              href="#manual-agent-evaluation"
-              aria-label="Permalink"
-              class="tsd-anchor-icon"
-              ><svg viewBox="0 0 24 24" aria-hidden="true">
-                <use href="assets/icons.svg#icon-anchor"></use></svg
-            ></a>
-          </h3>
-          <pre><code class="typescript"><span class="hl-6">import</span><span class="hl-1"> { </span><span class="hl-4">evaluateGenomeAllWindows</span><span class="hl-1"> } </span><span class="hl-6">from</span><span class="hl-1"> </span><span class="hl-2">&#39;./core/genetic_algorithm/evaluation_pipeline&#39;</span><span class="hl-1">;</span><br/><br/><span class="hl-7">const</span><span class="hl-1"> </span><span class="hl-5">fitness</span><span class="hl-1"> = </span><span class="hl-6">await</span><span class="hl-1"> </span><span class="hl-0">evaluateGenomeAllWindows</span><span class="hl-1">(</span><br/><span class="hl-1">  </span><span class="hl-4">genome</span><span class="hl-1">, </span><span class="hl-3">// Agent genome</span><br/><span class="hl-1">  </span><span class="hl-4">marketData</span><span class="hl-1">, </span><span class="hl-3">// Historical prices</span><br/><span class="hl-1">  </span><span class="hl-4">timeWindows</span><span class="hl-1">, </span><span class="hl-3">// Training periods</span><br/><span class="hl-1">  </span><span class="hl-4">backendFactory</span><span class="hl-1"> </span><span class="hl-3">// TradingAgent factory function</span><br/><span class="hl-1">);</span><br/><br/><span class="hl-4">console</span><span class="hl-1">.</span><span class="hl-0">log</span><span class="hl-1">(</span><span class="hl-2">`Fitness Score: </span><span class="hl-7">${</span><span class="hl-4">fitness</span><span class="hl-9">.</span><span class="hl-4">totalFitness</span><span class="hl-7">}</span><span class="hl-2">`</span><span class="hl-1">);</span><br/><span class="hl-4">console</span><span class="hl-1">.</span><span class="hl-0">log</span><span class="hl-1">(</span><span class="hl-2">`Sharpe Ratio: </span><span class="hl-7">${</span><span class="hl-4">fitness</span><span class="hl-9">.</span><span class="hl-4">sharpe</span><span class="hl-7">}</span><span class="hl-2">`</span><span class="hl-1">);</span><br/><span class="hl-4">console</span><span class="hl-1">.</span><span class="hl-0">log</span><span class="hl-1">(</span><span class="hl-2">`Win Rate: </span><span class="hl-7">${</span><span class="hl-4">fitness</span><span class="hl-9">.</span><span class="hl-4">winRate</span><span class="hl-7">}</span><span class="hl-2">`</span><span class="hl-1">);</span>
-</code><button type="button">Copy</button></pre>
+<div class="fixed inset-0 z-50 pointer-events-none transition-all duration-300 opacity-0" data-purpose="navigation-drawer" id="treeDrawer">
+<div class="absolute inset-0 bg-black/75 backdrop-blur-sm" id="treeBackdrop"></div>
+<aside class="absolute inset-y-0 left-0 w-[84%] max-w-xs bg-[#0B0F19] border-r border-surface-border flex flex-col shadow-2xl transform -translate-x-full transition-transform duration-300 ease-out">
+<div class="p-4 border-b border-surface-border flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-indigo-500"></span>
+<span class="font-mono text-xs font-semibold text-white tracking-tight truncate">Modules &amp; Interfaces</span>
+</div>
+<button aria-label="Close Drawer" class="p-1 rounded-md text-slate-400 hover:text-white" id="closeTreeDrawerBtn">
+<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<path d="M6 18L18 6M6 6l12 12" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</button>
+</div>
+<div class="flex-1 overflow-y-auto p-3 space-y-1 font-mono text-xs">
 
-          <h2 id="api-endpoints" class="tsd-anchor-link">
-            API Endpoints<a href="#api-endpoints" aria-label="Permalink" class="tsd-anchor-icon"
-              ><svg viewBox="0 0 24 24" aria-hidden="true">
-                <use href="assets/icons.svg#icon-anchor"></use></svg
-            ></a>
-          </h2>
-          <h3 id="health-check" class="tsd-anchor-link">
-            Health Check<a href="#health-check" aria-label="Permalink" class="tsd-anchor-icon"
-              ><svg viewBox="0 0 24 24" aria-hidden="true">
-                <use href="assets/icons.svg#icon-anchor"></use></svg
-            ></a>
-          </h3>
-          <pre><code class="http">GET /ping
-</code><button type="button">Copy</button></pre>
+</div>
+<div class="p-3 border-t border-surface-border bg-slate-950/40 text-[11px] text-slate-400 flex justify-between items-center">
+<span><a class="text-indigo-400 hover:text-indigo-300 font-mono" href="../index.html">← Packages &amp; services</a></span>
+<span class="text-emerald-400 font-mono">Generated</span>
+</div>
+</aside>
+</div>
 
-          <p>Returns service status.</p>
-          <h3 id="future-agent-endpoints" class="tsd-anchor-link">
-            [Future] Agent Endpoints<a
-              href="#future-agent-endpoints"
-              aria-label="Permalink"
-              class="tsd-anchor-icon"
-              ><svg viewBox="0 0 24 24" aria-hidden="true">
-                <use href="assets/icons.svg#icon-anchor"></use></svg
-            ></a>
-          </h3>
-          <ul>
-            <li><code>POST /agents/evaluate</code> - Evaluate agent on data</li>
-            <li><code>POST /agents/export</code> - Export best agent</li>
-            <li><code>GET /agents/metrics</code> - Training metrics</li>
-            <li><code>POST /agents/train</code> - Start training session</li>
-          </ul>
-          <h2 id="testing" class="tsd-anchor-link">
-            Testing<a href="#testing" aria-label="Permalink" class="tsd-anchor-icon"
-              ><svg viewBox="0 0 24 24" aria-hidden="true">
-                <use href="assets/icons.svg#icon-anchor"></use></svg
-            ></a>
-          </h2>
-          <p>Comprehensive unit tests for all modules:</p>
-          <pre><code class="bash"><span class="hl-3"># Run all tests</span><br/><span class="hl-0">npm</span><span class="hl-1"> </span><span class="hl-2">test</span><br/><br/><span class="hl-3"># Run specific module tests</span><br/><span class="hl-0">npm</span><span class="hl-1"> </span><span class="hl-2">test</span><span class="hl-1"> </span><span class="hl-7">--</span><span class="hl-1"> </span><span class="hl-2">ga.spec</span><br/><span class="hl-0">npm</span><span class="hl-1"> </span><span class="hl-2">test</span><span class="hl-1"> </span><span class="hl-7">--</span><span class="hl-1"> </span><span class="hl-2">trading_agent.spec</span><br/><span class="hl-0">npm</span><span class="hl-1"> </span><span class="hl-2">test</span><span class="hl-1"> </span><span class="hl-7">--</span><span class="hl-1"> </span><span class="hl-2">neural-network.spec</span><br/><span class="hl-0">npm</span><span class="hl-1"> </span><span class="hl-2">test</span><span class="hl-1"> </span><span class="hl-7">--</span><span class="hl-1"> </span><span class="hl-2">wallet-manager.test</span><br/><br/><span class="hl-3"># With coverage</span><br/><span class="hl-0">npm</span><span class="hl-1"> </span><span class="hl-2">test</span><span class="hl-1"> </span><span class="hl-7">--</span><span class="hl-1"> </span><span class="hl-7">--coverage</span>
-</code><button type="button">Copy</button></pre>
 
-          <h3 id="test-coverage" class="tsd-anchor-link">
-            Test Coverage<a href="#test-coverage" aria-label="Permalink" class="tsd-anchor-icon"
-              ><svg viewBox="0 0 24 24" aria-hidden="true">
-                <use href="assets/icons.svg#icon-anchor"></use></svg
-            ></a>
-          </h3>
-          <ul>
-            <li>✅ <strong>Genetic Algorithm</strong>: Mutation, crossover, fitness, validation</li>
-            <li>✅ <strong>Neural Network</strong>: Forward pass, backward prop, activations</li>
-            <li>
-              ✅ <strong>Trading Agent</strong>: Action mapping, step execution, reward calculation
-            </li>
-            <li>✅ <strong>Wallet Manager</strong>: Buy/sell, P&amp;L, metrics calculation</li>
-            <li>✅ <strong>State Manager</strong>: Epsilon decay, hyperparameters</li>
-          </ul>
-          <h2 id="configuration" class="tsd-anchor-link">
-            Configuration<a href="#configuration" aria-label="Permalink" class="tsd-anchor-icon"
-              ><svg viewBox="0 0 24 24" aria-hidden="true">
-                <use href="assets/icons.svg#icon-anchor"></use></svg
-            ></a>
-          </h2>
-          <h3 id="neural-network-configuration" class="tsd-anchor-link">
-            Neural Network Configuration<a
-              href="#neural-network-configuration"
-              aria-label="Permalink"
-              class="tsd-anchor-icon"
-              ><svg viewBox="0 0 24 24" aria-hidden="true">
-                <use href="assets/icons.svg#icon-anchor"></use></svg
-            ></a>
-          </h3>
-          <pre><code class="typescript"><span class="hl-7">interface</span><span class="hl-1"> </span><span class="hl-10">NeuralNetworkConfig</span><span class="hl-1"> {</span><br/><span class="hl-1">  </span><span class="hl-3">// Architecture</span><br/><span class="hl-1">  </span><span class="hl-4">neuronsByLayer</span><span class="hl-1">: </span><span class="hl-10">number</span><span class="hl-1">[]; </span><span class="hl-3">// [input, hidden1, hidden2, ..., output]</span><br/><span class="hl-1">  </span><span class="hl-4">activationFunctions</span><span class="hl-1">: </span><span class="hl-10">ActivationType</span><span class="hl-1">[]; </span><span class="hl-3">// Per hidden layer</span><br/><span class="hl-1">  </span><span class="hl-4">connectionTypes</span><span class="hl-1">: </span><span class="hl-10">ConnectionType</span><span class="hl-1">[]; </span><span class="hl-3">// Fully-connected, skip, residual</span><br/><span class="hl-1">  </span><span class="hl-4">biasTypes</span><span class="hl-1">: </span><span class="hl-10">BiasType</span><span class="hl-1">[]; </span><span class="hl-3">// Enabled/disabled</span><br/><br/><span class="hl-1">  </span><span class="hl-3">// Normalization</span><br/><span class="hl-1">  </span><span class="hl-4">normalization</span><span class="hl-1">: </span><span class="hl-10">NormalisationType</span><span class="hl-1">; </span><span class="hl-3">// MinMax, Z-score, Batch, etc.</span><br/><br/><span class="hl-1">  </span><span class="hl-3">// Training</span><br/><span class="hl-1">  </span><span class="hl-4">optimizationType</span><span class="hl-1">: </span><span class="hl-10">OptimizerType</span><span class="hl-1">; </span><span class="hl-3">// SGD, Adam, RMSProp</span><br/><span class="hl-1">  </span><span class="hl-4">learningRate</span><span class="hl-1">: </span><span class="hl-10">number</span><span class="hl-1">; </span><span class="hl-3">// Typical: 0.001-0.01</span><br/><span class="hl-1">  </span><span class="hl-4">lossFunction</span><span class="hl-1">: </span><span class="hl-10">LossFunctionType</span><span class="hl-1">; </span><span class="hl-3">// MSE, CE, Huber</span><br/><br/><span class="hl-1">  </span><span class="hl-3">// Experience Replay</span><br/><span class="hl-1">  </span><span class="hl-4">enablePool</span><span class="hl-1">: </span><span class="hl-10">boolean</span><span class="hl-1">;</span><br/><span class="hl-1">  </span><span class="hl-4">poolMaxSize</span><span class="hl-1">: </span><span class="hl-10">number</span><span class="hl-1">;</span><br/><span class="hl-1">}</span>
-</code><button type="button">Copy</button></pre>
+<div class="fixed inset-0 z-50 pointer-events-none transition-all duration-300 opacity-0" data-purpose="visibility-settings-modal" id="settingsSheet">
+<div class="absolute inset-0 bg-black/75 backdrop-blur-sm" id="settingsBackdrop"></div>
+<div class="absolute inset-x-0 bottom-0 max-w-md mx-auto bg-[#0F1626] border-t border-surface-border rounded-t-2xl shadow-2xl transform translate-y-full transition-transform duration-300 ease-out p-5 space-y-4">
+<div class="w-10 h-1 rounded-full bg-slate-700 mx-auto -mt-2 mb-2"></div>
+<div class="flex items-center justify-between">
+<h4 class="text-sm font-bold font-mono uppercase tracking-wider text-white">Member Visibility</h4>
+<button class="text-slate-400 hover:text-white text-xs font-mono" id="closeSettingsBtn">Done</button>
+</div>
+<div class="space-y-2.5">
+<label class="flex items-center justify-between p-2.5 rounded-lg bg-surface-card border border-surface-border text-xs">
+<span class="text-slate-200">Protected Members</span>
+<input class="rounded bg-slate-900 border-slate-700 text-indigo-600 focus:ring-0" type="checkbox">
+</label>
+<label class="flex items-center justify-between p-2.5 rounded-lg bg-surface-card border border-surface-border text-xs">
+<span class="text-slate-200">Inherited Members</span>
+<input checked="" class="rounded bg-slate-900 border-slate-700 text-indigo-600 focus:ring-0" type="checkbox">
+</label>
+<label class="flex items-center justify-between p-2.5 rounded-lg bg-surface-card border border-surface-border text-xs">
+<span class="text-slate-200">External Declarations</span>
+<input class="rounded bg-slate-900 border-slate-700 text-indigo-600 focus:ring-0" type="checkbox">
+</label>
+</div>
+<div class="pt-2">
+<div class="text-[11px] text-slate-400 flex items-center justify-between">
+<span>Current Theme Mode</span>
+<span class="font-mono text-indigo-400">Dark / Modern Deep Slate</span>
+</div>
+</div>
+</div>
+</div>
 
-          <h3 id="genetic-algorithm-configuration" class="tsd-anchor-link">
-            Genetic Algorithm Configuration<a
-              href="#genetic-algorithm-configuration"
-              aria-label="Permalink"
-              class="tsd-anchor-icon"
-              ><svg viewBox="0 0 24 24" aria-hidden="true">
-                <use href="assets/icons.svg#icon-anchor"></use></svg
-            ></a>
-          </h3>
-          <pre><code class="typescript"><span class="hl-7">interface</span><span class="hl-1"> </span><span class="hl-10">GARunnerConfig</span><span class="hl-1"> {</span><br/><span class="hl-1">  </span><span class="hl-3">// Population</span><br/><span class="hl-1">  </span><span class="hl-4">populationSize</span><span class="hl-1">: </span><span class="hl-10">number</span><span class="hl-1">; </span><span class="hl-3">// 20-500 (auto-scaled by memory)</span><br/><span class="hl-1">  </span><span class="hl-4">generations</span><span class="hl-1">: </span><span class="hl-10">number</span><span class="hl-1">; </span><span class="hl-3">// Termination condition</span><br/><span class="hl-1">  </span><span class="hl-4">elitismRate</span><span class="hl-1">: </span><span class="hl-10">number</span><span class="hl-1">; </span><span class="hl-3">// Proportion kept (0.05-0.2)</span><br/><br/><span class="hl-1">  </span><span class="hl-3">// Genetic Operators</span><br/><span class="hl-1">  </span><span class="hl-4">mutationRate</span><span class="hl-1">: </span><span class="hl-10">number</span><span class="hl-1">; </span><span class="hl-3">// 0.1-0.5</span><br/><span class="hl-1">  </span><span class="hl-4">crossoverRate</span><span class="hl-1">: </span><span class="hl-10">number</span><span class="hl-1">; </span><span class="hl-3">// 0.6-0.9</span><br/><br/><span class="hl-1">  </span><span class="hl-3">// Selection</span><br/><span class="hl-1">  </span><span class="hl-4">selectionType</span><span class="hl-1">: </span><span class="hl-10">SelectionType</span><span class="hl-1">; </span><span class="hl-3">// Tournament, roulette</span><br/><span class="hl-1">  </span><span class="hl-4">tournamentSize</span><span class="hl-1">: </span><span class="hl-10">number</span><span class="hl-1">; </span><span class="hl-3">// 2-5</span><br/><br/><span class="hl-1">  </span><span class="hl-3">// Data</span><br/><span class="hl-1">  </span><span class="hl-4">marketData</span><span class="hl-1">: </span><span class="hl-10">MarketStep</span><span class="hl-1">[]; </span><span class="hl-3">// Historical price data</span><br/><span class="hl-1">  </span><span class="hl-4">timeWindowSize</span><span class="hl-1">: </span><span class="hl-10">number</span><span class="hl-1">; </span><span class="hl-3">// Evaluation window (candles)</span><br/><span class="hl-1">  </span><span class="hl-4">validationSplit</span><span class="hl-1">: </span><span class="hl-10">number</span><span class="hl-1">; </span><span class="hl-3">// 0.7-0.8</span><br/><br/><span class="hl-1">  </span><span class="hl-3">// Constraints</span><br/><span class="hl-1">  </span><span class="hl-4">maxLayers</span><span class="hl-1">: </span><span class="hl-10">number</span><span class="hl-1">; </span><span class="hl-3">// Max hidden layers</span><br/><span class="hl-1">  </span><span class="hl-4">maxNeuronsPerLayer</span><span class="hl-1">: </span><span class="hl-10">number</span><span class="hl-1">; </span><span class="hl-3">// Max neurons</span><br/><span class="hl-1">  </span><span class="hl-4">maxConnections</span><span class="hl-1">: </span><span class="hl-10">number</span><span class="hl-1">; </span><span class="hl-3">// Network complexity limit</span><br/><br/><span class="hl-1">  </span><span class="hl-3">// Termination</span><br/><span class="hl-1">  </span><span class="hl-4">stagnationGenerations</span><span class="hl-1">: </span><span class="hl-10">number</span><span class="hl-1">; </span><span class="hl-3">// Generations without improvement</span><br/><span class="hl-1">  </span><span class="hl-4">targetFitness</span><span class="hl-1">: </span><span class="hl-10">number</span><span class="hl-1">; </span><span class="hl-3">// Stop if fitness reached</span><br/><span class="hl-1">  </span><span class="hl-4">diversityThreshold</span><span class="hl-1">: </span><span class="hl-10">number</span><span class="hl-1">; </span><span class="hl-3">// Stop if diversity too low</span><br/><span class="hl-1">}</span>
-</code><button type="button">Copy</button></pre>
 
-          <h2 id="fitness-metrics" class="tsd-anchor-link">
-            Fitness Metrics<a href="#fitness-metrics" aria-label="Permalink" class="tsd-anchor-icon"
-              ><svg viewBox="0 0 24 24" aria-hidden="true">
-                <use href="assets/icons.svg#icon-anchor"></use></svg
-            ></a>
-          </h2>
-          <p>Agents are evaluated on multiple dimensions:</p>
-          <table>
-            <thead>
-              <tr>
-                <th>Metric</th>
-                <th>Calculation</th>
-                <th>Interpretation</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td><strong>Total P&amp;L</strong></td>
-                <td>Final Value - Initial Value</td>
-                <td>Absolute profit</td>
-              </tr>
-              <tr>
-                <td><strong>Return %</strong></td>
-                <td>P&amp;L / Initial Value</td>
-                <td>Percentage profit</td>
-              </tr>
-              <tr>
-                <td><strong>Sharpe Ratio</strong></td>
-                <td>(avg_return - rf) / std_dev</td>
-                <td>Risk-adjusted return</td>
-              </tr>
-              <tr>
-                <td><strong>Sortino Ratio</strong></td>
-                <td>avg_return / downside_std</td>
-                <td>Downside-risk adjusted</td>
-              </tr>
-              <tr>
-                <td><strong>Calmar Ratio</strong></td>
-                <td>avg_return / max_drawdown</td>
-                <td>Return per unit of max loss</td>
-              </tr>
-              <tr>
-                <td><strong>Max Drawdown</strong></td>
-                <td>peak_to_trough decline</td>
-                <td>Largest loss from peak</td>
-              </tr>
-              <tr>
-                <td><strong>Win Rate</strong></td>
-                <td>winning_trades / total_trades</td>
-                <td>% of profitable trades</td>
-              </tr>
-            </tbody>
-          </table>
-          <p><strong>Composite Fitness</strong>:</p>
-          <pre><code><span class="hl-4">fitness</span><span class="hl-1"> = </span><span class="hl-8">0.4</span><span class="hl-1"> * </span><span class="hl-4">sharpe</span><span class="hl-1"> + </span><span class="hl-8">0.3</span><span class="hl-1"> * </span><span class="hl-4">sortino</span><span class="hl-1"> + </span><span class="hl-8">0.2</span><span class="hl-1"> * </span><span class="hl-4">pnl</span><span class="hl-1"> - </span><span class="hl-8">0.1</span><span class="hl-1"> * </span><span class="hl-4">complexity_penalty</span>
-</code><button>Copy</button></pre>
+<script data-purpose="ui-interactions">
+    document.addEventListener('DOMContentLoaded', () => {
+      const drawer = document.getElementById('treeDrawer');
+      const drawerPanel = drawer.querySelector('aside');
+      const drawerToggle = document.getElementById('drawerToggleBtn');
+      const quickNavTree = document.getElementById('quickNavTreeBtn');
+      const closeTreeDrawer = document.getElementById('closeTreeDrawerBtn');
+      const treeBackdrop = document.getElementById('treeBackdrop');
 
-          <h2 id="genetic-algorithm-details" class="tsd-anchor-link">
-            Genetic Algorithm Details<a
-              href="#genetic-algorithm-details"
-              aria-label="Permalink"
-              class="tsd-anchor-icon"
-              ><svg viewBox="0 0 24 24" aria-hidden="true">
-                <use href="assets/icons.svg#icon-anchor"></use></svg
-            ></a>
-          </h2>
-          <h3 id="population-evolution" class="tsd-anchor-link">
-            Population Evolution<a
-              href="#population-evolution"
-              aria-label="Permalink"
-              class="tsd-anchor-icon"
-              ><svg viewBox="0 0 24 24" aria-hidden="true">
-                <use href="assets/icons.svg#icon-anchor"></use></svg
-            ></a>
-          </h3>
-          <ol>
-            <li><strong>Selection</strong>: Tournament or roulette based on fitness</li>
-            <li><strong>Crossover</strong>: Blend parent genomes (uniform, arithmetic, BLX-α)</li>
-            <li><strong>Mutation</strong>: Adaptive gaussian/lévy perturbations</li>
-            <li><strong>Validation</strong>: Check topology constraints, repair if needed</li>
-            <li><strong>Evaluation</strong>: Run TradingAgent on market data</li>
-            <li><strong>Environmental Selection</strong>: Keep elite + best offspring</li>
-            <li><strong>Termination</strong>: Check convergence, stagnation, diversity</li>
-          </ol>
-          <h3 id="mutation-operators" class="tsd-anchor-link">
-            Mutation Operators<a
-              href="#mutation-operators"
-              aria-label="Permalink"
-              class="tsd-anchor-icon"
-              ><svg viewBox="0 0 24 24" aria-hidden="true">
-                <use href="assets/icons.svg#icon-anchor"></use></svg
-            ></a>
-          </h3>
-          <ul>
-            <li><strong>Gaussian</strong>: Standard deviation from parent</li>
-            <li><strong>Lévy</strong>: Long-tailed distribution for exploration</li>
-            <li><strong>Cauchy</strong>: Heavy-tailed for rare events</li>
-            <li><strong>Uniform</strong>: Random within range</li>
-            <li><strong>Adaptive</strong>: Sigma adjusted based on diversity</li>
-          </ul>
-          <h3 id="crossover-types" class="tsd-anchor-link">
-            Crossover Types<a href="#crossover-types" aria-label="Permalink" class="tsd-anchor-icon"
-              ><svg viewBox="0 0 24 24" aria-hidden="true">
-                <use href="assets/icons.svg#icon-anchor"></use></svg
-            ></a>
-          </h3>
-          <ul>
-            <li><strong>Uniform</strong>: Randomly select alleles from each parent</li>
-            <li><strong>Arithmetic</strong>: Weighted average of parents</li>
-            <li>
-              <strong>BLX-α</strong>: Blend in extended range [min-α<em>range, max+α</em>range]
-            </li>
-            <li><strong>SBX</strong>: Simulated Binary Crossover</li>
-          </ul>
-          <h2 id="integration-with-message-manager" class="tsd-anchor-link">
-            Integration with Message Manager<a
-              href="#integration-with-message-manager"
-              aria-label="Permalink"
-              class="tsd-anchor-icon"
-              ><svg viewBox="0 0 24 24" aria-hidden="true">
-                <use href="assets/icons.svg#icon-anchor"></use></svg
-            ></a>
-          </h2>
-          <h3 id="receiving-market-data" class="tsd-anchor-link">
-            Receiving Market Data<a
-              href="#receiving-market-data"
-              aria-label="Permalink"
-              class="tsd-anchor-icon"
-              ><svg viewBox="0 0 24 24" aria-hidden="true">
-                <use href="assets/icons.svg#icon-anchor"></use></svg
-            ></a>
-          </h3>
-          <pre><code class="typescript"><span class="hl-6">import</span><span class="hl-1"> { </span><span class="hl-4">MessageManagerClient</span><span class="hl-1"> } </span><span class="hl-6">from</span><span class="hl-1"> </span><span class="hl-2">&#39;cash-lib/broker-message&#39;</span><span class="hl-1">;</span><br/><br/><span class="hl-7">const</span><span class="hl-1"> </span><span class="hl-5">client</span><span class="hl-1"> = </span><span class="hl-7">new</span><span class="hl-1"> </span><span class="hl-0">MessageManagerClient</span><span class="hl-1">(</span><span class="hl-4">config</span><span class="hl-1">);</span><br/><br/><span class="hl-4">client</span><span class="hl-1">.</span><span class="hl-0">on</span><span class="hl-1">(</span><span class="hl-2">&#39;market_update&#39;</span><span class="hl-1">, (</span><span class="hl-4">data</span><span class="hl-1">: </span><span class="hl-10">MarketData</span><span class="hl-1">) </span><span class="hl-7">=&gt;</span><span class="hl-1"> {</span><br/><span class="hl-1">  </span><span class="hl-3">// Process: price, volume, indicators</span><br/><span class="hl-1">  </span><span class="hl-4">gaRunner</span><span class="hl-1">.</span><span class="hl-0">feedMarketData</span><span class="hl-1">(</span><span class="hl-4">data</span><span class="hl-1">);</span><br/><span class="hl-1">});</span><br/><br/><span class="hl-4">client</span><span class="hl-1">.</span><span class="hl-0">on</span><span class="hl-1">(</span><span class="hl-2">&#39;episode_end&#39;</span><span class="hl-1">, </span><span class="hl-7">async</span><span class="hl-1"> () </span><span class="hl-7">=&gt;</span><span class="hl-1"> {</span><br/><span class="hl-1">  </span><span class="hl-3">// Evaluate and prepare best agent</span><br/><span class="hl-1">  </span><span class="hl-7">const</span><span class="hl-1"> </span><span class="hl-5">bestAgent</span><span class="hl-1"> = </span><span class="hl-6">await</span><span class="hl-1"> </span><span class="hl-4">gaRunner</span><span class="hl-1">.</span><span class="hl-0">getBestAgent</span><span class="hl-1">();</span><br/><span class="hl-1">  </span><span class="hl-6">await</span><span class="hl-1"> </span><span class="hl-4">client</span><span class="hl-1">.</span><span class="hl-0">sendAgent</span><span class="hl-1">(</span><span class="hl-4">bestAgent</span><span class="hl-1">, { </span><span class="hl-4">pair:</span><span class="hl-1"> </span><span class="hl-2">&#39;BTC/USDT&#39;</span><span class="hl-1">, </span><span class="hl-4">riskScore:</span><span class="hl-1"> </span><span class="hl-8">0.3</span><span class="hl-1"> });</span><br/><span class="hl-1">});</span>
-</code><button type="button">Copy</button></pre>
+      const settingsSheet = document.getElementById('settingsSheet');
+      const settingsPanel = settingsSheet.querySelector('div:nth-child(2)');
+      const settingsToggle = document.getElementById('settingsSheetBtn');
+      const closeSettings = document.getElementById('closeSettingsBtn');
+      const settingsBackdrop = document.getElementById('settingsBackdrop');
 
-          <h3 id="exporting-best-agent" class="tsd-anchor-link">
-            Exporting Best Agent<a
-              href="#exporting-best-agent"
-              aria-label="Permalink"
-              class="tsd-anchor-icon"
-              ><svg viewBox="0 0 24 24" aria-hidden="true">
-                <use href="assets/icons.svg#icon-anchor"></use></svg
-            ></a>
-          </h3>
-          <pre><code class="typescript"><span class="hl-3">// Send to Trader-Executor</span><br/><span class="hl-7">const</span><span class="hl-1"> </span><span class="hl-5">agent</span><span class="hl-1"> = </span><span class="hl-4">gaRunner</span><span class="hl-1">.</span><span class="hl-4">bestGenome</span><span class="hl-1">.</span><span class="hl-0">toTradeableAgent</span><span class="hl-1">();</span><br/><br/><span class="hl-7">const</span><span class="hl-1"> </span><span class="hl-5">payload</span><span class="hl-1"> = {</span><br/><span class="hl-1">  </span><span class="hl-4">agent:</span><span class="hl-1"> </span><span class="hl-4">agent</span><span class="hl-1">.</span><span class="hl-0">serialize</span><span class="hl-1">(),</span><br/><span class="hl-1">  </span><span class="hl-4">metrics:</span><span class="hl-1"> {</span><br/><span class="hl-1">    </span><span class="hl-4">sharpeRatio:</span><span class="hl-1"> </span><span class="hl-8">1.85</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-4">sortinoRatio:</span><span class="hl-1"> </span><span class="hl-8">2.3</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-4">winRate:</span><span class="hl-1"> </span><span class="hl-8">0.62</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-4">maxDrawdown:</span><span class="hl-1"> </span><span class="hl-8">0.08</span><span class="hl-1">,</span><br/><span class="hl-1">  },</span><br/><span class="hl-1">  </span><span class="hl-4">pair:</span><span class="hl-1"> </span><span class="hl-2">&#39;BTC/USDT&#39;</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-4">riskScore:</span><span class="hl-1"> </span><span class="hl-8">0.35</span><span class="hl-1">, </span><span class="hl-3">// 0 = conservative, 1 = aggressive</span><br/><span class="hl-1">  </span><span class="hl-4">timestamp:</span><span class="hl-1"> </span><span class="hl-4">Date</span><span class="hl-1">.</span><span class="hl-0">now</span><span class="hl-1">(),</span><br/><span class="hl-1">};</span><br/><br/><span class="hl-3">// Via Message Manager service</span><br/><span class="hl-6">await</span><span class="hl-1"> </span><span class="hl-4">messageManager</span><span class="hl-1">.</span><span class="hl-0">publish</span><span class="hl-1">(</span><span class="hl-2">&#39;trader-executor-agents&#39;</span><span class="hl-1">, </span><span class="hl-4">payload</span><span class="hl-1">);</span><br/><br/><span class="hl-3">// Or direct HTTPS (with authentication via cash-lib)</span><br/><span class="hl-6">await</span><span class="hl-1"> </span><span class="hl-4">axios</span><span class="hl-1">.</span><span class="hl-0">post</span><span class="hl-1">(</span><span class="hl-2">&#39;https://trader-executor:3002/agents/deploy&#39;</span><span class="hl-1">, </span><span class="hl-4">payload</span><span class="hl-1">, {</span><br/><span class="hl-1">  </span><span class="hl-4">headers:</span><span class="hl-1"> </span><span class="hl-6">await</span><span class="hl-1"> </span><span class="hl-0">getSecureHeaders</span><span class="hl-1">(),</span><br/><span class="hl-1">});</span>
-</code><button type="button">Copy</button></pre>
+      function openDrawer() {
+        drawer.classList.remove('pointer-events-none', 'opacity-0');
+        drawerPanel.classList.remove('-translate-x-full');
+        document.body.style.overflow = 'hidden';
+      }
+      function closeDrawer() {
+        drawer.classList.add('opacity-0', 'pointer-events-none');
+        drawerPanel.classList.add('-translate-x-full');
+        document.body.style.overflow = '';
+      }
+      function openSettings() {
+        settingsSheet.classList.remove('pointer-events-none', 'opacity-0');
+        settingsPanel.classList.remove('translate-y-full');
+        document.body.style.overflow = 'hidden';
+      }
+      function closeSettingsModal() {
+        settingsSheet.classList.add('opacity-0', 'pointer-events-none');
+        settingsPanel.classList.add('translate-y-full');
+        document.body.style.overflow = '';
+      }
 
-          <h2 id="performance-tuning" class="tsd-anchor-link">
-            Performance Tuning<a
-              href="#performance-tuning"
-              aria-label="Permalink"
-              class="tsd-anchor-icon"
-              ><svg viewBox="0 0 24 24" aria-hidden="true">
-                <use href="assets/icons.svg#icon-anchor"></use></svg
-            ></a>
-          </h2>
-          <h3 id="for-faster-training" class="tsd-anchor-link">
-            For Faster Training<a
-              href="#for-faster-training"
-              aria-label="Permalink"
-              class="tsd-anchor-icon"
-              ><svg viewBox="0 0 24 24" aria-hidden="true">
-                <use href="assets/icons.svg#icon-anchor"></use></svg
-            ></a>
-          </h3>
-          <pre><code class="typescript"><span class="hl-1">{</span><br/><span class="hl-1">  </span><span class="hl-11">populationSize</span><span class="hl-1">: </span><span class="hl-8">20</span><span class="hl-1">,           </span><span class="hl-3">// Smaller population</span><br/><span class="hl-1">  </span><span class="hl-11">generations</span><span class="hl-1">: </span><span class="hl-8">50</span><span class="hl-1">,              </span><span class="hl-3">// Fewer generations</span><br/><span class="hl-1">  </span><span class="hl-11">timeWindowSize</span><span class="hl-1">: </span><span class="hl-8">50</span><span class="hl-1">,           </span><span class="hl-3">// Shorter evaluation windows</span><br/><span class="hl-1">  </span><span class="hl-11">mutationRate</span><span class="hl-1">: </span><span class="hl-8">0.5</span><span class="hl-1">,            </span><span class="hl-3">// Higher exploration</span><br/><span class="hl-1">  </span><span class="hl-11">validationSplit</span><span class="hl-1">: </span><span class="hl-8">0.6</span><span class="hl-1">,         </span><span class="hl-3">// Less validation data</span><br/><span class="hl-1">}</span>
-</code><button type="button">Copy</button></pre>
+      drawerToggle?.addEventListener('click', openDrawer);
+      quickNavTree?.addEventListener('click', openDrawer);
+      closeTreeDrawer?.addEventListener('click', closeDrawer);
+      treeBackdrop?.addEventListener('click', closeDrawer);
 
-          <h3 id="for-better-results" class="tsd-anchor-link">
-            For Better Results<a
-              href="#for-better-results"
-              aria-label="Permalink"
-              class="tsd-anchor-icon"
-              ><svg viewBox="0 0 24 24" aria-hidden="true">
-                <use href="assets/icons.svg#icon-anchor"></use></svg
-            ></a>
-          </h3>
-          <pre><code class="typescript"><span class="hl-1">{</span><br/><span class="hl-1">  </span><span class="hl-11">populationSize</span><span class="hl-1">: </span><span class="hl-8">100</span><span class="hl-1">,          </span><span class="hl-3">// Larger population</span><br/><span class="hl-1">  </span><span class="hl-11">generations</span><span class="hl-1">: </span><span class="hl-8">200</span><span class="hl-1">,             </span><span class="hl-3">// More generations</span><br/><span class="hl-1">  </span><span class="hl-11">timeWindowSize</span><span class="hl-1">: </span><span class="hl-8">200</span><span class="hl-1">,          </span><span class="hl-3">// Longer evaluation windows</span><br/><span class="hl-1">  </span><span class="hl-11">elitismRate</span><span class="hl-1">: </span><span class="hl-8">0.2</span><span class="hl-1">,             </span><span class="hl-3">// Stronger elitism</span><br/><span class="hl-1">  </span><span class="hl-11">validationSplit</span><span class="hl-1">: </span><span class="hl-8">0.8</span><span class="hl-1">,         </span><span class="hl-3">// More validation data</span><br/><span class="hl-1">  </span><span class="hl-11">stagnationGenerations</span><span class="hl-1">: </span><span class="hl-8">30</span><span class="hl-1">,    </span><span class="hl-3">// Patience for plateaus</span><br/><span class="hl-1">}</span>
-</code><button type="button">Copy</button></pre>
+      settingsToggle?.addEventListener('click', openSettings);
+      closeSettings?.addEventListener('click', closeSettingsModal);
+      settingsBackdrop?.addEventListener('click', closeSettingsModal);
 
-          <h3 id="memory-optimization" class="tsd-anchor-link">
-            Memory Optimization<a
-              href="#memory-optimization"
-              aria-label="Permalink"
-              class="tsd-anchor-icon"
-              ><svg viewBox="0 0 24 24" aria-hidden="true">
-                <use href="assets/icons.svg#icon-anchor"></use></svg
-            ></a>
-          </h3>
-          <pre><code class="typescript"><span class="hl-3">// Automatic population sizing</span><br/><span class="hl-7">const</span><span class="hl-1"> </span><span class="hl-5">maxPopulation</span><span class="hl-1"> = </span><span class="hl-4">Math</span><span class="hl-1">.</span><span class="hl-0">floor</span><span class="hl-1">(</span><span class="hl-4">availableMemory</span><span class="hl-1"> / </span><span class="hl-4">memoryPerAgent</span><span class="hl-1">);</span><br/><span class="hl-4">gaConfig</span><span class="hl-1">.</span><span class="hl-4">populationSize</span><span class="hl-1"> = </span><span class="hl-0">clamp</span><span class="hl-1">(</span><span class="hl-4">maxPopulation</span><span class="hl-1">, </span><span class="hl-8">10</span><span class="hl-1">, </span><span class="hl-8">500</span><span class="hl-1">);</span>
-</code><button type="button">Copy</button></pre>
+      document.getElementById('quickNavTopBtn')?.addEventListener('click', () => {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      });
 
-          <h2 id="error-handling" class="tsd-anchor-link">
-            Error Handling<a href="#error-handling" aria-label="Permalink" class="tsd-anchor-icon"
-              ><svg viewBox="0 0 24 24" aria-hidden="true">
-                <use href="assets/icons.svg#icon-anchor"></use></svg
-            ></a>
-          </h2>
-          <p>All errors from <code>cash-lib</code> are caught and properly formatted:</p>
-          <pre><code class="typescript"><span class="hl-6">import</span><span class="hl-1"> { </span><span class="hl-4">AgentError</span><span class="hl-1"> } </span><span class="hl-6">from</span><span class="hl-1"> </span><span class="hl-2">&#39;cash-lib/utils/Errors&#39;</span><span class="hl-1">;</span><br/><br/><span class="hl-6">try</span><span class="hl-1"> {</span><br/><span class="hl-1">  </span><span class="hl-4">agent</span><span class="hl-1">.</span><span class="hl-0">step</span><span class="hl-1">(</span><span class="hl-4">features</span><span class="hl-1">, </span><span class="hl-4">price</span><span class="hl-1">);</span><br/><span class="hl-1">} </span><span class="hl-6">catch</span><span class="hl-1"> (</span><span class="hl-4">error</span><span class="hl-1">) {</span><br/><span class="hl-1">  </span><span class="hl-6">if</span><span class="hl-1"> (</span><span class="hl-4">error</span><span class="hl-1"> </span><span class="hl-7">instanceof</span><span class="hl-1"> </span><span class="hl-10">AgentError</span><span class="hl-1">) {</span><br/><span class="hl-1">    </span><span class="hl-4">console</span><span class="hl-1">.</span><span class="hl-0">error</span><span class="hl-1">(</span><span class="hl-2">`Agent Error: </span><span class="hl-7">${</span><span class="hl-4">error</span><span class="hl-9">.</span><span class="hl-4">message</span><span class="hl-7">}</span><span class="hl-2">`</span><span class="hl-1">);</span><br/><span class="hl-1">  }</span><br/><span class="hl-1">  </span><span class="hl-6">throw</span><span class="hl-1"> </span><span class="hl-4">error</span><span class="hl-1">; </span><span class="hl-3">// Bubble up to global error handler</span><br/><span class="hl-1">}</span>
-</code><button type="button">Copy</button></pre>
+      document.getElementById('searchTriggerBtn')?.addEventListener('click', () => {
+        openDrawer();
+      });
 
-          <h2 id="monitoring-logging" class="tsd-anchor-link">
-            Monitoring &amp; Logging<a
-              href="#monitoring-logging"
-              aria-label="Permalink"
-              class="tsd-anchor-icon"
-              ><svg viewBox="0 0 24 24" aria-hidden="true">
-                <use href="assets/icons.svg#icon-anchor"></use></svg
-            ></a>
-          </h2>
-          <p>Key metrics to monitor:</p>
-          <pre><code class="typescript"><span class="hl-3">// Training progress</span><br/><span class="hl-4">console</span><span class="hl-1">.</span><span class="hl-0">log</span><span class="hl-1">(</span><span class="hl-2">`</span><br/><span class="hl-2">  Generation: </span><span class="hl-7">${</span><span class="hl-4">generation</span><span class="hl-7">}</span><br/><span class="hl-2">  Population: </span><span class="hl-7">${</span><span class="hl-4">population</span><span class="hl-9">.</span><span class="hl-4">size</span><span class="hl-7">}</span><br/><span class="hl-2">  Best Fitness: </span><span class="hl-7">${</span><span class="hl-4">bestFitness</span><span class="hl-7">}</span><br/><span class="hl-2">  Avg Fitness: </span><span class="hl-7">${</span><span class="hl-4">avgFitness</span><span class="hl-7">}</span><br/><span class="hl-2">  Diversity: </span><span class="hl-7">${</span><span class="hl-4">diversity</span><span class="hl-7">}</span><br/><span class="hl-2">  Memory Used: </span><span class="hl-7">${</span><span class="hl-4">memoryUsed</span><span class="hl-7">}</span><span class="hl-2">%</span><br/><span class="hl-2">`</span><span class="hl-1">);</span><br/><br/><span class="hl-3">// Agent performance</span><br/><span class="hl-4">console</span><span class="hl-1">.</span><span class="hl-0">log</span><span class="hl-1">(</span><span class="hl-2">`</span><br/><span class="hl-2">  Agent ID: </span><span class="hl-7">${</span><span class="hl-4">agent</span><span class="hl-9">.</span><span class="hl-4">id</span><span class="hl-7">}</span><br/><span class="hl-2">  Sharpe: </span><span class="hl-7">${</span><span class="hl-4">metrics</span><span class="hl-9">.</span><span class="hl-4">sharpeRatio</span><span class="hl-7">}</span><br/><span class="hl-2">  Win Rate: </span><span class="hl-7">${</span><span class="hl-4">metrics</span><span class="hl-9">.</span><span class="hl-4">winRate</span><span class="hl-7">}</span><br/><span class="hl-2">  Max Drawdown: </span><span class="hl-7">${</span><span class="hl-4">metrics</span><span class="hl-9">.</span><span class="hl-4">maxDrawdown</span><span class="hl-7">}</span><br/><span class="hl-2">  Trades Executed: </span><span class="hl-7">${</span><span class="hl-4">metrics</span><span class="hl-9">.</span><span class="hl-4">totalTrades</span><span class="hl-7">}</span><br/><span class="hl-2">`</span><span class="hl-1">);</span>
-</code><button type="button">Copy</button></pre>
+      const copyBtn = document.getElementById('copyInterfaceBtn');
+      const copyText = document.getElementById('copyInterfaceText');
+      copyBtn?.addEventListener('click', () => {
+        const code = null;
+        navigator.clipboard.writeText(code).then(() => {
+          copyText.textContent = 'Copied!';
+          setTimeout(() => { copyText.textContent = 'Copy'; }, 2000);
+        }).catch(() => {
+          copyText.textContent = 'Copied!';
+        });
+      });
+    });
+  </script>
 
-          <h2 id="code-standards-guidelines" class="tsd-anchor-link">
-            Code Standards &amp; Guidelines<a
-              href="#code-standards-guidelines"
-              aria-label="Permalink"
-              class="tsd-anchor-icon"
-              ><svg viewBox="0 0 24 24" aria-hidden="true">
-                <use href="assets/icons.svg#icon-anchor"></use></svg
-            ></a>
-          </h2>
-          <p>See <a href="../CODE_OF_CONDUCT.md">CODE_OF_CONDUCT.md</a> for:</p>
-          <ul>
-            <li>Naming conventions</li>
-            <li>JSDoc documentation format</li>
-            <li>Error handling patterns</li>
-            <li>Unit testing requirements</li>
-            <li>Performance guidelines</li>
-          </ul>
-          <h2 id="debugging" class="tsd-anchor-link">
-            Debugging<a href="#debugging" aria-label="Permalink" class="tsd-anchor-icon"
-              ><svg viewBox="0 0 24 24" aria-hidden="true">
-                <use href="assets/icons.svg#icon-anchor"></use></svg
-            ></a>
-          </h2>
-          <p>Enable debug logging:</p>
-          <pre><code class="bash"><span class="hl-4">DEBUG</span><span class="hl-1">=</span><span class="hl-2">trader-trainer:*</span><span class="hl-1"> </span><span class="hl-0">npm</span><span class="hl-1"> </span><span class="hl-2">run</span><span class="hl-1"> </span><span class="hl-2">dev</span>
-</code><button type="button">Copy</button></pre>
-
-          <p>Sample genomes and test data:</p>
-          <pre><code class="bash"><span class="hl-0">npm</span><span class="hl-1"> </span><span class="hl-2">run</span><span class="hl-1"> </span><span class="hl-2">generate:test-data</span><br/><span class="hl-0">npm</span><span class="hl-1"> </span><span class="hl-2">run</span><span class="hl-1"> </span><span class="hl-2">inspect:best-agent</span>
-</code><button type="button">Copy</button></pre>
-
-          <h2 id="contributing" class="tsd-anchor-link">
-            Contributing<a href="#contributing" aria-label="Permalink" class="tsd-anchor-icon"
-              ><svg viewBox="0 0 24 24" aria-hidden="true">
-                <use href="assets/icons.svg#icon-anchor"></use></svg
-            ></a>
-          </h2>
-          <ol>
-            <li>Write unit tests for any new features</li>
-            <li>Follow naming conventions from CODE_OF_CONDUCT.md</li>
-            <li>Add JSDoc comments to all public functions</li>
-            <li>Run <code>npm test</code> and <code>npm run lint</code> before committing</li>
-            <li>
-              Update <a href="http://ARCHITECTURE.md">ARCHITECTURE.md</a> if adding new modules
-            </li>
-          </ol>
-          <h2 id="roadmap" class="tsd-anchor-link">
-            Roadmap<a href="#roadmap" aria-label="Permalink" class="tsd-anchor-icon"
-              ><svg viewBox="0 0 24 24" aria-hidden="true">
-                <use href="assets/icons.svg#icon-anchor"></use></svg
-            ></a>
-          </h2>
-          <ul>
-            <li>[ ] Distributed training (multi-machine evolution)</li>
-            <li>[ ] Transfer learning from pre-trained models</li>
-            <li>[ ] Multi-pair agent evolution (one agent trades multiple pairs)</li>
-            <li>[ ] Ensemble methods (voting committee of agents)</li>
-            <li>[ ] Real-time weight updates (online learning)</li>
-            <li>[ ] Advanced selection operators (NSGA-III)</li>
-            <li>[ ] Web dashboard for monitoring training</li>
-          </ul>
-          <h2 id="license" class="tsd-anchor-link">
-            License<a href="#license" aria-label="Permalink" class="tsd-anchor-icon"
-              ><svg viewBox="0 0 24 24" aria-hidden="true">
-                <use href="assets/icons.svg#icon-anchor"></use></svg
-            ></a>
-          </h2>
-          <p>ISC</p>
-          <h2 id="support" class="tsd-anchor-link">
-            Support<a href="#support" aria-label="Permalink" class="tsd-anchor-icon"
-              ><svg viewBox="0 0 24 24" aria-hidden="true">
-                <use href="assets/icons.svg#icon-anchor"></use></svg
-            ></a>
-          </h2>
-          <p>
-            For issues, questions, or contributions, please contact the development team or open an
-            issue in the repository.
-          </p>
-          <hr />
-          <p>
-            <strong>Version</strong>: 1.0.0<br />
-            <strong>Last Updated</strong>: May 2026<br />
-            <strong>Maintainer</strong>: Docteur Turboss
-          </p>
-        </div>
-      </div>
-      <div class="col-sidebar">
-        <div class="page-menu">
-          <div class="tsd-navigation settings">
-            <details class="tsd-accordion">
-              <summary class="tsd-accordion-summary">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                  <use href="assets/icons.svg#icon-chevronDown"></use>
-                </svg>
-                <h3>Settings</h3>
-              </summary>
-              <div class="tsd-accordion-details">
-                <div class="tsd-filter-visibility">
-                  <span class="settings-label">Member Visibility</span>
-                  <ul id="tsd-filter-options">
-                    <li class="tsd-filter-item">
-                      <label class="tsd-filter-input"
-                        ><input type="checkbox" id="tsd-filter-protected" name="protected" /><svg
-                          width="32"
-                          height="32"
-                          viewBox="0 0 32 32"
-                          aria-hidden="true"
-                        >
-                          <rect
-                            class="tsd-checkbox-background"
-                            width="30"
-                            height="30"
-                            x="1"
-                            y="1"
-                            rx="6"
-                            fill="none"
-                          ></rect>
-                          <path
-                            class="tsd-checkbox-checkmark"
-                            d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25"
-                            stroke="none"
-                            stroke-width="3.5"
-                            stroke-linejoin="round"
-                            fill="none"
-                          ></path></svg
-                        ><span>Protected</span></label
-                      >
-                    </li>
-                    <li class="tsd-filter-item">
-                      <label class="tsd-filter-input"
-                        ><input
-                          type="checkbox"
-                          id="tsd-filter-inherited"
-                          name="inherited"
-                          checked
-                        /><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true">
-                          <rect
-                            class="tsd-checkbox-background"
-                            width="30"
-                            height="30"
-                            x="1"
-                            y="1"
-                            rx="6"
-                            fill="none"
-                          ></rect>
-                          <path
-                            class="tsd-checkbox-checkmark"
-                            d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25"
-                            stroke="none"
-                            stroke-width="3.5"
-                            stroke-linejoin="round"
-                            fill="none"
-                          ></path></svg
-                        ><span>Inherited</span></label
-                      >
-                    </li>
-                    <li class="tsd-filter-item">
-                      <label class="tsd-filter-input"
-                        ><input type="checkbox" id="tsd-filter-external" name="external" /><svg
-                          width="32"
-                          height="32"
-                          viewBox="0 0 32 32"
-                          aria-hidden="true"
-                        >
-                          <rect
-                            class="tsd-checkbox-background"
-                            width="30"
-                            height="30"
-                            x="1"
-                            y="1"
-                            rx="6"
-                            fill="none"
-                          ></rect>
-                          <path
-                            class="tsd-checkbox-checkmark"
-                            d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25"
-                            stroke="none"
-                            stroke-width="3.5"
-                            stroke-linejoin="round"
-                            fill="none"
-                          ></path></svg
-                        ><span>External</span></label
-                      >
-                    </li>
-                  </ul>
-                </div>
-                <div class="tsd-theme-toggle">
-                  <label class="settings-label" for="tsd-theme">Theme</label
-                  ><select id="tsd-theme">
-                    <option value="os">OS</option>
-                    <option value="light">Light</option>
-                    <option value="dark">Dark</option>
-                  </select>
-                </div>
-              </div>
-            </details>
-          </div>
-          <details open class="tsd-accordion tsd-page-navigation">
-            <summary class="tsd-accordion-summary">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <use href="assets/icons.svg#icon-chevronDown"></use>
-              </svg>
-              <h3>On This Page</h3>
-            </summary>
-            <div class="tsd-accordion-details">
-              <a href="#trader-trainer-service"
-                ><span>Trader-<wbr />Trainer <wbr />Service</span></a
-              >
-              <ul>
-                <li>
-                  <a href="#overview"><span>Overview</span></a>
-                </li>
-                <li>
-                  <a href="#quick-start"
-                    ><span>Quick <wbr />Start</span></a
-                  >
-                </li>
-                <li>
-                  <ul>
-                    <li>
-                      <a href="#installation"><span>Installation</span></a>
-                    </li>
-                    <li>
-                      <a href="#development"><span>Development</span></a>
-                    </li>
-                    <li>
-                      <a href="#environment-variables"
-                        ><span>Environment <wbr />Variables</span></a
-                      >
-                    </li>
-                  </ul>
-                </li>
-                <li>
-                  <a href="#architecture"><span>Architecture</span></a>
-                </li>
-                <li>
-                  <ul>
-                    <li>
-                      <a href="#high-level-flow"
-                        ><span>High-<wbr />Level <wbr />Flow</span></a
-                      >
-                    </li>
-                  </ul>
-                </li>
-                <li>
-                  <a href="#project-structure"
-                    ><span>Project <wbr />Structure</span></a
-                  >
-                </li>
-                <li>
-                  <a href="#usage"><span>Usage</span></a>
-                </li>
-                <li>
-                  <ul>
-                    <li>
-                      <a href="#creating-and-training-agents"
-                        ><span>Creating and <wbr />Training <wbr />Agents</span></a
-                      >
-                    </li>
-                    <li>
-                      <a href="#trading-agent-inference"
-                        ><span>Trading <wbr />Agent <wbr />Inference</span></a
-                      >
-                    </li>
-                    <li>
-                      <a href="#manual-agent-evaluation"
-                        ><span>Manual <wbr />Agent <wbr />Evaluation</span></a
-                      >
-                    </li>
-                  </ul>
-                </li>
-                <li>
-                  <a href="#api-endpoints"
-                    ><span>API <wbr />Endpoints</span></a
-                  >
-                </li>
-                <li>
-                  <ul>
-                    <li>
-                      <a href="#health-check"
-                        ><span>Health <wbr />Check</span></a
-                      >
-                    </li>
-                    <li>
-                      <a href="#future-agent-endpoints"
-                        ><span>[<wbr />Future] <wbr />Agent <wbr />Endpoints</span></a
-                      >
-                    </li>
-                  </ul>
-                </li>
-                <li>
-                  <a href="#testing"><span>Testing</span></a>
-                </li>
-                <li>
-                  <ul>
-                    <li>
-                      <a href="#test-coverage"
-                        ><span>Test <wbr />Coverage</span></a
-                      >
-                    </li>
-                  </ul>
-                </li>
-                <li>
-                  <a href="#configuration"><span>Configuration</span></a>
-                </li>
-                <li>
-                  <ul>
-                    <li>
-                      <a href="#neural-network-configuration"
-                        ><span>Neural <wbr />Network <wbr />Configuration</span></a
-                      >
-                    </li>
-                    <li>
-                      <a href="#genetic-algorithm-configuration"
-                        ><span>Genetic <wbr />Algorithm <wbr />Configuration</span></a
-                      >
-                    </li>
-                  </ul>
-                </li>
-                <li>
-                  <a href="#fitness-metrics"
-                    ><span>Fitness <wbr />Metrics</span></a
-                  >
-                </li>
-                <li>
-                  <a href="#genetic-algorithm-details"
-                    ><span>Genetic <wbr />Algorithm <wbr />Details</span></a
-                  >
-                </li>
-                <li>
-                  <ul>
-                    <li>
-                      <a href="#population-evolution"
-                        ><span>Population <wbr />Evolution</span></a
-                      >
-                    </li>
-                    <li>
-                      <a href="#mutation-operators"
-                        ><span>Mutation <wbr />Operators</span></a
-                      >
-                    </li>
-                    <li>
-                      <a href="#crossover-types"
-                        ><span>Crossover <wbr />Types</span></a
-                      >
-                    </li>
-                  </ul>
-                </li>
-                <li>
-                  <a href="#integration-with-message-manager"
-                    ><span>Integration with <wbr />Message <wbr />Manager</span></a
-                  >
-                </li>
-                <li>
-                  <ul>
-                    <li>
-                      <a href="#receiving-market-data"
-                        ><span>Receiving <wbr />Market <wbr />Data</span></a
-                      >
-                    </li>
-                    <li>
-                      <a href="#exporting-best-agent"
-                        ><span>Exporting <wbr />Best <wbr />Agent</span></a
-                      >
-                    </li>
-                  </ul>
-                </li>
-                <li>
-                  <a href="#performance-tuning"
-                    ><span>Performance <wbr />Tuning</span></a
-                  >
-                </li>
-                <li>
-                  <ul>
-                    <li>
-                      <a href="#for-faster-training"
-                        ><span>For <wbr />Faster <wbr />Training</span></a
-                      >
-                    </li>
-                    <li>
-                      <a href="#for-better-results"
-                        ><span>For <wbr />Better <wbr />Results</span></a
-                      >
-                    </li>
-                    <li>
-                      <a href="#memory-optimization"
-                        ><span>Memory <wbr />Optimization</span></a
-                      >
-                    </li>
-                  </ul>
-                </li>
-                <li>
-                  <a href="#error-handling"
-                    ><span>Error <wbr />Handling</span></a
-                  >
-                </li>
-                <li>
-                  <a href="#monitoring-logging"
-                    ><span>Monitoring &amp; <wbr />Logging</span></a
-                  >
-                </li>
-                <li>
-                  <a href="#code-standards-guidelines"
-                    ><span>Code <wbr />Standards &amp; <wbr />Guidelines</span></a
-                  >
-                </li>
-                <li>
-                  <a href="#debugging"><span>Debugging</span></a>
-                </li>
-                <li>
-                  <a href="#contributing"><span>Contributing</span></a>
-                </li>
-                <li>
-                  <a href="#roadmap"><span>Roadmap</span></a>
-                </li>
-                <li>
-                  <a href="#license"><span>License</span></a>
-                </li>
-                <li>
-                  <a href="#support"><span>Support</span></a>
-                </li>
-              </ul>
-            </div>
-          </details>
-        </div>
-        <div class="site-menu">
-          <nav class="tsd-navigation">
-            <a href="modules.html">trader-trainer - v1.2.0</a>
-            <ul class="tsd-small-nested-navigation" id="tsd-nav-container">
-              <li>Loading...</li>
-            </ul>
-          </nav>
-        </div>
-      </div>
-    </div>
-    <footer></footer>
-    <div class="overlay"></div>
-  </body>
+</body>
 </html>

@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html class="dark" lang="en" data-tm-processed="true"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no" name="viewport">
+<title>Contributing | trading-model</title>
+
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+
+<script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              400: '#818cf8',
+              500: '#6366f1',
+              600: '#4f46e5',
+            },
+            surface: {
+              base: '#0B0F19',
+              card: '#111827',
+              muted: '#1E293B',
+              border: '#243046',
+            },
+            code: {
+              bg: '#0c121e',
+              keyword: '#c084fc',
+              ident: '#38bdf8',
+              type: '#34d399',
+              punct: '#94a3b8'
+            }
+          },
+          fontFamily: {
+            mono: ['JetBrains Mono', 'Fira Code', 'Menlo', 'Monaco', 'Courier New', 'monospace'],
+            sans: ['-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Inter', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+
+<style data-purpose="mobile-ux-styles">
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    .active-scale:active { transform: scale(0.97); transition: transform 0.1s ease-out; }
+    .h-safe-top { height: env(safe-area-inset-top, 0px); }
+    .pt-safe { padding-top: env(safe-area-inset-top, 0px); }
+    @supports (backdrop-filter: blur(12px)) {
+      .glass-header { backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
+    }
+    
+    .tm-prose p { margin: 0.5rem 0; }
+    .tm-prose p:first-child { margin-top: 0; }
+    .tm-prose p:last-child { margin-bottom: 0; }
+    .tm-prose a { color: #818cf8; text-decoration: underline; text-underline-offset: 2px; }
+    .tm-prose a:hover { color: #a5b4fc; }
+    .tm-prose code { font-family: 'JetBrains Mono', 'Fira Code', Menlo, Monaco, 'Courier New', monospace; font-size: 0.82em; color: #fbbf24; background: #0c121e; border: 1px solid #243046; border-radius: 0.25rem; padding: 0.05rem 0.3rem; }
+    .tm-prose pre { background: #0c121e; border: 1px solid #243046; border-radius: 0.5rem; padding: 0.75rem; overflow-x: auto; margin: 0.5rem 0; }
+    .tm-prose pre code { background: transparent; border: none; padding: 0; color: #e2e8f0; }
+    .tm-prose ul, .tm-prose ol { padding-left: 1.25rem; margin: 0.5rem 0; }
+    .tm-prose ul { list-style: disc; }
+    .tm-prose ol { list-style: decimal; }
+    .tm-prose li { margin: 0.2rem 0; }
+    .tm-prose blockquote { border-left: 3px solid #6366f1; background: rgba(17, 24, 39, 0.6); padding: 0.5rem 0.75rem; border-radius: 0 0.5rem 0.5rem 0; color: #94a3b8; margin: 0.5rem 0; }
+    .tm-prose h1, .tm-prose h2, .tm-prose h3, .tm-prose h4, .tm-prose h5 { color: #ffffff; font-weight: 700; margin: 0.75rem 0 0.25rem; }
+    .tm-prose h1 { font-size: 1.25rem; }
+    .tm-prose h2 { font-size: 1.125rem; }
+    .tm-prose h3 { font-size: 1rem; }
+    .tm-prose h4 { font-size: 0.875rem; }
+    .tm-prose table { width: 100%; border-collapse: collapse; margin: 0.5rem 0; }
+    .tm-prose th, .tm-prose td { border: 1px solid #243046; padding: 0.4rem 0.6rem; text-align: left; }
+    .tm-prose thead th { background: #0b0f19; color: #e2e8f0; font-size: 0.75rem; text-transform: uppercase; }
+    .tm-prose strong { color: #ffffff; }
+  </style>
+
+</head>
+<body class="bg-[#080C15] text-slate-200 font-sans antialiased min-h-screen pb-24 selection:bg-indigo-500/30 selection:text-indigo-200">
+
+<header class="sticky top-0 z-40 w-full glass-header bg-[#0B0F19]/90 border-b border-surface-border">
+<div class="h-safe-top pt-safe"></div>
+<div class="px-4 py-2.5 flex items-center justify-between gap-3">
+<div class="flex items-center gap-2.5 min-w-0">
+
+<div class="flex flex-col min-w-0">
+<div class="flex items-center gap-1.5 truncate">
+<span class="font-mono text-xs font-semibold text-indigo-400 truncate tracking-tight"><a class="text-indigo-400 hover:text-indigo-300 hover:underline" href="index.html">trading-model</a></span>
+
+</div>
+<span class="text-[10px] text-slate-400 flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> TypeDoc API Reference
+</span>
+</div>
+</div>
+
+</div>
+</header>
+
+<main class="px-4 py-4 max-w-2xl mx-auto flex flex-col gap-6">
+
+<section class="space-y-2.5" data-purpose="breadcrumbs-and-header">
+<nav aria-label="Breadcrumb" class="flex items-center flex-wrap gap-1 text-[11px] font-mono text-slate-400">
+<a class="text-indigo-400 hover:underline" href="index.html">trading-model</a><span class="text-slate-600">/</span><span class="text-slate-300 font-medium">Contributing</span>
+</nav>
+<div class="flex items-center gap-2.5 pt-1">
+<span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-mono font-medium tracking-wide uppercase bg-indigo-500/10 text-indigo-400 border-indigo-500/20">
+Documentation
+</span>
+<h1 class="text-2xl font-bold tracking-tight text-white font-sans">Contributing</h1>
+</div>
+
+</section>
+
+<div class="tm-prose text-sm leading-relaxed text-slate-300 font-sans"><div>
+<p>Thanks for your interest in contributing to trading-model!</p>
+<ul>
+<li><a href="docs/contributing/workflow.html">Full contribution workflow</a> — from idea to production</li>
+<li><a href="docs/contributing/workflow.html#new-contributor">New contributor guide</a> — first steps</li>
+<li><a href="docs/contributing/README.html">Contributing index</a> — all contribution guides</li>
+<li><a href="docs/standards/README.html">Code standards</a> — commit messages, PRs, writing guidelines</li>
+<li><a href="docs/standards/architecture-standards.html">Architecture overview</a></li>
+</ul>
+</div></div>
+</main>
+</body>
+</html>

@@ -1,0 +1,34 @@
+import type { DurationMs } from "@trading-model/primitives/primitives";
+
+export class TimerHandle {
+	private _handle: ReturnType<typeof setInterval> | null = null;
+
+	get isRunning(): boolean {
+		return this._handle !== null;
+	}
+
+	startInterval(callback: () => void, intervalMs: DurationMs): void {
+		this.stop();
+		this._handle = setInterval(callback, Number(intervalMs));
+		this._handle.unref();
+	}
+
+	startTimeout(callback: () => void, delayMs: DurationMs): void {
+		this.stop();
+		this._handle = setTimeout(callback, Number(delayMs));
+		this._handle.unref();
+	}
+
+	stop(): void {
+		if (this._handle !== null) {
+			clearInterval(this._handle);
+			this._handle = null;
+		}
+	}
+
+	unref(): void {
+		if (this._handle !== null) {
+			this._handle.unref();
+		}
+	}
+}

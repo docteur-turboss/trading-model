@@ -1,0 +1,201 @@
+import { describe, expect, it, jest } from "@jest/globals";
+
+const MOCK_RELEASE_CLAIMS = jest.fn();
+const MOCK_RELEASE_STALE = jest.fn();
+const MOCK_LIST_QUEUABLE = jest.fn();
+const MOCK_PUSH = jest.fn();
+const MOCK_IS_AVAILABLE = jest.fn();
+
+jest.mock("../../src/adapters/outbound/claim-manager", () => ({
+	dlqClaimManager: {},
+	claimReleaseManager: {
+		releaseClaimsByInstance: MOCK_RELEASE_CLAIMS,
+		releaseStaleClaims: MOCK_RELEASE_STALE,
+	},
+}));
+
+jest.mock("../../src/adapters/outbound/repository", () => ({
+	dlqRepository: { listQueuable: MOCK_LIST_QUEUABLE },
+}));
+
+jest.mock("../../src/config/redis-queue", () => ({
+	dlqRedisQueue: { push: MOCK_PUSH, isAvailable: MOCK_IS_AVAILABLE },
+}));
+
+jest.mock("../../src/infrastructure/config/env", () => ({
+	ENV: {
+		INSTANCE_ID: "test-instance",
+		MONGO_URI: "mongodb://localhost:27017",
+		MONGO_DB: "test",
+		MONGO_COLLECTION: "dlq",
+		DLQ_RETRY_MAX_ATTEMPTS: 3,
+		MAX_ENTRIES: 100,
+		DLQ_AUTO_RETRY_LIMIT: 50,
+		MESSAGE_MANAGER_URL: "",
+		TLS_CA_PATH: "",
+		TLS_CERT_PATH: "",
+		TLS_KEY_PATH: "",
+		DLQ_ALLOWED_SERVICES: "message-manager,admin",
+		DLQ_AUTH_HMAC_SECRET: "test-secret-16-chars",
+		DLQ_PRUNE_INTERVAL_MS: 60000,
+		DLQ_AUTO_RETRY_ENABLED: true,
+		DLQ_AUTO_RETRY_INTERVAL_MS: 30000,
+	},
+}));
+
+jest.mock("../../src/config/logger", () => ({
+	logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
+}));
+
+const { logger: MOCK_LOGGER } = jest.requireMock("../../src/config/logger") as {
+	logger: { info: jest.Mock; warn: jest.Mock };
+};
+
+/** Ports wired to the module-level mocks above. */
+function makeDeps() {
+	return {
+		claimRelease: {
+			releaseClaimsByInstance: MOCK_RELEASE_CLAIMS,
+			releaseStaleClaims: MOCK_RELEASE_STALE,
+		},
+		entries: { listQueuable: MOCK_LIST_QUEUABLE },
+		queue: { push: MOCK_PUSH, isAvailable: MOCK_IS_AVAILABLE },
+		settings: { instanceId: "test-instance" },
+	};
+}
+
+describe("ClaimReleaseService", () => {
+	beforeEach(() => {
+		jest.clearAllMocks();
+	});
+
+	describe("releaseAndRequeue", () => {
+		it("should release claims and requeue entries", async () => {
+			MOCK_RELEASE_CLAIMS.mockResolvedValue(2);
+			MOCK_IS_AVAILABLE.mockReturnValue(true);
+			MOCK_LIST_QUEUABLE.mockResolvedValue(["id1", "id2"]);
+			MOCK_PUSH.mockResolvedValue(true);
+
+			const { ClaimReleaseService } = jest.requireActual(
+				"../../src/application/services/claim-release-service"
+			) as {
+				ClaimReleaseService: new (
+					deps: unknown
+				) => {
+					releaseAndRequeue: () => Promise<void>;
+					releaseStale: (ms?: number) => Promise<void>;
+				};
+			};
+			const svc = new ClaimReleaseService(makeDeps());
+			await svc.releaseAndRequeue();
+
+			expect(MOCK_RELEASE_CLAIMS).toHaveBeenCalledWith(
+				expect.stringContaining("test-instance")
+			);
+			expect(MOCK_PUSH).toHaveBeenCalledTimes(2);
+			expect(MOCK_LOGGER.warn).not.toHaveBeenCalled();
+		});
+
+		it("should report entries that could not be re-queued", async () => {
+			MOCK_RELEASE_CLAIMS.mockResolvedValue(2);
+			MOCK_IS_AVAILABLE.mockReturnValue(true);
+			MOCK_LIST_QUEUABLE.mockResolvedValue(["id1", "id2"]);
+			MOCK_PUSH.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
+
+			const { ClaimReleaseService } = jest.requireActual(
+				"../../src/application/services/claim-release-service"
+			) as {
+				ClaimReleaseService: new (
+					deps: unknown
+				) => { releaseAndRequeue: () => Promise<void> };
+			};
+			await new ClaimReleaseService(makeDeps()).releaseAndRequeue();
+
+			expect(MOCK_LOGGER.info).toHaveBeenCalledWith(
+				"Re-queued 1/2 entries after shutdown"
+			);
+			expect(MOCK_LOGGER.warn).toHaveBeenCalledWith(
+				expect.stringContaining("1 released entries were not re-queued")
+			);
+		});
+
+		it("should not requeue when queue is unavailable", async () => {
+			MOCK_RELEASE_CLAIMS.mockResolvedValue(2);
+			MOCK_IS_AVAILABLE.mockReturnValue(false);
+
+			const { ClaimReleaseService } = jest.requireActual(
+				"../../src/application/services/claim-release-service"
+			) as {
+				ClaimReleaseService: new (
+					deps: unknown
+				) => {
+					releaseAndRequeue: () => Promise<void>;
+					releaseStale: (ms?: number) => Promise<void>;
+				};
+			};
+			const svc = new ClaimReleaseService(makeDeps());
+			await svc.releaseAndRequeue();
+
+			expect(MOCK_PUSH).not.toHaveBeenCalled();
+		});
+
+		it("should not requeue when released count is 0", async () => {
+			MOCK_RELEASE_CLAIMS.mockResolvedValue(0);
+
+			const { ClaimReleaseService } = jest.requireActual(
+				"../../src/application/services/claim-release-service"
+			) as {
+				ClaimReleaseService: new (
+					deps: unknown
+				) => {
+					releaseAndRequeue: () => Promise<void>;
+					releaseStale: (ms?: number) => Promise<void>;
+				};
+			};
+			const svc = new ClaimReleaseService(makeDeps());
+			await svc.releaseAndRequeue();
+
+			expect(MOCK_PUSH).not.toHaveBeenCalled();
+		});
+	});
+
+	describe("releaseStale", () => {
+		it("should release stale claims", async () => {
+			MOCK_RELEASE_STALE.mockResolvedValue(3);
+
+			const { ClaimReleaseService } = jest.requireActual(
+				"../../src/application/services/claim-release-service"
+			) as {
+				ClaimReleaseService: new (
+					deps: unknown
+				) => {
+					releaseAndRequeue: () => Promise<void>;
+					releaseStale: (ms?: number) => Promise<void>;
+				};
+			};
+			const svc = new ClaimReleaseService(makeDeps());
+			await svc.releaseStale(30000);
+
+			expect(MOCK_RELEASE_STALE).toHaveBeenCalledWith(30000);
+		});
+
+		it("should skip logging when no stale claims", async () => {
+			MOCK_RELEASE_STALE.mockResolvedValue(0);
+
+			const { ClaimReleaseService } = jest.requireActual(
+				"../../src/application/services/claim-release-service"
+			) as {
+				ClaimReleaseService: new (
+					deps: unknown
+				) => {
+					releaseAndRequeue: () => Promise<void>;
+					releaseStale: (ms?: number) => Promise<void>;
+				};
+			};
+			const svc = new ClaimReleaseService(makeDeps());
+			await svc.releaseStale();
+
+			expect(MOCK_RELEASE_STALE).toHaveBeenCalled();
+		});
+	});
+});

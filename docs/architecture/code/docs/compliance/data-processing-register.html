@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html class="dark" lang="en" data-tm-processed="true"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no" name="viewport">
+<title>Data Processing Register — Art. 30 GDPR | trading-model</title>
+
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+
+<script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              400: '#818cf8',
+              500: '#6366f1',
+              600: '#4f46e5',
+            },
+            surface: {
+              base: '#0B0F19',
+              card: '#111827',
+              muted: '#1E293B',
+              border: '#243046',
+            },
+            code: {
+              bg: '#0c121e',
+              keyword: '#c084fc',
+              ident: '#38bdf8',
+              type: '#34d399',
+              punct: '#94a3b8'
+            }
+          },
+          fontFamily: {
+            mono: ['JetBrains Mono', 'Fira Code', 'Menlo', 'Monaco', 'Courier New', 'monospace'],
+            sans: ['-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Inter', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+
+<style data-purpose="mobile-ux-styles">
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    .active-scale:active { transform: scale(0.97); transition: transform 0.1s ease-out; }
+    .h-safe-top { height: env(safe-area-inset-top, 0px); }
+    .pt-safe { padding-top: env(safe-area-inset-top, 0px); }
+    @supports (backdrop-filter: blur(12px)) {
+      .glass-header { backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
+    }
+    
+    .tm-prose p { margin: 0.5rem 0; }
+    .tm-prose p:first-child { margin-top: 0; }
+    .tm-prose p:last-child { margin-bottom: 0; }
+    .tm-prose a { color: #818cf8; text-decoration: underline; text-underline-offset: 2px; }
+    .tm-prose a:hover { color: #a5b4fc; }
+    .tm-prose code { font-family: 'JetBrains Mono', 'Fira Code', Menlo, Monaco, 'Courier New', monospace; font-size: 0.82em; color: #fbbf24; background: #0c121e; border: 1px solid #243046; border-radius: 0.25rem; padding: 0.05rem 0.3rem; }
+    .tm-prose pre { background: #0c121e; border: 1px solid #243046; border-radius: 0.5rem; padding: 0.75rem; overflow-x: auto; margin: 0.5rem 0; }
+    .tm-prose pre code { background: transparent; border: none; padding: 0; color: #e2e8f0; }
+    .tm-prose ul, .tm-prose ol { padding-left: 1.25rem; margin: 0.5rem 0; }
+    .tm-prose ul { list-style: disc; }
+    .tm-prose ol { list-style: decimal; }
+    .tm-prose li { margin: 0.2rem 0; }
+    .tm-prose blockquote { border-left: 3px solid #6366f1; background: rgba(17, 24, 39, 0.6); padding: 0.5rem 0.75rem; border-radius: 0 0.5rem 0.5rem 0; color: #94a3b8; margin: 0.5rem 0; }
+    .tm-prose h1, .tm-prose h2, .tm-prose h3, .tm-prose h4, .tm-prose h5 { color: #ffffff; font-weight: 700; margin: 0.75rem 0 0.25rem; }
+    .tm-prose h1 { font-size: 1.25rem; }
+    .tm-prose h2 { font-size: 1.125rem; }
+    .tm-prose h3 { font-size: 1rem; }
+    .tm-prose h4 { font-size: 0.875rem; }
+    .tm-prose table { width: 100%; border-collapse: collapse; margin: 0.5rem 0; }
+    .tm-prose th, .tm-prose td { border: 1px solid #243046; padding: 0.4rem 0.6rem; text-align: left; }
+    .tm-prose thead th { background: #0b0f19; color: #e2e8f0; font-size: 0.75rem; text-transform: uppercase; }
+    .tm-prose strong { color: #ffffff; }
+  </style>
+
+</head>
+<body class="bg-[#080C15] text-slate-200 font-sans antialiased min-h-screen pb-24 selection:bg-indigo-500/30 selection:text-indigo-200">
+
+<header class="sticky top-0 z-40 w-full glass-header bg-[#0B0F19]/90 border-b border-surface-border">
+<div class="h-safe-top pt-safe"></div>
+<div class="px-4 py-2.5 flex items-center justify-between gap-3">
+<div class="flex items-center gap-2.5 min-w-0">
+
+<div class="flex flex-col min-w-0">
+<div class="flex items-center gap-1.5 truncate">
+<span class="font-mono text-xs font-semibold text-indigo-400 truncate tracking-tight"><a class="text-indigo-400 hover:text-indigo-300 hover:underline" href="../../index.html">trading-model</a></span>
+
+</div>
+<span class="text-[10px] text-slate-400 flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> TypeDoc API Reference
+</span>
+</div>
+</div>
+
+</div>
+</header>
+
+<main class="px-4 py-4 max-w-2xl mx-auto flex flex-col gap-6">
+
+<section class="space-y-2.5" data-purpose="breadcrumbs-and-header">
+<nav aria-label="Breadcrumb" class="flex items-center flex-wrap gap-1 text-[11px] font-mono text-slate-400">
+<a class="text-indigo-400 hover:underline" href="../../index.html">trading-model</a><span class="text-slate-600">/</span><span class="text-slate-300 font-medium">Data Processing Register — Art. 30 GDPR</span>
+</nav>
+<div class="flex items-center gap-2.5 pt-1">
+<span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-mono font-medium tracking-wide uppercase bg-indigo-500/10 text-indigo-400 border-indigo-500/20">
+Documentation
+</span>
+<h1 class="text-2xl font-bold tracking-tight text-white font-sans">Data Processing Register — Art. 30 GDPR</h1>
+</div>
+
+</section>
+
+<div class="tm-prose text-sm leading-relaxed text-slate-300 font-sans"><div>
+<blockquote>
+<p><strong>Registered as of:</strong> 2026-10 (revised after audit 13.09)<br>
+<strong>Review cadence:</strong> Quarterly, and on every change to a data store, a retention setting or the external entry point</p>
+</blockquote>
+<h2>Controller (Art. 30(1)(a))</h2>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Controller</strong></td>
+<td><em>To be filled by the operating entity: legal name, address, registration number</em></td>
+</tr>
+<tr>
+<td><strong>Contact</strong></td>
+<td><em>To be filled: privacy contact address</em></td>
+</tr>
+<tr>
+<td><strong>Representative (Art. 27)</strong></td>
+<td>Not applicable when the controller is established in the EU</td>
+</tr>
+<tr>
+<td><strong>Data Protection Officer</strong></td>
+<td>Not designated. Art. 37 requires one only for public bodies, or when the core activity is large-scale regular monitoring of individuals or large-scale processing of special categories; neither applies. (The 250-employee threshold of Art. 30(5) concerns the register, not the DPO: this register is kept regardless)</td>
+</tr>
+</tbody>
+</table>
+<h2>Overview</h2>
+<p>This register documents the processing activities of the trading-model platform, as required by Article 30 GDPR.</p>
+<p><strong>Personal data in scope:</strong> the platform has no user accounts, profiles, cookies or tracking. Its only personal data is the <strong>IP address of external callers</strong> of the API (activity 6): truncated by the edge-proxy before it is logged or forwarded, and kept 31 days in Loki. A truncated address (IPv4 /24, IPv6 /48) is pseudonymized, not anonymous, so the activity is registered. Every other activity processes machine-generated data only (market data, service identities, service events). Inside the platform, the remaining IPs are pod and container addresses; application logs truncate any IP they record (<code>anonymizeIp</code>), and log context fields are redacted before persistence.</p>
+<hr>
+<h2>Processing Activity 1: Market Data Ingestion</h2>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Purpose</strong></td>
+<td>Ingest financial market data (OHLCV candles, trades, order books, tickers) for algorithmic trading agent training and backtesting</td>
+</tr>
+<tr>
+<td><strong>Data categories</strong></td>
+<td>Trading symbols (e.g., BTCUSDT), numeric price/volume data, timestamps, market identifiers</td>
+</tr>
+<tr>
+<td><strong>Personal data</strong></td>
+<td>None</td>
+</tr>
+<tr>
+<td><strong>Recipients</strong></td>
+<td>Internal: trader-trainer, audit-logger, message-manager</td>
+</tr>
+<tr>
+<td><strong>Transfers outside EU</strong></td>
+<td>None. Market data is <strong>received</strong> from the Binance public API (Cayman Islands); nothing is sent to it. See third-party assessment</td>
+</tr>
+<tr>
+<td><strong>Retention period</strong></td>
+<td><strong>Not bounded yet.</strong> Target 5 years (record-keeping, see <a href="data-retention-policy.html">Data Retention Policy</a>); the former MySQL purge event was removed from migration 003 (audit A9) and its out-of-schema replacement is open (DPIA action #2)</td>
+</tr>
+<tr>
+<td><strong>Technical measures</strong></td>
+<td>mTLS (SPIFFE SVIDs), LUKS2 data disks, age-encrypted backups, RBAC service accounts</td>
+</tr>
+<tr>
+<td><strong>System</strong></td>
+<td>financial-scraper → MySQL (market_candles, market_trades, market_tickers)</td>
+</tr>
+</tbody>
+</table>
+<h2>Processing Activity 2: Message Routing</h2>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Purpose</strong></td>
+<td>Inter-service publish/subscribe with delivery retries; undeliverable messages go to the dead-letter queue</td>
+</tr>
+<tr>
+<td><strong>Data categories</strong></td>
+<td>Message payloads (JSON), metadata (topic, publisher identity, timestamps, correlation IDs), delivery status</td>
+</tr>
+<tr>
+<td><strong>Personal data</strong></td>
+<td>None</td>
+</tr>
+<tr>
+<td><strong>Recipients</strong></td>
+<td>Internal platform services only</td>
+</tr>
+<tr>
+<td><strong>Transfers outside EU</strong></td>
+<td>None — all services are self-hosted</td>
+</tr>
+<tr>
+<td><strong>Retention period</strong></td>
+<td>message-manager: in memory for the delivery only (Redis is used for readiness, not for messages). DLQ: 30 days (TTL index on <code>createdAt</code>), capped at <code>MAX_ENTRIES</code> (100 000)</td>
+</tr>
+<tr>
+<td><strong>Technical measures</strong></td>
+<td>mTLS everywhere, payload sanitization, deduplication</td>
+</tr>
+<tr>
+<td><strong>System</strong></td>
+<td>message-manager (HTTP push) → dlq-service → MongoDB (<code>dlq_entries</code>)</td>
+</tr>
+</tbody>
+</table>
+<h2>Processing Activity 3: Audit Logging</h2>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Purpose</strong></td>
+<td>Hash-chained audit trail of service events, decisions and errors, for traceability</td>
+</tr>
+<tr>
+<td><strong>Data categories</strong></td>
+<td>Service event metadata (publisher identity, message ID, topic, correlation ID, timestamp), payload snapshots</td>
+</tr>
+<tr>
+<td><strong>Personal data</strong></td>
+<td>None</td>
+</tr>
+<tr>
+<td><strong>Recipients</strong></td>
+<td>Internal: operators (read-only, via api-gateway), compliance (MongoDB queries)</td>
+</tr>
+<tr>
+<td><strong>Transfers outside EU</strong></td>
+<td>None</td>
+</tr>
+<tr>
+<td><strong>Retention period</strong></td>
+<td>1827 days (5 years): <code>AUDIT_RETENTION_DAYS</code>, TTL index on the <code>ttl</code> field set at insert</td>
+</tr>
+<tr>
+<td><strong>Technical measures</strong></td>
+<td>Append-only hash chain, gap detection, LUKS2 data disks, age-encrypted backups</td>
+</tr>
+<tr>
+<td><strong>System</strong></td>
+<td>audit-logger → MongoDB (<code>audit_events</code>)</td>
+</tr>
+</tbody>
+</table>
+<h2>Processing Activity 4: Workload Identity (SPIRE SVIDs)</h2>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Purpose</strong></td>
+<td>SPIFFE/SPIRE workload identity (SVID issuance/rotation) for mTLS between all platform services</td>
+</tr>
+<tr>
+<td><strong>Data categories</strong></td>
+<td>Service identities (service names, namespaces, service accounts), short-lived X.509 SVIDs, trust bundle</td>
+</tr>
+<tr>
+<td><strong>Personal data</strong></td>
+<td>None — service identities only</td>
+</tr>
+<tr>
+<td><strong>Recipients</strong></td>
+<td>All platform services (SVID distribution via <code>spiffe-helper</code> sidecars)</td>
+</tr>
+<tr>
+<td><strong>Transfers outside EU</strong></td>
+<td>None</td>
+</tr>
+<tr>
+<td><strong>Retention period</strong></td>
+<td>SVIDs: 1h TTL (auto-rotated). Trust bundle: 168h (ca_ttl). SPIRE datastore entries: workload lifecycle</td>
+</tr>
+<tr>
+<td><strong>Technical measures</strong></td>
+<td>Workload attestation (docker / k8s_psat), short-lived SVIDs, automatic rotation</td>
+</tr>
+<tr>
+<td><strong>System</strong></td>
+<td>SPIRE Server → SPIRE Agent → spiffe-helper (datastore: MySQL <code>spire</code>)</td>
+</tr>
+</tbody>
+</table>
+<h2>Processing Activity 5: ML Training Data</h2>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Purpose</strong></td>
+<td>Training of genetic algorithm + deep Q-learning trading agents on historical market data</td>
+</tr>
+<tr>
+<td><strong>Data categories</strong></td>
+<td>Market data features (normalized arrays), agent genome parameters, fitness scores, training checkpoints</td>
+</tr>
+<tr>
+<td><strong>Personal data</strong></td>
+<td>None</td>
+</tr>
+<tr>
+<td><strong>Recipients</strong></td>
+<td>Internal: trader-trainer, checkpoint files on shared volume</td>
+</tr>
+<tr>
+<td><strong>Transfers outside EU</strong></td>
+<td>None</td>
+</tr>
+<tr>
+<td><strong>Retention period</strong></td>
+<td>Best agent checkpoint: retained. Intermediate: discarded by auto-pruning</td>
+</tr>
+<tr>
+<td><strong>Technical measures</strong></td>
+<td>Shared volume with restricted RBAC</td>
+</tr>
+<tr>
+<td><strong>System</strong></td>
+<td>trader-trainer → memory + shared volume (trainer-checkpoints-pvc)</td>
+</tr>
+</tbody>
+</table>
+<h2>Processing Activity 6: API Access Logs (edge-proxy)</h2>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Purpose</strong></td>
+<td>Security monitoring and troubleshooting of external calls to the API</td>
+</tr>
+<tr>
+<td><strong>Data categories</strong></td>
+<td>Truncated caller IP (IPv4 /24, IPv6 /48), timestamp, method, path without query string, status, size, duration. No User-Agent, no X-Forwarded-For, no credentials</td>
+</tr>
+<tr>
+<td><strong>Data subjects</strong></td>
+<td>Operators and tools calling the public API</td>
+</tr>
+<tr>
+<td><strong>Legal basis</strong></td>
+<td>Legitimate interest (Art. 6(1)(f)) — security of the service (recital 49)</td>
+</tr>
+<tr>
+<td><strong>Recipients</strong></td>
+<td>Internal: operators (Grafana/Loki)</td>
+</tr>
+<tr>
+<td><strong>Transfers outside EU</strong></td>
+<td>None — Loki is self-hosted</td>
+</tr>
+<tr>
+<td><strong>Retention period</strong></td>
+<td>31 days (Loki <code>retention_period: 744h</code>)</td>
+</tr>
+<tr>
+<td><strong>Technical measures</strong></td>
+<td>Truncation in nginx before the log line is written (<code>log_format anonymized</code>, <code>deploy/edge-proxy/default.conf</code>); the gateway forwards only an anonymized <code>X-Forwarded-For</code> and drops <code>X-Real-IP</code></td>
+</tr>
+<tr>
+<td><strong>System</strong></td>
+<td>edge-proxy (stdout) → Promtail → Loki</td>
+</tr>
+</tbody>
+</table>
+<h2>Processing Activity 7: Operational Telemetry and Backups</h2>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Purpose</strong></td>
+<td>Monitoring, tracing, alerting; disaster recovery</td>
+</tr>
+<tr>
+<td><strong>Data categories</strong></td>
+<td>Service logs, metrics, traces (pod addresses, service names); database dumps of activities 1–4</td>
+</tr>
+<tr>
+<td><strong>Personal data</strong></td>
+<td>None (application logs truncate IPs and redact sensitive keys). Backups contain no personal data since activities 1–4 hold none</td>
+</tr>
+<tr>
+<td><strong>Recipients</strong></td>
+<td>Internal: operators. Alerts: Slack (alert names and labels only). Backups: off-site S3 store, age-encrypted before upload</td>
+</tr>
+<tr>
+<td><strong>Transfers outside EU</strong></td>
+<td>Depends on the region of the off-site S3 store and of Slack — to be recorded by the operating entity</td>
+</tr>
+<tr>
+<td><strong>Retention period</strong></td>
+<td>Loki: 31 days. Prometheus: 30 days. Jaeger: in memory until restart. Backups: 30 days locally (<code>RETENTION_DAYS</code>); off-site: bucket lifecycle rule, to be set to the same value</td>
+</tr>
+<tr>
+<td><strong>Technical measures</strong></td>
+<td>LUKS2 data disks, age encryption of every dump before it is written, only <code>.age</code> files copied off-site</td>
+</tr>
+<tr>
+<td><strong>System</strong></td>
+<td>Promtail → Loki, Prometheus, Jaeger, Alertmanager; <code>db-backup</code> CronJob / <code>scripts/backup*.sh</code></td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2>Summary</h2>
+<table>
+<thead>
+<tr>
+<th>Activity</th>
+<th>Personal Data?</th>
+<th>Legal Basis</th>
+<th>Retention</th>
+<th>Transfers</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Market Data Ingestion</td>
+<td>❌ None</td>
+<td>—</td>
+<td>Not bounded yet (target 5 y)</td>
+<td>Received from Binance</td>
+</tr>
+<tr>
+<td>Message Routing</td>
+<td>❌ None</td>
+<td>—</td>
+<td>In memory; DLQ 30 days</td>
+<td>None</td>
+</tr>
+<tr>
+<td>Audit Logging</td>
+<td>❌ None</td>
+<td>—</td>
+<td>5 years (1827 days)</td>
+<td>None</td>
+</tr>
+<tr>
+<td>Workload Identity</td>
+<td>❌ None</td>
+<td>—</td>
+<td>1h–168h</td>
+<td>None</td>
+</tr>
+<tr>
+<td>ML Training</td>
+<td>❌ None</td>
+<td>—</td>
+<td>Per-agent</td>
+<td>None</td>
+</tr>
+<tr>
+<td>API Access Logs</td>
+<td>✅ Truncated IP</td>
+<td>Legitimate interest</td>
+<td>31 days</td>
+<td>None</td>
+</tr>
+<tr>
+<td>Telemetry and Backups</td>
+<td>❌ None</td>
+<td>—</td>
+<td>30–31 days</td>
+<td>Off-site store / Slack (TBD)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Conclusion:</strong> one activity processes personal data, limited to a truncated IP kept 31 days for security. Data subject rights apply to it in principle; since a truncated address cannot be linked to a requester, Art. 11 applies (no additional data collected to identify them).</p>
+</div></div>
+</main>
+</body>
+</html>

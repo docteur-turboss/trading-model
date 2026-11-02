@@ -1,13 +1,16 @@
 import { describe, expect, it, jest } from "@jest/globals";
+import { Price } from "@trading-model/primitives/primitives";
+import { FeatureVector } from "../../../src/domain/feature-vector";
 
-jest.mock("../../../src/core/agent/trading-agent", () => {
+jest.mock("../../../src/domain/agent/trading-agent", () => {
 	const makeMockAgent = () => ({
 		forwardPass: jest.fn(() => ({ output: new Float32Array([0.5, 0.5, 0.5]) })),
 		getWeights: jest.fn(() => new Float32Array([0.1, 0.2])),
 		setWeights: jest.fn(),
 		getExperiencePool: jest.fn(() => []),
-		learnQLearning: jest.fn(),
-		step: jest.fn(() => ({ reward: 1 })),
+		remember: jest.fn(),
+		replay: jest.fn(() => 0),
+		step: jest.fn(() => ({ reward: 1, actionIndex: 0 })),
 		resetEpisode: jest.fn(),
 		wallet: {
 			getPnL: jest.fn(() => 50),
@@ -20,7 +23,7 @@ jest.mock("../../../src/core/agent/trading-agent", () => {
 	};
 });
 
-jest.mock("../../../src/core/env/wallet-manager", () => ({
+jest.mock("../../../src/domain/env/wallet-manager", () => ({
 	createWallet: jest.fn(() => ({
 		buy: jest.fn(() => true),
 		sell: jest.fn(() => true),
@@ -28,7 +31,7 @@ jest.mock("../../../src/core/env/wallet-manager", () => ({
 		getPosition: jest.fn(() => 0),
 		getCash: jest.fn(() => 1000),
 		getValuation: jest.fn(() => 1000),
-		getPrice: jest.fn(() => 100),
+		getPrice: jest.fn(() => Price.of(100)),
 		getPnL: jest.fn(() => 0),
 		getMetrics: jest.fn(() => ({
 			pnl: 0,
@@ -43,7 +46,7 @@ jest.mock("../../../src/core/env/wallet-manager", () => ({
 	})),
 }));
 
-jest.mock("../../../src/core/agent/state-manager", () => ({
+jest.mock("../../../src/domain/agent/state-manager", () => ({
 	StateManager: jest.fn().mockImplementation(() => ({
 		initialiseFromGenome: jest.fn(),
 		decayEpsilon: jest.fn(),
@@ -53,28 +56,52 @@ jest.mock("../../../src/core/agent/state-manager", () => ({
 	default: jest.fn(),
 }));
 
-jest.mock("../../../src/core/neural-network/agent", () => ({
+jest.mock("../../../src/domain/neural-network/agent", () => ({
 	Agent: jest.fn().mockImplementation(() => ({
 		nn: {
-			forward: jest.fn(() => new Float32Array([0.5, 0.5, 0.5])),
-			getParameters: jest.fn(() => new Float32Array([0.1, 0.2])),
-			setParameters: jest.fn(),
+			forward: jest.fn(() => ({ output: new Float32Array([0.5, 0.5, 0.5]) })),
+			parameterCount: jest.fn(() => 42),
+			getWeights: jest.fn(() => new Float32Array([0.1, 0.2])),
+			setWeights: jest.fn(),
 			distributeAroundWeights: jest.fn(),
 		},
+		scores: {
+			addScore: jest.fn(),
+			getAverageScore: jest.fn(() => 0),
+			getTotalScore: jest.fn(() => 0),
+			resetScores: jest.fn(),
+		},
+		experience: {
+			getPool: jest.fn(() => []),
+			getPoolSize: jest.fn(() => 0),
+			clearPool: jest.fn(),
+			samplePool: jest.fn(() => []),
+			learnFromPool: jest.fn(),
+			learnExperience: jest.fn(),
+			recordExperience: jest.fn(),
+			removeFromPool: jest.fn(),
+		},
 		fastForward: jest.fn(() => new Float32Array([0.5, 0.5, 0.5])),
-		clearPool: jest.fn(),
-		mutate: jest.fn(),
 	})),
 }));
 
-jest.mock("../../../src/core/neural-network/neural-network", () => ({
+jest.mock("../../../src/domain/neural-network/neural-network", () => ({
 	NeuralNetwork: jest.fn(),
 }));
 
+import { GeneticAlgorithmRunner } from "../../../src/domain/genetic-algorithm/ga-runner";
 import {
-	GeneticAlgorithmRunner,
-	makeTradingAgentBackend,
-} from "../../../src/core/genetic-algorithm/ga-runner";
+	ActivationType,
+	ConnectionType,
+	CrossoverType,
+	FitnessType,
+	MutationAdaptation,
+	MutationDistribution,
+	MutationScope,
+	NormalisationType,
+	SelectionType,
+} from "../../../src/domain/genetic-algorithm/genome";
+import { makeTradingAgentBackend } from "../../../src/domain/genetic-algorithm/rl-backend";
 
 describe("makeTradingAgentBackend", () => {
 	it("should create an RLBackend from a genome", () => {
@@ -87,12 +114,12 @@ describe("makeTradingAgentBackend", () => {
 				hiddenLayers: [
 					{
 						neurons: 64,
-						activation: "relu",
-						connectionType: "fully-connected",
+						activation: ActivationType.Relu,
+						connectionType: ConnectionType.FullyConnected,
 						biasType: "standard",
 					},
 				],
-				normalization: "z-score",
+				normalization: NormalisationType.ZScore,
 			},
 			rl: {
 				gamma: 0.99,
@@ -112,8 +139,8 @@ describe("makeTradingAgentBackend", () => {
 				elitismFraction: 0.1,
 				survivorFraction: 0.5,
 				episodesPerIndividual: 2,
-				selectionType: "tournament",
-				fitnessType: "sharpe",
+				selectionType: SelectionType.Tournament,
+				fitnessType: FitnessType.Sharpe,
 				networkSeed: 42,
 				mutationSeed: 42,
 				mutationRate: 0.1,
@@ -138,12 +165,12 @@ describe("makeTradingAgentBackend", () => {
 				hiddenLayers: [
 					{
 						neurons: 64,
-						activation: "relu",
-						connectionType: "fully-connected",
+						activation: ActivationType.Relu,
+						connectionType: ConnectionType.FullyConnected,
 						biasType: "standard",
 					},
 				],
-				normalization: "z-score",
+				normalization: NormalisationType.ZScore,
 			},
 			rl: {
 				gamma: 0.99,
@@ -163,8 +190,8 @@ describe("makeTradingAgentBackend", () => {
 				elitismFraction: 0.1,
 				survivorFraction: 0.5,
 				episodesPerIndividual: 2,
-				selectionType: "tournament",
-				fitnessType: "sharpe",
+				selectionType: SelectionType.Tournament,
+				fitnessType: FitnessType.Sharpe,
 				networkSeed: 42,
 				mutationSeed: 42,
 				mutationRate: 0.1,
@@ -174,7 +201,9 @@ describe("makeTradingAgentBackend", () => {
 		} as any;
 
 		const backend = makeTradingAgentBackend(genome as any);
-		const features = new Float32Array([0.5, 0.5, 0.5]);
+		const features = FeatureVector.fromFloat32Array(
+			new Float32Array([0.5, 0.5, 0.5])
+		);
 		const output = backend.forwardPass(features);
 		expect(output).toBeDefined();
 	});
@@ -187,7 +216,7 @@ describe("makeTradingAgentBackend", () => {
 				inputDim: 4,
 				outputDim: 2,
 				hiddenLayers: [],
-				normalization: "none",
+				normalization: NormalisationType.None,
 			},
 			rl: {
 				gamma: 0.99,
@@ -207,8 +236,8 @@ describe("makeTradingAgentBackend", () => {
 				elitismFraction: 0.1,
 				survivorFraction: 0.5,
 				episodesPerIndividual: 2,
-				selectionType: "tournament",
-				fitnessType: "total_pnl",
+				selectionType: SelectionType.Tournament,
+				fitnessType: FitnessType.TotalPnl,
 				networkSeed: 1,
 				mutationSeed: 1,
 				mutationRate: 0.1,
@@ -227,21 +256,31 @@ describe("makeTradingAgentBackend", () => {
 	it("should call step and return reward", () => {
 		const genome = getMinimalGenome();
 		const backend = makeTradingAgentBackend(genome as any);
-		const result = backend.step(new Float32Array([0.5, 0.5, 0.5]), 100);
+		const result = backend.step({
+			features: FeatureVector.fromFloat32Array(
+				new Float32Array([0.5, 0.5, 0.5])
+			),
+			price: Price.of(100),
+		});
 		expect(result.reward).toBe(1);
 	});
 
-	it("should call train without throwing", () => {
+	it("should store and replay a transition without throwing", () => {
 		const genome = getMinimalGenome();
 		const backend = makeTradingAgentBackend(genome as any);
-		const experience = {
-			input: new Float32Array([0.5, 0.5, 0.5]),
-			output: new Float32Array([0.1, 0.2, 0.3]),
-			reward: 1,
-			nextState: new Float32Array([0.6, 0.6, 0.6]),
-			done: false,
-		};
-		expect(() => backend.train(experience as any, 0.99)).not.toThrow();
+		const features = FeatureVector.fromFloat32Array(
+			new Float32Array([0.5, 0.5, 0.5])
+		);
+		expect(() => {
+			backend.remember({
+				state: features,
+				action: 1,
+				reward: 1,
+				nextState: features,
+				done: false,
+			});
+			backend.replay(1, 0.99);
+		}).not.toThrow();
 	});
 
 	it("should get and set weights", () => {
@@ -263,13 +302,6 @@ describe("makeTradingAgentBackend", () => {
 		const backend = makeTradingAgentBackend(genome as any);
 		expect(() => backend.resetEpisode()).not.toThrow();
 	});
-
-	it("should get experience pool", () => {
-		const genome = getMinimalGenome();
-		const backend = makeTradingAgentBackend(genome as any);
-		const pool = backend.getExperiencePool();
-		expect(Array.isArray(pool)).toBe(true);
-	});
 });
 
 function getMinimalGenome() {
@@ -280,7 +312,7 @@ function getMinimalGenome() {
 			inputDim: 3,
 			outputDim: 3,
 			hiddenLayers: [],
-			normalization: "none",
+			normalization: NormalisationType.None,
 		},
 		rl: {
 			gamma: 0.99,
@@ -294,18 +326,44 @@ function getMinimalGenome() {
 			horizon: { maxEpisodeLength: 100, frameSkip: 1, nStepReturn: 3 },
 			rewardShaping: { sparse: false, normalize: false },
 		},
+		mutation: {
+			rate: 0.1,
+			sigma: 0.5,
+			noiseStd: 0.1,
+			distribution: MutationDistribution.Gaussian,
+			adaptation: MutationAdaptation.Fixed,
+			scope: MutationScope.Global,
+			selfSigma: 0.5,
+			mutateActivations: false,
+			activationMutationRate: 0.1,
+			mutateHyperparams: false,
+			addNeuronRate: 0.1,
+			removeNeuronRate: 0.1,
+			addLayerRate: 0.1,
+			removeLayerRate: 0.1,
+			addConnectionRate: 0.1,
+			removeConnectionRate: 0.1,
+		},
+		crossover: {
+			type: CrossoverType.Uniform,
+			probability: 0.5,
+			blendAlpha: 0.5,
+			sbxEta: 15,
+		},
 		gaControl: {
-			populationSize: 20,
-			maxGenerations: 10,
-			elitismFraction: 0.1,
-			survivorFraction: 0.5,
-			episodesPerIndividual: 2,
-			selectionType: "tournament",
-			fitnessType: "total_pnl",
-			networkSeed: 1,
-			mutationSeed: 1,
+			population: { size: 20, elitismFraction: 0.1, survivorFraction: 0.5 },
+			termination: {
+				rewardThreshold: Number.POSITIVE_INFINITY,
+				stagnationPatience: 10,
+				maxGenerations: 10,
+				timeBudgetMs: 60000,
+			},
+			seeding: { envSeed: 1, mutationSeed: 1, networkSeed: 1 },
+			evaluation: { episodesPerIndividual: 2, seedsPerEval: 1 },
+			selectionType: SelectionType.Tournament,
+			fitnessType: FitnessType.TotalPnl,
 			mutationRate: 0.1,
-			crossoverRate: 0.5,
+			mutationStd: 0.05,
 		},
 		fitness: 0,
 	};
@@ -316,8 +374,9 @@ describe("GeneticAlgorithmRunner", () => {
 		forwardPass: jest.fn(
 			(_f: Float32Array) => new Float32Array([0.5, 0.5, 0.5])
 		),
-		step: jest.fn(() => ({ reward: 1 })),
-		train: jest.fn(),
+		step: jest.fn(() => ({ reward: 1, action: 0 })),
+		remember: jest.fn(),
+		replay: jest.fn(),
 		getWeights: jest.fn(() => new Float32Array([0.1, 0.2])),
 		setWeights: jest.fn(),
 		getPnL: jest.fn(() => 50),
@@ -330,17 +389,20 @@ describe("GeneticAlgorithmRunner", () => {
 			windowSets: [
 				{
 					id: "w1",
-					train: [{ features: new Float32Array(3), price: 100 }],
-					validation: [{ features: new Float32Array(3), price: 100 }],
+					train: [{ features: new FeatureVector(), price: Price.of(100) }],
+					validation: [{ features: new FeatureVector(), price: Price.of(100) }],
 				},
 			],
 			backendFactory: mockBackendFactory as any,
 			evalConcurrency: 1,
 		});
-		runner.initialise({ networkSeed: 42, mutationSeed: 42, populationSize: 5 });
-		const pop = runner.getPopulation();
+		runner.processor.initialise({
+			seeding: { envSeed: 42, mutationSeed: 42, networkSeed: 42 },
+			population: { size: 5, elitismFraction: 0.2, survivorFraction: 0.5 },
+		});
+		const pop = runner.processor.population;
 		expect(pop.length).toBe(5);
-		expect(runner.getGeneration()).toBe(0);
+		expect(runner.processor.generation).toBe(0);
 	});
 
 	it("should create genomes with unique IDs", () => {
@@ -349,8 +411,8 @@ describe("GeneticAlgorithmRunner", () => {
 			backendFactory: mockBackendFactory as any,
 			evalConcurrency: 1,
 		});
-		runner.initialise();
-		const pop = runner.getPopulation();
+		runner.processor.initialise();
+		const pop = runner.processor.population;
 		const ids = new Set(pop.map((g) => g.id));
 		expect(ids.size).toBe(pop.length);
 	});
@@ -360,8 +422,8 @@ describe("GeneticAlgorithmRunner", () => {
 			windowSets: [{ id: "w1", train: [], validation: [] }],
 			backendFactory: mockBackendFactory as any,
 		});
-		runner.initialise();
-		expect(runner.getBestGenome()).toBeNull();
+		runner.processor.initialise();
+		expect(runner.processor.lastBestGenome).toBeUndefined();
 	});
 
 	it("should return empty archive before running", () => {
@@ -369,126 +431,146 @@ describe("GeneticAlgorithmRunner", () => {
 			windowSets: [{ id: "w1", train: [], validation: [] }],
 			backendFactory: mockBackendFactory as any,
 		});
-		runner.initialise();
-		expect(runner.getArchive()).toEqual([]);
+		runner.processor.initialise();
+		expect(runner.processor.getArchiveMembers()).toEqual([]);
 	});
 
 	it("should select elites based on elitismFraction", async () => {
-		const features = new Float32Array([0.5, 0.5, 0.5]);
+		const features = FeatureVector.fromFloat32Array(
+			new Float32Array([0.5, 0.5, 0.5])
+		);
 		const runner = new GeneticAlgorithmRunner({
 			windowSets: [
 				{
 					id: "w1",
-					train: [{ features, price: 100 }],
-					validation: [{ features, price: 100 }],
+					train: [{ features, price: Price.of(100) }],
+					validation: [{ features, price: Price.of(100) }],
 				},
 			],
 			backendFactory: mockBackendFactory as any,
 			evalConcurrency: 1,
 		});
-		runner.initialise({
-			networkSeed: 42,
-			mutationSeed: 42,
-			populationSize: 10,
-			elitismFraction: 0.3,
+		runner.processor.initialise({
+			seeding: { envSeed: 42, mutationSeed: 42, networkSeed: 42 },
+			population: { size: 10, elitismFraction: 0.3, survivorFraction: 0.5 },
 		});
-		await runner.runGeneration();
-		const pop = runner.getPopulation();
+		await runner.processor.runGeneration();
+		const pop = runner.processor.population;
 		expect(pop.length).toBe(10);
-		expect(runner.getGeneration()).toBe(1);
+		expect(runner.processor.generation).toBe(1);
 	});
 
 	it("should produce offspring with some new IDs after runGeneration (elites carry over)", async () => {
-		const features = new Float32Array([0.5, 0.5, 0.5]);
+		const features = FeatureVector.fromFloat32Array(
+			new Float32Array([0.5, 0.5, 0.5])
+		);
 		const runner = new GeneticAlgorithmRunner({
 			windowSets: [
 				{
 					id: "w1",
-					train: [{ features, price: 100 }],
-					validation: [{ features, price: 100 }],
+					train: [{ features, price: Price.of(100) }],
+					validation: [{ features, price: Price.of(100) }],
 				},
 			],
 			backendFactory: mockBackendFactory as any,
 			evalConcurrency: 1,
 		});
-		runner.initialise({ networkSeed: 42, mutationSeed: 42, populationSize: 4 });
-		await runner.runGeneration();
-		const childIds = new Set(runner.getPopulation().map((g) => g.id));
-		// Elites are preserved from parents, so at least some IDs may overlap.
-		// But the population size should stay the same.
+		runner.processor.initialise({
+			seeding: { envSeed: 42, mutationSeed: 42, networkSeed: 42 },
+			population: { size: 4, elitismFraction: 0.2, survivorFraction: 0.5 },
+		});
+		await runner.processor.runGeneration();
+		const childIds = new Set(runner.processor.population.map((g) => g.id));
 		expect(childIds.size).toBeGreaterThan(0);
-		expect(runner.getPopulation().length).toBe(4);
+		expect(runner.processor.population.length).toBe(4);
 	});
 
 	it("should update Pareto archive after runGeneration", async () => {
-		const features = new Float32Array([0.5, 0.5, 0.5]);
+		const features = FeatureVector.fromFloat32Array(
+			new Float32Array([0.5, 0.5, 0.5])
+		);
 		const onArchiveUpdate = jest.fn();
 		const runner = new GeneticAlgorithmRunner({
 			windowSets: [
 				{
 					id: "w1",
-					train: [{ features, price: 100 }],
-					validation: [{ features, price: 100 }],
+					train: [{ features, price: Price.of(100) }],
+					validation: [{ features, price: Price.of(100) }],
 				},
 			],
 			backendFactory: mockBackendFactory as any,
 			evalConcurrency: 1,
 			onArchiveUpdate,
 		});
-		runner.initialise({ networkSeed: 42, mutationSeed: 42, populationSize: 4 });
-		expect(runner.getArchive()).toEqual([]);
-		await runner.runGeneration();
+		runner.processor.initialise({
+			seeding: { envSeed: 42, mutationSeed: 42, networkSeed: 42 },
+			population: { size: 4, elitismFraction: 0.2, survivorFraction: 0.5 },
+		});
+		expect(runner.processor.getArchiveMembers()).toEqual([]);
+		await runner.processor.runGeneration();
 		expect(onArchiveUpdate).toHaveBeenCalled();
-		if (runner.getArchive().length > 0) {
-			expect(runner.getArchive()[0].id).toBeDefined();
+		if (runner.processor.getArchiveMembers().length > 0) {
+			expect(runner.processor.getArchiveMembers()[0].id).toBeDefined();
 		}
 	});
 
 	it("should track stagnation when fitness does not improve", async () => {
-		const features = new Float32Array([0.5, 0.5, 0.5]);
+		const features = FeatureVector.fromFloat32Array(
+			new Float32Array([0.5, 0.5, 0.5])
+		);
 		const runner = new GeneticAlgorithmRunner({
 			windowSets: [
 				{
 					id: "w1",
-					train: [{ features, price: 100 }],
-					validation: [{ features, price: 100 }],
+					train: [{ features, price: Price.of(100) }],
+					validation: [{ features, price: Price.of(100) }],
 				},
 			],
 			backendFactory: mockBackendFactory as any,
 			evalConcurrency: 1,
 		});
-		runner.initialise({ networkSeed: 42, mutationSeed: 42, populationSize: 2 });
-		const ctx1 = await runner.runGeneration();
-		const ctx2 = await runner.runGeneration();
+		runner.processor.initialise({
+			seeding: { envSeed: 42, mutationSeed: 42, networkSeed: 42 },
+			population: { size: 2, elitismFraction: 0.2, survivorFraction: 0.5 },
+		});
+		const ctx1 = await runner.processor.runGeneration();
+		const ctx2 = await runner.processor.runGeneration();
 		expect(ctx2.stagnation).toBeGreaterThanOrEqual(ctx1.stagnation);
 	});
 
 	it("should sort population by Pareto rank and crowding distance", async () => {
-		const features = new Float32Array([0.5, 0.5, 0.5]);
+		const features = FeatureVector.fromFloat32Array(
+			new Float32Array([0.5, 0.5, 0.5])
+		);
 		const runner = new GeneticAlgorithmRunner({
 			windowSets: [
 				{
 					id: "w1",
-					train: [{ features, price: 100 }],
-					validation: [{ features, price: 100 }],
+					train: [{ features, price: Price.of(100) }],
+					validation: [{ features, price: Price.of(100) }],
 				},
 			],
 			backendFactory: mockBackendFactory as any,
 			evalConcurrency: 1,
 		});
-		runner.initialise({ networkSeed: 42, mutationSeed: 42, populationSize: 5 });
-		await runner.runGeneration();
-		const ctx = await runner.runGeneration();
+		runner.processor.initialise({
+			seeding: { envSeed: 42, mutationSeed: 42, networkSeed: 42 },
+			population: { size: 5, elitismFraction: 0.2, survivorFraction: 0.5 },
+		});
+		await runner.processor.runGeneration();
+		const ctx = await runner.processor.runGeneration();
 		expect(ctx.population.length).toBe(5);
 	});
 
 	it("should run a single generation and produce a context", async () => {
-		const features = new Float32Array([0.5, 0.5, 0.5]);
+		const features = FeatureVector.fromFloat32Array(
+			new Float32Array([0.5, 0.5, 0.5])
+		);
 		const windowSets = [
 			{
 				id: "w1",
-				train: [{ features, price: 100 }],
-				validation: [{ features, price: 100 }],
+				train: [{ features, price: Price.of(100) }],
+				validation: [{ features, price: Price.of(100) }],
 			},
 		];
 		const onGeneration = jest.fn();
@@ -498,8 +580,11 @@ describe("GeneticAlgorithmRunner", () => {
 			evalConcurrency: 1,
 			onGeneration,
 		});
-		runner.initialise({ networkSeed: 42, mutationSeed: 42, populationSize: 2 });
-		const ctx = await runner.runGeneration();
+		runner.processor.initialise({
+			seeding: { envSeed: 42, mutationSeed: 42, networkSeed: 42 },
+			population: { size: 2, elitismFraction: 0.2, survivorFraction: 0.5 },
+		});
+		const ctx = await runner.processor.runGeneration();
 		expect(ctx.generation).toBe(1);
 		expect(ctx.population.length).toBe(2);
 		expect(onGeneration).toHaveBeenCalledTimes(1);
@@ -510,8 +595,9 @@ describe("GeneticAlgorithmRunner", () => {
 describe("full GA loop", () => {
 	it("should run full GA loop successfully", async () => {
 		const mockBackendFactory = () => ({
-			step: jest.fn(() => ({ reward: 1 })),
-			train: jest.fn(),
+			step: jest.fn(() => ({ reward: 1, action: 0 })),
+			remember: jest.fn(),
+			replay: jest.fn(),
 			getWeights: jest.fn(() => new Float32Array([0.1, 0.2])),
 			setWeights: jest.fn(),
 			getPnL: jest.fn(() => 50),
@@ -522,12 +608,14 @@ describe("full GA loop", () => {
 					output: new Float32Array([0.1, 0.2, 0.3]),
 					reward: 1,
 					nextState: new Float32Array([0.1, 0.2, 0.3]),
+					action: 0,
 				},
 				{
 					input: new Float32Array([0.4, 0.5, 0.6]),
 					output: new Float32Array([0.4, 0.5, 0.6]),
 					reward: 1,
 					nextState: new Float32Array([0.4, 0.5, 0.6]),
+					action: 2,
 				},
 			]),
 			forwardPass: jest.fn(
@@ -535,18 +623,30 @@ describe("full GA loop", () => {
 			),
 		});
 
-		const features = new Float32Array([0.5, 0.5, 0.5]);
+		const features = FeatureVector.fromFloat32Array(
+			new Float32Array([0.5, 0.5, 0.5])
+		);
 		const runner = new GeneticAlgorithmRunner({
 			windowSets: [
 				{
 					id: "w1",
 					train: [
-						{ features: new Float32Array([0.1, 0.2, 0.3]), price: 100 },
-						{ features: new Float32Array([0.4, 0.5, 0.6]), price: 101 },
+						{
+							features: FeatureVector.fromFloat32Array(
+								new Float32Array([0.1, 0.2, 0.3])
+							),
+							price: Price.of(100),
+						},
+						{
+							features: FeatureVector.fromFloat32Array(
+								new Float32Array([0.4, 0.5, 0.6])
+							),
+							price: Price.of(101),
+						},
 					],
 					validation: [
-						{ features, price: 100 },
-						{ features, price: 101 },
+						{ features, price: Price.of(100) },
+						{ features, price: Price.of(101) },
 					],
 				},
 			],
@@ -556,7 +656,7 @@ describe("full GA loop", () => {
 		});
 		const result = await runner.run();
 		expect(result).toBeDefined();
-		expect(runner.getBestGenome()).not.toBeNull();
+		expect(runner.processor.lastBestGenome).toBeDefined();
 	});
 
 	it("should exercise advanced GA branches (frameSkip, normalize, sparse, NSGA-II, weight crossover)", async () => {
@@ -564,8 +664,9 @@ describe("full GA loop", () => {
 		const mockBackendFactory = () => {
 			const id = factoryCallCount++;
 			return {
-				step: jest.fn(() => ({ reward: 1 })),
-				train: jest.fn(),
+				step: jest.fn(() => ({ reward: 1, action: 0 })),
+				remember: jest.fn(),
+				replay: jest.fn(),
 				getWeights: jest.fn(() => new Float32Array([0.1, 0.2, 0.3])),
 				setWeights: jest.fn(),
 				getPnL: jest.fn(() => 50 + id * 10),
@@ -585,19 +686,31 @@ describe("full GA loop", () => {
 		};
 
 		const onArchiveUpdate = jest.fn();
-		const features = new Float32Array([0.5, 0.5, 0.5]);
+		const features = FeatureVector.fromFloat32Array(
+			new Float32Array([0.5, 0.5, 0.5])
+		);
 
 		const runner = new GeneticAlgorithmRunner({
 			windowSets: [
 				{
 					id: "w1",
 					train: [
-						{ features: new Float32Array([0.1, 0.2, 0.3]), price: 100 },
-						{ features: new Float32Array([0.4, 0.5, 0.6]), price: 101 },
+						{
+							features: FeatureVector.fromFloat32Array(
+								new Float32Array([0.1, 0.2, 0.3])
+							),
+							price: Price.of(100),
+						},
+						{
+							features: FeatureVector.fromFloat32Array(
+								new Float32Array([0.4, 0.5, 0.6])
+							),
+							price: Price.of(101),
+						},
 					],
 					validation: [
-						{ features, price: 100 },
-						{ features, price: 101 },
+						{ features, price: Price.of(100) },
+						{ features, price: Price.of(101) },
 					],
 				},
 			],
@@ -605,37 +718,41 @@ describe("full GA loop", () => {
 			onArchiveUpdate,
 		});
 
-		runner.initialise({ networkSeed: 42, mutationSeed: 42, populationSize: 5 });
-
-		const customPop = (runner as any)._population.map((g: any) => {
-			const gCopy = JSON.parse(JSON.stringify(g));
-			gCopy.rl.horizon.frameSkip = 3;
-			gCopy.rl.rewardShaping.normalize = true;
-			gCopy.rl.rewardShaping.sparse = true;
-			return Object.freeze(gCopy);
+		runner.processor.initialise({
+			seeding: { envSeed: 42, mutationSeed: 42, networkSeed: 42 },
+			population: { size: 5, elitismFraction: 0.2, survivorFraction: 0.5 },
 		});
-		(runner as any).population = customPop;
 
 		for (let i = 0; i < 4; i++) {
-			await runner.runGeneration();
+			await runner.processor.runGeneration();
 		}
-		expect(runner.getBestGenome()).not.toBeNull();
+		expect(runner.processor.lastBestGenome).toBeDefined();
 		expect(onArchiveUpdate).toHaveBeenCalled();
 	});
 
 	it("should exit run via rewardThreshold", async () => {
-		const features = new Float32Array([0.5, 0.5, 0.5]);
+		const features = FeatureVector.fromFloat32Array(
+			new Float32Array([0.5, 0.5, 0.5])
+		);
 		const runner = new GeneticAlgorithmRunner({
 			windowSets: [
 				{
 					id: "w1",
-					train: [{ features: new Float32Array([0.1, 0.2, 0.3]), price: 100 }],
-					validation: [{ features, price: 100 }],
+					train: [
+						{
+							features: FeatureVector.fromFloat32Array(
+								new Float32Array([0.1, 0.2, 0.3])
+							),
+							price: Price.of(100),
+						},
+					],
+					validation: [{ features, price: Price.of(100) }],
 				},
 			],
 			backendFactory: (() => ({
-				step: jest.fn(() => ({ reward: 1 })),
-				train: jest.fn(),
+				step: jest.fn(() => ({ reward: 1, action: 0 })),
+				remember: jest.fn(),
+				replay: jest.fn(),
 				getWeights: jest.fn(() => new Float32Array([0.1, 0.2])),
 				setWeights: jest.fn(),
 				getPnL: jest.fn(() => 50),
@@ -653,23 +770,33 @@ describe("full GA loop", () => {
 			} as any,
 		});
 		const result = await runner.run();
-		expect(runner.getGeneration()).toBeLessThan(100);
+		expect(runner.processor.generation).toBeLessThan(100);
 		expect(result).toBeDefined();
 	});
 
 	it("should exit run via stagnationPatience", async () => {
-		const features = new Float32Array([0.5, 0.5, 0.5]);
+		const features = FeatureVector.fromFloat32Array(
+			new Float32Array([0.5, 0.5, 0.5])
+		);
 		const runner = new GeneticAlgorithmRunner({
 			windowSets: [
 				{
 					id: "w1",
-					train: [{ features: new Float32Array([0.1, 0.2, 0.3]), price: 100 }],
-					validation: [{ features, price: 100 }],
+					train: [
+						{
+							features: FeatureVector.fromFloat32Array(
+								new Float32Array([0.1, 0.2, 0.3])
+							),
+							price: Price.of(100),
+						},
+					],
+					validation: [{ features, price: Price.of(100) }],
 				},
 			],
 			backendFactory: (() => ({
-				step: jest.fn(() => ({ reward: 1 })),
-				train: jest.fn(),
+				step: jest.fn(() => ({ reward: 1, action: 0 })),
+				remember: jest.fn(),
+				replay: jest.fn(),
 				getWeights: jest.fn(() => new Float32Array([0.1, 0.2])),
 				setWeights: jest.fn(),
 				getPnL: jest.fn(() => 50),
@@ -687,23 +814,33 @@ describe("full GA loop", () => {
 			} as any,
 		});
 		const result = await runner.run();
-		expect(runner.getGeneration()).toBeLessThan(100);
+		expect(runner.processor.generation).toBeLessThan(100);
 		expect(result).toBeDefined();
 	});
 
 	it("should exit run via timeBudgetMs", async () => {
-		const features = new Float32Array([0.5, 0.5, 0.5]);
+		const features = FeatureVector.fromFloat32Array(
+			new Float32Array([0.5, 0.5, 0.5])
+		);
 		const runner = new GeneticAlgorithmRunner({
 			windowSets: [
 				{
 					id: "w1",
-					train: [{ features: new Float32Array([0.1, 0.2, 0.3]), price: 100 }],
-					validation: [{ features, price: 100 }],
+					train: [
+						{
+							features: FeatureVector.fromFloat32Array(
+								new Float32Array([0.1, 0.2, 0.3])
+							),
+							price: Price.of(100),
+						},
+					],
+					validation: [{ features, price: Price.of(100) }],
 				},
 			],
 			backendFactory: (() => ({
-				step: jest.fn(() => ({ reward: 1 })),
-				train: jest.fn(),
+				step: jest.fn(() => ({ reward: 1, action: 0 })),
+				remember: jest.fn(),
+				replay: jest.fn(),
 				getWeights: jest.fn(() => new Float32Array([0.1, 0.2])),
 				setWeights: jest.fn(),
 				getPnL: jest.fn(() => 50),
@@ -721,15 +858,16 @@ describe("full GA loop", () => {
 			} as any,
 		});
 		const result = await runner.run();
-		expect(runner.getGeneration()).toBeLessThan(100);
+		expect(runner.processor.generation).toBeLessThan(100);
 		expect(result).toBeDefined();
 	});
 
-	it("should call backend.train when pool has entries", async () => {
+	it("should replay transitions while training", async () => {
 		const trainMock = jest.fn();
 		const mockBackendFactory = () => ({
-			step: jest.fn(() => ({ reward: 1 })),
-			train: trainMock,
+			step: jest.fn(() => ({ reward: 1, action: 0 })),
+			remember: jest.fn(),
+			replay: trainMock,
 			getWeights: jest.fn(() => new Float32Array([0.1, 0.2])),
 			setWeights: jest.fn(),
 			getPnL: jest.fn(() => 50),
@@ -740,12 +878,14 @@ describe("full GA loop", () => {
 					output: new Float32Array([0.1, 0.2, 0.3]),
 					reward: 1,
 					nextState: new Float32Array([0.1, 0.2, 0.3]),
+					action: 0,
 				},
 				{
 					input: new Float32Array([0.4, 0.5, 0.6]),
 					output: new Float32Array([0.4, 0.5, 0.6]),
 					reward: 1,
 					nextState: new Float32Array([0.4, 0.5, 0.6]),
+					action: 2,
 				},
 			]),
 			forwardPass: jest.fn(
@@ -753,18 +893,30 @@ describe("full GA loop", () => {
 			),
 		});
 
-		const features = new Float32Array([0.5, 0.5, 0.5]);
+		const features = FeatureVector.fromFloat32Array(
+			new Float32Array([0.5, 0.5, 0.5])
+		);
 		const runner = new GeneticAlgorithmRunner({
 			windowSets: [
 				{
 					id: "w1",
 					train: [
-						{ features: new Float32Array([0.1, 0.2, 0.3]), price: 100 },
-						{ features: new Float32Array([0.4, 0.5, 0.6]), price: 101 },
+						{
+							features: FeatureVector.fromFloat32Array(
+								new Float32Array([0.1, 0.2, 0.3])
+							),
+							price: Price.of(100),
+						},
+						{
+							features: FeatureVector.fromFloat32Array(
+								new Float32Array([0.4, 0.5, 0.6])
+							),
+							price: Price.of(101),
+						},
 					],
 					validation: [
-						{ features, price: 100 },
-						{ features, price: 101 },
+						{ features, price: Price.of(100) },
+						{ features, price: Price.of(101) },
 					],
 				},
 			],

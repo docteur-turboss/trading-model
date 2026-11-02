@@ -1,0 +1,70 @@
+import { normalizeError } from "@trading-model/common/utils/errors";
+import { logger } from "@trading-model/http/infrastructure/logger";
+import type { InstanceId } from "@trading-model/primitives/primitives";
+import type { ICircuitStateStore } from "../../../domain/discovery/circuit-state-store.interface";
+import type { PersistedCircuitState } from "../../../domain/discovery/service-cache.interface";
+import type { RedisStoreConfig } from "../../../infrastructure/discovery/redis-store-config";
+import { RedisStoreAdapter } from "./redis-store-adapter";
+
+/** Circuit states live under the cache prefix, next to the cached instances. */
+export const CIRCUIT_KEY_PREFIX = "circuit:";
+
+export class RedisCircuitStateStore implements ICircuitStateStore {
+	private readonly _adapter: RedisStoreAdapter<PersistedCircuitState>;
+	private readonly _ttlMs: number;
+
+	constructor(config: RedisStoreConfig) {
+		this._adapter = new RedisStoreAdapter<PersistedCircuitState>(
+			config.redis,
+			config.prefix,
+			config.ttlSec
+		);
+		this._ttlMs = config.ttlSec * 1000;
+	}
+
+	async setCircuitState(
+		instanceId: InstanceId,
+		state: PersistedCircuitState
+	): Promise<void> {
+		try {
+			const key = this._circuitKey(instanceId);
+			await this._adapter.set(key, state, this._ttlMs * 2);
+		} catch (err) {
+			logger.warn("Redis circuit state set failed", {
+				instanceId,
+				error: normalizeError(err),
+			});
+		}
+	}
+
+	async getCircuitState(
+		instanceId: InstanceId
+	): Promise<PersistedCircuitState | null> {
+		try {
+			const key = this._circuitKey(instanceId);
+			return await this._adapter.get(key);
+		} catch (err) {
+			logger.warn("Redis circuit state get failed", {
+				instanceId,
+				error: normalizeError(err),
+			});
+			return null;
+		}
+	}
+
+	async deleteCircuitState(instanceId: InstanceId): Promise<void> {
+		try {
+			const key = this._circuitKey(instanceId);
+			await this._adapter.delete(key);
+		} catch (err) {
+			logger.warn("Redis circuit state delete failed", {
+				instanceId,
+				error: normalizeError(err),
+			});
+		}
+	}
+
+	private _circuitKey(instanceId: InstanceId): string {
+		return `${CIRCUIT_KEY_PREFIX}${instanceId}`;
+	}
+}

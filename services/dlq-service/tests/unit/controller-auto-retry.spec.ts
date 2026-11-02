@@ -1,7 +1,7 @@
 import { describe, expect, it, jest } from "@jest/globals";
 
-const MOCK_ADD = jest.fn();
-const MOCK_LIST = jest.fn();
+const MOCK_INSERT = jest.fn();
+const MOCK_QUERY = jest.fn();
 const MOCK_DELETE = jest.fn();
 const MOCK_COUNT = jest.fn();
 const MOCK_PRUNE = jest.fn();
@@ -11,30 +11,39 @@ const MOCK_LIST_QUEUABLE = jest.fn();
 const MOCK_MARK_RETRIED = jest.fn();
 const MOCK_ABANDON_EXHAUSTED = jest.fn();
 const MOCK_RELEASE_CLAIM_WITHOUT_COUNT = jest.fn();
-const MOCK_RELEASE_ALL_CLAIMS = jest.fn();
 const MOCK_RELEASE_CLAIMS_BY_INSTANCE = jest.fn();
 
-jest.mock("../../src/dlq/repository", () => ({
-	DlqCapacityError: class DlqCapacityError extends Error {},
+jest.mock("../../src/adapters/outbound/repository", () => ({
 	dlqRepository: {
-		add: MOCK_ADD,
-		list: MOCK_LIST,
+		insert: MOCK_INSERT,
+		query: MOCK_QUERY,
 		delete: MOCK_DELETE,
 		count: MOCK_COUNT,
 		prune: MOCK_PRUNE,
-		claimEntriesForRetry: MOCK_CLAIM_ENTRIES_FOR_RETRY,
-		releaseStaleClaims: MOCK_RELEASE_STALE_CLAIMS,
 		listQueuable: MOCK_LIST_QUEUABLE,
-		markRetried: MOCK_MARK_RETRIED,
-		abandonExhaustedEntries: MOCK_ABANDON_EXHAUSTED,
+	},
+}));
+
+jest.mock("../../src/adapters/outbound/claim-manager", () => ({
+	dlqClaimManager: {
+		claimEntriesForRetry: MOCK_CLAIM_ENTRIES_FOR_RETRY,
+	},
+	claimReleaseManager: {
+		releaseStaleClaims: MOCK_RELEASE_STALE_CLAIMS,
 		releaseClaimWithoutCount: MOCK_RELEASE_CLAIM_WITHOUT_COUNT,
-		releaseAllActiveClaims: MOCK_RELEASE_ALL_CLAIMS,
 		releaseClaimsByInstance: MOCK_RELEASE_CLAIMS_BY_INSTANCE,
 	},
 }));
 
-jest.mock("../../src/config/env", () => ({
-	env: {
+jest.mock("../../src/adapters/outbound/retry-manager", () => ({
+	dlqRetryManager: {
+		markRetried: MOCK_MARK_RETRIED,
+		abandonExhaustedEntries: MOCK_ABANDON_EXHAUSTED,
+	},
+}));
+
+jest.mock("../../src/infrastructure/config/env", () => ({
+	ENV: {
 		MAX_ENTRIES: 100,
 		MESSAGE_MANAGER_URL: "https://message-manager:3000",
 		DLQ_RETRY_MAX_ATTEMPTS: 3,
@@ -58,7 +67,7 @@ jest.mock("../../src/config/db", () => ({
 }));
 
 jest.mock("../../src/config/address-manager", () => ({
-	findAService: jest.fn(),
+	FIND_A_SERVICE: jest.fn(),
 }));
 
 jest.mock("../../src/config/logger", () => ({
@@ -66,7 +75,7 @@ jest.mock("../../src/config/logger", () => ({
 }));
 
 jest.mock("../../src/config/audit", () => ({
-	notifyAudit: jest.fn(() => Promise.resolve()),
+	publishDlqEvent: jest.fn(),
 }));
 
 jest.mock("../../src/config/redis-queue", () => ({
@@ -92,16 +101,16 @@ jest.mock("../../src/config/metrics", () => ({
 	},
 }));
 
-jest.mock("@trading-model/common/middleware/catch-error", () => ({
+jest.mock("@trading-model/http/adapters/inbound/catch-error", () => ({
 	catchSync: (fn: (...args: unknown[]) => unknown) => fn,
 }));
 
-jest.mock("@trading-model/common/middleware/response-exception", () => ({
+jest.mock("@trading-model/http/adapters/inbound/response-exception", () => ({
 	sendResponse: (data: unknown, statusCode: number) => ({ data, statusCode }),
 }));
 
 const MOCK_HTTP_POST = jest.fn();
-jest.mock("@trading-model/common/config/http-client", () => ({
+jest.mock("@trading-model/http/adapters/outbound/http-client", () => ({
 	HttpClient: jest.fn().mockImplementation(() => ({
 		post: MOCK_HTTP_POST,
 	})),
@@ -111,10 +120,9 @@ describe("Controller - Auto Retry", () => {
 	let controller: Record<string, unknown>;
 
 	beforeAll(() => {
-		controller = jest.requireActual("../../src/dlq/controller") as Record<
-			string,
-			unknown
-		>;
+		controller = jest.requireActual(
+			"../../src/shared/controller-reexports"
+		) as Record<string, unknown>;
 	});
 
 	afterAll(() => {
@@ -132,11 +140,11 @@ describe("Controller - Auto Retry", () => {
 
 			await (controller.autoRetryTick as () => Promise<void>)();
 			expect(MOCK_RELEASE_STALE_CLAIMS).toHaveBeenCalled();
-			expect(MOCK_CLAIM_ENTRIES_FOR_RETRY).toHaveBeenCalledWith(
-				50,
-				expect.stringContaining("auto-retry-"),
-				"test-dlq-1"
-			);
+			expect(MOCK_CLAIM_ENTRIES_FOR_RETRY).toHaveBeenCalledWith({
+				limit: 50,
+				batchId: expect.stringContaining("auto-retry-"),
+				instanceId: "test-dlq-1",
+			});
 		});
 	});
 

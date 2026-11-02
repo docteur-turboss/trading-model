@@ -1,18 +1,30 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
-import type { ServiceInstance } from "../../src/client/type";
-import { ServiceCache } from "../../src/discovery/service-cache";
+import { Protocol } from "@trading-model/contracts/service-registry-types";
+import { CircuitState as CircuitStateEnum } from "@trading-model/primitives/circuit-state";
+import {
+	DurationMs,
+	IPAddress,
+	Port,
+	PositiveInt,
+	toInstanceId,
+	toServiceId,
+	toVersion,
+	UnixTimestamp,
+} from "@trading-model/primitives/primitives";
+import { ServiceCache } from "../../src/adapters/outbound/discovery/service-cache";
+import type { ServiceInstance } from "../../src/domain/client/type";
 
 function makeInstance(overrides?: Partial<ServiceInstance>): ServiceInstance {
 	return {
-		serviceName: "svc",
-		instanceId: "i-1",
-		ip: "127.0.0.1",
-		port: 8080,
-		version: "1.0.0",
-		ttl: 30000,
-		protocol: "http",
-		registeredAt: Date.now(),
-		lastHeartbeat: Date.now(),
+		serviceName: toServiceId("svc"),
+		instanceId: toInstanceId("i-1"),
+		host: IPAddress.of("127.0.0.1"),
+		port: Port.of(8080),
+		version: toVersion("1.0.0"),
+		ttl: DurationMs.of(30000),
+		protocol: Protocol.Http,
+		registeredAt: UnixTimestamp.now(),
+		lastHeartbeat: UnixTimestamp.now(),
 		...overrides,
 	};
 }
@@ -21,52 +33,61 @@ describe("ServiceCache", () => {
 	let cache: ServiceCache;
 
 	beforeEach(() => {
-		cache = new ServiceCache(5000);
+		cache = new ServiceCache(5000 as never);
 	});
 
 	it("should store and return instance", async () => {
 		const inst = makeInstance();
-		await cache.set("svc", inst);
-		const result = await cache.get("svc");
+		await cache.set({ serviceName: toServiceId("svc"), instance: inst });
+		const result = await cache.get(toServiceId("svc"));
 		expect(result).toEqual(inst);
 	});
 
 	it("should return null for unknown service", async () => {
-		const result = await cache.get("unknown");
+		const result = await cache.get(toServiceId("unknown"));
 		expect(result).toBeNull();
 	});
 
 	it("should return null for expired entry", async () => {
 		jest.useFakeTimers();
 		const inst = makeInstance();
-		await cache.set("svc", inst);
+		await cache.set({ serviceName: toServiceId("svc"), instance: inst });
 		jest.advanceTimersByTime(6000);
-		const result = await cache.get("svc");
+		const result = await cache.get(toServiceId("svc"));
 		expect(result).toBeNull();
 		jest.useRealTimers();
 	});
 
-	it("should invalidate entry", async () => {
+	it("should delete entry", async () => {
 		const inst = makeInstance();
-		await cache.set("svc", inst);
-		await cache.invalidate("svc");
-		const result = await cache.get("svc");
+		await cache.set({ serviceName: toServiceId("svc"), instance: inst });
+		await cache.delete(toServiceId("svc"));
+		const result = await cache.get(toServiceId("svc"));
 		expect(result).toBeNull();
 	});
 
 	it("should clear all entries", async () => {
-		await cache.set("svc", makeInstance());
-		await cache.set(
-			"svc2",
-			makeInstance({ serviceName: "svc2", instanceId: "i-2" })
-		);
+		await cache.set({
+			serviceName: toServiceId("svc"),
+			instance: makeInstance(),
+		});
+		await cache.set({
+			serviceName: toServiceId("svc2"),
+			instance: makeInstance({
+				serviceName: toServiceId("svc2"),
+				instanceId: toInstanceId("i-2"),
+			}),
+		});
 		await cache.clear();
-		expect(await cache.get("svc")).toBeNull();
-		expect(await cache.get("svc2")).toBeNull();
+		expect(await cache.get(toServiceId("svc"))).toBeNull();
+		expect(await cache.get(toServiceId("svc2"))).toBeNull();
 	});
 
 	it("should return entries", async () => {
-		await cache.set("svc", makeInstance());
+		await cache.set({
+			serviceName: toServiceId("svc"),
+			instance: makeInstance(),
+		});
 		const entries = await cache.entries();
 		expect(entries).toHaveLength(1);
 		expect(entries[0].serviceName).toBe("svc");
@@ -74,52 +95,59 @@ describe("ServiceCache", () => {
 
 	it("entries should skip expired entries", async () => {
 		jest.useFakeTimers();
-		await cache.set("svc", makeInstance());
+		await cache.set({
+			serviceName: toServiceId("svc"),
+			instance: makeInstance(),
+		});
 		jest.advanceTimersByTime(6000);
 		const entries = await cache.entries();
 		expect(entries).toHaveLength(0);
 		jest.useRealTimers();
 	});
 
-	it("getVersion should return 0", async () => {
-		const v = await cache.getVersion("svc");
-		expect(v).toBe(0);
-	});
-
-	it("stop should clear cache", async () => {
-		await cache.set("svc", makeInstance());
-		cache.stop();
-		const result = await cache.get("svc");
+	it("close should clear cache", async () => {
+		await cache.set({
+			serviceName: toServiceId("svc"),
+			instance: makeInstance(),
+		});
+		cache.close();
+		const result = await cache.get(toServiceId("svc"));
 		expect(result).toBeNull();
 	});
 
 	it("setCircuitState should store and return state", async () => {
-		await cache.setCircuitState("i-1", {
-			failures: 3,
-			lastFailureTime: 1000,
-			state: "open",
+		await cache.circuitStateStore.setCircuitState(toInstanceId("i-1"), {
+			failures: PositiveInt.of(3),
+			lastFailureTime: UnixTimestamp.of(1000),
+			state: CircuitStateEnum.OPEN,
 		});
-		const result = await cache.getCircuitState("i-1");
+		const result = await cache.circuitStateStore.getCircuitState(
+			toInstanceId("i-1")
+		);
 		expect(result).toEqual({
-			failures: 3,
-			lastFailureTime: 1000,
-			state: "open",
+			failures: PositiveInt.of(3),
+			lastFailureTime: UnixTimestamp.of(1000),
+			state: CircuitStateEnum.OPEN,
 		});
 	});
 
 	it("getCircuitState should return null for unknown instance", async () => {
-		const result = await cache.getCircuitState("unknown");
+		const result = await cache.circuitStateStore.getCircuitState(
+			toInstanceId("unknown")
+		);
 		expect(result).toBeNull();
 	});
 
 	it("deleteCircuitState should remove state", async () => {
-		await cache.setCircuitState("i-1", {
-			failures: 1,
-			lastFailureTime: 0,
-			state: "closed",
+		await cache.circuitStateStore.setCircuitState(toInstanceId("i-1"), {
+			failures: PositiveInt.of(1),
+			lastFailureTime: UnixTimestamp.of(0),
+			state: CircuitStateEnum.CLOSED,
 		});
-		await cache.deleteCircuitState("i-1");
-		const result = await cache.getCircuitState("i-1");
+		await cache.circuitStateStore.deleteCircuitState(toInstanceId("i-1"));
+		const result = await cache.circuitStateStore.getCircuitState(
+			toInstanceId("i-1")
+		);
 		expect(result).toBeNull();
 	});
 });

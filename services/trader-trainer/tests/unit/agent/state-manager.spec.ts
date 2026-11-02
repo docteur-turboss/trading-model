@@ -1,13 +1,18 @@
 import { beforeEach, describe, expect, it } from "@jest/globals";
-import StateManager from "../../../src/core/agent/state-manager";
-import { Agent } from "../../../src/core/neural-network/agent";
+import StateManager from "../../../src/domain/agent/state-manager";
+import { Agent } from "../../../src/domain/neural-network/agent";
+import {
+	ActivationType,
+	ConnectionType,
+	NormalisationType,
+} from "../../../src/domain/neural-network/type";
 
 function makeAgent(): Agent {
 	return new Agent({
 		neuronsByLayer: [4, 6, 3],
-		activationType: ["relu", "sigmoid"],
-		normalisationType: "none",
-		connectionType: "fully-connected",
+		activationType: [ActivationType.Relu, ActivationType.Sigmoid],
+		normalisationType: NormalisationType.None,
+		connectionType: ConnectionType.FullyConnected,
 		enablePool: false,
 	});
 }
@@ -22,10 +27,6 @@ describe("StateManager", () => {
 
 		it("should start with epsilon at 1.0 by default", () => {
 			expect(sm.getEpsilon()).toBe(1.0);
-		});
-
-		it("should have gamma at 0.99 by default", () => {
-			expect(sm.getGamma()).toBe(0.99);
 		});
 
 		it("should decay epsilon multiplicatively", () => {
@@ -79,12 +80,6 @@ describe("StateManager", () => {
 			sm.decayEpsilon();
 
 			expect(sm.getEpsilon()).toBeCloseTo(0.5, 5);
-		});
-
-		it("should use provided gamma", () => {
-			const sm = new StateManager({ gamma: 0.95 });
-
-			expect(sm.getGamma()).toBe(0.95);
 		});
 	});
 
@@ -150,11 +145,11 @@ describe("StateManager", () => {
 		it("should initialise agent with scalar genome (broadcast)", () => {
 			const sm = new StateManager();
 			const agent = makeAgent();
-			const weightsBefore = agent.getWeights();
+			const weightsBefore = agent.nn.getWeights();
 
 			sm.initialiseFromGenome(agent, 0);
 
-			const weightsAfter = agent.getWeights();
+			const weightsAfter = agent.nn.getWeights();
 			expect(weightsAfter.length).toBe(weightsBefore.length);
 			expect(weightsAfter).not.toEqual(weightsBefore);
 		});
@@ -162,7 +157,7 @@ describe("StateManager", () => {
 		it("should initialise agent with Float32Array genome (direct setWeights)", () => {
 			const sm = new StateManager();
 			const agent = makeAgent();
-			const genome = agent.getWeights();
+			const genome = agent.nn.getWeights();
 
 			const modifiedGenome = new Float32Array(genome.length);
 			for (let i = 0; i < modifiedGenome.length; i++) {
@@ -171,20 +166,21 @@ describe("StateManager", () => {
 
 			sm.initialiseFromGenome(agent, modifiedGenome);
 
-			const newWeights = agent.getWeights();
+			const newWeights = agent.nn.getWeights();
 			for (let i = 0; i < newWeights.length; i++) {
 				expect(newWeights[i]).toBe(0.5);
 			}
 		});
 
-		it("should fallback to distributeAroundWeights when genome length mismatches", () => {
+		it("should reject a genome whose length does not match the network", () => {
 			const sm = new StateManager();
 			const agent = makeAgent();
-			const wrongGenome = new Float32Array(5);
+			const weightsBefore = agent.nn.getWeights();
 
-			sm.initialiseFromGenome(agent, wrongGenome);
-
-			expect(agent.parameterCount()).toBeGreaterThan(0);
+			expect(() => sm.initialiseFromGenome(agent, new Float32Array(5))).toThrow(
+				"Buffer length mismatch"
+			);
+			expect(agent.nn.getWeights()).toEqual(weightsBefore);
 		});
 	});
 });

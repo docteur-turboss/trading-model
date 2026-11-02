@@ -5,7 +5,7 @@
                   ],
     "thresholds":  {
                        "low":  60,
-                       "break":  null,
+                       "break":  50,
                        "high":  80
                    },
     "checkers":  [
@@ -14,6 +14,7 @@
     "cleanTempDir":  true,
     "concurrency":  4,
     "testRunner":  "jest",
+    "plugins":  ["@stryker-mutator/jest-runner", "@stryker-mutator/typescript-checker"],
     "tempDirName":  "stryker-tmp",
     "mutate":  [
                    "src/**/*.ts",

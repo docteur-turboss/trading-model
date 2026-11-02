@@ -1,6 +1,6 @@
 # ADR-0004: MySQL with Group Replication for Market Data
 
-**Status:** Accepted
+**Status:** Superseded by [ADR-0020](./0020-database-topology-as-deployed.md)
 **Date:** 2026-06
 
 ## Context

@@ -1,6 +1,12 @@
 {
 	"$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
 	"root": true,
+	"plugins": [
+		{
+			"path": "./biome-plugins/no-swallowed-errors.grit",
+			"includes": ["**/src/**"]
+		}
+	],
 	"assist": {
 		"enabled": true,
 		"actions": {
@@ -32,6 +38,7 @@
 				"noConfusingVoidType": "error",
 				"noConsole": "off",
 				"noEmptyInterface": "error",
+				"noEmptyBlockStatements": "error",
 				"noExportsInTest": "error",
 				"noFocusedTests": "error",
 				"noGlobalIsFinite": "error",
@@ -190,15 +197,28 @@
 							},
 							{
 								"selector": {
+									"kind": "enum"
+								},
+								"formats": ["PascalCase", "CONSTANT_CASE"]
+							},
+							{
+								"selector": {
+									"kind": "enumMember"
+								},
+								"formats": ["CONSTANT_CASE", "PascalCase"]
+							},
+							{
+								"selector": {
 									"kind": "interface"
 								},
-								"match": "I(.*)|(.*?)Error|(.+)",
+								"match": "I([A-Z].*)|(.*?)Error|(.+)",
 								"formats": ["PascalCase"]
 							},
 							{
 								"selector": {
 									"kind": "typeProperty"
 								},
+								"match": "[_$]?(.{2,})",
 								"formats": ["camelCase", "CONSTANT_CASE", "snake_case"]
 							}
 						]
@@ -294,6 +314,7 @@
 				"rules": {
 					"suspicious": {
 						"noExplicitAny": "off",
+						"noEmptyBlockStatements": "off",
 						"useAwait": "off"
 					},
 					"style": {

@@ -1,0 +1,76 @@
+# Off-site target of the db-backup CronJob in the kind test: an S3 API served
+# by rclone (already in backup-tools) on an emptyDir, bucket `backups`. CI only.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: trading-model-backup-s3
+type: Opaque
+stringData:
+  BACKUP_S3_BUCKET: s3://backups/staging
+  AWS_ACCESS_KEY_ID: kind-ci
+  AWS_SECRET_ACCESS_KEY: kind-ci-secret-key
+  AWS_REGION: us-east-1
+  S3_ENDPOINT: http://backup-s3:9000
+  S3_PROVIDER: Other
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backup-s3
+spec:
+  selector:
+    app.kubernetes.io/component: backup-s3
+  ports:
+    - port: 9000
+      targetPort: 9000
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backup-s3
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: backup-s3
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: backup-s3
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        fsGroup: 1001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: s3
+          image: ghcr.io/trading-model/backup-tools:latest
+          imagePullPolicy: IfNotPresent
+          command:
+            - sh
+            - -c
+            - mkdir -p /data/backups && exec rclone serve s3 --addr :9000 --auth-key kind-ci,kind-ci-secret-key /data
+          ports:
+            - containerPort: 9000
+          readinessProbe:
+            tcpSocket:
+              port: 9000
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: data
+              mountPath: /data
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+      volumes:
+        - name: data
+          emptyDir: {}

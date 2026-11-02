@@ -10,8 +10,8 @@ jest.mock("../../../src/config/address-manager", () => ({
 	AddressManager: {},
 }));
 
-jest.mock("../../../src/config/env", () => ({
-	env: {
+jest.mock("../../../src/infrastructure/config/env", () => ({
+	ENV: {
 		TLS_CERT_PATH: "/etc/tls/cert.pem",
 		INSTANCE_ID: "instance-1",
 		TLS_KEY_PATH: "/etc/tls/key.pem",
@@ -21,17 +21,10 @@ jest.mock("../../../src/config/env", () => ({
 	},
 }));
 
-import {
-	MessageManager,
-	MessageManagerListenExpress,
-} from "../../../src/config/message-manager";
+import { MessageManager } from "../../../src/config/message-manager";
 
 describe("config/message-manager", () => {
 	it("should export MessageManager", () => {
 		expect(MessageManager).toBeDefined();
-	});
-
-	it("should export MessageManagerListenExpress", () => {
-		expect(MessageManagerListenExpress).toBeDefined();
 	});
 });

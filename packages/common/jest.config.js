@@ -1,29 +1,25 @@
+const { workspaceModuleNameMapper } = require('../../scripts/jest-workspace-mapper.cjs');
+
 /** @type {import('ts-jest').JestConfigWithTsJest} */
 module.exports = {
-  preset: 'ts-jest',
   testEnvironment: 'node',
   rootDir: '.',
+  transform: {
+    '^.+\\.tsx?$': [
+      'ts-jest',
+      {
+        tsconfig: 'tsconfig.json',
+        diagnostics: false,
+      },
+    ],
+  },
   testMatch: ['**/?(*.)+(spec).ts'],
+  moduleNameMapper: {
+    ...workspaceModuleNameMapper(__dirname),
+  },
   testPathIgnorePatterns: ['/node_modules/', '/dist/'],
-  collectCoverageFrom: [
-    'src/**/*.ts',
-    '!src/**/*.d.ts',
-    '!src/**/*.types.ts',
-    '!src/**/*MTLSAuth*',
-    '!src/index.ts',
-    '!src/context/**',
-    '!src/crl/**',
-    '!src/crypto/**',
-    '!src/middleware/correlation-id.ts',
-    '!src/middleware/error-tracking.ts',
-    '!src/middleware/mtls-authorization.ts',
-    '!src/server/telemetry.ts',
-    '!src/utils/lru-cache.ts',
-    '!src/utils/retry-file-append.ts',
-    '!src/utils/safe-stringify.ts',
-    '!src/utils/ssrf-protection.ts',
-    '!src/config/setup-audit-logging.ts',
-  ],
+  collectCoverageFrom: ['src/**/*.ts', '!src/**/*.d.ts'],
+  maxWorkers: 10,
   coverageThreshold: {
     global: {
       branches: 80,

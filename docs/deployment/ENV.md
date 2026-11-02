@@ -5,31 +5,28 @@ Service abbreviation legend:
 | Abbr. | Service                                                                                             |
 | ----- | --------------------------------------------------------------------------------------------------- |
 | All   | All services (discovery-server, message-manager, financial-scraper, trader-trainer, etc.)           |
-| All*  | All services except admin-interface (nginx — no TLS)                                                |
 | DS    | discovery-server                                                                                    |
 | MM    | message-manager                                                                                     |
 | FS    | financial-scraper                                                                                   |
 | TT    | trader-trainer                                                                                      |
-| CA    | certificate-authority                                                                               |
 | GW    | api-gateway                                                                                         |
 | AL    | audit-logger                                                                                        |
 | DLQ   | dlq-service                                                                                         |
-| ADM   | admin-interface                                                                                     |
 | DC    | docker-compose.yml (host-side `.env` file)                                                          |
 
 ---
 
-## Common — all services (except admin-interface)
+## Common — all services
 
-Defined in `@trading-model/common` (`BaseEnvSchema`).
+Defined in `@trading-model/validation` (`config/env` — `BaseEnvSchema`), validated at startup via `application/services/validate-env`.
 
 | Variable        | Type                                           | Default                 | Required | Description                   | Services |
 | --------------- | ---------------------------------------------- | ----------------------- | -------- | ----------------------------- | -------- |
 | `NODE_ENV`      | `development \| test \| staging \| production` | `production`            | no       | Runtime environment           | All*     |
 | `PORT`          | number                                         | `3000`                  | no       | Internal container HTTPS port | All*     |
-| `TLS_KEY_PATH`  | string                                         | `/certs/server-key.pem` | **yes**  | Path to TLS private key (PEM) | All*     |
-| `TLS_CERT_PATH` | string                                         | `/certs/server.crt`     | **yes**  | Path to TLS certificate (PEM) | All*     |
-| `TLS_CA_PATH`   | string                                         | `/certs/ca.crt`         | **yes**  | Path to CA certificate (PEM)  | All*     |
+| `TLS_KEY_PATH`  | string                                         | `/run/spire/svid/svid_key.pem` | **yes**  | Path to TLS private key (PEM) | All*     |
+| `TLS_CERT_PATH` | string                                         | `/run/spire/svid/svid.pem`     | **yes**  | Path to TLS certificate (PEM) | All*     |
+| `TLS_CA_PATH`   | string                                         | `/run/spire/svid/bundle.pem`   | **yes**  | Path to CA certificate (PEM)  | All*     |
 | `LOG_LEVEL`     | `error \| warn \| info \| debug`               | `info`                  | no       | Logging verbosity             | All*     |
 
 ---
@@ -38,24 +35,24 @@ Defined in `@trading-model/common` (`BaseEnvSchema`).
 
 Used by services that register with the discovery-server.
 
-Defined in `@trading-model/common` (`AddressManagerEnvSchema`).
+Defined in `@trading-model/validation` (`config/address-manager-env` — `AddressManagerEnvSchema`), validated at startup via `application/services/validate-env`.
 
 | Variable                          | Type   | Default                         | Required | Description                                      | Services       |
 | --------------------------------- | ------ | ------------------------------- | -------- | ------------------------------------------------ | -------------- |
-| `APP_NAME`                        | string | _varies_                        | **yes**  | Logical application name                         | MM, FS, TT, CA, AL, DLQ |
-| `APP_VERSION`                     | string | `1.0.0`                         | no       | Application version                              | MM, FS, TT, CA, AL, DLQ |
-| `SERVICE_NAME`                    | string | _varies_                        | **yes**  | Service identity registered in discovery         | MM, FS, TT, CA, AL, DLQ |
-| `INSTANCE_ID`                     | string | _varies_                        | **yes**  | Unique instance identifier                       | MM, FS, TT, CA, AL, DLQ |
-| `CACHE_TTL_MS`                    | number | `30000`                         | no       | In-memory cache TTL                              | MM, FS, TT, CA, AL, DLQ |
-| `SERVICE_PING_TIMEOUT_MS`         | number | `2000`                          | no       | Timeout for health check pings                   | MM, FS, TT, CA, AL, DLQ |
-| `TOKEN_REFRESH_INTERVAL_MS`       | number | `60000`                         | no       | Auth token refresh interval                      | MM, FS, TT, CA, AL, DLQ |
-| `TTL_REFRESH_INTERVAL_MS`         | number | `15000`                         | no       | Service lease TTL refresh interval               | MM, FS, TT, CA, AL, DLQ |
-| `ADDRESS_MANAGER_URL`             | URL    | `https://discovery-server:3000` | **yes**  | Discovery server base URL                        | MM, FS, TT, CA, AL, DLQ |
-| `DNS_NAME_MAP`                    | string | `'{}'`                          | no       | Custom DNS name to address mapping (JSON object) | MM, FS, TT, CA, AL, DLQ |
-| `ERROR_URL_WEBHOOK`               | URL    | _(empty)_                       | no       | Error notification webhook endpoint              | MM, FS, TT, DS, CA, AL, DLQ |
-| `MESSAGE_BUS_INIT_TIMEOUT_MS`     | number | `5000`                          | no       | Message bus client init timeout                  | MM, FS, TT, CA, AL, DLQ |
-| `MESSAGE_BUS_SHUTDOWN_TIMEOUT_MS` | number | `5000`                          | no       | Message bus client shutdown timeout              | MM, FS, TT, CA, AL, DLQ |
-| `MESSAGE_CALLBACK_PATH`           | string | `message`                       | no       | Callback path for incoming messages              | MM, FS, TT, CA, AL, DLQ |
+| `APP_NAME`                        | string | _varies_                        | **yes**  | Logical application name                         | MM, FS, TT, AL, DLQ |
+| `APP_VERSION`                     | string | `1.0.0`                         | no       | Application version                              | MM, FS, TT, AL, DLQ |
+| `SERVICE_NAME`                    | string | _varies_                        | **yes**  | Service identity registered in discovery         | MM, FS, TT, AL, DLQ |
+| `INSTANCE_ID`                     | string | _varies_                        | **yes**  | Unique instance identifier                       | MM, FS, TT, AL, DLQ |
+| `CACHE_TTL_MS`                    | number | `30000`                         | no       | In-memory cache TTL                              | MM, FS, TT, AL, DLQ |
+| `SERVICE_PING_TIMEOUT_MS`         | number | `2000`                          | no       | Timeout for health check pings                   | MM, FS, TT, AL, DLQ |
+| `TOKEN_REFRESH_INTERVAL_MS`       | number | `60000`                         | no       | Auth token refresh interval                      | MM, FS, TT, AL, DLQ |
+| `TTL_REFRESH_INTERVAL_MS`         | number | `15000`                         | no       | Service lease TTL refresh interval               | MM, FS, TT, AL, DLQ |
+| `ADDRESS_MANAGER_URL`             | URL    | `https://discovery-server:3000` | **yes**  | Discovery server base URL                        | MM, FS, TT, AL, DLQ |
+| `DNS_NAME_MAP`                    | string | `'{}'`                          | no       | Custom DNS name to address mapping (JSON object) | MM, FS, TT, AL, DLQ |
+| `ERROR_URL_WEBHOOK`               | URL    | _(empty)_                       | no       | Error notification webhook endpoint              | MM, FS, TT, DS, AL, DLQ |
+| `MESSAGE_BUS_INIT_TIMEOUT_MS`     | number | `5000`                          | no       | Message bus client init timeout                  | MM, FS, TT, AL, DLQ |
+| `MESSAGE_BUS_SHUTDOWN_TIMEOUT_MS` | number | `5000`                          | no       | Message bus client shutdown timeout              | MM, FS, TT, AL, DLQ |
+| `MESSAGE_CALLBACK_PATH`           | string | `message`                       | no       | Callback path for incoming messages              | MM, FS, TT, AL, DLQ |
 
 ---
 
@@ -65,24 +62,20 @@ Defined in `@trading-model/common` (`AddressManagerEnvSchema`).
 | ----------------------------- | ------ | ---------------- | -------- | ---------------------------------- | -------- |
 | `CLEANUP_SERVICE_INTERVAL_MS` | number | `600000` (10min) | no       | Interval for expired lease cleanup | DS       |
 | `ERROR_URL_WEBHOOK`           | URL    | —                | no       | Error notification webhook         | DS       |
+| `SIGNING_SECRET`              | string | —                | **yes** in production | HMAC secret of the instance tokens; shared by the replicas, stable across restarts (random per process otherwise) | DS |
 | `REDIS_URL`                   | string | —                | no       | Redis URL for distributed registry | DS       |
-| `REDIS_KEY_PREFIX`            | string | `discovery:`     | no       | Redis key prefix per region        | DS       |
-| `REGION`                      | string | —                | no       | Deployment region (multi-region)   | DS       |
 
 ---
 
-## Certificate Authority
+## Workload Identity (SPIRE / spiffe-helper)
 
-| Variable                    | Type   | Default           | Required | Description                              | Services |
-| --------------------------- | ------ | ----------------- | -------- | ---------------------------------------- | -------- |
-| `MONGODB_URI`               | string | `mongodb://mongo:27017/certificate-authority` | **yes**  | MongoDB connection URI    | CA       |
-| `CA_KEY_PATH`               | string | `/etc/ca-keys/ca-key.pem` | **yes**  | CA private key path                | CA       |
-| `CA_CERT_TTL_MS`            | number | `31536000000` (1y)| no       | Validity duration for CA-signed certs    | CA       |
-| `CERT_ROTATION_INTERVAL_MS` | number | `86400000` (1d)   | no       | Interval between certificate rotation checks | CA |
-| `CERT_ROTATION_MARGIN_MS`   | number | `17280000` (~4.8h)| no       | Renewal margin before certificate expiry | CA       |
-| `CERT_DEFAULT_TTL_MS`       | number | `604800000` (7d)  | no       | Default TTL for issued certificates      | CA       |
-| `CERT_MAX_TTL_MS`           | number | `31536000000` (1y)| no       | Maximum allowed TTL for issued certs   | CA       |
-| `DISCOVERY_SERVICE_URL`     | URL    | `https://discovery-server:3000` | **yes**  | Discovery server URL      | CA       |
+The platform uses SPIFFE/SPIRE (ADR-0011) for workload identity, **mandatory**.
+SVID files are written by `spiffe-helper` sidecars into `/run/spire/svid`
+(`svid.pem`, `svid_key.pem`, `bundle.pem`) and consumed via the standard
+`TLS_*_PATH` variables above. No manual certificate generation is required.
+
+The in-house `certificate-authority` service and its `CERT_CLIENT_*` /
+`CA_*` variables were **decommissioned** per ADR-0011.
 
 ---
 
@@ -110,7 +103,10 @@ Defined in `@trading-model/common` (`AddressManagerEnvSchema`).
 | `TRAINER_GENERATIONS`             | number       | `50`              | no       | Number of GA generations             | TT       |
 | `TRAINER_POPULATION_SIZE`         | number       | `20`              | no       | GA population size                   | TT       |
 | `TRAINER_TIME_BUDGET_MS`          | number       | `300000` (5min)   | no       | Max training time per run            | TT       |
-| `TRAINER_EPISODES_PER_INDIVIDUAL` | number       | `3`               | no       | DRL episodes per genome evaluation   | TT       |
+| `TRAINER_MAX_DATA_AGE_MS`         | number       | `900000` (15min)  | no       | Newest candle older than this: symbol not trained | TT       |
+| `TRAINER_EPISODES_PER_INDIVIDUAL` | number       | `10`              | no       | DRL episodes per genome evaluation (adaptive control keeps 10–30) | TT       |
+| `TRAINER_FITNESS_TYPE`            | enum         | `total_pnl`       | no       | GA scalar fitness: `total_pnl`, `sharpe`, `sortino`, `calmar`, `composite` (ADR-0025) | TT       |
+| `TRAINER_OBSERVE_POSITION`        | boolean      | `true`            | no       | Show the agent its position (`false`: a constant input, to measure what it is worth, ADR-0025) | TT       |
 
 ---
 
@@ -126,11 +122,15 @@ Defined in `@trading-model/common` (`AddressManagerEnvSchema`).
 
 ---
 
-## Message Manager — MongoDB
+## Message Manager
 
-| Variable      | Type   | Default                                 | Required | Description            | Services |
-| ------------- | ------ | --------------------------------------- | -------- | ---------------------- | -------- |
-| `MONGODB_URI` | string | `mongodb://mongo:27017/message-manager` | no       | MongoDB connection URI | MM       |
+No database: subscriptions in Redis (`REDIS_SENTINELS` / `REDIS_URL`), dead letters in dlq-service ([ADR-0019](../adr/0019-message-broker-as-built.md)).
+
+| Variable                  | Type   | Default                     | Required             | Description                                                                 | Services |
+| ------------------------- | ------ | --------------------------- | -------------------- | --------------------------------------------------------------------------- | -------- |
+| `DLQ_AUTH_HMAC_SECRET`    | string | —                           | **yes** (production) | Signs the dead letters sent to dlq-service: same value as dlq-service (min 16 chars). Unset: dead letters stay in the local file | MM       |
+| `DLQ_LOCAL_FALLBACK_PATH` | string | `./dead-letter-queue.jsonl` | no                   | File keeping the dead letters dlq-service cannot take yet (writable volume) | MM       |
+| `DLQ_FORWARD_INTERVAL_MS` | number | `60000`                     | no                   | How often the dead letters kept in the file are sent to dlq-service again   | MM       |
 
 ---
 
@@ -152,23 +152,13 @@ Defined in `@trading-model/common` (`AddressManagerEnvSchema`).
 | `MAX_ENTRIES`                | number  | `100000`                             | no       | Maximum stored DLQ entries           | DLQ      |
 | `DLQ_RETRY_MAX_ATTEMPTS`     | number  | `5`                                  | no       | Max retry attempts for replay        | DLQ      |
 | `MESSAGE_MANAGER_URL`        | URL     | —                                    | no       | Message manager URL for replay       | DLQ      |
-| `DLQ_AUTH_HMAC_SECRET`       | string  | —                                    | no       | HMAC secret for auth (min 16 chars)  | DLQ      |
-| `DLQ_AUTH_HMAC_SECRET_PATH`  | string  | —                                    | no       | Path to HMAC secret file             | DLQ      |
-| `DLQ_ALLOWED_SERVICES`       | string  | `message-manager,admin`              | no       | Comma-separated allowed service names| DLQ      |
+| `DLQ_AUTH_HMAC_SECRET`       | string  | —                                    | no       | HMAC secret for auth (min 16 chars), shared with message-manager | DLQ      |
+| `DLQ_ALLOWED_SERVICES`       | string  | `message-manager,admin`              | no       | Callers allowed to sign requests (`admin`: operator scripts such as `examples/manage-dlq.sh`) | DLQ      |
 | `DLQ_PRUNE_INTERVAL_MS`      | number  | `60000`                              | no       | Interval for pruning expired entries | DLQ      |
-| `DLQ_AUTO_RETRY_ENABLED`     | boolean | `false`                              | no       | Enable automatic retry of DLQ entries| DLQ      |
+| `DLQ_AUTO_RETRY_ENABLED`     | boolean | `false` (`true` in compose and K8s)  | no       | Replay eligible entries automatically| DLQ      |
 | `DLQ_AUTO_RETRY_INTERVAL_MS` | number  | `30000`                              | no       | Interval between auto-retry attempts | DLQ      |
 | `DLQ_AUTO_RETRY_LIMIT`       | number  | `50`                                 | no       | Max auto-retry attempts per entry    | DLQ      |
 | `REDIS_URL`                  | string  | —                                    | no       | Redis URL for rate limiting          | DLQ      |
-
----
-
-## Admin Interface
-
-| Variable            | Type   | Default                           | Required | Description                     | Services |
-| ------------------- | ------ | --------------------------------- | -------- | ------------------------------- | -------- |
-| `VITE_API_GATEWAY_URL` | URL  | `https://api-gateway:3000/v1`    | **yes**  | API Gateway URL for the SPA     | ADM      |
-| `VITE_ADMIN_TOKEN`  | string | —                                 | **yes**  | Admin auth token for API calls  | ADM      |
 
 ---
 
@@ -180,19 +170,16 @@ Defined in `@trading-model/common` (`AddressManagerEnvSchema`).
 | `MESSAGE_PORT`        | number | `8444`                  | Host port for message-manager      | DC       |
 | `SCRAPER_PORT`        | number | `8445`                  | Host port for financial-scraper    | DC       |
 | `TRAINER_PORT`        | number | `8446`                  | Host port for trader-trainer       | DC       |
-| `CA_PORT`             | number | `8447`                  | Host port for certificate-authority| DC       |
 | `GATEWAY_PORT`        | number | `8448`                  | Host port for api-gateway          | DC       |
-| `ADMIN_PORT`          | number | `8449`                  | Host port for admin-interface      | DC       |
 | `AUDIT_PORT`          | number | `8450`                  | Host port for audit-logger         | DC       |
 | `DLQ_PORT`            | number | `8452`                  | Host port for dlq-service          | DC       |
-| `TLS_CERTS_DIR`       | string | `./certs`               | Host TLS certificates directory    | DC       |
+| `EDGE_PORT`           | number | `8449`                  | Host port for edge-proxy (HTTP)    | DC       |
 | `MYSQL_ROOT_PASSWORD` | string | `changeme`              | MySQL root password                | DC       |
 | `MYSQL_DATABASE`      | string | `financial_scraper`     | MySQL database name                | DC       |
 | `IMAGE_REGISTRY`      | string | `ghcr.io/trading-model` | Container registry prefix          | DC       |
 | `IMAGE_TAG`           | string | `latest`                | Image tag to pull                  | DC       |
 | `APP_VERSION`         | string | `1.0.0`                 | Version tag for Docker images      | DC       |
 | `INSTANCE_ID`         | string | `instance-1`            | Instance identifier for deployment | DC       |
-| `ADMIN_TOKEN`         | string | —                       | Auth token for admin-interface     | DC       |
 
 ---
 
@@ -225,13 +212,11 @@ DISCOVERY_PORT=8443
 MESSAGE_PORT=8444
 SCRAPER_PORT=8445
 TRAINER_PORT=8446
-CA_PORT=8447
 GATEWAY_PORT=8448
-ADMIN_PORT=8449
+EDGE_PORT=8449
 AUDIT_PORT=8450
 
-# TLS certificates directory
-TLS_CERTS_DIR=./certs
+# mTLS is automatic via SPIRE (ADR-0011) — no TLS_CERTS_DIR needed
 
 # MySQL
 MYSQL_ROOT_PASSWORD=changeme
@@ -244,10 +229,12 @@ TRAINER_VALIDATION_SPLIT=0.2
 TRAINER_GENERATIONS=50
 TRAINER_POPULATION_SIZE=20
 TRAINER_TIME_BUDGET_MS=300000
-TRAINER_EPISODES_PER_INDIVIDUAL=3
+TRAINER_MAX_DATA_AGE_MS=900000
+TRAINER_EPISODES_PER_INDIVIDUAL=10
+TRAINER_FITNESS_TYPE=total_pnl
+TRAINER_OBSERVE_POSITION=true
 
 # API Gateway auth
-ADMIN_TOKEN=change-me-in-production
 AUTH_TOKENS=token1 token2
 
 # Error webhook (optional)

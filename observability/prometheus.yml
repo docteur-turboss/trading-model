@@ -10,22 +10,17 @@ alerting:
     - static_configs:
         - targets: ['alertmanager:9093']
 
-# Production TLS configuration:
-# Prometheus authenticates to each service's metrics endpoint using mTLS.
-# Certificates are mounted from the trading-model-tls secret via the
-# Prometheus Deployment volume.  For development, set env PROMETHEUS_TLS_SKIP_VERIFY=true
-# to bypass certificate verification (see k8s infra/prometheus.yaml).
-#
-# To generate certificates for Prometheus, use scripts/generate-certs.sh
-# and mount the resulting certs into /etc/prometheus/tls/.
+# Prometheus authenticates to each service's /metrics with its own SPIRE SVID
+# (spiffe-helper-prometheus writes it into /run/spire/svid, ADR-0011). The
+# `prometheus` identity may only GET /metrics (MTLSAuthorizationMiddleware).
 
 scrape_configs:
   - job_name: 'message-manager'
     scheme: https
     tls_config:
-      ca_file: /etc/prometheus/tls/ca.crt
-      cert_file: /etc/prometheus/tls/server.crt
-      key_file: /etc/prometheus/tls/server-key.pem
+      ca_file: /run/spire/svid/bundle.pem
+      cert_file: /run/spire/svid/svid.pem
+      key_file: /run/spire/svid/svid_key.pem
     metrics_path: /metrics
     static_configs:
       - targets: ['message-manager:3000']
@@ -33,29 +28,19 @@ scrape_configs:
   - job_name: 'discovery-server'
     scheme: https
     tls_config:
-      ca_file: /etc/prometheus/tls/ca.crt
-      cert_file: /etc/prometheus/tls/server.crt
-      key_file: /etc/prometheus/tls/server-key.pem
+      ca_file: /run/spire/svid/bundle.pem
+      cert_file: /run/spire/svid/svid.pem
+      key_file: /run/spire/svid/svid_key.pem
     metrics_path: /metrics
     static_configs:
       - targets: ['discovery-server:3000']
 
-  - job_name: 'certificate-authority'
-    scheme: https
-    tls_config:
-      ca_file: /etc/prometheus/tls/ca.crt
-      cert_file: /etc/prometheus/tls/server.crt
-      key_file: /etc/prometheus/tls/server-key.pem
-    metrics_path: /metrics
-    static_configs:
-      - targets: ['certificate-authority:3000']
-
   - job_name: 'dlq-service'
     scheme: https
     tls_config:
-      ca_file: /etc/prometheus/tls/ca.crt
-      cert_file: /etc/prometheus/tls/server.crt
-      key_file: /etc/prometheus/tls/server-key.pem
+      ca_file: /run/spire/svid/bundle.pem
+      cert_file: /run/spire/svid/svid.pem
+      key_file: /run/spire/svid/svid_key.pem
     metrics_path: /metrics
     static_configs:
       - targets: ['dlq-service:3000']
@@ -63,9 +48,9 @@ scrape_configs:
   - job_name: 'api-gateway'
     scheme: https
     tls_config:
-      ca_file: /etc/prometheus/tls/ca.crt
-      cert_file: /etc/prometheus/tls/server.crt
-      key_file: /etc/prometheus/tls/server-key.pem
+      ca_file: /run/spire/svid/bundle.pem
+      cert_file: /run/spire/svid/svid.pem
+      key_file: /run/spire/svid/svid_key.pem
     metrics_path: /metrics
     static_configs:
       - targets: ['api-gateway:3000']
@@ -73,9 +58,9 @@ scrape_configs:
   - job_name: 'audit-logger'
     scheme: https
     tls_config:
-      ca_file: /etc/prometheus/tls/ca.crt
-      cert_file: /etc/prometheus/tls/server.crt
-      key_file: /etc/prometheus/tls/server-key.pem
+      ca_file: /run/spire/svid/bundle.pem
+      cert_file: /run/spire/svid/svid.pem
+      key_file: /run/spire/svid/svid_key.pem
     metrics_path: /metrics
     static_configs:
       - targets: ['audit-logger:3000']
@@ -83,9 +68,9 @@ scrape_configs:
   - job_name: 'financial-scraper'
     scheme: https
     tls_config:
-      ca_file: /etc/prometheus/tls/ca.crt
-      cert_file: /etc/prometheus/tls/server.crt
-      key_file: /etc/prometheus/tls/server-key.pem
+      ca_file: /run/spire/svid/bundle.pem
+      cert_file: /run/spire/svid/svid.pem
+      key_file: /run/spire/svid/svid_key.pem
     metrics_path: /metrics
     static_configs:
       - targets: ['financial-scraper:3000']
@@ -93,13 +78,19 @@ scrape_configs:
   - job_name: 'trader-trainer'
     scheme: https
     tls_config:
-      ca_file: /etc/prometheus/tls/ca.crt
-      cert_file: /etc/prometheus/tls/server.crt
-      key_file: /etc/prometheus/tls/server-key.pem
+      ca_file: /run/spire/svid/bundle.pem
+      cert_file: /run/spire/svid/svid.pem
+      key_file: /run/spire/svid/svid_key.pem
     metrics_path: /metrics
     static_configs:
       - targets: ['trader-trainer:3000']
 
-  - job_name: 'otel-collector'
+  # Self-monitoring of the alerting path (AlertmanagerNotificationsFailing,
+  # PrometheusRuleEvaluationFailures).
+  - job_name: 'prometheus'
     static_configs:
-      - targets: ['otel-collector:8888']
+      - targets: ['localhost:9090']
+
+  - job_name: 'alertmanager'
+    static_configs:
+      - targets: ['alertmanager:9093']

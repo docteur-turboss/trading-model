@@ -2,7 +2,8 @@ import { execSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import readline from 'node:readline';
+import { cursorTo, clearScreenDown } from 'node:readline';
+import { SCOPES } from './gitmoji-scopes.mjs';
 
 const GITMOJIS = [
   { emoji: ':sparkles:', code: '✨', name: 'feat', desc: 'New feature' },
@@ -17,6 +18,7 @@ const GITMOJIS = [
   { emoji: ':lipstick:', code: '💄', name: 'style', desc: 'UI/formatting' },
   { emoji: ':shirt:', code: '👕', name: 'style-lint', desc: 'Lint fix' },
   { emoji: ':recycle:', code: '♻️', name: 'refactor', desc: 'Code restructuring' },
+  { emoji: ':art:', code: '🎨', name: 'refactor-format', desc: 'Improve structure/format' },
   { emoji: ':wastebasket:', code: '🗑️', name: 'refactor-depr', desc: 'Deprecate code' },
   { emoji: ':zap:', code: '⚡', name: 'perf', desc: 'Performance' },
   { emoji: ':rocket:', code: '🚀', name: 'perf-deploy', desc: 'Deploy / perf' },
@@ -38,48 +40,20 @@ const CATEGORIES = [
   { title: '🐛 Fixes', icon: '🐛', start: 3, end: 6 },
   { title: '📝 Documentation', icon: '📝', start: 7, end: 8 },
   { title: '💄 Style', icon: '💄', start: 9, end: 10 },
-  { title: '♻️  Refactor', icon: '♻️', start: 11, end: 12 },
-  { title: '⚡ Performance', icon: '⚡', start: 13, end: 14 },
-  { title: '✅ Tests', icon: '✅', start: 15, end: 17 },
-  { title: '🔧 Chore', icon: '🔧', start: 18, end: 21 },
-  { title: '👷 CI', icon: '👷', start: 22, end: 23 },
-  { title: '🔒 Security', icon: '🔒', start: 24, end: 25 },
-];
-
-const SCOPES = [
-  'auth',
-  'scraper',
-  'api',
-  'wallet',
-  'core',
-  'deps',
-  'discovery',
-  'broker',
-  'trainer',
-  'router',
-  'common',
-  'config',
-  'database',
-  'middleware',
-  'utils',
-  'types',
-  'address-manager',
-  'message-manager',
-  'financial-scraper',
-  'trader-trainer',
-  'discovery-server',
-  'docs',
-  'github-actions',
-  'husky',
-
+  { title: '♻️  Refactor', icon: '♻️', start: 11, end: 13 },
+  { title: '⚡ Performance', icon: '⚡', start: 14, end: 15 },
+  { title: '✅ Tests', icon: '✅', start: 16, end: 18 },
+  { title: '🔧 Chore', icon: '🔧', start: 19, end: 22 },
+  { title: '👷 CI', icon: '👷', start: 23, end: 24 },
+  { title: '🔒 Security', icon: '🔒', start: 25, end: 26 },
 ];
 
 const stdin = process.stdin;
 const stdout = process.stdout;
 
 function clearScreen() {
-  readline.cursorTo(stdout, 0, 0);
-  readline.clearScreenDown(stdout);
+  cursorTo(stdout, 0, 0);
+  clearScreenDown(stdout);
 }
 
 function hideCursor() {
@@ -94,47 +68,55 @@ function rawMode(enable) {
   if (stdin.isTTY) stdin.setRawMode(enable);
 }
 
+const KEY_MAP = {
+  '\x1B[A': 'UP',
+  '\x1B[B': 'DOWN',
+  '\r': 'ENTER',
+  '\n': 'ENTER',
+  '\x1B': 'ESC',
+};
+
 function keypress() {
   return new Promise(resolve => {
     const onData = buf => {
       stdin.removeListener('data', onData);
       const key = buf.toString();
-      switch (key) {
-        case '\x1B[A':
-          resolve('UP');
-          break;
-        case '\x1B[B':
-          resolve('DOWN');
-          break;
-        case '\r':
-        case '\n':
-          resolve('ENTER');
-          break;
-        case '\x03':
-          process.exit(0);
-          break;
-        case '\x1B':
-          resolve('ESC');
-          break;
-        default:
-          resolve(key);
-      }
+      if (key === '\x03') process.exit(0);
+      resolve(KEY_MAP[key] ?? key);
     };
     stdin.once('data', onData);
   });
 }
 
 async function textInput(label) {
-  rawMode(false);
-  showCursor();
-  const rl = readline.createInterface({ input: stdin, output: stdout });
-  const value = await new Promise(resolve => {
-    rl.question(`${label}: `, answer => resolve(answer.trim()));
-  });
-  rl.close();
   rawMode(true);
   hideCursor();
-  return value;
+  let input = '';
+  while (true) {
+    clearScreen();
+    stdout.write(`\n  ${label}: ${input}\n\n`);
+    stdout.write('  Enter confirm · Esc cancel\n');
+    const key = await keypress();
+    if (key === 'ENTER') {
+      rawMode(true);
+      hideCursor();
+      return input.trim();
+    }
+    if (key === 'ESC') {
+      rawMode(true);
+      hideCursor();
+      return null;
+    }
+    if (key === '\x7F' || key === '\b') {
+      input = input.slice(0, -1);
+    } else {
+      for (const ch of key) {
+        if (ch.charCodeAt(0) >= 32) {
+          input += ch;
+        }
+      }
+    }
+  }
 }
 
 const PAGE_SIZE = 8;
@@ -148,7 +130,7 @@ function btnWide(label, width) {
   return `${' '.repeat(left)}${inner}${' '.repeat(right)}`;
 }
 
-function renderMenu(title, items, cursor, offset, renderItem) {
+function renderMenu(title, items, cursor, offset, renderItem, searchBuffer) {
   clearScreen();
   stdout.write(`\n  ${title}\n\n`);
 
@@ -173,56 +155,140 @@ function renderMenu(title, items, cursor, offset, renderItem) {
   } else {
     stdout.write(`  ${' '.repeat(rowW)}\n`);
   }
-  stdout.write('\n  ↑↓ navigate · Enter select · Esc back\n');
+  if (searchBuffer) {
+    stdout.write(`\n  Search: ${searchBuffer}\n`);
+  }
+  stdout.write('\n  ↑↓ navigate · Enter select · Esc back · Type to search\n');
+}
+
+const CONTINUE = Symbol('CONTINUE');
+
+const MENU_ACTIONS = {
+  UP: (cursor, offset, items) => {
+    if (cursor > 0) {
+      cursor--;
+      if (cursor < offset) offset--;
+    }
+    return { type: CONTINUE, cursor, offset };
+  },
+  DOWN: (cursor, offset, items) => {
+    if (cursor < items.length - 1) {
+      cursor++;
+      if (cursor >= offset + PAGE_SIZE) offset++;
+    }
+    return { type: CONTINUE, cursor, offset };
+  },
+  ENTER: (cursor, offset, items) => ({ type: 'return', value: items[cursor] }),
+  ESC: () => ({ type: 'return', value: null }),
+};
+
+function findItemIndex(items, renderItem, searchBuffer) {
+  const lower = searchBuffer.toLowerCase();
+  let idx = items.findIndex((item, i) => {
+    const label = renderItem(item, i).toLowerCase();
+    return label.startsWith(lower);
+  });
+  if (idx === -1) {
+    idx = items.findIndex((item, i) => {
+      const label = renderItem(item, i).toLowerCase();
+      return label.includes(lower);
+    });
+  }
+  return idx;
 }
 
 async function pickFromList(title, items, renderItem) {
   let cursor = 0;
   let offset = 0;
+  let searchBuffer = '';
   rawMode(true);
   hideCursor();
   while (true) {
-    renderMenu(title, items, cursor, offset, renderItem);
+    renderMenu(title, items, cursor, offset, renderItem, searchBuffer);
     const key = await keypress();
-    switch (key) {
-      case 'UP':
-        if (cursor > 0) {
-          cursor--;
-          if (cursor < offset) offset--;
+    if (key === 'UP' || key === 'DOWN') {
+      searchBuffer = '';
+      const result = MENU_ACTIONS[key](cursor, offset, items);
+      if (result.type === 'return') return result.value;
+      cursor = result.cursor;
+      offset = result.offset;
+    } else if (key === 'ENTER') {
+      return items[cursor];
+    } else if (key === 'ESC') {
+      return null;
+    } else if (key === '\x7F' || key === '\b') {
+      searchBuffer = searchBuffer.slice(0, -1);
+      if (searchBuffer) {
+        const idx = findItemIndex(items, renderItem, searchBuffer);
+        if (idx !== -1) {
+          cursor = idx;
+          if (cursor < offset) offset = cursor;
+          if (cursor >= offset + PAGE_SIZE) offset = cursor - PAGE_SIZE + 1;
         }
-        break;
-      case 'DOWN':
-        if (cursor < items.length - 1) {
-          cursor++;
-          if (cursor >= offset + PAGE_SIZE) offset++;
-        }
-        break;
-      case 'ENTER':
-        return items[cursor];
-      case 'ESC':
-        return null;
+      } else {
+        cursor = 0;
+        offset = 0;
+      }
+    } else if (key.length === 1 && /[a-zA-Z0-9_-]/.test(key)) {
+      searchBuffer += key.toLowerCase();
+      const idx = findItemIndex(items, renderItem, searchBuffer);
+      if (idx !== -1) {
+        cursor = idx;
+        if (cursor < offset) offset = cursor;
+        if (cursor >= offset + PAGE_SIZE) offset = cursor - PAGE_SIZE + 1;
+      }
     }
   }
 }
 
 async function multiLineInput(label) {
-  rawMode(false);
-  showCursor();
-  stdout.write(`\n${label}\n`);
-  stdout.write('(Empty line to finish)\n\n');
-  const rl = readline.createInterface({ input: stdin, output: stdout });
-  const lines = [];
-  while (true) {
-    const line = await new Promise(resolve => {
-      rl.question('> ', resolve);
-    });
-    if (!line.trim()) break;
-    lines.push(line);
-  }
-  rl.close();
   rawMode(true);
   hideCursor();
-  return lines;
+  const lines = [];
+  let currentLine = '';
+  while (true) {
+    clearScreen();
+    stdout.write(`\n${label}\n`);
+    stdout.write('(Empty line to finish)\n\n');
+    for (const line of lines) {
+      stdout.write(`  ${line}\n`);
+    }
+    stdout.write(`> ${currentLine}\n`);
+    stdout.write('\n  Enter next line · Empty Enter finish · Esc cancel\n');
+    const key = await keypress();
+    if (key === 'ENTER') {
+      if (!currentLine.trim() && lines.length > 0) {
+        rawMode(true);
+        hideCursor();
+        return lines;
+      }
+      if (currentLine.trim()) {
+        lines.push(currentLine.trim());
+        currentLine = '';
+      } else {
+        rawMode(true);
+        hideCursor();
+        return lines;
+      }
+    } else if (key === 'ESC') {
+      rawMode(true);
+      hideCursor();
+      return [];
+    } else if (key === '\x7F' || key === '\b') {
+      currentLine = currentLine.slice(0, -1);
+    } else {
+      for (const ch of key) {
+        if (ch === '\r' || ch === '\n') {
+          if (currentLine.trim()) {
+            lines.push(currentLine.trim());
+            currentLine = '';
+          }
+        } else if (ch.charCodeAt(0) >= 32) {
+          currentLine += ch;
+        }
+      }
+    }
+  }
 }
 
 async function main() {
@@ -271,11 +337,21 @@ async function main() {
 
   const subject = await textInput('Subject');
   if (!subject) {
-    stdout.write('\nSubject required.\n');
-    process.exit(1);
+    clearScreen();
+    showCursor();
+    rawMode(false);
+    stdout.write('\nCancelled.\n');
+    process.exit(0);
   }
 
   const breaking = await textInput('Breaking change? (y/N)');
+  if (breaking === null) {
+    clearScreen();
+    showCursor();
+    rawMode(false);
+    stdout.write('\nCancelled.\n');
+    process.exit(0);
+  }
   const breakingFlag = ['y', 'yes'].includes(breaking.toLowerCase()) ? '!' : '';
   const header = `${selected.emoji}${scopePart}${breakingFlag}: ${subject}`;
 
@@ -299,8 +375,10 @@ async function main() {
   stdout.write('\n\n─────────────────────────────\n');
 
   const confirm = await textInput('Commit? (Y/n)');
-  if (['n', 'no'].includes(confirm.toLowerCase())) {
+  if (confirm === null || ['n', 'no'].includes(confirm.toLowerCase())) {
     clearScreen();
+    showCursor();
+    rawMode(false);
     stdout.write('\nCancelled.\n');
     process.exit(0);
   }
@@ -311,12 +389,15 @@ async function main() {
     rawMode(false);
     showCursor();
     execSync(`git commit -F "${file}"`, { stdio: 'inherit' });
+    clearScreen();
+    stdout.write('\nCommitted ✓\n');
   } catch {
     process.exit(1);
   } finally {
     rawMode(false);
     showCursor();
   }
+  process.exit(0);
 }
 
 main();

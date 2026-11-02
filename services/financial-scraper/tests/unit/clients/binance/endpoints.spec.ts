@@ -1,11 +1,16 @@
 import { describe, expect, it } from "@jest/globals";
-import { BINANCE_ENDPOINTS } from "../../../../src/clients/binance/endpoints";
+import { CandleInterval } from "@trading-model/contracts/market-data.types";
+import { BinanceFromId, toSymbol } from "@trading-model/primitives/primitives";
+import { BINANCE_ENDPOINTS } from "../../../../src/adapters/outbound/binance/endpoints";
+
+const BTC = toSymbol("BTCUSDT");
+const ETH = toSymbol("ETHUSDT");
 
 describe("BINANCE_ENDPOINTS", () => {
 	describe("depth", () => {
 		it("should build order book URL with limit and symbol", () => {
-			const url = BINANCE_ENDPOINTS.depth(100, "BTCUSDT");
-			expect(url).toBe("/api/v3/depth?limit=100&symbol=BTCUSDT");
+			const url = BINANCE_ENDPOINTS.depth({ symbol: BTC, limit: 100 });
+			expect(url).toBe("/api/v3/depth?symbol=BTCUSDT&limit=100");
 		});
 
 		it("should build order book URL without params", () => {
@@ -16,8 +21,8 @@ describe("BINANCE_ENDPOINTS", () => {
 
 	describe("trades", () => {
 		it("should build recent trades URL with limit and symbol", () => {
-			const url = BINANCE_ENDPOINTS.trades(500, "ETHUSDT");
-			expect(url).toBe("/api/v3/trades?limit=500&symbol=ETHUSDT");
+			const url = BINANCE_ENDPOINTS.trades({ symbol: ETH, limit: 500 });
+			expect(url).toBe("/api/v3/trades?symbol=ETHUSDT&limit=500");
 		});
 
 		it("should build recent trades URL without params", () => {
@@ -28,9 +33,13 @@ describe("BINANCE_ENDPOINTS", () => {
 
 	describe("historicalTrades", () => {
 		it("should build historical trades URL with all params", () => {
-			const url = BINANCE_ENDPOINTS.historicalTrades(500, "BTCUSDT", 12345);
+			const url = BINANCE_ENDPOINTS.historicalTrades({
+				symbol: BTC,
+				limit: 500,
+				fromId: BinanceFromId.of("12345"),
+			});
 			expect(url).toBe(
-				"/api/v3/historicalTrades?limit=500&symbol=BTCUSDT&fromId=12345"
+				"/api/v3/historicalTrades?symbol=BTCUSDT&limit=500&fromId=12345"
 			);
 		});
 
@@ -42,12 +51,13 @@ describe("BINANCE_ENDPOINTS", () => {
 
 	describe("candlesticks", () => {
 		it("should build candlestick URL with all params", () => {
-			const url = BINANCE_ENDPOINTS.candlesticks(
-				"BTCUSDT",
-				"1m",
-				1620000000000,
-				100
-			);
+			const url = BINANCE_ENDPOINTS.candlesticks({
+				symbol: BTC,
+				interval: CandleInterval.Min1,
+				startTime:
+					1620000000000 as unknown as import("@trading-model/primitives/primitives").UnixTimestamp,
+				limit: 100,
+			});
 			expect(url).toBe(
 				"/api/v3/klines?symbol=BTCUSDT&interval=1m&startTime=1620000000000&limit=100"
 			);
@@ -61,7 +71,7 @@ describe("BINANCE_ENDPOINTS", () => {
 
 	describe("change24hrStats", () => {
 		it("should build 24hr stats URL with symbols", () => {
-			const url = BINANCE_ENDPOINTS.change24hrStats(["BTCUSDT"]);
+			const url = BINANCE_ENDPOINTS.change24hrStats([BTC]);
 			expect(url).toContain("/api/v3/ticker/24hr?symbols=");
 			expect(url).toContain("BTCUSDT");
 		});
@@ -74,11 +84,11 @@ describe("BINANCE_ENDPOINTS", () => {
 
 	describe("compressedAggregateTrades", () => {
 		it("should build aggTrades URL with all params", () => {
-			const url = BINANCE_ENDPOINTS.compressedAggregateTrades(
-				"BTCUSDT",
-				12345,
-				100
-			);
+			const url = BINANCE_ENDPOINTS.compressedAggregateTrades({
+				symbol: BTC,
+				fromId: BinanceFromId.of("12345"),
+				limit: 100,
+			});
 			expect(url).toBe(
 				"/api/v3/aggTrades?symbol=BTCUSDT&fromId=12345&limit=100"
 			);
@@ -92,7 +102,7 @@ describe("BINANCE_ENDPOINTS", () => {
 
 	describe("tradingDayTicker", () => {
 		it("should build trading day ticker URL with symbols", () => {
-			const url = BINANCE_ENDPOINTS.tradingDayTicker(["BTCUSDT", "ETHUSDT"]);
+			const url = BINANCE_ENDPOINTS.tradingDayTicker([BTC, ETH]);
 			expect(url).toContain("/api/v3/ticker/tradingDay?symbols=");
 			expect(url).toContain("BTCUSDT");
 			expect(url).toContain("ETHUSDT");
@@ -106,7 +116,7 @@ describe("BINANCE_ENDPOINTS", () => {
 
 	describe("symbolPriceTicker", () => {
 		it("should build price ticker URL with symbols", () => {
-			const url = BINANCE_ENDPOINTS.symbolPriceTicker(["BTCUSDT"]);
+			const url = BINANCE_ENDPOINTS.symbolPriceTicker([BTC]);
 			expect(url).toContain("/api/v3/ticker/price?symbols=");
 		});
 
@@ -118,7 +128,7 @@ describe("BINANCE_ENDPOINTS", () => {
 
 	describe("orderBookTicker", () => {
 		it("should build book ticker URL with symbols", () => {
-			const url = BINANCE_ENDPOINTS.orderBookTicker(["BTCUSDT"]);
+			const url = BINANCE_ENDPOINTS.orderBookTicker([BTC]);
 			expect(url).toContain("/api/v3/ticker/bookTicker?symbols=");
 		});
 

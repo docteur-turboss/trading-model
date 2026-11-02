@@ -45,8 +45,8 @@ fi
 
 case "${1:-up}" in
   up|down|status)
-    log "Running: node scripts/migrate.mjs ${1}"
-    node "$MIGRATE_SCRIPT" "$1"
+    log "Running: bun scripts/migrate.mjs ${1}"
+    bun "$MIGRATE_SCRIPT" "$1"
     ;;
   create)
     if [[ -z "${2:-}" ]]; then
@@ -54,7 +54,7 @@ case "${1:-up}" in
       exit 1
     fi
     log "Creating migration: $2"
-    node "$MIGRATE_SCRIPT" create "$2"
+    bun "$MIGRATE_SCRIPT" create "$2"
     ;;
   *)
     echo "Usage: $0 [up|down|status|create <name>]"

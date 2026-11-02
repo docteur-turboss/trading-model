@@ -1,0 +1,10 @@
+import { DataType } from "../../../../domain/data-handlers/data-types";
+import type { MarketDataBuffer } from "../../../../domain/market-data-buffer";
+import { processFirstItem } from "./process-list";
+
+export function processOrderBook(
+	buffer: MarketDataBuffer,
+	data: unknown
+): void {
+	processFirstItem(buffer, data, "orderBook", DataType.OrderBook);
+}

@@ -1,41 +1,62 @@
 import { describe, expect, it } from "@jest/globals";
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
-import { AppError } from "@trading-model/common/utils/errors";
-import { MessageMetadata } from "../../src/shared/helper/messages/message";
+import { MarketEvent } from "@trading-model/contracts/market-events";
+import { TrainingEvent } from "@trading-model/contracts/training-events";
+import { MessageMetadataBuilder } from "../../src/domain/messages/message-metadata-builder";
 
-function buildMinimalMetadata(): MessageMetadata {
-	return new MessageMetadata()
-		.setTopic("test.event.created")
-		.setEventType("TestEvent")
-		.setPublisher({
-			serviceName: ServiceInstanceName.DiscoveryService,
-			instanceId: "550e8400-e29b-41d4-a716-446655440000",
-		});
+const TEST_TOPIC = "test.event.created";
+const TEST_EVENT = "example.debug.create";
+const TEST_PUBLISHER = {
+	serviceName: ServiceInstanceName.DiscoveryService,
+	instanceId: "550e8400-e29b-41d4-a716-446655440000",
+};
+
+function buildMinimalMetadata(): MessageMetadataBuilder {
+	return new MessageMetadataBuilder(TEST_TOPIC, TEST_EVENT, TEST_PUBLISHER);
 }
 
-describe("MessageMetadata", () => {
+describe("MessageMetadataBuilder", () => {
 	describe("constructor", () => {
-		it("should create with defaults", () => {
-			const m = new MessageMetadata();
-			expect(m).toBeInstanceOf(MessageMetadata);
+		it("should create with required fields", () => {
+			const m = new MessageMetadataBuilder(
+				TEST_TOPIC,
+				TEST_EVENT,
+				TEST_PUBLISHER
+			);
+			expect(m).toBeInstanceOf(MessageMetadataBuilder);
+			expect(m.topic).toBe(TEST_TOPIC);
+			expect(m.eventType).toBe(TEST_EVENT);
+			expect(m.publisher.serviceName).toBe(
+				ServiceInstanceName.DiscoveryService
+			);
 		});
 
-		it("should throw on invalid data", () => {
-			expect(() => new MessageMetadata({ topic: "" } as any)).toThrow();
+		it("should throw on invalid topic format", () => {
+			expect(
+				() => new MessageMetadataBuilder("no-dots", TEST_EVENT, TEST_PUBLISHER)
+			).toThrow();
 		});
 
-		it("should accept partial data", () => {
-			const withData = new MessageMetadata({
-				topic: "test.event.created",
-				eventType: "TestEvent",
-				publisher: {
-					serviceName: ServiceInstanceName.DiscoveryService,
-					instanceId: "550e8400-e29b-41d4-a716-446655440000",
-				},
-			});
+		it("should accept the trainer's model-published event", () => {
+			const m = new MessageMetadataBuilder(
+				TrainingEvent.ModelPublished,
+				TrainingEvent.ModelPublished,
+				TEST_PUBLISHER
+			);
+			expect(m.toJSON().eventType).toBe(TrainingEvent.ModelPublished);
+		});
+
+		it("should accept optional context data", () => {
+			const withData = new MessageMetadataBuilder(
+				TEST_TOPIC,
+				TEST_EVENT,
+				TEST_PUBLISHER,
+				{ delivery: { mode: "at-least-once" } }
+			);
 			const result = withData.toJSON();
-			expect(result.topic).toBe("test.event.created");
-			expect(result.eventType).toBe("TestEvent");
+			expect(result.topic).toBe(TEST_TOPIC);
+			expect(result.eventType).toBe(TEST_EVENT);
+			expect(result.delivery?.mode).toBe("at-least-once");
 		});
 	});
 
@@ -47,17 +68,28 @@ describe("MessageMetadata", () => {
 		});
 
 		it("should throw on invalid topic format", () => {
-			const m = new MessageMetadata();
+			const m = buildMinimalMetadata();
 			expect(() => m.setTopic("")).toThrow();
 			expect(() => m.setTopic("no-dots")).toThrow();
+			expect(() => m.setTopic("two.segments")).toThrow();
+			expect(() => m.setTopic("market..fetch")).toThrow();
+			expect(() => m.setTopic("market.-trade.fetch")).toThrow();
+		});
+
+		it.each(
+			Object.values(MarketEvent)
+		)("should accept the %s market event as a topic", (event) => {
+			const m = buildMinimalMetadata();
+			m.setTopic(event);
+			expect(m.toJSON().topic).toBe(event);
 		});
 	});
 
 	describe("setEventType", () => {
 		it("should set event type", () => {
 			const m = buildMinimalMetadata();
-			m.setEventType("UserCreated");
-			expect(m.toJSON().eventType).toBe("UserCreated");
+			m.setEventType("example.show.create");
+			expect(m.toJSON().eventType).toBe("example.show.create");
 		});
 	});
 
@@ -74,41 +106,16 @@ describe("MessageMetadata", () => {
 		});
 
 		it("should throw on invalid publisher", () => {
-			const m = new MessageMetadata();
+			const m = buildMinimalMetadata();
 			expect(() => m.setPublisher({} as any)).toThrow();
 		});
 	});
 
 	describe("toJSON", () => {
-		it("should throw if topic not set", () => {
-			const m = new MessageMetadata().setEventType("Test").setPublisher({
-				serviceName: ServiceInstanceName.DiscoveryService,
-				instanceId: "550e8400-e29b-41d4-a716-446655440000",
-			});
-			expect(() => m.toJSON()).toThrow(AppError);
-		});
-
-		it("should throw if eventType not set", () => {
-			const m = new MessageMetadata()
-				.setTopic("test.event.created")
-				.setPublisher({
-					serviceName: ServiceInstanceName.DiscoveryService,
-					instanceId: "550e8400-e29b-41d4-a716-446655440000",
-				});
-			expect(() => m.toJSON()).toThrow(AppError);
-		});
-
-		it("should throw if publisher not set", () => {
-			const m = new MessageMetadata()
-				.setTopic("test.event.created")
-				.setEventType("Test");
-			expect(() => m.toJSON()).toThrow(AppError);
-		});
-
 		it("should return complete metadata", () => {
 			const result = buildMinimalMetadata().toJSON();
-			expect(result.topic).toBe("test.event.created");
-			expect(result.eventType).toBe("TestEvent");
+			expect(result.topic).toBe(TEST_TOPIC);
+			expect(result.eventType).toBe(TEST_EVENT);
 			expect(result.schemaVersion).toBe("1.0.0");
 			expect(result.publisher.serviceName).toBe(
 				ServiceInstanceName.DiscoveryService

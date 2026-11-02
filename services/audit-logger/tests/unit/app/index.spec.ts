@@ -7,38 +7,49 @@ const MOCK_LOGGER = {
 	debug: jest.fn(),
 };
 
-jest.mock("@trading-model/common/config/logger", () => ({
+jest.mock("@trading-model/http/infrastructure/logger", () => ({
 	logger: MOCK_LOGGER,
+}));
+
+jest.mock("@trading-model/contracts/logger-registry", () => ({
+	getLogger: () => MOCK_LOGGER,
+	setLogger: jest.fn(),
 }));
 
 let capturedOptions: any;
 
-jest.mock("@trading-model/common/server/bootstrap", () => ({
+jest.mock("@trading-model/server-utils/application/services/bootstrap", () => ({
 	createBootstrap: jest.fn((options: any) => {
 		capturedOptions = options;
 		return { server: null, shutdown: jest.fn() };
 	}),
 }));
 
-jest.mock("../../../src/config/env", () => ({
+jest.mock("@trading-model/server-utils/infrastructure/telemetry", () => ({
+	initializeTelemetry: jest.fn(),
+	shutdownTelemetry: jest.fn(),
+}));
+
+jest.mock("../../../src/infrastructure/config/env", () => ({
 	ENV: {
 		MONGODB_URI: "mongodb://localhost:27017/audit-logger",
 		PORT: 3001,
-		MAX_QUEUE_DEPTH: 10000,
-		ACK_TIMEOUT_MS: 30000,
 		TLS_KEY_PATH: "/some/key.pem",
 		TLS_CERT_PATH: "/some/cert.pem",
 		TLS_CA_PATH: "/some/ca.pem",
 		INSTANCE_ID: "instance-1",
+		ENFORCE_MTLS_STRICT: true,
+		AUDIT_RETENTION_DAYS: 1827,
+		AUDIT_CHAIN_INTERVAL_MS: 900000,
+		AUDIT_ANCHOR_PREFIX: "audit-chain/",
+		AUDIT_ANCHOR_REGION: "us-east-1",
+		AUDIT_ANCHOR_REQUIRED: false,
 	},
 }));
 
-jest.mock("@trading-model/address-manager/create-address-manager", () => ({
-	createAddressManager: jest.fn(() => ({
-		start: jest.fn(),
-		stop: jest.fn(),
-		listenExpress: jest.fn(),
-	})),
+const MOCK_CHAIN_AUDIT_SCHEDULER = { start: jest.fn(), stop: jest.fn() };
+jest.mock("../../../src/application/audit-chain/chain-audit-scheduler", () => ({
+	ChainAuditScheduler: jest.fn(() => MOCK_CHAIN_AUDIT_SCHEDULER),
 }));
 
 const MOCK_ADDRESS_MANAGER = { stop: jest.fn() };
@@ -46,21 +57,6 @@ jest.mock("../../../src/config/address-manager", () => ({
 	BOOTSTRAP_ADDRESS_MANAGER: jest.fn(() => MOCK_ADDRESS_MANAGER),
 	AddressManager: { stop: jest.fn() },
 	ADDRESS_MANAGER_ROUTES: jest.fn(),
-}));
-
-const MOCK_JOB_REPOSITORY_INSTANCE = {
-	ensureIndexes: jest.fn<any>(),
-	insert: jest.fn<any>(),
-	findById: jest.fn<any>(),
-	updateStatus: jest.fn<any>(),
-	incrementRetry: jest.fn<any>(),
-	findNonTerminal: jest.fn<any>(),
-	findByWorker: jest.fn<any>(),
-	findByStatus: jest.fn<any>(),
-};
-
-jest.mock("../../../src/persistence/job-repository", () => ({
-	JobRepository: jest.fn(() => MOCK_JOB_REPOSITORY_INSTANCE),
 }));
 
 const MOCK_AUDIT_REPOSITORY_INSTANCE = {
@@ -72,30 +68,20 @@ const MOCK_AUDIT_REPOSITORY_INSTANCE = {
 	ensureIndexes: jest.fn<any>(),
 };
 
-jest.mock("../../../src/persistence/audit-repository", () => ({
-	AuditRepository: jest.fn(() => MOCK_AUDIT_REPOSITORY_INSTANCE),
-}));
+jest.mock(
+	"../../../src/adapters/outbound/persistence/audit-repository",
+	() => ({
+		AuditRepository: jest.fn(() => MOCK_AUDIT_REPOSITORY_INSTANCE),
+	})
+);
 
-const MOCK_SCHEDULER_INSTANCE = {
-	workers: { register: jest.fn(), get: jest.fn(), unregister: jest.fn() },
-	setWorkerProtocol: jest.fn<any>(),
-	start: jest.fn<any>(),
-	stop: jest.fn<any>(),
-	onWorkerDisconnect: jest.fn(),
-};
+jest.mock(
+	"../../../src/adapters/outbound/persistence/retired-collections",
+	() => ({ dropRetiredCollections: jest.fn<any>() })
+);
 
-jest.mock("../../../src/scheduler/job-scheduler", () => ({
-	JobScheduler: jest.fn(() => MOCK_SCHEDULER_INSTANCE),
-}));
-
-const MOCK_WORKER_PROTOCOL_INSTANCE = { close: jest.fn() };
-
-jest.mock("../../../src/worker/worker-protocol", () => ({
-	WorkerProtocol: jest.fn(() => MOCK_WORKER_PROTOCOL_INSTANCE),
-}));
-
-const MOCK_HTTP_SERVER = { raw: "mock-raw-server" };
-jest.mock("../../../src/app/server", () => ({
+const MOCK_HTTP_SERVER = {};
+jest.mock("../../../src/application/server", () => ({
 	createServer: jest.fn(() => MOCK_HTTP_SERVER),
 }));
 
@@ -104,6 +90,7 @@ const MOCK_MONGO_CLIENT = {
 	connect: jest.fn<any>(),
 	db: jest.fn(() => MOCK_DB),
 	close: jest.fn<any>(),
+	on: jest.fn(),
 };
 
 jest.mock("mongodb", () => ({
@@ -122,17 +109,24 @@ jest.mock("@trading-model/broker-message", () => {
 	};
 });
 
-import { createBootstrap } from "@trading-model/common/server/bootstrap";
-import { createServer } from "../../../src/app/server";
+jest.mock("@trading-model/contracts/market-events", () => ({
+	MarketEvent: {},
+}));
+jest.mock("@trading-model/contracts/audit-events", () => ({
+	AuditEvent: {},
+}));
+
+import { createBootstrap } from "@trading-model/server-utils/application/services/bootstrap";
+import { AuditRepository } from "../../../src/adapters/outbound/persistence/audit-repository";
+import { dropRetiredCollections } from "../../../src/adapters/outbound/persistence/retired-collections";
+import { createServer } from "../../../src/application/server";
 import { BOOTSTRAP_ADDRESS_MANAGER } from "../../../src/config/address-manager";
-import { AuditRepository } from "../../../src/persistence/audit-repository";
-import { JobRepository } from "../../../src/persistence/job-repository";
-import { JobScheduler } from "../../../src/scheduler/job-scheduler";
-import { WorkerProtocol } from "../../../src/worker/worker-protocol";
 
 const MOCK_CREATE_BOOTSTRAP = createBootstrap as jest.Mock;
 
-import "../../../src/app/index";
+import "../../../src/application/index";
+
+jest.setTimeout(30000);
 
 describe("Audit Logger entry point (index.ts)", () => {
 	beforeAll(() => {
@@ -147,8 +141,6 @@ describe("Audit Logger entry point (index.ts)", () => {
 	it("should handle onStop when all resources are null", async () => {
 		await capturedOptions.onStop();
 
-		expect(MOCK_SCHEDULER_INSTANCE.stop).not.toHaveBeenCalled();
-		expect(MOCK_WORKER_PROTOCOL_INSTANCE.close).not.toHaveBeenCalled();
 		expect(MOCK_ADDRESS_MANAGER.stop).not.toHaveBeenCalled();
 		expect(MOCK_MONGO_CLIENT.close).not.toHaveBeenCalled();
 	});
@@ -159,44 +151,17 @@ describe("Audit Logger entry point (index.ts)", () => {
 
 			expect(MOCK_MONGO_CLIENT.connect).toHaveBeenCalledTimes(1);
 			expect(MOCK_MONGO_CLIENT.db).toHaveBeenCalledTimes(1);
-			expect(JobRepository).toHaveBeenCalledWith(MOCK_DB);
-			expect(MOCK_JOB_REPOSITORY_INSTANCE.ensureIndexes).toHaveBeenCalledTimes(
-				1
-			);
 			expect(AuditRepository).toHaveBeenCalledWith(MOCK_DB);
 			expect(
 				MOCK_AUDIT_REPOSITORY_INSTANCE.ensureIndexes
 			).toHaveBeenCalledTimes(1);
-			expect(JobScheduler).toHaveBeenCalledWith(MOCK_JOB_REPOSITORY_INSTANCE);
+			expect(dropRetiredCollections).toHaveBeenCalledWith(MOCK_DB);
 			expect(createServer).toHaveBeenCalledWith(
-				expect.objectContaining({
-					workers: MOCK_SCHEDULER_INSTANCE.workers,
-					setWorkerProtocol: MOCK_SCHEDULER_INSTANCE.setWorkerProtocol,
-					start: MOCK_SCHEDULER_INSTANCE.start,
-				}),
-				MOCK_AUDIT_REPOSITORY_INSTANCE
-			);
-			expect(WorkerProtocol).toHaveBeenCalledWith(
-				"mock-raw-server",
-				expect.objectContaining({ register: expect.any(Function) }),
+				MOCK_AUDIT_REPOSITORY_INSTANCE,
+				expect.anything(),
 				expect.any(Function)
 			);
-			expect(MOCK_SCHEDULER_INSTANCE.setWorkerProtocol).toHaveBeenCalledWith(
-				MOCK_WORKER_PROTOCOL_INSTANCE
-			);
-			expect(MOCK_SCHEDULER_INSTANCE.start).toHaveBeenCalledTimes(1);
 			expect(server).toBe(MOCK_HTTP_SERVER);
-		});
-
-		it("should pass onWorkerDisconnect callback to WorkerProtocol", () => {
-			const [, , disconnectCallback] = (WorkerProtocol as unknown as jest.Mock)
-				.mock.calls[0];
-
-			(disconnectCallback as any)("worker-1");
-
-			expect(MOCK_SCHEDULER_INSTANCE.onWorkerDisconnect).toHaveBeenCalledWith(
-				"worker-1"
-			);
 		});
 	});
 
@@ -205,25 +170,28 @@ describe("Audit Logger entry point (index.ts)", () => {
 			capturedOptions.onStart();
 
 			expect(BOOTSTRAP_ADDRESS_MANAGER).toHaveBeenCalledTimes(1);
-			expect(MOCK_LOGGER.info).toHaveBeenCalledWith(
+			expect(MOCK_CHAIN_AUDIT_SCHEDULER.start).toHaveBeenCalledTimes(1);
+			expect(MOCK_LOGGER.info).toHaveBeenNthCalledWith(
+				3,
 				"Audit Logger fully operational",
 				expect.objectContaining({
-					port: 3001,
-					mongoUri: "mongodb://localhost:27017/audit-logger",
+					context: expect.objectContaining({
+						port: 3001,
+						mongoUri: "mongodb://localhost:27017/audit-logger",
+					}),
 				})
 			);
 		});
 	});
 
 	describe("onStop callback", () => {
-		it("should stop scheduler, close worker protocol, stop broker, stop address manager, close mongo client", async () => {
+		it("should stop the chain audit, broker, address manager and mongo client", async () => {
 			await capturedOptions.onStop();
 
 			expect(
 				MOCK_BROKER_MESSAGE_INSTANCE.stopMessageManager
 			).toHaveBeenCalledTimes(1);
-			expect(MOCK_SCHEDULER_INSTANCE.stop).toHaveBeenCalledTimes(1);
-			expect(MOCK_WORKER_PROTOCOL_INSTANCE.close).toHaveBeenCalledTimes(1);
+			expect(MOCK_CHAIN_AUDIT_SCHEDULER.stop).toHaveBeenCalledTimes(1);
 			expect(MOCK_ADDRESS_MANAGER.stop).toHaveBeenCalledTimes(1);
 			expect(MOCK_MONGO_CLIENT.close).toHaveBeenCalledTimes(1);
 		});
@@ -236,7 +204,7 @@ describe("Audit Logger entry point (index.ts)", () => {
 
 			expect(
 				MOCK_BROKER_MESSAGE_INSTANCE.stopMessageManager
-			).toHaveBeenCalledTimes(prevCallCount + 1);
+			).toHaveBeenCalledTimes(prevCallCount);
 		});
 	});
 });

@@ -1,0 +1,137 @@
+import { CircularBuffer } from "@trading-model/common/utils/circular-buffer";
+import { setLogger } from "@trading-model/contracts/logger-registry";
+import {
+	type JsonObject,
+	type ProcessId,
+	UserId,
+} from "@trading-model/primitives/primitives";
+import { formatLogEntry } from "../../infrastructure/console-formatter";
+import { LogDispatcher } from "../../infrastructure/log-dispatcher";
+import {
+	type LogEntry,
+	LogLevel,
+	LogLevelThreshold,
+	type LogOptions,
+} from "../../infrastructure/log-types";
+import { generateProcessId } from "../../infrastructure/process-id-generator";
+import { safeStringify } from "../../infrastructure/sensitive-data-sanitizer";
+import { getNodeEnv, NODE_ENV } from "../../shared/node-env";
+
+export type { LogEntry, LogOptions };
+export { LogLevel };
+
+export class Logger {
+	private _logLevel: LogLevel;
+	private _userId: UserId = UserId.of("unknown");
+	private readonly _processId: ProcessId;
+	private readonly _buffer: CircularBuffer<LogEntry>;
+	private readonly _dispatcher: LogDispatcher;
+
+	constructor(
+		logLevel: LogLevel = LogLevel.Info,
+		processId?: ProcessId,
+		buffer?: CircularBuffer<LogEntry>,
+		dispatcher?: LogDispatcher
+	) {
+		this._logLevel = logLevel;
+		this._processId = processId ?? generateProcessId(logLevel);
+		this._buffer = buffer ?? new CircularBuffer<LogEntry>(1000);
+		this._dispatcher =
+			dispatcher ?? new LogDispatcher(safeStringify, this._processId);
+	}
+
+	private _log(level: LogLevel, message: string, context?: JsonObject): void {
+		if (!LogLevelThreshold.isAtLeast(level, this._logLevel)) {
+			return;
+		}
+		const logEntry = this._buildLogEntry(level, message, context);
+		const { label, consoleFn } = this._consoleTarget(level);
+		this._emitLog(logEntry, label, consoleFn, context);
+		if (level === LogLevel.Error) {
+			this._dispatcher.sendError(logEntry);
+		}
+	}
+
+	private _consoleTarget(level: LogLevel): {
+		label: string;
+		consoleFn: (message?: unknown, ...optionalParams: unknown[]) => void;
+	} {
+		switch (level) {
+			case LogLevel.Debug:
+				return { label: "DEBUG", consoleFn: console.debug };
+			case LogLevel.Warn:
+				return { label: "WARN", consoleFn: console.warn };
+			case LogLevel.Error:
+				return { label: "ERROR", consoleFn: console.error };
+			default:
+				return { label: "INFO", consoleFn: console.info };
+		}
+	}
+
+	private _buildLogEntry(
+		level: LogLevel,
+		message: string,
+		context?: JsonObject
+	): LogEntry {
+		return this._dispatcher.createLogEntry(level, message, this._userId, {
+			context,
+		});
+	}
+
+	private _emitLog(
+		logEntry: LogEntry,
+		label: string,
+		consoleFn: (message?: unknown, ...optionalParams: unknown[]) => void,
+		context?: JsonObject
+	): void {
+		this._buffer.add(logEntry);
+		consoleFn(
+			formatLogEntry({
+				label,
+				timestamp: logEntry.timestamp,
+				message: logEntry.message,
+				context,
+			})
+		);
+	}
+
+	debug(message: string, context?: JsonObject) {
+		this._log(LogLevel.Debug, message, context);
+	}
+
+	info(message: string, context?: JsonObject) {
+		this._log(LogLevel.Info, message, context);
+	}
+
+	warn(message: string, context?: JsonObject) {
+		this._log(LogLevel.Warn, message, context);
+	}
+
+	error(message: string, context?: JsonObject) {
+		this._log(LogLevel.Error, message, context);
+	}
+
+	setUserId(userId: UserId) {
+		this._userId = userId;
+	}
+
+	getLogs() {
+		return this._buffer.getAll();
+	}
+}
+
+export function createLogger(): Logger {
+	const nodeEnv = getNodeEnv();
+	const logLevel =
+		nodeEnv === NODE_ENV.DEVELOPMENT
+			? LogLevel.Debug
+			: nodeEnv === NODE_ENV.STAGING
+				? LogLevel.Info
+				: LogLevel.Warn;
+	return new Logger(logLevel);
+}
+
+/** Global logger instance pre-configured based on the current environment. */
+export const logger: Logger = createLogger();
+
+setLogger(logger);

@@ -7,17 +7,20 @@ import {
 	test,
 } from "@jest/globals";
 import cron from "node-cron";
-import { type ScheduledJob, Scheduler } from "../../src/scheduler/scheduler";
+import {
+	type ScheduledJob,
+	Scheduler,
+} from "../../src/infrastructure/scheduler/scheduler";
 
 jest.mock("node-cron", () => ({
 	schedule: jest.fn(),
 }));
 
-jest.mock("@trading-model/common/config/logger", () => ({
+jest.mock("@trading-model/http/infrastructure/logger", () => ({
 	logger: { error: jest.fn() },
 }));
 
-import { logger } from "@trading-model/common/config/logger";
+import { logger } from "@trading-model/http/infrastructure/logger";
 
 const MOCK_LOGGER_ERROR = jest.mocked(logger.error);
 
@@ -50,139 +53,133 @@ describe("Scheduler", () => {
 		jest.clearAllMocks();
 	});
 
-	// -----------------------------------------------------------
-	// REGISTER
-	// -----------------------------------------------------------
-	test("should register a job before starting", () => {
-		scheduler.register(mockJob);
-		// no error should be thrown
+	describe("register", () => {
+		test("should register a job before starting", () => {
+			scheduler.register(mockJob);
+		});
+
+		test("should throw if registering after start", () => {
+			scheduler.register(mockJob);
+			scheduler.start();
+
+			const anotherJob: ScheduledJob = {
+				schedule: "*/5 * * * *",
+				execute: jest.fn() as () => Promise<void>,
+			};
+			expect(() => scheduler.register(anotherJob)).toThrow(
+				"Cannot register job after scheduler has started"
+			);
+		});
 	});
 
-	test("should throw if registering after start", () => {
-		scheduler.register(mockJob);
-		scheduler.start();
+	describe("start", () => {
+		test("start should schedule all registered jobs", () => {
+			scheduler.register(mockJob);
 
-		const anotherJob: ScheduledJob = {
-			schedule: "*/5 * * * *",
-			execute: jest.fn() as () => Promise<void>,
-		};
-		expect(() => scheduler.register(anotherJob)).toThrow(
-			"Cannot register job after scheduler has started"
-		);
-	});
+			scheduler.start();
 
-	// -----------------------------------------------------------
-	// START
-	// -----------------------------------------------------------
-	test("start should schedule all registered jobs", () => {
-		scheduler.register(mockJob);
+			expect(cron.schedule).toHaveBeenCalledTimes(1);
+			expect(cron.schedule).toHaveBeenCalledWith(
+				mockJob.schedule,
+				expect.any(Function)
+			);
+		});
 
-		scheduler.start();
+		test("start should execute job function when task callback is called", async () => {
+			scheduler.register(mockJob);
+			scheduler.start();
 
-		expect(cron.schedule).toHaveBeenCalledTimes(1);
-		expect(cron.schedule).toHaveBeenCalledWith(
-			mockJob.schedule,
-			expect.any(Function)
-		);
-	});
+			const callback = (cron.schedule as jest.Mock).mock
+				.calls[0][1] as () => Promise<void>;
 
-	test("start should execute job function when task callback is called", async () => {
-		scheduler.register(mockJob);
-		scheduler.start();
+			await callback();
+			expect(mockJob.execute).toHaveBeenCalledTimes(1);
+		});
 
-		// Get the callback send to cron.schedule
-		const callback = (cron.schedule as jest.Mock).mock
-			.calls[0][1] as () => Promise<void>;
-
-		await callback(); // simulate cron tick
-		expect(mockJob.execute).toHaveBeenCalledTimes(1);
-	});
-
-	test("start should log non-Error thrown by job.execute as string", async () => {
-		const errorJob: ScheduledJob = {
-			schedule: "*/1 * * * *",
-			execute: jest
-				.fn()
-				.mockRejectedValue(
-					"raw string error" as never
-				) as unknown as jest.MockedFunction<() => Promise<void>>,
-		};
-		scheduler.register(errorJob);
-		scheduler.start();
-
-		const callback = (cron.schedule as jest.Mock).mock
-			.calls[0][1] as () => Promise<void>;
-
-		await expect(callback()).resolves.toBeUndefined();
-		expect(MOCK_LOGGER_ERROR).toHaveBeenCalledWith(
-			"Job execution failed",
-			expect.objectContaining({
+		test("start should log non-Error thrown by job.execute as string", async () => {
+			const errorJob: ScheduledJob = {
 				schedule: "*/1 * * * *",
-				error: "raw string error",
-			})
-		);
-	});
+				execute: jest
+					.fn()
+					.mockRejectedValue(
+						"raw string error" as never
+					) as unknown as jest.MockedFunction<() => Promise<void>>,
+			};
+			scheduler.register(errorJob);
+			scheduler.start();
 
-	test("start should log errors thrown by job.execute without propagating", async () => {
-		const errorJob: ScheduledJob = {
-			schedule: "*/1 * * * *",
-			execute: jest
-				.fn()
-				.mockRejectedValue(
-					new Error("fail") as never
-				) as unknown as jest.MockedFunction<() => Promise<void>>,
-		};
-		scheduler.register(errorJob);
-		scheduler.start();
+			const callback = (cron.schedule as jest.Mock).mock
+				.calls[0][1] as () => Promise<void>;
 
-		const callback = (cron.schedule as jest.Mock).mock
-			.calls[0][1] as () => Promise<void>;
+			await expect(callback()).resolves.toBeUndefined();
+			expect(MOCK_LOGGER_ERROR).toHaveBeenCalledWith(
+				"Job execution failed",
+				expect.objectContaining({
+					schedule: "*/1 * * * *",
+					error: "raw string error",
+				})
+			);
+		});
 
-		await expect(callback()).resolves.toBeUndefined();
-		expect(MOCK_LOGGER_ERROR).toHaveBeenCalledWith(
-			"Job execution failed",
-			expect.objectContaining({
+		test("start should log errors thrown by job.execute without propagating", async () => {
+			const errorJob: ScheduledJob = {
 				schedule: "*/1 * * * *",
-				error: "fail",
-			})
-		);
+				execute: jest
+					.fn()
+					.mockRejectedValue(
+						new Error("fail") as never
+					) as unknown as jest.MockedFunction<() => Promise<void>>,
+			};
+			scheduler.register(errorJob);
+			scheduler.start();
+
+			const callback = (cron.schedule as jest.Mock).mock
+				.calls[0][1] as () => Promise<void>;
+
+			await expect(callback()).resolves.toBeUndefined();
+			expect(MOCK_LOGGER_ERROR).toHaveBeenCalledWith(
+				"Job execution failed",
+				expect.objectContaining({
+					schedule: "*/1 * * * *",
+					error: "fail",
+				})
+			);
+		});
+
+		test("start should not log when job.execute succeeds", async () => {
+			scheduler.register(mockJob);
+			scheduler.start();
+
+			const callback = (cron.schedule as jest.Mock).mock
+				.calls[0][1] as () => Promise<void>;
+
+			await callback();
+			expect(MOCK_LOGGER_ERROR).not.toHaveBeenCalled();
+		});
+
+		test("calling start multiple times should not reschedule jobs", () => {
+			scheduler.register(mockJob);
+			scheduler.start();
+			scheduler.start();
+
+			expect(cron.schedule).toHaveBeenCalledTimes(1);
+		});
 	});
 
-	test("start should not log when job.execute succeeds", async () => {
-		scheduler.register(mockJob);
-		scheduler.start();
+	describe("stop", () => {
+		test("stop should call stop on all tasks and reset scheduler", () => {
+			scheduler.register(mockJob);
+			scheduler.start();
 
-		const callback = (cron.schedule as jest.Mock).mock
-			.calls[0][1] as () => Promise<void>;
+			scheduler.stop();
 
-		await callback();
-		expect(MOCK_LOGGER_ERROR).not.toHaveBeenCalled();
-	});
+			expect(mockTask.stop).toHaveBeenCalledTimes(1);
 
-	test("calling start multiple times should not reschedule jobs", () => {
-		scheduler.register(mockJob);
-		scheduler.start();
-		scheduler.start(); // second start
-
-		expect(cron.schedule).toHaveBeenCalledTimes(1);
-	});
-
-	// -----------------------------------------------------------
-	// STOP
-	// -----------------------------------------------------------
-	test("stop should call stop on all tasks and reset scheduler", () => {
-		scheduler.register(mockJob);
-		scheduler.start();
-
-		scheduler.stop();
-
-		expect(mockTask.stop).toHaveBeenCalledTimes(1);
-
-		// After stop, we can restart normally
-		const newJob: ScheduledJob = {
-			schedule: "*/2 * * * *",
-			execute: jest.fn() as () => Promise<void>,
-		};
-		expect(() => scheduler.register(newJob)).not.toThrow();
+			const newJob: ScheduledJob = {
+				schedule: "*/2 * * * *",
+				execute: jest.fn() as () => Promise<void>,
+			};
+			expect(() => scheduler.register(newJob)).not.toThrow();
+		});
 	});
 });

@@ -1,19 +1,23 @@
+const { DB_SPEC_IGNORE } = require('../../scripts/jest-db-config.cjs');
+const { workspaceModuleNameMapper } = require('../../scripts/jest-workspace-mapper.cjs');
+
 /** @type {import('ts-jest').JestConfigWithTsJest} */
 module.exports = {
   testEnvironment: 'node',
   transform: {
     '^.+\\.tsx?$': ['ts-jest', {
-      diagnostics: { ignoreCodes: [151002] },
+      diagnostics: false,
+      tsconfig: {
+        skipLibCheck: true,
+      },
     }],
   },
   rootDir: '.',
   testMatch: ['**/?(*.)+(spec).ts'],
-  testPathIgnorePatterns: ['/node_modules/', '/dist/'],
+  testPathIgnorePatterns: ['/node_modules/', '/dist/', DB_SPEC_IGNORE],
   moduleNameMapper: {
+    ...workspaceModuleNameMapper(__dirname),
     '^(\\.{1,2}/.*)\\.js$': '$1',
-    '^@trading-model/common/(.*)$': '<rootDir>/../../packages/common/src/$1',
-    '^@trading-model/address-manager/(.*)$': '<rootDir>/../../packages/address-manager/src/$1',
-    '^@trading-model/broker-message/(.*)$': '<rootDir>/../../packages/broker-message/src/$1',
   },
   collectCoverageFrom: ['src/**/*.ts', '!src/**/*.d.ts'],
   coverageThreshold: {

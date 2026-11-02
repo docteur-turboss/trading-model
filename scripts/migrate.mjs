@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 
 import { createHash } from 'node:crypto';
 import { readdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
@@ -6,20 +6,23 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import mysql from 'mysql2/promise';
 
-const MIGRATIONS_DIR = join(dirname(fileURLToPath(import.meta.url)), 'migrations');
+const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
+const MIGRATIONS_DIR = existsSync(join(SCRIPT_DIR, 'migrations'))
+  ? join(SCRIPT_DIR, 'migrations')
+  : SCRIPT_DIR;
 const MIGRATIONS_TABLE = '_migrations';
 
-const [, , command] = process.argv;
+const [, , command, ...restArgs] = process.argv;
 
 if (!command || !['up', 'down', 'status', 'create'].includes(command)) {
-  console.error('Usage: node scripts/migrate.mjs <up|down|status|create> [name]');
+  console.error('Usage: bun scripts/migrate.mjs <up|down|status|create> [name]');
   process.exit(1);
 }
 
 if (command === 'create') {
   const name = process.argv[3];
   if (!name) {
-    console.error('Usage: node scripts/migrate.mjs create <migration_name>');
+    console.error('Usage: bun scripts/migrate.mjs create <migration_name>');
     process.exit(1);
   }
   const timestamp = Date.now();
@@ -34,6 +37,19 @@ if (command === 'create') {
 
 function getChecksum(filePath) {
   return createHash('sha256').update(readFileSync(filePath, 'utf8')).digest('hex');
+}
+
+/**
+ * @returns {{ host: string, port: number, user: string, password: string, database: string }}
+ */
+function getDbConfig() {
+  return {
+    host: process.env.DB_HOST,
+    port: parseInt(process.env.DB_PORT || '3306', 10),
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_NAME,
+  };
 }
 
 const required = ['DB_HOST', 'DB_PORT', 'DB_USER', 'DB_PASSWORD', 'DB_NAME'];
@@ -59,12 +75,9 @@ const allMigrations = readdirSync(MIGRATIONS_DIR)
   .sort((a, b) => a.id.localeCompare(b.id));
 
 async function run() {
+  const dbConfig = getDbConfig();
   const connection = await mysql.createConnection({
-    host: process.env.DB_HOST,
-    port: parseInt(process.env.DB_PORT || '3306', 10),
-    user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-    database: process.env.DB_NAME,
+    ...dbConfig,
     multipleStatements: true,
   });
 
@@ -133,28 +146,44 @@ async function run() {
     }
 
     if (command === 'down') {
-      const lastApplied = allMigrations.filter(m => applied.has(m.id)).pop();
-      if (!lastApplied) {
+      const appliedSorted = allMigrations.filter(m => applied.has(m.id));
+      if (appliedSorted.length === 0) {
         console.log('No migrations to roll back.');
         process.exit(0);
       }
 
-      if (!existsSync(lastApplied.down)) {
-        console.error(`Down migration not found: ${lastApplied.down}`);
-        process.exit(1);
-      }
+      const rawCount = restArgs[0];
+      const count =
+        rawCount === undefined || rawCount === '' || rawCount === 'all'
+          ? rawCount === 'all'
+            ? appliedSorted.length
+            : 1
+          : parseInt(rawCount, 10);
+      const limit =
+        Number.isInteger(count) && count > 0
+          ? Math.min(count, appliedSorted.length)
+          : 1;
+      const toRollback = appliedSorted.slice(-limit);
 
-      const sql = readFileSync(lastApplied.down, 'utf8');
-      console.log(`Rolling back: ${lastApplied.id}...`);
-      try {
-        await connection.query(sql);
-        await connection.execute(`DELETE FROM \`${MIGRATIONS_TABLE}\` WHERE id = ?`, [
-          lastApplied.id,
-        ]);
-        console.log('  OK');
-      } catch (err) {
-        console.error(`  FAILED: ${err.message}`);
-        process.exit(1);
+      for (const m of toRollback) {
+        if (!existsSync(m.down)) {
+          console.error(`Down migration not found: ${m.down}`);
+          process.exit(1);
+        }
+
+        const sql = readFileSync(m.down, 'utf8');
+        console.log(`Rolling back: ${m.id}...`);
+        try {
+          await connection.query(sql);
+          await connection.execute(
+            `DELETE FROM \`${MIGRATIONS_TABLE}\` WHERE id = ?`,
+            [m.id]
+          );
+          console.log('  OK');
+        } catch (err) {
+          console.error(`  FAILED: ${err.message}`);
+          process.exit(1);
+        }
       }
     }
   } finally {

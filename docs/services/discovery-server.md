@@ -1,0 +1,243 @@
+# discovery-server — Service Discovery
+
+Centralised service instance registry with TTL-based lease management and HMAC-SHA256 token authentication.
+
+## General Information
+
+| Property         | Value                                   |
+| ---------------- | --------------------------------------- |
+| Service name     | `discovery-server`                     |
+| Port (host)      | `8443`                                  |
+| Port (container) | `3000`                                  |
+| Dependencies     | `@trading-model/primitives`, `@trading-model/contracts`, `@trading-model/common`, `@trading-model/persistence`, `@trading-model/crypto`, `@trading-model/http`, `@trading-model/server-utils`, `@trading-model/validation` |
+| TLS              | mTLS required (client certificate)      |
+| Storage          | In-memory with TTL-based lease eviction |
+
+## REST Endpoints
+
+### Register Service
+
+**`POST /register`**
+
+Registers or updates a service instance. Requires a valid TLS client certificate.
+
+- Idempotent by `(serviceName + instanceId)`
+- Returns an HMAC-SHA256 token for the instance
+- Initialises TTL and heartbeat metadata
+
+**Request Body:**
+
+```json
+{
+  "serviceName": "financial-scraper",
+  "instanceId": "uuid-instance-id",
+  "ip": "192.168.1.10",
+  "port": 3000,
+  "version": "1.0.0"
+}
+```
+
+**Response:** `201 Created`
+
+Returns the full `ServiceInstance` object with the issued token:
+
+```json
+{
+  "instanceId": "uuid-instance-id",
+  "serviceName": "financial-scraper",
+  "ip": "192.168.1.10",
+  "port": 3000,
+  "version": "1.0.0",
+  "ttl": 30000,
+  "protocol": "mtls",
+  "registeredAt": 1749164000000,
+  "lastHeartbeat": 1749164000000,
+  "token": "hmac-sha256-token-value"
+}
+```
+
+### Heartbeat
+
+**`POST /heartbeat`**
+
+Extends the TTL (lease) of a service instance. Called periodically by each service via the AddressManager client.
+
+**Request Body:**
+
+```json
+{
+  "serviceName": "financial-scraper",
+  "instanceId": "uuid-instance-id",
+  "authToken": "hmac-sha256-token-value"
+}
+```
+
+**Response:** `200 OK`
+
+```json
+{
+  "status": "ok",
+  "ttl": 15000
+}
+```
+
+### Token Rotation
+
+**`POST /token/rotate`**
+
+Rotates the HMAC-SHA256 authentication token for a service instance. Requires mTLS client certificate.
+
+**Response:** `200 OK`
+
+```json
+{
+  "token": "new-hmac-sha256-token"
+}
+```
+
+### Get All Services
+
+**`GET /services`**
+
+Names of the services with registered instances. Parameters and responses are declared in `src/adapters/inbound/http/api-routes.ts` (`DISCOVERY_API`, ADR-0021) and published in the [OpenAPI](openapi/api-gateway.yaml). Invalid input answers 400 `{ "error": "Validation failed", "details": [...] }`.
+
+**Response:** `200 OK`
+
+```json
+[
+  "financial-scraper-service",
+  "trader-trainer"
+]
+```
+
+### Get Services by Name
+
+**`GET /services/:serviceName`**
+
+Live instances of a service: expired leases are left out. An unknown service answers `404` `{ "error": "Unknown service" }`. Timestamps are epoch milliseconds; the instance token is never returned.
+
+**Response:** `200 OK`
+
+```json
+[
+  {
+    "serviceName": "financial-scraper-service",
+    "instanceId": "financial-scraper-1",
+    "host": "10.0.0.7",
+    "port": 3000,
+    "version": "1.0.0",
+    "protocol": "mtls",
+    "ttl": 30000,
+    "registeredAt": 1736935200000,
+    "lastHeartbeat": 1736937000000
+  }
+]
+```
+
+### Get Instance Details
+
+**`GET /services/:serviceName/:instanceId`**
+
+One live instance of the service. `404` `{ "error": "Instance not found" }` when the id is unknown, belongs to another service, or its lease has expired.
+
+**Response:** `200 OK`
+
+```json
+{
+  "serviceName": "financial-scraper-service",
+  "instanceId": "financial-scraper-1",
+  "host": "10.0.0.7",
+  "port": 3000,
+  "version": "1.0.0",
+  "protocol": "mtls",
+  "ttl": 30000,
+  "registeredAt": 1736935200000,
+  "lastHeartbeat": 1736937000000
+}
+```
+
+### Health Check
+
+**`GET /ping`**
+
+Health check endpoint (via `PING_PATH` constant).
+
+**Response:** `200 OK`
+
+```json
+{
+  "status": "ok"
+}
+```
+
+## Architecture
+
+The discovery-server follows a dependency injection pattern. No singletons are used — all components are explicitly wired together at the composition root.
+
+### Core Classes
+
+| Class / Factory                        | Instantiator   | Notes                                            |
+| -------------------------------------- | -------------- | ------------------------------------------------ |
+| `createServiceRegistry(options?)`      | `src/config/container.ts`  | Wires `ServiceRegistry` with store, crypto and metrics adapters (no singleton export) |
+| `new LeaseManager(registry, options?)` | `src/application/index.ts` | Accepts `ServiceRegistry` + optional `logger`/`metrics` ports |
+| `createServer(registry)`               | `src/application/index.ts` | HTTPS server factory                             |
+
+### Controller & Route Factories
+
+All controllers and routes receive their dependencies via factory parameters:
+
+| Factory                               | Returns                                                        |
+| ------------------------------------- | -------------------------------------------------------------- |
+| `createRegisterController(registry)`  | `{ register, listServices, getServiceInstances, getInstance }` |
+| `createHeartbeatController(registry)` | `{ heartbeat, rotateToken }`                                   |
+| `registryRoutes(registry)`            | `Router`                                                       |
+| `heartbeatRoutes(registry)`           | `Router`                                                       |
+
+### Composition Root (`src/config/container.ts`) and Startup (`src/application/index.ts`)
+
+`createDiscoveryApp(ENV)` selects the instance store (Redis when `REDIS_URL` is set, in-memory otherwise), builds the registry and the lease manager. The entry point only starts things:
+
+```ts
+const { registry, leaseManager, redisClient } = createDiscoveryApp(ENV);
+createBootstrap({
+  createServer: () => createServer(registry, { readiness: [/* redis ping */] }),
+  onStart: async () => {
+    await redisClient?.connect();
+    leaseManager.start();
+  },
+  onStop: () => {
+    leaseManager.stop();
+    redisClient?.disconnect();
+  },
+});
+```
+
+## LeaseManager
+
+Manages leases and periodically cleans up expired instances. Accepts a `ServiceRegistry` instance in its constructor.
+
+| Environment variable          | Default           | Description                       |
+| ----------------------------- | ----------------- | --------------------------------- |
+| `CLEANUP_SERVICE_INTERVAL_MS` | `600000` (10 min) | Expired instance cleanup interval |
+| `ERROR_URL_WEBHOOK`           | _(none)_          | Webhook URL for error notifications |
+
+Instances are automatically removed from the registry if their TTL expires without a heartbeat.
+
+## Authentication
+
+- **Token**: HMAC-SHA256, validated via the `x-instance-token` header
+- **Transport**: mTLS (client certificate required for all endpoints except `/ping`)
+- **Certificate**: validated by `MTLSAuthMiddleware` (CA chain + TLSv1.3)
+
+## Controllers
+
+Controllers are created via factories that accept a `ServiceRegistry` instance.
+
+| File                         | Factory                     | Routes                                                                              |
+| ---------------------------- | --------------------------- | ----------------------------------------------------------------------------------- |
+| `adapters/inbound/http/register.routes.ts`  | `registryRoutes(registry)`  | `POST /register`, `GET /services`, `GET /services/:name`, `GET /services/:name/:id` |
+| `adapters/inbound/http/heartbeat.routes.ts` | `heartbeatRoutes(registry)` | `POST /heartbeat`, `POST /token/rotate`                                             |
+
+## Deployment
+
+The service is bootstrapped via `createBootstrap()` which attaches `SIGTERM`/`SIGINT` handlers. The entry point (`src/application/index.ts`) obtains the registry and the lease manager from `createDiscoveryApp(ENV)` (`src/config/container.ts`), then passes the registry to `createServer(registry)`. The `LeaseManager` is started in `onStart` and stopped in `onStop`.

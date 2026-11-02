@@ -58,9 +58,18 @@ spec:
                     app.kubernetes.io/component: mongodb
                 topologyKey: kubernetes.io/hostname
       terminationGracePeriodSeconds: 60
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999
+        runAsGroup: 999
+        fsGroup: 999
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: mongodb
-          image: mongo:7
+          image: mongo@sha256:9854f7139445d766a9523571d6f047530c45547460ffcf8259eb2bf4264632ca
+          # Encryption at rest (--enableEncryption) is MongoDB Enterprise only:
+          # this Community image refuses the flag and never starts with it.
           command:
             - mongod
           args:
@@ -70,9 +79,6 @@ spec:
             - "27017"
             - "--bind_ip"
             - "0.0.0.0"
-            - "--enableEncryption"
-            - "--encryptionKeyFile"
-            - "/etc/mongo-encryption/key"
           ports:
             - containerPort: 27017
               name: mongodb
@@ -83,12 +89,17 @@ spec:
             limits:
               cpu: "1"
               memory: 2Gi
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
           volumeMounts:
             - name: mongo-dlq-data
               mountPath: /data/db
-            - name: mongo-encryption-key
-              mountPath: /etc/mongo-encryption
-              readOnly: true
           livenessProbe:
             exec:
               command:
@@ -109,12 +120,6 @@ spec:
             initialDelaySeconds: 15
             periodSeconds: 5
             timeoutSeconds: 3
-      volumes:
-        - name: mongo-encryption-key
-          secret:
-            secretName: mongodb-encryption-key
-            optional: false
-            defaultMode: 0400
   volumeClaimTemplates:
     - metadata:
         name: mongo-dlq-data
@@ -139,23 +144,33 @@ spec:
   template:
     spec:
       restartPolicy: OnFailure
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999
+        runAsGroup: 999
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: mongodb-init
-          image: mongo:7
+          image: mongo@sha256:9854f7139445d766a9523571d6f047530c45547460ffcf8259eb2bf4264632ca
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
           command:
             - mongosh
             - --host
             - mongo-dlq-0.mongo-dlq-headless:27017
             - --eval
+            # Idempotent; members are the pods that answer, so an overlay that
+            # scales the StatefulSet down (staging: 1) still gets a replica set.
             - |
-              rs.initiate({
-                _id: "rs0",
-                members: [
-                  { _id: 0, host: "mongo-dlq-0.mongo-dlq-headless:27017" },
-                  { _id: 1, host: "mongo-dlq-1.mongo-dlq-headless:27017" },
-                  { _id: 2, host: "mongo-dlq-2.mongo-dlq-headless:27017" }
-                ]
-              })
+              try { rs.status(); print("replica set already initiated"); quit(0); } catch (e) {}
+              const hosts = [0, 1, 2]
+                .map((i) => `mongo-dlq-${i}.mongo-dlq-headless:27017`)
+                .filter((h) => { try { return new Mongo(h).getDB("admin").runCommand({ ping: 1 }).ok === 1; } catch (e) { return false; } });
+              rs.initiate({ _id: "rs0", members: hosts.map((host, _id) => ({ _id, host })) });
 ---
 apiVersion: policy/v1
 kind: PodDisruptionBudget
@@ -185,9 +200,8 @@ spec:
     - Ingress
   ingress:
     - from:
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: trading-model
+        # Same namespace as the policy, whatever the overlay's namespace.
+        - podSelector: {}
       ports:
         - port: 27017
           protocol: TCP

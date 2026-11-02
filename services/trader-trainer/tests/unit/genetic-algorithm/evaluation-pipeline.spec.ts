@@ -1,10 +1,24 @@
 import { describe, expect, it, jest } from "@jest/globals";
-import type { RLBackend } from "../../../src/core/genetic-algorithm/evaluation-pipeline";
+import { NumericRange } from "@trading-model/primitives/numeric-range";
+import { Cash, Price } from "@trading-model/primitives/primitives";
+import { FeatureVector } from "../../../src/domain/feature-vector";
 import {
 	evaluateGenomeAllWindows,
 	pooledEval,
-} from "../../../src/core/genetic-algorithm/evaluation-pipeline";
-import type { Experience } from "../../../src/core/genetic-algorithm/shared-types";
+} from "../../../src/domain/genetic-algorithm/evaluation-pipeline";
+import {
+	ActivationType,
+	CrossoverType,
+	FitnessType,
+	MutationAdaptation,
+	MutationDistribution,
+	MutationScope,
+	NormalisationType,
+	SelectionType,
+} from "../../../src/domain/genetic-algorithm/genome";
+import type { RLBackend } from "../../../src/domain/genetic-algorithm/rl-backend";
+import type { Experience } from "../../../src/domain/genetic-algorithm/shared-types";
+import { ExperienceKind } from "../../../src/domain/neural-network/type";
 
 const MINIMAL_GENOME = {
 	id: "test",
@@ -13,24 +27,15 @@ const MINIMAL_GENOME = {
 		inputDim: 3,
 		outputDim: 3,
 		hiddenLayers: [],
-		normalization: "none" as const,
+		normalization: NormalisationType.None,
 	},
 	rl: {
 		gamma: 0.99,
 		learningRate: 0.001,
 		discretePolicy: {
-			type: "epsilon_greedy" as const,
 			epsilonStart: 1.0,
 			epsilonMin: 0.01,
 			epsilonDecay: 0.995,
-			temperature: 1.0,
-		},
-		continuousPolicy: {
-			type: "action_clipping" as const,
-			clipMin: -1,
-			clipMax: 1,
-			noiseStd: 0.1,
-			noiseDecay: 0.995,
 		},
 		replayBuffer: {
 			bufferSize: 128,
@@ -42,8 +47,7 @@ const MINIMAL_GENOME = {
 		horizon: { maxEpisodeLength: 100, frameSkip: 1, nStepReturn: 3 },
 		rewardShaping: {
 			clip: false,
-			clipMin: -1,
-			clipMax: 1,
+			clipBounds: new NumericRange(-1, 1),
 			scale: false,
 			scaleFactor: 1,
 			normalize: false,
@@ -54,9 +58,9 @@ const MINIMAL_GENOME = {
 		rate: 0.1,
 		sigma: 0.5,
 		noiseStd: 0.1,
-		distribution: "gaussian" as const,
-		adaptation: "fixed" as const,
-		scope: "global" as const,
+		distribution: MutationDistribution.Gaussian,
+		adaptation: MutationAdaptation.Fixed,
+		scope: MutationScope.Global,
 		selfSigma: 0.5,
 		mutateActivations: false,
 		activationMutationRate: 0.1,
@@ -69,26 +73,23 @@ const MINIMAL_GENOME = {
 		removeConnectionRate: 0.1,
 	},
 	crossover: {
-		type: "uniform" as const,
+		type: CrossoverType.Uniform,
 		probability: 0.5,
 		blendAlpha: 0.5,
 		sbxEta: 15,
 	},
 	gaControl: {
-		populationSize: 20,
-		elitismFraction: 0.1,
-		survivorFraction: 0.5,
-		selectionType: "tournament" as const,
-		fitnessType: "total_pnl" as const,
-		episodesPerIndividual: 2,
-		seedsPerEval: 1,
-		rewardThreshold: Number.POSITIVE_INFINITY,
-		stagnationPatience: 10,
-		maxGenerations: 10,
-		timeBudgetMs: 60000,
-		envSeed: 1,
-		mutationSeed: 1,
-		networkSeed: 1,
+		population: { size: 20, elitismFraction: 0.1, survivorFraction: 0.5 },
+		termination: {
+			rewardThreshold: Number.POSITIVE_INFINITY,
+			stagnationPatience: 10,
+			maxGenerations: 10,
+			timeBudgetMs: 60000,
+		},
+		seeding: { envSeed: 1, mutationSeed: 1, networkSeed: 1 },
+		evaluation: { episodesPerIndividual: 2, seedsPerEval: 1 },
+		selectionType: SelectionType.Tournament,
+		fitnessType: FitnessType.TotalPnl,
 		mutationRate: 0.1,
 		mutationStd: 0.5,
 	},
@@ -96,48 +97,55 @@ const MINIMAL_GENOME = {
 };
 
 function makeStep(features: number[]) {
-	return { features: new Float32Array(features), price: 100 };
+	return {
+		features: FeatureVector.fromFloat32Array(new Float32Array(features)),
+		price: Price.of(100),
+	};
 }
 
 function makeMockBackend(poolSize: number): RLBackend {
 	const pool: Experience[] = [];
 	for (let i = 0; i < poolSize; i++) {
 		pool.push({
-			kind: "qlearning",
+			kind: ExperienceKind.QLearning as const,
 			input: new Float32Array([0.1, 0.2, 0.3]),
 			output: new Float32Array([0.1, 0.2, 0.3]),
 			reward: 1,
 			nextState: new Float32Array([0.1, 0.2, 0.3]),
 			done: false,
+			action: 0,
 		});
 	}
 	return {
 		forwardPass: jest.fn(
-			(_f: Float32Array) => new Float32Array([0.5, 0.5, 0.5])
+			(_f: FeatureVector) => new Float32Array([0.5, 0.5, 0.5])
 		),
-		step: jest.fn(() => ({ reward: 1 })),
-		train: jest.fn(),
+		step: jest.fn(() => ({ reward: 1, action: 0 })),
+		remember: jest.fn(),
+		replay: jest.fn(),
 		getWeights: jest.fn(() => new Float32Array([0.1, 0.2])),
 		setWeights: jest.fn(),
-		getPnL: jest.fn(() => 50),
+		getPnL: jest.fn(() => Cash.of(50)),
 		resetEpisode: jest.fn(),
-		getExperiencePool: jest.fn(() => pool),
 	};
 }
 
 describe("evaluateGenomeAllWindows", () => {
-	it("should call backend.train when pool has >= 2 entries", async () => {
+	it("should replay transitions while training", async () => {
+		// nStepReturn is 3: the first transition needs 3 rewards, so 5 bars
 		const windowSets = [
 			{
 				id: "w1",
-				train: [makeStep([0.1, 0.2, 0.3]), makeStep([0.4, 0.5, 0.6])],
+				train: Array.from({ length: 5 }, (_u, i) =>
+					makeStep([i * 0.1, 0.2, 0.3])
+				),
 				validation: [makeStep([0.7, 0.8, 0.9])],
 			},
 		];
 		const trainMock = jest.fn();
 		const backendFactory = jest.fn(() => ({
 			...makeMockBackend(2),
-			train: trainMock,
+			replay: trainMock,
 		}));
 		await evaluateGenomeAllWindows(
 			MINIMAL_GENOME as any,
@@ -155,7 +163,7 @@ describe("evaluateGenomeAllWindows", () => {
 			backendFactory as any
 		);
 		expect(result.updatedGenome).toBeDefined();
-		expect(result.meta.episodesRun).toBe(0);
+		expect(result.meta.episodesRun).toBe(1);
 	});
 
 	it("should handle frameSkip > 1", async () => {
@@ -197,8 +205,7 @@ describe("evaluateGenomeAllWindows", () => {
 				...MINIMAL_GENOME.rl,
 				rewardShaping: {
 					clip: true,
-					clipMin: -1,
-					clipMax: 1,
+					clipBounds: new NumericRange(-1, 1),
 					scale: false,
 					scaleFactor: 1,
 					normalize: true,
@@ -228,8 +235,8 @@ describe("evaluateGenomeAllWindows", () => {
 			network: {
 				...MINIMAL_GENOME.network,
 				hiddenLayers: [
-					{ neurons: 10, activation: "relu" },
-					{ neurons: 5, activation: "sigmoid" },
+					{ neurons: 10, activation: ActivationType.Relu },
+					{ neurons: 5, activation: ActivationType.Sigmoid },
 				],
 			},
 		};
@@ -249,18 +256,18 @@ describe("evaluateGenomeAllWindows", () => {
 		expect(result.objectives.negFlops).toBeLessThan(0);
 	});
 
-	it("should skip training when pool has fewer than 2 entries", async () => {
+	it("should store nothing from a single training bar (no price follows it)", async () => {
 		const windowSets = [
 			{
 				id: "w1",
-				train: [makeStep([0.1, 0.2, 0.3]), makeStep([0.4, 0.5, 0.6])],
+				train: [makeStep([0.1, 0.2, 0.3])],
 				validation: [makeStep([0.7, 0.8, 0.9])],
 			},
 		];
 		const trainMock = jest.fn();
 		const backendFactory = jest.fn(() => ({
 			...makeMockBackend(1),
-			train: trainMock,
+			replay: trainMock,
 		}));
 		const result = await evaluateGenomeAllWindows(
 			MINIMAL_GENOME as any,
@@ -284,13 +291,13 @@ describe("evaluateGenomeAllWindows", () => {
 			},
 		];
 		const backendFactory = jest.fn(() => makeMockBackend(2));
-		await expect(
+		expect(() =>
 			evaluateGenomeAllWindows(
 				badGenome as any,
 				windowSets,
 				backendFactory as any
 			)
-		).rejects.toThrow("[Invariant] inputDim must be positive");
+		).toThrow("[Invariant] inputDim must be positive");
 	});
 
 	it("should handle sparse reward mode", async () => {
@@ -300,8 +307,7 @@ describe("evaluateGenomeAllWindows", () => {
 				...MINIMAL_GENOME.rl,
 				rewardShaping: {
 					clip: true,
-					clipMin: -1,
-					clipMax: 1,
+					clipBounds: new NumericRange(-1, 1),
 					scale: false,
 					scaleFactor: 1,
 					normalize: false,
@@ -354,5 +360,51 @@ describe("pooledEval", () => {
 		const results = await pooledEval([1, 2], 10, fn);
 		expect(results).toEqual([1, 2]);
 		expect(fn).toHaveBeenCalledTimes(2);
+	});
+});
+
+describe("evaluateGenomeAllWindows — failure reporting", () => {
+	const windowSets = [
+		{
+			id: "w1",
+			train: [makeStep([0.1, 0.2, 0.3]), makeStep([0.4, 0.5, 0.6])],
+			validation: [makeStep([0.7, 0.8, 0.9])],
+		},
+	];
+
+	it("should report a failed evaluation to the telemetry and penalise the genome", async () => {
+		const telemetry = {
+			generationStarted: jest.fn(),
+			stagnationUpdated: jest.fn(),
+			evaluationFailed: jest.fn(),
+		};
+		const backendFactory = jest.fn(() => {
+			throw new Error("backend exploded");
+		});
+
+		const result = await evaluateGenomeAllWindows(
+			MINIMAL_GENOME as any,
+			windowSets,
+			backendFactory as any,
+			telemetry
+		);
+
+		expect(telemetry.evaluationFailed).toHaveBeenCalledWith("backend exploded");
+		expect(result.objectives.avgPnl).toBeLessThan(-1e8);
+	});
+
+	it("should tolerate a failure without telemetry and a non-Error throw", async () => {
+		const nonError: unknown = "not an error";
+		const backendFactory = jest.fn(() => {
+			throw nonError;
+		});
+
+		const result = await evaluateGenomeAllWindows(
+			MINIMAL_GENOME as any,
+			windowSets,
+			backendFactory as any
+		);
+
+		expect(result.objectives.avgPnl).toBeLessThan(-1e8);
 	});
 });

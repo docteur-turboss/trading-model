@@ -1,9 +1,7 @@
-import { createAddressManager } from "@trading-model/address-manager/create-address-manager";
+import { createServiceAddressManager } from "@trading-model/address-manager/application/create-service-address-manager";
 
-import { env } from "./env";
+import { ENV } from "../infrastructure/config/env";
 
-const addressManager = createAddressManager(env);
+const { AddressManager, FIND_A_SERVICE } = createServiceAddressManager(ENV);
 
-const findAService = addressManager.findService.bind(addressManager);
-
-export { addressManager as AddressManager, findAService };
+export { AddressManager, FIND_A_SERVICE };

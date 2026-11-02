@@ -2,10 +2,11 @@
 
 **Status:** Accepted
 **Date:** 2026-06
+**Verified by:** `services/trader-trainer/tests/unit/genetic-algorithm/evolution-engine.spec.ts`, `services/trader-trainer/tests/unit/genetic-algorithm/crossover.spec.ts`, `services/trader-trainer/tests/unit/agent/trading-agent.spec.ts`
 
 ## Context
 
-The platform needs to train autonomous trading agents that can adapt to changing market conditions. The agents must balance exploration (finding new strategies) with exploitation (using known profitable strategies) across a continuous action space (buy, sell, hold with varying quantities).
+The platform needs to train autonomous trading agents that can adapt to changing market conditions. The agents must balance exploration (finding new strategies) with exploitation (using known profitable strategies) across an action space of buy, sell and hold (discrete since [ADR-0025](./0025-ga-fitness-wired-to-fitness-type.md): Q-learning cannot learn a continuous policy).
 
 ## Decision
 
@@ -15,7 +16,7 @@ Use a hybrid approach combining **Genetic Algorithms (GA)** for population-level
 
 - **GA layer**: Maintains a population of agent genomes. Each genome encodes neural network architecture parameters (layer sizes, activation functions, learning rates) and initial weights.
 - **DQN layer**: Each agent wraps a neural network trained via Q-learning with experience replay. The GA evolves the hyperparameters and initial weights; DQN fine-tunes weights during each agent's lifetime.
-- **Fitness function**: Composite of Sharpe ratio, Sortino ratio, Calmar ratio, and total P&L, with complexity penalty.
+- **Fitness function**: Composite of Sharpe ratio, Sortino ratio, Calmar ratio, and total P&L, with complexity penalty. *Amended by [ADR-0025](./0025-ga-fitness-wired-to-fitness-type.md): one metric per run (`TRAINER_FITNESS_TYPE`), computed on the wallet PnL.*
 - **Selection**: Tournament selection with elitism (top 10% preserved).
 - **Crossover**: BLX-alpha crossover for real-valued genome blending.
 - **Mutation**: Adaptive Gaussian mutation with diversity-based rate adjustment.

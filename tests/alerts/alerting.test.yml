@@ -1,0 +1,542 @@
+# promtool unit tests of observability/alerting.yml (the K8s copy is kept
+# identical by scripts/observability-gate.mjs). Run: bash tests/alerts/run.sh
+#
+# Each case pins a behaviour that was wrong before 2026-10-28: ratios that
+# divided every 5xx series by itself (any single error = 100%), ratios whose
+# numerator series did not exist (never fired), a p95 capped by the largest
+# bucket, and no alert at all on market data that stopped flowing.
+rule_files:
+  - ../../observability/alerting.yml
+
+evaluation_interval: 30s
+
+tests:
+  # 1% errors on api-gateway: below every threshold. 10% on dlq-service:
+  # fires, per job, with the real ratio.
+  - name: error ratios are computed per job
+    interval: 1m
+    input_series:
+      - series: 'http_requests_total{job="api-gateway",instance="a",method="GET",path="/a",status="200"}'
+        values: '0+60x40'
+      - series: 'http_requests_total{job="api-gateway",instance="a",method="GET",path="/b",status="200"}'
+        values: '0+39x40'
+      - series: 'http_requests_total{job="api-gateway",instance="a",method="GET",path="/b",status="500"}'
+        values: '0+1x40'
+      - series: 'http_requests_total{job="dlq-service",instance="d",method="GET",path="/c",status="200"}'
+        values: '0+90x40'
+      - series: 'http_requests_total{job="dlq-service",instance="d",method="GET",path="/c",status="503"}'
+        values: '0+10x40'
+    alert_rule_test:
+      - eval_time: 20m
+        alertname: HighErrorRate
+        exp_alerts:
+          - exp_labels: {severity: warning, job: dlq-service}
+            exp_annotations:
+              summary: 'High error rate on dlq-service'
+              description: 'Error rate is 10% for the last 5 minutes.'
+      - eval_time: 20m
+        alertname: SLOErrorRateFastBurn
+        exp_alerts:
+          - exp_labels: {severity: critical, slo: error_rate, job: dlq-service}
+            exp_annotations:
+              summary: 'Error rate SLO fast burn rate exceeded'
+              description: 'Error rate > 5% over 5m — exceeding 1% SLO target.'
+      - eval_time: 20m
+        alertname: SLOAvailabilityFastBurn
+        exp_alerts:
+          - exp_labels: {severity: critical, slo: availability, job: dlq-service}
+            exp_annotations:
+              summary: 'Availability SLO fast burn rate exceeded'
+              description: 'Error rate > 2% over 5m — burning through 99.9% error budget rapidly.'
+
+  # 90% of the requests in < 0.1s, 10% between 5s and 10s: p95 = 7.5s, over
+  # the job (all paths together).
+  - name: p95 latency is computed per job and can exceed 5s
+    interval: 1m
+    input_series:
+      - series: 'http_request_duration_seconds_bucket{job="api-gateway",method="GET",path="/fast",le="0.1"}'
+        values: '0+90x40'
+      - series: 'http_request_duration_seconds_bucket{job="api-gateway",method="GET",path="/fast",le="5"}'
+        values: '0+90x40'
+      - series: 'http_request_duration_seconds_bucket{job="api-gateway",method="GET",path="/fast",le="10"}'
+        values: '0+90x40'
+      - series: 'http_request_duration_seconds_bucket{job="api-gateway",method="GET",path="/fast",le="+Inf"}'
+        values: '0+90x40'
+      - series: 'http_request_duration_seconds_bucket{job="api-gateway",method="GET",path="/slow",le="0.1"}'
+        values: '0x40'
+      - series: 'http_request_duration_seconds_bucket{job="api-gateway",method="GET",path="/slow",le="5"}'
+        values: '0x40'
+      - series: 'http_request_duration_seconds_bucket{job="api-gateway",method="GET",path="/slow",le="10"}'
+        values: '0+10x40'
+      - series: 'http_request_duration_seconds_bucket{job="api-gateway",method="GET",path="/slow",le="+Inf"}'
+        values: '0+10x40'
+    alert_rule_test:
+      - eval_time: 20m
+        alertname: HighLatency
+        exp_alerts:
+          - exp_labels: {severity: warning, job: api-gateway}
+            exp_annotations:
+              summary: 'High latency on api-gateway'
+              description: 'P95 latency is 7.5s for the last 5 minutes.'
+      - eval_time: 20m
+        alertname: SLOLatencyFastBurn
+        exp_alerts:
+          - exp_labels: {severity: critical, slo: latency, job: api-gateway}
+            exp_annotations:
+              summary: 'Latency SLO fast burn rate exceeded'
+              description: 'P95 latency > 5s over 5m — exceeding 2s SLO target.'
+
+  - name: half of the training sessions fail
+    interval: 1m
+    input_series:
+      - series: 'tt_training_sessions_total{job="trader-trainer",instance="t",result="success"}'
+        values: '0+1x60'
+      - series: 'tt_training_sessions_total{job="trader-trainer",instance="t",result="fail"}'
+        values: '0+1x60'
+    alert_rule_test:
+      - eval_time: 40m
+        alertname: TrainingCompletionRateLow
+        exp_alerts:
+          - exp_labels: {severity: warning, slo: training_completion, job: trader-trainer}
+            exp_annotations:
+              summary: 'Training completion rate below 95%'
+              description: 'Trainer completion rate is 50% over 15m.'
+
+  # No session ever succeeds: the `success` series does not exist.
+  - name: every training session fails
+    interval: 1m
+    input_series:
+      - series: 'tt_training_sessions_total{job="trader-trainer",instance="t",result="fail"}'
+        values: '0+1x60'
+    alert_rule_test:
+      - eval_time: 40m
+        alertname: TrainingCompletionRateLow
+        exp_alerts:
+          - exp_labels: {severity: warning, slo: training_completion, job: trader-trainer}
+            exp_annotations:
+              summary: 'Training completion rate below 95%'
+              description: 'Trainer completion rate is 0% over 15m.'
+
+  # Every message goes to the DLQ: no published series at all.
+  - name: message-manager publishes nothing, everything goes to the DLQ
+    interval: 1m
+    input_series:
+      - series: 'mm_messages_dlq_total{job="message-manager",instance="m",topic="market-data",reason="timeout"}'
+        values: '0+5x30'
+    alert_rule_test:
+      - eval_time: 15m
+        alertname: MessageDeliveryLowSuccessRate
+        exp_alerts:
+          - exp_labels: {severity: critical, slo: message_delivery, job: message-manager}
+            exp_annotations:
+              summary: 'Message delivery success rate below 99.5%'
+              description: 'Message-manager delivery rate is 0% over 5m.'
+
+  - name: message-manager delivers 99.9%
+    interval: 1m
+    input_series:
+      - series: 'mm_messages_published_total{job="message-manager",instance="m",topic="market-data"}'
+        values: '0+999x30'
+      - series: 'mm_messages_dlq_total{job="message-manager",instance="m",topic="market-data",reason="timeout"}'
+        values: '0+1x30'
+    alert_rule_test:
+      - eval_time: 15m
+        alertname: MessageDeliveryLowSuccessRate
+        exp_alerts: []
+
+  # The October 2026 incident: the scraper is up and healthy, nothing is
+  # persisted (SYMBOLS_TO_TRACK unset), and so the trainer gets nothing.
+  - name: market data stops flowing while every service is up
+    interval: 1m
+    input_series:
+      - series: 'up{job="financial-scraper",instance="s"}'
+        values: '1x40'
+      - series: 'fs_candles_persisted_total{job="financial-scraper",instance="s"}'
+        values: '0x40'
+      - series: 'tt_market_data_received_total{job="trader-trainer",instance="t"}'
+        values: '0x40'
+    alert_rule_test:
+      - eval_time: 25m
+        alertname: MarketDataStale
+        exp_alerts:
+          - exp_labels: {severity: critical}
+            exp_annotations:
+              summary: 'No market data persisted for 15 minutes'
+              description: 'financial-scraper persisted no candle in 15 minutes: collection is stopped (no symbol tracked, scheduler disabled everywhere, Binance or MySQL failing) while the service may still report healthy.'
+      - eval_time: 25m
+        alertname: TrainerMarketDataStale
+        exp_alerts:
+          - exp_labels: {severity: critical}
+            exp_annotations:
+              summary: 'trader-trainer receives no market data'
+              description: 'No candle reached the trainer buffer in 15 minutes: the scraper, message-manager or the trainer subscription is broken.'
+      - eval_time: 25m
+        alertname: ServiceDown
+        exp_alerts: []
+
+  # K8s: the HTTP-only replicas persist nothing, the collector does.
+  - name: market data flows through the collector only
+    interval: 1m
+    input_series:
+      - series: 'fs_candles_persisted_total{job="financial-scraper",instance="s"}'
+        values: '0x40'
+      - series: 'fs_candles_persisted_total{job="financial-scraper-collector",instance="c"}'
+        values: '0+12x40'
+      - series: 'tt_market_data_received_total{job="trader-trainer",instance="t"}'
+        values: '0+12x40'
+    alert_rule_test:
+      - eval_time: 25m
+        alertname: MarketDataStale
+        exp_alerts: []
+      - eval_time: 25m
+        alertname: TrainerMarketDataStale
+        exp_alerts: []
+
+  - name: two thirds of the scrape cycles fail
+    interval: 1m
+    input_series:
+      - series: 'fs_scrape_cycles_total{job="financial-scraper-collector",instance="c",result="error"}'
+        values: '0+2x60'
+      - series: 'fs_scrape_cycles_total{job="financial-scraper-collector",instance="c",result="success"}'
+        values: '0+1x60'
+    alert_rule_test:
+      - eval_time: 40m
+        alertname: ScrapeCyclesFailing
+        exp_alerts:
+          - exp_labels: {severity: warning}
+            exp_annotations:
+              summary: 'Most scrape cycles fail'
+              description: 'More than half of the financial-scraper cycles failed over 15 minutes (66.67%).'
+
+  # ADR-0026: a geo-block (451) alerts at once; other errors (429, 5xx) and
+  # 200s do not. The 451 series only exists once Binance starts refusing.
+  - name: a Binance geo-block alerts, other Binance errors do not
+    interval: 1m
+    input_series:
+      - series: 'fs_binance_requests_total{job="financial-scraper-collector",instance="c",endpoint="klines",status="200"}'
+        values: '0+6x30 180x30'
+      - series: 'fs_binance_requests_total{job="financial-scraper-collector",instance="c",endpoint="klines",status="429"}'
+        values: '0+1x60'
+      - series: 'fs_binance_requests_total{job="financial-scraper-collector",instance="c",endpoint="klines",status="451"}'
+        values: '_x30 6+6x30'
+    alert_rule_test:
+      - eval_time: 20m
+        alertname: BinanceRestrictedLocation
+        exp_alerts: []
+      # Two minutes after the first 451.
+      - eval_time: 33m
+        alertname: BinanceRestrictedLocation
+        exp_alerts:
+          - exp_labels: {severity: critical}
+            exp_annotations:
+              summary: 'Binance refuses the scraper location (HTTP 451)'
+              description: 'Binance answered 451 (restricted location) 21 times in 15 minutes: market data collection is blocked. Re-examine ADR-0026 and switch BINANCE_BASE_URL to the next fallback (runbook-market-data-stale).'
+      - eval_time: 45m
+        alertname: BinanceRestrictedLocation
+        exp_alerts:
+          - exp_labels: {severity: critical}
+            exp_annotations:
+              summary: 'Binance refuses the scraper location (HTTP 451)'
+              description: 'Binance answered 451 (restricted location) 90 times in 15 minutes: market data collection is blocked. Re-examine ADR-0026 and switch BINANCE_BASE_URL to the next fallback (runbook-market-data-stale).'
+
+  # 0 while the bus takes the candles; a backlog that stays 15 minutes alerts,
+  # per symbol, and ends once it drained.
+  - name: persisted candles waiting for the bus alert after 15 minutes
+    interval: 1m
+    input_series:
+      - series: 'fs_unpublished_candles{job="financial-scraper-collector",instance="c",symbol="BTCUSDT"}'
+        values: '0x10 1+1x30 0x20'
+      - series: 'fs_unpublished_candles{job="financial-scraper-collector",instance="c",symbol="ETHUSDT"}'
+        values: '0x60'
+    alert_rule_test:
+      - eval_time: 20m
+        alertname: MarketDataUnpublished
+        exp_alerts: []
+      - eval_time: 30m
+        alertname: MarketDataUnpublished
+        exp_alerts:
+          - exp_labels: {severity: warning, symbol: BTCUSDT}
+            exp_annotations:
+              summary: 'Persisted candles not reaching the bus'
+              description: '20 persisted BTCUSDT candles have waited for the bus for 15 minutes: message-manager refuses or holds the scraper publishes. They go out from MySQL, oldest first, once it answers; the trainer lags meanwhile (runbook-message-bus-outage)'
+      - eval_time: 55m
+        alertname: MarketDataUnpublished
+        exp_alerts: []
+
+  # Model artifacts (ADR-0022): the error series exists at 0 from startup, so
+  # the first failed write alerts; both trainer replicas count as one job, and
+  # the alert ends 30 minutes after the last failure.
+  - name: a failed model write alerts until 30 minutes have passed
+    interval: 1m
+    input_series:
+      - series: 'tt_model_artifacts_total{job="trader-trainer",instance="t1",result="error"}'
+        values: '0x120'
+      - series: 'tt_model_artifacts_total{job="trader-trainer",instance="t2",result="error"}'
+        values: '0x30 1x90'
+      - series: 'tt_model_artifacts_total{job="trader-trainer",instance="t1",result="stored"}'
+        values: '0+1x120'
+    alert_rule_test:
+      - eval_time: 25m
+        alertname: ModelArtifactWriteFailing
+        exp_alerts: []
+      - eval_time: 50m
+        alertname: ModelArtifactWriteFailing
+        exp_alerts:
+          - exp_labels: {severity: warning, job: trader-trainer}
+            exp_annotations:
+              summary: 'Trained models are not stored on trader-trainer'
+              description: '1 model artifact write(s) failed in 30 minutes: the best agents are not kept. Check the trainer logs ("Failed to store model artifact") and TRAINER_MODEL_DIR (volume mounted, writable, not full).'
+      - eval_time: 100m
+        alertname: ModelArtifactWriteFailing
+        exp_alerts: []
+
+  # Three discovery replicas share the heartbeats: one replica seeing none for
+  # a service is normal, every replica seeing none is not.
+  - name: heartbeats are summed over the discovery replicas
+    interval: 1m
+    input_series:
+      - series: 'discovery_heartbeats_total{job="discovery-server",instance="d1",service="api-gateway"}'
+        values: '0+6x20'
+      - series: 'discovery_heartbeats_total{job="discovery-server",instance="d2",service="api-gateway"}'
+        values: '0x20'
+      - series: 'discovery_heartbeats_total{job="discovery-server",instance="d1",service="dlq-service"}'
+        values: '0x20'
+      - series: 'discovery_heartbeats_total{job="discovery-server",instance="d2",service="dlq-service"}'
+        values: '0x20'
+    alert_rule_test:
+      - eval_time: 10m
+        alertname: HeartbeatStopped
+        exp_alerts:
+          - exp_labels: {severity: critical, service: dlq-service}
+            exp_annotations:
+              summary: 'Heartbeats have stopped for dlq-service'
+              description: 'discovery-server received no heartbeat from dlq-service in the last 5 minutes.'
+
+  # api-gateway drops from 2 instances to 1: redundancy lost. trader-trainer
+  # always ran one instance (staging, compose): no alert, ever.
+  - name: instance count alerts on lost redundancy only
+    interval: 1m
+    input_series:
+      - series: 'discovery_registered_instances_per_service{job="discovery-server",instance="d1",service="api-gateway"}'
+        values: '2x10 1x10'
+      - series: 'discovery_registered_instances_per_service{job="discovery-server",instance="d2",service="api-gateway"}'
+        values: '2x10 1x10'
+      - series: 'discovery_registered_instances_per_service{job="discovery-server",instance="d1",service="trader-trainer"}'
+        values: '1x20'
+      - series: 'discovery_registered_instances_per_service{job="discovery-server",instance="d1",service="dlq-service"}'
+        values: '2x20'
+    alert_rule_test:
+      - eval_time: 8m
+        alertname: InstanceCountLow
+        exp_alerts: []
+      - eval_time: 16m
+        alertname: InstanceCountLow
+        exp_alerts:
+          - exp_labels: {severity: critical, service: api-gateway}
+            exp_annotations:
+              summary: 'Low instance count for service api-gateway'
+              description: 'Service api-gateway had 2+ instances in the last day and now has fewer than 2: redundancy is lost (single-replica environments never fire).'
+
+  - name: the DLQ drains half of what comes in
+    interval: 1m
+    input_series:
+      - series: 'dlq_entries_added_total{job="dlq-service",instance="d"}'
+        values: '0+10x60'
+      - series: 'dlq_entries_replayed_total{job="dlq-service",instance="d"}'
+        values: '0+5x60'
+    alert_rule_test:
+      - eval_time: 40m
+        alertname: DLQDrainRateLow
+        exp_alerts:
+          - exp_labels: {severity: warning, slo: dlq_drain, job: dlq-service}
+            exp_annotations:
+              summary: 'DLQ drain rate is critically low'
+              description: 'DLQ replay/add ratio is 50% — queue is growing.'
+
+  - name: the alerting pipeline watches itself
+    interval: 1m
+    input_series:
+      # One failed notification (e.g. no PagerDuty key): enough to alert.
+      - series: 'alertmanager_notifications_failed_total{job="alertmanager",instance="am",integration="slack"}'
+        values: '0 0 0 1x40'
+    alert_rule_test:
+      - eval_time: 1m
+        alertname: Watchdog
+        exp_alerts:
+          - exp_labels: {severity: none}
+            exp_annotations:
+              summary: 'Alerting pipeline heartbeat'
+              description: 'Always firing. Routed to the dead man''s switch (ALERTMANAGER_DEADMAN_URL): when it stops arriving, Prometheus, Alertmanager or the notification path is down.'
+      - eval_time: 30m
+        alertname: AlertmanagerNotificationsFailing
+        exp_alerts:
+          - exp_labels: {severity: critical, integration: slack}
+            exp_annotations:
+              summary: 'Alertmanager cannot deliver slack notifications'
+              description: 'Notifications through slack fail: check the alertmanager-credentials Secret (webhook URL, routing key). This alert may not reach you: the dead man''s switch (Watchdog) is the safety net.'
+
+  # The local DLQ file cannot be written (read-only filesystem): lost.
+  - name: dead-lettered messages are lost or parked
+    interval: 1m
+    input_series:
+      - series: 'mm_messages_dlq_error_total{job="message-manager",instance="m",target="file"}'
+        values: '0 0 0 1x20'
+      - series: 'mm_messages_dlq_total{job="message-manager",instance="m",topic="market.candlestick.series.fetch",reason="MAX_RETRIES_EXCEEDED"}'
+        values: '0 0 0 3x20'
+    alert_rule_test:
+      - eval_time: 10m
+        alertname: MessagesLost
+        exp_alerts:
+          - exp_labels: {severity: critical}
+            exp_annotations:
+              summary: 'Dead-lettered messages could not be written: messages lost'
+              description: 'dlq-service could not take dead-lettered messages and message-manager could not keep them in DLQ_LOCAL_FALLBACK_PATH either: they are gone. Check that the path is on a writable volume, then dlq-service.'
+      - eval_time: 10m
+        alertname: MessagesDeadLettered
+        exp_alerts:
+          - exp_labels: {severity: warning, topic: market.candlestick.series.fetch}
+            exp_annotations:
+              summary: 'Messages dead-lettered on market.candlestick.series.fetch'
+              description: 'message-manager gave up delivering 3 message(s) on market.candlestick.series.fetch in the last hour. They are in dlq-service (GET /dlq) to inspect and replay.'
+
+  # The forward failures of a dlq-service outage are not losses: only a
+  # file error is. m1 keeps 2 dead letters for 20 minutes (fires), m2 for 5
+  # (dlq-service came back: no alert); one entry rejected for good.
+  - name: dead letters dlq-service cannot take
+    interval: 1m
+    input_series:
+      - series: 'mm_messages_dlq_error_total{job="message-manager",instance="m1",target="dlq-service"}'
+        values: '0 1 2 3x20'
+      - series: 'mm_dlq_fallback_pending{job="message-manager",instance="m1"}'
+        values: '0 2x25'
+      - series: 'mm_dlq_fallback_pending{job="message-manager",instance="m2"}'
+        values: '0 1x5 0x20'
+      - series: 'mm_dlq_rejected_total{job="message-manager",instance="m1"}'
+        values: '0 0 1x20'
+    alert_rule_test:
+      - eval_time: 20m
+        alertname: MessagesLost
+        exp_alerts: []
+      - eval_time: 20m
+        alertname: DeadLettersNotForwarded
+        exp_alerts:
+          - exp_labels: {severity: warning, instance: m1}
+            exp_annotations:
+              summary: 'Dead letters kept in a message-manager pod, not in dlq-service'
+              description: '2 dead letter(s) have waited 15 minutes in the local file of m1: dlq-service cannot take them (down, unreachable, or another DLQ_AUTH_HMAC_SECRET). They are lost if the pod is deleted.'
+      - eval_time: 20m
+        alertname: DeadLettersRejected
+        exp_alerts:
+          - exp_labels: {severity: warning}
+            exp_annotations:
+              summary: 'dlq-service refused dead letters'
+              description: 'dlq-service refused 1 dead letter(s) in the last hour (invalid or too large): they are in DLQ_LOCAL_FALLBACK_PATH.rejected on the message-manager pod, and in its logs.'
+
+  # market.ticker: dropped for 30 minutes, fires. market.trade: a burst at
+  # a cold start (publisher up before its subscribers), no alert.
+  - name: messages without subscriber are dropped
+    interval: 1m
+    input_series:
+      - series: 'mm_messages_unrouted_total{job="message-manager",instance="m",topic="market.ticker"}'
+        values: '0+5x30'
+      - series: 'mm_messages_unrouted_total{job="message-manager",instance="m",topic="market.trade"}'
+        values: '0 4 8 8x27'
+    alert_rule_test:
+      - eval_time: 25m
+        alertname: MessagesUnrouted
+        exp_alerts:
+          - exp_labels: {severity: warning, topic: market.ticker}
+            exp_annotations:
+              summary: 'Messages dropped on market.ticker: no subscriber'
+              description: 'message-manager drops the messages published on market.ticker: no instance subscribes to it. audit-logger subscribes to every topic: check that the subscribers are up and renew their subscriptions, and that message-manager reaches Redis.'
+
+  # V8 keeps the allocated heap close to the used one (95% here): no alert.
+  # 92% of the heap limit: out of memory is close.
+  - name: heap usage is measured against the V8 limit
+    interval: 1m
+    input_series:
+      - series: 'nodejs_heap_size_used_bytes{job="api-gateway",instance="g"}'
+        values: '95x10'
+      - series: 'nodejs_heap_size_total_bytes{job="api-gateway",instance="g"}'
+        values: '100x10'
+      - series: 'nodejs_heap_size_limit_bytes{job="api-gateway",instance="g"}'
+        values: '4000x10'
+      - series: 'nodejs_heap_size_used_bytes{job="trader-trainer",instance="t"}'
+        values: '3680x10'
+      - series: 'nodejs_heap_size_limit_bytes{job="trader-trainer",instance="t"}'
+        values: '4000x10'
+    alert_rule_test:
+      - eval_time: 8m
+        alertname: HighMemoryUsage
+        exp_alerts:
+          - exp_labels: {severity: warning, job: trader-trainer, instance: t}
+            exp_annotations:
+              summary: 'High memory usage on trader-trainer'
+              description: 'Heap usage is 92% of the V8 heap limit: out of memory is close.'
+
+  # Audit trail (ADR-0027): one replica finding the chain broken is enough.
+  - name: a broken audit chain alerts at once
+    interval: 1m
+    input_series:
+      - series: 'audit_chain_broken{job="audit-logger",instance="a"}'
+        values: '0x10 1x20'
+      - series: 'audit_chain_broken{job="audit-logger",instance="b"}'
+        values: '0x30'
+    alert_rule_test:
+      - eval_time: 5m
+        alertname: AuditChainBroken
+        exp_alerts: []
+      - eval_time: 15m
+        alertname: AuditChainBroken
+        exp_alerts:
+          - exp_labels: {severity: critical, job: audit-logger}
+            exp_annotations:
+              summary: 'Audit trail integrity check failed'
+              description: 'The audit chain verification found a fault (event missing, changed or removed, or a chain that no longer matches its anchors). Run chain-cli report on an audit-logger pod; acknowledge a loss only for an explained restore (runbook-audit-chain-broken).'
+
+  # Verification and anchoring every minute, then both stop at 30 min: stale
+  # past 45 min, alerting 15 min later. With anchoring off, only the warning.
+  - name: an audit chain no longer verified or anchored alerts
+    interval: 1m
+    input_series:
+      - series: 'audit_chain_last_verification_timestamp{job="audit-logger",instance="a"}'
+        values: '0+60x30 1800x90'
+      - series: 'audit_chain_last_anchor_timestamp{job="audit-logger",instance="a"}'
+        values: '0+60x30 1800x90'
+      - series: 'audit_chain_anchoring_enabled{job="audit-logger",instance="a"}'
+        values: '1x120'
+      - series: 'audit_chain_anchoring_enabled{job="audit-logger-staging",instance="s"}'
+        values: '0x120'
+      - series: 'audit_chain_last_anchor_timestamp{job="audit-logger-staging",instance="s"}'
+        values: '0x120'
+    alert_rule_test:
+      - eval_time: 80m
+        alertname: AuditChainVerificationStale
+        exp_alerts: []
+      - eval_time: 95m
+        alertname: AuditChainVerificationStale
+        exp_alerts:
+          - exp_labels: {severity: critical, job: audit-logger}
+            exp_annotations:
+              summary: 'Audit trail no longer verified'
+              description: 'audit-logger has not completed an audit chain verification for more than 45 minutes (MongoDB unreachable, or the cycle fails): a broken chain would go unnoticed (runbook-audit-chain-broken).'
+      - eval_time: 80m
+        alertname: AuditChainAnchoringStale
+        exp_alerts: []
+      - eval_time: 95m
+        alertname: AuditChainAnchoringStale
+        exp_alerts:
+          - exp_labels: {severity: critical, job: audit-logger}
+            exp_annotations:
+              summary: 'Audit trail no longer anchored'
+              description: 'audit-logger has not anchored the audit chain head for more than 45 minutes: check the anchor bucket credentials (audit-anchor-s3) and its logs (runbook-audit-chain-broken).'
+      - eval_time: 50m
+        alertname: AuditChainNotAnchored
+        exp_alerts: []
+      - eval_time: 95m
+        alertname: AuditChainNotAnchored
+        exp_alerts:
+          - exp_labels: {severity: warning, job: audit-logger-staging}
+            exp_annotations:
+              summary: 'Audit trail verified but not anchored'
+              description: 'AUDIT_ANCHOR_BUCKET is not set: a rewrite of the whole audit chain by someone with database access would go unnoticed (ADR-0027).'

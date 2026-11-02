@@ -13,8 +13,8 @@ Services interact with the broker through the `@trading-model/broker-message` SD
 ```
 ┌────────────────────────────────────────────────────┐
 │                  HTTP Transport                     │
-│  POST /message  |  POST /subscription  |  DELETE   │
-│              /subscription                         │
+│  POST /message  |  POST /subscribe  |  DELETE   │
+│              /subscribe                         │
 │  ┌──────────────────────────────────────────────┐  │
 │  │        Controllers (http.controller.ts)       │  │
 │  │  Request validation (Zod) → delegate to core │  │
@@ -36,8 +36,10 @@ Services interact with the broker through the `@trading-model/broker-message` SD
 │  │   Dispatcher (dispatcher.ts)                  │  │
 │  │   publish / subscribe / unsubscribe          │  │
 │  │   Enriches messageId + emittedAt              │  │
-│  │   In-memory topic → [Subscription] map       │  │
-│  │   Deduplicates by instanceId                 │  │
+│  │   Topic → subscriptions, read from the       │  │
+│  │   shared store (Redis, 60s lease)            │  │
+│  │   Counts messages with no subscriber         │  │
+│  │   One subscription per instanceId            │  │
 │  │   Parallel dispatch via Promise.allSettled   │  │
 │  └──────────────────────────────────────────────┘  │
 │  ┌──────────────────────────────────────────────┐  │
@@ -58,7 +60,7 @@ Services interact with the broker through the `@trading-model/broker-message` SD
 
 ## Components
 
-### Dispatcher (`messaging/core/dispatcher.ts`)
+### Dispatcher (`application/services/dispatcher.ts`)
 
 Central message router exposing the messaging API. Responsibilities:
 
@@ -69,7 +71,7 @@ Central message router exposing the messaging API. Responsibilities:
 - Deduplicates subscriptions by `instanceId` (same topic + instanceId).
 - **`dispatch(message)`** — Looks up subscriptions by message topic, deduplicates by instanceId, and dispatches to all matching subscribers in parallel via `Promise.allSettled`. Individual failures are isolated.
 
-### Subscription (`messaging/core/subscription.ts`)
+### Subscription (`application/services/subscription.ts`)
 
 Per-instance message delivery handler. Responsibilities:
 
@@ -79,15 +81,15 @@ Per-instance message delivery handler. Responsibilities:
 
 | Mode            | Behaviour                                                 |
 | --------------- | --------------------------------------------------------- |
-| `at-most-once`  | No retry on NACK. Single attempt, fire-and-forget.        |
-| `at-least-once` | Retries indefinitely until ACK or TTL expiry.             |
-| `exactly-once`  | Stops after first delivery (idempotent consumer assumed). |
+| `at-most-once`  | Single attempt; a failure is dropped (fire-and-forget).   |
+| `at-least-once` | Up to 10 attempts (backoff 1s → 20s cap), then dead letter. |
+| `exactly-once`  | Single attempt, no broker retry (no duplicate); a failure is dead-lettered (`SINGLE_ATTEMPT_FAILED`). |
 
 - **TTL expiration**: If `emittedAt + ttl < now`, the message is routed to the Dead Letter Queue.
-- **DLQ**: Placeholder implementation for routing failed or expired messages to persistent storage or an HTTP endpoint.
-- Provides a `SubscribersContext` object to the consumer with `ack()`, `nack(reason)`, and `deadLetter(reason)` controls.
+- **DLQ**: dead letters go to dlq-service (signed `POST /dlq`); while it cannot take them they wait in `DLQ_LOCAL_FALLBACK_PATH` and are forwarded every minute and at shutdown (ADR-0019).
+- The whole policy (DLQ, drop or retry) is decided in the domain by `DeliveryErrorClassifier` (`domain/delivery-error-classifier.ts`); the application layer only carries it out. A subscriber answer saying the message itself is wrong (400 — payload refused by its topic schema —, 413, 415, 422) is dead-lettered at once (`REJECTED_BY_SUBSCRIBER`) instead of after 10 attempts; auth, routing, throttling and server errors keep the retries.
 
-### Message Contracts (`messaging/core/message.ts`)
+### Message Contracts (`@trading-model/contracts/message-types`)
 
 Canonical message envelope shared across producers, broker, and consumers:
 
@@ -112,7 +114,7 @@ interface MessageMetadata {
 }
 ```
 
-### Validation (`messaging/transport/validation/broker.schema.ts`)
+### Validation (`adapters/inbound/validation/broker.schema.ts`)
 
 Zod schemas enforce payload correctness at the HTTP boundary:
 
@@ -130,7 +132,7 @@ Zod schemas enforce payload correctness at the HTTP boundary:
 ```
 Service A                    Dispatcher                    Service B
    |                           |                              |
-   |— POST /subscription ——→   |                              |
+   |— POST /subscribe ——→   |                              |
    |  { topic, callbackPath,   |                              |
    |    consumerIdentity }     |                              |
    |                           |— registerSubscription() ——  |
@@ -170,7 +172,7 @@ Service A                    Dispatcher                    Service B
                  │ error
                  ▼
          ┌──────────────────┐
-         │ is DeadLetterErr?│──yes──→ sendToDLQ() ──→ return
+         │ 400/413/415/422? │──yes──→ sendToDLQ("REJECTED_BY_SUBSCRIBER") ──→ return
          └───────┬──────────┘
                  │ no
                  ▼
@@ -179,14 +181,24 @@ Service A                    Dispatcher                    Service B
          └───────┬──────────┘
                  │ no
                  ▼
-         ┌──────────────────────────┐
-         │ is AT_MOST_ONCE + NACK? │──yes──→ return
-         └───────┬──────────────────┘
+         ┌──────────────────┐
+         │ AT_MOST_ONCE?    │──yes──→ drop ──→ return
+         └───────┬──────────┘
+                 │ no
+                 ▼
+         ┌──────────────────┐
+         │ EXACTLY_ONCE?    │──yes──→ sendToDLQ("SINGLE_ATTEMPT_FAILED") ──→ return
+         └───────┬──────────┘
                  │ no (AT_LEAST_ONCE)
                  ▼
-              ┌────────┐
-              │ retry  │─────────→ back to POST
-              └────────┘
+         ┌──────────────────┐
+         │ 10 attempts done?│──yes──→ sendToDLQ("MAX_RETRIES_EXCEEDED") ──→ return
+         └───────┬──────────┘
+                 │ no
+                 ▼
+          ┌──────────────┐
+          │ backoff+retry│─────────→ back to POST
+          └──────────────┘
 ```
 
 ---
@@ -218,8 +230,7 @@ Service A                    Dispatcher                    Service B
 
 | Decision                                   | Rationale                                                                                                                                                                                                    |
 | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **In-memory subscription registry**        | Simplifies deployment for the current scale; no external dependency for runtime state. Subscriptions do not survive restarts — services re-subscribe on startup via the `@trading-model/broker-message` SDK. |
+| **Shared subscription registry (Redis)**   | Every replica reads the same subscriptions (`RedisSubscriptionStore`, one hash per topic): a subscription made on one replica routes the messages published on any other, and survives a restart. Subscribers renew theirs every 15s (`@trading-model/broker-message`); a subscription not renewed for 60s expires. Without Redis, `InMemorySubscriptionStore` (single replica only). A message whose topic has no subscriber is dropped and counted (`mm_messages_unrouted_total`, alert `MessagesUnrouted`). |
 | **Parallel dispatch (Promise.allSettled)** | Ensures one slow or failing subscriber does not block delivery to others.                                                                                                                                    |
-| **No automatic retry backoff**             | The initial implementation retries immediately; future work should add exponential backoff and jitter.                                                                                                       |
-| **DLQ is a placeholder**                   | Currently a no-op. Intended to route failed messages to persistent storage (MongoDB) or a dedicated DLQ HTTP endpoint.                                                                                       |
-| **MongoDB dependency declared but unused** | The `mongodb` package is listed as a dependency for planned message persistence features (message store, DLQ persistence).                                                                                   |
+| **Bounded retry backoff**                  | Exponential backoff (1s base, 20s cap, ±20% jitter), 10 attempts of at most 10s: the worst case (~4.3 min) fits in `PUBLISH_TIMEOUT_MS` (5 min), checked by `backoff-calculator.spec.ts`. |
+| **Dead letters in dlq-service**            | `ForwardingDeadLetterStore` sends them to dlq-service and keeps a local JSONL file only while it is unreachable; no database in message-manager itself.                                                    |

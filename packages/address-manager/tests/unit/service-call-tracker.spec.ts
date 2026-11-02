@@ -1,5 +1,15 @@
 import { beforeEach, describe, expect, test } from "@jest/globals";
-import { ServiceCallTracker } from "../../src/monitoring/service-call-tracker";
+import { HttpMethod } from "@trading-model/contracts/signed-request";
+import type { Bytes, DurationMs } from "@trading-model/primitives/primitives";
+import {
+	toServiceId,
+	UnixTimestamp,
+} from "@trading-model/primitives/primitives";
+import {
+	CallStatus,
+	Endpoint,
+	ServiceCallTracker,
+} from "../../src/infrastructure/monitoring/service-call-tracker";
 
 describe("ServiceCallTracker", () => {
 	let tracker: ServiceCallTracker;
@@ -22,32 +32,32 @@ describe("ServiceCallTracker", () => {
 
 		test("should aggregate records correctly", () => {
 			tracker.record({
-				targetService: "svc-a",
-				endpoint: "/register",
-				method: "POST",
-				timestamp: Date.now(),
-				durationMs: 100,
-				status: "success",
-				bytesSent: 50,
-				bytesReceived: 200,
+				targetService: toServiceId("svc-a"),
+				endpoint: Endpoint.of("/register"),
+				method: HttpMethod.Post,
+				timestamp: UnixTimestamp.now(),
+				durationMs: 100 as DurationMs,
+				status: CallStatus.Success,
+				bytesSent: 50 as Bytes,
+				bytesReceived: 200 as Bytes,
 			});
 			tracker.record({
-				targetService: "svc-a",
-				endpoint: "/register",
-				method: "POST",
-				timestamp: Date.now(),
-				durationMs: 200,
-				status: "success",
-				bytesSent: 50,
-				bytesReceived: 200,
+				targetService: toServiceId("svc-a"),
+				endpoint: Endpoint.of("/register"),
+				method: HttpMethod.Post,
+				timestamp: UnixTimestamp.now(),
+				durationMs: 200 as DurationMs,
+				status: CallStatus.Success,
+				bytesSent: 50 as Bytes,
+				bytesReceived: 200 as Bytes,
 			});
 			tracker.record({
-				targetService: "svc-b",
-				endpoint: "/heartbeat",
-				method: "WS",
-				timestamp: Date.now(),
-				durationMs: 5,
-				status: "error",
+				targetService: toServiceId("svc-b"),
+				endpoint: Endpoint.of("/heartbeat"),
+				method: "WS" as unknown as HttpMethod,
+				timestamp: UnixTimestamp.now(),
+				durationMs: 5 as DurationMs,
+				status: CallStatus.Error,
 				errorMessage: "timeout",
 			});
 
@@ -59,7 +69,8 @@ describe("ServiceCallTracker", () => {
 				"WS /heartbeat": 1,
 			});
 			expect(snap.errorsTotal).toBe(1);
-			expect(snap.avgLatencyMs).toBe(102); // Math.round((100+200+5)/3) = 102
+			const expectedAvgLatency = Math.round((100 + 200 + 5) / 3);
+			expect(snap.avgLatencyMs).toBe(expectedAvgLatency);
 			expect(snap.totalBytesSent).toBe(100);
 			expect(snap.totalBytesReceived).toBe(400);
 		});
@@ -68,12 +79,12 @@ describe("ServiceCallTracker", () => {
 	describe("clear", () => {
 		test("should remove all records", () => {
 			tracker.record({
-				targetService: "svc-a",
-				endpoint: "/ping",
-				method: "GET",
-				timestamp: Date.now(),
-				durationMs: 10,
-				status: "success",
+				targetService: toServiceId("svc-a"),
+				endpoint: Endpoint.of("/ping"),
+				method: HttpMethod.Get,
+				timestamp: UnixTimestamp.now(),
+				durationMs: 10 as DurationMs,
+				status: CallStatus.Success,
 			});
 			expect(tracker.snapshot().totalCalls).toBe(1);
 			tracker.clear();
@@ -86,12 +97,12 @@ describe("ServiceCallTracker", () => {
 			const smallTracker = new ServiceCallTracker(3);
 			for (let i = 0; i < 5; i++) {
 				smallTracker.record({
-					targetService: "svc",
-					endpoint: "/test",
-					method: "GET",
-					timestamp: Date.now(),
-					durationMs: i,
-					status: "success",
+					targetService: toServiceId("svc"),
+					endpoint: Endpoint.of("/test"),
+					method: HttpMethod.Get,
+					timestamp: UnixTimestamp.now(),
+					durationMs: i as DurationMs,
+					status: CallStatus.Success,
 				});
 			}
 			expect(smallTracker.snapshot().totalCalls).toBe(3);
@@ -101,12 +112,12 @@ describe("ServiceCallTracker", () => {
 	describe("getRecords", () => {
 		test("should return all stored records as readonly array", () => {
 			tracker.record({
-				targetService: "svc",
-				endpoint: "/test",
-				method: "GET",
-				timestamp: 1000,
-				durationMs: 50,
-				status: "success",
+				targetService: toServiceId("svc"),
+				endpoint: Endpoint.of("/test"),
+				method: HttpMethod.Get,
+				timestamp: UnixTimestamp.of(1000),
+				durationMs: 50 as DurationMs,
+				status: CallStatus.Success,
 			});
 			const records = tracker.getRecords();
 			expect(records).toHaveLength(1);

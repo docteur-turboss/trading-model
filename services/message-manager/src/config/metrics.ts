@@ -1,7 +1,10 @@
-import type { Request, Response } from "express";
+import { CircuitState } from "@trading-model/primitives/circuit-state";
+import { metricsHandler } from "@trading-model/server-utils/adapters/inbound/metrics-handler";
 import promClient from "prom-client";
 
-promClient.collectDefaultMetrics({ prefix: "mm_" });
+const circuitBreakerStates = Object.values(CircuitState)
+	.map((state, index) => `${index}=${state}`)
+	.join(", ");
 
 export const MESSAGES_PUBLISHED_TOTAL = new promClient.Counter({
 	name: "mm_messages_published_total",
@@ -15,6 +18,12 @@ export const MESSAGES_DELIVERED_TOTAL = new promClient.Counter({
 	labelNames: ["topic", "status"] as const,
 });
 
+export const MESSAGES_UNROUTED_TOTAL = new promClient.Counter({
+	name: "mm_messages_unrouted_total",
+	help: "Total number of published messages dropped because their topic had no subscriber",
+	labelNames: ["topic"] as const,
+});
+
 export const MESSAGES_DLQ_TOTAL = new promClient.Counter({
 	name: "mm_messages_dlq_total",
 	help: "Total number of messages sent to DLQ",
@@ -25,6 +34,21 @@ export const MESSAGES_DLQ_ERROR_TOTAL = new promClient.Counter({
 	name: "mm_messages_dlq_error_total",
 	help: "Total number of DLQ storage errors (file or service)",
 	labelNames: ["target"] as const,
+});
+
+export const DLQ_FORWARD_FAILURES_TOTAL = new promClient.Counter({
+	name: "mm_dlq_forward_failures_total",
+	help: "Dead letters dlq-service could not take, kept in the local file",
+});
+
+export const DLQ_REJECTED_TOTAL = new promClient.Counter({
+	name: "mm_dlq_rejected_total",
+	help: "Dead letters dlq-service refused for good (invalid or too large)",
+});
+
+export const DLQ_FALLBACK_PENDING = new promClient.Gauge({
+	name: "mm_dlq_fallback_pending",
+	help: "Dead letters waiting in the local file for dlq-service (lost if the pod is deleted)",
 });
 
 export const DELIVERY_LATENCY_SECONDS = new promClient.Histogram({
@@ -42,29 +66,13 @@ export const SUBSCRIPTION_COUNT = new promClient.Gauge({
 
 export const CIRCUIT_BREAKER_STATE = new promClient.Gauge({
 	name: "mm_circuit_breaker_state",
-	help: "Circuit breaker state (0=closed, 1=open, 2=half-open)",
+	help: `Circuit breaker state (${circuitBreakerStates})`,
 	labelNames: ["subscriber"] as const,
-});
-
-export const REDIS_STREAM_SIZE = new promClient.Gauge({
-	name: "mm_redis_stream_size",
-	help: "Size of Redis stream per topic",
-	labelNames: ["topic"] as const,
 });
 
 export const IN_FLIGHT_MESSAGES = new promClient.Gauge({
 	name: "mm_in_flight_messages",
 	help: "Number of messages currently being delivered",
-});
-
-export const BACKPRESSURE_RATIO = new promClient.Gauge({
-	name: "mm_backpressure_ratio",
-	help: "Token bucket usage ratio (0=idle, 1=full)",
-});
-
-export const WSS_CONNECTION_COUNT = new promClient.Gauge({
-	name: "mm_wss_connections",
-	help: "Number of active WSS connections",
 });
 
 export const SUBSCRIBER_DELIVERY_CONCURRENCY = new promClient.Gauge({
@@ -73,76 +81,4 @@ export const SUBSCRIBER_DELIVERY_CONCURRENCY = new promClient.Gauge({
 	labelNames: ["subscriber"] as const,
 });
 
-export const REDIS_STREAM_LAG = new promClient.Gauge({
-	name: "mm_redis_stream_lag_ms",
-	help: "Redis stream lag in milliseconds per topic",
-	labelNames: ["topic"] as const,
-});
-
-export const DLQ_BUFFER_SIZE = new promClient.Gauge({
-	name: "mm_dlq_buffer_size",
-	help: "Current DLQ buffer size",
-});
-
-export const BUFFER_DROPPED_TOTAL = new promClient.Counter({
-	name: "mm_buffer_dropped_total",
-	help: "Total number of messages dropped due to buffer overflow",
-	labelNames: ["buffer", "reason"] as const,
-});
-
-export function metricsHandler(_req: Request, res: Response): void {
-	res.set("Content-Type", promClient.register.contentType);
-	promClient.register.metrics().then((data) => res.send(data));
-}
-
-/*
- * ─── Recommended Prometheus/Grafana alerting rules ────────────────────────────
- *
- * # Critical: messages being dropped because all persistence layers exhausted
- * - alert: BufferDropped
- *   expr: rate(mm_buffer_dropped_total[5m]) > 0
- *   for: 1m
- *   labels: { severity: critical }
- *
- * # Critical: messages routed to DLQ (may indicate subscriber issues)
- * - alert: HighDLQRate
- *   expr: rate(mm_messages_dlq_total[5m]) > 10
- *   for: 2m
- *   labels: { severity: critical }
- *
- * # Warning: DLQ storage errors (Redis fallback persists but DLQ service down)
- * - alert: DLQStorageErrors
- *   expr: rate(mm_messages_dlq_error_total[5m]) > 0
- *   for: 1m
- *   labels: { severity: warning }
- *
- * # Critical: circuit breaker open — subscriber not receiving messages
- * - alert: CircuitBreakerOpen
- *   expr: mm_circuit_breaker_state == 1
- *   for: 1m
- *   labels: { severity: critical }
- *
- * # Warning: high backpressure ratio (token bucket near capacity)
- * - alert: HighBackpressure
- *   expr: mm_backpressure_ratio > 0.8
- *   for: 5m
- *   labels: { severity: warning }
- *
- * # Critical: Redis stream lag growing (subscriber can't keep up)
- * - alert: StreamLagGrowing
- *   expr: rate(mm_redis_stream_lag_ms[5m]) > 0
- *   for: 5m
- *   labels: { severity: warning }
- *
- * # Warning: subscriber delivery concurrency saturated
- * - alert: SubscriberSaturated
- *   expr: mm_subscriber_delivery_concurrency > 8
- *   for: 5m
- *   labels: { severity: warning }
- *
- * # Critical: WSS connections dropped (network / broker issue)
- * - alert: WSSConnectionsDropped
- *   expr: rate(mm_wss_connections[1m]) < -1
- *   for: 30s
- *   labels: { severity: critical }
- */
+export { metricsHandler };

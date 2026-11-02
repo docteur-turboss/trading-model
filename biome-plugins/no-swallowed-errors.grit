@@ -1,0 +1,26 @@
+language js
+
+// A handler "deals with" an error when it rethrows or calls something
+// (logger, metric, delegated handler, cleanup). Anything else — empty body,
+// bare `return null/false/[]`, an assignment — silently swallows it.
+pattern swallows() {
+	not contains or { `throw $_`, `$_($...)` }
+}
+
+or {
+	or {
+		`try { $_ } catch ($_) { $body }`,
+		`try { $_ } catch { $body }`,
+		`try { $_ } catch ($_) { $body } finally { $_ }`,
+		`try { $_ } catch { $body } finally { $_ }`
+	} as $site where { $body <: swallows() },
+	or { `$_.catch($handler)`, `$_.then($_, $handler)` } as $site where {
+		$handler <: or { `($...) => $_`, `function ($...) { $_ }` },
+		$handler <: swallows()
+	}
+} where {
+	register_diagnostic(
+		span = $site,
+		message = "Swallowed error: this handler neither rethrows, logs nor delegates. Propagate it, log it or record a metric, or suppress with `// biome-ignore lint/plugin: <why it is safe>` (see docs/standards/error-handling.md)."
+	)
+}

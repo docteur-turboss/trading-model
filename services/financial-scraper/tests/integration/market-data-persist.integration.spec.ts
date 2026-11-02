@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
+import { CandleInterval } from "@trading-model/contracts/market-data.types";
 import type { Mock } from "jest-mock";
 
-jest.mock("../../src/infra/market-data/market-data.model", () => ({
+jest.mock("../../src/adapters/outbound/persistence/market-data.model", () => ({
 	MarketDataModel: {
 		insertCandles: jest.fn(),
 		insertTrades: jest.fn(),
@@ -10,11 +11,11 @@ jest.mock("../../src/infra/market-data/market-data.model", () => ({
 	},
 }));
 
-import { MarketDataController } from "../../src/infra/market-data/market-data.controller";
-import { MarketDataModel } from "../../src/infra/market-data/market-data.model";
+import { MarketDataModel } from "../../src/adapters/outbound/persistence/market-data.model";
+import { MarketDataController } from "../../src/config/container";
 
 describe("MarketDataController — persist integration", () => {
-	const mockCandles = [{ symbol: "BTCUSDT", interval: "1m" }];
+	const mockCandles = [{ symbol: "BTCUSDT", interval: CandleInterval.Min1 }];
 	const mockTrades = [{ tradeId: 1n, symbol: "BTCUSDT" }];
 	const mockOrderBook = { symbol: "BTCUSDT" };
 	const mockTicker24h = [{ symbol: "BTCUSDT" }];

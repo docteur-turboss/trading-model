@@ -1,7 +1,16 @@
 # ADR-0010: Clean Architecture Migration for message-manager core/
 
-**Status:** Proposed
+**Status:** Implemented
 **Date:** 2026-06
+**Verified by:** manual review 2026-10-22 (hexagonal migration completed under ADR-0015; no automated layering check yet)
+
+> **Outcome (2026-09):** The hexagonal target structure was generalized beyond message-manager and applied to **all** services (see [Architecture Standards](../standards/architecture-standards.md) — `domain/`, `application/`, `adapters/inbound|outbound`, `infrastructure/`, `config/`, `shared/`). message-manager now has a pure `domain/` layer: 24 purely-domain modules (message/type/contract definitions, interfaces/ports, backoff, payload sanitization, dedup/DLQ retry, WAL entry model, …) were extracted from the legacy `messaging/core/`, and the core WAL/flush/claim/archive logic remains under `messaging/core/` pending full phase-2/4 completion.
+>
+> **Outcome (2026-10):** message-manager phases 2–4 are **complete** — the legacy `src/messaging/` directory is gone and its jest alias (`^messaging$`) removed. The 12 former `messaging/core/` files (dispatcher, dispatch-orchestrator, subscription, subscription-registry, ack-handler, delivery-attempt-handler, delivery-error-handler, address-resolver) now live in `application/services/`; the former `messaging/transport/` files (http.controller, http.routes, validation/broker.schema, validate-schema.middleware) moved to `adapters/inbound/`. `domain/` remains pure (7 files); its purity was enforced by the architecture gate, since removed (see ADR-0015), and now relies on review. No re-export shims were retained (hard migration).
+>
+> **Outcome (2026-10-22, closed):** Every backend service now uses the hexagonal layout only — no legacy top-level directory remains (`core/`, `app/`, `controllers/`, `routes/`, `persistence/`, `scheduler/`, `clients/`, `infra/`, `job/`, `dlq/` … all migrated): audit-logger, financial-scraper, dlq-service, trader-trainer and discovery-server joined message-manager. Domain layers are free of IO/framework imports and application layers depend on ports; concrete adapters are wired in `config/container.ts` (the composition root this ADR prescribed), entry points live in `application/index.ts`. Details, ports introduced and the remaining open point (composition-root exemption) are recorded in [ADR-0015](./0015-hexagonal-layering-completion.md).
+>
+> **Outcome (2026-10-31):** The delivery-mode policy was split across two layers that disagreed: the domain classifier asked for a retry on an `exactly-once` failure while the application loop refused it, so the message was dropped after a backoff pause, with no dead letter and no log. The whole policy now lives in `domain/delivery-error-classifier.ts` (the `delivery-guarantees` role this ADR planned): `exactly-once` gets a single attempt and a failure is dead-lettered (`SINGLE_ATTEMPT_FAILED`); the application only carries out the classification. `domain/messaging-types` no longer depends on the `@trading-model/broker-message` client package (`SubscriptionParams` is `TopicBinding` from primitives). The classifier's `DeadLetterError` branch was unreachable (nothing raised one): the HTTP delivery adapter now turns a subscriber answer saying the message itself is wrong (400, 413, 415, 422) into a `DeadLetterError` (`REJECTED_BY_SUBSCRIBER`), so a payload refused by its topic schema is dead-lettered at once instead of after 10 attempts (~4 min).
 
 ## Context
 

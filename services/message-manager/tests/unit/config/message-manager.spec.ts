@@ -1,15 +1,18 @@
 import { describe, expect, it, jest } from "@jest/globals";
 
-jest.mock("messaging", () => {
+jest.mock("../../../src/config/container", () => {
 	const mockListen = jest.fn();
-	const mockBrokerModule = jest.fn(() => ({ listen: mockListen }));
+	const mockBrokerModule = jest.fn(() => ({
+		listen: mockListen,
+		forwardDeadLetters: jest.fn(async () => undefined),
+	}));
 	return {
 		__esModule: true,
 		default: mockBrokerModule,
 	};
 });
 
-jest.mock("../../../src/config/env", () => ({
+jest.mock("../../../src/infrastructure/config/env", () => ({
 	ENV: {
 		TLS_CERT_PATH: "/etc/tls/cert.pem",
 		TLS_KEY_PATH: "/etc/tls/key.pem",

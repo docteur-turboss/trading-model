@@ -1,15 +1,20 @@
-const { createDefaultPreset } = require('ts-jest');
-
-const tsJestTransformCfg = createDefaultPreset().transform;
+const { workspaceModuleNameMapper } = require('../../scripts/jest-workspace-mapper.cjs');
 
 /** @type {import("jest").Config} **/
 module.exports = {
   testEnvironment: 'node',
+  testPathIgnorePatterns: ['/node_modules/', '/dist/'],
+  modulePathIgnorePatterns: ['/dist/'],
   moduleNameMapper: {
-    '^@trading-model/common/(.*)$': '<rootDir>/../../packages/common/src/$1',
+    ...workspaceModuleNameMapper(__dirname),
   },
   transform: {
-    ...tsJestTransformCfg,
+    '^.+\\.tsx?$': [
+      'ts-jest',
+      {
+        diagnostics: false,
+      },
+    ],
   },
   coverageThreshold: {
     global: {

@@ -5,7 +5,7 @@ groups:
 
       # ── Burn Rate Alerts (SLO-based) ─────────────────────────────
       - alert: SLOAvailabilityFastBurn
-        expr: rate(http_requests_duration_seconds_count{status=~"5.."}[5m]) / rate(http_requests_duration_seconds_count[5m]) > 0.02
+        expr: sum by (job) (rate(http_requests_total{status=~"5.."}[5m])) / sum by (job) (rate(http_requests_total[5m])) > 0.02
         for: 2m
         labels:
           severity: critical
@@ -15,7 +15,7 @@ groups:
           description: 'Error rate > 2% over 5m — burning through 99.9% error budget rapidly.'
 
       - alert: SLOAvailabilitySlowBurn
-        expr: rate(http_requests_duration_seconds_count{status=~"5.."}[1h]) / rate(http_requests_duration_seconds_count[1h]) > 0.005
+        expr: sum by (job) (rate(http_requests_total{status=~"5.."}[1h])) / sum by (job) (rate(http_requests_total[1h])) > 0.005
         for: 10m
         labels:
           severity: warning
@@ -25,7 +25,7 @@ groups:
           description: 'Error rate > 0.5% over 1h — burning through 99.9% error budget.'
 
       - alert: SLOLatencyFastBurn
-        expr: histogram_quantile(0.95, rate(http_requests_duration_seconds_bucket[5m])) > 5
+        expr: histogram_quantile(0.95, sum by (job, le) (rate(http_request_duration_seconds_bucket[5m]))) > 5
         for: 2m
         labels:
           severity: critical
@@ -35,7 +35,7 @@ groups:
           description: 'P95 latency > 5s over 5m — exceeding 2s SLO target.'
 
       - alert: SLOLatencySlowBurn
-        expr: histogram_quantile(0.95, rate(http_requests_duration_seconds_bucket[1h])) > 3
+        expr: histogram_quantile(0.95, sum by (job, le) (rate(http_request_duration_seconds_bucket[1h]))) > 3
         for: 10m
         labels:
           severity: warning
@@ -45,7 +45,7 @@ groups:
           description: 'P95 latency > 3s over 1h — approaching 2s SLO target breach.'
 
       - alert: SLOErrorRateFastBurn
-        expr: rate(http_requests_duration_seconds_count{status=~"5.."}[5m]) / rate(http_requests_duration_seconds_count[5m]) > 0.05
+        expr: sum by (job) (rate(http_requests_total{status=~"5.."}[5m])) / sum by (job) (rate(http_requests_total[5m])) > 0.05
         for: 2m
         labels:
           severity: critical
@@ -55,7 +55,7 @@ groups:
           description: 'Error rate > 5% over 5m — exceeding 1% SLO target.'
 
       - alert: SLOErrorRateSlowBurn
-        expr: rate(http_requests_duration_seconds_count{status=~"5.."}[1h]) / rate(http_requests_duration_seconds_count[1h]) > 0.02
+        expr: sum by (job) (rate(http_requests_total{status=~"5.."}[1h])) / sum by (job) (rate(http_requests_total[1h])) > 0.02
         for: 10m
         labels:
           severity: warning
@@ -74,7 +74,7 @@ groups:
           description: 'Service {{ $labels.job }} has been unreachable for over 1 minute.'
 
       - alert: HighErrorRate
-        expr: rate(http_requests_duration_seconds_count{status=~"5.."}[5m]) / rate(http_requests_duration_seconds_count[5m]) > 0.05
+        expr: sum by (job) (rate(http_requests_total{status=~"5.."}[5m])) / sum by (job) (rate(http_requests_total[5m])) > 0.05
         for: 2m
         labels:
           severity: warning
@@ -83,25 +83,25 @@ groups:
           description: 'Error rate is {{ $value | humanizePercentage }} for the last 5 minutes.'
 
       - alert: HighLatency
-        expr: histogram_quantile(0.95, rate(http_requests_duration_seconds_bucket[5m])) > 5
+        expr: histogram_quantile(0.95, sum by (job, le) (rate(http_request_duration_seconds_bucket[5m]))) > 5
         for: 2m
         labels:
           severity: warning
         annotations:
           summary: 'High latency on {{ $labels.job }}'
-          description: 'P95 latency is {{ $value }}s for the last 5 minutes.'
+          description: 'P95 latency is {{ $value | humanize }}s for the last 5 minutes.'
 
       - alert: CertificateExpiry
-        expr: time() - ca_certificate_last_renewed > 604800
-        for: 1h
+        expr: probe_ssl_earliest_cert_expiry - time() < 1800
+        for: 5m
         labels:
           severity: warning
         annotations:
-          summary: 'Certificate renewal overdue'
-          description: 'CA certificate has not been renewed in over 7 days.'
+          summary: 'SVID close to expiry on {{ $labels.instance }}'
+          description: 'The served X.509-SVID expires in less than 30 minutes (TTL 1h, renewed at half-life): SPIRE rotation is stalled.'
 
       - alert: CircuitBreakerOpen
-        expr: circuit_breaker_state == 1
+        expr: address_manager_circuit_breaker_state == 1
         for: 1m
         labels:
           severity: critical
@@ -109,17 +109,8 @@ groups:
           summary: 'Circuit breaker open on {{ $labels.job }}'
           description: 'Circuit breaker for {{ $labels.service }} is in OPEN state.'
 
-      - alert: BackpressureHigh
-        expr: message_manager_backpressure_ratio > 0.8
-        for: 1m
-        labels:
-          severity: warning
-        annotations:
-          summary: 'Backpressure high on message-manager'
-          description: 'Backpressure ratio is {{ $value | humanizePercentage }}. Consider scaling message-manager.'
-
       - alert: DLQSizeGrowing
-        expr: rate(dlq_entries_added_total[15m]) > rate(dlq_entries_replayed_total[15m])
+        expr: sum by (job) (rate(dlq_entries_added_total[15m])) > sum by (job) (rate(dlq_entries_replayed_total[15m]))
         for: 5m
         labels:
           severity: warning
@@ -128,31 +119,31 @@ groups:
           description: 'Messages are being added to the DLQ faster than they are replayed.'
 
       - alert: InstanceCountLow
-        expr: count(discovery_registered_instances) < 2
+        expr: max by (service) (discovery_registered_instances_per_service) < 2 and max by (service) (max_over_time(discovery_registered_instances_per_service[1d])) >= 2
         for: 2m
         labels:
           severity: critical
         annotations:
-          summary: 'Low instance count for service {{ $labels.service_name }}'
-          description: 'Service {{ $labels.service_name }} has fewer than 2 registered instances.'
+          summary: 'Low instance count for service {{ $labels.service }}'
+          description: 'Service {{ $labels.service }} had 2+ instances in the last day and now has fewer than 2: redundancy is lost (single-replica environments never fire).'
 
       - alert: HighMemoryUsage
-        expr: nodejs_heap_size_used_bytes / nodejs_heap_size_total_bytes > 0.9
+        expr: nodejs_heap_size_used_bytes / nodejs_heap_size_limit_bytes > 0.9
         for: 5m
         labels:
           severity: warning
         annotations:
           summary: 'High memory usage on {{ $labels.job }}'
-          description: 'Heap usage is {{ $value | humanizePercentage }}.'
+          description: 'Heap usage is {{ $value | humanizePercentage }} of the V8 heap limit: out of memory is close.'
 
       - alert: HeartbeatStopped
-        expr: rate(discovery_heartbeats_total[5m]) == 0
+        expr: sum by (service) (rate(discovery_heartbeats_total[5m])) == 0
         for: 1m
         labels:
           severity: critical
         annotations:
-          summary: 'Heartbeats have stopped on discovery-server'
-          description: 'No heartbeats received in the last 5 minutes.'
+          summary: 'Heartbeats have stopped for {{ $labels.service }}'
+          description: 'discovery-server received no heartbeat from {{ $labels.service }} in the last 5 minutes.'
 
       - alert: BackupFailed
         expr: time() - backup_last_success_timestamp > 90000
@@ -171,3 +162,257 @@ groups:
         annotations:
           summary: 'Database backup has never succeeded'
           description: 'No successful backup has ever been recorded for {{ $labels.component }}.'
+
+      - alert: BackupJobStale
+        expr: 'time() - backup_last_run_timestamp > 93600'
+        for: 1h
+        labels:
+          severity: critical
+        annotations:
+          summary: 'Backup job has not run for more than 26 hours'
+          description: 'The db-backup CronJob stopped running (suspended, failing to start or stuck): no new backup is being taken.'
+
+      - alert: BackupMetricsAbsent
+        expr: 'absent(backup_last_run_timestamp)'
+        for: 26h
+        labels:
+          severity: critical
+        annotations:
+          summary: 'No backup has ever reported'
+          description: 'Prometheus has no backup metric: the db-backup job never ran or backup-metrics-exporter is down.'
+
+      - alert: BackupComponentMissing
+        expr: 'absent(backup_last_success_timestamp{component="mongodb"}) or absent(backup_last_success_timestamp{component="mongodb-audit"}) or absent(backup_last_success_timestamp{component="mysql"}) or absent(backup_last_success_timestamp{component="spire"}) or absent(backup_last_success_timestamp{component="checkpoints"})'
+        for: 26h
+        labels:
+          severity: critical
+        annotations:
+          summary: 'A database is no longer backed up: {{ $labels.component }}'
+          description: 'The last backup runs reported nothing for {{ $labels.component }} (component removed from the job, or skipped).'
+
+      - alert: BackupUnencrypted
+        expr: backup_last_status{component="encryption"} == 0 or backup_encrypted == 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: 'Backups are not encrypted'
+          description: 'No age recipient configured (BACKUP_AGE_RECIPIENTS): backups are refused or written in clear.'
+
+      - alert: BackupOffsiteCopyFailed
+        expr: backup_last_status{component="offsite"} == 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: 'Off-site backup copy failed'
+          description: 'The encrypted backups were not copied off-site: check the S3 credentials.'
+
+      # ── Audit trail integrity (ADR-0027) ──────────────────────────
+
+      - alert: AuditChainBroken
+        expr: 'max by (job) (audit_chain_broken) == 1'
+        labels:
+          severity: critical
+        annotations:
+          summary: 'Audit trail integrity check failed'
+          description: 'The audit chain verification found a fault (event missing, changed or removed, or a chain that no longer matches its anchors). Run chain-cli report on an audit-logger pod; acknowledge a loss only for an explained restore (runbook-audit-chain-broken).'
+
+      - alert: AuditChainVerificationStale
+        expr: 'time() - max by (job) (audit_chain_last_verification_timestamp) > 2700'
+        for: 15m
+        labels:
+          severity: critical
+        annotations:
+          summary: 'Audit trail no longer verified'
+          description: 'audit-logger has not completed an audit chain verification for more than 45 minutes (MongoDB unreachable, or the cycle fails): a broken chain would go unnoticed (runbook-audit-chain-broken).'
+
+      - alert: AuditChainAnchoringStale
+        expr: 'max by (job) (audit_chain_anchoring_enabled) == 1 and time() - max by (job) (audit_chain_last_anchor_timestamp) > 2700'
+        for: 15m
+        labels:
+          severity: critical
+        annotations:
+          summary: 'Audit trail no longer anchored'
+          description: 'audit-logger has not anchored the audit chain head for more than 45 minutes: check the anchor bucket credentials (audit-anchor-s3) and its logs (runbook-audit-chain-broken).'
+
+      - alert: AuditChainNotAnchored
+        expr: 'max by (job) (audit_chain_anchoring_enabled) == 0'
+        for: 1h
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Audit trail verified but not anchored'
+          description: 'AUDIT_ANCHOR_BUCKET is not set: a rewrite of the whole audit chain by someone with database access would go unnoticed (ADR-0027).'
+      # ── Application SLI Alerts ────────────────────────────────────
+
+      - alert: MessageDeliveryLowSuccessRate
+        expr: (sum by (job) (rate(mm_messages_published_total[5m])) or sum by (job) (rate(mm_messages_dlq_total[5m])) * 0) / ((sum by (job) (rate(mm_messages_published_total[5m])) or sum by (job) (rate(mm_messages_dlq_total[5m])) * 0) + (sum by (job) (rate(mm_messages_dlq_total[5m])) or sum by (job) (rate(mm_messages_published_total[5m])) * 0)) < 0.995
+        for: 5m
+        labels:
+          severity: critical
+          slo: message_delivery
+        annotations:
+          summary: 'Message delivery success rate below 99.5%'
+          description: 'Message-manager delivery rate is {{ $value | humanizePercentage }} over 5m.'
+
+      - alert: MessagesLost
+        expr: sum(increase(mm_messages_dlq_error_total{target="file"}[15m])) > 0
+        for: 0m
+        labels:
+          severity: critical
+        annotations:
+          summary: 'Dead-lettered messages could not be written: messages lost'
+          description: 'dlq-service could not take dead-lettered messages and message-manager could not keep them in DLQ_LOCAL_FALLBACK_PATH either: they are gone. Check that the path is on a writable volume, then dlq-service.'
+
+      - alert: MessagesDeadLettered
+        expr: sum by (topic) (increase(mm_messages_dlq_total[1h])) > 0
+        for: 0m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Messages dead-lettered on {{ $labels.topic }}'
+          description: 'message-manager gave up delivering {{ $value | humanize }} message(s) on {{ $labels.topic }} in the last hour. They are in dlq-service (GET /dlq) to inspect and replay.'
+
+      # dlq-service cannot take dead letters: message-manager keeps them in a
+      # file that does not outlive the pod and sends them again every minute.
+      - alert: DeadLettersNotForwarded
+        expr: max by (instance) (mm_dlq_fallback_pending) > 0
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Dead letters kept in a message-manager pod, not in dlq-service'
+          description: '{{ $value }} dead letter(s) have waited 15 minutes in the local file of {{ $labels.instance }}: dlq-service cannot take them (down, unreachable, or another DLQ_AUTH_HMAC_SECRET). They are lost if the pod is deleted.'
+
+      - alert: DeadLettersRejected
+        expr: sum(increase(mm_dlq_rejected_total[1h])) > 0
+        for: 0m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'dlq-service refused dead letters'
+          description: 'dlq-service refused {{ $value | humanize }} dead letter(s) in the last hour (invalid or too large): they are in DLQ_LOCAL_FALLBACK_PATH.rejected on the message-manager pod, and in its logs.'
+
+      # A topic nobody subscribes to drops its messages. Expected for a few
+      # seconds at a cold start (publishers up before subscribers), so only a
+      # drop lasting 10 minutes alerts.
+      - alert: MessagesUnrouted
+        expr: sum by (topic) (rate(mm_messages_unrouted_total[5m])) > 0
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Messages dropped on {{ $labels.topic }}: no subscriber'
+          description: 'message-manager drops the messages published on {{ $labels.topic }}: no instance subscribes to it. audit-logger subscribes to every topic: check that the subscribers are up and renew their subscriptions, and that message-manager reaches Redis.'
+
+      - alert: DLQDrainRateLow
+        expr: sum by (job) (rate(dlq_entries_replayed_total[15m])) / sum by (job) (rate(dlq_entries_added_total[15m])) < 0.8
+        for: 15m
+        labels:
+          severity: warning
+          slo: dlq_drain
+        annotations:
+          summary: 'DLQ drain rate is critically low'
+          description: 'DLQ replay/add ratio is {{ $value | humanizePercentage }} — queue is growing.'
+
+      - alert: TrainingCompletionRateLow
+        expr: (sum by (job) (rate(tt_training_sessions_total{result="success"}[15m])) or sum by (job) (rate(tt_training_sessions_total[15m])) * 0) / sum by (job) (rate(tt_training_sessions_total[15m])) < 0.95
+        for: 15m
+        labels:
+          severity: warning
+          slo: training_completion
+        annotations:
+          summary: 'Training completion rate below 95%'
+          description: 'Trainer completion rate is {{ $value | humanizePercentage }} over 15m.'
+
+      - alert: MarketDataStale
+        expr: sum(increase(fs_candles_persisted_total[15m])) == 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: 'No market data persisted for 15 minutes'
+          description: 'financial-scraper persisted no candle in 15 minutes: collection is stopped (no symbol tracked, scheduler disabled everywhere, Binance or MySQL failing) while the service may still report healthy.'
+
+      - alert: ScrapeCyclesFailing
+        expr: sum(rate(fs_scrape_cycles_total{result="error"}[15m])) / sum(rate(fs_scrape_cycles_total[15m])) > 0.5
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Most scrape cycles fail'
+          description: 'More than half of the financial-scraper cycles failed over 15 minutes ({{ $value | humanizePercentage }}).'
+
+      # ADR-0026: Binance stays the source while its public API answers from
+      # here. A 451 is the geo-block that reopens the decision. The series is
+      # born at the first 451; a cycle sends several requests per symbol, so
+      # the counter grows within the cycle and the next ones.
+      - alert: BinanceRestrictedLocation
+        expr: sum(increase(fs_binance_requests_total{status="451"}[15m])) > 0
+        for: 0m
+        labels:
+          severity: critical
+        annotations:
+          summary: 'Binance refuses the scraper location (HTTP 451)'
+          description: 'Binance answered 451 (restricted location) {{ $value | humanize }} times in 15 minutes: market data collection is blocked. Re-examine ADR-0026 and switch BINANCE_BASE_URL to the next fallback (runbook-market-data-stale).'
+
+      # The scraper persists before publishing and sends the waiting candles
+      # from MySQL (publish cursor, migration 005): a backlog means the bus
+      # refuses them; 0 in normal operation.
+      - alert: MarketDataUnpublished
+        expr: max by (symbol) (fs_unpublished_candles) > 0
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Persisted candles not reaching the bus'
+          description: '{{ $value | humanize }} persisted {{ $labels.symbol }} candles have waited for the bus for 15 minutes: message-manager refuses or holds the scraper publishes. They go out from MySQL, oldest first, once it answers; the trainer lags meanwhile (runbook-message-bus-outage)'
+
+      - alert: TrainerMarketDataStale
+        expr: sum(increase(tt_market_data_received_total[15m])) == 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: 'trader-trainer receives no market data'
+          description: 'No candle reached the trainer buffer in 15 minutes: the scraper, message-manager or the trainer subscription is broken.'
+
+      # A trained model could not be stored (ADR-0022): the best agent then
+      # only lives in the trainer memory, lost at the next restart. The series
+      # exist at 0 from startup, so the first failure is an increase.
+      - alert: ModelArtifactWriteFailing
+        expr: sum by (job) (increase(tt_model_artifacts_total{result="error"}[30m])) > 0
+        for: 0m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Trained models are not stored on {{ $labels.job }}'
+          description: '{{ $value | humanize }} model artifact write(s) failed in 30 minutes: the best agents are not kept. Check the trainer logs ("Failed to store model artifact") and TRAINER_MODEL_DIR (volume mounted, writable, not full).'
+
+      - alert: AlertmanagerNotificationsFailing
+        expr: sum by (integration) (increase(alertmanager_notifications_failed_total[1h])) > 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: 'Alertmanager cannot deliver {{ $labels.integration }} notifications'
+          description: 'Notifications through {{ $labels.integration }} fail: check the alertmanager-credentials Secret (webhook URL, routing key). This alert may not reach you: the dead man''s switch (Watchdog) is the safety net.'
+
+      - alert: PrometheusRuleEvaluationFailures
+        expr: sum(rate(prometheus_rule_evaluation_failures_total[10m])) > 0
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: 'Prometheus fails to evaluate alert rules'
+          description: 'Some alert rules cannot be evaluated: alerts may be silently missing.'
+
+      - alert: Watchdog
+        expr: vector(1)
+        for: 0m
+        labels:
+          severity: none
+        annotations:
+          summary: 'Alerting pipeline heartbeat'
+          description: 'Always firing. Routed to the dead man''s switch (ALERTMANAGER_DEADMAN_URL): when it stops arriving, Prometheus, Alertmanager or the notification path is down.'
