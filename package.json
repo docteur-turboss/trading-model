@@ -30,6 +30,7 @@
     "release:version": "bun scripts/release.mjs --version",
     "release:publish": "bun scripts/release.mjs --publish",
     "lint": "bunx @biomejs/biome check .",
+    "lint:fix": "bunx @biomejs/biome check . --write",
     "deps:check": "node scripts/check-deps.mjs",
     "api:check": "bun --tsconfig-override=scripts/api-contract.tsconfig.json scripts/api-contract.mjs",
     "adr:check": "node scripts/adr-check.mjs",
