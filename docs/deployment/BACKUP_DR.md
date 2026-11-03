@@ -739,10 +739,27 @@ operator key, or the escrow key from the safe if it is lost
    restore the databases: MongoDB → MySQL (incl. SPIRE `spire`)
 4. Restore the SPIRE CA keys (`keys.json`), which restarts the SPIRE server
 5. Restore the trainer checkpoints
-6. Verify health endpoints, service registration in discovery-server and the
-   Prometheus targets (all `up` means mTLS works)
+6. Run `bash scripts/verify-restore-k8s.sh` (business checks, see Recovery
+   Verification), then verify health endpoints, service registration in
+   discovery-server and the Prometheus targets (all `up` means mTLS works)
 
 ### Recovery Verification
+
+After `restore-k8s.sh`, one read-only command checks the restored data:
+
+```bash
+K8S_NAMESPACE=trading-model bash scripts/verify-restore-k8s.sh
+# Optional freshness limit: add --max-candle-age-hours 48
+# BACKUP_DIR=/restore BACKUP_AGE_IDENTITY=key.txt also reads the run manifest
+```
+
+It prints OK / KO per check and exits 1 on any KO: audit chain
+(`tests/backup/audit-chain.js`, `broken` null, count > 0), dead letter count,
+`market_candles` rows and latest timestamp, tables of the `spire` schema,
+SPIRE trust bundle retrievable, and the run manifest counts. The manifest
+currently records size and sha256 only, no row counts: the script says so and
+compares nothing. The kind drill runs it after the restore, and checks that it
+fails on an altered audit event. Then the service checks:
 
 ```bash
 # Check all services are registered (through edge-proxy → gateway)
@@ -804,11 +821,10 @@ Drill timings (issue #329): both drills time every step (`tests/backup/drill-tim
   statement the restored schema rejects stops the replay with exit 1.
 - **Docker stack**: no scheduler, no backup metrics scraped, Redis without
   persistence (derived state only). Compose is a development stack.
-- **No business-level validation after a restore** beyond the CI drill: check
-  the latest `market_candles` by hand after a real restore. The audit trail
-  can be checked: `mongosh --eval "const AUDIT_DB = 'audit'; $(cat tests/backup/audit-chain.js)"`
-  on the audit primary (`broken` must be `null`). Events stored before
-  2026-10-31 hold `correlationId: null` where their hash saw no field; the
+- **Business validation after a restore** is `scripts/verify-restore-k8s.sh`
+  (Recovery Verification); it has no source of expected row counts (the run
+  manifest holds none) and the audit anchors (ADR-0027) are not checked.
+- Events stored before 2026-10-31 hold `correlationId: null` where their hash saw no field; the
   verifier drops that null (audit-logger never hashes one), so they verify too.
 
 ## Ownership

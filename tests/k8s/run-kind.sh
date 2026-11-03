@@ -683,6 +683,24 @@ verify_backup() {
 	log "  audit trail restored up to the instant: $(echo "$audit_restored" | json_field count) events" \
 		"(sequence $audit_dumped at the dump, $(echo "$audit_restored" | json_field last) restored), same hashes, chain verified"
 
+	# Operator command (issue #322): same checks a real restore gets, read-only.
+	log "restore drill: scripts/verify-restore-k8s.sh on the restored data"
+	K8S_NAMESPACE="$NS" bash "$ROOT/scripts/verify-restore-k8s.sh" || {
+		log "verify-restore-k8s.sh failed on a correctly restored cluster"
+		return 1
+	}
+	# Negative test: one altered audit event must make it fail (then put back).
+	local audit_hash
+	audit_hash="$(mongo_eval mongodb-audit "const e = db.getSiblingDB('audit').audit_events.find().sort({chainSequence: -1}).limit(1).next(); print(e.dataHash)" | tail -1)"
+	mongo_eval mongodb-audit "db.getSiblingDB('audit').audit_events.updateOne({dataHash: '$audit_hash'}, {\$set: {dataHash: 'tampered'}})" >/dev/null
+	if K8S_NAMESPACE="$NS" bash "$ROOT/scripts/verify-restore-k8s.sh" >/dev/null 2>&1; then
+		log "verify-restore-k8s.sh accepted an altered audit event"
+		mongo_eval mongodb-audit "db.getSiblingDB('audit').audit_events.updateOne({dataHash: 'tampered'}, {\$set: {dataHash: '$audit_hash'}})" >/dev/null || true
+		return 1
+	fi
+	mongo_eval mongodb-audit "db.getSiblingDB('audit').audit_events.updateOne({dataHash: 'tampered'}, {\$set: {dataHash: '$audit_hash'}})" >/dev/null
+	log "  verify-restore-k8s.sh passes on the restore and fails on an altered audit event"
+
 	# The SPIRE server came back with the restored CA: the agents still hold
 	# SVIDs from the CA of the wiped volume and crash-loop until they re-attest.
 	# Restart them and wait for the CSI driver, or the writers cannot mount the
