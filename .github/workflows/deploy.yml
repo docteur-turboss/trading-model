@@ -276,6 +276,55 @@ jobs:
           [ -z "$AUDIT_ANCHOR_ENDPOINT" ] || endpoint=(--from-literal=AUDIT_ANCHOR_ENDPOINT="$AUDIT_ANCHOR_ENDPOINT")
           kubectl -n "$NS" create secret generic audit-anchor-s3             --from-literal=AUDIT_ANCHOR_BUCKET="$AUDIT_ANCHOR_BUCKET"             --from-literal=AUDIT_ANCHOR_REGION="${AUDIT_ANCHOR_REGION:-us-east-1}"             --from-literal=AWS_ACCESS_KEY_ID="$AUDIT_ANCHOR_ACCESS_KEY_ID"             --from-literal=AWS_SECRET_ACCESS_KEY="$AUDIT_ANCHOR_SECRET_ACCESS_KEY"             "${endpoint[@]}"             --dry-run=client -o yaml | kubectl apply -f -
 
+      # The off-site backup copy must survive a compromised cluster, which holds
+      # the bucket's credentials: Object Lock in compliance mode, default
+      # retention from RETENTION_DAYS of the db-backup CronJob to the 31 days
+      # of the daily/ lifecycle rule (ADR-0033). Checked before anything is
+      # applied, with the credentials the job will use: the GitHub environment
+      # (BACKUP_S3_*), or else the trading-model-backup-s3 Secret already in
+      # the namespace (e.g. a SealedSecret). Production fails, other
+      # environments warn; BACKUP_S3_IMMUTABILITY_CHECK=warn downgrades
+      # production while the bucket is set up (docs/deployment/BACKUP_DR.md).
+      - name: Check off-site backup bucket immutability
+        shell: bash
+        env:
+          BACKUP_S3_BUCKET: ${{ vars.BACKUP_S3_BUCKET }}
+          BACKUP_S3_REGION: ${{ vars.BACKUP_S3_REGION }}
+          BACKUP_S3_ENDPOINT: ${{ vars.BACKUP_S3_ENDPOINT }}
+          BACKUP_S3_ACCESS_KEY_ID: ${{ secrets.BACKUP_S3_ACCESS_KEY_ID }}
+          BACKUP_S3_SECRET_ACCESS_KEY: ${{ secrets.BACKUP_S3_SECRET_ACCESS_KEY }}
+          BACKUP_S3_IMMUTABILITY_CHECK: ${{ vars.BACKUP_S3_IMMUTABILITY_CHECK }}
+        run: |
+          NS="${{ steps.ns.outputs.namespace }}"
+          bucket="$BACKUP_S3_BUCKET" endpoint="$BACKUP_S3_ENDPOINT" region="$BACKUP_S3_REGION"
+          key_id="$BACKUP_S3_ACCESS_KEY_ID" secret="$BACKUP_S3_SECRET_ACCESS_KEY"
+          if [ -z "$bucket" ] && kubectl -n "$NS" get secret trading-model-backup-s3 >/dev/null 2>&1; then
+            echo "BACKUP_S3_BUCKET is not set: checking the bucket of the existing trading-model-backup-s3 Secret"
+            secret_key() {
+              kubectl -n "$NS" get secret trading-model-backup-s3 -o "jsonpath={.data.$1}" | base64 -d
+            }
+            bucket="$(secret_key BACKUP_S3_BUCKET)"
+            endpoint="$(secret_key S3_ENDPOINT)"
+            region="$(secret_key AWS_REGION)"
+            key_id="$(secret_key AWS_ACCESS_KEY_ID)"
+            secret="$(secret_key AWS_SECRET_ACCESS_KEY)"
+            [ -z "$key_id" ] || echo "::add-mask::$key_id"
+            [ -z "$secret" ] || echo "::add-mask::$secret"
+          fi
+          if [ -n "$bucket" ] && { [ -z "$key_id" ] || [ -z "$secret" ]; }; then
+            echo "::error::Off-site backup bucket $bucket has no credentials: set BACKUP_S3_ACCESS_KEY_ID / BACKUP_S3_SECRET_ACCESS_KEY"
+            exit 1
+          fi
+          # Minimum lock: what the CronJob keeps on the volume (RETENTION_DAYS).
+          retention=$(awk '/name: RETENTION_DAYS/ { getline; gsub(/[^0-9]/, ""); print; exit }' deploy/k8s/jobs/backup-cronjob.yaml)
+          if [ -z "$retention" ]; then
+            echo "::error::RETENTION_DAYS not found in deploy/k8s/jobs/backup-cronjob.yaml"
+            exit 1
+          fi
+          AWS_ACCESS_KEY_ID="$key_id" AWS_SECRET_ACCESS_KEY="$secret" AWS_REGION="${region:-us-east-1}" \
+            bash scripts/backup-bucket-check.sh --environment "${{ inputs.environment }}" \
+              --bucket "$bucket" --endpoint "$endpoint" --min-days "$retention"
+
       # Notification credentials, mounted as files by Alertmanager and read at
       # send time (no restart needed). Keys left unset are left out.
       - name: Configure alert notifications
@@ -387,7 +436,8 @@ jobs:
       # db-backup job fails without it (BACKUP_REQUIRE_OFFSITE). Bucket,
       # region, endpoint and provider are variables of the GitHub environment,
       # the credentials are secrets. Unset: an existing trading-model-backup-s3
-      # Secret (e.g. a SealedSecret) is left as it is.
+      # Secret (e.g. a SealedSecret) is left as it is. Its Object Lock was
+      # checked before the overlay ("Check off-site backup bucket immutability").
       - name: Configure off-site backup copy
         shell: bash
         env:

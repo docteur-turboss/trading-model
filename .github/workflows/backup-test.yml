@@ -36,7 +36,7 @@ jobs:
 
       - name: Validate backup scripts syntax
         run: |
-          for script in backup.sh restore.sh backup-k8s.sh backup-incremental-k8s.sh restore-k8s.sh backup-lib.sh fetch-offsite.sh; do
+          for script in backup.sh restore.sh backup-k8s.sh backup-incremental-k8s.sh restore-k8s.sh backup-lib.sh fetch-offsite.sh backup-bucket-check.sh; do
             bash -n "scripts/$script" && echo "  ✓ $script syntax OK"
           done
 
@@ -63,6 +63,13 @@ jobs:
       # off-site tiers daily/ weekly/ monthly/ (ADR-0032, issue #292).
       - name: Test the backup retention
         run: bash tests/backup/backup-retention.test.sh
+
+      # Object Lock check of the off-site bucket run by deploy.yml (ADR-0033,
+      # issue #326), with a stub aws CLI: compliance passes; absent,
+      # governance, too short or too long fails in production, warns in
+      # staging; BACKUP_S3_IMMUTABILITY_CHECK fallback.
+      - name: Test the off-site bucket immutability check
+        run: bash tests/backup/backup-bucket-check.test.sh
 
       # Off-site fetch (scripts/fetch-offsite.sh) against `rclone serve s3`
       # filled by upload_offsite: run selection, layout, refusals. Runs in the
