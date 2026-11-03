@@ -260,8 +260,12 @@ components: `upload_offsite` only copies the dumps that succeeded, so a run
 missing a file (`mongodb/<TS>/mongodb.archive.gz.age` and
 `mongodb-audit.archive.gz.age`, `mysql/financial_scraper_<TS>.sql.gz.age`,
 `checkpoints/checkpoints_<TS>.tar.gz.age`, `spire/keys_<TS>.json.age`) is
-skipped, and refused with `--timestamp`. It exits 1 when the bucket is
-unreachable or holds no complete run, and prints the restore command.
+skipped, and refused with `--timestamp`. The run manifest
+(`manifests/manifest_<TS>.json.age`, see "Run manifest") is fetched with the
+dumps, so `restore-k8s.sh` verifies each file against it; a run taken before
+manifests is fetched with a warning and restored without checksum. It exits 1
+when the bucket is unreachable or holds no complete run, and prints the
+restore command.
 
 ```bash
 # Same variables as the db-backup CronJob (Secret trading-model-backup-s3)
