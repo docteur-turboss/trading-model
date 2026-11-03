@@ -748,7 +748,8 @@ operator key, or the escrow key from the safe if it is lost
 After `restore-k8s.sh`, one read-only command checks the restored data:
 
 ```bash
-K8S_NAMESPACE=trading-model bash scripts/verify-restore-k8s.sh \n  [--max-candle-age-hours 48]   # optional freshness limit
+K8S_NAMESPACE=trading-model bash scripts/verify-restore-k8s.sh
+# Optional freshness limit: add --max-candle-age-hours 48
 # BACKUP_DIR=/restore BACKUP_AGE_IDENTITY=key.txt also reads the run manifest
 ```
 
