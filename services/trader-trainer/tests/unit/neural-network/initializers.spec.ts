@@ -33,20 +33,18 @@ describe("Initializers", () => {
 		}
 	});
 
-	test.each([
-		"random",
-		"xavier",
-		"he",
-		"leCun",
-	] as const)("%s should be reproducible with a seeded rng", (type) => {
-		const draw = (seed: number) => {
-			const rng = makePRNG(seed);
-			return Array.from({ length: 10 }, () =>
-				INITIALIZERS[type].initialize({ fanIn: 10, fanOut: 5 }, rng)
-			);
-		};
+	test.each(["random", "xavier", "he", "leCun"] as const)(
+		"%s should be reproducible with a seeded rng",
+		(type) => {
+			const draw = (seed: number) => {
+				const rng = makePRNG(seed);
+				return Array.from({ length: 10 }, () =>
+					INITIALIZERS[type].initialize({ fanIn: 10, fanOut: 5 }, rng)
+				);
+			};
 
-		expect(draw(7)).toEqual(draw(7));
-		expect(draw(7)).not.toEqual(draw(8));
-	});
+			expect(draw(7)).toEqual(draw(7));
+			expect(draw(7)).not.toEqual(draw(8));
+		}
+	);
 });

@@ -50,16 +50,17 @@ describe("published market data contract", () => {
 	);
 	const entries = buildMarketDataEntries(response);
 
-	it.each(
-		entries.map((entry) => [String(entry.topic), entry] as const)
-	)("%s passes the subscriber payload validation", (_topic, entry) => {
-		const result = MESSAGE_PAYLOAD_SCHEMA.safeParse({
-			type: entry.topic,
-			data: overTheWire(entry.data),
-		});
+	it.each(entries.map((entry) => [String(entry.topic), entry] as const))(
+		"%s passes the subscriber payload validation",
+		(_topic, entry) => {
+			const result = MESSAGE_PAYLOAD_SCHEMA.safeParse({
+				type: entry.topic,
+				data: overTheWire(entry.data),
+			});
 
-		expect(result.error?.issues ?? []).toEqual([]);
-	});
+			expect(result.error?.issues ?? []).toEqual([]);
+		}
+	);
 
 	it("publishes the candles in the { candle } envelope the trainer reads", () => {
 		const candles = entries.find(

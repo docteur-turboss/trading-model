@@ -312,17 +312,18 @@ describe("service message contracts", () => {
 	});
 
 	describe("message-manager accepts what producers publish", () => {
-		it.each(
-			ALL_TOPICS.filter((t) => !(t in UNPUBLISHED_TOPICS))
-		)("%s", async (topic) => {
-			const forTopic = publications.filter((p) => p.topic === topic);
-			expect(forTopic.length).toBeGreaterThan(0);
+		it.each(ALL_TOPICS.filter((t) => !(t in UNPUBLISHED_TOPICS)))(
+			"%s",
+			async (topic) => {
+				const forTopic = publications.filter((p) => p.topic === topic);
+				expect(forTopic.length).toBeGreaterThan(0);
 
-			for (const publication of forTopic) {
-				const relayed = await relayThroughMessageManager(publication.request);
-				expect(relayed).toMatchObject({ accepted: true });
+				for (const publication of forTopic) {
+					const relayed = await relayThroughMessageManager(publication.request);
+					expect(relayed).toMatchObject({ accepted: true });
+				}
 			}
-		});
+		);
 	});
 
 	describe("subscribers accept and use what message-manager delivers", () => {
@@ -337,46 +338,48 @@ describe("service message contracts", () => {
 			return bodies;
 		}
 
-		it.each(
-			trainer.topics as string[]
-		)("trader-trainer: %s is validated and reaches the market data buffer", async (topic) => {
-			const before = JSON.stringify({
-				states: trainer.buffer
-					.getSymbols()
-					.map((s) => trainer.buffer.getSymbolState(s)),
-				prices: trainer.buffer.getPriceSnapshot(),
-			});
-
-			for (const body of await deliveredBodies(topic)) {
-				const reception = await trainer.receive(body);
-				expect(reception).toEqual({ status: 200 });
-			}
-
-			const after = JSON.stringify({
-				states: trainer.buffer
-					.getSymbols()
-					.map((s) => trainer.buffer.getSymbolState(s)),
-				prices: trainer.buffer.getPriceSnapshot(),
-			});
-			expect(after).not.toEqual(before);
-		});
-
-		it.each(
-			audit.topics.filter((t) => !(t in UNPUBLISHED_TOPICS))
-		)("audit-logger: %s is recorded with its payload", async (topic) => {
-			for (const body of await deliveredBodies(topic)) {
-				const reception = await audit.receive(body);
-				expect(reception.status).toBe(200);
-				const document = audit.documents.at(-1);
-				expect(document).toMatchObject({
-					metadata: { topic },
-					payload: (body as { payload: unknown }).payload,
+		it.each(trainer.topics as string[])(
+			"trader-trainer: %s is validated and reaches the market data buffer",
+			async (topic) => {
+				const before = JSON.stringify({
+					states: trainer.buffer
+						.getSymbols()
+						.map((s) => trainer.buffer.getSymbolState(s)),
+					prices: trainer.buffer.getPriceSnapshot(),
 				});
-				expect(Number.isNaN(document?.receivedAt.getTime())).toBe(false);
-				expect(document?.metadata.messageId).toEqual(expect.any(String));
-				expect(document?.metadata.publisher).toEqual(expect.any(String));
+
+				for (const body of await deliveredBodies(topic)) {
+					const reception = await trainer.receive(body);
+					expect(reception).toEqual({ status: 200 });
+				}
+
+				const after = JSON.stringify({
+					states: trainer.buffer
+						.getSymbols()
+						.map((s) => trainer.buffer.getSymbolState(s)),
+					prices: trainer.buffer.getPriceSnapshot(),
+				});
+				expect(after).not.toEqual(before);
 			}
-		});
+		);
+
+		it.each(audit.topics.filter((t) => !(t in UNPUBLISHED_TOPICS)))(
+			"audit-logger: %s is recorded with its payload",
+			async (topic) => {
+				for (const body of await deliveredBodies(topic)) {
+					const reception = await audit.receive(body);
+					expect(reception.status).toBe(200);
+					const document = audit.documents.at(-1);
+					expect(document).toMatchObject({
+						metadata: { topic },
+						payload: (body as { payload: unknown }).payload,
+					});
+					expect(Number.isNaN(document?.receivedAt.getTime())).toBe(false);
+					expect(document?.metadata.messageId).toEqual(expect.any(String));
+					expect(document?.metadata.publisher).toEqual(expect.any(String));
+				}
+			}
+		);
 	});
 
 	describe("dead letters replayed by dlq-service reach the subscribers again", () => {
@@ -385,32 +388,37 @@ describe("service message contracts", () => {
 			{ topics: audit.topics, receive: audit.receive },
 		];
 
-		it.each(
-			ALL_TOPICS.filter((t) => !(t in UNPUBLISHED_TOPICS))
-		)("%s", async (topic) => {
-			for (const publication of publications.filter((p) => p.topic === topic)) {
-				const first = await relayThroughMessageManager(publication.request);
-				if (!first.accepted) {
-					throw new Error(first.error);
-				}
-
-				const { stored, replay } = await deadLetterAndReplay(first.message);
-				expect(stored.topic).toBe(topic);
-
-				const replayed = await relayThroughMessageManager(replay);
-				expect(replayed).toMatchObject({ accepted: true });
-				if (!replayed.accepted) {
-					continue;
-				}
-				expect((replayed.delivered as { payload: unknown }).payload).toEqual(
-					(first.delivered as { payload: unknown }).payload
-				);
-				for (const receiver of receivers.filter((r) =>
-					r.topics.includes(topic)
+		it.each(ALL_TOPICS.filter((t) => !(t in UNPUBLISHED_TOPICS)))(
+			"%s",
+			async (topic) => {
+				for (const publication of publications.filter(
+					(p) => p.topic === topic
 				)) {
-					expect((await receiver.receive(replayed.delivered)).status).toBe(200);
+					const first = await relayThroughMessageManager(publication.request);
+					if (!first.accepted) {
+						throw new Error(first.error);
+					}
+
+					const { stored, replay } = await deadLetterAndReplay(first.message);
+					expect(stored.topic).toBe(topic);
+
+					const replayed = await relayThroughMessageManager(replay);
+					expect(replayed).toMatchObject({ accepted: true });
+					if (!replayed.accepted) {
+						continue;
+					}
+					expect((replayed.delivered as { payload: unknown }).payload).toEqual(
+						(first.delivered as { payload: unknown }).payload
+					);
+					for (const receiver of receivers.filter((r) =>
+						r.topics.includes(topic)
+					)) {
+						expect((await receiver.receive(replayed.delivered)).status).toBe(
+							200
+						);
+					}
 				}
 			}
-		});
+		);
 	});
 });

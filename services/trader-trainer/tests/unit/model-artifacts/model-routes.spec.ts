@@ -166,9 +166,12 @@ describe("trader-trainer model routes (ADR-0022)", () => {
 		],
 		["a malformed version", "/models/BTCUSDT/latest", 400],
 		["a path traversal", "/models/..%2F..%2Fetc/x", 400],
-	])("GET /models/:symbol/:version rejects %s", async (_label, path, expected) => {
-		expect((await get(TRAINER_API.getModel, path)).status).toBe(expected);
-	});
+	])(
+		"GET /models/:symbol/:version rejects %s",
+		async (_label, path, expected) => {
+			expect((await get(TRAINER_API.getModel, path)).status).toBe(expected);
+		}
+	);
 
 	describe("GET /models/:symbol/:version/weights", () => {
 		it("answers 401 without a client identity", async () => {

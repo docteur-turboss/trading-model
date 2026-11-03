@@ -118,15 +118,20 @@ describe("broker routes", () => {
 		it.each([
 			["subscribe", BROKER_API.subscribe],
 			["unsubscribe", BROKER_API.unsubscribe],
-		] as const)("%s, with a body its route accepts", async (action, expected) => {
-			const { client, sent } = recordingClient(DEFAULT_CALLBACK_PATH);
-			await client[action]([TOPIC]);
+		] as const)(
+			"%s, with a body its route accepts",
+			async (action, expected) => {
+				const { client, sent } = recordingClient(DEFAULT_CALLBACK_PATH);
+				await client[action]([TOPIC]);
 
-			expect(sent).toHaveLength(1);
-			const route = brokerRouteFor(sent[0]);
-			expect(route).toBe(expected);
-			expect(parseRequest(expected, { body: sent[0].body }).success).toBe(true);
-		});
+				expect(sent).toHaveLength(1);
+				const route = brokerRouteFor(sent[0]);
+				expect(route).toBe(expected);
+				expect(parseRequest(expected, { body: sent[0].body }).success).toBe(
+					true
+				);
+			}
+		);
 	});
 
 	describe("subscribers mount the path message-manager delivers to", () => {
@@ -138,20 +143,21 @@ describe("broker routes", () => {
 			expect(deployedCallbackPaths().length).toBeGreaterThan(0);
 		});
 
-		it.each(
-			callbackPaths
-		)("broker-message callback route, MESSAGE_CALLBACK_PATH=%s", async (callbackPath) => {
-			const path = await deliveryPath(callbackPath);
-			const router = CREATE_CALLBACK_ROUTE(callbackPath) as unknown as {
-				stack: RouterLayer[];
-			};
+		it.each(callbackPaths)(
+			"broker-message callback route, MESSAGE_CALLBACK_PATH=%s",
+			async (callbackPath) => {
+				const path = await deliveryPath(callbackPath);
+				const router = CREATE_CALLBACK_ROUTE(callbackPath) as unknown as {
+					stack: RouterLayer[];
+				};
 
-			expect(
-				router.stack.some(
-					(layer) => layer.route?.methods.post && layer.match(path)
-				)
-			).toBe(true);
-		});
+				expect(
+					router.stack.some(
+						(layer) => layer.route?.methods.post && layer.match(path)
+					)
+				).toBe(true);
+			}
+		);
 
 		it("audit-logger, which keeps the default callback path", async () => {
 			expect(await deliveryPath(DEFAULT_CALLBACK_PATH)).toBe(

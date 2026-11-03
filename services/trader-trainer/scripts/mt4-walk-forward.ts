@@ -298,7 +298,7 @@ async function runSegment(
 	});
 	const closes = test.map((step) => Number(step.price));
 	return {
-		symbol: String(symbol),
+		symbol,
 		...run,
 		features: opts.features,
 		testFrom: new Date(Number(test[0].timestamp)).toISOString(),

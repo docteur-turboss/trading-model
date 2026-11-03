@@ -120,21 +120,24 @@ describe("MessageManagerClient", () => {
 						new Error("Generic error")
 					),
 			],
-		])("should log and resolve when %s (best-effort shutdown)", async (_case, arrange) => {
-			arrange();
-			const warn = jest
-				.spyOn(logger, "warn")
-				.mockImplementation(() => undefined);
+		])(
+			"should log and resolve when %s (best-effort shutdown)",
+			async (_case, arrange) => {
+				arrange();
+				const warn = jest
+					.spyOn(logger, "warn")
+					.mockImplementation(() => undefined);
 
-			await expect(
-				client.unsubscribe(["example.debug.create"])
-			).resolves.toBeUndefined();
-			expect(warn).toHaveBeenCalledWith(
-				"Failed to unsubscribe topics from Message Manager",
-				expect.anything()
-			);
-			warn.mockRestore();
-		});
+				await expect(
+					client.unsubscribe(["example.debug.create"])
+				).resolves.toBeUndefined();
+				expect(warn).toHaveBeenCalledWith(
+					"Failed to unsubscribe topics from Message Manager",
+					expect.anything()
+				);
+				warn.mockRestore();
+			}
+		);
 	});
 
 	describe("publish", () => {

@@ -32,7 +32,7 @@ export class HuberLoss extends BaseLoss {
 		const delta = config.deltaHuber;
 		for (let i = 0; i < len; i++) {
 			const diff = output[i] - target[i];
-			out[i] = (diff > delta ? delta : diff < -delta ? -delta : diff) * invN;
+			out[i] = Math.min(Math.max(diff, -delta), delta) * invN;
 		}
 	}
 }
