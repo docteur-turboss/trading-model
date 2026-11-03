@@ -239,7 +239,7 @@ groups:
           severity: critical
         annotations:
           summary: 'Backups are not encrypted'
-          description: 'No age recipient configured (BACKUP_AGE_RECIPIENTS): backups are refused or written in clear.'
+          description: 'No age recipient configured (BACKUP_AGE_RECIPIENTS), or fewer distinct recipients than BACKUP_MIN_RECIPIENTS: backups are refused or written in clear.'
 
       - alert: BackupOffsiteCopyFailed
         expr: backup_last_status{component="offsite"} == 0

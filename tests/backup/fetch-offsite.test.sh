@@ -489,6 +489,23 @@ else
 	pass "exit 1 without BACKUP_S3_BUCKET"
 fi
 
+echo "verify-backup-key.sh --offsite (issue #327)"
+# The key the runs were sealed for decrypts the newest complete run; another
+# key does not. The run is fetched into a temporary directory, removed after.
+if bash "$ROOT/scripts/verify-backup-key.sh" --identity "$WORK/key.txt" --offsite >"$WORK/out" 2>&1 &&
+	grep -q "Run: ${GOOD}" "$WORK/out" && grep -q "Result: PASS (5 component(s) decrypted)" "$WORK/out"; then
+	pass "the backup key decrypts every component of ${GOOD}, fetched from the bucket"
+else
+	failed "verify-backup-key.sh --offsite: $(cat "$WORK/out")"
+fi
+age-keygen -o "$WORK/foreign.txt" 2>/dev/null
+if bash "$ROOT/scripts/verify-backup-key.sh" --identity "$WORK/foreign.txt" --offsite >"$WORK/out" 2>&1; then
+	failed "a foreign key passed verify-backup-key.sh --offsite"
+else
+	grep -q "does not decrypt" "$WORK/out" && pass "exit 1 with a key the runs are not sealed for" ||
+		failed "foreign key: $(cat "$WORK/out")"
+fi
+
 echo ""
 if [ "$FAILED" -ne 0 ]; then
 	echo "fetch-offsite tests FAILED"

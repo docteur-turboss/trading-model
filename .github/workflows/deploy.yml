@@ -325,6 +325,29 @@ jobs:
             bash scripts/backup-bucket-check.sh --environment "${{ inputs.environment }}" \
               --bucket "$bucket" --endpoint "$endpoint" --min-days "$retention"
 
+      # At least two distinct age recipients in production (operator key +
+      # escrow key, issue #327): with one, losing its private key makes every
+      # backup unreadable. Minimum = BACKUP_MIN_RECIPIENTS of the overlay's
+      # backup CronJobs, never below 2 in production. Checked before any
+      # change; unset variable: the existing backup-encryption ConfigMap is
+      # checked instead (it is left as it is by "Configure backup encryption").
+      - name: Check backup encryption recipients
+        shell: bash
+        env:
+          BACKUP_AGE_RECIPIENTS: ${{ vars.BACKUP_AGE_RECIPIENTS }}
+        run: |
+          NS="${{ steps.ns.outputs.namespace }}"
+          ENV="${{ inputs.environment }}"
+          if [ -z "$BACKUP_AGE_RECIPIENTS" ] && kubectl -n "$NS" get configmap backup-encryption >/dev/null 2>&1; then
+            echo "BACKUP_AGE_RECIPIENTS is not set: checking the existing backup-encryption ConfigMap"
+            BACKUP_AGE_RECIPIENTS="$(kubectl -n "$NS" get configmap backup-encryption -o 'jsonpath={.data.BACKUP_AGE_RECIPIENTS}')"
+            export BACKUP_AGE_RECIPIENTS
+          fi
+          min=$(kubectl kustomize --load-restrictor LoadRestrictionsNone "deploy/k8s/overlays/$ENV" |
+            awk '/name: BACKUP_MIN_RECIPIENTS/ { getline; gsub(/[^0-9]/, ""); if ($0 + 0 > max + 0) max = $0 + 0 } END { print max + 0 }')
+          [ "$min" -ge 1 ] || min=1
+          bash scripts/backup-recipients-check.sh --environment "$ENV" --min "$min"
+
       # Notification credentials, mounted as files by Alertmanager and read at
       # send time (no restart needed). Keys left unset are left out.
       - name: Configure alert notifications
@@ -416,8 +439,10 @@ jobs:
           kubectl kustomize --load-restrictor LoadRestrictionsNone "$WRAPPER" | kubectl apply -f -
 
       # Public age key(s) the db-backup CronJob encrypts every dump for (the
-      # private key never enters the cluster). Environment variable of the
-      # GitHub environment; without it the backup job refuses to run.
+      # private keys never enter the cluster). Environment variable of the
+      # GitHub environment; without it the backup job refuses to run. Its
+      # recipients were checked before the overlay ("Check backup encryption
+      # recipients": at least 2 distinct keys in production).
       - name: Configure backup encryption
         shell: bash
         env:

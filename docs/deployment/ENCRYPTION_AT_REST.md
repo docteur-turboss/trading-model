@@ -156,12 +156,87 @@ never enters the cluster.
 ### Keys
 
 ```bash
-age-keygen -o backup-key.txt     # private key: password manager / offline
-# Public key: age1...            # goes to the cluster
+age-keygen -o operator-key.txt   # private key: operator's password manager
+age-keygen -o escrow-key.txt     # private key: offline, in the safe (see Key custody)
+# Public keys: age1...           # both go to BACKUP_AGE_RECIPIENTS
 ```
 
-Several recipients are allowed (space separated), e.g. an operator key plus a
-key kept in a safe: either decrypts.
+Every file is encrypted for every recipient (space or newline separated):
+any one private key decrypts it. Production needs **at least two distinct
+recipients**, the operator key and the escrow key (issue #327): with a single
+key, its loss, or a wrong value of the variable, makes every backup
+unreadable, and nobody notices before the restore. Two controls enforce it:
+
+- `init_encryption` (`scripts/backup-lib.sh`) refuses to write anything when
+  `BACKUP_AGE_RECIPIENTS` holds fewer distinct valid keys than
+  `BACKUP_MIN_RECIPIENTS` (default 1; the production overlay sets 2 on both
+  backup CronJobs): exit 1, `backup_last_status{component="encryption"} 0`,
+  alert `BackupUnencrypted`. A key listed twice counts once;
+- `deploy.yml` ("Check backup encryption recipients",
+  `scripts/backup-recipients-check.sh`) fails a production deploy, before
+  any change, when the variable (or, if it is unset, the existing
+  `backup-encryption` ConfigMap) holds fewer than 2 distinct `age1…` keys
+  (or fewer than the overlay's `BACKUP_MIN_RECIPIENTS`), or a token that is
+  not an `age1…` key. Staging only gets a warning.
+
+An age file does not name the keys it is encrypted for: only decrypting a
+real backup proves a private key still works. That is what
+`scripts/verify-backup-key.sh` does (see [Key custody](#key-custody)).
+
+### Key custody
+
+Two key pairs, two holders, two places. No private key ever enters the
+cluster, the repository or a CI secret.
+
+| Key | Holder | Where the private key lives | Used for |
+| --- | --- | --- | --- |
+| Operator | the on-call operator (Platform team) | the team password manager, entry `trading-model backup age operator` | day-to-day restores, the drills |
+| Escrow | the project owner (and one named deputy) | offline: printed in a sealed envelope in the safe, plus an encrypted USB copy stored in another place | the restore after the loss of the operator key; the periodic check |
+
+Both public keys are in the GitHub environment variable
+`BACKUP_AGE_RECIPIENTS` of production.
+
+**Periodic decryption check (quarterly, and after every key change).** The
+escrow holder runs, on a trusted workstation, with the escrow key copied to a
+tmpfs or an encrypted volume (mode 600) and deleted afterwards:
+
+```bash
+BACKUP_S3_BUCKET=s3://... AWS_ACCESS_KEY_ID=... AWS_SECRET_ACCESS_KEY=... \
+  bash scripts/verify-backup-key.sh --identity /dev/shm/escrow-key.txt --offsite
+# a run already fetched with fetch-offsite.sh: --dir ./restore [--timestamp TS]
+# long tiers (ADR-0032): --tier monthly --components mongodb-audit,mysql
+```
+
+It fetches the newest complete run from the off-site bucket
+(`scripts/fetch-offsite.sh`, read-only use of the credentials) into a
+temporary directory removed on exit, decrypts the run manifest, then every
+component (`mongodb`, `mongodb-audit`, `mysql`, `checkpoints`, `spire`)
+whole into `sha256sum`, with no plaintext on disk, and compares each with the
+manifest. It exits 1 when a single component is missing or does not decrypt,
+and prints the key's public key, the run checked (timestamp and UTC date) and
+each result. The operator runs it with the operator key in the same session.
+
+**Trace.** Keep the complete output of both runs in the operations log (one
+ticket per quarter, "backup key check <quarter>"), with the date and who ran
+it. A missing quarterly entry is itself a finding. A failed check is an
+incident: the backups taken since the key stopped working are readable only
+with the other key; rotate at once.
+
+**Rotation and re-encryption.** On a key change (holder leaves, key exposed
+or lost, yearly at the latest):
+
+1. Generate the new key pair; give the private key to its holder and store
+   it as in the table above.
+2. Replace the old public key in `BACKUP_AGE_RECIPIENTS` (keep at least two
+   distinct keys at every step) and redeploy: new backups use the new key.
+3. Run `verify-backup-key.sh` with the new key once the next run is
+   off-site.
+4. Older backups stay encrypted for the old key until they expire (31 days
+   daily, 85 days weekly, 5 years monthly, ADR-0032). Keep the old private
+   key, in the same custody, until the last of them has expired. They are
+   not re-encrypted: the off-site copies are under Object Lock (ADR-0033)
+   and cannot be rewritten. For an **exposed** key, record the exposure and
+   the date until which that key opens old backups.
 
 ### Kubernetes
 
@@ -171,8 +246,9 @@ key kept in a safe: either decrypts.
 - The `db-backup` and `db-backup-incremental` (hourly binlog and oplog
   archives, ADR-0031) CronJobs run `ghcr.io/trading-model/backup-tools`
   (`deploy/backup`: kubectl, age, rclone, mysqlbinlog) with
-  `BACKUP_REQUIRE_ENCRYPTION=true`: without a recipient it writes nothing,
-  exits 1 and exports `backup_last_status{component="encryption"} 0`
+  `BACKUP_REQUIRE_ENCRYPTION=true`: without a recipient (in production, with
+  fewer than 2 distinct recipients, `BACKUP_MIN_RECIPIENTS=2`) it writes
+  nothing, exits 1 and exports `backup_last_status{component="encryption"} 0`
   (alert `BackupUnencrypted`).
 - Off-site copy (mandatory, `BACKUP_REQUIRE_OFFSITE=true`: the job fails
   without it): secret `trading-model-backup-s3` (`BACKUP_S3_BUCKET`,
@@ -224,7 +300,7 @@ age -d -i backup-key.txt financial_scraper_<date>.sql.gz.age | gunzip | less
 | Metric | Meaning |
 | --- | --- |
 | `backup_encrypted` | 1 when the last run encrypted its files |
-| `backup_last_status{component="encryption"}` | 0: no valid recipient, nothing was written |
+| `backup_last_status{component="encryption"}` | 0: no valid recipient, or fewer distinct recipients than `BACKUP_MIN_RECIPIENTS`; nothing was written |
 | `backup_last_status{component="offsite"}` | off-site copy result |
 | `backup_last_status{component="manifest"}` | 0: the run manifest could not be written ([Run manifest](BACKUP_DR.md#run-manifest)) |
 
@@ -236,6 +312,12 @@ the staleness and coverage alerts listed in [BACKUP_DR.md](BACKUP_DR.md#monitori
 - `tests/backup/backup-encryption.test.sh` (`backup-test.yml`): age round
   trip, refusal without recipient, invalid key, no off-site copy in clear or
   missing, GTID filtering, metrics, restore scripts finding `.age` files.
+- `tests/backup/backup-key-verify.test.sh` (`backup-test.yml`):
+  `BACKUP_MIN_RECIPIENTS` refusals (one key, the same key twice, an invalid
+  second key), the deploy check (`backup-recipients-check.sh`), and
+  `verify-backup-key.sh` on a run encrypted for two keys: each key passes, a
+  third key fails, a component sealed for another key or missing from the
+  run fails; `tests/backup/fetch-offsite.test.sh` runs it with `--offsite`.
 - `tests/backup/backup-partial.test.sh` (`backup-test.yml`): a failed dump
   leaves no file, the encrypted run manifest, restore selection and checksum
   refusals ([Run manifest](BACKUP_DR.md#run-manifest)).

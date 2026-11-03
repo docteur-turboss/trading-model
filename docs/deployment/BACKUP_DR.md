@@ -696,6 +696,10 @@ target over mTLS after the restore.
 
 ### Recovery Steps for Total Outage
 
+Before step 3 you need an age private key that decrypts the backups: the
+operator key, or the escrow key from the safe if it is lost
+([Key custody](ENCRYPTION_AT_REST.md#key-custody)).
+
 1. Provision replacement hosts, deploy the manifests from git (`deploy.yml`)
 2. Fetch the newest complete run from the off-site bucket, still encrypted:
    `bash scripts/fetch-offsite.sh --dest ./restore` (credentials and options
@@ -704,7 +708,9 @@ target over mTLS after the restore.
    `--timestamp` of the fetched run). Add `--pitr` to fetch the binlog /
    oplog archives as well and restore with `--until` (RPO 1 h). The CI drill logs how long the fetch
    and the restore took
-3. Restore the databases: MongoDB → MySQL (incl. SPIRE `spire`)
+3. Check the key on the fetched run: `bash scripts/verify-backup-key.sh
+   --identity <key file> --dir ./restore` (exit 1: try the other key), then
+   restore the databases: MongoDB → MySQL (incl. SPIRE `spire`)
 4. Restore the SPIRE CA keys (`keys.json`), which restarts the SPIRE server
 5. Restore the trainer checkpoints
 6. Verify health endpoints, service registration in discovery-server and the
@@ -728,7 +734,7 @@ done
 | Where | What |
 | ----- | ---- |
 | `ci.yml`, job `k8s` (every push to main/development and every PR) | Staging overlay on kind: drill markers seeded, real audit chain recorded, a dead letter stored the way message-manager stores them (`tests/k8s/dlq-seed.cjs`: signed `POST /dlq` over mTLS), `db-backup` run (age key generated for the run, off-site copy to an in-cluster S3), then markers, audit events and a dead letter written **after** the dump, writers stopped (audit-logger, dlq-service, financial-scraper, financial-scraper-collector), the instant recorded, one more marker after it, `db-backup-incremental` run (archives encrypted, off-site), data destroyed (`audit` and `dlq` databases, markers, `market_candles`, SPIRE server volume), the run (dumps and run manifest) and its binlog / oplog archives fetched from the in-cluster S3 by `fetch-offsite.sh --pitr` into a pod without `backup-data` (an instant past the archives refused there by `restore-k8s.sh --until`; fetch and restore durations logged), `restore-k8s.sh --until <instant>` on it, checks: the audit chain exactly as at the instant (events written after the dump included, same hashes, chain verified by `tests/backup/audit-chain.js`), every dead letter of the instant back, markers 1-4 and not 5 in both MongoDB replica sets and MySQL, `market_candles` back, SPIRE trust bundle identical, audit-logger extends the restored chain once restarted, every Prometheus target up over mTLS |
-| `backup-test.yml` (weekly, on changes to the scripts) | Library tests (`tests/backup/backup-encryption.test.sh`; `tests/backup/backup-bucket-check.test.sh`: Object Lock check of the off-site bucket with a stub `aws` CLI, compliance 30-31 days passes, absent, governance, too short or too long fails in production and warns in staging, `BACKUP_S3_IMMUTABILITY_CHECK` fallback; `tests/backup/pitr-chain.test.sh`: archive chains, gaps refused, no partial file, incremental metrics; `tests/backup/backup-partial.test.sh`: a failed dump leaves no file, the manifest lists the successful dumps, `latest` skips a newer failed run, sha256 / size mismatch and a MySQL dump without `-- Dump completed` are refused, an unreadable manifest (no or wrong key, corrupt file, plaintext manifest without the expected structure) fails the restore, older backups only with `--timestamp`), off-site fetch tests (`tests/backup/fetch-offsite.test.sh` in the `backup-tools` image: runs uploaded by `upload_offsite` to `rclone serve s3`, newest complete run (every dump and its manifest) chosen over a newer incomplete one, `--timestamp`, `--components`, `--dry-run`, `--pitr` (PITR starting points and the binlog / oplog archives from the run on), layout read by `restore-k8s.sh` with the manifest checksums, files still encrypted, exit 1 on an incomplete or absent run, an empty or unreachable bucket, a non-empty destination), then the Docker drill: an audit trail written by the audit-logger image code (`tests/backup/seed-audit-chain.cjs`, events in the pre-2026-10-31 format, then current ones), MongoDB (3 databases), MySQL, Redis and the SPIRE server backed up, containers and volumes deleted, restored, checked (same audit events and hashes, chain verified, SPIRE trust bundle identical) |
+| `backup-test.yml` (weekly, on changes to the scripts) | Library tests (`tests/backup/backup-encryption.test.sh`; `tests/backup/backup-key-verify.test.sh`: `BACKUP_MIN_RECIPIENTS` refusals, deploy recipients check, `verify-backup-key.sh` with each of two keys passing and a third key, a component sealed for another key or missing failing; `tests/backup/backup-bucket-check.test.sh`: Object Lock check of the off-site bucket with a stub `aws` CLI, compliance 30-31 days passes, absent, governance, too short or too long fails in production and warns in staging, `BACKUP_S3_IMMUTABILITY_CHECK` fallback; `tests/backup/pitr-chain.test.sh`: archive chains, gaps refused, no partial file, incremental metrics; `tests/backup/backup-partial.test.sh`: a failed dump leaves no file, the manifest lists the successful dumps, `latest` skips a newer failed run, sha256 / size mismatch and a MySQL dump without `-- Dump completed` are refused, an unreadable manifest (no or wrong key, corrupt file, plaintext manifest without the expected structure) fails the restore, older backups only with `--timestamp`), off-site fetch tests (`tests/backup/fetch-offsite.test.sh` in the `backup-tools` image: runs uploaded by `upload_offsite` to `rclone serve s3`, newest complete run (every dump and its manifest) chosen over a newer incomplete one, `--timestamp`, `--components`, `--dry-run`, `--pitr` (PITR starting points and the binlog / oplog archives from the run on), layout read by `restore-k8s.sh` with the manifest checksums, files still encrypted, exit 1 on an incomplete or absent run, an empty or unreachable bucket, a non-empty destination), then the Docker drill: an audit trail written by the audit-logger image code (`tests/backup/seed-audit-chain.cjs`, events in the pre-2026-10-31 format, then current ones), MongoDB (3 databases), MySQL, Redis and the SPIRE server backed up, containers and volumes deleted, restored, checked (same audit events and hashes, chain verified, SPIRE trust bundle identical) |
 
 ## Known Limits
 
@@ -756,5 +762,8 @@ done
 
 - Backup automation: DevOps / Platform team
 - Restore procedure validation: CI (every run) + SRE review (quarterly)
+- Backup keys: operator key (Platform team), escrow key (project owner);
+  quarterly decryption check with `scripts/verify-backup-key.sh`, output kept
+  in the operations log ([Key custody](ENCRYPTION_AT_REST.md#key-custody))
 - Secrets rotation: Security team (quarterly)
 - DR drill coordination: Engineering manager (bi-annual)
