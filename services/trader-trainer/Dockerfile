@@ -10,14 +10,16 @@ COPY package.json bun.lock ./
 COPY packages/ packages/
 COPY services/ services/
 # --ignore-scripts: the root "prepare" script runs husky, a dev dependency absent here.
-RUN bun install --frozen-lockfile --production --ignore-scripts
+# Hoisted: the runtime stage only copies the root node_modules, and bun >= 1.3
+# links workspaces in isolated mode (per-workspace node_modules) by default.
+RUN bun install --frozen-lockfile --production --ignore-scripts --linker hoisted
 
 FROM oven/bun:1.4.4@sha256:1d22548f177f4ff38e0c15baa3c2c46c6c2060ba2d1bc573bb4720b407548f1d AS build
 WORKDIR /app
 COPY package.json bun.lock ./
 COPY packages/ packages/
 COPY services/ services/
-RUN bun install --frozen-lockfile
+RUN bun install --frozen-lockfile --linker hoisted
 RUN bun run build
 WORKDIR /app/services/trader-trainer
 RUN bun run build

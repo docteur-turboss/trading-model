@@ -429,12 +429,19 @@ verify_backup() {
 	inspector "grep -qx 'backup_last_status{component=\"offsite\"} 1' /backups/metrics/backup.prom"
 	local offsite
 	offsite="$($K -n "$NS" exec deployment/backup-s3 -- sh -c "find /data/backups/staging -name '*.age' | wc -l")"
-	# 5 dumps + 3 PITR starting points (mysql, mongodb, mongodb-audit).
-	[ "$offsite" -ge 8 ] || {
-		log "only $offsite encrypted file(s) copied off-site (expected 8)"
+	# 5 dumps + 3 PITR starting points (mysql, mongodb, mongodb-audit) + the
+	# run manifest (backup-lib.sh, write_manifest).
+	[ "$offsite" -ge 9 ] || {
+		log "only $offsite encrypted file(s) copied off-site (expected 9)"
 		return 1
 	}
-	log "  every file is age-encrypted, $offsite copied off-site"
+	local listed
+	listed="$(inspector "find /backups/manifests -name 'manifest_*.json.age' | wc -l")"
+	[ "$listed" -ge 1 ] || {
+		log "the backup run wrote no manifest: restore-k8s.sh would find nothing to restore"
+		return 1
+	}
+	log "  every file is age-encrypted, $offsite copied off-site, run manifest written"
 
 	log "point-in-time: writes after the daily dump (markers, audit events, a dead letter)"
 	local audit_dumped
@@ -549,10 +556,11 @@ verify_backup() {
 	started=$SECONDS
 	runner "bash /scripts/fetch-offsite.sh --pitr --dest /restore"
 	fetch_seconds=$((SECONDS - started))
-	# The run: 5 dumps + 3 PITR starting points; then the archives replayed.
-	fetched="$(runner "find /restore -type f \\( -name '*.archive.gz.age' -o -name 'financial_scraper_*.sql.gz.age' -o -name 'checkpoints_*.age' -o -name 'keys_*.age' -o -name '*.pitr.age' \\) | wc -l")"
-	[ "$fetched" -eq 8 ] || {
-		log "fetch-offsite.sh fetched $fetched file(s) of the run instead of 8"
+	# The run: 5 dumps + 3 PITR starting points + the run manifest, which
+	# restore-k8s.sh selects and verifies with; then the archives replayed.
+	fetched="$(runner "find /restore -type f \( -name '*.archive.gz.age' -o -name 'financial_scraper_*.sql.gz.age' -o -name 'checkpoints_*.age' -o -name 'keys_*.age' -o -name '*.pitr.age' -o -name 'manifest_*.json.age' \) | wc -l")"
+	[ "$fetched" -eq 9 ] && runner "test -s /restore/manifests/manifest_*.json.age" || {
+		log "fetch-offsite.sh fetched $fetched file(s) of the run instead of 9 (5 dumps, 3 PITR starting points, run manifest)"
 		return 1
 	}
 	for dir in mysql/binlog mongodb/oplog/mongodb mongodb/oplog/mongodb-audit; do

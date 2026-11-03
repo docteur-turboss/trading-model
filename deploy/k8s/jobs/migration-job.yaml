@@ -46,7 +46,7 @@ spec:
               cp -r /migrations/. /tmp/migrate-run/
               cd /tmp/migrate-run
               # Same pinned version as the compose migrate image.
-              bun add mysql2@3.24.4
+              bun add mysql2@3.24.6
               bun migrate.mjs up
           env:
             - name: DB_HOST

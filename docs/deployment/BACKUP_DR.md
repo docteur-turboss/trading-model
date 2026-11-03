@@ -147,9 +147,70 @@ Every dump is streamed through `age` before it touches a disk (files suffixed
 `.age`). Keys, restore and monitoring:
 [Encryption at Rest](ENCRYPTION_AT_REST.md#2-backups-age).
 
+### Run manifest
+
+A dump that fails half-way is still a valid `age` file (age encrypts whatever
+it receives and closes the stream cleanly), and its name looks like any other
+dump. So the backup scripts (`write_dump` in `scripts/backup-lib.sh`):
+
+- write every dump to `<file>.partial` and rename it only when every stage of
+  the pipeline succeeded and the plaintext is not empty; otherwise the partial
+  file is deleted. A run killed mid-dump (OOM, `activeDeadlineSeconds`) can
+  leave a `.partial`: `prune_old` deletes those older than an hour. A
+  `.partial` file is never read by a restore;
+- compute the sha256 of the **plaintext** on the fly (`tee` into
+  `sha256sum`), with no plaintext on disk;
+- write, at the end of the run, `manifests/manifest_<TIMESTAMP>.json` (sealed
+  with age like the dumps, `.json.age`; written to `.partial` then renamed)
+  listing the dumps that succeeded, and copy it off-site with them. A run
+  where nothing succeeded writes no manifest. A manifest that cannot be
+  written fails the run (`backup_last_status{component="manifest"} 0`).
+
+```json
+{"version":1,"timestamp":"2026-11-01_020000","entries":[
+{"component":"mongodb","path":"mongodb/2026-11-01_020000/mongodb.archive.gz.age","size":18734,"sha256":"…"},
+{"component":"mysql","path":"mysql/financial_scraper_2026-11-01_020000.sql.gz.age","size":90412,"sha256":"…"}
+]}
+```
+
+`component` is the restore unit: `mongodb`, `mongodb-audit`, `mysql`,
+`checkpoints`, `spire` (Kubernetes); `mongodb`, `mysql`, `redis:<container>`,
+`checkpoints`, `spire` (Docker). `path` is relative to `BACKUP_DIR`, `size` is
+the size of the file on disk (encrypted), `sha256` the checksum of its
+decrypted content. One entry per line: the restore scripts read it without
+`jq`.
+
+**Selection rule** (`resolve_backup`, both restore scripts):
+
+| Invocation | Backup restored for each requested component |
+| ---------- | -------------------------------------------- |
+| no `--timestamp` (`latest`) | the newest run whose manifest lists the component; a run whose listed file is gone is skipped with a warning. Files without manifest are never picked: with no manifest at all the restore refuses and asks for `--timestamp` |
+| `--timestamp <ts>`, run with manifest | that run; refused (exit 1) when its manifest does not list the component |
+| `--timestamp <ts>`, run without manifest (taken before 2026-11) | the file of that run, with a warning: no checksum to verify |
+
+Before anything is written (and also with `--dry-run`), every file is checked
+against its manifest entry: size, then sha256 of the decrypted content; a
+mismatch is refused. A MySQL dump is also refused when its last non-empty
+line is not mysqldump's closing `-- Dump completed on …` (any run, with or
+without manifest). Reading the manifests needs `BACKUP_AGE_IDENTITY`, dry
+runs included. A refused component counts as a failed step (exit 1); the
+other components are still restored.
+
+A manifest that cannot be read (`BACKUP_AGE_IDENTITY` unset, not a readable
+file or not the right key, corrupt file) refuses the component with an
+explicit `✗` message and exit 1: it is never skipped, and `latest` never falls
+back to an older run past it. The same holds for a manifest that decrypts (or,
+unencrypted, simply reads) but does not have the structure above: first line
+`{"version":1,"timestamp":"…","entries":[`, one entry per line in the format
+above, last non-empty line `]}`, every `path` relative and inside `BACKUP_DIR`
+(no leading `/`, no `..`). A truncated, hand-edited or future-version manifest
+is reported as corrupt, not read as "this run did not back it up". When the newest manifest is corrupt, restore an
+older run with `--timestamp <ts>` of that run.
+
 ### Off-site Storage (mandatory in Kubernetes)
 
-`BACKUP_S3_BUCKET` copies each run's encrypted files to any S3-compatible store
+`BACKUP_S3_BUCKET` copies each run's encrypted files (dumps that succeeded and
+the run manifest) to any S3-compatible store
 (rclone, or the `aws` CLI as fallback). Only encrypted files leave: without
 `BACKUP_AGE_RECIPIENTS` the copy is refused.
 
@@ -165,8 +226,9 @@ job only adds files, retention off-site is the bucket's lifecycle rule.
 
 ### Retention
 
-- `backup-data` volume: daily backups 30 days (`RETENTION_DAYS`, files pruned
-  by `prune_old`); binlog and oplog archives 72 h
+- `backup-data` volume: daily backups 30 days (`RETENTION_DAYS`, dumps and run
+  manifests pruned by `prune_old`, which also deletes `.partial` files older
+  than an hour); binlog and oplog archives 72 h
   (`INCREMENTAL_RETENTION_HOURS`, pruned by `backup-incremental-k8s.sh`).
   Past 72 h only the daily backups remain: point in time over the last 72 h,
   day by day before that (ADR-0031).
@@ -198,6 +260,11 @@ and Prometheus scrapes them (job `backup-metrics`).
 Encrypted backups (`*.age`) need the age private key:
 `BACKUP_AGE_IDENTITY=~/backup-key.txt` in front of any restore command below.
 Manual decryption: `age -d -i backup-key.txt <file>.age`.
+
+Without `--timestamp`, each component comes from the last run that backed it
+up successfully according to its manifest, after a checksum check
+([Run manifest](#run-manifest)). Backups taken before run manifests are
+restored with an explicit `--timestamp`.
 
 Both restore scripts exit 1 if any step fails. Stop the writers first
 (`kubectl scale deployment --replicas=0` for financial-scraper,
@@ -245,12 +312,16 @@ When `backup-data` is lost (cluster gone, volume destroyed), the bucket holds
 the only copy. `scripts/fetch-offsite.sh` copies one run, still encrypted,
 into an empty directory in the layout `restore-k8s.sh` reads. Without
 `--timestamp` it takes the newest run holding every file of the requested
-components: `upload_offsite` only copies the dumps that succeeded, so a run
-missing a file (`mongodb/<TS>/mongodb.archive.gz.age` and
+components and its run manifest: `upload_offsite` only copies the dumps that
+succeeded, so a run missing a file (`mongodb/<TS>/mongodb.archive.gz.age` and
 `mongodb-audit.archive.gz.age`, `mysql/financial_scraper_<TS>.sql.gz.age`,
-`checkpoints/checkpoints_<TS>.tar.gz.age`, `spire/keys_<TS>.json.age`) is
-skipped, and refused with `--timestamp`. It exits 1 when the bucket is
-unreachable or holds no complete run, and prints the restore command.
+`checkpoints/checkpoints_<TS>.tar.gz.age`, `spire/keys_<TS>.json.age`,
+`manifests/manifest_<TS>.json.age`) is skipped, and refused with `--timestamp`
+when a dump is missing. The manifest comes with the run: `restore-k8s.sh`
+checks every file against it (size, sha256, see [Run manifest](#run-manifest)).
+A run taken before manifests is only fetched with `--timestamp`, and restored
+without checksum. It exits 1 when the bucket is unreachable or holds no
+complete run, and prints the restore command.
 
 With `--pitr` (point-in-time restore, see below) the run must also hold its
 `.pitr` starting points, and the binlog / oplog archives that can follow it
@@ -299,8 +370,9 @@ bash scripts/restore-k8s.sh --until 2026-11-03T13:45:00Z
 bash scripts/restore-k8s.sh --until '2026-11-03 13:45' --components mongodb
 ```
 
-For each database, `restore-k8s.sh` takes the newest daily backup taken
-before the instant (the checkpoints and SPIRE keys too), then:
+For each database, `restore-k8s.sh` takes the newest daily run taken
+before the instant whose run manifest lists it, checked against the manifest
+(the checkpoints and SPIRE keys too), then:
 
 1. reads its `.pitr` file and lists the archives from that point to the
    instant: **exit 1, nothing touched**, when one is missing (gap), when the
@@ -398,8 +470,8 @@ done
 
 | Where | What |
 | ----- | ---- |
-| `ci.yml`, job `k8s` (every push to main/development and every PR) | Staging overlay on kind: drill markers seeded, real audit chain recorded, a dead letter stored the way message-manager stores them (`tests/k8s/dlq-seed.cjs`: signed `POST /dlq` over mTLS), `db-backup` run (age key generated for the run, off-site copy to an in-cluster S3), then markers, audit events and a dead letter written **after** the dump, writers stopped (audit-logger, dlq-service, financial-scraper, financial-scraper-collector), the instant recorded, one more marker after it, `db-backup-incremental` run (archives encrypted, off-site), data destroyed (`audit` and `dlq` databases, markers, `market_candles`, SPIRE server volume), the run and its binlog / oplog archives fetched from the in-cluster S3 by `fetch-offsite.sh --pitr` into a pod without `backup-data` (an instant past the archives refused there by `restore-k8s.sh --until`; fetch and restore durations logged), `restore-k8s.sh --until <instant>` on it, checks: the audit chain exactly as at the instant (events written after the dump included, same hashes, chain verified by `tests/backup/audit-chain.js`), every dead letter of the instant back, markers 1-4 and not 5 in both MongoDB replica sets and MySQL, `market_candles` back, SPIRE trust bundle identical, audit-logger extends the restored chain once restarted, every Prometheus target up over mTLS |
-| `backup-test.yml` (weekly, on changes to the scripts) | Library tests (`tests/backup/backup-encryption.test.sh`, `tests/backup/pitr-chain.test.sh`: archive chains, gaps refused, no partial file, incremental metrics), off-site fetch tests (`tests/backup/fetch-offsite.test.sh` in the `backup-tools` image: runs uploaded by `upload_offsite` to `rclone serve s3`, newest complete run chosen over a newer incomplete one, `--timestamp`, `--components`, `--dry-run`, `--pitr` (PITR starting points and the binlog / oplog archives from the run on), layout read by `restore-k8s.sh`, files still encrypted, exit 1 on an incomplete or absent run, an empty or unreachable bucket, a non-empty destination), then the Docker drill: an audit trail written by the audit-logger image code (`tests/backup/seed-audit-chain.cjs`, events in the pre-2026-10-31 format, then current ones), MongoDB (3 databases), MySQL, Redis and the SPIRE server backed up, containers and volumes deleted, restored, checked (same audit events and hashes, chain verified, SPIRE trust bundle identical) |
+| `ci.yml`, job `k8s` (every push to main/development and every PR) | Staging overlay on kind: drill markers seeded, real audit chain recorded, a dead letter stored the way message-manager stores them (`tests/k8s/dlq-seed.cjs`: signed `POST /dlq` over mTLS), `db-backup` run (age key generated for the run, off-site copy to an in-cluster S3), then markers, audit events and a dead letter written **after** the dump, writers stopped (audit-logger, dlq-service, financial-scraper, financial-scraper-collector), the instant recorded, one more marker after it, `db-backup-incremental` run (archives encrypted, off-site), data destroyed (`audit` and `dlq` databases, markers, `market_candles`, SPIRE server volume), the run (dumps and run manifest) and its binlog / oplog archives fetched from the in-cluster S3 by `fetch-offsite.sh --pitr` into a pod without `backup-data` (an instant past the archives refused there by `restore-k8s.sh --until`; fetch and restore durations logged), `restore-k8s.sh --until <instant>` on it, checks: the audit chain exactly as at the instant (events written after the dump included, same hashes, chain verified by `tests/backup/audit-chain.js`), every dead letter of the instant back, markers 1-4 and not 5 in both MongoDB replica sets and MySQL, `market_candles` back, SPIRE trust bundle identical, audit-logger extends the restored chain once restarted, every Prometheus target up over mTLS |
+| `backup-test.yml` (weekly, on changes to the scripts) | Library tests (`tests/backup/backup-encryption.test.sh`; `tests/backup/pitr-chain.test.sh`: archive chains, gaps refused, no partial file, incremental metrics; `tests/backup/backup-partial.test.sh`: a failed dump leaves no file, the manifest lists the successful dumps, `latest` skips a newer failed run, sha256 / size mismatch and a MySQL dump without `-- Dump completed` are refused, an unreadable manifest (no or wrong key, corrupt file, plaintext manifest without the expected structure) fails the restore, older backups only with `--timestamp`), off-site fetch tests (`tests/backup/fetch-offsite.test.sh` in the `backup-tools` image: runs uploaded by `upload_offsite` to `rclone serve s3`, newest complete run (every dump and its manifest) chosen over a newer incomplete one, `--timestamp`, `--components`, `--dry-run`, `--pitr` (PITR starting points and the binlog / oplog archives from the run on), layout read by `restore-k8s.sh` with the manifest checksums, files still encrypted, exit 1 on an incomplete or absent run, an empty or unreachable bucket, a non-empty destination), then the Docker drill: an audit trail written by the audit-logger image code (`tests/backup/seed-audit-chain.cjs`, events in the pre-2026-10-31 format, then current ones), MongoDB (3 databases), MySQL, Redis and the SPIRE server backed up, containers and volumes deleted, restored, checked (same audit events and hashes, chain verified, SPIRE trust bundle identical) |
 
 ## Known Limits
 

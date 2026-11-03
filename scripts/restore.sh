@@ -4,6 +4,12 @@
 #  Usage:  bash scripts/restore.sh [--dry-run] [--components mongodb,mysql,redis,spire]
 #          BACKUP_DIR=./backups RESTORE_TIMESTAMP=2025-01-01_120000
 #          BACKUP_AGE_IDENTITY=~/backup-key.txt (to read *.age backups)
+#
+#  Without --timestamp, each component comes from the newest run whose
+#  manifest lists it; every file is checked against its manifest (size,
+#  sha256 of the plaintext; MySQL: ends with `-- Dump completed`) before
+#  anything is written, --dry-run included. Runs taken before manifests are
+#  only restored with an explicit --timestamp (see backup-lib.sh).
 # =============================================================================
 
 set -euo pipefail
@@ -31,66 +37,31 @@ warn() { log "⚠ $*"; }
 # shellcheck source=backup-lib.sh
 source "$(dirname "$0")/backup-lib.sh"
 
-resolve_latest() {
-  local dir="$1"
-  if [ "$RESTORE_TIMESTAMP" = "latest" ]; then
-    local latest
-    latest=$(find "${BACKUP_DIR}/${dir}" -maxdepth 1 -type d 2>/dev/null | sort | tail -1)
-    echo "$latest"
-  else
-    echo "${BACKUP_DIR}/${dir}/${RESTORE_TIMESTAMP}"
-  fi
-}
-
-validate_file() {
-  local file="$1"
-  local label="$2"
-  if [ ! -f "$file" ] && [ ! -d "$file" ]; then
-    fail "${label} not found: ${file}"
-    return 1
-  fi
-  if [ -f "$file" ] && [ ! -s "$file" ]; then
-    fail "${label} is empty: ${file}"
-    return 1
-  fi
-  return 0
-}
-
 restore_mongodb() {
   log "Starting MongoDB restore..."
-  local src
-  src=$(resolve_latest "mongodb")
-  if [ -z "$src" ] || [ ! -d "$src" ]; then
-    warn "No MongoDB backup found at ${src}, skipping"
-    return
-  fi
-  log "Restoring from: ${src}"
+  local src="${BACKUP_DIR}/mongodb/${RESTORE_TIMESTAMP}"
 
   for container in trading-mongo; do
+    # Runs taken before manifests: the archive, or a dump directory.
+    local legacy="" archive
+    if [ "$RESTORE_TIMESTAMP" != "latest" ]; then
+      legacy=$(backup_file "${src}/${container}.archive.gz")
+      if [ -z "$legacy" ] && [ -d "${src}/${container}" ] && [ -n "$(ls -A "${src}/${container}" 2>/dev/null)" ]; then
+        legacy="${src}/${container}"
+      fi
+    fi
+    resolve_and_verify mongodb "$legacy" || continue
+    archive="$RESOLVED_FILE"
+
     if ! docker ps --filter "name=${container}" --format '{{.Names}}' | grep -q .; then
       warn "Container ${container} not running, skipping"
       continue
-    fi
-
-    local archive
-    archive=$(backup_file "${src}/${container}.archive.gz")
-    if [ -z "$archive" ]; then
-      warn "No backup file for ${container} at ${archive}, trying directory"
-      local dir="${src}/${container}"
-      if [ -d "$dir" ] && [ -n "$(ls -A "$dir" 2>/dev/null)" ]; then
-        archive="$dir"
-      else
-        warn "No backup found for ${container}, skipping"
-        continue
-      fi
     fi
 
     if $DRY_RUN; then
       warn "[DRY-RUN] Would restore MongoDB: ${container} from ${archive}"
       continue
     fi
-
-    validate_file "$archive" "${container} backup" || continue
 
     local restore_ok=false
     if [ -f "$archive" ]; then
@@ -117,18 +88,9 @@ restore_mongodb() {
 
 restore_mysql() {
   log "Starting MySQL restore..."
-  local file
-  if [ "$RESTORE_TIMESTAMP" = "latest" ]; then
-    file=$(latest_backup "${BACKUP_DIR}/mysql" "financial_scraper_*.sql.gz")
-  else
-    file=$(backup_file "${BACKUP_DIR}/mysql/financial_scraper_${RESTORE_TIMESTAMP}.sql.gz")
-  fi
-
-  if [ -z "$file" ] || [ ! -f "$file" ]; then
-    warn "No MySQL backup found, skipping"
-    return
-  fi
-  log "Restoring from: ${file}"
+  resolve_and_verify mysql "$(backup_file "${BACKUP_DIR}/mysql/financial_scraper_${RESTORE_TIMESTAMP}.sql.gz")" || return 0
+  local file="$RESOLVED_FILE"
+  verify_mysql_dump_complete "$file" || return 0
 
   if ! docker ps --filter "name=trading-mysql" --format '{{.Names}}' | grep -q .; then
     warn "MySQL container not running, skipping"
@@ -139,8 +101,6 @@ restore_mysql() {
     warn "[DRY-RUN] Would restore MySQL from ${file}"
     return
   fi
-
-  validate_file "$file" "MySQL backup" || return
 
   if open_backup "$file" | gunzip | strip_gtid | docker exec -i trading-mysql sh -c 'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" exec mysql --user=root'; then
     ok "MySQL restore complete"
@@ -180,22 +140,10 @@ rebuild_redis_aof() {
 restore_redis() {
   log "Starting Redis restore..."
   local dest="${BACKUP_DIR}/redis"
-  local file
-  if [ "$RESTORE_TIMESTAMP" = "latest" ]; then
-    file=$(latest_backup "${dest}" "*.rdb")
-  else
-    file=$(backup_file "${dest}/trading-redis_${RESTORE_TIMESTAMP}.rdb")
-  fi
-
-  if [ -z "$file" ]; then
-    file=$(backup_file "${dest}/redis-primary_${RESTORE_TIMESTAMP}.rdb")
-  fi
-
-  if [ -z "$file" ]; then
-    warn "No Redis backup found, skipping"
-    return
-  fi
-  log "Restoring from: ${file}"
+  resolve_and_verify redis:trading-redis \
+    "$(backup_file "${dest}/trading-redis_${RESTORE_TIMESTAMP}.rdb")" \
+    "$(backup_file "${dest}/redis-primary_${RESTORE_TIMESTAMP}.rdb")" || return 0
+  local file="$RESOLVED_FILE"
 
   if ! docker ps --filter "name=trading-redis" --format '{{.Names}}' | grep -q .; then
     warn "Redis container not running, skipping"
@@ -206,8 +154,6 @@ restore_redis() {
     warn "[DRY-RUN] Would restore Redis from ${file}"
     return
   fi
-
-  validate_file "$file" "Redis backup" || return
 
   # The plaintext lives only until the copy is done.
   local plain copied=false aof
@@ -235,16 +181,9 @@ restore_redis() {
 }
 
 restore_checkpoints() {
-  local file
-  if [ "$RESTORE_TIMESTAMP" = "latest" ]; then
-    file=$(latest_backup "${BACKUP_DIR}/checkpoints" "checkpoints_*.tar.gz")
-  else
-    file=$(backup_file "${BACKUP_DIR}/checkpoints/checkpoints_${RESTORE_TIMESTAMP}.tar.gz")
-  fi
-  if [ -z "$file" ] || [ ! -f "$file" ]; then
-    warn "No checkpoints backup found, skipping"
-    return
-  fi
+  log "Starting checkpoints restore..."
+  resolve_and_verify checkpoints "$(backup_file "${BACKUP_DIR}/checkpoints/checkpoints_${RESTORE_TIMESTAMP}.tar.gz")" || return 0
+  local file="$RESOLVED_FILE"
 
   if ! docker ps --filter "name=trading-trainer" --format '{{.Names}}' | grep -q .; then
     warn "Trainer container not running, copying file for manual restore: ${file}"
@@ -265,20 +204,10 @@ restore_checkpoints() {
 # keys.json alone from backups taken before 2026-10 (keys_*.json).
 restore_spire() {
   log "Starting SPIRE server restore..."
-  local file
-  if [ "$RESTORE_TIMESTAMP" = "latest" ]; then
-    file=$(latest_backup "${BACKUP_DIR}/spire" "data_*.tar")
-    [ -n "$file" ] || file=$(latest_backup "${BACKUP_DIR}/spire" "keys_*.json")
-  else
-    file=$(backup_file "${BACKUP_DIR}/spire/data_${RESTORE_TIMESTAMP}.tar")
-    [ -n "$file" ] || file=$(backup_file "${BACKUP_DIR}/spire/keys_${RESTORE_TIMESTAMP}.json")
-  fi
-
-  if [ -z "$file" ] || [ ! -f "$file" ]; then
-    warn "No SPIRE backup found, skipping"
-    return
-  fi
-  log "Restoring from: ${file}"
+  resolve_and_verify spire \
+    "$(backup_file "${BACKUP_DIR}/spire/data_${RESTORE_TIMESTAMP}.tar")" \
+    "$(backup_file "${BACKUP_DIR}/spire/keys_${RESTORE_TIMESTAMP}.json")" || return 0
+  local file="$RESOLVED_FILE"
 
   if ! docker ps -a --filter "name=trading-spire-server" --format '{{.Names}}' | grep -q .; then
     warn "SPIRE server container not found, skipping"
@@ -289,8 +218,6 @@ restore_spire() {
     warn "[DRY-RUN] Would restore SPIRE from ${file}"
     return
   fi
-
-  validate_file "$file" "SPIRE backup" || return
 
   local plain copied=false
   plain=$(mktemp)

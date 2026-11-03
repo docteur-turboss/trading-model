@@ -156,6 +156,34 @@ write_metric "mysql-binlog" 0
 finalize_metrics >/dev/null 2>&1
 last="$(sed -n 's/^backup_last_success_timestamp{component="mysql-binlog",run="incremental"} //p' "$METRICS_FILE")"
 [ -n "$last" ] && [ "$last" != "0" ] && pass "a failed run keeps the previous success time" || failed "last success lost: $(cat "$METRICS_FILE")"
+METRICS_FILE=""
+BACKUP_RUN=""
+
+echo "daily run before the instant (restore-k8s.sh --until, RESTORE_NOT_AFTER)"
+BACKUP_DIR="$WORK/runs"
+for TIMESTAMP in 2026-11-01_020000 2026-11-02_020000; do
+	mkdir -p "$BACKUP_DIR/mysql"
+	OUTPUTS=()
+	MANIFEST_ENTRIES=()
+	write_dump mysql "$BACKUP_DIR/mysql/financial_scraper_${TIMESTAMP}.sql.gz" printf 'dump %s\n' "$TIMESTAMP" 2>/dev/null
+	write_manifest >/dev/null 2>&1
+done
+RESTORE_TIMESTAMP=latest
+RESTORE_NOT_AFTER=2026-11-02_013000
+if resolve_backup mysql 2>/dev/null && [ "${RESOLVED_FILE##*/}" = "financial_scraper_2026-11-01_020000.sql.gz" ]; then
+	pass "the newest run taken before the instant is picked, not a later one"
+else
+	failed "RESTORE_NOT_AFTER=2026-11-02_013000 picked '${RESOLVED_FILE:-}'"
+fi
+RESTORE_NOT_AFTER=2026-11-02_020000
+if resolve_backup mysql 2>/dev/null && [ "${RESOLVED_FILE##*/}" = "financial_scraper_2026-11-02_020000.sql.gz" ]; then
+	pass "a run taken at the instant itself is picked"
+else
+	failed "RESTORE_NOT_AFTER=2026-11-02_020000 picked '${RESOLVED_FILE:-}'"
+fi
+RESTORE_NOT_AFTER=2026-10-31_235959
+refuse "no run taken before the instant" resolve_backup mysql
+RESTORE_NOT_AFTER=""
 
 echo ""
 [ "$FAILED" -eq 0 ] && echo "All PITR chain tests passed" || echo "PITR chain tests FAILED"

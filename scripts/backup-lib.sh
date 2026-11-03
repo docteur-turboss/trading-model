@@ -23,13 +23,24 @@
 #                               jobs' files can be served side by side
 #  Point-in-time recovery (ADR-0031): binlog and oplog archives written by
 #  backup-incremental-k8s.sh, replayed by restore-k8s.sh --until.
+#
+#  Run manifest (docs/deployment/BACKUP_DR.md, "Run manifest"): every dump is
+#  written to `<file>.partial` and renamed only once the whole pipeline
+#  succeeded, so a failed or killed dump never leaves a final file. Each run
+#  then writes `manifests/manifest_<TIMESTAMP>.json[.age]` listing the dumps
+#  that succeeded (path, size on disk, sha256 of the plaintext); the restore
+#  scripts pick the newest run whose manifest lists the component and check
+#  the file against it before applying it.
 # =============================================================================
 
 AGE_SUFFIX=""
 AGE_ARGS=()
 OUTPUTS=()
+MANIFEST_ENTRIES=()
 BACKUP_FAILURES=0
 _METRICS_TMP=""
+# sha256 of an empty input: a dump with no plaintext is never a backup.
+EMPTY_SHA256="e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
 
 init_encryption() {
 	local recipient count=0
@@ -67,13 +78,15 @@ seal() {
 	fi
 }
 
-# Writes a backup file's plaintext to stdout (decrypting `*.age`).
+# Writes a backup file's plaintext to stdout (decrypting `*.age`). Its own
+# error goes to stderr: callers capture or pipe its stdout, and a message
+# written there would be swallowed (callers report the failure again).
 open_backup() {
 	local file="$1"
 	case "$file" in
 	*.age)
 		if [ -z "${BACKUP_AGE_IDENTITY:-}" ]; then
-			fail "${file} is encrypted: set BACKUP_AGE_IDENTITY to the age private key file"
+			fail "${file} is encrypted: set BACKUP_AGE_IDENTITY to the age private key file" >&2
 			return 1
 		fi
 		age -d -i "$BACKUP_AGE_IDENTITY" "$file"
@@ -91,14 +104,308 @@ backup_file() {
 	fi
 }
 
-# Newest file of directory `$1` whose name matches `$2` (with or without `.age`).
-latest_backup() {
-	find "$1" \( -name "$2" -o -name "$2.age" \) 2>/dev/null | sort | tail -1
-}
-
 # Registers a written backup file for the off-site copy.
 record_output() {
 	OUTPUTS+=("${1#"${BACKUP_DIR}"/}")
+}
+
+# Size in bytes of file `$1`.
+file_size() {
+	wc -c <"$1" | tr -d ' '
+}
+
+# write_dump <key> <file> <command...>
+# Runs the command and writes its stdout, sealed, to `<file>.partial`; the
+# sha256 of the plaintext is computed on the fly (no plaintext on disk). Only
+# when every stage succeeded and the output is not empty is the partial file
+# renamed to `<file>`, registered for the off-site copy and listed in the run
+# manifest under `<key>`. Otherwise nothing is left behind and it returns 1.
+write_dump() {
+	local key="$1" file="$2"
+	shift 2
+	local partial="${file}.partial" work sum size written=true
+	rm -f "$partial"
+	if ! work="$(mktemp -d)" || ! mkfifo "$work/plain"; then
+		[ -z "${work:-}" ] || rm -rf "$work"
+		fail "${key}: cannot create the checksum FIFO in ${TMPDIR:-/tmp}: ${file} not written"
+		return 1
+	fi
+	# tee feeds the hasher through the FIFO while the dump is sealed.
+	sha256sum <"$work/plain" >"$work/sum" &
+	local hasher=$!
+	if ! "$@" | tee "$work/plain" | seal >"$partial"; then
+		written=false
+	fi
+	if ! wait "$hasher"; then
+		written=false
+	fi
+	sum="$(cut -d' ' -f1 "$work/sum" 2>/dev/null || true)"
+	rm -rf "$work"
+	if $written && [ "${#sum}" -ne 64 ]; then
+		fail "No checksum computed for ${file}"
+		written=false
+	fi
+	if $written && [ "$sum" = "$EMPTY_SHA256" ]; then
+		fail "Empty dump for ${key}: ${file} not kept"
+		written=false
+	fi
+	if ! $written; then
+		rm -f "$partial"
+		return 1
+	fi
+	# Called from an `if`: set -e is off, so a failed rename must be caught here.
+	if ! mv "$partial" "$file"; then
+		rm -f "$partial"
+		fail "Cannot rename ${partial} to ${file}"
+		return 1
+	fi
+	size="$(file_size "$file")"
+	record_output "$file"
+	MANIFEST_ENTRIES+=("$(printf '{"component":"%s","path":"%s","size":%s,"sha256":"%s"}' \
+		"$key" "${file#"${BACKUP_DIR}"/}" "$size" "$sum")")
+}
+
+# Writes this run's manifest (`manifests/manifest_<TIMESTAMP>.json`, sealed
+# like the dumps) atomically and registers it for the off-site copy. One
+# entry per line: the restore scripts read it without jq. Nothing is written
+# when no dump succeeded. Returns 1 (metric component "manifest" 0) when the
+# manifest cannot be written: the dumps of the run are then not restorable
+# without --timestamp.
+write_manifest() {
+	[ "${#MANIFEST_ENTRIES[@]}" -gt 0 ] || return 0
+	local dir="${BACKUP_DIR}/manifests"
+	local file="${dir}/manifest_${TIMESTAMP}.json${AGE_SUFFIX}"
+	local i last=$((${#MANIFEST_ENTRIES[@]} - 1))
+	mkdir -p "$dir"
+	if ! {
+		printf '{"version":1,"timestamp":"%s","entries":[\n' "$TIMESTAMP"
+		for i in "${!MANIFEST_ENTRIES[@]}"; do
+			if [ "$i" -lt "$last" ]; then
+				printf '%s,\n' "${MANIFEST_ENTRIES[$i]}"
+			else
+				printf '%s\n' "${MANIFEST_ENTRIES[$i]}"
+			fi
+		done
+		printf ']}\n'
+	} | seal >"${file}.partial"; then
+		rm -f "${file}.partial"
+		fail "Run manifest not written: ${file}"
+		write_metric "manifest" 0
+		return 1
+	fi
+	if ! mv "${file}.partial" "$file"; then
+		rm -f "${file}.partial"
+		fail "Run manifest not renamed: ${file}"
+		write_metric "manifest" 0
+		return 1
+	fi
+	record_output "$file"
+	ok "Run manifest written: ${file} (${#MANIFEST_ENTRIES[@]} dump(s))"
+	write_metric "manifest" 1
+}
+
+# --- Restore side: run manifests ---------------------------------------------
+
+# Manifest of run `$1` (path, encrypted or not), empty when that run has none.
+manifest_of() {
+	backup_file "${BACKUP_DIR}/manifests/manifest_$1.json"
+}
+
+# Manifests, newest run first.
+manifests_newest_first() {
+	find "${BACKUP_DIR}/manifests" -maxdepth 1 -type f \
+		\( -name 'manifest_*.json' -o -name 'manifest_*.json.age' \) 2>/dev/null | sort -r
+}
+
+# One manifest entry line, as written by write_dump (trailing comma optional).
+MANIFEST_ENTRY_RE='^\{"component":"[^"]+","path":"[^"]+","size":[0-9]+,"sha256":"[0-9a-f]{64}"\},?$'
+
+# Prints `<path> <size> <sha256>` of entry `$2` in manifest file `$1`
+# (nothing when the run has no such entry). Returns 1 when the manifest
+# cannot be read (decryption failed), 2 when its content is not a version 1
+# manifest as write_manifest writes it (header `{"version":1,`, one entry per
+# line, footer `]}`) or an entry path leaves BACKUP_DIR: a corrupt or
+# truncated plaintext manifest must be refused, not read as "no such entry".
+# Always called in a command substitution: it never calls `fail` itself (its
+# message and the RESTORE_FAILURES increment would stay in the subshell), its
+# caller does (read_manifest_entry).
+manifest_entry() {
+	local manifest="$1" key="$2" content body line
+	content="$(open_backup "$manifest" </dev/null)" || return 1
+	# Drop empty lines; $(…) already removed the trailing newline.
+	content="$(printf '%s\n' "$content" | awk 'NF')"
+	[[ "$(printf '%s\n' "$content" | head -1)" =~ ^\{\"version\":1,\"timestamp\":\"[0-9_-]+\",\"entries\":\[$ ]] || return 2
+	[ "$(printf '%s\n' "$content" | tail -1)" = ']}' ] || return 2
+	body="$(printf '%s\n' "$content" | sed '1d;$d')"
+	[ -n "$body" ] || return 2
+	while IFS= read -r line; do
+		[[ "$line" =~ $MANIFEST_ENTRY_RE ]] || return 2
+		case "$line" in
+		*'"path":"/'* | *'"path":"..'* | *'/../'* | *'/.."'*) return 2 ;;
+		esac
+	done <<<"$body"
+	printf '%s\n' "$body" | sed -n \
+		's/^{"component":"'"$key"'","path":"\([^"]*\)","size":\([0-9]*\),"sha256":"\([0-9a-f]*\)"}.*$/\1 \2 \3/p' | head -1
+}
+
+# read_manifest_entry <key> <manifest>
+# Sets MANIFEST_ENTRY to entry `<key>` of `<manifest>` (empty when the run has
+# no such entry). Returns 1 after `fail`, in the caller's shell, when the
+# manifest cannot be read (no or wrong BACKUP_AGE_IDENTITY, corrupt file):
+# the restore then exits 1 instead of skipping the component silently.
+read_manifest_entry() {
+	local key="$1" manifest="$2"
+	MANIFEST_ENTRY=""
+	case "$manifest" in
+	*.age)
+		if [ -z "${BACKUP_AGE_IDENTITY:-}" ]; then
+			fail "${key}: the run manifest ${manifest} is encrypted: set BACKUP_AGE_IDENTITY to the age private key file"
+			return 1
+		fi
+		if [ ! -r "$BACKUP_AGE_IDENTITY" ]; then
+			fail "${key}: BACKUP_AGE_IDENTITY=${BACKUP_AGE_IDENTITY} is not a readable file"
+			return 1
+		fi
+		;;
+	esac
+	local rc=0
+	MANIFEST_ENTRY="$(manifest_entry "$manifest" "$key")" || rc=$?
+	if [ "$rc" -eq 2 ]; then
+		MANIFEST_ENTRY=""
+		fail "${key}: the run manifest ${manifest} is corrupt or truncated (not a version 1 manifest): refused; restore an older run with --timestamp"
+		return 1
+	fi
+	if [ "$rc" -ne 0 ]; then
+		MANIFEST_ENTRY=""
+		fail "${key}: cannot read the run manifest ${manifest} (wrong BACKUP_AGE_IDENTITY or corrupt file): refused; restore an older run with --timestamp"
+		return 1
+	fi
+}
+
+# resolve_backup <key> <legacy path...>
+# Sets RESOLVED_FILE, RESOLVED_SIZE, RESOLVED_SHA256 for manifest entry `<key>`:
+#   RESTORE_TIMESTAMP=latest  the newest run whose manifest lists `<key>` (a
+#                             run whose file is gone is skipped with a warning);
+#                             backups without manifest are never picked. With
+#                             RESTORE_NOT_AFTER=<ts> (restore-k8s.sh --until),
+#                             runs taken after <ts> are skipped
+#   RESTORE_TIMESTAMP=<ts>    that run: refused when its manifest does not
+#                             list `<key>`; a run without manifest (backups
+#                             taken before manifests) falls back to the first
+#                             existing legacy path, with a warning and no
+#                             checksum (RESOLVED_SHA256 empty)
+# Returns 1 (after `fail`) when no backup can be restored, including when a
+# manifest it has to read is unreadable: `latest` never skips such a run.
+resolve_backup() {
+	local key="$1"
+	shift
+	RESOLVED_FILE="" RESOLVED_SIZE="" RESOLVED_SHA256=""
+	local manifest entry path
+	if [ "$RESTORE_TIMESTAMP" = "latest" ]; then
+		local found=false
+		local stamp
+		while read -r manifest; do
+			[ -n "$manifest" ] || continue
+			if [ -n "${RESTORE_NOT_AFTER:-}" ]; then
+				stamp="${manifest##*/manifest_}"
+				stamp="${stamp%%.json*}"
+				[[ "$stamp" > "$RESTORE_NOT_AFTER" ]] && continue
+			fi
+			found=true
+			read_manifest_entry "$key" "$manifest" || return 1
+			entry="$MANIFEST_ENTRY"
+			[ -n "$entry" ] || continue
+			read -r path RESOLVED_SIZE RESOLVED_SHA256 <<<"$entry"
+			if [ ! -f "${BACKUP_DIR}/${path}" ]; then
+				warn "${key}: ${path} listed in $(basename "$manifest") is missing, trying an older run"
+				continue
+			fi
+			RESOLVED_FILE="${BACKUP_DIR}/${path}"
+			return 0
+		done < <(manifests_newest_first)
+		if ! $found; then
+			fail "${key}: no run manifest in ${BACKUP_DIR}/manifests${RESTORE_NOT_AFTER:+ taken at or before ${RESTORE_NOT_AFTER}}; backups taken before manifests are restored with an explicit --timestamp"
+		else
+			fail "${key}: no complete backup in any run manifest of ${BACKUP_DIR}/manifests"
+		fi
+		return 1
+	fi
+	manifest="$(manifest_of "$RESTORE_TIMESTAMP")"
+	if [ -n "$manifest" ]; then
+		read_manifest_entry "$key" "$manifest" || return 1
+		entry="$MANIFEST_ENTRY"
+		if [ -z "$entry" ]; then
+			fail "${key}: run ${RESTORE_TIMESTAMP} did not back it up successfully (absent from $(basename "$manifest"))"
+			return 1
+		fi
+		read -r path RESOLVED_SIZE RESOLVED_SHA256 <<<"$entry"
+		if [ ! -f "${BACKUP_DIR}/${path}" ]; then
+			fail "${key}: ${BACKUP_DIR}/${path} listed in $(basename "$manifest") is missing"
+			return 1
+		fi
+		RESOLVED_FILE="${BACKUP_DIR}/${path}"
+		return 0
+	fi
+	for path in "$@"; do
+		[ -n "$path" ] && [ -e "$path" ] || continue
+		warn "${key}: run ${RESTORE_TIMESTAMP} has no manifest (taken before manifests): ${path} is restored without checksum"
+		RESOLVED_FILE="$path"
+		return 0
+	done
+	fail "${key}: no backup for run ${RESTORE_TIMESTAMP} in ${BACKUP_DIR}"
+	return 1
+}
+
+# verify_backup <file> <size> <sha256>
+# Refuses (`fail`, returns 1) a file whose size or plaintext sha256 differs
+# from its manifest entry. No check without a recorded sha256 (legacy runs).
+verify_backup() {
+	local file="$1" size="$2" sha="$3" actual
+	[ -n "$sha" ] || return 0
+	actual="$(file_size "$file")"
+	if [ "$actual" != "$size" ]; then
+		fail "${file}: ${actual} bytes, the run manifest says ${size}: refused"
+		return 1
+	fi
+	if ! actual="$(open_backup "$file" | sha256sum | cut -d' ' -f1)"; then
+		fail "${file}: cannot be read: refused"
+		return 1
+	fi
+	if [ "$actual" != "$sha" ]; then
+		fail "${file}: sha256 ${actual} differs from the run manifest (${sha}): refused"
+		return 1
+	fi
+	ok "Checksum verified: ${file}"
+}
+
+# resolve_and_verify <key> <legacy path...>
+# resolve_backup, then refuses an empty file and checks it against its
+# manifest entry (verify_backup). Sets RESOLVED_FILE; returns 1 (after
+# `fail`) when there is nothing safe to restore.
+resolve_and_verify() {
+	resolve_backup "$@" || return 1
+	log "Restoring ${1} from: ${RESOLVED_FILE}"
+	if [ -f "$RESOLVED_FILE" ] && [ ! -s "$RESOLVED_FILE" ]; then
+		fail "${1} backup is empty: ${RESOLVED_FILE}"
+		return 1
+	fi
+	verify_backup "$RESOLVED_FILE" "$RESOLVED_SIZE" "$RESOLVED_SHA256"
+}
+
+# Refuses (`fail`, returns 1) a gzipped mysqldump `$1` whose last non-empty
+# line is not mysqldump's closing `-- Dump completed` comment: the dump was
+# cut short and would drop tables it cannot recreate.
+verify_mysql_dump_complete() {
+	local file="$1" last
+	if ! last="$(open_backup "$file" | gunzip | awk 'NF { l = $0 } END { print l }')"; then
+		fail "${file}: cannot be decompressed: refused"
+		return 1
+	fi
+	case "$last" in
+	"-- Dump completed"*) return 0 ;;
+	esac
+	fail "${file}: the dump does not end with '-- Dump completed' (truncated): refused"
+	return 1
 }
 
 write_metric() {
@@ -213,10 +520,13 @@ upload_offsite() {
 	fi
 }
 
-# Deletes the backup files older than RETENTION_DAYS (off-site copies follow
-# the bucket's own lifecycle rules).
+# Deletes the backup files and run manifests older than RETENTION_DAYS
+# (off-site copies follow the bucket's own lifecycle rules), and the
+# `*.partial` files a killed run (OOM, activeDeadlineSeconds) left behind:
+# this run renamed or deleted its own, so any older than an hour is an orphan.
 prune_old() {
 	log "Pruning backups older than ${RETENTION_DAYS} days..."
+	find "${BACKUP_DIR}" -mindepth 2 -type f -name '*.partial' -mmin +60 -delete 2>/dev/null || true
 	find "${BACKUP_DIR}" -mindepth 2 -type f -mtime "+${RETENTION_DAYS}" -not -path "*/metrics/*" -delete 2>/dev/null || true
 	find "${BACKUP_DIR}" -mindepth 2 -type d -empty -delete 2>/dev/null || true
 	ok "Old backups pruned"

@@ -7,13 +7,19 @@
 #          BACKUP_AGE_IDENTITY=~/backup-key.txt (to read *.age backups)
 #
 #  --until <instant> (point-in-time recovery, ADR-0031; any date understood
-#  by `date -d`, UTC unless it says otherwise): restores the newest daily
-#  backup taken before the instant, then replays the archived MySQL binlogs
+#  by `date -d`, UTC unless it says otherwise): restores, for each component,
+#  the newest run taken before the instant whose manifest lists it, then replays the archived MySQL binlogs
 #  and MongoDB oplogs (backup-incremental-k8s.sh) up to it, excluded. Before
 #  touching any data it checks that the archives reach the instant without a
 #  gap, and decrypts every one of them: it exits 1 otherwise. Stop the
 #  writers first (BACKUP_DR.md): a write landing between the dump restore and
 #  the replay makes the replay fail.
+#
+#  Without --timestamp, each component comes from the newest run whose
+#  manifest lists it; every file is checked against its manifest (size,
+#  sha256 of the plaintext; MySQL: ends with `-- Dump completed`) before
+#  anything is written, --dry-run included. Runs taken before manifests are
+#  only restored with an explicit --timestamp (see backup-lib.sh).
 #
 #  Restore MySQL before SPIRE: the SPIRE datastore (bundle, CA journal,
 #  entries) is the `spire` database, keys.json only holds the CA private keys.
@@ -63,6 +69,8 @@ if [ -n "$RESTORE_UNTIL" ]; then
   fi
   UNTIL_STAMP="$(date -u -d "@${UNTIL_EPOCH}" +%Y-%m-%d_%H%M%S)"
   UNTIL_SQL="$(date -u -d "@${UNTIL_EPOCH}" '+%Y-%m-%d %H:%M:%S')"
+  # resolve_backup (backup-lib.sh) skips the runs taken after the instant.
+  RESTORE_NOT_AFTER="$UNTIL_STAMP"
 fi
 
 log()  { echo "[$(date +%H:%M:%S)] $*"; }
@@ -73,48 +81,16 @@ warn() { log "⚠ $*"; }
 # shellcheck source=backup-lib.sh
 source "$(dirname "$0")/backup-lib.sh"
 
-validate_file() {
-  local file="$1"
-  local label="$2"
-  if [ ! -f "$file" ]; then
-    fail "${label} not found: ${file}"
-    return 1
-  fi
-  if [ ! -s "$file" ]; then
-    fail "${label} is empty: ${file}"
-    return 1
-  fi
-  return 0
-}
-
-# Backup of the replica set labelled `$1` in directory `$2`: `<label>.archive.gz`,
-# or `<statefulset>-<n>.archive.gz` for backups taken per pod (before 2026-10).
-mongo_archive() {
+# Backup of the replica set labelled `$1` in the run directory `$2` taken
+# before manifests: `<label>.archive.gz`, or `<statefulset>-<n>.archive.gz`
+# for backups taken per pod (before 2026-10).
+legacy_mongo_archive() {
   local label="$1" src="$2" primary="$3" archive
   archive=$(backup_file "${src}/${label}.archive.gz")
-  if [ -z "$archive" ]; then
+  if [ -z "$archive" ] && [ -n "$primary" ]; then
     archive=$(find "$src" -maxdepth 1 \( -name "${primary%-*}-*.archive.gz" -o -name "${primary%-*}-*.archive.gz.age" \) 2>/dev/null | sort | head -1)
   fi
   echo "$archive"
-}
-
-# Newest backup of directory `$1` named `<prefix><stamp><suffix>` (with or
-# without `.age`) whose stamp is not after `$4`; the newest when `$4` is empty.
-backup_until() {
-  local dir="$1" prefix="$2" suffix="$3" limit="${4:-}" path stamp best=""
-  if [ -z "$limit" ]; then
-    latest_backup "$dir" "${prefix}*${suffix}"
-    return
-  fi
-  while read -r path; do
-    [ -n "$path" ] || continue
-    stamp="${path##*/}"
-    stamp="${stamp#"$prefix"}"
-    stamp="${stamp%.age}"
-    stamp="${stamp%"$suffix"}"
-    [[ "$stamp" > "$limit" ]] || best="$path"
-  done < <(find "$dir" -maxdepth 1 \( -name "${prefix}*${suffix}" -o -name "${prefix}*${suffix}.age" \) 2>/dev/null | sort)
-  echo "$best"
 }
 
 # Field `$2` of PITR metadata file `$1` (decrypted).
@@ -134,25 +110,6 @@ check_archives() {
   done
 }
 
-# Directory of the daily MongoDB backup to restore: RESTORE_TIMESTAMP, the
-# newest taken before --until, or the newest.
-mongo_backup_dir() {
-  local dir best=""
-  if [ "$RESTORE_TIMESTAMP" != "latest" ]; then
-    echo "${BACKUP_DIR}/mongodb/${RESTORE_TIMESTAMP}"
-    return
-  fi
-  # Stamped directories only: `oplog/` holds the incremental archives.
-  while read -r dir; do
-    [ -n "$dir" ] || continue
-    if [ -n "$UNTIL_STAMP" ] && [[ "${dir##*/}" > "$UNTIL_STAMP" ]]; then
-      continue
-    fi
-    best="$dir"
-  done < <(find "${BACKUP_DIR}/mongodb" -mindepth 1 -maxdepth 1 -type d -name '[0-9]*' 2>/dev/null | sort)
-  echo "$best"
-}
-
 # Replays oplog archives `$2...` into MongoDB primary `$1`, up to --until
 # (excluded). mongorestore reads an oplog from a file only: it is written to
 # a private directory of the pod and deleted afterwards.
@@ -169,24 +126,14 @@ replay_oplog() {
 
 restore_mongodb() {
   log "Starting MongoDB restore..."
-  local src
-  src=$(mongo_backup_dir)
-
-  if [ -z "$src" ] || [ ! -d "$src" ]; then
-    fail "No MongoDB backup found in ${BACKUP_DIR}/mongodb${UNTIL_STAMP:+ before ${UNTIL_STAMP}}"
-    return
-  fi
-  log "Restoring from: ${src}"
-
-  local label primary archive
+  local label primary legacy=""
   for label in mongodb mongodb-audit; do
-    if ! primary=$(mongo_primary "$label"); then
+    primary=$(mongo_primary "$label") || primary=""
+    [ "$RESTORE_TIMESTAMP" = "latest" ] ||
+      legacy=$(legacy_mongo_archive "$label" "${BACKUP_DIR}/mongodb/${RESTORE_TIMESTAMP}" "$primary")
+    resolve_and_verify "$label" "$legacy" || continue
+    if [ -z "$primary" ]; then
       fail "No writable MongoDB primary for ${label}"
-      continue
-    fi
-    archive=$(mongo_archive "$label" "$src" "$primary")
-    if [ -z "$archive" ]; then
-      fail "No backup for ${label} in ${src}"
       continue
     fi
 
@@ -194,7 +141,8 @@ restore_mongodb() {
     # oplog point, unbroken and readable, before anything is dropped.
     local chain=()
     if [ -n "$UNTIL_EPOCH" ]; then
-      local meta start list
+      local src meta start list
+      src=$(dirname "$RESOLVED_FILE")
       meta=$(backup_file "${src}/${label}.pitr")
       if [ -z "$meta" ]; then
         fail "${label}: the backup in ${src} has no oplog point (taken before ADR-0031): no point-in-time restore from it"
@@ -217,15 +165,13 @@ restore_mongodb() {
     fi
 
     if $DRY_RUN; then
-      warn "[DRY-RUN] Would restore MongoDB ${label} into ${primary} from ${archive}${UNTIL_SQL:+, then its oplog up to ${UNTIL_SQL} UTC}"
+      warn "[DRY-RUN] Would restore MongoDB ${label} into ${primary} from ${RESOLVED_FILE}${UNTIL_SQL:+, then its oplog up to ${UNTIL_SQL} UTC}"
       continue
     fi
-    validate_file "$archive" "${label} backup" || continue
 
     # The dumps carry their oplog (mongodump --oplog): replaying it brings the
     # restore to the point in time the dump ended.
-    if ! open_backup "$archive" | kubectl exec -i -n "${K8S_NAMESPACE}" "${primary}" -- \
-      mongorestore --quiet --gzip --archive --drop --oplogReplay; then
+    if ! open_backup "$RESOLVED_FILE" | kubectl exec -i -n "${K8S_NAMESPACE}" "${primary}" -- \n      mongorestore --quiet --gzip --archive --drop --oplogReplay; then
       fail "MongoDB restore failed: ${label} (${primary})"
       continue
     fi
@@ -266,18 +212,9 @@ replay_binlogs() {
 
 restore_mysql() {
   log "Starting MySQL restore..."
-  local file
-  if [ "$RESTORE_TIMESTAMP" = "latest" ]; then
-    file=$(backup_until "${BACKUP_DIR}/mysql" "financial_scraper_" ".sql.gz" "$UNTIL_STAMP")
-  else
-    file=$(backup_file "${BACKUP_DIR}/mysql/financial_scraper_${RESTORE_TIMESTAMP}.sql.gz")
-  fi
-
-  if [ -z "$file" ] || [ ! -f "$file" ]; then
-    fail "No MySQL backup found in ${BACKUP_DIR}/mysql${UNTIL_STAMP:+ before ${UNTIL_STAMP}}"
-    return
-  fi
-  log "Restoring from: ${file}"
+  resolve_and_verify mysql "$(backup_file "${BACKUP_DIR}/mysql/financial_scraper_${RESTORE_TIMESTAMP}.sql.gz")" || return 0
+  local file="$RESOLVED_FILE"
+  verify_mysql_dump_complete "$file" || return 0
 
   local pod
   if ! pod=$(mysql_primary_pod); then
@@ -324,8 +261,6 @@ restore_mysql() {
     return
   fi
 
-  validate_file "$file" "MySQL backup" || return
-
   if ! open_backup "$file" | gunzip | strip_gtid | mysql_root_sh "${pod}" 'mysql --user=root'; then
     fail "MySQL restore failed (${pod})"
     return
@@ -341,16 +276,8 @@ restore_mysql() {
 
 restore_checkpoints() {
   log "Starting checkpoints restore..."
-  local file
-  if [ "$RESTORE_TIMESTAMP" = "latest" ]; then
-    file=$(backup_until "${BACKUP_DIR}/checkpoints" "checkpoints_" ".tar.gz" "$UNTIL_STAMP")
-  else
-    file=$(backup_file "${BACKUP_DIR}/checkpoints/checkpoints_${RESTORE_TIMESTAMP}.tar.gz")
-  fi
-  if [ -z "$file" ] || [ ! -f "$file" ]; then
-    fail "No checkpoints backup found in ${BACKUP_DIR}/checkpoints"
-    return
-  fi
+  resolve_and_verify checkpoints "$(backup_file "${BACKUP_DIR}/checkpoints/checkpoints_${RESTORE_TIMESTAMP}.tar.gz")" || return 0
+  local file="$RESOLVED_FILE"
 
   local pod
   pod=$(component_pods trader-trainer | awk '{print $1}')
@@ -376,18 +303,8 @@ restore_checkpoints() {
 # running as the server's user, then starts the server again.
 restore_spire() {
   log "Starting SPIRE CA key restore..."
-  local file
-  if [ "$RESTORE_TIMESTAMP" = "latest" ]; then
-    file=$(backup_until "${BACKUP_DIR}/spire" "keys_" ".json" "$UNTIL_STAMP")
-  else
-    file=$(backup_file "${BACKUP_DIR}/spire/keys_${RESTORE_TIMESTAMP}.json")
-  fi
-
-  if [ -z "$file" ] || [ ! -f "$file" ]; then
-    fail "No SPIRE CA key backup found in ${BACKUP_DIR}/spire"
-    return
-  fi
-  log "Restoring from: ${file}"
+  resolve_and_verify spire "$(backup_file "${BACKUP_DIR}/spire/keys_${RESTORE_TIMESTAMP}.json")" || return 0
+  local file="$RESOLVED_FILE"
 
   local deploy="deployment/spire-server"
   local claim uid gid
@@ -404,8 +321,6 @@ restore_spire() {
     warn "[DRY-RUN] Would restore SPIRE CA key into claim ${claim} from ${file}"
     return
   fi
-
-  validate_file "$file" "SPIRE CA key backup" || return
 
   local plain
   plain=$(mktemp)

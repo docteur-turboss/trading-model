@@ -55,35 +55,40 @@ age-keygen -o "$WORK/key.txt" 2>/dev/null
 BACKUP_AGE_RECIPIENTS="$(sed -n 's/^# public key: //p' "$WORK/key.txt")" init_encryption
 METRICS_FILE=""
 
-# Writes and uploads run `$1` with the components `$2` (comma separated).
+# Writes the plaintext `$1`.
+plain() {
+	printf '%s\n' "$1"
+}
+
+# Writes and uploads run `$1` with the components `$2` (comma separated), the
+# way backup-k8s.sh does (write_dump, then write_manifest). `$3`: `nomanifest`
+# for a run taken before manifests (or whose manifest was not written).
 backup_run() {
 	local ts="$1" part label
 	BACKUP_DIR="$WORK/local/$ts"
+	TIMESTAMP="$ts"
 	OUTPUTS=()
+	MANIFEST_ENTRIES=()
 	IFS=',' read -ra parts <<<"$2"
 	for part in "${parts[@]}"; do
 		case "$part" in
 		mongodb)
 			mkdir -p "$BACKUP_DIR/mongodb/$ts"
 			for label in mongodb mongodb-audit; do
-				echo "$label $ts" | gzip | seal >"$BACKUP_DIR/mongodb/$ts/$label.archive.gz.age"
-				record_output "$BACKUP_DIR/mongodb/$ts/$label.archive.gz.age"
+				write_dump "$label" "$BACKUP_DIR/mongodb/$ts/$label.archive.gz.age" plain "$label $ts"
 			done
 			;;
 		mongodb-only)
 			mkdir -p "$BACKUP_DIR/mongodb/$ts"
-			echo "mongodb $ts" | gzip | seal >"$BACKUP_DIR/mongodb/$ts/mongodb.archive.gz.age"
-			record_output "$BACKUP_DIR/mongodb/$ts/mongodb.archive.gz.age"
+			write_dump mongodb "$BACKUP_DIR/mongodb/$ts/mongodb.archive.gz.age" plain "mongodb $ts"
 			;;
 		mysql)
 			mkdir -p "$BACKUP_DIR/mysql"
-			echo "mysql $ts" | gzip | seal >"$BACKUP_DIR/mysql/financial_scraper_$ts.sql.gz.age"
-			record_output "$BACKUP_DIR/mysql/financial_scraper_$ts.sql.gz.age"
+			write_dump mysql "$BACKUP_DIR/mysql/financial_scraper_$ts.sql.gz.age" plain "mysql $ts"
 			;;
 		checkpoints)
 			mkdir -p "$BACKUP_DIR/checkpoints"
-			echo "checkpoints $ts" | gzip | seal >"$BACKUP_DIR/checkpoints/checkpoints_$ts.tar.gz.age"
-			record_output "$BACKUP_DIR/checkpoints/checkpoints_$ts.tar.gz.age"
+			write_dump checkpoints "$BACKUP_DIR/checkpoints/checkpoints_$ts.tar.gz.age" plain "checkpoints $ts"
 			;;
 		pitr)
 			# PITR starting points (backup-k8s.sh, ADR-0031).
@@ -97,12 +102,12 @@ backup_run() {
 			;;
 		spire)
 			mkdir -p "$BACKUP_DIR/spire"
-			echo "{\"keys\": \"$ts\"}" | seal >"$BACKUP_DIR/spire/keys_$ts.json.age"
-			record_output "$BACKUP_DIR/spire/keys_$ts.json.age"
+			write_dump spire "$BACKUP_DIR/spire/keys_$ts.json.age" plain "{\"keys\": \"$ts\"}"
 			;;
 		esac
 	done
 	BACKUP_FAILURES=0
+	[ "${3:-}" = nomanifest ] || write_manifest 2>/dev/null
 	upload_offsite 2>/dev/null
 	[ "$BACKUP_FAILURES" -eq 0 ] || {
 		echo "upload_offsite failed for run $ts"
@@ -110,13 +115,17 @@ backup_run() {
 	}
 }
 
+# Taken before run manifests: only fetched with --timestamp.
 OLD=2026-10-30_020000
 GOOD=2026-10-31_020000
 # The mongodb-audit dump failed: upload_offsite never received it.
 BROKEN=2026-11-01_020000
-backup_run "$OLD" mongodb,mysql,checkpoints,spire
+# Every dump, but no run manifest: restore-k8s.sh could not check it.
+NOMANIFEST=2026-11-02_020000
+backup_run "$OLD" mongodb,mysql,checkpoints,spire nomanifest
 backup_run "$GOOD" mongodb,mysql,checkpoints,spire,pitr
 backup_run "$BROKEN" mongodb-only,mysql,checkpoints,spire
+backup_run "$NOMANIFEST" mongodb,mysql,checkpoints,spire nomanifest
 # Binlog and oplog archives (backup-incremental-k8s.sh): one before GOOD
 # (never needed by it), two after.
 GOOD_EPOCH="$(stamp_epoch "$GOOD")"
@@ -152,13 +161,14 @@ else
 	failed "fetch of the latest run failed: $(cat "$WORK/out")"
 fi
 expected="checkpoints/checkpoints_${GOOD}.tar.gz.age
+manifests/manifest_${GOOD}.json.age
 mongodb/${GOOD}/mongodb-audit.archive.gz.age
 mongodb/${GOOD}/mongodb.archive.gz.age
 mysql/financial_scraper_${GOOD}.sql.gz.age
 spire/keys_${GOOD}.json.age"
 actual="$(cd "$DEST" 2>/dev/null && find . -type f | sed 's|^\./||' | sort)"
 if [ "$actual" = "$expected" ]; then
-	pass "the newest complete run (${GOOD}) is fetched, not the newer incomplete ${BROKEN}"
+	pass "the newest complete run (${GOOD}) and its manifest are fetched, not ${BROKEN} (a dump missing) nor ${NOMANIFEST} (no manifest)"
 else
 	failed "fetched files: $actual"
 fi
@@ -172,9 +182,26 @@ if gunzip -t <"$DEST/mysql/financial_scraper_${GOOD}.sql.gz.age" 2>/dev/null; th
 else
 	pass "fetched files stay encrypted (nothing decrypted, no plaintext written)"
 fi
-if [ "$(BACKUP_AGE_IDENTITY="$WORK/key.txt" open_backup "$(latest_backup "$DEST/mysql" "financial_scraper_*.sql.gz")" | gunzip)" = "mysql $GOOD" ] &&
-	[ "$(find "$DEST/mongodb" -mindepth 1 -maxdepth 1 -type d | sort | tail -1)" = "$DEST/mongodb/$GOOD" ]; then
-	pass "the layout is the one restore-k8s.sh reads (latest_backup, mongodb/<TS>/)"
+# restore-k8s.sh lookups (backup-lib.sh): run manifest, then size and sha256.
+restore_lookup() {
+	(
+		export BACKUP_AGE_IDENTITY="$WORK/key.txt"
+		BACKUP_DIR="$1" RESTORE_TIMESTAMP="$2"
+		resolve_and_verify "$3" "" >/dev/null 2>&1 && echo "$RESOLVED_FILE"
+	)
+}
+layout=true
+for key in mongodb mongodb-audit mysql checkpoints spire; do
+	for ts in latest "$GOOD"; do
+		resolved="$(restore_lookup "$DEST" "$ts" "$key")" || resolved=""
+		case "$resolved" in
+		"$DEST"/*"$GOOD"*) ;;
+		*) layout=false ;;
+		esac
+	done
+done
+if $layout; then
+	pass "restore-k8s.sh finds every component of ${GOOD} through its manifest, checksums verified"
 else
 	failed "restore-k8s.sh lookups do not find the fetched run"
 fi
@@ -183,8 +210,8 @@ grep -q "restore-k8s.sh --timestamp ${GOOD}" "$WORK/out" && pass "prints the res
 echo "--timestamp"
 if fetch --dest "$WORK/fetched-old" --timestamp "$OLD" &&
 	[ "$(find "$WORK/fetched-old" -type f | grep -c "$OLD")" = 5 ] &&
-	[ "$(find "$WORK/fetched-old" -type f | wc -l)" = 5 ]; then
-	pass "fetches the requested run ${OLD} only"
+	[ "$(find "$WORK/fetched-old" -type f | wc -l)" = 5 ] && grep -q "no run manifest" "$WORK/out"; then
+	pass "fetches the requested run ${OLD} only, taken before manifests (with a warning)"
 else
 	failed "--timestamp ${OLD}: $(cat "$WORK/out")"
 fi
@@ -208,7 +235,8 @@ fi
 
 echo "--components"
 if fetch --dest "$WORK/fetched-mysql" --components mysql,spire &&
-	[ "$(cd "$WORK/fetched-mysql" && find . -type f | sed 's|^\./||' | sort)" = "mysql/financial_scraper_${BROKEN}.sql.gz.age
+	[ "$(cd "$WORK/fetched-mysql" && find . -type f | sed 's|^\./||' | sort)" = "manifests/manifest_${BROKEN}.json.age
+mysql/financial_scraper_${BROKEN}.sql.gz.age
 spire/keys_${BROKEN}.json.age" ]; then
 	pass "a run complete for the requested components is enough (${BROKEN} for mysql,spire)"
 else
@@ -231,6 +259,7 @@ fi
 expected="$(printf '%s\n' "checkpoints/checkpoints_${GOOD}.tar.gz.age" \
 	"mongodb/${GOOD}/mongodb-audit.archive.gz.age" "mongodb/${GOOD}/mongodb-audit.pitr.age" \
 	"mongodb/${GOOD}/mongodb.archive.gz.age" "mongodb/${GOOD}/mongodb.pitr.age" \
+	"manifests/manifest_${GOOD}.json.age" \
 	"mysql/financial_scraper_${GOOD}.pitr.age" "mysql/financial_scraper_${GOOD}.sql.gz.age" \
 	"spire/keys_${GOOD}.json.age"; echo "$ARCHIVES_AFTER")"
 expected="$(sort <<<"$expected" | grep .)"
@@ -243,6 +272,7 @@ else
 fi
 if fetch --dest "$WORK/fetched-pitr-mysql" --pitr --components mysql &&
 	[ "$(cd "$WORK/fetched-pitr-mysql" && find . -type f | sed 's|^\./||' | sort)" = "$(printf '%s\n' \
+		"manifests/manifest_${GOOD}.json.age" \
 		"mysql/binlog/uuid-1/binlog.000002_${GOOD}.gz.age" "mysql/binlog/uuid-1/binlog.000003_2026-10-31_030000.gz.age" \
 		"mysql/financial_scraper_${GOOD}.pitr.age" "mysql/financial_scraper_${GOOD}.sql.gz.age")" ]; then
 	pass "--pitr --components mysql leaves the oplog archives out"
@@ -252,8 +282,8 @@ fi
 
 echo "--dry-run"
 if fetch --dest "$WORK/fetched-dry" --dry-run && [ ! -e "$WORK/fetched-dry" ] &&
-	[ "$(grep -c "Would fetch" "$WORK/out")" = 5 ] && grep -q "$GOOD" "$WORK/out"; then
-	pass "lists the 5 files of ${GOOD} and copies nothing"
+	[ "$(grep -c "Would fetch" "$WORK/out")" = 6 ] && grep -q "$GOOD" "$WORK/out"; then
+	pass "lists the 6 files of ${GOOD} (manifest included) and copies nothing"
 else
 	failed "--dry-run: $(cat "$WORK/out")"
 fi

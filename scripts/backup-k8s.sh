@@ -60,10 +60,10 @@ backup_mongodb() {
     fi
     local file="${dest}/${label}.archive.gz${AGE_SUFFIX}"
     local pitr="${dest}/${label}.pitr${AGE_SUFFIX}"
-    if kubectl_exec "${primary}" -- mongodump --gzip --archive --oplog | seal > "$file" &&
-      sealed_write "$pitr" printf 'oplog_ts=%s\n' "$start"; then
+    if write_dump "$label" "$file" kubectl_exec "${primary}" -- mongodump --gzip --archive --oplog &&
+      sealed_write "$pitr" printf 'oplog_ts=%s
+' "$start"; then
       ok "MongoDB backup complete: ${label} (${primary}, oplog from ${start})"
-      record_output "$file"
       record_output "$pitr"
       write_metric "$label" 1
     else
@@ -78,13 +78,26 @@ backup_mongodb() {
 mysql_pitr() {
   local line binlog pos
   line=$(cat "$2")
-  binlog=$(echo "$line" | sed -nE "s/.*_LOG_FILE='([^']+)'.*/\1/p")
-  pos=$(echo "$line" | sed -nE 's/.*_LOG_POS=([0-9]+).*/\1/p')
+  binlog=$(echo "$line" | sed -nE "s/.*_LOG_FILE='([^']+)'.*//p")
+  pos=$(echo "$line" | sed -nE 's/.*_LOG_POS=([0-9]+).*//p')
   if [ -z "$binlog" ] || [ -z "$pos" ]; then
     fail "The MySQL dump carries no binlog coordinates: no point-in-time restore from it" >&2
     return 1
   fi
-  printf 'server_uuid=%s\nbinlog_file=%s\nbinlog_pos=%s\n' "$1" "$binlog" "$pos"
+  printf 'server_uuid=%s
+binlog_file=%s
+binlog_pos=%s
+' "$1" "$binlog" "$pos"
+}
+
+# Gzipped dump of every non-system database from MySQL pod `$1`. Point-in-time
+# recovery replays the archived binlogs from the dump's own coordinates
+# (ADR-0031): --source-data=2 writes them as a comment at the top of the
+# dump, copied to file `$2` on the way through.
+mysql_dump_gz() {
+  mysql_root_sh "$1" "$MYSQL_DUMP_SH --source-data=2" 2>/dev/null |
+    awk -v out="$2" '!found && /^-- CHANGE (REPLICATION SOURCE|MASTER) TO/ { print > out; close(out); found = 1 } { print }' |
+    gzip
 }
 
 backup_mysql() {
@@ -105,9 +118,6 @@ backup_mysql() {
     return
   fi
 
-  # Point-in-time recovery replays the archived binlogs from the dump's own
-  # coordinates (ADR-0031): --source-data=2 writes them as a comment at the
-  # top of the dump, copied aside on the way through.
   local uuid coords pitr="${dest}/financial_scraper_${TIMESTAMP}.pitr${AGE_SUFFIX}"
   if ! uuid=$(mysql_root_sh "${pod}" "mysql --user=root -N -e 'SELECT @@server_uuid'") || [ -z "$uuid" ]; then
     fail "MySQL backup failed: cannot read the server uuid of ${pod}"
@@ -115,12 +125,9 @@ backup_mysql() {
     return
   fi
   coords=$(mktemp)
-  if mysql_root_sh "${pod}" "$MYSQL_DUMP_SH --source-data=2" 2>/dev/null |
-    awk -v out="$coords" '!found && /^-- CHANGE (REPLICATION SOURCE|MASTER) TO/ { print > out; close(out); found = 1 } { print }' |
-    gzip | seal > "$file" && [ -s "$file" ] &&
+  if write_dump mysql "$file" mysql_dump_gz "${pod}" "$coords" &&
     sealed_write "$pitr" mysql_pitr "$uuid" "$coords"; then
     ok "MySQL backup complete: ${file}"
-    record_output "$file"
     record_output "$pitr"
     write_metric "mysql" 1
   else
@@ -149,9 +156,8 @@ backup_checkpoints() {
   fi
 
   local file="${dest}/checkpoints_${TIMESTAMP}.tar.gz${AGE_SUFFIX}"
-  if kubectl_exec "${pod}" -c trader-trainer -- tar czf - -C /data/checkpoints . | seal > "$file"; then
+  if write_dump checkpoints "$file" kubectl_exec "${pod}" -c trader-trainer -- tar czf - -C /data/checkpoints .; then
     ok "Checkpoints backup complete"
-    record_output "$file"
     write_metric "checkpoints" 1
   else
     fail "Checkpoints backup failed"
@@ -180,9 +186,8 @@ backup_spire() {
   local file="${dest}/keys_${TIMESTAMP}.json${AGE_SUFFIX}"
   # The official spire-server image has no shell: read the key through the
   # spire-entries sidecar (alpine), which mounts the data volume read-only.
-  if kubectl_exec -c spire-entries "${pod}" -- cat /run/spire/data/keys.json | seal > "$file"; then
+  if write_dump spire "$file" kubectl_exec -c spire-entries "${pod}" -- cat /run/spire/data/keys.json; then
     ok "SPIRE CA key backup complete: ${file}"
-    record_output "$file"
     write_metric "spire" 1
   else
     fail "SPIRE CA key backup failed"
@@ -220,6 +225,9 @@ for part in "${PARTS[@]}"; do
 done
 
 prune_old
+# Before the off-site copy, which sends the manifest along with the dumps. A
+# failure is counted by write_metric (component "manifest"): the run exits 1.
+$DRY_RUN || write_manifest || true
 upload_offsite
 finalize_metrics
 
