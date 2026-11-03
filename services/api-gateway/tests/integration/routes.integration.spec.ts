@@ -318,18 +318,21 @@ describe("API Gateway — Routes Integration", () => {
 		["POST", "/v1/discovery-server/services/../register"],
 		["POST", "/v1/discovery-server/services/%2e%2e/register"],
 		["POST", "/v1/discovery-server/services\\..\\register"],
-	])("should not proxy %s %s, which is not a public route", async (method, path) => {
-		const app = createApp();
-		await new Promise<void>((resolve) => {
-			server = app.listen(0, () => resolve());
-		});
-		const result = await request(server, path, {
-			method,
-			headers: AUTH_HEADERS,
-			body: { serviceName: "api-gateway", ip: "10.0.0.9", port: 22 },
-		});
-		expect(result.status).toBe(404);
-		expect(result.body).toEqual({ error: "Route not found" });
-		expect(forwardRequest).not.toHaveBeenCalled();
-	});
+	])(
+		"should not proxy %s %s, which is not a public route",
+		async (method, path) => {
+			const app = createApp();
+			await new Promise<void>((resolve) => {
+				server = app.listen(0, () => resolve());
+			});
+			const result = await request(server, path, {
+				method,
+				headers: AUTH_HEADERS,
+				body: { serviceName: "api-gateway", ip: "10.0.0.9", port: 22 },
+			});
+			expect(result.status).toBe(404);
+			expect(result.body).toEqual({ error: "Route not found" });
+			expect(forwardRequest).not.toHaveBeenCalled();
+		}
+	);
 });

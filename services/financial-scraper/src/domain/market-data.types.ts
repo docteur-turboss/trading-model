@@ -1,9 +1,11 @@
-export {
+export type {
 	BookTickerData,
 	CandleData,
-	MarketType,
 	OrderBookData,
-	SourceType,
 	TickerData,
 	TradeData,
+} from "@trading-model/contracts/market-data.types";
+export {
+	MarketType,
+	SourceType,
 } from "@trading-model/contracts/market-data.types";

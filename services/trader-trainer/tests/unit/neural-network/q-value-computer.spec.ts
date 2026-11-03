@@ -85,11 +85,12 @@ describe("computeQLearningTarget", () => {
 		expect([...exp.output]).toEqual([...new Float32Array([0.5, 0.2, 0.1])]);
 	});
 
-	it.each([
-		-1, 3, 1.5,
-	])("should reject the out-of-range action %p", (action) => {
-		expect(() =>
-			computeQLearningTarget(makeNetwork(), makeExperience({ action }), 0.9)
-		).toThrow(/action/);
-	});
+	it.each([-1, 3, 1.5])(
+		"should reject the out-of-range action %p",
+		(action) => {
+			expect(() =>
+				computeQLearningTarget(makeNetwork(), makeExperience({ action }), 0.9)
+			).toThrow(/action/);
+		}
+	);
 });

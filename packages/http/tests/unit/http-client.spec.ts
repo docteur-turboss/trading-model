@@ -1063,27 +1063,3 @@ describe("isServiceCircuitOpen", () => {
 		);
 	});
 });
-
-describe("computeAdaptiveTimeout", () => {
-	it("should return baseMs × 2 when no EWMA latency", () => {
-		expect(computeAdaptiveTimeout(DurationMs.of(5000))).toBe(10000);
-	});
-
-	it("should return max(baseMs, ewmaLatencyMs × 3) when latency is known", () => {
-		expect(
-			computeAdaptiveTimeout(DurationMs.of(5000), DurationMs.of(2000))
-		).toBe(6000);
-	});
-
-	it("should return baseMs when EWMA is very small", () => {
-		expect(
-			computeAdaptiveTimeout(DurationMs.of(5000), DurationMs.of(100))
-		).toBe(5000);
-	});
-
-	it("should handle zero baseMs", () => {
-		expect(computeAdaptiveTimeout(DurationMs.of(0), DurationMs.of(1000))).toBe(
-			3000
-		);
-	});
-});

@@ -29,12 +29,6 @@ describe("MarketType", () => {
 		expect(values).toContain(MarketType.Fx);
 		expect(values).toContain(MarketType.Future);
 	});
-
-	it("values() returns all market types", () => {
-		const values = MarketType.values();
-		expect(values).toContain(MarketType.Crypto);
-		expect(values).toContain(MarketType.Equity);
-	});
 });
 
 describe("SourceType", () => {

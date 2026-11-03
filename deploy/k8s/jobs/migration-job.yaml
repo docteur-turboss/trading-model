@@ -28,7 +28,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: migrate
-          image: oven/bun@sha256:c1cc397e0be452c54f37cbcdfaa747eff93c993723af7d91658764d0fdfe5873
+          image: oven/bun:1.4.4@sha256:1d22548f177f4ff38e0c15baa3c2c46c6c2060ba2d1bc573bb4720b407548f1d
           securityContext:
             runAsNonRoot: true
             allowPrivilegeEscalation: false
@@ -46,7 +46,7 @@ spec:
               cp -r /migrations/. /tmp/migrate-run/
               cd /tmp/migrate-run
               # Same pinned version as the compose migrate image.
-              bun add mysql2@3.24.4
+              bun add mysql2@3.24.6
               bun migrate.mjs up
           env:
             - name: DB_HOST

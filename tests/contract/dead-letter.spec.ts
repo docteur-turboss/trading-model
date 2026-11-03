@@ -86,25 +86,28 @@ describe("dead-letter contract: message-manager → dlq-service", () => {
 			{ reason: "MAX_RETRIES_EXCEEDED", deliveryAttempt: 10 },
 		],
 		["circuit breaker open", { reason: "OPEN", deliveryAttempt: 5 }],
-	])("%s: the dead letter is accepted by dlq-service", async (_label, input) => {
-		const [line] = await deadLettersWritten([input]);
+	])(
+		"%s: the dead letter is accepted by dlq-service",
+		async (_label, input) => {
+			const [line] = await deadLettersWritten([input]);
 
-		const parsed = parseRequest(DLQ_API.addEntry, { body: line });
+			const parsed = parseRequest(DLQ_API.addEntry, { body: line });
 
-		expect(parsed).toMatchObject({
-			success: true,
-			input: {
-				body: {
-					reason: input.reason,
-					deliveryAttempt: input.deliveryAttempt,
-					timestamp: (line as { timestamp: number }).timestamp,
-					message: (line as { message: unknown }).message,
+			expect(parsed).toMatchObject({
+				success: true,
+				input: {
+					body: {
+						reason: input.reason,
+						deliveryAttempt: input.deliveryAttempt,
+						timestamp: (line as { timestamp: number }).timestamp,
+						message: (line as { message: unknown }).message,
+					},
 				},
-			},
-		});
-		const entry = (parsed as { input: { body: never } }).input.body;
-		expect(checkEntryAcceptable(entry, span)).toEqual({ valid: true });
-	});
+			});
+			const entry = (parsed as { input: { body: never } }).input.body;
+			expect(checkEntryAcceptable(entry, span)).toEqual({ valid: true });
+		}
+	);
 
 	it("message-manager's signed POST passes dlq-service's auth and validation", async () => {
 		const sent: Array<{ url: string; body: unknown; headers: never }> = [];

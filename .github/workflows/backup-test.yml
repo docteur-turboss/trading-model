@@ -12,6 +12,8 @@ on:
     paths:
       - 'scripts/backup*.sh'
       - 'scripts/restore*.sh'
+      - 'scripts/fetch-offsite.sh'
+      - 'deploy/backup/**'
       - 'tests/backup/**'
       - 'services/audit-logger/src/adapters/outbound/persistence/**'
       - 'docker-compose.yml'
@@ -30,11 +32,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Validate backup scripts syntax
         run: |
-          for script in backup.sh restore.sh backup-k8s.sh restore-k8s.sh backup-lib.sh; do
+          for script in backup.sh restore.sh backup-k8s.sh restore-k8s.sh backup-lib.sh fetch-offsite.sh; do
             bash -n "scripts/$script" && echo "  ✓ $script syntax OK"
           done
 
@@ -45,6 +47,15 @@ jobs:
       # GTID filtering, restore of *.age files (scripts/backup-lib.sh).
       - name: Test the backup library
         run: bash tests/backup/backup-encryption.test.sh
+
+      # Off-site fetch (scripts/fetch-offsite.sh) against `rclone serve s3`
+      # filled by upload_offsite: run selection, layout, refusals. Runs in the
+      # backup-tools image: it ships the rclone the CronJob uses (serve s3
+      # needs >= 1.65, newer than Ubuntu's).
+      - name: Test the off-site fetch
+        run: |
+          docker build -q -t backup-tools deploy/backup
+          docker run --rm -v "$PWD:/repo:ro" -w /repo backup-tools bash tests/backup/fetch-offsite.test.sh
 
       # MongoDB (3 databases + an audit trail written by the audit-logger
       # image), MySQL, Redis and the SPIRE server (CA keys + datastore):
