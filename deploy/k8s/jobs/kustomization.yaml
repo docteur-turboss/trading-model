@@ -12,5 +12,7 @@ configMapGenerator:
       - backup-lib.sh=../../../scripts/backup-lib.sh
       # Mounted the same way by a restore Job (docs/deployment/BACKUP_DR.md).
       - restore-k8s.sh=../../../scripts/restore-k8s.sh
+      # Fetches a run from the off-site bucket after the loss of backup-data.
+      - fetch-offsite.sh=../../../scripts/fetch-offsite.sh
     options:
       disableNameSuffixHash: true
