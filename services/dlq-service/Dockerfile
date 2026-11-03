@@ -24,7 +24,7 @@ RUN bun run build
 # Node runtime: Bun exposes neither the peer certificate on HTTPS request
 # sockets nor server.setSecureContext, which SPIFFE mTLS (ADR-0011) relies on
 # for caller identity and SVID rotation.
-FROM node@sha256:0a7108bf6c7bf5de370ffb1a3ed6be93d405b43ff159f681a8d18c0e2bc2e402 AS runtime
+FROM node@sha256:6d2c7d5d074bf72f81ddc252b4fbb5d625bc028eeda49cb4b8c2ff8eda1ee617 AS runtime
 WORKDIR /app
 RUN apk add --no-cache tini curl
 
