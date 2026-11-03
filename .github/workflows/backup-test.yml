@@ -51,6 +51,12 @@ jobs:
       - name: Test failed dumps and run manifests
         run: bash tests/backup/backup-partial.test.sh
 
+      # GFS retention on 400 days of fake runs: exactly the files prune_old
+      # keeps, failed runs never promoted, newest complete run guarded,
+      # off-site tiers daily/ weekly/ monthly/ (ADR-0031, issue #292).
+      - name: Test the backup retention
+        run: bash tests/backup/backup-retention.test.sh
+
       # MongoDB (3 databases + an audit trail written by the audit-logger
       # image), MySQL, Redis and the SPIRE server (CA keys + datastore):
       # backup → containers and volumes deleted → restore → checks.

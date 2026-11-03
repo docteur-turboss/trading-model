@@ -38,6 +38,7 @@ An ADR documents a significant architectural decision, including the context, al
 | [ADR-0027](./0027-audit-chain-verification-and-anchoring.md) | Audit Trail Verified by audit-logger and Anchored Outside MongoDB | Accepted | 2026-10 |
 | [ADR-0029](./0029-orphan-subsystems-retired-and-reachability-gate.md) | Orphan Subsystems Retired (audit-logger Job Scheduler, `@trading-model/jobs`) and Reachability Made a Gate | Accepted | 2026-10 |
 | [ADR-0030](./0030-mt4-point-in-time-features-and-success-criteria.md) | Point-in-Time Features and Explicit Success Criteria for the MT4 Walk-Forward Validation | Accepted | 2026-10 |
+| [ADR-0031](./0031-gfs-backup-retention.md) | Grandfather-Father-Son Backup Retention, Long Tiers Off-site for the Audit Trail and MySQL | Accepted | 2026-11 |
 
 ## Keeping ADRs true to the runtime
 

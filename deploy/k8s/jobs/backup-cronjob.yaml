@@ -76,8 +76,14 @@ spec:
                   value: /backups
                 - name: METRICS_FILE
                   value: /backups/metrics/backup.prom
+                # Daily tier only on backup-data (ADR-0031): the weekly and
+                # monthly tiers of mongodb-audit and mysql live off-site, under
+                # weekly/ and monthly/, expired by the bucket lifecycle rules
+                # (docs/deployment/BACKUP_DR.md, "Off-site tiers").
                 - name: RETENTION_DAYS
                   value: "30"
+                - name: BACKUP_OFFSITE_LAYOUT
+                  value: tiered
                 - name: K8S_NAMESPACE
                   valueFrom:
                     fieldRef:

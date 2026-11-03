@@ -172,13 +172,89 @@ store (MinIO on another VPS, Backblaze B2, Scaleway, OVH...) `S3_ENDPOINT` and
 `BACKUP_S3_PROVIDER`, secrets `BACKUP_S3_ACCESS_KEY_ID`,
 `BACKUP_S3_SECRET_ACCESS_KEY`. Without them, an existing Secret (e.g. a
 SealedSecret) is kept. Enable versioning or object lock on the bucket: the
-job only adds files, retention off-site is the bucket's lifecycle rule.
+job only adds files, retention off-site is the bucket's lifecycle rules
+([Off-site tiers](#off-site-tiers)).
 
 ### Retention
 
-- `backup-data` volume: 30 days (`RETENTION_DAYS`, dumps and run manifests
-  pruned by `prune_old`, which also deletes `.partial` files older than an hour)
-- Off-site: the bucket's lifecycle rule
+Grandfather-father-son (ADR-0031), applied by `prune_old` and by the
+off-site layout (`scripts/backup-lib.sh`):
+
+| Tier | Run kept | Components | `backup-data` (CronJob) | Off-site |
+| ---- | -------- | ---------- | ----------------------- | -------- |
+| daily | every run | all | 30 days (`RETENTION_DAYS`) | `daily/`, 31 days |
+| weekly | first complete run of each ISO week (Monday's, normally) | `mongodb-audit`, `mysql` | no (`RETENTION_WEEKLY_WEEKS=0`) | `weekly/`, 85 days (12 weeks) |
+| monthly | first complete run of each calendar month | `mongodb-audit`, `mysql` | no (`RETENTION_MONTHLY_MONTHS=0`) | `monthly/`, 1830 days (60 months) |
+
+- **Age** comes from the `%Y-%m-%d_%H%M%S` timestamp in the file name, never
+  from the mtime (a copy or a fetch from the bucket changes it). A file
+  without timestamp falls back to its mtime. `metrics/` is never touched,
+  `.partial` files older than an hour are deleted, a `mongodb/<TS>/`
+  directory goes once its archives are gone.
+- **Complete run**: its run manifest exists and the component's final file
+  exists ([Run manifest](#run-manifest)); no decryption needed. Only
+  complete runs are promoted: a failed dump leaves no file, a run killed
+  before its manifest has none. The *first* run of the week or month is
+  promoted so that the decision is taken at upload time (whether a later
+  run of the week will succeed is not known yet).
+- **Guard**: the newest complete run of each component is never deleted,
+  whatever its age (a component whose backups stopped keeps its last good
+  one). A component with no complete run at all (backups taken before
+  manifests) keeps its newest file.
+- A manifest is kept as long as one of its dumps, and at least 30 days.
+- Variables: `RETENTION_DAYS` (default 30), `RETENTION_WEEKLY_WEEKS` and
+  `RETENTION_MONTHLY_MONTHS` (long tiers on the volume, default 0),
+  `RETENTION_LONG_COMPONENTS` (manifest keys, default `mongodb-audit mysql`),
+  `BACKUP_OFFSITE_LAYOUT` (`flat` by default, `tiered` in the CronJob).
+  Without any of them the behaviour is the former one: 30 days, plus the
+  guard. With `RETENTION_WEEKLY_WEEKS=12 RETENTION_MONTHLY_MONTHS=60` the same
+  tiers are also kept on the volume (a Docker host with room for them; the
+  100Gi `backup-data` PVC is sized for dailies only).
+- `checkpoints`, the operational `mongodb` (DLQ, 30 days) and `spire/keys`
+  (CA private keys) are never promoted: data minimisation, see the
+  [data retention policy](../compliance/data-retention-policy.md#backups-and-data-minimisation).
+
+Tested by `tests/backup/backup-retention.test.sh` (400 days of fake runs,
+exact set of kept files and of off-site copies; workflow `backup-test.yml`).
+
+### Off-site tiers
+
+With `BACKUP_OFFSITE_LAYOUT=tiered`, `upload_offsite` copies every file of a
+run to `<BACKUP_S3_BUCKET>/daily/<path>`, and the promoted dumps, with their
+run manifest, also to `weekly/<path>` and `monthly/<path>`: at most 3 copies
+of a run. A dump of a long component is weekly (monthly) when the volume
+holds no earlier complete run of it in the same ISO week (month); the daily
+tier keeps those earlier runs (`RETENTION_DAYS` >= 30). Under each prefix
+the layout is the volume's: to restore from a tier, use it as the bucket
+(`BACKUP_S3_BUCKET=s3://bucket/prefix/monthly`). The weekly and monthly
+prefixes hold only `mongodb-audit`, the MySQL dump and the manifests.
+
+The job never deletes in the bucket (its credentials need no delete right,
+which keeps Object Lock possible): one lifecycle rule per prefix expires the
+copies. For `BACKUP_S3_BUCKET=s3://trading-backups/prod`:
+
+```json
+{"Rules": [
+  {"ID": "backup-daily",   "Status": "Enabled", "Filter": {"Prefix": "prod/daily/"},   "Expiration": {"Days": 31}},
+  {"ID": "backup-weekly",  "Status": "Enabled", "Filter": {"Prefix": "prod/weekly/"},  "Expiration": {"Days": 85}},
+  {"ID": "backup-monthly", "Status": "Enabled", "Filter": {"Prefix": "prod/monthly/"}, "Expiration": {"Days": 1830}}
+]}
+```
+
+```bash
+aws s3api put-bucket-lifecycle-configuration --bucket trading-backups \
+  --lifecycle-configuration file://lifecycle.json   # add --endpoint-url for MinIO, Scaleway, OVH...
+aws s3api get-bucket-lifecycle-configuration --bucket trading-backups
+```
+
+With versioning on, also expire noncurrent versions
+(`NoncurrentVersionExpiration`), otherwise old versions stay forever. After
+each tiered copy, `check_offsite_lifecycle` reads the bucket's rules when the
+`aws` CLI is there and warns about a prefix without rule. The `backup-tools`
+image has only rclone, which cannot read lifecycle rules: the CronJob logs
+that they were not verified, so check them with the command above when the
+bucket is set up. The rules are the only expiry off-site: a missing rule
+keeps copies forever, it never loses one.
 
 ## Monitoring
 
