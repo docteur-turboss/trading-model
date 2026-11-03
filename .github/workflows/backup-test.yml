@@ -16,6 +16,7 @@ on:
       - 'scripts/verify-backup-key.sh'
       - 'deploy/backup/**'
       - 'tests/backup/**'
+      - 'tests/k8s/sealed-secrets-key-drill.sh'
       - 'services/audit-logger/src/adapters/outbound/persistence/**'
       - 'docker-compose.yml'
       - 'deploy/compose/spire/**'
@@ -38,7 +39,7 @@ jobs:
 
       - name: Validate backup scripts syntax
         run: |
-          for script in backup.sh restore.sh backup-k8s.sh backup-incremental-k8s.sh restore-k8s.sh backup-lib.sh fetch-offsite.sh backup-bucket-check.sh backup-recipients-check.sh verify-backup-key.sh; do
+          for script in backup.sh restore.sh backup-k8s.sh backup-incremental-k8s.sh restore-k8s.sh backup-lib.sh fetch-offsite.sh backup-bucket-check.sh backup-recipients-check.sh verify-backup-key.sh backup-sealed-secrets-key.sh restore-sealed-secrets-key.sh; do
             bash -n "scripts/$script" && echo "  ✓ $script syntax OK"
           done
 
@@ -98,3 +99,40 @@ jobs:
 
       - name: Validate the K8s CronJob manifest
         run: kubectl kustomize --load-restrictor LoadRestrictionsNone deploy/k8s/jobs > /dev/null && echo "  ✓ deploy/k8s/jobs renders"
+
+  # The SealedSecrets controller keys (issue #328): without them no
+  # SealedSecret of deploy/k8s/secrets/ decrypts in a new cluster. Script
+  # tests with stubs, then the real loop on kind: seal in cluster A, back up
+  # the keys to S3, delete A, restore them in a new cluster B, decrypt there.
+  sealed-secrets-key:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      KIND_VERSION: v0.27.0
+      KIND_SHA256: a6875aaea358acf0ac07786b1a6755d08fd640f4c79b7a2e46681cc13f49a04b
+      KIND: ./kind
+      # Release installed by docs/deployment/sealed-secrets.md.
+      KUBESEAL_VERSION: 0.27.1
+      KUBESEAL_SHA256: 01069a5e79ed7702ba10bed42cd8132d94746ca288add06836d082b4202c2789
+      KUBESEAL: ./kubeseal
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install age, kind and kubeseal
+        run: |
+          sudo apt-get update -q && sudo apt-get install -y -q age
+          curl -fsSLo kind "https://github.com/kubernetes-sigs/kind/releases/download/${KIND_VERSION}/kind-linux-amd64"
+          echo "${KIND_SHA256}  kind" | sha256sum -c -
+          chmod +x kind
+          curl -fsSLo kubeseal.tar.gz "https://github.com/bitnami-labs/sealed-secrets/releases/download/v${KUBESEAL_VERSION}/kubeseal-${KUBESEAL_VERSION}-linux-amd64.tar.gz"
+          echo "${KUBESEAL_SHA256}  kubeseal.tar.gz" | sha256sum -c -
+          tar -xzf kubeseal.tar.gz kubeseal
+
+      - name: Test the key backup and restore scripts
+        run: bash tests/backup/sealed-secrets-key.test.sh
+
+      - name: Build backup-tools
+        run: docker build -q -t backup-tools deploy/backup
+
+      - name: SealedSecrets key drill (kind)
+        run: bash tests/k8s/sealed-secrets-key-drill.sh
