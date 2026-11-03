@@ -200,6 +200,15 @@ RESTORE_NOT_AFTER=2026-10-31_235959
 refuse "no run taken before the instant" resolve_backup mysql
 RESTORE_NOT_AFTER=""
 
+echo "backup scripts carry no literal \\n where a line continuation belongs"
+# A merge resolution once left `-- \n      mongorestore …` in restore-k8s.sh:
+# bash -n accepts it, kubectl exec then runs a command named "n".
+if stray="$(grep -nE '\\n[[:space:]]{2,}[[:alnum:]-]' "$ROOT"/scripts/*.sh)"; then
+	failed "literal \\n before an indented word: $stray"
+else
+	pass "no literal \\n before an indented word"
+fi
+
 echo ""
 [ "$FAILED" -eq 0 ] && echo "All PITR chain tests passed" || echo "PITR chain tests FAILED"
 exit "$FAILED"

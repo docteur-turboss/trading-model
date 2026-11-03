@@ -171,7 +171,8 @@ restore_mongodb() {
 
     # The dumps carry their oplog (mongodump --oplog): replaying it brings the
     # restore to the point in time the dump ended.
-    if ! open_backup "$RESOLVED_FILE" | kubectl exec -i -n "${K8S_NAMESPACE}" "${primary}" -- \n      mongorestore --quiet --gzip --archive --drop --oplogReplay; then
+    if ! open_backup "$RESOLVED_FILE" | kubectl exec -i -n "${K8S_NAMESPACE}" "${primary}" -- \
+      mongorestore --quiet --gzip --archive --drop --oplogReplay; then
       fail "MongoDB restore failed: ${label} (${primary})"
       continue
     fi
