@@ -1,10 +1,14 @@
 #!/usr/bin/env bash
 # Disaster drill of the SealedSecrets controller keys (issue #328), on kind:
-#   1. cluster A: Sealed Secrets controller v0.27.1, a test secret sealed with
-#      kubeseal and applied, decrypted by the controller;
+#   1. cluster A: Sealed Secrets controller v0.27.1 installed by
+#      scripts/install-sealed-secrets.sh in its own namespace `sealed-secrets`
+#      (ADR-0035), a test secret sealed with kubeseal and applied, decrypted
+#      by the controller;
 #   2. scripts/sealed-secrets-backup-identity.sh: the restricted identity of
 #      the scheduled workflow (ADR-0035), checked with `kubectl auth can-i`
-#      (list Secrets of kube-system only); with it,
+#      (list Secrets of `sealed-secrets` only, nothing in kube-system), and
+#      what it can read listed: the controller keys and its own token only;
+#      with it,
 #      scripts/backup-sealed-secrets-key.sh: keys encrypted with age and copied
 #      to an S3 bucket (`rclone serve s3` in the backup-tools image);
 #   3. cluster A deleted, cluster B created: new cluster, new controller, its
@@ -22,7 +26,7 @@
 # Environment: KIND (binary, default `kind`), KUBESEAL (default `kubeseal`,
 # v0.27.1), KIND_CLUSTER (default sealed-secrets-drill), BACKUP_TOOLS_IMAGE
 # (default backup-tools, built from deploy/backup when missing). Needs docker,
-# kubectl, age, curl. The cluster, the S3 container and the work directory are
+# kubectl, age, curl, sha256sum. The cluster, the S3 container and the work directory are
 # always removed on exit (KEEP_CLUSTER=1 keeps the cluster).
 set -euo pipefail
 
@@ -34,9 +38,7 @@ CLUSTER="${KIND_CLUSTER:-sealed-secrets-drill}"
 IMAGE="${BACKUP_TOOLS_IMAGE:-backup-tools}"
 S3="${CLUSTER}-s3"
 K="kubectl --context kind-${CLUSTER}"
-# docs/deployment/sealed-secrets.md installs this release.
-CONTROLLER_URL="https://github.com/bitnami-labs/sealed-secrets/releases/download/v0.27.1/controller.yaml"
-CONTROLLER_SHA256="f0616f1c05e331855162f4a214ddd2b49cb52979a5837dd4bda2b8fcac8fb2da"
+NS=sealed-secrets
 KEY_LABEL="sealedsecrets.bitnami.com/sealed-secrets-key"
 WORK="$(mktemp -d)"
 if command -v cygpath >/dev/null; then WORK="$(cygpath -m "$WORK")"; fi
@@ -74,9 +76,11 @@ new_cluster() {
 }
 
 install_controller() {
-	$K apply -f "$WORK/controller.yaml" >/dev/null
-	$K -n kube-system rollout status deployment sealed-secrets-controller --timeout=180s
-	wait_for 60 "[ -n \"\$($K -n kube-system get secret -l $KEY_LABEL -o name)\" ]" ||
+	# install-sealed-secrets.sh uses the current context: kind just set it.
+	bash "$ROOT/scripts/install-sealed-secrets.sh" || die "install-sealed-secrets.sh failed"
+	[ -z "$($K -n kube-system get deployment,serviceaccount,role -o name | grep sealed-secrets || true)" ] ||
+		die "controller objects left in kube-system"
+	wait_for 60 "[ -n \"\$($K -n $NS get secret -l $KEY_LABEL -o name)\" ]" ||
 		die "the controller created no key"
 }
 
@@ -94,9 +98,6 @@ secret_value() {
 	$K -n drill get secret drill-secret -o jsonpath='{.data.value}' 2>/dev/null | base64 -d
 }
 
-log "controller manifest v0.27.1 (sha256 pinned)"
-curl -fsSLo "$WORK/controller.yaml" "$CONTROLLER_URL"
-echo "${CONTROLLER_SHA256}  $WORK/controller.yaml" | sha256sum -c - >/dev/null || die "controller.yaml checksum mismatch"
 "$KUBESEAL" --version | grep -q '0\.27\.1' || die "kubeseal is not v0.27.1"
 docker image inspect "$IMAGE" >/dev/null 2>&1 || docker build -q -t "$IMAGE" "$ROOT/deploy/backup"
 age-keygen -o "$WORK/key.txt" 2>/dev/null
@@ -109,23 +110,28 @@ new_cluster
 install_controller
 $K create namespace drill >/dev/null
 $K -n drill create secret generic drill-secret --from-literal=value="$VALUE" --dry-run=client -o yaml |
-	"$KUBESEAL" --context "kind-${CLUSTER}" --format yaml >"$WORK/sealed.yaml"
+	"$KUBESEAL" --context "kind-${CLUSTER}" --controller-namespace "$NS" --format yaml >"$WORK/sealed.yaml"
 grep -q '^kind: SealedSecret$' "$WORK/sealed.yaml" || die "kubeseal produced no SealedSecret"
 $K apply -f "$WORK/sealed.yaml" >/dev/null
 wait_for 60 "[ \"\$(secret_value)\" = \"$VALUE\" ]" || die "cluster A did not decrypt the SealedSecret"
-KEYS_A="$($K -n kube-system get secret -l "$KEY_LABEL" -o name | sort)"
+KEYS_A="$($K -n "$NS" get secret -l "$KEY_LABEL" -o name | sort)"
 log "   decrypted; keys: $(tr '\n' ' ' <<<"$KEYS_A")"
 
 log "2. keys backed up off-site with the identity of the scheduled workflow"
 tools sealed-secrets-backup-identity.sh >"$WORK/backup-kubeconfig" || die "sealed-secrets-backup-identity.sh failed"
 chmod 644 "$WORK/backup-kubeconfig"
-SA="system:serviceaccount:kube-system:sealed-secrets-key-backup"
-[ "$($K auth can-i list secrets -n kube-system --as "$SA")" = yes ] || die "the backup identity cannot list the key Secrets"
-for denied in "get secrets -n kube-system" "list secrets -n drill" "create secrets -n kube-system" "list configmaps -n kube-system" "list secrets -A"; do
+SA="system:serviceaccount:${NS}:sealed-secrets-key-backup"
+[ "$($K auth can-i list secrets -n "$NS" --as "$SA")" = yes ] || die "the backup identity cannot list the key Secrets"
+for denied in "get secrets -n $NS" "list secrets -n kube-system" "list secrets -n drill" "create secrets -n $NS" "list configmaps -n $NS" "list secrets -A"; do
 	# shellcheck disable=SC2086
 	[ "$($K auth can-i $denied --as "$SA" || true)" = no ] || die "the backup identity is allowed: ${denied}"
 done
-log "   identity limited to list secrets in kube-system"
+# What the identity can read: everything its list returns. Only the keys and
+# its own token (ADR-0035), never another Secret.
+READABLE="$($K -n "$NS" get secret --as "$SA" -o name | sort)"
+EXPECTED="$(printf '%s\nsecret/sealed-secrets-key-backup-token\n' "$KEYS_A" | sort)"
+[ "$READABLE" = "$EXPECTED" ] || die "the backup identity reads more than the keys and its token: $(tr '\n' ' ' <<<"$READABLE")"
+log "   identity limited to list secrets in ${NS}: $(tr '\n' ' ' <<<"$READABLE")"
 docker rm -f "$S3" >/dev/null 2>&1 || true
 docker run -d --name "$S3" --network kind --entrypoint sh "$IMAGE" -c \
 	'mkdir -p /tmp/s3/drill && exec rclone serve s3 --addr 0.0.0.0:8080 --auth-key drill,drill-secret-key /tmp/s3' >/dev/null
@@ -146,7 +152,7 @@ log "   not decrypted, as expected"
 
 log "4. keys restored from the bucket"
 tools restore-sealed-secrets-key.sh --identity /work/key.txt || die "restore-sealed-secrets-key.sh failed"
-KEYS_B="$($K -n kube-system get secret -l "$KEY_LABEL" -o name | sort)"
+KEYS_B="$($K -n "$NS" get secret -l "$KEY_LABEL" -o name | sort)"
 while read -r key; do
 	grep -qxF "$key" <<<"$KEYS_B" || die "key ${key} of cluster A missing in cluster B"
 done <<<"$KEYS_A"
@@ -156,7 +162,7 @@ log "5. the SealedSecret of cluster A decrypts in cluster B"
 # makes it immediate.
 $K -n drill annotate sealedsecret drill-secret drill/retry="$(date +%s)" --overwrite >/dev/null
 wait_for 90 "[ \"\$(secret_value)\" = \"$VALUE\" ]" || {
-	$K -n kube-system logs deployment/sealed-secrets-controller --tail=30 || true
+	$K -n "$NS" logs deployment/sealed-secrets-controller --tail=30 || true
 	die "cluster B did not decrypt the SealedSecret after the restore"
 }
 log "PASSED: SealedSecret sealed in cluster A decrypted in cluster B after the key restore"

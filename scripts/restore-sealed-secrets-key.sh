@@ -3,7 +3,7 @@
 #  Trading Model — Restore the SealedSecrets controller keys into a cluster
 #  Usage:  bash scripts/restore-sealed-secrets-key.sh --identity KEY_FILE [--file FILE | --offsite [--timestamp TS]]
 #          --offsite (default): BACKUP_S3_BUCKET + AWS_* (+ RCLONE_S3_*), as scripts/fetch-offsite.sh
-#          SEALED_SECRETS_NAMESPACE (default kube-system), SEALED_SECRETS_CONTROLLER
+#          SEALED_SECRETS_NAMESPACE (default sealed-secrets), SEALED_SECRETS_CONTROLLER
 #
 #  Puts back the keys saved by scripts/backup-sealed-secrets-key.sh, so that
 #  the SealedSecrets of deploy/k8s/secrets/ decrypt in a new cluster (issue
@@ -26,7 +26,7 @@
 #  (SEALED_SECRETS_CONTROLLER, default sealed-secrets-controller) is then
 #  restarted, since it only reads its keys at startup. The namespace is
 #  created when missing. Exit 1 when no file is found, it does not decrypt or
-#  holds no key, kubectl fails, fewer keys than restored are found afterwards,
+#  holds no key, kubectl fails, a restored key is not found by name afterwards,
 #  or the restarted controller does not become ready. Needs kubectl, age (and
 #  rclone for --offsite).
 # =============================================================================
@@ -37,7 +37,7 @@ IDENTITY=""
 FILE=""
 OFFSITE=false
 TIMESTAMP=""
-NAMESPACE="${SEALED_SECRETS_NAMESPACE:-kube-system}"
+NAMESPACE="${SEALED_SECRETS_NAMESPACE:-sealed-secrets}"
 CONTROLLER="${SEALED_SECRETS_CONTROLLER:-sealed-secrets-controller}"
 KEY_LABEL="sealedsecrets.bitnami.com/sealed-secrets-key"
 
@@ -133,10 +133,12 @@ if [ ! -s "$FILE" ]; then
 fi
 
 # Decrypted once before anything is applied: a wrong key changes nothing.
-if ! KEY_COUNT="$(age -d -i "$IDENTITY" "$FILE" | grep -c '^  kind: Secret$')"; then
+# Only the key names are kept (no secret material).
+if ! KEY_NAMES="$(age -d -i "$IDENTITY" "$FILE" | sed -n 's/^    name: //p')" || [ -z "$KEY_NAMES" ]; then
 	fail "${FILE} does not decrypt with ${IDENTITY} or holds no key: nothing restored (try the other key, ENCRYPTION_AT_REST.md)"
 	exit 1
 fi
+KEY_COUNT="$(grep -c . <<<"$KEY_NAMES")"
 log "${FILE} holds ${KEY_COUNT} key(s)"
 
 if ! kubectl get namespace "$NAMESPACE" >/dev/null 2>&1; then
@@ -149,8 +151,18 @@ if ! age -d -i "$IDENTITY" "$FILE" | kubectl -n "$NAMESPACE" apply -f -; then
 	fail "kubectl apply of the keys failed in ${NAMESPACE}"
 	exit 1
 fi
-if ! FOUND="$(kubectl -n "$NAMESPACE" get secret -l "$KEY_LABEL" -o name | grep -c .)" || [ "$FOUND" -lt "$KEY_COUNT" ]; then
-	fail "${NAMESPACE} holds ${FOUND:-0} key Secret(s) after the restore, ${KEY_COUNT} expected"
+# Checked by name, not by count: a controller started before the restore
+# holds a key of its own, which would hide a key missing from the apply.
+if ! FOUND="$(kubectl -n "$NAMESPACE" get secret -l "$KEY_LABEL" -o name)"; then
+	fail "Cannot list the key Secrets of ${NAMESPACE} after the restore"
+	exit 1
+fi
+MISSING=""
+while read -r name; do
+	grep -qxF "secret/${name}" <<<"$FOUND" || MISSING="${MISSING} ${name}"
+done <<<"$KEY_NAMES"
+if [ -n "$MISSING" ]; then
+	fail "Key Secret(s) missing in ${NAMESPACE} after the restore:${MISSING}"
 	exit 1
 fi
 ok "${KEY_COUNT} key(s) restored in ${NAMESPACE}"

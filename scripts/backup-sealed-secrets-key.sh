@@ -8,7 +8,7 @@
 #  The SealedSecrets committed in deploy/k8s/secrets/ only decrypt with the
 #  private keys of the controller that sealed them, which live in the cluster
 #  (Secrets labelled `sealedsecrets.bitnami.com/sealed-secrets-key` in the
-#  controller namespace, SEALED_SECRETS_NAMESPACE, default kube-system). Lose
+#  controller namespace, SEALED_SECRETS_NAMESPACE, default sealed-secrets, ADR-0035). Lose
 #  the cluster without them and no SealedSecret of the repository decrypts in
 #  the new one (issue #328). This script exports EVERY key Secret (the
 #  controller creates a new key every 30 days and keeps the old ones to
@@ -36,7 +36,7 @@
 set -euo pipefail
 
 DEST=""
-NAMESPACE="${SEALED_SECRETS_NAMESPACE:-kube-system}"
+NAMESPACE="${SEALED_SECRETS_NAMESPACE:-sealed-secrets}"
 KEY_LABEL="sealedsecrets.bitnami.com/sealed-secrets-key"
 # UTC, like the database backups.
 TIMESTAMP="$(date -u +%Y-%m-%d_%H%M%S)"
@@ -107,26 +107,30 @@ echo "  Timestamp: ${TIMESTAMP}"
 echo "══════════════════════════════════════════════════"
 echo ""
 
-if ! KEYS="$(kubectl -n "$NAMESPACE" get secret -l "$KEY_LABEL" -o name)"; then
+# One read: the count, the names logged and the export all come from the same
+# answer, so a key renewed meanwhile cannot make the log disagree with the
+# file. The export stays in memory and only reaches age through pipes (no
+# here-string or heredoc: bash may back them with a temporary file).
+if ! EXPORT="$(kubectl -n "$NAMESPACE" get secret -l "$KEY_LABEL" -o go-template="$KEY_TEMPLATE")"; then
 	fail "Cannot list the Secrets of ${NAMESPACE}: wrong context or no read access"
 	exit 1
 fi
-KEY_COUNT="$(grep -c . <<<"$KEYS" || true)"
+KEY_COUNT="$(printf '%s\n' "$EXPORT" | grep -c '^  kind: Secret$' || true)"
 if [ "$KEY_COUNT" -eq 0 ]; then
 	fail "No Secret labelled ${KEY_LABEL} in ${NAMESPACE}: wrong namespace (SEALED_SECRETS_NAMESPACE) or controller never started"
 	exit 1
 fi
-log "${KEY_COUNT} key(s): $(tr '\n' ' ' <<<"$KEYS")"
+log "${KEY_COUNT} key(s): $(printf '%s\n' "$EXPORT" | sed -n 's/^    name: //p' | tr '\n' ' ')"
 
 BACKUP_DIR="$(mktemp -d)"
 trap 'rm -rf "$BACKUP_DIR"' EXIT
 FILE="sealed-secrets-key/sealed-secrets-key_${TIMESTAMP}.yaml${AGE_SUFFIX}"
 mkdir -p "$BACKUP_DIR/sealed-secrets-key"
 export_keys() {
-	kubectl -n "$NAMESPACE" get secret -l "$KEY_LABEL" -o go-template="$KEY_TEMPLATE"
+	printf '%s\n' "$EXPORT"
 }
 if ! sealed_write "$BACKUP_DIR/$FILE" export_keys; then
-	fail "Export or encryption of the keys failed: nothing written"
+	fail "Encryption of the keys failed: nothing written"
 	exit 1
 fi
 ok "Keys exported and encrypted: ${FILE} ($(file_size "$BACKUP_DIR/$FILE") bytes)"

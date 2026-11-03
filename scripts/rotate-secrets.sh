@@ -7,6 +7,9 @@ set -euo pipefail
 
 DRY_RUN=${DRY_RUN:-false}
 NAMESPACE=${NAMESPACE:-trading-model}
+# Sealed Secrets controller installed by scripts/install-sealed-secrets.sh (ADR-0035).
+CONTROLLER_NAMESPACE=${CONTROLLER_NAMESPACE:-sealed-secrets}
+CONTROLLER_NAME=${CONTROLLER_NAME:-sealed-secrets-controller}
 
 log() { echo "[rotate-secrets] $(date -u +%Y-%m-%dT%H:%M:%SZ) $*"; }
 warn() { echo "[rotate-secrets] WARN: $*" >&2; }
@@ -28,8 +31,8 @@ rotate_hmac_secret() {
     --from-literal=HMAC_SECRET="$new_secret" \
     --dry-run=client -o yaml | \
     kubeseal --namespace "$NAMESPACE" \
-      --controller-namespace kube-system \
-      --controller-name sealed-secrets \
+      --controller-namespace "$CONTROLLER_NAMESPACE" \
+      --controller-name "$CONTROLLER_NAME" \
       --merge-into - \
       -o yaml > /tmp/sealed-secret-temp.yaml
 
@@ -58,8 +61,8 @@ rotate_admin_tokens() {
     --from-literal=AUTH_TOKENS="$new_token" \
     --dry-run=client -o yaml | \
     kubeseal --namespace "$NAMESPACE" \
-      --controller-namespace kube-system \
-      --controller-name sealed-secrets \
+      --controller-namespace "$CONTROLLER_NAMESPACE" \
+      --controller-name "$CONTROLLER_NAME" \
       --merge-into - \
       -o yaml > /tmp/sealed-secret-temp.yaml
 

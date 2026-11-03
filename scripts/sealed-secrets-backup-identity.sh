@@ -2,7 +2,7 @@
 # =============================================================================
 #  Trading Model — Identity of the scheduled SealedSecrets key backup
 #  Usage:  bash scripts/sealed-secrets-backup-identity.sh [--server URL] [--rotate] > kubeconfig
-#          SEALED_SECRETS_NAMESPACE (default kube-system)
+#          SEALED_SECRETS_NAMESPACE (default sealed-secrets)
 #          ... | gh secret set SEALED_SECRETS_BACKUP_KUBECONFIG --env sealed-secrets-key-backup
 #
 #  The workflow .github/workflows/sealed-secrets-key-backup.yml runs
@@ -16,20 +16,24 @@
 #  GitHub secret (never written to disk by this script).
 #
 #  RBAC cannot filter by label: the identity can list every Secret of the
-#  controller namespace (ADR-0035, Consequences).
+#  controller namespace. That namespace must hold nothing but the controller
+#  (scripts/install-sealed-secrets.sh, namespace `sealed-secrets`): the
+#  identity then reads the controller keys and its own token only. The script
+#  refuses kube-system, where it would also read the API server serving key
+#  and the node passwords of k3s (ADR-0035, Consequences).
 #
 #  --server URL  API server address reachable from the runner (default: the
 #                server of the current kubectl context)
 #  --rotate      delete the token Secret first: the previous token stops
 #                working, a new one is issued (rotation, suspected leak)
 #  Run with an admin kubeconfig on the production cluster. Idempotent.
-#  Exit 1 when kubectl fails, the context has no embedded CA, or no token is
-#  issued within 60 s.
+#  Exit 1 when the namespace is kube-system, kubectl fails, the context has
+#  no embedded CA, or no token is issued within 60 s.
 # =============================================================================
 
 set -euo pipefail
 
-NAMESPACE="${SEALED_SECRETS_NAMESPACE:-kube-system}"
+NAMESPACE="${SEALED_SECRETS_NAMESPACE:-sealed-secrets}"
 NAME="sealed-secrets-key-backup"
 SERVER=""
 ROTATE=false
@@ -51,6 +55,10 @@ done
 log() { echo "[$(date +%H:%M:%S)] $*" >&2; }
 fail() { log "✗ $*"; }
 
+if [ "$NAMESPACE" = kube-system ]; then
+	fail "Refused: list on the Secrets of kube-system reads every Secret there (API server serving key, node passwords), not only the controller keys. Install the controller in its own namespace (scripts/install-sealed-secrets.sh, docs/deployment/sealed-secrets.md)"
+	exit 1
+fi
 if ! command -v kubectl >/dev/null; then
 	fail "kubectl is not installed"
 	exit 1
