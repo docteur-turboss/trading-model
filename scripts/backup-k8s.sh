@@ -62,7 +62,7 @@ backup_mongodb() {
     fi
     local file="${dest}/${label}.archive.gz${AGE_SUFFIX}"
     local pitr="${dest}/${label}.pitr${AGE_SUFFIX}"
-    if write_dump "$label" "$file" kubectl_exec "${primary}" -- mongodump --quiet --gzip --archive --oplog &&
+    if write_dump "$label" "$file" kubectl_exec "${primary}" -c mongodb -- mongodump --quiet --gzip --archive --oplog &&
       sealed_write "$pitr" echo "oplog_ts=${start}"; then
       ok "MongoDB backup complete: ${label} (${primary}, oplog from ${start})"
       record_output "$pitr"
