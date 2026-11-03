@@ -39,6 +39,9 @@ restore verification for the trading-model platform.
 | Trained agents                | trader-trainer (checkpoint files)             | Medium      | 24 h (daily tar)       | 1 hour     |
 | SealedSecrets controller keys | Sealed Secrets controller (namespace `sealed-secrets`, ADR-0035): decrypts every SealedSecret of `deploy/k8s/secrets/` | Critical | Daily run of `scripts/backup-sealed-secrets-key.sh` by `sealed-secrets-key-backup.yml` (ADR-0035), plus a manual run after a manual key change ([sealed-secrets.md](sealed-secrets.md#back-up-the-controller-keys)): a renewed key is off-site within 24 h | 1 hour |
 | Redis                         | discovery-server, dlq-service, readiness      | Low         | Not backed up          | Rebuilt    |
+| Loki (access and operational logs) | edge-proxy, Promtail-collected services (K8s `deploy/k8s/infra/loki.yaml`, 10Gi; Compose `loki-data`) | Low (security evidence kept 31 days) | Not backed up | Rebuilt |
+| Prometheus TSDB               | Prometheus (K8s `deploy/k8s/infra/prometheus.yaml`, 50Gi; Compose `prometheus-data`) | Low | Not backed up | Rebuilt |
+| Grafana (dashboards, datasources, local DB) | Grafana (K8s `deploy/k8s/infra/grafana.yaml`, 10Gi; Compose `grafana-data`) | Low | Not backed up | Rebuilt |
 
 The RTO above is the **data-store RTO**: the time to rebuild the data from
 backups after the store is lost. The service-tier RTO of the
@@ -55,6 +58,25 @@ dump it (single node). With `REDIS_APPENDONLY=yes` Redis starts from its
 append-only file and would ignore a restored `dump.rdb`: `scripts/restore.sh`
 loads the snapshot in a throwaway server on the same volume and rewrites the
 AOF from it before starting Redis again.
+
+The observability stores are not backed up either, and this is a deliberate
+choice, not an oversight. Logs and metrics are operational data kept for a
+short window: Loki keeps access and operational logs for 31 days
+(`retention_period: 744h`, [data retention policy](../compliance/data-retention-policy.md)),
+Prometheus keeps metrics for 30 days (`--storage.tsdb.retention.time=30d`).
+A backup would hold no more than the window itself, and the monitoring
+platform is not on the path to restoring the trading data. The loss in a
+disaster is therefore the log and metric history of the last 30 days, and
+the dashboards are rebuilt from git: the Grafana provisioning
+(`observability/grafana-dashboards-provisioning.yml`, Kubernetes
+`deploy/k8s/infra/dashboards/`) loads the JSON dashboards in
+`observability/dashboards/`. What is lost is state created in the Grafana UI
+(its local database on `grafana-data`: user accounts, UI-only edits, annotations).
+Alerts are not affected: the rules live in `observability/alerting.yml`,
+and Alertmanager receives them again once Prometheus restarts.
+Known gap: the Kubernetes Loki ConfigMap (`deploy/k8s/infra/loki.yaml`) sets no
+`retention_period`, so the 31-day window above is enforced only by the Compose
+configuration (`observability/loki-config.yml`).
 
 ## Automated Backup System
 
