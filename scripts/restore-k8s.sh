@@ -104,7 +104,11 @@ if [ "${#NS_INCLUDE[@]}" -gt 0 ] || $INTO_SCRATCH; then
       echo "--ns: expected <db>.<collection> or <db>.*, got: ${_p}"
       exit 1
     fi
-    if ! $INTO_SCRATCH && [[ "$_p" =~ ^(audit|\*)\. ]]; then
+    # The database part is a glob for mongorestore: refuse every pattern that
+    # can match `audit` (audit.x, a*.x, *dit.*, *.x...).
+    _db_part="${_p%%.*}"
+    # shellcheck disable=SC2053
+    if ! $INTO_SCRATCH && [[ audit == $_db_part ]]; then
       echo "--ns ${_p}: restoring the audit trail partially in place can break its hash chain (ADR-0027): add --into-scratch"
       exit 1
     fi
@@ -247,8 +251,16 @@ restore_mongodb() {
         mr_args+=(--nsInclude '*')
       fi
       if $INTO_SCRATCH; then
-        mr_args+=(--nsFrom '$db$.$coll$' --nsTo "restore_${RESTORE_TIMESTAMP}_\$db\$.\$coll\$")
-        log "${label}: restoring into scratch databases restore_${RESTORE_TIMESTAMP}_<db>"
+        # Name from the run actually restored (its directory is the stamp),
+        # never from "latest"; run time if the layout has no stamp.
+        local scratch_ts
+        scratch_ts=$(basename "$(dirname "$RESOLVED_FILE")")
+        [[ "$scratch_ts" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{6}$ ]] || scratch_ts=$(date -u +%Y-%m-%d_%H%M%S)
+        # admin.system.* cannot be created under another name (InvalidNamespace,
+        # verified on the compose image): never restored into a scratch copy.
+        mr_args+=(--nsExclude 'admin.*')
+        mr_args+=(--nsFrom '$db$.$coll$' --nsTo "restore_${scratch_ts}_\$db\$.\$coll\$")
+        log "${label}: restoring into scratch databases restore_${scratch_ts}_<db> (one per restored database)"
       fi
     else
       mr_args+=(--oplogReplay)

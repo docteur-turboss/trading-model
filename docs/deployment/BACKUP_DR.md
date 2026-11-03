@@ -717,7 +717,9 @@ bash scripts/restore-k8s.sh --components mongodb --ns 'dlq.dead_letters' --into-
 
 - `--ns <db.coll|db.*>` is repeatable (`--nsInclude`); `--drop` only touches the
   restored collections. `--into-scratch` renames every restored database to
-  `restore_<timestamp>_<db>` (`--nsFrom` / `--nsTo`, printed); without `--ns` it
+  `restore_<timestamp>_<db>` (`--nsFrom` / `--nsTo`, printed; the timestamp is
+  the stamp of the run restored, never `latest`; `admin.*` is excluded, mongorestore
+  cannot rename it); without `--ns` it
   restores every namespace there. Copy the documents back by hand, then drop the
   scratch databases.
 - Only with `--components mongodb` or `mongodb-audit`; refused with `--until`.
@@ -725,7 +727,8 @@ bash scripts/restore-k8s.sh --components mongodb --ns 'dlq.dead_letters' --into-
   so a selective restore omits it: data is as of the start of the dump, not its
   end. For the full-replica-set restore nothing changes.
 - **Audit trail (ADR-0027):** restoring `audit_events` partially in place breaks
-  the hash chain. `--ns 'audit.*'` without `--into-scratch` is refused; restore
+  the hash chain. every `--ns` whose database part can match `audit` (`audit.*`, `a*.*`, `*.x`...)
+  without `--into-scratch` is refused; restore
   into scratch and inspect there. `scripts/restore.sh` (Docker) has no such option.
 
 ### SPIRE CA restore and SVIDs

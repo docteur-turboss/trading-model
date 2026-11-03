@@ -61,6 +61,10 @@ jobs:
       - name: Test the selective MongoDB restore
         run: bash tests/backup/restore-mongo-ns.test.sh
 
+      # Same options against the real mongorestore of the compose image.
+      - name: Test the selective MongoDB restore against a real mongorestore
+        run: bash tests/backup/restore-mongo-ns-real.test.sh
+
       # Step timings and budget of the restore drills (issue #329).
       - name: Test the restore drill timings
         run: bash tests/backup/drill-timings.test.sh
