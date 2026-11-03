@@ -84,6 +84,10 @@ jobs:
       - name: Test failed dumps and run manifests
         run: bash tests/backup/backup-partial.test.sh
 
+      # Error output of the dump commands reaches the job log (issue #332).
+      - name: Test dump stderr is kept
+        run: bash tests/backup/backup-stderr.test.sh
+
       # GFS retention on 400 days of fake runs: exactly the files prune_old
       # keeps, failed runs never promoted, newest complete run guarded,
       # off-site tiers daily/ weekly/ monthly/ (ADR-0032, issue #292).
