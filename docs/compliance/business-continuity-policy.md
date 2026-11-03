@@ -31,6 +31,19 @@ This policy defines the Business Continuity (BC) and Disaster Recovery (DR) fram
 | **T3 — Medium** | ≤ 4 hours | ≤ 1 hour |
 | **T4 — Low** | ≤ 24 hours | ≤ 24 hours |
 
+**Two RTOs, two meanings.** The service-tier RTO above is the time to get the
+*service* running again when its data store is intact (restart, reschedule,
+failover to a replica, SVID re-issue): T1 spire-server and discovery-server
+15 minutes, T2 audit-logger, message-manager and trader-trainer 1 hour. The
+**data-store RTO** of [BACKUP_DR.md](../deployment/BACKUP_DR.md) (4 hours;
+1 hour for trained agents and the SealedSecrets controller keys) is the time to
+rebuild the *data* from backups after the store is lost: new volume or cluster,
+fetch from the off-site bucket, restore. It is also the "complete platform
+recovery within 4 hours" of the annual full recovery drill (§ 7). A service
+whose data is lost is back within the data-store RTO, not the tier RTO: for
+example spire-server (T1) is restarted in 15 minutes from its volume, but
+needs up to 4 hours when its datastore and CA keys must be restored.
+
 **Data RPO, as committed (ADR-0031):** the databases are recovered to within
 **1 hour** of an incident: MongoDB `mongo-audit` and `mongo-dlq`, MySQL
 `financial_scraper` and the SPIRE datastore (hourly binlog / oplog archives,
@@ -113,6 +126,7 @@ Every dump is age-encrypted before it is written; the off-site copy only sends e
 
 - Restore drill on every CI run (`k8s` job, `tests/k8s/run-kind.sh`): the daily CronJob backs up, the drill writes markers, audit events and a dead letter after the dump, stops the writers, records the instant, runs the hourly archive CronJob, drops data (the real `audit` and `dlq` databases, markers, `market_candles`, the SPIRE server volume), then restores as after the loss of the cluster: `fetch-offsite.sh --pitr` fetches the newest complete run and the binlog / oplog archives from the off-site bucket into a pod that never mounts the `backup-data` volume, and `restore-k8s.sh --until <instant>` restores MongoDB (dlq + audit), MySQL and the SPIRE CA; it passes only if every audit event of the instant (those written after the dump included) comes back with the same hashes and a verified hash chain, nothing written after the instant comes back, the data and the trust bundle come back and mTLS still works
 - Weekly restore drill of the Docker scripts (`backup-test.yml`, `tests/backup/compose-restore-drill.sh`): containers and volumes deleted, then restored
+- Both drills time every step and compare the recovery with a budget (`RESTORE_DRILL_BUDGET_SECONDS`): table in the job summary, `restore-drill-timings.json` as an artifact; see the [DR Exercise Log](dr-exercise-log.md)
 - Off-site fetch tests (`backup-test.yml`, `tests/backup/fetch-offsite.test.sh`): newest complete run chosen from an S3 store, files still encrypted, refusal on an incomplete or absent run and on an empty or unreachable bucket
 - Integrity: age authenticates every encrypted file (a corrupted or truncated file fails to decrypt); no separate checksum
 - Monitoring: alerts on a failed, stale, missing or unencrypted backup and on a failed off-site copy (`observability/alerting.yml`)
@@ -158,6 +172,11 @@ Monitoring Stack ───────────────┘
 | **Full recovery drill** | Annual | Complete platform recovery within 4 hours |
 | **Plan review** | Annual | All service dependencies and RTO/RPO targets verified |
 
+Every exercise is recorded in the [DR Exercise Log](dr-exercise-log.md) (date,
+scenario, environment, duration per step, gap to the RTO / RPO, actions). The
+automated restore drills time each step and compare the recovery with a budget
+(`RESTORE_DRILL_BUDGET_SECONDS`, see the log).
+
 ## 8. Cross-References
 
 | Document | Relevance |
@@ -170,6 +189,7 @@ Monitoring Stack ───────────────┘
 | `docs/operations/runbooks/runbook-message-bus-outage.md` | Redis/message-manager recovery |
 | `docs/operations/runbooks/runbook-deployment-failure.md` | Deployment failure recovery |
 | `docs/deployment/BACKUP_DR.md` | Technical backup and DR configuration |
+| [DR Exercise Log](dr-exercise-log.md) | Record of DR exercises and restore drill timings |
 | `docs/deployment/DATABASE.md` | Database setup and replication |
 | `docs/deployment/DOCKER.md` | Container orchestration |
 | `docs/deployment/KUBERNETES.md` | K8s deployment and scaling |

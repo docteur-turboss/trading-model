@@ -426,9 +426,13 @@ if [[ " ${PARTS[*]} " == *" mongodb "* ]]; then
   for part in "${PARTS[@]}"; do [ "$part" = mongodb-audit ] || KEPT+=("$part"); done
   PARTS=("${KEPT[@]}")
 fi
+# Logs `restore-timing component=<c> seconds=<n>` after each component really
+# restored (not in the checking pass): tests/backup/drill-timings.sh reads these
+# lines, and an operator sees what each component costs of the RTO.
 run_components() {
-  local part
+  local part started
   for part in "${PARTS[@]}"; do
+    started=$SECONDS
     case "$part" in
       mongodb)     restore_mongodb mongodb mongodb-audit ;;
       mongodb-audit) restore_mongodb mongodb-audit ;;
@@ -440,6 +444,7 @@ run_components() {
       redis)       warn "Redis is not backed up: its content is rebuilt by the services" ;;
       *)           fail "Unknown component: ${part}" ;;
     esac
+    $DRY_RUN || log "restore-timing component=${part} seconds=$((SECONDS - started))"
   done
 }
 
@@ -462,7 +467,9 @@ if ! $DRY_RUN; then
   ok "Every component checked: restoring"
   CHECKED=true
 fi
+RESTORE_STARTED=$SECONDS
 run_components
+$DRY_RUN || log "restore-timing component=total seconds=$((SECONDS - RESTORE_STARTED))"
 
 echo ""
 if [ "$RESTORE_FAILURES" -gt 0 ]; then

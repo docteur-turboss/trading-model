@@ -162,3 +162,4 @@ id_rsa*
 reports/
 # Alertmanager notification credentials (docker-compose.yml)
 observability/alertmanager-credentials/
+restore-drill-timings.json
