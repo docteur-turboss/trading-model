@@ -179,6 +179,9 @@ metadata:
     app.kubernetes.io/component: backup
     app.kubernetes.io/part-of: trading-model
 spec:
+  # storageClassName is left to the cluster default. Override it per overlay
+  # with a JSON patch (add /spec/storageClassName): immutable on an existing
+  # claim, so it only applies to new deployments (BACKUP_DR.md, Monitoring).
   accessModes:
     - ReadWriteOnce
   resources:
