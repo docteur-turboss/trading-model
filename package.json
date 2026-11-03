@@ -48,14 +48,14 @@
     "prepare": "husky"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.5.2",
+    "@biomejs/biome": "2.6.4",
     "@commitlint/cli": "^21.2.4",
     "@testcontainers/mongodb": "^12.2.1",
     "@testcontainers/mysql": "^12.2.1",
     "@testcontainers/redis": "^12.2.1",
     "husky": "^9.1.7",
     "jest-environment-node": "^30.5.2",
-    "markdown-it": "^14.3.3",
+    "markdown-it": "^15.0.3",
     "node-html-parser": "^9.0.6",
     "testcontainers": "^12.2.1",
     "typedoc": "^0.28.20",
