@@ -4,6 +4,12 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    ignore:
+      # TypeScript 7 (native compiler) has no JS compiler API yet: ts-jest
+      # (peer typescript <7) and typedoc (peer <=6.0.x) cannot run on it.
+      # Lift once both support it.
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: "github-actions"
     directory: "/"
