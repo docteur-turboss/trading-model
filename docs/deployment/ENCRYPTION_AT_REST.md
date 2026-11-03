@@ -168,8 +168,9 @@ key kept in a safe: either decrypts.
 - Set the GitHub environment variable `BACKUP_AGE_RECIPIENTS` (Settings →
   Environments → staging/production → Variables). `deploy.yml` writes it into
   the `backup-encryption` ConfigMap.
-- The `db-backup` CronJob runs `ghcr.io/trading-model/backup-tools`
-  (`deploy/backup`: kubectl, age, rclone) with
+- The `db-backup` and `db-backup-incremental` (hourly binlog and oplog
+  archives, ADR-0031) CronJobs run `ghcr.io/trading-model/backup-tools`
+  (`deploy/backup`: kubectl, age, rclone, mysqlbinlog) with
   `BACKUP_REQUIRE_ENCRYPTION=true`: without a recipient it writes nothing,
   exits 1 and exports `backup_last_status{component="encryption"} 0`
   (alert `BackupUnencrypted`).
@@ -182,7 +183,7 @@ key kept in a safe: either decrypts.
   or created by hand. Only `.age` files are sent; the scripts refuse to copy
   anything when encryption is off. Retention off-site is the bucket's
   lifecycle rules, one per tier prefix `daily/`, `weekly/`, `monthly/`
-  ([BACKUP_DR.md](BACKUP_DR.md#off-site-tiers), ADR-0031).
+  ([BACKUP_DR.md](BACKUP_DR.md#off-site-tiers), ADR-0032).
 
 ```bash
 kubectl -n trading-model create secret generic trading-model-backup-s3 \

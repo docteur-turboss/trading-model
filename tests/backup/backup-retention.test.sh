@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# GFS retention of the backups (scripts/backup-lib.sh, ADR-0031, issue #292):
+# GFS retention of the backups (scripts/backup-lib.sh, ADR-0032, issue #292):
 # 400 days of fake runs (timestamped files + run manifests, some runs failed),
 # then checks exactly which files prune_old keeps, with the default policy
 # (daily only) and with weekly + monthly tiers, and the off-site tiers
@@ -73,6 +73,26 @@ component_path() {
 }
 COMPONENTS=(mongodb mongodb-audit mysql checkpoints spire)
 
+# Point-in-time recovery files (ADR-0031), written when WITH_PITR=true: a
+# `.pitr` starting point next to each MongoDB and MySQL dump, and binlog /
+# oplog archives, which backup-incremental-k8s.sh prunes itself (72 h).
+WITH_PITR=false
+# Sets Q to the `.pitr` file of dump P (empty for the other components).
+pitr_path() {
+	Q=""
+	case "$P" in
+	mongodb/*) Q="${P%.archive.gz.age}.pitr.age" ;;
+	mysql/*) Q="${P%.sql.gz.age}.pitr.age" ;;
+	esac
+}
+# Archives: an old binlog (its name carries a timestamp, 200 days old), one
+# newer than every dump (would become mysql's newest file), oplog slices
+# (no timestamp in the name, old mtime).
+ARCHIVES="mysql/binlog/uuid-1/binlog.000001_2025-04-17_013000.gz.age
+mysql/binlog/uuid-1/binlog.000002_${NOW_DAY}_033000.gz.age
+mongodb/oplog/mongodb-audit/1000.1_2000.1.bson.gz.age
+mongodb/oplog/mongodb/1000.1_2000.1.bson.gz.age"
+
 build_tree() {
 	rm -rf "$BACKUP_DIR"
 	mkdir -p "$BACKUP_DIR"/{mongodb,mysql,checkpoints,spire,manifests,metrics}
@@ -82,6 +102,10 @@ build_tree() {
 		for c in "${COMPONENTS[@]}"; do
 			component_path "$d" "$c"
 			[ -z "$P" ] || echo x >"$BACKUP_DIR/$P"
+			if $WITH_PITR && [ -n "$P" ]; then
+				pitr_path
+				[ -z "$Q" ] || echo x >"$BACKUP_DIR/$Q"
+			fi
 		done
 		no_manifest "$d" || echo '{}' >"$BACKUP_DIR/manifests/manifest_${d}_020000.json.age"
 	done
@@ -91,6 +115,14 @@ build_tree() {
 	echo x >"$BACKUP_DIR/spire/old-copy.json.age"
 	touch -d "${NOW_DAY} -60 days" "$BACKUP_DIR/spire/old-copy.json.age"
 	echo x >"$BACKUP_DIR/spire/recent-copy.json.age"
+	if $WITH_PITR; then
+		local f
+		while read -r f; do
+			mkdir -p "$BACKUP_DIR/$(dirname "$f")"
+			echo x >"$BACKUP_DIR/$f"
+			touch -d "${NOW_DAY} -200 days" "$BACKUP_DIR/$f"
+		done <<<"$ARCHIVES"
+	fi
 	# An orphan .partial of a killed run.
 	echo x >"$BACKUP_DIR/mysql/financial_scraper_${NOW_DAY}_010000.sql.gz.age.partial"
 	touch -d "${NOW_DAY} -2 days" "$BACKUP_DIR/mysql/financial_scraper_${NOW_DAY}_010000.sql.gz.age.partial"
@@ -128,6 +160,10 @@ expected() {
 			if $keep; then
 				echo "$P"
 				keptday[$d]=1
+				if $WITH_PITR; then
+					pitr_path
+					[ -z "$Q" ] || echo "$Q"
+				fi
 			fi
 		done
 		if ! no_manifest "$d" && { [ "$age" -le 30 ] || [ -n "${keptday[$d]:-}" ]; }; then
@@ -136,6 +172,7 @@ expected() {
 	done
 	echo "metrics/backup.prom"
 	echo "spire/recent-copy.json.age"
+	! $WITH_PITR || echo "$ARCHIVES"
 }
 
 survivors() {
@@ -206,6 +243,35 @@ for d in "${RUN_DAYS[@]}"; do
 	fi
 done
 
+echo "point-in-time files (.pitr, binlog / oplog archives) next to the dumps"
+WITH_PITR=true
+check_prune "default + pitr" "" ""
+has "mysql/binlog/uuid-1/binlog.000001_2025-04-17_013000.gz.age" &&
+	has "mongodb/oplog/mongodb-audit/1000.1_2000.1.bson.gz.age" &&
+	pass "binlog and oplog archives are left to backup-incremental-k8s.sh, whatever their age" ||
+	failed "prune_old deleted a binlog / oplog archive"
+! has "mysql/financial_scraper_${RUN_DAYS[0]}_020000.pitr.age" &&
+	pass "a .pitr file goes with its dump" || failed "the .pitr of a pruned dump survived"
+check_prune "gfs 12w/60m + pitr" 12 60
+has "mysql/financial_scraper_2025-11-03_020000.pitr.age" &&
+	has "mongodb/2026-01-01_020000/mongodb-audit.pitr.age" && ! has "mongodb/2026-01-01_020000/mongodb.pitr.age" &&
+	pass "a .pitr file stays as long as its promoted dump on the volume, and only that one" ||
+	failed "a .pitr file does not follow its dump"
+build_tree
+TIMESTAMP="$NOW"
+plan="$(backup_listing | gfs_plan "$NOW" 30 0 0 "$RETENTION_LONG_COMPONENTS")"
+! grep -qE '/binlog/|/oplog/' <<<"$plan" && pass "gfs_plan never sees the archives (backup_listing leaves them out)" ||
+	failed "gfs_plan listed an archive: $(grep -E '/binlog/|/oplog/' <<<"$plan" | head -2)"
+# The newest mysql file of the volume is a binlog archive: without the
+# exclusion it would take the guard of a component without complete run.
+# Planned in 2027, when every dump is past the daily tier.
+rm -f "$BACKUP_DIR"/manifests/*
+plan="$(backup_listing | gfs_plan 2027-06-01_020000 30 0 0 "$RETENTION_LONG_COMPONENTS")"
+newest_mysql="$(cd "$BACKUP_DIR" && find mysql -maxdepth 1 -name '*.sql.gz.age' | sort | tail -1)"
+! grep -qx "D ${newest_mysql}" <<<"$plan" && pass "without any manifest, the newest mysql dump (not a binlog) keeps the guard" ||
+	failed "the newest mysql dump ${newest_mysql} would be deleted"
+WITH_PITR=false
+
 echo "off-site tiers"
 build_tree
 TIMESTAMP="$NOW" RETENTION_DAYS=30
@@ -230,7 +296,13 @@ echo '{}' >"$BACKUP_DIR/manifests/manifest_${TIMESTAMP}.json.age"
 got="$(offsite_tiers "mysql/financial_scraper_${TIMESTAMP}.sql.gz.age")"
 [ "$got" = "daily weekly monthly" ] && pass "first complete run of a month and week: ${got}" ||
 	failed "first run of December: '${got}'"
-OUTPUTS=("mysql/financial_scraper_${TIMESTAMP}.sql.gz.age" "spire/keys_${TIMESTAMP}.json.age" "manifests/manifest_${TIMESTAMP}.json.age")
+for f in "mysql/financial_scraper_${TIMESTAMP}.pitr.age" "mongodb/${TIMESTAMP}/mongodb-audit.pitr.age" \
+	"mysql/binlog/uuid-1/binlog.000009_${TIMESTAMP}.gz.age" "mongodb/oplog/mongodb-audit/1.1_2.1.bson.gz.age"; do
+	got="$(offsite_tiers "$f")"
+	[ "$got" = daily ] || failed "${f}: '${got}', expected daily only"
+done
+pass "PITR starting points and archives are daily only off-site (useless without the 72 h archives)"
+OUTPUTS=("mysql/financial_scraper_${TIMESTAMP}.sql.gz.age" "mysql/financial_scraper_${TIMESTAMP}.pitr.age" "spire/keys_${TIMESTAMP}.json.age" "manifests/manifest_${TIMESTAMP}.json.age")
 got="$(offsite_tiers "manifests/manifest_${TIMESTAMP}.json.age")"
 [ "$got" = "daily monthly weekly" ] && pass "the manifest follows its dumps to every tier" ||
 	failed "manifest tiers: '${got}'"
@@ -258,6 +330,7 @@ PATH="$WORK/bin:$PATH" AGE_SUFFIX=".age" BACKUP_S3_BUCKET="s3://bucket/prod" BAC
 sort "$RCLONE_LOG" >"$WORK/copies"
 cat >"$WORK/want-copies" <<EOF
 :s3:bucket/prod/daily manifests/manifest_${TIMESTAMP}.json.age
+:s3:bucket/prod/daily mysql/financial_scraper_${TIMESTAMP}.pitr.age
 :s3:bucket/prod/daily mysql/financial_scraper_${TIMESTAMP}.sql.gz.age
 :s3:bucket/prod/daily spire/keys_${TIMESTAMP}.json.age
 :s3:bucket/prod/monthly manifests/manifest_${TIMESTAMP}.json.age
@@ -270,7 +343,7 @@ diff -u "$WORK/want-copies" "$WORK/copies" && pass "each file is copied under da
 : >"$RCLONE_LOG"
 PATH="$WORK/bin:$PATH" AGE_SUFFIX=".age" BACKUP_S3_BUCKET="s3://bucket/prod" METRICS_FILE="" \
 	upload_offsite 2>/dev/null
-[ "$(cut -d' ' -f1 "$RCLONE_LOG" | sort -u)" = ":s3:bucket/prod" ] && [ "$(wc -l <"$RCLONE_LOG")" -eq 3 ] &&
+[ "$(cut -d' ' -f1 "$RCLONE_LOG" | sort -u)" = ":s3:bucket/prod" ] && [ "$(wc -l <"$RCLONE_LOG")" -eq 4 ] &&
 	pass "default layout unchanged: flat copy at the bucket root" || failed "flat layout: $(cat "$RCLONE_LOG")"
 
 echo ""

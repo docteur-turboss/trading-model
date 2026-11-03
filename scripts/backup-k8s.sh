@@ -5,13 +5,14 @@
 #          BACKUP_DIR=/backups BACKUP_S3_BUCKET=s3://my-bucket/backups
 #          BACKUP_AGE_RECIPIENTS=age1... (encryption, see backup-lib.sh)
 #          RETENTION_DAYS, RETENTION_WEEKLY_WEEKS, RETENTION_MONTHLY_MONTHS,
-#          BACKUP_OFFSITE_LAYOUT (GFS retention, see backup-lib.sh, ADR-0031)
+#          BACKUP_OFFSITE_LAYOUT (GFS retention, see backup-lib.sh, ADR-0032)
 # =============================================================================
 
 set -euo pipefail
 
 BACKUP_DIR="${BACKUP_DIR:-/backups}"
-TIMESTAMP="$(date +%Y-%m-%d_%H%M%S)"
+# UTC: restore-k8s.sh --until compares these stamps with the requested instant.
+TIMESTAMP="$(date -u +%Y-%m-%d_%H%M%S)"
 DRY_RUN=false
 COMPONENTS="mongodb,mysql,checkpoints,spire"
 RETENTION_DAYS="${RETENTION_DAYS:-30}"
@@ -51,9 +52,20 @@ backup_mongodb() {
       warn "[DRY-RUN] Would backup MongoDB ${label} from ${primary}"
       continue
     fi
+    # Point-in-time recovery replays the archived oplog from this point on
+    # (ADR-0031): read before the dump, so nothing between the two is missed.
+    local start
+    if ! start=$(oplog_edge "$primary" -1) || ! [[ "$start" =~ ^[0-9]+\.[0-9]+$ ]]; then
+      fail "Cannot read the oplog of ${label} (${primary})"
+      write_metric "$label" 0
+      continue
+    fi
     local file="${dest}/${label}.archive.gz${AGE_SUFFIX}"
-    if write_dump "$label" "$file" kubectl_exec "${primary}" -- mongodump --gzip --archive --oplog; then
-      ok "MongoDB backup complete: ${label} (${primary})"
+    local pitr="${dest}/${label}.pitr${AGE_SUFFIX}"
+    if write_dump "$label" "$file" kubectl_exec "${primary}" -- mongodump --gzip --archive --oplog &&
+      sealed_write "$pitr" echo "oplog_ts=${start}"; then
+      ok "MongoDB backup complete: ${label} (${primary}, oplog from ${start})"
+      record_output "$pitr"
       write_metric "$label" 1
     else
       fail "MongoDB backup failed: ${label} (${primary})"
@@ -62,9 +74,14 @@ backup_mongodb() {
   done
 }
 
-# Gzipped dump of every non-system database from MySQL pod `$1`.
+# Gzipped dump of every non-system database from MySQL pod `$1`. Point-in-time
+# recovery replays the archived binlogs from the dump's own coordinates
+# (ADR-0031): --source-data=2 writes them as a comment at the top of the
+# dump, copied to file `$2` on the way through.
 mysql_dump_gz() {
-  mysql_root_sh "$1" "$MYSQL_DUMP_SH" 2>/dev/null | gzip
+  mysql_root_sh "$1" "$MYSQL_DUMP_SH --source-data=2" 2>/dev/null |
+    awk -v out="$2" '!found && /^-- CHANGE (REPLICATION SOURCE|MASTER) TO/ { print > out; close(out); found = 1 } { print }' |
+    gzip
 }
 
 backup_mysql() {
@@ -85,13 +102,23 @@ backup_mysql() {
     return
   fi
 
-  if write_dump mysql "$file" mysql_dump_gz "${pod}"; then
+  local uuid coords pitr="${dest}/financial_scraper_${TIMESTAMP}.pitr${AGE_SUFFIX}"
+  if ! uuid=$(mysql_root_sh "${pod}" "mysql --user=root -N -e 'SELECT @@server_uuid'") || [ -z "$uuid" ]; then
+    fail "MySQL backup failed: cannot read the server uuid of ${pod}"
+    write_metric "mysql" 0
+    return
+  fi
+  coords=$(mktemp)
+  if write_dump mysql "$file" mysql_dump_gz "${pod}" "$coords" &&
+    sealed_write "$pitr" mysql_pitr "$uuid" "$coords"; then
     ok "MySQL backup complete: ${file}"
+    record_output "$pitr"
     write_metric "mysql" 1
   else
     fail "MySQL backup failed"
     write_metric "mysql" 0
   fi
+  rm -f "$coords"
 }
 
 backup_checkpoints() {

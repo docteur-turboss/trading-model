@@ -1,8 +1,8 @@
-# ADR-0031: Grandfather-Father-Son Backup Retention, Long Tiers Off-site for the Audit Trail and MySQL
+# ADR-0032: Grandfather-Father-Son Backup Retention, Long Tiers Off-site for the Audit Trail and MySQL
 
 **Status:** Accepted
 **Date:** 2026-11
-**Verified by:** `tests/backup/backup-retention.test.sh`
+**Verified by:** `tests/backup/backup-retention.test.sh`, `tests/backup/fetch-offsite.test.sh`
 
 ## Context
 
@@ -21,6 +21,9 @@ Options were put to the project owner on issue #292; the owner chose option 1 + 
 5. **Ages from the file name.** `prune_old` reads the `%Y-%m-%d_%H%M%S` timestamp in the name (calendar arithmetic in awk, no `date -d`, which BusyBox and GNU parse differently), never the mtime, which a copy or a fetch from the bucket changes. Files without timestamp fall back to their mtime; `metrics/` is never touched.
 6. **Guard.** The newest complete run of each component is never deleted, whatever its age; a component without any complete run keeps its newest file. Without any new variable the policy is the former one (30 days) plus this guard.
 7. **Minimisation (GDPR).** The DLQ, checkpoints and SPIRE CA private key backups are never promoted: they never outlive 30 days (31 off-site). The `spire` database rides in the promoted MySQL dump (registration entries, trust bundle, no private key): accepted, low stakes. A monthly backup keeps what it contains up to 60 months after it was taken, so a record may outlive its live retention in an encrypted backup; accepted because the 5 years are a regulatory minimum and the backups hold no personal data (data processing register, activity 7).
+
+8. **Point-in-time files stay out of the GFS (ADR-0031).** The binlog and oplog archives (`mysql/binlog/`, `mongodb/oplog/`) are left out of the retention plan: `backup-incremental-k8s.sh` keeps them 72 h, and they never count as a component's newest file. A `.pitr` starting point is no dump: on the volume it lives as long as the dump of its component and run, and off-site it goes to `daily/` only, as do the archives (the incremental job uses the tiered layout too), since it is useless once the archives are gone.
+9. **The long tiers are restorable per component.** `fetch-offsite.sh` and `restore-k8s.sh` take a `mongodb-audit` component (the audit replica set alone), because a weekly or monthly run never holds the operational `mongodb` dump: `--tier monthly --components mongodb-audit,mysql`, then `restore-k8s.sh --components mongodb-audit,mysql`.
 
 ## Consequences
 

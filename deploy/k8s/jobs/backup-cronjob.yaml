@@ -76,7 +76,7 @@ spec:
                   value: /backups
                 - name: METRICS_FILE
                   value: /backups/metrics/backup.prom
-                # Daily tier only on backup-data (ADR-0031): the weekly and
+                # Daily tier only on backup-data (ADR-0032): the weekly and
                 # monthly tiers of mongodb-audit and mysql live off-site, under
                 # weekly/ and monthly/, expired by the bucket lifecycle rules
                 # (docs/deployment/BACKUP_DR.md, "Off-site tiers").
@@ -272,9 +272,12 @@ spec:
               echo '# No backup metrics yet' > /tmp/metrics/metrics
               httpd -f -p 9118 -h /tmp/metrics &
               HTTPD_PID=$!
+              # backup.prom (daily db-backup) and backup-incremental.prom
+              # (hourly db-backup-incremental, series labelled run="incremental").
               while true; do
-                if [ -f /metrics/backup.prom ]; then
-                  cp /metrics/backup.prom /tmp/metrics/metrics
+                if ls /metrics/*.prom >/dev/null 2>&1; then
+                  cat /metrics/*.prom > /tmp/metrics/metrics.tmp
+                  mv /tmp/metrics/metrics.tmp /tmp/metrics/metrics
                 fi
                 sleep 5
               done

@@ -36,7 +36,7 @@ jobs:
 
       - name: Validate backup scripts syntax
         run: |
-          for script in backup.sh restore.sh backup-k8s.sh restore-k8s.sh backup-lib.sh fetch-offsite.sh; do
+          for script in backup.sh restore.sh backup-k8s.sh backup-incremental-k8s.sh restore-k8s.sh backup-lib.sh fetch-offsite.sh; do
             bash -n "scripts/$script" && echo "  ✓ $script syntax OK"
           done
 
@@ -48,6 +48,11 @@ jobs:
       - name: Test the backup library
         run: bash tests/backup/backup-encryption.test.sh
 
+      # Point-in-time recovery chains (ADR-0031): which binlog / oplog
+      # archives restore-k8s.sh --until replays, gaps refused, no partial file.
+      - name: Test the point-in-time recovery chains
+        run: bash tests/backup/pitr-chain.test.sh
+
       # A failed dump leaves no file, run manifests, `latest` = last complete
       # run, checksum and `-- Dump completed` refusals (issue #288).
       - name: Test failed dumps and run manifests
@@ -55,7 +60,7 @@ jobs:
 
       # GFS retention on 400 days of fake runs: exactly the files prune_old
       # keeps, failed runs never promoted, newest complete run guarded,
-      # off-site tiers daily/ weekly/ monthly/ (ADR-0031, issue #292).
+      # off-site tiers daily/ weekly/ monthly/ (ADR-0032, issue #292).
       - name: Test the backup retention
         run: bash tests/backup/backup-retention.test.sh
 
