@@ -7,6 +7,12 @@ module.exports = {
   transform: {
     '^.+\\.tsx?$': ['ts-jest', {
       diagnostics: false,
+      // Jest runs CommonJS: compile the specs to CommonJS rather than the
+      // hybrid node16 output (ts-jest TS151002), so import() becomes require().
+      tsconfig: {
+        module: 'commonjs',
+        moduleResolution: 'bundler',
+      },
     }],
   },
   rootDir: '.',

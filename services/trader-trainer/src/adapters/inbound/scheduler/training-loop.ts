@@ -28,10 +28,15 @@ export class TrainingLoop {
 
 	start(config: TrainingLoopConfig): void {
 		const { symbols, intervalMs, maxDataAgeMs } = config;
-		const runTraining = () =>
-			this._runTrainingForSymbols(symbols, maxDataAgeMs);
+		const runTraining = (): void => {
+			this._runTrainingForSymbols(symbols, maxDataAgeMs).catch((err) => {
+				getLogger().error("Training cycle failed", {
+					error: err instanceof Error ? err.message : String(err),
+				});
+			});
+		};
 
-		void runTraining();
+		runTraining();
 		this._trainingInterval.startInterval(
 			runTraining,
 			DurationMs.of(intervalMs)

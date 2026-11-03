@@ -313,6 +313,10 @@ runner() {
 	$K -n "$NS" exec restore-runner -- sh -c "$1"
 }
 
+inspector() {
+	$K -n "$NS" exec backup-inspector -- sh -c "$1"
+}
+
 # The real audit trail: tests/backup/audit-chain.js on the `audit` database
 # (JSON: count, first, last, digest, broken).
 audit_chain() {
@@ -353,8 +357,10 @@ MYSQL_WRITERS="financial-scraper financial-scraper-collector"
 # instant recorded, one marker written after it, and the
 # db-backup-incremental CronJob run once. Destroys the data (the audit and
 # dlq databases, drill markers, the market_candles table, the SPIRE server
-# volume) and restores everything with scripts/restore-k8s.sh --until the
-# instant. Passes only if the data written up to the instant comes back and
+# volume) and restores everything as after the loss of the cluster: the run
+# and its binlog / oplog archives are fetched from the off-site bucket
+# (scripts/fetch-offsite.sh --pitr) into a pod that never mounts backup-data,
+# then restored with scripts/restore-k8s.sh --until the instant. Passes only if the data written up to the instant comes back and
 # nothing after it, the SPIRE CA comes back, the audit chain is intact and
 # still verifiable, audit-logger extends it after the restore, and the mesh
 # works.
@@ -408,19 +414,19 @@ verify_backup() {
 	fi
 	$K -n "$NS" logs job/backup-ci | grep -E '✓|✗|⚠' | sed 's/^/  /'
 
-	$K -n "$NS" delete pod restore-runner --ignore-not-found
+	$K -n "$NS" delete pod restore-runner backup-inspector --ignore-not-found
 	$K -n "$NS" apply -f "$ROOT/tests/k8s/restore-runner.yaml"
-	$K -n "$NS" wait --for=condition=ready pod/restore-runner --timeout=120s
+	$K -n "$NS" wait --for=condition=ready pod/restore-runner pod/backup-inspector --timeout=120s
 	# Paths stay inside `sh -c` strings: Git Bash (local runs on Windows)
 	# rewrites bare /paths arguments into Windows paths.
 	local clear
-	clear="$(runner "find /backups -type f ! -name '*.age' ! -path '/backups/metrics/*'")"
+	clear="$(inspector "find /backups -type f ! -name '*.age' ! -path '/backups/metrics/*'")"
 	if [ -n "$clear" ]; then
 		log "unencrypted backup files: $clear"
 		return 1
 	fi
-	runner "grep -qx 'backup_encrypted 1' /backups/metrics/backup.prom"
-	runner "grep -qx 'backup_last_status{component=\"offsite\"} 1' /backups/metrics/backup.prom"
+	inspector "grep -qx 'backup_encrypted 1' /backups/metrics/backup.prom"
+	inspector "grep -qx 'backup_last_status{component=\"offsite\"} 1' /backups/metrics/backup.prom"
 	local offsite
 	offsite="$($K -n "$NS" exec deployment/backup-s3 -- sh -c "find /data/backups/staging -name '*.age' | wc -l")"
 	# 5 dumps + 3 PITR starting points (mysql, mongodb, mongodb-audit).
@@ -487,32 +493,21 @@ verify_backup() {
 		return 1
 	fi
 	$K -n "$NS" logs job/backup-incremental-ci | grep -E '✓|✗|⚠' | sed 's/^/  /'
-	clear="$(runner "find /backups -type f ! -name '*.age' ! -path '/backups/metrics/*'")"
+	clear="$(inspector "find /backups -type f ! -name '*.age' ! -path '/backups/metrics/*'")"
 	if [ -n "$clear" ]; then
 		log "unencrypted or partial backup files: $clear"
 		return 1
 	fi
 	for component in mysql-binlog mongodb-oplog mongodb-audit-oplog; do
-		runner "grep -qx 'backup_last_status{component=\"$component\",run=\"incremental\"} 1' /backups/metrics/backup-incremental.prom" || {
+		inspector "grep -qx 'backup_last_status{component=\"$component\",run=\"incremental\"} 1' /backups/metrics/backup-incremental.prom" || {
 			log "incremental archive of $component did not succeed"
 			return 1
 		}
 	done
-	runner "grep -qx 'backup_last_status{component=\"offsite\",run=\"incremental\"} 1' /backups/metrics/backup-incremental.prom"
-	# An instant the archives do not reach yet: refused before touching data.
-	local refused
-	if refused="$(echo "$key" | $K -n "$NS" exec -i restore-runner -- sh -c \
-		"umask 077 && cat > /tmp/identity && BACKUP_AGE_IDENTITY=/tmp/identity K8S_NAMESPACE=$NS \
-		bash /scripts/restore-k8s.sh --dry-run --components mongodb,mysql --until $(date -u +%Y-%m-%dT%H:%M:%SZ) 2>&1; \
-		rc=\$?; rm -f /tmp/identity; exit \$rc")"; then
-		log "restore-k8s.sh --until accepted an instant after the last archive: $refused"
-		return 1
-	fi
-	[ "$(echo "$refused" | grep -cE 'do not reach the requested instant|before the requested instant')" -eq 3 ] || {
-		log "restore-k8s.sh --until refused for another reason: $refused"
-		return 1
-	}
-	log "  archives encrypted, off-site, and an instant past them is refused"
+	inspector "grep -qx 'backup_last_status{component=\"offsite\",run=\"incremental\"} 1' /backups/metrics/backup-incremental.prom"
+	log "  archives encrypted and off-site"
+	# From here on, the backup-data volume counts as lost with the cluster.
+	$K -n "$NS" delete pod backup-inspector --wait=false
 
 	log "restore drill: disaster (audit + dlq databases, markers, market_candles dropped, SPIRE volume deleted)"
 	for label in mongodb mongodb-audit; do
@@ -543,16 +538,58 @@ verify_backup() {
 		return 1
 	}
 
+	log "restore drill: total loss, backup-data unused: scripts/fetch-offsite.sh --pitr from the off-site bucket"
+	local claims
+	claims="$($K -n "$NS" get pod restore-runner -o jsonpath='{.spec.volumes[*].persistentVolumeClaim.claimName}')"
+	[ -z "$claims" ] || {
+		log "restore-runner mounts $claims: the drill would not restore from the off-site copy"
+		return 1
+	}
+	local started fetch_seconds restore_seconds fetched dir
+	started=$SECONDS
+	runner "bash /scripts/fetch-offsite.sh --pitr --dest /restore"
+	fetch_seconds=$((SECONDS - started))
+	# The run: 5 dumps + 3 PITR starting points; then the archives replayed.
+	fetched="$(runner "find /restore -type f \\( -name '*.archive.gz.age' -o -name 'financial_scraper_*.sql.gz.age' -o -name 'checkpoints_*.age' -o -name 'keys_*.age' -o -name '*.pitr.age' \\) | wc -l")"
+	[ "$fetched" -eq 8 ] || {
+		log "fetch-offsite.sh fetched $fetched file(s) of the run instead of 8"
+		return 1
+	}
+	for dir in mysql/binlog mongodb/oplog/mongodb mongodb/oplog/mongodb-audit; do
+		[ "$(runner "find /restore/$dir -type f -name '*.gz.age' | wc -l")" -ge 1 ] || {
+			log "fetch-offsite.sh --pitr fetched no archive into $dir"
+			return 1
+		}
+	done
+
+	# An instant the archives do not reach yet: refused before touching data.
+	local refused
+	if refused="$(echo "$key" | $K -n "$NS" exec -i restore-runner -- sh -c \
+		"umask 077 && cat > /tmp/identity && BACKUP_DIR=/restore BACKUP_AGE_IDENTITY=/tmp/identity K8S_NAMESPACE=$NS \
+		bash /scripts/restore-k8s.sh --dry-run --components mongodb,mysql --until $(date -u +%Y-%m-%dT%H:%M:%SZ) 2>&1; \
+		rc=\$?; rm -f /tmp/identity; exit \$rc")"; then
+		log "restore-k8s.sh --until accepted an instant after the last archive: $refused"
+		return 1
+	fi
+	[ "$(echo "$refused" | grep -cE 'do not reach the requested instant|before the requested instant')" -eq 3 ] || {
+		log "restore-k8s.sh --until refused for another reason: $refused"
+		return 1
+	}
+	log "  run and archives fetched, an instant past the archives is refused"
+
 	# The SPIRE server writes to the `spire` database the binlog replay
 	# restores: stopped now, restarted by restore-k8s.sh with its CA keys.
 	$K -n "$NS" scale deployment/spire-server --replicas=0
 	$K -n "$NS" wait --for=delete pod -l app.kubernetes.io/component=spire-server --timeout=120s || true
 
-	log "restore drill: scripts/restore-k8s.sh --until $until"
+	log "restore drill: scripts/restore-k8s.sh --until $until on the fetched run"
+	started=$SECONDS
 	# The identity goes through stdin and is deleted after the restore.
 	echo "$key" | $K -n "$NS" exec -i restore-runner -- sh -c \
-		"umask 077 && cat > /tmp/identity && BACKUP_AGE_IDENTITY=/tmp/identity K8S_NAMESPACE=$NS \
+		"umask 077 && cat > /tmp/identity && BACKUP_DIR=/restore BACKUP_AGE_IDENTITY=/tmp/identity K8S_NAMESPACE=$NS \
 		bash /scripts/restore-k8s.sh --components mongodb,mysql,checkpoints,spire --until $until; rc=\$?; rm -f /tmp/identity; exit \$rc"
+	restore_seconds=$((SECONDS - started))
+	log "  off-site fetch ${fetch_seconds} s, restore ${restore_seconds} s (total $((fetch_seconds + restore_seconds)) s)"
 
 	log "restore drill: checking the restored data"
 	# Markers 1-3 from the dump, 4 from the replay, never 5 (after the instant).

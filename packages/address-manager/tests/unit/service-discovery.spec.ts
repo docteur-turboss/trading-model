@@ -66,7 +66,7 @@ describe("ServiceDiscovery", () => {
 			isHealthy: jest
 				.fn<(instance: ServiceInstance) => Promise<boolean>>()
 				.mockResolvedValue(true),
-			locate: jest.fn((instance: ServiceInstance) => String(instance.host)),
+			locate: jest.fn((instance: ServiceInstance) => instance.host),
 		} as unknown as jest.Mocked<ServiceHealthChecker>;
 	}
 

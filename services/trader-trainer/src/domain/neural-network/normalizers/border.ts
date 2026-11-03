@@ -34,7 +34,7 @@ export const BORDER: Normalizer = {
 
 		for (let i = 0; i < len; i++) {
 			const value = data[i];
-			data[i] = value < lo ? lo : value > hi ? hi : value;
+			data[i] = Math.min(Math.max(value, lo), hi);
 		}
 
 		return data;

@@ -11,7 +11,7 @@ export class HingeLoss extends BaseLoss {
 		let sum = 0;
 		for (let i = 0; i < len; i++) {
 			const margin = 1 - target[i] * output[i];
-			sum += margin > 0 ? margin : 0;
+			sum += Math.max(margin, 0);
 		}
 		return sum / len;
 	}

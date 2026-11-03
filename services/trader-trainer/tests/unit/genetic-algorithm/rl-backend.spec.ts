@@ -108,20 +108,20 @@ describe("makeTradingAgentBackend", () => {
 			backend.replay(1, GAMMA);
 		}
 
-		it.each([
-			true,
-			false,
-		])("should change the weights and shrink the TD error (done=%p)", (done) => {
-			const backend = makeTradingAgentBackend(genome, makePRNG(21));
-			const exp = makeTransition(done);
-			const weightsBefore = backend.getWeights().slice();
-			const errorBefore = tdError(backend, exp);
+		it.each([true, false])(
+			"should change the weights and shrink the TD error (done=%p)",
+			(done) => {
+				const backend = makeTradingAgentBackend(genome, makePRNG(21));
+				const exp = makeTransition(done);
+				const weightsBefore = backend.getWeights().slice();
+				const errorBefore = tdError(backend, exp);
 
-			learn(backend, exp);
+				learn(backend, exp);
 
-			expect(backend.getWeights()).not.toEqual(weightsBefore);
-			expect(tdError(backend, exp)).toBeLessThan(errorBefore);
-		});
+				expect(backend.getWeights()).not.toEqual(weightsBefore);
+				expect(tdError(backend, exp)).toBeLessThan(errorBefore);
+			}
+		);
 
 		it("should only move Q(s, ·) on the played action", () => {
 			const backend = makeTradingAgentBackend(genome, makePRNG(21));

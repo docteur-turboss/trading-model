@@ -4,7 +4,12 @@ import promClient, { type Registry } from "prom-client";
 export function createMetricsHandler(registry: Registry): RequestHandler {
 	return (_req: Request, res: Response): void => {
 		res.set("Content-Type", registry.contentType);
-		registry.metrics().then((data) => res.send(data));
+		registry
+			.metrics()
+			.then((data) => res.send(data))
+			.catch((err) => {
+				res.status(500).send(err instanceof Error ? err.message : String(err));
+			});
 	};
 }
 
