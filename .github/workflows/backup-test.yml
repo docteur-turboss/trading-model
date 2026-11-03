@@ -53,6 +53,10 @@ jobs:
       - name: Test the backup library
         run: bash tests/backup/backup-encryption.test.sh
 
+      # Helper-pod image of restore-k8s.sh: CronJob, fallback, override (issue #323).
+      - name: Test the restore helper image
+        run: bash tests/backup/restore-helper-image.test.sh
+
       # Step timings and budget of the restore drills (issue #329).
       - name: Test the restore drill timings
         run: bash tests/backup/drill-timings.test.sh

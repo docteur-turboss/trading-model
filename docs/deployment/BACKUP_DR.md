@@ -607,7 +607,7 @@ What `restore-k8s.sh` does:
 - **MySQL**: pipes the dump (GTID statements filtered) into the pod behind
   `mysql-primary`, with the container's own root password.
 - **SPIRE**: scales `spire-server` to 0, writes `keys.json` into its volume
-  from a helper pod (`RESTORE_HELPER_IMAGE`, default `backup-tools`) running as
+  from a helper pod (`RESTORE_HELPER_IMAGE` if set, otherwise the image, by digest, of the `db-backup` CronJob read with `kubectl get cronjob`; the operator needs `get` on CronJobs. If the CronJob is absent, e.g. a new cluster in a total outage, it warns and falls back to `backup-tools:latest`: set `RESTORE_HELPER_IMAGE` to the released digest) running as
   the server's user, scales it back and checks `spire-server healthcheck`.
 
 #### Point-in-time restore (`--until`, ADR-0031)
