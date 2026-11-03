@@ -40,6 +40,7 @@ An ADR documents a significant architectural decision, including the context, al
 | [ADR-0030](./0030-mt4-point-in-time-features-and-success-criteria.md) | Point-in-Time Features and Explicit Success Criteria for the MT4 Walk-Forward Validation | Accepted | 2026-10 |
 | [ADR-0031](./0031-point-in-time-recovery-hourly-archives.md) | Point-in-Time Recovery From Hourly Binlog and Oplog Archives (RPO 1 h, 72 h Window) | Accepted | 2026-11 |
 | [ADR-0032](./0032-gfs-backup-retention.md) | Grandfather-Father-Son Backup Retention, Long Tiers Off-site for the Audit Trail and MySQL | Accepted | 2026-11 |
+| [ADR-0033](./0033-offsite-backup-bucket-object-lock.md) | Off-site Backup Bucket Under Object Lock (Compliance, 30-31 Days), Checked Before Every Deploy | Accepted | 2026-11 |
 
 ## Keeping ADRs true to the runtime
 

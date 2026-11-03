@@ -234,9 +234,99 @@ store (MinIO on another VPS, Backblaze B2, Scaleway, OVH...) `S3_ENDPOINT` and
 `BACKUP_S3_BUCKET`, `BACKUP_S3_REGION`, `BACKUP_S3_ENDPOINT`,
 `BACKUP_S3_PROVIDER`, secrets `BACKUP_S3_ACCESS_KEY_ID`,
 `BACKUP_S3_SECRET_ACCESS_KEY`. Without them, an existing Secret (e.g. a
-SealedSecret) is kept. Enable versioning or object lock on the bucket: the
-job only adds files, retention off-site is the bucket's lifecycle rules
-([Off-site tiers](#off-site-tiers)).
+SealedSecret) is kept. The bucket must have Object Lock in compliance mode
+and the credentials no delete right ([Off-site
+immutability](#off-site-immutability)): production deploys refuse a bucket
+without it. The job only adds files, retention off-site is the bucket's
+lifecycle rules ([Off-site tiers](#off-site-tiers)).
+
+### Off-site immutability
+
+The cluster holds the bucket's credentials: whoever takes the namespace (or a
+ransomware running there) could otherwise delete the data **and** its
+off-site copies. So (ADR-0033, issue #326):
+
+1. **Object Lock, compliance mode, default retention 30 or 31 days.** Every
+   file the job uploads is locked from its upload: in compliance mode nobody,
+   not even the account owner, can delete or overwrite that version before
+   the date. The default retention must be at least `RETENTION_DAYS` (30, the
+   daily backups a restore relies on) and at most the 31 days of the
+   `daily/` lifecycle rule: longer, the daily copies of the DLQ, checkpoints
+   and SPIRE CA keys would outlive their retention (ADR-0032, data
+   minimisation), and the lifecycle rules could not expire them on time.
+   Weekly and monthly copies are locked their first 30 days, then expire by
+   their lifecycle rules (85 and 1830 days). Governance mode is refused:
+   anyone granted `s3:BypassGovernanceRetention` can delete through it.
+2. **Credentials without delete right.** The job puts, lists and gets; it
+   never deletes, and rclone `copy --s3-no-check-bucket` never deletes nor
+   creates the bucket (a file whose modification time changed is updated by a
+   server-side copy onto itself: a new version, allowed by Object Lock).
+   Policy for `BACKUP_S3_BUCKET=s3://trading-backups/prod` (AWS; same actions
+   on MinIO and most S3-compatible stores):
+
+   ```json
+   {"Version": "2012-10-17", "Statement": [
+     {"Sid": "Write", "Effect": "Allow",
+      "Action": ["s3:PutObject", "s3:GetObject"],
+      "Resource": "arn:aws:s3:::trading-backups/prod/*"},
+     {"Sid": "ListAndCheck", "Effect": "Allow",
+      "Action": ["s3:ListBucket", "s3:GetBucketLocation", "s3:GetBucketObjectLockConfiguration", "s3:GetLifecycleConfiguration"],
+      "Resource": "arn:aws:s3:::trading-backups"},
+     {"Sid": "NeverDelete", "Effect": "Deny",
+      "Action": ["s3:DeleteObject", "s3:DeleteObjectVersion", "s3:PutBucketObjectLockConfiguration",
+                 "s3:PutObjectRetention", "s3:PutObjectLegalHold", "s3:BypassGovernanceRetention",
+                 "s3:PutLifecycleConfiguration", "s3:PutBucketVersioning", "s3:PutBucketPolicy", "s3:DeleteBucket"],
+      "Resource": ["arn:aws:s3:::trading-backups", "arn:aws:s3:::trading-backups/*"]}
+   ]}
+   ```
+
+   `s3:GetBucketObjectLockConfiguration` is for the deploy check below,
+   `s3:GetLifecycleConfiguration` for `check_offsite_lifecycle`. Bucket
+   settings (Object Lock, lifecycle rules) are changed with other, admin
+   credentials, never stored in the cluster nor in the GitHub environment.
+   Restores (`fetch-offsite.sh`) only need `s3:ListBucket` and
+   `s3:GetObject`.
+3. **Set up at creation.** Object Lock needs versioning, and is enabled when
+   the bucket is created (`--object-lock-enabled-for-bucket`; MinIO
+   `mc mb --with-lock`). AWS can also enable it on an existing versioned
+   bucket; most other providers cannot, so create a new bucket there:
+
+   ```bash
+   aws s3api create-bucket --bucket trading-backups --object-lock-enabled-for-bucket \
+     --create-bucket-configuration LocationConstraint=eu-west-3   # add --endpoint-url for MinIO, Scaleway, OVH...
+   aws s3api put-object-lock-configuration --bucket trading-backups --object-lock-configuration \
+     '{"ObjectLockEnabled":"Enabled","Rule":{"DefaultRetention":{"Mode":"COMPLIANCE","Days":30}}}'
+   aws s3api get-object-lock-configuration --bucket trading-backups
+   ```
+
+   A compliance retention cannot be shortened, nor the objects deleted before
+   it ends, even by the account owner: try the settings on a test bucket
+   first.
+
+**Deploy check.** `deploy.yml` runs `scripts/backup-bucket-check.sh` before
+applying anything ("Check off-site backup bucket immutability"), with the
+credentials the job will use: those of the GitHub environment
+(`BACKUP_S3_BUCKET`, `BACKUP_S3_ENDPOINT`, `BACKUP_S3_REGION`, secrets
+`BACKUP_S3_ACCESS_KEY_ID` / `BACKUP_S3_SECRET_ACCESS_KEY`), or else, when
+`BACKUP_S3_BUCKET` is unset, the bucket, endpoint and credentials of the
+`trading-model-backup-s3` Secret already in the namespace (e.g. a
+SealedSecret; the values are masked in the logs). It reads
+`get-object-lock-configuration` and reports a problem when there is no bucket
+at all, when the configuration cannot be read (no Object Lock, a provider
+without Object Lock, credentials without
+`s3:GetBucketObjectLockConfiguration`, store unreachable), without default
+retention, in governance mode, or with a default retention outside
+`RETENTION_DAYS` (read from the `db-backup` CronJob) to 31 days. In
+`production` a problem is an `::error::` and the deploy stops before any
+change; elsewhere it is a `::warning::`.
+
+**Fallback.** The GitHub environment variable
+`BACKUP_S3_IMMUTABILITY_CHECK=warn` turns the production error into a
+warning while the bucket is being set up (the downgrade is itself reported
+on every deploy); remove it once the check passes. `enforce` makes a staging
+deploy fail too. There is no value that skips the check. Tested by
+`tests/backup/backup-bucket-check.test.sh` (stub `aws` CLI; workflow
+`backup-test.yml`).
 
 ### Retention
 
@@ -286,7 +376,10 @@ off-site layout (`scripts/backup-lib.sh`):
   to `weekly/` or `monthly/` (useless without the binlogs, gone after 72 h).
   Off-site, give the prefixes `daily/mysql/binlog/` and `daily/mongodb/oplog/`
   (bucket root `mysql/binlog/`, `mongodb/oplog/` with the flat layout) a
-  3-day expiry to match: the job does not delete off-site.
+  3-day expiry to match: the job does not delete off-site. Under Object Lock
+  ([Off-site immutability](#off-site-immutability)) an archive stays locked
+  30 days anyway: the rule hides it after 3 days, its version is deleted once
+  the lock ends.
 
 Tested by `tests/backup/backup-retention.test.sh` (400 days of fake runs,
 exact set of kept files and of off-site copies; workflow `backup-test.yml`).
@@ -346,8 +439,12 @@ aws s3api put-bucket-lifecycle-configuration --bucket trading-backups \
 aws s3api get-bucket-lifecycle-configuration --bucket trading-backups
 ```
 
-With versioning on, also expire noncurrent versions
-(`NoncurrentVersionExpiration`), otherwise old versions stay forever. After
+With versioning on (always the case under Object Lock), an expiry only puts a
+delete marker over the file: also expire noncurrent versions
+(`"NoncurrentVersionExpiration": {"NoncurrentDays": 1}` in each rule, and
+`"ExpiredObjectDeleteMarker": true` in a rule of its own), otherwise old
+versions stay forever. A locked version is deleted only once its lock ends
+(30 or 31 days after upload, [Off-site immutability](#off-site-immutability)). After
 each tiered copy, `check_offsite_lifecycle` reads the bucket's rules when the
 `aws` CLI is there and warns about a prefix without rule. The `backup-tools`
 image has only rclone, which cannot read lifecycle rules: the CronJob logs
@@ -356,8 +453,10 @@ bucket is set up (checklist below). The rules are the only expiry off-site:
 a missing rule keeps copies forever, it never loses one.
 
 **Deployment checklist (before the first tiered run, and after any change of
-bucket):** set the five rules above, then read them back with
-`aws s3api get-bucket-lifecycle-configuration`. In Kubernetes nothing else
+bucket):** create the bucket with Object Lock (compliance, 30 days) and give
+the job credentials without delete right ([Off-site
+immutability](#off-site-immutability)), set the five rules above, then read
+them back with `aws s3api get-bucket-lifecycle-configuration`. In Kubernetes nothing else
 checks them: `backup-tools` has no `aws` CLI, so every run only logs
 "Off-site lifecycle rules not verified".
 
@@ -629,7 +728,7 @@ done
 | Where | What |
 | ----- | ---- |
 | `ci.yml`, job `k8s` (every push to main/development and every PR) | Staging overlay on kind: drill markers seeded, real audit chain recorded, a dead letter stored the way message-manager stores them (`tests/k8s/dlq-seed.cjs`: signed `POST /dlq` over mTLS), `db-backup` run (age key generated for the run, off-site copy to an in-cluster S3), then markers, audit events and a dead letter written **after** the dump, writers stopped (audit-logger, dlq-service, financial-scraper, financial-scraper-collector), the instant recorded, one more marker after it, `db-backup-incremental` run (archives encrypted, off-site), data destroyed (`audit` and `dlq` databases, markers, `market_candles`, SPIRE server volume), the run (dumps and run manifest) and its binlog / oplog archives fetched from the in-cluster S3 by `fetch-offsite.sh --pitr` into a pod without `backup-data` (an instant past the archives refused there by `restore-k8s.sh --until`; fetch and restore durations logged), `restore-k8s.sh --until <instant>` on it, checks: the audit chain exactly as at the instant (events written after the dump included, same hashes, chain verified by `tests/backup/audit-chain.js`), every dead letter of the instant back, markers 1-4 and not 5 in both MongoDB replica sets and MySQL, `market_candles` back, SPIRE trust bundle identical, audit-logger extends the restored chain once restarted, every Prometheus target up over mTLS |
-| `backup-test.yml` (weekly, on changes to the scripts) | Library tests (`tests/backup/backup-encryption.test.sh`; `tests/backup/pitr-chain.test.sh`: archive chains, gaps refused, no partial file, incremental metrics; `tests/backup/backup-partial.test.sh`: a failed dump leaves no file, the manifest lists the successful dumps, `latest` skips a newer failed run, sha256 / size mismatch and a MySQL dump without `-- Dump completed` are refused, an unreadable manifest (no or wrong key, corrupt file, plaintext manifest without the expected structure) fails the restore, older backups only with `--timestamp`), off-site fetch tests (`tests/backup/fetch-offsite.test.sh` in the `backup-tools` image: runs uploaded by `upload_offsite` to `rclone serve s3`, newest complete run (every dump and its manifest) chosen over a newer incomplete one, `--timestamp`, `--components`, `--dry-run`, `--pitr` (PITR starting points and the binlog / oplog archives from the run on), layout read by `restore-k8s.sh` with the manifest checksums, files still encrypted, exit 1 on an incomplete or absent run, an empty or unreachable bucket, a non-empty destination), then the Docker drill: an audit trail written by the audit-logger image code (`tests/backup/seed-audit-chain.cjs`, events in the pre-2026-10-31 format, then current ones), MongoDB (3 databases), MySQL, Redis and the SPIRE server backed up, containers and volumes deleted, restored, checked (same audit events and hashes, chain verified, SPIRE trust bundle identical) |
+| `backup-test.yml` (weekly, on changes to the scripts) | Library tests (`tests/backup/backup-encryption.test.sh`; `tests/backup/backup-bucket-check.test.sh`: Object Lock check of the off-site bucket with a stub `aws` CLI, compliance 30-31 days passes, absent, governance, too short or too long fails in production and warns in staging, `BACKUP_S3_IMMUTABILITY_CHECK` fallback; `tests/backup/pitr-chain.test.sh`: archive chains, gaps refused, no partial file, incremental metrics; `tests/backup/backup-partial.test.sh`: a failed dump leaves no file, the manifest lists the successful dumps, `latest` skips a newer failed run, sha256 / size mismatch and a MySQL dump without `-- Dump completed` are refused, an unreadable manifest (no or wrong key, corrupt file, plaintext manifest without the expected structure) fails the restore, older backups only with `--timestamp`), off-site fetch tests (`tests/backup/fetch-offsite.test.sh` in the `backup-tools` image: runs uploaded by `upload_offsite` to `rclone serve s3`, newest complete run (every dump and its manifest) chosen over a newer incomplete one, `--timestamp`, `--components`, `--dry-run`, `--pitr` (PITR starting points and the binlog / oplog archives from the run on), layout read by `restore-k8s.sh` with the manifest checksums, files still encrypted, exit 1 on an incomplete or absent run, an empty or unreachable bucket, a non-empty destination), then the Docker drill: an audit trail written by the audit-logger image code (`tests/backup/seed-audit-chain.cjs`, events in the pre-2026-10-31 format, then current ones), MongoDB (3 databases), MySQL, Redis and the SPIRE server backed up, containers and volumes deleted, restored, checked (same audit events and hashes, chain verified, SPIRE trust bundle identical) |
 
 ## Known Limits
 
