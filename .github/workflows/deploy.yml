@@ -234,6 +234,13 @@ jobs:
             echo "::error::The cluster has no SealedSecret CRD: install the Sealed Secrets controller (docs/deployment/sealed-secrets.md)"
             exit 1
           fi
+          # ADR-0035: the controller runs in its own namespace, so that the
+          # identity of the daily key backup reads its keys only, not every
+          # Secret of kube-system.
+          if ! kubectl -n sealed-secrets get deployment sealed-secrets-controller >/dev/null 2>&1; then
+            echo "::error::No Sealed Secrets controller in the namespace sealed-secrets: install it with bash scripts/install-sealed-secrets.sh, or move it out of kube-system (docs/deployment/sealed-secrets.md, ADR-0035)"
+            exit 1
+          fi
           if grep -q 'AgCHANGE_ME' <<<"$rendered"; then
             echo "::error::$ENV still has placeholder SealedSecrets: run bash scripts/init-sealed-secrets.sh and commit deploy/k8s/secrets"
             exit 1

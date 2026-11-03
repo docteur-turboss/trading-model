@@ -37,6 +37,7 @@ restore verification for the trading-model platform.
 | MySQL `spire`                 | SPIRE Server (datastore)                      | Critical    | 1 h (hourly binlog archive) | 4 hours    |
 | SPIRE `keys.json`             | SPIRE Server (CA private keys)                | Critical    | 24 h (daily backup: a file, no journal) | 4 hours    |
 | Trained agents                | trader-trainer (checkpoint files)             | Medium      | 24 h (daily tar)       | 1 hour     |
+| SealedSecrets controller keys | Sealed Secrets controller (namespace `sealed-secrets`, ADR-0035): decrypts every SealedSecret of `deploy/k8s/secrets/` | Critical | Daily run of `scripts/backup-sealed-secrets-key.sh` by `sealed-secrets-key-backup.yml` (ADR-0035), plus a manual run after a manual key change ([sealed-secrets.md](sealed-secrets.md#back-up-the-controller-keys)): a renewed key is off-site within 24 h | 1 hour |
 | Redis                         | discovery-server, dlq-service, readiness      | Low         | Not backed up          | Rebuilt    |
 
 Redis only holds derived state: instance registrations and tokens (services
@@ -696,11 +697,24 @@ target over mTLS after the restore.
 
 ### Recovery Steps for Total Outage
 
-Before step 3 you need an age private key that decrypts the backups: the
+Before step 1 you need an age private key that decrypts the backups: the
 operator key, or the escrow key from the safe if it is lost
 ([Key custody](ENCRYPTION_AT_REST.md#key-custody)).
 
-1. Provision replacement hosts, deploy the manifests from git (`deploy.yml`)
+1. Provision replacement hosts and install Kubernetes. Restore the
+   SealedSecrets controller keys **before** the manifests are deployed:
+   without them no SealedSecret of `deploy/k8s/secrets/` decrypts in the new
+   cluster. `bash scripts/restore-sealed-secrets-key.sh --identity <key file>`
+   (newest `sealed-secrets-key_<TIMESTAMP>.yaml.age` of the off-site bucket,
+   same credentials as below, restored into the namespace `sealed-secrets`),
+   then install the controller (`bash scripts/install-sealed-secrets.sh`)
+   ([sealed-secrets.md](sealed-secrets.md#restore-the-controller-keys-in-a-new-cluster)).
+   Then deploy the manifests from git (`deploy.yml`), back up the keys of
+   the new cluster (`bash scripts/backup-sealed-secrets-key.sh`) and create
+   the identity of the daily key backup again
+   (`bash scripts/sealed-secrets-backup-identity.sh | gh secret set
+   SEALED_SECRETS_BACKUP_KUBECONFIG --env sealed-secrets-key-backup`): until
+   then `sealed-secrets-key-backup.yml` fails every day
 2. Fetch the newest complete run from the off-site bucket, still encrypted:
    `bash scripts/fetch-offsite.sh --dest ./restore` (credentials and options
    in [From the off-site bucket](#from-the-off-site-bucket)); it prints the
@@ -734,9 +748,34 @@ done
 | Where | What |
 | ----- | ---- |
 | `ci.yml`, job `k8s` (every push to main/development and every PR) | Staging overlay on kind: drill markers seeded, real audit chain recorded, a dead letter stored the way message-manager stores them (`tests/k8s/dlq-seed.cjs`: signed `POST /dlq` over mTLS), `db-backup` run (age key generated for the run, off-site copy to an in-cluster S3), then markers, audit events and a dead letter written **after** the dump, writers stopped (audit-logger, dlq-service, financial-scraper, financial-scraper-collector), the instant recorded, one more marker after it, `db-backup-incremental` run (archives encrypted, off-site), data destroyed (`audit` and `dlq` databases, markers, `market_candles`, SPIRE server volume), the run (dumps and run manifest) and its binlog / oplog archives fetched from the in-cluster S3 by `fetch-offsite.sh --pitr` into a pod without `backup-data` (an instant past the archives refused there by `restore-k8s.sh --until`; fetch and restore durations logged), `restore-k8s.sh --until <instant>` on it, checks: the audit chain exactly as at the instant (events written after the dump included, same hashes, chain verified by `tests/backup/audit-chain.js`), every dead letter of the instant back, markers 1-4 and not 5 in both MongoDB replica sets and MySQL, `market_candles` back, SPIRE trust bundle identical, audit-logger extends the restored chain once restarted, every Prometheus target up over mTLS |
+| `backup-test.yml`, job `sealed-secrets-key` (weekly, on changes to the scripts) | `tests/backup/sealed-secrets-key.test.sh` (stub kubectl and rclone: keys encrypted for every recipient, no plaintext on disk, exit 1 and nothing written without key, recipient or bucket, or when the export, age or the copy fails; restore picks the newest file or `--timestamp`, refuses a wrong key before applying anything, restarts the controller, names a restored key missing even when the new controller added one of its own; `sealed-secrets-backup-identity.sh` applies a list-Secrets-only Role, prints the kubeconfig on stdout only and refuses `kube-system`; `install-sealed-secrets.sh` refuses `kube-system` and a `controller.yaml` that does not match its sha256), then `tests/k8s/sealed-secrets-key-drill.sh` on kind: controller v0.27.1 installed by `install-sealed-secrets.sh` in `sealed-secrets` (nothing left in `kube-system`), a secret sealed in cluster A, identity of the daily workflow created and checked with `kubectl auth can-i` (list Secrets of `sealed-secrets`, nothing in `kube-system`, nothing else) and by what it reads (the keys and its own token, nothing more), keys backed up with it to an S3 bucket, cluster A deleted, cluster B with a new controller does not decrypt the SealedSecret, keys restored from the bucket, the SealedSecret decrypts to the original value |
 | `backup-test.yml` (weekly, on changes to the scripts) | Library tests (`tests/backup/backup-encryption.test.sh`; `tests/backup/backup-key-verify.test.sh`: `BACKUP_MIN_RECIPIENTS` refusals, deploy recipients check, `verify-backup-key.sh` with each of two keys passing and a third key, a component sealed for another key or missing failing; `tests/backup/backup-bucket-check.test.sh`: Object Lock check of the off-site bucket with a stub `aws` CLI, compliance 30-31 days passes, absent, governance, too short or too long fails in production and warns in staging, `BACKUP_S3_IMMUTABILITY_CHECK` fallback; `tests/backup/pitr-chain.test.sh`: archive chains, gaps refused, no partial file, incremental metrics; `tests/backup/backup-partial.test.sh`: a failed dump leaves no file, the manifest lists the successful dumps, `latest` skips a newer failed run, sha256 / size mismatch and a MySQL dump without `-- Dump completed` are refused, an unreadable manifest (no or wrong key, corrupt file, plaintext manifest without the expected structure) fails the restore, older backups only with `--timestamp`), off-site fetch tests (`tests/backup/fetch-offsite.test.sh` in the `backup-tools` image: runs uploaded by `upload_offsite` to `rclone serve s3`, newest complete run (every dump and its manifest) chosen over a newer incomplete one, `--timestamp`, `--components`, `--dry-run`, `--pitr` (PITR starting points and the binlog / oplog archives from the run on), layout read by `restore-k8s.sh` with the manifest checksums, files still encrypted, exit 1 on an incomplete or absent run, an empty or unreachable bucket, a non-empty destination), then the Docker drill: an audit trail written by the audit-logger image code (`tests/backup/seed-audit-chain.cjs`, events in the pre-2026-10-31 format, then current ones), MongoDB (3 databases), MySQL, Redis and the SPIRE server backed up, containers and volumes deleted, restored, checked (same audit events and hashes, chain verified, SPIRE trust bundle identical) |
 
 ## Known Limits
+
+- **SealedSecrets controller keys are backed up once a day** by
+  `sealed-secrets-key-backup.yml` (ADR-0035): a key created less than 24 h
+  before the loss of the cluster may be missing, unless an operator ran
+  `scripts/backup-sealed-secrets-key.sh` after the change
+  ([sealed-secrets.md](sealed-secrets.md#back-up-the-controller-keys)). The
+  workflow holds a production kubeconfig that can list every Secret of the
+  controller namespace (RBAC cannot filter by label). That namespace,
+  `sealed-secrets`, holds the controller keys and the identity's token only:
+  a leak of the kubeconfig exposes every SealedSecret of the repository, no
+  other cluster credential (response in
+  [sealed-secrets.md](sealed-secrets.md#daily-backup-by-github-actions)).
+  Deploying anything else in `sealed-secrets` widens that exposure. The
+  workflow needs the API server reachable from GitHub-hosted runners.
+- **A disabled schedule stops the key backup without any failed run.**
+  GitHub disables the `schedule` trigger of a public repository after 60
+  days without activity, and mails a failed scheduled run only to the last
+  person who changed the cron. `sealed-secrets-key-backup.yml` and
+  `backup-key-check.yml` (ADR-0034) then stop silently: nothing fails, so
+  nothing alerts. Check that the newest
+  `sealed-secrets-key_<TIMESTAMP>.yaml.age` of the bucket is less than two
+  days old, and that both workflows are enabled
+  (`gh workflow list --all`), at least at each quarterly operator-key check
+  ([Key custody](ENCRYPTION_AT_REST.md#key-custody)).
 
 - **RPO 1 h, not continuous** (ADR-0031): writes since the last hourly
   archive are lost with the volume. Point in time only over the last 72 h;

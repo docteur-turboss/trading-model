@@ -1,0 +1,13 @@
+# Namespace of the Sealed Secrets controller (ADR-0035). It holds the
+# controller, its key Secrets and the identity of the daily key backup, and
+# nothing else: that identity can list every Secret of this namespace (RBAC
+# cannot filter by label). Never deploy anything else here.
+# Applied by scripts/install-sealed-secrets.sh with the upstream controller.yaml.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: sealed-secrets
+  labels:
+    app.kubernetes.io/name: sealed-secrets
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce-version: latest

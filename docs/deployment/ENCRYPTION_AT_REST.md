@@ -244,6 +244,14 @@ and prints the key's public key, the run checked (timestamp and UTC date) and
 each result. After a change of the escrow key, start the workflow by hand
 once the next run is off-site.
 
+At the same check, make sure the scheduled workflows still run: GitHub
+disables the `schedule` trigger of a public repository after 60 days without
+activity, with no failed run to notice (`BACKUP_DR.md`, Known Limits).
+`gh workflow list --all` shows `backup-key-check.yml` and
+`sealed-secrets-key-backup.yml` as active, and the newest
+`sealed-secrets-key_<TIMESTAMP>.yaml.age` of `<bucket>/sealed-secrets-key/`
+is less than two days old (`rclone lsf`, or the summary of the last run).
+
 **Trace.** Escrow key: the history of the `Backup Key Check` workflow (run
 summaries, kept as long as the Actions logs, 90 days by default); a failed
 or missing weekly run is a finding. Operator key: keep the complete output
