@@ -59,6 +59,6 @@
     "node-html-parser": "^9.0.6",
     "testcontainers": "^12.2.1",
     "typedoc": "^0.28.20",
-    "typescript": "^6.0.3"
+    "typescript": "^7.0.2"
   }
 }
