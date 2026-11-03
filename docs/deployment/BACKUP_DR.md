@@ -822,8 +822,8 @@ Drill timings (issue #329): both drills time every step (`tests/backup/drill-tim
   persistence (derived state only). Compose is a development stack.
 - **Business validation after a restore** is `scripts/verify-restore-k8s.sh`
   (Recovery Verification); it has no source of expected row counts (the run
-  manifest holds none) and the audit anchors (ADR-0027) are not checked. Events stored before
-  2026-10-31 hold `correlationId: null` where their hash saw no field; the
+  manifest holds none) and the audit anchors (ADR-0027) are not checked.
+- Events stored before 2026-10-31 hold `correlationId: null` where their hash saw no field; the
   verifier drops that null (audit-logger never hashes one), so they verify too.
 
 ## Ownership
