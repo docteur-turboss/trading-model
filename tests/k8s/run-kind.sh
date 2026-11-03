@@ -313,6 +313,10 @@ runner() {
 	$K -n "$NS" exec restore-runner -- sh -c "$1"
 }
 
+inspector() {
+	$K -n "$NS" exec backup-inspector -- sh -c "$1"
+}
+
 # The real audit trail: tests/backup/audit-chain.js on the `audit` database,
 # up to chainSequence `$1` when given (JSON: count, first, last, digest, broken).
 audit_chain() {
@@ -346,7 +350,9 @@ MONGO_WRITERS="audit-logger dlq-service"
 # db-backup CronJob once (age key generated here, off-site copy to an
 # in-cluster S3), stops the MongoDB writers, then destroys the data (the audit
 # and dlq databases, drill markers, the market_candles table, the SPIRE server
-# volume) and restores everything with scripts/restore-k8s.sh. Passes only if
+# volume) and restores everything as after the loss of the cluster: the run is
+# fetched from the off-site bucket (scripts/fetch-offsite.sh) into a pod that
+# never mounts backup-data, then restored with scripts/restore-k8s.sh. Passes only if
 # the data and the SPIRE CA come back, the audit chain is intact and still
 # verifiable, audit-logger extends it after the restore, and the mesh works.
 verify_backup() {
@@ -399,19 +405,19 @@ verify_backup() {
 	fi
 	$K -n "$NS" logs job/backup-ci | grep -E '✓|✗|⚠' | sed 's/^/  /'
 
-	$K -n "$NS" delete pod restore-runner --ignore-not-found
+	$K -n "$NS" delete pod restore-runner backup-inspector --ignore-not-found
 	$K -n "$NS" apply -f "$ROOT/tests/k8s/restore-runner.yaml"
-	$K -n "$NS" wait --for=condition=ready pod/restore-runner --timeout=120s
+	$K -n "$NS" wait --for=condition=ready pod/restore-runner pod/backup-inspector --timeout=120s
 	# Paths stay inside `sh -c` strings: Git Bash (local runs on Windows)
 	# rewrites bare /paths arguments into Windows paths.
 	local clear
-	clear="$(runner "find /backups -type f ! -name '*.age' ! -path '/backups/metrics/*'")"
+	clear="$(inspector "find /backups -type f ! -name '*.age' ! -path '/backups/metrics/*'")"
 	if [ -n "$clear" ]; then
 		log "unencrypted backup files: $clear"
 		return 1
 	fi
-	runner "grep -qx 'backup_encrypted 1' /backups/metrics/backup.prom"
-	runner "grep -qx 'backup_last_status{component=\"offsite\"} 1' /backups/metrics/backup.prom"
+	inspector "grep -qx 'backup_encrypted 1' /backups/metrics/backup.prom"
+	inspector "grep -qx 'backup_last_status{component=\"offsite\"} 1' /backups/metrics/backup.prom"
 	local offsite
 	offsite="$($K -n "$NS" exec deployment/backup-s3 -- sh -c "find /data/backups/staging -name '*.age' | wc -l")"
 	[ "$offsite" -ge 5 ] || {
@@ -419,6 +425,8 @@ verify_backup() {
 		return 1
 	}
 	log "  every file is age-encrypted, $offsite copied off-site"
+	# From here on, the backup-data volume counts as lost with the cluster.
+	$K -n "$NS" delete pod backup-inspector --wait=false
 
 	log "restore drill: MongoDB writers stopped ($MONGO_WRITERS), as BACKUP_DR.md requires"
 	local writer
@@ -460,11 +468,31 @@ verify_backup() {
 		return 1
 	}
 
-	log "restore drill: scripts/restore-k8s.sh"
+	log "restore drill: total loss, backup-data unused: scripts/fetch-offsite.sh from the off-site bucket"
+	local claims
+	claims="$($K -n "$NS" get pod restore-runner -o jsonpath='{.spec.volumes[*].persistentVolumeClaim.claimName}')"
+	[ -z "$claims" ] || {
+		log "restore-runner mounts $claims: the drill would not restore from the off-site copy"
+		return 1
+	}
+	local started fetch_seconds restore_seconds fetched
+	started=$SECONDS
+	runner "bash /scripts/fetch-offsite.sh --dest /restore"
+	fetch_seconds=$((SECONDS - started))
+	fetched="$(runner "find /restore -type f -name '*.age' | wc -l")"
+	[ "$fetched" -eq 5 ] || {
+		log "fetch-offsite.sh fetched $fetched file(s) instead of 5"
+		return 1
+	}
+
+	log "restore drill: scripts/restore-k8s.sh on the fetched run"
+	started=$SECONDS
 	# The identity goes through stdin and is deleted after the restore.
 	echo "$key" | $K -n "$NS" exec -i restore-runner -- sh -c \
-		"umask 077 && cat > /tmp/identity && BACKUP_AGE_IDENTITY=/tmp/identity K8S_NAMESPACE=$NS \
+		"umask 077 && cat > /tmp/identity && BACKUP_DIR=/restore BACKUP_AGE_IDENTITY=/tmp/identity K8S_NAMESPACE=$NS \
 		bash /scripts/restore-k8s.sh --components mongodb,mysql,checkpoints,spire; rc=\$?; rm -f /tmp/identity; exit \$rc"
+	restore_seconds=$((SECONDS - started))
+	log "  off-site fetch ${fetch_seconds} s, restore ${restore_seconds} s (total $((fetch_seconds + restore_seconds)) s)"
 
 	log "restore drill: checking the restored data"
 	for label in mongodb mongodb-audit; do
