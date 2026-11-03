@@ -703,6 +703,34 @@ SPIRE: the server is stopped and its whole data directory (`data_*.tar`: CA
 keys + SQLite datastore) is written back; backups taken before 2026-10-28 only
 hold `keys_*.json` and restore the keys alone.
 
+### Restoring part of MongoDB (`--ns`, `--into-scratch`)
+
+After a targeted deletion (one collection, a few documents), do not restore the
+whole replica set: that overwrites every healthy write made since the dump.
+
+```bash
+# One collection, in place: only dlq.dead_letters is dropped and restored
+bash scripts/restore-k8s.sh --components mongodb --ns 'dlq.dead_letters'
+# Same collection into a scratch database restore_<TS>_dlq, original untouched
+bash scripts/restore-k8s.sh --components mongodb --ns 'dlq.dead_letters' --into-scratch
+```
+
+- `--ns <db.coll|db.*>` is repeatable (`--nsInclude`); `--drop` only touches the
+  restored collections. `--into-scratch` renames every restored database to
+  `restore_<timestamp>_<db>` (`--nsFrom` / `--nsTo`, printed; the timestamp is
+  the stamp of the run restored, never `latest`; `admin.*` is excluded, mongorestore
+  cannot rename it); without `--ns` it
+  restores every namespace there. Copy the documents back by hand, then drop the
+  scratch databases.
+- Only with `--components mongodb` or `mongodb-audit`; refused with `--until`.
+- **Oplog choice:** `mongorestore` refuses `--oplogReplay` with `--nsInclude`,
+  so a selective restore omits it: data is as of the start of the dump, not its
+  end. For the full-replica-set restore nothing changes.
+- **Audit trail (ADR-0027):** restoring `audit_events` partially in place breaks
+  the hash chain. every `--ns` whose database part can match `audit` (`audit.*`, `a*.*`, `*.x`...)
+  without `--into-scratch` is refused; restore
+  into scratch and inspect there. `scripts/restore.sh` (Docker) has no such option.
+
 ### SPIRE CA restore and SVIDs
 
 Restoring the CA keys together with the datastore of the same backup brings

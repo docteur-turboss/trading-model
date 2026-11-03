@@ -3,7 +3,7 @@
 #  Trading Model — Database Restore Script (Kubernetes)
 #  Usage:  bash scripts/restore-k8s.sh [--dry-run] [--components mongodb,mongodb-audit,mysql,checkpoints,spire]
 #          [--timestamp 2025-01-01_120000 | --until 2025-01-01T13:45:00Z]
-#          [--allow-mixed-runs]
+#          [--allow-mixed-runs] [--ns <db.coll|db.*>]... [--into-scratch]
 #          BACKUP_DIR=/backups RESTORE_TIMESTAMP=2025-01-01_120000
 #          BACKUP_AGE_IDENTITY=~/backup-key.txt (to read *.age backups)
 #
@@ -32,6 +32,19 @@
 #  `mongodb-audit` the audit trail alone, e.g. from a weekly or monthly
 #  off-site tier, which holds no operational dump (ADR-0032).
 #
+#  --ns <pattern> (repeatable, issue #335; --components mongodb or
+#  mongodb-audit only): restores only the matching namespaces of each replica
+#  set (mongorestore --nsInclude); --drop then only drops the collections
+#  restored, everything else stays as it is. --oplogReplay is NOT passed then:
+#  mongorestore refuses it with --nsInclude, so the restore stops at the
+#  instant the dump started, not at the end of its oplog. --until excludes
+#  --ns (the oplog replay is whole-replica-set).
+#  --into-scratch: restores into `restore_<timestamp>_<db>` (printed) instead
+#  of the original databases, which are not touched (--nsFrom/--nsTo); without
+#  --ns it restores every namespace. Never restore `audit.*` in place with
+#  --ns (the hash chain, ADR-0027): refused; use --into-scratch.
+#  Without either option the mongorestore arguments are unchanged.
+#
 #  Restore MySQL before SPIRE: the SPIRE datastore (bundle, CA journal,
 #  entries) is the `spire` database, keys.json only holds the CA private keys.
 #  Exits 1 when any step fails.
@@ -55,6 +68,9 @@ RESTORE_FAILURES=0
 ALLOW_MIXED_RUNS="${ALLOW_MIXED_RUNS:-false}"
 # true once every component passed the checks (end of the script).
 CHECKED=false
+# --ns patterns and --into-scratch (issue #335).
+NS_INCLUDE=()
+INTO_SCRATCH=false
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -63,9 +79,41 @@ while [[ $# -gt 0 ]]; do
     --timestamp) RESTORE_TIMESTAMP="$2"; shift 2 ;;
     --until) RESTORE_UNTIL="$2"; shift 2 ;;
     --allow-mixed-runs) ALLOW_MIXED_RUNS=true; shift ;;
+    --ns) [ $# -ge 2 ] || { echo "--ns needs a pattern"; exit 1; }; NS_INCLUDE+=("$2"); shift 2 ;;
+    --into-scratch) INTO_SCRATCH=true; shift ;;
     *) echo "Unknown option: $1"; exit 1 ;;
   esac
 done
+
+# --ns / --into-scratch only make sense for the MongoDB components, and not
+# with a replay of the whole oplog.
+if [ "${#NS_INCLUDE[@]}" -gt 0 ] || $INTO_SCRATCH; then
+  IFS=',' read -ra _NS_COMPONENTS <<< "$COMPONENTS"
+  for _c in "${_NS_COMPONENTS[@]}"; do
+    case "$_c" in
+      mongodb|mongodb-audit) ;;
+      *) echo "--ns / --into-scratch only apply to --components mongodb (or mongodb-audit), not ${_c}"; exit 1 ;;
+    esac
+  done
+  if [ -n "${RESTORE_UNTIL:-}" ]; then
+    echo "--ns / --into-scratch cannot be combined with --until: mongorestore refuses --oplogReplay with --nsInclude"
+    exit 1
+  fi
+  for _p in "${NS_INCLUDE[@]}"; do
+    if ! [[ "$_p" =~ ^[A-Za-z0-9_*-]+\.[A-Za-z0-9_.*-]+$ ]]; then
+      echo "--ns: expected <db>.<collection> or <db>.*, got: ${_p}"
+      exit 1
+    fi
+    # The database part is a glob for mongorestore: refuse every pattern that
+    # can match `audit` (audit.x, a*.x, *dit.*, *.x...).
+    _db_part="${_p%%.*}"
+    # shellcheck disable=SC2053
+    if ! $INTO_SCRATCH && [[ audit == $_db_part ]]; then
+      echo "--ns ${_p}: restoring the audit trail partially in place can break its hash chain (ADR-0027): add --into-scratch"
+      exit 1
+    fi
+  done
+fi
 
 # --until: the instant as Unix time, as a backup stamp (to pick the backups
 # taken before it) and as mysqlbinlog reads it (UTC).
@@ -193,8 +241,32 @@ restore_mongodb() {
 
     # The dumps carry their oplog (mongodump --oplog): replaying it brings the
     # restore to the point in time the dump ended.
+    local mr_args=(--quiet --gzip --archive --drop)
+    if [ "${#NS_INCLUDE[@]}" -gt 0 ] || $INTO_SCRATCH; then
+      # No --oplogReplay: refused by mongorestore with --nsInclude.
+      local p
+      if [ "${#NS_INCLUDE[@]}" -gt 0 ]; then
+        for p in "${NS_INCLUDE[@]}"; do mr_args+=(--nsInclude "$p"); done
+      else
+        mr_args+=(--nsInclude '*')
+      fi
+      if $INTO_SCRATCH; then
+        # Name from the run actually restored (its directory is the stamp),
+        # never from "latest"; run time if the layout has no stamp.
+        local scratch_ts
+        scratch_ts=$(basename "$(dirname "$RESOLVED_FILE")")
+        [[ "$scratch_ts" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{6}$ ]] || scratch_ts=$(date -u +%Y-%m-%d_%H%M%S)
+        # admin.system.* cannot be created under another name (InvalidNamespace,
+        # verified on the compose image): never restored into a scratch copy.
+        mr_args+=(--nsExclude 'admin.*')
+        mr_args+=(--nsFrom '$db$.$coll$' --nsTo "restore_${scratch_ts}_\$db\$.\$coll\$")
+        log "${label}: restoring into scratch databases restore_${scratch_ts}_<db> (one per restored database)"
+      fi
+    else
+      mr_args+=(--oplogReplay)
+    fi
     if ! open_backup "$RESOLVED_FILE" | kubectl exec -i -n "${K8S_NAMESPACE}" "${primary}" -- \
-      mongorestore --quiet --gzip --archive --drop --oplogReplay; then
+      mongorestore "${mr_args[@]}"; then
       fail "MongoDB restore failed: ${label} (${primary})"
       continue
     fi
