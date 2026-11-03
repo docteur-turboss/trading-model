@@ -727,6 +727,11 @@ target over mTLS after the restore.
 
 ### Recovery Steps for Total Outage
 
+To recover in **another region** (new cluster, DNS, GitHub environment, bucket
+access), follow the runbook in
+[MULTI_REGION.md](MULTI_REGION.md#disaster-recovery-without-a-second-region);
+it calls the steps below.
+
 Before step 1 you need an age private key that decrypts the backups: the
 operator key, or the escrow key from the safe if it is lost
 ([Key custody](ENCRYPTION_AT_REST.md#key-custody)).

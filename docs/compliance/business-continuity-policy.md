@@ -170,6 +170,7 @@ Monitoring Stack ───────────────┘
 | **Certificate expiry simulation** | Quarterly | Auto-renewal completes without manual intervention |
 | **Tabletop exercise** | Annual | All stakeholders execute response within RTO |
 | **Full recovery drill** | Annual | Complete platform recovery within 4 hours |
+| **Regional failover** (runbook: [MULTI_REGION.md](../deployment/MULTI_REGION.md#disaster-recovery-without-a-second-region)) | Annual, with the full recovery drill; never exercised yet | New cluster, DNS and data restored from the off-site bucket within the 4 hour data-store RTO plus cluster creation |
 | **Plan review** | Annual | All service dependencies and RTO/RPO targets verified |
 
 Every exercise is recorded in the [DR Exercise Log](dr-exercise-log.md) (date,
