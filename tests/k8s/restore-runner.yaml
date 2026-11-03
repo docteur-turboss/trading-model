@@ -1,7 +1,11 @@
-# Runs scripts/restore-k8s.sh inside the cluster for run-kind.sh, the way an
-# operator's restore Job would: backup-tools image, backup-data read-only, the
-# scripts from the backup-scripts ConfigMap, namespace admin rights (exec into
-# the databases, stop and start the SPIRE server). CI only.
+# Restore after the loss of the cluster, for run-kind.sh: restore-runner never
+# sees the backup-data volume. It fetches the run from the off-site bucket
+# (scripts/fetch-offsite.sh, Secret trading-model-backup-s3) into an emptyDir,
+# then runs scripts/restore-k8s.sh on it, the way an operator's restore Job
+# would on a new cluster: backup-tools image, the scripts from the
+# backup-scripts ConfigMap, namespace admin rights (exec into the databases,
+# stop and start the SPIRE server). backup-inspector only reads backup-data to
+# check what the CronJob wrote (encryption, metrics). CI only.
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -47,9 +51,39 @@ spec:
         - name: scripts
           mountPath: /scripts
           readOnly: true
-        - name: backup-data
-          mountPath: /backups
-          readOnly: true
+        - name: fetched
+          mountPath: /restore
+      env:
+        - name: BACKUP_S3_BUCKET
+          valueFrom:
+            secretKeyRef:
+              name: trading-model-backup-s3
+              key: BACKUP_S3_BUCKET
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: trading-model-backup-s3
+              key: AWS_ACCESS_KEY_ID
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: trading-model-backup-s3
+              key: AWS_SECRET_ACCESS_KEY
+        - name: AWS_REGION
+          valueFrom:
+            secretKeyRef:
+              name: trading-model-backup-s3
+              key: AWS_REGION
+        - name: RCLONE_S3_ENDPOINT
+          valueFrom:
+            secretKeyRef:
+              name: trading-model-backup-s3
+              key: S3_ENDPOINT
+        - name: RCLONE_S3_PROVIDER
+          valueFrom:
+            secretKeyRef:
+              name: trading-model-backup-s3
+              key: S3_PROVIDER
       resources:
         requests:
           cpu: 10m
@@ -62,6 +96,45 @@ spec:
       configMap:
         name: backup-scripts
         defaultMode: 0555
+    - name: fetched
+      emptyDir: {}
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: backup-inspector
+  labels:
+    app.kubernetes.io/component: backup-inspector
+spec:
+  restartPolicy: Never
+  automountServiceAccountToken: false
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 1001
+    fsGroup: 1001
+    seccompProfile:
+      type: RuntimeDefault
+  containers:
+    - name: inspect
+      image: ghcr.io/trading-model/backup-tools:latest
+      imagePullPolicy: IfNotPresent
+      command: ["sleep", "3600"]
+      securityContext:
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop: ["ALL"]
+      volumeMounts:
+        - name: backup-data
+          mountPath: /backups
+          readOnly: true
+      resources:
+        requests:
+          cpu: 10m
+          memory: 32Mi
+        limits:
+          cpu: 100m
+          memory: 64Mi
+  volumes:
     - name: backup-data
       persistentVolumeClaim:
         claimName: backup-data
