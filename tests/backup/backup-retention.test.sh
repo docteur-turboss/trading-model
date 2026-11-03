@@ -324,6 +324,9 @@ while read -r f; do echo "${dest} ${f}"; done <"$list" >>"$RCLONE_LOG"
 STUB
 chmod +x "$WORK/bin/rclone"
 export RCLONE_LOG="$WORK/rclone.log"
+# Only the December run on the volume: the catch-up of earlier promoted runs
+# is tested on its own below.
+find "$BACKUP_DIR" -type f -not -name "*${TIMESTAMP}*" -delete
 : >"$RCLONE_LOG"
 PATH="$WORK/bin:$PATH" AGE_SUFFIX=".age" BACKUP_S3_BUCKET="s3://bucket/prod" BACKUP_OFFSITE_LAYOUT=tiered METRICS_FILE="" \
 	upload_offsite 2>/dev/null
@@ -345,6 +348,69 @@ PATH="$WORK/bin:$PATH" AGE_SUFFIX=".age" BACKUP_S3_BUCKET="s3://bucket/prod" MET
 	upload_offsite 2>/dev/null
 [ "$(cut -d' ' -f1 "$RCLONE_LOG" | sort -u)" = ":s3:bucket/prod" ] && [ "$(wc -l <"$RCLONE_LOG")" -eq 4 ] &&
 	pass "default layout unchanged: flat copy at the bucket root" || failed "flat layout: $(cat "$RCLONE_LOG")"
+
+echo "off-site catch-up of a promoted copy that failed (rclone stub)"
+# Writes the dumps and the manifest of a complete run `$1` and sets OUTPUTS.
+mkrun() {
+	mkdir -p "$BACKUP_DIR"/{mongodb/"$1",mysql,manifests}
+	echo x >"$BACKUP_DIR/mongodb/$1/mongodb.archive.gz.age"
+	echo x >"$BACKUP_DIR/mongodb/$1/mongodb-audit.archive.gz.age"
+	echo x >"$BACKUP_DIR/mysql/financial_scraper_$1.sql.gz.age"
+	echo '{}' >"$BACKUP_DIR/manifests/manifest_$1.json.age"
+	OUTPUTS=("mongodb/$1/mongodb.archive.gz.age" "mongodb/$1/mongodb-audit.archive.gz.age"
+		"mysql/financial_scraper_$1.sql.gz.age" "manifests/manifest_$1.json.age")
+}
+# upload_offsite of run `$1` in the tiered layout.
+upload_run() {
+	: >"$RCLONE_LOG"
+	TIMESTAMP="$1" PATH="$WORK/bin:$PATH" AGE_SUFFIX=".age" BACKUP_S3_BUCKET="s3://bucket/prod" \
+		BACKUP_OFFSITE_LAYOUT=tiered METRICS_FILE="" upload_offsite 2>/dev/null
+}
+# Same stub, but RCLONE_FAIL=1 makes every copy fail (S3 down).
+sed -i '2i [ "${RCLONE_FAIL:-0}" = 1 ] \&\& exit 1' "$WORK/bin/rclone"
+rm -rf "$BACKUP_DIR"
+RETENTION_DAYS=30
+# 2026-11-01 (Sunday) is the first complete run of November and of the ISO
+# week of 2026-10-26; its copy fails. 2026-11-02 (Monday) opens a new week.
+R1="2026-11-01_020000" R2="2026-11-02_020000"
+mkrun "$R1"
+RCLONE_FAIL=1 upload_run "$R1"
+[ ! -s "$RCLONE_LOG" ] || failed "the failing stub recorded copies"
+mkrun "$R2"
+upload_run "$R2"
+grep -E '/(weekly|monthly) ' "$RCLONE_LOG" | sort >"$WORK/copies"
+cat >"$WORK/want-copies" <<EOF
+:s3:bucket/prod/monthly manifests/manifest_${R1}.json.age
+:s3:bucket/prod/monthly mongodb/${R1}/mongodb-audit.archive.gz.age
+:s3:bucket/prod/monthly mysql/financial_scraper_${R1}.sql.gz.age
+:s3:bucket/prod/weekly manifests/manifest_${R1}.json.age
+:s3:bucket/prod/weekly manifests/manifest_${R2}.json.age
+:s3:bucket/prod/weekly mongodb/${R1}/mongodb-audit.archive.gz.age
+:s3:bucket/prod/weekly mongodb/${R2}/mongodb-audit.archive.gz.age
+:s3:bucket/prod/weekly mysql/financial_scraper_${R1}.sql.gz.age
+:s3:bucket/prod/weekly mysql/financial_scraper_${R2}.sql.gz.age
+EOF
+diff -u "$WORK/want-copies" "$WORK/copies" &&
+	pass "the next daily run sends the failed weekly and monthly copies of the 1st again (no mongodb, no CA keys)" ||
+	failed "catch-up copies differ"
+[ "$(grep -c '/daily ' "$RCLONE_LOG")" -eq 4 ] && pass "daily/ only gets the files of the run" ||
+	failed "daily copies: $(grep '/daily ' "$RCLONE_LOG")"
+# Hourly incremental run (no manifest in OUTPUTS): no catch-up.
+mkdir -p "$BACKUP_DIR/mysql/binlog/uuid-1"
+echo x >"$BACKUP_DIR/mysql/binlog/uuid-1/binlog.000003_2026-11-02_030000.gz.age"
+OUTPUTS=("mysql/binlog/uuid-1/binlog.000003_2026-11-02_030000.gz.age")
+upload_run "2026-11-02_030000"
+[ "$(cut -d' ' -f1 "$RCLONE_LOG" | sort -u)" = ":s3:bucket/prod/daily" ] &&
+	pass "an incremental run (no manifest) catches nothing up" || failed "incremental run: $(cat "$RCLONE_LOG")"
+# A month that started more than RETENTION_DAYS ago may have lost its first
+# run locally: its oldest run left is not promoted a second time.
+rm -rf "$BACKUP_DIR"
+R1="2026-11-10_020000" R2="2026-12-05_020000"
+mkrun "$R1"
+mkrun "$R2"
+got="$(TIMESTAMP="$R2" offsite_catchup | grep -F "$R1" | cut -d' ' -f1 | sort -u | tr '\n' ' ')"
+[ "$got" = "weekly " ] && pass "a month started before the daily window is not caught up (its week still is)" ||
+	failed "catch-up of ${R1}: '${got}'"
 
 echo ""
 if [ "$FAILED" -ne 0 ]; then

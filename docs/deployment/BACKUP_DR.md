@@ -310,6 +310,20 @@ incremental job (`db-backup-incremental`) uses the tiered layout too: its
 binlog and oplog archives go under `daily/` only, next to the dumps
 `fetch-offsite.sh --pitr` reads with them.
 
+**Catch-up of a failed promoted copy.** The tier of a run is decided when it
+is uploaded, so a failed copy of the first run of a month would otherwise
+leave that month without monthly copy once the local dump is pruned. Each
+daily run therefore also sends again the weekly and monthly copies of every
+week (month) that started at most `RETENTION_DAYS` days ago
+(`offsite_catchup`; rclone skips the objects already in the bucket, the
+`aws` fallback checks with `aws s3 ls` first). Once `BackupOffsiteCopyFailed`
+resolves, the long tiers have no hole, provided the bucket came back within
+`RETENTION_DAYS` (30) days of the failed run: past that, the first runs of the
+period may be pruned, and that period's weekly or monthly copy stays missing.
+To catch up by hand earlier, re-run the daily job
+(`kubectl create job --from=cronjob/db-backup db-backup-manual`). The
+incremental job does not catch up dumps (it writes no manifest).
+
 The job never deletes in the bucket (its credentials need no delete right,
 which keeps Object Lock possible): one lifecycle rule per prefix expires the
 copies. For `BACKUP_S3_BUCKET=s3://trading-backups/prod` (the two archive
@@ -367,7 +381,7 @@ and Prometheus scrapes them (job `backup-metrics`).
 | `BackupPitrGap`           | a binlog / oplog chain has a break after the newest daily dump: no `--until` past it, until the next daily dump (stays firing while the runs succeed again) |
 | `BackupMetricsAbsent`     | no metric of the daily job (`run=""`: the incremental job's series do not count; job never ran, exporter down) |
 | `BackupUnencrypted`       | no age recipient                                                             |
-| `BackupOffsiteCopyFailed` | the off-site copy failed or is not configured                                |
+| `BackupOffsiteCopyFailed` | the off-site copy failed or is not configured (the next daily run sends the missed weekly / monthly copies again: [catch-up](#off-site-tiers); fix within 30 days) |
 
 ## Restore Procedures
 

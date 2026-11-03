@@ -557,6 +557,16 @@ upload_offsite() {
 				echo "$file" >>"$work/${tier}.list"
 			done
 		done
+		# Daily run (it writes a manifest): promoted runs of earlier days whose
+		# weekly / monthly copy failed are sent again (offsite_catchup).
+		if printf '%s\n' "${OUTPUTS[@]}" | grep -q '^manifests/'; then
+			while read -r tier file; do
+				[ -n "$file" ] && echo "$file" >>"$work/${tier}.list"
+			done < <(offsite_catchup)
+		fi
+		for list in "$work"/*.list; do
+			[ -f "$list" ] && sort -u -o "$list" "$list"
+		done
 		;;
 	*)
 		fail "BACKUP_OFFSITE_LAYOUT must be flat or tiered, not '${layout}': off-site copy skipped"
@@ -578,6 +588,9 @@ upload_offsite() {
 				--files-from "$list" "$BACKUP_DIR" "$(offsite_remote "$dest")" || copied=false
 		else
 			while read -r file; do
+				# Already in the bucket (an archive or a promoted run sent again
+				# for catch-up): not uploaded twice.
+				aws s3 ls "${dest}/${file}" >/dev/null 2>&1 && continue
 				aws s3 cp --quiet "${BACKUP_DIR}/${file}" "${dest}/${file}" || copied=false
 			done <"$list"
 		fi
@@ -818,6 +831,43 @@ offsite_tiers() {
 				if (!m) tiers = tiers " monthly"
 			}
 			print tiers
+		}
+	'
+}
+
+# offsite_catchup
+# Prints `<tier> <path>` (tier weekly or monthly, path relative to BACKUP_DIR)
+# for every dump of a RETENTION_LONG_COMPONENTS component that is the first
+# complete run of its ISO week (month) on the volume, and for its run
+# manifest, when that week (month) started at most RETENTION_DAYS days before
+# this run (TIMESTAMP): the daily tier still holds every run of it, so the
+# first one on the volume is the one offsite_tiers promoted. upload_offsite
+# copies them again (rclone skips what the bucket already has): a promoted
+# copy that failed (S3 down, expired credentials) is caught up by the next
+# daily run instead of leaving a month without monthly copy once the local
+# dump is pruned. A week (month) that started earlier is left alone, since its
+# first run may already be pruned and a later one would be promoted twice.
+offsite_catchup() {
+	backup_listing | awk -v now="$TIMESTAMP" -v daily="${RETENTION_DAYS:-30}" -v long="$RETENTION_LONG_COMPONENTS" "$_GFS_AWK"'
+		END {
+			oldest = civil(now) - daily
+			for (f in files) {
+				t = files[f]; c = comp[f]
+				if (!(c in islong) || !(t in manifest)) continue
+				k = c SUBSEP week(t); if (!(k in firstw) || t < firstw[k]) firstw[k] = t
+				k = c SUBSEP month(t); if (!(k in firstm) || t < firstm[k]) firstm[k] = t
+			}
+			for (f in files) {
+				t = files[f]; c = comp[f]
+				if (!(c in islong) || !(t in manifest)) continue
+				# Monday of the ISO week of t (week() counts from Thursday + 3).
+				if (t == firstw[c SUBSEP week(t)] && week(t) * 7 - 3 >= oldest) { print "weekly " f; w[t] = 1 }
+				if (t == firstm[c SUBSEP month(t)] && civil(substr(t, 1, 8) "01") >= oldest) { print "monthly " f; m[t] = 1 }
+			}
+			for (f in mpath) {
+				if (mpath[f] in w) print "weekly " f
+				if (mpath[f] in m) print "monthly " f
+			}
 		}
 	'
 }
