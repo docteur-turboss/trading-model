@@ -27,10 +27,11 @@ restore verification for the trading-model platform.
 
 | Data Store                    | Service                                       | Criticality | RPO (actual)           | RTO Target |
 | ----------------------------- | --------------------------------------------- | ----------- | ---------------------- | ---------- |
-| MongoDB `mongo-audit`         | audit-logger                                  | Critical    | 24 h (daily dump)      | 4 hours    |
-| MongoDB `mongo-dlq`           | dlq-service                                   | High        | 24 h (daily dump)      | 4 hours    |
-| MySQL `financial_scraper`     | financial-scraper                             | High        | 24 h (daily dump)      | 4 hours    |
-| MySQL `spire` + `keys.json`   | SPIRE Server (datastore + CA private keys)    | Critical    | 24 h (daily backup)    | 4 hours    |
+| MongoDB `mongo-audit`         | audit-logger                                  | Critical    | 1 h (hourly oplog archive; point in time over the last 72 h) | 4 hours    |
+| MongoDB `mongo-dlq`           | dlq-service                                   | High        | 1 h (hourly oplog archive; point in time over the last 72 h) | 4 hours    |
+| MySQL `financial_scraper`     | financial-scraper                             | High        | 1 h (hourly binlog archive; point in time over the last 72 h) | 4 hours    |
+| MySQL `spire`                 | SPIRE Server (datastore)                      | Critical    | 1 h (hourly binlog archive) | 4 hours    |
+| SPIRE `keys.json`             | SPIRE Server (CA private keys)                | Critical    | 24 h (daily backup: a file, no journal) | 4 hours    |
 | Trained agents                | trader-trainer (checkpoint files)             | Medium      | 24 h (daily tar)       | 1 hour     |
 | Redis                         | discovery-server, dlq-service, readiness      | Low         | Not backed up          | Rebuilt    |
 
@@ -48,7 +49,8 @@ AOF from it before starting Redis again.
 ### Kubernetes
 
 The CronJob `db-backup` (`deploy/k8s/jobs/backup-cronjob.yaml`) runs daily at
-2:00 AM with the `backup-tools` image (`deploy/backup`: kubectl, age, rclone)
+2:00 AM with the `backup-tools` image (`deploy/backup`: kubectl, age, rclone,
+mysqlbinlog)
 and the scripts from the `backup-scripts` ConfigMap.
 
 ```bash
@@ -62,6 +64,39 @@ The job fails (and its alerts fire) when:
 - no off-site store is configured, or the copy fails (`BACKUP_REQUIRE_OFFSITE=true`):
   a single volume is not a backup;
 - any component cannot be found or dumped (missing pod, no MongoDB primary...).
+
+Each dump also records where point-in-time recovery starts from it, in a
+sealed file next to it: `mysql/financial_scraper_<stamp>.pitr.age` (server
+uuid and binlog coordinates, written by `mysqldump --source-data=2`) and
+`mongodb/<stamp>/<label>.pitr.age` (newest oplog entry read before the dump).
+
+#### Point-in-time archives (ADR-0031)
+
+The CronJob `db-backup-incremental`
+(`deploy/k8s/jobs/backup-incremental-cronjob.yaml`) runs
+`scripts/backup-incremental-k8s.sh` every hour at minute 30, same image,
+volume, age recipients and off-site store. **RPO: 1 h** for MySQL
+(`financial_scraper` and the SPIRE datastore) and both MongoDB replica sets.
+
+- **MySQL**: `FLUSH BINARY LOGS` on `mysql-0`, then every closed binlog not yet
+  archived is read from the pod (`cat`, no password on a command line),
+  gzipped and sealed: `mysql/binlog/<server_uuid>/<binlog>_<stamp>.gz.age`.
+  One directory per server: a recreated volume restarts the numbering.
+- **MongoDB**: the oplog entries since the end of the previous archive, from
+  each replica set's primary (`mongodump --db local --collection oplog.rs
+  --query …`): `mongodb/oplog/<label>/<from>_<end>.bson.gz.age`. The next
+  archive starts at this one's end, so the chain state is in the file names.
+- Every file is written as `.partial` and renamed once complete: a failed run
+  leaves no final file, and the next run sweeps its `.partial`.
+- A gap is a failure (`backup_last_status{…,run="incremental"} 0`): a binlog
+  purged by MySQL before being archived, or oplog entries overwritten before
+  being archived. The chain then restarts and point-in-time restore across
+  the gap is refused. MySQL keeps binlogs 30 days (`binlog_expire_logs_seconds`
+  default), the oplog window is hours to days: an hourly run never comes close.
+
+```bash
+kubectl create job --from=cronjob/db-backup-incremental db-backup-incremental-manual
+```
 
 ### Docker
 
@@ -126,13 +161,21 @@ job only adds files, retention off-site is the bucket's lifecycle rule.
 
 ### Retention
 
-- `backup-data` volume: 30 days (`RETENTION_DAYS`, files pruned by `prune_old`)
-- Off-site: the bucket's lifecycle rule
+- `backup-data` volume: daily backups 30 days (`RETENTION_DAYS`, files pruned
+  by `prune_old`); binlog and oplog archives 72 h
+  (`INCREMENTAL_RETENTION_HOURS`, pruned by `backup-incremental-k8s.sh`).
+  Past 72 h only the daily backups remain: point in time over the last 72 h,
+  day by day before that (ADR-0031).
+- Off-site: the bucket's lifecycle rule. Give the prefixes `mysql/binlog/` and
+  `mongodb/oplog/` a 3-day expiry to match: the job does not delete off-site.
 
 ## Monitoring
 
-`backup-k8s.sh` writes `/backups/metrics/backup.prom`, served by
-`backup-metrics-exporter` and scraped by Prometheus (job `backup-metrics`).
+`backup-k8s.sh` writes `/backups/metrics/backup.prom`,
+`backup-incremental-k8s.sh` writes `/backups/metrics/backup-incremental.prom`
+(every series labelled `run="incremental"`; components `mysql-binlog`,
+`mongodb-oplog`, `mongodb-audit-oplog`). `backup-metrics-exporter` serves both
+and Prometheus scrapes them (job `backup-metrics`).
 
 | Alert                     | Fires when                                                                   |
 | ------------------------- | ---------------------------------------------------------------------------- |
@@ -140,6 +183,8 @@ job only adds files, retention off-site is the bucket's lifecycle rule.
 | `BackupNotRunning`        | a component never succeeded                                                  |
 | `BackupComponentMissing`  | a component (mongodb, mongodb-audit, mysql, spire, checkpoints) reports nothing |
 | `BackupJobStale`          | the job has not run for 26 h                                                 |
+| `BackupIncrementalStale`  | a binlog / oplog archive last succeeded more than 2 h ago (2 × the interval) |
+| `BackupIncrementalMissing` | a binlog / oplog component reported nothing for 2 h                        |
 | `BackupMetricsAbsent`     | no backup metric at all (job never ran, exporter down)                       |
 | `BackupUnencrypted`       | no age recipient                                                             |
 | `BackupOffsiteCopyFailed` | the off-site copy failed or is not configured                                |
@@ -195,6 +240,45 @@ What it does:
 - **SPIRE**: scales `spire-server` to 0, writes `keys.json` into its volume
   from a helper pod (`RESTORE_HELPER_IMAGE`, default `backup-tools`) running as
   the server's user, scales it back and checks `spire-server healthcheck`.
+
+#### Point-in-time restore (`--until`, ADR-0031)
+
+```bash
+# State just before 13:45 UTC (the instant itself excluded)
+bash scripts/restore-k8s.sh --until 2026-11-03T13:45:00Z
+bash scripts/restore-k8s.sh --until '2026-11-03 13:45' --components mongodb
+```
+
+For each database, `restore-k8s.sh` takes the newest daily backup taken
+before the instant (the checkpoints and SPIRE keys too), then:
+
+1. reads its `.pitr` file and lists the archives from that point to the
+   instant: **exit 1, nothing touched**, when one is missing (gap), when the
+   archives stop before the instant (the next hourly run has not happened yet:
+   pick an earlier instant or run `db-backup-incremental` by hand first), or
+   when the dump predates ADR-0031 (no `.pitr`);
+2. decrypts and decompresses every archive once, output discarded: a wrong
+   key or a damaged file also fails before any data is touched;
+3. restores the dump, as above;
+4. replays up to the instant:
+   - **MySQL**: `mysqlbinlog --skip-gtids --start-position=<dump> --stop-datetime=<instant>`
+     (run in the restore pod: `mysqlbinlog` is in `backup-tools`, not in the
+     mysql image) piped into `mysql` on `mysql-primary`. Without
+     `SQL_LOG_BIN=0`: the replay reaches the binlog, hence the replicas, with
+     new GTIDs (the server may still hold the original ones and would skip them);
+   - **MongoDB**: the archives, concatenated into a private temporary
+     directory of the primary, `mongorestore --oplogReplay --oplogLimit <instant>:0`,
+     then deleted. The chain starts slightly before the dump: replaying an
+     entry twice is harmless.
+
+**Stop every writer first**, the MySQL ones too (financial-scraper,
+financial-scraper-collector): a row written between the dump restore and the
+replay makes the replay fail on a duplicate key (exit 1, restore again once
+stopped). The script stops the SPIRE server itself only for the CA keys:
+with `--components mysql` alone, scale `spire-server` to 0 first.
+
+The window is the last 72 h (archive retention). Before that, restore a
+daily backup with `--timestamp`.
 
 ### Docker
 
@@ -258,13 +342,22 @@ done
 
 | Where | What |
 | ----- | ---- |
-| `ci.yml`, job `k8s` (every push to main/development and every PR) | Staging overlay on kind: drill markers seeded, real audit chain recorded, a dead letter stored the way message-manager stores them (`tests/k8s/dlq-seed.cjs`: signed `POST /dlq` over mTLS), `db-backup` run (age key generated for the run, off-site copy to an in-cluster S3), audit-logger and dlq-service stopped, data destroyed (`audit` and `dlq` databases, markers, `market_candles`, SPIRE server volume), `restore-k8s.sh`, checks: every recorded audit event back with the same hashes and the chain verified (`tests/backup/audit-chain.js`), every recorded dead letter back, markers in both MongoDB replica sets and MySQL, `market_candles` back, SPIRE trust bundle identical, audit-logger extends the restored chain once restarted, every Prometheus target up over mTLS |
-| `backup-test.yml` (weekly, on changes to the scripts) | Library tests (`tests/backup/backup-encryption.test.sh`), then the Docker drill: an audit trail written by the audit-logger image code (`tests/backup/seed-audit-chain.cjs`, events in the pre-2026-10-31 format, then current ones), MongoDB (3 databases), MySQL, Redis and the SPIRE server backed up, containers and volumes deleted, restored, checked (same audit events and hashes, chain verified, SPIRE trust bundle identical) |
+| `ci.yml`, job `k8s` (every push to main/development and every PR) | Staging overlay on kind: drill markers seeded, real audit chain recorded, a dead letter stored the way message-manager stores them (`tests/k8s/dlq-seed.cjs`: signed `POST /dlq` over mTLS), `db-backup` run (age key generated for the run, off-site copy to an in-cluster S3), then markers, audit events and a dead letter written **after** the dump, writers stopped (audit-logger, dlq-service, financial-scraper, financial-scraper-collector), the instant recorded, one more marker after it, `db-backup-incremental` run (archives encrypted, off-site, an instant past them refused by `restore-k8s.sh --until`), data destroyed (`audit` and `dlq` databases, markers, `market_candles`, SPIRE server volume), `restore-k8s.sh --until <instant>`, checks: the audit chain exactly as at the instant (events written after the dump included, same hashes, chain verified by `tests/backup/audit-chain.js`), every dead letter of the instant back, markers 1-4 and not 5 in both MongoDB replica sets and MySQL, `market_candles` back, SPIRE trust bundle identical, audit-logger extends the restored chain once restarted, every Prometheus target up over mTLS |
+| `backup-test.yml` (weekly, on changes to the scripts) | Library tests (`tests/backup/backup-encryption.test.sh`, `tests/backup/pitr-chain.test.sh`: archive chains, gaps refused, no partial file, incremental metrics), then the Docker drill: an audit trail written by the audit-logger image code (`tests/backup/seed-audit-chain.cjs`, events in the pre-2026-10-31 format, then current ones), MongoDB (3 databases), MySQL, Redis and the SPIRE server backed up, containers and volumes deleted, restored, checked (same audit events and hashes, chain verified, SPIRE trust bundle identical) |
 
 ## Known Limits
 
-- **No point-in-time recovery between dumps**: binlogs are not archived, the
-  MongoDB oplog is only captured during the dump. RPO is 24 h.
+- **RPO 1 h, not continuous** (ADR-0031): writes since the last hourly
+  archive are lost with the volume. Point in time only over the last 72 h;
+  older restores are day by day. The SPIRE CA keys (`keys.json`) stay daily.
+- **Point-in-time in Kubernetes only**: the Docker scripts restore the daily
+  dump (no binlog or oplog archive; compose MongoDB is not a replica set).
+- **After a point-in-time restore onto a new MySQL volume**, the server has a
+  new uuid: its binlogs go to a new directory, and the next point-in-time
+  restore needs the next daily dump. Run `db-backup` by hand after such a
+  restore to shorten that window.
+- **DDL between the dump and the instant** (a migration) replays as is: a
+  statement the restored schema rejects stops the replay with exit 1.
 - **Docker stack**: no scheduler, no backup metrics scraped, Redis without
   persistence (derived state only). Compose is a development stack.
 - **No business-level validation after a restore** beyond the CI drill: check
