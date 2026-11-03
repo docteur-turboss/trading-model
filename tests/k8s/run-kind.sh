@@ -31,6 +31,10 @@ export MYSQL_ROOT_PASSWORD="${MYSQL_ROOT_PASSWORD:-kind-ci}"
 
 log() { echo "[kind] $*"; }
 
+# Step timings of the restore drill (JSON, job summary, budget).
+# shellcheck source=../backup/drill-timings.sh
+source "$(dirname "$0")/../backup/drill-timings.sh"
+
 # Polls `$2` (a shell command) every 5s until it succeeds or `$1` seconds pass.
 wait_for() {
 	local timeout="$1" check="$2" waited=0
@@ -365,6 +369,7 @@ MYSQL_WRITERS="financial-scraper financial-scraper-collector"
 # still verifiable, audit-logger extends it after the restore, and the mesh
 # works.
 verify_backup() {
+	drill_begin kind
 	log "restore drill: seeding known data"
 	local label
 	for label in mongodb mongodb-audit; do
@@ -407,11 +412,13 @@ verify_backup() {
 	$K -n "$NS" create configmap backup-encryption --from-literal=BACKUP_AGE_RECIPIENTS="$recipient" \
 		--dry-run=client -o yaml | $K apply -f -
 	$K -n "$NS" delete job backup-ci --ignore-not-found
+	local step_started=$SECONDS
 	$K -n "$NS" create job backup-ci --from=cronjob/db-backup
 	if ! $K -n "$NS" wait --for=condition=complete job/backup-ci --timeout=600s; then
 		$K -n "$NS" logs job/backup-ci --tail=60 || true
 		return 1
 	fi
+	drill_record backup_daily $((SECONDS - step_started))
 	$K -n "$NS" logs job/backup-ci | grep -E '✓|✗|⚠' | sed 's/^/  /'
 
 	$K -n "$NS" delete pod restore-runner backup-inspector --ignore-not-found
@@ -501,11 +508,13 @@ verify_backup() {
 
 	log "point-in-time: binlog and oplog archives (db-backup-incremental CronJob)"
 	$K -n "$NS" delete job backup-incremental-ci --ignore-not-found
+	step_started=$SECONDS
 	$K -n "$NS" create job backup-incremental-ci --from=cronjob/db-backup-incremental
 	if ! $K -n "$NS" wait --for=condition=complete job/backup-incremental-ci --timeout=600s; then
 		$K -n "$NS" logs job/backup-incremental-ci --tail=60 || true
 		return 1
 	fi
+	drill_record backup_incremental $((SECONDS - step_started))
 	$K -n "$NS" logs job/backup-incremental-ci | grep -E '✓|✗|⚠' | sed 's/^/  /'
 	clear="$(inspector "find /backups -type f ! -name '*.age' ! -path '/backups/metrics/*'")"
 	if [ -n "$clear" ]; then
@@ -527,6 +536,8 @@ verify_backup() {
 	# From here on, the backup-data volume counts as lost with the cluster.
 	$K -n "$NS" delete pod backup-inspector --wait=false
 
+	drill_disaster
+	step_started=$SECONDS
 	log "restore drill: disaster (audit + dlq databases, markers, market_candles dropped, SPIRE volume deleted)"
 	for label in mongodb mongodb-audit; do
 		mongo_eval "$label" "db.getSiblingDB('restore_drill').dropDatabase()" >/dev/null
@@ -555,6 +566,7 @@ verify_backup() {
 		log "the SPIRE server kept its CA after losing its volume: the drill tests nothing"
 		return 1
 	}
+	drill_record disaster $((SECONDS - step_started))
 
 	log "restore drill: total loss, backup-data unused: scripts/fetch-offsite.sh --pitr from the off-site bucket"
 	local claims
@@ -567,6 +579,7 @@ verify_backup() {
 	started=$SECONDS
 	runner "bash /scripts/fetch-offsite.sh --pitr --dest /restore"
 	fetch_seconds=$((SECONDS - started))
+	drill_record fetch_offsite "$fetch_seconds"
 	# The run: 5 dumps + 3 PITR starting points + the run manifest, which
 	# restore-k8s.sh selects and verifies with; then the archives replayed.
 	fetched="$(runner "find /restore -type f \( -name '*.archive.gz.age' -o -name 'financial_scraper_*.sql.gz.age' -o -name 'checkpoints_*.age' -o -name 'keys_*.age' -o -name '*.pitr.age' -o -name 'manifest_*.json.age' \) | wc -l")"
@@ -603,14 +616,22 @@ verify_backup() {
 
 	log "restore drill: scripts/restore-k8s.sh --until $until on the fetched run"
 	started=$SECONDS
-	# The identity goes through stdin and is deleted after the restore.
+	# The identity goes through stdin and is deleted after the restore. The
+	# output is kept: restore-k8s.sh logs the duration of each component.
+	local restore_log
+	restore_log="$(mktemp)"
 	echo "$key" | $K -n "$NS" exec -i restore-runner -- sh -c \
 		"umask 077 && cat > /tmp/identity && BACKUP_DIR=/restore BACKUP_AGE_IDENTITY=/tmp/identity K8S_NAMESPACE=$NS \
-		bash /scripts/restore-k8s.sh --components mongodb,mysql,checkpoints,spire --until $until; rc=\$?; rm -f /tmp/identity; exit \$rc"
+		bash /scripts/restore-k8s.sh --components mongodb,mysql,checkpoints,spire --until $until; rc=\$?; rm -f /tmp/identity; exit \$rc" |
+		tee "$restore_log"
 	restore_seconds=$((SECONDS - started))
+	drill_record_components "$restore_log"
+	rm -f "$restore_log"
+	drill_record restore_total_host "$restore_seconds"
 	log "  off-site fetch ${fetch_seconds} s, restore ${restore_seconds} s (total $((fetch_seconds + restore_seconds)) s)"
 
 	log "restore drill: checking the restored data"
+	step_started=$SECONDS
 	# Markers 1-3 from the dump, 4 from the replay, never 5 (after the instant).
 	for label in mongodb mongodb-audit; do
 		local markers
@@ -666,12 +687,16 @@ verify_backup() {
 	# SVIDs from the CA of the wiped volume and crash-loop until they re-attest.
 	# Restart them and wait for the CSI driver, or the writers cannot mount the
 	# Workload API socket and never become ready.
+	drill_record verify_data $((SECONDS - step_started))
+	step_started=$SECONDS
 	log "restore drill: SPIRE agents re-attested against the restored CA"
 	$K -n trading-model-node rollout restart daemonset/spire-agent
 	for workload in $($K -n trading-model-node get daemonset -o name); do
 		$K -n trading-model-node rollout status "$workload" --timeout=300s
 	done
 
+	drill_record spire_agents_reattest $((SECONDS - step_started))
+	step_started=$SECONDS
 	log "restore drill: writers restarted"
 	for writer in $MONGO_WRITERS $MYSQL_WRITERS; do
 		$K -n "$NS" scale deployment "$writer" --replicas="${replicas[$writer]}"
@@ -701,7 +726,11 @@ verify_backup() {
 	log "  MongoDB (dlq + audit), MySQL and the SPIRE CA restored"
 	log "  workloads still get trusted SVIDs: Prometheus scrapes every target over mTLS"
 	wait_for 300 prometheus_targets_down
+	drill_record verify_services $((SECONDS - step_started))
 	$K -n "$NS" delete pod restore-runner --wait=false
+	# Budget wide on purpose (kind on a shared runner, writers drained for up
+	# to 7 minutes): see tests/backup/drill-timings.sh.
+	drill_finish 5400
 }
 
 delete() {

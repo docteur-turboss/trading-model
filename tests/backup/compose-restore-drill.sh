@@ -21,6 +21,8 @@ cd "$ROOT"
 COMPOSE="docker compose -f docker-compose.yml"
 
 log() { echo "[drill] $*"; }
+# shellcheck source=drill-timings.sh
+source "$ROOT/tests/backup/drill-timings.sh"
 die() {
 	log "FAILED: $*"
 	exit 1
@@ -51,6 +53,7 @@ audit_chain() { mongo_eval "const AUDIT_DB = 'audit-logger'; $(cat tests/backup/
 json_field() { node -e 'const v = JSON.parse(require("fs").readFileSync(0, "utf8"))[process.argv[1]]; console.log(v === null ? "null" : v)' "$1"; }
 spire_bundle() { docker exec trading-spire-server /opt/spire/bin/spire-server bundle show -socketPath /run/spire/sockets/api.sock | sha256sum | cut -d' ' -f1; }
 
+drill_begin docker
 log "building audit-logger (its code writes the audit trail)"
 $COMPOSE build -q audit-logger
 log "starting ${SERVICES}"
@@ -79,22 +82,24 @@ recipient="$(echo "$key" | sed -n 's/^# public key: //p')"
 
 log "backup (age-encrypted)"
 BACKUP_DIR="$WORK/backups" BACKUP_AGE_RECIPIENTS="$recipient" BACKUP_REQUIRE_ENCRYPTION=true \
-	bash "$ROOT/scripts/backup.sh" --components mongodb,mysql,redis,spire
+	drill_time backup bash "$ROOT/scripts/backup.sh" --components mongodb,mysql,redis,spire
 clear="$(find "$WORK/backups" -type f ! -name '*.age')"
 [ -z "$clear" ] || die "unencrypted backup files: $clear"
 
 log "disaster: containers and volumes deleted, recreated empty"
+drill_disaster
 $COMPOSE down -v >/dev/null
-start
+drill_time recreate_empty_stack start
 [ "$(mongo_eval "db.getSiblingDB('dlq').restore_drill.countDocuments()")" = "0" ] || die "MongoDB was not wiped"
 [ "$(spire_bundle)" != "$bundle_before" ] || die "the recreated SPIRE server kept its CA"
 [ "$(audit_chain | json_field count)" = "0" ] || die "the audit trail survived the disaster"
 
 log "restore"
 BACKUP_DIR="$WORK/backups" BACKUP_AGE_IDENTITY="$WORK/identity" \
-	bash "$ROOT/scripts/restore.sh" --components mongodb,mysql,redis,spire
+	drill_time restore bash "$ROOT/scripts/restore.sh" --components mongodb,mysql,redis,spire
 
 log "checking the restored data"
+verify_started=$SECONDS
 for db in message-manager audit-logger dlq; do
 	count="$(mongo_eval "db.getSiblingDB('${db}').restore_drill.countDocuments()")"
 	[ "$count" = "3" ] || die "MongoDB ${db}: ${count} documents instead of 3"
@@ -107,5 +112,10 @@ for field in count first last digest broken; do
 	[ "$(echo "$audit_after" | json_field "$field")" = "$(echo "$audit_before" | json_field "$field")" ] ||
 		die "the restored audit trail differs ($field): before $audit_before, after $audit_after"
 done
+
+drill_record verify_data $((SECONDS - verify_started))
+# Wide budget (a shared CI runner, and the weekly drill on a few KB of data):
+# see tests/backup/drill-timings.sh.
+drill_finish 1800
 
 log "OK: MongoDB (3 databases, audit chain intact), MySQL, Redis and the SPIRE CA restored from encrypted backups"

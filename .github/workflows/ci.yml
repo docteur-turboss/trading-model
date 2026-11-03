@@ -163,6 +163,13 @@ jobs:
       KIND_VERSION: v0.27.0
       KIND_SHA256: a6875aaea358acf0ac07786b1a6755d08fd640f4c79b7a2e46681cc13f49a04b
       KIND: ./kind
+      # Restore drill timings (tests/backup/drill-timings.sh): JSON uploaded
+      # below, table in the job summary. RESTORE_DRILL_BUDGET_SECONDS (default
+      # 5400 s, disaster to checks) and RESTORE_DRILL_BUDGET_MODE (fail or
+      # warn, default fail) can be set here; kind on a shared runner is slow
+      # and not representative of production, the RTO is judged in
+      # docs/compliance/dr-exercise-log.md.
+      DRILL_TIMINGS_FILE: ${{ github.workspace }}/restore-drill-timings.json
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Install kind
@@ -191,6 +198,13 @@ jobs:
         run: bash tests/k8s/run-kind.sh verify
       - name: Canary gate (deploy.yml canary)
         run: bash tests/k8s/run-kind.sh verify_canary
+      - name: Upload the restore drill timings
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: restore-drill-timings-kind
+          path: restore-drill-timings.json
+          if-no-files-found: ignore
       - name: Dump cluster state
         if: failure()
         run: bash tests/k8s/run-kind.sh dump
