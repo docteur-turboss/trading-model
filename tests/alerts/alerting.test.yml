@@ -540,3 +540,138 @@ tests:
             exp_annotations:
               summary: 'Audit trail verified but not anchored'
               description: 'AUDIT_ANCHOR_BUCKET is not set: a rewrite of the whole audit chain by someone with database access would go unnoticed (ADR-0027).'
+
+  # Point-in-time archives (ADR-0031): db-backup-incremental runs hourly. The
+  # binlog archive last succeeded at 60m: stale once 2 h old (180m) plus
+  # `for`. The oplogs keep succeeding. A daily-job series, however old, is not
+  # an incremental archive.
+  - name: an incremental archive older than two runs fires, per component
+    interval: 1m
+    input_series:
+      - series: 'backup_last_success_timestamp{job="backup-metrics",component="mysql-binlog",run="incremental"}'
+        values: '0x59 3600x140'
+      - series: 'backup_last_success_timestamp{job="backup-metrics",component="mongodb-oplog",run="incremental"}'
+        values: '0+60x200'
+      - series: 'backup_last_success_timestamp{job="backup-metrics",component="mongodb-audit-oplog",run="incremental"}'
+        values: '0+60x200'
+      - series: 'backup_last_success_timestamp{job="backup-metrics",component="mysql"}'
+        values: '0x200'
+    alert_rule_test:
+      - eval_time: 175m
+        alertname: BackupIncrementalStale
+        exp_alerts: []
+      - eval_time: 190m
+        alertname: BackupIncrementalStale
+        exp_alerts:
+          - exp_labels: {severity: critical, job: backup-metrics, component: mysql-binlog, run: incremental}
+            exp_annotations:
+              summary: 'Point-in-time archive stale: mysql-binlog'
+              description: 'No mysql-binlog archive for more than 2 hours (db-backup-incremental runs hourly): the 1 h RPO is no longer met.'
+      - eval_time: 190m
+        alertname: BackupIncrementalMissing
+        exp_alerts: []
+
+  # The audit oplog is not reported at all (component dropped from the job).
+  - name: an incremental component that never reports fires after 2 h
+    interval: 1m
+    input_series:
+      - series: 'backup_last_success_timestamp{job="backup-metrics",component="mysql-binlog",run="incremental"}'
+        values: '0+60x200'
+      - series: 'backup_last_success_timestamp{job="backup-metrics",component="mongodb-oplog",run="incremental"}'
+        values: '0+60x200'
+    alert_rule_test:
+      - eval_time: 110m
+        alertname: BackupIncrementalMissing
+        exp_alerts: []
+      - eval_time: 130m
+        alertname: BackupIncrementalMissing
+        exp_alerts:
+          - exp_labels: {severity: critical, component: mongodb-audit-oplog, run: incremental}
+            exp_annotations:
+              summary: 'A binlog or oplog is no longer archived: mongodb-audit-oplog'
+              description: 'db-backup-incremental reported nothing for mongodb-audit-oplog (job never ran, component removed, or backup-metrics-exporter down): no point-in-time recovery.'
+
+  # One run of the binlog archive fails (S3 down): warned after 5 m, resolved
+  # by the next run (60m), which retries it. A failed off-site copy of the
+  # incremental job is BackupOffsiteCopyFailed's, not this alert's.
+  - name: a failed incremental run warns until the next run succeeds
+    interval: 1m
+    input_series:
+      - series: 'backup_last_status{job="backup-metrics",component="mysql-binlog",run="incremental"}'
+        values: '0x59 1x60'
+      - series: 'backup_last_status{job="backup-metrics",component="offsite",run="incremental"}'
+        values: '0x120'
+    alert_rule_test:
+      - eval_time: 3m
+        alertname: BackupIncrementalFailed
+        exp_alerts: []
+      - eval_time: 10m
+        alertname: BackupIncrementalFailed
+        exp_alerts:
+          - exp_labels: {severity: warning, job: backup-metrics, component: mysql-binlog, run: incremental}
+            exp_annotations:
+              summary: 'Point-in-time archive run failed: mysql-binlog'
+              description: 'The last db-backup-incremental run could not archive mysql-binlog: see the job logs. A gap (binlog purged, oplog overwritten) also raises BackupPitrGap.'
+      - eval_time: 70m
+        alertname: BackupIncrementalFailed
+        exp_alerts: []
+
+  # The audit oplog was overwritten before being archived: the run that found
+  # it failed (status 0 for one hour), the next ones succeed again from after
+  # the gap, and BackupIncrementalStale never fires (last success at most 1 h
+  # old). backup_pitr_gap stays 1 until the next daily dump (here at 300m):
+  # the alert keeps firing after the status went back to 1.
+  - name: a chain gap keeps firing after the runs succeed again, until the next daily dump
+    interval: 1m
+    input_series:
+      - series: 'backup_last_status{job="backup-metrics",component="mongodb-audit-oplog",run="incremental"}'
+        values: '0x59 1x300'
+      - series: 'backup_last_success_timestamp{job="backup-metrics",component="mongodb-audit-oplog",run="incremental"}'
+        values: '0x59 3600x59 7200x59 10800x59 14400x59 18000x60'
+      - series: 'backup_pitr_gap{job="backup-metrics",component="mongodb-audit-oplog",run="incremental"}'
+        values: '1x299 0x60'
+      - series: 'backup_pitr_gap{job="backup-metrics",component="mysql-binlog",run="incremental"}'
+        values: '0x360'
+    alert_rule_test:
+      - eval_time: 10m
+        alertname: BackupPitrGap
+        exp_alerts:
+          - exp_labels: {severity: critical, job: backup-metrics, component: mongodb-audit-oplog, run: incremental}
+            exp_annotations:
+              summary: 'Point-in-time recovery broken: mongodb-audit-oplog'
+              description: 'The mongodb-audit-oplog archives have a gap after the newest daily dump (binlog purged or oplog overwritten before being archived): no restore --until past the gap until the next daily dump succeeds. Take a dump now (BACKUP_DR.md, "Point-in-time chain broken").'
+      - eval_time: 250m
+        alertname: BackupPitrGap
+        exp_alerts:
+          - exp_labels: {severity: critical, job: backup-metrics, component: mongodb-audit-oplog, run: incremental}
+            exp_annotations:
+              summary: 'Point-in-time recovery broken: mongodb-audit-oplog'
+              description: 'The mongodb-audit-oplog archives have a gap after the newest daily dump (binlog purged or oplog overwritten before being archived): no restore --until past the gap until the next daily dump succeeds. Take a dump now (BACKUP_DR.md, "Point-in-time chain broken").'
+      - eval_time: 250m
+        alertname: BackupIncrementalFailed
+        exp_alerts: []
+      - eval_time: 250m
+        alertname: BackupIncrementalStale
+        exp_alerts: []
+      - eval_time: 310m
+        alertname: BackupPitrGap
+        exp_alerts: []
+
+  # Only the incremental job has ever reported: its series must not hide that
+  # the daily job never did.
+  - name: the daily job's metrics are absent even though the incremental job reports
+    interval: 10m
+    input_series:
+      - series: 'backup_last_run_timestamp{job="backup-metrics",run="incremental"}'
+        values: '0+600x200'
+    alert_rule_test:
+      - eval_time: 25h
+        alertname: BackupMetricsAbsent
+        exp_alerts: []
+      - eval_time: 27h
+        alertname: BackupMetricsAbsent
+        exp_alerts:
+          - exp_labels: {severity: critical}
+            exp_annotations:
+              summary: 'No backup has ever reported'
+              description: 'Prometheus has no metric of the daily backup job: db-backup never ran or backup-metrics-exporter is down (the series of db-backup-incremental do not count).'

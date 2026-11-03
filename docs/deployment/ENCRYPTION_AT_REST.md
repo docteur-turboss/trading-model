@@ -168,8 +168,9 @@ key kept in a safe: either decrypts.
 - Set the GitHub environment variable `BACKUP_AGE_RECIPIENTS` (Settings →
   Environments → staging/production → Variables). `deploy.yml` writes it into
   the `backup-encryption` ConfigMap.
-- The `db-backup` CronJob runs `ghcr.io/trading-model/backup-tools`
-  (`deploy/backup`: kubectl, age, rclone) with
+- The `db-backup` and `db-backup-incremental` (hourly binlog and oplog
+  archives, ADR-0031) CronJobs run `ghcr.io/trading-model/backup-tools`
+  (`deploy/backup`: kubectl, age, rclone, mysqlbinlog) with
   `BACKUP_REQUIRE_ENCRYPTION=true`: without a recipient it writes nothing,
   exits 1 and exports `backup_last_status{component="encryption"} 0`
   (alert `BackupUnencrypted`).

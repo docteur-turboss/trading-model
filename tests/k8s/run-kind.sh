@@ -317,10 +317,10 @@ inspector() {
 	$K -n "$NS" exec backup-inspector -- sh -c "$1"
 }
 
-# The real audit trail: tests/backup/audit-chain.js on the `audit` database,
-# up to chainSequence `$1` when given (JSON: count, first, last, digest, broken).
+# The real audit trail: tests/backup/audit-chain.js on the `audit` database
+# (JSON: count, first, last, digest, broken).
 audit_chain() {
-	mongo_eval mongodb-audit "const AUDIT_DB = 'audit'; ${1:+const UP_TO = $1;} $(cat "$ROOT/tests/backup/audit-chain.js")"
+	mongo_eval mongodb-audit "const AUDIT_DB = 'audit'; $(cat "$ROOT/tests/backup/audit-chain.js")"
 }
 
 # Field `$1` of the JSON object read on stdin.
@@ -342,19 +342,28 @@ audit_metric() {
 	done
 }
 
-# The services writing to MongoDB, stopped during a restore (BACKUP_DR.md).
+# The services writing to the databases, stopped during a restore
+# (BACKUP_DR.md): a write between the dump restore and the binlog / oplog
+# replay would make the replay fail. The SPIRE server (MySQL `spire`
+# database) is stopped and restarted by restore-k8s.sh itself.
 MONGO_WRITERS="audit-logger dlq-service"
+MYSQL_WRITERS="financial-scraper financial-scraper-collector"
 
 # Restore drill: seeds known data, records the real audit trail (hash chain
 # written by audit-logger from the live flow) and dead letters, runs the
 # db-backup CronJob once (age key generated here, off-site copy to an
-# in-cluster S3), stops the MongoDB writers, then destroys the data (the audit
-# and dlq databases, drill markers, the market_candles table, the SPIRE server
-# volume) and restores everything as after the loss of the cluster: the run is
-# fetched from the off-site bucket (scripts/fetch-offsite.sh) into a pod that
-# never mounts backup-data, then restored with scripts/restore-k8s.sh. Passes only if
-# the data and the SPIRE CA come back, the audit chain is intact and still
-# verifiable, audit-logger extends it after the restore, and the mesh works.
+# in-cluster S3). Then point-in-time recovery (ADR-0031): more markers, audit
+# events and a dead letter written after the dump, the writers stopped, the
+# instant recorded, one marker written after it, and the
+# db-backup-incremental CronJob run once. Destroys the data (the audit and
+# dlq databases, drill markers, the market_candles table, the SPIRE server
+# volume) and restores everything as after the loss of the cluster: the run
+# and its binlog / oplog archives are fetched from the off-site bucket
+# (scripts/fetch-offsite.sh --pitr) into a pod that never mounts backup-data,
+# then restored with scripts/restore-k8s.sh --until the instant. Passes only if the data written up to the instant comes back and
+# nothing after it, the SPIRE CA comes back, the audit chain is intact and
+# still verifiable, audit-logger extends it after the restore, and the mesh
+# works.
 verify_backup() {
 	log "restore drill: seeding known data"
 	local label
@@ -420,9 +429,10 @@ verify_backup() {
 	inspector "grep -qx 'backup_last_status{component=\"offsite\"} 1' /backups/metrics/backup.prom"
 	local offsite
 	offsite="$($K -n "$NS" exec deployment/backup-s3 -- sh -c "find /data/backups/staging -name '*.age' | wc -l")"
-	# 5 dumps + the run manifest (backup-lib.sh, write_manifest).
-	[ "$offsite" -ge 6 ] || {
-		log "only $offsite encrypted file(s) copied off-site (expected 6)"
+	# 5 dumps + 3 PITR starting points (mysql, mongodb, mongodb-audit) + the
+	# run manifest (backup-lib.sh, write_manifest).
+	[ "$offsite" -ge 9 ] || {
+		log "only $offsite encrypted file(s) copied off-site (expected 9)"
 		return 1
 	}
 	local listed
@@ -432,19 +442,90 @@ verify_backup() {
 		return 1
 	}
 	log "  every file is age-encrypted, $offsite copied off-site, run manifest written"
-	# From here on, the backup-data volume counts as lost with the cluster.
-	$K -n "$NS" delete pod backup-inspector --wait=false
 
-	log "restore drill: MongoDB writers stopped ($MONGO_WRITERS), as BACKUP_DR.md requires"
+	log "point-in-time: writes after the daily dump (markers, audit events, a dead letter)"
+	local audit_dumped
+	audit_dumped="$(audit_chain | json_field last)"
+	for label in mongodb mongodb-audit; do
+		mongo_eval "$label" "db.getSiblingDB('restore_drill').markers.insertOne({_id: 4})" >/dev/null
+	done
+	mysql_root "INSERT INTO restore_drill.markers VALUES (4);"
+	local dlq_late
+	dlq_late="$($K -n "$NS" exec -i deployment/message-manager -c message-manager -- node - <"$ROOT/tests/k8s/dlq-seed.cjs")" || {
+		log "message-manager could not store a dead letter in dlq-service"
+		return 1
+	}
+	wait_for 60 'dlq_ids | grep -qx "'"$dlq_late"'"' || {
+		log "dead letter $dlq_late is not in MongoDB"
+		return 1
+	}
+	# Audit events written by audit-logger after the dump.
+	wait_for 300 '[ "$(audit_chain | json_field last)" -gt "'"$audit_dumped"'" ]'
+
+	log "restore drill: writers stopped ($MONGO_WRITERS $MYSQL_WRITERS), as BACKUP_DR.md requires"
 	local writer
 	local -A replicas
-	for writer in $MONGO_WRITERS; do
+	for writer in $MONGO_WRITERS $MYSQL_WRITERS; do
 		replicas[$writer]="$($K -n "$NS" get deployment "$writer" -o jsonpath='{.spec.replicas}')"
 		$K -n "$NS" scale deployment "$writer" --replicas=0
 	done
-	for writer in $MONGO_WRITERS; do
-		$K -n "$NS" wait --for=delete pod -l "app.kubernetes.io/component=$writer" --timeout=120s || true
+	# financial-scraper-collector drains its candle backlog on shutdown
+	# (terminationGracePeriodSeconds: 360): a writer still running would write
+	# after the instant, or during the restore.
+	for writer in $MONGO_WRITERS $MYSQL_WRITERS; do
+		$K -n "$NS" wait --for=delete pod -l "app.kubernetes.io/component=$writer" --timeout=420s || true
+		if [ -n "$($K -n "$NS" get pod -l "app.kubernetes.io/component=$writer" -o name)" ]; then
+			log "writer $writer still has pods after 420 s: the point-in-time drill needs every writer stopped"
+			return 1
+		fi
 	done
+
+	# The state to get back: everything written up to the instant.
+	local audit_pitr dlq_pitr until
+	audit_pitr="$(audit_chain)"
+	[ "$(echo "$audit_pitr" | json_field broken)" = "null" ] || {
+		log "the audit chain is broken before the incremental backup: $audit_pitr"
+		return 1
+	}
+	dlq_pitr="$(dlq_ids)"
+	sleep 2
+	until="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+	sleep 2
+	# After the instant: archived, but must not come back.
+	for label in mongodb mongodb-audit; do
+		mongo_eval "$label" "db.getSiblingDB('restore_drill').markers.insertOne({_id: 5})" >/dev/null
+	done
+	mysql_root "INSERT INTO restore_drill.markers VALUES (5);"
+	log "  instant $until: audit chain up to sequence $(echo "$audit_pitr" | json_field last) (dump: $audit_dumped)," \
+		"$(echo -n "$dlq_pitr" | grep -c . || true) dead letter(s)"
+
+	log "point-in-time: binlog and oplog archives (db-backup-incremental CronJob)"
+	$K -n "$NS" delete job backup-incremental-ci --ignore-not-found
+	$K -n "$NS" create job backup-incremental-ci --from=cronjob/db-backup-incremental
+	if ! $K -n "$NS" wait --for=condition=complete job/backup-incremental-ci --timeout=600s; then
+		$K -n "$NS" logs job/backup-incremental-ci --tail=60 || true
+		return 1
+	fi
+	$K -n "$NS" logs job/backup-incremental-ci | grep -E '✓|✗|⚠' | sed 's/^/  /'
+	clear="$(inspector "find /backups -type f ! -name '*.age' ! -path '/backups/metrics/*'")"
+	if [ -n "$clear" ]; then
+		log "unencrypted or partial backup files: $clear"
+		return 1
+	fi
+	for component in mysql-binlog mongodb-oplog mongodb-audit-oplog; do
+		inspector "grep -qx 'backup_last_status{component=\"$component\",run=\"incremental\"} 1' /backups/metrics/backup-incremental.prom" || {
+			log "incremental archive of $component did not succeed"
+			return 1
+		}
+		inspector "grep -qx 'backup_pitr_gap{component=\"$component\",run=\"incremental\"} 0' /backups/metrics/backup-incremental.prom" || {
+			log "$component: chain reported broken (backup_pitr_gap) or not reported"
+			return 1
+		}
+	done
+	inspector "grep -qx 'backup_last_status{component=\"offsite\",run=\"incremental\"} 1' /backups/metrics/backup-incremental.prom"
+	log "  archives encrypted and off-site"
+	# From here on, the backup-data volume counts as lost with the cluster.
+	$K -n "$NS" delete pod backup-inspector --wait=false
 
 	log "restore drill: disaster (audit + dlq databases, markers, market_candles dropped, SPIRE volume deleted)"
 	for label in mongodb mongodb-audit; do
@@ -475,44 +556,74 @@ verify_backup() {
 		return 1
 	}
 
-	log "restore drill: total loss, backup-data unused: scripts/fetch-offsite.sh from the off-site bucket"
+	log "restore drill: total loss, backup-data unused: scripts/fetch-offsite.sh --pitr from the off-site bucket"
 	local claims
 	claims="$($K -n "$NS" get pod restore-runner -o jsonpath='{.spec.volumes[*].persistentVolumeClaim.claimName}')"
 	[ -z "$claims" ] || {
 		log "restore-runner mounts $claims: the drill would not restore from the off-site copy"
 		return 1
 	}
-	local started fetch_seconds restore_seconds fetched
+	local started fetch_seconds restore_seconds fetched dir
 	started=$SECONDS
-	runner "bash /scripts/fetch-offsite.sh --dest /restore"
+	runner "bash /scripts/fetch-offsite.sh --pitr --dest /restore"
 	fetch_seconds=$((SECONDS - started))
-	fetched="$(runner "find /restore -type f -name '*.age' | wc -l")"
-	# 5 dumps + the run manifest, which restore-k8s.sh selects and verifies with.
-	[ "$fetched" -eq 6 ] && runner "test -s /restore/manifests/manifest_*.json.age" || {
-		log "fetch-offsite.sh fetched $fetched file(s) instead of 6 (5 dumps + run manifest)"
+	# The run: 5 dumps + 3 PITR starting points + the run manifest, which
+	# restore-k8s.sh selects and verifies with; then the archives replayed.
+	fetched="$(runner "find /restore -type f \( -name '*.archive.gz.age' -o -name 'financial_scraper_*.sql.gz.age' -o -name 'checkpoints_*.age' -o -name 'keys_*.age' -o -name '*.pitr.age' -o -name 'manifest_*.json.age' \) | wc -l")"
+	[ "$fetched" -eq 9 ] && runner "test -s /restore/manifests/manifest_*.json.age" || {
+		log "fetch-offsite.sh fetched $fetched file(s) of the run instead of 9 (5 dumps, 3 PITR starting points, run manifest)"
 		return 1
 	}
+	for dir in mysql/binlog mongodb/oplog/mongodb mongodb/oplog/mongodb-audit; do
+		[ "$(runner "find /restore/$dir -type f -name '*.gz.age' | wc -l")" -ge 1 ] || {
+			log "fetch-offsite.sh --pitr fetched no archive into $dir"
+			return 1
+		}
+	done
 
-	log "restore drill: scripts/restore-k8s.sh on the fetched run"
+	# An instant the archives do not reach yet: refused before touching data.
+	local refused
+	if refused="$(echo "$key" | $K -n "$NS" exec -i restore-runner -- sh -c \
+		"umask 077 && cat > /tmp/identity && BACKUP_DIR=/restore BACKUP_AGE_IDENTITY=/tmp/identity K8S_NAMESPACE=$NS \
+		bash /scripts/restore-k8s.sh --dry-run --components mongodb,mysql --until $(date -u +%Y-%m-%dT%H:%M:%SZ) 2>&1; \
+		rc=\$?; rm -f /tmp/identity; exit \$rc")"; then
+		log "restore-k8s.sh --until accepted an instant after the last archive: $refused"
+		return 1
+	fi
+	[ "$(echo "$refused" | grep -cE 'do not reach the requested instant|before the requested instant')" -eq 3 ] || {
+		log "restore-k8s.sh --until refused for another reason: $refused"
+		return 1
+	}
+	log "  run and archives fetched, an instant past the archives is refused"
+
+	# The SPIRE server writes to the `spire` database the binlog replay
+	# restores: stopped now, restarted by restore-k8s.sh with its CA keys.
+	$K -n "$NS" scale deployment/spire-server --replicas=0
+	$K -n "$NS" wait --for=delete pod -l app.kubernetes.io/component=spire-server --timeout=120s || true
+
+	log "restore drill: scripts/restore-k8s.sh --until $until on the fetched run"
 	started=$SECONDS
 	# The identity goes through stdin and is deleted after the restore.
 	echo "$key" | $K -n "$NS" exec -i restore-runner -- sh -c \
 		"umask 077 && cat > /tmp/identity && BACKUP_DIR=/restore BACKUP_AGE_IDENTITY=/tmp/identity K8S_NAMESPACE=$NS \
-		bash /scripts/restore-k8s.sh --components mongodb,mysql,checkpoints,spire; rc=\$?; rm -f /tmp/identity; exit \$rc"
+		bash /scripts/restore-k8s.sh --components mongodb,mysql,checkpoints,spire --until $until; rc=\$?; rm -f /tmp/identity; exit \$rc"
 	restore_seconds=$((SECONDS - started))
 	log "  off-site fetch ${fetch_seconds} s, restore ${restore_seconds} s (total $((fetch_seconds + restore_seconds)) s)"
 
 	log "restore drill: checking the restored data"
+	# Markers 1-3 from the dump, 4 from the replay, never 5 (after the instant).
 	for label in mongodb mongodb-audit; do
-		local count
-		count="$(mongo_eval "$label" "db.getSiblingDB('restore_drill').markers.countDocuments()")"
-		[ "$count" = "3" ] || {
-			log "MongoDB $label: $count drill markers instead of 3"
+		local markers
+		markers="$(mongo_eval "$label" "print(db.getSiblingDB('restore_drill').markers.find().sort({_id: 1}).toArray().map((m) => m._id).join(','))")"
+		[ "$markers" = "1,2,3,4" ] || {
+			log "MongoDB $label: drill markers $markers instead of 1,2,3,4"
 			return 1
 		}
 	done
-	[ "$(mysql_root "SELECT COUNT(*) FROM restore_drill.markers")" = "3" ] || {
-		log "MySQL: drill markers missing"
+	local mysql_markers
+	mysql_markers="$(mysql_root "SELECT GROUP_CONCAT(id ORDER BY id) FROM restore_drill.markers")"
+	[ "$mysql_markers" = "1,2,3,4" ] || {
+		log "MySQL: drill markers $mysql_markers instead of 1,2,3,4"
 		return 1
 	}
 	[ "$(mysql_count market_candles)" -gt 0 ] || {
@@ -523,28 +634,33 @@ verify_backup() {
 		log "the SPIRE trust bundle differs: the CA keys were not restored"
 		return 1
 	}
-	# The backup ran after the recording: it holds every recorded event, with
-	# the same hashes, and every recorded dead letter.
+	# Up to the instant: every audit event written after the dump too, with
+	# the same hashes, and every dead letter.
 	local audit_restored
-	audit_restored="$(audit_chain "$audit_last")"
+	audit_restored="$(audit_chain)"
 	[ "$(echo "$audit_restored" | json_field broken)" = "null" ] || {
 		log "the restored audit chain is broken: $audit_restored"
 		return 1
 	}
 	local field
 	for field in count first last digest; do
-		[ "$(echo "$audit_restored" | json_field "$field")" = "$(echo "$audit_before" | json_field "$field")" ] || {
-			log "the restored audit trail differs ($field): before $audit_before, after $audit_restored"
+		[ "$(echo "$audit_restored" | json_field "$field")" = "$(echo "$audit_pitr" | json_field "$field")" ] || {
+			log "the restored audit trail differs ($field): at the instant $audit_pitr, after $audit_restored"
 			return 1
 		}
 	done
 	local missing
-	missing="$(comm -23 <(echo -n "$dlq_before" | sort) <(dlq_ids | sort))"
+	missing="$(comm -23 <(echo -n "$dlq_pitr" | sort) <(dlq_ids | sort))"
 	[ -z "$missing" ] || {
 		log "dead letters not restored: $missing"
 		return 1
 	}
-	log "  audit trail restored: $(echo "$audit_restored" | json_field count) events, same hashes, chain verified"
+	echo "$dlq_pitr" | grep -qx "$dlq_late" || {
+		log "the dead letter written after the dump was not recorded"
+		return 1
+	}
+	log "  audit trail restored up to the instant: $(echo "$audit_restored" | json_field count) events" \
+		"(sequence $audit_dumped at the dump, $(echo "$audit_restored" | json_field last) restored), same hashes, chain verified"
 
 	# The SPIRE server came back with the restored CA: the agents still hold
 	# SVIDs from the CA of the wiped volume and crash-loop until they re-attest.
@@ -556,11 +672,11 @@ verify_backup() {
 		$K -n trading-model-node rollout status "$workload" --timeout=300s
 	done
 
-	log "restore drill: MongoDB writers restarted"
-	for writer in $MONGO_WRITERS; do
+	log "restore drill: writers restarted"
+	for writer in $MONGO_WRITERS $MYSQL_WRITERS; do
 		$K -n "$NS" scale deployment "$writer" --replicas="${replicas[$writer]}"
 	done
-	for writer in $MONGO_WRITERS; do
+	for writer in $MONGO_WRITERS $MYSQL_WRITERS; do
 		$K -n "$NS" rollout status deployment "$writer" --timeout=300s
 	done
 	local restored_last

@@ -90,6 +90,16 @@ backup_run() {
 			mkdir -p "$BACKUP_DIR/checkpoints"
 			write_dump checkpoints "$BACKUP_DIR/checkpoints/checkpoints_$ts.tar.gz.age" plain "checkpoints $ts"
 			;;
+		pitr)
+			# PITR starting points (backup-k8s.sh, ADR-0031).
+			mkdir -p "$BACKUP_DIR/mongodb/$ts" "$BACKUP_DIR/mysql"
+			for label in mongodb mongodb-audit; do
+				echo "oplog_ts=1.1" | seal >"$BACKUP_DIR/mongodb/$ts/$label.pitr.age"
+				record_output "$BACKUP_DIR/mongodb/$ts/$label.pitr.age"
+			done
+			echo "binlog_file=binlog.000002" | seal >"$BACKUP_DIR/mysql/financial_scraper_$ts.pitr.age"
+			record_output "$BACKUP_DIR/mysql/financial_scraper_$ts.pitr.age"
+			;;
 		spire)
 			mkdir -p "$BACKUP_DIR/spire"
 			write_dump spire "$BACKUP_DIR/spire/keys_$ts.json.age" plain "{\"keys\": \"$ts\"}"
@@ -113,9 +123,28 @@ BROKEN=2026-11-01_020000
 # Every dump, but no run manifest: restore-k8s.sh could not check it.
 NOMANIFEST=2026-11-02_020000
 backup_run "$OLD" mongodb,mysql,checkpoints,spire nomanifest
-backup_run "$GOOD" mongodb,mysql,checkpoints,spire
+backup_run "$GOOD" mongodb,mysql,checkpoints,spire,pitr
 backup_run "$BROKEN" mongodb-only,mysql,checkpoints,spire
 backup_run "$NOMANIFEST" mongodb,mysql,checkpoints,spire nomanifest
+# Binlog and oplog archives (backup-incremental-k8s.sh): one before GOOD
+# (never needed by it), two after.
+GOOD_EPOCH="$(stamp_epoch "$GOOD")"
+BACKUP_DIR="$WORK/local/archives"
+OUTPUTS=()
+ARCHIVES_BEFORE="mysql/binlog/uuid-1/binlog.000001_2026-10-30_230000.gz.age
+mongodb/oplog/mongodb/$((GOOD_EPOCH - 7200)).1_$((GOOD_EPOCH - 3600)).4.bson.gz.age"
+ARCHIVES_AFTER="mongodb/oplog/mongodb-audit/$((GOOD_EPOCH - 60)).1_$((GOOD_EPOCH + 3600)).2.bson.gz.age
+mongodb/oplog/mongodb/$((GOOD_EPOCH - 3600)).4_$((GOOD_EPOCH + 3600)).1.bson.gz.age
+mysql/binlog/uuid-1/binlog.000002_${GOOD}.gz.age
+mysql/binlog/uuid-1/binlog.000003_2026-10-31_030000.gz.age"
+while read -r file; do
+	mkdir -p "$BACKUP_DIR/$(dirname "$file")"
+	echo "$file" | seal >"$BACKUP_DIR/$file"
+	record_output "$BACKUP_DIR/$file"
+done <<<"$ARCHIVES_BEFORE
+$ARCHIVES_AFTER"
+BACKUP_FAILURES=0
+upload_offsite 2>/dev/null
 # A stray plaintext file in the bucket is never fetched.
 echo "plaintext" >"$WORK/s3/backups/staging/mysql/financial_scraper_${BROKEN}.sql"
 
@@ -219,6 +248,38 @@ else
 	pass "exit 1 on an unknown component"
 fi
 
+echo "--pitr"
+if fetch --dest "$WORK/fetched-pitr" --pitr --timestamp "$OLD"; then
+	failed "a run without PITR starting points was fetched with --pitr"
+elif grep -q "financial_scraper_${OLD}.pitr.age" "$WORK/out"; then
+	pass "exit 1 with --pitr on a run without starting points (taken before ADR-0031)"
+else
+	failed "--pitr on ${OLD}: $(cat "$WORK/out")"
+fi
+expected="$(printf '%s\n' "checkpoints/checkpoints_${GOOD}.tar.gz.age" \
+	"mongodb/${GOOD}/mongodb-audit.archive.gz.age" "mongodb/${GOOD}/mongodb-audit.pitr.age" \
+	"mongodb/${GOOD}/mongodb.archive.gz.age" "mongodb/${GOOD}/mongodb.pitr.age" \
+	"manifests/manifest_${GOOD}.json.age" \
+	"mysql/financial_scraper_${GOOD}.pitr.age" "mysql/financial_scraper_${GOOD}.sql.gz.age" \
+	"spire/keys_${GOOD}.json.age"; echo "$ARCHIVES_AFTER")"
+expected="$(sort <<<"$expected" | grep .)"
+if fetch --dest "$WORK/fetched-pitr" --pitr &&
+	[ "$(cd "$WORK/fetched-pitr" && find . -type f | sed 's|^\./||' | sort)" = "$expected" ] &&
+	grep -q "restore-k8s.sh --until" "$WORK/out"; then
+	pass "the run, its starting points and only the archives that can follow it (${GOOD}) are fetched"
+else
+	failed "--pitr: $(cd "$WORK/fetched-pitr" 2>/dev/null && find . -type f | sort) $(cat "$WORK/out")"
+fi
+if fetch --dest "$WORK/fetched-pitr-mysql" --pitr --components mysql &&
+	[ "$(cd "$WORK/fetched-pitr-mysql" && find . -type f | sed 's|^\./||' | sort)" = "$(printf '%s\n' \
+		"manifests/manifest_${GOOD}.json.age" \
+		"mysql/binlog/uuid-1/binlog.000002_${GOOD}.gz.age" "mysql/binlog/uuid-1/binlog.000003_2026-10-31_030000.gz.age" \
+		"mysql/financial_scraper_${GOOD}.pitr.age" "mysql/financial_scraper_${GOOD}.sql.gz.age")" ]; then
+	pass "--pitr --components mysql leaves the oplog archives out"
+else
+	failed "--pitr --components mysql: $(cat "$WORK/out")"
+fi
+
 echo "--dry-run"
 if fetch --dest "$WORK/fetched-dry" --dry-run && [ ! -e "$WORK/fetched-dry" ] &&
 	[ "$(grep -c "Would fetch" "$WORK/out")" = 6 ] && grep -q "$GOOD" "$WORK/out"; then
@@ -226,6 +287,50 @@ if fetch --dest "$WORK/fetched-dry" --dry-run && [ ! -e "$WORK/fetched-dry" ] &&
 else
 	failed "--dry-run: $(cat "$WORK/out")"
 fi
+
+echo "off-site catch-up of the incremental archives"
+# backup-incremental-k8s.sh: run N cannot reach the store, run N+1 can. Run
+# N+1 must send N's archive too (record_incremental_archives), or the chain
+# off-site keeps a hole the next alert-free hour hides.
+BACKUP_DIR="$WORK/local/catchup"
+CATCHUP=s3://backups/catchup
+mkdir -p "$BACKUP_DIR/mysql/binlog/uuid-9" "$BACKUP_DIR/mongodb/oplog/mongodb-audit"
+OUTPUTS=()
+for file in mysql/binlog/uuid-9/binlog.000001_2026-11-01_013000.gz.age mongodb/oplog/mongodb-audit/1000.1_2000.1.bson.gz.age; do
+	echo "$file" | seal >"$BACKUP_DIR/$file"
+	record_output "$BACKUP_DIR/$file"
+done
+BACKUP_FAILURES=0
+BACKUP_S3_BUCKET="$CATCHUP" RCLONE_S3_ENDPOINT="http://127.0.0.1:1" RCLONE_LOW_LEVEL_RETRIES=1 RCLONE_RETRIES=1 RCLONE_CONTIMEOUT=2s \
+	upload_offsite >/dev/null 2>&1
+if [ "$BACKUP_FAILURES" -gt 0 ] && [ ! -e "$WORK/s3/backups/catchup" ]; then
+	pass "run N: the store is unreachable, the copy fails (offsite 0), nothing off-site"
+else
+	failed "run N: the failed copy was not reported or something reached the store"
+fi
+OUTPUTS=()
+for file in mysql/binlog/uuid-9/binlog.000002_2026-11-01_023000.gz.age mongodb/oplog/mongodb-audit/2000.1_3000.1.bson.gz.age; do
+	echo "$file" | seal >"$BACKUP_DIR/$file"
+	record_output "$BACKUP_DIR/$file"
+done
+record_incremental_archives
+BACKUP_FAILURES=0
+BACKUP_S3_BUCKET="$CATCHUP" upload_offsite >/dev/null 2>&1
+if [ "$BACKUP_FAILURES" -eq 0 ] &&
+	[ "$(cd "$WORK/s3/backups/catchup" 2>/dev/null && find . -type f | sed 's|^\./||' | sort)" = "$(cd "$BACKUP_DIR" && find . -type f | sed 's|^\./||' | sort)" ]; then
+	pass "run N+1 copies its own archives and run N's: the off-site chain is complete"
+else
+	failed "run N+1: off-site holds $(cd "$WORK/s3/backups/catchup" 2>/dev/null && find . -type f | sort)"
+fi
+mkdir -p "$WORK/catchup-fetched"
+RCLONE_S3_ENV_AUTH=true rclone copy "$(offsite_remote "$CATCHUP")" "$WORK/catchup-fetched" 2>/dev/null
+if binlog_chain "$WORK/catchup-fetched/mysql/binlog/uuid-9" binlog.000001 2026-11-01_020000 >/dev/null 2>&1 &&
+	oplog_chain "$WORK/catchup-fetched/mongodb/oplog/mongodb-audit" 1500.1 2500 >/dev/null 2>&1; then
+	pass "the chains fetched back from off-site reach across run N"
+else
+	failed "the chains fetched back from off-site have a gap"
+fi
+BACKUP_DIR="$WORK/local/archives"
 
 echo "refusals"
 if fetch --dest "$DEST"; then

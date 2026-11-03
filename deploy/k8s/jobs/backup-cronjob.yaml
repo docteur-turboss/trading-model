@@ -266,9 +266,12 @@ spec:
               echo '# No backup metrics yet' > /tmp/metrics/metrics
               httpd -f -p 9118 -h /tmp/metrics &
               HTTPD_PID=$!
+              # backup.prom (daily db-backup) and backup-incremental.prom
+              # (hourly db-backup-incremental, series labelled run="incremental").
               while true; do
-                if [ -f /metrics/backup.prom ]; then
-                  cp /metrics/backup.prom /tmp/metrics/metrics
+                if ls /metrics/*.prom >/dev/null 2>&1; then
+                  cat /metrics/*.prom > /tmp/metrics/metrics.tmp
+                  mv /tmp/metrics/metrics.tmp /tmp/metrics/metrics
                 fi
                 sleep 5
               done

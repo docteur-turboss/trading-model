@@ -2,7 +2,7 @@
 # =============================================================================
 #  Trading Model — Fetch a backup run from the off-site bucket
 #  Usage:  bash scripts/fetch-offsite.sh --dest DIR [--timestamp TS]
-#            [--components mongodb,mysql,checkpoints,spire] [--dry-run]
+#            [--components mongodb,mysql,checkpoints,spire] [--pitr] [--dry-run]
 #          BACKUP_S3_BUCKET=s3://bucket/prefix AWS_ACCESS_KEY_ID=... AWS_SECRET_ACCESS_KEY=...
 #          RCLONE_S3_ENDPOINT / RCLONE_S3_PROVIDER for a non-AWS store
 #
@@ -16,6 +16,13 @@
 #    spire/keys_<TS>.json.age
 #    manifests/manifest_<TS>.json.age            (run manifest, backup-lib.sh)
 #  then: BACKUP_DIR=DIR bash scripts/restore-k8s.sh --timestamp TS
+#
+#  --pitr (point-in-time recovery, ADR-0031): the run must also hold its
+#  starting points (`mongodb/<TS>/<replica set>.pitr.age`,
+#  `mysql/financial_scraper_<TS>.pitr.age`), and the binlog / oplog archives
+#  that can follow it are fetched too (`mysql/binlog/<server>/` archived at or
+#  after TS, `mongodb/oplog/<replica set>/` ending at or after TS), then:
+#  BACKUP_DIR=DIR bash scripts/restore-k8s.sh --until <instant>
 #
 #  Run selection: --timestamp TS, or else the newest run holding every file of
 #  the requested components and its run manifest. upload_offsite only copies
@@ -35,6 +42,7 @@ set -euo pipefail
 DEST=""
 TIMESTAMP=""
 DRY_RUN=false
+PITR=false
 COMPONENTS="mongodb,mysql,checkpoints,spire"
 
 usage() {
@@ -46,6 +54,7 @@ while [[ $# -gt 0 ]]; do
     --dest) DEST="${2:-}"; shift 2 ;;
     --timestamp) TIMESTAMP="${2:-}"; shift 2 ;;
     --components) COMPONENTS="${2:-}"; shift 2 ;;
+    --pitr) PITR=true; shift ;;
     --dry-run) DRY_RUN=true; shift ;;
     -h|--help) usage; exit 0 ;;
     *) echo "Unknown option: $1"; usage; exit 1 ;;
@@ -64,15 +73,50 @@ source "$(dirname "$0")/backup-lib.sh"
 MONGO_LABELS="mongodb mongodb-audit"
 TS_PATTERN='[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{6}'
 
-# Relative paths (inside the bucket prefix) of component `$1` for run `$2`.
+# Relative paths (inside the bucket prefix) of component `$1` for run `$2`,
+# with its PITR starting points when --pitr.
 component_files() {
   local label
   case "$1" in
-    mongodb) for label in $MONGO_LABELS; do echo "mongodb/$2/${label}.archive.gz.age"; done ;;
-    mysql) echo "mysql/financial_scraper_$2.sql.gz.age" ;;
+    mongodb)
+      for label in $MONGO_LABELS; do
+        echo "mongodb/$2/${label}.archive.gz.age"
+        ! $PITR || echo "mongodb/$2/${label}.pitr.age"
+      done
+      ;;
+    mysql)
+      echo "mysql/financial_scraper_$2.sql.gz.age"
+      ! $PITR || echo "mysql/financial_scraper_$2.pitr.age"
+      ;;
     checkpoints) echo "checkpoints/checkpoints_$2.tar.gz.age" ;;
     spire) echo "spire/keys_$2.json.age" ;;
   esac
+}
+
+# Binlog / oplog archives of LISTING that can follow run `$1` (--pitr):
+# binlogs archived at or after the run (the dump's binlog was still open
+# when it started), oplog archives ending at or after it (the starting point
+# is read once the run has started). restore-k8s.sh --until picks the chain.
+pitr_archives() {
+  local part file stamp end since
+  since="$(stamp_epoch "$1")"
+  for part in "${PARTS[@]}"; do
+    case "$part" in
+      mysql)
+        grep -E "^mysql/binlog/[^/]+/[^/]+_${TS_PATTERN}\.gz\.age$" <<<"$LISTING" | while read -r file; do
+          stamp="$(grep -oE "${TS_PATTERN}\.gz\.age$" <<<"$file")"
+          [[ "${stamp%.gz.age}" < "$1" ]] || echo "$file"
+        done
+        ;;
+      mongodb)
+        grep -E "^mongodb/oplog/[^/]+/[0-9]+\.[0-9]+_[0-9]+\.[0-9]+\.bson\.gz\.age$" <<<"$LISTING" | while read -r file; do
+          end="${file##*_}"
+          end="${end%%.*}"
+          [ "$end" -lt "$since" ] || echo "$file"
+        done
+        ;;
+    esac
+  done
 }
 
 # Run manifest of run `$1` (backup-lib.sh, write_manifest).
@@ -208,6 +252,19 @@ else
   warn "Run ${SELECTED} has no run manifest (taken before manifests): restore-k8s.sh restores it without checksum"
 fi
 ok "Selected run ${SELECTED} (${#FILES[@]} file(s))"
+if $PITR; then
+  ARCHIVES=0
+  while read -r file; do
+    [ -n "$file" ] || continue
+    FILES+=("$file")
+    ARCHIVES=$((ARCHIVES + 1))
+  done < <(pitr_archives "$SELECTED")
+  if [ "$ARCHIVES" -eq 0 ]; then
+    warn "No binlog or oplog archive after run ${SELECTED}: restore-k8s.sh --until can only reach the dump itself"
+  else
+    ok "${ARCHIVES} binlog / oplog archive(s) after run ${SELECTED}"
+  fi
+fi
 
 if $DRY_RUN; then
   for file in "${FILES[@]}"; do warn "[DRY-RUN] Would fetch ${file}"; done
@@ -236,5 +293,9 @@ ok "Run ${SELECTED} fetched in $((SECONDS - started)) s ($(du -sh "$DEST" | cut 
 echo "══════════════════════════════════════════════════"
 echo "  Restore it (MySQL before SPIRE, writers stopped):"
 echo "  BACKUP_DIR=${DEST} BACKUP_AGE_IDENTITY=<key file> \\"
-echo "    bash scripts/restore-k8s.sh --timestamp ${SELECTED} --components $(IFS=,; echo "${PARTS[*]}")"
+if $PITR; then
+  echo "    bash scripts/restore-k8s.sh --until <instant, UTC> --components $(IFS=,; echo "${PARTS[*]}")"
+else
+  echo "    bash scripts/restore-k8s.sh --timestamp ${SELECTED} --components $(IFS=,; echo "${PARTS[*]}")"
+fi
 echo "══════════════════════════════════════════════════"
