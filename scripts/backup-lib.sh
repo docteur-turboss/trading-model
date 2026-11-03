@@ -127,6 +127,14 @@ finalize_metrics() {
 	ok "Metrics written to ${METRICS_FILE}"
 }
 
+# rclone remote of the off-site bucket `$1` (s3://bucket/prefix), shared by
+# upload_offsite and fetch-offsite.sh. `:s3:` is an on-the-fly remote:
+# credentials from AWS_* (with RCLONE_S3_ENV_AUTH=true), endpoint and provider
+# from RCLONE_S3_*.
+offsite_remote() {
+	echo ":s3:${1#s3://}"
+}
+
 upload_offsite() {
 	local bucket="${BACKUP_S3_BUCKET:-}"
 	if [ -z "$bucket" ]; then
@@ -151,10 +159,9 @@ upload_offsite() {
 	printf '%s\n' "${OUTPUTS[@]}" >"$list"
 	local copied=false
 	if command -v rclone >/dev/null; then
-		# `:s3:` is an on-the-fly remote: credentials from AWS_*, endpoint and
-		# provider from RCLONE_S3_*. Paths keep their timestamped names.
+		# Paths keep their timestamped names (fetch-offsite.sh relies on it).
 		if RCLONE_S3_ENV_AUTH=true rclone copy --s3-no-check-bucket \
-			--files-from "$list" "$BACKUP_DIR" ":s3:${bucket#s3://}"; then
+			--files-from "$list" "$BACKUP_DIR" "$(offsite_remote "$bucket")"; then
 			copied=true
 		fi
 	elif command -v aws >/dev/null; then
