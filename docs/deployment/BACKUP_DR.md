@@ -235,18 +235,131 @@ store (MinIO on another VPS, Backblaze B2, Scaleway, OVH...) `S3_ENDPOINT` and
 `BACKUP_S3_PROVIDER`, secrets `BACKUP_S3_ACCESS_KEY_ID`,
 `BACKUP_S3_SECRET_ACCESS_KEY`. Without them, an existing Secret (e.g. a
 SealedSecret) is kept. Enable versioning or object lock on the bucket: the
-job only adds files, retention off-site is the bucket's lifecycle rule.
+job only adds files, retention off-site is the bucket's lifecycle rules
+([Off-site tiers](#off-site-tiers)).
 
 ### Retention
 
-- `backup-data` volume: daily backups 30 days (`RETENTION_DAYS`, dumps and run
-  manifests pruned by `prune_old`, which also deletes `.partial` files older
-  than an hour); binlog and oplog archives 72 h
-  (`INCREMENTAL_RETENTION_HOURS`, pruned by `backup-incremental-k8s.sh`).
-  Past 72 h only the daily backups remain: point in time over the last 72 h,
-  day by day before that (ADR-0031).
-- Off-site: the bucket's lifecycle rule. Give the prefixes `mysql/binlog/` and
-  `mongodb/oplog/` a 3-day expiry to match: the job does not delete off-site.
+Grandfather-father-son (ADR-0032), applied by `prune_old` and by the
+off-site layout (`scripts/backup-lib.sh`):
+
+| Tier | Run kept | Components | `backup-data` (CronJob) | Off-site |
+| ---- | -------- | ---------- | ----------------------- | -------- |
+| daily | every run | all | 30 days (`RETENTION_DAYS`) | `daily/`, 31 days |
+| weekly | first complete run of each ISO week (Monday's, normally) | `mongodb-audit`, `mysql` | no (`RETENTION_WEEKLY_WEEKS=0`) | `weekly/`, 85 days (12 weeks) |
+| monthly | first complete run of each calendar month | `mongodb-audit`, `mysql` | no (`RETENTION_MONTHLY_MONTHS=0`) | `monthly/`, 1830 days (60 months) |
+
+- **Age** comes from the `%Y-%m-%d_%H%M%S` timestamp in the file name, never
+  from the mtime (a copy or a fetch from the bucket changes it). A file
+  without timestamp falls back to its mtime. `metrics/` is never touched,
+  `.partial` files older than an hour are deleted, a `mongodb/<TS>/`
+  directory goes once its archives are gone.
+- **Complete run**: its run manifest exists and the component's final file
+  exists ([Run manifest](#run-manifest)); no decryption needed. Only
+  complete runs are promoted: a failed dump leaves no file, a run killed
+  before its manifest has none. The *first* run of the week or month is
+  promoted so that the decision is taken at upload time (whether a later
+  run of the week will succeed is not known yet).
+- **Guard**: the newest complete run of each component is never deleted,
+  whatever its age (a component whose backups stopped keeps its last good
+  one). A component with no complete run at all (backups taken before
+  manifests) keeps its newest file.
+- A manifest is kept as long as one of its dumps, and at least 30 days.
+- Variables: `RETENTION_DAYS` (default 30), `RETENTION_WEEKLY_WEEKS` and
+  `RETENTION_MONTHLY_MONTHS` (long tiers on the volume, default 0),
+  `RETENTION_LONG_COMPONENTS` (manifest keys, default `mongodb-audit mysql`),
+  `BACKUP_OFFSITE_LAYOUT` (`flat` by default, `tiered` in the CronJob).
+  Without any of them the behaviour is the former one: 30 days, plus the
+  guard. With `RETENTION_WEEKLY_WEEKS=12 RETENTION_MONTHLY_MONTHS=60` the same
+  tiers are also kept on the volume (a Docker host with room for them; the
+  100Gi `backup-data` PVC is sized for dailies only).
+- `checkpoints`, the operational `mongodb` (DLQ, 30 days) and `spire/keys`
+  (CA private keys) are never promoted: data minimisation, see the
+  [data retention policy](../compliance/data-retention-policy.md#backups-and-data-minimisation).
+
+- Point-in-time archives: binlogs and oplog slices (`mysql/binlog/`,
+  `mongodb/oplog/`) are kept 72 h (`INCREMENTAL_RETENTION_HOURS`, pruned by
+  `backup-incremental-k8s.sh`, ADR-0031) and are outside the GFS: `prune_old`
+  never lists them, and they are never promoted. Past 72 h only the daily
+  dumps remain: point in time over the last 72 h, day by day before that.
+  A run's `.pitr` file follows its dump on the volume but is never copied
+  to `weekly/` or `monthly/` (useless without the binlogs, gone after 72 h).
+  Off-site, give the prefixes `daily/mysql/binlog/` and `daily/mongodb/oplog/`
+  (bucket root `mysql/binlog/`, `mongodb/oplog/` with the flat layout) a
+  3-day expiry to match: the job does not delete off-site.
+
+Tested by `tests/backup/backup-retention.test.sh` (400 days of fake runs,
+exact set of kept files and of off-site copies; workflow `backup-test.yml`).
+
+### Off-site tiers
+
+With `BACKUP_OFFSITE_LAYOUT=tiered`, `upload_offsite` copies every file of a
+run to `<BACKUP_S3_BUCKET>/daily/<path>`, and the promoted dumps, with their
+run manifest, also to `weekly/<path>` and `monthly/<path>`: at most 3 copies
+of a run. A dump of a long component is weekly (monthly) when the volume
+holds no earlier complete run of it in the same ISO week (month); the daily
+tier keeps those earlier runs (`RETENTION_DAYS` >= 30). Under each prefix
+the layout is the volume's: `fetch-offsite.sh` reads `daily/` by default on a
+tiered bucket, `--tier weekly` or `--tier monthly` another tier
+(`--components mongodb-audit,mysql` there), and `--tier flat` the bucket root
+([From the off-site bucket](#from-the-off-site-bucket)). The weekly and monthly
+prefixes hold only `mongodb-audit`, the MySQL dump and the manifests: no
+operational `mongodb`, no checkpoints, no CA keys, and no `.pitr` starting
+point (useless once the binlogs and oplogs, kept 72 h, are gone). The
+incremental job (`db-backup-incremental`) uses the tiered layout too: its
+binlog and oplog archives go under `daily/` only, next to the dumps
+`fetch-offsite.sh --pitr` reads with them.
+
+**Catch-up of a failed promoted copy.** The tier of a run is decided when it
+is uploaded, so a failed copy of the first run of a month would otherwise
+leave that month without monthly copy once the local dump is pruned. Each
+daily run therefore also sends again the weekly and monthly copies of every
+week (month) that started at most `RETENTION_DAYS` days ago
+(`offsite_catchup`; rclone skips the objects already in the bucket, the
+`aws` fallback checks with `aws s3 ls` first). Once `BackupOffsiteCopyFailed`
+resolves, the long tiers have no hole, provided the bucket came back within
+`RETENTION_DAYS` (30) days of the failed run: past that, the first runs of the
+period may be pruned, and that period's weekly or monthly copy stays missing.
+To catch up by hand earlier, re-run the daily job
+(`kubectl create job --from=cronjob/db-backup db-backup-manual`). The
+incremental job does not catch up dumps (it writes no manifest).
+
+The job never deletes in the bucket (its credentials need no delete right,
+which keeps Object Lock possible): one lifecycle rule per prefix expires the
+copies. For `BACKUP_S3_BUCKET=s3://trading-backups/prod` (the two archive
+rules match the 72 h local window, ADR-0031; where rules overlap, S3 applies
+the shortest expiry):
+
+```json
+{"Rules": [
+  {"ID": "backup-daily",   "Status": "Enabled", "Filter": {"Prefix": "prod/daily/"},   "Expiration": {"Days": 31}},
+  {"ID": "backup-binlog",  "Status": "Enabled", "Filter": {"Prefix": "prod/daily/mysql/binlog/"},  "Expiration": {"Days": 3}},
+  {"ID": "backup-oplog",   "Status": "Enabled", "Filter": {"Prefix": "prod/daily/mongodb/oplog/"}, "Expiration": {"Days": 3}},
+  {"ID": "backup-weekly",  "Status": "Enabled", "Filter": {"Prefix": "prod/weekly/"},  "Expiration": {"Days": 85}},
+  {"ID": "backup-monthly", "Status": "Enabled", "Filter": {"Prefix": "prod/monthly/"}, "Expiration": {"Days": 1830}}
+]}
+```
+
+```bash
+aws s3api put-bucket-lifecycle-configuration --bucket trading-backups \
+  --lifecycle-configuration file://lifecycle.json   # add --endpoint-url for MinIO, Scaleway, OVH...
+aws s3api get-bucket-lifecycle-configuration --bucket trading-backups
+```
+
+With versioning on, also expire noncurrent versions
+(`NoncurrentVersionExpiration`), otherwise old versions stay forever. After
+each tiered copy, `check_offsite_lifecycle` reads the bucket's rules when the
+`aws` CLI is there and warns about a prefix without rule. The `backup-tools`
+image has only rclone, which cannot read lifecycle rules: the CronJob logs
+that they were not verified, so check them with the command above when the
+bucket is set up (checklist below). The rules are the only expiry off-site:
+a missing rule keeps copies forever, it never loses one.
+
+**Deployment checklist (before the first tiered run, and after any change of
+bucket):** set the five rules above, then read them back with
+`aws s3api get-bucket-lifecycle-configuration`. In Kubernetes nothing else
+checks them: `backup-tools` has no `aws` CLI, so every run only logs
+"Off-site lifecycle rules not verified".
 
 ## Monitoring
 
@@ -268,7 +381,7 @@ and Prometheus scrapes them (job `backup-metrics`).
 | `BackupPitrGap`           | a binlog / oplog chain has a break after the newest daily dump: no `--until` past it, until the next daily dump (stays firing while the runs succeed again) |
 | `BackupMetricsAbsent`     | no metric of the daily job (`run=""`: the incremental job's series do not count; job never ran, exporter down) |
 | `BackupUnencrypted`       | no age recipient                                                             |
-| `BackupOffsiteCopyFailed` | the off-site copy failed or is not configured                                |
+| `BackupOffsiteCopyFailed` | the off-site copy failed or is not configured (the next daily run sends the missed weekly / monthly copies again: [catch-up](#off-site-tiers); fix within 30 days) |
 
 ## Restore Procedures
 
@@ -354,6 +467,11 @@ bash scripts/fetch-offsite.sh --dest ./restore          # newest complete run
 bash scripts/fetch-offsite.sh --dest ./restore --timestamp 2026-10-01_020000 --components mongodb,mysql
 BACKUP_DIR=./restore K8S_NAMESPACE=trading-model BACKUP_AGE_IDENTITY=~/backup-key.txt \
   bash scripts/restore-k8s.sh --timestamp <TS printed by fetch-offsite.sh>
+# Long tiers of a tiered bucket (ADR-0032): audit trail and market data only
+bash scripts/fetch-offsite.sh --dest ./restore --tier monthly --components mongodb-audit,mysql
+bash scripts/fetch-offsite.sh --dest ./restore --tier monthly --components mongodb-audit --timestamp 2025-09-01_020000
+BACKUP_DIR=./restore K8S_NAMESPACE=trading-model BACKUP_AGE_IDENTITY=~/backup-key.txt \
+  bash scripts/restore-k8s.sh --timestamp <TS> --components mongodb-audit   # audit replica set alone
 # Point-in-time: the run and the archives after it
 bash scripts/fetch-offsite.sh --dest ./restore --pitr
 BACKUP_DIR=./restore K8S_NAMESPACE=trading-model BACKUP_AGE_IDENTITY=~/backup-key.txt \
@@ -370,7 +488,10 @@ before `restore-k8s.sh`, which streams each file through `age -d`.
 What `restore-k8s.sh` does:
 
 - **MongoDB**: finds the writable primary of each replica set and runs
-  `mongorestore --drop --oplogReplay` there (secondaries follow).
+  `mongorestore --drop --oplogReplay` there (secondaries follow). Component
+  `mongodb` restores both replica sets; `mongodb-audit` the audit trail alone
+  (a weekly or monthly run holds no operational dump, so `mongodb` would
+  refuse it).
 - **MySQL**: pipes the dump (GTID statements filtered) into the pod behind
   `mysql-primary`, with the container's own root password.
 - **SPIRE**: scales `spire-server` to 0, writes `keys.json` into its volume

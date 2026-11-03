@@ -288,6 +288,125 @@ else
 	failed "--dry-run: $(cat "$WORK/out")"
 fi
 
+echo "--tier (BACKUP_OFFSITE_LAYOUT=tiered)"
+TIERED=2026-11-02_030000
+TIERED_EPOCH="$(stamp_epoch "$TIERED")"
+BACKUP_S3_BUCKET=s3://backups/tiered BACKUP_OFFSITE_LAYOUT=tiered backup_run "$TIERED" mongodb,mysql,checkpoints,spire,pitr
+# The incremental job (backup-incremental-cronjob.yaml) uploads tiered too:
+# its archives go under daily/ only, next to the dumps and .pitr files.
+BACKUP_DIR="$WORK/local/tiered-archives"
+OUTPUTS=()
+TIERED_ARCHIVES="mysql/binlog/uuid-2/binlog.000010_${TIERED}.gz.age
+mongodb/oplog/mongodb-audit/$((TIERED_EPOCH - 60)).1_$((TIERED_EPOCH + 3600)).1.bson.gz.age
+mongodb/oplog/mongodb/$((TIERED_EPOCH - 60)).1_$((TIERED_EPOCH + 3600)).1.bson.gz.age"
+while read -r file; do
+	mkdir -p "$BACKUP_DIR/$(dirname "$file")"
+	echo "$file" | seal >"$BACKUP_DIR/$file"
+	record_output "$BACKUP_DIR/$file"
+done <<<"$TIERED_ARCHIVES"
+BACKUP_FAILURES=0
+BACKUP_S3_BUCKET=s3://backups/tiered BACKUP_OFFSITE_LAYOUT=tiered upload_offsite 2>/dev/null
+long_tiers="$(cd "$WORK/s3/backups/tiered" && find weekly monthly -type f | sort)"
+if [ "$BACKUP_FAILURES" -eq 0 ] && ! grep -qE '\.pitr\.age$|/binlog/|/oplog/' <<<"$long_tiers" &&
+	[ "$(grep -c . <<<"$long_tiers")" = 6 ]; then
+	pass "weekly/ and monthly/ hold the audit dump, the MySQL dump and the manifest only: no .pitr, no binlog / oplog archive"
+else
+	failed "long tiers hold: $long_tiers"
+fi
+if BACKUP_S3_BUCKET=s3://backups/tiered fetch --dest "$WORK/fetched-tiered" &&
+	[ "$(find "$WORK/fetched-tiered" -type f | grep -c "$TIERED")" = 6 ] &&
+	[ -f "$WORK/fetched-tiered/mysql/financial_scraper_${TIERED}.sql.gz.age" ]; then
+	pass "a tiered bucket is read from daily/ by default, in the layout restore-k8s.sh reads"
+else
+	failed "tiered bucket: $(cat "$WORK/out")"
+fi
+if BACKUP_S3_BUCKET=s3://backups/tiered fetch --dest "$WORK/fetched-tiered-pitr" --pitr &&
+	[ "$(cd "$WORK/fetched-tiered-pitr" && find . -type f -path './*/binlog/*' -o -type f -path './*/oplog/*' | sed 's|^\./||' | sort)" = "$(sort <<<"$TIERED_ARCHIVES")" ] &&
+	[ "$(find "$WORK/fetched-tiered-pitr" -type f -name '*.pitr.age' | wc -l | tr -d ' ')" = 3 ]; then
+	pass "--pitr on a tiered bucket fetches the run, its starting points and the archives, all from daily/"
+else
+	failed "--pitr on a tiered bucket: $(cd "$WORK/fetched-tiered-pitr" 2>/dev/null && find . -type f | sort) $(cat "$WORK/out")"
+fi
+if BACKUP_S3_BUCKET=s3://backups/tiered fetch --dest "$WORK/fetched-monthly" --tier monthly --components mysql &&
+	[ "$(cd "$WORK/fetched-monthly" && find . -type f | sed 's|^\./||' | sort)" = "manifests/manifest_${TIERED}.json.age
+mysql/financial_scraper_${TIERED}.sql.gz.age" ]; then
+	pass "--tier monthly --components mysql fetches the monthly MySQL dump and its manifest"
+else
+	failed "--tier monthly: $(cat "$WORK/out")"
+fi
+AUDIT_DIR="$WORK/fetched-monthly-audit"
+if BACKUP_S3_BUCKET=s3://backups/tiered fetch --dest "$AUDIT_DIR" --tier monthly --components mongodb-audit &&
+	[ "$(cd "$AUDIT_DIR" && find . -type f | sed 's|^\./||' | sort)" = "manifests/manifest_${TIERED}.json.age
+mongodb/${TIERED}/mongodb-audit.archive.gz.age" ] &&
+	grep -q "restore-k8s.sh --timestamp ${TIERED} --components mongodb-audit" "$WORK/out"; then
+	pass "--tier monthly --components mongodb-audit fetches the audit trail alone, with its manifest"
+else
+	failed "--tier monthly --components mongodb-audit: $(cat "$WORK/out")"
+fi
+if BACKUP_S3_BUCKET=s3://backups/tiered fetch --dest "$WORK/fetched-weekly-long" --tier weekly --components mongodb-audit,mysql &&
+	[ "$(find "$WORK/fetched-weekly-long" -type f | wc -l | tr -d ' ')" = 3 ]; then
+	pass "--tier weekly --components mongodb-audit,mysql fetches both long-term dumps"
+else
+	failed "--tier weekly --components mongodb-audit,mysql: $(cat "$WORK/out")"
+fi
+if BACKUP_S3_BUCKET=s3://backups/tiered fetch --dest "$WORK/fetched-monthly-mongodb" --tier monthly --components mongodb; then
+	failed "the monthly tier gave the operational MongoDB, which is never promoted"
+else
+	grep -q "mongodb.archive.gz.age" "$WORK/out" && pass "exit 1 for --components mongodb on the monthly tier (the operational dump is never promoted)" ||
+		failed "monthly mongodb refusal: $(cat "$WORK/out")"
+fi
+if BACKUP_S3_BUCKET=s3://backups/tiered fetch --dest "$WORK/fetched-monthly-all" --tier monthly; then
+	failed "the monthly tier gave a complete run for every component"
+else
+	grep -q "try --components mongodb-audit,mysql" "$WORK/out" && pass "exit 1 on the monthly tier for every component, suggesting --components mongodb-audit,mysql" || failed "monthly tier refusal: $(cat "$WORK/out")"
+fi
+if BACKUP_S3_BUCKET=s3://backups/tiered fetch --dest "$WORK/fetched-monthly-pitr" --tier monthly --components mysql --pitr; then
+	failed "--pitr was accepted on the monthly tier, which holds no starting point"
+else
+	pass "exit 1 with --pitr on the monthly tier (no .pitr there)"
+fi
+if fetch --dest "$WORK/fetched-badtier" --tier yearly; then
+	failed "an unknown tier was accepted"
+else
+	pass "exit 1 on an unknown tier"
+fi
+
+echo "restore-k8s.sh: the audit trail alone, from the monthly tier"
+# kubectl is a stub that records the commands it gets (as in pitr-chain.test.sh).
+STUB="$WORK/bin"
+mkdir -p "$STUB"
+cat >"$STUB/kubectl" <<'STUB_EOF'
+#!/usr/bin/env bash
+echo "$*" >>"$KUBECTL_LOG"
+case " $* " in *" -i "*) cat >/dev/null ;; esac
+case "$*" in
+*"get pods"*) echo "mongo-0" ;;
+*isWritablePrimary*) echo "true" ;;
+esac
+exit 0
+STUB_EOF
+chmod +x "$STUB/kubectl"
+export KUBECTL_LOG="$WORK/kubectl.log"
+: >"$KUBECTL_LOG"
+if PATH="$STUB:$PATH" BACKUP_DIR="$AUDIT_DIR" BACKUP_AGE_IDENTITY="$WORK/key.txt" \
+	bash "$ROOT/scripts/restore-k8s.sh" --timestamp "$TIERED" --components mongodb-audit >"$WORK/out" 2>&1 &&
+	[ "$(grep -c 'mongorestore --quiet --gzip --archive --drop --oplogReplay' "$KUBECTL_LOG")" -eq 1 ] &&
+	grep -q "MongoDB restore complete: mongodb-audit" "$WORK/out" && grep -q "Checksum verified" "$WORK/out" &&
+	! grep -q "Starting MongoDB restore (mongodb " "$WORK/out"; then
+	pass "--components mongodb-audit restores the monthly audit dump alone (checksum verified, exit 0)"
+else
+	failed "restore of the monthly audit dump: $(tail -8 "$WORK/out")"
+fi
+: >"$KUBECTL_LOG"
+if PATH="$STUB:$PATH" BACKUP_DIR="$AUDIT_DIR" BACKUP_AGE_IDENTITY="$WORK/key.txt" \
+	bash "$ROOT/scripts/restore-k8s.sh" --timestamp "$TIERED" --components mongodb >"$WORK/out" 2>&1; then
+	failed "--components mongodb succeeded without the operational dump"
+elif ! grep -q mongorestore "$KUBECTL_LOG"; then
+	pass "--components mongodb on the audit-only run is refused before any write (operational dump missing)"
+else
+	failed "--components mongodb restored something: $(grep mongorestore "$KUBECTL_LOG" | head -1)"
+fi
+unset KUBECTL_LOG
 echo "off-site catch-up of the incremental archives"
 # backup-incremental-k8s.sh: run N cannot reach the store, run N+1 can. Run
 # N+1 must send N's archive too (record_incremental_archives), or the chain

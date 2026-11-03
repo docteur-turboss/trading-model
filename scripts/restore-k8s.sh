@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # =============================================================================
 #  Trading Model — Database Restore Script (Kubernetes)
-#  Usage:  bash scripts/restore-k8s.sh [--dry-run] [--components mongodb,mysql,checkpoints,spire]
+#  Usage:  bash scripts/restore-k8s.sh [--dry-run] [--components mongodb,mongodb-audit,mysql,checkpoints,spire]
 #          [--timestamp 2025-01-01_120000 | --until 2025-01-01T13:45:00Z]
 #          BACKUP_DIR=/backups RESTORE_TIMESTAMP=2025-01-01_120000
 #          BACKUP_AGE_IDENTITY=~/backup-key.txt (to read *.age backups)
@@ -22,6 +22,10 @@
 #  sha256 of the plaintext; MySQL: ends with `-- Dump completed`) before
 #  anything is written, --dry-run included. Runs taken before manifests are
 #  only restored with an explicit --timestamp (see backup-lib.sh).
+#
+#  Component `mongodb` restores both replica sets (operational, then audit);
+#  `mongodb-audit` the audit trail alone, e.g. from a weekly or monthly
+#  off-site tier, which holds no operational dump (ADR-0032).
 #
 #  Restore MySQL before SPIRE: the SPIRE datastore (bundle, CA journal,
 #  entries) is the `spire` database, keys.json only holds the CA private keys.
@@ -130,10 +134,11 @@ replay_oplog() {
     sh "$UNTIL_EPOCH"
 }
 
+# restore_mongodb <replica set label>...
 restore_mongodb() {
-  log "Starting MongoDB restore..."
+  log "Starting MongoDB restore ($*)..."
   local label primary legacy=""
-  for label in mongodb mongodb-audit; do
+  for label in "$@"; do
     primary=$(mongo_primary "$label") || primary=""
     [ "$RESTORE_TIMESTAMP" = "latest" ] ||
       legacy=$(legacy_mongo_archive "$label" "${BACKUP_DIR}/mongodb/${RESTORE_TIMESTAMP}" "$primary")
@@ -415,11 +420,18 @@ echo "════════════════════════�
 echo ""
 
 IFS=',' read -ra PARTS <<< "$COMPONENTS"
+# mongodb already restores the audit replica set: never restore it twice.
+if [[ " ${PARTS[*]} " == *" mongodb "* ]]; then
+  KEPT=()
+  for part in "${PARTS[@]}"; do [ "$part" = mongodb-audit ] || KEPT+=("$part"); done
+  PARTS=("${KEPT[@]}")
+fi
 run_components() {
   local part
   for part in "${PARTS[@]}"; do
     case "$part" in
-      mongodb)     restore_mongodb ;;
+      mongodb)     restore_mongodb mongodb mongodb-audit ;;
+      mongodb-audit) restore_mongodb mongodb-audit ;;
       mysql)       restore_mysql ;;
       checkpoints) restore_checkpoints ;;
       spire)       restore_spire ;;

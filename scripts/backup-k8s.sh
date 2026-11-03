@@ -4,6 +4,8 @@
 #  Usage:  bash scripts/backup-k8s.sh [--dry-run] [--components mongodb,mysql,checkpoints,spire]
 #          BACKUP_DIR=/backups BACKUP_S3_BUCKET=s3://my-bucket/backups
 #          BACKUP_AGE_RECIPIENTS=age1... (encryption, see backup-lib.sh)
+#          RETENTION_DAYS, RETENTION_WEEKLY_WEEKS, RETENTION_MONTHLY_MONTHS,
+#          BACKUP_OFFSITE_LAYOUT (GFS retention, see backup-lib.sh, ADR-0032)
 # =============================================================================
 
 set -euo pipefail

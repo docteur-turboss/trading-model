@@ -52,6 +52,16 @@ Add the cluster kubeconfigs as base64-encoded repository secrets:
 | `KUBECONFIG_STAGING` | kubeconfig for the staging cluster |
 | `KUBECONFIG_PRODUCTION` | kubeconfig for the production cluster |
 
+### Prerequisites (off-site backup bucket)
+
+Once per environment, before the first `db-backup` run: set the bucket's
+lifecycle rules for `daily/`, `weekly/`, `monthly/` and the two archive
+prefixes, then read them back
+([BACKUP_DR.md, Off-site tiers](BACKUP_DR.md#off-site-tiers), ADR-0032).
+Nothing in the deployment checks them: the `backup-tools` image has no `aws`
+CLI, so each backup run only logs "Off-site lifecycle rules not verified". A
+missing rule loses nothing, but those copies are then never expired.
+
 ### Deployment phases
 
 ```

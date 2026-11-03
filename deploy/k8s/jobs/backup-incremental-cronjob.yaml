@@ -77,6 +77,11 @@ spec:
                   value: /backups/metrics/backup-incremental.prom
                 - name: INCREMENTAL_RETENTION_HOURS
                   value: "72"
+                # Same off-site layout as db-backup (ADR-0032): the archives
+                # go under daily/, next to the dumps and .pitr files that
+                # fetch-offsite.sh --pitr reads with them.
+                - name: BACKUP_OFFSITE_LAYOUT
+                  value: tiered
                 - name: K8S_NAMESPACE
                   valueFrom:
                     fieldRef:

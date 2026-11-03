@@ -182,7 +182,8 @@ key kept in a safe: either decrypts.
   environment (see [BACKUP_DR.md](BACKUP_DR.md#off-site-storage-mandatory-in-kubernetes))
   or created by hand. Only `.age` files are sent; the scripts refuse to copy
   anything when encryption is off. Retention off-site is the bucket's
-  lifecycle rule.
+  lifecycle rules, one per tier prefix `daily/`, `weekly/`, `monthly/`
+  ([BACKUP_DR.md](BACKUP_DR.md#off-site-tiers), ADR-0032).
 
 ```bash
 kubectl -n trading-model create secret generic trading-model-backup-s3 \

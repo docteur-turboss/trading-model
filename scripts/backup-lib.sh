@@ -467,6 +467,40 @@ finalize_metrics() {
 	ok "Metrics written to ${METRICS_FILE}"
 }
 
+# check_offsite_lifecycle <s3://bucket/prefix>
+# Tiered layout only: warns when the bucket has no lifecycle rule for one of
+# the prefixes `<prefix>/daily/`, `weekly/`, `monthly/` (rules to set:
+# docs/deployment/BACKUP_DR.md, "Off-site tiers"). Needs the `aws` CLI and
+# s3:GetLifecycleConfiguration; without them it says the rules were not
+# verified. Never fails the run: the job's credentials need no lifecycle
+# right, and the copy itself succeeded.
+check_offsite_lifecycle() {
+	local bucket="${1#s3://}" name prefix rules tier missing=""
+	name="${bucket%%/*}"
+	prefix=""
+	[ "$name" = "$bucket" ] || prefix="${bucket#*/}"
+	prefix="${prefix%/}"
+	[ -z "$prefix" ] || prefix="${prefix}/"
+	if ! command -v aws >/dev/null; then
+		warn "Off-site lifecycle rules not verified (no aws CLI): ${prefix}daily/, ${prefix}weekly/, ${prefix}monthly/ must expire after 31, 85 and 1830 days (BACKUP_DR.md)"
+		return 0
+	fi
+	local endpoint=()
+	[ -z "${RCLONE_S3_ENDPOINT:-}" ] || endpoint=(--endpoint-url "$RCLONE_S3_ENDPOINT")
+	if ! rules="$(aws "${endpoint[@]}" s3api get-bucket-lifecycle-configuration --bucket "$name" 2>&1)"; then
+		warn "Off-site lifecycle rules not verified for ${name}: ${rules}"
+		return 0
+	fi
+	for tier in daily weekly monthly; do
+		grep -qF "\"${prefix}${tier}/\"" <<<"$rules" || missing="${missing} ${prefix}${tier}/"
+	done
+	if [ -n "$missing" ]; then
+		warn "Bucket ${name} has no lifecycle rule for:${missing}: those copies are never expired (BACKUP_DR.md, Off-site tiers)"
+	else
+		ok "Off-site lifecycle rules present for ${prefix}daily/, weekly/, monthly/"
+	fi
+}
+
 # Runs `$2...` and writes its output, sealed, to `$1` through `$1.partial`:
 # a failed or interrupted write never leaves a final file behind (the
 # `.partial` is deleted, or left by a killed job for the next run to sweep).
@@ -507,30 +541,64 @@ upload_offsite() {
 		warn "No backup file written: nothing to copy off-site"
 		return 0
 	fi
-	log "Copying ${#OUTPUTS[@]} encrypted file(s) to ${bucket}"
-	local list
-	list="$(mktemp)"
-	printf '%s\n' "${OUTPUTS[@]}" >"$list"
-	local copied=false
-	if command -v rclone >/dev/null; then
-		# Paths keep their timestamped names (fetch-offsite.sh relies on it).
-		if RCLONE_S3_ENV_AUTH=true rclone copy --s3-no-check-bucket \
-			--files-from "$list" "$BACKUP_DIR" "$(offsite_remote "$bucket")"; then
-			copied=true
-		fi
-	elif command -v aws >/dev/null; then
-		copied=true
-		local file
-		while read -r file; do
-			aws s3 cp --quiet "${BACKUP_DIR}/${file}" "${bucket%/}/${file}" || copied=false
-		done <"$list"
-	else
+	if ! command -v rclone >/dev/null && ! command -v aws >/dev/null; then
 		fail "Neither rclone nor aws is installed: off-site copy skipped"
 		write_metric "offsite" 0
-		rm -f "$list"
 		return 0
 	fi
-	rm -f "$list"
+	local layout="${BACKUP_OFFSITE_LAYOUT:-flat}" work file tier copied=true
+	work="$(mktemp -d)"
+	case "$layout" in
+	# flat.list: copied to the bucket root, the layout before ADR-0032.
+	flat) printf '%s\n' "${OUTPUTS[@]}" >"$work/flat.list" ;;
+	tiered)
+		for file in "${OUTPUTS[@]}"; do
+			for tier in $(offsite_tiers "$file"); do
+				echo "$file" >>"$work/${tier}.list"
+			done
+		done
+		# Daily run (it writes a manifest): promoted runs of earlier days whose
+		# weekly / monthly copy failed are sent again (offsite_catchup).
+		if printf '%s\n' "${OUTPUTS[@]}" | grep -q '^manifests/'; then
+			while read -r tier file; do
+				[ -n "$file" ] && echo "$file" >>"$work/${tier}.list"
+			done < <(offsite_catchup)
+		fi
+		for list in "$work"/*.list; do
+			[ -f "$list" ] && sort -u -o "$list" "$list"
+		done
+		;;
+	*)
+		fail "BACKUP_OFFSITE_LAYOUT must be flat or tiered, not '${layout}': off-site copy skipped"
+		write_metric "offsite" 0
+		rm -rf "$work"
+		return 0
+		;;
+	esac
+	local list dest
+	for list in "$work"/*.list; do
+		[ -f "$list" ] || continue
+		tier="$(basename "$list" .list)"
+		dest="${bucket%/}"
+		[ "$tier" = flat ] || dest="${dest}/${tier}"
+		log "Copying $(wc -l <"$list" | tr -d ' ') encrypted file(s) to ${dest}"
+		if command -v rclone >/dev/null; then
+			# Paths keep their timestamped names (fetch-offsite.sh relies on it).
+			RCLONE_S3_ENV_AUTH=true rclone copy --s3-no-check-bucket \
+				--files-from "$list" "$BACKUP_DIR" "$(offsite_remote "$dest")" || copied=false
+		else
+			while read -r file; do
+				# Already in the bucket (an archive or a promoted run sent again
+				# for catch-up): not uploaded twice.
+				aws s3 ls "${dest}/${file}" >/dev/null 2>&1 && continue
+				aws s3 cp --quiet "${BACKUP_DIR}/${file}" "${dest}/${file}" || copied=false
+			done <"$list"
+		fi
+	done
+	rm -rf "$work"
+	if [ "$layout" = tiered ]; then
+		check_offsite_lifecycle "$bucket"
+	fi
 	if $copied; then
 		ok "Off-site copy complete"
 		write_metric "offsite" 1
@@ -559,16 +627,249 @@ record_incremental_archives() {
 	done
 }
 
-# Deletes the backup files and run manifests older than RETENTION_DAYS
-# (off-site copies follow the bucket's own lifecycle rules), and the
+# --- Retention: grandfather-father-son (ADR-0032) ----------------------------
+#
+#  RETENTION_DAYS             daily tier: every run is kept this many days
+#                             (default 30)
+#  RETENTION_WEEKLY_WEEKS     weekly tier on the local volume: the first
+#                             complete run of each ISO week (Monday-Sunday) is
+#                             kept this many weeks (default 0: none)
+#  RETENTION_MONTHLY_MONTHS   monthly tier on the local volume: the first
+#                             complete run of each calendar month is kept this
+#                             many months (default 0: none)
+#  RETENTION_LONG_COMPONENTS  components promoted to the weekly and monthly
+#                             tiers, locally and off-site (manifest keys,
+#                             default "mongodb-audit mysql")
+#  BACKUP_OFFSITE_LAYOUT      flat (default): `<bucket>/<path>`; tiered:
+#                             `<bucket>/daily/<path>` for every file, plus
+#                             `weekly/` and `monthly/` copies of the promoted
+#                             dumps and their manifest, so that one lifecycle
+#                             rule per prefix applies the policy in the bucket
+#
+#  A run is complete for a component when its manifest exists and its final
+#  dump file exists (write_dump only renames a dump that succeeded; the
+#  manifest is written at the end of the run). Only complete runs are
+#  promoted. The newest complete run of each component is never deleted,
+#  whatever its age. Ages come from the timestamp in the file name, never
+#  from the mtime (a copy or a fetch from the bucket changes the mtime).
+
+RETENTION_LONG_COMPONENTS="${RETENTION_LONG_COMPONENTS:-mongodb-audit mysql}"
+
+# awk program shared by gfs_plan and offsite_tiers. Input: paths relative to
+# BACKUP_DIR, one per line. Fills files[path] = TS, comp[path] = manifest key
+# (`mongodb/<TS>/<label>.*` → label, `redis/<c>_<TS>.*` → redis:<c>, else the
+# directory), manifest[TS] for each run manifest, mpath[path] = TS, and
+# untimed[path] for a name without `%Y-%m-%d_%H%M%S` timestamp. A PITR
+# starting point (`*.pitr[.age]`, ADR-0031) goes to pitr[path] = TS and
+# pcomp[path]: it is no dump, it only follows the dump of its run.
+_GFS_AWK='
+	# Days since 1970-01-01 of TS (proleptic Gregorian, no date(1) needed).
+	function civil(t,   y, m, d, era, yoe, mp, doy, doe) {
+		y = substr(t, 1, 4) + 0; m = substr(t, 6, 2) + 0; d = substr(t, 9, 2) + 0
+		y -= (m <= 2)
+		era = int((y >= 0 ? y : y - 399) / 400)
+		yoe = y - era * 400
+		mp = (m + 9) % 12
+		doy = int((153 * mp + 2) / 5) + d - 1
+		doe = yoe * 365 + int(yoe / 4) - int(yoe / 100) + doy
+		return era * 146097 + doe - 719468
+	}
+	# 1970-01-01 is a Thursday: +3 puts the week boundaries on Mondays.
+	function week(t) { return int((civil(t) + 3) / 7) }
+	function month(t) { return (substr(t, 1, 4) + 0) * 12 + substr(t, 6, 2) - 1 }
+	function stamp(s) {
+		if (match(s, /[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]_[0-9][0-9][0-9][0-9][0-9][0-9]/))
+			return substr(s, RSTART, RLENGTH)
+		return ""
+	}
+	function component(p,   part, c) {
+		split(p, part, "/")
+		if (part[1] == "mongodb") { c = part[3]; sub(/\..*$/, "", c); return c }
+		if (part[1] == "redis") { c = part[2]; sub(/_[0-9][0-9][0-9][0-9]-.*$/, "", c); return "redis:" c }
+		return part[1]
+	}
+	BEGIN { n = split(long, l, " "); for (i = 1; i <= n; i++) islong[l[i]] = 1 }
+	NF {
+		t = stamp($0)
+		if (t == "") untimed[$0] = 1
+		else if ($0 ~ /^manifests\//) { manifest[t] = 1; mpath[$0] = t }
+		else if ($0 ~ /\.pitr(\.age)?$/) { pitr[$0] = t; pcomp[$0] = component($0) }
+		else { files[$0] = t; comp[$0] = component($0) }
+	}
+'
+
+# gfs_plan <now TS> <daily days> <weekly weeks> <monthly months> <long components>
+# Reads on stdin the paths (relative to BACKUP_DIR) of the backup files and
+# run manifests and prints what the retention policy drops: `D <path>` for a
+# timestamped file to delete, `U <path>` for a file without timestamp in its
+# name (left to the caller, which falls back to its mtime). A dump is kept
+# when it is at most <daily days> old, when it is the newest complete run of
+# its component (or, for a component without any complete run, its newest
+# file), or when it is a complete run of a long component that is the first
+# of its ISO week (month) and that week (month) is one of the last <weekly
+# weeks> (<monthly months>), the current one included. A manifest is kept
+# while one of its dumps is, and at least as long as the daily tier; a PITR
+# starting point (`.pitr`) while the dump of its component and run is.
+gfs_plan() {
+	awk -v now="$1" -v daily="$2" -v weeks="$3" -v months="$4" -v long="$5" "$_GFS_AWK"'
+		END {
+			today = civil(now); thisweek = week(now); thismonth = month(now)
+			for (f in files) {
+				t = files[f]; c = comp[f]
+				if (!(c in newest) || t > newest[c]) newest[c] = t
+				if (!(t in manifest)) continue
+				if (!(c in done) || t > done[c]) done[c] = t
+				if (!(c in islong)) continue
+				k = c SUBSEP week(t); if (!(k in firstw) || t < firstw[k]) firstw[k] = t
+				k = c SUBSEP month(t); if (!(k in firstm) || t < firstm[k]) firstm[k] = t
+			}
+			for (f in files) {
+				t = files[f]; c = comp[f]; keep = 0
+				if (today - civil(t) <= daily) keep = 1
+				else if (t == ((c in done) ? done[c] : newest[c])) keep = 1
+				else if ((t in manifest) && (c in islong)) {
+					if (t == firstw[c SUBSEP week(t)] && thisweek - week(t) < weeks) keep = 1
+					if (t == firstm[c SUBSEP month(t)] && thismonth - month(t) < months) keep = 1
+				}
+				if (keep) { kept[t] = 1; keptc[c SUBSEP t] = 1 }
+				else print "D " f
+			}
+			for (f in mpath) {
+				t = mpath[f]
+				if (!(t in kept) && today - civil(t) > daily) print "D " f
+			}
+			for (f in pitr) {
+				t = pitr[f]
+				if (!((pcomp[f] SUBSEP t) in keptc) && today - civil(t) > daily) print "D " f
+			}
+			for (f in untimed) print "U " f
+		}
+	'
+}
+
+# Backup files and manifests on the volume, relative to BACKUP_DIR (no
+# metrics, no `.partial`). The binlog and oplog archives (`mysql/binlog/`,
+# `mongodb/oplog/`) are left out: backup-incremental-k8s.sh keeps them 72 h
+# (prune_incremental, ADR-0031), they are never promoted and never count as
+# the newest file of a component.
+backup_listing() {
+	find "${BACKUP_DIR}" -mindepth 2 -type f -not -path "${BACKUP_DIR}/metrics/*" \
+		-not -path "${BACKUP_DIR}/mysql/binlog/*" -not -path "${BACKUP_DIR}/mongodb/oplog/*" \
+		-not -name '*.partial' |
+		sed "s|^${BACKUP_DIR}/||"
+}
+
+# Deletes the backups the retention policy (gfs_plan) drops, and the
 # `*.partial` files a killed run (OOM, activeDeadlineSeconds) left behind:
 # this run renamed or deleted its own, so any older than an hour is an orphan.
+# A MongoDB run directory goes once all its archives are gone. `metrics/` is
+# never touched. Off-site copies follow the bucket's lifecycle rules.
 prune_old() {
-	log "Pruning backups older than ${RETENTION_DAYS} days..."
+	local weeks="${RETENTION_WEEKLY_WEEKS:-0}" months="${RETENTION_MONTHLY_MONTHS:-0}"
+	log "Pruning backups: daily ${RETENTION_DAYS} days, weekly ${weeks} weeks, monthly ${months} months (${RETENTION_LONG_COMPONENTS}); the newest complete run of each component is kept"
 	find "${BACKUP_DIR}" -mindepth 2 -type f -name '*.partial' -mmin +60 -delete 2>/dev/null || true
-	find "${BACKUP_DIR}" -mindepth 2 -type f -mtime "+${RETENTION_DAYS}" -not -path "*/metrics/*" -delete 2>/dev/null || true
+	local plan kind path deleted=0
+	if ! plan="$(backup_listing | gfs_plan "$TIMESTAMP" "$RETENTION_DAYS" "$weeks" "$months" "$RETENTION_LONG_COMPONENTS")"; then
+		fail "Retention plan failed: nothing pruned"
+		return 0
+	fi
+	while read -r kind path; do
+		[ -n "$path" ] || continue
+		case "$kind" in
+		D) rm -f "${BACKUP_DIR}/${path}" && deleted=$((deleted + 1)) ;;
+		# No timestamp in the name: only the mtime tells its age.
+		U)
+			if [ -n "$(find "${BACKUP_DIR}/${path}" -mtime "+${RETENTION_DAYS}")" ]; then
+				rm -f "${BACKUP_DIR}/${path}" && deleted=$((deleted + 1))
+			fi
+			;;
+		esac
+	done <<<"$plan"
 	find "${BACKUP_DIR}" -mindepth 2 -type d -empty -delete 2>/dev/null || true
-	ok "Old backups pruned"
+	ok "Old backups pruned: ${deleted} file(s) deleted"
+}
+
+# offsite_tiers <path>
+# Off-site tiers (`daily`, `weekly`, `monthly`, space separated) of file
+# <path> (relative to BACKUP_DIR) of this run (TIMESTAMP) in the tiered
+# layout. Every file is daily. A dump of a RETENTION_LONG_COMPONENTS component
+# of a run with a manifest is also weekly (monthly) when no earlier complete
+# run of that component in the same ISO week (month) is on the volume: the
+# daily tier keeps those earlier runs, which needs RETENTION_DAYS >= 30 for
+# the monthly tier (a shorter one only adds monthly copies). The manifest
+# goes to every tier one of the run's dumps goes to. Binlog and oplog
+# archives and PITR starting points (`.pitr`) are daily only: a starting
+# point is useless without the archives, which live 72 h (ADR-0031).
+offsite_tiers() {
+	local rel="$1" other tiers="daily"
+	case "$rel" in
+	mysql/binlog/* | mongodb/oplog/* | *.pitr | *.pitr.age)
+		echo daily
+		return 0
+		;;
+	manifests/*)
+		for other in "${OUTPUTS[@]}"; do
+			case "$other" in manifests/*) continue ;; esac
+			tiers="${tiers} $(offsite_tiers "$other")"
+		done
+		tr ' ' '\n' <<<"$tiers" | awk 'NF && !seen[$0]++' | sort | tr '\n' ' ' | sed 's/ $//'
+		echo
+		return 0
+		;;
+	esac
+	backup_listing | awk -v now="$TIMESTAMP" -v target="$rel" -v long="$RETENTION_LONG_COMPONENTS" "$_GFS_AWK"'
+		END {
+			c = component(target); tiers = "daily"
+			if ((c in islong) && (now in manifest)) {
+				for (f in files) {
+					t = files[f]
+					if (comp[f] != c || t >= now || !(t in manifest)) continue
+					if (week(t) == week(now)) w = 1
+					if (month(t) == month(now)) m = 1
+				}
+				if (!w) tiers = tiers " weekly"
+				if (!m) tiers = tiers " monthly"
+			}
+			print tiers
+		}
+	'
+}
+
+# offsite_catchup
+# Prints `<tier> <path>` (tier weekly or monthly, path relative to BACKUP_DIR)
+# for every dump of a RETENTION_LONG_COMPONENTS component that is the first
+# complete run of its ISO week (month) on the volume, and for its run
+# manifest, when that week (month) started at most RETENTION_DAYS days before
+# this run (TIMESTAMP): the daily tier still holds every run of it, so the
+# first one on the volume is the one offsite_tiers promoted. upload_offsite
+# copies them again (rclone skips what the bucket already has): a promoted
+# copy that failed (S3 down, expired credentials) is caught up by the next
+# daily run instead of leaving a month without monthly copy once the local
+# dump is pruned. A week (month) that started earlier is left alone, since its
+# first run may already be pruned and a later one would be promoted twice.
+offsite_catchup() {
+	backup_listing | awk -v now="$TIMESTAMP" -v daily="${RETENTION_DAYS:-30}" -v long="$RETENTION_LONG_COMPONENTS" "$_GFS_AWK"'
+		END {
+			oldest = civil(now) - daily
+			for (f in files) {
+				t = files[f]; c = comp[f]
+				if (!(c in islong) || !(t in manifest)) continue
+				k = c SUBSEP week(t); if (!(k in firstw) || t < firstw[k]) firstw[k] = t
+				k = c SUBSEP month(t); if (!(k in firstm) || t < firstm[k]) firstm[k] = t
+			}
+			for (f in files) {
+				t = files[f]; c = comp[f]
+				if (!(c in islong) || !(t in manifest)) continue
+				# Monday of the ISO week of t (week() counts from Thursday + 3).
+				if (t == firstw[c SUBSEP week(t)] && week(t) * 7 - 3 >= oldest) { print "weekly " f; w[t] = 1 }
+				if (t == firstm[c SUBSEP month(t)] && civil(substr(t, 1, 8) "01") >= oldest) { print "monthly " f; m[t] = 1 }
+			}
+			for (f in mpath) {
+				if (mpath[f] in w) print "weekly " f
+				if (mpath[f] in m) print "monthly " f
+			}
+		}
+	'
 }
 
 # --- Kubernetes (backup-k8s.sh, restore-k8s.sh) -----------------------------

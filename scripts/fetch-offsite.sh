@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # =============================================================================
 #  Trading Model — Fetch a backup run from the off-site bucket
-#  Usage:  bash scripts/fetch-offsite.sh --dest DIR [--timestamp TS]
-#            [--components mongodb,mysql,checkpoints,spire] [--pitr] [--dry-run]
+#  Usage:  bash scripts/fetch-offsite.sh --dest DIR [--timestamp TS] [--tier T] [--pitr] [--dry-run]
+#            [--components mongodb,mongodb-audit,mysql,checkpoints,spire]
 #          BACKUP_S3_BUCKET=s3://bucket/prefix AWS_ACCESS_KEY_ID=... AWS_SECRET_ACCESS_KEY=...
 #          RCLONE_S3_ENDPOINT / RCLONE_S3_PROVIDER for a non-AWS store
 #
@@ -11,11 +11,20 @@
 #  copies ONE run (all its files share the timestamp TS) into DIR, in the
 #  layout restore-k8s.sh reads:
 #    mongodb/<TS>/<replica set>.archive.gz.age   (mongodb, mongodb-audit)
+#      component `mongodb`: both replica sets; `mongodb-audit`: the audit one
 #    mysql/financial_scraper_<TS>.sql.gz.age
 #    checkpoints/checkpoints_<TS>.tar.gz.age
 #    spire/keys_<TS>.json.age
 #    manifests/manifest_<TS>.json.age            (run manifest, backup-lib.sh)
 #  then: BACKUP_DIR=DIR bash scripts/restore-k8s.sh --timestamp TS
+#
+#  Off-site tiers (BACKUP_OFFSITE_LAYOUT=tiered, ADR-0032): the bucket holds
+#  `daily/`, `weekly/` and `monthly/`, each in the layout above. --tier picks
+#  one (default: daily when the bucket is tiered, else the bucket root, also
+#  reachable with --tier flat). weekly/ and monthly/ only hold the audit
+#  trail, the MySQL dump and the manifests: fetch them with
+#  --components mongodb-audit,mysql (mongodb-audit alone: the audit replica
+#  set only, without the operational one, which is never promoted).
 #
 #  --pitr (point-in-time recovery, ADR-0031): the run must also hold its
 #  starting points (`mongodb/<TS>/<replica set>.pitr.age`,
@@ -23,6 +32,7 @@
 #  that can follow it are fetched too (`mysql/binlog/<server>/` archived at or
 #  after TS, `mongodb/oplog/<replica set>/` ending at or after TS), then:
 #  BACKUP_DIR=DIR bash scripts/restore-k8s.sh --until <instant>
+#  Only the daily tier holds starting points and archives (ADR-0032).
 #
 #  Run selection: --timestamp TS, or else the newest run holding every file of
 #  the requested components and its run manifest. upload_offsite only copies
@@ -44,6 +54,7 @@ TIMESTAMP=""
 DRY_RUN=false
 PITR=false
 COMPONENTS="mongodb,mysql,checkpoints,spire"
+TIER=""
 
 usage() {
   sed -n 4,7p "$0" | sed 's/^#  //'
@@ -54,6 +65,7 @@ while [[ $# -gt 0 ]]; do
     --dest) DEST="${2:-}"; shift 2 ;;
     --timestamp) TIMESTAMP="${2:-}"; shift 2 ;;
     --components) COMPONENTS="${2:-}"; shift 2 ;;
+    --tier) TIER="${2:-}"; shift 2 ;;
     --pitr) PITR=true; shift ;;
     --dry-run) DRY_RUN=true; shift ;;
     -h|--help) usage; exit 0 ;;
@@ -73,13 +85,19 @@ source "$(dirname "$0")/backup-lib.sh"
 MONGO_LABELS="mongodb mongodb-audit"
 TS_PATTERN='[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{6}'
 
+# Replica sets of component `$1`: `mongodb` is both, `mongodb-audit` the
+# audit trail alone (the only one in the weekly and monthly tiers, ADR-0032).
+mongo_labels() {
+  if [ "$1" = mongodb-audit ]; then echo mongodb-audit; else echo "$MONGO_LABELS"; fi
+}
+
 # Relative paths (inside the bucket prefix) of component `$1` for run `$2`,
 # with its PITR starting points when --pitr.
 component_files() {
   local label
   case "$1" in
-    mongodb)
-      for label in $MONGO_LABELS; do
+    mongodb|mongodb-audit)
+      for label in $(mongo_labels "$1"); do
         echo "mongodb/$2/${label}.archive.gz.age"
         ! $PITR || echo "mongodb/$2/${label}.pitr.age"
       done
@@ -108,8 +126,10 @@ pitr_archives() {
           [[ "${stamp%.gz.age}" < "$1" ]] || echo "$file"
         done
         ;;
-      mongodb)
-        grep -E "^mongodb/oplog/[^/]+/[0-9]+\.[0-9]+_[0-9]+\.[0-9]+\.bson\.gz\.age$" <<<"$LISTING" | while read -r file; do
+      mongodb|mongodb-audit)
+        local labels
+        labels="$(mongo_labels "$part" | tr ' ' '|')"
+        grep -E "^mongodb/oplog/(${labels})/[0-9]+\.[0-9]+_[0-9]+\.[0-9]+\.bson\.gz\.age$" <<<"$LISTING" | while read -r file; do
           end="${file##*_}"
           end="${end%%.*}"
           [ "$end" -lt "$since" ] || echo "$file"
@@ -156,15 +176,25 @@ if [ -n "$TIMESTAMP" ] && ! [[ "$TIMESTAMP" =~ ^${TS_PATTERN}$ ]]; then
   fail "--timestamp ${TIMESTAMP} is not a backup timestamp (YYYY-MM-DD_HHMMSS)"
   exit 1
 fi
+case "$TIER" in
+  ""|flat|daily|weekly|monthly) ;;
+  *) fail "--tier must be daily, weekly, monthly or flat, not '${TIER}'"; exit 1 ;;
+esac
 PARTS=()
 IFS=',' read -ra REQUESTED <<<"$COMPONENTS"
 for part in "${REQUESTED[@]}"; do
   case "$part" in
-    mongodb|mysql|checkpoints|spire) PARTS+=("$part") ;;
+    mongodb|mongodb-audit|mysql|checkpoints|spire) PARTS+=("$part") ;;
     redis) warn "Redis is not backed up: its content is rebuilt by the services" ;;
     *) fail "Unknown component: ${part}"; exit 1 ;;
   esac
 done
+# mongodb already holds the audit replica set.
+if [[ " ${PARTS[*]} " == *" mongodb "* ]]; then
+  KEPT=()
+  for part in "${PARTS[@]}"; do [ "$part" = mongodb-audit ] || KEPT+=("$part"); done
+  PARTS=("${KEPT[@]}")
+fi
 if [ "${#PARTS[@]}" -eq 0 ]; then
   fail "No component to fetch"
   exit 1
@@ -206,9 +236,23 @@ if ! LISTING="$(rclone lsf -R --files-only "$REMOTE")"; then
 fi
 # Only encrypted files ever leave the cluster (upload_offsite).
 LISTING="$(grep -E '\.age$' <<<"$LISTING" || true)"
+# Tiered bucket (upload_offsite, BACKUP_OFFSITE_LAYOUT=tiered): one tier only.
+if [ -z "$TIER" ]; then
+  TIER=flat
+  grep -q '^daily/' <<<"$LISTING" && TIER=daily
+fi
+if [ "$TIER" != flat ]; then
+  log "Tier ${TIER}/"
+  LISTING="$(sed -n "s|^${TIER}/||p" <<<"$LISTING")"
+  REMOTE="$(offsite_remote "${BUCKET%/}/${TIER}")"
+fi
 RUNS="$(run_timestamps <<<"$LISTING" || true)"
 if [ -z "$RUNS" ]; then
-  fail "No backup run in ${BUCKET}"
+  if [ "$TIER" = flat ]; then
+    fail "No backup run in ${BUCKET}"
+  else
+    fail "No backup run in ${BUCKET%/}/${TIER}"
+  fi
   exit 1
 fi
 
@@ -239,6 +283,9 @@ if [ -n "$TIMESTAMP" ] && [ -z "$SELECTED" ]; then
 fi
 if [ -z "$SELECTED" ]; then
   fail "No complete run (every dump and its run manifest) in ${BUCKET} for ${PARTS[*]}; a run taken before manifests is fetched with --timestamp"
+  case "$TIER" in
+    weekly|monthly) warn "The ${TIER} tier only holds the audit trail and the MySQL dump (no PITR starting point): try --components mongodb-audit,mysql without --pitr" ;;
+  esac
   exit 1
 fi
 

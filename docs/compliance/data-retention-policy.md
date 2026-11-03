@@ -22,7 +22,15 @@ Data shall be retained only as long as necessary for the purposes for which it i
 | **Operational logs**                       | stdout / Promtail → Loki  | **31 days**                           | Operational debugging                                                  | Loki retention `744h`                                   |
 | **Prometheus metrics**                     | Prometheus TSDB           | **30 days**                           | Operational monitoring                                                 | `--storage.tsdb.retention.time=30d`                     |
 | **Traces**                                 | Jaeger (in memory)        | **Until restart**                     | Operational debugging                                                  | In-memory storage                                       |
-| **Backups** (age-encrypted dumps)          | Local backup dir / off-site S3 | **30 days**                      | Disaster recovery                                                      | `prune_old` (`RETENTION_DAYS`); off-site: bucket lifecycle rule, set to the same value |
+| **Backups** (age-encrypted dumps)          | Local backup dir / off-site S3 | **30 days** (daily, every component); off-site only, audit (`mongodb-audit`) and MySQL dump: **12 weeks** (weekly) and **60 months** (monthly) | Disaster recovery; the long tiers cover the 5-year record-keeping of audit events and market data (ADR-0032) | `prune_old` (GFS, `RETENTION_DAYS`, never the newest complete run); off-site: one bucket lifecycle rule per prefix, `daily/` 31 d, `weekly/` 85 d, `monthly/` 1830 d ([BACKUP_DR.md](../deployment/BACKUP_DR.md#off-site-tiers)) |
+
+### Backups and data minimisation
+
+Only the backups of the records kept 5 years go past 30 days (ADR-0032): the audit trail (`mongodb-audit`) and the MySQL dump (`financial_scraper`). The backups of the operational MongoDB (`dlq_entries`, 30 days), of the model checkpoints and of the SPIRE CA private keys (`spire/keys_*`) are never promoted and are gone after 30 days locally, 31 days off-site.
+
+- The MySQL dump is a single file that also holds the `spire` database (registration entries and trust bundle, no private key): its monthly copies keep those for 5 years. Low stakes, accepted by ADR-0032.
+- The point-in-time archives (MySQL binlogs, MongoDB oplog slices, ADR-0031) hold every write, DLQ included: they are kept 72 h locally and 3 days off-site, never promoted, and the `.pitr` starting points never go to the weekly or monthly tiers.
+- A monthly backup keeps what it contains for up to 60 months after it was taken: an audit event or a candle may thus outlive its 5-year retention in the live database by up to 5 years, in an encrypted backup. The 5 years of MiFID II are a minimum, and the backups hold no personal data (data processing register, activity 7), so this is accepted; a restore of such a backup must not bring back data past its retention.
 
 ## Financial Regulatory Justification
 

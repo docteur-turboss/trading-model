@@ -3,6 +3,8 @@
 #  Trading Model — Database Backup Script (Linux / CI)
 #  Usage:  bash scripts/backup.sh [--dry-run] [--components mongodb,mysql,redis,spire]
 #          BACKUP_AGE_RECIPIENTS=age1... (encryption, see backup-lib.sh)
+#          RETENTION_DAYS, RETENTION_WEEKLY_WEEKS, RETENTION_MONTHLY_MONTHS,
+#          BACKUP_OFFSITE_LAYOUT (GFS retention, see backup-lib.sh, ADR-0032)
 # =============================================================================
 
 set -euo pipefail

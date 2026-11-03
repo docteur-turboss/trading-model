@@ -97,12 +97,12 @@ met for its data, which is recovered to within 1 hour.
 
 | Data | Type | Frequency | Retention | Location |
 |---|---|---|---|---|
-| SPIRE datastore (MySQL `spire`) | Dump | Daily (CronJob) | 30 days local, bucket lifecycle off-site | `backup-data` volume + S3-compatible store (mandatory) |
-| SPIRE CA keys (`keys.json`) | File copy | Daily (CronJob) | 30 days local, bucket lifecycle off-site | `backup-data` volume + S3-compatible store (mandatory) |
-| MongoDB (dlq, audit) | `mongodump --oplog` | Daily | 30 days local, bucket lifecycle off-site | `backup-data` volume + S3-compatible store (mandatory) |
-| MySQL (market data) | Dump | Daily | 30 days local, bucket lifecycle off-site | `backup-data` volume + S3-compatible store (mandatory) |
-| MySQL binlogs (market data + SPIRE datastore) | Closed binlogs (`backup-incremental-k8s.sh`) | Hourly (CronJob `db-backup-incremental`) | 72 h local, bucket lifecycle off-site (3 days) | `backup-data` volume + S3-compatible store (mandatory) |
-| MongoDB oplog (dlq, audit) | Oplog entries since the previous archive | Hourly (CronJob `db-backup-incremental`) | 72 h local, bucket lifecycle off-site (3 days) | `backup-data` volume + S3-compatible store (mandatory) |
+| SPIRE datastore (MySQL `spire`) | Dump (inside the MySQL dump) | Daily (CronJob) | As the MySQL dump below | `backup-data` volume + S3-compatible store (mandatory) |
+| SPIRE CA keys (`keys.json`) | File copy | Daily (CronJob) | 30 days local, 31 days off-site (never promoted) | `backup-data` volume + S3-compatible store (mandatory) |
+| MongoDB (dlq, audit) | `mongodump --oplog` | Daily | 30 days local, 31 days off-site; audit dump also off-site weekly 12 weeks, monthly 60 months (ADR-0032) | `backup-data` volume + S3-compatible store (mandatory) |
+| MySQL (market data) | Dump | Daily | 30 days local, 31 days off-site; also off-site weekly 12 weeks, monthly 60 months (ADR-0032) | `backup-data` volume + S3-compatible store (mandatory) |
+| MySQL binlogs (market data + SPIRE datastore) | Closed binlogs (`backup-incremental-k8s.sh`) | Hourly (CronJob `db-backup-incremental`) | 72 h local, bucket lifecycle off-site (3 days), never promoted | `backup-data` volume + S3-compatible store (mandatory) |
+| MongoDB oplog (dlq, audit) | Oplog entries since the previous archive | Hourly (CronJob `db-backup-incremental`) | 72 h local, bucket lifecycle off-site (3 days), never promoted | `backup-data` volume + S3-compatible store (mandatory) |
 | Redis (discovery registrations, DLQ retry queue) | Not backed up | — | — | Derived state: rebuilt by the services (DLQ queue from MongoDB) |
 
 Every dump is age-encrypted before it is written; the off-site copy only sends encrypted files.
