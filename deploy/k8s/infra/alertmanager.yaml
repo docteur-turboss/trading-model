@@ -1,0 +1,238 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: alertmanager
+  labels:
+    app.kubernetes.io/component: alertmanager
+    app.kubernetes.io/part-of: trading-model
+spec:
+  ports:
+    - port: 9093
+      targetPort: 9093
+      name: http
+  selector:
+    app.kubernetes.io/component: alertmanager
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: alertmanager
+  labels:
+    app.kubernetes.io/component: alertmanager
+    app.kubernetes.io/part-of: trading-model
+spec:
+  serviceName: alertmanager
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: alertmanager
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: alertmanager
+        app.kubernetes.io/part-of: trading-model
+    spec:
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        runAsGroup: 65534
+        fsGroup: 65534
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: alertmanager
+          image: prom/alertmanager@sha256:e13b6ed5cb929eeaee733479dce55e10eb3bc2e9c4586c705a4e8da41e5eacf5
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
+          args:
+            - "--config.file=/etc/alertmanager/alertmanager.yml"
+            - "--storage.path=/alertmanager"
+          ports:
+            - containerPort: 9093
+              name: http
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+          volumeMounts:
+            - name: config
+              mountPath: /etc/alertmanager
+              readOnly: true
+            - name: credentials
+              mountPath: /etc/alertmanager-credentials
+              readOnly: true
+            - name: storage
+              mountPath: /alertmanager
+          livenessProbe:
+            httpGet:
+              path: /-/healthy
+              port: 9093
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /-/ready
+              port: 9093
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          startupProbe:
+            httpGet:
+              path: /-/healthy
+              port: 9093
+            initialDelaySeconds: 30
+            periodSeconds: 5
+            failureThreshold: 12
+      volumes:
+        - name: config
+          configMap:
+            name: alertmanager-config
+        # Written by deploy.yml from the GitHub environment (see
+        # observability/alertmanager.yml for the keys). Optional: Alertmanager
+        # starts without it, notifications then fail (and deploy.yml refuses
+        # a production deploy without it).
+        - name: credentials
+          secret:
+            secretName: alertmanager-credentials
+            optional: true
+  volumeClaimTemplates:
+    - metadata:
+        name: storage
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 1Gi
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: alertmanager-config
+  labels:
+    app.kubernetes.io/component: alertmanager
+    app.kubernetes.io/part-of: trading-model
+data:
+  alertmanager.yml: |
+    # Same file in K8s (deploy/k8s/infra/alertmanager.yaml, ConfigMap
+    # alertmanager-config): checked by scripts/observability-gate.mjs.
+    #
+    # Alertmanager expands no environment variable: credentials are files under
+    # /etc/alertmanager-credentials, read at send time (a missing file fails that
+    # notification, not the start):
+    #   SLACK_WEBHOOK_URL      Slack incoming webhook (#alerts, #alerts-warning)
+    #   PAGERDUTY_ROUTING_KEY  PagerDuty Events v2 routing key (critical alerts)
+    #   DEADMAN_URL            dead man's switch (healthchecks.io, Dead Man's
+    #                          Snitch, Better Stack heartbeat...): receives the
+    #                          always-firing Watchdog every minute and pages
+    #                          when it stops — the only alert that still works
+    #                          when Prometheus, Alertmanager or Slack is down
+    # K8s: Secret alertmanager-credentials, written by deploy.yml. Compose:
+    # ALERTMANAGER_CREDENTIALS_DIR (default observability/alertmanager-credentials,
+    # git-ignored), one file per key.
+    global:
+      resolve_timeout: 5m
+      slack_api_url_file: /etc/alertmanager-credentials/SLACK_WEBHOOK_URL
+
+    route:
+      group_by: ['alertname', 'severity', 'job']
+      group_wait: 30s
+      group_interval: 2m
+      repeat_interval: 4h
+      receiver: default-receiver
+      routes:
+        - matchers: ['alertname="Watchdog"']
+          receiver: deadman-receiver
+          group_wait: 0s
+          group_interval: 1m
+          repeat_interval: 1m
+        # Critical: paged, and posted to #alerts as well (continue), so a missing
+        # PagerDuty key never swallows them.
+        - matchers: ['severity="critical"']
+          receiver: critical-receiver
+          continue: true
+        - matchers: ['severity="critical"']
+          receiver: default-receiver
+        - matchers: ['severity="warning"']
+          receiver: warning-receiver
+
+    receivers:
+      - name: default-receiver
+        slack_configs:
+          - channel: '#alerts'
+            send_resolved: true
+            title: '[{{ .Status | toUpper }}] {{ .CommonLabels.alertname }}'
+            text: |
+              *Alert*: {{ .CommonAnnotations.summary }}
+              *Description*: {{ .CommonAnnotations.description }}
+              *Severity*: {{ .CommonLabels.severity }}
+              *Service*: {{ .CommonLabels.job }}
+              {{ range .Alerts }}
+              - {{ .Annotations.description }}
+              {{ end }}
+
+      - name: critical-receiver
+        pagerduty_configs:
+          - routing_key_file: /etc/alertmanager-credentials/PAGERDUTY_ROUTING_KEY
+            severity: critical
+            description: '{{ .CommonAnnotations.description }}'
+
+      - name: warning-receiver
+        slack_configs:
+          - channel: '#alerts-warning'
+            send_resolved: true
+
+      - name: deadman-receiver
+        webhook_configs:
+          - url_file: /etc/alertmanager-credentials/DEADMAN_URL
+            send_resolved: false
+
+    inhibit_rules:
+      - source_matchers: ['severity="critical"']
+        target_matchers: ['severity="warning"']
+        equal: ['alertname']
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: alertmanager-pdb
+  labels:
+    app.kubernetes.io/component: alertmanager
+    app.kubernetes.io/part-of: trading-model
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: alertmanager
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: alertmanager-network-policy
+  labels:
+    app.kubernetes.io/component: alertmanager
+    app.kubernetes.io/part-of: trading-model
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: alertmanager
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        # Same namespace as the policy, whatever the overlay's namespace.
+        - podSelector: {}
+      ports:
+        - port: 9093
+          protocol: TCP

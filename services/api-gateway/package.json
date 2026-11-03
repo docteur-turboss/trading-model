@@ -1,0 +1,47 @@
+{
+  "name": "api-gateway",
+  "version": "1.0.0",
+  "description": "External single entry point — versioned routing, auth, rate limiting",
+  "homepage": "https://github.com/docteur-turboss/trading-model#readme",
+  "bugs": {
+    "url": "https://github.com/docteur-turboss/trading-model/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/docteur-turboss/trading-model.git"
+  },
+  "license": "ISC",
+  "author": "Alchimist Horus Turboss <@docteur-turboss>",
+  "type": "commonjs",
+  "main": "./dist/application/index.js",
+  "scripts": {
+    "test": "jest",
+    "test:detectOpenHandles": "jest --detectOpenHandles",
+    "test:coverage": "jest --coverage",
+    "dev": "ts-node src/application/index.ts",
+    "build": "tsc"
+  },
+  "devDependencies": {
+    "@jest/globals": "^30.5.2",
+    "@types/express": "^5.0.6",
+    "@types/jest": "^30.0.0",
+    "@types/node": "^26.6.6",
+    "jest": "^30.5.2",
+    "ts-jest": "^29.4.15",
+    "ts-node": "^10.9.2",
+    "typescript": "^6.0.3"
+  },
+  "dependencies": {
+    "@trading-model/primitives": "*",
+    "@trading-model/contracts": "*",
+    "@trading-model/common": "*",
+    "@trading-model/crypto": "*",
+    "@trading-model/http": "*",
+    "@trading-model/server-utils": "*",
+    "@trading-model/validation": "*",
+    "express": "^5.3.0",
+    "express-rate-limit": "^8.7.2",
+    "prom-client": "^15.1.3",
+    "zod": "^4.6.7"
+  }
+}

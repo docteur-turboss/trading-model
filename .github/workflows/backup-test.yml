@@ -1,0 +1,56 @@
+name: Backup Restore Test
+
+# A backup counts only once it has been restored: this workflow backs up real
+# databases, destroys them (containers and volumes) and restores them with
+# the Docker scripts. The Kubernetes scripts get the same drill in the `k8s`
+# job of ci.yml (tests/k8s/run-kind.sh, verify_backup).
+on:
+  schedule:
+    - cron: '0 6 * * 0'  # Weekly: Sunday 6 AM
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'scripts/backup*.sh'
+      - 'scripts/restore*.sh'
+      - 'tests/backup/**'
+      - 'services/audit-logger/src/adapters/outbound/persistence/**'
+      - 'docker-compose.yml'
+      - 'deploy/compose/spire/**'
+      - '.github/workflows/backup-test.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test-restore:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      - name: Validate backup scripts syntax
+        run: |
+          for script in backup.sh restore.sh backup-k8s.sh restore-k8s.sh backup-lib.sh; do
+            bash -n "scripts/$script" && echo "  ✓ $script syntax OK"
+          done
+
+      - name: Install age
+        run: sudo apt-get update -q && sudo apt-get install -y -q age
+
+      # age round trip, refusals (clear backups, missing off-site copy),
+      # GTID filtering, restore of *.age files (scripts/backup-lib.sh).
+      - name: Test the backup library
+        run: bash tests/backup/backup-encryption.test.sh
+
+      # MongoDB (3 databases + an audit trail written by the audit-logger
+      # image), MySQL, Redis and the SPIRE server (CA keys + datastore):
+      # backup → containers and volumes deleted → restore → checks.
+      - name: Restore drill (Docker scripts)
+        run: bash tests/backup/compose-restore-drill.sh
+
+      - name: Validate the K8s CronJob manifest
+        run: kubectl kustomize --load-restrictor LoadRestrictionsNone deploy/k8s/jobs > /dev/null && echo "  ✓ deploy/k8s/jobs renders"

@@ -5,14 +5,14 @@ Central service registry for the microservice platform. Handles service instance
 ## Prerequisites
 
 - Node.js 18+
-- TLS certificates (key, cert, CA) for mTLS
+- mTLS automatique via SPIRE (ADR-0011) — aucun certificat manuel à générer
 - `@trading-model/common` workspace dependency
 
 ## Installation
 
 ```bash
-npm install
-npm run build
+bun install
+bun run build
 ```
 
 ## Configuration
@@ -25,7 +25,7 @@ All configuration is via environment variables, validated by `BaseEnvSchema` + `
 | `PORT`                        | `3000`        | HTTPS listen port                |
 | `TLS_KEY_PATH`                | —             | Path to server private key       |
 | `TLS_CERT_PATH`               | —             | Path to server certificate       |
-| `TLS_CA_PATH`                 | —             | Path to Root CA certificate      |
+| `TLS_CA_PATH`                 | —             | Path to SPIRE trust bundle       |
 | `LOG_LEVEL`                   | `info`        | Logger level                     |
 | `CLEANUP_SERVICE_INTERVAL_MS` | `600000`      | Lease cleanup interval           |
 | `ERROR_URL_WEBHOOK`           | —             | Webhook URL for error forwarding |
@@ -35,16 +35,16 @@ Copy `.env.example` to `.env` and fill in the values.
 ## Running
 
 ```bash
-npm run dev     # ts-node src/app/index.ts
-npm run build   # tsc
+bun run dev     # ts-node src/application/index.ts
+bun run build   # tsc
 ```
 
 ## Testing
 
 ```bash
-npm test                          # all tests
-npm test -- --watch               # watch mode
-npm test -- --coverage            # with coverage report
+bun run test                          # all tests
+bun run test --watch               # watch mode
+bun run test --coverage            # with coverage report
 ```
 
 ### Test structure
@@ -73,7 +73,7 @@ Register a new service instance or update an existing one.
 
 ```json
 {
-  "serviceName": "financial-scraper-service",
+  "serviceName": "financial-scraper",
   "ip": "10.0.0.1",
   "port": 8444,
   "instanceId": "optional-custom-id"
@@ -87,7 +87,7 @@ Returns the registered instance with an auth token.
 Refresh the lease TTL for an instance. Requires `x-instance-token` header.
 
 ```json
-{ "serviceName": "financial-scraper-service", "instanceId": "abc123" }
+{ "serviceName": "financial-scraper", "instanceId": "abc123" }
 ```
 
 Returns `{ ttl: number }`.

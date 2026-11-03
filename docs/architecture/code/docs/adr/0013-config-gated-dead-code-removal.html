@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html class="dark" lang="en" data-tm-processed="true"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no" name="viewport">
+<title>ADR-0013: Removal of Configuration-Gated Dead Code Missed by Import Reachability (address-manager Discovery WebSocket Client) | trading-model</title>
+
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+
+<script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              400: '#818cf8',
+              500: '#6366f1',
+              600: '#4f46e5',
+            },
+            surface: {
+              base: '#0B0F19',
+              card: '#111827',
+              muted: '#1E293B',
+              border: '#243046',
+            },
+            code: {
+              bg: '#0c121e',
+              keyword: '#c084fc',
+              ident: '#38bdf8',
+              type: '#34d399',
+              punct: '#94a3b8'
+            }
+          },
+          fontFamily: {
+            mono: ['JetBrains Mono', 'Fira Code', 'Menlo', 'Monaco', 'Courier New', 'monospace'],
+            sans: ['-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Inter', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+
+<style data-purpose="mobile-ux-styles">
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    .active-scale:active { transform: scale(0.97); transition: transform 0.1s ease-out; }
+    .h-safe-top { height: env(safe-area-inset-top, 0px); }
+    .pt-safe { padding-top: env(safe-area-inset-top, 0px); }
+    @supports (backdrop-filter: blur(12px)) {
+      .glass-header { backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
+    }
+    
+    .tm-prose p { margin: 0.5rem 0; }
+    .tm-prose p:first-child { margin-top: 0; }
+    .tm-prose p:last-child { margin-bottom: 0; }
+    .tm-prose a { color: #818cf8; text-decoration: underline; text-underline-offset: 2px; }
+    .tm-prose a:hover { color: #a5b4fc; }
+    .tm-prose code { font-family: 'JetBrains Mono', 'Fira Code', Menlo, Monaco, 'Courier New', monospace; font-size: 0.82em; color: #fbbf24; background: #0c121e; border: 1px solid #243046; border-radius: 0.25rem; padding: 0.05rem 0.3rem; }
+    .tm-prose pre { background: #0c121e; border: 1px solid #243046; border-radius: 0.5rem; padding: 0.75rem; overflow-x: auto; margin: 0.5rem 0; }
+    .tm-prose pre code { background: transparent; border: none; padding: 0; color: #e2e8f0; }
+    .tm-prose ul, .tm-prose ol { padding-left: 1.25rem; margin: 0.5rem 0; }
+    .tm-prose ul { list-style: disc; }
+    .tm-prose ol { list-style: decimal; }
+    .tm-prose li { margin: 0.2rem 0; }
+    .tm-prose blockquote { border-left: 3px solid #6366f1; background: rgba(17, 24, 39, 0.6); padding: 0.5rem 0.75rem; border-radius: 0 0.5rem 0.5rem 0; color: #94a3b8; margin: 0.5rem 0; }
+    .tm-prose h1, .tm-prose h2, .tm-prose h3, .tm-prose h4, .tm-prose h5 { color: #ffffff; font-weight: 700; margin: 0.75rem 0 0.25rem; }
+    .tm-prose h1 { font-size: 1.25rem; }
+    .tm-prose h2 { font-size: 1.125rem; }
+    .tm-prose h3 { font-size: 1rem; }
+    .tm-prose h4 { font-size: 0.875rem; }
+    .tm-prose table { width: 100%; border-collapse: collapse; margin: 0.5rem 0; }
+    .tm-prose th, .tm-prose td { border: 1px solid #243046; padding: 0.4rem 0.6rem; text-align: left; }
+    .tm-prose thead th { background: #0b0f19; color: #e2e8f0; font-size: 0.75rem; text-transform: uppercase; }
+    .tm-prose strong { color: #ffffff; }
+  </style>
+
+</head>
+<body class="bg-[#080C15] text-slate-200 font-sans antialiased min-h-screen pb-24 selection:bg-indigo-500/30 selection:text-indigo-200">
+
+<header class="sticky top-0 z-40 w-full glass-header bg-[#0B0F19]/90 border-b border-surface-border">
+<div class="h-safe-top pt-safe"></div>
+<div class="px-4 py-2.5 flex items-center justify-between gap-3">
+<div class="flex items-center gap-2.5 min-w-0">
+
+<div class="flex flex-col min-w-0">
+<div class="flex items-center gap-1.5 truncate">
+<span class="font-mono text-xs font-semibold text-indigo-400 truncate tracking-tight"><a class="text-indigo-400 hover:text-indigo-300 hover:underline" href="../../index.html">trading-model</a></span>
+
+</div>
+<span class="text-[10px] text-slate-400 flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> TypeDoc API Reference
+</span>
+</div>
+</div>
+
+</div>
+</header>
+
+<main class="px-4 py-4 max-w-2xl mx-auto flex flex-col gap-6">
+
+<section class="space-y-2.5" data-purpose="breadcrumbs-and-header">
+<nav aria-label="Breadcrumb" class="flex items-center flex-wrap gap-1 text-[11px] font-mono text-slate-400">
+<a class="text-indigo-400 hover:underline" href="../../index.html">trading-model</a><span class="text-slate-600">/</span><span class="text-slate-300 font-medium">ADR-0013: Removal of Configuration-Gated Dead Code Missed by Import Reachability (address-manager Discovery WebSocket Client)</span>
+</nav>
+<div class="flex items-center gap-2.5 pt-1">
+<span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-mono font-medium tracking-wide uppercase bg-indigo-500/10 text-indigo-400 border-indigo-500/20">
+Documentation
+</span>
+<h1 class="text-2xl font-bold tracking-tight text-white font-sans">ADR-0013: Removal of Configuration-Gated Dead Code Missed by Import Reachability (address-manager Discovery WebSocket Client)</h1>
+</div>
+
+</section>
+
+<div class="tm-prose text-sm leading-relaxed text-slate-300 font-sans"><div>
+<p><strong>Status:</strong> Accepted
+<strong>Date:</strong> 2026-10
+<strong>Related:</strong> <a href="0012-dead-code-removal-and-entrypoint-fix.html">ADR-0012</a> (reachability analysis whose limitation this ADR addresses, and which removed the matching discovery WebSocket <strong>server</strong>), <a href="0010-clean-architecture-migration.html">ADR-0010</a> (layering conventions relied on by the removal)
+<strong>Verified by:</strong> <code>bun run reach:check</code></p>
+<h2>Context</h2>
+<p><a href="0012-dead-code-removal-and-entrypoint-fix.html">ADR-0012</a> removed the code that was unreachable from the real runtime entrypoints, based on a <strong>static import reachability analysis</strong>. That method reasons on the <strong>import graph</strong>: a file is dead when nothing reachable imports it.</p>
+<p>This method has a blind spot. Code that is <strong>imported but never activated at runtime</strong> — because a <strong>configuration flag is never set</strong> to the value that would enable it — still has a valid import edge from a reachable module. It therefore appears &quot;reachable&quot; and escapes the ADR-0012 analysis entirely. The module, its factory, its wiring and its tests stay alive while the feature is effectively never exercised in any real deployment.</p>
+<p>A subsequent <strong>value-aware audit</strong> (reasoning about configuration values, not only imports) found exactly one such residue in the monorepo: the <strong>discovery WebSocket client</strong> in <code>packages/address-manager</code>. It is the client-side counterpart of the discovery WS <strong>server</strong> that ADR-0012 already removed, and it is gated behind <code>WS_URL</code>, a configuration value that is never satisfied.</p>
+<h3>Evidence</h3>
+<ul>
+<li><code>packages/address-manager/src/adapters/outbound/ws-client.factory.ts</code>: <code>maybeCreateWsClient()</code> returns <code>undefined</code> when <code>config.wsUrl</code> is absent (around lines 77–83).</li>
+<li><code>packages/address-manager/src/application/create-address-manager.ts</code> (around line 74): wires <code>wsUrl: env.WS_URL</code> and <code>wsSubscribedServices</code> from <code>env.WS_SUBSCRIBED_SERVICES</code>.</li>
+<li><code>WS_URL</code> / <code>WS_SUBSCRIBED_SERVICES</code> are <strong>defined in no <code>.env.example</code>, no <code>docker-compose.yml</code>, and no k8s manifest</strong> (grep shows 0 occurrences outside the package itself and its own tests). Therefore <code>config.wsUrl</code> is always <code>undefined</code> in real deployments, and the WS client is never instantiated — the factory short-circuits before any socket is created.</li>
+<li>The server on the other side (the <code>discovery-server</code> WebSocket server) was <strong>removed by ADR-0012</strong>, so even a wired client would have no peer.</li>
+<li>An orphan audit confirms the residue is not an import orphan: <strong>0 / 780 <code>src/</code> files</strong> are referenced only by tests. The client is imported by reachable modules, which is precisely why import reachability could not see it — it is code <strong>frozen by configuration</strong>, invisible to the ADR-0012 method.</li>
+</ul>
+<h2>Decision</h2>
+<p><strong>Remove</strong> the discovery WebSocket client subsystem from <code>@trading-model/address-manager</code> and its now-unused WebSocket plumbing in <code>@trading-model/common</code> and <code>@trading-model/validation</code>. This is consistent with the &quot;WSS transport&quot; reintroduction condition already established by ADR-0012: such transports should only be reintroduced if a real need for <strong>server-initiated push</strong> emerges.</p>
+<h3>Source files removed</h3>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Rationale</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>packages/address-manager/src/adapters/outbound/client/websocket-client.ts</code></td>
+<td>The WS client implementation; only reachable through the config-gated factory.</td>
+</tr>
+<tr>
+<td><code>packages/address-manager/src/adapters/outbound/ws-client.factory.ts</code></td>
+<td><code>maybeCreateWsClient()</code> short-circuits to <code>undefined</code> because <code>config.wsUrl</code> is never set.</td>
+</tr>
+<tr>
+<td><code>packages/address-manager/src/application/ws-auth-failure-handler.ts</code></td>
+<td>Only referenced by the WS client stack.</td>
+</tr>
+<tr>
+<td><code>packages/address-manager/src/infrastructure/client/ws-connection.ts</code></td>
+<td>Connection transport used only by the WS client.</td>
+</tr>
+<tr>
+<td><code>packages/common/src/ws/base-ws-connection.ts</code></td>
+<td>Shared WS base used only by the removed client stack.</td>
+</tr>
+<tr>
+<td><code>packages/common/src/ws/default-ws-reconnector.ts</code></td>
+<td>Reconnection strategy used only by the removed client stack.</td>
+</tr>
+<tr>
+<td><code>packages/common/src/ws/i-ws-connection.ts</code></td>
+<td>Interface for the removed connection.</td>
+</tr>
+<tr>
+<td><code>packages/common/src/ws/i-ws-reconnector.ts</code></td>
+<td>Interface for the removed reconnector.</td>
+</tr>
+<tr>
+<td><code>packages/common/src/ws/ws-close-codes.ts</code></td>
+<td>Close-code constants used only by the removed stack.</td>
+</tr>
+<tr>
+<td><code>packages/validation/src/adapters/inbound/discovery-ws-message.types.ts</code></td>
+<td><code>DiscoveryWsMessageType</code> types for the removed discovery WS protocol.</td>
+</tr>
+</tbody>
+</table>
+<h3>Source files edited (plumbing removed)</h3>
+<p>Remove the <code>wsClient</code> / <code>wsUrl</code> / <code>WS_URL</code> / <code>WS_SUBSCRIBED_SERVICES</code> / <code>DiscoveryWsMessageType</code> plumbing only; no behavioural change to the remaining (HTTP-based) code paths:</p>
+<ul>
+<li><code>packages/address-manager/src/application/types.ts</code> — remove <code>wsClient</code> from <code>ServiceClientDeps</code> / <code>ShutdownHandlerDeps</code> / <code>LifecycleDeps</code>.</li>
+<li><code>packages/address-manager/src/application/address-manager-factory.ts</code> — remove <code>buildWsClient</code> and its wiring.</li>
+<li><code>packages/address-manager/src/application/lifecycle-manager.ts</code> (and <code>lifecycle-builder.ts</code>).</li>
+<li><code>packages/address-manager/src/application/heartbeat-manager.ts</code>, <code>heartbeat-failure-handler.ts</code>, <code>registration-attempt-handler.ts</code>, <code>registration-heartbeat-builder.ts</code>.</li>
+<li><code>packages/address-manager/src/infrastructure/shutdown-handler.ts</code>.</li>
+<li><code>packages/address-manager/src/infrastructure/config/address-manager-env.ts</code> — remove <code>WS_URL</code>, <code>WS_SUBSCRIBED_SERVICES</code>, <code>resolveWsSubscribedServices</code>.</li>
+<li><code>packages/address-manager/src/domain/config/address-manager-config.ts</code> — remove <code>wsUrl</code>, <code>wsSubscribedServices</code>.</li>
+<li><code>packages/address-manager/package.json</code> and <code>packages/common/package.json</code> — remove the <code>./ws/*</code> export subpath and the <code>ws</code> dependency (plus <code>@types/ws</code>) once no other usage remains in <code>common</code>.</li>
+</ul>
+<h3>Tests removed</h3>
+<ul>
+<li><code>packages/address-manager/tests/unit/websocket-client.spec.ts</code></li>
+<li><code>packages/address-manager/tests/unit/ws-connection.spec.ts</code></li>
+<li><code>packages/common/tests/unit/ws/base-ws-connection.spec.ts</code></li>
+<li><code>packages/common/tests/unit/ws/default-ws-reconnector.spec.ts</code></li>
+<li>WS cases in <code>packages/address-manager/tests/unit/address-manager.spec.ts</code>, <code>packages/address-manager/tests/unit/create-address-manager.spec.ts</code>, and the <code>DiscoveryWsMessageType</code> block in <code>packages/validation/tests/event-enums.spec.ts</code>.</li>
+</ul>
+<h2>Alternatives Considered</h2>
+<table>
+<thead>
+<tr>
+<th>Alternative</th>
+<th>Reason for Rejection</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Keep the WS client behind the <code>WS_URL</code> flag</td>
+<td>This is precisely what let it rot unobserved: a flag that is never set in any deployment means no runtime consumer, no signal when dependencies or protocols change, and a permanently untested path carried with full tests and docs</td>
+</tr>
+<tr>
+<td>Actually wire the client (set <code>WS_URL</code> in deployments)</td>
+<td>No concrete requirement for server-initiated push exists, and the counterpart discovery WS <strong>server</strong> was removed by ADR-0012 — a wired client would have no peer</td>
+</tr>
+<tr>
+<td>Mark the subsystem with <code>@dead</code> annotations or coverage-only exclusion</td>
+<td>Keeps the maintenance and cognitive load; the point of the removal is to shrink the surface, not to label it</td>
+</tr>
+<tr>
+<td>Leave it and rely on the ADR-0012 import analysis to catch it later</td>
+<td>The import analysis cannot see config-gated code by construction; it reported the package clean, which is exactly the false negative this ADR corrects</td>
+</tr>
+</tbody>
+</table>
+<h2>Consequences</h2>
+<h3>Positive</h3>
+<ul>
+<li>Smaller maintenance surface: the discovery WS client stack (~10 <code>src/</code> files), its shared plumbing in <code>common</code>/<code>validation</code>, and ~4 spec files plus the WS test cases are removed.</li>
+<li>The <code>ws</code> dependency (and <code>@types/ws</code>) is dropped from <code>common</code> and <code>address-manager</code>, and the <code>./ws/*</code> export subpath disappears — fewer third-party dependencies and faster CI.</li>
+<li>The architecture is again readable from the code: address-manager talks to discovery over HTTP only, matching the HTTP-only discovery documented in ADR-0012.</li>
+<li>The config-gated dead-code class is now explicitly documented, so the same blind spot is recognized in future audits.</li>
+</ul>
+<h3>Negative</h3>
+<ul>
+<li>Reintroducing the discovery WS client requires a <strong>rewrite</strong>, not a re-wire; git history is the recovery path.</li>
+<li>The removal does not by itself prevent new config-gated dead code: the underlying detection gap (import analysis vs. runtime activation) remains unless a value-aware check is added.</li>
+</ul>
+<h3>Mitigations</h3>
+<ul>
+<li>Reintroduction conditions are documented below, tied to measurable triggers and to the ADR-0012 &quot;WSS transport&quot; trigger.</li>
+<li>Git history preserves the removed client implementation for reference.</li>
+<li>A <strong>value-aware CI guard</strong> is recommended (see below) so that configuration flags that are never satisfiable in any deployment are detected the same way ADR-0012 detects import orphans.</li>
+</ul>
+<h2>Conditions for Reintroduction</h2>
+<p>The discovery WebSocket client may be reintroduced only when <strong>both</strong>:</p>
+<ol>
+<li>the ADR-0012 <strong>&quot;WSS transport&quot;</strong> condition holds — a concrete requirement for server-initiated push / real-time updates arrives (e.g. streaming subscriptions with sub-second latency) and polling/webhook proves insufficient; <strong>and</strong></li>
+<li>a discovery WebSocket <strong>server</strong> is reintroduced on the other side (removed by ADR-0012), and <code>WS_URL</code> (with <code>WS_SUBSCRIBED_SERVICES</code>) is explicitly configured in <code>.env.example</code>, <code>docker-compose.yml</code>, and the k8s manifests.</li>
+</ol>
+<p>Any reintroduction must wire the client into a <strong>runtime entrypoint</strong> and be covered by the reachability analysis without appearing as dead code — and the new configuration flags must be <strong>value-reachable</strong> in at least one real deployment profile.</p>
+<h2>Recommendation: Value-Aware Detection in CI</h2>
+<p>The ADR-0012 reachability gate operates on the <strong>import graph</strong> and cannot detect code that is imported but never activated. This ADR shows that class is real and non-empty. To close the gap, a <strong>value-aware</strong> check should complement the import analysis: for every configuration flag read by the code (e.g. <code>WS_URL</code>), assert that the flag is either (a) defined in at least one deployment profile (<code>.env.example</code> / <code>docker-compose.yml</code> / k8s manifests) or (b) acknowledged as intentionally optional. Flags with <strong>no definition anywhere</strong> are candidates for removal — the same signal used to identify the discovery WS client here. This guard should be added alongside, not instead of, the existing reachability analysis.</p>
+</div></div>
+</main>
+</body>
+</html>

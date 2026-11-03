@@ -1,0 +1,18 @@
+# Cluster prerequisites kind lacks (tests/k8s/run-kind.sh). Production
+# clusters provide a real ReadWriteMany StorageClass named `rwx-csi`
+# (docs/deployment/KUBERNETES.md); a single kind node can back it with a
+# static hostPath volume.
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: kind-rwx-trainer-checkpoints
+spec:
+  storageClassName: rwx-csi
+  capacity:
+    storage: 50Gi
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Delete
+  hostPath:
+    path: /var/local/kind-rwx/trainer-checkpoints
+    type: DirectoryOrCreate

@@ -153,3 +153,12 @@ id_rsa*
 
 # Customs
 **/.vscode/*
+
+# Stryker mutation testing (kept out of VCS)
+**/stryker-tmp/
+**/.stryker-tmp/
+.stryker.gate.json
+.stryker-gate-report.json
+reports/
+# Alertmanager notification credentials (docker-compose.yml)
+observability/alertmanager-credentials/

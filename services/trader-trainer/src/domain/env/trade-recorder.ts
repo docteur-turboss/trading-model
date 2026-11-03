@@ -1,0 +1,65 @@
+import type { Cash } from "@trading-model/primitives/primitives";
+import type { PortfolioState, ValuationConfig } from "./portfolio-state";
+import { TradeHistory, type TradeRecord } from "./trade-history";
+import { ValuationTracker } from "./valuation-tracker";
+
+export type { TradeRecord };
+
+export class TradeRecorder {
+	readonly valuationTracker: ValuationTracker;
+	readonly tradeHistory = new TradeHistory();
+
+	constructor(config: ValuationConfig) {
+		this.valuationTracker = new ValuationTracker(config);
+	}
+
+	getState(state: PortfolioState): PortfolioState {
+		return state;
+	}
+
+	recordValuation(state: PortfolioState): void {
+		this.valuationTracker.record(state);
+	}
+
+	recordTrade(trade: Omit<TradeRecord, "step">): void {
+		this.tradeHistory.record(trade);
+		this.recordValuation({
+			cash: trade.cashAfter,
+			position: trade.positionAfter,
+			price: trade.price,
+		});
+	}
+
+	computeValuation(state: PortfolioState): Cash {
+		return this.valuationTracker.computeValuation(state);
+	}
+
+	computePnL(state: PortfolioState): Cash {
+		return this.valuationTracker.computePnL(state);
+	}
+
+	getPeakValuation(): Cash {
+		return this.valuationTracker.getPeakValuation();
+	}
+
+	getTotalFeesPaid(): Cash {
+		return this.tradeHistory.getTotalFeesPaid();
+	}
+
+	getTradeCount(): number {
+		return this.tradeHistory.getTradeCount();
+	}
+
+	incrementStep(): void {
+		this.tradeHistory.incrementStep();
+	}
+
+	getHistory(): Readonly<TradeRecord[]> {
+		return this.tradeHistory.getHistory();
+	}
+
+	reset(): void {
+		this.tradeHistory.reset();
+		this.valuationTracker.reset();
+	}
+}

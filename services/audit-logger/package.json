@@ -1,0 +1,60 @@
+{
+  "name": "audit-logger",
+  "version": "1.0.0",
+  "description": "Complete and immutable tracing of all decisions, transactions, and errors",
+  "homepage": "https://github.com/docteur-turboss/trading-model#readme",
+  "bugs": {
+    "url": "https://github.com/docteur-turboss/trading-model/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/docteur-turboss/trading-model.git"
+  },
+  "keywords": [
+    "audit",
+    "logger",
+    "tracing",
+    "immutable"
+  ],
+  "license": "ISC",
+  "author": "Alchimist Horus Turboss <@docteur-turboss>",
+  "type": "commonjs",
+  "main": "./dist/application/index.js",
+  "bin": {
+    "audit-chain": "./dist/application/chain-cli.js"
+  },
+  "scripts": {
+    "test": "jest",
+    "test:detectOpenHandles": "jest --detectOpenHandles",
+    "test:coverage": "jest --coverage",
+    "test:db": "NODE_OPTIONS=--experimental-vm-modules jest -c jest.db.config.js",
+    "build": "tsc",
+    "dev": "ts-node src/application/index.ts"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.1161.0",
+    "@trading-model/address-manager": "*",
+    "@trading-model/broker-message": "*",
+    "@trading-model/common": "*",
+    "@trading-model/contracts": "*",
+    "@trading-model/http": "*",
+    "@trading-model/persistence": "*",
+    "@trading-model/primitives": "*",
+    "@trading-model/server-utils": "*",
+    "@trading-model/validation": "*",
+    "express": "^5.3.0",
+    "mongodb": "^7.8.0",
+    "prom-client": "^15.1.3",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@jest/globals": "^30.5.2",
+    "@types/express": "^5.0.6",
+    "@types/jest": "^30.0.0",
+    "@types/node": "^26.6.6",
+    "jest": "^30.5.2",
+    "ts-jest": "^29.4.15",
+    "ts-node": "^10.9.2",
+    "typescript": "^6.0.3"
+  }
+}

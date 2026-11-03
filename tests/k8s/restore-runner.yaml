@@ -1,0 +1,67 @@
+# Runs scripts/restore-k8s.sh inside the cluster for run-kind.sh, the way an
+# operator's restore Job would: backup-tools image, backup-data read-only, the
+# scripts from the backup-scripts ConfigMap, namespace admin rights (exec into
+# the databases, stop and start the SPIRE server). CI only.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: restore-runner
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: restore-runner
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: admin
+subjects:
+  - kind: ServiceAccount
+    name: restore-runner
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: restore-runner
+  labels:
+    app.kubernetes.io/component: restore-runner
+spec:
+  serviceAccountName: restore-runner
+  restartPolicy: Never
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 1001
+    fsGroup: 1001
+    seccompProfile:
+      type: RuntimeDefault
+  containers:
+    - name: restore
+      image: ghcr.io/trading-model/backup-tools:latest
+      imagePullPolicy: IfNotPresent
+      command: ["sleep", "3600"]
+      securityContext:
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop: ["ALL"]
+      volumeMounts:
+        - name: scripts
+          mountPath: /scripts
+          readOnly: true
+        - name: backup-data
+          mountPath: /backups
+          readOnly: true
+      resources:
+        requests:
+          cpu: 10m
+          memory: 64Mi
+        limits:
+          cpu: 500m
+          memory: 256Mi
+  volumes:
+    - name: scripts
+      configMap:
+        name: backup-scripts
+        defaultMode: 0555
+    - name: backup-data
+      persistentVolumeClaim:
+        claimName: backup-data

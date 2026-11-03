@@ -2,4 +2,4 @@
 
 This project is committed to providing a harassment-free experience for everyone.
 
-See [docs/standards/CODE_OF_CONDUCT.md](docs/standards/CODE_OF_CONDUCT.md) for the full text.
+We follow the standard open source code of conduct. All participants, contributors, and maintainers are expected to treat each other with respect.

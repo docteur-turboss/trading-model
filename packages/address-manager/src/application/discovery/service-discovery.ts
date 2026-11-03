@@ -1,0 +1,74 @@
+﻿import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
+import type { HttpClient } from "@trading-model/http/adapters/outbound/http-client";
+import {
+	type InstanceId,
+	toServiceId,
+} from "@trading-model/primitives/primitives";
+import type { ServiceHealthChecker } from "../../adapters/outbound/discovery/service-health-checker";
+import type { ServiceInstance } from "../../domain/client/type";
+import type { AddressManagerConfig } from "../../domain/config/address-manager-config";
+import type { IServiceCache } from "../../domain/discovery/service-cache.interface";
+import { ConnectionTracker } from "./connection-tracker";
+import { ServiceResolver } from "./service-resolver";
+
+export interface ServiceDiscoveryDeps {
+	httpClient: HttpClient;
+	serviceCache: IServiceCache;
+	config: AddressManagerConfig;
+	healthChecker: ServiceHealthChecker;
+}
+
+export class ServiceDiscovery {
+	private readonly _serviceCache: IServiceCache;
+	private readonly _healthChecker: ServiceHealthChecker;
+	private readonly _resolver: ServiceResolver;
+	private readonly _connectionTracker: ConnectionTracker;
+
+	constructor(deps: ServiceDiscoveryDeps) {
+		this._serviceCache = deps.serviceCache;
+		this._healthChecker = deps.healthChecker;
+		this._resolver = new ServiceResolver(deps);
+		this._connectionTracker = new ConnectionTracker();
+	}
+
+	private async _getHealthyCachedInstance(
+		serviceName: ServiceInstanceName
+	): Promise<ServiceInstance | null> {
+		const cachedInstance = await this._serviceCache.get(
+			toServiceId(serviceName)
+		);
+		if (!cachedInstance) {
+			return null;
+		}
+		const isHealthy = await this._healthChecker.isHealthy(cachedInstance);
+		if (isHealthy) {
+			return cachedInstance;
+		}
+		await this._serviceCache.delete(toServiceId(serviceName));
+		return null;
+	}
+
+	async findService(
+		serviceName: ServiceInstanceName
+	): Promise<ServiceInstance> {
+		const cached = await this._getHealthyCachedInstance(serviceName);
+		if (cached) {
+			return cached;
+		}
+		return this._resolver.findService(toServiceId(serviceName));
+	}
+
+	acquireConnection(instanceId: InstanceId): void {
+		this._connectionTracker.acquire(instanceId);
+	}
+
+	releaseConnection(instanceId: InstanceId): void {
+		this._connectionTracker.release(instanceId);
+	}
+
+	findAllServices(
+		serviceName: ServiceInstanceName
+	): Promise<ServiceInstance[]> {
+		return this._resolver.findAllServices(toServiceId(serviceName));
+	}
+}

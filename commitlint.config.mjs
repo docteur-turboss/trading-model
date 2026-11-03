@@ -1,3 +1,5 @@
+import { SCOPES } from './scripts/gitmoji-scopes.mjs';
+
 export default {
   parserPreset: {
     parserOpts: {
@@ -10,34 +12,7 @@ export default {
     'scope-enum': [
       2,
       'always',
-      [
-        'auth',
-        'scraper',
-        'api',
-        'wallet',
-        'core',
-        'deps',
-        'discovery',
-        'broker',
-        'trainer',
-        'router',
-        'common',
-        'config',
-        'database',
-        'middleware',
-        'utils',
-        'types',
-        'address-manager',
-        'message-manager',
-        'financial-scraper',
-        'trader-trainer',
-        'discovery-server',
-        'docs',
-        'github-actions',
-        'husky',
-        'eslint',
-        'release',
-      ],
+      SCOPES,
     ],
     'scope-case': [2, 'always', 'lowerCase'],
     'subject-empty': [2, 'never'],

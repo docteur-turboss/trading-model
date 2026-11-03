@@ -1,3 +1,22 @@
+## [Unreleased]
+
+### Overview
+
+Major clean-code refactor (`refactor/clean-code-v3`): simplification and reorganization of the monorepo.
+
+#### Refactor
+
+- **DDD/hexagonal restructure** — all services migrated to `domain/` + `application/` + `adapters/` + `infrastructure/` layers (ADR-0010 generalized to all services)
+- **Package split** — `@trading-model/common` split into `validation`, `server-utils`, `crypto`, `http`, `jobs`; final workspace set is 8 packages (ADR-0007)
+- **Workload identity** — in-house certificate-authority and `certificate-*` packages removed in favour of SPIFFE/SPIRE (ADR-0011); migration from npm to bun completed (`bun.lock` is the only lockfile)
+- **Dead code removal** — deprecated services (`crypto-worker`, `job-scheduler`, `certificate-authority`) and legacy modules (checkpoint/buffer/diversity) removed
+- **Consolidation** — duplicate circuit breakers, caches and WS clients unified into shared implementations; branded domain primitives adopted repo-wide
+- **Tooling** — ESLint/Prettier fully replaced by Biome; Stryker mutation-testing config added
+
+#### Chore
+
+- Husky pre-push hook switched to `biome check` → `build` → `test`
+
 ## [2.0.3] - 2026-06-08
 
 ### financial-scraper (1.2.0 → 1.2.1)
@@ -5,9 +24,6 @@
 #### Fix
 
 - 6776f2e **financial-scraper:** fix p-limit dynamic import type reference for v7.x
-
-
-## [2.0.2] - 2026-06-08
 
 
 ## [2.0.1] - 2026-06-08

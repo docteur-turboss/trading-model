@@ -1,99 +1,115 @@
-import { describe, it, expect, beforeEach, jest } from '@jest/globals';
+import { beforeEach, describe, expect, it, jest } from "@jest/globals";
+import { SourceType } from "@trading-model/contracts/market-data.types";
+import {
+	TradingSymbol,
+	UnixTimestamp,
+} from "@trading-model/primitives/primitives";
 
-const mockExecuteInsert = jest.fn<() => Promise<void>>().mockResolvedValue(undefined);
-const mockExecuteSelectMany = jest.fn<() => Promise<any[]>>().mockResolvedValue([]);
+const MOCK_EXECUTE_INSERT = jest
+	.fn<() => Promise<void>>()
+	.mockResolvedValue(undefined);
+const MOCK_EXECUTE_SELECT_MANY = jest
+	.fn<() => Promise<any[]>>()
+	.mockResolvedValue([]);
+const MOCK_QUERY = jest.fn<() => Promise<any>>().mockResolvedValue(undefined);
 
-jest.mock('../../../../../src/config/db', () => {
-  const mockSelectQuery = {
-    where: jest.fn().mockReturnThis(),
-    select: jest.fn().mockReturnThis(),
-    executeSelectMany: mockExecuteSelectMany,
-  };
+jest.mock("../../../../../src/config/db", () => {
+	const mockSelectQuery = {
+		where: jest.fn().mockReturnThis(),
+		select: jest.fn().mockReturnThis(),
+		executeSelectMany: MOCK_EXECUTE_SELECT_MANY,
+	};
 
-  const mockInsertQuery = {
-    values: jest.fn().mockReturnThis(),
-    executeInsert: mockExecuteInsert,
-  };
+	const mockInsertQuery = {
+		values: jest.fn().mockReturnThis(),
+		executeInsert: MOCK_EXECUTE_INSERT,
+	};
 
-  return {
-    DBConnection: jest.fn(() => ({
-      insertInto: jest.fn(() => mockInsertQuery),
-      selectFrom: jest.fn(() => mockSelectQuery),
-    })),
-  };
+	const mockDbConnection = {
+		insertInto: jest.fn(() => mockInsertQuery),
+		selectFrom: jest.fn(() => mockSelectQuery),
+	};
+
+	return {
+		DBConnection: jest.fn(() => mockDbConnection),
+		createDBConnection: jest.fn(() => mockDbConnection),
+		DATABASE: { promise: jest.fn(() => ({ query: MOCK_QUERY })) },
+	};
 });
 
 import {
-  insertTrades,
-  selectTradesBy,
-} from '../../../../../src/infra/market-data/schema/trades.schema';
+	insertTrades,
+	selectTradesBy,
+} from "../../../../../src/adapters/outbound/persistence/schema/trades.schema";
 
-const makeTrade = (overrides: Record<string, unknown> = {}) => ({
-  side: 'buy' as const,
-  price: 50000,
-  market: 'crypto',
-  source: 'binance',
-  symbol: 'BTCUSDT',
-  tradeId: 123456789n,
-  quantity: 0.5,
-  timestamp: 1704067200000,
-  ...overrides,
+const MAKE_TRADE = (overrides: Record<string, unknown> = {}) => ({
+	side: "buy" as const,
+	price: 50000,
+	market: "crypto",
+	source: "binance",
+	symbol: "BTCUSDT",
+	tradeId: 123456789n,
+	quantity: 0.5,
+	timestamp: 1704067200000,
+	...overrides,
 });
 
-describe('trades-schema', () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-  });
+describe("trades-schema", () => {
+	beforeEach(() => {
+		jest.clearAllMocks();
+	});
 
-  describe('insertTrades', () => {
-    it('should insert trade data successfully', async () => {
-      const data: never[] = [makeTrade() as never];
-      await insertTrades(data);
-      expect(mockExecuteInsert).toHaveBeenCalled();
-    });
+	describe("insertTrades", () => {
+		it("should insert trade data successfully", async () => {
+			const data: never[] = [MAKE_TRADE() as never];
+			await insertTrades(data);
+			expect(MOCK_QUERY).toHaveBeenCalled();
+		});
 
-    it('should do nothing when data array is empty', async () => {
-      const data: never[] = [];
-      await insertTrades(data);
-      expect(mockExecuteInsert).not.toHaveBeenCalled();
-    });
+		it("should do nothing when data array is empty", async () => {
+			const data: never[] = [];
+			await insertTrades(data);
+			expect(MOCK_QUERY).not.toHaveBeenCalled();
+		});
 
-    it('should insert multiple trades', async () => {
-      const data: never[] = [
-        makeTrade({ tradeId: 1n }) as never,
-        makeTrade({ tradeId: 2n }) as never,
-      ];
-      await insertTrades(data);
-      expect(mockExecuteInsert).toHaveBeenCalled();
-    });
-  });
+		it("should insert multiple trades", async () => {
+			const data: never[] = [
+				MAKE_TRADE({ tradeId: 1n }) as never,
+				MAKE_TRADE({ tradeId: 2n }) as never,
+			];
+			await insertTrades(data);
+			expect(MOCK_QUERY).toHaveBeenCalled();
+		});
+	});
 
-  describe('selectTradesBy', () => {
-    it('should select trades by symbol', async () => {
-      mockExecuteSelectMany.mockResolvedValue([makeTrade()] as never[]);
-      const results = await selectTradesBy.symbol('BTCUSDT');
-      expect(results).toHaveLength(1);
-      expect(mockExecuteSelectMany).toHaveBeenCalled();
-    });
+	describe("selectTradesBy", () => {
+		it("should select trades by symbol", async () => {
+			MOCK_EXECUTE_SELECT_MANY.mockResolvedValue([MAKE_TRADE()] as never[]);
+			const results = await selectTradesBy.symbol(TradingSymbol.of("BTCUSDT"));
+			expect(results).toHaveLength(1);
+			expect(MOCK_EXECUTE_SELECT_MANY).toHaveBeenCalled();
+		});
 
-    it('should select trades by source', async () => {
-      mockExecuteSelectMany.mockResolvedValue([makeTrade()] as never[]);
-      const results = await selectTradesBy.source('binance');
-      expect(results).toHaveLength(1);
-      expect(mockExecuteSelectMany).toHaveBeenCalled();
-    });
+		it("should select trades by source", async () => {
+			MOCK_EXECUTE_SELECT_MANY.mockResolvedValue([MAKE_TRADE()] as never[]);
+			const results = await selectTradesBy.source(SourceType.Binance);
+			expect(results).toHaveLength(1);
+			expect(MOCK_EXECUTE_SELECT_MANY).toHaveBeenCalled();
+		});
 
-    it('should select trades by timestamp', async () => {
-      mockExecuteSelectMany.mockResolvedValue([makeTrade()] as never[]);
-      const results = await selectTradesBy.timestamp(new Date('2024-01-01'));
-      expect(results).toHaveLength(1);
-      expect(mockExecuteSelectMany).toHaveBeenCalled();
-    });
+		it("should select trades by timestamp", async () => {
+			MOCK_EXECUTE_SELECT_MANY.mockResolvedValue([MAKE_TRADE()] as never[]);
+			const results = await selectTradesBy.timestamp(
+				UnixTimestamp.of(new Date("2024-01-01").getTime())
+			);
+			expect(results).toHaveLength(1);
+			expect(MOCK_EXECUTE_SELECT_MANY).toHaveBeenCalled();
+		});
 
-    it('should return empty array when no trades found', async () => {
-      mockExecuteSelectMany.mockResolvedValue([] as never[]);
-      const results = await selectTradesBy.symbol('UNKNOWN');
-      expect(results).toEqual([]);
-    });
-  });
+		it("should return empty array when no trades found", async () => {
+			MOCK_EXECUTE_SELECT_MANY.mockResolvedValue([] as never[]);
+			const results = await selectTradesBy.symbol(TradingSymbol.of("UNKNOWN"));
+			expect(results).toEqual([]);
+		});
+	});
 });

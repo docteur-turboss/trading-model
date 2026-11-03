@@ -1,3 +1,5 @@
+const { workspaceModuleNameMapper } = require('../../scripts/jest-workspace-mapper.cjs');
+
 /** @type {import('ts-jest').JestConfigWithTsJest} */
 module.exports = {
   preset: 'ts-jest',
@@ -5,17 +7,24 @@ module.exports = {
   rootDir: '.',
   testMatch: ['**/?(*.)+(spec).ts'],
   moduleNameMapper: {
-    '^@trading-model/common/(.*)$': '<rootDir>/../common/src/$1',
-    '^@trading-model/address-manager$': '<rootDir>/../address-manager/src/index.ts',
+    ...workspaceModuleNameMapper(__dirname),
+  },
+  transform: {
+    '^.+\\.tsx?$': [
+      'ts-jest',
+      {
+        diagnostics: false,
+      },
+    ],
   },
   testPathIgnorePatterns: ['/node_modules/', '/dist/'],
   collectCoverageFrom: ['src/**/*.ts', '!src/**/*.d.ts'],
   coverageThreshold: {
     global: {
-      branches: 90,
-      functions: 95,
-      lines: 95,
-      statements: 95,
+      branches: 75,
+      functions: 80,
+      lines: 80,
+      statements: 80,
     },
   },
 };

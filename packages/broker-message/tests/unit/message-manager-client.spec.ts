@@ -1,181 +1,223 @@
-import { describe, it, expect, beforeEach, jest } from '@jest/globals';
-import { MessageManagerClient } from '../../src/client/message-manager-client';
-import { AppError } from '@trading-model/common/utils/errors';
-import { ServiceInstanceName } from '@trading-model/common/config/services.types';
+import { beforeEach, describe, expect, it, jest } from "@jest/globals";
+import { ServiceInstanceName } from "@trading-model/common/config/services.types";
+import { PUBLISH_TIMEOUT_MS } from "@trading-model/contracts/publish-timeout";
+import { logger } from "@trading-model/http/infrastructure/logger";
+import { MessageManagerClient } from "../../src/adapters/outbound/message-manager-client";
 
-describe('MessageManagerClient', () => {
-  let client: MessageManagerClient;
-  let httpClient: any;
-  let addressManagerClient: any;
+describe("MessageManagerClient", () => {
+	let client: MessageManagerClient;
+	let httpClient: any;
+	let addressManagerClient: any;
 
-  const mockConfig = {
-    serviceName: 'TestService',
-    callbackPath: '/message',
-    instanceId: '550e8400-e29b-41d4-a716-446655440000',
-  };
+	const mockConfig = {
+		serviceName: "TestService",
+		callbackPath: "/message",
+		instanceId: "550e8400-e29b-41d4-a716-446655440000",
+	};
 
-  const mockServiceInstance = {
-    ip: '192.168.1.100',
-    port: 3001,
-  };
+	const mockServiceInstance = {
+		host: "192.168.1.100",
+		port: 3001,
+	};
 
-  beforeEach(() => {
-    httpClient = {
-      post: jest.fn(),
-      delete: jest.fn(),
-    };
-    addressManagerClient = {
-      findService: jest.fn(),
-    };
-    client = new MessageManagerClient(httpClient, mockConfig as any, addressManagerClient as any);
-  });
+	beforeEach(() => {
+		httpClient = {
+			post: jest.fn(),
+			delete: jest.fn(),
+		};
+		addressManagerClient = {
+			findService: jest.fn(),
+		};
+		client = new MessageManagerClient(
+			httpClient,
+			mockConfig as any,
+			addressManagerClient as any
+		);
+	});
 
-  describe('SubscribeToTopics', () => {
-    it('should subscribe to a single topic successfully', async () => {
-      addressManagerClient.findService.mockResolvedValue(mockServiceInstance);
-      httpClient.post.mockResolvedValue(undefined);
+	describe("subscribe", () => {
+		it("should subscribe to a single topic successfully", async () => {
+			addressManagerClient.findService.mockResolvedValue(mockServiceInstance);
+			httpClient.post.mockResolvedValue(undefined);
 
-      await client.SubscribeToTopics(['example.debug.create']);
+			await client.subscribe(["example.debug.create"]);
 
-      expect(addressManagerClient.findService).toHaveBeenCalled();
-      expect(httpClient.post).toHaveBeenCalledWith(
-        'https://192.168.1.100:3001/subscribe',
-        expect.objectContaining({
-          topic: 'example.debug.create',
-          callbackPath: mockConfig.callbackPath,
-        })
-      );
-    });
+			expect(addressManagerClient.findService).toHaveBeenCalled();
+			expect(httpClient.post).toHaveBeenCalledWith(
+				"https://192.168.1.100:3001/subscribe",
+				expect.objectContaining({
+					topic: "example.debug.create",
+					callbackPath: mockConfig.callbackPath,
+				})
+			);
+		});
 
-    it('should subscribe to multiple topics', async () => {
-      addressManagerClient.findService.mockResolvedValue(mockServiceInstance);
-      httpClient.post.mockResolvedValue(undefined);
+		it("should subscribe to multiple topics", async () => {
+			addressManagerClient.findService.mockResolvedValue(mockServiceInstance);
+			httpClient.post.mockResolvedValue(undefined);
 
-      await client.SubscribeToTopics(['example.debug.create', 'example.show.create']);
+			await client.subscribe(["example.debug.create", "example.show.create"]);
 
-      expect(httpClient.post).toHaveBeenCalledTimes(2);
-    });
+			expect(httpClient.post).toHaveBeenCalledTimes(2);
+		});
 
-    it('should throw ServiceUnreachableError when service not found', async () => {
-      addressManagerClient.findService.mockResolvedValue(null);
+		it("should throw ServiceUnreachableError when service not found", async () => {
+			addressManagerClient.findService.mockResolvedValue(null);
 
-      await expect(client.SubscribeToTopics(['example.debug.create'])).rejects.toThrow(AppError);
-    });
+			await expect(client.subscribe(["example.debug.create"])).rejects.toThrow(
+				Error
+			);
+		});
 
-    it('should swallow MessageManagerError on subscription failure', async () => {
-      addressManagerClient.findService.mockResolvedValue(mockServiceInstance);
-      httpClient.post.mockRejectedValue(new Error('Network error'));
+		it("should propagate MessageManagerError on subscription failure", async () => {
+			addressManagerClient.findService.mockResolvedValue(mockServiceInstance);
+			httpClient.post.mockRejectedValue(new Error("Network error"));
 
-      const result = await client.SubscribeToTopics(['example.debug.create']);
-      expect(result).toBeUndefined();
-    });
+			await expect(client.subscribe(["example.debug.create"])).rejects.toThrow(
+				"Failed to subscribe topic to Message Manager"
+			);
+		});
 
-    it('should throw MessageManagerError on generic error in subscribe', async () => {
-      addressManagerClient.findService.mockRejectedValue(new Error('Generic error'));
+		it("should throw MessageManagerError on generic error in subscribe", async () => {
+			addressManagerClient.findService.mockRejectedValue(
+				new Error("Generic error")
+			);
 
-      await expect(client.SubscribeToTopics(['example.debug.create'])).rejects.toThrow(AppError);
-    });
-  });
+			await expect(client.subscribe(["example.debug.create"])).rejects.toThrow(
+				Error
+			);
+		});
+	});
 
-  describe('UnSubscribeToTopic', () => {
-    it('should unsubscribe from topics', async () => {
-      addressManagerClient.findService.mockResolvedValue(mockServiceInstance);
-      httpClient.delete.mockResolvedValue(undefined);
+	describe("unsubscribe", () => {
+		it("should unsubscribe from topics", async () => {
+			addressManagerClient.findService.mockResolvedValue(mockServiceInstance);
+			httpClient.delete.mockResolvedValue(undefined);
 
-      await client.UnSubscribeToTopic(['example.debug.create']);
+			await client.unsubscribe(["example.debug.create"]);
 
-      expect(httpClient.delete).toHaveBeenCalled();
-    });
+			expect(httpClient.delete).toHaveBeenCalled();
+		});
 
-    it('should rethrow ServiceUnreachableError when service not found', async () => {
-      addressManagerClient.findService.mockResolvedValue(null);
+		it.each([
+			[
+				"the service is not found",
+				() => addressManagerClient.findService.mockResolvedValue(null),
+			],
+			[
+				"the request fails",
+				() => {
+					addressManagerClient.findService.mockResolvedValue(
+						mockServiceInstance
+					);
+					httpClient.delete.mockRejectedValue(new Error("Network error"));
+				},
+			],
+			[
+				"the lookup throws",
+				() =>
+					addressManagerClient.findService.mockRejectedValue(
+						new Error("Generic error")
+					),
+			],
+		])("should log and resolve when %s (best-effort shutdown)", async (_case, arrange) => {
+			arrange();
+			const warn = jest
+				.spyOn(logger, "warn")
+				.mockImplementation(() => undefined);
 
-      await expect(client.UnSubscribeToTopic(['example.debug.create'])).rejects.toThrow(AppError);
-    });
+			await expect(
+				client.unsubscribe(["example.debug.create"])
+			).resolves.toBeUndefined();
+			expect(warn).toHaveBeenCalledWith(
+				"Failed to unsubscribe topics from Message Manager",
+				expect.anything()
+			);
+			warn.mockRestore();
+		});
+	});
 
-    it('should swallow MessageManagerError on unsubscribe failure', async () => {
-      addressManagerClient.findService.mockResolvedValue(mockServiceInstance);
-      httpClient.delete.mockRejectedValue(new Error('Network error'));
+	describe("publish", () => {
+		it("should publish an async message", async () => {
+			addressManagerClient.findService.mockResolvedValue(mockServiceInstance);
+			httpClient.post.mockResolvedValue(undefined);
 
-      const result = await client.UnSubscribeToTopic(['example.debug.create']);
-      expect(result).toBeUndefined();
-    });
+			const metadata = {
+				eventType: "test",
+				topic: "test.event",
+				schemaVersion: "1.0.0",
+				publisher: { serviceName: "TestService", instanceId: "uuid" },
+			} as any;
+			await client.publish({ hello: "world" }, metadata);
 
-    it('should throw MessageManagerError on generic error in unsubscribe', async () => {
-      addressManagerClient.findService.mockRejectedValue(new Error('Generic error'));
+			expect(httpClient.post).toHaveBeenCalledWith(
+				"https://192.168.1.100:3001/message",
+				{
+					payload: { hello: "world" },
+					metadata,
+				},
+				// Outlasts the broker's own timeout; never re-sent once it left.
+				{ timeoutMs: PUBLISH_TIMEOUT_MS + 5_000, retryUnsentOnly: true }
+			);
+		});
 
-      await expect(client.UnSubscribeToTopic(['example.debug.create'])).rejects.toThrow(AppError);
-    });
-  });
+		it("should rethrow ServiceUnreachableError when service not found", async () => {
+			addressManagerClient.findService.mockResolvedValue(null);
 
-  describe('publishAsyncMessage', () => {
-    it('should publish an async message', async () => {
-      addressManagerClient.findService.mockResolvedValue(mockServiceInstance);
-      httpClient.post.mockResolvedValue(undefined);
+			await expect(client.publish({}, {} as any)).rejects.toThrow(Error);
+		});
 
-      const metadata = {
-        eventType: 'test',
-        topic: 'test.event',
-        schemaVersion: '1.0.0',
-        publisher: { serviceName: 'TestService', instanceId: 'uuid' },
-      } as any;
-      await client.publishAsyncMessage({ hello: 'world' }, metadata);
+		it("should throw MessageManagerError on publish failure", async () => {
+			addressManagerClient.findService.mockResolvedValue(mockServiceInstance);
+			httpClient.post.mockRejectedValue(new Error("Publish failed"));
 
-      expect(httpClient.post).toHaveBeenCalledWith('https://192.168.1.100:3001/message', {
-        payload: { hello: 'world' },
-        metadata,
-      });
-    });
+			await expect(client.publish({}, {} as any)).rejects.toThrow(Error);
+		});
+	});
 
-    it('should rethrow ServiceUnreachableError when service not found', async () => {
-      addressManagerClient.findService.mockResolvedValue(null);
+	describe("publishDirectMessage", () => {
+		it("should publish a direct message", async () => {
+			addressManagerClient.findService.mockResolvedValue(mockServiceInstance);
+			httpClient.post.mockResolvedValue(undefined);
 
-      await expect(client.publishAsyncMessage({}, {} as any)).rejects.toThrow(AppError);
-    });
+			const metadata = {
+				eventType: "test",
+				topic: "test.event",
+				schemaVersion: "1.0.0",
+				publisher: { serviceName: "TestService", instanceId: "uuid" },
+			} as any;
+			await client.publishDirectMessage(
+				ServiceInstanceName.MessageDeliveryService,
+				{ data: "test" },
+				metadata
+			);
 
-    it('should throw MessageManagerError on publish failure', async () => {
-      addressManagerClient.findService.mockResolvedValue(mockServiceInstance);
-      httpClient.post.mockRejectedValue(new Error('Publish failed'));
+			expect(httpClient.post).toHaveBeenCalled();
+		});
 
-      await expect(client.publishAsyncMessage({}, {} as any)).rejects.toThrow(AppError);
-    });
-  });
+		it("should rethrow ServiceUnreachableError when direct service not found", async () => {
+			addressManagerClient.findService.mockResolvedValue(null);
 
-  describe('publishDirectMessage', () => {
-    it('should publish a direct message', async () => {
-      addressManagerClient.findService.mockResolvedValue(mockServiceInstance);
-      httpClient.post.mockResolvedValue(undefined);
+			await expect(
+				client.publishDirectMessage(
+					ServiceInstanceName.MessageDeliveryService,
+					{},
+					{} as any
+				)
+			).rejects.toThrow(Error);
+		});
 
-      const metadata = {
-        eventType: 'test',
-        topic: 'test.event',
-        schemaVersion: '1.0.0',
-        publisher: { serviceName: 'TestService', instanceId: 'uuid' },
-      } as any;
-      await client.publishDirectMessage(
-        ServiceInstanceName.MessageDeliveryService,
-        { data: 'test' },
-        metadata
-      );
+		it("should throw MessageManagerError on direct publish failure", async () => {
+			addressManagerClient.findService.mockResolvedValue(mockServiceInstance);
+			httpClient.post.mockRejectedValue(new Error("Publish failed"));
 
-      expect(httpClient.post).toHaveBeenCalled();
-    });
-
-    it('should rethrow ServiceUnreachableError when direct service not found', async () => {
-      addressManagerClient.findService.mockResolvedValue(null);
-
-      await expect(
-        client.publishDirectMessage(ServiceInstanceName.MessageDeliveryService, {}, {} as any)
-      ).rejects.toThrow(AppError);
-    });
-
-    it('should throw MessageManagerError on direct publish failure', async () => {
-      addressManagerClient.findService.mockResolvedValue(mockServiceInstance);
-      httpClient.post.mockRejectedValue(new Error('Publish failed'));
-
-      await expect(
-        client.publishDirectMessage(ServiceInstanceName.MessageDeliveryService, {}, {} as any)
-      ).rejects.toThrow(AppError);
-    });
-  });
+			await expect(
+				client.publishDirectMessage(
+					ServiceInstanceName.MessageDeliveryService,
+					{},
+					{} as any
+				)
+			).rejects.toThrow(Error);
+		});
+	});
 });

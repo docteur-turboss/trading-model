@@ -1,0 +1,16 @@
+{
+  "name": "trading-model-e2e",
+  "version": "1.0.0",
+  "private": true,
+  "type": "commonjs",
+  "scripts": {
+    "test:e2e": "jest",
+    "test:docker": "docker compose -f ../../docker-compose.yml up -d && sleep 30 && jest --forceExit"
+  },
+  "devDependencies": {
+    "@jest/globals": "^30.5.2",
+    "@types/node": "^25.9.9",
+    "jest": "^30.5.2",
+    "ts-jest": "^29.4.15"
+  }
+}

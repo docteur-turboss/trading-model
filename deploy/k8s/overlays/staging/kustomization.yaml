@@ -1,0 +1,71 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: trading-model-staging
+
+resources:
+  - ../../base
+
+# Staging-only development secrets. Production must NOT use these: it is served
+# exclusively by the SealedSecret in deploy/k8s/secrets (see the production overlay).
+generatorOptions:
+  disableNameSuffixHash: true
+
+secretGenerator:
+  - name: trading-model-secrets
+    literals:
+      - AUTH_TOKENS=dev-token-change-me
+      - SIGNING_SECRET=dev-signing-change-me
+      - SERVICE_BOOTSTRAP_TOKEN=dev-bootstrap-change-me
+      - MYSQL_ROOT_PASSWORD=dev-mysql-root
+      - MYSQL_PASSWORD=dev-mysql
+      # dlq-service requires at least 16 characters.
+      - DLQ_AUTH_HMAC_SECRET=dev-dlq-hmac-change-me
+      - GRAFANA_PASSWORD=dev-grafana
+      - HMAC_SECRET=dev-hmac
+
+# Staging-specific image tags (uses latest release by default; override via deploy pipeline)
+images:
+  - name: ghcr.io/trading-model/discovery-server
+    newTag: latest
+  - name: ghcr.io/trading-model/message-manager
+    newTag: latest
+  - name: ghcr.io/trading-model/financial-scraper
+    newTag: latest
+  - name: ghcr.io/trading-model/trader-trainer
+    newTag: latest
+  - name: ghcr.io/trading-model/api-gateway
+    newTag: latest
+  - name: ghcr.io/trading-model/audit-logger
+    newTag: latest
+  - name: ghcr.io/trading-model/dlq-service
+    newTag: latest
+  - name: ghcr.io/trading-model/spire-tools
+    newTag: latest
+  - name: ghcr.io/trading-model/backup-tools
+    newTag: latest
+
+# Staging-specific resource reductions (smaller than production)
+patches:
+  - target:
+      kind: Deployment
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 1
+
+  - target:
+      kind: StatefulSet
+      name: "^(mysql|redis|redis-sentinel|mongo-dlq|mongo-audit)$"
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 1
+
+  - target:
+      kind: Deployment
+      name: "^(discovery-server|message-manager)$"
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 1

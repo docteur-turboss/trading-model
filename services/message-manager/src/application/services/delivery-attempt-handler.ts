@@ -1,0 +1,91 @@
+import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
+import { sleep } from "@trading-model/common/utils/sleep";
+import type { Message } from "@trading-model/contracts/message-types";
+import type {
+	SequenceNumber,
+	ServiceId,
+} from "@trading-model/primitives/primitives";
+import { backoffDelay } from "../../domain/backoff-calculator";
+import type { SubscribersContext } from "../../domain/delivery-metadata-extractor";
+import type { DeliveryParams } from "../../domain/delivery-params";
+import type {
+	DeliverySendInput,
+	MessageDeliveryPort,
+} from "../ports/message-delivery-port";
+import { resolveTarget } from "./address-resolver";
+import type { DeliveryErrorHandler } from "./delivery-error-handler";
+
+export interface DeliveryAttemptHandlerDeps {
+	deliveryPort: MessageDeliveryPort;
+	errorHandler: DeliveryErrorHandler;
+	callbackPath: string;
+	serviceName: ServiceInstanceName;
+}
+
+export class DeliveryAttemptHandler {
+	private readonly _deliveryPort: MessageDeliveryPort;
+	private readonly _errorHandler: DeliveryErrorHandler;
+	private readonly _callbackPath: string;
+	private readonly _serviceName: ServiceInstanceName;
+
+	constructor(deps: DeliveryAttemptHandlerDeps) {
+		this._deliveryPort = deps.deliveryPort;
+		this._errorHandler = deps.errorHandler;
+		this._callbackPath = deps.callbackPath;
+		this._serviceName = deps.serviceName;
+	}
+
+	async attempt<TData>(
+		message: Message<TData>,
+		context: SubscribersContext,
+		deliveryParams: DeliveryParams
+	): Promise<boolean> {
+		try {
+			return await this._tryDeliver(message, context);
+		} catch (err) {
+			return this._handleDeliveryError(err, message, context, deliveryParams);
+		}
+	}
+
+	private async _handleDeliveryError<TData>(
+		err: unknown,
+		message: Message<TData>,
+		context: SubscribersContext,
+		deliveryParams: DeliveryParams
+	): Promise<boolean> {
+		context.deliveryAttempt = (context.deliveryAttempt + 1) as SequenceNumber;
+
+		const handled = await this._errorHandler.handleDeliveryError(
+			err,
+			message,
+			context,
+			deliveryParams
+		);
+		if (handled) {
+			return false;
+		}
+
+		await sleep(backoffDelay(context.deliveryAttempt));
+		return true;
+	}
+
+	private async _tryDeliver<TData>(
+		message: Message<TData>,
+		context: SubscribersContext
+	): Promise<boolean> {
+		const target = await resolveTarget(
+			this._serviceName as unknown as ServiceId,
+			this._callbackPath
+		);
+
+		const sendInput: DeliverySendInput = {
+			url: target,
+			message,
+			context: { deliveryAttempt: context.deliveryAttempt },
+		};
+		await this._deliveryPort.send(sendInput);
+
+		await context.ack();
+		return false;
+	}
+}

@@ -9,17 +9,17 @@ Market data ingestion service that fetches real-time financial data from Binance
 - Node.js 20+
 - MySQL 8+ (for trades, candles, tickers persistence)
 - Access to a running [Discovery Server](../discovery-server/README.md) (service registry)
-- TLS certificates for mTLS communication
+- mTLS automatique via SPIRE (ADR-0011) — aucun certificat manuel à générer
 
 ## Installation
 
 ```bash
 # From the monorepo root
-npm install
+bun install
 
 # Or from this directory
 cd services/financial-scraper
-npm install
+bun install
 ```
 
 ## Configuration
@@ -41,11 +41,10 @@ See [.env.example](./.env.example) for all available variables.
 | `TLS_KEY_PATH`        | Path to TLS private key             | —                           |
 | `TLS_CERT_PATH`       | Path to TLS certificate             | —                           |
 | `TLS_CA_PATH`         | Path to CA certificate              | —                           |
-| `SERVICE_NAME`        | Service identity for registry       | `financial-scraper-service` |
+| `SERVICE_NAME`        | Service identity for registry       | `financial-scraper`        |
 | `INSTANCE_ID`         | Unique instance identifier          | —                           |
 | `ADDRESS_MANAGER_URL` | Discovery server URL                | —                           |
-| `BINANCE_API_KEY`     | Binance API key (optional)          | `''`                        |
-| `BINANCE_API_SECRET`  | Binance API secret (optional)       | `''`                        |
+| `BINANCE_BASE_URL`    | Binance public API (ADR-0026)       | `https://api.binance.com`   |
 | `SYMBOLS_TO_TRACK`    | JSON array of symbols to fetch      | `[]`                        |
 | `SCRAPE_INTERVAL`     | Cron expression for scrape schedule | `*/1 * * * *`               |
 | `DB_USER`             | MySQL user                          | `root`                      |
@@ -60,43 +59,46 @@ See [.env.example](./.env.example) for all available variables.
 
 ```bash
 # Development (with ts-node)
-npm run dev
+bun run dev
 
 # Production build
-npm run build
-node dist/app/index.js
+bun run build
+node dist/application/index.js
 ```
 
 ## Testing
 
 ```bash
 # All tests
-npm test
+bun run test
 
 # With coverage
-npm run test:coverage
+bun run test:coverage
 
 # Watch mode
-npm run test:watch
+bun run test:watch
 ```
 
 ## Scripts
 
 | Script                  | Description                           |
 | ----------------------- | ------------------------------------- |
-| `npm run dev`           | Run in development mode via `ts-node` |
-| `npm run build`         | Compile TypeScript to `dist/`         |
-| `npm test`              | Execute all tests                     |
-| `npm run test:coverage` | Execute tests with coverage report    |
-| `npm run test:watch`    | Execute tests in watch mode           |
+| `bun run dev`           | Run in development mode via `ts-node` |
+| `bun run build`         | Compile TypeScript to `dist/`         |
+| `bun run test`              | Execute all tests                     |
+| `bun run test:coverage` | Execute tests with coverage report    |
+| `bun run test:watch`    | Execute tests in watch mode           |
 
 ## Project Structure
 
 ```
 src/
-├── app/                        # Service bootstrap & HTTP server
+├── application/                # Service bootstrap & HTTP server
 │   ├── index.ts                # Entry point
-│   └── server.ts               # Express server factory
+│   ├── server.ts               # Express server factory
+│   └── market-data.controller.ts # Application-level persistence orchestration
+├── domain/
+│   └── market-data.model.ts    # Repository facade
 ├── clients/
 │   ├── binance/                # Binance API client
 │   │   ├── binance.client.ts   # API call functions with rate-limit weights
@@ -113,9 +115,7 @@ src/
 │   ├── follows.ts              # Tracked symbols configuration
 │   ├── http.ts                 # Axios client factory (rate-limited, retry)
 │   └── message-manager.ts      # Message bus client setup
-├── infra/market-data/          # Data access & persistence layer
-│   ├── market-data.controller.ts  # Application-level persistence orchestration
-│   ├── market-data.model.ts    # Repository facade
+├── infra/market-data/          # Persistence schemas
 │   ├── market-data.types.ts    # Re-exported entity types
 │   └── schema/                 # Per-entity storage implementations
 │       ├── candles-schema.ts   # Candlestick MySQL table & queries
@@ -123,8 +123,8 @@ src/
 │       ├── ticker24h.schema.ts # Ticker MySQL table & queries
 │       └── trades.schema.ts    # Trades MySQL table & queries
 ├── job/
-│   ├── cron/binance.cron.ts    # Cron orchestrator (schedules workers)
-│   └── worker/binance.worker.ts # Per-symbol data fetch & persist worker
+│   ├── cron/scrape.cron.ts     # Cron orchestrator (adapters/inbound/cron)
+│   └── worker-orchestrator.ts  # Per symbol: source → publish → persist (application)
 ├── types/
 │   ├── axios.d.ts              # Axios module augmentation (weight property)
 │   └── binance.api.ts          # Binance API response type definitions
@@ -140,8 +140,8 @@ tests/
 
 ## Architecture
 
-See [docs/architecture.md](./docs/architecture.md) for the detailed architecture documentation.
+See [ARCHITECTURE.md](./ARCHITECTURE.md) for the detailed architecture documentation.
 
 ## API Endpoints
 
-See [docs/API.md](docs/API.md) for the REST API reference.
+See [API.md](./API.md) for the REST API reference.

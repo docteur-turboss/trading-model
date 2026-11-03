@@ -7,31 +7,43 @@ Central service registry providing dynamic service registration, TTL-based heart
 ```
 services/discovery-server/
 ├── src/
-│   ├── app/
-│   │   ├── index.ts              # Bootstrap: createBootstrap + LeaseManager lifecycle
-│   │   └── server.ts             # Express HTTPS server via createSecureServer
+│   ├── application/
+│   │   ├── index.ts              # Entry point: bootstrap + lifecycle (createBootstrap)
+│   │   └── server.ts             # Express HTTPS server via createServiceServer
+│   ├── adapters/
+│   │   ├── inbound/
+│   │   │   ├── http/                         # Controllers, routes (POST /register, GET /services[/:name[/:id]],
+│   │   │   │                                 # POST /heartbeat, POST /token/rotate), register-builder
+│   │   │   ├── registration-auth.ts          # mTLS + instance-token auth for registration
+│   │   │   └── registration-ip-allowlist.ts  # IP allowlist for registration
+│   │   └── outbound/
+│   │       ├── instance-store.ts             # In-memory instance store
+│   │       ├── redis-instance-store.ts       # Redis-backed instance store
+│   │       ├── instance-registrar.ts
+│   │       ├── instance-metadata-reader.ts
+│   │       ├── instance-heartbeat-handler.ts
+│   │       └── instance-cleanup-handler.ts
+│   ├── domain/
+│   │   ├── service-registry.ts    # In-memory registry (Map<serviceName, Map<instanceId, Instance>>)
+│   │   ├── lease-manager.ts       # Periodic cleanup of expired instances
+│   │   ├── stale-instance-cleaner.ts
+│   │   ├── instance-token-manager.ts         # HMAC instance tokens
+│   │   ├── expiration.ts
+│   │   └── ports/                 # instance-store, discovery-metrics, token-crypto
 │   ├── config/
-│   │   └── env.ts                # Zod schema extended from BaseEnvSchema
-│   ├── controllers/
-│   │   ├── Register.controller.ts  # register, listServices, getServiceInstances, getInstance
-│   │   ├── Heartbeat.controller.ts # heartbeat, rotateToken
-│   │   └── helpers.ts             # asHandler, validateInstanceToken
-│   ├── core/
-│   │   ├── ServiceRegistry.ts     # In-memory registry (Map<serviceName, Map<instanceId, Instance>>)
-│   │   ├── LeaseManager.ts        # Periodic cleanup of expired instances
-│   │   └── types.ts               # Re-exports from @trading-model/common/contracts
-│   └── routes/
-│       ├── register.routes.ts     # POST /register, GET /services, GET /services/:name, GET /services/:name/:id
-│       └── heartbeat.routes.ts    # POST /heartbeat, POST /token/rotate
+│   │   └── container.ts           # createDiscoveryApp(ENV), createServiceRegistry(): store, crypto, metrics, lease manager
+│   ├── infrastructure/
+│   │   ├── config/env.ts          # Zod schema extended from BaseEnvSchema
+│   │   └── monitoring/metrics.ts  # Prometheus collectors + prometheusDiscoveryMetrics port adapter
+│   └── shared/                    # helpers, validators, redis-deps, redis-key-builder, types
 ├── tests/
 │   ├── fixtures/                  # Reusable test data
 │   ├── helpers/                   # Test utilities
 │   ├── unit/                      # Isolated unit tests
-│   │   └── controllers/
 │   └── integration/               # Integration tests
 ├── package.json
 ├── tsconfig.json
-├── jest.config.ts
+├── jest.config.js
 └── README.md
 ```
 
@@ -39,11 +51,12 @@ services/discovery-server/
 
 | Layer            | Files                                                             | Responsibility                                                                            |
 | ---------------- | ----------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| **app/**         | `index.ts`, `server.ts`                                           | Application bootstrap, HTTPS server creation via `createBootstrap` / `createSecureServer` |
-| **config/**      | `env.ts`                                                          | Zod schema extending `BaseEnvSchema` with `CLEANUP_SERVICE_INTERVAL_MS`                   |
-| **controllers/** | `Register.controller.ts`, `Heartbeat.controller.ts`, `helpers.ts` | HTTP request handling, input validation, auth token verification                          |
-| **core/**        | `ServiceRegistry.ts`, `LeaseManager.ts`, `types.ts`               | Domain logic: registry CRUD, lease management, type exports                               |
-| **routes/**      | `register.routes.ts`, `heartbeat.routes.ts`                       | Thin Express Router definitions binding paths to controllers                              |
+| **application/** | `index.ts`, `server.ts`                                           | Entry point, HTTPS server creation via `createBootstrap` / `createServiceServer`             |
+| **adapters/**    | `inbound/registration-auth.ts`, `outbound/instance-store.ts`, `outbound/redis-instance-store.ts`, ... | Ports/adapters wiring: registration auth and instance persistence (in-memory / Redis) |
+| **domain/**      | `service-registry.ts`, `lease-manager.ts`, `instance-token-manager.ts`, `ports/` | Domain logic: registry CRUD, lease management, tokens, ports/interfaces                |
+| **infrastructure/** | `config/env.ts`, `monitoring/metrics.ts`                          | Env config, Prometheus metrics                                                          |
+| **adapters/inbound/http/** | `register.controller.ts`, `heartbeat.controller.ts`, `register-builder.ts`, `*.routes.ts` | HTTP request handling, input validation, auth token verification; thin Express routers |
+| **config/**      | `container.ts`                                                    | Composition root: `createDiscoveryApp(ENV)` (store, registry, lease manager) and `createServiceRegistry()` |
 
 ## Data Flow
 
@@ -83,7 +96,7 @@ Each registered instance specifies a TTL. The `LeaseManager` runs periodically a
 
 ### Two-layer authentication
 
-1. **mTLS transport** — all connections require valid client certificates signed by the shared Root CA
+1. **mTLS transport** — all connections require valid client certificates; SVIDs signed by the SPIRE trust domain (ADR-0011)
 2. **Instance token** — each registration returns a HMAC-based token; sensitive operations (`/heartbeat`, `/token/rotate`) require the `x-instance-token` header
 
 ## API Endpoints

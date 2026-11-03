@@ -1,0 +1,125 @@
+﻿apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: discovery-server-config
+  labels:
+    app.kubernetes.io/component: discovery-server
+    app.kubernetes.io/part-of: trading-model
+data:
+  NODE_ENV: "production"
+  OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4318"
+  PORT: "3000"
+  TLS_KEY_PATH: "/run/spire/svid/svid_key.pem"
+  TLS_CERT_PATH: "/run/spire/svid/svid.pem"
+  TLS_CA_PATH: "/run/spire/svid/bundle.pem"
+  ENFORCE_MTLS_STRICT: "true"
+  LOG_LEVEL: "info"
+  CLEANUP_SERVICE_INTERVAL_MS: "15000"
+  REDIS_SENTINELS: "redis-sentinel-0.redis-sentinel-headless:26379,redis-sentinel-1.redis-sentinel-headless:26379,redis-sentinel-2.redis-sentinel-headless:26379"
+  REDIS_SENTINEL_MASTER_NAME: "mymaster"
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: discovery-server-hpa
+  labels:
+    app.kubernetes.io/component: discovery-server
+    app.kubernetes.io/part-of: trading-model
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: discovery-server
+  minReplicas: 3
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 75
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 120
+      policies:
+        - type: Percent
+          value: 25
+          periodSeconds: 60
+    scaleUp:
+      stabilizationWindowSeconds: 30
+      policies:
+        - type: Percent
+          value: 100
+          periodSeconds: 15
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: discovery-server-pdb
+  labels:
+    app.kubernetes.io/component: discovery-server
+    app.kubernetes.io/part-of: trading-model
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: discovery-server
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: discovery-server-network-policy
+  labels:
+    app.kubernetes.io/component: discovery-server
+    app.kubernetes.io/part-of: trading-model
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: discovery-server
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        # Same namespace as the policy, whatever the overlay's namespace.
+        - podSelector: {}
+      ports:
+        - port: 3000
+          protocol: TCP
+  egress:
+    - to:
+        # Same namespace as the policy, whatever the overlay's namespace.
+        - podSelector: {}
+      ports:
+        - port: 6379
+          protocol: TCP
+        # Sentinels (REDIS_SENTINELS).
+        - port: 26379
+          protocol: TCP
+        - port: 3000
+          protocol: TCP
+    # The deploy smoke test (deploy-k8s.sh smoke-test) runs from this pod and
+    # checks the edge-proxy readiness on its plain HTTP port.
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: edge-proxy
+      ports:
+        - port: 8080
+          protocol: TCP
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: discovery-server
+  labels:
+    app.kubernetes.io/component: discovery-server
+    app.kubernetes.io/part-of: trading-model
+automountServiceAccountToken: false

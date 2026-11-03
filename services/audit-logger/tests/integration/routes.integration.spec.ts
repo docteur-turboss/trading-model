@@ -1,0 +1,112 @@
+import http from "node:http";
+import { afterEach, describe, expect, it, jest } from "@jest/globals";
+import { configureApp } from "@trading-model/server-utils/adapters/inbound/configure-app";
+
+jest.mock("../../src/infrastructure/config/env", () => ({
+	ENV: {
+		NODE_ENV: "test",
+		PORT: 0,
+		TLS_KEY_PATH: "",
+		TLS_CERT_PATH: "",
+		TLS_CA_PATH: "",
+		LOG_LEVEL: "info",
+		MONGODB_URI: "mongodb://localhost:27017/test",
+		APP_NAME: "audit-logger",
+		APP_VERSION: "1.0.0",
+		SERVICE_NAME: "audit-logger-service",
+		INSTANCE_ID: "test-instance",
+		CACHE_TTL_MS: 30000,
+		SERVICE_PING_TIMEOUT_MS: 2000,
+		TOKEN_REFRESH_INTERVAL_MS: 60000,
+		TTL_REFRESH_INTERVAL_MS: 15000,
+		ADDRESS_MANAGER_URL: "http://localhost:3000",
+		ERROR_URL_WEBHOOK: "",
+		MESSAGE_BUS_INIT_TIMEOUT_MS: 5000,
+		MESSAGE_BUS_SHUTDOWN_TIMEOUT_MS: 5000,
+		MESSAGE_CALLBACK_PATH: "message",
+	},
+}));
+
+jest.mock("@trading-model/http/infrastructure/logger", () => ({
+	logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
+}));
+
+jest.mock("../../src/config/address-manager", () => ({
+	ADDRESS_MANAGER_ROUTES: (_app: any): void => {},
+	BOOTSTRAP_ADDRESS_MANAGER: (): { stop: () => void } => ({
+		stop: (): void => {},
+	}),
+	AddressManager: { getAddress: (): null => null },
+}));
+
+import { healthRoutes } from "../../src/adapters/inbound/http/health.routes";
+
+function createApp() {
+	const app = configureApp();
+	app.use("/", healthRoutes());
+	return app;
+}
+
+function fetchJson(
+	server: http.Server,
+	path: string
+): Promise<{ status: number; body: unknown }> {
+	return new Promise((resolve, reject) => {
+		const addr = server.address();
+		if (!addr || typeof addr === "string") {
+			reject(new Error("Server not listening"));
+			return;
+		}
+		const req = http.get(`http://localhost:${addr.port}${path}`, (res) => {
+			let data = "";
+			res.on("data", (chunk: string) => {
+				data += chunk;
+			});
+			res.on("end", () => {
+				try {
+					resolve({ status: res.statusCode ?? 500, body: JSON.parse(data) });
+				} catch {
+					resolve({ status: res.statusCode ?? 500, body: data });
+				}
+			});
+			res.on("error", reject);
+		});
+		req.on("error", reject);
+	});
+}
+
+describe("Audit Logger — Routes Integration", () => {
+	let server: http.Server;
+
+	afterEach(() => {
+		jest.restoreAllMocks();
+		return new Promise<void>((resolve) => {
+			if (server?.listening) {
+				server.close(() => resolve());
+			} else {
+				resolve();
+			}
+		});
+	});
+
+	it("GET /ping should return 200", async () => {
+		const app = createApp();
+		await new Promise<void>((resolve) => {
+			server = app.listen(0, () => resolve());
+		});
+		const result = await fetchJson(server, "/ping");
+		expect(result.status).toBe(200);
+		expect(result.body).toHaveProperty("status", "ok");
+	});
+
+	it("GET /health should return health information", async () => {
+		const app = createApp();
+		await new Promise<void>((resolve) => {
+			server = app.listen(0, () => resolve());
+		});
+		const result = await fetchJson(server, "/health");
+		expect(result.status).toBe(200);
+		expect(result.body).toHaveProperty("status", "ok");
+		expect(result.body).toHaveProperty("timestamp");
+	});
+});

@@ -1,0 +1,78 @@
+﻿apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: edge-proxy-hpa
+  labels:
+    app.kubernetes.io/component: edge-proxy
+    app.kubernetes.io/part-of: trading-model
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: edge-proxy
+  minReplicas: 2
+  maxReplicas: 5
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 120
+    scaleUp:
+      stabilizationWindowSeconds: 15
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: edge-proxy-pdb
+  labels:
+    app.kubernetes.io/component: edge-proxy
+    app.kubernetes.io/part-of: trading-model
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: edge-proxy
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: edge-proxy-network-policy
+  labels:
+    app.kubernetes.io/component: edge-proxy
+    app.kubernetes.io/part-of: trading-model
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: edge-proxy
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - namespaceSelector: {}
+      ports:
+        - port: 8080
+          protocol: TCP
+  egress:
+    # Only the api-gateway (same namespace as the policy, whatever the overlay).
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: api-gateway
+      ports:
+        - port: 3000
+          protocol: TCP
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: edge-proxy
+  labels:
+    app.kubernetes.io/component: edge-proxy
+    app.kubernetes.io/part-of: trading-model
+automountServiceAccountToken: false

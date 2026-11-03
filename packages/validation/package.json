@@ -1,0 +1,31 @@
+{
+  "name": "@trading-model/validation",
+  "version": "1.0.0",
+  "description": "Validation schemas and shared type contracts extracted from @trading-model/common",
+  "license": "ISC",
+  "type": "commonjs",
+  "exports": {
+    "./*": {
+      "types": "./dist/*.d.ts",
+      "default": "./dist/*.js"
+    }
+  },
+  "dependencies": {
+    "@trading-model/primitives": "*",
+    "@trading-model/contracts": "*",
+    "@trading-model/common": "*",
+    "@trading-model/http": "*",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "jest": "^30.5.2",
+    "ts-jest": "^29.4.15",
+    "typescript": "^6.0.3"
+  },
+  "scripts": {
+    "test": "jest",
+    "test:coverage": "jest --coverage",
+    "build": "tsc"
+  }
+}

@@ -1,124 +1,145 @@
-import { describe, it, expect, beforeEach } from '@jest/globals';
+import { beforeEach, describe, expect, it } from "@jest/globals";
+import {
+	MarketType,
+	SourceType,
+} from "@trading-model/contracts/market-data.types";
+import {
+	TradingSymbol,
+	UnixTimestamp,
+} from "@trading-model/primitives/primitives";
 
 import {
-  insertOrderBook,
-  selectOrderBookBy,
-} from '../../../../../src/infra/market-data/schema/order-book.schema';
+	insertOrderBook,
+	selectOrderBookBy,
+} from "../../../../../src/adapters/outbound/persistence/schema/order-book.schema";
 
-// The Zod schema in the source validates against arrays + Date,
-// not the OrderBookEntity TS type (Set + number).
-const makeBook = (overrides: Record<string, unknown> = {}) => ({
-  symbol: 'BTCUSDT',
-  source: 'binance',
-  market: 'crypto' as const,
-  bids: [{ price: 50000, quantity: 0.5 }],
-  asks: [{ price: 50010, quantity: 1.0 }],
-  timestamp: new Date(),
-  ...overrides,
+// OrderBookData as produced by the Binance normalizer: Set levels, Unix timestamp.
+const MAKE_BOOK = (overrides: Record<string, unknown> = {}) => ({
+	symbol: "BTCUSDT",
+	source: "binance",
+	market: "crypto" as const,
+	bids: new Set([{ price: 50000, quantity: 0.5 }]),
+	asks: new Set([{ price: 50010, quantity: 1.0 }]),
+	timestamp: Date.now(),
+	...overrides,
 });
 
-describe('MarkerOrderBooks (in-memory storage)', () => {
-  describe('insert and query by symbol', () => {
-    beforeEach(async () => {
-      await insertOrderBook([makeBook() as never]);
-    });
+const BTC = TradingSymbol.of("BTCUSDT");
+const DOGE = TradingSymbol.of("DOGEUSDT");
 
-    it('should insert an order book and retrieve it via symbol', async () => {
-      const results = await selectOrderBookBy.symbol('BTCUSDT');
-      expect(results).not.toBeNull();
-      expect(results!.length).toBe(1);
-    });
+describe("MarkerOrderBooks (in-memory storage)", () => {
+	describe("insert and query by symbol", () => {
+		beforeEach(async () => {
+			await insertOrderBook([MAKE_BOOK() as never]);
+		});
 
-    it('should return null for unknown symbol', async () => {
-      const results = await selectOrderBookBy.symbol('DOGEUSDT');
-      expect(results).toBeNull();
-    });
-  });
+		it("should insert an order book and retrieve it via symbol", async () => {
+			const results = await selectOrderBookBy.symbol(BTC);
+			expect(results).not.toBeNull();
+			expect(results!.length).toBe(1);
+		});
 
-  describe('query by source', () => {
-    beforeEach(async () => {
-      await insertOrderBook([makeBook() as never]);
-    });
+		it("should return null for unknown symbol", async () => {
+			const results = await selectOrderBookBy.symbol(DOGE);
+			expect(results).toBeNull();
+		});
+	});
 
-    it('should find order books by source', async () => {
-      const results = await selectOrderBookBy.source('binance');
-      expect(results).not.toBeNull();
-      expect(results!.length).toBeGreaterThanOrEqual(1);
-    });
+	describe("query by source", () => {
+		beforeEach(async () => {
+			await insertOrderBook([MAKE_BOOK() as never]);
+		});
 
-    it('should return null for unknown source', async () => {
-      const results = await selectOrderBookBy.source('kraken');
-      expect(results).toBeNull();
-    });
-  });
+		it("should find order books by source", async () => {
+			const results = await selectOrderBookBy.source(SourceType.Binance);
+			expect(results).not.toBeNull();
+			expect(results!.length).toBeGreaterThanOrEqual(1);
+		});
 
-  describe('timestamp range queries', () => {
-    const baseTime = new Date();
+		it("should return null for unknown source", async () => {
+			const results = await selectOrderBookBy.source("kraken" as SourceType);
+			expect(results).toBeNull();
+		});
+	});
 
-    beforeEach(async () => {
-      await insertOrderBook([makeBook({ timestamp: baseTime }) as never]);
-    });
+	describe("timestamp range queries", () => {
+		const baseTime = Date.now();
 
-    it('should find order books after a given timestamp', async () => {
-      const results = await selectOrderBookBy.timestamp.after(baseTime.getTime() - 3600000);
-      expect(results).not.toBeNull();
-      expect(results!.length).toBeGreaterThanOrEqual(1);
-    });
+		beforeEach(async () => {
+			await insertOrderBook([MAKE_BOOK({ timestamp: baseTime }) as never]);
+		});
 
-    it('should find order books before a given timestamp', async () => {
-      const results = await selectOrderBookBy.timestamp.before(baseTime.getTime() + 3600000);
-      expect(results).not.toBeNull();
-      expect(results!.length).toBeGreaterThanOrEqual(1);
-    });
-  });
+		it("should find order books after a given timestamp", async () => {
+			const results = await selectOrderBookBy.timestamp.after(
+				UnixTimestamp.of(baseTime - 3600000)
+			);
+			expect(results).not.toBeNull();
+			expect(results!.length).toBeGreaterThanOrEqual(1);
+		});
 
-  describe('validation failure', () => {
-    it('should throw on invalid data', async () => {
-      const invalid = makeBook({ market: 'invalid' });
-      await expect(insertOrderBook([invalid as never])).rejects.toThrow();
-    });
-  });
+		it("should find order books before a given timestamp", async () => {
+			const results = await selectOrderBookBy.timestamp.before(
+				UnixTimestamp.of(baseTime + 3600000)
+			);
+			expect(results).not.toBeNull();
+			expect(results!.length).toBeGreaterThanOrEqual(1);
+		});
+	});
 
-  describe('getById and getByMarket', () => {
-    beforeEach(async () => {
-      await insertOrderBook([makeBook({ symbol: 'BTCUSDT', market: 'crypto' }) as never]);
-    });
+	describe("validation failure", () => {
+		it("should throw on invalid data", async () => {
+			const invalid = MAKE_BOOK({ market: "invalid" as never });
+			await expect(insertOrderBook([invalid as never])).rejects.toThrow();
+		});
 
-    it('should retrieve by id', async () => {
-      const marketData = await selectOrderBookBy.market('crypto');
-      expect(marketData).not.toBeNull();
+		it("should reject levels sent as arrays instead of Sets", async () => {
+			const arrays = MAKE_BOOK({ bids: [{ price: 50000, quantity: 0.5 }] });
+			await expect(insertOrderBook([arrays as never])).rejects.toThrow();
+		});
+	});
 
-      let found = false;
-      for (let id = 10000; id < 10050; id++) {
-        const result = await selectOrderBookBy.id(id);
-        if (result && result.symbol === 'BTCUSDT') {
-          found = true;
-          break;
-        }
-      }
-      expect(found).toBe(true);
-    });
+	describe("getById and getByMarket", () => {
+		beforeEach(async () => {
+			await insertOrderBook([
+				MAKE_BOOK({ symbol: "BTCUSDT", market: "crypto" }) as never,
+			]);
+		});
 
-    it('should return null for unknown id', async () => {
-      const result = await selectOrderBookBy.id(-1);
-      expect(result).toBeNull();
-    });
+		it("should retrieve by id", async () => {
+			const marketData = await selectOrderBookBy.market(MarketType.Crypto);
+			expect(marketData).not.toBeNull();
 
-    it('should retrieve by market', async () => {
-      const results = await selectOrderBookBy.market('crypto');
-      expect(results).not.toBeNull();
-      expect(results!.length).toBeGreaterThanOrEqual(1);
-    });
+			let found = false;
+			for (let id = 10000; id < 10050; id++) {
+				const result = await selectOrderBookBy.id(id);
+				if (result && result.symbol === "BTCUSDT") {
+					found = true;
+					break;
+				}
+			}
+			expect(found).toBe(true);
+		});
 
-    it('should return null for unknown market', async () => {
-      const results = await selectOrderBookBy.market('fx');
-      expect(results).toBeNull();
-    });
-  });
+		it("should return null for unknown id", async () => {
+			const result = await selectOrderBookBy.id(-1);
+			expect(result).toBeNull();
+		});
 
-  describe('empty data handling', () => {
-    it('should do nothing when inserting empty array', async () => {
-      await expect(insertOrderBook([])).resolves.toBeUndefined();
-    });
-  });
+		it("should retrieve by market", async () => {
+			const results = await selectOrderBookBy.market(MarketType.Crypto);
+			expect(results).not.toBeNull();
+			expect(results!.length).toBeGreaterThanOrEqual(1);
+		});
+
+		it("should return null for unknown market", async () => {
+			const results = await selectOrderBookBy.market(MarketType.Fx);
+			expect(results).toBeNull();
+		});
+	});
+
+	describe("empty data handling", () => {
+		it("should do nothing when inserting empty array", async () => {
+			await expect(insertOrderBook([])).resolves.toBeUndefined();
+		});
+	});
 });

@@ -1,163 +1,136 @@
-# AI Trading Platform
+# trading-model
 
-## Overview
+Microservices-based AI trading platform. Ingests market data, trains autonomous agents via Genetic Algorithm + Deep Q-Learning, and routes inter-service messages through an internal pub/sub broker.
 
-This repository hosts a **microservices-based AI trading platform** designed to ingest heterogeneous data sources (social, financial, economic, and market data), predict future price movements using **Transformer-based models**, and train an autonomous trading agent via **Deep Reinforcement Learning**, optimized by a **Genetic Algorithm**.
+## Quick Start
 
-The system is intended to **execute real market orders**, while remaining strictly controlled by a **central monitoring service** enforcing risk limits, safety constraints, and execution policies.
-
-This project is currently in an **early development phase**.
-
-## High-Level Architecture
-
-The platform is built as a **distributed system**, following microservice principles:
-
-- Independent services with clear responsibilities
-- Secure service-to-service communication (HTTPS / mTLS)
-- Event-driven and API-based interactions
-- Centralized supervision for live trading execution
-
-```
-Data Sources ──▶ Scrapers ──▶ Feature Pipelines ──▶ Models
-                                              │
-                                              ▼
-                                        Trader (DRL)
-                                              │
-                                              ▼
-                                    Central Monitor
-                                              │
-                                              ▼
-                                      Market Execution
+```bash
+git clone <repo-url> && cd trading-model
+bun install --frozen-lockfile
+docker compose up -d
 ```
 
-## Data Sources
+mTLS is automatic via SPIRE (ADR-0011) — no manual certificate generation.
 
-The system is designed to aggregate and correlate multiple categories of signals:
+See [Quick Start Tutorial](docs/getting-started/quickstart.md) for a 10-minute hands-on walkthrough.
 
-- **Social data**
-  - Sentiment, trends, public discourse (planned)
+## Architecture
 
-- **Financial data**
-  - Company-level metrics and market data
+| Layer         | Technology                                                 |
+| ------------- | ---------------------------------------------------------- |
+| Runtime       | Bun 1.x (Node.js 26-compatible APIs)                       |
+| Language      | TypeScript (ES2020)                                        |
+| API           | Express 5                                                  |
+| Frontend      | None for now — removed, see ADR-0018                       |
+| Security      | mTLS everywhere (TLS 1.3)                                  |
+| Databases     | MongoDB 7, MySQL 8 (Group Replication), Redis 7 (Sentinel) |
+| Validation    | Zod                                                        |
+| Testing       | Jest + Stryker (mutation)                                  |
+| Observability | Prometheus + Grafana + Jaeger + Loki                       |
 
-- **Economic data**
-  - State-level indicators (e.g. unemployment, inflation)
+### Services
 
-- **Market data**
-  - Price, volume, order book, volatility
+| Service                 | Port | Purpose                                                        |
+| ----------------------- | ---- | -------------------------------------------------------------- |
+| `discovery-server`      | 8443 | Service registry with TTL-based lease management + HMAC tokens |
+| `message-manager`       | 8444 | Topic-based pub/sub broker with DLQ routing                    |
+| `financial-scraper`     | 8445 | Binance market data ingestion (candles, trades, order books)   |
+| `trader-trainer`        | 8446 | GA + DQN agent evolution engine                                |
+| `api-gateway`           | 8448 | Single external entry point: auth, rate-limit, cache, proxy    |
+| `audit-logger`          | 8450 | Immutable event traceability + centralized log aggregation     |
+| `dlq-service`           | 8452 | Dead letter queue storage with auto-retry + replay             |
+| `edge-proxy`            | 8449 | nginx: external HTTP entry, `/v1` → api-gateway over mTLS      |
 
-## Current Project Status
+### Shared Packages
 
-### ❌ Implemented
+| Package                             | Purpose                                                                                             |
+| ----------------------------------- | --------------------------------------------------------------------------------------------------- |
+| `@trading-model/common`             | HTTP client, logger, middleware, server factories, env validation, circuit breaker, SSRF protection |
+| `@trading-model/validation`         | Zod schemas, DTOs, event enums, admin contracts                                                     |
+| `@trading-model/server-utils`       | Secure HTTPS server factory, TLS watcher, response protocol                                         |
+| `@trading-model/crypto`             | Hashing, signature, and crypto primitives                                                           |
+| `@trading-model/address-manager`    | Service discovery client with health-checking and token rotation                                    |
+| `@trading-model/broker-message`     | Inter-service messaging SDK with typed event subscriptions                                          |
 
-- Nothing is considered stable or production-ready yet
+### Workload identity
 
-### 🚧 In Progress
+- **SPIFFE/SPIRE (ADR-0011):** per-service X.509 SVIDs issued by a SPIRE Server after workload attestation, consumed via `spiffe-helper` sidecars. Replaces the in-house certificate-authority (decommissioned).
 
-#### Service Discovery
+## Commands
 
-- Central registry for microservices
-- Handles dynamic service registration and discovery
-- Designed to support:
-  - containerized environments
-  - secure communication (mTLS)
+```bash
+bun install --frozen-lockfile                       # Install all workspace dependencies
+bun run build                # Build the shared packages in dependency order
+bun run build:ts             # Full build (packages + 7 services)
+bun run lint                 # Biome check across the monorepo
+bun run test        # All workspace tests
+bun run test:coverage        # All tests with coverage
+bun run test:contract        # Cross-service contracts (real producer/client code → real consumer/server code)
+bun run api:check            # OpenAPI and documented routes vs the real routes
+bun run test:e2e             # E2E tests (requires Docker Compose up)
+bun run docs:generate        # TypeDoc HTML
+bun run commit               # Interactive gitmoji commit CLI
+# Release: GitHub Actions → "Release" workflow (version bump + images + GitHub Release + docs)
+```
 
-#### Financial Scraper
+## Deployment
 
-- Initial implementation using **Binance API**
-- Responsible for:
-  - fetching market data
-  - normalizing and publishing financial signals
-- This is a temporary data source, subject to change
+- **Docker Compose:** `docker compose up -d` (all 20+ containers with health-check ordering)
+- **Kubernetes:** `kubectl apply -k deploy/k8s/overlays/production` (HPA, PDBs, NetworkPolicies, SealedSecrets)
+- **Backup:** Daily CronJob → MongoDB (dlq + audit) + MySQL (incl. SPIRE datastore) + SPIRE CA keys + checkpoints, age-encrypted, mandatory S3 off-site copy; restore drill in CI
+- **Secrets:** SealedSecrets (SealedSecret → controller decrypts → standard Secret)
+- **Probes:** `startupProbe` (90s window) + `livenessProbe` + `readinessProbe` on all services
+- **Identity/mTLS:** SPIRE Server + Agent (K8s PSAT / Docker attestor) issuing SVIDs to `spiffe-helper` sidecars (ADR-0011)
 
-#### Mail Service
+## CI/CD
 
-- Internal messaging service between microservices
-- Intended for:
-  - event notifications
-  - alerts
-  - asynchronous communication
-- Not user-facing email delivery
+GitHub Actions workflows:
 
-#### Trader
+- **ci.yml** — on every push/PR: lint → typecheck (packages + services) → test+coverage (Codecov) → contract tests → E2E (Docker stack)
+- **release.yml** — quality gates → Docker build/push (7 images) → GitHub Release → TypeDoc docs (manual `workflow_dispatch`)
+- **deploy.yml** — manual staging/production deploy with rollback
+- **backup-test.yml** — weekly restore drill of the Docker backup scripts
 
-- Core trading logic
-- Uses a **Genetic Algorithm** to evolve trading agents
-- Agents are trained via **Deep Reinforcement Learning**
-- Still experimental and not connected to live execution
+Pre-push git hook runs: `@biomejs/biome check` → `build` → `test`.
 
-## Planned Components (Non-Exhaustive)
+## Documentation
 
-- Social data scrapers (news, social media)
-- Economic data ingestion (macro indicators)
-- Transformer-based prediction models
-- Feature stores and time-series pipelines
-- Backtesting and simulation environment
-- Central monitoring & risk control service
-- Execution engine with broker abstraction
-- Observability (metrics, logs, alerts)
+- [Documentation Index](docs/README.md) — central entry point to all docs
+- [Architecture Standards](docs/standards/architecture-standards.md) — C4 diagrams, dependency graph, service conventions
+- [OpenAPI 3.0](docs/services/openapi/api-gateway.yaml) — generated from the services' routes (`bun run api:write`, checked by `bun run api:check`)
+- [ADR Index](docs/adr/README.md) — 11 architecture decision records
+- [Compliance](docs/compliance/) — GDPR register, DPIA, retention policy, breach notification
+- [Operations](docs/operations/) — runbooks, SLOs, incident response, diagnostic guide
+- [Getting Started](docs/getting-started/quickstart.md) — 10-minute hands-on introduction
+- [Examples](examples/) — executable bash scripts for common API workflows
 
-## Security Model
+## Security
 
-- All inter-service communication is expected to use **HTTPS with mutual TLS**
-- No service trusts another without explicit certificate validation
-- Live trading execution will be gated by:
-  - risk limits
-  - capital exposure constraints
-  - fail-safe mechanisms
+- **OWASP-hardened:** anti-noSQL injection, timed-safe token comparison, log redaction
+- **mTLS everywhere:** SPIFFE/SPIRE workload identity — short-lived X.509 SVIDs with automatic rotation (ADR-0011)
+- **Secrets:** SealedSecrets + HMAC-signed service-to-service requests (`@trading-model/crypto`), rotation via `scripts/rotate-secrets.sh`
 
-See [`SECURITY.md`](./SECURITY.md) for responsible disclosure and security policies.
-See [`docs/README.md`](docs/README.md) for the full documentation index.
+## Monitoring
 
-## Disclaimer
+- **Dashboards:** 4 Grafana dashboards (SLO, services, message-manager, trader-trainer)
+- **Alerts:** Prometheus rules in `observability/alerting.yml` (SLO burn rates + operational), mirrored in the K8s Prometheus ConfigMap and checked by `scripts/observability-gate.mjs` and unit-tested with promtool (`tests/alerts`) → Alertmanager → Slack/PagerDuty, with a `Watchdog` dead man's switch ([Alerting](docs/operations/ALERTING.md))
+- **Traces:** OpenTelemetry → OTLP Collector → Jaeger (all 7 services instrumented)
+- **Logs:** Pino structured JSON → Promtail → Loki + centralized log aggregation to audit-logger
 
-⚠️ **This project is experimental.**
+## Status
 
-- It is **not audited**
-- It is **not production-ready**
-- It may interact with **real financial markets**
-- Improper use can lead to **financial loss**
+**Pre-production — improvements needed before production use.** While the architecture and core services are functional, several areas require hardening before this is ready for production workloads:
 
-Use at your own risk.
+- [ ] Full audit of error handling and retry logic across all services
+- [ ] Load testing under realistic market conditions
+- [ ] Comprehensive disaster recovery validation
+- [ ] Security review of all inter-service communication paths
+- [ ] Documentation gaps in operations runbooks and incident response
+- [ ] End-to-end monitoring and alerting coverage validation
+- [ ] Performance benchmarking and resource profiling
+
+See [CHANGELOG.md](CHANGELOG.md) for version history.
 
 ## License
 
-This project is licensed under the **PolyForm Noncommercial License 1.0.0**.
-
-- Non-commercial use only
-- Research, experimentation, and personal use are permitted
-- Commercial usage requires explicit authorization
-
-See [`LICENSE`](./LICENSE.md) for full terms.
-
-## Contributing
-
-Contributions are welcome for:
-
-- research
-- experimentation
-- architecture discussions
-
-By contributing, you agree that your contributions are licensed under the same license as the project.
-
-## Roadmap Philosophy
-
-This project prioritizes:
-
-- correctness over speed
-- safety over performance
-- observability over blind automation
-
-No component will be considered production-ready without:
-
-- explicit testing
-- documented assumptions
-- clear failure modes
-
-## Contact
-
-For security-related issues, see [`SECURITY.md`](./SECURITY.md).
-For general discussions or architecture questions, open an issue.
-
-**Status:** 🚧 Early Development
-**Type:** Research / Experimental AI Trading System
+PolyForm Noncommercial License 1.0.0. See [LICENSE](LICENSE.md).

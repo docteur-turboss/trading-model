@@ -1,10 +1,8 @@
-import { createAddressManager } from '@trading-model/address-manager/create-address-manager';
+import { createServiceAddressManager } from "@trading-model/address-manager/application/create-service-address-manager";
 
-import { env } from './env';
+import { ENV } from "../infrastructure/config/env";
 
-const addressManager = createAddressManager(env);
+const { AddressManager, BOOTSTRAP_ADDRESS_MANAGER, ADDRESS_MANAGER_ROUTES } =
+	createServiceAddressManager(ENV);
 
-const bootstrapAddressManager = addressManager.start;
-const AddressManagerRoutes = addressManager.listenExpress;
-
-export { AddressManagerRoutes, bootstrapAddressManager, addressManager as AddressManager };
+export { ADDRESS_MANAGER_ROUTES, AddressManager, BOOTSTRAP_ADDRESS_MANAGER };

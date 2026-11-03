@@ -1,0 +1,84 @@
+import { describe, expect, it, jest } from "@jest/globals";
+
+jest.mock("express-rate-limit", () => {
+	return jest.fn(
+		() => (_req: unknown, _res: unknown, next: () => void) => next()
+	);
+});
+
+import createBrokerModule from "../../../src/config/container";
+
+jest.mock("../../../src/config/address-manager", () => ({
+	ADDRESS_MANAGER_ROUTES: jest.fn(),
+	BOOTSTRAP_ADDRESS_MANAGER: jest.fn(),
+}));
+
+jest.mock("@trading-model/http/adapters/outbound/http-client", () => {
+	const mockInstance = { post: jest.fn(), get: jest.fn() };
+	const MockHttpClient = jest.fn().mockImplementation(() => mockInstance);
+	MockHttpClient.createWithTls = jest.fn(() => mockInstance);
+	return { HttpClient: MockHttpClient };
+});
+
+describe("createBrokerModule", () => {
+	it("should create without error", () => {
+		const module = createBrokerModule({
+			caPath: "/certs/ca.pem",
+			certPath: "/certs/cert.pem",
+			keyPath: "/certs/key.pem",
+		});
+
+		expect(module).toBeDefined();
+	});
+
+	it("should expose a listen method", () => {
+		const module = createBrokerModule({
+			caPath: "/certs/ca.pem",
+			certPath: "/certs/cert.pem",
+			keyPath: "/certs/key.pem",
+		});
+
+		expect(module.listen).toBeDefined();
+		expect(typeof module.listen).toBe("function");
+	});
+
+	it("should keep dead letters in the file without a dlq-service secret", async () => {
+		const module = createBrokerModule(
+			{
+				caPath: "/certs/ca.pem",
+				certPath: "/certs/cert.pem",
+				keyPath: "/certs/key.pem",
+			},
+			{ filePath: "/tmp/never-written.jsonl" }
+		);
+
+		await expect(module.forwardDeadLetters()).resolves.toBeUndefined();
+	});
+
+	it("should refuse a dlq-service secret shorter than 16 characters", () => {
+		expect(() =>
+			createBrokerModule(
+				{
+					caPath: "/certs/ca.pem",
+					certPath: "/certs/cert.pem",
+					keyPath: "/certs/key.pem",
+				},
+				{ dlqSecret: "short" }
+			)
+		).toThrow("at least 16 characters");
+	});
+
+	it("should accept an Express app in listen method", () => {
+		const module = createBrokerModule({
+			caPath: "/certs/ca.pem",
+			certPath: "/certs/cert.pem",
+			keyPath: "/certs/key.pem",
+		});
+
+		const mockApp = { use: jest.fn() };
+		module.listen(mockApp as never);
+
+		expect(mockApp.use).toHaveBeenCalled();
+		expect(mockApp.use).toHaveBeenCalledTimes(1);
+	});
+});

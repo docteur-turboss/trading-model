@@ -1,0 +1,336 @@
+# SPIRE Server — workload identity issuance (ADR-0011).
+# Datastore: MySQL (existing trading-model MySQL, database `spire`).
+# Agents (namespace trading-model-node, deploy/k8s/node-agents) attest with k8s_psat;
+# the server publishes its trust bundle into the `spire-bundle` ConfigMap of
+# trading-model-node (k8sbundle notifier) that the agents mount.
+# Registration entries are reconciled by the `spire-entries` sidecar
+# (ghcr.io/trading-model/spire-tools, deploy/spire/k8s-entries.sh): the
+# official SPIRE images ship no shell.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: spire-server
+  labels:
+    app.kubernetes.io/component: spire-server
+    app.kubernetes.io/part-of: trading-model
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: spire-server
+  labels:
+    app.kubernetes.io/component: spire-server
+    app.kubernetes.io/part-of: trading-model
+spec:
+  selector:
+    app.kubernetes.io/component: spire-server
+  ports:
+    - name: grpc
+      port: 8081
+      targetPort: 8081
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: spire-server-config
+  labels:
+    app.kubernetes.io/component: spire-server
+    app.kubernetes.io/part-of: trading-model
+data:
+  # Rendered with -expandEnv: ${MYSQL_ROOT_PASSWORD} (Secret). The agents and
+  # the bundle ConfigMap live in trading-model-node (deploy/k8s/node-agents).
+  server.conf: |
+    server {
+      trust_domain = "trading-model.local"
+      data_dir = "/run/spire/data"
+      log_level = "INFO"
+      ca_key_type = "ec-p256"
+      ca_ttl = "168h"
+      default_x509_svid_ttl = "1h"
+      ca_subject = {
+        country = ["FR"]
+        organization = ["Trading Model"]
+        common_name = "trading-model.local"
+      }
+      socket_path = "/run/spire/server-sockets/api.sock"
+    }
+
+    plugins {
+      DataStore "sql" {
+        plugin_data {
+          database_type = "mysql"
+          connection_string = "root:${MYSQL_ROOT_PASSWORD}@tcp(mysql-primary:3306)/spire?parseTime=true"
+          max_open_conns = 10
+        }
+      }
+      KeyManager "disk" {
+        plugin_data {
+          keys_path = "/run/spire/data/keys.json"
+        }
+      }
+      NodeAttestor "k8s_psat" {
+        plugin_data {
+          clusters = {
+            "trading-model" = {
+              service_account_allow_list = ["trading-model-node:spire-agent"]
+            }
+          }
+        }
+      }
+      Notifier "k8sbundle" {
+        plugin_data {
+          namespace = "trading-model-node"
+          config_map = "spire-bundle"
+        }
+      }
+    }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: spire-server
+  labels:
+    app.kubernetes.io/component: spire-server
+    app.kubernetes.io/part-of: trading-model
+spec:
+  replicas: 1
+  # One server per datastore and per server-socket: no surge.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: spire-server
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: spire-server
+        app.kubernetes.io/part-of: trading-model
+    spec:
+      serviceAccountName: spire-server
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      initContainers:
+        - name: spire-db-init
+          image: mysql@sha256:85b9bf2e29cf836ecb8c2a15a935d4ba0c606631dff1dd79531a11983c638f2a
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh", "-ec"]
+          args:
+            - |
+              for i in $(seq 1 30); do
+                if mysqladmin ping -h mysql-primary -u root -p"$MYSQL_ROOT_PASSWORD" 2>/dev/null; then
+                  break
+                fi
+                echo "Waiting for MySQL... ($i/30)"
+                sleep 5
+              done
+              mysql -h mysql-primary -u root -p"$MYSQL_ROOT_PASSWORD" -e "CREATE DATABASE IF NOT EXISTS spire;"
+          env:
+            - name: MYSQL_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: trading-model-secrets
+                  key: MYSQL_ROOT_PASSWORD
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+      containers:
+        - name: spire-server
+          image: ghcr.io/spiffe/spire-server:1.11.3
+          imagePullPolicy: IfNotPresent
+          # The image entrypoint is `spire-server run`.
+          args: ["-config", "/etc/spire/server.conf", "-expandEnv"]
+          env:
+            - name: MYSQL_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: trading-model-secrets
+                  key: MYSQL_ROOT_PASSWORD
+          ports:
+            - name: grpc
+              containerPort: 8081
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          volumeMounts:
+            - name: spire-config
+              mountPath: /etc/spire
+              readOnly: true
+            - name: spire-data
+              mountPath: /run/spire/data
+            - name: spire-server-sockets
+              mountPath: /run/spire/server-sockets
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          livenessProbe:
+            exec:
+              command: ["/opt/spire/bin/spire-server", "healthcheck", "-socketPath", "/run/spire/server-sockets/api.sock"]
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            exec:
+              command: ["/opt/spire/bin/spire-server", "healthcheck", "-socketPath", "/run/spire/server-sockets/api.sock"]
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 5
+            successThreshold: 1
+        # Reconciles the registration entries through the shared server socket.
+        - name: spire-entries
+          image: ghcr.io/trading-model/spire-tools:latest
+          imagePullPolicy: IfNotPresent
+          command: ["/usr/local/bin/spire-k8s-entries"]
+          env:
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: SPIRE_CLUSTER_NAME
+              value: trading-model
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              cpu: 100m
+              memory: 64Mi
+          volumeMounts:
+            - name: spire-server-sockets
+              mountPath: /run/spire/server-sockets
+            # Read-only: lets the backup job `kubectl cp` the CA key through
+            # this container (the spire-server image has no tar).
+            - name: spire-data
+              mountPath: /run/spire/data
+              readOnly: true
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+      volumes:
+        - name: spire-config
+          configMap:
+            name: spire-server-config
+        - name: spire-data
+          persistentVolumeClaim:
+            claimName: spire-server-data
+        - name: spire-server-sockets
+          emptyDir: {}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: spire-server-data
+  labels:
+    app.kubernetes.io/component: spire-server
+    app.kubernetes.io/part-of: trading-model
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+# k8s_psat: validate agent tokens (TokenReview) and read their pod and node.
+# The bundle ConfigMap write access is granted in trading-model-node (node-agents).
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: spire-server
+  labels:
+    app.kubernetes.io/component: spire-server
+    app.kubernetes.io/part-of: trading-model
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "nodes"]
+    verbs: ["get"]
+  - apiGroups: ["authentication.k8s.io"]
+    resources: ["tokenreviews"]
+    verbs: ["create"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: spire-server
+  labels:
+    app.kubernetes.io/component: spire-server
+    app.kubernetes.io/part-of: trading-model
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: spire-server
+subjects:
+  # `default` is rewritten to the overlay namespace by kustomize; any other
+  # value would be kept as is.
+  - kind: ServiceAccount
+    name: spire-server
+    namespace: default
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: spire-server-pdb
+  labels:
+    app.kubernetes.io/component: spire-server
+    app.kubernetes.io/part-of: trading-model
+spec:
+  # A single replica: an eviction must not be blocked forever.
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: spire-server
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: spire-server-network-policy
+  labels:
+    app.kubernetes.io/component: spire-server
+    app.kubernetes.io/part-of: trading-model
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: spire-server
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Agents run on the host network: allow 8081 from anywhere in the cluster.
+    - ports:
+        - port: 8081
+          protocol: TCP
+  egress:
+    - to:
+        - podSelector: {}
+      ports:
+        - port: 3306
+          protocol: TCP
+    # Cluster DNS.
+    - ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+    # Kubernetes API: TokenReview (k8s_psat) and the spire-bundle ConfigMap.
+    - ports:
+        - port: 443
+          protocol: TCP
+        - port: 6443
+          protocol: TCP

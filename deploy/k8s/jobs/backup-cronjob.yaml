@@ -1,0 +1,308 @@
+# =============================================================================
+#  backup-cronjob.yaml — Daily Database Backup CronJob
+#  Runs backup-k8s.sh at 2:00 AM daily inside the K8s cluster.
+#
+#  Required:
+#    - ConfigMap backup-encryption, key BACKUP_AGE_RECIPIENTS: the age public
+#      key(s) every dump is encrypted for (created by deploy.yml from the
+#      BACKUP_AGE_RECIPIENTS environment variable). Without it the job writes
+#      nothing and fails (backup_last_status{component="encryption"} 0)
+#    - Secret trading-model-backup-s3 (keys: BACKUP_S3_BUCKET,
+#      AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION, S3_ENDPOINT,
+#      S3_PROVIDER): off-site copy of the encrypted files, any S3-compatible
+#      store. Without it the dumps are still written to backup-data but the
+#      job fails (backup_last_status{component="offsite"} 0): a single volume
+#      is not a backup.
+#
+#  MySQL is dumped with the password of the mysql container itself: the job
+#  reads no Secret. Redis is not backed up (derived state, see BACKUP_DR.md).
+# =============================================================================
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: db-backup
+  labels:
+    app.kubernetes.io/component: backup
+    app.kubernetes.io/part-of: trading-model
+  annotations:
+    description: "Daily backup of MongoDB (dlq + audit), MySQL (incl. SPIRE datastore), SPIRE CA keys and checkpoints"
+spec:
+  schedule: "0 2 * * *"
+  concurrencyPolicy: Forbid
+  failedJobsHistoryLimit: 3
+  successfulJobsHistoryLimit: 3
+  startingDeadlineSeconds: 300
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      ttlSecondsAfterFinished: 86400
+      template:
+        spec:
+          serviceAccountName: backup-runner
+          restartPolicy: Never
+          affinity:
+            podAntiAffinity:
+              preferredDuringSchedulingIgnoredDuringExecution:
+                - weight: 100
+                  podAffinityTerm:
+                    labelSelector:
+                      matchLabels:
+                        app.kubernetes.io/component: backup
+                    topologyKey: kubernetes.io/hostname
+          # backup-k8s.sh dumps through `kubectl exec` into the database pods,
+          # encrypts with age and copies off-site with rclone: backup-tools
+          # (deploy/backup) ships the three.
+          containers:
+            - name: backup
+              image: ghcr.io/trading-model/backup-tools:latest
+              imagePullPolicy: Always
+              securityContext:
+                runAsNonRoot: true
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop:
+                    - ALL
+                seccompProfile:
+                  type: RuntimeDefault
+              command:
+                - sh
+                - -c
+                - |
+                  set -euo pipefail
+                  /scripts/backup-k8s.sh \
+                    --components mongodb,mysql,checkpoints,spire
+              env:
+                - name: BACKUP_DIR
+                  value: /backups
+                - name: METRICS_FILE
+                  value: /backups/metrics/backup.prom
+                - name: RETENTION_DAYS
+                  value: "30"
+                - name: K8S_NAMESPACE
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.namespace
+                # No unencrypted dump: backups and their off-site copies are
+                # readable only with the age private key, kept off the cluster.
+                - name: BACKUP_REQUIRE_ENCRYPTION
+                  value: "true"
+                - name: BACKUP_REQUIRE_OFFSITE
+                  value: "true"
+                - name: BACKUP_AGE_RECIPIENTS
+                  valueFrom:
+                    configMapKeyRef:
+                      name: backup-encryption
+                      key: BACKUP_AGE_RECIPIENTS
+                      optional: true
+                - name: BACKUP_S3_BUCKET
+                  valueFrom:
+                    secretKeyRef:
+                      name: trading-model-backup-s3
+                      key: BACKUP_S3_BUCKET
+                      optional: true
+                - name: AWS_ACCESS_KEY_ID
+                  valueFrom:
+                    secretKeyRef:
+                      name: trading-model-backup-s3
+                      key: AWS_ACCESS_KEY_ID
+                      optional: true
+                - name: AWS_SECRET_ACCESS_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: trading-model-backup-s3
+                      key: AWS_SECRET_ACCESS_KEY
+                      optional: true
+                - name: AWS_REGION
+                  valueFrom:
+                    secretKeyRef:
+                      name: trading-model-backup-s3
+                      key: AWS_REGION
+                      optional: true
+                - name: AWS_DEFAULT_REGION
+                  valueFrom:
+                    secretKeyRef:
+                      name: trading-model-backup-s3
+                      key: AWS_REGION
+                      optional: true
+                # Non-AWS stores (MinIO, Backblaze B2, Scaleway, OVH...).
+                - name: RCLONE_S3_ENDPOINT
+                  valueFrom:
+                    secretKeyRef:
+                      name: trading-model-backup-s3
+                      key: S3_ENDPOINT
+                      optional: true
+                - name: RCLONE_S3_PROVIDER
+                  valueFrom:
+                    secretKeyRef:
+                      name: trading-model-backup-s3
+                      key: S3_PROVIDER
+                      optional: true
+              volumeMounts:
+                - name: scripts
+                  mountPath: /scripts
+                  readOnly: true
+                - name: backup-data
+                  mountPath: /backups
+              resources:
+                requests:
+                  cpu: 200m
+                  memory: 256Mi
+                limits:
+                  cpu: "1"
+                  memory: 1Gi
+          volumes:
+            - name: scripts
+              configMap:
+                name: backup-scripts
+                defaultMode: 0555
+            - name: backup-data
+              persistentVolumeClaim:
+                claimName: backup-data
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1001
+            fsGroup: 1001
+            seccompProfile:
+              type: RuntimeDefault
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: backup-data
+  labels:
+    app.kubernetes.io/component: backup
+    app.kubernetes.io/part-of: trading-model
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 100Gi
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: backup-runner
+  labels:
+    app.kubernetes.io/component: backup
+    app.kubernetes.io/part-of: trading-model
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: backup-runner
+  labels:
+    app.kubernetes.io/component: backup
+    app.kubernetes.io/part-of: trading-model
+rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list"]
+  - apiGroups: [""]
+    resources: ["pods/exec"]
+    verbs: ["create"]
+  - apiGroups: [""]
+    resources: ["pods/log"]
+    verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: backup-runner
+  labels:
+    app.kubernetes.io/component: backup
+    app.kubernetes.io/part-of: trading-model
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: backup-runner
+subjects:
+  - kind: ServiceAccount
+    name: backup-runner
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backup-metrics-exporter
+  labels:
+    app.kubernetes.io/component: backup-metrics
+    app.kubernetes.io/part-of: trading-model
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: backup-metrics
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: backup-metrics
+        app.kubernetes.io/part-of: trading-model
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        fsGroup: 1001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        # busybox ships httpd: nothing to install, so it runs as non-root
+        # (restricted Pod Security profile) without network access.
+        - name: exporter
+          image: busybox@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
+          command:
+            - sh
+            - -c
+            - |
+              # Served as /metrics, the path Prometheus scrapes.
+              mkdir -p /tmp/metrics
+              echo '# No backup metrics yet' > /tmp/metrics/metrics
+              httpd -f -p 9118 -h /tmp/metrics &
+              HTTPD_PID=$!
+              while true; do
+                if [ -f /metrics/backup.prom ]; then
+                  cp /metrics/backup.prom /tmp/metrics/metrics
+                fi
+                sleep 5
+              done
+          ports:
+            - name: metrics
+              containerPort: 9118
+          volumeMounts:
+            - name: backup-data
+              mountPath: /metrics
+              subPath: metrics
+              readOnly: true
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              cpu: 50m
+              memory: 32Mi
+      volumes:
+        - name: backup-data
+          persistentVolumeClaim:
+            claimName: backup-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backup-metrics-exporter
+  labels:
+    app.kubernetes.io/component: backup-metrics
+    app.kubernetes.io/part-of: trading-model
+spec:
+  selector:
+    app.kubernetes.io/component: backup-metrics
+  ports:
+    - name: metrics
+      port: 9118
+      targetPort: 9118

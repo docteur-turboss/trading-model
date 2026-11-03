@@ -1,0 +1,134 @@
+import { beforeEach, describe, expect, it, jest } from "@jest/globals";
+
+jest.mock("@trading-model/http/infrastructure/logger", () => ({
+	logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
+}));
+
+const MOCK_INC = jest.fn();
+const MOCK_OBSERVE = jest.fn();
+const MOCK_SET = jest.fn();
+const MOCK_METRICS = jest.fn().mockResolvedValue("mock_metrics 1");
+const MOCK_CONTENT_TYPE = "text/plain; charset=utf-8";
+
+jest.mock("prom-client", () => {
+	const MockRegistry = jest.fn().mockImplementation(() => ({
+		contentType: MOCK_CONTENT_TYPE,
+		metrics: MOCK_METRICS,
+	}));
+
+	return {
+		Registry: MockRegistry,
+		register: {
+			contentType: MOCK_CONTENT_TYPE,
+			metrics: MOCK_METRICS,
+		},
+		collectDefaultMetrics: jest.fn(),
+		Counter: jest.fn().mockImplementation(() => ({ inc: MOCK_INC })),
+		Histogram: jest.fn().mockImplementation(() => ({ observe: MOCK_OBSERVE })),
+		Gauge: jest.fn().mockImplementation(() => ({ set: MOCK_SET })),
+	};
+});
+
+import {
+	incHeartbeatsTotal,
+	incLeaseCleanupCycle,
+	incOperationError,
+	observeCleanupDuration,
+	setRegisteredInstances,
+	setRegisteredInstancesPerService,
+	trackRequest,
+} from "../../src/infrastructure/monitoring/metrics";
+
+describe("metrics", () => {
+	beforeEach(() => {
+		jest.clearAllMocks();
+	});
+
+	describe("trackRequest", () => {
+		it("should track request metrics without throwing", () => {
+			expect(() => {
+				trackRequest({
+					method: "GET",
+					path: "/test",
+					status: 200,
+					durationMs: 10,
+				});
+			}).not.toThrow();
+			expect(MOCK_INC).toHaveBeenCalledWith({
+				method: "GET",
+				path: "/test",
+				status: 200,
+			});
+		});
+
+		it("should handle error status codes", () => {
+			expect(() => {
+				trackRequest({
+					method: "POST",
+					path: "/register",
+					status: 500,
+					durationMs: 50,
+				});
+			}).not.toThrow();
+		});
+	});
+
+	describe("observeCleanupDuration", () => {
+		it("should observe cleanup duration without throwing", () => {
+			expect(() => {
+				observeCleanupDuration(42);
+			}).not.toThrow();
+			expect(MOCK_OBSERVE).toHaveBeenCalled();
+		});
+	});
+
+	describe("setRegisteredInstances", () => {
+		it("should set registered instances gauge without throwing", () => {
+			expect(() => {
+				setRegisteredInstances(10);
+			}).not.toThrow();
+			expect(MOCK_SET).toHaveBeenCalledWith(10);
+		});
+	});
+
+	describe("setRegisteredInstancesPerService", () => {
+		it("should set per-service gauge without throwing", () => {
+			expect(() => {
+				setRegisteredInstancesPerService("financial-scraper-service", 5);
+			}).not.toThrow();
+			expect(MOCK_SET).toHaveBeenCalledWith(
+				{ service: "financial-scraper-service" },
+				5
+			);
+		});
+	});
+
+	describe("incHeartbeatsTotal", () => {
+		it("should increment heartbeat counter without throwing", () => {
+			expect(() => {
+				incHeartbeatsTotal("financial-scraper-service");
+			}).not.toThrow();
+			expect(MOCK_INC).toHaveBeenCalledWith({
+				service: "financial-scraper-service",
+			});
+		});
+	});
+
+	describe("incOperationError", () => {
+		it("should increment operation error counter without throwing", () => {
+			expect(() => {
+				incOperationError("register");
+			}).not.toThrow();
+			expect(MOCK_INC).toHaveBeenCalledWith({ operation: "register" });
+		});
+	});
+
+	describe("incLeaseCleanupCycle", () => {
+		it("should increment lease cleanup cycle counter without throwing", () => {
+			expect(() => {
+				incLeaseCleanupCycle();
+			}).not.toThrow();
+			expect(MOCK_INC).toHaveBeenCalledWith();
+		});
+	});
+});

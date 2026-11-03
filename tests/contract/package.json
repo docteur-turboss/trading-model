@@ -1,0 +1,25 @@
+{
+  "name": "trading-model-contract-tests",
+  "version": "1.0.0",
+  "private": true,
+  "type": "commonjs",
+  "scripts": {
+    "test:contract": "jest"
+  },
+  "devDependencies": {
+    "@jest/globals": "^30.5.2",
+    "@trading-model/broker-message": "*",
+    "@trading-model/contracts": "*",
+    "@trading-model/crypto": "*",
+    "@trading-model/http": "*",
+    "@trading-model/persistence": "*",
+    "@trading-model/primitives": "*",
+    "@trading-model/reliability": "*",
+    "@trading-model/server-utils": "*",
+    "@trading-model/validation": "*",
+    "express": "^5.3.0",
+    "jest": "^30.5.2",
+    "ts-jest": "^29.4.15",
+    "typescript": "^6.0.3"
+  }
+}

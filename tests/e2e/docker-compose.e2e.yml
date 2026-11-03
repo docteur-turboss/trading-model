@@ -1,0 +1,57 @@
+# E2E overlay: points the financial-scraper at a Binance stub and scrapes every
+# 10s so the data-flow test (market-data-flow.e2e.spec.ts) sees data quickly.
+# Usage: docker compose -f docker-compose.yml -f tests/e2e/docker-compose.e2e.yml up -d --wait
+services:
+  binance-stub:
+    image: oven/bun@sha256:c1cc397e0be452c54f37cbcdfaa747eff93c993723af7d91658764d0fdfe5873
+    container_name: trading-binance-stub
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+    command: ["bun", "/stub/server.mjs"]
+    volumes:
+      # Relative to the project directory (the base compose file), not this overlay.
+      - ./tests/e2e/binance-stub:/stub:ro
+    networks:
+      - backend-net
+    healthcheck:
+      test: ["CMD", "bun", "-e", "fetch('http://localhost:8080/api/v3/ping').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  financial-scraper:
+    environment:
+      BINANCE_BASE_URL: http://binance-stub:8080
+      SYMBOLS_TO_TRACK: BTCUSDT,ETHUSDT
+      SCRAPE_INTERVAL: '*/10 * * * * *'
+    depends_on:
+      binance-stub:
+        condition: service_healthy
+
+  discovery-server:
+    environment:
+      SIGNING_SECRET: e2e-signing-secret
+
+  # External E2E traffic authenticates with this key (tests/e2e/helpers.ts).
+  api-gateway:
+    environment:
+      AUTH_TOKENS: e2e-api-key
+      AUTH_STRICT: 'true'
+
+  # Same key on both sides of the dead-letter path (dead-letter-flow suite).
+  message-manager:
+    environment:
+      DLQ_AUTH_HMAC_SECRET: test-hmac-secret
+
+  # The DLQ suites sign their requests as e2e-test-runner.
+  dlq-service:
+    environment:
+      DLQ_AUTH_HMAC_SECRET: test-hmac-secret
+      DLQ_ALLOWED_SERVICES: message-manager,admin,e2e-test-runner
+      # The suites replay dead letters by hand (dead-letter-flow, dlq): an
+      # automatic replay could claim the entry first and race their assertions.
+      DLQ_AUTO_RETRY_ENABLED: "false"

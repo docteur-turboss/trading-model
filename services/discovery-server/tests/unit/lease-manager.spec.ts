@@ -1,192 +1,245 @@
-import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
-import type { ServiceInstance } from '../../src/core/types';
-
-jest.mock('@trading-model/common/config/logger', () => ({
-  logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
-}));
+import {
+	afterEach,
+	beforeEach,
+	describe,
+	expect,
+	it,
+	jest,
+} from "@jest/globals";
+import type { LoggerPort } from "../../src/domain/logger-port";
+import type { ServiceInstance } from "../../src/shared/types";
 
 jest.useFakeTimers();
 
-import { ServiceRegistry } from '../../src/core/service-registry';
-import { LeaseManager } from '../../src/core/lease-manager';
+import { InstanceStore } from "../../src/adapters/outbound/instance-store";
+import { createServiceRegistry } from "../../src/config/container";
+import { LeaseManager } from "../../src/domain/lease-manager";
+import { validServiceInstance } from "../fixtures/index";
 
-describe('LeaseManager', () => {
-  let leaseManager: LeaseManager;
+function makeLogger(): LoggerPort {
+	return {
+		info: jest.fn(),
+		warn: jest.fn(),
+		error: jest.fn(),
+		debug: jest.fn(),
+	};
+}
 
-  beforeEach(() => {
-    jest.clearAllMocks();
-    jest.clearAllTimers();
-    leaseManager = new LeaseManager(new ServiceRegistry());
-  });
+describe("LeaseManager", () => {
+	let leaseManager: LeaseManager;
+	let logger: LoggerPort;
 
-  afterEach(() => {
-    jest.clearAllMocks();
-    leaseManager.stop();
-  });
+	beforeEach(() => {
+		jest.clearAllMocks();
+		jest.clearAllTimers();
+		logger = makeLogger();
+		leaseManager = new LeaseManager(createServiceRegistry(), { logger });
+	});
 
-  describe('start', () => {
-    it('should set an interval', () => {
-      const spy = jest.spyOn(global, 'setInterval');
-      leaseManager.start();
-      expect(spy).toHaveBeenCalledTimes(1);
-      expect(spy).toHaveBeenCalledWith(expect.any(Function), 5000);
-      spy.mockRestore();
-    });
+	afterEach(() => {
+		jest.clearAllMocks();
+		leaseManager.stop();
+	});
 
-    it('should be idempotent', () => {
-      const spy = jest.spyOn(global, 'setInterval');
-      leaseManager.start();
-      leaseManager.start();
-      expect(spy).toHaveBeenCalledTimes(1);
-      spy.mockRestore();
-    });
-  });
+	describe("instance gauges", () => {
+		it("should report an instance removed by another replica after one cycle", async () => {
+			const instanceStore = new InstanceStore();
+			const setRegisteredInstancesPerService = jest.fn();
+			const replicaA = createServiceRegistry({
+				instanceStore,
+				metrics: {
+					setRegisteredInstances: jest.fn(),
+					setRegisteredInstancesPerService,
+				},
+			});
+			const replicaB = createServiceRegistry({ instanceStore });
+			await replicaA.registerInstance(validServiceInstance());
+			await replicaB.removeInstance({
+				serviceName: "financial-scraper-service",
+				instanceId: "test-instance-1",
+			} as never);
+			setRegisteredInstancesPerService.mockClear();
+			const manager = new LeaseManager(replicaA, {
+				logger,
+				cleanupIntervalMs: 1000,
+			});
 
-  describe('stop', () => {
-    it('should clear the interval', () => {
-      const spy = jest.spyOn(global, 'clearInterval');
-      leaseManager.start();
-      leaseManager.stop();
-      expect(spy).toHaveBeenCalledTimes(1);
-      spy.mockRestore();
-    });
+			manager.start();
+			await jest.advanceTimersByTimeAsync(2000);
+			manager.stop();
 
-    it('should be idempotent when not started', () => {
-      expect(() => leaseManager.stop()).not.toThrow();
-    });
-  });
+			expect(setRegisteredInstancesPerService).toHaveBeenCalledWith(
+				"financial-scraper-service",
+				0
+			);
+		});
+	});
 
-  describe('isAlive', () => {
-    it('should return true for recent heartbeat', () => {
-      const registry = new ServiceRegistry();
-      const lm = new LeaseManager(registry);
-      const instance: ServiceInstance = {
-        serviceName: 'test',
-        instanceId: 'i1',
-        ip: '1.1.1.1',
-        port: 8080,
-        ttl: 30000,
-        protocol: 'mtls',
-        registeredAt: Date.now() - 1000,
-        lastHeartbeat: Date.now(),
-      };
-      expect(lm.isAlive(instance)).toBe(true);
-    });
+	describe("start", () => {
+		it("should start an interval after the initial delay", () => {
+			const spy = jest.spyOn(global, "setInterval");
+			leaseManager.start();
+			expect(spy).not.toHaveBeenCalled();
+			jest.advanceTimersByTime(5000);
+			expect(spy).toHaveBeenCalledTimes(1);
+			expect(spy).toHaveBeenCalledWith(expect.any(Function), 5000);
+			spy.mockRestore();
+		});
 
-    it('should return false for expired heartbeat', () => {
-      const registry = new ServiceRegistry();
-      const lm = new LeaseManager(registry);
-      const instance: ServiceInstance = {
-        serviceName: 'test',
-        instanceId: 'i1',
-        ip: '1.1.1.1',
-        port: 8080,
-        ttl: 30000,
-        protocol: 'mtls',
-        registeredAt: Date.now() - 120_000,
-        lastHeartbeat: Date.now() - 60_000,
-      };
-      expect(lm.isAlive(instance)).toBe(false);
-    });
+		it("should be idempotent", () => {
+			const spy = jest.spyOn(global, "setInterval");
+			leaseManager.start();
+			leaseManager.start();
+			jest.advanceTimersByTime(5000);
+			expect(spy).toHaveBeenCalledTimes(1);
+			spy.mockRestore();
+		});
+	});
 
-    it('should return true at TTL boundary', () => {
-      const registry = new ServiceRegistry();
-      const lm = new LeaseManager(registry);
-      const instance: ServiceInstance = {
-        serviceName: 'test',
-        instanceId: 'i1',
-        ip: '1.1.1.1',
-        port: 8080,
-        ttl: 30000,
-        protocol: 'mtls',
-        registeredAt: Date.now() - 60_000,
-        lastHeartbeat: Date.now() - 30_000,
-      };
-      expect(lm.isAlive(instance)).toBe(true);
-    });
-  });
+	describe("stop", () => {
+		it("should clear the interval", () => {
+			const spy = jest.spyOn(global, "clearInterval");
+			leaseManager.start();
+			jest.advanceTimersByTime(5000);
+			leaseManager.stop();
+			expect(spy).toHaveBeenCalled();
+			spy.mockRestore();
+		});
 
-  describe('cleanup', () => {
-    it('should remove expired instances on interval tick', () => {
-      const registry = new ServiceRegistry();
+		it("should be idempotent when not started", () => {
+			expect(() => leaseManager.stop()).not.toThrow();
+		});
+	});
 
-      registry.registerInstance({
-        serviceName: 'financial-scraper-service',
-        instanceId: 'expired-id',
-        ip: '1.1.1.1',
-        port: 8080,
-        ttl: 1,
-        protocol: 'mtls',
-      });
+	describe("isAlive", () => {
+		it("should return true for recent heartbeat", () => {
+			const registry = createServiceRegistry();
+			const lm = new LeaseManager(registry);
+			const instance: ServiceInstance = {
+				serviceName: "test",
+				instanceId: "i1",
+				host: "1.1.1.1",
+				port: 8080,
+				ttl: 30000,
+				protocol: "mtls",
+				version: "1.0.0",
+				registeredAt: Date.now() - 1000,
+				lastHeartbeat: Date.now(),
+			};
+			expect(lm.isAlive(instance)).toBe(true);
+		});
 
-      registry.registerInstance({
-        serviceName: 'financial-scraper-service',
-        instanceId: 'alive-id',
-        ip: '1.1.1.2',
-        port: 8081,
-        ttl: 60000,
-        protocol: 'mtls',
-      });
+		it("should return false for expired heartbeat", () => {
+			const registry = createServiceRegistry();
+			const lm = new LeaseManager(registry);
+			const instance: ServiceInstance = {
+				serviceName: "test",
+				instanceId: "i1",
+				host: "1.1.1.1",
+				port: 8080,
+				ttl: 30000,
+				protocol: "mtls",
+				version: "1.0.0",
+				registeredAt: Date.now() - 120_000,
+				lastHeartbeat: Date.now() - 60_000,
+			};
+			expect(lm.isAlive(instance)).toBe(false);
+		});
 
-      const lm = new LeaseManager(registry);
-      lm.start();
-      jest.advanceTimersByTime(5000);
+		it("should return true at TTL boundary", () => {
+			const registry = createServiceRegistry();
+			const lm = new LeaseManager(registry);
+			const instance: ServiceInstance = {
+				serviceName: "test",
+				instanceId: "i1",
+				host: "1.1.1.1",
+				port: 8080,
+				ttl: 30000,
+				protocol: "mtls",
+				version: "1.0.0",
+				registeredAt: Date.now() - 60_000,
+				lastHeartbeat: Date.now() - 30_000,
+			};
+			expect(lm.isAlive(instance)).toBe(true);
+		});
+	});
 
-      const remaining = registry.getInstances('financial-scraper-service');
-      expect(remaining).toHaveLength(1);
-      expect(remaining[0].instanceId).toBe('alive-id');
-    });
+	describe("cleanup", () => {
+		it("should remove expired instances on interval tick", async () => {
+			const registry = createServiceRegistry();
 
-    it('should log error when removeInstance throws', () => {
-      const registry = new ServiceRegistry();
-      const lm = new LeaseManager(registry);
+			await registry.registerInstance({
+				serviceName: "financial-scraper-service",
+				instanceId: "expired-id",
+				host: "1.1.1.1",
+				port: 8080,
+				ttl: 1,
+				protocol: "mtls",
+			});
 
-      registry.registerInstance({
-        serviceName: 'test-service',
-        instanceId: 'test-id',
-        ip: '1.1.1.1',
-        port: 8080,
-        ttl: 1,
-        protocol: 'mtls',
-      });
+			await registry.registerInstance({
+				serviceName: "financial-scraper-service",
+				instanceId: "alive-id",
+				ip: "1.1.1.2",
+				port: 8081,
+				ttl: 60000,
+				protocol: "mtls",
+			});
 
-      jest.spyOn(registry, 'removeInstance').mockImplementation(() => {
-        throw new Error('remove failed');
-      });
+			const lm = new LeaseManager(registry);
+			lm.start();
+			await jest.advanceTimersByTimeAsync(10000);
 
-      lm.start();
-      jest.advanceTimersByTime(5000);
+			const remaining = registry.instanceStore.getInstances(
+				"financial-scraper-service"
+			);
+			expect(remaining).toHaveLength(1);
+			expect(remaining[0].instanceId).toBe("alive-id");
+		});
 
-      const { logger } = jest.requireMock<{ logger: { error: jest.Mock } }>(
-        '@trading-model/common/config/logger'
-      );
-      expect(logger.error).toHaveBeenCalledWith(
-        '[LeaseManager] Failed to remove expired instance:',
-        {
-          serviceName: 'test-service',
-          instanceId: 'test-id',
-          error: new Error('remove failed'),
-        }
-      );
-    });
+		it("should log error when removeInstance throws", async () => {
+			const registry = createServiceRegistry();
+			const lm = new LeaseManager(registry, { logger });
 
-    it('should log error when listServiceNames throws in start catch', () => {
-      const registry = new ServiceRegistry();
-      const lm = new LeaseManager(registry);
+			await registry.registerInstance({
+				serviceName: "test-service",
+				instanceId: "test-id",
+				host: "1.1.1.1",
+				port: 8080,
+				ttl: 1,
+				protocol: "mtls",
+			});
 
-      jest.spyOn(registry, 'listServiceNames').mockImplementation(() => {
-        throw new Error('unexpected error');
-      });
+			jest.spyOn(registry, "removeInstance").mockImplementation(() => {
+				throw new Error("remove failed");
+			});
 
-      lm.start();
-      jest.advanceTimersByTime(5000);
+			lm.start();
+			await jest.advanceTimersByTimeAsync(10000);
 
-      const { logger } = jest.requireMock<{ logger: { error: jest.Mock } }>(
-        '@trading-model/common/config/logger'
-      );
-      expect(logger.error).toHaveBeenCalledWith('[LeaseManager] Cleanup error:', {
-        error: new Error('unexpected error'),
-      });
-    });
-  });
+			expect(logger.error).toHaveBeenCalledWith(
+				"Redis cleanup error",
+				expect.objectContaining({ error: expect.anything() })
+			);
+		});
+
+		it("should log error when listServiceNames throws", async () => {
+			const registry = createServiceRegistry();
+			const lm = new LeaseManager(registry, { logger });
+
+			jest
+				.spyOn(registry.instanceStore, "listServiceNames")
+				.mockImplementation(() => {
+					throw new Error("unexpected error");
+				});
+
+			lm.start();
+			await jest.advanceTimersByTimeAsync(10000);
+
+			expect(logger.error).toHaveBeenCalledWith(
+				"Redis cleanup error",
+				expect.objectContaining({ error: expect.anything() })
+			);
+		});
+	});
 });

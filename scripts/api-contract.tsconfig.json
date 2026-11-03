@@ -1,0 +1,40 @@
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@trading-model/address-manager/*": [
+        "../packages/address-manager/src/*"
+      ],
+      "@trading-model/broker-message/*": [
+        "../packages/broker-message/src/*"
+      ],
+      "@trading-model/common/*": [
+        "../packages/common/src/*"
+      ],
+      "@trading-model/contracts/*": [
+        "../packages/contracts/src/*"
+      ],
+      "@trading-model/crypto/*": [
+        "../packages/crypto/src/*"
+      ],
+      "@trading-model/http/*": [
+        "../packages/http/src/*"
+      ],
+      "@trading-model/persistence/*": [
+        "../packages/persistence/src/*"
+      ],
+      "@trading-model/primitives/*": [
+        "../packages/primitives/src/*"
+      ],
+      "@trading-model/reliability/*": [
+        "../packages/reliability/src/*"
+      ],
+      "@trading-model/server-utils/*": [
+        "../packages/server-utils/src/*"
+      ],
+      "@trading-model/validation/*": [
+        "../packages/validation/src/*"
+      ]
+    }
+  }
+}

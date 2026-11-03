@@ -1,0 +1,86 @@
+import { HTTP_STATUS } from "@trading-model/contracts/http-status";
+import type { ResponseObject } from "./http-codes";
+import type { IResponseBuilder } from "./i-response-builder";
+
+export class ClassResponseExceptions implements IResponseBuilder {
+	/**
+	 * Response body: a string is sent as `{ "error": reason }`, an object as is
+	 * (ResponseProtocol, ADR-0021).
+	 */
+	readonly reason: unknown;
+
+	constructor(reason: unknown) {
+		this.reason = reason;
+	}
+
+	serviceUnavailable(): ResponseObject {
+		return { status: HTTP_STATUS.SERVICE_UNAVAILABLE, data: this.reason };
+	}
+
+	unknownError(): ResponseObject {
+		return { status: HTTP_STATUS.INTERNAL_SERVER_ERROR, data: this.reason };
+	}
+
+	invalidToken(): ResponseObject {
+		return { status: HTTP_STATUS.INVALID_TOKEN, data: this.reason };
+	}
+
+	tooManyRequests(): ResponseObject {
+		return { status: HTTP_STATUS.TOO_MANY_REQUESTS, data: this.reason };
+	}
+
+	imaTeapot(): ResponseObject {
+		return { status: HTTP_STATUS.IM_A_TEAPOT, data: this.reason };
+	}
+
+	payloadTooLarge(): ResponseObject {
+		return { status: HTTP_STATUS.PAYLOAD_TOO_LARGE, data: this.reason };
+	}
+
+	gone(): ResponseObject {
+		return { status: HTTP_STATUS.GONE, data: this.reason };
+	}
+
+	conflict(): ResponseObject {
+		return { status: HTTP_STATUS.CONFLICT, data: this.reason };
+	}
+
+	methodNotAllowed(): ResponseObject {
+		return { status: HTTP_STATUS.METHOD_NOT_ALLOWED, data: this.reason };
+	}
+
+	notFound(): ResponseObject {
+		return { status: HTTP_STATUS.NOT_FOUND, data: this.reason };
+	}
+
+	forbidden(): ResponseObject {
+		return { status: HTTP_STATUS.FORBIDDEN, data: this.reason };
+	}
+
+	paymentRequired(): ResponseObject {
+		return { status: HTTP_STATUS.PAYMENT_REQUIRED, data: this.reason };
+	}
+
+	unauthorized(): ResponseObject {
+		return { status: HTTP_STATUS.UNAUTHORIZED, data: this.reason };
+	}
+
+	badRequest(): ResponseObject {
+		return { status: HTTP_STATUS.BAD_REQUEST, data: this.reason };
+	}
+
+	noContent(): ResponseObject {
+		return { status: HTTP_STATUS.NO_CONTENT, data: undefined };
+	}
+
+	ok(): ResponseObject {
+		return { status: HTTP_STATUS.CREATED, data: this.reason };
+	}
+
+	success(): ResponseObject {
+		return { status: HTTP_STATUS.OK, data: this.reason };
+	}
+}
+
+export const ResponseException = (reason: unknown = ""): IResponseBuilder =>
+	new ClassResponseExceptions(reason);

@@ -1,23 +1,8 @@
-import AddressManagerClass from '@trading-model/address-manager';
+import { createServiceAddressManager } from "@trading-model/address-manager/application/create-service-address-manager";
 
-import { env } from './env';
+import { ENV } from "../infrastructure/config/env";
 
-const addressManager = new AddressManagerClass({
-  addressManagerUrl: env.ADDRESS_MANAGER_URL,
-  cacheTtlMs: env.CACHE_TTL_MS,
-  discoveryTimeoutMs: env.DISCOVERY_TIMEOUT_MS,
-  instanceId: env.INSTANCE_ID,
-  serviceName: env.SERVICE_NAME,
-  servicePingTimeoutMs: env.SERVICE_PING_TIMEOUT_MS,
-  servicePort: env.PORT,
-  tokenRefreshIntervalMs: env.TOKEN_REFRESH_INTERVAL_MS,
-  ttlRefreshIntervalMs: env.TTL_REFRESH_INTERVAL_MS,
-  CertificatPath: env.TLS_CERT_PATH,
-  KeyCertificatPath: env.TLS_KEY_PATH,
-  RootCACertPath: env.TLS_CA_PATH,
-});
+const { AddressManager, BOOTSTRAP_ADDRESS_MANAGER, ADDRESS_MANAGER_ROUTES } =
+	createServiceAddressManager(ENV);
 
-const bootstrapAddressManager = addressManager.start;
-const AddressManagerRoutes = addressManager.listenExpress;
-
-export { AddressManagerRoutes, bootstrapAddressManager, addressManager as AddressManager };
+export { ADDRESS_MANAGER_ROUTES, AddressManager, BOOTSTRAP_ADDRESS_MANAGER };

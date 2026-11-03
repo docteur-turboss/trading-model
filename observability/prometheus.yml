@@ -1,0 +1,96 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  - 'alerting.yml'
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ['alertmanager:9093']
+
+# Prometheus authenticates to each service's /metrics with its own SPIRE SVID
+# (spiffe-helper-prometheus writes it into /run/spire/svid, ADR-0011). The
+# `prometheus` identity may only GET /metrics (MTLSAuthorizationMiddleware).
+
+scrape_configs:
+  - job_name: 'message-manager'
+    scheme: https
+    tls_config:
+      ca_file: /run/spire/svid/bundle.pem
+      cert_file: /run/spire/svid/svid.pem
+      key_file: /run/spire/svid/svid_key.pem
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['message-manager:3000']
+
+  - job_name: 'discovery-server'
+    scheme: https
+    tls_config:
+      ca_file: /run/spire/svid/bundle.pem
+      cert_file: /run/spire/svid/svid.pem
+      key_file: /run/spire/svid/svid_key.pem
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['discovery-server:3000']
+
+  - job_name: 'dlq-service'
+    scheme: https
+    tls_config:
+      ca_file: /run/spire/svid/bundle.pem
+      cert_file: /run/spire/svid/svid.pem
+      key_file: /run/spire/svid/svid_key.pem
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['dlq-service:3000']
+
+  - job_name: 'api-gateway'
+    scheme: https
+    tls_config:
+      ca_file: /run/spire/svid/bundle.pem
+      cert_file: /run/spire/svid/svid.pem
+      key_file: /run/spire/svid/svid_key.pem
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['api-gateway:3000']
+
+  - job_name: 'audit-logger'
+    scheme: https
+    tls_config:
+      ca_file: /run/spire/svid/bundle.pem
+      cert_file: /run/spire/svid/svid.pem
+      key_file: /run/spire/svid/svid_key.pem
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['audit-logger:3000']
+
+  - job_name: 'financial-scraper'
+    scheme: https
+    tls_config:
+      ca_file: /run/spire/svid/bundle.pem
+      cert_file: /run/spire/svid/svid.pem
+      key_file: /run/spire/svid/svid_key.pem
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['financial-scraper:3000']
+
+  - job_name: 'trader-trainer'
+    scheme: https
+    tls_config:
+      ca_file: /run/spire/svid/bundle.pem
+      cert_file: /run/spire/svid/svid.pem
+      key_file: /run/spire/svid/svid_key.pem
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['trader-trainer:3000']
+
+  # Self-monitoring of the alerting path (AlertmanagerNotificationsFailing,
+  # PrometheusRuleEvaluationFailures).
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  - job_name: 'alertmanager'
+    static_configs:
+      - targets: ['alertmanager:9093']

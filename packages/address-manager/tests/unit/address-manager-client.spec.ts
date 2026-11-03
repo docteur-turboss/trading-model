@@ -1,164 +1,289 @@
-import { networkInterfaces } from 'os';
-import { TokenManager } from '../../src/client/token-manager';
-import { ServiceRegistrationResponse } from '../../src/client/type';
-import { AddressManagerClient } from '../../src/client/address-manager-client';
-import { afterAll } from '@jest/globals';
-import { HttpClient } from '@trading-model/common/config/http-client';
-import { AddressManagerConfig } from '../../src/config/address-manager-config';
-import { AppError } from '@trading-model/common/utils/errors';
-import { beforeEach, describe, expect, jest, test } from '@jest/globals';
+import { networkInterfaces } from "node:os";
+import {
+	afterAll,
+	beforeEach,
+	describe,
+	expect,
+	jest,
+	test,
+} from "@jest/globals";
+import {
+	registerServiceName,
+	type ServiceInstanceName,
+} from "@trading-model/common/config/services.types";
+import { isAppError } from "@trading-model/common/utils/errors";
+import { Protocol } from "@trading-model/contracts/service-registry-types";
+import type { HttpClient } from "@trading-model/http/adapters/outbound/http-client";
+import {
+	IPAddress,
+	Port,
+	toDurationMs,
+	toInstanceId,
+	toServiceId,
+	toVersion,
+	UnixTimestamp,
+	type URLString,
+} from "@trading-model/primitives/primitives";
+import { AddressManagerClient } from "../../src/adapters/outbound/client/address-manager-client";
+import type { TokenManager } from "../../src/application/client/token-manager";
+import type { ServiceRegistrationResponse } from "../../src/domain/client/type";
+import type { AddressManagerConfig } from "../../src/domain/config/address-manager-config";
+import { LocalIPDetector } from "../../src/shared/client/local-ip-detector";
 
-jest.mock('os');
+jest.mock("os");
 
-describe('AddressManagerClient', () => {
-  let httpClient: jest.Mocked<HttpClient>;
-  let tokenManager: jest.Mocked<TokenManager>;
-  let config: AddressManagerConfig;
-  let client: AddressManagerClient;
+registerServiceName("test-service" as ServiceInstanceName);
 
-  afterAll(() => {
-    AddressManagerClient.resetLocalIP();
-  });
+describe("AddressManagerClient", () => {
+	let httpClient: jest.Mocked<HttpClient>;
+	let tokenManager: jest.Mocked<TokenManager>;
+	let config: AddressManagerConfig;
+	let client: AddressManagerClient;
 
-  beforeEach(() => {
-    AddressManagerClient.resetLocalIP();
-    (networkInterfaces as jest.Mock).mockReturnValue({
-      eth0: [{ family: 'IPv4', internal: false, address: '192.168.1.100' }],
-    });
+	afterAll(() => {
+		AddressManagerClient.resetLocalIP();
+	});
 
-    httpClient = { get: jest.fn(), post: jest.fn() } as unknown as jest.Mocked<HttpClient>;
-    tokenManager = { getToken: jest.fn() } as unknown as jest.Mocked<TokenManager>;
-    tokenManager.getToken.mockReturnValue('mock-token');
+	beforeEach(() => {
+		AddressManagerClient.resetLocalIP();
+		(networkInterfaces as jest.Mock).mockReturnValue({
+			eth0: [{ family: "IPv4", internal: false, address: "192.168.1.100" }],
+		});
+		LocalIPDetector.reset();
 
-    config = {
-      addressManagerUrl: 'http://localhost:8443',
-      serviceName: 'test-service',
-      servicePort: 8080,
-      instanceId: 'test-instance',
-      tokenRefreshIntervalMs: 300_000,
-      ttlRefreshIntervalMs: 300_000,
-      servicePingTimeoutMs: 2000,
-      cacheTtlMs: 60_000,
-    } as AddressManagerConfig;
+		httpClient = {
+			get: jest.fn(),
+			post: jest.fn(),
+		} as unknown as jest.Mocked<HttpClient>;
+		tokenManager = {
+			getToken: jest.fn(),
+			exclusive: (operation: () => Promise<unknown>) => operation(),
+		} as unknown as jest.Mocked<TokenManager>;
+		tokenManager.getToken.mockReturnValue("mock-token");
 
-    client = new AddressManagerClient(httpClient, tokenManager, config);
-  });
+		config = {
+			addressManagerUrl: "http://localhost:8443",
+			servicePort: Port.of(8080),
+			tokenRefreshIntervalMs: 300_000,
+			ttlRefreshIntervalMs: 300_000,
+			servicePingTimeoutMs: 2000,
+			cacheTtlMs: 60_000,
+			identity: {
+				serviceName: toServiceId("test-service"),
+				instanceId: toInstanceId("test-instance"),
+			},
+			tls: {
+				caPath: "/path/to/ca.pem",
+				certPath: "/path/to/cert.pem",
+				keyPath: "/path/to/key.pem",
+			},
+			discoveryTimeoutMs: 5000,
+		} as AddressManagerConfig;
 
-  describe('registerService', () => {
-    test('should use cached IP on subsequent calls', async () => {
-      (networkInterfaces as jest.Mock).mockReturnValue({
-        eth0: [{ family: 'IPv4', internal: false, address: '192.168.1.100' }],
-      });
+		client = new AddressManagerClient(httpClient, tokenManager, config);
+	});
 
-      httpClient.post.mockResolvedValue({} as ServiceRegistrationResponse);
+	describe("unregisterService", () => {
+		test("should call HttpClient.post with correct URL", async () => {
+			httpClient.post.mockResolvedValueOnce(undefined);
+			await client.unregisterService();
+			expect(httpClient.post).toHaveBeenCalledWith(
+				`${config.addressManagerUrl}/unregister` as URLString,
+				{
+					serviceName: config.identity.serviceName,
+					instanceId: config.identity.instanceId,
+				},
+				{ headers: { "x-instance-token": "mock-token" } }
+			);
+		});
 
-      await client.registerService();
-      (networkInterfaces as jest.Mock).mockClear();
+		test("should not throw when unregister fails", async () => {
+			httpClient.post.mockRejectedValueOnce(new Error("discovery down"));
 
-      await client.registerService();
+			await expect(client.unregisterService()).resolves.toBeUndefined();
+		});
+	});
 
-      expect(networkInterfaces).not.toHaveBeenCalled();
-    });
+	describe("registerService", () => {
+		test("should use cached IP on subsequent calls", async () => {
+			(networkInterfaces as jest.Mock).mockReturnValue({
+				eth0: [{ family: "IPv4", internal: false, address: "192.168.1.100" }],
+			});
 
-    test('should handle undefined network interface entries gracefully', async () => {
-      (networkInterfaces as jest.Mock).mockReturnValueOnce({
-        wlan0: undefined,
-        eth0: [{ family: 'IPv4', internal: false, address: '192.168.1.100' }],
-      });
+			httpClient.post.mockResolvedValue({} as ServiceRegistrationResponse);
 
-      httpClient.post.mockResolvedValueOnce({} as ServiceRegistrationResponse);
-      await client.registerService();
+			await client.registerService();
+			(networkInterfaces as jest.Mock).mockClear();
 
-      expect(httpClient.post).toHaveBeenCalledWith(
-        expect.any(String),
-        expect.objectContaining({
-          ip: '192.168.1.100',
-        })
-      );
-    });
+			await client.registerService();
 
-    test('should fallback to 127.0.0.1 when no non-internal IPv4 interface exists', async () => {
-      (networkInterfaces as jest.Mock).mockReturnValueOnce({
-        lo: [{ family: 'IPv4', internal: true, address: '127.0.0.1' }],
-      });
+			expect(networkInterfaces).not.toHaveBeenCalled();
+		});
 
-      const response: ServiceRegistrationResponse = {
-        ip: '127.0.0.1',
-        port: 8080,
-        instanceId: 'instance-1',
-        lastHeartbeat: Date.now(),
-        protocol: 'http',
-        registeredAt: Date.now(),
-        serviceName: 'abc-service',
-        token: 'service-token',
-        ttl: 30000,
-      };
-      httpClient.post.mockResolvedValueOnce(response);
+		test("should register under the instanceId used by heartbeats", async () => {
+			httpClient.post.mockResolvedValueOnce({} as ServiceRegistrationResponse);
 
-      const result = await client.registerService();
+			await client.registerService();
 
-      expect(httpClient.post).toHaveBeenCalledWith(expect.any(String), {
-        serviceName: config.serviceName,
-        port: config.servicePort,
-        ip: expect.any(String),
-      });
-      expect(result).toEqual(response);
-    });
+			expect(httpClient.post).toHaveBeenCalledWith(
+				expect.stringMatching(/\/register$/),
+				expect.objectContaining({
+					instanceId: config.identity.instanceId,
+				})
+			);
+		});
 
-    test('should call HttpClient.post with correct URL, payload, and headers', async () => {
-      const response: ServiceRegistrationResponse = {
-        ip: '192.168.1.100',
-        port: 8080,
-        instanceId: 'instance-1',
-        lastHeartbeat: Date.now(),
-        protocol: 'http',
-        registeredAt: Date.now(),
-        serviceName: 'abc-service',
-        token: 'service-token',
-        ttl: 30000,
-      };
-      httpClient.post.mockResolvedValueOnce(response);
+		test("should handle undefined network interface entries gracefully", async () => {
+			(networkInterfaces as jest.Mock).mockReturnValueOnce({
+				wlan0: undefined,
+				eth0: [{ family: "IPv4", internal: false, address: "192.168.1.100" }],
+			});
 
-      const result = await client.registerService();
+			httpClient.post.mockResolvedValueOnce({} as ServiceRegistrationResponse);
+			await client.registerService();
 
-      expect(result).toEqual(response);
-      expect(httpClient.post).toHaveBeenCalledWith(`${config.addressManagerUrl}/register`, {
-        serviceName: config.serviceName,
-        port: config.servicePort,
-        ip: '192.168.1.100',
-      });
-    });
+			expect(httpClient.post).toHaveBeenCalledWith(
+				expect.any(String),
+				expect.objectContaining({
+					ip: "192.168.1.100",
+				})
+			);
+		});
 
-    test('should throw AddressManagerError preserving original cause when HttpClient.post fails', async () => {
-      const error = new Error('Network failure');
+		test("should fallback to 127.0.0.1 when no non-internal IPv4 interface exists", async () => {
+			(networkInterfaces as jest.Mock).mockReturnValueOnce({
+				lo: [{ family: "IPv4", internal: true, address: "127.0.0.1" }],
+			});
 
-      httpClient.post.mockRejectedValueOnce(error);
-      const err = await client.registerService().catch(e => e);
-      expect(err).toBeInstanceOf(AppError);
-      expect((err as AppError).cause).toBe(error);
-    });
-  });
+			const response: ServiceRegistrationResponse = {
+				host: IPAddress.of("127.0.0.1"),
+				port: Port.of(8080),
+				instanceId: toInstanceId("instance-1"),
+				lastHeartbeat: UnixTimestamp.now(),
+				protocol: Protocol.Http,
+				registeredAt: UnixTimestamp.now(),
+				serviceName: toServiceId("abc-service"),
+				token: "service-token",
+				ttl: toDurationMs(30000),
+				version: toVersion("1.0.0"),
+			};
+			httpClient.post.mockResolvedValueOnce(response);
 
-  describe('refreshTTL', () => {
-    test('should call HttpClient.post with correct URL and headers', async () => {
-      httpClient.post.mockResolvedValueOnce(undefined);
+			const result = await client.registerService();
 
-      await client.refreshTTL();
+			expect(httpClient.post).toHaveBeenCalledWith(expect.any(String), {
+				serviceName: config.identity.serviceName,
+				instanceId: config.identity.instanceId,
+				port: config.servicePort,
+				ip: expect.any(String),
+			});
+			expect(result).toEqual(response);
+		});
 
-      expect(httpClient.post).toHaveBeenCalledWith(
-        `${config.addressManagerUrl}/heartbeat`,
-        { serviceName: config.serviceName, instanceId: config.instanceId },
-        { headers: { 'x-instance-token': 'mock-token' } }
-      );
-    });
+		test("should call HttpClient.post with correct URL, payload, and headers", async () => {
+			const response: ServiceRegistrationResponse = {
+				host: IPAddress.of("192.168.1.100"),
+				port: Port.of(8080),
+				instanceId: toInstanceId("instance-1"),
+				lastHeartbeat: UnixTimestamp.now(),
+				protocol: Protocol.Http,
+				registeredAt: UnixTimestamp.now(),
+				serviceName: toServiceId("abc-service"),
+				token: "service-token",
+				ttl: toDurationMs(30000),
+				version: toVersion("1.0.0"),
+			};
+			httpClient.post.mockResolvedValueOnce(response);
 
-    test('should throw AddressManagerError preserving original cause when HttpClient.post fails', async () => {
-      const error = new Error('TTL refresh failed');
+			const result = await client.registerService();
 
-      httpClient.post.mockRejectedValueOnce(error);
-      const err = await client.refreshTTL().catch(e => e);
-      expect(err).toBeInstanceOf(AppError);
-      expect((err as AppError).cause).toBe(error);
-    });
-  });
+			expect(result).toEqual(response);
+			expect(httpClient.post).toHaveBeenCalledWith(
+				`${config.addressManagerUrl}/register` as URLString,
+				{
+					serviceName: config.identity.serviceName,
+					instanceId: config.identity.instanceId,
+					port: config.servicePort,
+					ip: "192.168.1.100",
+				}
+			);
+		});
+
+		test("should throw AddressManagerError preserving original cause when HttpClient.post fails", async () => {
+			const error = new Error("Network failure");
+
+			httpClient.post.mockRejectedValueOnce(error);
+			const err = await client.registerService().catch((e) => e);
+			expect(isAppError(err)).toBe(true);
+			expect(err).toHaveProperty("cause", error);
+		});
+	});
+
+	describe("refreshTTL", () => {
+		test("should call HttpClient.post with correct URL and headers", async () => {
+			httpClient.post.mockResolvedValueOnce(undefined);
+
+			await client.refreshTTL();
+
+			expect(httpClient.post).toHaveBeenCalledWith(
+				`${config.addressManagerUrl}/heartbeat` as URLString,
+				{
+					serviceName: config.identity.serviceName,
+					instanceId: config.identity.instanceId,
+				},
+				{ headers: { "x-instance-token": "mock-token" } }
+			);
+		});
+
+		test("should throw AddressManagerError preserving original cause when HttpClient.post fails", async () => {
+			const error = new Error("TTL refresh failed");
+
+			httpClient.post.mockRejectedValueOnce(error);
+			const err = await client.refreshTTL().catch((e) => e);
+			expect(isAppError(err)).toBe(true);
+			expect(err).toHaveProperty("cause", error);
+		});
+	});
+
+	describe("hasIpChanged", () => {
+		test("should return false on first call and cache IP", () => {
+			(networkInterfaces as jest.Mock).mockReturnValue({
+				eth0: [{ family: "IPv4", internal: false, address: "192.168.1.100" }],
+			});
+			expect(client.hasIpChanged()).toBe(false);
+		});
+
+		test("should return false when IP has not changed", () => {
+			(networkInterfaces as jest.Mock).mockReturnValue({
+				eth0: [{ family: "IPv4", internal: false, address: "192.168.1.100" }],
+			});
+			client.hasIpChanged();
+			expect(client.hasIpChanged()).toBe(false);
+		});
+
+		test("should return true when IP has changed", () => {
+			(networkInterfaces as jest.Mock).mockReturnValue({
+				eth0: [{ family: "IPv4", internal: false, address: "192.168.1.100" }],
+			});
+			client.hasIpChanged();
+			(networkInterfaces as jest.Mock).mockReturnValue({
+				eth0: [{ family: "IPv4", internal: false, address: "192.168.1.200" }],
+			});
+			expect(client.hasIpChanged()).toBe(true);
+		});
+
+		test("should return false when no non-internal IPv4 interface exists", () => {
+			(networkInterfaces as jest.Mock).mockReturnValue({
+				lo: [{ family: "IPv4", internal: true, address: "127.0.0.1" }],
+			});
+			expect(client.hasIpChanged()).toBe(false);
+		});
+
+		test("should handle undefined network interface entries gracefully", () => {
+			(networkInterfaces as jest.Mock).mockReturnValue({
+				wlan0: undefined,
+			});
+			expect(client.hasIpChanged()).toBe(false);
+		});
+	});
 });

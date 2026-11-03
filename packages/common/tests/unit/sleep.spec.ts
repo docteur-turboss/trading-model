@@ -1,27 +1,27 @@
-import { describe, it, expect, jest } from '@jest/globals';
-import { sleep } from '../../src/utils/sleep';
+import { describe, expect, it, jest } from "@jest/globals";
+import { sleep } from "../../src/utils/sleep";
 
-describe('sleep', () => {
-  it('should resolve after the specified number of milliseconds', async () => {
-    jest.useFakeTimers();
+describe("sleep", () => {
+	it("should resolve after the specified number of milliseconds", async () => {
+		jest.useFakeTimers();
 
-    const promise = sleep(1000);
-    jest.advanceTimersByTime(1000);
+		const promise = sleep(1000);
+		jest.advanceTimersByTime(1000);
 
-    await expect(promise).resolves.toBeUndefined();
+		await expect(promise).resolves.toBeUndefined();
 
-    jest.useRealTimers();
-  });
+		jest.useRealTimers();
+	});
 
-  it('should resolve with void', async () => {
-    jest.useFakeTimers();
+	it("should resolve with void", async () => {
+		jest.useFakeTimers();
 
-    const promise = sleep(0);
-    jest.advanceTimersByTime(0);
+		const promise = sleep(0);
+		jest.advanceTimersByTime(0);
 
-    const result = await promise;
-    expect(result).toBeUndefined();
+		const result = await promise;
+		expect(result).toBeUndefined();
 
-    jest.useRealTimers();
-  });
+		jest.useRealTimers();
+	});
 });

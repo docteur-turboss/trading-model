@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html class="dark" lang="en" data-tm-processed="true"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no" name="viewport">
+<title>CI/CD Standards | trading-model</title>
+
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+
+<script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              400: '#818cf8',
+              500: '#6366f1',
+              600: '#4f46e5',
+            },
+            surface: {
+              base: '#0B0F19',
+              card: '#111827',
+              muted: '#1E293B',
+              border: '#243046',
+            },
+            code: {
+              bg: '#0c121e',
+              keyword: '#c084fc',
+              ident: '#38bdf8',
+              type: '#34d399',
+              punct: '#94a3b8'
+            }
+          },
+          fontFamily: {
+            mono: ['JetBrains Mono', 'Fira Code', 'Menlo', 'Monaco', 'Courier New', 'monospace'],
+            sans: ['-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Inter', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+
+<style data-purpose="mobile-ux-styles">
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    .active-scale:active { transform: scale(0.97); transition: transform 0.1s ease-out; }
+    .h-safe-top { height: env(safe-area-inset-top, 0px); }
+    .pt-safe { padding-top: env(safe-area-inset-top, 0px); }
+    @supports (backdrop-filter: blur(12px)) {
+      .glass-header { backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
+    }
+    
+    .tm-prose p { margin: 0.5rem 0; }
+    .tm-prose p:first-child { margin-top: 0; }
+    .tm-prose p:last-child { margin-bottom: 0; }
+    .tm-prose a { color: #818cf8; text-decoration: underline; text-underline-offset: 2px; }
+    .tm-prose a:hover { color: #a5b4fc; }
+    .tm-prose code { font-family: 'JetBrains Mono', 'Fira Code', Menlo, Monaco, 'Courier New', monospace; font-size: 0.82em; color: #fbbf24; background: #0c121e; border: 1px solid #243046; border-radius: 0.25rem; padding: 0.05rem 0.3rem; }
+    .tm-prose pre { background: #0c121e; border: 1px solid #243046; border-radius: 0.5rem; padding: 0.75rem; overflow-x: auto; margin: 0.5rem 0; }
+    .tm-prose pre code { background: transparent; border: none; padding: 0; color: #e2e8f0; }
+    .tm-prose ul, .tm-prose ol { padding-left: 1.25rem; margin: 0.5rem 0; }
+    .tm-prose ul { list-style: disc; }
+    .tm-prose ol { list-style: decimal; }
+    .tm-prose li { margin: 0.2rem 0; }
+    .tm-prose blockquote { border-left: 3px solid #6366f1; background: rgba(17, 24, 39, 0.6); padding: 0.5rem 0.75rem; border-radius: 0 0.5rem 0.5rem 0; color: #94a3b8; margin: 0.5rem 0; }
+    .tm-prose h1, .tm-prose h2, .tm-prose h3, .tm-prose h4, .tm-prose h5 { color: #ffffff; font-weight: 700; margin: 0.75rem 0 0.25rem; }
+    .tm-prose h1 { font-size: 1.25rem; }
+    .tm-prose h2 { font-size: 1.125rem; }
+    .tm-prose h3 { font-size: 1rem; }
+    .tm-prose h4 { font-size: 0.875rem; }
+    .tm-prose table { width: 100%; border-collapse: collapse; margin: 0.5rem 0; }
+    .tm-prose th, .tm-prose td { border: 1px solid #243046; padding: 0.4rem 0.6rem; text-align: left; }
+    .tm-prose thead th { background: #0b0f19; color: #e2e8f0; font-size: 0.75rem; text-transform: uppercase; }
+    .tm-prose strong { color: #ffffff; }
+  </style>
+
+</head>
+<body class="bg-[#080C15] text-slate-200 font-sans antialiased min-h-screen pb-24 selection:bg-indigo-500/30 selection:text-indigo-200">
+
+<header class="sticky top-0 z-40 w-full glass-header bg-[#0B0F19]/90 border-b border-surface-border">
+<div class="h-safe-top pt-safe"></div>
+<div class="px-4 py-2.5 flex items-center justify-between gap-3">
+<div class="flex items-center gap-2.5 min-w-0">
+
+<div class="flex flex-col min-w-0">
+<div class="flex items-center gap-1.5 truncate">
+<span class="font-mono text-xs font-semibold text-indigo-400 truncate tracking-tight"><a class="text-indigo-400 hover:text-indigo-300 hover:underline" href="../../index.html">trading-model</a></span>
+
+</div>
+<span class="text-[10px] text-slate-400 flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> TypeDoc API Reference
+</span>
+</div>
+</div>
+
+</div>
+</header>
+
+<main class="px-4 py-4 max-w-2xl mx-auto flex flex-col gap-6">
+
+<section class="space-y-2.5" data-purpose="breadcrumbs-and-header">
+<nav aria-label="Breadcrumb" class="flex items-center flex-wrap gap-1 text-[11px] font-mono text-slate-400">
+<a class="text-indigo-400 hover:underline" href="../../index.html">trading-model</a><span class="text-slate-600">/</span><span class="text-slate-300 font-medium">CI/CD Standards</span>
+</nav>
+<div class="flex items-center gap-2.5 pt-1">
+<span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-mono font-medium tracking-wide uppercase bg-indigo-500/10 text-indigo-400 border-indigo-500/20">
+Documentation
+</span>
+<h1 class="text-2xl font-bold tracking-tight text-white font-sans">CI/CD Standards</h1>
+</div>
+
+</section>
+
+<div class="tm-prose text-sm leading-relaxed text-slate-300 font-sans"><div>
+<h2>Why</h2>
+<p>Continuous integration and continuous deployment automate quality controls, guarantee reproducible builds, and produce consistent releases. Every change is validated by a battery of checks before reaching production.</p>
+<h2>CI: Continuous Integration</h2>
+<h3>Workflow: <code>.github/workflows/ci.yml</code></h3>
+<p>Triggered on <strong>push</strong> and <strong>pull request</strong> to all branches.</p>
+<pre><code class="language-yaml">name: CI
+
+on: [push, pull_request]
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - run: bun run lint
+
+  typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - name: Build packages (dependency order)
+        run: bun run build
+      - name: Type-check services
+        run: |
+          bun run --filter message-manager build
+          bun run --filter discovery-server build
+          bun run --filter financial-scraper build
+          bun run --filter trader-service build
+          bun run --filter api-gateway build
+          bun run --filter audit-logger build
+          bun run --filter dlq-service build
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - run: bun run build
+      - run: bun run test:coverage
+</code></pre>
+<blockquote>
+<p>This excerpt shows the core jobs. The full <code>ci.yml</code> also defines <code>contract</code> and <code>e2e</code> jobs (see below).</p>
+</blockquote>
+<p><strong>Jobs</strong>:</p>
+<ul>
+<li><code>lint</code> — Biome check across the entire monorepo</li>
+<li><code>typecheck</code> — Build packages + type-check all services</li>
+<li><code>test</code> — Build + tests with coverage, upload to Codecov</li>
+<li><code>observability</code> — Observability gate (metrics, propagation, readiness)</li>
+<li><code>k8s-overlays</code> — Renders the staging and production overlays (<code>tests/k8s/check-overlays.mjs</code>): every first-party image is released and rewritten by <code>deploy.yml</code>, production secrets come from SealedSecrets only</li>
+<li><code>contract</code> — Contract tests between services</li>
+<li><code>e2e</code> — Boot the Docker Compose stack and run E2E tests</li>
+</ul>
+<p><strong>Permissions</strong>: <code>contents: read</code> (read-only)</p>
+<h2>CD: Continuous Deployment</h2>
+<h3>Workflow: <code>.github/workflows/release.yml</code></h3>
+<p>Triggered by pushing a <code>vX.Y.Z</code> tag (<code>vX.Y.Z-rc.1</code> for a prerelease). The tag
+is created locally by <code>bun run release</code> (<code>scripts/release.mjs</code>: version bump,
+CHANGELOG, annotated tag, <code>git push --follow-tags</code>).</p>
+<p><strong>Jobs:</strong></p>
+<ol>
+<li><code>version</code> — checks the tag format, computes the image tag (<code>X.Y.Z</code>, no
+leading <code>v</code>) and whether this release becomes <code>latest</code></li>
+<li><code>ci</code> — the whole CI (<code>ci.yml</code>, called as a reusable workflow) on the tagged
+commit: no image is pushed unless every gate passes</li>
+<li><code>build-and-push</code> — the 7 service images</li>
+<li><code>build-tools</code> — <code>spire-tools</code> (K8s SPIRE entry reconciler) and <code>backup-tools</code>
+(db-backup CronJob)</li>
+</ol>
+<p>Actions are pinned by commit SHA (Dependabot <code>github-actions</code> keeps them up to date).</p>
+<p><strong>Permissions:</strong> <code>contents: read</code>; the two image jobs add <code>packages: write</code>.</p>
+<h3>Docker Image Tags</h3>
+<p>Each image is pushed as <code>:X.Y.Z</code>. <code>:latest</code> moves to the release only when it is
+the highest stable version among the repository tags: a backport patch
+(<code>v1.4.2</code> after <code>v2.0.0</code>) or a prerelease never takes it.</p>
+<p>Registry: repository variable <code>IMAGE_REGISTRY</code>, default <code>ghcr.io/&lt;owner&gt;</code> (the
+only GHCR namespace <code>GITHUB_TOKEN</code> can push to). Manifests keep the logical name
+<code>ghcr.io/trading-model/&lt;image&gt;</code>; <code>deploy.yml</code> rewrites it to the registry.</p>
+<p>Example for <code>v2.0.3</code> (highest release), owner <code>docteur-turboss</code>:</p>
+<ul>
+<li><code>ghcr.io/docteur-turboss/discovery-server:2.0.3</code></li>
+<li><code>ghcr.io/docteur-turboss/discovery-server:latest</code></li>
+</ul>
+<p>The cluster pulls the images itself: make the GHCR packages public, or give the
+nodes pull credentials for the registry.</p>
+<h3>Additional workflows</h3>
+<table>
+<thead>
+<tr>
+<th>Workflow</th>
+<th>File</th>
+<th>Trigger</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Deploy</strong></td>
+<td><code>.github/workflows/deploy.yml</code></td>
+<td>manual</td>
+<td>Deploy to staging/production (optional canary + smoke test + auto rollback)</td>
+</tr>
+<tr>
+<td><strong>Backup Test</strong></td>
+<td><code>.github/workflows/backup-test.yml</code></td>
+<td>weekly cron</td>
+<td>Validate backup/restore scripts, dry-run restore, K8s CronJob check</td>
+</tr>
+</tbody>
+</table>
+<h3>CI/CD Pipeline Summary</h3>
+<table>
+<thead>
+<tr>
+<th>Workflow</th>
+<th>File</th>
+<th>Trigger</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>CI</strong></td>
+<td><code>.github/workflows/ci.yml</code></td>
+<td><code>push</code>, <code>pull_request</code>, called by Release</td>
+<td>Lint → Typecheck → Test + Codecov → Observability → Overlay checks → Contract → E2E (Docker) → K8s (kind)</td>
+</tr>
+<tr>
+<td><strong>Release</strong></td>
+<td><code>.github/workflows/release.yml</code></td>
+<td><code>v*</code> tag push</td>
+<td>CI → 9 Docker images (<code>X.Y.Z</code>, <code>latest</code> if highest) → GHCR</td>
+</tr>
+<tr>
+<td><strong>Deploy</strong></td>
+<td><code>.github/workflows/deploy.yml</code></td>
+<td>manual</td>
+<td>Staging/production deploy by digest (optional canary + auto rollback)</td>
+</tr>
+<tr>
+<td><strong>Backup Test</strong></td>
+<td><code>.github/workflows/backup-test.yml</code></td>
+<td>weekly cron</td>
+<td>Validate backup/restore scripts</td>
+</tr>
+</tbody>
+</table>
+<p>All workflows run on <code>ubuntu-latest</code> with Bun. Failure in any workflow blocks merging.</p>
+<p><strong>Concurrency:</strong> CI grouped by workflow + ref, cancel-in-progress on new push.</p>
+<h2>Related Documentation</h2>
+<p>Docker multi-stage build patterns, conventions, and per-service variations are documented in <a href="../deployment/DOCKER.html">Docker Standards</a>.</p>
+<p>Deployment workflows (beta, canary, stable, rollback) are documented in <a href="../deployment/DEPLOY.html">Deployment Guide</a>.</p>
+<h2>Registry credentials</h2>
+<p><code>release.yml</code> pushes with the workflow's <code>GITHUB_TOKEN</code> (<code>packages: write</code> on the
+image jobs); <code>deploy.yml</code> reads the digests with it (<code>packages: read</code>). No
+personal access token is needed. Set the repository variable <code>IMAGE_REGISTRY</code>
+only to push somewhere else than <code>ghcr.io/&lt;owner&gt;</code>.</p>
+<h2>References</h2>
+<ul>
+<li><a href="../standards/pr-standards.html">PR Standards</a> — Required checks before merge</li>
+<li><a href="../standards/quality-gates.html">Quality Gates</a> — Quality thresholds</li>
+<li><code>.github/workflows/ci.yml</code> — CI workflow</li>
+<li><code>.github/workflows/release.yml</code> — Release workflow</li>
+<li><a href="../contributing/workflow.html">Workflow</a> — Full development workflow</li>
+</ul>
+</div></div>
+</main>
+</body>
+</html>

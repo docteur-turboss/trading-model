@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html class="dark" lang="en" data-tm-processed="true"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no" name="viewport">
+<title>ADR-0012: Dead Code Removal via Reachability Analysis and Runtime Entrypoint Fix | trading-model</title>
+
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+
+<script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              400: '#818cf8',
+              500: '#6366f1',
+              600: '#4f46e5',
+            },
+            surface: {
+              base: '#0B0F19',
+              card: '#111827',
+              muted: '#1E293B',
+              border: '#243046',
+            },
+            code: {
+              bg: '#0c121e',
+              keyword: '#c084fc',
+              ident: '#38bdf8',
+              type: '#34d399',
+              punct: '#94a3b8'
+            }
+          },
+          fontFamily: {
+            mono: ['JetBrains Mono', 'Fira Code', 'Menlo', 'Monaco', 'Courier New', 'monospace'],
+            sans: ['-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Inter', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+
+<style data-purpose="mobile-ux-styles">
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    .active-scale:active { transform: scale(0.97); transition: transform 0.1s ease-out; }
+    .h-safe-top { height: env(safe-area-inset-top, 0px); }
+    .pt-safe { padding-top: env(safe-area-inset-top, 0px); }
+    @supports (backdrop-filter: blur(12px)) {
+      .glass-header { backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
+    }
+    
+    .tm-prose p { margin: 0.5rem 0; }
+    .tm-prose p:first-child { margin-top: 0; }
+    .tm-prose p:last-child { margin-bottom: 0; }
+    .tm-prose a { color: #818cf8; text-decoration: underline; text-underline-offset: 2px; }
+    .tm-prose a:hover { color: #a5b4fc; }
+    .tm-prose code { font-family: 'JetBrains Mono', 'Fira Code', Menlo, Monaco, 'Courier New', monospace; font-size: 0.82em; color: #fbbf24; background: #0c121e; border: 1px solid #243046; border-radius: 0.25rem; padding: 0.05rem 0.3rem; }
+    .tm-prose pre { background: #0c121e; border: 1px solid #243046; border-radius: 0.5rem; padding: 0.75rem; overflow-x: auto; margin: 0.5rem 0; }
+    .tm-prose pre code { background: transparent; border: none; padding: 0; color: #e2e8f0; }
+    .tm-prose ul, .tm-prose ol { padding-left: 1.25rem; margin: 0.5rem 0; }
+    .tm-prose ul { list-style: disc; }
+    .tm-prose ol { list-style: decimal; }
+    .tm-prose li { margin: 0.2rem 0; }
+    .tm-prose blockquote { border-left: 3px solid #6366f1; background: rgba(17, 24, 39, 0.6); padding: 0.5rem 0.75rem; border-radius: 0 0.5rem 0.5rem 0; color: #94a3b8; margin: 0.5rem 0; }
+    .tm-prose h1, .tm-prose h2, .tm-prose h3, .tm-prose h4, .tm-prose h5 { color: #ffffff; font-weight: 700; margin: 0.75rem 0 0.25rem; }
+    .tm-prose h1 { font-size: 1.25rem; }
+    .tm-prose h2 { font-size: 1.125rem; }
+    .tm-prose h3 { font-size: 1rem; }
+    .tm-prose h4 { font-size: 0.875rem; }
+    .tm-prose table { width: 100%; border-collapse: collapse; margin: 0.5rem 0; }
+    .tm-prose th, .tm-prose td { border: 1px solid #243046; padding: 0.4rem 0.6rem; text-align: left; }
+    .tm-prose thead th { background: #0b0f19; color: #e2e8f0; font-size: 0.75rem; text-transform: uppercase; }
+    .tm-prose strong { color: #ffffff; }
+  </style>
+
+</head>
+<body class="bg-[#080C15] text-slate-200 font-sans antialiased min-h-screen pb-24 selection:bg-indigo-500/30 selection:text-indigo-200">
+
+<header class="sticky top-0 z-40 w-full glass-header bg-[#0B0F19]/90 border-b border-surface-border">
+<div class="h-safe-top pt-safe"></div>
+<div class="px-4 py-2.5 flex items-center justify-between gap-3">
+<div class="flex items-center gap-2.5 min-w-0">
+
+<div class="flex flex-col min-w-0">
+<div class="flex items-center gap-1.5 truncate">
+<span class="font-mono text-xs font-semibold text-indigo-400 truncate tracking-tight"><a class="text-indigo-400 hover:text-indigo-300 hover:underline" href="../../index.html">trading-model</a></span>
+
+</div>
+<span class="text-[10px] text-slate-400 flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> TypeDoc API Reference
+</span>
+</div>
+</div>
+
+</div>
+</header>
+
+<main class="px-4 py-4 max-w-2xl mx-auto flex flex-col gap-6">
+
+<section class="space-y-2.5" data-purpose="breadcrumbs-and-header">
+<nav aria-label="Breadcrumb" class="flex items-center flex-wrap gap-1 text-[11px] font-mono text-slate-400">
+<a class="text-indigo-400 hover:underline" href="../../index.html">trading-model</a><span class="text-slate-600">/</span><span class="text-slate-300 font-medium">ADR-0012: Dead Code Removal via Reachability Analysis and Runtime Entrypoint Fix</span>
+</nav>
+<div class="flex items-center gap-2.5 pt-1">
+<span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-mono font-medium tracking-wide uppercase bg-indigo-500/10 text-indigo-400 border-indigo-500/20">
+Documentation
+</span>
+<h1 class="text-2xl font-bold tracking-tight text-white font-sans">ADR-0012: Dead Code Removal via Reachability Analysis and Runtime Entrypoint Fix</h1>
+</div>
+
+</section>
+
+<div class="tm-prose text-sm leading-relaxed text-slate-300 font-sans"><div>
+<p><strong>Status:</strong> Accepted
+<strong>Date:</strong> 2026-10
+<strong>Related:</strong> <a href="0010-clean-architecture-migration.html">ADR-0010</a> (layering conventions relied on by the cleanup), <a href="0002-redis-pub-sub.html">ADR-0002</a>, <a href="0003-mongodb-persistence.html">ADR-0003</a>, <a href="0008-message-broker-choice.html">ADR-0008</a> (decisions whose never-wired implementations are removed here)
+<strong>Verified by:</strong> <code>bun run reach:check</code>, <code>services/message-manager/tests/unit/app/index.spec.ts</code></p>
+<h2>Context</h2>
+<p>Incremental feature development across the monorepo left a large amount of code that was never reachable from the real runtime entrypoints: transports, persistence layers, and client stacks that were designed (and sometimes documented in earlier ADRs) but never actually wired into the running services. This code still carried full test suites, inflated the maintenance surface, and — worse — made the actual architecture hard to read: a reader could not tell which subsystems were operational and which were aspirational.</p>
+<p>A static <strong>reachability analysis</strong> was run on branch <code>refactor/clean-code-v3</code>, rooted at the real Docker entrypoint of every service (<code>CMD</code> target in each Dockerfile, transpiled from <code>src/</code>), with resolution of:</p>
+<ul>
+<li>dynamic imports (<code>import(...)</code>, string-literal requires),</li>
+<li>subpath exports of the <code>@trading-model/*</code> packages (mapping each export condition to its source file),</li>
+<li>ambient type declarations (see false-positive note below).</li>
+</ul>
+<p>Results:</p>
+<table>
+<thead>
+<tr>
+<th>Milestone</th>
+<th>Unreachable src files</th>
+<th>Ratio</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>HEAD before cleanup</td>
+<td>197 / 998</td>
+<td><strong>19.7 %</strong></td>
+</tr>
+<tr>
+<td>After first cleanup pass (in-flight)</td>
+<td>33 / 839</td>
+<td><strong>3.9 %</strong></td>
+</tr>
+<tr>
+<td>After this changeset</td>
+<td>~0 (see note)</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<p>The first pass removed 236 files (~7,000 lines on <code>message-manager</code> alone). The remaining 33 files identified by the audit were removed in this changeset. The full build is green (16/16 workspaces) and the test suites are green, except for 5 pre-existing <code>admin-interface</code> failures unrelated to this work (tied to a separate feature rewrite).</p>
+<p>The analysis also surfaced a <strong>critical bug</strong>: <code>message-manager</code>'s Dockerfile executes <code>dist/application/index.js</code>, but <code>src/application/index.ts</code> only exported a factory (<code>createBrokerModule</code>) with no side effects at load time — the process started, exported a function, and exited. No HTTPS server was ever bound, the container healthcheck could never pass, and Docker kept restarting it. The real bootstrap lived in <code>src/infrastructure/app/index.ts</code>, referenced only by tests.</p>
+<p>A known limitation of static import analysis is <strong>ambient module augmentation</strong>: <code>services/financial-scraper/src/types/axios.d.ts</code> augments the axios types (<code>config.weight</code>) and is used by <code>config/http.ts</code>, but has no import edge and is invisible to the analysis. It is deliberately <strong>kept</strong> and tracked as a known false-positive class for <code>.d.ts</code> files.</p>
+<h2>Decision</h2>
+<p>Remove all code proven unreachable from the runtime entrypoints, and fix the <code>message-manager</code> entrypoint by moving the bootstrap to the conventional location. The reachability analysis is <strong>reproducible</strong>: it can be re-run on any commit (same entrypoint roots, same dynamic-import and subpath-export resolution) to detect regressions — new dead code, or entrypoints drifting away from the bootstrap.</p>
+<h3>Removals by subsystem</h3>
+<table>
+<thead>
+<tr>
+<th>Subsystem</th>
+<th>Decision</th>
+<th>Rationale</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>message-manager</strong> — Redis Streams, WAL (file/redis), Mongo archive, WSS server, ACL Redis, DLQ HTTP client (~126 files)</td>
+<td>Remove</td>
+<td>The operational broker is HTTP-only (<code>POST /message</code>, <code>POST /subscribe</code>) with an in-memory dispatcher and inline retry. The persistence subsystems (WAL, streams, archive) and the WSS transport were not bound to any runtime route. Mongo persistence and the DLQ HTTP client were planned but never wired — removed rather than maintained dead. The DLQ fallback actually in use is <code>FileDlqRepository</code> (local JSONL).</td>
+</tr>
+<tr>
+<td><strong>discovery-server</strong> — WebSocket server, Redis &quot;cached registry&quot;, cache orchestrator, pub-sub invalidator, Redis health monitor, token-service (32 files)</td>
+<td>Remove</td>
+<td>The operational discovery is HTTP (<code>/register</code>, <code>/heartbeat</code>) backed by a plain Redis instance-store.</td>
+</tr>
+<tr>
+<td><strong>broker-message</strong> — WSS client stack (<code>wss-client</code>, <code>wss-connection-orchestrator</code>, <code>wss-publisher</code>, <code>wss-message-dispatcher</code>, <code>http-fallback-handler</code>, <code>pending-publish-queue</code>, <code>wss-connection</code>)</td>
+<td>Remove</td>
+<td>The operational broker SDK is HTTP.</td>
+</tr>
+<tr>
+<td><strong>jobs</strong> — worker WS client stack (<code>base-worker</code>, <code>worker-client</code>, <code>worker-heartbeat</code>, <code>job-tracker</code>, <code>ack-timer-manager</code>, …; 15 files)</td>
+<td>Remove</td>
+<td>The WebSocket <em>server</em> side of the worker protocol (<code>WorkerProtocol</code> → <code>WorkerWsManager</code> in <code>@trading-model/jobs</code>) is operational, instantiated at runtime by <code>audit-logger</code> (<code>scheduler-factory.ts</code>); only the worker <em>client</em> stack (files listed in the Decision cell) was never instantiated and is removed.</td>
+</tr>
+<tr>
+<td><strong>http</strong> — error-tracking stack (<code>error-buffer</code>, <code>error-report-builder</code>, <code>error-tracker</code>, <code>error-tracking</code>, <code>handle-core-response</code>, <code>handle-core-error</code>, <code>normalize-db-error</code>; 12 files + tests)</td>
+<td>Remove</td>
+<td>Never mounted in the shared HTTP server bootstrap; error handling is done by the existing middleware chain.</td>
+</tr>
+<tr>
+<td><strong>address-manager</strong> — load-balancing strategies (round-robin, random, least-connections), <code>cache-invalidation-handler</code>, <code>shared/monitoring</code> barrel (8 files)</td>
+<td>Remove</td>
+<td>The operational address selection does not use these strategies; the invalidation handler and monitoring barrel had no runtime consumers.</td>
+</tr>
+<tr>
+<td><strong>common</strong> — <code>ws-reconnect</code>, <code>ws-connection</code>, <code>ws</code> barrel, <code>cache-map-invalidator</code>, <code>periodic-sweeper</code>, <code>ttl-utils</code>, <code>async-deduper</code>, <code>retry-file-append</code>, <code>order-book-utils</code>, <code>failure-count</code>, <code>domain/candlestick-query</code>, <code>testing</code> barrel, <code>utils/cache-config</code>, <code>utils/lru-cache</code>, <code>contracts/pagination.types</code></td>
+<td>Remove</td>
+<td>Utilities with no runtime consumers outside their own tests; barrels with no runtime importers.</td>
+</tr>
+<tr>
+<td><strong>audit-logger</strong>, <strong>financial-scraper</strong> (MySQL <code>book-ticker</code> / <code>order-book-snapshot</code> schemas — <code>insertBookTicker</code>/<code>insertOrderBookSnapshot</code> never called, those messages only transit via the broker — plus <code>utils/sleep</code>), misc (14 + 2 files)</td>
+<td>Remove</td>
+<td>Unreferenced modules. <strong>Exception:</strong> <code>services/financial-scraper/src/types/axios.d.ts</code> is <strong>kept</strong> — ambient axios module augmentation (<code>config.weight</code>) used by <code>config/http.ts</code>, invisible to static import analysis.</td>
+</tr>
+<tr>
+<td><strong>trader-trainer</strong> — GA re-export shims (<code>encoding</code>, <code>fitness</code>, <code>validation</code>, <code>encoding-indices</code>, <code>genome-validation</code> + <code>genome-validation/{index,misc}</code>, <code>layer-codec</code>)</td>
+<td>Remove</td>
+<td>Shims never referenced by the runtime, only by their own tests.</td>
+</tr>
+<tr>
+<td><strong>dlq-service</strong> — <code>config/distributed-lock</code>, <code>config/redis-event-handlers</code>, <code>dlq/shared</code> barrel, <code>shared/entry-validation</code>, <code>domain/decision-service</code></td>
+<td>Remove</td>
+<td>Dead configuration and domain modules identified by the audit.</td>
+</tr>
+<tr>
+<td><strong>validation</strong> — <code>adapters/outbound/distributed-lock.types</code></td>
+<td>Remove</td>
+<td>No consumers after the DLQ distributed-lock removal.</td>
+</tr>
+<tr>
+<td><strong>admin-interface</strong> — <code>components/filter-bar.tsx</code></td>
+<td>Remove</td>
+<td>Unreferenced component.</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>Clarification (2026-10-15):</strong> the jobs row above was initially worded as if all worker communication ran over HTTP. Only the worker <em>client</em> stack was removed; the WebSocket <em>server</em> side of the worker protocol (<code>WorkerProtocol</code> → <code>WorkerWsManager</code> in <code>@trading-model/jobs</code>) is instantiated and used at runtime by <code>audit-logger</code> (<code>scheduler-factory.ts</code>) and remains operational.</p>
+</blockquote>
+<blockquote>
+<p><strong>Correction (2026-10-31, <a href="0029-orphan-subsystems-retired-and-reachability-gate.html">ADR-0029</a>):</strong> the server side was instantiated, not operational: no service submitted a job and no worker ever connected. ADR-0029 removed it with the whole <code>@trading-model/jobs</code> package.</p>
+</blockquote>
+<h3>Entrypoint fix (message-manager)</h3>
+<p>Removing dead code also means &quot;reconnecting&quot; the entrypoints that were only referenced by tests:</p>
+<ul>
+<li>Move the real bootstrap (<code>createBootstrap</code> + <code>createServer</code> + mounting <code>ADDRESS_MANAGER_ROUTES</code> / <code>MESSAGE_MANAGER_ROUTES</code>) from <code>src/infrastructure/app/index.ts</code> into <code>src/application/index.ts</code>.</li>
+<li>Move the broker factory from <code>src/application/index.ts</code> to <code>src/application/broker-module.ts</code>.</li>
+<li>Delete <code>src/infrastructure/app/</code>.</li>
+</ul>
+<p>This restores the <strong>&quot;application/index.ts = runtime entrypoint&quot;</strong> convention already followed by 5 of the 8 services, and requires <strong>no Dockerfile or <code>package.json</code> <code>main</code> change</strong> — the <code>CMD</code> target (<code>dist/application/index.js</code>) now actually boots an HTTPS server and the healthcheck passes.</p>
+<h2>Alternatives Considered</h2>
+<table>
+<thead>
+<tr>
+<th>Alternative</th>
+<th>Reason for Rejection</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Keep dead code behind feature flags</td>
+<td>Flags that are never toggled are dead code too; the code carried tests and docs drift without any consumer to validate it</td>
+</tr>
+<tr>
+<td>Mark unreachable code with <code>@dead</code> annotations / coverage-only exclusion</td>
+<td>Keeps the maintenance and cognitive load; build surface stays 20 % larger than reality</td>
+</tr>
+<tr>
+<td>Keep planned subsystems (Mongo persistence, DLQ HTTP client, WSS) &quot;ready to wire&quot;</td>
+<td>Unwired code rots: no runtime consumer means no signal when dependencies or protocols change; reintroduction conditions are documented below instead</td>
+</tr>
+<tr>
+<td>Minimal fix: change the message-manager <code>CMD</code> to point at <code>infrastructure/app</code></td>
+<td>Works, but contradicts the entrypoint convention of the majority of services and leaves the misleading &quot;application/index.ts is the entrypoint&quot; assumption in place</td>
+</tr>
+</tbody>
+</table>
+<h2>Consequences</h2>
+<h3>Positive</h3>
+<ul>
+<li>19.7 % → ~0 % unreachable code; ~270 files / well over 7,000 lines removed across the monorepo.</li>
+<li>The running architecture is now readable straight from the code: HTTP-only broker, HTTP discovery, file-based DLQ fallback.</li>
+<li><code>message-manager</code> boots a real HTTPS server from its Docker entrypoint — fixes a critical restart-loop / healthcheck failure.</li>
+<li>Test and build surface shrinks proportionally; fewer dependencies and faster CI.</li>
+<li>The reachability analysis is reproducible, so regressions (new dead code, or entrypoints drifting away from the bootstrap) can be detected continuously.</li>
+</ul>
+<h3>Negative</h3>
+<ul>
+<li>Reintroducing a removed subsystem (e.g. Mongo message persistence, WSS push) requires rewriting rather than re-wiring; git history is the recovery path.</li>
+<li>Early ADRs (0002, 0003, 0008) now describe intents that are not (or no longer) implemented in code — this ADR explicitly records that gap.</li>
+<li>Ambient <code>.d.ts</code> files are invisible to the static analysis: <code>financial-scraper/src/types/axios.d.ts</code> is a known, deliberate exception and must be kept even though it looks unreachable.</li>
+</ul>
+<h3>Mitigations</h3>
+<ul>
+<li>Reintroduction conditions are documented below, tied to measurable triggers.</li>
+<li>Git history preserves the removed implementations for reference.</li>
+<li>The reachability check can be added as a CI gate on the 3.9 %→0 % baseline to prevent accumulation.</li>
+</ul>
+<h2>Conditions for Reintroduction</h2>
+<p>Removed subsystems may be re-wired (from git history or rewritten) when one of the following conditions holds:</p>
+<table>
+<thead>
+<tr>
+<th>Subsystem</th>
+<th>Reintroduce when</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Message persistence (Mongo archive / WAL)</td>
+<td>Sustained DLQ volume exceeds the practical limit of the local <code>FileDlqRepository</code> JSONL file (growth, multi-node deployment of message-manager, or a requirement to replay messages across restarts of different hosts)</td>
+</tr>
+<tr>
+<td>DLQ HTTP client</td>
+<td>The DLQ service is deployed as a central, cross-host dead-letter sink rather than per-instance files</td>
+</tr>
+<tr>
+<td>WSS transport (broker, discovery, jobs workers)</td>
+<td>A concrete requirement for server-initiated push / real-time updates arrives (e.g. streaming subscriptions with sub-second latency); polling/webhook proves insufficient</td>
+</tr>
+<tr>
+<td>Redis Streams messaging</td>
+<td>A requirement for durable, back-pressured, multi-consumer fan-out beyond what the HTTP broker provides</td>
+</tr>
+<tr>
+<td>Load-balancing strategies (address-manager)</td>
+<td>Measured hot-spots on address selection (uneven request distribution with real throughput impact) that the current selection cannot address</td>
+</tr>
+<tr>
+<td>Error-tracking stack (<code>http</code>)</td>
+<td>A requirement for in-process error buffering/reporting to an external tracker is confirmed; otherwise use structured logs + external APM</td>
+</tr>
+<tr>
+<td>Distributed lock (dlq-service / validation)</td>
+<td>Multi-instance coordination of DLQ consumers becomes necessary (more than one dlq-service replica processing the same queue)</td>
+</tr>
+<tr>
+<td>GA re-export shims (trader-trainer)</td>
+<td>External consumers (other repos, notebooks) adopt the shim surface as a public API</td>
+</tr>
+</tbody>
+</table>
+<p>Any reintroduction must wire the subsystem into a <strong>runtime entrypoint</strong> (route, scheduled job, or bootstrap side effect) — not merely into tests — and must be covered by the reachability analysis without appearing as dead code.</p>
+</div></div>
+</main>
+</body>
+</html>

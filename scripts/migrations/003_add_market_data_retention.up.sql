@@ -1,0 +1,13 @@
+-- Migration 003: Market data retention policy (removed from schema)
+--
+-- The previous version of this migration created a MySQL EVENT that DELETEd
+-- market data older than 1827 days (5 years, MiFID II Art. 72) on a daily
+-- schedule.
+--
+-- Per deployment audit A9, destructive DELETEs must NOT live in schema
+-- migrations: they are irreversible and can silently destroy data. Retention
+-- is now handled OUT OF SCHEMA (dedicated retention job / runbook).
+--
+-- This migration is intentionally empty. Environments that already applied the
+-- old 003 must run `bun scripts/migrate.mjs down 1` (repeatedly or with a
+-- count) to drop the `purge_old_market_data` EVENT.

@@ -6,12 +6,47 @@
 #    docker compose down -v
 # =============================================================================
 
+# Shared environment templates — reduces duplications across service blocks
+x-core-env: &core-env
+  NODE_ENV: ${NODE_ENV:-production}
+  PORT: '3000'
+  REDIS_URL: redis://redis:6379
+  # mTLS via SPIFFE SVIDs (ADR-0011) — mandatory. The spiffe-helper sidecars
+  # write the SVID (key, cert, trust bundle) into /run/spire/svid before the
+  # service binds, so no manual ./certs bundle is required.
+  TLS_KEY_PATH: /run/spire/svid/svid_key.pem
+  TLS_CERT_PATH: /run/spire/svid/svid.pem
+  TLS_CA_PATH: /run/spire/svid/bundle.pem
+  # Enforce the service-to-service ACL using attested SVID identities (ADR-0011).
+  ENFORCE_MTLS_STRICT: ${ENFORCE_MTLS_STRICT:-true}
+  LOG_LEVEL: ${LOG_LEVEL:-info}
+
+# Rotated json-file logs: without a cap a looping service fills the Docker
+# Desktop disk image, which freezes every container on the host.
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "3"
+
+x-message-env: &message-env
+  <<: *core-env
+  CACHE_TTL_MS: '30000'
+  SERVICE_PING_TIMEOUT_MS: '2000'
+  TOKEN_REFRESH_INTERVAL_MS: '60000'
+  TTL_REFRESH_INTERVAL_MS: '15000'
+  ADDRESS_MANAGER_URL: https://discovery-server:3000
+  MESSAGE_BUS_INIT_TIMEOUT_MS: '5000'
+  MESSAGE_BUS_SHUTDOWN_TIMEOUT_MS: '5000'
+  MESSAGE_CALLBACK_PATH: message
+
 services:
   # ---------------------------------------------------------------------------
-  #  MongoDB — Message Manager persistence
+  #  MongoDB — audit-logger (audit trail) and dlq-service (dead letters)
   # ---------------------------------------------------------------------------
   mongo:
-    image: mongo:7
+    logging: *default-logging
+    image: mongo@sha256:9854f7139445d766a9523571d6f047530c45547460ffcf8259eb2bf4264632ca
     container_name: trading-mongo
     restart: unless-stopped
     volumes:
@@ -25,30 +60,96 @@ services:
       retries: 5
 
   # ---------------------------------------------------------------------------
+  #  Redis — discovery registry, message-manager subscriptions, dlq-service
+  #  queues (single node for dev/E2E)
+  # ---------------------------------------------------------------------------
+  redis:
+    logging: *default-logging
+    image: redis@sha256:ff02b58f971e7d7d156a1267e283fcbbeee91773b6aa36c49dac28ecfe28eadf
+    container_name: trading-redis
+    restart: unless-stopped
+    # Snapshots (RDB) always; the append-only file is per environment:
+    # dev leaves it off, a compose host running staging/production sets
+    # REDIS_APPENDONLY=yes like the K8s StatefulSet (deploy/k8s/infra/redis.yaml).
+    command:
+      - redis-server
+      - --appendonly
+      - ${REDIS_APPENDONLY:-no}
+      - --save
+      - 900 1 300 10
+    volumes:
+      - redis-data:/data
+    networks:
+      - backend-net
+      - data-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ---------------------------------------------------------------------------
   #  MySQL — Financial Scraper persistence
   # ---------------------------------------------------------------------------
   mysql:
-    image: mysql:8
+    logging: *default-logging
+    image: mysql@sha256:85b9bf2e29cf836ecb8c2a15a935d4ba0c606631dff1dd79531a11983c638f2a
     container_name: trading-mysql
     restart: unless-stopped
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-      MYSQL_PWD: ${MYSQL_ROOT_PASSWORD}
       MYSQL_DATABASE: ${MYSQL_DATABASE:-financial_scraper}
     volumes:
       - mysql-data:/var/lib/mysql
     networks:
       - data-net
     healthcheck:
-      test: mysqladmin ping -h localhost -u root
+      # TCP, not the socket: the entrypoint's temporary init server listens on
+      # the socket only (port 0) and stops before the real server starts.
+      test: mysqladmin ping -h 127.0.0.1 -u root
       interval: 10s
       timeout: 5s
       retries: 5
+      # First start on an empty volume initializes the data directory (over a
+      # minute on Docker Desktop, 130s measured 2026-10-31): failures during
+      # that time do not count.
+      start_period: 180s
+
+  # ---------------------------------------------------------------------------
+  #  Migration — apply pending SQL migrations (single source of truth for schema)
+  # ---------------------------------------------------------------------------
+  migrate:
+    logging: *default-logging
+    # mysql2 is installed at build time: data-net is internal (no registry access at run time).
+    build:
+      context: scripts
+      dockerfile_inline: |
+        FROM oven/bun@sha256:c1cc397e0be452c54f37cbcdfaa747eff93c993723af7d91658764d0fdfe5873
+        WORKDIR /migrations
+        RUN bun add mysql2@3.24.4
+    container_name: trading-migrate
+    restart: "no"
+    command: ["bun", "/migrations/migrate.mjs", "up"]
+    environment:
+      DB_HOST: mysql
+      DB_PORT: "3306"
+      DB_USER: ${MYSQL_USER:-root}
+      DB_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      DB_NAME: ${MYSQL_DATABASE:-financial_scraper}
+    volumes:
+      - ./scripts/migrate.mjs:/migrations/migrate.mjs:ro
+      - ./scripts/migrations:/migrations/migrations:ro
+    networks:
+      - data-net
+    depends_on:
+      mysql:
+        condition: service_healthy
 
   # ---------------------------------------------------------------------------
   #  Discovery Server — Service registry & lease management
   # ---------------------------------------------------------------------------
   discovery-server:
+    logging: *default-logging
     build:
       context: .
       dockerfile: services/discovery-server/Dockerfile
@@ -57,28 +158,106 @@ services:
     ports:
       - '${DISCOVERY_PORT:-8443}:3000'
     environment:
-      NODE_ENV: ${NODE_ENV:-production}
-      PORT: '3000'
-      TLS_KEY_PATH: /certs/server-key.pem
-      TLS_CERT_PATH: /certs/server.crt
-      TLS_CA_PATH: /certs/ca.crt
-      LOG_LEVEL: ${LOG_LEVEL:-info}
+      <<: *core-env
       ERROR_URL_WEBHOOK: ${ERROR_URL_WEBHOOK:-}
       CLEANUP_SERVICE_INTERVAL_MS: '600000'
+      # Signs the instance tokens kept in Redis: stable across restarts.
+      # Required with NODE_ENV=production (discovery refuses to start).
+      SIGNING_SECRET: ${SIGNING_SECRET:-}
     volumes:
-      - ${TLS_CERTS_DIR:-./certs}:/certs:ro
+      - svid-discovery:/run/spire/svid
     networks:
       - backend-net
+    depends_on:
+      spiffe-helper-discovery:
+        condition: service_started
+      redis:
+        condition: service_healthy
     healthcheck:
-      test: curl -sk --cert /certs/server.crt --key /certs/server-key.pem https://localhost:3000/ping || exit 1
+      test: curl -skf --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem https://localhost:3000/health/ready || exit 1
       interval: 15s
       timeout: 5s
       retries: 3
 
   # ---------------------------------------------------------------------------
+  #  SPIRE Server — workload identity issuance (ADR-0011)
+  # ---------------------------------------------------------------------------
+  spire-server:
+    logging: *default-logging
+    image: ghcr.io/spiffe/spire-server:1.11.3  # pin: digest unavailable without GHCR auth
+    container_name: trading-spire-server
+    restart: unless-stopped
+    # Named volumes are created root-owned: the image user (1000) could not write them.
+    user: "0:0"
+    command: ["-config", "/etc/spire/server.conf"]
+    volumes:
+      - ./deploy/compose/spire/server.conf:/etc/spire/server.conf:ro
+      - spire-server-data:/run/spire/data
+      - spire-server-sockets:/run/spire/sockets
+    networks:
+      - backend-net
+    # The SPIRE images ship no shell: exec-form healthchecks only.
+    healthcheck:
+      test: ["CMD", "/opt/spire/bin/spire-server", "healthcheck", "-socketPath", "/run/spire/sockets/api.sock"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ---------------------------------------------------------------------------
+  #  SPIRE Bootstrap — registers the workload entries, exports the trust
+  #  bundle and mints the agent join token (idempotent, runs to completion)
+  # ---------------------------------------------------------------------------
+  spire-bootstrap:
+    logging: *default-logging
+    build:
+      context: deploy/spire
+      target: bootstrap
+    container_name: trading-spire-bootstrap
+    restart: "no"
+    environment:
+      SPIFFE_TD: trading-model.local
+      SPIFFE_NS: trading-model
+    volumes:
+      - spire-server-sockets:/run/spire/sockets
+      - spire-bootstrap:/run/spire/bootstrap
+    depends_on:
+      spire-server:
+        condition: service_healthy
+
+  # ---------------------------------------------------------------------------
+  #  SPIRE Agent — attests workload containers through their Docker labels
+  # ---------------------------------------------------------------------------
+  spire-agent:
+    logging: *default-logging
+    build:
+      context: deploy/spire
+      target: agent
+    container_name: trading-spire-agent
+    restart: unless-stopped
+    # The Docker workload attestor maps the caller PID to its container.
+    pid: host
+    volumes:
+      - ./deploy/compose/spire/agent.conf:/etc/spire/agent.conf:ro
+      - /var/run/docker.sock:/run/docker.sock
+      - spire-bootstrap:/run/spire/bootstrap:ro
+      - spire-agent-data:/run/spire/agent-data
+      - spire-agent-sockets:/run/spire/agent-sockets
+    networks:
+      - backend-net
+    depends_on:
+      spire-bootstrap:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "/opt/spire/bin/spire-agent", "healthcheck", "-socketPath", "/run/spire/agent-sockets/public/api.sock"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ---------------------------------------------------------------------------
   #  Message Manager — Event bus / message broker
   # ---------------------------------------------------------------------------
   message-manager:
+    logging: *default-logging
     build:
       context: .
       dockerfile: services/message-manager/Dockerfile
@@ -87,38 +266,31 @@ services:
     ports:
       - '${MESSAGE_PORT:-8444}:3000'
     environment:
-      NODE_ENV: ${NODE_ENV:-production}
-      PORT: '3000'
-      TLS_KEY_PATH: /certs/server-key.pem
-      TLS_CERT_PATH: /certs/server.crt
-      TLS_CA_PATH: /certs/ca.crt
-      LOG_LEVEL: ${LOG_LEVEL:-info}
+      <<: *message-env
       APP_NAME: message-manager
       APP_VERSION: ${APP_VERSION:-1.3.0}
       SERVICE_NAME: message-delivery-service
-      INSTANCE_ID: ${INSTANCE_ID:-message-manager-1}
-      CACHE_TTL_MS: '30000'
-      SERVICE_PING_TIMEOUT_MS: '2000'
-      TOKEN_REFRESH_INTERVAL_MS: '60000'
-      TTL_REFRESH_INTERVAL_MS: '15000'
-      ADDRESS_MANAGER_URL: https://discovery-server:3000
+      INSTANCE_ID: message-manager-1
       ERROR_URL_WEBHOOK: ${ERROR_URL_WEBHOOK:-}
-      MESSAGE_BUS_INIT_TIMEOUT_MS: '5000'
-      MESSAGE_BUS_SHUTDOWN_TIMEOUT_MS: '5000'
-      MESSAGE_CALLBACK_PATH: message
-      MONGODB_URI: mongodb://mongo:27017/message-manager
+      # Signs the dead letters sent to dlq-service: same key as dlq-service.
+      DLQ_AUTH_HMAC_SECRET: ${DLQ_AUTH_HMAC_SECRET:-test-hmac-secret}
+    # Leaves discovery, waits CACHE_TTL_MS (30 s), then lets in-flight
+    # publishes finish (PUBLISH_TIMEOUT_MS, 5 min): see application/index.ts.
+    stop_grace_period: 6m
     volumes:
-      - ${TLS_CERTS_DIR:-./certs}:/certs:ro
+      - svid-message:/run/spire/svid
     networks:
       - backend-net
       - data-net
     healthcheck:
-      test: curl -sk --cert /certs/server.crt --key /certs/server-key.pem https://localhost:3000/ping || exit 1
+      test: curl -skf --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem https://localhost:3000/health/ready || exit 1
       interval: 15s
       timeout: 5s
       retries: 3
     depends_on:
-      mongo:
+      spiffe-helper-message:
+        condition: service_started
+      redis:
         condition: service_healthy
       discovery-server:
         condition: service_healthy
@@ -127,6 +299,9 @@ services:
   #  Financial Scraper — Real-time market data ingestion
   # ---------------------------------------------------------------------------
   financial-scraper:
+    # Waits for its publishes in flight on stop (PUBLISH_TIMEOUT_MS + 5s).
+    stop_grace_period: 6m
+    logging: *default-logging
     build:
       context: .
       dockerfile: services/financial-scraper/Dockerfile
@@ -135,47 +310,48 @@ services:
     ports:
       - '${SCRAPER_PORT:-8445}:3000'
     environment:
-      NODE_ENV: ${NODE_ENV:-production}
-      PORT: '3000'
-      TLS_KEY_PATH: /certs/server-key.pem
-      TLS_CERT_PATH: /certs/server.crt
-      TLS_CA_PATH: /certs/ca.crt
-      LOG_LEVEL: ${LOG_LEVEL:-info}
+      <<: *message-env
       APP_NAME: financial-scraper
       APP_VERSION: ${APP_VERSION:-1.3.0}
-      SERVICE_NAME: financial-scrapper-service
-      INSTANCE_ID: ${INSTANCE_ID:-financial-scraper-1}
-      CACHE_TTL_MS: '30000'
-      SERVICE_PING_TIMEOUT_MS: '2000'
-      TOKEN_REFRESH_INTERVAL_MS: '60000'
-      TTL_REFRESH_INTERVAL_MS: '15000'
-      ADDRESS_MANAGER_URL: https://discovery-server:3000
+      SERVICE_NAME: financial-scraper-service
+      INSTANCE_ID: financial-scraper-1
+      # Same symbols as TRAINER_SYMBOLS: the trainer consumes what the scraper publishes.
+      SYMBOLS_TO_TRACK: ${SYMBOLS_TO_TRACK:-BTCUSDT,ETHUSDT}
+      SCRAPE_INTERVAL: ${SCRAPE_INTERVAL:-*/1 * * * *}
+      BINANCE_BASE_URL: ${BINANCE_BASE_URL:-https://api.binance.com}
       ERROR_URL_WEBHOOK: ${ERROR_URL_WEBHOOK:-}
-      MESSAGE_BUS_INIT_TIMEOUT_MS: '5000'
-      MESSAGE_BUS_SHUTDOWN_TIMEOUT_MS: '5000'
-      MESSAGE_CALLBACK_PATH: message
       DB_USER: ${MYSQL_USER:-root}
       DB_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       DB_NAME: ${MYSQL_DATABASE:-financial_scraper}
       DB_HOST: mysql
       DB_PORT: '3306'
     volumes:
-      - ${TLS_CERTS_DIR:-./certs}:/certs:ro
+      - svid-scraper:/run/spire/svid
     networks:
       - backend-net
       - data-net
     depends_on:
+      spiffe-helper-scraper:
+        condition: service_started
       mysql:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
       discovery-server:
         condition: service_healthy
       message-manager:
         condition: service_healthy
+    healthcheck:
+      test: curl -skf --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem https://localhost:3000/health/ready || exit 1
+      interval: 15s
+      timeout: 5s
+      retries: 3
 
   # ---------------------------------------------------------------------------
   #  Trader Trainer — GA + DQN agent evolution
   # ---------------------------------------------------------------------------
   trader-trainer:
+    logging: *default-logging
     build:
       context: .
       dockerfile: services/trader-trainer/Dockerfile
@@ -184,46 +360,421 @@ services:
     ports:
       - '${TRAINER_PORT:-8446}:3000'
     environment:
-      NODE_ENV: ${NODE_ENV:-production}
-      PORT: '3000'
-      TLS_KEY_PATH: /certs/server-key.pem
-      TLS_CERT_PATH: /certs/server.crt
-      TLS_CA_PATH: /certs/ca.crt
-      LOG_LEVEL: ${LOG_LEVEL:-info}
+      <<: *message-env
       APP_NAME: trader-trainer
       APP_VERSION: ${APP_VERSION:-1.3.0}
-      SERVICE_NAME: trader-training-service
-      INSTANCE_ID: ${INSTANCE_ID:-trader-trainer-1}
-      CACHE_TTL_MS: '30000'
-      SERVICE_PING_TIMEOUT_MS: '2000'
-      TOKEN_REFRESH_INTERVAL_MS: '60000'
-      TTL_REFRESH_INTERVAL_MS: '15000'
-      ADDRESS_MANAGER_URL: https://discovery-server:3000
-      ERROR_URL_WEBHOOK: ${ERROR_URL_WEBHOOK:-}
-      MESSAGE_BUS_INIT_TIMEOUT_MS: '5000'
-      MESSAGE_BUS_SHUTDOWN_TIMEOUT_MS: '5000'
-      MESSAGE_CALLBACK_PATH: message
+      SERVICE_NAME: trader-trainer
+      INSTANCE_ID: trader-trainer-1
       TRAINER_SYMBOLS: ${TRAINER_SYMBOLS:-BTCUSDT,ETHUSDT}
       TRAINER_DATA_WINDOW: ${TRAINER_DATA_WINDOW:-500}
       TRAINER_VALIDATION_SPLIT: ${TRAINER_VALIDATION_SPLIT:-0.2}
       TRAINER_GENERATIONS: ${TRAINER_GENERATIONS:-50}
       TRAINER_POPULATION_SIZE: ${TRAINER_POPULATION_SIZE:-20}
       TRAINER_TIME_BUDGET_MS: ${TRAINER_TIME_BUDGET_MS:-300000}
-      TRAINER_EPISODES_PER_INDIVIDUAL: ${TRAINER_EPISODES_PER_INDIVIDUAL:-3}
+      TRAINER_MAX_DATA_AGE_MS: ${TRAINER_MAX_DATA_AGE_MS:-900000}
+      TRAINER_EPISODES_PER_INDIVIDUAL: ${TRAINER_EPISODES_PER_INDIVIDUAL:-10}
+      TRAINER_FITNESS_TYPE: ${TRAINER_FITNESS_TYPE:-total_pnl}
+      TRAINER_OBSERVE_POSITION: ${TRAINER_OBSERVE_POSITION:-true}
+      # Model artifacts (ADR-0022), backed up by scripts/backup.sh (checkpoints)
+      TRAINER_MODEL_DIR: /data/checkpoints/models
+      MODEL_DOWNLOAD_CALLERS: ${MODEL_DOWNLOAD_CALLERS:-}
     volumes:
-      - ${TLS_CERTS_DIR:-./certs}:/certs:ro
+      - svid-trainer:/run/spire/svid
+      - trainer-checkpoints:/data/checkpoints
     networks:
       - backend-net
     healthcheck:
-      test: curl -sk --cert /certs/server.crt --key /certs/server-key.pem https://localhost:3000/ping || exit 1
+      test: curl -skf --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem https://localhost:3000/health/ready || exit 1
       interval: 15s
       timeout: 5s
       retries: 3
     depends_on:
+      spiffe-helper-trainer:
+        condition: service_started
       discovery-server:
         condition: service_healthy
       message-manager:
         condition: service_healthy
+
+  # ---------------------------------------------------------------------------
+  #  API Gateway — External single entry point
+  # ---------------------------------------------------------------------------
+  api-gateway:
+    logging: *default-logging
+    build:
+      context: .
+      dockerfile: services/api-gateway/Dockerfile
+    container_name: trading-gateway
+    restart: unless-stopped
+    ports:
+      - '${GATEWAY_PORT:-8448}:3000'
+    environment:
+      <<: *core-env
+      DISCOVERY_SERVICE_URL: https://discovery-server:3000
+      RATE_LIMIT_WINDOW_MS: '60000'
+      RATE_LIMIT_MAX: '100'
+      CACHE_TTL_MS: '30000'
+      AUTH_TOKEN_HEADER: x-api-key
+      AUTH_STRICT: 'true'
+      # Required: in production the gateway refuses to start without API keys.
+      AUTH_TOKENS: ${GATEWAY_AUTH_TOKENS:-}
+      PROXY_TIMEOUT_MS: '10000'
+    volumes:
+      - svid-gateway:/run/spire/svid
+    networks:
+      - backend-net
+    healthcheck:
+      test: curl -skf --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem https://localhost:3000/health/ready || exit 1
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    depends_on:
+      spiffe-helper-gateway:
+        condition: service_started
+      discovery-server:
+        condition: service_healthy
+
+  # ---------------------------------------------------------------------------
+  #  Audit Logger — Immutable event audit trail
+  # ---------------------------------------------------------------------------
+  audit-logger:
+    logging: *default-logging
+    build:
+      context: .
+      dockerfile: services/audit-logger/Dockerfile
+    container_name: trading-audit
+    restart: unless-stopped
+    ports:
+      - '${AUDIT_PORT:-8450}:3000'
+    environment:
+      <<: *message-env
+      APP_NAME: audit-logger
+      APP_VERSION: ${APP_VERSION:-1.0.0}
+      SERVICE_NAME: audit-logger-service
+      INSTANCE_ID: audit-logger-1
+      ERROR_URL_WEBHOOK: ${ERROR_URL_WEBHOOK:-}
+      MONGODB_URI: mongodb://mongo:27017/audit-logger
+    volumes:
+      - svid-audit:/run/spire/svid
+    networks:
+      - backend-net
+      - data-net
+    healthcheck:
+      test: curl -skf --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem https://localhost:3000/health/ready || exit 1
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    depends_on:
+      spiffe-helper-audit:
+        condition: service_started
+      mongo:
+        condition: service_healthy
+      discovery-server:
+        condition: service_healthy
+
+  # ---------------------------------------------------------------------------
+  #  DLQ Service - Dead Letter Queue management
+  # ---------------------------------------------------------------------------
+  dlq-service:
+    logging: *default-logging
+    build:
+      context: .
+      dockerfile: services/dlq-service/Dockerfile
+    container_name: trading-dlq
+    restart: unless-stopped
+    ports:
+      - '${DLQ_PORT:-8452}:3000'
+    environment:
+      <<: *message-env
+      APP_NAME: dlq-service
+      APP_VERSION: ${APP_VERSION:-1.0.0}
+      SERVICE_NAME: dlq-service
+      INSTANCE_ID: dlq-service-1
+      ERROR_URL_WEBHOOK: ${ERROR_URL_WEBHOOK:-}
+      MONGO_URI: mongodb://mongo:27017
+      MONGO_DB: dlq
+      MONGO_COLLECTION: dlq_entries
+      MAX_ENTRIES: '100000'
+      DLQ_AUTH_HMAC_SECRET: ${DLQ_AUTH_HMAC_SECRET:-test-hmac-secret}
+      DLQ_ALLOWED_SERVICES: ${DLQ_ALLOWED_SERVICES:-message-manager,admin}
+      # Replays eligible dead letters through message-manager (ADR-0029).
+      DLQ_AUTO_RETRY_ENABLED: ${DLQ_AUTO_RETRY_ENABLED:-true}
+    volumes:
+      - svid-dlq:/run/spire/svid
+    networks:
+      - backend-net
+      - data-net
+    healthcheck:
+      test: curl -skf --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem https://localhost:3000/health/ready || exit 1
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    depends_on:
+      spiffe-helper-dlq:
+        condition: service_started
+      mongo:
+        condition: service_healthy
+      discovery-server:
+        condition: service_healthy
+
+  # ---------------------------------------------------------------------------
+  #  SPIFFE Helpers — spiffe-helper sidecars (ADR-0011)
+  #  Each writes the service SVID into a shared svid-<svc> volume consumed by
+  #  the main service (TLS_*_PATH point at /run/spire/svid). Mandatory.
+  #  The SPIRE agent identifies a helper by its compose service name
+  #  (spiffe-helper-<suffix>, registered by spire-bootstrap). Helpers only talk
+  #  to the agent socket: no network, so a service restart cannot strand them.
+  # ---------------------------------------------------------------------------
+  spiffe-helper-discovery:
+    logging: *default-logging
+    image: ghcr.io/spiffe/spiffe-helper:0.10.1  # pin: digest unavailable without GHCR auth
+    container_name: trading-helper-discovery
+    restart: unless-stopped
+    network_mode: none
+    command: ["-config", "/etc/spiffe-helper/helper.conf"]
+    volumes:
+      - ./deploy/compose/spire/helper.conf:/etc/spiffe-helper/helper.conf:ro
+      - spire-agent-sockets:/run/spire/agent-sockets:ro
+      - svid-discovery:/run/spire/svid
+    depends_on:
+      spire-agent:
+        condition: service_healthy
+
+  spiffe-helper-message:
+    logging: *default-logging
+    image: ghcr.io/spiffe/spiffe-helper:0.10.1  # pin: digest unavailable without GHCR auth
+    container_name: trading-helper-message
+    restart: unless-stopped
+    network_mode: none
+    command: ["-config", "/etc/spiffe-helper/helper.conf"]
+    volumes:
+      - ./deploy/compose/spire/helper.conf:/etc/spiffe-helper/helper.conf:ro
+      - spire-agent-sockets:/run/spire/agent-sockets:ro
+      - svid-message:/run/spire/svid
+    depends_on:
+      spire-agent:
+        condition: service_healthy
+
+  spiffe-helper-scraper:
+    logging: *default-logging
+    image: ghcr.io/spiffe/spiffe-helper:0.10.1  # pin: digest unavailable without GHCR auth
+    container_name: trading-helper-scraper
+    restart: unless-stopped
+    network_mode: none
+    command: ["-config", "/etc/spiffe-helper/helper.conf"]
+    volumes:
+      - ./deploy/compose/spire/helper.conf:/etc/spiffe-helper/helper.conf:ro
+      - spire-agent-sockets:/run/spire/agent-sockets:ro
+      - svid-scraper:/run/spire/svid
+    depends_on:
+      spire-agent:
+        condition: service_healthy
+
+  spiffe-helper-trainer:
+    logging: *default-logging
+    image: ghcr.io/spiffe/spiffe-helper:0.10.1  # pin: digest unavailable without GHCR auth
+    container_name: trading-helper-trainer
+    restart: unless-stopped
+    network_mode: none
+    command: ["-config", "/etc/spiffe-helper/helper.conf"]
+    volumes:
+      - ./deploy/compose/spire/helper.conf:/etc/spiffe-helper/helper.conf:ro
+      - spire-agent-sockets:/run/spire/agent-sockets:ro
+      - svid-trainer:/run/spire/svid
+    depends_on:
+      spire-agent:
+        condition: service_healthy
+
+  spiffe-helper-gateway:
+    logging: *default-logging
+    image: ghcr.io/spiffe/spiffe-helper:0.10.1  # pin: digest unavailable without GHCR auth
+    container_name: trading-helper-gateway
+    restart: unless-stopped
+    network_mode: none
+    command: ["-config", "/etc/spiffe-helper/helper.conf"]
+    volumes:
+      - ./deploy/compose/spire/helper.conf:/etc/spiffe-helper/helper.conf:ro
+      - spire-agent-sockets:/run/spire/agent-sockets:ro
+      - svid-gateway:/run/spire/svid
+    depends_on:
+      spire-agent:
+        condition: service_healthy
+
+  spiffe-helper-audit:
+    logging: *default-logging
+    image: ghcr.io/spiffe/spiffe-helper:0.10.1  # pin: digest unavailable without GHCR auth
+    container_name: trading-helper-audit
+    restart: unless-stopped
+    network_mode: none
+    command: ["-config", "/etc/spiffe-helper/helper.conf"]
+    volumes:
+      - ./deploy/compose/spire/helper.conf:/etc/spiffe-helper/helper.conf:ro
+      - spire-agent-sockets:/run/spire/agent-sockets:ro
+      - svid-audit:/run/spire/svid
+    depends_on:
+      spire-agent:
+        condition: service_healthy
+
+  spiffe-helper-dlq:
+    logging: *default-logging
+    image: ghcr.io/spiffe/spiffe-helper:0.10.1  # pin: digest unavailable without GHCR auth
+    container_name: trading-helper-dlq
+    restart: unless-stopped
+    network_mode: none
+    command: ["-config", "/etc/spiffe-helper/helper.conf"]
+    volumes:
+      - ./deploy/compose/spire/helper.conf:/etc/spiffe-helper/helper.conf:ro
+      - spire-agent-sockets:/run/spire/agent-sockets:ro
+      - svid-dlq:/run/spire/svid
+    depends_on:
+      spire-agent:
+        condition: service_healthy
+
+  spiffe-helper-edge:
+    logging: *default-logging
+    image: ghcr.io/spiffe/spiffe-helper:0.10.1  # pin: digest unavailable without GHCR auth
+    container_name: trading-helper-edge
+    restart: unless-stopped
+    network_mode: none
+    command: ["-config", "/etc/spiffe-helper/helper.conf"]
+    volumes:
+      - ./deploy/compose/spire/helper.conf:/etc/spiffe-helper/helper.conf:ro
+      - spire-agent-sockets:/run/spire/agent-sockets:ro
+      - svid-edge:/run/spire/svid
+    depends_on:
+      spire-agent:
+        condition: service_healthy
+
+  spiffe-helper-prometheus:
+    logging: *default-logging
+    image: ghcr.io/spiffe/spiffe-helper:0.10.1  # pin: digest unavailable without GHCR auth
+    container_name: trading-helper-prometheus
+    restart: unless-stopped
+    network_mode: none
+    command: ["-config", "/etc/spiffe-helper/helper.conf"]
+    volumes:
+      - ./deploy/compose/spire/helper.conf:/etc/spiffe-helper/helper.conf:ro
+      - spire-agent-sockets:/run/spire/agent-sockets:ro
+      - svid-prometheus:/run/spire/svid
+    depends_on:
+      spire-agent:
+        condition: service_healthy
+
+  # ---------------------------------------------------------------------------
+  #  Edge proxy — external entry point to the api-gateway (ADR-0018)
+  #  Plain HTTP from the host, /v1 forwarded to the gateway with the edge-proxy
+  #  SVID (the gateway only accepts SPIFFE mTLS clients).
+  # ---------------------------------------------------------------------------
+  edge-proxy:
+    logging: *default-logging
+    image: nginx@sha256:814a8e88df978ade80e584cc5b333144b9372a8e3c98872d07137dbf3b44d0e4  # nginx 1.27.3-alpine
+    container_name: trading-edge
+    restart: unless-stopped
+    user: '101:101'
+    read_only: true
+    tmpfs:
+      - /var/cache/nginx:mode=1777
+      - /var/run:mode=1777
+      - /tmp:mode=1777
+    ports:
+      - '${EDGE_PORT:-8449}:8080'
+    volumes:
+      - ./deploy/edge-proxy/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./deploy/edge-proxy/gateway.compose.inc:/etc/nginx/conf.d/gateway.inc:ro
+      - svid-edge:/run/spire/svid:ro
+    networks:
+      - backend-net
+    depends_on:
+      spiffe-helper-edge:
+        condition: service_started
+      api-gateway:
+        condition: service_healthy
+    healthcheck:
+      test: wget -q -O /dev/null http://127.0.0.1:8080/health/ready || exit 1
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  # ---------------------------------------------------------------------------
+  #  Observability Stack — Prometheus, Grafana, Loki
+  # ---------------------------------------------------------------------------
+  prometheus:
+    logging: *default-logging
+    image: prom/prometheus@sha256:378f4e03703557d1c6419e6caccf922f96e6d88a530f7431d66a4c4f4b1000fe
+    container_name: trading-prometheus
+    restart: unless-stopped
+    ports:
+      - '${PROMETHEUS_PORT:-9090}:9090'
+    volumes:
+      - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./observability/alerting.yml:/etc/prometheus/alerting.yml:ro
+      - prometheus-data:/prometheus
+      - svid-prometheus:/run/spire/svid:ro
+    networks:
+      - backend-net
+    depends_on:
+      spiffe-helper-prometheus:
+        condition: service_started
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.retention.time=30d'
+      - '--web.enable-lifecycle'
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+
+  alertmanager:
+    logging: *default-logging
+    image: prom/alertmanager@sha256:e13b6ed5cb929eeaee733479dce55e10eb3bc2e9c4586c705a4e8da41e5eacf5
+    container_name: trading-alertmanager
+    restart: unless-stopped
+    ports:
+      - '${ALERTMANAGER_PORT:-9093}:9093'
+    volumes:
+      - ./observability/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      # One file per key (SLACK_WEBHOOK_URL, PAGERDUTY_ROUTING_KEY, DEADMAN_URL),
+      # see observability/alertmanager.yml. Missing files: notifications fail.
+      - ${ALERTMANAGER_CREDENTIALS_DIR:-./observability/alertmanager-credentials}:/etc/alertmanager-credentials:ro
+    networks:
+      - backend-net
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+    depends_on:
+      prometheus:
+        condition: service_started
+
+  grafana:
+    logging: *default-logging
+    image: grafana/grafana@sha256:a0f881232a6fb71a0554a47d0fe2203b6888fe77f4cefb7ea62bed7eb54e13c3
+    container_name: trading-grafana
+    restart: unless-stopped
+    ports:
+      - '${GRAFANA_PORT:-3001}:3000'
+    volumes:
+      - ./observability/grafana-datasources.yml:/etc/grafana/provisioning/datasources/datasources.yml:ro
+      - ./observability/grafana-dashboards-provisioning.yml:/etc/grafana/provisioning/dashboards/provider.yml:ro
+      - ./observability/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    networks:
+      - backend-net
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/services.json
+
+  loki:
+    logging: *default-logging
+    image: grafana/loki@sha256:d947e68a84d9e44915dfa08c3bec27e2124efd5ba6c83443eb53578101ec69e3
+    container_name: trading-loki
+    restart: unless-stopped
+    ports:
+      - '${LOKI_PORT:-3100}:3100'
+    volumes:
+      - ./observability/loki-config.yml:/etc/loki/local-config.yaml:ro
+      - loki-data:/loki
+    networks:
+      - backend-net
+    command: -config.file=/etc/loki/local-config.yaml
 
 networks:
   data-net:
@@ -236,4 +787,23 @@ networks:
 
 volumes:
   mongo-data:
+  redis-data:
+  trainer-checkpoints:
   mysql-data:
+  spire-server-data:
+  spire-agent-data:
+  spire-bootstrap:
+  spire-server-sockets:
+  spire-agent-sockets:
+  svid-discovery:
+  svid-message:
+  svid-scraper:
+  svid-trainer:
+  svid-gateway:
+  svid-audit:
+  svid-dlq:
+  svid-edge:
+  svid-prometheus:
+  prometheus-data:
+  grafana-data:
+  loki-data:

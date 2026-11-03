@@ -1,61 +1,45 @@
-import { DeliveryMode } from '@trading-model/common/config/delivery-mode.types';
-import { Message, MessageMetadata } from '../../src/messaging/core/message';
+import { DeliveryMode } from "@trading-model/contracts/delivery-mode";
+import type {
+	Message,
+	MessageMetadata,
+} from "@trading-model/contracts/message-types";
 
 export const mockServiceIdentity = {
-  serviceName: 'FinancialScraperService' as const,
-  instanceId: 'instance-1',
+	serviceName: "financial-scraper-service" as const,
+	instanceId: "instance-1",
 };
 
 export const mockSubscriberIdentity = {
-  serviceName: 'TraderTrainingService' as const,
-  instanceId: 'subscriber-1',
+	serviceName: "trader-trainer" as const,
+	instanceId: "subscriber-1",
 };
 
-export const createMockMessageMetadata = (
-  overrides?: Partial<MessageMetadata>
+const createMockMessageMetadata = (
+	overrides?: Partial<MessageMetadata>
 ): MessageMetadata => ({
-  messageId: 'msg-123',
-  emittedAt: new Date(Date.now() + 86400000),
-  schemaVersion: '1.0',
-  eventType: 'TestEvent',
-  topic: 'test.topic',
-  publisher: mockServiceIdentity,
-  delivery: {
-    mode: DeliveryMode.AT_LEAST_ONCE,
-    ttl: 60000,
-  },
-  ...overrides,
+	messageId: "msg-123",
+	emittedAt: new Date(Date.now() + 86400000),
+	schemaVersion: "1.0",
+	eventType: "TestEvent",
+	topic: "test.topic",
+	publisher: mockServiceIdentity,
+	delivery: {
+		mode: DeliveryMode.AT_LEAST_ONCE,
+		ttl: 60000,
+	},
+	...overrides,
 });
 
 export const createMockMessage = <T = unknown>(
-  payload: T,
-  overrides?: Partial<MessageMetadata>
+	payload: T,
+	overrides?: Partial<MessageMetadata>
 ): Message<T> => ({
-  metadata: createMockMessageMetadata(overrides),
-  payload,
+	metadata: createMockMessageMetadata(overrides),
+	payload,
 });
 
 export const mockSubscribeParams = {
-  topic: 'test.topic',
-  callbackPath: 'message/callback',
-  consumerIdentity: mockSubscriberIdentity,
-};
-
-export const mockUnsubscribeParams = {
-  topic: 'test.topic',
-  instanceId: mockSubscriberIdentity.instanceId,
-};
-
-export const mockPublishPayload = { key: 'value', number: 42 };
-
-export const mockPublishMetadata = {
-  schemaVersion: '1.0',
-  eventType: 'TestEvent',
-  topic: 'test.topic',
-  publisher: mockServiceIdentity,
-};
-
-export const mockAddress = {
-  ip: '10.0.0.1',
-  port: 8444,
+	topic: "test.topic",
+	callbackPath: "message/callback",
+	serviceIdentity: mockSubscriberIdentity,
 };

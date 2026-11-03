@@ -1,140 +1,145 @@
-import axios, { AxiosRequestConfig, AxiosInstance, AxiosError } from 'axios';
+import { computeExponentialBackoff } from "@trading-model/common/utils/backoff-config";
+import { isRetryableStatusPermissive } from "@trading-model/http/infrastructure/http-retry";
+import { DataSource, DurationMs } from "@trading-model/primitives/primitives";
+import axios, {
+	type AxiosError,
+	type AxiosInstance,
+	type AxiosRequestConfig,
+} from "axios";
 
-/* -------------------------------------------------------
- * CONFIG GLOBAL
- * ----------------------------------------------------- */
+import { ENV } from "../infrastructure/config/env";
+import {
+	BINANCE_REQUEST_DURATION_SECONDS,
+	BINANCE_REQUESTS_TOTAL,
+} from "./metrics";
+import { acquireToken } from "./rate-limiter";
 
 const DEFAULT_TIMEOUT = 7000;
 
-// Retry strategy
 const RETRY_CONFIG = {
-  retries: 5,
-  baseDelayMs: 300,
-  maxDelayMs: 10000,
+	retries: 5,
+	baseDelayMs: DurationMs.of(300),
+	maxDelayMs: DurationMs.of(10000),
 };
 
-// Rate limit per API baseURL (token bucket)
-type RateLimitBucket = {
-  capacity: number;
-  tokens: number;
-  refillRate: number; // tokens per second
-  lastRefill: number;
-};
-
-const rateLimitBuckets: Record<string, RateLimitBucket> = {};
-
-/* -------------------------------------------------------
- * RATE LIMITER (PER BASEURL)
- * ----------------------------------------------------- */
-
-function getRateLimitBucket(baseURL: string): RateLimitBucket {
-  if (!rateLimitBuckets[baseURL]) {
-    // Default: safe values. Can be overridden per API later.
-    rateLimitBuckets[baseURL] = {
-      capacity: 1200,
-      tokens: 1200,
-      refillRate: 20,
-      lastRefill: Date.now(),
-    };
-  }
-  return rateLimitBuckets[baseURL];
+function _shouldRetry(error: AxiosError): boolean {
+	if (!error.response) {
+		return true;
+	}
+	return isRetryableStatusPermissive(error.response.status);
 }
 
-async function acquireToken(baseURL: string, weight: number): Promise<void> {
-  const bucket = getRateLimitBucket(baseURL);
-
-  while (true) {
-    const now = Date.now();
-    const elapsed = (now - bucket.lastRefill) / 1000;
-
-    // refill
-    bucket.tokens = Math.min(bucket.capacity, bucket.tokens + elapsed * bucket.refillRate);
-    bucket.lastRefill = now;
-
-    if (bucket.tokens >= weight) {
-      bucket.tokens -= weight;
-      return;
-    }
-
-    const waitMs = 50;
-    await new Promise(res => setTimeout(res, waitMs));
-  }
+function _getBackoffDelay(attempt: number): number {
+	return computeExponentialBackoff(attempt, RETRY_CONFIG);
 }
 
-/* -------------------------------------------------------
- * RETRY LOGIC (WITH BINANCE ERROR HANDLING)
- * ----------------------------------------------------- */
-
-function shouldRetry(error: AxiosError): boolean {
-  if (!error.response) return true; // network error → retry
-
-  const status = error.response.status;
-
-  if (status >= 500) return true;
-  if ([403, 408, 429, 418].includes(status)) return true;
-
-  return false;
+function _retryLimitReached(
+	config: AxiosRequestConfig & { retryCount?: number }
+): boolean {
+	return config.retryCount! >= RETRY_CONFIG.retries;
 }
 
-function getBackoffDelay(attempt: number): number {
-  return RETRY_CONFIG.baseDelayMs * Math.pow(2, attempt);
+function _executeRetry(
+	instance: AxiosInstance,
+	config: AxiosRequestConfig & { retryCount?: number }
+): Promise<unknown> {
+	config.retryCount!++;
+	const delay = _getBackoffDelay(config.retryCount!);
+	return new Promise((res) => setTimeout(res, delay)).then(() =>
+		instance(config)
+	);
 }
 
-/* -------------------------------------------------------
- * AXIOS INSTANCE FACTORY
- * ----------------------------------------------------- */
+function _createRetryInterceptor(
+	instance: AxiosInstance
+): Parameters<AxiosInstance["interceptors"]["response"]["use"]>[1] {
+	return (error: AxiosError) => {
+		const config = error.config as AxiosRequestConfig & { retryCount?: number };
+		if (!config) {
+			throw error;
+		}
+		config.retryCount = config.retryCount ?? 0;
+		if (_retryLimitReached(config) || !_shouldRetry(error)) {
+			throw error;
+		}
+		return _executeRetry(instance, config);
+	};
+}
+
+function _attachRetryInterceptor(instance: AxiosInstance): void {
+	instance.interceptors.response.use(
+		(response) => response,
+		_createRetryInterceptor(instance)
+	);
+}
 
 /** Create a configured Axios instance with rate-limiting and retry logic for the given API base URL. */
 export function createHttpClient(baseURL: string): AxiosInstance {
-  const instance = axios.create({
-    baseURL,
-    timeout: DEFAULT_TIMEOUT,
-  });
+	const instance = axios.create({
+		baseURL,
+		timeout: DEFAULT_TIMEOUT,
+	});
 
-  /* -----------------------------------------
-   * REQUEST INTERCEPTOR
-   * --------------------------------------- */
-  instance.interceptors.request.use(async config => {
-    const weight = config.weight ?? 1;
-    await acquireToken(baseURL, weight);
+	_attachRateLimiter(instance, baseURL);
+	_attachRetryInterceptor(instance);
+	_attachMetricsInterceptor(instance);
 
-    return config;
-  });
-
-  /* -----------------------------------------
-   * RESPONSE / ERROR INTERCEPTOR (RETRY)
-   * --------------------------------------- */
-  instance.interceptors.response.use(
-    response => response,
-    async (error: AxiosError) => {
-      const config = error.config as AxiosRequestConfig & { __retryCount?: number };
-
-      if (!config) throw error;
-
-      config.__retryCount = config.__retryCount ?? 0;
-
-      if (config.__retryCount >= RETRY_CONFIG.retries || !shouldRetry(error)) {
-        throw error;
-      }
-
-      config.__retryCount++;
-
-      const delay = getBackoffDelay(config.__retryCount);
-      await new Promise(res => setTimeout(res, delay));
-
-      return instance(config);
-    }
-  );
-
-  return instance;
+	return instance;
 }
 
-/* -------------------------------------------------------
- * PRE-BUILT CLIENTS (CAN ADD MORE LATER)
- * ----------------------------------------------------- */
+function _attachRateLimiter(instance: AxiosInstance, baseURL: string): void {
+	instance.interceptors.request.use(async (config) => {
+		await acquireToken(baseURL, config.weight ?? 1);
+		return config;
+	});
+}
+
+function _attachMetricsInterceptor(instance: AxiosInstance): void {
+	if (process.env.NODE_ENV === "test") {
+		return;
+	}
+	const startTimes = new WeakMap<AxiosRequestConfig, number>();
+	instance.interceptors.request.use((config) => {
+		startTimes.set(config, performance.now());
+		return config;
+	});
+	instance.interceptors.response.use(
+		(response) => {
+			const start = startTimes.get(response.config);
+			if (start !== undefined) {
+				const endpoint = _extractEndpoint(response.config.url ?? "");
+				const duration = (performance.now() - start) / 1000;
+				BINANCE_REQUESTS_TOTAL.inc({
+					endpoint,
+					status: String(response.status),
+				});
+				BINANCE_REQUEST_DURATION_SECONDS.observe({ endpoint }, duration);
+			}
+			return response;
+		},
+		(error: AxiosError) => {
+			const start = error.config ? startTimes.get(error.config) : undefined;
+			if (start !== undefined) {
+				const endpoint = _extractEndpoint(error.config?.url ?? "");
+				const duration = (performance.now() - start) / 1000;
+				const status = error.response?.status ?? "network_error";
+				BINANCE_REQUESTS_TOTAL.inc({
+					endpoint,
+					status: String(status),
+				});
+				BINANCE_REQUEST_DURATION_SECONDS.observe({ endpoint }, duration);
+			}
+			throw error;
+		}
+	);
+}
+
+function _extractEndpoint(url: string): string {
+	const match = url.match(/\/api\/v3\/(\w+)/);
+	return match?.[1] ?? "unknown";
+}
 
 /** Pre-built HTTP clients for supported data sources (e.g. Binance). */
-export const httpClients = {
-  binance: createHttpClient('https://api.binance.com'),
-  // otherApi: createHttpClient("https://example.com/api"),
+export const httpClients: Record<DataSource, AxiosInstance> = {
+	[DataSource.Binance]: createHttpClient(ENV.BINANCE_BASE_URL),
 };

@@ -1,0 +1,35 @@
+# Public API entry point (ADR-0018). TLS ends at the ingress controller, which
+# forwards plain HTTP to the edge-proxy; the edge-proxy sends /v1 to the
+# api-gateway over mTLS with its own SVID. Every request therefore goes through
+# the gateway (auth, rate limit, cache), and the controller needs no client
+# certificate of its own.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: api-gateway-ingress
+  labels:
+    app.kubernetes.io/component: api-gateway
+    app.kubernetes.io/part-of: trading-model
+  annotations:
+    nginx.ingress.kubernetes.io/backend-protocol: HTTP
+    nginx.ingress.kubernetes.io/limit-rps: "100"
+    nginx.ingress.kubernetes.io/limit-rpm: "6000"
+    nginx.ingress.kubernetes.io/limit-burst-multiplier: "3"
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - api.trading-model.example.com
+      secretName: api-trading-model-tls
+  rules:
+    - host: api.trading-model.example.com
+      http:
+        paths:
+          - path: /v1
+            pathType: Prefix
+            backend:
+              service:
+                name: edge-proxy
+                port:
+                  number: 8080

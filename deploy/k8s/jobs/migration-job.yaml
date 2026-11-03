@@ -1,0 +1,86 @@
+# =============================================================================
+#  migration-job.yaml — Database Migration Job
+#  Runs pending SQL migrations against the MySQL database before deployment.
+#
+#  The CI/CD pipeline creates a ConfigMap from the migration files, applies
+#  this job, waits for completion, then removes both the job and ConfigMap.
+# =============================================================================
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: db-migrate
+  annotations:
+    description: "Runs pending MySQL schema migrations"
+    app.kubernetes.io/part-of: trading-model
+spec:
+  ttlSecondsAfterFinished: 600
+  backoffLimit: 2
+  activeDeadlineSeconds: 180
+  template:
+    spec:
+      serviceAccountName: migration-runner
+      restartPolicy: Never
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: migrate
+          image: oven/bun@sha256:c1cc397e0be452c54f37cbcdfaa747eff93c993723af7d91658764d0fdfe5873
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
+          command:
+            - sh
+            - -c
+            - |
+              set -euo pipefail
+              mkdir -p /tmp/migrate-run
+              cp -r /migrations/. /tmp/migrate-run/
+              cd /tmp/migrate-run
+              # Same pinned version as the compose migrate image.
+              bun add mysql2@3.24.4
+              bun migrate.mjs up
+          env:
+            - name: DB_HOST
+              value: mysql-primary
+            - name: DB_PORT
+              value: "3306"
+            - name: DB_USER
+              value: root
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: trading-model-secrets
+                  key: MYSQL_ROOT_PASSWORD
+            - name: DB_NAME
+              value: financial_scraper
+          volumeMounts:
+            - name: migration-files
+              mountPath: /migrations
+          resources:
+            requests:
+              cpu: 100m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+      volumes:
+        - name: migration-files
+          configMap:
+            name: migration-files
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: migration-runner
+  annotations:
+    app.kubernetes.io/part-of: trading-model
+automountServiceAccountToken: false

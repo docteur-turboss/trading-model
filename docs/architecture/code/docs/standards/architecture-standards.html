@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html class="dark" lang="en" data-tm-processed="true"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no" name="viewport">
+<title>Architecture Standards | trading-model</title>
+
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+
+<script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              400: '#818cf8',
+              500: '#6366f1',
+              600: '#4f46e5',
+            },
+            surface: {
+              base: '#0B0F19',
+              card: '#111827',
+              muted: '#1E293B',
+              border: '#243046',
+            },
+            code: {
+              bg: '#0c121e',
+              keyword: '#c084fc',
+              ident: '#38bdf8',
+              type: '#34d399',
+              punct: '#94a3b8'
+            }
+          },
+          fontFamily: {
+            mono: ['JetBrains Mono', 'Fira Code', 'Menlo', 'Monaco', 'Courier New', 'monospace'],
+            sans: ['-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Inter', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+
+<style data-purpose="mobile-ux-styles">
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    .active-scale:active { transform: scale(0.97); transition: transform 0.1s ease-out; }
+    .h-safe-top { height: env(safe-area-inset-top, 0px); }
+    .pt-safe { padding-top: env(safe-area-inset-top, 0px); }
+    @supports (backdrop-filter: blur(12px)) {
+      .glass-header { backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
+    }
+    
+    .tm-prose p { margin: 0.5rem 0; }
+    .tm-prose p:first-child { margin-top: 0; }
+    .tm-prose p:last-child { margin-bottom: 0; }
+    .tm-prose a { color: #818cf8; text-decoration: underline; text-underline-offset: 2px; }
+    .tm-prose a:hover { color: #a5b4fc; }
+    .tm-prose code { font-family: 'JetBrains Mono', 'Fira Code', Menlo, Monaco, 'Courier New', monospace; font-size: 0.82em; color: #fbbf24; background: #0c121e; border: 1px solid #243046; border-radius: 0.25rem; padding: 0.05rem 0.3rem; }
+    .tm-prose pre { background: #0c121e; border: 1px solid #243046; border-radius: 0.5rem; padding: 0.75rem; overflow-x: auto; margin: 0.5rem 0; }
+    .tm-prose pre code { background: transparent; border: none; padding: 0; color: #e2e8f0; }
+    .tm-prose ul, .tm-prose ol { padding-left: 1.25rem; margin: 0.5rem 0; }
+    .tm-prose ul { list-style: disc; }
+    .tm-prose ol { list-style: decimal; }
+    .tm-prose li { margin: 0.2rem 0; }
+    .tm-prose blockquote { border-left: 3px solid #6366f1; background: rgba(17, 24, 39, 0.6); padding: 0.5rem 0.75rem; border-radius: 0 0.5rem 0.5rem 0; color: #94a3b8; margin: 0.5rem 0; }
+    .tm-prose h1, .tm-prose h2, .tm-prose h3, .tm-prose h4, .tm-prose h5 { color: #ffffff; font-weight: 700; margin: 0.75rem 0 0.25rem; }
+    .tm-prose h1 { font-size: 1.25rem; }
+    .tm-prose h2 { font-size: 1.125rem; }
+    .tm-prose h3 { font-size: 1rem; }
+    .tm-prose h4 { font-size: 0.875rem; }
+    .tm-prose table { width: 100%; border-collapse: collapse; margin: 0.5rem 0; }
+    .tm-prose th, .tm-prose td { border: 1px solid #243046; padding: 0.4rem 0.6rem; text-align: left; }
+    .tm-prose thead th { background: #0b0f19; color: #e2e8f0; font-size: 0.75rem; text-transform: uppercase; }
+    .tm-prose strong { color: #ffffff; }
+  </style>
+
+</head>
+<body class="bg-[#080C15] text-slate-200 font-sans antialiased min-h-screen pb-24 selection:bg-indigo-500/30 selection:text-indigo-200">
+
+<header class="sticky top-0 z-40 w-full glass-header bg-[#0B0F19]/90 border-b border-surface-border">
+<div class="h-safe-top pt-safe"></div>
+<div class="px-4 py-2.5 flex items-center justify-between gap-3">
+<div class="flex items-center gap-2.5 min-w-0">
+
+<div class="flex flex-col min-w-0">
+<div class="flex items-center gap-1.5 truncate">
+<span class="font-mono text-xs font-semibold text-indigo-400 truncate tracking-tight"><a class="text-indigo-400 hover:text-indigo-300 hover:underline" href="../../index.html">trading-model</a></span>
+
+</div>
+<span class="text-[10px] text-slate-400 flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> TypeDoc API Reference
+</span>
+</div>
+</div>
+
+</div>
+</header>
+
+<main class="px-4 py-4 max-w-2xl mx-auto flex flex-col gap-6">
+
+<section class="space-y-2.5" data-purpose="breadcrumbs-and-header">
+<nav aria-label="Breadcrumb" class="flex items-center flex-wrap gap-1 text-[11px] font-mono text-slate-400">
+<a class="text-indigo-400 hover:underline" href="../../index.html">trading-model</a><span class="text-slate-600">/</span><span class="text-slate-300 font-medium">Architecture Standards</span>
+</nav>
+<div class="flex items-center gap-2.5 pt-1">
+<span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-mono font-medium tracking-wide uppercase bg-indigo-500/10 text-indigo-400 border-indigo-500/20">
+Documentation
+</span>
+<h1 class="text-2xl font-bold tracking-tight text-white font-sans">Architecture Standards</h1>
+</div>
+
+</section>
+
+<div class="tm-prose text-sm leading-relaxed text-slate-300 font-sans"><div>
+<h2>Why</h2>
+<p>Ensure consistency, maintainability, and scalability across the entire trading-model monorepo. A standardized architecture enables every contributor to quickly understand the structure, add a new service or package without ambiguity, and guarantee interoperability between components.</p>
+<h2>How</h2>
+<p>The project follows a monorepo structure with <strong>bun workspaces</strong>. All shared components live in <code>packages/</code> and all microservices in <code>services/</code>.</p>
+<pre><code>trading-model/
+├── packages/           # Shared libraries (bun workspace)
+│   ├── primitives/          # @trading-model/primitives
+│   ├── contracts/           # @trading-model/contracts
+│   ├── reliability/         # @trading-model/reliability
+│   ├── common/              # @trading-model/common
+│   ├── persistence/         # @trading-model/persistence
+│   ├── http/                # @trading-model/http
+│   ├── validation/          # @trading-model/validation
+│   ├── server-utils/        # @trading-model/server-utils
+│   ├── crypto/              # @trading-model/crypto
+│   ├── address-manager/     # @trading-model/address-manager
+│   └── broker-message/      # @trading-model/broker-message
+├── services/           # Microservices
+│   ├── discovery-server/
+│   ├── message-manager/
+│   ├── financial-scraper/
+│   ├── trader-trainer/
+│   ├── api-gateway/
+│   ├── audit-logger/
+│   └── dlq-service/
+├── .github/workflows/  # CI/CD
+├── docs/               # Centralized documentation
+├── scripts/            # Utilities (commit, release, migrations)
+└── biome.json           # Root Biome config
+</code></pre>
+<h3>Where</h3>
+<table>
+<thead>
+<tr>
+<th>Location</th>
+<th>Role</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Root</strong></td>
+<td>Shared config (Biome, tsconfig)</td>
+</tr>
+<tr>
+<td><strong>packages/</strong></td>
+<td>Reusable libraries (public or internal)</td>
+</tr>
+<tr>
+<td><strong>services/</strong></td>
+<td>Independently deployable microservices</td>
+</tr>
+<tr>
+<td><strong>docs/</strong></td>
+<td>Centralized project documentation</td>
+</tr>
+<tr>
+<td><strong>scripts/</strong></td>
+<td>Automation scripts (commit, release, migrations)</td>
+</tr>
+</tbody>
+</table>
+<h3>For Whom</h3>
+<p>All developers contributing to the codebase. Every architectural decision aims to reduce onboarding time and eliminate structural ambiguity.</p>
+<blockquote>
+<p><strong>See also:</strong> <a href="../architecture/bounded-contexts.html">Bounded Contexts</a> for DDD context maps, and <a href="../architecture/databases.html">Database Schemas</a> for table definitions and entity types.</p>
+</blockquote>
+<h3>Technology Stack</h3>
+<table>
+<thead>
+<tr>
+<th>Layer</th>
+<th>Technology</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Runtime</td>
+<td>Bun 1.x (Node.js 26-compatible APIs)</td>
+</tr>
+<tr>
+<td>Language</td>
+<td>TypeScript (ES2020; module: node16 or commonjs)</td>
+</tr>
+<tr>
+<td>API</td>
+<td>Express.js</td>
+</tr>
+<tr>
+<td>Frontend</td>
+<td>None for now (ADR-0018)</td>
+</tr>
+<tr>
+<td>Security</td>
+<td>mTLS (all services)</td>
+</tr>
+<tr>
+<td>Database</td>
+<td>MongoDB (message-manager), MySQL (financial-scraper)</td>
+</tr>
+<tr>
+<td>Validation</td>
+<td>Zod</td>
+</tr>
+<tr>
+<td>Scheduling</td>
+<td>node-cron</td>
+</tr>
+<tr>
+<td>Formatting</td>
+<td>Biome</td>
+</tr>
+<tr>
+<td>Linting</td>
+<td>Biome</td>
+</tr>
+</tbody>
+</table>
+<h2>Dependency Graph</h2>
+<p>Shared packages (base → derived):</p>
+<pre><code>@trading-model/primitives       (branded types, pagination, identities — zero deps)
+@trading-model/contracts        (events, market-data, http constants, LoggerPort registry) → primitives
+@trading-model/reliability      (circuit breaker, latency tracker, heartbeats) → primitives, contracts
+@trading-model/common           (residual config, utils, shared schemas, AppError) → primitives, contracts
+@trading-model/persistence      (Redis/Mongo connection managers, store adapters) → common, primitives, contracts
+@trading-model/http             (HTTP middleware, http client, logging) → primitives, contracts, common, reliability
+@trading-model/validation       (Zod schemas, DTOs, shared type contracts) → primitives, contracts, common, http
+@trading-model/server-utils     (secure HTTPS server factory, TLS watcher, bootstrap) → primitives, contracts, common, http
+@trading-model/crypto           (hashing, signatures, crypto primitives) → primitives, contracts, common, validation
+
+@trading-model/address-manager  (service discovery client, health, token rotation) → primitives, contracts, common, persistence, http, reliability, server-utils, validation
+@trading-model/broker-message   (inter-service messaging SDK) → primitives, contracts, address-manager, common, http, validation
+</code></pre>
+<blockquote>
+<p><strong>Dependency direction:</strong> <code>@trading-model/primitives</code> and <code>@trading-model/contracts</code> are the foundation layers and depend on nothing higher in the chain — they must never import <code>http</code> or any upper-layer package. <code>@trading-model/common</code> sits just above them and has <strong>no</strong> dependency on <code>@trading-model/http</code>. The concrete logger lives in <code>@trading-model/http</code>; <code>@trading-model/contracts</code> exposes a <code>LoggerPort</code> registry (<code>@trading-model/contracts/logger-registry</code>) that http populates at import time — breaking what was previously a real <code>common ↔ http</code> cycle.</p>
+</blockquote>
+<p>Services and their <code>@trading-model/*</code> dependencies:</p>
+<table>
+<thead>
+<tr>
+<th>Service</th>
+<th>Dependencies</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>discovery-server</td>
+<td>common, crypto, http, server-utils, validation</td>
+</tr>
+<tr>
+<td>message-manager</td>
+<td>common, validation, http, server-utils, crypto, address-manager, broker-message</td>
+</tr>
+<tr>
+<td>financial-scraper</td>
+<td>common, validation, http, server-utils, crypto, address-manager, broker-message</td>
+</tr>
+<tr>
+<td>trader-trainer</td>
+<td>common, validation, http, server-utils, crypto, address-manager, broker-message</td>
+</tr>
+<tr>
+<td>audit-logger</td>
+<td>common, validation, http, server-utils, address-manager, broker-message</td>
+</tr>
+<tr>
+<td>dlq-service</td>
+<td>common, validation, http, server-utils, crypto, address-manager</td>
+</tr>
+<tr>
+<td>api-gateway</td>
+<td>common, validation, http, server-utils, crypto</td>
+</tr>
+</tbody>
+</table>
+<p>There is no frontend workspace: <code>admin-interface</code> was removed until a new one is specified (<a href="../adr/0018-temporary-frontend-removal.html">ADR-0018</a>). A future frontend talks to the backend only through the <strong>api-gateway</strong>.</p>
+<h3>Package Dependency Details</h3>
+<table>
+<thead>
+<tr>
+<th>Package</th>
+<th>Purpose</th>
+<th>Dependencies</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>@trading-model/primitives</code></td>
+<td>Pure domain primitives: branded types, pagination, circuit-state, service-identity, retry-policy, topic-binding. Zero dependencies.</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>@trading-model/contracts</code></td>
+<td>Shared contracts: event/market-data types, <code>http-status</code>, <code>http-headers</code>, <code>LoggerPort</code> registry (setLogger/getLogger)</td>
+<td>primitives</td>
+</tr>
+<tr>
+<td><code>@trading-model/reliability</code></td>
+<td>Circuit-breaker, circuit-state-machine, latency-tracker, heartbeat interfaces</td>
+<td>primitives, contracts</td>
+</tr>
+<tr>
+<td><code>@trading-model/common</code></td>
+<td>Residual shared infra: <code>AppError</code>/<code>ErrorCodes</code>, retry/backoff, SPIFFE identity, TLS path config, cache abstractions, log sanitization, shared Zod schemas</td>
+<td>primitives, contracts</td>
+</tr>
+<tr>
+<td><code>@trading-model/persistence</code></td>
+<td>Redis/Mongo connection managers, store adapters, key builders (absorbed <code>redis-config</code>)</td>
+<td>common, primitives, contracts</td>
+</tr>
+<tr>
+<td><code>@trading-model/http</code></td>
+<td>HTTP middleware (MTLSAuthMiddleware, ResponseProtocol, error tracking), HTTP client, concrete logging pipeline</td>
+<td>primitives, contracts, common, reliability</td>
+</tr>
+<tr>
+<td><code>@trading-model/validation</code></td>
+<td>Zod schemas, DTOs, event types, shared type contracts, admin contracts</td>
+<td>primitives, contracts, common, http</td>
+</tr>
+<tr>
+<td><code>@trading-model/server-utils</code></td>
+<td>Secure HTTPS server factory, TLS watcher/loader, bootstrap &amp; shutdown, signal handling, telemetry</td>
+<td>primitives, contracts, common, http</td>
+</tr>
+<tr>
+<td><code>@trading-model/crypto</code></td>
+<td>Hashing, request signing, token generation, secure randomness</td>
+<td>primitives, contracts, common, validation</td>
+</tr>
+<tr>
+<td><code>@trading-model/address-manager</code></td>
+<td>Service discovery client, token manager, service cache with health checking, load balancing</td>
+<td>primitives, contracts, common, persistence, http, reliability, server-utils, validation</td>
+</tr>
+<tr>
+<td><code>@trading-model/broker-message</code></td>
+<td>Inter-service messaging SDK: message manager client, event emitter, message controller/routes, validation schemas</td>
+<td>primitives, contracts, address-manager, common, http, validation</td>
+</tr>
+</tbody>
+</table>
+<h2>Workload Identity &amp; Security Model</h2>
+<ul>
+<li>All inter-service communication uses <strong>HTTPS with mutual TLS</strong> (mTLS).</li>
+<li>Workload identity is provided by <strong>SPIFFE/SPIRE</strong> (ADR-0011): each workload is
+attested and issued short-lived X.509-SVIDs (with a <code>spiffe://</code> URI SAN),
+consumed via <code>spiffe-helper</code> sidecars. The former in-house CA and
+<code>certificate-client</code> were decommissioned.</li>
+<li>No service trusts another without explicit certificate/bundle validation.</li>
+<li>The Discovery-Server issues and rotates HMAC tokens.</li>
+<li>Live trading will be gated by risk limits, capital exposure constraints, and fail-safe mechanisms (planned).</li>
+</ul>
+<h2>Service Conventions</h2>
+<h3>HTTPS Server with mTLS</h3>
+<p>Each service exposes an HTTPS server with mTLS enabled. The internal container port is always <strong>3000</strong>, with a unique host port mapping.</p>
+<table>
+<thead>
+<tr>
+<th>Service</th>
+<th>Host port (dev)</th>
+<th>Container port</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>discovery-server</td>
+<td>8443</td>
+<td>3000</td>
+<td></td>
+</tr>
+<tr>
+<td>message-manager</td>
+<td>8444</td>
+<td>3000</td>
+<td></td>
+</tr>
+<tr>
+<td>financial-scraper</td>
+<td>8445</td>
+<td>3000</td>
+<td></td>
+</tr>
+<tr>
+<td>trader-trainer</td>
+<td>8446</td>
+<td>3000</td>
+<td></td>
+</tr>
+<tr>
+<td>audit-logger</td>
+<td>8450</td>
+<td>3000</td>
+<td></td>
+</tr>
+<tr>
+<td>dlq-service</td>
+<td>8452</td>
+<td>3000</td>
+<td></td>
+</tr>
+<tr>
+<td>api-gateway</td>
+<td>8448</td>
+<td>3000</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h3>Service Structure</h3>
+<p>Services follow a hexagonal architecture (ADR-0010): business logic is isolated in <code>domain/</code> + <code>application/</code>, driven by <code>adapters/</code> (controllers, routes) and backed by <code>infrastructure/</code> (Redis, Mongo, HTTP clients). All services use this layout; no legacy module layout (<code>core/</code>, <code>messaging/</code>, <code>persistence/</code>, <code>controllers/</code> …) remains (ADR-0015).</p>
+<pre><code>services/&lt;name&gt;/
+├── src/
+│   ├── application/        # Startup (index.ts, server.ts) + use-case orchestration over ports
+│   ├── domain/             # Entities, domain services, ports (interfaces)
+│   ├── adapters/           # Driven/driving adapters (HTTP controllers, routes, clients)
+│   │   ├── inbound/        # Express controllers, route definitions
+│   │   └── outbound/       # HTTP/WS clients to other services
+│   ├── infrastructure/     # External integrations (Redis, MongoDB, HTTP), config/env.ts
+│   ├── config/             # container.ts (composition root), metrics, service clients
+│   └── shared/             # Shared types, constants, utils
+├── tests/
+│   ├── unit/
+│   ├── integration/
+│   ├── fixtures/
+│   └── helpers/
+├── docs/                  # Service-specific documentation
+├── Dockerfile
+├── package.json
+├── tsconfig.json
+└── jest.config.js
+</code></pre>
+<h3>Composition Root vs. Startup (ADR-0015)</h3>
+<p>Two distinct responsibilities, two places:</p>
+<table>
+<thead>
+<tr>
+<th>Responsibility</th>
+<th>Where</th>
+<th>Examples</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Dependency wiring</strong>: instantiate adapters and bind them to ports, build use cases</td>
+<td><code>src/config/container.ts</code> only</td>
+<td><code>new RedisInstanceStore(...)</code>, <code>createServiceRegistry()</code>, <code>new JobScheduler({ repository, config })</code>, repositories, publishers, Prometheus hooks</td>
+</tr>
+<tr>
+<td><strong>Startup</strong>: run the process</td>
+<td><code>src/application/index.ts</code> and <code>src/application/server.ts</code> only</td>
+<td><code>createBootstrap</code>, telemetry, mounting routes, readiness checks, bus subscriptions, opening/closing connections, starting/stopping loops</td>
+</tr>
+</tbody>
+</table>
+<p>Rules:</p>
+<ul>
+<li><code>index.ts</code> and <code>server.ts</code> are the <strong>only</strong> files of <code>application/</code> allowed to touch adapters/infrastructure, and only for startup concerns. They obtain their collaborators from <code>config/container.ts</code> and never <code>new</code> an adapter themselves.</li>
+<li>Every other file of <code>application/</code> depends on ports only.</li>
+<li>Containers take environment values <strong>as parameters</strong> (<code>createDiscoveryApp(ENV)</code>, <code>createScrapeScheduler(ENV)</code>) rather than importing <code>ENV</code>, so they can be imported by tests without environment validation.</li>
+</ul>
+<h3>Entry Point (<code>src/application/index.ts</code>)</h3>
+<pre><code class="language-typescript">import { createBootstrap } from '@trading-model/server-utils/application/services/bootstrap';
+import { createDiscoveryApp } from '../config/container';
+import { ENV } from '../infrastructure/config/env';
+import { createServer } from './server';
+
+const { registry, leaseManager, redisClient } = createDiscoveryApp(ENV);
+
+createBootstrap({
+  name: 'Discovery',
+  createServer: () =&gt; createServer(registry),
+  onStart: async () =&gt; {
+    await redisClient?.connect();
+    leaseManager.start();
+  },
+  onStop: () =&gt; {
+    leaseManager.stop();
+    redisClient?.disconnect();
+  },
+});
+</code></pre>
+<h3>Server (<code>src/application/server.ts</code>)</h3>
+<pre><code class="language-typescript">import { createSecureServer } from '@trading-model/server-utils/adapters/inbound/create-secure-server';
+import { loadTlsConfig } from '@trading-model/server-utils/infrastructure/load-tls-config';
+import { heartbeatRoutes } from '../adapters/inbound/heartbeat.routes';
+import { registryRoutes } from '../adapters/inbound/register.routes';
+import { env } from '../config/env';
+
+export function createServer() {
+  return createSecureServer({
+    port: env.PORT,
+    tls: loadTlsConfig(env),
+    routes: app =&gt; {
+      app.use('/', registryRoutes());
+      app.use('/', heartbeatRoutes());
+    },
+  });
+}
+</code></pre>
+<h2>Package Conventions</h2>
+<h3>Sub-path Exports</h3>
+<p>Each package declares its exports via the <code>exports</code> field in <code>package.json</code>. Entry points are organized by sub-path.</p>
+<p><strong>@trading-model/common</strong> (granular exports — residual <code>config/</code>, <code>utils/</code>, <code>shared/</code> after the ADR-0007 split):</p>
+<pre><code class="language-json">{
+  &quot;exports&quot;: {
+    &quot;./config/*&quot;: { &quot;types&quot;: &quot;./dist/config/*.d.ts&quot;, &quot;default&quot;: &quot;./dist/config/*.js&quot; },
+    &quot;./utils/*&quot;: { &quot;types&quot;: &quot;./dist/utils/*.d.ts&quot;, &quot;default&quot;: &quot;./dist/utils/*.js&quot; },
+    &quot;./shared/*&quot;: { &quot;types&quot;: &quot;./dist/shared/*.d.ts&quot;, &quot;default&quot;: &quot;./dist/shared/*.js&quot; },
+    &quot;./tests/*&quot;: { &quot;types&quot;: &quot;./tests/*.d.ts&quot;, &quot;default&quot;: &quot;./tests/*.js&quot; }
+  }
+}
+</code></pre>
+<blockquote>
+<p>Post-split (2026-10), <code>common</code> no longer exports <code>middleware/</code>, <code>worker/</code>, <code>recovery/</code>, <code>reliability/</code>, <code>domain/</code>, <code>crl/</code>, <code>persistence/</code>, <code>http-headers</code>, <code>http-status</code> or <code>contracts/</code>. Those live in <code>@trading-model/primitives</code>, <code>@trading-model/contracts</code>, <code>@trading-model/reliability</code>, <code>@trading-model/persistence</code>, <code>@trading-model/http</code> and <code>@trading-model/server-utils</code> respectively (<code>worker/</code> and <code>recovery/</code> went to <code>@trading-model/jobs</code>, removed by ADR-0029). See the <a href="../services/common.html#package-map-post-split">package map</a>.</p>
+</blockquote>
+<p><strong>@trading-model/validation</strong>, <strong>@trading-model/server-utils</strong>, <strong>@trading-model/crypto</strong>, <strong>@trading-model/address-manager</strong> and <strong>@trading-model/broker-message</strong> (simplified exports):</p>
+<pre><code class="language-json">{
+  &quot;exports&quot;: {
+    &quot;.&quot;: { &quot;types&quot;: &quot;./dist/index.d.ts&quot;, &quot;default&quot;: &quot;./dist/index.js&quot; },
+    &quot;./*&quot;: { &quot;types&quot;: &quot;./dist/*.d.ts&quot;, &quot;default&quot;: &quot;./dist/*.js&quot; }
+  }
+}
+</code></pre>
+<h2>Adding a New Service</h2>
+<p>See <a href="../contributing/adding-a-service.html">How to Add a New Service</a> for a step-by-step guide with directory layout, entry point, Dockerfile, and registration instructions.</p>
+<h2>Known Technical Debt</h2>
+<ol>
+<li><strong>Legacy path aliases</strong>: Some service tsconfigs still define <code>paths</code> aliases (<code>config/*</code>, <code>infra/*</code>, <code>clients/*</code>, <code>job/*</code>, <code>types/*</code>, <code>utils/*</code>) that should be replaced with <code>node16</code> resolution.</li>
+<li><strong>Transitional re-export shims</strong>: Some refactor-introduced barrel files (<code>export * from</code>) preserve old import paths while modules move to the new architectural layers. This notably includes <code>http/src/infrastructure/logger.ts</code> (re-exporting the logger pipeline now living in <code>http/src/application/services/logger.ts</code> — 100+ consumers still import the legacy sub-path). The <code>common</code> split (ADR-0007, extended 2026-10) used <strong>hard migration</strong> — no re-export shims were retained in <code>common</code>.</li>
+</ol>
+</div></div>
+</main>
+</body>
+</html>

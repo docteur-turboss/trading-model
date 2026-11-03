@@ -1,0 +1,353 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql-headless
+  labels:
+    app.kubernetes.io/component: mysql
+    app.kubernetes.io/part-of: trading-model
+spec:
+  clusterIP: None
+  ports:
+    - port: 3306
+      targetPort: 3306
+      name: mysql
+  selector:
+    app.kubernetes.io/component: mysql
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql-primary
+  labels:
+    app.kubernetes.io/component: mysql
+    app.kubernetes.io/part-of: trading-model
+spec:
+  ports:
+    - port: 3306
+      targetPort: 3306
+      name: mysql
+  selector:
+    app.kubernetes.io/component: mysql
+    statefulset.kubernetes.io/pod-name: mysql-0
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql
+  labels:
+    app.kubernetes.io/component: mysql
+    app.kubernetes.io/part-of: trading-model
+spec:
+  ports:
+    - port: 3306
+      targetPort: 3306
+      name: mysql
+  selector:
+    app.kubernetes.io/component: mysql
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: mysql
+  labels:
+    app.kubernetes.io/component: mysql
+    app.kubernetes.io/part-of: trading-model
+spec:
+  serviceName: mysql-headless
+  replicas: 3
+  podManagementPolicy: OrderedReady
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: mysql
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: mysql
+        app.kubernetes.io/part-of: trading-model
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/component: mysql
+                topologyKey: kubernetes.io/hostname
+      terminationGracePeriodSeconds: 60
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999
+        runAsGroup: 999
+        fsGroup: 999
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: mysql
+          image: mysql@sha256:85b9bf2e29cf836ecb8c2a15a935d4ba0c606631dff1dd79531a11983c638f2a
+          # Unique per pod: group replication needs distinct server ids.
+          args:
+            - "--server-id=10$(POD_INDEX)"
+            - "--loose-group_replication_local_address=mysql-$(POD_INDEX).mysql-headless:33061"
+          ports:
+            - containerPort: 3306
+              name: mysql
+            - containerPort: 33060
+              name: mysqlx
+            - containerPort: 33061
+              name: group-repl
+          env:
+            - name: POD_INDEX
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.labels['apps.kubernetes.io/pod-index']
+            - name: MYSQL_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: trading-model-secrets
+                  key: MYSQL_ROOT_PASSWORD
+            - name: MYSQL_DATABASE
+              value: financial_scraper
+            - name: MYSQL_USER
+              value: scraper
+            - name: MYSQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: trading-model-secrets
+                  key: MYSQL_PASSWORD
+            - name: MYSQL_INITDB_SKIP_TZINFO
+              value: "1"
+          resources:
+            requests:
+              cpu: 200m
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 2Gi
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
+          volumeMounts:
+            # The schema comes from the db-migrate Job (scripts/migrations),
+            # as in compose: no second copy in /docker-entrypoint-initdb.d.
+            - name: mysql-data
+              mountPath: /var/lib/mysql
+            - name: mysql-config
+              mountPath: /etc/mysql/conf.d
+          # The first start initializes the data directory (minutes on a slow
+          # disk). Liveness killing it midway leaves a corrupt datadir that
+          # never starts again: liveness only begins once MySQL answers.
+          startupProbe:
+            exec:
+              command:
+                - mysqladmin
+                - ping
+                - -h
+                - localhost
+                - -u
+                - root
+                - -p$(MYSQL_ROOT_PASSWORD)
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 60
+          livenessProbe:
+            exec:
+              command:
+                - mysqladmin
+                - ping
+                - -h
+                - localhost
+                - -u
+                - root
+                - -p$(MYSQL_ROOT_PASSWORD)
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+          readinessProbe:
+            exec:
+              command:
+                - mysqladmin
+                - ping
+                - -h
+                - localhost
+                - -u
+                - root
+                - -p$(MYSQL_ROOT_PASSWORD)
+            initialDelaySeconds: 15
+            periodSeconds: 5
+            timeoutSeconds: 3
+      volumes:
+        - name: mysql-config
+          configMap:
+            name: mysql-group-replication-config
+  volumeClaimTemplates:
+    - metadata:
+        name: mysql-data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 20Gi
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mysql-group-replication-config
+  labels:
+    app.kubernetes.io/component: mysql
+    app.kubernetes.io/part-of: trading-model
+data:
+  group-replication.cnf: |
+    [mysqld]
+    plugin-load=group_replication.so
+    # MySQL 8.4 options only. Per-pod values (server_id, local address) are
+    # passed as mysqld arguments by the StatefulSet: a .cnf is not expanded.
+    loose-group_replication_group_name=aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee
+    loose-group_replication_start_on_boot=off
+    loose-group_replication_group_seeds=mysql-0.mysql-headless:33061,mysql-1.mysql-headless:33061,mysql-2.mysql-headless:33061
+    loose-group_replication_bootstrap_group=off
+    loose-group_replication_single_primary_mode=on
+    loose-group_replication_enforce_update_everywhere_checks=off
+    loose-group_replication_ip_allowlist=10.0.0.0/8,172.16.0.0/12,192.168.0.0/16
+    loose-group_replication_components_stop_timeout=30
+    loose-group_replication_recovery_get_public_key=on
+    binlog-format=ROW
+    log-bin=mysql-bin
+    relay-log=mysql-relay
+    relay-log-recovery=ON
+    enforce-gtid-consistency=ON
+    gtid-mode=ON
+    loose-group_replication_recovery_use_ssl=ON
+    loose-group_replication_ssl_mode=REQUIRED
+    # Encryption at rest (GDPR Art. 32) is NOT configured here: the former
+    # innodb_encrypt_* / encrypt-binlog options are MariaDB-only and made
+    # MySQL abort. MySQL needs a keyring component (component_keyring_file
+    # with its manifest) before default_table_encryption / binlog_encryption.
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: mysql-cluster-init
+  labels:
+    app.kubernetes.io/component: mysql
+    app.kubernetes.io/part-of: trading-model
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: HookSucceeded
+spec:
+  template:
+    spec:
+      restartPolicy: OnFailure
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999
+        runAsGroup: 999
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: mysql-init
+          image: mysql@sha256:85b9bf2e29cf836ecb8c2a15a935d4ba0c606631dff1dd79531a11983c638f2a
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          # MYSQL_ROOT_PASSWORD comes from the Secret (env below).
+          command:
+            - sh
+            - -c
+            - |
+              for i in $(seq 1 30); do
+                if mysqladmin ping -h mysql-0.mysql-headless -u root -p"$MYSQL_ROOT_PASSWORD" 2>/dev/null; then
+                  echo "MySQL-0 is ready"
+                  break
+                fi
+                echo "Waiting for MySQL-0... ($i/30)"
+                sleep 5
+              done
+
+              # Idempotent: a re-run (new deploy, Job retry) leaves a running group alone.
+              state=$(mysql -h mysql-0.mysql-headless -u root -p"$MYSQL_ROOT_PASSWORD" -N -e \
+                "SELECT MEMBER_STATE FROM performance_schema.replication_group_members" 2>/dev/null | head -n 1)
+              if [ "$state" = "ONLINE" ]; then
+                echo "Group replication already ONLINE"
+                exit 0
+              fi
+
+              # The group_replication plugin is loaded by plugin-load (group-replication.cnf).
+              mysql -h mysql-0.mysql-headless -u root -p"$MYSQL_ROOT_PASSWORD" <<-EOSQL
+                SET SQL_LOG_BIN=0;
+                CREATE USER IF NOT EXISTS 'repl'@'%' IDENTIFIED BY '$MYSQL_ROOT_PASSWORD' REQUIRE SSL;
+                GRANT REPLICATION SLAVE, BACKUP_ADMIN ON *.* TO 'repl'@'%';
+                GRANT GROUP_REPLICATION_STREAM ON *.* TO 'repl'@'%';
+                FLUSH PRIVILEGES;
+                SET SQL_LOG_BIN=1;
+
+                CHANGE REPLICATION SOURCE TO
+                  SOURCE_USER='repl',
+                  SOURCE_PASSWORD='$MYSQL_ROOT_PASSWORD'
+                  FOR CHANNEL 'group_replication_recovery';
+
+                SET GLOBAL group_replication_bootstrap_group=ON;
+                START GROUP_REPLICATION;
+                SET GLOBAL group_replication_bootstrap_group=OFF;
+                SELECT * FROM performance_schema.replication_group_members;
+              EOSQL
+          env:
+            - name: MYSQL_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: trading-model-secrets
+                  key: MYSQL_ROOT_PASSWORD
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: mysql-pdb
+  labels:
+    app.kubernetes.io/component: mysql
+    app.kubernetes.io/part-of: trading-model
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: mysql
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: mysql-network-policy
+  labels:
+    app.kubernetes.io/component: mysql
+    app.kubernetes.io/part-of: trading-model
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: mysql
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        # Same namespace as the policy, whatever the overlay's namespace.
+        - podSelector: {}
+      ports:
+        - port: 3306
+          protocol: TCP
+        - port: 33061
+          protocol: TCP
+  egress:
+    - to:
+        # Same namespace as the policy, whatever the overlay's namespace.
+        - podSelector: {}
+      ports:
+        - port: 3306
+          protocol: TCP
+        - port: 33061
+          protocol: TCP

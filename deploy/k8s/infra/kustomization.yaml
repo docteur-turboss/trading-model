@@ -1,0 +1,27 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - redis.yaml
+  - mysql.yaml
+  - mongodb.yaml
+  - mongo-audit.yaml
+  - spire
+  - otel-collector.yaml
+  - jaeger.yaml
+  - prometheus.yaml
+  - alertmanager.yaml
+  - blackbox-exporter.yaml
+  - grafana.yaml
+  - dashboards
+  - loki.yaml
+
+# Start script of the Redis HA StatefulSets (redis.yaml).
+configMapGenerator:
+  - name: redis-ha-scripts
+    files:
+      - redis-ha.sh
+
+# Alertmanager notification credentials: Secret alertmanager-credentials,
+# written by deploy.yml from the GitHub environment, not generated here (a
+# generated placeholder silently sent every alert to CHANGE_ME).
