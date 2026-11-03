@@ -3,7 +3,7 @@
 #  Multi-stage: deps → build → runtime
 # =============================================================================
 
-FROM oven/bun@sha256:c1cc397e0be452c54f37cbcdfaa747eff93c993723af7d91658764d0fdfe5873 AS deps
+FROM oven/bun@sha256:1d22548f177f4ff38e0c15baa3c2c46c6c2060ba2d1bc573bb4720b407548f1d AS deps
 WORKDIR /app
 COPY package.json bun.lock ./
 COPY packages/ packages/
@@ -11,7 +11,7 @@ COPY services/ services/
 # --ignore-scripts: the root "prepare" script runs husky, a dev dependency absent here.
 RUN bun install --frozen-lockfile --production --ignore-scripts
 
-FROM oven/bun@sha256:c1cc397e0be452c54f37cbcdfaa747eff93c993723af7d91658764d0fdfe5873 AS build
+FROM oven/bun@sha256:1d22548f177f4ff38e0c15baa3c2c46c6c2060ba2d1bc573bb4720b407548f1d AS build
 WORKDIR /app
 COPY package.json bun.lock ./
 COPY packages/ packages/
