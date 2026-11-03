@@ -50,15 +50,19 @@ backup_mongodb() {
       continue
     fi
     local file="${dest}/${label}.archive.gz${AGE_SUFFIX}"
-    if kubectl_exec "${primary}" -- mongodump --gzip --archive --oplog | seal > "$file"; then
+    if write_dump "$label" "$file" kubectl_exec "${primary}" -- mongodump --gzip --archive --oplog; then
       ok "MongoDB backup complete: ${label} (${primary})"
-      record_output "$file"
       write_metric "$label" 1
     else
       fail "MongoDB backup failed: ${label} (${primary})"
       write_metric "$label" 0
     fi
   done
+}
+
+# Gzipped dump of every non-system database from MySQL pod `$1`.
+mysql_dump_gz() {
+  mysql_root_sh "$1" "$MYSQL_DUMP_SH" 2>/dev/null | gzip
 }
 
 backup_mysql() {
@@ -79,9 +83,8 @@ backup_mysql() {
     return
   fi
 
-  if mysql_root_sh "${pod}" "$MYSQL_DUMP_SH" 2>/dev/null | gzip | seal > "$file" && [ -s "$file" ]; then
+  if write_dump mysql "$file" mysql_dump_gz "${pod}"; then
     ok "MySQL backup complete: ${file}"
-    record_output "$file"
     write_metric "mysql" 1
   else
     fail "MySQL backup failed"
@@ -108,9 +111,8 @@ backup_checkpoints() {
   fi
 
   local file="${dest}/checkpoints_${TIMESTAMP}.tar.gz${AGE_SUFFIX}"
-  if kubectl_exec "${pod}" -c trader-trainer -- tar czf - -C /data/checkpoints . | seal > "$file"; then
+  if write_dump checkpoints "$file" kubectl_exec "${pod}" -c trader-trainer -- tar czf - -C /data/checkpoints .; then
     ok "Checkpoints backup complete"
-    record_output "$file"
     write_metric "checkpoints" 1
   else
     fail "Checkpoints backup failed"
@@ -139,9 +141,8 @@ backup_spire() {
   local file="${dest}/keys_${TIMESTAMP}.json${AGE_SUFFIX}"
   # The official spire-server image has no shell: read the key through the
   # spire-entries sidecar (alpine), which mounts the data volume read-only.
-  if kubectl_exec -c spire-entries "${pod}" -- cat /run/spire/data/keys.json | seal > "$file"; then
+  if write_dump spire "$file" kubectl_exec -c spire-entries "${pod}" -- cat /run/spire/data/keys.json; then
     ok "SPIRE CA key backup complete: ${file}"
-    record_output "$file"
     write_metric "spire" 1
   else
     fail "SPIRE CA key backup failed"
@@ -179,6 +180,9 @@ for part in "${PARTS[@]}"; do
 done
 
 prune_old
+# Before the off-site copy, which sends the manifest along with the dumps. A
+# failure is counted by write_metric (component "manifest"): the run exits 1.
+$DRY_RUN || write_manifest || true
 upload_offsite
 finalize_metrics
 

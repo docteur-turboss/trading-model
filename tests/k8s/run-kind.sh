@@ -420,11 +420,18 @@ verify_backup() {
 	inspector "grep -qx 'backup_last_status{component=\"offsite\"} 1' /backups/metrics/backup.prom"
 	local offsite
 	offsite="$($K -n "$NS" exec deployment/backup-s3 -- sh -c "find /data/backups/staging -name '*.age' | wc -l")"
-	[ "$offsite" -ge 5 ] || {
-		log "only $offsite encrypted file(s) copied off-site (expected 5)"
+	# 5 dumps + the run manifest (backup-lib.sh, write_manifest).
+	[ "$offsite" -ge 6 ] || {
+		log "only $offsite encrypted file(s) copied off-site (expected 6)"
 		return 1
 	}
-	log "  every file is age-encrypted, $offsite copied off-site"
+	local listed
+	listed="$(inspector "find /backups/manifests -name 'manifest_*.json.age' | wc -l")"
+	[ "$listed" -ge 1 ] || {
+		log "the backup run wrote no manifest: restore-k8s.sh would find nothing to restore"
+		return 1
+	}
+	log "  every file is age-encrypted, $offsite copied off-site, run manifest written"
 	# From here on, the backup-data volume counts as lost with the cluster.
 	$K -n "$NS" delete pod backup-inspector --wait=false
 
@@ -480,8 +487,9 @@ verify_backup() {
 	runner "bash /scripts/fetch-offsite.sh --dest /restore"
 	fetch_seconds=$((SECONDS - started))
 	fetched="$(runner "find /restore -type f -name '*.age' | wc -l")"
-	[ "$fetched" -eq 5 ] || {
-		log "fetch-offsite.sh fetched $fetched file(s) instead of 5"
+	# 5 dumps + the run manifest, which restore-k8s.sh selects and verifies with.
+	[ "$fetched" -eq 6 ] && runner "test -s /restore/manifests/manifest_*.json.age" || {
+		log "fetch-offsite.sh fetched $fetched file(s) instead of 6 (5 dumps + run manifest)"
 		return 1
 	}
 
