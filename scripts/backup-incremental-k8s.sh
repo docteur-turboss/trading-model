@@ -136,16 +136,53 @@ archive_oplog() {
   if [ "$from" = "$end" ]; then
     ok "MongoDB ${label} oplog: nothing new since ${end}"
   else
-    local out="${dest}/${from}_${end}.bson.gz${AGE_SUFFIX}"
-    if sealed_write "$out" oplog_stream "$primary" "$from" "$end"; then
-      record_output "$out"
-      ok "MongoDB ${label} oplog archived: ${from} to ${end} (${primary})"
-    else
+    local out="${dest}/${from}_${end}.bson.gz${AGE_SUFFIX}" after
+    if ! sealed_write "$out" oplog_stream "$primary" "$from" "$end"; then
       fail "Archiving the ${label} oplog failed (${primary})"
       status=0
+    elif ! after=$(oplog_edge "$primary" 1) || ! [[ "$after" =~ ^[0-9]+\.[0-9]+$ ]] ||
+      ! oplog_le "$after" "$from"; then
+      # The ring turned during the dump: entries from ${from} on may have been
+      # overwritten before mongodump read them. Nothing is kept, the next run
+      # finds the loss and reports it.
+      rm -f "$out"
+      fail "The ${label} oplog no longer holds ${from} after the dump (oldest entry ${after:-unreadable}): archive discarded"
+      status=0
+    else
+      record_output "$out"
+      ok "MongoDB ${label} oplog archived: ${from} to ${end} (${primary})"
     fi
   fi
   write_metric "$component" "$status"
+}
+
+# Publishes backup_pitr_gap for each archived store: 1 while its chain is
+# broken after the newest daily dump (a binlog purged or oplog entries
+# overwritten before being archived), so no point-in-time restore can reach
+# the instants after the break until the next daily dump. Read from the names
+# only, it stays at 1 on the next runs, which succeed again (alert
+# BackupPitrGap, BACKUP_DR.md).
+report_pitr_gaps() {
+  local part store dir component
+  for part in "${PARTS[@]}"; do
+    case "$part" in
+      mysql)
+        local uuid_dir
+        # The current server's chain: the newest directory written to.
+        uuid_dir=$(find "${BACKUP_DIR}/mysql/binlog" -mindepth 1 -maxdepth 1 -type d -printf '%T@ %p\n' 2>/dev/null |
+          sort -n | tail -1 | cut -d' ' -f2-)
+        store=mysql dir="$uuid_dir" component=mysql-binlog ;;
+      mongodb | mongodb-audit)
+        store="$part" dir="${BACKUP_DIR}/mongodb/oplog/${part}" component="${part}-oplog" ;;
+      *) continue ;;
+    esac
+    if [ -n "$dir" ] && pitr_broken "$store" "$dir"; then
+      fail "${component}: the archive chain is broken after the newest daily dump: no point-in-time restore past the break until the next daily dump"
+      write_pitr_gap "$component" 1
+    else
+      write_pitr_gap "$component" 0
+    fi
+  done
 }
 
 # Deletes the archives older than INCREMENTAL_RETENTION_HOURS and the
@@ -189,6 +226,10 @@ done
 # After archiving: the newest archive of a chain is never pruned before the
 # run that continues it, so a gap cannot hide behind an emptied directory.
 prune_incremental
+report_pitr_gaps
+# Every archive still here, not only this run's: a copy that failed earlier
+# is caught up now, so the chain off-site has no hole.
+record_incremental_archives
 upload_offsite
 finalize_metrics
 

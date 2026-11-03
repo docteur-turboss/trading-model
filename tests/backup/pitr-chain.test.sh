@@ -130,6 +130,74 @@ expect "increments are compared as numbers" \
 	"1000.9_1000.10.bson.gz 1000.10_2000.1.bson.gz" \
 	oplog_chain "$WORK/inc" 1000.9 1500
 
+echo "chain breaks (backup_pitr_gap)"
+# check <description> <0|1 expected from pitr_broken> <store> <dir>
+check_broken() {
+	local what="$1" want="$2" got=0
+	pitr_broken "$3" "$4" && got=1
+	if [ "$got" = "$want" ]; then pass "$what"; else failed "$what: pitr_broken=$got, want $want"; fi
+}
+BACKUP_DIR="$WORK/gaps"
+G="$BACKUP_DIR/mysql/binlog/uuid-1"
+mkdir -p "$G"
+for f in mysql-bin.000001_2026-11-01_013000 mysql-bin.000002_2026-11-01_023000 mysql-bin.000003_2026-11-01_033000; do
+	: >"$G/$f.gz.age"
+done
+[ -z "$(binlog_break "$G")" ] && pass "an unbroken binlog chain has no break" || failed "binlog_break on an unbroken chain"
+check_broken "no break, no daily dump: not broken" 0 mysql "$G"
+# 000004 and 000005 purged before the 04:30 run: it resumed at 000006.
+: >"$G/mysql-bin.000006_2026-11-01_043000.gz.age"
+: >"$G/mysql-bin.000007_2026-11-01_053000.gz.age"
+[ "$(binlog_break "$G")" = 2026-11-01_043000 ] && pass "the binlog break is at the run that resumed the chain" || failed "binlog_break: '$(binlog_break "$G")'"
+check_broken "a break and no daily dump at all: broken" 1 mysql "$G"
+: >"$BACKUP_DIR/mysql/financial_scraper_2026-11-01_020000.pitr.age"
+check_broken "a break after the newest dump: broken, even though the next run (05:30) succeeded" 1 mysql "$G"
+: >"$BACKUP_DIR/mysql/financial_scraper_2026-11-01_050000.pitr.age"
+check_broken "a daily dump taken after the break: repaired" 0 mysql "$G"
+GO="$BACKUP_DIR/mongodb/oplog/mongodb-audit"
+mkdir -p "$GO"
+e0="$(stamp_epoch 2026-11-01_013000)"
+: >"$GO/$((e0 - 3600)).1_${e0}.1.bson.gz.age"
+: >"$GO/${e0}.1_$((e0 + 3600)).1.bson.gz.age"
+check_broken "an unbroken oplog chain: not broken" 0 mongodb-audit "$GO"
+# Overwritten between e0+3600 and e0+5000: the next archive restarts at e0+5000.
+: >"$GO/$((e0 + 5000)).3_$((e0 + 7200)).1.bson.gz.age"
+: >"$GO/$((e0 + 7200)).1_$((e0 + 10800)).1.bson.gz.age"
+[ "$(oplog_break "$GO")" = "$((e0 + 5000))" ] && pass "the oplog break is at the archive that does not continue the previous one" || failed "oplog_break: '$(oplog_break "$GO")'"
+mkdir -p "$BACKUP_DIR/mongodb/2026-11-01_020000" "$BACKUP_DIR/mongodb/2026-11-01_050000"
+: >"$BACKUP_DIR/mongodb/2026-11-01_020000/mongodb-audit.pitr.age"
+: >"$BACKUP_DIR/mongodb/2026-11-01_050000/mongodb.pitr.age"
+check_broken "an oplog break after the newest dump of that replica set: broken (another set's dump does not count)" 1 mongodb-audit "$GO"
+: >"$BACKUP_DIR/mongodb/2026-11-01_050000/mongodb-audit.pitr.age"
+check_broken "an oplog dump taken after the break: repaired" 0 mongodb-audit "$GO"
+
+echo "off-site catch-up (record_incremental_archives)"
+OUTPUTS=("mysql/binlog/uuid-1/mysql-bin.000007_2026-11-01_053000.gz.age")
+: >"$G/mysql-bin.000008_2026-11-01_063000.gz.age.partial"
+record_incremental_archives
+want="$(cd "$BACKUP_DIR" && find mysql/binlog mongodb/oplog -type f -name '*.gz.age' | sort)"
+got="$(printf '%s\n' "${OUTPUTS[@]}" | sort)"
+if [ "$got" = "$want" ] && [ "${#OUTPUTS[@]}" -eq "$(echo "$want" | wc -l)" ]; then
+	pass "every archive on the volume is queued for the off-site copy, once each, no .partial"
+else
+	failed "queued: $got"
+fi
+METRICS_FILE="$WORK/metrics/gap.prom"
+BACKUP_RUN=incremental
+_METRICS_TMP=""
+BACKUP_FAILURES=0
+write_pitr_gap mongodb-audit-oplog 1
+finalize_metrics >/dev/null 2>&1
+if grep -qx 'backup_pitr_gap{component="mongodb-audit-oplog",run="incremental"} 1' "$METRICS_FILE" && [ "$BACKUP_FAILURES" -eq 0 ]; then
+	pass "backup_pitr_gap carries run=\"incremental\" and is not counted as a failure"
+else
+	failed "backup_pitr_gap: $(cat "$METRICS_FILE")"
+fi
+METRICS_FILE=""
+BACKUP_RUN=""
+_METRICS_TMP=""
+OUTPUTS=()
+
 echo "helpers"
 [ "$(stamp_epoch 2026-11-01_020304)" = "$(date -u -d '2026-11-01 02:03:04' +%s)" ] &&
 	pass "stamp_epoch reads a backup stamp as UTC" || failed "stamp_epoch"
@@ -199,6 +267,68 @@ fi
 RESTORE_NOT_AFTER=2026-10-31_235959
 refuse "no run taken before the instant" resolve_backup mysql
 RESTORE_NOT_AFTER=""
+
+echo "restore-k8s.sh --until checks every component before writing any"
+# MongoDB's chains are complete, MySQL has no binlog archive at all: the
+# restore must refuse before mongorestore ever runs (no database brought back
+# alone). kubectl is a stub that records the commands it gets.
+R="$WORK/restore"
+BACKUP_DIR="$R/backups"
+STUB="$R/bin"
+mkdir -p "$STUB" "$BACKUP_DIR"
+cat >"$STUB/kubectl" <<'STUB_EOF'
+#!/usr/bin/env bash
+echo "$*" >>"$KUBECTL_LOG"
+# A pod reading a stream drains it (the restore pipes into kubectl exec -i).
+case " $* " in *" -i "*) cat >/dev/null ;; esac
+case "$*" in
+*"get pods"*) echo "mongo-0" ;;
+*"get service"*) echo "mysql-0" ;;
+*isWritablePrimary*) echo "true" ;;
+esac
+exit 0
+STUB_EOF
+printf '#!/bin/sh\ncat >/dev/null\n' >"$STUB/mysqlbinlog"
+chmod +x "$STUB/kubectl" "$STUB/mysqlbinlog"
+TIMESTAMP=2026-11-01_020000
+DUMP_EPOCH="$(stamp_epoch "$TIMESTAMP")"
+OUTPUTS=()
+MANIFEST_ENTRIES=()
+mkdir -p "$BACKUP_DIR/mongodb/$TIMESTAMP" "$BACKUP_DIR/mysql" "$BACKUP_DIR/mongodb/oplog/mongodb" "$BACKUP_DIR/mongodb/oplog/mongodb-audit"
+gz_of() { printf '%s\n' "$1" | gzip; }
+for label in mongodb mongodb-audit; do
+	write_dump "$label" "$BACKUP_DIR/mongodb/$TIMESTAMP/$label.archive.gz" gz_of "$label" 2>/dev/null
+	echo "oplog_ts=$((DUMP_EPOCH - 10)).1" >"$BACKUP_DIR/mongodb/$TIMESTAMP/$label.pitr"
+	gz_of oplog >"$BACKUP_DIR/mongodb/oplog/$label/$((DUMP_EPOCH - 3600)).1_$((DUMP_EPOCH + 7200)).1.bson.gz"
+done
+write_dump mysql "$BACKUP_DIR/mysql/financial_scraper_$TIMESTAMP.sql.gz" gz_of "-- Dump completed" 2>/dev/null
+printf 'server_uuid=u-1\nbinlog_file=mysql-bin.000001\nbinlog_pos=4\n' >"$BACKUP_DIR/mysql/financial_scraper_$TIMESTAMP.pitr"
+write_manifest >/dev/null 2>&1
+export KUBECTL_LOG="$R/kubectl.log"
+: >"$KUBECTL_LOG"
+if PATH="$STUB:$PATH" BACKUP_DIR="$BACKUP_DIR" bash "$ROOT/scripts/restore-k8s.sh" --components mongodb,mysql \
+	--until "2026-11-01 03:00:00" >"$R/out" 2>&1; then
+	failed "restore-k8s.sh accepted a MySQL chain with no archive: $(tail -5 "$R/out")"
+elif grep -q mongorestore "$KUBECTL_LOG"; then
+	failed "MongoDB was restored before the MySQL refusal: $(grep mongorestore "$KUBECTL_LOG" | head -1)"
+elif grep -q "nothing was touched" "$R/out" && grep -q "mongodb-audit: 1 oplog archive(s) to replay" "$R/out"; then
+	pass "exit 1 before any write: MongoDB checked fine, MySQL refused, mongorestore never ran"
+else
+	failed "unexpected restore output: $(tail -8 "$R/out")"
+fi
+mkdir -p "$BACKUP_DIR/mysql/binlog/u-1"
+gz_of binlog >"$BACKUP_DIR/mysql/binlog/u-1/mysql-bin.000001_2026-11-01_033000.gz"
+: >"$KUBECTL_LOG"
+if PATH="$STUB:$PATH" BACKUP_DIR="$BACKUP_DIR" bash "$ROOT/scripts/restore-k8s.sh" --components mongodb,mysql \
+	--until "2026-11-01 03:00:00" >"$R/out" 2>&1 &&
+	[ "$(grep -c 'mongorestore --quiet --gzip --archive --drop --oplogReplay' "$KUBECTL_LOG")" -eq 2 ] &&
+	[ "$(grep -c 'Checksum verified' "$R/out")" -eq 3 ]; then
+	pass "once every chain reaches the instant, both stores are restored, each dump checksummed once"
+else
+	failed "complete chains: $(tail -8 "$R/out")"
+fi
+unset KUBECTL_LOG
+TIMESTAMP=""
 
 echo "backup scripts carry no literal \\n where a line continuation belongs"
 # A merge resolution once left `-- \n      mongorestore …` in restore-k8s.sh:

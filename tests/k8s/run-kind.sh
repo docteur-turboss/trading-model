@@ -517,6 +517,10 @@ verify_backup() {
 			log "incremental archive of $component did not succeed"
 			return 1
 		}
+		inspector "grep -qx 'backup_pitr_gap{component=\"$component\",run=\"incremental\"} 0' /backups/metrics/backup-incremental.prom" || {
+			log "$component: chain reported broken (backup_pitr_gap) or not reported"
+			return 1
+		}
 	done
 	inspector "grep -qx 'backup_last_status{component=\"offsite\",run=\"incremental\"} 1' /backups/metrics/backup-incremental.prom"
 	log "  archives encrypted and off-site"

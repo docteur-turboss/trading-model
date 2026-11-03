@@ -436,14 +436,37 @@ data:
               summary: "A binlog or oplog is no longer archived: {{ $labels.component }}"
               description: "db-backup-incremental reported nothing for {{ $labels.component }} (job never ran, component removed, or backup-metrics-exporter down): no point-in-time recovery."
 
+          # A run of a flux failed (S3, pod, oplog read). The next run retries it,
+          # so the alert resolves by itself once the archive is written.
+          - alert: BackupIncrementalFailed
+            expr: 'backup_last_status{run="incremental",component=~"mysql-binlog|mongodb-oplog|mongodb-audit-oplog"} == 0'
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "Point-in-time archive run failed: {{ $labels.component }}"
+              description: "The last db-backup-incremental run could not archive {{ $labels.component }}: see the job logs. A gap (binlog purged, oplog overwritten) also raises BackupPitrGap."
+
+          # The chain lost entries after the newest daily dump: computed from the
+          # archive names at every run, it stays at 1 until the next daily dump,
+          # even though the runs after the break succeed again.
+          - alert: BackupPitrGap
+            expr: 'backup_pitr_gap{run="incremental"} == 1'
+            for: 5m
+            labels:
+              severity: critical
+            annotations:
+              summary: "Point-in-time recovery broken: {{ $labels.component }}"
+              description: "The {{ $labels.component }} archives have a gap after the newest daily dump (binlog purged or oplog overwritten before being archived): no restore --until past the gap until the next daily dump succeeds. Take a dump now (BACKUP_DR.md, \"Point-in-time chain broken\")."
+
           - alert: BackupMetricsAbsent
-            expr: absent(backup_last_run_timestamp)
+            expr: 'absent(backup_last_run_timestamp{run=""})'
             for: 26h
             labels:
               severity: critical
             annotations:
               summary: "No backup has ever reported"
-              description: "Prometheus has no backup metric: the db-backup job never ran or backup-metrics-exporter is down."
+              description: "Prometheus has no metric of the daily backup job: db-backup never ran or backup-metrics-exporter is down (the series of db-backup-incremental do not count)."
 
           - alert: BackupComponentMissing
             expr: absent(backup_last_success_timestamp{component="mongodb"}) or absent(backup_last_success_timestamp{component="mongodb-audit"}) or absent(backup_last_success_timestamp{component="mysql"}) or absent(backup_last_success_timestamp{component="spire"}) or absent(backup_last_success_timestamp{component="checkpoints"})

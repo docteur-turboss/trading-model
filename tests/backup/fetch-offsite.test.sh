@@ -288,6 +288,50 @@ else
 	failed "--dry-run: $(cat "$WORK/out")"
 fi
 
+echo "off-site catch-up of the incremental archives"
+# backup-incremental-k8s.sh: run N cannot reach the store, run N+1 can. Run
+# N+1 must send N's archive too (record_incremental_archives), or the chain
+# off-site keeps a hole the next alert-free hour hides.
+BACKUP_DIR="$WORK/local/catchup"
+CATCHUP=s3://backups/catchup
+mkdir -p "$BACKUP_DIR/mysql/binlog/uuid-9" "$BACKUP_DIR/mongodb/oplog/mongodb-audit"
+OUTPUTS=()
+for file in mysql/binlog/uuid-9/binlog.000001_2026-11-01_013000.gz.age mongodb/oplog/mongodb-audit/1000.1_2000.1.bson.gz.age; do
+	echo "$file" | seal >"$BACKUP_DIR/$file"
+	record_output "$BACKUP_DIR/$file"
+done
+BACKUP_FAILURES=0
+BACKUP_S3_BUCKET="$CATCHUP" RCLONE_S3_ENDPOINT="http://127.0.0.1:1" RCLONE_LOW_LEVEL_RETRIES=1 RCLONE_RETRIES=1 RCLONE_CONTIMEOUT=2s \
+	upload_offsite >/dev/null 2>&1
+if [ "$BACKUP_FAILURES" -gt 0 ] && [ ! -e "$WORK/s3/backups/catchup" ]; then
+	pass "run N: the store is unreachable, the copy fails (offsite 0), nothing off-site"
+else
+	failed "run N: the failed copy was not reported or something reached the store"
+fi
+OUTPUTS=()
+for file in mysql/binlog/uuid-9/binlog.000002_2026-11-01_023000.gz.age mongodb/oplog/mongodb-audit/2000.1_3000.1.bson.gz.age; do
+	echo "$file" | seal >"$BACKUP_DIR/$file"
+	record_output "$BACKUP_DIR/$file"
+done
+record_incremental_archives
+BACKUP_FAILURES=0
+BACKUP_S3_BUCKET="$CATCHUP" upload_offsite >/dev/null 2>&1
+if [ "$BACKUP_FAILURES" -eq 0 ] &&
+	[ "$(cd "$WORK/s3/backups/catchup" 2>/dev/null && find . -type f | sed 's|^\./||' | sort)" = "$(cd "$BACKUP_DIR" && find . -type f | sed 's|^\./||' | sort)" ]; then
+	pass "run N+1 copies its own archives and run N's: the off-site chain is complete"
+else
+	failed "run N+1: off-site holds $(cd "$WORK/s3/backups/catchup" 2>/dev/null && find . -type f | sort)"
+fi
+mkdir -p "$WORK/catchup-fetched"
+RCLONE_S3_ENV_AUTH=true rclone copy "$(offsite_remote "$CATCHUP")" "$WORK/catchup-fetched" 2>/dev/null
+if binlog_chain "$WORK/catchup-fetched/mysql/binlog/uuid-9" binlog.000001 2026-11-01_020000 >/dev/null 2>&1 &&
+	oplog_chain "$WORK/catchup-fetched/mongodb/oplog/mongodb-audit" 1500.1 2500 >/dev/null 2>&1; then
+	pass "the chains fetched back from off-site reach across run N"
+else
+	failed "the chains fetched back from off-site have a gap"
+fi
+BACKUP_DIR="$WORK/local/archives"
+
 echo "refusals"
 if fetch --dest "$DEST"; then
 	failed "fetched into a directory that already holds a run"

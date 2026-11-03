@@ -11,7 +11,9 @@
 #  the newest run taken before the instant whose manifest lists it, then replays the archived MySQL binlogs
 #  and MongoDB oplogs (backup-incremental-k8s.sh) up to it, excluded. Before
 #  touching any data it checks that the archives reach the instant without a
-#  gap, and decrypts every one of them: it exits 1 otherwise. Stop the
+#  gap, and decrypts every one of them: it exits 1 otherwise.
+#  Every component is checked before the first one is written (a dry run
+#  first): a refusal leaves every database as it was. Stop the
 #  writers first (BACKUP_DR.md): a write landing between the dump restore and
 #  the replay makes the replay fail.
 #
@@ -37,6 +39,8 @@ K8S_NAMESPACE="${K8S_NAMESPACE:-trading-model}"
 # spire-server image has neither a shell nor tar).
 RESTORE_HELPER_IMAGE="${RESTORE_HELPER_IMAGE:-ghcr.io/trading-model/backup-tools:latest}"
 RESTORE_FAILURES=0
+# true once every component passed the checks (end of the script).
+CHECKED=false
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -101,6 +105,8 @@ pitr_value() {
 # Decrypts and decompresses every archive given, output discarded: a damaged
 # archive or a wrong key fails here, before any data is touched.
 check_archives() {
+  # Already done by the check pass that precedes any write.
+  $CHECKED && return 0
   local archive
   for archive in "$@"; do
     if ! open_backup "$archive" | gunzip -t 2>/dev/null; then
@@ -409,18 +415,42 @@ echo "════════════════════════�
 echo ""
 
 IFS=',' read -ra PARTS <<< "$COMPONENTS"
-for part in "${PARTS[@]}"; do
-  case "$part" in
-    mongodb)     restore_mongodb ;;
-    mysql)       restore_mysql ;;
-    checkpoints) restore_checkpoints ;;
-    spire)       restore_spire ;;
-    # Derived state only (discovery registrations and tokens, DLQ retry queue
-    # rebuilt from MongoDB): rebuilt by the services, never restored.
-    redis)       warn "Redis is not backed up: its content is rebuilt by the services" ;;
-    *)           fail "Unknown component: ${part}" ;;
-  esac
-done
+run_components() {
+  local part
+  for part in "${PARTS[@]}"; do
+    case "$part" in
+      mongodb)     restore_mongodb ;;
+      mysql)       restore_mysql ;;
+      checkpoints) restore_checkpoints ;;
+      spire)       restore_spire ;;
+      # Derived state only (discovery registrations and tokens, DLQ retry queue
+      # rebuilt from MongoDB): rebuilt by the services, never restored.
+      redis)       warn "Redis is not backed up: its content is rebuilt by the services" ;;
+      *)           fail "Unknown component: ${part}" ;;
+    esac
+  done
+}
+
+# Every component is checked (backups, checksums, --until chains, archives
+# decrypted) before the first one is written: a refusal on MySQL never comes
+# after MongoDB was already brought back, which would leave the databases at
+# different instants.
+if ! $DRY_RUN; then
+  log "Checking every component before touching any data..."
+  DRY_RUN=true
+  run_components
+  DRY_RUN=false
+  if [ "$RESTORE_FAILURES" -gt 0 ]; then
+    echo ""
+    echo "══════════════════════════════════════════════════"
+    echo "  Restore REFUSED: ${RESTORE_FAILURES} check(s) failed, nothing was touched"
+    echo "══════════════════════════════════════════════════"
+    exit 1
+  fi
+  ok "Every component checked: restoring"
+  CHECKED=true
+fi
+run_components
 
 echo ""
 if [ "$RESTORE_FAILURES" -gt 0 ]; then

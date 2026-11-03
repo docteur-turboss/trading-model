@@ -97,6 +97,19 @@ volume, age recipients and off-site store. **RPO: 1 h** for MySQL
   being archived. The chain then restarts and point-in-time restore across
   the gap is refused. MySQL keeps binlogs 30 days (`binlog_expire_logs_seconds`
   default), the oplog window is hours to days: an hourly run never comes close.
+  The oplog's oldest entry is read again after each archive: if the ring
+  turned while it was being dumped, the archive is discarded (the next run
+  reports the gap).
+- The runs after a gap succeed again, so every run also publishes
+  `backup_pitr_gap{component=…,run="incremental"}`, computed from the archive
+  names: 1 while the chain has a break after the newest daily dump of that
+  store (no restore `--until` past the break), back to 0 at the first run after
+  the next daily dump. Alert `BackupPitrGap` (see [Point-in-time chain
+  broken](#point-in-time-chain-broken)).
+- Every run copies off-site every archive still on the volume, not only its
+  own (`record_incremental_archives`; rclone skips those already there): a
+  copy that failed one hour is caught up the next, so the off-site chain has
+  no hole once `BackupOffsiteCopyFailed` resolves.
 
 ```bash
 kubectl create job --from=cronjob/db-backup-incremental db-backup-incremental-manual
@@ -251,7 +264,9 @@ and Prometheus scrapes them (job `backup-metrics`).
 | `BackupJobStale`          | the job has not run for 26 h                                                 |
 | `BackupIncrementalStale`  | a binlog / oplog archive last succeeded more than 2 h ago (2 × the interval) |
 | `BackupIncrementalMissing` | a binlog / oplog component reported nothing for 2 h                        |
-| `BackupMetricsAbsent`     | no backup metric at all (job never ran, exporter down)                       |
+| `BackupIncrementalFailed` | the last hourly run of a binlog / oplog failed (warning; the next run retries) |
+| `BackupPitrGap`           | a binlog / oplog chain has a break after the newest daily dump: no `--until` past it, until the next daily dump (stays firing while the runs succeed again) |
+| `BackupMetricsAbsent`     | no metric of the daily job (`run=""`: the incremental job's series do not count; job never ran, exporter down) |
 | `BackupUnencrypted`       | no age recipient                                                             |
 | `BackupOffsiteCopyFailed` | the off-site copy failed or is not configured                                |
 
@@ -401,6 +416,28 @@ with `--components mysql` alone, scale `spire-server` to 0 first.
 
 The window is the last 72 h (archive retention). Before that, restore a
 daily backup with `--timestamp`.
+
+Every component asked for is checked (backup, checksum, `.pitr`, archive
+chain, archives decrypted) in a first pass that writes nothing; the restore
+starts only if all of them pass. A broken MySQL chain therefore never leaves
+MongoDB already brought back to the instant: exit 1, every database as it was.
+
+#### Point-in-time chain broken
+
+`BackupPitrGap` fires: binlogs were purged or oplog entries overwritten before
+`db-backup-incremental` archived them (job suspended or failing for longer
+than the binlog / oplog window). Restores `--until` an instant after the break
+are refused until a daily dump taken after it exists. Take one now instead of
+waiting for 02:00, then run the incremental job so the alert clears:
+
+```bash
+kubectl create job --from=cronjob/db-backup db-backup-after-gap
+kubectl create job --from=cronjob/db-backup-incremental db-backup-incremental-after-gap
+```
+
+The instants inside the break cannot be restored. For `mongodb-audit-oplog`,
+if a restore later has to go back across it, the lost events are acknowledged
+as an audit-chain loss (ADR-0027, `chain-cli.js acknowledge-loss`).
 
 ### Docker
 

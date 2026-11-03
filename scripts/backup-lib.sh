@@ -359,9 +359,15 @@ resolve_backup() {
 # verify_backup <file> <size> <sha256>
 # Refuses (`fail`, returns 1) a file whose size or plaintext sha256 differs
 # from its manifest entry. No check without a recorded sha256 (legacy runs).
+# A file already verified against the same entry by this process is not read
+# again (restore-k8s.sh checks every component before restoring them).
+_VERIFIED_BACKUPS=""
 verify_backup() {
 	local file="$1" size="$2" sha="$3" actual
 	[ -n "$sha" ] || return 0
+	case "$_VERIFIED_BACKUPS" in
+	*"|${file} ${size} ${sha}|"*) return 0 ;;
+	esac
 	actual="$(file_size "$file")"
 	if [ "$actual" != "$size" ]; then
 		fail "${file}: ${actual} bytes, the run manifest says ${size}: refused"
@@ -375,6 +381,7 @@ verify_backup() {
 		fail "${file}: sha256 ${actual} differs from the run manifest (${sha}): refused"
 		return 1
 	fi
+	_VERIFIED_BACKUPS="${_VERIFIED_BACKUPS}|${file} ${size} ${sha}|"
 	ok "Checksum verified: ${file}"
 }
 
@@ -429,6 +436,19 @@ write_metric() {
 		echo "backup_last_success_timestamp{${labels}} ${last_success}"
 		echo "backup_last_status{${labels}} ${status}"
 	} >>"$_METRICS_TMP"
+}
+
+# write_pitr_gap <component> <0|1>: whether the archive chain of the
+# component is broken after the newest daily dump (backup-incremental-k8s.sh,
+# alert BackupPitrGap). Counted as neither a success nor a failure.
+write_pitr_gap() {
+	[ -n "${METRICS_FILE:-}" ] || return 0
+	if [ -z "$_METRICS_TMP" ]; then
+		mkdir -p "$(dirname "$METRICS_FILE")"
+		_METRICS_TMP="${METRICS_FILE}.tmp"
+		: >"$_METRICS_TMP"
+	fi
+	echo "backup_pitr_gap{component=\"$1\"${BACKUP_RUN:+,run=\"${BACKUP_RUN}\"}} $2" >>"$_METRICS_TMP"
 }
 
 # Publishes this run's metrics (replacing the previous run's).
@@ -518,6 +538,25 @@ upload_offsite() {
 		fail "Off-site copy failed"
 		write_metric "offsite" 0
 	fi
+}
+
+# Registers for the off-site copy every binlog and oplog archive still on the
+# volume (backup-incremental-k8s.sh, after pruning), not only this run's: an
+# archive whose copy failed once is sent again by the next run, so the chain
+# off-site has no hole left by a transient S3 failure. rclone skips the files
+# already in the bucket (same size and modification time).
+record_incremental_archives() {
+	local dir path
+	for dir in "${BACKUP_DIR}/mysql/binlog" "${BACKUP_DIR}/mongodb/oplog"; do
+		[ -d "$dir" ] || continue
+		while read -r path; do
+			[ -n "$path" ] || continue
+			case " ${OUTPUTS[*]} " in
+			*" ${path#"${BACKUP_DIR}"/} "*) continue ;;
+			esac
+			record_output "$path"
+		done < <(find "$dir" -type f \( -name '*.gz' -o -name '*.gz.age' \) | sort)
+	done
 }
 
 # Deletes the backup files and run manifests older than RETENTION_DAYS
@@ -748,4 +787,80 @@ oplog_chain() {
 		echo "the oplog archives of ${dir} end at ${prev}, before the requested instant" >&2
 		return 1
 	fi
+}
+
+# --- Chain breaks (backup-incremental-k8s.sh, alert BackupPitrGap) -----------
+#
+# A binlog purged or an oplog entry overwritten before being archived breaks
+# the chain for good: from the dumps taken before the break, no point-in-time
+# restore can cross it. The archiving run that finds it fails once, the next
+# ones succeed again from after the break; these helpers tell, from the names
+# only, whether the break still matters, that is whether the newest daily dump
+# was taken before it.
+
+# Stamp of the newest binlog archive of directory `$1` that follows a missing
+# binlog (the chain resumed there), empty when the chain is unbroken.
+binlog_break() {
+	local prev="" index stamp path at=""
+	while read -r index stamp path; do
+		[ -n "$index" ] || continue
+		if [ -n "$prev" ] && [ "$index" -ne $((prev + 1)) ]; then
+			at="$stamp"
+		fi
+		prev="$index"
+	done < <(binlog_archives "$1")
+	echo "$at"
+}
+
+# Unix time (seconds of its `from` point) of the newest oplog archive of
+# directory `$1` that does not start at the previous one's end, empty when
+# the chain is unbroken.
+oplog_break() {
+	local prev="" from end path at=""
+	while read -r from end path; do
+		[ -n "$from" ] || continue
+		if [ -n "$prev" ] && [ "$from" != "$prev" ]; then
+			at="${from%.*}"
+		fi
+		prev="$end"
+	done < <(oplog_archives "$1")
+	echo "$at"
+}
+
+# Stamp of the newest daily dump of store `$1` (mysql, mongodb, mongodb-audit)
+# that carries a PITR starting point, read from the file names.
+newest_pitr_dump() {
+	local path
+	case "$1" in
+	mysql)
+		path=$(find "${BACKUP_DIR}/mysql" -maxdepth 1 -type f \( -name 'financial_scraper_*.pitr' -o -name 'financial_scraper_*.pitr.age' \) 2>/dev/null | sort | tail -1)
+		path="${path##*/financial_scraper_}"
+		echo "${path%%.*}"
+		;;
+	*)
+		path=$(find "${BACKUP_DIR}/mongodb" -mindepth 2 -maxdepth 2 -type f \( -name "$1.pitr" -o -name "$1.pitr.age" \) 2>/dev/null | sort | tail -1)
+		[ -n "$path" ] && basename "$(dirname "$path")"
+		;;
+	esac
+	return 0
+}
+
+# 0 when the chain of store `$1` (archives in `$2`) is broken after the newest
+# daily dump's start: point-in-time restore to an instant after the break is
+# impossible until the next daily dump.
+pitr_broken() {
+	local dump at
+	dump=$(newest_pitr_dump "$1")
+	case "$1" in
+	mysql)
+		at=$(binlog_break "$2")
+		[ -n "$at" ] || return 1
+		[ -z "$dump" ] || [[ "$dump" < "$at" ]]
+		;;
+	*)
+		at=$(oplog_break "$2")
+		[ -n "$at" ] || return 1
+		[ -z "$dump" ] || [ "$(stamp_epoch "$dump")" -le "$at" ]
+		;;
+	esac
 }

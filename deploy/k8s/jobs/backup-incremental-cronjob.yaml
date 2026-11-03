@@ -9,7 +9,10 @@
 #  Metrics: /backups/metrics/backup-incremental.prom, every series labelled
 #  run="incremental" (components mysql-binlog, mongodb-oplog,
 #  mongodb-audit-oplog), served next to the daily job's by
-#  backup-metrics-exporter. Alert: BackupIncrementalStale (2 h).
+#  backup-metrics-exporter. Alerts: BackupIncrementalStale (2 h),
+#  BackupIncrementalFailed, BackupPitrGap (backup_pitr_gap: chain broken
+#  after the newest daily dump). Every run copies every local archive
+#  off-site, so a failed copy is caught up by the next run.
 # =============================================================================
 apiVersion: batch/v1
 kind: CronJob
