@@ -3,6 +3,7 @@
 #  Trading Model — Database Restore Script (Kubernetes)
 #  Usage:  bash scripts/restore-k8s.sh [--dry-run] [--components mongodb,mongodb-audit,mysql,checkpoints,spire]
 #          [--timestamp 2025-01-01_120000 | --until 2025-01-01T13:45:00Z]
+#          [--allow-mixed-runs]
 #          BACKUP_DIR=/backups RESTORE_TIMESTAMP=2025-01-01_120000
 #          BACKUP_AGE_IDENTITY=~/backup-key.txt (to read *.age backups)
 #
@@ -17,8 +18,12 @@
 #  writers first (BACKUP_DR.md): a write landing between the dump restore and
 #  the replay makes the replay fail.
 #
-#  Without --timestamp, each component comes from the newest run whose
-#  manifest lists it; every file is checked against its manifest (size,
+#  Without --timestamp, ONE run is picked for all the components asked: the
+#  newest whose manifest lists every one of them (issue #330; the timestamp is
+#  printed). None: exit 1. --allow-mixed-runs restores the old rule, each
+#  component from the newest run whose manifest lists it, with a warning per
+#  component (SPIRE keys and the `spire` database may then be out of step).
+#  Every file is checked against its manifest (size,
 #  sha256 of the plaintext; MySQL: ends with `-- Dump completed`) before
 #  anything is written, --dry-run included. Runs taken before manifests are
 #  only restored with an explicit --timestamp (see backup-lib.sh).
@@ -43,6 +48,8 @@ K8S_NAMESPACE="${K8S_NAMESPACE:-trading-model}"
 # spire-server image has neither a shell nor tar).
 RESTORE_HELPER_IMAGE="${RESTORE_HELPER_IMAGE:-ghcr.io/trading-model/backup-tools:latest}"
 RESTORE_FAILURES=0
+# true: each component from its own newest run (see the header).
+ALLOW_MIXED_RUNS="${ALLOW_MIXED_RUNS:-false}"
 # true once every component passed the checks (end of the script).
 CHECKED=false
 
@@ -52,6 +59,7 @@ while [[ $# -gt 0 ]]; do
     --components) COMPONENTS="$2"; shift 2 ;;
     --timestamp) RESTORE_TIMESTAMP="$2"; shift 2 ;;
     --until) RESTORE_UNTIL="$2"; shift 2 ;;
+    --allow-mixed-runs) ALLOW_MIXED_RUNS=true; shift ;;
     *) echo "Unknown option: $1"; exit 1 ;;
   esac
 done
@@ -408,6 +416,21 @@ EOF
     fail "SPIRE server is not healthy after the CA key restore"
   fi
 }
+
+# One run for every component (backup-lib.sh select_common_run), before the
+# banner prints the timestamp.
+RUN_KEYS=()
+IFS=',' read -ra REQUESTED <<< "$COMPONENTS"
+for part in "${REQUESTED[@]}"; do
+  case "$part" in
+    mongodb)       RUN_KEYS+=(mongodb mongodb-audit) ;;
+    mongodb-audit|mysql|checkpoints|spire) RUN_KEYS+=("$part") ;;
+  esac
+done
+if ! select_common_run "${RUN_KEYS[@]}"; then
+  echo "Restore REFUSED: nothing was touched"
+  exit 1
+fi
 
 echo ""
 echo "══════════════════════════════════════════════════"

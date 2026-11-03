@@ -149,6 +149,10 @@ backup_checkpoints() {
   fi
 }
 
+# keys.json is read AFTER the MySQL dump (default component order) on purpose:
+# SPIRE stores a new CA key here before journaling it in the datastore (inside
+# the dump), so this file holds every key that journal refers to. Do not run
+# spire before mysql (BACKUP_DR.md, issue #330).
 backup_spire() {
   log "Starting SPIRE CA key backup..."
   local dest="${BACKUP_DIR}/spire"

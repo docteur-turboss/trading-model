@@ -318,6 +318,58 @@ read_manifest_entry() {
 	fi
 }
 
+# select_common_run <key>...
+# Without an explicit run (RESTORE_TIMESTAMP=latest) and without
+# ALLOW_MIXED_RUNS=true, picks ONE run for every manifest key given: the
+# newest run (not after RESTORE_NOT_AFTER, when set) whose manifest lists all
+# of them with their files present, and sets RESTORE_TIMESTAMP to it, so each
+# component then comes from the same run (issue #330: a MySQL dump of day J-1
+# next to the SPIRE keys of day J gives a CA out of step with its journal).
+# Returns 1 (after `fail`) when no run holds them all. No-op with an explicit
+# timestamp, or when mixing is allowed (resolve_backup then warns per component).
+select_common_run() {
+	[ "$RESTORE_TIMESTAMP" = "latest" ] || return 0
+	[ "${ALLOW_MIXED_RUNS:-false}" != "true" ] || return 0
+	[ "$#" -gt 0 ] || return 0
+	local manifest stamp key entry path found=false complete
+	while read -r manifest; do
+		[ -n "$manifest" ] || continue
+		stamp="${manifest##*/manifest_}"
+		stamp="${stamp%%.json*}"
+		if [ -n "${RESTORE_NOT_AFTER:-}" ] && [[ "$stamp" > "$RESTORE_NOT_AFTER" ]]; then
+			continue
+		fi
+		found=true
+		complete=true
+		for key in "$@"; do
+			read_manifest_entry "$key" "$manifest" || return 1
+			entry="$MANIFEST_ENTRY"
+			if [ -z "$entry" ]; then
+				log "run ${stamp} skipped: ${key} is not in its manifest (that dump failed)"
+				complete=false
+				break
+			fi
+			read -r path _ _ <<<"$entry"
+			if [ ! -f "${BACKUP_DIR}/${path}" ]; then
+				warn "run ${stamp} skipped: ${path} listed in its manifest is missing"
+				complete=false
+				break
+			fi
+		done
+		if $complete; then
+			RESTORE_TIMESTAMP="$stamp"
+			log "Restoring run ${stamp}: it holds every requested component ($*)"
+			return 0
+		fi
+	done < <(manifests_newest_first)
+	if ! $found; then
+		fail "no run manifest in ${BACKUP_DIR}/manifests${RESTORE_NOT_AFTER:+ taken at or before ${RESTORE_NOT_AFTER}}; backups taken before manifests are restored with an explicit --timestamp"
+	else
+		fail "no single run holds every requested component ($*): restore an older run with --timestamp, or --allow-mixed-runs to take each component from its own newest run (components may then be out of step)"
+	fi
+	return 1
+}
+
 # resolve_backup <key> <legacy path...>
 # Sets RESOLVED_FILE, RESOLVED_SIZE, RESOLVED_SHA256 for manifest entry `<key>`:
 #   RESTORE_TIMESTAMP=latest  the newest run whose manifest lists `<key>` (a
@@ -357,6 +409,10 @@ resolve_backup() {
 				continue
 			fi
 			RESOLVED_FILE="${BACKUP_DIR}/${path}"
+			if [ "${ALLOW_MIXED_RUNS:-false}" = "true" ]; then
+				stamp="${manifest##*/manifest_}"
+				warn "${key}: taken from run ${stamp%%.json*} on its own (--allow-mixed-runs): it may not match the other components"
+			fi
 			return 0
 		done < <(manifests_newest_first)
 		if ! $found; then
