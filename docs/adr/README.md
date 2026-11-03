@@ -41,6 +41,7 @@ An ADR documents a significant architectural decision, including the context, al
 | [ADR-0031](./0031-point-in-time-recovery-hourly-archives.md) | Point-in-Time Recovery From Hourly Binlog and Oplog Archives (RPO 1 h, 72 h Window) | Accepted | 2026-11 |
 | [ADR-0032](./0032-gfs-backup-retention.md) | Grandfather-Father-Son Backup Retention, Long Tiers Off-site for the Audit Trail and MySQL | Accepted | 2026-11 |
 | [ADR-0033](./0033-offsite-backup-bucket-object-lock.md) | Off-site Backup Bucket Under Object Lock (Compliance, 30-31 Days), Checked Before Every Deploy | Accepted | 2026-11 |
+| [ADR-0034](./0034-backup-key-custody-and-weekly-escrow-check.md) | Two Backup Keys in Production, Escrow Key Verified Weekly by GitHub Actions | Accepted | 2026-11 |
 
 ## Keeping ADRs true to the runtime
 

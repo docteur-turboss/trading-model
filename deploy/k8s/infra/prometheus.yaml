@@ -484,7 +484,7 @@ data:
               severity: critical
             annotations:
               summary: "Backups are not encrypted"
-              description: "No age recipient configured (ConfigMap backup-encryption): the backup job refuses to run."
+              description: "No age recipient configured (ConfigMap backup-encryption), or fewer distinct recipients than BACKUP_MIN_RECIPIENTS (2 in production): the backup job refuses to run."
 
           - alert: BackupOffsiteCopyFailed
             expr: backup_last_status{component="offsite"} == 0

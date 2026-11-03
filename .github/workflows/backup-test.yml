@@ -13,12 +13,14 @@ on:
       - 'scripts/backup*.sh'
       - 'scripts/restore*.sh'
       - 'scripts/fetch-offsite.sh'
+      - 'scripts/verify-backup-key.sh'
       - 'deploy/backup/**'
       - 'tests/backup/**'
       - 'services/audit-logger/src/adapters/outbound/persistence/**'
       - 'docker-compose.yml'
       - 'deploy/compose/spire/**'
       - '.github/workflows/backup-test.yml'
+      - '.github/workflows/backup-key-check.yml'
 
 permissions:
   contents: read
@@ -36,7 +38,7 @@ jobs:
 
       - name: Validate backup scripts syntax
         run: |
-          for script in backup.sh restore.sh backup-k8s.sh backup-incremental-k8s.sh restore-k8s.sh backup-lib.sh fetch-offsite.sh backup-bucket-check.sh; do
+          for script in backup.sh restore.sh backup-k8s.sh backup-incremental-k8s.sh restore-k8s.sh backup-lib.sh fetch-offsite.sh backup-bucket-check.sh backup-recipients-check.sh verify-backup-key.sh; do
             bash -n "scripts/$script" && echo "  ✓ $script syntax OK"
           done
 
@@ -47,6 +49,13 @@ jobs:
       # GTID filtering, restore of *.age files (scripts/backup-lib.sh).
       - name: Test the backup library
         run: bash tests/backup/backup-encryption.test.sh
+
+      # Two age recipients in production and proof that a key decrypts the
+      # backups (issue #327): BACKUP_MIN_RECIPIENTS refusals, the deploy.yml
+      # recipients check, verify-backup-key.sh with each of two keys (pass),
+      # a third key, a component sealed for another key, a missing one (fail).
+      - name: Test the backup key checks
+        run: bash tests/backup/backup-key-verify.test.sh
 
       # Point-in-time recovery chains (ADR-0031): which binlog / oplog
       # archives restore-k8s.sh --until replays, gaps refused, no partial file.
@@ -72,7 +81,8 @@ jobs:
         run: bash tests/backup/backup-bucket-check.test.sh
 
       # Off-site fetch (scripts/fetch-offsite.sh) against `rclone serve s3`
-      # filled by upload_offsite: run selection, layout, refusals. Runs in the
+      # filled by upload_offsite: run selection, layout, refusals, and
+      # verify-backup-key.sh --offsite on the fetched run. Runs in the
       # backup-tools image: it ships the rclone the CronJob uses (serve s3
       # needs >= 1.65, newer than Ubuntu's).
       - name: Test the off-site fetch

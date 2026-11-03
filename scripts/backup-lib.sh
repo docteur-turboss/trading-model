@@ -9,6 +9,10 @@
 #                               while it is written: no plaintext copy ever
 #                               reaches the disk. Files get the `.age` suffix
 #    BACKUP_REQUIRE_ENCRYPTION  true: refuse to back up without recipients
+#    BACKUP_MIN_RECIPIENTS      minimum number of distinct valid recipients
+#                               (default 1; 2 in production: operator key +
+#                               escrow key, docs/deployment/ENCRYPTION_AT_REST.md
+#                               "Key custody"). Fewer: no backup written
 #    BACKUP_AGE_IDENTITY        private key file, read by the restore scripts
 #                               to decrypt `*.age` files
 #  Off-site copy (only encrypted files ever leave):
@@ -42,13 +46,36 @@ _METRICS_TMP=""
 # sha256 of an empty input: a dump with no plaintext is never a backup.
 EMPTY_SHA256="e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
 
-init_encryption() {
-	local recipient count=0
+# Distinct entries of BACKUP_AGE_RECIPIENTS (space or newline separated), in
+# order of first appearance: the same key listed twice is one recipient.
+distinct_recipients() {
+	local recipient seen=" "
 	for recipient in ${BACKUP_AGE_RECIPIENTS:-}; do
+		case "$seen" in
+		*" ${recipient} "*) continue ;;
+		esac
+		seen="${seen}${recipient} "
+		echo "$recipient"
+	done
+}
+
+# True when `$1` is a valid BACKUP_MIN_RECIPIENTS (positive integer).
+valid_min_recipients() {
+	[[ "$1" =~ ^[1-9][0-9]*$ ]]
+}
+
+init_encryption() {
+	local recipient count=0 min="${BACKUP_MIN_RECIPIENTS:-1}"
+	if ! valid_min_recipients "$min"; then
+		fail "BACKUP_MIN_RECIPIENTS=${min} is not a positive integer: no backup written"
+		return 1
+	fi
+	while read -r recipient; do
+		[ -n "$recipient" ] || continue
 		AGE_ARGS+=(-r "$recipient")
 		count=$((count + 1))
-	done
-	if [ "$count" -eq 0 ]; then
+	done < <(distinct_recipients)
+	if [ "$count" -eq 0 ] && [ "$min" -eq 1 ]; then
 		if [ "${BACKUP_REQUIRE_ENCRYPTION:-false}" = true ]; then
 			fail "BACKUP_REQUIRE_ENCRYPTION=true but BACKUP_AGE_RECIPIENTS is empty: no backup written"
 			return 1
@@ -56,15 +83,24 @@ init_encryption() {
 		warn "BACKUP_AGE_RECIPIENTS is not set: backups are written UNENCRYPTED"
 		return 0
 	fi
+	# A lost key must not make every backup unreadable: with a minimum of 2,
+	# the escrow key still decrypts them (ENCRYPTION_AT_REST.md, "Key custody").
+	if [ "$count" -lt "$min" ]; then
+		fail "BACKUP_AGE_RECIPIENTS holds ${count} distinct recipient(s), BACKUP_MIN_RECIPIENTS=${min}: no backup written"
+		return 1
+	fi
 	if ! command -v age >/dev/null; then
 		fail "age is not installed"
 		return 1
 	fi
-	# Rejects a malformed key now rather than after the first dump.
-	if ! echo | age "${AGE_ARGS[@]}" >/dev/null; then
-		fail "BACKUP_AGE_RECIPIENTS holds an invalid age public key"
-		return 1
-	fi
+	# Rejects a malformed key now rather than after the first dump, naming it.
+	while read -r recipient; do
+		[ -n "$recipient" ] || continue
+		if ! echo | age -r "$recipient" >/dev/null; then
+			fail "BACKUP_AGE_RECIPIENTS holds an invalid age public key: ${recipient}"
+			return 1
+		fi
+	done < <(distinct_recipients)
 	AGE_SUFFIX=".age"
 	ok "Backups encrypted with age for ${count} recipient(s)"
 }
@@ -429,7 +465,9 @@ write_metric() {
 		last_success="$(date +%s)"
 	else
 		# A failure keeps the previous success time, so the staleness alert fires.
-		last_success="$(grep -F "backup_last_success_timestamp{${labels}}" "$METRICS_FILE" 2>/dev/null | awk '{print $2}' | tail -1)"
+		# No metrics file yet (first run on a new volume): grep fails, and under
+		# `set -e -o pipefail` that would end the run before the metric is written.
+		last_success="$(grep -F "backup_last_success_timestamp{${labels}}" "$METRICS_FILE" 2>/dev/null | awk '{print $2}' | tail -1 || true)"
 		last_success="${last_success:-0}"
 	fi
 	{
