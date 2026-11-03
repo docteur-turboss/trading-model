@@ -178,12 +178,16 @@ bash scripts/restore-k8s.sh --timestamp 2026-10-01_020000 --components mongodb
 ```
 
 Or inside the cluster, next to the `backup-data` volume: a pod running
-`backup-tools` with the `backup-scripts` ConfigMap at `/scripts` and
-`backup-data` at `/backups` (as `tests/k8s/restore-runner.yaml` does), the
-private key passed on stdin:
+`backup-tools` with the `backup-scripts` ConfigMap at `/scripts`,
+`backup-data` at `/backups` (the default `BACKUP_DIR`) and a service account
+with namespace admin rights, the private key passed on stdin. No manifest ships
+for this case: `tests/k8s/restore-runner.yaml` no longer mounts `backup-data`
+(it restores from the off-site bucket, see the next section), and
+`backup-inspector` in the same file mounts it read-only, without a service
+account, to check what the CronJob wrote.
 
 ```bash
-kubectl exec -i -n trading-model restore-runner -- sh -c \
+kubectl exec -i -n trading-model <restore-pod> -- sh -c \
   'umask 077 && cat > /tmp/id && BACKUP_AGE_IDENTITY=/tmp/id K8S_NAMESPACE=trading-model \
    bash /scripts/restore-k8s.sh; rc=$?; rm -f /tmp/id; exit $rc' < ~/backup-key.txt
 ```
