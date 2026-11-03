@@ -70,7 +70,9 @@ jobs:
         run: bash tests/backup/pitr-chain.test.sh
 
       # A failed dump leaves no file, run manifests, `latest` = last complete
-      # run, checksum and `-- Dump completed` refusals (issue #288).
+      # run, checksum and `-- Dump completed` refusals (issue #288); one run for
+      # all components, MySQL failed on day J => J-1 for MySQL and SPIRE, and
+      # --allow-mixed-runs (issue #330).
       - name: Test failed dumps and run manifests
         run: bash tests/backup/backup-partial.test.sh
 

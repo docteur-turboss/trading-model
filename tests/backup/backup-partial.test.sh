@@ -107,13 +107,40 @@ write_dump mysql "$BACKUP_DIR/mysql/financial_scraper_${TIMESTAMP}.sql.gz.age" d
 write_manifest 2>/dev/null
 (printf 'DROP TABLE IF EXISTS t;\nCREATE TABLE t' | gzip | seal) >"$BACKUP_DIR/mysql/financial_scraper_2026-11-02_020000.sql.gz.age"
 for script in restore.sh restore-k8s.sh; do
+	# Issue #330: MySQL and SPIRE come from the same run, the last one that
+	# holds both (11-01), not SPIRE of 11-02 next to MySQL of 11-01.
 	out="$(restore_dry "$script" --components mysql,spire || true)"
-	if echo "$out" | grep -q 'Restoring mysql from: .*financial_scraper_2026-11-01_020000' &&
-		echo "$out" | grep -q 'Restoring spire from: .*keys_2026-11-02_020000' &&
-		! echo "$out" | grep -q 'financial_scraper_2026-11-02'; then
-		pass "$script: MySQL from the last complete run (11-01), SPIRE from the newest (11-02)"
+	if echo "$out" | grep -q 'Restoring run 2026-11-01_020000' &&
+		echo "$out" | grep -q 'Restoring mysql from: .*financial_scraper_2026-11-01_020000' &&
+		echo "$out" | grep -q 'Restoring spire from: .*keys_2026-11-01_020000' &&
+		! echo "$out" | grep -q '2026-11-02_020000.json.age|financial_scraper_2026-11-02'; then
+		pass "$script: MySQL and SPIRE both from the last complete run (11-01), 11-02 skipped"
 	else
 		failed "$script picked the wrong runs:"
+		echo "$out" | sed 's/^/      /'
+	fi
+	# One component alone still takes the newest run that has it.
+	out="$(restore_dry "$script" --components spire || true)"
+	echo "$out" | grep -q 'Restoring spire from: .*keys_2026-11-02_020000' &&
+		pass "$script: SPIRE alone from its newest run (11-02)" ||
+		failed "$script: SPIRE alone picked the wrong run: $out"
+	# No run holds every component: refused, nothing touched.
+	if out="$(restore_dry "$script" --components mysql,spire,checkpoints)"; then
+		failed "$script accepted components no single run holds"
+	elif echo "$out" | grep -q 'no single run holds every requested component'; then
+		pass "$script exits 1 when no run holds every component"
+	else
+		failed "$script refused without the expected message: $out"
+	fi
+	# Explicit opt-in: the old per-component rule, one warning per component.
+	out="$(restore_dry "$script" --allow-mixed-runs --components mysql,spire || true)"
+	if echo "$out" | grep -q 'Restoring mysql from: .*financial_scraper_2026-11-01_020000' &&
+		echo "$out" | grep -q 'Restoring spire from: .*keys_2026-11-02_020000' &&
+		echo "$out" | grep -q 'mysql: taken from run 2026-11-01_020000 on its own' &&
+		echo "$out" | grep -q 'spire: taken from run 2026-11-02_020000 on its own'; then
+		pass "$script --allow-mixed-runs: per-component runs, one warning each"
+	else
+		failed "$script --allow-mixed-runs behaved wrongly:"
 		echo "$out" | sed 's/^/      /'
 	fi
 done

@@ -201,11 +201,16 @@ the size of the file on disk (encrypted), `sha256` the checksum of its
 decrypted content. One entry per line: the restore scripts read it without
 `jq`.
 
-**Selection rule** (`resolve_backup`, both restore scripts):
+**Why one run (issue #330).** A night where MySQL fails and SPIRE succeeds must not give `keys.json` of day J with the `spire` database (inside the MySQL dump) of day J-1. `tests/backup/backup-partial.test.sh` reproduces it: both components come from J-1.
+
+**SPIRE on Kubernetes, `keys.json` against the datastore.** `backup-k8s.sh` dumps MySQL (which holds the `spire` datastore: bundle, CA journal) before it reads `keys.json` (component order `mysql` then `spire`, kept by the default `--components`), without pausing the server. SPIRE writes a new CA key to `keys.json` before recording it in the datastore journal, so a `keys.json` read after the dump always holds every key the journal in the dump refers to (at worst one more, unused). The server is not paused: a pause would drop SVID issuance and rotation for every workload. The reverse order (keys first) would be unsafe, hence do not reorder them and do not run `--components spire,mysql`.
+
+**Selection rule** (`select_common_run` then `resolve_backup`, both restore scripts):
 
 | Invocation | Backup restored for each requested component |
 | ---------- | -------------------------------------------- |
-| no `--timestamp` (`latest`) | the newest run whose manifest lists the component; a run whose listed file is gone is skipped with a warning. Files without manifest are never picked: with no manifest at all the restore refuses and asks for `--timestamp` |
+| no `--timestamp` (`latest`) | ONE run for all the requested components: the newest whose manifest lists every one of them (`mongodb` counts for both replica sets); its timestamp is printed. A run missing a component (that dump failed) or whose listed file is gone is skipped. No such run: exit 1, nothing touched. Files without manifest are never picked: with no manifest at all the restore refuses and asks for `--timestamp` |
+| no `--timestamp`, `--allow-mixed-runs` | the previous rule, on purpose: each component from the newest run whose manifest lists it, one warning per component naming its run. SPIRE `keys.json` and the `spire` database may then come from different nights (CA out of step with its journal): last resort only |
 | `--timestamp <ts>`, run with manifest | that run; refused (exit 1) when its manifest does not list the component |
 | `--timestamp <ts>`, run without manifest (taken before 2026-11) | the file of that run, with a warning: no checksum to verify |
 
