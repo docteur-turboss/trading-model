@@ -165,7 +165,7 @@ jobs:
       KIND: ./kind
       # Restore drill timings (tests/backup/drill-timings.sh): JSON uploaded
       # below, table in the job summary. RESTORE_DRILL_BUDGET_SECONDS (default
-      # 5400 s, disaster to checks) and RESTORE_DRILL_BUDGET_MODE (fail or
+      # 1200 s, about 5 times the 252 s of the first CI run; disaster to checks) and RESTORE_DRILL_BUDGET_MODE (fail or
       # warn, default fail) can be set here; kind on a shared runner is slow
       # and not representative of production, the RTO is judged in
       # docs/compliance/dr-exercise-log.md.

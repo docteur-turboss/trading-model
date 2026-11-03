@@ -114,8 +114,8 @@ for field in count first last digest broken; do
 done
 
 drill_record verify_data $((SECONDS - verify_started))
-# Wide budget (a shared CI runner, and the weekly drill on a few KB of data):
-# see tests/backup/drill-timings.sh.
-drill_finish 1800
+# Default budget 300 s: about 5 times the 20 s recovery window of the first CI
+# run (a few KB of data), see tests/backup/drill-timings.sh.
+drill_finish 300
 
 log "OK: MongoDB (3 databases, audit chain intact), MySQL, Redis and the SPIRE CA restored from encrypted backups"

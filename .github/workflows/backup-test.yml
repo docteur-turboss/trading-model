@@ -53,14 +53,14 @@ jobs:
       - name: Test the backup library
         run: bash tests/backup/backup-encryption.test.sh
 
-      # Two age recipients in production and proof that a key decrypts the
-      # backups (issue #327): BACKUP_MIN_RECIPIENTS refusals, the deploy.yml
-      # recipients check, verify-backup-key.sh with each of two keys (pass),
-      # a third key, a component sealed for another key, a missing one (fail).
       # Step timings and budget of the restore drills (issue #329).
       - name: Test the restore drill timings
         run: bash tests/backup/drill-timings.test.sh
 
+      # Two age recipients in production and proof that a key decrypts the
+      # backups (issue #327): BACKUP_MIN_RECIPIENTS refusals, the deploy.yml
+      # recipients check, verify-backup-key.sh with each of two keys (pass),
+      # a third key, a component sealed for another key, a missing one (fail).
       - name: Test the backup key checks
         run: bash tests/backup/backup-key-verify.test.sh
 
@@ -101,7 +101,8 @@ jobs:
       # image), MySQL, Redis and the SPIRE server (CA keys + datastore):
       # backup → containers and volumes deleted → restore → checks.
       # Per-step timings: table in the job summary, JSON as artifact. Budget
-      # RESTORE_DRILL_BUDGET_SECONDS (default 1800 s, disaster to checks),
+      # RESTORE_DRILL_BUDGET_SECONDS (default 300 s, about 5 times the 20 s of the
+      # first CI run; disaster to checks),
       # RESTORE_DRILL_BUDGET_MODE=fail|warn (default fail).
       - name: Restore drill (Docker scripts)
         env:

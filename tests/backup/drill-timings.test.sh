@@ -25,6 +25,7 @@ json_field() { node -e 'const v = JSON.parse(require("fs").readFileSync(process.
 run_drill() {
 	local recovery="$1" default_budget="$2"
 	(
+		trap - EXIT # the subshell inherits the cleanup trap of this script
 		export DRILL_TIMINGS_FILE="$WORK/timings.json" GITHUB_STEP_SUMMARY="$WORK/summary.md"
 		drill_begin test
 		drill_record backup 3
@@ -74,6 +75,8 @@ cat >"$WORK/restore.log" <<'LOG'
 LOG
 components() {
 	(
+		trap - EXIT
+		export DRILL_TIMINGS_FILE="$WORK/components.json"
 		drill_begin test
 		drill_record_components "$WORK/restore.log"
 		[ "${DRILL_STEP_NAMES[*]}" = "restore_mongodb restore_mysql restore_spire restore_total" ] &&
@@ -81,6 +84,31 @@ components() {
 	)
 }
 check "restore-k8s.sh timing lines recorded per component" components
+
+# A drill that dies half way (set -e, die) still leaves a valid JSON and a
+# summary with the steps done, status failed, and keeps its exit status; an
+# EXIT trap set before drill_begin still runs.
+rm -f "$WORK/summary.md" "$WORK/timings.json" "$WORK/prior-trap"
+dying_drill() {
+	(
+		export DRILL_TIMINGS_FILE="$WORK/timings.json" GITHUB_STEP_SUMMARY="$WORK/summary.md"
+		trap - EXIT
+		trap 'touch "$WORK/prior-trap"' EXIT
+		drill_begin test
+		drill_record backup 3
+		drill_disaster
+		exit 7
+	) >"$WORK/out.txt" 2>&1
+}
+dying_status() { dying_drill && return 1 || [ "$?" -eq 7 ]; }
+check "dying drill keeps its exit status" dying_status
+check "dying drill: JSON status failed" test "$(json_field "$WORK/timings.json" status)" = failed
+check "dying drill: steps done are listed" test "$(json_field "$WORK/timings.json" steps_seconds.backup)" = 3
+check "dying drill: summary written" grep -q '^| backup | 3 |$' "$WORK/summary.md"
+check "dying drill: summary says it stopped" grep -q 'stopped before its end' "$WORK/summary.md"
+check "dying drill: earlier EXIT trap still runs" test -f "$WORK/prior-trap"
+check "passing drill: JSON status passed" run_drill 1 100
+check "passing drill: status passed" test "$(json_field "$WORK/timings.json" status)" = passed
 
 [ "$FAILURES" -eq 0 ] || {
 	echo "$FAILURES check(s) failed"

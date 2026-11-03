@@ -728,9 +728,9 @@ verify_backup() {
 	wait_for 300 prometheus_targets_down
 	drill_record verify_services $((SECONDS - step_started))
 	$K -n "$NS" delete pod restore-runner --wait=false
-	# Budget wide on purpose (kind on a shared runner, writers drained for up
-	# to 7 minutes): see tests/backup/drill-timings.sh.
-	drill_finish 5400
+	# Default budget 1200 s: about 5 times the 252 s recovery window of the
+	# first CI run, see tests/backup/drill-timings.sh.
+	drill_finish 1200
 }
 
 delete() {
