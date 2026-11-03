@@ -968,7 +968,13 @@ offsite_catchup() {
 
 # --- Kubernetes (backup-k8s.sh, restore-k8s.sh) -----------------------------
 
+# stderr is kept: the tool's own error reaches the job log (issue #332).
 kubectl_exec() {
+	kubectl exec -n "${K8S_NAMESPACE}" "$@"
+}
+
+# Same, for probes where a failure is a normal answer (is this pod the primary?).
+kubectl_exec_probe() {
 	kubectl exec -n "${K8S_NAMESPACE}" "$@" 2>/dev/null
 }
 
@@ -983,7 +989,7 @@ component_pods() {
 mongo_primary() {
 	local pod
 	for pod in $(component_pods "$1"); do
-		if [ "$(kubectl_exec "${pod}" -- mongosh --quiet --eval 'db.hello().isWritablePrimary')" = "true" ]; then
+		if [ "$(kubectl_exec_probe "${pod}" -- mongosh --quiet --eval 'db.hello().isWritablePrimary')" = "true" ]; then
 			echo "${pod}"
 			return 0
 		fi

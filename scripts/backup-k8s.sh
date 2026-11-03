@@ -62,7 +62,7 @@ backup_mongodb() {
     fi
     local file="${dest}/${label}.archive.gz${AGE_SUFFIX}"
     local pitr="${dest}/${label}.pitr${AGE_SUFFIX}"
-    if write_dump "$label" "$file" kubectl_exec "${primary}" -- mongodump --gzip --archive --oplog &&
+    if write_dump "$label" "$file" kubectl_exec "${primary}" -- mongodump --quiet --gzip --archive --oplog &&
       sealed_write "$pitr" echo "oplog_ts=${start}"; then
       ok "MongoDB backup complete: ${label} (${primary}, oplog from ${start})"
       record_output "$pitr"
@@ -79,7 +79,7 @@ backup_mongodb() {
 # (ADR-0031): --source-data=2 writes them as a comment at the top of the
 # dump, copied to file `$2` on the way through.
 mysql_dump_gz() {
-  mysql_root_sh "$1" "$MYSQL_DUMP_SH --source-data=2" 2>/dev/null |
+  mysql_root_sh "$1" "$MYSQL_DUMP_SH --source-data=2" |
     awk -v out="$2" '!found && /^-- CHANGE (REPLICATION SOURCE|MASTER) TO/ { print > out; close(out); found = 1 } { print }' |
     gzip
 }

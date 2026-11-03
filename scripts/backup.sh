@@ -47,15 +47,10 @@ wait_for_bgsave() {
   return 1
 }
 
-# docker with its stderr discarded (the dump commands are noisy on stderr).
-docker_quiet() {
-  docker "$@" 2>/dev/null
-}
-
 # Gzipped dump of every non-system database of trading-mysql, with the
 # container's own password: never on a command line.
 mysql_dump_gz() {
-  docker exec trading-mysql sh -c "export MYSQL_PWD=\"\$MYSQL_ROOT_PASSWORD\"; ${MYSQL_DUMP_SH}" 2>/dev/null | gzip
+  docker exec trading-mysql sh -c "export MYSQL_PWD=\"\$MYSQL_ROOT_PASSWORD\"; ${MYSQL_DUMP_SH}" | gzip
 }
 
 backup_mongodb() {
@@ -80,7 +75,7 @@ backup_mongodb() {
       mongodump_args+=(--oplog)
     fi
 
-    if write_dump mongodb "$file" docker_quiet exec "${container}" mongodump "${mongodump_args[@]}"; then
+    if write_dump mongodb "$file" docker exec "${container}" mongodump --quiet "${mongodump_args[@]}"; then
       ok "MongoDB backup complete: ${container}"
       write_metric "mongodb" 1
     else
@@ -163,7 +158,7 @@ backup_checkpoints() {
     return
   fi
 
-  if write_dump checkpoints "$file" docker_quiet exec trading-trainer tar czf - -C /data/checkpoints .; then
+  if write_dump checkpoints "$file" docker exec trading-trainer tar czf - -C /data/checkpoints .; then
     ok "Checkpoints backup complete: ${file}"
     write_metric "checkpoints" 1
   else
@@ -193,7 +188,7 @@ backup_spire() {
 
   # The SPIRE image has no shell: `docker cp` to stdout yields a tar stream.
   docker pause trading-spire-server >/dev/null
-  if write_dump spire "$file" docker_quiet cp "trading-spire-server:/run/spire/data" -; then
+  if write_dump spire "$file" docker cp "trading-spire-server:/run/spire/data" -; then
     docker unpause trading-spire-server >/dev/null
     ok "SPIRE server backup complete: ${file}"
     write_metric "spire" 1
