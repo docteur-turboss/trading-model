@@ -73,13 +73,15 @@ seal() {
 	fi
 }
 
-# Writes a backup file's plaintext to stdout (decrypting `*.age`).
+# Writes a backup file's plaintext to stdout (decrypting `*.age`). Its own
+# error goes to stderr: callers capture or pipe its stdout, and a message
+# written there would be swallowed (callers report the failure again).
 open_backup() {
 	local file="$1"
 	case "$file" in
 	*.age)
 		if [ -z "${BACKUP_AGE_IDENTITY:-}" ]; then
-			fail "${file} is encrypted: set BACKUP_AGE_IDENTITY to the age private key file"
+			fail "${file} is encrypted: set BACKUP_AGE_IDENTITY to the age private key file" >&2
 			return 1
 		fi
 		age -d -i "$BACKUP_AGE_IDENTITY" "$file"
@@ -143,7 +145,12 @@ write_dump() {
 		rm -f "$partial"
 		return 1
 	fi
-	mv "$partial" "$file"
+	# Called from an `if`: set -e is off, so a failed rename must be caught here.
+	if ! mv "$partial" "$file"; then
+		rm -f "$partial"
+		fail "Cannot rename ${partial} to ${file}"
+		return 1
+	fi
 	size="$(file_size "$file")"
 	record_output "$file"
 	MANIFEST_ENTRIES+=("$(printf '{"component":"%s","path":"%s","size":%s,"sha256":"%s"}' \
@@ -178,7 +185,12 @@ write_manifest() {
 		write_metric "manifest" 0
 		return 1
 	fi
-	mv "${file}.partial" "$file"
+	if ! mv "${file}.partial" "$file"; then
+		rm -f "${file}.partial"
+		fail "Run manifest not renamed: ${file}"
+		write_metric "manifest" 0
+		return 1
+	fi
 	record_output "$file"
 	ok "Run manifest written: ${file} (${#MANIFEST_ENTRIES[@]} dump(s))"
 	write_metric "manifest" 1
@@ -199,15 +211,41 @@ manifests_newest_first() {
 
 # Prints `<path> <size> <sha256>` of entry `$2` in manifest file `$1`
 # (nothing when the run has no such entry). Returns 1 when the manifest
-# cannot be read.
+# cannot be read. Always called in a command substitution: it never calls
+# `fail` itself (its message and the RESTORE_FAILURES increment would stay in
+# the subshell), its caller does (read_manifest_entry).
 manifest_entry() {
 	local manifest="$1" key="$2" content
-	if ! content="$(open_backup "$manifest" </dev/null)"; then
-		fail "Cannot read the run manifest ${manifest}"
-		return 1
-	fi
+	content="$(open_backup "$manifest" </dev/null)" || return 1
 	printf '%s\n' "$content" | sed -n \
 		's/^{"component":"'"$key"'","path":"\([^"]*\)","size":\([0-9]*\),"sha256":"\([0-9a-f]*\)"}.*$/\1 \2 \3/p' | head -1
+}
+
+# read_manifest_entry <key> <manifest>
+# Sets MANIFEST_ENTRY to entry `<key>` of `<manifest>` (empty when the run has
+# no such entry). Returns 1 after `fail`, in the caller's shell, when the
+# manifest cannot be read (no or wrong BACKUP_AGE_IDENTITY, corrupt file):
+# the restore then exits 1 instead of skipping the component silently.
+read_manifest_entry() {
+	local key="$1" manifest="$2"
+	MANIFEST_ENTRY=""
+	case "$manifest" in
+	*.age)
+		if [ -z "${BACKUP_AGE_IDENTITY:-}" ]; then
+			fail "${key}: the run manifest ${manifest} is encrypted: set BACKUP_AGE_IDENTITY to the age private key file"
+			return 1
+		fi
+		if [ ! -r "$BACKUP_AGE_IDENTITY" ]; then
+			fail "${key}: BACKUP_AGE_IDENTITY=${BACKUP_AGE_IDENTITY} is not a readable file"
+			return 1
+		fi
+		;;
+	esac
+	if ! MANIFEST_ENTRY="$(manifest_entry "$manifest" "$key")"; then
+		MANIFEST_ENTRY=""
+		fail "${key}: cannot read the run manifest ${manifest} (wrong BACKUP_AGE_IDENTITY or corrupt file): refused; restore an older run with --timestamp"
+		return 1
+	fi
 }
 
 # resolve_backup <key> <legacy path...>
@@ -220,7 +258,8 @@ manifest_entry() {
 #                             taken before manifests) falls back to the first
 #                             existing legacy path, with a warning and no
 #                             checksum (RESOLVED_SHA256 empty)
-# Returns 1 (after `fail`) when no backup can be restored.
+# Returns 1 (after `fail`) when no backup can be restored, including when a
+# manifest it has to read is unreadable: `latest` never skips such a run.
 resolve_backup() {
 	local key="$1"
 	shift
@@ -231,7 +270,8 @@ resolve_backup() {
 		while read -r manifest; do
 			[ -n "$manifest" ] || continue
 			found=true
-			entry="$(manifest_entry "$manifest" "$key")" || return 1
+			read_manifest_entry "$key" "$manifest" || return 1
+			entry="$MANIFEST_ENTRY"
 			[ -n "$entry" ] || continue
 			read -r path RESOLVED_SIZE RESOLVED_SHA256 <<<"$entry"
 			if [ ! -f "${BACKUP_DIR}/${path}" ]; then
@@ -250,7 +290,8 @@ resolve_backup() {
 	fi
 	manifest="$(manifest_of "$RESTORE_TIMESTAMP")"
 	if [ -n "$manifest" ]; then
-		entry="$(manifest_entry "$manifest" "$key")" || return 1
+		read_manifest_entry "$key" "$manifest" || return 1
+		entry="$MANIFEST_ENTRY"
 		if [ -z "$entry" ]; then
 			fail "${key}: run ${RESTORE_TIMESTAMP} did not back it up successfully (absent from $(basename "$manifest"))"
 			return 1

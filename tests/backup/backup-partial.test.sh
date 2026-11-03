@@ -167,6 +167,47 @@ for script in restore.sh restore-k8s.sh; do
 done
 rm -f "$BACKUP_DIR/manifests/manifest_2026-11-03_020000.json.age" "$BACKUP_DIR/mysql/financial_scraper_2026-11-03_020000.sql.gz.age"
 
+echo "an unreadable run manifest makes the restore fail, never succeed silently"
+age-keygen -o "$WORK/other-key.txt" 2>/dev/null
+# expect_refusal <description> <expected message> <env...> -- <script args...>
+expect_refusal() {
+	local what="$1" expected="$2" script out status
+	shift 2
+	local envs=()
+	while [ "$1" != "--" ]; do
+		envs+=("$1")
+		shift
+	done
+	shift
+	for script in restore.sh restore-k8s.sh; do
+		status=0
+		out="$(env "${envs[@]}" BACKUP_DIR="$BACKUP_DIR" bash "$ROOT/scripts/$script" --dry-run "$@" 2>&1)" || status=$?
+		if [ "$status" -eq 1 ] && echo "$out" | grep -q "✗ .*${expected}" &&
+			! echo "$out" | grep -q 'Restore complete'; then
+			pass "$script, ${what}: exit 1 with an explicit message"
+		else
+			failed "$script, ${what}: exit ${status}, expected 1 and '✗ …${expected}':"
+			echo "$out" | sed 's/^/      /'
+		fi
+	done
+}
+expect_refusal "wrong identity (latest)" "cannot read the run manifest" \
+	BACKUP_AGE_IDENTITY="$WORK/other-key.txt" -- --components mysql
+expect_refusal "wrong identity (--timestamp)" "cannot read the run manifest" \
+	BACKUP_AGE_IDENTITY="$WORK/other-key.txt" -- --components mysql --timestamp 2026-11-01_020000
+expect_refusal "no identity (latest)" "set BACKUP_AGE_IDENTITY" \
+	-u BACKUP_AGE_IDENTITY -- --components mysql
+expect_refusal "no identity (--timestamp)" "set BACKUP_AGE_IDENTITY" \
+	-u BACKUP_AGE_IDENTITY -- --components mysql --timestamp 2026-11-01_020000
+expect_refusal "missing identity file" "is not a readable file" \
+	BACKUP_AGE_IDENTITY="$WORK/no-such-key.txt" -- --components mysql
+newest="$BACKUP_DIR/manifests/manifest_2026-11-02_020000.json.age"
+cp "$newest" "$WORK/newest.age"
+printf 'garbage' >"$newest"
+expect_refusal "corrupt newest manifest (latest)" "cannot read the run manifest .*2026-11-02" \
+	BACKUP_AGE_IDENTITY="$BACKUP_AGE_IDENTITY" -- --components mysql
+mv "$WORK/newest.age" "$newest"
+
 echo "backups taken before manifests"
 (printf '%s' "$DUMP_OK" | gzip | seal) >"$BACKUP_DIR/mysql/financial_scraper_2026-10-01_020000.sql.gz.age"
 out="$(restore_dry restore-k8s.sh --components mysql --timestamp 2026-10-01_020000 || true)"

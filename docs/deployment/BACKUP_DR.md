@@ -157,6 +157,12 @@ without manifest). Reading the manifests needs `BACKUP_AGE_IDENTITY`, dry
 runs included. A refused component counts as a failed step (exit 1); the
 other components are still restored.
 
+A manifest that cannot be read (`BACKUP_AGE_IDENTITY` unset, not a readable
+file or not the right key, corrupt file) refuses the component with an
+explicit `✗` message and exit 1: it is never skipped, and `latest` never falls
+back to an older run past it. When the newest manifest is corrupt, restore an
+older run with `--timestamp <ts>` of that run.
+
 ### Off-site Storage (mandatory in Kubernetes)
 
 `BACKUP_S3_BUCKET` copies each run's encrypted files (dumps that succeeded and
