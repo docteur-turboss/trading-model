@@ -14,17 +14,17 @@
 #    mysql/financial_scraper_<TS>.sql.gz.age
 #    checkpoints/checkpoints_<TS>.tar.gz.age
 #    spire/keys_<TS>.json.age
-#    manifests/manifest_<TS>.json.age            (run manifest, when the run has one)
+#    manifests/manifest_<TS>.json.age            (run manifest, backup-lib.sh)
 #  then: BACKUP_DIR=DIR bash scripts/restore-k8s.sh --timestamp TS
-#  The run manifest (backup-lib.sh, write_manifest) is fetched with the dumps:
-#  restore-k8s.sh checks each file against it (size, plaintext sha256), and
-#  selects the run without --timestamp. A run taken before manifests is
-#  fetched with a warning: restore-k8s.sh then needs --timestamp.
 #
 #  Run selection: --timestamp TS, or else the newest run holding every file of
-#  the requested components. upload_offsite only copies the dumps that
-#  succeeded, so a run missing a file had a failed dump: it is skipped (and
-#  refused with --timestamp). Only `*.age` files are fetched: nothing is
+#  the requested components and its run manifest. upload_offsite only copies
+#  the dumps that succeeded (write_dump renames a dump only once it is whole),
+#  so a run missing a file had a failed dump: it is skipped (and refused with
+#  --timestamp). The manifest is fetched with the run: restore-k8s.sh checks
+#  every file against it (size, sha256). It is encrypted, so it is not read
+#  here. A run taken before manifests is only fetched with --timestamp (and
+#  restored without checksum). Only `*.age` files are fetched: nothing is
 #  decrypted, no plaintext is written. DIR must hold no file, so that runs are
 #  never mixed. Exits 1 when the bucket is unreachable or empty, or when no
 #  run is complete for the requested components.
@@ -75,13 +75,19 @@ component_files() {
   esac
 }
 
+# Run manifest of run `$1` (backup-lib.sh, write_manifest).
+manifest_file() {
+  echo "manifests/manifest_$1.json.age"
+}
+
 # Timestamps of the runs present in the listing on stdin, oldest first.
 run_timestamps() {
-  grep -oE "^(mongodb/${TS_PATTERN}/|mysql/financial_scraper_${TS_PATTERN}|checkpoints/checkpoints_${TS_PATTERN}|spire/keys_${TS_PATTERN})" |
+  grep -oE "^(mongodb/${TS_PATTERN}/|mysql/financial_scraper_${TS_PATTERN}|checkpoints/checkpoints_${TS_PATTERN}|spire/keys_${TS_PATTERN}|manifests/manifest_${TS_PATTERN})" |
     grep -oE "$TS_PATTERN" | sort -u
 }
 
-# Files of run `$1` missing from LISTING for the requested components.
+# Files of run `$1` missing from LISTING for the requested components, run
+# manifest included.
 missing_files() {
   local part file
   for part in "${PARTS[@]}"; do
@@ -89,6 +95,13 @@ missing_files() {
       grep -qxF "$file" <<<"$LISTING" || echo "$file"
     done < <(component_files "$part" "$1")
   done
+  file="$(manifest_file "$1")"
+  grep -qxF "$file" <<<"$LISTING" || echo "$file"
+}
+
+# Dumps of run `$1` missing from LISTING (manifest left out).
+missing_dumps() {
+  missing_files "$1" | grep -vxF "$(manifest_file "$1")" || true
 }
 
 if [ -z "$DEST" ] && ! $DRY_RUN; then
@@ -164,7 +177,8 @@ while read -r ts; do
     log "  run ${ts}: incomplete, missing $(tr '\n' ' ' <<<"$missing")"
   fi
   if [ -n "$TIMESTAMP" ]; then
-    [ "$ts" = "$TIMESTAMP" ] && [ -z "$missing" ] && SELECTED="$ts"
+    # Explicit run: one taken before manifests is still accepted.
+    [ "$ts" = "$TIMESTAMP" ] && [ -z "$(missing_dumps "$ts")" ] && SELECTED="$ts"
   elif [ -z "$missing" ]; then
     # Oldest first: the last complete run wins.
     SELECTED="$ts"
@@ -173,14 +187,14 @@ done <<<"$RUNS"
 
 if [ -n "$TIMESTAMP" ] && [ -z "$SELECTED" ]; then
   if grep -qxF "$TIMESTAMP" <<<"$RUNS"; then
-    fail "Run ${TIMESTAMP} is incomplete for ${PARTS[*]}: missing $(missing_files "$TIMESTAMP" | tr '\n' ' ')"
+    fail "Run ${TIMESTAMP} is incomplete for ${PARTS[*]}: missing $(missing_dumps "$TIMESTAMP" | tr '\n' ' ')"
   else
     fail "No run ${TIMESTAMP} in ${BUCKET}"
   fi
   exit 1
 fi
 if [ -z "$SELECTED" ]; then
-  fail "No complete run in ${BUCKET} for ${PARTS[*]}"
+  fail "No complete run (every dump and its run manifest) in ${BUCKET} for ${PARTS[*]}; a run taken before manifests is fetched with --timestamp"
   exit 1
 fi
 
@@ -188,11 +202,10 @@ FILES=()
 for part in "${PARTS[@]}"; do
   while read -r file; do FILES+=("$file"); done < <(component_files "$part" "$SELECTED")
 done
-MANIFEST="manifests/manifest_${SELECTED}.json.age"
-if grep -qxF "$MANIFEST" <<<"$LISTING"; then
-  FILES+=("$MANIFEST")
+if grep -qxF "$(manifest_file "$SELECTED")" <<<"$LISTING"; then
+  FILES+=("$(manifest_file "$SELECTED")")
 else
-  warn "Run ${SELECTED} has no run manifest (taken before manifests): restore-k8s.sh restores it only with --timestamp, without checksum"
+  warn "Run ${SELECTED} has no run manifest (taken before manifests): restore-k8s.sh restores it without checksum"
 fi
 ok "Selected run ${SELECTED} (${#FILES[@]} file(s))"
 

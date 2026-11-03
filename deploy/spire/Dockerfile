@@ -9,14 +9,14 @@ ARG SPIRE_VERSION=1.11.3
 FROM ghcr.io/spiffe/spire-server:${SPIRE_VERSION} AS spire-server
 FROM ghcr.io/spiffe/spire-agent:${SPIRE_VERSION} AS spire-agent
 
-FROM alpine:3.20 AS bootstrap
+FROM alpine:3.24.3@sha256:be2656061b536c1883c4034790e21d0a09c5aaaf51968b89368a3c0371ea2c9a AS bootstrap
 COPY --from=spire-server /opt/spire/bin/spire-server /opt/spire/bin/spire-server
 COPY bootstrap.sh /usr/local/bin/spire-bootstrap
 COPY k8s-entries.sh /usr/local/bin/spire-k8s-entries
 RUN chmod +x /usr/local/bin/spire-bootstrap /usr/local/bin/spire-k8s-entries
 ENTRYPOINT ["/usr/local/bin/spire-bootstrap"]
 
-FROM alpine:3.20 AS agent
+FROM alpine:3.24.3@sha256:be2656061b536c1883c4034790e21d0a09c5aaaf51968b89368a3c0371ea2c9a AS agent
 COPY --from=spire-agent /opt/spire/bin/spire-agent /opt/spire/bin/spire-agent
 COPY agent-entrypoint.sh /usr/local/bin/spire-agent-entrypoint
 RUN chmod +x /usr/local/bin/spire-agent-entrypoint

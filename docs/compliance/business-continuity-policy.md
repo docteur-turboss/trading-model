@@ -101,8 +101,9 @@ Every dump is age-encrypted before it is written; the off-site copy only sends e
 
 ### 4.2 Backup Verification
 
-- Restore drill on every CI run (`k8s` job, `tests/k8s/run-kind.sh`): the CronJob backs up, the drill stops the MongoDB writers, drops data (the real `audit` and `dlq` databases, markers, `market_candles`, the SPIRE server volume) and `restore-k8s.sh` restores MongoDB (dlq + audit), MySQL and the SPIRE CA; it passes only if every recorded audit event comes back with the same hashes and a verified hash chain, the data and the trust bundle come back and mTLS still works
+- Restore drill on every CI run (`k8s` job, `tests/k8s/run-kind.sh`): the CronJob backs up, the drill stops the MongoDB writers, drops data (the real `audit` and `dlq` databases, markers, `market_candles`, the SPIRE server volume), then restores as after the loss of the cluster: `fetch-offsite.sh` fetches the newest complete run from the off-site bucket into a pod that never mounts the `backup-data` volume, and `restore-k8s.sh` restores MongoDB (dlq + audit), MySQL and the SPIRE CA from it; it passes only if every recorded audit event comes back with the same hashes and a verified hash chain, the data and the trust bundle come back and mTLS still works
 - Weekly restore drill of the Docker scripts (`backup-test.yml`, `tests/backup/compose-restore-drill.sh`): containers and volumes deleted, then restored
+- Off-site fetch tests (`backup-test.yml`, `tests/backup/fetch-offsite.test.sh`): newest complete run chosen from an S3 store, files still encrypted, refusal on an incomplete or absent run and on an empty or unreachable bucket
 - Integrity: age authenticates every encrypted file (a corrupted or truncated file fails to decrypt); no separate checksum
 - Monitoring: alerts on a failed, stale, missing or unencrypted backup and on a failed off-site copy (`observability/alerting.yml`)
 

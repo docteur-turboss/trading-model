@@ -32,7 +32,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Validate backup scripts syntax
         run: |
@@ -52,6 +52,7 @@ jobs:
       # run, checksum and `-- Dump completed` refusals (issue #288).
       - name: Test failed dumps and run manifests
         run: bash tests/backup/backup-partial.test.sh
+
       # Off-site fetch (scripts/fetch-offsite.sh) against `rclone serve s3`
       # filled by upload_offsite: run selection, layout, refusals. Runs in the
       # backup-tools image: it ships the rclone the CronJob uses (serve s3

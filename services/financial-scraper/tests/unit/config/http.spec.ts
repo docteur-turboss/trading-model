@@ -105,24 +105,25 @@ describe("createHttpClient", () => {
 		jest.useRealTimers();
 	});
 
-	it.each([
-		403, 418, 451,
-	])("response rejected interceptor should not retry on %i (Binance WAF, IP ban, restricted location)", async (status) => {
-		createHttpClient("https://api.example.com");
-		const axiosMock = jest.requireMock("axios") as { create: jest.Mock };
-		const instance = axiosMock.create.mock.results.at(-1)?.value as jest.Mock;
-		instance.mockClear();
+	it.each([403, 418, 451])(
+		"response rejected interceptor should not retry on %i (Binance WAF, IP ban, restricted location)",
+		async (status) => {
+			createHttpClient("https://api.example.com");
+			const axiosMock = jest.requireMock("axios") as { create: jest.Mock };
+			const instance = axiosMock.create.mock.results.at(-1)?.value as jest.Mock;
+			instance.mockClear();
 
-		const error = { config: { retryCount: 0 }, response: { status } };
-		let thrown: unknown;
-		try {
-			await mockResponseRejectedHandler!(error);
-		} catch (e) {
-			thrown = e;
+			const error = { config: { retryCount: 0 }, response: { status } };
+			let thrown: unknown;
+			try {
+				await mockResponseRejectedHandler!(error);
+			} catch (e) {
+				thrown = e;
+			}
+			expect(thrown).toBe(error);
+			expect(instance).not.toHaveBeenCalled();
 		}
-		expect(thrown).toBe(error);
-		expect(instance).not.toHaveBeenCalled();
-	});
+	);
 
 	it("response rejected interceptor should stop retrying after max retries", async () => {
 		createHttpClient("https://api.example.com");

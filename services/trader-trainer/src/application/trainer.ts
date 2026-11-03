@@ -109,7 +109,7 @@ export class Trainer {
 		try {
 			const result = await this._runSession(symbol, validation.windowSets);
 			TRAINING_SESSIONS_TOTAL.inc({ result: "success" });
-			BEST_FITNESS.set({ symbol: String(symbol) }, result.bestFitness);
+			BEST_FITNESS.set({ symbol }, result.bestFitness);
 			await this._storeModel(result);
 			await this._publishModel(symbol);
 			return result;
@@ -181,7 +181,7 @@ export class Trainer {
 		}
 		try {
 			const stored = await models.save({
-				symbol: String(result.symbol),
+				symbol: result.symbol,
 				instanceId: this._deps.instanceId ?? "trader-trainer",
 				bestGenome: result.bestGenome,
 				weights: new Float32Array(weights),
