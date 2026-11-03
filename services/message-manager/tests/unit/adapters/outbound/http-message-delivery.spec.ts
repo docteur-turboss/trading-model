@@ -64,29 +64,31 @@ describe("HttpMessageDelivery", () => {
 				);
 		}
 
-		it.each([
-			400, 413, 415, 422,
-		])("should turn a %i answer into a dead letter, as no retry can succeed", async (status) => {
-			const err = await sendFailingWith(
-				createHttpClientError("rejected", status as HttpStatusCode)
-			);
+		it.each([400, 413, 415, 422])(
+			"should turn a %i answer into a dead letter, as no retry can succeed",
+			async (status) => {
+				const err = await sendFailingWith(
+					createHttpClientError("rejected", status as HttpStatusCode)
+				);
 
-			expect(isDeadLetterError(err)).toBe(true);
-			expect((err as { reason?: string }).reason).toBe(
-				"REJECTED_BY_SUBSCRIBER"
-			);
-		});
+				expect(isDeadLetterError(err)).toBe(true);
+				expect((err as { reason?: string }).reason).toBe(
+					"REJECTED_BY_SUBSCRIBER"
+				);
+			}
+		);
 
-		it.each([
-			401, 403, 404, 408, 429, 500, 503,
-		])("should keep a %i answer retryable", async (status) => {
-			const original = createHttpClientError(
-				"failed",
-				status as HttpStatusCode
-			);
+		it.each([401, 403, 404, 408, 429, 500, 503])(
+			"should keep a %i answer retryable",
+			async (status) => {
+				const original = createHttpClientError(
+					"failed",
+					status as HttpStatusCode
+				);
 
-			expect(await sendFailingWith(original)).toBe(original);
-		});
+				expect(await sendFailingWith(original)).toBe(original);
+			}
+		);
 
 		it("should keep a timeout retryable", async () => {
 			const timeout = createHttpClientTimeoutError("timed out", 10_000);

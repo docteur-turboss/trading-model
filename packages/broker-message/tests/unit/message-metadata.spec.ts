@@ -76,13 +76,14 @@ describe("MessageMetadataBuilder", () => {
 			expect(() => m.setTopic("market.-trade.fetch")).toThrow();
 		});
 
-		it.each(
-			Object.values(MarketEvent)
-		)("should accept the %s market event as a topic", (event) => {
-			const m = buildMinimalMetadata();
-			m.setTopic(event);
-			expect(m.toJSON().topic).toBe(event);
-		});
+		it.each(Object.values(MarketEvent))(
+			"should accept the %s market event as a topic",
+			(event) => {
+				const m = buildMinimalMetadata();
+				m.setTopic(event);
+				expect(m.toJSON().topic).toBe(event);
+			}
+		);
 	});
 
 	describe("setEventType", () => {

@@ -113,13 +113,15 @@ describe("env", () => {
 			expect(loadEnv().AUTH_TOKENS).toBe("tok1");
 		});
 
-		it.each([
-			"",
-			" , ",
-		])("should refuse to start with AUTH_TOKENS=%j", (tokens) => {
-			process.env.AUTH_TOKENS = tokens;
-			expect(refusal()).toContain("AUTH_TOKENS cannot be empty in production");
-		});
+		it.each(["", " , "])(
+			"should refuse to start with AUTH_TOKENS=%j",
+			(tokens) => {
+				process.env.AUTH_TOKENS = tokens;
+				expect(refusal()).toContain(
+					"AUTH_TOKENS cannot be empty in production"
+				);
+			}
+		);
 
 		it("should refuse to start with AUTH_STRICT=false", () => {
 			process.env.AUTH_STRICT = "false";
