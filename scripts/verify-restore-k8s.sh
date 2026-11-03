@@ -17,8 +17,7 @@
 #    - schema `spire`: tables bundles and registered_entries present
 #    - SPIRE trust bundle readable (PEM certificate)
 #    - run manifest (BACKUP_DIR, issue #288): the manifest lists size and
-#      sha256 per dump, no row counts: nothing to compare, said so. A
-#      manifest line carrying "rows" counts would be compared here.
+#      sha256 per dump, no row counts: nothing to compare, said so.
 # =============================================================================
 
 set -euo pipefail
@@ -30,7 +29,9 @@ FAILURES=0
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --max-candle-age-hours) MAX_CANDLE_AGE_HOURS="$2"; shift 2 ;;
+    --max-candle-age-hours)
+      [[ "${2:-}" =~ ^[0-9]+$ ]] || { echo "--max-candle-age-hours needs an integer"; exit 1; }
+      MAX_CANDLE_AGE_HOURS="$2"; shift 2 ;;
     *) echo "Unknown option: $1"; exit 1 ;;
   esac
 done
@@ -67,11 +68,13 @@ mysql_q() {
 }
 
 check_audit() {
-  local out
-  if ! out="$(mongo_eval mongodb-audit "const AUDIT_DB = 'audit'; $(cat "$AUDIT_CHAIN_JS")" 2>&1 | tail -1)"; then
+  local out raw
+  if ! raw="$(mongo_eval mongodb-audit "const AUDIT_DB = 'audit'; $(cat "$AUDIT_CHAIN_JS")" 2>&1)"; then
     fail "audit trail: cannot read the audit replica set"
     return
   fi
+  out="$(printf '%s
+' "$raw" | tail -1)"
   local broken count
   if ! broken="$(json_field "$out" broken 2>/dev/null)"; then
     fail "audit trail: unreadable result of audit-chain.js: ${out}"
@@ -107,7 +110,9 @@ check_candles() {
   latest="$(echo "$row" | awk -F'\t' '{print $2}')"
   local age
   age="$(echo "$row" | awk -F'\t' '{print $3}')"
-  if [ "${rows:-0}" -le 0 ]; then
+  if ! [[ "$rows" =~ ^[0-9]+$ ]] || ! [[ "$age" =~ ^-?[0-9]+$ ]]; then
+    fail "market_candles: unreadable result: ${row}"
+  elif [ "$rows" -le 0 ]; then
     fail "market_candles: empty"
   elif [ -n "$MAX_CANDLE_AGE_HOURS" ] && [ "$age" -gt "$MAX_CANDLE_AGE_HOURS" ]; then
     fail "market_candles: ${rows} rows, latest ${latest} UTC is ${age} h old (limit ${MAX_CANDLE_AGE_HOURS} h)"
@@ -153,23 +158,9 @@ check_manifest() {
     fail "run manifest: ${manifest} cannot be read (BACKUP_AGE_IDENTITY?)"
     return
   fi
-  if ! echo "$content" | grep -q '"rows"'; then
-    warn "run manifest: $(basename "$manifest") records size and sha256 only, no row counts: nothing to compare"
-    return
-  fi
-  local line key want have
-  while IFS= read -r line; do
-    key="$(echo "$line" | sed -n 's/.*"component":"\([^"]*\)".*/\1/p')"
-    want="$(echo "$line" | sed -n 's/.*"rows":\([0-9]*\).*/\1/p')"
-    [ -n "$key" ] && [ -n "$want" ] || continue
-    case "$key" in
-      mysql) have="$(mysql_q "SELECT COUNT(*) FROM financial_scraper.market_candles" 2>/dev/null || echo -1)" ;;
-      mongodb-audit) have="$(mongo_eval mongodb-audit "print(db.getSiblingDB('audit').audit_events.countDocuments({}))" | tail -1)" ;;
-      *) continue ;;
-    esac
-    # Events and candles written after the dump (PITR, live writers) only add.
-    if [ "$have" -ge "$want" ]; then ok "manifest count ${key}: ${have} >= ${want}"; else fail "manifest count ${key}: ${have} < ${want}"; fi
-  done <<<"$content"
+  # No row counts to compare: the #288 manifest holds size and sha256 only.
+  # A count comparison returns when a manifest carries counts, with its test.
+  warn "run manifest: $(basename "$manifest") records size and sha256 only, no row counts: nothing to compare"
 }
 
 log "Post-restore verification (namespace ${K8S_NAMESPACE}, read-only)"
