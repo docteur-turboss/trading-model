@@ -1,0 +1,109 @@
+name: Backup Key Check
+
+# Weekly proof that the escrow age key still decrypts the newest off-site
+# backup run (ADR-0034, issue #327). An age file does not name the keys it is
+# encrypted for: only a real decryption proves the key works. The escrow
+# private key lives in the secret BACKUP_ESCROW_AGE_IDENTITY of the GitHub
+# environment `backup-key-check` (deployment branches: the default branch
+# only), next to read-only credentials of the off-site bucket. A failure
+# (key no longer a recipient, component missing or corrupt, bucket
+# unreachable, secret missing) fails the run: GitHub notifies on it.
+on:
+  schedule:
+    - cron: '0 7 * * 1'  # Weekly: Monday 7 AM UTC, after the 02:00 daily backup
+  workflow_dispatch:
+    inputs:
+      tier:
+        description: 'Off-site tier (daily, weekly, monthly; empty: daily when tiered)'
+        required: false
+        type: string
+        default: ''
+      components:
+        description: 'Components (weekly/monthly tiers: mongodb-audit,mysql)'
+        required: false
+        type: string
+        default: 'mongodb,mongodb-audit,mysql,checkpoints,spire'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  verify-escrow-key:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    environment: backup-key-check
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # age and the rclone the backup CronJob uses (deploy/backup), so the
+      # fetch reads the bucket the way the job wrote it.
+      - name: Build the backup tools image
+        run: docker build -q -t backup-tools deploy/backup
+
+      # The private key goes to a tmpfs (/dev/shm), mode 600, never to an
+      # argument or the log, and is deleted by the last step even on failure.
+      # Values reach the container by name only (-e VAR), never in argv.
+      - name: Decrypt the newest off-site run with the escrow key
+        env:
+          BACKUP_ESCROW_AGE_IDENTITY: ${{ secrets.BACKUP_ESCROW_AGE_IDENTITY }}
+          BACKUP_S3_BUCKET: ${{ vars.BACKUP_S3_BUCKET }}
+          AWS_REGION: ${{ vars.BACKUP_S3_REGION }}
+          RCLONE_S3_ENDPOINT: ${{ vars.BACKUP_S3_ENDPOINT }}
+          RCLONE_S3_PROVIDER: ${{ vars.BACKUP_S3_PROVIDER }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.BACKUP_S3_READ_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.BACKUP_S3_READ_SECRET_ACCESS_KEY }}
+          TIER: ${{ inputs.tier }}
+          COMPONENTS: ${{ inputs.components || 'mongodb,mongodb-audit,mysql,checkpoints,spire' }}
+        run: |
+          missing=()
+          [ -n "$BACKUP_ESCROW_AGE_IDENTITY" ] || missing+=(secret BACKUP_ESCROW_AGE_IDENTITY)
+          [ -n "$BACKUP_S3_BUCKET" ] || missing+=(variable BACKUP_S3_BUCKET)
+          [ -n "$AWS_ACCESS_KEY_ID" ] || missing+=(secret BACKUP_S3_READ_ACCESS_KEY_ID)
+          [ -n "$AWS_SECRET_ACCESS_KEY" ] || missing+=(secret BACKUP_S3_READ_SECRET_ACCESS_KEY)
+          if [ "${#missing[@]}" -gt 0 ]; then
+            echo "::error::Environment backup-key-check is incomplete (${missing[*]}): the escrow key is not verified (ADR-0034)"
+            exit 1
+          fi
+          export AWS_REGION="${AWS_REGION:-us-east-1}"
+          export RCLONE_S3_PROVIDER="${RCLONE_S3_PROVIDER:-AWS}"
+          key_dir=/dev/shm/backup-key-check
+          ( umask 077 && mkdir -p "$key_dir" && printf '%s\n' "$BACKUP_ESCROW_AGE_IDENTITY" > "$key_dir/escrow-key.txt" )
+          unset BACKUP_ESCROW_AGE_IDENTITY
+          args=(--identity /key/escrow-key.txt --offsite --components "$COMPONENTS")
+          [ -z "$TIER" ] || args+=(--tier "$TIER")
+          endpoint=()
+          [ -z "$RCLONE_S3_ENDPOINT" ] || endpoint=(-e RCLONE_S3_ENDPOINT)
+          set -o pipefail
+          # Runner user: it owns the mode-600 key file.
+          docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp \
+            -v "$PWD:/repo:ro" -v "$key_dir:/key:ro" -w /repo \
+            -e BACKUP_S3_BUCKET -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY \
+            -e AWS_REGION -e RCLONE_S3_PROVIDER "${endpoint[@]}" \
+            backup-tools bash scripts/verify-backup-key.sh "${args[@]}" \
+            | tee "$RUNNER_TEMP/backup-key-check.txt"
+
+      - name: Remove the escrow key
+        if: always()
+        run: rm -rf /dev/shm/backup-key-check
+
+      # Trace of the check (ENCRYPTION_AT_REST.md, Key custody): the run
+      # summary keeps the report next to the run, with its date and result.
+      - name: Publish the report
+        if: always()
+        run: |
+          report="$RUNNER_TEMP/backup-key-check.txt"
+          {
+            echo '## Backup key check (escrow key)'
+            echo
+            if [ -s "$report" ]; then
+              echo '```'
+              sed -n '/Verified at:/,$p' "$report"
+              echo '```'
+            else
+              echo 'No report: the check did not run (see the step log).'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"

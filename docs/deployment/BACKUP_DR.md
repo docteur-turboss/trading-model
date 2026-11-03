@@ -763,7 +763,8 @@ done
 - Backup automation: DevOps / Platform team
 - Restore procedure validation: CI (every run) + SRE review (quarterly)
 - Backup keys: operator key (Platform team), escrow key (project owner);
-  quarterly decryption check with `scripts/verify-backup-key.sh`, output kept
-  in the operations log ([Key custody](ENCRYPTION_AT_REST.md#key-custody))
+  escrow key decrypted weekly by the `Backup Key Check` workflow (ADR-0034),
+  operator key quarterly by hand with `scripts/verify-backup-key.sh`, output
+  kept in the operations log ([Key custody](ENCRYPTION_AT_REST.md#key-custody))
 - Secrets rotation: Security team (quarterly)
 - DR drill coordination: Engineering manager (bi-annual)

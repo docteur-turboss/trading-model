@@ -20,6 +20,7 @@ on:
       - 'docker-compose.yml'
       - 'deploy/compose/spire/**'
       - '.github/workflows/backup-test.yml'
+      - '.github/workflows/backup-key-check.yml'
 
 permissions:
   contents: read

@@ -185,24 +185,51 @@ real backup proves a private key still works. That is what
 
 ### Key custody
 
-Two key pairs, two holders, two places. No private key ever enters the
-cluster, the repository or a CI secret.
+Two key pairs, two holders (ADR-0034). No private key ever enters the
+cluster or the repository. The escrow key has one copy in a GitHub secret,
+for the weekly automated check only.
 
 | Key | Holder | Where the private key lives | Used for |
 | --- | --- | --- | --- |
-| Operator | the on-call operator (Platform team) | the team password manager, entry `trading-model backup age operator` | day-to-day restores, the drills |
-| Escrow | the project owner (and one named deputy) | offline: printed in a sealed envelope in the safe, plus an encrypted USB copy stored in another place | the restore after the loss of the operator key; the periodic check |
+| Operator | the on-call operator (Platform team) | the team password manager, entry `trading-model backup age operator` | day-to-day restores, the drills; quarterly manual check |
+| Escrow | the project owner (and one named deputy) | offline: printed in a sealed envelope in the safe, plus an encrypted USB copy stored in another place (the reference copies); a copy in the secret `BACKUP_ESCROW_AGE_IDENTITY` of the GitHub environment `backup-key-check` | the restore after the loss of the operator key; the weekly automated check |
 
 Both public keys are in the GitHub environment variable
 `BACKUP_AGE_RECIPIENTS` of production.
 
-**Periodic decryption check (quarterly, and after every key change).** The
-escrow holder runs, on a trusted workstation, with the escrow key copied to a
-tmpfs or an encrypted volume (mode 600) and deleted afterwards:
+**Weekly automated check of the escrow key** (`.github/workflows/backup-key-check.yml`,
+Monday 07:00 UTC, and on demand from the Actions tab). It runs
+`verify-backup-key.sh --offsite` with the escrow key in the `backup-tools`
+image. Set up the GitHub environment `backup-key-check` once
+(Settings → Environments):
+
+- Deployment branches: the default branch only. No required reviewer: it
+  would block the scheduled run.
+- Secret `BACKUP_ESCROW_AGE_IDENTITY`: the whole content of
+  `escrow-key.txt` (the `AGE-SECRET-KEY-1…` line, comments allowed).
+- Secrets `BACKUP_S3_READ_ACCESS_KEY_ID` / `BACKUP_S3_READ_SECRET_ACCESS_KEY`:
+  credentials of the off-site bucket with **list and get only** (no put, no
+  delete), distinct from the backup job's.
+- Variables `BACKUP_S3_BUCKET`, `BACKUP_S3_REGION`, and for a non-AWS store
+  `BACKUP_S3_ENDPOINT`, `BACKUP_S3_PROVIDER` (same values as production).
+
+The job writes the key to a tmpfs, mode 600, deletes it in a final step that
+always runs, and publishes the report (key, run checked, result per
+component) in the run summary. A missing secret or variable, an unreachable
+bucket, a component missing or that does not decrypt fails the run, and
+GitHub notifies on it. Any repository admin, any workflow change merged to
+the default branch, or a compromise of GitHub can read this secret and
+decrypt the backups: keep branch protection and review on
+`.github/workflows/`, and treat a suspected exposure as an exposed key
+(rotation below). The weekly and monthly tiers are checked on demand with
+`tier` = `monthly` and `components` = `mongodb-audit,mysql`.
+
+**Manual check of the operator key (quarterly, and after every key change).**
+The operator runs, on a trusted workstation, with the key copied to a tmpfs
+or an encrypted volume (mode 600) and deleted afterwards:
 
 ```bash
-BACKUP_S3_BUCKET=s3://... AWS_ACCESS_KEY_ID=... AWS_SECRET_ACCESS_KEY=... \
-  bash scripts/verify-backup-key.sh --identity /dev/shm/escrow-key.txt --offsite
+BACKUP_S3_BUCKET=s3://... AWS_ACCESS_KEY_ID=... AWS_SECRET_ACCESS_KEY=...   bash scripts/verify-backup-key.sh --identity /dev/shm/operator-key.txt --offsite
 # a run already fetched with fetch-offsite.sh: --dir ./restore [--timestamp TS]
 # long tiers (ADR-0032): --tier monthly --components mongodb-audit,mysql
 ```
@@ -214,23 +241,27 @@ component (`mongodb`, `mongodb-audit`, `mysql`, `checkpoints`, `spire`)
 whole into `sha256sum`, with no plaintext on disk, and compares each with the
 manifest. It exits 1 when a single component is missing or does not decrypt,
 and prints the key's public key, the run checked (timestamp and UTC date) and
-each result. The operator runs it with the operator key in the same session.
+each result. After a change of the escrow key, start the workflow by hand
+once the next run is off-site.
 
-**Trace.** Keep the complete output of both runs in the operations log (one
-ticket per quarter, "backup key check <quarter>"), with the date and who ran
-it. A missing quarterly entry is itself a finding. A failed check is an
-incident: the backups taken since the key stopped working are readable only
-with the other key; rotate at once.
+**Trace.** Escrow key: the history of the `Backup Key Check` workflow (run
+summaries, kept as long as the Actions logs, 90 days by default); a failed
+or missing weekly run is a finding. Operator key: keep the complete output
+in the operations log (one ticket per quarter, "backup key check
+<quarter>"), with the date and who ran it; a missing quarterly entry is a
+finding. A failed check is an incident: the backups taken since the key
+stopped working are readable only with the other key; rotate at once.
 
 **Rotation and re-encryption.** On a key change (holder leaves, key exposed
 or lost, yearly at the latest):
 
 1. Generate the new key pair; give the private key to its holder and store
-   it as in the table above.
+   it as in the table above. For the escrow key, replace the secret
+   `BACKUP_ESCROW_AGE_IDENTITY` of the environment `backup-key-check` too.
 2. Replace the old public key in `BACKUP_AGE_RECIPIENTS` (keep at least two
    distinct keys at every step) and redeploy: new backups use the new key.
 3. Run `verify-backup-key.sh` with the new key once the next run is
-   off-site.
+   off-site (escrow key: start the `Backup Key Check` workflow by hand).
 4. Older backups stay encrypted for the old key until they expire (31 days
    daily, 85 days weekly, 5 years monthly, ADR-0032). Keep the old private
    key, in the same custody, until the last of them has expired. They are

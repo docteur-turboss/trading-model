@@ -6,9 +6,10 @@
 #          --offsite: BACKUP_S3_BUCKET + AWS_* (+ RCLONE_S3_*), as scripts/fetch-offsite.sh
 #
 #  An age file does not name the keys it is encrypted for: only decrypting it
-#  proves that a key still opens the backups (issue #327). Run it with the
-#  escrow key and with the operator key on the schedule of
-#  docs/deployment/ENCRYPTION_AT_REST.md ("Key custody"), and keep its output.
+#  proves that a key still opens the backups (issue #327). The escrow key is
+#  checked weekly by .github/workflows/backup-key-check.yml (ADR-0034), the
+#  operator key by hand on the schedule of
+#  docs/deployment/ENCRYPTION_AT_REST.md ("Key custody"); keep its output.
 #
 #  Source of the run:
 #    --offsite (default)  fetches one run from the off-site bucket with
