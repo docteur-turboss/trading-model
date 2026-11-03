@@ -355,6 +355,19 @@ jobs:
           [ "$min" -ge 1 ] || min=1
           bash scripts/backup-recipients-check.sh --environment "$ENV" --min "$min"
 
+      # Production refuses to deploy without a backup encryption key and an
+      # off-site copy (issue #331): each comes from the GitHub environment or
+      # from the resource already in the namespace (ConfigMap
+      # backup-encryption, Secret trading-model-backup-s3, e.g. a
+      # SealedSecret). Other environments warn. Checked before any change.
+      - name: Check backup configuration is present
+        shell: bash
+        env:
+          BACKUP_AGE_RECIPIENTS: ${{ vars.BACKUP_AGE_RECIPIENTS }}
+          BACKUP_S3_BUCKET: ${{ vars.BACKUP_S3_BUCKET }}
+        run: |
+          bash scripts/backup-config-check.sh --environment "${{ inputs.environment }}"             --namespace "${{ steps.ns.outputs.namespace }}"
+
       # Notification credentials, mounted as files by Alertmanager and read at
       # send time (no restart needed). Keys left unset are left out.
       - name: Configure alert notifications
@@ -447,7 +460,8 @@ jobs:
 
       # Public age key(s) the db-backup CronJob encrypts every dump for (the
       # private keys never enter the cluster). Environment variable of the
-      # GitHub environment; without it the backup job refuses to run. Its
+      # GitHub environment; without it the backup job refuses to run (production
+      # refuses to deploy: "Check backup configuration is present"). Its
       # recipients were checked before the overlay ("Check backup encryption
       # recipients": at least 2 distinct keys in production).
       - name: Configure backup encryption

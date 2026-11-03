@@ -333,6 +333,14 @@ retention, in governance mode, or with a default retention outside
 `production` a problem is an `::error::` and the deploy stops before any
 change; elsewhere it is a `::warning::`.
 
+**Configuration present (issue #331).** Before the overlay, `deploy.yml`
+(`scripts/backup-config-check.sh`, test `tests/backup/backup-config-check.test.sh`)
+refuses a `production` deploy (`::error::`, exit 1) that has neither the
+variable `BACKUP_AGE_RECIPIENTS` nor a `backup-encryption` ConfigMap in the
+namespace, or neither `BACKUP_S3_BUCKET` nor a `trading-model-backup-s3`
+Secret (e.g. a SealedSecret). A resource already in the cluster is enough;
+other environments get a `::warning::`.
+
 **Fallback.** The GitHub environment variable
 `BACKUP_S3_IMMUTABILITY_CHECK=warn` turns the production error into a
 warning while the bucket is being set up (the downgrade is itself reported

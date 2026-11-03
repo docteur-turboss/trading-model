@@ -281,7 +281,10 @@ or lost, yearly at the latest):
 
 - Set the GitHub environment variable `BACKUP_AGE_RECIPIENTS` (Settings →
   Environments → staging/production → Variables). `deploy.yml` writes it into
-  the `backup-encryption` ConfigMap.
+  the `backup-encryption` ConfigMap. A `production` deploy without the
+  variable and without an existing `backup-encryption` ConfigMap is refused
+  before anything is applied (`scripts/backup-config-check.sh`, issue #331);
+  staging only warns.
 - The `db-backup` and `db-backup-incremental` (hourly binlog and oplog
   archives, ADR-0031) CronJobs run `ghcr.io/trading-model/backup-tools`
   (`deploy/backup`: kubectl, age, rclone, mysqlbinlog) with
