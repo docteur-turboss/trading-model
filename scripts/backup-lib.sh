@@ -390,6 +390,14 @@ check_offsite_lifecycle() {
 	fi
 }
 
+# rclone remote of the off-site bucket `$1` (s3://bucket/prefix), shared by
+# upload_offsite and fetch-offsite.sh. `:s3:` is an on-the-fly remote:
+# credentials from AWS_* (with RCLONE_S3_ENV_AUTH=true), endpoint and provider
+# from RCLONE_S3_*.
+offsite_remote() {
+	echo ":s3:${1#s3://}"
+}
+
 upload_offsite() {
 	local bucket="${BACKUP_S3_BUCKET:-}"
 	if [ -z "$bucket" ]; then
@@ -441,9 +449,9 @@ upload_offsite() {
 		[ "$tier" = flat ] || dest="${dest}/${tier}"
 		log "Copying $(wc -l <"$list" | tr -d ' ') encrypted file(s) to ${dest}"
 		if command -v rclone >/dev/null; then
-			# `:s3:` is an on-the-fly remote: credentials from AWS_*, endpoint and
-			# provider from RCLONE_S3_*. Paths keep their timestamped names.
-			RCLONE_S3_ENV_AUTH=true rclone copy --s3-no-check-bucket 				--files-from "$list" "$BACKUP_DIR" ":s3:${dest#s3://}" || copied=false
+			# Paths keep their timestamped names (fetch-offsite.sh relies on it).
+			RCLONE_S3_ENV_AUTH=true rclone copy --s3-no-check-bucket \
+				--files-from "$list" "$BACKUP_DIR" "$(offsite_remote "$dest")" || copied=false
 		else
 			while read -r file; do
 				aws s3 cp --quiet "${BACKUP_DIR}/${file}" "${dest}/${file}" || copied=false

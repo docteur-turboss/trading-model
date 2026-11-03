@@ -8,7 +8,7 @@
 # Kubernetes minors behind.
 FROM bitnami/kubectl@sha256:b29d8c1665b70817259ceecaea16ab27aab6368b48daf485d19436c809067492 AS kubectl
 
-FROM alpine:3.20
+FROM alpine:3.24.3@sha256:be2656061b536c1883c4034790e21d0a09c5aaaf51968b89368a3c0371ea2c9a
 RUN apk add --no-cache bash age rclone coreutils findutils gzip tar
 COPY --from=kubectl /opt/bitnami/kubectl/bin/kubectl /usr/local/bin/kubectl
 USER 1001

@@ -66,17 +66,21 @@ function withRL(patch: (rl: Genome["rl"]) => Partial<Genome["rl"]>): Genome {
 }
 
 describe("the DQN learns from the market (CT3, ADR-0025)", () => {
-	it.each([
-		1, 2, 3,
-	])("a trained genome beats the untrained one (market seed %i)", (seed) => {
-		const validation = fallingMarket(100, seed + 10);
+	it.each([1, 2, 3])(
+		"a trained genome beats the untrained one (market seed %i)",
+		(seed) => {
+			const validation = fallingMarket(100, seed + 10);
 
-		const untrained = meanPnl(BASE, validation);
-		const trained = meanPnl(train(BASE, fallingMarket(400, seed)), validation);
+			const untrained = meanPnl(BASE, validation);
+			const trained = meanPnl(
+				train(BASE, fallingMarket(400, seed)),
+				validation
+			);
 
-		expect(untrained).toBeLessThan(0);
-		expect(trained).toBeGreaterThan(untrained);
-	});
+			expect(untrained).toBeLessThan(0);
+			expect(trained).toBeGreaterThan(untrained);
+		}
+	);
 });
 
 describe("every RL gene changes what the agent learns", () => {

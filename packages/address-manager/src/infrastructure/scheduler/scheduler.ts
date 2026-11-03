@@ -82,7 +82,11 @@ export class Scheduler {
 	 */
 	stop(): void {
 		for (const task of this._tasks) {
-			task.stop();
+			Promise.resolve(task.stop()).catch((err) => {
+				logger.error("Failed to stop scheduled job", {
+					error: err instanceof Error ? err.message : String(err),
+				});
+			});
 		}
 
 		this._tasks.length = 0;

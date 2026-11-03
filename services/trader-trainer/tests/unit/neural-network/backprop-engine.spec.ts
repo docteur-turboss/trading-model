@@ -219,37 +219,37 @@ describe("BackpropEngine", () => {
 			return (lossPlus - lossMinus) / (2 * EPS);
 		}
 
-		it.each(TOPOLOGIES)("$name: analytic ∇L matches (L(w+ε) − L(w−ε)) / 2ε", ({
-			sizes,
-			activations,
-		}) => {
-			const net = buildNet(sizes, activations);
-			const rng = makePRNG(3);
-			const sample = {
-				input: Float32Array.from({ length: sizes[0] }, () => rng() * 2 - 1),
-				target: Float32Array.from(
-					{ length: sizes[sizes.length - 1] },
-					() => rng() * 2 - 1
-				),
-			};
+		it.each(TOPOLOGIES)(
+			"$name: analytic ∇L matches (L(w+ε) − L(w−ε)) / 2ε",
+			({ sizes, activations }) => {
+				const net = buildNet(sizes, activations);
+				const rng = makePRNG(3);
+				const sample = {
+					input: Float32Array.from({ length: sizes[0] }, () => rng() * 2 - 1),
+					target: Float32Array.from(
+						{ length: sizes[sizes.length - 1] },
+						() => rng() * 2 - 1
+					),
+				};
 
-			backpropOnce(net, sample.input, sample.target);
+				backpropOnce(net, sample.input, sample.target);
 
-			for (const layer of net.deps.layers) {
-				const pairs: [Float32Array, Float32Array][] = [
-					[layer.weights, layer.gradW],
-					[layer.bias, layer.gradB],
-				];
-				for (const [params, grads] of pairs) {
-					for (let idx = 0; idx < params.length; idx++) {
-						const numeric = numericalGradient(net, params, idx, sample);
-						expect(Math.abs(grads[idx] - numeric)).toBeLessThan(
-							1e-3 * Math.max(1, Math.abs(numeric))
-						);
+				for (const layer of net.deps.layers) {
+					const pairs: [Float32Array, Float32Array][] = [
+						[layer.weights, layer.gradW],
+						[layer.bias, layer.gradB],
+					];
+					for (const [params, grads] of pairs) {
+						for (let idx = 0; idx < params.length; idx++) {
+							const numeric = numericalGradient(net, params, idx, sample);
+							expect(Math.abs(grads[idx] - numeric)).toBeLessThan(
+								1e-3 * Math.max(1, Math.abs(numeric))
+							);
+						}
 					}
 				}
 			}
-		});
+		);
 	});
 
 	describe("accumulated mini-batch", () => {
