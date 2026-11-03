@@ -34,7 +34,7 @@ jobs:
 
       - name: Validate backup scripts syntax
         run: |
-          for script in backup.sh restore.sh backup-k8s.sh restore-k8s.sh backup-lib.sh; do
+          for script in backup.sh restore.sh backup-k8s.sh backup-incremental-k8s.sh restore-k8s.sh backup-lib.sh; do
             bash -n "scripts/$script" && echo "  ✓ $script syntax OK"
           done
 
@@ -45,6 +45,11 @@ jobs:
       # GTID filtering, restore of *.age files (scripts/backup-lib.sh).
       - name: Test the backup library
         run: bash tests/backup/backup-encryption.test.sh
+
+      # Point-in-time recovery chains (ADR-0031): which binlog / oplog
+      # archives restore-k8s.sh --until replays, gaps refused, no partial file.
+      - name: Test the point-in-time recovery chains
+        run: bash tests/backup/pitr-chain.test.sh
 
       # MongoDB (3 databases + an audit trail written by the audit-logger
       # image), MySQL, Redis and the SPIRE server (CA keys + datastore):

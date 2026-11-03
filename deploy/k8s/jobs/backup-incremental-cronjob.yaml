@@ -1,0 +1,159 @@
+# =============================================================================
+#  backup-incremental-cronjob.yaml — Hourly MySQL binlog and MongoDB oplog
+#  archives for point-in-time recovery (ADR-0031: RPO 1 h)
+#  Runs backup-incremental-k8s.sh at minute 30 of every hour, away from the
+#  02:00 daily dump (db-backup), on the same volume, encryption and off-site
+#  store. Archives are kept 72 h (INCREMENTAL_RETENTION_HOURS); past that only
+#  the daily dumps remain. Restore: restore-k8s.sh --until <instant>.
+#
+#  Metrics: /backups/metrics/backup-incremental.prom, every series labelled
+#  run="incremental" (components mysql-binlog, mongodb-oplog,
+#  mongodb-audit-oplog), served next to the daily job's by
+#  backup-metrics-exporter. Alert: BackupIncrementalStale (2 h).
+# =============================================================================
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: db-backup-incremental
+  labels:
+    app.kubernetes.io/component: backup
+    app.kubernetes.io/part-of: trading-model
+  annotations:
+    description: "Hourly archive of MySQL binlogs and MongoDB oplogs (dlq + audit) for point-in-time recovery"
+spec:
+  schedule: "30 * * * *"
+  concurrencyPolicy: Forbid
+  failedJobsHistoryLimit: 3
+  successfulJobsHistoryLimit: 3
+  startingDeadlineSeconds: 300
+  jobTemplate:
+    spec:
+      # One retry: the next hourly run catches up anyway (the archive names
+      # carry the chain state).
+      backoffLimit: 1
+      activeDeadlineSeconds: 3000
+      ttlSecondsAfterFinished: 21600
+      template:
+        spec:
+          serviceAccountName: backup-runner
+          restartPolicy: Never
+          # backup-data is ReadWriteOnce: run next to the daily job's volume
+          # users (exporter), on the same node when possible.
+          affinity:
+            podAffinity:
+              preferredDuringSchedulingIgnoredDuringExecution:
+                - weight: 100
+                  podAffinityTerm:
+                    labelSelector:
+                      matchLabels:
+                        app.kubernetes.io/component: backup-metrics
+                    topologyKey: kubernetes.io/hostname
+          containers:
+            - name: backup
+              image: ghcr.io/trading-model/backup-tools:latest
+              imagePullPolicy: Always
+              securityContext:
+                runAsNonRoot: true
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop:
+                    - ALL
+                seccompProfile:
+                  type: RuntimeDefault
+              command:
+                - sh
+                - -c
+                - |
+                  set -euo pipefail
+                  /scripts/backup-incremental-k8s.sh \
+                    --components mysql,mongodb,mongodb-audit
+              env:
+                - name: BACKUP_DIR
+                  value: /backups
+                - name: METRICS_FILE
+                  value: /backups/metrics/backup-incremental.prom
+                - name: INCREMENTAL_RETENTION_HOURS
+                  value: "72"
+                - name: K8S_NAMESPACE
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.namespace
+                - name: BACKUP_REQUIRE_ENCRYPTION
+                  value: "true"
+                - name: BACKUP_REQUIRE_OFFSITE
+                  value: "true"
+                - name: BACKUP_AGE_RECIPIENTS
+                  valueFrom:
+                    configMapKeyRef:
+                      name: backup-encryption
+                      key: BACKUP_AGE_RECIPIENTS
+                      optional: true
+                - name: BACKUP_S3_BUCKET
+                  valueFrom:
+                    secretKeyRef:
+                      name: trading-model-backup-s3
+                      key: BACKUP_S3_BUCKET
+                      optional: true
+                - name: AWS_ACCESS_KEY_ID
+                  valueFrom:
+                    secretKeyRef:
+                      name: trading-model-backup-s3
+                      key: AWS_ACCESS_KEY_ID
+                      optional: true
+                - name: AWS_SECRET_ACCESS_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: trading-model-backup-s3
+                      key: AWS_SECRET_ACCESS_KEY
+                      optional: true
+                - name: AWS_REGION
+                  valueFrom:
+                    secretKeyRef:
+                      name: trading-model-backup-s3
+                      key: AWS_REGION
+                      optional: true
+                - name: AWS_DEFAULT_REGION
+                  valueFrom:
+                    secretKeyRef:
+                      name: trading-model-backup-s3
+                      key: AWS_REGION
+                      optional: true
+                - name: RCLONE_S3_ENDPOINT
+                  valueFrom:
+                    secretKeyRef:
+                      name: trading-model-backup-s3
+                      key: S3_ENDPOINT
+                      optional: true
+                - name: RCLONE_S3_PROVIDER
+                  valueFrom:
+                    secretKeyRef:
+                      name: trading-model-backup-s3
+                      key: S3_PROVIDER
+                      optional: true
+              volumeMounts:
+                - name: scripts
+                  mountPath: /scripts
+                  readOnly: true
+                - name: backup-data
+                  mountPath: /backups
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 128Mi
+                limits:
+                  cpu: "1"
+                  memory: 512Mi
+          volumes:
+            - name: scripts
+              configMap:
+                name: backup-scripts
+                defaultMode: 0555
+            - name: backup-data
+              persistentVolumeClaim:
+                claimName: backup-data
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1001
+            fsGroup: 1001
+            seccompProfile:
+              type: RuntimeDefault

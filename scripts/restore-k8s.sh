@@ -2,8 +2,18 @@
 # =============================================================================
 #  Trading Model — Database Restore Script (Kubernetes)
 #  Usage:  bash scripts/restore-k8s.sh [--dry-run] [--components mongodb,mysql,checkpoints,spire]
+#          [--timestamp 2025-01-01_120000 | --until 2025-01-01T13:45:00Z]
 #          BACKUP_DIR=/backups RESTORE_TIMESTAMP=2025-01-01_120000
 #          BACKUP_AGE_IDENTITY=~/backup-key.txt (to read *.age backups)
+#
+#  --until <instant> (point-in-time recovery, ADR-0031; any date understood
+#  by `date -d`, UTC unless it says otherwise): restores the newest daily
+#  backup taken before the instant, then replays the archived MySQL binlogs
+#  and MongoDB oplogs (backup-incremental-k8s.sh) up to it, excluded. Before
+#  touching any data it checks that the archives reach the instant without a
+#  gap, and decrypts every one of them: it exits 1 otherwise. Stop the
+#  writers first (BACKUP_DR.md): a write landing between the dump restore and
+#  the replay makes the replay fail.
 #
 #  Restore MySQL before SPIRE: the SPIRE datastore (bundle, CA journal,
 #  entries) is the `spire` database, keys.json only holds the CA private keys.
@@ -27,9 +37,33 @@ while [[ $# -gt 0 ]]; do
     --dry-run) DRY_RUN=true; shift ;;
     --components) COMPONENTS="$2"; shift 2 ;;
     --timestamp) RESTORE_TIMESTAMP="$2"; shift 2 ;;
+    --until) RESTORE_UNTIL="$2"; shift 2 ;;
     *) echo "Unknown option: $1"; exit 1 ;;
   esac
 done
+
+# --until: the instant as Unix time, as a backup stamp (to pick the backups
+# taken before it) and as mysqlbinlog reads it (UTC).
+RESTORE_UNTIL="${RESTORE_UNTIL:-}"
+UNTIL_EPOCH=""
+UNTIL_STAMP=""
+UNTIL_SQL=""
+if [ -n "$RESTORE_UNTIL" ]; then
+  if [ "$RESTORE_TIMESTAMP" != "latest" ]; then
+    echo "--until and --timestamp exclude each other: --until picks the backups itself"
+    exit 1
+  fi
+  if ! UNTIL_EPOCH="$(date -u -d "$RESTORE_UNTIL" +%s 2>/dev/null)"; then
+    echo "--until: not a date: ${RESTORE_UNTIL}"
+    exit 1
+  fi
+  if [ "$UNTIL_EPOCH" -gt "$(date -u +%s)" ]; then
+    echo "--until: ${RESTORE_UNTIL} is in the future"
+    exit 1
+  fi
+  UNTIL_STAMP="$(date -u -d "@${UNTIL_EPOCH}" +%Y-%m-%d_%H%M%S)"
+  UNTIL_SQL="$(date -u -d "@${UNTIL_EPOCH}" '+%Y-%m-%d %H:%M:%S')"
+fi
 
 log()  { echo "[$(date +%H:%M:%S)] $*"; }
 ok()   { log "✓ $*"; }
@@ -64,17 +98,82 @@ mongo_archive() {
   echo "$archive"
 }
 
+# Newest backup of directory `$1` named `<prefix><stamp><suffix>` (with or
+# without `.age`) whose stamp is not after `$4`; the newest when `$4` is empty.
+backup_until() {
+  local dir="$1" prefix="$2" suffix="$3" limit="${4:-}" path stamp best=""
+  if [ -z "$limit" ]; then
+    latest_backup "$dir" "${prefix}*${suffix}"
+    return
+  fi
+  while read -r path; do
+    [ -n "$path" ] || continue
+    stamp="${path##*/}"
+    stamp="${stamp#"$prefix"}"
+    stamp="${stamp%.age}"
+    stamp="${stamp%"$suffix"}"
+    [[ "$stamp" > "$limit" ]] || best="$path"
+  done < <(find "$dir" -maxdepth 1 \( -name "${prefix}*${suffix}" -o -name "${prefix}*${suffix}.age" \) 2>/dev/null | sort)
+  echo "$best"
+}
+
+# Field `$2` of PITR metadata file `$1` (decrypted).
+pitr_value() {
+  open_backup "$1" | pitr_field "$2"
+}
+
+# Decrypts and decompresses every archive given, output discarded: a damaged
+# archive or a wrong key fails here, before any data is touched.
+check_archives() {
+  local archive
+  for archive in "$@"; do
+    if ! open_backup "$archive" | gunzip -t 2>/dev/null; then
+      echo "archive unreadable (key or content): ${archive}" >&2
+      return 1
+    fi
+  done
+}
+
+# Directory of the daily MongoDB backup to restore: RESTORE_TIMESTAMP, the
+# newest taken before --until, or the newest.
+mongo_backup_dir() {
+  local dir best=""
+  if [ "$RESTORE_TIMESTAMP" != "latest" ]; then
+    echo "${BACKUP_DIR}/mongodb/${RESTORE_TIMESTAMP}"
+    return
+  fi
+  # Stamped directories only: `oplog/` holds the incremental archives.
+  while read -r dir; do
+    [ -n "$dir" ] || continue
+    if [ -n "$UNTIL_STAMP" ] && [[ "${dir##*/}" > "$UNTIL_STAMP" ]]; then
+      continue
+    fi
+    best="$dir"
+  done < <(find "${BACKUP_DIR}/mongodb" -mindepth 1 -maxdepth 1 -type d -name '[0-9]*' 2>/dev/null | sort)
+  echo "$best"
+}
+
+# Replays oplog archives `$2...` into MongoDB primary `$1`, up to --until
+# (excluded). mongorestore reads an oplog from a file only: it is written to
+# a private directory of the pod and deleted afterwards.
+replay_oplog() {
+  local primary="$1"
+  shift
+  local archive
+  for archive in "$@"; do
+    open_backup "$archive" | gunzip || return 1
+  done | kubectl exec -i -n "${K8S_NAMESPACE}" "${primary}" -- sh -c \
+    'd=$(mktemp -d) && chmod 700 "$d" && cat > "$d/oplog.bson" && mongorestore --quiet --oplogReplay --oplogLimit "$1:0" "$d"; rc=$?; rm -rf "$d"; exit $rc' \
+    sh "$UNTIL_EPOCH"
+}
+
 restore_mongodb() {
   log "Starting MongoDB restore..."
   local src
-  if [ "$RESTORE_TIMESTAMP" != "latest" ]; then
-    src="${BACKUP_DIR}/mongodb/${RESTORE_TIMESTAMP}"
-  else
-    src=$(find "${BACKUP_DIR}/mongodb" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | sort | tail -1)
-  fi
+  src=$(mongo_backup_dir)
 
   if [ -z "$src" ] || [ ! -d "$src" ]; then
-    fail "No MongoDB backup found in ${BACKUP_DIR}/mongodb"
+    fail "No MongoDB backup found in ${BACKUP_DIR}/mongodb${UNTIL_STAMP:+ before ${UNTIL_STAMP}}"
     return
   fi
   log "Restoring from: ${src}"
@@ -90,19 +189,77 @@ restore_mongodb() {
       fail "No backup for ${label} in ${src}"
       continue
     fi
+
+    # --until: the oplog archives must reach the instant from the dump's
+    # oplog point, unbroken and readable, before anything is dropped.
+    local chain=()
+    if [ -n "$UNTIL_EPOCH" ]; then
+      local meta start list
+      meta=$(backup_file "${src}/${label}.pitr")
+      if [ -z "$meta" ]; then
+        fail "${label}: the backup in ${src} has no oplog point (taken before ADR-0031): no point-in-time restore from it"
+        continue
+      fi
+      if ! start=$(pitr_value "$meta" oplog_ts) || [ -z "$start" ]; then
+        fail "${label}: cannot read the oplog point ${meta} (age key?)"
+        continue
+      fi
+      if ! list=$(oplog_chain "${BACKUP_DIR}/mongodb/oplog/${label}" "$start" "$UNTIL_EPOCH"); then
+        fail "${label}: cannot restore up to ${UNTIL_SQL} UTC (reason above)"
+        continue
+      fi
+      mapfile -t chain <<< "$list"
+      if ! check_archives "${chain[@]}"; then
+        fail "${label}: an oplog archive cannot be read"
+        continue
+      fi
+      log "${label}: ${#chain[@]} oplog archive(s) to replay from ${start}"
+    fi
+
     if $DRY_RUN; then
-      warn "[DRY-RUN] Would restore MongoDB ${label} into ${primary} from ${archive}"
+      warn "[DRY-RUN] Would restore MongoDB ${label} into ${primary} from ${archive}${UNTIL_SQL:+, then its oplog up to ${UNTIL_SQL} UTC}"
       continue
     fi
     validate_file "$archive" "${label} backup" || continue
 
     # The dumps carry their oplog (mongodump --oplog): replaying it brings the
     # restore to the point in time the dump ended.
-    if open_backup "$archive" | kubectl exec -i -n "${K8S_NAMESPACE}" "${primary}" -- \
+    if ! open_backup "$archive" | kubectl exec -i -n "${K8S_NAMESPACE}" "${primary}" -- \
       mongorestore --quiet --gzip --archive --drop --oplogReplay; then
-      ok "MongoDB restore complete: ${label} (${primary})"
-    else
       fail "MongoDB restore failed: ${label} (${primary})"
+      continue
+    fi
+    if [ "${#chain[@]}" -eq 0 ]; then
+      ok "MongoDB restore complete: ${label} (${primary})"
+      continue
+    fi
+    # The chain starts before the dump did: replaying an entry the dump
+    # already holds is harmless, oplog entries are idempotent.
+    if replay_oplog "$primary" "${chain[@]}"; then
+      ok "MongoDB restore complete: ${label} (${primary}), up to ${UNTIL_SQL} UTC"
+    else
+      fail "MongoDB oplog replay failed: ${label} (${primary}); restore again"
+    fi
+  done
+}
+
+# Replays binlog archives `$3...` into MySQL pod `$1`, the first one from
+# position `$2`, up to --until (excluded). Through the server like any client
+# write, without SQL_LOG_BIN=0: the replayed transactions reach the binlog,
+# hence the replicas, with new GTIDs (--skip-gtids: the server may still hold
+# the original ones, which would make it skip them).
+replay_binlogs() {
+  local pod="$1" pos="$2"
+  shift 2
+  local archive args
+  for archive in "$@"; do
+    args=(--skip-gtids "--stop-datetime=${UNTIL_SQL}")
+    [ -n "$pos" ] && args+=("--start-position=${pos}")
+    pos=""
+    if ! open_backup "$archive" | gunzip | TZ=UTC mysqlbinlog "${args[@]}" - |
+      mysql_root_sh "${pod}" 'mysql --user=root'; then
+      echo "binlog replay stopped at ${archive}" >&2
+      return 1
     fi
   done
 }
@@ -111,13 +268,13 @@ restore_mysql() {
   log "Starting MySQL restore..."
   local file
   if [ "$RESTORE_TIMESTAMP" = "latest" ]; then
-    file=$(latest_backup "${BACKUP_DIR}/mysql" "financial_scraper_*.sql.gz")
+    file=$(backup_until "${BACKUP_DIR}/mysql" "financial_scraper_" ".sql.gz" "$UNTIL_STAMP")
   else
     file=$(backup_file "${BACKUP_DIR}/mysql/financial_scraper_${RESTORE_TIMESTAMP}.sql.gz")
   fi
 
   if [ -z "$file" ] || [ ! -f "$file" ]; then
-    fail "No MySQL backup found in ${BACKUP_DIR}/mysql"
+    fail "No MySQL backup found in ${BACKUP_DIR}/mysql${UNTIL_STAMP:+ before ${UNTIL_STAMP}}"
     return
   fi
   log "Restoring from: ${file}"
@@ -128,17 +285,57 @@ restore_mysql() {
     return
   fi
 
+  # --until: the binlog archives of the dumped server must reach the instant
+  # from the dump's coordinates, unbroken and readable, before anything is
+  # dropped. mysqlbinlog runs here (backup-tools image).
+  local chain=() pos=""
+  if [ -n "$UNTIL_EPOCH" ]; then
+    local meta stamp uuid binlog list
+    stamp="${file##*/financial_scraper_}"
+    stamp="${stamp%%.*}"
+    meta=$(backup_file "${BACKUP_DIR}/mysql/financial_scraper_${stamp}.pitr")
+    if [ -z "$meta" ]; then
+      fail "MySQL: ${file} has no binlog coordinates (taken before ADR-0031): no point-in-time restore from it"
+      return
+    fi
+    if ! uuid=$(pitr_value "$meta" server_uuid) || ! binlog=$(pitr_value "$meta" binlog_file) ||
+      ! pos=$(pitr_value "$meta" binlog_pos) || [ -z "$uuid" ] || [ -z "$binlog" ] || [ -z "$pos" ]; then
+      fail "MySQL: cannot read the binlog coordinates ${meta} (age key?)"
+      return
+    fi
+    if ! command -v mysqlbinlog >/dev/null; then
+      fail "mysqlbinlog is not installed: run the restore from the backup-tools image"
+      return
+    fi
+    if ! list=$(binlog_chain "${BACKUP_DIR}/mysql/binlog/${uuid}" "$binlog" "$UNTIL_STAMP"); then
+      fail "MySQL: cannot restore up to ${UNTIL_SQL} UTC (reason above)"
+      return
+    fi
+    mapfile -t chain <<< "$list"
+    if ! check_archives "${chain[@]}"; then
+      fail "MySQL: a binlog archive cannot be read"
+      return
+    fi
+    log "MySQL: ${#chain[@]} binlog archive(s) to replay from ${binlog}:${pos}"
+  fi
+
   if $DRY_RUN; then
-    warn "[DRY-RUN] Would restore MySQL into ${pod} from ${file}"
+    warn "[DRY-RUN] Would restore MySQL into ${pod} from ${file}${UNTIL_SQL:+, then its binlogs up to ${UNTIL_SQL} UTC}"
     return
   fi
 
   validate_file "$file" "MySQL backup" || return
 
-  if open_backup "$file" | gunzip | strip_gtid | mysql_root_sh "${pod}" 'mysql --user=root'; then
-    ok "MySQL restore complete (${pod})"
-  else
+  if ! open_backup "$file" | gunzip | strip_gtid | mysql_root_sh "${pod}" 'mysql --user=root'; then
     fail "MySQL restore failed (${pod})"
+    return
+  fi
+  if [ "${#chain[@]}" -eq 0 ]; then
+    ok "MySQL restore complete (${pod})"
+  elif replay_binlogs "$pod" "$pos" "${chain[@]}"; then
+    ok "MySQL restore complete (${pod}), up to ${UNTIL_SQL} UTC"
+  else
+    fail "MySQL binlog replay failed (${pod}): the data stopped between the dump and ${UNTIL_SQL} UTC, restore again"
   fi
 }
 
@@ -146,7 +343,7 @@ restore_checkpoints() {
   log "Starting checkpoints restore..."
   local file
   if [ "$RESTORE_TIMESTAMP" = "latest" ]; then
-    file=$(latest_backup "${BACKUP_DIR}/checkpoints" "checkpoints_*.tar.gz")
+    file=$(backup_until "${BACKUP_DIR}/checkpoints" "checkpoints_" ".tar.gz" "$UNTIL_STAMP")
   else
     file=$(backup_file "${BACKUP_DIR}/checkpoints/checkpoints_${RESTORE_TIMESTAMP}.tar.gz")
   fi
@@ -181,7 +378,7 @@ restore_spire() {
   log "Starting SPIRE CA key restore..."
   local file
   if [ "$RESTORE_TIMESTAMP" = "latest" ]; then
-    file=$(latest_backup "${BACKUP_DIR}/spire" "keys_*.json")
+    file=$(backup_until "${BACKUP_DIR}/spire" "keys_" ".json" "$UNTIL_STAMP")
   else
     file=$(backup_file "${BACKUP_DIR}/spire/keys_${RESTORE_TIMESTAMP}.json")
   fi
@@ -286,6 +483,7 @@ echo "════════════════════════�
 echo "  Trading Model — Database Restore (K8s)"
 echo "  Backup Dir: ${BACKUP_DIR}"
 echo "  Timestamp: ${RESTORE_TIMESTAMP}"
+[ -n "$RESTORE_UNTIL" ] && echo "  Until: ${UNTIL_SQL} UTC (point-in-time, excluded)"
 echo "  Components: ${COMPONENTS}"
 echo "══════════════════════════════════════════════════"
 echo ""

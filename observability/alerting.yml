@@ -172,6 +172,25 @@ groups:
           summary: 'Backup job has not run for more than 26 hours'
           description: 'The db-backup CronJob stopped running (suspended, failing to start or stuck): no new backup is being taken.'
 
+      # Point-in-time archives (ADR-0031): hourly, so 2 h = two missed runs.
+      - alert: BackupIncrementalStale
+        expr: 'time() - backup_last_success_timestamp{run="incremental"} > 7200'
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: 'Point-in-time archive stale: {{ $labels.component }}'
+          description: 'No {{ $labels.component }} archive for more than 2 hours (db-backup-incremental runs hourly): the 1 h RPO is no longer met.'
+
+      - alert: BackupIncrementalMissing
+        expr: 'absent(backup_last_success_timestamp{component="mysql-binlog",run="incremental"}) or absent(backup_last_success_timestamp{component="mongodb-oplog",run="incremental"}) or absent(backup_last_success_timestamp{component="mongodb-audit-oplog",run="incremental"})'
+        for: 2h
+        labels:
+          severity: critical
+        annotations:
+          summary: 'A binlog or oplog is no longer archived: {{ $labels.component }}'
+          description: 'db-backup-incremental reported nothing for {{ $labels.component }} (job never ran, component removed, or backup-metrics-exporter down): no point-in-time recovery.'
+
       - alert: BackupMetricsAbsent
         expr: 'absent(backup_last_run_timestamp)'
         for: 26h

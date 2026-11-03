@@ -18,6 +18,11 @@
 #    BACKUP_REQUIRE_OFFSITE     true: a run without off-site copy fails
 #                               (backup_last_status{component="offsite"} 0)
 #  Metrics: METRICS_FILE, rewritten atomically at the end of each run.
+#    BACKUP_RUN                 label `run` added to every metric (the
+#                               incremental job sets `incremental`), so two
+#                               jobs' files can be served side by side
+#  Point-in-time recovery (ADR-0031): binlog and oplog archives written by
+#  backup-incremental-k8s.sh, replayed by restore-k8s.sh --until.
 # =============================================================================
 
 AGE_SUFFIX=""
@@ -97,7 +102,7 @@ record_output() {
 }
 
 write_metric() {
-	local component="$1" status="$2" last_success
+	local component="$1" status="$2" last_success labels
 	[ "$status" -eq 1 ] || BACKUP_FAILURES=$((BACKUP_FAILURES + 1))
 	[ -n "${METRICS_FILE:-}" ] || return 0
 	if [ -z "$_METRICS_TMP" ]; then
@@ -105,26 +110,48 @@ write_metric() {
 		_METRICS_TMP="${METRICS_FILE}.tmp"
 		: >"$_METRICS_TMP"
 	fi
+	labels="component=\"${component}\"${BACKUP_RUN:+,run=\"${BACKUP_RUN}\"}"
 	if [ "$status" -eq 1 ]; then
 		last_success="$(date +%s)"
 	else
 		# A failure keeps the previous success time, so the staleness alert fires.
-		last_success="$(grep -F "backup_last_success_timestamp{component=\"${component}\"}" "$METRICS_FILE" 2>/dev/null | awk '{print $2}' | tail -1)"
+		last_success="$(grep -F "backup_last_success_timestamp{${labels}}" "$METRICS_FILE" 2>/dev/null | awk '{print $2}' | tail -1)"
 		last_success="${last_success:-0}"
 	fi
 	{
-		echo "backup_last_success_timestamp{component=\"${component}\"} ${last_success}"
-		echo "backup_last_status{component=\"${component}\"} ${status}"
+		echo "backup_last_success_timestamp{${labels}} ${last_success}"
+		echo "backup_last_status{${labels}} ${status}"
 	} >>"$_METRICS_TMP"
 }
 
 # Publishes this run's metrics (replacing the previous run's).
 finalize_metrics() {
 	[ -n "$_METRICS_TMP" ] || return 0
-	echo "backup_encrypted $([ -n "$AGE_SUFFIX" ] && echo 1 || echo 0)" >>"$_METRICS_TMP"
-	echo "backup_last_run_timestamp $(date +%s)" >>"$_METRICS_TMP"
+	local encrypted=0
+	[ -n "$AGE_SUFFIX" ] && encrypted=1
+	if [ -n "${BACKUP_RUN:-}" ]; then
+		echo "backup_encrypted{run=\"${BACKUP_RUN}\"} ${encrypted}" >>"$_METRICS_TMP"
+		echo "backup_last_run_timestamp{run=\"${BACKUP_RUN}\"} $(date +%s)" >>"$_METRICS_TMP"
+	else
+		echo "backup_encrypted ${encrypted}" >>"$_METRICS_TMP"
+		echo "backup_last_run_timestamp $(date +%s)" >>"$_METRICS_TMP"
+	fi
 	mv "$_METRICS_TMP" "$METRICS_FILE"
 	ok "Metrics written to ${METRICS_FILE}"
+}
+
+# Runs `$2...` and writes its output, sealed, to `$1` through `$1.partial`:
+# a failed or interrupted write never leaves a final file behind (the
+# `.partial` is deleted, or left by a killed job for the next run to sweep).
+sealed_write() {
+	local file="$1"
+	shift
+	if "$@" | seal >"${file}.partial" && [ -s "${file}.partial" ]; then
+		mv -f "${file}.partial" "$file"
+	else
+		rm -f "${file}.partial"
+		return 1
+	fi
 }
 
 upload_offsite() {
@@ -213,6 +240,18 @@ mongo_primary() {
 	return 1
 }
 
+# Oplog point (`seconds.increment`) of the newest (`-1`) or oldest (`1`)
+# entry of the oplog of MongoDB pod `$1`.
+oplog_edge() {
+	kubectl_exec "$1" -- mongosh --quiet --eval \
+	  "const e = db.getSiblingDB('local').oplog.rs.find({}, {ts: 1}).sort({\$natural: $2}).limit(1).next(); const t = EJSON.serialize({ts: e.ts}).ts.\$timestamp; print(t.t + '.' + t.i)"
+}
+
+# Extended JSON of oplog point `$1`.
+oplog_json() {
+	echo "{\"\$timestamp\":{\"t\":${1%.*},\"i\":${1#*.}}}"
+}
+
 # The MySQL pod the `mysql-primary` Service writes to (replicas do not).
 mysql_primary_pod() {
 	local pod
@@ -249,4 +288,127 @@ strip_gtid() {
 		/^SET @MYSQLDUMP_TEMP_LOG_BIN/ { next }
 		{ print }
 	'
+}
+
+# --- Point-in-time recovery (ADR-0031) --------------------------------------
+#
+# Layout under BACKUP_DIR (all names UTC; `.age` when encrypted):
+#   mysql/financial_scraper_<stamp>.pitr        binlog coordinates of the dump
+#   mysql/binlog/<server_uuid>/<binlog>_<stamp>.gz
+#                                               closed binlog, archived at <stamp>
+#   mongodb/<stamp>/<label>.pitr                oplog point read before the dump
+#   mongodb/oplog/<label>/<from>_<end>.bson.gz  oplog entries from..end inclusive
+# A stamp is `YYYY-MM-DD_HHMMSS`, an oplog point `<seconds>.<increment>`.
+# The next oplog archive starts at the previous one's end (one entry shared:
+# replaying an oplog entry twice is harmless), so a chain is unbroken exactly
+# when every `from` equals the previous `end`.
+
+# Unix time of stamp `$1`.
+stamp_epoch() {
+	local s="$1"
+	date -u -d "${s:0:10} ${s:11:2}:${s:13:2}:${s:15:2}" +%s
+}
+
+# 0 when oplog point `$1` <= `$2`.
+oplog_le() {
+	local at="${1%.*}" ai="${1#*.}" bt="${2%.*}" bi="${2#*.}"
+	[ "$at" -lt "$bt" ] || { [ "$at" -eq "$bt" ] && [ "$ai" -le "$bi" ]; }
+}
+
+# Value of `key=value` line `$1` read on stdin (PITR metadata files).
+pitr_field() {
+	sed -n "s/^$1=//p" | head -1
+}
+
+# Binlog archives of directory `$1` (one MySQL server), oldest first, as
+# `<index> <stamp> <path>` lines. `.partial` files are never listed.
+binlog_archives() {
+	local path name binlog stamp
+	find "$1" -maxdepth 1 -type f \( -name '*.gz' -o -name '*.gz.age' \) 2>/dev/null |
+		while read -r path; do
+			name="${path##*/}"
+			name="${name%.age}"
+			name="${name%.gz}"
+			# <binlog basename>.<index>_<stamp>, the stamp holding one `_`
+			binlog="${name%_*_*}"
+			stamp="${name#"${binlog}"_}"
+			echo "$((10#${binlog##*.})) ${stamp} ${path}"
+		done | sort -n -k1,1
+}
+
+# Archives to replay, in order, from binlog `$2` (the dump's) of directory
+# `$1` up to stamp `$3`: every archive from the dump's binlog on, up to the
+# first run archived at or after `$3` (that run flushed the binary log after
+# `$3`, so every earlier event is in a closed, archived file). Fails, with the
+# reason on stderr, on a missing binlog or when no archive reaches `$3`.
+binlog_chain() {
+	local dir="$1" start="$2" until="$3" expected index stamp path cover=""
+	expected=$((10#${start##*.}))
+	while read -r index stamp path; do
+		[ -n "$index" ] || continue
+		[ "$index" -lt "$expected" ] && continue
+		if [ -n "$cover" ] && [[ "$stamp" > "$cover" ]]; then
+			break
+		fi
+		if [ "$index" -ne "$expected" ]; then
+			echo "binlog ${start%.*}.$(printf '%06d' "$expected") is missing from ${dir}: the archives have a gap" >&2
+			return 1
+		fi
+		echo "$path"
+		if [ -z "$cover" ] && ! [[ "$stamp" < "$until" ]]; then
+			cover="$stamp"
+		fi
+		expected=$((expected + 1))
+	done < <(binlog_archives "$dir")
+	if [ -z "$cover" ]; then
+		echo "no binlog archived at or after ${until} in ${dir} (from ${start}): the archives do not reach the requested instant" >&2
+		return 1
+	fi
+}
+
+# Oplog archives of directory `$1`, oldest first, as `<from> <end> <path>`.
+oplog_archives() {
+	local path name
+	find "$1" -maxdepth 1 -type f \( -name '*.bson.gz' -o -name '*.bson.gz.age' \) 2>/dev/null |
+		while read -r path; do
+			name="${path##*/}"
+			name="${name%.age}"
+			name="${name%.bson.gz}"
+			echo "${name%_*} ${name#*_} ${path}"
+		done | sort -t. -k1,1n -k2,2n
+}
+
+# Archives to replay, in order, from oplog point `$2` (read before the dump)
+# up to Unix time `$3`, in directory `$1`: from the archive holding `$2`
+# through the first one ending at or after `$3`. Fails, with the reason on
+# stderr, when an archive is missing between the two.
+oplog_chain() {
+	local dir="$1" start="$2" until="$3" from end path prev="" covered=false
+	while read -r from end path; do
+		[ -n "$from" ] || continue
+		if [ -z "$prev" ]; then
+			oplog_le "$end" "$start" && [ "$end" != "$start" ] && continue
+			if ! oplog_le "$from" "$start"; then
+				echo "no oplog archive in ${dir} holds ${start} (first one starts at ${from}): the archives have a gap" >&2
+				return 1
+			fi
+		elif [ "$from" != "$prev" ]; then
+			echo "oplog archives of ${dir} have a gap between ${prev} and ${from}" >&2
+			return 1
+		fi
+		echo "$path"
+		prev="$end"
+		if [ "${end%.*}" -ge "$until" ]; then
+			covered=true
+			break
+		fi
+	done < <(oplog_archives "$dir")
+	if [ -z "$prev" ]; then
+		echo "no oplog archive in ${dir} holds ${start}" >&2
+		return 1
+	fi
+	if ! $covered; then
+		echo "the oplog archives of ${dir} end at ${prev}, before the requested instant" >&2
+		return 1
+	fi
 }
