@@ -502,6 +502,16 @@ and Prometheus scrapes them (job `backup-metrics`).
 | `BackupMetricsAbsent`     | no metric of the daily job (`run=""`: the incremental job's series do not count; job never ran, exporter down) |
 | `BackupUnencrypted`       | no age recipient                                                             |
 | `BackupOffsiteCopyFailed` | the off-site copy failed or is not configured (the next daily run sends the missed weekly / monthly copies again: [catch-up](#off-site-tiers); fix within 30 days) |
+| `BackupVolumeFilling`     | the `backup-data` volume is more than 80 % full for 30 min (`backup_volume_used_ratio`, measured with `df` by both jobs; independent of kubelet volume metrics) |
+
+### Storage class of `backup-data`
+
+The PVC sets no `storageClassName`: it uses the cluster default class. To pin
+another class for a new deployment, patch it in the overlay
+(`op: add`, `path: /spec/storageClassName`, target `PersistentVolumeClaim`
+`backup-data`). `storageClassName` of an existing PVC is immutable: a change
+only applies to a new cluster, or after recreating the claim (restore the
+backups from the off-site copy first).
 
 ## Restore Procedures
 

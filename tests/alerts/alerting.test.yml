@@ -675,3 +675,23 @@ tests:
             exp_annotations:
               summary: 'No backup has ever reported'
               description: 'Prometheus has no metric of the daily backup job: db-backup never ran or backup-metrics-exporter is down (the series of db-backup-incremental do not count).'
+
+  # Volume at 85 % for 30 m fires; the incremental series at 50 % stays quiet.
+  - name: a backup volume over 80 percent warns after 30 minutes
+    interval: 1m
+    input_series:
+      - series: 'backup_volume_used_ratio{job="backup-metrics"}'
+        values: '0.85x40'
+      - series: 'backup_volume_used_ratio{job="backup-metrics",run="incremental"}'
+        values: '0.5x40'
+    alert_rule_test:
+      - eval_time: 20m
+        alertname: BackupVolumeFilling
+        exp_alerts: []
+      - eval_time: 35m
+        alertname: BackupVolumeFilling
+        exp_alerts:
+          - exp_labels: {severity: warning, job: backup-metrics}
+            exp_annotations:
+              summary: 'backup-data volume is over 80% full'
+              description: 'The backup-data PVC (100Gi) is filling up: dumps grow with the market data. Check the retention (RETENTION_DAYS) or grow the volume before a night of backups fails.'

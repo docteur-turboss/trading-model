@@ -545,10 +545,30 @@ write_pitr_gap() {
 	echo "backup_pitr_gap{component=\"$1\"${BACKUP_RUN:+,run=\"${BACKUP_RUN}\"}} $2" >>"$_METRICS_TMP"
 }
 
+# write_volume_usage: used / capacity of the filesystem holding BACKUP_DIR as
+# backup_volume_used_ratio (alert BackupVolumeFilling). Measured by the job
+# itself: no dependency on kubelet_volume_stats_* being scraped. A failing df
+# publishes nothing, so the alert's absent() guard does not hide it silently.
+write_volume_usage() {
+	local dir="${BACKUP_DIR:-/backups}" used total ratio
+	read -r total used < <(df -Pk "$dir" 2>/dev/null | awk 'NR==2 {print $2, $3}') || return 0
+	[ -n "${total:-}" ] && [ "$total" -gt 0 ] 2>/dev/null || {
+		warn "df ${dir} failed: backup_volume_used_ratio not published"
+		return 0
+	}
+	ratio="$(awk -v u="$used" -v t="$total" 'BEGIN {printf "%.4f", u / t}')"
+	if [ -n "${BACKUP_RUN:-}" ]; then
+		echo "backup_volume_used_ratio{run=\"${BACKUP_RUN}\"} ${ratio}" >>"$_METRICS_TMP"
+	else
+		echo "backup_volume_used_ratio ${ratio}" >>"$_METRICS_TMP"
+	fi
+}
+
 # Publishes this run's metrics (replacing the previous run's).
 finalize_metrics() {
 	[ -n "$_METRICS_TMP" ] || return 0
 	local encrypted=0
+	write_volume_usage
 	[ -n "$AGE_SUFFIX" ] && encrypted=1
 	if [ -n "${BACKUP_RUN:-}" ]; then
 		echo "backup_encrypted{run=\"${BACKUP_RUN}\"} ${encrypted}" >>"$_METRICS_TMP"
