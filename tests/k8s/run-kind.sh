@@ -469,8 +469,15 @@ verify_backup() {
 		replicas[$writer]="$($K -n "$NS" get deployment "$writer" -o jsonpath='{.spec.replicas}')"
 		$K -n "$NS" scale deployment "$writer" --replicas=0
 	done
+	# financial-scraper-collector drains its candle backlog on shutdown
+	# (terminationGracePeriodSeconds: 360): a writer still running would write
+	# after the instant, or during the restore.
 	for writer in $MONGO_WRITERS $MYSQL_WRITERS; do
-		$K -n "$NS" wait --for=delete pod -l "app.kubernetes.io/component=$writer" --timeout=120s || true
+		$K -n "$NS" wait --for=delete pod -l "app.kubernetes.io/component=$writer" --timeout=420s || true
+		if [ -n "$($K -n "$NS" get pod -l "app.kubernetes.io/component=$writer" -o name)" ]; then
+			log "writer $writer still has pods after 420 s: the point-in-time drill needs every writer stopped"
+			return 1
+		fi
 	done
 
 	# The state to get back: everything written up to the instant.

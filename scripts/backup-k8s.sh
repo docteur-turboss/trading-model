@@ -61,8 +61,7 @@ backup_mongodb() {
     local file="${dest}/${label}.archive.gz${AGE_SUFFIX}"
     local pitr="${dest}/${label}.pitr${AGE_SUFFIX}"
     if write_dump "$label" "$file" kubectl_exec "${primary}" -- mongodump --gzip --archive --oplog &&
-      sealed_write "$pitr" printf 'oplog_ts=%s
-' "$start"; then
+      sealed_write "$pitr" echo "oplog_ts=${start}"; then
       ok "MongoDB backup complete: ${label} (${primary}, oplog from ${start})"
       record_output "$pitr"
       write_metric "$label" 1
@@ -71,23 +70,6 @@ backup_mongodb() {
       write_metric "$label" 0
     fi
   done
-}
-
-# stdout: PITR metadata of a dump of server `$1`, whose binlog coordinates
-# line is in file `$2`. Fails when the dump wrote no coordinates.
-mysql_pitr() {
-  local line binlog pos
-  line=$(cat "$2")
-  binlog=$(echo "$line" | sed -nE "s/.*_LOG_FILE='([^']+)'.*//p")
-  pos=$(echo "$line" | sed -nE 's/.*_LOG_POS=([0-9]+).*//p')
-  if [ -z "$binlog" ] || [ -z "$pos" ]; then
-    fail "The MySQL dump carries no binlog coordinates: no point-in-time restore from it" >&2
-    return 1
-  fi
-  printf 'server_uuid=%s
-binlog_file=%s
-binlog_pos=%s
-' "$1" "$binlog" "$pos"
 }
 
 # Gzipped dump of every non-system database from MySQL pod `$1`. Point-in-time

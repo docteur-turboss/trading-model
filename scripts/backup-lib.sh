@@ -632,6 +632,26 @@ oplog_le() {
 	[ "$at" -lt "$bt" ] || { [ "$at" -eq "$bt" ] && [ "$ai" -le "$bi" ]; }
 }
 
+# stdout: PITR metadata of a MySQL dump of server `$1`, whose binlog
+# coordinates line (`-- CHANGE REPLICATION SOURCE TO ...`, mysqldump
+# --source-data=2) is in file `$2`. Fails when the line holds no well-formed
+# coordinates. Bash matches, no sed backreference: the first CI run of #291
+# stored a control character in place of a mangled `\1`.
+mysql_pitr() {
+	local line binlog="" pos=""
+	line=$(cat "$2")
+	local file_re="_LOG_FILE='([A-Za-z0-9_.-]+[.][0-9]+)'" pos_re="_LOG_POS=([0-9]+)"
+	[[ "$line" =~ $file_re ]] && binlog="${BASH_REMATCH[1]}"
+	[[ "$line" =~ $pos_re ]] && pos="${BASH_REMATCH[1]}"
+	if [ -z "$binlog" ] || [ -z "$pos" ]; then
+		fail "The MySQL dump carries no binlog coordinates: no point-in-time restore from it" >&2
+		return 1
+	fi
+	echo "server_uuid=$1"
+	echo "binlog_file=${binlog}"
+	echo "binlog_pos=${pos}"
+}
+
 # Value of `key=value` line `$1` read on stdin (PITR metadata files).
 pitr_field() {
 	sed -n "s/^$1=//p" | head -1

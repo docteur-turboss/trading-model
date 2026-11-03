@@ -51,6 +51,21 @@ refuse() {
 	fi
 }
 
+echo "dump binlog coordinates"
+C="$WORK/coords"
+echo "-- CHANGE REPLICATION SOURCE TO SOURCE_LOG_FILE='mysql-bin.000003', SOURCE_LOG_POS=197;" >"$C"
+want="server_uuid=u-1 binlog_file=mysql-bin.000003 binlog_pos=197"
+got="$(mysql_pitr u-1 "$C" | paste -sd' ' -)"
+if [ "$got" = "$want" ]; then pass "MySQL 8.4 coordinates line"; else failed "MySQL 8.4 coordinates line: got '$got', want '$want'"; fi
+echo "-- CHANGE MASTER TO MASTER_LOG_FILE='binlog.000012', MASTER_LOG_POS=4;" >"$C"
+want="server_uuid=u-1 binlog_file=binlog.000012 binlog_pos=4"
+got="$(mysql_pitr u-1 "$C" | paste -sd' ' -)"
+if [ "$got" = "$want" ]; then pass "older CHANGE MASTER line"; else failed "older CHANGE MASTER line: got '$got', want '$want'"; fi
+: >"$C"
+refuse "dump without coordinates" mysql_pitr u-1 "$C"
+echo "-- CHANGE REPLICATION SOURCE TO SOURCE_LOG_FILE='', SOURCE_LOG_POS=197;" >"$C"
+refuse "empty binlog name" mysql_pitr u-1 "$C"
+
 echo "binlog chain"
 B="$WORK/binlog"
 mkdir -p "$B"

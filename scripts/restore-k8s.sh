@@ -240,6 +240,10 @@ restore_mysql() {
       fail "MySQL: cannot read the binlog coordinates ${meta} (age key?)"
       return
     fi
+    if ! [[ "$binlog" =~ ^[A-Za-z0-9_.-]+[.][0-9]+$ ]] || ! [[ "$pos" =~ ^[0-9]+$ ]]; then
+      fail "MySQL: malformed binlog coordinates in ${meta}: no point-in-time restore from it"
+      return
+    fi
     if ! command -v mysqlbinlog >/dev/null; then
       fail "mysqlbinlog is not installed: run the restore from the backup-tools image"
       return
