@@ -57,6 +57,10 @@ jobs:
       - name: Test the restore helper image
         run: bash tests/backup/restore-helper-image.test.sh
 
+      # Selective MongoDB restore: --ns, --into-scratch, refusals (issue #335).
+      - name: Test the selective MongoDB restore
+        run: bash tests/backup/restore-mongo-ns.test.sh
+
       # Step timings and budget of the restore drills (issue #329).
       - name: Test the restore drill timings
         run: bash tests/backup/drill-timings.test.sh
