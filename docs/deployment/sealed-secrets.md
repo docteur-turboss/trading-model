@@ -61,7 +61,9 @@ what they sealed), encrypts the export with age for `BACKUP_AGE_RECIPIENTS`
 while it is written (no plaintext on disk) and copies it to the off-site
 bucket of the database backups, as
 `<BACKUP_S3_BUCKET>/sealed-secrets-key/sealed-secrets-key_<TIMESTAMP>.yaml.age`.
-It runs from an operator workstation with a kubeconfig that can read the
+It runs every day from the scheduled workflow
+`.github/workflows/sealed-secrets-key-backup.yml` (below, ADR-0035), and by
+hand from an operator workstation with a kubeconfig that can list the
 Secrets of `kube-system`:
 
 ```bash
@@ -81,19 +83,68 @@ recipient rules as the backup CronJob (`BACKUP_MIN_RECIPIENTS`,
 the controller reads (name, labels, type, data), so it applies to any new
 cluster.
 
-**Run it again after every key change**, or the keys created since the last
-backup are lost with the cluster, and so are the secrets sealed with them:
+A key created since the last backup is lost with the cluster, and so are
+the secrets sealed with it. The daily workflow backs up an automatic key
+renewal (every 30 days by default, `--key-renew-period`) within 24 h. Do not
+wait for the next run, and run the script or the workflow (`gh workflow run
+sealed-secrets-key-backup.yml`) by hand:
 
-- after every `kubeseal --rotate` and every manual key renewal (see
-  [Key rotation](#key-rotation));
-- after every automatic key renewal: the controller creates a new key every
-  30 days by default (`--key-renew-period`). List the keys and their dates
-  with `kubectl -n kube-system get secret -l sealedsecrets.bitnami.com/sealed-secrets-key`:
-  a key newer than the newest `sealed-secrets-key_<TIMESTAMP>.yaml.age` of
-  the bucket is not backed up;
+- after every manual key renewal (see [Key rotation](#key-rotation));
 - after the controller is installed or reinstalled on a cluster, and after
   a restore (below);
 - before sealing a new secret with `kubeseal` or `scripts/init-sealed-secrets.sh`.
+
+List the keys and their dates with
+`kubectl -n kube-system get secret -l sealedsecrets.bitnami.com/sealed-secrets-key`:
+a key newer than the newest `sealed-secrets-key_<TIMESTAMP>.yaml.age` of the
+bucket is not backed up yet.
+
+### Daily backup by GitHub Actions
+
+`.github/workflows/sealed-secrets-key-backup.yml` runs the script every day
+at 03:30 UTC (and on demand) against the production cluster, in the
+`backup-tools` image (ADR-0035). Staging has no SealedSecret and is not
+backed up. Everything comes from the GitHub environment
+`sealed-secrets-key-backup`: deployment branches restricted to the default
+branch, **no required reviewer** (it would block the schedule).
+
+| Name | Kind | Value |
+| ---- | ---- | ----- |
+| `SEALED_SECRETS_BACKUP_KUBECONFIG` | secret | kubeconfig of the `sealed-secrets-key-backup` ServiceAccount (below), never an admin kubeconfig |
+| `BACKUP_S3_ACCESS_KEY_ID`, `BACKUP_S3_SECRET_ACCESS_KEY` | secrets | put credentials of the off-site bucket, without delete right (ADR-0033), as in the `production` environment |
+| `BACKUP_AGE_RECIPIENTS` | variable | operator and escrow public keys, as in `production` (2 required, ADR-0034) |
+| `BACKUP_S3_BUCKET`, `BACKUP_S3_REGION`, `BACKUP_S3_ENDPOINT`, `BACKUP_S3_PROVIDER` | variables | as in `production` |
+| `SEALED_SECRETS_NAMESPACE` | variable | controller namespace, default `kube-system` |
+
+The cluster identity lists the Secrets of the controller namespace and
+nothing else. Create it once per cluster with an admin kubeconfig, and pipe
+its kubeconfig straight into the secret (it is never written to disk):
+
+```bash
+bash scripts/sealed-secrets-backup-identity.sh \
+  | gh secret set SEALED_SECRETS_BACKUP_KUBECONFIG --env sealed-secrets-key-backup
+# API server address reachable from the GitHub runners, if the context's is not:
+bash scripts/sealed-secrets-backup-identity.sh --server https://api.example.net:6443 | gh secret set ...
+# Rotation (suspected leak, departure): the old token stops working
+bash scripts/sealed-secrets-backup-identity.sh --rotate \
+  | gh secret set SEALED_SECRETS_BACKUP_KUBECONFIG --env sealed-secrets-key-backup
+```
+
+The script applies, in the controller namespace, the ServiceAccount
+`sealed-secrets-key-backup`, a Role with `list` on `secrets` only, its
+RoleBinding and the token Secret `sealed-secrets-key-backup-token`. RBAC
+cannot filter by label: the identity can list **every** Secret of
+`kube-system`. Treat a leak of `SEALED_SECRETS_BACKUP_KUBECONFIG` as a leak
+of the controller keys: `--rotate`, then renew the keys and reseal every
+secret ([Key rotation](#key-rotation)).
+
+The job writes the kubeconfig to a tmpfs (mode 600) and deletes it after
+the run. A missing secret or variable, an unreachable API server (it must be
+reachable from GitHub-hosted runners, as for `deploy.yml`) or bucket, no key
+found, age or the copy failing: the run fails and GitHub notifies on it. Its
+summary lists the keys found and the file written. A new cluster (total
+outage) has no identity yet: the run fails until the identity is created
+again and the secret updated.
 
 The bucket's Object Lock keeps each file at least 30 days; no lifecycle rule
 expires `sealed-secrets-key/`, and the newest file always holds every key.
@@ -111,6 +162,8 @@ bash scripts/restore-sealed-secrets-key.sh --identity ~/backup-key.txt --timesta
 bash scripts/restore-sealed-secrets-key.sh --identity ~/backup-key.txt --file sealed-secrets-key_<TS>.yaml.age
 # then install the controller (Setup, step 1), or nothing more if it already runs
 bash scripts/backup-sealed-secrets-key.sh                                        # back up the new cluster's keys
+bash scripts/sealed-secrets-backup-identity.sh \
+  | gh secret set SEALED_SECRETS_BACKUP_KUBECONFIG --env sealed-secrets-key-backup   # daily backup again
 ```
 
 The file is decrypted once before anything is applied (a wrong key or a
@@ -125,7 +178,9 @@ controller does not restart.
 
 `tests/k8s/sealed-secrets-key-drill.sh` proves the loop on kind (job
 `sealed-secrets-key` of `backup-test.yml`): a secret sealed in one cluster,
-keys backed up to S3, the cluster deleted, a new cluster with a new
+the identity of the daily workflow created and its rights checked
+(`kubectl auth can-i`: list Secrets of `kube-system` only), keys backed up
+to S3 with that identity, the cluster deleted, a new cluster with a new
 controller that does not decrypt the SealedSecret, the keys restored, the
 SealedSecret decrypted to the original value.
 

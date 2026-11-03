@@ -2,7 +2,10 @@
 # Disaster drill of the SealedSecrets controller keys (issue #328), on kind:
 #   1. cluster A: Sealed Secrets controller v0.27.1, a test secret sealed with
 #      kubeseal and applied, decrypted by the controller;
-#   2. scripts/backup-sealed-secrets-key.sh: keys encrypted with age and copied
+#   2. scripts/sealed-secrets-backup-identity.sh: the restricted identity of
+#      the scheduled workflow (ADR-0035), checked with `kubectl auth can-i`
+#      (list Secrets of kube-system only); with it,
+#      scripts/backup-sealed-secrets-key.sh: keys encrypted with age and copied
 #      to an S3 bucket (`rclone serve s3` in the backup-tools image);
 #   3. cluster A deleted, cluster B created: new cluster, new controller, its
 #      own new key. The same SealedSecret is applied: it must NOT decrypt
@@ -80,7 +83,7 @@ install_controller() {
 # tools <script> <args...>: runs a repository script in the backup-tools image.
 tools() {
 	MSYS_NO_PATHCONV=1 docker run --rm --network kind \
-		-v "$ROOT:/repo:ro" -v "$WORK:/work" -e KUBECONFIG=/work/kubeconfig \
+		-v "$ROOT:/repo:ro" -v "$WORK:/work" -e KUBECONFIG="${TOOLS_KUBECONFIG:-/work/kubeconfig}" \
 		-e BACKUP_AGE_RECIPIENTS="$RECIPIENT" -e BACKUP_S3_BUCKET=s3://drill/backups \
 		-e AWS_ACCESS_KEY_ID=drill -e AWS_SECRET_ACCESS_KEY=drill-secret-key -e AWS_REGION=us-east-1 \
 		-e RCLONE_S3_ENDPOINT="http://${S3}:8080" -e RCLONE_S3_PROVIDER=Other \
@@ -113,12 +116,21 @@ wait_for 60 "[ \"\$(secret_value)\" = \"$VALUE\" ]" || die "cluster A did not de
 KEYS_A="$($K -n kube-system get secret -l "$KEY_LABEL" -o name | sort)"
 log "   decrypted; keys: $(tr '\n' ' ' <<<"$KEYS_A")"
 
-log "2. keys backed up off-site"
+log "2. keys backed up off-site with the identity of the scheduled workflow"
+tools sealed-secrets-backup-identity.sh >"$WORK/backup-kubeconfig" || die "sealed-secrets-backup-identity.sh failed"
+chmod 644 "$WORK/backup-kubeconfig"
+SA="system:serviceaccount:kube-system:sealed-secrets-key-backup"
+[ "$($K auth can-i list secrets -n kube-system --as "$SA")" = yes ] || die "the backup identity cannot list the key Secrets"
+for denied in "get secrets -n kube-system" "list secrets -n drill" "create secrets -n kube-system" "list configmaps -n kube-system" "list secrets -A"; do
+	# shellcheck disable=SC2086
+	[ "$($K auth can-i $denied --as "$SA" || true)" = no ] || die "the backup identity is allowed: ${denied}"
+done
+log "   identity limited to list secrets in kube-system"
 docker rm -f "$S3" >/dev/null 2>&1 || true
 docker run -d --name "$S3" --network kind --entrypoint sh "$IMAGE" -c \
 	'mkdir -p /tmp/s3/drill && exec rclone serve s3 --addr 0.0.0.0:8080 --auth-key drill,drill-secret-key /tmp/s3' >/dev/null
 sleep 3
-tools backup-sealed-secrets-key.sh || die "backup-sealed-secrets-key.sh failed"
+TOOLS_KUBECONFIG=/work/backup-kubeconfig tools backup-sealed-secrets-key.sh || die "backup-sealed-secrets-key.sh failed"
 docker exec "$S3" sh -c 'ls /tmp/s3/drill/backups/sealed-secrets-key/' | grep -qE '^sealed-secrets-key_.*\.yaml\.age$' ||
 	die "no encrypted key file in the bucket"
 docker exec "$S3" sh -c 'grep -rl "BEGIN RSA PRIVATE KEY\|tls.key" /tmp/s3' && die "plaintext key in the bucket"

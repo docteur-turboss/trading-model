@@ -7,7 +7,9 @@
 # written, exit 1 and nothing in the bucket when no key is found, the export,
 # age or the copy fails; the restore picks the newest backup (or
 # --timestamp), refuses a wrong key before applying anything, restarts the
-# controller, and fails when the keys are not found afterwards.
+# controller, and fails when the keys are not found afterwards;
+# sealed-secrets-backup-identity.sh applies a Role limited to list Secrets and
+# prints a kubeconfig for it on stdout only, --rotate replaces the token.
 # Needs bash and age.
 #   bash tests/backup/sealed-secrets-key.test.sh
 set -euo pipefail
@@ -48,6 +50,12 @@ cat >"$WORK/bin/kubectl" <<'EOF'
 echo "kubectl $*" >>"$STUB_STATE/calls"
 args=" $* "
 case "$args" in
+*" config view "*"cluster.server"*) [ "${STUB_NO_CONTEXT:-0}" = 1 ] || echo "https://api.example.net:6443" ;;
+*" config view "*"certificate-authority-data"*) [ "${STUB_NO_CONTEXT:-0}" = 1 ] || echo "Q0EtREFUQQ==" ;;
+*" get secret sealed-secrets-key-backup-token "*)
+	[ "${STUB_NO_TOKEN:-0}" = 1 ] || printf '%s' "stub-sa-token" | base64
+	;;
+*" delete secret sealed-secrets-key-backup-token "*) exit 0 ;;
 *" get secret "*"-o name"*)
 	if [ -f "$STUB_STATE/applied.yaml" ] && [ "${STUB_LOST:-0}" != 1 ]; then
 		sed -n 's/^    name: /secret\//p' "$STUB_STATE/applied.yaml"
@@ -86,7 +94,11 @@ copyto) cp "$(path "$2")" "$3" ;;
 *) echo "stub rclone: unexpected $*" >&2; exit 1 ;;
 esac
 EOF
-chmod +x "$WORK/bin/kubectl" "$WORK/bin/rclone"
+mkdir -p "$WORK/nosleep"
+printf '#!/bin/sh
+exit 0
+' >"$WORK/nosleep/sleep"
+chmod +x "$WORK/bin/kubectl" "$WORK/bin/rclone" "$WORK/nosleep/sleep"
 
 export PATH="$WORK/bin:$PATH" TMPDIR="$WORK/tmp" MARKER
 export BACKUP_S3_BUCKET="s3://bucket/prefix"
@@ -237,6 +249,59 @@ if restore --identity "$WORK/operator.txt" --file "$NEWEST" --offsite; then
 	failed "--file with --offsite: exit 0"
 else
 	pass "--file with --offsite: exit 1"
+fi
+
+echo "sealed-secrets-backup-identity.sh"
+IDENTITY="$ROOT/scripts/sealed-secrets-backup-identity.sh"
+# identity <args...>: kubeconfig on $WORK/identity.out, messages on .log.
+identity() {
+	fresh
+	bash "$IDENTITY" "$@" >"$WORK/identity.out" 2>"$WORK/identity.log"
+}
+if identity; then
+	pass "exit 0"
+else
+	failed "exit 1"; cat "$WORK/identity.log"
+fi
+# The Role: list on secrets, nothing else.
+RULES="$(sed -n '/^kind: Role$/,/^---$/p' "$STUB_STATE/applied.yaml" | sed -n '/^rules:/,/^---$/p')"
+if grep -qF 'resources: ["secrets"]' <<<"$RULES" && grep -qF 'verbs: ["list"]' <<<"$RULES" &&
+	[ "$(grep -c 'verbs:' <<<"$RULES")" -eq 1 ] && [ "$(grep -c 'resources:' <<<"$RULES")" -eq 1 ]; then
+	pass "Role allows list on secrets only"
+else
+	failed "Role is not list-secrets only: $RULES"
+fi
+grep -q '^  namespace: kube-system$' "$STUB_STATE/applied.yaml" && pass "objects in kube-system" || failed "objects not in kube-system"
+grep -q '^type: kubernetes.io/service-account-token$' "$STUB_STATE/applied.yaml" && pass "token Secret bound to the ServiceAccount" || failed "no token Secret"
+if grep -q '^      token: stub-sa-token$' "$WORK/identity.out" &&
+	grep -q '^      server: https://api.example.net:6443$' "$WORK/identity.out" &&
+	grep -q '^      certificate-authority-data: Q0EtREFUQQ==$' "$WORK/identity.out" &&
+	grep -q '^current-context: sealed-secrets-key-backup$' "$WORK/identity.out"; then
+	pass "stdout is the kubeconfig of the ServiceAccount (server, CA, token)"
+else
+	failed "kubeconfig incomplete"; cat "$WORK/identity.out"
+fi
+grep -q 'stub-sa-token' "$WORK/identity.log" && failed "token in the messages" || pass "token only on stdout"
+grep -q '^apiVersion: v1$' "$WORK/identity.out" && ! grep -qE '^\[|✓|✗' "$WORK/identity.out" && pass "messages kept off stdout" || failed "messages on stdout"
+identity --server https://10.0.0.1:6443 >/dev/null 2>&1 || true
+grep -q '^      server: https://10.0.0.1:6443$' "$WORK/identity.out" && pass "--server overrides the context server" || failed "--server ignored"
+SEALED_SECRETS_NAMESPACE=sealed-secrets identity >/dev/null 2>&1 || true
+grep -q '^  namespace: sealed-secrets$' "$STUB_STATE/applied.yaml" && pass "SEALED_SECRETS_NAMESPACE picks the namespace" || failed "SEALED_SECRETS_NAMESPACE ignored"
+identity --rotate >/dev/null 2>&1 || true
+grep -q 'delete secret sealed-secrets-key-backup-token' "$STUB_STATE/calls" && pass "--rotate deletes the previous token" || failed "--rotate kept the token"
+if STUB_NO_CONTEXT=1 identity; then
+	failed "no server or CA in the context: exit 0"
+elif [ -s "$WORK/identity.out" ] || [ -f "$STUB_STATE/applied.yaml" ]; then
+	failed "no server or CA in the context: something applied or printed"
+else
+	pass "no server or CA in the context: exit 1, nothing applied"
+fi
+if STUB_NO_TOKEN=1 PATH="$WORK/nosleep:$PATH" identity; then
+	failed "no token issued: exit 0"
+elif [ -s "$WORK/identity.out" ]; then
+	failed "no token issued: a kubeconfig was printed"
+else
+	pass "no token issued: exit 1, no kubeconfig"
 fi
 
 if [ "$FAILED" -ne 0 ]; then
