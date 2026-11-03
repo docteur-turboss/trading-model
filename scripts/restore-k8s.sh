@@ -5,6 +5,12 @@
 #          BACKUP_DIR=/backups RESTORE_TIMESTAMP=2025-01-01_120000
 #          BACKUP_AGE_IDENTITY=~/backup-key.txt (to read *.age backups)
 #
+#  Without --timestamp, each component comes from the newest run whose
+#  manifest lists it; every file is checked against its manifest (size,
+#  sha256 of the plaintext; MySQL: ends with `-- Dump completed`) before
+#  anything is written, --dry-run included. Runs taken before manifests are
+#  only restored with an explicit --timestamp (see backup-lib.sh).
+#
 #  Restore MySQL before SPIRE: the SPIRE datastore (bundle, CA journal,
 #  entries) is the `spire` database, keys.json only holds the CA private keys.
 #  Exits 1 when any step fails.
@@ -39,26 +45,13 @@ warn() { log "⚠ $*"; }
 # shellcheck source=backup-lib.sh
 source "$(dirname "$0")/backup-lib.sh"
 
-validate_file() {
-  local file="$1"
-  local label="$2"
-  if [ ! -f "$file" ]; then
-    fail "${label} not found: ${file}"
-    return 1
-  fi
-  if [ ! -s "$file" ]; then
-    fail "${label} is empty: ${file}"
-    return 1
-  fi
-  return 0
-}
-
-# Backup of the replica set labelled `$1` in directory `$2`: `<label>.archive.gz`,
-# or `<statefulset>-<n>.archive.gz` for backups taken per pod (before 2026-10).
-mongo_archive() {
+# Backup of the replica set labelled `$1` in the run directory `$2` taken
+# before manifests: `<label>.archive.gz`, or `<statefulset>-<n>.archive.gz`
+# for backups taken per pod (before 2026-10).
+legacy_mongo_archive() {
   local label="$1" src="$2" primary="$3" archive
   archive=$(backup_file "${src}/${label}.archive.gz")
-  if [ -z "$archive" ]; then
+  if [ -z "$archive" ] && [ -n "$primary" ]; then
     archive=$(find "$src" -maxdepth 1 \( -name "${primary%-*}-*.archive.gz" -o -name "${primary%-*}-*.archive.gz.age" \) 2>/dev/null | sort | head -1)
   fi
   echo "$archive"
@@ -66,39 +59,24 @@ mongo_archive() {
 
 restore_mongodb() {
   log "Starting MongoDB restore..."
-  local src
-  if [ "$RESTORE_TIMESTAMP" != "latest" ]; then
-    src="${BACKUP_DIR}/mongodb/${RESTORE_TIMESTAMP}"
-  else
-    src=$(find "${BACKUP_DIR}/mongodb" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | sort | tail -1)
-  fi
-
-  if [ -z "$src" ] || [ ! -d "$src" ]; then
-    fail "No MongoDB backup found in ${BACKUP_DIR}/mongodb"
-    return
-  fi
-  log "Restoring from: ${src}"
-
-  local label primary archive
+  local label primary legacy=""
   for label in mongodb mongodb-audit; do
-    if ! primary=$(mongo_primary "$label"); then
+    primary=$(mongo_primary "$label") || primary=""
+    [ "$RESTORE_TIMESTAMP" = "latest" ] ||
+      legacy=$(legacy_mongo_archive "$label" "${BACKUP_DIR}/mongodb/${RESTORE_TIMESTAMP}" "$primary")
+    resolve_and_verify "$label" "$legacy" || continue
+    if [ -z "$primary" ]; then
       fail "No writable MongoDB primary for ${label}"
       continue
     fi
-    archive=$(mongo_archive "$label" "$src" "$primary")
-    if [ -z "$archive" ]; then
-      fail "No backup for ${label} in ${src}"
-      continue
-    fi
     if $DRY_RUN; then
-      warn "[DRY-RUN] Would restore MongoDB ${label} into ${primary} from ${archive}"
+      warn "[DRY-RUN] Would restore MongoDB ${label} into ${primary} from ${RESOLVED_FILE}"
       continue
     fi
-    validate_file "$archive" "${label} backup" || continue
 
     # The dumps carry their oplog (mongodump --oplog): replaying it brings the
     # restore to the point in time the dump ended.
-    if open_backup "$archive" | kubectl exec -i -n "${K8S_NAMESPACE}" "${primary}" -- \
+    if open_backup "$RESOLVED_FILE" | kubectl exec -i -n "${K8S_NAMESPACE}" "${primary}" -- \
       mongorestore --quiet --gzip --archive --drop --oplogReplay; then
       ok "MongoDB restore complete: ${label} (${primary})"
     else
@@ -109,18 +87,9 @@ restore_mongodb() {
 
 restore_mysql() {
   log "Starting MySQL restore..."
-  local file
-  if [ "$RESTORE_TIMESTAMP" = "latest" ]; then
-    file=$(latest_backup "${BACKUP_DIR}/mysql" "financial_scraper_*.sql.gz")
-  else
-    file=$(backup_file "${BACKUP_DIR}/mysql/financial_scraper_${RESTORE_TIMESTAMP}.sql.gz")
-  fi
-
-  if [ -z "$file" ] || [ ! -f "$file" ]; then
-    fail "No MySQL backup found in ${BACKUP_DIR}/mysql"
-    return
-  fi
-  log "Restoring from: ${file}"
+  resolve_and_verify mysql "$(backup_file "${BACKUP_DIR}/mysql/financial_scraper_${RESTORE_TIMESTAMP}.sql.gz")" || return 0
+  local file="$RESOLVED_FILE"
+  verify_mysql_dump_complete "$file" || return 0
 
   local pod
   if ! pod=$(mysql_primary_pod); then
@@ -133,8 +102,6 @@ restore_mysql() {
     return
   fi
 
-  validate_file "$file" "MySQL backup" || return
-
   if open_backup "$file" | gunzip | strip_gtid | mysql_root_sh "${pod}" 'mysql --user=root'; then
     ok "MySQL restore complete (${pod})"
   else
@@ -144,16 +111,8 @@ restore_mysql() {
 
 restore_checkpoints() {
   log "Starting checkpoints restore..."
-  local file
-  if [ "$RESTORE_TIMESTAMP" = "latest" ]; then
-    file=$(latest_backup "${BACKUP_DIR}/checkpoints" "checkpoints_*.tar.gz")
-  else
-    file=$(backup_file "${BACKUP_DIR}/checkpoints/checkpoints_${RESTORE_TIMESTAMP}.tar.gz")
-  fi
-  if [ -z "$file" ] || [ ! -f "$file" ]; then
-    fail "No checkpoints backup found in ${BACKUP_DIR}/checkpoints"
-    return
-  fi
+  resolve_and_verify checkpoints "$(backup_file "${BACKUP_DIR}/checkpoints/checkpoints_${RESTORE_TIMESTAMP}.tar.gz")" || return 0
+  local file="$RESOLVED_FILE"
 
   local pod
   pod=$(component_pods trader-trainer | awk '{print $1}')
@@ -179,18 +138,8 @@ restore_checkpoints() {
 # running as the server's user, then starts the server again.
 restore_spire() {
   log "Starting SPIRE CA key restore..."
-  local file
-  if [ "$RESTORE_TIMESTAMP" = "latest" ]; then
-    file=$(latest_backup "${BACKUP_DIR}/spire" "keys_*.json")
-  else
-    file=$(backup_file "${BACKUP_DIR}/spire/keys_${RESTORE_TIMESTAMP}.json")
-  fi
-
-  if [ -z "$file" ] || [ ! -f "$file" ]; then
-    fail "No SPIRE CA key backup found in ${BACKUP_DIR}/spire"
-    return
-  fi
-  log "Restoring from: ${file}"
+  resolve_and_verify spire "$(backup_file "${BACKUP_DIR}/spire/keys_${RESTORE_TIMESTAMP}.json")" || return 0
+  local file="$RESOLVED_FILE"
 
   local deploy="deployment/spire-server"
   local claim uid gid
@@ -207,8 +156,6 @@ restore_spire() {
     warn "[DRY-RUN] Would restore SPIRE CA key into claim ${claim} from ${file}"
     return
   fi
-
-  validate_file "$file" "SPIRE CA key backup" || return
 
   local plain
   plain=$(mktemp)

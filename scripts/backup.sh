@@ -45,6 +45,17 @@ wait_for_bgsave() {
   return 1
 }
 
+# docker with its stderr discarded (the dump commands are noisy on stderr).
+docker_quiet() {
+  docker "$@" 2>/dev/null
+}
+
+# Gzipped dump of every non-system database of trading-mysql, with the
+# container's own password: never on a command line.
+mysql_dump_gz() {
+  docker exec trading-mysql sh -c "export MYSQL_PWD=\"\$MYSQL_ROOT_PASSWORD\"; ${MYSQL_DUMP_SH}" 2>/dev/null | gzip
+}
+
 backup_mongodb() {
   log "Starting MongoDB backup..."
   local dest="${BACKUP_DIR}/mongodb/${TIMESTAMP}"
@@ -67,9 +78,8 @@ backup_mongodb() {
       mongodump_args+=(--oplog)
     fi
 
-    if docker exec "${container}" mongodump "${mongodump_args[@]}" 2>/dev/null | seal > "$file"; then
+    if write_dump mongodb "$file" docker_quiet exec "${container}" mongodump "${mongodump_args[@]}"; then
       ok "MongoDB backup complete: ${container}"
-      record_output "$file"
       write_metric "mongodb" 1
     else
       fail "MongoDB backup failed: ${container}"
@@ -94,11 +104,8 @@ backup_mysql() {
     return
   fi
 
-  # The container's own password: never on a command line.
-  if docker exec trading-mysql sh -c "export MYSQL_PWD=\"\$MYSQL_ROOT_PASSWORD\"; ${MYSQL_DUMP_SH}" 2>/dev/null |
-    gzip | seal > "$file"; then
+  if write_dump mysql "$file" mysql_dump_gz; then
     ok "MySQL backup complete: ${file}"
-    record_output "$file"
     write_metric "mysql" 1
   else
     fail "MySQL backup failed"
@@ -124,9 +131,8 @@ backup_redis() {
       if ! wait_for_bgsave "${container}" "${before}" 30; then
         fail "Redis backup failed: BGSAVE did not complete within 30s: ${container}"
         write_metric "redis" 0
-      elif docker exec "${container}" cat /data/dump.rdb | seal > "$file"; then
+      elif write_dump "redis:${container}" "$file" docker exec "${container}" cat /data/dump.rdb; then
         ok "Redis backup complete: ${container}"
-        record_output "$file"
         write_metric "redis" 1
       else
         fail "Redis backup failed: could not read dump.rdb: ${container}"
@@ -155,9 +161,8 @@ backup_checkpoints() {
     return
   fi
 
-  if docker exec trading-trainer tar czf - -C /data/checkpoints . 2>/dev/null | seal > "$file"; then
+  if write_dump checkpoints "$file" docker_quiet exec trading-trainer tar czf - -C /data/checkpoints .; then
     ok "Checkpoints backup complete: ${file}"
-    record_output "$file"
     write_metric "checkpoints" 1
   else
     fail "Checkpoints backup failed (directory may be empty)"
@@ -186,10 +191,9 @@ backup_spire() {
 
   # The SPIRE image has no shell: `docker cp` to stdout yields a tar stream.
   docker pause trading-spire-server >/dev/null
-  if docker cp "trading-spire-server:/run/spire/data" - 2>/dev/null | seal > "$file"; then
+  if write_dump spire "$file" docker_quiet cp "trading-spire-server:/run/spire/data" -; then
     docker unpause trading-spire-server >/dev/null
     ok "SPIRE server backup complete: ${file}"
-    record_output "$file"
     write_metric "spire" 1
   else
     docker unpause trading-spire-server >/dev/null
@@ -228,6 +232,9 @@ for part in "${PARTS[@]}"; do
 done
 
 prune_old
+# Before the off-site copy, which sends the manifest along with the dumps. A
+# failure is counted by write_metric (component "manifest"): the run exits 1.
+$DRY_RUN || write_manifest || true
 upload_offsite
 finalize_metrics
 

@@ -414,11 +414,18 @@ verify_backup() {
 	runner "grep -qx 'backup_last_status{component=\"offsite\"} 1' /backups/metrics/backup.prom"
 	local offsite
 	offsite="$($K -n "$NS" exec deployment/backup-s3 -- sh -c "find /data/backups/staging -name '*.age' | wc -l")"
-	[ "$offsite" -ge 5 ] || {
-		log "only $offsite encrypted file(s) copied off-site (expected 5)"
+	# 5 dumps + the run manifest (backup-lib.sh, write_manifest).
+	[ "$offsite" -ge 6 ] || {
+		log "only $offsite encrypted file(s) copied off-site (expected 6)"
 		return 1
 	}
-	log "  every file is age-encrypted, $offsite copied off-site"
+	local listed
+	listed="$(runner "find /backups/manifests -name 'manifest_*.json.age' | wc -l")"
+	[ "$listed" -ge 1 ] || {
+		log "the backup run wrote no manifest: restore-k8s.sh would find nothing to restore"
+		return 1
+	}
+	log "  every file is age-encrypted, $offsite copied off-site, run manifest written"
 
 	log "restore drill: MongoDB writers stopped ($MONGO_WRITERS), as BACKUP_DR.md requires"
 	local writer

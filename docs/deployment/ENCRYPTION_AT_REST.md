@@ -207,7 +207,9 @@ BACKUP_AGE_IDENTITY=~/backup-key.txt bash scripts/restore.sh --timestamp 2026-10
 BACKUP_AGE_IDENTITY=~/backup-key.txt BACKUP_DIR=./backups bash scripts/restore-k8s.sh
 ```
 
-The restore scripts accept encrypted and plaintext files alike and stream the
+The run manifests (`manifests/manifest_<date>.json.age`) are encrypted too:
+the restore scripts need `BACKUP_AGE_IDENTITY` to choose a backup, even for
+`--dry-run`. The restore scripts accept encrypted and plaintext files alike and stream the
 decrypted data into the database (the plaintext only touches a temporary
 file, mode 600, for Redis and the SPIRE files, which need a file copy). Manual decryption:
 
@@ -222,6 +224,7 @@ age -d -i backup-key.txt financial_scraper_<date>.sql.gz.age | gunzip | less
 | `backup_encrypted` | 1 when the last run encrypted its files |
 | `backup_last_status{component="encryption"}` | 0: no valid recipient, nothing was written |
 | `backup_last_status{component="offsite"}` | off-site copy result |
+| `backup_last_status{component="manifest"}` | 0: the run manifest could not be written ([Run manifest](BACKUP_DR.md#run-manifest)) |
 
 Alerts: `BackupUnencrypted` and `BackupOffsiteCopyFailed` (critical), plus
 the staleness and coverage alerts listed in [BACKUP_DR.md](BACKUP_DR.md#monitoring).
@@ -231,6 +234,9 @@ the staleness and coverage alerts listed in [BACKUP_DR.md](BACKUP_DR.md#monitori
 - `tests/backup/backup-encryption.test.sh` (`backup-test.yml`): age round
   trip, refusal without recipient, invalid key, no off-site copy in clear or
   missing, GTID filtering, metrics, restore scripts finding `.age` files.
+- `tests/backup/backup-partial.test.sh` (`backup-test.yml`): a failed dump
+  leaves no file, the encrypted run manifest, restore selection and checksum
+  refusals ([Run manifest](BACKUP_DR.md#run-manifest)).
 - Restore drills, with a key generated for the run: `backup-test.yml`
   (`tests/backup/compose-restore-drill.sh`) and the CI `k8s` job
   (`tests/k8s/run-kind.sh verify_backup`): no backup file in clear, encrypted
