@@ -120,8 +120,11 @@ write_dump() {
 	shift 2
 	local partial="${file}.partial" work sum size written=true
 	rm -f "$partial"
-	work="$(mktemp -d)"
-	mkfifo "$work/plain"
+	if ! work="$(mktemp -d)" || ! mkfifo "$work/plain"; then
+		[ -z "${work:-}" ] || rm -rf "$work"
+		fail "${key}: cannot create the checksum FIFO in ${TMPDIR:-/tmp}: ${file} not written"
+		return 1
+	fi
 	# tee feeds the hasher through the FIFO while the dump is sealed.
 	sha256sum <"$work/plain" >"$work/sum" &
 	local hasher=$!
@@ -209,15 +212,34 @@ manifests_newest_first() {
 		\( -name 'manifest_*.json' -o -name 'manifest_*.json.age' \) 2>/dev/null | sort -r
 }
 
+# One manifest entry line, as written by write_dump (trailing comma optional).
+MANIFEST_ENTRY_RE='^\{"component":"[^"]+","path":"[^"]+","size":[0-9]+,"sha256":"[0-9a-f]{64}"\},?$'
+
 # Prints `<path> <size> <sha256>` of entry `$2` in manifest file `$1`
 # (nothing when the run has no such entry). Returns 1 when the manifest
-# cannot be read. Always called in a command substitution: it never calls
-# `fail` itself (its message and the RESTORE_FAILURES increment would stay in
-# the subshell), its caller does (read_manifest_entry).
+# cannot be read (decryption failed), 2 when its content is not a version 1
+# manifest as write_manifest writes it (header `{"version":1,`, one entry per
+# line, footer `]}`) or an entry path leaves BACKUP_DIR: a corrupt or
+# truncated plaintext manifest must be refused, not read as "no such entry".
+# Always called in a command substitution: it never calls `fail` itself (its
+# message and the RESTORE_FAILURES increment would stay in the subshell), its
+# caller does (read_manifest_entry).
 manifest_entry() {
-	local manifest="$1" key="$2" content
+	local manifest="$1" key="$2" content body line
 	content="$(open_backup "$manifest" </dev/null)" || return 1
-	printf '%s\n' "$content" | sed -n \
+	# Drop empty lines; $(…) already removed the trailing newline.
+	content="$(printf '%s\n' "$content" | awk 'NF')"
+	[[ "$(printf '%s\n' "$content" | head -1)" =~ ^\{\"version\":1,\"timestamp\":\"[0-9_-]+\",\"entries\":\[$ ]] || return 2
+	[ "$(printf '%s\n' "$content" | tail -1)" = ']}' ] || return 2
+	body="$(printf '%s\n' "$content" | sed '1d;$d')"
+	[ -n "$body" ] || return 2
+	while IFS= read -r line; do
+		[[ "$line" =~ $MANIFEST_ENTRY_RE ]] || return 2
+		case "$line" in
+		*'"path":"/'* | *'"path":"..'* | *'/../'* | *'/.."'*) return 2 ;;
+		esac
+	done <<<"$body"
+	printf '%s\n' "$body" | sed -n \
 		's/^{"component":"'"$key"'","path":"\([^"]*\)","size":\([0-9]*\),"sha256":"\([0-9a-f]*\)"}.*$/\1 \2 \3/p' | head -1
 }
 
@@ -241,7 +263,14 @@ read_manifest_entry() {
 		fi
 		;;
 	esac
-	if ! MANIFEST_ENTRY="$(manifest_entry "$manifest" "$key")"; then
+	local rc=0
+	MANIFEST_ENTRY="$(manifest_entry "$manifest" "$key")" || rc=$?
+	if [ "$rc" -eq 2 ]; then
+		MANIFEST_ENTRY=""
+		fail "${key}: the run manifest ${manifest} is corrupt or truncated (not a version 1 manifest): refused; restore an older run with --timestamp"
+		return 1
+	fi
+	if [ "$rc" -ne 0 ]; then
 		MANIFEST_ENTRY=""
 		fail "${key}: cannot read the run manifest ${manifest} (wrong BACKUP_AGE_IDENTITY or corrupt file): refused; restore an older run with --timestamp"
 		return 1
