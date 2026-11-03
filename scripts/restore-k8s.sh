@@ -46,7 +46,10 @@ COMPONENTS="mongodb,mysql,checkpoints,spire"
 K8S_NAMESPACE="${K8S_NAMESPACE:-trading-model}"
 # Writes keys.json into the SPIRE volume while the server is stopped (the
 # spire-server image has neither a shell nor tar).
-RESTORE_HELPER_IMAGE="${RESTORE_HELPER_IMAGE:-ghcr.io/trading-model/backup-tools:latest}"
+# Explicit override wins; otherwise the image of the db-backup CronJob (the
+# digest deploy.yml applied), see resolve_helper_image (issue #323).
+RESTORE_HELPER_IMAGE="${RESTORE_HELPER_IMAGE:-}"
+FALLBACK_HELPER_IMAGE="ghcr.io/trading-model/backup-tools:latest"
 RESTORE_FAILURES=0
 # true: each component from its own newest run (see the header).
 ALLOW_MIXED_RUNS="${ALLOW_MIXED_RUNS:-false}"
@@ -417,6 +420,21 @@ EOF
   fi
 }
 
+# Sets RESTORE_HELPER_IMAGE when no override: the image of the `backup`
+# container of the db-backup CronJob; falls back to the mobile `latest` tag
+# with a warning when the CronJob cannot be read (new cluster, missing RBAC).
+resolve_helper_image() {
+  [ -z "$RESTORE_HELPER_IMAGE" ] || return 0
+  local img
+  img="$(kubectl get cronjob db-backup -n "${K8S_NAMESPACE}"     -o jsonpath='{.spec.jobTemplate.spec.template.spec.containers[?(@.name=="backup")].image}' 2>/dev/null)" || img=""
+  if [ -n "$img" ]; then
+    RESTORE_HELPER_IMAGE="$img"
+  else
+    RESTORE_HELPER_IMAGE="$FALLBACK_HELPER_IMAGE"
+    warn "CronJob db-backup not readable in ${K8S_NAMESPACE}: helper image falls back to ${FALLBACK_HELPER_IMAGE} (mobile tag); set RESTORE_HELPER_IMAGE to pin it"
+  fi
+}
+
 # One run for every component (backup-lib.sh select_common_run), before the
 # banner prints the timestamp.
 RUN_KEYS=()
@@ -432,6 +450,8 @@ if ! select_common_run "${RUN_KEYS[@]}"; then
   exit 1
 fi
 
+if [[ ",${COMPONENTS}," == *,spire,* ]]; then resolve_helper_image; fi
+
 echo ""
 echo "══════════════════════════════════════════════════"
 echo "  Trading Model — Database Restore (K8s)"
@@ -439,6 +459,7 @@ echo "  Backup Dir: ${BACKUP_DIR}"
 echo "  Timestamp: ${RESTORE_TIMESTAMP}"
 [ -n "$RESTORE_UNTIL" ] && echo "  Until: ${UNTIL_SQL} UTC (point-in-time, excluded)"
 echo "  Components: ${COMPONENTS}"
+[ -z "$RESTORE_HELPER_IMAGE" ] || echo "  Helper image: ${RESTORE_HELPER_IMAGE}"
 echo "══════════════════════════════════════════════════"
 echo ""
 
