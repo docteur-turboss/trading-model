@@ -275,17 +275,20 @@ describe("financial-scraper HTTP API (SCRAPER_API)", () => {
 			dimension: "contextual",
 			assetId: null,
 			sector: "agriculture",
-			metric: "temperature",
-			value: 4.3,
-			unit: "wmoUnit:degC",
-			observedAt: "2026-11-04T12:00:00.000Z",
-			collectedAt: "2026-11-04T12:03:00.000Z",
-			confidenceScore: 0.7,
-			attributes: { stationId: "KHUT", latitude: 38.07, longitude: -97.87 },
+			observedAt: "2026-11-04T12:40:00.000Z",
+			ingestedAt: "2026-11-04T13:00:00.000Z",
+			confidenceScore: 0.8,
+			payload: {
+				metric: "temperature",
+				value: 4,
+				unit: "wmoUnit:degC",
+				location: { latitude: 38.07, longitude: -97.87, name: "KHUT" },
+				details: { qualityControl: "V" },
+			},
 		};
 		const WINDOW = "from=2026-11-04&to=2026-11-05T00:00:00Z";
 
-		it("answers the asset with its own and its sector signals of the window", async () => {
+		it("answers the asset with its own and its sector signals of its dimensions in the window", async () => {
 			findForAsset.mockResolvedValue([SIGNAL]);
 
 			const { status, body } = await get(
@@ -297,8 +300,10 @@ describe("financial-scraper HTTP API (SCRAPER_API)", () => {
 			expect(body).toEqual({
 				asset: {
 					id: "WHEAT",
-					name: "Wheat",
-					assetClass: "commodity",
+					name: "Wheat, through the Teucrium Wheat Fund",
+					assetType: "commodity_proxy",
+					identifier: { scheme: "ticker", ticker: "WEAT", exchange: "ARCX" },
+					applicableDimensions: ["market", "contextual", "macro"],
 					sector: "agriculture",
 				},
 				signals: [SIGNAL],
@@ -307,6 +312,7 @@ describe("financial-scraper HTTP API (SCRAPER_API)", () => {
 			expect(findForAsset).toHaveBeenCalledWith({
 				assetId: "WHEAT",
 				sector: "agriculture",
+				dimensions: ["market", "contextual", "macro"],
 				from: Date.parse("2026-11-04"),
 				to: Date.parse("2026-11-05T00:00:00Z"),
 				limit: MAX_SIGNALS_PER_ANSWER + 1,

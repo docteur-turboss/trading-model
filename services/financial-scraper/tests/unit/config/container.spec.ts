@@ -54,6 +54,7 @@ import { SignalCronScheduler } from "../../../src/adapters/inbound/cron/signal.c
 import {
 	createScrapeScheduler,
 	createSignalScheduler,
+	signalUserAgent,
 } from "../../../src/config/container";
 
 describe("config/container — createScrapeScheduler", () => {
@@ -120,7 +121,7 @@ describe("config/container — createSignalScheduler", () => {
 	const ENABLED = {
 		SCRAPE_SCHEDULER_ENABLED: true,
 		SIGNAL_COLLECTION_ENABLED: true,
-		SIGNAL_USER_AGENT: "trading-model-test ops@example.org",
+		SIGNAL_CONTACT_EMAIL: "ops@example.org",
 	};
 
 	beforeEach(() => {
@@ -154,5 +155,19 @@ describe("config/container — createSignalScheduler", () => {
 				"wikipedia-pageviews",
 			],
 		});
+	});
+});
+
+describe("config/container — signalUserAgent", () => {
+	it("names the client, then the contact e-mail SEC EDGAR asks for", () => {
+		expect(signalUserAgent("ops@example.org")).toBe(
+			"automated news analysis ops@example.org"
+		);
+	});
+
+	it("falls back to the repository URL as contact", () => {
+		expect(signalUserAgent("")).toBe(
+			"automated news analysis (+https://github.com/docteur-turboss/trading-model)"
+		);
 	});
 });

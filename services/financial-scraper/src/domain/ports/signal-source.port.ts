@@ -1,23 +1,21 @@
 import type { z } from "zod";
-import type { AttributeValue, SourceRequest } from "../signals";
+import type { Dimension, SourceRequest } from "../signals";
 
 /** What an adapter reads in a payload; the collector completes it into a `Signal`. */
 export interface Observation {
-	metric: string;
-	value: number;
-	unit: string;
-	/** Epoch milliseconds: when the value was true in the world, not when it was fetched. */
-	observedAt: number;
 	/** Tells this observation from the others of its source, subject and metric; a replay yields the same key. */
 	key: string;
-	attributes?: Record<string, AttributeValue>;
+	/** Epoch milliseconds, never earlier than the value was public. */
+	observedAt: number;
+	/** The canonical payload of the request's dimension (`PAYLOADS`), checked by the collector. */
+	payload: Record<string, unknown>;
 }
 
 export interface AdapterContext {
 	/** The request `params`, already checked against the adapter's `params` schema. */
 	params: Readonly<Record<string, string>>;
 	/** Epoch milliseconds of the collection. */
-	collectedAt: number;
+	ingestedAt: number;
 }
 
 /**
@@ -26,6 +24,8 @@ export interface AdapterContext {
  * payload is not what the source documents: never a silent partial result.
  */
 export interface SourceAdapter {
+	/** Dimensions whose canonical payload this adapter writes. */
+	readonly dimensions: readonly Dimension[];
 	/** What each request of the source must give in `params`, checked when the registry loads. */
 	readonly params?: z.ZodType;
 	normalize(payload: unknown, context: AdapterContext): Observation[];

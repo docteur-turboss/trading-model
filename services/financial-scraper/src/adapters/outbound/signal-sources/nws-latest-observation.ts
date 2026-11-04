@@ -43,6 +43,7 @@ const StationObservation = z.object({
  * the quality control flag is kept for the consumers to weigh.
  */
 export const NWS_LATEST_OBSERVATION: SourceAdapter = {
+	dimensions: ["contextual"],
 	params: z.object({
 		variables: z
 			.string()
@@ -65,16 +66,14 @@ export const NWS_LATEST_OBSERVATION: SourceAdapter = {
 			}
 			return [
 				{
-					metric: variable,
-					value,
-					unit: unitCode,
-					observedAt,
 					key: String(observedAt),
-					attributes: {
-						stationId: properties.stationId,
-						latitude,
-						longitude,
-						qualityControl: qualityControl ?? null,
+					observedAt,
+					payload: {
+						metric: variable,
+						value,
+						unit: unitCode,
+						location: { latitude, longitude, name: properties.stationId },
+						details: { qualityControl: qualityControl ?? null },
 					},
 				},
 			];

@@ -21,39 +21,62 @@ const OBSERVED_AT = Date.parse("2026-11-04T12:00:00.000Z");
 
 const SOURCE: Source = {
 	id: "test-source",
-	dimension: "social",
 	protocol: "rest_api",
 	adapter: "test-adapter",
 	schedule: "*/5 * * * *",
 	reliabilityScore: 0.3,
+	covers: [{ assetType: "crypto", dimension: "social" }],
 	accessPolicy: {
 		terms: "public-domain",
 		termsUrl: "https://a.test/terms",
+		auth: "none",
+		maxRequestsPerMinute: 30,
 	},
 	requests: [
-		{ subject: { assetId: "BTC" }, url: "https://a.test/btc", params: {} },
-		{ subject: { sector: "crypto" }, url: "https://a.test/all", params: {} },
+		{
+			subject: { assetId: "BTC" },
+			dimension: "social",
+			url: "https://a.test/btc",
+			params: {},
+		},
+		{
+			subject: { sector: "crypto" },
+			dimension: "social",
+			url: "https://a.test/all",
+			params: {},
+		},
 	],
 };
 
-const OBSERVATION: Observation = {
+const PAYLOAD = {
 	metric: "pageviews",
 	value: 67,
 	unit: "views",
-	observedAt: OBSERVED_AT,
+	platform: "en.wikipedia",
+	topic: "Bitcoin",
+	period: { start: "2026-11-03", end: "2026-11-03" },
+};
+
+const OBSERVATION: Observation = {
 	key: "2026-11-03",
+	observedAt: OBSERVED_AT,
+	payload: PAYLOAD,
 };
 
 const normalize = jest.fn<SourceAdapter["normalize"]>();
 const worker = jest.fn<(request: unknown) => Promise<unknown>>();
 const save = jest.fn<(signals: unknown) => Promise<void>>();
+const sleep = jest.fn<(ms: number) => Promise<void>>();
 
 function collector(): SignalCollector {
 	return new SignalCollector({
 		workers: { rest_api: worker },
-		adapters: new Map([["test-adapter", { normalize }]]),
+		adapters: new Map([
+			["test-adapter", { dimensions: ["social"], normalize }],
+		]),
 		store: { save, findForAsset: jest.fn<any>() },
 		now: () => NOW,
+		sleep,
 	});
 }
 
@@ -64,22 +87,25 @@ async function counted(): Promise<Record<string, number>> {
 	);
 }
 
+const ONE_REQUEST: Source = { ...SOURCE, requests: [SOURCE.requests[0]] };
+
 beforeEach(() => {
 	jest.clearAllMocks();
 	SIGNAL_COLLECTIONS_TOTAL.reset();
 	worker.mockResolvedValue({ payload: true });
 	normalize.mockReturnValue([OBSERVATION]);
 	save.mockResolvedValue(undefined);
+	sleep.mockResolvedValue(undefined);
 });
 
 describe("SignalCollector", () => {
-	it("completes each observation into a signal of the frozen schema and stores it", async () => {
+	it("wraps each canonical payload in a signal of the request's dimension and stores it", async () => {
 		await collector().collect(SOURCE);
 
 		expect(worker).toHaveBeenCalledWith(SOURCE.requests[0]);
 		expect(normalize).toHaveBeenCalledWith(
 			{ payload: true },
-			{ params: {}, collectedAt: NOW }
+			{ params: {}, ingestedAt: NOW }
 		);
 		expect(save).toHaveBeenNthCalledWith(1, [
 			{
@@ -94,17 +120,21 @@ describe("SignalCollector", () => {
 				dimension: "social",
 				assetId: "BTC",
 				sector: null,
-				metric: "pageviews",
-				value: 67,
-				unit: "views",
 				observedAt: "2026-11-04T12:00:00.000Z",
-				collectedAt: "2026-11-04T12:03:00.000Z",
+				ingestedAt: "2026-11-04T12:03:00.000Z",
 				// The source reliability, kept for the consumers to weigh.
 				confidenceScore: 0.3,
-				attributes: {},
+				payload: PAYLOAD,
 			},
 		]);
 		await expect(counted()).resolves.toEqual({ "test-source:success": 2 });
+	});
+
+	it("spaces the requests of a source by its maxRequestsPerMinute", async () => {
+		await collector().collect(SOURCE);
+
+		// 30 a minute: 2 s between the two requests, none before the first.
+		expect(sleep.mock.calls).toEqual([[2000]]);
 	});
 
 	it("puts the dates of the collection in place of the {date-N} placeholders", async () => {
@@ -160,6 +190,18 @@ describe("SignalCollector", () => {
 		});
 	});
 
+	it("counts a protocol without worker as a failed fetch", async () => {
+		await collector().collect({ ...ONE_REQUEST, protocol: "rss" });
+
+		expect(worker).not.toHaveBeenCalled();
+		expect(MOCK_LOGGER.error.mock.calls[0][1]).toMatchObject({
+			error: new Error("No worker for protocol rss"),
+		});
+		await expect(counted()).resolves.toEqual({
+			"test-source:fetch_error": 1,
+		});
+	});
+
 	it.each([
 		[
 			"a body that is not JSON",
@@ -173,9 +215,18 @@ describe("SignalCollector", () => {
 				}),
 		],
 		[
-			"an observation outside the schema",
+			"a payload outside the schema of its dimension",
 			() =>
-				normalize.mockReturnValueOnce([{ ...OBSERVATION, value: Number.NaN }]),
+				normalize.mockReturnValueOnce([
+					{ ...OBSERVATION, payload: { ...PAYLOAD, platform: undefined } },
+				]),
+		],
+		[
+			"a value that is no number",
+			() =>
+				normalize.mockReturnValueOnce([
+					{ ...OBSERVATION, payload: { ...PAYLOAD, value: Number.NaN } },
+				]),
 		],
 		[
 			"an invalid observation date",
@@ -189,7 +240,7 @@ describe("SignalCollector", () => {
 		async (_label, arrange) => {
 			arrange();
 
-			await collector().collect({ ...SOURCE, requests: [SOURCE.requests[0]] });
+			await collector().collect(ONE_REQUEST);
 
 			expect(save).not.toHaveBeenCalled();
 			await expect(counted()).resolves.toEqual({
@@ -199,11 +250,7 @@ describe("SignalCollector", () => {
 	);
 
 	it("counts a source whose adapter is unknown as an invalid payload", async () => {
-		await collector().collect({
-			...SOURCE,
-			adapter: "missing",
-			requests: [SOURCE.requests[0]],
-		});
+		await collector().collect({ ...ONE_REQUEST, adapter: "missing" });
 
 		expect(save).not.toHaveBeenCalled();
 		expect(MOCK_LOGGER.error.mock.calls[0][1]).toMatchObject({
@@ -214,7 +261,7 @@ describe("SignalCollector", () => {
 	it("counts a store failure", async () => {
 		save.mockRejectedValueOnce(new Error("MySQL down"));
 
-		await collector().collect({ ...SOURCE, requests: [SOURCE.requests[0]] });
+		await collector().collect(ONE_REQUEST);
 
 		await expect(counted()).resolves.toEqual({
 			"test-source:store_error": 1,

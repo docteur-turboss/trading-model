@@ -6,9 +6,6 @@ import { z } from "zod";
 
 const SYMBOL_PATTERN = /^[A-Z0-9]+$/;
 
-const DEFAULT_SIGNAL_USER_AGENT =
-	"trading-model-signals/1.0 (+https://github.com/docteur-turboss/trading-model)";
-
 /**
  * Parses SYMBOLS_TO_TRACK as a JSON array (`["BTCUSDT","ETHUSDT"]`) or a CSV
  * list (`BTCUSDT,ETHUSDT`, the TRAINER_SYMBOLS format). A malformed value is a
@@ -74,13 +71,15 @@ const FINANCIAL_SCRAPER_ENV_SCHEMA = BaseEnvSchema.extend(
 			.default("true")
 			.transform((value) => value === "true" || value === "1"),
 		/**
-		 * Sent to every signal source. SEC EDGAR answers 403 unless it holds a
-		 * contact: "<organisation> <e-mail>". Empty means the default.
+		 * Contact e-mail in the User-Agent of every signal source; SEC EDGAR
+		 * answers 403 without one. Set by the deployment only, never committed:
+		 * the repository is public. Empty: no contact.
 		 */
-		SIGNAL_USER_AGENT: z
+		SIGNAL_CONTACT_EMAIL: z
 			.string()
-			.default("")
-			.transform((value) => value.trim() || DEFAULT_SIGNAL_USER_AGENT),
+			.trim()
+			.pipe(z.union([z.literal(""), z.email()]))
+			.default(""),
 	});
 
 export const ENV = validateEnv(FINANCIAL_SCRAPER_ENV_SCHEMA);

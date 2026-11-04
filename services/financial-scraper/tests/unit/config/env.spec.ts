@@ -174,30 +174,42 @@ describe("env", () => {
 		expect(ENV.BINANCE_BASE_URL).toBe("http://binance-stub:8080");
 	});
 
-	it("should collect signals by default with the generic User-Agent", () => {
+	it("should collect signals by default, without contact e-mail", () => {
 		setRequiredVars();
 
 		const { ENV } = require("../../../src/infrastructure/config/env");
 		expect(ENV.SIGNAL_COLLECTION_ENABLED).toBe(true);
-		expect(ENV.SIGNAL_USER_AGENT).toMatch(/^trading-model-signals\/1\.0 /);
+		expect(ENV.SIGNAL_CONTACT_EMAIL).toBe("");
 	});
 
-	it("should read SIGNAL_COLLECTION_ENABLED=false (CI) and a contact User-Agent", () => {
+	it("should read SIGNAL_COLLECTION_ENABLED=false (CI) and a contact e-mail", () => {
 		setRequiredVars();
 		process.env.SIGNAL_COLLECTION_ENABLED = "false";
-		process.env.SIGNAL_USER_AGENT = " Acme Research ops@acme.example ";
+		process.env.SIGNAL_CONTACT_EMAIL = " ops@acme.example ";
 
 		const { ENV } = require("../../../src/infrastructure/config/env");
 		expect(ENV.SIGNAL_COLLECTION_ENABLED).toBe(false);
-		expect(ENV.SIGNAL_USER_AGENT).toBe("Acme Research ops@acme.example");
+		expect(ENV.SIGNAL_CONTACT_EMAIL).toBe("ops@acme.example");
 	});
 
-	// Compose passes `${SIGNAL_USER_AGENT:-}`: an unset variable arrives empty.
-	it("should take an empty SIGNAL_USER_AGENT for the default", () => {
+	// Compose passes `${SIGNAL_CONTACT_EMAIL:-}`: an unset variable arrives empty.
+	it("should take an empty SIGNAL_CONTACT_EMAIL for no contact", () => {
 		setRequiredVars();
-		process.env.SIGNAL_USER_AGENT = "";
+		process.env.SIGNAL_CONTACT_EMAIL = "";
 
 		const { ENV } = require("../../../src/infrastructure/config/env");
-		expect(ENV.SIGNAL_USER_AGENT).toMatch(/^trading-model-signals\/1\.0 /);
+		expect(ENV.SIGNAL_CONTACT_EMAIL).toBe("");
+	});
+
+	it("should refuse a contact that is no e-mail", () => {
+		const consoleSpy = jest
+			.spyOn(console, "error")
+			.mockImplementation(() => {});
+		setRequiredVars();
+		process.env.SIGNAL_CONTACT_EMAIL = "automated news analysis";
+
+		expect(() => require("../../../src/infrastructure/config/env")).toThrow();
+
+		consoleSpy.mockRestore();
 	});
 });

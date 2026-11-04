@@ -1,9 +1,11 @@
-import type { Signal } from "../signals";
+import type { Dimension, Signal } from "../signals";
 
 export interface AssetSignalsQuery {
 	assetId: string;
 	/** Sector of the asset: its sector signals are part of the answer. */
 	sector: string;
+	/** The asset's applicable dimensions: signals of the others are left out. */
+	dimensions: readonly Dimension[];
 	/** Epoch milliseconds, inclusive. */
 	from: number;
 	/** Epoch milliseconds, exclusive. */

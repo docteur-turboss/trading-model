@@ -15,14 +15,24 @@ import type { Source } from "../../../src/domain/signals";
 function source(id: string, schedule: string): Source {
 	return {
 		id,
-		dimension: "market",
 		protocol: "rest_api",
 		adapter: "ecb-sdmx-series",
 		schedule,
 		reliabilityScore: 0.9,
-		accessPolicy: { terms: "public-domain", termsUrl: "https://a.test/terms" },
+		covers: [{ assetType: "bond", dimension: "market" }],
+		accessPolicy: {
+			terms: "public-domain",
+			termsUrl: "https://a.test/terms",
+			auth: "none",
+			maxRequestsPerMinute: 60,
+		},
 		requests: [
-			{ subject: { assetId: "BTC" }, url: "https://a.test/", params: {} },
+			{
+				subject: { assetId: "EA_AAA_10Y" },
+				dimension: "market",
+				url: "https://a.test/",
+				params: {},
+			},
 		],
 	};
 }

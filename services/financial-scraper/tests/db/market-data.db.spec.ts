@@ -402,37 +402,45 @@ describe("market_publish_cursors — real MySQL", () => {
 describe("signals — real MySQL", () => {
 	const OBSERVED = Date.UTC(2026, 10, 3, 12, 0, 0, 125);
 
+	const PAYLOAD = {
+		metric: "pageviews",
+		value: 3751,
+		unit: "views",
+		platform: "en.wikipedia",
+		topic: "Bitcoin",
+		period: { start: "2026-11-02", end: "2026-11-02" },
+		details: { revised: false, note: null },
+	};
+
 	function signal(overrides: Partial<Signal> = {}): Signal {
 		return {
 			id: "1".repeat(64),
 			schemaVersion: 1,
-			sourceId: "binance-ticker-24h",
-			dimension: "market",
+			sourceId: "wikipedia-pageviews",
+			dimension: "social",
 			assetId: "BTC",
 			sector: null,
-			metric: "last_price",
-			value: 78336.01,
-			unit: "USDT",
 			observedAt: new Date(OBSERVED).toISOString(),
-			collectedAt: new Date(OBSERVED + 3000).toISOString(),
-			confidenceScore: 0.9,
-			attributes: { symbol: "BTCUSDT", fiscalYear: null, amended: false },
+			ingestedAt: new Date(OBSERVED + 3000).toISOString(),
+			confidenceScore: 0.3,
+			payload: PAYLOAD,
 			...overrides,
-		};
+		} as Signal;
 	}
 
-	/** The asset BTC, sector crypto, over the day of OBSERVED. */
+	/** The asset BTC, sector crypto, its social dimension, over the day of OBSERVED. */
 	function findBtc(limit = 100) {
 		return MySqlSignalStore.findForAsset({
 			assetId: "BTC",
 			sector: "crypto",
+			dimensions: ["social"],
 			from: Date.UTC(2026, 10, 3),
 			to: Date.UTC(2026, 10, 4),
 			limit,
 		});
 	}
 
-	it("should round-trip a signal with its millisecond instants and attributes", async () => {
+	it("should round-trip a signal with its millisecond instants and payload", async () => {
 		await MySqlSignalStore.save([signal()]);
 
 		await expect(findBtc()).resolves.toEqual([signal()]);
@@ -440,10 +448,24 @@ describe("signals — real MySQL", () => {
 
 	it("should store a replayed signal once and keep its first value", async () => {
 		await MySqlSignalStore.save([signal()]);
-		await MySqlSignalStore.save([signal({ value: 1 }), signal()]);
+		await MySqlSignalStore.save([
+			signal({ payload: { ...PAYLOAD, value: 1 } }),
+			signal(),
+		]);
 
 		await expect(count("signals")).resolves.toBe(1);
 		await expect(findBtc()).resolves.toEqual([signal()]);
+	});
+
+	it("should leave out the dimensions that do not apply to the asset", async () => {
+		await MySqlSignalStore.save([
+			signal({
+				id: "8".repeat(64),
+				dimension: "contextual",
+			} as Partial<Signal>),
+		]);
+
+		await expect(findBtc()).resolves.toEqual([]);
 	});
 
 	it("should answer the asset's and its sector's signals of the window, oldest first", async () => {

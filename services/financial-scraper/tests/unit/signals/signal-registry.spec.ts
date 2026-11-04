@@ -14,11 +14,17 @@ function sourceOf(file: any, id: string): any {
 	return file.sources.find((source: { id: string }) => source.id === id);
 }
 
-describe("signal registry — the shipped file", () => {
-	it("loads with one test source per MVP dimension", () => {
-		const dimensions = SIGNAL_REGISTRY.sources.map((s) => s.dimension);
+function assetOf(file: any, id: string): any {
+	return file.assets.find((asset: { id: string }) => asset.id === id);
+}
 
-		expect(dimensions.sort()).toEqual([
+describe("signal registry — the shipped file", () => {
+	it("loads with test sources of the four MVP dimensions", () => {
+		const dimensions = SIGNAL_REGISTRY.sources.flatMap((source) =>
+			source.requests.map((request) => request.dimension)
+		);
+
+		expect([...new Set(dimensions)].sort()).toEqual([
 			"contextual",
 			"fundamental",
 			"market",
@@ -35,7 +41,7 @@ describe("signal registry — the shipped file", () => {
 
 	it("gives the weather to the whole agriculture sector, not to one asset", () => {
 		const weather = SIGNAL_REGISTRY.sources.find(
-			(source) => source.dimension === "contextual"
+			(source) => source.id === "nws-kansas-wheat-belt"
 		);
 
 		expect(weather?.requests.map((request) => request.subject)).toEqual([
@@ -43,10 +49,13 @@ describe("signal registry — the shipped file", () => {
 		]);
 	});
 
-	it("only holds sources free for any use", () => {
-		const terms = SIGNAL_REGISTRY.sources.map((s) => s.accessPolicy.terms);
+	it("only holds sources free for any use, without key", () => {
+		const policies = SIGNAL_REGISTRY.sources.map((s) => s.accessPolicy);
 
-		expect(new Set(terms)).toEqual(new Set(["attribution", "public-domain"]));
+		expect(new Set(policies.map((p) => p.terms))).toEqual(
+			new Set(["attribution", "public-domain"])
+		);
+		expect(policies.every((p) => p.auth === "none")).toBe(true);
 	});
 });
 
@@ -88,11 +97,46 @@ describe("parseSignalRegistry", () => {
 			"source wikipedia-pageviews: unknown adapter reddit",
 		],
 		[
+			"a protocol without worker",
+			(file: any) => {
+				sourceOf(file, "wikipedia-pageviews").protocol = "html_scrape";
+			},
+			"source wikipedia-pageviews: no worker for protocol html_scrape",
+		],
+		[
 			"an invalid schedule",
 			(file: any) => {
 				sourceOf(file, "wikipedia-pageviews").schedule = "every hour";
 			},
 			'source wikipedia-pageviews: invalid schedule "every hour"',
+		],
+		[
+			"a dimension the source does not cover",
+			(file: any) => {
+				sourceOf(file, "sec-edgar-eps-diluted").requests[0].dimension = "legal";
+			},
+			"source sec-edgar-eps-diluted, request 0: legal is not covered by the source or not applicable to its subject",
+		],
+		[
+			"a dimension that does not apply to the asset",
+			(file: any) => {
+				const pageviews = sourceOf(file, "wikipedia-pageviews");
+				pageviews.covers.push({ assetType: "bond", dimension: "social" });
+				pageviews.requests[0].subject = { assetId: "EA_AAA_10Y" };
+			},
+			"source wikipedia-pageviews, request 0: social is not covered by the source or not applicable to its subject",
+		],
+		[
+			"a dimension whose payload the adapter does not write",
+			(file: any) => {
+				const weather = sourceOf(file, "nws-kansas-wheat-belt");
+				weather.covers.push({
+					assetType: "commodity_proxy",
+					dimension: "macro",
+				});
+				weather.requests[0].dimension = "macro";
+			},
+			"source nws-kansas-wheat-belt, request 0: adapter nws-latest-observation writes no macro payload",
 		],
 		[
 			"params the adapter cannot use",
@@ -143,15 +187,43 @@ describe("parseSignalRegistry", () => {
 			},
 		],
 		[
-			"a protocol without worker",
+			"a dimension outside the schema (real estate is an asset type)",
 			(file: any) => {
-				sourceOf(file, "wikipedia-pageviews").protocol = "html_scrape";
+				sourceOf(file, "wikipedia-pageviews").requests[0].dimension =
+					"real_estate";
 			},
 		],
 		[
-			"a dimension outside the schema",
+			"an asset type outside the schema (commodities go through a proxy)",
 			(file: any) => {
-				sourceOf(file, "wikipedia-pageviews").dimension = "astrology";
+				assetOf(file, "WHEAT").assetType = "commodity";
+			},
+		],
+		[
+			"an identifier scheme the asset type does not use",
+			(file: any) => {
+				assetOf(file, "BTC").identifier = {
+					scheme: "insee",
+					code: "75056",
+				};
+			},
+		],
+		[
+			"a dimension listed twice for an asset",
+			(file: any) => {
+				assetOf(file, "BTC").applicableDimensions.push("market");
+			},
+		],
+		[
+			"a request without dimension",
+			(file: any) => {
+				delete sourceOf(file, "wikipedia-pageviews").requests[0].dimension;
+			},
+		],
+		[
+			"a source that covers nothing",
+			(file: any) => {
+				sourceOf(file, "wikipedia-pageviews").covers = [];
 			},
 		],
 		[
@@ -180,6 +252,19 @@ describe("parseSignalRegistry", () => {
 			"attribution terms without the credit to give",
 			(file: any) => {
 				delete sourceOf(file, "ecb-aaa-yield-10y").accessPolicy.attribution;
+			},
+		],
+		[
+			"a source that needs a key",
+			(file: any) => {
+				sourceOf(file, "ecb-aaa-yield-10y").accessPolicy.auth = "api_key";
+			},
+		],
+		[
+			"no request rate",
+			(file: any) => {
+				sourceOf(file, "ecb-aaa-yield-10y").accessPolicy.maxRequestsPerMinute =
+					0;
 			},
 		],
 		[

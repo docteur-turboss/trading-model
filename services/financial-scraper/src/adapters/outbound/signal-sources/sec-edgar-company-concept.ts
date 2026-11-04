@@ -36,24 +36,27 @@ const CompanyConcept = z.object({
  * value is another fact (other filing), so both stay.
  */
 export const SEC_EDGAR_COMPANY_CONCEPT: SourceAdapter = {
+	dimensions: ["fundamental"],
 	normalize(payload) {
 		const concept = CompanyConcept.parse(payload);
 		const metric = `${concept.taxonomy}:${concept.tag}`;
 		return Object.entries(concept.units).flatMap(([unit, facts]) =>
 			facts.map((fact) => ({
-				metric,
-				value: fact.val,
-				unit,
-				observedAt: Date.parse(fact.filed) + END_OF_FILING_DAY_MS,
 				key: [fact.accn, fact.start ?? "", fact.end, unit].join("|"),
-				attributes: {
-					periodStart: fact.start ?? null,
-					periodEnd: fact.end,
-					form: fact.form,
-					fiscalYear: fact.fy ?? null,
-					fiscalPeriod: fact.fp ?? null,
-					accessionNumber: fact.accn,
-					frame: fact.frame ?? null,
+				observedAt: Date.parse(fact.filed) + END_OF_FILING_DAY_MS,
+				payload: {
+					metric,
+					value: fact.val,
+					unit,
+					// An instant (a balance) covers its single day.
+					period: { start: fact.start ?? fact.end, end: fact.end },
+					filing: {
+						form: fact.form,
+						id: fact.accn,
+						fiscalYear: fact.fy ?? null,
+						fiscalPeriod: fact.fp ?? null,
+					},
+					details: { frame: fact.frame ?? null },
 				},
 			}))
 		);

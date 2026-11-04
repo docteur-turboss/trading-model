@@ -8,6 +8,7 @@ import type {
 import type { SignalStorePort } from "../domain/ports/signal-store.port";
 import {
 	DATE_PLACEHOLDER,
+	PAYLOADS,
 	type Protocol,
 	SIGNAL_SCHEMA_VERSION,
 	Signal,
@@ -23,17 +24,19 @@ export type CollectionResult =
 	| "store_error";
 
 export interface SignalCollectorDeps {
-	workers: Readonly<Record<Protocol, ProtocolWorker>>;
+	workers: Readonly<Partial<Record<Protocol, ProtocolWorker>>>;
 	adapters: ReadonlyMap<string, SourceAdapter>;
 	store: SignalStorePort;
 	now(): number;
+	sleep(ms: number): Promise<void>;
 }
 
 const DAY_MS = 86_400_000;
+const MINUTE_MS = 60_000;
 
-function _expandUrl(url: string, collectedAt: number): string {
+function _expandUrl(url: string, ingestedAt: number): string {
 	return url.replace(DATE_PLACEHOLDER, (_placeholder, days: string) =>
-		new Date(collectedAt - Number(days) * DAY_MS)
+		new Date(ingestedAt - Number(days) * DAY_MS)
 			.toISOString()
 			.slice(0, 10)
 			.replace(/-/g, "")
@@ -54,16 +57,21 @@ export function signalId(
 
 /**
  * Collects the requests of a source: fetch with the worker of its protocol,
- * normalize with its adapter, check against the frozen schema, store. A
- * failed request is logged and counted (`fs_signal_collections_total`), the
- * next ones go on: `collect` never rejects.
+ * normalize with its adapter, check each payload against the canonical
+ * schema of the request's dimension, store. A failed request is logged and
+ * counted (`fs_signal_collections_total`), the next ones go on: `collect`
+ * never rejects.
  */
 export class SignalCollector {
 	constructor(private readonly _deps: SignalCollectorDeps) {}
 
 	async collect(source: Source): Promise<void> {
-		for (const request of source.requests) {
-			// One after the other: free sources are not to be burst.
+		const spacingMs = MINUTE_MS / source.accessPolicy.maxRequestsPerMinute;
+		for (const [index, request] of source.requests.entries()) {
+			// One after the other, at most maxRequestsPerMinute: free sources are not to be burst.
+			if (index > 0) {
+				await this._deps.sleep(spacingMs);
+			}
 			await this._collectRequest(source, request);
 		}
 	}
@@ -73,14 +81,18 @@ export class SignalCollector {
 		request: SourceRequest
 	): Promise<void> {
 		let result: CollectionResult = "fetch_error";
-		const collectedAt = this._deps.now();
+		const ingestedAt = this._deps.now();
 		try {
-			const payload = await this._deps.workers[source.protocol]({
+			const worker = this._deps.workers[source.protocol];
+			if (!worker) {
+				throw new Error(`No worker for protocol ${source.protocol}`);
+			}
+			const payload = await worker({
 				...request,
-				url: _expandUrl(request.url, collectedAt),
+				url: _expandUrl(request.url, ingestedAt),
 			});
 			result = "invalid_payload";
-			const signals = this._toSignals(source, request, payload, collectedAt);
+			const signals = this._toSignals(source, request, payload, ingestedAt);
 			result = "store_error";
 			await this._deps.store.save(signals);
 			result = "success";
@@ -106,34 +118,32 @@ export class SignalCollector {
 		source: Source,
 		request: SourceRequest,
 		payload: unknown,
-		collectedAt: number
+		ingestedAt: number
 	): Signal[] {
 		const adapter = this._deps.adapters.get(source.adapter);
 		if (!adapter) {
 			throw new Error(`No source adapter named ${source.adapter}`);
 		}
-		const { subject } = request;
+		const { subject, dimension } = request;
 		const observations = adapter.normalize(payload, {
 			params: request.params,
-			collectedAt,
+			ingestedAt,
 		});
-		return observations.map((observation) =>
-			Signal.parse({
-				id: signalId(source.id, subject, observation.metric, observation.key),
+		return observations.map((observation) => {
+			const canonical = PAYLOADS[dimension].parse(observation.payload);
+			return Signal.parse({
+				id: signalId(source.id, subject, canonical.metric, observation.key),
 				schemaVersion: SIGNAL_SCHEMA_VERSION,
 				sourceId: source.id,
-				dimension: source.dimension,
+				dimension,
 				assetId: "assetId" in subject ? subject.assetId : null,
 				sector: "sector" in subject ? subject.sector : null,
-				metric: observation.metric,
-				value: observation.value,
-				unit: observation.unit,
 				// Throws on an invalid date: the payload is then invalid.
 				observedAt: new Date(observation.observedAt).toISOString(),
-				collectedAt: new Date(collectedAt).toISOString(),
+				ingestedAt: new Date(ingestedAt).toISOString(),
 				confidenceScore: source.reliabilityScore,
-				attributes: observation.attributes ?? {},
-			})
-		);
+				payload: canonical,
+			});
+		});
 	}
 }

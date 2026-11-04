@@ -1,9 +1,10 @@
+import { sleep } from "@trading-model/common/utils/sleep";
 import { logger } from "@trading-model/http/infrastructure/logger";
 import { TradingSymbol } from "@trading-model/primitives/primitives";
 import { SignalCronScheduler } from "../adapters/inbound/cron/signal.cron";
 import { MarketDataModel } from "../adapters/outbound/persistence/market-data.model";
 import { MySqlSignalStore } from "../adapters/outbound/persistence/signal-store";
-import { createRestApiWorker } from "../adapters/outbound/signal-sources/rest-api.worker";
+import { createProtocolWorkers } from "../adapters/outbound/signal-sources/protocol-workers";
 import { SOURCE_ADAPTERS } from "../adapters/outbound/signal-sources/source-adapters";
 import { createMarketDataController } from "../application/market-data.controller";
 import { SignalCollector } from "../application/signal-collector";
@@ -90,7 +91,22 @@ export interface SignalSchedulerSettings {
 	/** Signals are collected where the scrape cron runs: once, on the collector. */
 	SCRAPE_SCHEDULER_ENABLED: boolean;
 	SIGNAL_COLLECTION_ENABLED: boolean;
-	SIGNAL_USER_AGENT: string;
+	/** Empty: no contact in the User-Agent (SEC EDGAR then answers 403). */
+	SIGNAL_CONTACT_EMAIL: string;
+}
+
+/** How the signal sources see the platform. */
+const SIGNAL_CLIENT = "automated news analysis";
+
+/**
+ * User-Agent of every signal request: "<client> <contact e-mail>", the form
+ * SEC EDGAR's fair access policy asks for; without e-mail, the repository URL
+ * is the contact NWS and Wikimedia accept.
+ */
+export function signalUserAgent(contactEmail: string): string {
+	return contactEmail
+		? `${SIGNAL_CLIENT} ${contactEmail}`
+		: `${SIGNAL_CLIENT} (+https://github.com/docteur-turboss/trading-model)`;
 }
 
 /**
@@ -112,10 +128,13 @@ export function createSignalScheduler(
 		sources: registry.sources.map((source) => source.id),
 	});
 	const collector = new SignalCollector({
-		workers: { rest_api: createRestApiWorker(settings.SIGNAL_USER_AGENT) },
+		workers: createProtocolWorkers(
+			signalUserAgent(settings.SIGNAL_CONTACT_EMAIL)
+		),
 		adapters: SOURCE_ADAPTERS,
 		store: MySqlSignalStore,
 		now: Date.now,
+		sleep,
 	});
 	return new SignalCronScheduler(registry.sources, collector);
 }
