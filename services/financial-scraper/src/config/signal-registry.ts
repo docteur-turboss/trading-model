@@ -2,7 +2,12 @@ import cron from "node-cron";
 import { z } from "zod";
 import { SOURCE_ADAPTERS } from "../adapters/outbound/signal-sources/source-adapters";
 import type { SourceAdapter } from "../domain/ports/signal-source.port";
-import { Asset, SIGNAL_SCHEMA_VERSION, Source } from "../domain/signals";
+import {
+	Asset,
+	DATE_PLACEHOLDER,
+	SIGNAL_SCHEMA_VERSION,
+	Source,
+} from "../domain/signals";
 import REGISTRY_FILE from "./signal-registry.json";
 
 /** The source registry (`signal-registry.json`, ADR-0036), checked. */
@@ -36,6 +41,9 @@ function _requestProblems(
 		}
 		if ("sector" in subject && !sectors.has(subject.sector)) {
 			problems.push(`${where}: no asset in sector ${subject.sector}`);
+		}
+		if (/[{}]/.test(request.url.replace(DATE_PLACEHOLDER, ""))) {
+			problems.push(`${where}: URL placeholder other than {date-N}`);
 		}
 		const params = adapter?.params?.safeParse(request.params);
 		if (params?.success === false) {

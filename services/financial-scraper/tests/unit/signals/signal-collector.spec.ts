@@ -26,6 +26,10 @@ const SOURCE: Source = {
 	adapter: "test-adapter",
 	schedule: "*/5 * * * *",
 	reliabilityScore: 0.3,
+	accessPolicy: {
+		terms: "public-domain",
+		termsUrl: "https://a.test/terms",
+	},
 	requests: [
 		{ subject: { assetId: "BTC" }, url: "https://a.test/btc", params: {} },
 		{ subject: { sector: "crypto" }, url: "https://a.test/all", params: {} },
@@ -33,11 +37,11 @@ const SOURCE: Source = {
 };
 
 const OBSERVATION: Observation = {
-	metric: "hashtag_uses",
+	metric: "pageviews",
 	value: 67,
-	unit: "posts",
+	unit: "views",
 	observedAt: OBSERVED_AT,
-	key: "1793664000",
+	key: "2026-11-03",
 };
 
 const normalize = jest.fn<SourceAdapter["normalize"]>();
@@ -82,17 +86,17 @@ describe("SignalCollector", () => {
 				id: signalId(
 					"test-source",
 					{ assetId: "BTC" },
-					"hashtag_uses",
-					"1793664000"
+					"pageviews",
+					"2026-11-03"
 				),
 				schemaVersion: 1,
 				sourceId: "test-source",
 				dimension: "social",
 				assetId: "BTC",
 				sector: null,
-				metric: "hashtag_uses",
+				metric: "pageviews",
 				value: 67,
-				unit: "posts",
+				unit: "views",
 				observedAt: "2026-11-04T12:00:00.000Z",
 				collectedAt: "2026-11-04T12:03:00.000Z",
 				// The source reliability, kept for the consumers to weigh.
@@ -101,6 +105,21 @@ describe("SignalCollector", () => {
 			},
 		]);
 		await expect(counted()).resolves.toEqual({ "test-source:success": 2 });
+	});
+
+	it("puts the dates of the collection in place of the {date-N} placeholders", async () => {
+		const url =
+			"https://a.test/pageviews/daily/{date-8}/{date-1}?today={date-0}";
+
+		await collector().collect({
+			...SOURCE,
+			requests: [{ ...SOURCE.requests[0], url }],
+		});
+
+		expect(worker).toHaveBeenCalledWith({
+			...SOURCE.requests[0],
+			url: "https://a.test/pageviews/daily/20261027/20261103?today=20261104",
+		});
 	});
 
 	it("stores a sector request once, on the sector", async () => {

@@ -4,26 +4,32 @@
 		{ "id": "BTC", "name": "Bitcoin", "assetClass": "crypto", "sector": "crypto" },
 		{ "id": "ETH", "name": "Ether", "assetClass": "crypto", "sector": "crypto" },
 		{ "id": "AAPL", "name": "Apple Inc.", "assetClass": "equity", "sector": "technology" },
-		{ "id": "WHEAT", "name": "Wheat", "assetClass": "commodity", "sector": "agriculture" }
+		{ "id": "WHEAT", "name": "Wheat", "assetClass": "commodity", "sector": "agriculture" },
+		{
+			"id": "EA_AAA_10Y",
+			"name": "Euro area AAA government bonds, 10-year",
+			"assetClass": "bond",
+			"sector": "sovereign_debt"
+		}
 	],
 	"sources": [
 		{
-			"id": "binance-ticker-24h",
+			"id": "ecb-aaa-yield-10y",
 			"dimension": "market",
 			"protocol": "rest_api",
-			"adapter": "binance-ticker-24h",
-			"schedule": "*/5 * * * *",
-			"reliabilityScore": 0.9,
+			"adapter": "ecb-sdmx-series",
+			"schedule": "7 * * * 1-5",
+			"reliabilityScore": 0.95,
+			"accessPolicy": {
+				"terms": "attribution",
+				"termsUrl": "https://www.ecb.europa.eu/stats/ecb_statistics/governance_and_quality_framework/html/usage_policy.en.html",
+				"attribution": "Source: ECB statistics"
+			},
 			"requests": [
 				{
-					"subject": { "assetId": "BTC" },
-					"url": "https://data-api.binance.vision/api/v3/ticker/24hr?symbol=BTCUSDT",
-					"params": { "baseAsset": "BTC", "quoteAsset": "USDT" }
-				},
-				{
-					"subject": { "assetId": "ETH" },
-					"url": "https://data-api.binance.vision/api/v3/ticker/24hr?symbol=ETHUSDT",
-					"params": { "baseAsset": "ETH", "quoteAsset": "USDT" }
+					"subject": { "assetId": "EA_AAA_10Y" },
+					"url": "https://data-api.ecb.europa.eu/service/data/YC/B.U2.EUR.4F.G_N_A.SV_C_YM.SR_10Y?lastNObservations=5&format=jsondata",
+					"params": { "metric": "spot_rate_10y" }
 				}
 			]
 		},
@@ -34,6 +40,11 @@
 			"adapter": "sec-edgar-company-concept",
 			"schedule": "17 */6 * * *",
 			"reliabilityScore": 0.95,
+			"accessPolicy": {
+				"terms": "attribution",
+				"termsUrl": "https://www.sec.gov/privacy",
+				"attribution": "Source: U.S. Securities and Exchange Commission (EDGAR)"
+			},
 			"requests": [
 				{
 					"subject": { "assetId": "AAPL" },
@@ -42,34 +53,45 @@
 			]
 		},
 		{
-			"id": "open-meteo-wheat-belt",
+			"id": "nws-kansas-wheat-belt",
 			"dimension": "contextual",
 			"protocol": "rest_api",
-			"adapter": "open-meteo-current",
-			"schedule": "*/15 * * * *",
-			"reliabilityScore": 0.7,
+			"adapter": "nws-latest-observation",
+			"schedule": "*/20 * * * *",
+			"reliabilityScore": 0.8,
+			"accessPolicy": {
+				"terms": "public-domain",
+				"termsUrl": "https://www.weather.gov/disclaimer"
+			},
 			"requests": [
 				{
 					"subject": { "sector": "agriculture" },
-					"url": "https://api.open-meteo.com/v1/forecast?latitude=38.5&longitude=-98.5&current=temperature_2m,precipitation&timezone=GMT"
+					"url": "https://api.weather.gov/stations/KHUT/observations/latest",
+					"params": {
+						"variables": "temperature,relativeHumidity,precipitationLastHour,precipitationLast3Hours,precipitationLast6Hours"
+					}
 				}
 			]
 		},
 		{
-			"id": "mastodon-hashtags",
+			"id": "wikipedia-pageviews",
 			"dimension": "social",
 			"protocol": "rest_api",
-			"adapter": "mastodon-tag-history",
-			"schedule": "23 */6 * * *",
+			"adapter": "wikimedia-pageviews",
+			"schedule": "41 */6 * * *",
 			"reliabilityScore": 0.3,
+			"accessPolicy": {
+				"terms": "public-domain",
+				"termsUrl": "https://doc.wikimedia.org/generated-data-platform/aqs/analytics-api/documentation/access-policy.html"
+			},
 			"requests": [
 				{
 					"subject": { "assetId": "BTC" },
-					"url": "https://mastodon.social/api/v1/tags/bitcoin"
+					"url": "https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/en.wikipedia/all-access/user/Bitcoin/daily/{date-8}/{date-1}"
 				},
 				{
 					"subject": { "assetId": "ETH" },
-					"url": "https://mastodon.social/api/v1/tags/ethereum"
+					"url": "https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/en.wikipedia/all-access/user/Ethereum/daily/{date-8}/{date-1}"
 				}
 			]
 		}

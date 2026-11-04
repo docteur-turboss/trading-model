@@ -30,7 +30,14 @@ const SourceId = z.string().regex(/^[a-z0-9][a-z0-9-]{0,63}$/);
 export const Asset = z.strictObject({
 	id: AssetId,
 	name: z.string().min(1),
-	assetClass: z.enum(["crypto", "equity", "etf", "commodity", "real_estate"]),
+	assetClass: z.enum([
+		"crypto",
+		"equity",
+		"bond",
+		"etf",
+		"commodity",
+		"real_estate",
+	]),
 	sector: SectorId,
 });
 export type Asset = z.infer<typeof Asset>;
@@ -46,14 +53,43 @@ export const Subject = z.union([
 ]);
 export type Subject = z.infer<typeof Subject>;
 
+/** `{date-N}` in a request URL: the UTC date N days before the collection, YYYYMMDD. */
+export const DATE_PLACEHOLDER = /\{date-(\d{1,3})\}/g;
+
 export const SourceRequest = z.strictObject({
 	subject: Subject,
-	/** HTTPS only: collected data must not travel in clear. */
+	/**
+	 * HTTPS only: collected data must not travel in clear. `{date-N}` stands
+	 * for the UTC date N days before the collection, as YYYYMMDD (date ranges).
+	 */
 	url: z.url({ protocol: /^https$/ }),
-	/** Settings of the source adapter for this request (e.g. the quote asset of a pair). */
+	/** Settings of the source adapter for this request (e.g. the variables to read). */
 	params: z.record(z.string(), z.string()).default({}),
 });
 export type SourceRequest = z.infer<typeof SourceRequest>;
+
+/**
+ * Terms of use of a source: free for any use, commercial and trading
+ * included, at most against attribution. Terms that restrict the use
+ * (non-commercial, research only...) cannot be declared, so such a source
+ * cannot enter the registry.
+ */
+export const AccessPolicy = z
+	.strictObject({
+		terms: z.enum(["public-domain", "attribution"]),
+		/** The terms read when the source was added. */
+		termsUrl: z.url({ protocol: /^https$/ }),
+		/** Credit owed to the source; required by `attribution` terms. */
+		attribution: z.string().min(1).optional(),
+	})
+	.refine(
+		(policy) =>
+			policy.terms === "public-domain" || policy.attribution !== undefined,
+		{
+			message: "attribution terms need the credit to give",
+			path: ["attribution"],
+		}
+	);
 
 export const Source = z.strictObject({
 	id: SourceId,
@@ -65,6 +101,7 @@ export const Source = z.strictObject({
 	schedule: z.string().min(1),
 	/** Prior trust in the source, copied into the confidence of its signals. */
 	reliabilityScore: z.number().min(0).max(1),
+	accessPolicy: AccessPolicy,
 	requests: z.array(SourceRequest).min(1),
 });
 export type Source = z.infer<typeof Source>;

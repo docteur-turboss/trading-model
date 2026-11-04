@@ -148,10 +148,10 @@ describe("config/container — createSignalScheduler", () => {
 		expect(scheduler).toBeInstanceOf(SignalCronScheduler);
 		expect(MOCK_LOGGER.info).toHaveBeenCalledWith("Signal collection enabled", {
 			sources: [
-				"binance-ticker-24h",
+				"ecb-aaa-yield-10y",
 				"sec-edgar-eps-diluted",
-				"open-meteo-wheat-belt",
-				"mastodon-hashtags",
+				"nws-kansas-wheat-belt",
+				"wikipedia-pageviews",
 			],
 		});
 	});

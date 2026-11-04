@@ -17,9 +17,10 @@ function source(id: string, schedule: string): Source {
 		id,
 		dimension: "market",
 		protocol: "rest_api",
-		adapter: "binance-ticker-24h",
+		adapter: "ecb-sdmx-series",
 		schedule,
 		reliabilityScore: 0.9,
+		accessPolicy: { terms: "public-domain", termsUrl: "https://a.test/terms" },
 		requests: [
 			{ subject: { assetId: "BTC" }, url: "https://a.test/", params: {} },
 		],

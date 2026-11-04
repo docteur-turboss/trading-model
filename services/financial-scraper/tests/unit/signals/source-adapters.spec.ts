@@ -1,17 +1,18 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "@jest/globals";
-import { BINANCE_TICKER_24H } from "../../../src/adapters/outbound/signal-sources/binance-ticker-24h";
-import { MASTODON_TAG_HISTORY } from "../../../src/adapters/outbound/signal-sources/mastodon-tag-history";
-import { OPEN_METEO_CURRENT } from "../../../src/adapters/outbound/signal-sources/open-meteo-current";
+import { ECB_SDMX_SERIES } from "../../../src/adapters/outbound/signal-sources/ecb-sdmx-series";
+import { NWS_LATEST_OBSERVATION } from "../../../src/adapters/outbound/signal-sources/nws-latest-observation";
 import { SEC_EDGAR_COMPANY_CONCEPT } from "../../../src/adapters/outbound/signal-sources/sec-edgar-company-concept";
 import { SOURCE_ADAPTERS } from "../../../src/adapters/outbound/signal-sources/source-adapters";
+import { WIKIMEDIA_PAGEVIEWS } from "../../../src/adapters/outbound/signal-sources/wikimedia-pageviews";
 
 /**
- * Payloads as the sources sent them on 2026-11-04 (Binance, Open-Meteo,
- * Mastodon). SEC EDGAR answers 403 to a User-Agent without a contact, so its
- * fixture follows the documented companyconcept format, with the values of
- * Apple's FY2024 10-K and Q1 FY2025 10-Q; it was not fetched.
+ * Payloads as the sources sent them on 2026-11-04 (ECB Data Portal,
+ * api.weather.gov, Wikimedia Analytics API). SEC EDGAR answers 403 to a
+ * User-Agent without contact, so its fixture follows the documented
+ * companyconcept format, with the values of Apple's FY2024 10-K and Q1 FY2025
+ * 10-Q; it was not fetched.
  */
 function fixture(name: string): any {
 	return JSON.parse(
@@ -28,51 +29,112 @@ const NO_PARAMS = { params: {}, collectedAt: COLLECTED_AT };
 describe("SOURCE_ADAPTERS", () => {
 	it("names every adapter a registry source can use", () => {
 		expect([...SOURCE_ADAPTERS.keys()].sort()).toEqual([
-			"binance-ticker-24h",
-			"mastodon-tag-history",
-			"open-meteo-current",
+			"ecb-sdmx-series",
+			"nws-latest-observation",
 			"sec-edgar-company-concept",
+			"wikimedia-pageviews",
 		]);
 	});
 });
 
-describe("binance-ticker-24h", () => {
+describe("ecb-sdmx-series", () => {
 	const CONTEXT = {
-		params: { baseAsset: "BTC", quoteAsset: "USDT" },
+		params: { metric: "spot_rate_10y" },
 		collectedAt: COLLECTED_AT,
 	};
 
-	it("reads the last price and the 24 h volume, in the units of the pair", () => {
-		const observations = BINANCE_TICKER_24H.normalize(
-			fixture("binance-ticker-24h"),
+	it("reads each period of the series, observed when first collected", () => {
+		const observations = ECB_SDMX_SERIES.normalize(
+			fixture("ecb-sdmx-series"),
 			CONTEXT
 		);
 
-		const common = {
-			observedAt: 1793793830010,
-			key: "1793793830010",
-			attributes: { symbol: "BTCUSDT" },
-		};
-		expect(observations).toEqual([
-			{ ...common, metric: "last_price", value: 78336, unit: "USDT" },
-			{ ...common, metric: "volume_24h", value: 15007.92412, unit: "BTC" },
+		expect(observations.map((o) => [o.key, o.value])).toEqual([
+			["2026-10-28", 3.392748863],
+			["2026-10-29", 3.3733145545],
+			["2026-10-30", 3.3650469366],
+			["2026-11-02", 3.3265191239],
+			["2026-11-03", 3.3466052064],
 		]);
+		expect(observations[4]).toEqual({
+			metric: "spot_rate_10y",
+			value: 3.3466052064,
+			unit: "Percent per annum",
+			// The ECB gives no release time: never before the collection.
+			observedAt: COLLECTED_AT,
+			key: "2026-11-03",
+			attributes: {
+				period: "2026-11-03",
+				series: "B.U2.EUR.4F.G_N_A.SV_C_YM.SR_10Y",
+			},
+		});
 	});
 
-	it("requires the assets of the pair in the request params", () => {
-		const params = BINANCE_TICKER_24H.params;
+	it("leaves out a period without value", () => {
+		const payload = fixture("ecb-sdmx-series");
+		const [series] = Object.values<any>(payload.dataSets[0].series);
+		series.observations["0"][0] = null;
 
-		expect(params?.safeParse({ baseAsset: "BTC" }).success).toBe(false);
-		expect(params?.safeParse(CONTEXT.params).success).toBe(true);
+		const observations = ECB_SDMX_SERIES.normalize(payload, CONTEXT);
+
+		expect(observations.map((o) => o.key)).not.toContain("2026-10-28");
+	});
+
+	it("requires the metric name in the request params", () => {
+		expect(ECB_SDMX_SERIES.params?.safeParse({}).success).toBe(false);
+		expect(ECB_SDMX_SERIES.params?.safeParse(CONTEXT.params).success).toBe(
+			true
+		);
 	});
 
 	it.each([
-		["a price that is no decimal", { lastPrice: "n/a" }],
-		["no close time", { closeTime: undefined }],
-	])("throws on %s", (_label, change) => {
-		const payload = { ...fixture("binance-ticker-24h"), ...change };
+		[
+			"two series",
+			(payload: any) => {
+				const [series] = Object.values(payload.dataSets[0].series);
+				payload.dataSets[0].series["0:0:0:0:0:0:1"] = series;
+			},
+			"Expected one ECB series, got 2",
+		],
+		[
+			"a series key outside its dimensions",
+			(payload: any) => {
+				const [series] = Object.values(payload.dataSets[0].series);
+				payload.dataSets[0].series = { "0:0:0:0:0:0:9": series };
+			},
+			"outside its dimensions",
+		],
+		[
+			"no unit",
+			(payload: any) => {
+				payload.structure.attributes.series =
+					payload.structure.attributes.series.filter(
+						(attribute: { id: string }) => attribute.id !== "UNIT"
+					);
+			},
+			"ECB series without a UNIT attribute",
+		],
+		[
+			"an observation outside the periods",
+			(payload: any) => {
+				const [series] = Object.values<any>(payload.dataSets[0].series);
+				series.observations["9"] = [1];
+			},
+			"ECB observation 9 outside TIME_PERIOD",
+		],
+		[
+			"a value that is no number",
+			(payload: any) => {
+				const [series] = Object.values<any>(payload.dataSets[0].series);
+				series.observations["0"][0] = "3.39";
+			},
+			"",
+		],
+	])("throws on %s", (_label, change, message) => {
+		const payload = fixture("ecb-sdmx-series");
+		change(payload);
 
-		expect(() => BINANCE_TICKER_24H.normalize(payload, CONTEXT)).toThrow();
+		expect(() => ECB_SDMX_SERIES.normalize(payload, CONTEXT)).toThrow(message);
 	});
 });
 
@@ -155,108 +217,112 @@ describe("sec-edgar-company-concept", () => {
 	});
 });
 
-describe("open-meteo-current", () => {
-	it("reads each requested variable in the unit Open-Meteo reports", () => {
-		const observations = OPEN_METEO_CURRENT.normalize(
-			fixture("open-meteo-current"),
-			NO_PARAMS
+describe("nws-latest-observation", () => {
+	const CONTEXT = {
+		params: {
+			variables:
+				"temperature,relativeHumidity,precipitationLastHour,precipitationLast3Hours",
+		},
+		collectedAt: COLLECTED_AT,
+	};
+
+	it("reads each requested variable the station reported, at the observation time", () => {
+		const observations = NWS_LATEST_OBSERVATION.normalize(
+			fixture("nws-latest-observation"),
+			CONTEXT
 		);
 
-		const observedAt = Date.parse("2026-11-04T12:00:00Z");
-		const attributes = {
-			latitude: 38.49294,
-			longitude: -98.50629,
-			intervalSeconds: 900,
+		const common = {
+			observedAt: Date.parse("2026-11-04T12:40:00Z"),
+			key: String(Date.parse("2026-11-04T12:40:00Z")),
 		};
+		const station = { stationId: "KHUT", latitude: 38.07, longitude: -97.87 };
+		// precipitationLastHour is not in the report, precipitationLast3Hours has no value.
 		expect(observations).toEqual([
 			{
-				metric: "temperature_2m",
-				value: 4.3,
-				unit: "°C",
-				observedAt,
-				key: String(observedAt),
-				attributes,
+				...common,
+				metric: "temperature",
+				value: 4,
+				unit: "wmoUnit:degC",
+				attributes: { ...station, qualityControl: "V" },
 			},
 			{
-				metric: "precipitation",
-				value: 0,
-				unit: "mm",
-				observedAt,
-				key: String(observedAt),
-				attributes,
+				...common,
+				metric: "relativeHumidity",
+				value: 93.195121939331,
+				unit: "wmoUnit:percent",
+				attributes: { ...station, qualityControl: "V" },
 			},
 		]);
 	});
 
-	it("turns a local time into UTC with the reported offset", () => {
-		const payload = fixture("open-meteo-current");
-		payload.utc_offset_seconds = 3600;
-		payload.current.time = "2026-11-04T13:00";
+	it("keeps an observation without quality control flag", () => {
+		const payload = fixture("nws-latest-observation");
+		delete payload.properties.temperature.qualityControl;
 
-		const [observation] = OPEN_METEO_CURRENT.normalize(payload, NO_PARAMS);
+		const [temperature] = NWS_LATEST_OBSERVATION.normalize(payload, CONTEXT);
 
-		expect(observation.observedAt).toBe(Date.parse("2026-11-04T12:00:00Z"));
+		expect(temperature.attributes?.qualityControl).toBeNull();
 	});
 
-	it("leaves out a variable the model has no value for", () => {
-		const payload = fixture("open-meteo-current");
-		payload.current.precipitation = null;
+	it("accepts only measured variables in the request params", () => {
+		const params = NWS_LATEST_OBSERVATION.params;
 
-		const observations = OPEN_METEO_CURRENT.normalize(payload, NO_PARAMS);
-
-		expect(observations.map((o) => o.metric)).toEqual(["temperature_2m"]);
+		expect(
+			params?.safeParse({ variables: "temperature,windSpeed" }).success
+		).toBe(true);
+		expect(params?.safeParse({ variables: "elevation" }).success).toBe(false);
+		expect(params?.safeParse({ variables: "temprature" }).success).toBe(false);
 	});
 
-	it("throws on a variable without its unit", () => {
-		const payload = fixture("open-meteo-current");
-		delete payload.current_units.precipitation;
+	it.each([
+		[
+			"a variable without unit",
+			(p: any) => {
+				delete p.properties.temperature.unitCode;
+			},
+		],
+		[
+			"a time without offset",
+			(p: any) => {
+				p.properties.timestamp = "2026-11-04 12:40";
+			},
+		],
+	])("throws on %s", (_label, change) => {
+		const payload = fixture("nws-latest-observation");
+		change(payload);
 
-		expect(() => OPEN_METEO_CURRENT.normalize(payload, NO_PARAMS)).toThrow(
-			"Open-Meteo sent precipitation without its unit"
-		);
-	});
-
-	it("throws on a time in another format", () => {
-		const payload = fixture("open-meteo-current");
-		payload.current.time = "2026-11-04T12:00:00Z";
-
-		expect(() => OPEN_METEO_CURRENT.normalize(payload, NO_PARAMS)).toThrow();
+		expect(() => NWS_LATEST_OBSERVATION.normalize(payload, CONTEXT)).toThrow();
 	});
 });
 
-describe("mastodon-tag-history", () => {
-	it("observes each finished day once it is over, today's count left out", () => {
-		const observations = MASTODON_TAG_HISTORY.normalize(
-			fixture("mastodon-tag"),
+describe("wikimedia-pageviews", () => {
+	it("reads each counted day, observed when first collected", () => {
+		const observations = WIKIMEDIA_PAGEVIEWS.normalize(
+			fixture("wikimedia-pageviews"),
 			NO_PARAMS
 		);
 
-		// 7 days of history, the first one (2026-11-04) still in progress.
-		expect(observations).toHaveLength(12);
-		expect(observations.slice(0, 2)).toEqual([
-			{
-				metric: "hashtag_uses",
-				value: 67,
-				unit: "posts",
-				observedAt: Date.parse("2026-11-04T00:00:00Z"),
-				key: "1793664000",
-				attributes: { tag: "bitcoin" },
+		expect(observations).toHaveLength(8);
+		expect(observations[7]).toEqual({
+			metric: "pageviews",
+			value: 3751,
+			unit: "views",
+			// No release time in the API: never before the collection.
+			observedAt: COLLECTED_AT,
+			key: "2026-11-03",
+			attributes: {
+				project: "en.wikipedia",
+				article: "Bitcoin",
+				day: "2026-11-03",
 			},
-			{
-				metric: "hashtag_accounts",
-				value: 19,
-				unit: "accounts",
-				observedAt: Date.parse("2026-11-04T00:00:00Z"),
-				key: "1793664000",
-				attributes: { tag: "bitcoin" },
-			},
-		]);
+		});
 	});
 
-	it("throws on a count that is no integer", () => {
-		const payload = fixture("mastodon-tag");
-		payload.history[0].uses = "many";
+	it("throws on an hourly series", () => {
+		const payload = fixture("wikimedia-pageviews");
+		payload.items[0].granularity = "hourly";
 
-		expect(() => MASTODON_TAG_HISTORY.normalize(payload, NO_PARAMS)).toThrow();
+		expect(() => WIKIMEDIA_PAGEVIEWS.normalize(payload, NO_PARAMS)).toThrow();
 	});
 });

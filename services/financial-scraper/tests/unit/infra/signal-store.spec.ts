@@ -11,17 +11,17 @@ import type { Signal } from "../../../src/domain/signals";
 const SIGNAL: Signal = {
 	id: "a".repeat(64),
 	schemaVersion: 1,
-	sourceId: "open-meteo-wheat-belt",
+	sourceId: "nws-kansas-wheat-belt",
 	dimension: "contextual",
 	assetId: null,
 	sector: "agriculture",
-	metric: "temperature_2m",
+	metric: "temperature",
 	value: 4.3,
-	unit: "°C",
+	unit: "wmoUnit:degC",
 	observedAt: "2026-11-04T12:00:00.000Z",
 	collectedAt: "2026-11-04T12:03:00.000Z",
 	confidenceScore: 0.7,
-	attributes: { latitude: 38.49294 },
+	attributes: { latitude: 38.07 },
 };
 
 /** The row mysql2 returns for SIGNAL: Dates, JSON column parsed. */
@@ -34,11 +34,11 @@ const ROW = {
 	sector: "agriculture",
 	metric: SIGNAL.metric,
 	value: 4.3,
-	unit: "°C",
+	unit: "wmoUnit:degC",
 	observed_at: new Date(SIGNAL.observedAt),
 	collected_at: new Date(SIGNAL.collectedAt),
 	confidence_score: 0.7,
-	attributes: { latitude: 38.49294 },
+	attributes: { latitude: 38.07 },
 };
 
 beforeEach(() => {
@@ -62,17 +62,17 @@ describe("MySqlSignalStore", () => {
 			[
 				SIGNAL.id,
 				1,
-				"open-meteo-wheat-belt",
+				"nws-kansas-wheat-belt",
 				"contextual",
 				null,
 				"agriculture",
-				"temperature_2m",
+				"temperature",
 				4.3,
-				"°C",
+				"wmoUnit:degC",
 				new Date("2026-11-04T12:00:00.000Z"),
 				new Date("2026-11-04T12:03:00.000Z"),
 				0.7,
-				'{"latitude":38.49294}',
+				'{"latitude":38.07}',
 			],
 		]);
 	});

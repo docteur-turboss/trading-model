@@ -7,6 +7,7 @@ import type {
 } from "../domain/ports/signal-source.port";
 import type { SignalStorePort } from "../domain/ports/signal-store.port";
 import {
+	DATE_PLACEHOLDER,
 	type Protocol,
 	SIGNAL_SCHEMA_VERSION,
 	Signal,
@@ -26,6 +27,17 @@ export interface SignalCollectorDeps {
 	adapters: ReadonlyMap<string, SourceAdapter>;
 	store: SignalStorePort;
 	now(): number;
+}
+
+const DAY_MS = 86_400_000;
+
+function _expandUrl(url: string, collectedAt: number): string {
+	return url.replace(DATE_PLACEHOLDER, (_placeholder, days: string) =>
+		new Date(collectedAt - Number(days) * DAY_MS)
+			.toISOString()
+			.slice(0, 10)
+			.replace(/-/g, "")
+	);
 }
 
 /** Same source, subject, metric and key give the same id: a replay stores nothing twice. */
@@ -61,10 +73,14 @@ export class SignalCollector {
 		request: SourceRequest
 	): Promise<void> {
 		let result: CollectionResult = "fetch_error";
+		const collectedAt = this._deps.now();
 		try {
-			const payload = await this._deps.workers[source.protocol](request);
+			const payload = await this._deps.workers[source.protocol]({
+				...request,
+				url: _expandUrl(request.url, collectedAt),
+			});
 			result = "invalid_payload";
-			const signals = this._toSignals(source, request, payload);
+			const signals = this._toSignals(source, request, payload, collectedAt);
 			result = "store_error";
 			await this._deps.store.save(signals);
 			result = "success";
@@ -89,13 +105,13 @@ export class SignalCollector {
 	private _toSignals(
 		source: Source,
 		request: SourceRequest,
-		payload: unknown
+		payload: unknown,
+		collectedAt: number
 	): Signal[] {
 		const adapter = this._deps.adapters.get(source.adapter);
 		if (!adapter) {
 			throw new Error(`No source adapter named ${source.adapter}`);
 		}
-		const collectedAt = this._deps.now();
 		const { subject } = request;
 		const observations = adapter.normalize(payload, {
 			params: request.params,

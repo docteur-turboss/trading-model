@@ -271,17 +271,17 @@ describe("financial-scraper HTTP API (SCRAPER_API)", () => {
 		const SIGNAL = {
 			id: "b".repeat(64),
 			schemaVersion: 1,
-			sourceId: "open-meteo-wheat-belt",
+			sourceId: "nws-kansas-wheat-belt",
 			dimension: "contextual",
 			assetId: null,
 			sector: "agriculture",
-			metric: "temperature_2m",
+			metric: "temperature",
 			value: 4.3,
-			unit: "°C",
+			unit: "wmoUnit:degC",
 			observedAt: "2026-11-04T12:00:00.000Z",
 			collectedAt: "2026-11-04T12:03:00.000Z",
 			confidenceScore: 0.7,
-			attributes: { latitude: 38.49294, longitude: -98.50629 },
+			attributes: { stationId: "KHUT", latitude: 38.07, longitude: -97.87 },
 		};
 		const WINDOW = "from=2026-11-04&to=2026-11-05T00:00:00Z";
 
