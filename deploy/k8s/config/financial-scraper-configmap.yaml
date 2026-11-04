@@ -39,6 +39,10 @@ data:
   # HPA-scaled HTTP replicas never scrape: the single financial-scraper-collector
   # pod overrides this to "true", so each market event is published once.
   SCRAPE_SCHEDULER_ENABLED: "false"
+  # Signal registry sources (ADR-0036), collected by the collector pod only;
+  # tests/k8s/ci-render.mjs turns it off in CI. SEC EDGAR also needs
+  # SIGNAL_USER_AGENT="<organisation> <contact e-mail>" (403 without).
+  SIGNAL_COLLECTION_ENABLED: "true"
 ---
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
