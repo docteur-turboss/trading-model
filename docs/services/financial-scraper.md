@@ -201,6 +201,12 @@ then its own and its sector's signals of its applicable dimensions in the
 window, oldest first, at most 5000 (`truncated: true` beyond: narrow the
 window); an asset the registry does not know answers 404.
 
+**Consumers**: the data supply collects and serves every source; a consumer
+picks what it uses. The trainer (next phase) calls this route directly over
+mTLS (the scraper ACL admits `trader-trainer`), one training window at a time,
+maps its symbols to registry assets (`BTCUSDT` → `BTC`) and chooses its
+dimensions and metrics: nothing changes here (ADR-0036, decision 14).
+
 ```json
 {
   "asset": {

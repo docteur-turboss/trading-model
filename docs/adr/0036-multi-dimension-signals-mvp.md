@@ -3,7 +3,7 @@
 **Status:** Accepted
 **Date:** 2026-11
 **Related:** [ADR-0026](./0026-binance-public-market-data-kept.md) (Binance public data, source port), [ADR-0021](./0021-http-api-schemas-and-generated-openapi.md) (API schemas), [ADR-0029](./0029-orphan-subsystems-retired-and-reachability-gate.md) (reachability gate), [ADR-0030](./0030-mt4-point-in-time-features-and-success-criteria.md) (point-in-time data)
-**Verified by:** `services/financial-scraper/tests/unit/signals/signal-registry.spec.ts`, `services/financial-scraper/tests/unit/signals/source-adapters.spec.ts`, `services/financial-scraper/tests/unit/signals/signal-collector.spec.ts`, `services/financial-scraper/tests/unit/clients/http/api-routes.spec.ts`, `services/financial-scraper/tests/db/market-data.db.spec.ts`
+**Verified by:** `services/financial-scraper/tests/unit/signals/signal-registry.spec.ts`, `packages/http/tests/unit/adapters/inbound/acl-config.spec.ts`, `tests/e2e/gateway.e2e.spec.ts`, `services/financial-scraper/tests/unit/signals/source-adapters.spec.ts`, `services/financial-scraper/tests/unit/signals/signal-collector.spec.ts`, `services/financial-scraper/tests/unit/clients/http/api-routes.spec.ts`, `services/financial-scraper/tests/db/market-data.db.spec.ts`
 
 ## Context
 
@@ -72,6 +72,11 @@ Also checked: no exchange publishes crypto or equity prices under such terms; EC
     | Wikipedia page views of the "Bitcoin" and "Ethereum" articles | `social` | `BTC`, `ETH` (crypto, ticker) | every 6 h | public domain (CC0) |
 
 13. **Contact e-mail outside the repository.** Every request sends the User-Agent `automated news analysis <SIGNAL_CONTACT_EMAIL>`, the form SEC EDGAR's fair access policy asks for (without e-mail: the repository URL, which NWS and Wikimedia accept). The repository and its CI logs are public, so the e-mail is never committed: compose reads it from `.env`; K8s from the `signal-contact` ConfigMap (optional key of the collector), written by `deploy.yml` from the GitHub environment secret `SIGNAL_CONTACT_EMAIL`.
+14. **The data supply serves everything; the trainer picks its inputs.** The next phase changes the trainer only:
+    - The trainer reads the data supply directly over mTLS: the `financial-scraper` ACL (`DEFAULT_ACL`, `@trading-model/http`) admits `trader-trainer`, and the K8s NetworkPolicies already let it reach port 3000.
+    - Signals are pulled by training window with `GET /signals/assets/:assetId?from=&to=` (split the window when `truncated`). Candles keep arriving on the bus.
+    - The trainer maps its symbols to registry assets (`BTCUSDT` → `BTC`) and chooses the dimensions and metrics it uses. The collector stores and serves every source, whatever the trainer reads.
+    - The `Signal` schema moves to `@trading-model/validation/wire` (ADR-0021 convention) when the trainer parses it: an import move in the scraper, nothing it collects or serves.
 
 Adding a source of a known format is an entry in `signal-registry.json` with its `accessPolicy`, after reading its terms. A new format also needs an adapter in `src/adapters/outbound/signal-sources/` and its line in `SOURCE_ADAPTERS`. The scheduler, the store and the API do not change.
 
