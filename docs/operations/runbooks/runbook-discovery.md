@@ -12,13 +12,15 @@ authenticated by its instance token). Leases and tokens live in Redis
 (ADR-0023), so every discovery-server replica (3 in K8s) validates every
 heartbeat. After 3 failed heartbeats, or a `401` (token unknown), the instance
 registers again. An expired lease is removed by the cleanup cycle
-(`CLEANUP_SERVICE_INTERVAL_MS`, default 10 min).
+(`CLEANUP_SERVICE_INTERVAL_MS`): **15 s in K8s** (ConfigMap
+`discovery-server-config`), 10 min by default (compose).
 
 Metrics, exported by every discovery-server replica:
 
 - `discovery_registered_instances_per_service{service}`: instances in the
   Redis registry, re-read from Redis at each register, unregister and cleanup
-  cycle (so a lease that expired is still counted until the next cleanup).
+  cycle (so a lease that expired is still counted until the next cleanup:
+  at most 15 s in K8s, 10 min in compose).
 - `discovery_heartbeats_total{service}`: heartbeats **accepted** (200) by that
   replica. A heartbeat refused (401 token, 404 unknown instance, 429 rate
   limit) is not counted.
