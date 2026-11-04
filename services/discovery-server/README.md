@@ -35,7 +35,7 @@ Copy `.env.example` to `.env` and fill in the values.
 ## Running
 
 ```bash
-bun run dev     # ts-node src/application/index.ts
+bun run dev     # needs a SPIRE SVID: not usable outside Compose
 bun run build   # tsc
 ```
 
@@ -130,3 +130,5 @@ Get a specific instance by ID.
 ## Dependencies
 
 - `@trading-model/common` — server factories, env validation, logger, middleware, crypto, types
+
+See [Local service development](../../docs/getting-started/local-service-development.md) to run and debug this service.
