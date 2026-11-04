@@ -1,0 +1,44 @@
+{
+	"cik": 320193,
+	"taxonomy": "us-gaap",
+	"tag": "EarningsPerShareDiluted",
+	"label": "Earnings Per Share, Diluted",
+	"description": "The amount of net income (loss) for the period available to each share of common stock or common unit outstanding during the reporting period and to each share or unit that would have been outstanding assuming the issuance of common shares or units for all dilutive potential common shares or units outstanding during the reporting period.",
+	"entityName": "Apple Inc.",
+	"units": {
+		"USD/shares": [
+			{
+				"start": "2023-10-01",
+				"end": "2024-09-28",
+				"val": 6.08,
+				"accn": "0000320193-24-000123",
+				"fy": 2024,
+				"fp": "FY",
+				"form": "10-K",
+				"filed": "2024-11-01",
+				"frame": "CY2024"
+			},
+			{
+				"start": "2024-06-30",
+				"end": "2024-09-28",
+				"val": 0.97,
+				"accn": "0000320193-24-000123",
+				"fy": 2024,
+				"fp": "FY",
+				"form": "10-K",
+				"filed": "2024-11-01",
+				"frame": "CY2024Q3"
+			},
+			{
+				"start": "2024-09-29",
+				"end": "2024-12-28",
+				"val": 2.4,
+				"accn": "0000320193-25-000008",
+				"fy": 2025,
+				"fp": "Q1",
+				"form": "10-Q",
+				"filed": "2025-01-31"
+			}
+		]
+	}
+}

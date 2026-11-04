@@ -1,0 +1,77 @@
+{
+	"schemaVersion": 1,
+	"assets": [
+		{ "id": "BTC", "name": "Bitcoin", "assetClass": "crypto", "sector": "crypto" },
+		{ "id": "ETH", "name": "Ether", "assetClass": "crypto", "sector": "crypto" },
+		{ "id": "AAPL", "name": "Apple Inc.", "assetClass": "equity", "sector": "technology" },
+		{ "id": "WHEAT", "name": "Wheat", "assetClass": "commodity", "sector": "agriculture" }
+	],
+	"sources": [
+		{
+			"id": "binance-ticker-24h",
+			"dimension": "market",
+			"protocol": "rest_api",
+			"adapter": "binance-ticker-24h",
+			"schedule": "*/5 * * * *",
+			"reliabilityScore": 0.9,
+			"requests": [
+				{
+					"subject": { "assetId": "BTC" },
+					"url": "https://data-api.binance.vision/api/v3/ticker/24hr?symbol=BTCUSDT",
+					"params": { "baseAsset": "BTC", "quoteAsset": "USDT" }
+				},
+				{
+					"subject": { "assetId": "ETH" },
+					"url": "https://data-api.binance.vision/api/v3/ticker/24hr?symbol=ETHUSDT",
+					"params": { "baseAsset": "ETH", "quoteAsset": "USDT" }
+				}
+			]
+		},
+		{
+			"id": "sec-edgar-eps-diluted",
+			"dimension": "fundamental",
+			"protocol": "rest_api",
+			"adapter": "sec-edgar-company-concept",
+			"schedule": "17 */6 * * *",
+			"reliabilityScore": 0.95,
+			"requests": [
+				{
+					"subject": { "assetId": "AAPL" },
+					"url": "https://data.sec.gov/api/xbrl/companyconcept/CIK0000320193/us-gaap/EarningsPerShareDiluted.json"
+				}
+			]
+		},
+		{
+			"id": "open-meteo-wheat-belt",
+			"dimension": "contextual",
+			"protocol": "rest_api",
+			"adapter": "open-meteo-current",
+			"schedule": "*/15 * * * *",
+			"reliabilityScore": 0.7,
+			"requests": [
+				{
+					"subject": { "sector": "agriculture" },
+					"url": "https://api.open-meteo.com/v1/forecast?latitude=38.5&longitude=-98.5&current=temperature_2m,precipitation&timezone=GMT"
+				}
+			]
+		},
+		{
+			"id": "mastodon-hashtags",
+			"dimension": "social",
+			"protocol": "rest_api",
+			"adapter": "mastodon-tag-history",
+			"schedule": "23 */6 * * *",
+			"reliabilityScore": 0.3,
+			"requests": [
+				{
+					"subject": { "assetId": "BTC" },
+					"url": "https://mastodon.social/api/v1/tags/bitcoin"
+				},
+				{
+					"subject": { "assetId": "ETH" },
+					"url": "https://mastodon.social/api/v1/tags/ethereum"
+				}
+			]
+		}
+	]
+}
