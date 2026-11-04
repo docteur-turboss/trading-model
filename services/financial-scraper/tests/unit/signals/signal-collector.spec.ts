@@ -1,0 +1,204 @@
+import { beforeEach, describe, expect, it, jest } from "@jest/globals";
+
+const MOCK_LOGGER = { debug: jest.fn(), error: jest.fn() };
+jest.mock("@trading-model/contracts/logger-registry", () => ({
+	getLogger: () => MOCK_LOGGER,
+}));
+
+import {
+	SignalCollector,
+	signalId,
+} from "../../../src/application/signal-collector";
+import { SIGNAL_COLLECTIONS_TOTAL } from "../../../src/config/metrics";
+import type {
+	Observation,
+	SourceAdapter,
+} from "../../../src/domain/ports/signal-source.port";
+import type { Source } from "../../../src/domain/signals";
+
+const NOW = Date.parse("2026-11-04T12:03:00.000Z");
+const OBSERVED_AT = Date.parse("2026-11-04T12:00:00.000Z");
+
+const SOURCE: Source = {
+	id: "test-source",
+	dimension: "social",
+	protocol: "rest_api",
+	adapter: "test-adapter",
+	schedule: "*/5 * * * *",
+	reliabilityScore: 0.3,
+	requests: [
+		{ subject: { assetId: "BTC" }, url: "https://a.test/btc", params: {} },
+		{ subject: { sector: "crypto" }, url: "https://a.test/all", params: {} },
+	],
+};
+
+const OBSERVATION: Observation = {
+	metric: "hashtag_uses",
+	value: 67,
+	unit: "posts",
+	observedAt: OBSERVED_AT,
+	key: "1793664000",
+};
+
+const normalize = jest.fn<SourceAdapter["normalize"]>();
+const worker = jest.fn<(request: unknown) => Promise<unknown>>();
+const save = jest.fn<(signals: unknown) => Promise<void>>();
+
+function collector(): SignalCollector {
+	return new SignalCollector({
+		workers: { rest_api: worker },
+		adapters: new Map([["test-adapter", { normalize }]]),
+		store: { save, findForAsset: jest.fn<any>() },
+		now: () => NOW,
+	});
+}
+
+async function counted(): Promise<Record<string, number>> {
+	const { values } = await SIGNAL_COLLECTIONS_TOTAL.get();
+	return Object.fromEntries(
+		values.map((v) => [`${v.labels.source}:${v.labels.result}`, v.value])
+	);
+}
+
+beforeEach(() => {
+	jest.clearAllMocks();
+	SIGNAL_COLLECTIONS_TOTAL.reset();
+	worker.mockResolvedValue({ payload: true });
+	normalize.mockReturnValue([OBSERVATION]);
+	save.mockResolvedValue(undefined);
+});
+
+describe("SignalCollector", () => {
+	it("completes each observation into a signal of the frozen schema and stores it", async () => {
+		await collector().collect(SOURCE);
+
+		expect(worker).toHaveBeenCalledWith(SOURCE.requests[0]);
+		expect(normalize).toHaveBeenCalledWith(
+			{ payload: true },
+			{ params: {}, collectedAt: NOW }
+		);
+		expect(save).toHaveBeenNthCalledWith(1, [
+			{
+				id: signalId(
+					"test-source",
+					{ assetId: "BTC" },
+					"hashtag_uses",
+					"1793664000"
+				),
+				schemaVersion: 1,
+				sourceId: "test-source",
+				dimension: "social",
+				assetId: "BTC",
+				sector: null,
+				metric: "hashtag_uses",
+				value: 67,
+				unit: "posts",
+				observedAt: "2026-11-04T12:00:00.000Z",
+				collectedAt: "2026-11-04T12:03:00.000Z",
+				// The source reliability, kept for the consumers to weigh.
+				confidenceScore: 0.3,
+				attributes: {},
+			},
+		]);
+		await expect(counted()).resolves.toEqual({ "test-source:success": 2 });
+	});
+
+	it("stores a sector request once, on the sector", async () => {
+		await collector().collect(SOURCE);
+
+		const [[sectorSignal]] = save.mock.calls[1] as [any[]];
+		expect(sectorSignal).toMatchObject({ assetId: null, sector: "crypto" });
+	});
+
+	it("gives a replayed observation the same id, another subject another id", async () => {
+		await collector().collect(SOURCE);
+		await collector().collect(SOURCE);
+
+		const ids = save.mock.calls.map(([signals]) => (signals as any[])[0].id);
+		expect(ids[0]).toBe(ids[2]);
+		expect(ids[0]).not.toBe(ids[1]);
+	});
+
+	it("counts a failed fetch and goes on with the next request", async () => {
+		worker.mockRejectedValueOnce(new Error("HTTP 503 from a.test"));
+
+		await collector().collect(SOURCE);
+
+		expect(save).toHaveBeenCalledTimes(1);
+		expect(MOCK_LOGGER.error).toHaveBeenCalledWith(
+			"Signal collection failed",
+			expect.objectContaining({
+				context: {
+					source: "test-source",
+					subject: { assetId: "BTC" },
+					result: "fetch_error",
+				},
+			})
+		);
+		await expect(counted()).resolves.toEqual({
+			"test-source:fetch_error": 1,
+			"test-source:success": 1,
+		});
+	});
+
+	it.each([
+		[
+			"a body that is not JSON",
+			() => worker.mockRejectedValueOnce(new SyntaxError("Unexpected token <")),
+		],
+		[
+			"a payload the adapter refuses",
+			() =>
+				normalize.mockImplementationOnce(() => {
+					throw new Error("format changed");
+				}),
+		],
+		[
+			"an observation outside the schema",
+			() =>
+				normalize.mockReturnValueOnce([{ ...OBSERVATION, value: Number.NaN }]),
+		],
+		[
+			"an invalid observation date",
+			() =>
+				normalize.mockReturnValueOnce([
+					{ ...OBSERVATION, observedAt: Number.NaN },
+				]),
+		],
+	])(
+		"counts %s as an invalid payload and stores nothing of it",
+		async (_label, arrange) => {
+			arrange();
+
+			await collector().collect({ ...SOURCE, requests: [SOURCE.requests[0]] });
+
+			expect(save).not.toHaveBeenCalled();
+			await expect(counted()).resolves.toEqual({
+				"test-source:invalid_payload": 1,
+			});
+		}
+	);
+
+	it("counts a source whose adapter is unknown as an invalid payload", async () => {
+		await collector().collect({
+			...SOURCE,
+			adapter: "missing",
+			requests: [SOURCE.requests[0]],
+		});
+
+		expect(save).not.toHaveBeenCalled();
+		expect(MOCK_LOGGER.error.mock.calls[0][1]).toMatchObject({
+			error: new Error("No source adapter named missing"),
+		});
+	});
+
+	it("counts a store failure", async () => {
+		save.mockRejectedValueOnce(new Error("MySQL down"));
+
+		await collector().collect({ ...SOURCE, requests: [SOURCE.requests[0]] });
+
+		await expect(counted()).resolves.toEqual({
+			"test-source:store_error": 1,
+		});
+	});
+});

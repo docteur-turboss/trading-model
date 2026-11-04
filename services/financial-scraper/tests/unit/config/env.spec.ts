@@ -173,4 +173,31 @@ describe("env", () => {
 		expect(ENV.SCRAPE_INTERVAL).toBe("*/5 * * * *");
 		expect(ENV.BINANCE_BASE_URL).toBe("http://binance-stub:8080");
 	});
+
+	it("should collect signals by default with the generic User-Agent", () => {
+		setRequiredVars();
+
+		const { ENV } = require("../../../src/infrastructure/config/env");
+		expect(ENV.SIGNAL_COLLECTION_ENABLED).toBe(true);
+		expect(ENV.SIGNAL_USER_AGENT).toMatch(/^trading-model-signals\/1\.0 /);
+	});
+
+	it("should read SIGNAL_COLLECTION_ENABLED=false (CI) and a contact User-Agent", () => {
+		setRequiredVars();
+		process.env.SIGNAL_COLLECTION_ENABLED = "false";
+		process.env.SIGNAL_USER_AGENT = " Acme Research ops@acme.example ";
+
+		const { ENV } = require("../../../src/infrastructure/config/env");
+		expect(ENV.SIGNAL_COLLECTION_ENABLED).toBe(false);
+		expect(ENV.SIGNAL_USER_AGENT).toBe("Acme Research ops@acme.example");
+	});
+
+	// Compose passes `${SIGNAL_USER_AGENT:-}`: an unset variable arrives empty.
+	it("should take an empty SIGNAL_USER_AGENT for the default", () => {
+		setRequiredVars();
+		process.env.SIGNAL_USER_AGENT = "";
+
+		const { ENV } = require("../../../src/infrastructure/config/env");
+		expect(ENV.SIGNAL_USER_AGENT).toMatch(/^trading-model-signals\/1\.0 /);
+	});
 });

@@ -46,7 +46,15 @@ jest.mock(
 	})
 );
 
-import { createScrapeScheduler } from "../../../src/config/container";
+jest.mock("../../../src/adapters/outbound/persistence/signal-store", () => ({
+	MySqlSignalStore: { kind: "mysql-signals" },
+}));
+
+import { SignalCronScheduler } from "../../../src/adapters/inbound/cron/signal.cron";
+import {
+	createScrapeScheduler,
+	createSignalScheduler,
+} from "../../../src/config/container";
 
 describe("config/container — createScrapeScheduler", () => {
 	beforeEach(() => {
@@ -105,5 +113,46 @@ describe("config/container — createScrapeScheduler", () => {
 			{ symbols: ["BTCUSDT", "ETHUSDT"], schedule: "*/5 * * * *" }
 		);
 		expect(MOCK_LOGGER.warn).not.toHaveBeenCalled();
+	});
+});
+
+describe("config/container — createSignalScheduler", () => {
+	const ENABLED = {
+		SCRAPE_SCHEDULER_ENABLED: true,
+		SIGNAL_COLLECTION_ENABLED: true,
+		SIGNAL_USER_AGENT: "trading-model-test ops@example.org",
+	};
+
+	beforeEach(() => {
+		jest.clearAllMocks();
+	});
+
+	it("collects nothing on an HTTP-only replica", () => {
+		expect(
+			createSignalScheduler({ ...ENABLED, SCRAPE_SCHEDULER_ENABLED: false })
+		).toBeNull();
+	});
+
+	it("collects nothing when signal collection is off (CI)", () => {
+		expect(
+			createSignalScheduler({ ...ENABLED, SIGNAL_COLLECTION_ENABLED: false })
+		).toBeNull();
+		expect(MOCK_LOGGER.info).toHaveBeenCalledWith(
+			expect.stringContaining("SIGNAL_COLLECTION_ENABLED=false")
+		);
+	});
+
+	it("schedules the registry sources on the collector", () => {
+		const scheduler = createSignalScheduler(ENABLED);
+
+		expect(scheduler).toBeInstanceOf(SignalCronScheduler);
+		expect(MOCK_LOGGER.info).toHaveBeenCalledWith("Signal collection enabled", {
+			sources: [
+				"binance-ticker-24h",
+				"sec-edgar-eps-diluted",
+				"open-meteo-wheat-belt",
+				"mastodon-hashtags",
+			],
+		});
 	});
 });

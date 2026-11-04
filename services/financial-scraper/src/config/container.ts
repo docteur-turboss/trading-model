@@ -1,8 +1,14 @@
 import { logger } from "@trading-model/http/infrastructure/logger";
 import { TradingSymbol } from "@trading-model/primitives/primitives";
+import { SignalCronScheduler } from "../adapters/inbound/cron/signal.cron";
 import { MarketDataModel } from "../adapters/outbound/persistence/market-data.model";
+import { MySqlSignalStore } from "../adapters/outbound/persistence/signal-store";
+import { createRestApiWorker } from "../adapters/outbound/signal-sources/rest-api.worker";
+import { SOURCE_ADAPTERS } from "../adapters/outbound/signal-sources/source-adapters";
 import { createMarketDataController } from "../application/market-data.controller";
+import { SignalCollector } from "../application/signal-collector";
 import type { WorkerOrchestratorDeps } from "../application/worker-orchestrator";
+import { SIGNAL_REGISTRY, type SignalRegistry } from "./signal-registry";
 
 /** Market data persistence use case backed by the MySQL repository. */
 export const MarketDataController = createMarketDataController(MarketDataModel);
@@ -78,4 +84,38 @@ export async function createScrapeScheduler(
 		symbols,
 		deps,
 	});
+}
+
+export interface SignalSchedulerSettings {
+	/** Signals are collected where the scrape cron runs: once, on the collector. */
+	SCRAPE_SCHEDULER_ENABLED: boolean;
+	SIGNAL_COLLECTION_ENABLED: boolean;
+	SIGNAL_USER_AGENT: string;
+}
+
+/**
+ * Builds the cron of the signal registry sources (ADR-0036), or null when
+ * this instance does not collect them.
+ */
+export function createSignalScheduler(
+	settings: SignalSchedulerSettings,
+	registry: SignalRegistry = SIGNAL_REGISTRY
+): ScrapeScheduler | null {
+	if (!settings.SCRAPE_SCHEDULER_ENABLED) {
+		return null;
+	}
+	if (!settings.SIGNAL_COLLECTION_ENABLED) {
+		logger.info("Signal collection disabled (SIGNAL_COLLECTION_ENABLED=false)");
+		return null;
+	}
+	logger.info("Signal collection enabled", {
+		sources: registry.sources.map((source) => source.id),
+	});
+	const collector = new SignalCollector({
+		workers: { rest_api: createRestApiWorker(settings.SIGNAL_USER_AGENT) },
+		adapters: SOURCE_ADAPTERS,
+		store: MySqlSignalStore,
+		now: Date.now,
+	});
+	return new SignalCronScheduler(registry.sources, collector);
 }
