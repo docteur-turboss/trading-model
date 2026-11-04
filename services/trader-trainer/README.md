@@ -18,6 +18,8 @@ bun run test              # Run tests
 bun run build         # Production build
 ```
 
+See [Local service development](../../docs/getting-started/local-service-development.md) to run and debug this service.
+
 See [Quick Start](../../docs/getting-started/quickstart.md) for a full platform walkthrough.
 
 ## Architecture
@@ -46,5 +48,3 @@ See [ARCHITECTURE.md](./ARCHITECTURE.md) for detailed module breakdown and integ
 
 - [Bounded Contexts](../../docs/architecture/bounded-contexts.md) — DDD context map
 - [Service Documentation Index](../../docs/services/README.md) — All platform services
-
-See [Local service development](../../docs/getting-started/local-service-development.md) to run and debug this service.

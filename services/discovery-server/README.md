@@ -39,6 +39,8 @@ bun run dev     # needs a SPIRE SVID: not usable outside Compose
 bun run build   # tsc
 ```
 
+See [Local service development](../../docs/getting-started/local-service-development.md) to run and debug this service.
+
 ## Testing
 
 ```bash
@@ -130,5 +132,3 @@ Get a specific instance by ID.
 ## Dependencies
 
 - `@trading-model/common` — server factories, env validation, logger, middleware, crypto, types
-
-See [Local service development](../../docs/getting-started/local-service-development.md) to run and debug this service.

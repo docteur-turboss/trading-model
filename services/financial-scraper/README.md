@@ -66,6 +66,8 @@ bun run build
 node dist/application/index.js
 ```
 
+See [Local service development](../../docs/getting-started/local-service-development.md) to run and debug this service.
+
 ## Testing
 
 ```bash
@@ -83,7 +85,7 @@ bun run test:watch
 
 | Script                  | Description                           |
 | ----------------------- | ------------------------------------- |
-| `bun run dev`           | `ts-node`; needs a SPIRE SVID, see [local development](../../docs/getting-started/local-service-development.md) |
+| `bun run dev` | `ts-node`; needs a SPIRE SVID, see [local development](../../docs/getting-started/local-service-development.md) |
 | `bun run build`         | Compile TypeScript to `dist/`         |
 | `bun run test`              | Execute all tests                     |
 | `bun run test:coverage` | Execute tests with coverage report    |
@@ -145,5 +147,3 @@ See [ARCHITECTURE.md](./ARCHITECTURE.md) for the detailed architecture documenta
 ## API Endpoints
 
 See [API.md](./API.md) for the REST API reference.
-
-See [Local service development](../../docs/getting-started/local-service-development.md) to run and debug this service.
