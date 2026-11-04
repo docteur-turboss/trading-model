@@ -10,9 +10,10 @@ import {
 	UnixTimestamp,
 } from "@trading-model/primitives/primitives";
 import { z } from "zod";
+import { Asset, AssetId, Signal } from "../../../domain/signals";
 
 /**
- * HTTP API of financial-scraper (ADR-0021): market data queries. Each entry
+ * HTTP API of financial-scraper (ADR-0021): market data and signal queries. Each entry
  * mounts its route (`routes.ts`), validates its parameters and documents it
  * in the OpenAPI.
  */
@@ -37,6 +38,14 @@ const AT_DATE = z.object({
 const EPOCH_MS = z.object({
 	timestamp: z.coerce.number().int().min(0).transform(brand(UnixTimestamp.of)),
 });
+
+/** Bound of a signal window: an ISO date or date-time, to epoch milliseconds. */
+const WINDOW_BOUND = z
+	.union([z.iso.datetime({ offset: true }), z.iso.date()])
+	.transform((value) => Date.parse(value));
+
+/** Most signals one answer holds; past it the answer says `truncated`. */
+export const MAX_SIGNALS_PER_ANSWER = 5000;
 
 /** MySQL `DATETIME` columns, serialized by `Date#toJSON`. */
 const DATE_TIME = z.iso.datetime();
@@ -185,4 +194,29 @@ export const SCRAPER_API = {
 		EPOCH_MS,
 		OrderBook
 	),
+	/** ADR-0036: every dimension, the sector signals of the asset included. */
+	assetSignals: defineRoute({
+		method: "GET",
+		path: "/signals/assets/:assetId",
+		summary:
+			"Signals of an asset and of its sector, every dimension, observed in [from, to)",
+		params: z.object({ assetId: AssetId }),
+		query: z
+			.object({ from: WINDOW_BOUND, to: WINDOW_BOUND })
+			.refine((window) => window.from < window.to, {
+				message: "from must be before to",
+				path: ["to"],
+			}),
+		responses: {
+			200: z.object({
+				asset: Asset,
+				/** Oldest first. */
+				signals: z.array(Signal),
+				/** More than MAX_SIGNALS_PER_ANSWER (5000) signals: narrow the window. */
+				truncated: z.boolean(),
+			}),
+			400: ErrorResponse,
+			404: ErrorResponse,
+		},
+	}),
 } as const;
