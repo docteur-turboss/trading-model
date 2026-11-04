@@ -17,6 +17,8 @@
 //    8. Alerts reach someone: compose and K8s run the same Alertmanager config,
 //       every receiver reads its credentials from a file (no inline
 //       placeholder), and the Watchdog alert is routed to a dead man's switch.
+//    9. Every curl to https:// in docs/operations and docs/troubleshooting
+//       passes a client certificate (--cert): services are mTLS only.
 //
 //  Run: bun scripts/observability-gate.mjs
 // =============================================================================
@@ -295,6 +297,34 @@ function isEmitted(metric, emitted) {
     errors.push("observability/alertmanager.yml: the Watchdog alert is not routed to a webhook (dead man's switch)");
   }
   info.push("Alertmanager: same config in compose and K8s, file-based credentials, Watchdog → dead man's switch");
+}
+
+// ── 9: On-call diagnostics reach mTLS services with a client SVID ────────────
+// Services refuse clients without a SPIFFE certificate (ADR-0011): a runbook
+// `curl https://…` without --cert fails even on a healthy service.
+{
+  const docs = [];
+  const walkDocs = (dir) => {
+    for (const entry of readdirSync(dir)) {
+      const p = join(dir, entry);
+      if (statSync(p).isDirectory()) walkDocs(p);
+      else if (p.endsWith(".md")) docs.push(p);
+    }
+  };
+  for (const dir of ["docs/operations", "docs/troubleshooting"]) walkDocs(join(ROOT, dir));
+  for (const file of docs) {
+    const rel = relative(ROOT, file).replace(/\\/g, "/");
+    // Join shell continuations so a multi-line curl is checked as one command.
+    const commands = readFileSync(file, "utf-8").replace(/\\\r?\n/g, " ").split(/\r?\n/);
+    for (const line of commands) {
+      for (const command of line.split(/`|\||&&|;/)) {
+        if (/\bcurl\b/.test(command) && /https:\/\//.test(command) && !/--cert\b/.test(command)) {
+          errors.push(`${rel}: curl to https:// without --cert/--key (mTLS only, ADR-0011): ${command.trim()}`);
+        }
+      }
+    }
+  }
+  info.push(`On-call docs: every curl to https:// carries a client SVID (${docs.length} files)`);
 }
 
 if (errors.length > 0) {

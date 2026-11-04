@@ -87,7 +87,9 @@ kubectl exec -n trading-model mongo-dlq-0 -- mongosh --quiet --eval "rs.add('mon
    ```
 2. Verify data integrity:
    ```bash
-   kubectl exec -n trading-model deployment/dlq-service -- curl -sk https://localhost:3000/dlq
+   # /dlq needs mTLS + HMAC signature: go through the gateway (edge-proxy port-forwarded on 8449)
+   API_GATEWAY=http://localhost:8449 ADMIN_TOKEN=<AUTH_TOKENS value> \
+     DLQ_AUTH_HMAC_SECRET=<dlq-service secret> bash examples/manage-dlq.sh
    ```
 
 ## Redis Failover

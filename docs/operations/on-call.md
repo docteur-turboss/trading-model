@@ -35,15 +35,33 @@
 
 ### Health check endpoints
 
-```
-discovery-server:       curl -sk https://discovery-server:3000/ping
-message-manager:        curl -sk https://message-manager:3000/health/ready
-api-gateway:            curl -sk https://api-gateway:3000/ping
-audit-logger:           curl -sk https://audit-logger:3000/ping
-dlq-service:            curl -sk https://dlq-service:3000/health
-edge-proxy:             curl -s http://edge-proxy:8080/ping
-financial-scraper:      curl -sk https://financial-scraper:3000/health
-trader-trainer:         curl -sk https://trader-trainer:3000/ping
+Services only accept SPIFFE mTLS clients (ADR-0011): a `curl` without a client
+certificate always fails, even against a healthy service. Probe each service
+from inside its own container, with its SVID.
+
+| Service           | Route           | Compose container   |
+|-------------------|-----------------|---------------------|
+| discovery-server  | `/ping`         | `trading-discovery` |
+| message-manager   | `/health/ready` | `trading-message`   |
+| api-gateway       | `/ping`         | `trading-gateway`   |
+| audit-logger      | `/ping`         | `trading-audit`     |
+| dlq-service       | `/health`       | `trading-dlq`       |
+| financial-scraper | `/health`       | `trading-scraper`   |
+| trader-trainer    | `/ping`         | `trading-trainer`   |
+
+```bash
+# Kubernetes (<service> and <route> from the table)
+kubectl exec -n trading-model deployment/<service> -c <service> -- \
+  curl -skf --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem \
+  https://localhost:3000/<route>
+
+# Docker Compose (<container> and <route> from the table)
+docker exec <container> curl -skf --cert /run/spire/svid/svid.pem \
+  --key /run/spire/svid/svid_key.pem https://localhost:3000/<route>
+
+# edge-proxy is plain HTTP inside the cluster / stack (no client certificate)
+kubectl port-forward -n trading-model svc/edge-proxy 8449:8080 &   # Kubernetes
+curl -sf http://localhost:8449/ping   # Kubernetes (port-forward) or Compose (host port EDGE_PORT)
 ```
 
 ### Key dashboards
