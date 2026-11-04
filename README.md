@@ -7,8 +7,19 @@ Microservices-based AI trading platform. Ingests market data, trains autonomous 
 ```bash
 git clone <repo-url> && cd trading-model
 bun install --frozen-lockfile
+cp .env.example .env   # then replace the example values, see below
 docker compose up -d
 ```
+
+Before the first `docker compose up`, set these variables in `.env` and replace their example values with your own secrets (`openssl rand -hex 32`):
+
+- `MYSQL_ROOT_PASSWORD` — MySQL root password
+- `GATEWAY_AUTH_TOKENS` — gateway API keys (`x-api-key`), comma-separated
+- `SIGNING_SECRET` — HMAC secret of the discovery instance tokens
+
+The Compose stack runs with `NODE_ENV=production` by default: without these values the gateway and discovery-server refuse to start.
+
+> **Development only.** The Docker Compose stack has no scheduled backup: do not store real data in it. See [SETUP.md](docs/deployment/SETUP.md#local-development-setup).
 
 mTLS is automatic via SPIRE (ADR-0011) — no manual certificate generation.
 
