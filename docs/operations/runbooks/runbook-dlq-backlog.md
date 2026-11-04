@@ -10,7 +10,8 @@ and sends it to dlq-service (signed with `DLQ_AUTH_HMAC_SECRET`). dlq-service
 stores it in MongoDB and, with `DLQ_AUTO_RETRY_ENABLED=true` (compose and K8s),
 replays eligible entries to message-manager every `DLQ_AUTO_RETRY_INTERVAL_MS`
 (30 s), at most `DLQ_AUTO_RETRY_LIMIT` (50) per cycle. An entry that failed
-`DLQ_RETRY_MAX_ATTEMPTS` (5) replays is abandoned (kept, no longer retried).
+`DLQ_RETRY_MAX_ATTEMPTS` replays is abandoned (kept, no longer retried): **3 in
+K8s** (ConfigMap `dlq-service-config`), 5 by default (compose).
 
 - `dlq_entries_added_total`: entries stored by dlq-service.
 - `dlq_entries_replayed_total`: entries replayed with success (auto-retry or
@@ -88,7 +89,8 @@ Common causes:
 - Then drain: auto-retry does it by itself; to go faster, replay by topic
   through the gateway (`signed_curl POST '/dlq/replay?topic=<topic>&limit=100'`
   with `examples/manage-dlq.sh`).
-- Abandoned entries (5 failed replays) are never retried: inspect them
+- Abandoned entries (`DLQ_RETRY_MAX_ATTEMPTS` failed replays: 3 in K8s, 5 in
+  compose) are never retried: inspect them
   (`GET /dlq`), replay them by hand once the cause is fixed, or delete those
   that are obsolete (`DELETE /dlq` with their ids). Never delete entries of the
   audit topics without checking that audit-logger has them.
