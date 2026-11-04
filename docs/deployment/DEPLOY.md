@@ -80,7 +80,10 @@ image even when both deploys used `latest`.
 
 ---
 
-## Using pre-built images (production)
+## Using pre-built images (development Compose host)
+
+> **Not production.** Production runs on Kubernetes (see above). This Compose
+> pull is for development hosts only, with no real data.
 
 Instead of building locally, pull published images from GHCR:
 
