@@ -1,4 +1,4 @@
-# ADR-0036: Multi-Dimension Signals MVP — Frozen Schema, Static Source Registry, Generic `rest_api` Worker
+# ADR-0036: Multi-Dimension Signals MVP — Frozen Schema, Static Source Registry of Free Sources, Generic `rest_api` Worker
 
 **Status:** Accepted
 **Date:** 2026-11
@@ -11,7 +11,7 @@ The platform collects one dimension from one source: Binance market data (ADR-00
 
 1. a frozen, versioned `Asset` / `Dimension` / `Source` / `Signal` schema;
 2. a static source registry (JSON or YAML, no admin UI);
-3. one worker per protocol, `rest_api` first, with four test sources, one per dimension: `market` (Binance), `fundamental` (e.g. SEC EDGAR), `contextual` (e.g. Open-Meteo), `social` (e.g. RSS or Reddit);
+3. one worker per protocol, `rest_api` first, with four test sources, one per dimension (`market`, `fundamental`, `contextual`, `social`; the note's examples: Binance, SEC EDGAR, Open-Meteo, RSS or Reddit);
 4. a simple scheduler (a cron is enough);
 5. a normalizer with one adapter per test source;
 6. basic storage ("a TSDB for market data, a document store for the rest", no graph store);
@@ -24,42 +24,54 @@ Two requirements of the note concern the consumers and shape the schema:
 - `confidence_score` and freshness (`observed_at`) are features in their own right, not upstream filters: an Analyst must learn to weigh a 3-month-old fundamental differently from a 3-second-old price.
 - Sector-wide `contextual` data (weather: every agricultural asset, not only wheat) belongs to Sector Managers, rather than being duplicated for each Asset Analyst.
 
-Checked on 2026-11-04:
+The project owner then asked that every source be free for any use: no "non-commercial" or "research only" terms. Terms checked on 2026-11-04:
 
-- `data-api.binance.vision/api/v3/ticker/24hr`, Open-Meteo `v1/forecast?current=...` and Mastodon `GET /api/v1/tags/:name` answer 200 without key. SEC EDGAR answers 403 ("Undeclared Automated Tool") to a User-Agent without contact: its fair access policy requires `"<organisation> <contact e-mail>"`.
-- Reddit's API terms require a registered OAuth application; RSS is XML, which `rest_api` (JSON) does not parse without a new dependency.
-- The platform has MySQL (market data, backed up daily with hourly PITR archives) and MongoDB (audit, DLQ), no time-series database. financial-scraper only talks to MySQL, and already splits HTTP replicas from a single collector pod.
-- No Analyst or Sector Manager exists: the trainer is a GA + DQN per symbol, fed by market data only.
+| Source | Terms | Free for any use? |
+| --- | --- | --- |
+| Open-Meteo free API | "only for non-commercial purposes" (data CC BY 4.0, service restricted) | No |
+| Binance, `data-api.binance.vision` | Binance Vision Dataset Terms v1.0 (2026-08-26): CC BY-NC-SA 4.0, "commercial licensing is strictly excluded", no "live proprietary trading execution" (§4.2) | No |
+| Mastodon (`mastodon.social`) | No licence found for API data | Not shown |
+| GDELT DOC API | Unrestricted use with citation, but answers 429 ("one every 5 seconds") to a single request | Yes, unusable |
+| SEC EDGAR | sec.gov: "may be copied or further distributed ... without the SEC's permission", cite the SEC | Yes |
+| ECB Data Portal | ECB statistics: free reuse "irrespective of any subsequent commercial or non-commercial use", source quoted, unmodified | Yes |
+| US National Weather Service (`api.weather.gov`) | Public domain, "without charge for any lawful purpose" | Yes |
+| Wikimedia Analytics API (page views) | CC0 1.0 | Yes |
+
+Also checked: no exchange publishes crypto or equity prices under such terms; ECB, SEC, NWS and Wikimedia answer 200 without key. SEC EDGAR answers 403 ("Undeclared Automated Tool") to a User-Agent without a contact e-mail (fair access policy, at most 10 requests/s); NWS and Wikimedia require a User-Agent and accept a contact URL in it. The platform has MySQL (market data, backed up daily with hourly PITR archives) and MongoDB (audit, DLQ), no time-series database; financial-scraper only talks to MySQL and already splits HTTP replicas from a single collector pod. No Analyst or Sector Manager exists: the trainer is a GA + DQN per symbol, fed by market data only.
 
 ## Decision
 
 1. **Schema v1** (`services/financial-scraper/src/domain/signals.ts`, Zod, `SIGNAL_SCHEMA_VERSION = 1`). A change that breaks a reader of the registry or of stored or served signals bumps the version.
    - `Dimension`: `market`, `fundamental`, `macro`, `real_estate`, `contextual`, `social`, `legal`: every dimension of the note, so a fifth source needs no schema change whatever its dimension.
-   - `Asset`: `id` (upper case), `name`, `assetClass` (`crypto`, `equity`, `etf`, `commodity`, `real_estate`), `sector`.
-   - `Source`: `id`, `dimension`, `protocol`, `adapter`, `schedule` (cron), `reliabilityScore` (0–1), `requests` (subject, HTTPS URL, adapter `params`).
+   - `Asset`: `id` (upper case), `name`, `assetClass` (`crypto`, `equity`, `bond`, `etf`, `commodity`, `real_estate`), `sector`.
+   - `Source`: `id`, `dimension`, `protocol`, `adapter`, `schedule` (cron), `reliabilityScore` (0–1), `accessPolicy`, `requests` (subject, HTTPS URL, adapter `params`).
    - `Signal`: `id`, `schemaVersion`, `sourceId`, `dimension`, `assetId` or `sector` (exactly one), `metric`, `value` (a number), `unit`, `observedAt`, `collectedAt`, `confidenceScore`, `attributes` (flat, source-specific).
    - Fields are camelCase on the wire, like the rest of the API (`observed_at` becomes `observedAt`, `confidence_score` `confidenceScore`, `asset_id` `assetId`); MySQL columns are snake_case.
-2. **Confidence and freshness are stored and served, never filtered on.** `confidenceScore` is the source's `reliabilityScore` at collection time, a prior: SEC EDGAR 0.95, Binance 0.9, Open-Meteo 0.7, Mastodon 0.3 (social data is low-confidence by default). `observedAt` is point-in-time: when the value was true or public, not when it was fetched. An EDGAR fact is observed at the end of its filing day (US Eastern, 05:00 UTC the next day), not at the end of its period; a Mastodon day count once the UTC day is over (today's count is left for later collections). A consumer computes the age as now minus `observedAt`.
-3. **A request is about an asset or a whole sector.** A sector signal is stored once (`sector` set, `asset_id` null) and served with the signals of every asset of the sector: the weather of the US wheat belt is an `agriculture` signal, not a `WHEAT` one.
-4. **Static registry** `services/financial-scraper/src/config/signal-registry.json`, bundled in the image and parsed at startup by `parseSignalRegistry` (`src/config/signal-registry.ts`): the schema, then unique ids, known subjects and adapters, valid cron expressions, adapter `params`. Every problem is reported at once and a broken registry stops the service.
-5. **One worker per protocol.** Only `rest_api` exists (`src/adapters/outbound/signal-sources/rest-api.worker.ts`): GET, JSON body, 10 s timeout, no retry (the next tick of the source is the retry). The schema refuses a protocol without a worker.
-6. **Normalizer: one adapter per source format** (`SOURCE_ADAPTERS`). An adapter validates its payload with Zod and returns observations; the collector (`src/application/signal-collector.ts`) completes them into signals and checks each against the schema. A payload that does not match, or a body that is not JSON, is logged and counted `invalid_payload` in `fs_signal_collections_total{source,result}`: never stored half-parsed, never dropped silently.
-7. **Scheduler: one node-cron task per source**, on its own schedule (`src/adapters/inbound/cron/signal.cron.ts`): a slow or failing source never delays another, an overlapping tick is skipped, requests of a source run one after the other. It runs where the scrape cron runs (`SCRAPE_SCHEDULER_ENABLED`: the collector pod) and only if `SIGNAL_COLLECTION_ENABLED` (default `true`). CI turns it off (E2E overlay, `tests/k8s/ci-render.mjs`, which fails if it is not off): the test sources are real public APIs.
-8. **One MySQL table, `signals`** (migration 006, database `financial_scraper`), for every dimension: numeric `value` plus a JSON `attributes` column for the document part. `id` is the sha256 of source, subject, metric and the observation's key; inserts use `ON DUPLICATE KEY UPDATE id = id`, so a replayed collection stores nothing twice and the first value stays. A CHECK constraint enforces one subject per row. The candle, trade and ticker tables stay the high-frequency market store.
-9. **Serving API** `GET /signals/assets/:assetId?from=&to=` (public: `GET /v1/financial-scraper/signals/assets/:assetId`): the registry asset, then its own and its sector's signals observed in `[from, to)`, oldest first, at most 5000 per answer (`truncated: true` beyond: narrow the window). Unknown asset: 404.
-10. **No publication on the message bus** in the MVP: nothing consumes signals yet.
-11. **Test sources** (one per dimension of the MVP):
+2. **Only sources free for any use.** `accessPolicy.terms` is `public-domain` or `attribution` (then `attribution` holds the credit to give), with the `termsUrl` read when the source was added. Other terms cannot be written, so a non-commercial or research-only source cannot enter the registry.
+3. **Confidence and freshness are stored and served, never filtered on.** `confidenceScore` is the source's `reliabilityScore` at collection time, a prior: ECB and SEC EDGAR 0.95, NWS 0.8, Wikipedia page views 0.3 (social data is low-confidence by default). `observedAt` is point-in-time, never earlier than the value was public:
+   - the source's own time when it gives one that is safe: an NWS observation time; an EDGAR fact at the end of its filing day (US Eastern, 05:00 UTC the next day), not at the end of its period;
+   - otherwise the first collection that saw the value: the ECB and Wikimedia publish no release time, and the store keeps that first row (decision 9).
+   A consumer computes the age as now minus `observedAt`; the period a value refers to stays in `attributes` (`period`, `day`, `periodEnd`).
+4. **A request is about an asset or a whole sector.** A sector signal is stored once (`sector` set, `asset_id` null) and served with the signals of every asset of the sector: the weather of the US wheat belt is an `agriculture` signal, not a `WHEAT` one.
+5. **Static registry** `services/financial-scraper/src/config/signal-registry.json`, bundled in the image and parsed at startup by `parseSignalRegistry` (`src/config/signal-registry.ts`): the schema, then unique ids, known subjects and adapters, valid cron expressions, adapter `params`, URL placeholders. Every problem is reported at once and a broken registry stops the service.
+6. **One worker per protocol.** Only `rest_api` exists (`src/adapters/outbound/signal-sources/rest-api.worker.ts`): GET, JSON body, 10 s timeout, no retry (the next tick of the source is the retry). The schema refuses a protocol without a worker. A URL may hold `{date-N}`, the UTC date N days before the collection as YYYYMMDD, for APIs that take a date range.
+7. **Normalizer: one adapter per source format** (`SOURCE_ADAPTERS`). An adapter validates its payload with Zod and returns observations; the collector (`src/application/signal-collector.ts`) completes them into signals and checks each against the schema. A payload that does not match, or a body that is not JSON, is logged and counted `invalid_payload` in `fs_signal_collections_total{source,result}`: never stored half-parsed, never dropped silently.
+8. **Scheduler: one node-cron task per source**, on its own schedule (`src/adapters/inbound/cron/signal.cron.ts`): a slow or failing source never delays another, an overlapping tick is skipped, requests of a source run one after the other. It runs where the scrape cron runs (`SCRAPE_SCHEDULER_ENABLED`: the collector pod) and only if `SIGNAL_COLLECTION_ENABLED` (default `true`). CI turns it off (E2E overlay, `tests/k8s/ci-render.mjs`, which fails if it is not off): the test sources are real public APIs.
+9. **One MySQL table, `signals`** (migration 006, database `financial_scraper`), for every dimension: numeric `value` plus a JSON `attributes` column for the document part. `id` is the sha256 of source, subject, metric and the observation's key; inserts use `ON DUPLICATE KEY UPDATE id = id`, so a replayed collection stores nothing twice and the first row stays. A CHECK constraint enforces one subject per row. The candle, trade and ticker tables stay the high-frequency market store.
+10. **Serving API** `GET /signals/assets/:assetId?from=&to=` (public: `GET /v1/financial-scraper/signals/assets/:assetId`): the registry asset, then its own and its sector's signals observed in `[from, to)`, oldest first, at most 5000 per answer (`truncated: true` beyond: narrow the window). Unknown asset: 404.
+11. **No publication on the message bus** in the MVP: nothing consumes signals yet.
+12. **Test sources** (one per dimension of the MVP):
 
-    | Source | Dimension | Subject | Schedule |
-    | --- | --- | --- | --- |
-    | Binance 24 h ticker, `BTCUSDT`, `ETHUSDT` | `market` | `BTC`, `ETH` | every 5 min |
-    | SEC EDGAR companyconcept, Apple `us-gaap:EarningsPerShareDiluted` | `fundamental` | `AAPL` | every 6 h |
-    | Open-Meteo current temperature and precipitation, central Kansas | `contextual` | sector `agriculture` | every 15 min |
-    | Mastodon hashtag history `#bitcoin`, `#ethereum` (mastodon.social, counts only) | `social` | `BTC`, `ETH` | every 6 h |
+    | Source | Dimension | Subject | Schedule | Terms |
+    | --- | --- | --- | --- | --- |
+    | ECB Data Portal, euro area AAA government bond yield curve, 10-year spot rate | `market` | `EA_AAA_10Y` (bond) | hourly, weekdays | attribution: "Source: ECB statistics" |
+    | SEC EDGAR companyconcept, Apple `us-gaap:EarningsPerShareDiluted` | `fundamental` | `AAPL` | every 6 h | attribution: SEC |
+    | NWS latest observation of Hutchinson, Kansas (KHUT): temperature, humidity, precipitation | `contextual` | sector `agriculture` | every 20 min | public domain |
+    | Wikipedia page views of the "Bitcoin" and "Ethereum" articles | `social` | `BTC`, `ETH` | every 6 h | public domain (CC0) |
 
-    Every request sends `SIGNAL_USER_AGENT`; SEC EDGAR needs a contact in it.
+    Every request sends `SIGNAL_USER_AGENT`; SEC EDGAR needs a contact e-mail in it.
 
-Adding a source of a known format is an entry in `signal-registry.json`. A new format also needs an adapter in `src/adapters/outbound/signal-sources/` and its line in `SOURCE_ADAPTERS`. The scheduler, the store and the API do not change.
+Adding a source of a known format is an entry in `signal-registry.json` with its `accessPolicy`, after reading its terms. A new format also needs an adapter in `src/adapters/outbound/signal-sources/` and its line in `SOURCE_ADAPTERS`. The scheduler, the store and the API do not change.
 
 ## Alternatives Considered
 
@@ -68,25 +80,31 @@ Adding a source of a known format is an entry in `signal-registry.json`. A new f
 | A new `signal-collector` service | A new image, compose service, SPIRE entry, ACLs, K8s manifests and release matrix entry for a validation MVP; financial-scraper already has the collector / HTTP split, MySQL and node-cron |
 | A time-series database for market signals and MongoDB for the rest | Two more stores to run, back up and secure for a few thousand rows a day; MySQL is backed up with PITR already; `SignalStorePort` keeps the choice open |
 | Signals in MongoDB | financial-scraper has no MongoDB access: a new database, user, egress rule and backup classification, for flat documents |
+| Binance 24 h ticker as the market test source (the note's example) | `data-api.binance.vision` is under CC BY-NC-SA 4.0 and forbids live proprietary trading; no exchange offers prices free for any use. The ECB yield is free for any use and adds a second asset class |
+| Open-Meteo (contextual), Mastodon or Reddit or RSS (social) | Open-Meteo's free API is non-commercial; no licence found for Mastodon API data; Reddit requires a registered OAuth app; RSS needs an XML parser |
+| GDELT (social: mentions and tone) | Free for any use, but answered 429 to a single request |
+| A source's period end or day end as `observedAt` when it gives no release time | Earlier than the value was public: training on it would leak the future |
 | Drop stale or low-confidence signals at ingestion | The consumers must learn to weigh them (first requirement of the note) |
 | Copy sector data onto each asset of the sector | One copy of the same weather row per agricultural asset; the sector is a subject instead |
 | Publish signals on message-manager now | No consumer; the bus is Phase 2 of the note |
-| Reddit or RSS as the social test source | Reddit requires a registered OAuth app; RSS needs an XML parser; Mastodon's public JSON API needs neither |
 
 ## Consequences
 
 ### Positive
 
-- Four sources of four dimensions share one worker, one scheduler, one store and one API: a fifth source is a registry entry, plus an adapter for a new format.
+- Four sources of four dimensions and three asset classes share one worker, one scheduler, one store and one API: a fifth source is a registry entry, plus an adapter for a new format.
+- Every source in the registry may be used for anything, trading included; the schema refuses the others.
 - Every row carries a point-in-time `observedAt` and a confidence: features built later can use them without collecting again.
 - A source that changes its format shows up in `fs_signal_collections_total{result="invalid_payload"}` and the logs instead of being stored wrong.
 
 ### Negative
 
 - Deferred to the production phase of the note: retry with backoff, circuit breaker and quarantine per source, adaptive rate limiting, caching, DLQ routing of invalid payloads, per-dimension staleness alerts, a reliability dashboard. No alert reads `fs_signal_collections_total` yet: a failing source fails at each tick, logged and counted.
-- `reliabilityScore` is a static prior, not a gate; no retention policy (market signals add about 1 100 rows a day).
+- `reliabilityScore` is a static prior, not a gate; no retention policy.
 - Nothing consumes the signals: injecting confidence and age as features, and Sector Managers, wait for an agent architecture that does not exist yet.
-- SEC EDGAR answers 403 until `SIGNAL_USER_AGENT` holds a contact. The free Open-Meteo API is for non-commercial use, mastodon.social and SEC EDGAR have rate limits: the terms of each source must be checked before production use.
-- The registry is bundled: a new source needs a release. It names `data-api.binance.vision`, which `BINANCE_BASE_URL` (ADR-0026 fallback) does not switch.
+- No crypto or equity price among the signals: no source of them is free for any use. The candles of the Binance pipeline (ADR-0026) remain the market data of the trainer, under Binance's terms.
+- "First collected" times depend on the schedule: the first collection after a deployment stamps the whole returned window (8 days of page views, 5 ECB periods) with its own time.
+- SEC EDGAR answers 403 until `SIGNAL_USER_AGENT` holds a contact e-mail. The `attribution` sources must be credited wherever their data is published.
+- The registry is bundled: a new source needs a release.
 - Values are numbers: text (posts, filing text) needs schema v2 with an enrichment step.
 - No per-source secret exists: none of the test sources has a key. The first keyed source adds one, separate per source.
