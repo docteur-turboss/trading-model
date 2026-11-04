@@ -264,6 +264,7 @@ function runbookUrlProblem(url) {
   if (!url.startsWith(RUNBOOK_URL_PREFIX)) return `runbook_url ${url} does not start with ${RUNBOOK_URL_PREFIX}`;
   const [path, anchor] = url.slice(RUNBOOK_URL_PREFIX.length).split("#");
   const file = join(ROOT, path);
+  if (relative(ROOT, file).startsWith("..")) return `runbook_url names ${path}, outside the repository`;
   if (!existsSync(file) || !statSync(file).isFile()) return `runbook_url names ${path}, absent from the repository`;
   if (anchor !== undefined && !markdownAnchors(readFileSync(file, "utf-8")).has(anchor)) {
     return `runbook_url anchor #${anchor} matches no heading of ${path}`;
