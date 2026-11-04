@@ -1,6 +1,6 @@
 # financial-scraper — Financial Data Collector
 
-Market data collection service from Binance, with MySQL persistence and REST API exposure.
+Market data collection service from Binance, with MySQL persistence and REST API exposure. It also collects the signals of every dimension (market, fundamental, contextual, social...) declared in its source registry ([Signals](#signals-adr-0036), ADR-0036).
 
 ## General Information
 
@@ -13,7 +13,7 @@ Market data collection service from Binance, with MySQL persistence and REST API
 
 ## REST Endpoints
 
-All endpoints are **GET**, return a JSON **array** (possibly empty), and answer
+All market data endpoints are **GET**, return a JSON **array** (possibly empty), and answer
 400 with `{ "error": "Validation failed", "details": [...] }` on an invalid
 parameter. Their parameters and responses are declared in
 `src/adapters/inbound/http/api-routes.ts` (`SCRAPER_API`, ADR-0021) and
@@ -37,6 +37,7 @@ are reached under the service prefix `financial-scraper` of the gateway API (v1)
 | `/orderbook/before/timestamp/:timestamp` | snapshots before this instant                     | epoch milliseconds                          |
 
 Queries are not paginated: a symbol or source query returns every stored row.
+The signals route is described in [Signals](#signals-adr-0036).
 
 Trades, tickers and candles come from MySQL: their instants are ISO date-times
 and `tradeId` (BIGINT) is a decimal string, exact past 2^53:
@@ -88,6 +89,9 @@ Three tables store market data:
 | `market_trades`    | Individual trade data     |
 | `market_tickers`   | 24-hour ticker statistics |
 
+`market_publish_cursors` holds the candle publish backlog (see below) and
+`signals` (migration 006) the signals of every dimension ([Signals](#signals-adr-0036)).
+
 See [`docs/architecture/databases.md`](../architecture/databases.md#mysql--financial-scraper-financial-scraper) for the full column definitions, SQL DDL, composite primary keys, index conventions, and TypeScript interfaces.
 
 ## Background Jobs (Scheduled Tasks)
@@ -114,19 +118,98 @@ A `node-cron` cycle (`ScrapeCronOrchestrator`) asks the market data source (`Mar
 - Retry strategy: **exponential backoff** (5 retries, 300ms–10s)
 - Prevents Binance API bans
 
+## Signals (ADR-0036)
+
+A signal is one observation of one metric about an asset or a whole sector,
+from a source of one dimension (`market`, `fundamental`, `macro`,
+`real_estate`, `contextual`, `social`, `legal`). Schema v1:
+`src/domain/signals.ts` (`SIGNAL_SCHEMA_VERSION`).
+
+**Sources** are declared in `src/config/signal-registry.json` (assets and
+sources), checked at startup: a broken registry stops the service. Each
+source has a protocol (`rest_api` only), an adapter, a cron `schedule`, a
+`reliabilityScore` and its requests (subject: `assetId` or `sector`, HTTPS
+URL, adapter `params`).
+
+| Source id | Dimension | Subject | Schedule | Metrics |
+| --- | --- | --- | --- | --- |
+| `binance-ticker-24h` | market | `BTC`, `ETH` | every 5 min | `last_price`, `volume_24h` |
+| `sec-edgar-eps-diluted` | fundamental | `AAPL` | every 6 h | `us-gaap:EarningsPerShareDiluted` |
+| `open-meteo-wheat-belt` | contextual | sector `agriculture` | every 15 min | `temperature_2m`, `precipitation` |
+| `mastodon-hashtags` | social | `BTC`, `ETH` | every 6 h | `hashtag_uses`, `hashtag_accounts` |
+
+**Adding a source**: an entry in the registry. A new payload format also needs
+an adapter in `src/adapters/outbound/signal-sources/` (a Zod schema of the
+payload and a `normalize` function returning observations) and its line in
+`SOURCE_ADAPTERS`. Nothing else changes.
+
+**Collection** runs on the collector instance only (`SCRAPE_SCHEDULER_ENABLED`)
+and when `SIGNAL_COLLECTION_ENABLED` is not `false` (CI turns it off): one cron
+task per source, requests one after the other, an overlapping tick skipped.
+Each request is fetched (GET, JSON, 10 s timeout, no retry: the next tick is the
+retry), normalized by its adapter, checked against the schema and stored.
+`fs_signal_collections_total{source,result}` counts the requests by result:
+`success`, `fetch_error`, `invalid_payload` (the source changed its format: logged,
+nothing stored), `store_error`. `SIGNAL_USER_AGENT` is sent to every source:
+SEC EDGAR answers 403 unless it holds a contact (`"<organisation> <contact e-mail>"`).
+
+**Point in time**: `observedAt` is when the value was true or public, not when
+it was fetched: an EDGAR fact once its filing day is over (US Eastern), a
+Mastodon day count once the UTC day is over. `confidenceScore` is the source's
+`reliabilityScore` when collected. Both are served with every signal, never
+filtered on.
+
+**Storage**: table `signals`. `id` is the sha256 of source, subject, metric and
+the observation key, so a replayed collection stores nothing twice (the first
+value stays). A sector signal is stored once, with `sector` set and
+`asset_id` null.
+
+**Query**: `GET /signals/assets/:assetId?from=<date>&to=<date>` (through the
+gateway: `/v1/financial-scraper/signals/assets/:assetId`). `from` and `to` are
+ISO dates or date-times, the window is `[from, to)`. The answer holds the asset,
+then its own and its sector's signals of the window, oldest first, at most 5000
+(`truncated: true` beyond: narrow the window); an asset the registry does not
+know answers 404.
+
+```json
+{
+  "asset": { "id": "WHEAT", "name": "Wheat", "assetClass": "commodity", "sector": "agriculture" },
+  "signals": [
+    {
+      "id": "3f1c…",
+      "schemaVersion": 1,
+      "sourceId": "open-meteo-wheat-belt",
+      "dimension": "contextual",
+      "assetId": null,
+      "sector": "agriculture",
+      "metric": "temperature_2m",
+      "value": 4.3,
+      "unit": "°C",
+      "observedAt": "2026-11-04T12:00:00.000Z",
+      "collectedAt": "2026-11-04T12:03:00.000Z",
+      "confidenceScore": 0.7,
+      "attributes": { "latitude": 38.49294, "longitude": -98.50629, "intervalSeconds": 900 }
+    }
+  ],
+  "truncated": false
+}
+```
+
 ## Architecture
 
 ```
 HTTP Server
-  ├── Financial routes (/trade/*, /ticker/*, /candles/*, /orderbook/*)
+  ├── Financial routes (/trade/*, /ticker/*, /candles/*, /orderbook/*, /signals/assets/*)
   ├── AddressManager routes (ping)
   └── MessageManager routes (callback)
 
 Background
-  └── WorkerOrchestrator (per symbol)
-        ├── MarketDataSourcePort → Binance public API (token bucket)
-        ├── MarketDataPublisherPort → message bus
-        └── MySQL write
+  ├── WorkerOrchestrator (per symbol)
+  │     ├── MarketDataSourcePort → Binance public API (token bucket)
+  │     ├── MarketDataPublisherPort → message bus
+  │     └── MySQL write
+  └── SignalCronScheduler (per registry source)
+        └── SignalCollector: rest_api worker → source adapter → schema check → MySQL signals
 
 Dependencies
   ├── MySQL (persistence)

@@ -47,6 +47,8 @@ See [.env.example](./.env.example) for all available variables.
 | `BINANCE_BASE_URL`    | Binance public API (ADR-0026)       | `https://api.binance.com`   |
 | `SYMBOLS_TO_TRACK`    | JSON array of symbols to fetch      | `[]`                        |
 | `SCRAPE_INTERVAL`     | Cron expression for scrape schedule | `*/1 * * * *`               |
+| `SIGNAL_COLLECTION_ENABLED` | Collects the signal registry sources where the scrape cron runs (ADR-0036); `false` in CI | `true` |
+| `SIGNAL_USER_AGENT`   | Sent to every signal source; SEC EDGAR needs `"<organisation> <contact e-mail>"` | generic, no contact |
 | `DB_USER`             | MySQL user                          | `root`                      |
 | `DB_PASSWORD`         | MySQL password                      | `''`                        |
 | `DB_NAME`             | MySQL database name                 | `financial_scraper`         |

@@ -173,6 +173,28 @@ Migration 005. The scraper persists candles before publishing them; the candles 
 
 **Primary key:** `(source, symbol, interval_value)`. A series without a row starts at the first candle the scraper persists, not at the history. Skipping a backlog on purpose: see `runbook-message-bus-outage`.
 
+### `signals` — signals of every dimension
+
+Migration 006, ADR-0036. One observation of one metric about an asset or a whole sector, collected from the source registry (`services/financial-scraper/src/config/signal-registry.json`).
+
+| Column | Type | Constraints | Description |
+| ------ | ---- | ----------- | ----------- |
+| `id` | `CHAR(64)` | `NOT NULL`, `PK` | sha256 of source, subject, metric and observation key: a replayed collection inserts nothing (`ON DUPLICATE KEY UPDATE id = id`) |
+| `schema_version` | `SMALLINT UNSIGNED` | `NOT NULL` | `SIGNAL_SCHEMA_VERSION` the row was written with |
+| `source_id` | `VARCHAR(64)` | `NOT NULL` | Registry source |
+| `dimension` | `VARCHAR(32)` | `NOT NULL` | `market`, `fundamental`, `macro`, `real_estate`, `contextual`, `social`, `legal` |
+| `asset_id` | `VARCHAR(32)` | `NULL` | Asset of the signal; null for a sector signal |
+| `sector` | `VARCHAR(32)` | `NULL` | Sector of a sector signal (e.g. weather for `agriculture`); null for an asset signal |
+| `metric` | `VARCHAR(128)` | `NOT NULL` | e.g. `last_price`, `us-gaap:EarningsPerShareDiluted`, `temperature_2m` |
+| `value` | `DOUBLE` | `NOT NULL` | Observed value |
+| `unit` | `VARCHAR(32)` | `NOT NULL` | e.g. `USDT`, `USD/shares`, `°C`, `posts` |
+| `observed_at` | `DATETIME(3)` | `NOT NULL` | When the value was true or public (point in time), not when it was fetched |
+| `collected_at` | `DATETIME(3)` | `NOT NULL` | When the scraper fetched it |
+| `confidence_score` | `DOUBLE` | `NOT NULL` | Source reliability at collection time, 0–1 |
+| `attributes` | `JSON` | `NOT NULL` | What only the source knows (filing form and period, coordinates...) |
+
+**Constraint:** `chk_signals_one_subject`, exactly one of `asset_id` and `sector`. **Indexes:** `(asset_id, observed_at)` and `(sector, observed_at)`, the two halves of `GET /signals/assets/:assetId`.
+
 ### Shared base interface
 
 ```ts
