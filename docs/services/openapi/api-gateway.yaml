@@ -1450,6 +1450,173 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "404":
           $ref: "#/components/responses/NotFound"
+  /v1/financial-scraper/signals/assets/{assetId}:
+    get:
+      operationId: "getV1FinancialScraperSignalsAssetsAssetId"
+      tags:
+        - "financial-scraper"
+      summary: "Signals of an asset and of its sector, every dimension, observed in [from, to)"
+      x-registry-entry: "assetSignals"
+      parameters:
+        - name: "assetId"
+          in: "path"
+          required: true
+          schema:
+            type: "string"
+            pattern: "^[A-Z0-9][A-Z0-9_-]{0,31}$"
+        - name: "from"
+          in: "query"
+          required: true
+          schema:
+            anyOf:
+              - type: "string"
+                format: "date-time"
+              - type: "string"
+                format: "date"
+                pattern: "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+        - name: "to"
+          in: "query"
+          required: true
+          schema:
+            anyOf:
+              - type: "string"
+                format: "date-time"
+              - type: "string"
+                format: "date"
+                pattern: "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+      responses:
+        "200":
+          description: "OK"
+          content:
+            "application/json":
+              schema:
+                type: "object"
+                properties:
+                  asset:
+                    type: "object"
+                    properties:
+                      id:
+                        type: "string"
+                        pattern: "^[A-Z0-9][A-Z0-9_-]{0,31}$"
+                      name:
+                        type: "string"
+                        minLength: 1
+                      assetClass:
+                        type: "string"
+                        enum:
+                          - "crypto"
+                          - "equity"
+                          - "etf"
+                          - "commodity"
+                          - "real_estate"
+                      sector:
+                        type: "string"
+                        pattern: "^[a-z][a-z0-9_]{0,31}$"
+                    required:
+                      - "id"
+                      - "name"
+                      - "assetClass"
+                      - "sector"
+                    additionalProperties: false
+                  signals:
+                    type: "array"
+                    items:
+                      type: "object"
+                      properties:
+                        id:
+                          type: "string"
+                          pattern: "^[0-9a-f]{64}$"
+                        schemaVersion:
+                          type: "number"
+                          enum:
+                            - 1
+                        sourceId:
+                          type: "string"
+                          pattern: "^[a-z0-9][a-z0-9-]{0,63}$"
+                        dimension:
+                          type: "string"
+                          enum:
+                            - "market"
+                            - "fundamental"
+                            - "macro"
+                            - "real_estate"
+                            - "contextual"
+                            - "social"
+                            - "legal"
+                        assetId:
+                          nullable: true
+                          type: "string"
+                          pattern: "^[A-Z0-9][A-Z0-9_-]{0,31}$"
+                        sector:
+                          nullable: true
+                          type: "string"
+                          pattern: "^[a-z][a-z0-9_]{0,31}$"
+                        metric:
+                          type: "string"
+                          pattern: "^[\\w.:-]{1,128}$"
+                        value:
+                          type: "number"
+                        unit:
+                          type: "string"
+                          minLength: 1
+                          maxLength: 32
+                        observedAt:
+                          type: "string"
+                          format: "date-time"
+                        collectedAt:
+                          type: "string"
+                          format: "date-time"
+                        confidenceScore:
+                          type: "number"
+                          minimum: 0
+                          maximum: 1
+                        attributes:
+                          type: "object"
+                          additionalProperties:
+                            anyOf:
+                              - type: "string"
+                              - type: "number"
+                              - type: "boolean"
+                              - type: "string"
+                                nullable: true
+                                enum:
+                                  - null
+                      required:
+                        - "id"
+                        - "schemaVersion"
+                        - "sourceId"
+                        - "dimension"
+                        - "assetId"
+                        - "sector"
+                        - "metric"
+                        - "value"
+                        - "unit"
+                        - "observedAt"
+                        - "collectedAt"
+                        - "confidenceScore"
+                        - "attributes"
+                      additionalProperties: false
+                  truncated:
+                    type: "boolean"
+                required:
+                  - "asset"
+                  - "signals"
+                  - "truncated"
+                additionalProperties: false
+        "400":
+          description: "Invalid request"
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: "Not found"
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /v1/financial-scraper/ticker/sources/{source}:
     get:
       operationId: "getV1FinancialScraperTickerSourcesSource"
