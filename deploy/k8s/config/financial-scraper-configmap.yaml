@@ -40,8 +40,9 @@ data:
   # pod overrides this to "true", so each market event is published once.
   SCRAPE_SCHEDULER_ENABLED: "false"
   # Signal registry sources (ADR-0036), collected by the collector pod only;
-  # tests/k8s/ci-render.mjs turns it off in CI. SEC EDGAR also needs
-  # SIGNAL_USER_AGENT="<organisation> <contact e-mail>" (403 without).
+  # tests/k8s/ci-render.mjs turns it off in CI. The contact e-mail of the
+  # User-Agent (SEC EDGAR: 403 without) comes from the signal-contact ConfigMap,
+  # written by deploy.yml from the SIGNAL_CONTACT_EMAIL secret, never committed.
   SIGNAL_COLLECTION_ENABLED: "true"
 ---
 apiVersion: autoscaling/v2
