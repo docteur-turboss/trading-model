@@ -56,12 +56,17 @@ See [Quick Start Tutorial](docs/getting-started/quickstart.md) for a 10-minute h
 
 | Package                             | Purpose                                                                                             |
 | ----------------------------------- | --------------------------------------------------------------------------------------------------- |
-| `@trading-model/common`             | HTTP client, logger, middleware, server factories, env validation, circuit breaker, SSRF protection |
-| `@trading-model/validation`         | Zod schemas, DTOs, event enums, admin contracts                                                     |
-| `@trading-model/server-utils`       | Secure HTTPS server factory, TLS watcher, response protocol                                         |
-| `@trading-model/crypto`             | Hashing, signature, and crypto primitives                                                           |
-| `@trading-model/address-manager`    | Service discovery client with health-checking and token rotation                                    |
-| `@trading-model/broker-message`     | Inter-service messaging SDK with typed event subscriptions                                          |
+| `@trading-model/primitives` | Pure domain primitives: branded types, pagination, circuit-state, retry-policy. Zero dependencies |
+| `@trading-model/contracts` | Shared runtime-free contracts: events, message envelope, service registry, `http-status`/`http-headers`, `LoggerPort` registry |
+| `@trading-model/reliability` | Circuit breaker, circuit-state machine, latency tracker |
+| `@trading-model/common` | Residual shared infra: `AppError`/`ErrorCodes`, retry/backoff, SPIFFE identity, TLS path config, cache abstractions, shared Zod schemas |
+| `@trading-model/persistence` | Redis/Mongo connection managers, store adapters, key builders |
+| `@trading-model/http` | HTTP middleware (mTLS auth, response protocol), HTTP client, logging pipeline |
+| `@trading-model/validation` | Zod schemas, DTOs, event enums, admin contracts |
+| `@trading-model/server-utils` | Secure HTTPS server factory, TLS watcher, bootstrap and shutdown, telemetry |
+| `@trading-model/crypto` | Hashing, request signing, token generation, secure randomness |
+| `@trading-model/address-manager` | Service discovery client with health-checking and token rotation |
+| `@trading-model/broker-message` | Inter-service messaging SDK with typed event subscriptions |
 
 ### Workload identity
 
