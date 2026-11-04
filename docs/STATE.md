@@ -14,10 +14,10 @@ statut: actif
 
 ## Ce que c'est
 
-`trading-model` est un monorepo de trading algorithmique : 12 packages partagés
+`trading-model` est un monorepo de trading algorithmique : 11 packages partagés
 (scopés `@trading-model/*`) + 7 microservices, liés par bun workspaces.
 
-- **Packages** : primitives, contracts, reliability, common, persistence, http, validation, server-utils, crypto, jobs, address-manager, broker-message
+- **Packages** : primitives, contracts, reliability, common, persistence, http, validation, server-utils, crypto, address-manager, broker-message
 - **Services** : message-manager, discovery-server, financial-scraper, trader-trainer (nom de package : `trader-service`), api-gateway, audit-logger, dlq-service. Pas de frontend : `admin-interface` retiré temporairement (ADR-0018)
 - **Données** : MySQL (financial-scraper, datastore SPIRE), MongoDB (audit-logger, dlq-service), Redis (message-manager)
 - **Identité/mTLS** : SPIRE/SPIFFE (ADR-0011) — obligatoire en Docker et K8s
@@ -25,7 +25,7 @@ statut: actif
 
 ## Invariants non négociables
 
-1. Build ordonné : les 12 packages dans l'ordre de dépendance (voir `AGENTS.md`), puis les services.
+1. Build ordonné : les 11 packages dans l'ordre de dépendance (voir `AGENTS.md`), puis les services.
 2. Couverture de tests ≥ 80 % (branches fonction-lignes), seuils dérogatoires versionnés.
 3. Qualité : lint (Biome 0 erreur) et tests verts avant tout push — voir `docs/ci-cd/README.md`.
 4. Numérotation des migrations SQL ascendante ; journaux append-only.
