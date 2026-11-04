@@ -47,7 +47,7 @@ Every change — from a single commit to a full release — carries risk. This p
 | 1   | All features are merged to `development`          | GitHub PR list                               |
 | 2   | `development` has been deployed and verified      | Beta deployment + canary check               |
 | 3   | `development` merged to `main`                    | `git checkout main && git merge development` |
-| 4   | Version bumped + CHANGELOG generated + GitHub Release created | Release workflow (manual `workflow_dispatch`) |
+| 4   | Version bumped + CHANGELOG generated, tag `vX.Y.Z` pushed | `bun run release:publish` ([release.md](../contributing/release.md)) |
 | 5   | Breaking changes documented                       | CHANGELOG footer section                     |
 
 ## Before Deploying to Production

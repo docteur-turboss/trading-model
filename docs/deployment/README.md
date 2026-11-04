@@ -40,9 +40,7 @@
                          ▼
               ┌──────────────────────────────────────┐
               │  CD (release.yml)                    │
-              │  quality → docker (7 images)          │
-              │  → docs (GitHub Pages)               │
-              │  → GitHub Release                    │
+              │  full CI → docker (9 images :X.Y.Z)  │
               └──────────┬───────────────────────────┘
                          │ images on ghcr.io
                          ▼
