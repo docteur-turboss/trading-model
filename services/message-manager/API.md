@@ -58,7 +58,7 @@ Publish a message to a topic. The broker enriches the message with a `messageId`
 | `metadata.security.authContext`     | `{ subject: string, roles: string[], tenantId: string }` | no       | Authentication / authorization context              |
 | `metadata.security.signature`       | `string`                                                 | no       | Message integrity signature                         |
 
-Note: `at-most-once` and `exactly-once` get a single attempt, no retry; a failure is dead-lettered. `exactly-once` is **not** an end-to-end guarantee: no duplicate depends on the subscriber being idempotent on `messageId` ([ADR-0019](../../docs/adr/0019-message-broker-as-built.md)).
+Note: `at-most-once`: single attempt, a failure is dropped. `exactly-once`: single attempt, no retry, a failure is dead-lettered (`SINGLE_ATTEMPT_FAILED`); it is **not** an end-to-end guarantee: no duplicate depends on the subscriber being idempotent on `messageId` ([ADR-0019](../../docs/adr/0019-message-broker-as-built.md)).
 
 ### Response
 
