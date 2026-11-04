@@ -103,7 +103,7 @@ docker pull ghcr.io/<owner>/discovery-server:2.0.3
 
 ## Production deployment
 
-1. `bun run release` (on `main`) bumps the versions, writes the CHANGELOG and pushes the tag `vX.Y.Z`
+1. `bun run release:publish` (on `main`) bumps the versions, writes the CHANGELOG and pushes the tag `vX.Y.Z` ([release.md](../contributing/release.md))
 2. `release.yml` runs the whole CI on the tag, then publishes the 9 images to `ghcr.io/<owner>` as `X.Y.Z`, and as `latest` when it is the highest stable release
 3. The `Deploy` workflow is run against the `production` environment (canary enabled for staged rollout)
 

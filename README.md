@@ -81,7 +81,7 @@ bun run api:check            # OpenAPI and documented routes vs the real routes
 bun run test:e2e             # E2E tests (requires Docker Compose up)
 bun run docs:generate        # TypeDoc HTML
 bun run commit               # Interactive gitmoji commit CLI
-# Release: GitHub Actions → "Release" workflow (version bump + images + GitHub Release + docs)
+# Release: see docs/contributing/release.md (bun run release, tag vX.Y.Z → "Release" workflow)
 ```
 
 ## Deployment
@@ -98,7 +98,7 @@ bun run commit               # Interactive gitmoji commit CLI
 GitHub Actions workflows:
 
 - **ci.yml** — on every push/PR: lint → typecheck (packages + services) → test+coverage (Codecov) → contract tests → E2E (Docker stack)
-- **release.yml** — quality gates → Docker build/push (7 images) → GitHub Release → TypeDoc docs (manual `workflow_dispatch`)
+- **release.yml** — on a `vX.Y.Z` tag push: full CI → Docker build/push as `:X.Y.Z` (see [release.md](docs/contributing/release.md))
 - **deploy.yml** — manual staging/production deploy with rollback
 - **backup-test.yml** — weekly restore drill of the Docker backup scripts
 

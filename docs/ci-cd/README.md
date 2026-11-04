@@ -80,8 +80,8 @@ jobs:
 ### Workflow: `.github/workflows/release.yml`
 
 Triggered by pushing a `vX.Y.Z` tag (`vX.Y.Z-rc.1` for a prerelease). The tag
-is created locally by `bun run release` (`scripts/release.mjs`: version bump,
-CHANGELOG, annotated tag, `git push --follow-tags`).
+is created locally by `bun run release:publish` (`scripts/release.mjs --publish`: version bump,
+CHANGELOG, annotated tag, `git push --follow-tags`). See [release.md](../contributing/release.md).
 
 **Jobs:**
 
