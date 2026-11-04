@@ -48,7 +48,7 @@ See [.env.example](./.env.example) for all available variables.
 | `SYMBOLS_TO_TRACK`    | JSON array of symbols to fetch      | `[]`                        |
 | `SCRAPE_INTERVAL`     | Cron expression for scrape schedule | `*/1 * * * *`               |
 | `SIGNAL_COLLECTION_ENABLED` | Collects the signal registry sources where the scrape cron runs (ADR-0036); `false` in CI | `true` |
-| `SIGNAL_USER_AGENT`   | Sent to every signal source; SEC EDGAR needs `"<organisation> <contact e-mail>"` | generic, no contact |
+| `SIGNAL_CONTACT_EMAIL` | Contact e-mail in the User-Agent `automated news analysis <e-mail>` of the signal sources; SEC EDGAR answers 403 without it. Never committed (public repository) | empty: repository URL |
 | `DB_USER`             | MySQL user                          | `root`                      |
 | `DB_PASSWORD`         | MySQL password                      | `''`                        |
 | `DB_NAME`             | MySQL database name                 | `financial_scraper`         |

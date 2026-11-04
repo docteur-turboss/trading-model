@@ -120,23 +120,39 @@ A `node-cron` cycle (`ScrapeCronOrchestrator`) asks the market data source (`Mar
 
 ## Signals (ADR-0036)
 
-A signal is one observation of one metric about an asset or a whole sector,
-from a source of one dimension (`market`, `fundamental`, `macro`,
-`real_estate`, `contextual`, `social`, `legal`). Schema v1:
-`src/domain/signals.ts` (`SIGNAL_SCHEMA_VERSION`).
+A signal is one observation about an asset or a whole sector, in one
+dimension (`market`, `fundamental`, `social`, `contextual`, `legal`, `macro`).
+Schema v1, the model of the design note's §1: `src/domain/signals.ts`
+(`SIGNAL_SCHEMA_VERSION`).
+
+- **Asset**: `assetType` (`crypto`, `equity`, `bond`, `real_estate`, `etf`,
+  `commodity_proxy`), a polymorphic `identifier` (`ticker` with an optional
+  exchange MIC, `isin`, `contract`, `insee`, `series`), the
+  `applicableDimensions` (signals of other dimensions are neither collected nor
+  served for it) and its `sector`.
+- **Source**: `protocol` (only `rest_api` has a worker), `covers` (the
+  (asset type, dimension) pairs it can feed), `accessPolicy`,
+  `reliabilityScore`, an adapter, a cron `schedule` and its requests (subject
+  `assetId` or `sector`, `dimension`, HTTPS URL, adapter `params`). A URL may
+  hold `{date-N}`: the UTC date N days before the collection, as YYYYMMDD.
+- **Signal**: an envelope (`sourceId`, `dimension`, `assetId` or `sector`,
+  `observedAt`, `ingestedAt`, `confidenceScore`) and the canonical `payload` of
+  its dimension: a measure (`metric`, `value`, `unit`, optional `details`) plus
+  `period` (market, optional), `period` and `filing` (fundamental), `platform`,
+  `topic` and `period` (social), `location` (contextual), `jurisdiction`
+  (legal), `area` and `period` (macro).
 
 **Sources** are declared in `src/config/signal-registry.json` (assets and
-sources), checked at startup: a broken registry stops the service. Each
-source has a protocol (`rest_api` only), an adapter, a cron `schedule`, a
-`reliabilityScore`, its terms of use (`accessPolicy`) and its requests
-(subject: `assetId` or `sector`, HTTPS URL, adapter `params`). A URL may hold
-`{date-N}`: the UTC date N days before the collection, as YYYYMMDD.
+sources), checked at startup: a broken registry stops the service. A
+request's dimension must be covered by its source for the asset type of its
+subject, apply to that asset, and be written by the adapter.
 
 Every source must be free for any use, trading included:
 `accessPolicy.terms` is `public-domain` or `attribution` (with the credit to
-give), and `termsUrl` points to the terms read. Other terms (non-commercial,
-research only) cannot be declared: Open-Meteo's free API and Binance's
-`data-api.binance.vision` (CC BY-NC-SA 4.0) were rejected for that.
+give), and `termsUrl` points to the terms read; `auth` is `none` and
+`maxRequestsPerMinute` spaces the requests of the source. Other terms
+(non-commercial, research only) cannot be declared: Open-Meteo's free API and
+Binance's `data-api.binance.vision` (CC BY-NC-SA 4.0) were rejected for that.
 
 | Source id | Dimension | Subject | Schedule | Metrics | Terms |
 | --- | --- | --- | --- | --- | --- |
@@ -157,17 +173,19 @@ Each request is fetched (GET, JSON, 10 s timeout, no retry: the next tick is the
 retry), normalized by its adapter, checked against the schema and stored.
 `fs_signal_collections_total{source,result}` counts the requests by result:
 `success`, `fetch_error`, `invalid_payload` (the source changed its format: logged,
-nothing stored), `store_error`. `SIGNAL_USER_AGENT` is sent to every source:
-SEC EDGAR answers 403 unless it holds a contact e-mail
-(`"<organisation> <contact e-mail>"`); NWS and Wikimedia accept the default
-one, which holds a contact URL.
+nothing stored), `store_error`. Every request sends the User-Agent
+`automated news analysis <SIGNAL_CONTACT_EMAIL>`: SEC EDGAR answers 403
+without the e-mail; NWS and Wikimedia accept the repository URL sent when it
+is unset. The repository is public, so the e-mail is never committed: `.env`
+for compose, the GitHub environment secret `SIGNAL_CONTACT_EMAIL` for K8s
+(`deploy.yml` writes it into the `signal-contact` ConfigMap).
 
 **Point in time**: `observedAt` is never earlier than the value was public:
 the source's own time when it gives a safe one (an NWS observation time, an
 EDGAR fact once its filing day is over, US Eastern), otherwise the first
 collection that saw the value (the ECB and Wikimedia give no release time; the
-store keeps that first row). The period a value refers to stays in
-`attributes` (`period`, `day`, `periodEnd`). `confidenceScore` is the source's
+store keeps that first row). The period a value refers to is in the payload
+(`period`). `confidenceScore` is the source's
 `reliabilityScore` when collected. Both are served with every signal, never
 filtered on.
 
@@ -179,28 +197,38 @@ value stays). A sector signal is stored once, with `sector` set and
 **Query**: `GET /signals/assets/:assetId?from=<date>&to=<date>` (through the
 gateway: `/v1/financial-scraper/signals/assets/:assetId`). `from` and `to` are
 ISO dates or date-times, the window is `[from, to)`. The answer holds the asset,
-then its own and its sector's signals of the window, oldest first, at most 5000
-(`truncated: true` beyond: narrow the window); an asset the registry does not
-know answers 404.
+then its own and its sector's signals of its applicable dimensions in the
+window, oldest first, at most 5000 (`truncated: true` beyond: narrow the
+window); an asset the registry does not know answers 404.
 
 ```json
 {
-  "asset": { "id": "WHEAT", "name": "Wheat", "assetClass": "commodity", "sector": "agriculture" },
+  "asset": {
+    "id": "WHEAT",
+    "name": "Wheat, through the Teucrium Wheat Fund",
+    "assetType": "commodity_proxy",
+    "identifier": { "scheme": "ticker", "ticker": "WEAT", "exchange": "ARCX" },
+    "applicableDimensions": ["market", "contextual", "macro"],
+    "sector": "agriculture"
+  },
   "signals": [
     {
-      "id": "3f1c…",
+      "id": "2be2…",
       "schemaVersion": 1,
       "sourceId": "nws-kansas-wheat-belt",
       "dimension": "contextual",
       "assetId": null,
       "sector": "agriculture",
-      "metric": "temperature",
-      "value": 4,
-      "unit": "wmoUnit:degC",
-      "observedAt": "2026-11-04T12:40:00.000Z",
-      "collectedAt": "2026-11-04T13:00:00.512Z",
+      "observedAt": "2026-11-04T13:00:00.000Z",
+      "ingestedAt": "2026-11-04T13:32:01.505Z",
       "confidenceScore": 0.8,
-      "attributes": { "stationId": "KHUT", "latitude": 38.07, "longitude": -97.87, "qualityControl": "V" }
+      "payload": {
+        "metric": "temperature",
+        "value": 4,
+        "unit": "wmoUnit:degC",
+        "location": { "latitude": 38.07, "longitude": -97.87, "name": "KHUT" },
+        "details": { "qualityControl": "V" }
+      }
     }
   ],
   "truncated": false
