@@ -4,6 +4,7 @@ interface LatencyWindow {
 	count: number;
 }
 
+/** Keeps a fixed-size ring of latency samples per key; `update` reports the p99 once it exceeds the threshold (needs at least 10 samples). */
 export class LatencyTracker {
 	private readonly _windows = new Map<string, LatencyWindow>();
 	private readonly _windowSize: number;

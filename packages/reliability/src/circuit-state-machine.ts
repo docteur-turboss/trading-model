@@ -5,6 +5,7 @@ import {
 } from "@trading-model/primitives/primitives";
 import type { IUnkeyedCircuitBreaker } from "./circuit-breaker.interface";
 
+/** Thresholds of a circuit: failures before opening, cooldown while open, probes allowed half-open. */
 export interface CircuitBreakerConfig {
 	failureThreshold: number;
 	cooldownMs: DurationMs;
@@ -16,6 +17,7 @@ export interface CircuitBreakerConfig {
 	}) => void;
 }
 
+/** Default circuit config: opens after 5 failures, 30 s cooldown. */
 export const DEFAULT_CIRCUIT_CONFIG: CircuitBreakerConfig = {
 	failureThreshold: 5,
 	cooldownMs: DurationMs.of(30_000),
@@ -27,6 +29,7 @@ interface PersistentState {
 	halfOpenAttempts: number;
 }
 
+/** Closed / open / half-open state of one target; holds no timers, state is derived from the clock on each call. */
 export class CircuitStateMachine implements IUnkeyedCircuitBreaker {
 	protected _failures = 0;
 	protected _openUntil: UnixTimestamp = 0 as UnixTimestamp;

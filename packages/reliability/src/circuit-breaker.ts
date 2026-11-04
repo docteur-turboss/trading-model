@@ -11,6 +11,7 @@ import { LatencyTracker } from "./latency-tracker";
 
 export type { CircuitBreakerConfig, CircuitState };
 
+/** Keyed circuit breaker: one state machine per target key, optional latency tracking and persistence hooks. */
 export class CircuitBreaker implements ICircuitBreaker<string> {
 	private readonly _machines: CircuitMachineRegistry;
 	private readonly _config: CircuitBreakerConfig;

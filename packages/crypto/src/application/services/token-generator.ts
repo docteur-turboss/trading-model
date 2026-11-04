@@ -3,6 +3,7 @@ import { createHmacSha256Formatted } from "../../adapters/outbound/node-hmac";
 import { generateRandomStr } from "../../adapters/outbound/node-random";
 import { CryptoAlg } from "../../domain/constants/crypto-constants";
 
+/** Builds a discovery instance token `<base64url id>.<nonce>.<hmac>` signed with the signing secret. */
 export function generateInstanceToken(
 	instanceId: InstanceId,
 	signingSecret: string
