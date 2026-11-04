@@ -49,6 +49,7 @@ receivers:
         text: |
           *Alert*: {{ .CommonAnnotations.summary }}
           *Description*: {{ .CommonAnnotations.description }}
+          *Runbook*: {{ .CommonAnnotations.runbook_url }}
           *Severity*: {{ .CommonLabels.severity }}
           *Service*: {{ .CommonLabels.job }}
           {{ range .Alerts }}
@@ -60,11 +61,18 @@ receivers:
       - routing_key_file: /etc/alertmanager-credentials/PAGERDUTY_ROUTING_KEY
         severity: critical
         description: '{{ .CommonAnnotations.description }}'
+        links:
+          - href: '{{ .CommonAnnotations.runbook_url }}'
+            text: Runbook
 
   - name: warning-receiver
     slack_configs:
       - channel: '#alerts-warning'
         send_resolved: true
+        title: '[{{ .Status | toUpper }}] {{ .CommonLabels.alertname }}'
+        text: |
+          *Alert*: {{ .CommonAnnotations.summary }}
+          *Runbook*: {{ .CommonAnnotations.runbook_url }}
 
   - name: deadman-receiver
     webhook_configs:
