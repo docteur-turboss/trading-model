@@ -128,20 +128,27 @@ from a source of one dimension (`market`, `fundamental`, `macro`,
 **Sources** are declared in `src/config/signal-registry.json` (assets and
 sources), checked at startup: a broken registry stops the service. Each
 source has a protocol (`rest_api` only), an adapter, a cron `schedule`, a
-`reliabilityScore` and its requests (subject: `assetId` or `sector`, HTTPS
-URL, adapter `params`).
+`reliabilityScore`, its terms of use (`accessPolicy`) and its requests
+(subject: `assetId` or `sector`, HTTPS URL, adapter `params`). A URL may hold
+`{date-N}`: the UTC date N days before the collection, as YYYYMMDD.
 
-| Source id | Dimension | Subject | Schedule | Metrics |
-| --- | --- | --- | --- | --- |
-| `binance-ticker-24h` | market | `BTC`, `ETH` | every 5 min | `last_price`, `volume_24h` |
-| `sec-edgar-eps-diluted` | fundamental | `AAPL` | every 6 h | `us-gaap:EarningsPerShareDiluted` |
-| `open-meteo-wheat-belt` | contextual | sector `agriculture` | every 15 min | `temperature_2m`, `precipitation` |
-| `mastodon-hashtags` | social | `BTC`, `ETH` | every 6 h | `hashtag_uses`, `hashtag_accounts` |
+Every source must be free for any use, trading included:
+`accessPolicy.terms` is `public-domain` or `attribution` (with the credit to
+give), and `termsUrl` points to the terms read. Other terms (non-commercial,
+research only) cannot be declared: Open-Meteo's free API and Binance's
+`data-api.binance.vision` (CC BY-NC-SA 4.0) were rejected for that.
 
-**Adding a source**: an entry in the registry. A new payload format also needs
-an adapter in `src/adapters/outbound/signal-sources/` (a Zod schema of the
-payload and a `normalize` function returning observations) and its line in
-`SOURCE_ADAPTERS`. Nothing else changes.
+| Source id | Dimension | Subject | Schedule | Metrics | Terms |
+| --- | --- | --- | --- | --- | --- |
+| `ecb-aaa-yield-10y` | market | `EA_AAA_10Y` (bond) | hourly, weekdays | `spot_rate_10y` | attribution: "Source: ECB statistics" |
+| `sec-edgar-eps-diluted` | fundamental | `AAPL` | every 6 h | `us-gaap:EarningsPerShareDiluted` | attribution: SEC |
+| `nws-kansas-wheat-belt` | contextual | sector `agriculture` | every 20 min | `temperature`, `relativeHumidity`, `precipitationLast*` | public domain |
+| `wikipedia-pageviews` | social | `BTC`, `ETH` | every 6 h | `pageviews` | public domain (CC0) |
+
+**Adding a source**: read its terms, then an entry in the registry. A new
+payload format also needs an adapter in `src/adapters/outbound/signal-sources/`
+(a Zod schema of the payload and a `normalize` function returning
+observations) and its line in `SOURCE_ADAPTERS`. Nothing else changes.
 
 **Collection** runs on the collector instance only (`SCRAPE_SCHEDULER_ENABLED`)
 and when `SIGNAL_COLLECTION_ENABLED` is not `false` (CI turns it off): one cron
@@ -151,11 +158,16 @@ retry), normalized by its adapter, checked against the schema and stored.
 `fs_signal_collections_total{source,result}` counts the requests by result:
 `success`, `fetch_error`, `invalid_payload` (the source changed its format: logged,
 nothing stored), `store_error`. `SIGNAL_USER_AGENT` is sent to every source:
-SEC EDGAR answers 403 unless it holds a contact (`"<organisation> <contact e-mail>"`).
+SEC EDGAR answers 403 unless it holds a contact e-mail
+(`"<organisation> <contact e-mail>"`); NWS and Wikimedia accept the default
+one, which holds a contact URL.
 
-**Point in time**: `observedAt` is when the value was true or public, not when
-it was fetched: an EDGAR fact once its filing day is over (US Eastern), a
-Mastodon day count once the UTC day is over. `confidenceScore` is the source's
+**Point in time**: `observedAt` is never earlier than the value was public:
+the source's own time when it gives a safe one (an NWS observation time, an
+EDGAR fact once its filing day is over, US Eastern), otherwise the first
+collection that saw the value (the ECB and Wikimedia give no release time; the
+store keeps that first row). The period a value refers to stays in
+`attributes` (`period`, `day`, `periodEnd`). `confidenceScore` is the source's
 `reliabilityScore` when collected. Both are served with every signal, never
 filtered on.
 
@@ -178,17 +190,17 @@ know answers 404.
     {
       "id": "3f1c…",
       "schemaVersion": 1,
-      "sourceId": "open-meteo-wheat-belt",
+      "sourceId": "nws-kansas-wheat-belt",
       "dimension": "contextual",
       "assetId": null,
       "sector": "agriculture",
-      "metric": "temperature_2m",
-      "value": 4.3,
-      "unit": "°C",
-      "observedAt": "2026-11-04T12:00:00.000Z",
-      "collectedAt": "2026-11-04T12:03:00.000Z",
-      "confidenceScore": 0.7,
-      "attributes": { "latitude": 38.49294, "longitude": -98.50629, "intervalSeconds": 900 }
+      "metric": "temperature",
+      "value": 4,
+      "unit": "wmoUnit:degC",
+      "observedAt": "2026-11-04T12:40:00.000Z",
+      "collectedAt": "2026-11-04T13:00:00.512Z",
+      "confidenceScore": 0.8,
+      "attributes": { "stationId": "KHUT", "latitude": 38.07, "longitude": -97.87, "qualityControl": "V" }
     }
   ],
   "truncated": false

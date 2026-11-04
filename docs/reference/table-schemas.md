@@ -185,10 +185,10 @@ Migration 006, ADR-0036. One observation of one metric about an asset or a whole
 | `dimension` | `VARCHAR(32)` | `NOT NULL` | `market`, `fundamental`, `macro`, `real_estate`, `contextual`, `social`, `legal` |
 | `asset_id` | `VARCHAR(32)` | `NULL` | Asset of the signal; null for a sector signal |
 | `sector` | `VARCHAR(32)` | `NULL` | Sector of a sector signal (e.g. weather for `agriculture`); null for an asset signal |
-| `metric` | `VARCHAR(128)` | `NOT NULL` | e.g. `last_price`, `us-gaap:EarningsPerShareDiluted`, `temperature_2m` |
+| `metric` | `VARCHAR(128)` | `NOT NULL` | e.g. `spot_rate_10y`, `us-gaap:EarningsPerShareDiluted`, `temperature`, `pageviews` |
 | `value` | `DOUBLE` | `NOT NULL` | Observed value |
-| `unit` | `VARCHAR(32)` | `NOT NULL` | e.g. `USDT`, `USD/shares`, `°C`, `posts` |
-| `observed_at` | `DATETIME(3)` | `NOT NULL` | When the value was true or public (point in time), not when it was fetched |
+| `unit` | `VARCHAR(32)` | `NOT NULL` | e.g. `Percent per annum`, `USD/shares`, `wmoUnit:degC`, `views` |
+| `observed_at` | `DATETIME(3)` | `NOT NULL` | Never earlier than the value was public (point in time): the source's time when safe, else the first collection that saw it |
 | `collected_at` | `DATETIME(3)` | `NOT NULL` | When the scraper fetched it |
 | `confidence_score` | `DOUBLE` | `NOT NULL` | Source reliability at collection time, 0–1 |
 | `attributes` | `JSON` | `NOT NULL` | What only the source knows (filing form and period, coordinates...) |

@@ -142,7 +142,7 @@ Collection of the sources of every dimension declared in the source registry; se
 | `SignalCronScheduler` | `adapters/inbound/cron/signal.cron.ts` | One cron task per source, overlapping ticks skipped |
 | `SignalCollector` | `application/signal-collector.ts` | Per request: worker → adapter → schema check → store; counts `fs_signal_collections_total` |
 | `rest_api` worker | `adapters/outbound/signal-sources/rest-api.worker.ts` | GET, JSON, 10 s timeout |
-| Source adapters | `adapters/outbound/signal-sources/` (`SOURCE_ADAPTERS`) | Binance 24 h ticker, SEC EDGAR companyconcept, Open-Meteo current, Mastodon tag history |
+| Source adapters | `adapters/outbound/signal-sources/` (`SOURCE_ADAPTERS`) | ECB SDMX series, SEC EDGAR companyconcept, NWS latest observation, Wikimedia page views |
 | `MySqlSignalStore` | `adapters/outbound/persistence/signal-store.ts` | Table `signals`: idempotent insert, asset + sector window query |
 
 ## Key Design Decisions
