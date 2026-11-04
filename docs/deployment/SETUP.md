@@ -77,7 +77,15 @@ bundle to create or mount.
 cp .env.example .env
 ```
 
-Default values in `docker-compose.yml` are sufficient for first startup on a development machine. Do not run this stack with real data. For a real deployment, use the [Kubernetes deployment guide](KUBERNETES.md) and set every secret before startup.
+Before the first `docker compose up`, set these variables in `.env` and replace their example values with your own secrets (`openssl rand -hex 32`):
+
+- `MYSQL_ROOT_PASSWORD` — MySQL root password
+- `GATEWAY_AUTH_TOKENS` — gateway API keys (`x-api-key`), comma-separated
+- `SIGNING_SECRET` — HMAC secret of the discovery instance tokens
+
+The Compose stack runs with `NODE_ENV=production` by default and `docker-compose.yml` provides no usable value for these variables: without them the gateway and discovery-server refuse to start, and MySQL has no root password.
+
+Do not run this stack with real data. For a real deployment, use the [Kubernetes deployment guide](KUBERNETES.md) and set every secret before startup.
 
 ### 6. Build Docker images
 

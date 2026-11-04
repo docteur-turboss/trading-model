@@ -2,9 +2,12 @@
 
 ## Local deployment (development)
 
+Create `.env` first, then replace the example values of `MYSQL_ROOT_PASSWORD`, `GATEWAY_AUTH_TOKENS` and `SIGNING_SECRET` (see [SETUP.md](SETUP.md#5-configure-environment)): without them the gateway and discovery-server refuse to start.
+
 Start all services:
 
 ```bash
+cp .env.example .env   # then replace the example values
 docker compose up -d
 ```
 
