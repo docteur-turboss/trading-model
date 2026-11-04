@@ -5,6 +5,7 @@ Guides to help you set up and start using the trading-model platform.
 | Guide | Description |
 | ----- | ----------- |
 | [Quick Start](quickstart.md) | 10-minute hands-on: from zero to publishing messages |
+| [Local service development](local-service-development.md) | Rebuild, run and debug one service in the Compose stack (why `bun run dev` alone fails) |
 | [Setup Guide](../deployment/SETUP.md) | Full machine setup, prerequisites, and installation |
 | [Deployment Overview](../deployment/README.md) | Deployment options: Docker Compose, Kubernetes |
 

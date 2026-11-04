@@ -56,13 +56,15 @@ See [.env.example](./.env.example) for all available variables.
 ## Running
 
 ```bash
-# Development (with ts-node)
+# Development (ts-node): needs a SPIRE SVID, not usable outside Compose
 bun run dev
 
 # Production build
 bun run build
 node dist/application/index.js
 ```
+
+See [Local service development](../../docs/getting-started/local-service-development.md) to run and debug this service.
 
 ## Testing
 
@@ -79,12 +81,12 @@ bun run test:watch
 
 ## Scripts
 
-| Script           | Description                           |
-| ---------------- | ------------------------------------- |
-| `bun run dev`        | Run in development mode via `ts-node`  |
-| `bun run build`      | Compile TypeScript to `dist/`          |
-| `bun run test`       | Execute all tests                      |
-| `bun run test:coverage` | Execute all tests with coverage    |
+| Script                  | Description                                                                                                     |
+| ----------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `bun run dev`           | `ts-node`; needs a SPIRE SVID, see [local development](../../docs/getting-started/local-service-development.md) |
+| `bun run build`         | Compile TypeScript to `dist/`                                                                                   |
+| `bun run test`          | Execute all tests                                                                                               |
+| `bun run test:coverage` | Execute all tests with coverage                                                                                 |
 
 ## Project Structure
 
