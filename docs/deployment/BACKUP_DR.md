@@ -893,7 +893,9 @@ Drill timings (issue #329): both drills time every step (`tests/backup/drill-tim
 - **DDL between the dump and the instant** (a migration) replays as is: a
   statement the restored schema rejects stops the replay with exit 1.
 - **Docker stack**: no scheduler, no backup metrics scraped, Redis without
-  persistence (derived state only). Compose is a development stack.
+  persistence (derived state only). Compose is a development stack: do not
+  store real data in it ([SETUP.md](SETUP.md#local-development-setup),
+  [DOCKER.md](DOCKER.md#docker-compose-services)).
 - **Business validation after a restore** is `scripts/verify-restore-k8s.sh`
   (Recovery Verification); it has no source of expected row counts (the run
   manifest holds none) and the audit anchors (ADR-0027) are not checked.

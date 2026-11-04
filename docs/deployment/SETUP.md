@@ -20,6 +20,10 @@ git --version      # ≥ 2.40
 
 ## Local Development Setup
 
+> **Development only.** The Docker Compose stack has no scheduled backup and no
+> backup metrics ([BACKUP_DR.md](BACKUP_DR.md#known-limits)). Do not store real
+> data in it. Real data belongs in the Kubernetes deployment.
+
 ### 1. Clone the repository
 
 ```bash
@@ -73,7 +77,7 @@ bundle to create or mount.
 cp .env.example .env
 ```
 
-Default values in `docker-compose.yml` are sufficient for first startup. Change passwords in production.
+Default values in `docker-compose.yml` are sufficient for first startup on a development machine. Do not run this stack with real data. For a real deployment, set every secret before startup, as described in the Kubernetes deployment docs.
 
 ### 6. Build Docker images
 
