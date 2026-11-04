@@ -29,13 +29,23 @@ database host.
   `--until <instant>` (state just before it). The script checks the dump,
   checksums and archive chain of every component first and touches nothing
   (exit 1) on a gap or archives that stop before the instant.
-- Where the backups are:
-  - `backup-data` volume still there: run `restore-k8s.sh` in a pod that
-    mounts it ([BACKUP_DR.md, Kubernetes](../../deployment/BACKUP_DR.md#kubernetes)).
-  - Volume or cluster lost: fetch a run, still encrypted, from the off-site
-    bucket with `scripts/fetch-offsite.sh` (add `--pitr` for `--until`), then
-    restore with `BACKUP_DIR` on that directory
+- Where the restore runs. The commands of this runbook are written for the
+  workstation case below (`BACKUP_DIR=./restore`); `BACKUP_DIR` defaults to
+  `/backups`, which only exists in a pod that mounts `backup-data`.
+  - **Workstation** (default here): fetch a run, still encrypted, from the
+    off-site bucket with `scripts/fetch-offsite.sh` (add `--pitr` for
+    `--until`) into `./restore`, then run `restore-k8s.sh` with
+    `BACKUP_DIR=./restore`
     ([BACKUP_DR.md, From the off-site bucket](../../deployment/BACKUP_DR.md#from-the-off-site-bucket)).
+    This is also the only way once the volume or the cluster is lost.
+  - **In the cluster, next to `backup-data`**: a `backup-tools` pod mounting
+    it at `/backups`, the key passed on stdin with `kubectl exec -i … < ~/backup-key.txt`
+    and the same `restore-k8s.sh` options. No manifest ships for this pod
+    ([BACKUP_DR.md, Kubernetes](../../deployment/BACKUP_DR.md#kubernetes-1)).
+- `--until` on `mysql` replays the binlogs with `mysqlbinlog`, which the
+  script runs locally: run it from the `backup-tools` image or a workstation
+  with `mysqlbinlog` installed (the script refuses otherwise, before touching
+  any data).
 
 ```bash
 # Off-site: credentials of the Secret trading-model-backup-s3
@@ -109,22 +119,30 @@ the trust bundle comes back unchanged
 ([BACKUP_DR.md, SPIRE CA restore and SVIDs](../../deployment/BACKUP_DR.md#spire-ca-restore-and-svids)).
 `restore-k8s.sh` runs the components in the order given to `--components`.
 
-1. Stop the MySQL writers:
+1. Stop **every** MySQL writer, the SPIRE server included, whatever the
+   components restored. The SPIRE server writes into the `spire` schema: on an
+   empty volume it recreates the schema and a new CA, and it keeps writing
+   (attested nodes, CA journal). Left running, it collides with the dump and
+   the binlog replay, or leaves a datastore that no longer matches the
+   `keys.json` of the run. With `mysql-0` lost it already serves nothing, so
+   stopping it costs no extra outage. `restore-k8s.sh` only scales it to 0 in
+   the SPIRE step, after MySQL: too late.
    ```bash
-   kubectl scale deployment -n trading-model financial-scraper financial-scraper-collector --replicas=0
+   kubectl scale deployment -n trading-model financial-scraper financial-scraper-collector spire-server --replicas=0
    ```
 2. If the volume is gone, let `mysql-0` start on a new empty PVC (delete the
    broken PVC `mysql-data-mysql-0` and the pod) and wait for it to be ready.
-3. Restore MySQL and the SPIRE CA keys (the script scales `spire-server` to 0
-   for the keys, writes them, scales it back and runs its healthcheck):
+3. Restore MySQL and the SPIRE CA keys (the SPIRE step writes the keys,
+   scales `spire-server` back to 1 and runs its healthcheck):
    ```bash
-   K8S_NAMESPACE=trading-model BACKUP_AGE_IDENTITY=~/backup-key.txt \
+   BACKUP_DIR=./restore K8S_NAMESPACE=trading-model BACKUP_AGE_IDENTITY=~/backup-key.txt \
      bash scripts/restore-k8s.sh --components mysql,spire
-   # or point in time (BACKUP_DIR from fetch-offsite.sh --pitr if backup-data is lost)
-   K8S_NAMESPACE=trading-model BACKUP_AGE_IDENTITY=~/backup-key.txt \
+   # or point in time (fetch-offsite.sh --pitr, mysqlbinlog needed)
+   BACKUP_DIR=./restore K8S_NAMESPACE=trading-model BACKUP_AGE_IDENTITY=~/backup-key.txt \
      bash scripts/restore-k8s.sh --until <instant> --components mysql,spire
    ```
-   With `--components mysql` alone, scale `spire-server` to 0 first.
+   With `--components mysql` alone, start the SPIRE server again by hand
+   afterwards: `kubectl scale deployment -n trading-model spire-server --replicas=1`.
 4. Scale the writers back to the replica counts of the overlay:
    ```bash
    kubectl scale deployment -n trading-model financial-scraper financial-scraper-collector --replicas=<overlay replicas>
@@ -181,14 +199,17 @@ majority). Same commands for `mongo-audit-*` with `mongo-audit-headless`.
 2. Restore the `dlq` database only (component `mongodb` holds both replica
    sets; `--ns` leaves the audit trail untouched):
    ```bash
-   K8S_NAMESPACE=trading-model BACKUP_AGE_IDENTITY=~/backup-key.txt \
+   BACKUP_DIR=./restore K8S_NAMESPACE=trading-model BACKUP_AGE_IDENTITY=~/backup-key.txt \
      bash scripts/restore-k8s.sh --components mongodb --ns 'dlq.*'
    ```
    `--ns` skips the oplog replay (data as of the start of the dump) and is
    refused with `--until`. To restore one collection without overwriting
    healthy writes, or into a scratch database, see
    [BACKUP_DR.md, Restoring part of MongoDB](../../deployment/BACKUP_DR.md#restoring-part-of-mongodb---ns---into-scratch).
-   Point in time for both replica sets: `--until <instant> --components mongodb`.
+   There is no point-in-time restore of the DLQ alone: `--until` with
+   component `mongodb` also rewinds the audit trail and loses every audit
+   event written after the instant. Never use it for a DLQ loss; if the
+   audit trail is lost too, follow the audit section below.
 3. Scale dlq-service back, then list the dead letters (`/dlq` needs the
    HMAC signature on top of mTLS: `examples/manage-dlq.sh` signs it and goes
    through the edge-proxy, which calls the gateway with its SVID):
@@ -208,10 +229,10 @@ inspect).
 1. Stop the writer: `kubectl scale deployment -n trading-model audit-logger --replicas=0`.
 2. Restore the audit replica set alone:
    ```bash
-   K8S_NAMESPACE=trading-model BACKUP_AGE_IDENTITY=~/backup-key.txt \
+   BACKUP_DIR=./restore K8S_NAMESPACE=trading-model BACKUP_AGE_IDENTITY=~/backup-key.txt \
      bash scripts/restore-k8s.sh --components mongodb-audit
-   # point in time (--until needs the PITR archives of mongodb-audit)
-   K8S_NAMESPACE=trading-model BACKUP_AGE_IDENTITY=~/backup-key.txt \
+   # point in time (fetch-offsite.sh --pitr: PITR archives of mongodb-audit)
+   BACKUP_DIR=./restore K8S_NAMESPACE=trading-model BACKUP_AGE_IDENTITY=~/backup-key.txt \
      bash scripts/restore-k8s.sh --until <instant> --components mongodb-audit
    ```
    Older than the daily tier: `fetch-offsite.sh --tier weekly|monthly --components mongodb-audit`.
