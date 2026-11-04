@@ -59,11 +59,29 @@ A formal Data Processing Agreement with Binance is **not required** because:
 - Binance Privacy Policy: https://www.binance.com/en/privacy
 - Integration code: `services/financial-scraper/src/adapters/outbound/binance/`
 
+## Signal Sources (ADR-0036)
+
+The financial-scraper collector also reads the public sources of its signal
+registry (`services/financial-scraper/src/config/signal-registry.json`). Each
+request is an unsigned HTTPS GET without key; only the request itself and the
+`SIGNAL_USER_AGENT` header are sent. Set that header to a role address
+(e.g. `ops@<domain>`), not a person's: it reaches every source.
+
+| Source | Data received | PII received? | Terms to check before production use |
+| ------ | ------------- | ------------- | ------------------------------------ |
+| SEC EDGAR (`data.sec.gov`, United States) | XBRL facts of company filings (Apple EPS) | No | Fair access policy: declared User-Agent with a contact, at most 10 requests/s |
+| Open-Meteo (`api.open-meteo.com`) | Current weather of a grid cell (central Kansas) | No | The free API is for non-commercial use (subscription otherwise), 10 000 calls/day |
+| Mastodon (`mastodon.social`) | Daily counts of posts and accounts using a hashtag | No: counts only, no post, no account | Server rules and API rate limits of the instance |
+
+A formal DPA is not required for the same reasons as Binance: public data
+sources, not processors, and no personal data received.
+
 ## Other Third Parties
 
 | Third Party        | Role                | PII? | DPA Required?                      |
 | ------------------ | ------------------- | ---- | ---------------------------------- |
 | Binance API        | Market data source  | No   | No — documented above              |
+| SEC EDGAR, Open-Meteo, Mastodon | Signal sources (ADR-0036) | No | No — documented above |
 | GitHub Actions     | CI/CD pipeline      | No   | No — no data processed             |
 | Docker Hub / GHCR  | Container registry  | No   | No — infrastructure only           |
 | Prometheus/Grafana | Internal monitoring | No   | No — self-hosted, no external data |
