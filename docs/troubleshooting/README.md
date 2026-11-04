@@ -60,7 +60,7 @@ Common issues grouped by category. For per-service debugging, see [Diagnostic Gu
 | --------------------------------- | ------------------------------------- | ------------------------------------------------------------------------------ |
 | `ECONNREFUSED` on startup         | SVID not written yet / SPIRE not ready| Check `docker compose logs spiffe-helper-<svc>` and `spire-agent`; wait for entries |
 | Certificate errors in logs        | Stale SVID or missing bundle          | `docker compose restart <svc>` to re-fetch the SVID via `spiffe-helper`         |
-| `wget` health check fails         | Self-signed SVID not trusted          | Expected for local dev — the health check uses `curl -sk` (skip verify)        |
+| `wget` health check fails         | Self-signed SVID not trusted          | Expected: the health check uses `curl -sk` (skip server verify) with the container SVID as client certificate (`--cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem`); without it the mTLS handshake is refused |
 | `UNABLE_TO_VERIFY_LEAF_SIGNATURE` | mTLS misconfiguration                 | Verify the service CA bundle (`bundle.pem`) matches the SPIRE trust domain      |
 | SVID renewal failed               | SPIRE agent attestation problem       | Check `docker compose logs spire-agent`; rerun `docker compose up spire-bootstrap` to reconcile entries      |
 
@@ -102,7 +102,7 @@ Common issues grouped by category. For per-service debugging, see [Diagnostic Gu
 | Symptom                                     | Likely cause               | Fix                                                                                     |
 | ------------------------------------------- | -------------------------- | --------------------------------------------------------------------------------------- |
 | Services can't reach each other             | Custom network conflict    | `docker network rm trading-network` and restart                                         |
-| `curl -k https://localhost:8443/ping` fails | Expected: no client SVID   | Services only accept SPIFFE mTLS clients. Use `docker exec trading-discovery curl -sk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem https://localhost:3000/ping`, or the gateway through `http://localhost:8449/v1/...` |
+| `curl -k` (no `--cert`) to a service `/ping` fails | Expected: no client SVID   | Services only accept SPIFFE mTLS clients. Use `docker exec trading-discovery curl -sk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem https://localhost:3000/ping`, or the gateway through `http://localhost:8449/v1/...` |
 | Connection refused on all ports             | Docker not running         | Start Docker Desktop or the Docker daemon                                               |
 | Host outside Docker cannot reach services   | UFW blocking ports         | Check `sudo ufw status` and ensure ports 8443-8446 are allowed                          |
 | DNS resolution fails inside containers      | Docker DNS config          | Edit `/etc/docker/daemon.json`: `{ "dns": ["1.1.1.1", "8.8.8.8"] }` then restart Docker |
