@@ -52,11 +52,13 @@ Publish a message to a topic. The broker enriches the message with a `messageId`
 | `metadata.causationId`              | `string`                                                 | no       | ID of the message that caused this one              |
 | `metadata.routing.partitionKey`     | `string`                                                 | no       | Ensures ordering for a business key                 |
 | `metadata.routing.priority`         | `number`                                                 | no       | Delivery scheduling priority                        |
-| `metadata.delivery.mode`            | `enum`                                                   | no       | `at-most-once` \| `at-least-once` \| `exactly-once` |
+| `metadata.delivery.mode`            | `enum`                                                   | no       | `at-most-once` \| `at-least-once` \| `exactly-once` (see note below) |
 | `metadata.delivery.ttl`             | `number`                                                 | no       | Message expiration in milliseconds                  |
 | `metadata.delivery.deduplicationId` | `string`                                                 | no       | Prevents duplicate processing                       |
 | `metadata.security.authContext`     | `{ subject: string, roles: string[], tenantId: string }` | no       | Authentication / authorization context              |
 | `metadata.security.signature`       | `string`                                                 | no       | Message integrity signature                         |
+
+Note: `at-most-once` and `exactly-once` get a single attempt, no retry; a failure is dead-lettered. `exactly-once` is **not** an end-to-end guarantee: no duplicate depends on the subscriber being idempotent on `messageId` ([ADR-0019](../../docs/adr/0019-message-broker-as-built.md)).
 
 ### Response
 
