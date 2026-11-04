@@ -83,13 +83,13 @@ bun run test:watch
 
 ## Scripts
 
-| Script                  | Description                           |
-| ----------------------- | ------------------------------------- |
-| `bun run dev` | `ts-node`; needs a SPIRE SVID, see [local development](../../docs/getting-started/local-service-development.md) |
-| `bun run build`         | Compile TypeScript to `dist/`         |
-| `bun run test`              | Execute all tests                     |
-| `bun run test:coverage` | Execute tests with coverage report    |
-| `bun run test:watch`    | Execute tests in watch mode           |
+| Script                  | Description                                                                                                     |
+| ----------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `bun run dev`           | `ts-node`; needs a SPIRE SVID, see [local development](../../docs/getting-started/local-service-development.md) |
+| `bun run build`         | Compile TypeScript to `dist/`                                                                                   |
+| `bun run test`          | Execute all tests                                                                                               |
+| `bun run test:coverage` | Execute tests with coverage report                                                                              |
+| `bun run test:watch`    | Execute tests in watch mode                                                                                     |
 
 ## Project Structure
 
