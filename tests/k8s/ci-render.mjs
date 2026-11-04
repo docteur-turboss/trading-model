@@ -40,7 +40,7 @@ function adapt(manifest) {
 
 // A silent miss sends the scraper to the real Binance (HTTP 451 from CI).
 const STUB_URL = 'BINANCE_BASE_URL: "http://binance-stub:3000"';
-// Same for the signal sources: SEC EDGAR, Open-Meteo, Mastodon from CI runners.
+// Same for the signal sources: real public APIs, never called from CI runners.
 const NO_SIGNALS = 'SIGNAL_COLLECTION_ENABLED: "false"';
 
 const documents = readFileSync(0, "utf8")
