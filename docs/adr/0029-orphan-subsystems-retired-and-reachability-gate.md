@@ -84,7 +84,8 @@ The import graph cannot see the class ADR-0013 described, and point 1 above belo
 - an optional variable that no profile sets: the code behind it never runs;
 - a switch whose default is `false` that no profile turns on (`true`/`1`, including kustomize patches);
 - a required variable that no profile sets: the service cannot start;
-- a variable read from a parsed env that no schema declares: Zod drops unknown keys, so it is always undefined.
+- a variable read from a parsed env that no schema declares: Zod drops unknown keys, so it is always undefined;
+- a variable read by the code that `docs/deployment/ENV.md` does not name between backticks (added 2026-11-04, issue #355: 24 variables were missing from that reference).
 
 Exceptions go in `ALLOWED_UNSET`, each with a reason. There are none.
 

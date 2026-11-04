@@ -21,6 +21,9 @@
  * that cannot start), or when code reads `env.X` / `ENV.X` for a variable no
  * schema declares: Zod drops unknown keys, so it is always undefined, whatever
  * a deployment sets. Exceptions live in ALLOWED_UNSET, each with its reason.
+ * Also fails when a variable the code reads is not documented in
+ * `docs/deployment/ENV.md` (its name between backticks), so that reference
+ * stays exhaustive.
  * A variable that profiles set but no code reads is reported as a warning.
  *
  * Usage: node scripts/config-flags-check.mjs [--list]
@@ -130,12 +133,18 @@ function kindOf(entry) {
   return 'default';
 }
 
+const envDoc = readFileSync(join(ROOT, 'docs/deployment/ENV.md'), 'utf8');
+const documented = (name) => envDoc.includes(`\`${name}\``);
+
 const errors = [];
 const rows = [];
 for (const [name, entry] of [...read].sort(([a], [b]) => a.localeCompare(b))) {
   const kind = kindOf(entry);
   const defined = kind === 'off' ? switchedOnIn(name) : definedIn(name);
-  rows.push({ variable: name, kind, defined });
+  rows.push({ variable: name, kind, defined, documented: documented(name) });
+  if (!documented(name)) {
+    errors.push(`${name}: read by the code but not documented in docs/deployment/ENV.md (${[...entry.sources].join(', ')})`);
+  }
   if (defined) continue;
   if ((kind === 'optional' || kind === 'off') && !ALLOWED_UNSET[name]) {
     errors.push(`${name}: ${kind}, set by no deployment profile — the code it turns on never runs (${[...entry.sources].join(', ')})`);
@@ -158,7 +167,9 @@ if (LIST) console.table(rows);
 if (errors.length) {
   console.error(`config-flags check failed (${errors.length}):`);
   for (const error of errors) console.error(`  - ${error}`);
-  console.error('Set the variable in a profile, remove the code it gates, or add it to ALLOWED_UNSET with a reason.');
+  console.error(
+    'Set the variable in a profile, remove the code it gates, or add it to ALLOWED_UNSET with a reason; document every variable in docs/deployment/ENV.md.',
+  );
   process.exit(1);
 }
 const counts = rows.reduce((acc, row) => ({ ...acc, [row.kind]: (acc[row.kind] ?? 0) + 1 }), {});

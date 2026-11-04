@@ -28,6 +28,8 @@ Defined in `@trading-model/validation` (`config/env` — `BaseEnvSchema`), valid
 | `TLS_CERT_PATH` | string                                         | `/run/spire/svid/svid.pem`     | **yes**  | Path to TLS certificate (PEM) | All*     |
 | `TLS_CA_PATH`   | string                                         | `/run/spire/svid/bundle.pem`   | **yes**  | Path to CA certificate (PEM)  | All*     |
 | `LOG_LEVEL`     | `error \| warn \| info \| debug`               | `info`                  | no       | Logging verbosity             | All*     |
+| `ENFORCE_MTLS_STRICT` | boolean (`true`/`1`)                     | `false`                 | no (set `true` in production) | Enforces the per-service caller ACL on every inbound request (ADR-0011): a caller with a valid SVID but not allowed for the target gets 403. Off: any caller with a valid SVID passes. No startup check refuses `false` in production: compose (`${ENFORCE_MTLS_STRICT:-true}`) and every K8s ConfigMap set `true` | All*     |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | URL                              | —                       | no       | OTLP/HTTP collector base URL; traces go to `<url>/v1/traces`. Unset: tracing off | All      |
 
 ---
 
@@ -48,11 +50,24 @@ Defined in `@trading-model/validation` (`config/address-manager-env` — `Addres
 | `TOKEN_REFRESH_INTERVAL_MS`       | number | `60000`                         | no       | Auth token refresh interval                      | MM, FS, TT, AL, DLQ |
 | `TTL_REFRESH_INTERVAL_MS`         | number | `15000`                         | no       | Service lease TTL refresh interval               | MM, FS, TT, AL, DLQ |
 | `ADDRESS_MANAGER_URL`             | URL    | `https://discovery-server:3000` | **yes**  | Discovery server base URL                        | MM, FS, TT, AL, DLQ |
+| `DISCOVERY_TIMEOUT_MS`            | number | `5000`                          | no       | Timeout of the calls to the discovery server     | MM, FS, TT, AL, DLQ |
 | `DNS_NAME_MAP`                    | string | `'{}'`                          | no       | Custom DNS name to address mapping (JSON object) | MM, FS, TT, AL, DLQ |
 | `ERROR_URL_WEBHOOK`               | URL    | _(empty)_                       | no       | Error notification webhook endpoint              | MM, FS, TT, DS, AL, DLQ |
 | `MESSAGE_BUS_INIT_TIMEOUT_MS`     | number | `5000`                          | no       | Message bus client init timeout                  | MM, FS, TT, AL, DLQ |
 | `MESSAGE_BUS_SHUTDOWN_TIMEOUT_MS` | number | `5000`                          | no       | Message bus client shutdown timeout              | MM, FS, TT, AL, DLQ |
 | `MESSAGE_CALLBACK_PATH`           | string | `message`                       | no       | Callback path for incoming messages              | MM, FS, TT, AL, DLQ |
+
+---
+
+## Redis — shared connection
+
+Defined in `@trading-model/validation` (`config/redis-env` — `RedisEnvSchema`), turned into a connection by `redisConnectionFromEnv` (`@trading-model/persistence/redis-env`). With `REDIS_SENTINELS` set the service goes through the sentinels (K8s HA); otherwise it falls back to `REDIS_URL` (compose, dev).
+
+| Variable                     | Type   | Default    | Required | Description                                                               | Services                |
+| ---------------------------- | ------ | ---------- | -------- | ------------------------------------------------------------------------- | ----------------------- |
+| `REDIS_SENTINELS`            | string | —          | no       | Sentinels as `host:port,host:port` (IP or DNS name); takes precedence over `REDIS_URL` | DS, MM, FS, TT, AL, DLQ |
+| `REDIS_SENTINEL_MASTER_NAME` | string | `mymaster` | no       | Master group name the sentinels monitor (only with `REDIS_SENTINELS`)     | DS, MM, FS, TT, AL, DLQ |
+| `REDIS_PASSWORD`             | string | —          | no       | Redis password (only with `REDIS_SENTINELS`; with `REDIS_URL` put it in the URL) | DS, MM, FS, TT, AL, DLQ |
 
 ---
 
@@ -64,6 +79,7 @@ Defined in `@trading-model/validation` (`config/address-manager-env` — `Addres
 | `ERROR_URL_WEBHOOK`           | URL    | —                | no       | Error notification webhook         | DS       |
 | `SIGNING_SECRET`              | string | —                | **yes** in production | HMAC secret of the instance tokens; shared by the replicas, stable across restarts (random per process otherwise) | DS |
 | `REDIS_URL`                   | string | —                | no       | Redis URL for distributed registry | DS       |
+| `ALLOWED_REGISTRATION_CIDRS`  | string | `10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,127.0.0.0/8` | no (must not be empty in production) | Comma-separated CIDRs allowed to register. Empty: the check is off; in production the service refuses to start | DS |
 
 ---
 
@@ -90,6 +106,8 @@ The in-house `certificate-authority` service and its `CERT_CLIENT_*` /
 | `AUTH_TOKEN_HEADER`   | string | `x-api-key`                      | no       | Header name for auth token      | GW       |
 | `AUTH_TOKENS`         | string | —                                | **yes**  | Comma/whitespace-separated valid tokens | GW |
 | `PROXY_TIMEOUT_MS`    | number | `10000`                          | no       | Proxy request timeout           | GW       |
+| `AUTH_STRICT`         | boolean (only `false` turns it off) | `true`              | no (`false` refused in production) | Strict API key check. `false` with no `AUTH_TOKENS` accepts any API key: in production the gateway refuses to start with `false` | GW |
+| `ALLOWED_PROXY_CIDRS` | string | `10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,127.0.0.0/8` | no (must not be empty in production) | Comma-separated CIDRs the resolved proxy target IP must be in. Empty: target IP check off; in production the gateway refuses to start | GW |
 
 ---
 
@@ -107,6 +125,21 @@ The in-house `certificate-authority` service and its `CERT_CLIENT_*` /
 | `TRAINER_EPISODES_PER_INDIVIDUAL` | number       | `10`              | no       | DRL episodes per genome evaluation (adaptive control keeps 10–30) | TT       |
 | `TRAINER_FITNESS_TYPE`            | enum         | `total_pnl`       | no       | GA scalar fitness: `total_pnl`, `sharpe`, `sortino`, `calmar`, `composite` (ADR-0025) | TT       |
 | `TRAINER_OBSERVE_POSITION`        | boolean      | `true`            | no       | Show the agent its position (`false`: a constant input, to measure what it is worth, ADR-0025) | TT       |
+| `TRAINER_WALK_FORWARD_FOLDS`      | number (1-20)| `1`               | no       | Walk-forward folds per training run (ADR-0030); `1`: a single train/validation split | TT       |
+| `TRAINER_MODEL_DIR`               | string       | `/data/checkpoints/models` | no | Model artifact directory (ADR-0022), on the checkpoint volume shared by the replicas | TT       |
+| `TRAINER_MODEL_RETENTION`         | number (≥1)  | `20`              | no       | Model versions kept per symbol           | TT       |
+| `MODEL_DOWNLOAD_CALLERS`          | string       | _(empty)_         | no       | Comma-separated services allowed to download model weights (ADR-0022). Empty: nobody | TT       |
+
+---
+
+## Financial Scraper — Market data
+
+| Variable                   | Type    | Default                   | Required | Description                                                                 | Services |
+| -------------------------- | ------- | ------------------------- | -------- | --------------------------------------------------------------------------- | -------- |
+| `BINANCE_BASE_URL`         | URL     | `https://api.binance.com` | no       | Binance public REST API base URL (no account or API key, ADR-0026)          | FS       |
+| `SYMBOLS_TO_TRACK`         | string  | `[]`                      | no       | Symbols to scrape, JSON array (`["BTCUSDT","ETHUSDT"]`) or CSV. Empty: no market data collected | FS       |
+| `SCRAPE_INTERVAL`          | string  | `*/1 * * * *`             | no       | Cron expression of the scrape                                               | FS       |
+| `SCRAPE_SCHEDULER_ENABLED` | boolean (`true`/`1`) | `true`       | no       | Runs the scrape cron in this instance; `false` on HTTP-only replicas (K8s runs a single cron instance) | FS       |
 
 ---
 
@@ -139,6 +172,30 @@ No database: subscriptions in Redis (`REDIS_SENTINELS` / `REDIS_URL`), dead lett
 | Variable      | Type   | Default                                 | Required | Description            | Services |
 | ------------- | ------ | --------------------------------------- | -------- | ---------------------- | -------- |
 | `MONGODB_URI` | string | `mongodb://mongo:27017/audit-logger`    | **yes**  | MongoDB connection URI | AL       |
+
+---
+
+## Audit Logger — Audit chain (ADR-0027)
+
+| Variable                  | Type    | Default          | Required | Description | Services |
+| ------------------------- | ------- | ---------------- | -------- | ----------- | -------- |
+| `AUDIT_RETENTION_DAYS`    | number  | `1827` (5 years) | no       | Retention of the audit events; also the minimum Object Lock retention of the anchors | AL |
+| `AUDIT_CHAIN_INTERVAL_MS` | number  | `900000` (15min) | no       | Interval of the chain verification and anchoring cycle | AL |
+| `AUDIT_ANCHOR_BUCKET`     | string  | —                | **yes** in production | S3 bucket with Object Lock holding the chain anchors. Unset: the chain is verified but not anchored (startup warning); in production `AUDIT_ANCHOR_REQUIRED=true` makes the service refuse to start without it (K8s: Secret `audit-anchor-s3`, checked by `deploy.yml`) | AL |
+| `AUDIT_ANCHOR_PREFIX`     | string  | `audit-chain/`   | no       | Object key prefix of the anchors | AL |
+| `AUDIT_ANCHOR_REGION`     | string  | `us-east-1`      | no       | S3 region of the anchor bucket | AL |
+| `AUDIT_ANCHOR_ENDPOINT`   | URL     | —                | no       | S3-compatible endpoint (MinIO, Scaleway...), path-style requests. Unset: AWS | AL |
+| `AUDIT_ANCHOR_REQUIRED`   | boolean (`true`/`1`) | `false` | no (`true` in production) | Refuse to start without `AUDIT_ANCHOR_BUCKET`. Set `true` by the production K8s overlay | AL |
+
+---
+
+## MongoDB pool — audit-logger and dlq-service
+
+Read by `@trading-model/persistence` (`mongo-utils`) when the caller passes no pool size.
+
+| Variable          | Type   | Default | Required | Description                  | Services |
+| ----------------- | ------ | ------- | -------- | ---------------------------- | -------- |
+| `MONGO_POOL_SIZE` | number | `50`    | no       | MongoDB connection pool size | AL, DLQ  |
 
 ---
 
