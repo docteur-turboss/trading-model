@@ -4,7 +4,7 @@ A release is a git tag `vX.Y.Z` pushed to `origin`. The tag triggers the **Relea
 
 ## 1. Cut the tag (`scripts/release.mjs`)
 
-Run from `main`, up to date, with `development` merged.
+`release:publish` runs from `main` and merges `development` itself; plain `release` assumes the merge is already done. `release:publish` commits with `git add -A`: the whole working tree enters the release commit, so start clean.
 
 | Command | Effect |
 | ------- | ------ |
@@ -14,6 +14,8 @@ Run from `main`, up to date, with `development` merged.
 | `--bump major\|minor\|patch`, `--version X.Y.Z` | Force the bump (`release:bump`, `release:version`; `--version` only edits the root `package.json`) |
 
 Automatic bump: a breaking commit (`:boom:`, `!:`) is major, a feature commit (`:sparkles:`, `:tada:`, `:label:`) is minor, anything else is patch.
+
+The script does not stop on a failed `commit`, `tag` or `push` and still prints "published". Check `git tag -l vX.Y.Z` and `git ls-remote --tags origin vX.Y.Z` afterwards.
 
 ## 2. Workflow "Release"
 

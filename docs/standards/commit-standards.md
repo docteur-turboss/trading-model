@@ -148,9 +148,8 @@ git push -u origin feat/my-thing      # push → CI runs, open PR
 
 # ── Maintainer ────────────────────────────────────────────
 # Merge PR on GitHub into development, validate beta, then merge to main
-# and run the "Release" workflow (GitHub Actions → Actions → Release).
-# It bumps versions, updates CHANGELOG.md, tags, builds Docker images → GHCR,
-# creates the GitHub Release and publishes docs. No local release command.
+# and cut the release locally with `bun run release:publish` (bump, CHANGELOG,
+# tag vX.Y.Z, push): the tag starts the Release workflow. See docs/contributing/release.md.
 ```
 
 ## Examples

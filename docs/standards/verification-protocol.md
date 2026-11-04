@@ -54,11 +54,10 @@ Every change — from a single commit to a full release — carries risk. This p
 
 | #   | Check                                            | How                                          |
 | --- | ------------------------------------------------ | -------------------------------------------- |
-| 1   | Release workflow run manually                      | Actions → Release (`release.yml`)            |
-| 2   | Docker images built and pushed to GHCR             | Check GitHub Actions                         |
-| 3   | GitHub Release created                             | Automated                                    |
-| 4   | Deployment initiated by operator                   | Actions → Deploy (`deploy.yml`, K8s) or `docker compose pull && docker compose up -d` |
-| 5   | Smoke tests pass                                   | Health endpoints + E2E tests                 |
+| 1   | Tag `vX.Y.Z` pushed (starts the Release workflow)  | `git ls-remote --tags origin vX.Y.Z` ([release.md](../contributing/release.md)) |
+| 2   | Release workflow green, images `X.Y.Z` in GHCR     | Actions → Release (`release.yml`)            |
+| 3   | Deployment initiated by operator                   | Actions → Deploy (`deploy.yml`, K8s) or `docker compose pull && docker compose up -d` |
+| 4   | Smoke tests pass                                   | Health endpoints + E2E tests                 |
 
 ## Quality Gates Summary
 
