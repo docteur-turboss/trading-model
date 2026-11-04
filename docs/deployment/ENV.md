@@ -189,13 +189,13 @@ No database: subscriptions in Redis (`REDIS_SENTINELS` / `REDIS_URL`), dead lett
 
 ---
 
-## MongoDB pool — audit-logger and dlq-service
+## MongoDB pool — audit-logger
 
-Read by `@trading-model/persistence` (`mongo-utils`) when the caller passes no pool size.
+Read by `@trading-model/persistence` (`mongo-utils`) when the caller passes no pool size. Only audit-logger depends on it: dlq-service fixes its pool at 10 and ignores the variable.
 
 | Variable          | Type   | Default | Required | Description                  | Services |
 | ----------------- | ------ | ------- | -------- | ---------------------------- | -------- |
-| `MONGO_POOL_SIZE` | number | `50`    | no       | MongoDB connection pool size | AL, DLQ  |
+| `MONGO_POOL_SIZE` | number | `50`    | no       | MongoDB connection pool size | AL       |
 
 ---
 

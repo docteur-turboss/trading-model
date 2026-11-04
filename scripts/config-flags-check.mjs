@@ -21,9 +21,10 @@
  * that cannot start), or when code reads `env.X` / `ENV.X` for a variable no
  * schema declares: Zod drops unknown keys, so it is always undefined, whatever
  * a deployment sets. Exceptions live in ALLOWED_UNSET, each with its reason.
- * Also fails when a variable the code reads is not documented in
- * `docs/deployment/ENV.md` (its name between backticks), so that reference
- * stays exhaustive.
+ * Also fails when a variable the code reads has no table row in
+ * `docs/deployment/ENV.md` (a line starting with `| \`NAME\` |`), so that
+ * reference stays exhaustive. A mention in prose or in another row's
+ * description does not count.
  * A variable that profiles set but no code reads is reported as a warning.
  *
  * Usage: node scripts/config-flags-check.mjs [--list]
@@ -134,7 +135,8 @@ function kindOf(entry) {
 }
 
 const envDoc = readFileSync(join(ROOT, 'docs/deployment/ENV.md'), 'utf8');
-const documented = (name) => envDoc.includes(`\`${name}\``);
+// Names are [A-Z0-9_] only: no regex escaping needed.
+const documented = (name) => new RegExp(`^\\|\\s*\`${name}\`\\s*\\|`, 'm').test(envDoc);
 
 const errors = [];
 const rows = [];
@@ -143,7 +145,7 @@ for (const [name, entry] of [...read].sort(([a], [b]) => a.localeCompare(b))) {
   const defined = kind === 'off' ? switchedOnIn(name) : definedIn(name);
   rows.push({ variable: name, kind, defined, documented: documented(name) });
   if (!documented(name)) {
-    errors.push(`${name}: read by the code but not documented in docs/deployment/ENV.md (${[...entry.sources].join(', ')})`);
+    errors.push(`${name}: read by the code but has no row in docs/deployment/ENV.md (${[...entry.sources].join(', ')})`);
   }
   if (defined) continue;
   if ((kind === 'optional' || kind === 'off') && !ALLOWED_UNSET[name]) {
