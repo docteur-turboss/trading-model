@@ -67,9 +67,11 @@ A formal Data Processing Agreement with Binance is **not required** because:
 
 The financial-scraper collector also reads the public sources of its signal
 registry (`services/financial-scraper/src/config/signal-registry.json`). Each
-request is an unsigned HTTPS GET without key; only the request itself and the
-`SIGNAL_USER_AGENT` header are sent. Set that header to a role address
-(e.g. `ops@<domain>`), not a person's: it reaches every source.
+request is an unsigned HTTPS GET without key; only the request itself and its
+User-Agent are sent: `automated news analysis <SIGNAL_CONTACT_EMAIL>`. That
+e-mail, a dedicated project address of the operator, reaches every source
+(SEC EDGAR in the United States included); it is kept out of the public
+repository (`.env`, GitHub environment secret).
 
 Every source must be free for any use, trading included: the registry only
 accepts `public-domain` or `attribution` terms (`accessPolicy`). Terms checked
