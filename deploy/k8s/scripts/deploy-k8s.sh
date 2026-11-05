@@ -520,6 +520,11 @@ prom_query() {
     wget -qO- "http://localhost:9090/api/v1/query?query=$1"
 }
 
+# Candles persisted in the last 15 min (0 when the series is absent).
+fresh_candles() {
+  prom_query 'sum%28increase%28fs_candles_persisted_total%5B15m%5D%29%29' | jq -r '.data.result[0].value[1] // "0"'
+}
+
 # One pass of the post-deploy functional checks (see cmd_verify_release).
 # $1 = 1 when a missing market-data signal must fail now (last pass or data
 # already seen once), 0 while the first scrape may still be pending.
@@ -551,7 +556,15 @@ release_checks_once() {
     log "  ✓ API through the external ingress: 200"
   fi
 
-  fresh="$(prom_query 'sum%28increase%28fs_candles_persisted_total%5B15m%5D%29%29' | jq -r '.data.result[0].value[1] // "0"')" || return 1
+  fresh="$(fresh_candles)" || return 1
+  # Strict pass: a scrape cycle runs every minute and Prometheus needs two
+  # samples for increase(), so give the first ones up to 3 min to show up.
+  local tries=0
+  while [[ "$strict" == "1" ]] && ! awk -v v="$fresh" 'BEGIN { exit !(v > 0) }' && (( tries++ < 6 )); do
+    log "  … no candle counted yet (${fresh}), retrying in 30s"
+    sleep 30
+    fresh="$(fresh_candles)" || return 1
+  done
   if awk -v v="$fresh" 'BEGIN { exit !(v > 0) }'; then
     log "  ✓ market data: ${fresh%.*} candles persisted in the last 15 min"
     FRESH_SEEN=1
