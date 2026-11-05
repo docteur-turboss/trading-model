@@ -103,7 +103,7 @@ missing rule loses nothing, but those copies are then never expired.
 2. Resolve every image tag to a digest (fails if the release was not published)
 3. Check sealed secrets (production: controller CRD present, no placeholder)
    Check ingress hosts (production: no example.com host left, see KUBERNETES.md "Set the Ingress hosts"; staging: warning)
-4. Apply SPIFFE node components, run database migrations
+4. Apply SPIFFE node components, run database migrations (existing cluster: `MYSQL_MIGRATE_PASSWORD` must be in `trading-model-secrets` first; production fails with an explicit error if it is not sealed, staging seeds a random one that the overlay replaces)
 5. Canary gate on live traffic (if enabled)
 6. Apply overlay (deploy/k8s/overlays/<env>, images pinned by digest)
 7. Wait for rollout of all services, smoke test
@@ -182,6 +182,10 @@ revision: the step reports an error for it and leaves it in place.
 
 The canary (`deploy-k8s.sh canary`) copies the running pod template, so it runs
 the new image with the configuration of the current release, not the new one.
+
+`deploy-k8s.sh migrate-down` provisions `migrator` itself (job `db-migrate-user`) before rolling the schema back; pass `MIGRATE_IMAGE` of the release being rolled back.
+
+Redeploying a tag published before `db-migrate` existed works: the workflow checks out that tag, so its own `deploy.yml` (its own `IMAGES` list) and manifests (root migrations) are used. Only the `Deploy` workflow of the old tag matters, not the current one.
 
 For a manual rollback, revert a service to a previous revision:
 

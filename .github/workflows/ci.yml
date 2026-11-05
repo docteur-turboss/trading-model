@@ -105,6 +105,8 @@ jobs:
         run: node tests/k8s/check-overlays.mjs
       - name: Test the cluster prerequisites check
         run: bash tests/k8s/check-prereqs.test.sh
+      - name: Test the migrations script (MYSQL_MIGRATE_PASSWORD guard)
+        run: bash tests/k8s/run-migrations.test.sh
 
   contract:
     runs-on: ubuntu-latest
