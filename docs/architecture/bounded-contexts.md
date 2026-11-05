@@ -16,7 +16,7 @@ graph TD
     subgraph "Messaging Context"
         MM["message-manager"]
         MT["message transport"]
-        MSG["message storage"]
+        SUB["subscriptions (Redis)"]
     end
     subgraph "Security Context"
         SP["spire-server / spiffe-helper"]
