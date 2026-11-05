@@ -1,6 +1,7 @@
 import { validateEnv } from "@trading-model/validation/application/services/validate-env";
 import { AddressManagerEnvSchema } from "@trading-model/validation/config/address-manager-env";
 import { BaseEnvSchema } from "@trading-model/validation/config/env";
+import { featureFlag } from "@trading-model/validation/config/feature-flags";
 import { RedisEnvSchema } from "@trading-model/validation/config/redis-env";
 import { z } from "zod";
 import { FitnessType } from "../../domain/genetic-algorithm/genome-control";
@@ -28,6 +29,8 @@ const TRAINER_ENV_SHAPE = {
 		.default(10),
 	/** Scalar fitness of the GA (ADR-0025). */
 	TRAINER_FITNESS_TYPE: z.enum(FitnessType).default(FitnessType.TotalPnl),
+	/** Kill switch (ADR-0039): false forces `total_pnl` whatever TRAINER_FITNESS_TYPE says. */
+	FEATURE_RISK_ADJUSTED_FITNESS: featureFlag(true),
 	/** Show the agent its position; false to measure what it is worth (ADR-0025). */
 	TRAINER_OBSERVE_POSITION: z.stringbool().default(true),
 } satisfies Record<string, z.ZodTypeAny>;

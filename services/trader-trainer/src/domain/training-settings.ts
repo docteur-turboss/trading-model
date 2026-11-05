@@ -1,4 +1,4 @@
-import type { FitnessType } from "./genetic-algorithm/genome-control";
+import { FitnessType } from "./genetic-algorithm/genome-control";
 
 /** Training hyper-parameters, resolved from the environment by the composition root. */
 export interface TrainingSettings {
@@ -18,4 +18,14 @@ export interface TrainingSettings {
 	 * reproducible runs on the same data (MT4 walk-forward, ADR-0030).
 	 */
 	seedOffset?: number;
+}
+
+/** Fitness actually used: the risk-adjusted ones sit behind FEATURE_RISK_ADJUSTED_FITNESS (ADR-0039). */
+export function effectiveFitnessType(settings: {
+	TRAINER_FITNESS_TYPE: FitnessType;
+	FEATURE_RISK_ADJUSTED_FITNESS?: boolean;
+}): FitnessType {
+	return settings.FEATURE_RISK_ADJUSTED_FITNESS === false
+		? FitnessType.TotalPnl
+		: settings.TRAINER_FITNESS_TYPE;
 }

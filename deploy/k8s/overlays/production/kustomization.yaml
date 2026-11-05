@@ -6,6 +6,10 @@ namespace: trading-model
 resources:
   - ../../base
   - ../../secrets
+  - ingress-hosts.yaml
+
+components:
+  - ../../ingress/hosts
 
 patches:
   # The audit chain must be anchored in production (ADR-0027): audit-logger

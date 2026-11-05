@@ -1,5 +1,18 @@
-import { readdirSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { execFileSync } from "node:child_process";
+import {
+	copyFileSync,
+	cpSync,
+	mkdirSync,
+	mkdtempSync,
+	readdirSync,
+	readFileSync,
+	realpathSync,
+	rmSync,
+	symlinkSync,
+	unlinkSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
 import {
 	afterAll,
 	beforeAll,
@@ -49,18 +62,46 @@ const MIGRATIONS_DIR = join(__dirname, "../../../../scripts/migrations");
 const SYMBOL = TradingSymbol.of("BTCUSDT");
 const T0 = UnixTimestamp.of(Date.UTC(2026, 0, 2, 3, 4, 5, 678));
 
+const MIGRATION_IDS = readdirSync(MIGRATIONS_DIR)
+	.filter((file) => file.endsWith(".up.sql"))
+	.map((file) => file.replace(/\.up\.sql$/, ""))
+	.sort((a, b) => a.localeCompare(b));
+
 /**
- * Applies every migration in id order (`up`) or reverse id order (`down`), one
- * multi-statement query per file, the way scripts/migrate.mjs does.
+ * Laid out like the K8s migration jobs (migrate.mjs next to `migrations/`, in a
+ * directory of its own), with this workspace's mysql2: scripts/ has no
+ * node_modules under the isolated linker.
  */
-async function migrate(direction: "up" | "down"): Promise<void> {
-	const files = readdirSync(MIGRATIONS_DIR)
-		.filter((file) => file.endsWith(`.${direction}.sql`))
-		.sort((a, b) => a.localeCompare(b));
-	if (direction === "down") {
-		files.reverse();
-	}
-	await runMigrations(files);
+const MIGRATE_RUN_DIR = mkdtempSync(join(tmpdir(), "migrate-run-"));
+copyFileSync(
+	join(MIGRATIONS_DIR, "../migrate.mjs"),
+	join(MIGRATE_RUN_DIR, "migrate.mjs")
+);
+cpSync(MIGRATIONS_DIR, join(MIGRATE_RUN_DIR, "migrations"), {
+	recursive: true,
+});
+mkdirSync(join(MIGRATE_RUN_DIR, "node_modules"));
+// Real path: bun's workspace links are relative and break once re-linked elsewhere.
+symlinkSync(
+	realpathSync(dirname(require.resolve("mysql2/package.json"))),
+	join(MIGRATE_RUN_DIR, "node_modules/mysql2"),
+	"junction"
+);
+
+/** Runs the real scripts/migrate.mjs against the test database (DB_* from db-env.setup). */
+function migrate(...args: string[]): void {
+	execFileSync(
+		process.execPath,
+		[join(MIGRATE_RUN_DIR, "migrate.mjs"), ...args],
+		{ env: process.env, stdio: "pipe" }
+	);
+}
+
+async function appliedMigrations(): Promise<string[]> {
+	const [rows] = await DATABASE.promise().query(
+		"SELECT id FROM _migrations ORDER BY id"
+	);
+	return (rows as { id: string }[]).map((row) => row.id);
 }
 
 async function runMigrations(files: string[]): Promise<void> {
@@ -143,8 +184,8 @@ async function tables(): Promise<string[]> {
 	return (rows as { name: string }[]).map((row) => row.name);
 }
 
-beforeAll(async () => {
-	await migrate("up");
+beforeAll(() => {
+	migrate("up");
 });
 
 beforeEach(async () => {
@@ -161,22 +202,44 @@ beforeEach(async () => {
 
 afterAll(async () => {
 	await DATABASE.promise().end();
+	unlinkSync(join(MIGRATE_RUN_DIR, "node_modules/mysql2"));
+	rmSync(MIGRATE_RUN_DIR, { recursive: true, force: true });
 });
 
-describe("schema migrations — real MySQL", () => {
-	it("should roll every migration back and re-apply it on the same database", async () => {
-		await migrate("down");
-		await expect(tables()).resolves.toEqual([]);
+describe("scripts/migrate.mjs — real MySQL", () => {
+	const ALL_TABLES = [
+		"_migrations",
+		"market_candles",
+		"market_publish_cursors",
+		"market_tickers",
+		"market_trades",
+		"signals",
+	];
 
-		await migrate("up");
+	it("should roll back the newest migrations first and re-apply them", async () => {
+		await expect(appliedMigrations()).resolves.toEqual(MIGRATION_IDS);
+		await expect(tables()).resolves.toEqual(ALL_TABLES);
 
-		await expect(tables()).resolves.toEqual([
-			"market_candles",
-			"market_publish_cursors",
-			"market_tickers",
-			"market_trades",
-			"signals",
-		]);
+		migrate("down", "1");
+		await expect(appliedMigrations()).resolves.toEqual(
+			MIGRATION_IDS.slice(0, -1)
+		);
+		await expect(tables()).resolves.toEqual(
+			ALL_TABLES.filter((table) => table !== "signals")
+		);
+
+		migrate("up");
+		await expect(appliedMigrations()).resolves.toEqual(MIGRATION_IDS);
+		await expect(tables()).resolves.toEqual(ALL_TABLES);
+
+		// Oldest first, initial_schema would drop the tables the next down needs.
+		migrate("down", "all");
+		await expect(appliedMigrations()).resolves.toEqual([]);
+		await expect(tables()).resolves.toEqual(["_migrations"]);
+
+		migrate("up");
+		await expect(appliedMigrations()).resolves.toEqual(MIGRATION_IDS);
+		await expect(tables()).resolves.toEqual(ALL_TABLES);
 	});
 });
 

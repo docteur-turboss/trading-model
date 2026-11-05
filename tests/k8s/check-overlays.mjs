@@ -6,6 +6,8 @@
 //     would stay on the logical name, which no registry serves
 //   - production gets its application secrets from SealedSecrets only, never
 //     from a plain Secret (the staging secretGenerator holds dev- values)
+//   - no Deployment driven by an HPA sets spec.replicas: every apply would reset
+//     the pod count the HPA chose (issue #416)
 //   - every Deployment that can run more than one pod (replicas or its HPA)
 //     spreads them across nodes (ADR-0024): otherwise one node can hold every
 //     replica and its loss takes the whole service down
@@ -65,6 +67,19 @@ function unspreadDeployments(docs) {
 		.map((doc) => doc.name);
 }
 
+/** Deployments driven by an HPA that still set spec.replicas. */
+function replicasUnderHpa(docs) {
+	const targets = new Set();
+	for (const doc of docs.filter((d) => d.kind === "HorizontalPodAutoscaler")) {
+		const target = doc.text.match(/scaleTargetRef:\n(?: {4}.*\n)*? {4}name: (\S+)$/m)?.[1];
+		if (target) targets.add(target);
+	}
+	return docs
+		.filter((doc) => doc.kind === "Deployment" && targets.has(doc.name))
+		.filter((doc) => /^ {2}replicas: \d+$/m.test(doc.text))
+		.map((doc) => doc.name);
+}
+
 function deployImages() {
 	const workflow = readFileSync(".github/workflows/deploy.yml", "utf8");
 	const block = workflow.match(/^ {2}IMAGES: >-\n((?: {4}.*\n)+)/m);
@@ -104,6 +119,10 @@ for (const env of OVERLAYS) {
 
 	for (const name of unspreadDeployments(documents(rendered))) {
 		errors.push(`${env}: Deployment ${name} can run several pods without topologySpreadConstraints on kubernetes.io/hostname (DoNotSchedule)`);
+	}
+
+	for (const name of replicasUnderHpa(documents(rendered))) {
+		errors.push(`${env}: Deployment ${name} is driven by an HPA but sets spec.replicas (each apply would reset it)`);
 	}
 
 	if (env === "production") {
