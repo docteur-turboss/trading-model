@@ -172,7 +172,9 @@ kubectl scale deployment -n trading-model <service-name> --replicas=5
   as mysqld arguments
 - 20Gi PVC per replica
 - Schema from the `db-migrate` Job (`scripts/migrations`, `run-migrations.sh`),
-  the same migrations as compose: no second copy of the schema
+  the same migrations as compose: no second copy of the schema. The script
+  waits for `mysql-cluster-init` first: during the bootstrap the server is
+  `super_read_only`
 - PodDisruptionBudget: minAvailable 1
 
 ### MongoDB (Replica Set)
