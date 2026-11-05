@@ -3,7 +3,7 @@
 # deploy.yml does (node agents, overlay, migrations) and checks the stack
 # works end to end. Used by the `k8s` CI job; runs locally too.
 #
-#   tests/k8s/run-kind.sh [all|images|cluster|deploy|smoke|verify|verify_replicas|verify_egress|verify_canary|verify_alerts|verify_backup|dump]
+#   tests/k8s/run-kind.sh [all|images|cluster|deploy|smoke|verify|verify_replicas|verify_egress|verify_canary|verify_release|verify_alerts|verify_backup|dump]
 #
 #   tests/k8s/run-kind.sh delete   # cluster + the images built for it
 #
@@ -169,6 +169,7 @@ verify() {
 	wait_for 180 "$K -n $NS exec loki-0 -- wget -qO- http://localhost:3100/loki/api/v1/label/component/values | grep -q discovery-server"
 
 	verify_alerts
+	verify_release
 	verify_backup
 
 	log "OK: the staging overlay works on Kubernetes"
@@ -292,18 +293,14 @@ verify_alerts() {
 	# The optional Secret volume is filled by the kubelet's next sync.
 	wait_for 300 "$K -n $NS exec deployment/alert-sink -- bun -e 'const r = await (await fetch(\"http://localhost:8080/received\")).json(); process.exit(r.some((x) => x.path === \"/deadman\" && x.alerts.includes(\"Watchdog\")) ? 0 : 1)'"
 	log "  Watchdog delivered to the dead man's switch"
-	local critical
-	critical="$($K -n "$NS" exec prometheus-0 -c prometheus -- wget -qO- 'http://localhost:9090/api/v1/alerts' |
-		node -e 'const a=JSON.parse(require("fs").readFileSync(0,"utf8")).data.alerts;
-			const bad=a.filter((x)=>x.state==="firing"&&x.labels.severity==="critical");
-			for (const x of bad) console.log(`${x.labels.alertname} ${JSON.stringify(x.labels)}`);
-			for (const x of a.filter((x)=>x.state==="firing"&&x.labels.severity==="warning")) console.error(`  warning firing: ${x.labels.alertname}`);')"
-	if [ -n "$critical" ]; then
-		log "critical alerts firing on a healthy stack:"
-		echo "$critical" | sed 's/^/    /'
-		return 1
-	fi
-	log "  no critical alert firing"
+	# No critical alert on a healthy stack: checked by verify_release (deploy-k8s.sh verify-release).
+}
+
+# The functional gate of deploy.yml, same command: API through edge-proxy,
+# fresh market data, no critical alert. One pass (no observation window).
+verify_release() {
+	log "release gate (deploy-k8s.sh verify-release)"
+	VERIFY_WINDOW_SECONDS=0 deploy_script verify-release
 }
 
 # The writable primary of the MongoDB replica set labelled `$1`.
@@ -844,9 +841,9 @@ all)
 	verify
 	verify_canary
 	;;
-images | cluster | deploy | smoke | verify | verify_replicas | verify_egress | verify_canary | verify_alerts | verify_backup | dump | delete) "$1" ;;
+images | cluster | deploy | smoke | verify | verify_replicas | verify_egress | verify_canary | verify_release | verify_alerts | verify_backup | dump | delete) "$1" ;;
 *)
-	echo "usage: $0 [all|images|cluster|deploy|smoke|verify|verify_replicas|verify_egress|verify_canary|verify_alerts|verify_backup|dump|delete]" >&2
+	echo "usage: $0 [all|images|cluster|deploy|smoke|verify|verify_replicas|verify_egress|verify_canary|verify_release|verify_alerts|verify_backup|dump|delete]" >&2
 	exit 64
 	;;
 esac

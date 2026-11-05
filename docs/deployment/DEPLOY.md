@@ -106,7 +106,7 @@ missing rule loses nothing, but those copies are then never expired.
 4. Apply SPIFFE node components, run database migrations
 5. Canary gate on live traffic (if enabled)
 6. Apply overlay (deploy/k8s/overlays/<env>, images pinned by digest)
-7. Wait for rollout of all services, smoke test
+7. Wait for rollout of all services, smoke test, then `verify-release` (see "Release verification")
 ```
 
 Rollback on failure is automatic: the workflow returns every Deployment to the
@@ -201,6 +201,26 @@ reported and every canary is removed if one fails.
 admin call, so a healthy environment gives it no traffic. Add a service to
 `CANARY_READINESS_ONLY` only for the same reason. Test of the gate:
 `bash tests/k8s/canary-gate.test.sh`.
+
+### Release verification
+
+After the smoke test, `deploy.yml` runs `deploy-k8s.sh verify-release`. Each pass checks
+an API call through `edge-proxy` (`GET /v1/discovery-server/services`, 200 expected, with
+the first `AUTH_TOKENS` key of the Secret `trading-model-secrets`: it goes through stdin
+and is never printed), at least one candle persisted in the last 15 min
+(`fs_candles_persisted_total`), and no `severity="critical"` alert firing in Prometheus
+(`Watchdog` excluded). Passes repeat over an observation window; any failed pass fails the
+step and triggers "Rollback on failure". Market data may be missing until the first pass
+that sees it, but must be present on the last pass and never disappear after. A critical
+alert already firing before the deploy also fails the gate.
+
+| Variable (GitHub environment) | Default | Role |
+|---|---|---|
+| `VERIFY_WINDOW_SECONDS` | `600` | Observation window (`0` = one pass) |
+| `VERIFY_INTERVAL_SECONDS` | `60` | Pause between passes |
+| `VERIFY_EXTERNAL_URL` | unset | Optional real ingress URL (`https://host`) also called with the key, once hosts are defined |
+
+Test: `bash tests/k8s/verify-release.test.sh`; `tests/k8s/run-kind.sh verify` runs the same command.
 
 For a manual rollback, revert a service to a previous revision:
 
