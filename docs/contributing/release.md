@@ -22,7 +22,10 @@ The script does not stop on a failed `commit`, `tag` or `push` and still prints 
 1. `version`: the tag must match `vX.Y.Z` or `vX.Y.Z-prerelease`, else the run fails. Image tag is `X.Y.Z` (no `v`). `latest` is set only for a stable tag that is the highest stable `v*` tag on `origin`: a prerelease or a backport patch never takes it.
 2. `ci`: the whole `ci.yml` runs again on the tagged commit (reusable workflow). No image is pushed if a gate fails.
 3. `build-and-push` (7 service images) and `build-tools` (`spire-tools`, `backup-tools`): 9 images pushed as `:X.Y.Z` (+ `:latest`) to `IMAGE_REGISTRY` (repository variable, default `ghcr.io/<owner>`).
-4. `verify-images`: reads `env.IMAGES` from `deploy.yml` and resolves each `<registry>/<image>:X.Y.Z` with `docker buildx imagetools inspect`, the same loop as the deploy step "Resolve image digests". It fails with the list of missing images. A green run therefore means `deploy.yml` can resolve this tag. `tests/k8s/check-overlays.mjs` (CI) fails earlier when an `IMAGES` entry is not built by this workflow.
+4. `verify-images`: reads `env.IMAGES` from `deploy.yml` and resolves each `<registry>/<image>:X.Y.Z` with `docker buildx imagetools inspect`, the same loop as the deploy step "Resolve image digests". It fails with the list of missing images.
+5. `sign` (in parallel with `verify-images`): signs the digest of each image with cosign (keyless, ADR-0038). `deploy.yml` refuses any digest without this signature.
+
+A green run therefore means `deploy.yml` can resolve **and** verify every image of this tag. `tests/k8s/check-overlays.mjs` (CI) fails earlier when an `IMAGES` entry is not built by this workflow, or when the `sign` matrix differs from `IMAGES`.
 
 ## 3. Deploy
 
@@ -30,7 +33,7 @@ Deployment is separate: the manual `deploy.yml` (`workflow_dispatch`) takes an i
 
 ## 4. First release of the current pipeline
 
-No release has been published by the current `release.yml` yet. The tags `v2.0.0` to `v2.0.3` are **not deployable** by `deploy.yml`: `v2.0.0`, `v2.0.1` and `v2.0.2` have failed Release runs, and `v2.0.3` was published by the old workflow under `ghcr.io/docteur-turboss/trading-model/<service>`, without `spire-tools` and `backup-tools`. `deploy.yml` reads `<registry>/<image>:<tag>`, so it stops at "Resolve image digests" for each of these tags. `image_tag: latest` fails the same way until the first release below is published.
+No release has been published by the current `release.yml` yet. The tags `v2.0.0` to `v2.0.3` are **not deployable** by `deploy.yml`: `v2.0.0`, `v2.0.1` and `v2.0.2` have failed Release runs, and `v2.0.3` was published by the old workflow under `ghcr.io/docteur-turboss/trading-model/<service>`, without `spire-tools` and `backup-tools`. `deploy.yml` reads `<registry>/<image>:<tag>`, so it stops at "Resolve image digests" for each of these tags. Even republished under the right path, these images would fail "Verify image signatures": they carry no cosign signature from `release.yml`. `image_tag: latest` fails the same way until the first release below is published.
 
 A human runs every step: merging to `main`, pushing the tag and deploying are never automated.
 
@@ -65,7 +68,7 @@ A human runs every step: merging to `main`, pushing the tag and deploying are ne
    git ls-remote --tags origin vX.Y.Z
    ```
 
-4. Wait for the **Release** run of the tag (Actions → Release, or `gh run list --workflow release.yml`). Every job must be green, `verify-images` last.
+4. Wait for the **Release** run of the tag (Actions → Release, or `gh run list --workflow release.yml`). Every job must be green, `sign` and `verify-images` included.
 
 5. Check the 9 digests yourself, as `deploy.yml` will (log in first with `docker login ghcr.io` if the packages are private):
 
