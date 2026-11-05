@@ -1,0 +1,44 @@
+import { z } from "zod";
+import type { SourceAdapter } from "../../../domain/ports/signal-source.port";
+
+/**
+ * `GET https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/<project>/<access>/<agent>/<article>/daily/<start>/<end>`.
+ */
+const Pageviews = z.object({
+	items: z.array(
+		z.object({
+			project: z.string().min(1),
+			article: z.string().min(1),
+			granularity: z.literal("daily"),
+			/** YYYYMMDD00: the UTC day counted. */
+			timestamp: z.string().regex(/^\d{8}00$/),
+			views: z.number().int().nonnegative(),
+		})
+	),
+});
+
+/**
+ * Wikipedia views of an article per day (CC0): public attention to the
+ * asset. The API gives no release time: no `observedAt`, the collector
+ * stamps the collection time. `period` says which day was counted.
+ */
+export const WIKIMEDIA_PAGEVIEWS: SourceAdapter = {
+	dimensions: ["social"],
+	normalize(payload) {
+		return Pageviews.parse(payload).items.map((item) => {
+			const { timestamp } = item;
+			const day = `${timestamp.slice(0, 4)}-${timestamp.slice(4, 6)}-${timestamp.slice(6, 8)}`;
+			return {
+				key: day,
+				payload: {
+					metric: "pageviews",
+					value: item.views,
+					unit: "views",
+					platform: item.project,
+					topic: item.article,
+					period: { start: day, end: day },
+				},
+			};
+		});
+	},
+};

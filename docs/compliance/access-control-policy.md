@@ -80,8 +80,8 @@ const DEFAULT_ACL: Record<KnownService, readonly ServiceId[]> = {
   'discovery-server':   [ '*' ],
   'audit-logger':       [ '*' ],
   'message-manager':    [ 'discovery-server', 'financial-scraper', 'trader-trainer', 'audit-logger', 'dlq-service' ],
-  'financial-scraper':  [ 'api-gateway' ],
-  'trader-trainer':     [ 'api-gateway', 'financial-scraper', 'discovery-server' ],
+  'financial-scraper':  [ 'api-gateway', 'message-manager', 'trader-trainer' ],   // trader-trainer: reads the data supply (ADR-0036)
+  'trader-trainer':     [ 'api-gateway', 'financial-scraper', 'discovery-server', 'message-manager' ],
   'api-gateway':        [ 'edge-proxy' ],   // external entry point (ADR-0018)
   'dlq-service':        [ '*' ],
 };

@@ -32,7 +32,9 @@ All endpoints are mTLS-secured and served on **container port 3000**:
 The `/dlq` routes also require a signed request: `x-service-name` (one of
 `DLQ_ALLOWED_SERVICES`), `x-timestamp` (ms, at most 5 minutes old) and
 `x-signature` (HMAC with `DLQ_AUTH_HMAC_SECRET`, see
-`@trading-model/crypto` `request-signer`). The gateway API key alone is not
+`@trading-model/crypto` `request-signer`). The signed path is the request
+path with its query string, as sent (`/dlq/replay?topic=x&limit=50`): a
+signature is valid for that query only. The gateway API key alone is not
 enough.
 
 The request and response schemas of the `/dlq` routes are declared in
@@ -51,7 +53,7 @@ The request and response schemas of the `/dlq` routes are declared in
 curl -sk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem   https://localhost:3000/health
 
 # Signed routes: SIGNED_HEADERS holds the x-service-name, x-timestamp and
-# x-signature headers computed for this method and path.
+# x-signature headers computed for this method and path (query included).
 curl -sk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem   $SIGNED_HEADERS https://localhost:3000/dlq
 
 # Replay up to 50 entries of one topic

@@ -319,6 +319,9 @@ services:
       SYMBOLS_TO_TRACK: ${SYMBOLS_TO_TRACK:-BTCUSDT,ETHUSDT}
       SCRAPE_INTERVAL: ${SCRAPE_INTERVAL:-*/1 * * * *}
       BINANCE_BASE_URL: ${BINANCE_BASE_URL:-https://api.binance.com}
+      # Contact e-mail in the User-Agent of the signal sources (ADR-0036): SEC
+      # EDGAR answers 403 without one. From .env only: the repository is public.
+      SIGNAL_CONTACT_EMAIL: ${SIGNAL_CONTACT_EMAIL:-}
       ERROR_URL_WEBHOOK: ${ERROR_URL_WEBHOOK:-}
       DB_USER: ${MYSQL_USER:-root}
       DB_PASSWORD: ${MYSQL_ROOT_PASSWORD}

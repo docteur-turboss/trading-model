@@ -5,7 +5,6 @@ import {
 	PositiveInt,
 	type TradingSymbol,
 } from "@trading-model/primitives/primitives";
-import cron from "node-cron";
 import {
 	WorkerOrchestrator,
 	type WorkerOrchestratorDeps,
@@ -14,6 +13,7 @@ import {
 	SCRAPE_CYCLES_TOTAL,
 	SCRAPE_DURATION_SECONDS,
 } from "../../../config/metrics";
+import { type NoOverlapTask, scheduleNoOverlap } from "./no-overlap";
 
 export interface CronConfig {
 	schedule: string;
@@ -26,9 +26,8 @@ export interface CronConfig {
 
 export class ScrapeCronOrchestrator {
 	private readonly _workerOrchestrator: WorkerOrchestrator;
-	private _task?: { stop(): unknown };
-	/** Cycle in progress: fetch and persist of every symbol (not the publishes). */
-	private _cycle?: Promise<void>;
+	/** Its run is a cycle: fetch and persist of every symbol (not the publishes). */
+	private _task?: NoOverlapTask;
 
 	constructor(private readonly _config: CronConfig) {
 		const cpuBased = os.cpus().length * 2;
@@ -45,22 +44,16 @@ export class ScrapeCronOrchestrator {
 	}
 
 	public start(): void {
-		this._task = cron.schedule(this._config.schedule, async () => {
-			if (this._cycle !== undefined) {
-				logger.warn("Previous execution still running");
-				return;
-			}
-			this._cycle = this._runCycle().finally(() => {
-				this._cycle = undefined;
-			});
-			await this._cycle;
-		});
+		this._task = scheduleNoOverlap(
+			this._config.schedule,
+			() => this._runCycle(),
+			() => logger.warn("Previous execution still running")
+		);
 	}
 
 	/** Stops scheduling, then waits for the running cycle and its publishes. */
 	public async stop(): Promise<void> {
-		this._task?.stop();
-		await this._cycle;
+		await this._task?.stop();
 		await this._workerOrchestrator.drain();
 	}
 

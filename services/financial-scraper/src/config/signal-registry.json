@@ -1,0 +1,149 @@
+{
+	"schemaVersion": 1,
+	"assets": [
+		{
+			"id": "BTC",
+			"name": "Bitcoin",
+			"assetType": "crypto",
+			"identifier": { "scheme": "ticker", "ticker": "BTC" },
+			"applicableDimensions": ["market", "fundamental", "social", "legal", "macro"],
+			"sector": "crypto"
+		},
+		{
+			"id": "ETH",
+			"name": "Ether",
+			"assetType": "crypto",
+			"identifier": { "scheme": "ticker", "ticker": "ETH" },
+			"applicableDimensions": ["market", "fundamental", "social", "legal", "macro"],
+			"sector": "crypto"
+		},
+		{
+			"id": "AAPL",
+			"name": "Apple Inc.",
+			"assetType": "equity",
+			"identifier": { "scheme": "isin", "isin": "US0378331005" },
+			"applicableDimensions": ["market", "fundamental", "social", "contextual", "legal", "macro"],
+			"sector": "technology"
+		},
+		{
+			"id": "WHEAT",
+			"name": "Wheat, through the Teucrium Wheat Fund",
+			"assetType": "commodity_proxy",
+			"identifier": { "scheme": "ticker", "ticker": "WEAT", "exchange": "ARCX" },
+			"applicableDimensions": ["market", "contextual", "macro"],
+			"sector": "agriculture"
+		},
+		{
+			"id": "EA_AAA_10Y",
+			"name": "Euro area AAA government bonds, 10-year",
+			"assetType": "bond",
+			"identifier": {
+				"scheme": "series",
+				"provider": "ECB",
+				"key": "YC.B.U2.EUR.4F.G_N_A.SV_C_YM.SR_10Y"
+			},
+			"applicableDimensions": ["market", "macro"],
+			"sector": "sovereign_debt"
+		}
+	],
+	"sources": [
+		{
+			"id": "ecb-aaa-yield-10y",
+			"protocol": "rest_api",
+			"adapter": "ecb-sdmx-series",
+			"schedule": "7 15 * * 1-5",
+			"reliabilityScore": 0.95,
+			"covers": [{ "assetType": "bond", "dimension": "market" }],
+			"accessPolicy": {
+				"terms": "attribution",
+				"termsUrl": "https://www.ecb.europa.eu/stats/ecb_statistics/governance_and_quality_framework/html/usage_policy.en.html",
+				"attribution": "Source: ECB statistics",
+				"auth": "none",
+				"maxRequestsPerMinute": 60
+			},
+			"requests": [
+				{
+					"subject": { "assetId": "EA_AAA_10Y" },
+					"dimension": "market",
+					"url": "https://data-api.ecb.europa.eu/service/data/YC/B.U2.EUR.4F.G_N_A.SV_C_YM.SR_10Y?lastNObservations=5&format=jsondata",
+					"params": { "metric": "spot_rate_10y" }
+				}
+			]
+		},
+		{
+			"id": "sec-edgar-eps-diluted",
+			"protocol": "rest_api",
+			"adapter": "sec-edgar-company-concept",
+			"schedule": "17 6 * * *",
+			"reliabilityScore": 0.95,
+			"covers": [{ "assetType": "equity", "dimension": "fundamental" }],
+			"accessPolicy": {
+				"terms": "attribution",
+				"termsUrl": "https://www.sec.gov/privacy",
+				"attribution": "Source: U.S. Securities and Exchange Commission (EDGAR)",
+				"auth": "none",
+				"maxRequestsPerMinute": 60
+			},
+			"requests": [
+				{
+					"subject": { "assetId": "AAPL" },
+					"dimension": "fundamental",
+					"url": "https://data.sec.gov/api/xbrl/companyconcept/CIK0000320193/us-gaap/EarningsPerShareDiluted.json"
+				}
+			]
+		},
+		{
+			"id": "nws-kansas-wheat-belt",
+			"protocol": "rest_api",
+			"adapter": "nws-latest-observation",
+			"schedule": "5 * * * *",
+			"reliabilityScore": 0.8,
+			"covers": [{ "assetType": "commodity_proxy", "dimension": "contextual" }],
+			"accessPolicy": {
+				"terms": "public-domain",
+				"termsUrl": "https://www.weather.gov/disclaimer",
+				"auth": "none",
+				"maxRequestsPerMinute": 60
+			},
+			"requests": [
+				{
+					"subject": { "sector": "agriculture" },
+					"dimension": "contextual",
+					"url": "https://api.weather.gov/stations/KHUT/observations/latest",
+					"params": {
+						"variables": "temperature,relativeHumidity,precipitationLastHour,precipitationLast3Hours,precipitationLast6Hours"
+					}
+				}
+			]
+		},
+		{
+			"id": "wikipedia-pageviews",
+			"protocol": "rest_api",
+			"adapter": "wikimedia-pageviews",
+			"schedule": "41 6 * * *",
+			"reliabilityScore": 0.3,
+			"covers": [
+				{ "assetType": "crypto", "dimension": "social" },
+				{ "assetType": "equity", "dimension": "social" }
+			],
+			"accessPolicy": {
+				"terms": "public-domain",
+				"termsUrl": "https://doc.wikimedia.org/generated-data-platform/aqs/analytics-api/documentation/access-policy.html",
+				"auth": "none",
+				"maxRequestsPerMinute": 60
+			},
+			"requests": [
+				{
+					"subject": { "assetId": "BTC" },
+					"dimension": "social",
+					"url": "https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/en.wikipedia/all-access/user/Bitcoin/daily/{date-8}/{date-1}"
+				},
+				{
+					"subject": { "assetId": "ETH" },
+					"dimension": "social",
+					"url": "https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/en.wikipedia/all-access/user/Ethereum/daily/{date-8}/{date-1}"
+				}
+			]
+		}
+	]
+}

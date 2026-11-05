@@ -391,6 +391,25 @@ jobs:
           kubectl get namespace "$NS" >/dev/null 2>&1 || kubectl create namespace "$NS"
           kubectl -n "$NS" create secret generic alertmanager-credentials "${keys[@]}"             --dry-run=client -o yaml | kubectl apply -f -
 
+      # Contact e-mail sent in the User-Agent of the signal sources (ADR-0036;
+      # SEC EDGAR answers 403 without one). A secret of the GitHub environment:
+      # the repository and its run logs are public. Before the overlay, so the
+      # collector starts with it. Unset: the ConfigMap is left as it is.
+      - name: Configure signal sources contact
+        shell: bash
+        env:
+          SIGNAL_CONTACT_EMAIL: ${{ secrets.SIGNAL_CONTACT_EMAIL }}
+        run: |
+          NS="${{ steps.ns.outputs.namespace }}"
+          if [ -z "$SIGNAL_CONTACT_EMAIL" ]; then
+            echo "::warning::SIGNAL_CONTACT_EMAIL is not set for ${{ inputs.environment }}: SEC EDGAR refuses the signal collector"
+            exit 0
+          fi
+          kubectl get namespace "$NS" >/dev/null 2>&1 || kubectl create namespace "$NS"
+          kubectl -n "$NS" create configmap signal-contact \
+            --from-literal=SIGNAL_CONTACT_EMAIL="$SIGNAL_CONTACT_EMAIL" \
+            --dry-run=client -o yaml | kubectl apply -f -
+
       # SPIRE agent + SPIFFE CSI driver, in the privileged trading-model-node
       # namespace: the application namespace (restricted) cannot host them.
       - name: Apply SPIFFE node components
