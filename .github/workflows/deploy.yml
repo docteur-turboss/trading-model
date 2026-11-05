@@ -279,6 +279,25 @@ jobs:
             exit 1
           fi
 
+      # The Ingress hosts ship as example.com placeholders (issue #415): in
+      # production they would leave the API unreachable from outside while
+      # cert-manager keeps failing Let's Encrypt orders (rate limits). Checked
+      # before anything is applied; staging only warns.
+      - name: Check ingress hosts
+        shell: bash
+        run: |
+          ENV="${{ inputs.environment }}"
+          rendered=$(kubectl kustomize --load-restrictor LoadRestrictionsNone "deploy/k8s/overlays/$ENV")
+          hosts=$(grep -oE '[A-Za-z0-9.-]*example\.com' <<<"$rendered" | sort -u | tr '\n' ' ' || true)
+          if [ -z "$hosts" ]; then
+            echo "$ENV Ingress hosts are set"
+          elif [ "$ENV" = "production" ]; then
+            echo "::error::production Ingress hosts are still placeholders ($hosts): set the real names in deploy/k8s/overlays/production/ingress-hosts.yaml (docs/deployment/KUBERNETES.md, \"Set the Ingress hosts\")"
+            exit 1
+          else
+            echo "::warning::$ENV Ingress hosts are still placeholders ($hosts): set the real names in deploy/k8s/overlays/$ENV/ingress-hosts.yaml"
+          fi
+
       # Anchor store of the audit chain (ADR-0027): an S3 bucket with Object
       # Lock (compliance mode), its own write-only credentials, not the backup
       # ones. Bucket, region and endpoint are variables of the GitHub

@@ -1,0 +1,13 @@
+# Public host names of production (issue #415), copied into the Ingresses by
+# the component ../../ingress/hosts. Replace the example.com placeholders with
+# the real names before the first deploy: deploy.yml refuses production while
+# the rendered overlay contains example.com. Never applied (local-config).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ingress-hosts
+  annotations:
+    config.kubernetes.io/local-config: "true"
+data:
+  api: api.trading-model.example.com
+  grafana: grafana.trading-model.example.com

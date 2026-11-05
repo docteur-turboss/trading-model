@@ -38,6 +38,7 @@ deploy/k8s/
   overlays/<env>/             # Application overlay per environment
   overlays/<env>/node-agents/ # Node agents pointed at that environment's namespace
   ingress/                    # Ingress rules: public API (→ edge-proxy), Grafana
+  ingress/hosts/              # Component: copies overlays/<env>/ingress-hosts.yaml into the Ingress hosts
   monitoring/                 # PrometheusRules for alerting
   scripts/                    # deploy-k8s.sh, run-migrations.sh
 ```
@@ -69,7 +70,8 @@ the stack (`tests/k8s/run-kind.sh`). The `deploy.yml` workflow runs these steps 
 or right after the overlay on a first deploy, when MySQL does not exist yet).
 
 > **Public API path:** the nginx ingress controller (installed outside this
-> repo) terminates TLS for `api.trading-model.example.com` and forwards plain
+> repo) terminates TLS for the `api` host of the overlay (see
+> [Set the Ingress hosts](#3-set-the-ingress-hosts)) and forwards plain
 > HTTP to the `edge-proxy`, which calls the api-gateway over mTLS with its own
 > SPIRE SVID ([ADR-0018](../adr/0018-temporary-frontend-removal.md)). The
 > controller needs no client certificate, and no request reaches a service
@@ -95,7 +97,21 @@ bash scripts/init-sealed-secrets.sh
 
 See [Sealed Secrets guide](sealed-secrets.md) for detailed setup, key rotation, and migration instructions.
 
-### 3. Deploy all resources
+### 3. Set the Ingress hosts
+
+The base Ingresses ship `example.com` placeholders. Each overlay sets its
+public host names once, in `deploy/k8s/overlays/<env>/ingress-hosts.yaml`
+(keys `api` and `grafana`); the component `deploy/k8s/ingress/hosts` copies
+them into the `rules` and `tls.hosts` of both Ingresses. That ConfigMap is
+annotated `config.kubernetes.io/local-config`, so it is never applied.
+
+`deploy.yml` (step "Check ingress hosts") refuses to deploy production while
+the rendered overlay still contains `example.com`, before anything is applied:
+cert-manager would keep failing Let's Encrypt orders for those names (rate
+limits) and the API would have no external entry. Staging only gets a warning.
+DNS records, cert-manager and the ingress controller stay outside this repo.
+
+### 4. Deploy all resources
 
 ```bash
 # Using the deploy script
@@ -108,7 +124,7 @@ kubectl apply -k deploy/k8s/
 ./deploy/k8s/scripts/deploy-k8s.sh status
 ```
 
-### 4. Run smoke tests
+### 5. Run smoke tests
 
 ```bash
 ./deploy/k8s/scripts/deploy-k8s.sh smoke-test

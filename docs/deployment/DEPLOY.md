@@ -102,6 +102,7 @@ missing rule loses nothing, but those copies are then never expired.
 1. Configure kubectl (kubeconfig from secret)
 2. Resolve every image tag to a digest (fails if the release was not published)
 3. Check sealed secrets (production: controller CRD present, no placeholder)
+   Check ingress hosts (production: no example.com host left, see KUBERNETES.md "Set the Ingress hosts"; staging: warning)
 4. Apply SPIFFE node components, run database migrations
 5. Canary gate on live traffic (if enabled)
 6. Apply overlay (deploy/k8s/overlays/<env>, images pinned by digest)
