@@ -167,7 +167,7 @@ kubectl scale deployment -n trading-model <service-name> --replicas=5
 
 ### MySQL
 
-- StatefulSet (MySQL 8.4) with group replication (single primary), bootstrapped
+- StatefulSet (MySQL 8.4) as a single primary with no automatic failover ([ADR-0020](../adr/0020-database-topology-as-deployed.md)); one-member group replication, bootstrapped
   by the `mysql-cluster-init` Job; per-pod `server_id` / local address passed
   as mysqld arguments
 - 20Gi PVC per replica
@@ -281,8 +281,9 @@ Each service has a dedicated ServiceAccount with `automountServiceAccountToken: 
    backups with age: see [Encryption at Rest](ENCRYPTION_AT_REST.md). Nothing
    in the cluster can tell whether the nodes' disks are encrypted: run
    `deploy/host/check-encryption.sh` on each node
-2. **MySQL group replication** is bootstrapped on the first member only; the
-   other members' join is not automated
+2. **MySQL has no failover** — the group has one member (`mysql-0`),
+   bootstrapped on the first member only; joining others is not automated
+   (ADR-0020)
 3. **Grafana is single-instance** — dashboard provisioning but no HA
 4. **Jaeger is single-instance** — in-memory storage (not Elasticsearch/Cassandra)
 5. **Off-site backups need a bucket** — the `db-backup` CronJob copies the

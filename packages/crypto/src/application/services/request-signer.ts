@@ -17,6 +17,7 @@ import { isTimestampFresh } from "../../domain/services/timestamp";
 
 const DEFAULT_TIMESTAMP_TOLERANCE_MS = 300_000;
 
+/** Returns a shallow copy of an object body, or `{}` when the body is nullish, so signer and verifier hash the same value. */
 export function normalizeBody(body: unknown): unknown {
 	if (typeof body === "object" && body !== null) {
 		return { ...(body as Record<string, unknown>) };
@@ -24,6 +25,7 @@ export function normalizeBody(body: unknown): unknown {
 	return body ?? {};
 }
 
+/** Signs method, path, service name and body hash with the shared secret. Returns an empty signature when the secret is shorter than 16 characters. */
 export function signRequest(
 	input: SignedRequest,
 	secret: string
@@ -44,6 +46,7 @@ export interface SignatureVerificationOptions {
 	toleranceMs?: number;
 }
 
+/** Returns true when the signature matches and the timestamp is within `toleranceMs` (default 5 min). */
 export function verifySignature(
 	input: SignedRequest,
 	options: SignatureVerificationOptions
@@ -85,6 +88,7 @@ function _buildSignParts(
 	return [input.serviceName, timestamp, bodyHash, input.method, input.path];
 }
 
+/** Returns the `X-Timestamp`, `X-Signature` and `X-Service-Name` headers for an outgoing request. */
 export function buildSignedHeaders(
 	input: SignedRequest,
 	secret: string
@@ -97,6 +101,7 @@ export function buildSignedHeaders(
 	};
 }
 
+/** Reads the signature headers of an incoming request; returns null when any is missing. */
 export function extractRequestParts(
 	headers: Record<string, string | string[] | undefined>,
 	_method: string,

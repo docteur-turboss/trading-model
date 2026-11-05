@@ -177,17 +177,9 @@ See [`docs/standards/pr-standards.md`](../standards/pr-standards.md) for the tem
 ### 10. Release
 
 1. Merge `development` into `main` via a pull request (or `git checkout main && git merge development`).
-2. Push `main`.
-3. Run the **Release** workflow: GitHub Actions → **Actions** → **Release** → **Run workflow** (optionally pick `bump_type`).
+2. Run `bun run release:publish`: it bumps versions, writes the CHANGELOG, tags `vX.Y.Z` and pushes the tag. The tag triggers the **Release** workflow (full CI, then the images).
 
-The workflow then:
-
-1. Quality gate (lint + build + test)
-2. Version bump + CHANGELOG generation (via `scripts/release.mjs`), committed and tagged `v*.*.*`
-3. Build Docker images for all services
-4. Push to **GitHub Container Registry** (`ghcr.io/trading-model/<service>`)
-5. Generate TypeDoc and publish to GitHub Pages
-6. Create a **GitHub Release** with changelog + pull commands
+Details, flags and workflow jobs: [release.md](release.md).
 
 ### 11. Deploy (Production)
 
@@ -212,10 +204,8 @@ dev  ──→ commit ──→ push ──→ PR ──→ merge ──→ beta
                                test)         (validate)
 
 main ←── merge dev ────→ tag v* ──→ release.yml ──→ stable deploy
-              (if OK)     bun run   quality           docker compose
-                          release   docker (7 images) pull + up -d
-                                    docs (GitHub Pages)
-                                    GitHub Release
+              (if OK)     bun run   full CI           docker compose
+                          release   docker (9 images) pull + up -d
 ```
 
 ---
@@ -257,5 +247,5 @@ git push -u origin feature/my-feature
 # Release (maintainer)
 git checkout main && git pull
 git merge development
-# run the "Release" workflow: GitHub Actions → Actions → Release → Run workflow
+bun run release:publish   # tag vX.Y.Z → Release workflow, see release.md
 ```

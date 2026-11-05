@@ -1,3 +1,4 @@
+/** Creates a deterministic mulberry32 generator returning floats in [0, 1) from a seed. Not cryptographically secure. */
 export function makePRNG(seed: number): () => number {
 	let state = seed >>> 0;
 	return () => {

@@ -8,15 +8,15 @@ This directory documents every package and service in the **trading-model** mono
 
 | Package                          | Path                        | Documentation                              |
 | -------------------------------- | --------------------------- | ------------------------------------------ |
-| `@trading-model/primitives`      | `packages/primitives/`      | —                                          |
-| `@trading-model/contracts`       | `packages/contracts/`       | —                                          |
-| `@trading-model/reliability`     | `packages/reliability/`     | —                                          |
+| `@trading-model/primitives`      | `packages/primitives/`      | [primitives.md](./primitives.md)                                          |
+| `@trading-model/contracts`       | `packages/contracts/`       | [contracts.md](./contracts.md)                                          |
+| `@trading-model/reliability`     | `packages/reliability/`     | [reliability.md](./reliability.md)                                          |
 | `@trading-model/common`          | `packages/common/`          | [common.md](./common.md)                   |
-| `@trading-model/persistence`     | `packages/persistence/`     | —                                          |
-| `@trading-model/http`            | `packages/http/`            | —                                          |
-| `@trading-model/validation`      | `packages/validation/`      | —                                          |
-| `@trading-model/server-utils`    | `packages/server-utils/`    | —                                          |
-| `@trading-model/crypto`          | `packages/crypto/`          | —                                          |
+| `@trading-model/persistence`     | `packages/persistence/`     | [persistence.md](./persistence.md)                                          |
+| `@trading-model/http`            | `packages/http/`            | [http.md](./http.md)                                          |
+| `@trading-model/validation`      | `packages/validation/`      | [validation.md](./validation.md)                                          |
+| `@trading-model/server-utils`    | `packages/server-utils/`    | [server-utils.md](./server-utils.md)                                          |
+| `@trading-model/crypto`          | `packages/crypto/`          | [crypto.md](./crypto.md)                                          |
 | `@trading-model/address-manager` | `packages/address-manager/` | [address-manager.md](./address-manager.md) |
 | `@trading-model/broker-message`  | `packages/broker-message/`  | [broker-message.md](./broker-message.md)   |
 

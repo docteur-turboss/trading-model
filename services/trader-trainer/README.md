@@ -13,10 +13,12 @@ Key features: GA evolution, Deep Q-Learning, memory-aware scaling, adaptive cont
 ```bash
 cd services/trader-trainer
 bun install
-bun run dev           # Development server
+bun run dev           # needs a SPIRE SVID: not usable outside Compose
 bun run test              # Run tests
 bun run build         # Production build
 ```
+
+See [Local service development](../../docs/getting-started/local-service-development.md) to run and debug this service.
 
 See [Quick Start](../../docs/getting-started/quickstart.md) for a full platform walkthrough.
 

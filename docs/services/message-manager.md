@@ -17,7 +17,7 @@ Pub/sub message brokering service with configurable delivery guarantees.
 
 - Topic-based publish/subscribe over HTTP
 - Subscription registry with instance-level deduplication
-- Three delivery semantics: `AT_MOST_ONCE`, `AT_LEAST_ONCE`, `EXACTLY_ONCE`
+- Three delivery semantics: `AT_MOST_ONCE`, `AT_LEAST_ONCE`, `EXACTLY_ONCE` (single attempt, not an end-to-end guarantee: see [ADR-0019](../adr/0019-message-broker-as-built.md))
 - TTL-based message expiration with Dead Letter Queue routing (dlq-service)
 - Parallel dispatch to all subscribers of a topic
 - No write-ahead log or archive: messages are dispatched in memory; undeliverable messages are sent to dlq-service (local JSONL file while it is unreachable)
@@ -102,7 +102,7 @@ Body (validated by `UnsubscribeSchema`):
 | --------------- | ----------------------------------------------------------------------------- |
 | `AT_MOST_ONCE`  | Delivered at most once (no retries)                                           |
 | `AT_LEAST_ONCE` | Delivered at least once (retries with exponential backoff, up to 10 attempts) |
-| `EXACTLY_ONCE`  | Delivered exactly once (idempotent)                                           |
+| `EXACTLY_ONCE`  | Single attempt, no retry; no duplicate only if the subscriber is idempotent on `messageId` ([ADR-0019](../adr/0019-message-broker-as-built.md)) |
 
 ## Security Metadata
 

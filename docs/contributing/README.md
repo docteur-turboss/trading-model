@@ -5,6 +5,7 @@ Guides for contributing to the trading-model project.
 | Document | Content |
 | -------- | ------- |
 | [Workflow](workflow.md) | Full contribution lifecycle: branch, commit, PR, review, release |
+| [Release](release.md) | Tag-driven release: `bun run release`, workflow "Release", deploy by digest |
 | [Commit Standards](../standards/commit-standards.md) | Gitmoji format, scopes, body/footer |
 | [PR Standards](../standards/pr-standards.md) | PR template, review process, labels |
 | [Code Style](../standards/code-style.md) | Naming, Biome, import order |

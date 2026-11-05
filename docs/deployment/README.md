@@ -12,7 +12,7 @@
 | [Setup Guide](SETUP.md)                | Prerequisites, installation, build, TLS certificates, local dev & fleet verification      |
 | [Docker](DOCKER.md)                    | Docker Compose (10 containers), multi-stage Dockerfile, GHCR registry, TLS, ports, nginx  |
 | [Deployment](DEPLOY.md)                | Local `docker compose up`, beta canary fleet deployment, rollback procedures               |
-| [CI/CD Pipeline](../ci-cd/README.md)| GitHub Actions: lint, typecheck, test, 8-image Docker build & publish, GitHub Release     |
+| [CI/CD Pipeline](../ci-cd/README.md)| GitHub Actions: lint, typecheck, test, 9-image Docker build & publish on `vX.Y.Z` tag push     |
 | [Environment Variables](ENV.md)        | Exhaustive table of all variables across all services: type, default, required, description |
 | [Database](DATABASE.md)                | MySQL (financial-scraper + SPIRE), MongoDB (3 databases), volumes, migration, reset     |
 | [Kubernetes](KUBERNETES.md)            | K8s manifests, Kustomize overlays (staging/production), HPA, mTLS, observability stack    |
@@ -40,9 +40,7 @@
                          ▼
               ┌──────────────────────────────────────┐
               │  CD (release.yml)                    │
-              │  quality → docker (7 images)          │
-              │  → docs (GitHub Pages)               │
-              │  → GitHub Release                    │
+              │  full CI → docker (9 images :X.Y.Z)  │
               └──────────┬───────────────────────────┘
                          │ images on ghcr.io
                          ▼

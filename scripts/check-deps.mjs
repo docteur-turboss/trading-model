@@ -8,6 +8,7 @@
  *   - src must not import its own package by name (use a relative path)
  *   - every declared `@trading-model/*` dependency must actually be imported
  *   - `dependencies` between workspaces must not form a cycle
+ *   - the package inventory of docs/STATE.md and README.md equals `packages/*`
  *
  * Usage: node scripts/check-deps.mjs
  */
@@ -120,8 +121,56 @@ function checkCycles(workspaces) {
   return errors;
 }
 
+/** Package names listed by the entry documents must be exactly the `packages/*` workspaces (issue #359). */
+function checkInventory(workspaces) {
+  const real = new Set(workspaces.filter((ws) => ws.dir.startsWith(join(ROOT, 'packages'))).map((ws) => ws.name));
+  const state = readFileSync(join(ROOT, 'docs/STATE.md'), 'utf8');
+  const readme = readFileSync(join(ROOT, 'README.md'), 'utf8');
+  const stateLine = state.match(/^- \*\*Packages\*\* : (.+)$/m)?.[1];
+  const stateCount = state.match(/(\d+) packages partagés/)?.[1];
+  const readmeTable = readme.match(/### Shared Packages\r?\n([\s\S]*?)\r?\n\r?\n/)?.[1];
+  const lists = {
+    'docs/STATE.md': stateLine?.split(',').map((n) => SCOPE + n.trim()),
+    'README.md': readmeTable && [...readmeTable.matchAll(/^\| `(@trading-model\/[a-z0-9-]+)`/gm)].map((m) => m[1]),
+  };
+  const errors = [];
+  for (const [file, names] of Object.entries(lists)) {
+    if (!names) {
+      errors.push(`${file}: package inventory not found`);
+      continue;
+    }
+    for (const name of real) if (!names.includes(name)) errors.push(`${file}: missing package ${name}`);
+    for (const name of names) if (!real.has(name)) errors.push(`${file}: lists ${name}, not in packages/`);
+  }
+  if (stateCount && Number(stateCount) !== real.size) {
+    errors.push(`docs/STATE.md: says ${stateCount} packages, packages/ has ${real.size}`);
+  }
+  return errors;
+}
+
+/** The services table of architecture-standards.md must list each service's @trading-model/* dependencies exactly (issue #363). */
+function checkServiceTable(workspaces) {
+  const doc = readFileSync(join(ROOT, 'docs/standards/architecture-standards.md'), 'utf8');
+  const rows = new Map(
+    [...doc.matchAll(/^\| ([a-z-]+) \| ([a-z, -]+) \|\r?$/gm)].map((m) => [m[1], m[2].split(', ').sort().join(', ')]),
+  );
+  const errors = [];
+  for (const ws of workspaces.filter((w) => w.dir.startsWith(join(ROOT, 'services')))) {
+    const want = [...ws.deps].map((n) => n.slice(SCOPE.length)).sort().join(', ');
+    if (rows.get(ws.name) !== want) {
+      errors.push(`docs/standards/architecture-standards.md: ${ws.name} row is "${rows.get(ws.name)}", package.json has "${want}"`);
+    }
+  }
+  return errors;
+}
+
 const workspaces = loadWorkspaces();
-const errors = [...checkManifests(workspaces), ...checkCycles(workspaces)];
+const errors = [
+  ...checkManifests(workspaces),
+  ...checkCycles(workspaces),
+  ...checkInventory(workspaces),
+  ...checkServiceTable(workspaces),
+];
 if (errors.length > 0) {
   console.error(`check-deps: ${errors.length} problem(s)\n`);
   for (const error of errors) console.error(`  ✖ ${error}`);

@@ -4,6 +4,7 @@ import type { ServiceEndpoint } from "@trading-model/primitives/service-identity
 import { createHmacSha256Formatted } from "../../adapters/outbound/node-hmac";
 import { generateRandomStr } from "../../adapters/outbound/node-random";
 
+/** Generates a unique, unguessable instance id for a service endpoint. */
 export function generateInstanceId({
 	serviceName,
 	host,
@@ -17,6 +18,7 @@ export function generateInstanceId({
 	});
 }
 
+/** Returns true when the name is a known service instance name. */
 export function verifyInstanceName(serviceName: ServiceInstanceName): boolean {
 	return (Object.values(ServiceInstanceName) as readonly string[]).includes(
 		InstanceId.of(serviceName)
