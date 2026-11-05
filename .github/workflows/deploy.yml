@@ -87,7 +87,40 @@ jobs:
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
     steps:
+      # Manifests, node agents and migrations come from the released tag, not
+      # from the branch picked at dispatch: production only deploys a vX.Y.Z
+      # release (refused here, before the cluster is reached). A tag older
+      # than a script this workflow calls fails the deploy, on purpose.
+      - name: Resolve release ref
+        id: ref
+        shell: bash
+        env:
+          ENV: ${{ inputs.environment }}
+          TAG: ${{ inputs.image_tag }}
+        run: |
+          if [[ "$TAG" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "ref=refs/tags/v${TAG#v}" >> "$GITHUB_OUTPUT"
+            echo "Checking out refs/tags/v${TAG#v}"
+            exit 0
+          fi
+          if [ "$ENV" = "production" ]; then
+            echo "::error::production deploys a release only: image_tag must be vX.Y.Z or X.Y.Z, got '$TAG'"
+            exit 1
+          fi
+          echo "::warning::image_tag '$TAG' is not a release: manifests and migrations come from the dispatch ref $GITHUB_REF, not from the image's release"
+
+      # Empty ref (non-release staging deploy): the dispatch ref.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ steps.ref.outputs.ref }}
+
+      - name: Show deployed commit
+        id: src
+        shell: bash
+        run: |
+          sha=$(git rev-parse HEAD)
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          echo "Manifests and migrations from $sha"
 
       - name: Resolve namespace
         id: ns
@@ -549,7 +582,7 @@ jobs:
           for dep in discovery-server message-manager financial-scraper financial-scraper-collector trader-trainer \
                      api-gateway audit-logger dlq-service edge-proxy; do
             kubectl annotate deployment "$dep" -n "$NS" --overwrite \
-              trading-model.dev/git-sha="$GITHUB_SHA" \
+              trading-model.dev/git-sha="${{ steps.src.outputs.sha }}" \
               trading-model.dev/release-version="$VERSION"
           done
 

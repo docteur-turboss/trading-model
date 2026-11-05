@@ -43,17 +43,47 @@ Open the **Actions** tab → **Deploy** → **Run workflow**, then select:
 | Input | Description |
 |-------|-------------|
 | `environment` | `staging` or `production` |
-| `image_tag` | Required: release to deploy, `v1.2.3` or `1.2.3`, or `latest` (the highest stable release). Resolved to image digests before anything is applied |
+| `image_tag` | Required: release to deploy, `v1.2.3` or `1.2.3`. Staging also accepts `latest` (the highest stable release); production refuses anything but a release, before the cluster is reached. Resolved to image digests before anything is applied |
 | `canary` | Run canary + smoke test with automatic rollback on failure |
+
+### Source of the manifests and migrations
+
+When `image_tag` is a release (`v1.2.3` or `1.2.3`), the workflow checks out
+the git tag `refs/tags/v1.2.3`, whatever branch it was dispatched from: the
+overlay, the node agents and the migrations applied are those of the release
+the images come from. The job log prints the commit (`Manifests and migrations
+from <sha>`), and the deployments are annotated with it
+(`trading-model.dev/git-sha`).
+
+Staging with `latest` keeps the dispatch ref and logs a warning: the manifests
+may then not match the images.
+
+The workflow runs the scripts of the checked-out tag (`scripts/backup-*-check.sh`,
+`deploy/k8s/scripts/*`). A tag older than one of them fails the deploy: deploy
+that release with the workflow it was tagged with, or release again.
 
 ### Prerequisites (secrets)
 
-Add the cluster kubeconfigs as base64-encoded repository secrets:
+Add the cluster kubeconfigs as base64-encoded secrets of the GitHub
+**environment** (Settings → Environments → `staging` / `production`), never as
+repository secrets: a repository secret can be read by any workflow of any
+branch, an environment secret only by a job that passes the environment's
+protection rules.
 
-| Secret | Purpose |
-|--------|---------|
-| `KUBECONFIG_STAGING` | kubeconfig for the staging cluster |
-| `KUBECONFIG_PRODUCTION` | kubeconfig for the production cluster |
+| Secret | Environment | Purpose |
+|--------|-------------|---------|
+| `KUBECONFIG_STAGING` | `staging` | kubeconfig for the staging cluster |
+| `KUBECONFIG_PRODUCTION` | `production` | kubeconfig for the production cluster |
+
+Protect the `production` environment (Settings → Environments → `production`):
+
+- **Required reviewers**: at least one person other than the one who starts the
+  deploy; enable "Prevent self-review".
+- **Deployment branches and tags**: "Selected branches and tags", with the tag
+  rule `v*` only. A deploy dispatched from a working branch is then refused
+  before any secret is read: pick the release tag in "Use workflow from".
+
+These settings are made by hand in GitHub; the workflow cannot check them.
 
 ### Prerequisites (off-site backup bucket)
 
@@ -68,6 +98,7 @@ missing rule loses nothing, but those copies are then never expired.
 ### Deployment phases
 
 ```
+0. Resolve the release ref (production: vX.Y.Z only) and check out its tag
 1. Configure kubectl (kubeconfig from secret)
 2. Resolve every image tag to a digest (fails if the release was not published)
 3. Check sealed secrets (production: controller CRD present, no placeholder)
