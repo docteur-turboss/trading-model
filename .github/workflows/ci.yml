@@ -170,7 +170,8 @@ jobs:
   # data flow, the external path and observability.
   k8s:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    # 48 min on PR #460: the upgrade scenario drains the collector (360 s grace) 3 times.
+    timeout-minutes: 75
     env:
       KIND_VERSION: v0.27.0
       KIND_SHA256: a6875aaea358acf0ac07786b1a6755d08fd640f4c79b7a2e46681cc13f49a04b
