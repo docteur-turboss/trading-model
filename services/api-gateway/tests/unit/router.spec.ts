@@ -213,6 +213,26 @@ describe("router", () => {
 			});
 		});
 
+		it("does not cache a signed answer for other callers", async () => {
+			mockForwardSuccess({ entries: ["signed"] });
+			const url = "/v1/dlq-service/dlq";
+			await getHandler()(
+				createReq({
+					method: "GET",
+					path: url,
+					url,
+					headers: { "x-signature": "sig" },
+				})
+			);
+
+			mockForwardSuccess({ error: "unsigned" });
+
+			expect(await get(url)).toEqual({
+				status: 200,
+				data: { error: "unsigned" },
+			});
+		});
+
 		it("should cache and return cached response on subsequent GET", async () => {
 			mockForwardSuccess({ data: "ok" });
 			const path = "/v1/audit-logger/events/cached-test";

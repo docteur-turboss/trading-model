@@ -6,11 +6,19 @@ import { CACHE_HIT_RATIO, CACHE_SIZE } from "./config/metrics";
 export interface ResponseCacheEntry<TData = unknown> {
 	data: TData;
 	status: HttpStatusCode;
+	/** Length of the JSON body, counted against `MAX_BYTES`. */
+	bytes?: number;
 	expiresAt: number;
 }
 
+/** Keys carry the client's query string: without a bound, distinct queries grow the cache until restart. */
+const MAX_ENTRIES = 1000;
+/** The pod has 256Mi: a parsed body takes a few times its JSON length. */
+const MAX_BYTES = 32 * 1024 * 1024;
+
 export class ResponseCache implements ISyncCache<ResponseCacheEntry> {
 	private readonly _store = new Map<string, ResponseCacheEntry>();
+	private _bytes = 0;
 	private _hits = 0;
 	private _total = 0;
 
@@ -29,7 +37,7 @@ export class ResponseCache implements ISyncCache<ResponseCacheEntry> {
 		}
 
 		if (Date.now() > entry.expiresAt) {
-			this._store.delete(key);
+			this._remove(key);
 			this._recordHitRatio();
 			return;
 		}
@@ -48,16 +56,32 @@ export class ResponseCache implements ISyncCache<ResponseCacheEntry> {
 		value: Omit<ResponseCacheEntry<TData>, "expiresAt">,
 		ttlMs?: DurationMs
 	): void {
+		this._remove(key);
+		const bytes = value.bytes ?? 0;
+		if (bytes > MAX_BYTES) {
+			CACHE_SIZE.set(this._store.size);
+			return;
+		}
+		// Map keeps insertion order: drop the oldest entries first.
+		while (this._store.size >= MAX_ENTRIES || this._bytes + bytes > MAX_BYTES) {
+			this._remove(this._store.keys().next().value as string);
+		}
 		this._store.set(key, {
 			...value,
 			expiresAt: Date.now() + (ttlMs ?? this._defaultTtlMs),
 		});
+		this._bytes += bytes;
 		CACHE_SIZE.set(this._store.size);
 	}
 
 	delete(key: string): void {
-		this._store.delete(key);
+		this._remove(key);
 		CACHE_SIZE.set(this._store.size);
+	}
+
+	private _remove(key: string): void {
+		this._bytes -= this._store.get(key)?.bytes ?? 0;
+		this._store.delete(key);
 	}
 
 	invalidate(pattern: string): void {
@@ -67,7 +91,7 @@ export class ResponseCache implements ISyncCache<ResponseCacheEntry> {
 
 		for (const key of this._store.keys()) {
 			if (regex.test(key)) {
-				this._store.delete(key);
+				this._remove(key);
 			}
 		}
 		CACHE_SIZE.set(this._store.size);
@@ -75,6 +99,7 @@ export class ResponseCache implements ISyncCache<ResponseCacheEntry> {
 
 	clear(): void {
 		this._store.clear();
+		this._bytes = 0;
 		CACHE_SIZE.set(this._store.size);
 	}
 
