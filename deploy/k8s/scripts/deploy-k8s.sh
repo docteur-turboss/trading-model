@@ -177,6 +177,10 @@ cmd_migrate_down() {
 
   log "Preparing database rollback (count=$count)..."
 
+  # Provision `migrator` first (after a password rotation, or on a cluster no
+  # deploy has reached yet, the rollback would fail with Access denied).
+  bash "$(dirname "${BASH_SOURCE[0]}")/run-migrations.sh" "$NAMESPACE" user-only
+
   # The migrations come from the db-migrate image. Pin MIGRATE_IMAGE to the
   # digest of the release whose migrations are rolled back (an older image
   # lacks the .down.sql of newer migrations).
