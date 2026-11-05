@@ -65,13 +65,15 @@ jobs:
 
       - name: Import Codecov GPG key
         run: |
-          gpg --keyserver keyserver.ubuntu.com --recv-keys 27034E7FDB850E0BBC2C62FF806BB28AED779869
+          gpg --import .github/keys/codecov.asc
+          gpg --fingerprint 27034E7FDB850E0BBC2C62FF806BB28AED779869
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          fail_ci_if_error: true
+          # Blocking on PRs only: a Codecov outage must not block a release (workflow_call).
+          fail_ci_if_error: ${{ github.event_name == 'pull_request' }}
 
   db-integration:
     runs-on: ubuntu-latest
