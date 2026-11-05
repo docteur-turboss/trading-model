@@ -87,4 +87,4 @@ There is no frontend for now: the admin SPA was removed until a new one is speci
 
 ## Code Documentation
 
-TypeDoc HTML is not versioned (ADR-0036): run `bun run docs:generate` to build it locally at `docs/architecture/code/index.html` (git-ignored).
+TypeDoc HTML is not versioned (ADR-0037): run `bun run docs:generate` to build it locally at `docs/architecture/code/index.html` (git-ignored).

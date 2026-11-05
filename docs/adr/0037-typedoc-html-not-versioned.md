@@ -1,4 +1,4 @@
-# ADR-0036: Generated TypeDoc HTML Is Not Versioned
+# ADR-0037: Generated TypeDoc HTML Is Not Versioned
 
 **Status:** Accepted
 **Date:** 2026-11
