@@ -53,7 +53,8 @@ images() {
 	# shellcheck disable=SC2086
 	docker compose -f "$ROOT/docker-compose.yml" build $SERVICES spire-bootstrap
 	docker build -q -t ghcr.io/trading-model/backup-tools:latest "$ROOT/deploy/backup"
-	local images="ghcr.io/trading-model/spire-tools:latest ghcr.io/trading-model/backup-tools:latest"
+	docker build -q -t ghcr.io/trading-model/db-migrate:latest -f "$ROOT/deploy/migrate/Dockerfile" "$ROOT"
+	local images="ghcr.io/trading-model/spire-tools:latest ghcr.io/trading-model/backup-tools:latest ghcr.io/trading-model/db-migrate:latest"
 	docker tag "${COMPOSE_PROJECT_NAME}-spire-bootstrap" "ghcr.io/trading-model/spire-tools:latest"
 	for svc in $SERVICES; do
 		docker tag "${COMPOSE_PROJECT_NAME}-${svc}" "ghcr.io/trading-model/${svc}:latest"
@@ -774,7 +775,7 @@ delete() {
 	"$KIND" delete cluster --name "$CLUSTER" || true
 	# shellcheck disable=SC2086
 	docker compose -f "$ROOT/docker-compose.yml" down --rmi local --volumes --remove-orphans >/dev/null 2>&1 || true
-	local images="ghcr.io/trading-model/spire-tools:latest ghcr.io/trading-model/backup-tools:latest"
+	local images="ghcr.io/trading-model/spire-tools:latest ghcr.io/trading-model/backup-tools:latest ghcr.io/trading-model/db-migrate:latest"
 	for svc in $SERVICES; do images="$images ghcr.io/trading-model/${svc}:latest"; done
 	# shellcheck disable=SC2086
 	docker rmi $images >/dev/null 2>&1 || true

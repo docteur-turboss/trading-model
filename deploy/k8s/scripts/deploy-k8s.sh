@@ -177,14 +177,10 @@ cmd_migrate_down() {
 
   log "Preparing database rollback (count=$count)..."
 
-  # Ensure the migration ConfigMap is up-to-date.
-  kubectl create configmap migration-files -n "$NAMESPACE" \
-    --from-file=migrate.mjs=scripts/migrate.mjs \
-    --from-file=scripts/migrations \
-    --dry-run=client -o yaml | kubectl apply -f -
-
-  # ROLLBACK_COUNT lives in its own ConfigMap: applying migration-files with
-  # only this key would prune migrate.mjs and the SQL files from it.
+  # The migrations come from the db-migrate image. Pin MIGRATE_IMAGE to the
+  # digest of the release whose migrations are rolled back (an older image
+  # lacks the .down.sql of newer migrations).
+  # ROLLBACK_COUNT lives in its own ConfigMap, required by the job.
   kubectl create configmap migration-rollback -n "$NAMESPACE" \
     --from-literal=ROLLBACK_COUNT="$count" \
     --dry-run=client -o yaml | kubectl apply -f -
@@ -193,7 +189,8 @@ cmd_migrate_down() {
   kubectl delete job -n "$NAMESPACE" db-migrate-down --ignore-not-found &>/dev/null || true
 
   log "Starting migration rollback job..."
-  kubectl apply -n "$NAMESPACE" -f "${K8S_DIR}/jobs/migration-job-down.yaml"
+  sed "s#ghcr.io/trading-model/db-migrate:latest#${MIGRATE_IMAGE:-ghcr.io/trading-model/db-migrate:latest}#" \
+    "${K8S_DIR}/jobs/migration-job-down.yaml" | kubectl apply -n "$NAMESPACE" -f -
 
   log "Waiting for migration rollback to complete..."
   if ! kubectl wait --for=condition=complete job/db-migrate-down -n "$NAMESPACE" --timeout=180s; then

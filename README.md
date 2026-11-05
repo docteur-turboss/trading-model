@@ -103,7 +103,7 @@ bun run commit               # Interactive gitmoji commit CLI
 GitHub Actions workflows:
 
 - **ci.yml** — on every push/PR: lint → typecheck (packages + services) → test+coverage (Codecov) → DB integration (Testcontainers) → observability gate → K8s overlays → contract tests → E2E (Docker stack) → K8s smoke test (kind)
-- **release.yml** — on a `vX.Y.Z` tag push: full CI → Docker build/push of 9 images (7 services + `spire-tools` + `backup-tools`) as `:X.Y.Z` (see [release.md](docs/contributing/release.md))
+- **release.yml** — on a `vX.Y.Z` tag push: full CI → Docker build/push of 10 images (7 services + `spire-tools` + `backup-tools` + `db-migrate`) as `:X.Y.Z` (see [release.md](docs/contributing/release.md))
 - **deploy.yml** — manual staging/production deploy with rollback
 - **backup-test.yml** — weekly restore drill of the Docker backup scripts
 

@@ -90,7 +90,7 @@ CHANGELOG, annotated tag, `git push --follow-tags`). See [release.md](../contrib
 2. `ci` — the whole CI (`ci.yml`, called as a reusable workflow) on the tagged
    commit: no image is pushed unless every gate passes
 3. `build-and-push` — the 7 service images
-4. `build-tools` — `spire-tools` (K8s SPIRE entry reconciler) and `backup-tools`
+4. `build-tools` — `spire-tools` (K8s SPIRE entry reconciler), `db-migrate` (migrations Jobs) and `backup-tools`
    (db-backup CronJob)
 
 Actions are pinned by commit SHA (Dependabot `github-actions` keeps them up to date).
