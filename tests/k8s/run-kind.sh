@@ -264,8 +264,9 @@ upgrade() {
 			return 1
 		}
 	done
-	# Every ConfigMap the templates read still exists; the service ones carry
-	# the marker previous_checkout added to N-1's config.
+	# Every ConfigMap the templates read still exists, and at least one carries
+	# the marker previous_checkout added to N-1's config (the byte-for-byte
+	# template check above already pins every hashed ConfigMap name to N-1's).
 	local config marked=0
 	for config in $(templates | cut -d' ' -f2- | jq -r '.. | objects | (.configMapRef, .configMap) | objects | .name' | sort -u); do
 		$K -n "$NS" get configmap "$config" >/dev/null || {
