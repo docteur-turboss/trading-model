@@ -103,7 +103,7 @@ docs/
 ├── adr/                                 # Architecture Decision Records
 │   ├── README.md                        # Index
 │   ├── 0001-ga-dqn-training.md
-│   ├── ... (11 ADRs)
+│   ├── ... (ADRs)
 │   └── 0011-spiffe-spire-workload-identity.md
 ├── architecture/code/                   # TypeDoc-generated HTML
 │   └── ...
