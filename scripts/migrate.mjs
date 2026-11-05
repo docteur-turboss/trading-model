@@ -163,7 +163,8 @@ async function run() {
         Number.isInteger(count) && count > 0
           ? Math.min(count, appliedSorted.length)
           : 1;
-      const toRollback = appliedSorted.slice(-limit);
+      // Newest first: a down script may depend on what later migrations added.
+      const toRollback = appliedSorted.slice(-limit).reverse();
 
       for (const m of toRollback) {
         if (!existsSync(m.down)) {

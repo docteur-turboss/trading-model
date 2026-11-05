@@ -170,6 +170,11 @@ cmd_rollback() {
 cmd_migrate_down() {
   local count="${1:-1}"
 
+  if [[ "$count" != "all" && ! "$count" =~ ^[1-9][0-9]*$ ]]; then
+    err "Invalid rollback count: $count (use a positive integer or 'all')"
+    exit 1
+  fi
+
   log "Preparing database rollback (count=$count)..."
 
   # Ensure the migration ConfigMap is up-to-date.
@@ -178,19 +183,11 @@ cmd_migrate_down() {
     --from-file=scripts/migrations \
     --dry-run=client -o yaml | kubectl apply -f -
 
-  # Patch ROLLBACK_COUNT into the ConfigMap.
-  if [[ "$count" == "all" ]]; then
-    kubectl create configmap migration-files -n "$NAMESPACE" \
-      --from-literal=ROLLBACK_COUNT=all \
-      --dry-run=client -o yaml | kubectl apply -f -
-  elif [[ "$count" =~ ^[0-9]+$ ]]; then
-    kubectl create configmap migration-files -n "$NAMESPACE" \
-      --from-literal=ROLLBACK_COUNT="$count" \
-      --dry-run=client -o yaml | kubectl apply -f -
-  else
-    err "Invalid rollback count: $count (use a positive integer or 'all')"
-    exit 1
-  fi
+  # ROLLBACK_COUNT lives in its own ConfigMap: applying migration-files with
+  # only this key would prune migrate.mjs and the SQL files from it.
+  kubectl create configmap migration-rollback -n "$NAMESPACE" \
+    --from-literal=ROLLBACK_COUNT="$count" \
+    --dry-run=client -o yaml | kubectl apply -f -
 
   # Clean up any previous down job.
   kubectl delete job -n "$NAMESPACE" db-migrate-down --ignore-not-found &>/dev/null || true
