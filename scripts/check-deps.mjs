@@ -148,8 +148,29 @@ function checkInventory(workspaces) {
   return errors;
 }
 
+/** The services table of architecture-standards.md must list each service's @trading-model/* dependencies exactly (issue #363). */
+function checkServiceTable(workspaces) {
+  const doc = readFileSync(join(ROOT, 'docs/standards/architecture-standards.md'), 'utf8');
+  const rows = new Map(
+    [...doc.matchAll(/^\| ([a-z-]+) \| ([a-z, -]+) \|\r?$/gm)].map((m) => [m[1], m[2].split(', ').sort().join(', ')]),
+  );
+  const errors = [];
+  for (const ws of workspaces.filter((w) => w.dir.startsWith(join(ROOT, 'services')))) {
+    const want = [...ws.deps].map((n) => n.slice(SCOPE.length)).sort().join(', ');
+    if (rows.get(ws.name) !== want) {
+      errors.push(`docs/standards/architecture-standards.md: ${ws.name} row is "${rows.get(ws.name)}", package.json has "${want}"`);
+    }
+  }
+  return errors;
+}
+
 const workspaces = loadWorkspaces();
-const errors = [...checkManifests(workspaces), ...checkCycles(workspaces), ...checkInventory(workspaces)];
+const errors = [
+  ...checkManifests(workspaces),
+  ...checkCycles(workspaces),
+  ...checkInventory(workspaces),
+  ...checkServiceTable(workspaces),
+];
 if (errors.length > 0) {
   console.error(`check-deps: ${errors.length} problem(s)\n`);
   for (const error of errors) console.error(`  ✖ ${error}`);

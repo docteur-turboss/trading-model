@@ -1,0 +1,135 @@
+# System Overview (C4)
+
+Four views of the system, each node checkable in `docker-compose.yml`, `deploy/k8s/` or the code. Related: [ADR-0011](../adr/0011-spiffe-spire-workload-identity.md) (SPIRE), [ADR-0019](../adr/0019-message-broker-as-built.md) (broker), [ADR-0023](../adr/0023-discovery-registry-in-redis.md) (registry), [Databases](databases.md), [Bounded Contexts](bounded-contexts.md).
+
+## 1. C4 level 1 — Context
+
+```mermaid
+flowchart LR
+  client["API client<br/>(API key, no frontend: ADR-0018)"]
+  binance["Binance<br/>(market data REST)"]
+  s3["S3 buckets, Object Lock<br/>(backups, audit anchors)"]
+  ops["Operator<br/>(Grafana, Alertmanager receivers)"]
+  system["trading-model<br/>7 services + data stores + SPIRE + observability"]
+  client -->|HTTPS /v1| system
+  system -->|scrape candles| binance
+  system -->|age-encrypted backups, audit anchors| s3
+  system -->|alerts, dashboards| ops
+```
+
+## 2. C4 level 2 — Containers
+
+```mermaid
+flowchart TB
+  client["API client"] -->|"HTTPS :8449 (compose)"| edge["edge-proxy<br/>nginx"]
+  edge -->|"/v1, own SVID"| gw["api-gateway"]
+
+  subgraph services["Services (HTTPS :3000, SPIFFE mTLS)"]
+    gw
+    disc["discovery-server"]
+    mm["message-manager"]
+    fs["financial-scraper"]
+    tt["trader-trainer<br/>(npm name trader-service)"]
+    al["audit-logger"]
+    dlq["dlq-service"]
+  end
+
+  gw -->|"PUBLIC_ROUTES only"| al
+  gw --> dlq
+  gw --> fs
+  gw --> disc
+  gw --> tt
+  fs -->|"publish candles"| mm
+  mm -->|"callback /message"| tt
+  mm -->|"callback /message (every topic)"| al
+  mm -->|"signed POST /dlq"| dlq
+  services -.->|"register + heartbeat (address-manager)"| disc
+
+  binance["Binance"] --> fs
+  fs --> mysql[("MySQL<br/>market data + SPIRE datastore")]
+  al --> mongoA[("MongoDB audit<br/>mongo-audit in K8s")]
+  dlq --> mongoD[("MongoDB dlq<br/>mongo-dlq in K8s")]
+  dlq --> redis[("Redis HA<br/>sentinels in K8s")]
+  disc --> redis
+  mm -->|"subscriptions"| redis
+  tt --> ckpt[("checkpoints volume")]
+
+  subgraph spire["SPIRE (ADR-0011)"]
+    ss["spire-server"] --> mysql
+    sa["spire-agent"] --> ss
+    sh["spiffe-helper sidecars (compose)<br/>CSI driver (K8s)"] --> sa
+  end
+
+  subgraph obs["Observability"]
+    prom["Prometheus"] --> am["Alertmanager"]
+    graf["Grafana"] --> prom
+    loki["Loki"]
+    jaeger["Jaeger + otel-collector (K8s)"]
+  end
+  prom -.->|"scrape /metrics"| services
+```
+
+message-manager keeps subscriptions in Redis and **no messages** (ADR-0019): it has no database. MongoDB belongs to audit-logger and dlq-service. Compose runs one `mongo` container (databases `audit-logger` and `dlq`); K8s runs two StatefulSets, `mongo-audit` and `mongo-dlq`.
+
+## 3. Kubernetes deployment
+
+```mermaid
+flowchart TB
+  subgraph tm["namespace trading-model (Pod Security: restricted)"]
+    ing["Ingress gateway / grafana"] --> edge["Deployment edge-proxy"]
+    edge --> svc["Deployments: api-gateway, discovery-server,<br/>message-manager, financial-scraper,<br/>trader-trainer, audit-logger, dlq-service<br/>(HPA, PDB, topologySpreadConstraints)"]
+    svc --> mysql["StatefulSet mysql"]
+    svc --> mA["StatefulSet mongo-audit"]
+    svc --> mD["StatefulSet mongo-dlq"]
+    svc --> rd["StatefulSet redis (master + 2 replicas)"]
+    svc --> rs["StatefulSet redis-sentinel (3)"]
+    ss["Deployment spire-server"] --> mysql
+    obs["StatefulSets prometheus, alertmanager, grafana, loki<br/>Deployments jaeger, otel-collector, blackbox-exporter"]
+    jobs["CronJobs db-backup, db-backup-incremental,<br/>secret-rotation; Job migrate"]
+  end
+  subgraph node["namespace trading-model-node (privileged)"]
+    agent["DaemonSet spire-agent"]
+    csi["DaemonSet spiffe-csi-driver"]
+    pt["DaemonSet promtail"]
+  end
+  csi -->|"csi.spiffe.io volume (agent socket)"| svc
+  agent --> ss
+  csi --- agent
+  pt --> loki["Loki"]
+```
+
+The restricted namespace forbids `hostPath`, so every host-level agent lives in `trading-model-node` (see `deploy/k8s/node-agents`).
+
+## 4. Market data flow
+
+```mermaid
+sequenceDiagram
+  participant B as Binance
+  participant FS as financial-scraper
+  participant DB as MySQL
+  participant MM as message-manager
+  participant TT as trader-trainer
+  participant AL as audit-logger
+  participant DLQ as dlq-service
+  loop each scrape cycle, per symbol
+    FS->>B: fetch candles
+    FS->>DB: persist candles
+    FS->>DB: read market_publish_cursors, next persisted candles
+    FS->>MM: POST /message (requireSubscriber)
+    alt a subscriber is reachable
+      MM->>TT: callback /message
+      MM->>AL: callback /message
+      MM-->>FS: all deliveries settled
+      FS->>DB: advance cursor
+    else no subscriber (503) or message-manager down
+      MM-->>FS: refused
+      Note over FS,DB: cursor stays: next cycle resends from MySQL<br/>alert MarketDataUnpublished after 15 min
+    end
+  end
+  opt a subscriber keeps failing (at-least-once, 10 attempts)
+    MM->>DLQ: signed POST /dlq
+    Note over MM,DLQ: dlq-service down: local JSON Lines file, forwarded later
+  end
+```
+
+Recoveries: persist-before-publish and the cursor make a bus outage lossless for candles; dead letters can be replayed through `POST /dlq/replay`; an `exactly-once` message relies on audit-logger being idempotent on `messageId`. See [runbook-message-bus-outage](../operations/runbooks/runbook-message-bus-outage.md).
