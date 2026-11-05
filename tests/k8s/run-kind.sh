@@ -3,7 +3,7 @@
 # deploy.yml does (node agents, overlay, migrations) and checks the stack
 # works end to end. Used by the `k8s` CI job; runs locally too.
 #
-#   tests/k8s/run-kind.sh [all|images|cluster|deploy|smoke|verify|verify_replicas|verify_canary|verify_alerts|verify_backup|dump]
+#   tests/k8s/run-kind.sh [all|images|cluster|deploy|smoke|verify|verify_replicas|verify_egress|verify_canary|verify_alerts|verify_backup|dump]
 #
 #   tests/k8s/run-kind.sh delete   # cluster + the images built for it
 #
@@ -147,6 +147,7 @@ verify() {
 	log "  candles=$(mysql_count market_candles) trades=$(mysql_count market_trades)"
 
 	verify_replicas
+	verify_egress
 
 	log "external path: edge-proxy → api-gateway → discovery"
 	$K -n "$NS" port-forward svc/edge-proxy 18449:8080 >/dev/null 2>&1 &
@@ -171,6 +172,24 @@ verify() {
 	verify_backup
 
 	log "OK: the staging overlay works on Kubernetes"
+}
+
+# ci-render.mjs drops every internet egress rule: kind must enforce the
+# NetworkPolicies for that to block anything (kindnet does since kind v0.24).
+# Control: a pod of a namespace without policy reaches the same URL.
+verify_egress() {
+	local url="https://example.com"
+	log "internet egress: refused to the collector, allowed without policy"
+	$K run egress-control -n default --rm -i --restart=Never --quiet \
+		--image=curlimages/curl:8.11.1 -- curl -s -o /dev/null -m 10 "$url" || {
+		log "  the control pod has no internet: the check proves nothing"
+		return 1
+	}
+	if $K -n "$NS" exec deploy/financial-scraper-collector -c financial-scraper-collector -- \
+		node -e "fetch('$url',{signal:AbortSignal.timeout(5000)}).then(()=>process.exit(0),()=>process.exit(1))"; then
+		log "  the collector reached $url: NetworkPolicy not enforced"
+		return 1
+	fi
 }
 
 # Production runs message-manager and discovery with 3 replicas (staging: 1).
@@ -825,9 +844,9 @@ all)
 	verify
 	verify_canary
 	;;
-images | cluster | deploy | smoke | verify | verify_replicas | verify_canary | verify_alerts | verify_backup | dump | delete) "$1" ;;
+images | cluster | deploy | smoke | verify | verify_replicas | verify_egress | verify_canary | verify_alerts | verify_backup | dump | delete) "$1" ;;
 *)
-	echo "usage: $0 [all|images|cluster|deploy|smoke|verify|verify_replicas|verify_canary|verify_alerts|verify_backup|dump|delete]" >&2
+	echo "usage: $0 [all|images|cluster|deploy|smoke|verify|verify_replicas|verify_egress|verify_canary|verify_alerts|verify_backup|dump|delete]" >&2
 	exit 64
 	;;
 esac
