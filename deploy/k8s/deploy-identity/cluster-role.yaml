@@ -1,0 +1,40 @@
+# ClusterRole of the cluster-scope deploy identity (ADR-0038): used by the
+# steps of deploy.yml that touch what no namespace owns (namespaces, the
+# ClusterRoles of the overlay, the CSIDriver, the CRD check). Bound by
+# scripts/deploy-identity.sh to a ClusterRoleBinding.
+#
+# No `escalate`/`bind`: it holds the rights of the ClusterRoles it creates
+# (spire-server, spire-agent, promtail) itself, and may change those three by
+# name only. Anything else in the overlays fails the deploy until this file
+# is extended in review.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: deploy-cluster
+rules:
+  - apiGroups: [""]
+    resources: [namespaces]
+    verbs: [get, list, watch, create, patch, update]
+  - apiGroups: [apiextensions.k8s.io]
+    resources: [customresourcedefinitions]
+    verbs: [get]
+  - apiGroups: [storage.k8s.io]
+    resources: [csidrivers]
+    verbs: [get, list, create, patch, update]
+  - apiGroups: [rbac.authorization.k8s.io]
+    resources: [clusterroles, clusterrolebindings]
+    verbs: [get, list, create]
+  - apiGroups: [rbac.authorization.k8s.io]
+    resources: [clusterroles, clusterrolebindings]
+    resourceNames: [spire-server, spire-agent, promtail]
+    verbs: [update, patch]
+  # Held so that the ClusterRoles above can be created without `escalate`.
+  - apiGroups: [""]
+    resources: [pods, serviceaccounts, nodes]
+    verbs: [get, list, watch]
+  - apiGroups: [""]
+    resources: [nodes/proxy]
+    verbs: [get]
+  - apiGroups: [authentication.k8s.io]
+    resources: [tokenreviews]
+    verbs: [create]

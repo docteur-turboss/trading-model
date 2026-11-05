@@ -1,0 +1,50 @@
+# Role of the application deploy identity (ADR-0038): everything the overlay
+# applies INSIDE the application namespace, plus what the rollout, the smoke
+# test, the canary and the rollback read or run there. No cluster-scope
+# resource, no other namespace. Bound by scripts/deploy-identity.sh; the
+# namespace comes from `kubectl -n`. tests/k8s/check-overlays.mjs fails when a
+# namespaced kind of an overlay is missing here.
+#
+# It holds every right the Roles of the overlay grant (secret-rotator-role,
+# backup-runner), so it needs neither `escalate` nor `bind`.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: deploy-app
+rules:
+  - apiGroups: [""]
+    resources: [configmaps, secrets, services, persistentvolumeclaims, serviceaccounts]
+    verbs: [get, list, watch, create, update, patch, delete]
+  - apiGroups: [""]
+    resources: [pods, pods/log]
+    verbs: [get, list, watch]
+  - apiGroups: [""]
+    resources: [pods/exec]
+    verbs: [create]
+  - apiGroups: [apps]
+    resources: [deployments, statefulsets]
+    verbs: [get, list, watch, create, update, patch, delete]
+  - apiGroups: [apps]
+    resources: [replicasets]
+    verbs: [get, list, watch]
+  - apiGroups: [batch]
+    resources: [cronjobs, jobs]
+    verbs: [get, list, watch, create, update, patch, delete]
+  - apiGroups: [networking.k8s.io]
+    resources: [ingresses, networkpolicies]
+    verbs: [get, list, watch, create, update, patch, delete]
+  - apiGroups: [policy]
+    resources: [poddisruptionbudgets]
+    verbs: [get, list, watch, create, update, patch, delete]
+  - apiGroups: [autoscaling]
+    resources: [horizontalpodautoscalers]
+    verbs: [get, list, watch, create, update, patch, delete]
+  - apiGroups: [autoscaling.k8s.io]
+    resources: [verticalpodautoscalers]
+    verbs: [get, list, watch, create, update, patch, delete]
+  - apiGroups: [rbac.authorization.k8s.io]
+    resources: [roles, rolebindings]
+    verbs: [get, list, watch, create, update, patch, delete]
+  - apiGroups: [bitnami.com]
+    resources: [sealedsecrets]
+    verbs: [get, list, watch, create, update, patch, delete]
