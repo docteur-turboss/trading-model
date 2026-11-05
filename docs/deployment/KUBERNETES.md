@@ -103,7 +103,7 @@ bash scripts/init-sealed-secrets.sh
 
 See [Sealed Secrets guide](sealed-secrets.md) for detailed setup, key rotation, and migration instructions.
 
-Secrets are rotated by hand with `scripts/rotate-secrets.sh`; no CronJob does it. The former `secret-rotation` CronJob only restarted two Deployments and held write rights on every Secret (issue #424). `kubectl apply` without `--prune` does not remove it, so delete it once per cluster deployed before that fix (add `-n <namespace>`):
+Secrets are rotated by hand with `scripts/rotate-secrets.sh`; no CronJob does it. The former `secret-rotation` CronJob only restarted two Deployments and held write rights on every Secret (issue #424). `kubectl apply` without `--prune` does not remove it: `deploy.yml` deletes it after applying the overlay. On a cluster deployed by hand, delete it once (add `-n <namespace>`):
 
 ```bash
 kubectl delete cronjob/secret-rotation role/secret-rotator-role \
