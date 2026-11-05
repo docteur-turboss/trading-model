@@ -209,7 +209,7 @@ kubectl scale deployment -n trading-model <service-name> --replicas=5
 
 ### Workload Identity (SPIRE)
 
-Per [ADR-0011](./ADR.md) the platform uses SPIFFE/SPIRE instead of the former
+Per [ADR-0011](../adr/0011-spiffe-spire-workload-identity.md) the platform uses SPIFFE/SPIRE instead of the former
 in-house CA:
 
 - **SPIRE Server:** Deployment in the application namespace (MySQL datastore,
