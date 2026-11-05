@@ -79,7 +79,7 @@ The root script references the package name too: `bun run --filter trader-servic
 
 ## Linting (Biome)
 
-- ESLint fully removed v2.0.4 — Biome handles lint, format, and organizeImports
+- ESLint fully removed — Biome handles lint, format, and organizeImports
 - `organizeImports` replaces `eslint-plugin-import-x` for import sorting
 - Advanced TypeScript rules (PascalCase interfaces, naming convention) are configured in `biome.json`
 - Test files get relaxed rules via `overrides` in biome.json

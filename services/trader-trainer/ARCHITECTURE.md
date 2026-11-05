@@ -608,7 +608,7 @@ type SelectionType = 'tournament' | 'roulette' | 'rank' | 'sus';
 - `typescript@~6.0.3`: Language
 - `jest@^30.4.2`: Testing
 - `ts-jest@^29.4.9`: TypeScript support for Jest
-- `eslint@^10.3.0`: Linting
+- `@biomejs/biome`: Linting and formatting (root)
 
 ---
 
