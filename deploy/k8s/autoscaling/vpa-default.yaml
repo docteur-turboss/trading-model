@@ -1,3 +1,4 @@
+# updateMode Off: the HPAs own CPU and memory scaling; an Auto VPA would evict pods and fight them (issue #419).
 apiVersion: autoscaling.k8s.io/v1
 kind: VerticalPodAutoscaler
 metadata:
@@ -11,7 +12,7 @@ spec:
     kind: Deployment
     name: discovery-server
   updatePolicy:
-    updateMode: "Auto"
+    updateMode: "Off"
   resourcePolicy:
     containerPolicies:
       - containerName: discovery-server
@@ -36,7 +37,7 @@ spec:
     kind: Deployment
     name: message-manager
   updatePolicy:
-    updateMode: "Auto"
+    updateMode: "Off"
   resourcePolicy:
     containerPolicies:
       - containerName: message-manager
@@ -61,7 +62,7 @@ spec:
     kind: Deployment
     name: financial-scraper
   updatePolicy:
-    updateMode: "Auto"
+    updateMode: "Off"
   resourcePolicy:
     containerPolicies:
       - containerName: financial-scraper
@@ -86,7 +87,7 @@ spec:
     kind: Deployment
     name: trader-trainer
   updatePolicy:
-    updateMode: "Auto"
+    updateMode: "Off"
   resourcePolicy:
     containerPolicies:
       - containerName: trader-trainer
@@ -111,7 +112,7 @@ spec:
     kind: Deployment
     name: api-gateway
   updatePolicy:
-    updateMode: "Auto"
+    updateMode: "Off"
   resourcePolicy:
     containerPolicies:
       - containerName: api-gateway
@@ -136,7 +137,7 @@ spec:
     kind: Deployment
     name: audit-logger
   updatePolicy:
-    updateMode: "Auto"
+    updateMode: "Off"
   resourcePolicy:
     containerPolicies:
       - containerName: audit-logger
@@ -161,7 +162,7 @@ spec:
     kind: Deployment
     name: dlq-service
   updatePolicy:
-    updateMode: "Auto"
+    updateMode: "Off"
   resourcePolicy:
     containerPolicies:
       - containerName: dlq-service
