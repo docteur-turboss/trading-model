@@ -1,6 +1,7 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
+# HPA, PDB, NetworkPolicy and ServiceAccount of each service.
 resources:
   - discovery-server-configmap.yaml
   - message-manager-configmap.yaml
@@ -12,3 +13,38 @@ resources:
   - edge-proxy-configmap.yaml
   - ../../edge-proxy
   - spiffe-helper-configmap.yaml
+
+# Service configuration, versioned by a content hash in its name (issue #410):
+# a config change alone rolls the Deployments that read it, and
+# `kubectl rollout undo` brings back the previous ConfigMap with the previous
+# image. Old ConfigMaps stay in the namespace (deploy.yml never prunes), so
+# every ReplicaSet revision still finds its own. Never set disableNameSuffixHash.
+configMapGenerator:
+  - name: discovery-server-config
+    envs: [discovery-server.properties]
+    options:
+      labels: {app.kubernetes.io/component: discovery-server, app.kubernetes.io/part-of: trading-model}
+  - name: message-manager-config
+    envs: [message-manager.properties]
+    options:
+      labels: {app.kubernetes.io/component: message-manager, app.kubernetes.io/part-of: trading-model}
+  - name: financial-scraper-config
+    envs: [financial-scraper.properties]
+    options:
+      labels: {app.kubernetes.io/component: financial-scraper, app.kubernetes.io/part-of: trading-model}
+  - name: trader-trainer-config
+    envs: [trader-trainer.properties]
+    options:
+      labels: {app.kubernetes.io/component: trader-trainer, app.kubernetes.io/part-of: trading-model}
+  - name: api-gateway-config
+    envs: [api-gateway.properties]
+    options:
+      labels: {app.kubernetes.io/component: api-gateway, app.kubernetes.io/part-of: trading-model}
+  - name: audit-logger-config
+    envs: [audit-logger.properties]
+    options:
+      labels: {app.kubernetes.io/component: audit-logger, app.kubernetes.io/part-of: trading-model}
+  - name: dlq-service-config
+    envs: [dlq-service.properties]
+    options:
+      labels: {app.kubernetes.io/component: dlq-service, app.kubernetes.io/part-of: trading-model}

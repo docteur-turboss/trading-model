@@ -72,8 +72,11 @@ cmd_apply() {
 
   if [[ -n "$service" ]]; then
     log "Applying manifests for service: $service"
-    kubectl apply -n "$NAMESPACE" -f "${K8S_DIR}/config/${service}-configmap.yaml"
-    kubectl apply -n "$NAMESPACE" -f "${K8S_DIR}/services/${service}.yaml"
+    # Rendered, not applied file by file: the Deployment reads a ConfigMap
+    # whose name carries a hash only kustomize computes (issue #410). The
+    # scraper collector reads financial-scraper-config: applied together.
+    kustomize_build "${K8S_DIR}/" |
+      kubectl apply -n "$NAMESPACE" -l "app.kubernetes.io/component in (${service},${service}-collector)" -f -
   else
     # Node agents first (SPIRE agent, SPIFFE CSI driver, promtail): the
     # workloads mount the agent socket through the CSI driver.

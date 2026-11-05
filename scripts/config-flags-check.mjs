@@ -45,7 +45,7 @@ const ALLOWED_UNSET = {};
 
 /** Profiles: what a real deployment can set. Tests and docs are not profiles. */
 const PROFILE_ROOTS = ['.env.example', 'docker-compose.yml', 'deploy', '.github/workflows/deploy.yml'];
-const PROFILE_FILE = /(\.ya?ml|\.conf|\.hcl|\.sh|\.env\.example|Dockerfile|\.json)$/;
+const PROFILE_FILE = /(\.ya?ml|\.conf|\.hcl|\.sh|\.env\.example|\.properties|Dockerfile|\.json)$/;
 
 const ENV_KEY = /^\s*([A-Z][A-Z0-9_]{2,}):\s*(z\b|[A-Za-z]+Schema\b)/;
 const PARSED_ENV_READ = /\b(?:env|ENV)\.([A-Z][A-Z0-9_]{2,})\b/g;
