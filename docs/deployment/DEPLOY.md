@@ -183,6 +183,25 @@ revision: the step reports an error for it and leaves it in place.
 The canary (`deploy-k8s.sh canary`) copies the running pod template, so it runs
 the new image with the configuration of the current release, not the new one.
 
+### Canary gate
+
+`deploy.yml` runs `deploy-k8s.sh canary-all`: the 7 canaries are created in
+parallel and observed over one `CANARY_GATE_SECONDS` window (default 120 s), so
+the step lasts one rollout plus one window, not 7 of each. Every failing gate is
+reported and every canary is removed if one fails.
+
+| GitHub variable | Default | Meaning |
+|---|---|---|
+| `CANARY_GATE_SECONDS` | `120` | Observation window |
+| `CANARY_MIN_REQUESTS` | `20` | Real requests a canary must serve: fewer is a failure (no signal is not a pass) |
+| `CANARY_ERROR_THRESHOLD_PCT` | `5` | Maximum 4xx/5xx share |
+| `CANARY_READINESS_ONLY` | `dlq-service` | Comma-separated services whose gate checks readiness and routing only |
+
+`dlq-service` is readiness-only: it only receives requests on a dead letter or an
+admin call, so a healthy environment gives it no traffic. Add a service to
+`CANARY_READINESS_ONLY` only for the same reason. Test of the gate:
+`bash tests/k8s/canary-gate.test.sh`.
+
 For a manual rollback, revert a service to a previous revision:
 
 ```bash
