@@ -8,7 +8,10 @@ import { MySqlSignalStore } from "../adapters/outbound/persistence/signal-store"
 import { createProtocolWorkers } from "../adapters/outbound/signal-sources/protocol-workers";
 import { SOURCE_ADAPTERS } from "../adapters/outbound/signal-sources/source-adapters";
 import { createMarketDataController } from "../application/market-data.controller";
-import { SignalCollector } from "../application/signal-collector";
+import {
+	SignalCollector,
+	zeroCollectionFailures,
+} from "../application/signal-collector";
 import type { WorkerOrchestratorDeps } from "../application/worker-orchestrator";
 import { SIGNAL_REGISTRY } from "./signal-registry";
 
@@ -141,5 +144,6 @@ export function createSignalScheduler(
 		now: Date.now,
 		sleep,
 	});
+	zeroCollectionFailures(SIGNAL_REGISTRY.sources);
 	return new SignalCronScheduler(SIGNAL_REGISTRY.sources, collector);
 }

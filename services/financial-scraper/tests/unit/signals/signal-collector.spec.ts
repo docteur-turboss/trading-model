@@ -8,6 +8,7 @@ jest.mock("@trading-model/contracts/logger-registry", () => ({
 import {
 	SignalCollector,
 	signalId,
+	zeroCollectionFailures,
 } from "../../../src/application/signal-collector";
 import { SIGNAL_COLLECTIONS_TOTAL } from "../../../src/config/metrics";
 import {
@@ -255,6 +256,16 @@ describe("SignalCollector", () => {
 		expect(save).not.toHaveBeenCalled();
 		expect(MOCK_LOGGER.error.mock.calls[0][1]).toMatchObject({
 			error: new Error("No source adapter named missing"),
+		});
+	});
+
+	it("starts every failure counter of a source at 0", async () => {
+		zeroCollectionFailures([SOURCE]);
+
+		expect(await counted()).toEqual({
+			[`${SOURCE.id}:fetch_error`]: 0,
+			[`${SOURCE.id}:invalid_payload`]: 0,
+			[`${SOURCE.id}:store_error`]: 0,
 		});
 	});
 

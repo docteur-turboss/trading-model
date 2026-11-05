@@ -17,11 +17,21 @@ import {
 	type Subject,
 } from "../domain/signals";
 
-type CollectionResult =
-	| "success"
-	| "fetch_error"
-	| "invalid_payload"
-	| "store_error";
+const FAILURES = ["fetch_error", "invalid_payload", "store_error"] as const;
+type CollectionResult = "success" | (typeof FAILURES)[number];
+
+/**
+ * Sets the failure counters of every source to 0: a series born at its first
+ * failure has no earlier sample, so `increase()` and SignalCollectionFailing
+ * would miss that failure.
+ */
+export function zeroCollectionFailures(sources: readonly Source[]): void {
+	for (const { id } of sources) {
+		for (const result of FAILURES) {
+			SIGNAL_COLLECTIONS_TOTAL.inc({ source: id, result }, 0);
+		}
+	}
+}
 
 export interface SignalCollectorDeps {
 	workers: Readonly<Record<Protocol, ProtocolWorker>>;

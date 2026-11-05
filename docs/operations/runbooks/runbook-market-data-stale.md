@@ -1,7 +1,7 @@
 # Runbook: Market Data Stale
 
 **Severity:** SEV2 (the platform runs, but trades and training work on old data)
-**Alerts:** `MarketDataStale`, `TrainerMarketDataStale`, `ScrapeCyclesFailing`, `BinanceRestrictedLocation`
+**Alerts:** `MarketDataStale`, `TrainerMarketDataStale`, `ScrapeCyclesFailing`, `BinanceRestrictedLocation`, `SignalCollectionFailing`
 **Affected:** financial-scraper (collector), message-manager, trader-trainer
 
 The services can all be up and ready while no data flows: readiness checks
@@ -75,3 +75,35 @@ kubectl -n $NS exec prometheus-0 -c prometheus -- wget -qO- \
 `sum(increase(fs_candles_persisted_total[15m]))` and
 `sum(increase(tt_market_data_received_total[15m]))` grow again; the alerts
 resolve within 15 minutes.
+
+## SignalCollectionFailing
+
+**Severity:** SEV4 (warning). Binance market data is not affected: only the
+signals of one registry source (ADR-0036) are missing or stale. The alert
+stays on for 24 hours after the last failure.
+
+```bash
+NS=trading-model
+# Failures by source and result over the last day
+kubectl -n $NS exec prometheus-0 -c prometheus -- wget -qO-   'http://localhost:9090/api/v1/query?query=sum by (source, result) (increase(fs_signal_collections_total[1d]))'
+# The error of each failed request
+kubectl -n $NS logs deploy/financial-scraper-collector --since=24h | grep "Signal collection failed"
+```
+
+By `result`:
+
+- **`fetch_error`**: the source is down, refuses the request or cannot be
+  reached. SEC EDGAR answers 403 without contact e-mail: check that the
+  GitHub environment secret `SIGNAL_CONTACT_EMAIL` is set and that the
+  `signal-contact` ConfigMap holds it, then restart the collector (it reads
+  the e-mail at start). A 429 means the source rate-limits us: lower
+  `maxRequestsPerMinute` or move the schedule in `signal-registry.json`.
+- **`invalid_payload`**: the source changed its format. Compare the logged
+  error with the adapter of `src/adapters/outbound/signal-sources/` and its
+  fixture; nothing is stored until the adapter is fixed.
+- **`store_error`**: MySQL refuses the writes; see
+  [runbook-database-failover](runbook-database-failover.md).
+
+A collection that failed is not retried before the next schedule of its
+source; values the source still publishes then are collected again (ECB: last
+5, Wikimedia: 8 days, NWS: latest observation only).
