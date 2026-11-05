@@ -113,6 +113,8 @@ jobs:
         run: bash tests/k8s/canary-gate.test.sh
       - name: Test the cluster prerequisites check
         run: bash tests/k8s/check-prereqs.test.sh
+      - name: Test the release steps (deploy-release.sh)
+        run: bash tests/k8s/deploy-release.test.sh
 
   contract:
     runs-on: ubuntu-latest
@@ -181,7 +183,11 @@ jobs:
       # docs/compliance/dr-exercise-log.md.
       DRILL_TIMINGS_FILE: ${{ github.workspace }}/restore-drill-timings.json
     steps:
+      # Depth 2: release N-1 is HEAD^1 (the base branch of the PR merge
+      # commit, the previous commit on a push), built and deployed first.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 2
       - name: Install kind
         run: |
           curl -fsSLo kind "https://github.com/kubernetes-sigs/kind/releases/download/${KIND_VERSION}/kind-linux-amd64"
@@ -198,10 +204,14 @@ jobs:
           fi
       - name: Create the cluster
         run: bash tests/k8s/run-kind.sh cluster
-      - name: Build and load the images
+      - name: Build and load the images (release N-1 and N)
         run: bash tests/k8s/run-kind.sh images
-      - name: Deploy the staging overlay
+      - name: Deploy release N-1 (staging overlay)
         run: bash tests/k8s/run-kind.sh deploy
+      # deploy.yml's steps (deploy/k8s/scripts/deploy-release.sh): a failed
+      # upgrade rolled back to N-1, migrate-down 1 then up, the upgrade to N.
+      - name: Upgrade N-1 to N, forced failure and rollback
+        run: bash tests/k8s/run-kind.sh upgrade
       - name: Smoke test (deploy.yml gate)
         run: bash tests/k8s/run-kind.sh smoke
       - name: Verify the stack

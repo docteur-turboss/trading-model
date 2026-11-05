@@ -69,7 +69,11 @@ kubectl kustomize --load-restrictor LoadRestrictionsNone deploy/k8s/overlays/sta
 bash deploy/k8s/scripts/run-migrations.sh trading-model-staging
 ```
 
-The CI `k8s` job runs the same sequence on kind, then the two gates of
+The CI `k8s` job runs the same sequence on kind for release N-1 (the commit
+before: the PR's base branch), upgrades it to N through the release steps of
+`deploy.yml` (`deploy/k8s/scripts/deploy-release.sh`: images pinned by digest,
+migrations, rollout, rollback), first with a forced failure that must roll every
+Deployment back to N-1, and runs `migrate-down 1` then the migrations again; then the two gates of
 `deploy.yml` (`deploy-k8s.sh smoke-test`, and the canary on api-gateway with
 traffic through edge-proxy, which must also fail without traffic), and checks
 the stack (`tests/k8s/run-kind.sh`). The `deploy.yml` workflow runs these steps (migrations go before the rollout,

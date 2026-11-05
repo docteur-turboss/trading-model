@@ -152,7 +152,13 @@ Moving an existing cluster over: `deploy.yml` (step "Release replicas of autosca
 
 Rollback is automatic on failure in the `Deploy` workflow. Before applying the
 overlay it records the revision of each of the 9 Deployments; on failure it
-runs `kubectl rollout undo --to-revision=<recorded>` for each of them.
+runs `kubectl rollout undo --to-revision=<recorded>` for each of them. These
+steps (record, apply by digest, wait for rollout, rollback) live in
+`deploy/k8s/scripts/deploy-release.sh`, which the CI `k8s` job runs too: it
+deploys release N-1 on kind, forces a failed upgrade to N, checks every
+Deployment is back on its N-1 pod template (image digests, ConfigMaps) with the
+N-1 migrations still applied, runs `migrate-down 1` and the migrations again,
+then upgrades to N (`tests/k8s/run-kind.sh upgrade`).
 
 What the rollback restores:
 
@@ -167,6 +173,8 @@ What the rollback restores:
 
 What it does not restore (still at N+1 after a rollback):
 
+- the other Deployments (`spire-server`, whose `spire-entries` sidecar runs the
+  `spire-tools` image of the release, and the infrastructure ones);
 - StatefulSets (MySQL, MongoDB, Redis...), CronJobs, Jobs, HPAs, PDBs,
   NetworkPolicies, Services, the SPIFFE node agents (`trading-model-node`) and
   the fixed-name ConfigMaps (`spiffe-helper-config`, infrastructure configs,
