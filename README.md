@@ -29,7 +29,7 @@ See [Quick Start Tutorial](docs/getting-started/quickstart.md) for a 10-minute h
 
 | Layer         | Technology                                                 |
 | ------------- | ---------------------------------------------------------- |
-| Runtime       | Bun 1.x (Node.js 26-compatible APIs)                       |
+| Runtime       | Bun 1.4.4, tested (same as `services/*/Dockerfile`); Node.js 26-compatible APIs |
 | Language      | TypeScript (ES2020)                                        |
 | API           | Express 5                                                  |
 | Frontend      | None for now — removed, see ADR-0018                       |
@@ -102,12 +102,12 @@ bun run commit               # Interactive gitmoji commit CLI
 
 GitHub Actions workflows:
 
-- **ci.yml** — on every push/PR: lint → typecheck (packages + services) → test+coverage (Codecov) → contract tests → E2E (Docker stack)
-- **release.yml** — on a `vX.Y.Z` tag push: full CI → Docker build/push as `:X.Y.Z` (see [release.md](docs/contributing/release.md))
+- **ci.yml** — on every push/PR: lint → typecheck (packages + services) → test+coverage (Codecov) → DB integration (Testcontainers) → observability gate → K8s overlays → contract tests → E2E (Docker stack) → K8s smoke test (kind)
+- **release.yml** — on a `vX.Y.Z` tag push: full CI → Docker build/push of 9 images (7 services + `spire-tools` + `backup-tools`) as `:X.Y.Z` (see [release.md](docs/contributing/release.md))
 - **deploy.yml** — manual staging/production deploy with rollback
 - **backup-test.yml** — weekly restore drill of the Docker backup scripts
 
-Pre-push git hook runs: `@biomejs/biome check` → `build` → `test`.
+Pre-push git hook runs: `biome check` → `deps:check` → `api:check` → `adr:check` → `reach:check` → `config:check` → observability gate → `build` → `test` → `test:contract` (see `.husky/pre-push`).
 
 ## Documentation
 
@@ -115,7 +115,7 @@ Pre-push git hook runs: `@biomejs/biome check` → `build` → `test`.
 - [System Overview](docs/architecture/system-overview.md) — C4 context and containers, K8s deployment, market data flow
 - [Architecture Standards](docs/standards/architecture-standards.md) — dependency graph, service conventions
 - [OpenAPI 3.0](docs/services/openapi/api-gateway.yaml) — generated from the services' routes (`bun run api:write`, checked by `bun run api:check`)
-- [ADR Index](docs/adr/README.md) — 11 architecture decision records
+- [ADR Index](docs/adr/README.md) — architecture decision records
 - [Compliance](docs/compliance/) — GDPR register, DPIA, retention policy, breach notification
 - [Operations](docs/operations/) — runbooks, SLOs, incident response, diagnostic guide
 - [Getting Started](docs/getting-started/quickstart.md) — 10-minute hands-on introduction

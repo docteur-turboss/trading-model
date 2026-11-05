@@ -4,7 +4,7 @@
 
 ## Prerequisites
 
-- Bun 1.3+ (see `bun --version`)
+- Bun 1.4.4 (tested version, same as the Docker images in `services/*/Dockerfile`; see `bun --version`)
 - Docker Desktop (for Compose)
 - Git
 

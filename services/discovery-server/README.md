@@ -123,11 +123,11 @@ Get a specific instance by ID.
 | Runtime    | Node.js                                                      |
 | Language   | TypeScript (ES2020, module: node16)                          |
 | Framework  | Express 5                                                    |
-| Security   | mTLS (via `createSecureServer` from `@trading-model/common`) |
+| Security   | mTLS (via `createSecureServer` from `@trading-model/server-utils`) |
 | Validation | Zod (via `BaseEnvSchema` from `@trading-model/common`)       |
 | Bootstrap  | `createBootstrap` from `@trading-model/common`               |
 | Testing    | Jest + ts-jest                                               |
-| Linting    | ESLint 10 flat config (root)                                 |
+| Linting    | Biome (root)                                               |
 
 ## Dependencies
 

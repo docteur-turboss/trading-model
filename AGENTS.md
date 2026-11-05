@@ -19,7 +19,7 @@ bun run reach:check             # Gate: fails on any unreachable src line or spe
 bun run config:check            # Gate: fails on an env var no deployment sets that gates code, read but never parsed, or missing from docs/deployment/ENV.md (ADR-0013)
 bun run test:coverage           # All tests with coverage
 bun run test:db                 # Specs against real Mongo/Redis/MySQL (Testcontainers, needs Docker)
-bun run docs:generate           # TypeDoc HTML into docs/architecture/code/
+bun run docs:generate           # TypeDoc HTML into docs/architecture/code/ (git-ignored, local only: ADR-0037)
 bun run commit                  # Interactive gitmoji commit CLI
 bun run release                 # Bump versions + CHANGELOG only (scripts/release.mjs); no commit, tag or push
 bun run release:publish         # Same, then commit, tag vX.Y.Z and push it (on main; docs/contributing/release.md)
@@ -79,7 +79,7 @@ The root script references the package name too: `bun run --filter trader-servic
 
 ## Linting (Biome)
 
-- ESLint fully removed v2.0.4 — Biome handles lint, format, and organizeImports
+- ESLint fully removed — Biome handles lint, format, and organizeImports
 - `organizeImports` replaces `eslint-plugin-import-x` for import sorting
 - Advanced TypeScript rules (PascalCase interfaces, naming convention) are configured in `biome.json`
 - Test files get relaxed rules via `overrides` in biome.json

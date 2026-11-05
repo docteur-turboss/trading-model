@@ -16,7 +16,7 @@ Welcome to the **trading-model** documentation.
 | [Architecture Standards](standards/architecture-standards.md) | Monorepo structure, tech stack, service conventions, dependency graph |
 | [Bounded Contexts](architecture/bounded-contexts.md) | DDD context map with integration patterns |
 | [Databases](architecture/databases.md) | MySQL schemas, MongoDB collections, entity definitions |
-| [ADR Index](adr/README.md) | 11 architecture decision records |
+| [ADR Index](adr/README.md) | Architecture decision records |
 
 ## Concepts
 
@@ -83,8 +83,8 @@ There is no frontend for now: the admin SPA was removed until a new one is speci
 | [Compliance](compliance/README.md) | GDPR, MiFID II, MAR, DORA documentation |
 | [Glossary](glossary/README.md) | Domain terms (GA, DQN, mTLS, Sharpe ratio, etc.) |
 | [Contributing](contributing/README.md) | Contribution workflow, [release](contributing/release.md), adding services, documentation standards |
-| [Examples](../../examples/) | Executable API workflow scripts |
+| [Examples](../examples/) | Executable API workflow scripts |
 
 ## Code Documentation
 
-TypeDoc-generated HTML: `bun run docs:generate` — output at `docs/architecture/code/index.html`.
+TypeDoc HTML is not versioned (ADR-0037): run `bun run docs:generate` to build it locally at `docs/architecture/code/index.html` (git-ignored).
