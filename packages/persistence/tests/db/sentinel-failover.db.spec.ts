@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "@jest/globals";
+import { afterEach, describe, expect, it, jest } from "@jest/globals";
 import type Redis from "ioredis";
 import {
 	GenericContainer,
@@ -21,6 +21,8 @@ const REDIS_PORT = 6379;
 const SENTINEL_PORT = 26379;
 // Sentinel fails over in ~2s here; the old master stays frozen for 60s.
 const FREEZE_SECONDS = 60;
+// down-after (1 s) + promotion (~2 s) + client backoff (200 ms × attempt) stay
+// under ~5 s locally; the deadline leaves a 4× margin for a slow CI runner.
 const FAILOVER_DEADLINE_MS = 20_000;
 
 interface Topology {
@@ -125,6 +127,18 @@ async function waitForPromotion({ sentinel, replica, network }: Topology) {
 	}
 }
 
+/** ioredis internals the reconnect race test drives (not part of its API). */
+interface SentinelInternals {
+	resolve(endpoint: unknown): Promise<unknown>;
+	failoverDetector?: { isDisconnected: boolean } | null;
+}
+
+async function waitUntil(condition: () => boolean | undefined): Promise<void> {
+	while (!condition()) {
+		await new Promise((resolve) => setTimeout(resolve, 50));
+	}
+}
+
 async function role(client: Redis): Promise<string> {
 	const [current] = (await client.call("ROLE")) as [string];
 	return current;
@@ -179,6 +193,31 @@ describe("createRedisConnectionManager (sentinel) — real failover", () => {
 		topology = await startTopology();
 		const client = await topology.manager.getConnection();
 		await writeReplicated(client);
+
+		await topology.master.stop();
+
+		await expectServedByPromotedReplica(client, topology.replica);
+	}, 120_000);
+
+	// Deterministic form of the CI flake (#451): the first reconnect asks the
+	// sentinel before the promotion and only returns once the detector of the
+	// closed connection has seen +switch-master, the window ioredis lost.
+	it("should survive a failover announced while it reconnects", async () => {
+		topology = await startTopology();
+		const client = await topology.manager.getConnection();
+		await writeReplicated(client);
+		const connector = (client as unknown as { connector: SentinelInternals })
+			.connector;
+		const resolve = connector.resolve.bind(connector);
+		const current = topology;
+		jest
+			.spyOn(connector, "resolve")
+			.mockImplementationOnce(async (endpoint) => {
+				const address = await resolve(endpoint);
+				await waitForPromotion(current);
+				await waitUntil(() => connector.failoverDetector?.isDisconnected);
+				return address;
+			});
 
 		await topology.master.stop();
 
