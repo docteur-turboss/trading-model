@@ -102,12 +102,12 @@ bun run commit               # Interactive gitmoji commit CLI
 
 GitHub Actions workflows:
 
-- **ci.yml** — on every push/PR: lint → typecheck (packages + services) → test+coverage (Codecov) → contract tests → E2E (Docker stack)
-- **release.yml** — on a `vX.Y.Z` tag push: full CI → Docker build/push as `:X.Y.Z` (see [release.md](docs/contributing/release.md))
+- **ci.yml** — on every push/PR: lint → typecheck (packages + services) → test+coverage (Codecov) → DB integration (Testcontainers) → observability gate → K8s overlays → contract tests → E2E (Docker stack) → K8s smoke test (kind)
+- **release.yml** — on a `vX.Y.Z` tag push: full CI → Docker build/push of 9 images (7 services + `spire-tools` + `backup-tools`) as `:X.Y.Z` (see [release.md](docs/contributing/release.md))
 - **deploy.yml** — manual staging/production deploy with rollback
 - **backup-test.yml** — weekly restore drill of the Docker backup scripts
 
-Pre-push git hook runs: `@biomejs/biome check` → `build` → `test`.
+Pre-push git hook runs: `biome check` → `deps:check` → `api:check` → `adr:check` → `reach:check` → `config:check` → observability gate → `build` → `test` → `test:contract` (see `.husky/pre-push`).
 
 ## Documentation
 
