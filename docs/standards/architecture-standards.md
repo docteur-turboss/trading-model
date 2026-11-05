@@ -50,7 +50,7 @@ trading-model/
 
 All developers contributing to the codebase. Every architectural decision aims to reduce onboarding time and eliminate structural ambiguity.
 
-> **See also:** [Bounded Contexts](../architecture/bounded-contexts.md) for DDD context maps, and [Database Schemas](../architecture/databases.md) for table definitions and entity types.
+> **See also:** [System Overview (C4, K8s deployment, market data flow)](../architecture/system-overview.md), [Bounded Contexts](../architecture/bounded-contexts.md) for DDD context maps, and [Database Schemas](../architecture/databases.md) for table definitions and entity types.
 
 ### Technology Stack
 
@@ -61,7 +61,7 @@ All developers contributing to the codebase. Every architectural decision aims t
 | API          | Express.js                                           |
 | Frontend     | None for now (ADR-0018)                              |
 | Security     | mTLS (all services)                                  |
-| Database     | MongoDB (message-manager), MySQL (financial-scraper) |
+| Database     | MongoDB (audit-logger, dlq-service), MySQL (financial-scraper, SPIRE datastore), Redis (discovery registry, message-manager subscriptions, dlq-service) |
 | Validation   | Zod                                                  |
 | Scheduling   | node-cron                                            |
 | Formatting   | Biome                                                |
@@ -88,17 +88,17 @@ Shared packages (base → derived):
 
 > **Dependency direction:** `@trading-model/primitives` and `@trading-model/contracts` are the foundation layers and depend on nothing higher in the chain — they must never import `http` or any upper-layer package. `@trading-model/common` sits just above them and has **no** dependency on `@trading-model/http`. The concrete logger lives in `@trading-model/http`; `@trading-model/contracts` exposes a `LoggerPort` registry (`@trading-model/contracts/logger-registry`) that http populates at import time — breaking what was previously a real `common ↔ http` cycle.
 
-Services and their `@trading-model/*` dependencies:
+Services and their `@trading-model/*` dependencies (the `dependencies` of each `package.json`, checked by `bun run deps:check`; the trader-trainer directory is the package `trader-service`):
 
-| Service            | Dependencies                                                                                     |
-| ------------------ | ------------------------------------------------------------------------------------------------ |
-| discovery-server   | common, crypto, http, server-utils, validation                                                   |
-| message-manager    | common, validation, http, server-utils, crypto, address-manager, broker-message                 |
-| financial-scraper  | common, validation, http, server-utils, crypto, address-manager, broker-message                 |
-| trader-trainer     | common, validation, http, server-utils, crypto, address-manager, broker-message                 |
-| audit-logger       | common, validation, http, server-utils, address-manager, broker-message                   |
-| dlq-service        | common, validation, http, server-utils, crypto, address-manager                                  |
-| api-gateway        | common, validation, http, server-utils, crypto                                                  |
+| Service | Dependencies |
+| --- | --- |
+| api-gateway | common, contracts, crypto, http, primitives, server-utils, validation |
+| audit-logger | address-manager, broker-message, common, contracts, http, persistence, primitives, server-utils, validation |
+| discovery-server | common, contracts, crypto, http, persistence, primitives, server-utils, validation |
+| dlq-service | address-manager, broker-message, common, contracts, crypto, http, persistence, primitives, reliability, server-utils, validation |
+| financial-scraper | address-manager, broker-message, common, contracts, crypto, http, primitives, server-utils, validation |
+| message-manager | address-manager, broker-message, common, contracts, crypto, http, persistence, primitives, reliability, server-utils, validation |
+| trader-service | address-manager, broker-message, common, contracts, crypto, http, primitives, server-utils, validation |
 
 There is no frontend workspace: `admin-interface` was removed until a new one is specified ([ADR-0018](../adr/0018-temporary-frontend-removal.md)). A future frontend talks to the backend only through the **api-gateway**.
 
