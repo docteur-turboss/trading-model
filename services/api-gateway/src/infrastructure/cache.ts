@@ -6,7 +6,7 @@ import { CACHE_HIT_RATIO, CACHE_SIZE } from "./config/metrics";
 export interface ResponseCacheEntry<TData = unknown> {
 	data: TData;
 	status: HttpStatusCode;
-	/** Length of the JSON body, counted against `MAX_BYTES`. */
+	/** JSON body length in UTF-16 code units (about its bytes), counted against `MAX_BYTES`. */
 	bytes?: number;
 	expiresAt: number;
 }

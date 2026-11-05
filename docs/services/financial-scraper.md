@@ -204,6 +204,12 @@ then its own and its sector's signals of its applicable dimensions in the
 window, oldest first, at most 5000 (`truncated: true` beyond: narrow the
 window); an asset the registry does not know answers 404.
 
+**Attribution**: the answer carries `sourceId`, not the credit of the
+`attribution` sources (ECB, SEC). Its clients are internal only: the trainer,
+and the admin dashboard behind the gateway (the whole platform is internal).
+Whatever shows or publishes their values outside gives the registry's
+`accessPolicy.attribution` text.
+
 **Consumers**: the data supply collects and serves every source; a consumer
 picks what it uses. The trainer (next phase) calls this route directly over
 mTLS (the scraper ACL admits `trader-trainer`), one training window at a time,
