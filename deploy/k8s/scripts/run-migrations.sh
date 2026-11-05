@@ -7,6 +7,8 @@
 # The key MYSQL_MIGRATE_PASSWORD must be in Secret trading-model-secrets before
 # the user job runs: a cluster deployed before it existed does not have it
 # (staging: the overlay that carries it is applied after the migrations).
+# SEALED_SECRETS_FILE=<SealedSecret manifest> (production): applied first when the
+# key is missing, then waited for (the controller creates the Secret).
 # SEED_MIGRATE_PASSWORD=true (staging only) creates it with a random value when
 # missing; otherwise a missing key stops here with an explicit error.
 # MIGRATE_IMAGE pins the image (deploy.yml passes the digest of the release);
@@ -34,15 +36,25 @@ run_job() { # <job> <manifest>
 }
 
 require_migrate_password() {
-  local v
+  local v i
   v=$(kubectl get secret trading-model-secrets -n "$NS" -o jsonpath='{.data.MYSQL_MIGRATE_PASSWORD}' 2>/dev/null || true)
   [ -n "$v" ] && return 0
+  if [ -n "${SEALED_SECRETS_FILE:-}" ]; then
+    # Production: the SealedSecret is otherwise applied with the overlay, after the migrations.
+    echo "MYSQL_MIGRATE_PASSWORD missing: applying $SEALED_SECRETS_FILE before the migrations"
+    kubectl apply -n "$NS" -f "$SEALED_SECRETS_FILE"
+    for i in $(seq 1 "${SEALED_WAIT_TRIES:-30}"); do
+      v=$(kubectl get secret trading-model-secrets -n "$NS" -o jsonpath='{.data.MYSQL_MIGRATE_PASSWORD}' 2>/dev/null || true)
+      [ -n "$v" ] && return 0
+      sleep 2
+    done
+  fi
   if [ "${SEED_MIGRATE_PASSWORD:-}" = true ]; then
     echo "MYSQL_MIGRATE_PASSWORD missing from trading-model-secrets: seeding a random one (the overlay replaces it later, the user job follows)"
-    kubectl patch secret trading-model-secrets -n "$NS" --type merge       -p "{\"stringData\":{\"MYSQL_MIGRATE_PASSWORD\":\"$(openssl rand -hex 16)\"}}"
+    kubectl patch secret trading-model-secrets -n "$NS" --type merge -p "{\"stringData\":{\"MYSQL_MIGRATE_PASSWORD\":\"$(openssl rand -hex 16)\"}}"
     return 0
   fi
-  echo "::error::Secret trading-model-secrets has no MYSQL_MIGRATE_PASSWORD. Seal it first (bash scripts/init-sealed-secrets.sh, see docs/deployment/sealed-secrets.md), then rerun."
+  echo "::error::Secret trading-model-secrets has no MYSQL_MIGRATE_PASSWORD (staging: rerun with SEED_MIGRATE_PASSWORD=true). Production: seal it into deploy/k8s/secrets/trading-model-sealed-secrets.yaml, then the controller must create it (kubectl apply -f deploy/k8s/secrets/trading-model-sealed-secrets.yaml; kubectl get sealedsecret trading-model-secrets -n $NS). WARNING: init-sealed-secrets.sh draws random values for every key you do not provide, MYSQL_ROOT_PASSWORD included, which would no longer match the initialised MySQL: seal ONLY the new key, or pass the existing values through the environment (docs/deployment/sealed-secrets.md)."
   exit 1
 }
 

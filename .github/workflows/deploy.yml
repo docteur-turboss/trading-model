@@ -499,7 +499,9 @@ jobs:
           digest=$(awk '$1 == "db-migrate" { print $2 }' "$RUNNER_TEMP/image-digests")
           # Staging seeds MYSQL_MIGRATE_PASSWORD when missing (its Secret generator
           # is applied after this step); production needs it in the SealedSecret.
-          SEED_MIGRATE_PASSWORD=$([ "${{ inputs.environment }}" = staging ] && echo true || echo false) \
+          if [ "${{ inputs.environment }}" = staging ]; then export SEED_MIGRATE_PASSWORD=true
+          else export SEALED_SECRETS_FILE=deploy/k8s/secrets/trading-model-sealed-secrets.yaml; fi
+\
           MIGRATE_IMAGE="${{ steps.tag.outputs.registry }}/db-migrate@$digest" \
             bash deploy/k8s/scripts/run-migrations.sh "$NS"
 

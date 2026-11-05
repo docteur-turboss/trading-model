@@ -16,7 +16,11 @@ mkdir -p "$WORK/bin"
 cat >"$WORK/bin/kubectl" <<'STUB'
 #!/usr/bin/env bash
 echo "$*" >>"$STUB_LOG"
-if [ "$1" = get ] && [ "$2" = secret ]; then printf '%s' "${STUB_KEY:-}"; exit 0; fi
+if [ "$1" = get ] && [ "$2" = secret ]; then
+  # STUB_KEY_AFTER_APPLY: the key shows up once the SealedSecret was applied
+  if [ -n "${STUB_KEY_AFTER_APPLY:-}" ] && grep -q '^apply .*sealed' "$STUB_LOG"; then printf '%s' "$STUB_KEY_AFTER_APPLY"; else printf '%s' "${STUB_KEY:-}"; fi
+  exit 0
+fi
 exit 0
 STUB
 chmod +x "$WORK/bin/kubectl"
@@ -35,5 +39,15 @@ STUB_KEY= SEED_MIGRATE_PASSWORD=true run bash "$RUN" ns
 
 STUB_KEY=c2VjcmV0 run bash "$RUN" ns user-only
 { [ $RC = 0 ] && grep -q 'job/db-migrate-user ' "$STUB_LOG" && ! grep -q 'job/db-migrate ' "$STUB_LOG"; } && ok "user-only: no migration job" || ko "user-only"
+
+export SEALED_WAIT_TRIES=1
+printf '#!/usr/bin/env bash
+exit 0
+' >"$WORK/bin/sleep"; chmod +x "$WORK/bin/sleep"
+STUB_KEY= STUB_KEY_AFTER_APPLY=c2VjcmV0 SEALED_SECRETS_FILE=sealed.yaml run bash "$RUN" ns
+{ [ $RC = 0 ] && grep -q '^apply .*sealed.yaml' "$STUB_LOG" && grep -q 'job/db-migrate-user ' "$STUB_LOG"; } && ok "key missing (production, existing cluster): SealedSecret applied first, jobs run" || ko "sealed apply"
+
+STUB_KEY= SEALED_SECRETS_FILE=sealed.yaml run bash "$RUN" ns
+{ [ $RC = 1 ] && grep -q 'MYSQL_ROOT_PASSWORD' <<<"$OUT" && ! grep -q 'job/' "$STUB_LOG"; } && ok "key still missing after apply: error with command and root-password warning" || ko "sealed timeout"
 
 exit $FAILED
