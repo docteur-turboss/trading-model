@@ -148,7 +148,8 @@ All routes use Zod-validated parameters and return standardized error responses 
 
 | Package                          | Role                                                                                       |
 | -------------------------------- | ------------------------------------------------------------------------------------------ |
-| `@trading-model/common`          | Bootstrap, server factory (`createSecureServer`), shared types, error classes, event types |
+| `@trading-model/common`          | Bootstrap, shared types, error classes, event types |
+| `@trading-model/server-utils`    | Server factory (`createSecureServer`) |
 | `@trading-model/address-manager` | Service discovery client (register, heartbeat, token rotation)                             |
 | `@trading-model/broker-message`  | Message bus SDK (publish events with topics and metadata)                                  |
 
