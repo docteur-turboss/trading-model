@@ -83,7 +83,7 @@ There is no frontend for now: the admin SPA was removed until a new one is speci
 | [Compliance](compliance/README.md) | GDPR, MiFID II, MAR, DORA documentation |
 | [Glossary](glossary/README.md) | Domain terms (GA, DQN, mTLS, Sharpe ratio, etc.) |
 | [Contributing](contributing/README.md) | Contribution workflow, [release](contributing/release.md), adding services, documentation standards |
-| [Examples](../../examples/) | Executable API workflow scripts |
+| [Examples](../examples/) | Executable API workflow scripts |
 
 ## Code Documentation
 

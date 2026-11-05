@@ -146,4 +146,4 @@ See [ARCHITECTURE.md](./ARCHITECTURE.md) for the detailed architecture documenta
 
 ## API Endpoints
 
-See [API.md](./API.md) for the REST API reference.
+See [docs/services/financial-scraper.md](../../docs/services/financial-scraper.md) for the REST API reference.
