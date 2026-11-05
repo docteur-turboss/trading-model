@@ -16,7 +16,7 @@ Welcome to the **trading-model** documentation.
 | [Architecture Standards](standards/architecture-standards.md) | Monorepo structure, tech stack, service conventions, dependency graph |
 | [Bounded Contexts](architecture/bounded-contexts.md) | DDD context map with integration patterns |
 | [Databases](architecture/databases.md) | MySQL schemas, MongoDB collections, entity definitions |
-| [ADR Index](adr/README.md) | 11 architecture decision records |
+| [ADR Index](adr/README.md) | Architecture decision records |
 
 ## Concepts
 

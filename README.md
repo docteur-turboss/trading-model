@@ -115,7 +115,7 @@ Pre-push git hook runs: `@biomejs/biome check` → `build` → `test`.
 - [System Overview](docs/architecture/system-overview.md) — C4 context and containers, K8s deployment, market data flow
 - [Architecture Standards](docs/standards/architecture-standards.md) — dependency graph, service conventions
 - [OpenAPI 3.0](docs/services/openapi/api-gateway.yaml) — generated from the services' routes (`bun run api:write`, checked by `bun run api:check`)
-- [ADR Index](docs/adr/README.md) — 11 architecture decision records
+- [ADR Index](docs/adr/README.md) — architecture decision records
 - [Compliance](docs/compliance/) — GDPR register, DPIA, retention policy, breach notification
 - [Operations](docs/operations/) — runbooks, SLOs, incident response, diagnostic guide
 - [Getting Started](docs/getting-started/quickstart.md) — 10-minute hands-on introduction
