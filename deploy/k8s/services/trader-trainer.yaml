@@ -21,7 +21,6 @@ metadata:
     app.kubernetes.io/component: trader-trainer
     app.kubernetes.io/part-of: trading-model
 spec:
-  replicas: 2
   revisionHistoryLimit: 3
   strategy:
     type: RollingUpdate

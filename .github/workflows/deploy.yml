@@ -519,6 +519,26 @@ jobs:
             echo "$dep ${rev:-none}"
           done | tee "$RUNNER_TEMP/deploy-revisions"
 
+      # Deployments driven by an HPA carry no spec.replicas in the overlay. A
+      # client-side apply of a manifest that drops a field it applied before
+      # resets it to the default (1), so the field leaves
+      # last-applied-configuration first (Kubernetes docs, "Migrating
+      # Deployments and StatefulSets to horizontal autoscaling"). No-op once done
+      # and on a first deploy (no HPA yet).
+      - name: Release replicas of autoscaled Deployments
+        shell: bash
+        run: |
+          NS="${{ steps.ns.outputs.namespace }}"
+          ANN='kubectl.kubernetes.io/last-applied-configuration'
+          for dep in $(kubectl get hpa -n "$NS" \
+              -o jsonpath='{range .items[?(@.spec.scaleTargetRef.kind=="Deployment")]}{.spec.scaleTargetRef.name}{"\n"}{end}'); do
+            last=$(kubectl get deployment "$dep" -n "$NS" -o json | jq -r --arg a "$ANN" '.metadata.annotations[$a] // empty')
+            [ -n "$last" ] || continue
+            echo "$last" | jq -e '.spec | has("replicas")' > /dev/null || continue
+            kubectl annotate deployment "$dep" -n "$NS" --overwrite "$ANN=$(echo "$last" | jq -c 'del(.spec.replicas)')"
+            echo "$dep: spec.replicas removed from last-applied-configuration"
+          done
+
       - name: Apply overlay
         id: apply
         shell: bash
