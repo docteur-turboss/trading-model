@@ -516,16 +516,19 @@ jobs:
           CANARY_GATE_SECONDS: ${{ vars.CANARY_GATE_SECONDS || '120' }}
           CANARY_MIN_REQUESTS: ${{ vars.CANARY_MIN_REQUESTS || '20' }}
           CANARY_ERROR_THRESHOLD_PCT: ${{ vars.CANARY_ERROR_THRESHOLD_PCT || '5' }}
+          # Services whose gate is readiness only (no steady traffic): dlq-service
+          # only gets requests on a dead letter or an admin call.
+          CANARY_READINESS_ONLY: ${{ vars.CANARY_READINESS_ONLY || 'dlq-service' }}
         run: |
           NS="${{ steps.ns.outputs.namespace }}"
           export K8S_NAMESPACE="$NS"
           export CANARY_IMAGE_REPO="${{ steps.tag.outputs.registry }}"
           chmod +x deploy/k8s/scripts/deploy-k8s.sh
           TAG="${{ steps.tag.outputs.tag }}"
-          for dep in discovery-server message-manager financial-scraper trader-trainer \
-                     api-gateway audit-logger dlq-service; do
-            ./deploy/k8s/scripts/deploy-k8s.sh canary "$dep" "$TAG" 10
-          done
+          # Created in parallel, observed over one CANARY_GATE_SECONDS window.
+          ./deploy/k8s/scripts/deploy-k8s.sh canary-all "$TAG" 10 \
+            discovery-server message-manager financial-scraper trader-trainer \
+            api-gateway audit-logger dlq-service
 
       # Revision each Deployment runs before the overlay: the rollback returns to
       # exactly it (image and hashed ConfigMap), not to "the one before the
