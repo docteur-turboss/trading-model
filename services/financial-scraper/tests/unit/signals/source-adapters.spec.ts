@@ -133,6 +133,17 @@ describe("ecb-sdmx-series", () => {
 			"ECB series without a UNIT attribute",
 		],
 		[
+			"a UNIT attribute without value",
+			(payload: any) => {
+				const position = payload.structure.attributes.series.findIndex(
+					(attribute: { id: string }) => attribute.id === "UNIT"
+				);
+				const [series] = Object.values<any>(payload.dataSets[0].series);
+				series.attributes[position] = null;
+			},
+			"ECB series without a UNIT attribute",
+		],
+		[
 			"an observation outside the periods",
 			(payload: any) => {
 				const [series] = Object.values<any>(payload.dataSets[0].series);

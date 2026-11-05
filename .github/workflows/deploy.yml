@@ -603,6 +603,11 @@ jobs:
           # jobs/ packages scripts/backup-k8s.sh from outside its directory: the default
           # load restrictor rejects it and kubectl apply -k cannot relax it.
           kubectl kustomize --load-restrictor LoadRestrictionsNone "$WRAPPER" | kubectl apply -f -
+          # The former secret-rotation CronJob (issue #424) held write rights on every
+          # Secret; apply never prunes, so remove what an older deploy left behind.
+          kubectl delete cronjob/secret-rotation role/secret-rotator-role \
+            rolebinding/secret-rotator-binding serviceaccount/secret-rotator \
+            -n "${{ steps.ns.outputs.namespace }}" --ignore-not-found
 
       # Public age key(s) the db-backup CronJob encrypts every dump for (the
       # private keys never enter the cluster). Environment variable of the

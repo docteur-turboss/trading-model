@@ -13,11 +13,14 @@ jest.mock("ioredis", () => {
 	class MockRedis {
 		static lastOptions: Record<string, unknown> | undefined;
 
+		readonly listeners: Record<string, () => void> = {};
+
 		constructor(options?: Record<string, unknown>) {
 			MockRedis.lastOptions = options;
 		}
 
-		on(): this {
+		on(event: string, listener: () => void): this {
+			this.listeners[event] = listener;
 			return this;
 		}
 	}
@@ -84,6 +87,24 @@ describe("createSentinel", () => {
 			password: "secret",
 		});
 		expect(client).toBeInstanceOf(Redis);
+	});
+
+	it("should retire the failover detector when the connection closes", () => {
+		const client = createSentinel({
+			sentinels: [{ host: "127.0.0.1" as never, port: 26379 as never }],
+			name: "mymaster",
+		}) as unknown as {
+			connector?: { failoverDetector: { cleanup: jest.Mock } | null };
+			listeners: Record<string, () => void>;
+		};
+		const cleanup = jest.fn();
+
+		// Before the first connection there is no detector to retire.
+		client.listeners.close();
+		client.connector = { failoverDetector: { cleanup } };
+		client.listeners.close();
+
+		expect(cleanup).toHaveBeenCalledTimes(1);
 	});
 });
 
