@@ -6,44 +6,44 @@ tags: [state, memory, architecture, verification]
 statut: actif
 ---
 
-# État du système (STATE.md)
+# System State (STATE.md)
 
-> **Mémoire canonique du dépôt.** La fenêtre de contexte d'un agent est du travail
-> en cours, pas de la mémoire. Le dépôt EST la mémoire : cette page est sa carte.
-> Elle est relue à chaque démarrage à froid — par un humain comme par un agent.
+> **Canonical repository memory.** An agent's context window is work in progress,
+> not memory. The repository IS the memory: this page is its map.
+> It is re-read at every cold start, by a human or an agent.
 
-## Ce que c'est
+## What it is
 
-`trading-model` est un monorepo de trading algorithmique : 11 packages partagés
-(scopés `@trading-model/*`) + 7 microservices, liés par bun workspaces.
+`trading-model` is an algorithmic trading monorepo: 11 shared packages
+(scoped `@trading-model/*`) + 7 microservices, linked by bun workspaces.
 
 - **Packages** : primitives, contracts, reliability, common, persistence, http, validation, server-utils, crypto, address-manager, broker-message
-- **Services** : message-manager, discovery-server, financial-scraper, trader-trainer (nom de package : `trader-service`), api-gateway, audit-logger, dlq-service. Pas de frontend : `admin-interface` retiré temporairement (ADR-0018)
-- **Données** : MySQL (financial-scraper, datastore SPIRE), MongoDB (audit-logger, dlq-service), Redis (message-manager)
-- **Identité/mTLS** : SPIRE/SPIFFE (ADR-0011) — obligatoire en Docker et K8s
-- **Version courant** : `2.0.3` — release via GitHub Actions (workflow `Release`)
+- **Services**: message-manager, discovery-server, financial-scraper, trader-trainer (package name: `trader-service`), api-gateway, audit-logger, dlq-service. No frontend: `admin-interface` temporarily removed (ADR-0018)
+- **Data**: MySQL (financial-scraper, SPIRE datastore), MongoDB (audit-logger, dlq-service), Redis (message-manager)
+- **Identity/mTLS**: SPIRE/SPIFFE (ADR-0011), mandatory in Docker and K8s
+- **Current version**: `2.0.3`, released through GitHub Actions (`Release` workflow)
 
-## Invariants non négociables
+## Non-negotiable invariants
 
-1. Build ordonné : les 11 packages dans l'ordre de dépendance (voir `AGENTS.md`), puis les services.
-2. Couverture de tests ≥ 80 % (branches fonction-lignes), seuils dérogatoires versionnés.
-3. Qualité : lint (Biome 0 erreur) et tests verts avant tout push — voir `docs/ci-cd/README.md`.
-4. Numérotation des migrations SQL ascendante ; journaux append-only.
-5. Aucun secret en clair dans le dépôt (env vars / secrets scellés).
+1. Ordered build: the 11 packages in dependency order (see [`AGENTS.md`](../AGENTS.md)), then the services.
+2. Test coverage ≥ 80% (branches, functions, lines); exceptions are versioned.
+3. Quality: lint (Biome, 0 errors) and tests green before any push. See [CI/CD](ci-cd/README.md).
+4. SQL migration numbering is ascending; journals are append-only.
+5. No plaintext secret in the repository (env vars / sealed secrets).
 
-## Protocole de démarrage à froid (cold-start)
+## Cold-start protocol
 
-Ordre de lecture imposé — ne jamais tout lire d'un coup :
+Mandatory reading order. Never read everything at once:
 
-1. `AGENTS.md` — commandes, layout, pièges (trader-trainer ≠ trader-service).
-2. **Ce fichier** (`docs/STATE.md`) — la carte.
-3. Uniquement ensuite : `docs/standards/*`, la doc du service concerné (`docs/services/*`), les ADRs (`docs/adr/`), les specs (`docs/spec/SPEC-*.md`).
-4. Les tests comme mémoire exécutable : casser un test doit être une découverte, pas une surprise.
+1. [`AGENTS.md`](../AGENTS.md): commands, layout, pitfalls (trader-trainer ≠ trader-service).
+2. **This file** (`docs/STATE.md`): the map.
+3. Only then: `docs/standards/*`, the docs of the relevant service (`docs/services/*`), the ADRs (`docs/adr/`), the specs (`docs/spec/SPEC-*.md`).
+4. Tests as executable memory: breaking a test must be a discovery, not a surprise.
 
-## Liens
+## Links
 
-- [[README]] — entrée racine
-- [[docs/standards/README]] — standards qualité
-- [[docs/ci-cd/README]] — pipeline CI/CD
-- [[docs/adr/README]] — décisions d'architecture
-- [[docs/spec/TEMPLATE]] — gabarit de spec (exigences traçables)
+- [Root README](../README.md): repository entry point
+- [Quality standards](standards/README.md)
+- [CI/CD pipeline](ci-cd/README.md)
+- [Architecture decisions (ADRs)](adr/README.md)
+- [Spec template](spec/TEMPLATE.md): traceable requirements

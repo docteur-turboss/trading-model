@@ -127,7 +127,7 @@ function checkInventory(workspaces) {
   const state = readFileSync(join(ROOT, 'docs/STATE.md'), 'utf8');
   const readme = readFileSync(join(ROOT, 'README.md'), 'utf8');
   const stateLine = state.match(/^- \*\*Packages\*\* : (.+)$/m)?.[1];
-  const stateCount = state.match(/(\d+) packages partagés/)?.[1];
+  const stateCount = state.match(/(\d+) shared packages/)?.[1];
   const readmeTable = readme.match(/### Shared Packages\r?\n([\s\S]*?)\r?\n\r?\n/)?.[1];
   const lists = {
     'docs/STATE.md': stateLine?.split(',').map((n) => SCOPE + n.trim()),
