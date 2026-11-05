@@ -1,6 +1,6 @@
 # Troubleshooting
 
-Common issues grouped by category. For per-service debugging, see [Diagnostic Guide](diagnostic-guide.md).
+Common issues grouped by category. For per-service debugging, see [Diagnostic Guide](diagnostic-guide.md). For an `AppError` code seen in a response or log, see the [error code catalog](../reference/error-codes.md).
 
 ---
 
