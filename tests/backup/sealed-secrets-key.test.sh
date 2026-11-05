@@ -1,0 +1,357 @@
+#!/usr/bin/env bash
+# Backup and restore of the SealedSecrets controller keys (issue #328):
+# scripts/backup-sealed-secrets-key.sh and scripts/restore-sealed-secrets-key.sh
+# against stub `kubectl` and `rclone` commands (the real loop, with a real
+# controller on kind, is tests/k8s/sealed-secrets-key-drill.sh). Checks: the
+# keys reach the bucket encrypted for every recipient, no plaintext is ever
+# written, exit 1 and nothing in the bucket when no key is found, the export,
+# age or the copy fails; the restore picks the newest backup (or
+# --timestamp), refuses a wrong key before applying anything, restarts the
+# controller, and fails when a restored key is not found by name afterwards;
+# sealed-secrets-backup-identity.sh applies a Role limited to list Secrets and
+# prints a kubeconfig for it on stdout only, --rotate replaces the token, and
+# it refuses kube-system; install-sealed-secrets.sh refuses kube-system and a
+# controller.yaml whose checksum does not match (ADR-0035).
+# Needs bash and age.
+#   bash tests/backup/sealed-secrets-key.test.sh
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+BACKUP="$ROOT/scripts/backup-sealed-secrets-key.sh"
+RESTORE="$ROOT/scripts/restore-sealed-secrets-key.sh"
+WORK="$(mktemp -d)"
+trap 'rm -rf "$WORK"' EXIT
+FAILED=0
+
+pass() { echo "  ✓ $*"; }
+failed() {
+	echo "  ✗ $*"
+	FAILED=1
+}
+
+for k in operator escrow foreign; do
+	age-keygen -o "$WORK/$k.txt" 2>/dev/null
+	chmod 600 "$WORK/$k.txt"
+done
+pub() { sed -n 's/^# public key: //p' "$WORK/$1.txt"; }
+OPERATOR="$(pub operator)" ESCROW="$(pub escrow)"
+
+# Plaintext marker of the fake private keys: must never be found on disk
+# outside the stub cluster.
+MARKER="UExBSU5URVhULVBSSVZBVEUtS0VZ"
+mkdir -p "$WORK/bin" "$WORK/tmp"
+
+# --- stub kubectl --------------------------------------------------------------
+# STUB_KEYS: number of key Secrets the cluster holds; STUB_EXPORT_FAIL=1: the
+# export (go-template) fails; STUB_CONTROLLER=1: the controller Deployment
+# exists; STUB_LOST=1: the keys vanish after apply; STUB_PARTIAL=1: the last
+# applied key is missing but the cluster holds a key of its own (same count). Calls are logged in
+# $STUB_STATE/calls, applied manifests in $STUB_STATE/applied.yaml (the stub
+# cluster: plaintext there is expected).
+cat >"$WORK/bin/kubectl" <<'EOF'
+#!/usr/bin/env bash
+echo "kubectl $*" >>"$STUB_STATE/calls"
+args=" $* "
+case "$args" in
+*" config view "*"cluster.server"*) [ "${STUB_NO_CONTEXT:-0}" = 1 ] || echo "https://api.example.net:6443" ;;
+*" config view "*"certificate-authority-data"*) [ "${STUB_NO_CONTEXT:-0}" = 1 ] || echo "Q0EtREFUQQ==" ;;
+*" get secret sealed-secrets-key-backup-token "*)
+	[ "${STUB_NO_TOKEN:-0}" = 1 ] || printf '%s' "stub-sa-token" | base64
+	;;
+*" delete secret sealed-secrets-key-backup-token "*) exit 0 ;;
+*" get secret "*"-o name"*)
+	if [ -f "$STUB_STATE/applied.yaml" ] && [ "${STUB_PARTIAL:-0}" = 1 ]; then
+		echo "secret/sealed-secrets-keyown"
+		sed -n 's/^    name: /secret\//p' "$STUB_STATE/applied.yaml" | sed '$d'
+	elif [ -f "$STUB_STATE/applied.yaml" ] && [ "${STUB_LOST:-0}" != 1 ]; then
+		sed -n 's/^    name: /secret\//p' "$STUB_STATE/applied.yaml"
+	elif [ ! -f "$STUB_STATE/applied.yaml" ]; then
+		for i in $(seq 1 "${STUB_KEYS:-0}"); do echo "secret/sealed-secrets-key$i"; done
+	fi
+	;;
+*" get secret "*"-o go-template="*)
+	[ "${STUB_EXPORT_FAIL:-0}" = 1 ] && { echo "error: export" >&2; exit 1; }
+	printf 'apiVersion: v1\nkind: List\nitems:\n'
+	for i in $(seq 1 "${STUB_KEYS:-0}"); do
+		printf -- '- apiVersion: v1\n  kind: Secret\n  type: kubernetes.io/tls\n  metadata:\n    name: sealed-secrets-key%s\n    labels:\n      sealedsecrets.bitnami.com/sealed-secrets-key: "active"\n  data:\n    tls.key: %s%s\n' "$i" "$MARKER" "$i"
+	done
+	;;
+*" get namespace "*) exit 0 ;;
+*" apply -f - "*) cat >"$STUB_STATE/applied.yaml" ;;
+*" get deployment "*) [ "${STUB_CONTROLLER:-0}" = 1 ] ;;
+*" rollout "*) exit 0 ;;
+*) echo "stub kubectl: unexpected $*" >&2; exit 1 ;;
+esac
+EOF
+# --- stub rclone: `:s3:<path>` is $STUB_S3/<path> --------------------------------
+cat >"$WORK/bin/rclone" <<'EOF'
+#!/usr/bin/env bash
+[ "${STUB_RCLONE_FAIL:-0}" = 1 ] && { echo "stub rclone: unreachable" >&2; exit 1; }
+path() { echo "$STUB_S3/${1#:s3:}"; }
+case "$1" in
+copy)
+	shift
+	while [ "$1" != "--files-from" ]; do shift; done
+	list="$2" src="$3" dest="$(path "$4")"
+	while read -r f; do mkdir -p "$(dirname "$dest/$f")"; cp "$src/$f" "$dest/$f"; done <"$list"
+	;;
+lsf) d="$(path "${!#}")"; [ -d "$d" ] && ls "$d" ;;
+copyto) cp "$(path "$2")" "$3" ;;
+*) echo "stub rclone: unexpected $*" >&2; exit 1 ;;
+esac
+EOF
+mkdir -p "$WORK/nosleep"
+printf '#!/bin/sh
+exit 0
+' >"$WORK/nosleep/sleep"
+chmod +x "$WORK/bin/kubectl" "$WORK/bin/rclone" "$WORK/nosleep/sleep"
+
+export PATH="$WORK/bin:$PATH" TMPDIR="$WORK/tmp" MARKER
+export BACKUP_S3_BUCKET="s3://bucket/prefix"
+export STUB_S3="$WORK/s3"
+BUCKET_DIR="$STUB_S3/bucket/prefix/sealed-secrets-key"
+
+# fresh: new stub cluster and empty bucket.
+fresh() {
+	rm -rf "$STUB_S3" "$WORK/state"
+	mkdir -p "$WORK/state"
+	export STUB_STATE="$WORK/state"
+}
+# no_plaintext <name>: the marker is nowhere on disk but in the stub cluster.
+no_plaintext() {
+	if grep -rqF "$MARKER" "$STUB_S3" "$WORK/tmp" "$WORK/dest" 2>/dev/null; then
+		failed "$1: plaintext key written to disk"
+	else
+		pass "$1: no plaintext on disk"
+	fi
+}
+backup() {
+	BACKUP_AGE_RECIPIENTS="${RECIPIENTS-$OPERATOR $ESCROW}" bash "$BACKUP" "$@" >"$WORK/out.log" 2>&1
+}
+backups() { find "$STUB_S3" -name '*.yaml.age' 2>/dev/null | wc -l | tr -d ' '; }
+
+echo "backup-sealed-secrets-key.sh"
+fresh
+if STUB_KEYS=3 backup --dest "$WORK/dest"; then
+	pass "3 keys: exit 0"
+else
+	failed "3 keys: exit 1"; cat "$WORK/out.log"
+fi
+FILE="$(find "$BUCKET_DIR" -name 'sealed-secrets-key_*.yaml.age' 2>/dev/null | head -1)"
+if [[ "$(basename "${FILE:-none}")" =~ ^sealed-secrets-key_[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{6}\.yaml\.age$ ]]; then
+	pass "copied to <bucket>/sealed-secrets-key/sealed-secrets-key_<TIMESTAMP>.yaml.age"
+else
+	failed "no sealed-secrets-key_<TIMESTAMP>.yaml.age in the bucket"
+fi
+for k in operator escrow; do
+	if [ -n "$FILE" ] && [ "$(age -d -i "$WORK/$k.txt" "$FILE" | grep -c "tls.key: ${MARKER}")" -eq 3 ]; then
+		pass "the ${k} key decrypts all 3 keys"
+	else
+		failed "the ${k} key does not decrypt the 3 keys"
+	fi
+done
+[ -n "$FILE" ] && cmp -s "$FILE" "$WORK/dest/$(basename "$FILE")" && pass "--dest keeps the same encrypted file" || failed "--dest copy missing"
+no_plaintext "successful backup"
+[ -z "$(ls -A "$WORK/tmp")" ] && pass "temporary directory removed" || failed "temporary files left in TMPDIR"
+grep -q -- "-n sealed-secrets get secret" "$STUB_STATE/calls" && pass "reads the default controller namespace sealed-secrets" || failed "sealed-secrets not read"
+[ "$(grep -c "get secret" "$STUB_STATE/calls")" -eq 1 ] && pass "one read of the cluster: count, log and export agree" || failed "the keys are read more than once"
+grep -q "3 key(s): sealed-secrets-key1 sealed-secrets-key2 sealed-secrets-key3" "$WORK/out.log" && pass "logs the names of the exported keys" || failed "key names not logged"
+fresh
+SEALED_SECRETS_NAMESPACE=other-ns STUB_KEYS=1 backup >/dev/null 2>&1 || true
+grep -q -- "-n other-ns get secret" "$STUB_STATE/calls" && pass "SEALED_SECRETS_NAMESPACE picks the namespace" || failed "SEALED_SECRETS_NAMESPACE ignored"
+
+# refused <name> <env...>: the backup exits 1 and leaves no file in the bucket.
+refused() {
+	local name="$1"
+	shift
+	fresh
+	rm -rf "$WORK/dest"
+	if env "$@" bash -c 'BACKUP_AGE_RECIPIENTS="${RECIPIENTS-$0}" bash "$1" --dest "$2"' "$OPERATOR $ESCROW" "$BACKUP" "$WORK/dest" >"$WORK/out.log" 2>&1; then
+		failed "${name}: exit 0"
+	elif [ "$(backups)" -ne 0 ] || [ -n "$(find "$WORK/dest" -type f 2>/dev/null)" ]; then
+		failed "${name}: a file was left"
+	else
+		pass "${name}: exit 1, nothing written"
+	fi
+	no_plaintext "$name" >/dev/null
+}
+refused "no key in the namespace" STUB_KEYS=0
+refused "export fails" STUB_KEYS=2 STUB_EXPORT_FAIL=1
+refused "no recipient" STUB_KEYS=2 RECIPIENTS=
+refused "invalid recipient (age fails)" STUB_KEYS=2 RECIPIENTS=age1notakey
+refused "fewer recipients than BACKUP_MIN_RECIPIENTS" STUB_KEYS=2 RECIPIENTS="$OPERATOR" BACKUP_MIN_RECIPIENTS=2
+refused "no off-site bucket" STUB_KEYS=2 BACKUP_S3_BUCKET=
+fresh
+if STUB_KEYS=2 STUB_RCLONE_FAIL=1 backup; then
+	failed "off-site copy fails: exit 0"
+else
+	pass "off-site copy fails: exit 1"
+fi
+no_plaintext "failed copy"
+
+echo "restore-sealed-secrets-key.sh"
+# Two backups: an old one with 1 key, the newest with 2.
+fresh
+STUB_KEYS=1 backup
+OLD="$(basename "$(find "$BUCKET_DIR" -name '*.yaml.age')")"
+mv "$BUCKET_DIR/$OLD" "$BUCKET_DIR/sealed-secrets-key_2026-01-01_000000.yaml.age"
+STUB_KEYS=2 backup
+SAVED_S3="$WORK/s3-saved"
+rm -rf "$SAVED_S3"
+cp -r "$STUB_S3" "$SAVED_S3"
+
+# restore <args...>: on a new stub cluster with the two backups.
+restore() {
+	rm -rf "$WORK/state" "$STUB_S3"
+	mkdir -p "$WORK/state"
+	cp -r "$SAVED_S3" "$STUB_S3"
+	bash "$RESTORE" "$@" >"$WORK/out.log" 2>&1
+}
+applied_keys() { grep -c '^  kind: Secret$' "$STUB_STATE/applied.yaml" 2>/dev/null || echo 0; }
+
+if restore --identity "$WORK/escrow.txt" && [ "$(applied_keys)" -eq 2 ]; then
+	pass "newest backup restored (2 keys) with the escrow key"
+else
+	failed "newest backup not restored"; cat "$WORK/out.log"
+fi
+no_plaintext "restore" >/dev/null
+[ -z "$(ls -A "$WORK/tmp")" ] && pass "restore leaves no temporary file" || failed "restore left temporary files"
+grep -q "rollout restart" "$STUB_STATE/calls" && failed "restarted a controller that does not exist" || pass "no controller yet: not restarted"
+if restore --identity "$WORK/operator.txt" --timestamp 2026-01-01_000000 && [ "$(applied_keys)" -eq 1 ]; then
+	pass "--timestamp restores that backup"
+else
+	failed "--timestamp ignored"
+fi
+if STUB_CONTROLLER=1 restore --identity "$WORK/operator.txt" && grep -q "rollout restart deployment sealed-secrets-controller" "$STUB_STATE/calls"; then
+	pass "running controller restarted"
+else
+	failed "running controller not restarted"
+fi
+if restore --identity "$WORK/foreign.txt" || [ -f "$STUB_STATE/applied.yaml" ]; then
+	failed "a key that does not decrypt the backup: accepted or applied"
+else
+	pass "a key that does not decrypt the backup: exit 1, nothing applied"
+fi
+if restore --identity "$WORK/operator.txt" --timestamp 2025-01-01_000000; then
+	failed "absent --timestamp: exit 0"
+else
+	pass "absent --timestamp: exit 1"
+fi
+if STUB_LOST=1 restore --identity "$WORK/operator.txt"; then
+	failed "keys missing after apply: exit 0"
+else
+	pass "keys missing after apply: exit 1"
+fi
+if STUB_PARTIAL=1 restore --identity "$WORK/operator.txt"; then
+	failed "a restored key missing, hidden by a key of the new controller: exit 0"
+elif grep -q "missing in sealed-secrets after the restore: sealed-secrets-key2" "$WORK/out.log"; then
+	pass "a restored key missing, hidden by a key of the new controller: exit 1, named"
+else
+	failed "missing key not named"; cat "$WORK/out.log"
+fi
+if BACKUP_S3_BUCKET=s3://bucket/empty restore --identity "$WORK/operator.txt"; then
+	failed "empty bucket: exit 0"
+else
+	pass "empty bucket: exit 1"
+fi
+NEWEST="$(find "$SAVED_S3" -name '*.yaml.age' | sort | tail -1)"
+if restore --identity "$WORK/operator.txt" --file "$NEWEST" && [ "$(applied_keys)" -eq 2 ]; then
+	pass "--file restores a local encrypted export"
+else
+	failed "--file failed"
+fi
+if restore --identity "$WORK/operator.txt" --file "$NEWEST" --offsite; then
+	failed "--file with --offsite: exit 0"
+else
+	pass "--file with --offsite: exit 1"
+fi
+
+echo "sealed-secrets-backup-identity.sh"
+IDENTITY="$ROOT/scripts/sealed-secrets-backup-identity.sh"
+# identity <args...>: kubeconfig on $WORK/identity.out, messages on .log.
+identity() {
+	fresh
+	bash "$IDENTITY" "$@" >"$WORK/identity.out" 2>"$WORK/identity.log"
+}
+if identity; then
+	pass "exit 0"
+else
+	failed "exit 1"; cat "$WORK/identity.log"
+fi
+# The Role: list on secrets, nothing else.
+RULES="$(sed -n '/^kind: Role$/,/^---$/p' "$STUB_STATE/applied.yaml" | sed -n '/^rules:/,/^---$/p')"
+if grep -qF 'resources: ["secrets"]' <<<"$RULES" && grep -qF 'verbs: ["list"]' <<<"$RULES" &&
+	[ "$(grep -c 'verbs:' <<<"$RULES")" -eq 1 ] && [ "$(grep -c 'resources:' <<<"$RULES")" -eq 1 ]; then
+	pass "Role allows list on secrets only"
+else
+	failed "Role is not list-secrets only: $RULES"
+fi
+grep -q '^  namespace: sealed-secrets$' "$STUB_STATE/applied.yaml" && pass "objects in sealed-secrets" || failed "objects not in sealed-secrets"
+grep -q '^type: kubernetes.io/service-account-token$' "$STUB_STATE/applied.yaml" && pass "token Secret bound to the ServiceAccount" || failed "no token Secret"
+if grep -q '^      token: stub-sa-token$' "$WORK/identity.out" &&
+	grep -q '^      server: https://api.example.net:6443$' "$WORK/identity.out" &&
+	grep -q '^      certificate-authority-data: Q0EtREFUQQ==$' "$WORK/identity.out" &&
+	grep -q '^current-context: sealed-secrets-key-backup$' "$WORK/identity.out"; then
+	pass "stdout is the kubeconfig of the ServiceAccount (server, CA, token)"
+else
+	failed "kubeconfig incomplete"; cat "$WORK/identity.out"
+fi
+grep -q 'stub-sa-token' "$WORK/identity.log" && failed "token in the messages" || pass "token only on stdout"
+grep -q '^apiVersion: v1$' "$WORK/identity.out" && ! grep -qE '^\[|✓|✗' "$WORK/identity.out" && pass "messages kept off stdout" || failed "messages on stdout"
+identity --server https://10.0.0.1:6443 >/dev/null 2>&1 || true
+grep -q '^      server: https://10.0.0.1:6443$' "$WORK/identity.out" && pass "--server overrides the context server" || failed "--server ignored"
+SEALED_SECRETS_NAMESPACE=other-ns identity >/dev/null 2>&1 || true
+grep -q '^  namespace: other-ns$' "$STUB_STATE/applied.yaml" && pass "SEALED_SECRETS_NAMESPACE picks the namespace" || failed "SEALED_SECRETS_NAMESPACE ignored"
+identity --rotate >/dev/null 2>&1 || true
+grep -q 'delete secret sealed-secrets-key-backup-token' "$STUB_STATE/calls" && pass "--rotate deletes the previous token" || failed "--rotate kept the token"
+if SEALED_SECRETS_NAMESPACE=kube-system identity; then
+	failed "kube-system: exit 0"
+elif [ -s "$WORK/identity.out" ] || [ -f "$STUB_STATE/applied.yaml" ]; then
+	failed "kube-system: something applied or printed"
+else
+	pass "kube-system refused (it would list every Secret there): exit 1, nothing applied"
+fi
+if STUB_NO_CONTEXT=1 identity; then
+	failed "no server or CA in the context: exit 0"
+elif [ -s "$WORK/identity.out" ] || [ -f "$STUB_STATE/applied.yaml" ]; then
+	failed "no server or CA in the context: something applied or printed"
+else
+	pass "no server or CA in the context: exit 1, nothing applied"
+fi
+if STUB_NO_TOKEN=1 PATH="$WORK/nosleep:$PATH" identity; then
+	failed "no token issued: exit 0"
+elif [ -s "$WORK/identity.out" ]; then
+	failed "no token issued: a kubeconfig was printed"
+else
+	pass "no token issued: exit 1, no kubeconfig"
+fi
+
+echo "install-sealed-secrets.sh"
+INSTALL="$ROOT/scripts/install-sealed-secrets.sh"
+# stub curl: writes a controller.yaml that is not the pinned release.
+cat >"$WORK/bin/curl" <<'EOF'
+#!/usr/bin/env bash
+while [ "$1" != "-fsSLo" ]; do shift; done
+echo "kind: Tampered" >"$2"
+EOF
+chmod +x "$WORK/bin/curl"
+fresh
+if SEALED_SECRETS_NAMESPACE=kube-system bash "$INSTALL" >"$WORK/out.log" 2>&1; then
+	failed "kube-system: exit 0"
+else
+	[ ! -s "$STUB_STATE/calls" ] && pass "kube-system refused: exit 1, kubectl never called" || failed "kube-system: kubectl called"
+fi
+fresh
+if bash "$INSTALL" >"$WORK/out.log" 2>&1; then
+	failed "controller.yaml checksum mismatch: exit 0"
+elif grep -q "does not match its pinned sha256" "$WORK/out.log" && [ ! -s "$STUB_STATE/calls" ]; then
+	pass "controller.yaml checksum mismatch: exit 1, nothing applied"
+else
+	failed "checksum mismatch not reported"; cat "$WORK/out.log"
+fi
+
+if [ "$FAILED" -ne 0 ]; then
+	echo "FAILED"
+	exit 1
+fi
+echo "All SealedSecrets key backup tests passed"

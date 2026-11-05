@@ -2,7 +2,7 @@
 
 ## Overview
 
-Internal messaging backbone for inter-service communication. Provides topic-based publish/subscribe over HTTP with subscriptions shared by the replicas through Redis, configurable delivery semantics (at-most-once, at-least-once, exactly-once), TTL expiration, and Dead Letter Queue routing. Used by all microservices via the `@trading-model/broker-message` SDK.
+Internal messaging backbone for inter-service communication. Provides topic-based publish/subscribe over HTTP with subscriptions shared by the replicas through Redis, configurable delivery semantics (at-most-once, at-least-once, exactly-once: single attempt, not an end-to-end guarantee, see [ADR-0019](../../docs/adr/0019-message-broker-as-built.md)), TTL expiration, and Dead Letter Queue routing. Used by all microservices via the `@trading-model/broker-message` SDK.
 
 ## Prerequisites
 
@@ -56,13 +56,15 @@ See [.env.example](./.env.example) for all available variables.
 ## Running
 
 ```bash
-# Development (with ts-node)
+# Development (ts-node): needs a SPIRE SVID, not usable outside Compose
 bun run dev
 
 # Production build
 bun run build
 node dist/application/index.js
 ```
+
+See [Local service development](../../docs/getting-started/local-service-development.md) to run and debug this service.
 
 ## Testing
 
@@ -79,12 +81,12 @@ bun run test:watch
 
 ## Scripts
 
-| Script           | Description                           |
-| ---------------- | ------------------------------------- |
-| `bun run dev`        | Run in development mode via `ts-node`  |
-| `bun run build`      | Compile TypeScript to `dist/`          |
-| `bun run test`       | Execute all tests                      |
-| `bun run test:coverage` | Execute all tests with coverage    |
+| Script                  | Description                                                                                                     |
+| ----------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `bun run dev`           | `ts-node`; needs a SPIRE SVID, see [local development](../../docs/getting-started/local-service-development.md) |
+| `bun run build`         | Compile TypeScript to `dist/`                                                                                   |
+| `bun run test`          | Execute all tests                                                                                               |
+| `bun run test:coverage` | Execute all tests with coverage                                                                                 |
 
 ## Project Structure
 

@@ -13,6 +13,7 @@ import {
 } from "../domain/market-data-buffer";
 import type { TradingSymbol } from "../domain/market-data-types";
 import type { ModelArtifactStorePort } from "../domain/ports/model-artifact-store.port";
+import { effectiveFitnessType } from "../domain/training-settings";
 import { MessageManager } from "./message-manager";
 import {
 	CURRENT_GENERATION,
@@ -117,6 +118,8 @@ export interface TraderTrainerSettings {
 	TRAINER_TIME_BUDGET_MS: number;
 	TRAINER_EPISODES_PER_INDIVIDUAL: number;
 	TRAINER_FITNESS_TYPE: FitnessType;
+	/** Feature flag (ADR-0039); false: `total_pnl` only. Default true. */
+	FEATURE_RISK_ADJUSTED_FITNESS?: boolean;
 	TRAINER_OBSERVE_POSITION?: boolean;
 	TRAINER_MODEL_DIR: string;
 	TRAINER_MODEL_RETENTION: number;
@@ -137,7 +140,7 @@ export function createTraderTrainerContainer(
 		populationSize: settings.TRAINER_POPULATION_SIZE,
 		timeBudgetMs: settings.TRAINER_TIME_BUDGET_MS,
 		episodesPerIndividual: settings.TRAINER_EPISODES_PER_INDIVIDUAL,
-		fitnessType: settings.TRAINER_FITNESS_TYPE,
+		fitnessType: effectiveFitnessType(settings),
 		observePosition: settings.TRAINER_OBSERVE_POSITION ?? true,
 		modelDir: settings.TRAINER_MODEL_DIR,
 		modelRetention: settings.TRAINER_MODEL_RETENTION,

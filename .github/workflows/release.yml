@@ -10,6 +10,8 @@
 #  Registry: repository variable IMAGE_REGISTRY, default ghcr.io/<owner> (the
 #  only GHCR namespace GITHUB_TOKEN can push to). Manifests keep the logical
 #  name ghcr.io/trading-model/*: deploy.yml rewrites it to the registry.
+#  verify-images then resolves every deploy.yml IMAGES entry at :X.Y.Z and
+#  fails the run if one is missing (the release would not be deployable).
 # =============================================================================
 
 name: Release
@@ -108,12 +110,35 @@ jobs:
             type=raw,value=${{ needs.version.outputs.tag }}
             type=raw,value=latest,enable=${{ needs.version.outputs.latest }}
 
+      # Gate before publication: a fixable CRITICAL vulnerability stops the job
+      # before the image is pushed. Exceptions: .trivyignore (ADR-0038).
+      - name: Build for scan
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: services/${{ matrix.service }}/Dockerfile
+          load: true
+          tags: ${{ needs.version.outputs.registry }}/${{ matrix.service }}:${{ needs.version.outputs.tag }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Scan image (Trivy)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ${{ needs.version.outputs.registry }}/${{ matrix.service }}:${{ needs.version.outputs.tag }}
+          severity: CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+          trivyignores: .trivyignore
+
       - name: Build and push
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
           file: services/${{ matrix.service }}/Dockerfile
           push: true
+          sbom: true
+          provenance: mode=max
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
@@ -121,7 +146,8 @@ jobs:
 
   # spire-tools (deploy/spire): spire-server binary + registration scripts (the
   # official SPIRE images have no shell), used by the spire-entries sidecar.
-  # backup-tools (deploy/backup): kubectl + age + rclone for the db-backup CronJob.
+  # backup-tools (deploy/backup): kubectl + age + rclone + mysqlbinlog for the db-backup
+  # and db-backup-incremental CronJobs and restore-k8s.sh.
   build-tools:
     needs: [version, ci]
     runs-on: ubuntu-latest
@@ -161,11 +187,120 @@ jobs:
             type=raw,value=${{ needs.version.outputs.tag }}
             type=raw,value=latest,enable=${{ needs.version.outputs.latest }}
 
+      # Gate before publication: a fixable CRITICAL vulnerability stops the job
+      # before the image is pushed. Exceptions: .trivyignore (ADR-0038).
+      - name: Build for scan
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: ${{ matrix.context }}
+          target: ${{ matrix.target }}
+          load: true
+          tags: ${{ needs.version.outputs.registry }}/${{ matrix.image }}:${{ needs.version.outputs.tag }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Scan image (Trivy)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ${{ needs.version.outputs.registry }}/${{ matrix.image }}:${{ needs.version.outputs.tag }}
+          severity: CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+          trivyignores: .trivyignore
+
       - name: Build and push
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: ${{ matrix.context }}
           target: ${{ matrix.target }}
           push: true
+          sbom: true
+          provenance: mode=max
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+
+  # Keyless signature of every pushed digest (ADR-0038). id-token lives here
+  # only; deploy.yml verifies the identity of this workflow.
+  sign:
+    needs: [version, build-and-push, build-tools]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    strategy:
+      matrix:
+        image:
+          - discovery-server
+          - message-manager
+          - financial-scraper
+          - trader-trainer
+          - api-gateway
+          - audit-logger
+          - dlq-service
+          - spire-tools
+          - backup-tools
+    steps:
+      - name: Install cosign
+        uses: sigstore/cosign-installer@756fe2d284c7292c4e9b62c8a28f1e5629c59532 # v4.1.3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Sign digest
+        shell: bash
+        env:
+          REF: ${{ needs.version.outputs.registry }}/${{ matrix.image }}
+          TAG: ${{ needs.version.outputs.tag }}
+        run: |
+          digest=$(docker buildx imagetools inspect "$REF:$TAG" --format '{{.Manifest.Digest}}')
+          cosign sign --yes "$REF@$digest"
+
+  # Proves the release is deployable: every image deploy.yml resolves (its env
+  # IMAGES, read here so the two lists cannot drift) must exist under the path
+  # deploy.yml reads, <registry>/<image>:X.Y.Z. Read-only: publishes nothing.
+  verify-images:
+    needs: [version, build-and-push, build-tools]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Same loop as deploy.yml "Resolve image digests".
+      - name: Resolve image digests
+        shell: bash
+        env:
+          REGISTRY: ${{ needs.version.outputs.registry }}
+          TAG: ${{ needs.version.outputs.tag }}
+        run: |
+          IMAGES=$(yq '.env.IMAGES' .github/workflows/deploy.yml)
+          if [ -z "$IMAGES" ] || [ "$IMAGES" = "null" ]; then
+            echo "::error::env IMAGES not found in .github/workflows/deploy.yml"
+            exit 1
+          fi
+          missing=""
+          for img in $IMAGES; do
+            if ! digest=$(docker buildx imagetools inspect "$REGISTRY/$img:$TAG" --format '{{.Manifest.Digest}}'); then
+              missing="$missing $img"
+              continue
+            fi
+            echo "$img:$TAG -> $digest"
+          done
+          if [ -n "$missing" ]; then
+            echo "::error::No $REGISTRY image tagged $TAG for:$missing: deploy.yml cannot deploy this release"
+            exit 1
+          fi

@@ -32,6 +32,8 @@ export const DEFAULT_ACL: Record<KnownService, readonly ServiceId[]> = {
 	[KnownService.FinancialScraper]: [
 		toServiceId("api-gateway"),
 		toServiceId("message-manager"),
+		// The data supply: the trainer reads its signals and market data (ADR-0036).
+		toServiceId("trader-trainer"),
 	],
 	[KnownService.TraderTrainer]: [
 		toServiceId("api-gateway"),

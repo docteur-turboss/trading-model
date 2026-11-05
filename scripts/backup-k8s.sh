@@ -4,12 +4,15 @@
 #  Usage:  bash scripts/backup-k8s.sh [--dry-run] [--components mongodb,mysql,checkpoints,spire]
 #          BACKUP_DIR=/backups BACKUP_S3_BUCKET=s3://my-bucket/backups
 #          BACKUP_AGE_RECIPIENTS=age1... (encryption, see backup-lib.sh)
+#          RETENTION_DAYS, RETENTION_WEEKLY_WEEKS, RETENTION_MONTHLY_MONTHS,
+#          BACKUP_OFFSITE_LAYOUT (GFS retention, see backup-lib.sh, ADR-0032)
 # =============================================================================
 
 set -euo pipefail
 
 BACKUP_DIR="${BACKUP_DIR:-/backups}"
-TIMESTAMP="$(date +%Y-%m-%d_%H%M%S)"
+# UTC: restore-k8s.sh --until compares these stamps with the requested instant.
+TIMESTAMP="$(date -u +%Y-%m-%d_%H%M%S)"
 DRY_RUN=false
 COMPONENTS="mongodb,mysql,checkpoints,spire"
 RETENTION_DAYS="${RETENTION_DAYS:-30}"
@@ -49,16 +52,36 @@ backup_mongodb() {
       warn "[DRY-RUN] Would backup MongoDB ${label} from ${primary}"
       continue
     fi
+    # Point-in-time recovery replays the archived oplog from this point on
+    # (ADR-0031): read before the dump, so nothing between the two is missed.
+    local start
+    if ! start=$(oplog_edge "$primary" -1) || ! [[ "$start" =~ ^[0-9]+\.[0-9]+$ ]]; then
+      fail "Cannot read the oplog of ${label} (${primary})"
+      write_metric "$label" 0
+      continue
+    fi
     local file="${dest}/${label}.archive.gz${AGE_SUFFIX}"
-    if kubectl_exec "${primary}" -- mongodump --gzip --archive --oplog | seal > "$file"; then
-      ok "MongoDB backup complete: ${label} (${primary})"
-      record_output "$file"
+    local pitr="${dest}/${label}.pitr${AGE_SUFFIX}"
+    if write_dump "$label" "$file" kubectl_exec "${primary}" -c mongodb -- mongodump --quiet --gzip --archive --oplog &&
+      sealed_write "$pitr" echo "oplog_ts=${start}"; then
+      ok "MongoDB backup complete: ${label} (${primary}, oplog from ${start})"
+      record_output "$pitr"
       write_metric "$label" 1
     else
       fail "MongoDB backup failed: ${label} (${primary})"
       write_metric "$label" 0
     fi
   done
+}
+
+# Gzipped dump of every non-system database from MySQL pod `$1`. Point-in-time
+# recovery replays the archived binlogs from the dump's own coordinates
+# (ADR-0031): --source-data=2 writes them as a comment at the top of the
+# dump, copied to file `$2` on the way through.
+mysql_dump_gz() {
+  mysql_root_sh "$1" "$MYSQL_DUMP_SH --source-data=2" |
+    awk -v out="$2" '!found && /^-- CHANGE (REPLICATION SOURCE|MASTER) TO/ { print > out; close(out); found = 1 } { print }' |
+    gzip
 }
 
 backup_mysql() {
@@ -79,14 +102,23 @@ backup_mysql() {
     return
   fi
 
-  if mysql_root_sh "${pod}" "$MYSQL_DUMP_SH" 2>/dev/null | gzip | seal > "$file" && [ -s "$file" ]; then
+  local uuid coords pitr="${dest}/financial_scraper_${TIMESTAMP}.pitr${AGE_SUFFIX}"
+  if ! uuid=$(mysql_root_sh "${pod}" "mysql --user=root -N -e 'SELECT @@server_uuid'") || [ -z "$uuid" ]; then
+    fail "MySQL backup failed: cannot read the server uuid of ${pod}"
+    write_metric "mysql" 0
+    return
+  fi
+  coords=$(mktemp)
+  if write_dump mysql "$file" mysql_dump_gz "${pod}" "$coords" &&
+    sealed_write "$pitr" mysql_pitr "$uuid" "$coords"; then
     ok "MySQL backup complete: ${file}"
-    record_output "$file"
+    record_output "$pitr"
     write_metric "mysql" 1
   else
     fail "MySQL backup failed"
     write_metric "mysql" 0
   fi
+  rm -f "$coords"
 }
 
 backup_checkpoints() {
@@ -108,9 +140,8 @@ backup_checkpoints() {
   fi
 
   local file="${dest}/checkpoints_${TIMESTAMP}.tar.gz${AGE_SUFFIX}"
-  if kubectl_exec "${pod}" -c trader-trainer -- tar czf - -C /data/checkpoints . | seal > "$file"; then
+  if write_dump checkpoints "$file" kubectl_exec "${pod}" -c trader-trainer -- tar czf - -C /data/checkpoints .; then
     ok "Checkpoints backup complete"
-    record_output "$file"
     write_metric "checkpoints" 1
   else
     fail "Checkpoints backup failed"
@@ -118,6 +149,10 @@ backup_checkpoints() {
   fi
 }
 
+# keys.json is read AFTER the MySQL dump (default component order) on purpose:
+# SPIRE stores a new CA key here before journaling it in the datastore (inside
+# the dump), so this file holds every key that journal refers to. Do not run
+# spire before mysql (BACKUP_DR.md, issue #330).
 backup_spire() {
   log "Starting SPIRE CA key backup..."
   local dest="${BACKUP_DIR}/spire"
@@ -139,9 +174,8 @@ backup_spire() {
   local file="${dest}/keys_${TIMESTAMP}.json${AGE_SUFFIX}"
   # The official spire-server image has no shell: read the key through the
   # spire-entries sidecar (alpine), which mounts the data volume read-only.
-  if kubectl_exec -c spire-entries "${pod}" -- cat /run/spire/data/keys.json | seal > "$file"; then
+  if write_dump spire "$file" kubectl_exec -c spire-entries "${pod}" -- cat /run/spire/data/keys.json; then
     ok "SPIRE CA key backup complete: ${file}"
-    record_output "$file"
     write_metric "spire" 1
   else
     fail "SPIRE CA key backup failed"
@@ -179,6 +213,9 @@ for part in "${PARTS[@]}"; do
 done
 
 prune_old
+# Before the off-site copy, which sends the manifest along with the dumps. A
+# failure is counted by write_metric (component "manifest"): the run exits 1.
+$DRY_RUN || write_manifest || true
 upload_offsite
 finalize_metrics
 

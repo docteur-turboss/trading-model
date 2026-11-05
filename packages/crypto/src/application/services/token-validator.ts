@@ -124,6 +124,7 @@ function _verifyFormatHmac(
 	});
 }
 
+/** Returns true when the token is well formed, signed for the instance with the secret, and matches the stored token. */
 export function validInstanceToken(input: TokenValidationInput): boolean {
 	const { token, instanceId, signingSecret, storedToken, options } = input;
 	const format = checkTokenFormat(token);

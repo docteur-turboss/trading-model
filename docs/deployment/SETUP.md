@@ -1,17 +1,17 @@
-# Setup Guide — Local Dev & Production Fleet
+# Setup Guide — Local Development & Compose Hosts
 
 ## Prerequisites
 
 | Tool                           | Version    | Usage                      |
 | ------------------------------ | ---------- | -------------------------- |
-| Bun                           | 1.3+       | JS runtime + package manager |
+| Bun                           | 1.4.4      | JS runtime + package manager (tested; same as `services/*/Dockerfile`) |
 | Docker Desktop / Docker Engine | 24+        | Containerization           |
 | Git                            | 2.40+      | Version control            |
 
 Verify installed versions:
 
 ```bash
-bun --version      # ≥ 1.3.x
+bun --version      # 1.4.4 (tested; same as services/*/Dockerfile)
 docker --version   # ≥ 24.x
 git --version      # ≥ 2.40
 ```
@@ -19,6 +19,10 @@ git --version      # ≥ 2.40
 ---
 
 ## Local Development Setup
+
+> **Development only.** The Docker Compose stack has no scheduled backup and no
+> backup metrics ([BACKUP_DR.md](BACKUP_DR.md#known-limits)). Do not store real
+> data in it. Real data belongs in the Kubernetes deployment.
 
 ### 1. Clone the repository
 
@@ -73,7 +77,15 @@ bundle to create or mount.
 cp .env.example .env
 ```
 
-Default values in `docker-compose.yml` are sufficient for first startup. Change passwords in production.
+Before the first `docker compose up`, set these variables in `.env` and replace their example values with your own secrets (`openssl rand -hex 32`):
+
+- `MYSQL_ROOT_PASSWORD` — MySQL root password
+- `GATEWAY_AUTH_TOKENS` — gateway API keys (`x-api-key`), comma-separated
+- `SIGNING_SECRET` — HMAC secret of the discovery instance tokens
+
+The Compose stack runs with `NODE_ENV=production` by default and `docker-compose.yml` provides no usable value for these variables: without them the gateway and discovery-server refuse to start, and MySQL has no root password.
+
+Do not run this stack with real data. For a real deployment, use the [Kubernetes deployment guide](KUBERNETES.md) and set every secret before startup.
 
 ### 6. Build Docker images
 
@@ -149,9 +161,13 @@ docker compose down -v    # stop and delete database data
 
 ---
 
-## Production Fleet Setup (bare-metal Linux server)
+## Bare-metal Compose Host Setup (development, no real data)
 
-Complete procedure to add a bare Linux server to the Trading Model fleet, from OS to running containers.
+> **Not production.** This Compose host has no scheduled backup and no backup
+> metrics. Do not store real data on it. Production runs on Kubernetes: see
+> [KUBERNETES.md](KUBERNETES.md).
+
+Complete procedure to add a bare Linux server running the development Compose stack, from OS to running containers.
 
 ### 1. Operating System Installation
 
@@ -443,9 +459,12 @@ curl -s http://localhost:8449/ping  # edge-proxy
 
 ---
 
-## Fleet machine (beta / production)
+## Compose host (beta, development, no real data)
 
-On fleet machines, only Docker is required:
+> **Not production.** Same limits as above: no scheduled backup, no backup
+> metrics, no real data. For production, use [KUBERNETES.md](KUBERNETES.md).
+
+On a Compose host, only Docker is required:
 
 ```bash
 # No Bun, no build
@@ -457,6 +476,6 @@ IMAGE_TAG=<version> docker compose up -d
 ```
 
 > mTLS is automatic via SPIRE (ADR-0011) — no certificate generation or `./certs`
-> bundle is needed on fleet machines.
+> bundle is needed on Compose hosts.
 
-Development tools (Bun, compilers) are not needed on fleet machines.
+Development tools (Bun, compilers) are not needed on Compose hosts.

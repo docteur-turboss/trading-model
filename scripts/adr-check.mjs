@@ -23,13 +23,17 @@
  *   - docs/adr/README.md lists every ADR once, with the same status, and links
  *     only to existing files
  *
+ *   - every relative link in a tracked *.md (docs/architecture/code/ excluded,
+ *     it is generated) points at an existing file or folder (issue #372)
+ *
  * A manual review older than MANUAL_REVIEW_MAX_AGE_DAYS is reported as a
  * warning, not a failure: the check must not break a build on a date.
  *
  * Usage: node scripts/adr-check.mjs
  */
+import { execFileSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -165,10 +169,25 @@ function checkIndex(adrs) {
   for (const [file, status] of rows) {
     const adr = adrs.get(file);
     if (!adr) errors.push(`README.md: links ${file}, which does not exist`);
-    else if (status !== adr.kind) errors.push(`README.md: ${file} listed as "${status}", the ADR says "${adr.kind}"`);
+    else if (status !== adr.status) errors.push(`README.md: ${file} listed as "${status}", the ADR says "${adr.status}"`);
   }
   for (const file of adrs.keys()) {
     if (!rows.has(file)) errors.push(`README.md: ${file} is not in the index`);
+  }
+}
+/** Fails on a relative Markdown link whose target is missing (external URLs and anchors skipped). */
+function checkMarkdownLinks() {
+  const files = execFileSync('git', ['ls-files', '*.md'], { cwd: ROOT, encoding: 'utf8' })
+    .split(/\r?\n/)
+    .filter((f) => f && !f.startsWith('docs/architecture/code/') && existsSync(join(ROOT, f)));
+  for (const file of files) {
+    // shortcut: fenced code is not stripped, a link-like snippet in a fence must resolve too
+    const text = readFileSync(join(ROOT, file), 'utf8').replace(/`[^`\n]*`/g, ''); // inline code is not a link
+    for (const [, raw] of text.matchAll(/\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g)) {
+      if (/^([a-z][a-z0-9+.-]*:|#|\/\/)/i.test(raw)) continue;
+      const target = decodeURI(raw.split('#')[0].split('?')[0]);
+      if (target && !existsSync(resolve(ROOT, dirname(file), target))) errors.push(`${file}: broken link ${raw}`);
+    }
   }
 }
 
@@ -181,6 +200,7 @@ for (const adr of adrs.values()) {
   checkVerifiedBy(adr, scripts, gates, today);
 }
 checkIndex(adrs);
+checkMarkdownLinks();
 
 for (const warning of warnings) console.warn(`  ! ${warning}`);
 if (errors.length > 0) {

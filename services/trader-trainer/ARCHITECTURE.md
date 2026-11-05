@@ -2,7 +2,7 @@
 
 ## Overview
 
-**Trader-Trainer** is a microservice that autonomously trains trading AI agents using a **Genetic Algorithm (GA) + Deep Q-Learning** approach. It receives real market data from the **Message Manager** service and prepares the best-performing agent from each training session for deployment to a **Trader-Executor** service.
+**Trader-Trainer** is a microservice that autonomously trains trading AI agents using a **Genetic Algorithm (GA) + Deep Q-Learning** approach. It receives real market data from the **Message Manager** service and prepares the best-performing agent from each training session as a versioned model export (ADR-0022). No executor service exists yet.
 
 ### Key Responsibilities
 
@@ -10,7 +10,7 @@
 2. **Data Integration**: Consume real market data from Message Manager service
 3. **Performance Evaluation**: Calculate fitness metrics (Sharpe, Sortino, Calmar, PnL)
 4. **Memory Optimization**: Dynamically allocate population size based on available physical memory
-5. **Agent Export**: Deploy best agents to Trader-Executor via Message Manager library or direct HTTPS
+5. **Agent Export**: Publish versioned model artifacts (`GET /v1/trader-trainer/models/:symbol/:version`) and the best-agent summary (`GET /v1/trader-trainer/best-agent`)
 
 ### Why This Approach
 
@@ -50,7 +50,7 @@ The GA loop stops when **any** of these conditions is met (checked in order):
 
 **Address Manager** (`@trading-model/address-manager`): Service discovery and health monitoring. Every instance registers with the address manager for dynamic endpoint resolution, health check pings, and TTL management.
 
-**Trader-Executor** (output): The best trained agent is exposed via `/best-agent` REST endpoint for the consuming service to poll or receive.
+**Model consumers** (output): the best agent is exposed via `/best-agent`; versioned artifacts via `/models/:symbol` and `/models/:symbol/:version` (ADR-0022). No Trader-Executor service exists (future, not implemented).
 
 ---
 
@@ -92,7 +92,7 @@ The GA loop stops when **any** of these conditions is met (checked in order):
 │                                                          │
 └─────────────────────────────────────────────────────────┘
             ↓ Real market data from Message Manager
-        ↓ Best agent to Trader-Executor
+        ↓ Best agent + versioned model export (ADR-0022)
 ```
 
 ---
@@ -482,13 +482,10 @@ Agent training on real data
 ```
 Trader-Trainer (best agent)
     ↓
-Message Manager Library
+GET /v1/trader-trainer/best-agent
+GET /v1/trader-trainer/models/:symbol/:version  (ADR-0022)
     ↓
-HTTP (secured) or Message Queue
-    ↓
-Trader-Executor Service
-    ↓
-Live trading execution
+Consumer (none implemented yet)
 ```
 
 #### Agent Export Format
@@ -608,7 +605,7 @@ type SelectionType = 'tournament' | 'roulette' | 'rank' | 'sus';
 - `typescript@~6.0.3`: Language
 - `jest@^30.4.2`: Testing
 - `ts-jest@^29.4.9`: TypeScript support for Jest
-- `eslint@^10.3.0`: Linting
+- `@biomejs/biome`: Linting and formatting (root)
 
 ---
 

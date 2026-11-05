@@ -34,6 +34,7 @@ tests:
             exp_annotations:
               summary: 'High error rate on dlq-service'
               description: 'Error rate is 10% for the last 5 minutes.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-latency-and-errors.md#higherrorrate'
       - eval_time: 20m
         alertname: SLOErrorRateFastBurn
         exp_alerts:
@@ -41,6 +42,7 @@ tests:
             exp_annotations:
               summary: 'Error rate SLO fast burn rate exceeded'
               description: 'Error rate > 5% over 5m — exceeding 1% SLO target.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-latency-and-errors.md#higherrorrate'
       - eval_time: 20m
         alertname: SLOAvailabilityFastBurn
         exp_alerts:
@@ -48,6 +50,7 @@ tests:
             exp_annotations:
               summary: 'Availability SLO fast burn rate exceeded'
               description: 'Error rate > 2% over 5m — burning through 99.9% error budget rapidly.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-latency-and-errors.md#higherrorrate'
 
   # 90% of the requests in < 0.1s, 10% between 5s and 10s: p95 = 7.5s, over
   # the job (all paths together).
@@ -78,6 +81,7 @@ tests:
             exp_annotations:
               summary: 'High latency on api-gateway'
               description: 'P95 latency is 7.5s for the last 5 minutes.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-latency-and-errors.md#highlatency'
       - eval_time: 20m
         alertname: SLOLatencyFastBurn
         exp_alerts:
@@ -85,6 +89,7 @@ tests:
             exp_annotations:
               summary: 'Latency SLO fast burn rate exceeded'
               description: 'P95 latency > 5s over 5m — exceeding 2s SLO target.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-latency-and-errors.md#highlatency'
 
   - name: half of the training sessions fail
     interval: 1m
@@ -101,6 +106,7 @@ tests:
             exp_annotations:
               summary: 'Training completion rate below 95%'
               description: 'Trainer completion rate is 50% over 15m.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#trainingcompletionratelow'
 
   # No session ever succeeds: the `success` series does not exist.
   - name: every training session fails
@@ -116,6 +122,7 @@ tests:
             exp_annotations:
               summary: 'Training completion rate below 95%'
               description: 'Trainer completion rate is 0% over 15m.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#trainingcompletionratelow'
 
   # Every message goes to the DLQ: no published series at all.
   - name: message-manager publishes nothing, everything goes to the DLQ
@@ -131,6 +138,7 @@ tests:
             exp_annotations:
               summary: 'Message delivery success rate below 99.5%'
               description: 'Message-manager delivery rate is 0% over 5m.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md'
 
   - name: message-manager delivers 99.9%
     interval: 1m
@@ -163,6 +171,7 @@ tests:
             exp_annotations:
               summary: 'No market data persisted for 15 minutes'
               description: 'financial-scraper persisted no candle in 15 minutes: collection is stopped (no symbol tracked, scheduler disabled everywhere, Binance or MySQL failing) while the service may still report healthy.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-market-data-stale.md'
       - eval_time: 25m
         alertname: TrainerMarketDataStale
         exp_alerts:
@@ -170,6 +179,7 @@ tests:
             exp_annotations:
               summary: 'trader-trainer receives no market data'
               description: 'No candle reached the trainer buffer in 15 minutes: the scraper, message-manager or the trainer subscription is broken.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-market-data-stale.md'
       - eval_time: 25m
         alertname: ServiceDown
         exp_alerts: []
@@ -207,6 +217,35 @@ tests:
             exp_annotations:
               summary: 'Most scrape cycles fail'
               description: 'More than half of the financial-scraper cycles failed over 15 minutes (66.67%).'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-market-data-stale.md'
+
+  # ADR-0036: a source that failed once in 24 hours alerts, by source, then
+  # resolves a day later; a source that only succeeds does not. The failure
+  # series start at 0 (zeroCollectionFailures).
+  - name: a failing signal source alerts for a day, by source
+    interval: 1h
+    input_series:
+      - series: 'fs_signal_collections_total{job="financial-scraper-collector",instance="c",source="sec-edgar-eps-diluted",result="fetch_error"}'
+        values: '0x30 1x30'
+      - series: 'fs_signal_collections_total{job="financial-scraper-collector",instance="c",source="ecb-aaa-yield-10y",result="success"}'
+        values: '0+1x60'
+      - series: 'fs_signal_collections_total{job="financial-scraper-collector",instance="c",source="ecb-aaa-yield-10y",result="fetch_error"}'
+        values: '0x60'
+    alert_rule_test:
+      - eval_time: 30h
+        alertname: SignalCollectionFailing
+        exp_alerts: []
+      - eval_time: 32h
+        alertname: SignalCollectionFailing
+        exp_alerts:
+          - exp_labels: {severity: warning, source: sec-edgar-eps-diluted}
+            exp_annotations:
+              summary: 'A signal source fails to be collected'
+              description: 'sec-edgar-eps-diluted failed 1 collections in 24 hours: its signals are missing or stale (fetch_error: source down or refusing, 403 from SEC EDGAR without SIGNAL_CONTACT_EMAIL; invalid_payload: its format changed; store_error: MySQL).'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-market-data-stale.md#signalcollectionfailing'
+      - eval_time: 57h
+        alertname: SignalCollectionFailing
+        exp_alerts: []
 
   # ADR-0026: a geo-block (451) alerts at once; other errors (429, 5xx) and
   # 200s do not. The 451 series only exists once Binance starts refusing.
@@ -231,6 +270,7 @@ tests:
             exp_annotations:
               summary: 'Binance refuses the scraper location (HTTP 451)'
               description: 'Binance answered 451 (restricted location) 21 times in 15 minutes: market data collection is blocked. Re-examine ADR-0026 and switch BINANCE_BASE_URL to the next fallback (runbook-market-data-stale).'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-market-data-stale.md'
       - eval_time: 45m
         alertname: BinanceRestrictedLocation
         exp_alerts:
@@ -238,6 +278,7 @@ tests:
             exp_annotations:
               summary: 'Binance refuses the scraper location (HTTP 451)'
               description: 'Binance answered 451 (restricted location) 90 times in 15 minutes: market data collection is blocked. Re-examine ADR-0026 and switch BINANCE_BASE_URL to the next fallback (runbook-market-data-stale).'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-market-data-stale.md'
 
   # 0 while the bus takes the candles; a backlog that stays 15 minutes alerts,
   # per symbol, and ends once it drained.
@@ -259,6 +300,7 @@ tests:
             exp_annotations:
               summary: 'Persisted candles not reaching the bus'
               description: '20 persisted BTCUSDT candles have waited for the bus for 15 minutes: message-manager refuses or holds the scraper publishes. They go out from MySQL, oldest first, once it answers; the trainer lags meanwhile (runbook-message-bus-outage)'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#5-scraper-publish-backlog'
       - eval_time: 55m
         alertname: MarketDataUnpublished
         exp_alerts: []
@@ -286,6 +328,7 @@ tests:
             exp_annotations:
               summary: 'Trained models are not stored on trader-trainer'
               description: '1 model artifact write(s) failed in 30 minutes: the best agents are not kept. Check the trainer logs ("Failed to store model artifact") and TRAINER_MODEL_DIR (volume mounted, writable, not full).'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#modelartifactwritefailing'
       - eval_time: 100m
         alertname: ModelArtifactWriteFailing
         exp_alerts: []
@@ -311,6 +354,7 @@ tests:
             exp_annotations:
               summary: 'Heartbeats have stopped for dlq-service'
               description: 'discovery-server received no heartbeat from dlq-service in the last 5 minutes.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-discovery.md#heartbeatstopped'
 
   # api-gateway drops from 2 instances to 1: redundancy lost. trader-trainer
   # always ran one instance (staging, compose): no alert, ever.
@@ -336,6 +380,7 @@ tests:
             exp_annotations:
               summary: 'Low instance count for service api-gateway'
               description: 'Service api-gateway had 2+ instances in the last day and now has fewer than 2: redundancy is lost (single-replica environments never fire).'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-discovery.md#instancecountlow'
 
   - name: the DLQ drains half of what comes in
     interval: 1m
@@ -352,6 +397,7 @@ tests:
             exp_annotations:
               summary: 'DLQ drain rate is critically low'
               description: 'DLQ replay/add ratio is 50% — queue is growing.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-dlq-backlog.md'
 
   - name: the alerting pipeline watches itself
     interval: 1m
@@ -367,6 +413,7 @@ tests:
             exp_annotations:
               summary: 'Alerting pipeline heartbeat'
               description: 'Always firing. Routed to the dead man''s switch (ALERTMANAGER_DEADMAN_URL): when it stops arriving, Prometheus, Alertmanager or the notification path is down.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/ALERTING.md#dead-mans-switch'
       - eval_time: 30m
         alertname: AlertmanagerNotificationsFailing
         exp_alerts:
@@ -374,6 +421,7 @@ tests:
             exp_annotations:
               summary: 'Alertmanager cannot deliver slack notifications'
               description: 'Notifications through slack fail: check the alertmanager-credentials Secret (webhook URL, routing key). This alert may not reach you: the dead man''s switch (Watchdog) is the safety net.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/ALERTING.md#alerts-on-the-alerting-path'
 
   # The local DLQ file cannot be written (read-only filesystem): lost.
   - name: dead-lettered messages are lost or parked
@@ -391,6 +439,7 @@ tests:
             exp_annotations:
               summary: 'Dead-lettered messages could not be written: messages lost'
               description: 'dlq-service could not take dead-lettered messages and message-manager could not keep them in DLQ_LOCAL_FALLBACK_PATH either: they are gone. Check that the path is on a writable volume, then dlq-service.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#4-dead-letters-stuck-refused-or-lost'
       - eval_time: 10m
         alertname: MessagesDeadLettered
         exp_alerts:
@@ -398,6 +447,7 @@ tests:
             exp_annotations:
               summary: 'Messages dead-lettered on market.candlestick.series.fetch'
               description: 'message-manager gave up delivering 3 message(s) on market.candlestick.series.fetch in the last hour. They are in dlq-service (GET /dlq) to inspect and replay.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#4-dead-letters-stuck-refused-or-lost'
 
   # The forward failures of a dlq-service outage are not losses: only a
   # file error is. m1 keeps 2 dead letters for 20 minutes (fires), m2 for 5
@@ -424,6 +474,7 @@ tests:
             exp_annotations:
               summary: 'Dead letters kept in a message-manager pod, not in dlq-service'
               description: '2 dead letter(s) have waited 15 minutes in the local file of m1: dlq-service cannot take them (down, unreachable, or another DLQ_AUTH_HMAC_SECRET). They are lost if the pod is deleted.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#4-dead-letters-stuck-refused-or-lost'
       - eval_time: 20m
         alertname: DeadLettersRejected
         exp_alerts:
@@ -431,6 +482,7 @@ tests:
             exp_annotations:
               summary: 'dlq-service refused dead letters'
               description: 'dlq-service refused 1 dead letter(s) in the last hour (invalid or too large): they are in DLQ_LOCAL_FALLBACK_PATH.rejected on the message-manager pod, and in its logs.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#4-dead-letters-stuck-refused-or-lost'
 
   # market.ticker: dropped for 30 minutes, fires. market.trade: a burst at
   # a cold start (publisher up before its subscribers), no alert.
@@ -449,6 +501,7 @@ tests:
             exp_annotations:
               summary: 'Messages dropped on market.ticker: no subscriber'
               description: 'message-manager drops the messages published on market.ticker: no instance subscribes to it. audit-logger subscribes to every topic: check that the subscribers are up and renew their subscriptions, and that message-manager reaches Redis.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#3-no-subscriber-on-a-topic'
 
   # V8 keeps the allocated heap close to the used one (95% here): no alert.
   # 92% of the heap limit: out of memory is close.
@@ -473,6 +526,7 @@ tests:
             exp_annotations:
               summary: 'High memory usage on trader-trainer'
               description: 'Heap usage is 92% of the V8 heap limit: out of memory is close.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-service-down.md#1-oomkilled-out-of-memory'
 
   # Audit trail (ADR-0027): one replica finding the chain broken is enough.
   - name: a broken audit chain alerts at once
@@ -493,6 +547,7 @@ tests:
             exp_annotations:
               summary: 'Audit trail integrity check failed'
               description: 'The audit chain verification found a fault (event missing, changed or removed, or a chain that no longer matches its anchors). Run chain-cli report on an audit-logger pod; acknowledge a loss only for an explained restore (runbook-audit-chain-broken).'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-audit-chain-broken.md#auditchainbroken'
 
   # Verification and anchoring every minute, then both stop at 30 min: stale
   # past 45 min, alerting 15 min later. With anchoring off, only the warning.
@@ -520,6 +575,7 @@ tests:
             exp_annotations:
               summary: 'Audit trail no longer verified'
               description: 'audit-logger has not completed an audit chain verification for more than 45 minutes (MongoDB unreachable, or the cycle fails): a broken chain would go unnoticed (runbook-audit-chain-broken).'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-audit-chain-broken.md#auditchainverificationstale'
       - eval_time: 80m
         alertname: AuditChainAnchoringStale
         exp_alerts: []
@@ -530,6 +586,7 @@ tests:
             exp_annotations:
               summary: 'Audit trail no longer anchored'
               description: 'audit-logger has not anchored the audit chain head for more than 45 minutes: check the anchor bucket credentials (audit-anchor-s3) and its logs (runbook-audit-chain-broken).'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-audit-chain-broken.md#auditchainanchoringstale'
       - eval_time: 50m
         alertname: AuditChainNotAnchored
         exp_alerts: []
@@ -540,3 +597,166 @@ tests:
             exp_annotations:
               summary: 'Audit trail verified but not anchored'
               description: 'AUDIT_ANCHOR_BUCKET is not set: a rewrite of the whole audit chain by someone with database access would go unnoticed (ADR-0027).'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-audit-chain-broken.md#auditchainnotanchored'
+
+  # Point-in-time archives (ADR-0031): db-backup-incremental runs hourly. The
+  # binlog archive last succeeded at 60m: stale once 2 h old (180m) plus
+  # `for`. The oplogs keep succeeding. A daily-job series, however old, is not
+  # an incremental archive.
+  - name: an incremental archive older than two runs fires, per component
+    interval: 1m
+    input_series:
+      - series: 'backup_last_success_timestamp{job="backup-metrics",component="mysql-binlog",run="incremental"}'
+        values: '0x59 3600x140'
+      - series: 'backup_last_success_timestamp{job="backup-metrics",component="mongodb-oplog",run="incremental"}'
+        values: '0+60x200'
+      - series: 'backup_last_success_timestamp{job="backup-metrics",component="mongodb-audit-oplog",run="incremental"}'
+        values: '0+60x200'
+      - series: 'backup_last_success_timestamp{job="backup-metrics",component="mysql"}'
+        values: '0x200'
+    alert_rule_test:
+      - eval_time: 175m
+        alertname: BackupIncrementalStale
+        exp_alerts: []
+      - eval_time: 190m
+        alertname: BackupIncrementalStale
+        exp_alerts:
+          - exp_labels: {severity: critical, job: backup-metrics, component: mysql-binlog, run: incremental}
+            exp_annotations:
+              summary: 'Point-in-time archive stale: mysql-binlog'
+              description: 'No mysql-binlog archive for more than 2 hours (db-backup-incremental runs hourly): the 1 h RPO is no longer met.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/deployment/BACKUP_DR.md#monitoring'
+      - eval_time: 190m
+        alertname: BackupIncrementalMissing
+        exp_alerts: []
+
+  # The audit oplog is not reported at all (component dropped from the job).
+  - name: an incremental component that never reports fires after 2 h
+    interval: 1m
+    input_series:
+      - series: 'backup_last_success_timestamp{job="backup-metrics",component="mysql-binlog",run="incremental"}'
+        values: '0+60x200'
+      - series: 'backup_last_success_timestamp{job="backup-metrics",component="mongodb-oplog",run="incremental"}'
+        values: '0+60x200'
+    alert_rule_test:
+      - eval_time: 110m
+        alertname: BackupIncrementalMissing
+        exp_alerts: []
+      - eval_time: 130m
+        alertname: BackupIncrementalMissing
+        exp_alerts:
+          - exp_labels: {severity: critical, component: mongodb-audit-oplog, run: incremental}
+            exp_annotations:
+              summary: 'A binlog or oplog is no longer archived: mongodb-audit-oplog'
+              description: 'db-backup-incremental reported nothing for mongodb-audit-oplog (job never ran, component removed, or backup-metrics-exporter down): no point-in-time recovery.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/deployment/BACKUP_DR.md#monitoring'
+
+  # One run of the binlog archive fails (S3 down): warned after 5 m, resolved
+  # by the next run (60m), which retries it. A failed off-site copy of the
+  # incremental job is BackupOffsiteCopyFailed's, not this alert's.
+  - name: a failed incremental run warns until the next run succeeds
+    interval: 1m
+    input_series:
+      - series: 'backup_last_status{job="backup-metrics",component="mysql-binlog",run="incremental"}'
+        values: '0x59 1x60'
+      - series: 'backup_last_status{job="backup-metrics",component="offsite",run="incremental"}'
+        values: '0x120'
+    alert_rule_test:
+      - eval_time: 3m
+        alertname: BackupIncrementalFailed
+        exp_alerts: []
+      - eval_time: 10m
+        alertname: BackupIncrementalFailed
+        exp_alerts:
+          - exp_labels: {severity: warning, job: backup-metrics, component: mysql-binlog, run: incremental}
+            exp_annotations:
+              summary: 'Point-in-time archive run failed: mysql-binlog'
+              description: 'The last db-backup-incremental run could not archive mysql-binlog: see the job logs. A gap (binlog purged, oplog overwritten) also raises BackupPitrGap.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/deployment/BACKUP_DR.md#monitoring'
+      - eval_time: 70m
+        alertname: BackupIncrementalFailed
+        exp_alerts: []
+
+  # The audit oplog was overwritten before being archived: the run that found
+  # it failed (status 0 for one hour), the next ones succeed again from after
+  # the gap, and BackupIncrementalStale never fires (last success at most 1 h
+  # old). backup_pitr_gap stays 1 until the next daily dump (here at 300m):
+  # the alert keeps firing after the status went back to 1.
+  - name: a chain gap keeps firing after the runs succeed again, until the next daily dump
+    interval: 1m
+    input_series:
+      - series: 'backup_last_status{job="backup-metrics",component="mongodb-audit-oplog",run="incremental"}'
+        values: '0x59 1x300'
+      - series: 'backup_last_success_timestamp{job="backup-metrics",component="mongodb-audit-oplog",run="incremental"}'
+        values: '0x59 3600x59 7200x59 10800x59 14400x59 18000x60'
+      - series: 'backup_pitr_gap{job="backup-metrics",component="mongodb-audit-oplog",run="incremental"}'
+        values: '1x299 0x60'
+      - series: 'backup_pitr_gap{job="backup-metrics",component="mysql-binlog",run="incremental"}'
+        values: '0x360'
+    alert_rule_test:
+      - eval_time: 10m
+        alertname: BackupPitrGap
+        exp_alerts:
+          - exp_labels: {severity: critical, job: backup-metrics, component: mongodb-audit-oplog, run: incremental}
+            exp_annotations:
+              summary: 'Point-in-time recovery broken: mongodb-audit-oplog'
+              description: 'The mongodb-audit-oplog archives have a gap after the newest daily dump (binlog purged or oplog overwritten before being archived): no restore --until past the gap until the next daily dump succeeds. Take a dump now (BACKUP_DR.md, "Point-in-time chain broken").'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/deployment/BACKUP_DR.md#point-in-time-chain-broken'
+      - eval_time: 250m
+        alertname: BackupPitrGap
+        exp_alerts:
+          - exp_labels: {severity: critical, job: backup-metrics, component: mongodb-audit-oplog, run: incremental}
+            exp_annotations:
+              summary: 'Point-in-time recovery broken: mongodb-audit-oplog'
+              description: 'The mongodb-audit-oplog archives have a gap after the newest daily dump (binlog purged or oplog overwritten before being archived): no restore --until past the gap until the next daily dump succeeds. Take a dump now (BACKUP_DR.md, "Point-in-time chain broken").'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/deployment/BACKUP_DR.md#point-in-time-chain-broken'
+      - eval_time: 250m
+        alertname: BackupIncrementalFailed
+        exp_alerts: []
+      - eval_time: 250m
+        alertname: BackupIncrementalStale
+        exp_alerts: []
+      - eval_time: 310m
+        alertname: BackupPitrGap
+        exp_alerts: []
+
+  # Only the incremental job has ever reported: its series must not hide that
+  # the daily job never did.
+  - name: the daily job's metrics are absent even though the incremental job reports
+    interval: 10m
+    input_series:
+      - series: 'backup_last_run_timestamp{job="backup-metrics",run="incremental"}'
+        values: '0+600x200'
+    alert_rule_test:
+      - eval_time: 25h
+        alertname: BackupMetricsAbsent
+        exp_alerts: []
+      - eval_time: 27h
+        alertname: BackupMetricsAbsent
+        exp_alerts:
+          - exp_labels: {severity: critical}
+            exp_annotations:
+              summary: 'No backup has ever reported'
+              description: 'Prometheus has no metric of the daily backup job: db-backup never ran or backup-metrics-exporter is down (the series of db-backup-incremental do not count).'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/deployment/BACKUP_DR.md#monitoring'
+
+  # Volume at 85 % for 30 m fires; the incremental series at 50 % stays quiet.
+  - name: a backup volume over 80 percent warns after 30 minutes
+    interval: 1m
+    input_series:
+      - series: 'backup_volume_used_ratio{job="backup-metrics"}'
+        values: '0.85x40'
+      - series: 'backup_volume_used_ratio{job="backup-metrics",run="incremental"}'
+        values: '0.5x40'
+    alert_rule_test:
+      - eval_time: 20m
+        alertname: BackupVolumeFilling
+        exp_alerts: []
+      - eval_time: 35m
+        alertname: BackupVolumeFilling
+        exp_alerts:
+          - exp_labels: {severity: warning, job: backup-metrics}
+            exp_annotations:
+              summary: 'backup-data volume is over 80% full'
+              description: 'The backup-data PVC (100Gi) is filling up: dumps grow with the market data. Check the retention (RETENTION_DAYS) or grow the volume before a night of backups fails.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/deployment/BACKUP_DR.md#monitoring'

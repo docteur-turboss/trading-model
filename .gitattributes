@@ -6,3 +6,6 @@
 
 # Shell scripts run inside Linux containers (ConfigMaps, images)
 *.sh text eol=lf
+
+# ConfigMap env files read by kustomize (deploy/k8s/config): a CR would end every value
+deploy/k8s/config/*.properties text eol=lf

@@ -2,6 +2,10 @@
 
 ## Docker Compose Services
 
+> **Development only.** This Compose stack has no scheduled backup and no
+> backup metrics. Do not store real data in it. Real data belongs in the
+> [Kubernetes deployment](KUBERNETES.md) ([BACKUP_DR.md](BACKUP_DR.md#known-limits)).
+
 The platform runs **7 microservices** (no frontend, see [ADR-0018](../adr/0018-temporary-frontend-removal.md)) plus infrastructure containers (MongoDB, MySQL, Redis, SPIRE):
 
 | Service               | Image / Build           | Container           | Host port                        | Network(s)              |

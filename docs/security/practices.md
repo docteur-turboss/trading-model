@@ -138,12 +138,7 @@ AUTH_TOKEN_HEADER=x-api-key
 
 ## Reporting a Vulnerability
 
-Refer to [SECURITY.md](../../SECURITY.md) — the root security document contains:
-
-- Private reporting procedure (email: `docteur.turboss@gmail.com`)
-- Prioritized vulnerability categories (RCE, auth bypass, mTLS, order manipulation, etc.)
-- Response time commitments (< 72h acknowledgement)
-- Responsible disclosure policy
+The reporting procedure (private email channel, acknowledgement delay, disclosure policy) is in [SECURITY.md](../../SECURITY.md#reporting-a-vulnerability).
 
 ### High Priority Vulnerability Categories
 

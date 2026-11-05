@@ -92,7 +92,7 @@ import { AppError, ErrorCodes, normalizeError } from '@trading-model/common/util
 | Export | Description |
 | ------ | ----------- |
 | `AppError` | Single application error class with `code` and `cause` |
-| `ErrorCodes` | Enum of error codes (`SERVICE_NOT_FOUND`, `MESSAGE_MANAGER_ERROR`, `AGENT_ERROR`, etc.) |
+| `ErrorCode` | Enum of error codes; cause, HTTP status and expected action of each in the [error code catalog](../reference/error-codes.md) |
 | `normalizeError(err)` | Normalizes any unknown error into a proper `Error` |
 
 ## Retry & Backoff

@@ -63,6 +63,13 @@ function _validatePath(
 	return parsed;
 }
 
+/** The query string ("" or "?a=1"): `req.path`, which routes are matched on, leaves it out. */
+function _search(req: import("express").Request): string {
+	const url = req.originalUrl ?? req.url;
+	const index = url.indexOf("?");
+	return index === -1 ? "" : url.slice(index);
+}
+
 const catchAllRoute = catchSync(async (req) => {
 	const parsed = _validatePath(req);
 	if (typeof parsed === "object" && "status" in parsed) {
@@ -116,7 +123,9 @@ const catchAllRoute = catchSync(async (req) => {
 		);
 	}
 
-	const cacheKey = `${req.method}:${req.path}`;
+	// Forwarded with the path and keyed in the cache: another query is another answer.
+	const search = _search(req);
+	const cacheKey = `${req.method}:${req.path}${search}`;
 	const cached = tryServeFromCache(req.method, cacheKey, CACHE);
 	if (cached) {
 		return cached;
@@ -125,7 +134,7 @@ const catchAllRoute = catchSync(async (req) => {
 	const response = await proxyAndCache(
 		req,
 		target,
-		{ serviceName, majorVersion, cacheKey, path },
+		{ serviceName, majorVersion, cacheKey, path: `${path}${search}` },
 		CACHE
 	);
 	if (response.status >= HTTP_STATUS.SERVICE_UNAVAILABLE) {

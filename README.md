@@ -7,8 +7,19 @@ Microservices-based AI trading platform. Ingests market data, trains autonomous 
 ```bash
 git clone <repo-url> && cd trading-model
 bun install --frozen-lockfile
+cp .env.example .env   # then replace the example values, see below
 docker compose up -d
 ```
+
+Before the first `docker compose up`, set these variables in `.env` and replace their example values with your own secrets (`openssl rand -hex 32`):
+
+- `MYSQL_ROOT_PASSWORD` — MySQL root password
+- `GATEWAY_AUTH_TOKENS` — gateway API keys (`x-api-key`), comma-separated
+- `SIGNING_SECRET` — HMAC secret of the discovery instance tokens
+
+The Compose stack runs with `NODE_ENV=production` by default: without these values the gateway and discovery-server refuse to start.
+
+> **Development only.** The Docker Compose stack has no scheduled backup: do not store real data in it. See [SETUP.md](docs/deployment/SETUP.md#local-development-setup).
 
 mTLS is automatic via SPIRE (ADR-0011) — no manual certificate generation.
 
@@ -18,12 +29,12 @@ See [Quick Start Tutorial](docs/getting-started/quickstart.md) for a 10-minute h
 
 | Layer         | Technology                                                 |
 | ------------- | ---------------------------------------------------------- |
-| Runtime       | Bun 1.x (Node.js 26-compatible APIs)                       |
+| Runtime       | Bun 1.4.4, tested (same as `services/*/Dockerfile`); Node.js 26-compatible APIs |
 | Language      | TypeScript (ES2020)                                        |
 | API           | Express 5                                                  |
 | Frontend      | None for now — removed, see ADR-0018                       |
 | Security      | mTLS everywhere (TLS 1.3)                                  |
-| Databases     | MongoDB 7, MySQL 8 (Group Replication), Redis 7 (Sentinel) |
+| Databases     | MongoDB 7, MySQL 8 (single primary, no failover, [ADR-0020](docs/adr/0020-database-topology-as-deployed.md)), Redis 7 (Sentinel) |
 | Validation    | Zod                                                        |
 | Testing       | Jest + Stryker (mutation)                                  |
 | Observability | Prometheus + Grafana + Jaeger + Loki                       |
@@ -45,12 +56,17 @@ See [Quick Start Tutorial](docs/getting-started/quickstart.md) for a 10-minute h
 
 | Package                             | Purpose                                                                                             |
 | ----------------------------------- | --------------------------------------------------------------------------------------------------- |
-| `@trading-model/common`             | HTTP client, logger, middleware, server factories, env validation, circuit breaker, SSRF protection |
-| `@trading-model/validation`         | Zod schemas, DTOs, event enums, admin contracts                                                     |
-| `@trading-model/server-utils`       | Secure HTTPS server factory, TLS watcher, response protocol                                         |
-| `@trading-model/crypto`             | Hashing, signature, and crypto primitives                                                           |
-| `@trading-model/address-manager`    | Service discovery client with health-checking and token rotation                                    |
-| `@trading-model/broker-message`     | Inter-service messaging SDK with typed event subscriptions                                          |
+| `@trading-model/primitives` | Pure domain primitives: branded types, pagination, circuit-state, retry-policy. Zero dependencies |
+| `@trading-model/contracts` | Shared runtime-free contracts: events, message envelope, service registry, `http-status`/`http-headers`, `LoggerPort` registry |
+| `@trading-model/reliability` | Circuit breaker, circuit-state machine, latency tracker |
+| `@trading-model/common` | Residual shared infra: `AppError`/`ErrorCodes`, retry/backoff, SPIFFE identity, TLS path config, cache abstractions, shared Zod schemas |
+| `@trading-model/persistence` | Redis/Mongo connection managers, store adapters, key builders |
+| `@trading-model/http` | HTTP middleware (mTLS auth, response protocol), HTTP client, logging pipeline |
+| `@trading-model/validation` | Zod schemas, DTOs, event enums, admin contracts |
+| `@trading-model/server-utils` | Secure HTTPS server factory, TLS watcher, bootstrap and shutdown, telemetry |
+| `@trading-model/crypto` | Hashing, request signing, token generation, secure randomness |
+| `@trading-model/address-manager` | Service discovery client with health-checking and token rotation |
+| `@trading-model/broker-message` | Inter-service messaging SDK with typed event subscriptions |
 
 ### Workload identity
 
@@ -70,7 +86,7 @@ bun run api:check            # OpenAPI and documented routes vs the real routes
 bun run test:e2e             # E2E tests (requires Docker Compose up)
 bun run docs:generate        # TypeDoc HTML
 bun run commit               # Interactive gitmoji commit CLI
-# Release: GitHub Actions → "Release" workflow (version bump + images + GitHub Release + docs)
+# Release: see docs/contributing/release.md (bun run release, tag vX.Y.Z → "Release" workflow)
 ```
 
 ## Deployment
@@ -86,19 +102,20 @@ bun run commit               # Interactive gitmoji commit CLI
 
 GitHub Actions workflows:
 
-- **ci.yml** — on every push/PR: lint → typecheck (packages + services) → test+coverage (Codecov) → contract tests → E2E (Docker stack)
-- **release.yml** — quality gates → Docker build/push (7 images) → GitHub Release → TypeDoc docs (manual `workflow_dispatch`)
+- **ci.yml** — on every push/PR: lint → typecheck (packages + services) → test+coverage (Codecov) → DB integration (Testcontainers) → observability gate → K8s overlays → contract tests → E2E (Docker stack) → K8s smoke test (kind)
+- **release.yml** — on a `vX.Y.Z` tag push: full CI → Docker build/push of 9 images (7 services + `spire-tools` + `backup-tools`) as `:X.Y.Z` (see [release.md](docs/contributing/release.md))
 - **deploy.yml** — manual staging/production deploy with rollback
 - **backup-test.yml** — weekly restore drill of the Docker backup scripts
 
-Pre-push git hook runs: `@biomejs/biome check` → `build` → `test`.
+Pre-push git hook runs: `biome check` → `deps:check` → `api:check` → `adr:check` → `reach:check` → `config:check` → observability gate → `build` → `test` → `test:contract` (see `.husky/pre-push`).
 
 ## Documentation
 
 - [Documentation Index](docs/README.md) — central entry point to all docs
-- [Architecture Standards](docs/standards/architecture-standards.md) — C4 diagrams, dependency graph, service conventions
+- [System Overview](docs/architecture/system-overview.md) — C4 context and containers, K8s deployment, market data flow
+- [Architecture Standards](docs/standards/architecture-standards.md) — dependency graph, service conventions
 - [OpenAPI 3.0](docs/services/openapi/api-gateway.yaml) — generated from the services' routes (`bun run api:write`, checked by `bun run api:check`)
-- [ADR Index](docs/adr/README.md) — 11 architecture decision records
+- [ADR Index](docs/adr/README.md) — architecture decision records
 - [Compliance](docs/compliance/) — GDPR register, DPIA, retention policy, breach notification
 - [Operations](docs/operations/) — runbooks, SLOs, incident response, diagnostic guide
 - [Getting Started](docs/getting-started/quickstart.md) — 10-minute hands-on introduction

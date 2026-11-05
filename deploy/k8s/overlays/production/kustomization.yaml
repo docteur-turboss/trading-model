@@ -6,6 +6,10 @@ namespace: trading-model
 resources:
   - ../../base
   - ../../secrets
+  - ingress-hosts.yaml
+
+components:
+  - ../../ingress/hosts
 
 patches:
   # The audit chain must be anchored in production (ADR-0027): audit-logger
@@ -17,3 +21,20 @@ patches:
       - op: add
         path: /data/AUDIT_ANCHOR_REQUIRED
         value: "true"
+  # Backups encrypted for at least two distinct age keys in production
+  # (operator key + escrow key, issue #327): init_encryption refuses to write
+  # a dump for fewer, and deploy.yml checks BACKUP_AGE_RECIPIENTS against this
+  # value before applying (docs/deployment/ENCRYPTION_AT_REST.md, "Key custody").
+  - target:
+      kind: CronJob
+      name: db-backup
+    patch: &min-recipients |-
+      - op: add
+        path: /spec/jobTemplate/spec/template/spec/containers/0/env/-
+        value:
+          name: BACKUP_MIN_RECIPIENTS
+          value: "2"
+  - target:
+      kind: CronJob
+      name: db-backup-incremental
+    patch: *min-recipients

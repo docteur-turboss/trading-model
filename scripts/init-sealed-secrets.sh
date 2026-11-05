@@ -8,7 +8,9 @@
 #  key, and the app secrets are not decryptable until sealed).
 #
 #  Requires: kubectl, kubeseal, openssl. The sealed-secrets controller must be
-#  installed (controller-namespace defaults to kube-system).
+#  installed by scripts/install-sealed-secrets.sh (namespace CONTROLLER_NAMESPACE,
+#  default sealed-secrets, ADR-0035; Deployment and Service CONTROLLER_NAME,
+#  default sealed-secrets-controller).
 #
 #  Usage:
 #    bash scripts/init-sealed-secrets.sh               # generate random values + seal
@@ -24,8 +26,8 @@ set -euo pipefail
 DRY_RUN=${DRY_RUN:-false}
 APPLY=${APPLY:-false}
 NAMESPACE=${NAMESPACE:-trading-model}
-CONTROLLER_NAMESPACE=${CONTROLLER_NAMESPACE:-kube-system}
-CONTROLLER_NAME=${CONTROLLER_NAME:-sealed-secrets}
+CONTROLLER_NAMESPACE=${CONTROLLER_NAMESPACE:-sealed-secrets}
+CONTROLLER_NAME=${CONTROLLER_NAME:-sealed-secrets-controller}
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SEALED_DIR="${SCRIPT_DIR}/deploy/k8s/secrets"
 

@@ -67,9 +67,12 @@ ls -la /backups/mongodb/
 mongorestore --host mongo-dlq-0.mongo-dlq-headless:27017 \
   --drop /backups/mongodb/clean_<date>/
 
-# Verify
-kubectl exec -n trading-model deployment/dlq-service -- \
-  curl -sk https://localhost:3000/dlq | head -20
+# Verify: /dlq needs an HMAC signature on top of mTLS, so go through the
+# gateway with examples/manage-dlq.sh (gateway API key + DLQ_AUTH_HMAC_SECRET)
+kubectl port-forward -n trading-model svc/edge-proxy 8449:8080 &
+API_GATEWAY=http://localhost:8449 ADMIN_TOKEN=<AUTH_TOKENS value> \
+  DLQ_AUTH_HMAC_SECRET=<dlq-service secret> \
+  bash examples/manage-dlq.sh | head -20
 ```
 
 **Redis:**

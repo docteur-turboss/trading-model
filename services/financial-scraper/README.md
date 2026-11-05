@@ -47,6 +47,8 @@ See [.env.example](./.env.example) for all available variables.
 | `BINANCE_BASE_URL`    | Binance public API (ADR-0026)       | `https://api.binance.com`   |
 | `SYMBOLS_TO_TRACK`    | JSON array of symbols to fetch      | `[]`                        |
 | `SCRAPE_INTERVAL`     | Cron expression for scrape schedule | `*/1 * * * *`               |
+| `SIGNAL_COLLECTION_ENABLED` | Collects the signal registry sources where the scrape cron runs (ADR-0036); `false` in CI | `true` |
+| `SIGNAL_CONTACT_EMAIL` | Contact e-mail in the User-Agent `automated news analysis <e-mail>` of the signal sources; SEC EDGAR answers 403 without it. Never committed (public repository) | empty: repository URL |
 | `DB_USER`             | MySQL user                          | `root`                      |
 | `DB_PASSWORD`         | MySQL password                      | `''`                        |
 | `DB_NAME`             | MySQL database name                 | `financial_scraper`         |
@@ -58,13 +60,15 @@ See [.env.example](./.env.example) for all available variables.
 ## Running
 
 ```bash
-# Development (with ts-node)
+# Development (ts-node): needs a SPIRE SVID, not usable outside Compose
 bun run dev
 
 # Production build
 bun run build
 node dist/application/index.js
 ```
+
+See [Local service development](../../docs/getting-started/local-service-development.md) to run and debug this service.
 
 ## Testing
 
@@ -81,13 +85,13 @@ bun run test:watch
 
 ## Scripts
 
-| Script                  | Description                           |
-| ----------------------- | ------------------------------------- |
-| `bun run dev`           | Run in development mode via `ts-node` |
-| `bun run build`         | Compile TypeScript to `dist/`         |
-| `bun run test`              | Execute all tests                     |
-| `bun run test:coverage` | Execute tests with coverage report    |
-| `bun run test:watch`    | Execute tests in watch mode           |
+| Script                  | Description                                                                                                     |
+| ----------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `bun run dev`           | `ts-node`; needs a SPIRE SVID, see [local development](../../docs/getting-started/local-service-development.md) |
+| `bun run build`         | Compile TypeScript to `dist/`                                                                                   |
+| `bun run test`          | Execute all tests                                                                                               |
+| `bun run test:coverage` | Execute tests with coverage report                                                                              |
+| `bun run test:watch`    | Execute tests in watch mode                                                                                     |
 
 ## Project Structure
 
@@ -144,4 +148,4 @@ See [ARCHITECTURE.md](./ARCHITECTURE.md) for the detailed architecture documenta
 
 ## API Endpoints
 
-See [API.md](./API.md) for the REST API reference.
+See [docs/services/financial-scraper.md](../../docs/services/financial-scraper.md) for the REST API reference.

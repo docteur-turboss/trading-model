@@ -31,6 +31,13 @@ describe("DEFAULT_ACL", () => {
 		}
 	});
 
+	it("should let the trainer read the data supply", () => {
+		// Its inputs change in the trainer only (ADR-0036).
+		expect(DEFAULT_ACL[KnownService.FinancialScraper]).toContain(
+			"trader-trainer"
+		);
+	});
+
 	it("should not let the gateway publish or subscribe on clients' behalf", () => {
 		expect(DEFAULT_ACL[KnownService.MessageManager]).not.toContain(
 			"api-gateway"

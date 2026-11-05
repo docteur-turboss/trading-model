@@ -4,7 +4,7 @@
 
 ## Overview
 
-Trader-Trainer is a microservice that evolves a population of neural network-based trading agents using genetic algorithms and deep reinforcement learning. It consumes real market data from the **Message Manager** service and produces optimized trading agents ready for deployment to **Trader-Executor**.
+Trader-Trainer is a microservice that evolves a population of neural network-based trading agents using genetic algorithms and deep reinforcement learning. It consumes real market data from the **Message Manager** service and produces optimized trading agents exported as versioned model artifacts (ADR-0022).
 
 Key features: GA evolution, Deep Q-Learning, memory-aware scaling, adaptive control, multi-objective optimization (Sharpe, Sortino, Calmar, P&L).
 
@@ -13,17 +13,19 @@ Key features: GA evolution, Deep Q-Learning, memory-aware scaling, adaptive cont
 ```bash
 cd services/trader-trainer
 bun install
-bun run dev           # Development server
+bun run dev           # needs a SPIRE SVID: not usable outside Compose
 bun run test              # Run tests
 bun run build         # Production build
 ```
+
+See [Local service development](../../docs/getting-started/local-service-development.md) to run and debug this service.
 
 See [Quick Start](../../docs/getting-started/quickstart.md) for a full platform walkthrough.
 
 ## Architecture
 
 ```
-Real Market Data → [Trader-Trainer] → Best Agent → Trader-Executor
+Real Market Data → [Trader-Trainer] → Best Agent → Versioned model export
                     ├─ Genetic Algorithm (population evolution)
                     ├─ Neural Network Agents (Q-Learning)
                     ├─ Trading Wallet Simulation

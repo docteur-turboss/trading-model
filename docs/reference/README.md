@@ -10,5 +10,6 @@ This section documents the internal implementation of key modules. These are not
 | [Neural Network](neural-network.md) | NN module: architecture, activations, optimizers, training modes | `trader-trainer` NN module |
 | [Training Process](training-process.md) | End-to-end training pipeline: data prep, evolution loop, wallet simulation | `trader-trainer` Trainer |
 | [Table Schemas](table-schemas.md) | MySQL DDL, column definitions, TypeScript interfaces | `financial-scraper` |
+| [Error Codes](error-codes.md) | Every `ErrorCode`: HTTP status, cause, expected action | `common` utils/errors |
 
 For platform-level architecture, see [Bounded Contexts](../architecture/bounded-contexts.md) and [Service Architecture](../services/README.md).

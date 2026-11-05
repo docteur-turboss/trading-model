@@ -40,6 +40,20 @@ describe("API Gateway E2E", () => {
 		expect(body).toContain("BTCUSDT");
 	});
 
+	it("serves the signals of an asset, every dimension (ADR-0036)", async () => {
+		const { status, body } = await externalRequest(
+			"/v1/financial-scraper/signals/assets/WHEAT?from=2026-01-01&to=2100-01-01",
+			{ headers: AUTH }
+		);
+		expect(status).toBe(200);
+		// CI never calls the real sources (SIGNAL_COLLECTION_ENABLED=false): no signal yet.
+		expect(JSON.parse(body)).toMatchObject({
+			asset: { id: "WHEAT", sector: "agriculture" },
+			signals: [],
+			truncated: false,
+		});
+	});
+
 	it.each([
 		["/v1/discovery-server/register", "POST"],
 		["/v1/discovery-server/heartbeat", "POST"],

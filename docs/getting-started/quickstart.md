@@ -4,7 +4,7 @@
 
 ## Prerequisites
 
-- Bun 1.3+ (see `bun --version`)
+- Bun 1.4.4 (tested version, same as the Docker images in `services/*/Dockerfile`; see `bun --version`)
 - Docker Desktop (for Compose)
 - Git
 
@@ -14,6 +14,22 @@ git clone <repo-url> trading-model
 cd trading-model
 bun install --frozen-lockfile
 ```
+
+## Step 0: Create `.env`
+
+```bash
+cp .env.example .env
+```
+
+Edit `.env` and replace the example values of these variables with your own secrets (`openssl rand -hex 32`):
+
+- `MYSQL_ROOT_PASSWORD` — MySQL root password
+- `GATEWAY_AUTH_TOKENS` — gateway API keys (`x-api-key`), comma-separated; you use one in Step 3
+- `SIGNING_SECRET` — HMAC secret of the discovery instance tokens
+
+The Compose stack runs with `NODE_ENV=production` by default: without these values the gateway and discovery-server refuse to start.
+
+> **Development only.** The Docker Compose stack has no scheduled backup: do not store real data in it. See [SETUP.md](../deployment/SETUP.md#local-development-setup) for the full local setup.
 
 ## Step 1: Start Core Infrastructure
 

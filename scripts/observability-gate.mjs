@@ -11,12 +11,16 @@
 //    5. Every service registers at least one dependency-aware readiness check
 //       (no more readiness: [] no-op gates).
 //    6. Compose (observability/alerting.yml) and K8s (prometheus ConfigMap)
-//       evaluate the same alert rules (name, expr, for, labels).
+//       evaluate the same alert rules (name, expr, for, labels, annotations),
+//       and every rule has a runbook_url on main naming a file of the
+//       repository (and one of its headings, for an #anchor).
 //    7. Every metric an alert reads is emitted by a service, a backup script or
 //       a configured exporter.
 //    8. Alerts reach someone: compose and K8s run the same Alertmanager config,
 //       every receiver reads its credentials from a file (no inline
 //       placeholder), and the Watchdog alert is routed to a dead man's switch.
+//    9. Every curl to https:// in docs/operations and docs/troubleshooting
+//       passes a client certificate (--cert): services are mTLS only.
 //
 //  Run: bun scripts/observability-gate.mjs
 // =============================================================================
@@ -232,6 +236,42 @@ function isEmitted(metric, emitted) {
   );
 }
 
+const RUNBOOK_URL_PREFIX = "https://github.com/docteur-turboss/trading-model/blob/main/";
+
+/** GitHub anchors of a Markdown file's headings (fenced code skipped, duplicates suffixed -1, -2...). */
+function markdownAnchors(markdown) {
+  const anchors = new Set();
+  const seen = new Map();
+  let fenced = false;
+  for (const line of markdown.split(/\r?\n/)) {
+    if (/^\s*(```|~~~)/.test(line)) fenced = !fenced;
+    const heading = !fenced && line.match(/^#{1,6}\s+(.*?)\s*#*\s*$/);
+    if (!heading) continue;
+    const slug = heading[1]
+      .toLowerCase()
+      .replace(/[^\p{L}\p{N}\s_-]/gu, "")
+      .replace(/\s/g, "-");
+    const count = seen.get(slug) ?? 0;
+    seen.set(slug, count + 1);
+    anchors.add(count === 0 ? slug : `${slug}-${count}`);
+  }
+  return anchors;
+}
+
+/** Why a rule's runbook_url does not lead to a procedure of this repository, or null. */
+function runbookUrlProblem(url) {
+  if (!url) return "no annotations.runbook_url (every alert links its runbook)";
+  if (!url.startsWith(RUNBOOK_URL_PREFIX)) return `runbook_url ${url} does not start with ${RUNBOOK_URL_PREFIX}`;
+  const [path, anchor] = url.slice(RUNBOOK_URL_PREFIX.length).split("#");
+  const file = join(ROOT, path);
+  if (relative(ROOT, file).startsWith("..")) return `runbook_url names ${path}, outside the repository`;
+  if (!existsSync(file) || !statSync(file).isFile()) return `runbook_url names ${path}, absent from the repository`;
+  if (anchor !== undefined && !markdownAnchors(readFileSync(file, "utf-8")).has(anchor)) {
+    return `runbook_url anchor #${anchor} matches no heading of ${path}`;
+  }
+  return null;
+}
+
 // ── 6 + 7: alert rules: same rules everywhere, on metrics that exist ─────────
 {
   const composeRules = alertRules(
@@ -239,16 +279,28 @@ function isEmitted(metric, emitted) {
   );
   const k8sRules = alertRules(k8sAlertingConfig());
 
-  // 7. compose and K8s evaluate the same rules (annotations may differ: they
-  //    name environment-specific remedies).
+  // 7. compose and K8s evaluate the same rules and tell on-call the same
+  //    thing (annotations included: the runbook_url above all).
   const ruleKey = (rule) =>
-    JSON.stringify({ expr: rule.expr, for: rule.for, labels: rule.labels ?? {} });
+    JSON.stringify({
+      expr: rule.expr,
+      for: rule.for,
+      labels: rule.labels ?? {},
+      annotations: rule.annotations ?? {},
+    });
   for (const [name, rule] of composeRules) {
     const other = k8sRules.get(name);
     if (!other) errors.push(`Alert ${name}: in observability/alerting.yml, missing from deploy/k8s/infra/prometheus.yaml`);
     else if (ruleKey(rule) !== ruleKey(other)) {
-      errors.push(`Alert ${name}: expr/for/labels differ between compose and K8s`);
+      errors.push(`Alert ${name}: expr/for/labels/annotations differ between compose and K8s`);
     }
+  }
+
+  // 7b. every rule links its procedure: a runbook_url on main that names a
+  //     file of this repository (and a heading of it, for an #anchor).
+  for (const [name, rule] of composeRules) {
+    const problem = runbookUrlProblem(rule.annotations?.runbook_url);
+    if (problem) errors.push(`Alert ${name}: ${problem}`);
   }
   for (const name of k8sRules.keys()) {
     if (!composeRules.has(name)) {
@@ -266,7 +318,7 @@ function isEmitted(metric, emitted) {
       }
     }
   }
-  info.push(`${composeRules.size} alert rules, identical in compose and K8s, all on emitted metrics`);
+  info.push(`${composeRules.size} alert rules, identical in compose and K8s, all on emitted metrics, each with a runbook in the repository`);
 }
 
 // ── 8: Alertmanager: one config, file-based credentials, dead man's switch ───
@@ -295,6 +347,34 @@ function isEmitted(metric, emitted) {
     errors.push("observability/alertmanager.yml: the Watchdog alert is not routed to a webhook (dead man's switch)");
   }
   info.push("Alertmanager: same config in compose and K8s, file-based credentials, Watchdog → dead man's switch");
+}
+
+// ── 9: On-call diagnostics reach mTLS services with a client SVID ────────────
+// Services refuse clients without a SPIFFE certificate (ADR-0011): a runbook
+// `curl https://…` without --cert fails even on a healthy service.
+{
+  const docs = [];
+  const walkDocs = (dir) => {
+    for (const entry of readdirSync(dir)) {
+      const p = join(dir, entry);
+      if (statSync(p).isDirectory()) walkDocs(p);
+      else if (p.endsWith(".md")) docs.push(p);
+    }
+  };
+  for (const dir of ["docs/operations", "docs/troubleshooting"]) walkDocs(join(ROOT, dir));
+  for (const file of docs) {
+    const rel = relative(ROOT, file).replace(/\\/g, "/");
+    // Join shell continuations so a multi-line curl is checked as one command.
+    const commands = readFileSync(file, "utf-8").replace(/\\\r?\n/g, " ").split(/\r?\n/);
+    for (const line of commands) {
+      for (const command of line.split(/`|\||&&|;/)) {
+        if (/\bcurl\b/.test(command) && /https:\/\//.test(command) && !/--cert\b/.test(command)) {
+          errors.push(`${rel}: curl to https:// without --cert/--key (mTLS only, ADR-0011): ${command.trim()}`);
+        }
+      }
+    }
+  }
+  info.push(`On-call docs: every curl to https:// carries a client SVID (${docs.length} files)`);
 }
 
 if (errors.length > 0) {

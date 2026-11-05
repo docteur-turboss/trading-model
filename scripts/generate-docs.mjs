@@ -31,12 +31,44 @@ const CUSTOM_CSS = join(ROOT, 'scripts', 'docs', 'typedoc-custom.css');
  */
 const MODULES = [
   {
+    label: '@trading-model/primitives',
+    type: 'package',
+    description: 'Primitives de domaine — types brandés, identité de service, plages (zéro dépendance)',
+    entryPoints: [join(ROOT, 'packages/primitives/src')],
+    strategy: 'expand',
+    tsconfig: join(ROOT, 'packages/primitives/tsconfig.json'),
+  },
+  {
+    label: '@trading-model/contracts',
+    type: 'package',
+    description: 'Contrats partagés — événements, enveloppe de message, registre de services, http-status',
+    entryPoints: [join(ROOT, 'packages/contracts/src')],
+    strategy: 'expand',
+    tsconfig: join(ROOT, 'packages/contracts/tsconfig.json'),
+  },
+  {
+    label: '@trading-model/reliability',
+    type: 'package',
+    description: 'Fiabilité — circuit breaker, machine à états, latence, heartbeat',
+    entryPoints: [join(ROOT, 'packages/reliability/src')],
+    strategy: 'expand',
+    tsconfig: join(ROOT, 'packages/reliability/tsconfig.json'),
+  },
+  {
     label: '@trading-model/common',
     type: 'package',
-    description: "Package d'infrastructure partagée — primitives, contrats, reliability, persistence, utils, ws",
+    description: "Résidu d'infrastructure partagée — config, erreurs, retry, SPIFFE, TLS, schémas partagés",
     entryPoints: [join(ROOT, 'packages/common/src')],
     strategy: 'expand',
     tsconfig: join(ROOT, 'packages/common/tsconfig.json'),
+  },
+  {
+    label: '@trading-model/persistence',
+    type: 'package',
+    description: 'Persistance — connexions Redis/MongoDB, adaptateurs de stockage, clés',
+    entryPoints: [join(ROOT, 'packages/persistence/src')],
+    strategy: 'expand',
+    tsconfig: join(ROOT, 'packages/persistence/tsconfig.json'),
   },
   {
     label: '@trading-model/http',

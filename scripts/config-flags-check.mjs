@@ -21,6 +21,10 @@
  * that cannot start), or when code reads `env.X` / `ENV.X` for a variable no
  * schema declares: Zod drops unknown keys, so it is always undefined, whatever
  * a deployment sets. Exceptions live in ALLOWED_UNSET, each with its reason.
+ * Also fails when a variable the code reads has no table row in
+ * `docs/deployment/ENV.md` (a line starting with `| \`NAME\` |`), so that
+ * reference stays exhaustive. A mention in prose or in another row's
+ * description does not count.
  * A variable that profiles set but no code reads is reported as a warning.
  *
  * Usage: node scripts/config-flags-check.mjs [--list]
@@ -41,7 +45,7 @@ const ALLOWED_UNSET = {};
 
 /** Profiles: what a real deployment can set. Tests and docs are not profiles. */
 const PROFILE_ROOTS = ['.env.example', 'docker-compose.yml', 'deploy', '.github/workflows/deploy.yml'];
-const PROFILE_FILE = /(\.ya?ml|\.conf|\.hcl|\.sh|\.env\.example|Dockerfile|\.json)$/;
+const PROFILE_FILE = /(\.ya?ml|\.conf|\.hcl|\.sh|\.env\.example|\.properties|Dockerfile|\.json)$/;
 
 const ENV_KEY = /^\s*([A-Z][A-Z0-9_]{2,}):\s*(z\b|[A-Za-z]+Schema\b)/;
 const PARSED_ENV_READ = /\b(?:env|ENV)\.([A-Z][A-Z0-9_]{2,})\b/g;
@@ -130,12 +134,19 @@ function kindOf(entry) {
   return 'default';
 }
 
+const envDoc = readFileSync(join(ROOT, 'docs/deployment/ENV.md'), 'utf8');
+// Names are [A-Z0-9_] only: no regex escaping needed.
+const documented = (name) => new RegExp(`^\\|\\s*\`${name}\`\\s*\\|`, 'm').test(envDoc);
+
 const errors = [];
 const rows = [];
 for (const [name, entry] of [...read].sort(([a], [b]) => a.localeCompare(b))) {
   const kind = kindOf(entry);
   const defined = kind === 'off' ? switchedOnIn(name) : definedIn(name);
-  rows.push({ variable: name, kind, defined });
+  rows.push({ variable: name, kind, defined, documented: documented(name) });
+  if (!documented(name)) {
+    errors.push(`${name}: read by the code but has no row in docs/deployment/ENV.md (${[...entry.sources].join(', ')})`);
+  }
   if (defined) continue;
   if ((kind === 'optional' || kind === 'off') && !ALLOWED_UNSET[name]) {
     errors.push(`${name}: ${kind}, set by no deployment profile — the code it turns on never runs (${[...entry.sources].join(', ')})`);
@@ -158,7 +169,9 @@ if (LIST) console.table(rows);
 if (errors.length) {
   console.error(`config-flags check failed (${errors.length}):`);
   for (const error of errors) console.error(`  - ${error}`);
-  console.error('Set the variable in a profile, remove the code it gates, or add it to ALLOWED_UNSET with a reason.');
+  console.error(
+    'Set the variable in a profile, remove the code it gates, or add it to ALLOWED_UNSET with a reason; document every variable in docs/deployment/ENV.md.',
+  );
   process.exit(1);
 }
 const counts = rows.reduce((acc, row) => ({ ...acc, [row.kind]: (acc[row.kind] ?? 0) + 1 }), {});

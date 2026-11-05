@@ -87,7 +87,40 @@ jobs:
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
     steps:
+      # Manifests, node agents and migrations come from the released tag, not
+      # from the branch picked at dispatch: production only deploys a vX.Y.Z
+      # release (refused here, before the cluster is reached). A tag older
+      # than a script this workflow calls fails the deploy, on purpose.
+      - name: Resolve release ref
+        id: ref
+        shell: bash
+        env:
+          ENV: ${{ inputs.environment }}
+          TAG: ${{ inputs.image_tag }}
+        run: |
+          if [[ "$TAG" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "ref=refs/tags/v${TAG#v}" >> "$GITHUB_OUTPUT"
+            echo "Checking out refs/tags/v${TAG#v}"
+            exit 0
+          fi
+          if [ "$ENV" = "production" ]; then
+            echo "::error::production deploys a release only: image_tag must be vX.Y.Z or X.Y.Z, got '$TAG'"
+            exit 1
+          fi
+          echo "::warning::image_tag '$TAG' is not a release: manifests and migrations come from the dispatch ref $GITHUB_REF, not from the image's release"
+
+      # Empty ref (non-release staging deploy): the dispatch ref.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ steps.ref.outputs.ref }}
+
+      - name: Show deployed commit
+        id: src
+        shell: bash
+        run: |
+          sha=$(git rev-parse HEAD)
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          echo "Manifests and migrations from $sha"
 
       - name: Resolve namespace
         id: ns
@@ -217,6 +250,30 @@ jobs:
             exit 1
           fi
 
+      # Only digests signed by release.yml of this repository (keyless, ADR-0038)
+      # are deployed. Tags published before the signature existed fail here.
+      - name: Install cosign
+        uses: sigstore/cosign-installer@756fe2d284c7292c4e9b62c8a28f1e5629c59532 # v4.1.3
+
+      - name: Verify image signatures
+        shell: bash
+        env:
+          REGISTRY: ${{ steps.tag.outputs.registry }}
+          REPO: ${{ github.repository }}
+        run: |
+          failed=""
+          while read -r img digest; do
+            if ! cosign verify "$REGISTRY/$img@$digest" \
+              --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+              --certificate-identity-regexp "^https://github\.com/${REPO}/\.github/workflows/release\.yml@refs/tags/v" >/dev/null; then
+              failed="$failed $img"
+            fi
+          done < "$RUNNER_TEMP/image-digests"
+          if [ -n "$failed" ]; then
+            echo "::error::No valid release.yml signature for:$failed"
+            exit 1
+          fi
+
       # Production reads its secrets from SealedSecrets: without the controller
       # the apply stops half way (unknown kind), and a placeholder never
       # decrypts, so every pod waits on a missing Secret. Checked before
@@ -234,9 +291,35 @@ jobs:
             echo "::error::The cluster has no SealedSecret CRD: install the Sealed Secrets controller (docs/deployment/sealed-secrets.md)"
             exit 1
           fi
+          # ADR-0035: the controller runs in its own namespace, so that the
+          # identity of the daily key backup reads its keys only, not every
+          # Secret of kube-system.
+          if ! kubectl -n sealed-secrets get deployment sealed-secrets-controller >/dev/null 2>&1; then
+            echo "::error::No Sealed Secrets controller in the namespace sealed-secrets: install it with bash scripts/install-sealed-secrets.sh, or move it out of kube-system (docs/deployment/sealed-secrets.md, ADR-0035)"
+            exit 1
+          fi
           if grep -q 'AgCHANGE_ME' <<<"$rendered"; then
             echo "::error::$ENV still has placeholder SealedSecrets: run bash scripts/init-sealed-secrets.sh and commit deploy/k8s/secrets"
             exit 1
+          fi
+
+      # The Ingress hosts ship as example.com placeholders (issue #415): in
+      # production they would leave the API unreachable from outside while
+      # cert-manager keeps failing Let's Encrypt orders (rate limits). Checked
+      # before anything is applied; staging only warns.
+      - name: Check ingress hosts
+        shell: bash
+        run: |
+          ENV="${{ inputs.environment }}"
+          rendered=$(kubectl kustomize --load-restrictor LoadRestrictionsNone "deploy/k8s/overlays/$ENV")
+          hosts=$(grep -oE '[A-Za-z0-9.-]*example\.com' <<<"$rendered" | sort -u | tr '\n' ' ' || true)
+          if [ -z "$hosts" ]; then
+            echo "$ENV Ingress hosts are set"
+          elif [ "$ENV" = "production" ]; then
+            echo "::error::production Ingress hosts are still placeholders ($hosts): set the real names in deploy/k8s/overlays/production/ingress-hosts.yaml (docs/deployment/KUBERNETES.md, \"Set the Ingress hosts\")"
+            exit 1
+          else
+            echo "::warning::$ENV Ingress hosts are still placeholders ($hosts): set the real names in deploy/k8s/overlays/$ENV/ingress-hosts.yaml"
           fi
 
       # Anchor store of the audit chain (ADR-0027): an S3 bucket with Object
@@ -276,6 +359,91 @@ jobs:
           [ -z "$AUDIT_ANCHOR_ENDPOINT" ] || endpoint=(--from-literal=AUDIT_ANCHOR_ENDPOINT="$AUDIT_ANCHOR_ENDPOINT")
           kubectl -n "$NS" create secret generic audit-anchor-s3             --from-literal=AUDIT_ANCHOR_BUCKET="$AUDIT_ANCHOR_BUCKET"             --from-literal=AUDIT_ANCHOR_REGION="${AUDIT_ANCHOR_REGION:-us-east-1}"             --from-literal=AWS_ACCESS_KEY_ID="$AUDIT_ANCHOR_ACCESS_KEY_ID"             --from-literal=AWS_SECRET_ACCESS_KEY="$AUDIT_ANCHOR_SECRET_ACCESS_KEY"             "${endpoint[@]}"             --dry-run=client -o yaml | kubectl apply -f -
 
+      # The off-site backup copy must survive a compromised cluster, which holds
+      # the bucket's credentials: Object Lock in compliance mode, default
+      # retention from RETENTION_DAYS of the db-backup CronJob to the 31 days
+      # of the daily/ lifecycle rule (ADR-0033). Checked before anything is
+      # applied, with the credentials the job will use: the GitHub environment
+      # (BACKUP_S3_*), or else the trading-model-backup-s3 Secret already in
+      # the namespace (e.g. a SealedSecret). Production fails, other
+      # environments warn; BACKUP_S3_IMMUTABILITY_CHECK=warn downgrades
+      # production while the bucket is set up (docs/deployment/BACKUP_DR.md).
+      - name: Check off-site backup bucket immutability
+        shell: bash
+        env:
+          BACKUP_S3_BUCKET: ${{ vars.BACKUP_S3_BUCKET }}
+          BACKUP_S3_REGION: ${{ vars.BACKUP_S3_REGION }}
+          BACKUP_S3_ENDPOINT: ${{ vars.BACKUP_S3_ENDPOINT }}
+          BACKUP_S3_ACCESS_KEY_ID: ${{ secrets.BACKUP_S3_ACCESS_KEY_ID }}
+          BACKUP_S3_SECRET_ACCESS_KEY: ${{ secrets.BACKUP_S3_SECRET_ACCESS_KEY }}
+          BACKUP_S3_IMMUTABILITY_CHECK: ${{ vars.BACKUP_S3_IMMUTABILITY_CHECK }}
+        run: |
+          NS="${{ steps.ns.outputs.namespace }}"
+          bucket="$BACKUP_S3_BUCKET" endpoint="$BACKUP_S3_ENDPOINT" region="$BACKUP_S3_REGION"
+          key_id="$BACKUP_S3_ACCESS_KEY_ID" secret="$BACKUP_S3_SECRET_ACCESS_KEY"
+          if [ -z "$bucket" ] && kubectl -n "$NS" get secret trading-model-backup-s3 >/dev/null 2>&1; then
+            echo "BACKUP_S3_BUCKET is not set: checking the bucket of the existing trading-model-backup-s3 Secret"
+            secret_key() {
+              kubectl -n "$NS" get secret trading-model-backup-s3 -o "jsonpath={.data.$1}" | base64 -d
+            }
+            bucket="$(secret_key BACKUP_S3_BUCKET)"
+            endpoint="$(secret_key S3_ENDPOINT)"
+            region="$(secret_key AWS_REGION)"
+            key_id="$(secret_key AWS_ACCESS_KEY_ID)"
+            secret="$(secret_key AWS_SECRET_ACCESS_KEY)"
+            [ -z "$key_id" ] || echo "::add-mask::$key_id"
+            [ -z "$secret" ] || echo "::add-mask::$secret"
+          fi
+          if [ -n "$bucket" ] && { [ -z "$key_id" ] || [ -z "$secret" ]; }; then
+            echo "::error::Off-site backup bucket $bucket has no credentials: set BACKUP_S3_ACCESS_KEY_ID / BACKUP_S3_SECRET_ACCESS_KEY"
+            exit 1
+          fi
+          # Minimum lock: what the CronJob keeps on the volume (RETENTION_DAYS).
+          retention=$(awk '/name: RETENTION_DAYS/ { getline; gsub(/[^0-9]/, ""); print; exit }' deploy/k8s/jobs/backup-cronjob.yaml)
+          if [ -z "$retention" ]; then
+            echo "::error::RETENTION_DAYS not found in deploy/k8s/jobs/backup-cronjob.yaml"
+            exit 1
+          fi
+          AWS_ACCESS_KEY_ID="$key_id" AWS_SECRET_ACCESS_KEY="$secret" AWS_REGION="${region:-us-east-1}" \
+            bash scripts/backup-bucket-check.sh --environment "${{ inputs.environment }}" \
+              --bucket "$bucket" --endpoint "$endpoint" --min-days "$retention"
+
+      # At least two distinct age recipients in production (operator key +
+      # escrow key, issue #327): with one, losing its private key makes every
+      # backup unreadable. Minimum = BACKUP_MIN_RECIPIENTS of the overlay's
+      # backup CronJobs, never below 2 in production. Checked before any
+      # change; unset variable: the existing backup-encryption ConfigMap is
+      # checked instead (it is left as it is by "Configure backup encryption").
+      - name: Check backup encryption recipients
+        shell: bash
+        env:
+          BACKUP_AGE_RECIPIENTS: ${{ vars.BACKUP_AGE_RECIPIENTS }}
+        run: |
+          NS="${{ steps.ns.outputs.namespace }}"
+          ENV="${{ inputs.environment }}"
+          if [ -z "$BACKUP_AGE_RECIPIENTS" ] && kubectl -n "$NS" get configmap backup-encryption >/dev/null 2>&1; then
+            echo "BACKUP_AGE_RECIPIENTS is not set: checking the existing backup-encryption ConfigMap"
+            BACKUP_AGE_RECIPIENTS="$(kubectl -n "$NS" get configmap backup-encryption -o 'jsonpath={.data.BACKUP_AGE_RECIPIENTS}')"
+            export BACKUP_AGE_RECIPIENTS
+          fi
+          min=$(kubectl kustomize --load-restrictor LoadRestrictionsNone "deploy/k8s/overlays/$ENV" |
+            awk '/name: BACKUP_MIN_RECIPIENTS/ { getline; gsub(/[^0-9]/, ""); if ($0 + 0 > max + 0) max = $0 + 0 } END { print max + 0 }')
+          [ "$min" -ge 1 ] || min=1
+          bash scripts/backup-recipients-check.sh --environment "$ENV" --min "$min"
+
+      # Production refuses to deploy without a backup encryption key and an
+      # off-site copy (issue #331): each comes from the GitHub environment or
+      # from the resource already in the namespace (ConfigMap
+      # backup-encryption, Secret trading-model-backup-s3, e.g. a
+      # SealedSecret). Other environments warn. Checked before any change.
+      - name: Check backup configuration is present
+        shell: bash
+        env:
+          BACKUP_AGE_RECIPIENTS: ${{ vars.BACKUP_AGE_RECIPIENTS }}
+          BACKUP_S3_BUCKET: ${{ vars.BACKUP_S3_BUCKET }}
+        run: |
+          bash scripts/backup-config-check.sh --environment "${{ inputs.environment }}"             --namespace "${{ steps.ns.outputs.namespace }}"
+
       # Notification credentials, mounted as files by Alertmanager and read at
       # send time (no restart needed). Keys left unset are left out.
       - name: Configure alert notifications
@@ -298,6 +466,39 @@ jobs:
           # failed notifications, and AlertmanagerNotificationsFailing fires.
           kubectl get namespace "$NS" >/dev/null 2>&1 || kubectl create namespace "$NS"
           kubectl -n "$NS" create secret generic alertmanager-credentials "${keys[@]}"             --dry-run=client -o yaml | kubectl apply -f -
+
+      # Contact e-mail sent in the User-Agent of the signal sources (ADR-0036;
+      # SEC EDGAR answers 403 without one). A secret of the GitHub environment:
+      # the repository and its run logs are public. Before the overlay, so the
+      # collector starts with it. Unset: the ConfigMap is left as it is.
+      - name: Configure signal sources contact
+        shell: bash
+        env:
+          SIGNAL_CONTACT_EMAIL: ${{ secrets.SIGNAL_CONTACT_EMAIL }}
+        run: |
+          NS="${{ steps.ns.outputs.namespace }}"
+          if [ -z "$SIGNAL_CONTACT_EMAIL" ]; then
+            echo "::warning::SIGNAL_CONTACT_EMAIL is not set for ${{ inputs.environment }}: SEC EDGAR refuses the signal collector"
+            exit 0
+          fi
+          kubectl get namespace "$NS" >/dev/null 2>&1 || kubectl create namespace "$NS"
+          kubectl -n "$NS" create configmap signal-contact \
+            --from-literal=SIGNAL_CONTACT_EMAIL="$SIGNAL_CONTACT_EMAIL" \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      # CRDs of non-native kinds (VPA, SealedSecret...), StorageClasses,
+      # IngressClasses and the cert-manager ClusterIssuer come from the render
+      # itself. Missing ones stop the deploy here, not half way through the
+      # apply (issue #419).
+      - name: Check cluster prerequisites
+        shell: bash
+        run: |
+          ENV="${{ inputs.environment }}"
+          {
+            kubectl kustomize --load-restrictor LoadRestrictionsNone "deploy/k8s/overlays/$ENV"
+            echo ---
+            kubectl kustomize "deploy/k8s/overlays/$ENV/node-agents"
+          } | bash deploy/k8s/scripts/check-prereqs.sh
 
       # SPIRE agent + SPIFFE CSI driver, in the privileged trading-model-node
       # namespace: the application namespace (restricted) cannot host them.
@@ -331,15 +532,52 @@ jobs:
           CANARY_GATE_SECONDS: ${{ vars.CANARY_GATE_SECONDS || '120' }}
           CANARY_MIN_REQUESTS: ${{ vars.CANARY_MIN_REQUESTS || '20' }}
           CANARY_ERROR_THRESHOLD_PCT: ${{ vars.CANARY_ERROR_THRESHOLD_PCT || '5' }}
+          # Services whose gate is readiness only (no steady traffic): dlq-service
+          # only gets requests on a dead letter or an admin call.
+          CANARY_READINESS_ONLY: ${{ vars.CANARY_READINESS_ONLY || 'dlq-service' }}
         run: |
           NS="${{ steps.ns.outputs.namespace }}"
           export K8S_NAMESPACE="$NS"
           export CANARY_IMAGE_REPO="${{ steps.tag.outputs.registry }}"
           chmod +x deploy/k8s/scripts/deploy-k8s.sh
           TAG="${{ steps.tag.outputs.tag }}"
-          for dep in discovery-server message-manager financial-scraper trader-trainer \
-                     api-gateway audit-logger dlq-service; do
-            ./deploy/k8s/scripts/deploy-k8s.sh canary "$dep" "$TAG" 10
+          # Created in parallel, observed over one CANARY_GATE_SECONDS window.
+          ./deploy/k8s/scripts/deploy-k8s.sh canary-all "$TAG" 10 \
+            discovery-server message-manager financial-scraper trader-trainer \
+            api-gateway audit-logger dlq-service
+
+      # Revision each Deployment runs before the overlay: the rollback returns to
+      # exactly it (image and hashed ConfigMap), not to "the one before the
+      # current", which is older than N for a Deployment the overlay left as is.
+      - name: Record current revisions
+        shell: bash
+        run: |
+          NS="${{ steps.ns.outputs.namespace }}"
+          for dep in discovery-server message-manager financial-scraper financial-scraper-collector trader-trainer \
+                     api-gateway audit-logger dlq-service edge-proxy; do
+            rev=$(kubectl get deployment "$dep" -n "$NS" --ignore-not-found \
+              -o jsonpath='{.metadata.annotations.deployment\.kubernetes\.io/revision}')
+            echo "$dep ${rev:-none}"
+          done | tee "$RUNNER_TEMP/deploy-revisions"
+
+      # Deployments driven by an HPA carry no spec.replicas in the overlay. A
+      # client-side apply of a manifest that drops a field it applied before
+      # resets it to the default (1), so the field leaves
+      # last-applied-configuration first (Kubernetes docs, "Migrating
+      # Deployments and StatefulSets to horizontal autoscaling"). No-op once done
+      # and on a first deploy (no HPA yet).
+      - name: Release replicas of autoscaled Deployments
+        shell: bash
+        run: |
+          NS="${{ steps.ns.outputs.namespace }}"
+          ANN='kubectl.kubernetes.io/last-applied-configuration'
+          for dep in $(kubectl get hpa -n "$NS" \
+              -o jsonpath='{range .items[?(@.spec.scaleTargetRef.kind=="Deployment")]}{.spec.scaleTargetRef.name}{"\n"}{end}'); do
+            last=$(kubectl get deployment "$dep" -n "$NS" -o json | jq -r --arg a "$ANN" '.metadata.annotations[$a] // empty')
+            [ -n "$last" ] || continue
+            echo "$last" | jq -e '.spec | has("replicas")' > /dev/null || continue
+            kubectl annotate deployment "$dep" -n "$NS" --overwrite "$ANN=$(echo "$last" | jq -c 'del(.spec.replicas)')"
+            echo "$dep: spec.replicas removed from last-applied-configuration"
           done
 
       - name: Apply overlay
@@ -365,10 +603,18 @@ jobs:
           # jobs/ packages scripts/backup-k8s.sh from outside its directory: the default
           # load restrictor rejects it and kubectl apply -k cannot relax it.
           kubectl kustomize --load-restrictor LoadRestrictionsNone "$WRAPPER" | kubectl apply -f -
+          # The former secret-rotation CronJob (issue #424) held write rights on every
+          # Secret; apply never prunes, so remove what an older deploy left behind.
+          kubectl delete cronjob/secret-rotation role/secret-rotator-role \
+            rolebinding/secret-rotator-binding serviceaccount/secret-rotator \
+            -n "${{ steps.ns.outputs.namespace }}" --ignore-not-found
 
       # Public age key(s) the db-backup CronJob encrypts every dump for (the
-      # private key never enters the cluster). Environment variable of the
-      # GitHub environment; without it the backup job refuses to run.
+      # private keys never enter the cluster). Environment variable of the
+      # GitHub environment; without it the backup job refuses to run (production
+      # refuses to deploy: "Check backup configuration is present"). Its
+      # recipients were checked before the overlay ("Check backup encryption
+      # recipients": at least 2 distinct keys in production).
       - name: Configure backup encryption
         shell: bash
         env:
@@ -387,7 +633,8 @@ jobs:
       # db-backup job fails without it (BACKUP_REQUIRE_OFFSITE). Bucket,
       # region, endpoint and provider are variables of the GitHub environment,
       # the credentials are secrets. Unset: an existing trading-model-backup-s3
-      # Secret (e.g. a SealedSecret) is left as it is.
+      # Secret (e.g. a SealedSecret) is left as it is. Its Object Lock was
+      # checked before the overlay ("Check off-site backup bucket immutability").
       - name: Configure off-site backup copy
         shell: bash
         env:
@@ -453,7 +700,7 @@ jobs:
           for dep in discovery-server message-manager financial-scraper financial-scraper-collector trader-trainer \
                      api-gateway audit-logger dlq-service edge-proxy; do
             kubectl annotate deployment "$dep" -n "$NS" --overwrite \
-              trading-model.dev/git-sha="$GITHUB_SHA" \
+              trading-model.dev/git-sha="${{ steps.src.outputs.sha }}" \
               trading-model.dev/release-version="$VERSION"
           done
 
@@ -477,14 +724,21 @@ jobs:
         shell: bash
         run: |
           NS="${{ steps.ns.outputs.namespace }}"
+          # Back to the revision recorded before the overlay: its pod template
+          # names the image digest and the hashed ConfigMaps of release N, which
+          # are still in the namespace (never pruned), so configuration comes
+          # back with the image (issue #410). Only Deployments are rolled back:
+          # docs/deployment/DEPLOY.md lists what is not.
           # Every deployment is tried: one without a previous revision (first
           # deploy) must not leave the others on the failed release.
           failed=0
-          for dep in discovery-server message-manager financial-scraper financial-scraper-collector trader-trainer \
-                     api-gateway audit-logger dlq-service edge-proxy; do
-            if ! kubectl rollout undo "deployment/$dep" -n "$NS"; then
-              echo "::error::Could not roll back $dep (no previous revision on a first deploy?)"
+          while read -r dep rev; do
+            if [ "$rev" = none ]; then
+              echo "::error::Could not roll back $dep: it did not exist before this deploy"
+              failed=1
+            elif ! kubectl rollout undo "deployment/$dep" -n "$NS" --to-revision="$rev"; then
+              echo "::error::Could not roll back $dep to revision $rev"
               failed=1
             fi
-          done
+          done < "$RUNNER_TEMP/deploy-revisions"
           exit "$failed"

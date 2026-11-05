@@ -2,6 +2,9 @@ name: CI
 
 on:
   pull_request:
+  # Merge commits get verified too, not only at release time.
+  push:
+    branches: [main, development]
   # release.yml runs the whole CI on the tagged commit before pushing images.
   workflow_call:
 
@@ -10,7 +13,8 @@ permissions:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  # In a called workflow github.ref is the caller's: never cancel a release (tag) run.
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
 
 jobs:
   lint:
@@ -19,7 +23,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
-          bun-version: latest
+          bun-version-file: .bun-version
       - run: bun install --frozen-lockfile
       - run: bun run lint
       - run: bun run deps:check
@@ -34,7 +38,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
-          bun-version: latest
+          bun-version-file: .bun-version
       - run: bun install --frozen-lockfile
       - name: Build packages (dependency order)
         run: bun run build
@@ -54,20 +58,22 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
-          bun-version: latest
+          bun-version-file: .bun-version
       - run: bun install --frozen-lockfile
       - run: bun run build
       - run: bun run test:coverage
 
       - name: Import Codecov GPG key
         run: |
-          gpg --keyserver keyserver.ubuntu.com --recv-keys 27034E7FDB850E0BBC2C62FF806BB28AED779869
+          gpg --import .github/keys/codecov.asc
+          gpg --fingerprint 27034E7FDB850E0BBC2C62FF806BB28AED779869
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          fail_ci_if_error: true
+          # Blocking on PRs only: a Codecov outage must not block a release (workflow_call).
+          fail_ci_if_error: ${{ github.event_name == 'pull_request' }}
 
   db-integration:
     runs-on: ubuntu-latest
@@ -75,7 +81,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
-          bun-version: latest
+          bun-version-file: .bun-version
       - run: bun install --frozen-lockfile
       - run: bun run build
       - name: Run specs against real databases (Testcontainers)
@@ -87,7 +93,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
-          bun-version: latest
+          bun-version-file: .bun-version
       - run: bun install --frozen-lockfile
       - name: Observability gate
         run: bun scripts/observability-gate.mjs
@@ -103,6 +109,10 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Render and check the overlays
         run: node tests/k8s/check-overlays.mjs
+      - name: Test the canary gate
+        run: bash tests/k8s/canary-gate.test.sh
+      - name: Test the cluster prerequisites check
+        run: bash tests/k8s/check-prereqs.test.sh
 
   contract:
     runs-on: ubuntu-latest
@@ -110,7 +120,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
-          bun-version: latest
+          bun-version-file: .bun-version
       - run: bun install --frozen-lockfile
       - run: bun run build
       - run: bun run test:contract
@@ -125,7 +135,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
-          bun-version: latest
+          bun-version-file: .bun-version
       - run: bun install --frozen-lockfile
       - run: bun run build
       # Services only accept SPIFFE mTLS clients: readiness is read from the
@@ -163,6 +173,13 @@ jobs:
       KIND_VERSION: v0.27.0
       KIND_SHA256: a6875aaea358acf0ac07786b1a6755d08fd640f4c79b7a2e46681cc13f49a04b
       KIND: ./kind
+      # Restore drill timings (tests/backup/drill-timings.sh): JSON uploaded
+      # below, table in the job summary. RESTORE_DRILL_BUDGET_SECONDS (default
+      # 1200 s, about 5 times the 252 s of the first CI run; disaster to checks) and RESTORE_DRILL_BUDGET_MODE (fail or
+      # warn, default fail) can be set here; kind on a shared runner is slow
+      # and not representative of production, the RTO is judged in
+      # docs/compliance/dr-exercise-log.md.
+      DRILL_TIMINGS_FILE: ${{ github.workspace }}/restore-drill-timings.json
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Install kind
@@ -191,6 +208,13 @@ jobs:
         run: bash tests/k8s/run-kind.sh verify
       - name: Canary gate (deploy.yml canary)
         run: bash tests/k8s/run-kind.sh verify_canary
+      - name: Upload the restore drill timings
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: restore-drill-timings-kind
+          path: restore-drill-timings.json
+          if-no-files-found: ignore
       - name: Dump cluster state
         if: failure()
         run: bash tests/k8s/run-kind.sh dump

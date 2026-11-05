@@ -3,12 +3,13 @@ kind: Kustomization
 
 resources:
   - backup-cronjob.yaml
-  - secret-rotation-cronjob.yaml
+  - backup-incremental-cronjob.yaml
 
 configMapGenerator:
   - name: backup-scripts
     files:
       - backup-k8s.sh=../../../scripts/backup-k8s.sh
+      - backup-incremental-k8s.sh=../../../scripts/backup-incremental-k8s.sh
       - backup-lib.sh=../../../scripts/backup-lib.sh
       # Mounted the same way by a restore Job (docs/deployment/BACKUP_DR.md).
       - restore-k8s.sh=../../../scripts/restore-k8s.sh

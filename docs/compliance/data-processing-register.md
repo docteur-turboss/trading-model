@@ -31,7 +31,7 @@ This register documents the processing activities of the trading-model platform,
 | **Transfers outside EU** | None. Market data is **received** from the Binance public API (Cayman Islands); nothing is sent to it. See third-party assessment |
 | **Retention period**     | **Not bounded yet.** Target 5 years (record-keeping, see [Data Retention Policy](data-retention-policy.md)); the former MySQL purge event was removed from migration 003 (audit A9) and its out-of-schema replacement is open (DPIA action #2) |
 | **Technical measures**   | mTLS (SPIFFE SVIDs), LUKS2 data disks, age-encrypted backups, RBAC service accounts                                               |
-| **System**               | financial-scraper → MySQL (market_candles, market_trades, market_tickers)                                                         |
+| **System**               | financial-scraper → MySQL (market_candles, market_trades, market_tickers, signals). `signals` (ADR-0036) holds numeric observations of public sources free for any use: bond yields (ECB), company filings (SEC EDGAR), weather observations (NWS), daily Wikipedia page views (Wikimedia, counts only); see [Third-Party DPAs](third-party-dpas.md#signal-sources-adr-0036) |
 
 ## Processing Activity 2: Message Routing
 
@@ -108,7 +108,7 @@ This register documents the processing activities of the trading-model platform,
 | **Personal data**        | None (application logs truncate IPs and redact sensitive keys). Backups contain no personal data since activities 1–4 hold none |
 | **Recipients**           | Internal: operators. Alerts: Slack (alert names and labels only). Backups: off-site S3 store, age-encrypted before upload |
 | **Transfers outside EU** | Depends on the region of the off-site S3 store and of Slack — to be recorded by the operating entity               |
-| **Retention period**     | Loki: 31 days. Prometheus: 30 days. Jaeger: in memory until restart. Backups: 30 days locally (`RETENTION_DAYS`); off-site: bucket lifecycle rule, to be set to the same value |
+| **Retention period**     | Loki: 31 days. Prometheus: 30 days. Jaeger: in memory until restart. Backups (ADR-0032): 30 days locally (`RETENTION_DAYS`, dailies only); off-site daily 31 days, plus for the audit trail and the MySQL dump weekly 12 weeks and monthly 60 months (bucket lifecycle rules per prefix) |
 | **Technical measures**   | LUKS2 data disks, age encryption of every dump before it is written, only `.age` files copied off-site             |
 | **System**               | Promtail → Loki, Prometheus, Jaeger, Alertmanager; `db-backup` CronJob / `scripts/backup*.sh`                      |
 

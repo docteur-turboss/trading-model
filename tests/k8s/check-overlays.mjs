@@ -3,9 +3,13 @@
 //   - every overlay renders
 //   - every first-party image (ghcr.io/trading-model/<image>) is published by
 //     release.yml and rewritten by deploy.yml (IMAGES): an image missing there
-//     would stay on the logical name, which no registry serves
+//     would stay on the logical name, which no registry serves; and every
+//     deploy.yml IMAGES entry is built by release.yml; the release.yml sign
+//     matrix holds exactly the deploy.yml IMAGES entries
 //   - production gets its application secrets from SealedSecrets only, never
 //     from a plain Secret (the staging secretGenerator holds dev- values)
+//   - no Deployment driven by an HPA sets spec.replicas: every apply would reset
+//     the pod count the HPA chose (issue #416)
 //   - every Deployment that can run more than one pod (replicas or its HPA)
 //     spreads them across nodes (ADR-0024): otherwise one node can hold every
 //     replica and its loss takes the whole service down
@@ -65,6 +69,19 @@ function unspreadDeployments(docs) {
 		.map((doc) => doc.name);
 }
 
+/** Deployments driven by an HPA that still set spec.replicas. */
+function replicasUnderHpa(docs) {
+	const targets = new Set();
+	for (const doc of docs.filter((d) => d.kind === "HorizontalPodAutoscaler")) {
+		const target = doc.text.match(/scaleTargetRef:\n(?: {4}.*\n)*? {4}name: (\S+)$/m)?.[1];
+		if (target) targets.add(target);
+	}
+	return docs
+		.filter((doc) => doc.kind === "Deployment" && targets.has(doc.name))
+		.filter((doc) => /^ {2}replicas: \d+$/m.test(doc.text))
+		.map((doc) => doc.name);
+}
+
 function deployImages() {
 	const workflow = readFileSync(".github/workflows/deploy.yml", "utf8");
 	const block = workflow.match(/^ {2}IMAGES: >-\n((?: {4}.*\n)+)/m);
@@ -83,9 +100,28 @@ function releaseImages() {
 	return new Set(names);
 }
 
+/** Images of the release.yml sign matrix (the only `image:` list at this indent). */
+function signedImages() {
+	const workflow = readFileSync(".github/workflows/release.yml", "utf8");
+	const images = workflow.match(/^ {8}image:\n((?: {10}- .*\n)+)/m);
+	if (!images) throw new Error("release.yml: sign image matrix not found");
+	return new Set(images[1].match(/- (\S+)/g).map((item) => item.slice(2)));
+}
+
 const errors = [];
 const deployed = deployImages();
 const released = releaseImages();
+const signed = signedImages();
+
+// release.yml verify-images resolves deploy.yml IMAGES: one never built fails every release.
+// deploy.yml also refuses any IMAGES digest without a release.yml signature (ADR-0038).
+for (const image of deployed) {
+	if (!released.has(image)) errors.push(`deploy.yml IMAGES: ${image} is not built by release.yml`);
+	if (!signed.has(image)) errors.push(`deploy.yml IMAGES: ${image} is not signed by release.yml`);
+}
+for (const image of signed) {
+	if (!deployed.has(image)) errors.push(`release.yml sign: ${image} is not in deploy.yml IMAGES`);
+}
 
 for (const env of OVERLAYS) {
 	const rendered = [
@@ -104,6 +140,10 @@ for (const env of OVERLAYS) {
 
 	for (const name of unspreadDeployments(documents(rendered))) {
 		errors.push(`${env}: Deployment ${name} can run several pods without topologySpreadConstraints on kubernetes.io/hostname (DoNotSchedule)`);
+	}
+
+	for (const name of replicasUnderHpa(documents(rendered))) {
+		errors.push(`${env}: Deployment ${name} is driven by an HPA but sets spec.replicas (each apply would reset it)`);
 	}
 
 	if (env === "production") {
