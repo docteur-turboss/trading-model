@@ -163,3 +163,5 @@ reports/
 # Alertmanager notification credentials (docker-compose.yml)
 observability/alertmanager-credentials/
 restore-drill-timings.json
+# Generated TypeDoc HTML (bun run docs:generate, ADR-0036)
+docs/architecture/code/

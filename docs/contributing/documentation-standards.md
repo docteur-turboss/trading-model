@@ -105,7 +105,7 @@ docs/
 │   ├── 0001-ga-dqn-training.md
 │   ├── ... (ADRs)
 │   └── 0011-spiffe-spire-workload-identity.md
-├── architecture/code/                   # TypeDoc-generated HTML
+├── architecture/code/                   # TypeDoc HTML, generated locally, git-ignored (ADR-0036)
 │   └── ...
 ```
 
@@ -115,7 +115,7 @@ Executable example scripts live at the repo root `examples/` (not under `docs/`)
 
 See [docs/README.md](../README.md) for the central navigation index.
 
-Platform-level implementation reference docs (GA, NN, training) are in `docs/reference/`. Per-service documentation is in `docs/services/`. TypeDoc-generated code documentation is in `docs/architecture/code/`.
+Platform-level implementation reference docs (GA, NN, training) are in `docs/reference/`. Per-service documentation is in `docs/services/`. TypeDoc HTML is generated locally into `docs/architecture/code/` (git-ignored, ADR-0036).
 
 ## How
 
