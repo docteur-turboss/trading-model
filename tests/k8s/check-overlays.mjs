@@ -3,7 +3,8 @@
 //   - every overlay renders
 //   - every first-party image (ghcr.io/trading-model/<image>) is published by
 //     release.yml and rewritten by deploy.yml (IMAGES): an image missing there
-//     would stay on the logical name, which no registry serves
+//     would stay on the logical name, which no registry serves; and every
+//     deploy.yml IMAGES entry is built by release.yml
 //   - production gets its application secrets from SealedSecrets only, never
 //     from a plain Secret (the staging secretGenerator holds dev- values)
 //   - every Deployment that can run more than one pod (replicas or its HPA)
@@ -86,6 +87,11 @@ function releaseImages() {
 const errors = [];
 const deployed = deployImages();
 const released = releaseImages();
+
+// release.yml verify-images resolves deploy.yml IMAGES: one never built fails every release.
+for (const image of deployed) {
+	if (!released.has(image)) errors.push(`deploy.yml IMAGES: ${image} is not built by release.yml`);
+}
 
 for (const env of OVERLAYS) {
 	const rendered = [
