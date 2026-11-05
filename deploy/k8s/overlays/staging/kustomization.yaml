@@ -5,6 +5,10 @@ namespace: trading-model-staging
 
 resources:
   - ../../base
+  - ingress-hosts.yaml
+
+components:
+  - ../../ingress/hosts
 
 # Staging-only development secrets. Production must NOT use these: it is served
 # exclusively by the SealedSecret in deploy/k8s/secrets (see the production overlay).
