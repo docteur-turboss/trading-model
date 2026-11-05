@@ -564,7 +564,7 @@ jobs:
         id: apply
         shell: bash
         run: |
-          bash deploy/k8s/scripts/deploy-release.sh render "deploy/k8s/overlays/${{ inputs.environment }}"             "${{ steps.tag.outputs.registry }}" "$RUNNER_TEMP/image-digests" | kubectl apply -f -
+          bash deploy/k8s/scripts/deploy-release.sh render "deploy/k8s/overlays/${{ inputs.environment }}" "${{ steps.tag.outputs.registry }}" "$RUNNER_TEMP/image-digests" | kubectl apply -f -
 
       # Public age key(s) the db-backup CronJob encrypts every dump for (the
       # private keys never enter the cluster). Environment variable of the

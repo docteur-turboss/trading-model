@@ -35,7 +35,13 @@ mkdir -p "$WORK/bin"
 cat >"$WORK/bin/kubectl" <<'STUB'
 #!/usr/bin/env bash
 # Revisions: $STUB_REVS "dep=rev" (absent: no Deployment). Undo of $STUB_UNDO_FAILS fails.
+# Grace periods: $STUB_GRACE "dep=seconds" (absent: none in the template).
 echo "$*" >>"$STUB_LOG"
+if [ "$1" = get ] && [ "$2" = deployment ] && [[ $* == *terminationGracePeriodSeconds* ]]; then
+	for pair in $STUB_GRACE; do [ "${pair%%=*}" = "$3" ] && printf '%s' "${pair#*=}"; done
+	exit 0
+fi
+if [ "$1" = rollout ] && [ "$2" = status ]; then exit 0; fi
 if [ "$1" = get ] && [ "$2" = deployment ]; then
 	for pair in $STUB_REVS; do [ "${pair%%=*}" = "$3" ] && printf '%s' "${pair#*=}"; done
 	exit 0
@@ -66,6 +72,14 @@ out="$(STUB_UNDO_FAILS=discovery-server bash "$SCRIPT" rollback ns "$WORK/revs" 
 	ko "rollback succeeded with a failed undo and a new Deployment" ||
 	{ grep -q "deployment/api-gateway" "$WORK/log" && [[ $out == *"edge-proxy: it did not exist"* ]] &&
 		ok "rollback fails, reports and still tries every Deployment" || ko "rollback: $out"; }
+
+: >"$WORK/log"
+STUB_GRACE="financial-scraper-collector=360 api-gateway=30" bash "$SCRIPT" wait ns >/dev/null &&
+	grep -q "rollout status deployment/financial-scraper-collector -n ns --timeout=540s" "$WORK/log" &&
+	grep -q "rollout status deployment/api-gateway -n ns --timeout=210s" "$WORK/log" &&
+	grep -q "rollout status deployment/edge-proxy -n ns --timeout=210s" "$WORK/log" &&
+	ok "wait adds each template's termination grace to the timeout" || ko "wait: $(cat "$WORK/log")"
+bash "$SCRIPT" wait ns 3m >/dev/null 2>&1 && ko "wait accepted a timeout not in seconds" || ok "wait refuses a timeout not in seconds"
 
 bash "$SCRIPT" bogus >/dev/null 2>&1 && ko "unknown command accepted" || ok "unknown command refused"
 

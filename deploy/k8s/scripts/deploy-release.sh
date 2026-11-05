@@ -16,7 +16,8 @@
 #       Prints the overlay with every first-party image pinned by digest
 #       ("<image> <sha256:...>" per line); the caller pipes it to kubectl apply.
 #   deploy-release.sh wait <namespace> [timeout]
-#       Waits for the rollout of every Deployment (default 180s each).
+#       Waits for the rollout of every Deployment: timeout (default 180s) plus
+#       the terminationGracePeriodSeconds of its pod template.
 #   deploy-release.sh rollback <namespace> <revisions-file>
 #       Returns every Deployment to the revision `record` wrote.
 set -euo pipefail
@@ -88,11 +89,20 @@ render() {
 	kubectl kustomize --load-restrictor LoadRestrictionsNone "$wrapper"
 }
 
+# A Recreate Deployment starts its new pod only once the old one is gone, and
+# a draining pod may use its whole grace (collector and message-manager: 360 s
+# for in-flight publishes). The grace is added to each wait, or a healthy
+# release whose drain outlasts the timeout would be rolled back (PR #460).
 wait_rollout() {
-	local ns="$1" timeout="${2:-180s}" dep
+	local ns="$1" base="${2%s}" dep grace
+	[[ $base =~ ^[0-9]+$ ]] || {
+		echo "deploy-release.sh: timeout must be in seconds (e.g. 180s), got $2" >&2
+		return 64
+	}
 	for dep in $DEPLOYMENTS; do
-		echo "Waiting for rollout of $dep..."
-		if ! kubectl rollout status "deployment/$dep" -n "$ns" --timeout="$timeout"; then
+		grace=$(kubectl get deployment "$dep" -n "$ns" 			-o jsonpath='{.spec.template.spec.terminationGracePeriodSeconds}')
+		echo "Waiting for rollout of $dep ($((base + ${grace:-30}))s)..."
+		if ! kubectl rollout status "deployment/$dep" -n "$ns" --timeout="$((base + ${grace:-30}))s"; then
 			echo "::error::Rollout of $dep failed or timed out"
 			return 1
 		fi
