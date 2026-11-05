@@ -15,6 +15,12 @@ This guide covers deploying the Trading Model platform on Kubernetes. The K8s ma
   Prometheus, Grafana, Loki, SPIRE)
 - A ReadWriteMany StorageClass named `rwx-csi` (NFS, EFS, Azure Files...) for
   the trainer checkpoints PVC (`trainer-checkpoints-pvc`)
+- CRDs, installed before the first deploy (operators are not installed by the manifests):
+  `verticalpodautoscalers.autoscaling.k8s.io` (VPA, recommendations only: `updateMode: "Off"`,
+  the HPAs own CPU and memory scaling), `sealedsecrets.bitnami.com` (production), cert-manager
+  (`ClusterIssuer` `letsencrypt-prod`) and an `IngressClass` named `nginx`
+- `deploy.yml` derives these from the rendered overlay (`deploy/k8s/scripts/check-prereqs.sh`) and
+  refuses, listing what is missing, before the first apply
 - A CNI that enforces NetworkPolicies
 - One environment per cluster: the node agents (SPIRE agent, promtail) serve a
   single application namespace
@@ -30,7 +36,7 @@ deploy/k8s/
   base/                       # Kustomize base overlay
     namespace.yaml            # trading-model namespace (Pod Security: restricted)
     kustomization.yaml        # Resource list
-  config/                     # ConfigMaps per service (+ HPA, PDB, NetworkPolicy, ServiceAccount)
+  config/                     # <service>.properties -> hashed <service>-config ConfigMaps (+ HPA, PDB, NetworkPolicy, ServiceAccount)
   secrets/                    # Kubernetes Secrets (placeholder values)
   services/                   # Deployments + Services per microservice
   infra/                      # Infrastructure: MySQL, MongoDB, Redis, OTel, Jaeger, Prometheus, Grafana, Loki, SPIRE server
@@ -38,6 +44,7 @@ deploy/k8s/
   overlays/<env>/             # Application overlay per environment
   overlays/<env>/node-agents/ # Node agents pointed at that environment's namespace
   ingress/                    # Ingress rules: public API (→ edge-proxy), Grafana
+  ingress/hosts/              # Component: copies overlays/<env>/ingress-hosts.yaml into the Ingress hosts
   monitoring/                 # PrometheusRules for alerting
   scripts/                    # deploy-k8s.sh, run-migrations.sh
 ```
@@ -69,7 +76,8 @@ the stack (`tests/k8s/run-kind.sh`). The `deploy.yml` workflow runs these steps 
 or right after the overlay on a first deploy, when MySQL does not exist yet).
 
 > **Public API path:** the nginx ingress controller (installed outside this
-> repo) terminates TLS for `api.trading-model.example.com` and forwards plain
+> repo) terminates TLS for the `api` host of the overlay (see
+> [Set the Ingress hosts](#3-set-the-ingress-hosts)) and forwards plain
 > HTTP to the `edge-proxy`, which calls the api-gateway over mTLS with its own
 > SPIRE SVID ([ADR-0018](../adr/0018-temporary-frontend-removal.md)). The
 > controller needs no client certificate, and no request reaches a service
@@ -95,7 +103,28 @@ bash scripts/init-sealed-secrets.sh
 
 See [Sealed Secrets guide](sealed-secrets.md) for detailed setup, key rotation, and migration instructions.
 
-### 3. Deploy all resources
+Secrets are rotated by hand with `scripts/rotate-secrets.sh`; no CronJob does it. The former `secret-rotation` CronJob only restarted two Deployments and held write rights on every Secret (issue #424). `kubectl apply` without `--prune` does not remove it, so delete it once per cluster deployed before that fix (add `-n <namespace>`):
+
+```bash
+kubectl delete cronjob/secret-rotation role/secret-rotator-role \
+  rolebinding/secret-rotator-binding serviceaccount/secret-rotator --ignore-not-found
+```
+
+### 3. Set the Ingress hosts
+
+The base Ingresses ship `example.com` placeholders. Each overlay sets its
+public host names once, in `deploy/k8s/overlays/<env>/ingress-hosts.yaml`
+(keys `api` and `grafana`); the component `deploy/k8s/ingress/hosts` copies
+them into the `rules` and `tls.hosts` of both Ingresses. That ConfigMap is
+annotated `config.kubernetes.io/local-config`, so it is never applied.
+
+`deploy.yml` (step "Check ingress hosts") refuses to deploy production while
+the rendered overlay still contains `example.com`, before anything is applied:
+cert-manager would keep failing Let's Encrypt orders for those names (rate
+limits) and the API would have no external entry. Staging only gets a warning.
+DNS records, cert-manager and the ingress controller stay outside this repo.
+
+### 4. Deploy all resources
 
 ```bash
 # Using the deploy script
@@ -108,7 +137,7 @@ kubectl apply -k deploy/k8s/
 ./deploy/k8s/scripts/deploy-k8s.sh status
 ```
 
-### 4. Run smoke tests
+### 5. Run smoke tests
 
 ```bash
 ./deploy/k8s/scripts/deploy-k8s.sh smoke-test
@@ -127,6 +156,9 @@ kubectl apply -k deploy/k8s/
 ```bash
 # Deploy to 10% of instances first, monitor, then full rollout
 ./deploy/k8s/scripts/deploy-k8s.sh canary <service-name> 10
+
+# Several services: parallel, one observation window (what deploy.yml runs)
+./deploy/k8s/scripts/deploy-k8s.sh canary-all <image-tag> 10 <service>...
 ```
 
 ### Rollback

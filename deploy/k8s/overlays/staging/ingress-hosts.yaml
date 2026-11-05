@@ -1,0 +1,13 @@
+# Public host names of staging (issue #415), copied into the Ingresses by
+# the component ../../ingress/hosts. Replace the example.com placeholders with
+# the real names: deploy.yml only warns for staging while the rendered overlay
+# contains example.com. Never applied (local-config).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ingress-hosts
+  annotations:
+    config.kubernetes.io/local-config: "true"
+data:
+  api: api.staging.trading-model.example.com
+  grafana: grafana.staging.trading-model.example.com

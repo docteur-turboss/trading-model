@@ -733,6 +733,19 @@ data:
               description: 'Binance answered 451 (restricted location) {{ $value | humanize }} times in 15 minutes: market data collection is blocked. Re-examine ADR-0026 and switch BINANCE_BASE_URL to the next fallback (runbook-market-data-stale).'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-market-data-stale.md'
 
+          # ADR-0036: the signal sources publish daily (SEC, Wikimedia), on working
+          # days (ECB) or hourly (NWS): one day covers every schedule. The failure
+          # series are born at 0 when the collector starts (zeroCollectionFailures).
+          - alert: SignalCollectionFailing
+            expr: sum by (source) (increase(fs_signal_collections_total{result!="success"}[1d])) > 0
+            for: 0m
+            labels:
+              severity: warning
+            annotations:
+              summary: 'A signal source fails to be collected'
+              description: '{{ $labels.source }} failed {{ $value | humanize }} collections in 24 hours: its signals are missing or stale (fetch_error: source down or refusing, 403 from SEC EDGAR without SIGNAL_CONTACT_EMAIL; invalid_payload: its format changed; store_error: MySQL).'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-market-data-stale.md#signalcollectionfailing'
+
           # The scraper persists before publishing and sends the waiting candles
           # from MySQL (publish cursor, migration 005): a backlog means the bus
           # refuses them; 0 in normal operation.

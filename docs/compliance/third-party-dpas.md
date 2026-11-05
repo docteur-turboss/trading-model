@@ -25,6 +25,10 @@ Binance holds no MiCA authorisation. Since 1 July 2026 it no longer accepts sign
 
 The residual risk is a geo-block of the public API (HTTP 451). It is alerted (`BinanceRestrictedLocation`), and the fallbacks and re-examination triggers are set in [ADR-0026](../adr/0026-binance-public-market-data-kept.md).
 
+### Terms of Use of the Data (checked 2026-11-04)
+
+The *Binance Vision Dataset Terms* (version 1.0, last updated 2026-08-26, [data.binance.vision](https://data.binance.vision/Binance_Vision-Terms_of_Use.pdf)) cover the data "made available through data.binance.vision and associated endpoints", which likely includes `data-api.binance.vision`, the ADR-0026 fallback host. They license that data under CC BY-NC-SA 4.0 only: "Commercial licensing is strictly excluded", and §4.2 forbids its use for "live proprietary trading execution" or "automated commercial order generation". Switching `BINANCE_BASE_URL` to that host for live trading would therefore breach them. The terms of `api.binance.com` (Binance Terms of Use) could not be read in full; whether they allow trading on its public market data is not established. Both points need a decision before production use (ADR-0026 re-examination). The signal registry (ADR-0036) holds no Binance source for this reason.
+
 ### Data Classification
 
 | Category                        | Contains PII? | Justification                   |
@@ -59,11 +63,40 @@ A formal Data Processing Agreement with Binance is **not required** because:
 - Binance Privacy Policy: https://www.binance.com/en/privacy
 - Integration code: `services/financial-scraper/src/adapters/outbound/binance/`
 
+## Signal Sources (ADR-0036)
+
+The financial-scraper collector also reads the public sources of its signal
+registry (`services/financial-scraper/src/config/signal-registry.json`). Each
+request is an unsigned HTTPS GET without key; only the request itself and its
+User-Agent are sent: `automated news analysis <SIGNAL_CONTACT_EMAIL>`. That
+e-mail, a dedicated project address of the operator, reaches every source
+(SEC EDGAR in the United States included); it is kept out of the public
+repository (`.env`, GitHub environment secret).
+
+Every source must be free for any use, trading included: the registry only
+accepts `public-domain` or `attribution` terms (`accessPolicy`). Terms checked
+on 2026-11-04:
+
+| Source | Data received | PII received? | Terms |
+| ------ | ------------- | ------------- | ----- |
+| ECB Data Portal (`data-api.ecb.europa.eu`) | Euro area AAA government bond yield, 10-year | No | [Free reuse](https://www.ecb.europa.eu/stats/ecb_statistics/governance_and_quality_framework/html/usage_policy.en.html), commercial included, "Source: ECB statistics", data not modified |
+| SEC EDGAR (`data.sec.gov`, United States) | XBRL facts of company filings (Apple EPS) | No | [May be copied or redistributed without permission](https://www.sec.gov/privacy), cite the SEC; fair access: User-Agent with a contact e-mail, at most 10 requests/s |
+| US National Weather Service (`api.weather.gov`) | Latest observation of a weather station (Hutchinson, Kansas) | No | [Public domain](https://www.weather.gov/disclaimer), no endorsement implied; User-Agent required |
+| Wikimedia Analytics API (`wikimedia.org`) | Daily views of Wikipedia articles | No: counts only | [CC0 1.0](https://doc.wikimedia.org/generated-data-platform/aqs/analytics-api/documentation/access-policy.html); User-Agent with a contact required |
+
+Rejected for their terms: Open-Meteo's free API (non-commercial only) and
+Binance's `data-api.binance.vision` (CC BY-NC-SA 4.0, no live trading); no
+licence was found for Mastodon API data.
+
+A formal DPA is not required for the same reasons as Binance: public data
+sources, not processors, and no personal data received.
+
 ## Other Third Parties
 
 | Third Party        | Role                | PII? | DPA Required?                      |
 | ------------------ | ------------------- | ---- | ---------------------------------- |
 | Binance API        | Market data source  | No   | No — documented above              |
+| ECB, SEC EDGAR, NWS, Wikimedia | Signal sources (ADR-0036) | No | No — documented above |
 | GitHub Actions     | CI/CD pipeline      | No   | No — no data processed             |
 | Docker Hub / GHCR  | Container registry  | No   | No — infrastructure only           |
 | Prometheus/Grafana | Internal monitoring | No   | No — self-hosted, no external data |

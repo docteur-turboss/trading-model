@@ -177,6 +177,62 @@ describe("router", () => {
 			});
 		});
 
+		/** A GET with a query string: Express leaves it out of `req.path` only. */
+		function getUrl(url: string) {
+			return getHandler()(
+				createReq({ method: "GET", path: url.split("?")[0], url })
+			);
+		}
+
+		it("should forward the query string with the path", async () => {
+			mockForwardSuccess({ data: "ok" });
+			const {
+				forwardRequest,
+			} = require("../../src/adapters/outbound/proxy-handler");
+
+			await getUrl(
+				"/v1/financial-scraper/signals/assets/BTC?from=2026-11-01&to=2026-11-02"
+			);
+
+			expect(forwardRequest).toHaveBeenCalledWith(
+				expect.objectContaining({
+					path: "/signals/assets/BTC?from=2026-11-01&to=2026-11-02",
+				})
+			);
+		});
+
+		it("should not serve a cached answer to another query of the same path", async () => {
+			mockForwardSuccess({ page: 1 });
+			await getUrl("/v1/audit-logger/events?page=1");
+
+			mockForwardSuccess({ page: 2 });
+
+			expect(await getUrl("/v1/audit-logger/events?page=2")).toEqual({
+				status: 200,
+				data: { page: 2 },
+			});
+		});
+
+		it("does not cache a signed answer for other callers", async () => {
+			mockForwardSuccess({ entries: ["signed"] });
+			const url = "/v1/dlq-service/dlq";
+			await getHandler()(
+				createReq({
+					method: "GET",
+					path: url,
+					url,
+					headers: { "x-signature": "sig" },
+				})
+			);
+
+			mockForwardSuccess({ error: "unsigned" });
+
+			expect(await get(url)).toEqual({
+				status: 200,
+				data: { error: "unsigned" },
+			});
+		});
+
 		it("should cache and return cached response on subsequent GET", async () => {
 			mockForwardSuccess({ data: "ok" });
 			const path = "/v1/audit-logger/events/cached-test";

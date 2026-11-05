@@ -1,7 +1,7 @@
 # Runbook: Market Data Stale
 
 **Severity:** SEV2 (the platform runs, but trades and training work on old data)
-**Alerts:** `MarketDataStale`, `TrainerMarketDataStale`, `ScrapeCyclesFailing`, `BinanceRestrictedLocation`
+**Alerts:** `MarketDataStale`, `TrainerMarketDataStale`, `ScrapeCyclesFailing`, `BinanceRestrictedLocation`, `SignalCollectionFailing`
 **Affected:** financial-scraper (collector), message-manager, trader-trainer
 
 The services can all be up and ready while no data flows: readiness checks
@@ -25,7 +25,7 @@ kubectl -n $NS get deploy financial-scraper-collector
 kubectl -n $NS logs deploy/financial-scraper-collector --tail=100 | grep -iE "symbol|schedule|error"
 
 # 2. Symbols and schedule actually used
-kubectl -n $NS get configmap financial-scraper-config -o jsonpath='{.data.SYMBOLS_TO_TRACK}{"\n"}{.data.SCRAPE_INTERVAL}{"\n"}'
+kubectl -n $NS exec deploy/financial-scraper-collector -c financial-scraper-collector -- printenv SYMBOLS_TO_TRACK SCRAPE_INTERVAL
 kubectl -n $NS get deploy financial-scraper-collector -o jsonpath='{.spec.template.spec.containers[0].env}' | grep -o 'SCRAPE_SCHEDULER_ENABLED[^}]*'
 
 # 3. Counters behind the alerts
@@ -52,13 +52,27 @@ kubectl -n $NS exec prometheus-0 -c prometheus -- wget -qO- \
        node -e "fetch('https://api.binance.com/api/v3/ping').then(r=>console.log(r.status))"
      kubectl -n $NS exec deploy/financial-scraper-collector -- \
        node -e "fetch('https://data-api.binance.vision/api/v3/ping').then(r=>console.log(r.status))"
-     kubectl -n $NS patch configmap financial-scraper-config --type merge \
-       -p '{"data":{"BINANCE_BASE_URL":"https://data-api.binance.vision"}}'
-     kubectl -n $NS rollout restart deploy/financial-scraper-collector deploy/financial-scraper
      ```
-     Report it in Git too (`deploy/k8s/config/financial-scraper-configmap.yaml`)
-     or the next deploy reverts it. If both hosts answer 451, the second
-     fallback (another exchange) is a development task: re-open ADR-0026.
+     Switch through Git: set `BINANCE_BASE_URL=https://data-api.binance.vision`
+     in `deploy/k8s/config/financial-scraper.properties`, then run `Deploy`.
+     The ConfigMap name carries a content hash (issue #410), so both
+     Deployments roll out with the new value.
+
+     Only if the switch cannot wait for a deploy, override the variable by hand:
+     ```bash
+     kubectl -n $NS set env deploy/financial-scraper-collector deploy/financial-scraper \
+       BINANCE_BASE_URL=https://data-api.binance.vision
+     ```
+     The next deploy does **not** remove this override: `kubectl apply` only
+     removes fields it applied itself, and `env` wins over `envFrom`, so it
+     would hide any later value from the `.properties` file. Once the value is
+     in Git and deployed, remove the override explicitly:
+     ```bash
+     kubectl -n $NS set env deploy/financial-scraper-collector deploy/financial-scraper \
+       BINANCE_BASE_URL-
+     ```
+     If both hosts answer 451, the second fallback (another exchange) is a
+     development task: re-open ADR-0026.
    - **403** (WAF violation) or **418** (IP ban after ignored 429s): not
      retried. Lower the request weight (fewer `SYMBOLS_TO_TRACK`, longer
      `SCRAPE_INTERVAL`) and wait for the ban to expire.
@@ -75,3 +89,35 @@ kubectl -n $NS exec prometheus-0 -c prometheus -- wget -qO- \
 `sum(increase(fs_candles_persisted_total[15m]))` and
 `sum(increase(tt_market_data_received_total[15m]))` grow again; the alerts
 resolve within 15 minutes.
+
+## SignalCollectionFailing
+
+**Severity:** SEV4 (warning). Binance market data is not affected: only the
+signals of one registry source (ADR-0036) are missing or stale. The alert
+stays on for 24 hours after the last failure.
+
+```bash
+NS=trading-model
+# Failures by source and result over the last day
+kubectl -n $NS exec prometheus-0 -c prometheus -- wget -qO-   'http://localhost:9090/api/v1/query?query=sum by (source, result) (increase(fs_signal_collections_total[1d]))'
+# The error of each failed request
+kubectl -n $NS logs deploy/financial-scraper-collector --since=24h | grep "Signal collection failed"
+```
+
+By `result`:
+
+- **`fetch_error`**: the source is down, refuses the request or cannot be
+  reached. SEC EDGAR answers 403 without contact e-mail: check that the
+  GitHub environment secret `SIGNAL_CONTACT_EMAIL` is set and that the
+  `signal-contact` ConfigMap holds it, then restart the collector (it reads
+  the e-mail at start). A 429 means the source rate-limits us: lower
+  `maxRequestsPerMinute` or move the schedule in `signal-registry.json`.
+- **`invalid_payload`**: the source changed its format. Compare the logged
+  error with the adapter of `src/adapters/outbound/signal-sources/` and its
+  fixture; nothing is stored until the adapter is fixed.
+- **`store_error`**: MySQL refuses the writes; see
+  [runbook-database-failover](runbook-database-failover.md).
+
+A collection that failed is not retried before the next schedule of its
+source; values the source still publishes then are collected again (ECB: last
+5, Wikimedia: 8 days, NWS: latest observation only).

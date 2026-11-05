@@ -398,7 +398,7 @@ describe("DLQ Service — Routes Integration", () => {
 	it("GET /dlq should reject an invalid query with 400", async () => {
 		await start();
 		const result = await request(server, "/dlq?limit=abc", {
-			headers: signHeaders(null, "GET", "/dlq"),
+			headers: signHeaders(null, "GET", "/dlq?limit=abc"),
 		});
 		expect(result.status).toBe(400);
 		expectDocumented(DLQ_API.listEntries, result);
@@ -437,7 +437,7 @@ describe("DLQ Service — Routes Integration", () => {
 		await start();
 		const result = await request(server, "/dlq/replay?limit=10", {
 			method: "POST",
-			headers: signHeaders(null, "POST", "/dlq/replay"),
+			headers: signHeaders(null, "POST", "/dlq/replay?limit=10"),
 		});
 		expect(result.status).toBe(200);
 		expect(result.body).toEqual({
@@ -451,10 +451,20 @@ describe("DLQ Service — Routes Integration", () => {
 		await start();
 		const result = await request(server, "/dlq/replay?limit=500", {
 			method: "POST",
-			headers: signHeaders(null, "POST", "/dlq/replay"),
+			headers: signHeaders(null, "POST", "/dlq/replay?limit=500"),
 		});
 		expect(result.status).toBe(400);
 		expectDocumented(DLQ_API.replayEntries, result);
+		expect(dlqClaimManager.claimEntriesForRetry).not.toHaveBeenCalled();
+	});
+
+	it("POST /dlq/replay should reject a signature made for another query", async () => {
+		await start();
+		const result = await request(server, "/dlq/replay?limit=100", {
+			method: "POST",
+			headers: signHeaders(null, "POST", "/dlq/replay?limit=10"),
+		});
+		expect(result.status).toBe(401);
 		expect(dlqClaimManager.claimEntriesForRetry).not.toHaveBeenCalled();
 	});
 

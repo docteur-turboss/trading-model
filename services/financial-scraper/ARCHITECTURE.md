@@ -127,8 +127,23 @@ The `MarketDataModel` class (in `src/adapters/outbound/persistence/market-data.m
 | GET    | `/orderbook/symbols/:symbol`             | Order books by symbol        |
 | GET    | `/orderbook/after/timestamp/:timestamp`  | Order books after timestamp  |
 | GET    | `/orderbook/before/timestamp/:timestamp` | Order books before timestamp |
+| GET    | `/signals/assets/:assetId?from=&to=`     | Signals of an asset and its sector in a window (ADR-0036) |
 
 All routes use Zod-validated parameters and return standardized error responses via `ResponseException`.
+
+### 6. Signals (ADR-0036)
+
+Collection of the sources of every dimension declared in the source registry; see `docs/services/financial-scraper.md#signals-adr-0036`.
+
+| Component | Location | Responsibility |
+| --- | --- | --- |
+| Schema v1 | `domain/signals.ts` | `Asset`, `Dimension`, `Source`, `Signal` (Zod), `SIGNAL_SCHEMA_VERSION` |
+| Source registry | `config/signal-registry.json`, `config/signal-registry.ts` | Assets and sources, checked at startup (`parseSignalRegistry`) |
+| `SignalCronScheduler` | `adapters/inbound/cron/signal.cron.ts` | One cron task per source, overlapping ticks skipped |
+| `SignalCollector` | `application/signal-collector.ts` | Per request: worker → adapter → schema check → store; counts `fs_signal_collections_total` |
+| `rest_api` worker | `adapters/outbound/signal-sources/rest-api.worker.ts` | GET, JSON, 10 s timeout |
+| Source adapters | `adapters/outbound/signal-sources/` (`SOURCE_ADAPTERS`) | ECB SDMX series, SEC EDGAR companyconcept, NWS latest observation, Wikimedia page views |
+| `MySqlSignalStore` | `adapters/outbound/persistence/signal-store.ts` | Table `signals`: idempotent insert, asset + sector window query |
 
 ## Key Design Decisions
 

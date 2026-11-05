@@ -14,8 +14,18 @@
 
 ### Automatic Rollback (Kubernetes)
 
+The `Deploy` workflow rolls back by itself when the rollout or the smoke test
+fails: each Deployment returns to the revision recorded before the overlay,
+image **and** service configuration (the `<service>-config` ConfigMaps carry a
+content hash in their name, so the old pod template names the old ConfigMap).
+It does not roll back StatefulSets, CronJobs, Jobs, HPAs, PDBs,
+NetworkPolicies, the node agents, fixed-name ConfigMaps or the database schema
+(details: [DEPLOY.md, Rollback](../../deployment/DEPLOY.md#rollback)).
+
+By hand, for one service:
+
 ```bash
-# Undo the last deployment
+# Undo the last deployment (image and its hashed ConfigMap)
 kubectl rollout undo -n trading-model deployment/<service-name>
 
 # Wait for rollback to complete
@@ -42,19 +52,15 @@ kubectl rollout status -n trading-model deployment/<service-name>
 
 ### Full Cluster Rollback (multi-service deployment)
 
-If multiple services were deployed together:
+If multiple services were deployed together, re-run the `Deploy` workflow from
+the git ref of the last known-good release, with its image tag. It re-applies
+the whole overlay of that release (configuration, CronJobs, policies...) pinned
+to its digests. `kubectl set image` would only change the image and keep the
+new configuration.
 
 ```bash
-# Revert to previous known-good image tags
-for service in discovery-server message-manager financial-scraper trader-trainer \
-               api-gateway audit-logger dlq-service; do
-  kubectl set image -n trading-model deployment/$service $service=ghcr.io/trading-model/$service:<previous-stable-tag>
-done
-
-# Monitor rollout
-kubectl rollout status -n trading-model deployment/discovery-server
-kubectl rollout status -n trading-model deployment/message-manager
-# ... for all services
+gh workflow run deploy.yml --ref v<previous-stable> \
+  -f environment=production -f image_tag=<previous-stable>
 ```
 
 ## Canary Deployment Rollback (via deploy scripts)

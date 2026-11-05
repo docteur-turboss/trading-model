@@ -73,14 +73,14 @@ function deployedCallbackPaths(): string[] {
 	const files = [
 		join(ROOT, "docker-compose.yml"),
 		...readdirSync(configDir)
-			.filter((file) => file.endsWith(".yaml"))
+			.filter((file) => /\.(yaml|properties)$/.test(file))
 			.map((file) => join(configDir, file)),
 	];
 	const paths = new Set<string>();
 	for (const file of files) {
 		const text = readFileSync(file, "utf8");
 		for (const match of text.matchAll(
-			/MESSAGE_CALLBACK_PATH:\s*["']?([^"'\s]+)/g
+			/MESSAGE_CALLBACK_PATH[:=]\s*["']?([^"'\s]+)/g
 		)) {
 			paths.add(match[1]);
 		}

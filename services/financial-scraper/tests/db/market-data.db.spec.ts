@@ -1,5 +1,18 @@
-import { readdirSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { execFileSync } from "node:child_process";
+import {
+	copyFileSync,
+	cpSync,
+	mkdirSync,
+	mkdtempSync,
+	readdirSync,
+	readFileSync,
+	realpathSync,
+	rmSync,
+	symlinkSync,
+	unlinkSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
 import {
 	afterAll,
 	beforeAll,
@@ -36,29 +49,59 @@ import {
 	insertTrades,
 	selectTradesBy,
 } from "../../src/adapters/outbound/persistence/schema/trades.schema";
+import { MySqlSignalStore } from "../../src/adapters/outbound/persistence/signal-store";
 import { DATABASE } from "../../src/config/db";
 import type {
 	CandleData,
 	TickerData,
 	TradeData,
 } from "../../src/domain/market-data.types";
+import type { Signal } from "../../src/domain/signals";
 
 const MIGRATIONS_DIR = join(__dirname, "../../../../scripts/migrations");
 const SYMBOL = TradingSymbol.of("BTCUSDT");
 const T0 = UnixTimestamp.of(Date.UTC(2026, 0, 2, 3, 4, 5, 678));
 
+const MIGRATION_IDS = readdirSync(MIGRATIONS_DIR)
+	.filter((file) => file.endsWith(".up.sql"))
+	.map((file) => file.replace(/\.up\.sql$/, ""))
+	.sort((a, b) => a.localeCompare(b));
+
 /**
- * Applies every migration in id order (`up`) or reverse id order (`down`), one
- * multi-statement query per file, the way scripts/migrate.mjs does.
+ * Laid out like the K8s migration jobs (migrate.mjs next to `migrations/`, in a
+ * directory of its own), with this workspace's mysql2: scripts/ has no
+ * node_modules under the isolated linker.
  */
-async function migrate(direction: "up" | "down"): Promise<void> {
-	const files = readdirSync(MIGRATIONS_DIR)
-		.filter((file) => file.endsWith(`.${direction}.sql`))
-		.sort((a, b) => a.localeCompare(b));
-	if (direction === "down") {
-		files.reverse();
-	}
-	await runMigrations(files);
+const MIGRATE_RUN_DIR = mkdtempSync(join(tmpdir(), "migrate-run-"));
+copyFileSync(
+	join(MIGRATIONS_DIR, "../migrate.mjs"),
+	join(MIGRATE_RUN_DIR, "migrate.mjs")
+);
+cpSync(MIGRATIONS_DIR, join(MIGRATE_RUN_DIR, "migrations"), {
+	recursive: true,
+});
+mkdirSync(join(MIGRATE_RUN_DIR, "node_modules"));
+// Real path: bun's workspace links are relative and break once re-linked elsewhere.
+symlinkSync(
+	realpathSync(dirname(require.resolve("mysql2/package.json"))),
+	join(MIGRATE_RUN_DIR, "node_modules/mysql2"),
+	"junction"
+);
+
+/** Runs the real scripts/migrate.mjs against the test database (DB_* from db-env.setup). */
+function migrate(...args: string[]): void {
+	execFileSync(
+		process.execPath,
+		[join(MIGRATE_RUN_DIR, "migrate.mjs"), ...args],
+		{ env: process.env, stdio: "pipe" }
+	);
+}
+
+async function appliedMigrations(): Promise<string[]> {
+	const [rows] = await DATABASE.promise().query(
+		"SELECT id FROM _migrations ORDER BY id"
+	);
+	return (rows as { id: string }[]).map((row) => row.id);
 }
 
 async function runMigrations(files: string[]): Promise<void> {
@@ -141,8 +184,8 @@ async function tables(): Promise<string[]> {
 	return (rows as { name: string }[]).map((row) => row.name);
 }
 
-beforeAll(async () => {
-	await migrate("up");
+beforeAll(() => {
+	migrate("up");
 });
 
 beforeEach(async () => {
@@ -151,6 +194,7 @@ beforeEach(async () => {
 		"market_trades",
 		"market_tickers",
 		"market_publish_cursors",
+		"signals",
 	]) {
 		await DATABASE.promise().query(`DELETE FROM ${table}`);
 	}
@@ -158,21 +202,44 @@ beforeEach(async () => {
 
 afterAll(async () => {
 	await DATABASE.promise().end();
+	unlinkSync(join(MIGRATE_RUN_DIR, "node_modules/mysql2"));
+	rmSync(MIGRATE_RUN_DIR, { recursive: true, force: true });
 });
 
-describe("schema migrations — real MySQL", () => {
-	it("should roll every migration back and re-apply it on the same database", async () => {
-		await migrate("down");
-		await expect(tables()).resolves.toEqual([]);
+describe("scripts/migrate.mjs — real MySQL", () => {
+	const ALL_TABLES = [
+		"_migrations",
+		"market_candles",
+		"market_publish_cursors",
+		"market_tickers",
+		"market_trades",
+		"signals",
+	];
 
-		await migrate("up");
+	it("should roll back the newest migrations first and re-apply them", async () => {
+		await expect(appliedMigrations()).resolves.toEqual(MIGRATION_IDS);
+		await expect(tables()).resolves.toEqual(ALL_TABLES);
 
-		await expect(tables()).resolves.toEqual([
-			"market_candles",
-			"market_publish_cursors",
-			"market_tickers",
-			"market_trades",
-		]);
+		migrate("down", "1");
+		await expect(appliedMigrations()).resolves.toEqual(
+			MIGRATION_IDS.slice(0, -1)
+		);
+		await expect(tables()).resolves.toEqual(
+			ALL_TABLES.filter((table) => table !== "signals")
+		);
+
+		migrate("up");
+		await expect(appliedMigrations()).resolves.toEqual(MIGRATION_IDS);
+		await expect(tables()).resolves.toEqual(ALL_TABLES);
+
+		// Oldest first, initial_schema would drop the tables the next down needs.
+		migrate("down", "all");
+		await expect(appliedMigrations()).resolves.toEqual([]);
+		await expect(tables()).resolves.toEqual(["_migrations"]);
+
+		migrate("up");
+		await expect(appliedMigrations()).resolves.toEqual(MIGRATION_IDS);
+		await expect(tables()).resolves.toEqual(ALL_TABLES);
 	});
 });
 
@@ -392,5 +459,99 @@ describe("market_publish_cursors — real MySQL", () => {
 		);
 
 		expect(row).not.toHaveProperty("trades");
+	});
+});
+
+describe("signals — real MySQL", () => {
+	const OBSERVED = Date.UTC(2026, 10, 3, 12, 0, 0, 125);
+
+	const PAYLOAD = {
+		metric: "pageviews",
+		value: 3751,
+		unit: "views",
+		platform: "en.wikipedia",
+		topic: "Bitcoin",
+		period: { start: "2026-11-02", end: "2026-11-02" },
+		details: { revised: false, note: null },
+	};
+
+	function signal(overrides: Partial<Signal> = {}): Signal {
+		return {
+			id: "1".repeat(64),
+			schemaVersion: 1,
+			sourceId: "wikipedia-pageviews",
+			dimension: "social",
+			assetId: "BTC",
+			sector: null,
+			observedAt: new Date(OBSERVED).toISOString(),
+			ingestedAt: new Date(OBSERVED + 3000).toISOString(),
+			confidenceScore: 0.3,
+			payload: PAYLOAD,
+			...overrides,
+		} as Signal;
+	}
+
+	/** The asset BTC, sector crypto, its social dimension, over the day of OBSERVED. */
+	function findBtc(limit = 100) {
+		return MySqlSignalStore.findForAsset({
+			assetId: "BTC",
+			sector: "crypto",
+			dimensions: ["social"],
+			from: Date.UTC(2026, 10, 3),
+			to: Date.UTC(2026, 10, 4),
+			limit,
+		});
+	}
+
+	it("should round-trip a signal with its millisecond instants and payload", async () => {
+		await MySqlSignalStore.save([signal()]);
+
+		await expect(findBtc()).resolves.toEqual([signal()]);
+	});
+
+	it("should store a replayed signal once and keep its first value", async () => {
+		await MySqlSignalStore.save([signal()]);
+		await MySqlSignalStore.save([
+			signal({ payload: { ...PAYLOAD, value: 1 } }),
+			signal(),
+		]);
+
+		await expect(count("signals")).resolves.toBe(1);
+		await expect(findBtc()).resolves.toEqual([signal()]);
+	});
+
+	it("should leave out the dimensions that do not apply to the asset", async () => {
+		await MySqlSignalStore.save([
+			signal({
+				id: "8".repeat(64),
+				dimension: "contextual",
+			} as Partial<Signal>),
+		]);
+
+		await expect(findBtc()).resolves.toEqual([]);
+	});
+
+	it("should answer the asset's and its sector's signals of the window, oldest first", async () => {
+		const at = (ms: number) => new Date(ms).toISOString();
+		await MySqlSignalStore.save([
+			signal({ id: "2".repeat(64), observedAt: at(OBSERVED + 60_000) }),
+			signal({ id: "3".repeat(64), assetId: null, sector: "crypto" }),
+			signal({ id: "4".repeat(64), assetId: "ETH" }),
+			signal({ id: "5".repeat(64), assetId: null, sector: "agriculture" }),
+			// [from, to): the end of the window is out, its start in.
+			signal({ id: "6".repeat(64), observedAt: at(Date.UTC(2026, 10, 4)) }),
+			signal({ id: "7".repeat(64), observedAt: at(Date.UTC(2026, 10, 3)) }),
+		]);
+
+		const ids = (await findBtc()).map((s) => s.id[0]);
+
+		expect(ids).toEqual(["7", "3", "2"]);
+		await expect(findBtc(2)).resolves.toHaveLength(2);
+	});
+
+	it("should refuse a row on both an asset and a sector", async () => {
+		await expect(
+			MySqlSignalStore.save([signal({ sector: "crypto" })])
+		).rejects.toThrow(/chk_signals_one_subject/);
 	});
 });

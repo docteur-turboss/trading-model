@@ -8,6 +8,7 @@ import {
 import { BOOTSTRAP_ADDRESS_MANAGER } from "../config/address-manager";
 import {
 	createScrapeScheduler,
+	createSignalScheduler,
 	type ScrapeScheduler,
 } from "../config/container";
 import { closeDatabase } from "../config/db";
@@ -23,6 +24,7 @@ const NULL_ADDRESS_MANAGER = {
 let addressManager: ReturnType<typeof BOOTSTRAP_ADDRESS_MANAGER> =
 	NULL_ADDRESS_MANAGER as ReturnType<typeof BOOTSTRAP_ADDRESS_MANAGER>;
 let scrapeScheduler: ScrapeScheduler | null = null;
+let signalScheduler: ScrapeScheduler | null = null;
 
 createBootstrap({
 	name: "Financial Scraper",
@@ -40,10 +42,12 @@ createBootstrap({
 
 		scrapeScheduler = await createScrapeScheduler(ENV);
 		scrapeScheduler?.start();
+		signalScheduler = createSignalScheduler(ENV);
+		signalScheduler?.start();
 	},
 	onStop: async () => {
 		// Before leaving discovery: the publishes in flight still need the bus.
-		await scrapeScheduler?.stop();
+		await Promise.all([scrapeScheduler?.stop(), signalScheduler?.stop()]);
 		addressManager.stop();
 		await shutdownTelemetry();
 		// Last: the cycle and the publishes in flight used it.

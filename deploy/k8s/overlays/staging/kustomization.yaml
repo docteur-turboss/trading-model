@@ -5,6 +5,10 @@ namespace: trading-model-staging
 
 resources:
   - ../../base
+  - ingress-hosts.yaml
+
+components:
+  - ../../ingress/hosts
 
 # Staging-only development secrets. Production must NOT use these: it is served
 # exclusively by the SealedSecret in deploy/k8s/secrets (see the production overlay).
@@ -48,13 +52,6 @@ images:
 # Staging-specific resource reductions (smaller than production)
 patches:
   - target:
-      kind: Deployment
-    patch: |-
-      - op: replace
-        path: /spec/replicas
-        value: 1
-
-  - target:
       kind: StatefulSet
       name: "^(mysql|redis|redis-sentinel|mongo-dlq|mongo-audit)$"
     patch: |-
@@ -62,10 +59,14 @@ patches:
         path: /spec/replicas
         value: 1
 
+  # Deployments with an HPA carry no spec.replicas (an apply must not reset them):
+  # staging pins the HPAs to one pod instead.
   - target:
-      kind: Deployment
-      name: "^(discovery-server|message-manager)$"
+      kind: HorizontalPodAutoscaler
     patch: |-
       - op: replace
-        path: /spec/replicas
+        path: /spec/minReplicas
+        value: 1
+      - op: replace
+        path: /spec/maxReplicas
         value: 1
