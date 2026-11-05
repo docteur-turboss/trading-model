@@ -150,6 +150,8 @@ vite.config.ts.timestamp-*
 *.crt
 id_rsa*
 **/keys/*
+!.github/keys/
+!.github/keys/*.asc
 
 # Customs
 **/.vscode/*
