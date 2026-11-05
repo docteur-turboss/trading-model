@@ -132,13 +132,21 @@ mm_dropped() {
 		grep -c "Message dropped: no subscriber for its topic" || true
 }
 
+# Every configured job must have active targets, all up: a scrape pool Prometheus
+# failed to create (missing tls_config file at startup) has no target at all.
 prometheus_targets_down() {
+	local config
+	config="$($K -n "$NS" exec prometheus-0 -c prometheus -- wget -qO- 'http://localhost:9090/api/v1/status/config')" || return 1
 	$K -n "$NS" exec prometheus-0 -c prometheus -- \
 		wget -qO- 'http://localhost:9090/api/v1/targets?state=active' |
-		node -e 'const t=JSON.parse(require("fs").readFileSync(0,"utf8")).data.activeTargets;
+		CONFIG="$config" node -e 'const t=JSON.parse(require("fs").readFileSync(0,"utf8")).data.activeTargets;
+			const jobs=[...JSON.parse(process.env.CONFIG).data.yaml.matchAll(/job_name: *(\S+)/g)].map((m)=>m[1].replace(/^["\x27]|["\x27]$/g,""));
+			const seen=new Set(t.map((x)=>x.labels.job));
+			const missing=jobs.filter((j)=>!seen.has(j));
 			const down=t.filter((x)=>x.health!=="up");
+			for (const j of missing) console.error(`${j}: no active target (scrape pool not created?)`);
 			for (const x of down) console.error(`${x.labels.job}: ${x.health} ${x.lastError}`);
-			process.exit(t.length>0 && down.length===0 ? 0 : 1)'
+			process.exit(jobs.length>0 && missing.length===0 && down.length===0 ? 0 : 1)'
 }
 
 verify() {
@@ -320,7 +328,6 @@ prom_diag() {
 }
 
 verify_release() {
-	prom_diag || true
 	log "release gate (deploy-k8s.sh verify-release)"
 	VERIFY_WINDOW_SECONDS=0 deploy_script verify-release
 }

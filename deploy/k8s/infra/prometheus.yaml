@@ -61,11 +61,20 @@ spec:
                 - ALL
             seccompProfile:
               type: RuntimeDefault
+          # Wait for the SVID files written by the spiffe-helper sidecar: a scrape pool
+          # whose tls_config file is missing at startup is never created again, so every
+          # mTLS job would silently stay unscraped (issue #425).
+          command: ["/bin/sh", "-c"]
           args:
-            - "--config.file=/etc/prometheus/prometheus.yml"
-            - "--storage.tsdb.path=/prometheus"
-            - "--storage.tsdb.retention.time=30d"
-            - "--web.enable-lifecycle"
+            - |
+              for f in bundle.pem svid.pem svid_key.pem; do
+                until [ -s "/run/spire/svid/$f" ]; do echo "waiting for /run/spire/svid/$f"; sleep 2; done
+              done
+              exec /bin/prometheus \
+                --config.file=/etc/prometheus/prometheus.yml \
+                --storage.tsdb.path=/prometheus \
+                --storage.tsdb.retention.time=30d \
+                --web.enable-lifecycle
           ports:
             - containerPort: 9090
               name: http
