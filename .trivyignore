@@ -1,0 +1,2 @@
+# Reviewed exceptions to the release image scan (ADR-0038).
+# One CVE id per line, each with a comment: reason, owner, expiry date.
