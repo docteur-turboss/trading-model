@@ -298,7 +298,29 @@ verify_alerts() {
 
 # The functional gate of deploy.yml, same command: API through edge-proxy,
 # fresh market data, no critical alert. One pass (no observation window).
+prom_diag() {
+	local q
+	echo "===== DIAG prometheus: date pod / runner"; $K -n "$NS" exec prometheus-0 -c prometheus -- date -u; date -u
+	echo "===== DIAG targets financial-scraper*"
+	$K -n "$NS" exec prometheus-0 -c prometheus -- wget -qO- 'http://localhost:9090/api/v1/targets?state=active' |
+		node -e 'const t=JSON.parse(require("fs").readFileSync(0,"utf8")).data.activeTargets;
+			console.log("targets:", t.length);
+			for (const x of t) console.log(JSON.stringify({labels:x.labels,health:x.health,lastScrape:x.lastScrape,dur:x.lastScrapeDuration,err:x.lastError,url:x.scrapeUrl}))'
+	for q in 'up' 'count(up)' 'time()' 'prometheus_tsdb_head_series' 'prometheus_tsdb_head_samples_appended_total' 'scrape_samples_scraped' 'scrape_samples_post_metric_relabeling' 'fs_candles_persisted_total' 'prometheus_target_scrapes_sample_out_of_bounds_total' 'prometheus_target_scrapes_sample_out_of_order_total'; do
+		echo "===== DIAG query $q"
+		$K -n "$NS" exec prometheus-0 -c prometheus -- wget -qO- "http://localhost:9090/api/v1/query?query=$(node -p 'encodeURIComponent(process.argv[1])' "$q")" | cut -c1-3000; echo
+	done
+	echo "===== DIAG series match fs_candles"
+	$K -n "$NS" exec prometheus-0 -c prometheus -- wget -qO- 'http://localhost:9090/api/v1/label/__name__/values' | cut -c1-4000; echo
+	echo "===== DIAG prometheus flags/runtime"
+	$K -n "$NS" exec prometheus-0 -c prometheus -- wget -qO- 'http://localhost:9090/api/v1/status/runtimeinfo'; echo
+	$K -n "$NS" exec prometheus-0 -c prometheus -- wget -qO- 'http://localhost:9090/api/v1/status/tsdb' | cut -c1-2000; echo
+	echo "===== DIAG prometheus logs"
+	$K -n "$NS" logs prometheus-0 -c prometheus --tail=120 || true
+}
+
 verify_release() {
+	prom_diag || true
 	log "release gate (deploy-k8s.sh verify-release)"
 	VERIFY_WINDOW_SECONDS=0 deploy_script verify-release
 }
