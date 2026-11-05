@@ -58,13 +58,12 @@ function _unit(structure: Sdmx["structure"], attributes: (number | null)[]) {
 /**
  * One daily ECB market series (ECB Data Portal: yields, exchange rates...),
  * free to reuse with "Source: ECB statistics". The payload gives no release
- * time, so a day is observed when first collected: the store keeps that
- * first row, never stamped before the day was public.
+ * time: no `observedAt`, the collector stamps the collection time.
  */
 export const ECB_SDMX_SERIES: SourceAdapter = {
 	dimensions: ["market"],
 	params: z.object({ metric: z.string().regex(/^[a-z][a-z0-9_]{0,63}$/) }),
-	normalize(payload, { params, ingestedAt }) {
+	normalize(payload, { params }) {
 		const {
 			dataSets: [dataSet],
 			structure,
@@ -96,7 +95,6 @@ export const ECB_SDMX_SERIES: SourceAdapter = {
 			return [
 				{
 					key: period,
-					observedAt: ingestedAt,
 					payload: {
 						metric: params.metric,
 						value,

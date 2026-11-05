@@ -101,7 +101,8 @@ describe("parseSignalRegistry", () => {
 			(file: any) => {
 				sourceOf(file, "wikipedia-pageviews").protocol = "html_scrape";
 			},
-			"source wikipedia-pageviews: no worker for protocol html_scrape",
+			// Refused by the schema: the Protocol enum only lists protocols with a worker.
+			'"protocol"',
 		],
 		[
 			"an invalid schedule",

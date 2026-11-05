@@ -10,9 +10,10 @@ import {
 	signalId,
 } from "../../../src/application/signal-collector";
 import { SIGNAL_COLLECTIONS_TOTAL } from "../../../src/config/metrics";
-import type {
-	Observation,
-	SourceAdapter,
+import {
+	InvalidPayloadError,
+	type Observation,
+	type SourceAdapter,
 } from "../../../src/domain/ports/signal-source.port";
 import type { Source } from "../../../src/domain/signals";
 
@@ -103,10 +104,7 @@ describe("SignalCollector", () => {
 		await collector().collect(SOURCE);
 
 		expect(worker).toHaveBeenCalledWith(SOURCE.requests[0]);
-		expect(normalize).toHaveBeenCalledWith(
-			{ payload: true },
-			{ params: {}, ingestedAt: NOW }
-		);
+		expect(normalize).toHaveBeenCalledWith({ payload: true }, { params: {} });
 		expect(save).toHaveBeenNthCalledWith(1, [
 			{
 				id: signalId(
@@ -190,22 +188,24 @@ describe("SignalCollector", () => {
 		});
 	});
 
-	it("counts a protocol without worker as a failed fetch", async () => {
-		await collector().collect({ ...ONE_REQUEST, protocol: "rss" });
+	it("stamps an observation without release time with the collection time", async () => {
+		const { observedAt: _, ...undated } = OBSERVATION;
+		normalize.mockReturnValueOnce([undated]);
 
-		expect(worker).not.toHaveBeenCalled();
-		expect(MOCK_LOGGER.error.mock.calls[0][1]).toMatchObject({
-			error: new Error("No worker for protocol rss"),
-		});
-		await expect(counted()).resolves.toEqual({
-			"test-source:fetch_error": 1,
-		});
+		await collector().collect(ONE_REQUEST);
+
+		expect(save.mock.calls[0][0]).toMatchObject([
+			{ observedAt: "2026-11-04T12:03:00.000Z" },
+		]);
 	});
 
 	it.each([
 		[
 			"a body that is not JSON",
-			() => worker.mockRejectedValueOnce(new SyntaxError("Unexpected token <")),
+			() =>
+				worker.mockRejectedValueOnce(
+					new InvalidPayloadError("Body from example.org is not JSON")
+				),
 		],
 		[
 			"a payload the adapter refuses",

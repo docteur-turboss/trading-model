@@ -51,7 +51,7 @@
 			"id": "ecb-aaa-yield-10y",
 			"protocol": "rest_api",
 			"adapter": "ecb-sdmx-series",
-			"schedule": "7 * * * 1-5",
+			"schedule": "7 15 * * 1-5",
 			"reliabilityScore": 0.95,
 			"covers": [{ "assetType": "bond", "dimension": "market" }],
 			"accessPolicy": {
@@ -74,7 +74,7 @@
 			"id": "sec-edgar-eps-diluted",
 			"protocol": "rest_api",
 			"adapter": "sec-edgar-company-concept",
-			"schedule": "17 */6 * * *",
+			"schedule": "17 6 * * *",
 			"reliabilityScore": 0.95,
 			"covers": [{ "assetType": "equity", "dimension": "fundamental" }],
 			"accessPolicy": {
@@ -96,7 +96,7 @@
 			"id": "nws-kansas-wheat-belt",
 			"protocol": "rest_api",
 			"adapter": "nws-latest-observation",
-			"schedule": "*/20 * * * *",
+			"schedule": "5 * * * *",
 			"reliabilityScore": 0.8,
 			"covers": [{ "assetType": "commodity_proxy", "dimension": "contextual" }],
 			"accessPolicy": {
@@ -120,7 +120,7 @@
 			"id": "wikipedia-pageviews",
 			"protocol": "rest_api",
 			"adapter": "wikimedia-pageviews",
-			"schedule": "41 */6 * * *",
+			"schedule": "41 6 * * *",
 			"reliabilityScore": 0.3,
 			"covers": [
 				{ "assetType": "crypto", "dimension": "social" },

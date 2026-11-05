@@ -1,6 +1,7 @@
 import { sleep } from "@trading-model/common/utils/sleep";
 import { logger } from "@trading-model/http/infrastructure/logger";
 import { TradingSymbol } from "@trading-model/primitives/primitives";
+import { z } from "zod";
 import { SignalCronScheduler } from "../adapters/inbound/cron/signal.cron";
 import { MarketDataModel } from "../adapters/outbound/persistence/market-data.model";
 import { MySqlSignalStore } from "../adapters/outbound/persistence/signal-store";
@@ -9,7 +10,7 @@ import { SOURCE_ADAPTERS } from "../adapters/outbound/signal-sources/source-adap
 import { createMarketDataController } from "../application/market-data.controller";
 import { SignalCollector } from "../application/signal-collector";
 import type { WorkerOrchestratorDeps } from "../application/worker-orchestrator";
-import { SIGNAL_REGISTRY, type SignalRegistry } from "./signal-registry";
+import { SIGNAL_REGISTRY } from "./signal-registry";
 
 /** Market data persistence use case backed by the MySQL repository. */
 export const MarketDataController = createMarketDataController(MarketDataModel);
@@ -114,8 +115,7 @@ export function signalUserAgent(contactEmail: string): string {
  * this instance does not collect them.
  */
 export function createSignalScheduler(
-	settings: SignalSchedulerSettings,
-	registry: SignalRegistry = SIGNAL_REGISTRY
+	settings: SignalSchedulerSettings
 ): ScrapeScheduler | null {
 	if (!settings.SCRAPE_SCHEDULER_ENABLED) {
 		return null;
@@ -124,17 +124,22 @@ export function createSignalScheduler(
 		logger.info("Signal collection disabled (SIGNAL_COLLECTION_ENABLED=false)");
 		return null;
 	}
+	const contact = settings.SIGNAL_CONTACT_EMAIL;
+	if (contact && !z.email().safeParse(contact).success) {
+		logger.error(
+			"Signal collection disabled: SIGNAL_CONTACT_EMAIL is no e-mail address"
+		);
+		return null;
+	}
 	logger.info("Signal collection enabled", {
-		sources: registry.sources.map((source) => source.id),
+		sources: SIGNAL_REGISTRY.sources.map((source) => source.id),
 	});
 	const collector = new SignalCollector({
-		workers: createProtocolWorkers(
-			signalUserAgent(settings.SIGNAL_CONTACT_EMAIL)
-		),
+		workers: createProtocolWorkers(signalUserAgent(contact)),
 		adapters: SOURCE_ADAPTERS,
 		store: MySqlSignalStore,
 		now: Date.now,
 		sleep,
 	});
-	return new SignalCronScheduler(registry.sources, collector);
+	return new SignalCronScheduler(SIGNAL_REGISTRY.sources, collector);
 }

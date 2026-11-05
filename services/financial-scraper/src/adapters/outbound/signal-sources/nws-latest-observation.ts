@@ -36,25 +36,28 @@ const StationObservation = z.object({
 	}),
 });
 
+const Params = z.object({
+	variables: z
+		.string()
+		.transform((list) => list.split(","))
+		.pipe(z.array(z.enum(VARIABLES)).min(1)),
+});
+
 /**
  * US National Weather Service, latest observation of a station (public
  * domain): one observation per requested variable the station reported.
  * A variable left out of the report or without value is no observation;
  * the quality control flag is kept for the consumers to weigh.
+ * The measurement time (`details.measuredAt`) comes before NWS publishes the
+ * value: `observedAt` is left to the collection time.
  */
 export const NWS_LATEST_OBSERVATION: SourceAdapter = {
 	dimensions: ["contextual"],
-	params: z.object({
-		variables: z
-			.string()
-			.transform((list) => list.split(","))
-			.pipe(z.array(z.enum(VARIABLES)).min(1)),
-	}),
+	params: Params,
 	normalize(payload, { params }) {
 		const { geometry, properties } = StationObservation.parse(payload);
-		const observedAt = Date.parse(properties.timestamp);
 		const [longitude, latitude] = geometry.coordinates;
-		return params.variables.split(",").flatMap((variable) => {
+		return Params.parse(params).variables.flatMap((variable) => {
 			if (!(variable in properties)) {
 				return [];
 			}
@@ -66,14 +69,16 @@ export const NWS_LATEST_OBSERVATION: SourceAdapter = {
 			}
 			return [
 				{
-					key: String(observedAt),
-					observedAt,
+					key: String(Date.parse(properties.timestamp)),
 					payload: {
 						metric: variable,
 						value,
 						unit: unitCode,
 						location: { latitude, longitude, name: properties.stationId },
-						details: { qualityControl: qualityControl ?? null },
+						details: {
+							qualityControl: qualityControl ?? null,
+							measuredAt: properties.timestamp,
+						},
 					},
 				},
 			];

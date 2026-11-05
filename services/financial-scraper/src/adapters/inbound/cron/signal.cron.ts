@@ -1,6 +1,6 @@
 import { logger } from "@trading-model/http/infrastructure/logger";
-import cron from "node-cron";
 import type { Source } from "../../../domain/signals";
+import { type NoOverlapTask, scheduleNoOverlap } from "./no-overlap";
 
 interface Collector {
 	collect(source: Source): Promise<void>;
@@ -12,8 +12,7 @@ interface Collector {
  * its source still running is skipped.
  */
 export class SignalCronScheduler {
-	private readonly _tasks: { stop(): unknown }[] = [];
-	private readonly _running = new Map<string, Promise<void>>();
+	private readonly _tasks: NoOverlapTask[] = [];
 
 	constructor(
 		private readonly _sources: readonly Source[],
@@ -23,30 +22,23 @@ export class SignalCronScheduler {
 	start(): void {
 		for (const source of this._sources) {
 			this._tasks.push(
-				cron.schedule(source.schedule, () => this._collect(source))
+				scheduleNoOverlap(
+					source.schedule,
+					() => this._collector.collect(source),
+					() =>
+						logger.warn(
+							"Previous signal collection still running: tick skipped",
+							{
+								source: source.id,
+							}
+						)
+				)
 			);
 		}
 	}
 
 	/** Stops scheduling, then waits for the collections in progress. */
 	async stop(): Promise<void> {
-		for (const task of this._tasks) {
-			task.stop();
-		}
-		await Promise.all(this._running.values());
-	}
-
-	private async _collect(source: Source): Promise<void> {
-		if (this._running.has(source.id)) {
-			logger.warn("Previous signal collection still running: tick skipped", {
-				source: source.id,
-			});
-			return;
-		}
-		const run = this._collector.collect(source).finally(() => {
-			this._running.delete(source.id);
-		});
-		this._running.set(source.id, run);
-		await run;
+		await Promise.all(this._tasks.map((task) => task.stop()));
 	}
 }

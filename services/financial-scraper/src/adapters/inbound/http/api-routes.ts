@@ -26,23 +26,20 @@ const BY_SYMBOL = z.object({
 	symbol: z.string().min(1).transform(brand<string, TradingSymbol>(toSymbol)),
 });
 
+/** An ISO date or date-time, to epoch milliseconds. */
+const ISO_DATE_MS = z
+	.union([z.iso.datetime({ offset: true }), z.iso.date()])
+	.transform((value) => Date.parse(value));
+
 /** Candles, tickers and trades: an ISO date or date-time. */
 const AT_DATE = z.object({
-	timestamp: z
-		.union([z.iso.datetime({ offset: true }), z.iso.date()])
-		.transform((value) => Date.parse(value))
-		.transform(brand(UnixTimestamp.of)),
+	timestamp: ISO_DATE_MS.transform(brand(UnixTimestamp.of)),
 });
 
 /** Order books: epoch milliseconds. */
 const EPOCH_MS = z.object({
 	timestamp: z.coerce.number().int().min(0).transform(brand(UnixTimestamp.of)),
 });
-
-/** Bound of a signal window: an ISO date or date-time, to epoch milliseconds. */
-const WINDOW_BOUND = z
-	.union([z.iso.datetime({ offset: true }), z.iso.date()])
-	.transform((value) => Date.parse(value));
 
 /** Most signals one answer holds; past it the answer says `truncated`. */
 export const MAX_SIGNALS_PER_ANSWER = 5000;
@@ -202,7 +199,7 @@ export const SCRAPER_API = {
 			"Signals of an asset and of its sector, every dimension, observed in [from, to)",
 		params: z.object({ assetId: AssetId }),
 		query: z
-			.object({ from: WINDOW_BOUND, to: WINDOW_BOUND })
+			.object({ from: ISO_DATE_MS, to: ISO_DATE_MS })
 			.refine((window) => window.from < window.to, {
 				message: "from must be before to",
 				path: ["to"],

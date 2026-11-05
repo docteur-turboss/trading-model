@@ -73,13 +73,11 @@ const FINANCIAL_SCRAPER_ENV_SCHEMA = BaseEnvSchema.extend(
 		/**
 		 * Contact e-mail in the User-Agent of every signal source; SEC EDGAR
 		 * answers 403 without one. Set by the deployment only, never committed:
-		 * the repository is public. Empty: no contact.
+		 * the repository is public. Empty: no contact. Checked by
+		 * `createSignalScheduler`: a bad value stops the signals only, not the
+		 * Binance collection.
 		 */
-		SIGNAL_CONTACT_EMAIL: z
-			.string()
-			.trim()
-			.pipe(z.union([z.literal(""), z.email()]))
-			.default(""),
+		SIGNAL_CONTACT_EMAIL: z.string().trim().default(""),
 	});
 
 export const ENV = validateEnv(FINANCIAL_SCRAPER_ENV_SCHEMA);

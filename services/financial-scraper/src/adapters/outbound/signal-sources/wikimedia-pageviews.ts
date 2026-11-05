@@ -19,19 +19,17 @@ const Pageviews = z.object({
 
 /**
  * Wikipedia views of an article per day (CC0): public attention to the
- * asset. The API gives no release time, so a day is observed when first
- * collected: the store keeps that first row, never stamped before the day
- * was public. `period` says which day was counted.
+ * asset. The API gives no release time: no `observedAt`, the collector
+ * stamps the collection time. `period` says which day was counted.
  */
 export const WIKIMEDIA_PAGEVIEWS: SourceAdapter = {
 	dimensions: ["social"],
-	normalize(payload, { ingestedAt }) {
+	normalize(payload) {
 		return Pageviews.parse(payload).items.map((item) => {
 			const { timestamp } = item;
 			const day = `${timestamp.slice(0, 4)}-${timestamp.slice(4, 6)}-${timestamp.slice(6, 8)}`;
 			return {
 				key: day,
-				observedAt: ingestedAt,
 				payload: {
 					metric: "pageviews",
 					value: item.views,

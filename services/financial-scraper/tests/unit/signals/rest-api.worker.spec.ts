@@ -2,6 +2,7 @@ import { createServer, type IncomingMessage, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { afterAll, beforeAll, describe, expect, it } from "@jest/globals";
 import { createRestApiWorker } from "../../../src/adapters/outbound/signal-sources/rest-api.worker";
+import { InvalidPayloadError } from "../../../src/domain/ports/signal-source.port";
 
 /** Answers each path with its status and body; records the last request. */
 const ROUTES: Record<string, [number, string]> = {
@@ -51,10 +52,9 @@ describe("rest_api worker", () => {
 		);
 	});
 
-	// By name: undici's SyntaxError comes from another realm than Jest's.
-	it("rejects with a SyntaxError on a body that is not JSON", async () => {
-		await expect(fetchPath("/html")).rejects.toMatchObject({
-			name: "SyntaxError",
-		});
+	it("rejects with an InvalidPayloadError on a body that is not JSON", async () => {
+		await expect(fetchPath("/html")).rejects.toBeInstanceOf(
+			InvalidPayloadError
+		);
 	});
 });

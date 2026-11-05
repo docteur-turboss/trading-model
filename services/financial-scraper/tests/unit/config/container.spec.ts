@@ -8,6 +8,7 @@ const MOCK_CRON_CONSTRUCTOR = jest.fn((config: unknown) => ({
 const MOCK_LOGGER = {
 	info: jest.fn(),
 	warn: jest.fn(),
+	error: jest.fn(),
 };
 
 jest.mock("@trading-model/http/infrastructure/logger", () => ({
@@ -140,6 +141,18 @@ describe("config/container — createSignalScheduler", () => {
 		).toBeNull();
 		expect(MOCK_LOGGER.info).toHaveBeenCalledWith(
 			expect.stringContaining("SIGNAL_COLLECTION_ENABLED=false")
+		);
+	});
+
+	it("collects no signal with a contact that is no e-mail", () => {
+		expect(
+			createSignalScheduler({
+				...ENABLED,
+				SIGNAL_CONTACT_EMAIL: "automated news analysis",
+			})
+		).toBeNull();
+		expect(MOCK_LOGGER.error).toHaveBeenCalledWith(
+			expect.stringContaining("SIGNAL_CONTACT_EMAIL")
 		);
 	});
 

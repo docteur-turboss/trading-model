@@ -22,8 +22,7 @@ function fixture(name: string): any {
 	);
 }
 
-const INGESTED_AT = Date.parse("2026-11-04T12:03:00Z");
-const NO_PARAMS = { params: {}, ingestedAt: INGESTED_AT };
+const NO_PARAMS = { params: {} };
 
 describe("SOURCE_ADAPTERS", () => {
 	it("names every adapter a registry source can use", () => {
@@ -48,10 +47,7 @@ describe("SOURCE_ADAPTERS", () => {
 	] as const)(
 		"%#: writes the canonical payload of its dimension",
 		(adapter, name, params) => {
-			const observations = adapter.normalize(fixture(name), {
-				params,
-				ingestedAt: INGESTED_AT,
-			});
+			const observations = adapter.normalize(fixture(name), { params });
 
 			expect(observations.length).toBeGreaterThan(0);
 			for (const { payload } of observations) {
@@ -64,12 +60,9 @@ describe("SOURCE_ADAPTERS", () => {
 });
 
 describe("ecb-sdmx-series", () => {
-	const CONTEXT = {
-		params: { metric: "spot_rate_10y" },
-		ingestedAt: INGESTED_AT,
-	};
+	const CONTEXT = { params: { metric: "spot_rate_10y" } };
 
-	it("reads each day of the series, observed when first collected", () => {
+	it("reads each day of the series, without observedAt (no release time)", () => {
 		const observations = ECB_SDMX_SERIES.normalize(
 			fixture("ecb-sdmx-series"),
 			CONTEXT
@@ -84,8 +77,7 @@ describe("ecb-sdmx-series", () => {
 		]);
 		expect(observations[4]).toEqual({
 			key: "2026-11-03",
-			// The ECB gives no release time: never before the collection.
-			observedAt: INGESTED_AT,
+			// The ECB gives no release time: the collector stamps the collection.
 			payload: {
 				metric: "spot_rate_10y",
 				value: 3.3466052064,
@@ -255,39 +247,40 @@ describe("nws-latest-observation", () => {
 			variables:
 				"temperature,relativeHumidity,precipitationLastHour,precipitationLast3Hours",
 		},
-		ingestedAt: INGESTED_AT,
 	};
 
-	it("reads each requested variable the station reported, where and when it was measured", () => {
+	it("reads each requested variable the station reported, where and when it was measured, never as observedAt", () => {
 		const observations = NWS_LATEST_OBSERVATION.normalize(
 			fixture("nws-latest-observation"),
 			CONTEXT
 		);
 
-		const observedAt = Date.parse("2026-11-04T12:40:00Z");
+		const key = String(Date.parse("2026-11-04T12:40:00Z"));
+		const details = {
+			qualityControl: "V",
+			measuredAt: "2026-11-04T12:40:00+00:00",
+		};
 		const location = { latitude: 38.07, longitude: -97.87, name: "KHUT" };
 		// precipitationLastHour is not in the report, precipitationLast3Hours has no value.
 		expect(observations).toEqual([
 			{
-				key: String(observedAt),
-				observedAt,
+				key,
 				payload: {
 					metric: "temperature",
 					value: 4,
 					unit: "wmoUnit:degC",
 					location,
-					details: { qualityControl: "V" },
+					details,
 				},
 			},
 			{
-				key: String(observedAt),
-				observedAt,
+				key,
 				payload: {
 					metric: "relativeHumidity",
 					value: 93.195121939331,
 					unit: "wmoUnit:percent",
 					location,
-					details: { qualityControl: "V" },
+					details,
 				},
 			},
 		]);
@@ -299,7 +292,7 @@ describe("nws-latest-observation", () => {
 
 		const [temperature] = NWS_LATEST_OBSERVATION.normalize(payload, CONTEXT);
 
-		expect(temperature.payload.details).toEqual({ qualityControl: null });
+		expect(temperature.payload.details).toMatchObject({ qualityControl: null });
 	});
 
 	it("accepts only measured variables in the request params", () => {
@@ -334,7 +327,7 @@ describe("nws-latest-observation", () => {
 });
 
 describe("wikimedia-pageviews", () => {
-	it("reads each counted day, observed when first collected", () => {
+	it("reads each counted day, without observedAt (no release time)", () => {
 		const observations = WIKIMEDIA_PAGEVIEWS.normalize(
 			fixture("wikimedia-pageviews"),
 			NO_PARAMS
@@ -343,8 +336,7 @@ describe("wikimedia-pageviews", () => {
 		expect(observations).toHaveLength(8);
 		expect(observations[7]).toEqual({
 			key: "2026-11-03",
-			// No release time in the API: never before the collection.
-			observedAt: INGESTED_AT,
+			// No release time in the API: the collector stamps the collection.
 			payload: {
 				metric: "pageviews",
 				value: 3751,

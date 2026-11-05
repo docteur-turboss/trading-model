@@ -5,17 +5,19 @@ import type { Dimension, SourceRequest } from "../signals";
 export interface Observation {
 	/** Tells this observation from the others of its source, subject and metric; a replay yields the same key. */
 	key: string;
-	/** Epoch milliseconds, never earlier than the value was public. */
-	observedAt: number;
+	/**
+	 * Epoch milliseconds, never earlier than the value was public. Left out when
+	 * the source gives no release time: the collection time, and the store keeps
+	 * the first row, so a value is never stamped before it was public.
+	 */
+	observedAt?: number;
 	/** The canonical payload of the request's dimension (`PAYLOADS`), checked by the collector. */
 	payload: Record<string, unknown>;
 }
 
-export interface AdapterContext {
+interface AdapterContext {
 	/** The request `params`, already checked against the adapter's `params` schema. */
 	params: Readonly<Record<string, string>>;
-	/** Epoch milliseconds of the collection. */
-	ingestedAt: number;
 }
 
 /**
@@ -31,5 +33,10 @@ export interface SourceAdapter {
 	normalize(payload: unknown, context: AdapterContext): Observation[];
 }
 
-/** Fetches one request with its source's protocol; rejects on a transport or HTTP error. */
+/** A body the worker cannot decode: the source changed its format, not a transport failure. */
+export class InvalidPayloadError extends Error {
+	override readonly name = "InvalidPayloadError";
+}
+
+/** Fetches one request with its source's protocol; rejects on a transport or HTTP error, or with `InvalidPayloadError`. */
 export type ProtocolWorker = (request: SourceRequest) => Promise<unknown>;

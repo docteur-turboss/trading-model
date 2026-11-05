@@ -201,15 +201,12 @@ describe("env", () => {
 		expect(ENV.SIGNAL_CONTACT_EMAIL).toBe("");
 	});
 
-	it("should refuse a contact that is no e-mail", () => {
-		const consoleSpy = jest
-			.spyOn(console, "error")
-			.mockImplementation(() => {});
+	// Checked by createSignalScheduler: a bad contact must not stop the service.
+	it("should start with a contact that is no e-mail", () => {
 		setRequiredVars();
 		process.env.SIGNAL_CONTACT_EMAIL = "automated news analysis";
 
-		expect(() => require("../../../src/infrastructure/config/env")).toThrow();
-
-		consoleSpy.mockRestore();
+		const { ENV } = require("../../../src/infrastructure/config/env");
+		expect(ENV.SIGNAL_CONTACT_EMAIL).toBe("automated news analysis");
 	});
 });

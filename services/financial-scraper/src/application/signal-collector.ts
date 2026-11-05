@@ -1,14 +1,14 @@
-import { createHash } from "node:crypto";
 import { getLogger } from "@trading-model/contracts/logger-registry";
+import { sha256Hex } from "@trading-model/crypto/adapters/outbound/node-hash";
 import { SIGNAL_COLLECTIONS_TOTAL } from "../config/metrics";
-import type {
-	ProtocolWorker,
-	SourceAdapter,
+import {
+	InvalidPayloadError,
+	type ProtocolWorker,
+	type SourceAdapter,
 } from "../domain/ports/signal-source.port";
 import type { SignalStorePort } from "../domain/ports/signal-store.port";
 import {
 	DATE_PLACEHOLDER,
-	PAYLOADS,
 	type Protocol,
 	SIGNAL_SCHEMA_VERSION,
 	Signal,
@@ -17,14 +17,14 @@ import {
 	type Subject,
 } from "../domain/signals";
 
-export type CollectionResult =
+type CollectionResult =
 	| "success"
 	| "fetch_error"
 	| "invalid_payload"
 	| "store_error";
 
 export interface SignalCollectorDeps {
-	workers: Readonly<Partial<Record<Protocol, ProtocolWorker>>>;
+	workers: Readonly<Record<Protocol, ProtocolWorker>>;
 	adapters: ReadonlyMap<string, SourceAdapter>;
 	store: SignalStorePort;
 	now(): number;
@@ -50,9 +50,7 @@ export function signalId(
 	metric: string,
 	key: string
 ): string {
-	return createHash("sha256")
-		.update(JSON.stringify([sourceId, subject, metric, key]))
-		.digest("hex");
+	return sha256Hex(JSON.stringify([sourceId, subject, metric, key]));
 }
 
 /**
@@ -83,11 +81,7 @@ export class SignalCollector {
 		let result: CollectionResult = "fetch_error";
 		const ingestedAt = this._deps.now();
 		try {
-			const worker = this._deps.workers[source.protocol];
-			if (!worker) {
-				throw new Error(`No worker for protocol ${source.protocol}`);
-			}
-			const payload = await worker({
+			const payload = await this._deps.workers[source.protocol]({
 				...request,
 				url: _expandUrl(request.url, ingestedAt),
 			});
@@ -100,9 +94,7 @@ export class SignalCollector {
 				context: { source: source.id, count: signals.length },
 			});
 		} catch (err) {
-			// A body that is not JSON is a changed format, not a transport failure.
-			// By name: fetch may throw it from another realm than this module's.
-			if ((err as { name?: unknown } | null)?.name === "SyntaxError") {
+			if (err instanceof InvalidPayloadError) {
 				result = "invalid_payload";
 			}
 			getLogger().error("Signal collection failed", {
@@ -125,25 +117,30 @@ export class SignalCollector {
 			throw new Error(`No source adapter named ${source.adapter}`);
 		}
 		const { subject, dimension } = request;
-		const observations = adapter.normalize(payload, {
-			params: request.params,
-			ingestedAt,
-		});
-		return observations.map((observation) => {
-			const canonical = PAYLOADS[dimension].parse(observation.payload);
-			return Signal.parse({
-				id: signalId(source.id, subject, canonical.metric, observation.key),
+		const observations = adapter.normalize(payload, { params: request.params });
+		const ingestedIso = new Date(ingestedAt).toISOString();
+		// One parse: Signal checks the payload against its dimension, and metric has no transform.
+		return observations.map((observation) =>
+			Signal.parse({
+				id: signalId(
+					source.id,
+					subject,
+					String(observation.payload.metric),
+					observation.key
+				),
 				schemaVersion: SIGNAL_SCHEMA_VERSION,
 				sourceId: source.id,
 				dimension,
 				assetId: "assetId" in subject ? subject.assetId : null,
 				sector: "sector" in subject ? subject.sector : null,
 				// Throws on an invalid date: the payload is then invalid.
-				observedAt: new Date(observation.observedAt).toISOString(),
-				ingestedAt: new Date(ingestedAt).toISOString(),
+				observedAt: new Date(
+					observation.observedAt ?? ingestedAt
+				).toISOString(),
+				ingestedAt: ingestedIso,
 				confidenceScore: source.reliabilityScore,
-				payload: canonical,
-			});
-		});
+				payload: observation.payload,
+			})
+		);
 	}
 }

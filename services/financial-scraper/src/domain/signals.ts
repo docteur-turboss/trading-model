@@ -19,7 +19,7 @@ export const Dimension = z.enum([
 export type Dimension = z.infer<typeof Dimension>;
 
 /** §1.1: the kind of asset; a commodity is reached through a proxy (ETF, ETC). */
-export const AssetType = z.enum([
+const AssetType = z.enum([
 	"crypto",
 	"equity",
 	"bond",
@@ -27,24 +27,18 @@ export const AssetType = z.enum([
 	"etf",
 	"commodity_proxy",
 ]);
-export type AssetType = z.infer<typeof AssetType>;
+type AssetType = z.infer<typeof AssetType>;
 
-/** §1.3: how a source is fetched. Only `rest_api` has a worker so far: the registry refuses the others. */
-export const Protocol = z.enum([
-	"rest_api",
-	"html_scrape",
-	"rss",
-	"websocket",
-	"file_feed",
-]);
+/** §1.3: how a source is fetched. A protocol enters this list with its worker (`createProtocolWorkers`). */
+export const Protocol = z.enum(["rest_api"]);
 export type Protocol = z.infer<typeof Protocol>;
 
 export const AssetId = z.string().regex(/^[A-Z0-9][A-Z0-9_-]{0,31}$/);
-export const SectorId = z.string().regex(/^[a-z][a-z0-9_]{0,31}$/);
+const SectorId = z.string().regex(/^[a-z][a-z0-9_]{0,31}$/);
 const SourceId = z.string().regex(/^[a-z0-9][a-z0-9-]{0,63}$/);
 
 /** §1.1: how the outside world names an asset, by scheme rather than one `symbol`. */
-export const Identifier = z.discriminatedUnion("scheme", [
+const Identifier = z.discriminatedUnion("scheme", [
 	z.strictObject({
 		scheme: z.literal("ticker"),
 		ticker: z.string().regex(/^[A-Z0-9.-]{1,16}$/),
@@ -75,7 +69,7 @@ export const Identifier = z.discriminatedUnion("scheme", [
 		key: z.string().min(1),
 	}),
 ]);
-export type Identifier = z.infer<typeof Identifier>;
+type Identifier = z.infer<typeof Identifier>;
 
 /** The identifier schemes each asset type is named with. */
 const IDENTIFIER_SCHEMES: Record<AssetType, readonly Identifier["scheme"][]> = {
@@ -151,7 +145,7 @@ export type SourceRequest = z.infer<typeof SourceRequest>;
  * attribution: other terms (non-commercial, research only...) cannot be
  * written, so such a source cannot enter the registry.
  */
-export const AccessPolicy = z
+const AccessPolicy = z
 	.strictObject({
 		terms: z.enum(["public-domain", "attribution"]),
 		/** The terms (ToS, licence) read when the source was added. */
@@ -267,38 +261,22 @@ const ENVELOPE = {
 	confidenceScore: z.number().min(0).max(1),
 };
 
+function _branch<TDimension extends Dimension>(dimension: TDimension) {
+	return z.strictObject({
+		...ENVELOPE,
+		dimension: z.literal(dimension),
+		payload: PAYLOADS[dimension],
+	});
+}
+
 export const Signal = z
 	.discriminatedUnion("dimension", [
-		z.strictObject({
-			...ENVELOPE,
-			dimension: z.literal("market"),
-			payload: PAYLOADS.market,
-		}),
-		z.strictObject({
-			...ENVELOPE,
-			dimension: z.literal("fundamental"),
-			payload: PAYLOADS.fundamental,
-		}),
-		z.strictObject({
-			...ENVELOPE,
-			dimension: z.literal("social"),
-			payload: PAYLOADS.social,
-		}),
-		z.strictObject({
-			...ENVELOPE,
-			dimension: z.literal("contextual"),
-			payload: PAYLOADS.contextual,
-		}),
-		z.strictObject({
-			...ENVELOPE,
-			dimension: z.literal("legal"),
-			payload: PAYLOADS.legal,
-		}),
-		z.strictObject({
-			...ENVELOPE,
-			dimension: z.literal("macro"),
-			payload: PAYLOADS.macro,
-		}),
+		_branch("market"),
+		_branch("fundamental"),
+		_branch("social"),
+		_branch("contextual"),
+		_branch("legal"),
+		_branch("macro"),
 	])
 	.refine((signal) => (signal.assetId === null) !== (signal.sector === null), {
 		message: "exactly one of assetId and sector must be set",

@@ -1,12 +1,10 @@
 import cron from "node-cron";
 import { z } from "zod";
-import { WORKER_PROTOCOLS } from "../adapters/outbound/signal-sources/protocol-workers";
 import { SOURCE_ADAPTERS } from "../adapters/outbound/signal-sources/source-adapters";
 import type { SourceAdapter } from "../domain/ports/signal-source.port";
 import {
 	Asset,
 	DATE_PLACEHOLDER,
-	type Protocol,
 	SIGNAL_SCHEMA_VERSION,
 	Source,
 	type SourceRequest,
@@ -89,16 +87,12 @@ function _requestProblems(
 
 /**
  * Parses the registry and checks what its schema alone cannot: unique ids,
- * known subjects, adapters and protocol workers, valid schedules, dimensions
+ * known subjects and adapters, valid schedules, dimensions
  * covered by the source and applicable to the subject, adapter params, URL
  * placeholders. Throws with every problem found, so a broken registry stops
  * the service at startup.
  */
-export function parseSignalRegistry(
-	raw: unknown,
-	adapters: ReadonlyMap<string, SourceAdapter> = SOURCE_ADAPTERS,
-	protocols: ReadonlySet<Protocol> = WORKER_PROTOCOLS
-): SignalRegistry {
+export function parseSignalRegistry(raw: unknown): SignalRegistry {
 	const file = RegistryFile.parse(raw);
 	const problems = [
 		..._duplicates(file.assets.map((asset) => asset.id)).map(
@@ -109,14 +103,9 @@ export function parseSignalRegistry(
 		),
 	];
 	for (const source of file.sources) {
-		const adapter = adapters.get(source.adapter);
+		const adapter = SOURCE_ADAPTERS.get(source.adapter);
 		if (!adapter) {
 			problems.push(`source ${source.id}: unknown adapter ${source.adapter}`);
-		}
-		if (!protocols.has(source.protocol)) {
-			problems.push(
-				`source ${source.id}: no worker for protocol ${source.protocol}`
-			);
 		}
 		if (!cron.validate(source.schedule)) {
 			problems.push(

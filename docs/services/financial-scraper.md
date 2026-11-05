@@ -156,10 +156,10 @@ Binance's `data-api.binance.vision` (CC BY-NC-SA 4.0) were rejected for that.
 
 | Source id | Dimension | Subject | Schedule | Metrics | Terms |
 | --- | --- | --- | --- | --- | --- |
-| `ecb-aaa-yield-10y` | market | `EA_AAA_10Y` (bond) | hourly, weekdays | `spot_rate_10y` | attribution: "Source: ECB statistics" |
-| `sec-edgar-eps-diluted` | fundamental | `AAPL` | every 6 h | `us-gaap:EarningsPerShareDiluted` | attribution: SEC |
-| `nws-kansas-wheat-belt` | contextual | sector `agriculture` | every 20 min | `temperature`, `relativeHumidity`, `precipitationLast*` | public domain |
-| `wikipedia-pageviews` | social | `BTC`, `ETH` | every 6 h | `pageviews` | public domain (CC0) |
+| `ecb-aaa-yield-10y` | market | `EA_AAA_10Y` (bond) | daily 15:07 UTC, weekdays (after the ECB release) | `spot_rate_10y` | attribution: "Source: ECB statistics" |
+| `sec-edgar-eps-diluted` | fundamental | `AAPL` | daily | `us-gaap:EarningsPerShareDiluted` | attribution: SEC |
+| `nws-kansas-wheat-belt` | contextual | sector `agriculture` | hourly (stations report once an hour) | `temperature`, `relativeHumidity`, `precipitationLast*` | public domain |
+| `wikipedia-pageviews` | social | `BTC`, `ETH` | daily | `pageviews` | public domain (CC0) |
 
 **Adding a source**: read its terms, then an entry in the registry. A new
 payload format also needs an adapter in `src/adapters/outbound/signal-sources/`
@@ -178,13 +178,16 @@ nothing stored), `store_error`. Every request sends the User-Agent
 without the e-mail; NWS and Wikimedia accept the repository URL sent when it
 is unset. The repository is public, so the e-mail is never committed: `.env`
 for compose, the GitHub environment secret `SIGNAL_CONTACT_EMAIL` for K8s
-(`deploy.yml` writes it into the `signal-contact` ConfigMap).
+(`deploy.yml` writes it into the `signal-contact` ConfigMap). A value that
+is no e-mail address disables the signal collection (error logged at start);
+the Binance collection goes on.
 
 **Point in time**: `observedAt` is never earlier than the value was public:
-the source's own time when it gives a safe one (an NWS observation time, an
-EDGAR fact once its filing day is over, US Eastern), otherwise the first
-collection that saw the value (the ECB and Wikimedia give no release time; the
-store keeps that first row). The period a value refers to is in the payload
+the source's own time when it gives a safe one (an EDGAR fact once its filing
+day is over, US Eastern), otherwise the first collection that saw the value
+(the ECB, NWS and Wikimedia give no release time; the store keeps that first
+row). The NWS measurement time, earlier than its publication, is in
+`details.measuredAt`. The period a value refers to is in the payload
 (`period`). `confidenceScore` is the source's
 `reliabilityScore` when collected. Both are served with every signal, never
 filtered on.
@@ -225,15 +228,15 @@ dimensions and metrics: nothing changes here (ADR-0036, decision 14).
       "dimension": "contextual",
       "assetId": null,
       "sector": "agriculture",
-      "observedAt": "2026-11-04T13:00:00.000Z",
-      "ingestedAt": "2026-11-04T13:32:01.505Z",
+      "observedAt": "2026-11-04T13:05:00.412Z",
+      "ingestedAt": "2026-11-04T13:05:00.412Z",
       "confidenceScore": 0.8,
       "payload": {
         "metric": "temperature",
         "value": 4,
         "unit": "wmoUnit:degC",
         "location": { "latitude": 38.07, "longitude": -97.87, "name": "KHUT" },
-        "details": { "qualityControl": "V" }
+        "details": { "qualityControl": "V", "measuredAt": "2026-11-04T12:40:00+00:00" }
       }
     }
   ],
