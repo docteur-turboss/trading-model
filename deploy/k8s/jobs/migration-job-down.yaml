@@ -2,14 +2,23 @@
 #  migration-job-down.yaml — Database Rollback Job
 #  Rolls back applied SQL migrations against the MySQL database.
 #
-#  Used in the deployment rollback runbook (audit A10): create the
-#  `migration-files` ConfigMap exactly like the up job, apply this job, wait
-#  for completion. Rollback count is configurable via ROLLBACK_COUNT
-#  (default: 1; "all" rolls back every applied migration).
+#  Used in the deployment rollback runbook (audit A10). Normally run through
+#  `deploy/k8s/scripts/deploy-k8s.sh migrate-down [N|all]`, which does the
+#  steps below. Migrations are rolled back newest first.
+#
+#  ROLLBACK_COUNT (a positive integer, or "all" for every applied migration)
+#  comes from its own ConfigMap `migration-rollback`, never from
+#  `migration-files`: applying `migration-files` with only that key would
+#  prune migrate.mjs and the SQL files. It is required, so a stale or missing
+#  value is never picked up silently: always (re)create it before the job.
+#  The pod template of a Job is immutable: delete the previous job first.
 #
 #    kubectl create configmap migration-files -n <ns> \
 #      --from-file=migrate.mjs=scripts/migrate.mjs \
 #      --from-file=scripts/migrations --dry-run=client -o yaml | kubectl apply -f -
+#    kubectl create configmap migration-rollback -n <ns> \
+#      --from-literal=ROLLBACK_COUNT=<N|all> --dry-run=client -o yaml | kubectl apply -f -
+#    kubectl delete job db-migrate-down -n <ns> --ignore-not-found
 #    kubectl apply -n <ns> -f deploy/k8s/jobs/migration-job-down.yaml
 #    kubectl wait --for=condition=complete job/db-migrate-down -n <ns> --timeout=180s
 # =============================================================================
@@ -53,15 +62,14 @@ spec:
               mkdir -p /tmp/migrate-run
               cp -r /migrations/. /tmp/migrate-run/
               cd /tmp/migrate-run
-              bun add mysql2
-              bun migrate.mjs down "${ROLLBACK_COUNT:-1}"
+              bun add mysql2@3.24.6
+              bun migrate.mjs down "$ROLLBACK_COUNT"
           env:
             - name: ROLLBACK_COUNT
               valueFrom:
                 configMapKeyRef:
-                  name: migration-files
+                  name: migration-rollback
                   key: ROLLBACK_COUNT
-                  optional: true
             - name: DB_HOST
               value: mysql-primary
             - name: DB_PORT
