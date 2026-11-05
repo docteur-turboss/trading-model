@@ -49,12 +49,14 @@ import {
 	insertTrades,
 	selectTradesBy,
 } from "../../src/adapters/outbound/persistence/schema/trades.schema";
+import { MySqlSignalStore } from "../../src/adapters/outbound/persistence/signal-store";
 import { DATABASE } from "../../src/config/db";
 import type {
 	CandleData,
 	TickerData,
 	TradeData,
 } from "../../src/domain/market-data.types";
+import type { Signal } from "../../src/domain/signals";
 
 const MIGRATIONS_DIR = join(__dirname, "../../../../scripts/migrations");
 const SYMBOL = TradingSymbol.of("BTCUSDT");
@@ -192,6 +194,7 @@ beforeEach(async () => {
 		"market_trades",
 		"market_tickers",
 		"market_publish_cursors",
+		"signals",
 	]) {
 		await DATABASE.promise().query(`DELETE FROM ${table}`);
 	}
@@ -210,6 +213,7 @@ describe("scripts/migrate.mjs — real MySQL", () => {
 		"market_publish_cursors",
 		"market_tickers",
 		"market_trades",
+		"signals",
 	];
 
 	it("should roll back the newest migrations first and re-apply them", async () => {
@@ -221,7 +225,7 @@ describe("scripts/migrate.mjs — real MySQL", () => {
 			MIGRATION_IDS.slice(0, -1)
 		);
 		await expect(tables()).resolves.toEqual(
-			ALL_TABLES.filter((table) => table !== "market_publish_cursors")
+			ALL_TABLES.filter((table) => table !== "signals")
 		);
 
 		migrate("up");
@@ -455,5 +459,99 @@ describe("market_publish_cursors — real MySQL", () => {
 		);
 
 		expect(row).not.toHaveProperty("trades");
+	});
+});
+
+describe("signals — real MySQL", () => {
+	const OBSERVED = Date.UTC(2026, 10, 3, 12, 0, 0, 125);
+
+	const PAYLOAD = {
+		metric: "pageviews",
+		value: 3751,
+		unit: "views",
+		platform: "en.wikipedia",
+		topic: "Bitcoin",
+		period: { start: "2026-11-02", end: "2026-11-02" },
+		details: { revised: false, note: null },
+	};
+
+	function signal(overrides: Partial<Signal> = {}): Signal {
+		return {
+			id: "1".repeat(64),
+			schemaVersion: 1,
+			sourceId: "wikipedia-pageviews",
+			dimension: "social",
+			assetId: "BTC",
+			sector: null,
+			observedAt: new Date(OBSERVED).toISOString(),
+			ingestedAt: new Date(OBSERVED + 3000).toISOString(),
+			confidenceScore: 0.3,
+			payload: PAYLOAD,
+			...overrides,
+		} as Signal;
+	}
+
+	/** The asset BTC, sector crypto, its social dimension, over the day of OBSERVED. */
+	function findBtc(limit = 100) {
+		return MySqlSignalStore.findForAsset({
+			assetId: "BTC",
+			sector: "crypto",
+			dimensions: ["social"],
+			from: Date.UTC(2026, 10, 3),
+			to: Date.UTC(2026, 10, 4),
+			limit,
+		});
+	}
+
+	it("should round-trip a signal with its millisecond instants and payload", async () => {
+		await MySqlSignalStore.save([signal()]);
+
+		await expect(findBtc()).resolves.toEqual([signal()]);
+	});
+
+	it("should store a replayed signal once and keep its first value", async () => {
+		await MySqlSignalStore.save([signal()]);
+		await MySqlSignalStore.save([
+			signal({ payload: { ...PAYLOAD, value: 1 } }),
+			signal(),
+		]);
+
+		await expect(count("signals")).resolves.toBe(1);
+		await expect(findBtc()).resolves.toEqual([signal()]);
+	});
+
+	it("should leave out the dimensions that do not apply to the asset", async () => {
+		await MySqlSignalStore.save([
+			signal({
+				id: "8".repeat(64),
+				dimension: "contextual",
+			} as Partial<Signal>),
+		]);
+
+		await expect(findBtc()).resolves.toEqual([]);
+	});
+
+	it("should answer the asset's and its sector's signals of the window, oldest first", async () => {
+		const at = (ms: number) => new Date(ms).toISOString();
+		await MySqlSignalStore.save([
+			signal({ id: "2".repeat(64), observedAt: at(OBSERVED + 60_000) }),
+			signal({ id: "3".repeat(64), assetId: null, sector: "crypto" }),
+			signal({ id: "4".repeat(64), assetId: "ETH" }),
+			signal({ id: "5".repeat(64), assetId: null, sector: "agriculture" }),
+			// [from, to): the end of the window is out, its start in.
+			signal({ id: "6".repeat(64), observedAt: at(Date.UTC(2026, 10, 4)) }),
+			signal({ id: "7".repeat(64), observedAt: at(Date.UTC(2026, 10, 3)) }),
+		]);
+
+		const ids = (await findBtc()).map((s) => s.id[0]);
+
+		expect(ids).toEqual(["7", "3", "2"]);
+		await expect(findBtc(2)).resolves.toHaveLength(2);
+	});
+
+	it("should refuse a row on both an asset and a sector", async () => {
+		await expect(
+			MySqlSignalStore.save([signal({ sector: "crypto" })])
+		).rejects.toThrow(/chk_signals_one_subject/);
 	});
 });

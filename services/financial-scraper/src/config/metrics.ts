@@ -74,4 +74,10 @@ export const EVENTS_PUBLISHED_TOTAL = new promClient.Counter({
 	labelNames: ["event_type"] as const,
 });
 
+export const SIGNAL_COLLECTIONS_TOTAL = new promClient.Counter({
+	name: "fs_signal_collections_total",
+	help: "Signal source requests collected (ADR-0036), by source and result: success, fetch_error, invalid_payload (format changed), store_error",
+	labelNames: ["source", "result"] as const,
+});
+
 export { metricsHandler };

@@ -106,7 +106,8 @@ describe("ScrapeCronOrchestrator", () => {
 			orchestrator.start();
 			expect(MOCK_CRON_SCHEDULE).toHaveBeenCalledWith(
 				"*/1 * * * *",
-				expect.any(Function)
+				expect.any(Function),
+				{ timezone: "Etc/UTC" }
 			);
 		});
 

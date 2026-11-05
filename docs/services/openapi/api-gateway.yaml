@@ -1450,6 +1450,757 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "404":
           $ref: "#/components/responses/NotFound"
+  /v1/financial-scraper/signals/assets/{assetId}:
+    get:
+      operationId: "getV1FinancialScraperSignalsAssetsAssetId"
+      tags:
+        - "financial-scraper"
+      summary: "Signals of an asset and of its sector, every dimension, observed in [from, to)"
+      x-registry-entry: "assetSignals"
+      parameters:
+        - name: "assetId"
+          in: "path"
+          required: true
+          schema:
+            type: "string"
+            pattern: "^[A-Z0-9][A-Z0-9_-]{0,31}$"
+        - name: "from"
+          in: "query"
+          required: true
+          schema:
+            anyOf:
+              - type: "string"
+                format: "date-time"
+              - type: "string"
+                format: "date"
+                pattern: "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+        - name: "to"
+          in: "query"
+          required: true
+          schema:
+            anyOf:
+              - type: "string"
+                format: "date-time"
+              - type: "string"
+                format: "date"
+                pattern: "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+      responses:
+        "200":
+          description: "OK"
+          content:
+            "application/json":
+              schema:
+                type: "object"
+                properties:
+                  asset:
+                    type: "object"
+                    properties:
+                      id:
+                        type: "string"
+                        pattern: "^[A-Z0-9][A-Z0-9_-]{0,31}$"
+                      name:
+                        type: "string"
+                        minLength: 1
+                      assetType:
+                        type: "string"
+                        enum:
+                          - "crypto"
+                          - "equity"
+                          - "bond"
+                          - "real_estate"
+                          - "etf"
+                          - "commodity_proxy"
+                      identifier:
+                        oneOf:
+                          - type: "object"
+                            properties:
+                              scheme:
+                                type: "string"
+                                enum:
+                                  - "ticker"
+                              ticker:
+                                type: "string"
+                                pattern: "^[A-Z0-9.-]{1,16}$"
+                              exchange:
+                                type: "string"
+                                pattern: "^[A-Z0-9]{4}$"
+                            required:
+                              - "scheme"
+                              - "ticker"
+                            additionalProperties: false
+                          - type: "object"
+                            properties:
+                              scheme:
+                                type: "string"
+                                enum:
+                                  - "isin"
+                              isin:
+                                type: "string"
+                                pattern: "^[A-Z]{2}[A-Z0-9]{9}\\d$"
+                            required:
+                              - "scheme"
+                              - "isin"
+                            additionalProperties: false
+                          - type: "object"
+                            properties:
+                              scheme:
+                                type: "string"
+                                enum:
+                                  - "contract"
+                              chain:
+                                type: "string"
+                                pattern: "^[a-z0-9-]{1,32}$"
+                              address:
+                                type: "string"
+                                minLength: 1
+                                maxLength: 128
+                            required:
+                              - "scheme"
+                              - "chain"
+                              - "address"
+                            additionalProperties: false
+                          - type: "object"
+                            properties:
+                              scheme:
+                                type: "string"
+                                enum:
+                                  - "insee"
+                              code:
+                                type: "string"
+                                pattern: "^(\\d{5}|2[AB]\\d{3})$"
+                            required:
+                              - "scheme"
+                              - "code"
+                            additionalProperties: false
+                          - type: "object"
+                            properties:
+                              scheme:
+                                type: "string"
+                                enum:
+                                  - "series"
+                              provider:
+                                type: "string"
+                                minLength: 1
+                              key:
+                                type: "string"
+                                minLength: 1
+                            required:
+                              - "scheme"
+                              - "provider"
+                              - "key"
+                            additionalProperties: false
+                      applicableDimensions:
+                        minItems: 1
+                        type: "array"
+                        items:
+                          type: "string"
+                          enum:
+                            - "market"
+                            - "fundamental"
+                            - "social"
+                            - "contextual"
+                            - "legal"
+                            - "macro"
+                      sector:
+                        type: "string"
+                        pattern: "^[a-z][a-z0-9_]{0,31}$"
+                    required:
+                      - "id"
+                      - "name"
+                      - "assetType"
+                      - "identifier"
+                      - "applicableDimensions"
+                      - "sector"
+                    additionalProperties: false
+                  signals:
+                    type: "array"
+                    items:
+                      oneOf:
+                        - type: "object"
+                          properties:
+                            id:
+                              type: "string"
+                              pattern: "^[0-9a-f]{64}$"
+                            schemaVersion:
+                              type: "number"
+                              enum:
+                                - 1
+                            sourceId:
+                              type: "string"
+                              pattern: "^[a-z0-9][a-z0-9-]{0,63}$"
+                            assetId:
+                              nullable: true
+                              type: "string"
+                              pattern: "^[A-Z0-9][A-Z0-9_-]{0,31}$"
+                            sector:
+                              nullable: true
+                              type: "string"
+                              pattern: "^[a-z][a-z0-9_]{0,31}$"
+                            observedAt:
+                              type: "string"
+                              format: "date-time"
+                            ingestedAt:
+                              type: "string"
+                              format: "date-time"
+                            confidenceScore:
+                              type: "number"
+                              minimum: 0
+                              maximum: 1
+                            dimension:
+                              type: "string"
+                              enum:
+                                - "market"
+                            payload:
+                              type: "object"
+                              properties:
+                                metric:
+                                  type: "string"
+                                  pattern: "^[\\w.:-]{1,128}$"
+                                value:
+                                  type: "number"
+                                unit:
+                                  type: "string"
+                                  minLength: 1
+                                  maxLength: 32
+                                details:
+                                  type: "object"
+                                  additionalProperties:
+                                    anyOf:
+                                      - type: "string"
+                                      - type: "number"
+                                      - type: "boolean"
+                                      - type: "string"
+                                        nullable: true
+                                        enum:
+                                          - null
+                                period:
+                                  type: "object"
+                                  properties:
+                                    start:
+                                      type: "string"
+                                      format: "date"
+                                      pattern: "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+                                    end:
+                                      type: "string"
+                                      format: "date"
+                                      pattern: "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+                                  required:
+                                    - "start"
+                                    - "end"
+                                  additionalProperties: false
+                              required:
+                                - "metric"
+                                - "value"
+                                - "unit"
+                              additionalProperties: false
+                          required:
+                            - "id"
+                            - "schemaVersion"
+                            - "sourceId"
+                            - "assetId"
+                            - "sector"
+                            - "observedAt"
+                            - "ingestedAt"
+                            - "confidenceScore"
+                            - "dimension"
+                            - "payload"
+                          additionalProperties: false
+                        - type: "object"
+                          properties:
+                            id:
+                              type: "string"
+                              pattern: "^[0-9a-f]{64}$"
+                            schemaVersion:
+                              type: "number"
+                              enum:
+                                - 1
+                            sourceId:
+                              type: "string"
+                              pattern: "^[a-z0-9][a-z0-9-]{0,63}$"
+                            assetId:
+                              nullable: true
+                              type: "string"
+                              pattern: "^[A-Z0-9][A-Z0-9_-]{0,31}$"
+                            sector:
+                              nullable: true
+                              type: "string"
+                              pattern: "^[a-z][a-z0-9_]{0,31}$"
+                            observedAt:
+                              type: "string"
+                              format: "date-time"
+                            ingestedAt:
+                              type: "string"
+                              format: "date-time"
+                            confidenceScore:
+                              type: "number"
+                              minimum: 0
+                              maximum: 1
+                            dimension:
+                              type: "string"
+                              enum:
+                                - "fundamental"
+                            payload:
+                              type: "object"
+                              properties:
+                                metric:
+                                  type: "string"
+                                  pattern: "^[\\w.:-]{1,128}$"
+                                value:
+                                  type: "number"
+                                unit:
+                                  type: "string"
+                                  minLength: 1
+                                  maxLength: 32
+                                details:
+                                  type: "object"
+                                  additionalProperties:
+                                    anyOf:
+                                      - type: "string"
+                                      - type: "number"
+                                      - type: "boolean"
+                                      - type: "string"
+                                        nullable: true
+                                        enum:
+                                          - null
+                                period:
+                                  type: "object"
+                                  properties:
+                                    start:
+                                      type: "string"
+                                      format: "date"
+                                      pattern: "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+                                    end:
+                                      type: "string"
+                                      format: "date"
+                                      pattern: "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+                                  required:
+                                    - "start"
+                                    - "end"
+                                  additionalProperties: false
+                                filing:
+                                  type: "object"
+                                  properties:
+                                    form:
+                                      type: "string"
+                                      minLength: 1
+                                    id:
+                                      type: "string"
+                                      minLength: 1
+                                    fiscalYear:
+                                      nullable: true
+                                      type: "integer"
+                                    fiscalPeriod:
+                                      nullable: true
+                                      type: "string"
+                                  required:
+                                    - "form"
+                                    - "id"
+                                    - "fiscalYear"
+                                    - "fiscalPeriod"
+                                  additionalProperties: false
+                              required:
+                                - "metric"
+                                - "value"
+                                - "unit"
+                                - "period"
+                                - "filing"
+                              additionalProperties: false
+                          required:
+                            - "id"
+                            - "schemaVersion"
+                            - "sourceId"
+                            - "assetId"
+                            - "sector"
+                            - "observedAt"
+                            - "ingestedAt"
+                            - "confidenceScore"
+                            - "dimension"
+                            - "payload"
+                          additionalProperties: false
+                        - type: "object"
+                          properties:
+                            id:
+                              type: "string"
+                              pattern: "^[0-9a-f]{64}$"
+                            schemaVersion:
+                              type: "number"
+                              enum:
+                                - 1
+                            sourceId:
+                              type: "string"
+                              pattern: "^[a-z0-9][a-z0-9-]{0,63}$"
+                            assetId:
+                              nullable: true
+                              type: "string"
+                              pattern: "^[A-Z0-9][A-Z0-9_-]{0,31}$"
+                            sector:
+                              nullable: true
+                              type: "string"
+                              pattern: "^[a-z][a-z0-9_]{0,31}$"
+                            observedAt:
+                              type: "string"
+                              format: "date-time"
+                            ingestedAt:
+                              type: "string"
+                              format: "date-time"
+                            confidenceScore:
+                              type: "number"
+                              minimum: 0
+                              maximum: 1
+                            dimension:
+                              type: "string"
+                              enum:
+                                - "social"
+                            payload:
+                              type: "object"
+                              properties:
+                                metric:
+                                  type: "string"
+                                  pattern: "^[\\w.:-]{1,128}$"
+                                value:
+                                  type: "number"
+                                unit:
+                                  type: "string"
+                                  minLength: 1
+                                  maxLength: 32
+                                details:
+                                  type: "object"
+                                  additionalProperties:
+                                    anyOf:
+                                      - type: "string"
+                                      - type: "number"
+                                      - type: "boolean"
+                                      - type: "string"
+                                        nullable: true
+                                        enum:
+                                          - null
+                                platform:
+                                  type: "string"
+                                  minLength: 1
+                                topic:
+                                  type: "string"
+                                  minLength: 1
+                                period:
+                                  type: "object"
+                                  properties:
+                                    start:
+                                      type: "string"
+                                      format: "date"
+                                      pattern: "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+                                    end:
+                                      type: "string"
+                                      format: "date"
+                                      pattern: "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+                                  required:
+                                    - "start"
+                                    - "end"
+                                  additionalProperties: false
+                              required:
+                                - "metric"
+                                - "value"
+                                - "unit"
+                                - "platform"
+                                - "topic"
+                                - "period"
+                              additionalProperties: false
+                          required:
+                            - "id"
+                            - "schemaVersion"
+                            - "sourceId"
+                            - "assetId"
+                            - "sector"
+                            - "observedAt"
+                            - "ingestedAt"
+                            - "confidenceScore"
+                            - "dimension"
+                            - "payload"
+                          additionalProperties: false
+                        - type: "object"
+                          properties:
+                            id:
+                              type: "string"
+                              pattern: "^[0-9a-f]{64}$"
+                            schemaVersion:
+                              type: "number"
+                              enum:
+                                - 1
+                            sourceId:
+                              type: "string"
+                              pattern: "^[a-z0-9][a-z0-9-]{0,63}$"
+                            assetId:
+                              nullable: true
+                              type: "string"
+                              pattern: "^[A-Z0-9][A-Z0-9_-]{0,31}$"
+                            sector:
+                              nullable: true
+                              type: "string"
+                              pattern: "^[a-z][a-z0-9_]{0,31}$"
+                            observedAt:
+                              type: "string"
+                              format: "date-time"
+                            ingestedAt:
+                              type: "string"
+                              format: "date-time"
+                            confidenceScore:
+                              type: "number"
+                              minimum: 0
+                              maximum: 1
+                            dimension:
+                              type: "string"
+                              enum:
+                                - "contextual"
+                            payload:
+                              type: "object"
+                              properties:
+                                metric:
+                                  type: "string"
+                                  pattern: "^[\\w.:-]{1,128}$"
+                                value:
+                                  type: "number"
+                                unit:
+                                  type: "string"
+                                  minLength: 1
+                                  maxLength: 32
+                                details:
+                                  type: "object"
+                                  additionalProperties:
+                                    anyOf:
+                                      - type: "string"
+                                      - type: "number"
+                                      - type: "boolean"
+                                      - type: "string"
+                                        nullable: true
+                                        enum:
+                                          - null
+                                location:
+                                  type: "object"
+                                  properties:
+                                    latitude:
+                                      type: "number"
+                                      minimum: -90
+                                      maximum: 90
+                                    longitude:
+                                      type: "number"
+                                      minimum: -180
+                                      maximum: 180
+                                    name:
+                                      type: "string"
+                                      minLength: 1
+                                  required:
+                                    - "latitude"
+                                    - "longitude"
+                                  additionalProperties: false
+                              required:
+                                - "metric"
+                                - "value"
+                                - "unit"
+                                - "location"
+                              additionalProperties: false
+                          required:
+                            - "id"
+                            - "schemaVersion"
+                            - "sourceId"
+                            - "assetId"
+                            - "sector"
+                            - "observedAt"
+                            - "ingestedAt"
+                            - "confidenceScore"
+                            - "dimension"
+                            - "payload"
+                          additionalProperties: false
+                        - type: "object"
+                          properties:
+                            id:
+                              type: "string"
+                              pattern: "^[0-9a-f]{64}$"
+                            schemaVersion:
+                              type: "number"
+                              enum:
+                                - 1
+                            sourceId:
+                              type: "string"
+                              pattern: "^[a-z0-9][a-z0-9-]{0,63}$"
+                            assetId:
+                              nullable: true
+                              type: "string"
+                              pattern: "^[A-Z0-9][A-Z0-9_-]{0,31}$"
+                            sector:
+                              nullable: true
+                              type: "string"
+                              pattern: "^[a-z][a-z0-9_]{0,31}$"
+                            observedAt:
+                              type: "string"
+                              format: "date-time"
+                            ingestedAt:
+                              type: "string"
+                              format: "date-time"
+                            confidenceScore:
+                              type: "number"
+                              minimum: 0
+                              maximum: 1
+                            dimension:
+                              type: "string"
+                              enum:
+                                - "legal"
+                            payload:
+                              type: "object"
+                              properties:
+                                metric:
+                                  type: "string"
+                                  pattern: "^[\\w.:-]{1,128}$"
+                                value:
+                                  type: "number"
+                                unit:
+                                  type: "string"
+                                  minLength: 1
+                                  maxLength: 32
+                                details:
+                                  type: "object"
+                                  additionalProperties:
+                                    anyOf:
+                                      - type: "string"
+                                      - type: "number"
+                                      - type: "boolean"
+                                      - type: "string"
+                                        nullable: true
+                                        enum:
+                                          - null
+                                jurisdiction:
+                                  type: "string"
+                                  minLength: 1
+                              required:
+                                - "metric"
+                                - "value"
+                                - "unit"
+                                - "jurisdiction"
+                              additionalProperties: false
+                          required:
+                            - "id"
+                            - "schemaVersion"
+                            - "sourceId"
+                            - "assetId"
+                            - "sector"
+                            - "observedAt"
+                            - "ingestedAt"
+                            - "confidenceScore"
+                            - "dimension"
+                            - "payload"
+                          additionalProperties: false
+                        - type: "object"
+                          properties:
+                            id:
+                              type: "string"
+                              pattern: "^[0-9a-f]{64}$"
+                            schemaVersion:
+                              type: "number"
+                              enum:
+                                - 1
+                            sourceId:
+                              type: "string"
+                              pattern: "^[a-z0-9][a-z0-9-]{0,63}$"
+                            assetId:
+                              nullable: true
+                              type: "string"
+                              pattern: "^[A-Z0-9][A-Z0-9_-]{0,31}$"
+                            sector:
+                              nullable: true
+                              type: "string"
+                              pattern: "^[a-z][a-z0-9_]{0,31}$"
+                            observedAt:
+                              type: "string"
+                              format: "date-time"
+                            ingestedAt:
+                              type: "string"
+                              format: "date-time"
+                            confidenceScore:
+                              type: "number"
+                              minimum: 0
+                              maximum: 1
+                            dimension:
+                              type: "string"
+                              enum:
+                                - "macro"
+                            payload:
+                              type: "object"
+                              properties:
+                                metric:
+                                  type: "string"
+                                  pattern: "^[\\w.:-]{1,128}$"
+                                value:
+                                  type: "number"
+                                unit:
+                                  type: "string"
+                                  minLength: 1
+                                  maxLength: 32
+                                details:
+                                  type: "object"
+                                  additionalProperties:
+                                    anyOf:
+                                      - type: "string"
+                                      - type: "number"
+                                      - type: "boolean"
+                                      - type: "string"
+                                        nullable: true
+                                        enum:
+                                          - null
+                                area:
+                                  type: "string"
+                                  minLength: 1
+                                period:
+                                  type: "object"
+                                  properties:
+                                    start:
+                                      type: "string"
+                                      format: "date"
+                                      pattern: "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+                                    end:
+                                      type: "string"
+                                      format: "date"
+                                      pattern: "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+                                  required:
+                                    - "start"
+                                    - "end"
+                                  additionalProperties: false
+                              required:
+                                - "metric"
+                                - "value"
+                                - "unit"
+                                - "area"
+                                - "period"
+                              additionalProperties: false
+                          required:
+                            - "id"
+                            - "schemaVersion"
+                            - "sourceId"
+                            - "assetId"
+                            - "sector"
+                            - "observedAt"
+                            - "ingestedAt"
+                            - "confidenceScore"
+                            - "dimension"
+                            - "payload"
+                          additionalProperties: false
+                  truncated:
+                    type: "boolean"
+                required:
+                  - "asset"
+                  - "signals"
+                  - "truncated"
+                additionalProperties: false
+        "400":
+          description: "Invalid request"
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: "Not found"
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /v1/financial-scraper/ticker/sources/{source}:
     get:
       operationId: "getV1FinancialScraperTickerSourcesSource"

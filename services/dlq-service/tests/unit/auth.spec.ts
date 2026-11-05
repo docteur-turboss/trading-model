@@ -24,6 +24,7 @@ function makeRequest(overrides: Record<string, unknown> = {}) {
 		},
 		method: "POST",
 		path: "/dlq",
+		originalUrl: "/dlq",
 		body: { topic: "test" },
 		...overrides,
 	};
@@ -68,6 +69,21 @@ describe("serviceAuth", () => {
 		serviceAuth(req as never, res as never, next);
 
 		expect(next).toHaveBeenCalled();
+	});
+
+	it("verifies the query string with the path", () => {
+		mockVerifySignature.mockReturnValue(true);
+
+		const req = makeRequest({
+			path: "/dlq/replay",
+			originalUrl: "/dlq/replay?limit=100",
+		});
+		serviceAuth(req as never, makeResponse() as never, jest.fn());
+
+		expect(mockVerifySignature).toHaveBeenLastCalledWith(
+			expect.objectContaining({ path: "/dlq/replay?limit=100" }),
+			expect.anything()
+		);
 	});
 
 	it("should respond 403 when service name is not allowed", () => {

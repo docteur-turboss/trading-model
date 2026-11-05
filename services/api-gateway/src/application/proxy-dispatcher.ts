@@ -1,3 +1,4 @@
+import { HTTP_HEADERS } from "@trading-model/contracts/http-headers";
 import {
 	HTTP_STATUS,
 	type HttpStatusCode,
@@ -35,8 +36,8 @@ export async function proxyAndCache(
 	ACTIVE_REQUESTS.inc();
 	try {
 		const result = await forwardRequest({ req, target, path: ctx.path });
-		tryCacheResponse(req, ctx, result, cache);
 		const parsedBody = tryParseJson(result.body);
+		tryCacheResponse(req, ctx, result, parsedBody, cache);
 		PROXY_REQUEST_DURATION_SECONDS.observe(
 			{ service: ctx.serviceName, status: String(result.status) },
 			(performance.now() - start) / 1000
@@ -59,17 +60,24 @@ export async function proxyAndCache(
 function tryCacheResponse(
 	req: Request,
 	ctx: ProxyContext,
-	result: { body: string; status: number },
+	result: { status: number; body: string },
+	parsed: unknown,
 	cache: ResponseCache
 ): void {
-	if (req.method === "GET" && result.status === HTTP_STATUS.OK) {
-		const parsed = tryParseJson(result.body);
-		if (parsed) {
-			cache.set(ctx.cacheKey, {
-				data: parsed,
-				status: result.status as HttpStatusCode,
-			});
-		}
+	// A signed answer (DLQ) is for its signer only: cached, it would be served
+	// to any caller of the same URL.
+	const signed = req.headers[HTTP_HEADERS.X_SIGNATURE] !== undefined;
+	if (
+		req.method === "GET" &&
+		result.status === HTTP_STATUS.OK &&
+		parsed &&
+		!signed
+	) {
+		cache.set(ctx.cacheKey, {
+			data: parsed,
+			status: result.status as HttpStatusCode,
+			bytes: result.body.length,
+		});
 	}
 }
 

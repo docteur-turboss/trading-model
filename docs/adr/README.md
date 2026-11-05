@@ -43,6 +43,7 @@ An ADR documents a significant architectural decision, including the context, al
 | [ADR-0033](./0033-offsite-backup-bucket-object-lock.md) | Off-site Backup Bucket Under Object Lock (Compliance, 30-31 Days), Checked Before Every Deploy | Accepted | 2026-11 |
 | [ADR-0034](./0034-backup-key-custody-and-weekly-escrow-check.md) | Two Backup Keys in Production, Escrow Key Verified Weekly by GitHub Actions | Accepted | 2026-11 |
 | [ADR-0035](./0035-sealed-secrets-key-daily-backup-by-github-actions.md) | SealedSecrets Controller Keys Backed Up Daily by a Scheduled GitHub Actions Workflow | Accepted | 2026-11 |
+| [ADR-0036](./0036-multi-dimension-signals-mvp.md) | Multi-Dimension Signals MVP — Frozen Schema, Static Source Registry of Free Sources, Generic `rest_api` Worker | Accepted | 2026-11 |
 | [ADR-0037](./0037-typedoc-html-not-versioned.md) | Generated TypeDoc HTML Is Not Versioned | Accepted | 2026-11 |
 
 **Numbering gaps.** ADR-0014 and ADR-0028 do not exist. No file with either number has ever been committed on any branch, and no document refers to them, so they were skipped when the numbers were assigned and carry no decision. Do not reuse them for unrelated records.

@@ -10,9 +10,10 @@ import {
 	UnixTimestamp,
 } from "@trading-model/primitives/primitives";
 import { z } from "zod";
+import { Asset, AssetId, Signal } from "../../../domain/signals";
 
 /**
- * HTTP API of financial-scraper (ADR-0021): market data queries. Each entry
+ * HTTP API of financial-scraper (ADR-0021): market data and signal queries. Each entry
  * mounts its route (`routes.ts`), validates its parameters and documents it
  * in the OpenAPI.
  */
@@ -25,18 +26,23 @@ const BY_SYMBOL = z.object({
 	symbol: z.string().min(1).transform(brand<string, TradingSymbol>(toSymbol)),
 });
 
+/** An ISO date or date-time, to epoch milliseconds. */
+const ISO_DATE_MS = z
+	.union([z.iso.datetime({ offset: true }), z.iso.date()])
+	.transform((value) => Date.parse(value));
+
 /** Candles, tickers and trades: an ISO date or date-time. */
 const AT_DATE = z.object({
-	timestamp: z
-		.union([z.iso.datetime({ offset: true }), z.iso.date()])
-		.transform((value) => Date.parse(value))
-		.transform(brand(UnixTimestamp.of)),
+	timestamp: ISO_DATE_MS.transform(brand(UnixTimestamp.of)),
 });
 
 /** Order books: epoch milliseconds. */
 const EPOCH_MS = z.object({
 	timestamp: z.coerce.number().int().min(0).transform(brand(UnixTimestamp.of)),
 });
+
+/** Most signals one answer holds; past it the answer says `truncated`. */
+export const MAX_SIGNALS_PER_ANSWER = 5000;
 
 /** MySQL `DATETIME` columns, serialized by `Date#toJSON`. */
 const DATE_TIME = z.iso.datetime();
@@ -185,4 +191,29 @@ export const SCRAPER_API = {
 		EPOCH_MS,
 		OrderBook
 	),
+	/** ADR-0036: every dimension, the sector signals of the asset included. */
+	assetSignals: defineRoute({
+		method: "GET",
+		path: "/signals/assets/:assetId",
+		summary:
+			"Signals of an asset and of its sector, every dimension, observed in [from, to)",
+		params: z.object({ assetId: AssetId }),
+		query: z
+			.object({ from: ISO_DATE_MS, to: ISO_DATE_MS })
+			.refine((window) => window.from < window.to, {
+				message: "from must be before to",
+				path: ["to"],
+			}),
+		responses: {
+			200: z.object({
+				asset: Asset,
+				/** Oldest first. */
+				signals: z.array(Signal),
+				/** More than MAX_SIGNALS_PER_ANSWER (5000) signals: narrow the window. */
+				truncated: z.boolean(),
+			}),
+			400: ErrorResponse,
+			404: ErrorResponse,
+		},
+	}),
 } as const;

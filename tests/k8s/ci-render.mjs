@@ -6,6 +6,11 @@
 //   - divides CPU requests by 4: the stack must fit a 4-vCPU CI runner; this
 //     test checks behaviour, not capacity
 //   - points the scraper at the in-cluster Binance stub
+//   - turns off the collection of the signal registry sources (real public
+//     APIs, ADR-0036)
+//   - drops every internet egress rule (`ipBlock` 0.0.0.0/0) of the
+//     NetworkPolicies: fail closed, a new outside call is refused in CI
+//     instead of reaching the real service
 //   - suspends the CronJobs: a cluster kept after the test must not run the
 //     nightly backup on the host disk (the drill starts its job by hand)
 // Usage: kubectl kustomize ... | node tests/k8s/ci-render.mjs > out.yaml
@@ -29,11 +34,21 @@ function adapt(manifest) {
 		.replace(
 			/BINANCE_BASE_URL: "?https:\/\/api\.binance\.com"?/g,
 			'BINANCE_BASE_URL: "http://binance-stub:3000"'
+		)
+		.replace(
+			/SIGNAL_COLLECTION_ENABLED: "?true"?/g,
+			'SIGNAL_COLLECTION_ENABLED: "false"'
+		)
+		// An egress item: "  - " then its lines indented by 4 or more (kustomize layout).
+		.replace(/^ {2}- .*\n(?: {4}.*\n)*/gm, (item) =>
+			item.includes("cidr: 0.0.0.0/0") ? "" : item
 		);
 }
 
 // A silent miss sends the scraper to the real Binance (HTTP 451 from CI).
 const STUB_URL = 'BINANCE_BASE_URL: "http://binance-stub:3000"';
+// Same for the signal sources: real public APIs, never called from CI runners.
+const NO_SIGNALS = 'SIGNAL_COLLECTION_ENABLED: "false"';
 
 const documents = readFileSync(0, "utf8")
 	.split(/^---$/m)
@@ -42,6 +57,14 @@ const documents = readFileSync(0, "utf8")
 const rendered = adapt(documents.join("---"));
 if (!rendered.includes(STUB_URL) || /BINANCE_BASE_URL: "?https:/.test(rendered)) {
 	process.stderr.write("ci-render: BINANCE_BASE_URL not pointed at the stub\n");
+	process.exit(1);
+}
+if (!rendered.includes(NO_SIGNALS) || /SIGNAL_COLLECTION_ENABLED: "?true/.test(rendered)) {
+	process.stderr.write("ci-render: SIGNAL_COLLECTION_ENABLED not turned off\n");
+	process.exit(1);
+}
+if (rendered.includes("0.0.0.0/0")) {
+	process.stderr.write("ci-render: an internet egress rule is left\n");
 	process.exit(1);
 }
 process.stdout.write(rendered);
