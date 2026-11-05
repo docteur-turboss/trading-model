@@ -169,7 +169,7 @@ function checkIndex(adrs) {
   for (const [file, status] of rows) {
     const adr = adrs.get(file);
     if (!adr) errors.push(`README.md: links ${file}, which does not exist`);
-    else if (status !== adr.kind) errors.push(`README.md: ${file} listed as "${status}", the ADR says "${adr.kind}"`);
+    else if (status !== adr.status) errors.push(`README.md: ${file} listed as "${status}", the ADR says "${adr.status}"`);
   }
   for (const file of adrs.keys()) {
     if (!rows.has(file)) errors.push(`README.md: ${file} is not in the index`);
