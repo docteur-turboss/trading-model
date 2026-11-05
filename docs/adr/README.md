@@ -43,6 +43,7 @@ An ADR documents a significant architectural decision, including the context, al
 | [ADR-0033](./0033-offsite-backup-bucket-object-lock.md) | Off-site Backup Bucket Under Object Lock (Compliance, 30-31 Days), Checked Before Every Deploy | Accepted | 2026-11 |
 | [ADR-0034](./0034-backup-key-custody-and-weekly-escrow-check.md) | Two Backup Keys in Production, Escrow Key Verified Weekly by GitHub Actions | Accepted | 2026-11 |
 | [ADR-0035](./0035-sealed-secrets-key-daily-backup-by-github-actions.md) | SealedSecrets Controller Keys Backed Up Daily by a Scheduled GitHub Actions Workflow | Accepted | 2026-11 |
+| [ADR-0037](./0037-typedoc-html-not-versioned.md) | Generated TypeDoc HTML Is Not Versioned | Accepted | 2026-11 |
 
 ## Keeping ADRs true to the runtime
 
