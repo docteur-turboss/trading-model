@@ -4,7 +4,6 @@ kind: Kustomization
 resources:
   - backup-cronjob.yaml
   - backup-incremental-cronjob.yaml
-  - secret-rotation-cronjob.yaml
 
 configMapGenerator:
   - name: backup-scripts
