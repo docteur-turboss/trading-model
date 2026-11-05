@@ -10,6 +10,8 @@
 #  Registry: repository variable IMAGE_REGISTRY, default ghcr.io/<owner> (the
 #  only GHCR namespace GITHUB_TOKEN can push to). Manifests keep the logical
 #  name ghcr.io/trading-model/*: deploy.yml rewrites it to the registry.
+#  verify-images then resolves every deploy.yml IMAGES entry at :X.Y.Z and
+#  fails the run if one is missing (the release would not be deployable).
 # =============================================================================
 
 name: Release
@@ -257,3 +259,48 @@ jobs:
         run: |
           digest=$(docker buildx imagetools inspect "$REF:$TAG" --format '{{.Manifest.Digest}}')
           cosign sign --yes "$REF@$digest"
+
+  # Proves the release is deployable: every image deploy.yml resolves (its env
+  # IMAGES, read here so the two lists cannot drift) must exist under the path
+  # deploy.yml reads, <registry>/<image>:X.Y.Z. Read-only: publishes nothing.
+  verify-images:
+    needs: [version, build-and-push, build-tools]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Same loop as deploy.yml "Resolve image digests".
+      - name: Resolve image digests
+        shell: bash
+        env:
+          REGISTRY: ${{ needs.version.outputs.registry }}
+          TAG: ${{ needs.version.outputs.tag }}
+        run: |
+          IMAGES=$(yq '.env.IMAGES' .github/workflows/deploy.yml)
+          if [ -z "$IMAGES" ] || [ "$IMAGES" = "null" ]; then
+            echo "::error::env IMAGES not found in .github/workflows/deploy.yml"
+            exit 1
+          fi
+          missing=""
+          for img in $IMAGES; do
+            if ! digest=$(docker buildx imagetools inspect "$REGISTRY/$img:$TAG" --format '{{.Manifest.Digest}}'); then
+              missing="$missing $img"
+              continue
+            fi
+            echo "$img:$TAG -> $digest"
+          done
+          if [ -n "$missing" ]; then
+            echo "::error::No $REGISTRY image tagged $TAG for:$missing: deploy.yml cannot deploy this release"
+            exit 1
+          fi
