@@ -580,7 +580,7 @@ release_checks_once() {
   fi
 
   critical="$(prom_query 'ALERTS%7Balertstate%3D%22firing%22%2Cseverity%3D%22critical%22%2Calertname!%3D%22Watchdog%22%7D' \
-    | jq -r '.data.result[].metric.alertname')" || return 1
+    | jq -r '.data.result[].metric | .alertname + (if .job then "{job=\(.job), instance=\(.instance // "")}" else "" end)')" || return 1
   if [[ -n "$critical" ]]; then
     err "  ✗ critical alert(s) firing: $(echo "$critical" | sort -u | paste -sd, -)"
     return 1
