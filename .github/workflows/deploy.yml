@@ -250,6 +250,30 @@ jobs:
             exit 1
           fi
 
+      # Only digests signed by release.yml of this repository (keyless, ADR-0038)
+      # are deployed. Tags published before the signature existed fail here.
+      - name: Install cosign
+        uses: sigstore/cosign-installer@756fe2d284c7292c4e9b62c8a28f1e5629c59532 # v4.1.3
+
+      - name: Verify image signatures
+        shell: bash
+        env:
+          REGISTRY: ${{ steps.tag.outputs.registry }}
+          REPO: ${{ github.repository }}
+        run: |
+          failed=""
+          while read -r img digest; do
+            if ! cosign verify "$REGISTRY/$img@$digest" \
+              --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+              --certificate-identity-regexp "^https://github\.com/${REPO}/\.github/workflows/release\.yml@refs/tags/v" >/dev/null; then
+              failed="$failed $img"
+            fi
+          done < "$RUNNER_TEMP/image-digests"
+          if [ -n "$failed" ]; then
+            echo "::error::No valid release.yml signature for:$failed"
+            exit 1
+          fi
+
       # Production reads its secrets from SealedSecrets: without the controller
       # the apply stops half way (unknown kind), and a placeholder never
       # decrypts, so every pod waits on a missing Secret. Checked before
