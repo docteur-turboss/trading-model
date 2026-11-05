@@ -570,6 +570,9 @@ release_checks_once() {
     FRESH_SEEN=1
   elif [[ "$strict" == "1" ]]; then
     err "  ✗ no candle persisted in the last 15 min"
+    # Evidence for the next reader: raw counter per target, and target health.
+    prom_query 'fs_candles_persisted_total' | jq -c '.data.result[] | {job: .metric.job, instance: .metric.instance, value: .value[1]}' >&2 || true
+    prom_query 'up%7Bjob%3D~%22financial-scraper.*%22%7D' | jq -c '.data.result[] | {job: .metric.job, up: .value[1]}' >&2 || true
     return 1
   else
     log "  … no market data persisted yet"
