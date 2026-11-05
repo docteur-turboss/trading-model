@@ -2,6 +2,9 @@ name: CI
 
 on:
   pull_request:
+  # Merge commits get verified too, not only at release time.
+  push:
+    branches: [main, development]
   # release.yml runs the whole CI on the tagged commit before pushing images.
   workflow_call:
 
@@ -10,7 +13,8 @@ permissions:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  # In a called workflow github.ref is the caller's: never cancel a release (tag) run.
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
 
 jobs:
   lint:
