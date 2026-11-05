@@ -453,6 +453,20 @@ jobs:
             ./deploy/k8s/scripts/deploy-k8s.sh canary "$dep" "$TAG" 10
           done
 
+      # Revision each Deployment runs before the overlay: the rollback returns to
+      # exactly it (image and hashed ConfigMap), not to "the one before the
+      # current", which is older than N for a Deployment the overlay left as is.
+      - name: Record current revisions
+        shell: bash
+        run: |
+          NS="${{ steps.ns.outputs.namespace }}"
+          for dep in discovery-server message-manager financial-scraper financial-scraper-collector trader-trainer \
+                     api-gateway audit-logger dlq-service edge-proxy; do
+            rev=$(kubectl get deployment "$dep" -n "$NS" --ignore-not-found \
+              -o jsonpath='{.metadata.annotations.deployment\.kubernetes\.io/revision}')
+            echo "$dep ${rev:-none}"
+          done | tee "$RUNNER_TEMP/deploy-revisions"
+
       - name: Apply overlay
         id: apply
         shell: bash
@@ -592,14 +606,21 @@ jobs:
         shell: bash
         run: |
           NS="${{ steps.ns.outputs.namespace }}"
+          # Back to the revision recorded before the overlay: its pod template
+          # names the image digest and the hashed ConfigMaps of release N, which
+          # are still in the namespace (never pruned), so configuration comes
+          # back with the image (issue #410). Only Deployments are rolled back:
+          # docs/deployment/DEPLOY.md lists what is not.
           # Every deployment is tried: one without a previous revision (first
           # deploy) must not leave the others on the failed release.
           failed=0
-          for dep in discovery-server message-manager financial-scraper financial-scraper-collector trader-trainer \
-                     api-gateway audit-logger dlq-service edge-proxy; do
-            if ! kubectl rollout undo "deployment/$dep" -n "$NS"; then
-              echo "::error::Could not roll back $dep (no previous revision on a first deploy?)"
+          while read -r dep rev; do
+            if [ "$rev" = none ]; then
+              echo "::error::Could not roll back $dep: it did not exist before this deploy"
+              failed=1
+            elif ! kubectl rollout undo "deployment/$dep" -n "$NS" --to-revision="$rev"; then
+              echo "::error::Could not roll back $dep to revision $rev"
               failed=1
             fi
-          done
+          done < "$RUNNER_TEMP/deploy-revisions"
           exit "$failed"

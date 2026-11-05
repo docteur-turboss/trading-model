@@ -50,18 +50,28 @@ Common causes:
 1. **Invalid data in the buffer**: NaN or zero prices, a symbol with too few
    candles after a restore; the error names the symbol. Check the source with
    [runbook-market-data-stale](runbook-market-data-stale.md).
-2. **Bad configuration after a change** of `TRAINER_*` (ConfigMap
-   `trader-trainer-config`): `TRAINER_FITNESS_TYPE`, `TRAINER_WALK_FORWARD_FOLDS`
-   too high for `TRAINER_DATA_WINDOW`, population or generations out of range.
-   Compare with the previous ConfigMap revision.
+2. **Bad configuration after a change** of `TRAINER_*`
+   (`deploy/k8s/config/trader-trainer.properties`): `TRAINER_FITNESS_TYPE`,
+   `TRAINER_WALK_FORWARD_FOLDS` too high for `TRAINER_DATA_WINDOW`, population
+   or generations out of range. Each Deployment revision names its own hashed
+   ConfigMap (issue #410); compare two revisions:
+   ```bash
+   kubectl -n $NS rollout history deploy/trader-trainer
+   kubectl -n $NS rollout history deploy/trader-trainer --revision=<n> | grep trader-trainer-config
+   kubectl -n $NS get configmap <trader-trainer-config-hash> -o yaml
+   ```
 3. **Memory pressure**: `HighMemoryUsage` on `trader-trainer`, or pods
    `OOMKilled` ([runbook-service-down](runbook-service-down.md#1-oomkilled-out-of-memory)).
 4. **A regression in a new image**: failures started with a deploy.
 
 ### Remediation
 
-- Bad configuration: restore the previous values in `trader-trainer-config`,
-  then `kubectl -n $NS rollout restart deploy/trader-trainer`.
+- Bad configuration: `kubectl -n $NS rollout undo deploy/trader-trainer`
+  (the previous pod template names the previous hashed ConfigMap, kept in the
+  namespace). Then fix `deploy/k8s/config/trader-trainer.properties` in Git and
+  run `Deploy`. Never edit a `trader-trainer-config-*` ConfigMap in place: its
+  name would then stand for two contents (a rollback to that revision would
+  no longer restore it), and the next deploy overwrites the edit.
 - Regression: roll back ([runbook-deployment-failure](runbook-deployment-failure.md)).
 - Memory: raise the memory limit or lower `TRAINER_POPULATION_SIZE` /
   `TRAINER_EPISODES_PER_INDIVIDUAL`.
