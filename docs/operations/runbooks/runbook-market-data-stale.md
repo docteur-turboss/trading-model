@@ -52,14 +52,27 @@ kubectl -n $NS exec prometheus-0 -c prometheus -- wget -qO- \
        node -e "fetch('https://api.binance.com/api/v3/ping').then(r=>console.log(r.status))"
      kubectl -n $NS exec deploy/financial-scraper-collector -- \
        node -e "fetch('https://data-api.binance.vision/api/v3/ping').then(r=>console.log(r.status))"
-     # The ConfigMap name carries a content hash (issue #410): override the
-     # variable on both Deployments instead, which rolls them out.
+     ```
+     Switch through Git: set `BINANCE_BASE_URL=https://data-api.binance.vision`
+     in `deploy/k8s/config/financial-scraper.properties`, then run `Deploy`.
+     The ConfigMap name carries a content hash (issue #410), so both
+     Deployments roll out with the new value.
+
+     Only if the switch cannot wait for a deploy, override the variable by hand:
+     ```bash
      kubectl -n $NS set env deploy/financial-scraper-collector deploy/financial-scraper \
        BINANCE_BASE_URL=https://data-api.binance.vision
      ```
-     Report it in Git too (`deploy/k8s/config/financial-scraper.properties`)
-     or the next deploy reverts it. If both hosts answer 451, the second
-     fallback (another exchange) is a development task: re-open ADR-0026.
+     The next deploy does **not** remove this override: `kubectl apply` only
+     removes fields it applied itself, and `env` wins over `envFrom`, so it
+     would hide any later value from the `.properties` file. Once the value is
+     in Git and deployed, remove the override explicitly:
+     ```bash
+     kubectl -n $NS set env deploy/financial-scraper-collector deploy/financial-scraper \
+       BINANCE_BASE_URL-
+     ```
+     If both hosts answer 451, the second fallback (another exchange) is a
+     development task: re-open ADR-0026.
    - **403** (WAF violation) or **418** (IP ban after ignored 429s): not
      retried. Lower the request weight (fewer `SYMBOLS_TO_TRACK`, longer
      `SCRAPE_INTERVAL`) and wait for the ban to expire.
