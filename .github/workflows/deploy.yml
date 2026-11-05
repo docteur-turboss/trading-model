@@ -462,6 +462,20 @@ jobs:
             --from-literal=SIGNAL_CONTACT_EMAIL="$SIGNAL_CONTACT_EMAIL" \
             --dry-run=client -o yaml | kubectl apply -f -
 
+      # CRDs of non-native kinds (VPA, SealedSecret...), StorageClasses,
+      # IngressClasses and the cert-manager ClusterIssuer come from the render
+      # itself. Missing ones stop the deploy here, not half way through the
+      # apply (issue #419).
+      - name: Check cluster prerequisites
+        shell: bash
+        run: |
+          ENV="${{ inputs.environment }}"
+          {
+            kubectl kustomize --load-restrictor LoadRestrictionsNone "deploy/k8s/overlays/$ENV"
+            echo ---
+            kubectl kustomize "deploy/k8s/overlays/$ENV/node-agents"
+          } | bash deploy/k8s/scripts/check-prereqs.sh
+
       # SPIRE agent + SPIFFE CSI driver, in the privileged trading-model-node
       # namespace: the application namespace (restricted) cannot host them.
       - name: Apply SPIFFE node components

@@ -15,6 +15,12 @@ This guide covers deploying the Trading Model platform on Kubernetes. The K8s ma
   Prometheus, Grafana, Loki, SPIRE)
 - A ReadWriteMany StorageClass named `rwx-csi` (NFS, EFS, Azure Files...) for
   the trainer checkpoints PVC (`trainer-checkpoints-pvc`)
+- CRDs, installed before the first deploy (operators are not installed by the manifests):
+  `verticalpodautoscalers.autoscaling.k8s.io` (VPA, recommendations only: `updateMode: "Off"`,
+  the HPAs own CPU and memory scaling), `sealedsecrets.bitnami.com` (production), cert-manager
+  (`ClusterIssuer` `letsencrypt-prod`) and an `IngressClass` named `nginx`
+- `deploy.yml` derives these from the rendered overlay (`deploy/k8s/scripts/check-prereqs.sh`) and
+  refuses, listing what is missing, before the first apply
 - A CNI that enforces NetworkPolicies
 - One environment per cluster: the node agents (SPIRE agent, promtail) serve a
   single application namespace
