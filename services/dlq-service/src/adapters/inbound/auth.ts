@@ -51,7 +51,8 @@ function _buildSignedRequest(
 	return {
 		serviceName: toServiceId(serviceName),
 		method: req.method as SignedRequest["method"],
-		path: req.path,
+		// The query is signed too: `/dlq/replay?limit=...` is another request.
+		path: req.originalUrl,
 		body: req.body,
 	};
 }
