@@ -53,7 +53,7 @@ kubectl -n $NS exec prometheus-0 -c prometheus -- wget -qO- \
   'http://localhost:9090/api/v1/query?query=sum by (topic) (increase(mm_messages_dlq_total[1h]))'
 
 # 3. Is auto-retry running, and why replays fail
-kubectl -n $NS get configmap dlq-service-config -o jsonpath='{.data.DLQ_AUTO_RETRY_ENABLED}{"\n"}'
+kubectl -n $NS exec deploy/dlq-service -c dlq-service -- printenv DLQ_AUTO_RETRY_ENABLED
 kubectl -n $NS logs deploy/dlq-service --tail=300 | grep -iE "auto-retry|replay|abandoned"
 
 # 4. dlq-service health (mTLS only: use its SVID)

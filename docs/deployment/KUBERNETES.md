@@ -30,7 +30,7 @@ deploy/k8s/
   base/                       # Kustomize base overlay
     namespace.yaml            # trading-model namespace (Pod Security: restricted)
     kustomization.yaml        # Resource list
-  config/                     # ConfigMaps per service (+ HPA, PDB, NetworkPolicy, ServiceAccount)
+  config/                     # <service>.properties -> hashed <service>-config ConfigMaps (+ HPA, PDB, NetworkPolicy, ServiceAccount)
   secrets/                    # Kubernetes Secrets (placeholder values)
   services/                   # Deployments + Services per microservice
   infra/                      # Infrastructure: MySQL, MongoDB, Redis, OTel, Jaeger, Prometheus, Grafana, Loki, SPIRE server
