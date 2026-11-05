@@ -103,6 +103,8 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Render and check the overlays
         run: node tests/k8s/check-overlays.mjs
+      - name: Test the canary gate
+        run: bash tests/k8s/canary-gate.test.sh
 
   contract:
     runs-on: ubuntu-latest

@@ -143,6 +143,9 @@ kubectl apply -k deploy/k8s/
 ```bash
 # Deploy to 10% of instances first, monitor, then full rollout
 ./deploy/k8s/scripts/deploy-k8s.sh canary <service-name> 10
+
+# Several services: parallel, one observation window (what deploy.yml runs)
+./deploy/k8s/scripts/deploy-k8s.sh canary-all <image-tag> 10 <service>...
 ```
 
 ### Rollback
