@@ -83,7 +83,7 @@ Per-instance message delivery handler. Responsibilities:
 | --------------- | --------------------------------------------------------- |
 | `at-most-once`  | Single attempt; a failure is dropped (fire-and-forget).   |
 | `at-least-once` | Up to 10 attempts (backoff 1s → 20s cap), then dead letter. |
-| `exactly-once`  | Single attempt, no broker retry (no duplicate); a failure is dead-lettered (`SINGLE_ATTEMPT_FAILED`). |
+| `exactly-once`  | Single attempt, no broker retry; a failure is dead-lettered (`SINGLE_ATTEMPT_FAILED`). No duplicate downstream depends on subscriber idempotency ([ADR-0019](../../docs/adr/0019-message-broker-as-built.md)). |
 
 - **TTL expiration**: If `emittedAt + ttl < now`, the message is routed to the Dead Letter Queue.
 - **DLQ**: dead letters go to dlq-service (signed `POST /dlq`); while it cannot take them they wait in `DLQ_LOCAL_FALLBACK_PATH` and are forwarded every minute and at shutdown (ADR-0019).

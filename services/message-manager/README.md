@@ -2,7 +2,7 @@
 
 ## Overview
 
-Internal messaging backbone for inter-service communication. Provides topic-based publish/subscribe over HTTP with subscriptions shared by the replicas through Redis, configurable delivery semantics (at-most-once, at-least-once, exactly-once), TTL expiration, and Dead Letter Queue routing. Used by all microservices via the `@trading-model/broker-message` SDK.
+Internal messaging backbone for inter-service communication. Provides topic-based publish/subscribe over HTTP with subscriptions shared by the replicas through Redis, configurable delivery semantics (at-most-once, at-least-once, exactly-once: single attempt, not an end-to-end guarantee, see [ADR-0019](../../docs/adr/0019-message-broker-as-built.md)), TTL expiration, and Dead Letter Queue routing. Used by all microservices via the `@trading-model/broker-message` SDK.
 
 ## Prerequisites
 
