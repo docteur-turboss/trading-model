@@ -64,6 +64,16 @@ kubeseal --controller-namespace sealed-secrets -o yaml < /tmp/plaintext-secret.y
 rm /tmp/plaintext-secret.yaml
 ```
 
+### Adding one key to an existing SealedSecret
+
+The controller rewrites `Secret.data` from the SealedSecret it owns: a file with a single entry erases every other key (`MYSQL_ROOT_PASSWORD`, `SIGNING_SECRET`...) from the live Secret. Never seal one key into a new file. Merge it:
+
+```bash
+kubectl create secret generic trading-model-secrets -n trading-model   --from-literal=MYSQL_MIGRATE_PASSWORD='value' --dry-run=client -o yaml   | kubeseal --controller-namespace sealed-secrets --merge-into deploy/k8s/secrets/trading-model-sealed-secrets.yaml
+```
+
+The final file must list ALL keys. `run-migrations.sh` refuses to apply a file that lacks a key of the live Secret.
+
 ### 3. Apply
 
 ```bash

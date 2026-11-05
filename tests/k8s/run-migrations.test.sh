@@ -16,6 +16,7 @@ mkdir -p "$WORK/bin"
 cat >"$WORK/bin/kubectl" <<'STUB'
 #!/usr/bin/env bash
 echo "$*" >>"$STUB_LOG"
+if [ "$1" = get ] && [ "$2" = secret ] && [[ "$*" == *go-template* ]]; then printf '%s' "${STUB_LIVE_KEYS:-}"; exit 0; fi
 if [ "$1" = get ] && [ "$2" = secret ]; then
   # STUB_KEY_AFTER_APPLY: the key shows up once the SealedSecret was applied
   if [ -n "${STUB_KEY_AFTER_APPLY:-}" ] && grep -q '^apply .*sealed' "$STUB_LOG"; then printf '%s' "$STUB_KEY_AFTER_APPLY"; else printf '%s' "${STUB_KEY:-}"; fi
@@ -49,5 +50,11 @@ STUB_KEY= STUB_KEY_AFTER_APPLY=c2VjcmV0 SEALED_SECRETS_FILE=sealed.yaml run bash
 
 STUB_KEY= SEALED_SECRETS_FILE=sealed.yaml run bash "$RUN" ns
 { [ $RC = 1 ] && grep -q 'MYSQL_ROOT_PASSWORD' <<<"$OUT" && ! grep -q 'job/' "$STUB_LOG"; } && ok "key still missing after apply: error with command and root-password warning" || ko "sealed timeout"
+
+printf '  encryptedData:
+    MYSQL_MIGRATE_PASSWORD: x
+' >"$WORK/single.yaml"
+STUB_KEY= STUB_LIVE_KEYS="MYSQL_ROOT_PASSWORD SIGNING_SECRET" SEALED_SECRETS_FILE="$WORK/single.yaml" run bash "$RUN" ns
+{ [ $RC = 1 ] && grep -q 'MYSQL_ROOT_PASSWORD' <<<"$OUT" && ! grep -q '^apply\|job/' "$STUB_LOG"; } && ok "single-key SealedSecret: refused before apply" || ko "single-key guard"
 
 exit $FAILED

@@ -41,6 +41,14 @@ require_migrate_password() {
   [ -n "$v" ] && return 0
   if [ -n "${SEALED_SECRETS_FILE:-}" ]; then
     # Production: the SealedSecret is otherwise applied with the overlay, after the migrations.
+    # The controller rewrites Secret.data from this file: a key of the live Secret
+    # absent from encryptedData would be erased (MYSQL_ROOT_PASSWORD, SIGNING_SECRET...).
+    for k in $(kubectl get secret trading-model-secrets -n "$NS" -o go-template='{{range $k, $v := .data}}{{$k}} {{end}}' 2>/dev/null || true); do
+      if ! grep -Eq "^[[:space:]]+$k:" "$SEALED_SECRETS_FILE"; then
+        echo "::error::$SEALED_SECRETS_FILE has no entry for live key $k: applying it would erase that key from trading-model-secrets. Add the missing keys (kubeseal --merge-into, docs/deployment/sealed-secrets.md)."
+        exit 1
+      fi
+    done
     echo "MYSQL_MIGRATE_PASSWORD missing: applying $SEALED_SECRETS_FILE before the migrations"
     kubectl apply -n "$NS" -f "$SEALED_SECRETS_FILE"
     for i in $(seq 1 "${SEALED_WAIT_TRIES:-30}"); do
@@ -54,7 +62,7 @@ require_migrate_password() {
     kubectl patch secret trading-model-secrets -n "$NS" --type merge -p "{\"stringData\":{\"MYSQL_MIGRATE_PASSWORD\":\"$(openssl rand -hex 16)\"}}"
     return 0
   fi
-  echo "::error::Secret trading-model-secrets has no MYSQL_MIGRATE_PASSWORD (staging: rerun with SEED_MIGRATE_PASSWORD=true). Production: seal it into deploy/k8s/secrets/trading-model-sealed-secrets.yaml, then the controller must create it (kubectl apply -f deploy/k8s/secrets/trading-model-sealed-secrets.yaml; kubectl get sealedsecret trading-model-secrets -n $NS). WARNING: init-sealed-secrets.sh draws random values for every key you do not provide, MYSQL_ROOT_PASSWORD included, which would no longer match the initialised MySQL: seal ONLY the new key, or pass the existing values through the environment (docs/deployment/sealed-secrets.md)."
+  echo "::error::Secret trading-model-secrets has no MYSQL_MIGRATE_PASSWORD (staging: rerun with SEED_MIGRATE_PASSWORD=true). Production: ADD the key to deploy/k8s/secrets/trading-model-sealed-secrets.yaml WITHOUT dropping the others: kubectl create secret generic trading-model-secrets -n $NS --from-literal=MYSQL_MIGRATE_PASSWORD=<value> --dry-run=client -o yaml | kubeseal --controller-namespace sealed-secrets --merge-into deploy/k8s/secrets/trading-model-sealed-secrets.yaml. The file must end with ALL keys: a single-key SealedSecret erases MYSQL_ROOT_PASSWORD, SIGNING_SECRET etc. from the live Secret (init-sealed-secrets.sh also draws random values for every key not provided, MYSQL_ROOT_PASSWORD included, which would no longer match the initialised MySQL). Then rerun (docs/deployment/sealed-secrets.md)."
   exit 1
 }
 
