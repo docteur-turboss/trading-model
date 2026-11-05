@@ -183,14 +183,11 @@ Details, flags and workflow jobs: [release.md](release.md).
 
 ### 11. Deploy (Production)
 
-On the production server:
+Production runs on Kubernetes only. Docker Compose is for development hosts, with no real data.
 
-```bash
-git pull --tags
-git checkout v$(node -p "require('./package.json').version")
-IMAGE_TAG=$(node -p "require('./package.json').version") docker compose pull
-IMAGE_TAG=$(node -p "require('./package.json').version") docker compose up -d
-```
+Run the **Deploy** workflow (`deploy.yml`, manual `workflow_dispatch`) with the released tag: first `staging`, then `production`. Enable `canary` for a smoke test on live traffic with automatic rollback.
+
+Inputs, secrets and phases: [DEPLOY.md](../deployment/DEPLOY.md).
 
 ---
 
@@ -198,14 +195,14 @@ IMAGE_TAG=$(node -p "require('./package.json').version") docker compose up -d
 
 ```
 dev  ──→ commit ──→ push ──→ PR ──→ merge ──→ beta deploy (canary)
-        bun run     git push  (auto      dev    docker compose
-        commit                 lint               pull + up -d
+        bun run     git push  (auto      dev    deploy.yml
+        commit                 lint               staging + canary
                                typecheck
                                test)         (validate)
 
 main ←── merge dev ────→ tag v* ──→ release.yml ──→ stable deploy
-              (if OK)     bun run   full CI           docker compose
-                          release   docker (9 images) pull + up -d
+              (if OK)     bun run   full CI           deploy.yml
+                          release   docker (9 images) production
 ```
 
 ---
