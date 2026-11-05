@@ -29,7 +29,7 @@ See [Quick Start Tutorial](docs/getting-started/quickstart.md) for a 10-minute h
 
 | Layer         | Technology                                                 |
 | ------------- | ---------------------------------------------------------- |
-| Runtime       | Bun 1.x (Node.js 26-compatible APIs)                       |
+| Runtime       | Bun 1.4.4, tested (same as `services/*/Dockerfile`); Node.js 26-compatible APIs |
 | Language      | TypeScript (ES2020)                                        |
 | API           | Express 5                                                  |
 | Frontend      | None for now — removed, see ADR-0018                       |
