@@ -11,6 +11,9 @@
 //   - drops every internet egress rule (`ipBlock` 0.0.0.0/0) of the
 //     NetworkPolicies: fail closed, a new outside call is refused in CI
 //     instead of reaching the real service
+//   - shortens terminationGracePeriodSeconds 360 (collector, message-manager drain)
+//     to 30: with a restarted Redis/discovery the drain ran the whole grace and the
+//     Recreate rollout of the collector outlasted the 180 s wait (PR #460)
 //   - suspends the CronJobs: a cluster kept after the test must not run the
 //     nightly backup on the host disk (the drill starts its job by hand)
 // Usage: kubectl kustomize ... | node tests/k8s/ci-render.mjs > out.yaml
@@ -26,6 +29,7 @@ function _quarterCpu(_match, indent, value, unit) {
 function adapt(manifest) {
 	return manifest
 		.replace(/imagePullPolicy: Always/g, "imagePullPolicy: IfNotPresent")
+		.replace(/terminationGracePeriodSeconds: 360/g, "terminationGracePeriodSeconds: 30")
 		.replace(
 			/(requests:\n\s+)cpu: "?(\d+(?:\.\d+)?)(m?)"?/g,
 			(match, head, value, unit) => _quarterCpu(match, head, value, unit)
