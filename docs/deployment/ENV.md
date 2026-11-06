@@ -45,7 +45,7 @@ Defined in `@trading-model/validation` (`config/address-manager-env` — `Addres
 | --------------------------------- | ------ | ------------------------------- | -------- | ------------------------------------------------ | -------------- |
 | `APP_NAME`                        | string | _varies_                        | **yes**  | Logical application name                         | MM, FS, TT, AL, DLQ |
 | `APP_VERSION`                     | string | `1.0.0`                         | no       | Application version                              | MM, FS, TT, AL, DLQ |
-| `SERVICE_NAME`                    | string | _varies_                        | **yes**  | Service identity registered in discovery         | MM, FS, TT, AL, DLQ |
+| `SERVICE_NAME`                    | string | _varies_                        | **yes**  | Service identity (discovery; `build_info` label)  | MM, FS, TT, AL, DLQ, GW, DS |
 | `INSTANCE_ID`                     | string | _varies_                        | **yes**  | Unique instance identifier                       | MM, FS, TT, AL, DLQ |
 | `CACHE_TTL_MS`                    | number | `30000`                         | no       | In-memory cache TTL                              | MM, FS, TT, AL, DLQ |
 | `SERVICE_PING_TIMEOUT_MS`         | number | `2000`                          | no       | Timeout for health check pings                   | MM, FS, TT, AL, DLQ |

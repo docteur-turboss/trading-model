@@ -170,8 +170,10 @@ jobs:
         env:
           ENV: ${{ inputs.environment }}
           NS: ${{ steps.ns.outputs.namespace }}
-          APP_KUBECONFIG: ${{ inputs.environment == 'production' && secrets.KUBECONFIG_PRODUCTION_APP || secrets.KUBECONFIG_STAGING_APP }}
-          CLUSTER_KUBECONFIG_CONTENT: ${{ inputs.environment == 'production' && secrets.KUBECONFIG_PRODUCTION_CLUSTER || secrets.KUBECONFIG_STAGING_CLUSTER }}
+          # Indexed by name: `production && A || B` would fall back to the
+          # staging secret when the production one is empty.
+          APP_KUBECONFIG: ${{ secrets[format('KUBECONFIG_{0}_APP', inputs.environment == 'production' && 'PRODUCTION' || 'STAGING')] }}
+          CLUSTER_KUBECONFIG_CONTENT: ${{ secrets[format('KUBECONFIG_{0}_CLUSTER', inputs.environment == 'production' && 'PRODUCTION' || 'STAGING')] }}
         run: |
           upper="${ENV^^}"
           for v in APP CLUSTER; do

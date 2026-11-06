@@ -95,19 +95,30 @@ once per environment and again before the token expires:
 
 ```bash
 bash scripts/deploy-identity.sh app     --namespace trading-model | base64 -w0 | gh secret set KUBECONFIG_PRODUCTION_APP     --env production
-bash scripts/deploy-identity.sh cluster --namespace trading-model | base64 -w0 | gh secret set KUBECONFIG_PRODUCTION_CLUSTER --env production
+bash scripts/deploy-identity.sh cluster --namespace trading-model --environment production | base64 -w0 | gh secret set KUBECONFIG_PRODUCTION_CLUSTER --env production
 ```
 
 | Identity | Rights | Used by |
 |----------|--------|---------|
 | `deploy-app` | Role `deploy/k8s/deploy-identity/app-role.yaml` in the application namespace | every step except the four below |
-| `deploy-cluster` | ClusterRole `cluster-role.yaml` + Roles in the node-agents and Sealed Secrets namespaces | "Apply cluster-scope objects", "Check sealed secrets" (CRD, controller), "Check cluster prerequisites" (CRDs, StorageClass, IngressClass, ClusterIssuer), "Apply SPIFFE node components" |
+| `deploy-cluster` | ClusterRole `cluster-role.yaml` (read-only on ClusterRoles and their bindings) + Roles in the node-agents and Sealed Secrets namespaces | "Apply cluster-scope objects", "Check sealed secrets" (CRD, controller), "Check cluster prerequisites" (CRDs, StorageClass, IngressClass, ClusterIssuer), "Apply SPIFFE node components" |
 
 - **Token rotation.** The token is bounded (`--duration`, default 168 h; the
   API server may cap it). Rerun the script and replace the secret before expiry.
   An expired token fails the deploy at "Configure kubeconfigs", before any
   change. On a suspected leak add `--revoke`: the ServiceAccount is recreated and every
   token issued before stops working.
+- **Workload ClusterRoles.** The cluster script also applies, as admin, the
+  ClusterRoles and ClusterRoleBindings of the overlays of `--environment`
+  (`spire-server`, `spire-agent`, `promtail`): `deploy-cluster` can only read
+  them, so it cannot grant itself `nodes/proxy` (kubelet API). When a release
+  changes one of them, run the cluster script again before the deploy, or it
+  fails at "Apply cluster-scope objects" / "Apply SPIFFE node components"
+  (forbidden).
+- **The cluster secret stays sensitive.** `deploy-cluster` deploys the node
+  agents (DaemonSets in the privileged `trading-model-node` namespace): a leak
+  is close to root on every node (ADR-0041). Prefer a short `--duration` for
+  production (for example `24h`, renewed before each deploy).
 - **A new kind in an overlay** fails `node tests/k8s/check-overlays.mjs` until
   the role file lists it; rerun the script to update the Role in the cluster.
 - **OIDC (recommended when the provider allows it).** Trust

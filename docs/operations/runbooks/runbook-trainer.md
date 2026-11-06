@@ -34,6 +34,10 @@ kubectl -n $NS exec prometheus-0 -c prometheus -- wget -qO- \
   'http://localhost:9090/api/v1/query?query=sum by (result) (increase(tt_training_sessions_total[1h]))'
 kubectl -n $NS exec prometheus-0 -c prometheus -- wget -qO- \
   'http://localhost:9090/api/v1/query?query=histogram_quantile(0.95,sum by (le) (rate(tt_training_duration_seconds_bucket[1h])))'
+# Longest event loop block: one genome evaluation (heartbeats, /metrics and
+# candles wait that long). Several seconds: ServiceDown / HeartbeatStopped follow.
+kubectl -n $NS exec prometheus-0 -c prometheus -- wget -qO- \
+  'http://localhost:9090/api/v1/query?query=histogram_quantile(0.99,sum by (le) (rate(tt_genome_evaluation_seconds_bucket[1h])))'
 
 # 3. Memory and restarts (a session holds the population and the replay buffers)
 kubectl -n $NS top pods -l app.kubernetes.io/component=trader-trainer

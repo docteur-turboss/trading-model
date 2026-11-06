@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # =============================================================================
 #  Trading Model — Least-privilege identities of deploy.yml (ADR-0041)
-#  Usage:  bash scripts/deploy-identity.sh app|cluster [--namespace NS] [--server URL] [--duration 168h] [--revoke] > kubeconfig
+#  Usage:  bash scripts/deploy-identity.sh app|cluster [--namespace NS] [--environment ENV] [--server URL] [--duration 168h] [--revoke] > kubeconfig
 #          ... | base64 -w0 | gh secret set KUBECONFIG_PRODUCTION_APP --env production     (app)
 #          ... | base64 -w0 | gh secret set KUBECONFIG_PRODUCTION_CLUSTER --env production (cluster)
 #
@@ -10,10 +10,14 @@
 #           overlay, migrations, rollout, smoke test, rollback. No cluster-scope
 #           right, no other namespace.
 #  cluster  ServiceAccount `deploy-cluster` (same namespace) bound to the
-#           ClusterRole cluster-role.yaml (namespaces, the overlay ClusterRoles,
-#           the CSIDriver, the CRD check) and to Roles in the node-agents
-#           namespace and in the Sealed Secrets controller namespace. Used by
-#           the cluster-scope steps of deploy.yml only.
+#           ClusterRole cluster-role.yaml (namespaces, the CSIDriver, the CRD
+#           check, read-only on the overlay ClusterRoles and their bindings) and to Roles in the
+#           node-agents namespace and in the Sealed Secrets controller
+#           namespace. Used by the cluster-scope steps of deploy.yml only.
+#           The script also applies, as admin, the ClusterRoles and
+#           ClusterRoleBindings of the overlays of --environment (spire-server,
+#           spire-agent, promtail): the identity may read them, never create,
+#           change or bind them. Run it again when a release changes one.
 #
 #  The kubeconfig carries a bounded token (`kubectl create token --duration`),
 #  never a permanent service-account-token Secret: it expires by itself, run
@@ -23,6 +27,8 @@
 #  --namespace NS        application namespace (default trading-model)
 #  --node-namespace NS   node-agents namespace (default trading-model-node)
 #  --sealed-namespace NS Sealed Secrets controller namespace (default sealed-secrets)
+#  --environment ENV     overlay whose ClusterRoles and bindings are applied, cluster mode
+#                        (deploy/k8s/overlays/ENV and ENV/node-agents; default production)
 #  --server URL          API server address reachable from the runner (default:
 #                        the server of the current kubectl context)
 #  --duration D          token lifetime (default 168h)
@@ -41,6 +47,7 @@ MODE="${1:-}"
 NAMESPACE=trading-model
 NODE_NAMESPACE=trading-model-node
 SEALED_NAMESPACE=sealed-secrets
+ENVIRONMENT=production
 SERVER=""
 DURATION=168h
 REVOKE=false
@@ -54,6 +61,7 @@ while [[ $# -gt 0 ]]; do
 	--namespace) NAMESPACE="${2:-}"; shift 2 ;;
 	--node-namespace) NODE_NAMESPACE="${2:-}"; shift 2 ;;
 	--sealed-namespace) SEALED_NAMESPACE="${2:-}"; shift 2 ;;
+	--environment) ENVIRONMENT="${2:-}"; shift 2 ;;
 	--server) SERVER="${2:-}"; shift 2 ;;
 	--duration) DURATION="${2:-}"; shift 2 ;;
 	--revoke) REVOKE=true; shift ;;
@@ -70,6 +78,10 @@ if [ -z "$NAMESPACE" ] || [ "$NAMESPACE" = kube-system ]; then
 	fail "Refused namespace '${NAMESPACE}': give the application namespace"
 	exit 1
 fi
+case "$ENVIRONMENT" in
+staging | production) ;;
+*) fail "Unknown environment '${ENVIRONMENT}': staging or production"; exit 1 ;;
+esac
 if ! command -v kubectl >/dev/null; then
 	fail "kubectl is not installed"
 	exit 1
@@ -147,6 +159,18 @@ if [ "$MODE" = app ]; then
 else
 	kubectl apply -f "$RBAC/cluster-role.yaml" >&2
 	bind_clusterrole deploy-cluster
+	log "ClusterRoles and ClusterRoleBindings of the ${ENVIRONMENT} overlays (deploy-cluster may only read them)"
+	{
+		kubectl kustomize --load-restrictor LoadRestrictionsNone "$ROOT/deploy/k8s/overlays/$ENVIRONMENT"
+		echo ---
+		kubectl kustomize "$ROOT/deploy/k8s/overlays/$ENVIRONMENT/node-agents"
+	} | awk '
+		function flush() { if (kind == "ClusterRole" || kind == "ClusterRoleBinding") { printf "%s%s", sep, doc; sep = "---\n" } doc = ""; kind = "" }
+		/^---[ \t]*$/ { flush(); next }
+		/^kind:[ \t]/ && kind == "" { kind = $2 }
+		{ doc = doc $0 "\n" }
+		END { flush() }
+	' | kubectl apply -f - >&2
 	ensure_namespace "$NODE_NAMESPACE"
 	kubectl -n "$NODE_NAMESPACE" apply -f "$RBAC/node-role.yaml" >&2
 	bind_role deploy-node-agents "$NODE_NAMESPACE"
