@@ -11,7 +11,7 @@
 #    ./deploy-k8s.sh [-n <namespace>] canary <service> [image-tag] [percentage]
 #    ./deploy-k8s.sh [-n <namespace>] canary-all <image-tag> <percentage> <service>...
 #    ./deploy-k8s.sh [-n <namespace>] smoke-test      # Run smoke tests
-#    ./deploy-k8s.sh [-n <namespace>] verify-market-data  # Wait until the collector persists candles again (ADR-0041)
+#    ./deploy-k8s.sh [-n <namespace>] verify-market-data  # Wait until the collector persists candles again (ADR-0042)
 #  Namespace: K8S_NAMESPACE env or -n/--namespace (default: trading-model)
 # =============================================================================
 
@@ -63,7 +63,8 @@ check_prereqs() {
     err "kubectl is required. Install: https://kubernetes.io/docs/tasks/tools/"
     exit 1
   fi
-  if ! kubectl cluster-info &>/dev/null; then
+  # `cluster-info` reads kube-system, which the namespaced deploy identity cannot (ADR-0041)
+  if ! kubectl auth can-i get deployments -n "$NAMESPACE" &>/dev/null; then
     err "Cannot connect to Kubernetes cluster. Check your kubeconfig."
     exit 1
   fi
@@ -513,7 +514,7 @@ cmd_smoke_test() {
   fi
 }
 
-# ADR-0041: the collector is a singleton (Recreate), so a release stops
+# ADR-0042: the collector is a singleton (Recreate), so a release stops
 # collection for up to terminationGracePeriodSeconds plus the startup. Success
 # is the new pod persisting candles again (fs_candles_persisted_total > 0: the
 # counter starts at 0 in a new pod, and MarketDataStale watches its increase).

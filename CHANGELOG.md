@@ -1,3 +1,132 @@
+## [2.1.0] - 2026-11-06
+
+### @trading-model/common (1.2.1 → 1.3.0)
+
+#### Feat
+
+- bd463e1 **common:** add BACKPRESSURE error code and reliability export
+- 669a508 **common:** add feature flags, CRL, context, telemetry, reliability, token service
+- 2685fd3 **common:** add CaClient for certificate authority lifecycle management
+
+#### Fix
+
+- 9e618ea **common:** add certificate-client to build chain, fix dlq-service type
+- b4b181c **common:** fix typecheck - env Object.fromEntries inference, generic naming, import casing
+- 821d106 **common:** add missing OpenTelemetry deps and fix for @opentelemetry/resources v2 API
+- 11b40be **common:** clear timeout handle in server close to prevent open handles
+
+#### Refactor
+
+- b6c3265 **common:** format test assertions in handle-core-response.spec.ts
+- 6a3e373 **common:** refactor server bootstrap - TLS lifecycle, shutdown timeout
+- 2357c16 **common:** refactor Logger - fs/promises, LOG_DIR, fix regex
+- 4564ed5 **common:** refactor HttpClient - lazy TLS, circuit breakers, adaptive timeout
+- b7fd540 **common:** update contracts - CA events, region, sequenceNumber, CertificatePath, RegistryBackend
+
+#### Docs
+
+- 047d009 **common:** add JSDoc to request(), document isServiceCircuitOpen side-effect
+
+#### Test
+
+- 6637344 **common:** update test assertions to match English error messages
+- 5ac2023 **common:** add coverage tests for 100% statements, branches and functions
+- 0c65aa0 **common:** add tests for circuit breakers, TLS, bootstrap, server-factory, ca-client
+
+#### Other
+
+- e0d8a3d **common:** fix import order lint errors in http-client and server-factory
+
+### discovery-server (1.1.1 → 1.1.2)
+
+#### Fix
+
+- 4a0b384 **discovery-server:** fix env type inference and class property error
+- fe48588 **discovery-server:** add missing ioredis dependency
+
+#### Test
+
+- 64c37d0 **discovery-server:** fix timeout cleanup in ws-discovery tests
+
+### message-manager (1.1.1 → 1.1.2)
+
+#### Fix
+
+- 5f823ce **message-manager:** fix typecheck errors - Env type inference, import casing, ack return type
+- 6174c45 **message-manager:** fix type errors across services
+
+#### Refactor
+
+- 7963ae1 **message-manager:** fix Biome lint - formatting, noMisusedPromises, useAwait
+- 22923f5 **message-manager:** migrate Redis config, telemetry, and imports
+
+### @trading-model/address-manager (1.2.0 → 1.3.0)
+
+#### Feat
+
+- 8a532e9 **address-manager:** add circuit breaker, redis cache, metrics, load balancing
+
+#### Fix
+
+- 4b88d52 **address-manager:** align AddressManagerEnv field names with env-var UPPERCASE convention
+
+#### Refactor
+
+- 66aed3a **address-manager:** fix TS build — align interfaces, add missing methods and config props
+- 33d9e0c **address-manager:** clear reconnectTimer before scheduling new reconnect
+- 31a62c3 **address-manager:** fix CertificatePath property names in object literal
+- 452b51f **address-manager:** fix CertificatePath property names to match TlsClientPaths contract
+
+#### Style
+
+- c3a5cbe **address-manager:** fix prettier formatting in 3 files
+
+### @trading-model/broker-message (1.1.0 → 1.2.0)
+
+#### Feat
+
+- 5c404ff **broker:** add WebSocket Secure client
+
+#### Fix
+
+- 390a56e **broker:** fix BadRequest casing typo in messages.controller
+
+### dlq-service (2.0.0 → 2.1.0)
+
+#### Feat
+
+- 430c4f5 **dlq-service:** add new DLQ service
+
+### api-gateway (1.0.0 → 1.1.0)
+
+#### Feat
+
+- 00b9b2c **api-gateway:** add API Gateway service with versioned routing, auth, rate limiting, and caching (#263)
+
+### audit-logger (1.0.0 → 1.1.0)
+
+#### Feat
+
+- 3c9572e **audit-logger:** add audit logger service with full unit tests and 100% coverage (#261)
+
+### Root
+
+#### Style
+
+- 5e3c7cc Lint fix
+- 15651cf Lint rewrite
+
+#### Test
+
+- be32ede add crypto-worker unit tests
+- 91484da fix timer leak in certificate-client bootstrap tests
+
+#### Chore
+
+- 691c397 update package-lock.json with certificate-client and crypto-worker entries
+- 4f0eabb add test:detectOpenHandles script to all packages and services
+
+
 ## [Unreleased]
 
 ### Overview

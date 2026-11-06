@@ -160,35 +160,34 @@ jobs:
         with:
           version: 'stable'
 
-      - name: Configure kubeconfig (staging)
-        if: inputs.environment == 'staging'
+      # Two identities (ADR-0041, scripts/deploy-identity.sh): `app` (default
+      # kubeconfig) is limited to the application namespace; `cluster`
+      # (CLUSTER_KUBECONFIG) is used by the cluster-scope steps only. Both are
+      # base64 kubeconfigs with a bounded token.
+      - name: Configure kubeconfigs
         shell: bash
         env:
-          KUBECONFIG_CONTENT: ${{ secrets.KUBECONFIG_STAGING }}
+          ENV: ${{ inputs.environment }}
+          NS: ${{ steps.ns.outputs.namespace }}
+          APP_KUBECONFIG: ${{ inputs.environment == 'production' && secrets.KUBECONFIG_PRODUCTION_APP || secrets.KUBECONFIG_STAGING_APP }}
+          CLUSTER_KUBECONFIG_CONTENT: ${{ inputs.environment == 'production' && secrets.KUBECONFIG_PRODUCTION_CLUSTER || secrets.KUBECONFIG_STAGING_CLUSTER }}
         run: |
-          if [ -z "$KUBECONFIG_CONTENT" ]; then
-            echo "::error::Missing secret KUBECONFIG_STAGING"
-            exit 1
-          fi
+          upper="${ENV^^}"
+          for v in APP CLUSTER; do
+            content="APP_KUBECONFIG"; [ "$v" = CLUSTER ] && content="CLUSTER_KUBECONFIG_CONTENT"
+            if [ -z "${!content}" ]; then
+              echo "::error::Missing secret KUBECONFIG_${upper}_$v (bash scripts/deploy-identity.sh ${v,,}, docs/deployment/DEPLOY.md)"
+              exit 1
+            fi
+          done
+          umask 077
           mkdir -p "$HOME/.kube"
-          echo "$KUBECONFIG_CONTENT" | base64 -d > "$HOME/.kube/config"
-          chmod 600 "$HOME/.kube/config"
-          kubectl cluster-info
-
-      - name: Configure kubeconfig (production)
-        if: inputs.environment == 'production'
-        shell: bash
-        env:
-          KUBECONFIG_CONTENT: ${{ secrets.KUBECONFIG_PRODUCTION }}
-        run: |
-          if [ -z "$KUBECONFIG_CONTENT" ]; then
-            echo "::error::Missing secret KUBECONFIG_PRODUCTION"
-            exit 1
-          fi
-          mkdir -p "$HOME/.kube"
-          echo "$KUBECONFIG_CONTENT" | base64 -d > "$HOME/.kube/config"
-          chmod 600 "$HOME/.kube/config"
-          kubectl cluster-info
+          echo "$APP_KUBECONFIG" | base64 -d > "$HOME/.kube/config"
+          echo "$CLUSTER_KUBECONFIG_CONTENT" | base64 -d > "$HOME/.kube/cluster"
+          echo "CLUSTER_KUBECONFIG=$HOME/.kube/cluster" >> "$GITHUB_ENV"
+          # cluster-info reads kube-system, which neither identity may.
+          kubectl auth can-i get deployments -n "$NS"
+          KUBECONFIG="$HOME/.kube/cluster" kubectl auth can-i get namespaces
 
       # release.yml pushes v1.2.3 as :1.2.3; the git tag form is accepted too.
       - name: Resolve image tag
@@ -287,14 +286,14 @@ jobs:
             echo "$ENV uses no SealedSecret"
             exit 0
           fi
-          if ! kubectl get crd sealedsecrets.bitnami.com >/dev/null 2>&1; then
+          if ! KUBECONFIG="$CLUSTER_KUBECONFIG" kubectl get crd sealedsecrets.bitnami.com >/dev/null 2>&1; then
             echo "::error::The cluster has no SealedSecret CRD: install the Sealed Secrets controller (docs/deployment/sealed-secrets.md)"
             exit 1
           fi
           # ADR-0035: the controller runs in its own namespace, so that the
           # identity of the daily key backup reads its keys only, not every
           # Secret of kube-system.
-          if ! kubectl -n sealed-secrets get deployment sealed-secrets-controller >/dev/null 2>&1; then
+          if ! KUBECONFIG="$CLUSTER_KUBECONFIG" kubectl -n sealed-secrets get deployment sealed-secrets-controller >/dev/null 2>&1; then
             echo "::error::No Sealed Secrets controller in the namespace sealed-secrets: install it with bash scripts/install-sealed-secrets.sh, or move it out of kube-system (docs/deployment/sealed-secrets.md, ADR-0035)"
             exit 1
           fi
@@ -328,6 +327,18 @@ jobs:
       # environment, the credentials secrets. Production refuses to start
       # audit-logger without it (AUDIT_ANCHOR_REQUIRED): checked here, before
       # anything is applied. Unset elsewhere: the chain is verified only.
+      # Namespace and the other cluster-scope objects of the overlay (the
+      # ClusterRoles of the SPIRE server): the cluster identity applies them,
+      # the application identity applies the rest ("Apply overlay").
+      - name: Apply cluster-scope objects
+        shell: bash
+        run: |
+          NS="${{ steps.ns.outputs.namespace }}"
+          export KUBECONFIG="$CLUSTER_KUBECONFIG"
+          kubectl get namespace "$NS" >/dev/null 2>&1 || kubectl create namespace "$NS"
+          kubectl kustomize --load-restrictor LoadRestrictionsNone "deploy/k8s/overlays/${{ inputs.environment }}" |
+            bash scripts/split-cluster-scope.sh cluster | kubectl apply -f -
+
       - name: Configure audit chain anchor store
         shell: bash
         env:
@@ -353,7 +364,6 @@ jobs:
             echo "::error::AUDIT_ANCHOR_BUCKET is set but AUDIT_ANCHOR_ACCESS_KEY_ID / AUDIT_ANCHOR_SECRET_ACCESS_KEY are not"
             exit 1
           fi
-          kubectl get namespace "$NS" >/dev/null 2>&1 || kubectl create namespace "$NS"
           # An empty endpoint would override the SDK default (AWS): left out.
           endpoint=()
           [ -z "$AUDIT_ANCHOR_ENDPOINT" ] || endpoint=(--from-literal=AUDIT_ANCHOR_ENDPOINT="$AUDIT_ANCHOR_ENDPOINT")
@@ -464,7 +474,6 @@ jobs:
           fi
           # Before the overlay: an Alertmanager started without them counts
           # failed notifications, and AlertmanagerNotificationsFailing fires.
-          kubectl get namespace "$NS" >/dev/null 2>&1 || kubectl create namespace "$NS"
           kubectl -n "$NS" create secret generic alertmanager-credentials "${keys[@]}"             --dry-run=client -o yaml | kubectl apply -f -
 
       # Contact e-mail sent in the User-Agent of the signal sources (ADR-0036;
@@ -481,7 +490,6 @@ jobs:
             echo "::warning::SIGNAL_CONTACT_EMAIL is not set for ${{ inputs.environment }}: SEC EDGAR refuses the signal collector"
             exit 0
           fi
-          kubectl get namespace "$NS" >/dev/null 2>&1 || kubectl create namespace "$NS"
           kubectl -n "$NS" create configmap signal-contact \
             --from-literal=SIGNAL_CONTACT_EMAIL="$SIGNAL_CONTACT_EMAIL" \
             --dry-run=client -o yaml | kubectl apply -f -
@@ -490,6 +498,7 @@ jobs:
       # IngressClasses and the cert-manager ClusterIssuer come from the render
       # itself. Missing ones stop the deploy here, not half way through the
       # apply (issue #419).
+      # Reads CRDs, StorageClasses, IngressClasses, ClusterIssuers: cluster identity (ADR-0041).
       - name: Check cluster prerequisites
         shell: bash
         run: |
@@ -498,14 +507,15 @@ jobs:
             kubectl kustomize --load-restrictor LoadRestrictionsNone "deploy/k8s/overlays/$ENV"
             echo ---
             kubectl kustomize "deploy/k8s/overlays/$ENV/node-agents"
-          } | bash deploy/k8s/scripts/check-prereqs.sh
+          } | KUBECONFIG="$CLUSTER_KUBECONFIG" bash deploy/k8s/scripts/check-prereqs.sh
 
       # SPIRE agent + SPIFFE CSI driver, in the privileged trading-model-node
       # namespace: the application namespace (restricted) cannot host them.
       - name: Apply SPIFFE node components
         shell: bash
         run: |
-          kubectl kustomize "deploy/k8s/overlays/${{ inputs.environment }}/node-agents" | kubectl apply -f -
+          kubectl kustomize "deploy/k8s/overlays/${{ inputs.environment }}/node-agents" |
+            KUBECONFIG="$CLUSTER_KUBECONFIG" kubectl apply -f -
 
       # Migrations must run before the new image rolls out. On a first deploy
       # MySQL does not exist yet: they run right after the overlay instead.
@@ -564,7 +574,8 @@ jobs:
         id: apply
         shell: bash
         run: |
-          bash deploy/k8s/scripts/deploy-release.sh render "deploy/k8s/overlays/${{ inputs.environment }}" "${{ steps.tag.outputs.registry }}" "$RUNNER_TEMP/image-digests" | kubectl apply -f -
+          bash deploy/k8s/scripts/deploy-release.sh render "deploy/k8s/overlays/${{ inputs.environment }}" "${{ steps.tag.outputs.registry }}" "$RUNNER_TEMP/image-digests" |
+            bash scripts/split-cluster-scope.sh app | kubectl apply -f -
           # The former secret-rotation CronJob (issue #424) held write rights on every
           # Secret; apply never prunes, so remove what an older deploy left behind.
           kubectl delete cronjob/secret-rotation role/secret-rotator-role \
@@ -646,7 +657,7 @@ jobs:
           export K8S_NAMESPACE="${{ steps.ns.outputs.namespace }}"
           bash deploy/k8s/scripts/deploy-k8s.sh smoke-test
 
-      # ADR-0041: the singleton collector stops collecting during a release.
+      # ADR-0042: the singleton collector stops collecting during a release.
       # Production fails (and rolls back) when candles do not come back in time;
       # staging only warns.
       - name: Verify market data resumed

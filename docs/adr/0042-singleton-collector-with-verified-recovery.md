@@ -1,4 +1,4 @@
-# ADR-0041: Singleton Collector Kept, Recovery Verified After Each Deploy
+# ADR-0042: Singleton Collector Kept, Recovery Verified After Each Deploy
 
 **Status:** Accepted
 **Date:** 2026-11

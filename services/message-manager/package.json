@@ -1,6 +1,6 @@
 {
   "name": "message-manager",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "Manages and sends communications between services",
   "homepage": "https://github.com/docteur-turboss/trading-model#readme",
   "bugs": {

@@ -1,0 +1,17 @@
+# Role of the cluster-scope deploy identity in the node-agents namespace
+# (trading-model-node): SPIRE agent, SPIFFE CSI driver and promtail
+# (deploy/k8s/node-agents). Bound by scripts/deploy-identity.sh.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: deploy-node-agents
+rules:
+  - apiGroups: [""]
+    resources: [configmaps, serviceaccounts]
+    verbs: [get, list, watch, create, update, patch, delete]
+  - apiGroups: [apps]
+    resources: [daemonsets]
+    verbs: [get, list, watch, create, update, patch, delete]
+  - apiGroups: [rbac.authorization.k8s.io]
+    resources: [roles, rolebindings]
+    verbs: [get, list, watch, create, update, patch, delete]
