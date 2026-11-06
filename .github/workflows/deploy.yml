@@ -141,12 +141,13 @@ jobs:
         env:
           SLACK: ${{ secrets.ALERTMANAGER_SLACK_WEBHOOK_URL }}
           DEADMAN: ${{ secrets.ALERTMANAGER_DEADMAN_URL }}
-          PAGERDUTY: ${{ secrets.ALERTMANAGER_PAGERDUTY_ROUTING_KEY }}
+          PUSHOVER_USER: ${{ secrets.ALERTMANAGER_PUSHOVER_USER_KEY }}
+          PUSHOVER_TOKEN: ${{ secrets.ALERTMANAGER_PUSHOVER_TOKEN }}
         run: |
           missing=""
           [ -n "$SLACK" ] || missing="$missing ALERTMANAGER_SLACK_WEBHOOK_URL"
           [ -n "$DEADMAN" ] || missing="$missing ALERTMANAGER_DEADMAN_URL"
-          [ -n "$PAGERDUTY" ] || echo "::warning::ALERTMANAGER_PAGERDUTY_ROUTING_KEY is not set: critical alerts go to Slack only"
+          [ -n "$PUSHOVER_USER" ] && [ -n "$PUSHOVER_TOKEN" ] || echo "::warning::ALERTMANAGER_PUSHOVER_USER_KEY / ALERTMANAGER_PUSHOVER_TOKEN not set: critical alerts go to Slack only"
           if [ -n "$missing" ]; then
             if [ "${{ inputs.environment }}" = "production" ]; then
               echo "::error::Missing GitHub environment secrets:${missing}. Alerts would reach nobody (observability/alertmanager.yml)."
@@ -461,13 +462,15 @@ jobs:
         env:
           SLACK: ${{ secrets.ALERTMANAGER_SLACK_WEBHOOK_URL }}
           DEADMAN: ${{ secrets.ALERTMANAGER_DEADMAN_URL }}
-          PAGERDUTY: ${{ secrets.ALERTMANAGER_PAGERDUTY_ROUTING_KEY }}
+          PUSHOVER_USER: ${{ secrets.ALERTMANAGER_PUSHOVER_USER_KEY }}
+          PUSHOVER_TOKEN: ${{ secrets.ALERTMANAGER_PUSHOVER_TOKEN }}
         run: |
           NS="${{ steps.ns.outputs.namespace }}"
           keys=()
           [ -z "$SLACK" ] || keys+=(--from-literal=SLACK_WEBHOOK_URL="$SLACK")
           [ -z "$DEADMAN" ] || keys+=(--from-literal=DEADMAN_URL="$DEADMAN")
-          [ -z "$PAGERDUTY" ] || keys+=(--from-literal=PAGERDUTY_ROUTING_KEY="$PAGERDUTY")
+          [ -z "$PUSHOVER_USER" ] || keys+=(--from-literal=PUSHOVER_USER_KEY="$PUSHOVER_USER")
+          [ -z "$PUSHOVER_TOKEN" ] || keys+=(--from-literal=PUSHOVER_TOKEN="$PUSHOVER_TOKEN")
           if [ "${#keys[@]}" -eq 0 ]; then
             echo "::warning::No alert notification secret set: alertmanager-credentials left as it is"
             exit 0
