@@ -48,6 +48,7 @@ An ADR documents a significant architectural decision, including the context, al
 | [ADR-0038](./0038-release-images-scanned-attested-signed-and-verified.md) | Release Images Are Scanned, Carry SBOM and Provenance, Are Signed Keyless, and Are Verified at Deploy | Accepted | 2026-11 |
 | [ADR-0039](./0039-configuration-feature-flags.md) | Configuration Feature Flags (env booleans, kill switches) | Accepted | 2026-11 |
 | [ADR-0040](./0040-locked-resumable-migrations-and-expand-contract.md) | Locked, Resumable Schema Migrations and the Expand/Contract Rule | Accepted | 2026-11 |
+| [ADR-0041](./0041-singleton-collector-with-verified-recovery.md) | Singleton Collector Kept, Recovery Verified After Each Deploy | Accepted | 2026-11 |
 
 **Numbering gaps.** ADR-0014 and ADR-0028 do not exist. No file with either number has ever been committed on any branch, and no document refers to them, so they were skipped when the numbers were assigned and carry no decision. Do not reuse them for unrelated records.
 
@@ -61,4 +62,3 @@ An ADR documents a significant architectural decision, including the context, al
 - This index lists every ADR once, with its status.
 
 The check proves that each decision is tied to a live check, not that the check covers every sentence of the ADR: when you change what an ADR describes, update the check it names.
-| [ADR-0041](./0041-singleton-collector-with-verified-recovery.md) | Singleton Collector Kept, Recovery Verified After Each Deploy | Accepted | 2026-11 |

@@ -521,13 +521,17 @@ cmd_smoke_test() {
 # warn with MARKET_DATA_RECOVERY_MODE=warn.
 cmd_verify_market_data() {
   local timeout="${MARKET_DATA_RECOVERY_TIMEOUT:-600}" mode="${MARKET_DATA_RECOVERY_MODE:-fail}"
-  local deadline=$((SECONDS + timeout)) persisted=""
+  local deadline=$((SECONDS + timeout)) persisted="" metrics="" last_err="no attempt made"
   log "Waiting up to ${timeout}s for the collector to persist candles..."
   while [[ "$SECONDS" -lt "$deadline" ]]; do
-    persisted="$(kubectl exec -n "$NAMESPACE" deployment/financial-scraper-collector -c financial-scraper-collector -- \
-      curl -sk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem \
-      https://localhost:3000/metrics 2>/dev/null |
-      awk '/^fs_candles_persisted_total/ {s += $NF} END {print s + 0}')" || persisted=0
+    if metrics="$(kubectl exec -n "$NAMESPACE" deployment/financial-scraper-collector -c financial-scraper-collector --       curl -sSk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem       https://localhost:3000/metrics 2>&1)"; then
+      persisted="$(printf '%s
+' "$metrics" | awk '/^fs_candles_persisted_total/ {s += $NF} END {print s + 0}')"
+      last_err="no fs_candles_persisted_total candle yet (0 persisted)"
+    else
+      persisted=0
+      last_err="/metrics unreadable: ${metrics}"
+    fi
     if [[ "${persisted:-0}" -gt 0 ]]; then
       log "Collector persisted ${persisted} candle(s): market data is flowing again."
       return 0
@@ -535,10 +539,10 @@ cmd_verify_market_data() {
     sleep 10
   done
   if [[ "$mode" == "warn" ]]; then
-    echo "::warning::Collector persisted no candle within ${timeout}s after the release (runbook-market-data-stale.md)"
+    echo "::warning::Collector persisted no candle within ${timeout}s after the release: ${last_err} (runbook-market-data-stale.md)"
     return 0
   fi
-  err "Collector persisted no candle within ${timeout}s after the release (runbook-market-data-stale.md)."
+  err "Collector persisted no candle within ${timeout}s after the release: ${last_err} (runbook-market-data-stale.md)."
   exit 1
 }
 

@@ -121,6 +121,10 @@ rollback if it does not; staging: warning. Tune with
 gap `MarketDataStale` may fire (15 min window): silence it for the release if
 it does not clear (runbook-market-data-stale.md).
 
+A production rollback recreates the collector (`Recreate`): it opens a second gap
+of the same size, and no market-data check runs after the rollback. Watch
+`MarketDataStale` until it clears.
+
 Rollback on failure is automatic: the workflow returns every Deployment to the
 revision it ran before the overlay (`rollout undo --to-revision`, see
 [Rollback](#rollback)). The overlay is applied by digest, so this returns to the
