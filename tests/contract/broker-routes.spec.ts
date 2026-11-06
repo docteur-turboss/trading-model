@@ -54,7 +54,11 @@ function recordingClient(callbackPath: string): {
 			instanceId: "routes-1",
 			serviceName: "trader-trainer",
 		} as never,
-		{ findService: async () => ({ host: "10.0.0.1", port: 3000 }) } as never
+		{
+			findService: async () => ({ host: "10.0.0.1", port: 3000 }),
+			recordCallSuccess: () => undefined,
+			recordCallFailure: () => undefined,
+		} as never
 	);
 	return { client, sent };
 }
