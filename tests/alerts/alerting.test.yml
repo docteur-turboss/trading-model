@@ -108,6 +108,74 @@ tests:
               description: 'Trainer completion rate is 50% over 15m.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#trainingcompletionratelow'
 
+  # Every genome evaluation takes 8 s: p99 above 5 s.
+  - name: trainer genome evaluations block the event loop
+    interval: 1m
+    input_series:
+      - series: 'tt_genome_evaluation_seconds_bucket{job="trader-trainer",instance="t",le="5"}'
+        values: '0x60'
+      - series: 'tt_genome_evaluation_seconds_bucket{job="trader-trainer",instance="t",le="10"}'
+        values: '0+10x60'
+      - series: 'tt_genome_evaluation_seconds_bucket{job="trader-trainer",instance="t",le="+Inf"}'
+        values: '0+10x60'
+    alert_rule_test:
+      - eval_time: 40m
+        alertname: TrainerEventLoopBlocked
+        exp_alerts:
+          - exp_labels: {severity: warning, job: trader-trainer}
+            exp_annotations:
+              summary: 'trader-trainer event loop blocked for several seconds'
+              description: 'p99 genome evaluation is 9.95s over 15m (threshold 5 s). Heartbeats (15 s) and deliveries (10 s timeout) fail meanwhile.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#trainereventloopblocked'
+
+  # Evaluations of 0.2 s: silent.
+  - name: trainer genome evaluations are short
+    interval: 1m
+    input_series:
+      - series: 'tt_genome_evaluation_seconds_bucket{job="trader-trainer",instance="t",le="0.25"}'
+        values: '0+10x60'
+      - series: 'tt_genome_evaluation_seconds_bucket{job="trader-trainer",instance="t",le="+Inf"}'
+        values: '0+10x60'
+    alert_rule_test:
+      - eval_time: 40m
+        alertname: TrainerEventLoopBlocked
+        exp_alerts: []
+
+  # Event loop lag outside the GA, constant.
+  - name: trainer event loop lag is high
+    interval: 1m
+    input_series:
+      - series: 'nodejs_eventloop_lag_max_seconds{job="trader-trainer",instance="t"}'
+        values: '30x60'
+    alert_rule_test:
+      - eval_time: 40m
+        alertname: TrainerEventLoopLagHigh
+        exp_alerts:
+          - exp_labels: {severity: warning, job: trader-trainer}
+            exp_annotations:
+              summary: 'trader-trainer event loop lag above 10 s'
+              description: 'Trainer event loop lag reached 30s (threshold 10 s) outside or inside GA evaluation. Heartbeats (15 s) and deliveries (10 s timeout) fail meanwhile.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#trainereventlooplaghigh'
+
+  # Lag above 10 s for 7 minutes only: fires on the 5m rule, not on the p99 rule.
+  - name: trainer event loop lag is a short spike
+    interval: 1m
+    input_series:
+      - series: 'nodejs_eventloop_lag_max_seconds{job="trader-trainer",instance="t"}'
+        values: '0x10 30x7 0x43'
+    alert_rule_test:
+      - eval_time: 16m
+        alertname: TrainerEventLoopLagHigh
+        exp_alerts:
+          - exp_labels: {severity: warning, job: trader-trainer}
+            exp_annotations:
+              summary: 'trader-trainer event loop lag above 10 s'
+              description: 'Trainer event loop lag reached 30s (threshold 10 s) outside or inside GA evaluation. Heartbeats (15 s) and deliveries (10 s timeout) fail meanwhile.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#trainereventlooplaghigh'
+      - eval_time: 16m
+        alertname: TrainerEventLoopBlocked
+        exp_alerts: []
+
   # No session ever succeeds: the `success` series does not exist.
   - name: every training session fails
     interval: 1m
@@ -183,6 +251,25 @@ tests:
       - eval_time: 25m
         alertname: ServiceDown
         exp_alerts: []
+
+  # Series shape of the real gauge: one series per target instanceId, exported
+  # by the caller (job). 1 = open, held for the 1m 'for'.
+  - name: an open address-manager breaker fires CircuitBreakerOpen
+    interval: 1m
+    input_series:
+      - series: 'address_manager_circuit_breaker_state{job="trader-trainer",instance="t",instanceId="mm-1"}'
+        values: '0 1x10'
+      - series: 'address_manager_circuit_breaker_state{job="trader-trainer",instance="t",instanceId="mm-2"}'
+        values: '0x11'
+    alert_rule_test:
+      - eval_time: 8m
+        alertname: CircuitBreakerOpen
+        exp_alerts:
+          - exp_labels: {severity: critical, job: trader-trainer, instance: t, instanceId: mm-1}
+            exp_annotations:
+              summary: 'Circuit breaker open on trader-trainer'
+              description: 'The circuit breaker of trader-trainer for instance mm-1 is in OPEN state: calls to that instance are refused.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-circuit-breaker-open.md'
 
   # K8s: the HTTP-only replicas persist nothing, the collector does.
   - name: market data flows through the collector only
@@ -357,29 +444,30 @@ tests:
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-discovery.md#heartbeatstopped'
 
   # api-gateway drops from 2 instances to 1: redundancy lost. trader-trainer
-  # always ran one instance (staging, compose): no alert, ever.
+  # always ran one instance (staging, compose), apart from the surge pod of a
+  # rolling update (maxSurge 1, a few minutes at 2): no alert, ever.
   - name: instance count alerts on lost redundancy only
     interval: 1m
     input_series:
       - series: 'discovery_registered_instances_per_service{job="discovery-server",instance="d1",service="api-gateway"}'
-        values: '2x10 1x10'
+        values: '2x30 1x10'
       - series: 'discovery_registered_instances_per_service{job="discovery-server",instance="d2",service="api-gateway"}'
-        values: '2x10 1x10'
+        values: '2x30 1x10'
       - series: 'discovery_registered_instances_per_service{job="discovery-server",instance="d1",service="trader-trainer"}'
-        values: '1x20'
+        values: '1x10 2x8 1x22'
       - series: 'discovery_registered_instances_per_service{job="discovery-server",instance="d1",service="dlq-service"}'
-        values: '2x20'
+        values: '2x40'
     alert_rule_test:
-      - eval_time: 8m
+      - eval_time: 28m
         alertname: InstanceCountLow
         exp_alerts: []
-      - eval_time: 16m
+      - eval_time: 38m
         alertname: InstanceCountLow
         exp_alerts:
           - exp_labels: {severity: critical, service: api-gateway}
             exp_annotations:
               summary: 'Low instance count for service api-gateway'
-              description: 'Service api-gateway had 2+ instances in the last day and now has fewer than 2: redundancy is lost (single-replica environments never fire).'
+              description: 'Service api-gateway had 2+ instances for 15 min in the last day and now has fewer than 2: redundancy is lost (single-replica environments never fire, nor does the surge pod of a rolling update).'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-discovery.md#instancecountlow'
 
   - name: the DLQ drains half of what comes in

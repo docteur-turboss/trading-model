@@ -3,6 +3,7 @@ import { NumericRange } from "@trading-model/primitives/numeric-range";
 import { Cash, Price } from "@trading-model/primitives/primitives";
 import { FeatureVector } from "../../../src/domain/feature-vector";
 import {
+	evaluateFitness,
 	evaluateGenomeAllWindows,
 	pooledEval,
 } from "../../../src/domain/genetic-algorithm/evaluation-pipeline";
@@ -355,6 +356,18 @@ describe("pooledEval", () => {
 		expect(results).toEqual([21]);
 	});
 
+	it("yields to the event loop between items", async () => {
+		let ticked = false;
+		setImmediate(() => {
+			ticked = true;
+		});
+		const seen: boolean[] = [];
+		await pooledEval([1, 2], 1, async () => {
+			seen.push(ticked);
+		});
+		expect(seen).toEqual([false, true]);
+	});
+
 	it("should handle items count less than concurrency", async () => {
 		const fn = jest.fn(async (x: number) => x);
 		const results = await pooledEval([1, 2], 10, fn);
@@ -377,6 +390,7 @@ describe("evaluateGenomeAllWindows — failure reporting", () => {
 			generationStarted: jest.fn(),
 			stagnationUpdated: jest.fn(),
 			evaluationFailed: jest.fn(),
+			genomeEvaluated: jest.fn(),
 		};
 		const backendFactory = jest.fn(() => {
 			throw new Error("backend exploded");
@@ -391,6 +405,28 @@ describe("evaluateGenomeAllWindows — failure reporting", () => {
 
 		expect(telemetry.evaluationFailed).toHaveBeenCalledWith("backend exploded");
 		expect(result.objectives.avgPnl).toBeLessThan(-1e8);
+	});
+
+	it("reports the duration of each genome evaluation", async () => {
+		const telemetry = {
+			generationStarted: jest.fn(),
+			stagnationUpdated: jest.fn(),
+			evaluationFailed: jest.fn(),
+			genomeEvaluated: jest.fn(),
+		};
+		await evaluateFitness({
+			population: [MINIMAL_GENOME as any, MINIMAL_GENOME as any],
+			windowSets,
+			backendFactory: jest.fn(() => {
+				throw new Error("backend exploded");
+			}) as any,
+			concurrency: 1,
+			telemetry,
+		});
+		expect(telemetry.genomeEvaluated).toHaveBeenCalledTimes(2);
+		expect(telemetry.genomeEvaluated.mock.calls[0][0]).toBeGreaterThanOrEqual(
+			0
+		);
 	});
 
 	it("should tolerate a failure without telemetry and a non-Error throw", async () => {

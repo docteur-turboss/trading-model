@@ -120,25 +120,19 @@ services:
   # ---------------------------------------------------------------------------
   migrate:
     logging: *default-logging
-    # mysql2 is installed at build time: data-net is internal (no registry access at run time).
+    # Same image as the K8s Jobs (deploy/migrate): mysql2 locked, nothing installed at run time.
     build:
-      context: scripts
-      dockerfile_inline: |
-        FROM oven/bun:1.4.4@sha256:1d22548f177f4ff38e0c15baa3c2c46c6c2060ba2d1bc573bb4720b407548f1d
-        WORKDIR /migrations
-        RUN bun add mysql2@3.24.6
+      context: .
+      dockerfile: deploy/migrate/Dockerfile
     container_name: trading-migrate
     restart: "no"
-    command: ["bun", "/migrations/migrate.mjs", "up"]
+    command: ["up"]
     environment:
       DB_HOST: mysql
       DB_PORT: "3306"
       DB_USER: ${MYSQL_USER:-root}
       DB_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       DB_NAME: ${MYSQL_DATABASE:-financial_scraper}
-    volumes:
-      - ./scripts/migrate.mjs:/migrations/migrate.mjs:ro
-      - ./scripts/migrations:/migrations/migrations:ro
     networks:
       - data-net
     depends_on:
@@ -159,6 +153,7 @@ services:
       - '${DISCOVERY_PORT:-8443}:3000'
     environment:
       <<: *core-env
+      SERVICE_NAME: discovery-server
       ERROR_URL_WEBHOOK: ${ERROR_URL_WEBHOOK:-}
       CLEANUP_SERVICE_INTERVAL_MS: '600000'
       # Signs the instance tokens kept in Redis: stable across restarts.
@@ -184,7 +179,7 @@ services:
   # ---------------------------------------------------------------------------
   spire-server:
     logging: *default-logging
-    image: ghcr.io/spiffe/spire-server:1.15.5  # pin: digest unavailable without GHCR auth
+    image: ghcr.io/spiffe/spire-server:1.15.5@sha256:584a9c5cc95b9457f5033e7e4488d603fffe5ec48a80c4dba14b05c5e1c2c384
     container_name: trading-spire-server
     restart: unless-stopped
     # Named volumes are created root-owned: the image user (1000) could not write them.
@@ -414,6 +409,7 @@ services:
       - '${GATEWAY_PORT:-8448}:3000'
     environment:
       <<: *core-env
+      SERVICE_NAME: api-gateway
       DISCOVERY_SERVICE_URL: https://discovery-server:3000
       RATE_LIMIT_WINDOW_MS: '60000'
       RATE_LIMIT_MAX: '100'
@@ -531,7 +527,7 @@ services:
   # ---------------------------------------------------------------------------
   spiffe-helper-discovery:
     logging: *default-logging
-    image: ghcr.io/spiffe/spiffe-helper:0.10.1  # pin: digest unavailable without GHCR auth
+    image: ghcr.io/spiffe/spiffe-helper:0.10.1@sha256:2402c34d83794aa24c127baa46e9732d653463f3bfcd39cda1313003ed60f8c9
     container_name: trading-helper-discovery
     restart: unless-stopped
     network_mode: none
@@ -546,7 +542,7 @@ services:
 
   spiffe-helper-message:
     logging: *default-logging
-    image: ghcr.io/spiffe/spiffe-helper:0.10.1  # pin: digest unavailable without GHCR auth
+    image: ghcr.io/spiffe/spiffe-helper:0.10.1@sha256:2402c34d83794aa24c127baa46e9732d653463f3bfcd39cda1313003ed60f8c9
     container_name: trading-helper-message
     restart: unless-stopped
     network_mode: none
@@ -561,7 +557,7 @@ services:
 
   spiffe-helper-scraper:
     logging: *default-logging
-    image: ghcr.io/spiffe/spiffe-helper:0.10.1  # pin: digest unavailable without GHCR auth
+    image: ghcr.io/spiffe/spiffe-helper:0.10.1@sha256:2402c34d83794aa24c127baa46e9732d653463f3bfcd39cda1313003ed60f8c9
     container_name: trading-helper-scraper
     restart: unless-stopped
     network_mode: none
@@ -576,7 +572,7 @@ services:
 
   spiffe-helper-trainer:
     logging: *default-logging
-    image: ghcr.io/spiffe/spiffe-helper:0.10.1  # pin: digest unavailable without GHCR auth
+    image: ghcr.io/spiffe/spiffe-helper:0.10.1@sha256:2402c34d83794aa24c127baa46e9732d653463f3bfcd39cda1313003ed60f8c9
     container_name: trading-helper-trainer
     restart: unless-stopped
     network_mode: none
@@ -591,7 +587,7 @@ services:
 
   spiffe-helper-gateway:
     logging: *default-logging
-    image: ghcr.io/spiffe/spiffe-helper:0.10.1  # pin: digest unavailable without GHCR auth
+    image: ghcr.io/spiffe/spiffe-helper:0.10.1@sha256:2402c34d83794aa24c127baa46e9732d653463f3bfcd39cda1313003ed60f8c9
     container_name: trading-helper-gateway
     restart: unless-stopped
     network_mode: none
@@ -606,7 +602,7 @@ services:
 
   spiffe-helper-audit:
     logging: *default-logging
-    image: ghcr.io/spiffe/spiffe-helper:0.10.1  # pin: digest unavailable without GHCR auth
+    image: ghcr.io/spiffe/spiffe-helper:0.10.1@sha256:2402c34d83794aa24c127baa46e9732d653463f3bfcd39cda1313003ed60f8c9
     container_name: trading-helper-audit
     restart: unless-stopped
     network_mode: none
@@ -621,7 +617,7 @@ services:
 
   spiffe-helper-dlq:
     logging: *default-logging
-    image: ghcr.io/spiffe/spiffe-helper:0.10.1  # pin: digest unavailable without GHCR auth
+    image: ghcr.io/spiffe/spiffe-helper:0.10.1@sha256:2402c34d83794aa24c127baa46e9732d653463f3bfcd39cda1313003ed60f8c9
     container_name: trading-helper-dlq
     restart: unless-stopped
     network_mode: none
@@ -636,7 +632,7 @@ services:
 
   spiffe-helper-edge:
     logging: *default-logging
-    image: ghcr.io/spiffe/spiffe-helper:0.10.1  # pin: digest unavailable without GHCR auth
+    image: ghcr.io/spiffe/spiffe-helper:0.10.1@sha256:2402c34d83794aa24c127baa46e9732d653463f3bfcd39cda1313003ed60f8c9
     container_name: trading-helper-edge
     restart: unless-stopped
     network_mode: none
@@ -651,7 +647,7 @@ services:
 
   spiffe-helper-prometheus:
     logging: *default-logging
-    image: ghcr.io/spiffe/spiffe-helper:0.10.1  # pin: digest unavailable without GHCR auth
+    image: ghcr.io/spiffe/spiffe-helper:0.10.1@sha256:2402c34d83794aa24c127baa46e9732d653463f3bfcd39cda1313003ed60f8c9
     container_name: trading-helper-prometheus
     restart: unless-stopped
     network_mode: none

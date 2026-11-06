@@ -738,10 +738,10 @@ After a targeted deletion (one collection, a few documents), do not restore the
 whole replica set: that overwrites every healthy write made since the dump.
 
 ```bash
-# One collection, in place: only dlq.dead_letters is dropped and restored
-bash scripts/restore-k8s.sh --components mongodb --ns 'dlq.dead_letters'
+# One collection, in place: only dlq.dlq_entries is dropped and restored
+bash scripts/restore-k8s.sh --components mongodb --ns 'dlq.dlq_entries'
 # Same collection into a scratch database restore_<TS>_dlq, original untouched
-bash scripts/restore-k8s.sh --components mongodb --ns 'dlq.dead_letters' --into-scratch
+bash scripts/restore-k8s.sh --components mongodb --ns 'dlq.dlq_entries' --into-scratch
 ```
 
 - `--ns <db.coll|db.*>` is repeatable (`--nsInclude`); `--drop` only touches the

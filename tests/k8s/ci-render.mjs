@@ -40,6 +40,7 @@ stringData:
   SERVICE_BOOTSTRAP_TOKEN: dev-bootstrap-change-me
   MYSQL_ROOT_PASSWORD: dev-mysql-root
   MYSQL_PASSWORD: dev-mysql
+  MYSQL_MIGRATE_PASSWORD: dev-mysql-migrate
   DLQ_AUTH_HMAC_SECRET: dev-dlq-hmac-change-me
   GRAFANA_PASSWORD: dev-grafana
   HMAC_SECRET: dev-hmac
@@ -57,6 +58,12 @@ function adapt(manifest) {
 			/BINANCE_BASE_URL: "?https:\/\/api\.binance\.com"?/g,
 			'BINANCE_BASE_URL: "http://binance-stub:3000"'
 		)
+		// Pushover to the alert sink: api.pushover.net is unreachable from CI, and a
+		// failed page fires AlertmanagerNotificationsFailing, critical, so paged again.
+		.replace(
+			/^( +)token_file: \/etc\/alertmanager-credentials\/PUSHOVER_TOKEN$/m,
+			`$&\n$1${PUSHOVER_SINK}`
+		)
 		.replace(
 			/SIGNAL_COLLECTION_ENABLED: "?true"?/g,
 			'SIGNAL_COLLECTION_ENABLED: "false"'
@@ -71,6 +78,7 @@ function adapt(manifest) {
 const STUB_URL = 'BINANCE_BASE_URL: "http://binance-stub:3000"';
 // Same for the signal sources: real public APIs, never called from CI runners.
 const NO_SIGNALS = 'SIGNAL_COLLECTION_ENABLED: "false"';
+const PUSHOVER_SINK = "url: http://alert-sink:8080/pushover";
 
 const documents = readFileSync(0, "utf8")
 	.split(/^---$/m)
@@ -85,6 +93,10 @@ if (!rendered.includes(STUB_URL) || /BINANCE_BASE_URL: "?https:/.test(rendered))
 }
 if (!rendered.includes(NO_SIGNALS) || /SIGNAL_COLLECTION_ENABLED: "?true/.test(rendered)) {
 	process.stderr.write("ci-render: SIGNAL_COLLECTION_ENABLED not turned off\n");
+	process.exit(1);
+}
+if (/PUSHOVER_TOKEN$/m.test(rendered) && !rendered.includes(PUSHOVER_SINK)) {
+	process.stderr.write("ci-render: Pushover not pointed at the alert sink\n");
 	process.exit(1);
 }
 if (/^kind: SealedSecret$/m.test(rendered)) {

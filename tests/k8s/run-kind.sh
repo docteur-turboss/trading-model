@@ -32,7 +32,7 @@ K="kubectl --context kind-${CLUSTER}"
 API_KEY="dev-token-change-me" # AUTH_TOKENS test value injected by ci-render.mjs
 SERVICES="discovery-server message-manager financial-scraper trader-trainer api-gateway audit-logger dlq-service"
 # First-party images: the IMAGES of deploy.yml.
-IMAGES="$SERVICES spire-tools backup-tools"
+IMAGES="$SERVICES spire-tools backup-tools db-migrate"
 PREVIOUS_REF="${KIND_PREVIOUS_REF:-HEAD^1}"
 # Release N-1 checkout, image digests, recorded revisions: kept between the
 # steps of the CI job, removed by `delete`.
@@ -60,12 +60,16 @@ wait_for() {
 	done
 }
 
-# Builds the 9 images of the checkout `$1` as ghcr.io/trading-model/<image>:$2.
+# Builds the 10 images of the checkout `$1` as ghcr.io/trading-model/<image>:$2.
 build_images() {
 	local root="$1" tag="$2" svc
 	# shellcheck disable=SC2086
 	docker compose -f "$root/docker-compose.yml" build $SERVICES spire-bootstrap
 	docker build -q -t "ghcr.io/trading-model/backup-tools:$tag" "$root/deploy/backup"
+	# N-1 may predate the image: its digest entry is a stand-in built from this checkout.
+	local mroot="$root"
+	[ -f "$root/deploy/migrate/Dockerfile" ] || mroot="$ROOT"
+	docker build -q -t "ghcr.io/trading-model/db-migrate:$tag" -f "$mroot/deploy/migrate/Dockerfile" "$mroot"
 	docker tag "${COMPOSE_PROJECT_NAME}-spire-bootstrap" "ghcr.io/trading-model/spire-tools:$tag"
 	for svc in $SERVICES; do
 		docker tag "${COMPOSE_PROJECT_NAME}-${svc}" "ghcr.io/trading-model/${svc}:$tag"
@@ -142,23 +146,70 @@ cluster() {
 	fi
 }
 
+# Selects the credentials of the current (sub)shell. Once `identities` has run,
+# every deploy step uses deploy-app (KUBECONFIG) and deploy-cluster
+# (CLUSTER_KUBECONFIG) as deploy.yml does (ADR-0041); before, the kind admin.
+use_kube() {
+	if [ -f "$WORK/app.kubeconfig" ]; then
+		export KUBECONFIG="$WORK/app.kubeconfig" CLUSTER_KUBECONFIG="$WORK/cluster.kubeconfig"
+	else
+		kubectl config use-context "kind-${CLUSTER}" >/dev/null
+	fi
+}
+
+# The two restricted deploy identities, created as admin after the N-1 deploy
+# (as in production: the admin bootstraps, the identities deploy), then the
+# rights ADR-0041 promises are checked for real.
+identities() {
+	log "creating the deploy-app and deploy-cluster identities (admin)"
+	(cd "$ROOT" && kubectl config use-context "kind-${CLUSTER}" >/dev/null &&
+		bash scripts/deploy-identity.sh app --namespace "$NS" >"$WORK/app.kubeconfig" &&
+		bash scripts/deploy-identity.sh cluster --namespace "$NS" --environment staging >"$WORK/cluster.kubeconfig") || return 1
+	local out as_cluster="kubectl --kubeconfig $WORK/cluster.kubeconfig" as_app="kubectl --kubeconfig $WORK/app.kubeconfig"
+	if out="$($as_cluster create clusterrolebinding x --clusterrole=spire-agent --serviceaccount="$NS:deploy-cluster" 2>&1)" ||
+		! grep -qi forbidden <<<"$out"; then
+		log "deploy-cluster could bind itself to spire-agent (or failed other than Forbidden): $out"
+		return 1
+	fi
+	# stderr dropped: kubectl warns that nodes/proxy is not namespace scoped, which is not the answer
+	[ "$($as_cluster auth can-i get nodes/proxy 2>/dev/null || true)" = no ] || {
+		log "deploy-cluster can get nodes/proxy"
+		return 1
+	}
+	[ "$($as_app auth can-i get secrets -n kube-system 2>/dev/null || true)" = no ] || {
+		log "deploy-app can read Secrets of kube-system"
+		return 1
+	}
+	log "  deploy-cluster: self-bind Forbidden, no nodes/proxy; deploy-app: no Secret in kube-system"
+}
+
 # deploy-release.sh (the release steps of deploy.yml) against the kind cluster.
 release_script() {
-	(cd "$ROOT" && kubectl config use-context "kind-${CLUSTER}" >/dev/null &&
+	(cd "$ROOT" && use_kube &&
 		bash deploy/k8s/scripts/deploy-release.sh "$@")
 }
 
 # The migrations of the checkout `$1`, through its own run-migrations.sh.
 migrations() {
-	(cd "$1" && kubectl config use-context "kind-${CLUSTER}" >/dev/null &&
-		bash deploy/k8s/scripts/run-migrations.sh "$NS")
+	(cd "$1" && use_kube &&
+		SEED_MIGRATE_PASSWORD=true bash deploy/k8s/scripts/run-migrations.sh "$NS")
 }
 
 # The overlay of the checkout `$1`, pinned to the digests of file `$2` as
 # deploy.yml's "Apply overlay", adapted to kind by ci-render.mjs.
 apply_release() {
-	release_script render "$1/deploy/k8s/overlays/staging" ghcr.io/trading-model "$2" |
-		node "$ROOT/tests/k8s/ci-render.mjs" | $K apply -f -
+	local rendered
+	rendered="$(release_script render "$1/deploy/k8s/overlays/staging" ghcr.io/trading-model "$2" |
+		node "$ROOT/tests/k8s/ci-render.mjs")" || return 1
+	if [ ! -f "$WORK/app.kubeconfig" ]; then
+		echo "$rendered" | $K apply -f -
+		return
+	fi
+	# As deploy.yml: cluster-scope documents with deploy-cluster, the rest with deploy-app.
+	echo "$rendered" | bash "$ROOT/scripts/split-cluster-scope.sh" cluster |
+		kubectl --kubeconfig "$WORK/cluster.kubeconfig" apply -f - || return 1
+	echo "$rendered" | bash "$ROOT/scripts/split-cluster-scope.sh" app |
+		kubectl --kubeconfig "$WORK/app.kubeconfig" apply -f -
 }
 
 # First deploy of release N-1, as deploy.yml on an empty cluster.
@@ -206,13 +257,13 @@ templates() {
 
 # One release attempt in the order of deploy.yml: migrations, revisions
 # recorded, replicas released, overlay of this checkout pinned to the digests
-# of `$1`, rollout, smoke test.
+# of `$1`, rollout (base timeout `$2`, default 180s), smoke test.
 release() {
 	migrations "$ROOT" || return 1
 	release_script record "$NS" "$WORK/revisions" || return 1
 	release_script release-replicas "$NS" || return 1
 	apply_release "$ROOT" "$1" || return 1
-	release_script wait "$NS" || return 1
+	release_script wait "$NS" "${2:-180s}" || return 1
 	deploy_script smoke-test
 }
 
@@ -226,6 +277,8 @@ release() {
 #   3. the upgrade to N, which must pass the smoke test.
 upgrade() {
 	local started=$SECONDS before_templates before_migrations
+	# Admin step: ClusterRoles and bindings come from the admin; the identities only deploy.
+	identities || return 1
 	before_templates="$(templates)"
 	before_migrations="$(applied_migrations)"
 	[ -n "$before_migrations" ] || {
@@ -236,7 +289,8 @@ upgrade() {
 	log "upgrade N-1 → N with a forced failure: api-gateway pinned to a digest that does not exist"
 	sed 's/^api-gateway .*/api-gateway sha256:0000000000000000000000000000000000000000000000000000000000000000/' \
 		"$WORK/digests-current" >"$WORK/digests-broken"
-	if release "$WORK/digests-broken"; then
+	# Short base timeout: this rollout can never complete (issue #486, was 210 s).
+	if release "$WORK/digests-broken" 30s; then
 		log "an upgrade whose api-gateway image does not exist passed"
 		return 1
 	fi
@@ -436,7 +490,7 @@ verify_replicas() {
 
 # Runs deploy-k8s.sh against the kind cluster, as deploy.yml does.
 deploy_script() {
-	(cd "$ROOT" && kubectl config use-context "kind-${CLUSTER}" >/dev/null &&
+	(cd "$ROOT" && use_kube &&
 		K8S_NAMESPACE="$NS" bash deploy/k8s/scripts/deploy-k8s.sh "$@")
 }
 
@@ -482,6 +536,8 @@ alert_credentials() {
 	$K -n "$NS" create secret generic alertmanager-credentials \
 		--from-literal=SLACK_WEBHOOK_URL=http://alert-sink:8080/slack \
 		--from-literal=DEADMAN_URL=http://alert-sink:8080/deadman \
+		--from-literal=PUSHOVER_USER_KEY=kind \
+		--from-literal=PUSHOVER_TOKEN=kind \
 		--dry-run=client -o yaml | $K apply -f -
 }
 

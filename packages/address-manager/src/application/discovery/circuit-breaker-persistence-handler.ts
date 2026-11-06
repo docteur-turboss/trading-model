@@ -21,10 +21,11 @@ export class CircuitBreakerPersistenceHandler {
 
 	startSweeper(
 		forEachMachine: ForEachMachineFn,
-		removeMachine: (key: string) => void
+		removeMachine: (key: string) => void,
+		isStale?: (key: string) => boolean
 	): void {
 		this._sweeper.start(() =>
-			sweepIdleClosedMachines(forEachMachine, removeMachine)
+			sweepIdleClosedMachines(forEachMachine, removeMachine, isStale)
 		);
 	}
 

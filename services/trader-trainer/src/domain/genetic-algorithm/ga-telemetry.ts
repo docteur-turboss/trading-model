@@ -8,6 +8,8 @@ export interface GaTelemetry {
 	generationStarted(generation: number, populationSize: number): void;
 	stagnationUpdated(stagnation: number): void;
 	evaluationFailed(reason: string): void;
+	/** One genome evaluated on every window: it blocks the event loop that long. */
+	genomeEvaluated(durationMs: number): void;
 }
 
 export const NoopGaTelemetry: GaTelemetry = {
@@ -18,6 +20,9 @@ export const NoopGaTelemetry: GaTelemetry = {
 		// Intentional no-op.
 	},
 	evaluationFailed: () => {
+		// Intentional no-op.
+	},
+	genomeEvaluated: () => {
 		// Intentional no-op.
 	},
 };

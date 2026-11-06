@@ -14,6 +14,11 @@ import {
 } from "../../domain/discovery/circuit-breaker-constants";
 import type { ICircuitStateStore } from "../../domain/discovery/circuit-state-store.interface";
 import type { PersistedCircuitState } from "../../domain/discovery/service-cache.interface";
+import { STALE_OPEN_MS } from "../../infrastructure/discovery/circuit-breaker-sweeper";
+import {
+	CIRCUIT_BREAKER_STATE,
+	recordCircuitState,
+} from "../../infrastructure/metrics";
 import { CircuitBreakerPersistenceHandler } from "./circuit-breaker-persistence-handler";
 
 export interface CircuitBreakerOptions {
@@ -53,6 +58,8 @@ function buildCircuitConfig(
 export class DiscoveryCircuitBreaker extends CircuitBreaker {
 	private readonly _persistenceHandler: CircuitBreakerPersistenceHandler;
 	private readonly _halfOpenTimeoutMs: number;
+	/** Last time each key was consulted or fed; lets the sweeper expire machines of vanished instances. */
+	private readonly _lastActivity = new Map<string, number>();
 
 	constructor(options: CircuitBreakerOptions = {}) {
 		const failureThreshold = options.failureThreshold ?? 3;
@@ -80,7 +87,8 @@ export class DiscoveryCircuitBreaker extends CircuitBreaker {
 		);
 		this._persistenceHandler.startSweeper(
 			(fn) => this.forEachMachine(fn),
-			(key) => this.removeMachine(key)
+			(key) => this.removeMachine(key),
+			(key) => Date.now() - (this._lastActivity.get(key) ?? 0) > STALE_OPEN_MS
 		);
 	}
 
@@ -99,12 +107,21 @@ export class DiscoveryCircuitBreaker extends CircuitBreaker {
 						: 0,
 				halfOpenAttempts: persisted.state === CircuitState.HALF_OPEN ? 1 : 0,
 			});
+			this._reportState(instanceId);
 		}
+	}
+
+	/** Consulted by discovery before handing out an instance: also publishes open to half-open. */
+	isOpen(instanceId: InstanceId): boolean {
+		const open = super.isOpen(instanceId as unknown as string);
+		this._reportState(instanceId);
+		return open;
 	}
 
 	isAllowed(instanceId: InstanceId): boolean {
 		const machine = this.getMachine(instanceId as unknown as string);
 		const currentState = machine.getState(Date.now());
+		this._reportState(instanceId, currentState);
 		if (currentState === CircuitState.CLOSED) {
 			return true;
 		}
@@ -118,6 +135,7 @@ export class DiscoveryCircuitBreaker extends CircuitBreaker {
 		const machine = this.getMachine(instanceId as unknown as string);
 		super.recordSuccess(instanceId as unknown as string);
 		this._persistenceHandler.onRecordSuccess(instanceId, machine);
+		this._reportState(instanceId);
 	}
 
 	recordFailure(
@@ -130,10 +148,31 @@ export class DiscoveryCircuitBreaker extends CircuitBreaker {
 		).recordFailure(count ?? 1, threshold);
 		const machine = this.getMachine(instanceId as unknown as string);
 		this._persistenceHandler.onRecordFailure(instanceId, machine, opened);
+		this._reportState(instanceId);
 		return opened;
 	}
 
+	removeMachine(key: string): void {
+		super.removeMachine(key);
+		this._lastActivity.delete(key);
+		CIRCUIT_BREAKER_STATE.remove({ instanceId: key });
+	}
+
+	private _reportState(
+		instanceId: InstanceId,
+		state: CircuitState = this.getState(instanceId as unknown as string)
+	): void {
+		this._lastActivity.set(instanceId as unknown as string, Date.now());
+		recordCircuitState(
+			instanceId as unknown as string,
+			state,
+			this.getStateSummary()
+		);
+	}
+
 	clear(): void {
+		this._lastActivity.clear();
+		CIRCUIT_BREAKER_STATE.reset();
 		this._persistenceHandler.clear((fn) =>
 			this.forEachMachine((key) => fn(key))
 		);

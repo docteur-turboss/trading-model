@@ -136,12 +136,11 @@ DNS records, cert-manager and the ingress controller stay outside this repo.
 
 ### 4. Deploy all resources
 
-```bash
-# Using the deploy script
-./deploy/k8s/scripts/deploy-k8s.sh apply
+Staging and production deploy only through the `deploy.yml` workflow (digests, overlay, pre-checks: see [DEPLOY.md](DEPLOY.md)). `deploy-k8s.sh apply` applies the base with `:latest` tags and none of those checks, so it refuses any context but a local development cluster (`kind-*`, `k3d-*`, `minikube`, `docker-desktop`) and needs `ALLOW_DEV_APPLY=1`. Do not run `kubectl apply -k deploy/k8s/` on a shared cluster either.
 
-# Or directly with Kustomize
-kubectl apply -k deploy/k8s/
+```bash
+# Local development cluster only
+ALLOW_DEV_APPLY=1 ./deploy/k8s/scripts/deploy-k8s.sh apply
 
 # Verify deployment
 ./deploy/k8s/scripts/deploy-k8s.sh status
@@ -157,9 +156,7 @@ kubectl apply -k deploy/k8s/
 
 ### Standard deployment
 
-```bash
-./deploy/k8s/scripts/deploy-k8s.sh apply <service-name>
-```
+Run `deploy.yml`. `deploy-k8s.sh apply <service-name>` exists for local development clusters only (`ALLOW_DEV_APPLY=1`).
 
 ### Canary deployment
 
@@ -181,6 +178,10 @@ kubectl apply -k deploy/k8s/
 kubectl rollout history -n trading-model deployment/<service-name>
 ./deploy/k8s/scripts/deploy-k8s.sh rollback <service-name> <revision>
 ```
+
+Several services or the schema: runbook
+[Deployment Failure](../operations/runbooks/runbook-deployment-failure.md#full-cluster-rollback-multi-service-deployment)
+and [Database Rollback](../operations/runbooks/runbook-deployment-failure.md#database-rollback).
 
 ## Scaling
 
@@ -213,10 +214,7 @@ kubectl scale deployment -n trading-model <service-name> --replicas=5
   by the `mysql-cluster-init` Job; per-pod `server_id` / local address passed
   as mysqld arguments
 - 20Gi PVC per replica
-- Schema from the `db-migrate` Job (`scripts/migrations`, `run-migrations.sh`),
-  the same migrations as compose: no second copy of the schema. The script
-  waits for `mysql-cluster-init` first: during the bootstrap the server is
-  `super_read_only`
+- Schema from the `db-migrate` Job (`run-migrations.sh`), the same migrations as compose: no second copy of the schema. The script waits for `mysql-cluster-init` first (during the bootstrap the server is `super_read_only`). The Job runs the released `db-migrate` image (`deploy/migrate`: `migrate.mjs`, `scripts/migrations`, `mysql2` locked by its `bun.lock`; pinned by digest by `deploy.yml`): nothing is installed at run time. It connects as the MySQL user `migrator` (DDL/DML on `financial_scraper` only, password `MYSQL_MIGRATE_PASSWORD`), created or updated on every deploy by the idempotent Job `db-migrate-user` (the only one that reads `MYSQL_ROOT_PASSWORD`; works on a database initialised before the user existed). The password must match `[A-Za-z0-9_.@%+=-]`
 - PodDisruptionBudget: minAvailable 1
 
 ### MongoDB (Replica Set)

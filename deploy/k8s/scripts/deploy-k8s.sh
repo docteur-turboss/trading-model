@@ -2,7 +2,7 @@
 # =============================================================================
 #  deploy-k8s.sh — Kubernetes Deployment Script for Trading Model
 #  Usage:
-#    ./deploy-k8s.sh [-n <namespace>] apply           # Apply all manifests
+#    ./deploy-k8s.sh [-n <namespace>] apply           # Apply all manifests (dev cluster only, ALLOW_DEV_APPLY=1)
 #    ./deploy-k8s.sh [-n <namespace>] apply <service> # Apply a single service
 #    ./deploy-k8s.sh [-n <namespace>] delete          # Delete all resources
 #    ./deploy-k8s.sh [-n <namespace>] status          # Show deployment status
@@ -70,8 +70,23 @@ check_prereqs() {
   fi
 }
 
+# apply renders the base with :latest tags and none of the deploy.yml gates
+# (SealedSecrets, audit anchor, Object Lock, age recipients, alerting).
+# Only a local development cluster may use it, and only on request.
+require_dev_cluster() {
+  local ctx
+  ctx="$(kubectl config current-context 2>/dev/null || true)"
+  if [[ "${ALLOW_DEV_APPLY:-}" != "1" || ! "$ctx" =~ ^(kind-|k3d-|minikube$|docker-desktop$) ]]; then
+    err "apply is for local development clusters only (context '${ctx:-none}')."
+    err "Set ALLOW_DEV_APPLY=1 on a kind-*, k3d-*, minikube or docker-desktop context."
+    err "Staging and production deploy through .github/workflows/deploy.yml (docs/deployment/DEPLOY.md)."
+    exit 1
+  fi
+}
+
 cmd_apply() {
   local service="${1:-}"
+  require_dev_cluster
 
   if [[ -n "$service" ]]; then
     log "Applying manifests for service: $service"
@@ -180,14 +195,14 @@ cmd_migrate_down() {
 
   log "Preparing database rollback (count=$count)..."
 
-  # Ensure the migration ConfigMap is up-to-date.
-  kubectl create configmap migration-files -n "$NAMESPACE" \
-    --from-file=migrate.mjs=scripts/migrate.mjs \
-    --from-file=scripts/migrations \
-    --dry-run=client -o yaml | kubectl apply -f -
+  # Provision `migrator` first (after a password rotation, or on a cluster no
+  # deploy has reached yet, the rollback would fail with Access denied).
+  bash "$(dirname "${BASH_SOURCE[0]}")/run-migrations.sh" "$NAMESPACE" user-only
 
-  # ROLLBACK_COUNT lives in its own ConfigMap: applying migration-files with
-  # only this key would prune migrate.mjs and the SQL files from it.
+  # The migrations come from the db-migrate image. Pin MIGRATE_IMAGE to the
+  # digest of the release whose migrations are rolled back (an older image
+  # lacks the .down.sql of newer migrations).
+  # ROLLBACK_COUNT lives in its own ConfigMap, required by the job.
   kubectl create configmap migration-rollback -n "$NAMESPACE" \
     --from-literal=ROLLBACK_COUNT="$count" \
     --dry-run=client -o yaml | kubectl apply -f -
@@ -196,7 +211,8 @@ cmd_migrate_down() {
   kubectl delete job -n "$NAMESPACE" db-migrate-down --ignore-not-found &>/dev/null || true
 
   log "Starting migration rollback job..."
-  kubectl apply -n "$NAMESPACE" -f "${K8S_DIR}/jobs/migration-job-down.yaml"
+  sed "s#ghcr.io/trading-model/db-migrate:latest#${MIGRATE_IMAGE:-ghcr.io/trading-model/db-migrate:latest}#" \
+    "${K8S_DIR}/jobs/migration-job-down.yaml" | kubectl apply -n "$NAMESPACE" -f -
 
   log "Waiting for migration rollback to complete..."
   bash "${K8S_DIR}/scripts/wait-job.sh" "$NAMESPACE" db-migrate-down 180

@@ -1,0 +1,8 @@
+{
+  "name": "db-migrate",
+  "private": true,
+  "description": "Runtime dependencies of the db-migrate image (deploy/migrate/Dockerfile). Locked by bun.lock.",
+  "dependencies": {
+    "mysql2": "3.24.6"
+  }
+}

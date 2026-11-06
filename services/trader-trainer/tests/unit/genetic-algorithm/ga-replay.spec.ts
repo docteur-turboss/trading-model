@@ -55,6 +55,9 @@ async function runGA(seed: number): Promise<RunSummary> {
 		generationStarted: () => {},
 		stagnationUpdated: () => {},
 		evaluationFailed: (reason) => failures.push(reason),
+		genomeEvaluated: () => {
+			// Not under test.
+		},
 	};
 	const defaults = createGAControlGenome();
 	const runner = new GeneticAlgorithmRunner({

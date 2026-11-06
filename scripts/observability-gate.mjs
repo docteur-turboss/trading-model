@@ -177,7 +177,7 @@ function k8sAlertingConfig() {
 const PROMQL_WORDS = new Set([
   "abs", "absent", "and", "avg", "bool", "by", "ceil", "count", "delta", "deriv", "group_left",
   "group_right", "histogram_quantile", "humanizePercentage", "ignoring", "increase",
-  "irate", "max", "max_over_time", "min", "offset", "on", "or", "rate", "sum", "time", "topk", "unless", "vector",
+  "irate", "max", "max_over_time", "min", "min_over_time", "offset", "on", "or", "rate", "sum", "time", "topk", "unless", "vector",
   "without",
 ]);
 
