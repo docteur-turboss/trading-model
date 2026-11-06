@@ -3,7 +3,8 @@
 **Alerts:** `TrainingCompletionRateLow` (warning, SLO `training_completion`,
 target in [slo.md](../slo.md#6-training-completion-rate)),
 `ModelArtifactWriteFailing` (warning),
-`TrainerEventLoopBlocked` (warning).
+`TrainerEventLoopBlocked` (warning),
+`TrainerEventLoopLagHigh` (warning).
 
 No market data reaching the trainer is a different alert,
 `TrainerMarketDataStale` ([runbook-market-data-stale](runbook-market-data-stale.md)):
@@ -86,8 +87,7 @@ The previous artifacts stay valid meanwhile: nothing serving them is affected.
 
 ## TrainerEventLoopBlocked
 
-p99 of `tt_genome_evaluation_seconds` above 5 s over 15 min, or
-`nodejs_eventloop_lag_max_seconds` of the trainer above 10 s, for 15 min.
+p99 of `tt_genome_evaluation_seconds` above 5 s over 15 min, for 15 min.
 The trainer yields between genomes, so the longest block is one evaluation.
 Above 10 s (delivery timeout) or 15 s (heartbeat), `ServiceDown`,
 `HeartbeatStopped` and DLQ alerts follow: this one names the cause.
@@ -120,6 +120,16 @@ while the p99 is low: the block is outside the GA.
 2. Lower `TRAINER_TIME_BUDGET_MS` (`docs/deployment/ENV.md`).
 3. Raise the trainer CPU limit if the pod is throttled.
 4. Roll out and check the p99 query falls below 5 s.
+
+## TrainerEventLoopLagHigh
+
+`nodejs_eventloop_lag_max_seconds` of the trainer above 10 s for 5 min. The
+metric is a max reset at each scrape, so it catches isolated long blocks (the
+#477 incident peaked at 139.9 s) that the p99 of `TrainerEventLoopBlocked`
+smooths out, including blocks outside GA evaluation (DQN step, GC, JSON
+parsing). Same diagnosis and remediation as `TrainerEventLoopBlocked`: lag high
+while the p99 is low means the block is outside the GA (check the DQN step and
+memory pressure first).
 
 ## ModelArtifactWriteFailing
 
