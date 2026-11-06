@@ -11,7 +11,7 @@
 ### During shift
 
 1. Respond to alerts within SLO (15 min SEV1, 1 hour SEV2)
-2. Acknowledge all alerts in PagerDuty/Opsgenie within 5 minutes
+2. Acknowledge all alerts in Pushover within 5 minutes
 3. Triage and escalate as needed
 4. Keep incident timeline updated
 5. Document all actions for post-mortem

@@ -102,7 +102,7 @@ function parseCommits(raw) {
     .filter(Boolean)
     .map(line => {
       const match = line.match(
-        /^([a-f0-9]+)\s+(:[\w-]+:|\p{Emoji})(?:\(([\w$.\-*/ ]+)\))?!?:\s(.+)$/u
+        /^([a-f0-9]+)\s+(:[\w-]+:|\p{Emoji})(?:\(([\w$.\-*/ ]+)\))?!?:?\s(.+)$/u
       );
       if (!match) return null;
       const [, hash, emoji, scope, subject] = match;
@@ -288,8 +288,10 @@ function buildChangelog(bumps, scoped, unscoped, newVersion, dryRun) {
   for (const b of bumps) {
     changelog += writeChangelogSection(scoped[b.scope], `${b.pkg} (${b.oldVersion} → ${b.newVersion})`);
   }
-  if (unscoped.length > 0) {
-    changelog += writeChangelogSection(unscoped, 'Root');
+  // Scopes with no package (k8s, ci, docs...) bump nothing but still belong in the changelog.
+  const root = [...unscoped, ...Object.entries(scoped).filter(([s]) => !SCOPE_TO_PACKAGE[s]).flatMap(([, c]) => c)];
+  if (root.length > 0) {
+    changelog += writeChangelogSection(root, 'Root');
   }
   if (!dryRun) {
     const changelogPath = join(ROOT, 'CHANGELOG.md');
@@ -354,7 +356,8 @@ function main() {
   const { rootPkg, oldRootVer, rootBump, newVersion } = resolveVersion(args, allCommits);
   const bumps = bumpPackages(scoped, args, args.dryRun);
   bumpRoot(rootPkg, newVersion, args.dryRun);
-  buildChangelog(bumps, scoped, unscoped, newVersion, args.dryRun);
+  const changelog = buildChangelog(bumps, scoped, unscoped, newVersion, args.dryRun);
+  if (args.dryRun) console.log(changelog);
   printSummary(bumps, oldRootVer, newVersion, rootBump, args.dryRun);
   publishRelease(newVersion, args);
 }

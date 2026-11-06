@@ -132,7 +132,8 @@ data:
     # /etc/alertmanager-credentials, read at send time (a missing file fails that
     # notification, not the start):
     #   SLACK_WEBHOOK_URL      Slack incoming webhook (#alerts, #alerts-warning)
-    #   PAGERDUTY_ROUTING_KEY  PagerDuty Events v2 routing key (critical alerts)
+    #   PUSHOVER_USER_KEY      Pushover user (or group) key (critical alerts)
+    #   PUSHOVER_TOKEN         Pushover application API token
     #   DEADMAN_URL            dead man's switch (healthchecks.io, Dead Man's
     #                          Snitch, Better Stack heartbeat...): receives the
     #                          always-firing Watchdog every minute and pages
@@ -158,7 +159,7 @@ data:
           group_interval: 1m
           repeat_interval: 1m
         # Critical: paged, and posted to #alerts as well (continue), so a missing
-        # PagerDuty key never swallows them.
+        # Pushover key never swallows them.
         - matchers: ['severity="critical"']
           receiver: critical-receiver
           continue: true
@@ -184,13 +185,20 @@ data:
               {{ end }}
 
       - name: critical-receiver
-        pagerduty_configs:
-          - routing_key_file: /etc/alertmanager-credentials/PAGERDUTY_ROUTING_KEY
-            severity: critical
-            description: '{{ .CommonAnnotations.description }}'
-            links:
-              - href: '{{ .CommonAnnotations.runbook_url }}'
-                text: Runbook
+        # Pushover emergency priority (2): repeats every retry until acknowledged
+        # in the app, for at most expire.
+        pushover_configs:
+          - user_key_file: /etc/alertmanager-credentials/PUSHOVER_USER_KEY
+            token_file: /etc/alertmanager-credentials/PUSHOVER_TOKEN
+            send_resolved: true
+            priority: '{{ if eq .Status "firing" }}2{{ else }}0{{ end }}'
+            retry: 1m
+            expire: 1h
+            title: '[{{ .Status | toUpper }}] {{ .CommonLabels.alertname }}'
+            message: |
+              {{ range .Alerts }}{{ .Annotations.description }}
+              Runbook: {{ .Annotations.runbook_url }}
+              {{ end }}
 
       - name: warning-receiver
         slack_configs:

@@ -130,7 +130,7 @@ Pre-push git hook runs: `biome check` → `deps:check` → `api:check` → `adr:
 ## Monitoring
 
 - **Dashboards:** 4 Grafana dashboards (SLO, services, message-manager, trader-trainer)
-- **Alerts:** Prometheus rules in `observability/alerting.yml` (SLO burn rates + operational), mirrored in the K8s Prometheus ConfigMap and checked by `scripts/observability-gate.mjs` and unit-tested with promtool (`tests/alerts`) → Alertmanager → Slack/PagerDuty, with a `Watchdog` dead man's switch ([Alerting](docs/operations/ALERTING.md))
+- **Alerts:** Prometheus rules in `observability/alerting.yml` (SLO burn rates + operational), mirrored in the K8s Prometheus ConfigMap and checked by `scripts/observability-gate.mjs` and unit-tested with promtool (`tests/alerts`) → Alertmanager → Slack/Pushover, with a `Watchdog` dead man's switch ([Alerting](docs/operations/ALERTING.md))
 - **Traces:** OpenTelemetry → OTLP Collector → Jaeger (all 7 services instrumented)
 - **Logs:** Pino structured JSON → Promtail → Loki + centralized log aggregation to audit-logger
 
