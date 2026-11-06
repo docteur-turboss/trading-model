@@ -1,0 +1,41 @@
+# ADR-0041: Least-Privilege Deploy Identities — Application and Cluster-Scope, Bounded Tokens
+
+**Status:** Accepted
+**Date:** 2026-11
+**Related:** [ADR-0035](./0035-sealed-secrets-key-daily-backup-by-github-actions.md) (precedent: list-only identity made by a script), [ADR-0017](./0017-no-swallowed-errors.md)
+**Verified by:** `tests/k8s/deploy-identity.test.sh`, `tests/k8s/check-overlays.mjs`, `tests/k8s/check-deploy-commands.mjs`
+
+## Context
+
+`deploy.yml` authenticated with one static kubeconfig per environment (`KUBECONFIG_STAGING` / `KUBECONFIG_PRODUCTION`, base64 in a GitHub environment secret), without OIDC or any short-lived identity. The same job creates namespaces, applies privileged DaemonSets, a CSIDriver and ClusterRoles (node-agents, SPIRE server), so the kubeconfig had to be cluster-admin. One leaked secret meant control of the production cluster (audit déploiement 2026-11-05, M11, issue #418).
+
+Rendering the overlays shows that very little of what the deploy applies is cluster-scope: `Namespace`, the `ClusterRole` / `ClusterRoleBinding` of the SPIRE server, and in the node-agents overlay the `CSIDriver`, two ClusterRoles and their bindings. All the rest (Deployments, StatefulSets, CronJobs, Services, ConfigMaps, Secrets, Ingresses, NetworkPolicies, HPA/VPA, PDB, SealedSecrets, PVCs, namespaced Roles) lives in the application namespace.
+
+## Decision
+
+1. **Two identities, two secrets per environment**, made by `scripts/deploy-identity.sh app|cluster` with an admin kubeconfig, printed as a kubeconfig on stdout and piped into the GitHub secret (`KUBECONFIG_<ENV>_APP`, `KUBECONFIG_<ENV>_CLUSTER`, base64). The former single `KUBECONFIG_<ENV>` secret is no longer read.
+   - **`deploy-app`**: Role `deploy/k8s/deploy-identity/app-role.yaml` in the application namespace only. It applies the overlay, runs migrations, the canary, the smoke test, the rollout and the rollback. No cluster-scope right, no other namespace.
+   - **`deploy-cluster`**: ClusterRole `cluster-role.yaml` (namespaces; CSIDriver; get/list on CRDs, get on StorageClasses, IngressClasses and ClusterIssuers; ClusterRoles and bindings: create, and update/patch of `spire-server`, `spire-agent`, `promtail` by name), a Role in the node-agents namespace (`node-role.yaml`) and a Role in the Sealed Secrets controller namespace (`get deployments` only, no Secret: ADR-0035 keys stay out of reach). Used by four steps only: "Apply cluster-scope objects", "Check sealed secrets" (CRD and controller), "Check cluster prerequisites" (`check-prereqs.sh`), "Apply SPIFFE node components".
+2. **`deploy.yml` splits the rendered overlay** with `scripts/split-cluster-scope.sh`: the cluster-scope documents are applied with the cluster identity, the rest with the application identity. The namespace is created by the cluster step before any Secret is written.
+3. **No `escalate` or `bind`.** Both identities hold the rights of the Roles and ClusterRoles they create (secret-rotator, backup-runner, spire-server, spire-agent, promtail), so Kubernetes' own escalation check applies to them. A new overlay object that needs more fails the deploy until the role files change in review.
+4. **`tests/k8s/check-overlays.mjs` fails** when a kind of an overlay is missing from the role files, so a new resource cannot reach production through a deploy that cannot apply it. `tests/k8s/deploy-identity.test.sh` (stub `kubectl`, in CI) proves the app identity gets a namespaced Role and no ClusterRole, the token is bounded, `--revoke` works and the scope split loses no document. `tests/k8s/check-deploy-commands.mjs` (CI `k8s-overlays`) extracts the verb/resource of every `kubectl` command run with the app identity (`deploy-k8s.sh`, `run-migrations.sh`, namespaced `deploy.yml` steps) and fails when `app-role.yaml` does not grant it (canary needs `endpointslices` and `deployments/scale`).
+5. **Bounded tokens**: `kubectl create token --duration` (default 168 h; the API server may cap it), never a permanent `service-account-token` Secret. Rotation is running the script again before expiry and replacing the secret; `--revoke` deletes the ServiceAccount, which invalidates every token issued so far at once (suspected leak).
+6. **OIDC is the recommended target, not delivered here**: when the cluster provider can trust GitHub's OIDC issuer, map the token claims (`repo`, `environment`) to these two identities (RBAC subjects `User`/`Group` instead of ServiceAccounts) and delete the static secrets. It depends on the provider, outside the repository (`docs/deployment/DEPLOY.md`).
+7. **Human settings** (documented, not enforceable by the repository): required reviewer on the `production` environment with the cluster secret scoped to it, and a second CODEOWNER on `/.github/`, `/deploy/` and `/deploy/k8s/secrets/` (today `@docteur-turboss` alone).
+
+## Alternatives Considered
+
+| Alternative | Reason for Rejection |
+| --- | --- |
+| Keep one admin kubeconfig | Simplest, but a leak means the whole cluster |
+| One restricted identity with a ClusterRole covering everything | Same blast radius as the cluster identity for every step; the application steps never need cluster rights |
+| `escalate` / `bind` on RBAC to let the identity grant anything | Equivalent to cluster-admin: it could bind itself to `cluster-admin` |
+| Permanent `service-account-token` Secret | A leak is valid until someone notices; the bounded token expires alone |
+| OIDC only | Best option, but needs provider support that the repository cannot configure |
+
+## Consequences
+
+- The cluster identity stays powerful: it can create namespaces and ClusterRoles, and holds `nodes/proxy get`, which the SPIRE agent ClusterRole grants. A leak of `KUBECONFIG_<ENV>_CLUSTER` is still serious, though it cannot read Secrets, run pods or reach `cluster-admin`; it is used by three steps and its token expires. The application secret, which every deploy uses, no longer carries those rights. Both secrets are readable by the same job: the split limits what a stolen token can do, not what a malicious workflow change can do. The reviewer and CODEOWNER settings above cover that.
+- Tokens expire: a deploy after expiry fails at "Configure kubeconfigs" (`kubectl auth can-i`) before anything is applied. Renewal is a calendar task (`docs/deployment/DEPLOY.md`).
+- Creating the identities in the clusters, the OIDC setup and the second CODEOWNER are human actions, out of scope of this change. Until the four new secrets exist, deploys fail at the first step.
+- `cluster-info` is no longer used: it reads `kube-system`, which neither identity can.

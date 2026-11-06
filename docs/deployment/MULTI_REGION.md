@@ -88,7 +88,7 @@ credentials of the cloud account (not the ones stored in the cluster);
 
    | Kind | Name | Change |
    | ---- | ---- | ------ |
-   | secret | `KUBECONFIG_PRODUCTION` / `KUBECONFIG_STAGING` | base64 kubeconfig of the new cluster |
+   | secret | `KUBECONFIG_<ENV>_APP` and `KUBECONFIG_<ENV>_CLUSTER` | base64 kubeconfigs of the new cluster (`scripts/deploy-identity.sh`, DEPLOY.md "Deploy identities") |
    | variables | `BACKUP_S3_BUCKET`, `BACKUP_S3_REGION`, `BACKUP_S3_ENDPOINT` | only if the bucket changed |
    | secrets | `BACKUP_S3_ACCESS_KEY_ID`, `BACKUP_S3_SECRET_ACCESS_KEY` | only if the credentials changed |
    | variable | `BACKUP_AGE_RECIPIENTS` | unchanged (two distinct recipients in production, `BACKUP_MIN_RECIPIENTS=2`) |
