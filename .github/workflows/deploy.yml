@@ -226,11 +226,12 @@ jobs:
         shell: bash
         env:
           SLACK: ${{ secrets.ALERTMANAGER_SLACK_WEBHOOK_URL }}
-        run: |
-          [ -n "$SLACK" ] || { echo "::notice::No Slack webhook: deploy event not sent"; exit 0; }
-          msg="Deploy started:"
-          text="$msg ${{ inputs.environment }} ${{ steps.tag.outputs.version }} (${{ steps.src.outputs.sha }}) ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-          curl -sS -o /dev/null --fail -X POST -H 'Content-type: application/json' \n            --data "{\"text\":\"$text\"}" "$SLACK" >/dev/null 2>&1 \n            || echo "::warning::Deploy event not delivered"
+          EVENT: started
+          DEPLOY_ENV: ${{ inputs.environment }}
+          VERSION: ${{ steps.tag.outputs.version }}
+          SHA: ${{ steps.src.outputs.sha }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: bash deploy/k8s/scripts/notify-slack.sh
 
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
@@ -736,10 +737,9 @@ jobs:
         shell: bash
         env:
           SLACK: ${{ secrets.ALERTMANAGER_SLACK_WEBHOOK_URL }}
-        run: |
-          [ -n "$SLACK" ] || { echo "::notice::No Slack webhook: deploy event not sent"; exit 0; }
-          if [ "${{ steps.rollback.outcome }}" = success ]; then msg="Deploy FAILED, rolled back:"
-          elif [ "${{ job.status }}" = success ]; then msg="Deploy succeeded:"
-          else msg="Deploy FAILED:"; fi
-          text="$msg ${{ inputs.environment }} ${{ steps.tag.outputs.version }} (${{ steps.src.outputs.sha }}) ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-          curl -sS -o /dev/null --fail -X POST -H 'Content-type: application/json' \n            --data "{\"text\":\"$text\"}" "$SLACK" >/dev/null 2>&1 \n            || echo "::warning::Deploy event not delivered"
+          EVENT: ${{ steps.rollback.outcome == 'success' && 'rolled-back' || (job.status == 'success' && 'succeeded' || 'failed') }}
+          DEPLOY_ENV: ${{ inputs.environment }}
+          VERSION: ${{ steps.tag.outputs.version }}
+          SHA: ${{ steps.src.outputs.sha }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: bash deploy/k8s/scripts/notify-slack.sh
