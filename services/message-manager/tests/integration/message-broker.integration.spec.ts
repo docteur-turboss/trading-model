@@ -99,7 +99,10 @@ describe("Message Broker Integration", () => {
 		await dispatcher.subscribe({
 			topic: "market.data",
 			callbackPath: "msg/recv",
-			serviceIdentity: { ...mockSubscriberIdentity, instanceId: "sub-2" },
+			serviceIdentity: {
+				serviceName: "audit-logger-service",
+				instanceId: "sub-2",
+			},
 		});
 
 		await dispatcher.publish(
@@ -178,7 +181,10 @@ describe("Message Broker Integration", () => {
 		await dispatcher.subscribe({
 			topic: "market.data",
 			callbackPath: "msg/recv",
-			serviceIdentity: { ...mockSubscriberIdentity, instanceId: "sub-2" },
+			serviceIdentity: {
+				serviceName: "audit-logger-service",
+				instanceId: "sub-2",
+			},
 		});
 
 		await dispatcher.publish(
