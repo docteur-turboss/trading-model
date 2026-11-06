@@ -11,6 +11,7 @@
 #    ./deploy-k8s.sh [-n <namespace>] canary <service> [image-tag] [percentage]
 #    ./deploy-k8s.sh [-n <namespace>] canary-all <image-tag> <percentage> <service>...
 #    ./deploy-k8s.sh [-n <namespace>] smoke-test      # Run smoke tests
+#    ./deploy-k8s.sh [-n <namespace>] verify-market-data  # Wait until the collector persists candles again (ADR-0042)
 #  Namespace: K8S_NAMESPACE env or -n/--namespace (default: trading-model)
 # =============================================================================
 
@@ -513,6 +514,39 @@ cmd_smoke_test() {
   fi
 }
 
+# ADR-0042: the collector is a singleton (Recreate), so a release stops
+# collection for up to terminationGracePeriodSeconds plus the startup. Success
+# is the new pod persisting candles again (fs_candles_persisted_total > 0: the
+# counter starts at 0 in a new pod, and MarketDataStale watches its increase).
+# MARKET_DATA_RECOVERY_TIMEOUT seconds (default 600); on timeout exit 1, or only
+# warn with MARKET_DATA_RECOVERY_MODE=warn.
+cmd_verify_market_data() {
+  local timeout="${MARKET_DATA_RECOVERY_TIMEOUT:-600}" mode="${MARKET_DATA_RECOVERY_MODE:-fail}"
+  local deadline=$((SECONDS + timeout)) persisted="" metrics="" last_err="no attempt made"
+  log "Waiting up to ${timeout}s for the collector to persist candles..."
+  while [[ "$SECONDS" -lt "$deadline" ]]; do
+    if metrics="$(kubectl exec -n "$NAMESPACE" deployment/financial-scraper-collector -c financial-scraper-collector --       curl -sSk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem       https://localhost:3000/metrics 2>&1)"; then
+      persisted="$(printf '%s
+' "$metrics" | awk '/^fs_candles_persisted_total/ {s += $NF} END {print s + 0}')"
+      last_err="no fs_candles_persisted_total candle yet (0 persisted)"
+    else
+      persisted=0
+      last_err="/metrics unreadable: ${metrics}"
+    fi
+    if [[ "${persisted:-0}" -gt 0 ]]; then
+      log "Collector persisted ${persisted} candle(s): market data is flowing again."
+      return 0
+    fi
+    sleep 10
+  done
+  if [[ "$mode" == "warn" ]]; then
+    echo "::warning::Collector persisted no candle within ${timeout}s after the release: ${last_err} (runbook-market-data-stale.md)"
+    return 0
+  fi
+  err "Collector persisted no candle within ${timeout}s after the release: ${last_err} (runbook-market-data-stale.md)."
+  exit 1
+}
+
 # ─── Main ─────────────────────────────────────────────────────────────────────
 
 check_prereqs
@@ -565,6 +599,9 @@ case "${1:-help}" in
   smoke-test)
     cmd_smoke_test
     ;;
+  verify-market-data)
+    cmd_verify_market_data
+    ;;
   *)
     echo "Trading Model K8s Deploy Script"
     echo ""
@@ -579,6 +616,7 @@ case "${1:-help}" in
     echo "  $0 [-n namespace] canary-cleanup <srv>  Remove canary deployment"
     echo "  $0 [-n namespace] pin                     Pin deployed images to digests"
     echo "  $0 [-n namespace] smoke-test            Run smoke tests"
+    echo "  $0 [-n namespace] verify-market-data    Wait for the collector to persist candles again"
     echo "Namespace defaults to trading-model (env: K8S_NAMESPACE)."
     echo "Feature flags (FEATURE_FLAGS=flag1,flag2): canary-auto-cleanup"
     exit 1

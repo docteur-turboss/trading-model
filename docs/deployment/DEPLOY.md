@@ -143,6 +143,22 @@ missing rule loses nothing, but those copies are then never expired.
 7. Wait for rollout of all services, smoke test
 ```
 
+**Ingestion during a release.** `financial-scraper-collector` is a singleton
+(`replicas: 1`, `Recreate`, ADR-0042): collection stops from the old pod's
+shutdown (up to `terminationGracePeriodSeconds`, 360 s) until the new pod is
+ready and has run a cycle. Expect a gap of up to ~6 min plus startup; candles
+the source can replay are caught up by the publish backlog and cursors. The
+`Verify market data resumed` step waits up to 10 min for
+`fs_candles_persisted_total` > 0 on the new pod. Production: failure and
+rollback if it does not; staging: warning. Tune with
+`MARKET_DATA_RECOVERY_TIMEOUT` / `MARKET_DATA_RECOVERY_MODE=warn`. During the
+gap `MarketDataStale` may fire (15 min window): silence it for the release if
+it does not clear (runbook-market-data-stale.md).
+
+A production rollback recreates the collector (`Recreate`): it opens a second gap
+of the same size, and no market-data check runs after the rollback. Watch
+`MarketDataStale` until it clears.
+
 Rollback on failure is automatic: the workflow returns every Deployment to the
 revision it ran before the overlay (`rollout undo --to-revision`, see
 [Rollback](#rollback)). The overlay is applied by digest, so this returns to the
