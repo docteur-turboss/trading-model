@@ -2,7 +2,7 @@
 
 **Status:** Accepted
 **Date:** 2026-11
-**Related:** [ADR-0020](./0020-database-topology-as-deployed.md) (topology), [ADR-0023](./0023-discovery-registry-in-redis.md) (registry keys, never `KEYS`), [ADR-0019](./0019-message-broker-as-built.md) (subscriptions in Redis), [ADR-0035](./0035-sealed-secrets-key-backup.md) (secrets)
+**Related:** [ADR-0020](./0020-database-topology-as-deployed.md) (topology), [ADR-0023](./0023-discovery-registry-in-redis.md) (registry keys, never `KEYS`), [ADR-0019](./0019-message-broker-as-built.md) (subscriptions in Redis), [ADR-0035](./0035-sealed-secrets-key-daily-backup-by-github-actions.md) (secrets)
 **Verified by:** `packages/persistence/tests/db/k8s-redis-ha.db.spec.ts`, `packages/persistence/tests/unit/redis-env.spec.ts`, `bun run config:check`
 
 ## Context
