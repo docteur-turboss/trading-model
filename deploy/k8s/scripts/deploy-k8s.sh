@@ -11,7 +11,7 @@
 #    ./deploy-k8s.sh [-n <namespace>] canary <service> [image-tag] [percentage]
 #    ./deploy-k8s.sh [-n <namespace>] canary-all <image-tag> <percentage> <service>...
 #    ./deploy-k8s.sh [-n <namespace>] smoke-test      # Run smoke tests
-#    ./deploy-k8s.sh [-n <namespace>] verify-market-data  # Wait until the collector persists candles again (ADR-0038)
+#    ./deploy-k8s.sh [-n <namespace>] verify-market-data  # Wait until the collector persists candles again (ADR-0041)
 #  Namespace: K8S_NAMESPACE env or -n/--namespace (default: trading-model)
 # =============================================================================
 
@@ -513,7 +513,7 @@ cmd_smoke_test() {
   fi
 }
 
-# ADR-0038: the collector is a singleton (Recreate), so a release stops
+# ADR-0041: the collector is a singleton (Recreate), so a release stops
 # collection for up to terminationGracePeriodSeconds plus the startup. Success
 # is the new pod persisting candles again (fs_candles_persisted_total > 0: the
 # counter starts at 0 in a new pod, and MarketDataStale watches its increase).
@@ -524,9 +524,9 @@ cmd_verify_market_data() {
   local deadline=$((SECONDS + timeout)) persisted=""
   log "Waiting up to ${timeout}s for the collector to persist candles..."
   while [[ "$SECONDS" -lt "$deadline" ]]; do
-    persisted="$(kubectl exec -n "$NAMESPACE" deployment/discovery-server -c discovery-server -- \
+    persisted="$(kubectl exec -n "$NAMESPACE" deployment/financial-scraper-collector -c financial-scraper-collector -- \
       curl -sk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem \
-      https://financial-scraper-collector:3000/metrics 2>/dev/null |
+      https://localhost:3000/metrics 2>/dev/null |
       awk '/^fs_candles_persisted_total/ {s += $NF} END {print s + 0}')" || persisted=0
     if [[ "${persisted:-0}" -gt 0 ]]; then
       log "Collector persisted ${persisted} candle(s): market data is flowing again."

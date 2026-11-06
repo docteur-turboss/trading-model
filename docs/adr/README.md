@@ -61,4 +61,4 @@ An ADR documents a significant architectural decision, including the context, al
 - This index lists every ADR once, with its status.
 
 The check proves that each decision is tied to a live check, not that the check covers every sentence of the ADR: when you change what an ADR describes, update the check it names.
-| [ADR-0038](./0038-singleton-collector-with-verified-recovery.md) | Singleton Collector Kept, Recovery Verified After Each Deploy | Accepted | 2026-11 |
+| [ADR-0041](./0041-singleton-collector-with-verified-recovery.md) | Singleton Collector Kept, Recovery Verified After Each Deploy | Accepted | 2026-11 |

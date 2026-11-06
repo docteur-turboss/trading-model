@@ -110,7 +110,7 @@ missing rule loses nothing, but those copies are then never expired.
 ```
 
 **Ingestion during a release.** `financial-scraper-collector` is a singleton
-(`replicas: 1`, `Recreate`, ADR-0038): collection stops from the old pod's
+(`replicas: 1`, `Recreate`, ADR-0041): collection stops from the old pod's
 shutdown (up to `terminationGracePeriodSeconds`, 360 s) until the new pod is
 ready and has run a cycle. Expect a gap of up to ~6 min plus startup; candles
 the source can replay are caught up by the publish backlog and cursors. The
