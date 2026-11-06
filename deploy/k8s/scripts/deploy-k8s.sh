@@ -10,6 +10,7 @@
 #    ./deploy-k8s.sh [-n <namespace>] migrate-down [count|all]
 #    ./deploy-k8s.sh [-n <namespace>] canary <service> [image-tag] [percentage]
 #    ./deploy-k8s.sh [-n <namespace>] smoke-test      # Run smoke tests
+#    ./deploy-k8s.sh [-n <namespace>] verify-market-data  # Wait until the collector persists candles again (ADR-0038)
 #  Namespace: K8S_NAMESPACE env or -n/--namespace (default: trading-model)
 # =============================================================================
 
@@ -492,6 +493,9 @@ case "${1:-help}" in
   smoke-test)
     cmd_smoke_test
     ;;
+  verify-market-data)
+    cmd_verify_market_data
+    ;;
   *)
     echo "Trading Model K8s Deploy Script"
     echo ""
@@ -505,6 +509,7 @@ case "${1:-help}" in
     echo "  $0 [-n namespace] canary-cleanup <srv>  Remove canary deployment"
     echo "  $0 [-n namespace] pin                     Pin deployed images to digests"
     echo "  $0 [-n namespace] smoke-test            Run smoke tests"
+    echo "  $0 [-n namespace] verify-market-data    Wait for the collector to persist candles again"
     echo "Namespace defaults to trading-model (env: K8S_NAMESPACE)."
     echo "Feature flags (FEATURE_FLAGS=flag1,flag2): canary-auto-cleanup"
     exit 1

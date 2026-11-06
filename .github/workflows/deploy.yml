@@ -646,6 +646,17 @@ jobs:
           export K8S_NAMESPACE="${{ steps.ns.outputs.namespace }}"
           bash deploy/k8s/scripts/deploy-k8s.sh smoke-test
 
+      # ADR-0038: the singleton collector stops collecting during a release.
+      # Production fails (and rolls back) when candles do not come back in time;
+      # staging only warns.
+      - name: Verify market data resumed
+        shell: bash
+        run: |
+          export K8S_NAMESPACE="${{ steps.ns.outputs.namespace }}"
+          export MARKET_DATA_RECOVERY_TIMEOUT=600
+          [ "${{ inputs.environment }}" = production ] || export MARKET_DATA_RECOVERY_MODE=warn
+          bash deploy/k8s/scripts/deploy-k8s.sh verify-market-data
+
       - name: Annotate deployments with release metadata
         shell: bash
         run: |
