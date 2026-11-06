@@ -1102,12 +1102,14 @@ diag_drain() {
 	$K -n "$NS" get events --sort-by=.lastTimestamp -o custom-columns=T:.lastTimestamp,OBJ:.involvedObject.name,REASON:.reason,MSG:.message |
 		grep -E 'collector|message-manager|trader-trainer' || true
 	$K -n "$NS" get pods -o wide || true
-	for component in financial-scraper-collector message-manager trader-trainer; do
+	for component in financial-scraper-collector message-manager trader-trainer discovery-server; do
 		echo "===== Loki: $component"
 		$K -n "$NS" exec loki-0 -- wget -qO- 			"http://localhost:3100/loki/api/v1/query_range?query=%7Bcomponent%3D%22${component}%22%7D&start=${start}&limit=5000&direction=forward" |
 			jq -r '.data.result[] | .stream.pod as $pod | .values[] | "\(.[0] | tonumber / 1e9 | strftime("%H:%M:%S")) \($pod) \(.[1] | .[0:400])"' |
 			sort || true
 	done
+	echo "===== dead letters"
+	mongo_eval mongodb "db.getSiblingDB('dlq').dlq_entries.find({}, {topic: 1, reason: 1, deliveryAttempt: 1, timestamp: 1, 'message.metadata.timestamp': 1, 'message.metadata.ttl': 1, 'message.metadata.deliveryMode': 1}).forEach((d) => printjson(d))" || true
 }
 
 case "${1:-all}" in
