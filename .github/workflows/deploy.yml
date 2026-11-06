@@ -574,30 +574,8 @@ jobs:
         id: apply
         shell: bash
         run: |
-<<<<<<< HEAD
-          ENV="${{ inputs.environment }}"
-          REGISTRY="${{ steps.tag.outputs.registry }}"
-          WRAPPER="deploy/k8s/overlays/.deploy-$ENV"
-          mkdir -p "$WRAPPER"
-          {
-            echo "apiVersion: kustomize.config.k8s.io/v1beta1"
-            echo "kind: Kustomization"
-            echo "resources:"
-            echo "  - ../$ENV"
-            echo "images:"
-            while read -r img digest; do
-              echo "  - name: ghcr.io/trading-model/$img"
-              echo "    newName: $REGISTRY/$img"
-              echo "    digest: $digest"
-            done < "$RUNNER_TEMP/image-digests"
-          } > "$WRAPPER/kustomization.yaml"
-          # jobs/ packages scripts/backup-k8s.sh from outside its directory: the default
-          # load restrictor rejects it and kubectl apply -k cannot relax it.
-          kubectl kustomize --load-restrictor LoadRestrictionsNone "$WRAPPER" |
+          bash deploy/k8s/scripts/deploy-release.sh render "deploy/k8s/overlays/${{ inputs.environment }}" "${{ steps.tag.outputs.registry }}" "$RUNNER_TEMP/image-digests" |
             bash scripts/split-cluster-scope.sh app | kubectl apply -f -
-=======
-          bash deploy/k8s/scripts/deploy-release.sh render "deploy/k8s/overlays/${{ inputs.environment }}" "${{ steps.tag.outputs.registry }}" "$RUNNER_TEMP/image-digests" | kubectl apply -f -
->>>>>>> origin/development
           # The former secret-rotation CronJob (issue #424) held write rights on every
           # Secret; apply never prunes, so remove what an older deploy left behind.
           kubectl delete cronjob/secret-rotation role/secret-rotator-role \
