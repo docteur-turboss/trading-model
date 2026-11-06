@@ -21,8 +21,9 @@ const REDIS_PORT = 6379;
 const SENTINEL_PORT = 26379;
 // Sentinel fails over in ~2s here; the old master stays frozen for 60s.
 const FREEZE_SECONDS = 60;
-// down-after (1 s) + promotion (~2 s) + client backoff (200 ms × attempt) stay
-// under ~5 s locally; the deadline leaves a 4× margin for a slow CI runner.
+// Counted from the announced promotion: the client's next retry (backoff
+// capped at 5 s by BASE_RETRY_STRATEGY) + resolve + connect; 4× margin for a
+// slow CI runner. Sentinel's own failover time is not counted (#451).
 const FAILOVER_DEADLINE_MS = 20_000;
 
 interface Topology {
@@ -150,17 +151,29 @@ async function writeReplicated(client: Redis): Promise<void> {
 	await expect(client.call("WAIT", "1", "5000")).resolves.toBe(1);
 }
 
+/**
+ * Sends a write during the failover and checks the client lands it on the
+ * promoted replica. The deadline runs from the promotion Sentinel announces,
+ * not from the master's death: how long Sentinel takes to fail over depends
+ * on the host load (TILT mode on a stalled runner), not on the client (#451).
+ */
 async function expectServedByPromotedReplica(
 	client: Redis,
-	replica: StartedTestContainer
+	topology: Topology
 ): Promise<void> {
-	const started = Date.now();
-	await expect(client.set("after-failover", "written")).resolves.toBe("OK");
-	expect(Date.now() - started).toBeLessThan(FAILOVER_DEADLINE_MS);
+	let promotedAt = Number.POSITIVE_INFINITY;
+	const [written] = await Promise.all([
+		client.set("after-failover", "written"),
+		waitForPromotion(topology).then(() => {
+			promotedAt = Date.now();
+		}),
+	]);
+	expect(written).toBe("OK");
+	expect(Date.now() - promotedAt).toBeLessThan(FAILOVER_DEADLINE_MS);
 	await expect(role(client)).resolves.toBe("master");
 	await expect(client.get("replicated")).resolves.toBe("1");
 	await expect(
-		replica.exec(["redis-cli", "GET", "after-failover"])
+		topology.replica.exec(["redis-cli", "GET", "after-failover"])
 	).resolves.toMatchObject({ output: "written\n" });
 }
 
@@ -196,7 +209,7 @@ describe("createRedisConnectionManager (sentinel) — real failover", () => {
 
 		await topology.master.stop();
 
-		await expectServedByPromotedReplica(client, topology.replica);
+		await expectServedByPromotedReplica(client, topology);
 	}, 120_000);
 
 	// Deterministic form of the CI flake (#451): the first reconnect asks the
@@ -221,7 +234,7 @@ describe("createRedisConnectionManager (sentinel) — real failover", () => {
 
 		await topology.master.stop();
 
-		await expectServedByPromotedReplica(client, topology.replica);
+		await expectServedByPromotedReplica(client, topology);
 	}, 120_000);
 
 	it("should leave a frozen master for the promoted replica", async () => {
@@ -238,6 +251,6 @@ describe("createRedisConnectionManager (sentinel) — real failover", () => {
 		]);
 		await waitForPromotion(topology);
 
-		await expectServedByPromotedReplica(client, topology.replica);
+		await expectServedByPromotedReplica(client, topology);
 	}, 120_000);
 });
