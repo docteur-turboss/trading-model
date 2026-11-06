@@ -287,3 +287,6 @@ Or via the deploy script:
 ```bash
 ./deploy/k8s/scripts/deploy-k8s.sh rollback <service>
 ```
+
+Schema: `deploy-k8s.sh migrate-down [N|all]`, see the runbook
+[Database Rollback](../operations/runbooks/runbook-deployment-failure.md#database-rollback).

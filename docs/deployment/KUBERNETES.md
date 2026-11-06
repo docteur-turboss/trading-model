@@ -179,6 +179,10 @@ kubectl rollout history -n trading-model deployment/<service-name>
 ./deploy/k8s/scripts/deploy-k8s.sh rollback <service-name> <revision>
 ```
 
+Several services or the schema: runbook
+[Deployment Failure](../operations/runbooks/runbook-deployment-failure.md#full-cluster-rollback-multi-service-deployment)
+and [Database Rollback](../operations/runbooks/runbook-deployment-failure.md#database-rollback).
+
 ## Scaling
 
 ### Autoscaling
