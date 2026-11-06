@@ -167,7 +167,7 @@ identities() {
 		bash scripts/deploy-identity.sh cluster --namespace "$NS" --environment staging >"$WORK/cluster.kubeconfig") || return 1
 	local out as_cluster="kubectl --kubeconfig $WORK/cluster.kubeconfig" as_app="kubectl --kubeconfig $WORK/app.kubeconfig"
 	if out="$($as_cluster create clusterrolebinding x --clusterrole=spire-agent --serviceaccount="$NS:deploy-cluster" 2>&1)" ||
-		! grep -q Forbidden <<<"$out"; then
+		! grep -qi forbidden <<<"$out"; then
 		log "deploy-cluster could bind itself to spire-agent (or failed other than Forbidden): $out"
 		return 1
 	fi
