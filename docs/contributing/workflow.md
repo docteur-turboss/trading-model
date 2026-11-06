@@ -27,7 +27,7 @@ main ──────────────────╂─── (hotfix)
 | `fix/*`       | `development` | Bug fix                                     |
 | `refactor/*`  | `development` | Refactoring                                 |
 | `docs/*`      | `development` | Documentation                               |
-| `release/*`   | `main`        | Urgent hotfix (direct merge to `main`)      |
+| `hotfix/*`    | `main`        | Urgent hotfix (direct merge to `main`)      |
 
 ---
 
