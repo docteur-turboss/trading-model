@@ -19,7 +19,8 @@
 #       Waits for the rollout of every Deployment: timeout (default 180s) plus
 #       the terminationGracePeriodSeconds of its pod template.
 #   deploy-release.sh rollback <namespace> <revisions-file>
-#       Returns every Deployment to the revision `record` wrote.
+#       Returns every Deployment to the revision `record` wrote and waits for
+#       each rollout (180s); fails if any did not come back.
 set -euo pipefail
 
 # Deployments a release rolls out and a failed release rolls back.
@@ -123,6 +124,9 @@ rollback() {
 			failed=1
 		elif ! kubectl rollout undo "deployment/$dep" -n "$ns" --to-revision="$rev"; then
 			echo "::error::Could not roll back $dep to revision $rev"
+			failed=1
+		elif ! kubectl rollout status "deployment/$dep" -n "$ns" --timeout=180s; then
+			echo "::error::$dep did not finish rolling back to revision $rev"
 			failed=1
 		fi
 	done <"$file"
