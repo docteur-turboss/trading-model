@@ -1,5 +1,5 @@
 import { execSync } from 'node:child_process';
-import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, readdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -232,6 +232,7 @@ function handleExplicitVersion(args) {
   console.log(`  Root: ${rootPkg.version} → ${args.version}\n`);
   if (!args.dryRun) {
     rootPkg.version = args.version;
+    alignServices(args.version);
     writeFileSync(join(ROOT, 'package.json'), `${JSON.stringify(rootPkg, null, 2)}\n`, 'utf-8');
   }
   console.log(`\n  ── Release ${args.version} ──\n`);
@@ -252,7 +253,8 @@ function bumpPackages(scoped, args, dryRun) {
   const bumps = [];
   for (const [scope, commits] of Object.entries(scoped)) {
     const pkgPath = SCOPE_TO_PACKAGE[scope];
-    if (!pkgPath) continue;
+    // Services follow the platform version (alignServices), never their own bump.
+    if (!pkgPath || pkgPath.startsWith('services/')) continue;
     const type = args.bump || getBumpType(commits);
     const pkg = JSON.parse(readFileSync(join(ROOT, pkgPath, 'package.json'), 'utf-8'));
     const newVersion = bumpVersion(pkg.version, type);
@@ -262,8 +264,18 @@ function bumpPackages(scoped, args, dryRun) {
   return bumps;
 }
 
+/** Sets every services/<dir>/package.json to the release version: the root version is the tag and the image tag. */
+function alignServices(newVersion) {
+  for (const dir of readdirSync(join(ROOT, 'services'))) {
+    if (existsSync(join(ROOT, 'services', dir, 'package.json'))) {
+      updatePackageJson(`services/${dir}`, newVersion);
+    }
+  }
+}
+
 function bumpRoot(rootPkg, newVersion, dryRun) {
   if (dryRun) return;
+  alignServices(newVersion);
   rootPkg.version = newVersion;
   writeFileSync(join(ROOT, 'package.json'), `${JSON.stringify(rootPkg, null, 2)}\n`, 'utf-8');
 }
