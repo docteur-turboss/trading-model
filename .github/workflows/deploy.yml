@@ -556,44 +556,25 @@ jobs:
             discovery-server message-manager financial-scraper trader-trainer \
             api-gateway audit-logger dlq-service
 
-      # Revision each Deployment runs before the overlay: the rollback returns to
-      # exactly it (image and hashed ConfigMap), not to "the one before the
-      # current", which is older than N for a Deployment the overlay left as is.
+      # Revision each Deployment runs before the overlay: "Rollback on failure"
+      # returns to exactly it (deploy-release.sh, shared with the k8s CI job).
       - name: Record current revisions
         shell: bash
         run: |
-          NS="${{ steps.ns.outputs.namespace }}"
-          for dep in discovery-server message-manager financial-scraper financial-scraper-collector trader-trainer \
-                     api-gateway audit-logger dlq-service edge-proxy; do
-            rev=$(kubectl get deployment "$dep" -n "$NS" --ignore-not-found \
-              -o jsonpath='{.metadata.annotations.deployment\.kubernetes\.io/revision}')
-            echo "$dep ${rev:-none}"
-          done | tee "$RUNNER_TEMP/deploy-revisions"
+          bash deploy/k8s/scripts/deploy-release.sh record "${{ steps.ns.outputs.namespace }}" "$RUNNER_TEMP/deploy-revisions"
 
-      # Deployments driven by an HPA carry no spec.replicas in the overlay. A
-      # client-side apply of a manifest that drops a field it applied before
-      # resets it to the default (1), so the field leaves
-      # last-applied-configuration first (Kubernetes docs, "Migrating
-      # Deployments and StatefulSets to horizontal autoscaling"). No-op once done
-      # and on a first deploy (no HPA yet).
+      # HPA-driven Deployments: spec.replicas leaves last-applied-configuration
+      # first, or the apply resets them to 1 (deploy-release.sh).
       - name: Release replicas of autoscaled Deployments
         shell: bash
         run: |
-          NS="${{ steps.ns.outputs.namespace }}"
-          ANN='kubectl.kubernetes.io/last-applied-configuration'
-          for dep in $(kubectl get hpa -n "$NS" \
-              -o jsonpath='{range .items[?(@.spec.scaleTargetRef.kind=="Deployment")]}{.spec.scaleTargetRef.name}{"\n"}{end}'); do
-            last=$(kubectl get deployment "$dep" -n "$NS" -o json | jq -r --arg a "$ANN" '.metadata.annotations[$a] // empty')
-            [ -n "$last" ] || continue
-            echo "$last" | jq -e '.spec | has("replicas")' > /dev/null || continue
-            kubectl annotate deployment "$dep" -n "$NS" --overwrite "$ANN=$(echo "$last" | jq -c 'del(.spec.replicas)')"
-            echo "$dep: spec.replicas removed from last-applied-configuration"
-          done
+          bash deploy/k8s/scripts/deploy-release.sh release-replicas "${{ steps.ns.outputs.namespace }}"
 
       - name: Apply overlay
         id: apply
         shell: bash
         run: |
+<<<<<<< HEAD
           ENV="${{ inputs.environment }}"
           REGISTRY="${{ steps.tag.outputs.registry }}"
           WRAPPER="deploy/k8s/overlays/.deploy-$ENV"
@@ -614,6 +595,9 @@ jobs:
           # load restrictor rejects it and kubectl apply -k cannot relax it.
           kubectl kustomize --load-restrictor LoadRestrictionsNone "$WRAPPER" |
             bash scripts/split-cluster-scope.sh app | kubectl apply -f -
+=======
+          bash deploy/k8s/scripts/deploy-release.sh render "deploy/k8s/overlays/${{ inputs.environment }}" "${{ steps.tag.outputs.registry }}" "$RUNNER_TEMP/image-digests" | kubectl apply -f -
+>>>>>>> origin/development
           # The former secret-rotation CronJob (issue #424) held write rights on every
           # Secret; apply never prunes, so remove what an older deploy left behind.
           kubectl delete cronjob/secret-rotation role/secret-rotator-role \
@@ -686,15 +670,7 @@ jobs:
       - name: Wait for rollout
         shell: bash
         run: |
-          NS="${{ steps.ns.outputs.namespace }}"
-          for dep in discovery-server message-manager financial-scraper financial-scraper-collector trader-trainer \
-                     api-gateway audit-logger dlq-service edge-proxy; do
-            echo "Waiting for rollout of $dep..."
-            if ! kubectl rollout status "deployment/$dep" -n "$NS" --timeout=180s; then
-              echo "::error::Rollout of $dep failed or timed out"
-              exit 1
-            fi
-          done
+          bash deploy/k8s/scripts/deploy-release.sh wait "${{ steps.ns.outputs.namespace }}"
 
       # Runs on the new version, after the rollout; a failure triggers the rollback below.
       - name: Smoke test
@@ -708,8 +684,7 @@ jobs:
         run: |
           NS="${{ steps.ns.outputs.namespace }}"
           VERSION="${{ steps.tag.outputs.version }}"
-          for dep in discovery-server message-manager financial-scraper financial-scraper-collector trader-trainer \
-                     api-gateway audit-logger dlq-service edge-proxy; do
+          for dep in $(bash deploy/k8s/scripts/deploy-release.sh deployments); do
             kubectl annotate deployment "$dep" -n "$NS" --overwrite \
               trading-model.dev/git-sha="${{ steps.src.outputs.sha }}" \
               trading-model.dev/release-version="$VERSION"
@@ -734,22 +709,6 @@ jobs:
         if: ${{ failure() && steps.apply.outcome != 'skipped' }}
         shell: bash
         run: |
-          NS="${{ steps.ns.outputs.namespace }}"
-          # Back to the revision recorded before the overlay: its pod template
-          # names the image digest and the hashed ConfigMaps of release N, which
-          # are still in the namespace (never pruned), so configuration comes
-          # back with the image (issue #410). Only Deployments are rolled back:
-          # docs/deployment/DEPLOY.md lists what is not.
-          # Every deployment is tried: one without a previous revision (first
-          # deploy) must not leave the others on the failed release.
-          failed=0
-          while read -r dep rev; do
-            if [ "$rev" = none ]; then
-              echo "::error::Could not roll back $dep: it did not exist before this deploy"
-              failed=1
-            elif ! kubectl rollout undo "deployment/$dep" -n "$NS" --to-revision="$rev"; then
-              echo "::error::Could not roll back $dep to revision $rev"
-              failed=1
-            fi
-          done < "$RUNNER_TEMP/deploy-revisions"
-          exit "$failed"
+          # Every Deployment back to the revision recorded before the overlay
+          # (image and hashed ConfigMaps of the previous release, issue #410).
+          bash deploy/k8s/scripts/deploy-release.sh rollback "${{ steps.ns.outputs.namespace }}" "$RUNNER_TEMP/deploy-revisions"

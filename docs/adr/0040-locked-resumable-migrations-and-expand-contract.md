@@ -3,7 +3,7 @@
 **Status:** Accepted
 **Date:** 2026-11
 **Related:** [ADR-0020](./0020-database-topology-as-deployed.md) (MySQL as deployed), [ADR-0031](./0031-point-in-time-recovery-hourly-archives.md) (recovery when a migration destroys data)
-**Verified by:** `services/financial-scraper/tests/db/migrate.db.spec.ts` (lock, resume, checksum), manual review 2026-11-05 (expand/contract rule)
+**Verified by:** `services/financial-scraper/tests/db/migrate.db.spec.ts` (lock, resume, checksum), manual review 2026-11-05 (expand/contract rule), `tests/k8s/run-kind.sh` (upgrade step: release N-1 rolled back onto schema N, migrate-down 1 then up)
 
 ## Context
 
