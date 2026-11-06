@@ -16,7 +16,8 @@
 //     spreads them across nodes (ADR-0024): otherwise one node can hold every
 //     replica and its loss takes the whole service down
 //   - singleton Deployments (SINGLETONS) run exactly one pod: replicas: 1,
-//     strategy Recreate, no HPA (ADR-0042 collector, ADR-0043 trainer)
+//     strategy Recreate, no HPA, no canary in deploy.yml (ADR-0042 collector,
+//     ADR-0043 trainer)
 //   - the deploy identities (ADR-0041) cover what the overlays apply: every
 //     kind of the application overlay is in deploy-identity/app-role.yaml (or,
 //     for the cluster-scope ones, cluster-role.yaml), every kind of the
@@ -189,7 +190,22 @@ function signedImages() {
 	return new Set(images[1].match(/- (\S+)/g).map((item) => item.slice(2)));
 }
 
-const errors = [];
+/** Singletons named by a deploy.yml step that runs `deploy-k8s.sh canary*`: a canary is a second pod. */
+function canarySingletons() {
+	const workflow = readFileSync(".github/workflows/deploy.yml", "utf8");
+	const errors = [];
+	for (const step of workflow.split(/^ {6}- name: /m).filter((text) => /deploy-k8s\.sh canary/.test(text))) {
+		const code = step.replace(/#.*$/gm, "");
+		for (const [name, adr] of Object.entries(SINGLETONS)) {
+			if (new RegExp(`(?<![\\w-])${name}(?![\\w-])`).test(code)) {
+				errors.push(`deploy.yml step "${step.split("\n")[0]}": singleton ${name} must get no canary (${adr}: it would run a second pod)`);
+			}
+		}
+	}
+	return errors;
+}
+
+const errors = [...canarySingletons()];
 const deployed = deployImages();
 const released = releaseImages();
 const signed = signedImages();

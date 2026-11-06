@@ -603,8 +603,9 @@ jobs:
           chmod +x deploy/k8s/scripts/deploy-k8s.sh
           TAG="${{ steps.tag.outputs.tag }}"
           # Created in parallel, observed over one CANARY_GATE_SECONDS window.
+          # No singleton here (trader-trainer ADR-0043, collector ADR-0042): a canary is a second pod.
           ./deploy/k8s/scripts/deploy-k8s.sh canary-all "$TAG" 10 \
-            discovery-server message-manager financial-scraper trader-trainer \
+            discovery-server message-manager financial-scraper \
             api-gateway audit-logger dlq-service
 
       # Revision each Deployment runs before the overlay: "Rollback on failure"
@@ -755,7 +756,7 @@ jobs:
         run: |
           NS="${{ steps.ns.outputs.namespace }}"
           export K8S_NAMESPACE="$NS"
-          for dep in discovery-server message-manager financial-scraper trader-trainer \
+          for dep in discovery-server message-manager financial-scraper \
                      api-gateway audit-logger dlq-service; do
             ./deploy/k8s/scripts/deploy-k8s.sh canary-cleanup "$dep"
           done
