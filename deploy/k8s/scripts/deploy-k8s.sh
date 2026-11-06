@@ -570,17 +570,13 @@ release_checks_once() {
     FRESH_SEEN=1
   elif [[ "$strict" == "1" ]]; then
     err "  ✗ no candle persisted in the last 15 min"
-    # Evidence for the next reader: raw counter per target, and target health.
-    prom_query 'fs_candles_persisted_total' >&2 || true
-    prom_query 'up%7Bjob%3D~%22financial-scraper.*%22%7D' >&2 || true
-    kubectl logs -n "$NAMESPACE" deployment/financial-scraper-collector --all-containers --tail=30 >&2 || true
     return 1
   else
     log "  … no market data persisted yet"
   fi
 
   critical="$(prom_query 'ALERTS%7Balertstate%3D%22firing%22%2Cseverity%3D%22critical%22%2Calertname!%3D%22Watchdog%22%7D' \
-    | jq -r '.data.result[].metric.alertname')" || return 1
+    | jq -r '.data.result[].metric | .alertname + (if .job then "{job=\(.job), instance=\(.instance // "")}" else "" end)')" || return 1
   if [[ -n "$critical" ]]; then
     err "  ✗ critical alert(s) firing: $(echo "$critical" | sort -u | paste -sd, -)"
     return 1
