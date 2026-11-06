@@ -30,7 +30,7 @@ interface CachedTarget {
 }
 
 /**
- * The one resolution strategy (ADR-0043): the registry says whether a major
+ * The one resolution strategy (ADR-0044): the registry says whether a major
  * version of the service is alive, the platform says where it is (DNS name of
  * the Service, resolved to an IP; kube-proxy / compose DNS spread the calls).
  * The registered instance IP is never used as the target.

@@ -1,4 +1,4 @@
-# ADR-0043: One Service Resolution Strategy: Registry Says Alive, Platform Says Where
+# ADR-0044: One Service Resolution Strategy: Registry Says Alive, Platform Says Where
 
 **Status:** Accepted
 **Date:** 2026-11

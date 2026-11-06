@@ -56,6 +56,40 @@ describe("RedisSubscriptionStore — real Redis", () => {
 		await expect(replicaA.hlen(topicKey)).resolves.toBe(0);
 	});
 
+	it("should keep the other instances of a service when one unsubscribes", async () => {
+		const second = {
+			...binding,
+			serviceIdentity: {
+				...binding.serviceIdentity,
+				instanceId: "subscriber-2",
+			},
+		} as TopicBinding;
+		await storeOn(replicaA).save(binding);
+		await storeOn(replicaA).save(second);
+
+		await storeOn(replicaB).remove(
+			binding.topic,
+			binding.serviceIdentity.instanceId
+		);
+
+		await expect(storeOn(replicaA).list(binding.topic)).resolves.toEqual([
+			second,
+		]);
+	});
+
+	it("should read an entry written before the consumer-group change", async () => {
+		// Format written by every earlier release: field = instanceId.
+		await replicaA.hset(
+			topicKey,
+			binding.serviceIdentity.instanceId,
+			JSON.stringify({ binding, renewedAt: Date.now() })
+		);
+
+		await expect(storeOn(replicaB).list(binding.topic)).resolves.toEqual([
+			binding,
+		]);
+	});
+
 	it("should unsubscribe on every replica", async () => {
 		await storeOn(replicaA).save(binding);
 
