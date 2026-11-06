@@ -120,25 +120,19 @@ services:
   # ---------------------------------------------------------------------------
   migrate:
     logging: *default-logging
-    # mysql2 is installed at build time: data-net is internal (no registry access at run time).
+    # Same image as the K8s Jobs (deploy/migrate): mysql2 locked, nothing installed at run time.
     build:
-      context: scripts
-      dockerfile_inline: |
-        FROM oven/bun:1.4.4@sha256:1d22548f177f4ff38e0c15baa3c2c46c6c2060ba2d1bc573bb4720b407548f1d
-        WORKDIR /migrations
-        RUN bun add mysql2@3.24.6
+      context: .
+      dockerfile: deploy/migrate/Dockerfile
     container_name: trading-migrate
     restart: "no"
-    command: ["bun", "/migrations/migrate.mjs", "up"]
+    command: ["up"]
     environment:
       DB_HOST: mysql
       DB_PORT: "3306"
       DB_USER: ${MYSQL_USER:-root}
       DB_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       DB_NAME: ${MYSQL_DATABASE:-financial_scraper}
-    volumes:
-      - ./scripts/migrate.mjs:/migrations/migrate.mjs:ro
-      - ./scripts/migrations:/migrations/migrations:ro
     networks:
       - data-net
     depends_on:

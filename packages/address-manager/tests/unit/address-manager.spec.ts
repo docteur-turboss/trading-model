@@ -249,6 +249,16 @@ describe("AddressManager (main)", () => {
 		am.discoveryOrchestrator.recordCallFailure(toInstanceId("instance-1"), 100);
 	});
 
+	it("recordCallSuccess / recordCallFailure delegate to the orchestrator", () => {
+		const am = new AddressManager(makeConfig());
+		const success = jest.spyOn(am.discoveryOrchestrator, "recordCallSuccess");
+		const failure = jest.spyOn(am.discoveryOrchestrator, "recordCallFailure");
+		am.recordCallSuccess(toInstanceId("i-1"), 5);
+		am.recordCallFailure(toInstanceId("i-1"), 7);
+		expect(success).toHaveBeenCalledWith(toInstanceId("i-1"), 5);
+		expect(failure).toHaveBeenCalledWith(toInstanceId("i-1"), 7);
+	});
+
 	it("should get metrics", () => {
 		const am = new AddressManager(makeConfig());
 		const metrics = am.metricsCollector.getMetrics();

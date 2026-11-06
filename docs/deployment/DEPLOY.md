@@ -137,11 +137,27 @@ missing rule loses nothing, but those copies are then never expired.
 2. Resolve every image tag to a digest (fails if the release was not published)
 3. Check sealed secrets (production: controller CRD present, no placeholder)
    Check ingress hosts (production: no example.com host left, see KUBERNETES.md "Set the Ingress hosts"; staging: warning)
-4. Apply cluster-scope objects (namespace, ClusterRoles), SPIFFE node components, run database migrations
+4. Apply cluster-scope objects (namespace, ClusterRoles), SPIFFE node components, run database migrations (existing cluster: `MYSQL_MIGRATE_PASSWORD` must be in `trading-model-secrets` first; both environments fail with an explicit error if it is not sealed; the deploy first applies the environment's SealedSecret (`deploy/k8s/secrets/trading-model-sealed-secrets.yaml`, staging `deploy/k8s/overlays/staging/sealed-secrets.yaml`) and waits for the controller to create the key; if the file lacks it, add ONLY that key with `kubeseal --merge-into` (see `sealed-secrets.md`, "Adding one key"): a single-key SealedSecret erases the other keys of the live Secret, and `init-sealed-secrets.sh` draws random values for every key not provided, `MYSQL_ROOT_PASSWORD` included; the script refuses a file missing a live key)
 5. Canary gate on live traffic (if enabled)
 6. Apply overlay (deploy/k8s/overlays/<env>, images pinned by digest; namespaced part, application identity)
 7. Wait for rollout of all services, smoke test
 ```
+
+**Ingestion during a release.** `financial-scraper-collector` is a singleton
+(`replicas: 1`, `Recreate`, ADR-0042): collection stops from the old pod's
+shutdown (up to `terminationGracePeriodSeconds`, 360 s) until the new pod is
+ready and has run a cycle. Expect a gap of up to ~6 min plus startup; candles
+the source can replay are caught up by the publish backlog and cursors. The
+`Verify market data resumed` step waits up to 10 min for
+`fs_candles_persisted_total` > 0 on the new pod. Production: failure and
+rollback if it does not; staging: warning. Tune with
+`MARKET_DATA_RECOVERY_TIMEOUT` / `MARKET_DATA_RECOVERY_MODE=warn`. During the
+gap `MarketDataStale` may fire (15 min window): silence it for the release if
+it does not clear (runbook-market-data-stale.md).
+
+A production rollback recreates the collector (`Recreate`): it opens a second gap
+of the same size, and no market-data check runs after the rollback. Watch
+`MarketDataStale` until it clears.
 
 Rollback on failure is automatic: the workflow returns every Deployment to the
 revision it ran before the overlay (`rollout undo --to-revision`, see
@@ -171,7 +187,7 @@ docker pull ghcr.io/<owner>/discovery-server:2.0.3
 ## Production deployment
 
 1. `bun run release:publish` (on `main`) bumps the versions, writes the CHANGELOG and pushes the tag `vX.Y.Z` ([release.md](../contributing/release.md))
-2. `release.yml` runs the whole CI on the tag, then publishes the 9 images to `ghcr.io/<owner>` as `X.Y.Z`, and as `latest` when it is the highest stable release; its last job, `verify-images`, fails if `deploy.yml` cannot resolve one of them. First release of this pipeline: [release.md, section 4](../contributing/release.md#4-first-release-of-the-current-pipeline) (`v2.0.0` to `v2.0.3` are not deployable)
+2. `release.yml` runs the whole CI on the tag, then publishes the 10 images to `ghcr.io/<owner>` as `X.Y.Z`, and as `latest` when it is the highest stable release; its last job, `verify-images`, fails if `deploy.yml` cannot resolve one of them. First release of this pipeline: [release.md, section 4](../contributing/release.md#4-first-release-of-the-current-pipeline) (`v2.0.0` to `v2.0.3` are not deployable)
 3. The `Deploy` workflow is run against the `production` environment (canary enabled for staged rollout)
 
 ---
@@ -237,6 +253,10 @@ revision: the step reports an error for it and leaves it in place.
 The canary (`deploy-k8s.sh canary`) copies the running pod template, so it runs
 the new image with the configuration of the current release, not the new one.
 
+`deploy-k8s.sh migrate-down` provisions `migrator` itself (job `db-migrate-user`) before rolling the schema back; pass `MIGRATE_IMAGE` of the release being rolled back. Outside `deploy.yml`, set `SEALED_SECRETS_FILE` (the environment's SealedSecret file) when the key is missing. `SEED_MIGRATE_PASSWORD=true` (random password) exists for the kind CI only, which has no Sealed Secrets controller.
+
+Redeploying a tag published before `db-migrate` existed works: the workflow checks out that tag, so its own `deploy.yml` (its own `IMAGES` list) and manifests (root migrations) are used. Only the `Deploy` workflow of the old tag matters, not the current one.
+
 ### Canary gate
 
 `deploy.yml` runs `deploy-k8s.sh canary-all`: the 7 canaries are created in
@@ -267,3 +287,6 @@ Or via the deploy script:
 ```bash
 ./deploy/k8s/scripts/deploy-k8s.sh rollback <service>
 ```
+
+Schema: `deploy-k8s.sh migrate-down [N|all]`, see the runbook
+[Database Rollback](../operations/runbooks/runbook-deployment-failure.md#database-rollback).

@@ -28,8 +28,9 @@ Metrics, exported by every discovery-server replica:
 ## InstanceCountLow
 
 `max by (service) (discovery_registered_instances_per_service) < 2` while the
-same service had 2 or more instances at some point in the last day, for
-2 minutes. Single-replica environments (compose, staging) never fire.
+same service had 2 or more instances for 15 minutes at some point in the last day, for
+2 minutes. Single-replica environments (compose, staging) never fire, nor does
+the surge pod of a rolling update (2 instances for a few minutes).
 
 ### Symptom
 

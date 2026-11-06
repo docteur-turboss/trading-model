@@ -31,6 +31,8 @@ jobs:
       - run: bun run adr:check
       - run: bun run reach:check
       - run: bun run config:check
+      - name: Workflows parse as YAML
+        run: python3 scripts/check-workflows.py
 
   typecheck:
     runs-on: ubuntu-latest
@@ -117,6 +119,10 @@ jobs:
         run: bash tests/k8s/canary-gate.test.sh
       - name: Test the cluster prerequisites check
         run: bash tests/k8s/check-prereqs.test.sh
+      - name: Test the deploy Slack notification (stub curl)
+        run: bash tests/k8s/notify-slack.test.sh
+      - name: Test the migrations script (MYSQL_MIGRATE_PASSWORD guard)
+        run: bash tests/k8s/run-migrations.test.sh
       - name: Test the release steps (deploy-release.sh)
         run: bash tests/k8s/deploy-release.test.sh
 

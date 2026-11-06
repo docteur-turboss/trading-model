@@ -2,7 +2,7 @@
 # =============================================================================
 #  deploy-k8s.sh — Kubernetes Deployment Script for Trading Model
 #  Usage:
-#    ./deploy-k8s.sh [-n <namespace>] apply           # Apply all manifests
+#    ./deploy-k8s.sh [-n <namespace>] apply           # Apply all manifests (dev cluster only, ALLOW_DEV_APPLY=1)
 #    ./deploy-k8s.sh [-n <namespace>] apply <service> # Apply a single service
 #    ./deploy-k8s.sh [-n <namespace>] delete          # Delete all resources
 #    ./deploy-k8s.sh [-n <namespace>] status          # Show deployment status
@@ -11,6 +11,7 @@
 #    ./deploy-k8s.sh [-n <namespace>] canary <service> [image-tag] [percentage]
 #    ./deploy-k8s.sh [-n <namespace>] canary-all <image-tag> <percentage> <service>...
 #    ./deploy-k8s.sh [-n <namespace>] smoke-test      # Run smoke tests
+#    ./deploy-k8s.sh [-n <namespace>] verify-market-data  # Wait until the collector persists candles again (ADR-0042)
 #  Namespace: K8S_NAMESPACE env or -n/--namespace (default: trading-model)
 # =============================================================================
 
@@ -69,8 +70,23 @@ check_prereqs() {
   fi
 }
 
+# apply renders the base with :latest tags and none of the deploy.yml gates
+# (SealedSecrets, audit anchor, Object Lock, age recipients, alerting).
+# Only a local development cluster may use it, and only on request.
+require_dev_cluster() {
+  local ctx
+  ctx="$(kubectl config current-context 2>/dev/null || true)"
+  if [[ "${ALLOW_DEV_APPLY:-}" != "1" || ! "$ctx" =~ ^(kind-|k3d-|minikube$|docker-desktop$) ]]; then
+    err "apply is for local development clusters only (context '${ctx:-none}')."
+    err "Set ALLOW_DEV_APPLY=1 on a kind-*, k3d-*, minikube or docker-desktop context."
+    err "Staging and production deploy through .github/workflows/deploy.yml (docs/deployment/DEPLOY.md)."
+    exit 1
+  fi
+}
+
 cmd_apply() {
   local service="${1:-}"
+  require_dev_cluster
 
   if [[ -n "$service" ]]; then
     log "Applying manifests for service: $service"
@@ -179,14 +195,14 @@ cmd_migrate_down() {
 
   log "Preparing database rollback (count=$count)..."
 
-  # Ensure the migration ConfigMap is up-to-date.
-  kubectl create configmap migration-files -n "$NAMESPACE" \
-    --from-file=migrate.mjs=scripts/migrate.mjs \
-    --from-file=scripts/migrations \
-    --dry-run=client -o yaml | kubectl apply -f -
+  # Provision `migrator` first (after a password rotation, or on a cluster no
+  # deploy has reached yet, the rollback would fail with Access denied).
+  bash "$(dirname "${BASH_SOURCE[0]}")/run-migrations.sh" "$NAMESPACE" user-only
 
-  # ROLLBACK_COUNT lives in its own ConfigMap: applying migration-files with
-  # only this key would prune migrate.mjs and the SQL files from it.
+  # The migrations come from the db-migrate image. Pin MIGRATE_IMAGE to the
+  # digest of the release whose migrations are rolled back (an older image
+  # lacks the .down.sql of newer migrations).
+  # ROLLBACK_COUNT lives in its own ConfigMap, required by the job.
   kubectl create configmap migration-rollback -n "$NAMESPACE" \
     --from-literal=ROLLBACK_COUNT="$count" \
     --dry-run=client -o yaml | kubectl apply -f -
@@ -195,7 +211,8 @@ cmd_migrate_down() {
   kubectl delete job -n "$NAMESPACE" db-migrate-down --ignore-not-found &>/dev/null || true
 
   log "Starting migration rollback job..."
-  kubectl apply -n "$NAMESPACE" -f "${K8S_DIR}/jobs/migration-job-down.yaml"
+  sed "s#ghcr.io/trading-model/db-migrate:latest#${MIGRATE_IMAGE:-ghcr.io/trading-model/db-migrate:latest}#" \
+    "${K8S_DIR}/jobs/migration-job-down.yaml" | kubectl apply -n "$NAMESPACE" -f -
 
   log "Waiting for migration rollback to complete..."
   if ! kubectl wait --for=condition=complete job/db-migrate-down -n "$NAMESPACE" --timeout=180s; then
@@ -513,6 +530,39 @@ cmd_smoke_test() {
   fi
 }
 
+# ADR-0042: the collector is a singleton (Recreate), so a release stops
+# collection for up to terminationGracePeriodSeconds plus the startup. Success
+# is the new pod persisting candles again (fs_candles_persisted_total > 0: the
+# counter starts at 0 in a new pod, and MarketDataStale watches its increase).
+# MARKET_DATA_RECOVERY_TIMEOUT seconds (default 600); on timeout exit 1, or only
+# warn with MARKET_DATA_RECOVERY_MODE=warn.
+cmd_verify_market_data() {
+  local timeout="${MARKET_DATA_RECOVERY_TIMEOUT:-600}" mode="${MARKET_DATA_RECOVERY_MODE:-fail}"
+  local deadline=$((SECONDS + timeout)) persisted="" metrics="" last_err="no attempt made"
+  log "Waiting up to ${timeout}s for the collector to persist candles..."
+  while [[ "$SECONDS" -lt "$deadline" ]]; do
+    if metrics="$(kubectl exec -n "$NAMESPACE" deployment/financial-scraper-collector -c financial-scraper-collector --       curl -sSk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem       https://localhost:3000/metrics 2>&1)"; then
+      persisted="$(printf '%s
+' "$metrics" | awk '/^fs_candles_persisted_total/ {s += $NF} END {print s + 0}')"
+      last_err="no fs_candles_persisted_total candle yet (0 persisted)"
+    else
+      persisted=0
+      last_err="/metrics unreadable: ${metrics}"
+    fi
+    if [[ "${persisted:-0}" -gt 0 ]]; then
+      log "Collector persisted ${persisted} candle(s): market data is flowing again."
+      return 0
+    fi
+    sleep 10
+  done
+  if [[ "$mode" == "warn" ]]; then
+    echo "::warning::Collector persisted no candle within ${timeout}s after the release: ${last_err} (runbook-market-data-stale.md)"
+    return 0
+  fi
+  err "Collector persisted no candle within ${timeout}s after the release: ${last_err} (runbook-market-data-stale.md)."
+  exit 1
+}
+
 # ─── Main ─────────────────────────────────────────────────────────────────────
 
 check_prereqs
@@ -565,6 +615,9 @@ case "${1:-help}" in
   smoke-test)
     cmd_smoke_test
     ;;
+  verify-market-data)
+    cmd_verify_market_data
+    ;;
   *)
     echo "Trading Model K8s Deploy Script"
     echo ""
@@ -579,6 +632,7 @@ case "${1:-help}" in
     echo "  $0 [-n namespace] canary-cleanup <srv>  Remove canary deployment"
     echo "  $0 [-n namespace] pin                     Pin deployed images to digests"
     echo "  $0 [-n namespace] smoke-test            Run smoke tests"
+    echo "  $0 [-n namespace] verify-market-data    Wait for the collector to persist candles again"
     echo "Namespace defaults to trading-model (env: K8S_NAMESPACE)."
     echo "Feature flags (FEATURE_FLAGS=flag1,flag2): canary-auto-cleanup"
     exit 1

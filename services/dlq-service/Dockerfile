@@ -36,6 +36,9 @@ COPY --from=build /app/services/dlq-service/package.json ./services/dlq-service/
 COPY --from=build /app/services/dlq-service/dist ./services/dlq-service/dist
 
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+ARG BUILD_VERSION=dev
+ARG GIT_SHA=unknown
+ENV BUILD_VERSION=$BUILD_VERSION GIT_SHA=$GIT_SHA
 USER appuser
 
 EXPOSE 3000

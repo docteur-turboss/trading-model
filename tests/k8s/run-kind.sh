@@ -32,7 +32,7 @@ K="kubectl --context kind-${CLUSTER}"
 API_KEY="dev-token-change-me" # AUTH_TOKENS test value injected by ci-render.mjs
 SERVICES="discovery-server message-manager financial-scraper trader-trainer api-gateway audit-logger dlq-service"
 # First-party images: the IMAGES of deploy.yml.
-IMAGES="$SERVICES spire-tools backup-tools"
+IMAGES="$SERVICES spire-tools backup-tools db-migrate"
 PREVIOUS_REF="${KIND_PREVIOUS_REF:-HEAD^1}"
 # Release N-1 checkout, image digests, recorded revisions: kept between the
 # steps of the CI job, removed by `delete`.
@@ -60,12 +60,16 @@ wait_for() {
 	done
 }
 
-# Builds the 9 images of the checkout `$1` as ghcr.io/trading-model/<image>:$2.
+# Builds the 10 images of the checkout `$1` as ghcr.io/trading-model/<image>:$2.
 build_images() {
 	local root="$1" tag="$2" svc
 	# shellcheck disable=SC2086
 	docker compose -f "$root/docker-compose.yml" build $SERVICES spire-bootstrap
 	docker build -q -t "ghcr.io/trading-model/backup-tools:$tag" "$root/deploy/backup"
+	# N-1 may predate the image: its digest entry is a stand-in built from this checkout.
+	local mroot="$root"
+	[ -f "$root/deploy/migrate/Dockerfile" ] || mroot="$ROOT"
+	docker build -q -t "ghcr.io/trading-model/db-migrate:$tag" -f "$mroot/deploy/migrate/Dockerfile" "$mroot"
 	docker tag "${COMPOSE_PROJECT_NAME}-spire-bootstrap" "ghcr.io/trading-model/spire-tools:$tag"
 	for svc in $SERVICES; do
 		docker tag "${COMPOSE_PROJECT_NAME}-${svc}" "ghcr.io/trading-model/${svc}:$tag"
@@ -151,7 +155,7 @@ release_script() {
 # The migrations of the checkout `$1`, through its own run-migrations.sh.
 migrations() {
 	(cd "$1" && kubectl config use-context "kind-${CLUSTER}" >/dev/null &&
-		bash deploy/k8s/scripts/run-migrations.sh "$NS")
+		SEED_MIGRATE_PASSWORD=true bash deploy/k8s/scripts/run-migrations.sh "$NS")
 }
 
 # The overlay of the checkout `$1`, pinned to the digests of file `$2` as

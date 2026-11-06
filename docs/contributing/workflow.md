@@ -27,7 +27,7 @@ main ──────────────────╂─── (hotfix)
 | `fix/*`       | `development` | Bug fix                                     |
 | `refactor/*`  | `development` | Refactoring                                 |
 | `docs/*`      | `development` | Documentation                               |
-| `release/*`   | `main`        | Urgent hotfix (direct merge to `main`)      |
+| `hotfix/*`    | `main`        | Urgent hotfix (direct merge to `main`)      |
 
 ---
 
@@ -202,7 +202,7 @@ dev  ──→ commit ──→ push ──→ PR ──→ merge ──→ beta
 
 main ←── merge dev ────→ tag v* ──→ release.yml ──→ stable deploy
               (if OK)     bun run   full CI           deploy.yml
-                          release   docker (9 images) production
+                          release   docker (10 images) production
 ```
 
 ---
