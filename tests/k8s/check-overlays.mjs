@@ -187,6 +187,11 @@ for (const env of OVERLAYS) {
 		}
 	}
 
+	// Issue #433: the images that deliver mTLS identities are pinned by digest.
+	for (const [, image] of rendered.matchAll(/image: (\S*(?:spiffe-helper|spire-server|spire-agent|spiffe-csi-driver|csi-node-driver-registrar):\S+)/g)) {
+		if (!image.includes("@sha256:")) errors.push(`${env}: image ${image} is not pinned by digest`);
+	}
+
 	for (const [dir, file] of [[`deploy/k8s/overlays/${env}`, "app-role.yaml"], [`deploy/k8s/overlays/${env}/node-agents`, "node-role.yaml"]]) {
 		for (const kind of uncoveredKinds(documents(render(dir)), file)) {
 			errors.push(env + ": " + kind + " of " + dir + " is not covered by deploy/k8s/deploy-identity/" + file + " (or cluster-role.yaml): the deploy identity could not apply it");
