@@ -14,7 +14,11 @@ export interface RedisNodeAddress {
 export interface RedisSentinelConfig {
 	sentinels: RedisNodeAddress[];
 	name: string;
+	/** ACL user of the data nodes (default user when absent). */
+	username?: string;
 	password?: string;
+	/** Password the sentinels themselves require (`requirepass` on a sentinel). */
+	sentinelPassword?: string;
 }
 
 export interface RedisClusterNodesConfig {

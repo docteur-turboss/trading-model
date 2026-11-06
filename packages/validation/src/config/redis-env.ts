@@ -10,5 +10,7 @@ export const RedisEnvSchema = z.object({
 	/** `host:port,host:port`, each host an IP address or a DNS name. */
 	REDIS_SENTINELS: z.string().optional(),
 	REDIS_SENTINEL_MASTER_NAME: z.string().optional(),
+	REDIS_USERNAME: z.string().optional(),
 	REDIS_PASSWORD: z.string().optional(),
+	REDIS_SENTINEL_PASSWORD: z.string().optional(),
 });

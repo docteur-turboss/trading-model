@@ -40,7 +40,9 @@ export function createSentinel(
 	const client = new Redis({
 		sentinels: config.sentinels,
 		name: config.name,
+		username: config.username,
 		password: config.password,
+		sentinelPassword: config.sentinelPassword,
 		...BASE_REDIS_OPTIONS,
 		maxRetriesPerRequest: null,
 		// Follow +switch-master: without it a client left on a frozen or

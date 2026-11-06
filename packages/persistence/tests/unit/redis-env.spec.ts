@@ -52,6 +52,8 @@ describe("redisConnectionFromEnv", () => {
 				],
 				name: "trading",
 				password: "secret",
+				username: undefined,
+				sentinelPassword: undefined,
 			},
 		});
 	});
@@ -69,6 +71,8 @@ describe("redisConnectionFromEnv", () => {
 				sentinels: [{ host: "10.0.0.7", port: 26379 }],
 				name: "mymaster",
 				password: undefined,
+				username: undefined,
+				sentinelPassword: undefined,
 			},
 		});
 	});
