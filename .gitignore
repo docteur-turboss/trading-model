@@ -167,3 +167,6 @@ observability/alertmanager-credentials/
 restore-drill-timings.json
 # Generated TypeDoc HTML (bun run docs:generate, ADR-0037)
 docs/architecture/code/
+
+# Digest-pinning wrapper written by deploy/k8s/scripts/deploy-release.sh render
+deploy/k8s/overlays/.deploy-*/

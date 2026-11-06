@@ -120,25 +120,19 @@ services:
   # ---------------------------------------------------------------------------
   migrate:
     logging: *default-logging
-    # mysql2 is installed at build time: data-net is internal (no registry access at run time).
+    # Same image as the K8s Jobs (deploy/migrate): mysql2 locked, nothing installed at run time.
     build:
-      context: scripts
-      dockerfile_inline: |
-        FROM oven/bun:1.4.4@sha256:1d22548f177f4ff38e0c15baa3c2c46c6c2060ba2d1bc573bb4720b407548f1d
-        WORKDIR /migrations
-        RUN bun add mysql2@3.24.6
+      context: .
+      dockerfile: deploy/migrate/Dockerfile
     container_name: trading-migrate
     restart: "no"
-    command: ["bun", "/migrations/migrate.mjs", "up"]
+    command: ["up"]
     environment:
       DB_HOST: mysql
       DB_PORT: "3306"
       DB_USER: ${MYSQL_USER:-root}
       DB_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       DB_NAME: ${MYSQL_DATABASE:-financial_scraper}
-    volumes:
-      - ./scripts/migrate.mjs:/migrations/migrate.mjs:ro
-      - ./scripts/migrations:/migrations/migrations:ro
     networks:
       - data-net
     depends_on:
@@ -159,6 +153,7 @@ services:
       - '${DISCOVERY_PORT:-8443}:3000'
     environment:
       <<: *core-env
+      SERVICE_NAME: discovery-server
       ERROR_URL_WEBHOOK: ${ERROR_URL_WEBHOOK:-}
       CLEANUP_SERVICE_INTERVAL_MS: '600000'
       # Signs the instance tokens kept in Redis: stable across restarts.
@@ -184,7 +179,7 @@ services:
   # ---------------------------------------------------------------------------
   spire-server:
     logging: *default-logging
-    image: ghcr.io/spiffe/spire-server:1.11.3  # pin: digest unavailable without GHCR auth
+    image: ghcr.io/spiffe/spire-server:1.15.5  # pin: digest unavailable without GHCR auth
     container_name: trading-spire-server
     restart: unless-stopped
     # Named volumes are created root-owned: the image user (1000) could not write them.
@@ -414,6 +409,7 @@ services:
       - '${GATEWAY_PORT:-8448}:3000'
     environment:
       <<: *core-env
+      SERVICE_NAME: api-gateway
       DISCOVERY_SERVICE_URL: https://discovery-server:3000
       RATE_LIMIT_WINDOW_MS: '60000'
       RATE_LIMIT_MAX: '100'
@@ -726,6 +722,34 @@ services:
     extra_hosts:
       - 'host.docker.internal:host-gateway'
 
+  # Serves what scripts/backup.sh writes to ${BACKUP_DIR}/metrics (run it with
+  # METRICS_FILE=${BACKUP_DIR}/metrics/backup.prom), as the K8s
+  # backup-metrics-exporter does. Docker has no scheduler: the host runs backup.sh.
+  backup-metrics-exporter:
+    logging: *default-logging
+    image: busybox@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e
+    container_name: trading-backup-metrics
+    restart: unless-stopped
+    user: '65534:65534'
+    command:
+      - sh
+      - -c
+      - |
+        mkdir -p /tmp/metrics
+        echo '# No backup metrics yet' > /tmp/metrics/metrics
+        httpd -f -p 9118 -h /tmp/metrics &
+        while true; do
+          if ls /metrics/*.prom >/dev/null 2>&1; then
+            cat /metrics/*.prom > /tmp/metrics/metrics.tmp
+            mv /tmp/metrics/metrics.tmp /tmp/metrics/metrics
+          fi
+          sleep 5
+        done
+    volumes:
+      - ${BACKUP_DIR:-./backups}/metrics:/metrics:ro
+    networks:
+      - backend-net
+
   alertmanager:
     logging: *default-logging
     image: prom/alertmanager@sha256:e13b6ed5cb929eeaee733479dce55e10eb3bc2e9c4586c705a4e8da41e5eacf5
@@ -735,7 +759,7 @@ services:
       - '${ALERTMANAGER_PORT:-9093}:9093'
     volumes:
       - ./observability/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
-      # One file per key (SLACK_WEBHOOK_URL, PAGERDUTY_ROUTING_KEY, DEADMAN_URL),
+      # One file per key (SLACK_WEBHOOK_URL, PUSHOVER_USER_KEY, PUSHOVER_TOKEN, DEADMAN_URL),
       # see observability/alertmanager.yml. Missing files: notifications fail.
       - ${ALERTMANAGER_CREDENTIALS_DIR:-./observability/alertmanager-credentials}:/etc/alertmanager-credentials:ro
     networks:

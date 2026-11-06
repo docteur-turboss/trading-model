@@ -18,15 +18,11 @@ cached instances), so an instance tripped by one replica is skipped by all.
 The gauge is exported by the **caller** (scrape `job`), labelled with the
 target `instanceId`; values `0=closed, 1=open, 2=half-open`.
 
-> **Known limit (2026-11-04, [#386](https://github.com/docteur-turboss/trading-model/issues/386)):** nothing sets `address_manager_circuit_breaker_state`
-> today, and no caller reports call outcomes to the breaker
-> (`DiscoveryOrchestrator.recordCallFailure` has no caller), so this alert
-> cannot fire yet. The procedure below applies once the breaker is wired; until
-> then a failing dependency shows up as `HighErrorRate`, `HighLatency` or
-> `ServiceDown` ([runbook-latency-and-errors](runbook-latency-and-errors.md),
-> [runbook-service-down](runbook-service-down.md)).
-> message-manager's own breaker is fed today: `mm_circuit_breaker_state`
-> (per subscriber, no alert reads it) shows which deliveries it stopped.
+Outcomes are reported by the message-bus client (`MessageManagerClient`
+publish path); the gauge is set on every transition. Other callers that
+resolve through the address-manager do not report yet, so their dependencies
+are not covered by this alert. message-manager's own breaker is separate:
+`mm_circuit_breaker_state` (per subscriber, no alert reads it).
 
 ## Symptom
 

@@ -32,6 +32,8 @@ export function createRecordingBrokerClient(serviceName: string): {
 	};
 	const addressManager = {
 		findService: async () => ({ host: "10.0.0.1", port: 3000 }),
+		recordCallSuccess: () => undefined,
+		recordCallFailure: () => undefined,
 	};
 	const client = new MessageManagerClient(
 		httpClient as never,

@@ -18,6 +18,7 @@ describe("MessageManagerClient", () => {
 	const mockServiceInstance = {
 		host: "192.168.1.100",
 		port: 3001,
+		instanceId: "mm-1",
 	};
 
 	beforeEach(() => {
@@ -27,6 +28,8 @@ describe("MessageManagerClient", () => {
 		};
 		addressManagerClient = {
 			findService: jest.fn(),
+			recordCallSuccess: jest.fn(),
+			recordCallFailure: jest.fn(),
 		};
 		client = new MessageManagerClient(
 			httpClient,
@@ -162,6 +165,33 @@ describe("MessageManagerClient", () => {
 				// Outlasts the broker's own timeout; never re-sent once it left.
 				{ timeoutMs: PUBLISH_TIMEOUT_MS + 5_000, retryUnsentOnly: true }
 			);
+		});
+
+		it("reports the outcome of a publish to the target's circuit breaker", async () => {
+			addressManagerClient.findService.mockResolvedValue(mockServiceInstance);
+			httpClient.post.mockResolvedValueOnce(undefined);
+			await client.publish({}, {} as any);
+			expect(addressManagerClient.recordCallSuccess).toHaveBeenCalledWith(
+				"mm-1",
+				expect.any(Number)
+			);
+
+			httpClient.post.mockRejectedValueOnce(new Error("down"));
+			await expect(client.publish({}, {} as any)).rejects.toThrow(Error);
+			expect(addressManagerClient.recordCallFailure).toHaveBeenCalledWith(
+				"mm-1",
+				expect.any(Number)
+			);
+		});
+
+		it("counts a business 4xx as a live target, not a breaker failure", async () => {
+			addressManagerClient.findService.mockResolvedValue(mockServiceInstance);
+			httpClient.post.mockRejectedValueOnce(
+				Object.assign(new Error("bad request"), { statusCode: 400 })
+			);
+			await expect(client.publish({}, {} as any)).rejects.toThrow(Error);
+			expect(addressManagerClient.recordCallSuccess).toHaveBeenCalledTimes(1);
+			expect(addressManagerClient.recordCallFailure).not.toHaveBeenCalled();
 		});
 
 		it("should rethrow ServiceUnreachableError when service not found", async () => {

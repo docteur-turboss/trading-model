@@ -6,13 +6,19 @@
 //     would stay on the logical name, which no registry serves; and every
 //     deploy.yml IMAGES entry is built by release.yml; the release.yml sign
 //     matrix holds exactly the deploy.yml IMAGES entries
-//   - production gets its application secrets from SealedSecrets only, never
-//     from a plain Secret (the staging secretGenerator holds dev- values)
+//   - every overlay gets its application secrets from SealedSecrets only, never
+//     from a plain Secret (issue #417)
+//   - no PodDisruptionBudget of staging demands more pods than staging runs
+//     (its drains would block)
 //   - no Deployment driven by an HPA sets spec.replicas: every apply would reset
 //     the pod count the HPA chose (issue #416)
 //   - every Deployment that can run more than one pod (replicas or its HPA)
 //     spreads them across nodes (ADR-0024): otherwise one node can hold every
 //     replica and its loss takes the whole service down
+//   - the deploy identities (ADR-0041) cover what the overlays apply: every
+//     kind of the application overlay is in deploy-identity/app-role.yaml (or,
+//     for the cluster-scope ones, cluster-role.yaml), every kind of the
+//     node-agents overlay in node-role.yaml or cluster-role.yaml
 // Usage: node tests/k8s/check-overlays.mjs   (needs kubectl)
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
@@ -69,6 +75,49 @@ function unspreadDeployments(docs) {
 		.map((doc) => doc.name);
 }
 
+const CLUSTER_KINDS = new Set(["Namespace", "ClusterRole", "ClusterRoleBinding", "CSIDriver"]);
+// kind -> [apiGroup, resource]
+const RESOURCES = {
+	ConfigMap: ["", "configmaps"], Secret: ["", "secrets"], Service: ["", "services"],
+	PersistentVolumeClaim: ["", "persistentvolumeclaims"], ServiceAccount: ["", "serviceaccounts"],
+	Deployment: ["apps", "deployments"], StatefulSet: ["apps", "statefulsets"], DaemonSet: ["apps", "daemonsets"],
+	CronJob: ["batch", "cronjobs"], Job: ["batch", "jobs"],
+	Ingress: ["networking.k8s.io", "ingresses"], NetworkPolicy: ["networking.k8s.io", "networkpolicies"],
+	PodDisruptionBudget: ["policy", "poddisruptionbudgets"],
+	HorizontalPodAutoscaler: ["autoscaling", "horizontalpodautoscalers"],
+	VerticalPodAutoscaler: ["autoscaling.k8s.io", "verticalpodautoscalers"],
+	Role: ["rbac.authorization.k8s.io", "roles"], RoleBinding: ["rbac.authorization.k8s.io", "rolebindings"],
+	ClusterRole: ["rbac.authorization.k8s.io", "clusterroles"],
+	ClusterRoleBinding: ["rbac.authorization.k8s.io", "clusterrolebindings"],
+	SealedSecret: ["bitnami.com", "sealedsecrets"], Namespace: ["", "namespaces"],
+	CSIDriver: ["storage.k8s.io", "csidrivers"],
+};
+
+/** "group/resource" pairs of a flow-style rules file (deploy/k8s/deploy-identity). */
+function grantedResources(file) {
+	const granted = new Set();
+	const text = readFileSync("deploy/k8s/deploy-identity/" + file, "utf8");
+	for (const [, groups, resources] of text.matchAll(/apiGroups: \[([^\]]*)\]\n\s+(?:resourceNames: \[[^\]]*\]\n\s+)?resources: \[([^\]]*)\]/g)) {
+		for (const g of groups.split(",")) {
+			for (const r of resources.split(",")) granted.add(g.trim().replace(/"/g, "") + "/" + r.trim());
+		}
+	}
+	return granted;
+}
+
+/** Kinds of docs that the identity files do not let the deploy apply. */
+function uncoveredKinds(docs, namespacedFile) {
+	const cluster = grantedResources("cluster-role.yaml");
+	const namespaced = grantedResources(namespacedFile);
+	const missing = new Set();
+	for (const { kind } of docs.filter((d) => d.kind)) {
+		const [group, resource] = RESOURCES[kind] ?? [];
+		if (!resource) missing.add(kind + " (unknown kind: add it to RESOURCES)");
+		else if (!(CLUSTER_KINDS.has(kind) ? cluster : namespaced).has(group + "/" + resource)) missing.add(kind);
+	}
+	return [...missing];
+}
+
 /** Deployments driven by an HPA that still set spec.replicas. */
 function replicasUnderHpa(docs) {
 	const targets = new Set();
@@ -114,7 +163,7 @@ const released = releaseImages();
 const signed = signedImages();
 
 // release.yml verify-images resolves deploy.yml IMAGES: one never built fails every release.
-// deploy.yml also refuses any IMAGES digest without a release.yml signature (ADR-0038).
+// deploy.yml also refuses any IMAGES digest without a release.yml signature (ADR-0041).
 for (const image of deployed) {
 	if (!released.has(image)) errors.push(`deploy.yml IMAGES: ${image} is not built by release.yml`);
 	if (!signed.has(image)) errors.push(`deploy.yml IMAGES: ${image} is not signed by release.yml`);
@@ -138,6 +187,12 @@ for (const env of OVERLAYS) {
 		}
 	}
 
+	for (const [dir, file] of [[`deploy/k8s/overlays/${env}`, "app-role.yaml"], [`deploy/k8s/overlays/${env}/node-agents`, "node-role.yaml"]]) {
+		for (const kind of uncoveredKinds(documents(render(dir)), file)) {
+			errors.push(env + ": " + kind + " of " + dir + " is not covered by deploy/k8s/deploy-identity/" + file + " (or cluster-role.yaml): the deploy identity could not apply it");
+		}
+	}
+
 	for (const name of unspreadDeployments(documents(rendered))) {
 		errors.push(`${env}: Deployment ${name} can run several pods without topologySpreadConstraints on kubernetes.io/hostname (DoNotSchedule)`);
 	}
@@ -146,14 +201,25 @@ for (const env of OVERLAYS) {
 		errors.push(`${env}: Deployment ${name} is driven by an HPA but sets spec.replicas (each apply would reset it)`);
 	}
 
-	if (env === "production") {
+	if (env === "staging") {
+		for (const pdb of documents(rendered).filter((doc) => doc.kind === "PodDisruptionBudget")) {
+			if (/^ {2}minAvailable: [1-9]/m.test(pdb.text)) {
+				errors.push(`staging: PodDisruptionBudget ${pdb.name} keeps minAvailable (one replica: drains would block)`);
+			}
+		}
+		if (!rendered.includes("nginx.ingress.kubernetes.io/whitelist-source-range")) {
+			errors.push("staging: no ingress whitelist-source-range");
+		}
+	}
+
+	{
 		const docs = documents(rendered);
 		for (const name of SEALED_ONLY) {
 			if (docs.some((doc) => doc.kind === "Secret" && doc.name === name)) {
-				errors.push(`production: Secret ${name} must come from a SealedSecret`);
+				errors.push(`${env}: Secret ${name} must come from a SealedSecret`);
 			}
 			if (!docs.some((doc) => doc.kind === "SealedSecret" && doc.name === name)) {
-				errors.push(`production: no SealedSecret ${name}`);
+				errors.push(`${env}: no SealedSecret ${name}`);
 			}
 		}
 	}

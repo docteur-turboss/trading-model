@@ -69,7 +69,17 @@ kubectl kustomize --load-restrictor LoadRestrictionsNone deploy/k8s/overlays/sta
 bash deploy/k8s/scripts/run-migrations.sh trading-model-staging
 ```
 
-The CI `k8s` job runs the same sequence on kind, then the two gates of
+### Staging secrets, PDBs and access (issue #417)
+
+- **Secrets:** staging reads a SealedSecret (`overlays/staging/sealed-secrets.yaml`, placeholders `AgCHANGE_ME` in git). Until a human seals it on the staging cluster with `OVERLAY=staging bash scripts/init-sealed-secrets.sh` (then commits the file), `deploy.yml` refuses to deploy staging ("placeholder SealedSecrets"). The CI `k8s` job replaces it with a Secret of public test values (`tests/k8s/ci-render.mjs`): kind has no controller.
+- **PDBs:** every PodDisruptionBudget uses `maxUnavailable: 1` in staging (single replicas: `minAvailable: 2` would block `kubectl drain`). HPAs are pinned to 1 pod.
+- **Staging access:** both Ingresses carry `nginx.ingress.kubernetes.io/whitelist-source-range`, set in `overlays/staging/kustomization.yaml`. The committed value (`192.0.2.0/24`, TEST-NET-1) lets nobody in: replace it with the operators' CIDRs, comma separated.
+
+The CI `k8s` job runs the same sequence on kind for release N-1 (the commit
+before: the PR's base branch), upgrades it to N through the release steps of
+`deploy.yml` (`deploy/k8s/scripts/deploy-release.sh`: images pinned by digest,
+migrations, rollout, rollback), first with a forced failure that must roll every
+Deployment back to N-1, and runs `migrate-down 1` then the migrations again; then the two gates of
 `deploy.yml` (`deploy-k8s.sh smoke-test`, and the canary on api-gateway with
 traffic through edge-proxy, which must also fail without traffic), and checks
 the stack (`tests/k8s/run-kind.sh`). The `deploy.yml` workflow runs these steps (migrations go before the rollout,
@@ -126,12 +136,11 @@ DNS records, cert-manager and the ingress controller stay outside this repo.
 
 ### 4. Deploy all resources
 
-```bash
-# Using the deploy script
-./deploy/k8s/scripts/deploy-k8s.sh apply
+Staging and production deploy only through the `deploy.yml` workflow (digests, overlay, pre-checks: see [DEPLOY.md](DEPLOY.md)). `deploy-k8s.sh apply` applies the base with `:latest` tags and none of those checks, so it refuses any context but a local development cluster (`kind-*`, `k3d-*`, `minikube`, `docker-desktop`) and needs `ALLOW_DEV_APPLY=1`. Do not run `kubectl apply -k deploy/k8s/` on a shared cluster either.
 
-# Or directly with Kustomize
-kubectl apply -k deploy/k8s/
+```bash
+# Local development cluster only
+ALLOW_DEV_APPLY=1 ./deploy/k8s/scripts/deploy-k8s.sh apply
 
 # Verify deployment
 ./deploy/k8s/scripts/deploy-k8s.sh status
@@ -147,9 +156,7 @@ kubectl apply -k deploy/k8s/
 
 ### Standard deployment
 
-```bash
-./deploy/k8s/scripts/deploy-k8s.sh apply <service-name>
-```
+Run `deploy.yml`. `deploy-k8s.sh apply <service-name>` exists for local development clusters only (`ALLOW_DEV_APPLY=1`).
 
 ### Canary deployment
 
@@ -171,6 +178,10 @@ kubectl apply -k deploy/k8s/
 kubectl rollout history -n trading-model deployment/<service-name>
 ./deploy/k8s/scripts/deploy-k8s.sh rollback <service-name> <revision>
 ```
+
+Several services or the schema: runbook
+[Deployment Failure](../operations/runbooks/runbook-deployment-failure.md#full-cluster-rollback-multi-service-deployment)
+and [Database Rollback](../operations/runbooks/runbook-deployment-failure.md#database-rollback).
 
 ## Scaling
 
@@ -203,10 +214,7 @@ kubectl scale deployment -n trading-model <service-name> --replicas=5
   by the `mysql-cluster-init` Job; per-pod `server_id` / local address passed
   as mysqld arguments
 - 20Gi PVC per replica
-- Schema from the `db-migrate` Job (`scripts/migrations`, `run-migrations.sh`),
-  the same migrations as compose: no second copy of the schema. The script
-  waits for `mysql-cluster-init` first: during the bootstrap the server is
-  `super_read_only`
+- Schema from the `db-migrate` Job (`run-migrations.sh`), the same migrations as compose: no second copy of the schema. The script waits for `mysql-cluster-init` first (during the bootstrap the server is `super_read_only`). The Job runs the released `db-migrate` image (`deploy/migrate`: `migrate.mjs`, `scripts/migrations`, `mysql2` locked by its `bun.lock`; pinned by digest by `deploy.yml`): nothing is installed at run time. It connects as the MySQL user `migrator` (DDL/DML on `financial_scraper` only, password `MYSQL_MIGRATE_PASSWORD`), created or updated on every deploy by the idempotent Job `db-migrate-user` (the only one that reads `MYSQL_ROOT_PASSWORD`; works on a database initialised before the user existed). The password must match `[A-Za-z0-9_.@%+=-]`
 - PodDisruptionBudget: minAvailable 1
 
 ### MongoDB (Replica Set)

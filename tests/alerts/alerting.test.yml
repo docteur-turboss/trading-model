@@ -184,6 +184,25 @@ tests:
         alertname: ServiceDown
         exp_alerts: []
 
+  # Series shape of the real gauge: one series per target instanceId, exported
+  # by the caller (job). 1 = open, held for the 1m 'for'.
+  - name: an open address-manager breaker fires CircuitBreakerOpen
+    interval: 1m
+    input_series:
+      - series: 'address_manager_circuit_breaker_state{job="trader-trainer",instance="t",instanceId="mm-1"}'
+        values: '0 1x10'
+      - series: 'address_manager_circuit_breaker_state{job="trader-trainer",instance="t",instanceId="mm-2"}'
+        values: '0x11'
+    alert_rule_test:
+      - eval_time: 8m
+        alertname: CircuitBreakerOpen
+        exp_alerts:
+          - exp_labels: {severity: critical, job: trader-trainer, instance: t, instanceId: mm-1}
+            exp_annotations:
+              summary: 'Circuit breaker open on trader-trainer'
+              description: 'The circuit breaker of trader-trainer for instance mm-1 is in OPEN state: calls to that instance are refused.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-circuit-breaker-open.md'
+
   # K8s: the HTTP-only replicas persist nothing, the collector does.
   - name: market data flows through the collector only
     interval: 1m
@@ -357,29 +376,30 @@ tests:
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-discovery.md#heartbeatstopped'
 
   # api-gateway drops from 2 instances to 1: redundancy lost. trader-trainer
-  # always ran one instance (staging, compose): no alert, ever.
+  # always ran one instance (staging, compose), apart from the surge pod of a
+  # rolling update (maxSurge 1, a few minutes at 2): no alert, ever.
   - name: instance count alerts on lost redundancy only
     interval: 1m
     input_series:
       - series: 'discovery_registered_instances_per_service{job="discovery-server",instance="d1",service="api-gateway"}'
-        values: '2x10 1x10'
+        values: '2x30 1x10'
       - series: 'discovery_registered_instances_per_service{job="discovery-server",instance="d2",service="api-gateway"}'
-        values: '2x10 1x10'
+        values: '2x30 1x10'
       - series: 'discovery_registered_instances_per_service{job="discovery-server",instance="d1",service="trader-trainer"}'
-        values: '1x20'
+        values: '1x10 2x8 1x22'
       - series: 'discovery_registered_instances_per_service{job="discovery-server",instance="d1",service="dlq-service"}'
-        values: '2x20'
+        values: '2x40'
     alert_rule_test:
-      - eval_time: 8m
+      - eval_time: 28m
         alertname: InstanceCountLow
         exp_alerts: []
-      - eval_time: 16m
+      - eval_time: 38m
         alertname: InstanceCountLow
         exp_alerts:
           - exp_labels: {severity: critical, service: api-gateway}
             exp_annotations:
               summary: 'Low instance count for service api-gateway'
-              description: 'Service api-gateway had 2+ instances in the last day and now has fewer than 2: redundancy is lost (single-replica environments never fire).'
+              description: 'Service api-gateway had 2+ instances for 15 min in the last day and now has fewer than 2: redundancy is lost (single-replica environments never fire, nor does the surge pod of a rolling update).'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-discovery.md#instancecountlow'
 
   - name: the DLQ drains half of what comes in
@@ -402,7 +422,7 @@ tests:
   - name: the alerting pipeline watches itself
     interval: 1m
     input_series:
-      # One failed notification (e.g. no PagerDuty key): enough to alert.
+      # One failed notification (e.g. no Pushover key): enough to alert.
       - series: 'alertmanager_notifications_failed_total{job="alertmanager",instance="am",integration="slack"}'
         values: '0 0 0 1x40'
     alert_rule_test:
@@ -650,6 +670,17 @@ tests:
               summary: 'A binlog or oplog is no longer archived: mongodb-audit-oplog'
               description: 'db-backup-incremental reported nothing for mongodb-audit-oplog (job never ran, component removed, or backup-metrics-exporter down): no point-in-time recovery.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/deployment/BACKUP_DR.md#monitoring'
+
+  # Compose (scripts/backup.sh) has no incremental job and says so.
+  - name: no incremental alert where point-in-time recovery is not supported
+    interval: 1m
+    input_series:
+      - series: 'backup_pitr_supported{job="backup-metrics"}'
+        values: '0x200'
+    alert_rule_test:
+      - eval_time: 190m
+        alertname: BackupIncrementalMissing
+        exp_alerts: []
 
   # One run of the binlog archive fails (S3 down): warned after 5 m, resolved
   # by the next run (60m), which retries it. A failed off-site copy of the

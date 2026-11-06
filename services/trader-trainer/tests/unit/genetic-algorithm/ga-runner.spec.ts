@@ -593,6 +593,11 @@ describe("GeneticAlgorithmRunner", () => {
 });
 
 describe("full GA loop", () => {
+	// ~0.3 s locally, but the CI coverage run (all workspaces in parallel) once
+	// took over 5 s on the first one (PR #479). jest.setTimeout here applies to
+	// the whole file, not to this block only.
+	jest.setTimeout(20_000);
+
 	it("should run full GA loop successfully", async () => {
 		const mockBackendFactory = () => ({
 			step: jest.fn(() => ({ reward: 1, action: 0 })),

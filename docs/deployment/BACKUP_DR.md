@@ -164,8 +164,15 @@ BACKUP_AGE_RECIPIENTS=age1... BACKUP_REQUIRE_ENCRYPTION=true bash scripts/backup
 BACKUP_AGE_RECIPIENTS=age1... BACKUP_S3_BUCKET=s3://my-bucket/backups bash scripts/backup.sh
 ```
 
-Docker has no scheduler: schedule `backup.sh` with the host's cron if a compose
-stack holds data that matters.
+Docker has no scheduler: schedule `backup.sh` with the host's cron (Windows:
+Task Scheduler running Git Bash with `MSYS_NO_PATHCONV=1`) if a compose stack
+holds data that matters. Set `BACKUP_DIR` in `.env` to the same directory and
+run with `METRICS_FILE=$BACKUP_DIR/metrics/backup.prom`: the compose service
+`backup-metrics-exporter` serves it to Prometheus (job `backup-metrics`), so the
+daily backup alerts apply. Compose has no point-in-time recovery (no
+incremental job, standalone mongod): `backup.sh` reports
+`backup_pitr_supported 0`, which keeps `BackupIncrementalMissing` quiet, and
+reports `mongodb-audit` from the single mongod dump that holds it.
 
 ### Components Backed Up
 
@@ -731,10 +738,10 @@ After a targeted deletion (one collection, a few documents), do not restore the
 whole replica set: that overwrites every healthy write made since the dump.
 
 ```bash
-# One collection, in place: only dlq.dead_letters is dropped and restored
-bash scripts/restore-k8s.sh --components mongodb --ns 'dlq.dead_letters'
+# One collection, in place: only dlq.dlq_entries is dropped and restored
+bash scripts/restore-k8s.sh --components mongodb --ns 'dlq.dlq_entries'
 # Same collection into a scratch database restore_<TS>_dlq, original untouched
-bash scripts/restore-k8s.sh --components mongodb --ns 'dlq.dead_letters' --into-scratch
+bash scripts/restore-k8s.sh --components mongodb --ns 'dlq.dlq_entries' --into-scratch
 ```
 
 - `--ns <db.coll|db.*>` is repeatable (`--nsInclude`); `--drop` only touches the

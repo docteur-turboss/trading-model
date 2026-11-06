@@ -9,6 +9,7 @@ import {
 import type { EventEnumMap } from "@trading-model/contracts/event-map";
 import type { MessageMetadata } from "@trading-model/contracts/message-types";
 import { PUBLISH_TIMEOUT_MS } from "@trading-model/contracts/publish-timeout";
+import type { ServiceInstance } from "@trading-model/contracts/service-registry-types";
 import type { HttpClient } from "@trading-model/http/adapters/outbound/http-client";
 import { DurationMs, URLString } from "@trading-model/primitives/primitives";
 import { HostPort } from "@trading-model/primitives/service-identity";
@@ -51,7 +52,9 @@ export class MessageManagerClient implements IMessageClient {
 		return this._subscriptionService.unsubscribe(topics as EventEnumMap[]);
 	}
 
-	private async _findService(service: ServiceInstanceName): Promise<HostPort> {
+	private async _findService(
+		service: ServiceInstanceName
+	): Promise<ServiceInstance> {
 		const target = await this._addressManagerClient.findService(service);
 		if (!target) {
 			throw serviceUnreachableError(
@@ -61,15 +64,44 @@ export class MessageManagerClient implements IMessageClient {
 		return target;
 	}
 
+	/** POST the message and feed the outcome to the target instance's circuit breaker. */
 	private async _publishToService<TPayload = unknown>(
-		target: HostPort,
+		target: ServiceInstance,
 		payload: TPayload,
 		metadata: MessageMetadata
 	): Promise<void> {
-		return await this._httpClient.post(
-			URLString.of(`https://${HostPort.toAddress(target)}/message`),
-			{ payload, metadata },
-			PUBLISH_OPTIONS
+		const start = Date.now();
+		try {
+			await this._httpClient.post(
+				URLString.of(`https://${HostPort.toAddress(target)}/message`),
+				{ payload, metadata },
+				PUBLISH_OPTIONS
+			);
+		} catch (error) {
+			// A business 4xx proves the target is alive: it must not open the breaker.
+			const status = (error as { statusCode?: number }).statusCode;
+			const targetAnswered =
+				status !== undefined &&
+				status >= 400 &&
+				status < 500 &&
+				status !== 408 &&
+				status !== 429;
+			if (targetAnswered) {
+				this._addressManagerClient.recordCallSuccess(
+					target.instanceId,
+					Date.now() - start
+				);
+			} else {
+				this._addressManagerClient.recordCallFailure(
+					target.instanceId,
+					Date.now() - start
+				);
+			}
+			throw error;
+		}
+		this._addressManagerClient.recordCallSuccess(
+			target.instanceId,
+			Date.now() - start
 		);
 	}
 

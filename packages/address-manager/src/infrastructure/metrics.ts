@@ -70,3 +70,18 @@ export function recordDiscoveryMetrics(
 	DISCOVERY_CALLS_TOTAL.inc({ serviceName, result });
 	DISCOVERY_DURATION_MS.observe({ serviceName }, Date.now() - startTime);
 }
+
+/** Reports one instance's breaker state (0=closed, 1=open, 2=half-open) and the per-state totals. */
+export function recordCircuitState(
+	instanceId: string,
+	state: CircuitState,
+	summary: Record<CircuitState, number>
+): void {
+	CIRCUIT_BREAKER_STATE.set(
+		{ instanceId },
+		Object.values(CircuitState).indexOf(state)
+	);
+	for (const each of Object.values(CircuitState)) {
+		CIRCUIT_BREAKER_INSTANCES_TOTAL.set({ state: each }, summary[each]);
+	}
+}

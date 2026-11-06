@@ -137,6 +137,9 @@ export async function pooledEval<TItem, TResult>(
 		while (nextIndex < items.length) {
 			const i = nextIndex++;
 			results[i] = await fn(items[i]);
+			// fn is CPU-bound and awaits no I/O: without a macrotask yield a whole
+			// training session starves heartbeats, /metrics and incoming candles.
+			await new Promise<void>((resolve) => setImmediate(resolve));
 		}
 	}
 
@@ -163,8 +166,17 @@ function _makeEvalFn(
 ): (
 	genome: DeepReadonly<LamarckGenome>
 ) => ReturnType<typeof evaluateGenomeAllWindows> {
-	return async (genome: DeepReadonly<LamarckGenome>) =>
-		evaluateGenomeAllWindows(genome, windowSets, backendFactory, telemetry);
+	return async (genome: DeepReadonly<LamarckGenome>) => {
+		const start = performance.now();
+		const result = await evaluateGenomeAllWindows(
+			genome,
+			windowSets,
+			backendFactory,
+			telemetry
+		);
+		telemetry?.genomeEvaluated(performance.now() - start);
+		return result;
+	};
 }
 
 export async function evaluateFitness(ctx: EvaluateFitnessContext): Promise<{
