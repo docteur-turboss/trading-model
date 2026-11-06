@@ -257,13 +257,13 @@ templates() {
 
 # One release attempt in the order of deploy.yml: migrations, revisions
 # recorded, replicas released, overlay of this checkout pinned to the digests
-# of `$1`, rollout, smoke test.
+# of `$1`, rollout (base timeout `$2`, default that of deploy.yml), smoke test.
 release() {
 	migrations "$ROOT" || return 1
 	release_script record "$NS" "$WORK/revisions" || return 1
 	release_script release-replicas "$NS" || return 1
 	apply_release "$ROOT" "$1" || return 1
-	release_script wait "$NS" || return 1
+	release_script wait "$NS" ${2:+"$2"} || return 1
 	deploy_script smoke-test
 }
 
@@ -289,7 +289,10 @@ upgrade() {
 	log "upgrade N-1 → N with a forced failure: api-gateway pinned to a digest that does not exist"
 	sed 's/^api-gateway .*/api-gateway sha256:0000000000000000000000000000000000000000000000000000000000000000/' \
 		"$WORK/digests-current" >"$WORK/digests-broken"
-	if release "$WORK/digests-broken"; then
+	# The api-gateway rollout cannot complete: a 60s base (+ grace) fails it
+	# after 90 s instead of 210 s; the others end well within 60s + their grace
+	# (issue #486). Whichever fails, the rollback below is what is tested.
+	if release "$WORK/digests-broken" 60s; then
 		log "an upgrade whose api-gateway image does not exist passed"
 		return 1
 	fi
