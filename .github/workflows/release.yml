@@ -117,6 +117,9 @@ jobs:
         with:
           context: .
           file: services/${{ matrix.service }}/Dockerfile
+          build-args: |
+            BUILD_VERSION=${{ needs.version.outputs.tag }}
+            GIT_SHA=${{ github.sha }}
           load: true
           tags: ${{ needs.version.outputs.registry }}/${{ matrix.service }}:${{ needs.version.outputs.tag }}
           cache-from: type=gha
@@ -136,6 +139,9 @@ jobs:
         with:
           context: .
           file: services/${{ matrix.service }}/Dockerfile
+          build-args: |
+            BUILD_VERSION=${{ needs.version.outputs.tag }}
+            GIT_SHA=${{ github.sha }}
           push: true
           sbom: true
           provenance: mode=max

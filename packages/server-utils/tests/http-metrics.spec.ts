@@ -108,3 +108,26 @@ describe("httpMetricsMiddleware", () => {
 		expect(gauge.values[0]?.value).toBe(0);
 	});
 });
+
+describe("build_info", () => {
+	it("is a gauge at 1 with service, version and git_sha labels", async () => {
+		// resetMetrics() in the other suite clears it: load module and prom-client afresh.
+		let values: promClient.MetricValue<string>[] = [];
+		await jest.isolateModulesAsync(async () => {
+			require("../src/adapters/inbound/http-metrics");
+			const fresh = require("prom-client");
+			const found = (await fresh.register.getMetricsAsJSON()).find(
+				(x: { name: string }) => x.name === "build_info"
+			);
+			values = found.values;
+		});
+		const m = { values };
+		expect(m.values).toHaveLength(1);
+		expect(m.values[0].value).toBe(1);
+		expect(Object.keys(m.values[0].labels).sort()).toEqual([
+			"git_sha",
+			"service",
+			"version",
+		]);
+	});
+});
