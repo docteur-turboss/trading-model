@@ -113,7 +113,8 @@ Limits:
 ```bash
 # Compare current vs previous deployment
 # <env> = staging | production. Kustomize first: raw manifests are not what deploy.yml applies.
-kubectl kustomize --load-restrictor LoadRestrictionsNone deploy/k8s/overlays/<env> \n  | kubectl diff -n trading-model -f -
+kubectl kustomize --load-restrictor LoadRestrictionsNone deploy/k8s/overlays/<env> \
+  | kubectl diff -n trading-model -f -
 
 # Check container image tag
 kubectl get deployment -n trading-model <service-name> -o jsonpath='{.spec.template.spec.containers[0].image}'
