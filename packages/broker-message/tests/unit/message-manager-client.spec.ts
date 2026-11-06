@@ -184,6 +184,16 @@ describe("MessageManagerClient", () => {
 			);
 		});
 
+		it("counts a business 4xx as a live target, not a breaker failure", async () => {
+			addressManagerClient.findService.mockResolvedValue(mockServiceInstance);
+			httpClient.post.mockRejectedValueOnce(
+				Object.assign(new Error("bad request"), { statusCode: 400 })
+			);
+			await expect(client.publish({}, {} as any)).rejects.toThrow(Error);
+			expect(addressManagerClient.recordCallSuccess).toHaveBeenCalledTimes(1);
+			expect(addressManagerClient.recordCallFailure).not.toHaveBeenCalled();
+		});
+
 		it("should rethrow ServiceUnreachableError when service not found", async () => {
 			addressManagerClient.findService.mockResolvedValue(null);
 

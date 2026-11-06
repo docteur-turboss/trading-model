@@ -14,6 +14,7 @@ import {
 } from "../../domain/discovery/circuit-breaker-constants";
 import type { ICircuitStateStore } from "../../domain/discovery/circuit-state-store.interface";
 import type { PersistedCircuitState } from "../../domain/discovery/service-cache.interface";
+import { STALE_OPEN_MS } from "../../infrastructure/discovery/circuit-breaker-sweeper";
 import {
 	CIRCUIT_BREAKER_STATE,
 	recordCircuitState,
@@ -57,6 +58,8 @@ function buildCircuitConfig(
 export class DiscoveryCircuitBreaker extends CircuitBreaker {
 	private readonly _persistenceHandler: CircuitBreakerPersistenceHandler;
 	private readonly _halfOpenTimeoutMs: number;
+	/** Last time each key was consulted or fed; lets the sweeper expire machines of vanished instances. */
+	private readonly _lastActivity = new Map<string, number>();
 
 	constructor(options: CircuitBreakerOptions = {}) {
 		const failureThreshold = options.failureThreshold ?? 3;
@@ -84,7 +87,8 @@ export class DiscoveryCircuitBreaker extends CircuitBreaker {
 		);
 		this._persistenceHandler.startSweeper(
 			(fn) => this.forEachMachine(fn),
-			(key) => this.removeMachine(key)
+			(key) => this.removeMachine(key),
+			(key) => Date.now() - (this._lastActivity.get(key) ?? 0) > STALE_OPEN_MS
 		);
 	}
 
@@ -103,7 +107,15 @@ export class DiscoveryCircuitBreaker extends CircuitBreaker {
 						: 0,
 				halfOpenAttempts: persisted.state === CircuitState.HALF_OPEN ? 1 : 0,
 			});
+			this._reportState(instanceId);
 		}
+	}
+
+	/** Consulted by discovery before handing out an instance: also publishes open to half-open. */
+	isOpen(instanceId: InstanceId): boolean {
+		const open = super.isOpen(instanceId as unknown as string);
+		this._reportState(instanceId);
+		return open;
 	}
 
 	isAllowed(instanceId: InstanceId): boolean {
@@ -142,6 +154,7 @@ export class DiscoveryCircuitBreaker extends CircuitBreaker {
 
 	removeMachine(key: string): void {
 		super.removeMachine(key);
+		this._lastActivity.delete(key);
 		CIRCUIT_BREAKER_STATE.remove({ instanceId: key });
 	}
 
@@ -149,6 +162,7 @@ export class DiscoveryCircuitBreaker extends CircuitBreaker {
 		instanceId: InstanceId,
 		state: CircuitState = this.getState(instanceId as unknown as string)
 	): void {
+		this._lastActivity.set(instanceId as unknown as string, Date.now());
 		recordCircuitState(
 			instanceId as unknown as string,
 			state,
@@ -157,6 +171,7 @@ export class DiscoveryCircuitBreaker extends CircuitBreaker {
 	}
 
 	clear(): void {
+		this._lastActivity.clear();
 		CIRCUIT_BREAKER_STATE.reset();
 		this._persistenceHandler.clear((fn) =>
 			this.forEachMachine((key) => fn(key))

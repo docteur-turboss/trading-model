@@ -78,10 +78,25 @@ export class MessageManagerClient implements IMessageClient {
 				PUBLISH_OPTIONS
 			);
 		} catch (error) {
-			this._addressManagerClient.recordCallFailure(
-				target.instanceId,
-				Date.now() - start
-			);
+			// A business 4xx proves the target is alive: it must not open the breaker.
+			const status = (error as { statusCode?: number }).statusCode;
+			const targetAnswered =
+				status !== undefined &&
+				status >= 400 &&
+				status < 500 &&
+				status !== 408 &&
+				status !== 429;
+			if (targetAnswered) {
+				this._addressManagerClient.recordCallSuccess(
+					target.instanceId,
+					Date.now() - start
+				);
+			} else {
+				this._addressManagerClient.recordCallFailure(
+					target.instanceId,
+					Date.now() - start
+				);
+			}
 			throw error;
 		}
 		this._addressManagerClient.recordCallSuccess(

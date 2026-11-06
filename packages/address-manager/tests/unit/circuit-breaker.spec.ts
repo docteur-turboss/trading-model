@@ -664,4 +664,63 @@ describe("DiscoveryCircuitBreaker gauge", () => {
 		expect(await read()).toBeUndefined();
 		cb.stop();
 	});
+
+	it("publishes open then half-open through isOpen (the discovery path)", async () => {
+		jest.useFakeTimers();
+		const cb = new DiscoveryCircuitBreaker({
+			failureThreshold: 1,
+			halfOpenTimeoutMs: 10_000,
+		});
+		const id = toInstanceId("gauge-2");
+		const read = async () =>
+			(await CIRCUIT_BREAKER_STATE.get()).values.find(
+				(v) => v.labels.instanceId === "gauge-2"
+			)?.value;
+		cb.recordFailure(id);
+		expect(cb.isOpen(id)).toBe(true);
+		expect(await read()).toBe(1);
+		jest.advanceTimersByTime(10_001);
+		// isOpen closes an expired circuit directly (no half-open on this path).
+		expect(cb.isOpen(id)).toBe(false);
+		expect(await read()).toBe(0);
+		cb.clear();
+		jest.useRealTimers();
+	});
+
+	it("publishes the state restored from the shared store", async () => {
+		const store = createMockStateStore();
+		store.getCircuitState.mockResolvedValue({
+			failures: 3,
+			state: CircuitStateEnum.OPEN,
+			lastFailureTime: Date.now(),
+		} as PersistedCircuitState);
+		const cb = new DiscoveryCircuitBreaker({
+			failureThreshold: 3,
+			halfOpenTimeoutMs: 60_000,
+			stateStore: store,
+		});
+		await cb.loadFromStore(toInstanceId("gauge-3"));
+		const v = (await CIRCUIT_BREAKER_STATE.get()).values.find(
+			(x) => x.labels.instanceId === "gauge-3"
+		)?.value;
+		expect(v).toBe(1);
+		cb.clear();
+	});
+
+	it("drops the series of an open instance nobody consults any more", async () => {
+		jest.useFakeTimers();
+		const cb = new DiscoveryCircuitBreaker({
+			failureThreshold: 1,
+			halfOpenTimeoutMs: 10_000,
+		});
+		const id = toInstanceId("gauge-4");
+		cb.recordFailure(id);
+		jest.advanceTimersByTime(6 * 60_000);
+		const series = (await CIRCUIT_BREAKER_STATE.get()).values.find(
+			(v) => v.labels.instanceId === "gauge-4"
+		);
+		expect(series).toBeUndefined();
+		cb.clear();
+		jest.useRealTimers();
+	});
 });
