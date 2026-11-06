@@ -40,7 +40,7 @@
                          ▼
               ┌──────────────────────────────────────┐
               │  CD (release.yml)                    │
-              │  full CI → docker (9 images :X.Y.Z)  │
+              │  full CI → docker (10 images :X.Y.Z)  │
               └──────────┬───────────────────────────┘
                          │ images on ghcr.io
                          ▼

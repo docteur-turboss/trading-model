@@ -148,6 +148,7 @@ jobs:
   # official SPIRE images have no shell), used by the spire-entries sidecar.
   # backup-tools (deploy/backup): kubectl + age + rclone + mysqlbinlog for the db-backup
   # and db-backup-incremental CronJobs and restore-k8s.sh.
+  # db-migrate (deploy/migrate): migrate.mjs + migrations + locked mysql2 for the db-migrate Jobs.
   build-tools:
     needs: [version, ci]
     runs-on: ubuntu-latest
@@ -162,6 +163,10 @@ jobs:
             target: bootstrap
           - image: backup-tools
             context: deploy/backup
+            target: ""
+          - image: db-migrate
+            context: .
+            file: deploy/migrate/Dockerfile
             target: ""
     steps:
       - name: Checkout repository
@@ -212,6 +217,7 @@ jobs:
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: ${{ matrix.context }}
+          file: ${{ matrix.file }}
           target: ${{ matrix.target }}
           push: true
           sbom: true
@@ -240,6 +246,7 @@ jobs:
           - dlq-service
           - spire-tools
           - backup-tools
+          - db-migrate
     steps:
       - name: Install cosign
         uses: sigstore/cosign-installer@756fe2d284c7292c4e9b62c8a28f1e5629c59532 # v4.1.3

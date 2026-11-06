@@ -7,15 +7,12 @@
 #  steps below. Migrations are rolled back newest first.
 #
 #  ROLLBACK_COUNT (a positive integer, or "all" for every applied migration)
-#  comes from its own ConfigMap `migration-rollback`, never from
-#  `migration-files`: applying `migration-files` with only that key would
-#  prune migrate.mjs and the SQL files. It is required, so a stale or missing
-#  value is never picked up silently: always (re)create it before the job.
-#  The pod template of a Job is immutable: delete the previous job first.
+#  comes from the ConfigMap `migration-rollback`. It is required, so a stale or
+#  missing value is never picked up silently: always (re)create it before the
+#  job. The pod template of a Job is immutable: delete the previous job first.
+#  The migrations are in the db-migrate image: use the digest of the release
+#  whose migrations are rolled back (MIGRATE_IMAGE, see deploy-k8s.sh).
 #
-#    kubectl create configmap migration-files -n <ns> \
-#      --from-file=migrate.mjs=scripts/migrate.mjs \
-#      --from-file=scripts/migrations --dry-run=client -o yaml | kubectl apply -f -
 #    kubectl create configmap migration-rollback -n <ns> \
 #      --from-literal=ROLLBACK_COUNT=<N|all> --dry-run=client -o yaml | kubectl apply -f -
 #    kubectl delete job db-migrate-down -n <ns> --ignore-not-found
@@ -45,7 +42,9 @@ spec:
           type: RuntimeDefault
       containers:
         - name: migrate
-          image: oven/bun:1.4.4@sha256:1d22548f177f4ff38e0c15baa3c2c46c6c2060ba2d1bc573bb4720b407548f1d
+          image: ghcr.io/trading-model/db-migrate:latest
+          # run-migrations.sh pins the digest; IfNotPresent also lets kind use the loaded image.
+          imagePullPolicy: IfNotPresent
           securityContext:
             runAsNonRoot: true
             allowPrivilegeEscalation: false
@@ -54,16 +53,9 @@ spec:
                 - ALL
             seccompProfile:
               type: RuntimeDefault
-          command:
-            - sh
-            - -c
-            - |
-              set -euo pipefail
-              mkdir -p /tmp/migrate-run
-              cp -r /migrations/. /tmp/migrate-run/
-              cd /tmp/migrate-run
-              bun add mysql2@3.24.6
-              bun migrate.mjs down "$ROLLBACK_COUNT"
+          args:
+            - down
+            - $(ROLLBACK_COUNT)
           env:
             - name: ROLLBACK_COUNT
               valueFrom:
@@ -75,17 +67,14 @@ spec:
             - name: DB_PORT
               value: "3306"
             - name: DB_USER
-              value: root
+              value: migrator
             - name: DB_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: trading-model-secrets
-                  key: MYSQL_ROOT_PASSWORD
+                  key: MYSQL_MIGRATE_PASSWORD
             - name: DB_NAME
               value: financial_scraper
-          volumeMounts:
-            - name: migration-files
-              mountPath: /migrations
           resources:
             requests:
               cpu: 100m
@@ -93,10 +82,6 @@ spec:
             limits:
               cpu: 500m
               memory: 256Mi
-      volumes:
-        - name: migration-files
-          configMap:
-            name: migration-files
 ---
 apiVersion: v1
 kind: ServiceAccount

@@ -21,7 +21,7 @@ The script does not stop on a failed `commit`, `tag` or `push` and still prints 
 
 1. `version`: the tag must match `vX.Y.Z` or `vX.Y.Z-prerelease`, else the run fails. Image tag is `X.Y.Z` (no `v`). `latest` is set only for a stable tag that is the highest stable `v*` tag on `origin`: a prerelease or a backport patch never takes it.
 2. `ci`: the whole `ci.yml` runs again on the tagged commit (reusable workflow). No image is pushed if a gate fails.
-3. `build-and-push` (7 service images) and `build-tools` (`spire-tools`, `backup-tools`): 9 images pushed as `:X.Y.Z` (+ `:latest`) to `IMAGE_REGISTRY` (repository variable, default `ghcr.io/<owner>`).
+3. `build-and-push` (7 service images) and `build-tools` (`spire-tools`, `backup-tools`, `db-migrate`): 10 images pushed as `:X.Y.Z` (+ `:latest`) to `IMAGE_REGISTRY` (repository variable, default `ghcr.io/<owner>`).
 4. `verify-images`: reads `env.IMAGES` from `deploy.yml` and resolves each `<registry>/<image>:X.Y.Z` with `docker buildx imagetools inspect`, the same loop as the deploy step "Resolve image digests". It fails with the list of missing images.
 5. `sign` (in parallel with `verify-images`): signs the digest of each image with cosign (keyless, ADR-0038). `deploy.yml` refuses any digest without this signature.
 

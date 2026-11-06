@@ -213,10 +213,7 @@ kubectl scale deployment -n trading-model <service-name> --replicas=5
   by the `mysql-cluster-init` Job; per-pod `server_id` / local address passed
   as mysqld arguments
 - 20Gi PVC per replica
-- Schema from the `db-migrate` Job (`scripts/migrations`, `run-migrations.sh`),
-  the same migrations as compose: no second copy of the schema. The script
-  waits for `mysql-cluster-init` first: during the bootstrap the server is
-  `super_read_only`
+- Schema from the `db-migrate` Job (`run-migrations.sh`), the same migrations as compose: no second copy of the schema. The script waits for `mysql-cluster-init` first (during the bootstrap the server is `super_read_only`). The Job runs the released `db-migrate` image (`deploy/migrate`: `migrate.mjs`, `scripts/migrations`, `mysql2` locked by its `bun.lock`; pinned by digest by `deploy.yml`): nothing is installed at run time. It connects as the MySQL user `migrator` (DDL/DML on `financial_scraper` only, password `MYSQL_MIGRATE_PASSWORD`), created or updated on every deploy by the idempotent Job `db-migrate-user` (the only one that reads `MYSQL_ROOT_PASSWORD`; works on a database initialised before the user existed). The password must match `[A-Za-z0-9_.@%+=-]`
 - PodDisruptionBudget: minAvailable 1
 
 ### MongoDB (Replica Set)

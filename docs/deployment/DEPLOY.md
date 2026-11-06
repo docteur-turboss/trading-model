@@ -137,7 +137,7 @@ missing rule loses nothing, but those copies are then never expired.
 2. Resolve every image tag to a digest (fails if the release was not published)
 3. Check sealed secrets (production: controller CRD present, no placeholder)
    Check ingress hosts (production: no example.com host left, see KUBERNETES.md "Set the Ingress hosts"; staging: warning)
-4. Apply cluster-scope objects (namespace, ClusterRoles), SPIFFE node components, run database migrations
+4. Apply cluster-scope objects (namespace, ClusterRoles), SPIFFE node components, run database migrations (existing cluster: `MYSQL_MIGRATE_PASSWORD` must be in `trading-model-secrets` first; both environments fail with an explicit error if it is not sealed; the deploy first applies the environment's SealedSecret (`deploy/k8s/secrets/trading-model-sealed-secrets.yaml`, staging `deploy/k8s/overlays/staging/sealed-secrets.yaml`) and waits for the controller to create the key; if the file lacks it, add ONLY that key with `kubeseal --merge-into` (see `sealed-secrets.md`, "Adding one key"): a single-key SealedSecret erases the other keys of the live Secret, and `init-sealed-secrets.sh` draws random values for every key not provided, `MYSQL_ROOT_PASSWORD` included; the script refuses a file missing a live key)
 5. Canary gate on live traffic (if enabled)
 6. Apply overlay (deploy/k8s/overlays/<env>, images pinned by digest; namespaced part, application identity)
 7. Wait for rollout of all services, smoke test
@@ -187,7 +187,7 @@ docker pull ghcr.io/<owner>/discovery-server:2.0.3
 ## Production deployment
 
 1. `bun run release:publish` (on `main`) bumps the versions, writes the CHANGELOG and pushes the tag `vX.Y.Z` ([release.md](../contributing/release.md))
-2. `release.yml` runs the whole CI on the tag, then publishes the 9 images to `ghcr.io/<owner>` as `X.Y.Z`, and as `latest` when it is the highest stable release; its last job, `verify-images`, fails if `deploy.yml` cannot resolve one of them. First release of this pipeline: [release.md, section 4](../contributing/release.md#4-first-release-of-the-current-pipeline) (`v2.0.0` to `v2.0.3` are not deployable)
+2. `release.yml` runs the whole CI on the tag, then publishes the 10 images to `ghcr.io/<owner>` as `X.Y.Z`, and as `latest` when it is the highest stable release; its last job, `verify-images`, fails if `deploy.yml` cannot resolve one of them. First release of this pipeline: [release.md, section 4](../contributing/release.md#4-first-release-of-the-current-pipeline) (`v2.0.0` to `v2.0.3` are not deployable)
 3. The `Deploy` workflow is run against the `production` environment (canary enabled for staged rollout)
 
 ---
@@ -252,6 +252,10 @@ revision: the step reports an error for it and leaves it in place.
 
 The canary (`deploy-k8s.sh canary`) copies the running pod template, so it runs
 the new image with the configuration of the current release, not the new one.
+
+`deploy-k8s.sh migrate-down` provisions `migrator` itself (job `db-migrate-user`) before rolling the schema back; pass `MIGRATE_IMAGE` of the release being rolled back. Outside `deploy.yml`, set `SEALED_SECRETS_FILE` (the environment's SealedSecret file) when the key is missing. `SEED_MIGRATE_PASSWORD=true` (random password) exists for the kind CI only, which has no Sealed Secrets controller.
+
+Redeploying a tag published before `db-migrate` existed works: the workflow checks out that tag, so its own `deploy.yml` (its own `IMAGES` list) and manifests (root migrations) are used. Only the `Deploy` workflow of the old tag matters, not the current one.
 
 ### Canary gate
 

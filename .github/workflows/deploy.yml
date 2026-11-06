@@ -76,7 +76,7 @@ permissions:
 env:
   IMAGES: >-
     discovery-server message-manager financial-scraper trader-trainer
-    api-gateway audit-logger dlq-service spire-tools backup-tools
+    api-gateway audit-logger dlq-service spire-tools backup-tools db-migrate
 
 concurrency:
   group: deploy-${{ inputs.environment }}
@@ -532,7 +532,14 @@ jobs:
             echo "deferred=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          bash deploy/k8s/scripts/run-migrations.sh "$NS"
+          # The migrations job runs the released db-migrate image, by digest.
+          digest=$(awk '$1 == "db-migrate" { print $2 }' "$RUNNER_TEMP/image-digests")
+          # Both environments are served by a SealedSecret (issue #417): applied before the
+          # migrations when MYSQL_MIGRATE_PASSWORD is not in the live Secret yet.
+          if [ "${{ inputs.environment }}" = staging ]; then export SEALED_SECRETS_FILE=deploy/k8s/overlays/staging/sealed-secrets.yaml
+          else export SEALED_SECRETS_FILE=deploy/k8s/secrets/trading-model-sealed-secrets.yaml; fi
+          MIGRATE_IMAGE="${{ steps.tag.outputs.registry }}/db-migrate@$digest" \
+            bash deploy/k8s/scripts/run-migrations.sh "$NS"
 
       # Canary gate: test the new image on a share of live traffic BEFORE full rollout.
       # If the canary fails, the overlay is never applied and the primary stays on the old image.
@@ -646,7 +653,10 @@ jobs:
         run: |
           NS="${{ steps.ns.outputs.namespace }}"
           kubectl rollout status statefulset/mysql -n "$NS" --timeout=300s
-          bash deploy/k8s/scripts/run-migrations.sh "$NS"
+          # The migrations job runs the released db-migrate image, by digest.
+          digest=$(awk '$1 == "db-migrate" { print $2 }' "$RUNNER_TEMP/image-digests")
+          MIGRATE_IMAGE="${{ steps.tag.outputs.registry }}/db-migrate@$digest" \
+            bash deploy/k8s/scripts/run-migrations.sh "$NS"
 
       - name: Wait for rollout
         shell: bash
