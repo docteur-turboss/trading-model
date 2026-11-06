@@ -27,6 +27,8 @@ jobs:
       - run: bun run adr:check
       - run: bun run reach:check
       - run: bun run config:check
+      - name: Workflows parse as YAML
+        run: python3 scripts/check-workflows.py
 
   typecheck:
     runs-on: ubuntu-latest

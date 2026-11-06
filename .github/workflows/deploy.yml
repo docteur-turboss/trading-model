@@ -525,7 +525,6 @@ jobs:
           # is applied after this step); production needs it in the SealedSecret.
           if [ "${{ inputs.environment }}" = staging ]; then export SEED_MIGRATE_PASSWORD=true
           else export SEALED_SECRETS_FILE=deploy/k8s/secrets/trading-model-sealed-secrets.yaml; fi
-\
           MIGRATE_IMAGE="${{ steps.tag.outputs.registry }}/db-migrate@$digest" \
             bash deploy/k8s/scripts/run-migrations.sh "$NS"
 

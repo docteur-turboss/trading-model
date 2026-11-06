@@ -16,6 +16,7 @@ mkdir -p "$WORK/bin"
 cat >"$WORK/bin/kubectl" <<'STUB'
 #!/usr/bin/env bash
 echo "$*" >>"$STUB_LOG"
+if [ "$1" = get ] && [ "$2" = secret ] && [ -n "${STUB_GET_ERR:-}" ]; then echo "$STUB_GET_ERR" >&2; exit 1; fi
 if [ "$1" = get ] && [ "$2" = secret ] && [[ "$*" == *go-template* ]]; then printf '%s' "${STUB_LIVE_KEYS:-}"; exit 0; fi
 if [ "$1" = get ] && [ "$2" = secret ]; then
   # STUB_KEY_AFTER_APPLY: the key shows up once the SealedSecret was applied
@@ -56,5 +57,11 @@ printf '  encryptedData:
 ' >"$WORK/single.yaml"
 STUB_KEY= STUB_LIVE_KEYS="MYSQL_ROOT_PASSWORD SIGNING_SECRET" SEALED_SECRETS_FILE="$WORK/single.yaml" run bash "$RUN" ns
 { [ $RC = 1 ] && grep -q 'MYSQL_ROOT_PASSWORD' <<<"$OUT" && ! grep -q '^apply\|job/' "$STUB_LOG"; } && ok "single-key SealedSecret: refused before apply" || ko "single-key guard"
+
+STUB_GET_ERR='Error from server (Forbidden): secrets is forbidden' SEALED_SECRETS_FILE="$WORK/single.yaml" run bash "$RUN" ns
+{ [ $RC = 1 ] && grep -q 'cannot read Secret' <<<"$OUT" && ! grep -q '^apply\|job/' "$STUB_LOG"; } && ok "unreadable Secret: fatal, nothing applied" || ko "read error"
+
+STUB_GET_ERR='Error from server (NotFound): secrets "trading-model-secrets" not found' SEED_MIGRATE_PASSWORD=true run bash "$RUN" ns
+{ [ $RC = 0 ] && grep -q 'job/db-migrate ' "$STUB_LOG"; } && ok "Secret NotFound: treated as missing key" || ko "notfound"
 
 exit $FAILED

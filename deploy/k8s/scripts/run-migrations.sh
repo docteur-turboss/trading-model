@@ -35,15 +35,29 @@ run_job() { # <job> <manifest>
   fi
 }
 
+# Prints the requested field of trading-model-secrets. A missing Secret prints nothing;
+# any other read error (RBAC, API) is fatal: it must not pass as "no key" (ADR-0017).
+read_secret() {
+  local out err
+  err=$(mktemp)
+  if out=$(kubectl get secret trading-model-secrets -n "$NS" "$@" 2>"$err"); then
+    rm -f "$err"; printf '%s' "$out"; return 0
+  fi
+  if grep -q NotFound "$err"; then rm -f "$err"; return 0; fi
+  echo "::error::cannot read Secret trading-model-secrets in $NS: $(cat "$err")" >&2
+  rm -f "$err"; return 1
+}
+
 require_migrate_password() {
-  local v i
-  v=$(kubectl get secret trading-model-secrets -n "$NS" -o jsonpath='{.data.MYSQL_MIGRATE_PASSWORD}' 2>/dev/null || true)
+  local v i live
+  v=$(read_secret -o jsonpath='{.data.MYSQL_MIGRATE_PASSWORD}') || exit 1
   [ -n "$v" ] && return 0
   if [ -n "${SEALED_SECRETS_FILE:-}" ]; then
     # Production: the SealedSecret is otherwise applied with the overlay, after the migrations.
     # The controller rewrites Secret.data from this file: a key of the live Secret
     # absent from encryptedData would be erased (MYSQL_ROOT_PASSWORD, SIGNING_SECRET...).
-    for k in $(kubectl get secret trading-model-secrets -n "$NS" -o go-template='{{range $k, $v := .data}}{{$k}} {{end}}' 2>/dev/null || true); do
+    live=$(read_secret -o go-template='{{range $k, $v := .data}}{{$k}} {{end}}') || exit 1
+    for k in $live; do
       if ! grep -Eq "^[[:space:]]+$k:" "$SEALED_SECRETS_FILE"; then
         echo "::error::$SEALED_SECRETS_FILE has no entry for live key $k: applying it would erase that key from trading-model-secrets. Add the missing keys (kubeseal --merge-into, docs/deployment/sealed-secrets.md)."
         exit 1
@@ -52,7 +66,7 @@ require_migrate_password() {
     echo "MYSQL_MIGRATE_PASSWORD missing: applying $SEALED_SECRETS_FILE before the migrations"
     kubectl apply -n "$NS" -f "$SEALED_SECRETS_FILE"
     for i in $(seq 1 "${SEALED_WAIT_TRIES:-30}"); do
-      v=$(kubectl get secret trading-model-secrets -n "$NS" -o jsonpath='{.data.MYSQL_MIGRATE_PASSWORD}' 2>/dev/null || true)
+      v=$(read_secret -o jsonpath='{.data.MYSQL_MIGRATE_PASSWORD}') || exit 1
       [ -n "$v" ] && return 0
       sleep 2
     done
