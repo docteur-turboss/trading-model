@@ -89,6 +89,18 @@ describe("ServiceResolver", () => {
 		expect(target?.host).toBe("10.0.3.1");
 	});
 
+	it("should find a service registered under its canonical name", async () => {
+		mockHttpClient.get.mockImplementation(async (url: unknown) =>
+			String(url).endsWith("/financial-scraper")
+				? [makeInstance("10.0.3.2", 3000, "1.0.0")]
+				: []
+		);
+
+		const target = await resolver.resolve("financial-scraper" as never, 1);
+
+		expect(target?.host).toBe("10.0.3.2");
+	});
+
 	it("should reach discovery at its configured URL (it never registers)", async () => {
 		const target = await resolver.resolve("discovery-server" as never, 1);
 

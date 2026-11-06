@@ -79,13 +79,16 @@ paths:
                           type: "string"
                           enum:
                             - "api-gateway"
-                            - "audit-logger-service"
-                            - "discovery-service"
+                            - "audit-logger"
+                            - "discovery-server"
                             - "dlq-service"
-                            - "financial-scraper-service"
-                            - "message-delivery-service"
+                            - "financial-scraper"
                             - "message-manager"
                             - "trader-trainer"
+                            - "audit-logger-service"
+                            - "discovery-service"
+                            - "financial-scraper-service"
+                            - "message-delivery-service"
                         instanceId:
                           type: "string"
                           minLength: 1
@@ -231,13 +234,16 @@ paths:
                       type: "string"
                       enum:
                         - "api-gateway"
-                        - "audit-logger-service"
-                        - "discovery-service"
+                        - "audit-logger"
+                        - "discovery-server"
                         - "dlq-service"
-                        - "financial-scraper-service"
-                        - "message-delivery-service"
+                        - "financial-scraper"
                         - "message-manager"
                         - "trader-trainer"
+                        - "audit-logger-service"
+                        - "discovery-service"
+                        - "financial-scraper-service"
+                        - "message-delivery-service"
                     instanceId:
                       type: "string"
                       minLength: 1
