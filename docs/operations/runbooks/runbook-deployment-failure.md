@@ -63,6 +63,42 @@ gh workflow run deploy.yml --ref v<previous-stable> \
   -f environment=production -f image_tag=<previous-stable>
 ```
 
+## Database Rollback
+
+The automatic rollback never touches the schema. Roll it back only if the
+N+1 migrations broke N (images already back on N).
+
+Prerequisites:
+
+1. A recent backup exists (`db-backup` CronJob, daily; hourly archives for PITR).
+2. Images first: services on N must run before the schema goes back, or N+1
+   code hits a schema it does not know.
+3. `MIGRATE_IMAGE` pinned to the digest of the release that **applied** the
+   migrations (an older image lacks the `.down.sql` of newer ones).
+
+```bash
+# Applied migrations before
+kubectl exec -n trading-model mysql-0 -c mysql -- sh -c   'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql -uroot -N -e "SELECT id FROM financial_scraper._migrations ORDER BY id"'
+
+# Roll back the last N migrations (default 1), or all
+MIGRATE_IMAGE=<registry>/db-migrate@sha256:<digest-of-release-N+1>   ./deploy/k8s/scripts/deploy-k8s.sh migrate-down [N|all]
+```
+
+`<registry>` is `${IMAGE_REGISTRY:-ghcr.io/<owner>}` (not the logical name
+`ghcr.io/trading-model/`). Verify: rerun the `SELECT` (rolled-back ids are
+gone), then `kubectl logs -n trading-model job/db-migrate-down` and the health
+checks above.
+
+Limits:
+
+- Destructive migrations do not return data: `004_fix_market_data_primary_keys`
+  down re-adds `id` to the primary keys, not what the up step discarded.
+  Restore instead: `restore-k8s.sh --until <instant>` (PITR, RPO 1 h,
+  [ADR-0031](../../adr/0031-point-in-time-recovery-hourly-archives.md)).
+- Expand/contract (ADR-0040): N+1 only adds, so N normally runs on the N+1
+  schema and a schema rollback is rarely needed.
+- A failed run resumes at the failed statement: check `_migration_steps` before rerunning.
+
 ## Canary Deployment Rollback (via deploy scripts)
 
 ```bash
@@ -76,7 +112,8 @@ gh workflow run deploy.yml --ref v<previous-stable> \
 
 ```bash
 # Compare current vs previous deployment
-kubectl diff -n trading-model -f deploy/k8s/
+# <env> = staging | production. Kustomize first: raw manifests are not what deploy.yml applies.
+kubectl kustomize --load-restrictor LoadRestrictionsNone deploy/k8s/overlays/<env> \n  | kubectl diff -n trading-model -f -
 
 # Check container image tag
 kubectl get deployment -n trading-model <service-name> -o jsonpath='{.spec.template.spec.containers[0].image}'
@@ -122,5 +159,5 @@ kubectl describe pod -n trading-model -l app.kubernetes.io/component=<service-na
 - [ ] Pre-deployment: run E2E smoke tests
 - [ ] Pre-deployment: verify resource requests/limits
 - [ ] Deployment: use rolling update with `maxUnavailable: 1`
-- [ ] Deployment: use canary (2% traffic) for major changes
+- [ ] Deployment: use canary for major changes (`deploy.yml` uses 10%: `canary_replicas = total * 10 / 100`, minimum 1; 2 replicas give 1 canary pod, about 33% of traffic)
 - [ ] Post-deployment: monitor for 15 minutes before leaving
