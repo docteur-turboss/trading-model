@@ -11,13 +11,9 @@ export async function pushToRedisQueue(id: string): Promise<void> {
 			"Redis push timeout"
 		);
 	} catch (err) {
-		_logRedisPushError(id, err);
+		logger.warn("Failed to push entry to Redis queue", {
+			entryId: id,
+			error: (err as Error)?.message,
+		});
 	}
-}
-
-function _logRedisPushError(entryId: string, err: unknown): void {
-	logger.warn("Failed to push entry to Redis queue", {
-		entryId,
-		error: (err as Error)?.message,
-	});
 }

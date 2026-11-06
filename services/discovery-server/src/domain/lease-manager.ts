@@ -3,8 +3,6 @@ import {
 	NoopLogger,
 } from "@trading-model/contracts/logger-registry";
 import { DurationMs } from "@trading-model/primitives/primitives";
-import type { ServiceInstance } from "../shared/types";
-import { isAliveInstance } from "./expiration";
 import type { CleanupMetricsPort } from "./ports/discovery-metrics.port";
 import type { ServiceRegistry } from "./service-registry";
 import { StaleInstanceCleaner } from "./stale-instance-cleaner";
@@ -48,9 +46,5 @@ export class LeaseManager {
 		this._cleaner.stop();
 		this._started = false;
 		this._logger.info("Cleanup loop stopped");
-	}
-
-	isAlive(instance: ServiceInstance): boolean {
-		return isAliveInstance(instance);
 	}
 }

@@ -6,19 +6,13 @@ import {
 } from "@trading-model/http/adapters/inbound/response-exception";
 import {
 	type Limit,
-	type Topic,
 	toInstanceId,
 	toMessageId,
-	type URLString,
 } from "@trading-model/primitives/primitives";
-import type {
-	DlqEntryRef,
-	DlqError,
-} from "../../application/services/replay-batch";
+import type { DlqError } from "../../application/services/replay-batch";
 import { doReplayBatch } from "../../config/container";
 import { logger } from "../../config/logger";
 import { ENV } from "../../infrastructure/config/env";
-import type { ClaimAndReplayOptions } from "../../shared/types";
 import { notifyReplayAudit } from "../outbound/audit-notifier";
 import {
 	claimReleaseManager,
@@ -27,11 +21,9 @@ import {
 import { dlqRetryManager } from "../outbound/retry-manager";
 import type { ReplayEntriesQuery } from "./api-routes";
 import { mmResolveError, resolveMMUrlOrFail } from "./dlq-replay-resolver";
-import { buildReplayResponse, noEntriesResponse } from "./dlq-replay-response";
+import { buildReplayResponse } from "./dlq-replay-response";
 
-export async function abandonExhaustedIfNeeded(
-	errors: DlqError[]
-): Promise<void> {
+async function _abandonExhaustedIfNeeded(errors: DlqError[]): Promise<void> {
 	if (errors.length === 0) {
 		return;
 	}
@@ -41,79 +33,6 @@ export async function abandonExhaustedIfNeeded(
 			`DLQ manual replay: ${abandoned} entries abandoned after max retries`
 		);
 	}
-}
-
-async function _claimAndReplayBatch(options: ClaimAndReplayOptions): Promise<{
-	response:
-		| import("@trading-model/http/adapters/inbound/response-exception").ResponseObject
-		| null;
-	successCount: number;
-	errors: DlqError[];
-}> {
-	const { messageManagerUrl, limit, batchId, topic, span } = options;
-	const entries = await _releaseAndClaimEntries(limit, batchId, topic);
-
-	if (entries.length === 0) {
-		return noEntriesResponse();
-	}
-
-	span.setAttribute("entriesClaimed", entries.length);
-
-	const result = await _executeBatchReplay(entries, messageManagerUrl, batchId);
-	await abandonExhaustedIfNeeded(result.errors);
-
-	span.setAttribute("replayed", result.success);
-	span.setAttribute("failed", result.errors.length);
-
-	return {
-		response: null,
-		successCount: result.success,
-		errors: result.errors,
-	};
-}
-
-async function _releaseAndClaimEntries(
-	limit: Limit,
-	batchId: string,
-	topic: Topic | undefined
-): Promise<Array<{ id: string; message: unknown }>> {
-	await claimReleaseManager.releaseStaleClaims();
-	return _claimRetryEntries(limit, batchId, topic);
-}
-
-function _executeBatchReplay(
-	entries: Array<{ id: string; message: unknown }>,
-	messageManagerUrl: URLString,
-	batchId: string
-): Promise<{ success: number; errors: DlqError[] }> {
-	return doReplayBatch({
-		entries: _toEntryRefs(entries),
-		messageManagerUrl,
-		batchId,
-		instanceId: toInstanceId(ENV.INSTANCE_ID),
-	});
-}
-
-function _claimRetryEntries(
-	limit: Limit,
-	batchId: string,
-	topic: Topic | undefined
-): Promise<Array<{ id: string; message: unknown }>> {
-	return dlqClaimManager.claimEntriesForRetry({
-		limit,
-		batchId,
-		instanceId: toInstanceId(ENV.INSTANCE_ID),
-		topic,
-	});
-}
-
-function _toEntryRefs(
-	entries: Array<{ id: string; message: unknown }>
-): DlqEntryRef[] {
-	return entries.map((entry) => ({
-		id: toMessageId(entry.id),
-		message: entry.message,
-	}));
 }
 
 export async function executeReplayPipeline(
@@ -131,36 +50,41 @@ export async function executeReplayPipeline(
 	const batchId = query.batchId || randomUUID();
 	span.setAttribute("batchId", batchId);
 
-	const result = await _claimAndReplayBatch({
-		messageManagerUrl,
+	await claimReleaseManager.releaseStaleClaims();
+	const instanceId = toInstanceId(ENV.INSTANCE_ID);
+	const entries = await dlqClaimManager.claimEntriesForRetry({
 		limit: query.limit as Limit,
 		batchId,
+		instanceId,
 		topic: query.topic,
-		span,
 	});
-	if (result.response) {
-		return result.response;
+	if (entries.length === 0) {
+		return sendResponse(
+			{ replayed: 0, message: "No entries available for retry" },
+			200 as HttpStatusCode
+		);
 	}
+	span.setAttribute("entriesClaimed", entries.length);
 
-	return _buildSuccessResponse(
+	const { success, errors } = await doReplayBatch({
+		entries: entries.map((entry) => ({
+			id: toMessageId(entry.id),
+			message: entry.message,
+		})),
+		messageManagerUrl,
 		batchId,
-		query.topic,
-		result.successCount,
-		result.errors
-	);
-}
+		instanceId,
+	});
+	await _abandonExhaustedIfNeeded(errors);
 
-function _buildSuccessResponse(
-	batchId: string,
-	topic: Topic | undefined,
-	successCount: number,
-	errors: DlqError[]
-): ResponseObject {
-	const details = buildReplayResponse(batchId, successCount, errors);
+	span.setAttribute("replayed", success);
+	span.setAttribute("failed", errors.length);
+
+	const details = buildReplayResponse(batchId, success, errors);
 	notifyReplayAudit({
 		batchId,
-		topic,
-		success: successCount,
+		topic: query.topic,
+		success,
 		failed: errors.length,
 	});
 	return sendResponse(details, 200 as HttpStatusCode);

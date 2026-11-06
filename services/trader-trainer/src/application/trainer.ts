@@ -14,7 +14,6 @@ import {
 import { NETWORK_INPUT_LAYOUT } from "../domain/agent/agent-state";
 import type { GenerationContext } from "../domain/genetic-algorithm/ga-runner";
 import type { GaTelemetry } from "../domain/genetic-algorithm/ga-telemetry";
-import { computeSharpe } from "../domain/genome-summary-builder";
 import type { MarketDataBuffer } from "../domain/market-data-buffer";
 import type { TradingSymbol } from "../domain/market-data-types";
 import type { ModelArtifactStorePort } from "../domain/ports/model-artifact-store.port";
@@ -63,14 +62,10 @@ export class Trainer {
 		TrainingSnapshot
 	>();
 
-	private readonly _publisher?: ModelPublisherPort;
-
 	constructor(
 		private readonly _dataBuffer: MarketDataBuffer,
 		private readonly _deps: TrainerDeps
-	) {
-		this._publisher = _deps.publisher;
-	}
+	) {}
 
 	isTraining(): boolean {
 		return this._status === TrainerStatus.Training;
@@ -199,7 +194,8 @@ export class Trainer {
 	}
 
 	private async _publishModel(symbol: TradingSymbol): Promise<void> {
-		if (!this._publisher) {
+		const publisher = this._deps.publisher;
+		if (!publisher) {
 			return;
 		}
 		const summary = this._lastInfo.buildBestAgentSummary();
@@ -207,7 +203,7 @@ export class Trainer {
 			return;
 		}
 		try {
-			await this._publisher.publish(symbol, summary);
+			await publisher.publish(symbol, summary);
 			getLogger().info("Model published", {
 				context: { symbol, agentId: summary.id },
 			});
@@ -238,9 +234,5 @@ export class Trainer {
 
 	getGenerationContext(): GenerationContext | null {
 		return this._lastInfo.generationContext;
-	}
-
-	_computeSharpe(scores: number[]): number {
-		return computeSharpe(scores);
 	}
 }

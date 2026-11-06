@@ -114,24 +114,4 @@ describe("dlq-replay-response", () => {
 			).not.toHaveBeenCalled();
 		});
 	});
-
-	describe("noEntriesResponse", () => {
-		it("should return empty response", () => {
-			const { noEntriesResponse } = jest.requireActual(
-				"../../src/adapters/inbound/dlq-replay-response"
-			) as {
-				noEntriesResponse: () => {
-					response: { data: unknown; status: number };
-					successCount: number;
-					errors: unknown[];
-				};
-			};
-
-			const result = noEntriesResponse();
-
-			expect(result.response.status).toBe(200);
-			expect(result.successCount).toBe(0);
-			expect(result.errors).toEqual([]);
-		});
-	});
 });

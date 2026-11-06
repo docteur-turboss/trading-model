@@ -29,10 +29,7 @@ jest.mock("../../src/infrastructure/monitoring/metrics", () => ({
 import type { ServiceInstance } from "@trading-model/contracts/service-registry-types";
 import type { ServiceIdentity } from "@trading-model/primitives/service-identity";
 import type { ServiceInstanceName } from "@trading-model/primitives/service-instance-name";
-import type {
-	CleanupDeps,
-	SyncCleanupDeps,
-} from "../../src/domain/stale-instance-cleaner";
+import type { CleanupDeps } from "../../src/domain/stale-instance-cleaner";
 import { StaleInstanceCleaner } from "../../src/domain/stale-instance-cleaner";
 import {
 	incLeaseCleanupCycle,
@@ -91,10 +88,6 @@ describe("StaleInstanceCleaner", () => {
 	describe("constructor", () => {
 		it("should create an instance", () => {
 			expect(cleaner).toBeInstanceOf(StaleInstanceCleaner);
-		});
-
-		it("should initially not be running", () => {
-			expect(cleaner.isRunning).toBe(false);
 		});
 	});
 
@@ -209,102 +202,6 @@ describe("StaleInstanceCleaner", () => {
 			expect(deps.listServiceNames).toHaveBeenCalled();
 			expect(incLeaseCleanupCycle).toHaveBeenCalled();
 			expect(observeCleanupDuration).toHaveBeenCalled();
-		});
-	});
-
-	describe("removeStaleInstances", () => {
-		it("should return the number of services removed after cleanup", async () => {
-			deps.listServiceNames
-				.mockResolvedValueOnce([
-					"svc-a" as ServiceInstanceName,
-					"svc-b" as ServiceInstanceName,
-				])
-				.mockResolvedValueOnce(["svc-a" as ServiceInstanceName])
-				.mockResolvedValueOnce(["svc-a" as ServiceInstanceName]);
-			deps.getInstances.mockResolvedValue([]);
-
-			const removed = await cleaner.removeStaleInstances();
-
-			expect(removed).toBe(1);
-			expect(deps.listServiceNames).toHaveBeenCalledTimes(3);
-		});
-
-		it("should return 0 when no services removed", async () => {
-			deps.listServiceNames
-				.mockResolvedValueOnce(["svc-a" as ServiceInstanceName])
-				.mockResolvedValueOnce(["svc-a" as ServiceInstanceName])
-				.mockResolvedValueOnce(["svc-a" as ServiceInstanceName]);
-			deps.getInstances.mockResolvedValue([]);
-
-			const removed = await cleaner.removeStaleInstances();
-
-			expect(removed).toBe(0);
-		});
-	});
-
-	describe("isAlive", () => {
-		it("should return true for a recently heartbeated instance", () => {
-			const alive = makeInstance({
-				lastHeartbeat: Date.now() - 1000,
-				ttl: 30000,
-			});
-			expect(cleaner.isAlive(alive)).toBe(true);
-		});
-
-		it("should return false for an expired instance", () => {
-			const expired = makeInstance({
-				lastHeartbeat: Date.now() - 100000,
-				ttl: 5000,
-			});
-			expect(cleaner.isAlive(expired)).toBe(false);
-		});
-	});
-
-	describe("cleanupSync", () => {
-		it("should remove expired instances synchronously", () => {
-			const expired = makeInstance({
-				instanceId: "expired-1",
-				lastHeartbeat: Date.now() - 100000,
-				ttl: 5000,
-			});
-			const fresh = makeInstance({
-				instanceId: "fresh-1",
-				lastHeartbeat: Date.now(),
-				ttl: 30000,
-			});
-
-			const syncDeps: SyncCleanupDeps = {
-				listServiceNames: jest
-					.fn<() => ServiceInstanceName[]>()
-					.mockReturnValue([
-						"financial-scraper-service" as ServiceInstanceName,
-					]),
-				getInstances: jest
-					.fn<(name: ServiceInstanceName) => ServiceInstance[]>()
-					.mockReturnValue([expired, fresh]),
-				removeInstance: jest.fn<(id: ServiceIdentity) => void>(),
-			};
-
-			StaleInstanceCleaner.cleanupSync(syncDeps);
-
-			expect(syncDeps.removeInstance).toHaveBeenCalledTimes(1);
-			expect(syncDeps.removeInstance).toHaveBeenCalledWith(
-				expect.objectContaining({ instanceId: "expired-1" })
-			);
-		});
-
-		it("should not remove any instance when no services exist", () => {
-			const syncDeps: SyncCleanupDeps = {
-				listServiceNames: jest
-					.fn<() => ServiceInstanceName[]>()
-					.mockReturnValue([]),
-				getInstances: jest.fn(),
-				removeInstance: jest.fn(),
-			};
-
-			StaleInstanceCleaner.cleanupSync(syncDeps);
-
-			expect(syncDeps.removeInstance).not.toHaveBeenCalled();
 		});
 	});
 });

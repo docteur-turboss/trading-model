@@ -143,15 +143,4 @@ export class ServiceResolver {
 		cached.nextIndex = (cached.nextIndex + 1) % cached.instances.length;
 		return cached.instances[index];
 	}
-	invalidateCache(serviceName?: string): void {
-		if (serviceName) {
-			for (const key of this._cache.keys()) {
-				if (key.startsWith(serviceName)) {
-					this._cache.delete(key);
-				}
-			}
-		} else {
-			this._cache.clear();
-		}
-	}
 }

@@ -214,16 +214,16 @@ createBootstrap({
 ### Server (`src/application/server.ts`)
 
 ```typescript
-import { createSecureServer } from '@trading-model/server-utils/adapters/inbound/create-secure-server';
-import { loadTlsConfig } from '@trading-model/server-utils/infrastructure/load-tls-config';
+import { ServiceId } from '@trading-model/primitives/primitives';
+import { createServiceServer } from '@trading-model/server-utils/adapters/inbound/service-server-factory';
 import { heartbeatRoutes } from '../adapters/inbound/heartbeat.routes';
 import { registryRoutes } from '../adapters/inbound/register.routes';
 import { env } from '../config/env';
 
 export function createServer() {
-  return createSecureServer({
-    port: env.PORT,
-    tls: loadTlsConfig(env),
+  return createServiceServer({
+    env,
+    serviceId: ServiceId.of('discovery-server'),
     routes: app => {
       app.use('/', registryRoutes());
       app.use('/', heartbeatRoutes());

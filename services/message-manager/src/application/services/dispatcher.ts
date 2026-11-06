@@ -23,12 +23,6 @@ import type { MessageDeliveryPort } from "../ports/message-delivery-port";
 import type { SubscriptionStorePort } from "../ports/subscription-store-port";
 import { SubscriptionRegistry } from "./subscription-registry";
 
-function isRejected<TValue>(
-	result: PromiseSettledResult<TValue>
-): result is PromiseRejectedResult {
-	return result.status === "rejected";
-}
-
 export interface DispatcherDeps {
 	deliveryPort: MessageDeliveryPort;
 	subscriptionStore: SubscriptionStorePort;
@@ -97,7 +91,7 @@ export class Dispatcher {
 				subscriptions.map((subscription) => subscription.dispatch(message))
 			);
 			for (const result of results) {
-				if (isRejected(result)) {
+				if (result.status === "rejected") {
 					getLogger().error("Message delivery failed", {
 						context: { error: result.reason },
 					});

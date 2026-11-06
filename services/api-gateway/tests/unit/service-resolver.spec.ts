@@ -143,22 +143,6 @@ describe("ServiceResolver", () => {
 		expect(target).not.toBeNull();
 	});
 
-	it("should invalidate cache for a specific service", async () => {
-		await resolver.resolve("sector-allocator", 1);
-		resolver.invalidateCache("sector-allocator");
-
-		await resolver.resolve("sector-allocator", 1);
-		expect(mockHttpClient.get).toHaveBeenCalledTimes(2);
-	});
-
-	it("should invalidate entire cache", async () => {
-		await resolver.resolve("sector-allocator", 1);
-		resolver.invalidateCache();
-
-		await resolver.resolve("sector-allocator", 1);
-		expect(mockHttpClient.get).toHaveBeenCalledTimes(2);
-	});
-
 	it("should return null from handleFallback when cache is empty", async () => {
 		mockHttpClient.get.mockRejectedValue(new Error("Connection refused"));
 
@@ -206,17 +190,5 @@ describe("ServiceResolver", () => {
 		expect(second).toBeNull();
 
 		expect(mockHttpClient.get).toHaveBeenCalledTimes(1);
-	});
-
-	it("should invalidate cache only for matching service key", async () => {
-		await resolver.resolve("sector-allocator", 1);
-		await resolver.resolve("other-service", 2);
-
-		resolver.invalidateCache("sector-allocator");
-
-		const cached = await resolver.resolve("other-service", 2);
-		expect(cached).not.toBeNull();
-
-		expect(mockHttpClient.get).toHaveBeenCalledTimes(2);
 	});
 });

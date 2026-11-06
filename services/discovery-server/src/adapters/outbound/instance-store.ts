@@ -44,22 +44,16 @@ export class InstanceStore implements IInstanceStore {
 		instances: Map<InstanceId, ServiceInstance>,
 		instance: ServiceInstance
 	): ServiceInstance {
-		const { instanceId } = instance;
-		if (instances.has(instanceId)) {
-			const existing = instances.get(instanceId)!;
-			instances.set(instanceId, {
-				...existing,
-				...instance,
-				lastHeartbeat: UnixTimestamp.now(),
-			});
-		} else {
-			instances.set(instanceId, {
-				...instance,
-				registeredAt: UnixTimestamp.now(),
-				lastHeartbeat: UnixTimestamp.now(),
-			});
-		}
-		return instances.get(instanceId)!;
+		const existing = instances.get(instance.instanceId);
+		const next = existing
+			? { ...existing, ...instance, lastHeartbeat: UnixTimestamp.now() }
+			: {
+					...instance,
+					registeredAt: UnixTimestamp.now(),
+					lastHeartbeat: UnixTimestamp.now(),
+				};
+		instances.set(instance.instanceId, next);
+		return next;
 	}
 
 	registerInstance(instance: ServiceInstance): ServiceInstance {
@@ -78,7 +72,6 @@ export class InstanceStore implements IInstanceStore {
 			return false;
 		}
 		instance.lastHeartbeat = UnixTimestamp.now();
-		service.set(identity.instanceId, instance);
 		return instance.ttl;
 	}
 

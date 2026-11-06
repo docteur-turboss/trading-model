@@ -20,13 +20,13 @@ jest.mock("../../src/infrastructure/config/env", () => ({
 }));
 
 import { buildHttpsAgentOptions } from "@trading-model/http/infrastructure/http-tls-loader";
-import { tlsOptionsBuilder } from "../../src/adapters/outbound/proxy-options-builder";
+import { buildProxyOptions } from "../../src/adapters/outbound/proxy-options-builder";
 
 const TARGET = { host: "10.0.1.5", port: 3000, version: "1.0.0" } as never;
 
-describe("tlsOptionsBuilder", () => {
+describe("buildProxyOptions", () => {
 	it("attaches the gateway SVID to outbound proxy requests", () => {
-		const options = tlsOptionsBuilder.buildOptions({
+		const options = buildProxyOptions({
 			req: createReq(),
 			target: TARGET,
 			path: "/v1/api/data",

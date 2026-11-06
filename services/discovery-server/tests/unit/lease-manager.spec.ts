@@ -13,6 +13,7 @@ jest.useFakeTimers();
 
 import { InstanceStore } from "../../src/adapters/outbound/instance-store";
 import { createServiceRegistry } from "../../src/config/container";
+import { isAliveInstance } from "../../src/domain/expiration";
 import { LeaseManager } from "../../src/domain/lease-manager";
 import { validServiceInstance } from "../fixtures/index";
 
@@ -111,10 +112,8 @@ describe("LeaseManager", () => {
 		});
 	});
 
-	describe("isAlive", () => {
+	describe("isAliveInstance", () => {
 		it("should return true for recent heartbeat", () => {
-			const registry = createServiceRegistry();
-			const lm = new LeaseManager(registry);
 			const instance: ServiceInstance = {
 				serviceName: "test",
 				instanceId: "i1",
@@ -126,12 +125,10 @@ describe("LeaseManager", () => {
 				registeredAt: Date.now() - 1000,
 				lastHeartbeat: Date.now(),
 			};
-			expect(lm.isAlive(instance)).toBe(true);
+			expect(isAliveInstance(instance)).toBe(true);
 		});
 
 		it("should return false for expired heartbeat", () => {
-			const registry = createServiceRegistry();
-			const lm = new LeaseManager(registry);
 			const instance: ServiceInstance = {
 				serviceName: "test",
 				instanceId: "i1",
@@ -143,12 +140,10 @@ describe("LeaseManager", () => {
 				registeredAt: Date.now() - 120_000,
 				lastHeartbeat: Date.now() - 60_000,
 			};
-			expect(lm.isAlive(instance)).toBe(false);
+			expect(isAliveInstance(instance)).toBe(false);
 		});
 
 		it("should return true at TTL boundary", () => {
-			const registry = createServiceRegistry();
-			const lm = new LeaseManager(registry);
 			const instance: ServiceInstance = {
 				serviceName: "test",
 				instanceId: "i1",
@@ -160,7 +155,7 @@ describe("LeaseManager", () => {
 				registeredAt: Date.now() - 60_000,
 				lastHeartbeat: Date.now() - 30_000,
 			};
-			expect(lm.isAlive(instance)).toBe(true);
+			expect(isAliveInstance(instance)).toBe(true);
 		});
 	});
 

@@ -23,7 +23,6 @@ function scheduleAutoRetryTick(): void {
 		},
 		DurationMs.of(baseInterval + jitter)
 	);
-	autoRetryTimer.unref();
 }
 
 async function runAutoRetryTick(): Promise<void> {
@@ -44,7 +43,6 @@ function scheduleInitialTick(): void {
 	autoRetryStartTimer.startTimeout(() => {
 		scheduleAutoRetryTick();
 	}, DurationMs.of(jitterMs));
-	autoRetryStartTimer.unref();
 }
 
 export function startAutoRetry(): void {
