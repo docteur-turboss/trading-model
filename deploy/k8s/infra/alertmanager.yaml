@@ -175,7 +175,7 @@ data:
             send_resolved: true
             title: '[{{ .Status | toUpper }}] {{ .CommonLabels.alertname }}'
             text: |
-              *Alert*: {{ .CommonAnnotations.summary }}
+              *Alert*: {{ (index .Alerts 0).Annotations.summary }}
               *Description*: {{ .CommonAnnotations.description }}
               *Runbook*: {{ .CommonAnnotations.runbook_url }}
               *Severity*: {{ .CommonLabels.severity }}
@@ -206,7 +206,7 @@ data:
             send_resolved: true
             title: '[{{ .Status | toUpper }}] {{ .CommonLabels.alertname }}'
             text: |
-              *Alert*: {{ .CommonAnnotations.summary }}
+              *Alert*: {{ (index .Alerts 0).Annotations.summary }}
               *Runbook*: {{ .CommonAnnotations.runbook_url }}
 
       - name: deadman-receiver
