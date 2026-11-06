@@ -1,6 +1,6 @@
 # System Overview (C4)
 
-Four views of the system, each node checkable in `docker-compose.yml`, `deploy/k8s/` or the code. Related: [ADR-0011](../adr/0011-spiffe-spire-workload-identity.md) (SPIRE), [ADR-0019](../adr/0019-message-broker-as-built.md) (broker), [ADR-0023](../adr/0023-discovery-registry-in-redis.md) (registry), [Databases](databases.md), [Bounded Contexts](bounded-contexts.md).
+Four views of the system, each node checkable in `docker-compose.yml`, `deploy/k8s/` or the code. Related: [ADR-0011](../adr/0011-spiffe-spire-workload-identity.md) (SPIRE), [ADR-0043](../adr/0043-durable-message-journal-in-redis-streams.md) (broker), [ADR-0023](../adr/0023-discovery-registry-in-redis.md) (registry), [Databases](databases.md), [Bounded Contexts](bounded-contexts.md).
 
 ## 1. C4 level 1 — Context
 
@@ -69,7 +69,7 @@ flowchart TB
   prom -.->|"scrape /metrics"| services
 ```
 
-message-manager keeps subscriptions in Redis and **no messages** (ADR-0019): it has no database. MongoDB belongs to audit-logger and dlq-service. Compose runs one `mongo` container (databases `audit-logger` and `dlq`); K8s runs two StatefulSets, `mongo-audit` and `mongo-dlq`.
+message-manager keeps its subscriptions and a durable message journal (Redis Streams) in Redis (ADR-0043): it has no database of its own. MongoDB belongs to audit-logger and dlq-service. Compose runs one `mongo` container (databases `audit-logger` and `dlq`); K8s runs two StatefulSets, `mongo-audit` and `mongo-dlq`.
 
 ## 3. Kubernetes deployment
 

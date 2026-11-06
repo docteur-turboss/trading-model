@@ -2,6 +2,7 @@ import {
 	defineRoute,
 	ErrorResponse,
 } from "@trading-model/http/adapters/inbound/api-route/api-route";
+import { z } from "zod";
 import {
 	PUBLISH_SCHEMA,
 	SUBSCRIBE_SCHEMA,
@@ -9,7 +10,7 @@ import {
 } from "./validation/broker.schema";
 
 /**
- * HTTP API of message-manager (ADR-0021, ADR-0019): service-to-service only,
+ * HTTP API of message-manager (ADR-0021, ADR-0043): service-to-service only,
  * called by the broker client of every service over mTLS. Each entry mounts
  * its route (`http.routes.ts`), validates its body and documents it in the
  * internal OpenAPI.
@@ -21,9 +22,13 @@ export const BROKER_API = {
 		method: "POST",
 		path: "/message",
 		summary:
-			"Publish a message: answered once every subscriber acknowledged, dead-lettered or gave up (ADR-0019); 503 when the topic has no subscriber and delivery.requireSubscriber is set",
+			"Publish a message: answered 202 once it is written to the durable journal, delivered to the subscribers afterwards (ADR-0043); 503 when the topic has no subscriber and delivery.requireSubscriber is set, or the journal cannot take it",
 		body: PUBLISH_SCHEMA,
-		responses: { 204: null, ...REJECTED, 503: ErrorResponse },
+		responses: {
+			202: z.object({ messageId: z.string() }),
+			...REJECTED,
+			503: ErrorResponse,
+		},
 	}),
 	subscribe: defineRoute({
 		method: "POST",

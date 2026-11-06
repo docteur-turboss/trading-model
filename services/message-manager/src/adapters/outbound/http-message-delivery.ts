@@ -5,7 +5,6 @@ import {
 	isHttpClientError,
 } from "@trading-model/http/adapters/outbound/http-client";
 import {
-	DurationMs,
 	PositiveInt,
 	UnixTimestamp,
 } from "@trading-model/primitives/primitives";
@@ -16,13 +15,8 @@ import type {
 	MessageDeliveryPort,
 } from "../../application/ports/message-delivery-port";
 import { MESSAGES_DLQ_TOTAL } from "../../config/metrics";
+import { DELIVERY_ATTEMPT_TIMEOUT_MS } from "../../domain/backoff-calculator";
 import { DlqReason } from "../../domain/delivery-error-classifier";
-
-/**
- * One delivery attempt. The dispatcher owns the retries (backoff, dead
- * letters): the HTTP client must not retry on its own underneath it.
- */
-export const DELIVERY_ATTEMPT_TIMEOUT_MS = DurationMs.of(10_000);
 
 /**
  * Answers saying the message itself is wrong (the subscriber's callback

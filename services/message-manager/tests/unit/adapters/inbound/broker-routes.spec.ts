@@ -63,7 +63,7 @@ describe("message-manager API (BROKER_API)", () => {
 
 	describe("POST /message", () => {
 		it("hands payload and parsed metadata to the dispatcher", async () => {
-			const { status } = await call(BROKER_API.publish, {
+			const { status, body: accepted } = await call(BROKER_API.publish, {
 				payload: { close: 1 },
 				metadata: {
 					schemaVersion: "1.0",
@@ -73,7 +73,8 @@ describe("message-manager API (BROKER_API)", () => {
 				},
 			});
 
-			expect(status).toBe(204);
+			expect(status).toBe(202);
+			expect(accepted).toEqual({ messageId: "message-id" });
 			expect(dispatcher.publish).toHaveBeenCalledWith(
 				{ close: 1 },
 				expect.objectContaining({

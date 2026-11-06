@@ -27,7 +27,7 @@ An ADR documents a significant architectural decision, including the context, al
 | [ADR-0016](./0016-shared-contracts-ownership.md) | Shared Contracts Owned by `@trading-model/contracts` and Manifest-Checked Dependencies | Accepted | 2026-10 |
 | [ADR-0017](./0017-no-swallowed-errors.md) | No Swallowed Errors — Lint Rule, GritQL Plugin and Review Criterion | Accepted | 2026-10 |
 | [ADR-0018](./0018-temporary-frontend-removal.md) | Temporary Removal of the Admin Frontend (`admin-interface`) | Accepted | 2026-10 |
-| [ADR-0019](./0019-message-broker-as-built.md) | Message Broker As Built — HTTP Pub/Sub Without Message Persistence | Accepted | 2026-10 |
+| [ADR-0019](./0019-message-broker-as-built.md) | Message Broker As Built — HTTP Pub/Sub Without Message Persistence | Superseded by [ADR-0043](./0043-durable-message-journal-in-redis-streams.md) | 2026-10 |
 | [ADR-0020](./0020-database-topology-as-deployed.md) | Database Topology As Deployed — MySQL and MongoDB | Accepted | 2026-10 |
 | [ADR-0021](./0021-http-api-schemas-and-generated-openapi.md) | HTTP API Schemas Owned by Services, OpenAPI Generated From Zod | Accepted | 2026-10 |
 | [ADR-0022](./0022-versioned-model-artifacts.md) | Versioned Model Artifacts Instead of Genomes in the Public API | Accepted | 2026-10 |
@@ -50,6 +50,7 @@ An ADR documents a significant architectural decision, including the context, al
 | [ADR-0040](./0040-locked-resumable-migrations-and-expand-contract.md) | Locked, Resumable Schema Migrations and the Expand/Contract Rule | Accepted | 2026-11 |
 | [ADR-0041](./0041-least-privilege-deploy-identities.md) | Least-Privilege Deploy Identities — Application and Cluster-Scope, Bounded Tokens | Accepted | 2026-11 |
 | [ADR-0042](./0042-singleton-collector-with-verified-recovery.md) | Singleton Collector Kept, Recovery Verified After Each Deploy | Accepted | 2026-11 |
+| [ADR-0043](./0043-durable-message-journal-in-redis-streams.md) | Durable Message Journal in Redis Streams — Accept First, Deliver Afterwards | Accepted | 2026-11 |
 
 **Numbering gaps.** ADR-0014 and ADR-0028 do not exist. No file with either number has ever been committed on any branch, and no document refers to them, so they were skipped when the numbers were assigned and carry no decision. Do not reuse them for unrelated records.
 

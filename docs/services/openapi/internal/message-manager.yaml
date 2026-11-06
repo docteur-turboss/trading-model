@@ -46,7 +46,7 @@ paths:
       operationId: "postMessage"
       tags:
         - "message-manager"
-      summary: "Publish a message: answered once every subscriber acknowledged, dead-lettered or gave up (ADR-0019); 503 when the topic has no subscriber and delivery.requireSubscriber is set"
+      summary: "Publish a message: answered 202 once it is written to the durable journal, delivered to the subscribers afterwards (ADR-0043); 503 when the topic has no subscriber and delivery.requireSubscriber is set, or the journal cannot take it"
       x-registry-entry: "publish"
       requestBody:
         required: true
@@ -147,8 +147,18 @@ paths:
                 - "payload"
                 - "metadata"
       responses:
-        "204":
-          description: "No content"
+        "202":
+          description: "HTTP 202"
+          content:
+            "application/json":
+              schema:
+                type: "object"
+                properties:
+                  messageId:
+                    type: "string"
+                required:
+                  - "messageId"
+                additionalProperties: false
         "400":
           description: "Invalid request"
           content:

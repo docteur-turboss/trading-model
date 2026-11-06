@@ -8,7 +8,7 @@ import {
 } from "@trading-model/common/utils/errors";
 import type { EventEnumMap } from "@trading-model/contracts/event-map";
 import type { MessageMetadata } from "@trading-model/contracts/message-types";
-import { PUBLISH_TIMEOUT_MS } from "@trading-model/contracts/publish-timeout";
+import { PUBLISH_ACCEPT_TIMEOUT_MS } from "@trading-model/contracts/publish-timeout";
 import type { ServiceInstance } from "@trading-model/contracts/service-registry-types";
 import type { HttpClient } from "@trading-model/http/adapters/outbound/http-client";
 import { DurationMs, URLString } from "@trading-model/primitives/primitives";
@@ -18,13 +18,13 @@ import type { MessageManagerConfig } from "../../domain/types/config";
 import { TopicSubscriptionService } from "./topic-subscription-service";
 
 /**
- * message-manager answers once it has delivered (or given up) the message:
- * wait for its answer rather than time out first. A publish is never sent
- * twice once it left: the broker stamps a new messageId on each copy, so
- * subscribers could not tell the duplicates apart.
+ * message-manager answers 202 once the message is journaled (ADR-0043); the
+ * older release answered 204 after delivery: both are success. A publish is
+ * never sent twice once it left: the broker stamps a new messageId on each
+ * copy, so subscribers could not tell the duplicates apart.
  */
 const PUBLISH_OPTIONS = {
-	timeoutMs: DurationMs.of(PUBLISH_TIMEOUT_MS + 5_000),
+	timeoutMs: DurationMs.of(PUBLISH_ACCEPT_TIMEOUT_MS + 5_000),
 	retryUnsentOnly: true,
 };
 

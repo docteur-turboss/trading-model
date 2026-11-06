@@ -1,17 +1,11 @@
 import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
-import { sleep } from "@trading-model/common/utils/sleep";
 import type { Message } from "@trading-model/contracts/message-types";
 import type {
 	SequenceNumber,
 	ServiceId,
 } from "@trading-model/primitives/primitives";
-import { backoffDelay } from "../../domain/backoff-calculator";
-import type { SubscribersContext } from "../../domain/delivery-metadata-extractor";
 import type { DeliveryParams } from "../../domain/delivery-params";
-import type {
-	DeliverySendInput,
-	MessageDeliveryPort,
-} from "../ports/message-delivery-port";
+import type { MessageDeliveryPort } from "../ports/message-delivery-port";
 import { resolveTarget } from "./address-resolver";
 import type { DeliveryErrorHandler } from "./delivery-error-handler";
 
@@ -21,6 +15,13 @@ export interface DeliveryAttemptHandlerDeps {
 	callbackPath: string;
 	serviceName: ServiceInstanceName;
 }
+
+/**
+ * What an attempt leaves to do with the journal entry: `delivered` and
+ * `settled` (dead-lettered or dropped for good) are acknowledged, `retry`
+ * stays pending until its next attempt is due.
+ */
+export type AttemptOutcome = "delivered" | "settled" | "retry";
 
 export class DeliveryAttemptHandler {
 	private readonly _deliveryPort: MessageDeliveryPort;
@@ -35,57 +36,31 @@ export class DeliveryAttemptHandler {
 		this._serviceName = deps.serviceName;
 	}
 
+	/** One attempt, the `deliveries`-th (1 for the first) of this message to this subscriber. */
 	async attempt<TData>(
 		message: Message<TData>,
-		context: SubscribersContext,
+		deliveries: number,
 		deliveryParams: DeliveryParams
-	): Promise<boolean> {
+	): Promise<AttemptOutcome> {
 		try {
-			return await this._tryDeliver(message, context);
+			const target = await resolveTarget(
+				this._serviceName as unknown as ServiceId,
+				this._callbackPath
+			);
+			await this._deliveryPort.send({
+				url: target,
+				message,
+				context: { deliveryAttempt: (deliveries - 1) as SequenceNumber },
+			});
+			return "delivered";
 		} catch (err) {
-			return this._handleDeliveryError(err, message, context, deliveryParams);
+			const handled = await this._errorHandler.handleDeliveryError(
+				err,
+				message,
+				{ deliveryAttempt: deliveries as SequenceNumber },
+				deliveryParams
+			);
+			return handled ? "settled" : "retry";
 		}
-	}
-
-	private async _handleDeliveryError<TData>(
-		err: unknown,
-		message: Message<TData>,
-		context: SubscribersContext,
-		deliveryParams: DeliveryParams
-	): Promise<boolean> {
-		context.deliveryAttempt = (context.deliveryAttempt + 1) as SequenceNumber;
-
-		const handled = await this._errorHandler.handleDeliveryError(
-			err,
-			message,
-			context,
-			deliveryParams
-		);
-		if (handled) {
-			return false;
-		}
-
-		await sleep(backoffDelay(context.deliveryAttempt));
-		return true;
-	}
-
-	private async _tryDeliver<TData>(
-		message: Message<TData>,
-		context: SubscribersContext
-	): Promise<boolean> {
-		const target = await resolveTarget(
-			this._serviceName as unknown as ServiceId,
-			this._callbackPath
-		);
-
-		const sendInput: DeliverySendInput = {
-			url: target,
-			message,
-			context: { deliveryAttempt: context.deliveryAttempt },
-		};
-		await this._deliveryPort.send(sendInput);
-
-		await context.ack();
-		return false;
 	}
 }

@@ -1,64 +1,59 @@
 import { describe, expect, it, jest } from "@jest/globals";
 import type { TopicBinding } from "@trading-model/primitives/topic-binding";
+import { InMemoryMessageJournal } from "../../../../src/adapters/outbound/in-memory-message-journal";
 import { InMemorySubscriptionStore } from "../../../../src/adapters/outbound/in-memory-subscription-store";
 import { SubscriptionRegistry } from "../../../../src/application/services/subscription-registry";
 import { mockSubscribeParams } from "../../../fixtures/broker.fixture";
 
-jest.mock("../../../../src/config/address-manager", () => ({
-	FIND_A_SERVICE: jest.fn(),
-}));
-
 jest.mock("../../../../src/config/metrics", () => ({
 	SUBSCRIPTION_COUNT: { set: jest.fn() },
-	SUBSCRIBER_DELIVERY_CONCURRENCY: { inc: jest.fn(), dec: jest.fn() },
 }));
 
 const binding = mockSubscribeParams as unknown as TopicBinding;
 
-function registry() {
-	return new SubscriptionRegistry({} as never, new InMemorySubscriptionStore());
+function setup() {
+	const journal = new InMemoryMessageJournal();
+	return {
+		journal,
+		registry: new SubscriptionRegistry(
+			new InMemorySubscriptionStore(),
+			journal
+		),
+	};
 }
 
 describe("SubscriptionRegistry", () => {
-	it("should keep the delivery state of a renewed subscription", async () => {
-		const subscriptions = registry();
-		await subscriptions.subscribe(binding);
-		const [first] = await subscriptions.getSubscriptions(binding.topic);
+	it("should register the journal group of the subscriber service", async () => {
+		const { registry, journal } = setup();
 
-		await subscriptions.subscribe(binding);
-		const [renewed] = await subscriptions.getSubscriptions(binding.topic);
+		await registry.subscribe(binding);
 
-		expect(renewed).toBe(first);
+		await expect(journal.groups()).resolves.toEqual([
+			{ topic: binding.topic, service: binding.serviceIdentity.serviceName },
+		]);
 	});
 
-	it("should rebuild a subscription whose callback changed", async () => {
-		const subscriptions = registry();
-		await subscriptions.subscribe(binding);
-		const [first] = await subscriptions.getSubscriptions(binding.topic);
+	it("should keep the journal group after the last instance unsubscribed", async () => {
+		const { registry, journal } = setup();
+		await registry.subscribe(binding);
 
-		await subscriptions.subscribe({ ...binding, callbackPath: "new/path" });
-		const [moved] = await subscriptions.getSubscriptions(binding.topic);
-
-		expect(moved).not.toBe(first);
-		expect(moved?.callbackPath).toBe("new/path");
-	});
-
-	it("should drop the local state of an unsubscribed instance", async () => {
-		const subscriptions = registry();
-		const other = { ...binding, topic: "other.topic" } as TopicBinding;
-		await subscriptions.subscribe(binding);
-		await subscriptions.subscribe(other);
-
-		await subscriptions.unsubscribe({
+		await registry.unsubscribe({
 			topic: binding.topic,
 			instanceId: binding.serviceIdentity.instanceId,
 		});
 
-		await expect(
-			subscriptions.getSubscriptions(binding.topic)
-		).resolves.toEqual([]);
-		await expect(
-			subscriptions.getSubscriptions(other.topic)
-		).resolves.toHaveLength(1);
+		await expect(registry.getSubscriptions(binding.topic)).resolves.toEqual([]);
+		await expect(journal.groups()).resolves.toHaveLength(1);
+	});
+
+	it("should renew a subscription with its latest callback", async () => {
+		const { registry } = setup();
+		await registry.subscribe(binding);
+
+		await registry.subscribe({ ...binding, callbackPath: "new/path" });
+
+		const subscriptions = await registry.getSubscriptions(binding.topic);
+		expect(subscriptions).toHaveLength(1);
+		expect(subscriptions[0]?.callbackPath).toBe("new/path");
 	});
 });

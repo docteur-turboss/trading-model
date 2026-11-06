@@ -1,10 +1,11 @@
-import { PUBLISH_TIMEOUT_MS } from "@trading-model/contracts/publish-timeout";
+import { PUBLISH_ACCEPT_TIMEOUT_MS } from "@trading-model/contracts/publish-timeout";
 import { DurationMs } from "@trading-model/primitives/primitives";
 import { createBootstrap } from "@trading-model/server-utils/application/services/bootstrap";
 import { BOOTSTRAP_ADDRESS_MANAGER } from "../config/address-manager";
 import {
 	closeMessageManager,
 	startDeadLetterForwarding,
+	startDelivery,
 } from "../config/message-manager";
 import { initializeTelemetry, shutdownTelemetry } from "../config/telemetry";
 import { ENV } from "../infrastructure/config/env";
@@ -34,6 +35,7 @@ createBootstrap({
 		initializeTelemetry();
 		addressManager = BOOTSTRAP_ADDRESS_MANAGER();
 		startDeadLetterForwarding();
+		startDelivery();
 	},
 	shutdown: {
 		// Publishers keep a resolved address for CACHE_TTL_MS: leave discovery,
@@ -42,8 +44,9 @@ createBootstrap({
 			await addressManager.leave();
 			await sleep(ENV.CACHE_TTL_MS);
 		},
-		// A publish lasts as long as its retries (ADR-0019): let them finish.
-		closeTimeoutMs: DurationMs.of(PUBLISH_TIMEOUT_MS),
+		// A publish only lasts until the message is journaled (ADR-0043); the
+		// deliveries in flight are awaited by closeMessageManager.
+		closeTimeoutMs: DurationMs.of(PUBLISH_ACCEPT_TIMEOUT_MS),
 	},
 	onStop: async () => {
 		await closeMessageManager();

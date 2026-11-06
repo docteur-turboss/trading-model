@@ -64,10 +64,11 @@ Note: `at-most-once`: single attempt, a failure is dropped. `exactly-once`: sing
 
 | Status              | Description                                     |
 | ------------------- | ----------------------------------------------- |
-| **204 No Content**  | Message published and dispatched to subscribers |
+| **202 Accepted**    | Message written to the durable journal; body `{ "messageId" }` |
+| **503 Service Unavailable** | No subscriber for the topic and `delivery.requireSubscriber` set, or the journal could not hold the message |
 | **400 Bad Request** | Invalid payload (Zod validation failure)        |
 
-Note: A 204 response means the message was accepted by the broker. Delivery to subscribers is asynchronous — individual failures are isolated and do not affect the publish response.
+Note: A 202 response means the message is durably accepted (ADR-0043), not delivered. Delivery to the subscribers and its retries are asynchronous: individual failures never affect the publish response; they end in dlq-service.
 
 ---
 

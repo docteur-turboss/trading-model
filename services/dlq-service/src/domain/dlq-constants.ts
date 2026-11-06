@@ -1,13 +1,12 @@
-import { PUBLISH_TIMEOUT_MS } from "@trading-model/contracts/publish-timeout";
+import { PUBLISH_ACCEPT_TIMEOUT_MS } from "@trading-model/contracts/publish-timeout";
 import { PositiveInt } from "@trading-model/primitives/primitives";
 
 /**
- * One replayed `POST /message`: message-manager answers once every
- * subscriber acknowledged, dead-lettered or gave up (ADR-0019). Waiting less
- * than that answer and sending again would publish the entry twice, each copy
- * with a new messageId.
+ * One replayed `POST /message`: message-manager answers 202 once the
+ * message is journaled (ADR-0043). Waiting less than that answer and sending
+ * again would publish the entry twice, each copy with a new messageId.
  */
-export const REPLAY_DELIVERY_TIMEOUT_MS = PUBLISH_TIMEOUT_MS + 5000;
+export const REPLAY_DELIVERY_TIMEOUT_MS = PUBLISH_ACCEPT_TIMEOUT_MS + 5000;
 
 /** A replay batch starts no delivery after this delay; those in flight finish. */
 export const REPLAY_BATCH_TIMEOUT_MS = 120_000;

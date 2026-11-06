@@ -5,7 +5,6 @@ import {
 } from "@trading-model/primitives/primitives";
 
 const BaseDelayMs = DurationMs.of(1000);
-// Keeps the whole retry budget inside the publish timeout (maxDeliveryDurationMs).
 const MaxDelayMs = DurationMs.of(20_000);
 const JitterFactor = 0.2;
 
@@ -18,22 +17,16 @@ export function backoffDelay(deliveryAttempt: SequenceNumber): number {
 	return Math.max(0, Math.round(delay + jitter));
 }
 
+/** One delivery attempt lasts at most this long (the HTTP client does not retry underneath). */
+export const DELIVERY_ATTEMPT_TIMEOUT_MS = DurationMs.of(10_000);
+
 /**
- * Longest time a message can spend in delivery to one subscriber: every
- * attempt runs to its timeout, and the pause after each failed attempt but
- * the last gets the maximum jitter.
+ * Idle time of a journal entry before the next attempt may start: the previous
+ * attempt has timed out (so no replica still works on it) and the backoff of
+ * that attempt has passed.
  */
-export function maxDeliveryDurationMs(
-	maxAttempts: number,
-	attemptTimeoutMs: number
-): number {
-	let total = maxAttempts * attemptTimeoutMs;
-	for (let attempt = 1; attempt < maxAttempts; attempt++) {
-		const delay = computeExponentialBackoff(attempt, {
-			baseDelayMs: BaseDelayMs,
-			maxDelayMs: MaxDelayMs,
-		});
-		total += delay * (1 + JitterFactor);
-	}
-	return Math.ceil(total);
+export function retryDueMs(deliveries: number): number {
+	return (
+		DELIVERY_ATTEMPT_TIMEOUT_MS + backoffDelay(deliveries as SequenceNumber)
+	);
 }

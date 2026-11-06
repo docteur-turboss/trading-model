@@ -1,6 +1,6 @@
 # ADR-0019: Message Broker As Built — HTTP Pub/Sub Without Message Persistence
 
-**Status:** Accepted
+**Status:** Superseded by [ADR-0043](./0043-durable-message-journal-in-redis-streams.md)
 **Date:** 2026-10
 **Supersedes:** [ADR-0002](./0002-redis-pub-sub.md), [ADR-0008](./0008-message-broker-choice.md)
 **Related:** [ADR-0012](./0012-dead-code-removal-and-entrypoint-fix.md) (removed the Redis Streams, WAL and Mongo archive code), [ADR-0016](./0016-shared-contracts-ownership.md) (message contracts)

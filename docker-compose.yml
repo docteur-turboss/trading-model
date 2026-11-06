@@ -270,8 +270,9 @@ services:
       # Signs the dead letters sent to dlq-service: same key as dlq-service.
       DLQ_AUTH_HMAC_SECRET: ${DLQ_AUTH_HMAC_SECRET:-test-hmac-secret}
     # Leaves discovery, waits CACHE_TTL_MS (30 s), then lets in-flight
-    # publishes finish (PUBLISH_TIMEOUT_MS, 5 min): see application/index.ts.
-    stop_grace_period: 6m
+    # publishes (PUBLISH_ACCEPT_TIMEOUT_MS) and deliveries finish: see
+    # application/index.ts. Undelivered messages stay in the Redis journal.
+    stop_grace_period: 2m
     volumes:
       - svid-message:/run/spire/svid
     networks:
@@ -294,8 +295,8 @@ services:
   #  Financial Scraper — Real-time market data ingestion
   # ---------------------------------------------------------------------------
   financial-scraper:
-    # Waits for its publishes in flight on stop (PUBLISH_TIMEOUT_MS + 5s).
-    stop_grace_period: 6m
+    # Waits for its publishes in flight on stop (PUBLISH_ACCEPT_TIMEOUT_MS + 5s).
+    stop_grace_period: 1m
     logging: *default-logging
     build:
       context: .

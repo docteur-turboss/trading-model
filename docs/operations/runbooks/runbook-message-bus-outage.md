@@ -5,9 +5,9 @@
 
 ## Architecture Context
 
-message-manager is a synchronous HTTP pub/sub broker ([ADR-0019](../../adr/0019-message-broker-as-built.md)). Know its limits before acting:
+message-manager is an HTTP pub/sub broker with a durable Redis Streams journal ([ADR-0043](../../adr/0043-durable-message-journal-in-redis-streams.md)). Know its limits before acting:
 
-- **It keeps subscriptions, not messages.** There is no stream, no WAL and no archive: nothing can be replayed. A graceful stop (SIGTERM) leaves discovery, serves 30 s more and lets in-flight publishes finish (up to 5 min, `terminationGracePeriodSeconds: 360`); a crash or a forced kill loses them.
+- **A publish is answered (202) once the message is in the journal** (one Redis stream per topic, one consumer group per subscriber service, key `trading-model:message-manager:journal:<topic>`); the workers of every replica deliver and retry afterwards. A stop or a crash of a replica loses nothing: another replica claims its pending entries within about 30 s. Messages accepted for a service that does not subscribe wait for it up to 24 h. The journal is Redis state with no backup: AOF and replication protect it, so a Redis outage stops publishing (503) and losing Redis with its replicas loses what was not delivered yet. Inspect a backlog with `XPENDING <journal key> <service>`; never `KEYS`.
 - **Subscriptions live in Redis** (one hash per topic, `REDIS_SENTINELS`), expire 60 s after their last renewal, and subscribers renew every 15 s. Without Redis, message-manager cannot route anything.
 - **A message published with no subscriber is dropped** and counted (`mm_messages_unrouted_total`), except when it sets `delivery.requireSubscriber`: the publish is refused (503) and the publisher keeps it. The scraper candles do (publish cursor): after an outage longer than 60 s the subscriptions have expired, and the candle backlog waits in MySQL until the trainer renews its subscription (15 s) instead of being lost.
 - **Dead letters go to dlq-service** (signed `POST /dlq`). While it cannot take them they wait in a local file (`DLQ_LOCAL_FALLBACK_PATH`, an `emptyDir` in K8s), sent again every minute and at shutdown: a pod deleted without a graceful stop loses them.
@@ -99,7 +99,7 @@ kubectl cp -n trading-model -c message-manager \
 
 ### 5. Scraper publish backlog
 
-**Symptoms:** `fs_unpublished_candles` grows on the collector, `fs_publishes_skipped_total` grows (a publish held up to `PUBLISH_TIMEOUT_MS`), the scraper logs `Previous publish still in flight: skipped` or `Market data publish failed`. MySQL is still fed: the scraper persists before publishing and does not wait for the bus.
+**Symptoms:** `fs_unpublished_candles` grows on the collector, `fs_publishes_skipped_total` grows (a publish held up to `PUBLISH_ACCEPT_TIMEOUT_MS`, 15 s), the scraper logs `Previous publish still in flight: skipped` or `Market data publish failed`. MySQL is still fed: the scraper persists before publishing and does not wait for the bus.
 
 Nothing is lost: the candles persisted while the bus is down stay in MySQL past the series publish cursor (`market_publish_cursors`, migration 005) and go out oldest first, 100 per cycle, once message-manager answers again, even after a collector restart. Fix the bus and `fs_unpublished_candles` falls back to 0; until then the trainer lags (`TrainerMarketDataStale` once it has received nothing for 15 min). To skip a backlog on purpose (e.g. after a very long outage, if old candles are not wanted), move the cursor: `UPDATE market_publish_cursors SET published_until = NOW(3) WHERE symbol = '<SYMBOL>'` (UTC session); the skipped candles stay in MySQL only.
 
@@ -121,6 +121,5 @@ kubectl exec -n trading-model "$REDIS_MASTER" -- redis-cli --scan --pattern 'tra
 
 ## Prevention
 
-- Run 2+ message-manager replicas with Redis (subscriptions are shared, see ADR-0019).
+- Run 2+ message-manager replicas with Redis (subscriptions and the journal are shared, see ADR-0043).
 - Remember that a restart loses in-flight messages: drain (scale down one replica at a time) rather than delete every pod at once.
-- Sending dead letters to dlq-service instead of a local file is an open follow-up of ADR-0019.
