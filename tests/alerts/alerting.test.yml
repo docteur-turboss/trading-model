@@ -402,7 +402,7 @@ tests:
   - name: the alerting pipeline watches itself
     interval: 1m
     input_series:
-      # One failed notification (e.g. no PagerDuty key): enough to alert.
+      # One failed notification (e.g. no Pushover key): enough to alert.
       - series: 'alertmanager_notifications_failed_total{job="alertmanager",instance="am",integration="slack"}'
         values: '0 0 0 1x40'
     alert_rule_test:
@@ -650,6 +650,17 @@ tests:
               summary: 'A binlog or oplog is no longer archived: mongodb-audit-oplog'
               description: 'db-backup-incremental reported nothing for mongodb-audit-oplog (job never ran, component removed, or backup-metrics-exporter down): no point-in-time recovery.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/deployment/BACKUP_DR.md#monitoring'
+
+  # Compose (scripts/backup.sh) has no incremental job and says so.
+  - name: no incremental alert where point-in-time recovery is not supported
+    interval: 1m
+    input_series:
+      - series: 'backup_pitr_supported{job="backup-metrics"}'
+        values: '0x200'
+    alert_rule_test:
+      - eval_time: 190m
+        alertname: BackupIncrementalMissing
+        exp_alerts: []
 
   # One run of the binlog archive fails (S3 down): warned after 5 m, resolved
   # by the next run (60m), which retries it. A failed off-site copy of the

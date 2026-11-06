@@ -201,8 +201,10 @@ groups:
           description: 'No {{ $labels.component }} archive for more than 2 hours (db-backup-incremental runs hourly): the 1 h RPO is no longer met.'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/deployment/BACKUP_DR.md#monitoring'
 
+      # Not on compose: scripts/backup.sh reports backup_pitr_supported 0 (no
+      # incremental job, standalone mongod).
       - alert: BackupIncrementalMissing
-        expr: 'absent(backup_last_success_timestamp{component="mysql-binlog",run="incremental"}) or absent(backup_last_success_timestamp{component="mongodb-oplog",run="incremental"}) or absent(backup_last_success_timestamp{component="mongodb-audit-oplog",run="incremental"})'
+        expr: '(absent(backup_last_success_timestamp{component="mysql-binlog",run="incremental"}) or absent(backup_last_success_timestamp{component="mongodb-oplog",run="incremental"}) or absent(backup_last_success_timestamp{component="mongodb-audit-oplog",run="incremental"})) unless on() (backup_pitr_supported == 0)'
         for: 2h
         labels:
           severity: critical

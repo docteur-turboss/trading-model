@@ -64,7 +64,8 @@ that release with the workflow it was tagged with, or release again.
 
 ### Prerequisites (secrets)
 
-Add the cluster kubeconfigs as base64-encoded secrets of the GitHub
+Add the cluster kubeconfigs (two per environment, see
+[Deploy identities](#deploy-identities)) as base64-encoded secrets of the GitHub
 **environment** (Settings → Environments → `staging` / `production`), never as
 repository secrets: a repository secret can be read by any workflow of any
 branch, an environment secret only by a job that passes the environment's
@@ -72,8 +73,10 @@ protection rules.
 
 | Secret | Environment | Purpose |
 |--------|-------------|---------|
-| `KUBECONFIG_STAGING` | `staging` | kubeconfig for the staging cluster |
-| `KUBECONFIG_PRODUCTION` | `production` | kubeconfig for the production cluster |
+| `KUBECONFIG_STAGING_APP` | `staging` | `deploy-app`: application namespace only |
+| `KUBECONFIG_STAGING_CLUSTER` | `staging` | `deploy-cluster`: namespaces, ClusterRoles, node-agents |
+| `KUBECONFIG_PRODUCTION_APP` | `production` | same, production cluster |
+| `KUBECONFIG_PRODUCTION_CLUSTER` | `production` | same, production cluster |
 
 Protect the `production` environment (Settings → Environments → `production`):
 
@@ -84,6 +87,37 @@ Protect the `production` environment (Settings → Environments → `production`
   before any secret is read: pick the release tag in "Use workflow from".
 
 These settings are made by hand in GitHub; the workflow cannot check them.
+
+### Deploy identities
+
+No admin kubeconfig is stored in GitHub (ADR-0041). With an admin kubeconfig,
+once per environment and again before the token expires:
+
+```bash
+bash scripts/deploy-identity.sh app     --namespace trading-model | base64 -w0 | gh secret set KUBECONFIG_PRODUCTION_APP     --env production
+bash scripts/deploy-identity.sh cluster --namespace trading-model | base64 -w0 | gh secret set KUBECONFIG_PRODUCTION_CLUSTER --env production
+```
+
+| Identity | Rights | Used by |
+|----------|--------|---------|
+| `deploy-app` | Role `deploy/k8s/deploy-identity/app-role.yaml` in the application namespace | every step except the four below |
+| `deploy-cluster` | ClusterRole `cluster-role.yaml` + Roles in the node-agents and Sealed Secrets namespaces | "Apply cluster-scope objects", "Check sealed secrets" (CRD, controller), "Check cluster prerequisites" (CRDs, StorageClass, IngressClass, ClusterIssuer), "Apply SPIFFE node components" |
+
+- **Token rotation.** The token is bounded (`--duration`, default 168 h; the
+  API server may cap it). Rerun the script and replace the secret before expiry.
+  An expired token fails the deploy at "Configure kubeconfigs", before any
+  change. On a suspected leak add `--revoke`: the ServiceAccount is recreated and every
+  token issued before stops working.
+- **A new kind in an overlay** fails `node tests/k8s/check-overlays.mjs` until
+  the role file lists it; rerun the script to update the Role in the cluster.
+- **OIDC (recommended when the provider allows it).** Trust
+  `https://token.actions.githubusercontent.com` in the cluster, map the claims
+  `repo` and `environment` of the `production` job to RBAC subjects bound to the same
+  Role and ClusterRole, and drop the static secrets. Provider-specific, not done by the
+  repository.
+- **Human settings** (cannot be checked by the workflow): required reviewer on
+  `production` (above), and a second CODEOWNER on `/.github/`, `/deploy/` and
+  `/deploy/k8s/secrets/` in `.github/CODEOWNERS` (only `@docteur-turboss` today).
 
 ### Prerequisites (off-site backup bucket)
 
@@ -99,13 +133,13 @@ missing rule loses nothing, but those copies are then never expired.
 
 ```
 0. Resolve the release ref (production: vX.Y.Z only) and check out its tag
-1. Configure kubectl (kubeconfig from secret)
+1. Configure kubectl (two kubeconfigs: application and cluster-scope, from secrets)
 2. Resolve every image tag to a digest (fails if the release was not published)
 3. Check sealed secrets (production: controller CRD present, no placeholder)
    Check ingress hosts (production: no example.com host left, see KUBERNETES.md "Set the Ingress hosts"; staging: warning)
-4. Apply SPIFFE node components, run database migrations (existing cluster: `MYSQL_MIGRATE_PASSWORD` must be in `trading-model-secrets` first; both environments fail with an explicit error if it is not sealed; the deploy first applies the environment's SealedSecret (`deploy/k8s/secrets/trading-model-sealed-secrets.yaml`, staging `deploy/k8s/overlays/staging/sealed-secrets.yaml`) and waits for the controller to create the key; if the file lacks it, add ONLY that key with `kubeseal --merge-into` (see `sealed-secrets.md`, "Adding one key"): a single-key SealedSecret erases the other keys of the live Secret, and `init-sealed-secrets.sh` draws random values for every key not provided, `MYSQL_ROOT_PASSWORD` included; the script refuses a file missing a live key)
+4. Apply cluster-scope objects (namespace, ClusterRoles), SPIFFE node components, run database migrations (existing cluster: `MYSQL_MIGRATE_PASSWORD` must be in `trading-model-secrets` first; both environments fail with an explicit error if it is not sealed; the deploy first applies the environment's SealedSecret (`deploy/k8s/secrets/trading-model-sealed-secrets.yaml`, staging `deploy/k8s/overlays/staging/sealed-secrets.yaml`) and waits for the controller to create the key; if the file lacks it, add ONLY that key with `kubeseal --merge-into` (see `sealed-secrets.md`, "Adding one key"): a single-key SealedSecret erases the other keys of the live Secret, and `init-sealed-secrets.sh` draws random values for every key not provided, `MYSQL_ROOT_PASSWORD` included; the script refuses a file missing a live key)
 5. Canary gate on live traffic (if enabled)
-6. Apply overlay (deploy/k8s/overlays/<env>, images pinned by digest)
+6. Apply overlay (deploy/k8s/overlays/<env>, images pinned by digest; namespaced part, application identity)
 7. Wait for rollout of all services, smoke test
 ```
 
