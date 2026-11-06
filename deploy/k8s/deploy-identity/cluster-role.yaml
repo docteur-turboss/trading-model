@@ -3,14 +3,15 @@
 # ClusterRoles of the overlay, the CSIDriver, the CRD check). Bound by
 # scripts/deploy-identity.sh to a ClusterRoleBinding.
 #
-# It never creates nor changes a ClusterRole: scripts/deploy-identity.sh
-# (run by an admin) applies the ClusterRoles of the overlays (spire-server,
-# spire-agent, promtail). This identity only binds them, by name (`bind`), so
-# it does not hold their rights: no `nodes/proxy` (kubelet API, exec in any
-# pod), no `pods` or `tokenreviews`. A release that changes one of these
-# ClusterRoles fails the deploy (forbidden) until an admin runs
-# deploy-identity.sh cluster again. Anything else in the overlays fails the
-# deploy until this file is extended in review.
+# No write on RBAC at cluster scope: scripts/deploy-identity.sh (run by an
+# admin) applies the ClusterRoles and ClusterRoleBindings of the overlays
+# (spire-server, spire-agent, promtail). This identity can only read them, so
+# it cannot grant itself their rights (`nodes/proxy`: kubelet API, exec in any
+# pod; `pods`; `tokenreviews`): no `bind`, no `escalate`, no create/update on
+# clusterroles or clusterrolebindings (tests/k8s/deploy-identity.test.sh). A
+# release that changes one of them fails the deploy (forbidden) until an admin
+# runs deploy-identity.sh cluster again. Anything else in the overlays fails
+# the deploy until this file is extended in review.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
@@ -35,18 +36,7 @@ rules:
   - apiGroups: [storage.k8s.io]
     resources: [csidrivers]
     verbs: [get, list, create, patch, update]
-  # get: `kubectl apply` of an unchanged ClusterRole is a no-op.
+  # get: `kubectl apply` of an unchanged ClusterRole(Binding) is a no-op.
   - apiGroups: [rbac.authorization.k8s.io]
-    resources: [clusterroles]
+    resources: [clusterroles, clusterrolebindings]
     verbs: [get, list]
-  - apiGroups: [rbac.authorization.k8s.io]
-    resources: [clusterroles]
-    resourceNames: [spire-server, spire-agent, promtail]
-    verbs: [bind]
-  - apiGroups: [rbac.authorization.k8s.io]
-    resources: [clusterrolebindings]
-    verbs: [get, list, create]
-  - apiGroups: [rbac.authorization.k8s.io]
-    resources: [clusterrolebindings]
-    resourceNames: [spire-server, spire-agent, promtail]
-    verbs: [update, patch]

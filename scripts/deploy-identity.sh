@@ -10,14 +10,14 @@
 #           overlay, migrations, rollout, smoke test, rollback. No cluster-scope
 #           right, no other namespace.
 #  cluster  ServiceAccount `deploy-cluster` (same namespace) bound to the
-#           ClusterRole cluster-role.yaml (namespaces, bindings of the overlay
-#           ClusterRoles, the CSIDriver, the CRD check) and to Roles in the
+#           ClusterRole cluster-role.yaml (namespaces, the CSIDriver, the CRD
+#           check, read-only on the overlay ClusterRoles and their bindings) and to Roles in the
 #           node-agents namespace and in the Sealed Secrets controller
 #           namespace. Used by the cluster-scope steps of deploy.yml only.
-#           The script also applies, as admin, the ClusterRoles of the
-#           overlays of --environment (spire-server, spire-agent, promtail):
-#           the identity may bind them but never create or change them. Run
-#           it again when a release changes one of them.
+#           The script also applies, as admin, the ClusterRoles and
+#           ClusterRoleBindings of the overlays of --environment (spire-server,
+#           spire-agent, promtail): the identity may read them, never create,
+#           change or bind them. Run it again when a release changes one.
 #
 #  The kubeconfig carries a bounded token (`kubectl create token --duration`),
 #  never a permanent service-account-token Secret: it expires by itself, run
@@ -27,7 +27,7 @@
 #  --namespace NS        application namespace (default trading-model)
 #  --node-namespace NS   node-agents namespace (default trading-model-node)
 #  --sealed-namespace NS Sealed Secrets controller namespace (default sealed-secrets)
-#  --environment ENV     overlay whose ClusterRoles are applied, cluster mode
+#  --environment ENV     overlay whose ClusterRoles and bindings are applied, cluster mode
 #                        (deploy/k8s/overlays/ENV and ENV/node-agents; default production)
 #  --server URL          API server address reachable from the runner (default:
 #                        the server of the current kubectl context)
@@ -159,13 +159,13 @@ if [ "$MODE" = app ]; then
 else
 	kubectl apply -f "$RBAC/cluster-role.yaml" >&2
 	bind_clusterrole deploy-cluster
-	log "ClusterRoles of the ${ENVIRONMENT} overlays (deploy-cluster only binds them)"
+	log "ClusterRoles and ClusterRoleBindings of the ${ENVIRONMENT} overlays (deploy-cluster may only read them)"
 	{
 		kubectl kustomize --load-restrictor LoadRestrictionsNone "$ROOT/deploy/k8s/overlays/$ENVIRONMENT"
 		echo ---
 		kubectl kustomize "$ROOT/deploy/k8s/overlays/$ENVIRONMENT/node-agents"
 	} | awk '
-		function flush() { if (kind == "ClusterRole") { printf "%s%s", sep, doc; sep = "---\n" } doc = ""; kind = "" }
+		function flush() { if (kind == "ClusterRole" || kind == "ClusterRoleBinding") { printf "%s%s", sep, doc; sep = "---\n" } doc = ""; kind = "" }
 		/^---[ \t]*$/ { flush(); next }
 		/^kind:[ \t]/ && kind == "" { kind = $2 }
 		{ doc = doc $0 "\n" }
