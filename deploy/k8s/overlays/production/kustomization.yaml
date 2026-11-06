@@ -12,6 +12,16 @@ components:
   - ../../ingress/hosts
 
 patches:
+  # Redis runs master + 2 replicas in production only: a journal write is
+  # accepted once one replica holds it (ADR-0043). Staging has one Redis node,
+  # where WAIT 1 can never succeed.
+  - target:
+      kind: ConfigMap
+      name: message-manager-config
+    patch: |-
+      - op: add
+        path: /data/JOURNAL_MIN_REPLICAS
+        value: "1"
   # The audit chain must be anchored in production (ADR-0027): audit-logger
   # refuses to start without AUDIT_ANCHOR_BUCKET (Secret audit-anchor-s3).
   - target:
