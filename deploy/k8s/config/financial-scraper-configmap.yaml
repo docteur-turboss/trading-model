@@ -78,11 +78,6 @@ spec:
           protocol: TCP
         - port: 3000
           protocol: TCP
-        - port: 6379
-          protocol: TCP
-        # Sentinels (REDIS_SENTINELS).
-        - port: 26379
-          protocol: TCP
     - to:
         - ipBlock:
             cidr: 0.0.0.0/0

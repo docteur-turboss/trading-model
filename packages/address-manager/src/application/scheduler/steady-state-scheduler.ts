@@ -9,7 +9,6 @@ import {
 } from "@trading-model/primitives/primitives";
 import type { ServiceIdentity } from "@trading-model/primitives/service-identity";
 import type { AddressManagerClient } from "../../adapters/outbound/client/address-manager-client";
-import { RedisServiceCache } from "../../adapters/outbound/discovery/redis-service-cache";
 import type { ServiceHealthChecker } from "../../adapters/outbound/discovery/service-health-checker";
 import type { IServiceCache } from "../../domain/discovery/service-cache.interface";
 import { createRefreshJob } from "../../infrastructure/scheduler/refresh-job";
@@ -71,9 +70,6 @@ export class SteadyStateScheduler {
 	}
 
 	private _registerCacheRefresh(): void {
-		if (this._options.serviceCache instanceof RedisServiceCache) {
-			return;
-		}
 		this._scheduler.register(
 			new CacheHealthRefresher(
 				this._options.serviceCache,

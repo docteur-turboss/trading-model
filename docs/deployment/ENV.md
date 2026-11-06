@@ -67,9 +67,9 @@ Defined in `@trading-model/validation` (`config/redis-env` — `RedisEnvSchema`)
 
 | Variable                     | Type   | Default    | Required | Description                                                               | Services                |
 | ---------------------------- | ------ | ---------- | -------- | ------------------------------------------------------------------------- | ----------------------- |
-| `REDIS_SENTINELS`            | string | —          | no       | Sentinels as `host:port,host:port` (IP or DNS name); takes precedence over `REDIS_URL` | DS, MM, FS, TT, AL, DLQ |
-| `REDIS_SENTINEL_MASTER_NAME` | string | `mymaster` | no       | Master group name the sentinels monitor (only with `REDIS_SENTINELS`)     | DS, MM, FS, TT, AL, DLQ |
-| `REDIS_PASSWORD`             | string | —          | no       | Redis password (only with `REDIS_SENTINELS`; with `REDIS_URL` put it in the URL) | DS, MM, FS, TT, AL, DLQ |
+| `REDIS_SENTINELS`            | string | —          | no       | Sentinels as `host:port,host:port` (IP or DNS name); takes precedence over `REDIS_URL` | DS, MM, DLQ |
+| `REDIS_SENTINEL_MASTER_NAME` | string | `mymaster` | no       | Master group name the sentinels monitor (only with `REDIS_SENTINELS`)     | DS, MM, DLQ |
+| `REDIS_PASSWORD`             | string | —          | no       | Redis password (only with `REDIS_SENTINELS`; with `REDIS_URL` put it in the URL) | DS, MM, DLQ |
 
 ---
 

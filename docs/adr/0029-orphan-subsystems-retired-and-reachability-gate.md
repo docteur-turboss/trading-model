@@ -3,7 +3,7 @@
 **Status:** Accepted
 **Date:** 2026-10
 **Related:** [ADR-0012](./0012-dead-code-removal-and-entrypoint-fix.md) (import-reachability removal; its jobs row is corrected here), [ADR-0013](./0013-config-gated-dead-code-removal.md) (dead code that import reachability cannot see), [ADR-0018](./0018-temporary-frontend-removal.md) (frontend removal that orphaned the admin DTOs), [ADR-0027](./0027-audit-chain-verification-and-anchoring.md) (the audit-logger CLI rooted here)
-**Verified by:** `bun run reach:check`, `bun run config:check`, `bun run api:check`, `services/dlq-service/tests/db/auto-retry.db.spec.ts`, `packages/address-manager/tests/unit/create-address-manager.spec.ts`, `packages/address-manager/tests/db/redis-service-cache.db.spec.ts`, `services/audit-logger/tests/unit/persistence/retired-collections.spec.ts`, `services/audit-logger/tests/db/retired-collections.db.spec.ts`, `services/audit-logger/tests/unit/app/index.spec.ts`, `services/audit-logger/tests/unit/app/server.spec.ts`
+**Verified by:** `bun run reach:check`, `bun run config:check`, `bun run api:check`, `services/dlq-service/tests/db/auto-retry.db.spec.ts`, `packages/address-manager/tests/unit/create-address-manager.spec.ts`, `services/audit-logger/tests/unit/persistence/retired-collections.spec.ts`, `services/audit-logger/tests/db/retired-collections.db.spec.ts`, `services/audit-logger/tests/unit/app/index.spec.ts`, `services/audit-logger/tests/unit/app/server.spec.ts`
 
 ## Context
 
@@ -98,7 +98,7 @@ Its first run found nine variables. Reviewing them found two address-manager con
 | `DLQ_AUTH_HMAC_SECRET_PATH` | Reading the DLQ HMAC secret from a file | Removed: the secret comes from `DLQ_AUTH_HMAC_SECRET` (Secret in K8s) |
 | `LOG_DIR` | Writing logs to files | Removed: services log to stdout (compose `x-logging`, promtail). The redaction specs now assert on stdout, the path that runs |
 | `DLQ_AUTO_RETRY_ENABLED` | Automatic replay of dead letters and the Redis worker loop that also releases stale claims | **Wired**: `true` in compose and the K8s ConfigMap. The E2E overlay sets it to `false`, because its suites replay by hand; `services/dlq-service/tests/db/auto-retry.db.spec.ts` covers the cycle (tick, Redis queue, worker, abandon after the max attempts) against real MongoDB and Redis |
-| `redisCacheUrl` (config, no variable) | `RedisServiceCache`: addresses and circuit state shared by the replicas | **Wired**: filled from `REDIS_SENTINELS` / `REDIS_URL` via `redisConnectionFromEnv`, in every service that uses address-manager: audit-logger, financial-scraper and trader-trainer got `RedisEnvSchema`, the sentinels in their ConfigMap and egress 6379/26379 |
+| `redisCacheUrl` (config, no variable) | `RedisServiceCache`: addresses and circuit state shared by the replicas | **Wired**: filled from `REDIS_SENTINELS` / `REDIS_URL` via `redisConnectionFromEnv`, in every service that uses address-manager: audit-logger, financial-scraper and trader-trainer got `RedisEnvSchema`, the sentinels in their ConfigMap and egress 6379/26379. **Retired later (issue #506):** the cache is in memory per process, the three services that reached Redis only through it (audit-logger, financial-scraper, trader-trainer) lost `REDIS_*` and their 6379/26379 egress |
 | `pems` (config, no variable) | An alias of `tls` | Removed |
 
 ### 6. A route nobody calls fails `api:check`

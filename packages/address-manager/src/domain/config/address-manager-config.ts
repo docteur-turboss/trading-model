@@ -1,5 +1,4 @@
 import type { TlsPaths } from "@trading-model/common/config/tls-paths";
-import type { RedisConnectionConfig } from "@trading-model/persistence/redis-connection-manager";
 import type {
 	DurationMs,
 	IPAddress,
@@ -24,12 +23,6 @@ interface AddressManagerConfig {
 
 	cacheTtlMs: DurationMs;
 	dnsNameMap?: Record<ServiceId, IPAddress>;
-
-	/**
-	 * Redis shared by the replicas for resolved addresses and circuit state
-	 * (`REDIS_SENTINELS` / `REDIS_URL`); unset: an in-memory cache per process.
-	 */
-	redisCache?: RedisConnectionConfig;
 
 	circuitBreakerFailureThreshold?: PositiveInt;
 	circuitBreakerHalfOpenTimeoutMs?: DurationMs;

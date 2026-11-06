@@ -70,22 +70,6 @@ jest.mock("../../src/application/client/token-manager", () => ({
 	TokenManager: jest.fn<any>().mockReturnValue(MOCK_TOKEN_MANAGER),
 }));
 
-jest.mock("../../src/adapters/outbound/discovery/redis-service-cache", () => ({
-	RedisServiceCache: jest.fn<any>().mockReturnValue({
-		get: jest.fn<any>(),
-		set: jest.fn<any>(),
-		delete: jest.fn<any>(),
-		clear: jest.fn<any>(),
-		entries: jest.fn<any>().mockResolvedValue([]),
-		close: jest.fn<any>(),
-		circuitStateStore: {
-			setCircuitState: jest.fn<any>().mockResolvedValue(undefined),
-			getCircuitState: jest.fn<any>().mockResolvedValue(null),
-			deleteCircuitState: jest.fn<any>().mockResolvedValue(undefined),
-		},
-	}),
-}));
-
 jest.mock("../../src/adapters/outbound/discovery/service-cache", () => ({
 	ServiceCache: jest.fn<any>().mockReturnValue({
 		get: jest.fn<any>(),
@@ -183,15 +167,6 @@ describe("AddressManager (main)", () => {
 
 	it("should create instance with minimal config", () => {
 		const am = new AddressManager(makeConfig());
-		expect(am).toBeInstanceOf(AddressManager);
-	});
-
-	it("should create instance with Redis cache", () => {
-		const am = new AddressManager(
-			makeConfig({
-				redisCache: { mode: "single", url: "redis://localhost:6379" as never },
-			})
-		);
 		expect(am).toBeInstanceOf(AddressManager);
 	});
 

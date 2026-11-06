@@ -28,6 +28,18 @@ MongoDB 7 is used by several services via the native `mongodb` driver (no Mongoo
 
 > SPIRE Server (ADR-0011) uses MySQL for its datastore (`spire` database).
 
+## Redis — who uses it, with which keys
+
+Inventory (issue #506). Address-manager caches in memory per process, so only three services still talk to Redis (K8s: through the sentinels). Never `KEYS` (ADR-0023).
+
+| Service | Key prefix | Commands | Purpose |
+| ------- | ---------- | -------- | ------- |
+| discovery-server | `trading-model:discovery:*` | `GET SET DEL MGET SADD SREM SMEMBERS SISMEMBER SCARD MULTI EVAL` | Instance registry and tokens (ADR-0023) |
+| message-manager | `trading-model:message-manager:subscriptions:<topic>` | `HSET HGETALL HDEL PEXPIRE` | Broker subscriptions |
+| dlq-service | `rl:dlq:<name>:*` | `EVAL/EVALSHA SCRIPT` (rate-limit-redis) | HTTP rate limiter |
+
+Dead letters live in MongoDB, not Redis.
+
 ## Schema Validation
 
 The message broker uses **Zod validation schemas** at `services/message-manager/src/adapters/inbound/validation/broker.schema.ts` to enforce message shapes, subscriptions, and metadata.
