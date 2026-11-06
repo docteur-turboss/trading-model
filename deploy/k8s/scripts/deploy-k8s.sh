@@ -445,6 +445,35 @@ cmd_smoke_test() {
   fi
 }
 
+# ADR-0038: the collector is a singleton (Recreate), so a release stops
+# collection for up to terminationGracePeriodSeconds plus the startup. Success
+# is the new pod persisting candles again (fs_candles_persisted_total > 0: the
+# counter starts at 0 in a new pod, and MarketDataStale watches its increase).
+# MARKET_DATA_RECOVERY_TIMEOUT seconds (default 600); on timeout exit 1, or only
+# warn with MARKET_DATA_RECOVERY_MODE=warn.
+cmd_verify_market_data() {
+  local timeout="${MARKET_DATA_RECOVERY_TIMEOUT:-600}" mode="${MARKET_DATA_RECOVERY_MODE:-fail}"
+  local deadline=$((SECONDS + timeout)) persisted=""
+  log "Waiting up to ${timeout}s for the collector to persist candles..."
+  while [[ "$SECONDS" -lt "$deadline" ]]; do
+    persisted="$(kubectl exec -n "$NAMESPACE" deployment/discovery-server -c discovery-server -- \
+      curl -sk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem \
+      https://financial-scraper-collector:3000/metrics 2>/dev/null |
+      awk '/^fs_candles_persisted_total/ {s += $NF} END {print s + 0}')" || persisted=0
+    if [[ "${persisted:-0}" -gt 0 ]]; then
+      log "Collector persisted ${persisted} candle(s): market data is flowing again."
+      return 0
+    fi
+    sleep 10
+  done
+  if [[ "$mode" == "warn" ]]; then
+    echo "::warning::Collector persisted no candle within ${timeout}s after the release (runbook-market-data-stale.md)"
+    return 0
+  fi
+  err "Collector persisted no candle within ${timeout}s after the release (runbook-market-data-stale.md)."
+  exit 1
+}
+
 # ─── Main ─────────────────────────────────────────────────────────────────────
 
 check_prereqs
