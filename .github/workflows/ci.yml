@@ -117,6 +117,8 @@ jobs:
         run: bash tests/k8s/canary-gate.test.sh
       - name: Test the cluster prerequisites check
         run: bash tests/k8s/check-prereqs.test.sh
+      - name: Test the Job wait helper
+        run: bash tests/k8s/wait-job.test.sh
       - name: Test the release steps (deploy-release.sh)
         run: bash tests/k8s/deploy-release.test.sh
 

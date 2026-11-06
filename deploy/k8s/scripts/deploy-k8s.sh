@@ -199,13 +199,7 @@ cmd_migrate_down() {
   kubectl apply -n "$NAMESPACE" -f "${K8S_DIR}/jobs/migration-job-down.yaml"
 
   log "Waiting for migration rollback to complete..."
-  if ! kubectl wait --for=condition=complete job/db-migrate-down -n "$NAMESPACE" --timeout=180s; then
-    err "Migration rollback job failed or timed out."
-    if ! kubectl logs -n "$NAMESPACE" job/db-migrate-down --tail=50 2>/dev/null; then
-      err "Could not retrieve logs from db-migrate-down job"
-    fi
-    exit 1
-  fi
+  bash "${K8S_DIR}/scripts/wait-job.sh" "$NAMESPACE" db-migrate-down 180
 
   log "Migration rollback complete."
   kubectl logs -n "$NAMESPACE" job/db-migrate-down --tail=20 2>/dev/null

@@ -41,7 +41,7 @@ if [ "$1" = get ] && [ "$2" = deployment ] && [[ $* == *terminationGracePeriodSe
 	for pair in $STUB_GRACE; do [ "${pair%%=*}" = "$3" ] && printf '%s' "${pair#*=}"; done
 	exit 0
 fi
-if [ "$1" = rollout ] && [ "$2" = status ]; then exit 0; fi
+if [ "$1" = rollout ] && [ "$2" = status ]; then [ "$3" = "deployment/${STUB_STATUS_FAILS:-}" ] && exit 1; exit 0; fi
 if [ "$1" = get ] && [ "$2" = deployment ]; then
 	for pair in $STUB_REVS; do [ "${pair%%=*}" = "$3" ] && printf '%s' "${pair#*=}"; done
 	exit 0
@@ -72,6 +72,16 @@ out="$(STUB_UNDO_FAILS=discovery-server bash "$SCRIPT" rollback ns "$WORK/revs" 
 	ko "rollback succeeded with a failed undo and a new Deployment" ||
 	{ grep -q "deployment/api-gateway" "$WORK/log" && [[ $out == *"edge-proxy: it did not exist"* ]] &&
 		ok "rollback fails, reports and still tries every Deployment" || ko "rollback: $out"; }
+
+printf 'discovery-server 4
+api-gateway 7
+' >"$WORK/revs"
+: >"$WORK/log"
+out="$(STUB_STATUS_FAILS=discovery-server bash "$SCRIPT" rollback ns "$WORK/revs" 2>&1)" &&
+	ko "rollback succeeded though a rollout did not come back" ||
+	{ grep -q "rollout status deployment/api-gateway -n ns --timeout=180s" "$WORK/log" &&
+		[[ $out == *"discovery-server did not finish rolling back"* ]] &&
+		ok "rollback waits for each rollout and fails if one does not come back" || ko "rollback status: $out"; }
 
 : >"$WORK/log"
 STUB_GRACE="financial-scraper-collector=360 api-gateway=30" bash "$SCRIPT" wait ns >/dev/null &&

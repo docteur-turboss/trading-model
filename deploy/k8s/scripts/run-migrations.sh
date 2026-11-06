@@ -35,8 +35,4 @@ kubectl create configmap migration-files -n "$NS" \
 # new deploy applies the new migrations.
 kubectl delete job db-migrate -n "$NS" --ignore-not-found
 kubectl apply -n "$NS" -f deploy/k8s/jobs/migration-job.yaml
-if ! kubectl wait --for=condition=complete job/db-migrate -n "$NS" --timeout=180s; then
-  echo "::error::Database migration job failed or timed out"
-  kubectl logs -n "$NS" job/db-migrate --tail=50
-  exit 1
-fi
+bash "$(dirname "${BASH_SOURCE[0]}")/wait-job.sh" "$NS" db-migrate 180
