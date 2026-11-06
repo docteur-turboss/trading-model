@@ -15,6 +15,8 @@
 //   - every Deployment that can run more than one pod (replicas or its HPA)
 //     spreads them across nodes (ADR-0024): otherwise one node can hold every
 //     replica and its loss takes the whole service down
+//   - singleton Deployments (SINGLETONS) run exactly one pod: replicas: 1,
+//     strategy Recreate, no HPA (ADR-0042 collector, ADR-0043 trainer)
 //   - the deploy identities (ADR-0041) cover what the overlays apply: every
 //     kind of the application overlay is in deploy-identity/app-role.yaml (or,
 //     for the cluster-scope ones, cluster-role.yaml), every kind of the
@@ -25,6 +27,11 @@ import { readFileSync } from "node:fs";
 
 const OVERLAYS = ["staging", "production"];
 const SEALED_ONLY = ["trading-model-secrets"];
+// Deployments that must never run two pods -> the ADR that says why.
+const SINGLETONS = {
+	"financial-scraper-collector": "ADR-0042",
+	"trader-trainer": "ADR-0043",
+};
 const IMAGE = /image: ghcr\.io\/trading-model\/([a-z0-9-]+)/g;
 
 function render(dir) {
@@ -131,6 +138,31 @@ function replicasUnderHpa(docs) {
 		.map((doc) => doc.name);
 }
 
+/** Why each singleton Deployment could run more than one pod (empty when sound). */
+function singletonViolations(docs) {
+	const errors = [];
+	for (const [name, adr] of Object.entries(SINGLETONS)) {
+		const deployment = docs.find((doc) => doc.kind === "Deployment" && doc.name === name);
+		if (!deployment) {
+			errors.push(`singleton Deployment ${name} not found (${adr})`);
+			continue;
+		}
+		if (!/^ {2}replicas: 1$/m.test(deployment.text)) {
+			errors.push(`Deployment ${name} must set replicas: 1 (${adr}: singleton)`);
+		}
+		if (!/^ {2}strategy:\n {4}type: Recreate$/m.test(deployment.text)) {
+			errors.push(`Deployment ${name} must use strategy Recreate (${adr}: a rollout must never run two pods)`);
+		}
+		const scaled = docs.some(
+			(doc) =>
+				doc.kind === "HorizontalPodAutoscaler" &&
+				doc.text.match(/scaleTargetRef:\n(?: {4}.*\n)*? {4}name: (\S+)$/m)?.[1] === name,
+		);
+		if (scaled) errors.push(`Deployment ${name} must have no HorizontalPodAutoscaler (${adr}: singleton)`);
+	}
+	return errors;
+}
+
 function deployImages() {
 	const workflow = readFileSync(".github/workflows/deploy.yml", "utf8");
 	const block = workflow.match(/^ {2}IMAGES: >-\n((?: {4}.*\n)+)/m);
@@ -205,6 +237,8 @@ for (const env of OVERLAYS) {
 	for (const name of replicasUnderHpa(documents(rendered))) {
 		errors.push(`${env}: Deployment ${name} is driven by an HPA but sets spec.replicas (each apply would reset it)`);
 	}
+
+	for (const error of singletonViolations(documents(rendered))) errors.push(`${env}: ${error}`);
 
 	if (env === "staging") {
 		for (const pdb of documents(rendered).filter((doc) => doc.kind === "PodDisruptionBudget")) {

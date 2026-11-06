@@ -205,7 +205,7 @@ docker pull ghcr.io/<owner>/discovery-server:2.0.3
 
 ## Replicas and the HPA
 
-A Deployment driven by an HPA carries no `spec.replicas` in `deploy/k8s/services/` (`check-overlays.mjs` enforces it): an apply must not reset the pod count the HPA chose. `minReplicas` is the floor; staging pins every HPA to 1 pod. The `financial-scraper-collector` (no HPA) keeps `replicas: 1`.
+A Deployment driven by an HPA carries no `spec.replicas` in `deploy/k8s/services/` (`check-overlays.mjs` enforces it): an apply must not reset the pod count the HPA chose. `minReplicas` is the floor; staging pins every HPA to 1 pod. The singletons `financial-scraper-collector` (ADR-0042) and `trader-trainer` (ADR-0043: training state in memory) have no HPA, keep `replicas: 1` and `Recreate`; `check-overlays.mjs` enforces it. `deploy-release.sh release-replicas` deletes the retired `trader-trainer-hpa` of older releases. A release stops training until the new trainer pod is ready.
 
 Moving an existing cluster over: `deploy.yml` (step "Release replicas of autoscaled Deployments") removes `spec.replicas` from `kubectl.kubernetes.io/last-applied-configuration` before the apply, otherwise the apply would drop the Deployment to 1 pod. By hand: `kubectl apply edit-last-applied deployment/<name> -n <ns>` and delete the `replicas` line, before applying the new overlay.
 
