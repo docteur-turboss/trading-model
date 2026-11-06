@@ -1,6 +1,31 @@
 # Auto detect text files and perform LF normalization
 * text=auto
 
+# Text read line by line by the gates (tests/k8s/check-overlays.mjs and co): LF on every checkout, Windows included
+*.yml text eol=lf
+*.yaml text eol=lf
+*.json text eol=lf
+*.md text eol=lf
+*.js text eol=lf
+*.mjs text eol=lf
+*.cjs text eol=lf
+*.ts text eol=lf
+*.conf text eol=lf
+*.sql text eol=lf
+Dockerfile* text eol=lf
+*.Dockerfile text eol=lf
+
+# Binaries: never converted
+*.age binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.gz binary
+*.tar binary
+*.zip binary
+
 # Husky hooks must stay LF on Windows too (Git Bash needs them)
 .husky/** text eol=lf
 

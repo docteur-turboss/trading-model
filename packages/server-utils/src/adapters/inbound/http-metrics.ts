@@ -21,6 +21,21 @@ const HTTP_REQUESTS_IN_FLIGHT = new promClient.Gauge({
 	help: "Number of HTTP requests currently being processed",
 });
 
+// Constant gauge at 1: joins a release (version, git_sha) to every other series.
+// Values come from the image build (BUILD_VERSION, GIT_SHA); local defaults otherwise.
+new promClient.Gauge({
+	name: "build_info",
+	help: "Build metadata of the running service (always 1)",
+	labelNames: ["service", "version", "git_sha"] as const,
+}).set(
+	{
+		service: process.env.SERVICE_NAME ?? "unknown",
+		version: process.env.BUILD_VERSION ?? "dev",
+		git_sha: process.env.GIT_SHA ?? "unknown",
+	},
+	1
+);
+
 /** Label of a request that matched no route (404, scanners): one series, not one per URL. */
 export const UNMATCHED_ROUTE = "unmatched";
 

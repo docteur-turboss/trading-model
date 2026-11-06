@@ -127,7 +127,9 @@ docker compose down -v
 docker compose up -d
 ```
 
-> ⚠️ Destructive changes (column removal, constraint modification) may require manual intervention in production.
+`up` and `down` hold the MySQL lock `schema_migrations` (a second run waits up to 120 s, then fails), run each statement on its own and journal it in `_migration_steps`: after a failure, fix the failed statement and rerun, the statements that already ran are not replayed and may not change. `up` refuses to run when an applied file no longer matches its checksum: put the change in a new migration. Stored programs (`DELIMITER`) are not supported ([ADR-0040](../adr/0040-locked-resumable-migrations-and-expand-contract.md)).
+
+> ⚠️ **Expand/contract** ([ADR-0040](../adr/0040-locked-resumable-migrations-and-expand-contract.md)): migrations run before the rollout, and a rollback keeps the new schema, so the schema of release N must work with release N-1. A release only adds (table, nullable or defaulted column, index); it never drops, renames or narrows what N-1 reads or writes. The removal goes in a later release, once no running or rollback-target release uses it.
 
 ### MongoDB
 

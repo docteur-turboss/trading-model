@@ -20,7 +20,7 @@ DEFAULT_FRESH='{"data":{"result":[{"value":[0,"42"]}]}}'
 DEFAULT_ALERTS='{"data":{"result":[]}}'
 echo "$*" >>"$STUB_DIR/kubectl.log"
 case "$*" in
-*cluster-info*) ;;
+*cluster-info* | "auth can-i"*) ;;
 *"get secret"*) printf 'secret-key,other' | base64 ;;
 *"exec -i"*discovery-server*) cat >"$STUB_DIR/stdin"; printf '%s' "${STUB_CODE:-200}" ;;
 *prometheus-0*"fs_candles_persisted_total"*) echo "${STUB_FRESH:-$DEFAULT_FRESH}" ;;
@@ -44,6 +44,11 @@ grep -q "answered 401" "$WORK/out" && pass "names the status" || failed "no stat
 
 echo "no fresh data"
 if STUB_FRESH='{"data":{"result":[]}}' run; then failed "no data should fail"; else pass "fails"; fi
+
+echo "staging: VERIFY_REQUIRE_FRESH_DATA=false"
+if STUB_FRESH='{"data":{"result":[]}}' VERIFY_REQUIRE_FRESH_DATA=false run; then pass "no data passes"; else failed "no data should pass"; cat "$WORK/out"; fi
+grep -q "fs_candles_persisted_total" "$WORK/kubectl.log" && failed "data still queried" || pass "data not queried"
+grep -q "MarketDataStale" "$WORK/kubectl.log" && pass "MarketDataStale excluded from the alert query" || failed "MarketDataStale not excluded"
 
 echo "critical alert firing"
 if STUB_ALERTS='{"data":{"result":[{"metric":{"alertname":"MarketDataStale"}}]}}' run; then failed "critical alert should fail"; else pass "fails"; fi

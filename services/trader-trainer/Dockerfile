@@ -43,6 +43,9 @@ RUN chown appuser:appgroup /app
 # Model artifacts (ADR-0022): a compose named volume mounted here inherits
 # this ownership; Kubernetes mounts the checkpoint PVC with fsGroup.
 RUN mkdir -p /data/checkpoints && chown appuser:appgroup /data/checkpoints
+ARG BUILD_VERSION=dev
+ARG GIT_SHA=unknown
+ENV BUILD_VERSION=$BUILD_VERSION GIT_SHA=$GIT_SHA
 USER appuser
 
 EXPOSE 3000

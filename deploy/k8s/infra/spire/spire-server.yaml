@@ -143,7 +143,7 @@ spec:
                 - ALL
       containers:
         - name: spire-server
-          image: ghcr.io/spiffe/spire-server:1.11.3
+          image: ghcr.io/spiffe/spire-server:1.15.5@sha256:584a9c5cc95b9457f5033e7e4488d603fffe5ec48a80c4dba14b05c5e1c2c384
           imagePullPolicy: IfNotPresent
           # The image entrypoint is `spire-server run`.
           args: ["-config", "/etc/spire/server.conf", "-expandEnv"]

@@ -635,6 +635,7 @@ describe("Trainer — model publication", () => {
 			generationStarted: jest.fn(),
 			stagnationUpdated: jest.fn(),
 			evaluationFailed: jest.fn(),
+			genomeEvaluated: jest.fn(),
 		};
 		const trainer = new Trainer(dataBuffer, {
 			settings: TEST_TRAINING_SETTINGS,

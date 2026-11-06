@@ -108,7 +108,7 @@ spec:
             periodSeconds: 10
             timeoutSeconds: 3
         - name: spiffe-helper
-          image: ghcr.io/spiffe/spiffe-helper:0.10.1
+          image: ghcr.io/spiffe/spiffe-helper:0.10.1@sha256:2402c34d83794aa24c127baa46e9732d653463f3bfcd39cda1313003ed60f8c9
           imagePullPolicy: IfNotPresent
           args:
             - -config
@@ -423,13 +423,13 @@ data:
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-dlq-backlog.md'
 
           - alert: InstanceCountLow
-            expr: max by (service) (discovery_registered_instances_per_service) < 2 and max by (service) (max_over_time(discovery_registered_instances_per_service[1d])) >= 2
+            expr: max by (service) (discovery_registered_instances_per_service) < 2 and max by (service) (max_over_time(min_over_time(discovery_registered_instances_per_service[15m])[1d:5m])) >= 2
             for: 2m
             labels:
               severity: critical
             annotations:
               summary: 'Low instance count for service {{ $labels.service }}'
-              description: 'Service {{ $labels.service }} had 2+ instances in the last day and now has fewer than 2: redundancy is lost (single-replica environments never fire).'
+              description: 'Service {{ $labels.service }} had 2+ instances for 15 min in the last day and now has fewer than 2: redundancy is lost (single-replica environments never fire, nor does the surge pod of a rolling update).'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-discovery.md#instancecountlow'
 
           - alert: HighMemoryUsage
@@ -493,8 +493,10 @@ data:
               description: 'No {{ $labels.component }} archive for more than 2 hours (db-backup-incremental runs hourly): the 1 h RPO is no longer met.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/deployment/BACKUP_DR.md#monitoring'
 
+          # Not on compose: scripts/backup.sh reports backup_pitr_supported 0 (no
+          # incremental job, standalone mongod).
           - alert: BackupIncrementalMissing
-            expr: 'absent(backup_last_success_timestamp{component="mysql-binlog",run="incremental"}) or absent(backup_last_success_timestamp{component="mongodb-oplog",run="incremental"}) or absent(backup_last_success_timestamp{component="mongodb-audit-oplog",run="incremental"})'
+            expr: '(absent(backup_last_success_timestamp{component="mysql-binlog",run="incremental"}) or absent(backup_last_success_timestamp{component="mongodb-oplog",run="incremental"}) or absent(backup_last_success_timestamp{component="mongodb-audit-oplog",run="incremental"})) unless on() (backup_pitr_supported == 0)'
             for: 2h
             labels:
               severity: critical
@@ -707,6 +709,26 @@ data:
               summary: 'Training completion rate below 95%'
               description: 'Trainer completion rate is {{ $value | humanizePercentage }} over 15m.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#trainingcompletionratelow'
+
+          - alert: TrainerEventLoopBlocked
+            expr: histogram_quantile(0.99, sum by (job, le) (rate(tt_genome_evaluation_seconds_bucket[15m]))) > 5
+            for: 15m
+            labels:
+              severity: warning
+            annotations:
+              summary: 'trader-trainer event loop blocked for several seconds'
+              description: 'p99 genome evaluation is {{ $value | humanizeDuration }} over 15m (threshold 5 s). Heartbeats (15 s) and deliveries (10 s timeout) fail meanwhile.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#trainereventloopblocked'
+
+          - alert: TrainerEventLoopLagHigh
+            expr: max by (job) (nodejs_eventloop_lag_max_seconds{job="trader-trainer"}) > 10
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: 'trader-trainer event loop lag above 10 s'
+              description: 'Trainer event loop lag reached {{ $value | humanizeDuration }} (threshold 10 s) outside or inside GA evaluation. Heartbeats (15 s) and deliveries (10 s timeout) fail meanwhile.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#trainereventlooplaghigh'
 
           - alert: MarketDataStale
             expr: sum(increase(fs_candles_persisted_total[15m])) == 0

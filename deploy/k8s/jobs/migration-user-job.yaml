@@ -1,0 +1,89 @@
+# =============================================================================
+#  migration-user-job.yaml — MySQL user of the migration Jobs
+#  Creates (or updates) the `migrator` user: DDL/DML on financial_scraper only,
+#  no other schema, no administrative privilege. db-migrate and
+#  db-migrate-down connect as this user, never as root.
+#
+#  This is the only Job that reads MYSQL_ROOT_PASSWORD. It is idempotent, so it
+#  runs on every deploy (deploy/k8s/scripts/run-migrations.sh): it covers a
+#  database initialised before the user existed, and applies a rotated
+#  MYSQL_MIGRATE_PASSWORD. Delete the previous job first (immutable template).
+# =============================================================================
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: db-migrate-user
+  annotations:
+    description: "Creates the least-privilege MySQL user of the migration Jobs"
+    app.kubernetes.io/part-of: trading-model
+spec:
+  ttlSecondsAfterFinished: 600
+  backoffLimit: 2
+  activeDeadlineSeconds: 180
+  template:
+    spec:
+      serviceAccountName: migration-runner
+      restartPolicy: Never
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999
+        runAsGroup: 999
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: provision
+          image: mysql@sha256:85b9bf2e29cf836ecb8c2a15a935d4ba0c606631dff1dd79531a11983c638f2a
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
+          command:
+            - sh
+            - -c
+            - |
+              set -eu
+              # The password goes into a SQL string literal: refuse characters that
+              # would need escaping (init-sealed-secrets.sh generates hex).
+              case "$MIGRATE_PASSWORD" in
+                ""|*[!A-Za-z0-9_.@%+=-]*) echo "MYSQL_MIGRATE_PASSWORD must be non-empty and match [A-Za-z0-9_.@%+=-]" >&2; exit 1 ;;
+              esac
+              pw="$MIGRATE_PASSWORD"
+              export MYSQL_PWD="$MYSQL_ROOT_PASSWORD"
+              mysql -h mysql-primary -u root <<EOSQL
+              CREATE USER IF NOT EXISTS 'migrator'@'%' IDENTIFIED BY '${pw}';
+              ALTER USER 'migrator'@'%' IDENTIFIED BY '${pw}';
+              GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, ALTER, DROP, INDEX, REFERENCES, EVENT, TRIGGER
+                ON financial_scraper.* TO 'migrator'@'%';
+              EOSQL
+              echo "migrator user ready"
+          env:
+            - name: MYSQL_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: trading-model-secrets
+                  key: MYSQL_ROOT_PASSWORD
+            - name: MIGRATE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: trading-model-secrets
+                  key: MYSQL_MIGRATE_PASSWORD
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 128Mi
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: migration-runner
+  annotations:
+    app.kubernetes.io/part-of: trading-model
+automountServiceAccountToken: false

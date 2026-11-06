@@ -17,6 +17,7 @@ import { effectiveFitnessType } from "../domain/training-settings";
 import { MessageManager } from "./message-manager";
 import {
 	CURRENT_GENERATION,
+	GENOME_EVALUATION_SECONDS,
 	MARKET_DATA_BUFFER_SIZE,
 	MARKET_DATA_RECEIVED_TOTAL,
 	MARKET_DATA_SYMBOLS,
@@ -36,6 +37,9 @@ const PROMETHEUS_GA_TELEMETRY: GaTelemetry = {
 	},
 	evaluationFailed(reason) {
 		QLEARNING_TRAIN_ERRORS.inc({ reason });
+	},
+	genomeEvaluated(durationMs) {
+		GENOME_EVALUATION_SECONDS.observe(durationMs / 1000);
 	},
 };
 

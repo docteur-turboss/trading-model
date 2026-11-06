@@ -172,7 +172,7 @@ spec:
                   - -c
                   - sleep 15
         - name: spiffe-helper
-          image: ghcr.io/spiffe/spiffe-helper:0.10.1
+          image: ghcr.io/spiffe/spiffe-helper:0.10.1@sha256:2402c34d83794aa24c127baa46e9732d653463f3bfcd39cda1313003ed60f8c9
           imagePullPolicy: IfNotPresent
           args:
             - -config

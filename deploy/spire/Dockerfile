@@ -4,7 +4,7 @@
 #   bootstrap: compose bootstrap (spire-bootstrap) + K8s entry reconciler
 #              (spire-server sidecar); released as ghcr.io/trading-model/spire-tools
 #   agent:     compose agent started with a join token
-ARG SPIRE_VERSION=1.11.3
+ARG SPIRE_VERSION=1.15.5
 
 FROM ghcr.io/spiffe/spire-server:${SPIRE_VERSION} AS spire-server
 FROM ghcr.io/spiffe/spire-agent:${SPIRE_VERSION} AS spire-agent

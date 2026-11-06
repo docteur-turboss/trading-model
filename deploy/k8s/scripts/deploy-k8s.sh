@@ -2,7 +2,7 @@
 # =============================================================================
 #  deploy-k8s.sh — Kubernetes Deployment Script for Trading Model
 #  Usage:
-#    ./deploy-k8s.sh [-n <namespace>] apply           # Apply all manifests
+#    ./deploy-k8s.sh [-n <namespace>] apply           # Apply all manifests (dev cluster only, ALLOW_DEV_APPLY=1)
 #    ./deploy-k8s.sh [-n <namespace>] apply <service> # Apply a single service
 #    ./deploy-k8s.sh [-n <namespace>] delete          # Delete all resources
 #    ./deploy-k8s.sh [-n <namespace>] status          # Show deployment status
@@ -11,6 +11,7 @@
 #    ./deploy-k8s.sh [-n <namespace>] canary <service> [image-tag] [percentage]
 #    ./deploy-k8s.sh [-n <namespace>] canary-all <image-tag> <percentage> <service>...
 #    ./deploy-k8s.sh [-n <namespace>] smoke-test      # Run smoke tests
+#    ./deploy-k8s.sh [-n <namespace>] verify-market-data  # Wait until the collector persists candles again (ADR-0042)
 #    ./deploy-k8s.sh [-n <namespace>] verify-release  # API call, fresh data, no critical alert, over a window
 #  Namespace: K8S_NAMESPACE env or -n/--namespace (default: trading-model)
 # =============================================================================
@@ -63,14 +64,30 @@ check_prereqs() {
     err "kubectl is required. Install: https://kubernetes.io/docs/tasks/tools/"
     exit 1
   fi
-  if ! kubectl cluster-info &>/dev/null; then
+  # `cluster-info` reads kube-system, which the namespaced deploy identity cannot (ADR-0041)
+  if ! kubectl auth can-i get deployments -n "$NAMESPACE" &>/dev/null; then
     err "Cannot connect to Kubernetes cluster. Check your kubeconfig."
+    exit 1
+  fi
+}
+
+# apply renders the base with :latest tags and none of the deploy.yml gates
+# (SealedSecrets, audit anchor, Object Lock, age recipients, alerting).
+# Only a local development cluster may use it, and only on request.
+require_dev_cluster() {
+  local ctx
+  ctx="$(kubectl config current-context 2>/dev/null || true)"
+  if [[ "${ALLOW_DEV_APPLY:-}" != "1" || ! "$ctx" =~ ^(kind-|k3d-|minikube$|docker-desktop$) ]]; then
+    err "apply is for local development clusters only (context '${ctx:-none}')."
+    err "Set ALLOW_DEV_APPLY=1 on a kind-*, k3d-*, minikube or docker-desktop context."
+    err "Staging and production deploy through .github/workflows/deploy.yml (docs/deployment/DEPLOY.md)."
     exit 1
   fi
 }
 
 cmd_apply() {
   local service="${1:-}"
+  require_dev_cluster
 
   if [[ -n "$service" ]]; then
     log "Applying manifests for service: $service"
@@ -179,14 +196,14 @@ cmd_migrate_down() {
 
   log "Preparing database rollback (count=$count)..."
 
-  # Ensure the migration ConfigMap is up-to-date.
-  kubectl create configmap migration-files -n "$NAMESPACE" \
-    --from-file=migrate.mjs=scripts/migrate.mjs \
-    --from-file=scripts/migrations \
-    --dry-run=client -o yaml | kubectl apply -f -
+  # Provision `migrator` first (after a password rotation, or on a cluster no
+  # deploy has reached yet, the rollback would fail with Access denied).
+  bash "$(dirname "${BASH_SOURCE[0]}")/run-migrations.sh" "$NAMESPACE" user-only
 
-  # ROLLBACK_COUNT lives in its own ConfigMap: applying migration-files with
-  # only this key would prune migrate.mjs and the SQL files from it.
+  # The migrations come from the db-migrate image. Pin MIGRATE_IMAGE to the
+  # digest of the release whose migrations are rolled back (an older image
+  # lacks the .down.sql of newer migrations).
+  # ROLLBACK_COUNT lives in its own ConfigMap, required by the job.
   kubectl create configmap migration-rollback -n "$NAMESPACE" \
     --from-literal=ROLLBACK_COUNT="$count" \
     --dry-run=client -o yaml | kubectl apply -f -
@@ -195,7 +212,8 @@ cmd_migrate_down() {
   kubectl delete job -n "$NAMESPACE" db-migrate-down --ignore-not-found &>/dev/null || true
 
   log "Starting migration rollback job..."
-  kubectl apply -n "$NAMESPACE" -f "${K8S_DIR}/jobs/migration-job-down.yaml"
+  sed "s#ghcr.io/trading-model/db-migrate:latest#${MIGRATE_IMAGE:-ghcr.io/trading-model/db-migrate:latest}#" \
+    "${K8S_DIR}/jobs/migration-job-down.yaml" | kubectl apply -n "$NAMESPACE" -f -
 
   log "Waiting for migration rollback to complete..."
   if ! kubectl wait --for=condition=complete job/db-migrate-down -n "$NAMESPACE" --timeout=180s; then
@@ -513,6 +531,39 @@ cmd_smoke_test() {
   fi
 }
 
+# ADR-0042: the collector is a singleton (Recreate), so a release stops
+# collection for up to terminationGracePeriodSeconds plus the startup. Success
+# is the new pod persisting candles again (fs_candles_persisted_total > 0: the
+# counter starts at 0 in a new pod, and MarketDataStale watches its increase).
+# MARKET_DATA_RECOVERY_TIMEOUT seconds (default 600); on timeout exit 1, or only
+# warn with MARKET_DATA_RECOVERY_MODE=warn.
+cmd_verify_market_data() {
+  local timeout="${MARKET_DATA_RECOVERY_TIMEOUT:-600}" mode="${MARKET_DATA_RECOVERY_MODE:-fail}"
+  local deadline=$((SECONDS + timeout)) persisted="" metrics="" last_err="no attempt made"
+  log "Waiting up to ${timeout}s for the collector to persist candles..."
+  while [[ "$SECONDS" -lt "$deadline" ]]; do
+    if metrics="$(kubectl exec -n "$NAMESPACE" deployment/financial-scraper-collector -c financial-scraper-collector --       curl -sSk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem       https://localhost:3000/metrics 2>&1)"; then
+      persisted="$(printf '%s
+' "$metrics" | awk '/^fs_candles_persisted_total/ {s += $NF} END {print s + 0}')"
+      last_err="no fs_candles_persisted_total candle yet (0 persisted)"
+    else
+      persisted=0
+      last_err="/metrics unreadable: ${metrics}"
+    fi
+    if [[ "${persisted:-0}" -gt 0 ]]; then
+      log "Collector persisted ${persisted} candle(s): market data is flowing again."
+      return 0
+    fi
+    sleep 10
+  done
+  if [[ "$mode" == "warn" ]]; then
+    echo "::warning::Collector persisted no candle within ${timeout}s after the release: ${last_err} (runbook-market-data-stale.md)"
+    return 0
+  fi
+  err "Collector persisted no candle within ${timeout}s after the release: ${last_err} (runbook-market-data-stale.md)."
+  exit 1
+}
+
 # Query `$1` (URL-encoded PromQL) on the in-cluster Prometheus; prints the JSON
 # answer. Fails when Prometheus does not answer: a missing signal is not a pass.
 prom_query() {
@@ -556,26 +607,34 @@ release_checks_once() {
     log "  ✓ API through the external ingress: 200"
   fi
 
-  fresh="$(fresh_candles)" || return 1
-  # Strict pass: a scrape cycle runs every minute and Prometheus needs two
-  # samples for increase(), so give the first ones up to 3 min to show up.
-  local tries=0
-  while [[ "$strict" == "1" ]] && ! awk -v v="$fresh" 'BEGIN { exit !(v > 0) }' && (( tries++ < 6 )); do
-    log "  … no candle counted yet (${fresh}), retrying in 30s"
-    sleep 30
-    fresh="$(fresh_candles)" || return 1
-  done
-  if awk -v v="$fresh" 'BEGIN { exit !(v > 0) }'; then
-    log "  ✓ market data: ${fresh%.*} candles persisted in the last 15 min"
-    FRESH_SEEN=1
-  elif [[ "$strict" == "1" ]]; then
-    err "  ✗ no candle persisted in the last 15 min"
-    return 1
+  # VERIFY_REQUIRE_FRESH_DATA=false (staging): missing market data only warns
+  # there (ADR-0042, verify-market-data), so skip the data check and MarketDataStale.
+  local ignored='%2Calertname!%3D%22Watchdog%22'
+  if [[ "${VERIFY_REQUIRE_FRESH_DATA:-true}" == "false" ]]; then
+    ignored+='%2Calertname!%3D%22MarketDataStale%22'
+    log "  - market data not checked (VERIFY_REQUIRE_FRESH_DATA=false)"
   else
-    log "  … no market data persisted yet"
+    fresh="$(fresh_candles)" || return 1
+    # Strict pass: a scrape cycle runs every minute and Prometheus needs two
+    # samples for increase(), so give the first ones up to 3 min to show up.
+    local tries=0
+    while [[ "$strict" == "1" ]] && ! awk -v v="$fresh" 'BEGIN { exit !(v > 0) }' && (( tries++ < 6 )); do
+      log "  … no candle counted yet (${fresh}), retrying in 30s"
+      sleep 30
+      fresh="$(fresh_candles)" || return 1
+    done
+    if awk -v v="$fresh" 'BEGIN { exit !(v > 0) }'; then
+      log "  ✓ market data: ${fresh%.*} candles persisted in the last 15 min"
+      FRESH_SEEN=1
+    elif [[ "$strict" == "1" ]]; then
+      err "  ✗ no candle persisted in the last 15 min"
+      return 1
+    else
+      log "  … no market data persisted yet"
+    fi
   fi
 
-  critical="$(prom_query 'ALERTS%7Balertstate%3D%22firing%22%2Cseverity%3D%22critical%22%2Calertname!%3D%22Watchdog%22%7D' \
+  critical="$(prom_query "ALERTS%7Balertstate%3D%22firing%22%2Cseverity%3D%22critical%22${ignored}%7D" \
     | jq -r '.data.result[].metric | .alertname + (if .job then "{job=\(.job), instance=\(.instance // "")}" else "" end)')" || return 1
   if [[ -n "$critical" ]]; then
     err "  ✗ critical alert(s) firing: $(echo "$critical" | sort -u | paste -sd, -)"
@@ -656,6 +715,9 @@ case "${1:-help}" in
   smoke-test)
     cmd_smoke_test
     ;;
+  verify-market-data)
+    cmd_verify_market_data
+    ;;
   verify-release)
     cmd_verify_release
     ;;
@@ -673,6 +735,7 @@ case "${1:-help}" in
     echo "  $0 [-n namespace] canary-cleanup <srv>  Remove canary deployment"
     echo "  $0 [-n namespace] pin                     Pin deployed images to digests"
     echo "  $0 [-n namespace] smoke-test            Run smoke tests"
+    echo "  $0 [-n namespace] verify-market-data    Wait for the collector to persist candles again"
     echo "  $0 [-n namespace] verify-release        API via edge-proxy, fresh data, no critical alert (VERIFY_WINDOW_SECONDS)"
     echo "Namespace defaults to trading-model (env: K8S_NAMESPACE)."
     echo "Feature flags (FEATURE_FLAGS=flag1,flag2): canary-auto-cleanup"

@@ -88,7 +88,7 @@ spec:
       terminationGracePeriodSeconds: 30
       containers:
         - name: spire-agent
-          image: ghcr.io/spiffe/spire-agent:1.11.3
+          image: ghcr.io/spiffe/spire-agent:1.15.5@sha256:3652c732b0f0d36f4dd78394230a1b1cd0ddcc29548a46c67a996b1a78c14481
           imagePullPolicy: IfNotPresent
           # The image entrypoint is `spire-agent run`.
           args: ["-config", "/etc/spire/agent.conf", "-expandEnv"]

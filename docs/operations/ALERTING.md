@@ -5,7 +5,7 @@ How an incident reaches a person, and how that path is kept honest.
 ```
 services /metrics ─┐
 backup exporter ───┼─► Prometheus ── rules (observability/alerting.yml) ──► Alertmanager ──► Slack #alerts / #alerts-warning
-Alertmanager ──────┤                                                                     ├─► PagerDuty (critical)
+Alertmanager ──────┤                                                                     ├─► Pushover (critical)
 Prometheus itself ─┘                                                                     └─► dead man's switch (Watchdog, every minute)
 ```
 
@@ -15,12 +15,12 @@ Prometheus itself ─┘                                                        
 | --- | --- |
 | Rules | `observability/alerting.yml`, copied into the K8s ConfigMap `prometheus-config` (`deploy/k8s/infra/prometheus.yaml`) |
 | Routing | `observability/alertmanager.yml`, copied into the K8s ConfigMap `alertmanager-config` (`deploy/k8s/infra/alertmanager.yaml`) |
-| Credentials, K8s | Secret `alertmanager-credentials` (keys `SLACK_WEBHOOK_URL`, `PAGERDUTY_ROUTING_KEY`, `DEADMAN_URL`), written by `deploy.yml` from the GitHub environment secrets `ALERTMANAGER_SLACK_WEBHOOK_URL`, `ALERTMANAGER_PAGERDUTY_ROUTING_KEY`, `ALERTMANAGER_DEADMAN_URL` |
+| Credentials, K8s | Secret `alertmanager-credentials` (keys `SLACK_WEBHOOK_URL`, `PUSHOVER_USER_KEY`, `PUSHOVER_TOKEN`, `DEADMAN_URL`), written by `deploy.yml` from the GitHub environment secrets `ALERTMANAGER_SLACK_WEBHOOK_URL`, `ALERTMANAGER_PUSHOVER_USER_KEY`, `ALERTMANAGER_PUSHOVER_TOKEN`, `ALERTMANAGER_DEADMAN_URL` |
 | Credentials, compose | one file per key in `ALERTMANAGER_CREDENTIALS_DIR` (default `observability/alertmanager-credentials/`, git-ignored) |
 
 Alertmanager reads the credential files when it sends, so a changed Secret
 needs no restart. A production deploy fails without the Slack webhook and the
-dead man's switch; staging only warns. Without a PagerDuty key, critical alerts
+dead man's switch; staging only warns. Without the Pushover keys, critical alerts
 still reach Slack `#alerts` (they are routed to both).
 
 ### Dead man's switch
@@ -37,7 +37,7 @@ Slack is down: configure that external check to notify someone directly
 | Alert | Catches |
 | --- | --- |
 | `Watchdog` | the whole pipeline (through the external dead man's switch) |
-| `AlertmanagerNotificationsFailing` | a receiver that rejects notifications (wrong webhook, missing PagerDuty key) |
+| `AlertmanagerNotificationsFailing` | a receiver that rejects notifications (wrong webhook, missing Pushover key) |
 | `PrometheusRuleEvaluationFailures` | a rule that cannot be evaluated |
 | `ServiceDown` | a scrape target that is down, Alertmanager and Prometheus included |
 
@@ -74,7 +74,7 @@ read-only root filesystem: lost). Both are fixed.
 
 Every rule carries `annotations.runbook_url`: the absolute GitHub URL, on
 `main`, of its procedure (with the section anchor when the file covers several
-alerts). Alertmanager passes it to Slack and PagerDuty, so the page links the
+alerts). Alertmanager passes it to Slack and Pushover, so the page links the
 procedure. `scripts/observability-gate.mjs` fails on a rule without it, on a
 file absent from the repository, or on an anchor that matches no heading.
 
@@ -119,6 +119,8 @@ file absent from the repository, or on an anchor that matches no heading.
 | `MessagesUnrouted` | warning | [runbook-message-bus-outage#3-no-subscriber-on-a-topic](runbooks/runbook-message-bus-outage.md#3-no-subscriber-on-a-topic) |
 | `DLQDrainRateLow` | warning | [runbook-dlq-backlog](runbooks/runbook-dlq-backlog.md) |
 | `TrainingCompletionRateLow` | warning | [runbook-trainer#trainingcompletionratelow](runbooks/runbook-trainer.md#trainingcompletionratelow) |
+| `TrainerEventLoopBlocked` | warning | [runbook-trainer#trainereventloopblocked](runbooks/runbook-trainer.md#trainereventloopblocked) |
+| `TrainerEventLoopLagHigh` | warning | [runbook-trainer#trainereventlooplaghigh](runbooks/runbook-trainer.md#trainereventlooplaghigh) |
 | `MarketDataStale` | critical | [runbook-market-data-stale](runbooks/runbook-market-data-stale.md) |
 | `ScrapeCyclesFailing` | warning | [runbook-market-data-stale](runbooks/runbook-market-data-stale.md) |
 | `BinanceRestrictedLocation` | critical | [runbook-market-data-stale](runbooks/runbook-market-data-stale.md) |

@@ -177,7 +177,7 @@ function k8sAlertingConfig() {
 const PROMQL_WORDS = new Set([
   "abs", "absent", "and", "avg", "bool", "by", "ceil", "count", "delta", "deriv", "group_left",
   "group_right", "histogram_quantile", "humanizePercentage", "ignoring", "increase",
-  "irate", "max", "max_over_time", "min", "offset", "on", "or", "rate", "sum", "time", "topk", "unless", "vector",
+  "irate", "max", "max_over_time", "min", "min_over_time", "offset", "on", "or", "rate", "sum", "time", "topk", "unless", "vector",
   "without",
 ]);
 
@@ -336,7 +336,7 @@ function runbookUrlProblem(url) {
   }
   // An inline credential is a placeholder (CHANGE_ME sent every alert nowhere)
   // or a leaked secret: receivers read theirs from files.
-  if (/"(slack_api_url|api_url|routing_key|service_key|url)":/.test(JSON.stringify(compose))) {
+  if (/"(slack_api_url|api_url|routing_key|service_key|user_key|token|url)":/.test(JSON.stringify(compose))) {
     errors.push("observability/alertmanager.yml: inline receiver credential, use the *_file form");
   }
   const watchdogRoute = (compose.route?.routes ?? []).find((route) =>
