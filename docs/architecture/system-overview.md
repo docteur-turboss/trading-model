@@ -85,7 +85,7 @@ flowchart TB
     svc --> rs["StatefulSet redis-sentinel (3)"]
     ss["Deployment spire-server"] --> mysql
     obs["StatefulSets prometheus, alertmanager, grafana, loki<br/>Deployments jaeger, otel-collector, blackbox-exporter"]
-    jobs["CronJobs db-backup, db-backup-incremental,<br/>secret-rotation; Job migrate"]
+    jobs["CronJobs db-backup, db-backup-incremental; Job migrate"]
   end
   subgraph node["namespace trading-model-node (privileged)"]
     agent["DaemonSet spire-agent"]

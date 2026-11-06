@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Keep, from a rendered kustomization on stdin, the documents of one scope
-# (ADR-0038): `cluster` = objects no namespace owns, applied with the
+# (ADR-0041): `cluster` = objects no namespace owns, applied with the
 # cluster-scope identity; `app` = everything else, applied with the
 # application identity. A new cluster-scope kind goes in the awk BEGIN list here
 # and in deploy/k8s/deploy-identity/cluster-role.yaml.

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-#  Trading Model — Least-privilege identities of deploy.yml (ADR-0038)
+#  Trading Model — Least-privilege identities of deploy.yml (ADR-0041)
 #  Usage:  bash scripts/deploy-identity.sh app|cluster [--namespace NS] [--server URL] [--duration 168h] [--revoke] > kubeconfig
 #          ... | base64 -w0 | gh secret set KUBECONFIG_PRODUCTION_APP --env production     (app)
 #          ... | base64 -w0 | gh secret set KUBECONFIG_PRODUCTION_CLUSTER --env production (cluster)

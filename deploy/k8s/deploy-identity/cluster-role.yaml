@@ -1,4 +1,4 @@
-# ClusterRole of the cluster-scope deploy identity (ADR-0038): used by the
+# ClusterRole of the cluster-scope deploy identity (ADR-0041): used by the
 # steps of deploy.yml that touch what no namespace owns (namespaces, the
 # ClusterRoles of the overlay, the CSIDriver, the CRD check). Bound by
 # scripts/deploy-identity.sh to a ClusterRoleBinding.
@@ -17,6 +17,16 @@ rules:
     verbs: [get, list, watch, create, patch, update]
   - apiGroups: [apiextensions.k8s.io]
     resources: [customresourcedefinitions]
+    verbs: [get, list]
+  # check-prereqs.sh: StorageClass, IngressClass and cert-manager ClusterIssuer named by the render.
+  - apiGroups: [storage.k8s.io]
+    resources: [storageclasses]
+    verbs: [get]
+  - apiGroups: [networking.k8s.io]
+    resources: [ingressclasses]
+    verbs: [get]
+  - apiGroups: [cert-manager.io]
+    resources: [clusterissuers]
     verbs: [get]
   - apiGroups: [storage.k8s.io]
     resources: [csidrivers]

@@ -1,6 +1,6 @@
 // Fails when a `kubectl` command the application deploy identity runs (deploy-k8s.sh,
 // run-migrations.sh, the namespaced steps of deploy.yml) needs a verb/resource that
-// deploy/k8s/deploy-identity/app-role.yaml does not grant (ADR-0038).
+// deploy/k8s/deploy-identity/app-role.yaml does not grant (ADR-0041).
 //   node tests/k8s/check-deploy-commands.mjs
 // shortcut: heuristic parser (verb + first resource argument), commands without a
 // visible resource (`apply -f -`) are covered by check-overlays.mjs; upgrade to a kind

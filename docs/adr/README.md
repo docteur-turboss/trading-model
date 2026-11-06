@@ -45,7 +45,10 @@ An ADR documents a significant architectural decision, including the context, al
 | [ADR-0035](./0035-sealed-secrets-key-daily-backup-by-github-actions.md) | SealedSecrets Controller Keys Backed Up Daily by a Scheduled GitHub Actions Workflow | Accepted | 2026-11 |
 | [ADR-0036](./0036-multi-dimension-signals-mvp.md) | Multi-Dimension Signals MVP — Frozen Schema, Static Source Registry of Free Sources, Generic `rest_api` Worker | Accepted | 2026-11 |
 | [ADR-0037](./0037-typedoc-html-not-versioned.md) | Generated TypeDoc HTML Is Not Versioned | Accepted | 2026-11 |
-| [ADR-0038](./0038-least-privilege-deploy-identities.md) | Least-Privilege Deploy Identities — Application and Cluster-Scope, Bounded Tokens | Accepted | 2026-11 |
+| [ADR-0038](./0038-release-images-scanned-attested-signed-and-verified.md) | Release Images Are Scanned, Carry SBOM and Provenance, Are Signed Keyless, and Are Verified at Deploy | Accepted | 2026-11 |
+| [ADR-0039](./0039-configuration-feature-flags.md) | Configuration Feature Flags (env booleans, kill switches) | Accepted | 2026-11 |
+| [ADR-0040](./0040-locked-resumable-migrations-and-expand-contract.md) | Locked, Resumable Schema Migrations and the Expand/Contract Rule | Accepted | 2026-11 |
+| [ADR-0041](./0041-least-privilege-deploy-identities.md) | Least-Privilege Deploy Identities — Application and Cluster-Scope, Bounded Tokens | Accepted | 2026-11 |
 
 **Numbering gaps.** ADR-0014 and ADR-0028 do not exist. No file with either number has ever been committed on any branch, and no document refers to them, so they were skipped when the numbers were assigned and carry no decision. Do not reuse them for unrelated records.
 

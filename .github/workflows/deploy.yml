@@ -160,7 +160,7 @@ jobs:
         with:
           version: 'stable'
 
-      # Two identities (ADR-0038, scripts/deploy-identity.sh): `app` (default
+      # Two identities (ADR-0041, scripts/deploy-identity.sh): `app` (default
       # kubeconfig) is limited to the application namespace; `cluster`
       # (CLUSTER_KUBECONFIG) is used by the cluster-scope steps only. Both are
       # base64 kubeconfigs with a bounded token.
@@ -246,6 +246,30 @@ jobs:
           done
           if [ -n "$missing" ]; then
             echo "::error::No $REGISTRY image tagged $TAG for:$missing (was the release published?)"
+            exit 1
+          fi
+
+      # Only digests signed by release.yml of this repository (keyless, ADR-0038)
+      # are deployed. Tags published before the signature existed fail here.
+      - name: Install cosign
+        uses: sigstore/cosign-installer@756fe2d284c7292c4e9b62c8a28f1e5629c59532 # v4.1.3
+
+      - name: Verify image signatures
+        shell: bash
+        env:
+          REGISTRY: ${{ steps.tag.outputs.registry }}
+          REPO: ${{ github.repository }}
+        run: |
+          failed=""
+          while read -r img digest; do
+            if ! cosign verify "$REGISTRY/$img@$digest" \
+              --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+              --certificate-identity-regexp "^https://github\.com/${REPO}/\.github/workflows/release\.yml@refs/tags/v" >/dev/null; then
+              failed="$failed $img"
+            fi
+          done < "$RUNNER_TEMP/image-digests"
+          if [ -n "$failed" ]; then
+            echo "::error::No valid release.yml signature for:$failed"
             exit 1
           fi
 
@@ -470,6 +494,21 @@ jobs:
             --from-literal=SIGNAL_CONTACT_EMAIL="$SIGNAL_CONTACT_EMAIL" \
             --dry-run=client -o yaml | kubectl apply -f -
 
+      # CRDs of non-native kinds (VPA, SealedSecret...), StorageClasses,
+      # IngressClasses and the cert-manager ClusterIssuer come from the render
+      # itself. Missing ones stop the deploy here, not half way through the
+      # apply (issue #419).
+      # Reads CRDs, StorageClasses, IngressClasses, ClusterIssuers: cluster identity (ADR-0041).
+      - name: Check cluster prerequisites
+        shell: bash
+        run: |
+          ENV="${{ inputs.environment }}"
+          {
+            kubectl kustomize --load-restrictor LoadRestrictionsNone "deploy/k8s/overlays/$ENV"
+            echo ---
+            kubectl kustomize "deploy/k8s/overlays/$ENV/node-agents"
+          } | KUBECONFIG="$CLUSTER_KUBECONFIG" bash deploy/k8s/scripts/check-prereqs.sh
+
       # SPIRE agent + SPIFFE CSI driver, in the privileged trading-model-node
       # namespace: the application namespace (restricted) cannot host them.
       - name: Apply SPIFFE node components
@@ -503,16 +542,19 @@ jobs:
           CANARY_GATE_SECONDS: ${{ vars.CANARY_GATE_SECONDS || '120' }}
           CANARY_MIN_REQUESTS: ${{ vars.CANARY_MIN_REQUESTS || '20' }}
           CANARY_ERROR_THRESHOLD_PCT: ${{ vars.CANARY_ERROR_THRESHOLD_PCT || '5' }}
+          # Services whose gate is readiness only (no steady traffic): dlq-service
+          # only gets requests on a dead letter or an admin call.
+          CANARY_READINESS_ONLY: ${{ vars.CANARY_READINESS_ONLY || 'dlq-service' }}
         run: |
           NS="${{ steps.ns.outputs.namespace }}"
           export K8S_NAMESPACE="$NS"
           export CANARY_IMAGE_REPO="${{ steps.tag.outputs.registry }}"
           chmod +x deploy/k8s/scripts/deploy-k8s.sh
           TAG="${{ steps.tag.outputs.tag }}"
-          for dep in discovery-server message-manager financial-scraper trader-trainer \
-                     api-gateway audit-logger dlq-service; do
-            ./deploy/k8s/scripts/deploy-k8s.sh canary "$dep" "$TAG" 10
-          done
+          # Created in parallel, observed over one CANARY_GATE_SECONDS window.
+          ./deploy/k8s/scripts/deploy-k8s.sh canary-all "$TAG" 10 \
+            discovery-server message-manager financial-scraper trader-trainer \
+            api-gateway audit-logger dlq-service
 
       # Revision each Deployment runs before the overlay: the rollback returns to
       # exactly it (image and hashed ConfigMap), not to "the one before the
@@ -527,6 +569,26 @@ jobs:
               -o jsonpath='{.metadata.annotations.deployment\.kubernetes\.io/revision}')
             echo "$dep ${rev:-none}"
           done | tee "$RUNNER_TEMP/deploy-revisions"
+
+      # Deployments driven by an HPA carry no spec.replicas in the overlay. A
+      # client-side apply of a manifest that drops a field it applied before
+      # resets it to the default (1), so the field leaves
+      # last-applied-configuration first (Kubernetes docs, "Migrating
+      # Deployments and StatefulSets to horizontal autoscaling"). No-op once done
+      # and on a first deploy (no HPA yet).
+      - name: Release replicas of autoscaled Deployments
+        shell: bash
+        run: |
+          NS="${{ steps.ns.outputs.namespace }}"
+          ANN='kubectl.kubernetes.io/last-applied-configuration'
+          for dep in $(kubectl get hpa -n "$NS" \
+              -o jsonpath='{range .items[?(@.spec.scaleTargetRef.kind=="Deployment")]}{.spec.scaleTargetRef.name}{"\n"}{end}'); do
+            last=$(kubectl get deployment "$dep" -n "$NS" -o json | jq -r --arg a "$ANN" '.metadata.annotations[$a] // empty')
+            [ -n "$last" ] || continue
+            echo "$last" | jq -e '.spec | has("replicas")' > /dev/null || continue
+            kubectl annotate deployment "$dep" -n "$NS" --overwrite "$ANN=$(echo "$last" | jq -c 'del(.spec.replicas)')"
+            echo "$dep: spec.replicas removed from last-applied-configuration"
+          done
 
       - name: Apply overlay
         id: apply
@@ -552,6 +614,11 @@ jobs:
           # load restrictor rejects it and kubectl apply -k cannot relax it.
           kubectl kustomize --load-restrictor LoadRestrictionsNone "$WRAPPER" |
             bash scripts/split-cluster-scope.sh app | kubectl apply -f -
+          # The former secret-rotation CronJob (issue #424) held write rights on every
+          # Secret; apply never prunes, so remove what an older deploy left behind.
+          kubectl delete cronjob/secret-rotation role/secret-rotator-role \
+            rolebinding/secret-rotator-binding serviceaccount/secret-rotator \
+            -n "${{ steps.ns.outputs.namespace }}" --ignore-not-found
 
       # Public age key(s) the db-backup CronJob encrypts every dump for (the
       # private keys never enter the cluster). Environment variable of the

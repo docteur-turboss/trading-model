@@ -21,7 +21,6 @@ metadata:
     app.kubernetes.io/component: audit-logger
     app.kubernetes.io/part-of: trading-model
 spec:
-  replicas: 2
   strategy:
     rollingUpdate:
       maxUnavailable: 1

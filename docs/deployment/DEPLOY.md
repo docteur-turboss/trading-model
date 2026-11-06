@@ -90,7 +90,7 @@ These settings are made by hand in GitHub; the workflow cannot check them.
 
 ### Deploy identities
 
-No admin kubeconfig is stored in GitHub (ADR-0038). With an admin kubeconfig,
+No admin kubeconfig is stored in GitHub (ADR-0041). With an admin kubeconfig,
 once per environment and again before the token expires:
 
 ```bash
@@ -100,8 +100,8 @@ bash scripts/deploy-identity.sh cluster --namespace trading-model | base64 -w0 |
 
 | Identity | Rights | Used by |
 |----------|--------|---------|
-| `deploy-app` | Role `deploy/k8s/deploy-identity/app-role.yaml` in the application namespace | every step except the three below |
-| `deploy-cluster` | ClusterRole `cluster-role.yaml` + Roles in the node-agents and Sealed Secrets namespaces | "Apply cluster-scope objects", "Check sealed secrets" (CRD, controller), "Apply SPIFFE node components" |
+| `deploy-app` | Role `deploy/k8s/deploy-identity/app-role.yaml` in the application namespace | every step except the four below |
+| `deploy-cluster` | ClusterRole `cluster-role.yaml` + Roles in the node-agents and Sealed Secrets namespaces | "Apply cluster-scope objects", "Check sealed secrets" (CRD, controller), "Check cluster prerequisites" (CRDs, StorageClass, IngressClass, ClusterIssuer), "Apply SPIFFE node components" |
 
 - **Token rotation.** The token is bounded (`--duration`, default 168 h; the
   API server may cap it). Rerun the script and replace the secret before expiry.
@@ -171,10 +171,16 @@ docker pull ghcr.io/<owner>/discovery-server:2.0.3
 ## Production deployment
 
 1. `bun run release:publish` (on `main`) bumps the versions, writes the CHANGELOG and pushes the tag `vX.Y.Z` ([release.md](../contributing/release.md))
-2. `release.yml` runs the whole CI on the tag, then publishes the 9 images to `ghcr.io/<owner>` as `X.Y.Z`, and as `latest` when it is the highest stable release
+2. `release.yml` runs the whole CI on the tag, then publishes the 9 images to `ghcr.io/<owner>` as `X.Y.Z`, and as `latest` when it is the highest stable release; its last job, `verify-images`, fails if `deploy.yml` cannot resolve one of them. First release of this pipeline: [release.md, section 4](../contributing/release.md#4-first-release-of-the-current-pipeline) (`v2.0.0` to `v2.0.3` are not deployable)
 3. The `Deploy` workflow is run against the `production` environment (canary enabled for staged rollout)
 
 ---
+
+## Replicas and the HPA
+
+A Deployment driven by an HPA carries no `spec.replicas` in `deploy/k8s/services/` (`check-overlays.mjs` enforces it): an apply must not reset the pod count the HPA chose. `minReplicas` is the floor; staging pins every HPA to 1 pod. The `financial-scraper-collector` (no HPA) keeps `replicas: 1`.
+
+Moving an existing cluster over: `deploy.yml` (step "Release replicas of autoscaled Deployments") removes `spec.replicas` from `kubectl.kubernetes.io/last-applied-configuration` before the apply, otherwise the apply would drop the Deployment to 1 pod. By hand: `kubectl apply edit-last-applied deployment/<name> -n <ns>` and delete the `replicas` line, before applying the new overlay.
 
 ## Rollback
 
@@ -210,6 +216,25 @@ revision: the step reports an error for it and leaves it in place.
 
 The canary (`deploy-k8s.sh canary`) copies the running pod template, so it runs
 the new image with the configuration of the current release, not the new one.
+
+### Canary gate
+
+`deploy.yml` runs `deploy-k8s.sh canary-all`: the 7 canaries are created in
+parallel and observed over one `CANARY_GATE_SECONDS` window (default 120 s), so
+the step lasts one rollout plus one window, not 7 of each. Every failing gate is
+reported and every canary is removed if one fails.
+
+| GitHub variable | Default | Meaning |
+|---|---|---|
+| `CANARY_GATE_SECONDS` | `120` | Observation window |
+| `CANARY_MIN_REQUESTS` | `20` | Real requests a canary must serve: fewer is a failure (no signal is not a pass) |
+| `CANARY_ERROR_THRESHOLD_PCT` | `5` | Maximum 4xx/5xx share |
+| `CANARY_READINESS_ONLY` | `dlq-service` | Comma-separated services whose gate checks readiness and routing only |
+
+`dlq-service` is readiness-only: it only receives requests on a dead letter or an
+admin call, so a healthy environment gives it no traffic. Add a service to
+`CANARY_READINESS_ONLY` only for the same reason. Test of the gate:
+`bash tests/k8s/canary-gate.test.sh`.
 
 For a manual rollback, revert a service to a previous revision:
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # scripts/deploy-identity.sh and scripts/split-cluster-scope.sh against a stub
-# `kubectl` (ADR-0038). Checks: the app identity gets a namespaced Role and
+# `kubectl` (ADR-0041). Checks: the app identity gets a namespaced Role and
 # RoleBinding only, never a ClusterRole(Binding); the cluster identity gets the
 # ClusterRole and the Roles of the node-agents / controller namespaces; the
 # token is bounded (`create token --duration`), never a token Secret; --revoke
