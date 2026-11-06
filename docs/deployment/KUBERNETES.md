@@ -15,6 +15,12 @@ This guide covers deploying the Trading Model platform on Kubernetes. The K8s ma
   Prometheus, Grafana, Loki, SPIRE)
 - A ReadWriteMany StorageClass named `rwx-csi` (NFS, EFS, Azure Files...) for
   the trainer checkpoints PVC (`trainer-checkpoints-pvc`)
+- CRDs, installed before the first deploy (operators are not installed by the manifests):
+  `verticalpodautoscalers.autoscaling.k8s.io` (VPA, recommendations only: `updateMode: "Off"`,
+  the HPAs own CPU and memory scaling), `sealedsecrets.bitnami.com` (production), cert-manager
+  (`ClusterIssuer` `letsencrypt-prod`) and an `IngressClass` named `nginx`
+- `deploy.yml` derives these from the rendered overlay (`deploy/k8s/scripts/check-prereqs.sh`) and
+  refuses, listing what is missing, before the first apply
 - A CNI that enforces NetworkPolicies
 - One environment per cluster: the node agents (SPIRE agent, promtail) serve a
   single application namespace
@@ -63,7 +69,11 @@ kubectl kustomize --load-restrictor LoadRestrictionsNone deploy/k8s/overlays/sta
 bash deploy/k8s/scripts/run-migrations.sh trading-model-staging
 ```
 
-The CI `k8s` job runs the same sequence on kind, then the two gates of
+The CI `k8s` job runs the same sequence on kind for release N-1 (the commit
+before: the PR's base branch), upgrades it to N through the release steps of
+`deploy.yml` (`deploy/k8s/scripts/deploy-release.sh`: images pinned by digest,
+migrations, rollout, rollback), first with a forced failure that must roll every
+Deployment back to N-1, and runs `migrate-down 1` then the migrations again; then the two gates of
 `deploy.yml` (`deploy-k8s.sh smoke-test`, and the canary on api-gateway with
 traffic through edge-proxy, which must also fail without traffic), and checks
 the stack (`tests/k8s/run-kind.sh`). The `deploy.yml` workflow runs these steps (migrations go before the rollout,
@@ -96,6 +106,13 @@ bash scripts/init-sealed-secrets.sh
 ```
 
 See [Sealed Secrets guide](sealed-secrets.md) for detailed setup, key rotation, and migration instructions.
+
+Secrets are rotated by hand with `scripts/rotate-secrets.sh`; no CronJob does it. The former `secret-rotation` CronJob only restarted two Deployments and held write rights on every Secret (issue #424). `kubectl apply` without `--prune` does not remove it: `deploy.yml` deletes it after applying the overlay. On a cluster deployed by hand, delete it once (add `-n <namespace>`):
+
+```bash
+kubectl delete cronjob/secret-rotation role/secret-rotator-role \
+  rolebinding/secret-rotator-binding serviceaccount/secret-rotator --ignore-not-found
+```
 
 ### 3. Set the Ingress hosts
 
@@ -143,6 +160,9 @@ kubectl apply -k deploy/k8s/
 ```bash
 # Deploy to 10% of instances first, monitor, then full rollout
 ./deploy/k8s/scripts/deploy-k8s.sh canary <service-name> 10
+
+# Several services: parallel, one observation window (what deploy.yml runs)
+./deploy/k8s/scripts/deploy-k8s.sh canary-all <image-tag> 10 <service>...
 ```
 
 ### Rollback
@@ -188,7 +208,9 @@ kubectl scale deployment -n trading-model <service-name> --replicas=5
   as mysqld arguments
 - 20Gi PVC per replica
 - Schema from the `db-migrate` Job (`scripts/migrations`, `run-migrations.sh`),
-  the same migrations as compose: no second copy of the schema
+  the same migrations as compose: no second copy of the schema. The script
+  waits for `mysql-cluster-init` first: during the bootstrap the server is
+  `super_read_only`
 - PodDisruptionBudget: minAvailable 1
 
 ### MongoDB (Replica Set)

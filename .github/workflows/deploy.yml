@@ -250,6 +250,30 @@ jobs:
             exit 1
           fi
 
+      # Only digests signed by release.yml of this repository (keyless, ADR-0038)
+      # are deployed. Tags published before the signature existed fail here.
+      - name: Install cosign
+        uses: sigstore/cosign-installer@756fe2d284c7292c4e9b62c8a28f1e5629c59532 # v4.1.3
+
+      - name: Verify image signatures
+        shell: bash
+        env:
+          REGISTRY: ${{ steps.tag.outputs.registry }}
+          REPO: ${{ github.repository }}
+        run: |
+          failed=""
+          while read -r img digest; do
+            if ! cosign verify "$REGISTRY/$img@$digest" \
+              --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+              --certificate-identity-regexp "^https://github\.com/${REPO}/\.github/workflows/release\.yml@refs/tags/v" >/dev/null; then
+              failed="$failed $img"
+            fi
+          done < "$RUNNER_TEMP/image-digests"
+          if [ -n "$failed" ]; then
+            echo "::error::No valid release.yml signature for:$failed"
+            exit 1
+          fi
+
       # Production reads its secrets from SealedSecrets: without the controller
       # the apply stops half way (unknown kind), and a placeholder never
       # decrypts, so every pod waits on a missing Secret. Checked before
@@ -462,6 +486,20 @@ jobs:
             --from-literal=SIGNAL_CONTACT_EMAIL="$SIGNAL_CONTACT_EMAIL" \
             --dry-run=client -o yaml | kubectl apply -f -
 
+      # CRDs of non-native kinds (VPA, SealedSecret...), StorageClasses,
+      # IngressClasses and the cert-manager ClusterIssuer come from the render
+      # itself. Missing ones stop the deploy here, not half way through the
+      # apply (issue #419).
+      - name: Check cluster prerequisites
+        shell: bash
+        run: |
+          ENV="${{ inputs.environment }}"
+          {
+            kubectl kustomize --load-restrictor LoadRestrictionsNone "deploy/k8s/overlays/$ENV"
+            echo ---
+            kubectl kustomize "deploy/k8s/overlays/$ENV/node-agents"
+          } | bash deploy/k8s/scripts/check-prereqs.sh
+
       # SPIRE agent + SPIFFE CSI driver, in the privileged trading-model-node
       # namespace: the application namespace (restricted) cannot host them.
       - name: Apply SPIFFE node components
@@ -494,74 +532,44 @@ jobs:
           CANARY_GATE_SECONDS: ${{ vars.CANARY_GATE_SECONDS || '120' }}
           CANARY_MIN_REQUESTS: ${{ vars.CANARY_MIN_REQUESTS || '20' }}
           CANARY_ERROR_THRESHOLD_PCT: ${{ vars.CANARY_ERROR_THRESHOLD_PCT || '5' }}
+          # Services whose gate is readiness only (no steady traffic): dlq-service
+          # only gets requests on a dead letter or an admin call.
+          CANARY_READINESS_ONLY: ${{ vars.CANARY_READINESS_ONLY || 'dlq-service' }}
         run: |
           NS="${{ steps.ns.outputs.namespace }}"
           export K8S_NAMESPACE="$NS"
           export CANARY_IMAGE_REPO="${{ steps.tag.outputs.registry }}"
           chmod +x deploy/k8s/scripts/deploy-k8s.sh
           TAG="${{ steps.tag.outputs.tag }}"
-          for dep in discovery-server message-manager financial-scraper trader-trainer \
-                     api-gateway audit-logger dlq-service; do
-            ./deploy/k8s/scripts/deploy-k8s.sh canary "$dep" "$TAG" 10
-          done
+          # Created in parallel, observed over one CANARY_GATE_SECONDS window.
+          ./deploy/k8s/scripts/deploy-k8s.sh canary-all "$TAG" 10 \
+            discovery-server message-manager financial-scraper trader-trainer \
+            api-gateway audit-logger dlq-service
 
-      # Revision each Deployment runs before the overlay: the rollback returns to
-      # exactly it (image and hashed ConfigMap), not to "the one before the
-      # current", which is older than N for a Deployment the overlay left as is.
+      # Revision each Deployment runs before the overlay: "Rollback on failure"
+      # returns to exactly it (deploy-release.sh, shared with the k8s CI job).
       - name: Record current revisions
         shell: bash
         run: |
-          NS="${{ steps.ns.outputs.namespace }}"
-          for dep in discovery-server message-manager financial-scraper financial-scraper-collector trader-trainer \
-                     api-gateway audit-logger dlq-service edge-proxy; do
-            rev=$(kubectl get deployment "$dep" -n "$NS" --ignore-not-found \
-              -o jsonpath='{.metadata.annotations.deployment\.kubernetes\.io/revision}')
-            echo "$dep ${rev:-none}"
-          done | tee "$RUNNER_TEMP/deploy-revisions"
+          bash deploy/k8s/scripts/deploy-release.sh record "${{ steps.ns.outputs.namespace }}" "$RUNNER_TEMP/deploy-revisions"
 
-      # Deployments driven by an HPA carry no spec.replicas in the overlay. A
-      # client-side apply of a manifest that drops a field it applied before
-      # resets it to the default (1), so the field leaves
-      # last-applied-configuration first (Kubernetes docs, "Migrating
-      # Deployments and StatefulSets to horizontal autoscaling"). No-op once done
-      # and on a first deploy (no HPA yet).
+      # HPA-driven Deployments: spec.replicas leaves last-applied-configuration
+      # first, or the apply resets them to 1 (deploy-release.sh).
       - name: Release replicas of autoscaled Deployments
         shell: bash
         run: |
-          NS="${{ steps.ns.outputs.namespace }}"
-          ANN='kubectl.kubernetes.io/last-applied-configuration'
-          for dep in $(kubectl get hpa -n "$NS" \
-              -o jsonpath='{range .items[?(@.spec.scaleTargetRef.kind=="Deployment")]}{.spec.scaleTargetRef.name}{"\n"}{end}'); do
-            last=$(kubectl get deployment "$dep" -n "$NS" -o json | jq -r --arg a "$ANN" '.metadata.annotations[$a] // empty')
-            [ -n "$last" ] || continue
-            echo "$last" | jq -e '.spec | has("replicas")' > /dev/null || continue
-            kubectl annotate deployment "$dep" -n "$NS" --overwrite "$ANN=$(echo "$last" | jq -c 'del(.spec.replicas)')"
-            echo "$dep: spec.replicas removed from last-applied-configuration"
-          done
+          bash deploy/k8s/scripts/deploy-release.sh release-replicas "${{ steps.ns.outputs.namespace }}"
 
       - name: Apply overlay
         id: apply
         shell: bash
         run: |
-          ENV="${{ inputs.environment }}"
-          REGISTRY="${{ steps.tag.outputs.registry }}"
-          WRAPPER="deploy/k8s/overlays/.deploy-$ENV"
-          mkdir -p "$WRAPPER"
-          {
-            echo "apiVersion: kustomize.config.k8s.io/v1beta1"
-            echo "kind: Kustomization"
-            echo "resources:"
-            echo "  - ../$ENV"
-            echo "images:"
-            while read -r img digest; do
-              echo "  - name: ghcr.io/trading-model/$img"
-              echo "    newName: $REGISTRY/$img"
-              echo "    digest: $digest"
-            done < "$RUNNER_TEMP/image-digests"
-          } > "$WRAPPER/kustomization.yaml"
-          # jobs/ packages scripts/backup-k8s.sh from outside its directory: the default
-          # load restrictor rejects it and kubectl apply -k cannot relax it.
-          kubectl kustomize --load-restrictor LoadRestrictionsNone "$WRAPPER" | kubectl apply -f -
+          bash deploy/k8s/scripts/deploy-release.sh render "deploy/k8s/overlays/${{ inputs.environment }}" "${{ steps.tag.outputs.registry }}" "$RUNNER_TEMP/image-digests" | kubectl apply -f -
+          # The former secret-rotation CronJob (issue #424) held write rights on every
+          # Secret; apply never prunes, so remove what an older deploy left behind.
+          kubectl delete cronjob/secret-rotation role/secret-rotator-role \
+            rolebinding/secret-rotator-binding serviceaccount/secret-rotator \
+            -n "${{ steps.ns.outputs.namespace }}" --ignore-not-found
 
       # Public age key(s) the db-backup CronJob encrypts every dump for (the
       # private keys never enter the cluster). Environment variable of the
@@ -629,15 +637,7 @@ jobs:
       - name: Wait for rollout
         shell: bash
         run: |
-          NS="${{ steps.ns.outputs.namespace }}"
-          for dep in discovery-server message-manager financial-scraper financial-scraper-collector trader-trainer \
-                     api-gateway audit-logger dlq-service edge-proxy; do
-            echo "Waiting for rollout of $dep..."
-            if ! kubectl rollout status "deployment/$dep" -n "$NS" --timeout=180s; then
-              echo "::error::Rollout of $dep failed or timed out"
-              exit 1
-            fi
-          done
+          bash deploy/k8s/scripts/deploy-release.sh wait "${{ steps.ns.outputs.namespace }}"
 
       # Runs on the new version, after the rollout; a failure triggers the rollback below.
       - name: Smoke test
@@ -662,8 +662,7 @@ jobs:
         run: |
           NS="${{ steps.ns.outputs.namespace }}"
           VERSION="${{ steps.tag.outputs.version }}"
-          for dep in discovery-server message-manager financial-scraper financial-scraper-collector trader-trainer \
-                     api-gateway audit-logger dlq-service edge-proxy; do
+          for dep in $(bash deploy/k8s/scripts/deploy-release.sh deployments); do
             kubectl annotate deployment "$dep" -n "$NS" --overwrite \
               trading-model.dev/git-sha="${{ steps.src.outputs.sha }}" \
               trading-model.dev/release-version="$VERSION"
@@ -688,22 +687,6 @@ jobs:
         if: ${{ failure() && steps.apply.outcome != 'skipped' }}
         shell: bash
         run: |
-          NS="${{ steps.ns.outputs.namespace }}"
-          # Back to the revision recorded before the overlay: its pod template
-          # names the image digest and the hashed ConfigMaps of release N, which
-          # are still in the namespace (never pruned), so configuration comes
-          # back with the image (issue #410). Only Deployments are rolled back:
-          # docs/deployment/DEPLOY.md lists what is not.
-          # Every deployment is tried: one without a previous revision (first
-          # deploy) must not leave the others on the failed release.
-          failed=0
-          while read -r dep rev; do
-            if [ "$rev" = none ]; then
-              echo "::error::Could not roll back $dep: it did not exist before this deploy"
-              failed=1
-            elif ! kubectl rollout undo "deployment/$dep" -n "$NS" --to-revision="$rev"; then
-              echo "::error::Could not roll back $dep to revision $rev"
-              failed=1
-            fi
-          done < "$RUNNER_TEMP/deploy-revisions"
-          exit "$failed"
+          # Every Deployment back to the revision recorded before the overlay
+          # (image and hashed ConfigMaps of the previous release, issue #410).
+          bash deploy/k8s/scripts/deploy-release.sh rollback "${{ steps.ns.outputs.namespace }}" "$RUNNER_TEMP/deploy-revisions"
