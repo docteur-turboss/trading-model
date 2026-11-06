@@ -171,11 +171,12 @@ identities() {
 		log "deploy-cluster could bind itself to spire-agent (or failed other than Forbidden): $out"
 		return 1
 	fi
-	[ "$($as_cluster auth can-i get nodes/proxy 2>&1 || true)" = no ] || {
+	# stderr dropped: kubectl warns that nodes/proxy is not namespace scoped, which is not the answer
+	[ "$($as_cluster auth can-i get nodes/proxy 2>/dev/null || true)" = no ] || {
 		log "deploy-cluster can get nodes/proxy"
 		return 1
 	}
-	[ "$($as_app auth can-i get secrets -n kube-system 2>&1 || true)" = no ] || {
+	[ "$($as_app auth can-i get secrets -n kube-system 2>/dev/null || true)" = no ] || {
 		log "deploy-app can read Secrets of kube-system"
 		return 1
 	}
