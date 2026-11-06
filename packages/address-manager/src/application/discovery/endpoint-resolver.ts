@@ -7,6 +7,7 @@ import type { ServiceInstance } from "@trading-model/contracts/service-registry-
 import { HttpClient } from "@trading-model/http/adapters/outbound/http-client";
 import { logger } from "@trading-model/http/infrastructure/logger";
 import {
+	type DurationMs,
 	IPAddress,
 	type Port,
 	type ServiceId,
@@ -43,7 +44,8 @@ export class EndpointResolver {
 	constructor(
 		discoveryUrl: string,
 		private readonly _cacheTtlMs: number,
-		httpClient?: HttpClient
+		httpClient?: HttpClient,
+		private readonly _timeoutMs?: DurationMs
 	) {
 		this._discoveryUrl = discoveryUrl.replace(/\/+$/, "");
 		this._httpClient = httpClient ?? new HttpClient();
@@ -51,7 +53,7 @@ export class EndpointResolver {
 
 	async resolve(
 		serviceName: ServiceId,
-		majorVersion: number
+		majorVersion?: number
 	): Promise<ResolvedTarget | null> {
 		const key = `${serviceName}:v${majorVersion}`;
 		const cached = this._cache.get(key);
@@ -96,13 +98,27 @@ export class EndpointResolver {
 	}
 
 	/**
-	 * First live instance of the wanted major version. Routes use canonical
-	 * names (`financial-scraper`) while services register legacy ones
-	 * (`financial-scraper-service`): each alias is asked until one answers.
+	 * First live registered instance of the service (of the wanted major
+	 * version, any when omitted), asked under every registry alias. The one
+	 * selection path: `resolve` (gateway) and `ServiceResolver.findService`
+	 * (address-manager) both go through it. Throws when the registry cannot be
+	 * reached; `undefined` means it answered and nothing matches.
+	 */
+	findInstance(
+		serviceName: ServiceId,
+		majorVersion?: number
+	): Promise<ServiceInstance | undefined> {
+		return this._aliveInstance(serviceName, majorVersion);
+	}
+
+	/**
+	 * Routes use canonical names (`financial-scraper`) while services register
+	 * legacy ones (`financial-scraper-service`): each alias is asked until one
+	 * answers.
 	 */
 	private async _aliveInstance(
 		serviceName: ServiceId,
-		majorVersion: number
+		majorVersion?: number
 	): Promise<ServiceInstance | undefined> {
 		if (String(normalizeServiceName(serviceName)) === DISCOVERY_SERVICE) {
 			return { version: "1.0.0" } as ServiceInstance;
@@ -114,14 +130,22 @@ export class EndpointResolver {
 			try {
 				const response = await this._httpClient.get<
 					ServiceInstance[] | { data: ServiceInstance[] }
-				>(URLString.of(`${this._discoveryUrl}/services/${name}`));
+				>(
+					URLString.of(`${this._discoveryUrl}/services/${name}`),
+					this._timeoutMs ? { timeoutMs: this._timeoutMs } : undefined
+				);
 				const instances = Array.isArray(response) ? response : response?.data;
 				if (!Array.isArray(instances)) {
-					return;
+					logger.warn("Registry answered with a malformed body", {
+						context: { serviceName, alias: name },
+					});
+					lastError = new Error(`Malformed registry answer for "${name}"`);
+					continue;
 				}
 				answered = true;
 				const match = instances.find(
 					(inst) =>
+						majorVersion === undefined ||
 						Number.parseInt(inst.version.split(".")[0], 10) === majorVersion
 				);
 				if (match) {

@@ -3,7 +3,7 @@
 **Status:** Accepted
 **Date:** 2026-11
 **Related:** [ADR-0023](./0023-discovery-registry-in-redis.md) (registry stays, role narrowed), [ADR-0011](./0011-spiffe-spire-workload-identity.md) (unchanged), [ADR-0017](./0017-no-swallowed-errors.md)
-**Verified by:** `packages/address-manager/tests/unit/endpoint-resolver.spec.ts`, `tests/contract/discovery-routes.spec.ts`
+**Verified by:** `packages/address-manager/tests/unit/endpoint-resolver.spec.ts`, `packages/address-manager/tests/unit/resolution-equivalence.spec.ts`, `tests/contract/discovery-routes.spec.ts`
 
 ## Context
 
@@ -15,7 +15,7 @@ Two resolvers coexisted (audit architecture 2026-11-06, A4, issue #503). address
 2. The gateway uses that resolver (its own copy is deleted). It still checks the IP against `ALLOWED_PROXY_CIDRS` and selects by major version; both are tested.
 3. No round-robin in the client: a failing instance is avoided by K8s readiness, not by the caller. Per-instance targeting (fan-out) needs a headless Service, left to the step 2 ADR.
 4. The registry is still asked under each registered alias (`registryNamesFor`); aliases go with issue A10.
-5. address-manager's `ServiceResolver.findService` already followed this split (registry for liveness, DNS name for the address) and is unchanged.
+5. address-manager's `ServiceResolver.findService` delegates instance selection to `EndpointResolver.findInstance` (registry aliases, optional major version, malformed answers logged), so both callers share one selection path. It keeps its own cache, health check and circuit breaker on top. The address is the canonical Service DNS name in both: the gateway resolves it to an IP (CIDR check), address-manager hands the name to the HTTP client. Services pass no major version (any live instance); the gateway passes the route's. The name is `normalizeServiceName`, not `DNS_NAME_MAP`; E2E and the kind smoke test cover compose and K8s.
 6. Removing discovery-server is out of scope: a later ADR decides it.
 
 ## Alternatives Considered
@@ -27,5 +27,5 @@ Two resolvers coexisted (audit architecture 2026-11-06, A4, issue #503). address
 
 ## Consequences
 
-- One behaviour for every caller; one HTTP call per cache window, not per alias hit.
+- One selection path for every caller (`tests/unit/resolution-equivalence.spec.ts` proves the same target for the same inputs); one HTTP call per cache window, not per alias hit.
 - No instance affinity from the gateway.
