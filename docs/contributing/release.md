@@ -9,9 +9,9 @@ A release is a git tag `vX.Y.Z` pushed to `origin`. The tag triggers the **Relea
 | Command | Effect |
 | ------- | ------ |
 | `bun run release:dry` | Show the bump and the changelog, write nothing |
-| `bun run release` | Read the gitmoji commits since the last tag, bump the root and touched `package.json` versions, prepend `CHANGELOG.md`. Does not commit, tag or push |
+| `bun run release` | Read the gitmoji commits since the last tag, bump the root version, set every `services/*/package.json` to it (the root version is the tag and the image tag; services have no version of their own) and bump the touched `packages/*` versions, prepend `CHANGELOG.md`. Does not commit, tag or push |
 | `bun run release:publish` | Same, then commit `:rocket:(release): vX.Y.Z`, create the annotated tag, `git push --follow-tags`. Refuses to run off `main`; merges `development` into `main` first; runs `bun run docs:generate` before the commit |
-| `--bump major\|minor\|patch`, `--version X.Y.Z` | Force the bump (`release:bump`, `release:version`; `--version` only edits the root `package.json`) |
+| `--bump major\|minor\|patch`, `--version X.Y.Z` | Force the bump (`release:bump`, `release:version`; `--version` edits the root and the services `package.json`) |
 
 Automatic bump: a breaking commit (`:boom:`, `!:`) is major, a feature commit (`:sparkles:`, `:tada:`, `:label:`) is minor, anything else is patch.
 
