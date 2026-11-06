@@ -6,7 +6,7 @@ const MOCK_MESSAGE_MANAGER_INSTANCE = {
 	listenExpress: MOCK_LISTEN_EXPRESS,
 };
 
-jest.mock("../../src/index", () => ({
+jest.mock("../../src/application/services/broker-message", () => ({
 	__esModule: true,
 	default: jest.fn().mockImplementation(() => MOCK_MESSAGE_MANAGER_INSTANCE),
 }));
@@ -33,7 +33,8 @@ describe("createMessageManager", () => {
 	});
 
 	it("should create a MessageManager instance with correct options", () => {
-		const MessageManagerClass = require("../../src/index").default;
+		const MessageManagerClass =
+			require("../../src/application/services/broker-message").default;
 
 		createMessageManager(options);
 

@@ -1,8 +1,8 @@
 import { SpanStatusCode, trace } from "@opentelemetry/api";
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import type { ResponseObject } from "@trading-model/http/adapters/inbound/response-exception";
-import { executeReplayPipeline } from "../../shared/replay-pipeline";
 import type { ReplayEntriesQuery } from "./api-routes";
+import { executeReplayPipeline } from "./dlq-replay-service";
 
 const tracer = trace.getTracer(ServiceInstanceName.DlqService);
 

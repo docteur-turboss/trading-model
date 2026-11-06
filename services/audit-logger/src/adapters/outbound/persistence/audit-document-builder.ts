@@ -1,58 +1,49 @@
 import type { EventEnumMap } from "@trading-model/contracts/event-map";
 import {
-	type CorrelationId,
-	type Topic,
 	toCorrelationId,
 	toInstanceId,
 	toMessageId,
 	toServiceId,
 	toTopic,
 } from "@trading-model/primitives/primitives";
-import type { ParsedEnvelope } from "../../inbound/subscription/message-parser";
 import type { AuditEventDocument } from "./audit-repository";
 
 const MS_PER_DAY = 86_400_000;
 
+/** A message as message-manager delivers it: only the topic is guaranteed. */
+export interface DeliveredEnvelope {
+	metadata: {
+		topic: string;
+		eventType?: EventEnumMap;
+		messageId?: string;
+		correlationId?: string;
+		emittedAt?: string;
+		publisher?: { serviceName?: string; instanceId?: string };
+	};
+	payload?: unknown;
+}
+
 export function buildAuditDocument(
-	parsed: ParsedEnvelope,
+	{ metadata, payload }: DeliveredEnvelope,
 	ttlDays: number
 ): AuditEventDocument {
-	const { topic, payload, metadata } = parsed;
-	const receivedAt = resolveReceivedAt(metadata);
-	const auditMetadata = buildAuditMetadata(topic, metadata);
 	return {
-		receivedAt,
+		receivedAt: metadata.emittedAt ? new Date(metadata.emittedAt) : new Date(),
 		ttl: new Date(Date.now() + ttlDays * MS_PER_DAY),
 		dataHash: "",
 		previousHash: "",
 		chainSequence: 0,
-		metadata: auditMetadata,
+		metadata: {
+			topic: toTopic(metadata.topic),
+			eventType:
+				metadata.eventType ?? (metadata.topic as unknown as EventEnumMap),
+			publisher: toServiceId(metadata.publisher?.serviceName ?? "unknown"),
+			instanceId: toInstanceId(metadata.publisher?.instanceId ?? "unknown"),
+			messageId: toMessageId(metadata.messageId ?? "unknown"),
+			correlationId: metadata.correlationId
+				? toCorrelationId(metadata.correlationId)
+				: undefined,
+		},
 		payload,
-	};
-}
-
-function resolveReceivedAt(metadata: { emittedAt?: string }): Date {
-	return metadata?.emittedAt ? new Date(metadata.emittedAt) : new Date();
-}
-
-function buildAuditMetadata(
-	topic: Topic,
-	metadata: {
-		eventType?: EventEnumMap;
-		publisher?: { serviceName?: string; instanceId?: string };
-		messageId?: string;
-		correlationId?: CorrelationId;
-	}
-): AuditEventDocument["metadata"] {
-	const publisher = metadata?.publisher;
-	return {
-		topic: toTopic(topic),
-		eventType: metadata?.eventType ?? (topic as unknown as EventEnumMap),
-		publisher: toServiceId(publisher?.serviceName ?? "unknown"),
-		instanceId: toInstanceId(publisher?.instanceId ?? "unknown"),
-		messageId: toMessageId(metadata?.messageId ?? "unknown"),
-		correlationId: metadata?.correlationId
-			? toCorrelationId(metadata.correlationId)
-			: undefined,
 	};
 }

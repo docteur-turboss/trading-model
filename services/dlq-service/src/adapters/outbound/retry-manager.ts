@@ -1,6 +1,7 @@
 ﻿import type { InstanceId } from "@trading-model/primitives/primitives";
 import { ObjectId } from "mongodb";
 import { getCollection } from "../../config/db";
+import { RELEASE_CLAIM } from "../../domain/dlq-constants";
 import { DlqStatus } from "../../domain/dlq-status";
 import { ENV } from "../../infrastructure/config/env";
 import { RetryPipelineBuilder } from "./retry-pipeline-builder";
@@ -18,14 +19,7 @@ async function _updateEntryCompleted(
 			// An entry abandoned meanwhile stays abandoned.
 			status: { $ne: DlqStatus.Abandoned },
 		},
-		{
-			$set: {
-				status: DlqStatus.Completed,
-				completedAt: new Date(),
-				lastBatchId: batchId,
-			},
-			$unset: { processingAt: "", processingInstance: "" },
-		}
+		new RetryPipelineBuilder().buildCompletedUpdate(batchId)
 	);
 }
 
@@ -89,7 +83,7 @@ export class DlqRetryManager {
 		if (!updated) {
 			await col.updateOne(
 				{ _id: new ObjectId(id), processingInstance: instanceId },
-				{ $unset: { processingAt: "", processingInstance: "" } }
+				RELEASE_CLAIM
 			);
 		}
 	}

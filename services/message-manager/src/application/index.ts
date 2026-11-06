@@ -1,4 +1,5 @@
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
+import { sleep } from "@trading-model/common/utils/sleep";
 import { PUBLISH_TIMEOUT_MS } from "@trading-model/contracts/publish-timeout";
 import { DurationMs, toInstanceId } from "@trading-model/primitives/primitives";
 import { createBootstrap } from "@trading-model/server-utils/application/services/bootstrap";
@@ -27,9 +28,6 @@ let addressManager: Pick<
 	ReturnType<typeof BOOTSTRAP_ADDRESS_MANAGER>,
 	"stop" | "leave"
 > = NULL_ADDRESS_MANAGER;
-
-const sleep = (ms: number) =>
-	new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 createBootstrap({
 	name: "Message Manager",

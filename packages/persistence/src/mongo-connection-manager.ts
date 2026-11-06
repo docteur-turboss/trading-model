@@ -1,5 +1,4 @@
 import { getLogger } from "@trading-model/contracts/logger-registry";
-import { DurationMs } from "@trading-model/primitives/primitives";
 import { type Db, MongoClient } from "mongodb";
 import { ConnectionManager } from "./connection-manager";
 import { createPoolOptions, resolvePoolSize } from "./mongo-utils";
@@ -20,9 +19,7 @@ export interface MongoConnectionConfig {
 
 export class MongoConnectionManager extends ConnectionManager<MongoClient> {
 	private _db: Db | null = null;
-	private _dbName: string;
-	private readonly _uri: string;
-	private readonly _poolSize: number;
+	private readonly _dbName: string;
 	private readonly _collectionName?: string;
 
 	constructor(config: MongoConnectionConfig) {
@@ -47,25 +44,10 @@ export class MongoConnectionManager extends ConnectionManager<MongoClient> {
 			},
 			async (client) => {
 				await client.close();
-			},
-			{
-				maxRetries: 10,
-				baseDelayMs: DurationMs.of(1000),
-				maxDelayMs: DurationMs.of(30000),
 			}
 		);
 		this._dbName = config.dbName;
-		this._uri = config.uri;
-		this._poolSize = poolSize;
 		this._collectionName = config.collectionName;
-	}
-
-	get uri(): string {
-		return this._uri;
-	}
-
-	get poolSize(): number {
-		return this._poolSize;
 	}
 
 	async getDb(): Promise<Db> {
@@ -78,17 +60,6 @@ export class MongoConnectionManager extends ConnectionManager<MongoClient> {
 
 	protected get collectionName(): string | undefined {
 		return this._collectionName;
-	}
-
-	async tryReconnect(): Promise<boolean> {
-		await this.resetState();
-		// biome-ignore lint/plugin: callers react to the boolean; getConnection already logs the cause
-		try {
-			await this.getConnection();
-			return true;
-		} catch {
-			return false;
-		}
 	}
 
 	protected _clearState(): void {

@@ -6,7 +6,6 @@ import { HTTP_STATUS } from "@trading-model/contracts/http-status";
 import { CircuitState } from "@trading-model/primitives/circuit-state";
 import { Hostname, type URLString } from "@trading-model/primitives/primitives";
 import { CircuitBreaker } from "@trading-model/reliability/circuit-breaker";
-import type { ICircuitBreaker } from "@trading-model/reliability/circuit-breaker.interface";
 import type { CircuitBreakerConfig } from "@trading-model/reliability/circuit-state-machine";
 import type { HttpRequestOptions } from "../../domain/http-types";
 import { createHttpClientError } from "./http-client-errors";
@@ -17,9 +16,9 @@ export interface ServiceRoute {
 }
 
 export class CircuitRecorder {
-	private readonly _hostnameCircuit: ICircuitBreaker;
+	private readonly _hostnameCircuit: CircuitBreaker;
 	// Keyed by service name: one state machine per service, default config.
-	private readonly _serviceCircuit: ICircuitBreaker = new CircuitBreaker();
+	private readonly _serviceCircuit = new CircuitBreaker();
 
 	constructor(config?: Partial<CircuitBreakerConfig>) {
 		this._hostnameCircuit = new CircuitBreaker(config);

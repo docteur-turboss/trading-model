@@ -17,13 +17,11 @@ describe("HTTP_HEADERS", () => {
 		expect(HTTP_HEADERS.X_INSTANCE_TOKEN).toBe("x-instance-token");
 		expect(HTTP_HEADERS.X_INSTANCE_ID).toBe("x-instance-id");
 		expect(HTTP_HEADERS.X_SERVICE_NAME).toBe("x-service-name");
-		expect(HTTP_HEADERS.X_SUBSCRIBED_TOPICS).toBe("x-subscribed-topics");
 	});
 
 	it("exposes the signed-request headers", () => {
 		expect(HTTP_HEADERS.X_TIMESTAMP).toBe("x-timestamp");
 		expect(HTTP_HEADERS.X_SIGNATURE).toBe("x-signature");
-		expect(HTTP_HEADERS.X_VAULT_NAMESPACE).toBe("X-Vault-Namespace");
 		expect(HTTP_HEADERS.CONTENT_TYPE).toBe("Content-Type");
 	});
 });

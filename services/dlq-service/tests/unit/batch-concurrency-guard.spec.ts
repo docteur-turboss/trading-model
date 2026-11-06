@@ -44,18 +44,20 @@ describe("batch-concurrency-guard", () => {
 	});
 
 	it("should reject when too many concurrent batches", () => {
-		const { checkBatchRejection, incrementActiveBatches } = jest.requireActual(
+		const { checkBatchRejection } = jest.requireActual(
 			"../../src/application/services/batch-concurrency-guard"
 		) as {
 			checkBatchRejection: (
 				entries: { id: string }[],
 				batchId: string
 			) => { success: number; errors: { id: string; error: string }[] } | null;
-			incrementActiveBatches: () => void;
 		};
+		const { activeReplays } = jest.requireActual(
+			"../../src/shared/active-replay-counter"
+		) as { activeReplays: { increment: () => void } };
 
-		incrementActiveBatches();
-		incrementActiveBatches();
+		activeReplays.increment();
+		activeReplays.increment();
 
 		const result = checkBatchRejection([{ id: "1" }], "batch-1");
 
@@ -101,29 +103,26 @@ describe("batch-concurrency-guard", () => {
 		expect(result).toBeNull();
 	});
 
-	it("should increment and decrement active batch count", () => {
-		const {
-			incrementActiveBatches,
-			decrementActiveBatches,
-			checkBatchRejection,
-		} = jest.requireActual(
+	it("should reject from the active replay count", () => {
+		const { checkBatchRejection } = jest.requireActual(
 			"../../src/application/services/batch-concurrency-guard"
 		) as {
 			checkBatchRejection: (
 				entries: { id: string }[],
 				batchId: string
 			) => { success: number; errors: { id: string; error: string }[] } | null;
-			incrementActiveBatches: () => void;
-			decrementActiveBatches: () => void;
 		};
+		const { activeReplays } = jest.requireActual(
+			"../../src/shared/active-replay-counter"
+		) as { activeReplays: { increment: () => void; decrement: () => void } };
 
-		incrementActiveBatches();
+		activeReplays.increment();
 		expect(checkBatchRejection([{ id: "1" }], "batch-1")).toBeNull();
 
-		incrementActiveBatches();
+		activeReplays.increment();
 		expect(checkBatchRejection([{ id: "1" }], "batch-1")).not.toBeNull();
 
-		decrementActiveBatches();
+		activeReplays.decrement();
 		expect(checkBatchRejection([{ id: "1" }], "batch-1")).toBeNull();
 	});
 

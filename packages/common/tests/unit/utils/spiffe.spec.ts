@@ -3,39 +3,24 @@ import { ServiceId } from "@trading-model/primitives/primitives";
 import {
 	buildSpiffeId,
 	extractCanonicalServiceName,
-	extractServiceName,
 	registryNamesFor,
 } from "../../../src/utils/spiffe";
 
-describe("extractServiceName", () => {
-	it("should extract service name from SPIFFE identity", () => {
+describe("extractCanonicalServiceName", () => {
+	it("should extract service name from a foreign-trust-domain SPIFFE ID", () => {
 		expect(
-			extractServiceName("spiffe://cluster.local/ns/default/sa/my-service")
+			extractCanonicalServiceName(
+				"spiffe://cluster.local/ns/default/sa/my-service"
+			)
 		).toBe(ServiceId.of("my-service"));
 	});
 
-	it("should return api-gateway for client: prefix", () => {
-		expect(extractServiceName("client:gateway")).toBe(
-			ServiceId.of("api-gateway")
+	it("should pass unknown plain identities through", () => {
+		expect(extractCanonicalServiceName("direct-name")).toBe(
+			ServiceId.of("direct-name")
 		);
 	});
 
-	it("should return plain string identity as-is", () => {
-		expect(extractServiceName("direct-name")).toBe(ServiceId.of("direct-name"));
-	});
-
-	it("should return null for empty string", () => {
-		expect(extractServiceName("")).toBeNull();
-	});
-
-	it("should handle platform SPIFFE IDs built by buildSpiffeId", () => {
-		expect(extractServiceName(buildSpiffeId("message-manager"))).toBe(
-			ServiceId.of("message-manager")
-		);
-	});
-});
-
-describe("extractCanonicalServiceName", () => {
 	it("should find the SPIFFE ID in a peer certificate SAN list", () => {
 		// Node reports subjectaltname as "DNS:<name>, URI:spiffe://...".
 		expect(

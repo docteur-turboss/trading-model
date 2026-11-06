@@ -97,16 +97,8 @@ async function textInput(label) {
     stdout.write(`\n  ${label}: ${input}\n\n`);
     stdout.write('  Enter confirm · Esc cancel\n');
     const key = await keypress();
-    if (key === 'ENTER') {
-      rawMode(true);
-      hideCursor();
-      return input.trim();
-    }
-    if (key === 'ESC') {
-      rawMode(true);
-      hideCursor();
-      return null;
-    }
+    if (key === 'ENTER') return input.trim();
+    if (key === 'ESC') return null;
     if (key === '\x7F' || key === '\b') {
       input = input.slice(0, -1);
     } else {
@@ -161,27 +153,6 @@ function renderMenu(title, items, cursor, offset, renderItem, searchBuffer) {
   stdout.write('\n  ↑↓ navigate · Enter select · Esc back · Type to search\n');
 }
 
-const CONTINUE = Symbol('CONTINUE');
-
-const MENU_ACTIONS = {
-  UP: (cursor, offset, items) => {
-    if (cursor > 0) {
-      cursor--;
-      if (cursor < offset) offset--;
-    }
-    return { type: CONTINUE, cursor, offset };
-  },
-  DOWN: (cursor, offset, items) => {
-    if (cursor < items.length - 1) {
-      cursor++;
-      if (cursor >= offset + PAGE_SIZE) offset++;
-    }
-    return { type: CONTINUE, cursor, offset };
-  },
-  ENTER: (cursor, offset, items) => ({ type: 'return', value: items[cursor] }),
-  ESC: () => ({ type: 'return', value: null }),
-};
-
 function findItemIndex(items, renderItem, searchBuffer) {
   const lower = searchBuffer.toLowerCase();
   let idx = items.findIndex((item, i) => {
@@ -206,12 +177,18 @@ async function pickFromList(title, items, renderItem) {
   while (true) {
     renderMenu(title, items, cursor, offset, renderItem, searchBuffer);
     const key = await keypress();
-    if (key === 'UP' || key === 'DOWN') {
+    if (key === 'UP') {
       searchBuffer = '';
-      const result = MENU_ACTIONS[key](cursor, offset, items);
-      if (result.type === 'return') return result.value;
-      cursor = result.cursor;
-      offset = result.offset;
+      if (cursor > 0) {
+        cursor--;
+        if (cursor < offset) offset--;
+      }
+    } else if (key === 'DOWN') {
+      searchBuffer = '';
+      if (cursor < items.length - 1) {
+        cursor++;
+        if (cursor >= offset + PAGE_SIZE) offset++;
+      }
     } else if (key === 'ENTER') {
       return items[cursor];
     } else if (key === 'ESC') {
@@ -257,22 +234,10 @@ async function multiLineInput(label) {
     stdout.write('\n  Enter next line · Empty Enter finish · Esc cancel\n');
     const key = await keypress();
     if (key === 'ENTER') {
-      if (!currentLine.trim() && lines.length > 0) {
-        rawMode(true);
-        hideCursor();
-        return lines;
-      }
-      if (currentLine.trim()) {
-        lines.push(currentLine.trim());
-        currentLine = '';
-      } else {
-        rawMode(true);
-        hideCursor();
-        return lines;
-      }
+      if (!currentLine.trim()) return lines;
+      lines.push(currentLine.trim());
+      currentLine = '';
     } else if (key === 'ESC') {
-      rawMode(true);
-      hideCursor();
       return [];
     } else if (key === '\x7F' || key === '\b') {
       currentLine = currentLine.slice(0, -1);
@@ -291,6 +256,14 @@ async function multiLineInput(label) {
   }
 }
 
+function cancel() {
+  clearScreen();
+  showCursor();
+  rawMode(false);
+  stdout.write('\nCancelled.\n');
+  process.exit(0);
+}
+
 async function main() {
   // Step 1: pick category
   const category = await pickFromList(
@@ -299,11 +272,7 @@ async function main() {
     cat => cat.title
   );
   if (!category) {
-    clearScreen();
-    showCursor();
-    rawMode(false);
-    stdout.write('\nCancelled.\n');
-    process.exit(0);
+    cancel();
   }
 
   // Step 2: pick emoji within category
@@ -327,30 +296,18 @@ async function main() {
   ];
   const scopePick = await pickFromList('── Scope (optional) ──', scopeItems, s => s.label);
   if (!scopePick) {
-    clearScreen();
-    showCursor();
-    rawMode(false);
-    stdout.write('\nCancelled.\n');
-    process.exit(0);
+    cancel();
   }
   const scopePart = scopePick.value ? `(${scopePick.value})` : '';
 
   const subject = await textInput('Subject');
   if (!subject) {
-    clearScreen();
-    showCursor();
-    rawMode(false);
-    stdout.write('\nCancelled.\n');
-    process.exit(0);
+    cancel();
   }
 
   const breaking = await textInput('Breaking change? (y/N)');
   if (breaking === null) {
-    clearScreen();
-    showCursor();
-    rawMode(false);
-    stdout.write('\nCancelled.\n');
-    process.exit(0);
+    cancel();
   }
   const breakingFlag = ['y', 'yes'].includes(breaking.toLowerCase()) ? '!' : '';
   const header = `${selected.emoji}${scopePart}${breakingFlag}: ${subject}`;
@@ -376,11 +333,7 @@ async function main() {
 
   const confirm = await textInput('Commit? (Y/n)');
   if (confirm === null || ['n', 'no'].includes(confirm.toLowerCase())) {
-    clearScreen();
-    showCursor();
-    rawMode(false);
-    stdout.write('\nCancelled.\n');
-    process.exit(0);
+    cancel();
   }
 
   try {

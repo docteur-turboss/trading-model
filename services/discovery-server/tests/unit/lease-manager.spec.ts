@@ -202,7 +202,7 @@ describe("LeaseManager", () => {
 			const lm = new LeaseManager(registry, { logger });
 
 			await registry.registerInstance({
-				serviceName: "test-service",
+				serviceName: "trader-trainer",
 				instanceId: "test-id",
 				host: "1.1.1.1",
 				port: 8080,

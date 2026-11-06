@@ -7,11 +7,7 @@ import {
 	jest,
 } from "@jest/globals";
 import { DurationMs } from "@trading-model/primitives/primitives";
-import {
-	retryWithBackoff,
-	sleepWithJitter,
-	withTimeout,
-} from "../../../src/utils/retry";
+import { retryWithBackoff, withTimeout } from "../../../src/utils/retry";
 
 describe("retryWithBackoff", () => {
 	beforeEach(() => {
@@ -105,28 +101,6 @@ describe("retryWithBackoff", () => {
 		const result = await promise;
 
 		expect(result.timedOut).toBe(true);
-	});
-});
-
-describe("sleepWithJitter", () => {
-	beforeEach(() => {
-		jest.useFakeTimers();
-	});
-
-	afterEach(() => {
-		jest.useRealTimers();
-	});
-
-	it("should resolve after the given time with jitter", async () => {
-		const promise = sleepWithJitter(DurationMs.of(100));
-		await jest.advanceTimersByTimeAsync(200);
-		await expect(promise).resolves.toBeUndefined();
-	});
-
-	it("should handle zero ms with jitter", async () => {
-		const promise = sleepWithJitter(DurationMs.of(0));
-		await jest.advanceTimersByTimeAsync(10);
-		await expect(promise).resolves.toBeUndefined();
 	});
 });
 

@@ -2,17 +2,6 @@ import fs from "node:fs";
 import fsPromises from "node:fs/promises";
 import type https from "node:https";
 import path from "node:path";
-
-const CryptoAlg = {
-	SHA256: "sha256",
-	SHA512: "sha512",
-	RSA_SHA256: "RSA-SHA256",
-	UTF8: "utf8",
-	BASE64URL: "base64url",
-	HEX: "hex",
-	AES_256_GCM: "aes-256-gcm",
-} as const;
-
 import type {
 	TlsPaths,
 	TlsPemBundle,
@@ -22,7 +11,7 @@ import { CaPem, CertPem, KeyPem } from "@trading-model/primitives/primitives";
 
 function readTlsFileSync(filePath: string, label: string): string {
 	try {
-		return fs.readFileSync(filePath, CryptoAlg.UTF8);
+		return fs.readFileSync(filePath, "utf8");
 	} catch (err) {
 		const original = normalizeError(err);
 		original.message = `Failed to read TLS ${label} from "${filePath}": ${original.message}`;
@@ -57,9 +46,9 @@ export function loadTlsPemBundleSync(
 /** Canonical async version – reads all three files in parallel. */
 export async function loadTlsPemBundle(tls: TlsPaths): Promise<TlsPemBundle> {
 	const [keyPem, certPem, caPem] = await Promise.all([
-		fsPromises.readFile(path.resolve(tls.keyPath), CryptoAlg.UTF8),
-		fsPromises.readFile(path.resolve(tls.certPath), CryptoAlg.UTF8),
-		fsPromises.readFile(path.resolve(tls.caPath), CryptoAlg.UTF8),
+		fsPromises.readFile(path.resolve(tls.keyPath), "utf8"),
+		fsPromises.readFile(path.resolve(tls.certPath), "utf8"),
+		fsPromises.readFile(path.resolve(tls.caPath), "utf8"),
 	]);
 	return {
 		keyPem: KeyPem.of(keyPem),

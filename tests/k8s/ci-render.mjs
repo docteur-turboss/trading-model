@@ -46,39 +46,30 @@ stringData:
   HMAC_SECRET: dev-hmac
 `;
 
+// A silent miss sends the scraper to the real Binance (HTTP 451 from CI).
+const STUB_URL = 'BINANCE_BASE_URL: "http://binance-stub:3000"';
+// Same for the signal sources: real public APIs, never called from CI runners.
+const NO_SIGNALS = 'SIGNAL_COLLECTION_ENABLED: "false"';
+const PUSHOVER_SINK = "url: http://alert-sink:8080/pushover";
+
 function adapt(manifest) {
 	return manifest
 		.replace(/imagePullPolicy: Always/g, "imagePullPolicy: IfNotPresent")
-		.replace(
-			/(requests:\n\s+)cpu: "?(\d+(?:\.\d+)?)(m?)"?/g,
-			(match, head, value, unit) => _quarterCpu(match, head, value, unit)
-		)
+		.replace(/(requests:\n\s+)cpu: "?(\d+(?:\.\d+)?)(m?)"?/g, _quarterCpu)
 		// kustomize drops the quotes of the ConfigMap value.
-		.replace(
-			/BINANCE_BASE_URL: "?https:\/\/api\.binance\.com"?/g,
-			'BINANCE_BASE_URL: "http://binance-stub:3000"'
-		)
+		.replace(/BINANCE_BASE_URL: "?https:\/\/api\.binance\.com"?/g, STUB_URL)
 		// Pushover to the alert sink: api.pushover.net is unreachable from CI, and a
 		// failed page fires AlertmanagerNotificationsFailing, critical, so paged again.
 		.replace(
 			/^( +)token_file: \/etc\/alertmanager-credentials\/PUSHOVER_TOKEN$/m,
 			`$&\n$1${PUSHOVER_SINK}`
 		)
-		.replace(
-			/SIGNAL_COLLECTION_ENABLED: "?true"?/g,
-			'SIGNAL_COLLECTION_ENABLED: "false"'
-		)
+		.replace(/SIGNAL_COLLECTION_ENABLED: "?true"?/g, NO_SIGNALS)
 		// An egress item: "  - " then its lines indented by 4 or more (kustomize layout).
 		.replace(/^ {2}- .*\n(?: {4}.*\n)*/gm, (item) =>
 			item.includes("cidr: 0.0.0.0/0") ? "" : item
 		);
 }
-
-// A silent miss sends the scraper to the real Binance (HTTP 451 from CI).
-const STUB_URL = 'BINANCE_BASE_URL: "http://binance-stub:3000"';
-// Same for the signal sources: real public APIs, never called from CI runners.
-const NO_SIGNALS = 'SIGNAL_COLLECTION_ENABLED: "false"';
-const PUSHOVER_SINK = "url: http://alert-sink:8080/pushover";
 
 const documents = readFileSync(0, "utf8")
 	.split(/^---$/m)

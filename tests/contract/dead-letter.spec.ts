@@ -37,6 +37,13 @@ jest.mock("../../services/dlq-service/src/config/db", () => ({
 	isDbConnected: () => true,
 }));
 
+function sampleMessage() {
+	return createMessage({ close: 101.5 }, {
+		topic: "market.candles.fetch",
+		publisher: "financial-scraper-service",
+	} as never);
+}
+
 const span = {
 	setAttribute: () => span,
 	setStatus: () => span,
@@ -63,10 +70,7 @@ describe("dead-letter contract: message-manager → dlq-service", () => {
 			{} as never,
 			new FileDlqRepository(file)
 		);
-		const message = createMessage({ close: 101.5 }, {
-			topic: "market.candles.fetch",
-			publisher: "financial-scraper-service",
-		} as never);
+		const message = sampleMessage();
 		for (const { reason, deliveryAttempt } of reasons) {
 			await delivery.markDeadLetter({
 				message,
@@ -124,10 +128,7 @@ describe("dead-letter contract: message-manager → dlq-service", () => {
 			resolveUrl: async () => "https://dlq-service:3000/dlq" as never,
 			secret: "contract-test-hmac-secret",
 		});
-		const message = createMessage({ close: 101.5 }, {
-			topic: "market.candles.fetch",
-			publisher: "financial-scraper-service",
-		} as never);
+		const message = sampleMessage();
 
 		await store.insert({
 			message,

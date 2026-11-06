@@ -1,5 +1,5 @@
 import { TtlCacheBase } from "@trading-model/common/utils/ttl-cache-base";
-import { MemoryStoreAdapter } from "@trading-model/persistence/index";
+import { MemoryStoreAdapter } from "@trading-model/persistence/memory-store-adapter";
 import type {
 	DurationMs,
 	ServiceId,

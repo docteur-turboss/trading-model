@@ -38,7 +38,7 @@ createBootstrap({
 			serviceName: ServiceInstanceName.DiscoveryService,
 			serviceVersion: process.env.APP_VERSION ?? "1.0.0",
 			instanceId: toInstanceId(process.env.INSTANCE_ID ?? "discovery-1"),
-			otlpEndpoint: process.env.OTEL_EXPORTER_OTLP_ENDPOINT,
+			otlpEndpoint: ENV.OTEL_EXPORTER_OTLP_ENDPOINT,
 		});
 		if (redisClient) {
 			try {

@@ -4,7 +4,7 @@ import {
 	sendResponse,
 } from "@trading-model/http/adapters/inbound/response-exception";
 import type { DlqError } from "../../application/services/replay-batch";
-import { metrics } from "../../config/metrics";
+import { emitReplayMetrics } from "../../shared/replay-metrics";
 
 export function buildReplayResponse(
 	batchId: string,
@@ -12,7 +12,7 @@ export function buildReplayResponse(
 	errors: DlqError[]
 ): Record<string, unknown> {
 	const details = _buildReplayDetails(batchId, successCount, errors);
-	_emitReplayMetrics(successCount, errors.length);
+	emitReplayMetrics(successCount, errors.length);
 	return details;
 }
 
@@ -30,15 +30,6 @@ function _buildReplayDetails(
 		details.errors = errors;
 	}
 	return details;
-}
-
-function _emitReplayMetrics(successCount: number, errorsCount: number): void {
-	if (successCount > 0) {
-		metrics.entriesReplayed.inc(successCount);
-	}
-	if (errorsCount > 0) {
-		metrics.entriesReplayFailed.inc(errorsCount);
-	}
 }
 
 export function noEntriesResponse(): {

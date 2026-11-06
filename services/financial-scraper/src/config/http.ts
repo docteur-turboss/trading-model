@@ -1,4 +1,5 @@
 import { computeExponentialBackoff } from "@trading-model/common/utils/backoff-config";
+import { sleep } from "@trading-model/common/utils/sleep";
 import { isRetryableStatusPermissive } from "@trading-model/http/infrastructure/http-retry";
 import { DataSource, DurationMs } from "@trading-model/primitives/primitives";
 import axios, {
@@ -45,9 +46,7 @@ function _executeRetry(
 ): Promise<unknown> {
 	config.retryCount!++;
 	const delay = _getBackoffDelay(config.retryCount!);
-	return new Promise((res) => setTimeout(res, delay)).then(() =>
-		instance(config)
-	);
+	return sleep(delay).then(() => instance(config));
 }
 
 function _createRetryInterceptor(

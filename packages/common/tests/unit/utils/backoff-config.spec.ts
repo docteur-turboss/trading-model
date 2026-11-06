@@ -3,7 +3,6 @@ import { DurationMs } from "@trading-model/primitives/primitives/time-ids";
 import {
 	computeExponentialBackoff,
 	computeExponentialBackoffWithJitter,
-	createDelayRange,
 } from "../../../src/utils/backoff-config";
 
 describe("backoff-config", () => {
@@ -24,10 +23,5 @@ describe("backoff-config", () => {
 		});
 		expect(delay).toBeGreaterThanOrEqual(0);
 		expect(delay).toBeLessThanOrEqual(10000);
-	});
-
-	it("should create delay range", () => {
-		const range = createDelayRange(DurationMs.of(100), DurationMs.of(10000));
-		expect(range).toBeDefined();
 	});
 });

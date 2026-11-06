@@ -34,11 +34,8 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-log()  { echo "[$(date +%H:%M:%S)] $*"; }
-ok()   { log "✓ $*"; }
 RESTORE_FAILURES=0
 fail() { log "✗ $*"; RESTORE_FAILURES=$((RESTORE_FAILURES + 1)); }
-warn() { log "⚠ $*"; }
 
 # shellcheck source=backup-lib.sh
 source "$(dirname "$0")/backup-lib.sh"

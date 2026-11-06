@@ -4,17 +4,22 @@ import {
 	registryNamesFor,
 } from "@trading-model/common/utils/spiffe";
 import type { ServiceInstance } from "@trading-model/contracts/service-registry-types";
-import { HttpClient } from "@trading-model/http/adapters/outbound/http-client";
+import type { HttpClient } from "@trading-model/http/adapters/outbound/http-client";
 import {
 	IPAddress,
+	Port,
 	type ServiceId,
 	UnixTimestamp,
 	URLString,
-	type Version,
+	Version,
 } from "@trading-model/primitives/primitives";
 import type { ResolvedEndpoint } from "@trading-model/validation/adapters/outbound/service-resolver.types";
+import { ServiceInstancesWire } from "@trading-model/validation/wire/service-instance";
 
 const DISCOVERY_SERVICE = "discovery-server";
+
+/** The fields the gateway routes on; discovery's own entry has no more. */
+type RoutableInstance = Pick<ServiceInstance, "host" | "port" | "version">;
 
 interface CachedService {
 	instances: ResolvedEndpoint[];
@@ -31,11 +36,12 @@ export class ServiceResolver {
 	constructor(
 		discoveryUrl: string,
 		cacheTtlMs: number,
-		httpClient?: HttpClient
+		// The mTLS client of the container: discovery only accepts SPIFFE callers.
+		httpClient: HttpClient
 	) {
 		this._discoveryUrl = discoveryUrl.replace(/\/+$/, "");
 		this._cacheTtlMs = cacheTtlMs;
-		this._httpClient = httpClient ?? new HttpClient();
+		this._httpClient = httpClient;
 	}
 
 	async resolve(
@@ -62,19 +68,12 @@ export class ServiceResolver {
 		cacheKey: string
 	): Promise<ResolvedEndpoint | null> {
 		const instances = await this._fetchInstances(serviceName);
-		if (!Array.isArray(instances)) {
-			return this._handleFallback(cacheKey);
-		}
 		const matching = instances
 			.filter(
 				(inst) =>
 					Number.parseInt(inst.version.split(".")[0], 10) === majorVersion
 			)
-			.map((inst) => ({
-				host: IPAddress.of(inst.host),
-				port: inst.port,
-				version: inst.version as Version,
-			}));
+			.map(({ host, port, version }) => ({ host, port, version }));
 		const cachedService: CachedService = {
 			instances: matching,
 			expiresAt: UnixTimestamp.of(Date.now() + this._cacheTtlMs),
@@ -92,7 +91,7 @@ export class ServiceResolver {
 	 */
 	private async _fetchInstances(
 		serviceName: ServiceId
-	): Promise<ServiceInstance[] | undefined> {
+	): Promise<RoutableInstance[]> {
 		if (String(normalizeServiceName(serviceName)) === DISCOVERY_SERVICE) {
 			return [await this._discoveryInstance()];
 		}
@@ -101,15 +100,13 @@ export class ServiceResolver {
 		for (const name of registryNamesFor(serviceName)) {
 			// biome-ignore lint/plugin: an unknown alias is expected, the next one is tried
 			try {
-				const response = await this._httpClient.get<{
-					data: ServiceInstance[];
-				}>(URLString.of(`${this._discoveryUrl}/services/${name}`));
-				const instances = Array.isArray(response)
-					? response
-					: (response as { data: ServiceInstance[] }).data;
-				if (!Array.isArray(instances)) {
-					return;
-				}
+				// A malformed answer throws here: resolve() falls back to the stale cache.
+				const instances =
+					(await this._httpClient.get(
+						URLString.of(`${this._discoveryUrl}/services/${name}`),
+						undefined,
+						ServiceInstancesWire
+					)) ?? [];
 				answered = true;
 				if (instances.length > 0) {
 					return instances;
@@ -124,16 +121,15 @@ export class ServiceResolver {
 		return [];
 	}
 
-	private async _discoveryInstance(): Promise<ServiceInstance> {
+	private async _discoveryInstance(): Promise<RoutableInstance> {
 		const url = new URL(this._discoveryUrl);
 		// The proxy only targets IPs in ALLOWED_PROXY_CIDRS: resolve the hostname.
 		const { address } = await lookup(url.hostname, { family: 4 });
 		return {
-			serviceName: DISCOVERY_SERVICE,
-			host: address,
-			port: Number(url.port || 443),
-			version: "1.0.0",
-		} as unknown as ServiceInstance;
+			host: IPAddress.of(address),
+			port: Port.of(Number(url.port || 443)),
+			version: Version.of("1.0.0"),
+		};
 	}
 
 	private _handleFallback(cacheKey: string): ResolvedEndpoint | null {

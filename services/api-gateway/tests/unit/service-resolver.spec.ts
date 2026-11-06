@@ -208,11 +208,6 @@ describe("ServiceResolver", () => {
 		expect(mockHttpClient.get).toHaveBeenCalledTimes(1);
 	});
 
-	it("should construct without httpClient (uses default)", () => {
-		const r = new ServiceResolver("https://discovery:3000", 5000);
-		expect(r).toBeInstanceOf(ServiceResolver);
-	});
-
 	it("should invalidate cache only for matching service key", async () => {
 		await resolver.resolve("sector-allocator", 1);
 		await resolver.resolve("other-service", 2);

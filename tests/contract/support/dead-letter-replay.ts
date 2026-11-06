@@ -48,7 +48,7 @@ export async function deadLetterAndReplay(
 			messageManagerUrl: "https://10.0.0.3:3000",
 			client: {
 				post: async (url: string, body: unknown) => {
-					replays.push({ url, body: overTheWire(body) });
+					replays.push({ method: "POST", url, body: overTheWire(body) });
 				},
 			},
 		} as never

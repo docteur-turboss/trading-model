@@ -215,13 +215,19 @@ class PrioritizedExperiencePool
 			([id]) =>
 				(this._priorities.get(id) ?? this._maxPriority) ** this._per.alpha
 		);
-		const total = scaled.reduce((acc, val) => acc + val, 0);
+		// Running sums in pool order: the same bounds the linear scan used.
+		const bounds = new Float64Array(scaled.length);
+		let total = 0;
+		scaled.forEach((val, idx) => {
+			total += val;
+			bounds[idx] = total;
+		});
 		const count = entries.length;
 		const minScaled = scaled.reduce((acc, val) => Math.min(acc, val));
 		const maxWeight = ((count * minScaled) / total) ** -this._beta;
 
 		const picks = Array.from({ length: batchSize }, () =>
-			this._pickIndex(scaled, total)
+			this._pickIndex(bounds, total)
 		);
 		const sample: PrioritizedSample = {
 			experiences: picks.map((idx) => entries[idx][1]),
@@ -249,17 +255,21 @@ class PrioritizedExperiencePool
 		this._priorities.delete(id);
 	}
 
-	private _pickIndex(scaled: number[], total: number): number {
+	/** First index whose running sum exceeds the roll (binary search). */
+	private _pickIndex(bounds: Float64Array, total: number): number {
 		const roll = this._rng() * total;
-		let cumulative = 0;
-		for (let idx = 0; idx < scaled.length; idx++) {
-			cumulative += scaled[idx];
-			if (roll < cumulative) {
-				return idx;
+		let low = 0;
+		// Floating-point rounding can leave roll just above the last bound: last index.
+		let high = bounds.length - 1;
+		while (low < high) {
+			const mid = (low + high) >>> 1;
+			if (roll < bounds[mid]) {
+				high = mid;
+			} else {
+				low = mid + 1;
 			}
 		}
-		// Floating-point rounding can leave roll just above the last bound.
-		return scaled.length - 1;
+		return low;
 	}
 
 	private _advanceBeta(): void {

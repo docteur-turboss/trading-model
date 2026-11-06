@@ -23,14 +23,6 @@ NAMESPACE="${K8S_NAMESPACE:-trading-model}"
 log()  { echo "[$(date '+%H:%M:%S')] $*"; }
 err()  { echo "[$(date '+%H:%M:%S')] ERROR: $*" >&2; }
 
-# Feature flags: enable individual capabilities with the FEATURE_FLAGS env var
-# (comma-separated), e.g. FEATURE_FLAGS="canary-auto-cleanup". Flags are additive
-# and default to off so deploys stay predictable unless explicitly opted in.
-feature_enabled() {
-  local flag="$1"
-  [[ -n "${FEATURE_FLAGS:-}" && ",${FEATURE_FLAGS}," == *",${flag},"* ]]
-}
-
 # Resolve a container image reference (repo:tag) to an immutable @sha256 digest.
 # Uses crane when available, falling back to docker buildx imagetools inspect.
 resolve_image_digest() {
@@ -113,8 +105,7 @@ cmd_apply() {
       rollout_failed=1
     fi
   else
-    for dep in discovery-server message-manager financial-scraper financial-scraper-collector trader-trainer \
-               api-gateway audit-logger dlq-service edge-proxy; do
+    for dep in $(bash "$(dirname "${BASH_SOURCE[0]}")/deploy-release.sh" deployments); do
       if ! kubectl rollout status -n "$NAMESPACE" "deployment/${dep}" --timeout=120s; then
         err "Rollout of $dep failed or timed out."
         rollout_failed=1
@@ -283,18 +274,17 @@ canary_start() {
   [[ "$canary_replicas" -lt 1 ]] && canary_replicas=1
 
   # Resolve image: prefer immutable @sha256 digest over mutable tag.
-  local image_ref="${image_tag:-}"
-  if [[ -n "$image_ref" ]]; then
+  local repo="${CANARY_IMAGE_REPO:-ghcr.io/trading-model}/${service}"
+  local image_ref="${repo}:latest"
+  if [[ -n "$image_tag" ]]; then
     local digest
-    if digest="$(resolve_image_digest "${CANARY_IMAGE_REPO:-ghcr.io/trading-model}/${service}" "$image_ref")"; then
-      image_ref="${CANARY_IMAGE_REPO:-ghcr.io/trading-model}/${service}@${digest}"
+    if digest="$(resolve_image_digest "$repo" "$image_tag")"; then
+      image_ref="${repo}@${digest}"
       log "Pinned ${service} canary image to digest ${digest}"
     else
-      image_ref="${CANARY_IMAGE_REPO:-ghcr.io/trading-model}/${service}:${image_tag}"
+      image_ref="${repo}:${image_tag}"
       log "WARNING: could not resolve a digest for ${service}:${image_tag} — falling back to tag"
     fi
-  else
-    image_ref="${CANARY_IMAGE_REPO:-ghcr.io/trading-model}/${service}:latest"
   fi
 
   # A canary left by an earlier run may carry another (immutable) selector.
@@ -380,7 +370,7 @@ canary_check() {
   fi
 }
 
-# Scales a passed canary to 0 (or removes it with canary-auto-cleanup).
+# Scales a passed canary to 0.
 canary_finish() {
   local canary_name="${1}-canary"
   # Scale canary to 0 after successful gate — no traffic drain needed.
@@ -388,13 +378,7 @@ canary_finish() {
   kubectl scale deployment -n "$NAMESPACE" "$canary_name" --replicas=0
 
   log "Canary $canary_name gate passed."
-
-  if feature_enabled "canary-auto-cleanup"; then
-    log "FEATURE_FLAGS includes canary-auto-cleanup — removing $canary_name"
-    kubectl delete deployment -n "$NAMESPACE" "$canary_name" --ignore-not-found
-  else
-    log "Canary $canary_name kept (scaled to 0). Remove it with: $0 canary-cleanup ${1}"
-  fi
+  log "Canary $canary_name kept (scaled to 0). Remove it with: $0 canary-cleanup ${1}"
 }
 
 cmd_canary() {
@@ -460,39 +444,6 @@ cmd_canary_cleanup() {
   fi
 }
 
-cmd_pin() {
-  log "Pinning deployed images to immutable @sha256 digests..."
-  local services=(
-    discovery-server message-manager financial-scraper financial-scraper-collector trader-trainer
-    api-gateway audit-logger dlq-service
-  )
-  local failed=0
-  for svc in "${services[@]}"; do
-    local image
-    image=$(kubectl get deployment -n "$NAMESPACE" "$svc" -o json \
-      | jq -r --arg name "$svc" '.spec.template.spec.containers[] | select(.name == $name) | .image' 2>/dev/null) || {
-      err "Deployment '$svc' not found in namespace $NAMESPACE — skipping pin."
-      continue
-    }
-    [[ -z "$image" || "$image" == *"@"* ]] && continue
-    local repo="${image%%:*}"
-    local tag="${image##*:}"
-    local digest
-    if digest="$(resolve_image_digest "$repo" "$tag")"; then
-      log "  ✓ $svc: $image → ${repo}@${digest}"
-      kubectl set image -n "$NAMESPACE" "deployment/${svc}" "${svc}=${repo}@${digest}" >/dev/null
-    else
-      err "  ✗ could not resolve digest for $svc ($image)"
-      failed=$((failed + 1))
-    fi
-  done
-  if [[ "$failed" -gt 0 ]]; then
-    err "$failed image(s) could not be pinned."
-    exit 1
-  fi
-  log "All deployed images pinned to digests."
-}
-
 cmd_smoke_test() {
   log "Running smoke tests..."
 
@@ -541,9 +492,10 @@ cmd_verify_market_data() {
   local deadline=$((SECONDS + timeout)) persisted="" metrics="" last_err="no attempt made"
   log "Waiting up to ${timeout}s for the collector to persist candles..."
   while [[ "$SECONDS" -lt "$deadline" ]]; do
-    if metrics="$(kubectl exec -n "$NAMESPACE" deployment/financial-scraper-collector -c financial-scraper-collector --       curl -sSk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem       https://localhost:3000/metrics 2>&1)"; then
-      persisted="$(printf '%s
-' "$metrics" | awk '/^fs_candles_persisted_total/ {s += $NF} END {print s + 0}')"
+    if metrics="$(kubectl exec -n "$NAMESPACE" deployment/financial-scraper-collector -c financial-scraper-collector -- \
+        curl -sSk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem \
+        https://localhost:3000/metrics 2>&1)"; then
+      persisted="$(printf '%s\n' "$metrics" | awk '/^fs_candles_persisted_total/ {s += $NF} END {print s + 0}')"
       last_err="no fs_candles_persisted_total candle yet (0 persisted)"
     else
       persisted=0
@@ -609,9 +561,6 @@ case "${1:-help}" in
   canary-cleanup)
     cmd_canary_cleanup "${2:-}"
     ;;
-  pin)
-    cmd_pin
-    ;;
   smoke-test)
     cmd_smoke_test
     ;;
@@ -630,11 +579,9 @@ case "${1:-help}" in
     echo "  $0 [-n namespace] canary <srv> [tag] [pct]     Canary deployment"
     echo "  $0 [-n namespace] canary-all <tag> <pct> <srv>...  Canaries in parallel, one gate window"
     echo "  $0 [-n namespace] canary-cleanup <srv>  Remove canary deployment"
-    echo "  $0 [-n namespace] pin                     Pin deployed images to digests"
     echo "  $0 [-n namespace] smoke-test            Run smoke tests"
     echo "  $0 [-n namespace] verify-market-data    Wait for the collector to persist candles again"
     echo "Namespace defaults to trading-model (env: K8S_NAMESPACE)."
-    echo "Feature flags (FEATURE_FLAGS=flag1,flag2): canary-auto-cleanup"
     exit 1
     ;;
 esac

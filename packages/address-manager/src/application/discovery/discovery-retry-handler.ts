@@ -19,10 +19,6 @@ const MAX_RETRIES = 2;
 const RETRY_BASE_DELAY_MS = 100;
 
 export class DiscoveryRetryHandler {
-	private static readonly _CIRCUIT_BREAKER_MAX_RETRIES = MAX_RETRIES;
-	private static readonly _CIRCUIT_BREAKER_RETRY_BASE_DELAY_MS =
-		RETRY_BASE_DELAY_MS;
-
 	constructor(
 		private readonly _serviceDiscovery: ServiceDiscovery,
 		private readonly _serviceCache: IServiceCache,
@@ -32,11 +28,7 @@ export class DiscoveryRetryHandler {
 	async attemptDiscovery(ctx: DiscoveryContext): Promise<ServiceInstance> {
 		let lastError: Error | null = null;
 
-		for (
-			let attempt = 0;
-			attempt <= DiscoveryRetryHandler._CIRCUIT_BREAKER_MAX_RETRIES;
-			attempt++
-		) {
+		for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
 			try {
 				const instance = await this._serviceDiscovery.findService(
 					ctx.serviceName
@@ -52,7 +44,7 @@ export class DiscoveryRetryHandler {
 				}
 			} catch (err) {
 				lastError = this._captureError(err);
-				if (attempt < DiscoveryRetryHandler._CIRCUIT_BREAKER_MAX_RETRIES) {
+				if (attempt < MAX_RETRIES) {
 					await sleep(this._backoffDelay(attempt));
 				}
 			}
@@ -66,9 +58,7 @@ export class DiscoveryRetryHandler {
 
 	private _backoffDelay(attempt: number): number {
 		return computeExponentialBackoff(attempt, {
-			baseDelayMs: DurationMs.of(
-				DiscoveryRetryHandler._CIRCUIT_BREAKER_RETRY_BASE_DELAY_MS
-			),
+			baseDelayMs: DurationMs.of(RETRY_BASE_DELAY_MS),
 		});
 	}
 
@@ -90,7 +80,7 @@ export class DiscoveryRetryHandler {
 		}
 
 		await this._serviceCache.delete(toServiceId(serviceName));
-		if (attempt < DiscoveryRetryHandler._CIRCUIT_BREAKER_MAX_RETRIES) {
+		if (attempt < MAX_RETRIES) {
 			await sleep(this._backoffDelay(attempt));
 		}
 		return null;

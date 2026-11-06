@@ -1,8 +1,9 @@
-import type { RandomPort } from "../../domain/ports/random-port";
-import { generateRandomStr } from "../../infrastructure/random-primitives";
+import { CryptoAlg } from "../../domain/constants/crypto-constants";
 
-export const nodeRandomAdapter: RandomPort = {
-	generateRandomStr,
-};
-
-export { generateRandomStr };
+/** Returns a base64url string built from `crypto.getRandomValues`, used as a token nonce. */
+export function generateRandomStr(): string {
+	return Buffer.from(
+		crypto.getRandomValues(new Uint32Array(10)).join(""),
+		"utf-8"
+	).toString(CryptoAlg.BASE64URL);
+}

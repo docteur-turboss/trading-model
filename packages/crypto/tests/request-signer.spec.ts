@@ -6,7 +6,6 @@ const DEFAULT_TIMESTAMP_TOLERANCE_MS = 300_000;
 
 import {
 	buildSignedHeaders,
-	extractRequestParts,
 	normalizeBody,
 	signRequest,
 	verifySignature,
@@ -173,66 +172,5 @@ describe("buildSignedHeaders", () => {
 		expect(
 			(headers[HTTP_HEADERS.X_SIGNATURE] as string).length
 		).toBeGreaterThan(0);
-	});
-});
-
-describe("extractRequestParts", () => {
-	it("should extract serviceName, signature, timestamp from headers", () => {
-		const input = makeInput();
-		const signedHeaders = buildSignedHeaders(input, longSecret);
-		const result = extractRequestParts(
-			signedHeaders as Record<string, string>,
-			"POST",
-			"/api/v1/test",
-			{}
-		);
-		expect(result).not.toBeNull();
-		expect(result!.serviceName).toBe(input.serviceName);
-		expect(result!.signature).toBe(signedHeaders[HTTP_HEADERS.X_SIGNATURE]);
-		expect(result!.timestamp).toBe(signedHeaders[HTTP_HEADERS.X_TIMESTAMP]);
-	});
-
-	it("should return null when x-service-name is missing", () => {
-		const result = extractRequestParts(
-			{
-				[HTTP_HEADERS.X_TIMESTAMP]: "12345",
-				[HTTP_HEADERS.X_SIGNATURE]: "abcdef",
-			} as Record<string, string>,
-			"GET",
-			"/test",
-			{}
-		);
-		expect(result).toBeNull();
-	});
-
-	it("should return null when x-signature is missing", () => {
-		const result = extractRequestParts(
-			{
-				[HTTP_HEADERS.X_TIMESTAMP]: "12345",
-				[HTTP_HEADERS.X_SERVICE_NAME]: "svc",
-			} as Record<string, string>,
-			"GET",
-			"/test",
-			{}
-		);
-		expect(result).toBeNull();
-	});
-
-	it("should return null when x-timestamp is missing", () => {
-		const result = extractRequestParts(
-			{
-				[HTTP_HEADERS.X_SIGNATURE]: "abcdef",
-				[HTTP_HEADERS.X_SERVICE_NAME]: "svc",
-			} as Record<string, string>,
-			"GET",
-			"/test",
-			{}
-		);
-		expect(result).toBeNull();
-	});
-
-	it("should return null when all headers are missing", () => {
-		const result = extractRequestParts({}, "GET", "/test", {});
-		expect(result).toBeNull();
 	});
 });

@@ -7,29 +7,26 @@ export interface BackoffConfig {
 	jitterMs?: DurationMs;
 }
 
-export function createDelayRange(
-	baseMs: DurationMs,
-	maxMs: DurationMs
-): DelayRange {
-	return new DelayRange({ baseMs, maxMs });
+function _delayRange(options: BackoffConfig): DelayRange {
+	return new DelayRange({
+		baseMs: options.baseDelayMs ?? DurationMs.of(200),
+		maxMs: options.maxDelayMs ?? DurationMs.of(5000),
+	});
 }
 
 export function computeExponentialBackoff(
 	attempt: number,
 	options: BackoffConfig
 ): DurationMs {
-	return new DelayRange({
-		baseMs: options.baseDelayMs ?? DurationMs.of(200),
-		maxMs: options.maxDelayMs ?? DurationMs.of(5000),
-	}).backoff(attempt);
+	return _delayRange(options).backoff(attempt);
 }
 
 export function computeExponentialBackoffWithJitter(
 	attempt: number,
 	options: BackoffConfig
 ): DurationMs {
-	return new DelayRange({
-		baseMs: options.baseDelayMs ?? DurationMs.of(200),
-		maxMs: options.maxDelayMs ?? DurationMs.of(5000),
-	}).withJitter(attempt, options.jitterMs ?? DurationMs.of(0));
+	return _delayRange(options).withJitter(
+		attempt,
+		options.jitterMs ?? DurationMs.of(0)
+	);
 }

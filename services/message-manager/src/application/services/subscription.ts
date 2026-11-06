@@ -1,14 +1,10 @@
 import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import type { Message } from "@trading-model/contracts/message-types";
-import type {
-	SequenceNumber,
-	Topic,
-} from "@trading-model/primitives/primitives";
+import type { Topic } from "@trading-model/primitives/primitives";
 import type { ServiceIdentity } from "@trading-model/primitives/service-identity";
 import type { TopicBinding } from "@trading-model/primitives/topic-binding";
 import { CircuitStateMachine } from "@trading-model/reliability/circuit-state-machine";
 import { SUBSCRIBER_DELIVERY_CONCURRENCY } from "../../config/metrics";
-import { backoffDelay as computeBackoffDelay } from "../../domain/backoff-calculator";
 import type { MessageDeliveryPort } from "../ports/message-delivery-port";
 import { DeliveryAttemptHandler } from "./delivery-attempt-handler";
 import { DeliveryErrorHandler } from "./delivery-error-handler";
@@ -40,7 +36,6 @@ function buildDispatchServices(config: SubscriptionConfig): DispatchServices {
 	return {
 		circuitBreaker,
 		attemptHandler,
-		errorHandler,
 		deliveryPort: config.deliveryPort,
 	};
 }
@@ -50,10 +45,6 @@ export class Subscription {
 	readonly callbackPath: string;
 	readonly serviceIdentity: ServiceIdentity;
 	private readonly _services: DispatchServices;
-
-	static backoffDelay(deliveryAttempt: SequenceNumber): number {
-		return computeBackoffDelay(deliveryAttempt);
-	}
 
 	constructor(config: SubscriptionConfig) {
 		this.topic = config.topic;

@@ -1,13 +1,10 @@
-import { describe, expect, it, jest } from "@jest/globals";
+import { describe, expect, it } from "@jest/globals";
 import {
 	CALLER,
-	e2eTestTimeout,
 	externalRequest,
 	GATEWAY_API_KEY,
 	meshRequest,
 } from "./helpers";
-
-jest.setTimeout(e2eTestTimeout);
 
 const REGISTER = "https://discovery-server:3000/register";
 

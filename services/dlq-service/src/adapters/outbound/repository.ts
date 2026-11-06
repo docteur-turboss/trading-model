@@ -1,4 +1,8 @@
-import { type AppError, isAppError } from "@trading-model/common/utils/errors";
+import {
+	type AppError,
+	ErrorCode,
+	isAppError,
+} from "@trading-model/common/utils/errors";
 import type { DlqEntry } from "@trading-model/contracts/dlq-types";
 import { SequenceNumber, Topic } from "@trading-model/primitives/primitives";
 import type { Document, WithId } from "mongodb";
@@ -14,7 +18,7 @@ export type { DlqListOptions };
 export { dlqCapacityError };
 
 export function isDlqCapacityError(err: unknown): err is AppError {
-	return isAppError(err) && err.code === "DlqCapacityError";
+	return isAppError(err) && err.code === ErrorCode.DlqCapacity;
 }
 
 export { DlqStatus } from "../../domain/dlq-status";

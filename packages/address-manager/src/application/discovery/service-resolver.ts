@@ -10,6 +10,7 @@ import {
 	toServiceId,
 	URLString,
 } from "@trading-model/primitives/primitives";
+import { ServiceInstancesWire } from "@trading-model/validation/wire/service-instance";
 import type { ServiceHealthChecker } from "../../adapters/outbound/discovery/service-health-checker";
 import type { ServiceInstance } from "../../domain/client/type";
 import type { AddressManagerConfig } from "../../domain/config/address-manager-config";
@@ -42,9 +43,15 @@ export class ServiceResolver {
 	}
 
 	async findService(serviceName: ServiceId): Promise<ServiceInstance> {
-		const instances = await this._fetchService(serviceName);
+		const instances = await this._fetchInstances(serviceName).catch(
+			(error: unknown) => {
+				throw serviceNotFoundError(`Service "${serviceName}" not found`, {
+					cause: normalizeError(error),
+				});
+			}
+		);
 		const instance = this._addressed(
-			this._extractFirstInstance(instances, serviceName)
+			this._firstInstance(instances, serviceName)
 		);
 		await this._validateAndCache(instance, serviceName);
 		return instance;
@@ -62,28 +69,23 @@ export class ServiceResolver {
 		};
 	}
 
-	private async _fetchService(serviceName: ServiceId): Promise<unknown> {
-		try {
-			return await this._httpClient.get<unknown>(
-				URLString.of(
-					`${this._config.addressManagerUrl}/services/${serviceName}`
-				),
-				{ timeoutMs: this._discoveryTimeoutMs }
-			);
-		} catch (error) {
-			throw serviceNotFoundError(`Service "${serviceName}" not found`, {
-				cause: normalizeError(error),
-			});
-		}
+	/** Instances of a service, validated: `[]` when discovery answers 204. */
+	private async _fetchInstances(
+		serviceName: ServiceId
+	): Promise<ServiceInstance[]> {
+		const instances = await this._httpClient.get(
+			URLString.of(`${this._config.addressManagerUrl}/services/${serviceName}`),
+			{ timeoutMs: this._discoveryTimeoutMs },
+			ServiceInstancesWire
+		);
+		return instances ?? [];
 	}
 
-	private _extractFirstInstance(
-		instances: unknown,
+	private _firstInstance(
+		instances: ServiceInstance[],
 		serviceName: ServiceId
 	): ServiceInstance {
-		const instance = Array.isArray(instances)
-			? (instances as ServiceInstance[])[0]
-			: (instances as ServiceInstance);
+		const instance = instances[0];
 		if (!instance) {
 			throw serviceNotFoundError(
 				`Service "${serviceName}" has no registered instances`
@@ -109,13 +111,7 @@ export class ServiceResolver {
 
 	async findAllServices(serviceName: ServiceId): Promise<ServiceInstance[]> {
 		try {
-			const instances = await this._httpClient.get<ServiceInstance[]>(
-				URLString.of(
-					`${this._config.addressManagerUrl}/services/${serviceName}`
-				),
-				{ timeoutMs: this._discoveryTimeoutMs }
-			);
-			return instances ?? [];
+			return await this._fetchInstances(serviceName);
 		} catch (error) {
 			throw serviceUnreachableError(
 				`Unable to list instances of "${serviceName}"`,

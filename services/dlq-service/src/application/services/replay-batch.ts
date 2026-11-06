@@ -12,8 +12,6 @@ import type {
 } from "../../shared/types";
 import {
 	checkBatchRejection,
-	decrementActiveBatches,
-	incrementActiveBatches,
 	recordBatchResult,
 } from "./batch-concurrency-guard";
 
@@ -183,18 +181,16 @@ async function _replayBatch(
 	options: ReplayBatchOptions,
 	delivery: EntryDeliveryPort
 ): Promise<BatchResults> {
-	const rejection = checkBatchRejection(options.entries, options.batchId);
+	const rejection = checkBatchRejection(options.entries);
 	if (rejection) {
 		return rejection;
 	}
 
-	incrementActiveBatches();
 	activeReplays.increment();
 	try {
 		return await _executeBatch(options, delivery);
 	} finally {
 		activeReplays.decrement();
-		decrementActiveBatches();
 	}
 }
 

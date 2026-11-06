@@ -1,6 +1,6 @@
 import type { URLString } from "@trading-model/primitives/primitives";
 import Redis, { type RedisOptions } from "ioredis";
-import { RedisClientBuilder } from "./redis-client-builder";
+import { withErrorLogging } from "./redis-client-builder";
 import type {
 	RedisConnectionConfig,
 	RedisSentinelConfig,
@@ -27,7 +27,7 @@ export function createFromUrl(
 		maxRetriesPerRequest: 5,
 		...extraOptions,
 	});
-	return new RedisClientBuilder(client).withErrorHandler().build();
+	return withErrorLogging(client);
 }
 
 export function createSentinel(
@@ -58,7 +58,7 @@ export function createSentinel(
 			}
 		).connector?.failoverDetector?.cleanup();
 	});
-	return new RedisClientBuilder(client).withErrorHandler().build();
+	return withErrorLogging(client);
 }
 
 export function buildFromConfig(

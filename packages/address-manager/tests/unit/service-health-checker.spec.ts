@@ -12,7 +12,6 @@ import {
 	URLString,
 } from "@trading-model/primitives/primitives";
 import { ServiceHealthChecker } from "../../src/adapters/outbound/discovery/service-health-checker";
-import { IpAddressLocator } from "../../src/application/discovery/service-locator";
 import type { ServiceInstance } from "../../src/domain/client/type";
 
 describe("ServiceHealthChecker", () => {
@@ -86,11 +85,14 @@ describe("ServiceHealthChecker", () => {
 		expect(url).toBe("https://user-service:8080/ping");
 	});
 
-	test("IpAddressLocator uses instance.ip for URL construction", () => {
+	test("a host-based locator uses instance.host for URL construction", () => {
 		checker = new ServiceHealthChecker({
 			httpClient,
 			timeoutMs: DurationMs.of(2000),
-			serviceLocator: new IpAddressLocator(),
+			serviceLocator: {
+				locate: (target) => target.host,
+				resolve: (name) => name,
+			},
 		});
 		const url = (checker as any)._buildPingUrl(instance);
 		expect(url).toBe("https://127.0.0.1:8080/ping");

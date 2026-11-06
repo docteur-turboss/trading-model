@@ -47,9 +47,7 @@ export class HttpDeadLetterStore implements DeadLetterStorePort {
 		await this._options.httpClient.post(
 			await this._options.resolveUrl(),
 			body,
-			// A timed-out POST may have been stored: re-sending it would store
-			// it twice. Only a refused connection is retried.
-			{ headers, timeoutMs: REQUEST_TIMEOUT_MS, retryUnsentOnly: true }
+			{ headers, timeoutMs: REQUEST_TIMEOUT_MS }
 		);
 	}
 }

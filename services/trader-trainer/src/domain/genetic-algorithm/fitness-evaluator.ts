@@ -6,7 +6,7 @@ import type {
 	LamarckGenome,
 	PopMember,
 } from "./genome-types";
-import type { ObjectiveVector } from "./nsga2";
+import type { ObjectiveVector } from "./pareto";
 import { type ArchiveBest, ParetoArchive } from "./pareto";
 import type { BackendFactory } from "./rl-backend";
 import type { DeepReadonly } from "./shared-types";
@@ -84,7 +84,7 @@ export class FitnessEvaluator {
 	updateArchive(
 		popWithMeta: PopMember[],
 		objectives: ObjectiveVector[],
-		popMeta: import("./nsga2").PopulationMeta,
+		popMeta: import("./pareto").PopulationMeta,
 		onArchiveUpdate?: (archive: DeepReadonly<LamarckGenome>[]) => void
 	): void {
 		const frontIdx = popMeta.paretoRank.reduce((acc, rank, idx) => {

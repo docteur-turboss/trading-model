@@ -44,7 +44,8 @@ export function pushWithMaxSize<TData>(
 ): TData[] {
 	array.push(data);
 	if (maxSize !== undefined && array.length > maxSize) {
-		return array.slice(-maxSize);
+		// In place: a full series receives one message at a time, no full copy per message.
+		array.splice(0, array.length - maxSize);
 	}
 	return array;
 }

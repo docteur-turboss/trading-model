@@ -12,6 +12,9 @@ export const BaseEnvSchema = z.object({
 	...TlsEnvVarsSchema.shape,
 
 	LOG_LEVEL: z.nativeEnum(LogLevel).default(LogLevel.Info),
+
+	/** OTLP/HTTP collector base URL; unset: tracing off. */
+	OTEL_EXPORTER_OTLP_ENDPOINT: z.string().optional(),
 });
 
 /** Inferred type for validated base environment variables. */

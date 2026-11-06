@@ -1,3 +1,4 @@
+import { normalizeError } from "@trading-model/common/utils/errors";
 import { getLogger } from "@trading-model/contracts/logger-registry";
 import type {
 	Fitness,
@@ -134,21 +135,7 @@ export class Trainer {
 			this._deps.telemetry
 		);
 		const result: TrainingSessionResult = await session.run();
-		const snapshot = new LastTrainingInfo({
-			symbol,
-			bestGenome: result.bestGenome,
-			bestFitness: result.bestFitness as unknown as Fitness,
-			bestFitnessMeta: result.bestFitnessMeta,
-			generation: result.generation as unknown as PositiveInt,
-			generationContext: result.generationContext,
-		});
-		this._lastInfo = snapshot;
-		this._symbolSnapshots.set(symbol, snapshot);
-		getLogger().info("Training complete", {
-			context: { symbol, bestFitness: result.bestFitness },
-		});
-		return {
-			success: true,
+		const outcome = {
 			symbol,
 			bestGenome: result.bestGenome,
 			bestFitness: result.bestFitness as unknown as Fitness,
@@ -156,6 +143,13 @@ export class Trainer {
 			generation: result.generation as unknown as PositiveInt,
 			generationContext: result.generationContext,
 		};
+		const snapshot = new LastTrainingInfo(outcome);
+		this._lastInfo = snapshot;
+		this._symbolSnapshots.set(symbol, snapshot);
+		getLogger().info("Training complete", {
+			context: { symbol, bestFitness: result.bestFitness },
+		});
+		return { success: true, ...outcome };
 	}
 
 	/**
@@ -198,7 +192,7 @@ export class Trainer {
 			getLogger().error("Failed to store model artifact", {
 				context: {
 					symbol: result.symbol,
-					err: err instanceof Error ? err.message : String(err),
+					err: normalizeError(err).message,
 				},
 			});
 		}
@@ -221,7 +215,7 @@ export class Trainer {
 			getLogger().error("Failed to publish model", {
 				context: {
 					symbol,
-					err: err instanceof Error ? err.message : String(err),
+					err: normalizeError(err).message,
 				},
 			});
 		}
@@ -231,7 +225,7 @@ export class Trainer {
 		symbol: TradingSymbol,
 		err: unknown
 	): TrainingFailure {
-		const error = err instanceof Error ? err : new Error(String(err));
+		const error = normalizeError(err);
 		getLogger().error("Training failed", {
 			context: { symbol, err: error.message },
 		});

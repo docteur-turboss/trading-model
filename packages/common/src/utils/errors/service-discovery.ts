@@ -5,7 +5,6 @@ export const serviceNotFoundError = makeErrorCode(
 	ErrorCode.ServiceNotFound,
 	HTTP_STATUS.NOT_FOUND
 );
-export const isServiceNotFoundError = makeGuard(ErrorCode.ServiceNotFound);
 
 export const serviceUnreachableError = makeErrorCode(
 	ErrorCode.ServiceUnreachable,

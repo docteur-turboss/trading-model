@@ -1,3 +1,4 @@
+import { disconnectRedis } from "@trading-model/persistence/redis-client-builder";
 import { createRedisClient } from "@trading-model/persistence/redis-connection-manager";
 import { redisConnectionFromEnv } from "@trading-model/persistence/redis-env";
 import type Redis from "ioredis";
@@ -41,7 +42,7 @@ export class RedisConnection {
 	}
 	async close(): Promise<void> {
 		if (this._client) {
-			await this._disconnectClient();
+			await disconnectRedis(this._client);
 			this._removeClientListeners();
 			this._client = null;
 		}
@@ -89,17 +90,6 @@ export class RedisConnection {
 	private async _closeExistingClient(): Promise<void> {
 		if (this._client && !this._isConnected()) {
 			await this.close();
-		}
-	}
-	private async _disconnectClient(): Promise<void> {
-		try {
-			if (this._client?.status === "ready") {
-				await this._client.quit();
-			} else {
-				this._client?.disconnect();
-			}
-		} catch {
-			this._client?.disconnect();
 		}
 	}
 	private _removeClientListeners(): void {

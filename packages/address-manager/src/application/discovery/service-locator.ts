@@ -32,7 +32,6 @@ export class MapResolver implements ServiceLocator {
  *
  * Implementations:
  * - `ServiceNameLocator` — uses the logical service name (DNS-resolvable envs)
- * - `IpAddressLocator` — uses the registered IP (direct connectivity)
  * - `MappingServiceLocator` — delegates to a DnsResolver for name mapping
  */
 export interface ServiceLocator {
@@ -56,22 +55,6 @@ export class ServiceNameLocator implements ServiceLocator {
 
 	resolve(serviceName: ServiceId): string {
 		return normalizeServiceName(serviceName);
-	}
-}
-
-/**
- * Resolves using the instance's registered IP address.
- *
- * Suitable for direct IP-based connectivity or environments
- * without DNS-based service discovery.
- */
-export class IpAddressLocator implements ServiceLocator {
-	locate(instance: ServiceInstance): string {
-		return instance.host;
-	}
-
-	resolve(serviceName: ServiceId): string {
-		return serviceName;
 	}
 }
 

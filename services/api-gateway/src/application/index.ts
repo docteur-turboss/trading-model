@@ -6,6 +6,7 @@ import {
 	shutdownTelemetry,
 } from "@trading-model/server-utils/infrastructure/telemetry";
 
+import { ENV } from "../infrastructure/config/env";
 import { createServer } from "./server";
 
 createBootstrap({
@@ -16,7 +17,7 @@ createBootstrap({
 			serviceName: ServiceInstanceName.ApiGatewayService,
 			serviceVersion: process.env.APP_VERSION ?? "1.0.0",
 			instanceId: toInstanceId(process.env.INSTANCE_ID ?? "api-gateway-1"),
-			otlpEndpoint: process.env.OTEL_EXPORTER_OTLP_ENDPOINT,
+			otlpEndpoint: ENV.OTEL_EXPORTER_OTLP_ENDPOINT,
 		});
 	},
 	onStop: () => shutdownTelemetry(),

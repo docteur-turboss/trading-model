@@ -2,17 +2,13 @@ import type { InstanceId, Topic } from "@trading-model/primitives/primitives";
 import type { TopicBinding } from "@trading-model/primitives/topic-binding";
 import type Redis from "ioredis";
 import {
+	type StoredSubscription,
 	SUBSCRIPTION_TTL_MS,
 	type SubscriptionStorePort,
 } from "../../application/ports/subscription-store-port";
 
-interface StoredSubscription {
-	binding: TopicBinding;
-	renewedAt: number;
-}
-
 export interface RedisSubscriptionStoreDeps {
-	redis: Pick<Redis, "hset" | "pexpire" | "hgetall" | "hdel">;
+	redis: Pick<Redis, "multi" | "hgetall" | "hdel">;
 	keyPrefix: string;
 	now?: () => number;
 }
@@ -32,12 +28,12 @@ export class RedisSubscriptionStore implements SubscriptionStorePort {
 	async save(binding: TopicBinding): Promise<void> {
 		const key = this._key(binding.topic);
 		const stored: StoredSubscription = { binding, renewedAt: this._now() };
-		await this._deps.redis.hset(
-			key,
-			binding.serviceIdentity.instanceId,
-			JSON.stringify(stored)
-		);
-		await this._deps.redis.pexpire(key, SUBSCRIPTION_TTL_MS);
+		// One round trip; the hash never lives without its expiry.
+		await this._deps.redis
+			.multi()
+			.hset(key, binding.serviceIdentity.instanceId, JSON.stringify(stored))
+			.pexpire(key, SUBSCRIPTION_TTL_MS)
+			.exec();
 	}
 
 	async remove(topic: Topic, instanceId: InstanceId): Promise<void> {

@@ -1,3 +1,4 @@
+import { parseCommaSeparated } from "@trading-model/common/utils/comma-separated";
 import { DEFAULT_PRIVATE_CIDRS } from "@trading-model/primitives/primitives";
 import { validateEnv } from "@trading-model/validation/application/services/validate-env";
 import { BaseEnvSchema } from "@trading-model/validation/config/env";
@@ -43,7 +44,7 @@ const API_GATEWAY_ENV_SCHEMA = BaseEnvSchema.extend(
 			path: ["AUTH_STRICT"],
 		});
 	}
-	if (data.AUTH_TOKENS.split(",").every((token) => token.trim() === "")) {
+	if (parseCommaSeparated(data.AUTH_TOKENS).length === 0) {
 		ctx.addIssue({
 			code: z.ZodIssueCode.custom,
 			message: "AUTH_TOKENS cannot be empty in production",

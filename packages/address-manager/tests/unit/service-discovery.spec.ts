@@ -114,7 +114,7 @@ describe("ServiceDiscovery", () => {
 
 	test("targets the instance through the located address, not its registered IP", async () => {
 		cache.get.mockResolvedValue(null);
-		httpClient.get.mockResolvedValueOnce(instance);
+		httpClient.get.mockResolvedValueOnce([instance]);
 		healthChecker.locate.mockReturnValueOnce("message-manager");
 
 		const result = await discovery.findService(svcInstanceName);
@@ -125,7 +125,7 @@ describe("ServiceDiscovery", () => {
 
 	test("fetches from AddressManager if cache is empty", async () => {
 		cache.get.mockResolvedValue(null);
-		httpClient.get.mockResolvedValueOnce(instance);
+		httpClient.get.mockResolvedValueOnce([instance]);
 		healthChecker.isHealthy.mockResolvedValue(true);
 
 		const result = await discovery.findService(svcInstanceName);
@@ -137,7 +137,7 @@ describe("ServiceDiscovery", () => {
 
 	test("invalidates cache and refetches if cached instance is unhealthy", async () => {
 		cache.get.mockResolvedValue(instance);
-		httpClient.get.mockResolvedValueOnce(instance);
+		httpClient.get.mockResolvedValueOnce([instance]);
 		healthChecker.isHealthy.mockResolvedValueOnce(false);
 		healthChecker.isHealthy.mockResolvedValueOnce(true);
 
@@ -159,18 +159,19 @@ describe("ServiceDiscovery", () => {
 
 	test("passes timeout option to HttpClient.get", async () => {
 		cache.get.mockResolvedValue(null);
-		httpClient.get.mockResolvedValueOnce(instance);
+		httpClient.get.mockResolvedValueOnce([instance]);
 		healthChecker.isHealthy.mockResolvedValue(true);
 
 		await discovery.findService(svcInstanceName);
 
 		expect(httpClient.get).toHaveBeenCalledWith(
 			expect.any(String),
-			expect.objectContaining({ timeoutMs: 5000 })
+			expect.objectContaining({ timeoutMs: 5000 }),
+			expect.anything()
 		);
 	});
 
-	test("handles array response from AddressManager by taking first element", async () => {
+	test("takes the first instance of the list", async () => {
 		cache.get.mockResolvedValue(null);
 		httpClient.get.mockResolvedValueOnce([instance]);
 		healthChecker.isHealthy.mockResolvedValue(true);
@@ -195,7 +196,7 @@ describe("ServiceDiscovery", () => {
 
 	test("throws ServiceUnreachableError if fetched service is unhealthy", async () => {
 		cache.get.mockResolvedValue(null);
-		httpClient.get.mockResolvedValueOnce(instance);
+		httpClient.get.mockResolvedValueOnce([instance]);
 		healthChecker.isHealthy.mockResolvedValue(false);
 
 		await expect(discovery.findService(svcInstanceName)).rejects.toThrow(
@@ -208,7 +209,7 @@ describe("ServiceDiscovery", () => {
 
 	test("sets fetched healthy service in cache", async () => {
 		cache.get.mockResolvedValue(null);
-		httpClient.get.mockResolvedValueOnce(instance);
+		httpClient.get.mockResolvedValueOnce([instance]);
 		healthChecker.isHealthy.mockResolvedValue(true);
 
 		await discovery.findService(svcInstanceName);

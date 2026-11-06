@@ -8,7 +8,6 @@ import {
 import {
 	DurationMs,
 	type ServiceId,
-	toServiceId,
 } from "@trading-model/primitives/primitives";
 import type { Redis, RedisOptions } from "ioredis";
 import type { ServiceInstance } from "../../../domain/client/type";
@@ -102,11 +101,7 @@ export class RedisServiceCache implements IServiceCache {
 		}>
 	> {
 		await this._ensureReady();
-		const raw = await this._cacheOps!.entries();
-		return raw.map((entry) => ({
-			...entry,
-			serviceName: toServiceId(entry.serviceName),
-		}));
+		return this._cacheOps!.entries();
 	}
 
 	get circuitStateStore(): ICircuitStateStore {

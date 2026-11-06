@@ -2,7 +2,6 @@ import type http from "node:http";
 import https from "node:https";
 import type { HttpStatusCode } from "@trading-model/contracts/http-status";
 import { HTTP_STATUS } from "@trading-model/contracts/http-status";
-import { CryptoAlg } from "@trading-model/crypto/domain/constants/crypto-constants";
 import { logger } from "@trading-model/http/infrastructure/logger";
 import { HostPort } from "@trading-model/primitives/service-identity";
 import type { ResolvedEndpoint } from "@trading-model/validation/adapters/outbound/service-resolver.types";
@@ -34,7 +33,7 @@ async function handleProxyResponse(
 	return {
 		status: (proxyRes.statusCode ??
 			HTTP_STATUS.SERVICE_UNAVAILABLE) as HttpStatusCode,
-		body: Buffer.concat(chunks).toString(CryptoAlg.UTF8),
+		body: Buffer.concat(chunks).toString(),
 		headers: proxyRes.headers as Record<string, string | string[]>,
 	};
 }

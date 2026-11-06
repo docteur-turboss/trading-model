@@ -10,38 +10,34 @@ export enum KnownService {
 	DlqService = "dlq-service",
 }
 
-function toServiceId(serviceName: string): ServiceId {
-	return ServiceId.of(serviceName);
-}
-
 export const DEFAULT_ACL: Record<KnownService, readonly ServiceId[]> = {
-	[KnownService.DiscoveryServer]: [toServiceId("*")],
-	[KnownService.AuditLogger]: [toServiceId("*")],
+	[KnownService.DiscoveryServer]: [ServiceId.of("*")],
+	[KnownService.AuditLogger]: [ServiceId.of("*")],
 	// Publishers, plus the subscribers: audit-logger subscribes to every topic
 	// and dlq-service republishes replayed entries. Not api-gateway: it would
 	// lend its identity to API clients (it proxies with its own SVID).
 	[KnownService.MessageManager]: [
-		toServiceId("discovery-server"),
-		toServiceId("financial-scraper"),
-		toServiceId("trader-trainer"),
-		toServiceId("audit-logger"),
-		toServiceId("dlq-service"),
+		ServiceId.of("discovery-server"),
+		ServiceId.of("financial-scraper"),
+		ServiceId.of("trader-trainer"),
+		ServiceId.of("audit-logger"),
+		ServiceId.of("dlq-service"),
 	],
 	// message-manager delivers subscribed topics to services that mount
 	// MessageManagerListenExpress (POST /<MESSAGE_CALLBACK_PATH>).
 	[KnownService.FinancialScraper]: [
-		toServiceId("api-gateway"),
-		toServiceId("message-manager"),
+		ServiceId.of("api-gateway"),
+		ServiceId.of("message-manager"),
 		// The data supply: the trainer reads its signals and market data (ADR-0036).
-		toServiceId("trader-trainer"),
+		ServiceId.of("trader-trainer"),
 	],
 	[KnownService.TraderTrainer]: [
-		toServiceId("api-gateway"),
-		toServiceId("financial-scraper"),
-		toServiceId("discovery-server"),
-		toServiceId("message-manager"),
+		ServiceId.of("api-gateway"),
+		ServiceId.of("financial-scraper"),
+		ServiceId.of("discovery-server"),
+		ServiceId.of("message-manager"),
 	],
 	// External traffic enters through the edge proxy (ADR-0018).
-	[KnownService.ApiGateway]: [toServiceId("edge-proxy")],
-	[KnownService.DlqService]: [toServiceId("*")],
+	[KnownService.ApiGateway]: [ServiceId.of("edge-proxy")],
+	[KnownService.DlqService]: [ServiceId.of("*")],
 };

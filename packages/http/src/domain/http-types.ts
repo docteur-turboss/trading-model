@@ -20,13 +20,6 @@ export const HttpHeaderValue = {
 
 export type HttpHeaders = Record<string, string>;
 
-export interface HttpHeaderDefaults {
-	"content-type"?: HttpHeaderValue;
-	authorization?: HttpHeaderValue;
-	"x-request-id"?: HttpHeaderValue;
-	"x-trace-id"?: HttpHeaderValue;
-}
-
 /**
  * Abstract HTTP connection agent handle. Domain code never dereferences it;
  * infrastructure adapters narrow it to their runtime type (e.g. `node:https` `Agent`).
@@ -41,11 +34,12 @@ interface HttpRequestOptions {
 	/** Retries after the first attempt (default 3); 0 sends the request once. */
 	retryCount?: number;
 	/**
-	 * Retry only when the connection was refused, i.e. the request never left.
-	 * For requests that must not be repeated once sent: a timeout or a reset
-	 * may come after the server acted on them.
+	 * Whether the request may be sent again after it left. Default: every
+	 * method but POST. A non-idempotent request is retried only when the
+	 * connection was refused (it never left): a timeout or a reset may come
+	 * after the server acted on it.
 	 */
-	retryUnsentOnly?: boolean;
+	idempotent?: boolean;
 	agent?: HttpAgent;
 	serviceName?: ServiceId;
 	serviceInstanceCount?: PositiveInt;

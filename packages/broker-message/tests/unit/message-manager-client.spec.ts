@@ -51,7 +51,8 @@ describe("MessageManagerClient", () => {
 				expect.objectContaining({
 					topic: "example.debug.create",
 					callbackPath: mockConfig.callbackPath,
-				})
+				}),
+				{ idempotent: true }
 			);
 		});
 
@@ -163,7 +164,7 @@ describe("MessageManagerClient", () => {
 					metadata,
 				},
 				// Outlasts the broker's own timeout; never re-sent once it left.
-				{ timeoutMs: PUBLISH_TIMEOUT_MS + 5_000, retryUnsentOnly: true }
+				{ timeoutMs: PUBLISH_TIMEOUT_MS + 5_000 }
 			);
 		});
 

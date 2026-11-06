@@ -156,16 +156,6 @@ describe("API Gateway — Routes Integration", () => {
 		});
 	});
 
-	it("GET /ping should return 200 without authentication", async () => {
-		const app = createApp();
-		await new Promise<void>((resolve) => {
-			server = app.listen(0, () => resolve());
-		});
-		const result = await request(server, "/ping");
-		expect(result.status).toBe(200);
-		expect(result.body).toHaveProperty("status", "ok");
-	});
-
 	it("should reject a proxied request without an auth token", async () => {
 		const app = createApp();
 		await new Promise<void>((resolve) => {

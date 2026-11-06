@@ -1,10 +1,6 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { CandleInterval } from "@trading-model/contracts/market-data.types";
-import {
-	BinanceFromId,
-	Limit,
-	toSymbol,
-} from "@trading-model/primitives/primitives";
+import { Limit, toSymbol } from "@trading-model/primitives/primitives";
 
 jest.mock("../../../../src/config/http", () => ({
 	httpClients: {
@@ -18,11 +14,8 @@ jest.mock("../../../../src/adapters/outbound/binance/endpoints", () => ({
 	BINANCE_ENDPOINTS: {
 		depth: jest.fn(() => "/api/v3/depth"),
 		trades: jest.fn(() => "/api/v3/trades"),
-		historicalTrades: jest.fn(() => "/api/v3/historicalTrades"),
-		compressedAggregateTrades: jest.fn(() => "/api/v3/aggTrades"),
 		candlesticks: jest.fn(() => "/api/v3/klines"),
 		change24hrStats: jest.fn(() => "/api/v3/ticker/24hr"),
-		tradingDayTicker: jest.fn(() => "/api/v3/ticker/tradingDay"),
 		symbolPriceTicker: jest.fn(() => "/api/v3/ticker/price"),
 		orderBookTicker: jest.fn(() => "/api/v3/ticker/bookTicker"),
 	},
@@ -32,11 +25,8 @@ jest.mock("../../../../src/adapters/outbound/binance/weights", () => ({
 	BINANCE_WEIGHTS: {
 		depth: jest.fn(() => 5),
 		trades: jest.fn(() => 25),
-		historicalTrades: jest.fn(() => 25),
-		compressedAggregateTrades: jest.fn(() => 4),
 		candlesticks: jest.fn(() => 2),
 		change24hrStats: jest.fn(() => 2),
-		tradingDayTicker: jest.fn(() => 4),
 		symbolPriceTicker: jest.fn(() => 4),
 		orderBookTicker: jest.fn(() => 4),
 	},
@@ -45,13 +35,10 @@ jest.mock("../../../../src/adapters/outbound/binance/weights", () => ({
 import {
 	get24hrTickerStats,
 	getCandlestickData,
-	getCompressedAggregateTrades,
-	getHistoricalTrades,
 	getOrderBook,
 	getOrderBookTicker,
 	getRecentTrades,
 	getSymbolPriceTicker,
-	getTradingDayTicker,
 } from "../../../../src/adapters/outbound/binance/binance.client";
 import { httpClients } from "../../../../src/config/http";
 
@@ -95,28 +82,6 @@ describe("BinanceClient", () => {
 		} as never);
 	});
 
-	it("getHistoricalTrades should call historicalTrades endpoint with weight", async () => {
-		await getHistoricalTrades({
-			symbol: BTC,
-			limit: LIMIT_100,
-			fromId: BinanceFromId.of("12345"),
-		});
-		expect(MOCK_GET).toHaveBeenCalledWith("/api/v3/historicalTrades", {
-			weight: 25,
-		} as never);
-	});
-
-	it("getHistoricalTrades should use default limit", async () => {
-		await getHistoricalTrades({
-			symbol: BTC,
-			limit: LIMIT_500,
-			fromId: BinanceFromId.of("12345"),
-		});
-		expect(MOCK_GET).toHaveBeenCalledWith("/api/v3/historicalTrades", {
-			weight: 25,
-		} as never);
-	});
-
 	it("getCandlestickData should call candlesticks endpoint with weight", async () => {
 		await getCandlestickData({
 			symbol: BTC,
@@ -136,34 +101,6 @@ describe("BinanceClient", () => {
 		});
 		expect(MOCK_GET).toHaveBeenCalledWith("/api/v3/klines", {
 			weight: 2,
-		} as never);
-	});
-
-	it("getCompressedAggregateTrades should call aggTrades endpoint with weight", async () => {
-		await getCompressedAggregateTrades({
-			symbol: BTC,
-			fromId: BinanceFromId.of("12345"),
-			limit: LIMIT_100,
-		});
-		expect(MOCK_GET).toHaveBeenCalledWith("/api/v3/aggTrades", {
-			weight: 4,
-		} as never);
-	});
-
-	it("getCompressedAggregateTrades should use default limit", async () => {
-		await getCompressedAggregateTrades({
-			symbol: BTC,
-			fromId: BinanceFromId.of("12345"),
-		});
-		expect(MOCK_GET).toHaveBeenCalledWith("/api/v3/aggTrades", {
-			weight: 4,
-		} as never);
-	});
-
-	it("getTradingDayTicker should call tradingDay endpoint with weight", async () => {
-		await getTradingDayTicker([BTC]);
-		expect(MOCK_GET).toHaveBeenCalledWith("/api/v3/ticker/tradingDay", {
-			weight: 4,
 		} as never);
 	});
 

@@ -5,16 +5,11 @@ import {
 	authenticationError,
 	createAppError,
 	deadLetterError,
-	isAddressManagerError,
-	isAgentError,
+	ErrorCode,
 	isAppError,
 	isAuthenticationError,
-	isMessageManagerError,
-	isServiceNotFoundError,
 	isServiceUnreachableError,
-	isTimeoutError,
 	messageManagerError,
-	nackError,
 	normalizeError,
 	serviceNotFoundError,
 	serviceUnreachableError,
@@ -45,9 +40,11 @@ describe("AppError", () => {
 		expect(error.code).toBe("ServiceNotFoundError");
 	});
 
-	it("should be identified by type guard", () => {
-		const error = serviceNotFoundError("Service X not found");
-		expect(isServiceNotFoundError(error)).toBe(true);
+	it("should tag each factory with its error code", () => {
+		expect(addressManagerError("x").code).toBe(ErrorCode.AddressManager);
+		expect(messageManagerError("x").code).toBe(ErrorCode.MessageManager);
+		expect(timeoutError("x").code).toBe(ErrorCode.Timeout);
+		expect(agentError("x").code).toBe(ErrorCode.Agent);
 	});
 
 	it("should be identified by type guard for ServiceUnreachableError", () => {
@@ -58,45 +55,6 @@ describe("AppError", () => {
 	it("should be identified by type guard for AuthenticationError", () => {
 		const error = authenticationError("Invalid token");
 		expect(isAuthenticationError(error)).toBe(true);
-	});
-
-	it("should be identified by type guard for AddressManagerError", () => {
-		const error = addressManagerError("Generic error");
-		expect(isAddressManagerError(error)).toBe(true);
-	});
-
-	it("should be identified by type guard for MessageManagerError", () => {
-		const error = messageManagerError("Failed");
-		expect(isMessageManagerError(error)).toBe(true);
-	});
-
-	it("should be identified by type guard for TimeoutError", () => {
-		const error = timeoutError("timed out");
-		expect(isTimeoutError(error)).toBe(true);
-	});
-
-	it("should support reason via options", () => {
-		const error = nackError("custom reason", {
-			reason: "custom reason",
-		});
-		expect(error.reason).toBe("custom reason");
-		expect(error.message).toBe("custom reason");
-	});
-
-	it("should support NACK_ERROR without reason", () => {
-		const error = nackError("Message negatively acknowledged");
-		expect(error.reason).toBeUndefined();
-		expect(error.message).toBe("Message negatively acknowledged");
-	});
-
-	it("should store cause with NackError", () => {
-		const cause = new Error("root");
-		const error = nackError("reason", {
-			reason: "reason",
-			cause,
-		});
-		expect(error.cause).toBe(cause);
-		expect(error.reason).toBe("reason");
 	});
 
 	it("should support DeadLetterError with reason", () => {
@@ -121,11 +79,6 @@ describe("AppError", () => {
 		});
 		expect(error.cause).toBe(cause);
 		expect(error.reason).toBe("reason");
-	});
-
-	it("should be identified by type guard for AgentError", () => {
-		const error = agentError("agent error");
-		expect(isAgentError(error)).toBe(true);
 	});
 
 	it("should store cause with AgentError", () => {
