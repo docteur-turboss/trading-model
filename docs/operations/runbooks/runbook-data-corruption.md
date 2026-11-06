@@ -41,11 +41,15 @@ MySQL runs only on `mysql-0` (behind `mysql-primary`, ADR-0020): never use
 
 ```bash
 # MySQL dump (root password from the container's own environment)
-kubectl exec -n trading-model mysql-0 -c mysql --   sh -c 'mysqldump -u root -p"$MYSQL_ROOT_PASSWORD" financial_scraper'   > corrupted_mysql_$(date +%Y%m%d_%H%M%S).sql
+kubectl exec -n trading-model mysql-0 -c mysql -- \
+  sh -c 'mysqldump -u root -p"$MYSQL_ROOT_PASSWORD" financial_scraper' \
+  > corrupted_mysql_$(date +%Y%m%d_%H%M%S).sql
 
 # MongoDB dumps stay inside the pod (/tmp): copy them out with kubectl cp
-kubectl exec -n trading-model mongo-dlq-0 -c mongodb --   mongodump --db dlq --out /tmp/dump_$(date +%Y%m%d_%H%M%S)
-kubectl exec -n trading-model mongo-audit-0 -c mongodb --   mongodump --db audit --out /tmp/dump_audit_$(date +%Y%m%d_%H%M%S)
+kubectl exec -n trading-model mongo-dlq-0 -c mongodb -- \
+  mongodump --db dlq --out /tmp/dump_$(date +%Y%m%d_%H%M%S)
+kubectl exec -n trading-model mongo-audit-0 -c mongodb -- \
+  mongodump --db audit --out /tmp/dump_audit_$(date +%Y%m%d_%H%M%S)
 
 # Redis dump (RDB snapshot)
 # Any pod of the Redis HA group can be master: find the current one
@@ -80,7 +84,8 @@ whole instance is restored, never one table):
 
 ```bash
 bash scripts/fetch-offsite.sh --dest ./restore --pitr
-BACKUP_DIR=./restore K8S_NAMESPACE=trading-model BACKUP_AGE_IDENTITY=~/backup-key.txt   bash scripts/restore-k8s.sh --until 2026-11-03T13:45:00Z --components mysql,spire
+BACKUP_DIR=./restore K8S_NAMESPACE=trading-model BACKUP_AGE_IDENTITY=~/backup-key.txt \
+  bash scripts/restore-k8s.sh --until 2026-11-03T13:45:00Z --components mysql,spire
 ```
 
 - Writers must be stopped (step 1), SPIRE server included: `restore-k8s.sh`
@@ -96,9 +101,11 @@ BACKUP_DIR=./restore K8S_NAMESPACE=trading-model BACKUP_AGE_IDENTITY=~/backup-ke
 
 ```bash
 # One collection, in place; the audit trail is left alone
-BACKUP_DIR=./restore K8S_NAMESPACE=trading-model BACKUP_AGE_IDENTITY=~/backup-key.txt   bash scripts/restore-k8s.sh --components mongodb --ns 'dlq.dead_letters'
+BACKUP_DIR=./restore K8S_NAMESPACE=trading-model BACKUP_AGE_IDENTITY=~/backup-key.txt \
+  bash scripts/restore-k8s.sh --components mongodb --ns 'dlq.dlq_entries'
 # Same collection into the scratch database restore_<TS>_dlq, original untouched
-BACKUP_DIR=./restore K8S_NAMESPACE=trading-model BACKUP_AGE_IDENTITY=~/backup-key.txt   bash scripts/restore-k8s.sh --components mongodb --ns 'dlq.dead_letters' --into-scratch
+BACKUP_DIR=./restore K8S_NAMESPACE=trading-model BACKUP_AGE_IDENTITY=~/backup-key.txt \
+  bash scripts/restore-k8s.sh --components mongodb --ns 'dlq.dlq_entries' --into-scratch
 ```
 
 - `--ns` data is as of the start of the dump, and `--until` is refused with
@@ -114,7 +121,9 @@ BACKUP_DIR=./restore K8S_NAMESPACE=trading-model BACKUP_AGE_IDENTITY=~/backup-ke
 
 ```bash
 kubectl port-forward -n trading-model svc/edge-proxy 8449:8080 &
-API_GATEWAY=http://localhost:8449 ADMIN_TOKEN=<AUTH_TOKENS value>   DLQ_AUTH_HMAC_SECRET=<dlq-service secret>   bash examples/manage-dlq.sh | head -20
+API_GATEWAY=http://localhost:8449 ADMIN_TOKEN=<AUTH_TOKENS value> \
+  DLQ_AUTH_HMAC_SECRET=<dlq-service secret> \
+  bash examples/manage-dlq.sh | head -20
 ```
 
 **MongoDB audit trail** (`mongo-audit`, hash chain anchored in S3, ADR-0027):
