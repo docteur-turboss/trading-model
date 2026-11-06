@@ -108,6 +108,55 @@ tests:
               description: 'Trainer completion rate is 50% over 15m.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#trainingcompletionratelow'
 
+  # Every genome evaluation takes 8 s: p99 above 5 s.
+  - name: trainer genome evaluations block the event loop
+    interval: 1m
+    input_series:
+      - series: 'tt_genome_evaluation_seconds_bucket{job="trader-trainer",instance="t",le="5"}'
+        values: '0x60'
+      - series: 'tt_genome_evaluation_seconds_bucket{job="trader-trainer",instance="t",le="10"}'
+        values: '0+10x60'
+      - series: 'tt_genome_evaluation_seconds_bucket{job="trader-trainer",instance="t",le="+Inf"}'
+        values: '0+10x60'
+    alert_rule_test:
+      - eval_time: 40m
+        alertname: TrainerEventLoopBlocked
+        exp_alerts:
+          - exp_labels: {severity: warning, job: trader-trainer}
+            exp_annotations:
+              summary: 'trader-trainer event loop blocked for several seconds'
+              description: 'The trainer event loop stays blocked: p99 genome evaluation above 5 s over 15m, or event loop lag above 10 s (current value 9.95s). Heartbeats (15 s) and deliveries (10 s timeout) fail meanwhile.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#trainereventloopblocked'
+
+  # Evaluations of 0.2 s: silent.
+  - name: trainer genome evaluations are short
+    interval: 1m
+    input_series:
+      - series: 'tt_genome_evaluation_seconds_bucket{job="trader-trainer",instance="t",le="0.25"}'
+        values: '0+10x60'
+      - series: 'tt_genome_evaluation_seconds_bucket{job="trader-trainer",instance="t",le="+Inf"}'
+        values: '0+10x60'
+    alert_rule_test:
+      - eval_time: 40m
+        alertname: TrainerEventLoopBlocked
+        exp_alerts: []
+
+  # Event loop lag outside the GA.
+  - name: trainer event loop lag is high
+    interval: 1m
+    input_series:
+      - series: 'nodejs_eventloop_lag_max_seconds{job="trader-trainer",instance="t"}'
+        values: '30x60'
+    alert_rule_test:
+      - eval_time: 40m
+        alertname: TrainerEventLoopBlocked
+        exp_alerts:
+          - exp_labels: {severity: warning, job: trader-trainer}
+            exp_annotations:
+              summary: 'trader-trainer event loop blocked for several seconds'
+              description: 'The trainer event loop stays blocked: p99 genome evaluation above 5 s over 15m, or event loop lag above 10 s (current value 30s). Heartbeats (15 s) and deliveries (10 s timeout) fail meanwhile.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#trainereventloopblocked'
+
   # No session ever succeeds: the `success` series does not exist.
   - name: every training session fails
     interval: 1m

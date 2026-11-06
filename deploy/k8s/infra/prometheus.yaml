@@ -701,6 +701,16 @@ data:
               description: 'Trainer completion rate is {{ $value | humanizePercentage }} over 15m.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#trainingcompletionratelow'
 
+          - alert: TrainerEventLoopBlocked
+            expr: histogram_quantile(0.99, sum by (job, le) (rate(tt_genome_evaluation_seconds_bucket[15m]))) > 5 or max by (job) (nodejs_eventloop_lag_max_seconds{job="trader-trainer"}) > 10
+            for: 15m
+            labels:
+              severity: warning
+            annotations:
+              summary: 'trader-trainer event loop blocked for several seconds'
+              description: 'The trainer event loop stays blocked: p99 genome evaluation above 5 s over 15m, or event loop lag above 10 s (current value {{ $value | humanizeDuration }}). Heartbeats (15 s) and deliveries (10 s timeout) fail meanwhile.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#trainereventloopblocked'
+
           - alert: MarketDataStale
             expr: sum(increase(fs_candles_persisted_total[15m])) == 0
             for: 5m

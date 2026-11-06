@@ -2,7 +2,8 @@
 
 **Alerts:** `TrainingCompletionRateLow` (warning, SLO `training_completion`,
 target in [slo.md](../slo.md#6-training-completion-rate)),
-`ModelArtifactWriteFailing` (warning).
+`ModelArtifactWriteFailing` (warning),
+`TrainerEventLoopBlocked` (warning).
 
 No market data reaching the trainer is a different alert,
 `TrainerMarketDataStale` ([runbook-market-data-stale](runbook-market-data-stale.md)):
@@ -82,6 +83,43 @@ Common causes:
 - Bad data: fix the source; the buffer refills from new candles.
 
 The previous artifacts stay valid meanwhile: nothing serving them is affected.
+
+## TrainerEventLoopBlocked
+
+p99 of `tt_genome_evaluation_seconds` above 5 s over 15 min, or
+`nodejs_eventloop_lag_max_seconds` of the trainer above 10 s, for 15 min.
+The trainer yields between genomes, so the longest block is one evaluation.
+Above 10 s (delivery timeout) or 15 s (heartbeat), `ServiceDown`,
+`HeartbeatStopped` and DLQ alerts follow: this one names the cause.
+
+### Symptom
+
+Heartbeats, `/metrics` and candle deliveries to the trainer time out in bursts.
+
+### Diagnosis
+
+```bash
+NS=trading-model
+# p99 evaluation time (the alert expression)
+kubectl -n $NS exec prometheus-0 -c prometheus -- wget -qO- \
+  'http://localhost:9090/api/v1/query?query=histogram_quantile(0.99,sum by (job,le) (rate(tt_genome_evaluation_seconds_bucket[15m])))'
+# Lag outside GA evaluation (DQN step, GC, JSON parsing)
+kubectl -n $NS exec prometheus-0 -c prometheus -- wget -qO- \
+  'http://localhost:9090/api/v1/query?query=max_over_time(nodejs_eventloop_lag_max_seconds{job="trader-trainer"}[1h])'
+# Settings that grow one evaluation
+kubectl -n $NS get deploy trader-trainer -o yaml | grep -E "TRAINER_TIME_BUDGET_MS|POPULATION"
+```
+
+Causes: population size or evaluation window (candles per genome) too large;
+`TRAINER_TIME_BUDGET_MS` too high; CPU limit throttling the pod. Lag high
+while the p99 is low: the block is outside the GA.
+
+### Remediation
+
+1. Reduce the population size or the evaluation window of the trainer.
+2. Lower `TRAINER_TIME_BUDGET_MS` (`docs/deployment/ENV.md`).
+3. Raise the trainer CPU limit if the pod is throttled.
+4. Roll out and check the p99 query falls below 5 s.
 
 ## ModelArtifactWriteFailing
 
