@@ -6,10 +6,10 @@
 # `user-only` provisions the `migrator` user and stops (used by migrate-down).
 # The key MYSQL_MIGRATE_PASSWORD must be in Secret trading-model-secrets before
 # the user job runs: a cluster deployed before it existed does not have it
-# (staging: the overlay that carries it is applied after the migrations).
-# SEALED_SECRETS_FILE=<SealedSecret manifest> (production): applied first when the
+# (the overlay that carries it is applied after the migrations).
+# SEALED_SECRETS_FILE=<SealedSecret manifest> (deploy.yml, both environments): applied first when the
 # key is missing, then waited for (the controller creates the Secret).
-# SEED_MIGRATE_PASSWORD=true (staging only) creates it with a random value when
+# SEED_MIGRATE_PASSWORD=true (kind CI only: no Sealed Secrets controller) creates it with a random value when
 # missing; otherwise a missing key stops here with an explicit error.
 # MIGRATE_IMAGE pins the image (deploy.yml passes the digest of the release);
 # unset, the manifest's ghcr.io/trading-model/db-migrate:latest is used.
@@ -79,6 +79,27 @@ require_migrate_password() {
   echo "::error::Secret trading-model-secrets has no MYSQL_MIGRATE_PASSWORD (staging: rerun with SEED_MIGRATE_PASSWORD=true). Production: ADD the key to deploy/k8s/secrets/trading-model-sealed-secrets.yaml WITHOUT dropping the others: kubectl create secret generic trading-model-secrets -n $NS --from-literal=MYSQL_MIGRATE_PASSWORD=<value> --dry-run=client -o yaml | kubeseal --controller-namespace sealed-secrets --merge-into deploy/k8s/secrets/trading-model-sealed-secrets.yaml. The file must end with ALL keys: a single-key SealedSecret erases MYSQL_ROOT_PASSWORD, SIGNING_SECRET etc. from the live Secret (init-sealed-secrets.sh also draws random values for every key not provided, MYSQL_ROOT_PASSWORD included, which would no longer match the initialised MySQL). Then rerun (docs/deployment/sealed-secrets.md)."
   exit 1
 }
+
+# A ready mysql-0 is not enough: while mysql-cluster-init runs START
+# GROUP_REPLICATION, the server is super_read_only. A migration that runs then
+# fails halfway, and its retry fails on what the first try already applied.
+# The Job may be gone on an old namespace (deleted by hand): nothing to wait for.
+if kubectl get job mysql-cluster-init -n "$NS" >/dev/null 2>&1; then
+  # Poll both conditions: `kubectl wait --for=condition=complete` would sit
+  # out its whole timeout on a Job that has already failed.
+  state=""
+  for _ in $(seq 60); do
+    state=$(kubectl get job mysql-cluster-init -n "$NS" \
+      -o jsonpath='{range .status.conditions[?(@.status=="True")]}{.type} {end}')
+    case "$state" in *Complete*|*Failed*) break ;; esac
+    sleep 5
+  done
+  if [[ "$state" != *Complete* ]]; then
+    echo "::error::MySQL group replication bootstrap (mysql-cluster-init) failed or timed out"
+    kubectl logs -n "$NS" job/mysql-cluster-init --tail=50 || true
+    exit 1
+  fi
+fi
 
 require_migrate_password
 run_job db-migrate-user "$JOBS/migration-user-job.yaml"

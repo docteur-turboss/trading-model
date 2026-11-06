@@ -2,6 +2,8 @@
 //   - drops VerticalPodAutoscalers (kind has no VPA CRD)
 //   - drops HorizontalPodAutoscalers: the staging replicas (1) apply, no
 //     metrics-server is needed
+//   - replaces the SealedSecret trading-model-secrets with a Secret of test
+//     values: kind has neither the controller nor its key (issue #417)
 //   - uses the images loaded into the node (imagePullPolicy IfNotPresent)
 //   - divides CPU requests by 4: the stack must fit a 4-vCPU CI runner; this
 //     test checks behaviour, not capacity
@@ -22,6 +24,27 @@ function _quarterCpu(_match, indent, value, unit) {
 	const millis = unit === "m" ? Number(value) : Number(value) * 1000;
 	return `${indent}cpu: ${Math.max(1, Math.round(millis / 4))}m`;
 }
+
+// Public test values, for the throwaway kind cluster only (run-kind.sh API_KEY).
+const TEST_SECRET = `apiVersion: v1
+kind: Secret
+metadata:
+  name: trading-model-secrets
+  namespace: trading-model-staging
+  labels:
+    app.kubernetes.io/part-of: trading-model
+type: Opaque
+stringData:
+  AUTH_TOKENS: dev-token-change-me
+  SIGNING_SECRET: dev-signing-change-me
+  SERVICE_BOOTSTRAP_TOKEN: dev-bootstrap-change-me
+  MYSQL_ROOT_PASSWORD: dev-mysql-root
+  MYSQL_PASSWORD: dev-mysql
+  MYSQL_MIGRATE_PASSWORD: dev-mysql-migrate
+  DLQ_AUTH_HMAC_SECRET: dev-dlq-hmac-change-me
+  GRAFANA_PASSWORD: dev-grafana
+  HMAC_SECRET: dev-hmac
+`;
 
 function adapt(manifest) {
 	return manifest
@@ -53,6 +76,8 @@ const NO_SIGNALS = 'SIGNAL_COLLECTION_ENABLED: "false"';
 const documents = readFileSync(0, "utf8")
 	.split(/^---$/m)
 	.filter((doc) => !DROPPED_KINDS.test(doc))
+	.map((doc) => (/^kind: SealedSecret$/m.test(doc) ? `
+${TEST_SECRET}` : doc))
 	.map((doc) => (/^kind: CronJob$/m.test(doc) ? doc.replace(/^spec:\n/m, "spec:\n  suspend: true\n") : doc));
 const rendered = adapt(documents.join("---"));
 if (!rendered.includes(STUB_URL) || /BINANCE_BASE_URL: "?https:/.test(rendered)) {
@@ -61,6 +86,10 @@ if (!rendered.includes(STUB_URL) || /BINANCE_BASE_URL: "?https:/.test(rendered))
 }
 if (!rendered.includes(NO_SIGNALS) || /SIGNAL_COLLECTION_ENABLED: "?true/.test(rendered)) {
 	process.stderr.write("ci-render: SIGNAL_COLLECTION_ENABLED not turned off\n");
+	process.exit(1);
+}
+if (/^kind: SealedSecret$/m.test(rendered)) {
+	process.stderr.write("ci-render: a SealedSecret is left\n");
 	process.exit(1);
 }
 if (rendered.includes("0.0.0.0/0")) {

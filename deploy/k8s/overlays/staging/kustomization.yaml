@@ -6,28 +6,12 @@ namespace: trading-model-staging
 resources:
   - ../../base
   - ingress-hosts.yaml
+  # SealedSecret of staging (issue #417): placeholders until a human seals them
+  # with `OVERLAY=staging bash scripts/init-sealed-secrets.sh`.
+  - sealed-secrets.yaml
 
 components:
   - ../../ingress/hosts
-
-# Staging-only development secrets. Production must NOT use these: it is served
-# exclusively by the SealedSecret in deploy/k8s/secrets (see the production overlay).
-generatorOptions:
-  disableNameSuffixHash: true
-
-secretGenerator:
-  - name: trading-model-secrets
-    literals:
-      - AUTH_TOKENS=dev-token-change-me
-      - SIGNING_SECRET=dev-signing-change-me
-      - SERVICE_BOOTSTRAP_TOKEN=dev-bootstrap-change-me
-      - MYSQL_ROOT_PASSWORD=dev-mysql-root
-      - MYSQL_PASSWORD=dev-mysql
-      - MYSQL_MIGRATE_PASSWORD=dev-mysql-migrate
-      # dlq-service requires at least 16 characters.
-      - DLQ_AUTH_HMAC_SECRET=dev-dlq-hmac-change-me
-      - GRAFANA_PASSWORD=dev-grafana
-      - HMAC_SECRET=dev-hmac
 
 # Staging-specific image tags (uses latest release by default; override via deploy pipeline)
 images:
@@ -71,3 +55,26 @@ patches:
       - op: replace
         path: /spec/maxReplicas
         value: 1
+
+  # One replica per StatefulSet: a PDB minAvailable of 2 would block every
+  # node drain (issue #417).
+  - target:
+      kind: PodDisruptionBudget
+    patch: |-
+      apiVersion: policy/v1
+      kind: PodDisruptionBudget
+      metadata:
+        name: unused
+      spec:
+        minAvailable: null
+        maxUnavailable: 1
+
+  # Staging ingress open to an allow-list only (docs/deployment/KUBERNETES.md,
+  # "Staging access"). Fails closed: replace this TEST-NET-1 placeholder with the
+  # operators' CIDRs (comma separated) before use.
+  - target:
+      kind: Ingress
+    patch: |-
+      - op: add
+        path: /metadata/annotations/nginx.ingress.kubernetes.io~1whitelist-source-range
+        value: 192.0.2.0/24

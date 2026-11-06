@@ -3,9 +3,13 @@
 //   - every overlay renders
 //   - every first-party image (ghcr.io/trading-model/<image>) is published by
 //     release.yml and rewritten by deploy.yml (IMAGES): an image missing there
-//     would stay on the logical name, which no registry serves
-//   - production gets its application secrets from SealedSecrets only, never
-//     from a plain Secret (the staging secretGenerator holds dev- values)
+//     would stay on the logical name, which no registry serves; and every
+//     deploy.yml IMAGES entry is built by release.yml; the release.yml sign
+//     matrix holds exactly the deploy.yml IMAGES entries
+//   - every overlay gets its application secrets from SealedSecrets only, never
+//     from a plain Secret (issue #417)
+//   - no PodDisruptionBudget of staging demands more pods than staging runs
+//     (its drains would block)
 //   - no Deployment driven by an HPA sets spec.replicas: every apply would reset
 //     the pod count the HPA chose (issue #416)
 //   - every Deployment that can run more than one pod (replicas or its HPA)
@@ -98,9 +102,28 @@ function releaseImages() {
 	return new Set(names);
 }
 
+/** Images of the release.yml sign matrix (the only `image:` list at this indent). */
+function signedImages() {
+	const workflow = readFileSync(".github/workflows/release.yml", "utf8");
+	const images = workflow.match(/^ {8}image:\n((?: {10}- .*\n)+)/m);
+	if (!images) throw new Error("release.yml: sign image matrix not found");
+	return new Set(images[1].match(/- (\S+)/g).map((item) => item.slice(2)));
+}
+
 const errors = [];
 const deployed = deployImages();
 const released = releaseImages();
+const signed = signedImages();
+
+// release.yml verify-images resolves deploy.yml IMAGES: one never built fails every release.
+// deploy.yml also refuses any IMAGES digest without a release.yml signature (ADR-0038).
+for (const image of deployed) {
+	if (!released.has(image)) errors.push(`deploy.yml IMAGES: ${image} is not built by release.yml`);
+	if (!signed.has(image)) errors.push(`deploy.yml IMAGES: ${image} is not signed by release.yml`);
+}
+for (const image of signed) {
+	if (!deployed.has(image)) errors.push(`release.yml sign: ${image} is not in deploy.yml IMAGES`);
+}
 
 for (const env of OVERLAYS) {
 	const rendered = [
@@ -125,14 +148,25 @@ for (const env of OVERLAYS) {
 		errors.push(`${env}: Deployment ${name} is driven by an HPA but sets spec.replicas (each apply would reset it)`);
 	}
 
-	if (env === "production") {
+	if (env === "staging") {
+		for (const pdb of documents(rendered).filter((doc) => doc.kind === "PodDisruptionBudget")) {
+			if (/^ {2}minAvailable: [1-9]/m.test(pdb.text)) {
+				errors.push(`staging: PodDisruptionBudget ${pdb.name} keeps minAvailable (one replica: drains would block)`);
+			}
+		}
+		if (!rendered.includes("nginx.ingress.kubernetes.io/whitelist-source-range")) {
+			errors.push("staging: no ingress whitelist-source-range");
+		}
+	}
+
+	{
 		const docs = documents(rendered);
 		for (const name of SEALED_ONLY) {
 			if (docs.some((doc) => doc.kind === "Secret" && doc.name === name)) {
-				errors.push(`production: Secret ${name} must come from a SealedSecret`);
+				errors.push(`${env}: Secret ${name} must come from a SealedSecret`);
 			}
 			if (!docs.some((doc) => doc.kind === "SealedSecret" && doc.name === name)) {
-				errors.push(`production: no SealedSecret ${name}`);
+				errors.push(`${env}: no SealedSecret ${name}`);
 			}
 		}
 	}

@@ -48,6 +48,19 @@ export function createSentinel(
 		failoverDetector: true,
 		...extraOptions,
 	} as never);
+	// shortcut: works around an ioredis 6.0.0 race through its private
+	// `connector`, drop it once a release retires the detector itself.
+	// The failover detector of a closed connection outlives it: when its
+	// +switch-master arrives during the reconnect, it aborts that reconnect
+	// ("Connection is closed.") and leaves the client in `end` for good.
+	// Retiring it on close is safe: each new connection subscribes a new one.
+	client.on("close", () => {
+		(
+			client as unknown as {
+				connector?: { failoverDetector?: { cleanup(): void } | null };
+			}
+		).connector?.failoverDetector?.cleanup();
+	});
 	return new RedisClientBuilder(client).withErrorHandler().build() as Redis;
 }
 

@@ -16,6 +16,7 @@ mkdir -p "$WORK/bin"
 cat >"$WORK/bin/kubectl" <<'STUB'
 #!/usr/bin/env bash
 echo "$*" >>"$STUB_LOG"
+if [ "$1" = get ] && [ "$2" = job ]; then exit 1; fi # no mysql-cluster-init Job
 if [ "$1" = get ] && [ "$2" = secret ] && [ -n "${STUB_GET_ERR:-}" ]; then echo "$STUB_GET_ERR" >&2; exit 1; fi
 if [ "$1" = get ] && [ "$2" = secret ] && [[ "$*" == *go-template* ]]; then printf '%s' "${STUB_LIVE_KEYS:-}"; exit 0; fi
 if [ "$1" = get ] && [ "$2" = secret ]; then

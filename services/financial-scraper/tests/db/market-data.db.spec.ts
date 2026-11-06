@@ -1,18 +1,5 @@
-import { execFileSync } from "node:child_process";
-import {
-	copyFileSync,
-	cpSync,
-	mkdirSync,
-	mkdtempSync,
-	readdirSync,
-	readFileSync,
-	realpathSync,
-	rmSync,
-	symlinkSync,
-	unlinkSync,
-} from "node:fs";
-import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { readdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import {
 	afterAll,
 	beforeAll,
@@ -57,6 +44,7 @@ import type {
 	TradeData,
 } from "../../src/domain/market-data.types";
 import type { Signal } from "../../src/domain/signals";
+import { createMigrateRunner } from "./migrate-runner";
 
 const MIGRATIONS_DIR = join(__dirname, "../../../../scripts/migrations");
 const SYMBOL = TradingSymbol.of("BTCUSDT");
@@ -67,35 +55,8 @@ const MIGRATION_IDS = readdirSync(MIGRATIONS_DIR)
 	.map((file) => file.replace(/\.up\.sql$/, ""))
 	.sort((a, b) => a.localeCompare(b));
 
-/**
- * Laid out like the K8s migration jobs (migrate.mjs next to `migrations/`, in a
- * directory of its own), with this workspace's mysql2: scripts/ has no
- * node_modules under the isolated linker.
- */
-const MIGRATE_RUN_DIR = mkdtempSync(join(tmpdir(), "migrate-run-"));
-copyFileSync(
-	join(MIGRATIONS_DIR, "../migrate.mjs"),
-	join(MIGRATE_RUN_DIR, "migrate.mjs")
-);
-cpSync(MIGRATIONS_DIR, join(MIGRATE_RUN_DIR, "migrations"), {
-	recursive: true,
-});
-mkdirSync(join(MIGRATE_RUN_DIR, "node_modules"));
-// Real path: bun's workspace links are relative and break once re-linked elsewhere.
-symlinkSync(
-	realpathSync(dirname(require.resolve("mysql2/package.json"))),
-	join(MIGRATE_RUN_DIR, "node_modules/mysql2"),
-	"junction"
-);
-
-/** Runs the real scripts/migrate.mjs against the test database (DB_* from db-env.setup). */
-function migrate(...args: string[]): void {
-	execFileSync(
-		process.execPath,
-		[join(MIGRATE_RUN_DIR, "migrate.mjs"), ...args],
-		{ env: process.env, stdio: "pipe" }
-	);
-}
+const runner = createMigrateRunner(MIGRATIONS_DIR);
+const migrate = runner.run;
 
 async function appliedMigrations(): Promise<string[]> {
 	const [rows] = await DATABASE.promise().query(
@@ -202,12 +163,12 @@ beforeEach(async () => {
 
 afterAll(async () => {
 	await DATABASE.promise().end();
-	unlinkSync(join(MIGRATE_RUN_DIR, "node_modules/mysql2"));
-	rmSync(MIGRATE_RUN_DIR, { recursive: true, force: true });
+	runner.cleanup();
 });
 
 describe("scripts/migrate.mjs — real MySQL", () => {
 	const ALL_TABLES = [
+		"_migration_steps",
 		"_migrations",
 		"market_candles",
 		"market_publish_cursors",
@@ -235,7 +196,10 @@ describe("scripts/migrate.mjs — real MySQL", () => {
 		// Oldest first, initial_schema would drop the tables the next down needs.
 		migrate("down", "all");
 		await expect(appliedMigrations()).resolves.toEqual([]);
-		await expect(tables()).resolves.toEqual(["_migrations"]);
+		await expect(tables()).resolves.toEqual([
+			"_migration_steps",
+			"_migrations",
+		]);
 
 		migrate("up");
 		await expect(appliedMigrations()).resolves.toEqual(MIGRATION_IDS);

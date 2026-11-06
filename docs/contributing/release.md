@@ -22,7 +22,74 @@ The script does not stop on a failed `commit`, `tag` or `push` and still prints 
 1. `version`: the tag must match `vX.Y.Z` or `vX.Y.Z-prerelease`, else the run fails. Image tag is `X.Y.Z` (no `v`). `latest` is set only for a stable tag that is the highest stable `v*` tag on `origin`: a prerelease or a backport patch never takes it.
 2. `ci`: the whole `ci.yml` runs again on the tagged commit (reusable workflow). No image is pushed if a gate fails.
 3. `build-and-push` (7 service images) and `build-tools` (`spire-tools`, `backup-tools`, `db-migrate`): 10 images pushed as `:X.Y.Z` (+ `:latest`) to `IMAGE_REGISTRY` (repository variable, default `ghcr.io/<owner>`).
+4. `verify-images`: reads `env.IMAGES` from `deploy.yml` and resolves each `<registry>/<image>:X.Y.Z` with `docker buildx imagetools inspect`, the same loop as the deploy step "Resolve image digests". It fails with the list of missing images.
+5. `sign` (in parallel with `verify-images`): signs the digest of each image with cosign (keyless, ADR-0038). `deploy.yml` refuses any digest without this signature.
+
+A green run therefore means `deploy.yml` can resolve **and** verify every image of this tag. `tests/k8s/check-overlays.mjs` (CI) fails earlier when an `IMAGES` entry is not built by this workflow, or when the `sign` matrix differs from `IMAGES`.
 
 ## 3. Deploy
 
 Deployment is separate: the manual `deploy.yml` (`workflow_dispatch`) takes an image tag (`1.2.3` or `v1.2.3`), resolves it to digests and applies by digest. See [DEPLOY.md](../deployment/DEPLOY.md).
+
+## 4. First release of the current pipeline
+
+No release has been published by the current `release.yml` yet. The tags `v2.0.0` to `v2.0.3` are **not deployable** by `deploy.yml`: `v2.0.0`, `v2.0.1` and `v2.0.2` have failed Release runs, and `v2.0.3` was published by the old workflow under `ghcr.io/docteur-turboss/trading-model/<service>`, without `spire-tools` and `backup-tools`. `deploy.yml` reads `<registry>/<image>:<tag>`, so it stops at "Resolve image digests" for each of these tags. Even republished under the right path, these images would fail "Verify image signatures": they carry no cosign signature from `release.yml`. `image_tag: latest` fails the same way until the first release below is published.
+
+A human runs every step: merging to `main`, pushing the tag and deploying are never automated.
+
+### Prerequisites
+
+- `development` is green in CI (every job, `k8s` included) and holds everything the release must ship.
+- Repository variable `IMAGE_REGISTRY` is either unset (default `ghcr.io/<owner>`, lowercased) or a registry `GITHUB_TOKEN` can push to. `deploy.yml` reads the same variable.
+- The GitHub environment `staging` has the secrets listed in [DEPLOY.md](../deployment/DEPLOY.md#prerequisites-secrets) (`KUBECONFIG_STAGING`, alerting, backup bucket).
+- The staging cluster can pull from the registry: GHCR packages public, or pull credentials on the nodes ([CI/CD](../ci-cd/README.md#docker-image-tags)). The packages are created by the first push, so this can only be done after step 3.
+- A clean clone with `bun install --frozen-lockfile` done: `release:publish` commits with `git add -A`.
+
+### Steps
+
+1. Update both local branches. `release:publish` merges the **local** `development` into the local `main`:
+
+   ```bash
+   git checkout development && git pull --ff-only origin development
+   git checkout main && git pull --ff-only origin main
+   ```
+
+2. Preview, then publish. `release:publish` merges `development`, bumps the versions, writes `CHANGELOG.md`, commits `:rocket:(release): vX.Y.Z`, tags and runs `git push --follow-tags`:
+
+   ```bash
+   bun run release:dry
+   bun run release:publish
+   ```
+
+3. Check that the tag reached `origin` (the script prints "published" even when a step failed):
+
+   ```bash
+   git tag -l vX.Y.Z
+   git ls-remote --tags origin vX.Y.Z
+   ```
+
+4. Wait for the **Release** run of the tag (Actions → Release, or `gh run list --workflow release.yml`). Every job must be green, `sign` and `verify-images` included.
+
+5. Check the 9 digests yourself, as `deploy.yml` will (log in first with `docker login ghcr.io` if the packages are private):
+
+   ```bash
+   REGISTRY=ghcr.io/<owner>   # or the value of IMAGE_REGISTRY, lowercased
+   TAG=X.Y.Z                  # no leading v
+   for img in discovery-server message-manager financial-scraper trader-trainer \
+              api-gateway audit-logger dlq-service spire-tools backup-tools; do
+     docker buildx imagetools inspect "$REGISTRY/$img:$TAG" --format '{{.Manifest.Digest}}' \
+       || echo "MISSING $img"
+   done
+   ```
+
+   The list is `env.IMAGES` of `.github/workflows/deploy.yml`: read it there if it has changed.
+
+6. Make the packages pullable by the staging cluster (see prerequisites).
+
+7. Run the first deployment on staging: Actions → **Deploy** → Run workflow, `environment: staging`, `image_tag: vX.Y.Z`, `canary: false`. Or:
+
+   ```bash
+   gh workflow run deploy.yml -f environment=staging -f image_tag=vX.Y.Z
+   ```
+
+   The run must pass "Resolve image digests", the rollout and the smoke test. Production follows the same way once staging is verified ([DEPLOY.md](../deployment/DEPLOY.md#production-deployment)).

@@ -16,6 +16,7 @@
 #    bash scripts/init-sealed-secrets.sh               # generate random values + seal
 #    bash scripts/init-sealed-secrets.sh --apply        # ... and kubectl apply
 #    bash scripts/init-sealed-secrets.sh --dry-run      # print what would happen
+#    OVERLAY=staging bash scripts/init-sealed-secrets.sh  # staging (namespace trading-model-staging)
 #
 #  Override any value by exporting it, e.g.:
 #    MYSQL_ROOT_PASSWORD='s3cret' bash scripts/init-sealed-secrets.sh
@@ -25,11 +26,22 @@ set -euo pipefail
 
 DRY_RUN=${DRY_RUN:-false}
 APPLY=${APPLY:-false}
-NAMESPACE=${NAMESPACE:-trading-model}
+# OVERLAY=staging seals for trading-model-staging into the staging overlay
+# (issue #417); the default targets production.
+OVERLAY=${OVERLAY:-production}
+case "$OVERLAY" in
+  production) NAMESPACE=${NAMESPACE:-trading-model} ;;
+  staging) NAMESPACE=${NAMESPACE:-trading-model-staging} ;;
+  *) echo "OVERLAY must be production or staging" >&2; exit 1 ;;
+esac
 CONTROLLER_NAMESPACE=${CONTROLLER_NAMESPACE:-sealed-secrets}
 CONTROLLER_NAME=${CONTROLLER_NAME:-sealed-secrets-controller}
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-SEALED_DIR="${SCRIPT_DIR}/deploy/k8s/secrets"
+if [ "$OVERLAY" = staging ]; then
+  SEALED_FILE="${SCRIPT_DIR}/deploy/k8s/overlays/staging/sealed-secrets.yaml"
+else
+  SEALED_FILE="${SCRIPT_DIR}/deploy/k8s/secrets/trading-model-sealed-secrets.yaml"
+fi
 
 log() { echo "[init-sealed-secrets] $(date -u +%Y-%m-%dT%H:%M:%SZ) $*"; }
 warn() { echo "[init-sealed-secrets] WARN: $*" >&2; }
@@ -61,7 +73,6 @@ main() {
     esac
   done
 
-  local secrets_dir="$SEALED_DIR"
   if $DRY_RUN; then
     log "DRY RUN — no files written, nothing applied"
   fi
@@ -102,16 +113,16 @@ stringData:
   GRAFANA_PASSWORD: "${GRAFANA_PASSWORD}"
   HMAC_SECRET: "${HMAC_SECRET}"
 EOF
-    seal "$plaintext_app" "$secrets_dir/trading-model-sealed-secrets.yaml"
+    seal "$plaintext_app" "$SEALED_FILE"
     rm -f "$plaintext_app"
   fi
 
   if $APPLY && ! $DRY_RUN; then
     log "Applying sealed secrets to namespace ${NAMESPACE}..."
-    kubectl apply -f "$secrets_dir/trading-model-sealed-secrets.yaml"
+    kubectl apply -f "$SEALED_FILE"
     log "Applied — the sealed-secrets controller will decrypt it into the Secret."
   else
-    log "Done. Inspect deploy/k8s/secrets/*-sealed.yaml and apply with: kubectl apply -k deploy/k8s/secrets"
+    log "Done. Inspect ${SEALED_FILE} and commit it (the deploy workflow applies it)"
   fi
 }
 
