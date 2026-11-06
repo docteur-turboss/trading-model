@@ -1094,6 +1094,22 @@ mysql_diagnostics() {
 	$K -n "$NS" exec mysql-0 -c mysql -- cat /proc/1/attr/current 2>&1 || true
 }
 
+# TEMPORARY (issue #486, do not merge): logs of the collector, message-manager
+# and trainer from Loki since `$1` minutes, plus the collector pod events.
+diag_drain() {
+	local minutes="${1:-40}" component start
+	start="$(( ($(date +%s) - minutes * 60) * 1000000000 ))"
+	$K -n "$NS" get events --sort-by=.lastTimestamp -o custom-columns=T:.lastTimestamp,OBJ:.involvedObject.name,REASON:.reason,MSG:.message |
+		grep -E 'collector|message-manager|trader-trainer' || true
+	$K -n "$NS" get pods -o wide || true
+	for component in financial-scraper-collector message-manager trader-trainer; do
+		echo "===== Loki: $component"
+		$K -n "$NS" exec loki-0 -- wget -qO- 			"http://localhost:3100/loki/api/v1/query_range?query=%7Bcomponent%3D%22${component}%22%7D&start=${start}&limit=5000&direction=forward" |
+			jq -r '.data.result[] | .stream.pod as $pod | .values[] | "\(.[0] | tonumber / 1e9 | strftime("%H:%M:%S")) \($pod) \(.[1] | .[0:400])"' |
+			sort || true
+	done
+}
+
 case "${1:-all}" in
 all)
 	if [ "${KEEP_CLUSTER:-0}" != "1" ]; then
@@ -1108,6 +1124,7 @@ all)
 	verify_canary
 	;;
 images | cluster | deploy | upgrade | smoke | verify | verify_replicas | verify_egress | verify_canary | verify_alerts | verify_backup | dump | delete) "$1" ;;
+diag_drain) diag_drain "${2:-40}" ;;
 *)
 	echo "usage: $0 [all|images|cluster|deploy|upgrade|smoke|verify|verify_replicas|verify_egress|verify_canary|verify_alerts|verify_backup|dump|delete]" >&2
 	exit 64

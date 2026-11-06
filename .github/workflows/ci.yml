@@ -223,6 +223,15 @@ jobs:
       # upgrade rolled back to N-1, migrate-down 1 then up, the upgrade to N.
       - name: Upgrade N-1 to N, forced failure and rollback
         run: bash tests/k8s/run-kind.sh upgrade
+      - name: "TEMPORARY #486: collector drain logs"
+        if: always()
+        run: bash tests/k8s/run-kind.sh diag_drain 40 > drain-diag.txt 2>&1; wc -l drain-diag.txt
+      - name: "TEMPORARY #486: upload drain logs"
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: drain-diag
+          path: drain-diag.txt
       - name: Smoke test (deploy.yml gate)
         run: bash tests/k8s/run-kind.sh smoke
       - name: Verify the stack
