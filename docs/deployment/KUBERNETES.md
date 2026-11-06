@@ -136,12 +136,11 @@ DNS records, cert-manager and the ingress controller stay outside this repo.
 
 ### 4. Deploy all resources
 
-```bash
-# Using the deploy script
-./deploy/k8s/scripts/deploy-k8s.sh apply
+Staging and production deploy only through the `deploy.yml` workflow (digests, overlay, pre-checks: see [DEPLOY.md](DEPLOY.md)). `deploy-k8s.sh apply` applies the base with `:latest` tags and none of those checks, so it refuses any context but a local development cluster (`kind-*`, `k3d-*`, `minikube`, `docker-desktop`) and needs `ALLOW_DEV_APPLY=1`. Do not run `kubectl apply -k deploy/k8s/` on a shared cluster either.
 
-# Or directly with Kustomize
-kubectl apply -k deploy/k8s/
+```bash
+# Local development cluster only
+ALLOW_DEV_APPLY=1 ./deploy/k8s/scripts/deploy-k8s.sh apply
 
 # Verify deployment
 ./deploy/k8s/scripts/deploy-k8s.sh status
@@ -157,9 +156,7 @@ kubectl apply -k deploy/k8s/
 
 ### Standard deployment
 
-```bash
-./deploy/k8s/scripts/deploy-k8s.sh apply <service-name>
-```
+Run `deploy.yml`. `deploy-k8s.sh apply <service-name>` exists for local development clusters only (`ALLOW_DEV_APPLY=1`).
 
 ### Canary deployment
 
