@@ -6,8 +6,10 @@
 //     would stay on the logical name, which no registry serves; and every
 //     deploy.yml IMAGES entry is built by release.yml; the release.yml sign
 //     matrix holds exactly the deploy.yml IMAGES entries
-//   - production gets its application secrets from SealedSecrets only, never
-//     from a plain Secret (the staging secretGenerator holds dev- values)
+//   - every overlay gets its application secrets from SealedSecrets only, never
+//     from a plain Secret (issue #417)
+//   - no PodDisruptionBudget of staging demands more pods than staging runs
+//     (its drains would block)
 //   - no Deployment driven by an HPA sets spec.replicas: every apply would reset
 //     the pod count the HPA chose (issue #416)
 //   - every Deployment that can run more than one pod (replicas or its HPA)
@@ -146,14 +148,25 @@ for (const env of OVERLAYS) {
 		errors.push(`${env}: Deployment ${name} is driven by an HPA but sets spec.replicas (each apply would reset it)`);
 	}
 
-	if (env === "production") {
+	if (env === "staging") {
+		for (const pdb of documents(rendered).filter((doc) => doc.kind === "PodDisruptionBudget")) {
+			if (/^ {2}minAvailable: [1-9]/m.test(pdb.text)) {
+				errors.push(`staging: PodDisruptionBudget ${pdb.name} keeps minAvailable (one replica: drains would block)`);
+			}
+		}
+		if (!rendered.includes("nginx.ingress.kubernetes.io/whitelist-source-range")) {
+			errors.push("staging: no ingress whitelist-source-range");
+		}
+	}
+
+	{
 		const docs = documents(rendered);
 		for (const name of SEALED_ONLY) {
 			if (docs.some((doc) => doc.kind === "Secret" && doc.name === name)) {
-				errors.push(`production: Secret ${name} must come from a SealedSecret`);
+				errors.push(`${env}: Secret ${name} must come from a SealedSecret`);
 			}
 			if (!docs.some((doc) => doc.kind === "SealedSecret" && doc.name === name)) {
-				errors.push(`production: no SealedSecret ${name}`);
+				errors.push(`${env}: no SealedSecret ${name}`);
 			}
 		}
 	}
