@@ -15,6 +15,7 @@ import {
 import { DiscoveryCircuitBreaker } from "../../src/application/discovery/circuit-breaker";
 import type { ICircuitStateStore } from "../../src/domain/discovery/circuit-state-store.interface";
 import type { PersistedCircuitState } from "../../src/domain/discovery/service-cache.interface";
+import { CIRCUIT_BREAKER_STATE } from "../../src/infrastructure/metrics";
 
 function createMockStateStore(): jest.Mocked<ICircuitStateStore> {
 	return {
@@ -640,5 +641,27 @@ describe("CircuitBreaker", () => {
 			await cb.loadFromStore(toInstanceId("persist-cache-expire"));
 			expect(persistenceMock.getCircuitState).toHaveBeenCalled();
 		});
+	});
+});
+
+describe("DiscoveryCircuitBreaker gauge", () => {
+	it("sets address_manager_circuit_breaker_state on every transition", async () => {
+		const cb = new DiscoveryCircuitBreaker({
+			failureThreshold: 2,
+			halfOpenTimeoutMs: 60_000,
+		});
+		const id = toInstanceId("gauge-1");
+		const read = async () =>
+			(await CIRCUIT_BREAKER_STATE.get()).values.find(
+				(v) => v.labels.instanceId === "gauge-1"
+			)?.value;
+		cb.recordSuccess(id);
+		expect(await read()).toBe(0);
+		cb.recordFailure(id);
+		cb.recordFailure(id);
+		expect(await read()).toBe(1);
+		cb.removeMachine("gauge-1");
+		expect(await read()).toBeUndefined();
+		cb.stop();
 	});
 });

@@ -14,6 +14,10 @@ import {
 } from "../../domain/discovery/circuit-breaker-constants";
 import type { ICircuitStateStore } from "../../domain/discovery/circuit-state-store.interface";
 import type { PersistedCircuitState } from "../../domain/discovery/service-cache.interface";
+import {
+	CIRCUIT_BREAKER_STATE,
+	recordCircuitState,
+} from "../../infrastructure/metrics";
 import { CircuitBreakerPersistenceHandler } from "./circuit-breaker-persistence-handler";
 
 export interface CircuitBreakerOptions {
@@ -105,6 +109,7 @@ export class DiscoveryCircuitBreaker extends CircuitBreaker {
 	isAllowed(instanceId: InstanceId): boolean {
 		const machine = this.getMachine(instanceId as unknown as string);
 		const currentState = machine.getState(Date.now());
+		this._reportState(instanceId, currentState);
 		if (currentState === CircuitState.CLOSED) {
 			return true;
 		}
@@ -118,6 +123,7 @@ export class DiscoveryCircuitBreaker extends CircuitBreaker {
 		const machine = this.getMachine(instanceId as unknown as string);
 		super.recordSuccess(instanceId as unknown as string);
 		this._persistenceHandler.onRecordSuccess(instanceId, machine);
+		this._reportState(instanceId);
 	}
 
 	recordFailure(
@@ -130,10 +136,28 @@ export class DiscoveryCircuitBreaker extends CircuitBreaker {
 		).recordFailure(count ?? 1, threshold);
 		const machine = this.getMachine(instanceId as unknown as string);
 		this._persistenceHandler.onRecordFailure(instanceId, machine, opened);
+		this._reportState(instanceId);
 		return opened;
 	}
 
+	removeMachine(key: string): void {
+		super.removeMachine(key);
+		CIRCUIT_BREAKER_STATE.remove({ instanceId: key });
+	}
+
+	private _reportState(
+		instanceId: InstanceId,
+		state: CircuitState = this.getState(instanceId as unknown as string)
+	): void {
+		recordCircuitState(
+			instanceId as unknown as string,
+			state,
+			this.getStateSummary()
+		);
+	}
+
 	clear(): void {
+		CIRCUIT_BREAKER_STATE.reset();
 		this._persistenceHandler.clear((fn) =>
 			this.forEachMachine((key) => fn(key))
 		);

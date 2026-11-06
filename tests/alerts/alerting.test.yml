@@ -184,6 +184,25 @@ tests:
         alertname: ServiceDown
         exp_alerts: []
 
+  # Series shape of the real gauge: one series per target instanceId, exported
+  # by the caller (job). 1 = open, held for the 1m 'for'.
+  - name: an open address-manager breaker fires CircuitBreakerOpen
+    interval: 1m
+    input_series:
+      - series: 'address_manager_circuit_breaker_state{job="trader-trainer",instance="t",instanceId="mm-1"}'
+        values: '0 1x10'
+      - series: 'address_manager_circuit_breaker_state{job="trader-trainer",instance="t",instanceId="mm-2"}'
+        values: '0x11'
+    alert_rule_test:
+      - eval_time: 8m
+        alertname: CircuitBreakerOpen
+        exp_alerts:
+          - exp_labels: {severity: critical, job: trader-trainer, instance: t, instanceId: mm-1}
+            exp_annotations:
+              summary: 'Circuit breaker open on trader-trainer'
+              description: 'The circuit breaker of trader-trainer for instance mm-1 is in OPEN state: calls to that instance are refused.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-circuit-breaker-open.md'
+
   # K8s: the HTTP-only replicas persist nothing, the collector does.
   - name: market data flows through the collector only
     interval: 1m
