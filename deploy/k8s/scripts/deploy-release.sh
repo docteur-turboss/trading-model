@@ -53,7 +53,7 @@ record() {
 release_replicas() {
 	local ns="$1" ann='kubectl.kubernetes.io/last-applied-configuration' dep last
 	# Retired HPAs: apply never prunes, and a live one would keep scaling its
-	# Deployment. trader-trainer is a singleton (ADR-0043, issue #501).
+	# Deployment. trader-trainer is a singleton (ADR-0044, issue #501).
 	kubectl delete hpa/trader-trainer-hpa -n "$ns" --ignore-not-found
 	for dep in $(kubectl get hpa -n "$ns" \
 		-o jsonpath='{range .items[?(@.spec.scaleTargetRef.kind=="Deployment")]}{.spec.scaleTargetRef.name}{"\n"}{end}'); do

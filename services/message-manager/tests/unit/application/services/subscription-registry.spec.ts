@@ -43,6 +43,31 @@ describe("SubscriptionRegistry", () => {
 		expect(moved?.callbackPath).toBe("new/path");
 	});
 
+	it("should hold one subscription per service, kept while one instance remains", async () => {
+		const subscriptions = registry();
+		const second = {
+			...binding,
+			serviceIdentity: {
+				...binding.serviceIdentity,
+				instanceId: "subscriber-2",
+			},
+		} as TopicBinding;
+		await subscriptions.subscribe(binding);
+		await subscriptions.subscribe(second);
+		const grouped = await subscriptions.getSubscriptions(binding.topic);
+
+		await subscriptions.unsubscribe({
+			topic: binding.topic,
+			instanceId: binding.serviceIdentity.instanceId,
+		});
+		const remaining = await subscriptions.getSubscriptions(binding.topic);
+
+		expect(grouped).toHaveLength(1);
+		expect(remaining).toHaveLength(1);
+		// same object: the circuit breaker state survives the departure of an instance
+		expect(remaining[0]).toBe(grouped[0]);
+	});
+
 	it("should drop the local state of an unsubscribed instance", async () => {
 		const subscriptions = registry();
 		const other = { ...binding, topic: "other.topic" } as TopicBinding;

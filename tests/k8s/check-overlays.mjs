@@ -17,7 +17,7 @@
 //     replica and its loss takes the whole service down
 //   - singleton Deployments (SINGLETONS) run exactly one pod: replicas: 1,
 //     strategy Recreate, no HPA, no canary in deploy.yml (ADR-0042 collector,
-//     ADR-0043 trainer)
+//     ADR-0044 trainer)
 //   - the deploy identities (ADR-0041) cover what the overlays apply: every
 //     kind of the application overlay is in deploy-identity/app-role.yaml (or,
 //     for the cluster-scope ones, cluster-role.yaml), every kind of the
@@ -31,7 +31,7 @@ const SEALED_ONLY = ["trading-model-secrets"];
 // Deployments that must never run two pods -> the ADR that says why.
 const SINGLETONS = {
 	"financial-scraper-collector": "ADR-0042",
-	"trader-trainer": "ADR-0043",
+	"trader-trainer": "ADR-0044",
 };
 const IMAGE = /image: ghcr\.io\/trading-model\/([a-z0-9-]+)/g;
 

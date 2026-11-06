@@ -1,4 +1,4 @@
-# ADR-0043: trader-trainer Runs as a Singleton
+# ADR-0044: trader-trainer Runs as a Singleton
 
 **Status:** Accepted
 **Date:** 2026-11

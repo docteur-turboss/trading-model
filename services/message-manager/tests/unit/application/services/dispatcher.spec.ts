@@ -112,19 +112,32 @@ describe("Dispatcher", () => {
 			expect(mockHttpClient.post).toHaveBeenCalledTimes(2);
 		});
 
-		it("should register multiple instances for the same topic", async () => {
+		it("should deliver once to a service whose instances all subscribed (consumer group)", async () => {
 			await dispatcher.subscribe(mockSubscribeParams);
 			await dispatcher.subscribe({
-				topic: "test.topic",
-				callbackPath: "other/callback",
+				...mockSubscribeParams,
 				serviceIdentity: {
 					...mockSubscriberIdentity,
 					instanceId: "subscriber-2",
 				},
 			});
 
-			const message = createMockMessage("test");
-			await dispatcher.dispatch(message);
+			await dispatcher.dispatch(createMockMessage("test"));
+
+			expect(mockHttpClient.post).toHaveBeenCalledTimes(1);
+		});
+
+		it("should deliver once to each subscribed service", async () => {
+			await dispatcher.subscribe(mockSubscribeParams);
+			await dispatcher.subscribe({
+				...mockSubscribeParams,
+				serviceIdentity: {
+					serviceName: "audit-logger-service",
+					instanceId: "audit-1",
+				},
+			});
+
+			await dispatcher.dispatch(createMockMessage("test"));
 
 			expect(mockHttpClient.post).toHaveBeenCalledTimes(2);
 		});
@@ -233,8 +246,8 @@ describe("Dispatcher", () => {
 			await dispatcher.subscribe({
 				...mockSubscribeParams,
 				serviceIdentity: {
-					...mockSubscriberIdentity,
-					instanceId: "subscriber-2",
+					serviceName: "audit-logger-service",
+					instanceId: "audit-1",
 				},
 			});
 
@@ -299,7 +312,7 @@ describe("Dispatcher", () => {
 			).resolves.toBeUndefined();
 		});
 
-		it("should keep other subscriptions when removing one instance", async () => {
+		it("should keep delivering to a service while another of its instances is subscribed", async () => {
 			await dispatcher.subscribe(mockSubscribeParams);
 			await dispatcher.subscribe({
 				...mockSubscribeParams,
