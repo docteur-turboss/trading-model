@@ -151,7 +151,7 @@ missing rule loses nothing, but those copies are then never expired.
 4. Apply cluster-scope objects (namespace, ClusterRoles), SPIFFE node components, run database migrations (existing cluster: `MYSQL_MIGRATE_PASSWORD` must be in `trading-model-secrets` first; both environments fail with an explicit error if it is not sealed; the deploy first applies the environment's SealedSecret (`deploy/k8s/secrets/trading-model-sealed-secrets.yaml`, staging `deploy/k8s/overlays/staging/sealed-secrets.yaml`) and waits for the controller to create the key; if the file lacks it, add ONLY that key with `kubeseal --merge-into` (see `sealed-secrets.md`, "Adding one key"): a single-key SealedSecret erases the other keys of the live Secret, and `init-sealed-secrets.sh` draws random values for every key not provided, `MYSQL_ROOT_PASSWORD` included; the script refuses a file missing a live key)
 5. Canary gate on live traffic (if enabled)
 6. Apply overlay (deploy/k8s/overlays/<env>, images pinned by digest; namespaced part, application identity)
-7. Wait for rollout of all services, smoke test
+7. Wait for rollout of all services, smoke test, `verify-market-data`, then `verify-release` (see "Release verification")
 ```
 
 **Ingestion during a release.** `financial-scraper-collector` is a singleton
@@ -286,6 +286,28 @@ reported and every canary is removed if one fails.
 admin call, so a healthy environment gives it no traffic. Add a service to
 `CANARY_READINESS_ONLY` only for the same reason. Test of the gate:
 `bash tests/k8s/canary-gate.test.sh`.
+
+### Release verification
+
+After the smoke test, `deploy.yml` runs `deploy-k8s.sh verify-release`. Each pass checks
+an API call through `edge-proxy` (`GET /v1/discovery-server/services`, 200 expected, with
+the first `AUTH_TOKENS` key of the Secret `trading-model-secrets`: it goes through stdin
+and is never printed), at least one candle persisted in the last 15 min
+(`fs_candles_persisted_total`), and no `severity="critical"` alert firing in Prometheus
+(`Watchdog` excluded). Passes repeat over an observation window; any failed pass fails the
+step and triggers "Rollback on failure". Market data may be missing until the first pass
+that sees it, but must be present on the last pass and never disappear after. A critical
+alert already firing before the deploy also fails the gate. Staging skips the market-data
+check and ignores `MarketDataStale` (`VERIFY_REQUIRE_FRESH_DATA=false`, set by `deploy.yml`):
+there, missing market data only warns (ADR-0042, `Verify market data resumed`).
+
+| Variable (GitHub environment) | Default | Role |
+|---|---|---|
+| `VERIFY_WINDOW_SECONDS` | `600` | Observation window (`0` = one pass) |
+| `VERIFY_INTERVAL_SECONDS` | `60` | Pause between passes |
+| `VERIFY_EXTERNAL_URL` | unset | Optional real ingress URL (`https://host`) also called with the key, once hosts are defined |
+
+Test: `bash tests/k8s/verify-release.test.sh`; `tests/k8s/run-kind.sh verify` runs the same command.
 
 For a manual rollback, revert a service to a previous revision:
 

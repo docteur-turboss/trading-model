@@ -14,7 +14,7 @@
 
 ### Automatic Rollback (Kubernetes)
 
-The `Deploy` workflow rolls back by itself when the rollout or the smoke test
+The `Deploy` workflow rolls back by itself when the rollout, the smoke test or the release verification
 fails: each Deployment returns to the revision recorded before the overlay,
 image **and** service configuration (the `<service>-config` ConfigMaps carry a
 content hash in their name, so the old pod template names the old ConfigMap).
@@ -161,4 +161,4 @@ kubectl describe pod -n trading-model -l app.kubernetes.io/component=<service-na
 - [ ] Pre-deployment: verify resource requests/limits
 - [ ] Deployment: use rolling update with `maxUnavailable: 1`
 - [ ] Deployment: use canary for major changes (`deploy.yml` uses 10%: `canary_replicas = total * 10 / 100`, minimum 1; 2 replicas give 1 canary pod, about 33% of traffic)
-- [ ] Post-deployment: monitor for 15 minutes before leaving
+- [ ] Post-deployment: nothing to watch by hand, the `Verify release` step of `deploy.yml` (`deploy-k8s.sh verify-release`) repeats an API call through edge-proxy, a market-data freshness check and a no-critical-alert check over `VERIFY_WINDOW_SECONDS` (default 600 s) and rolls back on failure (docs/deployment/DEPLOY.md, "Release verification")

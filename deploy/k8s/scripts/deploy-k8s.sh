@@ -12,6 +12,7 @@
 #    ./deploy-k8s.sh [-n <namespace>] canary-all <image-tag> <percentage> <service>...
 #    ./deploy-k8s.sh [-n <namespace>] smoke-test      # Run smoke tests
 #    ./deploy-k8s.sh [-n <namespace>] verify-market-data  # Wait until the collector persists candles again (ADR-0042)
+#    ./deploy-k8s.sh [-n <namespace>] verify-release  # API call, fresh data, no critical alert, over a window
 #  Namespace: K8S_NAMESPACE env or -n/--namespace (default: trading-model)
 # =============================================================================
 
@@ -563,6 +564,105 @@ cmd_verify_market_data() {
   exit 1
 }
 
+# Query `$1` (URL-encoded PromQL) on the in-cluster Prometheus; prints the JSON
+# answer. Fails when Prometheus does not answer: a missing signal is not a pass.
+prom_query() {
+  kubectl exec -n "$NAMESPACE" prometheus-0 -c prometheus -- \
+    wget -qO- "http://localhost:9090/api/v1/query?query=$1"
+}
+
+# Candles persisted in the last 15 min (0 when the series is absent).
+fresh_candles() {
+  prom_query 'sum%28increase%28fs_candles_persisted_total%5B15m%5D%29%29' | jq -r '.data.result[0].value[1] // "0"'
+}
+
+# One pass of the post-deploy functional checks (see cmd_verify_release).
+# $1 = 1 when a missing market-data signal must fail now (last pass or data
+# already seen once), 0 while the first scrape may still be pending.
+release_checks_once() {
+  local strict="$1" key code critical fresh
+
+  key="$(kubectl get secret -n "$NAMESPACE" trading-model-secrets -o jsonpath='{.data.AUTH_TOKENS}' | base64 -d | cut -d, -f1)"
+  if [[ -z "$key" ]]; then
+    err "  ✗ no gateway API key in Secret trading-model-secrets (AUTH_TOKENS)"
+    return 1
+  fi
+  # The key goes through stdin (curl -H @-), never on a command line or in a log.
+  local path="/v1/discovery-server/services"
+  code="$(printf 'x-api-key: %s\n' "$key" | kubectl exec -i -n "$NAMESPACE" deployment/discovery-server -c discovery-server -- \
+    curl -s -o /dev/null -w '%{http_code}' -H @- "http://edge-proxy:8080${path}")" || code="000"
+  if [[ "$code" != "200" ]]; then
+    err "  ✗ GET ${path} through edge-proxy answered ${code}, expected 200"
+    return 1
+  fi
+  log "  ✓ API through edge-proxy: 200"
+
+  # Optional: the real ingress host, once defined (VERIFY_EXTERNAL_URL=https://host).
+  if [[ -n "${VERIFY_EXTERNAL_URL:-}" ]]; then
+    code="$(printf 'x-api-key: %s\n' "$key" | curl -s -o /dev/null -w '%{http_code}' -H @- "${VERIFY_EXTERNAL_URL%/}${path}")" || code="000"
+    if [[ "$code" != "200" ]]; then
+      err "  ✗ external ${VERIFY_EXTERNAL_URL%/}${path} answered ${code}, expected 200"
+      return 1
+    fi
+    log "  ✓ API through the external ingress: 200"
+  fi
+
+  # VERIFY_REQUIRE_FRESH_DATA=false (staging): missing market data only warns
+  # there (ADR-0042, verify-market-data), so skip the data check and MarketDataStale.
+  local ignored='%2Calertname!%3D%22Watchdog%22'
+  if [[ "${VERIFY_REQUIRE_FRESH_DATA:-true}" == "false" ]]; then
+    ignored+='%2Calertname!%3D%22MarketDataStale%22'
+    log "  - market data not checked (VERIFY_REQUIRE_FRESH_DATA=false)"
+  else
+    fresh="$(fresh_candles)" || return 1
+    # Strict pass: a scrape cycle runs every minute and Prometheus needs two
+    # samples for increase(), so give the first ones up to 3 min to show up.
+    local tries=0
+    while [[ "$strict" == "1" ]] && ! awk -v v="$fresh" 'BEGIN { exit !(v > 0) }' && (( tries++ < 6 )); do
+      log "  … no candle counted yet (${fresh}), retrying in 30s"
+      sleep 30
+      fresh="$(fresh_candles)" || return 1
+    done
+    if awk -v v="$fresh" 'BEGIN { exit !(v > 0) }'; then
+      log "  ✓ market data: ${fresh%.*} candles persisted in the last 15 min"
+      FRESH_SEEN=1
+    elif [[ "$strict" == "1" ]]; then
+      err "  ✗ no candle persisted in the last 15 min"
+      return 1
+    else
+      log "  … no market data persisted yet"
+    fi
+  fi
+
+  critical="$(prom_query "ALERTS%7Balertstate%3D%22firing%22%2Cseverity%3D%22critical%22${ignored}%7D" \
+    | jq -r '.data.result[].metric | .alertname + (if .job then "{job=\(.job), instance=\(.instance // "")}" else "" end)')" || return 1
+  if [[ -n "$critical" ]]; then
+    err "  ✗ critical alert(s) firing: $(echo "$critical" | sort -u | paste -sd, -)"
+    return 1
+  fi
+  log "  ✓ no critical alert firing"
+}
+
+# Functional gate after smoke-test: an API call through edge-proxy with a
+# gateway key, fresh market data, no critical alert (Watchdog excluded), all
+# repeated every VERIFY_INTERVAL_SECONDS (default 60) over VERIFY_WINDOW_SECONDS
+# (default 600; 0 = one pass). Any failed pass fails the command, so deploy.yml
+# rolls back. Market data may be missing until its first sighting, but must be
+# there on the last pass and never disappear after.
+cmd_verify_release() {
+  local window="${VERIFY_WINDOW_SECONDS:-600}" interval="${VERIFY_INTERVAL_SECONDS:-60}"
+  local deadline=$(( SECONDS + window )) last=0
+  FRESH_SEEN=0
+  log "Verifying the release for ${window}s (every ${interval}s)..."
+  while :; do
+    (( SECONDS + interval >= deadline )) && last=1
+    release_checks_once "$(( last || FRESH_SEEN ))" || { err "Release verification failed."; exit 1; }
+    [[ "$last" -eq 1 ]] && break
+    sleep "$interval"
+  done
+  log "Release verified."
+}
+
 # ─── Main ─────────────────────────────────────────────────────────────────────
 
 check_prereqs
@@ -618,6 +718,9 @@ case "${1:-help}" in
   verify-market-data)
     cmd_verify_market_data
     ;;
+  verify-release)
+    cmd_verify_release
+    ;;
   *)
     echo "Trading Model K8s Deploy Script"
     echo ""
@@ -633,6 +736,7 @@ case "${1:-help}" in
     echo "  $0 [-n namespace] pin                     Pin deployed images to digests"
     echo "  $0 [-n namespace] smoke-test            Run smoke tests"
     echo "  $0 [-n namespace] verify-market-data    Wait for the collector to persist candles again"
+    echo "  $0 [-n namespace] verify-release        API via edge-proxy, fresh data, no critical alert (VERIFY_WINDOW_SECONDS)"
     echo "Namespace defaults to trading-model (env: K8S_NAMESPACE)."
     echo "Feature flags (FEATURE_FLAGS=flag1,flag2): canary-auto-cleanup"
     exit 1
