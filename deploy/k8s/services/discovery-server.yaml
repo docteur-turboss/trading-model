@@ -94,6 +94,16 @@ spec:
             - configMapRef:
                 name: discovery-server-config
           env:
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: trading-model-secrets
+                  key: REDIS_DISCOVERY_PASSWORD
+            - name: REDIS_SENTINEL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: trading-model-secrets
+                  key: REDIS_INTERNAL_PASSWORD
             - name: SIGNING_SECRET
               valueFrom:
                 secretKeyRef:

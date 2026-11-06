@@ -58,6 +58,24 @@ describe("redisConnectionFromEnv", () => {
 		});
 	});
 
+	it("should carry the ACL user and the sentinel password", () => {
+		expect(
+			redisConnectionFromEnv({
+				REDIS_SENTINELS: "10.0.0.7:26379",
+				REDIS_USERNAME: "discovery",
+				REDIS_PASSWORD: "service-pw",
+				REDIS_SENTINEL_PASSWORD: "sentinel-pw",
+			})
+		).toMatchObject({
+			mode: "sentinel",
+			config: {
+				username: "discovery",
+				password: "service-pw",
+				sentinelPassword: "sentinel-pw",
+			},
+		});
+	});
+
 	it("should monitor mymaster without a password by default", () => {
 		expect(
 			redisConnectionFromEnv({

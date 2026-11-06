@@ -159,6 +159,26 @@ spec:
                   fieldPath: status.podIP
             - name: REDIS_HOSTS
               value: "redis-0.redis-headless redis-1.redis-headless redis-2.redis-headless"
+            - name: REDIS_INTERNAL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: trading-model-secrets
+                  key: REDIS_INTERNAL_PASSWORD
+            - name: REDIS_DISCOVERY_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: trading-model-secrets
+                  key: REDIS_DISCOVERY_PASSWORD
+            - name: REDIS_MESSAGE_MANAGER_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: trading-model-secrets
+                  key: REDIS_MESSAGE_MANAGER_PASSWORD
+            - name: REDIS_DLQ_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: trading-model-secrets
+                  key: REDIS_DLQ_PASSWORD
             - name: SENTINEL_HOSTS
               value: "redis-sentinel-0.redis-sentinel-headless redis-sentinel-1.redis-sentinel-headless redis-sentinel-2.redis-sentinel-headless"
           ports:
@@ -189,22 +209,28 @@ spec:
           startupProbe:
             exec:
               command:
-                - redis-cli
-                - ping
+                - sh
+                - /scripts/redis-ha.sh
+                - probe
+                - server
             periodSeconds: 5
             failureThreshold: 30
           livenessProbe:
             exec:
               command:
-                - redis-cli
-                - ping
+                - sh
+                - /scripts/redis-ha.sh
+                - probe
+                - server
             periodSeconds: 10
             timeoutSeconds: 3
           readinessProbe:
             exec:
               command:
-                - redis-cli
-                - ping
+                - sh
+                - /scripts/redis-ha.sh
+                - probe
+                - server
             periodSeconds: 5
             timeoutSeconds: 2
       volumes:
@@ -302,6 +328,11 @@ spec:
                   fieldPath: status.podIP
             - name: REDIS_HOSTS
               value: "redis-0.redis-headless redis-1.redis-headless redis-2.redis-headless"
+            - name: REDIS_INTERNAL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: trading-model-secrets
+                  key: REDIS_INTERNAL_PASSWORD
             - name: SENTINEL_HOSTS
               value: "redis-sentinel-0.redis-sentinel-headless redis-sentinel-1.redis-sentinel-headless redis-sentinel-2.redis-sentinel-headless"
             - name: SENTINEL_CONF
@@ -334,28 +365,28 @@ spec:
           startupProbe:
             exec:
               command:
-                - redis-cli
-                - -p
-                - "26379"
-                - ping
+                - sh
+                - /scripts/redis-ha.sh
+                - probe
+                - sentinel
             periodSeconds: 5
             failureThreshold: 30
           livenessProbe:
             exec:
               command:
-                - redis-cli
-                - -p
-                - "26379"
-                - ping
+                - sh
+                - /scripts/redis-ha.sh
+                - probe
+                - sentinel
             periodSeconds: 10
             timeoutSeconds: 3
           readinessProbe:
             exec:
               command:
-                - redis-cli
-                - -p
-                - "26379"
-                - ping
+                - sh
+                - /scripts/redis-ha.sh
+                - probe
+                - sentinel
             periodSeconds: 5
             timeoutSeconds: 2
       volumes:

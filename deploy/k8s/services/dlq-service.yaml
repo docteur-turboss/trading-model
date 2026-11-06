@@ -87,6 +87,16 @@ spec:
             - configMapRef:
                 name: dlq-service-config
           env:
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: trading-model-secrets
+                  key: REDIS_DLQ_PASSWORD
+            - name: REDIS_SENTINEL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: trading-model-secrets
+                  key: REDIS_INTERNAL_PASSWORD
             # Discovery keys tokens and addresses by instance: one per pod.
             - name: INSTANCE_ID
               valueFrom:

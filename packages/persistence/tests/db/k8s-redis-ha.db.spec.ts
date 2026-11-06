@@ -269,7 +269,9 @@ describe("K8s Redis HA start script — real failovers", () => {
 			)
 		).resolves.toMatch(/^NOPERM/);
 		// The default user is off; the internal user reaches no key.
-		expect((await cliAs(master, undefined, "", "PING"))[0]).toMatch(/NOAUTH|WRONGPASS/);
+		expect((await cliAs(master, undefined, "", "PING"))[0]).toMatch(
+			/NOAUTH|WRONGPASS/
+		);
 		expect((await cli(master, "GET", foreign))[0]).toMatch(/^NOPERM/);
 	});
 

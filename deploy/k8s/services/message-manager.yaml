@@ -91,6 +91,16 @@ spec:
             - configMapRef:
                 name: message-manager-config
           env:
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: trading-model-secrets
+                  key: REDIS_MESSAGE_MANAGER_PASSWORD
+            - name: REDIS_SENTINEL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: trading-model-secrets
+                  key: REDIS_INTERNAL_PASSWORD
             - name: INSTANCE_ID
               valueFrom:
                 fieldRef:
