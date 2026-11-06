@@ -18,21 +18,11 @@ export interface ServiceRoute {
 
 export class CircuitRecorder {
 	private readonly _hostnameCircuit: ICircuitBreaker;
-	private readonly _serviceCircuits = new Map<string, ICircuitBreaker>();
+	// Keyed by service name: one state machine per service, default config.
+	private readonly _serviceCircuit: ICircuitBreaker = new CircuitBreaker();
 
 	constructor(config?: Partial<CircuitBreakerConfig>) {
 		this._hostnameCircuit = new CircuitBreaker(config);
-	}
-
-	private _getServiceCircuit(
-		serviceName: ServiceInstanceName
-	): ICircuitBreaker {
-		let cb = this._serviceCircuits.get(serviceName);
-		if (!cb) {
-			cb = new CircuitBreaker();
-			this._serviceCircuits.set(serviceName, cb);
-		}
-		return cb;
 	}
 
 	checkPreconditions(
@@ -52,8 +42,7 @@ export class CircuitRecorder {
 			);
 		}
 		if (serviceName) {
-			const svcCircuit = this._getServiceCircuit(serviceName);
-			const svcState = svcCircuit.check(serviceName);
+			const svcState = this._serviceCircuit.check(serviceName);
 			if (svcState === CircuitState.OPEN) {
 				throw createHttpClientError(
 					`Circuit breaker open for service ${serviceName}`,
@@ -67,30 +56,23 @@ export class CircuitRecorder {
 	recordSuccess(route: ServiceRoute): void {
 		this._hostnameCircuit.recordSuccess(route.hostname);
 		if (route.serviceName) {
-			this._getServiceCircuit(route.serviceName).recordSuccess(
-				route.serviceName
-			);
+			this._serviceCircuit.recordSuccess(route.serviceName);
 		}
 	}
 
 	recordFailure(route: ServiceRoute, serviceInstanceCount?: number): void {
 		this._hostnameCircuit.recordFailure(route.hostname);
 		if (route.serviceName) {
-			const svcCircuit = this._getServiceCircuit(route.serviceName);
 			const threshold =
 				serviceInstanceCount === undefined
 					? undefined
 					: Math.max(2, serviceInstanceCount * 2);
-			svcCircuit.recordFailure(route.serviceName, 1, threshold);
+			this._serviceCircuit.recordFailure(route.serviceName, 1, threshold);
 		}
 	}
 
 	isServiceCircuitOpen(serviceName: ServiceInstanceName): boolean {
-		const cb = this._serviceCircuits.get(serviceName);
-		if (!cb) {
-			return false;
-		}
-		const state = cb.check(serviceName);
+		const state = this._serviceCircuit.check(serviceName);
 		return state === CircuitState.OPEN || state === CircuitState.HALF_OPEN;
 	}
 }

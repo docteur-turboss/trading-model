@@ -1,7 +1,10 @@
+import {
+	type LoggerPort,
+	NoopLogger,
+} from "@trading-model/contracts/logger-registry";
 import { DurationMs } from "@trading-model/primitives/primitives";
 import type { ServiceInstance } from "../shared/types";
 import { isAliveInstance } from "./expiration";
-import { type LoggerPort, NoopLogger } from "./logger-port";
 import type { CleanupMetricsPort } from "./ports/discovery-metrics.port";
 import type { ServiceRegistry } from "./service-registry";
 import { StaleInstanceCleaner } from "./stale-instance-cleaner";

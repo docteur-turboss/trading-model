@@ -22,9 +22,3 @@ export enum RedisSet {
 }
 /** @deprecated Use {@link RedisSet} enum directly */
 export const REDIS_SET = RedisSet;
-
-export enum RedisMode {
-	SINGLE = "single",
-	SENTINEL = "sentinel",
-	CLUSTER = "cluster",
-}

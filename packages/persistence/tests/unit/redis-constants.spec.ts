@@ -1,10 +1,5 @@
 import { describe, expect, it } from "@jest/globals";
-import {
-	RedisMode,
-	RedisResp,
-	RedisSet,
-	RedisStatus,
-} from "../../src/redis-constants";
+import { RedisResp, RedisSet, RedisStatus } from "../../src/redis-constants";
 
 describe("RedisStatus", () => {
 	it("should have correct values", () => {
@@ -28,13 +23,5 @@ describe("RedisSet", () => {
 		expect(RedisSet.XX).toBe("XX");
 		expect(RedisSet.EX).toBe("EX");
 		expect(RedisSet.PX).toBe("PX");
-	});
-});
-
-describe("RedisMode", () => {
-	it("should have correct values", () => {
-		expect(RedisMode.SINGLE).toBe("single");
-		expect(RedisMode.SENTINEL).toBe("sentinel");
-		expect(RedisMode.CLUSTER).toBe("cluster");
 	});
 });

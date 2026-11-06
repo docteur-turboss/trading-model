@@ -1,13 +1,12 @@
 import { normalizeError } from "@trading-model/common/utils/errors";
 import { getLogger } from "@trading-model/contracts/logger-registry";
 import type Redis from "ioredis";
-import type { Cluster } from "ioredis";
 import { RedisStatus } from "./redis-constants";
 
 export class RedisClientBuilder {
-	private readonly _client: Redis | Cluster;
+	private readonly _client: Redis;
 
-	constructor(client: Redis | Cluster) {
+	constructor(client: Redis) {
 		this._client = client;
 	}
 
@@ -20,18 +19,18 @@ export class RedisClientBuilder {
 		return this;
 	}
 
-	build(): Redis | Cluster {
+	build(): Redis {
 		return this._client;
 	}
 
-	static async connect(client: Redis | Cluster): Promise<void> {
+	static async connect(client: Redis): Promise<void> {
 		await client.connect();
 	}
 
-	static async disconnect(client: Redis | Cluster): Promise<void> {
+	static async disconnect(client: Redis): Promise<void> {
 		try {
-			if ((client as Redis).status === RedisStatus.READY) {
-				await (client as Redis).quit();
+			if (client.status === RedisStatus.READY) {
+				await client.quit();
 			} else {
 				client.disconnect();
 			}

@@ -75,7 +75,6 @@ export class DiscoveryOrchestrator {
 	}
 
 	recordCallSuccess(instanceId: InstanceId, durationMs?: number): void {
-		this._serviceDiscovery.releaseConnection(instanceId);
 		this.circuitBreaker.recordSuccess(instanceId);
 		if (durationMs !== undefined) {
 			this.circuitBreaker.recordLatency(instanceId, durationMs);
@@ -84,7 +83,6 @@ export class DiscoveryOrchestrator {
 	}
 
 	recordCallFailure(instanceId: InstanceId, durationMs?: number): void {
-		this._serviceDiscovery.releaseConnection(instanceId);
 		this.circuitBreaker.recordFailure(instanceId);
 		if (durationMs !== undefined) {
 			this.circuitBreaker.recordLatency(instanceId, durationMs);

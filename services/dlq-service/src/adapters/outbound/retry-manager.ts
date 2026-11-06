@@ -5,15 +5,6 @@ import { DlqStatus } from "../../domain/dlq-status";
 import { ENV } from "../../infrastructure/config/env";
 import { RetryPipelineBuilder } from "./retry-pipeline-builder";
 
-function _isEntryAbandoned(
-	col: import("mongodb").Collection,
-	id: string
-): Promise<boolean> {
-	return col
-		.findOne({ _id: new ObjectId(id) }, { projection: { status: 1 } })
-		.then((entry) => entry?.status === DlqStatus.Abandoned);
-}
-
 async function _updateEntryCompleted(
 	col: import("mongodb").Collection,
 	id: string,
@@ -21,7 +12,12 @@ async function _updateEntryCompleted(
 	batchId?: string
 ): Promise<void> {
 	await col.updateOne(
-		{ _id: new ObjectId(id), processingInstance: instanceId },
+		{
+			_id: new ObjectId(id),
+			processingInstance: instanceId,
+			// An entry abandoned meanwhile stays abandoned.
+			status: { $ne: DlqStatus.Abandoned },
+		},
 		{
 			$set: {
 				status: DlqStatus.Completed,
@@ -70,9 +66,6 @@ export class DlqRetryManager {
 		batchId?: string
 	): Promise<void> {
 		const col = await getCollection();
-		if (await _isEntryAbandoned(col, id)) {
-			return;
-		}
 		await _updateEntryCompleted(col, id, instanceId, batchId);
 	}
 

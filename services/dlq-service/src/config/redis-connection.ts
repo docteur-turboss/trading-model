@@ -60,7 +60,7 @@ export class RedisConnection {
 			logger.info("No Redis configured — Redis queue unavailable");
 			return false;
 		}
-		const client = createRedisClient(connection) as Redis;
+		const client = createRedisClient(connection);
 		await client.connect();
 		this._attachEventHandlers(client);
 		this._client = client;

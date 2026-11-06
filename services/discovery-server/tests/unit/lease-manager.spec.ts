@@ -6,7 +6,7 @@ import {
 	it,
 	jest,
 } from "@jest/globals";
-import type { LoggerPort } from "../../src/domain/logger-port";
+import type { LoggerPort } from "@trading-model/contracts/logger-registry";
 import type { ServiceInstance } from "../../src/shared/types";
 
 jest.useFakeTimers();

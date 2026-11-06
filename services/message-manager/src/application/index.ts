@@ -1,12 +1,16 @@
+import { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import { PUBLISH_TIMEOUT_MS } from "@trading-model/contracts/publish-timeout";
-import { DurationMs } from "@trading-model/primitives/primitives";
+import { DurationMs, toInstanceId } from "@trading-model/primitives/primitives";
 import { createBootstrap } from "@trading-model/server-utils/application/services/bootstrap";
+import {
+	initializeTelemetry,
+	shutdownTelemetry,
+} from "@trading-model/server-utils/infrastructure/telemetry";
 import { BOOTSTRAP_ADDRESS_MANAGER } from "../config/address-manager";
 import {
 	closeMessageManager,
 	startDeadLetterForwarding,
 } from "../config/message-manager";
-import { initializeTelemetry, shutdownTelemetry } from "../config/telemetry";
 import { ENV } from "../infrastructure/config/env";
 import { createServer } from "./server";
 
@@ -31,7 +35,12 @@ createBootstrap({
 	name: "Message Manager",
 	createServer,
 	onStart: () => {
-		initializeTelemetry();
+		initializeTelemetry({
+			serviceName: ServiceInstanceName.MessageManagerService,
+			serviceVersion: ENV.APP_VERSION,
+			instanceId: toInstanceId(ENV.INSTANCE_ID),
+			otlpEndpoint: ENV.OTEL_EXPORTER_OTLP_ENDPOINT,
+		});
 		addressManager = BOOTSTRAP_ADDRESS_MANAGER();
 		startDeadLetterForwarding();
 	},

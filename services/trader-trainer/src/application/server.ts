@@ -31,15 +31,10 @@ export function createServer(trainer: Trainer, models: TrainerRoutesOptions) {
 			{
 				name: "message-bus",
 				check: async () => {
-					// biome-ignore lint/plugin: readiness probe: failure is the negative signal
-					try {
-						const target = await AddressManager.findService(
-							ServiceInstanceName.MessageDeliveryService
-						);
-						return Boolean(target);
-					} catch {
-						return false;
-					}
+					const target = await AddressManager.findService(
+						ServiceInstanceName.MessageDeliveryService
+					);
+					return Boolean(target);
 				},
 			},
 		],

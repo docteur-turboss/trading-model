@@ -216,47 +216,6 @@ describe("ServiceDiscovery", () => {
 		expect(cache.set).toHaveBeenCalledWith({ serviceName, instance });
 	});
 
-	test("acquireConnection increments connection count for new instance", () => {
-		const id = toInstanceId("instance-1");
-		discovery.acquireConnection(id);
-		expect((discovery as any)._connectionTracker.getConnectionCount(id)).toBe(
-			1
-		);
-	});
-
-	test("acquireConnection increments connection count for existing instance", () => {
-		const id = toInstanceId("instance-1");
-		discovery.acquireConnection(id);
-		discovery.acquireConnection(id);
-		expect((discovery as any)._connectionTracker.getConnectionCount(id)).toBe(
-			2
-		);
-	});
-
-	test("releaseConnection decrements count and removes when count reaches zero", () => {
-		const id = toInstanceId("instance-1");
-		discovery.acquireConnection(id);
-		discovery.releaseConnection(id);
-		expect((discovery as any)._connectionTracker.getConnectionCount(id)).toBe(
-			0
-		);
-	});
-
-	test("releaseConnection decrements count but keeps entry when count > 1", () => {
-		const id = toInstanceId("instance-1");
-		discovery.acquireConnection(id);
-		discovery.acquireConnection(id);
-		discovery.releaseConnection(id);
-		expect((discovery as any)._connectionTracker.getConnectionCount(id)).toBe(
-			1
-		);
-	});
-
-	test("releaseConnection does nothing when instance not in map", () => {
-		const id = toInstanceId("unknown-instance");
-		expect(() => discovery.releaseConnection(id)).not.toThrow();
-	});
-
 	test("findAllServices delegates to resolver", async () => {
 		const mockResolver = (discovery as any)._resolver;
 		mockResolver.findAllServices = jest

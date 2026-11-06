@@ -82,7 +82,6 @@ export class DiscoveryRetryHandler {
 		await this._syncCircuitState(instance);
 
 		if (!this.circuitBreaker.isOpen(instance.instanceId)) {
-			this._serviceDiscovery.acquireConnection(instance.instanceId);
 			recordDiscoveryMetrics(
 				{ serviceName: toServiceId(serviceName), startTime },
 				DiscoveryResult.Success

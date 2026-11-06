@@ -10,7 +10,7 @@ import {
 	type ServiceId,
 	toServiceId,
 } from "@trading-model/primitives/primitives";
-import type { Cluster, Redis, RedisOptions } from "ioredis";
+import type { Redis, RedisOptions } from "ioredis";
 import type { ServiceInstance } from "../../../domain/client/type";
 import type { ICircuitStateStore } from "../../../domain/discovery/circuit-state-store.interface";
 import type { StoreOptions } from "../../../domain/discovery/redis-store-config";
@@ -32,7 +32,7 @@ export interface RedisCacheConfig {
 }
 
 export class RedisServiceCache implements IServiceCache {
-	private readonly _connectionManager: ConnectionManager<Redis | Cluster>;
+	private readonly _connectionManager: ConnectionManager<Redis>;
 	private readonly _storeOptions: StoreOptions;
 	private _cacheOps: RedisCacheOperations | null = null;
 	private _circuitState: RedisCircuitStateStore | null = null;
@@ -55,7 +55,7 @@ export class RedisServiceCache implements IServiceCache {
 	}
 
 	private async _ensureReady(): Promise<Redis> {
-		const client = (await this._connectionManager.getConnection()) as Redis;
+		const client = await this._connectionManager.getConnection();
 		if (!this._cacheOps) {
 			this._cacheOps = new RedisCacheOperations({
 				redis: client,

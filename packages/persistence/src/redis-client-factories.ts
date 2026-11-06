@@ -1,13 +1,10 @@
 import type { URLString } from "@trading-model/primitives/primitives";
-import Redis, { Cluster, type RedisOptions } from "ioredis";
+import Redis, { type RedisOptions } from "ioredis";
 import { RedisClientBuilder } from "./redis-client-builder";
 import type {
-	RedisClusterNodesConfig,
 	RedisConnectionConfig,
-	RedisNodeAddress,
 	RedisSentinelConfig,
 } from "./redis-config";
-import { RedisMode } from "./redis-constants";
 
 export const BASE_RETRY_STRATEGY = (times: number): number | null => {
 	if (times > 20) {
@@ -30,7 +27,7 @@ export function createFromUrl(
 		maxRetriesPerRequest: 5,
 		...extraOptions,
 	});
-	return new RedisClientBuilder(client).withErrorHandler().build() as Redis;
+	return new RedisClientBuilder(client).withErrorHandler().build();
 }
 
 export function createSentinel(
@@ -61,51 +58,14 @@ export function createSentinel(
 			}
 		).connector?.failoverDetector?.cleanup();
 	});
-	return new RedisClientBuilder(client).withErrorHandler().build() as Redis;
+	return new RedisClientBuilder(client).withErrorHandler().build();
 }
-
-export function createClusterClient(
-	nodes: RedisNodeAddress[],
-	password?: string
-): Cluster {
-	const client = new Cluster(nodes, {
-		redisOptions: {
-			lazyConnect: true,
-			password,
-			maxRetriesPerRequest: null,
-		},
-		clusterRetryStrategy: (times: number) => Math.min(times * 200, 5000),
-	} as never);
-	return new RedisClientBuilder(client).withErrorHandler().build() as Cluster;
-}
-
-export const CLIENT_FACTORIES: Record<
-	RedisMode,
-	(
-		config: RedisConnectionConfig,
-		extraOptions?: Partial<RedisOptions>
-	) => Redis | Cluster
-> = {
-	[RedisMode.SINGLE]: (config, extra) =>
-		createFromUrl((config as { url: URLString }).url, extra),
-	[RedisMode.SENTINEL]: (config, extra) =>
-		createSentinel((config as { config: RedisSentinelConfig }).config, extra),
-	[RedisMode.CLUSTER]: (config) =>
-		createClusterClient(
-			(config as { config: RedisClusterNodesConfig }).config.nodes,
-			(config as { config: RedisClusterNodesConfig }).config.password
-		),
-};
 
 export function buildFromConfig(
 	config: RedisConnectionConfig,
 	extraOptions?: Partial<RedisOptions>
-): Redis | Cluster {
-	const factory = CLIENT_FACTORIES[config.mode];
-	if (!factory) {
-		throw new Error(
-			`Unknown Redis mode: ${(config as RedisConnectionConfig).mode}`
-		);
-	}
-	return factory(config, extraOptions);
+): Redis {
+	return config.mode === "sentinel"
+		? createSentinel(config.config, extraOptions)
+		: createFromUrl(config.url, extraOptions);
 }

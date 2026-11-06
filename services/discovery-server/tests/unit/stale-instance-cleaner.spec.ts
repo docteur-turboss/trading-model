@@ -7,7 +7,7 @@ import {
 	jest,
 } from "@jest/globals";
 
-import type { LoggerPort } from "../../src/domain/logger-port";
+import type { LoggerPort } from "@trading-model/contracts/logger-registry";
 
 const mockTimerStartInterval = jest.fn();
 const mockTimerStop = jest.fn();
