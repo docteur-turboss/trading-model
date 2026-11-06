@@ -25,6 +25,14 @@ export const TRAINING_DURATION_SECONDS = new promClient.Histogram({
 	buckets: [10, 30, 60, 120, 300, 600, 1800, 3600],
 });
 
+// Between two genomes the trainer yields to the event loop (PR #477): the
+// longest evaluation is the longest block of heartbeats, /metrics and candles.
+export const GENOME_EVALUATION_SECONDS = new promClient.Histogram({
+	name: "tt_genome_evaluation_seconds",
+	help: "Duration of the evaluation of one genome on every window (event loop blocked)",
+	buckets: [0.01, 0.05, 0.1, 0.25, 0.5, 1, 2, 5, 10],
+});
+
 export const TRAINING_STATUS = new promClient.Gauge({
 	name: "tt_training_status",
 	help: "Current training status (0=idle, 1=training)",

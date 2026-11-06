@@ -166,8 +166,17 @@ function _makeEvalFn(
 ): (
 	genome: DeepReadonly<LamarckGenome>
 ) => ReturnType<typeof evaluateGenomeAllWindows> {
-	return async (genome: DeepReadonly<LamarckGenome>) =>
-		evaluateGenomeAllWindows(genome, windowSets, backendFactory, telemetry);
+	return async (genome: DeepReadonly<LamarckGenome>) => {
+		const start = performance.now();
+		const result = await evaluateGenomeAllWindows(
+			genome,
+			windowSets,
+			backendFactory,
+			telemetry
+		);
+		telemetry?.genomeEvaluated(performance.now() - start);
+		return result;
+	};
 }
 
 export async function evaluateFitness(ctx: EvaluateFitnessContext): Promise<{
