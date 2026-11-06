@@ -61,7 +61,8 @@ check_prereqs() {
     err "kubectl is required. Install: https://kubernetes.io/docs/tasks/tools/"
     exit 1
   fi
-  if ! kubectl cluster-info &>/dev/null; then
+  # `cluster-info` reads kube-system, which the namespaced deploy identity cannot (ADR-0038)
+  if ! kubectl auth can-i get deployments -n "$NAMESPACE" &>/dev/null; then
     err "Cannot connect to Kubernetes cluster. Check your kubeconfig."
     exit 1
   fi

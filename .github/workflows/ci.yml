@@ -103,6 +103,8 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Render and check the overlays
         run: node tests/k8s/check-overlays.mjs
+      - name: kubectl commands covered by the app deploy Role
+        run: node tests/k8s/check-deploy-commands.mjs
       - name: Deploy identities (stub kubectl)
         run: bash tests/k8s/deploy-identity.test.sh
 
