@@ -13,7 +13,8 @@ resources:
 components:
   - ../../ingress/hosts
 
-# Staging-specific image tags (uses latest release by default; override via deploy pipeline)
+# Staging image tags: `latest` is only a default for rendering outside deploy.yml.
+# deploy.yml always deploys the digests of the requested release tag (deploy-release.sh render).
 images:
   - name: ghcr.io/trading-model/discovery-server
     newTag: latest
