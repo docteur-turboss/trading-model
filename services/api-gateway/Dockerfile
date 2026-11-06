@@ -42,6 +42,9 @@ COPY --chown=appuser:appgroup --from=build /app/packages ./packages
 COPY --chown=appuser:appgroup --from=build /app/services/api-gateway/package.json ./services/api-gateway/
 COPY --chown=appuser:appgroup --from=build /app/services/api-gateway/dist ./services/api-gateway/dist
 RUN chown appuser:appgroup /app
+ARG BUILD_VERSION=dev
+ARG GIT_SHA=unknown
+ENV BUILD_VERSION=$BUILD_VERSION GIT_SHA=$GIT_SHA
 USER appuser
 
 EXPOSE 3000
