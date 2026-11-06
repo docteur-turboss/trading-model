@@ -1,6 +1,6 @@
 {
   "name": "dlq-service",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "Dead Letter Queue Service - stores and manages dead letter entries with PostgreSQL persistence",
   "license": "ISC",
   "type": "commonjs",
