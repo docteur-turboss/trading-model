@@ -165,15 +165,40 @@ jobs:
       # kubeconfig) is limited to the application namespace; `cluster`
       # (CLUSTER_KUBECONFIG) is used by the cluster-scope steps only. Both are
       # base64 kubeconfigs with a bounded token.
-      - name: Configure kubeconfigs
+      - name: Configure kubeconfigs (production)
+        if: ${{ inputs.environment == 'production' }}
         shell: bash
         env:
           ENV: ${{ inputs.environment }}
           NS: ${{ steps.ns.outputs.namespace }}
-          # Indexed by name: `production && A || B` would fall back to the
-          # staging secret when the production one is empty.
-          APP_KUBECONFIG: ${{ secrets[format('KUBECONFIG_{0}_APP', inputs.environment == 'production' && 'PRODUCTION' || 'STAGING')] }}
-          CLUSTER_KUBECONFIG_CONTENT: ${{ secrets[format('KUBECONFIG_{0}_CLUSTER', inputs.environment == 'production' && 'PRODUCTION' || 'STAGING')] }}
+          APP_KUBECONFIG: ${{ secrets.KUBECONFIG_PRODUCTION_APP }}
+          CLUSTER_KUBECONFIG_CONTENT: ${{ secrets.KUBECONFIG_PRODUCTION_CLUSTER }}
+        run: |
+          upper="${ENV^^}"
+          for v in APP CLUSTER; do
+            content="APP_KUBECONFIG"; [ "$v" = CLUSTER ] && content="CLUSTER_KUBECONFIG_CONTENT"
+            if [ -z "${!content}" ]; then
+              echo "::error::Missing secret KUBECONFIG_${upper}_$v (bash scripts/deploy-identity.sh ${v,,}, docs/deployment/DEPLOY.md)"
+              exit 1
+            fi
+          done
+          umask 077
+          mkdir -p "$HOME/.kube"
+          echo "$APP_KUBECONFIG" | base64 -d > "$HOME/.kube/config"
+          echo "$CLUSTER_KUBECONFIG_CONTENT" | base64 -d > "$HOME/.kube/cluster"
+          echo "CLUSTER_KUBECONFIG=$HOME/.kube/cluster" >> "$GITHUB_ENV"
+          # cluster-info reads kube-system, which neither identity may.
+          kubectl auth can-i get deployments -n "$NS"
+          KUBECONFIG="$HOME/.kube/cluster" kubectl auth can-i get namespaces
+
+      - name: Configure kubeconfigs (staging)
+        if: ${{ inputs.environment != 'production' }}
+        shell: bash
+        env:
+          ENV: ${{ inputs.environment }}
+          NS: ${{ steps.ns.outputs.namespace }}
+          APP_KUBECONFIG: ${{ secrets.KUBECONFIG_STAGING_APP }}
+          CLUSTER_KUBECONFIG_CONTENT: ${{ secrets.KUBECONFIG_STAGING_CLUSTER }}
         run: |
           upper="${ENV^^}"
           for v in APP CLUSTER; do
