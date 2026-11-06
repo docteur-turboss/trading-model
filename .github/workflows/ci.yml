@@ -219,7 +219,7 @@ jobs:
         run: bash tests/k8s/run-kind.sh images
       - name: Deploy release N-1 (staging overlay)
         run: bash tests/k8s/run-kind.sh deploy
-      # deploy.yml's steps (deploy/k8s/scripts/deploy-release.sh): a failed
+      # deploy.yml's steps with the restricted deploy identities (ADR-0041): a failed
       # upgrade rolled back to N-1, migrate-down 1 then up, the upgrade to N.
       - name: Upgrade N-1 to N, forced failure and rollback
         run: bash tests/k8s/run-kind.sh upgrade

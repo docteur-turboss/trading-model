@@ -146,23 +146,69 @@ cluster() {
 	fi
 }
 
+# Selects the credentials of the current (sub)shell. Once `identities` has run,
+# every deploy step uses deploy-app (KUBECONFIG) and deploy-cluster
+# (CLUSTER_KUBECONFIG) as deploy.yml does (ADR-0041); before, the kind admin.
+use_kube() {
+	if [ -f "$WORK/app.kubeconfig" ]; then
+		export KUBECONFIG="$WORK/app.kubeconfig" CLUSTER_KUBECONFIG="$WORK/cluster.kubeconfig"
+	else
+		kubectl config use-context "kind-${CLUSTER}" >/dev/null
+	fi
+}
+
+# The two restricted deploy identities, created as admin after the N-1 deploy
+# (as in production: the admin bootstraps, the identities deploy), then the
+# rights ADR-0041 promises are checked for real.
+identities() {
+	log "creating the deploy-app and deploy-cluster identities (admin)"
+	(cd "$ROOT" && kubectl config use-context "kind-${CLUSTER}" >/dev/null &&
+		bash scripts/deploy-identity.sh app --namespace "$NS" >"$WORK/app.kubeconfig" &&
+		bash scripts/deploy-identity.sh cluster --namespace "$NS" --environment staging >"$WORK/cluster.kubeconfig") || return 1
+	local out as_cluster="kubectl --kubeconfig $WORK/cluster.kubeconfig" as_app="kubectl --kubeconfig $WORK/app.kubeconfig"
+	if out="$($as_cluster create clusterrolebinding x --clusterrole=spire-agent --serviceaccount="$NS:deploy-cluster" 2>&1)" ||
+		! grep -q Forbidden <<<"$out"; then
+		log "deploy-cluster could bind itself to spire-agent (or failed other than Forbidden): $out"
+		return 1
+	fi
+	[ "$($as_cluster auth can-i get nodes/proxy 2>&1 || true)" = no ] || {
+		log "deploy-cluster can get nodes/proxy"
+		return 1
+	}
+	[ "$($as_app auth can-i get secrets -n kube-system 2>&1 || true)" = no ] || {
+		log "deploy-app can read Secrets of kube-system"
+		return 1
+	}
+	log "  deploy-cluster: self-bind Forbidden, no nodes/proxy; deploy-app: no Secret in kube-system"
+}
+
 # deploy-release.sh (the release steps of deploy.yml) against the kind cluster.
 release_script() {
-	(cd "$ROOT" && kubectl config use-context "kind-${CLUSTER}" >/dev/null &&
+	(cd "$ROOT" && use_kube &&
 		bash deploy/k8s/scripts/deploy-release.sh "$@")
 }
 
 # The migrations of the checkout `$1`, through its own run-migrations.sh.
 migrations() {
-	(cd "$1" && kubectl config use-context "kind-${CLUSTER}" >/dev/null &&
+	(cd "$1" && use_kube &&
 		SEED_MIGRATE_PASSWORD=true bash deploy/k8s/scripts/run-migrations.sh "$NS")
 }
 
 # The overlay of the checkout `$1`, pinned to the digests of file `$2` as
 # deploy.yml's "Apply overlay", adapted to kind by ci-render.mjs.
 apply_release() {
-	release_script render "$1/deploy/k8s/overlays/staging" ghcr.io/trading-model "$2" |
-		node "$ROOT/tests/k8s/ci-render.mjs" | $K apply -f -
+	local rendered
+	rendered="$(release_script render "$1/deploy/k8s/overlays/staging" ghcr.io/trading-model "$2" |
+		node "$ROOT/tests/k8s/ci-render.mjs")" || return 1
+	if [ ! -f "$WORK/app.kubeconfig" ]; then
+		echo "$rendered" | $K apply -f -
+		return
+	fi
+	# As deploy.yml: cluster-scope documents with deploy-cluster, the rest with deploy-app.
+	echo "$rendered" | bash "$ROOT/scripts/split-cluster-scope.sh" cluster |
+		kubectl --kubeconfig "$WORK/cluster.kubeconfig" apply -f - || return 1
+	echo "$rendered" | bash "$ROOT/scripts/split-cluster-scope.sh" app |
+		kubectl --kubeconfig "$WORK/app.kubeconfig" apply -f -
 }
 
 # First deploy of release N-1, as deploy.yml on an empty cluster.
@@ -230,6 +276,8 @@ release() {
 #   3. the upgrade to N, which must pass the smoke test.
 upgrade() {
 	local started=$SECONDS before_templates before_migrations
+	# Admin step: ClusterRoles and bindings come from the admin; the identities only deploy.
+	identities || return 1
 	before_templates="$(templates)"
 	before_migrations="$(applied_migrations)"
 	[ -n "$before_migrations" ] || {
@@ -440,7 +488,7 @@ verify_replicas() {
 
 # Runs deploy-k8s.sh against the kind cluster, as deploy.yml does.
 deploy_script() {
-	(cd "$ROOT" && kubectl config use-context "kind-${CLUSTER}" >/dev/null &&
+	(cd "$ROOT" && use_kube &&
 		K8S_NAMESPACE="$NS" bash deploy/k8s/scripts/deploy-k8s.sh "$@")
 }
 
