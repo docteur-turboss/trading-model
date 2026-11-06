@@ -179,7 +179,7 @@ services:
   # ---------------------------------------------------------------------------
   spire-server:
     logging: *default-logging
-    image: ghcr.io/spiffe/spire-server:1.15.5  # pin: digest unavailable without GHCR auth
+    image: ghcr.io/spiffe/spire-server:1.15.5@sha256:584a9c5cc95b9457f5033e7e4488d603fffe5ec48a80c4dba14b05c5e1c2c384
     container_name: trading-spire-server
     restart: unless-stopped
     # Named volumes are created root-owned: the image user (1000) could not write them.
@@ -527,7 +527,7 @@ services:
   # ---------------------------------------------------------------------------
   spiffe-helper-discovery:
     logging: *default-logging
-    image: ghcr.io/spiffe/spiffe-helper:0.10.1  # pin: digest unavailable without GHCR auth
+    image: ghcr.io/spiffe/spiffe-helper:0.10.1@sha256:2402c34d83794aa24c127baa46e9732d653463f3bfcd39cda1313003ed60f8c9
     container_name: trading-helper-discovery
     restart: unless-stopped
     network_mode: none
@@ -542,7 +542,7 @@ services:
 
   spiffe-helper-message:
     logging: *default-logging
-    image: ghcr.io/spiffe/spiffe-helper:0.10.1  # pin: digest unavailable without GHCR auth
+    image: ghcr.io/spiffe/spiffe-helper:0.10.1@sha256:2402c34d83794aa24c127baa46e9732d653463f3bfcd39cda1313003ed60f8c9
     container_name: trading-helper-message
     restart: unless-stopped
     network_mode: none
@@ -557,7 +557,7 @@ services:
 
   spiffe-helper-scraper:
     logging: *default-logging
-    image: ghcr.io/spiffe/spiffe-helper:0.10.1  # pin: digest unavailable without GHCR auth
+    image: ghcr.io/spiffe/spiffe-helper:0.10.1@sha256:2402c34d83794aa24c127baa46e9732d653463f3bfcd39cda1313003ed60f8c9
     container_name: trading-helper-scraper
     restart: unless-stopped
     network_mode: none
@@ -572,7 +572,7 @@ services:
 
   spiffe-helper-trainer:
     logging: *default-logging
-    image: ghcr.io/spiffe/spiffe-helper:0.10.1  # pin: digest unavailable without GHCR auth
+    image: ghcr.io/spiffe/spiffe-helper:0.10.1@sha256:2402c34d83794aa24c127baa46e9732d653463f3bfcd39cda1313003ed60f8c9
     container_name: trading-helper-trainer
     restart: unless-stopped
     network_mode: none
@@ -587,7 +587,7 @@ services:
 
   spiffe-helper-gateway:
     logging: *default-logging
-    image: ghcr.io/spiffe/spiffe-helper:0.10.1  # pin: digest unavailable without GHCR auth
+    image: ghcr.io/spiffe/spiffe-helper:0.10.1@sha256:2402c34d83794aa24c127baa46e9732d653463f3bfcd39cda1313003ed60f8c9
     container_name: trading-helper-gateway
     restart: unless-stopped
     network_mode: none
@@ -602,7 +602,7 @@ services:
 
   spiffe-helper-audit:
     logging: *default-logging
-    image: ghcr.io/spiffe/spiffe-helper:0.10.1  # pin: digest unavailable without GHCR auth
+    image: ghcr.io/spiffe/spiffe-helper:0.10.1@sha256:2402c34d83794aa24c127baa46e9732d653463f3bfcd39cda1313003ed60f8c9
     container_name: trading-helper-audit
     restart: unless-stopped
     network_mode: none
@@ -617,7 +617,7 @@ services:
 
   spiffe-helper-dlq:
     logging: *default-logging
-    image: ghcr.io/spiffe/spiffe-helper:0.10.1  # pin: digest unavailable without GHCR auth
+    image: ghcr.io/spiffe/spiffe-helper:0.10.1@sha256:2402c34d83794aa24c127baa46e9732d653463f3bfcd39cda1313003ed60f8c9
     container_name: trading-helper-dlq
     restart: unless-stopped
     network_mode: none
@@ -632,7 +632,7 @@ services:
 
   spiffe-helper-edge:
     logging: *default-logging
-    image: ghcr.io/spiffe/spiffe-helper:0.10.1  # pin: digest unavailable without GHCR auth
+    image: ghcr.io/spiffe/spiffe-helper:0.10.1@sha256:2402c34d83794aa24c127baa46e9732d653463f3bfcd39cda1313003ed60f8c9
     container_name: trading-helper-edge
     restart: unless-stopped
     network_mode: none
@@ -647,7 +647,7 @@ services:
 
   spiffe-helper-prometheus:
     logging: *default-logging
-    image: ghcr.io/spiffe/spiffe-helper:0.10.1  # pin: digest unavailable without GHCR auth
+    image: ghcr.io/spiffe/spiffe-helper:0.10.1@sha256:2402c34d83794aa24c127baa46e9732d653463f3bfcd39cda1313003ed60f8c9
     container_name: trading-helper-prometheus
     restart: unless-stopped
     network_mode: none

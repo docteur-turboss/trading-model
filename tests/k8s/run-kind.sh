@@ -536,6 +536,8 @@ alert_credentials() {
 	$K -n "$NS" create secret generic alertmanager-credentials \
 		--from-literal=SLACK_WEBHOOK_URL=http://alert-sink:8080/slack \
 		--from-literal=DEADMAN_URL=http://alert-sink:8080/deadman \
+		--from-literal=PUSHOVER_USER_KEY=kind \
+		--from-literal=PUSHOVER_TOKEN=kind \
 		--dry-run=client -o yaml | $K apply -f -
 }
 
