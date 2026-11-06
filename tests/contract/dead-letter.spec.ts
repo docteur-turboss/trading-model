@@ -141,6 +141,7 @@ describe("dead-letter contract: message-manager → dlq-service", () => {
 		const req = {
 			method: "POST",
 			path: "/dlq",
+			originalUrl: "/dlq",
 			headers,
 			body: JSON.parse(JSON.stringify(body)),
 		};

@@ -2,14 +2,16 @@
 # =============================================================================
 #  deploy-k8s.sh — Kubernetes Deployment Script for Trading Model
 #  Usage:
-#    ./deploy-k8s.sh [-n <namespace>] apply           # Apply all manifests
+#    ./deploy-k8s.sh [-n <namespace>] apply           # Apply all manifests (dev cluster only, ALLOW_DEV_APPLY=1)
 #    ./deploy-k8s.sh [-n <namespace>] apply <service> # Apply a single service
 #    ./deploy-k8s.sh [-n <namespace>] delete          # Delete all resources
 #    ./deploy-k8s.sh [-n <namespace>] status          # Show deployment status
 #    ./deploy-k8s.sh [-n <namespace>] rollback <service> [revision]
 #    ./deploy-k8s.sh [-n <namespace>] migrate-down [count|all]
 #    ./deploy-k8s.sh [-n <namespace>] canary <service> [image-tag] [percentage]
+#    ./deploy-k8s.sh [-n <namespace>] canary-all <image-tag> <percentage> <service>...
 #    ./deploy-k8s.sh [-n <namespace>] smoke-test      # Run smoke tests
+#    ./deploy-k8s.sh [-n <namespace>] verify-market-data  # Wait until the collector persists candles again (ADR-0042)
 #  Namespace: K8S_NAMESPACE env or -n/--namespace (default: trading-model)
 # =============================================================================
 
@@ -61,19 +63,38 @@ check_prereqs() {
     err "kubectl is required. Install: https://kubernetes.io/docs/tasks/tools/"
     exit 1
   fi
-  if ! kubectl cluster-info &>/dev/null; then
+  # `cluster-info` reads kube-system, which the namespaced deploy identity cannot (ADR-0041)
+  if ! kubectl auth can-i get deployments -n "$NAMESPACE" &>/dev/null; then
     err "Cannot connect to Kubernetes cluster. Check your kubeconfig."
+    exit 1
+  fi
+}
+
+# apply renders the base with :latest tags and none of the deploy.yml gates
+# (SealedSecrets, audit anchor, Object Lock, age recipients, alerting).
+# Only a local development cluster may use it, and only on request.
+require_dev_cluster() {
+  local ctx
+  ctx="$(kubectl config current-context 2>/dev/null || true)"
+  if [[ "${ALLOW_DEV_APPLY:-}" != "1" || ! "$ctx" =~ ^(kind-|k3d-|minikube$|docker-desktop$) ]]; then
+    err "apply is for local development clusters only (context '${ctx:-none}')."
+    err "Set ALLOW_DEV_APPLY=1 on a kind-*, k3d-*, minikube or docker-desktop context."
+    err "Staging and production deploy through .github/workflows/deploy.yml (docs/deployment/DEPLOY.md)."
     exit 1
   fi
 }
 
 cmd_apply() {
   local service="${1:-}"
+  require_dev_cluster
 
   if [[ -n "$service" ]]; then
     log "Applying manifests for service: $service"
-    kubectl apply -n "$NAMESPACE" -f "${K8S_DIR}/config/${service}-configmap.yaml"
-    kubectl apply -n "$NAMESPACE" -f "${K8S_DIR}/services/${service}.yaml"
+    # Rendered, not applied file by file: the Deployment reads a ConfigMap
+    # whose name carries a hash only kustomize computes (issue #410). The
+    # scraper collector reads financial-scraper-config: applied together.
+    kustomize_build "${K8S_DIR}/" |
+      kubectl apply -n "$NAMESPACE" -l "app.kubernetes.io/component in (${service},${service}-collector)" -f -
   else
     # Node agents first (SPIRE agent, SPIFFE CSI driver, promtail): the
     # workloads mount the agent socket through the CSI driver.
@@ -167,33 +188,31 @@ cmd_rollback() {
 cmd_migrate_down() {
   local count="${1:-1}"
 
-  log "Preparing database rollback (count=$count)..."
-
-  # Ensure the migration ConfigMap is up-to-date.
-  kubectl create configmap migration-files -n "$NAMESPACE" \
-    --from-file=migrate.mjs=scripts/migrate.mjs \
-    --from-file=scripts/migrations \
-    --dry-run=client -o yaml | kubectl apply -f -
-
-  # Patch ROLLBACK_COUNT into the ConfigMap.
-  if [[ "$count" == "all" ]]; then
-    kubectl create configmap migration-files -n "$NAMESPACE" \
-      --from-literal=ROLLBACK_COUNT=all \
-      --dry-run=client -o yaml | kubectl apply -f -
-  elif [[ "$count" =~ ^[0-9]+$ ]]; then
-    kubectl create configmap migration-files -n "$NAMESPACE" \
-      --from-literal=ROLLBACK_COUNT="$count" \
-      --dry-run=client -o yaml | kubectl apply -f -
-  else
+  if [[ "$count" != "all" && ! "$count" =~ ^[1-9][0-9]*$ ]]; then
     err "Invalid rollback count: $count (use a positive integer or 'all')"
     exit 1
   fi
+
+  log "Preparing database rollback (count=$count)..."
+
+  # Provision `migrator` first (after a password rotation, or on a cluster no
+  # deploy has reached yet, the rollback would fail with Access denied).
+  bash "$(dirname "${BASH_SOURCE[0]}")/run-migrations.sh" "$NAMESPACE" user-only
+
+  # The migrations come from the db-migrate image. Pin MIGRATE_IMAGE to the
+  # digest of the release whose migrations are rolled back (an older image
+  # lacks the .down.sql of newer migrations).
+  # ROLLBACK_COUNT lives in its own ConfigMap, required by the job.
+  kubectl create configmap migration-rollback -n "$NAMESPACE" \
+    --from-literal=ROLLBACK_COUNT="$count" \
+    --dry-run=client -o yaml | kubectl apply -f -
 
   # Clean up any previous down job.
   kubectl delete job -n "$NAMESPACE" db-migrate-down --ignore-not-found &>/dev/null || true
 
   log "Starting migration rollback job..."
-  kubectl apply -n "$NAMESPACE" -f "${K8S_DIR}/jobs/migration-job-down.yaml"
+  sed "s#ghcr.io/trading-model/db-migrate:latest#${MIGRATE_IMAGE:-ghcr.io/trading-model/db-migrate:latest}#" \
+    "${K8S_DIR}/jobs/migration-job-down.yaml" | kubectl apply -n "$NAMESPACE" -f -
 
   log "Waiting for migration rollback to complete..."
   if ! kubectl wait --for=condition=complete job/db-migrate-down -n "$NAMESPACE" --timeout=180s; then
@@ -210,7 +229,9 @@ cmd_migrate_down() {
 
 # Services without request metrics: their canary gate can only check readiness.
 # Declared here (comma-separated) so the exemption is explicit and logged.
-# None today: every released service exposes request metrics.
+# Set for services that get no steady traffic (dlq-service: only dead letters and
+# admin calls): "no signal" there is not a failure. Services with traffic keep the
+# rule "no signal is a failure".
 CANARY_READINESS_ONLY="${CANARY_READINESS_ONLY:-}"
 
 # Sums http_requests_total from a /metrics payload on stdin and prints
@@ -234,13 +255,17 @@ abort_canary() {
   exit 1
 }
 
-cmd_canary() {
+# True when the service's gate checks readiness only (CANARY_READINESS_ONLY).
+canary_readiness_only() {
+  [[ ",${CANARY_READINESS_ONLY// /}," == *",${1},"* ]]
+}
+
+# Creates the canary, waits for readiness and for the Service to route to it.
+# Exits (after deleting the canary) on failure: run it in a subshell to isolate.
+canary_start() {
   local service="${1:-}"
   local image_tag="${2:-}"
   local percentage="${3:-10}"
-  local gate_seconds="${CANARY_GATE_SECONDS:-120}"
-  local min_requests="${CANARY_MIN_REQUESTS:-20}"
-  local error_threshold="${CANARY_ERROR_THRESHOLD_PCT:-5}"
 
   if [[ -z "$service" ]]; then
     err "Usage: $0 canary <service> [image-tag] [percentage]"
@@ -317,48 +342,109 @@ cmd_canary() {
     abort_canary "$canary_name" "Service $service does not route to $canary_name: the canary would receive no traffic."
   fi
   log "Service $service routes to $canary_name: ${routed}/${ready} ready endpoints (~$(( routed * 100 / ready ))% of traffic)"
+}
 
-  if [[ ",${CANARY_READINESS_ONLY}," == *",${service},"* ]]; then
-    log "WARNING: $service exposes no request metrics — readiness-only gate (declared in CANARY_READINESS_ONLY), no error-rate check."
-  else
-    log "Observing $canary_name for ${gate_seconds}s (min ${min_requests} requests, max ${error_threshold}% errors)..."
-    sleep "$gate_seconds"
+# Observation gate of one started canary. Exits (after deleting the canary) on failure.
+canary_check() {
+  local service="$1"
+  local canary_name="${service}-canary"
+  local gate_seconds="${CANARY_GATE_SECONDS:-120}"
+  local min_requests="${CANARY_MIN_REQUESTS:-20}"
+  local error_threshold="${CANARY_ERROR_THRESHOLD_PCT:-5}"
 
-    local total_reqs=0 error_reqs=0 pod metrics reqs errs
-    for pod in $(kubectl get pods -n "$NAMESPACE" -l "app.kubernetes.io/component=${service},track=canary" -o name); do
-      if ! metrics=$(kubectl exec -n "$NAMESPACE" "$pod" -c "$service" -- \
-          curl -sfk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem \
-          https://localhost:3000/metrics 2>/dev/null); then
-        abort_canary "$canary_name" "Canary pod ${pod#pod/} did not serve /metrics."
-      fi
-      read -r reqs errs < <(canary_request_counts <<<"$metrics")
-      total_reqs=$(( total_reqs + reqs ))
-      error_reqs=$(( error_reqs + errs ))
-    done
-
-    log "Canary $canary_name served ${total_reqs} requests, ${error_reqs} errors (probes and scrapes excluded)."
-    # No signal is a failure: a gate that saw no traffic has verified nothing.
-    if [[ "$total_reqs" -lt "$min_requests" || "$total_reqs" -eq 0 ]]; then
-      abort_canary "$canary_name" "Canary $canary_name saw ${total_reqs} requests in ${gate_seconds}s (CANARY_MIN_REQUESTS=${min_requests}): nothing was verified. Send traffic during the gate, or tune CANARY_MIN_REQUESTS / CANARY_GATE_SECONDS for this environment."
-    fi
-    local error_pct=$(( error_reqs * 100 / total_reqs ))
-    if [[ "$error_pct" -gt "$error_threshold" ]]; then
-      abort_canary "$canary_name" "Canary $canary_name error rate ${error_pct}% exceeds threshold (${error_threshold}%). Rolling back."
-    fi
+  if canary_readiness_only "$service"; then
+    log "WARNING: $service gate is readiness-only (CANARY_READINESS_ONLY): ready and routed, no traffic or error-rate check."
+    return 0
   fi
 
+  local total_reqs=0 error_reqs=0 pod metrics reqs errs
+  for pod in $(kubectl get pods -n "$NAMESPACE" -l "app.kubernetes.io/component=${service},track=canary" -o name); do
+    if ! metrics=$(kubectl exec -n "$NAMESPACE" "$pod" -c "$service" -- \
+        curl -sfk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem \
+        https://localhost:3000/metrics 2>/dev/null); then
+      abort_canary "$canary_name" "Canary pod ${pod#pod/} did not serve /metrics."
+    fi
+    read -r reqs errs < <(canary_request_counts <<<"$metrics")
+    total_reqs=$(( total_reqs + reqs ))
+    error_reqs=$(( error_reqs + errs ))
+  done
+
+  log "Canary $canary_name served ${total_reqs} requests, ${error_reqs} errors (probes and scrapes excluded)."
+  # No signal is a failure: a gate that saw no traffic has verified nothing.
+  if [[ "$total_reqs" -lt "$min_requests" || "$total_reqs" -eq 0 ]]; then
+    abort_canary "$canary_name" "Canary $canary_name saw ${total_reqs} requests in ${gate_seconds}s (CANARY_MIN_REQUESTS=${min_requests}): nothing was verified. Send traffic during the gate, or tune CANARY_MIN_REQUESTS / CANARY_GATE_SECONDS for this environment."
+  fi
+  local error_pct=$(( error_reqs * 100 / total_reqs ))
+  if [[ "$error_pct" -gt "$error_threshold" ]]; then
+    abort_canary "$canary_name" "Canary $canary_name error rate ${error_pct}% exceeds threshold (${error_threshold}%). Rolling back."
+  fi
+}
+
+# Scales a passed canary to 0 (or removes it with canary-auto-cleanup).
+canary_finish() {
+  local canary_name="${1}-canary"
   # Scale canary to 0 after successful gate — no traffic drain needed.
   log "Scaling canary $canary_name to 0 replicas."
   kubectl scale deployment -n "$NAMESPACE" "$canary_name" --replicas=0
 
-  log "Canary $canary_name gate passed. Full rollout can proceed."
+  log "Canary $canary_name gate passed."
 
   if feature_enabled "canary-auto-cleanup"; then
     log "FEATURE_FLAGS includes canary-auto-cleanup — removing $canary_name"
     kubectl delete deployment -n "$NAMESPACE" "$canary_name" --ignore-not-found
   else
-    log "Canary $canary_name kept (scaled to 0). Remove it with: $0 canary-cleanup $service"
+    log "Canary $canary_name kept (scaled to 0). Remove it with: $0 canary-cleanup ${1}"
   fi
+}
+
+cmd_canary() {
+  local service="${1:-}"
+  canary_start "$service" "${2:-}" "${3:-10}"
+  canary_readiness_only "$service" || {
+    log "Observing ${service}-canary for ${CANARY_GATE_SECONDS:-120}s..."
+    sleep "${CANARY_GATE_SECONDS:-120}"
+  }
+  canary_check "$service"
+  canary_finish "$service"
+  log "Full rollout can proceed."
+}
+
+# All canaries created in parallel, observed over ONE CANARY_GATE_SECONDS window,
+# every failure reported, every canary removed when one fails.
+cmd_canary_all() {
+  local image_tag="${1:-}" percentage="${2:-10}"
+  shift 2 || true
+  local services=("$@")
+  if [[ "${#services[@]}" -eq 0 ]]; then
+    err "Usage: $0 canary-all <image-tag> <percentage> <service>..."
+    exit 1
+  fi
+  local svc failed=0 observe=0
+  local -A pids=()
+  for svc in "${services[@]}"; do
+    ( canary_start "$svc" "$image_tag" "$percentage" ) &
+    pids[$svc]=$!
+  done
+  for svc in "${services[@]}"; do
+    wait "${pids[$svc]}" || failed=$(( failed + 1 ))
+    canary_readiness_only "$svc" || observe=1
+  done
+  if [[ "$failed" -eq 0 && "$observe" -eq 1 ]]; then
+    log "Observing ${#services[@]} canaries for ${CANARY_GATE_SECONDS:-120}s..."
+    sleep "${CANARY_GATE_SECONDS:-120}"
+  fi
+  if [[ "$failed" -eq 0 ]]; then
+    for svc in "${services[@]}"; do
+      ( canary_check "$svc" ) || failed=$(( failed + 1 ))
+    done
+  fi
+  if [[ "$failed" -gt 0 ]]; then
+    err "$failed canary gate(s) failed: removing every canary."
+    for svc in "${services[@]}"; do cmd_canary_cleanup "$svc"; done
+    exit 1
+  fi
+  for svc in "${services[@]}"; do canary_finish "$svc"; done
+  log "All canary gates passed. Full rollout can proceed."
 }
 
 cmd_canary_cleanup() {
@@ -444,6 +530,39 @@ cmd_smoke_test() {
   fi
 }
 
+# ADR-0042: the collector is a singleton (Recreate), so a release stops
+# collection for up to terminationGracePeriodSeconds plus the startup. Success
+# is the new pod persisting candles again (fs_candles_persisted_total > 0: the
+# counter starts at 0 in a new pod, and MarketDataStale watches its increase).
+# MARKET_DATA_RECOVERY_TIMEOUT seconds (default 600); on timeout exit 1, or only
+# warn with MARKET_DATA_RECOVERY_MODE=warn.
+cmd_verify_market_data() {
+  local timeout="${MARKET_DATA_RECOVERY_TIMEOUT:-600}" mode="${MARKET_DATA_RECOVERY_MODE:-fail}"
+  local deadline=$((SECONDS + timeout)) persisted="" metrics="" last_err="no attempt made"
+  log "Waiting up to ${timeout}s for the collector to persist candles..."
+  while [[ "$SECONDS" -lt "$deadline" ]]; do
+    if metrics="$(kubectl exec -n "$NAMESPACE" deployment/financial-scraper-collector -c financial-scraper-collector --       curl -sSk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem       https://localhost:3000/metrics 2>&1)"; then
+      persisted="$(printf '%s
+' "$metrics" | awk '/^fs_candles_persisted_total/ {s += $NF} END {print s + 0}')"
+      last_err="no fs_candles_persisted_total candle yet (0 persisted)"
+    else
+      persisted=0
+      last_err="/metrics unreadable: ${metrics}"
+    fi
+    if [[ "${persisted:-0}" -gt 0 ]]; then
+      log "Collector persisted ${persisted} candle(s): market data is flowing again."
+      return 0
+    fi
+    sleep 10
+  done
+  if [[ "$mode" == "warn" ]]; then
+    echo "::warning::Collector persisted no candle within ${timeout}s after the release: ${last_err} (runbook-market-data-stale.md)"
+    return 0
+  fi
+  err "Collector persisted no candle within ${timeout}s after the release: ${last_err} (runbook-market-data-stale.md)."
+  exit 1
+}
+
 # ─── Main ─────────────────────────────────────────────────────────────────────
 
 check_prereqs
@@ -483,6 +602,10 @@ case "${1:-help}" in
   canary)
     cmd_canary "${2:-}" "${3:-}" "${4:-10}"
     ;;
+  canary-all)
+    shift
+    cmd_canary_all "$@"
+    ;;
   canary-cleanup)
     cmd_canary_cleanup "${2:-}"
     ;;
@@ -491,6 +614,9 @@ case "${1:-help}" in
     ;;
   smoke-test)
     cmd_smoke_test
+    ;;
+  verify-market-data)
+    cmd_verify_market_data
     ;;
   *)
     echo "Trading Model K8s Deploy Script"
@@ -502,9 +628,11 @@ case "${1:-help}" in
     echo "  $0 [-n namespace] rollback <srv> [rev]  Rollback deployment"
     echo "  $0 [-n namespace] migrate-down [N|all]  Rollback N DB migrations (default: 1)"
     echo "  $0 [-n namespace] canary <srv> [tag] [pct]     Canary deployment"
+    echo "  $0 [-n namespace] canary-all <tag> <pct> <srv>...  Canaries in parallel, one gate window"
     echo "  $0 [-n namespace] canary-cleanup <srv>  Remove canary deployment"
     echo "  $0 [-n namespace] pin                     Pin deployed images to digests"
     echo "  $0 [-n namespace] smoke-test            Run smoke tests"
+    echo "  $0 [-n namespace] verify-market-data    Wait for the collector to persist candles again"
     echo "Namespace defaults to trading-model (env: K8S_NAMESPACE)."
     echo "Feature flags (FEATURE_FLAGS=flag1,flag2): canary-auto-cleanup"
     exit 1

@@ -1,15 +1,20 @@
 #!/usr/bin/env bash
-# Kubernetes smoke test on kind: deploys the staging overlay the way
-# deploy.yml does (node agents, overlay, migrations) and checks the stack
-# works end to end. Used by the `k8s` CI job; runs locally too.
+# Kubernetes smoke test on kind: deploys release N-1 (the staging overlay and
+# images of an earlier commit), upgrades it to N (this checkout) through the
+# steps deploy.yml runs (deploy/k8s/scripts/deploy-release.sh: images pinned by
+# digest, migrations, rollout, smoke test), forces a failed upgrade and checks
+# the rollback, then checks the stack works end to end. Used by the `k8s` CI
+# job; runs locally too.
 #
-#   tests/k8s/run-kind.sh [all|images|cluster|deploy|smoke|verify|verify_replicas|verify_canary|verify_alerts|verify_backup|dump]
+#   tests/k8s/run-kind.sh [all|images|cluster|deploy|upgrade|smoke|verify|verify_replicas|verify_egress|verify_canary|verify_alerts|verify_backup|dump]
 #
 #   tests/k8s/run-kind.sh delete   # cluster + the images built for it
 #
 # Environment: KIND (binary, default `kind`), KIND_CLUSTER (default
-# trading-model-ci), KEEP_CLUSTER=1 (`all` keeps the cluster afterwards).
-# Needs docker, kubectl, node, jq (canary).
+# trading-model-ci), KEEP_CLUSTER=1 (`all` keeps the cluster afterwards),
+# KIND_PREVIOUS_REF (release N-1, default HEAD^1: the base branch of a PR merge
+# commit, the commit before on a push; locally e.g. origin/development).
+# Needs docker, git, kubectl, node, jq.
 #
 # `all` deletes the cluster when it ends: a forgotten cluster keeps the whole
 # staging stack (databases, Prometheus, Loki) writing into the Docker Desktop
@@ -24,8 +29,15 @@ KIND="${KIND:-kind}"
 CLUSTER="${KIND_CLUSTER:-trading-model-ci}"
 NS="trading-model-staging"
 K="kubectl --context kind-${CLUSTER}"
-API_KEY="dev-token-change-me" # staging secretGenerator (AUTH_TOKENS)
+API_KEY="dev-token-change-me" # AUTH_TOKENS test value injected by ci-render.mjs
 SERVICES="discovery-server message-manager financial-scraper trader-trainer api-gateway audit-logger dlq-service"
+# First-party images: the IMAGES of deploy.yml.
+IMAGES="$SERVICES spire-tools backup-tools db-migrate"
+PREVIOUS_REF="${KIND_PREVIOUS_REF:-HEAD^1}"
+# Release N-1 checkout, image digests, recorded revisions: kept between the
+# steps of the CI job, removed by `delete`.
+WORK="$(dirname "$ROOT")/.kind-${CLUSTER}"
+PREVIOUS="$WORK/previous"
 export COMPOSE_PROJECT_NAME="tmk8s"
 export MYSQL_ROOT_PASSWORD="${MYSQL_ROOT_PASSWORD:-kind-ci}"
 
@@ -48,17 +60,68 @@ wait_for() {
 	done
 }
 
-images() {
-	log "building the service images and spire-tools"
+# Builds the 10 images of the checkout `$1` as ghcr.io/trading-model/<image>:$2.
+build_images() {
+	local root="$1" tag="$2" svc
 	# shellcheck disable=SC2086
-	docker compose -f "$ROOT/docker-compose.yml" build $SERVICES spire-bootstrap
-	docker build -q -t ghcr.io/trading-model/backup-tools:latest "$ROOT/deploy/backup"
-	local images="ghcr.io/trading-model/spire-tools:latest ghcr.io/trading-model/backup-tools:latest"
-	docker tag "${COMPOSE_PROJECT_NAME}-spire-bootstrap" "ghcr.io/trading-model/spire-tools:latest"
+	docker compose -f "$root/docker-compose.yml" build $SERVICES spire-bootstrap
+	docker build -q -t "ghcr.io/trading-model/backup-tools:$tag" "$root/deploy/backup"
+	# N-1 may predate the image: its digest entry is a stand-in built from this checkout.
+	local mroot="$root"
+	[ -f "$root/deploy/migrate/Dockerfile" ] || mroot="$ROOT"
+	docker build -q -t "ghcr.io/trading-model/db-migrate:$tag" -f "$mroot/deploy/migrate/Dockerfile" "$mroot"
+	docker tag "${COMPOSE_PROJECT_NAME}-spire-bootstrap" "ghcr.io/trading-model/spire-tools:$tag"
 	for svc in $SERVICES; do
-		docker tag "${COMPOSE_PROJECT_NAME}-${svc}" "ghcr.io/trading-model/${svc}:latest"
-		images="$images ghcr.io/trading-model/${svc}:latest"
+		docker tag "${COMPOSE_PROJECT_NAME}-${svc}" "ghcr.io/trading-model/${svc}:$tag"
 	done
+}
+
+# Release N-1: a worktree of $PREVIOUS_REF. Its service config gets one extra
+# key, so that every hashed ConfigMap of N-1 differs from N's and the rollback
+# check proves the configuration came back, not only the images.
+previous_checkout() {
+	git -C "$ROOT" worktree remove --force "$PREVIOUS" >/dev/null 2>&1 || rm -rf "$PREVIOUS"
+	mkdir -p "$WORK"
+	git -C "$ROOT" worktree add --detach "$PREVIOUS" "$PREVIOUS_REF" >/dev/null
+	local file
+	for file in "$PREVIOUS"/deploy/k8s/config/*.properties; do
+		printf '\nKIND_RELEASE_MARKER=previous\n' >>"$file"
+	done
+	log "release N-1: $PREVIOUS_REF = $(git -C "$PREVIOUS" log -1 --format='%h %s')"
+}
+
+# "<image> <digest>" of the images tagged `$1` in the kind node, as deploy.yml
+# resolves them in the registry. `kind load` imports images under their tag
+# only: a reference by digest is added, so pods pinned by digest find them.
+node_digests() {
+	local node="${CLUSTER}-control-plane" img ref digest
+	for img in $IMAGES; do
+		ref="ghcr.io/trading-model/$img"
+		digest="$(docker exec "$node" ctr -n k8s.io images ls "name==$ref:$1" | awk 'NR == 2 {print $3}')"
+		[ -n "$digest" ] || {
+			log "$ref:$1 is not in the kind node"
+			return 1
+		}
+		docker exec "$node" ctr -n k8s.io images tag --force "$ref:$1" "$ref@$digest" >/dev/null
+		echo "$img $digest"
+	done
+}
+
+images() {
+	local started=$SECONDS img
+	previous_checkout
+	log "building the images of release N-1"
+	build_images "$PREVIOUS" previous
+	# Same sources build the same image: a label keeps N-1 digests apart from N.
+	for img in $IMAGES; do
+		echo "FROM ghcr.io/trading-model/$img:previous" |
+			docker build -q --label trading-model.kind-release=previous -t "ghcr.io/trading-model/$img:previous" - >/dev/null
+	done
+	log "  release N-1 images built in $((SECONDS - started)) s"
+	log "building the images of release N (this checkout)"
+	build_images "$ROOT" latest
+	local images=""
+	for img in $IMAGES; do images="$images ghcr.io/trading-model/$img:latest ghcr.io/trading-model/$img:previous"; done
 	log "loading the images into kind"
 	# shellcheck disable=SC2086
 	if ! "$KIND" load docker-image --name "$CLUSTER" $images; then
@@ -71,6 +134,8 @@ images() {
 		"$KIND" load image-archive --name "$CLUSTER" "$archive"
 		rm -f "$archive"
 	fi
+	node_digests previous >"$WORK/digests-previous"
+	node_digests latest >"$WORK/digests-current"
 }
 
 cluster() {
@@ -81,27 +146,45 @@ cluster() {
 	fi
 }
 
+# deploy-release.sh (the release steps of deploy.yml) against the kind cluster.
+release_script() {
+	(cd "$ROOT" && kubectl config use-context "kind-${CLUSTER}" >/dev/null &&
+		bash deploy/k8s/scripts/deploy-release.sh "$@")
+}
+
+# The migrations of the checkout `$1`, through its own run-migrations.sh.
+migrations() {
+	(cd "$1" && kubectl config use-context "kind-${CLUSTER}" >/dev/null &&
+		SEED_MIGRATE_PASSWORD=true bash deploy/k8s/scripts/run-migrations.sh "$NS")
+}
+
+# The overlay of the checkout `$1`, pinned to the digests of file `$2` as
+# deploy.yml's "Apply overlay", adapted to kind by ci-render.mjs.
+apply_release() {
+	release_script render "$1/deploy/k8s/overlays/staging" ghcr.io/trading-model "$2" |
+		node "$ROOT/tests/k8s/ci-render.mjs" | $K apply -f -
+}
+
+# First deploy of release N-1, as deploy.yml on an empty cluster.
 deploy() {
-	log "node agents (SPIRE agent, SPIFFE CSI driver, promtail)"
-	$K kustomize "$ROOT/deploy/k8s/overlays/staging/node-agents" | $K apply -f -
+	log "release N-1: node agents (SPIRE agent, SPIFFE CSI driver, promtail)"
+	$K kustomize "$PREVIOUS/deploy/k8s/overlays/staging/node-agents" | $K apply -f -
 	$K apply -f "$ROOT/tests/k8s/kind-fixtures.yaml"
 
 	# As deploy.yml: the receivers exist before Alertmanager starts, or its
 	# failed notifications fire AlertmanagerNotificationsFailing.
 	alert_credentials
 
-	log "staging overlay"
-	$K kustomize --load-restrictor LoadRestrictionsNone "$ROOT/deploy/k8s/overlays/staging" |
-		node "$ROOT/tests/k8s/ci-render.mjs" | $K apply -f -
+	log "release N-1: staging overlay, images pinned by digest"
+	apply_release "$PREVIOUS" "$WORK/digests-previous"
 	$K -n "$NS" create configmap binance-stub \
 		--from-file=server.mjs="$ROOT/tests/e2e/binance-stub/server.mjs" \
 		--dry-run=client -o yaml | $K apply -f -
 	$K -n "$NS" apply -f "$ROOT/tests/k8s/binance-stub.yaml"
 
-	log "waiting for MySQL, then applying the migrations"
+	log "waiting for MySQL, then applying the migrations of release N-1"
 	$K -n "$NS" rollout status statefulset/mysql --timeout=600s
-	(cd "$ROOT" && kubectl config use-context "kind-${CLUSTER}" >/dev/null &&
-		bash deploy/k8s/scripts/run-migrations.sh "$NS")
+	migrations "$PREVIOUS"
 
 	log "waiting for every workload"
 	for workload in $($K -n "$NS" get deployment,statefulset -o name); do
@@ -110,6 +193,130 @@ deploy() {
 	for workload in $($K -n trading-model-node get daemonset -o name); do
 		$K -n trading-model-node rollout status "$workload" --timeout=300s
 	done
+}
+
+# Applied migrations: "<id> <checksum>" per line.
+applied_migrations() {
+	mysql_root "SELECT id, checksum FROM financial_scraper._migrations ORDER BY id"
+}
+
+# Pod template of every Deployment (images, hashed ConfigMaps), one JSON line each.
+templates() {
+	local dep
+	for dep in $(release_script deployments); do
+		echo "$dep $($K -n "$NS" get deployment "$dep" -o json | jq -cS .spec.template)"
+	done
+}
+
+# One release attempt in the order of deploy.yml: migrations, revisions
+# recorded, replicas released, overlay of this checkout pinned to the digests
+# of `$1`, rollout, smoke test.
+release() {
+	migrations "$ROOT" || return 1
+	release_script record "$NS" "$WORK/revisions" || return 1
+	release_script release-replicas "$NS" || return 1
+	apply_release "$ROOT" "$1" || return 1
+	release_script wait "$NS" || return 1
+	deploy_script smoke-test
+}
+
+# Upgrade N-1 to N the way deploy.yml does it (issue #413):
+#   1. a failed upgrade (api-gateway pinned to a digest no registry has: its
+#      rollout never completes) and "Rollback on failure"; every Deployment
+#      must be back on its N-1 pod template (N-1 image digests and hashed
+#      ConfigMaps), the N-1 migrations still applied (ADR-0040: N-1 runs on
+#      schema N, a rollback never runs `down`);
+#   2. `deploy-k8s.sh migrate-down 1` then the migrations again;
+#   3. the upgrade to N, which must pass the smoke test.
+upgrade() {
+	local started=$SECONDS before_templates before_migrations
+	before_templates="$(templates)"
+	before_migrations="$(applied_migrations)"
+	[ -n "$before_migrations" ] || {
+		log "release N-1 applied no migration"
+		return 1
+	}
+
+	log "upgrade N-1 → N with a forced failure: api-gateway pinned to a digest that does not exist"
+	sed 's/^api-gateway .*/api-gateway sha256:0000000000000000000000000000000000000000000000000000000000000000/' \
+		"$WORK/digests-current" >"$WORK/digests-broken"
+	if release "$WORK/digests-broken"; then
+		log "an upgrade whose api-gateway image does not exist passed"
+		return 1
+	fi
+	log "  the upgrade failed: rollback on failure (deploy-release.sh rollback)"
+	release_script rollback "$NS" "$WORK/revisions"
+	release_script wait "$NS" 300s
+
+	local dep template expected
+	while read -r dep template; do
+		expected="$(echo "$before_templates" | sed -n "s/^$dep //p")"
+		[ "$template" = "$expected" ] || {
+			log "$dep is not back on its N-1 pod template after the rollback"
+			diff <(echo "$expected" | jq .) <(echo "$template" | jq .) || true
+			return 1
+		}
+	done < <(templates)
+	local image name digest
+	for image in $(templates | cut -d' ' -f2- | jq -r '(.spec.initContainers // []) + .spec.containers | .[].image' |
+		grep '^ghcr.io/trading-model/' | sort -u); do
+		name="${image#ghcr.io/trading-model/}"
+		digest="${name#*@}"
+		name="${name%@*}"
+		grep -qx "$name $digest" "$WORK/digests-previous" || {
+			log "image $image is not the N-1 digest of $name"
+			return 1
+		}
+	done
+	# Every ConfigMap the templates read still exists, and at least one carries
+	# the marker previous_checkout added to N-1's config (the byte-for-byte
+	# template check above already pins every hashed ConfigMap name to N-1's).
+	local config marked=0
+	for config in $(templates | cut -d' ' -f2- | jq -r '.. | objects | (.configMapRef, .configMap) | objects | .name' | sort -u); do
+		$K -n "$NS" get configmap "$config" >/dev/null || {
+			log "ConfigMap $config of release N-1 is gone"
+			return 1
+		}
+		[ "$($K -n "$NS" get configmap "$config" -o jsonpath='{.data.KIND_RELEASE_MARKER}')" != previous ] ||
+			marked=$((marked + 1))
+	done
+	[ "$marked" -gt 0 ] || {
+		log "no ConfigMap the Deployments read carries the N-1 marker: the configuration is not N-1's"
+		return 1
+	}
+	local missing
+	missing="$(comm -23 <(echo "$before_migrations" | sort) <(applied_migrations | sort))"
+	[ -z "$missing" ] || {
+		log "migrations of release N-1 no longer applied after the rollback: $missing"
+		return 1
+	}
+	deploy_script smoke-test
+	log "  rollback: every Deployment back on its N-1 pod template (image digests, $marked N-1 ConfigMaps), N-1 migrations applied"
+
+	log "migrate-down 1, then the migrations again"
+	local applied last
+	applied="$(applied_migrations)"
+	last="$(echo "$applied" | tail -1 | cut -f1)"
+	deploy_script migrate-down 1
+	[ "$(applied_migrations)" = "$(echo "$applied" | sed '$d')" ] || {
+		log "migrate-down 1 did not undo exactly $last: $(applied_migrations | cut -f1 | tr '\n' ' ')"
+		return 1
+	}
+	migrations "$ROOT"
+	[ "$(applied_migrations)" = "$applied" ] || {
+		log "the migrations after migrate-down 1 differ from before: $(applied_migrations | cut -f1 | tr '\n' ' ')"
+		return 1
+	}
+	log "  $last rolled back and applied again, same checksums"
+
+	log "upgrade N-1 → N"
+	release "$WORK/digests-current" || {
+		log "the upgrade to release N failed"
+		return 1
+	}
+	log "OK: upgrade N-1 → N, forced failure and rollback, migrate-down 1 and up in $((SECONDS - started)) s"
+	[ -z "${GITHUB_STEP_SUMMARY:-}" ] ||
+		echo "Upgrade N-1 → N with forced failure and rollback: $((SECONDS - started)) s" >>"$GITHUB_STEP_SUMMARY"
 }
 
 mysql_count() {
@@ -147,6 +354,7 @@ verify() {
 	log "  candles=$(mysql_count market_candles) trades=$(mysql_count market_trades)"
 
 	verify_replicas
+	verify_egress
 
 	log "external path: edge-proxy → api-gateway → discovery"
 	$K -n "$NS" port-forward svc/edge-proxy 18449:8080 >/dev/null 2>&1 &
@@ -171,6 +379,24 @@ verify() {
 	verify_backup
 
 	log "OK: the staging overlay works on Kubernetes"
+}
+
+# ci-render.mjs drops every internet egress rule: kind must enforce the
+# NetworkPolicies for that to block anything (kindnet does since kind v0.24).
+# Control: a pod of a namespace without policy reaches the same URL.
+verify_egress() {
+	local url="https://example.com"
+	log "internet egress: refused to the collector, allowed without policy"
+	$K run egress-control -n default --rm -i --restart=Never --quiet \
+		--image=curlimages/curl:8.11.1 -- curl -s -o /dev/null -m 10 "$url" || {
+		log "  the control pod has no internet: the check proves nothing"
+		return 1
+	}
+	if $K -n "$NS" exec deploy/financial-scraper-collector -c financial-scraper-collector -- \
+		node -e "fetch('$url',{signal:AbortSignal.timeout(5000)}).then(()=>process.exit(0),()=>process.exit(1))"; then
+		log "  the collector reached $url: NetworkPolicy not enforced"
+		return 1
+	fi
 }
 
 # Production runs message-manager and discovery with 3 replicas (staging: 1).
@@ -755,10 +981,13 @@ delete() {
 	"$KIND" delete cluster --name "$CLUSTER" || true
 	# shellcheck disable=SC2086
 	docker compose -f "$ROOT/docker-compose.yml" down --rmi local --volumes --remove-orphans >/dev/null 2>&1 || true
-	local images="ghcr.io/trading-model/spire-tools:latest ghcr.io/trading-model/backup-tools:latest"
-	for svc in $SERVICES; do images="$images ghcr.io/trading-model/${svc}:latest"; done
+	local images="" img
+	for img in $IMAGES; do images="$images ghcr.io/trading-model/$img:latest ghcr.io/trading-model/$img:previous"; done
 	# shellcheck disable=SC2086
 	docker rmi $images >/dev/null 2>&1 || true
+	git -C "$ROOT" worktree remove --force "$PREVIOUS" >/dev/null 2>&1 || true
+	rm -rf "$WORK"
+	git -C "$ROOT" worktree prune || true
 }
 
 dump() {
@@ -821,13 +1050,14 @@ all)
 	cluster
 	images
 	deploy
+	upgrade
 	smoke
 	verify
 	verify_canary
 	;;
-images | cluster | deploy | smoke | verify | verify_replicas | verify_canary | verify_alerts | verify_backup | dump | delete) "$1" ;;
+images | cluster | deploy | upgrade | smoke | verify | verify_replicas | verify_egress | verify_canary | verify_alerts | verify_backup | dump | delete) "$1" ;;
 *)
-	echo "usage: $0 [all|images|cluster|deploy|smoke|verify|verify_replicas|verify_canary|verify_alerts|verify_backup|dump|delete]" >&2
+	echo "usage: $0 [all|images|cluster|deploy|upgrade|smoke|verify|verify_replicas|verify_egress|verify_canary|verify_alerts|verify_backup|dump|delete]" >&2
 	exit 64
 	;;
 esac

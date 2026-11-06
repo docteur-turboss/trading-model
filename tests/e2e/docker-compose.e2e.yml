@@ -28,6 +28,8 @@ services:
       BINANCE_BASE_URL: http://binance-stub:8080
       SYMBOLS_TO_TRACK: BTCUSDT,ETHUSDT
       SCRAPE_INTERVAL: '*/10 * * * * *'
+      # The signal registry sources are real public APIs: CI never calls them.
+      SIGNAL_COLLECTION_ENABLED: 'false'
     depends_on:
       binance-stub:
         condition: service_healthy

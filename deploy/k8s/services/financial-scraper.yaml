@@ -21,7 +21,6 @@ metadata:
     app.kubernetes.io/component: financial-scraper
     app.kubernetes.io/part-of: trading-model
 spec:
-  replicas: 2
   strategy:
     rollingUpdate:
       maxUnavailable: 1
@@ -294,6 +293,15 @@ spec:
                   key: MYSQL_PASSWORD
             - name: ERROR_URL_WEBHOOK
               value: ""
+            # Contact e-mail of the signal sources (ADR-0036), written by
+            # deploy.yml from the GitHub secret SIGNAL_CONTACT_EMAIL: never in
+            # the public repository. Absent: no contact (SEC EDGAR 403).
+            - name: SIGNAL_CONTACT_EMAIL
+              valueFrom:
+                configMapKeyRef:
+                  name: signal-contact
+                  key: SIGNAL_CONTACT_EMAIL
+                  optional: true
           resources:
             requests:
               cpu: 100m

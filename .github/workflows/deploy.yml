@@ -76,7 +76,7 @@ permissions:
 env:
   IMAGES: >-
     discovery-server message-manager financial-scraper trader-trainer
-    api-gateway audit-logger dlq-service spire-tools backup-tools
+    api-gateway audit-logger dlq-service spire-tools backup-tools db-migrate
 
 concurrency:
   group: deploy-${{ inputs.environment }}
@@ -87,7 +87,40 @@ jobs:
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
     steps:
+      # Manifests, node agents and migrations come from the released tag, not
+      # from the branch picked at dispatch: production only deploys a vX.Y.Z
+      # release (refused here, before the cluster is reached). A tag older
+      # than a script this workflow calls fails the deploy, on purpose.
+      - name: Resolve release ref
+        id: ref
+        shell: bash
+        env:
+          ENV: ${{ inputs.environment }}
+          TAG: ${{ inputs.image_tag }}
+        run: |
+          if [[ "$TAG" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "ref=refs/tags/v${TAG#v}" >> "$GITHUB_OUTPUT"
+            echo "Checking out refs/tags/v${TAG#v}"
+            exit 0
+          fi
+          if [ "$ENV" = "production" ]; then
+            echo "::error::production deploys a release only: image_tag must be vX.Y.Z or X.Y.Z, got '$TAG'"
+            exit 1
+          fi
+          echo "::warning::image_tag '$TAG' is not a release: manifests and migrations come from the dispatch ref $GITHUB_REF, not from the image's release"
+
+      # Empty ref (non-release staging deploy): the dispatch ref.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ steps.ref.outputs.ref }}
+
+      - name: Show deployed commit
+        id: src
+        shell: bash
+        run: |
+          sha=$(git rev-parse HEAD)
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          echo "Manifests and migrations from $sha"
 
       - name: Resolve namespace
         id: ns
@@ -108,12 +141,13 @@ jobs:
         env:
           SLACK: ${{ secrets.ALERTMANAGER_SLACK_WEBHOOK_URL }}
           DEADMAN: ${{ secrets.ALERTMANAGER_DEADMAN_URL }}
-          PAGERDUTY: ${{ secrets.ALERTMANAGER_PAGERDUTY_ROUTING_KEY }}
+          PUSHOVER_USER: ${{ secrets.ALERTMANAGER_PUSHOVER_USER_KEY }}
+          PUSHOVER_TOKEN: ${{ secrets.ALERTMANAGER_PUSHOVER_TOKEN }}
         run: |
           missing=""
           [ -n "$SLACK" ] || missing="$missing ALERTMANAGER_SLACK_WEBHOOK_URL"
           [ -n "$DEADMAN" ] || missing="$missing ALERTMANAGER_DEADMAN_URL"
-          [ -n "$PAGERDUTY" ] || echo "::warning::ALERTMANAGER_PAGERDUTY_ROUTING_KEY is not set: critical alerts go to Slack only"
+          [ -n "$PUSHOVER_USER" ] && [ -n "$PUSHOVER_TOKEN" ] || echo "::warning::ALERTMANAGER_PUSHOVER_USER_KEY / ALERTMANAGER_PUSHOVER_TOKEN not set: critical alerts go to Slack only"
           if [ -n "$missing" ]; then
             if [ "${{ inputs.environment }}" = "production" ]; then
               echo "::error::Missing GitHub environment secrets:${missing}. Alerts would reach nobody (observability/alertmanager.yml)."
@@ -127,35 +161,34 @@ jobs:
         with:
           version: 'stable'
 
-      - name: Configure kubeconfig (staging)
-        if: inputs.environment == 'staging'
+      # Two identities (ADR-0041, scripts/deploy-identity.sh): `app` (default
+      # kubeconfig) is limited to the application namespace; `cluster`
+      # (CLUSTER_KUBECONFIG) is used by the cluster-scope steps only. Both are
+      # base64 kubeconfigs with a bounded token.
+      - name: Configure kubeconfigs
         shell: bash
         env:
-          KUBECONFIG_CONTENT: ${{ secrets.KUBECONFIG_STAGING }}
+          ENV: ${{ inputs.environment }}
+          NS: ${{ steps.ns.outputs.namespace }}
+          APP_KUBECONFIG: ${{ inputs.environment == 'production' && secrets.KUBECONFIG_PRODUCTION_APP || secrets.KUBECONFIG_STAGING_APP }}
+          CLUSTER_KUBECONFIG_CONTENT: ${{ inputs.environment == 'production' && secrets.KUBECONFIG_PRODUCTION_CLUSTER || secrets.KUBECONFIG_STAGING_CLUSTER }}
         run: |
-          if [ -z "$KUBECONFIG_CONTENT" ]; then
-            echo "::error::Missing secret KUBECONFIG_STAGING"
-            exit 1
-          fi
+          upper="${ENV^^}"
+          for v in APP CLUSTER; do
+            content="APP_KUBECONFIG"; [ "$v" = CLUSTER ] && content="CLUSTER_KUBECONFIG_CONTENT"
+            if [ -z "${!content}" ]; then
+              echo "::error::Missing secret KUBECONFIG_${upper}_$v (bash scripts/deploy-identity.sh ${v,,}, docs/deployment/DEPLOY.md)"
+              exit 1
+            fi
+          done
+          umask 077
           mkdir -p "$HOME/.kube"
-          echo "$KUBECONFIG_CONTENT" | base64 -d > "$HOME/.kube/config"
-          chmod 600 "$HOME/.kube/config"
-          kubectl cluster-info
-
-      - name: Configure kubeconfig (production)
-        if: inputs.environment == 'production'
-        shell: bash
-        env:
-          KUBECONFIG_CONTENT: ${{ secrets.KUBECONFIG_PRODUCTION }}
-        run: |
-          if [ -z "$KUBECONFIG_CONTENT" ]; then
-            echo "::error::Missing secret KUBECONFIG_PRODUCTION"
-            exit 1
-          fi
-          mkdir -p "$HOME/.kube"
-          echo "$KUBECONFIG_CONTENT" | base64 -d > "$HOME/.kube/config"
-          chmod 600 "$HOME/.kube/config"
-          kubectl cluster-info
+          echo "$APP_KUBECONFIG" | base64 -d > "$HOME/.kube/config"
+          echo "$CLUSTER_KUBECONFIG_CONTENT" | base64 -d > "$HOME/.kube/cluster"
+          echo "CLUSTER_KUBECONFIG=$HOME/.kube/cluster" >> "$GITHUB_ENV"
+          # cluster-info reads kube-system, which neither identity may.
+          kubectl auth can-i get deployments -n "$NS"
+          KUBECONFIG="$HOME/.kube/cluster" kubectl auth can-i get namespaces
 
       # release.yml pushes v1.2.3 as :1.2.3; the git tag form is accepted too.
       - name: Resolve image tag
@@ -185,6 +218,20 @@ jobs:
             echo "registry=${REGISTRY,,}"
           } >> "$GITHUB_OUTPUT"
           echo "Deploying tag: $TAG (version: $VERSION) from ${REGISTRY,,} to $ENV"
+
+      # Deploy events in the alert channel (issue #435). The webhook stays in env:
+      # never in the command line or the log; curl output is discarded.
+      - name: Notify deployment start
+        if: ${{ always() && steps.tag.outcome == 'success' }}
+        shell: bash
+        env:
+          SLACK: ${{ secrets.ALERTMANAGER_SLACK_WEBHOOK_URL }}
+          EVENT: started
+          DEPLOY_ENV: ${{ inputs.environment }}
+          VERSION: ${{ steps.tag.outputs.version }}
+          SHA: ${{ steps.src.outputs.sha }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: bash deploy/k8s/scripts/notify-slack.sh
 
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
@@ -217,6 +264,30 @@ jobs:
             exit 1
           fi
 
+      # Only digests signed by release.yml of this repository (keyless, ADR-0038)
+      # are deployed. Tags published before the signature existed fail here.
+      - name: Install cosign
+        uses: sigstore/cosign-installer@756fe2d284c7292c4e9b62c8a28f1e5629c59532 # v4.1.3
+
+      - name: Verify image signatures
+        shell: bash
+        env:
+          REGISTRY: ${{ steps.tag.outputs.registry }}
+          REPO: ${{ github.repository }}
+        run: |
+          failed=""
+          while read -r img digest; do
+            if ! cosign verify "$REGISTRY/$img@$digest" \
+              --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+              --certificate-identity-regexp "^https://github\.com/${REPO}/\.github/workflows/release\.yml@refs/tags/v" >/dev/null; then
+              failed="$failed $img"
+            fi
+          done < "$RUNNER_TEMP/image-digests"
+          if [ -n "$failed" ]; then
+            echo "::error::No valid release.yml signature for:$failed"
+            exit 1
+          fi
+
       # Production reads its secrets from SealedSecrets: without the controller
       # the apply stops half way (unknown kind), and a placeholder never
       # decrypts, so every pod waits on a missing Secret. Checked before
@@ -230,14 +301,14 @@ jobs:
             echo "$ENV uses no SealedSecret"
             exit 0
           fi
-          if ! kubectl get crd sealedsecrets.bitnami.com >/dev/null 2>&1; then
+          if ! KUBECONFIG="$CLUSTER_KUBECONFIG" kubectl get crd sealedsecrets.bitnami.com >/dev/null 2>&1; then
             echo "::error::The cluster has no SealedSecret CRD: install the Sealed Secrets controller (docs/deployment/sealed-secrets.md)"
             exit 1
           fi
           # ADR-0035: the controller runs in its own namespace, so that the
           # identity of the daily key backup reads its keys only, not every
           # Secret of kube-system.
-          if ! kubectl -n sealed-secrets get deployment sealed-secrets-controller >/dev/null 2>&1; then
+          if ! KUBECONFIG="$CLUSTER_KUBECONFIG" kubectl -n sealed-secrets get deployment sealed-secrets-controller >/dev/null 2>&1; then
             echo "::error::No Sealed Secrets controller in the namespace sealed-secrets: install it with bash scripts/install-sealed-secrets.sh, or move it out of kube-system (docs/deployment/sealed-secrets.md, ADR-0035)"
             exit 1
           fi
@@ -246,12 +317,43 @@ jobs:
             exit 1
           fi
 
+      # The Ingress hosts ship as example.com placeholders (issue #415): in
+      # production they would leave the API unreachable from outside while
+      # cert-manager keeps failing Let's Encrypt orders (rate limits). Checked
+      # before anything is applied; staging only warns.
+      - name: Check ingress hosts
+        shell: bash
+        run: |
+          ENV="${{ inputs.environment }}"
+          rendered=$(kubectl kustomize --load-restrictor LoadRestrictionsNone "deploy/k8s/overlays/$ENV")
+          hosts=$(grep -oE '[A-Za-z0-9.-]*example\.com' <<<"$rendered" | sort -u | tr '\n' ' ' || true)
+          if [ -z "$hosts" ]; then
+            echo "$ENV Ingress hosts are set"
+          elif [ "$ENV" = "production" ]; then
+            echo "::error::production Ingress hosts are still placeholders ($hosts): set the real names in deploy/k8s/overlays/production/ingress-hosts.yaml (docs/deployment/KUBERNETES.md, \"Set the Ingress hosts\")"
+            exit 1
+          else
+            echo "::warning::$ENV Ingress hosts are still placeholders ($hosts): set the real names in deploy/k8s/overlays/$ENV/ingress-hosts.yaml"
+          fi
+
       # Anchor store of the audit chain (ADR-0027): an S3 bucket with Object
       # Lock (compliance mode), its own write-only credentials, not the backup
       # ones. Bucket, region and endpoint are variables of the GitHub
       # environment, the credentials secrets. Production refuses to start
       # audit-logger without it (AUDIT_ANCHOR_REQUIRED): checked here, before
       # anything is applied. Unset elsewhere: the chain is verified only.
+      # Namespace and the other cluster-scope objects of the overlay (the
+      # ClusterRoles of the SPIRE server): the cluster identity applies them,
+      # the application identity applies the rest ("Apply overlay").
+      - name: Apply cluster-scope objects
+        shell: bash
+        run: |
+          NS="${{ steps.ns.outputs.namespace }}"
+          export KUBECONFIG="$CLUSTER_KUBECONFIG"
+          kubectl get namespace "$NS" >/dev/null 2>&1 || kubectl create namespace "$NS"
+          kubectl kustomize --load-restrictor LoadRestrictionsNone "deploy/k8s/overlays/${{ inputs.environment }}" |
+            bash scripts/split-cluster-scope.sh cluster | kubectl apply -f -
+
       - name: Configure audit chain anchor store
         shell: bash
         env:
@@ -277,7 +379,6 @@ jobs:
             echo "::error::AUDIT_ANCHOR_BUCKET is set but AUDIT_ANCHOR_ACCESS_KEY_ID / AUDIT_ANCHOR_SECRET_ACCESS_KEY are not"
             exit 1
           fi
-          kubectl get namespace "$NS" >/dev/null 2>&1 || kubectl create namespace "$NS"
           # An empty endpoint would override the SDK default (AWS): left out.
           endpoint=()
           [ -z "$AUDIT_ANCHOR_ENDPOINT" ] || endpoint=(--from-literal=AUDIT_ANCHOR_ENDPOINT="$AUDIT_ANCHOR_ENDPOINT")
@@ -375,28 +476,63 @@ jobs:
         env:
           SLACK: ${{ secrets.ALERTMANAGER_SLACK_WEBHOOK_URL }}
           DEADMAN: ${{ secrets.ALERTMANAGER_DEADMAN_URL }}
-          PAGERDUTY: ${{ secrets.ALERTMANAGER_PAGERDUTY_ROUTING_KEY }}
+          PUSHOVER_USER: ${{ secrets.ALERTMANAGER_PUSHOVER_USER_KEY }}
+          PUSHOVER_TOKEN: ${{ secrets.ALERTMANAGER_PUSHOVER_TOKEN }}
         run: |
           NS="${{ steps.ns.outputs.namespace }}"
           keys=()
           [ -z "$SLACK" ] || keys+=(--from-literal=SLACK_WEBHOOK_URL="$SLACK")
           [ -z "$DEADMAN" ] || keys+=(--from-literal=DEADMAN_URL="$DEADMAN")
-          [ -z "$PAGERDUTY" ] || keys+=(--from-literal=PAGERDUTY_ROUTING_KEY="$PAGERDUTY")
+          [ -z "$PUSHOVER_USER" ] || keys+=(--from-literal=PUSHOVER_USER_KEY="$PUSHOVER_USER")
+          [ -z "$PUSHOVER_TOKEN" ] || keys+=(--from-literal=PUSHOVER_TOKEN="$PUSHOVER_TOKEN")
           if [ "${#keys[@]}" -eq 0 ]; then
             echo "::warning::No alert notification secret set: alertmanager-credentials left as it is"
             exit 0
           fi
           # Before the overlay: an Alertmanager started without them counts
           # failed notifications, and AlertmanagerNotificationsFailing fires.
-          kubectl get namespace "$NS" >/dev/null 2>&1 || kubectl create namespace "$NS"
           kubectl -n "$NS" create secret generic alertmanager-credentials "${keys[@]}"             --dry-run=client -o yaml | kubectl apply -f -
+
+      # Contact e-mail sent in the User-Agent of the signal sources (ADR-0036;
+      # SEC EDGAR answers 403 without one). A secret of the GitHub environment:
+      # the repository and its run logs are public. Before the overlay, so the
+      # collector starts with it. Unset: the ConfigMap is left as it is.
+      - name: Configure signal sources contact
+        shell: bash
+        env:
+          SIGNAL_CONTACT_EMAIL: ${{ secrets.SIGNAL_CONTACT_EMAIL }}
+        run: |
+          NS="${{ steps.ns.outputs.namespace }}"
+          if [ -z "$SIGNAL_CONTACT_EMAIL" ]; then
+            echo "::warning::SIGNAL_CONTACT_EMAIL is not set for ${{ inputs.environment }}: SEC EDGAR refuses the signal collector"
+            exit 0
+          fi
+          kubectl -n "$NS" create configmap signal-contact \
+            --from-literal=SIGNAL_CONTACT_EMAIL="$SIGNAL_CONTACT_EMAIL" \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      # CRDs of non-native kinds (VPA, SealedSecret...), StorageClasses,
+      # IngressClasses and the cert-manager ClusterIssuer come from the render
+      # itself. Missing ones stop the deploy here, not half way through the
+      # apply (issue #419).
+      # Reads CRDs, StorageClasses, IngressClasses, ClusterIssuers: cluster identity (ADR-0041).
+      - name: Check cluster prerequisites
+        shell: bash
+        run: |
+          ENV="${{ inputs.environment }}"
+          {
+            kubectl kustomize --load-restrictor LoadRestrictionsNone "deploy/k8s/overlays/$ENV"
+            echo ---
+            kubectl kustomize "deploy/k8s/overlays/$ENV/node-agents"
+          } | KUBECONFIG="$CLUSTER_KUBECONFIG" bash deploy/k8s/scripts/check-prereqs.sh
 
       # SPIRE agent + SPIFFE CSI driver, in the privileged trading-model-node
       # namespace: the application namespace (restricted) cannot host them.
       - name: Apply SPIFFE node components
         shell: bash
         run: |
-          kubectl kustomize "deploy/k8s/overlays/${{ inputs.environment }}/node-agents" | kubectl apply -f -
+          kubectl kustomize "deploy/k8s/overlays/${{ inputs.environment }}/node-agents" |
+            KUBECONFIG="$CLUSTER_KUBECONFIG" kubectl apply -f -
 
       # Migrations must run before the new image rolls out. On a first deploy
       # MySQL does not exist yet: they run right after the overlay instead.
@@ -410,7 +546,14 @@ jobs:
             echo "deferred=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          bash deploy/k8s/scripts/run-migrations.sh "$NS"
+          # The migrations job runs the released db-migrate image, by digest.
+          digest=$(awk '$1 == "db-migrate" { print $2 }' "$RUNNER_TEMP/image-digests")
+          # Both environments are served by a SealedSecret (issue #417): applied before the
+          # migrations when MYSQL_MIGRATE_PASSWORD is not in the live Secret yet.
+          if [ "${{ inputs.environment }}" = staging ]; then export SEALED_SECRETS_FILE=deploy/k8s/overlays/staging/sealed-secrets.yaml
+          else export SEALED_SECRETS_FILE=deploy/k8s/secrets/trading-model-sealed-secrets.yaml; fi
+          MIGRATE_IMAGE="${{ steps.tag.outputs.registry }}/db-migrate@$digest" \
+            bash deploy/k8s/scripts/run-migrations.sh "$NS"
 
       # Canary gate: test the new image on a share of live traffic BEFORE full rollout.
       # If the canary fails, the overlay is never applied and the primary stays on the old image.
@@ -423,40 +566,45 @@ jobs:
           CANARY_GATE_SECONDS: ${{ vars.CANARY_GATE_SECONDS || '120' }}
           CANARY_MIN_REQUESTS: ${{ vars.CANARY_MIN_REQUESTS || '20' }}
           CANARY_ERROR_THRESHOLD_PCT: ${{ vars.CANARY_ERROR_THRESHOLD_PCT || '5' }}
+          # Services whose gate is readiness only (no steady traffic): dlq-service
+          # only gets requests on a dead letter or an admin call.
+          CANARY_READINESS_ONLY: ${{ vars.CANARY_READINESS_ONLY || 'dlq-service' }}
         run: |
           NS="${{ steps.ns.outputs.namespace }}"
           export K8S_NAMESPACE="$NS"
           export CANARY_IMAGE_REPO="${{ steps.tag.outputs.registry }}"
           chmod +x deploy/k8s/scripts/deploy-k8s.sh
           TAG="${{ steps.tag.outputs.tag }}"
-          for dep in discovery-server message-manager financial-scraper trader-trainer \
-                     api-gateway audit-logger dlq-service; do
-            ./deploy/k8s/scripts/deploy-k8s.sh canary "$dep" "$TAG" 10
-          done
+          # Created in parallel, observed over one CANARY_GATE_SECONDS window.
+          ./deploy/k8s/scripts/deploy-k8s.sh canary-all "$TAG" 10 \
+            discovery-server message-manager financial-scraper trader-trainer \
+            api-gateway audit-logger dlq-service
+
+      # Revision each Deployment runs before the overlay: "Rollback on failure"
+      # returns to exactly it (deploy-release.sh, shared with the k8s CI job).
+      - name: Record current revisions
+        shell: bash
+        run: |
+          bash deploy/k8s/scripts/deploy-release.sh record "${{ steps.ns.outputs.namespace }}" "$RUNNER_TEMP/deploy-revisions"
+
+      # HPA-driven Deployments: spec.replicas leaves last-applied-configuration
+      # first, or the apply resets them to 1 (deploy-release.sh).
+      - name: Release replicas of autoscaled Deployments
+        shell: bash
+        run: |
+          bash deploy/k8s/scripts/deploy-release.sh release-replicas "${{ steps.ns.outputs.namespace }}"
 
       - name: Apply overlay
         id: apply
         shell: bash
         run: |
-          ENV="${{ inputs.environment }}"
-          REGISTRY="${{ steps.tag.outputs.registry }}"
-          WRAPPER="deploy/k8s/overlays/.deploy-$ENV"
-          mkdir -p "$WRAPPER"
-          {
-            echo "apiVersion: kustomize.config.k8s.io/v1beta1"
-            echo "kind: Kustomization"
-            echo "resources:"
-            echo "  - ../$ENV"
-            echo "images:"
-            while read -r img digest; do
-              echo "  - name: ghcr.io/trading-model/$img"
-              echo "    newName: $REGISTRY/$img"
-              echo "    digest: $digest"
-            done < "$RUNNER_TEMP/image-digests"
-          } > "$WRAPPER/kustomization.yaml"
-          # jobs/ packages scripts/backup-k8s.sh from outside its directory: the default
-          # load restrictor rejects it and kubectl apply -k cannot relax it.
-          kubectl kustomize --load-restrictor LoadRestrictionsNone "$WRAPPER" | kubectl apply -f -
+          bash deploy/k8s/scripts/deploy-release.sh render "deploy/k8s/overlays/${{ inputs.environment }}" "${{ steps.tag.outputs.registry }}" "$RUNNER_TEMP/image-digests" |
+            bash scripts/split-cluster-scope.sh app | kubectl apply -f -
+          # The former secret-rotation CronJob (issue #424) held write rights on every
+          # Secret; apply never prunes, so remove what an older deploy left behind.
+          kubectl delete cronjob/secret-rotation role/secret-rotator-role \
+            rolebinding/secret-rotator-binding serviceaccount/secret-rotator \
+            -n "${{ steps.ns.outputs.namespace }}" --ignore-not-found
 
       # Public age key(s) the db-backup CronJob encrypts every dump for (the
       # private keys never enter the cluster). Environment variable of the
@@ -519,20 +667,15 @@ jobs:
         run: |
           NS="${{ steps.ns.outputs.namespace }}"
           kubectl rollout status statefulset/mysql -n "$NS" --timeout=300s
-          bash deploy/k8s/scripts/run-migrations.sh "$NS"
+          # The migrations job runs the released db-migrate image, by digest.
+          digest=$(awk '$1 == "db-migrate" { print $2 }' "$RUNNER_TEMP/image-digests")
+          MIGRATE_IMAGE="${{ steps.tag.outputs.registry }}/db-migrate@$digest" \
+            bash deploy/k8s/scripts/run-migrations.sh "$NS"
 
       - name: Wait for rollout
         shell: bash
         run: |
-          NS="${{ steps.ns.outputs.namespace }}"
-          for dep in discovery-server message-manager financial-scraper financial-scraper-collector trader-trainer \
-                     api-gateway audit-logger dlq-service edge-proxy; do
-            echo "Waiting for rollout of $dep..."
-            if ! kubectl rollout status "deployment/$dep" -n "$NS" --timeout=180s; then
-              echo "::error::Rollout of $dep failed or timed out"
-              exit 1
-            fi
-          done
+          bash deploy/k8s/scripts/deploy-release.sh wait "${{ steps.ns.outputs.namespace }}"
 
       # Runs on the new version, after the rollout; a failure triggers the rollback below.
       - name: Smoke test
@@ -541,15 +684,25 @@ jobs:
           export K8S_NAMESPACE="${{ steps.ns.outputs.namespace }}"
           bash deploy/k8s/scripts/deploy-k8s.sh smoke-test
 
+      # ADR-0042: the singleton collector stops collecting during a release.
+      # Production fails (and rolls back) when candles do not come back in time;
+      # staging only warns.
+      - name: Verify market data resumed
+        shell: bash
+        run: |
+          export K8S_NAMESPACE="${{ steps.ns.outputs.namespace }}"
+          export MARKET_DATA_RECOVERY_TIMEOUT=600
+          [ "${{ inputs.environment }}" = production ] || export MARKET_DATA_RECOVERY_MODE=warn
+          bash deploy/k8s/scripts/deploy-k8s.sh verify-market-data
+
       - name: Annotate deployments with release metadata
         shell: bash
         run: |
           NS="${{ steps.ns.outputs.namespace }}"
           VERSION="${{ steps.tag.outputs.version }}"
-          for dep in discovery-server message-manager financial-scraper financial-scraper-collector trader-trainer \
-                     api-gateway audit-logger dlq-service edge-proxy; do
+          for dep in $(bash deploy/k8s/scripts/deploy-release.sh deployments); do
             kubectl annotate deployment "$dep" -n "$NS" --overwrite \
-              trading-model.dev/git-sha="$GITHUB_SHA" \
+              trading-model.dev/git-sha="${{ steps.src.outputs.sha }}" \
               trading-model.dev/release-version="$VERSION"
           done
 
@@ -569,18 +722,24 @@ jobs:
       # migration the primaries still run the current release, and undo would
       # roll them back to the one before it.
       - name: Rollback on failure
+        id: rollback
         if: ${{ failure() && steps.apply.outcome != 'skipped' }}
         shell: bash
         run: |
-          NS="${{ steps.ns.outputs.namespace }}"
-          # Every deployment is tried: one without a previous revision (first
-          # deploy) must not leave the others on the failed release.
-          failed=0
-          for dep in discovery-server message-manager financial-scraper financial-scraper-collector trader-trainer \
-                     api-gateway audit-logger dlq-service edge-proxy; do
-            if ! kubectl rollout undo "deployment/$dep" -n "$NS"; then
-              echo "::error::Could not roll back $dep (no previous revision on a first deploy?)"
-              failed=1
-            fi
-          done
-          exit "$failed"
+          # Every Deployment back to the revision recorded before the overlay
+          # (image and hashed ConfigMaps of the previous release, issue #410).
+          bash deploy/k8s/scripts/deploy-release.sh rollback "${{ steps.ns.outputs.namespace }}" "$RUNNER_TEMP/deploy-revisions"
+
+      # Deploy events in the alert channel (issue #435). The webhook stays in env:
+      # never in the command line or the log; curl output is discarded.
+      - name: Notify deployment result
+        if: ${{ always() && steps.tag.outcome != 'skipped' }}
+        shell: bash
+        env:
+          SLACK: ${{ secrets.ALERTMANAGER_SLACK_WEBHOOK_URL }}
+          EVENT: ${{ steps.rollback.outcome == 'success' && 'rolled-back' || (job.status == 'success' && 'succeeded' || 'failed') }}
+          DEPLOY_ENV: ${{ inputs.environment }}
+          VERSION: ${{ steps.tag.outputs.version }}
+          SHA: ${{ steps.src.outputs.sha }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: bash deploy/k8s/scripts/notify-slack.sh

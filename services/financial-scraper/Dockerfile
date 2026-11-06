@@ -40,6 +40,9 @@ COPY --chown=appuser:appgroup --from=build /app/packages ./packages
 COPY --chown=appuser:appgroup --from=build /app/services/financial-scraper/package.json ./services/financial-scraper/
 COPY --chown=appuser:appgroup --from=build /app/services/financial-scraper/dist ./services/financial-scraper/dist
 RUN chown appuser:appgroup /app
+ARG BUILD_VERSION=dev
+ARG GIT_SHA=unknown
+ENV BUILD_VERSION=$BUILD_VERSION GIT_SHA=$GIT_SHA
 USER appuser
 
 EXPOSE 3000

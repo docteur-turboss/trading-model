@@ -53,7 +53,7 @@ function signedDlqRequest(
 				body: undefined,
 				timestamp,
 				method,
-				path,
+				path: `${path}${query}`,
 			}),
 		},
 	});

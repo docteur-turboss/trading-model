@@ -78,9 +78,12 @@ backup_mongodb() {
     if write_dump mongodb "$file" docker exec "${container}" mongodump --quiet "${mongodump_args[@]}"; then
       ok "MongoDB backup complete: ${container}"
       write_metric "mongodb" 1
+      # One mongod in compose: this dump holds the audit-logger database too.
+      write_metric "mongodb-audit" 1
     else
       fail "MongoDB backup failed: ${container}"
       write_metric "mongodb" 0
+      write_metric "mongodb-audit" 0
     fi
   done
 }
@@ -233,6 +236,8 @@ prune_old
 # failure is counted by write_metric (component "manifest"): the run exits 1.
 $DRY_RUN || write_manifest || true
 upload_offsite
+# Compose has no point-in-time recovery (no incremental job): BackupIncrementalMissing stays quiet.
+[ -z "$_METRICS_TMP" ] || echo "backup_pitr_supported 0" >>"$_METRICS_TMP"
 finalize_metrics
 
 echo ""

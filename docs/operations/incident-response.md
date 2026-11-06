@@ -54,7 +54,7 @@ Is there a known cause? → Recent deploy / config change / upstream outage
 
 | Role                | Name                             | Contact                            | Hours                       |
 | ------------------- | -------------------------------- | ---------------------------------- | --------------------------- |
-| On-call Engineer    | PagerDuty `trading-model-oncall` | PagerDuty / #incidents Slack       | 24/7                        |
+| On-call Engineer    | Pushover (critical alerts)       | Pushover / #incidents Slack        | 24/7                        |
 | Engineering Manager | `@trading-model/core` team lead  | #incidents Slack / Phone           | Business hours + escalation |
 | Security Lead       | `@trading-model/security`        | security@trading-model.example.com | 24/7 for security incidents |
 | CTO                 | cto@trading-model.example.com    | Phone / #incidents                 | SEV1 escalation             |
@@ -66,7 +66,7 @@ Is there a known cause? → Recent deploy / config change / upstream outage
 | #incidents    | SEV1/SEV2 coordination        |
 | #alerts       | Automated alert notifications |
 | #ops          | Operational discussions       |
-| On-call Phone | Twilio Flex / PagerDuty       |
+| On-call Phone | Pushover (emergency priority) |
 
 ## Post-Incident Checklist
 

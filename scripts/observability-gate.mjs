@@ -336,7 +336,7 @@ function runbookUrlProblem(url) {
   }
   // An inline credential is a placeholder (CHANGE_ME sent every alert nowhere)
   // or a leaked secret: receivers read theirs from files.
-  if (/"(slack_api_url|api_url|routing_key|service_key|url)":/.test(JSON.stringify(compose))) {
+  if (/"(slack_api_url|api_url|routing_key|service_key|user_key|token|url)":/.test(JSON.stringify(compose))) {
     errors.push("observability/alertmanager.yml: inline receiver credential, use the *_file form");
   }
   const watchdogRoute = (compose.route?.routes ?? []).find((route) =>

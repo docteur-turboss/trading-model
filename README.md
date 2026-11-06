@@ -29,7 +29,7 @@ See [Quick Start Tutorial](docs/getting-started/quickstart.md) for a 10-minute h
 
 | Layer         | Technology                                                 |
 | ------------- | ---------------------------------------------------------- |
-| Runtime       | Bun 1.x (Node.js 26-compatible APIs)                       |
+| Runtime       | Bun 1.4.4, tested (same as `services/*/Dockerfile`); Node.js 26-compatible APIs |
 | Language      | TypeScript (ES2020)                                        |
 | API           | Express 5                                                  |
 | Frontend      | None for now — removed, see ADR-0018                       |
@@ -103,7 +103,7 @@ bun run commit               # Interactive gitmoji commit CLI
 GitHub Actions workflows:
 
 - **ci.yml** — on every push/PR: lint → typecheck (packages + services) → test+coverage (Codecov) → DB integration (Testcontainers) → observability gate → K8s overlays → contract tests → E2E (Docker stack) → K8s smoke test (kind)
-- **release.yml** — on a `vX.Y.Z` tag push: full CI → Docker build/push of 9 images (7 services + `spire-tools` + `backup-tools`) as `:X.Y.Z` (see [release.md](docs/contributing/release.md))
+- **release.yml** — on a `vX.Y.Z` tag push: full CI → Docker build/push of 10 images (7 services + `spire-tools` + `backup-tools` + `db-migrate`) as `:X.Y.Z` (see [release.md](docs/contributing/release.md))
 - **deploy.yml** — manual staging/production deploy with rollback
 - **backup-test.yml** — weekly restore drill of the Docker backup scripts
 
@@ -130,7 +130,7 @@ Pre-push git hook runs: `biome check` → `deps:check` → `api:check` → `adr:
 ## Monitoring
 
 - **Dashboards:** 4 Grafana dashboards (SLO, services, message-manager, trader-trainer)
-- **Alerts:** Prometheus rules in `observability/alerting.yml` (SLO burn rates + operational), mirrored in the K8s Prometheus ConfigMap and checked by `scripts/observability-gate.mjs` and unit-tested with promtool (`tests/alerts`) → Alertmanager → Slack/PagerDuty, with a `Watchdog` dead man's switch ([Alerting](docs/operations/ALERTING.md))
+- **Alerts:** Prometheus rules in `observability/alerting.yml` (SLO burn rates + operational), mirrored in the K8s Prometheus ConfigMap and checked by `scripts/observability-gate.mjs` and unit-tested with promtool (`tests/alerts`) → Alertmanager → Slack/Pushover, with a `Watchdog` dead man's switch ([Alerting](docs/operations/ALERTING.md))
 - **Traces:** OpenTelemetry → OTLP Collector → Jaeger (all 7 services instrumented)
 - **Logs:** Pino structured JSON → Promtail → Loki + centralized log aggregation to audit-logger
 

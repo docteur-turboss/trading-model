@@ -11,14 +11,14 @@ An ADR documents a significant architectural decision, including the context, al
 | ADR                                           | Title                                                  | Status   | Date    |
 | --------------------------------------------- | ------------------------------------------------------ | -------- | ------- |
 | [ADR-0001](./0001-ga-dqn-training.md)         | Genetic Algorithm + Deep Q-Learning for Agent Training | Accepted | 2026-06 |
-| [ADR-0002](./0002-redis-pub-sub.md)           | Redis Streams for Inter-Service Messaging              | Superseded | 2026-06 |
-| [ADR-0003](./0003-mongodb-persistence.md)     | MongoDB for Audit and DLQ Persistence                    | Superseded | 2026-06 |
-| [ADR-0004](./0004-mysql-group-replication.md) | MySQL with Group Replication for Market Data           | Superseded | 2026-06 |
-| [ADR-0005](./0005-mtls-security.md)           | Mutual TLS for All Inter-Service Communication         | Superseded | 2026-06 |
+| [ADR-0002](./0002-redis-pub-sub.md)           | Redis Streams for Inter-Service Messaging              | Superseded by [ADR-0019](./0019-message-broker-as-built.md) | 2026-06 |
+| [ADR-0003](./0003-mongodb-persistence.md)     | MongoDB for Audit and DLQ Persistence                    | Superseded by [ADR-0020](./0020-database-topology-as-deployed.md) | 2026-06 |
+| [ADR-0004](./0004-mysql-group-replication.md) | MySQL with Group Replication for Market Data           | Superseded by [ADR-0020](./0020-database-topology-as-deployed.md) | 2026-06 |
+| [ADR-0005](./0005-mtls-security.md)           | Mutual TLS for All Inter-Service Communication         | Superseded by [ADR-0011](./0011-spiffe-spire-workload-identity.md) | 2026-06 |
 | [ADR-0006](./0006-monorepo-bun-workspaces.md) | Monorepo Structure with bun Workspaces                 | Accepted | 2026-06 |
 | [ADR-0007](./0007-common-package-split.md)   | Common Package Split                                   | Implemented | 2026-06 |
-| [ADR-0008](./0008-message-broker-choice.md)  | Message Broker Choice                                  | Superseded | 2026-06 |
-| [ADR-0009](./0009-certificate-utils-structure.md) | Certificate Utils Structure                       | Superseded | 2026-06 |
+| [ADR-0008](./0008-message-broker-choice.md)  | Message Broker Choice                                  | Superseded by [ADR-0019](./0019-message-broker-as-built.md) | 2026-06 |
+| [ADR-0009](./0009-certificate-utils-structure.md) | Certificate Utils Structure                       | Superseded by [ADR-0011](./0011-spiffe-spire-workload-identity.md) | 2026-06 |
 | [ADR-0010](./0010-clean-architecture-migration.md) | Clean Architecture Migration                    | Implemented | 2026-06 |
 | [ADR-0011](./0011-spiffe-spire-workload-identity.md) | SPIFFE/SPIRE Workload Identity                 | Accepted | 2026-09 |
 | [ADR-0012](./0012-dead-code-removal-and-entrypoint-fix.md) | Dead Code Removal via Reachability Analysis and Runtime Entrypoint Fix | Accepted | 2026-10 |
@@ -43,7 +43,15 @@ An ADR documents a significant architectural decision, including the context, al
 | [ADR-0033](./0033-offsite-backup-bucket-object-lock.md) | Off-site Backup Bucket Under Object Lock (Compliance, 30-31 Days), Checked Before Every Deploy | Accepted | 2026-11 |
 | [ADR-0034](./0034-backup-key-custody-and-weekly-escrow-check.md) | Two Backup Keys in Production, Escrow Key Verified Weekly by GitHub Actions | Accepted | 2026-11 |
 | [ADR-0035](./0035-sealed-secrets-key-daily-backup-by-github-actions.md) | SealedSecrets Controller Keys Backed Up Daily by a Scheduled GitHub Actions Workflow | Accepted | 2026-11 |
+| [ADR-0036](./0036-multi-dimension-signals-mvp.md) | Multi-Dimension Signals MVP — Frozen Schema, Static Source Registry of Free Sources, Generic `rest_api` Worker | Accepted | 2026-11 |
 | [ADR-0037](./0037-typedoc-html-not-versioned.md) | Generated TypeDoc HTML Is Not Versioned | Accepted | 2026-11 |
+| [ADR-0038](./0038-release-images-scanned-attested-signed-and-verified.md) | Release Images Are Scanned, Carry SBOM and Provenance, Are Signed Keyless, and Are Verified at Deploy | Accepted | 2026-11 |
+| [ADR-0039](./0039-configuration-feature-flags.md) | Configuration Feature Flags (env booleans, kill switches) | Accepted | 2026-11 |
+| [ADR-0040](./0040-locked-resumable-migrations-and-expand-contract.md) | Locked, Resumable Schema Migrations and the Expand/Contract Rule | Accepted | 2026-11 |
+| [ADR-0041](./0041-least-privilege-deploy-identities.md) | Least-Privilege Deploy Identities — Application and Cluster-Scope, Bounded Tokens | Accepted | 2026-11 |
+| [ADR-0042](./0042-singleton-collector-with-verified-recovery.md) | Singleton Collector Kept, Recovery Verified After Each Deploy | Accepted | 2026-11 |
+
+**Numbering gaps.** ADR-0014 and ADR-0028 do not exist. No file with either number has ever been committed on any branch, and no document refers to them, so they were skipped when the numbers were assigned and carry no decision. Do not reuse them for unrelated records.
 
 ## Keeping ADRs true to the runtime
 

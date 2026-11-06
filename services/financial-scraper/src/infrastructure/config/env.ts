@@ -62,6 +62,22 @@ const FINANCIAL_SCRAPER_ENV_SCHEMA = BaseEnvSchema.extend(
 			.string()
 			.default("true")
 			.transform((value) => value === "true" || value === "1"),
+		/**
+		 * Collects the signal registry sources (ADR-0036) where the scrape cron
+		 * runs; false in CI, which must not call the real sources.
+		 */
+		SIGNAL_COLLECTION_ENABLED: z
+			.string()
+			.default("true")
+			.transform((value) => value === "true" || value === "1"),
+		/**
+		 * Contact e-mail in the User-Agent of every signal source; SEC EDGAR
+		 * answers 403 without one. Set by the deployment only, never committed:
+		 * the repository is public. Empty: no contact. Checked by
+		 * `createSignalScheduler`: a bad value stops the signals only, not the
+		 * Binance collection.
+		 */
+		SIGNAL_CONTACT_EMAIL: z.string().trim().default(""),
 	});
 
 export const ENV = validateEnv(FINANCIAL_SCRAPER_ENV_SCHEMA);

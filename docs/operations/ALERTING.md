@@ -5,7 +5,7 @@ How an incident reaches a person, and how that path is kept honest.
 ```
 services /metrics ─┐
 backup exporter ───┼─► Prometheus ── rules (observability/alerting.yml) ──► Alertmanager ──► Slack #alerts / #alerts-warning
-Alertmanager ──────┤                                                                     ├─► PagerDuty (critical)
+Alertmanager ──────┤                                                                     ├─► Pushover (critical)
 Prometheus itself ─┘                                                                     └─► dead man's switch (Watchdog, every minute)
 ```
 
@@ -15,12 +15,12 @@ Prometheus itself ─┘                                                        
 | --- | --- |
 | Rules | `observability/alerting.yml`, copied into the K8s ConfigMap `prometheus-config` (`deploy/k8s/infra/prometheus.yaml`) |
 | Routing | `observability/alertmanager.yml`, copied into the K8s ConfigMap `alertmanager-config` (`deploy/k8s/infra/alertmanager.yaml`) |
-| Credentials, K8s | Secret `alertmanager-credentials` (keys `SLACK_WEBHOOK_URL`, `PAGERDUTY_ROUTING_KEY`, `DEADMAN_URL`), written by `deploy.yml` from the GitHub environment secrets `ALERTMANAGER_SLACK_WEBHOOK_URL`, `ALERTMANAGER_PAGERDUTY_ROUTING_KEY`, `ALERTMANAGER_DEADMAN_URL` |
+| Credentials, K8s | Secret `alertmanager-credentials` (keys `SLACK_WEBHOOK_URL`, `PUSHOVER_USER_KEY`, `PUSHOVER_TOKEN`, `DEADMAN_URL`), written by `deploy.yml` from the GitHub environment secrets `ALERTMANAGER_SLACK_WEBHOOK_URL`, `ALERTMANAGER_PUSHOVER_USER_KEY`, `ALERTMANAGER_PUSHOVER_TOKEN`, `ALERTMANAGER_DEADMAN_URL` |
 | Credentials, compose | one file per key in `ALERTMANAGER_CREDENTIALS_DIR` (default `observability/alertmanager-credentials/`, git-ignored) |
 
 Alertmanager reads the credential files when it sends, so a changed Secret
 needs no restart. A production deploy fails without the Slack webhook and the
-dead man's switch; staging only warns. Without a PagerDuty key, critical alerts
+dead man's switch; staging only warns. Without the Pushover keys, critical alerts
 still reach Slack `#alerts` (they are routed to both).
 
 ### Dead man's switch
@@ -37,7 +37,7 @@ Slack is down: configure that external check to notify someone directly
 | Alert | Catches |
 | --- | --- |
 | `Watchdog` | the whole pipeline (through the external dead man's switch) |
-| `AlertmanagerNotificationsFailing` | a receiver that rejects notifications (wrong webhook, missing PagerDuty key) |
+| `AlertmanagerNotificationsFailing` | a receiver that rejects notifications (wrong webhook, missing Pushover key) |
 | `PrometheusRuleEvaluationFailures` | a rule that cannot be evaluated |
 | `ServiceDown` | a scrape target that is down, Alertmanager and Prometheus included |
 
@@ -52,6 +52,7 @@ A service can answer `/health/ready` while doing nothing useful: from launch to
 | `TrainerMarketDataStale` | no candle reached the trainer for 15 min (`tt_market_data_received_total`) | [runbook-market-data-stale](runbooks/runbook-market-data-stale.md) |
 | `MarketDataUnpublished` | persisted candles of a symbol have waited 15 min for the bus (`fs_unpublished_candles`): sent from MySQL once message-manager answers, the trainer lags meanwhile | [runbook-message-bus-outage](runbooks/runbook-message-bus-outage.md) |
 | `ScrapeCyclesFailing` | more than half of the scrape cycles fail | [runbook-market-data-stale](runbooks/runbook-market-data-stale.md) |
+| `SignalCollectionFailing` | a signal source (ADR-0036) failed a collection in the last 24 h, by source: fetch error (403 from SEC EDGAR without contact e-mail), changed format or MySQL | [runbook-market-data-stale#signalcollectionfailing](runbooks/runbook-market-data-stale.md#signalcollectionfailing) |
 | `MessageDeliveryLowSuccessRate` | less than 99.5% of the messages delivered (the rest dead-lettered) | [runbook-message-bus-outage](runbooks/runbook-message-bus-outage.md) |
 | `MessagesDeadLettered` | message-manager gave up on messages: they are in dlq-service (`GET /dlq`) to inspect and replay | [runbook-message-bus-outage](runbooks/runbook-message-bus-outage.md) |
 | `DeadLettersNotForwarded` | dead letters have waited 15 min in a message-manager pod's local file (`mm_dlq_fallback_pending`): dlq-service cannot take them; lost if the pod is deleted | [runbook-message-bus-outage](runbooks/runbook-message-bus-outage.md) |
@@ -73,7 +74,7 @@ read-only root filesystem: lost). Both are fixed.
 
 Every rule carries `annotations.runbook_url`: the absolute GitHub URL, on
 `main`, of its procedure (with the section anchor when the file covers several
-alerts). Alertmanager passes it to Slack and PagerDuty, so the page links the
+alerts). Alertmanager passes it to Slack and Pushover, so the page links the
 procedure. `scripts/observability-gate.mjs` fails on a rule without it, on a
 file absent from the repository, or on an anchor that matches no heading.
 
@@ -121,6 +122,7 @@ file absent from the repository, or on an anchor that matches no heading.
 | `MarketDataStale` | critical | [runbook-market-data-stale](runbooks/runbook-market-data-stale.md) |
 | `ScrapeCyclesFailing` | warning | [runbook-market-data-stale](runbooks/runbook-market-data-stale.md) |
 | `BinanceRestrictedLocation` | critical | [runbook-market-data-stale](runbooks/runbook-market-data-stale.md) |
+| `SignalCollectionFailing` | warning | [runbook-market-data-stale#signalcollectionfailing](runbooks/runbook-market-data-stale.md#signalcollectionfailing) |
 | `MarketDataUnpublished` | warning | [runbook-message-bus-outage#5-scraper-publish-backlog](runbooks/runbook-message-bus-outage.md#5-scraper-publish-backlog) |
 | `TrainerMarketDataStale` | critical | [runbook-market-data-stale](runbooks/runbook-market-data-stale.md) |
 | `ModelArtifactWriteFailing` | warning | [runbook-trainer#modelartifactwritefailing](runbooks/runbook-trainer.md#modelartifactwritefailing) |

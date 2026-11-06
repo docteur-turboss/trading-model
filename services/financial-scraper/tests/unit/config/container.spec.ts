@@ -8,6 +8,7 @@ const MOCK_CRON_CONSTRUCTOR = jest.fn((config: unknown) => ({
 const MOCK_LOGGER = {
 	info: jest.fn(),
 	warn: jest.fn(),
+	error: jest.fn(),
 };
 
 jest.mock("@trading-model/http/infrastructure/logger", () => ({
@@ -46,7 +47,16 @@ jest.mock(
 	})
 );
 
-import { createScrapeScheduler } from "../../../src/config/container";
+jest.mock("../../../src/adapters/outbound/persistence/signal-store", () => ({
+	MySqlSignalStore: { kind: "mysql-signals" },
+}));
+
+import { SignalCronScheduler } from "../../../src/adapters/inbound/cron/signal.cron";
+import {
+	createScrapeScheduler,
+	createSignalScheduler,
+	signalUserAgent,
+} from "../../../src/config/container";
 
 describe("config/container — createScrapeScheduler", () => {
 	beforeEach(() => {
@@ -105,5 +115,72 @@ describe("config/container — createScrapeScheduler", () => {
 			{ symbols: ["BTCUSDT", "ETHUSDT"], schedule: "*/5 * * * *" }
 		);
 		expect(MOCK_LOGGER.warn).not.toHaveBeenCalled();
+	});
+});
+
+describe("config/container — createSignalScheduler", () => {
+	const ENABLED = {
+		SCRAPE_SCHEDULER_ENABLED: true,
+		SIGNAL_COLLECTION_ENABLED: true,
+		SIGNAL_CONTACT_EMAIL: "ops@example.org",
+	};
+
+	beforeEach(() => {
+		jest.clearAllMocks();
+	});
+
+	it("collects nothing on an HTTP-only replica", () => {
+		expect(
+			createSignalScheduler({ ...ENABLED, SCRAPE_SCHEDULER_ENABLED: false })
+		).toBeNull();
+	});
+
+	it("collects nothing when signal collection is off (CI)", () => {
+		expect(
+			createSignalScheduler({ ...ENABLED, SIGNAL_COLLECTION_ENABLED: false })
+		).toBeNull();
+		expect(MOCK_LOGGER.info).toHaveBeenCalledWith(
+			expect.stringContaining("SIGNAL_COLLECTION_ENABLED=false")
+		);
+	});
+
+	it("collects no signal with a contact that is no e-mail", () => {
+		expect(
+			createSignalScheduler({
+				...ENABLED,
+				SIGNAL_CONTACT_EMAIL: "automated news analysis",
+			})
+		).toBeNull();
+		expect(MOCK_LOGGER.error).toHaveBeenCalledWith(
+			expect.stringContaining("SIGNAL_CONTACT_EMAIL")
+		);
+	});
+
+	it("schedules the registry sources on the collector", () => {
+		const scheduler = createSignalScheduler(ENABLED);
+
+		expect(scheduler).toBeInstanceOf(SignalCronScheduler);
+		expect(MOCK_LOGGER.info).toHaveBeenCalledWith("Signal collection enabled", {
+			sources: [
+				"ecb-aaa-yield-10y",
+				"sec-edgar-eps-diluted",
+				"nws-kansas-wheat-belt",
+				"wikipedia-pageviews",
+			],
+		});
+	});
+});
+
+describe("config/container — signalUserAgent", () => {
+	it("names the client, then the contact e-mail SEC EDGAR asks for", () => {
+		expect(signalUserAgent("ops@example.org")).toBe(
+			"automated news analysis ops@example.org"
+		);
+	});
+
+	it("falls back to the repository URL as contact", () => {
+		expect(signalUserAgent("")).toBe(
+			"automated news analysis (+https://github.com/docteur-turboss/trading-model)"
+		);
 	});
 });

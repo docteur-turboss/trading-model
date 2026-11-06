@@ -1,7 +1,7 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
-# Manual "apply everything" entry point for deploy-k8s.sh apply.
+# Local development entry point for deploy-k8s.sh apply (ALLOW_DEV_APPLY=1, dev contexts only).
 # CI deploys go through overlays/ (deploy.yml uses overlays/<env>).
 resources:
   - base

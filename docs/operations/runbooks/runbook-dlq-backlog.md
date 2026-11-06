@@ -11,7 +11,7 @@ stores it in MongoDB and, with `DLQ_AUTO_RETRY_ENABLED=true` (compose and K8s),
 replays eligible entries to message-manager every `DLQ_AUTO_RETRY_INTERVAL_MS`
 (30 s), at most `DLQ_AUTO_RETRY_LIMIT` (50) per cycle. An entry that failed
 `DLQ_RETRY_MAX_ATTEMPTS` replays is abandoned (kept, no longer retried): **3 in
-K8s** (ConfigMap `dlq-service-config`), 5 by default (compose).
+K8s** (`deploy/k8s/config/dlq-service.properties`), 5 by default (compose).
 
 - `dlq_entries_added_total`: entries stored by dlq-service.
 - `dlq_entries_replayed_total`: entries replayed with success (auto-retry or
@@ -53,7 +53,7 @@ kubectl -n $NS exec prometheus-0 -c prometheus -- wget -qO- \
   'http://localhost:9090/api/v1/query?query=sum by (topic) (increase(mm_messages_dlq_total[1h]))'
 
 # 3. Is auto-retry running, and why replays fail
-kubectl -n $NS get configmap dlq-service-config -o jsonpath='{.data.DLQ_AUTO_RETRY_ENABLED}{"\n"}'
+kubectl -n $NS exec deploy/dlq-service -c dlq-service -- printenv DLQ_AUTO_RETRY_ENABLED
 kubectl -n $NS logs deploy/dlq-service --tail=300 | grep -iE "auto-retry|replay|abandoned"
 
 # 4. dlq-service health (mTLS only: use its SVID)

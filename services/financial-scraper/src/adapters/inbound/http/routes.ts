@@ -3,11 +3,13 @@ import { mountRoute } from "@trading-model/http/adapters/inbound/api-route/mount
 import { sendResponse } from "@trading-model/http/adapters/inbound/response-exception";
 import { toJsonWire } from "@trading-model/http/infrastructure/json-wire";
 import { Router } from "express";
+import { SIGNAL_REGISTRY } from "../../../config/signal-registry";
 import { selectCandlesBy } from "../../outbound/persistence/schema/candles-schema";
 import { selectOrderBookBy } from "../../outbound/persistence/schema/order-book.schema";
 import { selectTickerBy } from "../../outbound/persistence/schema/ticker24h.schema";
 import { selectTradesBy } from "../../outbound/persistence/schema/trades.schema";
-import { SCRAPER_API } from "./api-routes";
+import { MySqlSignalStore } from "../../outbound/persistence/signal-store";
+import { MAX_SIGNALS_PER_ANSWER, SCRAPER_API } from "./api-routes";
 
 /**
  * 200 with the rows as JSON. `toJsonWire` sends BIGINT trade ids as decimal
@@ -74,7 +76,36 @@ function _registerOrderBookRoutes(router: Router): void {
 	);
 }
 
-/** Create an Express Router with all financial-data query endpoints (trades, tickers, candles, order books). */
+function _registerSignalRoutes(router: Router): void {
+	mountRoute(router, SCRAPER_API.assetSignals, async ({ params, query }) => {
+		const asset = SIGNAL_REGISTRY.assets.get(params.assetId);
+		if (!asset) {
+			return sendResponse(
+				{ error: `Unknown asset ${params.assetId}` },
+				HTTP_STATUS.NOT_FOUND
+			);
+		}
+		// One more than an answer holds tells whether the window was cut.
+		const signals = await MySqlSignalStore.findForAsset({
+			assetId: asset.id,
+			sector: asset.sector,
+			dimensions: asset.applicableDimensions,
+			from: query.from,
+			to: query.to,
+			limit: MAX_SIGNALS_PER_ANSWER + 1,
+		});
+		return sendResponse(
+			{
+				asset,
+				signals: signals.slice(0, MAX_SIGNALS_PER_ANSWER),
+				truncated: signals.length > MAX_SIGNALS_PER_ANSWER,
+			},
+			HTTP_STATUS.OK
+		);
+	});
+}
+
+/** Create an Express Router with all financial-data query endpoints (trades, tickers, candles, order books, signals). */
 export const FINANCIAL_ROUTES = (): Router => {
 	const router = Router();
 
@@ -82,6 +113,7 @@ export const FINANCIAL_ROUTES = (): Router => {
 	_registerTickerRoutes(router);
 	_registerCandleRoutes(router);
 	_registerOrderBookRoutes(router);
+	_registerSignalRoutes(router);
 
 	return router;
 };

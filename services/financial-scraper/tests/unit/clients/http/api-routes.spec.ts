@@ -52,8 +52,15 @@ jest.mock(
 	"../../../../src/adapters/outbound/persistence/schema/order-book.schema",
 	() => ({ selectOrderBookBy })
 );
+const findForAsset = jest.fn<any>();
+jest.mock("../../../../src/adapters/outbound/persistence/signal-store", () => ({
+	MySqlSignalStore: { findForAsset },
+}));
 
-import { SCRAPER_API } from "../../../../src/adapters/inbound/http/api-routes";
+import {
+	MAX_SIGNALS_PER_ANSWER,
+	SCRAPER_API,
+} from "../../../../src/adapters/inbound/http/api-routes";
 import { FINANCIAL_ROUTES } from "../../../../src/adapters/inbound/http/routes";
 
 const AT = new Date("2026-10-28T12:00:00.000Z");
@@ -257,6 +264,109 @@ describe("financial-scraper HTTP API (SCRAPER_API)", () => {
 			expect(selectOrderBookBy.timestamp.before).toHaveBeenCalledWith(
 				AT.getTime()
 			);
+		});
+	});
+
+	describe("signals of an asset (ADR-0036)", () => {
+		const SIGNAL = {
+			id: "b".repeat(64),
+			schemaVersion: 1,
+			sourceId: "nws-kansas-wheat-belt",
+			dimension: "contextual",
+			assetId: null,
+			sector: "agriculture",
+			observedAt: "2026-11-04T12:40:00.000Z",
+			ingestedAt: "2026-11-04T13:00:00.000Z",
+			confidenceScore: 0.8,
+			payload: {
+				metric: "temperature",
+				value: 4,
+				unit: "wmoUnit:degC",
+				location: { latitude: 38.07, longitude: -97.87, name: "KHUT" },
+				details: { qualityControl: "V" },
+			},
+		};
+		const WINDOW = "from=2026-11-04&to=2026-11-05T00:00:00Z";
+
+		it("answers the asset with its own and its sector signals of its dimensions in the window", async () => {
+			findForAsset.mockResolvedValue([SIGNAL]);
+
+			const { status, body } = await get(
+				SCRAPER_API.assetSignals,
+				`/signals/assets/WHEAT?${WINDOW}`
+			);
+
+			expect(status).toBe(200);
+			expect(body).toEqual({
+				asset: {
+					id: "WHEAT",
+					name: "Wheat, through the Teucrium Wheat Fund",
+					assetType: "commodity_proxy",
+					identifier: { scheme: "ticker", ticker: "WEAT", exchange: "ARCX" },
+					applicableDimensions: ["market", "contextual", "macro"],
+					sector: "agriculture",
+				},
+				signals: [SIGNAL],
+				truncated: false,
+			});
+			expect(findForAsset).toHaveBeenCalledWith({
+				assetId: "WHEAT",
+				sector: "agriculture",
+				dimensions: ["market", "contextual", "macro"],
+				from: Date.parse("2026-11-04"),
+				to: Date.parse("2026-11-05T00:00:00Z"),
+				limit: MAX_SIGNALS_PER_ANSWER + 1,
+			});
+		});
+
+		it("says truncated when the window holds more than one answer", async () => {
+			findForAsset.mockResolvedValue(
+				new Array(MAX_SIGNALS_PER_ANSWER + 1).fill(SIGNAL)
+			);
+
+			const { body } = await get(
+				SCRAPER_API.assetSignals,
+				`/signals/assets/WHEAT?${WINDOW}`
+			);
+
+			expect(body.signals).toHaveLength(MAX_SIGNALS_PER_ANSWER);
+			expect(body.truncated).toBe(true);
+		});
+
+		it("answers 404 for an asset the registry does not know", async () => {
+			const { status } = await get(
+				SCRAPER_API.assetSignals,
+				`/signals/assets/DOGE?${WINDOW}`
+			);
+
+			expect(status).toBe(404);
+			expect(findForAsset).not.toHaveBeenCalled();
+		});
+
+		it.each([
+			["an empty window", "from=2026-11-05&to=2026-11-04", "query.to"],
+			["no window", "", "query.from"],
+			["a bound that is no date", "from=yesterday&to=2026-11-05", "query.from"],
+		])("answers 400 for %s", async (_label, search, field) => {
+			const { status, body } = await get(
+				SCRAPER_API.assetSignals,
+				`/signals/assets/BTC?${search}`
+			);
+
+			expect(status).toBe(400);
+			expect(body.details).toEqual(
+				expect.arrayContaining([expect.objectContaining({ field })])
+			);
+			expect(findForAsset).not.toHaveBeenCalled();
+		});
+
+		it("answers 400 for an asset id the schema refuses", async () => {
+			const { status } = await get(
+				SCRAPER_API.assetSignals,
+				`/signals/assets/btc?${WINDOW}`
+			);
+
+			expect(status).toBe(400);
 		});
 	});
 

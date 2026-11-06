@@ -202,7 +202,7 @@ dev  ──→ commit ──→ push ──→ PR ──→ merge ──→ beta
 
 main ←── merge dev ────→ tag v* ──→ release.yml ──→ stable deploy
               (if OK)     bun run   full CI           deploy.yml
-                          release   docker (9 images) production
+                          release   docker (10 images) production
 ```
 
 ---

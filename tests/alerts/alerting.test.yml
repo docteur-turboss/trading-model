@@ -219,6 +219,34 @@ tests:
               description: 'More than half of the financial-scraper cycles failed over 15 minutes (66.67%).'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-market-data-stale.md'
 
+  # ADR-0036: a source that failed once in 24 hours alerts, by source, then
+  # resolves a day later; a source that only succeeds does not. The failure
+  # series start at 0 (zeroCollectionFailures).
+  - name: a failing signal source alerts for a day, by source
+    interval: 1h
+    input_series:
+      - series: 'fs_signal_collections_total{job="financial-scraper-collector",instance="c",source="sec-edgar-eps-diluted",result="fetch_error"}'
+        values: '0x30 1x30'
+      - series: 'fs_signal_collections_total{job="financial-scraper-collector",instance="c",source="ecb-aaa-yield-10y",result="success"}'
+        values: '0+1x60'
+      - series: 'fs_signal_collections_total{job="financial-scraper-collector",instance="c",source="ecb-aaa-yield-10y",result="fetch_error"}'
+        values: '0x60'
+    alert_rule_test:
+      - eval_time: 30h
+        alertname: SignalCollectionFailing
+        exp_alerts: []
+      - eval_time: 32h
+        alertname: SignalCollectionFailing
+        exp_alerts:
+          - exp_labels: {severity: warning, source: sec-edgar-eps-diluted}
+            exp_annotations:
+              summary: 'A signal source fails to be collected'
+              description: 'sec-edgar-eps-diluted failed 1 collections in 24 hours: its signals are missing or stale (fetch_error: source down or refusing, 403 from SEC EDGAR without SIGNAL_CONTACT_EMAIL; invalid_payload: its format changed; store_error: MySQL).'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-market-data-stale.md#signalcollectionfailing'
+      - eval_time: 57h
+        alertname: SignalCollectionFailing
+        exp_alerts: []
+
   # ADR-0026: a geo-block (451) alerts at once; other errors (429, 5xx) and
   # 200s do not. The 451 series only exists once Binance starts refusing.
   - name: a Binance geo-block alerts, other Binance errors do not
@@ -374,7 +402,7 @@ tests:
   - name: the alerting pipeline watches itself
     interval: 1m
     input_series:
-      # One failed notification (e.g. no PagerDuty key): enough to alert.
+      # One failed notification (e.g. no Pushover key): enough to alert.
       - series: 'alertmanager_notifications_failed_total{job="alertmanager",instance="am",integration="slack"}'
         values: '0 0 0 1x40'
     alert_rule_test:
@@ -622,6 +650,17 @@ tests:
               summary: 'A binlog or oplog is no longer archived: mongodb-audit-oplog'
               description: 'db-backup-incremental reported nothing for mongodb-audit-oplog (job never ran, component removed, or backup-metrics-exporter down): no point-in-time recovery.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/deployment/BACKUP_DR.md#monitoring'
+
+  # Compose (scripts/backup.sh) has no incremental job and says so.
+  - name: no incremental alert where point-in-time recovery is not supported
+    interval: 1m
+    input_series:
+      - series: 'backup_pitr_supported{job="backup-metrics"}'
+        values: '0x200'
+    alert_rule_test:
+      - eval_time: 190m
+        alertname: BackupIncrementalMissing
+        exp_alerts: []
 
   # One run of the binlog archive fails (S3 down): warned after 5 m, resolved
   # by the next run (60m), which retries it. A failed off-site copy of the

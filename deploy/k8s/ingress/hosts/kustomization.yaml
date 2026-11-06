@@ -1,0 +1,32 @@
+# Copies the public host names of an overlay into both Ingresses (rules and
+# tls.hosts, issue #415). The overlay lists this component and declares the
+# ConfigMap ingress-hosts (keys api, grafana) as a resource, annotated
+# config.kubernetes.io/local-config so that it is never applied. The base keeps
+# example.com placeholders: deploy.yml refuses to deploy production while the
+# rendered overlay still contains one.
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+
+replacements:
+  - source:
+      kind: ConfigMap
+      name: ingress-hosts
+      fieldPath: data.api
+    targets:
+      - select:
+          kind: Ingress
+          name: api-gateway-ingress
+        fieldPaths:
+          - spec.rules.0.host
+          - spec.tls.0.hosts.0
+  - source:
+      kind: ConfigMap
+      name: ingress-hosts
+      fieldPath: data.grafana
+    targets:
+      - select:
+          kind: Ingress
+          name: grafana-ingress
+        fieldPaths:
+          - spec.rules.0.host
+          - spec.tls.0.hosts.0
