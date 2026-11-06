@@ -376,29 +376,30 @@ tests:
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-discovery.md#heartbeatstopped'
 
   # api-gateway drops from 2 instances to 1: redundancy lost. trader-trainer
-  # always ran one instance (staging, compose): no alert, ever.
+  # always ran one instance (staging, compose), apart from the surge pod of a
+  # rolling update (maxSurge 1, a few minutes at 2): no alert, ever.
   - name: instance count alerts on lost redundancy only
     interval: 1m
     input_series:
       - series: 'discovery_registered_instances_per_service{job="discovery-server",instance="d1",service="api-gateway"}'
-        values: '2x10 1x10'
+        values: '2x30 1x10'
       - series: 'discovery_registered_instances_per_service{job="discovery-server",instance="d2",service="api-gateway"}'
-        values: '2x10 1x10'
+        values: '2x30 1x10'
       - series: 'discovery_registered_instances_per_service{job="discovery-server",instance="d1",service="trader-trainer"}'
-        values: '1x20'
+        values: '1x10 2x8 1x22'
       - series: 'discovery_registered_instances_per_service{job="discovery-server",instance="d1",service="dlq-service"}'
-        values: '2x20'
+        values: '2x40'
     alert_rule_test:
-      - eval_time: 8m
+      - eval_time: 28m
         alertname: InstanceCountLow
         exp_alerts: []
-      - eval_time: 16m
+      - eval_time: 38m
         alertname: InstanceCountLow
         exp_alerts:
           - exp_labels: {severity: critical, service: api-gateway}
             exp_annotations:
               summary: 'Low instance count for service api-gateway'
-              description: 'Service api-gateway had 2+ instances in the last day and now has fewer than 2: redundancy is lost (single-replica environments never fire).'
+              description: 'Service api-gateway had 2+ instances for 15 min in the last day and now has fewer than 2: redundancy is lost (single-replica environments never fire, nor does the surge pod of a rolling update).'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-discovery.md#instancecountlow'
 
   - name: the DLQ drains half of what comes in

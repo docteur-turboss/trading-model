@@ -137,6 +137,9 @@ export async function pooledEval<TItem, TResult>(
 		while (nextIndex < items.length) {
 			const i = nextIndex++;
 			results[i] = await fn(items[i]);
+			// fn is CPU-bound and awaits no I/O: without a macrotask yield a whole
+			// training session starves heartbeats, /metrics and incoming candles.
+			await new Promise<void>((resolve) => setImmediate(resolve));
 		}
 	}
 

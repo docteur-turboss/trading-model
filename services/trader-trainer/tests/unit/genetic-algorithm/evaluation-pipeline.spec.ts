@@ -355,6 +355,18 @@ describe("pooledEval", () => {
 		expect(results).toEqual([21]);
 	});
 
+	it("yields to the event loop between items", async () => {
+		let ticked = false;
+		setImmediate(() => {
+			ticked = true;
+		});
+		const seen: boolean[] = [];
+		await pooledEval([1, 2], 1, async () => {
+			seen.push(ticked);
+		});
+		expect(seen).toEqual([false, true]);
+	});
+
 	it("should handle items count less than concurrency", async () => {
 		const fn = jest.fn(async (x: number) => x);
 		const results = await pooledEval([1, 2], 10, fn);
