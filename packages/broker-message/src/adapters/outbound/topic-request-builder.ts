@@ -1,7 +1,4 @@
-import {
-	messageManagerError,
-	normalizeError,
-} from "@trading-model/common/utils/errors";
+import { normalizeError } from "@trading-model/common/utils/errors";
 import type { EventEnumMap } from "@trading-model/contracts/event-map";
 import type { HttpClient } from "@trading-model/http/adapters/outbound/http-client";
 import {
@@ -16,6 +13,7 @@ import type {
 	SubscribesTopicsPayload,
 	UnSubscribesTopicsPayload,
 } from "../../domain/types/payloads";
+import { messageManagerError } from "../../shared/errors";
 
 export class TopicRequestBuilder {
 	constructor(
